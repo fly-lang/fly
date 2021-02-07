@@ -1,0 +1,16 @@
+//==- BuiltinsLe64.def - Le64 Builtin function database ----------*- C++ -*-==//
+//
+// Part of the Fly Project, under the Apache License v2.0
+//
+//===----------------------------------------------------------------------===//
+//
+// This file defines the Le64-specific builtin function database.  Users of this
+// file must define the BUILTIN macro to make use of this information.
+//
+//===----------------------------------------------------------------------===//
+
+// The format of this database matches Basic/Builtins.def.
+
+BUILTIN(__clear_cache, "vv*v*", "i")
+
+#undef BUILTIN

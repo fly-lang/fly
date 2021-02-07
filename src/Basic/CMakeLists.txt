@@ -1,0 +1,54 @@
+add_library(FlyBasic
+        Builtins.cpp
+        CharInfo.cpp
+        CodeGenOptions.cpp
+        Diagnostic.cpp
+        DiagnosticIDs.cpp
+        DiagnosticOptions.cpp
+        FileManager.cpp
+        FileSystemStatCache.cpp
+        FixedPoint.cpp
+        IdentifierTable.cpp
+        Module.cpp
+        OperatorPrecedence.cpp
+        SanitizerBlacklist.cpp
+        SanitizerSpecialCaseList.cpp
+        Sanitizers.cpp
+        SourceLocation.cpp
+        SourceManager.cpp
+        Stack.cpp
+        TargetInfo.cpp
+        Targets.cpp
+        Targets/AArch64.cpp
+        Targets/AMDGPU.cpp
+        Targets/ARC.cpp
+        Targets/ARM.cpp
+        Targets/AVR.cpp
+        Targets/BPF.cpp
+        Targets/Hexagon.cpp
+        Targets/Lanai.cpp
+        Targets/Le64.cpp
+        Targets/MSP430.cpp
+        Targets/Mips.cpp
+        Targets/NVPTX.cpp
+        Targets/PNaCl.cpp
+        Targets/PPC.cpp
+        Targets/RISCV.cpp
+        Targets/SPIR.cpp
+        Targets/Sparc.cpp
+        Targets/SystemZ.cpp
+        Targets/TCE.cpp
+        Targets/WebAssembly.cpp
+        Targets/X86.cpp
+        Targets/XCore.cpp
+        TokenKinds.cpp
+        Version.cpp
+        Warnings.cpp
+        XRayInstr.cpp
+        XRayLists.cpp
+        ${version_inc}
+        )
+
+target_link_libraries(FlyBasic
+        LLVMSupport LLVMCore LLVMMC
+        )

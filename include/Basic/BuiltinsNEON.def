@@ -1,0 +1,19 @@
+//===--- BuiltinsNEON.def - NEON Builtin function database ------*- C++ -*-===//
+//
+// Part of the Fly Project, under the Apache License v2.0
+//
+//===----------------------------------------------------------------------===//
+//
+// This file defines the NEON-specific builtin function database.  Users of
+// this file must define the BUILTIN macro to make use of this information.
+//
+//===----------------------------------------------------------------------===//
+
+// The format of this database matches Basic/Builtins.def.
+
+#define GET_NEON_BUILTINS
+#include "Basic/arm_neon.inc"
+#include "Basic/arm_fp16.inc"
+#undef GET_NEON_BUILTINS
+
+#undef BUILTIN

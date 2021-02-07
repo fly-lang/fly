@@ -1,0 +1,19 @@
+//===--- BuiltinsXCore.def - XCore Builtin function database ----*- C++ -*-===//
+//
+// Part of the Fly Project, under the Apache License v2.0
+//
+//===----------------------------------------------------------------------===//
+//
+// This file defines the XCore-specific builtin function database.  Users of
+// this file must define the BUILTIN macro to make use of this information.
+//
+//===----------------------------------------------------------------------===//
+
+// The format of this database matches Basic/Builtins.def.
+
+BUILTIN(__builtin_bitrev, "UiUi", "nc")
+BUILTIN(__builtin_getid, "Si", "nc")
+BUILTIN(__builtin_getps, "UiUi", "n")
+BUILTIN(__builtin_setps, "vUiUi", "n")
+
+#undef BUILTIN

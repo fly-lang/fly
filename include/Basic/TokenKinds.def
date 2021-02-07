@@ -1,0 +1,159 @@
+//===--- TokenKinds.def - C Family Token Kind Database ----------*- C++ -*-===//
+//
+// Part of the Fly Project, under the Apache License v2.0
+//
+//===----------------------------------------------------------------------===//
+//
+// This file defines the TokenKind database.  This includes normal tokens like
+// tok::ampamp (corresponding to the && token) as well as keywords for various
+// languages.  Users of this file must optionally #define the TOK, KEYWORD,
+// CXX11_KEYWORD, CONCEPTS_KEYWORD, ALIAS, or PPKEYWORD macros to make use of
+// this file.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef TOK
+#define TOK(X)
+#endif
+#ifndef PUNCTUATOR
+#define PUNCTUATOR(X,Y) TOK(X)
+#endif
+#ifndef KEYWORD
+#define KEYWORD(X) TOK(kw_ ## X)
+#endif
+
+//===----------------------------------------------------------------------===//
+// Language keywords.
+//===----------------------------------------------------------------------===//
+
+// These define members of the tok::* namespace.
+
+TOK(unknown)             // Not a token.
+TOK(eof)                 // End of file.
+                         // directive).
+//TOK(code_completion)     // Code completion marker
+
+// Comments.
+TOK(comment)             // Comment
+
+// Identifiers.
+TOK(keyword)
+TOK(identifier)          // abcde123
+TOK(raw_identifier)          // abcde123
+
+// Integer Constants
+// Floating Constants
+TOK(numeric_constant)    // 0x123
+
+// Character Constants
+TOK(char_constant)       // 'a'
+TOK(wide_char_constant)  // L'b'
+TOK(utf8_char_constant)  // u8'a'
+TOK(utf16_char_constant) // u'a'
+TOK(utf32_char_constant) // U'a'
+
+// String Literals.
+TOK(string_literal)      // "foo"
+TOK(wide_string_literal) // L"foo"
+
+// C11 6.4.7: Header Names
+TOK(header_name)         // <foo>, or "foo" lexed as a header-name
+
+// String Literals.
+TOK(utf8_string_literal) // u8"foo"
+TOK(utf16_string_literal)// u"foo"
+TOK(utf32_string_literal)// U"foo"
+
+// Punctuators.
+PUNCTUATOR(l_square,            "[")
+PUNCTUATOR(r_square,            "]")
+PUNCTUATOR(l_paren,             "(")
+PUNCTUATOR(r_paren,             ")")
+PUNCTUATOR(l_brace,             "{")
+PUNCTUATOR(r_brace,             "}")
+PUNCTUATOR(period,              ".")
+PUNCTUATOR(ellipsis,            "...")
+PUNCTUATOR(amp,                 "&")
+PUNCTUATOR(ampamp,              "&&")
+PUNCTUATOR(ampequal,            "&=")
+PUNCTUATOR(star,                "*")
+PUNCTUATOR(starequal,           "*=")
+PUNCTUATOR(plus,                "+")
+PUNCTUATOR(plusplus,            "++")
+PUNCTUATOR(plusequal,           "+=")
+PUNCTUATOR(minus,               "-")
+PUNCTUATOR(minusminus,          "--")
+PUNCTUATOR(minusequal,          "-=")
+PUNCTUATOR(exclaim,             "!")
+PUNCTUATOR(exclaimequal,        "!=")
+PUNCTUATOR(slash,               "/")
+PUNCTUATOR(slashequal,          "/=")
+PUNCTUATOR(percent,             "%")
+PUNCTUATOR(percentequal,        "%=")
+PUNCTUATOR(less,                "<")
+PUNCTUATOR(lessless,            "<<")
+PUNCTUATOR(lessequal,           "<=")
+PUNCTUATOR(lesslessequal,       "<<=")
+PUNCTUATOR(greater,             ">")
+PUNCTUATOR(greatergreater,      ">>")
+PUNCTUATOR(greaterequal,        ">=")
+PUNCTUATOR(greatergreaterequal, ">>=")
+PUNCTUATOR(caret,               "^")
+PUNCTUATOR(caretequal,          "^=")
+PUNCTUATOR(pipe,                "|")
+PUNCTUATOR(pipepipe,            "||")
+PUNCTUATOR(pipeequal,           "|=")
+PUNCTUATOR(question,            "?")
+PUNCTUATOR(colon,               ":")
+PUNCTUATOR(semi,                ";")
+PUNCTUATOR(equal,               "=")
+PUNCTUATOR(equalequal,          "==")
+PUNCTUATOR(comma,               ",")
+
+KEYWORD(auto)
+KEYWORD(break)
+KEYWORD(case)
+KEYWORD(char)
+KEYWORD(const)
+KEYWORD(continue)
+KEYWORD(default)
+KEYWORD(do)
+KEYWORD(else)
+KEYWORD(enum)
+KEYWORD(extern)
+KEYWORD(for)
+KEYWORD(goto)
+KEYWORD(if)
+KEYWORD(return)
+KEYWORD(sizeof)
+KEYWORD(static)
+KEYWORD(switch)
+KEYWORD(unsigned)
+KEYWORD(void)
+KEYWORD(volatile)
+KEYWORD(while)
+KEYWORD(catch)
+KEYWORD(class)
+KEYWORD(delete)
+KEYWORD(function)
+KEYWORD(false)
+KEYWORD(mutable)
+KEYWORD(new)
+KEYWORD(private)
+KEYWORD(protected)
+KEYWORD(public)
+KEYWORD(template)
+KEYWORD(this)
+KEYWORD(throw)
+KEYWORD(true)
+KEYWORD(try)
+KEYWORD(namespace)
+KEYWORD(using)
+KEYWORD(abstract)
+KEYWORD(interface)
+KEYWORD(null)
+KEYWORD(import)
+
+#undef KEYWORD
+#undef PUNCTUATOR
+#undef TOK
