@@ -49,7 +49,7 @@ DIAG(err_modules_embed_file_not_found, CLASS_ERROR, (unsigned)diag::Severity::Fa
 DIAG(err_no_submodule, CLASS_ERROR, (unsigned)diag::Severity::Error, "no submodule named %0 in module '%1'", 0, SFINAE_SubstitutionFailure, false, true, 0)
 DIAG(err_no_submodule_suggest, CLASS_ERROR, (unsigned)diag::Severity::Error, "no submodule named %0 in module '%1'; did you mean '%2'?", 0, SFINAE_SubstitutionFailure, false, true, 0)
 DIAG(err_relocatable_without_isysroot, CLASS_ERROR, (unsigned)diag::Severity::Error, "must specify system root with -isysroot when building a relocatable PCH file", 0, SFINAE_SubstitutionFailure, false, true, 0)
-DIAG(err_test_module_file_extension_version, CLASS_ERROR, (unsigned)diag::Severity::Error, "test module file extension '%0' has different version (%1.%2) than expected (%3.%4)", 0, SFINAE_SubstitutionFailure, false, true, 0)
+DIAG(err_test_module_file_extension_version, CLASS_ERROR, (unsigned)diag::Severity::Error, "parseArgs module file extension '%0' has different version (%1.%2) than expected (%3.%4)", 0, SFINAE_SubstitutionFailure, false, true, 0)
 DIAG(err_verify_ambiguous_marker, CLASS_ERROR, (unsigned)diag::Severity::Error, "reference to marker '%0' is ambiguous", 0, SFINAE_SubstitutionFailure, false, true, 0)
 DIAG(err_verify_inconsistent_diags, CLASS_ERROR, (unsigned)diag::Severity::Error, "'%0' diagnostics %select{expected|seen}1 but not %select{seen|expected}1: %2", 0, SFINAE_SubstitutionFailure, false, true, 0)
 DIAG(err_verify_invalid_content, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid expected %0: %1", 0, SFINAE_SubstitutionFailure, false, true, 0)

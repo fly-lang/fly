@@ -1,6 +1,9 @@
-//===- TokenLexer.h - Lex from a token buffer -------------------*- C++ -*-===//
+//===----------------------------------------------------------------------===//
+// Lex/TokenLexer.h - Lex from a token buffer
 //
 // Part of the Fly Project, under the Apache License v2.0
+// See https://flylang.org/LICENSE.txt for license information.
+// Thank you to LLVM Project https://llvm.org/
 //
 //===----------------------------------------------------------------------===//
 //

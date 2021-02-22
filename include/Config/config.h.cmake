@@ -7,5 +7,6 @@
 
 /* Bug report URL. */
 #define BUG_REPORT_URL "${BUG_REPORT_URL}"
+#define FLY_VERSION "${PROJECT_VERSION}"
 
 #endif

@@ -1,6 +1,8 @@
 //===--- CodeGenOptions.h ---------------------------------------*- C++ -*-===//
 //
 // Part of the Fly Project, under the Apache License v2.0
+// See https://flylang.org/LICENSE.txt for license information.
+// Thank you to LLVM Project https://llvm.org/
 //
 //===----------------------------------------------------------------------===//
 //
@@ -148,7 +150,7 @@ public:
   /// The string to embed in debug information as the current working directory.
   std::string DebugCompilationDir;
 
-  /// The string to embed in the debug information for the compile unit, if
+  /// The string to embed in the debug information for the execute unit, if
   /// non-empty.
   std::string DwarfDebugFlags;
 

@@ -1,6 +1,8 @@
 //===--- TargetOptions.h ----------------------------------------*- C++ -*-===//
 //
 // Part of the Fly Project, under the Apache License v2.0
+// See https://flylang.org/LICENSE.txt for license information.
+// Thank you to LLVM Project https://llvm.org/
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -22,10 +24,10 @@ namespace fly {
 /// Options for controlling the target.
 class TargetOptions {
 public:
-  /// The name of the target triple to compile for.
+  /// The name of the target triple to execute for.
   std::string Triple;
 
-  /// When compiling for the device side, contains the triple used to compile
+  /// When compiling for the device side, contains the triple used to execute
   /// for the host.
   std::string HostTriple;
 

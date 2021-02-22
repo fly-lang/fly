@@ -1,6 +1,9 @@
-//===- Lexer.cpp - C Language Family Lexer --------------------------------===//
+//===----------------------------------------------------------------------===//
+// Lex/Lexer.cpp - C Language Family Lexer
 //
 // Part of the Fly Project, under the Apache License v2.0
+// See https://flylang.org/LICENSE.txt for license information.
+// Thank you to LLVM Project https://llvm.org/
 //
 //===----------------------------------------------------------------------===//
 //
@@ -79,7 +82,6 @@ void Lexer::InitLexer(const char *BufStart, const char *BufPtr,
     IsAtPhysicalStartOfLine = true;
 
     HasLeadingSpace = false;
-    HasLeadingEmptyMacro = false;
 
     // We are not after parsing #include.
     ParsingFilename = false;
@@ -2622,7 +2624,6 @@ bool Lexer::LexUnicode(Token &Result, uint32_t C, const char *CurPtr) {
 void Lexer::PropagateLineStartLeadingSpaceInfo(Token &Result) {
     IsAtStartOfLine = Result.isAtStartOfLine();
     HasLeadingSpace = Result.hasLeadingSpace();
-    HasLeadingEmptyMacro = Result.hasLeadingEmptyMacro();
     // Note that this doesn't affect IsAtPhysicalStartOfLine.
 }
 
@@ -2639,11 +2640,6 @@ bool Lexer::Lex(Token &Result) {
     if (HasLeadingSpace) {
         Result.setFlag(Token::LeadingSpace);
         HasLeadingSpace = false;
-    }
-
-    if (HasLeadingEmptyMacro) {
-        Result.setFlag(Token::LeadingEmptyMacro);
-        HasLeadingEmptyMacro = false;
     }
 
     bool atPhysicalStartOfLine = IsAtPhysicalStartOfLine;

@@ -1,6 +1,8 @@
 //===--- TokenKinds.def - C Family Token Kind Database ----------*- C++ -*-===//
 //
 // Part of the Fly Project, under the Apache License v2.0
+// See https://flylang.org/LICENSE.txt for license information.
+// Thank you to LLVM Project https://llvm.org/
 //
 //===----------------------------------------------------------------------===//
 //
@@ -110,49 +112,7 @@ PUNCTUATOR(equal,               "=")
 PUNCTUATOR(equalequal,          "==")
 PUNCTUATOR(comma,               ",")
 
-KEYWORD(auto)
-KEYWORD(break)
-KEYWORD(case)
-KEYWORD(char)
-KEYWORD(const)
-KEYWORD(continue)
-KEYWORD(default)
-KEYWORD(do)
-KEYWORD(else)
-KEYWORD(enum)
-KEYWORD(extern)
-KEYWORD(for)
-KEYWORD(goto)
-KEYWORD(if)
-KEYWORD(return)
-KEYWORD(sizeof)
-KEYWORD(static)
-KEYWORD(switch)
-KEYWORD(unsigned)
-KEYWORD(void)
-KEYWORD(volatile)
-KEYWORD(while)
-KEYWORD(catch)
-KEYWORD(class)
-KEYWORD(delete)
-KEYWORD(function)
-KEYWORD(false)
-KEYWORD(mutable)
-KEYWORD(new)
-KEYWORD(private)
-KEYWORD(protected)
-KEYWORD(public)
-KEYWORD(template)
-KEYWORD(this)
-KEYWORD(throw)
-KEYWORD(true)
-KEYWORD(try)
-KEYWORD(namespace)
-KEYWORD(using)
-KEYWORD(abstract)
-KEYWORD(interface)
-KEYWORD(null)
-KEYWORD(import)
+KEYWORD(package)
 
 #undef KEYWORD
 #undef PUNCTUATOR

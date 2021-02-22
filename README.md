@@ -11,7 +11,7 @@
     Simple - Fast - Powerfull
     <br />
     <br />
-    <a href="http://flylang.org">View Website</a>
+    <a href="https://flylang.org">View Website</a>
     ·
     <a href="https://github.com/fly-lang/fly/issues">Report Bug / Request Feature</a>
     ·
@@ -73,6 +73,6 @@ Twitter: [@fly_lang](https://twitter.com/fly_lang)
 
 Email: [dev@flylang.org](mailto:dev@flylang.org)
 
-Website: [flylang.org](http://flylang.org)
+Website: [flylang.org](https://flylang.org)
  
 

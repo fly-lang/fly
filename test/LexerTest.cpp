@@ -1,6 +1,8 @@
-//===- test/Lex/LexerTest.cpp ------ Lexer tests ---------------------===//
+//===- test/LexerTest.cpp ------ Lexer tests -----------------------------===//
 //
 // Part of the Fly Project, under the Apache License v2.0
+// See https://flylang.org/LICENSE.txt for license information.
+// Thank you to LLVM Project https://llvm.org/
 //
 //===----------------------------------------------------------------------===//
 
@@ -21,7 +23,7 @@ namespace {
     using namespace fly;
     using testing::ElementsAre;
 
-// The test fixture.
+    // The test fixture.
     class LexerTest : public ::testing::Test {
     protected:
         LexerTest()
@@ -193,96 +195,11 @@ namespace {
     }
 
     TEST_F(LexerTest, KeywordLex) {
-        StringRef str = ("auto "
-                         "break "
-                         "case "
-                         "char "
-                         "const "
-                         "continue "
-                         "default "
-                         "do "
-                         "else "
-                         "enum "
-                         "extern "
-                         "for "
-                         "if "
-                         "goto "
-                         "return "
-                         "sizeof "
-                         "static "
-                         "switch "
-                         "void "
-                         "volatile "
-                         "while "
-                         "catch "
-                         "class "
-                         "delete "
-                         "function "
-                         "false "
-                         "mutable "
-                         "namespace "
-                         "new "
-                         "private "
-                         "protected "
-                         "public "
-                         "template "
-                         "this "
-                         "throw "
-                         "true "
-                         "try "
-                         "namespace "
-                         "using "
-                         "abstract "
-                         "interface "
-                         "null "
-                         "import "
-        );
+        StringRef str = ("package");
         auto toks = Lex(str);
 
         std::vector<std::pair<std::string, tok::TokenKind>> exps;
-        exps.push_back({"auto",                    tok::kw_auto});
-        exps.push_back({"break",                   tok::kw_break});
-        exps.push_back({"case",                    tok::kw_case});
-        exps.push_back({"char",                    tok::kw_char});
-        exps.push_back({"const",                   tok::kw_const});
-        exps.push_back({"continue",                tok::kw_continue});
-        exps.push_back({"default",                 tok::kw_default});
-        exps.push_back({"do",                      tok::kw_do});
-        exps.push_back({"else",                    tok::kw_else});
-        exps.push_back({"enum",                    tok::kw_enum});
-        exps.push_back({"extern",                  tok::kw_extern});
-        exps.push_back({"for",                     tok::kw_for});
-        exps.push_back({"if",                      tok::kw_if});
-        exps.push_back({"goto",                    tok::kw_goto});
-        exps.push_back({"return",                  tok::kw_return});
-        exps.push_back({"sizeof",                  tok::kw_sizeof});
-        exps.push_back({"static",                  tok::kw_static});
-        exps.push_back({"switch",                  tok::kw_switch});
-        exps.push_back({"void",                    tok::kw_void});
-        exps.push_back({"volatile",                tok::kw_volatile});
-        exps.push_back({"while",                   tok::kw_while});
-        exps.push_back({"catch",                   tok::kw_catch});
-        exps.push_back({"class",                   tok::kw_class});
-        exps.push_back({"delete",                  tok::kw_delete});
-        exps.push_back({"function",                tok::kw_function});
-        exps.push_back({"false",                   tok::kw_false});
-        exps.push_back({"mutable",                 tok::kw_mutable});
-        exps.push_back({"namespace",               tok::kw_namespace});
-        exps.push_back({"new",                     tok::kw_new});
-        exps.push_back({"private",                 tok::kw_private});
-        exps.push_back({"protected",               tok::kw_protected});
-        exps.push_back({"public",                  tok::kw_public});
-        exps.push_back({"template",                tok::kw_template});
-        exps.push_back({"this",                    tok::kw_this});
-        exps.push_back({"throw",                   tok::kw_throw});
-        exps.push_back({"true",                    tok::kw_true});
-        exps.push_back({"try",                     tok::kw_try});
-        exps.push_back({"namespace",               tok::kw_namespace});
-        exps.push_back({"using",                   tok::kw_using});
-        exps.push_back({"abstract",                tok::kw_abstract});
-        exps.push_back({"interface",               tok::kw_interface});
-        exps.push_back({"null",                    tok::kw_null});
-        exps.push_back({"import",                  tok::kw_import});
+        exps.push_back({"package", tok::kw_package});
 
         CheckTokens(toks, exps);
     }
