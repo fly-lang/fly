@@ -1,6 +1,9 @@
-//===--- UnicodeCharSets.h - Contains important sets of characters --------===//
+//===----------------------------------------------------------------------===//
+// Lex/UnicodeCharSets.h - Contains important sets of characters
 //
 // Part of the Fly Project, under the Apache License v2.0
+// See https://flylang.org/LICENSE.txt for license information.
+// Thank you to LLVM Project https://llvm.org/
 //
 //===----------------------------------------------------------------------===//
 #ifndef LLVM_FLY_LIB_LEX_UNICODECHARSETS_H

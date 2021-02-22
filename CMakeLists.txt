@@ -23,8 +23,8 @@ add_definitions(${LLVM_DEFINITIONS})
 message(STATUS "Include directories: ${LLVM_INCLUDE_DIRS}")
 
 #Enable Verbose
-#set(CMAKE_VERBOSE_MAKEFILE ON)
-#add_link_options("-v")
+set(CMAKE_VERBOSE_MAKEFILE ON)
+add_link_options("-v")
 
 message(STATUS "Project directory: ${CMAKE_SOURCE_DIR}")
 

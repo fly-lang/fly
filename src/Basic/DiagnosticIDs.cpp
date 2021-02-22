@@ -1,6 +1,8 @@
 //===--- DiagnosticIDs.cpp - Diagnostic IDs Handling ----------------------===//
 //
 // Part of the Fly Project, under the Apache License v2.0
+// See https://flylang.org/LICENSE.txt for license information.
+// Thank you to LLVM Project https://llvm.org/
 //
 //===----------------------------------------------------------------------===//
 //
@@ -78,7 +80,6 @@ struct StaticDiagInfoRec {
 VALIDATE_DIAG_SIZE(COMMON)
 VALIDATE_DIAG_SIZE(DRIVER)
 VALIDATE_DIAG_SIZE(FRONTEND)
-VALIDATE_DIAG_SIZE(SERIALIZATION)
 VALIDATE_DIAG_SIZE(LEX)
 VALIDATE_DIAG_SIZE(PARSE)
 VALIDATE_DIAG_SIZE(AST)
@@ -102,7 +103,6 @@ static const StaticDiagInfoRec StaticDiagInfo[] = {
 #include "Basic/DiagnosticCommonKinds.inc"
 #include "Basic/DiagnosticDriverKinds.inc"
 #include "Basic/DiagnosticFrontendKinds.inc"
-#include "Basic/DiagnosticSerializationKinds.inc"
 #include "Basic/DiagnosticLexKinds.inc"
 #include "Basic/DiagnosticParseKinds.inc"
 #include "Basic/DiagnosticASTKinds.inc"

@@ -1,51 +1,30 @@
-#include "Lex/Lexer.h"
-#include "Basic/Diagnostic.h"
-// #include "AST/ASTConsumer.h"
-// #include "AST/ASTContext.h"
-// #include "Frontend/CompilerInstance.h"
-// #include "Frontend/CompilerInvocation.h"
-// #include "Frontend/FrontendAction.h"
-// #include "Frontend/FrontendActions.h"
-// #include "AST/ASTConsumer.h"
-// #include "Lex/Preprocessor.h"
-// #include "Lex/PreprocessorOptions.h"
-// #include "Sema/Sema.h"
-// #include "Serialization/InMemoryModuleCache.h"
-#include "llvm/Support/MemoryBuffer.h"
-#include "gtest/gtest.h"
+//===----------------------------------------------------------------------===//
+// Fly.cpp - Main
+//
+// Part of the Fly Project, under the Apache License v2.0
+// See https://flylang.org/LICENSE.txt for license information.
+// Thank you to LLVM Project https://llvm.org/
+//
+//===----------------------------------------------------------------------===//
+
+#include "Compiler/Compiler.h"
+#include "llvm/IR/Module.h"
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/ManagedStatic.h"
 
 using namespace fly;
 using namespace llvm;
 
-// namespace
-// {
-//     class TestASTFrontendAction : public ASTFrontendAction
-//     {
-//         std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
-//                                                        StringRef InFile) override
-//         {
-//             return std::make_unique<ASTConsumer>();
-//         }
-//     };
+llvm::ExitOnError ExitOnErr;
 
-// } // namespace
-
-int main()
+int main(int argc, const char **argv)
 {
-    // auto invocation = std::make_shared<CompilerInvocation>();
-    // invocation->getPreprocessorOpts().addRemappedFile(
-    //     "test.cc",
-    //     MemoryBuffer::getMemBuffer("int main() { float x; }").release());
-    // invocation->getFrontendOpts().Inputs.push_back(
-    //     FrontendInputFile("test.cc", Language::CXX));
-    // invocation->getFrontendOpts().ProgramAction = frontend::ParseSyntaxOnly;
-    // invocation->getTargetOpts().Triple = "i386-unknown-linux-gnu";
-    // CompilerInstance compiler;
-    // compiler.setInvocation(std::move(invocation));
-    // compiler.createDiagnostics();
 
-    // TestASTFrontendAction test_action;
-    // compiler.ExecuteAction(test_action);
-    // std::cout << "Fly";
-    return 0;
+    const Compiler &compiler = Compiler(argc, argv);
+    bool res = compiler.execute();
+
+    // Shutdown.
+    llvm::llvm_shutdown();
+
+    return res;
 }

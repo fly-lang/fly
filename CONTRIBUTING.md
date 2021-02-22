@@ -1,5 +1,5 @@
 # Contributing
-**Fly Communty** want to say THANKS for your interest in advance.
+**Fly Communty** say THANKS for your interest in advance.
 
 Here you can find more details to work in FLy Project,
 there are two primary ways to help:
@@ -7,7 +7,7 @@ there are two primary ways to help:
 - _Opening Issues_
 - _Doing Code changes_
 
-You can also _Posting in Discussions_ for all argument which not need to be tracked.
+You can also _Posting in Discussions_ for all arguments which not need to be tracked.
 
 ## Opening Issues
 Use the [issue tracker](https://github.com/fly-lang/fly/issues) to suggest feature requests, report bugs, and ask questions.
@@ -23,8 +23,8 @@ git checkout -b 473-add-feature-name
 ```
 
 ### Get Test running
-Before commit check always if project compile and all tests not fails.
-If you add new feature, you need to create a unit test.
+Before commit check always if project execute and all tests not fails.
+If you add new feature, you need to create a unit parseArgs.
 
 ### Make a Pull Request
 You should switch back to your master branch and make sure it's up to date with Fly's master branch:

@@ -1,6 +1,9 @@
-//===- Lexer.h - C Language Family Lexer ------------------------*- C++ -*-===//
+//===----------------------------------------------------------------------===//
+// Lex/Lexer.h - C Language Family Lexer
 //
 // Part of the Fly Project, under the Apache License v2.0
+// See https://flylang.org/LICENSE.txt for license information.
+// Thank you to LLVM Project https://llvm.org/
 //
 //===----------------------------------------------------------------------===//
 //
@@ -13,6 +16,8 @@
 
 #include "Basic/SourceLocation.h"
 #include "Basic/SourceManager.h"
+#include "Basic/IdentifierTable.h"
+#include "Basic/Diagnostic.h"
 #include "Lex/MultipleIncludeOpt.h"
 #include "Basic/TokenKinds.h"
 #include "Lex/Token.h"
@@ -23,7 +28,6 @@
 #include <cassert>
 #include <cstdint>
 #include <string>
-#include <Basic/IdentifierTable.h>
 
 namespace llvm {
 
@@ -146,8 +150,6 @@ namespace fly {
 
         bool HasLeadingSpace;
 
-        bool HasLeadingEmptyMacro;
-
         // CurrentConflictMarkerState - The kind of conflict marker we are handling.
         ConflictMarkerKind CurrentConflictMarkerState;
 
@@ -181,6 +183,8 @@ namespace fly {
         FileID getFileID() const {
             return FID;
         }
+
+        DiagnosticsEngine &getDiagnostics() const { return *Diags; }
 
         /// LexFromRawLexer - Lex a token from a designated raw lexer (one with no
         /// associated preprocessor object.  Return true if the 'next character to
@@ -252,8 +256,6 @@ namespace fly {
 
         /// Return the current location in the buffer.
         const char *getBufferLocation() const { return BufferPtr; }
-
-        DiagnosticsEngine &getDiagnostics() const { return *Diags; }
 
         /// Returns the current lexing offset.
         unsigned getCurrentBufferOffset() {
