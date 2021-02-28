@@ -6,7 +6,7 @@
 #define FLY_CONFIG_H
 
 /* Bug report URL. */
-#define BUG_REPORT_URL "https://github.com/fly-lang/fly/issues"
+#define FLY_BUG_REPORT_URL "https://github.com/fly-lang/fly/issues"
 #define FLY_VERSION "0.0.1"
 
 #endif
