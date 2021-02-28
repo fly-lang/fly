@@ -1,7 +1,7 @@
 //===--- CodeGenOptions.def - Code generation option database ----- C++ -*-===//
 //
-// Part of the Fly Project, under the Apache License v2.0
-// See https://flylang.org/LICENSE.txt for license information.
+// Part of the Fly Project https://flylang.org
+// Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
 //===----------------------------------------------------------------------===//
@@ -94,8 +94,6 @@ CODEGENOPT(CFProtectionReturn , 1, 0) ///< if -fcf-protection is
                                       ///< set to full or return.
 CODEGENOPT(CFProtectionBranch , 1, 0) ///< if -fcf-protection is
                                       ///< set to full or branch.
-CODEGENOPT(XRayInstrumentFunctions , 1, 0) ///< Set when -fxray-instrument is
-                                           ///< enabled.
 CODEGENOPT(StackSizeSection  , 1, 0) ///< Set when -fstack-size-section is enabled.
 CODEGENOPT(ForceDwarfFrameSection , 1, 0) ///< Set when -fforce-dwarf-frame is
                                           ///< enabled.
@@ -105,10 +103,6 @@ CODEGENOPT(XRayAlwaysEmitCustomEvents , 1, 0)
 
 ///< Set when -fxray-always-emit-typedevents is enabled.
 CODEGENOPT(XRayAlwaysEmitTypedEvents , 1, 0)
-
-///< Set the minimum number of instructions in a function to determine selective
-///< XRay instrumentation.
-VALUE_CODEGENOPT(XRayInstructionThreshold , 32, 200)
 
 VALUE_CODEGENOPT(PatchableFunctionEntryCount , 32, 0) ///< Number of NOPs at function entry
 VALUE_CODEGENOPT(PatchableFunctionEntryOffset , 32, 0)

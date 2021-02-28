@@ -1,8 +1,8 @@
 //===----------------------------------------------------------------------===//
-// AST/ASTContext.h - AST Context
+// include/AST/ASTContext.h - AST Context
 //
-// Part of the Fly Project, under the Apache License v2.0
-// See https://flylang.org/LICENSE.txt for license information.
+// Part of the Fly Project https://flylang.org
+// Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
 //===----------------------------------------------------------------------===//
@@ -16,6 +16,9 @@
 
 #include "PackageDecl.h"
 #include <string>
+#include <llvm/ADT/StringRef.h>
+
+using namespace llvm;
 
 namespace fly {
 
@@ -23,13 +26,13 @@ namespace fly {
 
     class ASTContext {
 
-        const string fileName;
+        const StringRef fileName;
         const PackageDecl package;
 
     public:
-        ASTContext(const string &fileName, const PackageDecl &package);
+        ASTContext(const StringRef &fileName, const PackageDecl &package);
 
-        const string& getFileName();
+        const StringRef& getFileName() const;
 
         const PackageDecl& getPackage();
 

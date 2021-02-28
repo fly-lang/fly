@@ -43,8 +43,6 @@ add_library(FlyBasic
         Targets/XCore.cpp
         TokenKinds.cpp
         Warnings.cpp
-        XRayInstr.cpp
-        XRayLists.cpp
         )
 
 target_link_libraries(FlyBasic
