@@ -1,8 +1,8 @@
 //===----------------------------------------------------------------------===//
-// AST/ASTContext.cpp - AST Context implementation
+// src/AST/ASTContext.cpp - AST Context implementation
 //
-// Part of the Fly Project, under the Apache License v2.0
-// See https://flylang.org/LICENSE.txt for license information.
+// Part of the Fly Project https://flylang.org
+// Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
 //===----------------------------------------------------------------------===//
@@ -15,12 +15,12 @@
 using namespace fly;
 using namespace std;
 
-ASTContext::ASTContext(const string &fileName, const PackageDecl &packageDecl) :
+ASTContext::ASTContext(const StringRef &fileName, const PackageDecl &packageDecl) :
         fileName(move(fileName)), package(move(packageDecl)) {
 
 }
 
-const string &ASTContext::getFileName() {
+const StringRef &ASTContext::getFileName() const {
     return fileName;
 }
 

@@ -11,13 +11,14 @@ add_executable(FlyTest
         HeaderMapTest.cpp
         LexerTest.cpp
         ParserTest.cpp
-        CompilerTest.cpp
+        FrontendTest.cpp
+        DriverTest.cpp
         )
 
 target_link_libraries(FlyTest PRIVATE
         gtest gtest_main
         gmock gmock_main
-        FlyBasic FlyLex FlyParser FlyAST FlyDriver FlyCompiler
+        FlyBasic FlyLex FlyParser FlyAST FlyDriver FlyFrontend FlyDriver
         )
 
 set_target_properties(FlyTest PROPERTIES LINK_FLAGS "-v")

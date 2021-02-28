@@ -1,13 +1,13 @@
 //===----------------------------------------------------------------------===//
-// Fly.cpp - Main
+// src/Fly.cpp - Main
 //
-// Part of the Fly Project, under the Apache License v2.0
-// See https://flylang.org/LICENSE.txt for license information.
+// Part of the Fly Project https://flylang.org
+// Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
 //===----------------------------------------------------------------------===//
 
-#include "Compiler/Compiler.h"
+#include "Driver/Driver.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/ManagedStatic.h"
@@ -20,8 +20,8 @@ llvm::ExitOnError ExitOnErr;
 int main(int argc, const char **argv)
 {
 
-    const Compiler &compiler = Compiler(argc, argv);
-    bool res = compiler.execute();
+    Driver driver(argc, argv);
+    bool res = driver.execute();
 
     // Shutdown.
     llvm::llvm_shutdown();

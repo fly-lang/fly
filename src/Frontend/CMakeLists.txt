@@ -1,0 +1,22 @@
+add_library(FlyFrontend
+        ChainedDiagnosticConsumer.cpp
+        CompilerInstance.cpp
+        CompilerInvocation.cpp
+        DiagnosticRenderer.cpp
+        Frontend.cpp
+        FrontendOptions.cpp
+        InputFile.cpp
+        LogDiagnosticPrinter.cpp
+        OutputFile.cpp
+        TextDiagnostic.cpp
+        TextDiagnosticBuffer.cpp
+        TextDiagnosticPrinter.cpp
+        )
+
+target_link_libraries(FlyFrontend
+        LLVMSupport
+        FlyBasic
+        FlyParser
+        FlyAST
+        FlyCodeGen
+        )

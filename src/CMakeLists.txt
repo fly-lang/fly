@@ -1,6 +1,6 @@
 add_executable(Fly
         Fly.cpp
-        )
+        Driver/Driver.cpp ../include/Driver/Driver.h)
 
 add_subdirectory(Basic)
 add_subdirectory(Lex)
@@ -8,7 +8,7 @@ add_subdirectory(Parser)
 add_subdirectory(AST)
 add_subdirectory(CodeGen)
 add_subdirectory(Driver)
-add_subdirectory(Compiler)
+add_subdirectory(Frontend)
 
 target_link_libraries(
         Fly
@@ -18,7 +18,7 @@ target_link_libraries(
         FlyAST
         FlyCodeGen
         FlyDriver
-        FlyCompiler
+        FlyFrontend
 )
 
 configure_file(

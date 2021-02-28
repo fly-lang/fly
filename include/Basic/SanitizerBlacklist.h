@@ -1,7 +1,7 @@
 //===--- SanitizerBlacklist.h - Blacklist for sanitizers --------*- C++ -*-===//
 //
-// Part of the Fly Project, under the Apache License v2.0
-// See https://flylang.org/LICENSE.txt for license information.
+// Part of the Fly Project https://flylang.org
+// Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
 //===----------------------------------------------------------------------===//

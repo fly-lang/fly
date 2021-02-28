@@ -1,7 +1,7 @@
 //===--- CodeGenOptions.h ---------------------------------------*- C++ -*-===//
 //
-// Part of the Fly Project, under the Apache License v2.0
-// See https://flylang.org/LICENSE.txt for license information.
+// Part of the Fly Project https://flylang.org
+// Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
 //===----------------------------------------------------------------------===//
@@ -15,7 +15,6 @@
 
 #include "Basic/DebugInfoOptions.h"
 #include "Basic/Sanitizers.h"
-#include "Basic/XRayInstr.h"
 #include "llvm/ADT/FloatingPointMode.h"
 #include "llvm/Support/CodeGen.h"
 #include "llvm/Support/Regex.h"
@@ -302,9 +301,6 @@ public:
   /// override default transforms based on the width of the architected vector
   /// registers.
   std::string PreferVectorWidth;
-
-  /// Set of XRay instrumentation kinds to emit.
-  XRayInstrSet XRayInstrumentationBundle;
 
   std::vector<std::string> DefaultFunctionAttrs;
 
