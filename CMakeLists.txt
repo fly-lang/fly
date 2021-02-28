@@ -43,7 +43,7 @@ include_directories(${CMAKE_SOURCE_DIR}/include/)
 add_subdirectory(src)
 
 # Add Google Test dependency
-find_package(GTest REQUIRED QUIET)
+find_package(GTest QUIET)
 if (DEFINED GTEST_FOUND)
     message(STATUS "Found GTest")
     include_directories(${GTEST_INCLUDE_DIRS})
