@@ -40,10 +40,10 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 declare -A LLVM_VERSION_PATTERNS
-LLVM_VERSION_PATTERNS[9]="-9"
 LLVM_VERSION_PATTERNS[10]="-10"
 LLVM_VERSION_PATTERNS[11]="-11"
-LLVM_VERSION_PATTERNS[12]=""
+LLVM_VERSION_PATTERNS[12]="-12"
+LLVM_VERSION_PATTERNS[13]=""
 
 if [ ! ${LLVM_VERSION_PATTERNS[$LLVM_VERSION]+_} ]; then
     echo "This script does not support LLVM version $LLVM_VERSION"
@@ -74,4 +74,4 @@ esac
 wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
 add-apt-repository "${REPO_NAME}"
 apt-get update
-apt-get install -y llvm-$LLVM_VERSION llvm-dev-$LLVM_VERSION
+apt-get install -y llvm-$LLVM_VERSION llvm-$LLVM_VERSION-dev
