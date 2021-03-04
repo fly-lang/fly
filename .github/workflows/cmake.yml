@@ -18,7 +18,9 @@ jobs:
     - uses: actions/checkout@v2
 
     - name: Install LLVM
-      run: ./.github/scripts/install-llvm.sh
+      run: |
+        chmod 777 ./.github/scripts/install-llvm.sh
+        ./.github/scripts/install-llvm.sh
       shell: bash
 
     - name: Create Build Environment
