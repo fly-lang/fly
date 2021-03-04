@@ -1,17 +1,18 @@
-//===--- Sanitizers.def - Runtime sanitizer options -------------*- C++ -*-===//
+//===--------------------------------------------------------------------------------------------------------------===//
+// include/Basic/Sanitizers.def - Runtime sanitizer options
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 //
 // This file defines the options for specifying which runtime sanitizers to
 // enable. Users of this file must define the SANITIZER macro to make use of
 // this information. Users of this file can also define the SANITIZER_GROUP
 // macro to get information on options which refer to sets of sanitizers.
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef SANITIZER
 #error "Define SANITIZER prior to including this file!"

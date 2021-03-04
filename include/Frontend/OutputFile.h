@@ -1,11 +1,11 @@
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 // include/Frontend/OutputFile.h - Compiler Output files
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef FLY_OUTPUTFILE_H
 #define FLY_OUTPUTFILE_H
@@ -21,24 +21,22 @@ namespace fly {
 /// failed.
     class OutputFile {
 
-        std::string Filename;
-        std::string TempFilename;
+        std::string file;
+        std::string tempFile;
 
     public:
-        OutputFile(std::string filename)
-                : Filename(std::move(filename)), TempFilename(std::move(filename + ".tmp")) {
+
+        void setFile(const std::string &file) {
+            OutputFile::file = file;
+            OutputFile::tempFile = file + ".tmp";
         }
 
-        OutputFile(std::string filename, std::string tempFilename)
-        : Filename(std::move(filename)), TempFilename(std::move(tempFilename)) {
+        const std::string &getFile() const {
+            return file;
         }
 
-        const std::string &getFilename() const {
-            return Filename;
-        }
-
-        const std::string &getTempFilename() const {
-            return TempFilename;
+        const std::string &getTempFile() const {
+            return tempFile;
         }
     };
 }

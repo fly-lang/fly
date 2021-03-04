@@ -1,8 +1,11 @@
-/*===-----------------------------------------------------------*- C++ -*-===*\
-|*                                                                            *|
-|* Option Parsing Definitions                                                 *|
-|*                                                                            *|
-\*===----------------------------------------------------------------------===*/
+//===--------------------------------------------------------------------------------------------------------------===//
+// include/Driver/Options.inc - Option Parsing Definitions
+//
+// Part of the Fly Project https://flylang.org
+// Under the Apache License v2.0 see LICENSE for details.
+// Thank you to LLVM Project https://llvm.org/
+//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 /////////
 // Prefixes
@@ -11,16 +14,42 @@
 #define COMMA ,
 PREFIX(prefix_0, {nullptr})
 PREFIX(prefix_1, {"-" COMMA nullptr})
-PREFIX(prefix_2, {"-" COMMA "--" COMMA nullptr})
+PREFIX(prefix_4, {"-" COMMA "--" COMMA nullptr})
 #undef COMMA
 #endif // PREFIX
+
+/**
+ * All Accepted KIND:
+ *  Group,
+ *  Input,
+ *  Unknown
+ *  Flag,
+ *  Joined,
+ *  Values,
+ *  Separate,
+ *  RemainingArgs,
+ *  RemainingArgsJoined,
+ *  CommaJoined,
+ *  MultiArg,
+ *  JoinedOrSeparate,
+ *  JoinedAndSeparate
+ */
+
 
 // Fields:
 // OPTION(PREFIX, NAME, ID, KIND, GROUP, ALIAS, ALIASARGS, FLAGS, PARAM, HELPTEXT, METAVAR, VALUES)
 
+// IMPORTANT: Respect Alphabetically order by ID!!
+
 #ifdef OPTION
-OPTION(prefix_1, "i", input_file, Flag, INVALID, INVALID, nullptr, CoreOption, 0, "Read input source", nullptr, nullptr)
-OPTION(prefix_1, "o", output_file, Flag, INVALID, INVALID, nullptr, CoreOption, 0, "Write object to file (default file.o)", nullptr, nullptr)
-OPTION(prefix_2, "v", version, Flag, INVALID, version, nullptr, CoreOption, 0, "Print version information", nullptr, nullptr)
-OPTION(prefix_2, "h", help, Flag, INVALID, help, nullptr, CoreOption, 0, "Print help commands", nullptr, nullptr)
+OPTION(prefix_0, "<input>", INPUT, Input, INVALID, INVALID, nullptr, 0, 0, nullptr, nullptr, nullptr)
+OPTION(prefix_0, "<unknown>", UNKNOWN, Unknown, INVALID, INVALID, nullptr, 0, 0, nullptr, nullptr, nullptr)
+OPTION(prefix_4, "help", HELP, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
+       "Display available options", nullptr, nullptr)
+OPTION(prefix_1, "o", OUTPUT, JoinedOrSeparate, INVALID, INVALID, nullptr, CoreOption, 0,
+       "Write output to <file>", "<file>", nullptr)
+OPTION(prefix_1, "v", VERBOSE, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
+       "Show commands to run and use verbose output", nullptr, nullptr)
+OPTION(prefix_4, "version", VERSION, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
+       "Print version information", nullptr, nullptr)
 #endif // OPTION

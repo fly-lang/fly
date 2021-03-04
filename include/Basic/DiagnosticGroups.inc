@@ -1,3 +1,11 @@
+//===--------------------------------------------------------------------------------------------------------------===//
+// include/Basic/DiagnosticGroups.inc
+//
+// Part of the Fly Project https://flylang.org
+// Under the Apache License v2.0 see LICENSE for details.
+// Thank you to LLVM Project https://llvm.org/
+//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #ifdef GET_DIAG_ARRAYS
 static const int16_t DiagArrays[] = {
@@ -126,7 +134,6 @@ static const int16_t DiagArrays[] = {
   /* DiagArray155 */ diag::warn_unreachable_default, -1,
   /* DiagArray157 */ diag::warn_objc_cdirective_format_string, -1,
   /* DiagArray158 */ diag::warn_ctad_maybe_unsupported, -1,
-  /* DiagArray160 */ diag::warn_ctu_incompat_triple, -1,
   /* DiagArray161 */ diag::warn_attribute_argument_n_negative, diag::warn_cuda_attr_lambda_position, diag::warn_kern_is_inline, diag::warn_kern_is_method, diag::warn_pragma_unroll_cuda_value_in_parens, -1,
   /* DiagArray162 */ diag::warn_default_atomic_custom_getter_setter, -1,
   /* DiagArray163 */ diag::warn_dangling_variable, diag::warn_unsupported_lifetime_extension, -1,

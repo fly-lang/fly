@@ -1,17 +1,17 @@
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 // include/Frontend/DiagnosticRenderer.h - Diagnostic Pretty-Printing
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 //
 // This is a utility class that provides support for pretty-printing of
 // diagnostics. It is used to implement the different code paths which require
 // such functionality in a consistent way.
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef LLVM_CLANG_FRONTEND_DIAGNOSTICRENDERER_H
 #define LLVM_CLANG_FRONTEND_DIAGNOSTICRENDERER_H

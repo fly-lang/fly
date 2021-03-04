@@ -1,14 +1,14 @@
-//===--- BPF.h - Declare BPF target feature support -------------*- C++ -*-===//
+//===--- BPF.h - Declare BPF target feature support -----------------------------------------------------*- C++ -*-===//
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 //
 // This file declares BPF TargetInfo objects.
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef LLVM_FLY_LIB_BASIC_TARGETS_BPF_H
 #define LLVM_FLY_LIB_BASIC_TARGETS_BPF_H

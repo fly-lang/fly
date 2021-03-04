@@ -1,6 +1,11 @@
+//===--------------------------------------------------------------------------------------------------------------===//
+// include/Driver/Driver.h - Driver
 //
-// Created by marco on 2/27/21.
+// Part of the Fly Project https://flylang.org
+// Under the Apache License v2.0 see LICENSE for details.
+// Thank you to LLVM Project https://llvm.org/
 //
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef FLY_DRIVER_H
 #define FLY_DRIVER_H
@@ -14,15 +19,25 @@
 namespace fly {
     class Driver {
 
-        const std::string &path;
-
-        llvm::opt::InputArgList argList;
-
-        IntrusiveRefCntPtr<DiagnosticsEngine> diagnostics;
-
         std::shared_ptr<CompilerInvocation> invocation;
 
     public:
+
+        /// The name the driver was invoked as.
+        std::string name;
+
+        /// The path the driver executable was in, as invoked from the
+        /// command line.
+        std::string dir;
+
+        /// The original path to the clang executable.
+        std::string executable;
+
+        /// The path to the installed clang directory, if any.
+        std::string installedDir;
+
+        /// The path to the compiler resource directory.
+        std::string resourceDir;
 
         Driver();
 
@@ -42,20 +57,18 @@ namespace fly {
         ///
         /// \param shouldOwnClient If Client is non-NULL, specifies whether
         /// the diagnostic object should take ownership of the client.
-        void createDiagnostics(DiagnosticConsumer *client = nullptr,
+        IntrusiveRefCntPtr<DiagnosticsEngine> createDiagnostics(DiagnosticConsumer *client = nullptr,
                                bool shouldOwnClient = true);
 
-        void createInvocation();
+        bool CreateFromArgs(DiagnosticsEngine &diags, llvm::ArrayRef<const char *> ArgStrings,
+                            std::unique_ptr<FrontendOptions> &frontendOpts,
+                            std::unique_ptr<CodeGenOptions> &codegenOpts);
 
-        bool execute();
-
-        const std::string &getPath() const;
-
-        const llvm::opt::InputArgList &getArgList() const;
-
-        const IntrusiveRefCntPtr<DiagnosticsEngine> &getDiagnostics() const;
+        IntrusiveRefCntPtr<TargetInfo> createTargetInfo(DiagnosticsEngine &diags);
 
         const std::shared_ptr<CompilerInvocation> &getInvocation() const;
+
+        bool execute();
     };
 }
 

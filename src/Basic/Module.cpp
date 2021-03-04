@@ -1,15 +1,17 @@
 //===- Module.cpp - Describe a module -------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
+// include/Basic/AddressSpaces.h - Language-specific address spaces
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 //
 // This file defines the Module class, which describes a module in the source
 // code.
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Basic/Module.h"
 #include "Basic/CharInfo.h"

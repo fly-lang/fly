@@ -1,10 +1,11 @@
-//===- SourceManager.h - Track and cache source files -----------*- C++ -*-===//
+//===--------------------------------------------------------------------------------------------------------------===//
+// include/Basic/SourceManager.h - Track and cache source files
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 //
 /// \file
 /// Defines the SourceManager interface.
@@ -29,7 +30,7 @@
 /// and the presumed location is where the line directive states that
 /// the line is 17, or any other line.
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef LLVM_FLY_BASIC_SOURCEMANAGER_H
 #define LLVM_FLY_BASIC_SOURCEMANAGER_H

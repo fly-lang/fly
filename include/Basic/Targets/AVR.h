@@ -1,14 +1,14 @@
-//===--- AVR.h - Declare AVR target feature support -------------*- C++ -*-===//
+//===--- AVR.h - Declare AVR target feature support -----------------------------------------------------*- C++ -*-===//
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 //
 // This file declares AVR TargetInfo objects.
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef LLVM_FLY_LIB_BASIC_TARGETS_AVR_H
 #define LLVM_FLY_LIB_BASIC_TARGETS_AVR_H

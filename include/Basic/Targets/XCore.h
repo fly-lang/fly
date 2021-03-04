@@ -1,14 +1,14 @@
-//===--- XCore.h - Declare XCore target feature support ---------*- C++ -*-===//
+//===--- XCore.h - Declare XCore target feature support -------------------------------------------------*- C++ -*-===//
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 //
 // This file declares XCore TargetInfo objects.
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef LLVM_FLY_LIB_BASIC_TARGETS_XCORE_H
 #define LLVM_FLY_LIB_BASIC_TARGETS_XCORE_H

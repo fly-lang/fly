@@ -1,16 +1,16 @@
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 // include/Frontend/TextDiagnosticPrinter.h - Text Diagnostic Client
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 //
 // This is a concrete diagnostic client, which prints the diagnostics to
 // standard error.
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef LLVM_CLANG_FRONTEND_TEXTDIAGNOSTICPRINTER_H
 #define LLVM_CLANG_FRONTEND_TEXTDIAGNOSTICPRINTER_H

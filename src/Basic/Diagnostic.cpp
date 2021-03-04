@@ -1,14 +1,16 @@
-//===- Diagnostic.cpp - C Language Family Diagnostic Handling -------------===//
+//===- Diagnostic.cpp - C Language Family Diagnostic Handling -----------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
+// src/Basic/Diagnostic.cpp - Language-specific address spaces
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 //
 //  This file implements the Diagnostic-related interfaces.
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Basic/Diagnostic.h"
 #include "Basic/CharInfo.h"

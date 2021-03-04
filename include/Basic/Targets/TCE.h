@@ -1,14 +1,14 @@
-//===--- TCE.h - Declare TCE target feature support -------------*- C++ -*-===//
+//===--- TCE.h - Declare TCE target feature support -----------------------------------------------------*- C++ -*-===//
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 //
 // This file declares TCE TargetInfo objects.
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef LLVM_FLY_LIB_BASIC_TARGETS_TCE_H
 #define LLVM_FLY_LIB_BASIC_TARGETS_TCE_H

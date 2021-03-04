@@ -1,15 +1,16 @@
-//===--- Builtins.def - Builtin function info database ----------*- C++ -*-===//
+//===--------------------------------------------------------------------------------------------------------------===//
+// include/Basic/Builtins.def - Builtin function info database
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 //
 // This file defines the standard builtin function database.  Users of this file
 // must define the BUILTIN macro to make use of this information.
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 // FIXME: This should really be a .td file, but that requires modifying tblgen.
 // Perhaps tblgen should have plugins.

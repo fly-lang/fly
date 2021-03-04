@@ -1,10 +1,11 @@
-//===--- DiagOptions.def - Diagnostic option database ------------- C++ -*-===//
+//===--------------------------------------------------------------------------------------------------------------===//
+// include/Basic/DiagOptions.def - Diagnostic option database
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 //
 // This file defines the diagnostic options. Users of this file
 // must define the DIAGOPT macro to make use of this information.
@@ -14,7 +15,7 @@
 // indicate options that affect the processing of the program, rather than
 // simply the output.
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 #ifndef DIAGOPT
 #  error Define the DIAGOPT macro to handle language options
 #endif

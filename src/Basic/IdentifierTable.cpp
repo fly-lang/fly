@@ -1,19 +1,20 @@
 //===- IdentifierTable.cpp - Hash table for identifier lookup -------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
+// include/Basic/AddressSpaces.h - Language-specific address spaces
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 //
 // This file implements the IdentifierInfo, IdentifierVisitor, and
 // IdentifierTable interfaces.
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Basic/IdentifierTable.h"
 #include "Basic/CharInfo.h"
-#include "Basic/OperatorKinds.h"
 #include "Basic/Specifiers.h"
 #include "Basic/TokenKinds.h"
 #include "llvm/ADT/DenseMapInfo.h"
@@ -31,9 +32,9 @@
 
 using namespace fly;
 
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 // IdentifierTable Implementation
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 IdentifierIterator::~IdentifierIterator() = default;
 
@@ -61,9 +62,9 @@ IdentifierTable::IdentifierTable(IdentifierInfoLookup *ExternalLookup)
     AddKeywords();
 }
 
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 // Language Keyword Implementation
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 /// AddKeyword - This method is used to associate a token ID with specific
 /// identifiers because they are language keywords.  This causes the lexer to
@@ -84,9 +85,9 @@ void IdentifierTable::AddKeywords() {
 
 }
 
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 // Stats Implementation
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 /// PrintStats - Print statistics about how well the identifier table is doing
 /// at hashing identifiers.

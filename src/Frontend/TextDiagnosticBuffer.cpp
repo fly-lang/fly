@@ -1,15 +1,15 @@
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 // src/Compiler/TextDiagnosticBuffer.cpp - Buffer Text Diagnostics
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 //
 // This is a concrete diagnostic client, which buffers the diagnostic messages.
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Frontend/TextDiagnosticBuffer.h"
 #include "Basic/Diagnostic.h"

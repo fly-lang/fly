@@ -1,17 +1,15 @@
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 // include/Driver/Options.h - Option info & table
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef LLVM_CLANG_DRIVER_OPTIONS_H
 #define LLVM_CLANG_DRIVER_OPTIONS_H
 
-#include "llvm/Option/OptTable.h"
-#include "llvm/Option/Option.h"
 #include <memory>
 
 namespace llvm {

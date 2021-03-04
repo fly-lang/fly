@@ -1,10 +1,11 @@
-//===--- CodeGenOptions.def - Code generation option database ----- C++ -*-===//
+//===--------------------------------------------------------------------------------------------------------------===//
+// include/Basic/CodeGenOptions.def - Code generation option database
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 //
 // This file defines the code generation options. Users of this file
 // must define the CODEGENOPT macro to make use of this information.
@@ -12,7 +13,7 @@
 // that have enumeration type and VALUE_CODEGENOPT is a code
 // generation option that describes a value rather than a flag.
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 #ifndef CODEGENOPT
 #  error Define the CODEGENOPT macro to handle language options
 #endif

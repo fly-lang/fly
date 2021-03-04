@@ -1,15 +1,16 @@
-//===--- Stack.h - Utilities for dealing with stack space -------*- C++ -*-===//
+//===--------------------------------------------------------------------------------------------------------------===//
+// include/Basic/Stack.h - Utilities for dealing with stack space
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 ///
 /// \file
 /// Defines utilities for dealing with stack allocation and stack space.
 ///
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef LLVM_FLY_BASIC_STACK_H
 #define LLVM_FLY_BASIC_STACK_H

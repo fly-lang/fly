@@ -1,14 +1,14 @@
-//===--- Le64.cpp - Implement Le64 target feature support -----------------===//
+//===--- Le64.cpp - Implement Le64 target feature support ---------------------------------------------------------===//
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 //
 // This file implements Le64 TargetInfo objects.
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Basic/Targets/Le64.h"
 #include "Basic/Targets/Targets.h"

@@ -1,15 +1,16 @@
-//===--- BuiltinsX86_64.def - X86-64 Builtin function database --*- C++ -*-===//
+//===--------------------------------------------------------------------------------------------------------------===//
+// include/Basic/BuiltinsX86_64.def - X86-64 Builtin function database
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 //
 // This file defines the X86-64-specific builtin function database. Users of
 // this file must define the BUILTIN macro to make use of this information.
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 // The format of this database matches Basic/Builtins.def.
 

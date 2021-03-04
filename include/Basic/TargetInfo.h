@@ -1,15 +1,16 @@
-//===--- TargetInfo.h - Expose information about the target -----*- C++ -*-===//
+//===--------------------------------------------------------------------------------------------------------------===//
+// include/Basic/TargetInfo.h - Expose information about the target
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 ///
 /// \file
 /// Defines the clang::TargetInfo interface.
 ///
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef LLVM_FLY_BASIC_TARGETINFO_H
 #define LLVM_FLY_BASIC_TARGETINFO_H

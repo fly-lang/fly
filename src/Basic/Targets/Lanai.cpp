@@ -1,14 +1,14 @@
-//===--- Lanai.cpp - Implement Lanai target feature support ---------------===//
+//===--- Lanai.cpp - Implement Lanai target feature support -------------------------------------------------------===//
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 //
 // This file implements Lanai TargetInfo objects.
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Basic/Targets/Lanai.h"
 #include "llvm/ADT/StringSwitch.h"

@@ -1,15 +1,15 @@
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 // include/Lex/Lexer.h - C Language Family Lexer
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 //
 //  This file defines the Lexer interface.
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef LLVM_FLY_LEX_LEXER_H
 #define LLVM_FLY_LEX_LEXER_H
@@ -70,9 +70,9 @@ namespace fly {
         /// The SourceManager FileID corresponding to the file being lexed.
         const FileID FID;
 
-        //===--------------------------------------------------------------------===//
+        //===------------------------------------------------------------------------------------------------------===//
         // Context-specific lexing flags set by the preprocessor.
-        //===--------------------------------------------------------------------===//
+        //===------------------------------------------------------------------------------------------------------===//
 
         /// True after \#include; turns \<xx> or "xxx" into a tok::header_name token.
         bool ParsingFilename = false;
@@ -105,7 +105,7 @@ namespace fly {
         mutable IdentifierTable Identifiers;
     public:
 
-        //===--------------------------------------------------------------------===//
+        //===------------------------------------------------------------------------------------------------------===//
         // Constant configuration values for this lexer.
 
         // Start of the buffer.
@@ -120,7 +120,7 @@ namespace fly {
         // True if lexer for _Pragma handling.
         bool Is_PragmaLexer;
 
-        //===--------------------------------------------------------------------===//
+        //===------------------------------------------------------------------------------------------------------===//
         // Context-specific lexing flags set by the preprocessor.
         //
 
@@ -133,7 +133,7 @@ namespace fly {
         /// it returns comments, when it is set to 0 it returns normal tokens only.
         unsigned char ExtendedTokenMode;
 
-        //===--------------------------------------------------------------------===//
+        //===------------------------------------------------------------------------------------------------------===//
         // Context that changes as the file is lexed.
         // NOTE: any state that mutates when in raw mode must have save/restore code
         // in Lexer::isNextPPTokenLParen.
@@ -493,7 +493,7 @@ namespace fly {
                                                const SourceManager &SM);
 
     private:
-        //===--------------------------------------------------------------------===//
+        //===------------------------------------------------------------------------------------------------------===//
         // Internal implementation interfaces.
 
         /// LexTokenInternal - Internal interface to lex a preprocessing token. Called
@@ -527,7 +527,7 @@ namespace fly {
         /// tokens in the buffer controlled by this lexer.
         unsigned isNextPPTokenLParen();
 
-        //===--------------------------------------------------------------------===//
+        //===------------------------------------------------------------------------------------------------------===//
         // Lexer character reading interfaces.
 
         // This lexer is built on two interfaces for reading characters, both of which
@@ -619,7 +619,7 @@ namespace fly {
         /// diagnostic.
         static char getCharAndSizeSlowNoWarn(const char *Ptr, unsigned &Size);
 
-        //===--------------------------------------------------------------------===//
+        //===------------------------------------------------------------------------------------------------------===//
         // Other lexer functions.
 
         void PropagateLineStartLeadingSpaceInfo(Token &Result);

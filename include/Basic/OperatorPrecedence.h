@@ -1,15 +1,16 @@
-//===--- OperatorPrecedence.h - Operator precedence levels ------*- C++ -*-===//
+//===--------------------------------------------------------------------------------------------------------------===//
+// include/Basic/OperatorPrecedence.h - Operator precedence levels
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 ///
 /// \file
 /// Defines and computes precedence levels for binary/ternary operators.
 ///
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef LLVM_FLY_BASIC_OPERATORPRECEDENCE_H
 #define LLVM_FLY_BASIC_OPERATORPRECEDENCE_H

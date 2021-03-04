@@ -1,14 +1,14 @@
-//===--- AMDGPU.h - Declare AMDGPU target feature support -------*- C++ -*-===//
+//===--- AMDGPU.h - Declare AMDGPU target feature support -----------------------------------------------*- C++ -*-===//
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 //
 // This file declares AMDGPU TargetInfo objects.
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef LLVM_FLY_LIB_BASIC_TARGETS_AMDGPU_H
 #define LLVM_FLY_LIB_BASIC_TARGETS_AMDGPU_H

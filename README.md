@@ -35,7 +35,7 @@ Fly is written in C++ and it is a fork of Clang: the most important project that
 In order to build this project you need:
 - [CMake (minimum required 3.4.3)](https://cmake.org)
 - [LLVM (10.0.1)](https://github.com/llvm/llvm-project) 
-- [GoogleTest](https://github.com/google/googletest)
+- [GoogleTest (1.7)](https://github.com/google/googletest)
 
 ## Usage
 This is an example of how to configure and build the Fly source.
@@ -43,7 +43,7 @@ This is an example of how to configure and build the Fly source.
     
     * ``git clone https://github.com/fly-lang/fly.git``
    
-    * Or, on windows, ``git clone --config core.autocrlf=false
+    * Or, on windows, ``git clone --config core.autocrlf=false``
 
 2. Configure and build:
    

@@ -1,11 +1,11 @@
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 // include/Frontend/InputOptions.h - Compiler Input options arguments
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef FLY_FRONTENDOPTIONS_H
 #define FLY_FRONTENDOPTIONS_H
@@ -25,19 +25,21 @@ namespace fly {
 
         OutputFile outputFile;
 
+        bool verbose;
+
     public:
 
-        FrontendOptions();
-
-        FrontendOptions(const llvm::SmallVector<InputFile, 0> &inputFiles);
-
-        FrontendOptions(const llvm::SmallVector<InputFile, 0> &inputFiles, const OutputFile &outputFile);
-
-        void addInputFile(InputFile inputFile);
+        void addInputFile(std::string &&input);
 
         const llvm::SmallVector<InputFile, 0> &getInputFiles() const;
 
         const OutputFile &getOutputFile() const;
+
+        void setOutputFile(const char * output);
+
+        bool isVerbose() const;
+
+        void setVerbose();
 
     };
 }

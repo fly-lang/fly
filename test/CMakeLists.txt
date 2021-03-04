@@ -12,5 +12,6 @@ target_link_libraries(FlyTest PRIVATE
         FlyBasic FlyLex FlyParser FlyAST FlyCodeGen FlyFrontend FlyDriver
         )
 
-gtest_discover_tests(FlyTest)
+add_test(NAME FlyTest COMMAND FlyTest)
+#gtest_discover_tests(FlyTest) #not working with GoogleTest in ExternalProject (see CMakeLists.txt.in)
 set_target_properties(FlyTest PROPERTIES LINK_FLAGS "-v")

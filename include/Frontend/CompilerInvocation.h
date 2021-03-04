@@ -1,11 +1,11 @@
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 // include/Compiler/CompilerInvocation.h - Chain Diagnostic Clients
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef FLY_COMPILERINVOCATION_H
 #define FLY_COMPILERINVOCATION_H
@@ -32,7 +32,7 @@ namespace fly {
     class CompilerInvocation {
 
         /// The diagnostics engine instance.
-        IntrusiveRefCntPtr<DiagnosticsEngine> diagnostics;
+        IntrusiveRefCntPtr<DiagnosticsEngine> diags;
 
         /// The file manager.
         IntrusiveRefCntPtr<FileManager> fileMgr;
@@ -40,11 +40,14 @@ namespace fly {
         /// The source manager.
         IntrusiveRefCntPtr<SourceManager> sourceMgr;
 
-        /// The frontend options
-        std::shared_ptr<FrontendOptions> frontendOptions;
-
         /// The target info
         IntrusiveRefCntPtr<TargetInfo> target;
+
+        /// The frontend options
+        std::unique_ptr<FrontendOptions> frontendOpts;
+
+        /// The frontend options
+        std::unique_ptr<CodeGenOptions> codeGenOpts;
 
         /// Create the file manager and replace any existing one with it.
         ///
@@ -54,13 +57,14 @@ namespace fly {
         /// Create the source manager and replace any existing one with it.
         void createSourceManager();
 
-        IntrusiveRefCntPtr<llvm::vfs::FileSystem> createVFSFromCompilerInvocation();
+        IntrusiveRefCntPtr<llvm::vfs::FileSystem> createVFS();
 
     public:
 
-        CompilerInvocation(IntrusiveRefCntPtr<DiagnosticsEngine> diagnostics,
-                           std::shared_ptr<FrontendOptions> frontendOptions,
-                           IntrusiveRefCntPtr<TargetInfo> target);
+        CompilerInvocation(IntrusiveRefCntPtr<DiagnosticsEngine> &&diagnostics,
+                           IntrusiveRefCntPtr<TargetInfo> &&target,
+                           std::unique_ptr<FrontendOptions> &&frontendOptions,
+                           std::unique_ptr<CodeGenOptions> &&codeGenOptions);
 
         /// Get the current diagnostics engine.
         DiagnosticsEngine &getDiagnostics() const;
@@ -73,6 +77,8 @@ namespace fly {
 
         /// Get the current options.
         FrontendOptions &getFrontendOptions() const;
+
+        CodeGenOptions &getCodeGenOptions() const;
 
         /// Get the current target info.
         TargetInfo &getTargetInfo() const;

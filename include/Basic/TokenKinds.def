@@ -1,10 +1,11 @@
-//===--- TokenKinds.def - C Family Token Kind Database ----------*- C++ -*-===//
+//===--------------------------------------------------------------------------------------------------------------===//
+// include/Basic/TokenKinds.def - C Family Token Kind Database
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 //
 // This file defines the TokenKind database.  This includes normal tokens like
 // tok::ampamp (corresponding to the && token) as well as keywords for various
@@ -12,7 +13,7 @@
 // CXX11_KEYWORD, CONCEPTS_KEYWORD, ALIAS, or PPKEYWORD macros to make use of
 // this file.
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef TOK
 #define TOK(X)
@@ -24,9 +25,9 @@
 #define KEYWORD(X) TOK(kw_ ## X)
 #endif
 
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 // Language keywords.
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 // These define members of the tok::* namespace.
 

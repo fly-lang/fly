@@ -1,15 +1,16 @@
-//===- Sanitizers.h - C Language Family Language Options --------*- C++ -*-===//
+//===--------------------------------------------------------------------------------------------------------------===//
+// include/Basic/Sanitizers.h - C Language Family Language Options
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 //
 /// \file
 /// Defines the clang::SanitizerKind enum.
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef LLVM_FLY_BASIC_SANITIZERS_H
 #define LLVM_FLY_BASIC_SANITIZERS_H

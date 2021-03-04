@@ -1,6 +1,11 @@
+//===--------------------------------------------------------------------------------------------------------------===//
+// include/CodeGen/BackendUtil.h - Code Generator Utils
 //
-// Created by marco on 2/24/21.
+// Part of the Fly Project https://flylang.org
+// Under the Apache License v2.0 see LICENSE for details.
+// Thank you to LLVM Project https://llvm.org/
 //
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef FLY_BACKENDUTIL_H
 #define FLY_BACKENDUTIL_H

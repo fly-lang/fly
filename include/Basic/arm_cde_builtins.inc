@@ -1,3 +1,12 @@
+//===--------------------------------------------------------------------------------------------------------------===//
+// include/Basic/arm_cde_builtins.inc
+//
+// Part of the Fly Project https://flylang.org
+// Under the Apache License v2.0 see LICENSE for details.
+// Thank you to LLVM Project https://llvm.org/
+//
+//===--------------------------------------------------------------------------------------------------------------===//
+
 TARGET_HEADER_BUILTIN(__builtin_arm_cde_cx1, "", "ncU", "arm_cde.h", ALL_LANGUAGES, "")
 TARGET_HEADER_BUILTIN(__builtin_arm_cde_cx1a, "", "ncU", "arm_cde.h", ALL_LANGUAGES, "")
 TARGET_HEADER_BUILTIN(__builtin_arm_cde_cx1d, "", "ncU", "arm_cde.h", ALL_LANGUAGES, "")

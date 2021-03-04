@@ -1,14 +1,14 @@
-//===--- ARM.h - Declare ARM target feature support -------------*- C++ -*-===//
+//===--- ARM.h - Declare ARM target feature support -----------------------------------------------------*- C++ -*-===//
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 //
 // This file declares ARM TargetInfo objects.
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef LLVM_FLY_LIB_BASIC_TARGETS_ARM_H
 #define LLVM_FLY_LIB_BASIC_TARGETS_ARM_H

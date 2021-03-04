@@ -1,16 +1,17 @@
-//===--- LLVM.h - Import various common LLVM datatypes ----------*- C++ -*-===//
+//===--------------------------------------------------------------------------------------------------------------===//
+// include/Basic/LLVM.h - Import various common LLVM datatypes
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 //
 /// \file
 /// Forward-declares and imports various common LLVM datatypes that
 /// clang wants to use unqualified.
 ///
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef LLVM_FLY_BASIC_LLVM_H
 #define LLVM_FLY_BASIC_LLVM_H

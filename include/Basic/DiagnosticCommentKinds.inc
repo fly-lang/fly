@@ -1,3 +1,12 @@
+//===--------------------------------------------------------------------------------------------------------------===//
+// include/Basic/DiagnosticCommentKinds.inc
+//
+// Part of the Fly Project https://flylang.org
+// Under the Apache License v2.0 see LICENSE for details.
+// Thank you to LLVM Project https://llvm.org/
+//
+//===--------------------------------------------------------------------------------------------------------------===//
+
 #ifdef COMMENTSTART
 __COMMENTSTART = DIAG_START_COMMENT,
 #undef COMMENTSTART

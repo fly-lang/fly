@@ -1,3 +1,12 @@
+//===--------------------------------------------------------------------------------------------------------------===//
+// include/Basic/DiagnosticSerializationKinds.inc
+//
+// Part of the Fly Project https://flylang.org
+// Under the Apache License v2.0 see LICENSE for details.
+// Thank you to LLVM Project https://llvm.org/
+//
+//===--------------------------------------------------------------------------------------------------------------===//
+
 #ifdef SERIALIZATIONSTART
 __SERIALIZATIONSTART = DIAG_START_SERIALIZATION,
 #undef SERIALIZATIONSTART

@@ -1,14 +1,14 @@
-//===--- PPC.h - Declare PPC target feature support -------------*- C++ -*-===//
+//===--- PPC.h - Declare PPC target feature support -----------------------------------------------------*- C++ -*-===//
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 //
 // This file declares PPC TargetInfo objects.
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef LLVM_FLY_LIB_BASIC_TARGETS_PPC_H
 #define LLVM_FLY_LIB_BASIC_TARGETS_PPC_H

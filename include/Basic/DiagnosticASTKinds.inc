@@ -1,3 +1,13 @@
+//===--------------------------------------------------------------------------------------------------------------===//
+// include/Basic/DiagnosticASTKinds.inc
+//
+// Part of the Fly Project https://flylang.org
+// Under the Apache License v2.0 see LICENSE for details.
+// Thank you to LLVM Project https://llvm.org/
+//
+//===--------------------------------------------------------------------------------------------------------------===//
+
+
 #ifdef ASTSTART
 __ASTSTART = DIAG_START_AST,
 #undef ASTSTART

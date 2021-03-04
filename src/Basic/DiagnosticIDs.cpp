@@ -1,14 +1,15 @@
-//===--- DiagnosticIDs.cpp - Diagnostic IDs Handling ----------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
+// src/Basic/DiagnosticIDs.cpp - Diagnostic IDs Handling
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 //
 //  This file implements the Diagnostic IDs-related interfaces.
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Basic/DiagnosticIDs.h"
 #include "Basic/AllDiagnostics.h"
@@ -20,9 +21,9 @@
 #include <map>
 using namespace fly;
 
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 // Builtin Diagnostic information
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 namespace {
 
@@ -86,7 +87,6 @@ VALIDATE_DIAG_SIZE(AST)
 VALIDATE_DIAG_SIZE(COMMENT)
 VALIDATE_DIAG_SIZE(SEMA)
 VALIDATE_DIAG_SIZE(ANALYSIS)
-VALIDATE_DIAG_SIZE(REFACTORING)
 #undef VALIDATE_DIAG_SIZE
 #undef STRINGIFY_NAME
 
@@ -107,10 +107,8 @@ static const StaticDiagInfoRec StaticDiagInfo[] = {
 #include "Basic/DiagnosticParseKinds.inc"
 #include "Basic/DiagnosticASTKinds.inc"
 #include "Basic/DiagnosticCommentKinds.inc"
-#include "Basic/DiagnosticCrossTUKinds.inc"
 #include "Basic/DiagnosticSemaKinds.inc"
 #include "Basic/DiagnosticAnalysisKinds.inc"
-#include "Basic/DiagnosticRefactoringKinds.inc"
 #undef DIAG
 };
 
@@ -147,7 +145,6 @@ CATEGORY(PARSE, LEX)
 CATEGORY(AST, PARSE)
 CATEGORY(COMMENT, AST)
 CATEGORY(CROSSTU, COMMENT)
-CATEGORY(SEMA, CROSSTU)
 CATEGORY(ANALYSIS, SEMA)
 CATEGORY(REFACTORING, ANALYSIS)
 #undef CATEGORY
@@ -258,9 +255,9 @@ static unsigned getBuiltinDiagClass(unsigned DiagID) {
   return ~0U;
 }
 
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 // Custom Diagnostic information
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 namespace fly {
   namespace diag {
@@ -305,9 +302,9 @@ namespace fly {
 } // end fly namespace
 
 
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 // Common Diagnostic implementation
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 DiagnosticIDs::DiagnosticIDs() {}
 

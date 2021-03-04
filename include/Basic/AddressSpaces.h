@@ -1,16 +1,17 @@
-//===- AddressSpaces.h - Language-specific address spaces -------*- C++ -*-===//
+//===--------------------------------------------------------------------------------------------------------------===//
+// include/Basic/AddressSpaces.h - Language-specific address spaces
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 //
 /// \file
 /// Provides definitions for the various language-specific address
 /// spaces.
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef LLVM_FLY_BASIC_ADDRESSSPACES_H
 #define LLVM_FLY_BASIC_ADDRESSSPACES_H

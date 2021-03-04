@@ -1,16 +1,17 @@
-//===--- Builtins.h - Builtin function header -------------------*- C++ -*-===//
+//===--------------------------------------------------------------------------------------------------------------===//
+// include/Basic/Builtins.h - Builtin function header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 ///
 /// \file
 /// Defines enum values for all the target-independent builtin
 /// functions.
 ///
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef LLVM_FLY_BASIC_BUILTINS_H
 #define LLVM_FLY_BASIC_BUILTINS_H

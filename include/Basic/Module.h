@@ -1,16 +1,17 @@
-//===- Module.h - Describe a module -----------------------------*- C++ -*-===//
+//===--------------------------------------------------------------------------------------------------------------===//
+// include/Basic/Module.h - Describe a module
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 //
 /// \file
 /// Defines the clang::Module class, which describes a module in the
 /// source code.
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef LLVM_FLY_BASIC_MODULE_H
 #define LLVM_FLY_BASIC_MODULE_H

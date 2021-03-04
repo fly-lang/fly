@@ -1,16 +1,17 @@
-//===- IdentifierTable.h - Hash table for identifier lookup -----*- C++ -*-===//
+//===--------------------------------------------------------------------------------------------------------------===//
+// include/Basic/IdentifierTable.h - Hash table for identifier lookup
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 //
 /// \file
 /// Defines the clang::IdentifierInfo, clang::IdentifierTable, and
 /// clang::Selector interfaces.
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef LLVM_CLANG_BASIC_IDENTIFIERTABLE_H
 #define LLVM_CLANG_BASIC_IDENTIFIERTABLE_H

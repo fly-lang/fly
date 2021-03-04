@@ -1,16 +1,17 @@
-//===--- TargetBuiltins.h - Target specific builtin IDs ---------*- C++ -*-===//
+//===--------------------------------------------------------------------------------------------------------------===//
+// include/Basic/TargetBuiltins.h - Target specific builtin IDs
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 ///
 /// \file
 /// Enumerates target-specific builtins in their own namespaces within
 /// namespace ::clang.
 ///
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef LLVM_FLY_BASIC_TARGETBUILTINS_H
 #define LLVM_FLY_BASIC_TARGETBUILTINS_H

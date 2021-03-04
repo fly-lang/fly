@@ -1,15 +1,16 @@
-//===--- TokenKinds.h - Enum values for C Token Kinds -----------*- C++ -*-===//
+//===--------------------------------------------------------------------------------------------------------------===//
+// include/Basic/TokenKinds.h - Enum values for C Token Kinds
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 ///
 /// \file
 /// Defines the clang::TokenKind enum and support functions.
 ///
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef LLVM_FLY_BASIC_TOKENKINDS_H
 #define LLVM_FLY_BASIC_TOKENKINDS_H

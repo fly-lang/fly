@@ -1,14 +1,14 @@
-//===--- NVPTX.h - Declare NVPTX target feature support ---------*- C++ -*-===//
+//===--- NVPTX.h - Declare NVPTX target feature support -------------------------------------------------*- C++ -*-===//
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 //
 // This file declares NVPTX TargetInfo objects.
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef LLVM_FLY_LIB_BASIC_TARGETS_NVPTX_H
 #define LLVM_FLY_LIB_BASIC_TARGETS_NVPTX_H

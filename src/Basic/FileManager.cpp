@@ -1,20 +1,21 @@
-//===--- FileManager.cpp - File System Probing and Caching ----------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
+// src/Basic/FileManager.cpp - File System Probing and Caching
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 //
 //  This file implements the FileManager interface.
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 //
 // TODO: This should index all interesting directories with dirent calls.
 //  getdirentries ?
 //  opendir/readdir_r/closedir ?
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Basic/FileManager.h"
 #include "Basic/FileSystemStatCache.h"
@@ -44,9 +45,9 @@ ALWAYS_ENABLED_STATISTIC(NumDirCacheMisses,
                          "Number of directory cache misses.");
 ALWAYS_ENABLED_STATISTIC(NumFileCacheMisses, "Number of file cache misses.");
 
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 // Common logic.
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 FileManager::FileManager(const FileSystemOptions &FSO,
                          IntrusiveRefCntPtr<llvm::vfs::FileSystem> FS)

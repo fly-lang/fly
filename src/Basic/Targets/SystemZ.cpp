@@ -1,14 +1,14 @@
-//===--- SystemZ.cpp - Implement SystemZ target feature support -----------===//
+//===--- SystemZ.cpp - Implement SystemZ target feature support ---------------------------------------------------===//
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 //
 // This file implements SystemZ TargetInfo objects.
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Basic/Targets/SystemZ.h"
 #include "Basic/Builtins.h"

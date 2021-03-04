@@ -1,17 +1,18 @@
-//===- Basic/PrettyStackTrace.h - Pretty Crash Handling --*- C++ -*-===//
+//===--------------------------------------------------------------------------------------------------------------===//
+// include/Basic/Basic/PrettyStackTrace.h - Pretty Crash Handling
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 ///
 /// \file
 /// Defines the PrettyStackTraceEntry class, which is used to make
 /// crashes give more contextual information about what the program was doing
 /// when it crashed.
 ///
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef LLVM_FLY_BASIC_PRETTYSTACKTRACE_H
 #define LLVM_FLY_BASIC_PRETTYSTACKTRACE_H

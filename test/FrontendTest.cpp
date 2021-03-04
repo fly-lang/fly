@@ -1,11 +1,11 @@
-//===----------------------------------------------------------------------===//
-// test/FrontendTest.cpp - Compiler tests
+//===--------------------------------------------------------------------------------------------------------------===//
+// test/FrontendTest.cpp - Frontend tests
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #include <Driver/Driver.h>
 #include <Frontend/FrontendOptions.h>
@@ -33,16 +33,14 @@ namespace {
     };
 
     void createTestFile() {
-        struct stat buf;
-        if (stat(testFile, &buf) == -1) {
-            // Create and open a text file
-            std::ofstream MyFile(testFile);
-
-            // Write to the file
-            MyFile << "Files can be tricky, but it is fun enough!";
-
-            // Close the file
-            MyFile.close();
+        std::fstream my_file;
+        my_file.open(testFile, std::ios::out);
+        if (!my_file) {
+            std::cout << "File not created!";
+        }
+        else {
+            std::cout << "File created successfully!";
+            my_file.close();
         }
     }
 
@@ -51,12 +49,11 @@ namespace {
     }
 
     TEST_F(FrontendTest, FileMgr) {
-        FrontendOptions options;
-        options.addInputFile(InputFile(testFile));
-
         createTestFile();
 
         Driver driver;
+        FrontendOptions &options = driver.getInvocation()->getFrontendOptions();
+        options.addInputFile(testFile);
         Frontend frontend(*driver.getInvocation());
         CompilerInvocation &invocation = frontend.getInvocation();
 

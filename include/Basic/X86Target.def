@@ -1,15 +1,16 @@
-//===--- X86Target.def - X86 Feature/Processor Database ---------*- C++ -*-===//
+//===--------------------------------------------------------------------------------------------------------------===//
+// include/Basic/X86Target.def - X86 Feature/Processor Database
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 //
 // This file defines the X86-specific Features and Processors, as used by
 // the X86 Targets.
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef PROC_WITH_FEAT
 #define PROC_WITH_FEAT(ENUM, STRING, IS64BIT, KEYFEATURE)                      \

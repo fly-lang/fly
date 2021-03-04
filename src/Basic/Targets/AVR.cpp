@@ -1,14 +1,14 @@
-//===--- AVR.cpp - Implement AVR target feature support -------------------===//
+//===--- AVR.cpp - Implement AVR target feature support -----------------------------------------------------------===//
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 //
 // This file implements AVR TargetInfo objects.
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Basic/Targets/AVR.h"
 #include "llvm/ADT/StringSwitch.h"

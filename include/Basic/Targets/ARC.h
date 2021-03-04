@@ -1,14 +1,14 @@
-//===--- ARC.h - Declare ARC target feature support -------------*- C++ -*-===//
+//===--- ARC.h - Declare ARC target feature support -----------------------------------------------------*- C++ -*-===//
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 //
 // This file declares ARC TargetInfo objects.
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef LLVM_FLY_LIB_BASIC_TARGETS_ARC_H
 #define LLVM_FLY_LIB_BASIC_TARGETS_ARC_H

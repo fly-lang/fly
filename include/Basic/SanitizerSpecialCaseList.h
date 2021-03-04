@@ -1,15 +1,16 @@
-//===--- SanitizerSpecialCaseList.h - SCL for sanitizers --------*- C++ -*-===//
+//===--------------------------------------------------------------------------------------------------------------===//
+// include/Basic/SanitizerSpecialCaseList.h - SCL for sanitizers
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 //
 // An extension of SpecialCaseList to allowing querying sections by
 // SanitizerMask.
 //
-//===----------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 #ifndef LLVM_FLY_BASIC_SANITIZERSPECIALCASELIST_H
 #define LLVM_FLY_BASIC_SANITIZERSPECIALCASELIST_H
 
