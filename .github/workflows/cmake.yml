@@ -20,7 +20,7 @@ jobs:
     - name: Install LLVM
       run: |
         chmod 777 ./.github/scripts/install-llvm.sh
-        ./.github/scripts/install-llvm.sh
+        sudo ./.github/scripts/install-llvm.sh
       shell: bash
 
     - name: Create Build Environment
