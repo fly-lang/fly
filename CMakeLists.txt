@@ -50,6 +50,14 @@ add_library(gtest
         llvm/utils/unittest/googlemock/src/gmock-all.cc
         )
 
+add_library(gtest_main
+        test/TestMain.cpp
+        )
+
+target_link_libraries(gtest_main
+        gtest
+        LLVMSupport)
+
 #Enable Verbose for best debugging
 set(CMAKE_VERBOSE_MAKEFILE ON)
 add_link_options("-v")

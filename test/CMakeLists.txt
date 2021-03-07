@@ -9,7 +9,6 @@ add_executable(FlyTest
 
 target_link_libraries(FlyTest PRIVATE
         gtest gtest_main
-        gmock gmock_main
         FlyBasic
         FlyLex
         FlyParser
