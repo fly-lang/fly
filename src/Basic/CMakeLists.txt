@@ -2,6 +2,7 @@ add_library(FlyBasic
         Builtins.cpp
         CharInfo.cpp
         CodeGenOptions.cpp
+        Cuda.cpp
         Diagnostic.cpp
         DiagnosticIDs.cpp
         DiagnosticOptions.cpp
@@ -38,6 +39,7 @@ add_library(FlyBasic
         Targets/Sparc.cpp
         Targets/SystemZ.cpp
         Targets/TCE.cpp
+        Targets/VE.cpp
         Targets/WebAssembly.cpp
         Targets/X86.cpp
         Targets/XCore.cpp

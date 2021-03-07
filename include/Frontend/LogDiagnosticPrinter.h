@@ -7,8 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_FRONTEND_LOGDIAGNOSTICPRINTER_H
-#define LLVM_CLANG_FRONTEND_LOGDIAGNOSTICPRINTER_H
+#ifndef FLY_FRONTEND_LOGDIAGNOSTICPRINTER_H
+#define FLY_FRONTEND_LOGDIAGNOSTICPRINTER_H
 
 #include "Basic/Diagnostic.h"
 #include "Basic/SourceLocation.h"
@@ -66,7 +66,7 @@ public:
                        std::unique_ptr<raw_ostream> StreamOwner);
 
   void setDwarfDebugFlags(StringRef Value) {
-    DwarfDebugFlags = Value;
+    DwarfDebugFlags = std::string(Value);
   }
 
   void BeginSourceFile() override {

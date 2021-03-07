@@ -12,8 +12,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_FRONTEND_TEXTDIAGNOSTICPRINTER_H
-#define LLVM_CLANG_FRONTEND_TEXTDIAGNOSTICPRINTER_H
+#ifndef FLY_FRONTEND_TEXTDIAGNOSTICPRINTER_H
+#define FLY_FRONTEND_TEXTDIAGNOSTICPRINTER_H
 
 #include "Basic/Diagnostic.h"
 #include "Basic/LLVM.h"

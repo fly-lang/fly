@@ -11,34 +11,16 @@
 #include <Driver/DriverOptions.h>
 #include <llvm/Option/OptTable.h>
 #include <llvm/Option/ArgList.h>
-#include <vector>
-#include <iostream>
-#include <fstream>
-#include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include <fstream>
+#include <iostream>
+#include <vector>
 
 namespace {
     using namespace fly;
     using namespace fly::driver;
-    using testing::ElementsAre;
 
-    static const char* testFile = "file1.fly";
-
-    void createTestFile() {
-        std::fstream my_file;
-        my_file.open(testFile, std::ios::out);
-        if (!my_file) {
-            std::cout << "File not created!";
-        }
-        else {
-            std::cout << "File created successfully!";
-            my_file.close();
-        }
-    }
-
-    bool deleteTestFile() {
-        return remove(testFile);
-    }
+    const char* testFile = "file1.fly";
 
     // The test fixture.
     class DriverTest : public ::testing::Test {
@@ -46,6 +28,22 @@ namespace {
     public:
         DriverTest() {}
     };
+
+    bool createTestFile(const char* testFile) {
+        std::fstream my_file;
+        my_file.open(testFile, std::ios::out);
+        if (my_file) {
+            std::cout << "File " << testFile << " created successfully!";
+            my_file.close();
+        } else {
+            std::cout << "Error File " << testFile << " not created!";
+        }
+        return (bool) my_file;
+    }
+
+    void deleteTestFile(const char* testFile) {
+        remove(testFile);
+    }
 
     TEST_F(DriverTest, Options) {
         const opt::OptTable &optTab = fly::driver::getDriverOptTable();
@@ -63,17 +61,20 @@ namespace {
     }
 
     TEST_F(DriverTest, DriverOptions) {
-        createTestFile();
+        EXPECT_TRUE(createTestFile(testFile));
 
         const char *argv[] = {"fly", "-v", testFile, "-o", "file.o"};
         Driver driver(5, argv);
 
         const FrontendOptions &fopts = driver.getInvocation()->getFrontendOptions();
-        EXPECT_EQ(fopts.getInputFiles()[0].getFile(), testFile);
+        for(const InputFile &inputFile : fopts.getInputFiles()) {
+            EXPECT_EQ(inputFile.getFile(), testFile);
+            break;
+        }
         EXPECT_EQ(fopts.getOutputFile().getFile(), "file.o");
         EXPECT_TRUE(fopts.isVerbose());
 
-        deleteTestFile();
+        deleteTestFile(testFile);
     }
 
     TEST_F(DriverTest, PrintHelp) {

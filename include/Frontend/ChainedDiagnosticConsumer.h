@@ -7,8 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_FRONTEND_CHAINEDDIAGNOSTICCONSUMER_H
-#define LLVM_CLANG_FRONTEND_CHAINEDDIAGNOSTICCONSUMER_H
+#ifndef FLY_FRONTEND_CHAINEDDIAGNOSTICCONSUMER_H
+#define FLY_FRONTEND_CHAINEDDIAGNOSTICCONSUMER_H
 
 #include "Basic/Diagnostic.h"
 #include <memory>

@@ -17,6 +17,7 @@
 #include <llvm/Support/FileSystem.h>
 #include <Basic/PrettyStackTrace.h>
 #include <llvm/Support/CommandLine.h>
+#include <llvm/Support/Host.h>
 
 using namespace fly;
 using namespace fly::driver;
@@ -42,8 +43,7 @@ llvm::SmallVector<const char *, 16> getArgs(int argc, const char **argv) {
     return std::move(args);
 }
 
-void SetUpDiagnosticLog(DiagnosticOptions *diagOpts,
-                               DiagnosticsEngine &diags) {
+void SetUpDiagnosticLog(DiagnosticOptions *diagOpts, DiagnosticsEngine &diags) {
     std::error_code EC;
     std::unique_ptr<raw_ostream> StreamOwner;
     raw_ostream *OS = &llvm::errs();
@@ -77,12 +77,12 @@ void SetUpDiagnosticLog(DiagnosticOptions *diagOpts,
 Driver::Driver() : Driver("fly", {"fly"}) {}
 
 Driver::Driver(int argc, const char **argv) :
-    Driver(getCurPath(argv[0]), ((ArrayRef<const char*>)getArgs(argc, argv)).slice(1)) {}
+    Driver(getCurPath(argv[0]), getArgs(argc, argv)) {}
 
 Driver::Driver(const std::string& path, llvm::ArrayRef<const char *> args) : executable(path) {
 
-    name = llvm::sys::path::filename(path);
-    dir = llvm::sys::path::parent_path(path);
+    name = std::string(llvm::sys::path::filename(path));
+    dir = std::string(llvm::sys::path::parent_path(path));
     installedDir = dir; // Provide a sensible default installed dir.
 
     // Create diagnostics
@@ -93,7 +93,7 @@ Driver::Driver(const std::string& path, llvm::ArrayRef<const char *> args) : exe
 
     std::unique_ptr<FrontendOptions> frontendOpts = std::make_unique<FrontendOptions>();
     std::unique_ptr<CodeGenOptions> codeGenOpts = std::make_unique<CodeGenOptions>();
-    if (CreateFromArgs(*diags, args, frontendOpts, codeGenOpts)) {
+    if (CreateFromArgs(*diags, args.slice(1), frontendOpts, codeGenOpts)) {
         invocation = std::make_shared<CompilerInvocation>(std::move(diags), std::move(target),
                                                           std::move(frontendOpts), std::move(codeGenOpts));
     }
@@ -101,26 +101,22 @@ Driver::Driver(const std::string& path, llvm::ArrayRef<const char *> args) : exe
 
 // Diagnostics
 
-IntrusiveRefCntPtr<DiagnosticsEngine> Driver::createDiagnostics(DiagnosticConsumer *client, bool shouldOwnClient) {
-    DiagnosticOptions *DiagOpts = new DiagnosticOptions();
+IntrusiveRefCntPtr<DiagnosticsEngine> Driver::createDiagnostics() {
+
+    IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts = new DiagnosticOptions;
+    TextDiagnosticPrinter *DiagClient = new TextDiagnosticPrinter(llvm::errs(), &*DiagOpts);
+    StringRef ExeBasename(llvm::sys::path::stem(executable));
+    DiagClient->setPrefix(std::string(ExeBasename));
     IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
-    IntrusiveRefCntPtr<DiagnosticsEngine> diagnostics = new DiagnosticsEngine(DiagID, DiagOpts);
+    IntrusiveRefCntPtr<DiagnosticsEngine> Diags = new DiagnosticsEngine(DiagID, &*DiagOpts, DiagClient);
 
-    // Create the diagnostic client for reporting errors or for
-    // implementing -verify.
-    if (client) {
-        diagnostics->setClient(client, shouldOwnClient);
-    } else
-        diagnostics->setClient(new TextDiagnosticPrinter(llvm::errs(), DiagOpts));
-
-    // Chain in -diagnostic-log-file dumper, if requested.
+    // Print log file
     if (!DiagOpts->DiagnosticLogFile.empty())
-        SetUpDiagnosticLog(DiagOpts, *diagnostics);
+        SetUpDiagnosticLog(DiagOpts.get(), *Diags);
 
-    // Configure our handling of diagnostics.
-    ProcessWarningOptions(*diagnostics, *DiagOpts);
+    ProcessWarningOptions(*Diags, *DiagOpts, /*ReportDiags=*/false);
     
-    return std::move(diagnostics);
+    return std::move(Diags);
 }
 
 bool Driver::CreateFromArgs(DiagnosticsEngine &diags,
@@ -176,13 +172,7 @@ bool Driver::CreateFromArgs(DiagnosticsEngine &diags,
     if (argList.hasArg(options::OPT_INPUT)) {
         bool First = true;
         for (const llvm::opt::Arg *a : argList.filtered(options::OPT_INPUT)) {
-            if (First) {
-                frontendOpts->addInputFile(a->getValue());
-                First = false;
-            } else {
-                diags.Report(diag::err_drv_unknown_argument) << a->getAsString(argList);
-                success = false;
-            }
+            frontendOpts->addInputFile(a->getValue());
         }
     }
 
@@ -200,8 +190,8 @@ bool Driver::CreateFromArgs(DiagnosticsEngine &diags,
 }
 
 IntrusiveRefCntPtr<TargetInfo> Driver::createTargetInfo(DiagnosticsEngine &diags) {
-    std::shared_ptr<TargetOptions> targetOpts(new TargetOptions);
-    targetOpts->Triple = llvm::sys::getProcessTriple();
+    const std::shared_ptr<TargetOptions> targetOpts = std::make_shared<TargetOptions>();
+    targetOpts->Triple = llvm::sys::getDefaultTargetTriple();
     return TargetInfo::CreateTargetInfo(diags, targetOpts);
 }
 

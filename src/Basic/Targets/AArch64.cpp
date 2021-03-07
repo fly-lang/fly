@@ -1,16 +1,16 @@
 //===--- AArch64.cpp - Implement AArch64 target feature support -----------===//
 //
-// Part of the Fly Project https://flylang.org
-// Under the Apache License v2.0 see LICENSE for details.
-// Thank you to LLVM Project https://llvm.org/
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
-//===--------------------------------------------------------------------------------------------------------------===//
+//===----------------------------------------------------------------------===//
 //
 // This file implements AArch64 TargetInfo objects.
 //
-//===--------------------------------------------------------------------------------------------------------------===//
+//===----------------------------------------------------------------------===//
 
-#include "Basic/Targets/AArch64.h"
+#include "AArch64.h"
 #include "Basic/TargetBuiltins.h"
 #include "Basic/TargetInfo.h"
 #include "llvm/ADT/ArrayRef.h"
@@ -25,6 +25,10 @@ const Builtin::Info AArch64TargetInfo::BuiltinInfo[] = {
 #define BUILTIN(ID, TYPE, ATTRS)                                               \
    {#ID, TYPE, ATTRS, nullptr, ALL_LANGUAGES, nullptr},
 #include "Basic/BuiltinsNEON.def"
+
+#define BUILTIN(ID, TYPE, ATTRS)                                               \
+   {#ID, TYPE, ATTRS, nullptr, ALL_LANGUAGES, nullptr},
+#include "Basic/BuiltinsSVE.def"
 
 #define BUILTIN(ID, TYPE, ATTRS)                                               \
    {#ID, TYPE, ATTRS, nullptr, ALL_LANGUAGES, nullptr},
@@ -64,6 +68,9 @@ AArch64TargetInfo::AArch64TargetInfo(const llvm::Triple &Triple,
 
   LongDoubleWidth = LongDoubleAlign = SuitableAlign = 128;
   LongDoubleFormat = &llvm::APFloat::IEEEquad();
+
+  BFloat16Width = BFloat16Align = 16;
+  BFloat16Format = &llvm::APFloat::BFloat();
 
   // Make __builtin_ms_va_list available.
   HasBuiltinMSVaList = true;
@@ -116,17 +123,6 @@ bool AArch64TargetInfo::validateBranchProtection(StringRef Spec,
   if (!llvm::AArch64::parseBranchProtection(Spec, PBP, Err))
     return false;
 
-  BPI.SignReturnAddr =
-      llvm::StringSwitch<CodeGenOptions::SignReturnAddressScope>(PBP.Scope)
-          .Case("non-leaf", CodeGenOptions::SignReturnAddressScope::NonLeaf)
-          .Case("all", CodeGenOptions::SignReturnAddressScope::All)
-          .Default(CodeGenOptions::SignReturnAddressScope::None);
-
-  if (PBP.Key == "a_key")
-    BPI.SignKey = CodeGenOptions::SignReturnAddressKeyValue::AKey;
-  else
-    BPI.SignKey = CodeGenOptions::SignReturnAddressKeyValue::BKey;
-
   BPI.BranchTargetEnforcement = PBP.BranchTargetEnforcement;
   return true;
 }
@@ -147,13 +143,17 @@ void AArch64TargetInfo::fillValidCPUList(
 
 ArrayRef<Builtin::Info> AArch64TargetInfo::getTargetBuiltins() const {
   return llvm::makeArrayRef(BuiltinInfo, fly::AArch64::LastTSBuiltin -
-                                         Builtin::FirstTSBuiltin);
+                                             Builtin::FirstTSBuiltin);
 }
 
 bool AArch64TargetInfo::hasFeature(StringRef Feature) const {
   return Feature == "aarch64" || Feature == "arm64" || Feature == "arm" ||
          (Feature == "neon" && (FPU & NeonMode)) ||
-         (Feature == "sve" && (FPU & SveMode));
+         ((Feature == "sve" || Feature == "sve2" || Feature == "sve2-bitperm" ||
+           Feature == "sve2-aes" || Feature == "sve2-sha3" ||
+           Feature == "sve2-sm4" || Feature == "f64mm" || Feature == "f32mm" ||
+           Feature == "i8mm" || Feature == "bf16") &&
+          (FPU & SveMode));
 }
 
 bool AArch64TargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
@@ -167,13 +167,62 @@ bool AArch64TargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
   HasFP16FML = false;
   HasMTE = false;
   HasTME = false;
+  HasMatMul = false;
+  HasBFloat16 = false;
+  HasSVE2 = false;
+  HasSVE2AES = false;
+  HasSVE2SHA3 = false;
+  HasSVE2SM4 = false;
+  HasSVE2BitPerm = false;
+  HasMatmulFP64 = false;
+  HasMatmulFP32 = false;
+
   ArchKind = llvm::AArch64::ArchKind::ARMV8A;
 
   for (const auto &Feature : Features) {
     if (Feature == "+neon")
       FPU |= NeonMode;
-    if (Feature == "+sve")
+    if (Feature == "+sve") {
       FPU |= SveMode;
+      HasFullFP16 = 1;
+    }
+    if (Feature == "+sve2") {
+      FPU |= SveMode;
+      HasFullFP16 = 1;
+      HasSVE2 = 1;
+    }
+    if (Feature == "+sve2-aes") {
+      FPU |= SveMode;
+      HasFullFP16 = 1;
+      HasSVE2 = 1;
+      HasSVE2AES = 1;
+    }
+    if (Feature == "+sve2-sha3") {
+      FPU |= SveMode;
+      HasFullFP16 = 1;
+      HasSVE2 = 1;
+      HasSVE2SHA3 = 1;
+    }
+    if (Feature == "+sve2-sm4") {
+      FPU |= SveMode;
+      HasFullFP16 = 1;
+      HasSVE2 = 1;
+      HasSVE2SM4 = 1;
+    }
+    if (Feature == "+sve2-bitperm") {
+      FPU |= SveMode;
+      HasFullFP16 = 1;
+      HasSVE2 = 1;
+      HasSVE2BitPerm = 1;
+    }
+    if (Feature == "+f32mm") {
+      FPU |= SveMode;
+      HasMatmulFP32 = true;
+    }
+    if (Feature == "+f64mm") {
+      FPU |= SveMode;
+      HasMatmulFP64 = true;
+    }
     if (Feature == "+crc")
       HasCRC = true;
     if (Feature == "+crypto")
@@ -190,6 +239,8 @@ bool AArch64TargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
       ArchKind = llvm::AArch64::ArchKind::ARMV8_4A;
     if (Feature == "+v8.5a")
       ArchKind = llvm::AArch64::ArchKind::ARMV8_5A;
+    if (Feature == "+v8.6a")
+      ArchKind = llvm::AArch64::ArchKind::ARMV8_6A;
     if (Feature == "+fullfp16")
       HasFullFP16 = true;
     if (Feature == "+dotprod")
@@ -200,6 +251,10 @@ bool AArch64TargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
       HasMTE = true;
     if (Feature == "+tme")
       HasTME = true;
+    if (Feature == "+i8mm")
+      HasMatMul = true;
+    if (Feature == "+bf16")
+      HasBFloat16 = true;
   }
 
   setDataLayout();
@@ -336,15 +391,27 @@ bool AArch64TargetInfo::validateAsmConstraint(
     Info.setAllowsRegister();
     return true;
   case 'U':
+    if (Name[1] == 'p' && (Name[2] == 'l' || Name[2] == 'a')) {
+      // SVE predicate registers ("Upa"=P0-15, "Upl"=P0-P7)
+      Info.setAllowsRegister();
+      Name += 2;
+      return true;
+    }
     // Ump: A memory address suitable for ldp/stp in SI, DI, SF and DF modes.
     // Utf: A memory address suitable for ldp/stp in TF mode.
     // Usa: An absolute symbolic address.
     // Ush: The high part (bits 32:12) of a pc-relative symbolic address.
-    llvm_unreachable("FIXME: Unimplemented support for U* constraints.");
+
+    // Better to return an error saying that it's an unrecognised constraint
+    // even if this is a valid constraint in gcc.
+    return false;
   case 'z': // Zero register, wzr or xzr
     Info.setAllowsRegister();
     return true;
   case 'x': // Floating point and SIMD registers (V0-V15)
+    Info.setAllowsRegister();
+    return true;
+  case 'y': // SVE registers (V0-V7)
     Info.setAllowsRegister();
     return true;
   }

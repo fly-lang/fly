@@ -17,6 +17,7 @@
 
 #include "llvm/Support/VersionTuple.h"
 #include "llvm/Target/TargetOptions.h"
+#include "llvm/ADT/StringMap.h"
 #include <string>
 #include <vector>
 
@@ -25,10 +26,10 @@ namespace fly {
 /// Options for controlling the target.
 class TargetOptions {
 public:
-  /// The name of the target triple to execute for.
+  /// The name of the target triple to compile for.
   std::string Triple;
 
-  /// When compiling for the device side, contains the triple used to execute
+  /// When compiling for the device side, contains the triple used to compile
   /// for the host.
   std::string HostTriple;
 
@@ -54,9 +55,9 @@ public:
   /// be a list of strings starting with by '+' or '-'.
   std::vector<std::string> Features;
 
-  /// The list of OpenCL extensions to enable or disable, as written on
-  /// the command line.
-  std::vector<std::string> OpenCLExtensionsAsWritten;
+  /// The map of which features have been enabled disabled based on the command
+  /// line.
+  llvm::StringMap<bool> FeatureMap;
 
   /// If given, enables support for __int128_t and __uint128_t types.
   bool ForceEnableInt128 = false;

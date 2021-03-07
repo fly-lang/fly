@@ -13,8 +13,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_FRONTEND_TEXTDIAGNOSTIC_H
-#define LLVM_CLANG_FRONTEND_TEXTDIAGNOSTIC_H
+#ifndef FLY_FRONTEND_TEXTDIAGNOSTIC_H
+#define FLY_FRONTEND_TEXTDIAGNOSTIC_H
 
 #include "Frontend/DiagnosticRenderer.h"
 

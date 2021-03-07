@@ -8,7 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 //
 /// \file
-/// Defines the clang::SourceLocation class and associated facilities.
+/// Defines the fly::SourceLocation class and associated facilities.
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
@@ -478,7 +478,7 @@ namespace llvm {
   // Teach SmallPtrSet how to handle SourceLocation.
   template<>
   struct PointerLikeTypeTraits<fly::SourceLocation> {
-    enum { NumLowBitsAvailable = 0 };
+    static constexpr int NumLowBitsAvailable = 0;
 
     static void *getAsVoidPointer(fly::SourceLocation L) {
       return L.getPtrEncoding();

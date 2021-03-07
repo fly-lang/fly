@@ -25,7 +25,7 @@ CodeGenModule::CodeGenModule(fly::DiagnosticsEngine &diags, llvm::StringRef modu
 
 void CodeGenModule::initialize(TargetInfo &targetInfo) {
     module->setTargetTriple(targetInfo.getTriple().getTriple());
-    module->setDataLayout(targetInfo.getDataLayout());
+    //module->setDataLayout(targetInfo.getDataLayout());
     // module->setSDKVersion() TODO
 }
 

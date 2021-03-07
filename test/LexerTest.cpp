@@ -89,7 +89,7 @@ namespace {
                                          SourceMgr, &Invalid);
             if (Invalid)
                 return "<INVALID>";
-            return Str;
+            return std::string(Str);
         }
 
         FileSystemOptions FileMgrOpts;

@@ -48,8 +48,9 @@ OPTION(prefix_4, "help", HELP, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
        "Display available options", nullptr, nullptr)
 OPTION(prefix_1, "o", OUTPUT, JoinedOrSeparate, INVALID, INVALID, nullptr, CoreOption, 0,
        "Write output to <file>", "<file>", nullptr)
-OPTION(prefix_1, "v", VERBOSE, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
-       "Show commands to run and use verbose output", nullptr, nullptr)
 OPTION(prefix_4, "version", VERSION, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
        "Print version information", nullptr, nullptr)
+OPTION(prefix_1, "v", VERBOSE, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
+       "Show commands to run and use verbose output", nullptr, nullptr)
+
 #endif // OPTION

@@ -17,6 +17,7 @@ DIAG(err_arcmt_nsinvocation_ownership, CLASS_ERROR, (unsigned)diag::Severity::Er
 DIAG(err_asm_invalid_type_in_input, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid type %0 in asm input for constraint '%1'", 0, SFINAE_SubstitutionFailure, false, true, 12)
 DIAG(err_attribute_not_type_attr, CLASS_ERROR, (unsigned)diag::Severity::Error, "%0 attribute cannot be applied to types", 0, SFINAE_SubstitutionFailure, false, true, 4)
 DIAG(err_attribute_uuid_malformed_guid, CLASS_ERROR, (unsigned)diag::Severity::Error, "uuid attribute contains a malformed GUID", 0, SFINAE_SubstitutionFailure, false, true, 0)
+DIAG(err_include_too_large, CLASS_ERROR, (unsigned)diag::Severity::Fatal, "sorry, this include generates a translation unit too large", 0, SFINAE_SubstitutionFailure, false, true, 0)
 DIAG(err_cannot_open_file, CLASS_ERROR, (unsigned)diag::Severity::Fatal, "cannot open file '%0': %1", 0, SFINAE_SubstitutionFailure, false, true, 0)
 DIAG(err_default_special_members, CLASS_ERROR, (unsigned)diag::Severity::Error, "only special member functions %select{|and comparison operators }0may be defaulted", 0, SFINAE_SubstitutionFailure, false, true, 4)
 DIAG(err_deleted_non_function, CLASS_ERROR, (unsigned)diag::Severity::Error, "only functions can have deleted definitions", 0, SFINAE_SubstitutionFailure, false, true, 4)

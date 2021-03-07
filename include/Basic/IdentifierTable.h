@@ -13,8 +13,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_BASIC_IDENTIFIERTABLE_H
-#define LLVM_CLANG_BASIC_IDENTIFIERTABLE_H
+#ifndef FLY_BASIC_IDENTIFIERTABLE_H
+#define FLY_BASIC_IDENTIFIERTABLE_H
 
 #include "Basic/LLVM.h"
 #include "Basic/TokenKinds.h"
@@ -407,4 +407,4 @@ namespace fly {
 
 }  // namespace fly
 
-#endif // LLVM_CLANG_BASIC_IDENTIFIERTABLE_H
+#endif // FLY_BASIC_IDENTIFIERTABLE_H

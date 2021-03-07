@@ -34,3 +34,11 @@ bool FrontendOptions::isVerbose() const {
 void FrontendOptions::setVerbose() {
     FrontendOptions::verbose = true;
 }
+
+bool FrontendOptions::isSkipParse() const {
+    return skipParse;
+}
+
+void FrontendOptions::setSkipParse() {
+    skipParse = true;
+}

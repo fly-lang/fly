@@ -62,7 +62,7 @@ namespace fly {
 /// on the specified Preprocessor object to handle preprocessor directives, etc.
     class Lexer {
 
-        DiagnosticsEngine *Diags;
+        DiagnosticsEngine &Diags;
 
     protected:
         const SourceManager *SM = nullptr;
@@ -184,7 +184,7 @@ namespace fly {
             return FID;
         }
 
-        DiagnosticsEngine &getDiagnostics() const { return *Diags; }
+        DiagnosticsEngine &getDiagnostics() const { return Diags; }
 
         /// LexFromRawLexer - Lex a token from a designated raw lexer (one with no
         /// associated preprocessor object.  Return true if the 'next character to
@@ -422,36 +422,6 @@ namespace fly {
         static StringRef getSourceText(CharSourceRange Range,
                                        const SourceManager &SM,
                                        bool *Invalid = nullptr);
-
-        /// Retrieve the name of the immediate macro expansion.
-        ///
-        /// This routine starts from a source location, and finds the name of the macro
-        /// responsible for its immediate expansion. It looks through any intervening
-        /// macro argument expansions to compute this. It returns a StringRef which
-        /// refers to the SourceManager-owned buffer of the source where that macro
-        /// name is spelled. Thus, the result shouldn't out-live that SourceManager.
-        static StringRef getImmediateMacroName(SourceLocation Loc,
-                                               const SourceManager &SM);
-
-        /// Retrieve the name of the immediate macro expansion.
-        ///
-        /// This routine starts from a source location, and finds the name of the
-        /// macro responsible for its immediate expansion. It looks through any
-        /// intervening macro argument expansions to compute this. It returns a
-        /// StringRef which refers to the SourceManager-owned buffer of the source
-        /// where that macro name is spelled. Thus, the result shouldn't out-live
-        /// that SourceManager.
-        ///
-        /// This differs from Lexer::getImmediateMacroName in that any macro argument
-        /// location will result in the topmost function macro that accepted it.
-        /// e.g.
-        /// \code
-        ///   MAC1( MAC2(foo) )
-        /// \endcode
-        /// for location of 'foo' token, this function will return "MAC1" while
-        /// Lexer::getImmediateMacroName will return "MAC2".
-        static StringRef getImmediateMacroNameForDiagnostics(
-                SourceLocation Loc, const SourceManager &SM);
 
         /// Finds the token that comes right after the given location.
         ///
@@ -710,11 +680,11 @@ namespace fly {
         /// the specified Token's location, translating the token's start
         /// position in the current buffer into a SourcePosition object for rendering.
         DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID) const {
-            return Diags->Report(Loc, DiagID);
+            return Diags.Report(Loc, DiagID);
         }
 
         DiagnosticBuilder Diag(const Token &Tok, unsigned DiagID) const {
-            return Diags->Report(Tok.getLocation(), DiagID);
+            return Diags.Report(Tok.getLocation(), DiagID);
         }
 
         IdentifierInfo *LookUpIdentifierInfo(Token &Identifier) const;

@@ -1,17 +1,17 @@
 //===--- Hexagon.cpp - Implement Hexagon target feature support -----------===//
 //
-// Part of the Fly Project https://flylang.org
-// Under the Apache License v2.0 see LICENSE for details.
-// Thank you to LLVM Project https://llvm.org/
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
-//===--------------------------------------------------------------------------------------------------------------===//
+//===----------------------------------------------------------------------===//
 //
 // This file implements Hexagon TargetInfo objects.
 //
-//===--------------------------------------------------------------------------------------------------------------===//
+//===----------------------------------------------------------------------===//
 
-#include "Basic/Targets/Hexagon.h"
-#include "Basic/Targets/Targets.h"
+#include "Hexagon.h"
+#include "Basic/Targets.h"
 #include "Basic/TargetBuiltins.h"
 #include "llvm/ADT/StringSwitch.h"
 
@@ -21,6 +21,14 @@ using namespace fly::targets;
 bool HexagonTargetInfo::initFeatureMap(
     llvm::StringMap<bool> &Features, DiagnosticsEngine &Diags, StringRef CPU,
     const std::vector<std::string> &FeaturesVec) const {
+  if (isTinyCore())
+    Features["audio"] = true;
+
+  StringRef CPUFeature = CPU;
+  CPUFeature.consume_front("hexagon");
+  CPUFeature.consume_back("t");
+  Features[CPUFeature] = true;
+
   Features["long-calls"] = false;
 
   return TargetInfo::initFeatureMap(Features, Diags, CPU, FeaturesVec);
@@ -42,6 +50,8 @@ bool HexagonTargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
       UseLongCalls = true;
     else if (F == "-long-calls")
       UseLongCalls = false;
+    else if (F == "+audio")
+      HasAudio = true;
   }
   return true;
 }
@@ -76,6 +86,8 @@ const Builtin::Info HexagonTargetInfo::BuiltinInfo[] = {
   {#ID, TYPE, ATTRS, nullptr, ALL_LANGUAGES, nullptr},
 #define LIBBUILTIN(ID, TYPE, ATTRS, HEADER)                                    \
   {#ID, TYPE, ATTRS, HEADER, ALL_LANGUAGES, nullptr},
+#define TARGET_BUILTIN(ID, TYPE, ATTRS, FEATURE)                               \
+  {#ID, TYPE, ATTRS, nullptr, ALL_LANGUAGES, FEATURE},
 #include "Basic/BuiltinsHexagon.def"
 };
 
@@ -90,6 +102,7 @@ bool HexagonTargetInfo::hasFeature(StringRef Feature) const {
       .Case("hvx-length64b", HasHVX64B)
       .Case("hvx-length128b", HasHVX128B)
       .Case("long-calls", UseLongCalls)
+      .Case("audio", HasAudio)
       .Default(false);
 }
 
@@ -99,9 +112,10 @@ struct CPUSuffix {
 };
 
 static constexpr CPUSuffix Suffixes[] = {
-    {{"hexagonv5"},  {"5"}},  {{"hexagonv55"}, {"55"}},
-    {{"hexagonv60"}, {"60"}}, {{"hexagonv62"}, {"62"}},
-    {{"hexagonv65"}, {"65"}}, {{"hexagonv66"}, {"66"}},
+    {{"hexagonv5"},  {"5"}},  {{"hexagonv55"},  {"55"}},
+    {{"hexagonv60"}, {"60"}}, {{"hexagonv62"},  {"62"}},
+    {{"hexagonv65"}, {"65"}}, {{"hexagonv66"},  {"66"}},
+    {{"hexagonv67"}, {"67"}}, {{"hexagonv67t"}, {"67t"}},
 };
 
 const char *HexagonTargetInfo::getHexagonCPUSuffix(StringRef Name) {
@@ -120,5 +134,5 @@ void HexagonTargetInfo::fillValidCPUList(
 
 ArrayRef<Builtin::Info> HexagonTargetInfo::getTargetBuiltins() const {
   return llvm::makeArrayRef(BuiltinInfo, fly::Hexagon::LastTSBuiltin -
-                                         Builtin::FirstTSBuiltin);
+                                             Builtin::FirstTSBuiltin);
 }

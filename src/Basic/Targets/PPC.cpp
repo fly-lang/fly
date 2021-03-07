@@ -1,16 +1,16 @@
 //===--- PPC.cpp - Implement PPC target feature support -------------------===//
 //
-// Part of the Fly Project https://flylang.org
-// Under the Apache License v2.0 see LICENSE for details.
-// Thank you to LLVM Project https://llvm.org/
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
-//===--------------------------------------------------------------------------------------------------------------===//
+//===----------------------------------------------------------------------===//
 //
 // This file implements PPC TargetInfo objects.
 //
-//===--------------------------------------------------------------------------------------------------------------===//
+//===----------------------------------------------------------------------===//
 
-#include "Basic/Targets/PPC.h"
+#include "PPC.h"
 #include "Basic/Diagnostic.h"
 
 #include "Basic/TargetBuiltins.h"
@@ -54,6 +54,10 @@ bool PPCTargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
       HasFloat128 = true;
     } else if (Feature == "+power9-vector") {
       HasP9Vector = true;
+    } else if (Feature == "+power10-vector") {
+      HasP10Vector = true;
+    } else if (Feature == "+pcrelative-memops") {
+      HasPCRelativeMemops = true;
     } else if (Feature == "+spe") {
       HasSPE = true;
       LongDoubleWidth = LongDoubleAlign = 64;
@@ -74,38 +78,32 @@ bool PPCTargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
 // - direct-move
 // - float128
 // - power9-vector
+// - power10-vector
 // then go ahead and error since the customer has expressed an incompatible
 // set of options.
 static bool ppcUserFeaturesCheck(DiagnosticsEngine &Diags,
                                  const std::vector<std::string> &FeaturesVec) {
 
-  if (llvm::find(FeaturesVec, "-vsx") != FeaturesVec.end()) {
-    if (llvm::find(FeaturesVec, "+power8-vector") != FeaturesVec.end()) {
-      Diags.Report(diag::err_opt_not_valid_with_opt) << "-mpower8-vector"
-                                                     << "-mno-vsx";
-      return false;
-    }
+  // vsx was not explicitly turned off.
+  if (llvm::find(FeaturesVec, "-vsx") == FeaturesVec.end())
+    return true;
 
-    if (llvm::find(FeaturesVec, "+direct-move") != FeaturesVec.end()) {
-      Diags.Report(diag::err_opt_not_valid_with_opt) << "-mdirect-move"
-                                                     << "-mno-vsx";
-      return false;
+  auto FindVSXSubfeature = [&](StringRef Feature, StringRef Option) {
+    if (llvm::find(FeaturesVec, Feature) != FeaturesVec.end()) {
+      Diags.Report(diag::err_opt_not_valid_with_opt) << Option << "-mno-vsx";
+      return true;
     }
+    return false;
+  };
 
-    if (llvm::find(FeaturesVec, "+float128") != FeaturesVec.end()) {
-      Diags.Report(diag::err_opt_not_valid_with_opt) << "-mfloat128"
-                                                     << "-mno-vsx";
-      return false;
-    }
+  bool Found = FindVSXSubfeature("+power8-vector", "-mpower8-vector");
+  Found |= FindVSXSubfeature("+direct-move", "-mdirect-move");
+  Found |= FindVSXSubfeature("+float128", "-mfloat128");
+  Found |= FindVSXSubfeature("+power9-vector", "-mpower9-vector");
+  Found |= FindVSXSubfeature("+power10-vector", "-mpower10-vector");
 
-    if (llvm::find(FeaturesVec, "+power9-vector") != FeaturesVec.end()) {
-      Diags.Report(diag::err_opt_not_valid_with_opt) << "-mpower9-vector"
-                                                     << "-mno-vsx";
-      return false;
-    }
-  }
-
-  return true;
+  // Return false if any vsx subfeatures was found.
+  return !Found;
 }
 
 bool PPCTargetInfo::initFeatureMap(
@@ -172,10 +170,17 @@ bool PPCTargetInfo::initFeatureMap(
                         .Case("e500", true)
                         .Default(false);
 
-  // Future CPU should include all of the features of Power 9 as well as any
+  // Power10 includes all the same features as Power9 plus any features specific
+  // to the Power10 core.
+  if (CPU == "pwr10" || CPU == "power10") {
+    initFeatureMap(Features, Diags, "pwr9", FeaturesVec);
+    addP10SpecificFeatures(Features);
+  }
+
+  // Future CPU should include all of the features of Power 10 as well as any
   // additional features (yet to be determined) specific to it.
   if (CPU == "future") {
-    initFeatureMap(Features, Diags, "pwr9", FeaturesVec);
+    initFeatureMap(Features, Diags, "pwr10", FeaturesVec);
     addFutureSpecificFeatures(Features);
   }
 
@@ -190,6 +195,15 @@ bool PPCTargetInfo::initFeatureMap(
   }
 
   return TargetInfo::initFeatureMap(Features, Diags, CPU, FeaturesVec);
+}
+
+// Add any Power10 specific features.
+void PPCTargetInfo::addP10SpecificFeatures(
+    llvm::StringMap<bool> &Features) const {
+  Features["htm"] = false; // HTM was removed for P10.
+  Features["power10-vector"] = true;
+  Features["pcrelative-memops"] = true;
+  return;
 }
 
 // Add features specific to the "Future" CPU.
@@ -212,6 +226,8 @@ bool PPCTargetInfo::hasFeature(StringRef Feature) const {
       .Case("extdiv", HasExtDiv)
       .Case("float128", HasFloat128)
       .Case("power9-vector", HasP9Vector)
+      .Case("power10-vector", HasP10Vector)
+      .Case("pcrelative-memops", HasPCRelativeMemops)
       .Case("spe", HasSPE)
       .Default(false);
 }
@@ -226,22 +242,34 @@ void PPCTargetInfo::setFeatureEnabled(llvm::StringMap<bool> &Features,
                              .Case("direct-move", true)
                              .Case("power8-vector", true)
                              .Case("power9-vector", true)
+                             .Case("power10-vector", true)
                              .Case("float128", true)
                              .Default(false);
     if (FeatureHasVSX)
       Features["vsx"] = Features["altivec"] = true;
     if (Name == "power9-vector")
       Features["power8-vector"] = true;
-    Features[Name] = true;
+    else if (Name == "power10-vector")
+      Features["power8-vector"] = Features["power9-vector"] = true;
+    if (Name == "pcrel")
+      Features["pcrelative-memops"] = true;
+    else
+      Features[Name] = true;
   } else {
     // If we're disabling altivec or vsx go ahead and disable all of the vsx
     // features.
     if ((Name == "altivec") || (Name == "vsx"))
       Features["vsx"] = Features["direct-move"] = Features["power8-vector"] =
-          Features["float128"] = Features["power9-vector"] = false;
+          Features["float128"] = Features["power9-vector"] =
+              Features["power10-vector"] = false;
     if (Name == "power8-vector")
-      Features["power9-vector"] = false;
-    Features[Name] = false;
+      Features["power9-vector"] = Features["power10-vector"] = false;
+    else if (Name == "power9-vector")
+      Features["power10-vector"] = false;
+    if (Name == "pcrel")
+      Features["pcrelative-memops"] = false;
+    else
+      Features[Name] = false;
   }
 }
 
@@ -322,18 +350,17 @@ ArrayRef<TargetInfo::AddlRegName> PPCTargetInfo::getGCCAddlRegNames() const {
 }
 
 static constexpr llvm::StringLiteral ValidCPUNames[] = {
-    {"generic"},   {"440"},       {"450"},         {"601"},         {"602"},
-    {"603"},       {"603e"},      {"603ev"},       {"604"},         {"604e"},
-    {"620"},       {"630"},       {"g3"},          {"7400"},        {"g4"},
-    {"7450"},      {"g4+"},       {"750"},         {"8548"},        {"970"},
-    {"g5"},        {"a2"},        {"a2q"},         {"e500"},        {"e500mc"},
-    {"e5500"},     {"power3"},    {"pwr3"},        {"power4"},      {"pwr4"},
-    {"power5"},    {"pwr5"},      {"power5x"},     {"pwr5x"},       {"power6"},
-    {"pwr6"},      {"power6x"},   {"pwr6x"},       {"power7"},      {"pwr7"},
-    {"power8"},    {"pwr8"},      {"power9"},      {"pwr9"},        {"powerpc"},
-    {"ppc"},       {"powerpc64"}, {"ppc64"},       {"powerpc64le"}, {"ppc64le"},
-    {"future"}
-};
+    {"generic"},     {"440"},     {"450"},     {"601"},       {"602"},
+    {"603"},         {"603e"},    {"603ev"},   {"604"},       {"604e"},
+    {"620"},         {"630"},     {"g3"},      {"7400"},      {"g4"},
+    {"7450"},        {"g4+"},     {"750"},     {"8548"},      {"970"},
+    {"g5"},          {"a2"},      {"a2q"},     {"e500"},      {"e500mc"},
+    {"e5500"},       {"power3"},  {"pwr3"},    {"power4"},    {"pwr4"},
+    {"power5"},      {"pwr5"},    {"power5x"}, {"pwr5x"},     {"power6"},
+    {"pwr6"},        {"power6x"}, {"pwr6x"},   {"power7"},    {"pwr7"},
+    {"power8"},      {"pwr8"},    {"power9"},  {"pwr9"},      {"power10"},
+    {"pwr10"},       {"powerpc"}, {"ppc"},     {"powerpc64"}, {"ppc64"},
+    {"powerpc64le"}, {"ppc64le"}, {"future"}};
 
 bool PPCTargetInfo::isValidCPUName(StringRef Name) const {
   return llvm::find(ValidCPUNames, Name) != std::end(ValidCPUNames);
@@ -343,17 +370,15 @@ void PPCTargetInfo::fillValidCPUList(SmallVectorImpl<StringRef> &Values) const {
   Values.append(std::begin(ValidCPUNames), std::end(ValidCPUNames));
 }
 
-void PPCTargetInfo::adjust() {
-  if (HasAltivec)
-    //Opts.AltiVec = 1;
+void PPCTargetInfo::adjust(bool PPCIEEELongDouble) {
   TargetInfo::adjust();
-//  if (LongDoubleFormat != &llvm::APFloat::IEEEdouble())
-//    LongDoubleFormat = Opts.PPCIEEELongDouble
-//                           ? &llvm::APFloat::IEEEquad()
-//                           : &llvm::APFloat::PPCDoubleDouble();
+  if (LongDoubleFormat != &llvm::APFloat::IEEEdouble())
+    LongDoubleFormat = PPCIEEELongDouble
+                           ? &llvm::APFloat::IEEEquad()
+                           : &llvm::APFloat::PPCDoubleDouble();
 }
 
 ArrayRef<Builtin::Info> PPCTargetInfo::getTargetBuiltins() const {
   return llvm::makeArrayRef(BuiltinInfo, fly::PPC::LastTSBuiltin -
-                                         Builtin::FirstTSBuiltin);
+                                             Builtin::FirstTSBuiltin);
 }

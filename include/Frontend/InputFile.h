@@ -44,7 +44,7 @@ namespace fly {
 
         bool isBuffer() const { return Buffer != nullptr; }
 
-        llvm::StringRef getFile() const {
+        std::string getFile() const {
             assert(isFile());
             return File;
         }

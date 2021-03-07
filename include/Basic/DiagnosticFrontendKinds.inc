@@ -11,7 +11,6 @@
 __FRONTENDSTART = DIAG_START_FRONTEND,
 #undef FRONTENDSTART
 #endif
-
 DIAG(err_alias_to_undefined, CLASS_ERROR, (unsigned)diag::Severity::Error, "%select{alias|ifunc}0 must point to a defined %select{variable or |}1function", 0, SFINAE_SubstitutionFailure, false, true, 0)
 DIAG(err_builtin_needs_feature, CLASS_ERROR, (unsigned)diag::Severity::Error, "%0 needs target feature %1", 0, SFINAE_SubstitutionFailure, false, true, 0)
 DIAG(err_cyclic_alias, CLASS_ERROR, (unsigned)diag::Severity::Error, "%select{alias|ifunc}0 definition is part of a cycle", 0, SFINAE_SubstitutionFailure, false, true, 0)

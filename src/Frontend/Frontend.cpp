@@ -18,12 +18,6 @@ Frontend::Frontend(CompilerInvocation &invocation) : invocation(invocation), dia
     }
 }
 
-Frontend::~Frontend() {
-    //assert(OutputFiles.empty() && "Still output files in flight?");
-    // TODO delete CompilerInvocation
-    // Delete Compiler Instances
-}
-
 bool Frontend::execute() const {
     bool res = true;
     for (auto &instance : instances) {

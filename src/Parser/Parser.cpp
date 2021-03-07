@@ -13,8 +13,8 @@
 using namespace fly;
 using namespace std;
 
-Parser::Parser(const string &fileName, Lexer &L) :
-        Lex(L), Diags(L.getDiagnostics()) {
+Parser::Parser(const string &fileName, Lexer &L, DiagnosticsEngine &diags) :
+        Lex(L), Diags(diags) {
 
     Tok.startToken();
     Tok.setKind(tok::eof);
@@ -53,7 +53,7 @@ bool Parser::parsePackageDecl(const string& fileName) {
         Diag(Tok, diag::err_package_undefined);
 
     } else {
-        Diag(Tok,diag::err_package_missing);
+        Diag(Tok,diag::err_package_missing); // Unexpected diagnostic outside source file processing
     }
     return false;
 }

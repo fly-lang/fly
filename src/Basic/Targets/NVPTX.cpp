@@ -1,21 +1,21 @@
-//===--- NVPTX.cpp - Implement NVPTX target feature support -------------------------------------------------------===//
+//===--- NVPTX.cpp - Implement NVPTX target feature support ---------------===//
 //
-// Part of the Fly Project https://flylang.org
-// Under the Apache License v2.0 see LICENSE for details.
-// Thank you to LLVM Project https://llvm.org/
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
-//===--------------------------------------------------------------------------------------------------------------===//
+//===----------------------------------------------------------------------===//
 //
 // This file implements NVPTX TargetInfo objects.
 //
-//===--------------------------------------------------------------------------------------------------------------===//
+//===----------------------------------------------------------------------===//
 
-#include "Basic/Targets/NVPTX.h"
-#include "Basic/Targets/Targets.h"
+#include "NVPTX.h"
+#include "Basic/Targets.h"
 #include "Basic/Builtins.h"
-
 #include "Basic/TargetBuiltins.h"
 #include "llvm/ADT/StringSwitch.h"
+#include "llvm/Frontend/OpenMP/OMPGridValues.h"
 
 using namespace fly;
 using namespace fly::targets;
@@ -44,6 +44,8 @@ NVPTXTargetInfo::NVPTXTargetInfo(const llvm::Triple &Triple,
     if (!Feature.startswith("+ptx"))
       continue;
     PTXVersion = llvm::StringSwitch<unsigned>(Feature)
+                     .Case("+ptx70", 70)
+                     .Case("+ptx65", 65)
                      .Case("+ptx64", 64)
                      .Case("+ptx63", 63)
                      .Case("+ptx61", 61)
@@ -60,11 +62,13 @@ NVPTXTargetInfo::NVPTXTargetInfo(const llvm::Triple &Triple,
   TLSSupported = false;
   VLASupported = false;
   AddrSpaceMap = &NVPTXAddrSpaceMap;
+  GridValues = llvm::omp::NVPTXGpuGridValues;
   UseAddrSpaceMapMangling = true;
 
   // Define available target features
   // These must be defined in sorted order!
   NoAsmVariants = true;
+  GPU = CudaArch::SM_20;
 
   if (TargetPointerWidth == 32)
     resetDataLayout("e-p:32:32-i64:64-i128:128-v16:16-v32:32-n16:32:64");
@@ -169,5 +173,5 @@ bool NVPTXTargetInfo::hasFeature(StringRef Feature) const {
 
 ArrayRef<Builtin::Info> NVPTXTargetInfo::getTargetBuiltins() const {
   return llvm::makeArrayRef(BuiltinInfo, fly::NVPTX::LastTSBuiltin -
-                                         Builtin::FirstTSBuiltin);
+                                             Builtin::FirstTSBuiltin);
 }

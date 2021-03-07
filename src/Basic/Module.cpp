@@ -38,26 +38,21 @@ using namespace fly;
 Module::Module(StringRef Name, SourceLocation DefinitionLoc, Module *Parent,
                bool IsFramework, bool IsExplicit, unsigned VisibilityID)
     : Name(Name), DefinitionLoc(DefinitionLoc), Parent(Parent),
-      VisibilityID(VisibilityID), IsMissingRequirement(false),
+      VisibilityID(VisibilityID), IsUnimportable(false),
       HasIncompatibleModuleFile(false), IsAvailable(true),
       IsFromModuleFile(false), IsFramework(IsFramework), IsExplicit(IsExplicit),
       IsSystem(false), IsExternC(false), IsInferred(false),
       InferSubmodules(false), InferExplicitSubmodules(false),
       InferExportWildcard(false), ConfigMacrosExhaustive(false),
       NoUndeclaredIncludes(false), ModuleMapIsPrivate(false),
-      NameVisibility(Hidden) {
+      HasUmbrellaDir(false), NameVisibility(Hidden) {
   if (Parent) {
-    if (!Parent->isAvailable())
-      IsAvailable = false;
-    if (Parent->IsSystem)
-      IsSystem = true;
-    if (Parent->IsExternC)
-      IsExternC = true;
-    if (Parent->NoUndeclaredIncludes)
-      NoUndeclaredIncludes = true;
-    if (Parent->ModuleMapIsPrivate)
-      ModuleMapIsPrivate = true;
-    IsMissingRequirement = Parent->IsMissingRequirement;
+    IsAvailable = Parent->isAvailable();
+    IsUnimportable = Parent->isUnimportable();
+    IsSystem = Parent->IsSystem;
+    IsExternC = Parent->IsExternC;
+    NoUndeclaredIncludes = Parent->NoUndeclaredIncludes;
+    ModuleMapIsPrivate = Parent->ModuleMapIsPrivate;
 
     Parent->SubModuleIndex[Name] = Parent->SubModules.size();
     Parent->SubModules.push_back(this);
@@ -103,6 +98,24 @@ static bool isPlatformEnvironment(const TargetInfo &Target, StringRef Feature) {
 }
 
 
+bool Module::isUnimportable(const TargetInfo &Target, Requirement &Req,
+                            Module *&ShadowingModule) const {
+  if (!IsUnimportable)
+    return false;
+
+  for (const Module *Current = this; Current; Current = Current->Parent) {
+    if (Current->ShadowingModule) {
+      ShadowingModule = Current->ShadowingModule;
+      return true;
+    }
+    for (unsigned I = 0, N = Current->Requirements.size(); I != N; ++I) {
+        Req = Current->Requirements[I];
+        return true;
+    }
+  }
+
+  llvm_unreachable("could not find a reason why module is unimportable");
+}
 
 bool Module::isAvailable(const TargetInfo &Target,
                          Requirement &Req,
@@ -111,15 +124,12 @@ bool Module::isAvailable(const TargetInfo &Target,
   if (IsAvailable)
     return true;
 
+  if (isUnimportable(Target, Req, ShadowingModule))
+    return false;
+
+  // FIXME: All missing headers are listed on the top-level module. Should we
+  // just look there?
   for (const Module *Current = this; Current; Current = Current->Parent) {
-    if (Current->ShadowingModule) {
-      ShadowingModule = Current->ShadowingModule;
-      return false;
-    }
-    for (unsigned I = 0, N = Current->Requirements.size(); I != N; ++I) {
-        Req = Current->Requirements[I];
-        return false;
-    }
     if (!Current->MissingHeaders.empty()) {
       MissingHeader = Current->MissingHeaders.front();
       return false;
@@ -208,7 +218,12 @@ Module::DirectoryName Module::getUmbrellaDir() const {
   if (Header U = getUmbrellaHeader())
     return {"", U.Entry->getDir()};
 
-  return {UmbrellaAsWritten, Umbrella.dyn_cast<const DirectoryEntry *>()};
+  return {UmbrellaAsWritten, static_cast<const DirectoryEntry *>(Umbrella)};
+}
+
+void Module::addTopHeader(const FileEntry *File) {
+  assert(File);
+  TopHeaders.insert(File);
 }
 
 ArrayRef<const FileEntry *> Module::getTopHeaders(FileManager &FileMgr) {
@@ -244,14 +259,12 @@ bool Module::directlyUses(const Module *Requested) const {
 
 void Module::addRequirement(StringRef Feature, bool RequiredState,
                             const TargetInfo &Target) {
-  Requirements.push_back(Requirement(Feature, RequiredState));
-
-  return;
+  Requirements.push_back(Requirement(std::string(Feature), RequiredState));
 }
 
-void Module::markUnavailable(bool MissingRequirement) {
-  auto needUpdate = [MissingRequirement](Module *M) {
-    return M->IsAvailable || (!M->IsMissingRequirement && MissingRequirement);
+void Module::markUnavailable(bool Unimportable) {
+  auto needUpdate = [Unimportable](Module *M) {
+    return M->IsAvailable || (!M->IsUnimportable && Unimportable);
   };
 
   if (!needUpdate(this))
@@ -267,7 +280,7 @@ void Module::markUnavailable(bool MissingRequirement) {
       continue;
 
     Current->IsAvailable = false;
-    Current->IsMissingRequirement |= MissingRequirement;
+    Current->IsUnimportable |= Unimportable;
     for (submodule_iterator Sub = Current->submodule_begin(),
                          SubEnd = Current->submodule_end();
          Sub != SubEnd; ++Sub) {
@@ -601,8 +614,8 @@ void VisibleModuleSet::setVisible(Module *M, SourceLocation Loc,
     SmallVector<Module *, 16> Exports;
     V.M->getExportedModules(Exports);
     for (Module *E : Exports) {
-      // Don't recurse to unavailable submodules.
-      if (E->isAvailable())
+      // Don't import non-importable modules.
+      if (!E->isUnimportable())
         VisitModule({E, &V});
     }
 

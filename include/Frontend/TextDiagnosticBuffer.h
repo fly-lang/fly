@@ -11,8 +11,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_FRONTEND_TEXTDIAGNOSTICBUFFER_H
-#define LLVM_CLANG_FRONTEND_TEXTDIAGNOSTICBUFFER_H
+#ifndef FLY_FRONTEND_TEXTDIAGNOSTICBUFFER_H
+#define FLY_FRONTEND_TEXTDIAGNOSTICBUFFER_H
 
 #include "Basic/Diagnostic.h"
 #include "Basic/SourceLocation.h"
@@ -61,4 +61,4 @@ public:
 
 } // namespace clang
 
-#endif // LLVM_CLANG_FRONTEND_TEXTDIAGNOSTICBUFFER_H
+#endif // FLY_FRONTEND_TEXTDIAGNOSTICBUFFER_H

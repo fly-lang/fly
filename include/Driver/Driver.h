@@ -57,8 +57,7 @@ namespace fly {
         ///
         /// \param shouldOwnClient If Client is non-NULL, specifies whether
         /// the diagnostic object should take ownership of the client.
-        IntrusiveRefCntPtr<DiagnosticsEngine> createDiagnostics(DiagnosticConsumer *client = nullptr,
-                               bool shouldOwnClient = true);
+        IntrusiveRefCntPtr<DiagnosticsEngine> createDiagnostics();
 
         bool CreateFromArgs(DiagnosticsEngine &diags, llvm::ArrayRef<const char *> ArgStrings,
                             std::unique_ptr<FrontendOptions> &frontendOpts,

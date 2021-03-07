@@ -13,8 +13,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_FRONTEND_DIAGNOSTICRENDERER_H
-#define LLVM_CLANG_FRONTEND_DIAGNOSTICRENDERER_H
+#ifndef FLY_FRONTEND_DIAGNOSTICRENDERER_H
+#define FLY_FRONTEND_DIAGNOSTICRENDERER_H
 
 #include "Basic/Diagnostic.h"
 #include "Basic/DiagnosticOptions.h"
@@ -157,4 +157,4 @@ public:
 
 } // namespace clang
 
-#endif // LLVM_CLANG_FRONTEND_DIAGNOSTICRENDERER_H
+#endif // FLY_FRONTEND_DIAGNOSTICRENDERER_H

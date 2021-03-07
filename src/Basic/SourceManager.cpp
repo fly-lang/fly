@@ -391,6 +391,14 @@ void SourceManager::clearIDTables() {
   createExpansionLoc(SourceLocation(), SourceLocation(), SourceLocation(), 1);
 }
 
+bool SourceManager::isMainFile(FileEntryRef SourceFile) {
+  assert(MainFileID.isValid() && "expected initialized SourceManager");
+  auto FE = getFileEntryRefForID(MainFileID);
+  if (!FE)
+    return false;
+  return FE->getUID() == SourceFile.getUID();
+}
+
 void SourceManager::initializeForReplay(const SourceManager &Old) {
   assert(MainFileID.isInvalid() && "expected uninitialized SourceManager");
 
@@ -560,7 +568,71 @@ FileID SourceManager::getNextFileID(FileID FID) const {
 
 //===--------------------------------------------------------------------------------------------------------------===//
 // Methods to create new FileID's and macro expansions.
-//===--------------------------------------------------------------------------------------------------------------===//
+//===----------------------------------------------------------------------===//
+
+/// Create a new FileID that represents the specified file
+/// being \#included from the specified IncludePosition.
+///
+/// This translates NULL into standard input.
+FileID SourceManager::createFileID(const FileEntry *SourceFile,
+                                   SourceLocation IncludePos,
+                                   SrcMgr::CharacteristicKind FileCharacter,
+                                   int LoadedID, unsigned LoadedOffset) {
+  assert(SourceFile && "Null source file!");
+  const SrcMgr::ContentCache *IR =
+      getOrCreateContentCache(SourceFile, isSystem(FileCharacter));
+  assert(IR && "getOrCreateContentCache() cannot return NULL");
+  return createFileID(IR, SourceFile->getName(), IncludePos, FileCharacter,
+		      LoadedID, LoadedOffset);
+}
+
+FileID SourceManager::createFileID(FileEntryRef SourceFile,
+                                   SourceLocation IncludePos,
+                                   SrcMgr::CharacteristicKind FileCharacter,
+                                   int LoadedID, unsigned LoadedOffset) {
+  const SrcMgr::ContentCache *IR = getOrCreateContentCache(
+      &SourceFile.getFileEntry(), isSystem(FileCharacter));
+  assert(IR && "getOrCreateContentCache() cannot return NULL");
+  return createFileID(IR, SourceFile.getName(), IncludePos, FileCharacter,
+		      LoadedID, LoadedOffset);
+}
+
+/// Create a new FileID that represents the specified memory buffer.
+///
+/// This does no caching of the buffer and takes ownership of the
+/// MemoryBuffer, so only pass a MemoryBuffer to this once.
+FileID SourceManager::createFileID(std::unique_ptr<llvm::MemoryBuffer> Buffer,
+                                   SrcMgr::CharacteristicKind FileCharacter,
+                                   int LoadedID, unsigned LoadedOffset,
+                                   SourceLocation IncludeLoc) {
+  StringRef Name = Buffer->getBufferIdentifier();
+  return createFileID(
+      createMemBufferContentCache(Buffer.release(), /*DoNotFree*/ false),
+      Name, IncludeLoc, FileCharacter, LoadedID, LoadedOffset);
+}
+
+/// Create a new FileID that represents the specified memory buffer.
+///
+/// This does not take ownership of the MemoryBuffer. The memory buffer must
+/// outlive the SourceManager.
+FileID SourceManager::createFileID(UnownedTag, const llvm::MemoryBuffer *Buffer,
+                                   SrcMgr::CharacteristicKind FileCharacter,
+                                   int LoadedID, unsigned LoadedOffset,
+                                   SourceLocation IncludeLoc) {
+  return createFileID(createMemBufferContentCache(Buffer, /*DoNotFree*/ true),
+		      Buffer->getBufferIdentifier(), IncludeLoc,
+		      FileCharacter, LoadedID, LoadedOffset);
+}
+
+/// Get the FileID for \p SourceFile if it exists. Otherwise, create a
+/// new FileID for the \p SourceFile.
+FileID
+SourceManager::getOrCreateFileID(const FileEntry *SourceFile,
+                                 SrcMgr::CharacteristicKind FileCharacter) {
+  FileID ID = translateFile(SourceFile);
+  return ID.isValid() ? ID : createFileID(SourceFile, SourceLocation(),
+					  FileCharacter);
+}
 
 /// createFileID - Create a new FileID for the specified ContentCache and
 /// include position.  This works regardless of whether the ContentCache
@@ -579,13 +651,15 @@ FileID SourceManager::createFileID(const ContentCache *File, StringRef Filename,
     SLocEntryLoaded[Index] = true;
     return FileID::get(LoadedID);
   }
+  unsigned FileSize = File->getSize();
+  if (!(NextLocalOffset + FileSize + 1 > NextLocalOffset &&
+        NextLocalOffset + FileSize + 1 <= CurrentLoadedOffset)) {
+    Diag.Report(IncludePos, diag::err_include_too_large);
+    return FileID();
+  }
   LocalSLocEntryTable.push_back(
       SLocEntry::get(NextLocalOffset,
                      FileInfo::get(IncludePos, File, FileCharacter, Filename)));
-  unsigned FileSize = File->getSize();
-  assert(NextLocalOffset + FileSize + 1 > NextLocalOffset &&
-         NextLocalOffset + FileSize + 1 <= CurrentLoadedOffset &&
-         "Ran out of source locations!");
   // We do a +1 here because we want a SourceLocation that means "the end of the
   // file", e.g. for the "no newline at the end of the file" diagnostic.
   NextLocalOffset += FileSize + 1;
@@ -607,6 +681,16 @@ SourceManager::createExpansionLoc(SourceLocation SpellingLoc,
   ExpansionInfo Info = ExpansionInfo::create(
       SpellingLoc, ExpansionLocStart, ExpansionLocEnd, ExpansionIsTokenRange);
   return createExpansionLocImpl(Info, TokLength, LoadedID, LoadedOffset);
+}
+
+SourceLocation SourceManager::createTokenSplitLoc(SourceLocation Spelling,
+                                                  SourceLocation TokenStart,
+                                                  SourceLocation TokenEnd) {
+  assert(getFileID(TokenStart) == getFileID(TokenEnd) &&
+         "token spans multiple files");
+  return createExpansionLocImpl(
+      ExpansionInfo::createForTokenSplit(Spelling, TokenStart, TokenEnd),
+      TokenEnd.getOffset() - TokenStart.getOffset());
 }
 
 SourceLocation
@@ -680,6 +764,18 @@ SourceManager::bypassFileContentsOverride(const FileEntry &File) {
 void SourceManager::setFileIsTransient(const FileEntry *File) {
   const SrcMgr::ContentCache *CC = getOrCreateContentCache(File);
   const_cast<SrcMgr::ContentCache *>(CC)->IsTransient = true;
+}
+
+Optional<FileEntryRef> SourceManager::getFileEntryRefForID(FileID FID) const {
+  bool Invalid = false;
+  const SrcMgr::SLocEntry &Entry = getSLocEntry(FID, &Invalid);
+  if (Invalid || !Entry.isFile())
+    return None;
+
+  const SrcMgr::ContentCache *Content = Entry.getFile().getContentCache();
+  if (!Content || !Content->OrigEntry)
+    return None;
+  return FileEntryRef(Entry.getFile().getName(), *Content->OrigEntry);
 }
 
 StringRef SourceManager::getBufferData(FileID FID, bool *Invalid) const {
@@ -758,11 +854,8 @@ FileID SourceManager::getFileIDLocal(unsigned SLocOffset) const {
     --I;
     if (I->getOffset() <= SLocOffset) {
       FileID Res = FileID::get(int(I - LocalSLocEntryTable.begin()));
-
-      // If this isn't an expansion, remember it.  We have good locality across
-      // FileID lookups.
-      if (!I->isExpansion())
-        LastFileIDLookup = Res;
+      // Remember it.  We have good locality across FileID lookups.
+      LastFileIDLookup = Res;
       NumLinearScans += NumProbes+1;
       return Res;
     }
@@ -779,11 +872,8 @@ FileID SourceManager::getFileIDLocal(unsigned SLocOffset) const {
   unsigned LessIndex = 0;
   NumProbes = 0;
   while (true) {
-    bool Invalid = false;
     unsigned MiddleIndex = (GreaterIndex-LessIndex)/2+LessIndex;
-    unsigned MidOffset = getLocalSLocEntry(MiddleIndex, &Invalid).getOffset();
-    if (Invalid)
-      return FileID::get(0);
+    unsigned MidOffset = getLocalSLocEntry(MiddleIndex).getOffset();
 
     ++NumProbes;
 
@@ -795,15 +885,12 @@ FileID SourceManager::getFileIDLocal(unsigned SLocOffset) const {
     }
 
     // If the middle index contains the value, succeed and return.
-    // FIXME: This could be made faster by using a function that's aware of
-    // being in the local area.
-    if (isOffsetInFileID(FileID::get(MiddleIndex), SLocOffset)) {
+    if (MiddleIndex + 1 == LocalSLocEntryTable.size() ||
+        SLocOffset < getLocalSLocEntry(MiddleIndex + 1).getOffset()) {
       FileID Res = FileID::get(MiddleIndex);
 
-      // If this isn't a macro expansion, remember it.  We have good locality
-      // across FileID lookups.
-      if (!LocalSLocEntryTable[MiddleIndex].isExpansion())
-        LastFileIDLookup = Res;
+      // Remember it.  We have good locality across FileID lookups.
+      LastFileIDLookup = Res;
       NumBinaryProbes += NumProbes;
       return Res;
     }
@@ -841,9 +928,7 @@ FileID SourceManager::getFileIDLoaded(unsigned SLocOffset) const {
     const SrcMgr::SLocEntry &E = getLoadedSLocEntry(I);
     if (E.getOffset() <= SLocOffset) {
       FileID Res = FileID::get(-int(I) - 2);
-
-      if (!E.isExpansion())
-        LastFileIDLookup = Res;
+      LastFileIDLookup = Res;
       NumLinearScans += NumProbes + 1;
       return Res;
     }
@@ -876,8 +961,7 @@ FileID SourceManager::getFileIDLoaded(unsigned SLocOffset) const {
 
     if (isOffsetInFileID(FileID::get(-int(MiddleIndex) - 2), SLocOffset)) {
       FileID Res = FileID::get(-int(MiddleIndex) - 2);
-      if (!E.isExpansion())
-        LastFileIDLookup = Res;
+      LastFileIDLookup = Res;
       NumBinaryProbes += NumProbes;
       return Res;
     }
@@ -970,12 +1054,19 @@ SourceLocation SourceManager::getImmediateSpellingLoc(SourceLocation Loc) const{
   return Loc.getLocWithOffset(LocInfo.second);
 }
 
+/// Return the filename of the file containing a SourceLocation.
+StringRef SourceManager::getFilename(SourceLocation SpellingLoc) const {
+  if (const FileEntry *F = getFileEntryForID(getFileID(SpellingLoc)))
+    return F->getName();
+  return StringRef();
+}
+
 /// getImmediateExpansionRange - Loc is required to be an expansion location.
 /// Return the start/end of the expansion information.
 CharSourceRange
 SourceManager::getImmediateExpansionRange(SourceLocation Loc) const {
-  const ExpansionInfo &Expansion = getSLocEntry(getFileID(Loc)).getExpansion();
-  return Expansion.getExpansionLocRange();
+    const ExpansionInfo &Expansion = getSLocEntry(getFileID(Loc)).getExpansion();
+    return Expansion.getExpansionLocRange();
 }
 
 /// getExpansionRange - Given a SourceLocation object, return the range of
@@ -1483,11 +1574,7 @@ FileID SourceManager::translateFile(const FileEntry *SourceFile) const {
   // The location we're looking for isn't in the main file; look
   // through all of the local source locations.
   for (unsigned I = 0, N = local_sloc_entry_size(); I != N; ++I) {
-    bool Invalid = false;
-    const SLocEntry &SLoc = getLocalSLocEntry(I, &Invalid);
-    if (Invalid)
-      return FileID();
-
+    const SLocEntry &SLoc = getLocalSLocEntry(I);
     if (SLoc.isFile() && SLoc.getFile().getContentCache() &&
         SLoc.getFile().getContentCache()->OrigEntry == SourceFile)
       return FileID::get(I);

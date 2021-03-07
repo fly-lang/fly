@@ -31,6 +31,7 @@ class SanitizerBlacklist {
 public:
   SanitizerBlacklist(const std::vector<std::string> &BlacklistPaths,
                      SourceManager &SM);
+  ~SanitizerBlacklist();
   bool isBlacklistedGlobal(SanitizerMask Mask, StringRef GlobalName,
                            StringRef Category = StringRef()) const;
   bool isBlacklistedType(SanitizerMask Mask, StringRef MangledTypeName,

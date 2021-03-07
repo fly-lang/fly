@@ -7,8 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_PARSE_PARSEAST_H
-#define LLVM_CLANG_PARSE_PARSEAST_H
+#ifndef FLY_PARSE_PARSEAST_H
+#define FLY_PARSE_PARSEAST_H
 
 #include "Lex/Token.h"
 #include "Lex/Lexer.h"
@@ -42,7 +42,7 @@ namespace fly {
 
     public:
 
-        Parser(const std::string &fileName, Lexer &L);
+        Parser(const std::string &fileName, Lexer &L, DiagnosticsEngine &diags);
 
         DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID);
         DiagnosticBuilder Diag(const Token &Tok, unsigned DiagID);
@@ -71,18 +71,22 @@ namespace fly {
         bool isTokenParen() const {
             return Tok.isOneOf(tok::l_paren, tok::r_paren);
         }
+
         /// isTokenBracket - Return true if the cur token is '[' or ']'.
         bool isTokenBracket() const {
             return Tok.isOneOf(tok::l_square, tok::r_square);
         }
+
         /// isTokenBrace - Return true if the cur token is '{' or '}'.
         bool isTokenBrace() const {
             return Tok.isOneOf(tok::l_brace, tok::r_brace);
         }
+
         /// isTokenStringLiteral - True if this token is a string-literal.
         bool isTokenStringLiteral() const {
             return tok::isStringLiteral(Tok.getKind());
         }
+
         /// isTokenSpecial - True if this token requires special consumption methods.
         bool isTokenSpecial() const {
             return isTokenStringLiteral() || isTokenParen() || isTokenBracket() ||

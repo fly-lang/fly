@@ -25,7 +25,7 @@ namespace fly {
 
         const InputFile &inputFile;
 
-        FrontendOptions &inputOptions;
+        FrontendOptions &frontendOpts;
 
         FileManager &fileMgr;
 

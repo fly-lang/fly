@@ -50,15 +50,12 @@ using namespace fly;
 // Lexer Class Implementation
 //===--------------------------------------------------------------------------------------------------------------===//
 
-void Lexer::InitLexer(const char *BufStart, const char *BufPtr,
-                      const char *BufEnd) {
+void Lexer::InitLexer(const char *BufStart, const char *BufPtr, const char *BufEnd) {
     BufferStart = BufStart;
     BufferPtr = BufPtr;
     BufferEnd = BufEnd;
 
-    assert(BufEnd[0] == 0 &&
-           "We assume that the input buffer has a null character at the end"
-           " to simplify lexing!");
+    assert(BufEnd[0] == 0 && "We assume that the input buffer has a null character at the end to simplify lexing!");
 
     // Check whether we have a BOM in the beginning of the buffer. If yes - act
     // accordingly. Right now we support only UTF-8 with and without BOM, so, just
@@ -102,9 +99,8 @@ void Lexer::InitLexer(const char *BufStart, const char *BufPtr,
 /// Lexer constructor - Create a new raw lexer object.  This object is only
 /// suitable for calls to 'LexFromRawLexer'.  This lexer assumes that the text
 /// range will outlive it, so it doesn't take ownership of it.
-Lexer::Lexer(SourceLocation fileloc, const char *BufStart, const char *BufPtr,
-             const char *BufEnd, const SourceManager &SM)
-        : SM(&SM), FileLoc(fileloc) {
+Lexer::Lexer(SourceLocation fileloc, const char *BufStart, const char *BufPtr, const char *BufEnd,
+             const SourceManager &SM) : SM(&SM), FileLoc(fileloc), Diags(SM.getDiagnostics()) {
     InitLexer(BufStart, BufPtr, BufEnd);
 
     // We *are* in raw mode.
@@ -114,8 +110,7 @@ Lexer::Lexer(SourceLocation fileloc, const char *BufStart, const char *BufPtr,
 /// Lexer constructor - Create a new raw lexer object.  This object is only
 /// suitable for calls to 'LexFromRawLexer'.  This lexer assumes that the text
 /// range will outlive it, so it doesn't take ownership of it.
-Lexer::Lexer(FileID FID, const llvm::MemoryBuffer *FromFile,
-             const SourceManager &SM)
+Lexer::Lexer(FileID FID, const llvm::MemoryBuffer *FromFile, const SourceManager &SM)
         : Lexer(SM.getLocForStartOfFile(FID), FromFile->getBufferStart(),
                 FromFile->getBufferStart(), FromFile->getBufferEnd(), SM) {
 }
@@ -160,7 +155,7 @@ static void StringifyImpl(T &Str, char Quote) {
 }
 
 std::string Lexer::Stringify(StringRef Str, bool Charify) {
-    std::string Result = Str;
+    std::string Result = std::string(Str);;
     char Quote = Charify ? '\'' : '"';
     StringifyImpl(Result, Quote);
     return Result;
@@ -662,69 +657,6 @@ StringRef Lexer::getSourceText(CharSourceRange Range,
     return file.substr(beginInfo.second, EndOffs - beginInfo.second);
 }
 
-StringRef Lexer::getImmediateMacroName(SourceLocation Loc,
-                                       const SourceManager &SM) {
-    // Find the location of the immediate macro expansion.
-    while (true) {
-        FileID FID = SM.getFileID(Loc);
-        const SrcMgr::SLocEntry *E = &SM.getSLocEntry(FID);
-        const SrcMgr::ExpansionInfo &Expansion = E->getExpansion();
-        Loc = Expansion.getExpansionLocStart();
-
-        // For macro arguments we need to check that the argument did not come
-        // from an inner macro, e.g: "MAC1( MAC2(foo) )"
-
-        // Loc points to the argument id of the macro definition, move to the
-        // macro expansion.
-        Loc = SM.getImmediateExpansionRange(Loc).getBegin();
-        SourceLocation SpellLoc = Expansion.getSpellingLoc();
-        if (SpellLoc.isFileID())
-            break; // No inner macro.
-
-        // If spelling location resides in the same FileID as macro expansion
-        // location, it means there is no inner macro.
-        FileID MacroFID = SM.getFileID(Loc);
-        if (SM.isInFileID(SpellLoc, MacroFID))
-            break;
-
-        // Argument came from inner macro.
-        Loc = SpellLoc;
-    }
-
-    // Find the spelling location of the start of the non-argument expansion
-    // range. This is where the macro name was spelled in order to begin
-    // expanding this macro.
-    Loc = SM.getSpellingLoc(Loc);
-
-    // Dig out the buffer where the macro name was spelled and the extents of the
-    // name so that we can render it into the expansion note.
-    std::pair<FileID, unsigned> ExpansionInfo = SM.getDecomposedLoc(Loc);
-    unsigned MacroTokenLength = Lexer::MeasureTokenLength(Loc, SM);
-    StringRef ExpansionBuffer = SM.getBufferData(ExpansionInfo.first);
-    return ExpansionBuffer.substr(ExpansionInfo.second, MacroTokenLength);
-}
-
-StringRef Lexer::getImmediateMacroNameForDiagnostics(
-        SourceLocation Loc, const SourceManager &SM) {
-
-    // If the macro's spelling has no FileID, then it's actually a token paste
-    // or stringization (or similar) and not a macro at all.
-    if (!SM.getFileEntryForID(SM.getFileID(SM.getSpellingLoc(Loc))))
-        return {};
-
-    // Find the spelling location of the start of the non-argument expansion
-    // range. This is where the macro name was spelled in order to begin
-    // expanding this macro.
-    Loc = SM.getSpellingLoc(SM.getImmediateExpansionRange(Loc).getBegin());
-
-    // Dig out the buffer where the macro name was spelled and the extents of the
-    // name so that we can render it into the expansion note.
-    std::pair<FileID, unsigned> ExpansionInfo = SM.getDecomposedLoc(Loc);
-    unsigned MacroTokenLength = Lexer::MeasureTokenLength(Loc, SM);
-    StringRef ExpansionBuffer = SM.getBufferData(ExpansionInfo.first);
-    return ExpansionBuffer.substr(ExpansionInfo.second, MacroTokenLength);
-}
-
 bool Lexer::isNewLineEscaped(const char *BufferStart, const char *Str) {
     assert(isVerticalWhitespace(Str[0]));
     if (Str - 1 < BufferStart)
@@ -1213,7 +1145,7 @@ bool Lexer::tryConsumeIdentifierUCN(const char *&CurPtr, unsigned Size,
         return false;
 
     if (!isLexingRawMode())
-        maybeDiagnoseIDCharCompat(*Diags, CodePoint,
+        maybeDiagnoseIDCharCompat(Diags, CodePoint,
                                   makeCharRange(*this, CurPtr, UCNPtr),
                 /*IsFirst=*/false);
 
@@ -1240,10 +1172,10 @@ bool Lexer::tryConsumeIdentifierUTF8Char(const char *&CurPtr) {
         return false;
 
     if (!isLexingRawMode()) {
-        maybeDiagnoseIDCharCompat(*Diags, CodePoint,
+        maybeDiagnoseIDCharCompat(Diags, CodePoint,
                                   makeCharRange(*this, CurPtr, UnicodePtr),
                 /*IsFirst=*/false);
-        maybeDiagnoseUTF8Homoglyph(*Diags, CodePoint,
+        maybeDiagnoseUTF8Homoglyph(Diags, CodePoint,
                                    makeCharRange(*this, CurPtr, UnicodePtr));
     }
 
@@ -2308,7 +2240,7 @@ bool Lexer::LexEndOfFile(Token &Result, const char *CurPtr) {
         // C++11 [lex.phases] 2.2 p2
         // Prefer the C++98 pedantic compatibility warning over the generic,
         // non-extension, user-requested "missing newline at EOF" warning.
-        if (!Diags->isIgnored(diag::warn_cxx98_compat_no_newline_eof, EndLoc)) {
+        if (!Diags.isIgnored(diag::warn_cxx98_compat_no_newline_eof, EndLoc)) {
             DiagID = diag::warn_cxx98_compat_no_newline_eof;
         } else {
             DiagID = diag::warn_no_newline_eof;
@@ -2584,10 +2516,10 @@ bool Lexer::CheckUnicodeWhitespace(Token &Result, uint32_t C,
 bool Lexer::LexUnicode(Token &Result, uint32_t C, const char *CurPtr) {
     if (isAllowedIDChar(C) && isAllowedInitiallyIDChar(C)) {
         if (!isLexingRawMode()) {
-            maybeDiagnoseIDCharCompat(*Diags, C,
+            maybeDiagnoseIDCharCompat(Diags, C,
                                       makeCharRange(*this, BufferPtr, CurPtr),
                     /*IsFirst=*/true);
-            maybeDiagnoseUTF8Homoglyph(*Diags, C,
+            maybeDiagnoseUTF8Homoglyph(Diags, C,
                                        makeCharRange(*this, BufferPtr, CurPtr));
         }
 

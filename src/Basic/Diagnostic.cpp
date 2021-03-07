@@ -63,6 +63,12 @@ const DiagnosticBuilder &fly::operator<<(const DiagnosticBuilder &DB,
   return DB;
 }
 
+const DiagnosticBuilder &fly::operator<<(const DiagnosticBuilder &DB,
+                                           llvm::Error &&E) {
+  DB.AddString(toString(std::move(E)));
+  return DB;
+}
+
 static void DummyArgToStringFn(DiagnosticsEngine::ArgumentKind AK, intptr_t QT,
                             StringRef Modifier, StringRef Argument,
                             ArrayRef<DiagnosticsEngine::ArgumentValue> PrevArgs,
@@ -98,8 +104,7 @@ void DiagnosticsEngine::dump(StringRef DiagName) const {
   DiagStatesByLoc.dump(*SourceMgr, DiagName);
 }
 
-void DiagnosticsEngine::setClient(DiagnosticConsumer *client,
-                                  bool ShouldOwnClient) {
+void DiagnosticsEngine::setClient(DiagnosticConsumer *client, bool ShouldOwnClient) {
   Owner.reset(ShouldOwnClient ? client : nullptr);
   Client = client;
 }

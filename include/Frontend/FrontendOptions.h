@@ -27,6 +27,8 @@ namespace fly {
 
         bool verbose;
 
+        bool skipParse;
+
     public:
 
         void addInputFile(std::string &&input);
@@ -40,6 +42,10 @@ namespace fly {
         bool isVerbose() const;
 
         void setVerbose();
+
+        bool isSkipParse() const;
+
+        void setSkipParse();
 
     };
 }

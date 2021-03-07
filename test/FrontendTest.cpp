@@ -11,45 +11,42 @@
 #include <Frontend/FrontendOptions.h>
 #include <Frontend/Frontend.h>
 #include <Frontend/CompilerInvocation.h>
-#include <vector>
+#include "gtest/gtest.h"
 #include <fstream>
 #include <iosfwd>
 #include <iostream>
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
+#include <vector>
 
 namespace {
     using namespace fly;
-    using testing::ElementsAre;
 
-    static const char* testFile = "test.fly";
+    const char* testFile = "test.fly";
 
     // The test fixture.
-    class FrontendTest : public ::testing::Test {
+    class FrontendTest : public ::testing::Test  {
 
     public:
         FrontendTest() {}
-
     };
 
-    void createTestFile() {
+    bool createTestFile(const char* testFile) {
         std::fstream my_file;
         my_file.open(testFile, std::ios::out);
-        if (!my_file) {
-            std::cout << "File not created!";
-        }
-        else {
-            std::cout << "File created successfully!";
+        if (my_file) {
+            std::cout << "File " << testFile << " created successfully!";
             my_file.close();
+        } else {
+            std::cout << "Error File " << testFile << " not created!";
         }
+        return (bool) my_file;
     }
 
-    bool deleteTestFile() {
-        return remove(testFile);
+    void deleteTestFile(const char* testFile) {
+        remove(testFile);
     }
 
     TEST_F(FrontendTest, FileMgr) {
-        createTestFile();
+        EXPECT_TRUE(createTestFile(testFile));
 
         Driver driver;
         FrontendOptions &options = driver.getInvocation()->getFrontendOptions();
@@ -63,20 +60,22 @@ namespace {
         auto Buf = invocation.getFileManager().getBufferForFile(testFile);
         EXPECT_FALSE(Buf.getError());
 
-        deleteTestFile();
+        deleteTestFile(testFile);
     }
 
-    TEST_F(FrontendTest, CompilerExecute) {
-        FrontendOptions options;
+    TEST_F(FrontendTest, ExecuteCompilerWithoutParse) {
 
-        createTestFile();
+        EXPECT_TRUE(createTestFile(testFile));
 
         Driver driver;
+        FrontendOptions &frontendOpts = driver.getInvocation()->getFrontendOptions();
+        frontendOpts.setSkipParse(); // do not parse input
+        frontendOpts.addInputFile(testFile);
         Frontend frontend(*driver.getInvocation());
 
         ASSERT_TRUE(frontend.execute());
 
-        deleteTestFile();
+        deleteTestFile(testFile);
     }
 
 } // anonymous namespace

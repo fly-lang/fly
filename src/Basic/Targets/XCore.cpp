@@ -1,16 +1,16 @@
-//===--- XCore.cpp - Implement XCore target feature support -------------------------------------------------------===//
+//===--- XCore.cpp - Implement XCore target feature support ---------------===//
 //
-// Part of the Fly Project https://flylang.org
-// Under the Apache License v2.0 see LICENSE for details.
-// Thank you to LLVM Project https://llvm.org/
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
-//===--------------------------------------------------------------------------------------------------------------===//
+//===----------------------------------------------------------------------===//
 //
 // This file implements XCore TargetInfo objects.
 //
-//===--------------------------------------------------------------------------------------------------------------===//
+//===----------------------------------------------------------------------===//
 
-#include "Basic/Targets/XCore.h"
+#include "XCore.h"
 #include "Basic/Builtins.h"
 
 #include "Basic/TargetBuiltins.h"
@@ -28,5 +28,5 @@ const Builtin::Info XCoreTargetInfo::BuiltinInfo[] = {
 
 ArrayRef<Builtin::Info> XCoreTargetInfo::getTargetBuiltins() const {
   return llvm::makeArrayRef(BuiltinInfo, fly::XCore::LastTSBuiltin -
-                                         Builtin::FirstTSBuiltin);
+                                             Builtin::FirstTSBuiltin);
 }

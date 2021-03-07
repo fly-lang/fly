@@ -31,16 +31,16 @@ namespace {
         }
 
         ASTContext& Parse(string fileName, StringRef Source) {
-            std::unique_ptr<llvm::MemoryBuffer> Buf =
-                    llvm::MemoryBuffer::getMemBuffer(Source);
+
+            // Set Source Manager file id
+            std::unique_ptr<llvm::MemoryBuffer> Buf = llvm::MemoryBuffer::getMemBuffer(Source);
             llvm::MemoryBuffer *b = Buf.get();
             const FileID &FID = SourceMgr.createFileID(std::move(Buf));
             SourceMgr.setMainFileID(FID);
 
-
             // Create a lexer starting at the beginning of this token.
             Lexer TheLexer(FID, b, SourceMgr);
-            auto P = Parser(fileName, TheLexer);
+            auto P = Parser(fileName, TheLexer, Diags);
             return P.getASTContext();
         }
     };

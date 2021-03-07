@@ -263,7 +263,7 @@ TargetInfo::IntType TargetInfo::getLeastIntTypeByWidth(unsigned BitWidth,
   return NoInt;
 }
 
-TargetInfo::RealType TargetInfo::getRealTypeByWidth(unsigned BitWidth) const {
+TargetInfo::RealType TargetInfo::getRealTypeByWidth(unsigned BitWidth, bool ExplicitIEEE) const {
   if (getFloatWidth() == BitWidth)
     return Float;
   if (getDoubleWidth() == BitWidth)

@@ -34,8 +34,6 @@ namespace fly {
 
     public:
 
-        ~Frontend();
-
         explicit Frontend(CompilerInvocation &invocation);
 
         bool execute() const;

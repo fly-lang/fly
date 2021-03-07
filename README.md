@@ -1,4 +1,5 @@
 <!-- PROJECT LOGO -->
+[![CMake](https://github.com/fly-lang/fly/actions/workflows/cmake.yml/badge.svg)](https://github.com/fly-lang/fly/actions/workflows/cmake.yml)
 <br />
 <p align="center">
   <a href="https://github.com/fly-lang/fly">
@@ -29,13 +30,11 @@ This project is a fork of Clang so it is based on LLVM:
 - [LLVM](https://llvm.org/)
 
 ## Getting Started
-Fly is written in C++ and it is a fork of Clang: the most important project that use LLVM.
+Fly is written in C++ and it is a fork of Clang.
 
 ### Prerequisites
 In order to build this project you need:
-- [CMake (minimum required 3.4.3)](https://cmake.org)
-- [LLVM (10.0.1)](https://github.com/llvm/llvm-project) 
-- [GoogleTest (1.7)](https://github.com/google/googletest)
+- [CMake (min version 3.4.3)](https://cmake.org)
 
 ## Usage
 This is an example of how to configure and build the Fly source.
@@ -60,7 +59,10 @@ This is an example of how to configure and build the Fly source.
 3. Launch Fly tests:
    
    * ``ctest``
-   
+
+You can build Fly with your installed [LLVM 11](https://github.com/llvm/llvm-project) (fastest method) or automatically 
+compiled from source.
+
 For more information see [CMake](https://llvm.org/docs/CMake.html)
 
 ## Additional Info

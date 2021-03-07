@@ -15,21 +15,27 @@
 using namespace fly;
 
 CompilerInstance::CompilerInstance(const CompilerInvocation & invocation, const InputFile & inputFile) :
-        inputFile(inputFile), inputOptions(invocation.getFrontendOptions()),
+        inputFile(inputFile), frontendOpts(invocation.getFrontendOptions()),
         outputFile(invocation.getFrontendOptions().getOutputFile()),
         diags(invocation.getDiagnostics()), fileMgr(invocation.getFileManager()),
         sourceMgr(invocation.getSourceManager()), target(invocation.getTargetInfo()) {}
 
 bool CompilerInstance::execute() {
-    auto result = fileMgr.getBufferForFile(inputFile.getFile());
+    diags.getClient()->BeginSourceFile();
+    ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> result = fileMgr.getBufferForFile(inputFile.getFile());
     assert(!result.getError() && "Error while opening file");
     unique_ptr<MemoryBuffer> &buf = result.get();
     llvm::MemoryBuffer *b = buf.get();
     const FileID &FID = sourceMgr.createFileID(std::move(buf));
-    Lexer lexer(FID, b, sourceMgr);
-    Parser parser(inputFile.getFile(), lexer);
-    const CodeGen &codeGen = CodeGen(diags, parser.getASTContext(), target);
-    return codeGen.execute();
+    bool success = true;
+    if (!frontendOpts.isSkipParse()) {
+        Lexer lexer(FID, b, sourceMgr);
+        Parser parser(inputFile.getFile(), lexer, diags);
+        const CodeGen &codeGen = CodeGen(diags, parser.getASTContext(), target);
+        success = codeGen.execute();
+    }
+    diags.getClient()->EndSourceFile();
+    return success;
 }
 
 
