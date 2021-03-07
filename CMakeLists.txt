@@ -45,7 +45,7 @@ include_directories(
         llvm/utils/unittest/googlemock
         llvm/utils/unittest/googlemock/include
         )
-add_library(GTest
+add_library(gtest
         llvm/utils/unittest/googletest/src/gtest-all.cc
         llvm/utils/unittest/googlemock/src/gmock-all.cc
         )
