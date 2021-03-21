@@ -93,10 +93,10 @@ namespace fly {
                    isTokenBrace();
         }
 
-        bool parsePackageDecl(const string& fileName);
+        bool ParsePackageDecl(const std::string& fileName);
     };
 
 
-    }  // end namespace clang
+    }  // end namespace fly
 
 #endif

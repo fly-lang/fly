@@ -21,6 +21,6 @@ namespace fly {
       DiagCat_NUM_CATEGORIES
     };
   }  // end namespace diag
-}  // end namespace clang
+}  // end namespace fly
 
 #endif

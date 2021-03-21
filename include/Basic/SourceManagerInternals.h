@@ -8,7 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 //
 /// \file
-/// Defines implementation details of the clang::SourceManager class.
+/// Defines implementation details of the fly::SourceManager class.
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
@@ -129,6 +129,6 @@ public:
   void AddEntry(FileID FID, const std::vector<LineEntry> &Entries);
 };
 
-} // namespace clang
+} // namespace fly
 
 #endif // LLVM_FLY_BASIC_SOURCEMANAGERINTERNALS_H

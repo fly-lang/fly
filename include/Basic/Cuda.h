@@ -111,6 +111,6 @@ CudaVersion ToCudaVersion(llvm::VersionTuple);
 bool CudaFeatureEnabled(llvm::VersionTuple, CudaFeature);
 bool CudaFeatureEnabled(CudaVersion, CudaFeature);
 
-} // namespace clang
+} // namespace fly
 
 #endif

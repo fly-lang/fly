@@ -15,14 +15,14 @@
 
 namespace fly {
 
-/// Carries a Clang diagnostic in an llvm::Error.
+/// Carries a fly diagnostic in an llvm::Error.
 ///
 /// Users should emit the stored diagnostic using the DiagnosticsEngine.
 class DiagnosticError : public llvm::ErrorInfo<DiagnosticError> {
 public:
   DiagnosticError(PartialDiagnosticAt Diag) : Diag(std::move(Diag)) {}
 
-  void log(raw_ostream &OS) const override { OS << "clang diagnostic"; }
+  void log(raw_ostream &OS) const override { OS << "fly diagnostic"; }
 
   PartialDiagnosticAt &getDiagnostic() { return Diag; }
   const PartialDiagnosticAt &getDiagnostic() const { return Diag; }
@@ -56,6 +56,6 @@ private:
   PartialDiagnosticAt Diag;
 };
 
-} // end namespace clang
+} // end namespace fly
 
 #endif // LLVM_FLY_BASIC_DIAGNOSTIC_ERROR_H

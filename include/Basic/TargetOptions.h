@@ -8,7 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 ///
 /// \file
-/// Defines the clang::TargetOptions class.
+/// Defines the fly::TargetOptions class.
 ///
 //===--------------------------------------------------------------------------------------------------------------===//
 
@@ -77,10 +77,10 @@ public:
   /// * on darwin the version is propagated to LLVM where it's used
   ///   to support SDK Version metadata (See D55673).
   /// * CUDA compilation uses it to control parts of CUDA compilation
-  ///   in clang that depend on specific version of the CUDA SDK.
+  ///   in fly that depend on specific version of the CUDA SDK.
   llvm::VersionTuple SDKVersion;
 };
 
-}  // end namespace clang
+}  // end namespace fly
 
 #endif

@@ -1,6 +1,6 @@
 add_executable(fly
         Fly.cpp
-        Driver/Driver.cpp ../include/Driver/Driver.h)
+        Driver/Driver.cpp)
 
 add_subdirectory(Basic)
 add_subdirectory(Lex)

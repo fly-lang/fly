@@ -64,9 +64,9 @@ namespace {
         EXPECT_TRUE(createTestFile(testFile));
 
         const char *argv[] = {"fly", "-v", testFile, "-o", "file.o"};
-        Driver driver(5, argv);
-
-        const FrontendOptions &fopts = driver.getInvocation()->getFrontendOptions();
+        Driver driver(argv);
+        CompilerInstance &invocation = driver.BuildCompilerInstance();
+        const FrontendOptions &fopts = invocation.getFrontendOptions();
         for(const InputFile &inputFile : fopts.getInputFiles()) {
             EXPECT_EQ(inputFile.getFile(), testFile);
             break;
@@ -79,14 +79,16 @@ namespace {
 
     TEST_F(DriverTest, PrintHelp) {
         const char *argv[] = {"fly", "-help"};
-        Driver driver(2, argv);
-        driver.execute();
+        Driver driver(argv);
+        driver.BuildCompilerInstance();
+        EXPECT_TRUE(driver.Execute());
     }
 
     TEST_F(DriverTest, PrintVersion) {
         const char *argv[] = {"fly", "-version"};
-        Driver driver(2, argv);
-        driver.execute();
+        Driver driver(argv);
+        driver.BuildCompilerInstance();
+        EXPECT_TRUE(driver.Execute());
     }
 
 } // anonymous namespace

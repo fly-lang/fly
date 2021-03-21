@@ -450,7 +450,7 @@ public:
   }
 };
 
-} // namespace clang
+} // namespace fly
 
 namespace llvm {
 

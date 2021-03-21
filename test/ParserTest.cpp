@@ -30,7 +30,7 @@ namespace {
                       SourceMgr(Diags, FileMgr) {
         }
 
-        ASTContext& Parse(string fileName, StringRef Source) {
+        ASTContext& Parse(std::string FileName, StringRef Source) {
 
             // Set Source Manager file id
             std::unique_ptr<llvm::MemoryBuffer> Buf = llvm::MemoryBuffer::getMemBuffer(Source);
@@ -40,7 +40,7 @@ namespace {
 
             // Create a lexer starting at the beginning of this token.
             Lexer TheLexer(FID, b, SourceMgr);
-            auto P = Parser(fileName, TheLexer, Diags);
+            auto P = Parser(FileName, TheLexer, Diags);
             return P.getASTContext();
         }
     };
@@ -49,13 +49,13 @@ namespace {
         StringRef str = ("package \"std\"");
 
         // Verify FileName
-        ASTContext& context = Parse("parseArgs.fly", str);
-        EXPECT_EQ(context.getFileName(), "parseArgs.fly");
+        ASTContext& Ctx = Parse("parseArgs.fly", str);
+        EXPECT_EQ(Ctx.getFileName(), "parseArgs.fly");
 
         // verify AST contains package
-        const PackageDecl& package = context.getPackage();
-        EXPECT_EQ(package.getType(), ASTTypes::Package);
-        EXPECT_TRUE(package.getName().compare("\"std\""));
+        const PackageDecl& Package = Ctx.getPackage();
+        EXPECT_EQ(Package.getType(), ASTTypes::Package);
+        EXPECT_TRUE(Package.getName().compare("\"std\""));
     }
 
 }

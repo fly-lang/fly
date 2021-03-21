@@ -700,6 +700,6 @@ namespace fly {
                               bool *Invalid = nullptr) const;
     };
 
-} // namespace clang
+} // namespace fly
 
 #endif // LLVM_FLY_LEX_LEXER_H

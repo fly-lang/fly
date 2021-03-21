@@ -20,17 +20,17 @@
 
 const char *TestMainArgv0;
 
-int main(int argc, char **argv) {
-  llvm::sys::PrintStackTraceOnErrorSignal(argv[0],
+int main(int Argc, char **Argv) {
+  llvm::sys::PrintStackTraceOnErrorSignal(Argv[0],
                                           true /* Disable crash reporting */);
 
   // Initialize both gmock and gtest.
-  testing::InitGoogleMock(&argc, argv);
+  testing::InitGoogleMock(&Argc, Argv);
 
-  llvm::cl::ParseCommandLineOptions(argc, argv);
+  llvm::cl::ParseCommandLineOptions(Argc, Argv);
 
   // Make it easy for a test to re-execute itself by saving argv[0].
-  TestMainArgv0 = argv[0];
+  TestMainArgv0 = Argv[0];
 
 # if defined(_WIN32)
   // Disable all of the possible ways Windows conspires to make automated

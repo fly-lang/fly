@@ -7,6 +7,6 @@
 
 /* Bug report URL. */
 #define FLY_BUG_REPORT_URL "https://github.com/fly-lang/fly/issues"
-#define FLY_VERSION "0.0.2"
+#define FLY_VERSION "0.0.3"
 
 #endif

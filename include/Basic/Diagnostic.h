@@ -1616,6 +1616,6 @@ void ProcessWarningOptions(DiagnosticsEngine &Diags,
                            const DiagnosticOptions &Opts,
                            bool ReportDiags = true);
 
-} // namespace clang
+} // namespace fly
 
 #endif // LLVM_FLY_BASIC_DIAGNOSTIC_H

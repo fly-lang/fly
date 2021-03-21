@@ -24,6 +24,6 @@ enum {
   NUM_BUILTIN_LEX_DIAGNOSTICS
 };
 } // end namespace diag
-} // end namespace clang
+} // end namespace fly
 
 #endif // LLVM_FLY_BASIC_DIAGNOSTICLEX_H

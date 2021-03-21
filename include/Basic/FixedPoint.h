@@ -211,6 +211,6 @@ inline llvm::raw_ostream &operator<<(llvm::raw_ostream &OS,
   return OS;
 }
 
-}  // namespace clang
+}  // namespace fly
 
 #endif

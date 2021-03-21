@@ -12,6 +12,7 @@
 
 #include "InputFile.h"
 #include "OutputFile.h"
+#include "CodeGen/BackendUtil.h"
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/Option/ArgList.h>
 #include <string>
@@ -21,13 +22,15 @@ namespace fly {
     class FrontendOptions {
 
         /// The input files.
-        llvm::SmallVector<InputFile, 0> inputFiles;
+        llvm::SmallVector<InputFile, 0> Inputs;
 
-        OutputFile outputFile;
+        OutputFile Output;
 
-        bool verbose;
+        bool Verbose;
 
-        bool skipParse;
+        bool SkipParse;
+
+        BackendAction Action;
 
     public:
 
@@ -46,6 +49,10 @@ namespace fly {
         bool isSkipParse() const;
 
         void setSkipParse();
+
+        BackendAction getBackendAction();
+
+        void setBackendAction(BackendAction action);
 
     };
 }

@@ -27,16 +27,16 @@ namespace fly {
     class CodeGenModule {
 
     private:
-        DiagnosticsEngine &diags;
-        std::unique_ptr<llvm::LLVMContext> llvmContext;
+        DiagnosticsEngine &Diags;
+        std::unique_ptr<llvm::LLVMContext> VMContext;
 
 
     public:
-        CodeGenModule(DiagnosticsEngine &diags, llvm::StringRef moduleName);
+        CodeGenModule(DiagnosticsEngine &Diags, llvm::StringRef ModuleName);
 
-        void initialize(TargetInfo &targetInfo);
+        void Initialize(TargetInfo &Target);
 
-        std::unique_ptr<llvm::Module> module;
+        std::unique_ptr<llvm::Module> Module;
     };
 }
 

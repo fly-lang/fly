@@ -26,5 +26,5 @@ namespace fly {
                                          const fly::TargetOptions &Opts);
 
     } // namespace targets
-} // namespace clang
+} // namespace fly
 #endif // LLVM_FLY_LIB_BASIC_TARGETS_H

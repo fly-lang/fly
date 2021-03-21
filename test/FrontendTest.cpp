@@ -10,7 +10,7 @@
 #include <Driver/Driver.h>
 #include <Frontend/FrontendOptions.h>
 #include <Frontend/Frontend.h>
-#include <Frontend/CompilerInvocation.h>
+#include <Frontend/CompilerInstance.h>
 #include "gtest/gtest.h"
 #include <fstream>
 #include <iosfwd>
@@ -49,15 +49,15 @@ namespace {
         EXPECT_TRUE(createTestFile(testFile));
 
         Driver driver;
-        FrontendOptions &options = driver.getInvocation()->getFrontendOptions();
+        CompilerInstance &CI = driver.BuildCompilerInstance();
+        FrontendOptions &options = CI.getFrontendOptions();
         options.addInputFile(testFile);
-        Frontend frontend(*driver.getInvocation());
-        CompilerInvocation &invocation = frontend.getInvocation();
+        Frontend frontend(CI);
 
-        EXPECT_EQ(options.getInputFiles().size(), frontend.getInstances().size());
+        EXPECT_EQ(options.getInputFiles().size(), frontend.getActions().size());
 
         /// A lookup of in-memory (virtual file) buffers
-        auto Buf = invocation.getFileManager().getBufferForFile(testFile);
+        auto Buf = CI.getFileManager().getBufferForFile(testFile);
         EXPECT_FALSE(Buf.getError());
 
         deleteTestFile(testFile);
@@ -68,10 +68,11 @@ namespace {
         EXPECT_TRUE(createTestFile(testFile));
 
         Driver driver;
-        FrontendOptions &frontendOpts = driver.getInvocation()->getFrontendOptions();
+        CompilerInstance &CI = driver.BuildCompilerInstance();
+        FrontendOptions &frontendOpts = CI.getFrontendOptions();
         frontendOpts.setSkipParse(); // do not parse input
         frontendOpts.addInputFile(testFile);
-        Frontend frontend(*driver.getInvocation());
+        Frontend frontend(CI);
 
         ASSERT_TRUE(frontend.execute());
 

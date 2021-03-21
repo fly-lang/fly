@@ -137,6 +137,6 @@ inline void EmitRange(raw_ostream &o, const SourceManager &SM,
 }
 
 } // namespace markup
-} // namespace clang
+} // namespace fly
 
 #endif // LLVM_FLY_BASIC_PLISTSUPPORT_H

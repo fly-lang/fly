@@ -19,23 +19,21 @@
 
 namespace fly {
 
-    using namespace std;
-
     class PackageDecl {
 
-        const string &name;
+        const std::string &Name;
 
-        const ASTTypes type;
+        const ASTTypes ASTType;
 
     public:
 
-        PackageDecl(const PackageDecl&& packageDecl) noexcept;
+        PackageDecl(const PackageDecl&& Package) noexcept;
 
-        explicit PackageDecl(const string &name);
+        explicit PackageDecl(const std::string &Name);
 
-        const string &getName() const { return name; }
+        const std::string &getName() const { return Name; }
 
-        const ASTTypes &getType() const { return type; }
+        const ASTTypes &getType() const { return ASTType; }
     };
 }
 

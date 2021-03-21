@@ -11,50 +11,109 @@
 #include "Driver/DriverOptions.h"
 #include "Config/config.h"
 #include "Basic/DiagnosticDriver.h"
+#include "Basic/PrettyStackTrace.h"
+#include "Basic/FileSystemOptions.h"
 #include "Frontend/Frontend.h"
 #include "Frontend/ChainedDiagnosticConsumer.h"
 #include "Frontend/LogDiagnosticPrinter.h"
+#include "CodeGen/BackendUtil.h"
 #include <llvm/Support/FileSystem.h>
-#include <Basic/PrettyStackTrace.h>
 #include <llvm/Support/CommandLine.h>
 #include <llvm/Support/Host.h>
+#include <llvm/Support/CrashRecoveryContext.h>
+#include "llvm/Support/TargetSelect.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/Timer.h"
+#include "llvm/Support/Process.h"
+#include "llvm/Support/Program.h"
+#include <utility>
 
 using namespace fly;
 using namespace fly::driver;
 
-// This function isn't referenced outside its translation unit, but it
-// can't use the "static" keyword because its address is used for
-// GetMainExecutable (since some platforms don't support taking the
-// address of main, and some platforms can't implement GetMainExecutable
-// without being given the address of a function in the main executable).
-std::string GetExecutablePath(const char *argv0, void *mainAddr) {
-    return llvm::sys::fs::getMainExecutable(argv0, mainAddr);
+std::string GetExecutablePath(const char *Argv0) {
+    SmallString<128> ExecutablePath(Argv0);
+    // Do a PATH lookup if Argv0 isn't a valid path.
+    if (!llvm::sys::fs::exists(ExecutablePath))
+        if (llvm::ErrorOr<std::string> P = llvm::sys::findProgramByName(ExecutablePath))
+            ExecutablePath = *P;
+    return std::string(ExecutablePath.str());
 }
 
-std::string getCurPath(const char *argv0) {
-    // This just needs to be some symbol in the binary; C++ doesn't
-    // allow taking the address of ::main however.
-    void *mainAddr = (void *) (intptr_t) GetExecutablePath;
-    return GetExecutablePath(argv0, mainAddr);
+SmallVector<const char *, 256> initDriver() {
+    int Argc = 1;
+    const char *Argv[] = {"fly"};
+    SmallVector<const char *, 256> Args(Argv, Argv + Argc);
+    return Args;
 }
 
-llvm::SmallVector<const char *, 16> getArgs(int argc, const char **argv) {
-    llvm::SmallVector<const char *, 16> args(argv, argv + argc);
-    return std::move(args);
+Driver::Driver() : Driver(initDriver()) {}
+
+Driver::Driver(llvm::ArrayRef<const char *> ArrArgs) :
+        Path(GetExecutablePath(ArrArgs[0])),
+        Args(ArrArgs.slice(1)) {
+
+    Name = std::string(llvm::sys::path::filename(Path));
+    Dir = std::string(llvm::sys::path::parent_path(Path));
+    InstalledDir = Dir; // Provide a sensible default installed dir.
 }
 
-void SetUpDiagnosticLog(DiagnosticOptions *diagOpts, DiagnosticsEngine &diags) {
+CompilerInstance &Driver::BuildCompilerInstance() {
+
+    llvm::PrettyStackTraceString CrashInfo("Building compiler instance");
+
+    // Create diagnostics
+
+    IntrusiveRefCntPtr <DiagnosticOptions> DiagOpts = BuildDiagnosticOpts();
+    IntrusiveRefCntPtr<DiagnosticsEngine> Diags = CreateDiagnostics(DiagOpts);
+
+    // Create all options.
+
+    FileSystemOptions fileSystemOpts;
+    std::shared_ptr<TargetOptions> targetOpts = std::make_shared<TargetOptions>();
+    std::unique_ptr<FrontendOptions> frontendOpts = std::make_unique<FrontendOptions>();
+    std::unique_ptr<CodeGenOptions> codeGenOpts = std::make_unique<CodeGenOptions>();
+    BuildOptions(fileSystemOpts, targetOpts, frontendOpts, codeGenOpts);
+
+    // Create TargetInfo.
+    IntrusiveRefCntPtr<TargetInfo> targetInfo = TargetInfo::CreateTargetInfo(*Diags, targetOpts);
+
+    CI = std::make_shared<CompilerInstance>(Diags,
+                                            std::move(targetInfo),
+                                            std::move(fileSystemOpts),
+                                            std::move(frontendOpts),
+                                            std::move(codeGenOpts),
+                                            std::move(targetOpts));
+    if (!CI) {
+        llvm::errs() << "Error while creating compiler instance!" << "\n";
+        exit(1);
+    }
+
+    return *CI;
+}
+
+// Diagnostics
+
+IntrusiveRefCntPtr<DiagnosticsEngine> Driver::CreateDiagnostics(IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts) {
+    DiagOpts = new DiagnosticOptions;
+    TextDiagnosticPrinter *DiagClient = new TextDiagnosticPrinter(llvm::errs(), &*DiagOpts);
+    StringRef ExeBasename(llvm::sys::path::stem(Path));
+    DiagClient->setPrefix(std::string(ExeBasename));
+    IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
+    IntrusiveRefCntPtr<DiagnosticsEngine> Diags = new DiagnosticsEngine(DiagID, &*DiagOpts, DiagClient);
+
+    raw_ostream *OS = &llvm::errs();
     std::error_code EC;
     std::unique_ptr<raw_ostream> StreamOwner;
-    raw_ostream *OS = &llvm::errs();
-    if (diagOpts->DiagnosticLogFile != "-") {
+
+    if (!DiagOpts->DiagnosticLogFile.empty()) {
         // Create the output stream.
         auto FileOS = std::make_unique<llvm::raw_fd_ostream>(
-                diagOpts->DiagnosticLogFile, EC,
+                DiagOpts->DiagnosticLogFile, EC,
                 llvm::sys::fs::OF_Append | llvm::sys::fs::OF_Text);
         if (EC) {
-            diags.Report(diag::warn_fe_cc_log_diagnostics_failure)
-                    << diagOpts->DiagnosticLogFile << EC.message();
+            Diags->Report(diag::warn_fe_cc_log_diagnostics_failure)
+                    << DiagOpts->DiagnosticLogFile << EC.message();
         } else {
             FileOS->SetUnbuffered();
             OS = FileOS.get();
@@ -63,147 +122,126 @@ void SetUpDiagnosticLog(DiagnosticOptions *diagOpts, DiagnosticsEngine &diags) {
     }
 
     // Chain in the diagnostic client which will log the diagnostics.
-    auto Logger = std::make_unique<LogDiagnosticPrinter>(*OS, diagOpts, std::move(StreamOwner));
+    auto Logger = std::make_unique<LogDiagnosticPrinter>(*OS, DiagOpts.get(), std::move(StreamOwner));
 
-    if (diags.ownsClient()) {
-        diags.setClient(
-                new ChainedDiagnosticConsumer(diags.takeClient(), std::move(Logger)));
+    if (Diags->ownsClient()) {
+        Diags->setClient(
+                new ChainedDiagnosticConsumer(Diags->takeClient(), std::move(Logger)));
     } else {
-        diags.setClient(
-                new ChainedDiagnosticConsumer(diags.getClient(), std::move(Logger)));
+        Diags->setClient(
+                new ChainedDiagnosticConsumer(Diags->getClient(), std::move(Logger)));
     }
-}
 
-Driver::Driver() : Driver("fly", {"fly"}) {}
-
-Driver::Driver(int argc, const char **argv) :
-    Driver(getCurPath(argv[0]), getArgs(argc, argv)) {}
-
-Driver::Driver(const std::string& path, llvm::ArrayRef<const char *> args) : executable(path) {
-
-    name = std::string(llvm::sys::path::filename(path));
-    dir = std::string(llvm::sys::path::parent_path(path));
-    installedDir = dir; // Provide a sensible default installed dir.
-
-    // Create diagnostics
-    IntrusiveRefCntPtr<DiagnosticsEngine> diags = createDiagnostics();
-
-    // Create target info
-    IntrusiveRefCntPtr<TargetInfo> target = createTargetInfo(*diags);
-
-    std::unique_ptr<FrontendOptions> frontendOpts = std::make_unique<FrontendOptions>();
-    std::unique_ptr<CodeGenOptions> codeGenOpts = std::make_unique<CodeGenOptions>();
-    if (CreateFromArgs(*diags, args.slice(1), frontendOpts, codeGenOpts)) {
-        invocation = std::make_shared<CompilerInvocation>(std::move(diags), std::move(target),
-                                                          std::move(frontendOpts), std::move(codeGenOpts));
-    }
-}
-
-// Diagnostics
-
-IntrusiveRefCntPtr<DiagnosticsEngine> Driver::createDiagnostics() {
-
-    IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts = new DiagnosticOptions;
-    TextDiagnosticPrinter *DiagClient = new TextDiagnosticPrinter(llvm::errs(), &*DiagOpts);
-    StringRef ExeBasename(llvm::sys::path::stem(executable));
-    DiagClient->setPrefix(std::string(ExeBasename));
-    IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
-    IntrusiveRefCntPtr<DiagnosticsEngine> Diags = new DiagnosticsEngine(DiagID, &*DiagOpts, DiagClient);
-
-    // Print log file
-    if (!DiagOpts->DiagnosticLogFile.empty())
-        SetUpDiagnosticLog(DiagOpts.get(), *Diags);
 
     ProcessWarningOptions(*Diags, *DiagOpts, /*ReportDiags=*/false);
-    
+
     return std::move(Diags);
 }
 
-bool Driver::CreateFromArgs(DiagnosticsEngine &diags,
-                            llvm::ArrayRef<const char *> ArgStrings,
+IntrusiveRefCntPtr<DiagnosticOptions> Driver::BuildDiagnosticOpts() {
+    IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts(new DiagnosticOptions);
+    DiagOpts->DiagnosticLogFile = std::string(ArgList.getLastArgValue(options::OPT_LOG_FILE));
+    DiagOpts->IgnoreWarnings = ArgList.hasArg(options::OPT_NO_WARNING);
+    return std::move(DiagOpts);
+}
+
+void Driver::BuildOptions(FileSystemOptions &fileSystemOpts,
+                            std::shared_ptr<TargetOptions> &targetOpts,
                             std::unique_ptr<FrontendOptions> &frontendOpts,
-                            std::unique_ptr<CodeGenOptions> &codegenOpts) {
+                            std::unique_ptr<CodeGenOptions> &codeGenOpts) {
+
     llvm::PrettyStackTraceString CrashInfo("Command line argument parsing");
 
     unsigned MissingArgIndex, MissingArgCount;
     const llvm::opt::OptTable &optTable = fly::driver::getDriverOptTable();
     const unsigned IncludedFlagsBitmask = options::CoreOption;
-    llvm::opt::InputArgList argList = optTable.ParseArgs(ArgStrings, MissingArgIndex,MissingArgCount);
-
-    bool success = true;
+    ArgList = optTable.ParseArgs(Args, MissingArgIndex, MissingArgCount);
 
     // Check for missing argument error.
     if (MissingArgCount) {
-        diags.Report(diag::err_drv_missing_argument)
-                << argList.getArgString(MissingArgIndex) << MissingArgCount;
-        success = false;
+        llvm::errs() << diag::err_drv_missing_argument << ArgList.getArgString(MissingArgIndex) << MissingArgCount;
+        CanExecute = false;
+        return;
     }
 
-    // Issue errors on unknown arguments.
-    for (const llvm::opt::Arg *A : argList.filtered(options::OPT_UNKNOWN)) {
-        auto argString = A->getAsString(argList);
-        std::string Nearest;
-        if (optTable.findNearest(argString, Nearest, IncludedFlagsBitmask) > 1)
-            diags.Report(diag::err_drv_unknown_argument) << argString;
-        else
-            diags.Report(diag::err_drv_unknown_argument_with_suggestion)
-                    << argString << Nearest;
-        success = false;
+    // Error out on unknown options.
+    if (ArgList.hasArg(options::OPT_UNKNOWN)) {
+        for (auto *arg : ArgList.filtered(options::OPT_UNKNOWN)) {
+            WithColor::error() << "unknown option: " << arg->getSpelling() << '\n';
+        }
+        llvm::errs() << "Use '" << Path
+                     << " --help' for a complete list of options.\n";
+        CanExecute = false;
+        return;
     }
 
     // Show Version
-    if (argList.hasArg(options::OPT_VERSION)) {
+    if (ArgList.hasArg(options::OPT_VERSION)) {
         llvm::outs() << "FLY version " << FLY_VERSION << " (https://flylang.org)" << "\n"
                      << "with LLVM version " << LLVM_VERSION_STRING << "\n";
-        return false;
+        CanExecute = false;
+        return;
     }
 
     // Show Help
-    if (argList.hasArg(options::OPT_HELP)) {
+    if (ArgList.hasArg(options::OPT_HELP)) {
         getDriverOptTable().PrintHelp(
                 llvm::outs(), "fly [options] file...",
                 "Fly Compiler",
                 /*Include=*/driver::options::CoreOption, /*Exclude=*/0,
                 /*ShowAllAliases=*/false);
-        return false;
+        CanExecute = false;
+        return;
     }
 
     // Parse Input args
-    if (argList.hasArg(options::OPT_INPUT)) {
-        bool First = true;
-        for (const llvm::opt::Arg *a : argList.filtered(options::OPT_INPUT)) {
+    if (ArgList.hasArg(options::OPT_INPUT)) {
+        for (const llvm::opt::Arg *a : ArgList.filtered(options::OPT_INPUT)) {
             frontendOpts->addInputFile(a->getValue());
         }
     }
 
     // Parse Output arg
-    if (argList.hasArg(options::OPT_OUTPUT)) {
-        const StringRef &output = argList.getLastArgValue(options::OPT_OUTPUT);
+    if (ArgList.hasArg(options::OPT_OUTPUT)) {
+        const StringRef &output = ArgList.getLastArgValue(options::OPT_OUTPUT);
         frontendOpts->setOutputFile(output.str().c_str());
     }
 
-    if (argList.hasArg(options::OPT_VERBOSE)) {
+    if (ArgList.hasArg(options::OPT_VERBOSE)) {
         frontendOpts->setVerbose();
     }
 
-    return success;
-}
-
-IntrusiveRefCntPtr<TargetInfo> Driver::createTargetInfo(DiagnosticsEngine &diags) {
-    const std::shared_ptr<TargetOptions> targetOpts = std::make_shared<TargetOptions>();
-    targetOpts->Triple = llvm::sys::getDefaultTargetTriple();
-    return TargetInfo::CreateTargetInfo(diags, targetOpts);
-}
-
-const std::shared_ptr<CompilerInvocation> &Driver::getInvocation() const {
-    return invocation;
-}
-
-bool Driver::execute() {
-    // Single Job
-    if (invocation) {
-        Frontend frontend(*invocation);
-        return frontend.execute();
+    if (ArgList.hasArg(options::OPT_EMIT_LL)) {
+        frontendOpts->setBackendAction(BackendAction::Backend_EmitLL);
+    } else if (ArgList.hasArg(options::OPT_EMIT_BC)) {
+        frontendOpts->setBackendAction(BackendAction::Backend_EmitBC);
+    } else if (ArgList.hasArg(options::OPT_EMIT_AS)) {
+        frontendOpts->setBackendAction(BackendAction::Backend_EmitAssembly);
+    } else if (ArgList.hasArg(options::OPT_EMIT_NOTHING)) {
+        frontendOpts->setBackendAction(BackendAction::Backend_EmitNothing);
+    } else {
+        frontendOpts->setBackendAction(BackendAction::Backend_EmitObj);
     }
-    return false;
+
+    if (const llvm::opt::Arg *A = ArgList.getLastArg(options::OPT_WORKING_DIR))
+        fileSystemOpts.WorkingDir = A->getValue();
+
+    if (const llvm::opt::Arg *A = ArgList.getLastArg(options::OPT_TARGET))
+        targetOpts->Triple = A->getValue();
+    else
+        targetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
+}
+
+bool Driver::Execute() {
+    bool success = true;
+
+    if (CanExecute) {
+
+        Frontend frontend(*CI);
+        success = frontend.execute();
+
+        CI->getDiagnostics().getClient()->finish();
+    }
+
+    return success;
 }

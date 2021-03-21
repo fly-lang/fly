@@ -363,6 +363,6 @@ namespace fly {
   };
 
   llvm::StringRef getParameterABISpelling(ParameterABI kind);
-} // end namespace clang
+} // end namespace fly
 
 #endif // LLVM_FLY_BASIC_SPECIFIERS_H

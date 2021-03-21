@@ -8,7 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 ///
 /// \file
-/// Defines the clang::FileSystemOptions interface.
+/// Defines the fly::FileSystemOptions interface.
 ///
 //===--------------------------------------------------------------------------------------------------------------===//
 
@@ -27,6 +27,6 @@ public:
   std::string WorkingDir;
 };
 
-} // end namespace clang
+} // end namespace fly
 
 #endif

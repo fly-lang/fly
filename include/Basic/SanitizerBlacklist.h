@@ -43,6 +43,6 @@ public:
                              StringRef Category = StringRef()) const;
 };
 
-}  // end namespace clang
+}  // end namespace fly
 
 #endif

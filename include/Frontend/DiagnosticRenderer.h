@@ -155,6 +155,6 @@ public:
   virtual void emitNote(FullSourceLoc Loc, StringRef Message) = 0;
 };
 
-} // namespace clang
+} // namespace fly
 
 #endif // FLY_FRONTEND_DIAGNOSTICRENDERER_H

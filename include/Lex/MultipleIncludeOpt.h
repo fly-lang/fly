@@ -176,6 +176,6 @@ public:
   }
 };
 
-}  // end namespace clang
+}  // end namespace fly
 
 #endif

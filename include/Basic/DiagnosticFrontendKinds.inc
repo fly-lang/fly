@@ -36,6 +36,7 @@ DIAG(err_fe_invalid_wchar_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "i
 DIAG(err_fe_no_pch_in_dir, CLASS_ERROR, (unsigned)diag::Severity::Error, "no suitable precompiled header file found in directory '%0'", 0, SFINAE_SubstitutionFailure, false, true, 0)
 DIAG(err_fe_remap_missing_from_file, CLASS_ERROR, (unsigned)diag::Severity::Fatal, "could not remap from missing file '%0'", 0, SFINAE_SubstitutionFailure, false, true, 0)
 DIAG(err_fe_remap_missing_to_file, CLASS_ERROR, (unsigned)diag::Severity::Fatal, "could not remap file '%0' to the contents of file '%1'", 0, SFINAE_SubstitutionFailure, false, true, 0)
+DIAG(err_fe_unable_to_load_basic_block_sections_file, CLASS_ERROR, (unsigned)diag::Severity::Fatal, "unable to load basic block sections function list: '%0'", 0, SFINAE_SubstitutionFailure, false, true, 0)
 DIAG(err_fe_unable_to_create_target, CLASS_ERROR, (unsigned)diag::Severity::Error, "unable to create target: '%0'", 0, SFINAE_SubstitutionFailure, false, true, 0)
 DIAG(err_fe_unable_to_interface_with_target, CLASS_ERROR, (unsigned)diag::Severity::Error, "unable to interface with target machine", 0, SFINAE_SubstitutionFailure, false, true, 0)
 DIAG(err_fe_unable_to_load_pch, CLASS_ERROR, (unsigned)diag::Severity::Error, "unable to load PCH file", 0, SFINAE_SubstitutionFailure, false, true, 0)

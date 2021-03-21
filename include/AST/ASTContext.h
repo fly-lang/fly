@@ -22,15 +22,13 @@ using namespace llvm;
 
 namespace fly {
 
-    using namespace std;
-
     class ASTContext {
 
-        const StringRef fileName;
-        const PackageDecl package;
+        const StringRef FileName;
+        const PackageDecl Package;
 
     public:
-        ASTContext(const StringRef &fileName, const PackageDecl &package);
+        ASTContext(const StringRef &FileName, const PackageDecl &Package);
 
         const StringRef& getFileName() const;
 

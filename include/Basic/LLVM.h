@@ -9,7 +9,7 @@
 //
 /// \file
 /// Forward-declares and imports various common LLVM datatypes that
-/// clang wants to use unqualified.
+/// fly wants to use unqualified.
 ///
 //===--------------------------------------------------------------------------------------------------------------===//
 
@@ -84,6 +84,6 @@ namespace fly {
 
   using llvm::raw_ostream;
   using llvm::raw_pwrite_stream;
-} // end namespace clang.
+} // end namespace fly.
 
 #endif

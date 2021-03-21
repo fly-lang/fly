@@ -9,7 +9,7 @@
 ///
 /// \file
 /// Enumerates target-specific builtins in their own namespaces within
-/// namespace ::clang.
+/// namespace ::fly.
 ///
 //===--------------------------------------------------------------------------------------------------------------===//
 
@@ -327,6 +327,6 @@ namespace fly {
        Le64::LastTSBuiltin, SystemZ::LastTSBuiltin,
        WebAssembly::LastTSBuiltin});
 
-} // end namespace clang.
+} // end namespace fly.
 
 #endif

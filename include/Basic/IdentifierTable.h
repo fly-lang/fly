@@ -8,8 +8,8 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 //
 /// \file
-/// Defines the clang::IdentifierInfo, clang::IdentifierTable, and
-/// clang::Selector interfaces.
+/// Defines the fly::IdentifierInfo, fly::IdentifierTable, and
+/// fly::Selector interfaces.
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 

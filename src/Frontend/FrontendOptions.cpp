@@ -11,34 +11,43 @@
 
 using namespace fly;
 
-void FrontendOptions::addInputFile(std::string &&input) {
-    inputFiles.emplace_back(InputFile(input));
+void FrontendOptions::addInputFile(std::string &&FileName) {
+    Inputs.emplace_back(InputFile(FileName));
 }
 
 const llvm::SmallVector<InputFile, 0> &FrontendOptions::getInputFiles() const {
-    return inputFiles;
+    return Inputs;
 }
 
-void FrontendOptions::setOutputFile(const char * output) {
-    FrontendOptions::outputFile.setFile(output);
+void FrontendOptions::setOutputFile(const char * FileName) {
+    FrontendOptions::Output.setFile(FileName);
 }
 
 const OutputFile &FrontendOptions::getOutputFile() const {
-    return outputFile;
+    return Output;
 }
 
 bool FrontendOptions::isVerbose() const {
-    return verbose;
+    return Verbose;
 }
 
 void FrontendOptions::setVerbose() {
-    FrontendOptions::verbose = true;
+    FrontendOptions::Verbose = true;
 }
 
 bool FrontendOptions::isSkipParse() const {
-    return skipParse;
+    return SkipParse;
 }
 
 void FrontendOptions::setSkipParse() {
-    skipParse = true;
+    SkipParse = true;
+}
+
+
+BackendAction FrontendOptions::getBackendAction() {
+    return Action;
+}
+
+void FrontendOptions::setBackendAction(BackendAction action) {
+    Action = action;
 }

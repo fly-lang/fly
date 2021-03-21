@@ -84,6 +84,6 @@ public:
                           llvm::vfs::FileSystem &FS) override;
 };
 
-} // namespace clang
+} // namespace fly
 
 #endif // LLVM_FLY_BASIC_FILESYSTEMSTATCACHE_H

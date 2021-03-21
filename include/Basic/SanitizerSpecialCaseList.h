@@ -52,6 +52,6 @@ protected:
   std::vector<SanitizerSection> SanitizerSections;
 };
 
-} // end namespace clang
+} // end namespace fly
 
 #endif

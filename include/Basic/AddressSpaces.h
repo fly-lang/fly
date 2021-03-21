@@ -59,7 +59,7 @@ enum class LangAS : unsigned {
 using LangASMap = unsigned[(unsigned)LangAS::FirstTargetAddressSpace];
 
 /// \return whether \p AS is a target-specific address space rather than a
-/// clang AST address space
+/// fly AST address space
 inline bool isTargetAddressSpace(LangAS AS) {
   return (unsigned)AS >= (unsigned)LangAS::FirstTargetAddressSpace;
 }
@@ -79,6 +79,6 @@ inline bool isPtrSizeAddressSpace(LangAS AS) {
           AS == LangAS::ptr64);
 }
 
-} // namespace clang
+} // namespace fly
 
 #endif // LLVM_FLY_BASIC_ADDRESSSPACES_H

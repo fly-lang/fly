@@ -48,6 +48,6 @@ namespace prec {
 prec::Level getBinOpPrecedence(tok::TokenKind Kind, bool GreaterThanIsOperator,
                                bool CPlusPlus11);
 
-}  // end namespace clang
+}  // end namespace fly
 
 #endif  // LLVM_FLY_OPERATOR_PRECEDENCE_H

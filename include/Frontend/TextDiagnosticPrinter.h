@@ -52,6 +52,6 @@ public:
                         const Diagnostic &Info) override;
 };
 
-} // end namespace clang
+} // end namespace fly
 
 #endif

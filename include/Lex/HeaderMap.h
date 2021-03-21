@@ -85,6 +85,6 @@ public:
   using HeaderMapImpl::dump;
 };
 
-} // end namespace clang.
+} // end namespace fly.
 
 #endif

@@ -10,26 +10,26 @@
 
 using namespace fly;
 
-Frontend::Frontend(CompilerInvocation &invocation) : invocation(invocation), diagnostics(invocation.getDiagnostics()) {
+Frontend::Frontend(CompilerInstance &CI) : CI(CI), Diags(CI.getDiagnostics()) {
 
     // Create Compiler Instance for each input file
-    for (const auto &InputFile : invocation.getFrontendOptions().getInputFiles()) {
-        instances.push_back(new CompilerInstance(invocation, InputFile));
+    for (const auto &InputFile : CI.getFrontendOptions().getInputFiles()) {
+
+        // Print file name and create instance for file compilation
+        llvm::outs() << llvm::sys::path::filename(InputFile.getFile()) << "\n";
+        Actions.push_back(new FrontendAction(CI, InputFile));
     }
+    llvm::outs().flush();
 }
 
 bool Frontend::execute() const {
-    bool res = true;
-    for (auto &instance : instances) {
-        res &= instance->execute();
+    bool Res = true;
+    for (auto &Action : Actions) {
+        Res &= Action->Execute();
     }
-    return res;
+    return Res;
 }
 
-CompilerInvocation &Frontend::getInvocation() {
-    return invocation;
-}
-
-const std::vector<CompilerInstance *> &Frontend::getInstances() const {
-    return instances;
+const std::vector<FrontendAction *> &Frontend::getActions() const {
+    return Actions;
 }

@@ -337,6 +337,6 @@ private:
   friend class DiagnosticsEngine;
 };
 
-}  // end namespace clang
+}  // end namespace fly
 
 #endif

@@ -21,7 +21,7 @@
 #include "llvm/Support/Compiler.h"
 
 namespace fly {
-  /// The amount of stack space that Clang would like to be provided with.
+  /// The amount of stack space that Fly would like to be provided with.
   /// If less than this much is available, we may be unable to reach our
   /// template instantiation depth limit and other similar limits.
   constexpr size_t DesiredStackSize = 8 << 20;
@@ -51,6 +51,6 @@ namespace fly {
     Fn();
 #endif
   }
-} // end namespace clang
+} // end namespace fly
 
 #endif // LLVM_FLY_BASIC_STACK_H

@@ -8,7 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 ///
 /// \file
-/// Defines the clang::TargetInfo interface.
+/// Defines the fly::TargetInfo interface.
 ///
 //===--------------------------------------------------------------------------------------------------------------===//
 
@@ -188,7 +188,7 @@ protected:
   const LangASMap *AddrSpaceMap;
   const unsigned *GridValues =
       nullptr; // Array of target-specific GPU grid values that must be
-               // consistent between host RTL (plugin), device RTL, and clang.
+               // consistent between host RTL (plugin), device RTL, and fly.
 
   mutable StringRef PlatformName;
   mutable VersionTuple PlatformMinVersion;
@@ -1421,6 +1421,6 @@ protected:
   void CheckFixedPointBits() const;
 };
 
-}  // end namespace clang
+}  // end namespace fly
 
 #endif

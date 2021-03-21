@@ -194,6 +194,6 @@ LLVM_READONLY inline bool isValidIdentifier(StringRef S,
   return true;
 }
 
-} // end namespace clang
+} // end namespace fly
 
 #endif

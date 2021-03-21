@@ -575,8 +575,7 @@ using namespace fly::targets;
 /// CreateTargetInfo - Return the target info object for the specified target
 /// options.
 TargetInfo *
-TargetInfo::CreateTargetInfo(DiagnosticsEngine &Diags,
-                             const std::shared_ptr<TargetOptions> &Opts) {
+TargetInfo::CreateTargetInfo(DiagnosticsEngine &Diags, const std::shared_ptr<TargetOptions> &Opts) {
   llvm::Triple Triple(Opts->Triple);
 
   // Construct the target

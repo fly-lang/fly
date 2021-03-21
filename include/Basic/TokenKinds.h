@@ -8,7 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 ///
 /// \file
-/// Defines the clang::TokenKind enum and support functions.
+/// Defines the fly::TokenKind enum and support functions.
 ///
 //===--------------------------------------------------------------------------------------------------------------===//
 
@@ -71,6 +71,6 @@ inline bool isLiteral(TokenKind K) {
 
     bool isKeyword(TokenKind Kind);
 }  // end namespace tok
-}  // end namespace clang
+}  // end namespace fly
 
 #endif

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Compiler/CompilerInstance.cpp - Instance of Compiler for a file
+// src/Compiler/CompilerInvocation.cpp - Compiler Invocation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,35 +7,81 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
+#include <Basic/DiagnosticDriver.h>
 #include "Frontend/CompilerInstance.h"
-#include "Lex/Lexer.h"
-#include "Parser/Parser.h"
-#include "CodeGen/CodeGen.h"
 
 using namespace fly;
 
-CompilerInstance::CompilerInstance(const CompilerInvocation & invocation, const InputFile & inputFile) :
-        inputFile(inputFile), frontendOpts(invocation.getFrontendOptions()),
-        outputFile(invocation.getFrontendOptions().getOutputFile()),
-        diags(invocation.getDiagnostics()), fileMgr(invocation.getFileManager()),
-        sourceMgr(invocation.getSourceManager()), target(invocation.getTargetInfo()) {}
+CompilerInstance::CompilerInstance(IntrusiveRefCntPtr<DiagnosticsEngine> Diags,
+                                   IntrusiveRefCntPtr<TargetInfo> &&Target,
+                                   FileSystemOptions &&FileSystemOpts,
+                                   std::unique_ptr<FrontendOptions> &&FrontendOptions,
+                                   std::unique_ptr<CodeGenOptions> &&CodeGenOptions,
+                                   std::shared_ptr<TargetOptions> &&TargetOptions) :
+        Diags(Diags), Target(std::move(Target)), FileSystemOpts(std::move(FileSystemOpts)),
+        FrontendOpts(std::move(FrontendOptions)), CodeGenOpts(std::move(CodeGenOptions)),
+        TargetOpts(std::move(TargetOptions)) {
 
-bool CompilerInstance::execute() {
-    diags.getClient()->BeginSourceFile();
-    ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> result = fileMgr.getBufferForFile(inputFile.getFile());
-    assert(!result.getError() && "Error while opening file");
-    unique_ptr<MemoryBuffer> &buf = result.get();
-    llvm::MemoryBuffer *b = buf.get();
-    const FileID &FID = sourceMgr.createFileID(std::move(buf));
-    bool success = true;
-    if (!frontendOpts.isSkipParse()) {
-        Lexer lexer(FID, b, sourceMgr);
-        Parser parser(inputFile.getFile(), lexer, diags);
-        const CodeGen &codeGen = CodeGen(diags, parser.getASTContext(), target);
-        success = codeGen.execute();
-    }
-    diags.getClient()->EndSourceFile();
-    return success;
+    /// Create file manager.
+    createFileManager();
+
+    /// Create source manager.
+    createSourceManager();
 }
 
+// File Manager
 
+void CompilerInstance::createFileManager(IntrusiveRefCntPtr<llvm::vfs::FileSystem> VFS) {
+    if (!VFS)
+        VFS = FileMgr ? &FileMgr->getVirtualFileSystem() : llvm::vfs::getRealFileSystem();
+    assert(VFS && "FileManager has no VFS?");
+
+    // Set working dir
+    if (!FileSystemOpts.WorkingDir.empty())
+        if (VFS->setCurrentWorkingDirectory(FileSystemOpts.WorkingDir))
+            Diags->Report(diag::err_drv_unable_to_set_working_directory) << FileSystemOpts.WorkingDir;
+
+    FileMgr = new FileManager(FileSystemOpts, std::move(VFS));
+}
+
+// Source Manager
+
+void CompilerInstance::createSourceManager() {
+    SourceMgr = new SourceManager(getDiagnostics(), getFileManager());
+}
+
+/// Get the current diagnostics engine.
+DiagnosticsEngine &CompilerInstance::getDiagnostics() const {
+    assert(Diags && "Compiler instance has no diagnostics!");
+    return *Diags;
+}
+
+FileManager &CompilerInstance::getFileManager() const {
+    assert(FileMgr && "Compiler invocation has no file manager!");
+    return *FileMgr;
+}
+
+SourceManager &CompilerInstance::getSourceManager() const {
+    assert(SourceMgr && "Compiler invocation has no file manager!");
+    return *SourceMgr;
+}
+
+FrontendOptions &CompilerInstance::getFrontendOptions() const {
+    assert(FrontendOpts && "Compiler invocation has no Frontend options!");
+    return *FrontendOpts;
+}
+
+TargetInfo &CompilerInstance::getTargetInfo() const {
+    assert(Target && "Compiler invocation has no target info!");
+    return *Target;
+}
+
+CodeGenOptions &CompilerInstance::getCodeGenOptions() const {
+    assert(CodeGenOpts && "Compiler invocation has no CodeGen options");
+    return *CodeGenOpts;
+}
+
+fly::TargetOptions &CompilerInstance::getTargetOptions() const {
+    assert(TargetOpts && "Compiler invocation has no CodeGen options");
+    return *TargetOpts;
+}

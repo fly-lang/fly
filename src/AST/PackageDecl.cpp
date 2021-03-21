@@ -15,10 +15,10 @@
 
 using namespace fly;
 
-PackageDecl::PackageDecl(const std::string &name) : name(name), type(ASTTypes::Package) {
+PackageDecl::PackageDecl(const std::string &Name) : Name(Name), ASTType(ASTTypes::Package) {
 
 }
 
-PackageDecl::PackageDecl(const PackageDecl &&p) noexcept : name(p.name), type(p.type){
+PackageDecl::PackageDecl(const PackageDecl &&p) noexcept : Name(p.Name), ASTType(p.ASTType){
 
 }

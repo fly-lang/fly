@@ -17,7 +17,6 @@
 
 namespace fly {
 class DiagnosticOptions;
-class LangOptions;
 
 class LogDiagnosticPrinter : public DiagnosticConsumer {
   struct DiagEntry {
@@ -79,6 +78,6 @@ public:
                         const Diagnostic &Info) override;
 };
 
-} // end namespace clang
+} // end namespace fly
 
 #endif

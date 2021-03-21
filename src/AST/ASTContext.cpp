@@ -15,17 +15,17 @@
 using namespace fly;
 using namespace std;
 
-ASTContext::ASTContext(const StringRef &fileName, const PackageDecl &packageDecl) :
-        fileName(move(fileName)), package(move(packageDecl)) {
+ASTContext::ASTContext(const StringRef &FileName, const PackageDecl &Package) :
+        FileName(FileName), Package(move(Package)) {
 
 }
 
 const StringRef &ASTContext::getFileName() const {
-    return fileName;
+    return FileName;
 }
 
 const PackageDecl &ASTContext::getPackage() {
-    return package;
+    return Package;
 }
 
 void ASTContext::Release() {

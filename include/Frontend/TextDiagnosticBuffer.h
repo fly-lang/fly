@@ -59,6 +59,6 @@ public:
   void FlushDiagnostics(DiagnosticsEngine &Diags) const;
 };
 
-} // namespace clang
+} // namespace fly
 
 #endif // FLY_FRONTEND_TEXTDIAGNOSTICBUFFER_H

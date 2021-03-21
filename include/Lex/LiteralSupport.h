@@ -283,6 +283,6 @@ private:
   void DiagnoseLexingError(SourceLocation Loc);
 };
 
-}  // end namespace clang
+}  // end namespace fly
 
 #endif

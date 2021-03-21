@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.4.3)
-project(Fly VERSION 0.0.2)
+project(Fly VERSION 0.0.3)
 
 # specify the C++ standard and flags
 set(CMAKE_CXX_STANDARD 14)

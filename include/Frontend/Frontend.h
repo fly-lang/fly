@@ -10,37 +10,35 @@
 #ifndef FLY_FRONTEND_H
 #define FLY_FRONTEND_H
 
+#include "FrontendAction.h"
 #include "CompilerInstance.h"
-#include "CompilerInvocation.h"
 #include "FrontendOptions.h"
 #include "Basic/Diagnostic.h"
 
 namespace fly {
     using namespace llvm;
 
+    class FrontendAction;
     class CompilerInstance;
-    class CompilerInvocation;
 
     class Frontend {
 
         /// The diagnostics engine instance.
-        DiagnosticsEngine &diagnostics;
+        DiagnosticsEngine &Diags;
 
         // Compiler Invocation contains all a CompilerInstance needs
-        CompilerInvocation &invocation;
+        CompilerInstance &CI;
 
         // Compiler instances
-        std::vector<CompilerInstance*> instances;
+        std::vector<FrontendAction*> Actions;
 
     public:
 
-        explicit Frontend(CompilerInvocation &invocation);
+        explicit Frontend(CompilerInstance &CI);
 
         bool execute() const;
-
-        CompilerInvocation &getInvocation();
-
-        const std::vector<CompilerInstance *> &getInstances() const;
+        
+        const std::vector<FrontendAction *> &getActions() const;
     };
 }
 

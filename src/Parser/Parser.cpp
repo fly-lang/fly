@@ -13,8 +13,8 @@
 using namespace fly;
 using namespace std;
 
-Parser::Parser(const string &fileName, Lexer &L, DiagnosticsEngine &diags) :
-        Lex(L), Diags(diags) {
+Parser::Parser(const string &fileName, Lexer &L, DiagnosticsEngine &Diags) :
+        Lex(L), Diags(Diags) {
 
     Tok.startToken();
     Tok.setKind(tok::eof);
@@ -23,7 +23,7 @@ Parser::Parser(const string &fileName, Lexer &L, DiagnosticsEngine &diags) :
     ConsumeToken();
 
     // Parse Package on first
-    parsePackageDecl(fileName);
+    ParsePackageDecl(fileName);
 
 }
 
@@ -40,13 +40,13 @@ ASTContext& Parser::getASTContext() {
     return *Context;
 }
 
-bool Parser::parsePackageDecl(const string& fileName) {
+bool Parser::ParsePackageDecl(const string& fileName) {
     if (Tok.is(tok::kw_package)) {
         SourceLocation StartLoc = Tok.getLocation();
         SourceLocation PackageNameLoc = ConsumeToken();
         if (Tok.isLiteral()) {
-            const PackageDecl &packageDecl = PackageDecl(Tok.getLiteralData());
-            Context = new ASTContext(fileName, packageDecl);
+            const PackageDecl &Package = PackageDecl(Tok.getLiteralData());
+            Context = new ASTContext(fileName, Package);
             return true;
         }
 

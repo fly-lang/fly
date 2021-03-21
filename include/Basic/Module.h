@@ -8,7 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 //
 /// \file
-/// Defines the clang::Module class, which describes a module in the
+/// Defines the fly::Module class, which describes a module in the
 /// source code.
 //
 //===--------------------------------------------------------------------------------------------------------------===//
@@ -693,6 +693,6 @@ private:
   unsigned Generation = 0;
 };
 
-} // namespace clang
+} // namespace fly
 
 #endif // LLVM_FLY_BASIC_MODULE_H

@@ -51,6 +51,6 @@ enum DebugInfoKind {
 };
 
 } // end namespace codegenoptions
-} // end namespace clang
+} // end namespace fly
 
 #endif

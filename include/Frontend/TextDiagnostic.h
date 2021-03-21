@@ -29,7 +29,7 @@ namespace fly {
 /// a recursive process, synthesizing notes for each macro expansion.
 ///
 /// The purpose of this class is to isolate the implementation of printing
-/// beautiful text diagnostics from any particular interfaces. The Clang
+/// beautiful text diagnostics from any particular interfaces. The Fly
 /// DiagnosticClient is implemented through this class as is diagnostic
 /// printing coming out of libclang.
 class TextDiagnostic : public DiagnosticRenderer {
@@ -109,6 +109,6 @@ private:
   void emitParseableFixits(ArrayRef<FixItHint> Hints, const SourceManager &SM);
 };
 
-} // end namespace clang
+} // end namespace fly
 
 #endif

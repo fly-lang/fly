@@ -17,15 +17,19 @@
 using namespace llvm;
 using namespace fly;
 
-CodeGenModule::CodeGenModule(fly::DiagnosticsEngine &diags, llvm::StringRef moduleName) :
-                                    diags(diags),
-                                    llvmContext(new LLVMContext()),
-                                    module(new llvm::Module(moduleName, *llvmContext)) {
+CodeGenModule::CodeGenModule(fly::DiagnosticsEngine &Diags, llvm::StringRef ModuleName) :
+                                    Diags(Diags),
+                                    VMContext(new LLVMContext()),
+                                    Module(new llvm::Module(ModuleName, *VMContext)) {
 }
 
-void CodeGenModule::initialize(TargetInfo &targetInfo) {
-    module->setTargetTriple(targetInfo.getTriple().getTriple());
-    //module->setDataLayout(targetInfo.getDataLayout());
-    // module->setSDKVersion() TODO
+void CodeGenModule::Initialize(TargetInfo &Target) {
+    Module->setTargetTriple(Target.getTriple().getTriple());
+    Module->setDataLayout(Target.getDataLayout());
+    const auto &SDKVersion = Target.getSDKVersion();
+    if (!SDKVersion.empty())
+        Module->setSDKVersion(SDKVersion);
+
+    // todo Add dependencies, Linker Options
 }
 

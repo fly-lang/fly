@@ -38,6 +38,6 @@ struct HMapHeader {
   // Strings follow the buckets, at StringsOffset.
 };
 
-} // end namespace clang.
+} // end namespace fly.
 
 #endif

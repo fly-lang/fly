@@ -128,6 +128,6 @@ public:
 
 using TextDiagnosticFormat = DiagnosticOptions::TextDiagnosticFormat;
 
-} // namespace clang
+} // namespace fly
 
 #endif // LLVM_FLY_BASIC_DIAGNOSTICOPTIONS_H

@@ -1740,6 +1740,6 @@ private:
   std::unique_ptr<SourceManager> SourceMgr;
 };
 
-} // namespace clang
+} // namespace fly
 
 #endif // LLVM_FLY_BASIC_SOURCEMANAGER_H

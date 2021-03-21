@@ -13,37 +13,20 @@
 #include "Driver/DriverOptions.h"
 #include "Frontend/FrontendOptions.h"
 #include "Basic/Diagnostic.h"
+#include <llvm/Option/Arg.h>
 #include <llvm/Option/ArgList.h>
-#include <Frontend/CompilerInvocation.h>
+#include <Frontend/CompilerInstance.h>
 
 namespace fly {
     class Driver {
 
-        std::shared_ptr<CompilerInvocation> invocation;
+        std::shared_ptr<CompilerInstance> CI;
 
-    public:
+        llvm::opt::InputArgList ArgList;
 
-        /// The name the driver was invoked as.
-        std::string name;
+        llvm::ArrayRef<const char *> Args;
 
-        /// The path the driver executable was in, as invoked from the
-        /// command line.
-        std::string dir;
-
-        /// The original path to the clang executable.
-        std::string executable;
-
-        /// The path to the installed clang directory, if any.
-        std::string installedDir;
-
-        /// The path to the compiler resource directory.
-        std::string resourceDir;
-
-        Driver();
-
-        Driver(int argc, const char **argv);
-
-        Driver(const std::string &path, llvm::ArrayRef<const char *> argList);
+        bool CanExecute;
 
         /// Create the diagnostics engine using the invocation's diagnostic options
         /// and replace any existing one with it.
@@ -57,17 +40,40 @@ namespace fly {
         ///
         /// \param shouldOwnClient If Client is non-NULL, specifies whether
         /// the diagnostic object should take ownership of the client.
-        IntrusiveRefCntPtr<DiagnosticsEngine> createDiagnostics();
+        IntrusiveRefCntPtr<DiagnosticsEngine> CreateDiagnostics(IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts);
 
-        bool CreateFromArgs(DiagnosticsEngine &diags, llvm::ArrayRef<const char *> ArgStrings,
-                            std::unique_ptr<FrontendOptions> &frontendOpts,
-                            std::unique_ptr<CodeGenOptions> &codegenOpts);
+        IntrusiveRefCntPtr<DiagnosticOptions> BuildDiagnosticOpts();
 
-        IntrusiveRefCntPtr<TargetInfo> createTargetInfo(DiagnosticsEngine &diags);
+        void BuildOptions(FileSystemOptions &FileSystemOpts,
+                           std::shared_ptr<TargetOptions> &TargetOpts,
+                           std::unique_ptr<FrontendOptions> &FrontendOpts,
+                           std::unique_ptr<CodeGenOptions> &CodeGenOpts);
 
-        const std::shared_ptr<CompilerInvocation> &getInvocation() const;
+        /// The name the driver was invoked as.
+        std::string Name;
 
-        bool execute();
+        /// The path the driver executable was in, as invoked from the
+        /// command line.
+        std::string Dir;
+
+        /// The original path to the fly executable.
+        std::string Path;
+
+        /// The path to the installed fly directory, if any.
+        std::string InstalledDir;
+
+        /// The path to the compiler resource directory.
+        std::string ResourceDir;
+
+    public:
+
+        Driver();
+
+        Driver(llvm::ArrayRef<const char *> ArgList);
+
+        CompilerInstance &BuildCompilerInstance();
+
+        bool Execute();
     };
 }
 

@@ -15,6 +15,7 @@
 #define FLY_CODEGEN_H
 
 #include "CodeGenModule.h"
+#include "CodeGen/BackendUtil.h"
 #include "Basic/Diagnostic.h"
 #include "AST/ASTContext.h"
 #include <memory>
@@ -32,17 +33,24 @@ namespace fly {
     class CodeGen {
 
     protected:
-        DiagnosticsEngine &diags;
-        const ASTContext &context;
-        TargetInfo &target;
-        std::unique_ptr<CodeGenModule> builder;
+        DiagnosticsEngine &Diags;
+        std::string ModuleName;
+        const CodeGenOptions &CodeGenOpts;
+        const TargetOptions &TargetOpts;
+        const ASTContext &Context;
+        TargetInfo &Target;
+        std::unique_ptr<CodeGenModule> Builder;
+        BackendAction ActionKind;
 
+        std::unique_ptr<llvm::raw_fd_ostream> getOutputStream(std::error_code &Code);
+        static std::string getModuleName(BackendAction Action, StringRef BaseInput);
     public:
-        explicit CodeGen(DiagnosticsEngine &diags, ASTContext &context, TargetInfo &target);
+        CodeGen(DiagnosticsEngine &Diags, CodeGenOptions &CodeGenOpts, TargetOptions &TargetOpts,
+                         ASTContext &Context, TargetInfo &Target, BackendAction Action);
 
-        bool execute() const;
+        bool execute();
 
-
+        std::unique_ptr<llvm::Module>& getModule();
     };
 }
 

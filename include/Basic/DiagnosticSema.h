@@ -24,6 +24,6 @@ enum {
   NUM_BUILTIN_SEMA_DIAGNOSTICS
 };
 } // end namespace diag
-} // end namespace clang
+} // end namespace fly
 
 #endif // LLVM_FLY_BASIC_DIAGNOSTICSEMA_H

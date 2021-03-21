@@ -250,5 +250,5 @@ enum BuiltinTemplateKind : int {
   BTK__type_pack_element
 };
 
-} // end namespace clang
+} // end namespace fly
 #endif

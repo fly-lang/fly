@@ -8,7 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 ///
 /// \file
-/// Defines the clang::FileManager interface and associated types.
+/// Defines the fly::FileManager interface and associated types.
 ///
 //===--------------------------------------------------------------------------------------------------------------===//
 
@@ -437,6 +437,6 @@ public:
   void PrintStats() const;
 };
 
-} // end namespace clang
+} // end namespace fly
 
 #endif // LLVM_FLY_BASIC_FILEMANAGER_H

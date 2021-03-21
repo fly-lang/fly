@@ -303,6 +303,6 @@ struct PPConditionalInfo {
   bool FoundElse;
 };
 
-} // end namespace clang
+} // end namespace fly
 
 #endif // LLVM_FLY_LEX_TOKEN_H

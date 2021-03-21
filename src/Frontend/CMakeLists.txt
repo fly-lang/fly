@@ -1,13 +1,11 @@
 add_library(FlyFrontend
         ChainedDiagnosticConsumer.cpp
+        FrontendAction.cpp
         CompilerInstance.cpp
-        CompilerInvocation.cpp
         DiagnosticRenderer.cpp
         Frontend.cpp
         FrontendOptions.cpp
-        InputFile.cpp
         LogDiagnosticPrinter.cpp
-        OutputFile.cpp
         TextDiagnostic.cpp
         TextDiagnosticBuffer.cpp
         TextDiagnosticPrinter.cpp

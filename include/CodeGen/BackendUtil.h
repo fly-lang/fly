@@ -10,6 +10,15 @@
 #ifndef FLY_BACKENDUTIL_H
 #define FLY_BACKENDUTIL_H
 
+#include "Basic/DiagnosticFrontend.h"
+#include "Basic/CodeGenOptions.h"
+#include "Basic/Diagnostic.h"
+#include "Basic/TargetOptions.h"
+#include "Basic/LLVM.h"
+#include "llvm/Bitcode/BitcodeReader.h"
+#include "llvm/IR/ModuleSummaryIndex.h"
+#include <memory>
+
 namespace fly {
 
     enum BackendAction {
@@ -20,9 +29,15 @@ namespace fly {
         Backend_EmitObj        ///< Emit native object files
     };
 
-    class BackendUtil {
+    void EmitBackendOutput(DiagnosticsEngine &Diags, const CodeGenOptions &CGOpts, const TargetOptions &TOpts,
+                           const llvm::DataLayout &TDesc, llvm::Module *M, BackendAction Action,
+                           std::unique_ptr<raw_pwrite_stream> OS);
 
-    };
+    void EmbedBitcode(llvm::Module *M, const CodeGenOptions &CGOpts, llvm::MemoryBufferRef Buf);
+
+    llvm::Expected<llvm::BitcodeModule> FindThinLTOModule(llvm::MemoryBufferRef MBRef);
+
+    llvm::BitcodeModule * FindThinLTOModule(llvm::MutableArrayRef<llvm::BitcodeModule> BMs);
 }
 
 #endif //FLY_BACKENDUTIL_H

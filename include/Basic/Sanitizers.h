@@ -8,7 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 //
 /// \file
-/// Defines the clang::SanitizerKind enum.
+/// Defines the fly::SanitizerKind enum.
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
@@ -122,7 +122,7 @@ public:
   }
 };
 
-// Declaring in clang namespace so that it can be found by ADL.
+// Declaring in fly namespace so that it can be found by ADL.
 llvm::hash_code hash_value(const fly::SanitizerMask &Arg);
 
 // Define the set of sanitizer kinds, as well as the set of sanitizers each
@@ -190,6 +190,6 @@ inline SanitizerMask getPPTransparentSanitizers() {
          SanitizerKind::Undefined | SanitizerKind::FloatDivideByZero;
 }
 
-} // namespace clang
+} // namespace fly
 
 #endif // LLVM_FLY_BASIC_SANITIZERS_H

@@ -32,7 +32,7 @@ class StringSizerHelper {
 public:
   enum { Size = SizeOfStr };
 };
-} // end namespace clang
+} // end namespace fly
 
 #define STR_SIZE(str, fieldTy) fly::StringSizerHelper<sizeof(str)-1, \
                                                         fieldTy>::Size
