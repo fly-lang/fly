@@ -34,23 +34,27 @@ namespace fly {
 
     protected:
         DiagnosticsEngine &Diags;
-        std::string ModuleName;
         const CodeGenOptions &CodeGenOpts;
-        const TargetOptions &TargetOpts;
+        TargetOptions &TargetOpts;
         const ASTContext &Context;
-        TargetInfo &Target;
+        IntrusiveRefCntPtr<TargetInfo> Target;
         std::unique_ptr<CodeGenModule> Builder;
         BackendAction ActionKind;
 
-        std::unique_ptr<llvm::raw_fd_ostream> getOutputStream(std::error_code &Code);
-        static std::string getModuleName(BackendAction Action, StringRef BaseInput);
+        static std::string getOutputFileName(BackendAction Action, StringRef BaseInput);
     public:
-        CodeGen(DiagnosticsEngine &Diags, CodeGenOptions &CodeGenOpts, TargetOptions &TargetOpts,
-                         ASTContext &Context, TargetInfo &Target, BackendAction Action);
+        CodeGen(DiagnosticsEngine &Diags, CodeGenOptions &CodeGenOpts, const std::shared_ptr<TargetOptions> &TargetOpts,
+                ASTContext &Context, BackendAction Action);
 
-        bool execute();
+        bool Execute();
 
         std::unique_ptr<llvm::Module>& getModule();
+
+        static TargetInfo* CreateTargetInfo(DiagnosticsEngine &Diags,
+                                                 const std::shared_ptr<TargetOptions> &TargetOpts);
+
+        /// Get the current target info.
+        TargetInfo &getTargetInfo() const;
     };
 }
 

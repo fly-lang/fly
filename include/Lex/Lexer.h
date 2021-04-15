@@ -96,10 +96,6 @@ namespace fly {
         /// idiom for the multiple-include optimization.
         MultipleIncludeOpt MIOpt;
 
-        /// Information about the set of \#if/\#ifdef/\#ifndef blocks
-        /// we are currently in.
-        SmallVector<PPConditionalInfo, 4> ConditionalStack;
-
         /// Mapping/lookup information for all identifiers in
         /// the program, including program keywords.
         mutable IdentifierTable Identifiers;
@@ -154,8 +150,6 @@ namespace fly {
         ConflictMarkerKind CurrentConflictMarkerState;
 
         void InitLexer(const char *BufStart, const char *BufPtr, const char *BufEnd);
-
-    public:
 
         /// Lexer constructor - Create a new raw lexer object.  This object is only
         /// suitable for calls to 'LexFromRawLexer'.  This lexer assumes that the
@@ -253,6 +247,10 @@ namespace fly {
         /// getSourceLocation - Return a source location identifier for the specified
         /// offset in the current file.
         SourceLocation getSourceLocation(const char *Loc, unsigned TokLen = 1) const;
+
+        const SourceManager &getSourceManager() {
+            return *SM;
+        }
 
         /// Return the current location in the buffer.
         const char *getBufferLocation() const { return BufferPtr; }

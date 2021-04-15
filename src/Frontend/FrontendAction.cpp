@@ -10,41 +10,35 @@
 #include "Frontend/FrontendAction.h"
 #include "Lex/Lexer.h"
 #include "Parser/Parser.h"
-#include "CodeGen/CodeGen.h"
 
 using namespace fly;
 
-FrontendAction::FrontendAction(const CompilerInstance & CI, const class InputFile & Input) :
-        Input(Input), FrontendOpts(CI.getFrontendOptions()),
-        CodeGenOpts(CI.getCodeGenOptions()), TargetOpts(CI.getTargetOptions()),
-        Output(CI.getFrontendOptions().getOutputFile()),
+FrontendAction::FrontendAction(const CompilerInstance & CI, const class InputFile & Input, ASTContext *Context) :
+        Input(Input), Output(CI.getFrontendOptions().getOutputFile()), Context(Context),
         Diags(CI.getDiagnostics()), FileMgr(CI.getFileManager()),
-        SourceMgr(CI.getSourceManager()), Target(CI.getTargetInfo()) {}
-
-bool FrontendAction::Execute() {
-    bool success = true;
-    Diags.getClient()->BeginSourceFile();
+        SourceMgr(CI.getSourceManager()) {
 
     ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> result = FileMgr.getBufferForFile(Input.getFile());
     assert(!result.getError() && "Error while opening file");
-    std::unique_ptr<MemoryBuffer> &buf = result.get();
-    llvm::MemoryBuffer *b = buf.get();
-    const FileID &FID = SourceMgr.createFileID(std::move(buf));
+    std::unique_ptr<MemoryBuffer> &Buf = result.get();
+    MemoryBuffer *BufPtr = Buf.get();
+    FID = SourceMgr.createFileID(std::move(Buf));
 
-    if (!FrontendOpts.isSkipParse()) {
-        Lexer lexer(FID, b, SourceMgr);
+    // Create Lexer
+    Lexer Lex(FID, BufPtr, SourceMgr);
 
-        Parser parser(Input.getFile(), lexer, Diags);
-        if (Diags.hasErrorOccurred())
-            return false;
-
-        CodeGen CG(Diags, CodeGenOpts, TargetOpts, parser.getASTContext(), Target,
-                   FrontendOpts.getBackendAction());
-        success = CG.execute();
-    }
-
-    Diags.getClient()->EndSourceFile();
-    return success;
+    // Create Parser and start to parse
+    P = std::make_unique<Parser>(Lex, Diags);
 }
 
+bool FrontendAction::BuildAST() {
 
+    // Create AST Unit
+    AST = std::make_unique<ASTNode>(Input.getFile(), FID, Context);
+
+    return P->Parse(AST.get());
+}
+
+ASTNode& FrontendAction::getAST() {
+    return *AST;
+}

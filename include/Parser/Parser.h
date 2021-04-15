@@ -12,21 +12,23 @@
 
 #include "Lex/Token.h"
 #include "Lex/Lexer.h"
-#include "AST/ASTContext.h"
+#include "AST/ASTNode.h"
 #include "ParseDiagnostic.h"
 
 namespace fly {
-    class DiagnosticsEngine;
 
+    class DiagnosticsEngine;
     class Lexer;
 
     /// Parse the main file known to the preprocessor, producing an
     /// abstract syntax tree.
     class Parser {
 
+        DiagnosticsEngine &Diags;
+
         Lexer &Lex;
 
-        DiagnosticsEngine &Diags;
+        ASTNode *AST;
 
         /// Tok - The current token we are peeking ahead.  All parsing methods assume
         /// that this is valid.
@@ -38,11 +40,15 @@ namespace fly {
         // a statement).
         SourceLocation PrevTokLocation;
 
-        ASTContext *Context = nullptr;
+        unsigned short ParenCount = 0, BracketCount = 0, BraceCount = 0;
 
     public:
 
-        Parser(const std::string &fileName, Lexer &L, DiagnosticsEngine &diags);
+        Parser(Lexer &Lex, DiagnosticsEngine &Diags);
+
+        bool Parse(ASTNode* Unit);
+
+        ASTNode* getAST();
 
         DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID);
         DiagnosticBuilder Diag(const Token &Tok, unsigned DiagID);
@@ -50,22 +56,18 @@ namespace fly {
             return Diag(Tok, DiagID);
         }
 
+    private:
+
         /// ConsumeToken - Consume the current 'peek token' and lex the next one.
-        /// This does not work with special tokens: string literals, code completion,
+        /// This does not work with special tokens: string literals,
         /// annotation tokens and balanced tokens must be handled using the specific
         /// consume methods.
         /// Returns the location of the consumed token.
         SourceLocation ConsumeToken() {
             assert(!isTokenSpecial() &&
                    "Should consume special tokens with Consume*Token");
-            PrevTokLocation = Tok.getLocation();
-            Lex.Lex(Tok);
-            return PrevTokLocation;
+            return ConsumeNext();
         }
-
-        ASTContext &getASTContext();
-
-    private:
 
         /// isTokenParen - Return true if the cur token is '(' or ')'.
         bool isTokenParen() const {
@@ -82,7 +84,7 @@ namespace fly {
             return Tok.isOneOf(tok::l_brace, tok::r_brace);
         }
 
-        /// isTokenStringLiteral - True if this token is a string-literal.
+        /// isTokenConsumeParenStringLiteral - True if this token is a string-literal.
         bool isTokenStringLiteral() const {
             return tok::isStringLiteral(Tok.getKind());
         }
@@ -93,7 +95,78 @@ namespace fly {
                    isTokenBrace();
         }
 
-        bool ParsePackageDecl(const std::string& fileName);
+        /// ConsumeParen - This consume method keeps the paren count up-to-date.
+        ///
+        SourceLocation ConsumeParen() {
+            assert(isTokenParen() && "wrong consume method");
+            if (Tok.getKind() == tok::l_paren)
+                ++ParenCount;
+            else if (ParenCount) {
+                //AngleBrackets.clear(*this);
+                --ParenCount;       // Don't let unbalanced )'s drive the count negative.
+            }
+
+            return ConsumeNext();
+        }
+
+        /// ConsumeBracket - This consume method keeps the bracket count up-to-date.
+        ///
+        SourceLocation ConsumeBracket() {
+            assert(isTokenBracket() && "wrong consume method");
+            if (Tok.getKind() == tok::l_square)
+                ++BracketCount;
+            else if (BracketCount) {
+                //AngleBrackets.clear(*this);
+                --BracketCount;     // Don't let unbalanced ]'s drive the count negative.
+            }
+
+            return ConsumeNext();
+        }
+
+        /// ConsumeBrace - This consume method keeps the brace count up-to-date.
+        ///
+        SourceLocation ConsumeBrace() {
+            assert(isTokenBrace() && "wrong consume method");
+            if (Tok.getKind() == tok::l_brace)
+                ++BraceCount;
+            else if (BraceCount) {
+                //AngleBrackets.clear(*this);
+                --BraceCount;     // Don't let unbalanced }'s drive the count negative.
+            }
+
+            return ConsumeNext();
+        }
+
+        /// ConsumeStringToken - Consume the current 'peek token', lexing a new one
+        /// and returning the token kind.  This method is specific to strings, as it
+        /// handles string literal concatenation, as per C99 5.1.1.2, translation
+        /// phase #6.
+        SourceLocation ConsumeStringToken() {
+            assert(isTokenStringLiteral() &&
+                   "Should only consume string literals with this method");
+
+            return ConsumeNext();
+        }
+
+        SourceLocation ConsumeNext() {
+            PrevTokLocation = Tok.getLocation();
+            Lex.Lex(Tok);
+            return PrevTokLocation;
+        }
+
+        bool ParseNameSpace();
+
+        bool ParseImportDecl();
+
+        bool ParseImportParenDecl();
+
+        void ParseTopDecl();
+
+        bool ParsePackageVarDecl(Token TypeToken, SourceLocation TypeLoc, IdentifierInfo *Info, SourceLocation IdLoc);
+
+        bool ParseFunctionDecl();
+
+        StringRef getLiteralString();
     };
 
 

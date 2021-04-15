@@ -75,11 +75,7 @@ CompilerInstance &Driver::BuildCompilerInstance() {
     std::unique_ptr<CodeGenOptions> codeGenOpts = std::make_unique<CodeGenOptions>();
     BuildOptions(fileSystemOpts, targetOpts, frontendOpts, codeGenOpts);
 
-    // Create TargetInfo.
-    IntrusiveRefCntPtr<TargetInfo> targetInfo = TargetInfo::CreateTargetInfo(*Diags, targetOpts);
-
     CI = std::make_shared<CompilerInstance>(Diags,
-                                            std::move(targetInfo),
                                             std::move(fileSystemOpts),
                                             std::move(frontendOpts),
                                             std::move(codeGenOpts),
@@ -233,15 +229,15 @@ void Driver::BuildOptions(FileSystemOptions &fileSystemOpts,
 }
 
 bool Driver::Execute() {
-    bool success = true;
+    bool Success = true;
 
     if (CanExecute) {
 
-        Frontend frontend(*CI);
-        success = frontend.execute();
+        Frontend Front(*CI);
+        Success = Front.Execute();
 
         CI->getDiagnostics().getClient()->finish();
     }
 
-    return success;
+    return Success;
 }

@@ -10,13 +10,14 @@
 #ifndef FLY_FRONTENDACTION_H
 #define FLY_FRONTENDACTION_H
 
-#include "FrontendAction.h"
 #include "CompilerInstance.h"
 #include "InputFile.h"
 #include "FrontendOptions.h"
 #include "OutputFile.h"
 #include "ChainedDiagnosticConsumer.h"
+#include "AST/ASTNode.h"
 #include "Basic/FileManager.h"
+#include "Parser/Parser.h"
 #include "llvm/Support/VirtualFileSystem.h"
 
 namespace fly {
@@ -25,29 +26,31 @@ namespace fly {
 
         const InputFile &Input;
 
-        FrontendOptions &FrontendOpts;
+        std::unique_ptr<ASTNode> AST;
 
-        CodeGenOptions &CodeGenOpts;
-
-        TargetOptions TargetOpts;
+        ASTContext *Context;
 
         FileManager &FileMgr;
 
         SourceManager &SourceMgr;
 
-        TargetInfo &Target;
-
         DiagnosticsEngine &Diags;
 
         OutputFile Output;
 
+        std::unique_ptr<Parser> P;
+
+        FileID FID;
+
     public:
 
-        FrontendAction(const CompilerInstance & CI, const InputFile & Input);
+        FrontendAction(const CompilerInstance &CI, const InputFile &Input, ASTContext *Context);
 
         ~FrontendAction();
 
-        bool Execute();
+        bool BuildAST();
+
+        ASTNode &getAST();
     };
 }
 

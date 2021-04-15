@@ -63,20 +63,4 @@ namespace {
         deleteTestFile(testFile);
     }
 
-    TEST_F(FrontendTest, ExecuteCompilerWithoutParse) {
-
-        EXPECT_TRUE(createTestFile(testFile));
-
-        Driver driver;
-        CompilerInstance &CI = driver.BuildCompilerInstance();
-        FrontendOptions &frontendOpts = CI.getFrontendOptions();
-        frontendOpts.setSkipParse(); // do not parse input
-        frontendOpts.addInputFile(testFile);
-        Frontend frontend(CI);
-
-        ASSERT_TRUE(frontend.execute());
-
-        deleteTestFile(testFile);
-    }
-
 } // anonymous namespace

@@ -11,30 +11,30 @@
 ///
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_PACKAGEDECL_H
-#define FLY_PACKAGEDECL_H
+#ifndef FLY_NAMESPACEDECL_H
+#define FLY_NAMESPACEDECL_H
 
-#include "ASTTypes.h"
-#include <string>
+//#include "Decl.h"
+//#include "llvm/ADT/StringRef.h"
+//
+//namespace fly {
+//
+//    class NameSpaceDecl : BaseDecl {
+//
+//        llvm::StringRef Name;
+//
+//    public:
+//
+//        NameSpaceDecl() : Name("") {}
+//
+//        NameSpaceDecl(const StringRef &nameSpace) : Name(nameSpace) {}
+//
+//        DeclKind getKind() override {
+//            return DeclKind::NameSpace;
+//        }
+//
+//        const llvm::StringRef &getName() const { return Name; }
+//    };
+//}
 
-namespace fly {
-
-    class PackageDecl {
-
-        const std::string &Name;
-
-        const ASTTypes ASTType;
-
-    public:
-
-        PackageDecl(const PackageDecl&& Package) noexcept;
-
-        explicit PackageDecl(const std::string &Name);
-
-        const std::string &getName() const { return Name; }
-
-        const ASTTypes &getType() const { return ASTType; }
-    };
-}
-
-#endif //FLY_PACKAGEDECL_H
+#endif //FLY_NAMESPACEDECL_H

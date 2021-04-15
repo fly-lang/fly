@@ -10,24 +10,23 @@
 // This file implements the ASTContext interface.
 //
 //===--------------------------------------------------------------------------------------------------------------===//
+
 #include "AST/ASTContext.h"
 
 using namespace fly;
-using namespace std;
 
-ASTContext::ASTContext(const StringRef &FileName, const PackageDecl &Package) :
-        FileName(FileName), Package(move(Package)) {
-
+bool ASTContext::AddNode(ASTNode &AST) {
+    assert(AST.getFileID().isValid() && "ASTUnit FileID is not valid!");
+    Nodes.insert(std::make_pair(AST.getFileID(), &AST));
+    return true;
 }
 
-const StringRef &ASTContext::getFileName() const {
-    return FileName;
+bool ASTContext::DelNode(ASTNode &AST) {
+    assert(AST.getFileID().isValid() && "ASTUnit FileID is not valid!");
+    Nodes.erase(AST.getFileID());
+    return true;
 }
 
-const PackageDecl &ASTContext::getPackage() {
-    return Package;
-}
-
-void ASTContext::Release() {
-
+const DenseMap<FileID, ASTNode*> &ASTContext::getNodes() const {
+    return Nodes;
 }

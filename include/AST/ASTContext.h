@@ -14,27 +14,35 @@
 #ifndef FLY_ASTCONTEXT_H
 #define FLY_ASTCONTEXT_H
 
-#include "PackageDecl.h"
-#include <string>
-#include <llvm/ADT/StringRef.h>
-
-using namespace llvm;
+#include "ASTNode.h"
+#include "GlobalVarDecl.h"
+#include "Frontend/CompilerInstance.h"
 
 namespace fly {
 
+    class ASTNode;
+
     class ASTContext {
 
-        const StringRef FileName;
-        const PackageDecl Package;
+        friend ASTNameSpace;
+        friend ASTNode;
+
+        // AST by FileID
+        llvm::DenseMap<FileID, ASTNode*> Nodes;
+
+        // All Context Namespaces
+        llvm::StringMap<ASTNameSpace*> NameSpaces;
+
+        // All Imports
+        llvm::StringMap<ImportDecl*> Imports;
 
     public:
-        ASTContext(const StringRef &FileName, const PackageDecl &Package);
 
-        const StringRef& getFileName() const;
+        const DenseMap<FileID, ASTNode *> &getNodes() const;
 
-        const PackageDecl& getPackage();
+        bool AddNode(ASTNode &AST);
 
-        void Release();
+        bool DelNode(ASTNode &AST);
     };
 }
 

@@ -130,5 +130,4 @@ DIAG(warn_old_implicitly_unsigned_long_cxx, CLASS_WARNING, (unsigned)diag::Sever
 DIAG(warn_poison_system_directories, CLASS_WARNING, (unsigned)diag::Severity::Ignored, "include location '%0' is unsafe for cross-compilation", 589, SFINAE_Suppress, false, false, 0)
 DIAG(warn_stack_exhausted, CLASS_WARNING, (unsigned)diag::Severity::Warning, "stack nearly exhausted; compilation time may suffer, and crashes due to stack overflow are likely", 676, SFINAE_Report, false, false, 0)
 DIAG(warn_unknown_attribute_ignored, CLASS_WARNING, (unsigned)diag::Severity::Warning, "unknown attribute %0 ignored", 759, SFINAE_Suppress, false, false, 0)
-DIAG(err_package_missing, CLASS_ERROR, (unsigned)diag::Severity::Error, "package definition missing", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_package_undefined, CLASS_ERROR, (unsigned)diag::Severity::Error, "package undefined", 0, SFINAE_Suppress, false, true, 0)

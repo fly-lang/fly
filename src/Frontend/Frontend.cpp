@@ -7,27 +7,53 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 #include "Frontend/Frontend.h"
+#include "CodeGen/CodeGen.h"
 
 using namespace fly;
 
-Frontend::Frontend(CompilerInstance &CI) : CI(CI), Diags(CI.getDiagnostics()) {
+Frontend::Frontend(CompilerInstance &CI) : CI(CI), Diags(CI.getDiagnostics()), Context(new ASTContext) {
 
     // Create Compiler Instance for each input file
     for (const auto &InputFile : CI.getFrontendOptions().getInputFiles()) {
 
         // Print file name and create instance for file compilation
         llvm::outs() << llvm::sys::path::filename(InputFile.getFile()) << "\n";
-        Actions.push_back(new FrontendAction(CI, InputFile));
+        Actions.push_back(new FrontendAction(CI, InputFile, Context));
     }
     llvm::outs().flush();
 }
 
-bool Frontend::execute() const {
-    bool Res = true;
-    for (auto &Action : Actions) {
-        Res &= Action->Execute();
+bool Frontend::Execute() const {
+    bool Success = true;
+
+    for (auto Action : Actions) {
+        Diags.getClient()->BeginSourceFile();
+
+        // Create ASTUnit instance
+        Success &= Action->BuildAST();
+
+        if (Success) {
+
+            // Add ASTUnit to ASTContext and resolve symbols
+            Success &= Context->AddNode(Action->getAST());
+        }
+
+        if (!Success) {
+            break;
+        }
+
+        Diags.getClient()->EndSourceFile();
     }
-    return Res;
+
+    if (Success) {
+        
+        // Generate Backend Code
+        CodeGen CG(Diags, CI.getCodeGenOptions(), CI.getTargetOptions(), *Context,
+                   CI.getFrontendOptions().getBackendAction());
+        return CG.Execute();
+    }
+
+    return Success;
 }
 
 const std::vector<FrontendAction *> &Frontend::getActions() const {

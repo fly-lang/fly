@@ -13,12 +13,11 @@
 using namespace fly;
 
 CompilerInstance::CompilerInstance(IntrusiveRefCntPtr<DiagnosticsEngine> Diags,
-                                   IntrusiveRefCntPtr<TargetInfo> &&Target,
                                    FileSystemOptions &&FileSystemOpts,
                                    std::unique_ptr<FrontendOptions> &&FrontendOptions,
                                    std::unique_ptr<CodeGenOptions> &&CodeGenOptions,
                                    std::shared_ptr<TargetOptions> &&TargetOptions) :
-        Diags(Diags), Target(std::move(Target)), FileSystemOpts(std::move(FileSystemOpts)),
+        Diags(Diags), FileSystemOpts(std::move(FileSystemOpts)),
         FrontendOpts(std::move(FrontendOptions)), CodeGenOpts(std::move(CodeGenOptions)),
         TargetOpts(std::move(TargetOptions)) {
 
@@ -71,17 +70,16 @@ FrontendOptions &CompilerInstance::getFrontendOptions() const {
     return *FrontendOpts;
 }
 
-TargetInfo &CompilerInstance::getTargetInfo() const {
-    assert(Target && "Compiler invocation has no target info!");
-    return *Target;
-}
-
 CodeGenOptions &CompilerInstance::getCodeGenOptions() const {
     assert(CodeGenOpts && "Compiler invocation has no CodeGen options");
     return *CodeGenOpts;
 }
 
-fly::TargetOptions &CompilerInstance::getTargetOptions() const {
-    assert(TargetOpts && "Compiler invocation has no CodeGen options");
-    return *TargetOpts;
+const std::shared_ptr<fly::TargetOptions> &CompilerInstance::getTargetOptions() const {
+    return TargetOpts;
 }
+
+//std::shared_ptr<fly::TargetOptions> &CompilerInstance::getTargetOptions() const {
+//    assert(TargetOpts && "Compiler invocation has no CodeGen options");
+//    return TargetOpts;
+//}

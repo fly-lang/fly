@@ -1,6 +1,8 @@
 add_library(FlyAST
         ASTContext.cpp
-        PackageDecl.cpp
+        ASTNameSpace.cpp
+        ASTNode.cpp
+        ASTNodeBase.cpp
         )
 
 target_link_libraries(FlyAST

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTTypes.h - AST Types enum
+// include/AST/Decl.h - AST Types enum
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,18 +7,35 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 /// \file
-/// Defines the fly::ASTTypes enum.
+/// Defines the fly::BaseDecl with DeclKind enum.
 ///
 //===--------------------------------------------------------------------------------------------------------------===//
-#ifndef FLY_ASTTYPES_H
-#define FLY_ASTTYPES_H
+#ifndef FLY_DECL_H
+#define FLY_DECL_H
+
+#include "Basic/LLVM.h"
+#include "llvm/ADT/StringRef.h"
 
 namespace fly {
 
-    enum ASTTypes {
-        Package
+    enum DeclKind {
+        NameSpace,
+        Dependency,
+        GlobalVar,
+        Function
+    };
+
+    enum TypeKind {
+        Int,
+        Float,
+        Bool
+    };
+
+    class BaseDecl {
+    public:
+        virtual DeclKind getKind() = 0;
     };
 }
 
 
-#endif //FLY_ASTTYPES_H
+#endif //FLY_DECL_H

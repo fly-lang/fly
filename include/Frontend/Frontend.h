@@ -14,6 +14,7 @@
 #include "CompilerInstance.h"
 #include "FrontendOptions.h"
 #include "Basic/Diagnostic.h"
+#include "AST/ASTContext.h"
 
 namespace fly {
     using namespace llvm;
@@ -32,11 +33,13 @@ namespace fly {
         // Compiler instances
         std::vector<FrontendAction*> Actions;
 
+        ASTContext* Context;
+
     public:
 
         explicit Frontend(CompilerInstance &CI);
 
-        bool execute() const;
+        bool Execute() const;
         
         const std::vector<FrontendAction *> &getActions() const;
     };

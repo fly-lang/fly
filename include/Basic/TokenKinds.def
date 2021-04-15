@@ -114,6 +114,11 @@ PUNCTUATOR(equalequal,          "==")
 PUNCTUATOR(comma,               ",")
 
 KEYWORD(package)
+KEYWORD(import)
+KEYWORD(as)
+KEYWORD(int)
+KEYWORD(float)
+KEYWORD(bool)
 
 #undef KEYWORD
 #undef PUNCTUATOR

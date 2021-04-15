@@ -42,9 +42,6 @@ namespace fly {
         /// The source manager.
         IntrusiveRefCntPtr<SourceManager> SourceMgr;
 
-        /// The target info
-        IntrusiveRefCntPtr<TargetInfo> Target;
-
         /// The frontend options
         std::unique_ptr<FrontendOptions> FrontendOpts;
 
@@ -65,7 +62,6 @@ namespace fly {
     public:
 
         CompilerInstance(IntrusiveRefCntPtr<DiagnosticsEngine> Diags,
-                         IntrusiveRefCntPtr<TargetInfo> &&Target,
                          FileSystemOptions &&FileSystemOpts,
                          std::unique_ptr<FrontendOptions> &&FrontendOpts,
                          std::unique_ptr<CodeGenOptions> &&CodeGenOpts,
@@ -85,11 +81,8 @@ namespace fly {
 
         CodeGenOptions &getCodeGenOptions() const;
 
-        /// Get the current target info.
-        TargetInfo &getTargetInfo() const;
-
         /// Get the current target options.
-        TargetOptions &getTargetOptions() const;
+        const std::shared_ptr<fly::TargetOptions> &getTargetOptions() const;
     };
 
 }
