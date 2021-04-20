@@ -206,10 +206,10 @@ bool Parser::ParseTopDecl() {
             }
             return ParseGlobalVarDecl(Visibility, Modifiable, TypeToken, TypeLoc, Info, IdentifierLoc);
         }
-
-        // Check Error: type without identifier
-        return false;
     }
+
+    // Check Error: type without identifier
+    return false;
 }
 
 bool Parser::ParseGlobalVarDecl(VisibilityKind Visibility, ModifiableKind Modifiable,

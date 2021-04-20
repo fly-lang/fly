@@ -23,6 +23,10 @@ Frontend::Frontend(CompilerInstance &CI) : CI(CI), Diags(CI.getDiagnostics()), C
     llvm::outs().flush();
 }
 
+Frontend::~Frontend() {
+    delete Context;
+}
+
 bool Frontend::Execute() const {
     bool Success = true;
 

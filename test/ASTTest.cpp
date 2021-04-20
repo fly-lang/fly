@@ -31,6 +31,10 @@ namespace {
                       SourceMgr(Diags, FileMgr), Context(new ASTContext) {
         }
 
+//        virtual ~ASTTest() {
+//            delete Context;
+//        }
+
         std::unique_ptr<ASTNode> NewASTNode(llvm::StringRef FileName) {
 
             // Set Source Manager file id

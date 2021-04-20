@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTBase.h - Base AST
+// include/AST/ASTNodeBase.h - Base AST Node
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -9,7 +9,6 @@
 
 #ifndef FLY_ASTNODEBASE_H
 #define FLY_ASTNODEBASE_H
-
 
 #include "Basic/SourceLocation.h"
 #include "llvm/ADT/StringRef.h"

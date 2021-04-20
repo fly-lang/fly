@@ -12,7 +12,6 @@
 
 #include "Decl.h"
 #include "TypeDecl.h"
-#include "ValueExpr.h"
 #include "Basic/TokenKinds.h"
 
 namespace fly {
@@ -44,7 +43,7 @@ namespace fly {
             return Name;
         }
 
-        virtual ~VarDecl() {
+        ~VarDecl() {
             delete Type;
         }
     };

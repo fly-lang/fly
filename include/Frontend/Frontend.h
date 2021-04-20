@@ -39,6 +39,8 @@ namespace fly {
 
         explicit Frontend(CompilerInstance &CI);
 
+        virtual ~Frontend();
+
         bool Execute() const;
         
         const std::vector<FrontendAction *> &getActions() const;

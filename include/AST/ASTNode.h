@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTNode.h - AST Unit
+// include/AST/ASTNode.h - AST Node
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -14,7 +14,6 @@
 #include "ASTNameSpace.h"
 #include "ImportDecl.h"
 #include "GlobalVarDecl.h"
-#include "VarExpr.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "vector"
@@ -46,6 +45,8 @@ namespace fly {
         ASTNode() = delete;
 
         ASTNode(const StringRef &fileName, const FileID &fid, ASTContext *Context);
+
+        ~ASTNode();
 
         bool isFirstNode() const;
         void setFirstNode(bool firstNode);

@@ -72,3 +72,10 @@ bool ASTContext::Finalize() {
 const StringMap<ASTNameSpace *> &ASTContext::getNameSpaces() const {
     return NameSpaces;
 }
+
+ASTContext::~ASTContext() {
+    for (auto &NS : NameSpaces)
+        NameSpaces.erase(NS.getKey());
+    for (auto &I : Imports)
+        Imports.erase(I.getKey());
+}

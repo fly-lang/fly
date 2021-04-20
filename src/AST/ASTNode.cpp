@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTContext.cpp - AST Context implementation
+// src/AST/ASTNode.cpp - AST Node implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,7 +7,7 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 //
-// This file implements the ASTContext interface.
+// This file implements the ASTNode interface.
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
@@ -120,4 +120,11 @@ GlobalVarDecl *ASTNode::addBoolVar(VisibilityKind Visibility, ModifiableKind Mod
     Var->setVisibility(Visibility);
     addVar(Var);
     return Var;
+}
+
+ASTNode::~ASTNode() {
+    for (auto &I : Imports)
+        Imports.erase(I.getKey());
+    for (auto &V : Vars)
+        Vars.erase(V.getKey());
 }

@@ -39,6 +39,8 @@ namespace fly {
 
     public:
 
+        ~ASTContext();
+
         bool AddNode(ASTNode *Node);
 
         bool DelNode(ASTNode *Node);
