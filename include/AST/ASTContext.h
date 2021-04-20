@@ -21,28 +21,31 @@
 namespace fly {
 
     class ASTNode;
+    class ASTNameSpace;
 
     class ASTContext {
 
         friend ASTNameSpace;
         friend ASTNode;
 
-        // AST by FileID
-        llvm::DenseMap<FileID, ASTNode*> Nodes;
+        // First inserted node, useful for Finalize on last
+        ASTNode *FirstNode;
 
         // All Context Namespaces
-        llvm::StringMap<ASTNameSpace*> NameSpaces;
+        llvm::StringMap<ASTNameSpace *> NameSpaces;
 
-        // All Imports
-        llvm::StringMap<ImportDecl*> Imports;
+        // All Files: <FileName, FileId>
+        llvm::StringMap<ImportDecl *> Imports;
 
     public:
 
-        const DenseMap<FileID, ASTNode *> &getNodes() const;
+        bool AddNode(ASTNode *Node);
 
-        bool AddNode(ASTNode &AST);
+        bool DelNode(ASTNode *Node);
 
-        bool DelNode(ASTNode &AST);
+        bool Finalize();
+
+        const StringMap<ASTNameSpace *> &getNameSpaces() const;
     };
 }
 

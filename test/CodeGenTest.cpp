@@ -46,11 +46,12 @@ namespace {
         DiagnosticsEngine Diags;
         SourceManager SourceMgr;
 
-        ASTNode createAST(const StringRef Name, ASTContext *Ctx) {
+        ASTNode createAST(const StringRef Name, ASTContext *Ctx, const StringRef NameSpace = "default") {
             ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> result = FileMgr.getBufferForFile(Name);
             std::unique_ptr<MemoryBuffer> &Buf = result.get();
             FileID FID = SourceMgr.createFileID(std::move(Buf));
             auto Node = ASTNode(Name, FID, Ctx);
+            Node.setNameSpace(NameSpace);
             Node.Finalize();
             return Node;
         }
@@ -181,8 +182,7 @@ namespace {
 
         ASTContext *Ctx = new ASTContext;
         ASTNode AST = createAST(testFile, Ctx);
-        GlobalVarDecl *Var = new GlobalVarDecl(TypeKind::Int, "a");
-        AST.addVar(Var);
+        GlobalVarDecl *Var = AST.addIntVar(VisibilityKind::Default, ModifiableKind::Variable, "a");
 
         std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();
         TargetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());

@@ -154,19 +154,23 @@ namespace fly {
             return PrevTokLocation;
         }
 
+        StringRef getLiteralString();
+
         bool ParseNameSpace();
 
         bool ParseImportDecl();
 
         bool ParseImportParenDecl();
 
-        void ParseTopDecl();
+        bool ParseImportAliasDecl(StringRef Name);
 
-        bool ParsePackageVarDecl(Token TypeToken, SourceLocation TypeLoc, IdentifierInfo *Info, SourceLocation IdLoc);
+        bool ParseTopDecl();
+
+        bool ParseGlobalVarDecl(VisibilityKind Visibility, ModifiableKind Modifiable,
+                                Token TypeToken, SourceLocation TypeLoc, IdentifierInfo *Info, SourceLocation IdLoc);
 
         bool ParseFunctionDecl();
 
-        StringRef getLiteralString();
     };
 
 

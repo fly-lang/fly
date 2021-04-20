@@ -8,7 +8,6 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Parser/Parser.h"
-#include <string>
 
 using namespace fly;
 
@@ -31,7 +30,9 @@ bool Parser::Parse(ASTNode *Node) {
 
             // Parse All
             while (Tok.isNot(tok::eof)) {
-                ParseTopDecl();
+                if (!ParseTopDecl()) {
+                    return false;
+                }
             }
 
             return AST->Finalize();
@@ -56,7 +57,7 @@ DiagnosticBuilder Parser::Diag(const Token &Tok, unsigned DiagID) {
  */
 bool Parser::ParseNameSpace() {
     // Check for first declaration
-    if (Tok.is(tok::kw_package)) {
+    if (Tok.is(tok::kw_namespace)) {
         SourceLocation StartLoc = Tok.getLocation();
         SourceLocation PackageNameLoc = ConsumeToken();
         if (Tok.isLiteral()) {
@@ -70,7 +71,8 @@ bool Parser::ParseNameSpace() {
 
     }
 
-    AST->setNameSpace("default");
+    // Define Default NameSpace if it is not defined
+    AST->setNameSpace();
     return true;
 }
 
@@ -98,13 +100,14 @@ bool Parser::ParseImportDecl() {
                 return false;
             }
 
-            AST->addImport(Name);
-            return ParseImportDecl();
+            if (ParseImportAliasDecl(Name)) {
+                return ParseImportDecl();
+            }
         }
     }
 
     // if parse "package" there is multiple package declarations
-    if (Tok.is(tok::kw_package)) {
+    if (Tok.is(tok::kw_namespace)) {
 
         // Multiple Package declaration is invalid, you can define only one
         Diag(Tok, diag::err_package_undefined);
@@ -133,7 +136,10 @@ bool Parser::ParseImportParenDecl() {
             return false;
         }
 
-        AST->addImport(Name);
+        if (!ParseImportAliasDecl(Name)) {
+            return false;
+        }
+
 
         if (Tok.is(tok::comma)) {
             ConsumeNext();
@@ -149,7 +155,41 @@ bool Parser::ParseImportParenDecl() {
     return true;
 }
 
-void Parser::ParseTopDecl() {
+bool Parser::ParseImportAliasDecl(StringRef Name) {
+    if (Tok.is(tok::kw_as)) {
+        ConsumeToken();
+        if (Tok.isLiteral()) {
+            StringRef Alias = getLiteralString();
+            return AST->addImport(Name, Alias);
+        }
+    }
+    return AST->addImport(Name, "");
+}
+
+bool Parser::ParseTopDecl() {
+
+    // Visibility Kind
+    VisibilityKind Visibility;
+    if (Tok.is(tok::kw_private)) {
+        Visibility = VisibilityKind::Private;
+        ConsumeToken();
+    } else if (Tok.is(tok::kw_public)) {
+        Visibility = VisibilityKind::Public;
+        ConsumeToken();
+    } else {
+        Visibility = VisibilityKind::Default;
+    }
+
+    // Modifiable Kind
+    ModifiableKind Modifiable;
+    if (Tok.is(tok::kw_const)) {
+        Modifiable = ModifiableKind::Constant;
+        ConsumeToken();
+    } else {
+        Modifiable = ModifiableKind::Variable;
+    }
+
+    // Var or Function
     if (Tok.isTypeIdentifier()) {
 
         Token TypeToken = Tok;
@@ -162,35 +202,31 @@ void Parser::ParseTopDecl() {
             SourceLocation IdentifierLoc = Tok.getLocation();
             ConsumeToken();
             if (Tok.is(tok::l_paren)) {
-                ParseFunctionDecl();
-            } else {
-                ParsePackageVarDecl(TypeToken, TypeLoc, Info, IdentifierLoc);
+                return ParseFunctionDecl();
             }
+            return ParseGlobalVarDecl(Visibility, Modifiable, TypeToken, TypeLoc, Info, IdentifierLoc);
         }
 
         // Check Error: type without identifier
-        //TODO
+        return false;
     }
 }
 
-bool Parser::ParsePackageVarDecl(Token TypeToken, SourceLocation TypeLoc, IdentifierInfo *Info, SourceLocation IdLoc) {
+bool Parser::ParseGlobalVarDecl(VisibilityKind Visibility, ModifiableKind Modifiable,
+                                Token TypeToken, SourceLocation TypeLoc, IdentifierInfo *Info, SourceLocation IdLoc) {
     GlobalVarDecl* VarPtr = nullptr;
     switch (TypeToken.getKind()) {
         case tok::kw_bool:
-            VarPtr = new GlobalVarDecl(TypeKind::Bool, Info->getName());
+            VarPtr = AST->addBoolVar(Visibility, Modifiable, Info->getName());
             break;
         case tok::kw_int:
-            VarPtr = new GlobalVarDecl(TypeKind::Int, Info->getName());
+            VarPtr = AST->addIntVar(Visibility, Modifiable, Info->getName());
             break;
         case tok::kw_float:
-            VarPtr = new GlobalVarDecl(TypeKind::Float, Info->getName());
+            VarPtr = AST->addFloatVar(Visibility, Modifiable, Info->getName());
             break;
     }
-    if (VarPtr != nullptr) {
-        AST->addVar(VarPtr);
-        return true;
-    }
-    return false;
+    return VarPtr != nullptr;
 }
 
 bool Parser::ParseFunctionDecl() {

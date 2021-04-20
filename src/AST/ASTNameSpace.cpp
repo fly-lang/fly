@@ -4,8 +4,14 @@
 
 #include "AST/ASTNameSpace.h"
 
+using namespace fly;
+
+ASTNameSpace::ASTNameSpace(const llvm::StringRef &NS) : NameSpace(NS) {}
+
 const llvm::StringRef &fly::ASTNameSpace::getNameSpace() const {
     return NameSpace;
 }
 
-fly::ASTNameSpace::ASTNameSpace(const llvm::StringRef &NS) : NameSpace(NS) {}
+const llvm::StringMap<ASTNode*> &ASTNameSpace::getNodes() const {
+    return Nodes;
+}

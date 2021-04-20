@@ -5,6 +5,7 @@
 #ifndef FLY_ASTNAMESPACE_H
 #define FLY_ASTNAMESPACE_H
 
+#include "AST/ASTNode.h"
 #include "AST/GlobalVarDecl.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
@@ -15,17 +16,23 @@ namespace fly {
 
     class ASTNameSpace {
 
+        friend ASTContext;
         friend ASTNode;
 
         llvm::StringRef NameSpace;
+
+        // AST by FileID
+        llvm::StringMap<ASTNode *> Nodes;
 
         // Public Global Vars
         llvm::StringMap<GlobalVarDecl *> Vars;
 
     public:
-        ASTNameSpace(const StringRef &NS);
+        ASTNameSpace(const llvm::StringRef &NS);
 
-        const StringRef &getNameSpace() const;
+        const llvm::StringRef &getNameSpace() const;
+
+        const llvm::StringMap<ASTNode *> &getNodes() const;
     };
 }
 

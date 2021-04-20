@@ -32,10 +32,6 @@ namespace fly {
         // File ID
         const FileID FID;
 
-        llvm::DenseMap<FileID, ASTNode*> Callers;
-
-        llvm::DenseMap<FileID, ASTNode*> Dependencies;
-
     public:
 
         ASTNodeBase() = delete;
@@ -47,10 +43,6 @@ namespace fly {
         const llvm::StringRef& getFileName();
 
         ASTContext &getContext() const;
-
-        const llvm::DenseMap<FileID, ASTNode*> &getCallers() const;
-
-        llvm::DenseMap<FileID, ASTNode*> &getDependencies();
     };
 }
 

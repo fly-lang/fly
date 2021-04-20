@@ -22,13 +22,25 @@ namespace fly {
         NameSpace,
         Dependency,
         GlobalVar,
-        Function
+        Function,
+        Type
+    };
+
+    enum VisibilityKind {
+        Default,
+        Public,
+        Private
+    };
+
+    enum ModifiableKind {
+        Variable,
+        Constant
     };
 
     enum TypeKind {
         Int,
         Float,
-        Bool
+        Boolean,
     };
 
     class BaseDecl {

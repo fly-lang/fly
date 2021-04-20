@@ -27,11 +27,3 @@ const llvm::StringRef &ASTNodeBase::getFileName() {
 const FileID &ASTNodeBase::getFileID() const {
     return FID;
 }
-
-llvm::DenseMap<FileID, ASTNode*> &ASTNodeBase::getDependencies() {
-    return Dependencies;
-}
-
-const llvm::DenseMap<FileID, ASTNode*> &ASTNodeBase::getCallers() const {
-    return Callers;
-}

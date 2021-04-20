@@ -11,26 +11,41 @@
 #define FLY_VARDECL_H
 
 #include "Decl.h"
+#include "TypeDecl.h"
+#include "ValueExpr.h"
 #include "Basic/TokenKinds.h"
 
 namespace fly {
 
     class VarDecl : public BaseDecl {
 
-        const TypeKind Type;
+        const ModifiableKind Modifiable;
+        const TypeDecl *Type;
         const StringRef Name;
 
     public:
-        VarDecl(TypeKind Type, StringRef Name) : Type(Type), Name(Name) {}
+        VarDecl(const TypeDecl *Type, const StringRef Name) : Modifiable(ModifiableKind::Variable), Type(Type),
+                                                                                                    Name(Name) {}
+
+        VarDecl(const ModifiableKind Modifiable, const TypeDecl *Type, const StringRef &Name) : Modifiable(Modifiable),
+                                                                                               Type(Type), Name(Name) {}
 
         virtual DeclKind getKind() = 0;
 
-        const TypeKind &getType() const {
+        const ModifiableKind &getModifiable() const {
+            return Modifiable;
+        }
+
+        const TypeDecl* getType() const {
             return Type;
         }
 
         const llvm::StringRef &getName() const {
             return Name;
+        }
+
+        virtual ~VarDecl() {
+            delete Type;
         }
     };
 }

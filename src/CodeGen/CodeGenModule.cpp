@@ -78,9 +78,9 @@ void CodeGenModule::Generate() {
  * @param Decl
  */
 void CodeGenModule::GenerateGlobalVar(VarDecl* Var) {
-    Type *T = nullptr;
-
-    switch (Var->getType()) {
+    llvm::Type *T = nullptr;
+    const TypeDecl *ty = Var->getType();
+    switch (ty->getKind()) {
 
         case Int:
             T = Int32Ty;
@@ -88,7 +88,7 @@ void CodeGenModule::GenerateGlobalVar(VarDecl* Var) {
         case Float:
             T = FloatTy;
             break;
-        case Bool:
+        case Boolean:
             T = BoolTy;
             break;
     }

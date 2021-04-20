@@ -51,22 +51,24 @@ bool CodeGen::Execute() {
         return true;
     }
 
-    for (auto Entry : Context.getNodes()) {
+    for(auto &EntryNS : Context.getNameSpaces()) {
+        for (auto &EntryNode : EntryNS.getValue()->getNodes()) {
 
-        ASTNode* AST = Entry.getSecond();
+            ASTNode *AST = EntryNode.getValue();
 
-        std::string OutputFileName = getOutputFileName(ActionKind, AST->getFileName());
-        std::error_code Code;
-        std::unique_ptr<llvm::raw_fd_ostream> OS =
-                std::make_unique<raw_fd_ostream>(OutputFileName, Code, llvm::sys::fs::F_None);
+            std::string OutputFileName = getOutputFileName(ActionKind, AST->getFileName());
+            std::error_code Code;
+            std::unique_ptr<llvm::raw_fd_ostream> OS =
+                    std::make_unique<raw_fd_ostream>(OutputFileName, Code, llvm::sys::fs::F_None);
 
-        Builder = std::make_unique<CodeGenModule>(Diags, *AST, *Target);
-        Builder->Generate();
+            Builder = std::make_unique<CodeGenModule>(Diags, *AST, *Target);
+            Builder->Generate();
 
-        EmbedBitcode(Builder->Module.get(), CodeGenOpts, llvm::MemoryBufferRef());
+            EmbedBitcode(Builder->Module.get(), CodeGenOpts, llvm::MemoryBufferRef());
 
-        EmitBackendOutput(Diags, CodeGenOpts, TargetOpts, Target->getDataLayout(),
-                          Builder->Module.get(), ActionKind, std::move(OS));
+            EmitBackendOutput(Diags, CodeGenOpts, TargetOpts, Target->getDataLayout(),
+                              Builder->Module.get(), ActionKind, std::move(OS));
+        }
     }
     return true;
 }

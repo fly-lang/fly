@@ -11,8 +11,11 @@
 #define FLY_IMPORTDECL_H
 
 #include "Decl.h"
+#include "ASTNameSpace.h"
 
 namespace fly {
+
+    class ASTNameSpace;
 
     class ImportDecl : public BaseDecl {
 
@@ -20,8 +23,9 @@ namespace fly {
 
         StringRef Alias;
 
+        ASTNameSpace *NameSpace = nullptr;
+
     public:
-        explicit ImportDecl(StringRef Name) : Name(Name) {}
 
         ImportDecl(StringRef Name, StringRef Alias) : Name(Name), Alias(Alias) {}
 
@@ -33,8 +37,16 @@ namespace fly {
             return Name;
         }
 
-        const StringRef &getAsName() const {
+        const StringRef &getAlias() const {
             return Alias;
+        }
+
+        ASTNameSpace *getNameSpace() const {
+            return NameSpace;
+        }
+
+        void setNameSpace(ASTNameSpace *NS) {
+            NameSpace = NS;
         }
     };
 }

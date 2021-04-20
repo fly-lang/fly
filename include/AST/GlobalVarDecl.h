@@ -16,24 +16,28 @@
 namespace fly {
 
     class GlobalVarDecl : public VarDecl {
+        friend ASTNode;
 
-        bool External;
+        VisibilityKind Visibility;
 
     public:
-        GlobalVarDecl(TypeKind Type, StringRef Name) : External(false), VarDecl(Type, Name) {
 
-        }
+        GlobalVarDecl(ModifiableKind Modifiable, TypeDecl *Type, StringRef &Name) : VarDecl(Modifiable, Type, Name) {}
 
         DeclKind getKind() override {
             return DeclKind::GlobalVar;
         }
 
-        void setExternal(bool external) {
-            GlobalVarDecl::External = external;
+        VisibilityKind getVisibility() const {
+            return Visibility;
         }
 
-        bool isExternal() const {
-            return External;
+        void setVisibility(VisibilityKind visibility) {
+            Visibility = visibility;
+        }
+
+        ~GlobalVarDecl() override {
+            VarDecl::~VarDecl();
         }
     };
 }

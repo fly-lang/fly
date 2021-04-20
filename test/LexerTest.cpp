@@ -196,11 +196,11 @@ namespace {
     }
 
     TEST_F(LexerTest, KeywordLex) {
-        StringRef str = ("package");
+        StringRef str = ("namespace");
         auto toks = Lex(str);
 
         std::vector<std::pair<std::string, tok::TokenKind>> exps;
-        exps.push_back({"package", tok::kw_package});
+        exps.push_back({"namespace", tok::kw_namespace});
 
         CheckTokens(toks, exps);
     }

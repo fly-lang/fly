@@ -29,14 +29,8 @@ bool Frontend::Execute() const {
     for (auto Action : Actions) {
         Diags.getClient()->BeginSourceFile();
 
-        // Create ASTUnit instance
+        // Create ASTNode instance
         Success &= Action->BuildAST();
-
-        if (Success) {
-
-            // Add ASTUnit to ASTContext and resolve symbols
-            Success &= Context->AddNode(Action->getAST());
-        }
 
         if (!Success) {
             break;

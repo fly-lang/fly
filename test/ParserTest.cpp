@@ -52,7 +52,7 @@ namespace {
     };
 
     TEST_F(ParserTest, SinglePackage) {
-        StringRef str = ("package \"std\"");
+        StringRef str = ("namespace \"std\"");
 
         // Verify FileName
         auto P = Parse("package.fly", str);
@@ -61,16 +61,11 @@ namespace {
 
         // verify AST contains package
         EXPECT_EQ(AST->getNameSpace()->getNameSpace(), "std");
-
-        StringRef str2 = ("\n package  \"std\"\n");
-        P = Parse("package.fly", str2);
-        auto AST2 = P->getAST();
-        EXPECT_EQ(AST2->getNameSpace()->getNameSpace(), "std");
     }
 
     TEST_F(ParserTest, MultiPackageError) {
-        StringRef str = ("package \"std\"\n"
-                         "package \"bad\"");
+        StringRef str = ("namespace \"std\"\n"
+                         "namespace \"bad\"");
 
         // Verify FileName
         auto P = Parse("error.fly", str);
@@ -79,7 +74,7 @@ namespace {
     }
 
     TEST_F(ParserTest, SingleImport) {
-        StringRef str = ("package \"std\"\n"
+        StringRef str = ("namespace \"std\"\n"
                          "import \"packageA\"");
 
         // Verify FileName
@@ -88,10 +83,20 @@ namespace {
         ImportDecl* Verify = AST->getImports().lookup("packageA");
 
         EXPECT_EQ(Verify->getName(), "packageA");
+        EXPECT_EQ(Verify->getAlias(), "");
+    }
+
+    TEST_F(ParserTest, SingleImportAlias) {
+        StringRef str = ("\n import  \"standard\" as \"std\"\n");
+        auto P = Parse("package.fly", str);
+        auto AST = P->getAST();
+        EXPECT_EQ(AST->getNameSpace()->getNameSpace(), "default");
+        EXPECT_EQ(AST->getImports().lookup("standard")->getName(), "standard");
+        EXPECT_EQ(AST->getImports().lookup("standard")->getAlias(), "std");
     }
 
     TEST_F(ParserTest, MultiImports) {
-        StringRef str = ("package \"std\"\n"
+        StringRef str = ("namespace \"std\"\n"
                          "import \"packageA\""
                          "import \"packageB\"");
 
@@ -106,7 +111,7 @@ namespace {
     }
 
     TEST_F(ParserTest, SingleParenImport) {
-        StringRef str = ("package \"std\"\n"
+        StringRef str = ("namespace \"std\"\n"
                          "import (\"packageA\")");
 
         // Verify FileName
@@ -118,7 +123,7 @@ namespace {
     }
 
     TEST_F(ParserTest, MultiParenImports) {
-        StringRef str = ("package \"std\"\n"
+        StringRef str = ("namespace \"std\"\n"
                          "import (\"packageA\", \"packageB\")");
 
         // Verify FileName
@@ -132,7 +137,7 @@ namespace {
     }
 
     TEST_F(ParserTest, SingleVar) {
-        StringRef str = ("package \"std\"\n"
+        StringRef str = ("namespace \"std\"\n"
                          "int a");
 
         // Verify FileName
@@ -140,30 +145,36 @@ namespace {
         auto AST = P->getAST();
         GlobalVarDecl* VerifyA = AST->getVars().lookup("a");
 
-        EXPECT_EQ(VerifyA->getType(), TypeKind::Int);
+        EXPECT_EQ(VerifyA->getType()->getKind(), TypeKind::Int);
         EXPECT_EQ(VerifyA->getName(), "a");
     }
 
     TEST_F(ParserTest, MultiVar) {
-        StringRef str = ("package \"std\"\n"
-                         "int a\n"
-                         "float b\n"
-                         "bool c");
+        StringRef str = ("namespace \"std\"\n"
+                         "private int a\n"
+                         "public float b\n"
+                         "const bool c");
 
         // Verify FileName
         auto P = Parse("var.fly", str);
         auto AST = P->getAST();
-        GlobalVarDecl *VerifyC = AST->getVars().lookup("c");
-        GlobalVarDecl *VerifyB = AST->getVars().lookup("b");
         GlobalVarDecl *VerifyA = AST->getVars().lookup("a");
+        GlobalVarDecl *VerifyB = AST->getVars().lookup("b");
+        GlobalVarDecl *VerifyC = AST->getVars().lookup("c");
 
-        EXPECT_EQ(VerifyA->getType(), TypeKind::Int);
+        EXPECT_EQ(VerifyA->getVisibility(), VisibilityKind::Private);
+        EXPECT_EQ(VerifyA->getModifiable(), ModifiableKind::Variable);
+        EXPECT_EQ(VerifyA->getType()->getKind(), TypeKind::Int);
         EXPECT_EQ(VerifyA->getName(), "a");
 
-        EXPECT_EQ(VerifyB->getType(), TypeKind::Float);
+        EXPECT_EQ(VerifyB->getVisibility(), VisibilityKind::Public);
+        EXPECT_EQ(VerifyB->getModifiable(), ModifiableKind::Variable);
+        EXPECT_EQ(VerifyB->getType()->getKind(), TypeKind::Float);
         EXPECT_EQ(VerifyB->getName(), "b");
 
-        EXPECT_EQ(VerifyC->getType(), TypeKind::Bool);
+        EXPECT_EQ(VerifyC->getVisibility(), VisibilityKind::Default);
+        EXPECT_EQ(VerifyC->getModifiable(), ModifiableKind::Constant);
+        EXPECT_EQ(VerifyC->getType()->getKind(), TypeKind::Boolean);
         EXPECT_EQ(VerifyC->getName(), "c");
     }
 

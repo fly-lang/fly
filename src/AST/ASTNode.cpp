@@ -24,6 +24,11 @@ const ASTNameSpace* ASTNode::getNameSpace() {
     return NameSpace;
 }
 
+void ASTNode::setNameSpace() {
+    const StringRef &NS = "default";
+    setNameSpace(NS);
+}
+
 void ASTNode::setNameSpace(const StringRef &NS) {
     // Check if NS exist or add
     NameSpace = Context->NameSpaces.lookup(NS);
@@ -37,18 +42,18 @@ const llvm::StringMap<ImportDecl*> &ASTNode::getImports() {
     return Imports;
 }
 
-bool ASTNode::addImport(StringRef Name) {
-    // Check if Node already own this import
+bool ASTNode::addImport(StringRef Name, StringRef Alias) {
+    // Check if this Node already own this Import
     ImportDecl* Import = Imports.lookup(Name);
     if (Import != nullptr) {
-        // TODO Diag Error
+        // TODO Diag Error already present
         return false;
     }
 
-    // Retrieve Import from Context
+    // Retrieve Import from Context if already exists in order to maintain only one instance of ImportDecl
     Import = Context->Imports.lookup(Name);
     if (Import == nullptr) {
-        Import = new ImportDecl(Name);
+        Import = new ImportDecl(Name, Alias);
     }
     auto Pair = std::make_pair(Name, Import);
 
@@ -67,24 +72,52 @@ const llvm::StringMap<GlobalVarDecl *> &ASTNode::getVars() {
 
 bool ASTNode::addVar(GlobalVarDecl *Var) {
     auto Pair = std::make_pair(Var->getName(), Var);
-    if(Var->isExternal()) {
+    if(Var->Visibility == VisibilityKind::Public || Var->Visibility == VisibilityKind::Default) {
         GlobalVarDecl *LookupVar = NameSpace->Vars.lookup(Var->getName());
         if (LookupVar != nullptr) {
             // TODO Diag Error
             return false;
         }
         NameSpace->Vars.insert(Pair);
-    } else {
-        GlobalVarDecl *LookupVar = Vars.lookup(Var->getName());
-        if (LookupVar != nullptr) {
-            // TODO Diag Error
-            return false;
-        }
-        Vars.insert(Pair);
     }
+    GlobalVarDecl *LookupVar = Vars.lookup(Var->getName());
+    if (LookupVar != nullptr) {
+        // TODO Diag Error
+        return false;
+    }
+    Vars.insert(Pair);
     return true;
 }
 
 bool ASTNode::Finalize() {
-    return Context->AddNode(*this);
+    return Context->AddNode(this);
+}
+
+bool ASTNode::isFirstNode() const {
+    return FirstNode;
+}
+
+void ASTNode::setFirstNode(bool FirstNode) {
+    ASTNode::FirstNode = FirstNode;
+}
+
+GlobalVarDecl *ASTNode::addIntVar(VisibilityKind Visibility, ModifiableKind Modifiable, StringRef Name, int *Val) {
+    GlobalVarDecl *Var = new GlobalVarDecl(ModifiableKind::Variable, new IntTypeDecl(Val), Name);
+    Var->setVisibility(Visibility);
+    addVar(Var);
+    return Var;
+}
+
+GlobalVarDecl *ASTNode::addFloatVar(VisibilityKind Visibility, ModifiableKind Modifiable, StringRef Name, float *Val) {
+    GlobalVarDecl *Var = new GlobalVarDecl(ModifiableKind::Variable, new FloatTypeDecl(Val), Name);
+    Var->setVisibility(Visibility);
+    addVar(Var);
+    return Var;
+}
+
+GlobalVarDecl *ASTNode::addBoolVar(VisibilityKind Visibility, ModifiableKind Modifiable, StringRef Name, bool *Val) {
+    GlobalVarDecl *Var = new GlobalVarDecl(Modifiable, new BoolTypeDecl(Val), Name);
+    Var->setVisibility(Visibility);
+    addVar(Var);
+    return Var;
 }
