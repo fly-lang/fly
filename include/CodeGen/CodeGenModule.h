@@ -14,29 +14,38 @@
 #ifndef FLY_CODEGENMODULE_H
 #define FLY_CODEGENMODULE_H
 
+#include "CharUnits.h"
+#include "CodeGenTypeCache.h"
 #include "AST/ASTContext.h"
 #include "Basic/Diagnostic.h"
+#include "Basic/TargetInfo.h"
 #include <llvm/IR/Module.h>
 #include <llvm/IR/LLVMContext.h>
-#include <Basic/TargetInfo.h>
 
 using namespace llvm;
 
 namespace fly {
 
-    class CodeGenModule {
+    class CodeGenModule : public CodeGenTypeCache {
 
     private:
         DiagnosticsEngine &Diags;
-        std::unique_ptr<llvm::LLVMContext> VMContext;
-
+        ASTNode &AST;
+        TargetInfo &Target;
+        llvm::LLVMContext VMContext;
 
     public:
-        CodeGenModule(DiagnosticsEngine &Diags, llvm::StringRef ModuleName);
-
-        void Initialize(TargetInfo &Target);
+        CodeGenModule(DiagnosticsEngine &Diags, ASTNode &AST, TargetInfo &Target);
 
         std::unique_ptr<llvm::Module> Module;
+
+        void Generate();
+
+        void GenerateGlobalVar(VarDecl *Var);
+
+        GlobalVariable* GenerateAndGetGlobalVar(GlobalVarDecl* Var);
+
+        void GenerateGlobalVars(std::vector<GlobalVarDecl*>  Vars);
     };
 }
 

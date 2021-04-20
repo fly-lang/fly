@@ -11,7 +11,7 @@
 
 using namespace fly;
 
-void FrontendOptions::addInputFile(std::string &&FileName) {
+void FrontendOptions::addInputFile(llvm::StringRef FileName) {
     Inputs.emplace_back(InputFile(FileName));
 }
 
@@ -34,15 +34,6 @@ bool FrontendOptions::isVerbose() const {
 void FrontendOptions::setVerbose() {
     FrontendOptions::Verbose = true;
 }
-
-bool FrontendOptions::isSkipParse() const {
-    return SkipParse;
-}
-
-void FrontendOptions::setSkipParse() {
-    SkipParse = true;
-}
-
 
 BackendAction FrontendOptions::getBackendAction() {
     return Action;

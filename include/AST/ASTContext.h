@@ -14,27 +14,38 @@
 #ifndef FLY_ASTCONTEXT_H
 #define FLY_ASTCONTEXT_H
 
-#include "PackageDecl.h"
-#include <string>
-#include <llvm/ADT/StringRef.h>
-
-using namespace llvm;
+#include "ASTNode.h"
+#include "GlobalVarDecl.h"
+#include "Frontend/CompilerInstance.h"
 
 namespace fly {
 
+    class ASTNode;
+    class ASTNameSpace;
+
     class ASTContext {
 
-        const StringRef FileName;
-        const PackageDecl Package;
+        friend ASTNameSpace;
+        friend ASTNode;
+
+        // First inserted node, useful for Finalize on last
+        ASTNode *FirstNode;
+
+        // All Context Namespaces
+        llvm::StringMap<ASTNameSpace *> NameSpaces;
+
+        // All Files: <FileName, FileId>
+        llvm::StringMap<ImportDecl *> Imports;
 
     public:
-        ASTContext(const StringRef &FileName, const PackageDecl &Package);
 
-        const StringRef& getFileName() const;
+        bool AddNode(ASTNode *Node);
 
-        const PackageDecl& getPackage();
+        bool DelNode(ASTNode *Node);
 
-        void Release();
+        bool Finalize();
+
+        const StringMap<ASTNameSpace *> &getNameSpaces() const;
     };
 }
 

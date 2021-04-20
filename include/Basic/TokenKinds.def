@@ -113,7 +113,15 @@ PUNCTUATOR(equal,               "=")
 PUNCTUATOR(equalequal,          "==")
 PUNCTUATOR(comma,               ",")
 
-KEYWORD(package)
+KEYWORD(namespace)
+KEYWORD(import)
+KEYWORD(as)
+KEYWORD(public)
+KEYWORD(private)
+KEYWORD(const)
+KEYWORD(int)
+KEYWORD(float)
+KEYWORD(bool)
 
 #undef KEYWORD
 #undef PUNCTUATOR

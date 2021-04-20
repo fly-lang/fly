@@ -54,8 +54,6 @@ class Token {
   ///  Literals:  isLiteral() returns true.
   ///    This is a pointer to the start of the token in a text buffer, which
   ///    may be dirty (have trigraphs / escaped newlines).
-  ///  Annotations (resolved type names, C++ scopes, etc): isAnnotation().
-  ///    This is a pointer to sema-specific data for the annotation token.
   ///  Eof:
   //     This is a pointer to a Decl.
   ///  Other:
@@ -72,17 +70,13 @@ public:
   // Various flags set per token:
   enum TokenFlags {
     StartOfLine = 0x01,   // At start of line or only after whitespace
-                          // (considering the line after macro expansion).
-    LeadingSpace = 0x02,  // Whitespace exists before this token (considering
-                          // whitespace after macro expansion).
+    LeadingSpace = 0x02,  // Whitespace exists before this token
     DisableExpand = 0x04, // This identifier may never be macro expanded.
     NeedsCleaning = 0x08, // Contained an escaped newline or trigraph.
     LeadingEmptyMacro = 0x10, // Empty macro exists before this token.
     HasUDSuffix = 0x20,  // This string or character literal has a ud-suffix.
     HasUCN = 0x40,       // This identifier contains a UCN.
     IgnoredComma = 0x80, // This comma is not a macro argument separator (MS).
-    StringifiedInMacro = 0x100, // This string or character literal is formed by
-                                // macro stringizing or charizing operator.
     CommaAfterElided = 0x200, // The comma following this token was elided (MS).
     IsEditorPlaceholder = 0x400, // This identifier is a placeholder.
     IsReinjected = 0x800, // A phase 4 token that was produced before and
@@ -111,6 +105,14 @@ public:
     return tok::isAnyIdentifier(getKind());
   }
 
+  bool isTypeIdentifier() const {
+    return isOneOf(tok::kw_int, tok::kw_bool, tok::kw_float);
+  }
+
+//  bool isScopeIdentifier() const {
+//      return isOneOf(tok::kw_static, tok::kw_const);
+//  }
+
   /// Return true if this is a "literal", like a numeric
   /// constant, string, etc.
   bool isLiteral() const {
@@ -131,29 +133,12 @@ public:
     UintData = Len;
   }
 
-  SourceLocation getAnnotationEndLoc() const {
-    return SourceLocation::getFromRawEncoding(UintData ? UintData : Loc);
-  }
-  void setAnnotationEndLoc(SourceLocation L) {
-    UintData = L.getRawEncoding();
-  }
-
   SourceLocation getLastLoc() const {
       return getLocation();
   }
 
   SourceLocation getEndLoc() const {
     return getLocation().getLocWithOffset(getLength());
-  }
-
-  /// SourceRange of the group of tokens that this annotation token
-  /// represents.
-  SourceRange getAnnotationRange() const {
-    return SourceRange(getLocation(), getAnnotationEndLoc());
-  }
-  void setAnnotationRange(SourceRange R) {
-    setLocation(R.getBegin());
-    setAnnotationEndLoc(R.getEnd());
   }
 
   const char *getName() const { return tok::getTokenName(Kind); }
@@ -168,7 +153,7 @@ public:
   }
 
   IdentifierInfo *getIdentifierInfo() const {
-    assert(isNot(tok::identifier) &&
+    assert(isNot(tok::raw_identifier) &&
            "getIdentifierInfo() on a tok::identifier token!");
     if (isLiteral()) return nullptr;
     if (is(tok::eof)) return nullptr;
@@ -258,10 +243,6 @@ public:
   /// Return true if this token has trigraphs or escaped newlines in it.
   bool needsCleaning() const { return getFlag(NeedsCleaning); }
 
-  /// Return true if this token has an empty macro before it.
-  ///
-  bool hasLeadingEmptyMacro() const { return getFlag(LeadingEmptyMacro); }
-
   /// Return true if this token is a string or character literal which
   /// has a ud-suffix.
   bool hasUDSuffix() const { return getFlag(HasUDSuffix); }
@@ -269,38 +250,12 @@ public:
   /// Returns true if this token contains a universal character name.
   bool hasUCN() const { return getFlag(HasUCN); }
 
-  /// Returns true if this token is formed by macro by stringizing or charizing
-  /// operator.
-  bool stringifiedInMacro() const { return getFlag(StringifiedInMacro); }
-
-  /// Returns true if the comma after this token was elided.
-  bool commaAfterElided() const { return getFlag(CommaAfterElided); }
-
   /// Returns true if this token is an editor placeholder.
   ///
   /// Editor placeholders are produced by the code-completion engine and are
   /// represented as characters between '<#' and '#>' in the source code. The
   /// lexer uses identifier tokens to represent placeholders.
   bool isEditorPlaceholder() const { return getFlag(IsEditorPlaceholder); }
-};
-
-/// Information about the conditional stack (\#if directives)
-/// currently active.
-struct PPConditionalInfo {
-  /// Location where the conditional started.
-  SourceLocation IfLoc;
-
-  /// True if this was contained in a skipping directive, e.g.,
-  /// in a "\#if 0" block.
-  bool WasSkipping;
-
-  /// True if we have emitted tokens already, and now we're in
-  /// an \#else block or something.  Only useful in Skipping blocks.
-  bool FoundNonSkip;
-
-  /// True if we've seen a \#else in this block.  If so,
-  /// \#elif/\#else directives are not allowed.
-  bool FoundElse;
 };
 
 } // end namespace fly

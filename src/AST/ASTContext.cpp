@@ -10,24 +10,65 @@
 // This file implements the ASTContext interface.
 //
 //===--------------------------------------------------------------------------------------------------------------===//
+
 #include "AST/ASTContext.h"
 
 using namespace fly;
-using namespace std;
 
-ASTContext::ASTContext(const StringRef &FileName, const PackageDecl &Package) :
-        FileName(FileName), Package(move(Package)) {
+bool ASTContext::AddNode(ASTNode *Node) {
+    assert(Node->getFileID().isValid() && "ASTNode FileID is not valid!");
+    assert(Node->NameSpace && "NameSpace is empty!");
+    llvm::StringMap<ASTNode *> &NSNodes = Node->NameSpace->Nodes;
 
+    // Set FirstNode
+    bool isFirstAddition = false;
+    if (FirstNode == nullptr) {
+        FirstNode = Node;
+        isFirstAddition = true;
+        Node->setFirstNode(true);
+    }
+
+    // Add to Nodes
+    auto Pair = std::make_pair(Node->FileName, Node);
+    NSNodes.insert(Pair);
+
+    // Search only if this node is the first one because Nodes are empty
+    if (!isFirstAddition) {
+        // Try to link Node Imports to already resolved Nodes
+        // Iterate over Node Imports
+        for (auto &Import : Node->Imports) {
+            if (Import.getValue()->getNameSpace() == nullptr) {
+                ASTNameSpace *NameSpace = Node->Context->NameSpaces.lookup(Import.getKey());
+                if (NameSpace != nullptr) {
+                    Import.getValue()->setNameSpace(NameSpace);
+                }
+            }
+        }
+    }
+
+    return true;
 }
 
-const StringRef &ASTContext::getFileName() const {
-    return FileName;
+bool ASTContext::DelNode(ASTNode *Node) {
+    assert(Node->getFileID().isValid() && "ASTNode FileID is not valid!");
+    Node->NameSpace->Nodes.erase(Node->getFileName());
+    return true;
 }
 
-const PackageDecl &ASTContext::getPackage() {
-    return Package;
+bool ASTContext::Finalize() {
+    // Close the chain by resolving nodes of first one
+    bool Success = FirstNode->Finalize();
+
+    // Now all Imports must be read
+    for(auto &Import : Imports) {
+        if (Import.getValue()->getNameSpace() == nullptr) {
+            // TODO Log Error Unresolved Import
+            return false;
+        }
+    }
+    return Success;
 }
 
-void ASTContext::Release() {
-
+const StringMap<ASTNameSpace *> &ASTContext::getNameSpaces() const {
+    return NameSpaces;
 }

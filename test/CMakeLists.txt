@@ -1,4 +1,5 @@
 add_executable(FlyTest
+        ASTTest.cpp
         CodeGenTest.cpp
         DriverTest.cpp
         FrontendTest.cpp

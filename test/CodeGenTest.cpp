@@ -7,15 +7,21 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include <Frontend/CompilerInstance.h>
-#include <CodeGen/CodeGen.h>
+#include "CodeGen/CodeGen.h"
+#include "Basic/Diagnostic.h"
+#include "Basic/DiagnosticOptions.h"
+#include "Basic/FileManager.h"
+#include "Basic/SourceLocation.h"
+#include "Basic/SourceManager.h"
 #include "Basic/TargetOptions.h"
-#include <llvm/Support/Host.h>
+#include "Basic/Builtins.h"
+#include "Frontend/CompilerInstance.h"
+#include "llvm/Support/Host.h"
 #include "gtest/gtest.h"
-#include <fstream>
-#include <iostream>
-#include <vector>
-#include <Basic/Builtins.h>
+#include "fstream"
+#include "iostream"
+#include "vector"
+
 
 namespace {
     using namespace fly;
@@ -27,22 +33,28 @@ namespace {
 
     public:
 
-        IntrusiveRefCntPtr<DiagnosticIDs> DiagID;
-        DiagnosticsEngine Diags;
-
         CodeGenTest() :
+                FileMgr(FileMgrOpts),
                 DiagID(new DiagnosticIDs()),
-                Diags(DiagID, new DiagnosticOptions, new IgnoringDiagConsumer())
+                Diags(DiagID, new DiagnosticOptions, new IgnoringDiagConsumer()),
+                SourceMgr(Diags, FileMgr)
                 {}
 
-        TargetInfo* CreateTargetInfo() {
-            const std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();
-            //targetOpts->Triple = llvm::sys::getDefaultTargetTriple();
-            TargetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
-            TargetInfo *target = TargetInfo::CreateTargetInfo(Diags, TargetOpts);
-            return target;
-        }
+        FileSystemOptions FileMgrOpts;
+        FileManager FileMgr;
+        IntrusiveRefCntPtr<DiagnosticIDs> DiagID;
+        DiagnosticsEngine Diags;
+        SourceManager SourceMgr;
 
+        ASTNode createAST(const StringRef Name, ASTContext *Ctx, const StringRef NameSpace = "default") {
+            ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> result = FileMgr.getBufferForFile(Name);
+            std::unique_ptr<MemoryBuffer> &Buf = result.get();
+            FileID FID = SourceMgr.createFileID(std::move(Buf));
+            auto Node = ASTNode(Name, FID, Ctx);
+            Node.setNameSpace(NameSpace);
+            Node.Finalize();
+            return Node;
+        }
     };
 
     bool createTestFile(const char* testFile) {
@@ -74,38 +86,38 @@ namespace {
 
     void deleteTestFile(const char* testFile) {
         remove(testFile);
+        std::cout << "File " << testFile << " deleted successfully!\n";
     }
 
     TEST_F(CodeGenTest, EmitNothing) {
 
-        const StringRef strRef = "file.fly";
-        const std::string &str = std::string(strRef);
-        const PackageDecl packageDecl(str);
-        ASTContext astContext(strRef, packageDecl);
-        CodeGenOptions codeGenOpts;
-        fly::TargetOptions targetOpts;
+        EXPECT_TRUE(createTestFile(testFile));
 
-        CodeGen CG(Diags, codeGenOpts, targetOpts, astContext,
-                   *CreateTargetInfo(), Backend_EmitNothing);
-        bool Success = CG.execute();
+        ASTContext *Ctx = new ASTContext;
+        ASTNode AST = createAST(testFile, Ctx);
+
+        CodeGenOptions codeGenOpts;
+        std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();
+        TargetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
+        CodeGen CG(Diags, codeGenOpts, TargetOpts, *Ctx, Backend_EmitNothing);
+        bool Success = CG.Execute();
 
         ASSERT_TRUE(Success);
+        deleteTestFile(testFile);
     }
 
     TEST_F(CodeGenTest, EmitLL) {
 
         EXPECT_TRUE(createTestFile(testFile));
 
-        const StringRef strRef = "file.fly";
-        const std::string &str = std::string(strRef);
-        const PackageDecl packageDecl(str);
-        ASTContext astContext(strRef, packageDecl);
-        CodeGenOptions codeGenOpts;
-        fly::TargetOptions targetOpts;
+        ASTContext *Ctx = new ASTContext;
+        ASTNode AST = createAST(testFile, Ctx);
 
-        CodeGen CG(Diags, codeGenOpts, targetOpts, astContext,
-                   *CreateTargetInfo(), Backend_EmitLL);
-        bool Success = CG.execute();
+        CodeGenOptions codeGenOpts;
+        std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();
+        TargetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
+        CodeGen CG(Diags, codeGenOpts, TargetOpts, *Ctx, Backend_EmitLL);
+        bool Success = CG.Execute();
 
         CG.getModule()->print(llvm::outs(), nullptr);
 
@@ -118,16 +130,14 @@ namespace {
 
         EXPECT_TRUE(createTestFile(testFile));
 
-        const StringRef strRef = "file.fly";
-        const std::string &str = std::string(strRef);
-        const PackageDecl packageDecl(str);
-        ASTContext astContext(strRef, packageDecl);
-        CodeGenOptions codeGenOpts;
-        fly::TargetOptions targetOpts;
+        ASTContext *Ctx = new ASTContext;
+        ASTNode AST = createAST(testFile, Ctx);
 
-        CodeGen CG(Diags, codeGenOpts, targetOpts, astContext,
-                   *CreateTargetInfo(), Backend_EmitBC);
-        bool Success = CG.execute();
+        CodeGenOptions codeGenOpts;
+        std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();
+        TargetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
+        CodeGen CG(Diags, codeGenOpts, TargetOpts, *Ctx, Backend_EmitBC);
+        bool Success = CG.Execute();
 
         ASSERT_TRUE(Success);
         deleteTestFile(testFile);
@@ -137,16 +147,14 @@ namespace {
 
         EXPECT_TRUE(createTestFile(testFile));
 
-        const StringRef strRef = "file.fly";
-        const std::string &str = std::string(strRef);
-        const PackageDecl packageDecl(str);
-        ASTContext astContext(strRef, packageDecl);
-        CodeGenOptions codeGenOpts;
-        fly::TargetOptions targetOpts;
+        ASTContext *Ctx = new ASTContext;
+        ASTNode AST = createAST(testFile, Ctx);
 
-        CodeGen CG(Diags, codeGenOpts, targetOpts, astContext,
-                   *CreateTargetInfo(), Backend_EmitAssembly);
-        bool Success = CG.execute();
+        CodeGenOptions codeGenOpts;
+        std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();
+        TargetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
+        CodeGen CG(Diags, codeGenOpts, TargetOpts, *Ctx, Backend_EmitAssembly);
+        bool Success = CG.Execute();
 
         ASSERT_TRUE(Success);
         deleteTestFile(testFile);
@@ -156,19 +164,36 @@ namespace {
 
         EXPECT_TRUE(createTestFile(testFile));
 
-        const StringRef strRef = "file.fly";
-        const std::string &str = std::string(strRef);
-        const PackageDecl Package(str);
-        ASTContext Ctx(strRef, Package);
-        CodeGenOptions CodeGenOpts;
-        fly::TargetOptions TargetOpts;
+        ASTContext *Ctx = new ASTContext;
+        ASTNode AST = createAST(testFile, Ctx);
 
-        CodeGen CG(Diags, CodeGenOpts, TargetOpts, Ctx,
-                   *CreateTargetInfo(), Backend_EmitObj);
-        bool Success = CG.execute();
+        CodeGenOptions CodeGenOpts;
+        std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();
+        TargetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
+        CodeGen CG(Diags, CodeGenOpts, TargetOpts, *Ctx, Backend_EmitObj);
+        bool Success = CG.Execute();
 
         ASSERT_TRUE(Success);
         deleteTestFile(testFile);
+    }
+
+    TEST_F(CodeGenTest, GlobalVar) {
+        EXPECT_TRUE(createTestFile(testFile));
+
+        ASTContext *Ctx = new ASTContext;
+        ASTNode AST = createAST(testFile, Ctx);
+        GlobalVarDecl *Var = AST.addIntVar(VisibilityKind::Default, ModifiableKind::Variable, "a");
+
+        std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();
+        TargetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
+        CodeGenModule CGM(Diags, AST, *CodeGen::CreateTargetInfo(Diags, TargetOpts));
+        GlobalVariable *GVar = CGM.GenerateAndGetGlobalVar(Var);
+
+        testing::internal::CaptureStdout();
+        GVar->print(llvm::outs());
+        std::string output = testing::internal::GetCapturedStdout();
+
+        EXPECT_EQ(output, "@a = external global i32");
     }
 
 } // anonymous namespace

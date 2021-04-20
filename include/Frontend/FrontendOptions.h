@@ -28,13 +28,11 @@ namespace fly {
 
         bool Verbose;
 
-        bool SkipParse;
-
         BackendAction Action;
 
     public:
 
-        void addInputFile(std::string &&input);
+        void addInputFile(llvm::StringRef input);
 
         const llvm::SmallVector<InputFile, 0> &getInputFiles() const;
 
@@ -45,10 +43,6 @@ namespace fly {
         bool isVerbose() const;
 
         void setVerbose();
-
-        bool isSkipParse() const;
-
-        void setSkipParse();
 
         BackendAction getBackendAction();
 

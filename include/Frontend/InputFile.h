@@ -24,7 +24,7 @@ namespace fly {
         InputOptions Options;
 
         /// The file name, or "-" to read from standard input.
-        std::string File;
+        llvm::StringRef File;
 
         /// The input, if it comes from a buffer rather than a file. This object
         /// does not own the buffer, and the caller is responsible for ensuring
@@ -33,7 +33,7 @@ namespace fly {
 
     public:
         InputFile(llvm::StringRef File)
-                : File(File.str()) {}
+                : File(File) {}
 
         InputFile(const llvm::MemoryBuffer *Buffer)
                 : Buffer(Buffer) {}
@@ -44,7 +44,7 @@ namespace fly {
 
         bool isBuffer() const { return Buffer != nullptr; }
 
-        std::string getFile() const {
+        llvm::StringRef getFile() const {
             assert(isFile());
             return File;
         }

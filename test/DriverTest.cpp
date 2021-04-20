@@ -65,10 +65,10 @@ namespace {
 
         const char *argv[] = {"fly", "-v", testFile, "-o", "file.o"};
         Driver driver(argv);
-        CompilerInstance &invocation = driver.BuildCompilerInstance();
-        const FrontendOptions &fopts = invocation.getFrontendOptions();
+        CompilerInstance &CI = driver.BuildCompilerInstance();
+        const FrontendOptions &fopts = CI.getFrontendOptions();
         for(const InputFile &inputFile : fopts.getInputFiles()) {
-            EXPECT_EQ(inputFile.getFile(), testFile);
+            EXPECT_EQ(inputFile.getFile(), "file1.fly");
             break;
         }
         EXPECT_EQ(fopts.getOutputFile().getFile(), "file.o");

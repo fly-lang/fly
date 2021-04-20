@@ -1664,8 +1664,6 @@ void Lexer::codeCompleteIncludedFile(const char *PathStart,
     const char *StartOfFilename =
             (Slash == StringRef::npos) ? PathStart : PathStart + Slash + 1;
     // Code completion filter range is the filename only, up to completion point.
-//  PP->setCodeCompletionIdentifierInfo(&PP->getIdentifierTable().get(
-//      StringRef(StartOfFilename, CompletionPoint - StartOfFilename))); //FIXME
     // We should replace the characters up to the closing quote, if any.
     while (CompletionPoint < BufferEnd) {
         char Next = *(CompletionPoint + 1);
@@ -1675,10 +1673,6 @@ void Lexer::codeCompleteIncludedFile(const char *PathStart,
         if (Next == (IsAngled ? '>' : '"'))
             break;
     }
-//  PP->setCodeCompletionTokenRange(
-//      FileLoc.getLocWithOffset(StartOfFilename - BufferStart),
-//      FileLoc.getLocWithOffset(CompletionPoint - BufferStart));
-//  PP->CodeCompleteIncludedFile(Dir, IsAngled); FIXME
 }
 
 /// LexCharConstant - Lex the remainder of a character constant, after having
@@ -2214,21 +2208,6 @@ bool Lexer::LexEndOfFile(Token &Result, const char *CurPtr) {
         BufferPtr = BufferEnd;
         FormTokenWithChars(Result, BufferEnd, tok::eof);
         return true;
-    }
-
-//  if (PP->isRecordingPreamble() && PP->isInPrimaryFile()) { FIXME
-//    PP->setRecordedPreambleConditionalStack(ConditionalStack);
-//    ConditionalStack.clear();
-//  }
-
-    // Issue diagnostics for unterminated #if and missing newline.
-
-    // If we are in a #if directive, emit an error.
-    while (!ConditionalStack.empty()) {
-//    if (PP->getCodeCompletionFileLoc() != FileLoc) FIXME
-        Diag(ConditionalStack.back().IfLoc,
-             diag::err_pp_unterminated_conditional);
-        ConditionalStack.pop_back();
     }
 
     // C99 5.1.1.2p2: If the file is non-empty and didn't end in a newline, issue
