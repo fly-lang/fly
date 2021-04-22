@@ -3476,7 +3476,7 @@ This use list is how LLVM represents def-use information in the program, and is
 accessible through the ``use_*`` methods, shown below.
 
 Because LLVM is a typed representation, every LLVM ``Value`` is typed, and this
-Type_ is available through the ``getKind()`` method.  In addition, all LLVM
+Type_ is available through the ``getType()`` method.  In addition, all LLVM
 values can be named.  The "name" of the ``Value`` is a symbolic string printed
 in the LLVM code:
 
@@ -3518,7 +3518,7 @@ Important Public Members of the ``Value`` class
   As with all other iterators in LLVM, the naming conventions follow the
   conventions defined by the STL_.
 
-* ``Type *getKind() const``
+* ``Type *getType() const``
   This method returns the Type of the Value.
 
 * | ``bool hasName() const``

@@ -10,7 +10,6 @@
 #include "Parser/Parser.h"
 #include "AST/ASTContext.h"
 #include <gtest/gtest.h>
-#include <string>
 
 namespace {
     using namespace fly;
@@ -42,7 +41,7 @@ namespace {
             // Create a lexer starting at the beginning of this token.
             Lexer TheLexer(FID, b, SourceMgr);
             std::unique_ptr<Parser> P = std::make_unique<Parser>(TheLexer, Diags);
-            ASTContext *Ctx = new ASTContext;
+            ASTContext *Ctx = new ASTContext(Diags);
             ASTNode *AST = new ASTNode(FileName, FID, Ctx);
             P->Parse(AST);
             AST->Finalize();

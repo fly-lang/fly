@@ -38,7 +38,7 @@ namespace fly {
 
         const OutputFile &getOutputFile() const;
 
-        void setOutputFile(const char * output);
+        void setOutputFile(llvm::StringRef output);
 
         bool isVerbose() const;
 

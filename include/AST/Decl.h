@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/Decl.h - AST Types enum
+// include/AST/Decl.h - Abstract Base declaration
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -44,7 +44,16 @@ namespace fly {
     };
 
     class BaseDecl {
+
+        const SourceLocation &Location;
+
     public:
+        explicit BaseDecl(const SourceLocation &Loc) : Location(Loc) {}
+
+        const SourceLocation &getLocation() const {
+            return Location;
+        }
+
         virtual DeclKind getKind() = 0;
     };
 }

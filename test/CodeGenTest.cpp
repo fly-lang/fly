@@ -45,11 +45,13 @@ namespace {
         IntrusiveRefCntPtr<DiagnosticIDs> DiagID;
         DiagnosticsEngine Diags;
         SourceManager SourceMgr;
+        SourceLocation SourceLoc;
 
         ASTNode createAST(const StringRef Name, ASTContext *Ctx, const StringRef NameSpace = "default") {
             ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> result = FileMgr.getBufferForFile(Name);
             std::unique_ptr<MemoryBuffer> &Buf = result.get();
             FileID FID = SourceMgr.createFileID(std::move(Buf));
+            SourceLoc = SourceMgr.getLocForStartOfFile(FID);
             auto Node = ASTNode(Name, FID, Ctx);
             Node.setNameSpace(NameSpace);
             Node.Finalize();
@@ -93,7 +95,7 @@ namespace {
 
         EXPECT_TRUE(createTestFile(testFile));
 
-        ASTContext *Ctx = new ASTContext;
+        ASTContext *Ctx = new ASTContext(Diags);
         ASTNode AST = createAST(testFile, Ctx);
 
         CodeGenOptions codeGenOpts;
@@ -110,7 +112,7 @@ namespace {
 
         EXPECT_TRUE(createTestFile(testFile));
 
-        ASTContext *Ctx = new ASTContext;
+        ASTContext *Ctx = new ASTContext(Diags);
         ASTNode AST = createAST(testFile, Ctx);
 
         CodeGenOptions codeGenOpts;
@@ -130,7 +132,7 @@ namespace {
 
         EXPECT_TRUE(createTestFile(testFile));
 
-        ASTContext *Ctx = new ASTContext;
+        ASTContext *Ctx = new ASTContext(Diags);
         ASTNode AST = createAST(testFile, Ctx);
 
         CodeGenOptions codeGenOpts;
@@ -147,7 +149,7 @@ namespace {
 
         EXPECT_TRUE(createTestFile(testFile));
 
-        ASTContext *Ctx = new ASTContext;
+        ASTContext *Ctx = new ASTContext(Diags);
         ASTNode AST = createAST(testFile, Ctx);
 
         CodeGenOptions codeGenOpts;
@@ -164,7 +166,7 @@ namespace {
 
         EXPECT_TRUE(createTestFile(testFile));
 
-        ASTContext *Ctx = new ASTContext;
+        ASTContext *Ctx = new ASTContext(Diags);
         ASTNode AST = createAST(testFile, Ctx);
 
         CodeGenOptions CodeGenOpts;
@@ -180,9 +182,9 @@ namespace {
     TEST_F(CodeGenTest, GlobalVar) {
         EXPECT_TRUE(createTestFile(testFile));
 
-        ASTContext *Ctx = new ASTContext;
+        ASTContext *Ctx = new ASTContext(Diags);
         ASTNode AST = createAST(testFile, Ctx);
-        GlobalVarDecl *Var = AST.addIntVar(VisibilityKind::Default, ModifiableKind::Variable, "a");
+        GlobalVarDecl *Var = AST.addIntVar(SourceLoc, VisibilityKind::Default, ModifiableKind::Variable, "a");
 
         std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();
         TargetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());

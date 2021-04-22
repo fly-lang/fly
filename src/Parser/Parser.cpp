@@ -66,7 +66,7 @@ bool Parser::ParseNameSpace() {
             return true;
         }
 
-        Diag(Tok, diag::err_package_undefined);
+        Diag(Tok, diag::err_namespace_undefined);
         return false;
 
     }
@@ -82,7 +82,7 @@ bool Parser::ParseNameSpace() {
  */
 bool Parser::ParseImportDecl() {
     if (Tok.is(tok::kw_import)) {
-        SourceLocation AfterImportDeclLoc = ConsumeToken();
+        const SourceLocation ImportLoc = ConsumeToken();
         if (Tok.is(tok::l_paren)) {
             ConsumeParen();
 
@@ -96,11 +96,11 @@ bool Parser::ParseImportDecl() {
 
             // Syntax Error Quote
             if (Name.empty()) {
-                Diag(Tok, diag::err_package_undefined);
+                Diag(Tok, diag::err_namespace_undefined);
                 return false;
             }
 
-            if (ParseImportAliasDecl(Name)) {
+            if (ParseImportAliasDecl(ImportLoc, Name)) {
                 return ParseImportDecl();
             }
         }
@@ -110,7 +110,7 @@ bool Parser::ParseImportDecl() {
     if (Tok.is(tok::kw_namespace)) {
 
         // Multiple Package declaration is invalid, you can define only one
-        Diag(Tok, diag::err_package_undefined);
+        Diag(Tok, diag::err_namespace_undefined);
         return false;
     }
 
@@ -130,13 +130,14 @@ StringRef Parser::getLiteralString() {
 
 bool Parser::ParseImportParenDecl() {
     if (Tok.isLiteral()) {
+        SourceLocation ImportLoc = Tok.getLocation();
         StringRef Name = getLiteralString();
         if (Name.empty()) {
-            Diag(Tok, diag::err_package_undefined);
+            Diag(Tok, diag::err_namespace_undefined);
             return false;
         }
 
-        if (!ParseImportAliasDecl(Name)) {
+        if (!ParseImportAliasDecl(ImportLoc, Name)) {
             return false;
         }
 
@@ -155,15 +156,15 @@ bool Parser::ParseImportParenDecl() {
     return true;
 }
 
-bool Parser::ParseImportAliasDecl(StringRef Name) {
+bool Parser::ParseImportAliasDecl(const SourceLocation &Location, StringRef Name) {
     if (Tok.is(tok::kw_as)) {
         ConsumeToken();
         if (Tok.isLiteral()) {
             StringRef Alias = getLiteralString();
-            return AST->addImport(Name, Alias);
+            return AST->addImport(Location, Name, Alias);
         }
     }
-    return AST->addImport(Name, "");
+    return AST->addImport(Location, Name);
 }
 
 bool Parser::ParseTopDecl() {
@@ -206,10 +207,10 @@ bool Parser::ParseTopDecl() {
             }
             return ParseGlobalVarDecl(Visibility, Modifiable, TypeToken, TypeLoc, Info, IdentifierLoc);
         }
-
-        // Check Error: type without identifier
-        return false;
     }
+
+    // Check Error: type without identifier
+    return false;
 }
 
 bool Parser::ParseGlobalVarDecl(VisibilityKind Visibility, ModifiableKind Modifiable,
@@ -217,13 +218,13 @@ bool Parser::ParseGlobalVarDecl(VisibilityKind Visibility, ModifiableKind Modifi
     GlobalVarDecl* VarPtr = nullptr;
     switch (TypeToken.getKind()) {
         case tok::kw_bool:
-            VarPtr = AST->addBoolVar(Visibility, Modifiable, Info->getName());
+            VarPtr = AST->addBoolVar(IdLoc, Visibility, Modifiable, Info->getName());
             break;
         case tok::kw_int:
-            VarPtr = AST->addIntVar(Visibility, Modifiable, Info->getName());
+            VarPtr = AST->addIntVar(IdLoc, Visibility, Modifiable, Info->getName());
             break;
         case tok::kw_float:
-            VarPtr = AST->addFloatVar(Visibility, Modifiable, Info->getName());
+            VarPtr = AST->addFloatVar(IdLoc, Visibility, Modifiable, Info->getName());
             break;
     }
     return VarPtr != nullptr;

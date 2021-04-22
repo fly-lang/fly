@@ -162,7 +162,7 @@ namespace fly {
 
         bool ParseImportParenDecl();
 
-        bool ParseImportAliasDecl(StringRef Name);
+        bool ParseImportAliasDecl(const SourceLocation &Loc, StringRef Name);
 
         bool ParseTopDecl();
 

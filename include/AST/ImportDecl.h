@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// include/AST/ImportDecl.h - AST Import
+// include/AST/ImportDecl.h - AST Import declaration
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -27,7 +27,12 @@ namespace fly {
 
     public:
 
-        ImportDecl(StringRef Name, StringRef Alias) : Name(Name), Alias(Alias) {}
+        ImportDecl(const SourceLocation &Loc, StringRef Name, StringRef Alias) : BaseDecl(Loc), Name(Name),
+                                                                                Alias(Alias) {}
+
+        ~ImportDecl() {
+            NameSpace = nullptr;
+        }
 
         DeclKind getKind() override {
             return DeclKind::Dependency;

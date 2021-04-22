@@ -188,7 +188,7 @@ record in the array has the format:
     uint32_t Unused2;
     uint32_t SourceFileNameIndex;
     uint32_t PdbFilePathNameIndex;
-    char FileName[];
+    char ModuleName[];
     char ObjFileName[];
   };
   
@@ -247,12 +247,12 @@ record in the array has the format:
   containing this module's symbol information.  This has only been observed
   to be non-zero for the special ``* Linker *`` module.
 
-- **FileName** - The module name.  This is usually either a full path to an
+- **ModuleName** - The module name.  This is usually either a full path to an
   object file (either directly passed to ``link.exe`` or from an archive) or
   a string of the form ``Import:<dll name>``.
 
 - **ObjFileName** - The object file name.  In the case of an module that is
-  linked directly passed to ``link.exe``, this is the same as **FileName**.
+  linked directly passed to ``link.exe``, this is the same as **ModuleName**.
   In the case of a module that comes from an archive, this is usually the full
   path to the archive.
 

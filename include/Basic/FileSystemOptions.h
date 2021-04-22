@@ -15,7 +15,7 @@
 #ifndef LLVM_FLY_BASIC_FILESYSTEMOPTIONS_H
 #define LLVM_FLY_BASIC_FILESYSTEMOPTIONS_H
 
-#include <string>
+#include "llvm/ADT/StringRef.h"
 
 namespace fly {
 
@@ -24,7 +24,7 @@ class FileSystemOptions {
 public:
   /// If set, paths are resolved as if the working directory was
   /// set to the value of WorkingDir.
-  std::string WorkingDir;
+  llvm::StringRef WorkingDir;
 };
 
 } // end namespace fly

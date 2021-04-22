@@ -1,12 +1,11 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/PackageVarDecl.h - AST Unit
+// include/AST/GlobalVarDecl.h - Global Var declaration
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
 //===--------------------------------------------------------------------------------------------------------------===//
-
 
 #ifndef FLY_PACKAGEVAR_H
 #define FLY_PACKAGEVAR_H
@@ -22,7 +21,8 @@ namespace fly {
 
     public:
 
-        GlobalVarDecl(ModifiableKind Modifiable, TypeDecl *Type, StringRef &Name) : VarDecl(Modifiable, Type, Name) {}
+        GlobalVarDecl(const SourceLocation &Loc, ModifiableKind Modifiable, TypeDecl *Type, StringRef &Name) :
+            VarDecl(Loc, Modifiable, Type, Name) {}
 
         DeclKind getKind() override {
             return DeclKind::GlobalVar;
@@ -36,9 +36,7 @@ namespace fly {
             Visibility = visibility;
         }
 
-        ~GlobalVarDecl() override {
-            VarDecl::~VarDecl();
-        }
+        ~GlobalVarDecl() = default;
     };
 }
 

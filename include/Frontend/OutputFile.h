@@ -21,21 +21,21 @@ namespace fly {
 /// failed.
     class OutputFile {
 
-        std::string file;
-        std::string tempFile;
+        llvm::StringRef file;
+        llvm::StringRef tempFile;
 
     public:
 
-        void setFile(const std::string &file) {
+        void setFile(const llvm::StringRef &file) {
             OutputFile::file = file;
-            OutputFile::tempFile = file + ".tmp";
+            OutputFile::tempFile = llvm::StringRef(file.str() + ".tmp");
         }
 
-        const std::string &getFile() const {
+        const llvm::StringRef &getFile() const {
             return file;
         }
 
-        const std::string &getTempFile() const {
+        const llvm::StringRef &getTempFile() const {
             return tempFile;
         }
     };
