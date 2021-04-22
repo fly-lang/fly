@@ -1164,7 +1164,7 @@ Here are more examples:
 
   assert(idx < getNumSuccessors() && "Successor # out of range!");
 
-  assert(V1.getType() == V2.getKind() && "Constant types must be identical!");
+  assert(V1.getType() == V2.getType() && "Constant types must be identical!");
 
   assert(isa<PHINode>(Succ->front()) && "Only works on PHId BBs!");
 

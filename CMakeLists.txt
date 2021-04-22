@@ -2,8 +2,9 @@ cmake_minimum_required(VERSION 3.4.3)
 project(Fly VERSION 0.0.3)
 
 # specify the C++ standard and flags
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 14 CACHE STRING "C++ standard to conform to")
 set(CMAKE_CXX_STANDARD_REQUIRED True)
+set(CMAKE_CXX_EXTENSIONS NO)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti")
 
 #Fly config options
@@ -34,36 +35,12 @@ else()
     message(FATAL_ERROR "LLVM_INCLUDE_DIRS not found")
 endif()
 
-######################################
-# Add Google Test dependency
-######################################
-
-message(STATUS "Adding GoogleTest")
-include_directories(
-        llvm/utils/unittest/googletest
-        llvm/utils/unittest/googletest/include
-        llvm/utils/unittest/googlemock
-        llvm/utils/unittest/googlemock/include
-        )
-add_library(gtest
-        llvm/utils/unittest/googletest/src/gtest-all.cc
-        llvm/utils/unittest/googlemock/src/gmock-all.cc
-        )
-
-add_library(gtest_main
-        test/TestMain.cpp
-        )
-
-target_link_libraries(gtest_main
-        gtest
-        LLVMSupport)
-
 #Enable Verbose for best debugging
 set(CMAKE_VERBOSE_MAKEFILE ON)
 add_link_options("-v")
 
 # Include Fly headers
-include_directories(${CMAKE_SOURCE_DIR}/include/)
+include_directories(include)
 
 # Add Fly Sources
 add_subdirectory(src)

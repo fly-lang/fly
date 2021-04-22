@@ -16,13 +16,11 @@
 
 using namespace fly;
 
-ASTNameSpace::ASTNameSpace(const llvm::StringRef &NS) : NameSpace(NS) {}
+ASTNameSpace::ASTNameSpace(llvm::StringRef NS) : NameSpace(NS) {}
 
 ASTNameSpace::~ASTNameSpace() {
-    for (auto &N : Nodes)
-        Nodes.erase(N.getKey());
-    for (auto &V : Vars)
-        Vars.erase(V.getKey());
+    Nodes.clear();
+    Vars.clear();
 }
 
 const llvm::StringRef &fly::ASTNameSpace::getNameSpace() const {

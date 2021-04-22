@@ -23,11 +23,11 @@ namespace fly {
         const StringRef Name;
 
     public:
-        VarDecl(const TypeDecl *Type, const StringRef Name) : Modifiable(ModifiableKind::Variable), Type(Type),
-                                                                                                    Name(Name) {}
+        VarDecl(const SourceLocation &Loc, const TypeDecl *Type, const StringRef Name) :
+                BaseDecl(Loc), Modifiable(ModifiableKind::Variable), Type(Type), Name(Name) {}
 
-        VarDecl(const ModifiableKind Modifiable, const TypeDecl *Type, const StringRef &Name) : Modifiable(Modifiable),
-                                                                                               Type(Type), Name(Name) {}
+        VarDecl(const SourceLocation &Loc, const ModifiableKind Modifiable, const TypeDecl *Type,
+                const StringRef &Name) : BaseDecl(Loc), Modifiable(Modifiable), Type(Type), Name(Name) {}
 
         virtual DeclKind getKind() = 0;
 

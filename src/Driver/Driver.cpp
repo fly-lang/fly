@@ -31,13 +31,13 @@
 using namespace fly;
 using namespace fly::driver;
 
-std::string GetExecutablePath(const char *Argv0) {
+llvm::StringRef GetExecutablePath(const char *Argv0) {
     SmallString<128> ExecutablePath(Argv0);
     // Do a PATH lookup if Argv0 isn't a valid path.
     if (!llvm::sys::fs::exists(ExecutablePath))
         if (llvm::ErrorOr<std::string> P = llvm::sys::findProgramByName(ExecutablePath))
             ExecutablePath = *P;
-    return std::string(ExecutablePath.str());
+    return ExecutablePath;
 }
 
 SmallVector<const char *, 256> initDriver() {
@@ -53,8 +53,8 @@ Driver::Driver(llvm::ArrayRef<const char *> ArrArgs) :
         Path(GetExecutablePath(ArrArgs[0])),
         Args(ArrArgs.slice(1)) {
 
-    Name = std::string(llvm::sys::path::filename(Path));
-    Dir = std::string(llvm::sys::path::parent_path(Path));
+    Name = llvm::sys::path::filename(Path);
+    Dir = llvm::sys::path::parent_path(Path);
     InstalledDir = Dir; // Provide a sensible default installed dir.
 }
 
@@ -200,7 +200,7 @@ void Driver::BuildOptions(FileSystemOptions &fileSystemOpts,
     // Parse Output arg
     if (ArgList.hasArg(options::OPT_OUTPUT)) {
         const StringRef &output = ArgList.getLastArgValue(options::OPT_OUTPUT);
-        frontendOpts->setOutputFile(output.str().c_str());
+        frontendOpts->setOutputFile(output);
     }
 
     if (ArgList.hasArg(options::OPT_VERBOSE)) {

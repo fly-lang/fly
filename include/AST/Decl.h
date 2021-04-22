@@ -44,7 +44,16 @@ namespace fly {
     };
 
     class BaseDecl {
+
+        const SourceLocation &Location;
+
     public:
+        explicit BaseDecl(const SourceLocation &Loc) : Location(Loc) {}
+
+        const SourceLocation &getLocation() const {
+            return Location;
+        }
+
         virtual DeclKind getKind() = 0;
     };
 }

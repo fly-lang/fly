@@ -11,7 +11,7 @@
 
 using namespace fly;
 
-Frontend::Frontend(CompilerInstance &CI) : CI(CI), Diags(CI.getDiagnostics()), Context(new ASTContext) {
+Frontend::Frontend(CompilerInstance &CI) : CI(CI), Diags(CI.getDiagnostics()), Context(new ASTContext(Diags)) {
 
     // Create Compiler Instance for each input file
     for (const auto &InputFile : CI.getFrontendOptions().getInputFiles()) {

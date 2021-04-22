@@ -25,7 +25,7 @@ namespace fly {
 
         ASTContext* Context;
 
-        // Unit FileName
+        // Node FileName
         const llvm::StringRef FileName;
 
         // File ID
@@ -35,13 +35,13 @@ namespace fly {
 
         ASTNodeBase() = delete;
 
-        ASTNodeBase(const StringRef &FileName, const FileID &FID, ASTContext* Context);
+        ASTNodeBase(const StringRef FileName, const FileID &FID, ASTContext* Context);
 
         const FileID &getFileID() const;
 
         const llvm::StringRef& getFileName();
 
-        ASTContext &getContext() const;
+        const ASTContext &getContext() const;
     };
 }
 

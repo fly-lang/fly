@@ -27,7 +27,12 @@ namespace fly {
 
     public:
 
-        ImportDecl(StringRef Name, StringRef Alias) : Name(Name), Alias(Alias) {}
+        ImportDecl(const SourceLocation &Loc, StringRef Name, StringRef Alias) : BaseDecl(Loc), Name(Name),
+                                                                                Alias(Alias) {}
+
+        ~ImportDecl() {
+            NameSpace = nullptr;
+        }
 
         DeclKind getKind() override {
             return DeclKind::Dependency;

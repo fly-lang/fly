@@ -68,11 +68,11 @@ namespace {
         CompilerInstance &CI = driver.BuildCompilerInstance();
         const FrontendOptions &fopts = CI.getFrontendOptions();
         for(const InputFile &inputFile : fopts.getInputFiles()) {
-            EXPECT_EQ(inputFile.getFile(), "file1.fly");
+            ASSERT_EQ(inputFile.getFile(), "file1.fly");
             break;
         }
-        EXPECT_EQ(fopts.getOutputFile().getFile(), "file.o");
-        EXPECT_TRUE(fopts.isVerbose());
+        ASSERT_EQ(fopts.getOutputFile().getFile(), "file.o");
+        ASSERT_TRUE(fopts.isVerbose());
 
         deleteTestFile(testFile);
     }

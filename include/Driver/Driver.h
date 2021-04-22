@@ -18,6 +18,7 @@
 #include <Frontend/CompilerInstance.h>
 
 namespace fly {
+
     class Driver {
 
         std::shared_ptr<CompilerInstance> CI;
@@ -50,20 +51,20 @@ namespace fly {
                            std::unique_ptr<CodeGenOptions> &CodeGenOpts);
 
         /// The name the driver was invoked as.
-        std::string Name;
+        llvm::StringRef Name;
 
         /// The path the driver executable was in, as invoked from the
         /// command line.
-        std::string Dir;
+        llvm::StringRef Dir;
 
         /// The original path to the fly executable.
-        std::string Path;
+        llvm::StringRef Path;
 
         /// The path to the installed fly directory, if any.
-        std::string InstalledDir;
+        llvm::StringRef InstalledDir;
 
         /// The path to the compiler resource directory.
-        std::string ResourceDir;
+        llvm::StringRef ResourceDir;
 
     public:
 

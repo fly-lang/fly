@@ -33,7 +33,7 @@ namespace fly {
         llvm::StringMap<GlobalVarDecl *> Vars;
 
     public:
-        ASTNameSpace(const llvm::StringRef &NS);
+        ASTNameSpace(llvm::StringRef NS);
 
         ~ASTNameSpace();
 

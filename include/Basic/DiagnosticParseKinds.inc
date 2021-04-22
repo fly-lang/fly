@@ -543,3 +543,6 @@ DIAG(warn_semicolon_before_method_body, CLASS_WARNING, (unsigned)diag::Severity:
 DIAG(warn_static_inline_explicit_inst_ignored, CLASS_WARNING, (unsigned)diag::Severity::Warning, "ignoring '%select{static|inline}0' keyword on explicit template instantiation", 680, SFINAE_Suppress, false, false, 4)
 DIAG(warn_stdc_fenv_access_not_supported, CLASS_WARNING, (unsigned)diag::Severity::Warning, "pragma STDC FENV_ACCESS ON is not supported, ignoring pragma", 762, SFINAE_Suppress, false, false, 4)
 DIAG(warn_wrong_clang_attr_namespace, CLASS_WARNING, (unsigned)diag::Severity::Warning, "'__clang__' is a predefined macro name, not an attribute scope specifier; did you mean '_Clang' instead?", 317, SFINAE_Suppress, false, false, 4)
+
+DIAG(err_namespace_undefined, CLASS_ERROR, (unsigned)diag::Severity::Error, "namespace undefined", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_unresolved_import, CLASS_ERROR, (unsigned)diag::Severity::Error, "unresolved import", 0, SFINAE_Suppress, false, true, 0)

@@ -21,7 +21,8 @@ namespace fly {
 
     public:
 
-        GlobalVarDecl(ModifiableKind Modifiable, TypeDecl *Type, StringRef &Name) : VarDecl(Modifiable, Type, Name) {}
+        GlobalVarDecl(const SourceLocation &Loc, ModifiableKind Modifiable, TypeDecl *Type, StringRef &Name) :
+            VarDecl(Loc, Modifiable, Type, Name) {}
 
         DeclKind getKind() override {
             return DeclKind::GlobalVar;

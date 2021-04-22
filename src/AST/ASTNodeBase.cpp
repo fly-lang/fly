@@ -12,11 +12,11 @@
 
 using namespace fly;
 
-ASTNodeBase::ASTNodeBase(const StringRef &FileName, const FileID &FID, ASTContext *Context) :
+ASTNodeBase::ASTNodeBase(const StringRef FileName, const FileID &FID, ASTContext *Context) :
         FileName(FileName), FID(FID), Context(Context) {
 }
 
-ASTContext &ASTNodeBase::getContext() const {
+const ASTContext &ASTNodeBase::getContext() const {
     return *Context;
 }
 

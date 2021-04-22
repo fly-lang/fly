@@ -9,7 +9,6 @@
 
 #include "AST/ASTContext.h"
 #include "gtest/gtest.h"
-#include "string"
 
 namespace {
     using namespace fly;
@@ -23,29 +22,31 @@ namespace {
         IntrusiveRefCntPtr<DiagnosticIDs> DiagID;
         DiagnosticsEngine Diags;
         SourceManager SourceMgr;
+        SourceLocation SourceLoc;
         ASTContext *Context;
 
         ASTTest(): FileMgr(FileMgrOpts),
                       DiagID(new DiagnosticIDs()),
                       Diags(DiagID, new DiagnosticOptions, new IgnoringDiagConsumer()),
-                      SourceMgr(Diags, FileMgr), Context(new ASTContext) {
+                      SourceMgr(Diags, FileMgr), Context(new ASTContext(Diags)) {
         }
 
-//        virtual ~ASTTest() {
-//            delete Context;
-//        }
+        ~ASTTest() override {
+            delete Context;
+        }
 
-        std::unique_ptr<ASTNode> NewASTNode(llvm::StringRef FileName) {
+        ASTNode* NewASTNode(llvm::StringRef FileName) {
 
             // Set Source Manager file id
             std::unique_ptr<llvm::MemoryBuffer> Buf = llvm::MemoryBuffer::getMemBuffer("");
             llvm::MemoryBuffer *b = Buf.get();
             const FileID &FID = SourceMgr.createFileID(std::move(Buf));
             SourceMgr.setMainFileID(FID);
+            SourceLoc = SourceMgr.getLocForStartOfFile(FID);
 
             // Create a lexer starting at the beginning of this token.
-            std::unique_ptr<ASTNode> AST = std::make_unique<ASTNode>(ASTNode(FileName, FID, Context));
-            return AST;
+            ASTNode *Node = new ASTNode(FileName, FID, Context);
+            return Node;
         }
 
     };
@@ -53,7 +54,7 @@ namespace {
     TEST_F(ASTTest, SingleImport) {
         auto Node1 = NewASTNode("file1.fly");
         Node1->setNameSpace("packageA");
-        Node1->addImport("packageB");
+        Node1->addImport(SourceLoc, "packageB");
         Node1->Finalize();
         ASSERT_EQ(Node1->getNameSpace()->getNameSpace(), "packageA");
         ASSERT_EQ(Context->getNameSpaces().lookup("packageB"), nullptr);
@@ -64,26 +65,28 @@ namespace {
 
         auto Node2 = NewASTNode("file2.fly");
         Node2->setNameSpace("packageB");
-        Node2->addImport("packageA");
+        Node2->addImport(SourceLoc, "packageA");
         Node2->Finalize();
         ASSERT_EQ(Context->getNameSpaces().size(), 2);
-        ASSERT_EQ(Node1->getImports().lookup("packageB")->getNameSpace(), nullptr);
-        ASSERT_NE(Node2->getImports().lookup("packageA")->getNameSpace(), nullptr);
+        EXPECT_TRUE(Node1->getImports().lookup("packageB")->getNameSpace() == nullptr);
+        EXPECT_TRUE(Node2->getImports().lookup("packageA")->getNameSpace() != nullptr);
         ASSERT_EQ(Node2->getImports().lookup("packageA")->getNameSpace()->getNameSpace(), "packageA");
 
         Context->Finalize();
-        ASSERT_NE(Node1->getImports().lookup("packageB")->getNameSpace(), nullptr);
+        Node1->getImports().lookup("packageB")->getNameSpace();
+        Node1->getImports().lookup("packageB")->getNameSpace()->getNameSpace();
+        EXPECT_TRUE(Node1->getImports().lookup("packageB")->getNameSpace() != nullptr);
         ASSERT_EQ(Node1->getImports().lookup("packageB")->getNameSpace()->getNameSpace(), "packageB");
     }
 
     TEST_F(ASTTest, GlobalVarVisibility) {
         auto Node1 = NewASTNode("file1.fly");
         Node1->setNameSpace("packageA");
-        Node1->addIntVar(VisibilityKind::Public, ModifiableKind::Variable, "a",
+        Node1->addIntVar(SourceLoc, VisibilityKind::Public, ModifiableKind::Variable, "a",
                          new int(1));
-        Node1->addFloatVar(VisibilityKind::Private, ModifiableKind::Variable, "b",
+        Node1->addFloatVar(SourceLoc, VisibilityKind::Private, ModifiableKind::Variable, "b",
                            new float (2.0));
-        Node1->addBoolVar(VisibilityKind::Default, ModifiableKind::Constant, "c",
+        Node1->addBoolVar(SourceLoc, VisibilityKind::Default, ModifiableKind::Constant, "c",
                           new bool (true));
         Node1->Finalize();
     }

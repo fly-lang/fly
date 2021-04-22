@@ -16,7 +16,6 @@
 #include "GlobalVarDecl.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
-#include "vector"
 
 namespace fly {
 
@@ -30,7 +29,7 @@ namespace fly {
         friend ASTNameSpace;
 
         // Namespace declaration
-        ASTNameSpace *NameSpace;
+        ASTNameSpace *NameSpace = NULL;
 
         // Contains all Imports which will be converted in Dependencies
         llvm::StringMap<ImportDecl *> Imports;
@@ -44,7 +43,7 @@ namespace fly {
 
         ASTNode() = delete;
 
-        ASTNode(const StringRef &fileName, const FileID &fid, ASTContext *Context);
+        ASTNode(const StringRef fileName, const FileID &fid, ASTContext *Context);
 
         ~ASTNode();
 
@@ -52,21 +51,24 @@ namespace fly {
         void setFirstNode(bool firstNode);
 
         void setNameSpace();
-        void setNameSpace(const StringRef &NS);
+        void setNameSpace(StringRef NS);
         const ASTNameSpace* getNameSpace();
 
-        bool addImport(StringRef Name, StringRef Alias = "");
+        bool addImport(const SourceLocation &Loc, StringRef Name, StringRef Alias = "");
         const llvm::StringMap<ImportDecl*> &getImports();
 
         const llvm::StringMap<GlobalVarDecl *> &getVars();
 
         bool Finalize();
 
-        GlobalVarDecl *addIntVar(VisibilityKind Visibility, ModifiableKind Modifiable, StringRef Name,
+        GlobalVarDecl *addIntVar(const SourceLocation &Loc, VisibilityKind Visibility, ModifiableKind Modifiable,
+                                 StringRef Name,
                                  int *Val = nullptr);
-        GlobalVarDecl *addFloatVar(VisibilityKind Visibility, ModifiableKind Modifiable, StringRef Name,
+        GlobalVarDecl *addFloatVar(const SourceLocation &Loc, VisibilityKind Visibility, ModifiableKind Modifiable,
+                                   StringRef Name,
                                    float *Val = nullptr);
-        GlobalVarDecl *addBoolVar(VisibilityKind Visibility, ModifiableKind Modifiable, StringRef Name,
+        GlobalVarDecl *addBoolVar(const SourceLocation &Loc, VisibilityKind Visibility, ModifiableKind Modifiable,
+                                  StringRef Name,
                                   bool *Val = nullptr);
 
     private:

@@ -16,7 +16,7 @@
 
 using namespace fly;
 
-ASTNode::ASTNode(const StringRef &fileName, const FileID &fid, ASTContext *Context) :
+ASTNode::ASTNode(const StringRef fileName, const FileID &fid, ASTContext *Context) :
         ASTNodeBase(fileName, fid, Context) {
 }
 
@@ -25,11 +25,11 @@ const ASTNameSpace* ASTNode::getNameSpace() {
 }
 
 void ASTNode::setNameSpace() {
-    const StringRef &NS = "default";
+    StringRef NS = "default";
     setNameSpace(NS);
 }
 
-void ASTNode::setNameSpace(const StringRef &NS) {
+void ASTNode::setNameSpace(StringRef NS) {
     // Check if NS exist or add
     NameSpace = Context->NameSpaces.lookup(NS);
     if (NameSpace == nullptr) {
@@ -42,7 +42,7 @@ const llvm::StringMap<ImportDecl*> &ASTNode::getImports() {
     return Imports;
 }
 
-bool ASTNode::addImport(StringRef Name, StringRef Alias) {
+bool ASTNode::addImport(const SourceLocation &Loc, StringRef Name, StringRef Alias) {
     // Check if this Node already own this Import
     ImportDecl* Import = Imports.lookup(Name);
     if (Import != nullptr) {
@@ -53,7 +53,7 @@ bool ASTNode::addImport(StringRef Name, StringRef Alias) {
     // Retrieve Import from Context if already exists in order to maintain only one instance of ImportDecl
     Import = Context->Imports.lookup(Name);
     if (Import == nullptr) {
-        Import = new ImportDecl(Name, Alias);
+        Import = new ImportDecl(Loc, Name, Alias);
     }
     auto Pair = std::make_pair(Name, Import);
 
@@ -97,34 +97,35 @@ bool ASTNode::isFirstNode() const {
     return FirstNode;
 }
 
-void ASTNode::setFirstNode(bool FirstNode) {
-    ASTNode::FirstNode = FirstNode;
+void ASTNode::setFirstNode(bool First) {
+    ASTNode::FirstNode = First;
 }
 
-GlobalVarDecl *ASTNode::addIntVar(VisibilityKind Visibility, ModifiableKind Modifiable, StringRef Name, int *Val) {
-    GlobalVarDecl *Var = new GlobalVarDecl(ModifiableKind::Variable, new IntTypeDecl(Val), Name);
+GlobalVarDecl *ASTNode::addIntVar(const SourceLocation &Loc, VisibilityKind Visibility, ModifiableKind Modifiable,
+                                  StringRef Name, int *Val) {
+    GlobalVarDecl *Var = new GlobalVarDecl(Loc, ModifiableKind::Variable, new IntTypeDecl(Val), Name);
     Var->setVisibility(Visibility);
     addVar(Var);
     return Var;
 }
 
-GlobalVarDecl *ASTNode::addFloatVar(VisibilityKind Visibility, ModifiableKind Modifiable, StringRef Name, float *Val) {
-    GlobalVarDecl *Var = new GlobalVarDecl(ModifiableKind::Variable, new FloatTypeDecl(Val), Name);
+GlobalVarDecl *ASTNode::addFloatVar(const SourceLocation &Loc, VisibilityKind Visibility, ModifiableKind Modifiable,
+                                    StringRef Name, float *Val) {
+    GlobalVarDecl *Var = new GlobalVarDecl(Loc, ModifiableKind::Variable, new FloatTypeDecl(Val), Name);
     Var->setVisibility(Visibility);
     addVar(Var);
     return Var;
 }
 
-GlobalVarDecl *ASTNode::addBoolVar(VisibilityKind Visibility, ModifiableKind Modifiable, StringRef Name, bool *Val) {
-    GlobalVarDecl *Var = new GlobalVarDecl(Modifiable, new BoolTypeDecl(Val), Name);
+GlobalVarDecl *ASTNode::addBoolVar(const SourceLocation &Loc, VisibilityKind Visibility, ModifiableKind Modifiable,
+                                   StringRef Name, bool *Val) {
+    GlobalVarDecl *Var = new GlobalVarDecl(Loc, Modifiable, new BoolTypeDecl(Val), Name);
     Var->setVisibility(Visibility);
     addVar(Var);
     return Var;
 }
 
 ASTNode::~ASTNode() {
-    for (auto &I : Imports)
-        Imports.erase(I.getKey());
-    for (auto &V : Vars)
-        Vars.erase(V.getKey());
+    Vars.clear();
+    Imports.clear();
 }

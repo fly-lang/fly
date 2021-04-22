@@ -15,14 +15,22 @@
 
 using namespace fly;
 
+ASTContext::ASTContext(DiagnosticsEngine &Diags) : Diags(Diags) {}
+
+ASTContext::~ASTContext() {
+    NameSpaces.clear();
+    Imports.clear();
+}
+
 bool ASTContext::AddNode(ASTNode *Node) {
     assert(Node->getFileID().isValid() && "ASTNode FileID is not valid!");
     assert(Node->NameSpace && "NameSpace is empty!");
+    assert(!Node->FileName.empty() && "FileName is empty!");
     llvm::StringMap<ASTNode *> &NSNodes = Node->NameSpace->Nodes;
 
     // Set FirstNode
     bool isFirstAddition = false;
-    if (FirstNode == nullptr) {
+    if (!FirstNode) {
         FirstNode = Node;
         isFirstAddition = true;
         Node->setFirstNode(true);
@@ -62,7 +70,7 @@ bool ASTContext::Finalize() {
     // Now all Imports must be read
     for(auto &Import : Imports) {
         if (Import.getValue()->getNameSpace() == nullptr) {
-            // TODO Log Error Unresolved Import
+            Diags.Report(Import.getValue()->getLocation(), diag::err_unresolved_import);
             return false;
         }
     }
@@ -71,11 +79,4 @@ bool ASTContext::Finalize() {
 
 const StringMap<ASTNameSpace *> &ASTContext::getNameSpaces() const {
     return NameSpaces;
-}
-
-ASTContext::~ASTContext() {
-    for (auto &NS : NameSpaces)
-        NameSpaces.erase(NS.getKey());
-    for (auto &I : Imports)
-        Imports.erase(I.getKey());
 }

@@ -17,6 +17,7 @@
 #include "ASTNode.h"
 #include "GlobalVarDecl.h"
 #include "Frontend/CompilerInstance.h"
+#include "Basic/DiagnosticParse.h"
 
 namespace fly {
 
@@ -28,8 +29,10 @@ namespace fly {
         friend ASTNameSpace;
         friend ASTNode;
 
+        DiagnosticsEngine &Diags;
+
         // First inserted node, useful for Finalize on last
-        ASTNode *FirstNode;
+        ASTNode *FirstNode = NULL;
 
         // All Context Namespaces
         llvm::StringMap<ASTNameSpace *> NameSpaces;
@@ -38,6 +41,7 @@ namespace fly {
         llvm::StringMap<ImportDecl *> Imports;
 
     public:
+        ASTContext(DiagnosticsEngine &Diags);
 
         ~ASTContext();
 
@@ -48,6 +52,7 @@ namespace fly {
         bool Finalize();
 
         const StringMap<ASTNameSpace *> &getNameSpaces() const;
+
     };
 }
 
