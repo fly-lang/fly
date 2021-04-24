@@ -15,15 +15,7 @@
 #ifndef LLVM_FLY_BASIC_ALLDIAGNOSTICS_H
 #define LLVM_FLY_BASIC_ALLDIAGNOSTICS_H
 
-#include "Basic/DiagnosticAST.h"
-#include "Basic/DiagnosticAnalysis.h"
-#include "Basic/DiagnosticComment.h"
-#include "Basic/DiagnosticDriver.h"
-#include "Basic/DiagnosticFrontend.h"
-#include "Basic/DiagnosticLex.h"
-#include "Basic/DiagnosticParse.h"
-#include "Basic/DiagnosticSema.h"
-#include "Basic/DiagnosticSerialization.h"
+#include "Basic/Diagnostic.h"
 
 namespace fly {
 template <size_t SizeOfStr, typename FieldType>

@@ -18,7 +18,6 @@
 #include "Basic/SourceLocation.h"
 #include "Basic/SourceManager.h"
 #include "Basic/TokenKinds.h"
-#include "Lex/LexDiagnostic.h"
 #include "Lex/LiteralSupport.h"
 #include "Lex/Token.h"
 #include "Basic/Diagnostic.h"

@@ -39,7 +39,7 @@ namespace fly {
 
         explicit Frontend(CompilerInstance &CI);
 
-        virtual ~Frontend();
+        ~Frontend();
 
         bool Execute() const;
         

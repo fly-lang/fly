@@ -18,7 +18,6 @@
 #include "Basic/Diagnostic.h"
 #include "Basic/SourceManager.h"
 #include "Basic/FileManager.h"
-#include "Basic/DiagnosticFrontend.h"
 #include "Basic/TargetInfo.h"
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/Support/MemoryBuffer.h>

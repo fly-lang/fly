@@ -13,7 +13,6 @@
 
 #include "Basic/DiagnosticIDs.h"
 #include "Basic/AllDiagnostics.h"
-#include "Basic/DiagnosticCategories.h"
 #include "Basic/SourceManager.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
@@ -79,14 +78,6 @@ struct StaticDiagInfoRec {
                             "diagnostics, it may need to be made larger in "   \
                             "DiagnosticIDs.h.");
 VALIDATE_DIAG_SIZE(COMMON)
-VALIDATE_DIAG_SIZE(DRIVER)
-VALIDATE_DIAG_SIZE(FRONTEND)
-VALIDATE_DIAG_SIZE(LEX)
-VALIDATE_DIAG_SIZE(PARSE)
-VALIDATE_DIAG_SIZE(AST)
-VALIDATE_DIAG_SIZE(COMMENT)
-VALIDATE_DIAG_SIZE(SEMA)
-VALIDATE_DIAG_SIZE(ANALYSIS)
 #undef VALIDATE_DIAG_SIZE
 #undef STRINGIFY_NAME
 
@@ -100,15 +91,7 @@ static const StaticDiagInfoRec StaticDiagInfo[] = {
         SHOWINSYSHEADER, CATEGORY, GROUP, STR_SIZE(DESC, uint16_t), DESC       \
   }                                                                            \
   ,
-#include "Basic/DiagnosticCommonKinds.inc"
-#include "Basic/DiagnosticDriverKinds.inc"
-#include "Basic/DiagnosticFrontendKinds.inc"
-#include "Basic/DiagnosticLexKinds.inc"
-#include "Basic/DiagnosticParseKinds.inc"
-#include "Basic/DiagnosticASTKinds.inc"
-#include "Basic/DiagnosticCommentKinds.inc"
-#include "Basic/DiagnosticSemaKinds.inc"
-#include "Basic/DiagnosticAnalysisKinds.inc"
+#include "Basic/DiagnosticKinds.inc"
 #undef DIAG
 };
 
@@ -137,16 +120,6 @@ static const StaticDiagInfoRec *GetDiagInfo(unsigned DiagID) {
     Offset += NUM_BUILTIN_##PREV##_DIAGNOSTICS - DIAG_START_##PREV - 1; \
     ID -= DIAG_START_##NAME - DIAG_START_##PREV; \
   }
-CATEGORY(DRIVER, COMMON)
-CATEGORY(FRONTEND, DRIVER)
-CATEGORY(SERIALIZATION, FRONTEND)
-CATEGORY(LEX, SERIALIZATION)
-CATEGORY(PARSE, LEX)
-CATEGORY(AST, PARSE)
-CATEGORY(COMMENT, AST)
-CATEGORY(CROSSTU, COMMENT)
-CATEGORY(ANALYSIS, SEMA)
-CATEGORY(REFACTORING, ANALYSIS)
 #undef CATEGORY
 
   // Avoid out of bounds reads.
@@ -219,7 +192,7 @@ DiagnosticsEngine::DiagState::getOrAddMapping(diag::kind Diag) {
 static const StaticDiagCategoryRec CategoryNameTable[] = {
 #define GET_CATEGORY_TABLE
 #define CATEGORY(X, ENUM) { X, STR_SIZE(X, uint8_t) },
-#include "Basic/DiagnosticGroups.inc"
+
 #undef GET_CATEGORY_TABLE
   { nullptr, 0 }
 };
@@ -330,13 +303,6 @@ unsigned DiagnosticIDs::getCustomDiagID(Level L, StringRef FormatString) {
 bool DiagnosticIDs::isBuiltinWarningOrExtension(unsigned DiagID) {
   return DiagID < diag::DIAG_UPPER_LIMIT &&
          getBuiltinDiagClass(DiagID) != CLASS_ERROR;
-}
-
-/// Determine whether the given built-in diagnostic ID is a
-/// Note.
-bool DiagnosticIDs::isBuiltinNote(unsigned DiagID) {
-  return DiagID < diag::DIAG_UPPER_LIMIT &&
-    getBuiltinDiagClass(DiagID) == CLASS_NOTE;
 }
 
 /// isBuiltinExtensionDiag - Determine whether the given built-in diagnostic
@@ -494,9 +460,11 @@ DiagnosticIDs::getDiagnosticSeverity(unsigned DiagID, SourceLocation Loc,
   return Result;
 }
 
-#define GET_DIAG_ARRAYS
-#include "Basic/DiagnosticGroups.inc"
-#undef GET_DIAG_ARRAYS
+static const int16_t DiagArrays[] = {};
+
+static const int16_t DiagSubGroups[] = {};
+
+static const char DiagGroupNames[] = {};
 
 namespace {
   struct WarningOption {
@@ -514,9 +482,7 @@ namespace {
 
 // Second the table of options, sorted by name for fast binary lookup.
 static const WarningOption OptionTable[] = {
-#define GET_DIAG_TABLE
-#include "Basic/DiagnosticGroups.inc"
-#undef GET_DIAG_TABLE
+        { 0,0, 1 }
 };
 
 /// getWarningOptionForDiag - Return the lowest-level warning option that
@@ -526,18 +492,6 @@ StringRef DiagnosticIDs::getWarningOptionForDiag(unsigned DiagID) {
   if (const StaticDiagInfoRec *Info = GetDiagInfo(DiagID))
     return OptionTable[Info->getOptionGroupIndex()].getName();
   return StringRef();
-}
-
-std::vector<std::string> DiagnosticIDs::getDiagnosticFlags() {
-  std::vector<std::string> Res;
-  for (size_t I = 1; DiagGroupNames[I] != '\0';) {
-    std::string Diag(DiagGroupNames + I + 1, DiagGroupNames[I]);
-    I += DiagGroupNames[I] + 1;
-    Res.push_back("-W" + Diag);
-    Res.push_back("-Wno-" + Diag);
-  }
-
-  return Res;
 }
 
 /// Return \c true if any diagnostics were found in this group, even if they

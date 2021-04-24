@@ -45,7 +45,7 @@ PREFIX(prefix_4, {"-" COMMA "--" COMMA nullptr})
 OPTION(prefix_0, "<input>", INPUT, Input, INVALID, INVALID, nullptr, 0, 0, nullptr, nullptr, nullptr)
 OPTION(prefix_0, "<unknown>", UNKNOWN, Unknown, INVALID, INVALID, nullptr, 0, 0, nullptr, nullptr, nullptr)
 OPTION(prefix_1, "as", EMIT_AS, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
-       "Produce assembly outpu .as file", nullptr, nullptr)
+       "Produce assembly output .as file", nullptr, nullptr)
 OPTION(prefix_1, "bc", EMIT_BC, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
        "Produce bitecode output .bc file", "nullptr", nullptr)
 OPTION(prefix_4, "help", HELP, Flag, INVALID, INVALID, nullptr, CoreOption, 0,

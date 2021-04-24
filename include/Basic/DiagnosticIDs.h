@@ -68,8 +68,9 @@ namespace fly {
 #define DIAG(ENUM,FLAGS,DEFAULT_MAPPING,DESC,GROUP,\
              SFINAE,CATEGORY,NOWERROR,SHOWINSYSHEADER) ENUM,
 #define COMMONSTART
-#include "Basic/DiagnosticCommonKinds.inc"
-      NUM_BUILTIN_COMMON_DIAGNOSTICS
+#include "Basic/DiagnosticKinds.inc"
+
+        NUM_BUILTIN_COMMON_DIAGNOSTICS
 #undef DIAG
     };
 

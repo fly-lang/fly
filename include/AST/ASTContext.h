@@ -17,7 +17,6 @@
 #include "ASTNode.h"
 #include "GlobalVarDecl.h"
 #include "Frontend/CompilerInstance.h"
-#include "Basic/DiagnosticParse.h"
 
 namespace fly {
 
@@ -53,6 +52,7 @@ namespace fly {
 
         const StringMap<ASTNameSpace *> &getNameSpaces() const;
 
+        DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID);
     };
 }
 

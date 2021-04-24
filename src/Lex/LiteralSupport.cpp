@@ -16,7 +16,6 @@
 #include "Basic/CharInfo.h"
 #include "Basic/SourceLocation.h"
 #include "Basic/TargetInfo.h"
-#include "Lex/LexDiagnostic.h"
 #include "Lex/Lexer.h"
 #include "Lex/Token.h"
 #include "llvm/ADT/APInt.h"

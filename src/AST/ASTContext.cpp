@@ -70,7 +70,7 @@ bool ASTContext::Finalize() {
     // Now all Imports must be read
     for(auto &Import : Imports) {
         if (Import.getValue()->getNameSpace() == nullptr) {
-            Diags.Report(Import.getValue()->getLocation(), diag::err_unresolved_import);
+            Diag(Import.getValue()->getLocation(), diag::err_unresolved_import);
             return false;
         }
     }
@@ -79,4 +79,8 @@ bool ASTContext::Finalize() {
 
 const StringMap<ASTNameSpace *> &ASTContext::getNameSpaces() const {
     return NameSpaces;
+}
+
+DiagnosticBuilder ASTContext::Diag(SourceLocation Loc, unsigned DiagID) {
+    return Diags.Report(Loc, DiagID);
 }

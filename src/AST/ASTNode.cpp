@@ -46,7 +46,7 @@ bool ASTNode::addImport(const SourceLocation &Loc, StringRef Name, StringRef Ali
     // Check if this Node already own this Import
     ImportDecl* Import = Imports.lookup(Name);
     if (Import != nullptr) {
-        // TODO Diag Error already present
+        Context->Diag(Loc, diag::err_duplicate_import)  << Name;
         return false;
     }
 
@@ -74,15 +74,15 @@ bool ASTNode::addVar(GlobalVarDecl *Var) {
     auto Pair = std::make_pair(Var->getName(), Var);
     if(Var->Visibility == VisibilityKind::Public || Var->Visibility == VisibilityKind::Default) {
         GlobalVarDecl *LookupVar = NameSpace->Vars.lookup(Var->getName());
-        if (LookupVar != nullptr) {
-            // TODO Diag Error
+        if (LookupVar) {
+            Context->Diag(LookupVar->getLocation(), diag::err_duplicate_gvar)  << LookupVar->getName();
             return false;
         }
         NameSpace->Vars.insert(Pair);
     }
     GlobalVarDecl *LookupVar = Vars.lookup(Var->getName());
-    if (LookupVar != nullptr) {
-        // TODO Diag Error
+    if (LookupVar) {
+        Context->Diag(LookupVar->getLocation(), diag::err_duplicate_gvar)  << LookupVar->getName();
         return false;
     }
     Vars.insert(Pair);

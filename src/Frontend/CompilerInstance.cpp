@@ -7,7 +7,6 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include <Basic/DiagnosticDriver.h>
 #include "Frontend/CompilerInstance.h"
 
 using namespace fly;
