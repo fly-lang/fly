@@ -10,7 +10,7 @@
 #include "Driver/Driver.h"
 #include "Driver/DriverOptions.h"
 #include "Config/config.h"
-#include "Basic/DiagnosticDriver.h"
+#include "Basic/Diagnostic.h"
 #include "Basic/PrettyStackTrace.h"
 #include "Basic/FileSystemOptions.h"
 #include "Frontend/Frontend.h"

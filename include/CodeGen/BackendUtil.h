@@ -10,7 +10,6 @@
 #ifndef FLY_BACKENDUTIL_H
 #define FLY_BACKENDUTIL_H
 
-#include "Basic/DiagnosticFrontend.h"
 #include "Basic/CodeGenOptions.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/TargetOptions.h"

@@ -13,7 +13,6 @@
 #include "Lex/Token.h"
 #include "Lex/Lexer.h"
 #include "AST/ASTNode.h"
-#include "ParseDiagnostic.h"
 
 namespace fly {
 

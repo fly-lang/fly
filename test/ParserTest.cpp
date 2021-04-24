@@ -152,7 +152,7 @@ namespace {
         StringRef str = ("namespace \"std\"\n"
                          "private int a\n"
                          "public float b\n"
-                         "const bool c");
+                         "const bool c\n");
 
         // Verify FileName
         auto P = Parse("var.fly", str);

@@ -75,7 +75,7 @@ namespace fly {
             Value = V;
         }
 
-        virtual ~FloatTypeDecl() {
+        ~FloatTypeDecl() {
             delete Value;
         }
     };
@@ -99,7 +99,7 @@ namespace fly {
             Value = V;
         }
 
-        virtual ~BoolTypeDecl() {
+        ~BoolTypeDecl() {
             delete Value;
         }
     };

@@ -20,6 +20,8 @@ namespace {
         FileSystemOptions FileMgrOpts;
         FileManager FileMgr;
         IntrusiveRefCntPtr<DiagnosticIDs> DiagID;
+        DiagnosticOptions *DiagOpts;
+        TextDiagnosticPrinter *DiagClient;
         DiagnosticsEngine Diags;
         SourceManager SourceMgr;
         SourceLocation SourceLoc;
@@ -27,7 +29,9 @@ namespace {
 
         ASTTest(): FileMgr(FileMgrOpts),
                       DiagID(new DiagnosticIDs()),
-                      Diags(DiagID, new DiagnosticOptions, new IgnoringDiagConsumer()),
+                   DiagOpts(new DiagnosticOptions),
+                   DiagClient(new TextDiagnosticPrinter(llvm::errs(), &*DiagOpts)),
+                      Diags(DiagID, DiagOpts, DiagClient),
                       SourceMgr(Diags, FileMgr), Context(new ASTContext(Diags)) {
         }
 
@@ -77,6 +81,20 @@ namespace {
         Node1->getImports().lookup("packageB")->getNameSpace()->getNameSpace();
         EXPECT_TRUE(Node1->getImports().lookup("packageB")->getNameSpace() != nullptr);
         ASSERT_EQ(Node1->getImports().lookup("packageB")->getNameSpace()->getNameSpace(), "packageB");
+    }
+
+    TEST_F(ASTTest, DuplicateImportErr) {
+        // Capture cout.
+        Diags.getClient()->BeginSourceFile();
+        auto Node1 = NewASTNode("file1.fly");
+        Node1->setNameSpace("packageA");
+        Node1->addImport(SourceLoc, "packageB");
+        Node1->addImport(SourceLoc, "packageB");
+        Node1->Finalize();
+        Context->Finalize();
+        Diags.getClient()->EndSourceFile();
+
+        Diags.getClient()->finish();
     }
 
     TEST_F(ASTTest, GlobalVarVisibility) {
