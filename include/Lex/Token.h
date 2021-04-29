@@ -105,10 +105,6 @@ public:
     return tok::isAnyIdentifier(getKind());
   }
 
-  bool isTypeIdentifier() const {
-    return isOneOf(tok::kw_int, tok::kw_bool, tok::kw_float);
-  }
-
 //  bool isScopeIdentifier() const {
 //      return isOneOf(tok::kw_static, tok::kw_const);
 //  }

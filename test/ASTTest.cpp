@@ -58,7 +58,7 @@ namespace {
     TEST_F(ASTTest, SingleImport) {
         auto Node1 = NewASTNode("file1.fly");
         Node1->setNameSpace("packageA");
-        Node1->addImport(SourceLoc, "packageB");
+        Node1->addImport(new ImportDecl(SourceLoc, "packageB"));
         Node1->Finalize();
         ASSERT_EQ(Node1->getNameSpace()->getNameSpace(), "packageA");
         ASSERT_EQ(Context->getNameSpaces().lookup("packageB"), nullptr);
@@ -69,7 +69,7 @@ namespace {
 
         auto Node2 = NewASTNode("file2.fly");
         Node2->setNameSpace("packageB");
-        Node2->addImport(SourceLoc, "packageA");
+        Node2->addImport(new ImportDecl(SourceLoc, "packageA"));
         Node2->Finalize();
         ASSERT_EQ(Context->getNameSpaces().size(), 2);
         EXPECT_TRUE(Node1->getImports().lookup("packageB")->getNameSpace() == nullptr);
@@ -88,8 +88,8 @@ namespace {
         Diags.getClient()->BeginSourceFile();
         auto Node1 = NewASTNode("file1.fly");
         Node1->setNameSpace("packageA");
-        Node1->addImport(SourceLoc, "packageB");
-        Node1->addImport(SourceLoc, "packageB");
+        Node1->addImport(new ImportDecl(SourceLoc, "packageB"));
+        Node1->addImport(new ImportDecl(SourceLoc, "packageB"));
         Node1->Finalize();
         Context->Finalize();
         Diags.getClient()->EndSourceFile();
@@ -100,12 +100,10 @@ namespace {
     TEST_F(ASTTest, GlobalVarVisibility) {
         auto Node1 = NewASTNode("file1.fly");
         Node1->setNameSpace("packageA");
-        Node1->addIntVar(SourceLoc, VisibilityKind::Public, ModifiableKind::Variable, "a",
-                         new int(1));
-        Node1->addFloatVar(SourceLoc, VisibilityKind::Private, ModifiableKind::Variable, "b",
-                           new float (2.0));
-        Node1->addBoolVar(SourceLoc, VisibilityKind::Default, ModifiableKind::Constant, "c",
-                          new bool (true));
+        SourceLocation &Loc = SourceLoc;
+        Node1->addGlobalVar(new GlobalVarDecl(Loc, new IntTypeDecl(Loc), "a"));
+        Node1->addGlobalVar(new GlobalVarDecl(Loc,  new FloatTypeDecl(Loc), "b"));
+        Node1->addGlobalVar(new GlobalVarDecl(Loc, new BoolTypeDecl(Loc), "c"));
         Node1->Finalize();
     }
 }

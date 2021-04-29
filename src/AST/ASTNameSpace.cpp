@@ -30,3 +30,15 @@ const llvm::StringRef &fly::ASTNameSpace::getNameSpace() const {
 const llvm::StringMap<ASTNode*> &ASTNameSpace::getNodes() const {
     return Nodes;
 }
+
+const llvm::StringMap<GlobalVarDecl *> &ASTNameSpace::getVars() const {
+    return Vars;
+}
+
+const llvm::StringMap<FunctionDecl *> &ASTNameSpace::getFunctions() const {
+    return Functions;
+}
+
+const llvm::StringMap<ClassDecl *> &ASTNameSpace::getClasses() const {
+    return Classes;
+}

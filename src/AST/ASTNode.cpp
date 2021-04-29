@@ -42,20 +42,22 @@ const llvm::StringMap<ImportDecl*> &ASTNode::getImports() {
     return Imports;
 }
 
-bool ASTNode::addImport(const SourceLocation &Loc, StringRef Name, StringRef Alias) {
+bool ASTNode::addImport(ImportDecl * NewImport) {
     // Check if this Node already own this Import
-    ImportDecl* Import = Imports.lookup(Name);
+    ImportDecl* Import = Imports.lookup(NewImport->getName());
     if (Import != nullptr) {
-        Context->Diag(Loc, diag::err_duplicate_import)  << Name;
+        Context->Diag(NewImport->getLocation(), diag::err_duplicate_import)  << NewImport->getName();
         return false;
     }
 
     // Retrieve Import from Context if already exists in order to maintain only one instance of ImportDecl
-    Import = Context->Imports.lookup(Name);
+    Import = Context->Imports.lookup(NewImport->getName());
     if (Import == nullptr) {
-        Import = new ImportDecl(Loc, Name, Alias);
+        Import = NewImport;
+    } else {
+        delete NewImport;
     }
-    auto Pair = std::make_pair(Name, Import);
+    auto Pair = std::make_pair(Import->getName(), Import);
 
     // Add Import to Context
     Context->Imports.insert(Pair);
@@ -70,23 +72,85 @@ const llvm::StringMap<GlobalVarDecl *> &ASTNode::getVars() {
     return Vars;
 }
 
-bool ASTNode::addVar(GlobalVarDecl *Var) {
-    auto Pair = std::make_pair(Var->getName(), Var);
-    if(Var->Visibility == VisibilityKind::Public || Var->Visibility == VisibilityKind::Default) {
+bool ASTNode::addGlobalVar(GlobalVarDecl *Var) {
+
+    // Lookup into namespace
+    if(Var->Visibility == VisibilityKind::V_PUBLIC || Var->Visibility == VisibilityKind::V_DEFAULT) {
         GlobalVarDecl *LookupVar = NameSpace->Vars.lookup(Var->getName());
         if (LookupVar) {
             Context->Diag(LookupVar->getLocation(), diag::err_duplicate_gvar)  << LookupVar->getName();
             return false;
         }
+        auto Pair = std::make_pair(Var->getName(), Var);
         NameSpace->Vars.insert(Pair);
     }
+
+    // Lookup into module vars
     GlobalVarDecl *LookupVar = Vars.lookup(Var->getName());
     if (LookupVar) {
         Context->Diag(LookupVar->getLocation(), diag::err_duplicate_gvar)  << LookupVar->getName();
         return false;
     }
+    auto Pair = std::make_pair(Var->getName(), Var);
     Vars.insert(Pair);
+
     return true;
+}
+
+bool ASTNode::addFunction(FunctionDecl *Func) {
+    // Lookup into namespace
+    if(Func->Visibility == VisibilityKind::V_PUBLIC || Func->Visibility == VisibilityKind::V_DEFAULT) {
+        FunctionDecl *LookupFunc = NameSpace->Functions.lookup(Func->getName());
+        if (LookupFunc) {
+            Context->Diag(LookupFunc->getLocation(), diag::err_duplicate_func)  << LookupFunc->getName();
+            return false;
+        }
+        auto Pair = std::make_pair(Func->getName(), Func);
+        NameSpace->Functions.insert(Pair);
+    }
+
+    // Lookup into module vars
+    GlobalVarDecl *LookupFunc = Vars.lookup(Func->getName());
+    if (LookupFunc) {
+        Context->Diag(LookupFunc->getLocation(), diag::err_duplicate_func)  << LookupFunc->getName();
+        return false;
+    }
+    auto Pair = std::make_pair(Func->getName(), Func);
+    Functions.insert(Pair);
+
+    return true;
+}
+
+const llvm::StringMap<FunctionDecl *> &ASTNode::getFunctions() {
+    return Functions;
+}
+
+bool ASTNode::addClass(ClassDecl *Class) {
+    // Lookup into namespace
+    if(Class->Visibility == VisibilityKind::V_PUBLIC || Class->Visibility == VisibilityKind::V_DEFAULT) {
+        ClassDecl *LookupClass = NameSpace->Classes.lookup(Class->Name);
+        if (LookupClass) {
+            Context->Diag(LookupClass->Location, diag::err_duplicate_class)  << LookupClass->Name;
+            return false;
+        }
+        auto Pair = std::make_pair(Class->Name, Class);
+        NameSpace->Classes.insert(Pair);
+    }
+
+    // Lookup into module classes
+    ClassDecl *LookupClass = Classes.lookup(Class->Name);
+    if (LookupClass) {
+        Context->Diag(LookupClass->Location, diag::err_duplicate_class)  << LookupClass->Name;
+        return false;
+    }
+    auto Pair = std::make_pair(Class->Name, Class);
+    Classes.insert(Pair);
+
+    return true;
+}
+
+const llvm::StringMap<ClassDecl *> &ASTNode::getClasses() {
+    return Classes;
 }
 
 bool ASTNode::Finalize() {
@@ -101,31 +165,8 @@ void ASTNode::setFirstNode(bool First) {
     ASTNode::FirstNode = First;
 }
 
-GlobalVarDecl *ASTNode::addIntVar(const SourceLocation &Loc, VisibilityKind Visibility, ModifiableKind Modifiable,
-                                  StringRef Name, int *Val) {
-    GlobalVarDecl *Var = new GlobalVarDecl(Loc, ModifiableKind::Variable, new IntTypeDecl(Val), Name);
-    Var->setVisibility(Visibility);
-    addVar(Var);
-    return Var;
-}
-
-GlobalVarDecl *ASTNode::addFloatVar(const SourceLocation &Loc, VisibilityKind Visibility, ModifiableKind Modifiable,
-                                    StringRef Name, float *Val) {
-    GlobalVarDecl *Var = new GlobalVarDecl(Loc, ModifiableKind::Variable, new FloatTypeDecl(Val), Name);
-    Var->setVisibility(Visibility);
-    addVar(Var);
-    return Var;
-}
-
-GlobalVarDecl *ASTNode::addBoolVar(const SourceLocation &Loc, VisibilityKind Visibility, ModifiableKind Modifiable,
-                                   StringRef Name, bool *Val) {
-    GlobalVarDecl *Var = new GlobalVarDecl(Loc, Modifiable, new BoolTypeDecl(Val), Name);
-    Var->setVisibility(Visibility);
-    addVar(Var);
-    return Var;
-}
-
 ASTNode::~ASTNode() {
     Vars.clear();
+    Functions.clear();
     Imports.clear();
 }

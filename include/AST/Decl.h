@@ -13,48 +13,56 @@
 #ifndef FLY_DECL_H
 #define FLY_DECL_H
 
+#include "Basic/SourceLocation.h"
 #include "Basic/LLVM.h"
 #include "llvm/ADT/StringRef.h"
 
 namespace fly {
 
     enum DeclKind {
-        NameSpace,
-        Dependency,
-        GlobalVar,
-        Function,
-        Type
+        D_NAMESPACE,
+        D_DEPENDENCY,
+        D_GLOBALVAR,
+        D_FUNCTION,
+        D_VAR,
+        D_STMT,
+        D_TYPE,
+        D_RETURN
     };
 
     enum VisibilityKind {
-        Default,
-        Public,
-        Private
+        V_DEFAULT = 1,
+        V_PUBLIC = 2,
+        V_PRIVATE = 3
     };
 
-    enum ModifiableKind {
-        Variable,
-        Constant
-    };
-
-    enum TypeKind {
-        Int,
-        Float,
-        Boolean,
-    };
-
-    class BaseDecl {
+    class DeclBase {
 
         const SourceLocation &Location;
 
     public:
-        explicit BaseDecl(const SourceLocation &Loc) : Location(Loc) {}
+        explicit DeclBase(const SourceLocation &Loc) : Location(Loc) {}
 
         const SourceLocation &getLocation() const {
             return Location;
         }
 
         virtual DeclKind getKind() = 0;
+    };
+
+    class ASTNode; // Pre-declare
+
+    class TopDecl {
+
+        friend class ASTNode;
+        friend class Parser;
+
+        VisibilityKind Visibility;
+
+    public:
+        VisibilityKind getVisibility() const {
+            return Visibility;
+        }
     };
 }
 

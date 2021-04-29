@@ -10,6 +10,9 @@
 #ifndef FLY_PARSE_PARSEAST_H
 #define FLY_PARSE_PARSEAST_H
 
+#include "GlobalVarParser.h"
+#include "FunctionParser.h"
+#include "ClassParser.h"
 #include "Lex/Token.h"
 #include "Lex/Lexer.h"
 #include "AST/ASTNode.h"
@@ -22,6 +25,9 @@ namespace fly {
     /// Parse the main file known to the preprocessor, producing an
     /// abstract syntax tree.
     class Parser {
+
+        friend class GlobalVarParser;
+        friend class FunctionParser;
 
         DiagnosticsEngine &Diags;
 
@@ -136,6 +142,10 @@ namespace fly {
             return ConsumeNext();
         }
 
+        bool isBraceBalanced() const {
+            return BraceCount == 0;
+        }
+
         /// ConsumeStringToken - Consume the current 'peek token', lexing a new one
         /// and returning the token kind.  This method is specific to strings, as it
         /// handles string literal concatenation, as per C99 5.1.1.2, translation
@@ -163,16 +173,29 @@ namespace fly {
 
         bool ParseImportAliasDecl(const SourceLocation &Loc, StringRef Name);
 
+        bool ParseTopScopes(VisibilityKind &Visibility, bool &Constant);
+
+        bool ParseScopes(bool &Constant);
+
         bool ParseTopDecl();
 
-        bool ParseGlobalVarDecl(VisibilityKind Visibility, ModifiableKind Modifiable,
-                                Token TypeToken, SourceLocation TypeLoc, IdentifierInfo *Info, SourceLocation IdLoc);
+        TypeDecl *ParseType();
 
-        bool ParseFunctionDecl();
+        bool ParseGlobalVarDecl(VisibilityKind &VisKind, bool &Constant, TypeDecl *TyDecl,
+                                IdentifierInfo *Id, SourceLocation &IdLoc);
 
+        bool ParseFunctionDecl(VisibilityKind &VisKind, bool Constant,  TypeDecl *TyDecl,
+                               IdentifierInfo *Id, SourceLocation &IdLoc);
+
+        bool ParseClassDecl(VisibilityKind &VisKind, bool &Constant);
+
+        VarDecl* ParseVarDecl();
+
+        bool ParseStmt(Stmt *CurrentStmt, bool isBody = false);
+
+        Expr* ParseExpr();
     };
 
-
-    }  // end namespace fly
+}  // end namespace fly
 
 #endif

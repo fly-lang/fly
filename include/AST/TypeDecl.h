@@ -15,21 +15,31 @@
 
 namespace fly {
 
+    enum TypeKind {
+        TYPE_NONE,
+        TYPE_INT,
+        TYPE_FLOAT,
+        TYPE_BOOL,
+        TYPE_VOID,
+    };
+
     /**
      * Abstract Base Type
      */
     class TypeDecl {
 
     protected:
-        TypeDecl(TypeKind T) : Type(T) {}
-        const TypeKind Type;
+        TypeDecl(SourceLocation Loc) : Loc(Loc) {}
+        const SourceLocation Loc;
 
     public:
-        const TypeKind &getKind() const {
-            return Type;
-        };
+        const virtual TypeKind &getKind() const = 0;
 
-        ~TypeDecl() = default;
+        const SourceLocation &getLoc() const {
+            return Loc;
+        }
+
+        virtual ~TypeDecl() = default;
     };
 
     /**
@@ -37,22 +47,13 @@ namespace fly {
      */
     class IntTypeDecl : public TypeDecl {
 
-        int *Value;
+        TypeKind Kind = TypeKind::TYPE_INT;
 
     public:
+        IntTypeDecl(SourceLocation Loc) : TypeDecl(Loc) {}
 
-        IntTypeDecl(int *V) : TypeDecl(TypeKind::Int), Value(V) {}
-
-        int *getValue() {
-            return Value;
-        }
-
-        void setValue(int *V) {
-            Value = V;
-        }
-
-        ~IntTypeDecl() {
-            delete Value;
+        const TypeKind &getKind() const override {
+            return Kind;
         }
     };
 
@@ -61,22 +62,13 @@ namespace fly {
      */
     class FloatTypeDecl : public TypeDecl {
 
-        float *Value;
+        TypeKind Kind = TypeKind::TYPE_FLOAT;
 
     public:
+        FloatTypeDecl(SourceLocation Loc) : TypeDecl(Loc) {}
 
-        FloatTypeDecl(float *V) : TypeDecl(TypeKind::Float), Value(V) {}
-
-        float *getValue() {
-            return Value;
-        }
-
-        void setValue(float *V) {
-            Value = V;
-        }
-
-        ~FloatTypeDecl() {
-            delete Value;
+        const TypeKind &getKind() const override {
+            return Kind;
         }
     };
 
@@ -85,22 +77,28 @@ namespace fly {
      */
     class BoolTypeDecl : public TypeDecl {
 
-        bool *Value;
+        TypeKind Kind = TypeKind::TYPE_BOOL;
 
     public:
+        BoolTypeDecl(SourceLocation Loc) : TypeDecl(Loc) {}
 
-        BoolTypeDecl(bool *V) : TypeDecl(TypeKind::Boolean), Value(V) {}
-
-        bool *getValue() {
-            return Value;
+        const TypeKind &getKind() const override {
+            return Kind;
         }
+    };
 
-        void setValue(bool *V) {
-            Value = V;
-        }
+    /**
+     * Void Type
+     */
+    class VoidTypeDecl : public TypeDecl {
 
-        ~BoolTypeDecl() {
-            delete Value;
+        TypeKind Kind = TypeKind::TYPE_VOID;
+
+    public:
+        VoidTypeDecl(SourceLocation Loc) : TypeDecl(Loc) {}
+
+        const TypeKind &getKind() const override {
+            return Kind;
         }
     };
 }

@@ -23,11 +23,16 @@ namespace {
         IntrusiveRefCntPtr<DiagnosticIDs> DiagID;
         DiagnosticsEngine Diags;
         SourceManager SourceMgr;
+        ASTContext *Context;
 
         ParserTest(): FileMgr(FileMgrOpts),
                       DiagID(new DiagnosticIDs()),
                       Diags(DiagID, new DiagnosticOptions, new IgnoringDiagConsumer()),
-                      SourceMgr(Diags, FileMgr) {
+                      SourceMgr(Diags, FileMgr), Context(new ASTContext(Diags)) {
+        }
+
+        virtual ~ParserTest() {
+            delete Context;
         }
 
         std::unique_ptr<Parser> Parse(llvm::StringRef FileName, StringRef Source) {
@@ -41,8 +46,7 @@ namespace {
             // Create a lexer starting at the beginning of this token.
             Lexer TheLexer(FID, b, SourceMgr);
             std::unique_ptr<Parser> P = std::make_unique<Parser>(TheLexer, Diags);
-            ASTContext *Ctx = new ASTContext(Diags);
-            ASTNode *AST = new ASTNode(FileName, FID, Ctx);
+            ASTNode *AST = new ASTNode(FileName, FID, Context);
             P->Parse(AST);
             AST->Finalize();
             return P;
@@ -51,7 +55,7 @@ namespace {
     };
 
     TEST_F(ParserTest, SinglePackage) {
-        StringRef str = ("namespace \"std\"");
+        StringRef str = ("namespace std");
 
         // Verify FileName
         auto P = Parse("package.fly", str);
@@ -63,8 +67,8 @@ namespace {
     }
 
     TEST_F(ParserTest, MultiPackageError) {
-        StringRef str = ("namespace \"std\"\n"
-                         "namespace \"bad\"");
+        StringRef str = ("namespace std\n"
+                         "namespace bad");
 
         // Verify FileName
         auto P = Parse("error.fly", str);
@@ -73,7 +77,7 @@ namespace {
     }
 
     TEST_F(ParserTest, SingleImport) {
-        StringRef str = ("namespace \"std\"\n"
+        StringRef str = ("namespace std\n"
                          "import \"packageA\"");
 
         // Verify FileName
@@ -82,7 +86,7 @@ namespace {
         ImportDecl* Verify = AST->getImports().lookup("packageA");
 
         EXPECT_EQ(Verify->getName(), "packageA");
-        EXPECT_EQ(Verify->getAlias(), "");
+        EXPECT_EQ(Verify->getAlias(), Verify->getName());
     }
 
     TEST_F(ParserTest, SingleImportAlias) {
@@ -95,7 +99,7 @@ namespace {
     }
 
     TEST_F(ParserTest, MultiImports) {
-        StringRef str = ("namespace \"std\"\n"
+        StringRef str = ("namespace std\n"
                          "import \"packageA\""
                          "import \"packageB\"");
 
@@ -110,7 +114,7 @@ namespace {
     }
 
     TEST_F(ParserTest, SingleParenImport) {
-        StringRef str = ("namespace \"std\"\n"
+        StringRef str = ("namespace std\n"
                          "import (\"packageA\")");
 
         // Verify FileName
@@ -122,7 +126,7 @@ namespace {
     }
 
     TEST_F(ParserTest, MultiParenImports) {
-        StringRef str = ("namespace \"std\"\n"
+        StringRef str = ("namespace std\n"
                          "import (\"packageA\", \"packageB\")");
 
         // Verify FileName
@@ -135,24 +139,12 @@ namespace {
         EXPECT_EQ(VerifyB->getName(), "packageB");
     }
 
-    TEST_F(ParserTest, SingleVar) {
-        StringRef str = ("namespace \"std\"\n"
-                         "int a");
-
-        // Verify FileName
-        auto P = Parse("var.fly", str);
-        auto AST = P->getAST();
-        GlobalVarDecl* VerifyA = AST->getVars().lookup("a");
-
-        EXPECT_EQ(VerifyA->getType()->getKind(), TypeKind::Int);
-        EXPECT_EQ(VerifyA->getName(), "a");
-    }
-
-    TEST_F(ParserTest, MultiVar) {
-        StringRef str = ("namespace \"std\"\n"
+    TEST_F(ParserTest, GlobalVars) {
+        StringRef str = ("namespace std\n"
                          "private int a\n"
                          "public float b\n"
-                         "const bool c\n");
+                         "bool c\n"
+                         );
 
         // Verify FileName
         auto P = Parse("var.fly", str);
@@ -161,20 +153,106 @@ namespace {
         GlobalVarDecl *VerifyB = AST->getVars().lookup("b");
         GlobalVarDecl *VerifyC = AST->getVars().lookup("c");
 
-        EXPECT_EQ(VerifyA->getVisibility(), VisibilityKind::Private);
-        EXPECT_EQ(VerifyA->getModifiable(), ModifiableKind::Variable);
-        EXPECT_EQ(VerifyA->getType()->getKind(), TypeKind::Int);
+        EXPECT_EQ(VerifyA->getVisibility(), VisibilityKind::V_PRIVATE);
+        EXPECT_FALSE(VerifyA->isConstant());
+        EXPECT_EQ(VerifyA->getType()->getKind(), TypeKind::TYPE_INT);
         EXPECT_EQ(VerifyA->getName(), "a");
 
-        EXPECT_EQ(VerifyB->getVisibility(), VisibilityKind::Public);
-        EXPECT_EQ(VerifyB->getModifiable(), ModifiableKind::Variable);
-        EXPECT_EQ(VerifyB->getType()->getKind(), TypeKind::Float);
+        EXPECT_EQ(VerifyB->getVisibility(), VisibilityKind::V_PUBLIC);
+        EXPECT_FALSE(VerifyB->isConstant());
+        EXPECT_EQ(VerifyB->getType()->getKind(), TypeKind::TYPE_FLOAT);
         EXPECT_EQ(VerifyB->getName(), "b");
 
-        EXPECT_EQ(VerifyC->getVisibility(), VisibilityKind::Default);
-        EXPECT_EQ(VerifyC->getModifiable(), ModifiableKind::Constant);
-        EXPECT_EQ(VerifyC->getType()->getKind(), TypeKind::Boolean);
+        EXPECT_EQ(VerifyC->getVisibility(), VisibilityKind::V_DEFAULT);
+        ASSERT_FALSE(VerifyC->isConstant());
+        EXPECT_EQ(VerifyC->getType()->getKind(), TypeKind::TYPE_BOOL);
         EXPECT_EQ(VerifyC->getName(), "c");
+
+        delete AST;
     }
 
+    TEST_F(ParserTest, GlobalConstants) {
+        StringRef str = ("namespace std\n"
+                         "private const int a = 1\n"
+                         "const public float b = 2.0\n"
+                         "const bool c = false\n");
+
+        // Verify FileName
+        auto P = Parse("var.fly", str);
+        auto AST = P->getAST();
+        GlobalVarDecl *VerifyA = AST->getVars().lookup("a");
+        GlobalVarDecl *VerifyB = AST->getVars().lookup("b");
+        GlobalVarDecl *VerifyC = AST->getVars().lookup("c");
+
+        EXPECT_EQ(VerifyA->getVisibility(), VisibilityKind::V_PRIVATE);
+        EXPECT_EQ(VerifyA->isConstant(), true);
+        EXPECT_EQ(VerifyA->getType()->getKind(), TypeKind::TYPE_INT);
+        EXPECT_EQ(VerifyA->getName(), "a");
+        EXPECT_EQ(static_cast<ValueExpr*>(VerifyA->getExpr())->getString(), "1");
+
+        EXPECT_EQ(VerifyB->getVisibility(), VisibilityKind::V_PUBLIC);
+        EXPECT_EQ(VerifyB->isConstant(), true);
+        EXPECT_EQ(VerifyB->getType()->getKind(), TypeKind::TYPE_FLOAT);
+        EXPECT_EQ(VerifyB->getName(), "b");
+        EXPECT_EQ(static_cast<ValueExpr*>(VerifyB->getExpr())->getString(), "2.0");
+
+        EXPECT_EQ(VerifyC->getVisibility(), VisibilityKind::V_DEFAULT);
+        EXPECT_EQ(VerifyC->isConstant(), true);
+        EXPECT_EQ(VerifyC->getType()->getKind(), TypeKind::TYPE_BOOL);
+        EXPECT_EQ(VerifyC->getName(), "c");
+        EXPECT_EQ(static_cast<ValueExpr*>(VerifyC->getExpr())->getString(), "false");
+    }
+
+    TEST_F(ParserTest, FunctionDefaultVoidEmpty) {
+        StringRef str = ("namespace std\n"
+                         "void func() {}\n");
+
+        // Verify FileName
+        auto P = Parse("function.fly", str);
+        auto AST = P->getAST();
+
+        FunctionDecl *VerifyFunc = AST->getFunctions().lookup("func");
+        EXPECT_EQ(VerifyFunc->getVisibility(), VisibilityKind::V_DEFAULT);
+        ASSERT_FALSE(VerifyFunc->isConstant());
+        ASSERT_TRUE(Context->getNameSpaces().lookup("std")->getFunctions().lookup("func"));
+    }
+
+    TEST_F(ParserTest, FunctionPrivateReturnParams) {
+        StringRef str = ("namespace std\n"
+                         "private int func(int a, const float b, bool c=false) {\n"
+                         "  return 1"
+                         "}\n");
+
+        // Verify FileName
+        auto P = Parse("function.fly", str);
+        auto AST = P->getAST();
+
+        FunctionDecl *VerifyFunc = AST->getFunctions().lookup("func");
+        EXPECT_EQ(VerifyFunc->getVisibility(), VisibilityKind::V_PRIVATE);
+        ASSERT_FALSE(VerifyFunc->isConstant());
+        ASSERT_FALSE(Context->getNameSpaces().lookup("std")->getFunctions().lookup("func"));
+
+        VarDecl *Arg0 = VerifyFunc->getParams()->getVars()[0];
+        VarDecl *Arg1 = VerifyFunc->getParams()->getVars()[1];
+        VarDecl *Arg2 = VerifyFunc->getParams()->getVars()[2];
+
+        EXPECT_EQ(Arg0->getName(), "a");
+        EXPECT_EQ(Arg0->getType()->getKind(), TypeKind::TYPE_INT);
+        EXPECT_EQ(Arg0->isConstant(), false);
+
+        EXPECT_EQ(Arg1->getName(), "b");
+        EXPECT_EQ(Arg1->getType()->getKind(), TypeKind::TYPE_FLOAT);
+        EXPECT_EQ(Arg1->isConstant(), true);
+
+        EXPECT_EQ(Arg2->getName(), "c");
+        EXPECT_EQ(Arg2->getType()->getKind(), TypeKind::TYPE_BOOL);
+        EXPECT_EQ(Arg2->isConstant(), false);
+        EXPECT_EQ(Arg2->getExpr()->getKind(), ExprKind::EXPR_VALUE);
+        ValueExpr *DefArg2 = static_cast<ValueExpr *>(Arg2->getExpr());
+        EXPECT_EQ(DefArg2->getString(), "false");
+
+        ValueExpr *Return = static_cast<ValueExpr*>(VerifyFunc->getBody()->getReturn()->getExpr());
+        EXPECT_EQ(Return->getString(), "1");
+        EXPECT_EQ(Return->getKind(), ExprKind::EXPR_VALUE);
+    }
 }

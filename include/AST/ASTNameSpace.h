@@ -12,6 +12,8 @@
 
 #include "AST/ASTNode.h"
 #include "AST/GlobalVarDecl.h"
+#include "AST/FunctionDecl.h"
+#include "AST/ClassDecl.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
 
@@ -32,6 +34,12 @@ namespace fly {
         // Public Global Vars
         llvm::StringMap<GlobalVarDecl *> Vars;
 
+        // Public Functions
+        llvm::StringMap<FunctionDecl *> Functions;
+
+        // Public Classes
+        llvm::StringMap<ClassDecl *> Classes;
+
     public:
         ASTNameSpace(llvm::StringRef NS);
 
@@ -40,6 +48,12 @@ namespace fly {
         const llvm::StringRef &getNameSpace() const;
 
         const llvm::StringMap<ASTNode *> &getNodes() const;
+
+        const llvm::StringMap<GlobalVarDecl *> &getVars() const;
+
+        const llvm::StringMap<FunctionDecl *> &getFunctions() const;
+
+        const llvm::StringMap<ClassDecl *> &getClasses() const;
     };
 }
 

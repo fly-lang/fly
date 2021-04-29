@@ -179,12 +179,13 @@ namespace {
         deleteTestFile(testFile);
     }
 
-    TEST_F(CodeGenTest, GlobalVar) {
+    TEST_F(CodeGenTest, D_GLOBALVAR) {
         EXPECT_TRUE(createTestFile(testFile));
 
         ASTContext *Ctx = new ASTContext(Diags);
         ASTNode AST = createAST(testFile, Ctx);
-        GlobalVarDecl *Var = AST.addIntVar(SourceLoc, VisibilityKind::Default, ModifiableKind::Variable, "a");
+        GlobalVarDecl *Var = new GlobalVarDecl(SourceLoc, new IntTypeDecl(SourceLoc), "a");
+        AST.addGlobalVar(Var);
 
         std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();
         TargetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
