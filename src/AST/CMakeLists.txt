@@ -3,6 +3,7 @@ add_library(FlyAST
         ASTNameSpace.cpp
         ASTNode.cpp
         ASTNodeBase.cpp
+        FuncDecl.cpp
         )
 
 target_link_libraries(FlyAST

@@ -1,4 +1,7 @@
 add_library(FlyParser
+        ClassParser.cpp
+        FunctionParser.cpp
+        GlobalVarParser.cpp
         Parser.cpp
         )
 

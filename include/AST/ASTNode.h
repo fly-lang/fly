@@ -16,6 +16,8 @@
 #include "GlobalVarDecl.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
+#include "FunctionDecl.h"
+#include "ClassDecl.h"
 
 namespace fly {
 
@@ -37,6 +39,12 @@ namespace fly {
         // Private Global Vars
         llvm::StringMap<GlobalVarDecl *> Vars;
 
+        // Private Functions
+        llvm::StringMap<FunctionDecl *> Functions;
+
+        // Private Classes
+        llvm::StringMap<ClassDecl *> Classes;
+
         bool FirstNode;
 
     public:
@@ -54,25 +62,19 @@ namespace fly {
         void setNameSpace(StringRef NS);
         const ASTNameSpace* getNameSpace();
 
-        bool addImport(const SourceLocation &Loc, StringRef Name, StringRef Alias = "");
+        bool addImport(ImportDecl *NewImport);
         const llvm::StringMap<ImportDecl*> &getImports();
 
+        bool addGlobalVar(GlobalVarDecl *Var);
         const llvm::StringMap<GlobalVarDecl *> &getVars();
 
+        bool addFunction(FunctionDecl *Func);
+        const llvm::StringMap<FunctionDecl *> &getFunctions();
+
+        bool addClass(ClassDecl *Class);
+        const llvm::StringMap<ClassDecl *> &getClasses();
+
         bool Finalize();
-
-        GlobalVarDecl *addIntVar(const SourceLocation &Loc, VisibilityKind Visibility, ModifiableKind Modifiable,
-                                 StringRef Name,
-                                 int *Val = nullptr);
-        GlobalVarDecl *addFloatVar(const SourceLocation &Loc, VisibilityKind Visibility, ModifiableKind Modifiable,
-                                   StringRef Name,
-                                   float *Val = nullptr);
-        GlobalVarDecl *addBoolVar(const SourceLocation &Loc, VisibilityKind Visibility, ModifiableKind Modifiable,
-                                  StringRef Name,
-                                  bool *Val = nullptr);
-
-    private:
-        bool addVar(GlobalVarDecl *Var);
     };
 }
 

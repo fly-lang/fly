@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// include/AST/VarDecl.h - AST Variable
+// include/AST/VarDecl.h - Variable declaration
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -11,28 +11,35 @@
 #define FLY_VARDECL_H
 
 #include "Decl.h"
+#include "Refer.h"
 #include "TypeDecl.h"
+#include "Expr.h"
+#include "OperatorExpr.h" //TODO remove
 #include "Basic/TokenKinds.h"
 
 namespace fly {
 
-    class VarDecl : public BaseDecl {
+    class VarDecl : public DeclBase, public Refer {
 
-        const ModifiableKind Modifiable;
+        friend class Parser;
+        friend class GlobalVarParser;
+
+        const DeclKind Kind = DeclKind::D_VAR;
         const TypeDecl *Type;
         const StringRef Name;
+        bool Constant = false;
+        Expr *Expression = NULL;
 
     public:
         VarDecl(const SourceLocation &Loc, const TypeDecl *Type, const StringRef Name) :
-                BaseDecl(Loc), Modifiable(ModifiableKind::Variable), Type(Type), Name(Name) {}
+                DeclBase(Loc), Type(Type), Name(Name) {}
 
-        VarDecl(const SourceLocation &Loc, const ModifiableKind Modifiable, const TypeDecl *Type,
-                const StringRef &Name) : BaseDecl(Loc), Modifiable(Modifiable), Type(Type), Name(Name) {}
+        DeclKind getKind() {
+            return Kind;
+        }
 
-        virtual DeclKind getKind() = 0;
-
-        const ModifiableKind &getModifiable() const {
-            return Modifiable;
+        bool isConstant() const {
+            return Constant;
         }
 
         const TypeDecl* getType() const {
@@ -41,6 +48,10 @@ namespace fly {
 
         const llvm::StringRef &getName() const {
             return Name;
+        }
+
+        Expr *getExpr() const {
+            return Expression;
         }
 
         ~VarDecl() {

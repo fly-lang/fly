@@ -119,9 +119,14 @@ KEYWORD(as)
 KEYWORD(public)
 KEYWORD(private)
 KEYWORD(const)
+KEYWORD(class)
+KEYWORD(return)
 KEYWORD(int)
 KEYWORD(float)
 KEYWORD(bool)
+KEYWORD(true)
+KEYWORD(false)
+KEYWORD(void)
 
 #undef KEYWORD
 #undef PUNCTUATOR

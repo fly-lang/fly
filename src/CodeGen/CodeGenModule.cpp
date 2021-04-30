@@ -82,13 +82,13 @@ void CodeGenModule::GenerateGlobalVar(VarDecl* Var) {
     const TypeDecl *ty = Var->getType();
     switch (ty->getKind()) {
 
-        case Int:
+        case TYPE_INT:
             T = Int32Ty;
             break;
-        case Float:
+        case TYPE_FLOAT:
             T = FloatTy;
             break;
-        case Boolean:
+        case TYPE_BOOL:
             T = BoolTy;
             break;
     }
