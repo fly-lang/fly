@@ -4,6 +4,8 @@ add_library(FlyAST
         ASTNode.cpp
         ASTNodeBase.cpp
         FuncDecl.cpp
+        StmtDecl.cpp
+        VarDecl.cpp
         )
 
 target_link_libraries(FlyAST

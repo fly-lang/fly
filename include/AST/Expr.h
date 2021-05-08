@@ -11,18 +11,21 @@
 #define FLY_EXPR_H
 
 #include "Refer.h"
+#include "VarDecl.h"
 #include "vector"
 
 namespace fly {
 
     enum ExprKind {
-        EXPR_NONE = 0,
         EXPR_VALUE = 1,
         EXPR_OPERATOR = 2,
-        EXPR_REF = 3,
-        EXPR_GROUP = 4
+        EXPR_REF_VAR = 3,
+        EXPR_REF_FUNC = 4,
+        EXPR_GROUP = 5
     };
 
+    class VarRef;
+    class FuncRef;
     class RefExpr;
     class ValueExpr;
     class GroupExpr;
@@ -32,36 +35,9 @@ namespace fly {
      */
     class Expr {
 
-        const SourceLocation &Loc;
-
     public:
-        explicit Expr(const SourceLocation &Loc) : Loc(Loc) {}
 
-        const SourceLocation &getLocation() const {
-            return Loc;
-        }
-
-        virtual ExprKind getKind() { return ExprKind::EXPR_NONE; }
-    };
-
-    /**
-     * Expression Reference
-     */
-    class RefExpr : public Expr {
-
-        const ExprKind Kind = ExprKind::EXPR_REF;
-        const Refer *Ref;
-
-    public:
-        RefExpr(const SourceLocation &Loc, const Refer *Ref) : Expr(Loc), Ref(Ref) {}
-
-        ExprKind getKind() override {
-            return Kind;
-        }
-
-        const Refer &getRef() const {
-            return *Ref;
-        }
+        virtual ExprKind getKind() const = 0;
     };
 
     /**
@@ -69,13 +45,18 @@ namespace fly {
      */
     class ValueExpr : public Expr {
 
+        const SourceLocation &Loc;
         const ExprKind Kind = ExprKind::EXPR_VALUE;
         const StringRef Str;
 
     public:
-        ValueExpr(const SourceLocation &Loc, const StringRef Str) : Expr(Loc), Str(Str) {}
+        ValueExpr(const SourceLocation &Loc, const StringRef Str) : Loc(Loc), Str(Str) {}
 
-        ExprKind getKind() override {
+        const SourceLocation &getLocation() const {
+            return Loc;
+        }
+
+        ExprKind getKind() const override {
             return Kind;
         }
 
@@ -89,18 +70,69 @@ namespace fly {
      */
     class GroupExpr : public Expr {
 
+        friend class Parser;
+
         const ExprKind Kind = ExprKind::EXPR_GROUP;
-        const std::vector<Expr> Group;
+        std::vector<Expr *> Group;
 
     public:
-        GroupExpr(const SourceLocation Loc, std::vector<Expr> &Group) : Expr(Loc), Group(Group) {}
 
-        ExprKind getKind() override {
+        ExprKind getKind() const override {
             return Kind;
         }
 
-        const std::vector<Expr> &getList() const {
+        const std::vector<Expr *> &getGroup() const {
             return Group;
+        }
+    };
+
+    /**
+     * Var Expression Reference
+     */
+    class VarRefExpr : public Expr {
+
+        const SourceLocation Loc;
+        const ExprKind Kind = ExprKind::EXPR_REF_VAR;
+        VarRef * Ref;
+
+    public:
+        VarRefExpr(const SourceLocation &Loc, VarRef *Ref) : Loc(Loc), Ref(Ref) {}
+
+        const SourceLocation &getLocation() const {
+            return Loc;
+        }
+
+        ExprKind getKind() const override {
+            return Kind;
+        }
+
+        VarRef *getRef() const {
+            return Ref;
+        }
+    };
+
+    /**
+     * Var Expression Reference
+     */
+    class FuncRefExpr : public Expr {
+
+        const SourceLocation &Loc;
+        const ExprKind Kind = ExprKind::EXPR_REF_FUNC;
+        FuncRef * Ref;
+
+    public:
+        FuncRefExpr(const SourceLocation &Loc, FuncRef *Ref) : Loc(Loc), Ref(Ref) {}
+
+        const SourceLocation &getLocation() const {
+            return Loc;
+        }
+
+        ExprKind getKind() const override {
+            return Kind;
+        }
+
+        FuncRef *getRef() const {
+            return Ref;
         }
     };
 }

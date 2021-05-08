@@ -16,7 +16,7 @@
 #include "GlobalVarDecl.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
-#include "FunctionDecl.h"
+#include "FuncDecl.h"
 #include "ClassDecl.h"
 
 namespace fly {
@@ -40,7 +40,7 @@ namespace fly {
         llvm::StringMap<GlobalVarDecl *> Vars;
 
         // Private Functions
-        llvm::StringMap<FunctionDecl *> Functions;
+        llvm::StringMap<FuncDecl *> Functions;
 
         // Private Classes
         llvm::StringMap<ClassDecl *> Classes;
@@ -68,8 +68,8 @@ namespace fly {
         bool addGlobalVar(GlobalVarDecl *Var);
         const llvm::StringMap<GlobalVarDecl *> &getVars();
 
-        bool addFunction(FunctionDecl *Func);
-        const llvm::StringMap<FunctionDecl *> &getFunctions();
+        bool addFunction(FuncDecl *Func);
+        const llvm::StringMap<FuncDecl *> &getFunctions();
 
         bool addClass(ClassDecl *Class);
         const llvm::StringMap<ClassDecl *> &getClasses();

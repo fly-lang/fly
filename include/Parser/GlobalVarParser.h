@@ -24,14 +24,14 @@ namespace fly {
         friend Parser;
 
         Parser *P;
-        TypeDecl *TyDecl;
-        const StringRef &Name;
+        TypeBase *TyDecl;
+        const StringRef Name;
         SourceLocation &Location;
         GlobalVarDecl *Var = NULL;
         Expr *Val = NULL;
 
     public:
-        GlobalVarParser(Parser *P, TypeDecl *TyDecl, const StringRef &VarName,
+        GlobalVarParser(Parser *P, TypeBase *TyDecl, const StringRef &VarName,
                         SourceLocation &VarNameLoc);
 
         bool Parse();

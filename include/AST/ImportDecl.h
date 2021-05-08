@@ -17,7 +17,7 @@ namespace fly {
 
     class ASTNameSpace;
 
-    class ImportDecl : public DeclBase {
+    class ImportDecl : public Decl {
 
         StringRef Name;
 
@@ -27,16 +27,16 @@ namespace fly {
 
     public:
 
-        ImportDecl(const SourceLocation &Loc, StringRef Name) : DeclBase(Loc), Name(Name), Alias(Name) {}
+        ImportDecl(const SourceLocation &Loc, StringRef Name) : Decl(Loc), Name(Name), Alias(Name) {}
 
-        ImportDecl(const SourceLocation &Loc, StringRef Name, StringRef Alias) : DeclBase(Loc), Name(Name),
+        ImportDecl(const SourceLocation &Loc, StringRef Name, StringRef Alias) : Decl(Loc), Name(Name),
                                                                                  Alias(Alias) {}
 
         ~ImportDecl() {
             NameSpace = nullptr;
         }
 
-        DeclKind getKind() override {
+        DeclKind getKind() const override {
             return DeclKind::D_DEPENDENCY;
         }
 

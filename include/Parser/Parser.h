@@ -10,6 +10,9 @@
 #ifndef FLY_PARSE_PARSEAST_H
 #define FLY_PARSE_PARSEAST_H
 
+#include <AST/StmtDecl.h>
+#include <AST/VarDecl.h>
+
 #include "GlobalVarParser.h"
 #include "FunctionParser.h"
 #include "ClassParser.h"
@@ -22,7 +25,7 @@ namespace fly {
     class DiagnosticsEngine;
     class Lexer;
 
-    /// Parse the main file known to the preprocessor, producing an
+    /// ParseDefinition the main file known to the preprocessor, producing an
     /// abstract syntax tree.
     class Parser {
 
@@ -179,21 +182,37 @@ namespace fly {
 
         bool ParseTopDecl();
 
-        TypeDecl *ParseType();
-
-        bool ParseGlobalVarDecl(VisibilityKind &VisKind, bool &Constant, TypeDecl *TyDecl,
+        bool ParseGlobalVarDecl(VisibilityKind &VisKind, bool &Constant, TypeBase *TyDecl,
                                 IdentifierInfo *Id, SourceLocation &IdLoc);
-
-        bool ParseFunctionDecl(VisibilityKind &VisKind, bool Constant,  TypeDecl *TyDecl,
-                               IdentifierInfo *Id, SourceLocation &IdLoc);
 
         bool ParseClassDecl(VisibilityKind &VisKind, bool &Constant);
 
+        bool ParseFunctionDecl(VisibilityKind &VisKind, bool Constant, TypeBase *TyDecl, IdentifierInfo *Id,
+                               SourceLocation &IdLoc);
+        bool ParseStmt(StmtDecl *CurrentStmt, bool isBody = false);
+
+        bool ParseVarOrFunc(StmtDecl *CurrentStmt);
+        FuncRefDecl *ParseFunctionRefDecl(IdentifierInfo *Id, SourceLocation &IdLoc);
         VarDecl* ParseVarDecl();
+        VarDecl* ParseVarDecl(bool Constant, TypeBase *TyDecl);
+        VarRef* ParseVarRef();
+        GroupExpr* ParseExpr(GroupExpr *CurrGroup = NULL);
 
-        bool ParseStmt(Stmt *CurrentStmt, bool isBody = false);
+        bool isVoidType();
+        bool isBuiltinType();
+        bool isBoolValue();
+        bool isOpAssign();
+        bool isOpIncrement();
+        bool isOperator();
 
-        Expr* ParseExpr();
+        TypeBase *ParseType();
+        TypeBase *ParseType(SourceLocation Loc, tok::TokenKind Kind);
+        StringRef ParseBoolValue();
+        OperatorExpr* ParseOperator();
+        GroupExpr* ParseOpAssign(VarRef *Ref);
+        IncDecExpr* ParseOpIncrement(bool post = false);
+
+
     };
 
 }  // end namespace fly

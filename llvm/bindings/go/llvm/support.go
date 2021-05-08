@@ -39,7 +39,7 @@ func LoadLibraryPermanently(lib string) error {
 	return nil
 }
 
-// Parse the given arguments using the LLVM command line parser.
+// ParseDefinition the given arguments using the LLVM command line parser.
 // See llvm::cl::ParseCommandLineOptions.
 func ParseCommandLineOptions(args []string, overview string) {
 	argstrs := make([]*C.char, len(args))

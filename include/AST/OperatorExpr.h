@@ -18,7 +18,9 @@ namespace fly {
         OP_ARITH,
         OP_LOGIC,
         OP_BOOL,
-        OP_BIT
+        OP_BIT,
+        OP_INCDEC,
+        OP_COND
     };
 
     enum ArithOpKind {
@@ -26,7 +28,9 @@ namespace fly {
         ARITH_SUB,
         ARITH_MUL,
         ARITH_DIV,
-        ARITH_MOD
+        ARITH_MOD,
+        ARITH_INCR,
+        ARITH_DECR
     };
 
     enum BitOpKind {
@@ -52,14 +56,32 @@ namespace fly {
         LOGIC_LTE
     };
 
+    enum IncDecOpKind {
+        PRE_INCREMENT,
+        POST_INCREMENT,
+        PRE_DECREMENT,
+        POST_DECREMENT
+    };
+
+    enum CondOpKind {
+        COND_IF,
+        COND_THAN,
+        COND_ELSE
+    };
+
     class OperatorExpr : public Expr {
 
+        const SourceLocation &Loc;
         const ExprKind Kind = ExprKind::EXPR_OPERATOR;
 
     public:
-        explicit OperatorExpr(const SourceLocation &Loc) : Expr(Loc) {}
+        explicit OperatorExpr(const SourceLocation &Loc) : Loc(Loc) {}
 
-        ExprKind getKind() override {
+        const SourceLocation &getLocation() const {
+            return Loc;
+        }
+
+        ExprKind getKind() const override {
             return Kind;
         }
 
@@ -130,8 +152,41 @@ namespace fly {
             return OperatorKind;
         }
 
-        LogicOpKind getBoolKind() const {
+        LogicOpKind getLogicKind() const {
             return LogicKind;
+        }
+    };
+
+    class IncDecExpr : public OperatorExpr {
+        const OpKind OperatorKind = OpKind::OP_INCDEC;
+        const IncDecOpKind IncDecKind;
+
+    public:
+        IncDecExpr(const SourceLocation Loc, const IncDecOpKind &Kind) : OperatorExpr(Loc), IncDecKind(Kind) {}
+
+        OpKind getOpKind() {
+            return OperatorKind;
+        }
+
+        IncDecOpKind getIncDecKind() const {
+            return IncDecKind;
+        }
+    };
+
+    class CondExpr : public OperatorExpr {
+
+        const OpKind OperatorKind = OpKind::OP_COND;
+        const CondOpKind CondKind;
+
+    public:
+        CondExpr(const SourceLocation Loc, const CondOpKind &CondKind) : OperatorExpr(Loc), CondKind(CondKind) {}
+
+        OpKind getOpKind() {
+            return OperatorKind;
+        }
+
+        CondOpKind getCustKind() const {
+            return CondKind;
         }
     };
 }

@@ -21,9 +21,9 @@ namespace fly {
 
     public:
 
-        GlobalVarDecl(SourceLocation &Loc, TypeDecl *Type, StringRef Name) : VarDecl(Loc, Type, Name) {}
+        GlobalVarDecl(SourceLocation &Loc, TypeBase *Type, StringRef Name) : VarDecl(Loc, Type, Name) {}
 
-        DeclKind getKind() override {
+        DeclKind getKind() const override {
             return Kind;
         }
 

@@ -97,10 +97,10 @@ bool ASTNode::addGlobalVar(GlobalVarDecl *Var) {
     return true;
 }
 
-bool ASTNode::addFunction(FunctionDecl *Func) {
+bool ASTNode::addFunction(FuncDecl *Func) {
     // Lookup into namespace
     if(Func->Visibility == VisibilityKind::V_PUBLIC || Func->Visibility == VisibilityKind::V_DEFAULT) {
-        FunctionDecl *LookupFunc = NameSpace->Functions.lookup(Func->getName());
+        FuncDecl *LookupFunc = NameSpace->Functions.lookup(Func->getName());
         if (LookupFunc) {
             Context->Diag(LookupFunc->getLocation(), diag::err_duplicate_func)  << LookupFunc->getName();
             return false;
@@ -121,7 +121,7 @@ bool ASTNode::addFunction(FunctionDecl *Func) {
     return true;
 }
 
-const llvm::StringMap<FunctionDecl *> &ASTNode::getFunctions() {
+const llvm::StringMap<FuncDecl *> &ASTNode::getFunctions() {
     return Functions;
 }
 

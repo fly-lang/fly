@@ -50,6 +50,10 @@ DiagnosticBuilder Parser::Diag(const Token &Tok, unsigned DiagID) {
     return Diag(Tok.getLocation(), DiagID);
 }
 
+ASTNode *Parser::getAST() {
+    return AST;
+}
+
 /**
  * Parse package declaration
  * @param fileName
@@ -131,7 +135,7 @@ bool Parser::ParseTopDecl() {
         }
 
         // Parse Type
-        TypeDecl *TyDecl = ParseType();
+        TypeBase *TyDecl = ParseType();
 
         if (TyDecl) {
 
@@ -227,7 +231,7 @@ bool Parser::ParseScopes(bool &Constant) {
     return true;
 }
 
-bool Parser::ParseGlobalVarDecl(VisibilityKind &VisKind, bool &Constant, TypeDecl *TyDecl,
+bool Parser::ParseGlobalVarDecl(VisibilityKind &VisKind, bool &Constant, TypeBase *TyDecl,
                                 IdentifierInfo *Id, SourceLocation &IdLoc) {
     const StringRef &IdName = Id->getName();
     GlobalVarParser Parser(this, TyDecl, IdName, IdLoc);
@@ -235,19 +239,6 @@ bool Parser::ParseGlobalVarDecl(VisibilityKind &VisKind, bool &Constant, TypeDec
         Parser.Var->Constant = Constant;
         Parser.Var->Visibility = VisKind;
         return AST->addGlobalVar(Parser.Var);
-    }
-
-    return false;
-}
-
-bool Parser::ParseFunctionDecl(VisibilityKind &VisKind, bool Constant, TypeDecl *TyDecl,
-                               IdentifierInfo *Id, SourceLocation &IdLoc) {
-    const StringRef &IdName = Id->getName();
-    FunctionParser Parser(this, TyDecl, IdName, IdLoc);
-    if (Parser.Parse()) {
-        Parser.Function->Constant = Constant;
-        Parser.Function->Visibility = VisKind;
-        return AST->addFunction(Parser.Function);
     }
 
     return false;
@@ -264,52 +255,47 @@ bool Parser::ParseClassDecl(VisibilityKind &VisKind, bool &Constant) {
     return false;
 }
 
-ASTNode *Parser::getAST() {
-    return AST;
-}
-
-VarDecl* Parser::ParseVarDecl() {
-    // Var Constant
-    bool Constant = false;
-    ParseScopes(Constant);
-
-    // Var Type
-    const TypeDecl *TyDecl = ParseType();
-
-    // Var Name
-    const StringRef Name = Tok.getIdentifierInfo()->getName();
-    const SourceLocation IdLoc = Tok.getLocation();
-    ConsumeToken();
-    VarDecl *Var = new VarDecl(IdLoc, TyDecl, Name);
-    Var->Constant = Constant;
-
-    // Parsing =
-    if (Tok.is(tok::equal)) {
-        ConsumeToken();
-
-        Expr* Ex = ParseExpr();
-        if (Ex) {
-            Var->Expression = Ex;
-        }
+bool Parser::ParseFunctionDecl(VisibilityKind &VisKind, bool Constant, TypeBase *TyDecl,
+                               IdentifierInfo *Id, SourceLocation &IdLoc) {
+    const StringRef &IdName = Id->getName();
+    FunctionParser Parser(this, IdName, IdLoc);
+    if (Parser.ParseDefinition(TyDecl)) {
+        Parser.Function->Constant = Constant;
+        Parser.Function->Visibility = VisKind;
+        return AST->addFunction(Parser.Function);
     }
 
-    return Var;
+    return false;
 }
 
-bool Parser::ParseStmt(Stmt *CurrentStmt, bool isBody) {
+bool Parser::ParseStmt(StmtDecl *CurrentStmt, bool isBody) {
     if (Tok.is(tok::l_brace)) { // Open Brace
-        Stmt *InnerStmt = (isBody) ? CurrentStmt : new Stmt(Tok.getLocation(), CurrentStmt->Vars);
+        StmtDecl *InnerStmt = (isBody) ? CurrentStmt : new StmtDecl(Tok.getLocation(), CurrentStmt->Vars);
         ConsumeBrace();
         // Enter in Sub-Statement
         if (ParseStmt(InnerStmt)) {
             CurrentStmt->Instructions.push_back(InnerStmt);
             return isBody || ParseStmt(CurrentStmt); // Continue with Current Statement
         }
-    } else if (Tok.isAnyIdentifier()) {
-
+    } else if (Tok.is(tok::kw_const) || Tok.isAnyIdentifier() || isBuiltinType()) {
+        // could be a variable assign or variable definition with custom type
+        // or could be a function call
+        if (ParseVarOrFunc(CurrentStmt)) {
+            return ParseStmt(CurrentStmt);
+        }
+    } else if (isOpIncrement()) {
+        IncDecExpr* Exp = ParseOpIncrement();
+        ConsumeToken();
+        if (Tok.isAnyIdentifier()) {
+            VarRefDecl *VRefD = new VarRefDecl(Tok.getLocation(), Tok.getIdentifierInfo()->getName());
+            ConsumeToken();
+            VRefD->Expr->Group.push_back(Exp);
+            CurrentStmt->addVar(VRefD);
+            return ParseStmt(CurrentStmt);
+        }
     } else if (Tok.is(tok::kw_return)) {
         SourceLocation RetLoc = ConsumeToken();
-        Expr *Exp = ParseExpr();
+        GroupExpr *Exp = ParseExpr();
         if (Exp) {
             ReturnDecl *Return = new ReturnDecl(RetLoc, Exp);
             CurrentStmt->Return = Return;
@@ -330,61 +316,366 @@ bool Parser::ParseStmt(Stmt *CurrentStmt, bool isBody) {
     return false;
 }
 
-TypeDecl* Parser::ParseType() {
-    TypeDecl *TyDecl = NULL;
-    SourceLocation TypeLoc = Tok.getLocation();
-    if (Tok.isOneOf(tok::kw_int, tok::kw_bool, tok::kw_float, tok::kw_void)) {
-        switch (Tok.getKind()) {
-            case tok::kw_bool:
-                TyDecl = new BoolTypeDecl(TypeLoc);
-                break;
-            case tok::kw_int:
-                TyDecl = new IntTypeDecl(TypeLoc);
-                break;
-            case tok::kw_float:
-                TyDecl = new FloatTypeDecl(TypeLoc);
-                break;
-            case tok::kw_void:
-                TyDecl = new VoidTypeDecl(TypeLoc);
-                break;
-            default:
-                assert("Type Error");
+FuncRefDecl *Parser::ParseFunctionRefDecl(IdentifierInfo *Id, SourceLocation &IdLoc) {
+    const StringRef &IdName = Id->getName();
+    FunctionParser Parser(this, IdName, IdLoc);
+    Parser.ParseRefDecl();
+    return Parser.Invoke;
+}
+
+VarDecl *Parser::ParseVarDecl(bool Constant, TypeBase *TyDecl) {
+    // Var Name
+    const StringRef Name = Tok.getIdentifierInfo()->getName();
+    const SourceLocation IdLoc = Tok.getLocation();
+    ConsumeToken();
+    VarDecl *Var = new VarDecl(IdLoc, TyDecl, Name);
+    Var->Constant = Constant;
+
+    // Parsing =, +=, -=, ...
+    if (isOpAssign()) {
+        VarRef *VRef = new VarRef(Tok.getLocation(), Var->getName());
+        VRef->Var = Var;
+        ParseOpAssign(VRef);
+        ConsumeToken();
+
+        GroupExpr* Ex = ParseExpr();
+        if (Ex) {
+            Var->Expression = Ex;
+        }
+    }
+
+    return Var;
+}
+
+VarDecl* Parser::ParseVarDecl() {
+    // Var Constant
+    bool Constant = false;
+    ParseScopes(Constant);
+
+    // Var Type
+    TypeBase *TyDecl = ParseType();
+
+    return ParseVarDecl(Constant, TyDecl);
+}
+
+VarRef* Parser::ParseVarRef() {
+    VarRef *VRef = new VarRef(Tok.getLocation(), Tok.getIdentifierInfo()->getName());
+    ConsumeToken();
+    return VRef;
+}
+
+GroupExpr* Parser::ParseExpr(GroupExpr *CurrGroup) {
+//    SourceLocation Loc = Tok.getLocation();
+    if (CurrGroup == NULL) {
+        CurrGroup = new GroupExpr();
+    }
+
+    // Start Parsing
+    if (Tok.is(tok::numeric_constant)) {
+        const StringRef V = StringRef(Tok.getLiteralData(), Tok.getLength());
+        SourceLocation Loc = ConsumeToken();
+        CurrGroup->Group.push_back(new ValueExpr(Loc, V));
+    } else if (isBoolValue()) {
+        StringRef B = ParseBoolValue();
+        SourceLocation Loc = ConsumeToken();
+        CurrGroup->Group.push_back(new ValueExpr(Loc, B));
+    } else if (Tok.isAnyIdentifier()) {
+        IdentifierInfo *Id = Tok.getIdentifierInfo();
+        SourceLocation Loc = ConsumeToken();
+        if (Tok.is(tok::l_paren)) { // function invocation
+            // a()
+            FuncRefDecl *FuncRef = ParseFunctionRefDecl(Id, Loc);
+            if (FuncRef) {
+                CurrGroup->Group.push_back(new FuncRefExpr(Loc, FuncRef));
+            }
+        } else {
+            CurrGroup->Group.push_back(new VarRefExpr(Loc, new VarRef(Loc, Id->getName())));
+        }
+    } else if (Tok.is(tok::l_paren)) {
+        ConsumeToken();
+        GroupExpr *GroupE = new GroupExpr();
+        ParseExpr(GroupE);
+        if (Tok.is(tok::r_paren)) {
+            ConsumeToken();
+            CurrGroup->Group.push_back(GroupE);
+        }
+    }
+
+    // Always check if there is an operator
+    if (isOperator()) {
+        Expr* E = ParseOperator();
+        ConsumeToken();
+        CurrGroup->Group.push_back(E);
+        ParseExpr(CurrGroup);
+    }
+
+    return CurrGroup;
+}
+
+/**
+ * Parse Variable or Function invocation
+ *
+ * cont int a
+ * a = ...
+ * a()
+ * a v1 = ...
+ * int a = ...
+ *
+ * @param CurrentStmt
+ * @return
+ */
+bool Parser::ParseVarOrFunc(StmtDecl *CurrentStmt) {
+    // cont int a
+    bool Constant = false;
+    ParseScopes(Constant);
+
+    SourceLocation Loc = Tok.getLocation();
+    tok::TokenKind Kind = Tok.getKind();
+    IdentifierInfo *VarOrFuncOrType = NULL;
+    if (Tok.isAnyIdentifier()) {
+        // a = ... (Var)
+        // a()     (Func)
+        // T a = ... (Type)
+        VarOrFuncOrType = Tok.getIdentifierInfo();
+        ConsumeToken();
+    } else if (isBuiltinType()) {
+        // int a = ...
+        VarDecl* Var = ParseVarDecl(Constant, ParseType());
+        return CurrentStmt->addVar(Var);
+    }
+
+    if (Tok.isAnyIdentifier()) { // variable definition
+        // T a = ...
+        StringRef Name = VarOrFuncOrType->getName();
+        TypeBase *TyDecl = new ClassTypeRef(Loc, Name);
+        if (TyDecl) {
+            VarDecl* Var = ParseVarDecl(Constant, TyDecl);
+            return CurrentStmt->addVar(Var);
+        }
+    } else if (Tok.is(tok::l_paren)) { // function invocation
+        // a()
+        FuncRefDecl *Invoke = ParseFunctionRefDecl(VarOrFuncOrType, Loc);
+        if (Invoke)
+            return CurrentStmt->addInvoke(Invoke);
+    } else if (isOpAssign()) {
+        GroupExpr *GrExp = NULL;
+        VarRefDecl *VDecl = new VarRefDecl(Loc, VarOrFuncOrType->getName());
+        if (Tok.isNot(tok::equal)) {
+            GrExp = ParseOpAssign(VDecl);
         }
         ConsumeToken();
-    } else {
-        StringRef Name = Tok.getName();
-        if (Name.empty()) {
-            Diag(TypeLoc, diag::err_type_undefined);
-            return TyDecl;
+
+        GroupExpr* Ex = ParseExpr(GrExp);
+        if (Ex) {
+            VDecl->Expr = Ex;
+            return CurrentStmt->addVar(VDecl);
         }
-        // TODO add class type
+    } else if (isOpIncrement()) {
+        IncDecExpr* Exp = ParseOpIncrement(true);
         ConsumeToken();
+        VarRefDecl *VRefD = new VarRefDecl(Loc, VarOrFuncOrType->getName());
+        VRefD->Expr->Group.push_back(Exp);
+        return CurrentStmt->addVar(VRefD);
+    }
+
+    return false;
+}
+
+bool Parser::isVoidType() {
+    return Tok.is(tok::kw_void);
+}
+
+bool Parser::isBuiltinType() {
+    return Tok.isOneOf(tok::kw_int, tok::kw_bool, tok::kw_float);
+}
+
+bool Parser::isBoolValue() {
+    return Tok.isOneOf(tok::kw_true, tok::kw_false);
+}
+
+bool Parser::isOpAssign() {
+    return Tok.isOneOf(tok::plusequal, tok::minusequal, tok::starequal, tok::slashequal, tok::percentequal,
+                       tok::ampequal, tok::pipeequal, tok::caretequal, tok::lesslessequal, tok::greatergreaterequal,
+                       tok::equal);
+}
+
+bool Parser::isOpIncrement() {
+    return Tok.isOneOf(tok::plusplus, tok::minusminus);
+}
+
+bool Parser::isOperator() {
+    return Tok.isOneOf(tok::plus, tok::minus, tok::star, tok::slash, tok::percent,
+                       tok::amp, tok::pipe, tok::caret,
+                       tok::ampamp, tok::pipepipe, tok::exclaim,
+                       tok::less, tok::lessless, tok::lessequal, tok::greater, tok::greatergreater, tok::greaterequal,
+                       tok::equalequal, tok::exclaimequal,
+                       tok::question, tok::colon);
+}
+
+TypeBase* Parser::ParseType() {
+    TypeBase *TyDecl = ParseType(Tok.getLocation(), Tok.getKind());
+    ConsumeToken();
+    return TyDecl;
+}
+
+TypeBase* Parser::ParseType(SourceLocation Loc, tok::TokenKind Kind) {
+    TypeBase *TyDecl = NULL;
+    switch (Kind) {
+        case tok::kw_bool:
+            TyDecl = new BoolPrimType(Loc);
+            break;
+        case tok::kw_int:
+            TyDecl = new IntPrimType(Loc);
+            break;
+        case tok::kw_float:
+            TyDecl = new FloatPrimType(Loc);
+            break;
+        case tok::kw_void:
+            TyDecl = new VoidRetType(Loc);
+            break;
+        default:
+            StringRef Name = Tok.getIdentifierInfo()->getName();
+            if (Name.empty()) {
+                Diag(Loc, diag::err_type_undefined);
+            } else {
+                TyDecl = new ClassTypeRef(Loc, Name);
+            }
     }
 
     return TyDecl;
 }
 
-Expr* Parser::ParseExpr() {
-    if (Tok.is(tok::numeric_constant)) {
-        const StringRef V = StringRef(Tok.getLiteralData(), Tok.getLength());
-        const SourceLocation &Loc = ConsumeToken();
-        return new ValueExpr(Loc, V);
-    } else if (Tok.isOneOf(tok::kw_true, tok::kw_false)) {
-        StringRef B;
-        switch (Tok.getKind()) {
-            case tok::kw_true:
-                B = "true";
-                break;
-            case tok::kw_false:
-                B = "false";
-                break;
-            default:
-                assert("Bool value not accepted");
-        }
-        const SourceLocation &Loc = ConsumeToken();
-        return new ValueExpr(Loc, B);
-    } else if (Tok.isAnyIdentifier()) {
-        IdentifierInfo *OtherVar = Tok.getIdentifierInfo();
-        const SourceLocation &Loc = ConsumeToken();
+StringRef Parser::ParseBoolValue() {
+    switch (Tok.getKind()) {
+        case tok::kw_true:
+            return "true";
+        case tok::kw_false:
+            return "false";
+        default:
+            assert("Bool value not accepted");
+    }
+}
+
+OperatorExpr* Parser::ParseOperator() {
+    SourceLocation Loc = Tok.getLocation();
+    switch (Tok.getKind()) {
+
+        // Increment / Decrement
+        case tok::plusplus:
+            return new ArithExpr(Loc, ArithOpKind::ARITH_INCR);
+        case tok::minusminus:
+            return new ArithExpr(Loc, ArithOpKind::ARITH_DECR);
+
+        // Bit
+        case tok::amp:
+            return new BitExpr(Loc, BitOpKind::BIT_AND);
+        case tok::pipe:
+            return new BitExpr(Loc, BitOpKind::BIT_OR);
+        case tok::caret:
+            return new BitExpr(Loc, BitOpKind::BIT_NOT);
+        case tok::lessless:
+            return new BitExpr(Loc, BitOpKind::BIT_SHIFT_L);
+        case tok::greatergreater:
+            return new BitExpr(Loc, BitOpKind::BIT_SHIFT_R);
+
+        // Boolean
+        case tok::ampamp:
+            return new BoolExpr(Loc, BoolOpKind::BOOL_AND);
+        case tok::pipepipe:
+            return new BoolExpr(Loc, BoolOpKind::BOOL_OR);
+        case tok::exclaim:
+            return new BoolExpr(Loc, BoolOpKind::BOOL_NOT);
+
+        // Arithmetic
+        case tok::plus:
+            return new ArithExpr(Loc, ArithOpKind::ARITH_ADD);
+        case tok::minus:
+            return new ArithExpr(Loc, ArithOpKind::ARITH_SUB);
+        case tok::star:
+            return new ArithExpr(Loc, ArithOpKind::ARITH_MUL);
+        case tok::slash:
+            return new ArithExpr(Loc, ArithOpKind::ARITH_DIV);
+        case tok::percent:
+            return new ArithExpr(Loc, ArithOpKind::ARITH_MOD);
+
+        // Logic
+        case tok::less:
+            return new LogicExpr(Loc, LogicOpKind::LOGIC_LT);
+        case tok::lessequal:
+            return new LogicExpr(Loc, LogicOpKind::LOGIC_LTE);
+        case tok::greater:
+            return new LogicExpr(Loc, LogicOpKind::LOGIC_GT);
+        case tok::greaterequal:
+            return new LogicExpr(Loc, LogicOpKind::LOGIC_GTE);
+        case tok::exclaimequal:
+            return new LogicExpr(Loc, LogicOpKind::LOGIC_NE);
+        case tok::equalequal:
+            return new LogicExpr(Loc, LogicOpKind::LOGIC_EQ);
+
+        // Condition
+        case tok::question:
+            return new CondExpr(Loc, CondOpKind::COND_THAN);
+        case tok::colon:
+            return new CondExpr(Loc, CondOpKind::COND_ELSE);
+
+        default:
+            assert("Operator not accepted");
+    }
+}
+
+GroupExpr* Parser::ParseOpAssign(VarRef *Ref) {
+    SourceLocation Loc = Tok.getLocation();
+    GroupExpr* Gr = new GroupExpr;
+    VarRefExpr *VRefE = new VarRefExpr(Loc, Ref);
+    Gr->Group.push_back(VRefE);
+    switch (Tok.getKind()) {
+
+        // Arithmetic
+        case tok::plusequal:
+            Gr->Group.push_back( new ArithExpr(Loc, ArithOpKind::ARITH_ADD) );
+            break;
+        case tok::minusequal:
+            Gr->Group.push_back( new ArithExpr(Loc, ArithOpKind::ARITH_SUB) );
+            break;
+        case tok::starequal:
+            Gr->Group.push_back( new ArithExpr(Loc, ArithOpKind::ARITH_MUL) );
+            break;
+        case tok::slashequal:
+            Gr->Group.push_back( new ArithExpr(Loc, ArithOpKind::ARITH_DIV) );
+            break;
+        case tok::percentequal:
+            Gr->Group.push_back( new ArithExpr(Loc, ArithOpKind::ARITH_MOD) );
+            break;
+
+            // Bit
+        case tok::ampequal:
+            Gr->Group.push_back( new BitExpr(Loc, BitOpKind::BIT_AND));
+            break;
+        case tok::pipeequal:
+            Gr->Group.push_back( new BitExpr(Loc, BitOpKind::BIT_OR));
+            break;
+        case tok::caretequal:
+            Gr->Group.push_back( new BitExpr(Loc, BitOpKind::BIT_NOT));
+            break;
+        case tok::lesslessequal:
+            Gr->Group.push_back( new BitExpr(Loc, BitOpKind::BIT_SHIFT_L));
+            break;
+        case tok::greatergreaterequal:
+            Gr->Group.push_back( new BitExpr(Loc, BitOpKind::BIT_SHIFT_R));
+            break;
+        default:
+            assert("Only assign operations are accepted");
+    }
+    return Gr;
+}
+
+IncDecExpr* Parser::ParseOpIncrement(bool post) {
+    switch (Tok.getKind()) {
+        case tok::plusplus:
+            return new IncDecExpr(Tok.getLocation(), post ? IncDecOpKind::POST_INCREMENT : IncDecOpKind::PRE_INCREMENT);
+        case tok::minusminus:
+            return new IncDecExpr(Tok.getLocation(), post ? IncDecOpKind::POST_DECREMENT : IncDecOpKind::PRE_DECREMENT);
+        default:
+            assert("Only Increment ++ or Decrement -- are accepted");
     }
 }

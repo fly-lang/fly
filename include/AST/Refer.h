@@ -17,9 +17,19 @@ namespace fly {
 
     class Refer {
 
-        DeclBase *Ref = NULL;
+        friend class ASTNode;
 
-        virtual DeclBase *getRef() { return Ref;}
+        const SourceLocation Loc;
+
+    public:
+
+        Refer(const SourceLocation &Loc) : Loc(Loc) {}
+
+        virtual Decl *getDecl() const = 0;
+
+        const SourceLocation &getLoc() const {
+            return Loc;
+        }
 
     };
 }

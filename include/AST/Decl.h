@@ -24,7 +24,9 @@ namespace fly {
         D_DEPENDENCY,
         D_GLOBALVAR,
         D_FUNCTION,
+        R_FUNCTION,
         D_VAR,
+        R_VAR,
         D_STMT,
         D_TYPE,
         D_RETURN
@@ -36,18 +38,18 @@ namespace fly {
         V_PRIVATE = 3
     };
 
-    class DeclBase {
+    class Decl {
 
-        const SourceLocation &Location;
+        const SourceLocation Location;
 
     public:
-        explicit DeclBase(const SourceLocation &Loc) : Location(Loc) {}
+        explicit Decl(const SourceLocation &Loc) : Location(Loc) {}
 
         const SourceLocation &getLocation() const {
             return Location;
         }
 
-        virtual DeclKind getKind() = 0;
+        virtual DeclKind getKind() const = 0;
     };
 
     class ASTNode; // Pre-declare

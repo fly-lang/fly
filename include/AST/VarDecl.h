@@ -12,52 +12,77 @@
 
 #include "Decl.h"
 #include "Refer.h"
-#include "TypeDecl.h"
+#include "TypeBase.h"
 #include "Expr.h"
 #include "OperatorExpr.h" //TODO remove
 #include "Basic/TokenKinds.h"
 
 namespace fly {
 
-    class VarDecl : public DeclBase, public Refer {
+    /**
+     * Var Declaration
+     */
+    class VarDecl : public Decl {
 
         friend class Parser;
         friend class GlobalVarParser;
 
         const DeclKind Kind = DeclKind::D_VAR;
-        const TypeDecl *Type;
+        TypeBase *Type;
         const StringRef Name;
         bool Constant = false;
-        Expr *Expression = NULL;
+        GroupExpr *Expression = NULL;
 
     public:
-        VarDecl(const SourceLocation &Loc, const TypeDecl *Type, const StringRef Name) :
-                DeclBase(Loc), Type(Type), Name(Name) {}
+        VarDecl(const SourceLocation &Loc, TypeBase *Type, const StringRef Name);
 
-        DeclKind getKind() {
-            return Kind;
-        }
+        DeclKind getKind() const;
 
-        bool isConstant() const {
-            return Constant;
-        }
+        bool isConstant() const;
 
-        const TypeDecl* getType() const {
-            return Type;
-        }
+        TypeBase* getType() const;
 
-        const llvm::StringRef &getName() const {
-            return Name;
-        }
+        const llvm::StringRef &getName() const;
 
-        Expr *getExpr() const {
-            return Expression;
-        }
+        GroupExpr *getExpr() const;
 
-        ~VarDecl() {
-            delete Type;
-        }
+        ~VarDecl();
+    };
+
+    /**
+     * Reference to Var Declaration
+     */
+    class VarRef : public Refer {
+
+        friend class Parser;
+
+        const StringRef Name;
+        VarDecl *Var = NULL;
+
+    public:
+        VarRef(const SourceLocation &Loc, const StringRef &Name);
+        VarRef(const SourceLocation &Loc, VarDecl *D);
+
+        const StringRef &getName() const;
+
+        VarDecl *getDecl() const override;
+
+    };
+
+    class VarRefDecl : public VarRef, public Decl {
+
+        friend class Parser;
+
+        GroupExpr *Expr;
+
+    public:
+        VarRefDecl(const SourceLocation &Loc, const StringRef &Name);
+        VarRefDecl(const SourceLocation &Loc, VarDecl *D);
+
+        DeclKind getKind() const override;
+
+        GroupExpr *getExpr() const;
     };
 }
 
-#endif //FLY_IMPORTDECL_H
+#endif //FLY_VARDECL_H

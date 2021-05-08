@@ -306,7 +306,6 @@ DIAG(err_duplicate_gvar, CLASS_ERROR, (unsigned)diag::Severity::Error, "variable
 DIAG(err_type_undefined, CLASS_ERROR, (unsigned)diag::Severity::Error, "type is not defined", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_duplicate_func, CLASS_ERROR, (unsigned)diag::Severity::Error, "function '%0' duplicated", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_unbalanced_brace, CLASS_ERROR, (unsigned)diag::Severity::Error, "braces not balanced", 0, SFINAE_Suppress, false, true, 0)
-DIAG(err_func_paren_start, CLASS_ERROR, (unsigned)diag::Severity::Error, "function parameters not in parenthesis", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_func_param, CLASS_ERROR, (unsigned)diag::Severity::Error, "function parameter not well format", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_duplicate_class, CLASS_ERROR, (unsigned)diag::Severity::Error, "class '%0' duplicated", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_parse_stmt, CLASS_ERROR, (unsigned)diag::Severity::Error, "statement parse error", 0, SFINAE_Suppress, false, true, 0)

@@ -7,7 +7,7 @@
 
 using namespace fly;
 
-GlobalVarParser::GlobalVarParser(Parser *P, TypeDecl *TyDecl, const StringRef &VarName,
+GlobalVarParser::GlobalVarParser(Parser *P, TypeBase *TyDecl, const StringRef &VarName,
                                  SourceLocation &VarNameLoc) :
         P(P), TyDecl(TyDecl), Name(VarName), Location(VarNameLoc) {
 }
@@ -20,8 +20,8 @@ bool GlobalVarParser::Parse() {
     if (P->Tok.is(tok::equal)) {
         P->ConsumeToken();
 
-        Expr* Ex = P->ParseExpr();
-        if (Ex && Ex->getKind() == EXPR_VALUE) {
+        GroupExpr* Ex = P->ParseExpr();
+        if (Ex) {
             Var->Expression = Ex;
         }
     }

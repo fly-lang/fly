@@ -26,6 +26,19 @@ namespace fly {
         StringRef Name;
         SourceLocation Location;
     };
+
+    class ClassRef : public Refer {
+
+        const StringRef Name;
+        const ClassDecl *D;
+
+    public:
+        ClassRef(const StringRef &Name);
+
+        const StringRef &getName() const;
+
+        Decl *getDecl() const override;
+    };
 }
 
 #endif //FLY_CLASSDECL_H

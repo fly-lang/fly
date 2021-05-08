@@ -35,7 +35,7 @@ const llvm::StringMap<GlobalVarDecl *> &ASTNameSpace::getVars() const {
     return Vars;
 }
 
-const llvm::StringMap<FunctionDecl *> &ASTNameSpace::getFunctions() const {
+const llvm::StringMap<FuncDecl *> &ASTNameSpace::getFunctions() const {
     return Functions;
 }
 

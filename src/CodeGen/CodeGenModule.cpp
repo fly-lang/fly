@@ -79,7 +79,7 @@ void CodeGenModule::Generate() {
  */
 void CodeGenModule::GenerateGlobalVar(VarDecl* Var) {
     llvm::Type *T = nullptr;
-    const TypeDecl *ty = Var->getType();
+    const TypeBase *ty = Var->getType();
     switch (ty->getKind()) {
 
         case TYPE_INT:

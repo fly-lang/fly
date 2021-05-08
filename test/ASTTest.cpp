@@ -101,9 +101,9 @@ namespace {
         auto Node1 = NewASTNode("file1.fly");
         Node1->setNameSpace("packageA");
         SourceLocation &Loc = SourceLoc;
-        Node1->addGlobalVar(new GlobalVarDecl(Loc, new IntTypeDecl(Loc), "a"));
-        Node1->addGlobalVar(new GlobalVarDecl(Loc,  new FloatTypeDecl(Loc), "b"));
-        Node1->addGlobalVar(new GlobalVarDecl(Loc, new BoolTypeDecl(Loc), "c"));
+        Node1->addGlobalVar(new GlobalVarDecl(Loc, new IntPrimType(Loc), "a"));
+        Node1->addGlobalVar(new GlobalVarDecl(Loc, new FloatPrimType(Loc), "b"));
+        Node1->addGlobalVar(new GlobalVarDecl(Loc, new BoolPrimType(Loc), "c"));
         Node1->Finalize();
     }
 }

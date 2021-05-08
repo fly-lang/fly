@@ -184,7 +184,7 @@ namespace {
 
         ASTContext *Ctx = new ASTContext(Diags);
         ASTNode AST = createAST(testFile, Ctx);
-        GlobalVarDecl *Var = new GlobalVarDecl(SourceLoc, new IntTypeDecl(SourceLoc), "a");
+        GlobalVarDecl *Var = new GlobalVarDecl(SourceLoc, new IntPrimType(SourceLoc), "a");
         AST.addGlobalVar(Var);
 
         std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();

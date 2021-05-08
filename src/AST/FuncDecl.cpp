@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/FunctionDecl.cpp - Function implementation
+// src/AST/FuncDecl.cpp - Function implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,32 +8,48 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#include "AST/FunctionDecl.h"
+#include "AST/FuncDecl.h"
 
 using namespace fly;
 
-FunctionDecl::FunctionDecl(const SourceLocation &Loc, const TypeDecl *Type, const StringRef &Name) :
-        DeclBase(Loc), Type(Type), Name(Name), Params(new ParamsFunc) {}
+FuncDecl::FuncDecl(const SourceLocation &Loc, const TypeBase *Type, const StringRef &Name) :
+        Decl(Loc), Type(Type), Name(Name), Params(new ParamsFunc) {}
 
-const StringRef &FunctionDecl::getName() const {
+DeclKind FuncDecl::getKind() const {
+return Kind;
+}
+
+const StringRef &FuncDecl::getName() const {
     return Name;
 }
 
-bool FunctionDecl::isConstant() const {
+bool FuncDecl::isConstant() const {
     return Constant;
 }
 
-const Stmt *FunctionDecl::getBody() const {
+const StmtDecl *FuncDecl::getBody() const {
     return Body;
 }
 
-const ParamsFunc *FunctionDecl::getParams() const {
+const ParamsFunc *FuncDecl::getParams() const {
     return Params;
 }
 
-const TypeDecl *FunctionDecl::getType() const {
+const TypeBase *FuncDecl::getType() const {
     return Type;
 }
+
+//const llvm::StringMap<VarRef *> &FuncDecl::getVarRef() const {
+//    return VarRef;
+//}
+
+//const llvm::StringMap<FunctionRef *> &FuncDecl::getFuncRef() const {
+//    return FuncRef;
+//}
+
+//const llvm::StringMap<ClassRef *> &FuncDecl::getClassRef() const {
+//    return ClassRef;
+//}
 
 const std::vector<VarDecl *> &ParamsFunc::getVars() const {
     return Vars;
@@ -43,12 +59,52 @@ const VarDecl *ParamsFunc::getVarArg() const {
     return VarArg;
 }
 
-ReturnDecl::ReturnDecl(SourceLocation &Loc, class Expr *E) : DeclBase(Loc), Exp(E) {}
-
-Expr *ReturnDecl::getExpr() const {
-    return Exp;
+const std::vector<Expr *> &ParamsFuncRef::getArgs() const {
+    return Args;
 }
 
-DeclKind ReturnDecl::getKind() {
+const VarRef *ParamsFuncRef::getVarArg() const {
+    return VarArg;
+}
+
+ReturnDecl::ReturnDecl(SourceLocation &Loc, class GroupExpr *Group) : Decl(Loc), Group(Group) {}
+
+GroupExpr *ReturnDecl::getExpr() const {
+    return Group;
+}
+
+DeclKind ReturnDecl::getKind() const {
     return Kind;
+}
+
+FuncRef::FuncRef(const SourceLocation &Loc, const StringRef &Name) : Refer(Loc), Name(Name), Params(new ParamsFuncRef) {
+
+}
+
+FuncRef::FuncRef(const SourceLocation &Loc, FuncDecl *D) : Refer(Loc), Name(D->getName()), D(D) {
+
+}
+
+const StringRef &FuncRef::getName() const {
+    return Name;
+}
+
+const ParamsFuncRef *FuncRef::getParams() const {
+    return Params;
+}
+
+FuncDecl *FuncRef::getDecl() const {
+    return D;
+}
+
+FuncRefDecl::FuncRefDecl(const SourceLocation &Loc, const StringRef &Name) : FuncRef(Loc, Name), Decl(Loc) {
+
+}
+
+FuncRefDecl::FuncRefDecl(const SourceLocation &Loc, FuncDecl *D) : FuncRef(Loc, D), Decl(Loc) {
+
+}
+
+DeclKind FuncRefDecl::getKind() const {
+    return R_FUNCTION;
 }
