@@ -47,15 +47,9 @@ bool FunctionParser::ParseParameters(bool isStart, bool isRef) {
             VarRefExpr *RExpr = new VarRefExpr(P->Tok.getLocation(), Var);
             Invoke->Params->Args.push_back(RExpr);
             return ParseParameters(false, true);
-        } else if (P->Tok.is(tok::numeric_constant)) {
-            const StringRef V = StringRef(P->Tok.getLiteralData(), P->Tok.getLength());
-            SourceLocation Loc = P->ConsumeToken();
-            Invoke->Params->Args.push_back(new ValueExpr(Loc, V));
-            return ParseParameters(false, true);
-        } else if (P->isBoolValue()) {
-            StringRef B = P->ParseBoolValue();
-            SourceLocation Loc = P->ConsumeToken();
-            Invoke->Params->Args.push_back(new ValueExpr(Loc, B));
+        } else if (P->isValue()) {
+            ValueExpr *ValExp = P->ParseValueExpr();
+            Invoke->Params->Args.push_back(ValExp);
             return ParseParameters(false, true);
         }
     }
@@ -72,6 +66,16 @@ bool FunctionParser::ParseParameters(bool isStart, bool isRef) {
 }
 
 bool FunctionParser::ParseBody() {
-    Function->Body = new StmtDecl(P->Tok.getLocation(), Function->Params->Vars);
-    return P->ParseStmt(Function->Body, true);
+    Function->Body = new StmtDecl(P->Tok.getLocation(), NULL);
+    if (!Function->Params->Vars.empty()) {
+        for (VarDecl *Var : Function->Params->Vars) {
+            Function->Body->Vars.insert(std::pair<StringRef, VarDecl *>(Var->getName(), Var));
+        }
+    }
+    if (P->Tok.is(tok::l_brace)) {
+        P->ConsumeBrace();
+        if (P->ParseStmt(Function->Body)) {
+            return P->isBraceBalanced();
+        }
+    }
 }

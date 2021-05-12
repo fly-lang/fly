@@ -268,30 +268,19 @@ bool Parser::ParseFunctionDecl(VisibilityKind &VisKind, bool Constant, TypeBase 
     return false;
 }
 
-bool Parser::ParseStmt(StmtDecl *CurrentStmt, bool isBody) {
-    if (Tok.is(tok::l_brace)) { // Open Brace
-        StmtDecl *InnerStmt = (isBody) ? CurrentStmt : new StmtDecl(Tok.getLocation(), CurrentStmt->Vars);
-        ConsumeBrace();
-        // Enter in Sub-Statement
-        if (ParseStmt(InnerStmt)) {
-            CurrentStmt->Instructions.push_back(InnerStmt);
-            return isBody || ParseStmt(CurrentStmt); // Continue with Current Statement
-        }
-    } else if (Tok.is(tok::kw_const) || Tok.isAnyIdentifier() || isBuiltinType()) {
+bool Parser::ParseSingleStmt(StmtDecl *CurrentStmt) {
+    if (Tok.is(tok::kw_const) || Tok.isAnyIdentifier() || isBuiltinType()) {
         // could be a variable assign or variable definition with custom type
         // or could be a function call
-        if (ParseVarOrFunc(CurrentStmt)) {
-            return ParseStmt(CurrentStmt);
-        }
+        return ParseVarOrFunc(CurrentStmt);
     } else if (isOpIncrement()) {
-        IncDecExpr* Exp = ParseOpIncrement();
+        IncDecExpr *Exp = ParseOpIncrement();
         ConsumeToken();
         if (Tok.isAnyIdentifier()) {
             VarRefDecl *VRefD = new VarRefDecl(Tok.getLocation(), Tok.getIdentifierInfo()->getName());
             ConsumeToken();
             VRefD->Expr->Group.push_back(Exp);
-            CurrentStmt->addVar(VRefD);
-            return ParseStmt(CurrentStmt);
+            return CurrentStmt->addVar(VRefD);
         }
     } else if (Tok.is(tok::kw_return)) {
         SourceLocation RetLoc = ConsumeToken();
@@ -299,20 +288,177 @@ bool Parser::ParseStmt(StmtDecl *CurrentStmt, bool isBody) {
         if (Exp) {
             ReturnDecl *Return = new ReturnDecl(RetLoc, Exp);
             CurrentStmt->Return = Return;
-            CurrentStmt->Instructions.push_back(Return);
-            return ParseStmt(CurrentStmt);
-        }
-    } else if (Tok.is(tok::r_brace)) { // Close Brace
-        ConsumeBrace();
-        if (isBraceBalanced()) {
-            // The Good Exit
+            CurrentStmt->Content.push_back(Return);
             return true;
-        } else {
-            return ParseStmt(CurrentStmt);
         }
+    }
+    return false;
+}
+
+bool Parser::ParseInternalStmt(StmtDecl *CurrentStmt) {
+    if (ParseSingleStmt(CurrentStmt)) {
+        // Already all done into ParseSingleStmt()
+        return true;
+    }
+    if (Tok.isOneOf(tok::kw_if, tok::kw_elsif, tok::kw_else)) {
+        return ParseIfStmt(CurrentStmt);
+    }
+    if (Tok.is(tok::kw_switch)) {
+        return ParseSwitchStmt(CurrentStmt);
+    }
+    if (Tok.is(tok::kw_for)) {
+        return ParseSwitchStmt(CurrentStmt);
+    }
+    if (Tok.is(tok::kw_break)) {
+        CurrentStmt->Content.push_back(new BreakDecl(ConsumeToken()));
+        return true;
+    }
+    if (Tok.is(tok::kw_continue)) {
+        CurrentStmt->Content.push_back(new ContinueDecl(ConsumeToken()));
+        return true;
     }
 
     Diag(Tok.getLocation(), diag::err_parse_stmt);
+    return false;
+}
+
+bool Parser::ParseStmt(StmtDecl *CurrentStmt) {
+    // Parse until find a }
+    while (Tok.isNot(tok::r_brace) && Tok.isNot(tok::eof)) {
+        ParseInternalStmt(CurrentStmt);
+    }
+
+    if (Tok.is(tok::r_brace)) { // Close Brace
+        ConsumeBrace();
+        return true;
+    }
+
+    Diag(Tok.getLocation(), diag::err_parse_stmt);
+    return false;
+}
+
+bool Parser::ParseIfStmt(StmtDecl *CurrentStmt) {
+    CondStmtDecl *Stmt;
+    const SourceLocation &Loc = Tok.getLocation();
+    switch (Tok.getKind()) {
+        case tok::kw_if:
+            ConsumeToken();
+            Stmt = new IfStmtDecl(Loc, CurrentStmt);
+            break;
+        case tok::kw_elsif:
+            ConsumeToken();
+            Stmt = new ElsifStmtDecl(Loc, CurrentStmt);
+            IfStmtDecl::AddBranch(CurrentStmt, Stmt);
+            break;
+        case tok::kw_else:
+            ConsumeToken();
+            Stmt = new ElseStmtDecl(Loc, CurrentStmt);
+            IfStmtDecl::AddBranch(CurrentStmt, Stmt);
+            break;
+        default:
+            assert("Unknow conditional statement");
+    }
+
+    // Only for If and Elsif
+    if (Tok.is(tok::l_paren)) {
+        ConsumeParen();
+
+        if (Stmt->getStmtKind() == StmtKind::D_STMT_IF || Stmt->getStmtKind() == StmtKind::D_STMT_ELSIF) {
+            GroupExpr *Group = ParseExpr();
+            if (Group) {
+                static_cast<IfStmtDecl *>(Stmt)->Condition = Group;
+            }
+
+            if (Tok.is(tok::r_paren)) {
+                ConsumeParen();
+            }
+        }
+    }
+
+    // If, Elsif, Else
+    if (Tok.is(tok::l_brace)) {
+        ConsumeBrace();
+        if (ParseStmt(Stmt)) {
+            CurrentStmt->Content.push_back(Stmt);
+            return true;
+        }
+    } else if (ParseSingleStmt(Stmt)) {
+        CurrentStmt->Content.push_back(Stmt);
+        return true;
+    }
+
+    return false;
+}
+
+bool Parser::ParseSwitchStmt(StmtDecl *CurrentStmt) {
+    if (Tok.is(tok::kw_switch)) {
+        const SourceLocation &SwitchLoc = ConsumeToken();
+
+        if (Tok.is(tok::l_paren)) {
+            ConsumeParen();
+
+            VarRef *Ref = ParseVarRef();
+            if (Ref) {
+                if (Tok.is(tok::r_paren)) {
+                    ConsumeParen();
+
+                    SwitchStmtDecl *Stmt = new SwitchStmtDecl(SwitchLoc, CurrentStmt, Ref);
+                    if (Tok.is(tok::l_brace)) {
+                        ConsumeBrace();
+
+                        while (Tok.isNot(tok::r_brace) && Tok.isNot(tok::eof)) {
+                            if (Tok.is(tok::kw_case)) {
+                                const SourceLocation &CaseLoc = ConsumeToken();
+
+                                Expr * CaseExp = NULL;
+                                if (isValue()) {
+                                    CaseExp = ParseValueExpr();
+                                } else if (Tok.isAnyIdentifier()) {
+                                    IdentifierInfo *Id = Tok.getIdentifierInfo();
+                                    CaseExp = new VarRefExpr(
+                                            Tok.getLocation(),new VarRef(Tok.getLocation(), Id->getName()));
+                                    ConsumeToken();
+                                } else {
+                                    // TODO Error
+                                }
+
+                                if (Tok.is(tok::colon)) {
+                                    ConsumeToken();
+
+                                    CaseStmtDecl *CaseStmt = Stmt->AddCase(CaseLoc, CaseExp);
+                                    while (!Tok.isOneOf(tok::r_brace, tok::kw_case, tok::kw_default, tok::eof)) {
+                                        ParseInternalStmt(CaseStmt);
+                                    }
+                                }
+                            } else if (Tok.is(tok::kw_default)) {
+                                ConsumeToken();
+
+                                if (Tok.is(tok::colon)) {
+                                    const SourceLocation &Loc = ConsumeToken();
+                                    DefaultStmtDecl *DefStmt = Stmt->AddDefault(Loc);
+                                    ParseInternalStmt(DefStmt);
+                                } else {
+                                    // TODO add error, missing :
+                                }
+                            }
+                        }
+
+                        if (Tok.is(tok::r_brace)) {
+                            ConsumeBrace();
+
+                            CurrentStmt->Content.push_back(Stmt);
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    return false;
+}
+
+bool Parser::ParseForStmt(StmtDecl *CurrentStmt) {
     return false;
 }
 
@@ -364,6 +510,20 @@ VarRef* Parser::ParseVarRef() {
     return VRef;
 }
 
+ValueExpr *Parser::ParseValueExpr() {
+    if (Tok.is(tok::numeric_constant)) {
+        const StringRef V = StringRef(Tok.getLiteralData(), Tok.getLength());
+        SourceLocation Loc = ConsumeToken();
+        return new ValueExpr(Loc, V);
+    } else if (Tok.isOneOf(tok::kw_true, tok::kw_false)) {
+        StringRef B = ParseBoolValue();
+        SourceLocation Loc = ConsumeToken();
+        return new ValueExpr(Loc, B);
+    } else {
+        assert("Not a value");
+    }
+}
+
 GroupExpr* Parser::ParseExpr(GroupExpr *CurrGroup) {
 //    SourceLocation Loc = Tok.getLocation();
     if (CurrGroup == NULL) {
@@ -371,14 +531,11 @@ GroupExpr* Parser::ParseExpr(GroupExpr *CurrGroup) {
     }
 
     // Start Parsing
-    if (Tok.is(tok::numeric_constant)) {
-        const StringRef V = StringRef(Tok.getLiteralData(), Tok.getLength());
-        SourceLocation Loc = ConsumeToken();
-        CurrGroup->Group.push_back(new ValueExpr(Loc, V));
-    } else if (isBoolValue()) {
-        StringRef B = ParseBoolValue();
-        SourceLocation Loc = ConsumeToken();
-        CurrGroup->Group.push_back(new ValueExpr(Loc, B));
+    if (isValue()) {
+        ValueExpr *Val = ParseValueExpr();
+        if (Val) {
+            CurrGroup->Group.push_back(Val);
+        }
     } else if (Tok.isAnyIdentifier()) {
         IdentifierInfo *Id = Tok.getIdentifierInfo();
         SourceLocation Loc = ConsumeToken();
@@ -489,10 +646,6 @@ bool Parser::isBuiltinType() {
     return Tok.isOneOf(tok::kw_int, tok::kw_bool, tok::kw_float);
 }
 
-bool Parser::isBoolValue() {
-    return Tok.isOneOf(tok::kw_true, tok::kw_false);
-}
-
 bool Parser::isOpAssign() {
     return Tok.isOneOf(tok::plusequal, tok::minusequal, tok::starequal, tok::slashequal, tok::percentequal,
                        tok::ampequal, tok::pipeequal, tok::caretequal, tok::lesslessequal, tok::greatergreaterequal,
@@ -554,6 +707,10 @@ StringRef Parser::ParseBoolValue() {
         default:
             assert("Bool value not accepted");
     }
+}
+
+bool Parser::isValue() {
+    return Tok.isOneOf(tok::numeric_constant, tok::kw_true, tok::kw_false);
 }
 
 OperatorExpr* Parser::ParseOperator() {

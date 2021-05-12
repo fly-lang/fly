@@ -260,13 +260,13 @@ namespace {
         const StmtDecl *Body = F->getBody();
 
         // Test: bool c
-        const VarDecl *cVar = static_cast<VarDecl *>(Body->getIstructions()[0]);
+        const VarDecl *cVar = static_cast<VarDecl *>(Body->getContent()[0]);
         EXPECT_EQ(cVar->getName(), "c");
         EXPECT_EQ(cVar->getType()->getKind(), TypeKind::TYPE_BOOL);
         ASSERT_FALSE(cVar->getExpr());
 
         // Test: Type t
-        const VarDecl *typeVar = static_cast<VarDecl *>(Body->getIstructions()[1]);
+        const VarDecl *typeVar = static_cast<VarDecl *>(Body->getContent()[1]);
         EXPECT_EQ(typeVar->getName(), "t");
         EXPECT_EQ(typeVar->getType()->getKind(), TypeKind::TYPE_CLASS);
         ClassTypeRef *TypeT = static_cast<ClassTypeRef *>(typeVar->getType());
@@ -274,7 +274,7 @@ namespace {
         ASSERT_FALSE(TypeT->getDecl());
 
         // Test: float b=2.0 + 1.0
-        const VarDecl *bVar = static_cast<VarDecl *>(Body->getIstructions()[2]);
+        const VarDecl *bVar = static_cast<VarDecl *>(Body->getContent()[2]);
         EXPECT_EQ(bVar->getName(), "b");
         EXPECT_EQ(bVar->getType()->getKind(), TypeKind::TYPE_FLOAT);
         FloatPrimType *FloatType = static_cast<FloatPrimType *>(bVar->getType());
@@ -286,7 +286,7 @@ namespace {
         EXPECT_EQ(static_cast<ValueExpr *>(bVar->getExpr()->getGroup()[2])->getString(), "1.0");
 
         // Test: a += 2
-        const VarRefDecl *aVar = static_cast<VarRefDecl *>(Body->getIstructions()[3]);
+        const VarRefDecl *aVar = static_cast<VarRefDecl *>(Body->getContent()[3]);
         EXPECT_EQ(aVar->getName(), "a");
         EXPECT_EQ(aVar->getExpr()->getKind(), ExprKind::EXPR_GROUP);
         VarRefExpr *aExpr = static_cast<VarRefExpr *>(aVar->getExpr()->getGroup()[0]);
@@ -297,7 +297,7 @@ namespace {
         EXPECT_EQ(opC1Expr->getString(), "2");
 
         // Test: c = b == 1.0
-        const VarRefDecl *c2Var = static_cast<VarRefDecl *>(Body->getIstructions()[4]);
+        const VarRefDecl *c2Var = static_cast<VarRefDecl *>(Body->getContent()[4]);
         EXPECT_EQ(c2Var->getName(), "c");
         EXPECT_EQ(c2Var->getExpr()->getKind(), ExprKind::EXPR_GROUP);
         VarRefExpr *c2Expr = static_cast<VarRefExpr *>(c2Var->getExpr()->getGroup()[0]);
@@ -305,7 +305,7 @@ namespace {
         LogicExpr *opC2Expr = static_cast<LogicExpr *>(c2Var->getExpr()->getGroup()[1]);
         EXPECT_EQ(opC2Expr->getLogicKind(), LogicOpKind::LOGIC_EQ);
 
-        const ReturnDecl *Ret = static_cast<ReturnDecl *>(Body->getIstructions()[5]);
+        const ReturnDecl *Ret = static_cast<ReturnDecl *>(Body->getContent()[5]);
         VarRefExpr *RetRef = static_cast<VarRefExpr *>(Ret->getExpr()->getGroup()[0]);
         EXPECT_EQ(RetRef->getRef()->getName(), "c");
     }
@@ -325,14 +325,14 @@ namespace {
         const StmtDecl *Body = F->getBody();
 
         // Test: doSome()
-        const FuncRefDecl *doSome = static_cast<FuncRefDecl *>(Body->getIstructions()[0]);
+        const FuncRefDecl *doSome = static_cast<FuncRefDecl *>(Body->getContent()[0]);
         //EXPECT_FALSE(F->getFuncRef().find("doSome")->getValue()->getRef());
         EXPECT_EQ(doSome->getName(), "doSome");
         EXPECT_EQ(doSome->getKind(), DeclKind::R_FUNCTION);
         ASSERT_FALSE(doSome->getDecl());
 
         // Test: doOther(a, b)
-        const FuncRefDecl *doOther = static_cast<FuncRefDecl *>(Body->getIstructions()[1]);
+        const FuncRefDecl *doOther = static_cast<FuncRefDecl *>(Body->getContent()[1]);
         //EXPECT_FALSE(F->getFuncRef().find("doOther")->getValue()->getRef());
         EXPECT_EQ(doOther->getName(), "doOther");
         EXPECT_EQ(doOther->getKind(), DeclKind::R_FUNCTION);
@@ -340,7 +340,7 @@ namespace {
         EXPECT_EQ(static_cast<VarRefExpr *>(doOther->getParams()->getArgs()[1])->getRef()->getName(),"b");
         ASSERT_FALSE(doOther->getDecl());
 
-        const ReturnDecl *Ret = static_cast<ReturnDecl *>(Body->getIstructions()[2]);
+        const ReturnDecl *Ret = static_cast<ReturnDecl *>(Body->getContent()[2]);
         FuncRefExpr *RetRef = static_cast<FuncRefExpr *>(Ret->getExpr()->getGroup()[0]);
         EXPECT_EQ(RetRef->getRef()->getName(), "do");
         EXPECT_EQ(RetRef->getKind(), DeclKind::R_FUNCTION);
@@ -368,31 +368,146 @@ namespace {
         const StmtDecl *Body = F->getBody();
 
         // ++a
-        const VarRefDecl *aVar = static_cast<VarRefDecl *>(Body->getIstructions()[0]);
+        const VarRefDecl *aVar = static_cast<VarRefDecl *>(Body->getContent()[0]);
         EXPECT_EQ(aVar->getExpr()->getKind(), ExprKind::EXPR_GROUP);
         EXPECT_EQ(aVar->getName(), "a");
         IncDecExpr *aExpr = static_cast<IncDecExpr *>(aVar->getExpr()->getGroup()[0]);
         EXPECT_EQ(aExpr->getIncDecKind(), IncDecOpKind::PRE_INCREMENT);
 
         // b++
-        const VarRefDecl *bVar = static_cast<VarRefDecl *>(Body->getIstructions()[1]);
+        const VarRefDecl *bVar = static_cast<VarRefDecl *>(Body->getContent()[1]);
         EXPECT_EQ(bVar->getExpr()->getKind(), ExprKind::EXPR_GROUP);
         EXPECT_EQ(bVar->getName(), "b");
         IncDecExpr *bExpr = static_cast<IncDecExpr *>(bVar->getExpr()->getGroup()[0]);
         EXPECT_EQ(bExpr->getIncDecKind(), IncDecOpKind::POST_INCREMENT);
 
         // ++c
-        const VarRefDecl *cVar = static_cast<VarRefDecl *>(Body->getIstructions()[2]);
+        const VarRefDecl *cVar = static_cast<VarRefDecl *>(Body->getContent()[2]);
         EXPECT_EQ(cVar->getExpr()->getKind(), ExprKind::EXPR_GROUP);
         EXPECT_EQ(cVar->getName(), "c");
         IncDecExpr *cExpr = static_cast<IncDecExpr *>(cVar->getExpr()->getGroup()[0]);
         EXPECT_EQ(cExpr->getIncDecKind(), IncDecOpKind::PRE_DECREMENT);
 
         // d++
-        const VarRefDecl *dVar = static_cast<VarRefDecl *>(Body->getIstructions()[3]);
+        const VarRefDecl *dVar = static_cast<VarRefDecl *>(Body->getContent()[3]);
         EXPECT_EQ(dVar->getExpr()->getKind(), ExprKind::EXPR_GROUP);
         EXPECT_EQ(dVar->getName(), "d");
         IncDecExpr *dExpr = static_cast<IncDecExpr *>(dVar->getExpr()->getGroup()[0]);
         EXPECT_EQ(dExpr->getIncDecKind(), IncDecOpKind::POST_DECREMENT);
     }
+
+    TEST_F(ParserTest, FunctionBodyIfStmt) {
+        StringRef str = ("namespace std\n"
+                         "void func(int a) {\n"
+                         "  if (a == 1) {"
+                         "    return"
+                         "  } elsif (a == 2) {"
+                         "    b = 1"
+                         "  } else {"
+                         "    b = 2"
+                         "  }"
+                         "}\n");
+        auto P = Parse("fbody.fly", str);
+        auto AST = P->getAST();
+
+        // Get Body
+        FuncDecl *F = AST->getFunctions().lookup("func");
+        const StmtDecl *Body = F->getBody();
+
+        // if
+        const IfStmtDecl *Stmt = static_cast<IfStmtDecl *>(Body->getContent()[0]);
+        EXPECT_EQ(Stmt->getStmtKind(), StmtKind::D_STMT_IF);
+        EXPECT_EQ(static_cast<VarRefExpr *>(Stmt->getCondition()->getGroup()[0])->getRef()->getName(), "a");
+        EXPECT_EQ(static_cast<LogicExpr *>(Stmt->getCondition()->getGroup()[1])->getLogicKind(),
+                  LogicOpKind::LOGIC_EQ);
+        EXPECT_EQ(static_cast<ValueExpr *>(Stmt->getCondition()->getGroup()[2])->getString(), "1");
+        EXPECT_TRUE(static_cast<ReturnDecl *>(Stmt->getContent()[0])->getExpr()->getGroup().empty());
+        EXPECT_FALSE(Stmt->getElsif().empty());
+        EXPECT_TRUE(Stmt->getElse());
+
+        // Elsif
+        const ElsifStmtDecl *EIStmt = static_cast<ElsifStmtDecl *>(Body->getContent()[1]);
+        EXPECT_EQ(EIStmt->getStmtKind(), StmtKind::D_STMT_ELSIF);
+        EXPECT_EQ(static_cast<VarRefExpr *>(EIStmt->getCondition()->getGroup()[0])->getRef()->getName(), "a");
+        EXPECT_EQ(static_cast<LogicExpr *>(EIStmt->getCondition()->getGroup()[1])->getLogicKind(),
+                  LogicOpKind::LOGIC_EQ);
+        EXPECT_EQ(static_cast<ValueExpr *>(EIStmt->getCondition()->getGroup()[2])->getString(), "2");
+        EXPECT_EQ(static_cast<VarRefDecl *>(EIStmt->getContent()[0])->getName(), "b");
+
+        // Else
+        const ElseStmtDecl *EEStmt = static_cast<ElseStmtDecl *>(Body->getContent()[2]);
+        EXPECT_EQ(EEStmt->getStmtKind(), StmtKind::D_STMT_ELSE);
+        EXPECT_EQ(static_cast<VarRefDecl *>(EEStmt->getContent()[0])->getName(), "b");
+    }
+
+    TEST_F(ParserTest, FunctionBodyIfInlineStmt) {
+        StringRef str = ("namespace std\n"
+                         "void func(int a) {\n"
+                         "  if (a == 1) return"
+                         "  elsif (a == 2) a = 1"
+                         "  else a = 2"
+                         "}\n");
+        auto P = Parse("fbody.fly", str);
+        auto AST = P->getAST();
+
+        // Get Body
+        FuncDecl *F = AST->getFunctions().lookup("func");
+        const StmtDecl *Body = F->getBody();
+
+        // if
+        const IfStmtDecl *Stmt = static_cast<IfStmtDecl *>(Body->getContent()[0]);
+        EXPECT_EQ(Stmt->getStmtKind(), StmtKind::D_STMT_IF);
+        EXPECT_EQ(static_cast<VarRefExpr *>(Stmt->getCondition()->getGroup()[0])->getRef()->getName(), "a");
+        EXPECT_EQ(static_cast<LogicExpr *>(Stmt->getCondition()->getGroup()[1])->getLogicKind(),
+                  LogicOpKind::LOGIC_EQ);
+        EXPECT_EQ(static_cast<ValueExpr *>(Stmt->getCondition()->getGroup()[2])->getString(), "1");
+        EXPECT_TRUE(static_cast<ReturnDecl *>(Stmt->getContent()[0])->getExpr()->getGroup().empty());
+
+        EXPECT_FALSE(Stmt->getElsif().empty());
+        EXPECT_TRUE(Stmt->getElse());
+
+        // Elsif
+        const ElsifStmtDecl *EIStmt = static_cast<ElsifStmtDecl *>(Body->getContent()[1]);
+        EXPECT_EQ(EIStmt->getStmtKind(), StmtKind::D_STMT_ELSIF);
+        EXPECT_EQ(static_cast<VarRefExpr *>(EIStmt->getCondition()->getGroup()[0])->getRef()->getName(), "a");
+        EXPECT_EQ(static_cast<LogicExpr *>(EIStmt->getCondition()->getGroup()[1])->getLogicKind(),
+                  LogicOpKind::LOGIC_EQ);
+        EXPECT_EQ(static_cast<ValueExpr *>(EIStmt->getCondition()->getGroup()[2])->getString(), "2");
+
+        // Else
+        const ElseStmtDecl *EEStmt = static_cast<ElseStmtDecl *>(Body->getContent()[2]);
+        EXPECT_EQ(EEStmt->getStmtKind(), StmtKind::D_STMT_ELSE);
+        EXPECT_EQ(static_cast<VarRefDecl *>(EEStmt->getContent()[0])->getName(), "a");
+    }
+
+    TEST_F(ParserTest, FunctionBodySwitchStmt) {
+        StringRef str = ("namespace std\n"
+                         "void func(int a) {\n"
+                         "  switch (a) {"
+                         "    case 1:"
+                         "      break"
+                         "    case 2:"
+                         "    default:"
+                         "      hello()"
+                         "  }"
+                         "}\n");
+        auto P = Parse("fbody.fly", str);
+        auto AST = P->getAST();
+
+        // Get Body
+        FuncDecl *F = AST->getFunctions().lookup("func");
+        const StmtDecl *Body = F->getBody();
+
+        const SwitchStmtDecl *Stmt = static_cast<SwitchStmtDecl *>(Body->getContent()[0]);
+        EXPECT_EQ(Stmt->getStmtKind(), StmtKind::D_STMT_SWITCH);
+        EXPECT_EQ(static_cast<ValueExpr *>(Stmt->getCases()[0]->getExpr())->getString(), "1");
+        EXPECT_EQ(Stmt->getCases()[0]->getContent()[0]->getKind(), DeclKind::D_BREAK);
+        EXPECT_EQ(static_cast<ValueExpr *>(Stmt->getCases()[1]->getExpr())->getString(), "2");
+        EXPECT_TRUE(Stmt->getCases()[1]->getContent().empty());
+        EXPECT_EQ(Stmt->getDefault()->getStmtKind(), StmtKind::D_STMT_DEFAULT);
+        EXPECT_EQ(static_cast<FuncRefDecl *>(Stmt->getDefault()->getContent()[0])->getName(), "hello");
+        EXPECT_EQ(static_cast<FuncRefDecl *>(Stmt->getDefault()->getContent()[0])->getKind(), DeclKind::R_FUNCTION);
+    }
+
+
 }

@@ -11,8 +11,10 @@
 #define FLY_PARSE_PARSEAST_H
 
 #include <AST/StmtDecl.h>
+#include <AST/IfStmtDecl.h>
+#include <AST/SwitchStmtDecl.h>
+#include <AST/ForStmtDecl.h>
 #include <AST/VarDecl.h>
-
 #include "GlobalVarParser.h"
 #include "FunctionParser.h"
 #include "ClassParser.h"
@@ -189,18 +191,23 @@ namespace fly {
 
         bool ParseFunctionDecl(VisibilityKind &VisKind, bool Constant, TypeBase *TyDecl, IdentifierInfo *Id,
                                SourceLocation &IdLoc);
-        bool ParseStmt(StmtDecl *CurrentStmt, bool isBody = false);
-
+        bool ParseSingleStmt(StmtDecl *CurrentStmt);
+        bool ParseInternalStmt(StmtDecl *CurrentStmt);
+        bool ParseStmt(StmtDecl *CurrentStmt);
+        bool ParseIfStmt(StmtDecl *CurrentStmt);
+        bool ParseSwitchStmt(StmtDecl *CurrentStmt);
+        bool ParseForStmt(StmtDecl *CurrentStmt);
         bool ParseVarOrFunc(StmtDecl *CurrentStmt);
         FuncRefDecl *ParseFunctionRefDecl(IdentifierInfo *Id, SourceLocation &IdLoc);
         VarDecl* ParseVarDecl();
         VarDecl* ParseVarDecl(bool Constant, TypeBase *TyDecl);
         VarRef* ParseVarRef();
+        ValueExpr *ParseValueExpr();
         GroupExpr* ParseExpr(GroupExpr *CurrGroup = NULL);
 
         bool isVoidType();
         bool isBuiltinType();
-        bool isBoolValue();
+        bool isValue();
         bool isOpAssign();
         bool isOpIncrement();
         bool isOperator();
@@ -212,7 +219,7 @@ namespace fly {
         GroupExpr* ParseOpAssign(VarRef *Ref);
         IncDecExpr* ParseOpIncrement(bool post = false);
 
-
+        void ParseInternalStmt();
     };
 
 }  // end namespace fly

@@ -3,8 +3,12 @@ add_library(FlyAST
         ASTNameSpace.cpp
         ASTNode.cpp
         ASTNodeBase.cpp
+        Decl.cpp
+        ForStmtDecl.cpp
         FuncDecl.cpp
+        IfStmtDecl.cpp
         StmtDecl.cpp
+        SwitchStmtDecl.cpp
         VarDecl.cpp
         )
 

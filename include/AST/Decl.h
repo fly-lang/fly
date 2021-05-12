@@ -29,6 +29,8 @@ namespace fly {
         R_VAR,
         D_STMT,
         D_TYPE,
+        D_BREAK,
+        D_CONTINUE,
         D_RETURN
     };
 
@@ -43,11 +45,9 @@ namespace fly {
         const SourceLocation Location;
 
     public:
-        explicit Decl(const SourceLocation &Loc) : Location(Loc) {}
+        explicit Decl(const SourceLocation &Loc);
 
-        const SourceLocation &getLocation() const {
-            return Location;
-        }
+        const SourceLocation &getLocation() const;
 
         virtual DeclKind getKind() const = 0;
     };
@@ -62,9 +62,7 @@ namespace fly {
         VisibilityKind Visibility;
 
     public:
-        VisibilityKind getVisibility() const {
-            return Visibility;
-        }
+        VisibilityKind getVisibility() const;
     };
 }
 

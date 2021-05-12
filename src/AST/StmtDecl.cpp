@@ -12,37 +12,65 @@
 
 using namespace fly;
 
-DeclKind StmtDecl::getKind() const {
-    return Kind;
-}
-
-StmtDecl::StmtDecl(const SourceLocation &Loc, llvm::StringMap<VarDecl*> &Map) : Decl(Loc) {
-    for (auto &Entry : Map) {
-        Vars.insert(std::pair<StringRef, VarDecl*>(Entry.getKey(), Entry.getValue()));
-    }
-}
-
-StmtDecl::StmtDecl(const SourceLocation &Loc, std::vector<VarDecl*> &Vector) : Decl(Loc) {
-    if (!Vector.empty()) {
-        for (VarDecl *Var : Vector) {
-            Vars.insert(std::pair<StringRef, VarDecl *>(Var->getName(), Var));
+StmtDecl::StmtDecl(const SourceLocation &Loc, StmtDecl *Parent) : Decl(Loc), Parent(Parent) {
+    if (Parent) {
+        for (auto &Entry : Parent->Vars) {
+            Vars.insert(std::pair<StringRef, VarDecl *>(Entry.getKey(), Entry.getValue()));
         }
     }
 }
 
+DeclKind StmtDecl::getKind() const {
+    return Kind;
+}
+
+const std::vector<Decl *> &StmtDecl::getContent() const {
+    return Content;
+}
+
+const llvm::StringMap<VarDecl *> &StmtDecl::getVars() const {
+    return Vars;
+}
+
+ReturnDecl *StmtDecl::getReturn() const {
+    return Return;
+}
+
 bool StmtDecl::addVar(VarRefDecl *Var) {
-    Instructions.push_back(Var);
+    Content.push_back(Var);
     return true;
 }
 
 bool StmtDecl::addVar(VarDecl *Var) {
-    Instructions.push_back(Var);
+    Content.push_back(Var);
     Vars.insert(std::pair<StringRef, VarDecl *>(Var->getName(), Var));
     return true;
 }
 
 bool StmtDecl::addInvoke(FuncRefDecl *Invoke) {
-    Instructions.push_back(Invoke);
+    Content.push_back(Invoke);
     Invokes.insert(std::pair<StringRef, FuncRefDecl *>(Invoke->getName(), Invoke));
     return true;
+}
+
+CondStmtDecl::CondStmtDecl(const SourceLocation &Loc, StmtDecl *Parent) : StmtDecl(Loc, Parent) {}
+
+LoopStmtDecl::LoopStmtDecl(const SourceLocation &Loc, StmtDecl *Parent) : StmtDecl(Loc, Parent) {
+
+}
+
+BreakDecl::BreakDecl(const SourceLocation &Loc) : Decl(Loc) {
+
+}
+
+DeclKind BreakDecl::getKind() const {
+    return Kind;
+}
+
+ContinueDecl::ContinueDecl(const SourceLocation &Loc) : Decl(Loc) {
+
+}
+
+DeclKind ContinueDecl::getKind() const {
+    return Kind;
 }

@@ -20,13 +20,31 @@ namespace fly {
     class ReturnDecl;
     class FuncRefDecl;
 
+    enum StmtKind {
+        D_STMT_NORMAL,
+        D_STMT_IF,
+        D_STMT_ELSIF,
+        D_STMT_ELSE,
+        D_STMT_SWITCH,
+        D_STMT_CASE,
+        D_STMT_DEFAULT,
+        D_STMT_FOR
+    };
+
     class StmtDecl : public Decl {
 
         friend class Parser;
+        friend class FunctionParser;
+        friend class IfStmtDecl;
+        friend class ElsifStmtDecl;
+        friend class ElseStmtDecl;
 
         DeclKind Kind = DeclKind::D_STMT;
+        enum StmtKind StmtKind = StmtKind::D_STMT_NORMAL;
 
-        std::vector<Decl*> Instructions;
+        const StmtDecl *Parent;
+
+        std::vector<Decl*> Content;
 
         llvm::StringMap<VarDecl*> Vars;
 
@@ -42,41 +60,51 @@ namespace fly {
 
     public:
 
-        explicit StmtDecl(const SourceLocation &Loc) : Decl(Loc) {
-
-        }
-
-        StmtDecl(const SourceLocation &Loc, llvm::StringMap<VarDecl*> &Map);
-
-        StmtDecl(const SourceLocation &Loc, std::vector<VarDecl*> &Vector);
+        StmtDecl(const SourceLocation &Loc, StmtDecl *Parent);
 
         DeclKind getKind() const override;
 
-        const std::vector<Decl *> &getIstructions() const {
-            return Instructions;
-        }
+        virtual enum StmtKind getStmtKind() const {
+            return StmtKind;
+        };
 
-        const llvm::StringMap<VarDecl *> &getVars() const {
-            return Vars;
-        }
+        const std::vector<Decl *> &getContent() const;
 
-        ReturnDecl *getReturn() const {
-            return Return;
-        }
+        const llvm::StringMap<VarDecl *> &getVars() const;
+
+        ReturnDecl *getReturn() const;
     };
 
-    class CondStmt : public StmtDecl {
+    class CondStmtDecl : public StmtDecl {
 
-        CondStmt(const SourceLocation &Loc) : StmtDecl(Loc) {
-
-        }
+    public:
+        CondStmtDecl(const SourceLocation &Loc, StmtDecl *Parent);
     };
 
-    class LoopStmt : public StmtDecl {
+    class LoopStmtDecl : public StmtDecl {
 
-        LoopStmt(const SourceLocation &Loc) : StmtDecl(Loc) {
+    public:
+        LoopStmtDecl(const SourceLocation &Loc, StmtDecl *Parent);
+    };
 
-        }
+    class BreakDecl : public Decl {
+
+        DeclKind Kind = DeclKind::D_BREAK;
+
+    public:
+        BreakDecl(const SourceLocation &Loc);
+
+        DeclKind getKind() const override;
+    };
+
+    class ContinueDecl : public Decl {
+
+        DeclKind Kind = DeclKind::D_CONTINUE;
+
+    public:
+        ContinueDecl(const SourceLocation &Loc);
+
+        DeclKind getKind() const override;
     };
 }
 
