@@ -509,5 +509,79 @@ namespace {
         EXPECT_EQ(static_cast<FuncRefDecl *>(Stmt->getDefault()->getContent()[0])->getKind(), DeclKind::R_FUNCTION);
     }
 
+    TEST_F(ParserTest, FunctionBodyForStmt) {
+        StringRef str = ("namespace std\n"
+                         "void func(int a) {\n"
+                         "  for int b = 1, int c = 2; b < 10; b++, --c {"
+                         "    if (a == 5) break"
+                         "    else continue"
+                         "  }"
+                         "}\n");
+        auto P = Parse("fbody.fly", str);
+        auto AST = P->getAST();
 
+        // Get Body
+        FuncDecl *F = AST->getFunctions().lookup("func");
+        const StmtDecl *Body = F->getBody();
+        const ForStmtDecl *Stmt = static_cast<ForStmtDecl *>(Body->getContent()[0]);
+        EXPECT_EQ(Stmt->getStmtKind(), StmtKind::D_STMT_FOR);
+
+        std::vector<Decl *> Init = Stmt->getInit()->getContent();
+        EXPECT_EQ(static_cast<VarDecl *>(Init[0])->getName(), "b");
+        EXPECT_EQ(static_cast<VarDecl *>(Init[1])->getName(), "c");
+
+        const GroupExpr *Cond = Stmt->getCondition();
+        EXPECT_EQ(static_cast<VarRefExpr *>(Cond->getGroup()[0])->getRef()->getName(), "b");
+        EXPECT_EQ(static_cast<LogicExpr *>(Cond->getGroup()[1])->getLogicKind(), LogicOpKind::LOGIC_LT);
+        EXPECT_EQ(static_cast<ValueExpr *>(Cond->getGroup()[2])->getString(), "10");
+
+        std::vector<Decl *> Post = Stmt->getPost()->getContent();
+        EXPECT_EQ(static_cast<VarRefDecl *>(Post[0])->getName(), "b");
+        IncDecExpr *Expr1 = static_cast<IncDecExpr *>(static_cast<VarRefDecl *>(Post[0])->getExpr()->getGroup()[0]);
+        EXPECT_EQ(Expr1->getIncDecKind(), IncDecOpKind::POST_INCREMENT);
+        EXPECT_EQ(static_cast<VarRefDecl *>(Post[1])->getName(), "c");
+        IncDecExpr *Expr2 = static_cast<IncDecExpr *>(static_cast<VarRefDecl *>(Post[1])->getExpr()->getGroup()[0]);
+        EXPECT_EQ(Expr2->getIncDecKind(), IncDecOpKind::PRE_DECREMENT);
+    }
+
+    TEST_F(ParserTest, FunctionBodyForCondStmt) {
+        StringRef str = ("namespace std\n"
+                         "void func(int a) {\n"
+                         "  for (a==1) {}"
+                         "}\n");
+        auto P = Parse("fbody.fly", str);
+        auto AST = P->getAST();
+
+        // Get Body
+        FuncDecl *F = AST->getFunctions().lookup("func");
+        const StmtDecl *Body = F->getBody();
+        const ForStmtDecl *Stmt = static_cast<ForStmtDecl *>(Body->getContent()[0]);
+        EXPECT_EQ(Stmt->getStmtKind(), StmtKind::D_STMT_FOR);
+        EXPECT_TRUE(Stmt->getInit()->isEmpty());
+        EXPECT_FALSE(Stmt->getCondition()->isEmpty());
+        EXPECT_TRUE(Stmt->getPost()->isEmpty());
+
+        const GroupExpr *Cond = Stmt->getCondition();
+        EXPECT_EQ(static_cast<VarRefExpr *>(Cond->getGroup()[0])->getRef()->getName(), "a");
+        EXPECT_EQ(static_cast<LogicExpr *>(Cond->getGroup()[1])->getLogicKind(), LogicOpKind::LOGIC_EQ);
+        EXPECT_EQ(static_cast<ValueExpr *>(Cond->getGroup()[2])->getString(), "1");
+    }
+
+    TEST_F(ParserTest, FunctionBodyForEmptyStmt) {
+        StringRef str = ("namespace std\n"
+                         "void func(int a) {\n"
+                         "  for {}"
+                         "}\n");
+        auto P = Parse("fbody.fly", str);
+        auto AST = P->getAST();
+
+        // Get Body
+        FuncDecl *F = AST->getFunctions().lookup("func");
+        const StmtDecl *Body = F->getBody();
+        const ForStmtDecl *Stmt = static_cast<ForStmtDecl *>(Body->getContent()[0]);
+        EXPECT_EQ(Stmt->getStmtKind(), StmtKind::D_STMT_FOR);
+        EXPECT_TRUE(Stmt->getInit()->isEmpty());
+        EXPECT_TRUE(Stmt->getCondition()->isEmpty());
+        EXPECT_TRUE(Stmt->getPost()->isEmpty());
+    }
 }

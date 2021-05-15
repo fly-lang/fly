@@ -70,6 +70,8 @@ namespace fly {
 
         const std::vector<Decl *> &getContent() const;
 
+        bool isEmpty() const;
+
         const llvm::StringMap<VarDecl *> &getVars() const;
 
         ReturnDecl *getReturn() const;

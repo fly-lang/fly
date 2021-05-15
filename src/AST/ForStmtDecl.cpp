@@ -16,14 +16,18 @@ ForStmtDecl::ForStmtDecl(const SourceLocation &Loc, StmtDecl *Parent) : StmtDecl
 
 }
 
-const std::vector<VarDecl *> &ForStmtDecl::getInit() const {
+enum StmtKind ForStmtDecl::getStmtKind() const {
+    return StmtKind;
+}
+
+const StmtDecl *ForStmtDecl::getInit() const {
     return Init;
 }
 
-const CondExpr *ForStmtDecl::getCondition() const {
-    return Condition;
+const GroupExpr *ForStmtDecl::getCondition() const {
+    return Cond;
 }
 
-const std::vector<IncDecExpr *> &ForStmtDecl::getCount() const {
-    return Count;
+const StmtDecl *ForStmtDecl::getPost() const {
+    return Post;
 }

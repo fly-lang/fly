@@ -17,20 +17,24 @@ namespace fly {
 
     class ForStmtDecl : public StmtDecl {
 
+        friend class Parser;
+
         enum StmtKind StmtKind = StmtKind::D_STMT_FOR;
 
-        std::vector<VarDecl *> Init;
-        CondExpr *Condition;
-        std::vector<IncDecExpr *> Count;
+        StmtDecl *Init;
+        GroupExpr *Cond;
+        StmtDecl *Post;
 
     public:
         ForStmtDecl(const SourceLocation &Loc, StmtDecl *Parent);
 
-        const std::vector<VarDecl *> &getInit() const;
+        enum StmtKind getStmtKind() const override;
 
-        const CondExpr *getCondition() const;
+        const StmtDecl *getInit() const;
 
-        const std::vector<IncDecExpr *> &getCount() const;
+        const GroupExpr *getCondition() const;
+
+        const StmtDecl *getPost() const;
 
     };
 }

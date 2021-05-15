@@ -84,6 +84,10 @@ namespace fly {
         const std::vector<Expr *> &getGroup() const {
             return Group;
         }
+
+        bool isEmpty() const {
+            return Group.empty();
+        }
     };
 
     /**

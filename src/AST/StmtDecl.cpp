@@ -28,6 +28,10 @@ const std::vector<Decl *> &StmtDecl::getContent() const {
     return Content;
 }
 
+bool StmtDecl::isEmpty() const {
+    return Content.empty();
+}
+
 const llvm::StringMap<VarDecl *> &StmtDecl::getVars() const {
     return Vars;
 }

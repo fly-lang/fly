@@ -11,12 +11,20 @@
 
 using namespace fly;
 
+//TopDecl::TopDecl(const SourceLocation &Loc) : Location(Loc) {
+//
+//}
+//
+//const SourceLocation &TopDecl::getLocation() const {
+//    return Location;
+//}
+
+VisibilityKind TopDecl::getVisibility() const {
+    return Visibility;
+}
+
 Decl::Decl(const SourceLocation &Loc) : Location(Loc) {}
 
 const SourceLocation &Decl::getLocation() const {
     return Location;
-}
-
-VisibilityKind TopDecl::getVisibility() const {
-    return Visibility;
 }

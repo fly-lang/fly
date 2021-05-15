@@ -74,7 +74,7 @@ bool FunctionParser::ParseBody() {
     }
     if (P->Tok.is(tok::l_brace)) {
         P->ConsumeBrace();
-        if (P->ParseStmt(Function->Body)) {
+        if (P->ParseAllInBraceStmt(Function->Body)) {
             return P->isBraceBalanced();
         }
     }

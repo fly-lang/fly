@@ -19,6 +19,41 @@
 
 namespace fly {
 
+    enum TopDeclKind {
+        T_NAMESPACE,
+        T_DEPENDENCY,
+        T_GLOBALVAR,
+        T_FUNCTION,
+        T_CLASS
+    };
+
+    enum VisibilityKind {
+        V_DEFAULT = 1,
+        V_PUBLIC = 2,
+        V_PRIVATE = 3
+    };
+
+    class ASTNode; // Pre-declare
+
+    class TopDecl {
+
+        friend class ASTNode;
+        friend class Parser;
+
+//        const SourceLocation Location;
+        VisibilityKind Visibility;
+
+    public:
+//        explicit TopDecl(const SourceLocation &Loc);
+
+//        const SourceLocation &getLocation() const;
+
+        VisibilityKind getVisibility() const;
+
+//        virtual TopDeclKind getKind() const = 0;
+
+    };
+
     enum DeclKind {
         D_NAMESPACE,
         D_DEPENDENCY,
@@ -34,12 +69,6 @@ namespace fly {
         D_RETURN
     };
 
-    enum VisibilityKind {
-        V_DEFAULT = 1,
-        V_PUBLIC = 2,
-        V_PRIVATE = 3
-    };
-
     class Decl {
 
         const SourceLocation Location;
@@ -50,19 +79,6 @@ namespace fly {
         const SourceLocation &getLocation() const;
 
         virtual DeclKind getKind() const = 0;
-    };
-
-    class ASTNode; // Pre-declare
-
-    class TopDecl {
-
-        friend class ASTNode;
-        friend class Parser;
-
-        VisibilityKind Visibility;
-
-    public:
-        VisibilityKind getVisibility() const;
     };
 }
 

@@ -21,6 +21,8 @@ namespace fly {
 
     /**
      * Var Declaration
+     * Ex.
+     *  int a = 1
      */
     class VarDecl : public Decl {
 
@@ -51,6 +53,8 @@ namespace fly {
 
     /**
      * Reference to Var Declaration
+     * Ex.
+     *  ... = a + 1
      */
     class VarRef : public Refer {
 
@@ -69,6 +73,11 @@ namespace fly {
 
     };
 
+    /**
+     * Declaration of a reference to a Var
+     * Ex.
+     *  a = 1
+     */
     class VarRefDecl : public VarRef, public Decl {
 
         friend class Parser;
