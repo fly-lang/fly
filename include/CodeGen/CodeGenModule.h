@@ -41,7 +41,7 @@ namespace fly {
 
         void Generate();
 
-        void GenerateGlobalVar(VarDecl *Var);
+        void GenerateGlobalVar(GlobalVarDecl *Var);
 
         GlobalVariable* GenerateAndGetGlobalVar(GlobalVarDecl* Var);
 

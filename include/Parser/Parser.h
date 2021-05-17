@@ -10,12 +10,14 @@
 #ifndef FLY_PARSE_PARSEAST_H
 #define FLY_PARSE_PARSEAST_H
 
-#include <AST/StmtDecl.h>
-#include <AST/IfStmtDecl.h>
-#include <AST/SwitchStmtDecl.h>
-#include <AST/ForStmtDecl.h>
+#include <AST/BlockStmt.h>
+#include <AST/IfBlockStmt.h>
+#include <AST/SwitchBlockStmt.h>
+#include <AST/ForBlockStmt.h>
+#include <AST/VarDeclStmt.h>
+#include <AST/Stmt.h>
 #include <AST/VarDecl.h>
-#include <AST/Decl.h>
+
 
 #include "GlobalVarParser.h"
 #include "FunctionParser.h"
@@ -170,7 +172,7 @@ namespace fly {
             return PrevTokLocation;
         }
 
-        StringRef getLiteralString();
+        llvm::StringRef getLiteralString();
 
         bool ParseNameSpace();
 
@@ -178,7 +180,7 @@ namespace fly {
 
         bool ParseImportParenDecl();
 
-        bool ParseImportAliasDecl(const SourceLocation &Loc, StringRef Name);
+        bool ParseImportAliasDecl(const SourceLocation &Loc, llvm::StringRef Name);
 
         bool ParseTopScopes(VisibilityKind &Visibility, bool &Constant);
 
@@ -193,25 +195,25 @@ namespace fly {
 
         bool ParseFunctionDecl(VisibilityKind &VisKind, bool Constant, TypeBase *TyDecl, IdentifierInfo *Id,
                                SourceLocation &IdLoc);
-        bool ParseOneStmt(StmtDecl *CurrentStmt, GroupExpr *Group = NULL);
-        bool ParseAllStmt(StmtDecl *CurrentStmt);
-        bool ParseAllInBraceStmt(StmtDecl *CurrentStmt);
+        bool ParseOneStmt(BlockStmt *CurrentStmt, GroupExpr *Group = NULL);
+        bool ParseAllStmt(BlockStmt *CurrentStmt);
+        bool ParseAllInBraceStmt(BlockStmt *CurrentStmt);
         bool ParseStartParen();
         bool ParseEndParen(bool hasParen);
-        bool ParseIfStmt(StmtDecl *CurrentStmt);
-        bool ParseSwitchStmt(StmtDecl *CurrentStmt);
-        bool ParseForStmt(StmtDecl *CurrentStmt);
-        bool ParseInitForStmt(StmtDecl *InitStmt, GroupExpr *Cond);
+        bool ParseIfStmt(BlockStmt *CurrentStmt);
+        bool ParseSwitchStmt(BlockStmt *CurrentStmt);
+        bool ParseForStmt(BlockStmt *CurrentStmt);
+        bool ParseInitForStmt(BlockStmt *InitStmt, GroupExpr *Cond);
         bool ParseCondForStmt(GroupExpr* Cond);
-        bool ParsePostForStmt(StmtDecl *PostStmt);
+        bool ParsePostForStmt(BlockStmt *PostStmt);
 
-        FuncRefDecl *ParseFunctionRefDecl(IdentifierInfo *Id, SourceLocation &IdLoc);
-        VarDecl* ParseVarDecl();
-        VarDecl* ParseVarDecl(bool Constant, TypeBase *TyDecl);
+        FuncCallStmt *ParseFunctionRefDecl(IdentifierInfo *Id, SourceLocation &IdLoc);
+        VarDeclStmt* ParseVarDecl();
+        VarDeclStmt* ParseVarDecl(bool Constant, TypeBase *TyDecl);
         VarRef* ParseVarRef();
         ValueExpr* ParseValueExpr();
         GroupExpr* ParseExpr(GroupExpr *CurrGroup = NULL);
-        VarRefDecl* ParseIncDec(SourceLocation &Loc, IdentifierInfo *Id);
+        VarAssignStmt* ParseIncDec(SourceLocation &Loc, IdentifierInfo *Id);
 
         bool isVoidType();
         bool isBuiltinType();
@@ -222,7 +224,7 @@ namespace fly {
 
         TypeBase *ParseType();
         TypeBase *ParseType(SourceLocation Loc, tok::TokenKind Kind);
-        StringRef ParseBoolValue();
+        llvm::StringRef ParseBoolValue();
         OperatorExpr* ParseOperator();
         GroupExpr* ParseOpAssign(VarRef *Ref);
         IncDecExpr* ParseOpIncrement(bool post = false);

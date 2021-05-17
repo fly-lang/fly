@@ -24,14 +24,14 @@ namespace fly {
         friend class Parser;
 
         Parser *P;
-        const StringRef &FuncName;
+        const llvm::StringRef &FuncName;
         SourceLocation &FuncNameLoc;
         FuncDecl *Function = NULL;
-        FuncRefDecl *Invoke = NULL;
+        FuncCallStmt *Invoke = NULL;
 
         bool ParseBody();
 
-        FunctionParser(Parser *P, const StringRef &FuncName, SourceLocation &FuncNameLoc);
+        FunctionParser(Parser *P, const llvm::StringRef &FuncName, SourceLocation &FuncNameLoc);
 
         bool ParseRefDecl();
 

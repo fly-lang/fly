@@ -16,7 +16,7 @@
 
 using namespace fly;
 
-ASTNode::ASTNode(const StringRef fileName, const FileID &fid, ASTContext *Context) :
+ASTNode::ASTNode(const llvm::StringRef fileName, const FileID &fid, ASTContext *Context) :
         ASTNodeBase(fileName, fid, Context) {
 }
 
@@ -25,11 +25,11 @@ const ASTNameSpace* ASTNode::getNameSpace() {
 }
 
 void ASTNode::setNameSpace() {
-    StringRef NS = "default";
+    llvm::StringRef NS = "default";
     setNameSpace(NS);
 }
 
-void ASTNode::setNameSpace(StringRef NS) {
+void ASTNode::setNameSpace(llvm::StringRef NS) {
     // Check if NS exist or add
     NameSpace = Context->NameSpaces.lookup(NS);
     if (NameSpace == nullptr) {

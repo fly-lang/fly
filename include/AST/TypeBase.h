@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// include/AST/TypeDecl.h - Type declaration
+// include/AST/TypeBase.h - Base Type
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -11,7 +11,7 @@
 #ifndef FLY_TYPEBASE_H
 #define FLY_TYPEBASE_H
 
-#include "Decl.h"
+#include "Stmt.h"
 
 namespace fly {
 
@@ -35,7 +35,7 @@ namespace fly {
     public:
         virtual const TypeKind &getKind() const = 0;
 
-        const SourceLocation &getLoc() const {
+        const SourceLocation &getLocation() const {
             return Loc;
         }
 
@@ -105,25 +105,25 @@ namespace fly {
     /**
      * Custom Type
      */
-    class ClassTypeRef : public Refer, public TypeBase {
+    class ClassTypeRef : public TypeBase {
 
         const TypeKind Kind = TypeKind::TYPE_CLASS;
-        const StringRef Name;
-        Decl *D = NULL;
+        const llvm::StringRef Name;
+        Stmt *S = NULL;
 
     public:
-        ClassTypeRef(SourceLocation Loc, StringRef &Name) : Refer(Loc), TypeBase(Loc), Name(Name) {}
+        ClassTypeRef(SourceLocation Loc, llvm::StringRef &Name) : TypeBase(Loc), Name(Name) {}
 
         const TypeKind &getKind() const override {
             return Kind;
         }
 
-        const StringRef &getName() const {
+        const llvm::StringRef &getName() const {
             return Name;
         }
 
-        Decl *getDecl() const override {
-            return D;
+        Stmt *getStmt() const {
+            return S;
         }
     };
 }

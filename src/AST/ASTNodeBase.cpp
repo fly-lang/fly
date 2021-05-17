@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTNodeBase.cpp - Base AST Node
+// src/AST/ASTNodeBase.cpp - Base AST Node implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -12,7 +12,7 @@
 
 using namespace fly;
 
-ASTNodeBase::ASTNodeBase(const StringRef FileName, const FileID &FID, ASTContext *Context) :
+ASTNodeBase::ASTNodeBase(const llvm::StringRef FileName, const FileID &FID, ASTContext *Context) :
         FileName(FileName), FID(FID), Context(Context) {
 }
 

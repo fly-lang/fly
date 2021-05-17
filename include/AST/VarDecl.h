@@ -1,5 +1,5 @@
-//===-------------------------------------------------------------------------------------------------------------===//
-// include/AST/VarDecl.h - Variable declaration
+//===--------------------------------------------------------------------------------------------------------------===//
+// include/AST/VarDecl.h - Var declaration
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,88 +7,37 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
+
 #ifndef FLY_VARDECL_H
 #define FLY_VARDECL_H
 
-#include "Decl.h"
-#include "Refer.h"
 #include "TypeBase.h"
 #include "Expr.h"
-#include "OperatorExpr.h" //TODO remove
-#include "Basic/TokenKinds.h"
 
 namespace fly {
 
-    /**
-     * Var Declaration
-     * Ex.
-     *  int a = 1
-     */
-    class VarDecl : public Decl {
+    class VarDecl {
 
+        friend class ASTNode;
         friend class Parser;
         friend class GlobalVarParser;
+        friend class FunctionParser;
+        friend class VarDeclStmt;
 
-        const DeclKind Kind = DeclKind::D_VAR;
         TypeBase *Type;
-        const StringRef Name;
+        const llvm::StringRef Name;
         bool Constant = false;
         GroupExpr *Expression = NULL;
 
     public:
-        VarDecl(const SourceLocation &Loc, TypeBase *Type, const StringRef Name);
+        VarDecl(TypeBase *Type, const StringRef &Name);
+        virtual ~VarDecl();
 
-        DeclKind getKind() const;
+        virtual bool isConstant() const;
 
-        bool isConstant() const;
+        virtual TypeBase *getType() const;
 
-        TypeBase* getType() const;
-
-        const llvm::StringRef &getName() const;
-
-        GroupExpr *getExpr() const;
-
-        ~VarDecl();
-    };
-
-    /**
-     * Reference to Var Declaration
-     * Ex.
-     *  ... = a + 1
-     */
-    class VarRef : public Refer {
-
-        friend class Parser;
-
-        const StringRef Name;
-        VarDecl *Var = NULL;
-
-    public:
-        VarRef(const SourceLocation &Loc, const StringRef &Name);
-        VarRef(const SourceLocation &Loc, VarDecl *D);
-
-        const StringRef &getName() const;
-
-        VarDecl *getDecl() const override;
-
-    };
-
-    /**
-     * Declaration of a reference to a Var
-     * Ex.
-     *  a = 1
-     */
-    class VarRefDecl : public VarRef, public Decl {
-
-        friend class Parser;
-
-        GroupExpr *Expr;
-
-    public:
-        VarRefDecl(const SourceLocation &Loc, const StringRef &Name);
-        VarRefDecl(const SourceLocation &Loc, VarDecl *D);
-
-        DeclKind getKind() const override;
+        virtual const llvm::StringRef &getName() const;
 
         GroupExpr *getExpr() const;
     };

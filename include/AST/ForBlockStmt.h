@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ForStmtDecl.h - For Statement
+// include/AST/ForBlockStmt.h - For Block Statement
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,36 +8,36 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#ifndef FLY_FORSTMTDECL_H
-#define FLY_FORSTMTDECL_H
+#ifndef FLY_FORBLOCKSTMT_H
+#define FLY_FORBLOCKSTMT_H
 
-#include "StmtDecl.h"
+#include "BlockStmt.h"
 
 namespace fly {
 
-    class ForStmtDecl : public StmtDecl {
+    class ForBlockStmt : public BlockStmt {
 
         friend class Parser;
 
-        enum StmtKind StmtKind = StmtKind::D_STMT_FOR;
+        enum BlockStmtKind StmtKind = BlockStmtKind::BLOCK_STMT_FOR;
 
-        StmtDecl *Init;
+        BlockStmt *Init;
         GroupExpr *Cond;
-        StmtDecl *Post;
+        BlockStmt *Post;
 
     public:
-        ForStmtDecl(const SourceLocation &Loc, StmtDecl *Parent);
+        ForBlockStmt(const SourceLocation &Loc, BlockStmt *Parent);
 
-        enum StmtKind getStmtKind() const override;
+        enum BlockStmtKind getBlockKind() const override;
 
-        const StmtDecl *getInit() const;
+        const BlockStmt *getInit() const;
 
         const GroupExpr *getCondition() const;
 
-        const StmtDecl *getPost() const;
+        const BlockStmt *getPost() const;
 
     };
 }
 
 
-#endif //FLY_FORSTMTDECL_H
+#endif //FLY_FORBLOCKSTMT_H

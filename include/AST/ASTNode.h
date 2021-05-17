@@ -7,6 +7,7 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
+
 #ifndef FLY_ASTNODE_H
 #define FLY_ASTNODE_H
 
@@ -51,7 +52,7 @@ namespace fly {
 
         ASTNode() = delete;
 
-        ASTNode(const StringRef fileName, const FileID &fid, ASTContext *Context);
+        ASTNode(const llvm::StringRef fileName, const FileID &fid, ASTContext *Context);
 
         ~ASTNode();
 
@@ -59,7 +60,7 @@ namespace fly {
         void setFirstNode(bool firstNode);
 
         void setNameSpace();
-        void setNameSpace(StringRef NS);
+        void setNameSpace(llvm::StringRef NS);
         const ASTNameSpace* getNameSpace();
 
         bool addImport(ImportDecl *NewImport);

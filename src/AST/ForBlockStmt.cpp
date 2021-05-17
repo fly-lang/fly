@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ForStmtDecl.cpp - For Statement implementation
+// src/AST/ForBlockStmt.cpp - For Block Statement implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,26 +8,26 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#include "AST/ForStmtDecl.h"
+#include "AST/ForBlockStmt.h"
 
 using namespace fly;
 
-ForStmtDecl::ForStmtDecl(const SourceLocation &Loc, StmtDecl *Parent) : StmtDecl(Loc, Parent) {
+ForBlockStmt::ForBlockStmt(const SourceLocation &Loc, BlockStmt *Parent) : BlockStmt(Loc, Parent) {
 
 }
 
-enum StmtKind ForStmtDecl::getStmtKind() const {
+enum BlockStmtKind ForBlockStmt::getBlockKind() const {
     return StmtKind;
 }
 
-const StmtDecl *ForStmtDecl::getInit() const {
+const BlockStmt *ForBlockStmt::getInit() const {
     return Init;
 }
 
-const GroupExpr *ForStmtDecl::getCondition() const {
+const GroupExpr *ForBlockStmt::getCondition() const {
     return Cond;
 }
 
-const StmtDecl *ForStmtDecl::getPost() const {
+const BlockStmt *ForBlockStmt::getPost() const {
     return Post;
 }

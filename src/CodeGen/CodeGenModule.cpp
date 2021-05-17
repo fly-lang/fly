@@ -77,7 +77,7 @@ void CodeGenModule::Generate() {
  * Generate from VarDecl
  * @param Decl
  */
-void CodeGenModule::GenerateGlobalVar(VarDecl* Var) {
+void CodeGenModule::GenerateGlobalVar(GlobalVarDecl* Var) {
     llvm::Type *T = nullptr;
     const TypeBase *ty = Var->getType();
     switch (ty->getKind()) {

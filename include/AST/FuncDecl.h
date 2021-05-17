@@ -10,20 +10,19 @@
 #ifndef FLY_FUNCTION_H
 #define FLY_FUNCTION_H
 
-#include "VarDecl.h"
+#include "TopDecl.h"
 #include "ClassDecl.h"
-#include "Refer.h"
 #include "Expr.h"
 #include "TypeBase.h"
-#include "StmtDecl.h"
+#include "BlockStmt.h"
 #include "llvm/ADT/StringMap.h"
-#include "vector"
+#include <vector>
 
 namespace fly {
 
-    class ParamsFunc;
-    class StmtDecl;
-    class FuncRef;
+    class ParamsFuncDecl;
+    class BlockStmt;
+    class FuncCall;
 
     /**
      * The Function Declaration and definition
@@ -32,36 +31,36 @@ namespace fly {
      *     return 1
      *   }
      */
-    class FuncDecl : public Decl, public TopDecl {
+    class FuncDecl : public TopDecl {
 
         friend class ASTNode;
         friend class Parser;
         friend class FunctionParser;
 
-        DeclKind Kind = DeclKind::D_FUNCTION;
+        TopDeclKind Kind = TopDeclKind::DECL_FUNCTION;
         const TypeBase *Type;
-        const StringRef Name;
+        const llvm::StringRef Name;
         bool Constant;
 //        llvm::StringMap<VarRef *> VarRef;
 //        llvm::StringMap<FunctionRef *> FuncRef;
 //        llvm::StringMap<ClassRef *> ClassRef;
-        ParamsFunc *Params = NULL;
-        StmtDecl *Body = NULL;
+        ParamsFuncDecl *Params = NULL;
+        BlockStmt *Body = NULL;
 
     public:
-        FuncDecl(const SourceLocation &Loc, const TypeBase *Type, const StringRef &Name);
+        FuncDecl(const SourceLocation &Loc, const TypeBase *Type, const llvm::StringRef &Name);
 
-        DeclKind getKind() const override;
+        TopDeclKind getKind() const override;
 
         const TypeBase *getType() const;
 
-        const StringRef &getName() const;
+        const llvm::StringRef &getName() const;
 
         bool isConstant() const;
 
-        const ParamsFunc *getParams() const;
+        const ParamsFuncDecl *getParams() const;
 
-        const StmtDecl *getBody() const;
+        const BlockStmt *getBody() const;
 
         const llvm::StringMap<VarRef *> &getVarRef() const;
 
@@ -76,17 +75,17 @@ namespace fly {
      * Ex.
      *   func(int param1, float param2, bool param3, ...)
      */
-    class ParamsFunc {
+    class ParamsFuncDecl {
 
         friend class FunctionParser;
 
-        std::vector<VarDecl*> Vars;
-        VarDecl* VarArg;
+        std::vector<VarDeclStmt*> Vars;
+        VarDeclStmt* VarArg;
 
     public:
-        const std::vector<VarDecl *> &getVars() const;
+        const std::vector<VarDeclStmt *> &getVars() const;
 
-        const VarDecl* getVarArg() const;
+        const VarDeclStmt* getVarArg() const;
     };
 
     /**
@@ -94,7 +93,7 @@ namespace fly {
      * Ex.
      *   func(int param1, float param2, bool param3, ...)
      */
-    class ParamsFuncRef {
+    class ParamsFuncCall {
 
         friend class FunctionParser;
 
@@ -112,15 +111,15 @@ namespace fly {
      * Ex.
      *   return true
      */
-    class ReturnDecl: public Decl {
+    class ReturnStmt: public Stmt {
 
-        DeclKind Kind = DeclKind::D_RETURN;
+        StmtKind Kind = StmtKind::STMT_RETURN;
         GroupExpr* Group;
 
     public:
-        ReturnDecl(SourceLocation &Loc, class GroupExpr *Group);
+        ReturnStmt(SourceLocation &Loc, class GroupExpr *Group);
 
-        DeclKind getKind() const override;
+        StmtKind getKind() const override;
 
         GroupExpr *getExpr() const;
     };
@@ -130,24 +129,24 @@ namespace fly {
      * Ex.
      *  int a = sqrt(4)
      */
-    class FuncRef : public Refer {
+    class FuncCall {
 
         friend class Parser;
         friend class FunctionParser;
 
-        const StringRef Name;
-        ParamsFuncRef *Params = NULL;
-        FuncDecl *D = NULL;
+        const llvm::StringRef Name;
+        ParamsFuncCall *Params = NULL;
+        FuncDecl *Func = NULL;
 
     public:
-        FuncRef(const SourceLocation &Loc, const StringRef &Name);
-        FuncRef(const SourceLocation &Loc, FuncDecl *Decl);
+        FuncCall(const SourceLocation &Loc, const llvm::StringRef &Name);
+        FuncCall(const SourceLocation &Loc, FuncDecl *Decl);
 
         const StringRef &getName() const;
 
-        const ParamsFuncRef *getParams() const;
+        const ParamsFuncCall *getParams() const;
 
-        FuncDecl *getDecl() const override;
+        FuncDecl *getDecl() const;
     };
 
     /**
@@ -155,13 +154,13 @@ namespace fly {
      * Ex.
      *  func()
      */
-    class FuncRefDecl : public FuncRef, public Decl {
+    class FuncCallStmt : public FuncCall, public Stmt {
 
     public:
-        FuncRefDecl(const SourceLocation &Loc, const StringRef &Name);
-        FuncRefDecl(const SourceLocation &Loc, FuncDecl *Decl);
+        FuncCallStmt(const SourceLocation &Loc, const llvm::StringRef &Name);
+        FuncCallStmt(const SourceLocation &Loc, FuncDecl *Decl);
 
-        DeclKind getKind() const override;
+        StmtKind getKind() const override;
     };
 }
 

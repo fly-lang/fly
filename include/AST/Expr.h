@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/Expr.h - Expression for assignment
+// include/AST/Expr.h - Expression into a statement
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,12 +7,14 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
+
 #ifndef FLY_EXPR_H
 #define FLY_EXPR_H
 
-#include "Refer.h"
-#include "VarDecl.h"
-#include "vector"
+#include "Basic/SourceLocation.h"
+#include "llvm/ADT/StringRef.h"
+#include <vector>
+#include <utility>
 
 namespace fly {
 
@@ -25,7 +27,7 @@ namespace fly {
     };
 
     class VarRef;
-    class FuncRef;
+    class FuncCall;
     class RefExpr;
     class ValueExpr;
     class GroupExpr;
@@ -47,22 +49,16 @@ namespace fly {
 
         const SourceLocation &Loc;
         const ExprKind Kind = ExprKind::EXPR_VALUE;
-        const StringRef Str;
+        const llvm::StringRef Str;
 
     public:
-        ValueExpr(const SourceLocation &Loc, const StringRef Str) : Loc(Loc), Str(Str) {}
+        ValueExpr(const SourceLocation &Loc, const llvm::StringRef Str);
 
-        const SourceLocation &getLocation() const {
-            return Loc;
-        }
+        const SourceLocation &getLocation() const;
 
-        ExprKind getKind() const override {
-            return Kind;
-        }
+        ExprKind getKind() const override;
 
-        const StringRef &getString() const {
-            return Str;
-        }
+        const llvm::StringRef &getString() const;
     };
 
     /**
@@ -77,17 +73,11 @@ namespace fly {
 
     public:
 
-        ExprKind getKind() const override {
-            return Kind;
-        }
+        ExprKind getKind() const override;
 
-        const std::vector<Expr *> &getGroup() const {
-            return Group;
-        }
+        const std::vector<Expr *> &getGroup() const;
 
-        bool isEmpty() const {
-            return Group.empty();
-        }
+        bool isEmpty() const;
     };
 
     /**
@@ -100,19 +90,13 @@ namespace fly {
         VarRef * Ref;
 
     public:
-        VarRefExpr(const SourceLocation &Loc, VarRef *Ref) : Loc(Loc), Ref(Ref) {}
+        VarRefExpr(const SourceLocation &Loc, VarRef *Ref);
 
-        const SourceLocation &getLocation() const {
-            return Loc;
-        }
+        const SourceLocation &getLocation() const;
 
-        ExprKind getKind() const override {
-            return Kind;
-        }
+        ExprKind getKind() const override;
 
-        VarRef *getRef() const {
-            return Ref;
-        }
+        VarRef *getRef() const;
     };
 
     /**
@@ -122,22 +106,16 @@ namespace fly {
 
         const SourceLocation &Loc;
         const ExprKind Kind = ExprKind::EXPR_REF_FUNC;
-        FuncRef * Ref;
+        FuncCall * Ref;
 
     public:
-        FuncRefExpr(const SourceLocation &Loc, FuncRef *Ref) : Loc(Loc), Ref(Ref) {}
+        FuncRefExpr(const SourceLocation &Loc, FuncCall *Ref);
 
-        const SourceLocation &getLocation() const {
-            return Loc;
-        }
+        const SourceLocation &getLocation() const;
 
-        ExprKind getKind() const override {
-            return Kind;
-        }
+        ExprKind getKind() const override;
 
-        FuncRef *getRef() const {
-            return Ref;
-        }
+        FuncCall *getRef() const;
     };
 }
 

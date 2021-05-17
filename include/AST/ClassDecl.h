@@ -11,7 +11,7 @@
 #ifndef FLY_CLASSDECL_H
 #define FLY_CLASSDECL_H
 
-#include "VarDecl.h"
+#include "VarDeclStmt.h"
 
 namespace fly {
 
@@ -23,21 +23,21 @@ namespace fly {
 
         VisibilityKind Visibility;
         bool Constant;
-        StringRef Name;
+        llvm::StringRef Name;
         SourceLocation Location;
     };
 
-    class ClassRef : public Refer {
+    class ClassRef {
 
-        const StringRef Name;
+        const llvm::StringRef Name;
         const ClassDecl *D;
 
     public:
-        ClassRef(const StringRef &Name);
+        ClassRef(const llvm::StringRef &Name);
 
-        const StringRef &getName() const;
+        const llvm::StringRef &getName() const;
 
-        Decl *getDecl() const override;
+        Stmt *getStmt() const;
     };
 }
 

@@ -18,9 +18,9 @@
 #include "Frontend/CompilerInstance.h"
 #include "llvm/Support/Host.h"
 #include "gtest/gtest.h"
-#include "fstream"
-#include "iostream"
-#include "vector"
+#include <fstream>
+#include <iostream>
+#include <vector>
 
 
 namespace {
@@ -47,7 +47,7 @@ namespace {
         SourceManager SourceMgr;
         SourceLocation SourceLoc;
 
-        ASTNode createAST(const StringRef Name, ASTContext *Ctx, const StringRef NameSpace = "default") {
+        ASTNode createAST(const llvm::StringRef Name, ASTContext *Ctx, const StringRef NameSpace = "default") {
             ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> result = FileMgr.getBufferForFile(Name);
             std::unique_ptr<MemoryBuffer> &Buf = result.get();
             FileID FID = SourceMgr.createFileID(std::move(Buf));

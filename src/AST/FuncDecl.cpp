@@ -12,14 +12,14 @@
 
 using namespace fly;
 
-FuncDecl::FuncDecl(const SourceLocation &Loc, const TypeBase *Type, const StringRef &Name) :
-        Decl(Loc), Type(Type), Name(Name), Params(new ParamsFunc) {}
+FuncDecl::FuncDecl(const SourceLocation &Loc, const TypeBase *Type, const llvm::StringRef &Name) :
+        TopDecl(Loc), Type(Type), Name(Name), Params(new ParamsFuncDecl) {}
 
-DeclKind FuncDecl::getKind() const {
+TopDeclKind FuncDecl::getKind() const {
 return Kind;
 }
 
-const StringRef &FuncDecl::getName() const {
+const llvm::StringRef &FuncDecl::getName() const {
     return Name;
 }
 
@@ -27,11 +27,11 @@ bool FuncDecl::isConstant() const {
     return Constant;
 }
 
-const StmtDecl *FuncDecl::getBody() const {
+const BlockStmt *FuncDecl::getBody() const {
     return Body;
 }
 
-const ParamsFunc *FuncDecl::getParams() const {
+const ParamsFuncDecl *FuncDecl::getParams() const {
     return Params;
 }
 
@@ -51,60 +51,60 @@ const TypeBase *FuncDecl::getType() const {
 //    return ClassRef;
 //}
 
-const std::vector<VarDecl *> &ParamsFunc::getVars() const {
+const std::vector<VarDeclStmt *> &ParamsFuncDecl::getVars() const {
     return Vars;
 }
 
-const VarDecl *ParamsFunc::getVarArg() const {
+const VarDeclStmt *ParamsFuncDecl::getVarArg() const {
     return VarArg;
 }
 
-const std::vector<Expr *> &ParamsFuncRef::getArgs() const {
+const std::vector<Expr *> &ParamsFuncCall::getArgs() const {
     return Args;
 }
 
-const VarRef *ParamsFuncRef::getVarArg() const {
+const VarRef *ParamsFuncCall::getVarArg() const {
     return VarArg;
 }
 
-ReturnDecl::ReturnDecl(SourceLocation &Loc, class GroupExpr *Group) : Decl(Loc), Group(Group) {}
+ReturnStmt::ReturnStmt(SourceLocation &Loc, class GroupExpr *Group) : Stmt(Loc), Group(Group) {}
 
-GroupExpr *ReturnDecl::getExpr() const {
+GroupExpr *ReturnStmt::getExpr() const {
     return Group;
 }
 
-DeclKind ReturnDecl::getKind() const {
+StmtKind ReturnStmt::getKind() const {
     return Kind;
 }
 
-FuncRef::FuncRef(const SourceLocation &Loc, const StringRef &Name) : Refer(Loc), Name(Name), Params(new ParamsFuncRef) {
+FuncCall::FuncCall(const SourceLocation &Loc, const llvm::StringRef &Name) : Name(Name), Params(new ParamsFuncCall) {
 
 }
 
-FuncRef::FuncRef(const SourceLocation &Loc, FuncDecl *D) : Refer(Loc), Name(D->getName()), D(D) {
+FuncCall::FuncCall(const SourceLocation &Loc, FuncDecl *D) : Name(D->getName()), Func(D) {
 
 }
 
-const StringRef &FuncRef::getName() const {
+const llvm::StringRef &FuncCall::getName() const {
     return Name;
 }
 
-const ParamsFuncRef *FuncRef::getParams() const {
+const ParamsFuncCall *FuncCall::getParams() const {
     return Params;
 }
 
-FuncDecl *FuncRef::getDecl() const {
-    return D;
+FuncDecl *FuncCall::getDecl() const {
+    return Func;
 }
 
-FuncRefDecl::FuncRefDecl(const SourceLocation &Loc, const StringRef &Name) : FuncRef(Loc, Name), Decl(Loc) {
-
-}
-
-FuncRefDecl::FuncRefDecl(const SourceLocation &Loc, FuncDecl *D) : FuncRef(Loc, D), Decl(Loc) {
+FuncCallStmt::FuncCallStmt(const SourceLocation &Loc, const llvm::StringRef &Name) : FuncCall(Loc, Name), Stmt(Loc) {
 
 }
 
-DeclKind FuncRefDecl::getKind() const {
-    return R_FUNCTION;
+FuncCallStmt::FuncCallStmt(const SourceLocation &Loc, FuncDecl *D) : FuncCall(Loc, D), Stmt(Loc) {
+
+}
+
+StmtKind FuncCallStmt::getKind() const {
+    return STMT_FUNC_CALL;
 }

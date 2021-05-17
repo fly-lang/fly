@@ -7,6 +7,7 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
+
 #ifndef FLY_ASTNODEBASE_H
 #define FLY_ASTNODEBASE_H
 
@@ -35,7 +36,7 @@ namespace fly {
 
         ASTNodeBase() = delete;
 
-        ASTNodeBase(const StringRef FileName, const FileID &FID, ASTContext* Context);
+        ASTNodeBase(const llvm::StringRef FileName, const FileID &FID, ASTContext* Context);
 
         const FileID &getFileID() const;
 

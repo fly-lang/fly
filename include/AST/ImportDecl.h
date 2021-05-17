@@ -10,41 +10,41 @@
 #ifndef FLY_IMPORTDECL_H
 #define FLY_IMPORTDECL_H
 
-#include "Decl.h"
+#include "TopDecl.h"
 #include "ASTNameSpace.h"
 
 namespace fly {
 
     class ASTNameSpace;
 
-    class ImportDecl : public Decl {
+    class ImportDecl : public TopDecl {
 
-        StringRef Name;
+        llvm::StringRef Name;
 
-        StringRef Alias;
+        llvm::StringRef Alias;
 
         ASTNameSpace *NameSpace = nullptr;
 
     public:
 
-        ImportDecl(const SourceLocation &Loc, StringRef Name) : Decl(Loc), Name(Name), Alias(Name) {}
+        ImportDecl(const SourceLocation &Loc, llvm::StringRef Name) : TopDecl(Loc), Name(Name), Alias(Name) {}
 
-        ImportDecl(const SourceLocation &Loc, StringRef Name, StringRef Alias) : Decl(Loc), Name(Name),
+        ImportDecl(const SourceLocation &Loc, llvm::StringRef Name, llvm::StringRef Alias) : TopDecl(Loc), Name(Name),
                                                                                  Alias(Alias) {}
 
         ~ImportDecl() {
             NameSpace = nullptr;
         }
 
-        DeclKind getKind() const override {
-            return DeclKind::D_DEPENDENCY;
+        TopDeclKind getKind() const override {
+            return TopDeclKind::DECL_IMPORT;
         }
 
-        const StringRef &getName() const {
+        const llvm::StringRef &getName() const {
             return Name;
         }
 
-        const StringRef &getAlias() const {
+        const llvm::StringRef &getAlias() const {
             return Alias;
         }
 

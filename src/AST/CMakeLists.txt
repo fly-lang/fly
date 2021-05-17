@@ -3,13 +3,17 @@ add_library(FlyAST
         ASTNameSpace.cpp
         ASTNode.cpp
         ASTNodeBase.cpp
-        Decl.cpp
-        ForStmtDecl.cpp
+        Stmt.cpp
+        ForBlockStmt.cpp
         FuncDecl.cpp
-        IfStmtDecl.cpp
-        StmtDecl.cpp
-        SwitchStmtDecl.cpp
+        GlobalVarDecl.cpp
+        Expr.cpp
+        IfBlockStmt.cpp
+        BlockStmt.cpp
+        SwitchBlockStmt.cpp
+        TopDecl.cpp
         VarDecl.cpp
+        VarDeclStmt.cpp
         )
 
 target_link_libraries(FlyAST

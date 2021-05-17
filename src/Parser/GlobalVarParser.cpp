@@ -3,7 +3,7 @@
 //
 
 #include "Parser/GlobalVarParser.h"
-#include "AST/Decl.h"
+#include "AST/Stmt.h"
 
 using namespace fly;
 

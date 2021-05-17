@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/Decl.cpp - Declaration Base
+// src/AST/Stmt.cpp - Statement implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,24 +7,12 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "AST/Decl.h"
+#include "AST/Stmt.h"
 
 using namespace fly;
 
-//TopDecl::TopDecl(const SourceLocation &Loc) : Location(Loc) {
-//
-//}
-//
-//const SourceLocation &TopDecl::getLocation() const {
-//    return Location;
-//}
+Stmt::Stmt(const SourceLocation &Loc) : Location(Loc) {}
 
-VisibilityKind TopDecl::getVisibility() const {
-    return Visibility;
-}
-
-Decl::Decl(const SourceLocation &Loc) : Location(Loc) {}
-
-const SourceLocation &Decl::getLocation() const {
+const SourceLocation &Stmt::getLocation() const {
     return Location;
 }

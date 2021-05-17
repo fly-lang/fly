@@ -10,22 +10,22 @@
 #ifndef FLY_PACKAGEVAR_H
 #define FLY_PACKAGEVAR_H
 
+#include "TopDecl.h"
 #include "VarDecl.h"
+#include "TypeBase.h"
 
 namespace fly {
 
     class GlobalVarDecl : public VarDecl, public TopDecl {
 
         friend class ASTNode;
-        const DeclKind Kind = DeclKind::D_GLOBALVAR;
+        const TopDeclKind Kind = TopDeclKind::DECL_GLOBALVAR;
 
     public:
 
-        GlobalVarDecl(SourceLocation &Loc, TypeBase *Type, StringRef Name) : VarDecl(Loc, Type, Name) {}
+        GlobalVarDecl(SourceLocation &Loc, TypeBase *Type, llvm::StringRef Name);
 
-        DeclKind getKind() const override {
-            return Kind;
-        }
+        TopDeclKind getKind() const override;
 
         ~GlobalVarDecl() = default;
     };
