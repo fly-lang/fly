@@ -54,10 +54,16 @@ OPTION(prefix_1, "ll", EMIT_LL, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
        "Produce LLVM formats output .ll file", nullptr, nullptr)
 OPTION(prefix_1, "log-file", LOG_FILE, JoinedOrSeparate, INVALID, INVALID, nullptr, CoreOption, 0,
        "log diagnostics to <file>", "<file>", nullptr)
+OPTION(prefix_1, "mc-model", MC_MODEL, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
+       "Produce different Memory Code Model", "nullptr", nullptr)
+OPTION(prefix_1, "mthread-model", MTHREAD_MODEL, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
+       "Produce different Memory Code Model", "nullptr", nullptr)
 OPTION(prefix_1, "no", EMIT_NOTHING, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
        "Produce no output", nullptr, nullptr)
 OPTION(prefix_1, "o", OUTPUT, JoinedOrSeparate, INVALID, INVALID, nullptr, CoreOption, 0,
        "Write output to <file>", "<file>", nullptr)
+OPTION(prefix_1, "target-cpu", TARGET_CPU, Separate, INVALID, INVALID, nullptr, CoreOption, 0,
+       "Generate code for the given CPU", nullptr, nullptr)
 OPTION(prefix_1, "target", TARGET, Separate, INVALID, INVALID, nullptr, CoreOption, 0,
        "Generate code for the given target", nullptr, nullptr)
 OPTION(prefix_4, "version", VERSION, Flag, INVALID, INVALID, nullptr, CoreOption, 0,

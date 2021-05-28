@@ -355,7 +355,7 @@ from the stack slot:
 
 .. code-block:: c++
 
-    Value *VariableExprAST::codegen() {
+    Value *VariableExprAST::GenStmt() {
       // Look this variable up in the function.
       Value *V = NamedValues[Name];
       if (!V)
@@ -367,7 +367,7 @@ from the stack slot:
 
 As you can see, this is pretty straightforward. Now we need to update
 the things that define the variables to set up the alloca. We'll start
-with ``ForExprAST::codegen()`` (see the `full code listing <#id1>`_ for
+with ``ForExprAST::GenStmt()`` (see the `full code listing <#id1>`_ for
 the unabridged code):
 
 .. code-block:: c++
@@ -378,7 +378,7 @@ the unabridged code):
       AllocaInst *Alloca = CreateEntryBlockAlloca(TheFunction, VarName);
 
       // Emit the start code first, without 'variable' in scope.
-      Value *StartVal = Start->codegen();
+      Value *StartVal = Start->GenStmt();
       if (!StartVal)
         return nullptr;
 
@@ -387,7 +387,7 @@ the unabridged code):
       ...
 
       // Compute the end condition.
-      Value *EndCond = End->codegen();
+      Value *EndCond = End->GenStmt();
       if (!EndCond)
         return nullptr;
 
@@ -408,7 +408,7 @@ them. The code for this is also pretty simple:
 
 .. code-block:: c++
 
-    Function *FunctionAST::codegen() {
+    Function *FunctionAST::GenStmt() {
       ...
       Builder.SetInsertPoint(BB);
 
@@ -425,16 +425,16 @@ them. The code for this is also pretty simple:
         NamedValues[Arg.getName()] = Alloca;
       }
 
-      if (Value *RetVal = Body->codegen()) {
+      if (Value *RetVal = Body->GenStmt()) {
         ...
 
 For each argument, we make an alloca, store the input value to the
 function into the alloca, and register the alloca as the memory location
-for the argument. This method gets invoked by ``FunctionAST::codegen()``
+for the argument. This method gets invoked by ``FunctionAST::GenStmt()``
 right after it sets up the entry block for the function.
 
 The final missing piece is adding the mem2reg pass, which allows us to
-get good codegen once again:
+get good GenStmt once again:
 
 .. code-block:: c++
 
@@ -570,11 +570,11 @@ step is to set a precedence:
 
 Now that the parser knows the precedence of the binary operator, it
 takes care of all the parsing and AST generation. We just need to
-implement codegen for the assignment operator. This looks like:
+implement GenStmt for the assignment operator. This looks like:
 
 .. code-block:: c++
 
-    Value *BinaryExprAST::codegen() {
+    Value *BinaryExprAST::GenStmt() {
       // Special case '=' because we don't want to emit the LHS as an expression.
       if (Op == '=') {
         // Assignment requires the LHS to be an identifier.
@@ -592,7 +592,7 @@ allowed.
 .. code-block:: c++
 
         // Codegen the RHS.
-        Value *Val = RHS->codegen();
+        Value *Val = RHS->GenStmt();
         if (!Val)
           return nullptr;
 
@@ -606,7 +606,7 @@ allowed.
       }
       ...
 
-Once we have the variable, codegen'ing the assignment is
+Once we have the variable, GenStmt'ing the assignment is
 straightforward: we emit the RHS of the assignment, create a store, and
 return the computed value. Returning a value allows for chained
 assignments like "X = (Y = Z)".
@@ -682,7 +682,7 @@ var/in, it looks like this:
                  std::unique_ptr<ExprAST> Body)
         : VarNames(std::move(VarNames)), Body(std::move(Body)) {}
 
-      Value *codegen() override;
+      Value *GenStmt() override;
     };
 
 var/in allows a list of names to be defined all at once, and each name
@@ -787,7 +787,7 @@ emission of LLVM IR for it. This code starts out with:
 
 .. code-block:: c++
 
-    Value *VarExprAST::codegen() {
+    Value *VarExprAST::GenStmt() {
       std::vector<AllocaInst *> OldBindings;
 
       Function *TheFunction = Builder.GetInsertBlock()->getParent();
@@ -810,7 +810,7 @@ previous value that we replace in OldBindings.
         //    var a = a in ...   # refers to outer 'a'.
         Value *InitVal;
         if (Init) {
-          InitVal = Init->codegen();
+          InitVal = Init->GenStmt();
           if (!InitVal)
             return nullptr;
         } else { // If not specified, use 0.0.
@@ -836,7 +836,7 @@ we evaluate the body of the var/in expression:
 .. code-block:: c++
 
       // Codegen the body, now that all vars are in scope.
-      Value *BodyVal = Body->codegen();
+      Value *BodyVal = Body->GenStmt();
       if (!BodyVal)
         return nullptr;
 

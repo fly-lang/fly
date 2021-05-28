@@ -11,7 +11,9 @@
 
 using namespace fly;
 
-Parser::Parser(Lexer &Lex, DiagnosticsEngine &Diags) : Lex(Lex), Diags(Diags) {
+Parser::Parser(InputFile &Input, SourceManager &SourceMgr, DiagnosticsEngine &Diags) : Input(Input),Diags(Diags),
+            Lex(Input.getFileID(), Input.getBuffer(), SourceMgr) {
+
 }
 
 bool Parser::Parse(ASTNode *Node) {
@@ -64,6 +66,12 @@ bool Parser::ParseNameSpace() {
     if (Tok.is(tok::kw_namespace)) {
         SourceLocation StartLoc = Tok.getLocation();
         SourceLocation PackageNameLoc = ConsumeToken();
+        if (Tok.is(tok::kw_default)) {
+            ConsumeToken();
+            AST->setNameSpace("default");
+            return true;
+        }
+
         if (Tok.isAnyIdentifier()) {
             StringRef Name = Tok.getIdentifierInfo()->getName();
             ConsumeToken();

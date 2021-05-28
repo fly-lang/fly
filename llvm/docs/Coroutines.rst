@@ -893,7 +893,7 @@ Semantics:
 """"""""""
 
 Depending on the alignment requirements of the objects in the coroutine frame
-and/or on the codegen compactness reasons the pointer returned from `coro.begin` 
+and/or on the GenStmt compactness reasons the pointer returned from `coro.begin`
 may be at offset to the `%mem` argument. (This could be beneficial if 
 instructions that express relative access to data can be more compactly encoded 
 with small positive and negative offsets).

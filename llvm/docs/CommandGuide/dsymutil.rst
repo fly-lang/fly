@@ -44,7 +44,7 @@ OPTIONS
 
 .. option:: --gen-reproducer
 
- Generate a reproducer consisting of the input object files.
+ GenStmt a reproducer consisting of the input object files.
 
 .. option:: --help, -h
 

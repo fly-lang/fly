@@ -55,6 +55,8 @@ namespace fly {
 
         /// Get the current target info.
         TargetInfo &getTargetInfo() const;
+
+        void GenerateModule(ASTNameSpace * NS);
     };
 }
 

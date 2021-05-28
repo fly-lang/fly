@@ -74,67 +74,67 @@ OPTIONS
 
 .. option:: -gen-emitter
 
- Generate machine code emitter.
+ GenStmt machine code emitter.
 
 .. option:: -gen-register-info
 
- Generate registers and register classes info.
+ GenStmt registers and register classes info.
 
 .. option:: -gen-instr-info
 
- Generate instruction descriptions.
+ GenStmt instruction descriptions.
 
 .. option:: -gen-asm-writer
 
- Generate the assembly writer.
+ GenStmt the assembly writer.
 
 .. option:: -gen-disassembler
 
- Generate disassembler.
+ GenStmt disassembler.
 
 .. option:: -gen-pseudo-lowering
 
- Generate pseudo instruction lowering.
+ GenStmt pseudo instruction lowering.
 
 .. option:: -gen-dag-isel
 
- Generate a DAG (Directed Acyclic Graph) instruction selector.
+ GenStmt a DAG (Directed Acyclic Graph) instruction selector.
 
 .. option:: -gen-asm-matcher
 
- Generate assembly instruction matcher.
+ GenStmt assembly instruction matcher.
 
 .. option:: -gen-dfa-packetizer
 
- Generate DFA Packetizer for VLIW targets.
+ GenStmt DFA Packetizer for VLIW targets.
 
 .. option:: -gen-fast-isel
 
- Generate a "fast" instruction selector.
+ GenStmt a "fast" instruction selector.
 
 .. option:: -gen-subtarget
 
- Generate subtarget enumerations.
+ GenStmt subtarget enumerations.
 
 .. option:: -gen-intrinsic-enums
 
- Generate intrinsic enums.
+ GenStmt intrinsic enums.
 
 .. option:: -gen-intrinsic-impl
 
- Generate intrinsic implementation.
+ GenStmt intrinsic implementation.
 
 .. option:: -gen-tgt-intrinsic
 
- Generate target intrinsic information.
+ GenStmt target intrinsic information.
 
 .. option:: -gen-enhanced-disassembly-info
 
- Generate enhanced disassembly info.
+ GenStmt enhanced disassembly info.
 
 .. option:: -gen-exegesis
 
- Generate llvm-exegesis tables.
+ GenStmt llvm-exegesis tables.
 
 .. option:: -version
 

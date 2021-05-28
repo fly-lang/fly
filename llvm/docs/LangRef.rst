@@ -1076,7 +1076,7 @@ Currently, only the following parameter attributes are defined:
     returned by the appropriate
     :ref:`llvm.call.preallocated.arg<int_call_preallocated_arg>` on non
     ``musttail`` calls, or the corresponding caller parameter in ``musttail``
-    calls, although it is ignored during codegen.
+    calls, although it is ignored during GenStmt.
 
     A non ``musttail`` function call with a ``preallocated`` attribute in
     any parameter must have a ``"preallocated"`` operand bundle. A ``musttail``
@@ -11175,7 +11175,7 @@ integer or floating point types should not be relied upon for correct
 code generation. In such cases, the recommended approach for target
 maintainers when defining intrinsics is to create separate integer and
 FP intrinsics rather than rely on overloading. For example, if different
-codegen is required for ``llvm.target.foo(<4 x i32>)`` and
+GenStmt is required for ``llvm.target.foo(<4 x i32>)`` and
 ``llvm.target.foo(<4 x float>)`` then these should be split into
 different intrinsics.
 
@@ -19423,7 +19423,7 @@ Semantics:
 """"""""""
 
 This intrinsic does nothing, and it's removed by optimizers and ignored
-by codegen.
+by GenStmt.
 
 '``llvm.experimental.deoptimize``' Intrinsic
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

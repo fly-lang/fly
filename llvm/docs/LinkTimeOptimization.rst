@@ -273,7 +273,7 @@ Then, each non-native object file is added to the code generator with:
 
   lto_codegen_add_module(lto_code_gen_t, lto_module_t)
 
-The linker then has the option of setting some codegen options. Whether or not
+The linker then has the option of setting some GenStmt options. Whether or not
 to generate DWARF debug info is set with:
 
 .. code-block:: c

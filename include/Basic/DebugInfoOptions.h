@@ -46,7 +46,7 @@ enum DebugInfoKind {
   /// the module that contains the classe's vtable.
   LimitedDebugInfo,
 
-  /// Generate complete debug info.
+  /// GenStmt complete debug info.
   FullDebugInfo
 };
 

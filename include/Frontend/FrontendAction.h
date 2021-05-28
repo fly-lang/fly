@@ -26,7 +26,7 @@ namespace fly {
 
         const InputFile &Input;
 
-        std::unique_ptr<ASTNode> AST;
+        ASTNode *AST;
 
         ASTContext *Context;
 
@@ -38,13 +38,11 @@ namespace fly {
 
         OutputFile Output;
 
-        std::unique_ptr<Parser> P;
-
-        FileID FID;
+        Parser *Parse;
 
     public:
 
-        FrontendAction(const CompilerInstance &CI, const InputFile &Input, ASTContext *Context);
+        FrontendAction(const CompilerInstance &CI, InputFile &Input, ASTContext *Context);
 
         ~FrontendAction();
 

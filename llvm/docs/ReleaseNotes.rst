@@ -110,7 +110,7 @@ Changes to the AArch64 Backend
 * Clearly error out on unsupported relocations when targeting COFF, instead
   of silently accepting some (without being able to do what was requested).
 
-* Implemented codegen support for the SVE C-language intrinsics
+* Implemented GenStmt support for the SVE C-language intrinsics
   documented in `Arm C Language Extensions (ACLE) for SVE
   <https://developer.arm.com/documentation/100987/>`_ (version
   ``00bet5``). For more information, see the ``clang`` 11 release
@@ -283,7 +283,7 @@ Changes to the SystemZ Target
 * Fixed wrong code generation when using the `vec_store_len_r` or
   `vec_load_len_r` intrinsics with an immediate length argument of
   16 or larger.
-* Miscellaneous codegen enhancements, in particular to improve vector code.
+* Miscellaneous GenStmt enhancements, in particular to improve vector code.
 
 Changes to the X86 Target
 -------------------------

@@ -390,7 +390,7 @@ Wrong-side rule example:
 
   __host__ void host_only();
 
-  // We don't codegen inline functions unless they're referenced by a
+  // We don't GenStmt inline functions unless they're referenced by a
   // non-inline function.  inline_hd1() is called only from the host side, so
   // does not generate an error.  inline_hd2() is called from the device side,
   // so it generates an error.
@@ -400,12 +400,12 @@ Wrong-side rule example:
   __host__ void host_fn() { inline_hd1(); }
   __device__ void device_fn() { inline_hd2(); }
 
-  // This function is not inline, so it's always codegen'ed on both the host
+  // This function is not inline, so it's always GenStmt'ed on both the host
   // and the device.  Therefore, it generates an error.
   __host__ __device__ void not_inline_hd() { host_only(); }
 
 For the purposes of the wrong-side rule, templated functions also behave like
-``inline`` functions: They aren't codegen'ed unless they're instantiated
+``inline`` functions: They aren't GenStmt'ed unless they're instantiated
 (usually as part of the process of invoking them).
 
 clang's behavior with respect to the wrong-side rule matches nvcc's, except

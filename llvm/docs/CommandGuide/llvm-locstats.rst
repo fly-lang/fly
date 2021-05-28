@@ -90,7 +90,7 @@ Pretty print the location coverage on the standard output.
 EXAMPLE 2
 --------------
 
-Generate a plot as an image file.
+GenStmt a plot as an image file.
 
 .. code-block:: none
 
@@ -102,7 +102,7 @@ Generate a plot as an image file.
 EXAMPLE 3
 --------------
 
-Generate a plot as an image file showing the difference in the debug location
+GenStmt a plot as an image file showing the difference in the debug location
 coverage.
 
 .. code-block:: none

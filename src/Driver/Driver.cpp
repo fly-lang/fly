@@ -10,20 +10,17 @@
 #include "Driver/Driver.h"
 #include "Driver/DriverOptions.h"
 #include "Config/config.h"
-#include "Basic/Diagnostic.h"
 #include "Basic/PrettyStackTrace.h"
 #include "Basic/FileSystemOptions.h"
 #include "Frontend/Frontend.h"
 #include "Frontend/ChainedDiagnosticConsumer.h"
 #include "Frontend/LogDiagnosticPrinter.h"
 #include "CodeGen/BackendUtil.h"
-#include <llvm/Support/FileSystem.h>
-#include <llvm/Support/CommandLine.h>
-#include <llvm/Support/Host.h>
-#include <llvm/Support/CrashRecoveryContext.h>
-#include "llvm/Support/TargetSelect.h"
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/CommandLine.h"
+#include "llvm/Support/Host.h"
+#include "llvm/Support/CrashRecoveryContext.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/Timer.h"
 #include "llvm/Support/Process.h"
 #include "llvm/Support/Program.h"
 #include <utility>
@@ -31,13 +28,13 @@
 using namespace fly;
 using namespace fly::driver;
 
-llvm::StringRef GetExecutablePath(const char *Argv0) {
+std::string GetExecutablePath(const char *Argv0) {
     SmallString<128> ExecutablePath(Argv0);
     // Do a PATH lookup if Argv0 isn't a valid path.
     if (!llvm::sys::fs::exists(ExecutablePath))
         if (llvm::ErrorOr<std::string> P = llvm::sys::findProgramByName(ExecutablePath))
             ExecutablePath = *P;
-    return ExecutablePath;
+    return std::string(ExecutablePath.str());
 }
 
 SmallVector<const char *, 256> initDriver() {
@@ -53,8 +50,8 @@ Driver::Driver(llvm::ArrayRef<const char *> ArrArgs) :
         Path(GetExecutablePath(ArrArgs[0])),
         Args(ArrArgs.slice(1)) {
 
-    Name = llvm::sys::path::filename(Path);
-    Dir = llvm::sys::path::parent_path(Path);
+    Name = std::string(llvm::sys::path::filename(Path));
+    Dir = std::string(llvm::sys::path::parent_path(Path));
     InstalledDir = Dir; // Provide a sensible default installed dir.
 }
 
@@ -148,6 +145,10 @@ void Driver::BuildOptions(FileSystemOptions &fileSystemOpts,
 
     llvm::PrettyStackTraceString CrashInfo("Command line argument parsing");
 
+    if (Args.empty()) {
+        printVersion(false);
+    }
+
     unsigned MissingArgIndex, MissingArgCount;
     const llvm::opt::OptTable &optTable = fly::driver::getDriverOptTable();
     const unsigned IncludedFlagsBitmask = options::CoreOption;
@@ -156,7 +157,7 @@ void Driver::BuildOptions(FileSystemOptions &fileSystemOpts,
     // Check for missing argument error.
     if (MissingArgCount) {
         llvm::errs() << diag::err_drv_missing_argument << ArgList.getArgString(MissingArgIndex) << MissingArgCount;
-        CanExecute = false;
+        doCompile = false;
         return;
     }
 
@@ -167,26 +168,26 @@ void Driver::BuildOptions(FileSystemOptions &fileSystemOpts,
         }
         llvm::errs() << "Use '" << Path
                      << " --help' for a complete list of options.\n";
-        CanExecute = false;
+        doCompile = false;
         return;
     }
 
     // Show Version
     if (ArgList.hasArg(options::OPT_VERSION)) {
-        llvm::outs() << "FLY version " << FLY_VERSION << " (https://flylang.org)" << "\n"
-                     << "with LLVM version " << LLVM_VERSION_STRING << "\n";
-        CanExecute = false;
+        printVersion();
+        doCompile = false;
         return;
     }
 
     // Show Help
     if (ArgList.hasArg(options::OPT_HELP)) {
         getDriverOptTable().PrintHelp(
-                llvm::outs(), "fly [options] file...",
+                llvm::outs(), "fly [options] source.fly ...\n",
+                "Example: fly -v -o out main.fly\n"
                 "Fly Compiler",
                 /*Include=*/driver::options::CoreOption, /*Exclude=*/0,
                 /*ShowAllAliases=*/false);
-        CanExecute = false;
+        doCompile = false;
         return;
     }
 
@@ -197,16 +198,22 @@ void Driver::BuildOptions(FileSystemOptions &fileSystemOpts,
         }
     }
 
+    // Enable Verbose Log
+    if (ArgList.hasArg(options::OPT_VERBOSE)) {
+        frontendOpts->setVerbose();
+    }
+
+    // Output Options
+
     // Parse Output arg
     if (ArgList.hasArg(options::OPT_OUTPUT)) {
         const StringRef &output = ArgList.getLastArgValue(options::OPT_OUTPUT);
         frontendOpts->setOutputFile(output);
     }
-
-    if (ArgList.hasArg(options::OPT_VERBOSE)) {
-        frontendOpts->setVerbose();
-    }
-
+    // Set Working Directory
+    if (const llvm::opt::Arg *A = ArgList.getLastArg(options::OPT_WORKING_DIR))
+        fileSystemOpts.WorkingDir = A->getValue();
+    // Emit different kind of file
     if (ArgList.hasArg(options::OPT_EMIT_LL)) {
         frontendOpts->setBackendAction(BackendAction::Backend_EmitLL);
     } else if (ArgList.hasArg(options::OPT_EMIT_BC)) {
@@ -218,26 +225,38 @@ void Driver::BuildOptions(FileSystemOptions &fileSystemOpts,
     } else {
         frontendOpts->setBackendAction(BackendAction::Backend_EmitObj);
     }
-
-    if (const llvm::opt::Arg *A = ArgList.getLastArg(options::OPT_WORKING_DIR))
-        fileSystemOpts.WorkingDir = A->getValue();
-
+    // Target Options
     if (const llvm::opt::Arg *A = ArgList.getLastArg(options::OPT_TARGET))
         targetOpts->Triple = A->getValue();
     else
         targetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
+    targetOpts->CodeModel = std::string(ArgList.getLastArgValue(options::OPT_MC_MODEL, "default"));
+    targetOpts->CPU = std::string(ArgList.getLastArgValue(options::OPT_TARGET_CPU));
+
+    // CodeGen Options
+    codeGenOpts->CodeModel = targetOpts->CodeModel;
+    codeGenOpts->ThreadModel = std::string(ArgList.getLastArgValue(options::OPT_MTHREAD_MODEL, "posix"));
+    if (codeGenOpts->ThreadModel != "posix" && codeGenOpts->ThreadModel != "single")
+        llvm::errs() << ArgList.getLastArg(options::OPT_MTHREAD_MODEL)->getAsString(ArgList)
+                << codeGenOpts->ThreadModel;
 }
 
 bool Driver::Execute() {
     bool Success = true;
 
-    if (CanExecute) {
+
+    if (doCompile) {
 
         Frontend Front(*CI);
         Success = Front.Execute();
 
         CI->getDiagnostics().getClient()->finish();
     }
-
     return Success;
+}
+
+void Driver::printVersion(bool full) {
+    llvm::outs() << "FLY version " << FLY_VERSION << " (https://flylang.org)" << "\n";
+    if (full)
+        llvm::outs() << "with LLVM version " << LLVM_VERSION_STRING << "\n";
 }

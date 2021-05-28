@@ -12,8 +12,8 @@
 
 using namespace fly;
 
-FuncDecl::FuncDecl(const SourceLocation &Loc, const TypeBase *Type, const llvm::StringRef &Name) :
-        TopDecl(Loc), Type(Type), Name(Name), Params(new ParamsFuncDecl) {}
+FuncDecl::FuncDecl(const SourceLocation &Loc, const TypeBase *RetType, const llvm::StringRef &Name) :
+        TopDecl(Loc), Type(RetType), Name(Name), Params(new ParamsFuncDecl) {}
 
 TopDeclKind FuncDecl::getKind() const {
 return Kind;

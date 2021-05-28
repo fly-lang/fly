@@ -68,8 +68,8 @@ bool ASTNode::addImport(ImportDecl * NewImport) {
     return true;
 }
 
-const llvm::StringMap<GlobalVarDecl *> &ASTNode::getVars() {
-    return Vars;
+const llvm::StringMap<GlobalVarDecl *> &ASTNode::getGlobalVars() {
+    return GlobalVars;
 }
 
 bool ASTNode::addGlobalVar(GlobalVarDecl *Var) {
@@ -86,13 +86,13 @@ bool ASTNode::addGlobalVar(GlobalVarDecl *Var) {
     }
 
     // Lookup into module vars
-    GlobalVarDecl *LookupVar = Vars.lookup(Var->getName());
+    GlobalVarDecl *LookupVar = GlobalVars.lookup(Var->getName());
     if (LookupVar) {
         Context->Diag(LookupVar->getLocation(), diag::err_duplicate_gvar)  << LookupVar->getName();
         return false;
     }
     auto Pair = std::make_pair(Var->getName(), Var);
-    Vars.insert(Pair);
+    GlobalVars.insert(Pair);
 
     return true;
 }
@@ -110,7 +110,7 @@ bool ASTNode::addFunction(FuncDecl *Func) {
     }
 
     // Lookup into module vars
-    GlobalVarDecl *LookupFunc = Vars.lookup(Func->getName());
+    GlobalVarDecl *LookupFunc = GlobalVars.lookup(Func->getName());
     if (LookupFunc) {
         Context->Diag(LookupFunc->getLocation(), diag::err_duplicate_func)  << LookupFunc->getName();
         return false;
@@ -166,7 +166,7 @@ void ASTNode::setFirstNode(bool First) {
 }
 
 ASTNode::~ASTNode() {
-    Vars.clear();
+    GlobalVars.clear();
     Functions.clear();
     Imports.clear();
 }

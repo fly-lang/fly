@@ -64,11 +64,10 @@ namespace fly {
 
         DiagnosticsEngine &Diags;
 
-    protected:
         const SourceManager *SM = nullptr;
 
         /// The SourceManager FileID corresponding to the file being lexed.
-        const FileID FID;
+        FileID FID;
 
         //===------------------------------------------------------------------------------------------------------===//
         // Context-specific lexing flags set by the preprocessor.
@@ -99,6 +98,9 @@ namespace fly {
         /// Mapping/lookup information for all identifiers in
         /// the program, including program keywords.
         mutable IdentifierTable Identifiers;
+
+        void InitLexer(const char *BufStart, const char *BufPtr, const char *BufEnd);
+
     public:
 
         //===------------------------------------------------------------------------------------------------------===//
@@ -149,8 +151,6 @@ namespace fly {
         // CurrentConflictMarkerState - The kind of conflict marker we are handling.
         ConflictMarkerKind CurrentConflictMarkerState;
 
-        void InitLexer(const char *BufStart, const char *BufPtr, const char *BufEnd);
-
         /// Lexer constructor - Create a new raw lexer object.  This object is only
         /// suitable for calls to 'LexFromRawLexer'.  This lexer assumes that the
         /// text range will outlive it, so it doesn't take ownership of it.
@@ -160,8 +160,8 @@ namespace fly {
         /// Lexer constructor - Create a new raw lexer object.  This object is only
         /// suitable for calls to 'LexFromRawLexer'.  This lexer assumes that the
         /// text range will outlive it, so it doesn't take ownership of it.
-        Lexer(SourceLocation FileLoc,
-              const char *BufStart, const char *BufPtr, const char *BufEnd, const SourceManager &SM);
+        Lexer(SourceLocation FileLoc, const char *BufStart, const char *BufPtr, const char *BufEnd,
+              const SourceManager &SM);
 
         Lexer(const Lexer &) = delete;
 

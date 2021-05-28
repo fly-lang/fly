@@ -298,7 +298,7 @@ DIAG(warn_use_of_private_header_outside_module, CLASS_WARNING, (unsigned)diag::S
 DIAG(warn_utf8_symbol_homoglyph, CLASS_WARNING, (unsigned)diag::Severity::Warning, "treating Unicode character <U+%0> as identifier character rather than as '%1' symbol", 754, SFINAE_Suppress, false, false, 1)
 DIAG(warn_utf8_symbol_zero_width, CLASS_WARNING, (unsigned)diag::Severity::Warning, "identifier contains Unicode character <U+%0> that is invisible in some environments", 756, SFINAE_Suppress, false, false, 1)
 
-// AST/Parser
+// AST & Parser
 DIAG(err_namespace_undefined, CLASS_ERROR, (unsigned)diag::Severity::Error, "namespace undefined", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_unresolved_import, CLASS_ERROR, (unsigned)diag::Severity::Error, "unresolved import", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_duplicate_import, CLASS_ERROR, (unsigned)diag::Severity::Error, "import '%0' duplicated", 0, SFINAE_Suppress, false, true, 0)

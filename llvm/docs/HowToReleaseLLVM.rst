@@ -42,7 +42,7 @@ The release process is roughly as follows:
   the end of the first round of testing will be removed or disabled for the
   release.
 
-* Generate and send out the second release candidate sources.  Only *critical*
+* GenStmt and send out the second release candidate sources.  Only *critical*
   bugs found during this testing phase will be fixed.  Any bugs introduced by
   merged patches will be fixed.  If so a third round of testing is needed.
 

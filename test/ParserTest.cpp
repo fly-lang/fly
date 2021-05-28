@@ -37,16 +37,12 @@ namespace {
 
         std::unique_ptr<Parser> Parse(llvm::StringRef FileName, llvm::StringRef Source) {
 
-            // Set Source Manager file id
-            std::unique_ptr<llvm::MemoryBuffer> Buf = llvm::MemoryBuffer::getMemBuffer(Source);
-            llvm::MemoryBuffer *b = Buf.get();
-            const FileID &FID = SourceMgr.createFileID(std::move(Buf));
-            SourceMgr.setMainFileID(FID);
-
             // Create a lexer starting at the beginning of this token.
-            Lexer TheLexer(FID, b, SourceMgr);
-            std::unique_ptr<Parser> P = std::make_unique<Parser>(TheLexer, Diags);
-            ASTNode *AST = new ASTNode(FileName, FID, Context);
+            InputFile Input (FileName);
+            Input.Load(Source, SourceMgr);
+
+            std::unique_ptr<Parser> P = std::make_unique<Parser>(Input, SourceMgr, Diags);
+            ASTNode *AST = new ASTNode(FileName, Input.getFileID(), Context);
             P->Parse(AST);
             AST->Finalize();
             return P;
@@ -140,9 +136,9 @@ namespace {
         auto P = Parse("var.fly", str);
         auto AST = P->getAST();
 
-        GlobalVarDecl *VerifyA = AST->getVars().lookup("a");
-        GlobalVarDecl *VerifyB = AST->getVars().lookup("b");
-        GlobalVarDecl *VerifyC = AST->getVars().lookup("c");
+        GlobalVarDecl *VerifyA = AST->getGlobalVars().lookup("a");
+        GlobalVarDecl *VerifyB = AST->getGlobalVars().lookup("b");
+        GlobalVarDecl *VerifyC = AST->getGlobalVars().lookup("c");
 
         EXPECT_EQ(VerifyA->getVisibility(), VisibilityKind::V_PRIVATE);
         EXPECT_FALSE(VerifyA->isConstant());
@@ -169,9 +165,9 @@ namespace {
                          "const bool c = false\n");
         auto P = Parse("var.fly", str);
         auto AST = P->getAST();
-        GlobalVarDecl *VerifyA = AST->getVars().lookup("a");
-        GlobalVarDecl *VerifyB = AST->getVars().lookup("b");
-        GlobalVarDecl *VerifyC = AST->getVars().lookup("c");
+        GlobalVarDecl *VerifyA = AST->getGlobalVars().lookup("a");
+        GlobalVarDecl *VerifyB = AST->getGlobalVars().lookup("b");
+        GlobalVarDecl *VerifyC = AST->getGlobalVars().lookup("c");
 
         EXPECT_EQ(VerifyA->getVisibility(), VisibilityKind::V_PRIVATE);
         EXPECT_EQ(VerifyA->isConstant(), true);

@@ -12,8 +12,6 @@
 #include <Basic/Stack.h>
 #include <llvm/Support/Process.h>
 #include <llvm/Support/Host.h>
-#include "llvm/IR/Module.h"
-#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/InitLLVM.h"
 #include "llvm/Support/TargetSelect.h"
@@ -50,22 +48,21 @@ int main(int Argc, const char **Argv)
         return 1;
 
     llvm::InitializeAllTargets();
+    llvm::InitializeAllTargetMCs();
+    llvm::InitializeAllAsmPrinters();
 
     llvm::BumpPtrAllocator A;
     llvm::StringSaver Saver(A);
 
-    bool Result = false;
     Driver driver(Args);
-
     CompilerInstance &CI = driver.BuildCompilerInstance();
+    driver.Execute();
 
     // Set an error handler, so that any LLVM backend diagnostics go through our error handler.
     llvm::install_fatal_error_handler(LLVMErrorHandler, static_cast<void*>(&CI.getDiagnostics()));
 
     // Shutdown after execution
-    driver.Execute();
     llvm::llvm_shutdown();
-    Result = true;
 
-    return Result;
+    return 0;
 }

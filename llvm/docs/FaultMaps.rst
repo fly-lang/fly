@@ -97,7 +97,7 @@ the pointer being null checked:
 
 This transform happens at the ``MachineInstr`` level, not the LLVM IR
 level (so the above example is only representative, not literal).  The
-``ImplicitNullChecks`` pass runs during codegen, if
+``ImplicitNullChecks`` pass runs during GenStmt, if
 ``-enable-implicit-null-checks`` is passed to ``llc``.
 
 The ``ImplicitNullChecks`` pass adds entries to the

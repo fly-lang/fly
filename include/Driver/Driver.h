@@ -12,35 +12,46 @@
 
 #include "Driver/DriverOptions.h"
 #include "Frontend/FrontendOptions.h"
+#include "Frontend/CompilerInstance.h"
 #include "Basic/Diagnostic.h"
 #include <llvm/Option/Arg.h>
 #include <llvm/Option/ArgList.h>
-#include <Frontend/CompilerInstance.h>
 
 namespace fly {
 
     class Driver {
 
+        // The Compiler Instance contains components needs for compilation phase
         std::shared_ptr<CompilerInstance> CI;
 
+        // Contains all options before parsing
+        const llvm::ArrayRef<const char *> Args;
+
+        // Contains all parsed options
         llvm::opt::InputArgList ArgList;
 
-        llvm::ArrayRef<const char *> Args;
+        // Can go ahead with compilation phase
+        // It is false if some error happens or an option doesn't allow compilation like help or version
+        bool doCompile = true;
 
-        bool CanExecute;
+        /// The name the driver was invoked as.
+        std::string Name;
 
-        /// Create the diagnostics engine using the invocation's diagnostic options
-        /// and replace any existing one with it.
-        ///
-        /// Note that this routine also replaces the diagnostic client,
-        /// allocating one if one is not provided.
-        ///
-        /// \param client If non-NULL, a diagnostic client that will be
-        /// attached to (and, then, owned by) the DiagnosticsEngine inside this AST
-        /// unit.
-        ///
-        /// \param shouldOwnClient If Client is non-NULL, specifies whether
-        /// the diagnostic object should take ownership of the client.
+        /// The path the driver executable was in, as invoked from the
+        /// command line.
+        std::string Dir;
+
+        /// The original path to the fly executable.
+        std::string Path;
+
+        /// The path to the installed fly directory, if any.
+        std::string InstalledDir;
+
+        /// The path to the compiler resource directory.
+        std::string ResourceDir;
+
+        // Create the diagnostics engine using the invocation's diagnostic options
+        // and replace any existing one with it.
         IntrusiveRefCntPtr<DiagnosticsEngine> CreateDiagnostics(IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts);
 
         IntrusiveRefCntPtr<DiagnosticOptions> BuildDiagnosticOpts();
@@ -49,22 +60,6 @@ namespace fly {
                            std::shared_ptr<TargetOptions> &TargetOpts,
                            std::unique_ptr<FrontendOptions> &FrontendOpts,
                            std::unique_ptr<CodeGenOptions> &CodeGenOpts);
-
-        /// The name the driver was invoked as.
-        llvm::StringRef Name;
-
-        /// The path the driver executable was in, as invoked from the
-        /// command line.
-        llvm::StringRef Dir;
-
-        /// The original path to the fly executable.
-        llvm::StringRef Path;
-
-        /// The path to the installed fly directory, if any.
-        llvm::StringRef InstalledDir;
-
-        /// The path to the compiler resource directory.
-        llvm::StringRef ResourceDir;
 
     public:
 
@@ -75,6 +70,8 @@ namespace fly {
         CompilerInstance &BuildCompilerInstance();
 
         bool Execute();
+
+        void printVersion(bool full = true);
     };
 }
 

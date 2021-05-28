@@ -193,7 +193,7 @@ operator. This then takes advantage of the fact that symbol names in the
 LLVM symbol table are allowed to have any character in them, including
 embedded nul characters.
 
-The next interesting thing to add, is codegen support for these binary
+The next interesting thing to add, is GenStmt support for these binary
 operators. Given our current structure, this is a simple addition of a
 default case for our existing binary operator node:
 
@@ -380,7 +380,7 @@ operator code above with:
 
 As with binary operators, we name unary operators with a name that
 includes the operator character. This assists us at code generation
-time. Speaking of, the final piece we need to add is codegen support for
+time. Speaking of, the final piece we need to add is GenStmt support for
 unary operators. It looks like this:
 
 .. code-block:: ocaml
@@ -1054,7 +1054,7 @@ parser.ml:
         let parse_extern = parser
           | [< 'Token.Extern; e=parse_prototype >] -> e
 
-codegen.ml:
+GenStmt.ml:
     .. code-block:: ocaml
 
         (*===----------------------------------------------------------------------===

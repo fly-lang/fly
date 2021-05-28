@@ -1534,8 +1534,6 @@ public:
   /// diagnostics with source range information are required to only be emitted
   /// in between BeginSourceFile() and EndSourceFile().
   ///
-  /// \param LangOpts The language options for the source file being processed.
-  /// \param PP The preprocessor object being used for the source; this is
   /// optional, e.g., it may not be present when processing AST source files.
   virtual void BeginSourceFile() {}
 

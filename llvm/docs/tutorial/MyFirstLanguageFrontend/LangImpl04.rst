@@ -167,11 +167,11 @@ delve into what they do but, believe me, they are a good starting place :).
 
 Once the PassManager is set up, we need to make use of it. We do this by
 running it after our newly created function is constructed (in
-``FunctionAST::codegen()``), but before it is returned to the client:
+``FunctionAST::GenStmt()``), but before it is returned to the client:
 
 .. code-block:: c++
 
-      if (Value *RetVal = Body->codegen()) {
+      if (Value *RetVal = Body->GenStmt()) {
         // Finish off the function.
         Builder.CreateRet(RetVal);
 
@@ -296,7 +296,7 @@ look like this:
     static void HandleTopLevelExpression() {
       // Evaluate a top-level expression into an anonymous function.
       if (auto FnAST = ParseTopLevelExpr()) {
-        if (FnAST->codegen()) {
+        if (FnAST->GenStmt()) {
 
           // JIT the module containing the anonymous expression, keeping a handle so
           // we can free it later.
@@ -316,7 +316,7 @@ look like this:
           TheJIT->removeModule(H);
         }
 
-If parsing and codegen succeed, the next step is to add the module containing
+If parsing and GenStmt succeed, the next step is to add the module containing
 the top-level expression to the JIT. We do this by calling addModule, which
 triggers code generation for all the functions in the module, and returns a
 handle that can be used to remove the module from the JIT later. Once the module
@@ -446,11 +446,11 @@ re-generate previous function declarations into each new module we open:
       if (auto *F = TheModule->getFunction(Name))
         return F;
 
-      // If not, check whether we can codegen the declaration from some existing
+      // If not, check whether we can GenStmt the declaration from some existing
       // prototype.
       auto FI = FunctionProtos.find(Name);
       if (FI != FunctionProtos.end())
-        return FI->second->codegen();
+        return FI->second->GenStmt();
 
       // If no existing prototype exists, return null.
       return nullptr;
@@ -458,13 +458,13 @@ re-generate previous function declarations into each new module we open:
 
     ...
 
-    Value *CallExprAST::codegen() {
+    Value *CallExprAST::GenStmt() {
       // Look up the name in the global module table.
       Function *CalleeF = getFunction(Callee);
 
     ...
 
-    Function *FunctionAST::codegen() {
+    Function *FunctionAST::GenStmt() {
       // Transfer ownership of the prototype to the FunctionProtos map, but keep a
       // reference to it for use below.
       auto &P = *Proto;
@@ -479,8 +479,8 @@ holds the most recent prototype for each function. We'll also add a convenience
 method, ``getFunction()``, to replace calls to ``TheModule->getFunction()``.
 Our convenience method searches ``TheModule`` for an existing function
 declaration, falling back to generating a new declaration from FunctionProtos if
-it doesn't find one. In ``CallExprAST::codegen()`` we just need to replace the
-call to ``TheModule->getFunction()``. In ``FunctionAST::codegen()`` we need to
+it doesn't find one. In ``CallExprAST::GenStmt()`` we just need to replace the
+call to ``TheModule->getFunction()``. In ``FunctionAST::GenStmt()`` we need to
 update the FunctionProtos map first, then call ``getFunction()``. With this
 done, we can always obtain a function declaration in the current module for any
 previously declared function.
@@ -491,7 +491,7 @@ We also need to update HandleDefinition and HandleExtern:
 
     static void HandleDefinition() {
       if (auto FnAST = ParseDefinition()) {
-        if (auto *FnIR = FnAST->codegen()) {
+        if (auto *FnIR = FnAST->GenStmt()) {
           fprintf(stderr, "Read function definition:");
           FnIR->print(errs());
           fprintf(stderr, "\n");
@@ -506,7 +506,7 @@ We also need to update HandleDefinition and HandleExtern:
 
     static void HandleExtern() {
       if (auto ProtoAST = ParseExtern()) {
-        if (auto *FnIR = ProtoAST->codegen()) {
+        if (auto *FnIR = ProtoAST->GenStmt()) {
           fprintf(stderr, "Read extern: ");
           FnIR->print(errs());
           fprintf(stderr, "\n");

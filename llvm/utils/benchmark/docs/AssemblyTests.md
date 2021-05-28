@@ -133,7 +133,7 @@ extern "C" void test_store_point() {
 The tests require Filecheck to be installed along the `PATH` of the
 build machine. Otherwise the tests will be disabled.
 
-Additionally, as mentioned in the previous section, codegen tests are
+Additionally, as mentioned in the previous section, GenStmt tests are
 inherently non-portable. Currently the tests are limited to:
 
 * x86_64 targets.

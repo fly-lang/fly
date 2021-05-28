@@ -152,7 +152,7 @@ Code Generation
 
 :doc:`CodeGenerator`
    The design and implementation of the LLVM code generator.  Useful if you are
-   working on retargetting LLVM to a new architecture, designing a new codegen
+   working on retargetting LLVM to a new architecture, designing a new GenStmt
    pass, or enhancing existing components.
 
 :doc:`TableGen <TableGen/index>`

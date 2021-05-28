@@ -109,9 +109,10 @@ Lexer::Lexer(SourceLocation fileloc, const char *BufStart, const char *BufPtr, c
 /// Lexer constructor - Create a new raw lexer object.  This object is only
 /// suitable for calls to 'LexFromRawLexer'.  This lexer assumes that the text
 /// range will outlive it, so it doesn't take ownership of it.
-Lexer::Lexer(FileID FID, const llvm::MemoryBuffer *FromFile, const SourceManager &SM)
-        : Lexer(SM.getLocForStartOfFile(FID), FromFile->getBufferStart(),
+Lexer::Lexer(FileID Fid, const llvm::MemoryBuffer *FromFile, const SourceManager &SM)
+        : Lexer(SM.getLocForStartOfFile(Fid), FromFile->getBufferStart(),
                 FromFile->getBufferStart(), FromFile->getBufferEnd(), SM) {
+    FID = Fid;
 }
 
 void Lexer::resetExtendedTokenMode() {

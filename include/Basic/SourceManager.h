@@ -820,14 +820,6 @@ public:
   FileID getOrCreateFileID(const FileEntry *SourceFile,
                            SrcMgr::CharacteristicKind FileCharacter);
 
-  /// Return a new SourceLocation that encodes the
-  /// fact that a token from SpellingLoc should actually be referenced from
-  /// ExpansionLoc, and that it represents the expansion of a macro argument
-  /// into the function-like macro body.
-  SourceLocation createMacroArgExpansionLoc(SourceLocation Loc,
-                                            SourceLocation ExpansionLoc,
-                                            unsigned TokLength);
-
   /// Return a new SourceLocation that encodes the fact
   /// that a token from SpellingLoc should actually be referenced from
   /// ExpansionLoc.

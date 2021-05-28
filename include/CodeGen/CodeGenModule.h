@@ -21,6 +21,7 @@
 #include "Basic/TargetInfo.h"
 #include <llvm/IR/Module.h>
 #include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/IRBuilder.h>
 
 using namespace llvm;
 
@@ -30,22 +31,27 @@ namespace fly {
 
     private:
         DiagnosticsEngine &Diags;
-        ASTNode &AST;
+        ASTNode &Node;
         TargetInfo &Target;
         llvm::LLVMContext VMContext;
+        llvm::IRBuilder<> *Builder;
 
     public:
-        CodeGenModule(DiagnosticsEngine &Diags, ASTNode &AST, TargetInfo &Target);
+        CodeGenModule(DiagnosticsEngine &Diags, ASTNode &Node, TargetInfo &Target);
+
+        virtual ~CodeGenModule();
 
         std::unique_ptr<llvm::Module> Module;
 
-        void Generate();
+        void GenAST();
 
-        void GenerateGlobalVar(GlobalVarDecl *Var);
+        llvm::GlobalVariable *GenTop(GlobalVarDecl *V);
 
-        GlobalVariable* GenerateAndGetGlobalVar(GlobalVarDecl* Var);
+        Function *GenTop(FuncDecl *Decl);
 
-        void GenerateGlobalVars(std::vector<GlobalVarDecl*>  Vars);
+        Type *GenType(const TypeBase *TyData, StringRef StrVal = "", llvm::Constant *InitVal = nullptr);
+
+        void GenStmt(Stmt * S);
     };
 }
 

@@ -208,7 +208,7 @@ benchmarks. CMake can print a list of them:
 
 - `-GNinja`
 
-  Generate build files for the ninja build tool.
+  GenStmt build files for the ninja build tool.
 
 - `-Ctest-suite/cmake/caches/<cachefile.cmake>`
 

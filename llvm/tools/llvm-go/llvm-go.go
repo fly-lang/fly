@@ -47,7 +47,7 @@ var components = []string{
 	"asmprinter",
 	"bitreader",
 	"bitwriter",
-	"codegen",
+	"GenStmt",
 	"core",
 	"coroutines",
 	"debuginfodwarf",

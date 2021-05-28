@@ -26,7 +26,7 @@ Code Generation Setup
 =====================
 
 In order to generate LLVM IR, we want some simple setup to get started.
-First we define virtual code generation (codegen) methods in each AST
+First we define virtual code generation (GenStmt) methods in each AST
 class:
 
 .. code-block:: c++
@@ -35,7 +35,7 @@ class:
     class ExprAST {
     public:
       virtual ~ExprAST() {}
-      virtual Value *codegen() = 0;
+      virtual Value *GenStmt() = 0;
     };
 
     /// NumberExprAST - Expression class for numeric literals like "1.0".
@@ -44,11 +44,11 @@ class:
 
     public:
       NumberExprAST(double Val) : Val(Val) {}
-      virtual Value *codegen();
+      virtual Value *GenStmt();
     };
     ...
 
-The codegen() method says to emit IR for that AST node along with all
+The GenStmt() method says to emit IR for that AST node along with all
 the things it depends on, and they all return an LLVM Value object.
 "Value" is the class used to represent a "`Static Single Assignment
 (SSA) <http://en.wikipedia.org/wiki/Static_single_assignment_form>`_
@@ -97,7 +97,7 @@ and has methods to create new instructions.
 ``TheModule`` is an LLVM construct that contains functions and global
 variables. In many ways, it is the top-level structure that the LLVM IR
 uses to contain code. It will own the memory for all of the IR that we
-generate, which is why the codegen() method returns a raw Value\*,
+generate, which is why the GenStmt() method returns a raw Value\*,
 rather than a unique_ptr<Value>.
 
 The ``NamedValues`` map keeps track of which values are defined in the
@@ -121,7 +121,7 @@ First we'll do numeric literals:
 
 .. code-block:: c++
 
-    Value *NumberExprAST::codegen() {
+    Value *NumberExprAST::GenStmt() {
       return ConstantFP::get(TheContext, APFloat(Val));
     }
 
@@ -135,7 +135,7 @@ are all uniqued together and shared. For this reason, the API uses the
 
 .. code-block:: c++
 
-    Value *VariableExprAST::codegen() {
+    Value *VariableExprAST::GenStmt() {
       // Look this variable up in the function.
       Value *V = NamedValues[Name];
       if (!V)
@@ -155,9 +155,9 @@ variables <LangImpl07.html#user-defined-local-variables>`_.
 
 .. code-block:: c++
 
-    Value *BinaryExprAST::codegen() {
-      Value *L = LHS->codegen();
-      Value *R = RHS->codegen();
+    Value *BinaryExprAST::GenStmt() {
+      Value *L = LHS->GenStmt();
+      Value *R = RHS->GenStmt();
       if (!L || !R)
         return nullptr;
 
@@ -216,7 +216,7 @@ would return 0.0 and -1.0, depending on the input value.
 
 .. code-block:: c++
 
-    Value *CallExprAST::codegen() {
+    Value *CallExprAST::GenStmt() {
       // Look up the name in the global module table.
       Function *CalleeF = TheModule->getFunction(Callee);
       if (!CalleeF)
@@ -228,7 +228,7 @@ would return 0.0 and -1.0, depending on the input value.
 
       std::vector<Value *> ArgsV;
       for (unsigned i = 0, e = Args.size(); i != e; ++i) {
-        ArgsV.push_back(Args[i]->codegen());
+        ArgsV.push_back(Args[i]->GenStmt());
         if (!ArgsV.back())
           return nullptr;
       }
@@ -242,7 +242,7 @@ Recall that the LLVM Module is the container that holds the functions we are
 JIT'ing. By giving each function the same name as what the user specifies, we
 can use the LLVM symbol table to resolve function names for us.
 
-Once we have the function to call, we recursively codegen each argument
+Once we have the function to call, we recursively GenStmt each argument
 that is to be passed in, and create an LLVM `call
 instruction <../../LangRef.html#call-instruction>`_. Note that LLVM uses the native C
 calling conventions by default, allowing these calls to also call into
@@ -267,7 +267,7 @@ with:
 
 .. code-block:: c++
 
-    Function *PrototypeAST::codegen() {
+    Function *PrototypeAST::GenStmt() {
       // Make the function type:  double(double,double) etc.
       std::vector<Type*> Doubles(Args.size(),
                                  Type::getDoubleTy(TheContext));
@@ -281,7 +281,7 @@ This code packs a lot of power into a few lines. Note first that this
 function returns a "Function\*" instead of a "Value\*". Because a
 "prototype" really talks about the external interface for a function
 (not the value computed by an expression), it makes sense for it to
-return the LLVM Function it corresponds to when codegen'd.
+return the LLVM Function it corresponds to when GenStmt'd.
 
 The call to ``FunctionType::get`` creates the ``FunctionType`` that
 should be used for a given Prototype. Since all function arguments in
@@ -319,16 +319,16 @@ them up in the Prototype AST.
 At this point we have a function prototype with no body. This is how LLVM IR
 represents function declarations. For extern statements in Kaleidoscope, this
 is as far as we need to go. For function definitions however, we need to
-codegen and attach a function body.
+GenStmt and attach a function body.
 
 .. code-block:: c++
 
-  Function *FunctionAST::codegen() {
+  Function *FunctionAST::GenStmt() {
       // First, check for an existing function from a previous 'extern' declaration.
     Function *TheFunction = TheModule->getFunction(Proto->getName());
 
     if (!TheFunction)
-      TheFunction = Proto->codegen();
+      TheFunction = Proto->GenStmt();
 
     if (!TheFunction)
       return nullptr;
@@ -340,7 +340,7 @@ codegen and attach a function body.
 For function definitions, we start by searching TheModule's symbol table for an
 existing version of this function, in case one has already been created using an
 'extern' statement. If Module::getFunction returns null then no previous version
-exists, so we'll codegen one from the Prototype. In either case, we want to
+exists, so we'll GenStmt one from the Prototype. In either case, we want to
 assert that the function is empty (i.e. has no body yet) before we start.
 
 .. code-block:: c++
@@ -369,7 +369,7 @@ it out) so that they're accessible to ``VariableExprAST`` nodes.
 
 .. code-block:: c++
 
-      if (Value *RetVal = Body->codegen()) {
+      if (Value *RetVal = Body->GenStmt()) {
         // Finish off the function.
         Builder.CreateRet(RetVal);
 
@@ -380,7 +380,7 @@ it out) so that they're accessible to ``VariableExprAST`` nodes.
       }
 
 Once the insertion point has been set up and the NamedValues map populated,
-we call the ``codegen()`` method for the root expression of the function. If no
+we call the ``GenStmt()`` method for the root expression of the function. If no
 error happens, this emits code to compute the expression into the entry block
 and returns the value that was computed. Assuming no error, we then create an
 LLVM `ret instruction <../../LangRef.html#ret-instruction>`_, which completes the function.
@@ -403,11 +403,11 @@ we handle this by merely deleting the function we produced with the
 that they incorrectly typed in before: if we didn't delete it, it would
 live in the symbol table, with a body, preventing future redefinition.
 
-This code does have a bug, though: If the ``FunctionAST::codegen()`` method
+This code does have a bug, though: If the ``FunctionAST::GenStmt()`` method
 finds an existing IR Function, it does not validate its signature against the
 definition's own prototype. This means that an earlier 'extern' declaration will
 take precedence over the function definition's signature, which can cause
-codegen to fail, for instance if the function arguments are named differently.
+GenStmt to fail, for instance if the function arguments are named differently.
 There are a number of ways to fix this bug, see what you can come up with! Here
 is a testcase:
 
@@ -421,7 +421,7 @@ Driver Changes and Closing Thoughts
 
 For now, code generation to LLVM doesn't really get us much, except that
 we can look at the pretty IR calls. The sample code inserts calls to
-codegen into the "``HandleDefinition``", "``HandleExtern``" etc
+GenStmt into the "``HandleDefinition``", "``HandleExtern``" etc
 functions, and then dumps out the LLVM IR. This gives a nice way to look
 at the LLVM IR for simple functions. For example:
 
@@ -539,7 +539,7 @@ module generated. Here you can see the big picture with all the
 functions referencing each other.
 
 This wraps up the third chapter of the Kaleidoscope tutorial. Up next,
-we'll describe how to `add JIT codegen and optimizer
+we'll describe how to `add JIT GenStmt and optimizer
 support <LangImpl04.html>`_ to this so we can actually start running
 code!
 

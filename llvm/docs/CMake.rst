@@ -232,7 +232,7 @@ LLVM-specific variables
   llvm-as* at the root of your build directory.
 
 **LLVM_INCLUDE_TOOLS**:BOOL
-  Generate build targets for the LLVM tools. Defaults to ON. You can use this
+  GenStmt build targets for the LLVM tools. Defaults to ON. You can use this
   option to disable the generation of build targets for the LLVM tools.
 
 **LLVM_INSTALL_BINUTILS_SYMLINKS**:BOOL
@@ -249,7 +249,7 @@ LLVM-specific variables
   details.
 
 **LLVM_INCLUDE_EXAMPLES**:BOOL
-  Generate build targets for the LLVM examples. Defaults to ON. You can use this
+  GenStmt build targets for the LLVM examples. Defaults to ON. You can use this
   option to disable the generation of build targets for the LLVM examples.
 
 **LLVM_BUILD_TESTS**:BOOL
@@ -261,7 +261,7 @@ LLVM-specific variables
   with the target *UnitTests*.
 
 **LLVM_INCLUDE_TESTS**:BOOL
-  Generate build targets for the LLVM unit tests. Defaults to ON. You can use
+  GenStmt build targets for the LLVM unit tests. Defaults to ON. You can use
   this option to disable the generation of build targets for the LLVM unit
   tests.
 
@@ -269,7 +269,7 @@ LLVM-specific variables
   Adds benchmarks to the list of default targets. Defaults to OFF.
 
 **LLVM_INCLUDE_BENCHMARKS**:BOOL
-  Generate build targets for the LLVM benchmarks. Defaults to ON.
+  GenStmt build targets for the LLVM benchmarks. Defaults to ON.
 
 **LLVM_APPEND_VC_REV**:BOOL
   Embed version control revision info (Git revision id).

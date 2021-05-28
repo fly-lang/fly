@@ -638,7 +638,7 @@ used by people developing LLVM.
 |                         | slow and generates a lot of output. Sphinx version |
 |                         | 1.5 or later recommended.                          |
 +-------------------------+----------------------------------------------------+
-| LLVM_BUILD_LLVM_DYLIB   | Generate libLLVM.so. This library contains a       |
+| LLVM_BUILD_LLVM_DYLIB   | GenStmt libLLVM.so. This library contains a       |
 |                         | default set of LLVM components that can be         |
 |                         | overridden with ``LLVM_DYLIB_COMPONENTS``. The     |
 |                         | default contains most of LLVM and is defined in    |
@@ -1003,12 +1003,12 @@ Utilities for working with LLVM source code; some are part of the build process
 because they are code generators for parts of the infrastructure.
 
 
-``codegen-diff``
+``GenStmt-diff``
 
-  ``codegen-diff`` finds differences between code that LLC
+  ``GenStmt-diff`` finds differences between code that LLC
   generates and code that LLI generates. This is useful if you are
   debugging one of them, assuming that the other generates correct output. For
-  the full user manual, run ```perldoc codegen-diff'``.
+  the full user manual, run ```perldoc GenStmt-diff'``.
 
 ``emacs/``
 

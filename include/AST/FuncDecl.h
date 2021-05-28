@@ -48,7 +48,7 @@ namespace fly {
         BlockStmt *Body = NULL;
 
     public:
-        FuncDecl(const SourceLocation &Loc, const TypeBase *Type, const llvm::StringRef &Name);
+        FuncDecl(const SourceLocation &Loc, const TypeBase *RetType, const llvm::StringRef &Name);
 
         TopDeclKind getKind() const override;
 
@@ -80,7 +80,7 @@ namespace fly {
         friend class FunctionParser;
 
         std::vector<VarDeclStmt*> Vars;
-        VarDeclStmt* VarArg;
+        VarDeclStmt* VarArg = NULL;
 
     public:
         const std::vector<VarDeclStmt *> &getVars() const;

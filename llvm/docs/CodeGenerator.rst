@@ -2016,7 +2016,7 @@ ExecutionEngine interface.
 
 .. _feat_jit_arm:
 
-The ARM backend has basic support for integer code in ARM codegen mode, but
+The ARM backend has basic support for integer code in ARM GenStmt mode, but
 lacks NEON and full Thumb support.
 
 .. _feat_objectwrite:

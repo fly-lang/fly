@@ -683,7 +683,7 @@ parser.ml:
         let parse_extern = parser
           | [< 'Token.Extern; e=parse_prototype >] -> e
 
-codegen.ml:
+GenStmt.ml:
     .. code-block:: ocaml
 
         (*===----------------------------------------------------------------------===

@@ -51,23 +51,15 @@ bool CodeGen::Execute() {
         return true;
     }
 
+    // Generate default module on first
+    ASTNameSpace *Default = Context.getNameSpaces().lookup("default");
+    if (Default)
+        GenerateModule(Default);
+    
+    // After generate all other modules
     for(auto &EntryNS : Context.getNameSpaces()) {
-        for (auto &EntryNode : EntryNS.getValue()->getNodes()) {
-
-            ASTNode *AST = EntryNode.getValue();
-
-            std::string OutputFileName = getOutputFileName(ActionKind, AST->getFileName());
-            std::error_code Code;
-            std::unique_ptr<llvm::raw_fd_ostream> OS =
-                    std::make_unique<raw_fd_ostream>(OutputFileName, Code, llvm::sys::fs::F_None);
-
-            Builder = std::make_unique<CodeGenModule>(Diags, *AST, *Target);
-            Builder->Generate();
-
-            EmbedBitcode(Builder->Module.get(), CodeGenOpts, llvm::MemoryBufferRef());
-
-            EmitBackendOutput(Diags, CodeGenOpts, TargetOpts, Target->getDataLayout(),
-                              Builder->Module.get(), ActionKind, std::move(OS));
+        if (!EntryNS.getKey().equals("default")) {
+            GenerateModule(EntryNS.getValue());
         }
     }
     return true;
@@ -81,4 +73,24 @@ TargetInfo* CodeGen::CreateTargetInfo(DiagnosticsEngine &Diags,
 TargetInfo &CodeGen::getTargetInfo() const {
     assert(Target && "Compiler invocation has no target info!");
     return *Target;
+}
+
+void CodeGen::GenerateModule(ASTNameSpace * NS) {
+    for (auto &EntryNode : NS->getNodes()) {
+
+        ASTNode *AST = EntryNode.getValue();
+
+        std::string OutputFileName = getOutputFileName(ActionKind, AST->getFileName());
+        std::error_code Code;
+        std::unique_ptr<llvm::raw_fd_ostream> OS =
+                std::make_unique<raw_fd_ostream>(OutputFileName, Code, llvm::sys::fs::F_None);
+
+        Builder = std::make_unique<CodeGenModule>(Diags, *AST, *Target);
+        Builder->GenAST();
+
+        EmbedBitcode(Builder->Module.get(), CodeGenOpts, llvm::MemoryBufferRef());
+
+        EmitBackendOutput(Diags, CodeGenOpts, TargetOpts, Target->getDataLayout(),
+                          Builder->Module.get(), ActionKind, std::move(OS));
+    }
 }

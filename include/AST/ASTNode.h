@@ -38,7 +38,7 @@ namespace fly {
         llvm::StringMap<ImportDecl *> Imports;
 
         // Private Global Vars
-        llvm::StringMap<GlobalVarDecl *> Vars;
+        llvm::StringMap<GlobalVarDecl *> GlobalVars;
 
         // Private Functions
         llvm::StringMap<FuncDecl *> Functions;
@@ -67,7 +67,7 @@ namespace fly {
         const llvm::StringMap<ImportDecl*> &getImports();
 
         bool addGlobalVar(GlobalVarDecl *Var);
-        const llvm::StringMap<GlobalVarDecl *> &getVars();
+        const llvm::StringMap<GlobalVarDecl *> &getGlobalVars();
 
         bool addFunction(FuncDecl *Func);
         const llvm::StringMap<FuncDecl *> &getFunctions();

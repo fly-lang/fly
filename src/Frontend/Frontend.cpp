@@ -13,14 +13,6 @@ using namespace fly;
 
 Frontend::Frontend(CompilerInstance &CI) : CI(CI), Diags(CI.getDiagnostics()), Context(new ASTContext(Diags)) {
 
-    // Create Compiler Instance for each input file
-    for (const auto &InputFile : CI.getFrontendOptions().getInputFiles()) {
-
-        // Print file name and create instance for file compilation
-        llvm::outs() << llvm::sys::path::filename(InputFile.getFile()) << "\n";
-        Actions.push_back(new FrontendAction(CI, InputFile, Context));
-    }
-    llvm::outs().flush();
 }
 
 Frontend::~Frontend() {
@@ -30,18 +22,22 @@ Frontend::~Frontend() {
 bool Frontend::Execute() const {
     bool Success = true;
 
-    for (auto Action : Actions) {
-        Diags.getClient()->BeginSourceFile();
+    // Create Compiler Instance for each input file
+    for (auto InputFile : CI.getFrontendOptions().getInputFiles()) {
+        // Print file name and create instance for file compilation
+//        llvm::outs() << llvm::sys::path::filename(InputFile.getFile()) << "\n";
+        const SourceLocation &Loc = SourceLocation();
+        FrontendAction *Action = new FrontendAction(CI, InputFile, Context);
+        if (!Diags.hasErrorOccurred()) {
+            Diags.getClient()->BeginSourceFile();
 
-        // Create ASTNode instance
-        Success &= Action->BuildAST();
+            // Create ASTNode instance
+            Success &= Action->BuildAST();
 
-        if (!Success) {
-            break;
+            Diags.getClient()->EndSourceFile();
         }
-
-        Diags.getClient()->EndSourceFile();
     }
+    llvm::outs().flush();
 
     if (Success) {
         
@@ -52,8 +48,4 @@ bool Frontend::Execute() const {
     }
 
     return Success;
-}
-
-const std::vector<FrontendAction *> &Frontend::getActions() const {
-    return Actions;
 }

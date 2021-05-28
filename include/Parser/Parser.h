@@ -17,8 +17,7 @@
 #include <AST/VarDeclStmt.h>
 #include <AST/Stmt.h>
 #include <AST/VarDecl.h>
-
-
+#include "Frontend/InputFile.h"
 #include "GlobalVarParser.h"
 #include "FunctionParser.h"
 #include "ClassParser.h"
@@ -38,9 +37,11 @@ namespace fly {
         friend class GlobalVarParser;
         friend class FunctionParser;
 
+        const InputFile &Input;
+
         DiagnosticsEngine &Diags;
 
-        Lexer &Lex;
+        Lexer Lex;
 
         ASTNode *AST;
 
@@ -58,7 +59,7 @@ namespace fly {
 
     public:
 
-        Parser(Lexer &Lex, DiagnosticsEngine &Diags);
+        Parser(InputFile &Input, SourceManager &SourceMgr, DiagnosticsEngine &Diags);
 
         bool Parse(ASTNode* Unit);
 

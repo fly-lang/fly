@@ -115,7 +115,7 @@ OPTIONS
 
 **--mlimit** *megabytes*
 
- Specifies an upper limit on memory usage of the optimization and codegen. Set
+ Specifies an upper limit on memory usage of the optimization and GenStmt. Set
  to zero to disable the limit.
 
 **--output** *filename*

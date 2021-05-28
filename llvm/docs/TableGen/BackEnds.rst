@@ -145,7 +145,7 @@ to cater for all default decodings, after all hand-made ones.
 PseudoLowering
 --------------
 
-**Purpose**: Generate pseudo instruction lowering.
+**Purpose**: GenStmt pseudo instruction lowering.
 
 **Output**: Implements ``<Target>AsmPrinter::emitPseudoExpansionLowering()``.
 
@@ -166,7 +166,7 @@ implementation returned by a CC selection function.
 DAGISel
 -------
 
-**Purpose**: Generate a DAG instruction selector.
+**Purpose**: GenStmt a DAG instruction selector.
 
 **Output**: Creates huge functions for automating DAG selection.
 
@@ -204,7 +204,7 @@ of ``FastISel`` class.
 Subtarget
 ---------
 
-**Purpose**: Generate subtarget enumerations.
+**Purpose**: GenStmt subtarget enumerations.
 
 **Output**: Enums, globals, local tables for sub-target information.
 
@@ -214,7 +214,7 @@ Subtarget
 Intrinsic
 ---------
 
-**Purpose**: Generate (target) intrinsic information.
+**Purpose**: GenStmt (target) intrinsic information.
 
 OptParserDefs
 -------------
@@ -224,7 +224,7 @@ OptParserDefs
 SearchableTables
 ----------------
 
-**Purpose**: Generate custom searchable tables.
+**Purpose**: GenStmt custom searchable tables.
 
 **Output**: Enums, global tables and lookup helper functions.
 
@@ -357,77 +357,77 @@ It is used to implement ``ASTDumper::dumpAttr``.
 ClangDiagsDefs
 --------------
 
-Generate Clang diagnostics definitions.
+GenStmt Clang diagnostics definitions.
 
 ClangDiagGroups
 ---------------
 
-Generate Clang diagnostic groups.
+GenStmt Clang diagnostic groups.
 
 ClangDiagsIndexName
 -------------------
 
-Generate Clang diagnostic name index.
+GenStmt Clang diagnostic name index.
 
 ClangCommentNodes
 -----------------
 
-Generate Clang AST comment nodes.
+GenStmt Clang AST comment nodes.
 
 ClangDeclNodes
 --------------
 
-Generate Clang AST declaration nodes.
+GenStmt Clang AST declaration nodes.
 
 ClangStmtNodes
 --------------
 
-Generate Clang AST statement nodes.
+GenStmt Clang AST statement nodes.
 
 ClangSACheckers
 ---------------
 
-Generate Clang Static Analyzer checkers.
+GenStmt Clang Static Analyzer checkers.
 
 ClangCommentHTMLTags
 --------------------
 
-Generate efficient matchers for HTML tag names that are used in documentation comments.
+GenStmt efficient matchers for HTML tag names that are used in documentation comments.
 
 ClangCommentHTMLTagsProperties
 ------------------------------
 
-Generate efficient matchers for HTML tag properties.
+GenStmt efficient matchers for HTML tag properties.
 
 ClangCommentHTMLNamedCharacterReferences
 ----------------------------------------
 
-Generate function to translate named character references to UTF-8 sequences.
+GenStmt function to translate named character references to UTF-8 sequences.
 
 ClangCommentCommandInfo
 -----------------------
 
-Generate command properties for commands that are used in documentation comments.
+GenStmt command properties for commands that are used in documentation comments.
 
 ClangCommentCommandList
 -----------------------
 
-Generate list of commands that are used in documentation comments.
+GenStmt list of commands that are used in documentation comments.
 
 ArmNeon
 -------
 
-Generate arm_neon.h for clang.
+GenStmt arm_neon.h for clang.
 
 ArmNeonSema
 -----------
 
-Generate ARM NEON sema support for clang.
+GenStmt ARM NEON sema support for clang.
 
 ArmNeonTest
 -----------
 
-Generate ARM NEON tests for clang.
+GenStmt ARM NEON tests for clang.
 
 AttrDocs
 --------

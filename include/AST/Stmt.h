@@ -18,10 +18,10 @@ namespace fly {
     class ASTNode; // Pre-declare
 
     enum StmtKind {
+        STMT_BLOCK,
         STMT_FUNC_CALL,
         STMT_VAR_DECL,
         STMT_VAR_ASSIGN,
-        STMT_BLOCK,
         DECL_TYPE,
         STMT_BREAK,
         STMT_CONTINUE,
