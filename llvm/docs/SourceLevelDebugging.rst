@@ -631,7 +631,7 @@ the following example:
     ret i32 0, !dbg !5
   }
 
-If one compiles this IR with ``llc -o - -start-after=GenStmt-prepare -stop-after=expand-isel-pseudos -mtriple=x86_64--``, the following MIR is produced:
+If one compiles this IR with ``llc -o - -start-after=codegen-prepare -stop-after=expand-isel-pseudos -mtriple=x86_64--``, the following MIR is produced:
 
 .. code-block:: text
 
@@ -818,7 +818,7 @@ constant values on either path. Where control flow merges in ``%bb1`` we would
 want ``!30`` to keep its location (``%input``), but ``!23`` to become undefined
 as we cannot determine at runtime what value it should have in %bb1 without
 inserting a PHI node. mem2reg does not insert the PHI node to avoid changing
-GenStmt when debugging is enabled, and does not insert the other dbg.values
+codegen when debugging is enabled, and does not insert the other dbg.values
 to avoid adding very large numbers of intrinsics.
 
 Instead, LiveDebugValues determines variable locations when control
@@ -1983,7 +1983,7 @@ embedded in ``llvm-readobj``.
 
   Use this to generate LLVM IR for LLVM test cases.
 
-* GenStmt and dump CodeView from LLVM IR metadata::
+* Generate and dump CodeView from LLVM IR metadata::
 
     $ llc foo.ll -filetype=obj -o foo.obj
     $ llvm-readobj --codeview foo.obj > foo.txt

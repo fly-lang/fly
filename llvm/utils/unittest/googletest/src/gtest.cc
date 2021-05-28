@@ -5188,7 +5188,7 @@ static const char kColorEncodedHelpMessage[] =
 "      Don't print the elapsed time of each test.\n"
 "  @G--" GTEST_FLAG_PREFIX_ "output=xml@Y[@G:@YDIRECTORY_PATH@G"
     GTEST_PATH_SEP_ "@Y|@G:@YFILE_PATH]@D\n"
-"      GenStmt an XML report in the given directory or with the given file\n"
+"      Generate an XML report in the given directory or with the given file\n"
 "      name. @YFILE_PATH@D defaults to @Gtest_details.xml@D.\n"
 #if GTEST_CAN_STREAM_RESULTS_
 "  @G--" GTEST_FLAG_PREFIX_ "stream_result_to=@YHOST@G:@YPORT@D\n"

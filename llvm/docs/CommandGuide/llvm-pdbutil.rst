@@ -554,7 +554,7 @@ USAGE: :program:`llvm-pdbutil` yaml2pdb [*options*] <input YAML file>
 Summary
 ^^^^^^^
 
-GenStmt a PDB file from a YAML description.  The YAML syntax is not described
+Generate a PDB file from a YAML description.  The YAML syntax is not described
 here.  Instead, use :ref:`llvm-pdbutil pdb2yaml <pdb2yaml_subcommand>` and
 examine the output for an example starting point.
 

@@ -50,7 +50,7 @@ End-user Options
 
 .. option:: -O=uint
 
- GenStmt code at different optimization levels.  These correspond to the
+ Generate code at different optimization levels.  These correspond to the
  ``-O0``, ``-O1``, ``-O2``, and ``-O3`` optimization levels used by
  :program:`clang`.
 

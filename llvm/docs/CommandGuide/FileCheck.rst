@@ -285,7 +285,7 @@ entirely, or you want to write comments that mention a directive by name. The
    ; X32: pinsrd_1:
    ; X32:    pinsrd $1, 4(%esp), %xmm0
 
-   ; COM: FIXME: X64 isn't working correctly yet for this part of GenStmt, but
+   ; COM: FIXME: X64 isn't working correctly yet for this part of codegen, but
    ; COM: X64 will have something similar to X32:
    ; COM:
    ; COM:   X64: pinsrd_1:
@@ -630,7 +630,7 @@ FileCheck String Substitution Blocks
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 It is often useful to match a pattern and then verify that it occurs again
-later in the file.  For GenStmt tests, this can be useful to allow any
+later in the file.  For codegen tests, this can be useful to allow any
 register, but verify that that register is used consistently later.  To do
 this, :program:`FileCheck` supports string substitution blocks that allow
 string variables to be defined and substituted into patterns.  Here is a simple

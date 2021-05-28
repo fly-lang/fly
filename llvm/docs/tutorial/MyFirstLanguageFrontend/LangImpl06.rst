@@ -143,7 +143,7 @@ this:
       : Name(name), Args(std::move(Args)), IsOperator(IsOperator),
         Precedence(Prec) {}
 
-      Function *GenStmt();
+      Function *codegen();
       const std::string &getName() const { return Name; }
 
       bool isUnaryOp() const { return IsOperator && Args.size() == 1; }
@@ -230,15 +230,15 @@ operator. It then takes advantage of the fact that symbol names in the
 LLVM symbol table are allowed to have any character in them, including
 embedded nul characters.
 
-The next interesting thing to add, is GenStmt support for these binary
+The next interesting thing to add, is codegen support for these binary
 operators. Given our current structure, this is a simple addition of a
 default case for our existing binary operator node:
 
 .. code-block:: c++
 
-    Value *BinaryExprAST::GenStmt() {
-      Value *L = LHS->GenStmt();
-      Value *R = RHS->GenStmt();
+    Value *BinaryExprAST::codegen() {
+      Value *L = LHS->codegen();
+      Value *R = RHS->codegen();
       if (!L || !R)
         return nullptr;
 
@@ -277,7 +277,7 @@ The final piece of code we are missing, is a bit of top-level magic:
 
 .. code-block:: c++
 
-    Function *FunctionAST::GenStmt() {
+    Function *FunctionAST::codegen() {
       // Transfer ownership of the prototype to the FunctionProtos map, but keep a
       // reference to it for use below.
       auto &P = *Proto;
@@ -324,7 +324,7 @@ that, we need an AST node:
       UnaryExprAST(char Opcode, std::unique_ptr<ExprAST> Operand)
         : Opcode(Opcode), Operand(std::move(Operand)) {}
 
-      Value *GenStmt() override;
+      Value *codegen() override;
     };
 
 This AST node is very simple and obvious by now. It directly mirrors the
@@ -424,13 +424,13 @@ operator code above with:
 
 As with binary operators, we name unary operators with a name that
 includes the operator character. This assists us at code generation
-time. Speaking of, the final piece we need to add is GenStmt support for
+time. Speaking of, the final piece we need to add is codegen support for
 unary operators. It looks like this:
 
 .. code-block:: c++
 
-    Value *UnaryExprAST::GenStmt() {
-      Value *OperandV = Operand->GenStmt();
+    Value *UnaryExprAST::codegen() {
+      Value *OperandV = Operand->codegen();
       if (!OperandV)
         return nullptr;
 

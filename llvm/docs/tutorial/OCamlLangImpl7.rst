@@ -440,7 +440,7 @@ for the argument. This method gets invoked by ``Codegen.codegen_func``
 right after it sets up the entry block for the function.
 
 The final missing piece is adding the mem2reg pass, which allows us to
-get good GenStmt once again:
+get good codegen once again:
 
 .. code-block:: ocaml
 
@@ -586,7 +586,7 @@ step is to set a precedence:
 
 Now that the parser knows the precedence of the binary operator, it
 takes care of all the parsing and AST generation. We just need to
-implement GenStmt for the assignment operator. This looks like:
+implement codegen for the assignment operator. This looks like:
 
 .. code-block:: ocaml
 
@@ -622,7 +622,7 @@ allowed.
           | _ ->
                 ...
 
-Once we have the variable, GenStmt'ing the assignment is
+Once we have the variable, codegen'ing the assignment is
 straightforward: we emit the RHS of the assignment, create a store, and
 return the computed value. Returning a value allows for chained
 assignments like "X = (Y = Z)".
@@ -1214,7 +1214,7 @@ parser.ml:
         let parse_extern = parser
           | [< 'Token.Extern; e=parse_prototype >] -> e
 
-GenStmt.ml:
+codegen.ml:
     .. code-block:: ocaml
 
         (*===----------------------------------------------------------------------===

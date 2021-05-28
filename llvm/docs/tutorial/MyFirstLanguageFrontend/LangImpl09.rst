@@ -109,7 +109,7 @@ code is that the LLVM IR goes to standard error:
    static void HandleTopLevelExpression() {
      // Evaluate a top-level expression into an anonymous function.
      if (auto FnAST = ParseTopLevelExpr()) {
-  -    if (auto *FnIR = FnAST->GenStmt()) {
+  -    if (auto *FnIR = FnAST->codegen()) {
   -      // We're just doing this to make sure it executes.
   -      TheExecutionEngine->finalizeObject();
   -      // JIT the function, returning a function pointer.
@@ -120,7 +120,7 @@ code is that the LLVM IR goes to standard error:
   -      double (*FP)() = (double (*)())(intptr_t)FPtr;
   -      // Ignore the return value for this.
   -      (void)FP;
-  +    if (!F->GenStmt()) {
+  +    if (!F->codegen()) {
   +      fprintf(stderr, "Error generating code for top level expr");
        }
      } else {
@@ -238,7 +238,7 @@ Functions
 =========
 
 Now that we have our ``Compile Unit`` and our source locations, we can add
-function definitions to the debug info. So in ``PrototypeAST::GenStmt()`` we
+function definitions to the debug info. So in ``PrototypeAST::codegen()`` we
 add a few lines of code to describe a context for our subprogram, in this
 case the "File", and the actual definition of the function itself.
 
@@ -312,7 +312,7 @@ and then we have added to all of our AST classes a source location:
      public:
        ExprAST(SourceLocation Loc = CurLoc) : Loc(Loc) {}
        virtual ~ExprAST() {}
-       virtual Value* GenStmt() = 0;
+       virtual Value* codegen() = 0;
        int getLine() const { return Loc.Line; }
        int getCol() const { return Loc.Col; }
        virtual raw_ostream &dump(raw_ostream &out, int ind) {
@@ -383,7 +383,7 @@ Now that we have functions, we need to be able to print out the variables
 we have in scope. Let's get our function arguments set up so we can get
 decent backtraces and see how our functions are being called. It isn't
 a lot of code, and we generally handle it when we're creating the
-argument allocas in ``FunctionAST::GenStmt``.
+argument allocas in ``FunctionAST::codegen``.
 
 .. code-block:: c++
 

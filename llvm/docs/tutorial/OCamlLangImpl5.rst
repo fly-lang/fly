@@ -286,7 +286,7 @@ speaking, this call moves the insertion point to be at the end of the
 specified block. However, since the "then" block is empty, it also
 starts out by inserting at the beginning of the block. :)
 
-Once the insertion point is set, we recursively GenStmt the "then"
+Once the insertion point is set, we recursively codegen the "then"
 expression from the AST.
 
 The final line here is quite subtle, but is very important. The basic
@@ -312,7 +312,7 @@ value for code that will set up the Phi node.
            * phi. *)
           let new_else_bb = insertion_block builder in
 
-Code generation for the 'else' block is basically identical to GenStmt
+Code generation for the 'else' block is basically identical to codegen
 for the 'then' block.
 
 .. code-block:: ocaml
@@ -585,7 +585,7 @@ backedge, but we can't set it up yet (because it doesn't exist!).
 Now the code starts to get more interesting. Our 'for' loop introduces a
 new variable to the symbol table. This means that our symbol table can
 now contain either function arguments or loop variables. To handle this,
-before we GenStmt the body of the loop, we add the loop variable as the
+before we codegen the body of the loop, we add the loop variable as the
 current value for its name. Note that it is possible that there is a
 variable of the same name in the outer scope. It would be easy to make
 this an error (emit an error and return null if there is already an
@@ -595,7 +595,7 @@ potentially shadowing in ``old_val`` (which will be None if there is no
 shadowed variable).
 
 Once the loop variable is set into the symbol table, the code
-recursively GenStmt's the body. This allows the body to use the loop
+recursively codegen's the body. This allows the body to use the loop
 variable: any references to it will naturally find it in the symbol
 table.
 
@@ -995,7 +995,7 @@ parser.ml:
         let parse_extern = parser
           | [< 'Token.Extern; e=parse_prototype >] -> e
 
-GenStmt.ml:
+codegen.ml:
     .. code-block:: ocaml
 
         (*===----------------------------------------------------------------------===

@@ -22,7 +22,7 @@ Code Generation Setup
 =====================
 
 In order to generate LLVM IR, we want some simple setup to get started.
-First we define virtual code generation (GenStmt) methods in each AST
+First we define virtual code generation (codegen) methods in each AST
 class:
 
 .. code-block:: ocaml
@@ -194,7 +194,7 @@ holds all of the functions we are JIT'ing. By giving each function the
 same name as what the user specifies, we can use the LLVM symbol table
 to resolve function names for us.
 
-Once we have the function to call, we recursively GenStmt each argument
+Once we have the function to call, we recursively codegen each argument
 that is to be passed in, and create an LLVM `call
 instruction <../LangRef.html#call-instruction>`_. Note that LLVM uses the native C
 calling conventions by default, allowing these calls to also call into
@@ -232,7 +232,7 @@ function returns a "Function\*" instead of a "Value\*" (although at the
 moment they both are modeled by ``llvalue`` in ocaml). Because a
 "prototype" really talks about the external interface for a function
 (not the value computed by an expression), it makes sense for it to
-return the LLVM Function it corresponds to when GenStmt'd.
+return the LLVM Function it corresponds to when codegen'd.
 
 The call to ``Llvm.function_type`` creates the ``Llvm.llvalue`` that
 should be used for a given Prototype. Since all function arguments in
@@ -318,7 +318,7 @@ above.
           let the_function = codegen_proto proto in
 
 Code generation for function definitions starts out simply enough: we
-just GenStmt the prototype (Proto) and verify that it is ok. We then
+just codegen the prototype (Proto) and verify that it is ok. We then
 clear out the ``Codegen.named_values`` map to make sure that there isn't
 anything in it from the last function we compiled. Code generation of
 the prototype ensures that there is an LLVM Function object that is
@@ -512,7 +512,7 @@ module generated. Here you can see the big picture with all the
 functions referencing each other.
 
 This wraps up the third chapter of the Kaleidoscope tutorial. Up next,
-we'll describe how to `add JIT GenStmt and optimizer
+we'll describe how to `add JIT codegen and optimizer
 support <OCamlLangImpl4.html>`_ to this so we can actually start running
 code!
 
@@ -780,7 +780,7 @@ parser.ml:
         let parse_extern = parser
           | [< 'Token.Extern; e=parse_prototype >] -> e
 
-GenStmt.ml:
+codegen.ml:
     .. code-block:: ocaml
 
         (*===----------------------------------------------------------------------===

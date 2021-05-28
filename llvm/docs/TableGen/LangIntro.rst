@@ -172,7 +172,7 @@ supported include:
     the DAG node (op a1:$name1, a2:$name2, b1:$name3).
 
 ``!dag(op, children, names)``
-    GenStmt a DAG node programmatically. 'children' and 'names' must be lists
+    Generate a DAG node programmatically. 'children' and 'names' must be lists
     of equal length or unset ('?'). 'names' must be a 'list<string>'.
 
     Due to limitations of the type system, 'children' must be a list of items
