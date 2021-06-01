@@ -440,7 +440,7 @@ namespace {
         llvm::StringRef str = ("namespace std\n"
                          "void func(int a) {\n"
                          "  if (a == 1) return"
-                         "  elsif (a == 2) a = 1"
+                         "  elsif a == 2 a = 1"
                          "  else a = 2"
                          "}\n");
         auto P = Parse("fbody.fly", str);

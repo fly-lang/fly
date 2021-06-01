@@ -457,9 +457,9 @@ bool Parser::ParseEndParen(bool hasParen) {
 /**
  * Parse If, Elseif and Else statements
  *
- *  if (...) {
+ *  if ... {
  *    ...
- *  } elsif (...) {
+ *  } elsif ... {
  *    ...
  *  } else {
  *    ...
@@ -499,20 +499,20 @@ bool Parser::ParseIfStmt(BlockStmt *CurrentStmt) {
     }
 
     // Check parenthesis content only for If and Elsif
-    if (Tok.is(tok::l_paren)) {
-        ConsumeParen();
-        if (Stmt->getBlockKind() == BlockStmtKind::BLOCK_STMT_IF ||
-                Stmt->getBlockKind() == BlockStmtKind::BLOCK_STMT_ELSIF) {
+    // Parse (
+    bool hasParen = ParseStartParen();
 
-            // Parse the group of expressions into parenthesis
-            GroupExpr *Group = ParseExpr();
-            if (Group) {
-                static_cast<IfBlockStmt *>(Stmt)->Condition = Group;
-            }
-            if (Tok.is(tok::r_paren)) {
-                ConsumeParen();
-            }
+    if (Stmt->getBlockKind() == BlockStmtKind::BLOCK_STMT_IF ||
+            Stmt->getBlockKind() == BlockStmtKind::BLOCK_STMT_ELSIF) {
+
+        // Parse the group of expressions into parenthesis
+        GroupExpr *Group = ParseExpr();
+        if (Group) {
+            static_cast<IfBlockStmt *>(Stmt)->Condition = Group;
         }
+
+        // Consume Right Parenthesis ) if exists
+        ParseEndParen(hasParen);
     }
 
     // Parse statement between braces for If, Elsif, Else
@@ -533,7 +533,7 @@ bool Parser::ParseIfStmt(BlockStmt *CurrentStmt) {
 /**
  * Parse the Switch statement
  *
- * switch (...) {"
+ * switch ... {"
  *  case 1:
  *      ...
  *      break
@@ -552,75 +552,71 @@ bool Parser::ParseSwitchStmt(BlockStmt *CurrentStmt) {
         const SourceLocation &SwitchLoc = ConsumeToken();
 
         // Parse (
-        if (Tok.is(tok::l_paren)) {
-            ConsumeParen();
+        bool hasParen = ParseStartParen();
 
-            // Parse Var reference like (a)
-            VarRef *Ref = ParseVarRef();
-            if (Ref) {
+        // Parse Var reference like (a)
+        VarRef *Ref = ParseVarRef();
+        if (Ref) {
 
-                // Parse )
-                if (Tok.is(tok::r_paren)) {
-                    ConsumeParen();
+            // Consume Right Parenthesis ) if exists
+            ParseEndParen(hasParen);
 
-                    // Init Switch Statement and start parse from brace
-                    SwitchBlockStmt *Stmt = new SwitchBlockStmt(SwitchLoc, CurrentStmt, Ref);
-                    if (Tok.is(tok::l_brace)) {
-                        ConsumeBrace();
+            // Init Switch Statement and start parse from brace
+            SwitchBlockStmt *Stmt = new SwitchBlockStmt(SwitchLoc, CurrentStmt, Ref);
+            if (Tok.is(tok::l_brace)) {
+                ConsumeBrace();
 
-                        // Exit only Statement find a closed brace or EOF
-                        while (Tok.isNot(tok::r_brace) && Tok.isNot(tok::eof)) {
+                // Exit only Statement find a closed brace or EOF
+                while (Tok.isNot(tok::r_brace) && Tok.isNot(tok::eof)) {
 
-                            // Parse case keyword
-                            if (Tok.is(tok::kw_case)) {
-                                const SourceLocation &CaseLoc = ConsumeToken();
+                    // Parse case keyword
+                    if (Tok.is(tok::kw_case)) {
+                        const SourceLocation &CaseLoc = ConsumeToken();
 
-                                // Parse Expression for different cases
-                                // for a Value  -> case 1:
-                                // or for a Var -> case a:
-                                // or for a default
-                                Expr * CaseExp = NULL;
-                                if (isValue()) {
-                                    CaseExp = ParseValueExpr();
-                                } else if (Tok.isAnyIdentifier()) {
-                                    IdentifierInfo *Id = Tok.getIdentifierInfo();
-                                    CaseExp = new VarRefExpr(
-                                            Tok.getLocation(),new VarRef(Tok.getLocation(), Id->getName()));
-                                    ConsumeToken();
-                                } else {
-                                    // TODO Error
-                                }
-                                if (Tok.is(tok::colon)) {
-                                    ConsumeToken();
+                        // Parse Expression for different cases
+                        // for a Value  -> case 1:
+                        // or for a Var -> case a:
+                        // or for a default
+                        Expr * CaseExp = NULL;
+                        if (isValue()) {
+                            CaseExp = ParseValueExpr();
+                        } else if (Tok.isAnyIdentifier()) {
+                            IdentifierInfo *Id = Tok.getIdentifierInfo();
+                            CaseExp = new VarRefExpr(
+                                    Tok.getLocation(),new VarRef(Tok.getLocation(), Id->getName()));
+                            ConsumeToken();
+                        } else {
+                            // TODO Error
+                        }
+                        if (Tok.is(tok::colon)) {
+                            ConsumeToken();
 
-                                    // Add Case to Switch statement and parse statement not contained into braces
-                                    CaseBlockStmt *CaseStmt = Stmt->AddCase(CaseLoc, CaseExp);
-                                    while (!Tok.isOneOf(tok::r_brace, tok::kw_case, tok::kw_default, tok::eof)) {
-                                        ParseAllStmt(CaseStmt);
-                                    }
-                                }
-                            } else if (Tok.is(tok::kw_default)) {
-                                ConsumeToken();
-
-                                if (Tok.is(tok::colon)) {
-                                    const SourceLocation &Loc = ConsumeToken();
-
-                                    // Add Default to Switch statement and parse statement not contained into braces
-                                    DefaultBlockStmt *DefStmt = Stmt->AddDefault(Loc);
-                                    ParseAllStmt(DefStmt);
-                                } else {
-                                    // TODO add error, missing :
-                                }
+                            // Add Case to Switch statement and parse statement not contained into braces
+                            CaseBlockStmt *CaseStmt = Stmt->AddCase(CaseLoc, CaseExp);
+                            while (!Tok.isOneOf(tok::r_brace, tok::kw_case, tok::kw_default, tok::eof)) {
+                                ParseAllStmt(CaseStmt);
                             }
                         }
+                    } else if (Tok.is(tok::kw_default)) {
+                        ConsumeToken();
 
-                        // Switch statement is at end of it's time add current Switch to parent statement
-                        if (Tok.is(tok::r_brace)) {
-                            ConsumeBrace();
-                            CurrentStmt->Content.push_back(Stmt);
-                            return true;
+                        if (Tok.is(tok::colon)) {
+                            const SourceLocation &Loc = ConsumeToken();
+
+                            // Add Default to Switch statement and parse statement not contained into braces
+                            DefaultBlockStmt *DefStmt = Stmt->AddDefault(Loc);
+                            ParseAllStmt(DefStmt);
+                        } else {
+                            // TODO add error, missing :
                         }
                     }
+                }
+
+                // Switch statement is at end of it's time add current Switch to parent statement
+                if (Tok.is(tok::r_brace)) {
+                    ConsumeBrace();
+                    CurrentStmt->Content.push_back(Stmt);
+                    return true;
                 }
             }
         }
