@@ -8,6 +8,8 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "CodeGen/CodeGen.h"
+#include "CodeGen/CodeGenModule.h"
+#include "CodeGen/CGFunction.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/DiagnosticOptions.h"
 #include "Basic/FileManager.h"
@@ -197,13 +199,13 @@ namespace {
         TargetOpts->CodeModel = "default";
         CodeGenModule CGM(Diags, Node, *CodeGen::CreateTargetInfo(Diags, TargetOpts));
 
-        GlobalVariable *GVar = CGM.GenTop(Var);
+        GlobalVariable *GVar = CGM.GenGlobalVar(Var)->getGlobalVar();
 
         testing::internal::CaptureStdout();
         GVar->print(llvm::outs(), true);
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "@a = external global i32");
+        EXPECT_EQ(output, "@0 = external global i32");
     }
 
     TEST_F(CodeGenTest, CGFunc) {
@@ -218,7 +220,7 @@ namespace {
         TargetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
         CodeGenModule CGM(Diags, Node, *CodeGen::CreateTargetInfo(Diags, TargetOpts));
 
-        Function *F = CGM.GenTop(Func);
+        Function *F = CGM.GenFunction(Func)->getFunction();
 
         testing::internal::CaptureStdout();
         F->print(llvm::outs());

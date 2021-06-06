@@ -10,11 +10,11 @@
 #ifndef FLY_VARDECLSTMT_H
 #define FLY_VARDECLSTMT_H
 
+#include "CodeGen/CGVar.h"
 #include "Stmt.h"
 #include "VarDecl.h"
 #include "TypeBase.h"
 #include "Expr.h"
-#include "OperatorExpr.h" //TODO remove
 #include "Basic/TokenKinds.h"
 
 namespace fly {
@@ -30,53 +30,14 @@ namespace fly {
         friend class GlobalVarParser;
 
         const StmtKind Kind = StmtKind::STMT_VAR_DECL;
+        CGVar *CodeGen;
 
     public:
-        VarDeclStmt(const SourceLocation &Loc, TypeBase *Type, const llvm::StringRef Name);
+        VarDeclStmt(const SourceLocation &Loc, BlockStmt *CurrStmt, TypeBase *Type, const llvm::StringRef Name);
 
         StmtKind getKind() const;
-    };
 
-    /**
-     * Reference to Var Declaration
-     * Ex.
-     *  ... = a + 1
-     */
-    class VarRef {
-
-        friend class Parser;
-
-        const llvm::StringRef Name;
-        VarDeclStmt *Var = NULL;
-
-    public:
-        VarRef(const SourceLocation &Loc, const llvm::StringRef &Name);
-        VarRef(const SourceLocation &Loc, VarDeclStmt *D);
-
-        const llvm::StringRef &getName() const;
-
-        VarDecl *getVarDecl() const;
-
-    };
-
-    /**
-     * Declaration of a reference to a Var
-     * Ex.
-     *  a = 1
-     */
-    class VarAssignStmt : public VarRef, public Stmt {
-
-        friend class Parser;
-
-        GroupExpr *Expr;
-
-    public:
-        VarAssignStmt(const SourceLocation &Loc, const llvm::StringRef &Name);
-        VarAssignStmt(const SourceLocation &Loc, VarDeclStmt *D);
-
-        StmtKind getKind() const override;
-
-        GroupExpr *getExpr() const;
+        void setCodeGen(CGVar *CG);
     };
 }
 

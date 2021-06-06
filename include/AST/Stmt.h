@@ -28,16 +28,29 @@ namespace fly {
         STMT_RETURN
     };
 
+    class BlockStmt;
+    class FuncDecl;
+
     class Stmt {
 
         const SourceLocation Location;
 
+        const FuncDecl *Container;
+
+        const BlockStmt *Parent;
+
     public:
-        explicit Stmt(const SourceLocation &Loc);
+        Stmt(const SourceLocation &Loc, BlockStmt *Parent);
+
+        Stmt(const SourceLocation &Loc, FuncDecl *Container, BlockStmt *Parent);
 
         const SourceLocation &getLocation() const;
 
         virtual StmtKind getKind() const = 0;
+
+        const FuncDecl *getContainer() const;
+
+        const BlockStmt *getParent() const;
     };
 }
 

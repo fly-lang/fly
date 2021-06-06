@@ -86,7 +86,7 @@ void CodeGen::GenerateModule(ASTNameSpace * NS) {
                 std::make_unique<raw_fd_ostream>(OutputFileName, Code, llvm::sys::fs::F_None);
 
         Builder = std::make_unique<CodeGenModule>(Diags, *AST, *Target);
-        Builder->GenAST();
+        Builder->Generate();
 
         EmbedBitcode(Builder->Module.get(), CodeGenOpts, llvm::MemoryBufferRef());
 

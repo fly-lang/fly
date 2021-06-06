@@ -11,13 +11,14 @@ FunctionParser::FunctionParser(Parser *P, const StringRef &FuncName, SourceLocat
 
 }
 
-bool FunctionParser::ParseRefDecl() {
-    Invoke = new FuncCallStmt(FuncNameLoc, FuncName);
+bool FunctionParser::ParseRefDecl(BlockStmt *CurrentStmt) {
+    Call = new FuncCallStmt(FuncNameLoc, CurrentStmt, FuncName);
     return ParseParameters(true, true);
 }
 
 bool FunctionParser::ParseDefinition(TypeBase *TyDecl) {
     Function = new FuncDecl(FuncNameLoc, TyDecl, FuncName);
+    Function->Body = new BlockStmt(P->Tok.getLocation(), Function, NULL);
     if (ParseParameters(true)) {
         return ParseBody();
     }
@@ -45,17 +46,17 @@ bool FunctionParser::ParseParameters(bool isStart, bool isRef) {
         if (P->Tok.isAnyIdentifier()) {
             VarRef *Var = P->ParseVarRef();
             VarRefExpr *RExpr = new VarRefExpr(P->Tok.getLocation(), Var);
-            Invoke->Params->Args.push_back(RExpr);
+            Call->Params->Args.push_back(RExpr);
             return ParseParameters(false, true);
         } else if (P->isValue()) {
             ValueExpr *ValExp = P->ParseValueExpr();
-            Invoke->Params->Args.push_back(ValExp);
+            Call->Params->Args.push_back(ValExp);
             return ParseParameters(false, true);
         }
     }
 
     // Parse Params as Decl in Function Definition
-    VarDeclStmt *Var = P->ParseVarDecl();
+    VarDeclStmt *Var = P->ParseVarDecl(Function->Body);
     if (Var) {
         Function->Params->Vars.push_back(Var);
         return ParseParameters();
@@ -66,7 +67,6 @@ bool FunctionParser::ParseParameters(bool isStart, bool isRef) {
 }
 
 bool FunctionParser::ParseBody() {
-    Function->Body = new BlockStmt(P->Tok.getLocation(), NULL);
     if (!Function->Params->Vars.empty()) {
         for (VarDeclStmt *Var : Function->Params->Vars) {
             Function->Body->Vars.insert(std::pair<StringRef, VarDeclStmt *>(Var->Name, Var));

@@ -40,6 +40,7 @@ namespace fly {
 
         Expr *getVal() const;
     };
+
 }
 
 #endif //FLY_GLOBALVARPARSER_H

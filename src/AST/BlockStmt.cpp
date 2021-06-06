@@ -12,7 +12,16 @@
 
 using namespace fly;
 
-BlockStmt::BlockStmt(const SourceLocation &Loc, BlockStmt *Parent) : Stmt(Loc), Parent(Parent) {
+BlockStmt::BlockStmt(const SourceLocation &Loc, FuncDecl *Container, BlockStmt *Parent) :
+    Stmt(Loc, Container, Parent) {
+    if (Parent) {
+        for (auto &Entry : Parent->Vars) {
+            Vars.insert(std::pair<llvm::StringRef, VarDeclStmt *>(Entry.getKey(), Entry.getValue()));
+        }
+    }
+}
+
+BlockStmt::BlockStmt(const SourceLocation &Loc, BlockStmt *Parent) : Stmt(Loc, Parent) {
     if (Parent) {
         for (auto &Entry : Parent->Vars) {
             Vars.insert(std::pair<llvm::StringRef, VarDeclStmt *>(Entry.getKey(), Entry.getValue()));
@@ -40,7 +49,7 @@ ReturnStmt *BlockStmt::getReturn() const {
     return Return;
 }
 
-bool BlockStmt::addVar(VarAssignStmt *Var) {
+bool BlockStmt::addVar(VarStmt *Var) {
     Content.push_back(Var);
     return true;
 }
@@ -51,7 +60,7 @@ bool BlockStmt::addVar(VarDeclStmt *Var) {
     return true;
 }
 
-bool BlockStmt::addInvoke(FuncCallStmt *Invoke) {
+bool BlockStmt::addCall(FuncCallStmt *Invoke) {
     Content.push_back(Invoke);
     FuncCalls.insert(std::pair<StringRef, FuncCallStmt *>(Invoke->getName(), Invoke));
     return true;
@@ -63,7 +72,7 @@ LoopBlockStmt::LoopBlockStmt(const SourceLocation &Loc, BlockStmt *Parent) : Blo
 
 }
 
-BreakStmt::BreakStmt(const SourceLocation &Loc) : Stmt(Loc) {
+BreakStmt::BreakStmt(const SourceLocation &Loc, BlockStmt *CurrStmt) : Stmt(Loc, CurrStmt) {
 
 }
 
@@ -71,7 +80,7 @@ StmtKind BreakStmt::getKind() const {
     return Kind;
 }
 
-ContinueStmt::ContinueStmt(const SourceLocation &Loc) : Stmt(Loc) {
+ContinueStmt::ContinueStmt(const SourceLocation &Loc, BlockStmt *CurrStmt) : Stmt(Loc, CurrStmt) {
 
 }
 

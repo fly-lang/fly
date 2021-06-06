@@ -24,20 +24,65 @@ namespace fly {
         friend class FunctionParser;
         friend class VarDeclStmt;
 
+        const bool Global;
         TypeBase *Type;
         const llvm::StringRef Name;
         bool Constant = false;
         GroupExpr *Expression = NULL;
 
     public:
-        VarDecl(TypeBase *Type, const StringRef &Name);
+        VarDecl(TypeBase *Type, const StringRef &Name, bool isGlobal = false);
         virtual ~VarDecl();
+
+        const bool isGlobal() const;
 
         virtual bool isConstant() const;
 
         virtual TypeBase *getType() const;
 
         virtual const llvm::StringRef &getName() const;
+
+        GroupExpr *getExpr() const;
+    };
+
+    /**
+     * Reference to Var Declaration
+     * Ex.
+     *  ... = a + 1
+     */
+    class VarRef {
+
+        friend class Parser;
+
+        const llvm::StringRef Name;
+        VarDecl *Var = NULL;
+
+    public:
+        VarRef(const SourceLocation &Loc, const llvm::StringRef &Name);
+        VarRef(const SourceLocation &Loc, VarDecl *D);
+
+        const llvm::StringRef &getName() const;
+
+        VarDecl *getVarDecl() const;
+
+    };
+
+    /**
+     * Declaration of a reference to a Var
+     * Ex.
+     *  a = 1
+     */
+    class VarStmt : public VarRef, public Stmt {
+
+        friend class Parser;
+
+        GroupExpr *Expr;
+
+    public:
+        VarStmt(const SourceLocation &Loc, BlockStmt *CurrStmt, const llvm::StringRef &Name);
+        VarStmt(const SourceLocation &Loc, BlockStmt *CurrStmt, VarDecl *D);
+
+        StmtKind getKind() const override;
 
         GroupExpr *getExpr() const;
     };

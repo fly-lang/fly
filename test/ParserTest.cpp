@@ -282,7 +282,7 @@ namespace {
         EXPECT_EQ(static_cast<ValueExpr *>(bVar->getExpr()->getGroup()[2])->getString(), "1.0");
 
         // Test: a += 2
-        const VarAssignStmt *aVar = static_cast<VarAssignStmt *>(Body->getContent()[3]);
+        const VarStmt *aVar = static_cast<VarStmt *>(Body->getContent()[3]);
         EXPECT_EQ(aVar->getName(), "a");
         EXPECT_EQ(aVar->getExpr()->getKind(), ExprKind::EXPR_GROUP);
         VarRefExpr *aExpr = static_cast<VarRefExpr *>(aVar->getExpr()->getGroup()[0]);
@@ -293,7 +293,7 @@ namespace {
         EXPECT_EQ(opC1Expr->getString(), "2");
 
         // Test: c = b == 1.0
-        const VarAssignStmt *c2Var = static_cast<VarAssignStmt *>(Body->getContent()[4]);
+        const VarStmt *c2Var = static_cast<VarStmt *>(Body->getContent()[4]);
         EXPECT_EQ(c2Var->getName(), "c");
         EXPECT_EQ(c2Var->getExpr()->getKind(), ExprKind::EXPR_GROUP);
         VarRefExpr *c2Expr = static_cast<VarRefExpr *>(c2Var->getExpr()->getGroup()[0]);
@@ -364,28 +364,28 @@ namespace {
         const BlockStmt *Body = F->getBody();
 
         // ++a
-        const VarAssignStmt *aVar = static_cast<VarAssignStmt *>(Body->getContent()[0]);
+        const VarStmt *aVar = static_cast<VarStmt *>(Body->getContent()[0]);
         EXPECT_EQ(aVar->getExpr()->getKind(), ExprKind::EXPR_GROUP);
         EXPECT_EQ(aVar->getName(), "a");
         IncDecExpr *aExpr = static_cast<IncDecExpr *>(aVar->getExpr()->getGroup()[0]);
         EXPECT_EQ(aExpr->getIncDecKind(), IncDecOpKind::PRE_INCREMENT);
 
         // b++
-        const VarAssignStmt *bVar = static_cast<VarAssignStmt *>(Body->getContent()[1]);
+        const VarStmt *bVar = static_cast<VarStmt *>(Body->getContent()[1]);
         EXPECT_EQ(bVar->getExpr()->getKind(), ExprKind::EXPR_GROUP);
         EXPECT_EQ(bVar->getName(), "b");
         IncDecExpr *bExpr = static_cast<IncDecExpr *>(bVar->getExpr()->getGroup()[0]);
         EXPECT_EQ(bExpr->getIncDecKind(), IncDecOpKind::POST_INCREMENT);
 
         // ++c
-        const VarAssignStmt *cVar = static_cast<VarAssignStmt *>(Body->getContent()[2]);
+        const VarStmt *cVar = static_cast<VarStmt *>(Body->getContent()[2]);
         EXPECT_EQ(cVar->getExpr()->getKind(), ExprKind::EXPR_GROUP);
         EXPECT_EQ(cVar->getName(), "c");
         IncDecExpr *cExpr = static_cast<IncDecExpr *>(cVar->getExpr()->getGroup()[0]);
         EXPECT_EQ(cExpr->getIncDecKind(), IncDecOpKind::PRE_DECREMENT);
 
         // d++
-        const VarAssignStmt *dVar = static_cast<VarAssignStmt *>(Body->getContent()[3]);
+        const VarStmt *dVar = static_cast<VarStmt *>(Body->getContent()[3]);
         EXPECT_EQ(dVar->getExpr()->getKind(), ExprKind::EXPR_GROUP);
         EXPECT_EQ(dVar->getName(), "d");
         IncDecExpr *dExpr = static_cast<IncDecExpr *>(dVar->getExpr()->getGroup()[0]);
@@ -428,12 +428,12 @@ namespace {
         EXPECT_EQ(static_cast<LogicExpr *>(EIStmt->getCondition()->getGroup()[1])->getLogicKind(),
                   LogicOpKind::LOGIC_EQ);
         EXPECT_EQ(static_cast<ValueExpr *>(EIStmt->getCondition()->getGroup()[2])->getString(), "2");
-        EXPECT_EQ(static_cast<VarAssignStmt *>(EIStmt->getContent()[0])->getName(), "b");
+        EXPECT_EQ(static_cast<VarStmt *>(EIStmt->getContent()[0])->getName(), "b");
 
         // Else
         const ElseBlockStmt *EEStmt = static_cast<ElseBlockStmt *>(Body->getContent()[2]);
         EXPECT_EQ(EEStmt->getBlockKind(), BlockStmtKind::BLOCK_STMT_ELSE);
-        EXPECT_EQ(static_cast<VarAssignStmt *>(EEStmt->getContent()[0])->getName(), "b");
+        EXPECT_EQ(static_cast<VarStmt *>(EEStmt->getContent()[0])->getName(), "b");
     }
 
     TEST_F(ParserTest, FunctionBodyIfInlineStmt) {
@@ -473,7 +473,7 @@ namespace {
         // Else
         const ElseBlockStmt *EEStmt = static_cast<ElseBlockStmt *>(Body->getContent()[2]);
         EXPECT_EQ(EEStmt->getBlockKind(), BlockStmtKind::BLOCK_STMT_ELSE);
-        EXPECT_EQ(static_cast<VarAssignStmt *>(EEStmt->getContent()[0])->getName(), "a");
+        EXPECT_EQ(static_cast<VarStmt *>(EEStmt->getContent()[0])->getName(), "a");
     }
 
     TEST_F(ParserTest, FunctionBodySwitchStmt) {
@@ -530,11 +530,11 @@ namespace {
         EXPECT_EQ(static_cast<LogicExpr *>(Cond->getGroup()[1])->getLogicKind(), LogicOpKind::LOGIC_LT);
         EXPECT_EQ(static_cast<ValueExpr *>(Cond->getGroup()[2])->getString(), "10");
 
-        EXPECT_EQ(static_cast<VarAssignStmt *>(Stmt->getPost()->getContent()[0])->getName(), "b");
-        IncDecExpr *Expr1 = static_cast<IncDecExpr *>(static_cast<VarAssignStmt *>(Stmt->getPost()->getContent()[0])->getExpr()->getGroup()[0]);
+        EXPECT_EQ(static_cast<VarStmt *>(Stmt->getPost()->getContent()[0])->getName(), "b");
+        IncDecExpr *Expr1 = static_cast<IncDecExpr *>(static_cast<VarStmt *>(Stmt->getPost()->getContent()[0])->getExpr()->getGroup()[0]);
         EXPECT_EQ(Expr1->getIncDecKind(), IncDecOpKind::POST_INCREMENT);
-        EXPECT_EQ(static_cast<VarAssignStmt *>(Stmt->getPost()->getContent()[1])->getName(), "c");
-        IncDecExpr *Expr2 = static_cast<IncDecExpr *>(static_cast<VarAssignStmt *>(Stmt->getPost()->getContent()[1])->getExpr()->getGroup()[0]);
+        EXPECT_EQ(static_cast<VarStmt *>(Stmt->getPost()->getContent()[1])->getName(), "c");
+        IncDecExpr *Expr2 = static_cast<IncDecExpr *>(static_cast<VarStmt *>(Stmt->getPost()->getContent()[1])->getExpr()->getGroup()[0]);
         EXPECT_EQ(Expr2->getIncDecKind(), IncDecOpKind::PRE_DECREMENT);
     }
 

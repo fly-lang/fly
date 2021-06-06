@@ -23,6 +23,7 @@ namespace fly {
     class ParamsFuncDecl;
     class BlockStmt;
     class FuncCall;
+    class CGFunction;
 
     /**
      * The Function Declaration and definition
@@ -46,6 +47,7 @@ namespace fly {
 //        llvm::StringMap<ClassRef *> ClassRef;
         ParamsFuncDecl *Params = NULL;
         BlockStmt *Body = NULL;
+        CGFunction *CodeGen = NULL;
 
     public:
         FuncDecl(const SourceLocation &Loc, const TypeBase *RetType, const llvm::StringRef &Name);
@@ -62,11 +64,13 @@ namespace fly {
 
         const BlockStmt *getBody() const;
 
-        const llvm::StringMap<VarRef *> &getVarRef() const;
-
 //        const llvm::StringMap<FunctionRef *> &getFuncRef() const;
 
 //        const llvm::StringMap<ClassRef *> &getClassRef() const;
+
+        CGFunction *getCodeGen() const;
+
+        void setCodeGen(CGFunction *codeGen);
 
     };
 
@@ -115,9 +119,10 @@ namespace fly {
 
         StmtKind Kind = StmtKind::STMT_RETURN;
         GroupExpr* Group;
+        const TypeBase *Ty;
 
     public:
-        ReturnStmt(SourceLocation &Loc, class GroupExpr *Group);
+        ReturnStmt(SourceLocation &Loc, BlockStmt *CurrentStmt, class GroupExpr *Group);
 
         StmtKind getKind() const override;
 
@@ -157,8 +162,8 @@ namespace fly {
     class FuncCallStmt : public FuncCall, public Stmt {
 
     public:
-        FuncCallStmt(const SourceLocation &Loc, const llvm::StringRef &Name);
-        FuncCallStmt(const SourceLocation &Loc, FuncDecl *Decl);
+        FuncCallStmt(const SourceLocation &Loc, BlockStmt *CurrentStmt, const llvm::StringRef &Name);
+        FuncCallStmt(const SourceLocation &Loc, BlockStmt *CurrentStmt, FuncDecl *Decl);
 
         StmtKind getKind() const override;
     };

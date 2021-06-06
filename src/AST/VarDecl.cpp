@@ -12,7 +12,7 @@
 
 using namespace fly;
 
-VarDecl::VarDecl(TypeBase *Type, const StringRef &Name) : Type(Type), Name(Name) {}
+VarDecl::VarDecl(TypeBase *Type, const StringRef &Name, bool isGlobal) : Type(Type), Name(Name), Global(isGlobal) {}
 
 TypeBase *VarDecl::getType() const {
     return Type;
@@ -31,6 +31,45 @@ bool VarDecl::isConstant() const {
     return Constant;
 }
 
+const bool VarDecl::isGlobal() const {
+    return Global;
+}
+
 GroupExpr *VarDecl::getExpr() const {
     return Expression;
+}
+
+
+VarRef::VarRef(const SourceLocation &Loc, const StringRef &Name) : Name(Name) {
+
+}
+
+VarRef::VarRef(const SourceLocation &Loc, VarDecl *D) : Name(D->getName()), Var(D) {
+
+}
+
+const llvm::StringRef &VarRef::getName() const {
+    return Name;
+}
+
+VarDecl *VarRef::getVarDecl() const {
+    return Var;
+}
+
+VarStmt::VarStmt(const SourceLocation &Loc, BlockStmt *CurrStmt, const StringRef &Name) : Stmt(Loc, CurrStmt),
+    VarRef(Loc, Name), Expr(new GroupExpr) {
+
+}
+
+VarStmt::VarStmt(const SourceLocation &Loc, BlockStmt *CurrStmt, VarDecl *D) : Stmt(Loc, CurrStmt), VarRef(Loc, D),
+                                                          Expr(new GroupExpr) {
+
+}
+
+StmtKind VarStmt::getKind() const {
+    return STMT_VAR_ASSIGN;
+}
+
+GroupExpr *VarStmt::getExpr() const {
+    return Expr;
 }

@@ -67,6 +67,7 @@ namespace fly {
     class GroupExpr : public Expr {
 
         friend class Parser;
+        friend class GlobalVarParser;
 
         const ExprKind Kind = ExprKind::EXPR_GROUP;
         std::vector<Expr *> Group;

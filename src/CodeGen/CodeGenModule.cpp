@@ -14,6 +14,8 @@
 
 #include "CodeGen/CodeGenModule.h"
 #include "CodeGen/CharUnits.h"
+#include "CodeGen/CGFunction.h"
+#include "CodeGen/CGVar.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Value.h"
@@ -68,14 +70,14 @@ CodeGenModule::CodeGenModule(DiagnosticsEngine &Diags, ASTNode &Node, TargetInfo
 /**
  * GenStmt from ASTContext
  */
-void CodeGenModule::GenAST() {
+void CodeGenModule::Generate() {
     // Manage Top Decl
     Node.getGlobalVars().begin();
     for (const llvm::StringMapEntry<GlobalVarDecl *> &Entry : Node.getGlobalVars()) {
-        GenTop(Entry.getValue());
+        GenGlobalVar(Entry.getValue());
     }
     for (const llvm::StringMapEntry<FuncDecl *> &Entry : Node.getFunctions()) {
-        GenTop(Entry.getValue());
+        GenFunction(Entry.getValue());
     }
 }
 
@@ -83,60 +85,89 @@ void CodeGenModule::GenAST() {
  * GenStmt from VarDecl
  * @param Decl
  */
-llvm::GlobalVariable *CodeGenModule::GenTop(GlobalVarDecl* V) {
+CGGlobalVar *CodeGenModule::GenGlobalVar(GlobalVarDecl* VDecl) {
     // Check Value
-    StringRef StrVal;
-
-    if (V->getExpr() && !V->getExpr()->isEmpty()) {
-        if (V->getExpr()->getGroup().at(0)->getKind() == EXPR_VALUE) {
-            StrVal = static_cast<ValueExpr *>(V->getExpr()->getGroup().at(0))->getString();
-        }
+    llvm::StringRef StrVal;
+    if (VDecl->getExpr() && !VDecl->getExpr()->isEmpty()) {
+        assert(VDecl->getExpr()->getGroup().size() == 1 &&
+                       VDecl->getExpr()->getGroup().at(0)->getKind() == EXPR_VALUE && "Invalid Global Var value");
+        ValueExpr *E = static_cast<ValueExpr *>(VDecl->getExpr()->getGroup().at(0));
+        StrVal = E->getString();
     }
 
-    llvm::Constant *InitVal = nullptr;
-    Type *Ty = GenType(V->getType(), StrVal, InitVal);
-    GlobalVariable *G = new llvm::GlobalVariable(*Module, Ty, V->isConstant(), GlobalValue::ExternalLinkage,
-                                                 InitVal,
-                                                 V->getName());
-    return G;
+    CGGlobalVar *CG = new CGGlobalVar(this, VDecl->getType(), StrVal, VDecl->isConstant());
+    VDecl->setCodeGen(CG);
+    return CG;
 }
 
-Function *CodeGenModule::GenTop(FuncDecl *Decl) {
-    FunctionType *FnTy;
-    const TypeBase *RetTyData = Decl->getType();
-    if (Decl->getParams()->getVars().empty()) {
-        FnTy = FunctionType::get(GenType(RetTyData), Decl->getParams()->getVarArg() != nullptr);
-    } else {
-        SmallVector<Type *, 8> ArrayParams;
-        for (auto Param : Decl->getParams()->getVars()) {
-            Type *ParamTy = GenType(Param->getType());
-            ArrayParams.push_back(ParamTy);
-        }
-        FnTy = FunctionType::get(GenType(RetTyData), ArrayParams,
-                                 Decl->getParams()->getVarArg() != nullptr);
-    }
+CGFunction *CodeGenModule::GenFunction(FuncDecl *FDecl) {
+    CGFunction *CG = new CGFunction(this, FDecl->getName(), FDecl->getType(), FDecl->getParams(), FDecl->getBody());
+    FDecl->setCodeGen(CG);
 
-    Function *Fn = llvm::Function::Create(FnTy, llvm::Function::ExternalLinkage, Decl->getName());
-    if (Decl->getBody() && !Decl->getBody()->isEmpty()) {
-        BasicBlock *BB = BasicBlock::Create(VMContext, "entry", Fn);
-        for (auto S : Decl->getBody()->getContent()) {
-            Builder->SetInsertPoint(BB);
+    // Add Function Body
+    if (FDecl->getBody() && !FDecl->getBody()->isEmpty()) {
+        for (auto S : FDecl->getBody()->getContent()) {
             GenStmt(S);
         }
     }
-    return Fn;
+    return CG;
 }
 
 void CodeGenModule::GenStmt(Stmt * S) {
     switch (S->getKind()) {
-        case StmtKind::STMT_VAR_DECL:
+
+        // Var Declaration
+        case StmtKind::STMT_VAR_DECL: {
+            VarDeclStmt *V = static_cast<VarDeclStmt *>(S);
+            CGVar *CG = new CGVar(this, V);
+            V->setCodeGen(CG);
+            GenExpr(V->getType(), V->getExpr());
             break;
-        case STMT_VAR_ASSIGN:
+        }
+
+        // Var Assignment
+        case STMT_VAR_ASSIGN: {
+            VarStmt *V = static_cast<VarStmt *>(S);
+            assert(!V->getExpr()->isEmpty() && "Var assign empty");
+            GenExpr(V->getVarDecl()->getType(), V->getExpr());
+            if (V->getVarDecl()->isGlobal()) {
+                GlobalVarDecl *GV = static_cast<GlobalVarDecl *>(V->getVarDecl());
+//                GV->getCodeGen();
+            } else {
+//                V->getVarDecl()->getCodeGen();
+            }
+//            Builder->CreateStore();
             break;
-        case STMT_FUNC_CALL:
+        }
+        case STMT_FUNC_CALL: {
+            FuncCallStmt *FCall = static_cast<FuncCallStmt *>(S);
+            FCall->getDecl()->getCodeGen()->Call();
+             // TODO args
             break;
-        case STMT_BLOCK:
+        }
+        case STMT_BLOCK: {
+            BlockStmt *BS = static_cast<BlockStmt *>(S);
+            switch (BS->getBlockKind()) {
+                // TODO
+                case BLOCK_STMT:
+                    break;
+                case BLOCK_STMT_IF:
+                    break;
+                case BLOCK_STMT_ELSIF:
+                    break;
+                case BLOCK_STMT_ELSE:
+                    break;
+                case BLOCK_STMT_SWITCH:
+                    break;
+                case BLOCK_STMT_CASE:
+                    break;
+                case BLOCK_STMT_DEFAULT:
+                    break;
+                case BLOCK_STMT_FOR:
+                    break;
+            }
             break;
+        }
         case DECL_TYPE:
             break;
         case STMT_BREAK:
@@ -144,11 +175,16 @@ void CodeGenModule::GenStmt(Stmt * S) {
         case STMT_CONTINUE:
             break;
         case STMT_RETURN:
+            ReturnStmt *R = static_cast<ReturnStmt *>(S);
+            if (R->getExpr()->isEmpty())
+                Builder->CreateRetVoid();
+            else
+                GenExpr(R->getContainer()->getType(), R->getExpr());
             break;
     }
 }
 
-Type *CodeGenModule::GenType(const TypeBase *TyData, StringRef StrVal, llvm::Constant *InitVal) {
+Type *CodeGenModule::GenTypeValue(const TypeBase *TyData, StringRef StrVal, llvm::Constant *InitVal) {
     // Check Type
     llvm::Type *Ty = nullptr;
     switch (TyData->getKind()) {
@@ -187,7 +223,32 @@ Type *CodeGenModule::GenType(const TypeBase *TyData, StringRef StrVal, llvm::Con
     return Ty;
 }
 
+void CodeGenModule::GenExpr(const TypeBase *Typ, GroupExpr *Expr) {
+    if (Expr->isEmpty()) {
+        return;
+    }
+    for (auto *E : Expr->getGroup()) {
+        switch (E->getKind()) {
+
+            case EXPR_VALUE: {
+                ValueExpr *ValEx = static_cast<ValueExpr *>(E);
+                Constant *InitVal = nullptr;
+                Type *Ty = GenTypeValue(Typ, ValEx->getString(), InitVal);
+                break;
+            }
+            case EXPR_OPERATOR:
+                break;
+            case EXPR_REF_VAR:
+                break;
+            case EXPR_REF_FUNC:
+                break;
+            case EXPR_GROUP:
+                GenExpr(Typ, static_cast<GroupExpr *>(E));
+                break;
+        }
+    }
+}
+
 CodeGenModule::~CodeGenModule() {
     delete Builder;
 }
-

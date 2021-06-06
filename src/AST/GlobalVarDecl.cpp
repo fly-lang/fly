@@ -12,10 +12,19 @@
 
 using namespace fly;
 
-GlobalVarDecl::GlobalVarDecl(SourceLocation &Loc, TypeBase *Type, StringRef Name) : TopDecl(Loc), VarDecl(Type, Name) {
+GlobalVarDecl::GlobalVarDecl(SourceLocation &Loc, TypeBase *Type, StringRef Name) : TopDecl(Loc),
+    VarDecl(Type, Name, true) {
 
 }
 
 TopDeclKind GlobalVarDecl::getKind() const {
     return Kind;
+}
+
+CGGlobalVar *GlobalVarDecl::getCodeGen() const {
+    return CodeGen;
+}
+
+void GlobalVarDecl::setCodeGen(CGGlobalVar *codeGen) {
+    CodeGen = codeGen;
 }

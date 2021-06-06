@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/VarDecl.cpp - Var declaration Statement implementation
+// src/CodeGen/CGExpr.cpp - Code Generator Expression implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,17 +8,6 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#include "AST/VarDeclStmt.h"
+#include "CodeGen/CGExpr.h"
 
 using namespace fly;
-
-VarDeclStmt::VarDeclStmt(const SourceLocation &Loc, BlockStmt *CurrStmt, TypeBase *Type, const StringRef Name) :
-        Stmt(Loc, CurrStmt), VarDecl(Type, Name) {}
-
-StmtKind VarDeclStmt::getKind() const {
-    return Kind;
-}
-
-void VarDeclStmt::setCodeGen(CGVar *CG) {
-    CodeGen = CG;
-}

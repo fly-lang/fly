@@ -39,6 +39,14 @@ const TypeBase *FuncDecl::getType() const {
     return Type;
 }
 
+CGFunction *FuncDecl::getCodeGen() const {
+    return CodeGen;
+}
+
+void FuncDecl::setCodeGen(CGFunction *codeGen) {
+    CodeGen = codeGen;
+}
+
 //const llvm::StringMap<VarRef *> &FuncDecl::getVarRef() const {
 //    return VarRef;
 //}
@@ -67,7 +75,8 @@ const VarRef *ParamsFuncCall::getVarArg() const {
     return VarArg;
 }
 
-ReturnStmt::ReturnStmt(SourceLocation &Loc, class GroupExpr *Group) : Stmt(Loc), Group(Group) {}
+ReturnStmt::ReturnStmt(SourceLocation &Loc, BlockStmt *CurrentStmt, class GroupExpr *Group) : Stmt(Loc, CurrentStmt),
+        Ty(CurrentStmt->getContainer()->getType()), Group(Group) {}
 
 GroupExpr *ReturnStmt::getExpr() const {
     return Group;
@@ -97,11 +106,13 @@ FuncDecl *FuncCall::getDecl() const {
     return Func;
 }
 
-FuncCallStmt::FuncCallStmt(const SourceLocation &Loc, const llvm::StringRef &Name) : FuncCall(Loc, Name), Stmt(Loc) {
+FuncCallStmt::FuncCallStmt(const SourceLocation &Loc, BlockStmt *CurrentStmt, const llvm::StringRef &Name) :
+    FuncCall(Loc, Name), Stmt(Loc, CurrentStmt) {
 
 }
 
-FuncCallStmt::FuncCallStmt(const SourceLocation &Loc, FuncDecl *D) : FuncCall(Loc, D), Stmt(Loc) {
+FuncCallStmt::FuncCallStmt(const SourceLocation &Loc, BlockStmt *CurrentStmt, FuncDecl *D) : FuncCall(Loc, D),
+    Stmt(Loc, CurrentStmt) {
 
 }
 

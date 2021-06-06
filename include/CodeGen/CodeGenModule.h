@@ -29,6 +29,10 @@ namespace fly {
 
     class CodeGenModule : public CodeGenTypeCache {
 
+        friend class CGGlobalVar;
+        friend class CGFunction;
+        friend class CGVar;
+
     private:
         DiagnosticsEngine &Diags;
         ASTNode &Node;
@@ -43,15 +47,17 @@ namespace fly {
 
         std::unique_ptr<llvm::Module> Module;
 
-        void GenAST();
+        void Generate();
 
-        llvm::GlobalVariable *GenTop(GlobalVarDecl *V);
+        CGGlobalVar *GenGlobalVar(GlobalVarDecl *VDecl);
 
-        Function *GenTop(FuncDecl *Decl);
+        CGFunction *GenFunction(FuncDecl *FDecl);
 
-        Type *GenType(const TypeBase *TyData, StringRef StrVal = "", llvm::Constant *InitVal = nullptr);
+        Type *GenTypeValue(const TypeBase *TyData, StringRef StrVal = "", llvm::Constant *InitVal = nullptr);
 
         void GenStmt(Stmt * S);
+
+        void GenExpr(const TypeBase *Typ, GroupExpr *pExpr);
     };
 }
 

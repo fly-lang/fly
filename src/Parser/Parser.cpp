@@ -277,11 +277,6 @@ bool Parser::ParseFunctionDecl(VisibilityKind &VisKind, bool Constant, TypeBase 
 }
 
 /**
- *
- * @param CurrentStmt
- * @return
- */
-/**
  * Parse a single statement like Variable declaration, assignment or Function invocation
  *
  * cont int a
@@ -290,18 +285,18 @@ bool Parser::ParseFunctionDecl(VisibilityKind &VisKind, bool Constant, TypeBase 
  * a v1 = ...
  * int a = ...
  *
- * @param CurrentStmt
+ * @param CurrStmt
  * @return
  */
-bool Parser::ParseOneStmt(BlockStmt *CurrentStmt, GroupExpr *Group) {
+bool Parser::ParseOneStmt(BlockStmt *CurrStmt, GroupExpr *Group) {
     // Parse return
     if (Tok.is(tok::kw_return)) {
         SourceLocation RetLoc = ConsumeToken();
-        GroupExpr *Exp = ParseExpr();
+        GroupExpr *Exp = ParseExpr(CurrStmt);
         if (Exp) {
-            ReturnStmt *Return = new ReturnStmt(RetLoc, Exp);
-            CurrentStmt->Return = Return;
-            CurrentStmt->Content.push_back(Return);
+            ReturnStmt *Return = new ReturnStmt(RetLoc, CurrStmt, Exp);
+            CurrStmt->Return = Return;
+            CurrStmt->Content.push_back(Return);
             return true;
         }
     }
@@ -320,8 +315,8 @@ bool Parser::ParseOneStmt(BlockStmt *CurrentStmt, GroupExpr *Group) {
         ConsumeToken();
     } else if (isBuiltinType()) {
         // int a = ...
-        VarDeclStmt* Var = ParseVarDecl(Constant, ParseType());
-        return CurrentStmt->addVar(Var);
+        VarDeclStmt* Var = ParseVarDecl(CurrStmt, Constant, ParseType());
+        return CurrStmt->addVar(Var);
     }
 
     if (Tok.isAnyIdentifier()) { // variable definition
@@ -329,34 +324,34 @@ bool Parser::ParseOneStmt(BlockStmt *CurrentStmt, GroupExpr *Group) {
         StringRef Name = Id->getName();
         TypeBase *TyDecl = new ClassTypeRef(Loc, Name);
         if (TyDecl) {
-            VarDeclStmt* Var = ParseVarDecl(Constant, TyDecl);
-            return CurrentStmt->addVar(Var);
+            VarDeclStmt* Var = ParseVarDecl(CurrStmt, Constant, TyDecl);
+            return CurrStmt->addVar(Var);
         }
     } else if (Tok.is(tok::l_paren)) { // function invocation
         // a()
         if (Constant) {
             // TODO Error cannot use const with function call
         }
-        FuncCallStmt *Invoke = ParseFunctionRefDecl(Id, Loc);
-        if (Invoke)
-            return CurrentStmt->addInvoke(Invoke);
+        FuncCallStmt *Call = ParseFunctionRefDecl(CurrStmt, Id, Loc);
+        if (Call)
+            return CurrStmt->addCall(Call);
     } else if (isOpAssign()) {
         GroupExpr *GrExp = NULL;
-        VarAssignStmt *VDecl = new VarAssignStmt(Loc, Id->getName());
+        VarStmt *VDecl = new VarStmt(Loc, CurrStmt, Id->getName());
         if (Tok.isNot(tok::equal)) {
             GrExp = ParseOpAssign(VDecl);
         }
         ConsumeToken();
 
-        GroupExpr* Ex = ParseExpr(GrExp);
+        GroupExpr* Ex = ParseExpr(CurrStmt, GrExp);
         if (Ex) {
             VDecl->Expr = Ex;
-            return CurrentStmt->addVar(VDecl);
+            return CurrStmt->addVar(VDecl);
         }
     } else if (isOpIncDec()) {
-        VarAssignStmt *VRefD = ParseIncDec(Loc, Id);
+        VarStmt *VRefD = ParseIncDec(Loc, CurrStmt, Id);
         if (VRefD) {
-            return CurrentStmt->addVar(VRefD);
+            return CurrStmt->addVar(VRefD);
         }
     } else if (isOperator()) {
 
@@ -367,7 +362,7 @@ bool Parser::ParseOneStmt(BlockStmt *CurrentStmt, GroupExpr *Group) {
 
         VarRefExpr *VRef = new VarRefExpr(Loc, new VarRef(Loc, Id->getName()));
         Group->Group.push_back(VRef);
-        return ParseExpr(Group);
+        return ParseExpr(CurrStmt, Group);
     }
 
     return false;
@@ -375,29 +370,29 @@ bool Parser::ParseOneStmt(BlockStmt *CurrentStmt, GroupExpr *Group) {
 
 /**
  * Parse statements not yet contained into braces
- * @param CurrentStmt
+ * @param CurrStmt
  * @return
  */
-bool Parser::ParseAllStmt(BlockStmt *CurrentStmt) {
-    if (ParseOneStmt(CurrentStmt)) {
+bool Parser::ParseAllStmt(BlockStmt *CurrStmt) {
+    if (ParseOneStmt(CurrStmt)) {
         // Already all done into ParseSingleStmt()
         return true;
     }
     if (Tok.isOneOf(tok::kw_if, tok::kw_elsif, tok::kw_else)) {
-        return ParseIfStmt(CurrentStmt);
+        return ParseIfStmt(CurrStmt);
     }
     if (Tok.is(tok::kw_switch)) {
-        return ParseSwitchStmt(CurrentStmt);
+        return ParseSwitchStmt(CurrStmt);
     }
     if (Tok.is(tok::kw_for)) {
-        return ParseForStmt(CurrentStmt);
+        return ParseForStmt(CurrStmt);
     }
     if (Tok.is(tok::kw_break)) {
-        CurrentStmt->Content.push_back(new BreakStmt(ConsumeToken()));
+        CurrStmt->Content.push_back(new BreakStmt(ConsumeToken(), CurrStmt));
         return true;
     }
     if (Tok.is(tok::kw_continue)) {
-        CurrentStmt->Content.push_back(new ContinueStmt(ConsumeToken()));
+        CurrStmt->Content.push_back(new ContinueStmt(ConsumeToken(), CurrStmt));
         return true;
     }
 
@@ -407,13 +402,13 @@ bool Parser::ParseAllStmt(BlockStmt *CurrentStmt) {
 
 /**
  * Parse statements between braces
- * @param CurrentStmt
+ * @param CurrStmt
  * @return
  */
-bool Parser::ParseAllInBraceStmt(BlockStmt *CurrentStmt) {
+bool Parser::ParseAllInBraceStmt(BlockStmt *CurrStmt) {
     // Parse until find a }
     while (Tok.isNot(tok::r_brace) && Tok.isNot(tok::eof)) {
-        ParseAllStmt(CurrentStmt);
+        ParseAllStmt(CurrStmt);
     }
 
     if (Tok.is(tok::r_brace)) { // Close Brace
@@ -471,10 +466,10 @@ bool Parser::ParseEndParen(bool hasParen) {
  *  elsif (...) ...
  *  else ...
  *
- * @param CurrentStmt
+ * @param CurrStmt
  * @return
  */
-bool Parser::ParseIfStmt(BlockStmt *CurrentStmt) {
+bool Parser::ParseIfStmt(BlockStmt *CurrStmt) {
     ConditionBlockStmt *Stmt;
     const SourceLocation &Loc = Tok.getLocation();
 
@@ -482,17 +477,17 @@ bool Parser::ParseIfStmt(BlockStmt *CurrentStmt) {
     switch (Tok.getKind()) {
         case tok::kw_if:
             ConsumeToken();
-            Stmt = new IfBlockStmt(Loc, CurrentStmt);
+            Stmt = new IfBlockStmt(Loc, CurrStmt);
             break;
         case tok::kw_elsif:
             ConsumeToken();
-            Stmt = new ElsifBlockStmt(Loc, CurrentStmt);
-            IfBlockStmt::AddBranch(CurrentStmt, Stmt);
+            Stmt = new ElsifBlockStmt(Loc, CurrStmt);
+            IfBlockStmt::AddBranch(CurrStmt, Stmt);
             break;
         case tok::kw_else:
             ConsumeToken();
-            Stmt = new ElseBlockStmt(Loc, CurrentStmt);
-            IfBlockStmt::AddBranch(CurrentStmt, Stmt);
+            Stmt = new ElseBlockStmt(Loc, CurrStmt);
+            IfBlockStmt::AddBranch(CurrStmt, Stmt);
             break;
         default:
             assert("Unknow conditional statement");
@@ -506,7 +501,7 @@ bool Parser::ParseIfStmt(BlockStmt *CurrentStmt) {
             Stmt->getBlockKind() == BlockStmtKind::BLOCK_STMT_ELSIF) {
 
         // Parse the group of expressions into parenthesis
-        GroupExpr *Group = ParseExpr();
+        GroupExpr *Group = ParseExpr(CurrStmt);
         if (Group) {
             static_cast<IfBlockStmt *>(Stmt)->Condition = Group;
         }
@@ -519,11 +514,11 @@ bool Parser::ParseIfStmt(BlockStmt *CurrentStmt) {
     if (Tok.is(tok::l_brace)) {
         ConsumeBrace();
         if (ParseAllInBraceStmt(Stmt)) {
-            CurrentStmt->Content.push_back(Stmt);
+            CurrStmt->Content.push_back(Stmt);
             return true;
         }
     } else if (ParseOneStmt(Stmt)) { // Only for a single Stmt without braces
-        CurrentStmt->Content.push_back(Stmt);
+        CurrStmt->Content.push_back(Stmt);
         return true;
     }
 
@@ -543,10 +538,10 @@ bool Parser::ParseIfStmt(BlockStmt *CurrentStmt) {
  *      ...
  * }"
  *
- * @param CurrentStmt
+ * @param CurrStmt
  * @return
  */
-bool Parser::ParseSwitchStmt(BlockStmt *CurrentStmt) {
+bool Parser::ParseSwitchStmt(BlockStmt *CurrStmt) {
     // Parse switch keyword
     if (Tok.is(tok::kw_switch)) {
         const SourceLocation &SwitchLoc = ConsumeToken();
@@ -562,7 +557,7 @@ bool Parser::ParseSwitchStmt(BlockStmt *CurrentStmt) {
             ParseEndParen(hasParen);
 
             // Init Switch Statement and start parse from brace
-            SwitchBlockStmt *Stmt = new SwitchBlockStmt(SwitchLoc, CurrentStmt, Ref);
+            SwitchBlockStmt *Stmt = new SwitchBlockStmt(SwitchLoc, CurrStmt, Ref);
             if (Tok.is(tok::l_brace)) {
                 ConsumeBrace();
 
@@ -615,7 +610,7 @@ bool Parser::ParseSwitchStmt(BlockStmt *CurrentStmt) {
                 // Switch statement is at end of it's time add current Switch to parent statement
                 if (Tok.is(tok::r_brace)) {
                     ConsumeBrace();
-                    CurrentStmt->Content.push_back(Stmt);
+                    CurrStmt->Content.push_back(Stmt);
                     return true;
                 }
             }
@@ -644,20 +639,20 @@ bool Parser::ParseSwitchStmt(BlockStmt *CurrentStmt) {
  *  ...
  * }
  *
- * @param CurrentStmt
+ * @param CurrStmt
  * @return
  */
-bool Parser::ParseForStmt(BlockStmt *CurrentStmt) {
+bool Parser::ParseForStmt(BlockStmt *CurrStmt) {
     if (Tok.is(tok::kw_for)) {
         const SourceLocation &ForLoc = ConsumeToken();
 
         bool hasParen = ParseStartParen();
 
         // Init For Statement and start parse components
-        ForBlockStmt *Stmt = new ForBlockStmt(ForLoc, CurrentStmt);
-        Stmt->Init = new BlockStmt(Tok.getLocation(), NULL);
+        ForBlockStmt *Stmt = new ForBlockStmt(ForLoc, CurrStmt);
+        Stmt->Init = new BlockStmt(Tok.getLocation(), Stmt);
         Stmt->Cond = new GroupExpr();
-        Stmt->Post = new BlockStmt(Tok.getLocation(), NULL);
+        Stmt->Post = new BlockStmt(Tok.getLocation(), Stmt);
         // could be an Init component, or a Condition component or empty 
         if (Tok.is(tok::kw_const) || Tok.isAnyIdentifier() || isBuiltinType()) {
             // could be a variable assign or variable definition with custom type
@@ -666,17 +661,17 @@ bool Parser::ParseForStmt(BlockStmt *CurrentStmt) {
 
                 // This is an Expression, it could be a Condition
                 if (Stmt->Init->isEmpty() && !Stmt->Cond->isEmpty() && !Tok.isOneOf(tok::comma, tok::semi)) {
-                    ParseCondForStmt(Stmt->Cond);
+                    ParseCondForStmt(CurrStmt, Stmt->Cond);
                 }
 
                 if (Tok.is(tok::semi)) {
                     ConsumeToken();
 
-                    if (ParseCondForStmt(Stmt->Cond)) {
+                    if (ParseCondForStmt(CurrStmt, Stmt->Cond)) {
                         if (Tok.is(tok::semi)) {
                             ConsumeToken();
 
-                            Stmt->Post = new BlockStmt(Tok.getLocation(), NULL);
+                            Stmt->Post = new BlockStmt(Tok.getLocation(), Stmt);
                             ParsePostForStmt(Stmt->Post);
                         }
                     }
@@ -693,11 +688,11 @@ bool Parser::ParseForStmt(BlockStmt *CurrentStmt) {
         if (Tok.is(tok::l_brace)) {
             ConsumeBrace();
             if (ParseAllInBraceStmt(Stmt)) {
-                CurrentStmt->Content.push_back(Stmt);
+                CurrStmt->Content.push_back(Stmt);
                 return true;
             }
         } else if (ParseOneStmt(Stmt)) { // Only for a single Stmt without braces
-            CurrentStmt->Content.push_back(Stmt);
+            CurrStmt->Content.push_back(Stmt);
             return true;
         }
 
@@ -717,8 +712,8 @@ bool Parser::ParseInitForStmt(BlockStmt *InitStmt, GroupExpr *Cond) {
     return false;
 }
 
-bool Parser::ParseCondForStmt(GroupExpr* Cond) {
-    return ParseExpr(Cond);
+bool Parser::ParseCondForStmt(BlockStmt *CurrStmt, GroupExpr* Cond) {
+    return ParseExpr(CurrStmt, Cond);
 }
 
 bool Parser::ParsePostForStmt(BlockStmt *PostStmt) {
@@ -732,19 +727,19 @@ bool Parser::ParsePostForStmt(BlockStmt *PostStmt) {
     return false;
 }
 
-FuncCallStmt *Parser::ParseFunctionRefDecl(IdentifierInfo *Id, SourceLocation &IdLoc) {
+FuncCallStmt *Parser::ParseFunctionRefDecl(BlockStmt *CurrStmt, IdentifierInfo *Id, SourceLocation &IdLoc) {
     const StringRef &IdName = Id->getName();
     FunctionParser Parser(this, IdName, IdLoc);
-    Parser.ParseRefDecl();
-    return Parser.Invoke;
+    Parser.ParseRefDecl(CurrStmt);
+    return Parser.Call;
 }
 
-VarDeclStmt *Parser::ParseVarDecl(bool Constant, TypeBase *TyDecl) {
+VarDeclStmt *Parser::ParseVarDecl(BlockStmt *CurrStmt, bool Constant, TypeBase *TyDecl) {
     // Var Name
     const StringRef Name = Tok.getIdentifierInfo()->getName();
     const SourceLocation IdLoc = Tok.getLocation();
     ConsumeToken();
-    VarDeclStmt *Var = new VarDeclStmt(IdLoc, TyDecl, Name);
+    VarDeclStmt *Var = new VarDeclStmt(IdLoc, CurrStmt, TyDecl, Name);
     Var->Constant = Constant;
 
     // Parsing =, +=, -=, ...
@@ -754,7 +749,7 @@ VarDeclStmt *Parser::ParseVarDecl(bool Constant, TypeBase *TyDecl) {
         ParseOpAssign(VRef);
         ConsumeToken();
 
-        GroupExpr* Ex = ParseExpr();
+        GroupExpr* Ex = ParseExpr(CurrStmt);
         if (Ex) {
             Var->Expression = Ex;
         }
@@ -763,7 +758,7 @@ VarDeclStmt *Parser::ParseVarDecl(bool Constant, TypeBase *TyDecl) {
     return Var;
 }
 
-VarDeclStmt* Parser::ParseVarDecl() {
+VarDeclStmt* Parser::ParseVarDecl(BlockStmt *CurrStmt) {
     // Var Constant
     bool Constant = false;
     ParseScopes(Constant);
@@ -771,7 +766,7 @@ VarDeclStmt* Parser::ParseVarDecl() {
     // Var Type
     TypeBase *TyDecl = ParseType();
 
-    return ParseVarDecl(Constant, TyDecl);
+    return ParseVarDecl(CurrStmt, Constant, TyDecl);
 }
 
 VarRef* Parser::ParseVarRef() {
@@ -780,18 +775,18 @@ VarRef* Parser::ParseVarRef() {
     return VRef;
 }
 
-VarAssignStmt *Parser::ParseIncDec(SourceLocation &Loc, IdentifierInfo *Id) {
-    VarAssignStmt *VRefD;
+VarStmt *Parser::ParseIncDec(SourceLocation &Loc, BlockStmt *CurrStmt, IdentifierInfo *Id) {
+    VarStmt *VRefD;
     IncDecExpr* Exp;
     if (Id) {
         Exp = ParseOpIncrement(true);
         ConsumeToken();
-        VRefD = new VarAssignStmt(Loc, Id->getName());
+        VRefD = new VarStmt(Loc, CurrStmt, Id->getName());
     } else {
         Exp = ParseOpIncrement(false);
         ConsumeToken();
         if (Tok.isAnyIdentifier()) {
-            VRefD = new VarAssignStmt(Tok.getLocation(), Tok.getIdentifierInfo()->getName());
+            VRefD = new VarStmt(Tok.getLocation(), CurrStmt, Tok.getIdentifierInfo()->getName());
             ConsumeToken();
         } else {
             // TODO Error var not specified for inc dec
@@ -816,7 +811,7 @@ ValueExpr *Parser::ParseValueExpr() {
     }
 }
 
-GroupExpr* Parser::ParseExpr(GroupExpr *CurrGroup) {
+GroupExpr* Parser::ParseExpr(BlockStmt *CurrStmt, GroupExpr *CurrGroup) {
 //    SourceLocation Loc = Tok.getLocation();
     if (CurrGroup == NULL) {
         CurrGroup = new GroupExpr();
@@ -833,7 +828,7 @@ GroupExpr* Parser::ParseExpr(GroupExpr *CurrGroup) {
         SourceLocation Loc = ConsumeToken();
         if (Tok.is(tok::l_paren)) { // function invocation
             // a()
-            FuncCallStmt *FuncRef = ParseFunctionRefDecl(Id, Loc);
+            FuncCallStmt *FuncRef = ParseFunctionRefDecl(CurrStmt, Id, Loc);
             if (FuncRef) {
                 CurrGroup->Group.push_back(new FuncRefExpr(Loc, FuncRef));
             }
@@ -843,7 +838,7 @@ GroupExpr* Parser::ParseExpr(GroupExpr *CurrGroup) {
     } else if (Tok.is(tok::l_paren)) {
         ConsumeToken();
         GroupExpr *GroupE = new GroupExpr();
-        ParseExpr(GroupE);
+        ParseExpr(CurrStmt, GroupE);
         if (Tok.is(tok::r_paren)) {
             ConsumeToken();
             CurrGroup->Group.push_back(GroupE);
@@ -855,7 +850,7 @@ GroupExpr* Parser::ParseExpr(GroupExpr *CurrGroup) {
         Expr* E = ParseOperator();
         ConsumeToken();
         CurrGroup->Group.push_back(E);
-        ParseExpr(CurrGroup);
+        ParseExpr(CurrStmt, CurrGroup);
     }
 
     return CurrGroup;

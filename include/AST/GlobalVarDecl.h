@@ -13,6 +13,7 @@
 #include "TopDecl.h"
 #include "VarDecl.h"
 #include "TypeBase.h"
+#include "CodeGen/CGGlobalVar.h"
 
 namespace fly {
 
@@ -20,12 +21,17 @@ namespace fly {
 
         friend class ASTNode;
         const TopDeclKind Kind = TopDeclKind::DECL_GLOBALVAR;
+        CGGlobalVar *CodeGen;
 
     public:
 
         GlobalVarDecl(SourceLocation &Loc, TypeBase *Type, llvm::StringRef Name);
 
         TopDeclKind getKind() const override;
+
+        CGGlobalVar *getCodeGen() const;
+
+        void setCodeGen(CGGlobalVar *codeGen);
 
         ~GlobalVarDecl() = default;
     };

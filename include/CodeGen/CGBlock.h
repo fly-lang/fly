@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/VarDecl.cpp - Var declaration Statement implementation
+// include/CodeGen/CGBlock.h - Code Generator of Block
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,17 +8,14 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#include "AST/VarDeclStmt.h"
+#ifndef FLY_CGBLOCK_H
+#define FLY_CGBLOCK_H
 
-using namespace fly;
+namespace fly {
 
-VarDeclStmt::VarDeclStmt(const SourceLocation &Loc, BlockStmt *CurrStmt, TypeBase *Type, const StringRef Name) :
-        Stmt(Loc, CurrStmt), VarDecl(Type, Name) {}
+    class CGBlock {
 
-StmtKind VarDeclStmt::getKind() const {
-    return Kind;
+    };
 }
 
-void VarDeclStmt::setCodeGen(CGVar *CG) {
-    CodeGen = CG;
-}
+#endif //FLY_CGBLOCK_H

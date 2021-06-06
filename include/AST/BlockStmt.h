@@ -21,6 +21,7 @@ namespace fly {
 
     class ReturnStmt;
     class FuncCallStmt;
+    class CGBlock;
 
     enum BlockStmtKind {
         BLOCK_STMT,
@@ -44,8 +45,6 @@ namespace fly {
         StmtKind Kind = StmtKind::STMT_BLOCK;
         BlockStmtKind BlockKind = BlockStmtKind::BLOCK_STMT;
 
-        const BlockStmt *Parent;
-
         std::vector<Stmt *> Content;
 
         llvm::StringMap<VarDeclStmt *> Vars;
@@ -54,15 +53,17 @@ namespace fly {
 
         ReturnStmt* Return;
 
-        bool addVar(VarAssignStmt *Var);
+        bool addVar(VarStmt *Var);
 
         bool addVar(VarDeclStmt *Var);
 
-        bool addInvoke(FuncCallStmt *Invoke);
+        bool addCall(FuncCallStmt *Invoke);
 
     public:
 
         BlockStmt(const SourceLocation &Loc, BlockStmt *Parent);
+
+        BlockStmt(const SourceLocation &Loc, FuncDecl *Container, BlockStmt *Parent);
 
         StmtKind getKind() const override;
 
@@ -77,6 +78,7 @@ namespace fly {
         const llvm::StringMap<VarDeclStmt *> &getVars() const;
 
         ReturnStmt *getReturn() const;
+
     };
 
     class ConditionBlockStmt : public BlockStmt {
@@ -96,7 +98,7 @@ namespace fly {
         StmtKind Kind = StmtKind::STMT_BREAK;
 
     public:
-        BreakStmt(const SourceLocation &Loc);
+        BreakStmt(const SourceLocation &Loc, BlockStmt *CurrStmt);
 
         StmtKind getKind() const override;
     };
@@ -106,7 +108,7 @@ namespace fly {
         StmtKind Kind = StmtKind::STMT_CONTINUE;
 
     public:
-        ContinueStmt(const SourceLocation &Loc);
+        ContinueStmt(const SourceLocation &Loc, BlockStmt *CurrStmt);
 
         StmtKind getKind() const override;
     };

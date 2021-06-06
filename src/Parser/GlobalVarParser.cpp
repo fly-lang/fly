@@ -20,9 +20,10 @@ bool GlobalVarParser::Parse() {
     if (P->Tok.is(tok::equal)) {
         P->ConsumeToken();
 
-        GroupExpr* Ex = P->ParseExpr();
+        ValueExpr *Ex = P->ParseValueExpr();
         if (Ex) {
-            Var->Expression = Ex;
+            Var->Expression = new GroupExpr();
+            Var->Expression->Group.push_back(Ex);
         }
     }
 

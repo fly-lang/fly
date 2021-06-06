@@ -17,6 +17,7 @@
 #include <AST/VarDeclStmt.h>
 #include <AST/Stmt.h>
 #include <AST/VarDecl.h>
+#include <AST/OperatorExpr.h>
 #include "Frontend/InputFile.h"
 #include "GlobalVarParser.h"
 #include "FunctionParser.h"
@@ -196,25 +197,25 @@ namespace fly {
 
         bool ParseFunctionDecl(VisibilityKind &VisKind, bool Constant, TypeBase *TyDecl, IdentifierInfo *Id,
                                SourceLocation &IdLoc);
-        bool ParseOneStmt(BlockStmt *CurrentStmt, GroupExpr *Group = NULL);
-        bool ParseAllStmt(BlockStmt *CurrentStmt);
-        bool ParseAllInBraceStmt(BlockStmt *CurrentStmt);
+        bool ParseOneStmt(BlockStmt *CurrStmt, GroupExpr *Group = NULL);
+        bool ParseAllStmt(BlockStmt *CurrStmt);
+        bool ParseAllInBraceStmt(BlockStmt *CurrStmt);
         bool ParseStartParen();
         bool ParseEndParen(bool hasParen);
-        bool ParseIfStmt(BlockStmt *CurrentStmt);
-        bool ParseSwitchStmt(BlockStmt *CurrentStmt);
-        bool ParseForStmt(BlockStmt *CurrentStmt);
+        bool ParseIfStmt(BlockStmt *CurrStmt);
+        bool ParseSwitchStmt(BlockStmt *CurrStmt);
+        bool ParseForStmt(BlockStmt *CurrStmt);
         bool ParseInitForStmt(BlockStmt *InitStmt, GroupExpr *Cond);
-        bool ParseCondForStmt(GroupExpr* Cond);
+        bool ParseCondForStmt(BlockStmt *CurrStmt, GroupExpr* Cond);
         bool ParsePostForStmt(BlockStmt *PostStmt);
 
-        FuncCallStmt *ParseFunctionRefDecl(IdentifierInfo *Id, SourceLocation &IdLoc);
-        VarDeclStmt* ParseVarDecl();
-        VarDeclStmt* ParseVarDecl(bool Constant, TypeBase *TyDecl);
+        FuncCallStmt *ParseFunctionRefDecl(BlockStmt *CurrStmt, IdentifierInfo *Id, SourceLocation &IdLoc);
+        VarDeclStmt* ParseVarDecl(BlockStmt *CurrStmt);
+        VarDeclStmt* ParseVarDecl(BlockStmt *CurrStmt, bool Constant, TypeBase *TyDecl);
         VarRef* ParseVarRef();
         ValueExpr* ParseValueExpr();
-        GroupExpr* ParseExpr(GroupExpr *CurrGroup = NULL);
-        VarAssignStmt* ParseIncDec(SourceLocation &Loc, IdentifierInfo *Id);
+        GroupExpr* ParseExpr(BlockStmt *CurrStmt, GroupExpr *CurrGroup = NULL);
+        VarStmt* ParseIncDec(SourceLocation &Loc, BlockStmt *CurrStmt, IdentifierInfo *Id);
 
         bool isVoidType();
         bool isBuiltinType();
@@ -229,8 +230,6 @@ namespace fly {
         OperatorExpr* ParseOperator();
         GroupExpr* ParseOpAssign(VarRef *Ref);
         IncDecExpr* ParseOpIncrement(bool post = false);
-
-        void ParseInternalStmt();
     };
 
 }  // end namespace fly

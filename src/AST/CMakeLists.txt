@@ -19,4 +19,5 @@ add_library(FlyAST
 target_link_libraries(FlyAST
         FlyBasic
         FlyLex
+        FlyCodeGen
         )
