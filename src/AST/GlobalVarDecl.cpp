@@ -21,10 +21,10 @@ TopDeclKind GlobalVarDecl::getKind() const {
     return Kind;
 }
 
-CGGlobalVar *GlobalVarDecl::getCodeGen() const {
+CodeGenGlobalVar *GlobalVarDecl::getCodeGen() const {
     return CodeGen;
 }
 
-void GlobalVarDecl::setCodeGen(CGGlobalVar *codeGen) {
+void GlobalVarDecl::setCodeGen(CodeGenGlobalVar *codeGen) {
     CodeGen = codeGen;
 }

@@ -18,7 +18,7 @@ namespace fly {
     class CodeGenModule;
     class VarDeclStmt;
 
-    class CGVar {
+    class CodeGenVar {
 
         CodeGenModule *CGM;
         VarDeclStmt &Var;
@@ -28,7 +28,7 @@ namespace fly {
         bool isStored;
 
     public:
-        CGVar(CodeGenModule *CGM, VarDeclStmt *S);
+        CodeGenVar(CodeGenModule *CGM, VarDeclStmt *S);
 
         llvm::UnaryInstruction *get();
 

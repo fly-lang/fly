@@ -39,6 +39,10 @@ GroupExpr *VarDecl::getExpr() const {
     return Expression;
 }
 
+void VarDecl::setExpr(GroupExpr *Exp) {
+    Expression = Exp;
+}
+
 
 VarRef::VarRef(const SourceLocation &Loc, const StringRef &Name) : Name(Name) {
 
@@ -72,4 +76,8 @@ StmtKind VarStmt::getKind() const {
 
 GroupExpr *VarStmt::getExpr() const {
     return Expr;
+}
+
+void VarStmt::setExpr(GroupExpr *Exp) {
+    Expr = Exp;
 }

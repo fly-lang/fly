@@ -41,8 +41,8 @@ std::string CodeGen::getOutputFileName(BackendAction ActionKind, StringRef BaseI
     llvm_unreachable("Invalid backend action!");
 }
 
-std::unique_ptr<llvm::Module>& CodeGen::getModule() {
-    return Builder->Module;
+llvm::Module *CodeGen::getModule() {
+    return CGM->Module;
 }
 
 bool CodeGen::Execute() {
@@ -54,12 +54,12 @@ bool CodeGen::Execute() {
     // Generate default module on first
     ASTNameSpace *Default = Context.getNameSpaces().lookup("default");
     if (Default)
-        GenerateModule(Default);
+        GenerateModules(Default);
     
     // After generate all other modules
     for(auto &EntryNS : Context.getNameSpaces()) {
         if (!EntryNS.getKey().equals("default")) {
-            GenerateModule(EntryNS.getValue());
+            GenerateModules(EntryNS.getValue());
         }
     }
     return true;
@@ -75,7 +75,8 @@ TargetInfo &CodeGen::getTargetInfo() const {
     return *Target;
 }
 
-void CodeGen::GenerateModule(ASTNameSpace * NS) {
+void CodeGen::GenerateModules(ASTNameSpace * NS) {
+    LLVMContext LLVMCtx;
     for (auto &EntryNode : NS->getNodes()) {
 
         ASTNode *AST = EntryNode.getValue();
@@ -85,12 +86,12 @@ void CodeGen::GenerateModule(ASTNameSpace * NS) {
         std::unique_ptr<llvm::raw_fd_ostream> OS =
                 std::make_unique<raw_fd_ostream>(OutputFileName, Code, llvm::sys::fs::F_None);
 
-        Builder = std::make_unique<CodeGenModule>(Diags, *AST, *Target);
-        Builder->Generate();
+        CGM = new CodeGenModule(Diags, *AST, LLVMCtx, *Target, CodeGenOpts);
+        CGM->Generate();
 
-        EmbedBitcode(Builder->Module.get(), CodeGenOpts, llvm::MemoryBufferRef());
+        EmbedBitcode(CGM->Module, CodeGenOpts, llvm::MemoryBufferRef());
 
         EmitBackendOutput(Diags, CodeGenOpts, TargetOpts, Target->getDataLayout(),
-                          Builder->Module.get(), ActionKind, std::move(OS));
+                          CGM->Module, ActionKind, std::move(OS));
     }
 }

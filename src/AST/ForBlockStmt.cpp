@@ -20,14 +20,14 @@ enum BlockStmtKind ForBlockStmt::getBlockKind() const {
     return StmtKind;
 }
 
-const BlockStmt *ForBlockStmt::getInit() const {
+BlockStmt *ForBlockStmt::getInit() {
     return Init;
 }
 
-const GroupExpr *ForBlockStmt::getCondition() const {
+GroupExpr *ForBlockStmt::getCondition() {
     return Cond;
 }
 
-const BlockStmt *ForBlockStmt::getPost() const {
+BlockStmt *ForBlockStmt::getPost() {
     return Post;
 }

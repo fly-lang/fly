@@ -42,6 +42,8 @@ namespace fly {
 
         virtual const llvm::StringRef &getName() const;
 
+        void setExpr(GroupExpr *Exp);
+
         GroupExpr *getExpr() const;
     };
 
@@ -85,6 +87,8 @@ namespace fly {
         StmtKind getKind() const override;
 
         GroupExpr *getExpr() const;
+
+        void setExpr(GroupExpr *Exp);
     };
 }
 

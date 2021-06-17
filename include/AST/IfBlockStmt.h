@@ -37,11 +37,11 @@ namespace fly {
 
         enum BlockStmtKind getBlockKind() const override;
 
-        const GroupExpr *getCondition() const;
+        GroupExpr *getCondition();
 
-        std::vector<ElsifBlockStmt *> getElsif() const;
+        std::vector<ElsifBlockStmt *> getElsif();
 
-        const ElseBlockStmt *getElse() const;
+        ElseBlockStmt *getElse();
     };
 
     class ElsifBlockStmt : public IfBlockStmt {

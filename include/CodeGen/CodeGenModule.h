@@ -29,35 +29,42 @@ namespace fly {
 
     class CodeGenModule : public CodeGenTypeCache {
 
-        friend class CGGlobalVar;
-        friend class CGFunction;
-        friend class CGVar;
+        friend class CodeGenGlobalVar;
+        friend class CodeGenFunction;
+        friend class CodeGenVar;
 
     private:
         DiagnosticsEngine &Diags;
+        CodeGenOptions &CGOpts;
         ASTNode &Node;
         TargetInfo &Target;
-        llvm::LLVMContext VMContext;
+        llvm::LLVMContext &LLVMCtx;
         llvm::IRBuilder<> *Builder;
+        // CGDebugInfo *DebugInfo; // TODO
+
+        void GenTypeValue(const TypeBase *TyData, llvm::Type *&Ty, llvm::Constant *&Const, StringRef StrVal);
 
     public:
-        CodeGenModule(DiagnosticsEngine &Diags, ASTNode &Node, TargetInfo &Target);
+        CodeGenModule(DiagnosticsEngine &Diags, ASTNode &Node, LLVMContext &LLVMCtx, TargetInfo &Target,
+                      CodeGenOptions &CGOpts);
 
         virtual ~CodeGenModule();
 
-        std::unique_ptr<llvm::Module> Module;
+        llvm::Module *Module;
 
         void Generate();
 
-        CGGlobalVar *GenGlobalVar(GlobalVarDecl *VDecl);
+        CodeGenGlobalVar *GenGlobalVar(GlobalVarDecl *VDecl);
 
-        CGFunction *GenFunction(FuncDecl *FDecl);
+        CodeGenFunction *GenFunction(FuncDecl *FDecl);
 
-        Type *GenTypeValue(const TypeBase *TyData, StringRef StrVal = "", llvm::Constant *InitVal = nullptr);
+        Type *GenType(const TypeBase *TyData);
+
+        llvm::Constant *GenValue(const TypeBase *TyData, StringRef StrVal);
 
         void GenStmt(Stmt * S);
 
-        void GenExpr(const TypeBase *Typ, GroupExpr *pExpr);
+        llvm::Value *GenExpr(const TypeBase *Typ, GroupExpr *pExpr);
     };
 }
 

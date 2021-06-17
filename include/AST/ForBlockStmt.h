@@ -30,11 +30,11 @@ namespace fly {
 
         enum BlockStmtKind getBlockKind() const override;
 
-        const BlockStmt *getInit() const;
+        BlockStmt *getInit();
 
-        const GroupExpr *getCondition() const;
+        GroupExpr *getCondition();
 
-        const BlockStmt *getPost() const;
+        BlockStmt *getPost();
 
     };
 }

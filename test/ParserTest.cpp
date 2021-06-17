@@ -213,29 +213,29 @@ namespace {
         ASSERT_FALSE(VerifyFunc->isConstant());
         ASSERT_FALSE(Context->getNameSpaces().lookup("std")->getFunctions().lookup("func"));
 
-        VarDeclStmt *Arg0 = VerifyFunc->getParams()->getVars()[0];
-        VarDeclStmt *Arg1 = VerifyFunc->getParams()->getVars()[1];
-        VarDeclStmt *Arg2 = VerifyFunc->getParams()->getVars()[2];
+        VarDeclStmt *Par0 = VerifyFunc->getHeader()->getParams()[0];
+        VarDeclStmt *Par1 = VerifyFunc->getHeader()->getParams()[1];
+        VarDeclStmt *Par2 = VerifyFunc->getHeader()->getParams()[2];
 
-        EXPECT_EQ(Arg0->getName(), "a");
-        EXPECT_EQ(Arg0->getType()->getKind(), TypeKind::TYPE_INT);
-        EXPECT_EQ(Arg0->isConstant(), false);
+        EXPECT_EQ(Par0->getName(), "a");
+        EXPECT_EQ(Par0->getType()->getKind(), TypeKind::TYPE_INT);
+        EXPECT_EQ(Par0->isConstant(), false);
 
-        EXPECT_EQ(Arg1->getName(), "b");
-        EXPECT_EQ(Arg1->getType()->getKind(), TypeKind::TYPE_FLOAT);
-        EXPECT_EQ(Arg1->isConstant(), true);
+        EXPECT_EQ(Par1->getName(), "b");
+        EXPECT_EQ(Par1->getType()->getKind(), TypeKind::TYPE_FLOAT);
+        EXPECT_EQ(Par1->isConstant(), true);
 
-        EXPECT_EQ(Arg2->getName(), "c");
-        EXPECT_EQ(Arg2->getType()->getKind(), TypeKind::TYPE_BOOL);
-        EXPECT_EQ(Arg2->isConstant(), false);
-        EXPECT_EQ(Arg2->getExpr()->getKind(), ExprKind::EXPR_GROUP);
-        ValueExpr *DefArg2 = static_cast<ValueExpr *>(Arg2->getExpr()->getGroup()[0]);
+        EXPECT_EQ(Par2->getName(), "c");
+        EXPECT_EQ(Par2->getType()->getKind(), TypeKind::TYPE_BOOL);
+        EXPECT_EQ(Par2->isConstant(), false);
+        EXPECT_EQ(Par2->getExpr()->getKind(), ExprKind::EXPR_GROUP);
+        ValueExpr *DefArg2 = static_cast<ValueExpr *>(Par2->getExpr()->getGroup()[0]);
         EXPECT_EQ(DefArg2->getString(), "false");
 
-        GroupExpr *Return = VerifyFunc->getBody()->getReturn()->getExpr();
-        EXPECT_EQ(static_cast<ValueExpr*>(Return->getGroup()[0])->getKind(), ExprKind::EXPR_VALUE);
-        EXPECT_EQ(static_cast<ValueExpr*>(Return->getGroup()[0])->getString(), "1");
-        EXPECT_EQ(Return->getKind(), ExprKind::EXPR_GROUP);
+        ReturnStmt *Return = static_cast<ReturnStmt*>(VerifyFunc->getBody()->getContent()[0]);
+        EXPECT_EQ(static_cast<ValueExpr*>(Return->getExpr()->getGroup()[0])->getKind(), ExprKind::EXPR_VALUE);
+        EXPECT_EQ(static_cast<ValueExpr*>(Return->getExpr()->getGroup()[0])->getString(), "1");
+        EXPECT_EQ(Return->getKind(), StmtKind::STMT_RETURN);
     }
 
     TEST_F(ParserTest, FunctionBodyVar) {
@@ -256,13 +256,13 @@ namespace {
         const BlockStmt *Body = F->getBody();
 
         // Test: bool c
-        const VarDeclStmt *cVar = static_cast<VarDeclStmt *>(Body->getContent()[0]);
+        VarDeclStmt *cVar = static_cast<VarDeclStmt *>(Body->getContent()[0]);
         EXPECT_EQ(cVar->getName(), "c");
         EXPECT_EQ(cVar->getType()->getKind(), TypeKind::TYPE_BOOL);
         ASSERT_FALSE(cVar->getExpr());
 
         // Test: Type t
-        const VarDeclStmt *typeVar = static_cast<VarDeclStmt *>(Body->getContent()[1]);
+        VarDeclStmt *typeVar = static_cast<VarDeclStmt *>(Body->getContent()[1]);
         EXPECT_EQ(typeVar->getName(), "t");
         EXPECT_EQ(typeVar->getType()->getKind(), TypeKind::TYPE_CLASS);
         ClassTypeRef *TypeT = static_cast<ClassTypeRef *>(typeVar->getType());
@@ -270,7 +270,7 @@ namespace {
         ASSERT_FALSE(TypeT->getStmt());
 
         // Test: float b=2.0 + 1.0
-        const VarDeclStmt *bVar = static_cast<VarDeclStmt *>(Body->getContent()[2]);
+        VarDeclStmt *bVar = static_cast<VarDeclStmt *>(Body->getContent()[2]);
         EXPECT_EQ(bVar->getName(), "b");
         EXPECT_EQ(bVar->getType()->getKind(), TypeKind::TYPE_FLOAT);
         FloatPrimType *FloatType = static_cast<FloatPrimType *>(bVar->getType());
@@ -321,14 +321,14 @@ namespace {
         const BlockStmt *Body = F->getBody();
 
         // Test: doSome()
-        const FuncCallStmt *doSome = static_cast<FuncCallStmt *>(Body->getContent()[0]);
+        FuncCallStmt *doSome = static_cast<FuncCallStmt *>(Body->getContent()[0]);
         //EXPECT_FALSE(F->getFuncRef().find("doSome")->getValue()->getRef());
         EXPECT_EQ(doSome->getName(), "doSome");
         EXPECT_EQ(doSome->getKind(), StmtKind::STMT_FUNC_CALL);
         ASSERT_FALSE(doSome->getDecl());
 
         // Test: doOther(a, b)
-        const FuncCallStmt *doOther = static_cast<FuncCallStmt *>(Body->getContent()[1]);
+        FuncCallStmt *doOther = static_cast<FuncCallStmt *>(Body->getContent()[1]);
         //EXPECT_FALSE(F->getFuncRef().find("doOther")->getValue()->getRef());
         EXPECT_EQ(doOther->getName(), "doOther");
         EXPECT_EQ(doOther->getKind(), StmtKind::STMT_FUNC_CALL);
@@ -336,7 +336,7 @@ namespace {
         EXPECT_EQ(static_cast<VarRefExpr *>(doOther->getParams()->getArgs()[1])->getRef()->getName(),"b");
         ASSERT_FALSE(doOther->getDecl());
 
-        const ReturnStmt *Ret = static_cast<ReturnStmt *>(Body->getContent()[2]);
+        ReturnStmt *Ret = static_cast<ReturnStmt *>(Body->getContent()[2]);
         FuncRefExpr *RetRef = static_cast<FuncRefExpr *>(Ret->getExpr()->getGroup()[0]);
         EXPECT_EQ(RetRef->getRef()->getName(), "do");
         EXPECT_EQ(RetRef->getKind(), ExprKind::EXPR_REF_FUNC);
@@ -364,21 +364,21 @@ namespace {
         const BlockStmt *Body = F->getBody();
 
         // ++a
-        const VarStmt *aVar = static_cast<VarStmt *>(Body->getContent()[0]);
+        VarStmt *aVar = static_cast<VarStmt *>(Body->getContent()[0]);
         EXPECT_EQ(aVar->getExpr()->getKind(), ExprKind::EXPR_GROUP);
         EXPECT_EQ(aVar->getName(), "a");
         IncDecExpr *aExpr = static_cast<IncDecExpr *>(aVar->getExpr()->getGroup()[0]);
         EXPECT_EQ(aExpr->getIncDecKind(), IncDecOpKind::PRE_INCREMENT);
 
         // b++
-        const VarStmt *bVar = static_cast<VarStmt *>(Body->getContent()[1]);
+        VarStmt *bVar = static_cast<VarStmt *>(Body->getContent()[1]);
         EXPECT_EQ(bVar->getExpr()->getKind(), ExprKind::EXPR_GROUP);
         EXPECT_EQ(bVar->getName(), "b");
         IncDecExpr *bExpr = static_cast<IncDecExpr *>(bVar->getExpr()->getGroup()[0]);
         EXPECT_EQ(bExpr->getIncDecKind(), IncDecOpKind::POST_INCREMENT);
 
         // ++c
-        const VarStmt *cVar = static_cast<VarStmt *>(Body->getContent()[2]);
+        VarStmt *cVar = static_cast<VarStmt *>(Body->getContent()[2]);
         EXPECT_EQ(cVar->getExpr()->getKind(), ExprKind::EXPR_GROUP);
         EXPECT_EQ(cVar->getName(), "c");
         IncDecExpr *cExpr = static_cast<IncDecExpr *>(cVar->getExpr()->getGroup()[0]);
@@ -411,7 +411,7 @@ namespace {
         const BlockStmt *Body = F->getBody();
 
         // if
-        const IfBlockStmt *Stmt = static_cast<IfBlockStmt *>(Body->getContent()[0]);
+        IfBlockStmt *Stmt = static_cast<IfBlockStmt *>(Body->getContent()[0]);
         EXPECT_EQ(Stmt->getBlockKind(), BlockStmtKind::BLOCK_STMT_IF);
         EXPECT_EQ(static_cast<VarRefExpr *>(Stmt->getCondition()->getGroup()[0])->getRef()->getName(), "a");
         EXPECT_EQ(static_cast<LogicExpr *>(Stmt->getCondition()->getGroup()[1])->getLogicKind(),
@@ -422,7 +422,7 @@ namespace {
         EXPECT_TRUE(Stmt->getElse());
 
         // Elsif
-        const ElsifBlockStmt *EIStmt = static_cast<ElsifBlockStmt *>(Body->getContent()[1]);
+        ElsifBlockStmt *EIStmt = static_cast<ElsifBlockStmt *>(Body->getContent()[1]);
         EXPECT_EQ(EIStmt->getBlockKind(), BlockStmtKind::BLOCK_STMT_ELSIF);
         EXPECT_EQ(static_cast<VarRefExpr *>(EIStmt->getCondition()->getGroup()[0])->getRef()->getName(), "a");
         EXPECT_EQ(static_cast<LogicExpr *>(EIStmt->getCondition()->getGroup()[1])->getLogicKind(),
@@ -431,7 +431,7 @@ namespace {
         EXPECT_EQ(static_cast<VarStmt *>(EIStmt->getContent()[0])->getName(), "b");
 
         // Else
-        const ElseBlockStmt *EEStmt = static_cast<ElseBlockStmt *>(Body->getContent()[2]);
+        ElseBlockStmt *EEStmt = static_cast<ElseBlockStmt *>(Body->getContent()[2]);
         EXPECT_EQ(EEStmt->getBlockKind(), BlockStmtKind::BLOCK_STMT_ELSE);
         EXPECT_EQ(static_cast<VarStmt *>(EEStmt->getContent()[0])->getName(), "b");
     }
@@ -451,7 +451,7 @@ namespace {
         const BlockStmt *Body = F->getBody();
 
         // if
-        const IfBlockStmt *Stmt = static_cast<IfBlockStmt *>(Body->getContent()[0]);
+        IfBlockStmt *Stmt = static_cast<IfBlockStmt *>(Body->getContent()[0]);
         EXPECT_EQ(Stmt->getBlockKind(), BlockStmtKind::BLOCK_STMT_IF);
         EXPECT_EQ(static_cast<VarRefExpr *>(Stmt->getCondition()->getGroup()[0])->getRef()->getName(), "a");
         EXPECT_EQ(static_cast<LogicExpr *>(Stmt->getCondition()->getGroup()[1])->getLogicKind(),
@@ -463,7 +463,7 @@ namespace {
         EXPECT_TRUE(Stmt->getElse());
 
         // Elsif
-        const ElsifBlockStmt *EIStmt = static_cast<ElsifBlockStmt *>(Body->getContent()[1]);
+        ElsifBlockStmt *EIStmt = static_cast<ElsifBlockStmt *>(Body->getContent()[1]);
         EXPECT_EQ(EIStmt->getBlockKind(), BlockStmtKind::BLOCK_STMT_ELSIF);
         EXPECT_EQ(static_cast<VarRefExpr *>(EIStmt->getCondition()->getGroup()[0])->getRef()->getName(), "a");
         EXPECT_EQ(static_cast<LogicExpr *>(EIStmt->getCondition()->getGroup()[1])->getLogicKind(),
@@ -471,7 +471,7 @@ namespace {
         EXPECT_EQ(static_cast<ValueExpr *>(EIStmt->getCondition()->getGroup()[2])->getString(), "2");
 
         // Else
-        const ElseBlockStmt *EEStmt = static_cast<ElseBlockStmt *>(Body->getContent()[2]);
+        ElseBlockStmt *EEStmt = static_cast<ElseBlockStmt *>(Body->getContent()[2]);
         EXPECT_EQ(EEStmt->getBlockKind(), BlockStmtKind::BLOCK_STMT_ELSE);
         EXPECT_EQ(static_cast<VarStmt *>(EEStmt->getContent()[0])->getName(), "a");
     }
@@ -494,7 +494,7 @@ namespace {
         FuncDecl *F = AST->getFunctions().lookup("func");
         const BlockStmt *Body = F->getBody();
 
-        const SwitchBlockStmt *Stmt = static_cast<SwitchBlockStmt *>(Body->getContent()[0]);
+        SwitchBlockStmt *Stmt = static_cast<SwitchBlockStmt *>(Body->getContent()[0]);
         EXPECT_EQ(Stmt->getBlockKind(), BlockStmtKind::BLOCK_STMT_SWITCH);
         EXPECT_EQ(static_cast<ValueExpr *>(Stmt->getCases()[0]->getExpr())->getString(), "1");
         EXPECT_EQ(Stmt->getCases()[0]->getContent()[0]->getKind(), StmtKind::STMT_BREAK);
@@ -519,13 +519,13 @@ namespace {
         // Get Body
         FuncDecl *F = AST->getFunctions().lookup("func");
         const BlockStmt *Body = F->getBody();
-        const ForBlockStmt *Stmt = static_cast<ForBlockStmt *>(Body->getContent()[0]);
+        ForBlockStmt *Stmt = static_cast<ForBlockStmt *>(Body->getContent()[0]);
         EXPECT_EQ(Stmt->getBlockKind(), BlockStmtKind::BLOCK_STMT_FOR);
 
         EXPECT_EQ(static_cast<VarDeclStmt *>(Stmt->getInit()->getContent()[0])->getName(), "b");
         EXPECT_EQ(static_cast<VarDeclStmt *>(Stmt->getInit()->getContent()[1])->getName(), "c");
 
-        const GroupExpr *Cond = Stmt->getCondition();
+        GroupExpr *Cond = Stmt->getCondition();
         EXPECT_EQ(static_cast<VarRefExpr *>(Cond->getGroup()[0])->getRef()->getName(), "b");
         EXPECT_EQ(static_cast<LogicExpr *>(Cond->getGroup()[1])->getLogicKind(), LogicOpKind::LOGIC_LT);
         EXPECT_EQ(static_cast<ValueExpr *>(Cond->getGroup()[2])->getString(), "10");
@@ -549,7 +549,7 @@ namespace {
         // Get Body
         FuncDecl *F = AST->getFunctions().lookup("func");
         const BlockStmt *Body = F->getBody();
-        const ForBlockStmt *Stmt = static_cast<ForBlockStmt *>(Body->getContent()[0]);
+        ForBlockStmt *Stmt = static_cast<ForBlockStmt *>(Body->getContent()[0]);
         EXPECT_EQ(Stmt->getBlockKind(), BlockStmtKind::BLOCK_STMT_FOR);
         EXPECT_TRUE(Stmt->getInit()->isEmpty());
         EXPECT_FALSE(Stmt->getCondition()->isEmpty());
@@ -572,7 +572,7 @@ namespace {
         // Get Body
         FuncDecl *F = AST->getFunctions().lookup("func");
         const BlockStmt *Body = F->getBody();
-        const ForBlockStmt *Stmt = static_cast<ForBlockStmt *>(Body->getContent()[0]);
+        ForBlockStmt *Stmt = static_cast<ForBlockStmt *>(Body->getContent()[0]);
         EXPECT_EQ(Stmt->getBlockKind(), BlockStmtKind::BLOCK_STMT_FOR);
         EXPECT_TRUE(Stmt->getInit()->isEmpty());
         EXPECT_TRUE(Stmt->getCondition()->isEmpty());

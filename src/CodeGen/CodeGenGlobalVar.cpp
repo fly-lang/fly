@@ -8,24 +8,24 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#include "CodeGen/CGGlobalVar.h"
+#include "CodeGen/CodeGenGlobalVar.h"
 #include "CodeGen/CodeGen.h"
 
 using namespace fly;
 
-CGGlobalVar::CGGlobalVar(CodeGenModule *CGM, const TypeBase *Ty, llvm::StringRef StrVal, const bool isConstant) {
+CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, const TypeBase *Ty, llvm::StringRef StrVal, const bool isConstant) {
     // Check Value
-    llvm::Constant *InitVal = nullptr;
-    llvm::Type *Typ = nullptr;
+    llvm::Constant *Val = nullptr;
+    llvm::Type *Typ;
     if (StrVal.empty()) {
-        Typ = CGM->GenTypeValue(Ty);
+        Typ = CGM->GenType(Ty);
     } else {
-        Typ = CGM->GenTypeValue(Ty, StrVal, InitVal);
+        Val = CGM->GenValue(Ty, StrVal);
+        Typ = Val->getType();
     }
-    GVar = new llvm::GlobalVariable(*CGM->Module, Typ, isConstant,
-                                    GlobalValue::ExternalLinkage, InitVal);
+    GVar = new llvm::GlobalVariable(*CGM->Module, Typ, isConstant,GlobalValue::ExternalLinkage, Val);
 }
 
-GlobalVariable *CGGlobalVar::getGlobalVar() const {
+GlobalVariable *CodeGenGlobalVar::getGlobalVar() const {
     return GVar;
 }

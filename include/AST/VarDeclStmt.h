@@ -10,7 +10,7 @@
 #ifndef FLY_VARDECLSTMT_H
 #define FLY_VARDECLSTMT_H
 
-#include "CodeGen/CGVar.h"
+#include "CodeGen/CodeGenVar.h"
 #include "Stmt.h"
 #include "VarDecl.h"
 #include "TypeBase.h"
@@ -30,14 +30,16 @@ namespace fly {
         friend class GlobalVarParser;
 
         const StmtKind Kind = StmtKind::STMT_VAR_DECL;
-        CGVar *CodeGen;
+        CodeGenVar *CodeGen;
 
     public:
         VarDeclStmt(const SourceLocation &Loc, BlockStmt *CurrStmt, TypeBase *Type, const llvm::StringRef Name);
 
         StmtKind getKind() const;
 
-        void setCodeGen(CGVar *CG);
+        CodeGenVar *getCodeGen() const;
+
+        void setCodeGen(CodeGenVar *CG);
     };
 }
 

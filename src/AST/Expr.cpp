@@ -38,6 +38,10 @@ bool GroupExpr::isEmpty() const {
     return Group.empty();
 }
 
+void GroupExpr::Add(Expr *Exp) {
+    Group.push_back(Exp);
+}
+
 VarRefExpr::VarRefExpr(const SourceLocation &Loc, VarRef *Ref) : Loc(Loc), Ref(Ref) {}
 
 const SourceLocation &VarRefExpr::getLocation() const {

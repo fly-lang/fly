@@ -19,6 +19,10 @@ StmtKind VarDeclStmt::getKind() const {
     return Kind;
 }
 
-void VarDeclStmt::setCodeGen(CGVar *CG) {
+CodeGenVar *VarDeclStmt::getCodeGen() const {
+    return CodeGen;
+}
+
+void VarDeclStmt::setCodeGen(CodeGenVar *CG) {
     CodeGen = CG;
 }

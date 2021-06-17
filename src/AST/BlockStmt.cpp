@@ -45,8 +45,8 @@ const llvm::StringMap<VarDeclStmt *> &BlockStmt::getVars() const {
     return Vars;
 }
 
-ReturnStmt *BlockStmt::getReturn() const {
-    return Return;
+void BlockStmt::addReturn(const SourceLocation &Loc, GroupExpr *Expr) {
+    Content.push_back(new ReturnStmt(Loc, this, Expr));
 }
 
 bool BlockStmt::addVar(VarStmt *Var) {

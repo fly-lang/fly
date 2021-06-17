@@ -41,6 +41,7 @@ namespace fly {
         friend class IfBlockStmt;
         friend class ElsifBlockStmt;
         friend class ElseBlockStmt;
+        friend class FuncDecl;
 
         StmtKind Kind = StmtKind::STMT_BLOCK;
         BlockStmtKind BlockKind = BlockStmtKind::BLOCK_STMT;
@@ -50,14 +51,6 @@ namespace fly {
         llvm::StringMap<VarDeclStmt *> Vars;
 
         llvm::StringMap<FuncCallStmt *> FuncCalls;
-
-        ReturnStmt* Return;
-
-        bool addVar(VarStmt *Var);
-
-        bool addVar(VarDeclStmt *Var);
-
-        bool addCall(FuncCallStmt *Invoke);
 
     public:
 
@@ -75,9 +68,15 @@ namespace fly {
 
         bool isEmpty() const;
 
+        bool addVar(VarStmt *Var);
+
+        bool addVar(VarDeclStmt *Var);
+
+        bool addCall(FuncCallStmt *Invoke);
+
         const llvm::StringMap<VarDeclStmt *> &getVars() const;
 
-        ReturnStmt *getReturn() const;
+        void addReturn(const SourceLocation &Loc, GroupExpr *Expr);
 
     };
 

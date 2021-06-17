@@ -33,9 +33,9 @@ namespace fly {
 
         enum BlockStmtKind getBlockKind() const override;
 
-        const std::vector<CaseBlockStmt *> &getCases() const;
+        std::vector<CaseBlockStmt *> &getCases();
 
-        const DefaultBlockStmt *getDefault() const;
+        DefaultBlockStmt *getDefault();
     };
 
     class CaseBlockStmt : public BlockStmt{
@@ -46,7 +46,7 @@ namespace fly {
     public:
         CaseBlockStmt(const SourceLocation &Loc, SwitchBlockStmt *Switch, Expr *Value);
 
-        Expr *getExpr() const;
+        Expr *getExpr();
 
         enum BlockStmtKind getBlockKind() const override;
     };

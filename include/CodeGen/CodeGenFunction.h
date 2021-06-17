@@ -8,8 +8,8 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#ifndef FLY_CGFUNCTION_H
-#define FLY_CGFUNCTION_H
+#ifndef FLY_CODEGENFUNCTION_H
+#define FLY_CODEGENFUNCTION_H
 
 #include "AST/FuncDecl.h"
 #include "llvm/ADT/StringRef.h"
@@ -19,24 +19,27 @@ namespace fly {
 
     class CodeGenModule;
 
-    class CGFunction {
+    class CodeGenFunction {
 
         CodeGenModule * CGM;
         llvm::Function *Fn;
         llvm::StringRef Name;
+        llvm::BasicBlock *Entry;
 
         llvm::FunctionType *GenFuncType(const TypeBase *RetTyData, const ParamsFuncDecl *Params);
 
     public:
-        CGFunction(CodeGenModule *CGM, const llvm::StringRef FName, const TypeBase *FType,
-                   const ParamsFuncDecl *FParams, const BlockStmt *FBlock);
+        CodeGenFunction(CodeGenModule *CGM, const llvm::StringRef FName, const TypeBase *FType,
+                        const ParamsFuncDecl *FParams, const BlockStmt *FBody);
 
         const llvm::StringRef &getName() const;
 
+        llvm::BasicBlock *getEntry();
+
         llvm::Function *getFunction();
 
-        void *Call();
+        llvm::CallInst *Call();
     };
 }
 
-#endif //FLY_CGFUNCTION_H
+#endif //FLY_CODEGENFUNCTION_H

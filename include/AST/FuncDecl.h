@@ -23,7 +23,7 @@ namespace fly {
     class ParamsFuncDecl;
     class BlockStmt;
     class FuncCall;
-    class CGFunction;
+    class CodeGenFunction;
 
     /**
      * The Function Declaration and definition
@@ -37,6 +37,7 @@ namespace fly {
         friend class ASTNode;
         friend class Parser;
         friend class FunctionParser;
+        friend class CodeGenTest;
 
         TopDeclKind Kind = TopDeclKind::DECL_FUNCTION;
         const TypeBase *Type;
@@ -45,9 +46,9 @@ namespace fly {
 //        llvm::StringMap<VarRef *> VarRef;
 //        llvm::StringMap<FunctionRef *> FuncRef;
 //        llvm::StringMap<ClassRef *> ClassRef;
-        ParamsFuncDecl *Params = NULL;
-        BlockStmt *Body = NULL;
-        CGFunction *CodeGen = NULL;
+        ParamsFuncDecl *Header;
+        BlockStmt *Body;
+        CodeGenFunction *CodeGen = NULL;
 
     public:
         FuncDecl(const SourceLocation &Loc, const TypeBase *RetType, const llvm::StringRef &Name);
@@ -60,17 +61,21 @@ namespace fly {
 
         bool isConstant() const;
 
-        const ParamsFuncDecl *getParams() const;
+        const ParamsFuncDecl *getHeader() const;
 
-        const BlockStmt *getBody() const;
+        BlockStmt *getBody();
 
 //        const llvm::StringMap<FunctionRef *> &getFuncRef() const;
 
 //        const llvm::StringMap<ClassRef *> &getClassRef() const;
 
-        CGFunction *getCodeGen() const;
+        CodeGenFunction *getCodeGen() const;
 
-        void setCodeGen(CGFunction *codeGen);
+        void setCodeGen(CodeGenFunction *codeGen);
+
+        VarDeclStmt *addParam(const SourceLocation &Loc, TypeBase *Type, const StringRef &Name);
+
+        void setVarArg(VarDeclStmt* VarArg);
 
     };
 
@@ -82,12 +87,13 @@ namespace fly {
     class ParamsFuncDecl {
 
         friend class FunctionParser;
+        friend class FuncDecl;
 
-        std::vector<VarDeclStmt*> Vars;
+        std::vector<VarDeclStmt *> Params;
         VarDeclStmt* VarArg = NULL;
 
     public:
-        const std::vector<VarDeclStmt *> &getVars() const;
+        const std::vector<VarDeclStmt *> &getParams() const;
 
         const VarDeclStmt* getVarArg() const;
     };
@@ -122,7 +128,7 @@ namespace fly {
         const TypeBase *Ty;
 
     public:
-        ReturnStmt(SourceLocation &Loc, BlockStmt *CurrentStmt, class GroupExpr *Group);
+        ReturnStmt(const SourceLocation &Loc, BlockStmt *CurrentStmt, class GroupExpr *Group);
 
         StmtKind getKind() const override;
 

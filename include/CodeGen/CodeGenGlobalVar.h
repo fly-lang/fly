@@ -8,8 +8,8 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#ifndef FLY_CGGLOBALVAR_H
-#define FLY_CGGLOBALVAR_H
+#ifndef FLY_CODEGENGLOBALVAR_H
+#define FLY_CODEGENGLOBALVAR_H
 
 #include <AST/TypeBase.h>
 #include "llvm/IR/GlobalVariable.h"
@@ -19,15 +19,15 @@ namespace fly {
 
     class CodeGenModule;
 
-    class CGGlobalVar {
+    class CodeGenGlobalVar {
 
         llvm::GlobalVariable *GVar;
 
     public:
-        CGGlobalVar(CodeGenModule *CGM, const TypeBase *Ty, llvm::StringRef StrVal, const bool isConstant);
+        CodeGenGlobalVar(CodeGenModule *CGM, const TypeBase *Ty, llvm::StringRef StrVal, const bool isConstant);
 
         llvm::GlobalVariable *getGlobalVar() const;
     };
 }
 
-#endif //FLY_CGGLOBALVAR_H
+#endif //FLY_CODEGENGLOBALVAR_H

@@ -14,8 +14,8 @@
 
 #include "CodeGen/CodeGenModule.h"
 #include "CodeGen/CharUnits.h"
-#include "CodeGen/CGFunction.h"
-#include "CodeGen/CGVar.h"
+#include "CodeGen/CodeGenFunction.h"
+#include "CodeGen/CodeGenVar.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Value.h"
@@ -29,33 +29,40 @@ CharUnits toCharUnitsFromBits(int64_t BitSize) {
     return CharUnits::fromQuantity(BitSize / 8);
 }
 
-CodeGenModule::CodeGenModule(DiagnosticsEngine &Diags, ASTNode &Node, TargetInfo &Target) :
+CodeGenModule::CodeGenModule(DiagnosticsEngine &Diags, ASTNode &Node, LLVMContext &LLVMCtx, TargetInfo &Target, CodeGenOptions &CGOpts) :
         Diags(Diags),
         Node(Node),
         Target(Target),
-        VMContext(),
-        Builder(new IRBuilder<>(VMContext)),
-        Module(new llvm::Module(Node.getFileName(), VMContext)) {
+        Module(new llvm::Module(Node.getFileName(), LLVMCtx)),
+        LLVMCtx(LLVMCtx),
+        Builder(new IRBuilder<>(LLVMCtx)),
+        CGOpts(CGOpts) {
     // Configure Types
-    VoidTy = llvm::Type::getVoidTy(VMContext);
-    BoolTy = llvm::Type::getInt1Ty(VMContext);
-    Int8Ty = llvm::Type::getInt8Ty(VMContext);
-    Int16Ty = llvm::Type::getInt16Ty(VMContext);
-    Int32Ty = llvm::Type::getInt32Ty(VMContext);
-    Int64Ty = llvm::Type::getInt64Ty(VMContext);
-    HalfTy = llvm::Type::getHalfTy(VMContext);
-    BFloatTy = llvm::Type::getBFloatTy(VMContext);
-    FloatTy = llvm::Type::getFloatTy(VMContext);
-    DoubleTy = llvm::Type::getDoubleTy(VMContext);
+    VoidTy = llvm::Type::getVoidTy(LLVMCtx);
+    BoolTy = llvm::Type::getInt1Ty(LLVMCtx);
+    Int8Ty = llvm::Type::getInt8Ty(LLVMCtx);
+    Int16Ty = llvm::Type::getInt16Ty(LLVMCtx);
+    Int32Ty = llvm::Type::getInt32Ty(LLVMCtx);
+    Int64Ty = llvm::Type::getInt64Ty(LLVMCtx);
+    HalfTy = llvm::Type::getHalfTy(LLVMCtx);
+    BFloatTy = llvm::Type::getBFloatTy(LLVMCtx);
+    FloatTy = llvm::Type::getFloatTy(LLVMCtx);
+    DoubleTy = llvm::Type::getDoubleTy(LLVMCtx);
     PointerWidthInBits = Target.getPointerWidth(0);
     PointerAlignInBytes = toCharUnitsFromBits(Target.getPointerAlign(0)).getQuantity();
     SizeSizeInBytes = toCharUnitsFromBits(Target.getMaxPointerWidth()).getQuantity();
     IntAlignInBytes = toCharUnitsFromBits(Target.getIntAlign()).getQuantity();
-    IntTy = llvm::IntegerType::get(VMContext, Target.getIntWidth());
-    IntPtrTy = llvm::IntegerType::get(VMContext, Target.getMaxPointerWidth());
+    IntTy = llvm::IntegerType::get(LLVMCtx, Target.getIntWidth());
+    IntPtrTy = llvm::IntegerType::get(LLVMCtx, Target.getMaxPointerWidth());
     Int8PtrTy = Int8Ty->getPointerTo(0);
     Int8PtrPtrTy = Int8PtrTy->getPointerTo(0);
     AllocaInt8PtrTy = Int8Ty->getPointerTo(Module->getDataLayout().getAllocaAddrSpace());
+
+    // If debug info or coverage generation is enabled, create the CGDebugInfo
+    // object.
+//    if (CGOpts.getDebugInfo() != codegenoptions::NoDebugInfo ||
+//            CGOpts.EmitGcovArcs || CGOpts.EmitGcovNotes)
+//        DebugInfo.reset(new CGDebugInfo(*this)); TODO
 
     // Configure Module
     Module->setTargetTriple(Target.getTriple().getTriple());
@@ -85,7 +92,7 @@ void CodeGenModule::Generate() {
  * GenStmt from VarDecl
  * @param Decl
  */
-CGGlobalVar *CodeGenModule::GenGlobalVar(GlobalVarDecl* VDecl) {
+CodeGenGlobalVar *CodeGenModule::GenGlobalVar(GlobalVarDecl* VDecl) {
     // Check Value
     llvm::StringRef StrVal;
     if (VDecl->getExpr() && !VDecl->getExpr()->isEmpty()) {
@@ -95,22 +102,15 @@ CGGlobalVar *CodeGenModule::GenGlobalVar(GlobalVarDecl* VDecl) {
         StrVal = E->getString();
     }
 
-    CGGlobalVar *CG = new CGGlobalVar(this, VDecl->getType(), StrVal, VDecl->isConstant());
+    CodeGenGlobalVar *CG = new CodeGenGlobalVar(this, VDecl->getType(), StrVal, VDecl->isConstant());
     VDecl->setCodeGen(CG);
     return CG;
 }
 
-CGFunction *CodeGenModule::GenFunction(FuncDecl *FDecl) {
-    CGFunction *CG = new CGFunction(this, FDecl->getName(), FDecl->getType(), FDecl->getParams(), FDecl->getBody());
-    FDecl->setCodeGen(CG);
-
-    // Add Function Body
-    if (FDecl->getBody() && !FDecl->getBody()->isEmpty()) {
-        for (auto S : FDecl->getBody()->getContent()) {
-            GenStmt(S);
-        }
-    }
-    return CG;
+CodeGenFunction *CodeGenModule::GenFunction(FuncDecl *FDecl) {
+    CodeGenFunction *CGF = new CodeGenFunction(this, FDecl->getName(), FDecl->getType(), FDecl->getHeader(), FDecl->getBody());
+    FDecl->setCodeGen(CGF);
+    return CGF;
 }
 
 void CodeGenModule::GenStmt(Stmt * S) {
@@ -119,9 +119,10 @@ void CodeGenModule::GenStmt(Stmt * S) {
         // Var Declaration
         case StmtKind::STMT_VAR_DECL: {
             VarDeclStmt *V = static_cast<VarDeclStmt *>(S);
-            CGVar *CG = new CGVar(this, V);
-            V->setCodeGen(CG);
-            GenExpr(V->getType(), V->getExpr());
+            assert(V->getCodeGen() && "VarDeclStmt is not CodeGen initialized");
+            if (V->getExpr()) {
+                GenExpr(V->getType(), V->getExpr());
+            }
             break;
         }
 
@@ -129,14 +130,14 @@ void CodeGenModule::GenStmt(Stmt * S) {
         case STMT_VAR_ASSIGN: {
             VarStmt *V = static_cast<VarStmt *>(S);
             assert(!V->getExpr()->isEmpty() && "Var assign empty");
-            GenExpr(V->getVarDecl()->getType(), V->getExpr());
+            llvm::Value *Val = GenExpr(V->getVarDecl()->getType(), V->getExpr());
             if (V->getVarDecl()->isGlobal()) {
                 GlobalVarDecl *GV = static_cast<GlobalVarDecl *>(V->getVarDecl());
-//                GV->getCodeGen();
+                Builder->CreateStore(GV->getCodeGen()->getGlobalVar(), Val);
             } else {
-//                V->getVarDecl()->getCodeGen();
+                VarDeclStmt *LV = static_cast<VarDeclStmt *>(V->getVarDecl());
+                LV->getCodeGen()->Store(Val);
             }
-//            Builder->CreateStore();
             break;
         }
         case STMT_FUNC_CALL: {
@@ -176,79 +177,99 @@ void CodeGenModule::GenStmt(Stmt * S) {
             break;
         case STMT_RETURN:
             ReturnStmt *R = static_cast<ReturnStmt *>(S);
-            if (R->getExpr()->isEmpty())
+            if (R->getExpr()->isEmpty()) {
                 Builder->CreateRetVoid();
-            else
-                GenExpr(R->getContainer()->getType(), R->getExpr());
+            } else {
+                llvm::Value *V = GenExpr(R->getContainer()->getType(), R->getExpr());
+                Builder->CreateRet(V);
+            }
             break;
     }
 }
 
-Type *CodeGenModule::GenTypeValue(const TypeBase *TyData, StringRef StrVal, llvm::Constant *InitVal) {
-    // Check Type
+llvm::Type *CodeGenModule::GenType(const TypeBase *TyData) {
     llvm::Type *Ty = nullptr;
+    llvm::Constant *Const = nullptr;
+    GenTypeValue(TyData, Ty, Const, "");
+    return Ty;
+}
+
+llvm::Constant *CodeGenModule::GenValue(const TypeBase *TyData, StringRef StrVal) {
+    llvm::Type *Ty = nullptr;
+    llvm::Constant *Const = nullptr;
+    GenTypeValue(TyData, Ty, Const, StrVal);
+    return Const;
+}
+
+void CodeGenModule::GenTypeValue(const TypeBase *TyData, llvm::Type *&Ty, llvm::Constant *&Const, StringRef StrVal) {
+    // Check Type
     switch (TyData->getKind()) {
 
         case TYPE_VOID:
             Ty = VoidTy;
             break;
         case TYPE_INT:
-            Ty = Int32Ty;
             if (!StrVal.empty()) {
                 uint64_t intVal = std::stoi(StrVal.str());
-                InitVal = llvm::ConstantInt::get(Ty, intVal, true);
+                Const = llvm::ConstantInt::get(Int32Ty, intVal, true);
             }
+            Ty = Int32Ty;
             break;
         case TYPE_FLOAT:
-            Ty = FloatTy;
             if (!StrVal.empty()) {
-                InitVal = llvm::ConstantFP::get(Ty, StrVal);
+                Const = llvm::ConstantFP::get(FloatTy, StrVal);
             }
+            Ty = FloatTy;
             break;
         case TYPE_BOOL:
-            Ty = BoolTy;
             if (!StrVal.empty()) {
                 if (StrVal.equals("true")) {
-                    InitVal = llvm::ConstantInt::get(Ty, 1, false);
+                    Const = llvm::ConstantInt::get(BoolTy, 1, false);
                 } else if (StrVal.equals("false")) {
-                    InitVal = llvm::ConstantInt::get(Ty, 0, false);
+                    Const = llvm::ConstantInt::get(BoolTy, 0, false);
                 } else {
                     // TODO error bad Bool value
                 }
             }
+            Ty = BoolTy;
             break;
+        default:
+            llvm_unreachable("Missing Var Type");
     }
-
-    assert(Ty != nullptr && "Missing Var Type");
-    return Ty;
 }
 
-void CodeGenModule::GenExpr(const TypeBase *Typ, GroupExpr *Expr) {
-    if (Expr->isEmpty()) {
-        return;
-    }
+llvm::Value *CodeGenModule::GenExpr(const TypeBase *Typ, GroupExpr *Expr) {
     for (auto *E : Expr->getGroup()) {
         switch (E->getKind()) {
 
             case EXPR_VALUE: {
                 ValueExpr *ValEx = static_cast<ValueExpr *>(E);
-                Constant *InitVal = nullptr;
-                Type *Ty = GenTypeValue(Typ, ValEx->getString(), InitVal);
-                break;
+                return GenValue(Typ, ValEx->getString());
             }
             case EXPR_OPERATOR:
-                break;
-            case EXPR_REF_VAR:
-                break;
-            case EXPR_REF_FUNC:
-                break;
+                return nullptr;
+            case EXPR_REF_VAR: {
+                VarRefExpr *RefExp = static_cast<VarRefExpr *>(E);
+                assert(RefExp->getRef() && "Missing Ref");
+                VarDecl *VDecl = RefExp->getRef()->getVarDecl();
+                if (VDecl->isGlobal()) {
+                    return static_cast<GlobalVarDecl *>(VDecl)->getCodeGen()->getGlobalVar();
+                }
+                return static_cast<VarDeclStmt *>(VDecl)->getCodeGen()->get();
+            }
+            case EXPR_REF_FUNC: {
+                FuncRefExpr *RefExp = static_cast<FuncRefExpr *>(E);
+                assert(RefExp->getRef() && "Missing Ref");
+                return RefExp->getRef()->getDecl()->getCodeGen()->Call();
+            }
             case EXPR_GROUP:
-                GenExpr(Typ, static_cast<GroupExpr *>(E));
-                break;
+                return GenExpr(Typ, static_cast<GroupExpr *>(E));
         }
     }
+    llvm_unreachable("Missing Expr Type");
 }
 
 CodeGenModule::~CodeGenModule() {
+    delete Module;
     delete Builder;
 }

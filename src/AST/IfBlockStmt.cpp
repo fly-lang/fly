@@ -72,15 +72,15 @@ IfBlockStmt::IfBlockStmt(const SourceLocation &Loc, BlockStmt *Parent) : Conditi
 
 }
 
-std::vector<ElsifBlockStmt *> IfBlockStmt::getElsif() const {
+std::vector<ElsifBlockStmt *> IfBlockStmt::getElsif() {
     return Elsif;
 }
 
-const ElseBlockStmt *IfBlockStmt::getElse() const {
+ElseBlockStmt *IfBlockStmt::getElse() {
     return Else;
 }
 
-const GroupExpr *IfBlockStmt::getCondition() const {
+GroupExpr *IfBlockStmt::getCondition() {
     return Condition;
 }
 

@@ -294,9 +294,7 @@ bool Parser::ParseOneStmt(BlockStmt *CurrStmt, GroupExpr *Group) {
         SourceLocation RetLoc = ConsumeToken();
         GroupExpr *Exp = ParseExpr(CurrStmt);
         if (Exp) {
-            ReturnStmt *Return = new ReturnStmt(RetLoc, CurrStmt, Exp);
-            CurrStmt->Return = Return;
-            CurrStmt->Content.push_back(Return);
+            CurrStmt->addReturn(RetLoc, Exp);
             return true;
         }
     }

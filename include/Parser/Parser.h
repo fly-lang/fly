@@ -18,6 +18,8 @@
 #include <AST/Stmt.h>
 #include <AST/VarDecl.h>
 #include <AST/OperatorExpr.h>
+#include <AST/Expr.h>
+
 #include "Frontend/InputFile.h"
 #include "GlobalVarParser.h"
 #include "FunctionParser.h"

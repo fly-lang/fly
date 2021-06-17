@@ -28,7 +28,8 @@ namespace fly {
 
     class VarRef;
     class FuncCall;
-    class RefExpr;
+    class VarRefExpr;
+    class FuncRefExpr;
     class ValueExpr;
     class GroupExpr;
 
@@ -79,6 +80,8 @@ namespace fly {
         const std::vector<Expr *> &getGroup() const;
 
         bool isEmpty() const;
+
+        void Add(Expr * Exp);
     };
 
     /**

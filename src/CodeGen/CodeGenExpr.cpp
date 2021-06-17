@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/CodeGen/CGExpr.h - Code Generator of Expression
+// src/CodeGen/CGExpr.cpp - Code Generator Expression implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,15 +8,6 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#ifndef FLY_CGEXPR_H
-#define FLY_CGEXPR_H
+#include "CodeGen/CodeGenExpr.h"
 
-namespace fly {
-
-    class CGExpr {
-
-    };
-}
-
-
-#endif //FLY_CGEXPR_H
+using namespace fly;

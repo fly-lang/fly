@@ -32,11 +32,11 @@ enum BlockStmtKind SwitchBlockStmt::getBlockKind() const {
     return StmtKind;
 }
 
-const std::vector<CaseBlockStmt *> &SwitchBlockStmt::getCases() const {
+std::vector<CaseBlockStmt *> &SwitchBlockStmt::getCases() {
     return Cases;
 }
 
-const DefaultBlockStmt *SwitchBlockStmt::getDefault() const {
+DefaultBlockStmt *SwitchBlockStmt::getDefault() {
     return Default;
 }
 
@@ -49,7 +49,7 @@ enum BlockStmtKind CaseBlockStmt::getBlockKind() const {
     return StmtKind;
 };
 
-Expr *CaseBlockStmt::getExpr() const {
+Expr *CaseBlockStmt::getExpr() {
     return Exp;
 }
 

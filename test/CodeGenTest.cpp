@@ -9,7 +9,7 @@
 
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
-#include "CodeGen/CGFunction.h"
+#include "CodeGen/CodeGenFunction.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/DiagnosticOptions.h"
 #include "Basic/FileManager.h"
@@ -23,6 +23,7 @@
 #include <fstream>
 #include <iostream>
 #include <vector>
+#include <llvm/Support/TargetSelect.h>
 
 
 namespace {
@@ -109,7 +110,7 @@ namespace {
         ASSERT_TRUE(Success);
         deleteTestFile(testFile);
     }
-//FIXME TESTS
+
 //    TEST_F(CodeGenTest, EmitLL) {
 //
 //        EXPECT_TRUE(createTestFile(testFile));
@@ -131,7 +132,7 @@ namespace {
 //        read();
 //        deleteTestFile(testFile);
 //    }
-
+//
 //    TEST_F(CodeGenTest, EmitBC) {
 //
 //        EXPECT_TRUE(createTestFile(testFile));
@@ -194,10 +195,16 @@ namespace {
         GlobalVarDecl *Var = new GlobalVarDecl(SourceLoc, new IntPrimType(SourceLoc), "a");
         Node.addGlobalVar(Var);
 
+        llvm::InitializeAllTargets();
+        llvm::InitializeAllTargetMCs();
+        llvm::InitializeAllAsmPrinters();
+
+        CodeGenOptions CodeGenOpts;
         std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();
         TargetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
         TargetOpts->CodeModel = "default";
-        CodeGenModule CGM(Diags, Node, *CodeGen::CreateTargetInfo(Diags, TargetOpts));
+        LLVMContext LLVMCtx;
+        CodeGenModule CGM(Diags, Node, LLVMCtx, *CodeGen::CreateTargetInfo(Diags, TargetOpts), CodeGenOpts);
 
         GlobalVariable *GVar = CGM.GenGlobalVar(Var)->getGlobalVar();
 
@@ -213,20 +220,138 @@ namespace {
 
         ASTContext *Ctx = new ASTContext(Diags);
         ASTNode Node = createAST(testFile, Ctx);
-        FuncDecl *Func = new FuncDecl(SourceLoc, new IntPrimType(SourceLoc), "testFunc");
-        Node.addFunction(Func);
+        
+        FuncDecl *MainFn = new FuncDecl(SourceLoc, new IntPrimType(SourceLoc), "main");
+        MainFn->addParam(SourceLoc, new IntPrimType(SourceLoc), "P1");
+        MainFn->addParam(SourceLoc, new FloatPrimType(SourceLoc), "P2");
+        MainFn->addParam(SourceLoc, new BoolPrimType(SourceLoc), "P3");
+        Node.addFunction(MainFn);
+        
+        GroupExpr *Exp = new GroupExpr();
+        Exp->Add(new ValueExpr(SourceLoc, "1"));
+        MainFn->getBody()->addReturn(SourceLoc, Exp);
 
+        CodeGenOptions CodeGenOpts;
         std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();
         TargetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
-        CodeGenModule CGM(Diags, Node, *CodeGen::CreateTargetInfo(Diags, TargetOpts));
+        TargetOpts->CodeModel = "default";
+        TargetInfo *Target = CodeGen::CreateTargetInfo(Diags, TargetOpts);
+        LLVMContext LLVMCtx;
+        CodeGenModule CGM(Diags, Node, LLVMCtx, *Target, CodeGenOpts);
 
-        Function *F = CGM.GenFunction(Func)->getFunction();
+        Function *F = CGM.GenFunction(MainFn)->getFunction();
 
         testing::internal::CaptureStdout();
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "declare i32 @testFunc() addrspace(0)\n");
+        EXPECT_EQ(output, "define i32 @main(i32 %0, float %1, i1 %2) {\n"
+                          "entry:\n"
+                          "  %3 = alloca i32, align 4\n"
+                          "  %4 = alloca float, align 4\n"
+                          "  %5 = alloca i1, align 1\n"
+                          "  store i32 %0, i32* %3, align 4\n"
+                          "  store float %1, float* %4, align 4\n"
+                          "  store i1 %2, i1* %5, align 1\n"
+                          "  ret i32 1\n"
+                          "}\n");
+    }
+
+    TEST_F(CodeGenTest, CGFuncRetVar) {
+        EXPECT_TRUE(createTestFile(testFile));
+
+        ASTContext *Ctx = new ASTContext(Diags);
+        ASTNode Node = createAST(testFile, Ctx);
+
+        GlobalVarDecl *GVar = new GlobalVarDecl(SourceLoc, new FloatPrimType(SourceLoc), "G");
+        Node.addGlobalVar(GVar);
+
+        FuncDecl *MainFn = new FuncDecl(SourceLoc, new IntPrimType(SourceLoc), "main");
+        Node.addFunction(MainFn);
+
+        // int A
+        VarDeclStmt *LocalVar1 = new VarDeclStmt(SourceLoc, MainFn->getBody(), new IntPrimType(SourceLoc), "A");
+        MainFn->getBody()->addVar(LocalVar1);
+
+        // A = 1
+        VarStmt * VStmt = new VarStmt(SourceLoc, MainFn->getBody(), LocalVar1);
+        const llvm::StringRef StrVal = "1";
+        GroupExpr *G1 = new GroupExpr();
+        G1->Add(new ValueExpr(SourceLoc, StrVal));
+        VStmt->setExpr(G1);
+        MainFn->getBody()->addVar(VStmt);
+
+        // G = 1
+        GVar->setExpr(G1);
+        // A = G
+
+        GroupExpr *Exp = new GroupExpr();
+        Exp->Add(new VarRefExpr(SourceLoc, new VarRef(SourceLoc, LocalVar1)));
+        MainFn->getBody()->addReturn(SourceLoc, Exp);
+
+        CodeGenOptions CodeGenOpts;
+        std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();
+        TargetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
+        TargetOpts->CodeModel = "default";
+        TargetInfo *Target = CodeGen::CreateTargetInfo(Diags, TargetOpts);
+        LLVMContext LLVMCtx;
+        CodeGenModule CGM(Diags, Node, LLVMCtx, *Target, CodeGenOpts);
+
+        CodeGenGlobalVar *G = CGM.GenGlobalVar(GVar);
+        Function *F = CGM.GenFunction(MainFn)->getFunction();
+
+        testing::internal::CaptureStdout();
+        F->print(llvm::outs());
+        std::string output = testing::internal::GetCapturedStdout();
+
+        EXPECT_EQ(output, "define i32 @main() {\n"
+                          "entry:\n"
+                          "  %0 = alloca i32, align 4\n"
+                          "  store i32 1, i32* %0, align 4\n"
+                          "  %1 = load i32, i32* %0, align 4\n"
+                          "  ret i32 %1\n"
+                          "}\n");
+    }
+
+    TEST_F(CodeGenTest, CGFuncRetFn) {
+        EXPECT_TRUE(createTestFile(testFile));
+
+        ASTContext *Ctx = new ASTContext(Diags);
+        ASTNode Node = createAST(testFile, Ctx);
+        FuncDecl *MainFn = new FuncDecl(SourceLoc, new IntPrimType(SourceLoc), "main");
+        Node.addFunction(MainFn);
+
+        FuncDecl *TestFn = new FuncDecl(SourceLoc, new IntPrimType(SourceLoc), "test");
+        Node.addFunction(MainFn);
+
+        FuncCallStmt * FStmt = new FuncCallStmt(SourceLoc, MainFn->getBody(), TestFn);
+        MainFn->getBody()->addCall(FStmt);
+
+        GroupExpr *Exp = new GroupExpr();
+        Exp->Add(new FuncRefExpr(SourceLoc, new FuncCall(SourceLoc, TestFn)));
+        MainFn->getBody()->addReturn(SourceLoc, Exp);
+
+        CodeGenOptions CodeGenOpts;
+        std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();
+        TargetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
+        TargetOpts->CodeModel = "default";
+        TargetInfo *Target = CodeGen::CreateTargetInfo(Diags, TargetOpts);
+        LLVMContext LLVMCtx;
+        CodeGenModule CGM(Diags, Node, LLVMCtx, *Target, CodeGenOpts);
+
+        CGM.GenFunction(TestFn);
+        Function *F = CGM.GenFunction(MainFn)->getFunction();
+
+        testing::internal::CaptureStdout();
+        F->print(llvm::outs());
+        std::string output = testing::internal::GetCapturedStdout();
+
+        EXPECT_EQ(output, "define i32 @main() {\n"
+                          "entry:\n"
+                          "  %0 = call i32 @test()\n"
+                          "  %1 = call i32 @test()\n"
+                          "  ret i32 %1\n"
+                          "}\n");
     }
 
 } // anonymous namespace
