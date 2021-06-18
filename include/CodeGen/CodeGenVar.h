@@ -22,7 +22,7 @@ namespace fly {
 
         CodeGenModule *CGM;
         VarDeclStmt &Var;
-        llvm::AllocaInst *AllocaI = NULL;
+        llvm::AllocaInst *AllocaI;
         llvm::LoadInst *LoadI;
         bool needLoad;
         bool isStored;

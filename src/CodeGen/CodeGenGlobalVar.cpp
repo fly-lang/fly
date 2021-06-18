@@ -13,7 +13,8 @@
 
 using namespace fly;
 
-CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, const TypeBase *Ty, llvm::StringRef StrVal, const bool isConstant) {
+CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, const llvm::StringRef Name, const TypeBase *Ty,
+                                   llvm::StringRef StrVal, const bool isConstant) : CGM(CGM) {
     // Check Value
     llvm::Constant *Val = nullptr;
     llvm::Type *Typ;
@@ -23,9 +24,27 @@ CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, const TypeBase *Ty, llvm:
         Val = CGM->GenValue(Ty, StrVal);
         Typ = Val->getType();
     }
-    GVar = new llvm::GlobalVariable(*CGM->Module, Typ, isConstant,GlobalValue::ExternalLinkage, Val);
+    GVar = new llvm::GlobalVariable(*CGM->Module, Typ, isConstant,GlobalValue::ExternalLinkage, Val, Name);
 }
 
 GlobalVariable *CodeGenGlobalVar::getGlobalVar() const {
     return GVar;
+}
+
+llvm::User *CodeGenGlobalVar::get() {
+    return isStored ? (needLoad ? Load() : LoadI) : static_cast<llvm::User *>(GVar);
+}
+
+llvm::StoreInst *CodeGenGlobalVar::Store(llvm::Value *Val) {
+    assert(!GVar->isConstant() && "Cannot store into constant var");
+    llvm::StoreInst *S = CGM->Builder->CreateStore(Val, GVar);
+    isStored = true;
+    needLoad = true;
+    return S;
+}
+
+llvm::LoadInst *CodeGenGlobalVar::Load() {
+    llvm::LoadInst *L = CGM->Builder->CreateLoad(GVar);
+    needLoad = false;
+    return L;
 }

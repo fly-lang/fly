@@ -282,9 +282,11 @@ namespace {
         MainFn->getBody()->addVar(VStmt);
 
         // G = 1
-        GVar->setExpr(G1);
-        // A = G
+        VarStmt * GStmt = new VarStmt(SourceLoc, MainFn->getBody(), GVar);
+        GStmt->setExpr(G1);
+        MainFn->getBody()->addVar(GStmt);
 
+        // return A
         GroupExpr *Exp = new GroupExpr();
         Exp->Add(new VarRefExpr(SourceLoc, new VarRef(SourceLoc, LocalVar1)));
         MainFn->getBody()->addReturn(SourceLoc, Exp);
@@ -308,6 +310,7 @@ namespace {
                           "entry:\n"
                           "  %0 = alloca i32, align 4\n"
                           "  store i32 1, i32* %0, align 4\n"
+                          "  store float 1.000000e+00, float* @G, align 4\n"
                           "  %1 = load i32, i32* %0, align 4\n"
                           "  ret i32 %1\n"
                           "}\n");

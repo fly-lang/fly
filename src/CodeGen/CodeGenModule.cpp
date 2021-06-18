@@ -102,7 +102,7 @@ CodeGenGlobalVar *CodeGenModule::GenGlobalVar(GlobalVarDecl* VDecl) {
         StrVal = E->getString();
     }
 
-    CodeGenGlobalVar *CG = new CodeGenGlobalVar(this, VDecl->getType(), StrVal, VDecl->isConstant());
+    CodeGenGlobalVar *CG = new CodeGenGlobalVar(this, VDecl->getName(), VDecl->getType(), StrVal, VDecl->isConstant());
     VDecl->setCodeGen(CG);
     return CG;
 }
@@ -133,7 +133,7 @@ void CodeGenModule::GenStmt(Stmt * S) {
             llvm::Value *Val = GenExpr(V->getVarDecl()->getType(), V->getExpr());
             if (V->getVarDecl()->isGlobal()) {
                 GlobalVarDecl *GV = static_cast<GlobalVarDecl *>(V->getVarDecl());
-                Builder->CreateStore(GV->getCodeGen()->getGlobalVar(), Val);
+                GV->getCodeGen()->Store(Val);
             } else {
                 VarDeclStmt *LV = static_cast<VarDeclStmt *>(V->getVarDecl());
                 LV->getCodeGen()->Store(Val);
