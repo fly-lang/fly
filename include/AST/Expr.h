@@ -29,7 +29,7 @@ namespace fly {
     class VarRef;
     class FuncCall;
     class VarRefExpr;
-    class FuncRefExpr;
+    class FuncCallExpr;
     class ValueExpr;
     class GroupExpr;
 
@@ -82,6 +82,7 @@ namespace fly {
         bool isEmpty() const;
 
         void Add(Expr * Exp);
+
     };
 
     /**
@@ -106,14 +107,14 @@ namespace fly {
     /**
      * Var Expression Reference
      */
-    class FuncRefExpr : public Expr {
+    class FuncCallExpr : public Expr {
 
         const SourceLocation &Loc;
         const ExprKind Kind = ExprKind::EXPR_REF_FUNC;
         FuncCall * Ref;
 
     public:
-        FuncRefExpr(const SourceLocation &Loc, FuncCall *Ref);
+        FuncCallExpr(const SourceLocation &Loc, FuncCall *Ref);
 
         const SourceLocation &getLocation() const;
 

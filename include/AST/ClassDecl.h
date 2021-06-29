@@ -11,11 +11,11 @@
 #ifndef FLY_CLASSDECL_H
 #define FLY_CLASSDECL_H
 
-#include "VarDeclStmt.h"
+#include "TopDecl.h"
 
 namespace fly {
 
-    class ClassDecl {
+    class ClassDecl : public TopDecl {
 
         friend class ASTNode;
         friend class Parser;
@@ -36,8 +36,6 @@ namespace fly {
         ClassRef(const llvm::StringRef &Name);
 
         const llvm::StringRef &getName() const;
-
-        Stmt *getStmt() const;
     };
 }
 

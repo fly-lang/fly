@@ -7,7 +7,14 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
+#include <Frontend/TextDiagnosticPrinter.h>
+#include <Basic/FileManager.h>
+#include <Basic/SourceManager.h>
+#include <AST/GlobalVarDecl.h>
+#include "AST/ASTNode.h"
 #include "AST/ASTContext.h"
+#include "AST/ASTNameSpace.h"
+#include "AST/GlobalVarDecl.h"
 #include "gtest/gtest.h"
 
 namespace {
@@ -99,11 +106,11 @@ namespace {
 
     TEST_F(ASTTest, GlobalVarVisibility) {
         auto Node1 = NewASTNode("file1.fly");
-        Node1->setNameSpace("packageA");
+        const ASTNameSpace *NS = Node1->setNameSpace("packageA");
         SourceLocation &Loc = SourceLoc;
-        Node1->addGlobalVar(new GlobalVarDecl(Loc, new IntPrimType(Loc), "a"));
-        Node1->addGlobalVar(new GlobalVarDecl(Loc, new FloatPrimType(Loc), "b"));
-        Node1->addGlobalVar(new GlobalVarDecl(Loc, new BoolPrimType(Loc), "c"));
+        Node1->addGlobalVar(new GlobalVarDecl(Node1, Loc, new IntPrimType(Loc), "a"));
+        Node1->addGlobalVar(new GlobalVarDecl(Node1, Loc, new FloatPrimType(Loc), "b"));
+        Node1->addGlobalVar(new GlobalVarDecl(Node1, Loc, new BoolPrimType(Loc), "c"));
         Node1->Finalize();
     }
 }

@@ -12,20 +12,20 @@
 
 #include "TopDecl.h"
 #include "VarDecl.h"
-#include "TypeBase.h"
-#include "CodeGen/CodeGenGlobalVar.h"
 
 namespace fly {
+
+    class CodeGenGlobalVar;
 
     class GlobalVarDecl : public VarDecl, public TopDecl {
 
         friend class ASTNode;
-        const TopDeclKind Kind = TopDeclKind::DECL_GLOBALVAR;
+        const TopDeclKind Kind;
         CodeGenGlobalVar *CodeGen;
 
     public:
 
-        GlobalVarDecl(SourceLocation &Loc, TypeBase *Type, llvm::StringRef Name);
+        GlobalVarDecl(ASTNode *Node, SourceLocation &Loc, TypeBase *Type, llvm::StringRef Name);
 
         TopDeclKind getKind() const override;
 

@@ -11,7 +11,8 @@
 #ifndef FLY_TYPEBASE_H
 #define FLY_TYPEBASE_H
 
-#include "Stmt.h"
+#include "Basic/SourceLocation.h"
+#include "llvm/ADT/StringRef.h"
 
 namespace fly {
 
@@ -29,17 +30,17 @@ namespace fly {
     class TypeBase {
 
     protected:
-        TypeBase(SourceLocation Loc) : Loc(Loc) {}
+        TypeBase(SourceLocation Loc);
         const SourceLocation Loc;
 
     public:
         virtual const TypeKind &getKind() const = 0;
 
-        const SourceLocation &getLocation() const {
-            return Loc;
-        }
+        const SourceLocation &getLocation() const;
 
         virtual ~TypeBase() = default;
+
+        virtual bool operator ==(const TypeBase &Ty) const;
     };
 
     /**
@@ -50,11 +51,9 @@ namespace fly {
         const TypeKind Kind = TypeKind::TYPE_INT;
 
     public:
-        IntPrimType(SourceLocation Loc) : TypeBase(Loc) {}
+        IntPrimType(SourceLocation Loc);
 
-        const TypeKind &getKind() const override {
-            return Kind;
-        }
+        const TypeKind &getKind() const override;
     };
 
     /**
@@ -65,11 +64,9 @@ namespace fly {
         const TypeKind Kind = TypeKind::TYPE_FLOAT;
 
     public:
-        FloatPrimType(SourceLocation Loc) : TypeBase(Loc) {}
+        FloatPrimType(SourceLocation Loc);
 
-        const TypeKind &getKind() const override {
-            return Kind;
-        }
+        const TypeKind &getKind() const override;
     };
 
     /**
@@ -80,11 +77,9 @@ namespace fly {
         const TypeKind Kind = TypeKind::TYPE_BOOL;
 
     public:
-        BoolPrimType(SourceLocation Loc) : TypeBase(Loc) {}
+        BoolPrimType(SourceLocation Loc);
 
-        const TypeKind &getKind() const override {
-            return Kind;
-        }
+        const TypeKind &getKind() const override;
     };
 
     /**
@@ -95,11 +90,9 @@ namespace fly {
         const TypeKind Kind = TypeKind::TYPE_VOID;
 
     public:
-        VoidRetType(SourceLocation Loc) : TypeBase(Loc) {}
+        VoidRetType(SourceLocation Loc);
 
-        const TypeKind &getKind() const override {
-            return Kind;
-        }
+        const TypeKind &getKind() const override;
     };
 
     /**
@@ -109,22 +102,15 @@ namespace fly {
 
         const TypeKind Kind = TypeKind::TYPE_CLASS;
         const llvm::StringRef Name;
-        Stmt *S = NULL;
 
     public:
-        ClassTypeRef(SourceLocation Loc, llvm::StringRef &Name) : TypeBase(Loc), Name(Name) {}
+        ClassTypeRef(SourceLocation Loc, llvm::StringRef &Name);
 
-        const TypeKind &getKind() const override {
-            return Kind;
-        }
+        const TypeKind &getKind() const override;
 
-        const llvm::StringRef &getName() const {
-            return Name;
-        }
+        const llvm::StringRef &getName() const;
 
-        Stmt *getStmt() const {
-            return S;
-        }
+        bool operator ==(const ClassTypeRef &Ty) const;
     };
 }
 

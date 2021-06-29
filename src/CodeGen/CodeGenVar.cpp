@@ -10,12 +10,21 @@
 
 #include "CodeGen/CodeGenVar.h"
 #include "CodeGen/CodeGen.h"
+#include "AST/VarDeclStmt.h"
+#include "AST/FuncDecl.h"
 #include "llvm/IR/Value.h"
 
 using namespace fly;
 
-CodeGenVar::CodeGenVar(CodeGenModule *CGM, VarDeclStmt *S) : CGM(CGM), Var(*S) {
+CodeGenVar::CodeGenVar(CodeGenModule *CGM, VarDeclStmt *S) : CGM(CGM), Constant(S->isConstant()) {
     const TypeBase *Tyb = S->getType();
+    Type *Ty = CGM->GenType(Tyb);
+    AllocaI = CGM->Builder->CreateAlloca(Ty);
+    AllocaI->getAllocatedType();
+}
+
+CodeGenVar::CodeGenVar(CodeGenModule *CGM, FuncParam *P) : CGM(CGM), Constant(P->isConstant()) {
+    const TypeBase *Tyb = P->getType();
     Type *Ty = CGM->GenType(Tyb);
     AllocaI = CGM->Builder->CreateAlloca(Ty);
     AllocaI->getAllocatedType();
@@ -26,7 +35,7 @@ llvm::UnaryInstruction *CodeGenVar::get() {
 }
 
 llvm::StoreInst *CodeGenVar::Store(llvm::Value *Val) {
-    assert(!Var.isConstant() && "Cannot store into constant var");
+    assert(!Constant && "Cannot store into constant var");
     assert(AllocaI && "Connot store into unallocated stack");
     llvm::StoreInst *S = CGM->Builder->CreateStore(Val, AllocaI);
     isStored = true;

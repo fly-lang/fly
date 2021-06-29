@@ -33,7 +33,7 @@ namespace fly {
         CodeGenVar *CodeGen;
 
     public:
-        VarDeclStmt(const SourceLocation &Loc, BlockStmt *CurrStmt, TypeBase *Type, const llvm::StringRef Name);
+        VarDeclStmt(const SourceLocation &Loc, BlockStmt *Block, TypeBase *Type, const llvm::StringRef &Name);
 
         StmtKind getKind() const;
 

@@ -12,18 +12,18 @@
 #define FLY_ASTNODE_H
 
 #include "ASTNodeBase.h"
-#include "ASTNameSpace.h"
-#include "ImportDecl.h"
-#include "GlobalVarDecl.h"
 #include "llvm/ADT/StringMap.h"
-#include "llvm/ADT/StringRef.h"
-#include "FuncDecl.h"
-#include "ClassDecl.h"
+#include <unordered_set>
 
 namespace fly {
 
     class ASTNodeBase;
     class ASTNameSpace;
+    class ImportDecl;
+    class GlobalVarDecl;
+    class FuncDecl;
+    class FuncCall;
+    class ClassDecl;
     class FileID;
 
     class ASTNode : public ASTNodeBase {
@@ -41,7 +41,7 @@ namespace fly {
         llvm::StringMap<GlobalVarDecl *> GlobalVars;
 
         // Private Functions
-        llvm::StringMap<FuncDecl *> Functions;
+        std::unordered_set<FuncDecl *> Functions;
 
         // Private Classes
         llvm::StringMap<ClassDecl *> Classes;
@@ -52,16 +52,17 @@ namespace fly {
 
         ASTNode() = delete;
 
-        ASTNode(const llvm::StringRef fileName, const FileID &fid, ASTContext *Context);
-
         ~ASTNode();
+
+        ASTNode(const llvm::StringRef &fileName, const FileID &fid, ASTContext *Context);
 
         bool isFirstNode() const;
         void setFirstNode(bool firstNode);
 
-        void setNameSpace();
-        void setNameSpace(llvm::StringRef NS);
-        const ASTNameSpace* getNameSpace();
+        void setDefaultNameSpace();
+        ASTNameSpace *setNameSpace(llvm::StringRef NS);
+        ASTNameSpace* getNameSpace();
+        ASTNameSpace *findNameSpace(const StringRef &string);
 
         bool addImport(ImportDecl *NewImport);
         const llvm::StringMap<ImportDecl*> &getImports();
@@ -70,7 +71,7 @@ namespace fly {
         const llvm::StringMap<GlobalVarDecl *> &getGlobalVars();
 
         bool addFunction(FuncDecl *Func);
-        const llvm::StringMap<FuncDecl *> &getFunctions();
+        const std::unordered_set<FuncDecl *> &getFunctions();
 
         bool addClass(ClassDecl *Class);
         const llvm::StringMap<ClassDecl *> &getClasses();

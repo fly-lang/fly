@@ -11,19 +11,24 @@
 #define FLY_FUNCTION_H
 
 #include "TopDecl.h"
-#include "ClassDecl.h"
-#include "Expr.h"
-#include "TypeBase.h"
-#include "BlockStmt.h"
-#include "llvm/ADT/StringMap.h"
+#include "VarDecl.h"
+#include "Stmt.h"
+#include <unordered_set>
 #include <vector>
 
 namespace fly {
 
-    class ParamsFuncDecl;
+    class GroupExpr;
+    class Expr;
+    class TypeBase;
+    class VarRef;
+    class FuncHeader;
     class BlockStmt;
     class FuncCall;
+    class FuncParam;
     class CodeGenFunction;
+    class CodeGenCall;
+    class CodeGenVar;
 
     /**
      * The Function Declaration and definition
@@ -39,19 +44,20 @@ namespace fly {
         friend class FunctionParser;
         friend class CodeGenTest;
 
-        TopDeclKind Kind = TopDeclKind::DECL_FUNCTION;
+        const TopDeclKind Kind;
         const TypeBase *Type;
         const llvm::StringRef Name;
         bool Constant;
-//        llvm::StringMap<VarRef *> VarRef;
-//        llvm::StringMap<FunctionRef *> FuncRef;
-//        llvm::StringMap<ClassRef *> ClassRef;
-        ParamsFuncDecl *Header;
+        std::vector<VarRef *> VarRefs;
+
+        // Calls to be resolved from NameSpace Calls
+        std::vector<FuncCall *> Calls;
+        FuncHeader *Header;
         BlockStmt *Body;
         CodeGenFunction *CodeGen = NULL;
 
     public:
-        FuncDecl(const SourceLocation &Loc, const TypeBase *RetType, const llvm::StringRef &Name);
+        FuncDecl(ASTNode *Node, const SourceLocation &Loc, const TypeBase *RetType, const llvm::StringRef &Name);
 
         TopDeclKind getKind() const override;
 
@@ -61,22 +67,42 @@ namespace fly {
 
         bool isConstant() const;
 
-        const ParamsFuncDecl *getHeader() const;
+        const FuncHeader *getHeader() const;
 
         BlockStmt *getBody();
 
-//        const llvm::StringMap<FunctionRef *> &getFuncRef() const;
+        const std::vector<FuncCall *> &getCalls() const;
 
-//        const llvm::StringMap<ClassRef *> &getClassRef() const;
+        const std::vector<VarRef *> &getVarRefs() const;
 
         CodeGenFunction *getCodeGen() const;
 
-        void setCodeGen(CodeGenFunction *codeGen);
+        void setCodeGen(CodeGenFunction *CGF);
 
-        VarDeclStmt *addParam(const SourceLocation &Loc, TypeBase *Type, const StringRef &Name);
+        FuncParam *addParam(const SourceLocation &Loc, TypeBase *Type, const StringRef &Name);
 
-        void setVarArg(VarDeclStmt* VarArg);
+        bool addCall(FuncCall *Call);
 
+        void setVarArg(FuncParam* VarArg);
+
+        bool Finalize();
+    };
+
+    /**
+     * Function Parameter
+     */
+    class FuncParam : public VarDecl {
+
+        const SourceLocation Location;
+
+        CodeGenVar *CodeGen;
+
+    public:
+        FuncParam(const SourceLocation &Loc, TypeBase *Type, const llvm::StringRef &Name);
+
+        CodeGenVar *getCodeGen() const;
+
+        void setCodeGen(CodeGenVar *CG);
     };
 
     /**
@@ -84,36 +110,18 @@ namespace fly {
      * Ex.
      *   func(int param1, float param2, bool param3, ...)
      */
-    class ParamsFuncDecl {
+    class FuncHeader {
 
         friend class FunctionParser;
         friend class FuncDecl;
 
-        std::vector<VarDeclStmt *> Params;
-        VarDeclStmt* VarArg = NULL;
+        std::vector<FuncParam *> Params;
+        FuncParam* VarArg = NULL;
 
     public:
-        const std::vector<VarDeclStmt *> &getParams() const;
+        const std::vector<FuncParam *> &getParams() const;
 
-        const VarDeclStmt* getVarArg() const;
-    };
-
-    /**
-     * All Parameters of a Function
-     * Ex.
-     *   func(int param1, float param2, bool param3, ...)
-     */
-    class ParamsFuncCall {
-
-        friend class FunctionParser;
-
-        std::vector<Expr*> Args;
-        VarRef* VarArg;
-
-    public:
-        const std::vector<Expr *> &getArgs() const;
-
-        const VarRef* getVarArg() const;
+        const FuncParam* getVarArg() const;
     };
 
     /**
@@ -128,11 +136,24 @@ namespace fly {
         const TypeBase *Ty;
 
     public:
-        ReturnStmt(const SourceLocation &Loc, BlockStmt *CurrentStmt, class GroupExpr *Group);
+        ReturnStmt(const SourceLocation &Loc, BlockStmt *Block, class GroupExpr *Group);
 
         StmtKind getKind() const override;
 
         GroupExpr *getExpr() const;
+    };
+
+    class FuncCallArg {
+        Expr *Value;
+        TypeBase *Ty;
+
+    public:
+
+        FuncCallArg(Expr *Value, TypeBase *Ty);
+
+        Expr *getValue() const;
+
+        TypeBase *getType() const;
     };
 
     /**
@@ -145,19 +166,64 @@ namespace fly {
         friend class Parser;
         friend class FunctionParser;
 
+        const SourceLocation Loc;
+        const llvm::StringRef NameSpace;
         const llvm::StringRef Name;
-        ParamsFuncCall *Params = NULL;
+        std::vector<FuncCallArg *> Args;
         FuncDecl *Func = NULL;
+        CodeGenCall *CGC = NULL;
 
     public:
-        FuncCall(const SourceLocation &Loc, const llvm::StringRef &Name);
-        FuncCall(const SourceLocation &Loc, FuncDecl *Decl);
+//        FuncCall(const SourceLocation &Loc, const llvm::StringRef &Name);
+        FuncCall(const SourceLocation &Loc, const llvm::StringRef &NameSpace, const llvm::StringRef &Name);
+
+        const SourceLocation &getLocation() const;
+
+        const StringRef &getNameSpace() const;
 
         const StringRef &getName() const;
 
-        const ParamsFuncCall *getParams() const;
+        const std::vector<FuncCallArg *> getArgs() const;
+
+        FuncCallArg *addArg(Expr * Arg, TypeBase *Ty = NULL);
 
         FuncDecl *getDecl() const;
+
+        void setDecl(FuncDecl *func);
+
+        CodeGenCall *getCodeGen() const;
+
+        void setCodeGen(CodeGenCall *CGC);
+
+        static FuncCall *CreateCall(FuncDecl *FDecl);
+
+    };
+
+    class FuncCallHash : std::hash<FuncCall *> {
+    public:
+        // id is returned as hash function
+        size_t operator()(const FuncCall *Call) const {
+            const size_t &h1 = (std::hash<std::string>()(Call->getName().str()));
+            const size_t &h2 = (std::hash<std::string>()(Call->getNameSpace().str()));
+            return h1 ^ h2;
+
+        }
+    };
+
+    struct FuncCallComp : std::equal_to<FuncCall *> {
+    public:
+        bool operator()(const FuncCall *C1, const FuncCall *C2) const {
+
+            bool Result = C1->getName().equals(C2->getName()) &&
+                    C1->getNameSpace().equals(C2->getNameSpace()) &&
+                    C1->getArgs().size() == C2->getArgs().size();
+            if (Result) {
+                for (int i = 0; i < C1->getArgs().size(); i++) {
+                    Result &= C1->getArgs()[i]->getType() == C2->getArgs()[i]->getType();
+                }
+            }
+            return Result;
+        }
     };
 
     /**
@@ -165,13 +231,16 @@ namespace fly {
      * Ex.
      *  func()
      */
-    class FuncCallStmt : public FuncCall, public Stmt {
+    class FuncCallStmt : public Stmt {
+
+        FuncCall *Call;
 
     public:
-        FuncCallStmt(const SourceLocation &Loc, BlockStmt *CurrentStmt, const llvm::StringRef &Name);
-        FuncCallStmt(const SourceLocation &Loc, BlockStmt *CurrentStmt, FuncDecl *Decl);
+        FuncCallStmt(const SourceLocation &Loc, BlockStmt *Block, FuncCall *Call);
 
         StmtKind getKind() const override;
+
+        FuncCall *getCall() const;
     };
 }
 

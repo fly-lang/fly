@@ -44,11 +44,13 @@ void VarDecl::setExpr(GroupExpr *Exp) {
 }
 
 
-VarRef::VarRef(const SourceLocation &Loc, const StringRef &Name) : Name(Name) {
+VarRef::VarRef(const SourceLocation &Loc, const StringRef &Name) :
+        Loc(Loc), NameSpace(""), Name(Name) {
 
 }
 
-VarRef::VarRef(const SourceLocation &Loc, VarDecl *D) : Name(D->getName()), Var(D) {
+VarRef::VarRef(const SourceLocation &Loc, const llvm::StringRef &NameSpace, const StringRef &Name) :
+        Loc(Loc), NameSpace(NameSpace), Name(Name) {
 
 }
 
@@ -56,17 +58,24 @@ const llvm::StringRef &VarRef::getName() const {
     return Name;
 }
 
-VarDecl *VarRef::getVarDecl() const {
+VarDecl *VarRef::getDecl() const {
     return Var;
 }
 
-VarStmt::VarStmt(const SourceLocation &Loc, BlockStmt *CurrStmt, const StringRef &Name) : Stmt(Loc, CurrStmt),
-    VarRef(Loc, Name), Expr(new GroupExpr) {
-
+void VarRef::setDecl(VarDecl *D) {
+    Var = D;
 }
 
-VarStmt::VarStmt(const SourceLocation &Loc, BlockStmt *CurrStmt, VarDecl *D) : Stmt(Loc, CurrStmt), VarRef(Loc, D),
-                                                          Expr(new GroupExpr) {
+const StringRef &VarRef::getNameSpace() const {
+    return NameSpace;
+}
+
+const SourceLocation &VarRef::getLocation() const {
+    return Loc;
+}
+
+VarStmt::VarStmt(const SourceLocation &Loc, BlockStmt *Block, const StringRef &Name) : Stmt(Loc, Block),
+    VarRef(Loc, Name), Expr(new GroupExpr) {
 
 }
 

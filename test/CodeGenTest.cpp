@@ -9,7 +9,15 @@
 
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
+#include "CodeGen/CodeGenGlobalVar.h"
 #include "CodeGen/CodeGenFunction.h"
+#include "AST/ASTNode.h"
+#include "AST/ASTNameSpace.h"
+#include "AST/GlobalVarDecl.h"
+#include "AST/FuncDecl.h"
+#include "AST/VarDecl.h"
+#include "AST/VarDeclStmt.h"
+#include "AST/BlockStmt.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/DiagnosticOptions.h"
 #include "Basic/FileManager.h"
@@ -17,13 +25,12 @@
 #include "Basic/SourceManager.h"
 #include "Basic/TargetOptions.h"
 #include "Basic/Builtins.h"
-#include "Frontend/CompilerInstance.h"
 #include "llvm/Support/Host.h"
+#include "llvm/Support/TargetSelect.h"
 #include "gtest/gtest.h"
 #include <fstream>
 #include <iostream>
 #include <vector>
-#include <llvm/Support/TargetSelect.h>
 
 
 namespace {
@@ -57,7 +64,6 @@ namespace {
             SourceLoc = SourceMgr.getLocForStartOfFile(FID);
             auto Node = ASTNode(Name, FID, Ctx);
             Node.setNameSpace(NameSpace);
-            Node.Finalize();
             return Node;
         }
     };
@@ -192,7 +198,7 @@ namespace {
 
         ASTContext *Ctx = new ASTContext(Diags);
         ASTNode Node = createAST(testFile, Ctx);
-        GlobalVarDecl *Var = new GlobalVarDecl(SourceLoc, new IntPrimType(SourceLoc), "a");
+        GlobalVarDecl *Var = new GlobalVarDecl(&Node, SourceLoc, new IntPrimType(SourceLoc), "a");
         Node.addGlobalVar(Var);
 
         llvm::InitializeAllTargets();
@@ -221,7 +227,8 @@ namespace {
         ASTContext *Ctx = new ASTContext(Diags);
         ASTNode Node = createAST(testFile, Ctx);
         
-        FuncDecl *MainFn = new FuncDecl(SourceLoc, new IntPrimType(SourceLoc), "main");
+        FuncDecl *MainFn = new FuncDecl(&Node, SourceLoc, new IntPrimType(SourceLoc),
+                                        "main");
         MainFn->addParam(SourceLoc, new IntPrimType(SourceLoc), "P1");
         MainFn->addParam(SourceLoc, new FloatPrimType(SourceLoc), "P2");
         MainFn->addParam(SourceLoc, new BoolPrimType(SourceLoc), "P3");
@@ -263,18 +270,18 @@ namespace {
         ASTContext *Ctx = new ASTContext(Diags);
         ASTNode Node = createAST(testFile, Ctx);
 
-        GlobalVarDecl *GVar = new GlobalVarDecl(SourceLoc, new FloatPrimType(SourceLoc), "G");
+        GlobalVarDecl *GVar = new GlobalVarDecl(&Node, SourceLoc, new FloatPrimType(SourceLoc), "G");
         Node.addGlobalVar(GVar);
 
-        FuncDecl *MainFn = new FuncDecl(SourceLoc, new IntPrimType(SourceLoc), "main");
+        FuncDecl *MainFn = new FuncDecl(&Node, SourceLoc, new IntPrimType(SourceLoc), "main");
         Node.addFunction(MainFn);
 
         // int A
         VarDeclStmt *LocalVar1 = new VarDeclStmt(SourceLoc, MainFn->getBody(), new IntPrimType(SourceLoc), "A");
-        MainFn->getBody()->addVar(LocalVar1);
+        MainFn->getBody()->addVarDecl(LocalVar1);
 
         // A = 1
-        VarStmt * VStmt = new VarStmt(SourceLoc, MainFn->getBody(), LocalVar1);
+        VarStmt * VStmt = new VarStmt(SourceLoc, MainFn->getBody(), LocalVar1->getName());
         const llvm::StringRef StrVal = "1";
         GroupExpr *G1 = new GroupExpr();
         G1->Add(new ValueExpr(SourceLoc, StrVal));
@@ -282,13 +289,13 @@ namespace {
         MainFn->getBody()->addVar(VStmt);
 
         // G = 1
-        VarStmt * GStmt = new VarStmt(SourceLoc, MainFn->getBody(), GVar);
+        VarStmt * GStmt = new VarStmt(SourceLoc, MainFn->getBody(), GVar->getName());
         GStmt->setExpr(G1);
         MainFn->getBody()->addVar(GStmt);
 
         // return A
         GroupExpr *Exp = new GroupExpr();
-        Exp->Add(new VarRefExpr(SourceLoc, new VarRef(SourceLoc, LocalVar1)));
+        Exp->Add(new VarRefExpr(SourceLoc, new VarRef(SourceLoc, LocalVar1->getName())));
         MainFn->getBody()->addReturn(SourceLoc, Exp);
 
         CodeGenOptions CodeGenOpts;
@@ -321,18 +328,27 @@ namespace {
 
         ASTContext *Ctx = new ASTContext(Diags);
         ASTNode Node = createAST(testFile, Ctx);
-        FuncDecl *MainFn = new FuncDecl(SourceLoc, new IntPrimType(SourceLoc), "main");
+
+        // main()
+        FuncDecl *MainFn = new FuncDecl(&Node, SourceLoc, new IntPrimType(SourceLoc), "main");
         Node.addFunction(MainFn);
 
-        FuncDecl *TestFn = new FuncDecl(SourceLoc, new IntPrimType(SourceLoc), "test");
-        Node.addFunction(MainFn);
+        // test()
+        FuncDecl *TestFn = new FuncDecl(&Node, SourceLoc, new IntPrimType(SourceLoc), "test");
+        TestFn->setVisibility(V_PRIVATE);
+        Node.addFunction(TestFn);
 
-        FuncCallStmt * FStmt = new FuncCallStmt(SourceLoc, MainFn->getBody(), TestFn);
-        MainFn->getBody()->addCall(FStmt);
-
+        FuncCall *TestCall = new FuncCall(SourceLoc, Ctx->getDefaultNameSpace()->getNameSpace(), TestFn->getName());
+//        TestCall->addArg(new ValueExpr(SourceLoc, "1"));
+        // call test()
+        MainFn->getBody()->addCall(TestCall);
+        //return test()
         GroupExpr *Exp = new GroupExpr();
-        Exp->Add(new FuncRefExpr(SourceLoc, new FuncCall(SourceLoc, TestFn)));
+        Exp->Add(new FuncCallExpr(SourceLoc, TestCall));
         MainFn->getBody()->addReturn(SourceLoc, Exp);
+        // Finalize Context for Resolutions of Call and Ref
+        Node.Finalize();
+        Ctx->Finalize();
 
         CodeGenOptions CodeGenOpts;
         std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();
@@ -342,7 +358,9 @@ namespace {
         LLVMContext LLVMCtx;
         CodeGenModule CGM(Diags, Node, LLVMCtx, *Target, CodeGenOpts);
 
+        // CodeGen of test function
         CGM.GenFunction(TestFn);
+
         Function *F = CGM.GenFunction(MainFn)->getFunction();
 
         testing::internal::CaptureStdout();

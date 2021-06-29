@@ -9,11 +9,20 @@
 
 
 #include "AST/TopDecl.h"
+#include "AST/ASTNode.h"
 
 using namespace fly;
 
-TopDecl::TopDecl(const SourceLocation &Loc) : Location(Loc) {
+TopDecl::TopDecl(ASTNode *Node, const SourceLocation &Loc) : Node(Node), Location(Loc), Visibility(V_DEFAULT) {
 
+}
+
+ASTNode *TopDecl::getNode() {
+    return Node;
+}
+
+const ASTNameSpace &TopDecl::getNameSpace() const {
+    return *Node->getNameSpace();
 }
 
 const SourceLocation &TopDecl::getLocation() const {
@@ -22,4 +31,8 @@ const SourceLocation &TopDecl::getLocation() const {
 
 VisibilityKind TopDecl::getVisibility() const {
     return Visibility;
+}
+
+void TopDecl::setVisibility(VisibilityKind V) {
+    Visibility = V;
 }

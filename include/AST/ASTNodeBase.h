@@ -12,13 +12,10 @@
 #define FLY_ASTNODEBASE_H
 
 #include "Basic/SourceLocation.h"
-#include "llvm/ADT/StringRef.h"
-#include "llvm/ADT/DenseMap.h"
 
 namespace fly {
 
     class ASTContext;
-    class ASTNode;
 
     class ASTNodeBase {
 
@@ -36,7 +33,7 @@ namespace fly {
 
         ASTNodeBase() = delete;
 
-        ASTNodeBase(const llvm::StringRef FileName, const FileID &FID, ASTContext* Context);
+        ASTNodeBase(const llvm::StringRef &FileName, const FileID &FID, ASTContext* Context);
 
         const FileID &getFileID() const;
 

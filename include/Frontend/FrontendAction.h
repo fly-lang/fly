@@ -46,9 +46,9 @@ namespace fly {
 
         ~FrontendAction();
 
-        bool BuildAST();
+        bool BuildASTNode();
 
-        ASTNode &getAST();
+        ASTNode &getASTNode();
     };
 }
 

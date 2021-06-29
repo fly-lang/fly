@@ -9,9 +9,11 @@ add_library(FlyAST
         GlobalVarDecl.cpp
         Expr.cpp
         IfBlockStmt.cpp
+        ImportDecl.cpp
         BlockStmt.cpp
         SwitchBlockStmt.cpp
         TopDecl.cpp
+        Type.cpp
         VarDecl.cpp
         VarDeclStmt.cpp
         )

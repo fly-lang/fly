@@ -9,6 +9,11 @@
 
 
 #include "AST/BlockStmt.h"
+#include "AST/ASTNode.h"
+#include "AST/ASTNameSpace.h"
+#include "AST/FuncDecl.h"
+#include "AST/Stmt.h"
+#include "AST/VarDeclStmt.h"
 
 using namespace fly;
 
@@ -54,16 +59,16 @@ bool BlockStmt::addVar(VarStmt *Var) {
     return true;
 }
 
-bool BlockStmt::addVar(VarDeclStmt *Var) {
+bool BlockStmt::addVarDecl(VarDeclStmt *Var) {
     Content.push_back(Var);
     Vars.insert(std::pair<StringRef, VarDeclStmt *>(Var->getName(), Var));
     return true;
 }
 
-bool BlockStmt::addCall(FuncCallStmt *Invoke) {
-    Content.push_back(Invoke);
-    FuncCalls.insert(std::pair<StringRef, FuncCallStmt *>(Invoke->getName(), Invoke));
-    return true;
+bool BlockStmt::addCall(FuncCall *Call) {
+    FuncCallStmt *CallStmt = new FuncCallStmt(Call->getLocation(), this, Call);
+    Content.push_back(CallStmt);
+    return Top->addCall(Call);
 }
 
 ConditionBlockStmt::ConditionBlockStmt(const SourceLocation &Loc, BlockStmt *Parent) : BlockStmt(Loc, Parent) {}

@@ -12,8 +12,9 @@
 
 using namespace fly;
 
-GlobalVarDecl::GlobalVarDecl(SourceLocation &Loc, TypeBase *Type, StringRef Name) : TopDecl(Loc),
-    VarDecl(Type, Name, true) {
+GlobalVarDecl::GlobalVarDecl(ASTNode *Node, SourceLocation &Loc, TypeBase *Type, StringRef Name) :
+                            Kind(TopDeclKind::DECL_GLOBALVAR),
+                            TopDecl(Node, Loc), VarDecl(Type, Name, true) {
 
 }
 

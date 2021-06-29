@@ -10,14 +10,15 @@
 #ifndef FLY_IMPORTDECL_H
 #define FLY_IMPORTDECL_H
 
-#include "TopDecl.h"
-#include "ASTNameSpace.h"
+#include "Basic/SourceLocation.h"
 
 namespace fly {
 
     class ASTNameSpace;
 
-    class ImportDecl : public TopDecl {
+    class ImportDecl {
+
+        const SourceLocation Location;
 
         llvm::StringRef Name;
 
@@ -27,34 +28,21 @@ namespace fly {
 
     public:
 
-        ImportDecl(const SourceLocation &Loc, llvm::StringRef Name) : TopDecl(Loc), Name(Name), Alias(Name) {}
+        ImportDecl(const SourceLocation &Loc, llvm::StringRef Name);
 
-        ImportDecl(const SourceLocation &Loc, llvm::StringRef Name, llvm::StringRef Alias) : TopDecl(Loc), Name(Name),
-                                                                                 Alias(Alias) {}
+        ImportDecl(const SourceLocation &Loc, llvm::StringRef Name, llvm::StringRef Alias);
 
-        ~ImportDecl() {
-            NameSpace = nullptr;
-        }
+        ~ImportDecl();
 
-        TopDeclKind getKind() const override {
-            return TopDeclKind::DECL_IMPORT;
-        }
+        const SourceLocation &getLocation() const;
 
-        const llvm::StringRef &getName() const {
-            return Name;
-        }
+        const llvm::StringRef &getName() const;
 
-        const llvm::StringRef &getAlias() const {
-            return Alias;
-        }
+        const llvm::StringRef &getAlias() const;
 
-        ASTNameSpace *getNameSpace() const {
-            return NameSpace;
-        }
+        ASTNameSpace *getNameSpace() const;
 
-        void setNameSpace(ASTNameSpace *NS) {
-            NameSpace = NS;
-        }
+        void setNameSpace(ASTNameSpace *NS);
     };
 }
 

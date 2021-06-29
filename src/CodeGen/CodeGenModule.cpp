@@ -15,7 +15,13 @@
 #include "CodeGen/CodeGenModule.h"
 #include "CodeGen/CharUnits.h"
 #include "CodeGen/CodeGenFunction.h"
+#include "CodeGen/CodeGenCall.h"
+#include "CodeGen/CodeGenGlobalVar.h"
 #include "CodeGen/CodeGenVar.h"
+#include "AST/ASTNode.h"
+#include "AST/VarDeclStmt.h"
+#include "AST/GlobalVarDecl.h"
+#include "AST/BlockStmt.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Value.h"
@@ -83,8 +89,8 @@ void CodeGenModule::Generate() {
     for (const llvm::StringMapEntry<GlobalVarDecl *> &Entry : Node.getGlobalVars()) {
         GenGlobalVar(Entry.getValue());
     }
-    for (const llvm::StringMapEntry<FuncDecl *> &Entry : Node.getFunctions()) {
-        GenFunction(Entry.getValue());
+    for (FuncDecl *Func : Node.getFunctions()) {
+        GenFunction(Func);
     }
 }
 
@@ -113,6 +119,35 @@ CodeGenFunction *CodeGenModule::GenFunction(FuncDecl *FDecl) {
     return CGF;
 }
 
+CallInst *CodeGenModule::GenCall(FuncCall *Call) {
+    assert(Call->getDecl() && "Declaration not resolved");
+
+    const std::vector<FuncParam *> &Params = Call->getDecl()->getHeader()->getParams();
+    llvm::SmallVector<llvm::Value *, 8> Args;
+    for (FuncCallArg *Arg : Call->getArgs()) {
+
+        switch (Arg->getValue()->getKind()) {
+
+            case EXPR_VALUE: {
+                ValueExpr *ValExp = static_cast<ValueExpr *>(Arg->getValue());
+                Constant *C = GenValue(Arg->getType(), ValExp->getString());
+                Args.push_back(C);
+                break;
+            }
+            case EXPR_REF_VAR:
+                // TODO
+                break;
+            case EXPR_REF_FUNC:
+                break;
+            case EXPR_GROUP:
+                break;
+            default:
+                assert("Invalid Function Args");
+        }
+    }
+    return Builder->CreateCall(Call->getDecl()->getCodeGen()->getFunction(), Args);
+}
+
 void CodeGenModule::GenStmt(Stmt * S) {
     switch (S->getKind()) {
 
@@ -130,20 +165,19 @@ void CodeGenModule::GenStmt(Stmt * S) {
         case STMT_VAR_ASSIGN: {
             VarStmt *V = static_cast<VarStmt *>(S);
             assert(!V->getExpr()->isEmpty() && "Var assign empty");
-            llvm::Value *Val = GenExpr(V->getVarDecl()->getType(), V->getExpr());
-            if (V->getVarDecl()->isGlobal()) {
-                GlobalVarDecl *GV = static_cast<GlobalVarDecl *>(V->getVarDecl());
+            llvm::Value *Val = GenExpr(V->getDecl()->getType(), V->getExpr());
+            if (V->getDecl()->isGlobal()) {
+                GlobalVarDecl *GV = static_cast<GlobalVarDecl *>(V->getDecl());
                 GV->getCodeGen()->Store(Val);
             } else {
-                VarDeclStmt *LV = static_cast<VarDeclStmt *>(V->getVarDecl());
+                VarDeclStmt *LV = static_cast<VarDeclStmt *>(V->getDecl());
                 LV->getCodeGen()->Store(Val);
             }
             break;
         }
         case STMT_FUNC_CALL: {
             FuncCallStmt *FCall = static_cast<FuncCallStmt *>(S);
-            FCall->getDecl()->getCodeGen()->Call();
-             // TODO args
+            GenCall(FCall->getCall());
             break;
         }
         case STMT_BLOCK: {
@@ -180,7 +214,7 @@ void CodeGenModule::GenStmt(Stmt * S) {
             if (R->getExpr()->isEmpty()) {
                 Builder->CreateRetVoid();
             } else {
-                llvm::Value *V = GenExpr(R->getContainer()->getType(), R->getExpr());
+                llvm::Value *V = GenExpr(R->getTop()->getType(), R->getExpr());
                 Builder->CreateRet(V);
             }
             break;
@@ -251,16 +285,16 @@ llvm::Value *CodeGenModule::GenExpr(const TypeBase *Typ, GroupExpr *Expr) {
             case EXPR_REF_VAR: {
                 VarRefExpr *RefExp = static_cast<VarRefExpr *>(E);
                 assert(RefExp->getRef() && "Missing Ref");
-                VarDecl *VDecl = RefExp->getRef()->getVarDecl();
+                VarDecl *VDecl = RefExp->getRef()->getDecl();
                 if (VDecl->isGlobal()) {
                     return static_cast<GlobalVarDecl *>(VDecl)->getCodeGen()->getGlobalVar();
                 }
                 return static_cast<VarDeclStmt *>(VDecl)->getCodeGen()->get();
             }
             case EXPR_REF_FUNC: {
-                FuncRefExpr *RefExp = static_cast<FuncRefExpr *>(E);
+                FuncCallExpr *RefExp = static_cast<FuncCallExpr *>(E);
                 assert(RefExp->getRef() && "Missing Ref");
-                return RefExp->getRef()->getDecl()->getCodeGen()->Call();
+                return GenCall(RefExp->getRef());
             }
             case EXPR_GROUP:
                 return GenExpr(Typ, static_cast<GroupExpr *>(E));

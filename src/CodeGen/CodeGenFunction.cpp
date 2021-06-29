@@ -8,13 +8,16 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "CodeGen/CodeGenFunction.h"
+#include "CodeGen/CodeGenVar.h"
 #include "CodeGen/CodeGen.h"
+#include "AST/VarDeclStmt.h"
+#include "AST/BlockStmt.h"
 #include "llvm/IR/DerivedTypes.h"
 
 using namespace fly;
 
 CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, const llvm::StringRef FName, const TypeBase *FType,
-                                 const ParamsFuncDecl *FParams, const BlockStmt *FBody) : CGM(CGM) {
+                                 const FuncHeader *FParams, const BlockStmt *FBody) : CGM(CGM) {
     llvm::FunctionType *FnTy = GenFuncType(FType, FParams);
 
     // Create Function
@@ -52,7 +55,7 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, const llvm::StringRef FName
     }
 }
 
-llvm::FunctionType *CodeGenFunction::GenFuncType(const TypeBase *RetTyData, const ParamsFuncDecl *Params) {
+llvm::FunctionType *CodeGenFunction::GenFuncType(const TypeBase *RetTyData, const FuncHeader *Params) {
     if (Params->getParams().empty()) {
         // Create empty Function Type
         return llvm::FunctionType::get(CGM->GenType(RetTyData), Params->getVarArg() != nullptr);
@@ -73,10 +76,6 @@ const llvm::StringRef &CodeGenFunction::getName() const {
 
 llvm::Function *CodeGenFunction::getFunction() {
     return Fn;
-}
-
-CallInst *CodeGenFunction::Call() {
-    return CGM->Builder->CreateCall(Fn);
 }
 
 BasicBlock *CodeGenFunction::getEntry() {

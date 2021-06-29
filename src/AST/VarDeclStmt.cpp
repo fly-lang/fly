@@ -12,8 +12,8 @@
 
 using namespace fly;
 
-VarDeclStmt::VarDeclStmt(const SourceLocation &Loc, BlockStmt *CurrStmt, TypeBase *Type, const StringRef Name) :
-        Stmt(Loc, CurrStmt), VarDecl(Type, Name) {}
+VarDeclStmt::VarDeclStmt(const SourceLocation &Loc, BlockStmt *Block, TypeBase *Type, const StringRef &Name) :
+        Stmt(Loc, Block), VarDecl(Type, Name) {}
 
 StmtKind VarDeclStmt::getKind() const {
     return Kind;

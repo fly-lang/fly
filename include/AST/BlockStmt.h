@@ -11,17 +11,19 @@
 #ifndef FLY_BLOCKSTMT_H
 #define FLY_BLOCKSTMT_H
 
-#include "FuncDecl.h"
+#include "Stmt.h"
+#include "VarDecl.h"
 #include "llvm/ADT/StringMap.h"
-#include "llvm/ADT/StringRef.h"
-#include <utility>
 #include <vector>
 
 namespace fly {
 
     class ReturnStmt;
+    class FuncCall;
     class FuncCallStmt;
-    class CGBlock;
+    class VarDeclStmt;
+    class VarStmt;
+    class GroupExpr;
 
     enum BlockStmtKind {
         BLOCK_STMT,
@@ -50,8 +52,6 @@ namespace fly {
 
         llvm::StringMap<VarDeclStmt *> Vars;
 
-        llvm::StringMap<FuncCallStmt *> FuncCalls;
-
     public:
 
         BlockStmt(const SourceLocation &Loc, BlockStmt *Parent);
@@ -70,9 +70,9 @@ namespace fly {
 
         bool addVar(VarStmt *Var);
 
-        bool addVar(VarDeclStmt *Var);
+        bool addVarDecl(VarDeclStmt *Var);
 
-        bool addCall(FuncCallStmt *Invoke);
+        bool addCall(FuncCall *Invoke);
 
         const llvm::StringMap<VarDeclStmt *> &getVars() const;
 

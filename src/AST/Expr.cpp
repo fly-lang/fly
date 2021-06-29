@@ -56,16 +56,16 @@ VarRef *VarRefExpr::getRef() const {
     return Ref;
 }
 
-FuncRefExpr::FuncRefExpr(const SourceLocation &Loc, FuncCall *Ref) : Loc(Loc), Ref(Ref) {}
+FuncCallExpr::FuncCallExpr(const SourceLocation &Loc, FuncCall *Ref) : Loc(Loc), Ref(Ref) {}
 
-const SourceLocation &FuncRefExpr::getLocation() const {
+const SourceLocation &FuncCallExpr::getLocation() const {
     return Loc;
 }
 
-ExprKind FuncRefExpr::getKind() const {
+ExprKind FuncCallExpr::getKind() const {
 return Kind;
 }
 
-FuncCall *FuncRefExpr::getRef() const {
+FuncCall *FuncCallExpr::getRef() const {
     return Ref;
 }

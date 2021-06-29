@@ -15,6 +15,7 @@
 
 namespace fly {
 
+    class ASTNode;
     enum TopDeclKind {
         DECL_NAMESPACE,
         DECL_IMPORT,
@@ -22,6 +23,8 @@ namespace fly {
         DECL_FUNCTION,
         DECL_CLASS
     };
+
+    class ASTNameSpace;
 
     enum VisibilityKind {
         V_DEFAULT = 1,
@@ -32,18 +35,25 @@ namespace fly {
     class TopDecl {
 
         friend class ASTNode;
-
         friend class Parser;
 
+    protected:
+        ASTNode *Node;
         const SourceLocation Location;
         VisibilityKind Visibility;
 
     public:
-        explicit TopDecl(const SourceLocation &Loc);
+        TopDecl(ASTNode *Node, const SourceLocation &Loc);
+
+        ASTNode *getNode();
+
+        const ASTNameSpace &getNameSpace() const;
 
         const SourceLocation &getLocation() const;
 
         VisibilityKind getVisibility() const;
+
+        void setVisibility(VisibilityKind V);
 
         virtual TopDeclKind getKind() const = 0;
 

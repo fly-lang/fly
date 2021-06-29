@@ -16,7 +16,6 @@
 
 #include "CharUnits.h"
 #include "CodeGenTypeCache.h"
-#include "AST/ASTContext.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/TargetInfo.h"
 #include <llvm/IR/Module.h>
@@ -27,10 +26,23 @@ using namespace llvm;
 
 namespace fly {
 
+    class ASTContext;
+    class ASTNode;
+    class GlobalVarDecl;
+    class FuncDecl;
+    class FuncCall;
+    class TypeBase;
+    class CodeGenGlobalVar;
+    class CodeGenFunction;
+    class CodeGenCall;
+    class Stmt;
+    class GroupExpr;
+
     class CodeGenModule : public CodeGenTypeCache {
 
         friend class CodeGenGlobalVar;
         friend class CodeGenFunction;
+        friend class CodeGenCall;
         friend class CodeGenVar;
 
     private:
@@ -57,6 +69,8 @@ namespace fly {
         CodeGenGlobalVar *GenGlobalVar(GlobalVarDecl *VDecl);
 
         CodeGenFunction *GenFunction(FuncDecl *FDecl);
+
+        CallInst *GenCall(FuncCall *Call);
 
         Type *GenType(const TypeBase *TyData);
 

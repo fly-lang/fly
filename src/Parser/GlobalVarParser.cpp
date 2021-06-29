@@ -14,7 +14,7 @@ GlobalVarParser::GlobalVarParser(Parser *P, TypeBase *TyDecl, const StringRef &V
 
 bool GlobalVarParser::Parse() {
 
-    Var = new GlobalVarDecl(Location, TyDecl, Name);
+    Var = new GlobalVarDecl(P->AST, Location, TyDecl, Name);
 
     // Parsing =
     if (P->Tok.is(tok::equal)) {

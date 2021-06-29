@@ -9,6 +9,8 @@
 
 #include "Parser/Parser.h"
 #include "AST/ASTContext.h"
+#include "AST/ASTNameSpace.h"
+#include <unordered_set>
 #include <gtest/gtest.h>
 
 namespace {
@@ -194,10 +196,11 @@ namespace {
         auto P = Parse("function.fly", str);
         auto AST = P->getAST();
 
-        FuncDecl *VerifyFunc = AST->getFunctions().lookup("func");
+        FuncDecl *VerifyFunc = *(AST->getFunctions().begin());
         EXPECT_EQ(VerifyFunc->getVisibility(), VisibilityKind::V_DEFAULT);
         ASSERT_FALSE(VerifyFunc->isConstant());
-        ASSERT_TRUE(Context->getNameSpaces().lookup("std")->getFunctions().lookup("func"));
+        const std::unordered_set<FuncDecl *> &NSFuncs = Context->getNameSpaces().lookup("std")->getFunctions();
+        ASSERT_TRUE(NSFuncs.find(VerifyFunc) != NSFuncs.end());
     }
 
     TEST_F(ParserTest, FunctionPrivateReturnParams) {
@@ -208,14 +211,15 @@ namespace {
         auto P = Parse("function.fly", str);
         auto AST = P->getAST();
 
-        FuncDecl *VerifyFunc = AST->getFunctions().lookup("func");
+        FuncDecl *VerifyFunc = *(AST->getFunctions().begin());
         EXPECT_EQ(VerifyFunc->getVisibility(), VisibilityKind::V_PRIVATE);
         ASSERT_FALSE(VerifyFunc->isConstant());
-        ASSERT_FALSE(Context->getNameSpaces().lookup("std")->getFunctions().lookup("func"));
+        const std::unordered_set<FuncDecl *> &NSFuncs = Context->getNameSpaces().lookup("std")->getFunctions();
+        ASSERT_TRUE(NSFuncs.find(VerifyFunc) == NSFuncs.end()); // No Private Function into NS
 
-        VarDeclStmt *Par0 = VerifyFunc->getHeader()->getParams()[0];
-        VarDeclStmt *Par1 = VerifyFunc->getHeader()->getParams()[1];
-        VarDeclStmt *Par2 = VerifyFunc->getHeader()->getParams()[2];
+        FuncParam *Par0 = VerifyFunc->getHeader()->getParams()[0];
+        FuncParam *Par1 = VerifyFunc->getHeader()->getParams()[1];
+        FuncParam *Par2 = VerifyFunc->getHeader()->getParams()[2];
 
         EXPECT_EQ(Par0->getName(), "a");
         EXPECT_EQ(Par0->getType()->getKind(), TypeKind::TYPE_INT);
@@ -252,7 +256,7 @@ namespace {
         auto AST = P->getAST();
 
         // Get Body
-        FuncDecl *F = AST->getFunctions().lookup("func");
+        FuncDecl *F = *(AST->getFunctions().begin());
         const BlockStmt *Body = F->getBody();
 
         // Test: bool c
@@ -267,7 +271,6 @@ namespace {
         EXPECT_EQ(typeVar->getType()->getKind(), TypeKind::TYPE_CLASS);
         ClassTypeRef *TypeT = static_cast<ClassTypeRef *>(typeVar->getType());
         EXPECT_EQ(TypeT->getName(), "Type");
-        ASSERT_FALSE(TypeT->getStmt());
 
         // Test: float b=2.0 + 1.0
         VarDeclStmt *bVar = static_cast<VarDeclStmt *>(Body->getContent()[2]);
@@ -286,7 +289,7 @@ namespace {
         EXPECT_EQ(aVar->getName(), "a");
         EXPECT_EQ(aVar->getExpr()->getKind(), ExprKind::EXPR_GROUP);
         VarRefExpr *aExpr = static_cast<VarRefExpr *>(aVar->getExpr()->getGroup()[0]);
-        EXPECT_FALSE(aExpr->getRef()->getVarDecl());
+        EXPECT_FALSE(aExpr->getRef()->getDecl());
         ArithExpr *opCExpr = static_cast<ArithExpr *>(aVar->getExpr()->getGroup()[1]);
         EXPECT_EQ(opCExpr->getArithKind(), ArithOpKind::ARITH_ADD);
         ValueExpr *opC1Expr = static_cast<ValueExpr *>(aVar->getExpr()->getGroup()[2]);
@@ -317,35 +320,35 @@ namespace {
         auto AST = P->getAST();
 
         // Get Body
-        FuncDecl *F = AST->getFunctions().lookup("func");
+        FuncDecl *F = *(AST->getFunctions().begin());
         const BlockStmt *Body = F->getBody();
 
         // Test: doSome()
         FuncCallStmt *doSome = static_cast<FuncCallStmt *>(Body->getContent()[0]);
         //EXPECT_FALSE(F->getFuncRef().find("doSome")->getValue()->getRef());
-        EXPECT_EQ(doSome->getName(), "doSome");
+        EXPECT_EQ(doSome->getCall()->getName(), "doSome");
         EXPECT_EQ(doSome->getKind(), StmtKind::STMT_FUNC_CALL);
-        ASSERT_FALSE(doSome->getDecl());
+        ASSERT_FALSE(doSome->getCall()->getDecl());
 
         // Test: doOther(a, b)
         FuncCallStmt *doOther = static_cast<FuncCallStmt *>(Body->getContent()[1]);
         //EXPECT_FALSE(F->getFuncRef().find("doOther")->getValue()->getRef());
-        EXPECT_EQ(doOther->getName(), "doOther");
+        EXPECT_EQ(doOther->getCall()->getName(), "doOther");
         EXPECT_EQ(doOther->getKind(), StmtKind::STMT_FUNC_CALL);
-        EXPECT_EQ(static_cast<VarRefExpr *>(doOther->getParams()->getArgs()[0])->getRef()->getName(),"a");
-        EXPECT_EQ(static_cast<VarRefExpr *>(doOther->getParams()->getArgs()[1])->getRef()->getName(),"b");
-        ASSERT_FALSE(doOther->getDecl());
+        EXPECT_EQ(static_cast<VarRefExpr *>(doOther->getCall()->getArgs()[0]->getValue())->getRef()->getName(),"a");
+        EXPECT_EQ(static_cast<VarRefExpr *>(doOther->getCall()->getArgs()[1]->getValue())->getRef()->getName(),"b");
+        ASSERT_FALSE(doOther->getCall()->getDecl());
 
         ReturnStmt *Ret = static_cast<ReturnStmt *>(Body->getContent()[2]);
-        FuncRefExpr *RetRef = static_cast<FuncRefExpr *>(Ret->getExpr()->getGroup()[0]);
+        FuncCallExpr *RetRef = static_cast<FuncCallExpr *>(Ret->getExpr()->getGroup()[0]);
         EXPECT_EQ(RetRef->getRef()->getName(), "do");
         EXPECT_EQ(RetRef->getKind(), ExprKind::EXPR_REF_FUNC);
-        EXPECT_EQ(static_cast<ValueExpr *>(RetRef->getRef()->getParams()->getArgs()[0])->getKind(), ExprKind::EXPR_VALUE);
-        EXPECT_EQ(static_cast<ValueExpr *>(RetRef->getRef()->getParams()->getArgs()[0])->getString(),"false");
-        EXPECT_EQ(static_cast<ValueExpr *>(RetRef->getRef()->getParams()->getArgs()[1])->getKind(), ExprKind::EXPR_VALUE);
-        EXPECT_EQ(static_cast<ValueExpr *>(RetRef->getRef()->getParams()->getArgs()[1])->getString(), "1");
-        EXPECT_EQ(static_cast<ValueExpr *>(RetRef->getRef()->getParams()->getArgs()[2])->getKind(), ExprKind::EXPR_VALUE);
-        EXPECT_EQ(static_cast<ValueExpr *>(RetRef->getRef()->getParams()->getArgs()[2])->getString(), "2.0");
+        EXPECT_EQ(static_cast<ValueExpr *>(RetRef->getRef()->getArgs()[0]->getValue())->getKind(), ExprKind::EXPR_VALUE);
+        EXPECT_EQ(static_cast<ValueExpr *>(RetRef->getRef()->getArgs()[0]->getValue())->getString(), "false");
+        EXPECT_EQ(static_cast<ValueExpr *>(RetRef->getRef()->getArgs()[1]->getValue())->getKind(), ExprKind::EXPR_VALUE);
+        EXPECT_EQ(static_cast<ValueExpr *>(RetRef->getRef()->getArgs()[1]->getValue())->getString(), "1");
+        EXPECT_EQ(static_cast<ValueExpr *>(RetRef->getRef()->getArgs()[2]->getValue())->getKind(), ExprKind::EXPR_VALUE);
+        EXPECT_EQ(static_cast<ValueExpr *>(RetRef->getRef()->getArgs()[2]->getValue())->getString(), "2.0");
     }
 
     TEST_F(ParserTest, FunctionBodyIncDec) {
@@ -360,7 +363,7 @@ namespace {
         auto AST = P->getAST();
 
         // Get Body
-        FuncDecl *F = AST->getFunctions().lookup("func");
+        FuncDecl *F = *(AST->getFunctions().begin());
         const BlockStmt *Body = F->getBody();
 
         // ++a
@@ -407,7 +410,7 @@ namespace {
         auto AST = P->getAST();
 
         // Get Body
-        FuncDecl *F = AST->getFunctions().lookup("func");
+        FuncDecl *F = *(AST->getFunctions().begin());
         const BlockStmt *Body = F->getBody();
 
         // if
@@ -447,7 +450,7 @@ namespace {
         auto AST = P->getAST();
 
         // Get Body
-        FuncDecl *F = AST->getFunctions().lookup("func");
+        FuncDecl *F = *(AST->getFunctions().begin());
         const BlockStmt *Body = F->getBody();
 
         // if
@@ -491,7 +494,7 @@ namespace {
         auto AST = P->getAST();
 
         // Get Body
-        FuncDecl *F = AST->getFunctions().lookup("func");
+        FuncDecl *F = *(AST->getFunctions().begin());
         const BlockStmt *Body = F->getBody();
 
         SwitchBlockStmt *Stmt = static_cast<SwitchBlockStmt *>(Body->getContent()[0]);
@@ -501,7 +504,7 @@ namespace {
         EXPECT_EQ(static_cast<ValueExpr *>(Stmt->getCases()[1]->getExpr())->getString(), "2");
         EXPECT_TRUE(Stmt->getCases()[1]->getContent().empty());
         EXPECT_EQ(Stmt->getDefault()->getBlockKind(), BlockStmtKind::BLOCK_STMT_DEFAULT);
-        EXPECT_EQ(static_cast<FuncCallStmt *>(Stmt->getDefault()->getContent()[0])->getName(), "hello");
+        EXPECT_EQ(static_cast<FuncCallStmt *>(Stmt->getDefault()->getContent()[0])->getCall()->getName(), "hello");
         EXPECT_EQ(static_cast<FuncCallStmt *>(Stmt->getDefault()->getContent()[0])->getKind(), StmtKind::STMT_FUNC_CALL);
     }
 
@@ -517,7 +520,7 @@ namespace {
         auto AST = P->getAST();
 
         // Get Body
-        FuncDecl *F = AST->getFunctions().lookup("func");
+        FuncDecl *F = *(AST->getFunctions().begin());
         const BlockStmt *Body = F->getBody();
         ForBlockStmt *Stmt = static_cast<ForBlockStmt *>(Body->getContent()[0]);
         EXPECT_EQ(Stmt->getBlockKind(), BlockStmtKind::BLOCK_STMT_FOR);
@@ -547,7 +550,7 @@ namespace {
         auto AST = P->getAST();
 
         // Get Body
-        FuncDecl *F = AST->getFunctions().lookup("func");
+        FuncDecl *F = *(AST->getFunctions().begin());
         const BlockStmt *Body = F->getBody();
         ForBlockStmt *Stmt = static_cast<ForBlockStmt *>(Body->getContent()[0]);
         EXPECT_EQ(Stmt->getBlockKind(), BlockStmtKind::BLOCK_STMT_FOR);
@@ -570,7 +573,7 @@ namespace {
         auto AST = P->getAST();
 
         // Get Body
-        FuncDecl *F = AST->getFunctions().lookup("func");
+        FuncDecl *F = *(AST->getFunctions().begin());
         const BlockStmt *Body = F->getBody();
         ForBlockStmt *Stmt = static_cast<ForBlockStmt *>(Body->getContent()[0]);
         EXPECT_EQ(Stmt->getBlockKind(), BlockStmtKind::BLOCK_STMT_FOR);

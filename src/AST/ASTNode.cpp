@@ -11,31 +11,41 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include <AST/ASTContext.h>
+#include "AST/ASTContext.h"
+#include "AST/ASTNameSpace.h"
 #include "AST/ASTNode.h"
+#include "AST/GlobalVarDecl.h"
+#include "AST/FuncDecl.h"
+#include "AST/ClassDecl.h"
+#include "llvm/ADT/StringMap.h"
 
 using namespace fly;
 
-ASTNode::ASTNode(const llvm::StringRef fileName, const FileID &fid, ASTContext *Context) :
+ASTNode::ASTNode(const llvm::StringRef &fileName, const FileID &fid, ASTContext *Context) :
         ASTNodeBase(fileName, fid, Context) {
 }
 
-const ASTNameSpace* ASTNode::getNameSpace() {
+ASTNameSpace* ASTNode::getNameSpace() {
     return NameSpace;
 }
 
-void ASTNode::setNameSpace() {
-    llvm::StringRef NS = "default";
-    setNameSpace(NS);
+void ASTNode::setDefaultNameSpace() {
+    setNameSpace(ASTNameSpace::DEFAULT);
 }
 
-void ASTNode::setNameSpace(llvm::StringRef NS) {
+ASTNameSpace *ASTNode::findNameSpace(const StringRef &Name) {
+    auto NS = Context->NameSpaces.find(Name);
+    return NS == Context->NameSpaces.end() ? nullptr : NS->getValue();
+}
+
+ASTNameSpace *ASTNode::setNameSpace(llvm::StringRef NS) {
     // Check if NS exist or add
     NameSpace = Context->NameSpaces.lookup(NS);
     if (NameSpace == nullptr) {
         NameSpace = new ASTNameSpace(NS);
         Context->NameSpaces.insert(std::make_pair(NS, NameSpace));
     }
+    return NameSpace;
 }
 
 const llvm::StringMap<ImportDecl*> &ASTNode::getImports() {
@@ -76,16 +86,16 @@ bool ASTNode::addGlobalVar(GlobalVarDecl *Var) {
 
     // Lookup into namespace
     if(Var->Visibility == VisibilityKind::V_PUBLIC || Var->Visibility == VisibilityKind::V_DEFAULT) {
-        GlobalVarDecl *LookupVar = NameSpace->Vars.lookup(Var->getName());
+        GlobalVarDecl *LookupVar = NameSpace->GlobalVars.lookup(Var->getName());
         if (LookupVar) {
             Context->Diag(LookupVar->getLocation(), diag::err_duplicate_gvar)  << LookupVar->getName();
             return false;
         }
         auto Pair = std::make_pair(Var->getName(), Var);
-        NameSpace->Vars.insert(Pair);
+        NameSpace->GlobalVars.insert(Pair);
     }
 
-    // Lookup into module vars
+    // Lookup into node vars
     GlobalVarDecl *LookupVar = GlobalVars.lookup(Var->getName());
     if (LookupVar) {
         Context->Diag(LookupVar->getLocation(), diag::err_duplicate_gvar)  << LookupVar->getName();
@@ -98,30 +108,32 @@ bool ASTNode::addGlobalVar(GlobalVarDecl *Var) {
 }
 
 bool ASTNode::addFunction(FuncDecl *Func) {
-    // Lookup into namespace
+    assert(Func->Visibility && "Function Visibility is unset");
+
+    // Works into namespace
     if(Func->Visibility == VisibilityKind::V_PUBLIC || Func->Visibility == VisibilityKind::V_DEFAULT) {
-        FuncDecl *LookupFunc = NameSpace->Functions.lookup(Func->getName());
-        if (LookupFunc) {
-            Context->Diag(LookupFunc->getLocation(), diag::err_duplicate_func)  << LookupFunc->getName();
+        const std::unordered_set<FuncDecl *>::iterator &FuncIt = NameSpace->Functions.find(Func);
+        if (FuncIt != NameSpace->Functions.end()) {
+            Context->Diag(Func->getLocation(), diag::err_duplicate_func)  << Func->getName();
             return false;
         }
-        auto Pair = std::make_pair(Func->getName(), Func);
-        NameSpace->Functions.insert(Pair);
+        assert(NameSpace->Functions.insert(Func).second && "Error on Function insert into NameSpace");
     }
 
-    // Lookup into module vars
-    GlobalVarDecl *LookupFunc = GlobalVars.lookup(Func->getName());
-    if (LookupFunc) {
-        Context->Diag(LookupFunc->getLocation(), diag::err_duplicate_func)  << LookupFunc->getName();
-        return false;
+    // Works into node functions
+    if (Func->Visibility == VisibilityKind::V_PRIVATE) {
+        const std::unordered_set<FuncDecl *>::iterator &FuncIt = Functions.find(Func);
+        if (FuncIt != Functions.end()) {
+            Context->Diag(Func->getLocation(), diag::err_duplicate_func) << Func->getName();
+            return false;
+        }
+        assert(Functions.insert(Func).second && "Error on Function insert into Node");
     }
-    auto Pair = std::make_pair(Func->getName(), Func);
-    Functions.insert(Pair);
 
-    return true;
+    return NameSpace->Calls.insert(FuncCall::CreateCall(Func)).second;
 }
 
-const llvm::StringMap<FuncDecl *> &ASTNode::getFunctions() {
+const std::unordered_set<FuncDecl *> &ASTNode::getFunctions() {
     return Functions;
 }
 
@@ -154,6 +166,10 @@ const llvm::StringMap<ClassDecl *> &ASTNode::getClasses() {
 }
 
 bool ASTNode::Finalize() {
+    for (auto *Function : Functions) {
+        Function->Finalize();
+    }
+
     return Context->AddNode(this);
 }
 

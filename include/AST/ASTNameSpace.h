@@ -11,16 +11,16 @@
 #ifndef FLY_ASTNAMESPACE_H
 #define FLY_ASTNAMESPACE_H
 
-#include "AST/ASTNode.h"
-#include "AST/GlobalVarDecl.h"
 #include "AST/FuncDecl.h"
-#include "AST/ClassDecl.h"
 #include "llvm/ADT/StringMap.h"
-#include "llvm/ADT/StringRef.h"
+#include <unordered_set>
 
 namespace fly {
 
     class ASTNode;
+    class ASTContext;
+    class GlobalVarDecl;
+    class ClassDecl;
 
     class ASTNameSpace {
 
@@ -33,28 +33,38 @@ namespace fly {
         llvm::StringMap<ASTNode *> Nodes;
 
         // Public Global Vars
-        llvm::StringMap<GlobalVarDecl *> Vars;
+        llvm::StringMap<GlobalVarDecl *> GlobalVars;
 
         // Public Functions
-        llvm::StringMap<FuncDecl *> Functions;
+        std::unordered_set<FuncDecl *> Functions;
+
+        // Calls into NameSpace resolution
+        std::unordered_set<FuncCall *, FuncCallHash, FuncCallComp> Calls;
 
         // Public Classes
         llvm::StringMap<ClassDecl *> Classes;
 
     public:
-        ASTNameSpace(llvm::StringRef NS);
+        ASTNameSpace(const llvm::StringRef &NS);
 
         ~ASTNameSpace();
+
+        static const llvm::StringRef DEFAULT;
 
         const llvm::StringRef &getNameSpace() const;
 
         const llvm::StringMap<ASTNode *> &getNodes() const;
 
-        const llvm::StringMap<GlobalVarDecl *> &getVars() const;
+        const llvm::StringMap<GlobalVarDecl *> &getGlobalVars() const;
 
-        const llvm::StringMap<FuncDecl *> &getFunctions() const;
+        const std::unordered_set<FuncDecl *> &getFunctions() const;
+
+        const std::unordered_set<FuncCall *, FuncCallHash, FuncCallComp> &getCalls() const;
+        bool addCall(FuncCall *Call);
 
         const llvm::StringMap<ClassDecl *> &getClasses() const;
+
+        bool Finalize();
     };
 }
 

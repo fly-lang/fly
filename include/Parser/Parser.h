@@ -19,7 +19,7 @@
 #include <AST/VarDecl.h>
 #include <AST/OperatorExpr.h>
 #include <AST/Expr.h>
-
+#include <AST/FuncDecl.h>
 #include "Frontend/InputFile.h"
 #include "GlobalVarParser.h"
 #include "FunctionParser.h"
@@ -188,7 +188,7 @@ namespace fly {
 
         bool ParseTopScopes(VisibilityKind &Visibility, bool &Constant);
 
-        bool ParseScopes(bool &Constant);
+        bool ParseConstant(bool &Constant);
 
         bool ParseTopDecl();
 
@@ -211,12 +211,12 @@ namespace fly {
         bool ParseCondForStmt(BlockStmt *CurrStmt, GroupExpr* Cond);
         bool ParsePostForStmt(BlockStmt *PostStmt);
 
-        FuncCallStmt *ParseFunctionRefDecl(BlockStmt *CurrStmt, IdentifierInfo *Id, SourceLocation &IdLoc);
+        FuncCall *ParseFunctionCall(BlockStmt *CurrStmt, IdentifierInfo *Id, SourceLocation &IdLoc);
         VarDeclStmt* ParseVarDecl(BlockStmt *CurrStmt);
         VarDeclStmt* ParseVarDecl(BlockStmt *CurrStmt, bool Constant, TypeBase *TyDecl);
-        VarRef* ParseVarRef();
         ValueExpr* ParseValueExpr();
         GroupExpr* ParseExpr(BlockStmt *CurrStmt, GroupExpr *CurrGroup = NULL);
+        VarRef* ParseVarRef();
         VarStmt* ParseIncDec(SourceLocation &Loc, BlockStmt *CurrStmt, IdentifierInfo *Id);
 
         bool isVoidType();

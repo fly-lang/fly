@@ -12,13 +12,13 @@
 
 using namespace fly;
 
-Stmt::Stmt(const SourceLocation &Loc, BlockStmt *Parent) : Location(Loc), Container(Parent->getContainer()),
+Stmt::Stmt(const SourceLocation &Loc, BlockStmt *Parent) : Location(Loc), Top(Parent->getTop()),
     Parent(Parent) {
 
 }
 
 Stmt::Stmt(const SourceLocation &Loc, FuncDecl *Container, BlockStmt *Parent) : Location(Loc),
-    Container(Container), Parent(Parent) {
+                                                                                Top(Container), Parent(Parent) {
 
 }
 
@@ -30,6 +30,6 @@ const BlockStmt *Stmt::getParent() const {
     return Parent;
 }
 
-const FuncDecl *Stmt::getContainer() const {
-    return Container;
+FuncDecl *Stmt::getTop() const {
+    return Top;
 }

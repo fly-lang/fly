@@ -22,13 +22,13 @@ FrontendAction::FrontendAction(const CompilerInstance & CI, InputFile & Input, A
     Parse = new Parser(Input, SourceMgr, Diags);
 }
 
-bool FrontendAction::BuildAST() {
+bool FrontendAction::BuildASTNode() {
     // Create AST Unit
     AST = new ASTNode(Input.getFile(), Input.getFileID(), Context);
     return Parse->Parse(AST);
 }
 
-ASTNode& FrontendAction::getAST() {
+ASTNode& FrontendAction::getASTNode() {
     return *AST;
 }
 

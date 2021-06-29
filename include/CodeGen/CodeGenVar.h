@@ -11,17 +11,18 @@
 #ifndef FLY_CGLOCALVAR_H
 #define FLY_CGLOCALVAR_H
 
-#include <llvm/IR/Instructions.h>
+#include "llvm/IR/Instructions.h"
 
 namespace fly {
 
     class CodeGenModule;
     class VarDeclStmt;
+    class FuncParam;
 
     class CodeGenVar {
 
         CodeGenModule *CGM;
-        VarDeclStmt &Var;
+        bool Constant;
         llvm::AllocaInst *AllocaI;
         llvm::LoadInst *LoadI;
         bool needLoad;
@@ -29,6 +30,8 @@ namespace fly {
 
     public:
         CodeGenVar(CodeGenModule *CGM, VarDeclStmt *S);
+
+        CodeGenVar(CodeGenModule *CGM, FuncParam *P);
 
         llvm::UnaryInstruction *get();
 

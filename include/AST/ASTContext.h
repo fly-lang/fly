@@ -11,9 +11,10 @@
 #ifndef FLY_ASTCONTEXT_H
 #define FLY_ASTCONTEXT_H
 
-#include "ASTNode.h"
-#include "GlobalVarDecl.h"
-#include "Frontend/CompilerInstance.h"
+#include <Basic/SourceLocation.h>
+#include <Basic/Diagnostic.h>
+#include "ImportDecl.h"
+#include "llvm/ADT/StringMap.h"
 
 namespace fly {
 
@@ -30,6 +31,8 @@ namespace fly {
         // First inserted node, useful for Finalize on last
         ASTNode *FirstNode = NULL;
 
+        ASTNameSpace * DefaultNS;
+
         // All Context Namespaces
         llvm::StringMap<ASTNameSpace *> NameSpaces;
 
@@ -41,13 +44,15 @@ namespace fly {
 
         ~ASTContext();
 
+        ASTNameSpace *getDefaultNameSpace() const;
+
         bool AddNode(ASTNode *Node);
 
         bool DelNode(ASTNode *Node);
 
         bool Finalize();
 
-        const StringMap<ASTNameSpace *> &getNameSpaces() const;
+        const llvm::StringMap<ASTNameSpace *> &getNameSpaces() const;
 
         DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID);
     };

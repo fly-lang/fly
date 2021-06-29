@@ -35,7 +35,8 @@ namespace fly {
 
         const SourceLocation Location;
 
-        const FuncDecl *Container;
+    protected:
+        FuncDecl *Top;
 
         const BlockStmt *Parent;
 
@@ -48,7 +49,7 @@ namespace fly {
 
         virtual StmtKind getKind() const = 0;
 
-        const FuncDecl *getContainer() const;
+        FuncDecl *getTop() const;
 
         const BlockStmt *getParent() const;
     };

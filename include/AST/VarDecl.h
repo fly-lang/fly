@@ -13,6 +13,7 @@
 
 #include "TypeBase.h"
 #include "Expr.h"
+#include "Stmt.h"
 
 namespace fly {
 
@@ -56,17 +57,24 @@ namespace fly {
 
         friend class Parser;
 
+        const SourceLocation Loc;
+        const llvm::StringRef NameSpace;
         const llvm::StringRef Name;
         VarDecl *Var = NULL;
 
     public:
         VarRef(const SourceLocation &Loc, const llvm::StringRef &Name);
-        VarRef(const SourceLocation &Loc, VarDecl *D);
+        VarRef(const SourceLocation &Loc, const llvm::StringRef &NameSpace, const llvm::StringRef &Name);
+
+        const SourceLocation &getLocation() const;
+
+        const StringRef &getNameSpace() const;
 
         const llvm::StringRef &getName() const;
 
-        VarDecl *getVarDecl() const;
+        VarDecl *getDecl() const;
 
+        void setDecl(VarDecl *decl);
     };
 
     /**
@@ -81,8 +89,7 @@ namespace fly {
         GroupExpr *Expr;
 
     public:
-        VarStmt(const SourceLocation &Loc, BlockStmt *CurrStmt, const llvm::StringRef &Name);
-        VarStmt(const SourceLocation &Loc, BlockStmt *CurrStmt, VarDecl *D);
+        VarStmt(const SourceLocation &Loc, BlockStmt *Block, const llvm::StringRef &Name);
 
         StmtKind getKind() const override;
 

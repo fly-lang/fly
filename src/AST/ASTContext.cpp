@@ -12,10 +12,15 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTContext.h"
+#include "AST/ASTNameSpace.h"
+#include "AST/ASTNode.h"
 
 using namespace fly;
 
-ASTContext::ASTContext(DiagnosticsEngine &Diags) : Diags(Diags) {}
+ASTContext::ASTContext(DiagnosticsEngine &Diags) : Diags(Diags) {
+    DefaultNS = new ASTNameSpace(ASTNameSpace::DEFAULT);
+    NameSpaces.insert(std::make_pair(ASTNameSpace::DEFAULT, DefaultNS));
+}
 
 ASTContext::~ASTContext() {
     NameSpaces.clear();
@@ -67,6 +72,12 @@ bool ASTContext::Finalize() {
     // Close the chain by resolving nodes of first one
     bool Success = FirstNode->Finalize();
 
+    // Finalize NameSpaces
+    for (auto &NSEntry : NameSpaces) {
+        ASTNameSpace *&NS = NSEntry.getValue();
+        NS->Finalize();
+    }
+
     // Now all Imports must be read
     for(auto &Import : Imports) {
         if (Import.getValue()->getNameSpace() == nullptr) {
@@ -77,10 +88,14 @@ bool ASTContext::Finalize() {
     return Success;
 }
 
-const StringMap<ASTNameSpace *> &ASTContext::getNameSpaces() const {
+const llvm::StringMap<ASTNameSpace *> &ASTContext::getNameSpaces() const {
     return NameSpaces;
 }
 
 DiagnosticBuilder ASTContext::Diag(SourceLocation Loc, unsigned DiagID) {
     return Diags.Report(Loc, DiagID);
+}
+
+ASTNameSpace *ASTContext::getDefaultNameSpace() const {
+    return DefaultNS;
 }

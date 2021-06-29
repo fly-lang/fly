@@ -12,7 +12,7 @@
 
 using namespace fly;
 
-ASTNodeBase::ASTNodeBase(const llvm::StringRef FileName, const FileID &FID, ASTContext *Context) :
+ASTNodeBase::ASTNodeBase(const llvm::StringRef &FileName, const FileID &FID, ASTContext *Context) :
         FileName(FileName), FID(FID), Context(Context) {
 }
 

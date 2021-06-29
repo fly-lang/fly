@@ -32,11 +32,13 @@ bool Frontend::Execute() const {
             Diags.getClient()->BeginSourceFile();
 
             // Create ASTNode instance
-            Success &= Action->BuildAST();
+            Success &= Action->BuildASTNode();
 
             Diags.getClient()->EndSourceFile();
         }
     }
+    Context->Finalize();
+
     llvm::outs().flush();
 
     if (Success) {

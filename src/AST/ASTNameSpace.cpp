@@ -13,14 +13,17 @@
 
 
 #include "AST/ASTNameSpace.h"
+#include "AST/FuncDecl.h"
 
 using namespace fly;
 
-ASTNameSpace::ASTNameSpace(llvm::StringRef NS) : NameSpace(NS) {}
+ASTNameSpace::ASTNameSpace(const llvm::StringRef &NS) : NameSpace(NS) {}
+
+const llvm::StringRef ASTNameSpace::DEFAULT = "default";
 
 ASTNameSpace::~ASTNameSpace() {
     Nodes.clear();
-    Vars.clear();
+    GlobalVars.clear();
 }
 
 const llvm::StringRef &fly::ASTNameSpace::getNameSpace() const {
@@ -31,14 +34,29 @@ const llvm::StringMap<ASTNode*> &ASTNameSpace::getNodes() const {
     return Nodes;
 }
 
-const llvm::StringMap<GlobalVarDecl *> &ASTNameSpace::getVars() const {
-    return Vars;
+const llvm::StringMap<GlobalVarDecl *> &ASTNameSpace::getGlobalVars() const {
+    return GlobalVars;
 }
 
-const llvm::StringMap<FuncDecl *> &ASTNameSpace::getFunctions() const {
+const std::unordered_set<FuncDecl *> &ASTNameSpace::getFunctions() const {
     return Functions;
+}
+
+const std::unordered_set<FuncCall *, FuncCallHash, FuncCallComp> &ASTNameSpace::getCalls() const {
+    return Calls;
+}
+
+bool ASTNameSpace::addCall(FuncCall *Call) {
+    return Calls.insert(Call).second;
 }
 
 const llvm::StringMap<ClassDecl *> &ASTNameSpace::getClasses() const {
     return Classes;
+}
+
+bool ASTNameSpace::Finalize() {
+    for (auto *Function : Functions) {
+        Function->Finalize();
+    }
+    return false;
 }

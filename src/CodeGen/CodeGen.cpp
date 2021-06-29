@@ -8,6 +8,8 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "CodeGen/CodeGen.h"
+#include "AST/ASTNode.h"
+#include "AST/ASTNameSpace.h"
 #include "Basic/FileManager.h"
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/IR/LLVMContext.h>
