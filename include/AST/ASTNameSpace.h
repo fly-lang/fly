@@ -25,21 +25,20 @@ namespace fly {
     class ASTNameSpace {
 
         friend ASTContext;
-        friend ASTNode;
 
         llvm::StringRef NameSpace;
 
         // AST by FileID
         llvm::StringMap<ASTNode *> Nodes;
 
-        // Public Global Vars
+        // Public & Default Global Vars
         llvm::StringMap<GlobalVarDecl *> GlobalVars;
 
-        // Public Functions
-        std::unordered_set<FuncDecl *> Functions;
+        // Public & Default Functions
+        std::unordered_set<FuncDecl *, FuncDeclHash, FuncDeclComp> Functions;
 
         // Calls into NameSpace resolution
-        std::unordered_set<FuncCall *, FuncCallHash, FuncCallComp> Calls;
+        llvm::StringMap<std::vector<FuncCall *>> ResolvedCalls;
 
         // Public Classes
         llvm::StringMap<ClassDecl *> Classes;
@@ -56,13 +55,16 @@ namespace fly {
         const llvm::StringMap<ASTNode *> &getNodes() const;
 
         const llvm::StringMap<GlobalVarDecl *> &getGlobalVars() const;
+        bool addGlobalVar(GlobalVarDecl *GVar);
 
-        const std::unordered_set<FuncDecl *> &getFunctions() const;
+        const std::unordered_set<FuncDecl *, FuncDeclHash, FuncDeclComp> &getFunctions() const;
+        bool addFunction(FuncDecl *Func);
 
-        const std::unordered_set<FuncCall *, FuncCallHash, FuncCallComp> &getCalls() const;
-        bool addCall(FuncCall *Call);
+        const llvm::StringMap<std::vector<FuncCall *>> &getResolvedCalls() const;
+        bool addResolvedCall(FuncCall *Call);
 
         const llvm::StringMap<ClassDecl *> &getClasses() const;
+        bool addClass(ClassDecl *Class);
 
         bool Finalize();
     };

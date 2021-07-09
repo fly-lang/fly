@@ -38,6 +38,7 @@ namespace fly {
         TargetOptions &TargetOpts;
         const ASTContext &Context;
         IntrusiveRefCntPtr<TargetInfo> Target;
+        LLVMContext LLVMCtx;
         CodeGenModule *CGM;
         BackendAction ActionKind;
 
@@ -56,7 +57,9 @@ namespace fly {
         /// Get the current target info.
         TargetInfo &getTargetInfo() const;
 
-        void GenerateModules(ASTNameSpace * NS);
+        bool GenerateModules(ASTNameSpace * NS);
+
+        bool GenerateModule(ASTNode *Node);
     };
 }
 

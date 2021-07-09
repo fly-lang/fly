@@ -19,6 +19,14 @@ StmtKind VarDeclStmt::getKind() const {
     return Kind;
 }
 
+unsigned long VarDeclStmt::getOrder() const {
+    return Order;
+}
+
+void VarDeclStmt::setOrder(unsigned long order) {
+    Order = order;
+}
+
 CodeGenVar *VarDeclStmt::getCodeGen() const {
     return CodeGen;
 }

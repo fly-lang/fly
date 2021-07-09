@@ -3,6 +3,7 @@ add_library(FlyAST
         ASTNameSpace.cpp
         ASTNode.cpp
         ASTNodeBase.cpp
+        ClassDecl.cpp
         Stmt.cpp
         ForBlockStmt.cpp
         FuncDecl.cpp
@@ -13,9 +14,10 @@ add_library(FlyAST
         BlockStmt.cpp
         SwitchBlockStmt.cpp
         TopDecl.cpp
-        Type.cpp
+        TypeBase.cpp
         VarDecl.cpp
         VarDeclStmt.cpp
+        Value.cpp
         )
 
 target_link_libraries(FlyAST

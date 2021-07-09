@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/CodeGen/CodeGenCall.cpp - Code Generator Function implementation
+// src/AST/ClassDecl.cpp - Class implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,17 +7,10 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "CodeGen/CodeGenCall.h"
-#include "CodeGen/CodeGen.h"
-#include "llvm/IR/DerivedTypes.h"
+#include "AST/ClassDecl.h"
 
 using namespace fly;
 
-CodeGenCall::CodeGenCall(CodeGenModule *CGM, llvm::Function *Fn, const llvm::ArrayRef<llvm::Value *> &Args) :
-    CGM(CGM), Fn(Fn), Args(Args) {
-
-}
-
-llvm::CallInst *CodeGenCall::Call() const {
-    return CGM->Builder->CreateCall(Fn, Args);
+const llvm::StringRef &ClassDecl::getName() const {
+    return Name;
 }

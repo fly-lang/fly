@@ -40,14 +40,14 @@ namespace fly {
     protected:
         ASTNode *Node;
         const SourceLocation Location;
-        VisibilityKind Visibility;
+        VisibilityKind Visibility = V_DEFAULT;
 
     public:
         TopDecl(ASTNode *Node, const SourceLocation &Loc);
 
         ASTNode *getNode();
 
-        const ASTNameSpace &getNameSpace() const;
+        const ASTNameSpace *getNameSpace() const;
 
         const SourceLocation &getLocation() const;
 

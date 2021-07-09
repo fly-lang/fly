@@ -14,6 +14,8 @@
 
 #include "AST/ASTNameSpace.h"
 #include "AST/FuncDecl.h"
+#include "AST/GlobalVarDecl.h"
+#include "AST/ClassDecl.h"
 
 using namespace fly;
 
@@ -38,20 +40,44 @@ const llvm::StringMap<GlobalVarDecl *> &ASTNameSpace::getGlobalVars() const {
     return GlobalVars;
 }
 
-const std::unordered_set<FuncDecl *> &ASTNameSpace::getFunctions() const {
+bool ASTNameSpace::addGlobalVar(GlobalVarDecl *Var) {
+    auto Pair = std::make_pair(Var->getName(), Var);
+    return GlobalVars.insert(Pair).second;
+}
+
+const std::unordered_set<FuncDecl *, FuncDeclHash, FuncDeclComp> &ASTNameSpace::getFunctions() const {
     return Functions;
 }
 
-const std::unordered_set<FuncCall *, FuncCallHash, FuncCallComp> &ASTNameSpace::getCalls() const {
-    return Calls;
+bool ASTNameSpace::addFunction(FuncDecl *Func) {
+    if (Functions.insert(Func).second) {
+        return addResolvedCall(FuncCall::CreateCall(Func));
+    }
+    return false;
 }
 
-bool ASTNameSpace::addCall(FuncCall *Call) {
-    return Calls.insert(Call).second;
+const llvm::StringMap<std::vector<FuncCall *>> &ASTNameSpace::getResolvedCalls() const {
+    return ResolvedCalls;
+}
+
+bool ASTNameSpace::addResolvedCall(FuncCall *Call) {
+    const auto &It = ResolvedCalls.find(Call->getName());
+    if (It == ResolvedCalls.end()) {
+        std::vector<FuncCall *> Functions;
+        Functions.push_back(Call);
+        return ResolvedCalls.insert(std::make_pair(Call->getName(), Functions)).second;
+    }
+    It->getValue().push_back(Call);
+    return true;
 }
 
 const llvm::StringMap<ClassDecl *> &ASTNameSpace::getClasses() const {
     return Classes;
+}
+
+bool ASTNameSpace::addClass(ClassDecl *Class) {
+    auto Pair = std::make_pair(Class->getName(), Class);
+    return Classes.insert(Pair).second;
 }
 
 bool ASTNameSpace::Finalize() {

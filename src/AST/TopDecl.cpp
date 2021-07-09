@@ -21,8 +21,8 @@ ASTNode *TopDecl::getNode() {
     return Node;
 }
 
-const ASTNameSpace &TopDecl::getNameSpace() const {
-    return *Node->getNameSpace();
+const ASTNameSpace *TopDecl::getNameSpace() const {
+    return Node->getNameSpace();
 }
 
 const SourceLocation &TopDecl::getLocation() const {

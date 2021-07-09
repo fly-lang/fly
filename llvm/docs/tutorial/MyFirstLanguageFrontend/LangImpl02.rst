@@ -600,7 +600,7 @@ an expression to implement the body:
 .. code-block:: c++
 
     /// definition ::= 'def' prototype expression
-    static std::unique_ptr<FunctionAST> ParseDefinition() {
+    static std::unique_ptr<FunctionAST> ParseDecl() {
       getNextToken();  // eat def.
       auto Proto = ParsePrototype();
       if (!Proto) return nullptr;

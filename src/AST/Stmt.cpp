@@ -17,8 +17,7 @@ Stmt::Stmt(const SourceLocation &Loc, BlockStmt *Parent) : Location(Loc), Top(Pa
 
 }
 
-Stmt::Stmt(const SourceLocation &Loc, FuncDecl *Container, BlockStmt *Parent) : Location(Loc),
-                                                                                Top(Container), Parent(Parent) {
+Stmt::Stmt(const SourceLocation &Loc, FuncDecl *Top, BlockStmt *Parent) : Location(Loc), Top(Top), Parent(Parent) {
 
 }
 

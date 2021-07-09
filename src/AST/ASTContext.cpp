@@ -92,7 +92,7 @@ const llvm::StringMap<ASTNameSpace *> &ASTContext::getNameSpaces() const {
     return NameSpaces;
 }
 
-DiagnosticBuilder ASTContext::Diag(SourceLocation Loc, unsigned DiagID) {
+DiagnosticBuilder ASTContext::Diag(SourceLocation Loc, unsigned DiagID) const {
     return Diags.Report(Loc, DiagID);
 }
 

@@ -11,6 +11,7 @@
 #ifndef FLY_BLOCKSTMT_H
 #define FLY_BLOCKSTMT_H
 
+#include "Basic/Diagnostic.h"
 #include "Stmt.h"
 #include "VarDecl.h"
 #include "llvm/ADT/StringMap.h"
@@ -45,18 +46,25 @@ namespace fly {
         friend class ElseBlockStmt;
         friend class FuncDecl;
 
+        // Kind of Stmt identified by enum
         StmtKind Kind = StmtKind::STMT_BLOCK;
+
+        // Kind of BlockStmt identified by enum
         BlockStmtKind BlockKind = BlockStmtKind::BLOCK_STMT;
 
+        // List of Statements of the Block
         std::vector<Stmt *> Content;
 
-        llvm::StringMap<VarDeclStmt *> Vars;
+        // Contains all vars declared in this Block
+        llvm::StringMap<VarDeclStmt *> DeclVars;
 
+        // Order assigned when add a VarDeclStmt or when add VarStmt
+        unsigned long Order;
     public:
 
         BlockStmt(const SourceLocation &Loc, BlockStmt *Parent);
 
-        BlockStmt(const SourceLocation &Loc, FuncDecl *Container, BlockStmt *Parent);
+        BlockStmt(const SourceLocation &Loc, FuncDecl *Top, BlockStmt *Parent);
 
         StmtKind getKind() const override;
 
@@ -68,16 +76,23 @@ namespace fly {
 
         bool isEmpty() const;
 
+        const llvm::StringMap<VarDeclStmt *> &getDeclVars() const;
+
+        VarDeclStmt *findVarDecl(const BlockStmt *Block, VarRef *Var);
+
+        bool ResolveVarRef(VarRef *Var);
+
+        bool ResolveExpr(Expr *E);
+
         bool addVar(VarStmt *Var);
 
-        bool addVarDecl(VarDeclStmt *Var);
+        bool addVar(VarDeclStmt *Var);
 
         bool addCall(FuncCall *Invoke);
 
-        const llvm::StringMap<VarDeclStmt *> &getVars() const;
+        ReturnStmt *addReturn(const SourceLocation &Loc, GroupExpr *Expr);
 
-        void addReturn(const SourceLocation &Loc, GroupExpr *Expr);
-
+        DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID);
     };
 
     class ConditionBlockStmt : public BlockStmt {

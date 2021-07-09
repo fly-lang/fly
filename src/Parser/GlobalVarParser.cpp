@@ -3,6 +3,7 @@
 //
 
 #include "Parser/GlobalVarParser.h"
+#include "AST/ASTNameSpace.h"
 #include "AST/Stmt.h"
 
 using namespace fly;
@@ -23,7 +24,7 @@ bool GlobalVarParser::Parse() {
         ValueExpr *Ex = P->ParseValueExpr();
         if (Ex) {
             Var->Expression = new GroupExpr();
-            Var->Expression->Group.push_back(Ex);
+            Var->Expression->Add(Ex);
         }
     }
 

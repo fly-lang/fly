@@ -12,6 +12,7 @@
 #define FLY_ASTNODE_H
 
 #include "ASTNodeBase.h"
+#include "FuncDecl.h"
 #include "llvm/ADT/StringMap.h"
 #include <unordered_set>
 
@@ -21,8 +22,6 @@ namespace fly {
     class ASTNameSpace;
     class ImportDecl;
     class GlobalVarDecl;
-    class FuncDecl;
-    class FuncCall;
     class ClassDecl;
     class FileID;
 
@@ -37,16 +36,17 @@ namespace fly {
         // Contains all Imports which will be converted in Dependencies
         llvm::StringMap<ImportDecl *> Imports;
 
+        // true if this is the first node Finalized in the Context
+        bool FirstNode;
+
         // Private Global Vars
         llvm::StringMap<GlobalVarDecl *> GlobalVars;
 
-        // Private Functions
-        std::unordered_set<FuncDecl *> Functions;
+        // Public Functions
+        std::unordered_set<FuncDecl *, FuncDeclHash, FuncDeclComp> Functions;
 
-        // Private Classes
-        llvm::StringMap<ClassDecl *> Classes;
-
-        bool FirstNode;
+        // Calls into Node resolution
+        llvm::StringMap<std::vector<FuncCall *>> ResolvedCalls;
 
     public:
 
@@ -68,13 +68,18 @@ namespace fly {
         const llvm::StringMap<ImportDecl*> &getImports();
 
         bool addGlobalVar(GlobalVarDecl *Var);
-        const llvm::StringMap<GlobalVarDecl *> &getGlobalVars();
+        const std::vector<GlobalVarDecl *> getGlobalVars();
 
         bool addFunction(FuncDecl *Func);
-        const std::unordered_set<FuncDecl *> &getFunctions();
+        const std::unordered_set<FuncDecl *, FuncDeclHash, FuncDeclComp> getFunctions() const;
+
+        bool addResolvedCall(FuncCall *Call);
+        const llvm::StringMap<std::vector<FuncCall *>> &getResolvedCalls() const;
 
         bool addClass(ClassDecl *Class);
         const llvm::StringMap<ClassDecl *> &getClasses();
+
+        static TypeBase *ResolveExprType(Expr *E);
 
         bool Finalize();
     };

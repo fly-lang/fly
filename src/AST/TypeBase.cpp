@@ -18,8 +18,8 @@ const SourceLocation &TypeBase::getLocation() const  {
     return Loc;
 }
 
-bool TypeBase::operator==(const TypeBase &Ty) const {
-    return getKind() == Ty.getKind();
+bool TypeBase::equals(TypeBase *Ty) const {
+    return this->getKind() == Ty->getKind();
 }
 
 IntPrimType::IntPrimType(SourceLocation Loc)  : TypeBase(Loc) {

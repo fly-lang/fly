@@ -9,12 +9,14 @@
 
 
 #include "AST/GlobalVarDecl.h"
+#include "AST/ASTNode.h"
+#include "AST/ASTNameSpace.h"
 
 using namespace fly;
 
-GlobalVarDecl::GlobalVarDecl(ASTNode *Node, SourceLocation &Loc, TypeBase *Type, StringRef Name) :
-                            Kind(TopDeclKind::DECL_GLOBALVAR),
-                            TopDecl(Node, Loc), VarDecl(Type, Name, true) {
+GlobalVarDecl::GlobalVarDecl(ASTNode *Node, SourceLocation &Loc, TypeBase *Type,
+                             const llvm::StringRef &Name) : Kind(TopDeclKind::DECL_GLOBALVAR), TopDecl(Node, Loc),
+                            VarDecl(Type, Name, Node->getNameSpace()->getNameSpace()) {
 
 }
 

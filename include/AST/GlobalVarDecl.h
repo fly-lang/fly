@@ -25,7 +25,7 @@ namespace fly {
 
     public:
 
-        GlobalVarDecl(ASTNode *Node, SourceLocation &Loc, TypeBase *Type, llvm::StringRef Name);
+        GlobalVarDecl(ASTNode *Node, SourceLocation &Loc, TypeBase *Type, const llvm::StringRef &Name);
 
         TopDeclKind getKind() const override;
 

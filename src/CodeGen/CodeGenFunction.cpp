@@ -33,7 +33,7 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, const llvm::StringRef FName
     }
 
     // CodeGen of Vars and Allocation
-    for (auto &EntryV : FBody->getVars()) {
+    for (auto &EntryV : FBody->getDeclVars()) {
         CodeGenVar *CGV = new CodeGenVar(CGM, EntryV.getValue());
         EntryV.getValue()->setCodeGen(CGV);
     }

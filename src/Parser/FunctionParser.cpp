@@ -12,12 +12,12 @@ FunctionParser::FunctionParser(Parser *P, const StringRef &FuncName, SourceLocat
 
 }
 
-bool FunctionParser::ParseCall(BlockStmt *CurrStmt, llvm::StringRef NameSpace) {
+bool FunctionParser::ParseCall(BlockStmt *Block, llvm::StringRef NameSpace) {
     Call = new FuncCall(FuncNameLoc, NameSpace, FuncName);
-    return ParseArgs();
+    return ParseArgs(Block);
 }
 
-bool FunctionParser::ParseDefinition(TypeBase *TyDecl) {
+bool FunctionParser::ParseDecl(TypeBase *TyDecl) {
     Function = new FuncDecl(P->AST, FuncNameLoc, TyDecl, FuncName);
     if (ParseParams()) {
         return ParseBody();
@@ -25,56 +25,32 @@ bool FunctionParser::ParseDefinition(TypeBase *TyDecl) {
     return false;
 }
 
-bool FunctionParser::ParseParams() {
-    return ParseHeader(true, false);
-}
-
-bool FunctionParser::ParseArgs() {
-    return ParseHeader(true, true);
-}
-
-bool FunctionParser::ParseHeader(bool isStart, bool isRef) {
-    if (isStart && !P->Tok.is(tok::l_paren)) {
-        assert("is not a function");
+bool FunctionParser::ParseBody() {
+    if (P->Tok.is(tok::l_brace)) {
+        P->ConsumeBrace();
+        if (P->ParseInnerBlock(Function->Body)) {
+            return P->isBraceBalanced();
+        }
     }
 
-    if (isStart && P->Tok.is(tok::l_paren)) {
+    return false;
+}
+
+bool FunctionParser::ParseParams() {
+    if (P->Tok.is(tok::l_paren)) { // parse start of function ()
         P->ConsumeParen(); // consume l_paren
     }
 
     if (P->Tok.is(tok::r_paren)) {
         P->ConsumeParen();
-        return true;
-    } else if (!isStart && P->Tok.is(tok::comma)) {
-        P->ConsumeToken();
-    }
-
-    // Parse Params as Ref in Function Call
-    if (isRef) {
-        if (P->Tok.isAnyIdentifier()) { // FIXME to parse also functions
-            VarRef *Var = P->ParseVarRef();
-            VarRefExpr *RExpr = new VarRefExpr(P->Tok.getLocation(), Var);
-            Call->addArg(RExpr);
-            return ParseHeader(false, true);
-        } else if (P->isValue()) {
-            ValueExpr *ValExp = P->ParseValueExpr();
-            Call->addArg(ValExp);
-            return ParseHeader(false, true);
-        }
+        return true; // end
     }
 
     // Parse Params as Decl in Function Definition
-    FuncParam *Param = ParseParam();
-    if (Param) {
-        Function->Header->Params.push_back(Param);
-        return ParseHeader();
-    } else {
-        P->Diag(P->Tok.getLocation(), diag::err_func_param);
-        return false;
-    }
+    return ParseParam();
 }
 
-FuncParam* FunctionParser::ParseParam() {
+bool FunctionParser::ParseParam() {
     // Var Constant
     bool Constant = false;
     P->ParseConstant(Constant);
@@ -104,19 +80,54 @@ FuncParam* FunctionParser::ParseParam() {
         }
     }
 
-    return Param;
+    Function->Header->Params.push_back(Param);
+
+    if (P->Tok.is(tok::comma)) {
+        P->ConsumeToken();
+        return ParseParam();
+    }
+
+    if (P->Tok.is(tok::r_paren)) {
+        P->ConsumeParen();
+        return true; // end
+    }
+
+    P->Diag(P->Tok.getLocation(), diag::err_func_param);
+    return false;
 }
 
-bool FunctionParser::ParseBody() {
-//    if (!Function->Params->Params.empty()) {
-//        for (ParamDecl *Param : Function->Params->Params) {
-//            Function->Body->Vars.insert(std::pair<StringRef, VarDeclStmt *>(Param->Name, Param));
-//        } FIXME to remove if checking var existence directly from parameters
-//    }
-    if (P->Tok.is(tok::l_brace)) {
-        P->ConsumeBrace();
-        if (P->ParseAllInBraceStmt(Function->Body)) {
-            return P->isBraceBalanced();
-        }
+bool FunctionParser::ParseArgs(BlockStmt *Block, bool isStart) {
+    if (P->Tok.is(tok::l_paren)) { // parse start of function ()
+        P->ConsumeParen(); // consume l_paren
     }
+
+    if (P->Tok.is(tok::r_paren)) {
+        P->ConsumeParen();
+        return true; // end
+    }
+
+    return ParseArg(Block);
+}
+
+bool FunctionParser::ParseArg(BlockStmt *Block) {
+    // Parse Args in a Function Call
+    Expr *E = P->ParseExpr(Block);
+
+    // Type will be resolved into AST Finalize
+    TypeBase *Ty = NULL;
+    FuncArg *Arg = new FuncArg(E, Ty);
+    Call->addArg(Arg);
+
+    if (P->Tok.is(tok::comma)) {
+        P->ConsumeToken();
+        return ParseArg(Block);
+    }
+
+    if (P->Tok.is(tok::r_paren)) {
+        P->ConsumeParen();
+        return true; // end
+    }
+
+    P->Diag(P->Tok.getLocation(), diag::err_func_param);
+    return false;
 }

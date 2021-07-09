@@ -25,6 +25,10 @@ namespace fly {
         bool Constant;
         llvm::StringRef Name;
         SourceLocation Location;
+
+    public:
+        const StringRef &getName() const;
+
     };
 
     class ClassRef {
@@ -35,7 +39,6 @@ namespace fly {
     public:
         ClassRef(const llvm::StringRef &Name);
 
-        const llvm::StringRef &getName() const;
     };
 }
 

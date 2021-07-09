@@ -490,7 +490,7 @@ We also need to update HandleDefinition and HandleExtern:
 .. code-block:: c++
 
     static void HandleDefinition() {
-      if (auto FnAST = ParseDefinition()) {
+      if (auto FnAST = ParseDecl()) {
         if (auto *FnIR = FnAST->codegen()) {
           fprintf(stderr, "Read function definition:");
           FnIR->print(errs());

@@ -309,3 +309,6 @@ DIAG(err_unbalanced_brace, CLASS_ERROR, (unsigned)diag::Severity::Error, "braces
 DIAG(err_func_param, CLASS_ERROR, (unsigned)diag::Severity::Error, "function parameter not well format", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_duplicate_class, CLASS_ERROR, (unsigned)diag::Severity::Error, "class '%0' duplicated", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_parse_stmt, CLASS_ERROR, (unsigned)diag::Severity::Error, "statement parse error", 0, SFINAE_Suppress, false, true, 0)
+
+DIAG(err_vardecl_notfound, CLASS_ERROR, (unsigned)diag::Severity::Error, "var '%0' not declared before its use", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_func_notfound, CLASS_ERROR, (unsigned)diag::Severity::Error, "function '%0' not declared", 0, SFINAE_Suppress, false, true, 0)

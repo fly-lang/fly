@@ -64,7 +64,7 @@ namespace fly {
 
         llvm::Module *Module;
 
-        void Generate();
+        bool Generate();
 
         CodeGenGlobalVar *GenGlobalVar(GlobalVarDecl *VDecl);
 

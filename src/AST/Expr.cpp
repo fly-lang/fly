@@ -12,7 +12,7 @@
 
 using namespace fly;
 
-ValueExpr::ValueExpr(const SourceLocation &Loc, const llvm::StringRef Str) : Loc(Loc), Str(Str) {}
+ValueExpr::ValueExpr(const SourceLocation &Loc, const Value *Val) : Loc(Loc), Val(Val) {}
 
 const SourceLocation &ValueExpr::getLocation() const {
     return Loc;
@@ -22,8 +22,8 @@ ExprKind ValueExpr::getKind() const {
     return Kind;
 }
 
-const llvm::StringRef &ValueExpr::getString() const {
-    return Str;
+const Value &ValueExpr::getValue() const {
+    return *Val;
 }
 
 ExprKind GroupExpr::getKind() const {
@@ -52,11 +52,11 @@ ExprKind VarRefExpr::getKind() const {
 return Kind;
 }
 
-VarRef *VarRefExpr::getRef() const {
+VarRef *VarRefExpr::getVarRef() const {
     return Ref;
 }
 
-FuncCallExpr::FuncCallExpr(const SourceLocation &Loc, FuncCall *Ref) : Loc(Loc), Ref(Ref) {}
+FuncCallExpr::FuncCallExpr(const SourceLocation &Loc, FuncCall *Ref) : Loc(Loc), Call(Ref) {}
 
 const SourceLocation &FuncCallExpr::getLocation() const {
     return Loc;
@@ -66,6 +66,6 @@ ExprKind FuncCallExpr::getKind() const {
 return Kind;
 }
 
-FuncCall *FuncCallExpr::getRef() const {
-    return Ref;
+FuncCall *FuncCallExpr::getCall() const {
+    return Call;
 }

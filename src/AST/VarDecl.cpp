@@ -12,7 +12,8 @@
 
 using namespace fly;
 
-VarDecl::VarDecl(TypeBase *Type, const StringRef &Name, bool isGlobal) : Type(Type), Name(Name), Global(isGlobal) {}
+VarDecl::VarDecl(TypeBase *Type, const StringRef &Name, const StringRef &NameSpace) :
+    Type(Type), Name(Name), NameSpace(NameSpace) {}
 
 TypeBase *VarDecl::getType() const {
     return Type;
@@ -32,7 +33,7 @@ bool VarDecl::isConstant() const {
 }
 
 const bool VarDecl::isGlobal() const {
-    return Global;
+    return !NameSpace.empty();
 }
 
 GroupExpr *VarDecl::getExpr() const {
@@ -43,13 +44,7 @@ void VarDecl::setExpr(GroupExpr *Exp) {
     Expression = Exp;
 }
 
-
-VarRef::VarRef(const SourceLocation &Loc, const StringRef &Name) :
-        Loc(Loc), NameSpace(""), Name(Name) {
-
-}
-
-VarRef::VarRef(const SourceLocation &Loc, const llvm::StringRef &NameSpace, const StringRef &Name) :
+VarRef::VarRef(const SourceLocation &Loc, const llvm::StringRef &Name, const StringRef &NameSpace) :
         Loc(Loc), NameSpace(NameSpace), Name(Name) {
 
 }
@@ -59,11 +54,11 @@ const llvm::StringRef &VarRef::getName() const {
 }
 
 VarDecl *VarRef::getDecl() const {
-    return Var;
+    return Decl;
 }
 
 void VarRef::setDecl(VarDecl *D) {
-    Var = D;
+    Decl = D;
 }
 
 const StringRef &VarRef::getNameSpace() const {
@@ -74,8 +69,17 @@ const SourceLocation &VarRef::getLocation() const {
     return Loc;
 }
 
-VarStmt::VarStmt(const SourceLocation &Loc, BlockStmt *Block, const StringRef &Name) : Stmt(Loc, Block),
-    VarRef(Loc, Name), Expr(new GroupExpr) {
+unsigned long VarRef::getOrder() const {
+    return Order;
+}
+
+void VarRef::setOrder(unsigned long order) {
+    Order = order;
+}
+
+VarStmt::VarStmt(const SourceLocation &Loc, BlockStmt *Block, const llvm::StringRef &Name,
+                 const StringRef &NameSpace) :
+                 Stmt(Loc, Block), VarRef(Loc, Name, NameSpace), Expr(new GroupExpr) {
 
 }
 
@@ -87,6 +91,6 @@ GroupExpr *VarStmt::getExpr() const {
     return Expr;
 }
 
-void VarStmt::setExpr(GroupExpr *Exp) {
-    Expr = Exp;
+void VarStmt::setExpr(GroupExpr *E) {
+    Expr = E;
 }

@@ -33,17 +33,17 @@ namespace fly {
 
         FunctionParser(Parser *P, const llvm::StringRef &FuncName, SourceLocation &FuncNameLoc);
 
-        bool ParseCall(BlockStmt *CurrStmt, llvm::StringRef NameSpace = "");
+        bool ParseCall(BlockStmt *Block, llvm::StringRef NameSpace = "");
 
-        bool ParseDefinition(TypeBase *TyDecl);
+        bool ParseDecl(TypeBase *TyDecl);
 
         bool ParseParams();
 
-        FuncParam* ParseParam();
+        bool ParseParam();
 
-        bool ParseArgs();
+        bool ParseArgs(BlockStmt *Block, bool isStart = true);
 
-        bool ParseHeader(bool isStart = false, bool isRef = false);
+        bool ParseArg(BlockStmt *Block);
     };
 }
 

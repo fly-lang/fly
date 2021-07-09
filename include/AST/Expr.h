@@ -13,6 +13,7 @@
 
 #include "Basic/SourceLocation.h"
 #include "llvm/ADT/StringRef.h"
+#include "Value.h"
 #include <vector>
 #include <utility>
 
@@ -50,25 +51,22 @@ namespace fly {
 
         const SourceLocation &Loc;
         const ExprKind Kind = ExprKind::EXPR_VALUE;
-        const llvm::StringRef Str;
+        const Value *Val;
 
     public:
-        ValueExpr(const SourceLocation &Loc, const llvm::StringRef Str);
+        ValueExpr(const SourceLocation &Loc, const Value *Val);
 
         const SourceLocation &getLocation() const;
 
         ExprKind getKind() const override;
 
-        const llvm::StringRef &getString() const;
+        const Value &getValue() const;
     };
 
     /**
      * Expression List of Expressions
      */
     class GroupExpr : public Expr {
-
-        friend class Parser;
-        friend class GlobalVarParser;
 
         const ExprKind Kind = ExprKind::EXPR_GROUP;
         std::vector<Expr *> Group;
@@ -92,7 +90,7 @@ namespace fly {
 
         const SourceLocation Loc;
         const ExprKind Kind = ExprKind::EXPR_REF_VAR;
-        VarRef * Ref;
+        VarRef *Ref;
 
     public:
         VarRefExpr(const SourceLocation &Loc, VarRef *Ref);
@@ -101,7 +99,7 @@ namespace fly {
 
         ExprKind getKind() const override;
 
-        VarRef *getRef() const;
+        VarRef *getVarRef() const;
     };
 
     /**
@@ -111,7 +109,7 @@ namespace fly {
 
         const SourceLocation &Loc;
         const ExprKind Kind = ExprKind::EXPR_REF_FUNC;
-        FuncCall * Ref;
+        FuncCall * Call;
 
     public:
         FuncCallExpr(const SourceLocation &Loc, FuncCall *Ref);
@@ -120,7 +118,7 @@ namespace fly {
 
         ExprKind getKind() const override;
 
-        FuncCall *getRef() const;
+        FuncCall *getCall() const;
     };
 }
 

@@ -40,7 +40,9 @@ namespace fly {
 
         virtual ~TypeBase() = default;
 
-        virtual bool operator ==(const TypeBase &Ty) const;
+        virtual std::string str() const = 0;
+
+        virtual bool equals(TypeBase *Ty) const;
     };
 
     /**
@@ -54,6 +56,10 @@ namespace fly {
         IntPrimType(SourceLocation Loc);
 
         const TypeKind &getKind() const override;
+
+        std::string str() const override {
+            return "int";
+        }
     };
 
     /**
@@ -67,6 +73,10 @@ namespace fly {
         FloatPrimType(SourceLocation Loc);
 
         const TypeKind &getKind() const override;
+
+        std::string str() const override {
+            return "float";
+        }
     };
 
     /**
@@ -80,6 +90,10 @@ namespace fly {
         BoolPrimType(SourceLocation Loc);
 
         const TypeKind &getKind() const override;
+
+        std::string str() const override {
+            return "bool";
+        }
     };
 
     /**
@@ -93,6 +107,10 @@ namespace fly {
         VoidRetType(SourceLocation Loc);
 
         const TypeKind &getKind() const override;
+
+        std::string str() const override {
+            return "void";
+        }
     };
 
     /**
@@ -111,6 +129,10 @@ namespace fly {
         const llvm::StringRef &getName() const;
 
         bool operator ==(const ClassTypeRef &Ty) const;
+
+        std::string str() const override {
+            return Name.str();
+        }
     };
 }
 

@@ -25,14 +25,15 @@ namespace fly {
         friend class FunctionParser;
         friend class VarDeclStmt;
 
-        const bool Global;
         TypeBase *Type;
+        const llvm::StringRef NameSpace;
         const llvm::StringRef Name;
         bool Constant = false;
         GroupExpr *Expression = NULL;
 
     public:
-        VarDecl(TypeBase *Type, const StringRef &Name, bool isGlobal = false);
+        VarDecl(TypeBase *Type, const StringRef &Name, const StringRef &NameSpace = "");
+
         virtual ~VarDecl();
 
         const bool isGlobal() const;
@@ -60,17 +61,23 @@ namespace fly {
         const SourceLocation Loc;
         const llvm::StringRef NameSpace;
         const llvm::StringRef Name;
-        VarDecl *Var = NULL;
+
+        unsigned long Order;
+
+        VarDecl *Decl = nullptr;
 
     public:
-        VarRef(const SourceLocation &Loc, const llvm::StringRef &Name);
-        VarRef(const SourceLocation &Loc, const llvm::StringRef &NameSpace, const llvm::StringRef &Name);
+        VarRef(const SourceLocation &Loc, const llvm::StringRef &Name, const llvm::StringRef &NameSpace = "");
 
         const SourceLocation &getLocation() const;
 
         const StringRef &getNameSpace() const;
 
         const llvm::StringRef &getName() const;
+
+        unsigned long getOrder() const;
+
+        void setOrder(unsigned long order);
 
         VarDecl *getDecl() const;
 
@@ -84,18 +91,17 @@ namespace fly {
      */
     class VarStmt : public VarRef, public Stmt {
 
-        friend class Parser;
-
         GroupExpr *Expr;
 
     public:
-        VarStmt(const SourceLocation &Loc, BlockStmt *Block, const llvm::StringRef &Name);
+        VarStmt(const SourceLocation &Loc, BlockStmt *Block, const llvm::StringRef &Name,
+                const llvm::StringRef &NameSpace = "");
 
         StmtKind getKind() const override;
 
         GroupExpr *getExpr() const;
 
-        void setExpr(GroupExpr *Exp);
+        void setExpr(GroupExpr *E);
     };
 }
 

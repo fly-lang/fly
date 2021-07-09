@@ -10,14 +10,12 @@
 #ifndef FLY_VARDECLSTMT_H
 #define FLY_VARDECLSTMT_H
 
-#include "CodeGen/CodeGenVar.h"
 #include "Stmt.h"
 #include "VarDecl.h"
-#include "TypeBase.h"
-#include "Expr.h"
-#include "Basic/TokenKinds.h"
 
 namespace fly {
+
+    class CodeGenVar;
 
     /**
      * Var Declaration
@@ -30,12 +28,19 @@ namespace fly {
         friend class GlobalVarParser;
 
         const StmtKind Kind = StmtKind::STMT_VAR_DECL;
+
+        unsigned long Order;
+
         CodeGenVar *CodeGen;
 
     public:
         VarDeclStmt(const SourceLocation &Loc, BlockStmt *Block, TypeBase *Type, const llvm::StringRef &Name);
 
         StmtKind getKind() const;
+
+        unsigned long getOrder() const;
+
+        void setOrder(unsigned long order);
 
         CodeGenVar *getCodeGen() const;
 

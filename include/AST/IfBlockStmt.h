@@ -71,7 +71,6 @@ namespace fly {
 
         enum BlockStmtKind getBlockKind() const override;
     };
-
 }
 
 

@@ -33,7 +33,7 @@ namespace fly {
     class DiagnosticsEngine;
     class Lexer;
 
-    /// ParseDefinition the main file known to the preprocessor, producing an
+    /// ParseDecl the main file known to the preprocessor, producing an
     /// abstract syntax tree.
     class Parser {
 
@@ -199,23 +199,22 @@ namespace fly {
 
         bool ParseFunctionDecl(VisibilityKind &VisKind, bool Constant, TypeBase *TyDecl, IdentifierInfo *Id,
                                SourceLocation &IdLoc);
-        bool ParseOneStmt(BlockStmt *CurrStmt, GroupExpr *Group = NULL);
-        bool ParseAllStmt(BlockStmt *CurrStmt);
-        bool ParseAllInBraceStmt(BlockStmt *CurrStmt);
+        bool ParseStmt(BlockStmt *Block, GroupExpr *Group = NULL);
+        bool ParseBlock(BlockStmt *Block);
+        bool ParseInnerBlock(BlockStmt *Block);
         bool ParseStartParen();
         bool ParseEndParen(bool hasParen);
-        bool ParseIfStmt(BlockStmt *CurrStmt);
+        bool ParseIfStmt(BlockStmt *Block);
         bool ParseSwitchStmt(BlockStmt *CurrStmt);
         bool ParseForStmt(BlockStmt *CurrStmt);
         bool ParseInitForStmt(BlockStmt *InitStmt, GroupExpr *Cond);
-        bool ParseCondForStmt(BlockStmt *CurrStmt, GroupExpr* Cond);
+        bool ParseCondForStmt(BlockStmt *Block, GroupExpr* Cond);
         bool ParsePostForStmt(BlockStmt *PostStmt);
 
-        FuncCall *ParseFunctionCall(BlockStmt *CurrStmt, IdentifierInfo *Id, SourceLocation &IdLoc);
-        VarDeclStmt* ParseVarDecl(BlockStmt *CurrStmt);
-        VarDeclStmt* ParseVarDecl(BlockStmt *CurrStmt, bool Constant, TypeBase *TyDecl);
+        FuncCall *ParseFunctionCall(BlockStmt *Block, IdentifierInfo *Id, SourceLocation &IdLoc);
+        VarDeclStmt* ParseVarDecl(BlockStmt *Block, bool Constant, TypeBase *TyDecl);
         ValueExpr* ParseValueExpr();
-        GroupExpr* ParseExpr(BlockStmt *CurrStmt, GroupExpr *CurrGroup = NULL);
+        GroupExpr* ParseExpr(BlockStmt *Block, GroupExpr *CurrGroup = NULL);
         VarRef* ParseVarRef();
         VarStmt* ParseIncDec(SourceLocation &Loc, BlockStmt *CurrStmt, IdentifierInfo *Id);
 

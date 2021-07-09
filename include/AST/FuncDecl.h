@@ -13,7 +13,7 @@
 #include "TopDecl.h"
 #include "VarDecl.h"
 #include "Stmt.h"
-#include <unordered_set>
+#include "llvm/ADT/StringMap.h"
 #include <vector>
 
 namespace fly {
@@ -26,9 +26,10 @@ namespace fly {
     class BlockStmt;
     class FuncCall;
     class FuncParam;
+    class GlobalVarDecl;
     class CodeGenFunction;
-    class CodeGenCall;
     class CodeGenVar;
+    class CodeGenCall;
 
     /**
      * The Function Declaration and definition
@@ -44,24 +45,39 @@ namespace fly {
         friend class FunctionParser;
         friend class CodeGenTest;
 
+        // Kind of TopDecl identified by enum
         const TopDeclKind Kind;
-        const TypeBase *Type;
-        const llvm::StringRef Name;
-        bool Constant;
-        std::vector<VarRef *> VarRefs;
 
-        // Calls to be resolved from NameSpace Calls
-        std::vector<FuncCall *> Calls;
+        // Function return type
+        TypeBase *Type;
+
+        // Function Name
+        const llvm::StringRef Name;
+
+        // this function return a constant value
+        bool Constant;
+
+        // Header contains parameters
         FuncHeader *Header;
+
+        // Body is the main BlockStmt
         BlockStmt *Body;
+
+        // Contains all Calls to be resolved with Function
+        std::vector<FuncCall *> UnRefCalls;
+
+        // Contains all VarRef to be resolved with GlobalVar
+        std::vector<VarRef *> UnRefGlobalVars;
+
+        // Populated during codegen phase
         CodeGenFunction *CodeGen = NULL;
 
     public:
-        FuncDecl(ASTNode *Node, const SourceLocation &Loc, const TypeBase *RetType, const llvm::StringRef &Name);
+        FuncDecl(ASTNode *Node, const SourceLocation &Loc, TypeBase *RetType, const llvm::StringRef &Name);
 
         TopDeclKind getKind() const override;
 
-        const TypeBase *getType() const;
+        TypeBase *getType() const;
 
         const llvm::StringRef &getName() const;
 
@@ -71,9 +87,7 @@ namespace fly {
 
         BlockStmt *getBody();
 
-        const std::vector<FuncCall *> &getCalls() const;
-
-        const std::vector<VarRef *> &getVarRefs() const;
+        const std::vector<FuncCall *> &getUnRefCalls() const;
 
         CodeGenFunction *getCodeGen() const;
 
@@ -81,11 +95,28 @@ namespace fly {
 
         FuncParam *addParam(const SourceLocation &Loc, TypeBase *Type, const StringRef &Name);
 
-        bool addCall(FuncCall *Call);
+        bool isVarArg();
 
         void setVarArg(FuncParam* VarArg);
 
+        bool addUnRefCall(FuncCall *Call);
+
+        void addUnRefGlobalVar(VarRef *Var);
+
+        bool ResolveCall(FuncCall *ResolvedCall, FuncCall *Call);
+
         bool Finalize();
+    };
+
+    class FuncDeclHash : std::hash<FuncDecl *> {
+    public:
+        // id is returned as hash function
+        size_t operator()(const FuncDecl *Decl) const;
+    };
+
+    struct FuncDeclComp : std::equal_to<FuncDecl *> {
+    public:
+        bool operator()(const FuncDecl *C1, const FuncDecl *C2) const;
     };
 
     /**
@@ -132,28 +163,30 @@ namespace fly {
     class ReturnStmt: public Stmt {
 
         StmtKind Kind = StmtKind::STMT_RETURN;
-        GroupExpr* Group;
+        Expr* Exp;
         const TypeBase *Ty;
 
     public:
-        ReturnStmt(const SourceLocation &Loc, BlockStmt *Block, class GroupExpr *Group);
+        ReturnStmt(const SourceLocation &Loc, BlockStmt *Block, Expr *Exp);
 
         StmtKind getKind() const override;
 
-        GroupExpr *getExpr() const;
+        Expr *getExpr() const;
     };
 
-    class FuncCallArg {
+    class FuncArg {
         Expr *Value;
         TypeBase *Ty;
 
     public:
 
-        FuncCallArg(Expr *Value, TypeBase *Ty);
+        FuncArg(Expr *Value, TypeBase *Ty);
 
         Expr *getValue() const;
 
         TypeBase *getType() const;
+
+        void setType(TypeBase *T);
     };
 
     /**
@@ -167,29 +200,30 @@ namespace fly {
         friend class FunctionParser;
 
         const SourceLocation Loc;
-        const llvm::StringRef NameSpace;
+        llvm::StringRef NameSpace;
         const llvm::StringRef Name;
-        std::vector<FuncCallArg *> Args;
-        FuncDecl *Func = NULL;
+        std::vector<FuncArg *> Args;
+        FuncDecl *Decl = NULL;
         CodeGenCall *CGC = NULL;
 
     public:
-//        FuncCall(const SourceLocation &Loc, const llvm::StringRef &Name);
         FuncCall(const SourceLocation &Loc, const llvm::StringRef &NameSpace, const llvm::StringRef &Name);
 
         const SourceLocation &getLocation() const;
 
         const StringRef &getNameSpace() const;
 
+        void setNameSpace(const llvm::StringRef &NameSpace);
+
         const StringRef &getName() const;
 
-        const std::vector<FuncCallArg *> getArgs() const;
+        const std::vector<FuncArg *> getArgs() const;
 
-        FuncCallArg *addArg(Expr * Arg, TypeBase *Ty = NULL);
+        FuncArg *addArg(FuncArg *Arg);
 
         FuncDecl *getDecl() const;
 
-        void setDecl(FuncDecl *func);
+        void setDecl(FuncDecl *FDecl);
 
         CodeGenCall *getCodeGen() const;
 
@@ -202,28 +236,12 @@ namespace fly {
     class FuncCallHash : std::hash<FuncCall *> {
     public:
         // id is returned as hash function
-        size_t operator()(const FuncCall *Call) const {
-            const size_t &h1 = (std::hash<std::string>()(Call->getName().str()));
-            const size_t &h2 = (std::hash<std::string>()(Call->getNameSpace().str()));
-            return h1 ^ h2;
-
-        }
+        size_t operator()(const FuncCall *Call) const;
     };
 
     struct FuncCallComp : std::equal_to<FuncCall *> {
     public:
-        bool operator()(const FuncCall *C1, const FuncCall *C2) const {
-
-            bool Result = C1->getName().equals(C2->getName()) &&
-                    C1->getNameSpace().equals(C2->getNameSpace()) &&
-                    C1->getArgs().size() == C2->getArgs().size();
-            if (Result) {
-                for (int i = 0; i < C1->getArgs().size(); i++) {
-                    Result &= C1->getArgs()[i]->getType() == C2->getArgs()[i]->getType();
-                }
-            }
-            return Result;
-        }
+        bool operator()(const FuncCall *C1, const FuncCall *C2) const;
     };
 
     /**

@@ -78,7 +78,7 @@ namespace {
         Node2->setNameSpace("packageB");
         Node2->addImport(new ImportDecl(SourceLoc, "packageA"));
         Node2->Finalize();
-        ASSERT_EQ(Context->getNameSpaces().size(), 2);
+        ASSERT_EQ(Context->getNameSpaces().size(), 3); // Consider Default namespace
         EXPECT_TRUE(Node1->getImports().lookup("packageB")->getNameSpace() == nullptr);
         EXPECT_TRUE(Node2->getImports().lookup("packageA")->getNameSpace() != nullptr);
         ASSERT_EQ(Node2->getImports().lookup("packageA")->getNameSpace()->getNameSpace(), "packageA");
@@ -108,9 +108,14 @@ namespace {
         auto Node1 = NewASTNode("file1.fly");
         const ASTNameSpace *NS = Node1->setNameSpace("packageA");
         SourceLocation &Loc = SourceLoc;
-        Node1->addGlobalVar(new GlobalVarDecl(Node1, Loc, new IntPrimType(Loc), "a"));
-        Node1->addGlobalVar(new GlobalVarDecl(Node1, Loc, new FloatPrimType(Loc), "b"));
-        Node1->addGlobalVar(new GlobalVarDecl(Node1, Loc, new BoolPrimType(Loc), "c"));
+        GlobalVarDecl *G1 = new GlobalVarDecl(Node1, Loc, new IntPrimType(Loc), "a");
+        G1->setVisibility(V_PRIVATE);
+        Node1->addGlobalVar(G1);
+        GlobalVarDecl *G2 = new GlobalVarDecl(Node1, Loc, new FloatPrimType(Loc), "b"); // Default
+        Node1->addGlobalVar(G2);
+        GlobalVarDecl *G3 = new GlobalVarDecl(Node1, Loc, new BoolPrimType(Loc), "c");
+        G3->setVisibility(V_PUBLIC);
+        Node1->addGlobalVar(G3);
         Node1->Finalize();
     }
 }

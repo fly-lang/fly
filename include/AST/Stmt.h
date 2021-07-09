@@ -43,7 +43,7 @@ namespace fly {
     public:
         Stmt(const SourceLocation &Loc, BlockStmt *Parent);
 
-        Stmt(const SourceLocation &Loc, FuncDecl *Container, BlockStmt *Parent);
+        Stmt(const SourceLocation &Loc, FuncDecl *Top, BlockStmt *Parent);
 
         const SourceLocation &getLocation() const;
 

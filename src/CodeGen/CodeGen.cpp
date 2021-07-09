@@ -49,19 +49,18 @@ llvm::Module *CodeGen::getModule() {
 
 bool CodeGen::Execute() {
 
-    if (ActionKind == Backend_EmitNothing) {
-        return true;
+    // Generate default namespace on first
+    ASTNameSpace *Default = Context.getNameSpaces().lookup("default");
+    if (Default && !GenerateModules(Default)) {
+        return false;
     }
 
-    // Generate default module on first
-    ASTNameSpace *Default = Context.getNameSpaces().lookup("default");
-    if (Default)
-        GenerateModules(Default);
-    
     // After generate all other modules
     for(auto &EntryNS : Context.getNameSpaces()) {
         if (!EntryNS.getKey().equals("default")) {
-            GenerateModules(EntryNS.getValue());
+            if (!GenerateModules(EntryNS.getValue())) {
+                return false;
+            }
         }
     }
     return true;
@@ -77,23 +76,36 @@ TargetInfo &CodeGen::getTargetInfo() const {
     return *Target;
 }
 
-void CodeGen::GenerateModules(ASTNameSpace * NS) {
-    LLVMContext LLVMCtx;
+bool CodeGen::GenerateModules(ASTNameSpace *NS) {
+
     for (auto &EntryNode : NS->getNodes()) {
 
-        ASTNode *AST = EntryNode.getValue();
+        ASTNode *Node = EntryNode.getValue();
+        if (!GenerateModule(Node)) {
+            return false;
+        }
+    }
+    return true;
+}
 
-        std::string OutputFileName = getOutputFileName(ActionKind, AST->getFileName());
-        std::error_code Code;
-        std::unique_ptr<llvm::raw_fd_ostream> OS =
-                std::make_unique<raw_fd_ostream>(OutputFileName, Code, llvm::sys::fs::F_None);
+bool CodeGen::GenerateModule(ASTNode *Node) {
+    // Skip CodeGenModule instance creation
+    if (ActionKind == Backend_EmitNothing) {
+        return true;
+    }
+    std::string OutputFileName = getOutputFileName(ActionKind, Node->getFileName());
+    std::error_code ErrCode;
+    std::unique_ptr<llvm::raw_fd_ostream> OS =
+            std::make_unique<raw_fd_ostream>(OutputFileName, ErrCode, llvm::sys::fs::F_None);
 
-        CGM = new CodeGenModule(Diags, *AST, LLVMCtx, *Target, CodeGenOpts);
-        CGM->Generate();
+    CGM = new CodeGenModule(Diags, *Node, LLVMCtx, *Target, CodeGenOpts);
+    if (CGM->Generate()) {
 
         EmbedBitcode(CGM->Module, CodeGenOpts, llvm::MemoryBufferRef());
 
-        EmitBackendOutput(Diags, CodeGenOpts, TargetOpts, Target->getDataLayout(),
-                          CGM->Module, ActionKind, std::move(OS));
+        EmitBackendOutput(Diags, CodeGenOpts, TargetOpts, Target->getDataLayout(), CGM->Module,
+                          ActionKind, std::move(OS));
+        return true;
     }
+    return false;
 }

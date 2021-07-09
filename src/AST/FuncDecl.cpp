@@ -8,13 +8,15 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/FuncDecl.h"
+#include "AST/VarDeclStmt.h"
+#include "AST/Stmt.h"
 #include "AST/BlockStmt.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTNode.h"
 
 using namespace fly;
 
-FuncDecl::FuncDecl(ASTNode *Node, const SourceLocation &Loc, const TypeBase *RetType, const llvm::StringRef &Name) :
+FuncDecl::FuncDecl(ASTNode *Node, const SourceLocation &Loc, TypeBase *RetType, const llvm::StringRef &Name) :
     Kind(TopDeclKind::DECL_FUNCTION), TopDecl(Node, Loc), Type(RetType), Name(Name), Header(new FuncHeader),
                    Body(new BlockStmt(Loc, this, NULL)) {}
 
@@ -34,19 +36,15 @@ BlockStmt *FuncDecl::getBody() {
     return Body;
 }
 
-const std::vector<FuncCall *> &FuncDecl::getCalls() const {
-    return Calls;
-}
-
-const std::vector<VarRef *> &FuncDecl::getVarRefs() const {
-    return VarRefs;
+const std::vector<FuncCall *> &FuncDecl::getUnRefCalls() const {
+    return UnRefCalls;
 }
 
 const FuncHeader *FuncDecl::getHeader() const {
     return Header;
 }
 
-const TypeBase *FuncDecl::getType() const {
+TypeBase *FuncDecl::getType() const {
     return Type;
 }
 
@@ -64,37 +62,121 @@ FuncParam *FuncDecl::addParam(const SourceLocation &Loc, TypeBase *Type, const S
     return VDecl;
 }
 
-bool FuncDecl::addCall(FuncCall *Call) {
-    Calls.push_back(Call);
-    return true;
+bool FuncDecl::isVarArg() {
+    return Header->VarArg != NULL;
 }
 
 void FuncDecl::setVarArg(FuncParam* VarArg) {
     Header->VarArg = VarArg;
 }
 
-bool FuncDecl::Finalize() {
+bool FuncDecl::addUnRefCall(FuncCall *Call) {
+    UnRefCalls.push_back(Call);
+    return true;
+}
 
-    // Resolve VarRef with VarDecl in the namespace
-    for (auto *VarRef : VarRefs) {
-        // TODO Resolve GlobalVar
-        // TODO Resolve VarDeclStmt
+void FuncDecl::addUnRefGlobalVar(VarRef *Var) {
+    UnRefGlobalVars.push_back(Var);
+}
+
+bool FuncDecl::ResolveCall(FuncCall *ResolvedCall, FuncCall *Call) {
+    const auto &Params = ResolvedCall->getDecl()->getHeader()->getParams();
+    const bool isVarArg = ResolvedCall->getDecl()->isVarArg();
+    const auto &Args = Call->getArgs();
+
+    // Check Number of Args on First
+    if (isVarArg) {
+        if (Params.size() > Args.size()) {
+            return false;
+        }
+    } else {
+        if (Params.size() != Args.size()) {
+            return false;
+        }
     }
 
-    // Resolve Calls with FuncDecl in the namespace
-    for (auto *Call : Calls) {
-        // Search into NameSpace
-        const ASTNameSpace *NS = Node->findNameSpace(Call->getNameSpace());
-        assert(NS && "Namespace not found"); // FIXME Error Message
-        auto It = NS->getCalls().find(Call);
-        assert(It != NS->getCalls().end() && "Unresolved Call"); // FIXME Error Message
-        Call->setDecl(((FuncCall *)*It)->getDecl());
+    // Check Type
+    for (int i = 0; i < Params.size(); i++) {
+        bool isLast = i+1 == Params.size();
+
+        //Check VarArgs by compare each Arg Type with last Param Type
+        if (isLast && isVarArg) {
+            for (int n = i; n < Args.size(); n++) {
+                // Check Equal Type
+                if (Params[i]->getType()->getKind() == Args[n]->getType()->getKind()) {
+                    return false;
+                }
+            }
+        } else {
+            FuncArg *Arg = Args[i];
+            if (Arg->getType() == NULL) {
+                TypeBase *Ty = ASTNode::ResolveExprType(Arg->getValue());
+                Arg->setType(Ty);
+            }
+
+            // Check Equal Type
+            if (!Params[i]->getType()->equals(Arg->getType())) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+bool FuncDecl::Finalize() {
+
+    // Resolve RefGlobalVars with GlobalVars of the NameSpace
+    for (const auto &UnRefGVar : UnRefGlobalVars) {
+        const auto &NS = Node->findNameSpace(UnRefGVar->getNameSpace());
+        if (!NS) {
+            assert("NameSpace not found");
+        }
+        const auto &GVar = NS->getGlobalVars().find(UnRefGVar->getName());
+        if (GVar == NS->getGlobalVars().end()) {
+            assert("Global Var reference not found");
+        }
+        UnRefGVar->setDecl((VarDecl *) GVar->getValue());
+    }
+
+    // Resolve Calls with FuncDecl by searching into ResolvedCalls
+    for (auto *UnRefCall : UnRefCalls) {
+        if (UnRefCall->getDecl() == nullptr) {
+
+            // Set Call NameSpace of the Node if not specified
+            if (UnRefCall->getNameSpace().empty()) {
+                UnRefCall->setNameSpace(Node->getNameSpace()->getNameSpace());
+            }
+
+            // Search into Node
+            const auto &It = Node->getResolvedCalls().find(UnRefCall->getName());
+            if (It != Node->getResolvedCalls().end()) {
+                for (auto &ResolvedCall : It->getValue()) {
+                    if (ResolveCall(ResolvedCall, UnRefCall)) {
+                        UnRefCall->setDecl(ResolvedCall->getDecl());
+                    }
+                }
+            } else {
+                // Search into NameSpace
+                const ASTNameSpace *NS = Node->findNameSpace(UnRefCall->getNameSpace());
+                assert(NS && "Namespace not found"); // FIXME Error Message
+
+                auto ItNS = NS->getResolvedCalls().find(UnRefCall->getName());
+                assert(ItNS != NS->getResolvedCalls().end() && "Unresolved Call"); // FIXME Error Message
+
+                for (auto &ResolvedCall : ItNS->getValue()) {
+                    if (ResolveCall(ResolvedCall, UnRefCall)) {
+                        UnRefCall->setDecl(ResolvedCall->getDecl());
+                    }
+                }
+            }
+        }
     }
     return true;
 }
 
 FuncParam::FuncParam(const SourceLocation &Loc, TypeBase *Type, const llvm::StringRef &Name) :
-        VarDecl(Type, Name, false), Location(Loc) {
+        VarDecl(Type, Name), Location(Loc) {
 
 }
 
@@ -114,21 +196,17 @@ const FuncParam *FuncHeader::getVarArg() const {
     return VarArg;
 }
 
-ReturnStmt::ReturnStmt(const SourceLocation &Loc, BlockStmt *Block, class GroupExpr *Group) : Stmt(Loc, Block),
-                                                                                              Ty(Block->getTop()->getType()), Group(Group) {}
+ReturnStmt::ReturnStmt(const SourceLocation &Loc, BlockStmt *Block, Expr *Exp) : Stmt(Loc, Block),
+                                                                                 Ty(Block->getTop()->getType()),
+                                                                                 Exp(Exp) {}
 
-GroupExpr *ReturnStmt::getExpr() const {
-    return Group;
+Expr *ReturnStmt::getExpr() const {
+    return Exp;
 }
 
 StmtKind ReturnStmt::getKind() const {
     return Kind;
 }
-
-//FuncCall::FuncCall(const SourceLocation &Loc, const StringRef &Name) : Loc(Loc), S(S), NameSpace(""),
-//    Name(Name) {
-//
-//}
 
 FuncCall::FuncCall(const SourceLocation &Loc, const StringRef &NameSpace, const StringRef &Name) :
     Loc(Loc), NameSpace(NameSpace), Name(Name) {
@@ -143,16 +221,16 @@ const llvm::StringRef &FuncCall::getName() const {
     return Name;
 }
 
-const std::vector<FuncCallArg*> FuncCall::getArgs() const {
+const std::vector<FuncArg*> FuncCall::getArgs() const {
     return Args;
 }
 
 FuncDecl *FuncCall::getDecl() const {
-    return Func;
+    return Decl;
 }
 
-void FuncCall::setDecl(FuncDecl *F) {
-    Func = F;
+void FuncCall::setDecl(FuncDecl *FDecl) {
+    Decl = FDecl;
 }
 
 CodeGenCall *FuncCall::getCodeGen() const {
@@ -163,8 +241,7 @@ void FuncCall::setCodeGen(CodeGenCall *CGC) {
     CGC = CGC;
 }
 
-FuncCallArg *FuncCall::addArg(Expr *Ex, TypeBase *Ty) {
-    FuncCallArg *Arg = new FuncCallArg(Ex, Ty);
+FuncArg *FuncCall::addArg(FuncArg *Arg) {
     Args.push_back(Arg);
     return Arg;
 }
@@ -173,13 +250,36 @@ const StringRef &FuncCall::getNameSpace() const {
     return NameSpace;
 }
 
+void FuncCall::setNameSpace(const llvm::StringRef &NS) {
+    NameSpace = NS;
+}
+
 FuncCall *FuncCall::CreateCall(FuncDecl *FDecl) {
-    FuncCall *FCall = new FuncCall(SourceLocation(), FDecl->getNameSpace().getNameSpace(), FDecl->getName());
+    FuncCall *FCall = new FuncCall(SourceLocation(), FDecl->getNameSpace()->getNameSpace(), FDecl->getName());
     FCall->setDecl(FDecl);
     for (auto &Param : FDecl->getHeader()->getParams()) {
-        FCall->addArg(NULL, Param->getType());
+        FCall->addArg(new FuncArg(NULL, Param->getType()));
     }
     return FCall;
+}
+
+size_t FuncDeclHash::operator()(const FuncDecl *Decl) const {
+    size_t Hash = (std::hash<std::string>()(Decl->getName().str()));
+    Hash ^= (std::hash<std::string>()(Decl->getNameSpace()->getNameSpace().str()));
+    for (auto &Param : Decl->getHeader()->getParams()) {
+        Hash ^= (std::hash<std::string>()(Param->getType()->str()));
+    }
+    return Hash;
+}
+
+bool FuncDeclComp::operator()(const FuncDecl *C1, const FuncDecl *C2) const {
+    bool Result = C1->getName().equals(C2->getName()) &&
+                  C1->getNameSpace()->getNameSpace().equals(C2->getNameSpace()->getNameSpace()) &&
+                  C1->getHeader()->getParams().size() == C2->getHeader()->getParams().size();
+    if (Result) {
+
+    }
+    return Result;
 }
 
 FuncCallStmt::FuncCallStmt(const SourceLocation &Loc, BlockStmt *Block, FuncCall *Call) :
@@ -195,14 +295,18 @@ FuncCall *FuncCallStmt::getCall() const {
     return Call;
 }
 
-FuncCallArg::FuncCallArg(Expr *Value, TypeBase *Ty) : Value(Value), Ty(Ty) {
+FuncArg::FuncArg(Expr *Value, TypeBase *Ty) : Value(Value), Ty(Ty) {
 
 }
 
-Expr *FuncCallArg::getValue() const {
+Expr *FuncArg::getValue() const {
     return Value;
 }
 
-TypeBase *FuncCallArg::getType() const {
+TypeBase *FuncArg::getType() const {
     return Ty;
+}
+
+void FuncArg::setType(TypeBase *T) {
+    Ty = T;
 }

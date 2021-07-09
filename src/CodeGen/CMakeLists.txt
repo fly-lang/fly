@@ -1,7 +1,6 @@
 add_library(FlyCodeGen
         CGBlock.cpp
         CodeGenExpr.cpp
-        CodeGenCall.cpp
         CodeGenFunction.cpp
         CodeGenGlobalVar.cpp
         CodeGenVar.cpp
