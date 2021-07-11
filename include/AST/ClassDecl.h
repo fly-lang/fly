@@ -20,13 +20,15 @@ namespace fly {
         friend class ASTNode;
         friend class Parser;
         friend class ClassParser;
-
+    public:
         VisibilityKind Visibility;
         bool Constant;
         llvm::StringRef Name;
         SourceLocation Location;
 
-    public:
+
+
+
         const StringRef &getName() const;
 
     };

@@ -106,17 +106,21 @@ namespace fly {
         bool ResolveCall(FuncCall *ResolvedCall, FuncCall *Call);
 
         bool Finalize();
+
+        bool operator==(const FuncDecl& F) const;
     };
 
-    class FuncDeclHash : std::hash<FuncDecl *> {
-    public:
+    struct FuncDeclHash : std::hash<FuncDecl *>{
         // id is returned as hash function
-        size_t operator()(const FuncDecl *Decl) const;
+        size_t operator()(FuncDecl *Decl) const noexcept;
     };
 
     struct FuncDeclComp : std::equal_to<FuncDecl *> {
-    public:
         bool operator()(const FuncDecl *C1, const FuncDecl *C2) const;
+    };
+
+    class FuncDeclAlloc : std::allocator<FuncDecl *> {
+
     };
 
     /**
@@ -231,17 +235,6 @@ namespace fly {
 
         static FuncCall *CreateCall(FuncDecl *FDecl);
 
-    };
-
-    class FuncCallHash : std::hash<FuncCall *> {
-    public:
-        // id is returned as hash function
-        size_t operator()(const FuncCall *Call) const;
-    };
-
-    struct FuncCallComp : std::equal_to<FuncCall *> {
-    public:
-        bool operator()(const FuncCall *C1, const FuncCall *C2) const;
     };
 
     /**

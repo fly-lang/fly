@@ -140,7 +140,7 @@ bool BlockStmt::addVar(VarStmt *Var) {
 }
 
 bool BlockStmt::addVar(VarDeclStmt *Var) {
-    bool Result = false;
+    bool Result = true;
     if (Var->getExpr()) {
         Result &= ResolveExpr(Var->getExpr());
     }
@@ -177,13 +177,21 @@ DiagnosticBuilder BlockStmt::Diag(SourceLocation Loc, unsigned int DiagID) {
     return Top->getNode()->getContext().Diag(Loc, DiagID);
 }
 
+BreakStmt *BlockStmt::addBreak(const SourceLocation &Loc) {
+    return new BreakStmt(Loc, this);
+}
+
+ContinueStmt *BlockStmt::addContinue(const SourceLocation &Loc) {
+    return new ContinueStmt(Loc, this);
+}
+
 ConditionBlockStmt::ConditionBlockStmt(const SourceLocation &Loc, BlockStmt *Parent) : BlockStmt(Loc, Parent) {}
 
 LoopBlockStmt::LoopBlockStmt(const SourceLocation &Loc, BlockStmt *Parent) : BlockStmt(Loc, Parent) {
 
 }
 
-BreakStmt::BreakStmt(const SourceLocation &Loc, BlockStmt *CurrStmt) : Stmt(Loc, CurrStmt) {
+BreakStmt::BreakStmt(const SourceLocation &Loc, BlockStmt *Parent) : Stmt(Loc, Parent) {
 
 }
 
@@ -191,7 +199,7 @@ StmtKind BreakStmt::getKind() const {
     return Kind;
 }
 
-ContinueStmt::ContinueStmt(const SourceLocation &Loc, BlockStmt *CurrStmt) : Stmt(Loc, CurrStmt) {
+ContinueStmt::ContinueStmt(const SourceLocation &Loc, BlockStmt *Parent) : Stmt(Loc, Parent) {
 
 }
 

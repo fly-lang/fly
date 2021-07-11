@@ -86,7 +86,7 @@ bool CodeGenModule::Generate() {
     // Manage Top Decl
     Node.getGlobalVars().begin();
     for (const auto &V : Node.getGlobalVars()) {
-        GenGlobalVar(V);
+        GenGlobalVar(V.getValue());
     }
     for (FuncDecl *F : Node.getFunctions()) {
         GenFunction(F);

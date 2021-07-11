@@ -25,6 +25,8 @@ namespace fly {
     class VarDeclStmt;
     class VarStmt;
     class GroupExpr;
+    class BreakStmt;
+    class ContinueStmt;
 
     enum BlockStmtKind {
         BLOCK_STMT,
@@ -93,6 +95,10 @@ namespace fly {
         ReturnStmt *addReturn(const SourceLocation &Loc, GroupExpr *Expr);
 
         DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID);
+
+        BreakStmt *addBreak(const SourceLocation &Loc);
+
+        ContinueStmt *addContinue(const SourceLocation &Loc);
     };
 
     class ConditionBlockStmt : public BlockStmt {
@@ -112,7 +118,7 @@ namespace fly {
         StmtKind Kind = StmtKind::STMT_BREAK;
 
     public:
-        BreakStmt(const SourceLocation &Loc, BlockStmt *CurrStmt);
+        BreakStmt(const SourceLocation &Loc, BlockStmt *Parent);
 
         StmtKind getKind() const override;
     };
@@ -122,7 +128,7 @@ namespace fly {
         StmtKind Kind = StmtKind::STMT_CONTINUE;
 
     public:
-        ContinueStmt(const SourceLocation &Loc, BlockStmt *CurrStmt);
+        ContinueStmt(const SourceLocation &Loc, BlockStmt *Parent);
 
         StmtKind getKind() const override;
     };

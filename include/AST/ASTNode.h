@@ -13,7 +13,6 @@
 
 #include "ASTNodeBase.h"
 #include "FuncDecl.h"
-#include "llvm/ADT/StringMap.h"
 #include <unordered_set>
 
 namespace fly {
@@ -43,7 +42,7 @@ namespace fly {
         llvm::StringMap<GlobalVarDecl *> GlobalVars;
 
         // Public Functions
-        std::unordered_set<FuncDecl *, FuncDeclHash, FuncDeclComp> Functions;
+        std::unordered_set<FuncDecl*, FuncDeclHash, FuncDeclComp> Functions;
 
         // Calls into Node resolution
         llvm::StringMap<std::vector<FuncCall *>> ResolvedCalls;
@@ -68,10 +67,10 @@ namespace fly {
         const llvm::StringMap<ImportDecl*> &getImports();
 
         bool addGlobalVar(GlobalVarDecl *Var);
-        const std::vector<GlobalVarDecl *> getGlobalVars();
+        const llvm::StringMap<GlobalVarDecl *> &getGlobalVars();
 
         bool addFunction(FuncDecl *Func);
-        const std::unordered_set<FuncDecl *, FuncDeclHash, FuncDeclComp> getFunctions() const;
+        const std::unordered_set<FuncDecl*, FuncDeclHash, FuncDeclComp> &getFunctions() const;
 
         bool addResolvedCall(FuncCall *Call);
         const llvm::StringMap<std::vector<FuncCall *>> &getResolvedCalls() const;

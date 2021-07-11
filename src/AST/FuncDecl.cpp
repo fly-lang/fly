@@ -13,6 +13,7 @@
 #include "AST/BlockStmt.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTNode.h"
+#include <string>
 
 using namespace fly;
 
@@ -122,6 +123,43 @@ bool FuncDecl::ResolveCall(FuncCall *ResolvedCall, FuncCall *Call) {
     }
 
     return true;
+}
+
+bool FuncDecl::operator==(const FuncDecl &F) const {
+    bool Result = this->getName().equals(F.getName()) &&
+            this->getNameSpace()->getNameSpace().equals(F.getNameSpace()->getNameSpace()) &&
+            this->getHeader()->getParams().size() == F.getHeader()->getParams().size();
+    if (Result) {
+        for (int i = 0; i < this->getHeader()->getParams().size(); i++) {
+            if (! this->getHeader()->getParams()[i]->getType()->equals(F.getHeader()->getParams()[i]->getType())) {
+                return false;
+            }
+        }
+    }
+    return Result;
+}
+
+size_t FuncDeclHash::operator()(FuncDecl *Decl) const noexcept {
+    size_t Hash = (std::hash<std::string>()(Decl->getName().str()));
+    Hash ^= (std::hash<std::string>()(Decl->getNameSpace()->getNameSpace().str()));
+    for (auto &Param : Decl->getHeader()->getParams()) {
+        Hash ^= (std::hash<std::string>()(Param->getType()->str()));
+    }
+    return Hash;
+}
+
+bool FuncDeclComp::operator()(const FuncDecl *C1, const FuncDecl *C2) const {
+    bool Result = C1->getName().equals(C2->getName()) &&
+                  C1->getNameSpace()->getNameSpace().equals(C2->getNameSpace()->getNameSpace()) &&
+                  C1->getHeader()->getParams().size() == C2->getHeader()->getParams().size();
+    if (Result) {
+        for (int i = 0; i < C1->getHeader()->getParams().size(); i++) {
+            if (! C1->getHeader()->getParams()[i]->getType()->equals(C2->getHeader()->getParams()[i]->getType())) {
+                return false;
+            }
+        }
+    }
+    return Result;
 }
 
 bool FuncDecl::Finalize() {
@@ -261,25 +299,6 @@ FuncCall *FuncCall::CreateCall(FuncDecl *FDecl) {
         FCall->addArg(new FuncArg(NULL, Param->getType()));
     }
     return FCall;
-}
-
-size_t FuncDeclHash::operator()(const FuncDecl *Decl) const {
-    size_t Hash = (std::hash<std::string>()(Decl->getName().str()));
-    Hash ^= (std::hash<std::string>()(Decl->getNameSpace()->getNameSpace().str()));
-    for (auto &Param : Decl->getHeader()->getParams()) {
-        Hash ^= (std::hash<std::string>()(Param->getType()->str()));
-    }
-    return Hash;
-}
-
-bool FuncDeclComp::operator()(const FuncDecl *C1, const FuncDecl *C2) const {
-    bool Result = C1->getName().equals(C2->getName()) &&
-                  C1->getNameSpace()->getNameSpace().equals(C2->getNameSpace()->getNameSpace()) &&
-                  C1->getHeader()->getParams().size() == C2->getHeader()->getParams().size();
-    if (Result) {
-
-    }
-    return Result;
 }
 
 FuncCallStmt::FuncCallStmt(const SourceLocation &Loc, BlockStmt *Block, FuncCall *Call) :

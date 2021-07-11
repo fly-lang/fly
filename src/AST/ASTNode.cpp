@@ -82,15 +82,8 @@ bool ASTNode::addImport(ImportDecl * NewImport) {
     return true;
 }
 
-const std::vector<GlobalVarDecl *> ASTNode::getGlobalVars() {
-    std::vector<GlobalVarDecl *> AllGlobalVars;
-    for (auto &V : GlobalVars) {
-        AllGlobalVars.push_back(V.getValue());
-    }
-    for (auto &V : NameSpace->getGlobalVars()) {
-        AllGlobalVars.push_back(V.getValue());
-    }
-    return AllGlobalVars;
+const llvm::StringMap<GlobalVarDecl *> &ASTNode::getGlobalVars() {
+    return GlobalVars;
 }
 
 bool ASTNode::addGlobalVar(GlobalVarDecl *Var) {
@@ -104,7 +97,8 @@ bool ASTNode::addGlobalVar(GlobalVarDecl *Var) {
             Context->Diag(LookupVar->getLocation(), diag::err_duplicate_gvar) << LookupVar->getName();
             return false;
         }
-        return NameSpace->addGlobalVar(Var);
+        auto Pair = std::make_pair(Var->getName(), Var);
+        return GlobalVars.insert(Pair).second && NameSpace->addGlobalVar(Var);
     }
 
     // Lookup into node for private var
@@ -179,15 +173,15 @@ bool ASTNode::addFunction(FuncDecl *Func) {
     return false;
 }
 
-const std::unordered_set<FuncDecl *, FuncDeclHash, FuncDeclComp> ASTNode::getFunctions() const {
+const std::unordered_set<FuncDecl *, FuncDeclHash, FuncDeclComp> &ASTNode::getFunctions() const {
     return Functions;
 }
 
 bool ASTNode::addClass(ClassDecl *Class) {
     // Lookup into namespace
-    ClassDecl *LookupClass = NameSpace->getClasses().lookup(Class->Name);
+    ClassDecl *LookupClass = NameSpace->getClasses().lookup(Class->getName());
     if (LookupClass) {
-        Context->Diag(LookupClass->Location, diag::err_duplicate_class)  << LookupClass->Name;
+        Context->Diag(LookupClass->Location, diag::err_duplicate_class)  << LookupClass->getName();
         return false;
     }
     return NameSpace->addClass(Class);
@@ -213,7 +207,7 @@ TypeBase *ASTNode::ResolveExprType(Expr *E) {
 }
 
 bool ASTNode::Finalize() {
-    for (auto *Function : getFunctions()) {
+    for (const auto &Function : Functions) {
         Function->Finalize();
     }
 

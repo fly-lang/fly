@@ -300,6 +300,11 @@ bool Parser::ParseStmt(BlockStmt *Block, GroupExpr *Group) {
             Block->addReturn(RetLoc, Exp);
             return true;
         }
+    } else if (Tok.is(tok::kw_break)) {
+        ;
+        Block->addBreak(ConsumeToken());
+    } else if (Tok.is(tok::kw_continue)) {
+        Block->addContinue(ConsumeToken());
     }
 
     // const int a
@@ -409,7 +414,10 @@ bool Parser::ParseBlock(BlockStmt *Block) {
 bool Parser::ParseInnerBlock(BlockStmt *Block) {
     // Parse until find a }
     while (Tok.isNot(tok::r_brace) && Tok.isNot(tok::eof)) {
-        ParseBlock(Block);
+        if (!ParseBlock(Block)) {
+            Diag(Tok.getLocation(), diag::err_parse_stmt);
+            return false;
+        }
     }
 
     if (Tok.is(tok::r_brace)) { // Close Brace

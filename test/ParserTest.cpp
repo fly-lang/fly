@@ -140,9 +140,9 @@ namespace {
         auto P = Parse("var.fly", str);
         auto AST = P->getAST();
 
-        GlobalVarDecl *VerifyA = AST->getGlobalVars()[0];
-        GlobalVarDecl *VerifyB = AST->getGlobalVars()[1];
-        GlobalVarDecl *VerifyC = AST->getGlobalVars()[2];
+        GlobalVarDecl *VerifyA = AST->getGlobalVars().find("a")->getValue();
+        GlobalVarDecl *VerifyB = AST->getNameSpace()->getGlobalVars().find("b")->getValue();
+        GlobalVarDecl *VerifyC = AST->getGlobalVars().find("c")->getValue();
 
         EXPECT_EQ(VerifyA->getVisibility(), VisibilityKind::V_PRIVATE);
         EXPECT_FALSE(VerifyA->isConstant());
@@ -169,9 +169,9 @@ namespace {
                          "const bool c = false\n");
         auto P = Parse("var.fly", str);
         auto AST = P->getAST();
-        GlobalVarDecl *VerifyA = AST->getGlobalVars()[0];
-        GlobalVarDecl *VerifyB = AST->getGlobalVars()[1];
-        GlobalVarDecl *VerifyC = AST->getGlobalVars()[2];
+        GlobalVarDecl *VerifyA = AST->getGlobalVars().find("a")->getValue();
+        GlobalVarDecl *VerifyB = AST->getGlobalVars().find("b")->getValue();
+        GlobalVarDecl *VerifyC = AST->getGlobalVars().find("c")->getValue();
 
         EXPECT_EQ(VerifyA->getVisibility(), VisibilityKind::V_PRIVATE);
         EXPECT_EQ(VerifyA->isConstant(), true);
@@ -556,8 +556,6 @@ namespace {
         llvm::StringRef str = ("namespace std\n"
                          "private void func(int a) {\n"
                          "  for int b = 1, int c = 2; b < 10; b++, --c {"
-                         "    if (a == 5) break"
-                         "    else continue"
                          "  }"
                          "}\n");
         auto P = Parse("fbody.fly", str);

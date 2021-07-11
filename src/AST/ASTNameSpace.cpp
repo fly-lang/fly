@@ -45,7 +45,7 @@ bool ASTNameSpace::addGlobalVar(GlobalVarDecl *Var) {
     return GlobalVars.insert(Pair).second;
 }
 
-const std::unordered_set<FuncDecl *, FuncDeclHash, FuncDeclComp> &ASTNameSpace::getFunctions() const {
+const std::unordered_set<FuncDecl*, FuncDeclHash, FuncDeclComp> &ASTNameSpace::getFunctions() const {
     return Functions;
 }
 
