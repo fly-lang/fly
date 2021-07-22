@@ -46,6 +46,7 @@ namespace {
         llvm::llvm_shutdown();
 
         std::string output = testing::internal::GetCapturedStdout();
+        llvm::outs() << output;
     }
 
 } // anonymous namespace

@@ -28,6 +28,7 @@ namespace fly {
 
     class ASTContext;
     class ASTNode;
+    class ASTValue;
     class GlobalVarDecl;
     class FuncDecl;
     class FuncCall;
@@ -54,7 +55,7 @@ namespace fly {
         llvm::IRBuilder<> *Builder;
         // CGDebugInfo *DebugInfo; // TODO
 
-        void GenTypeValue(const TypeBase *TyData, llvm::Type *&Ty, llvm::Constant *&Const, StringRef StrVal);
+        void GenTypeValue(const TypeBase *TyData, llvm::Type *&Ty, llvm::Constant *&Const, ASTValue *Val);
 
     public:
         CodeGenModule(DiagnosticsEngine &Diags, ASTNode &Node, LLVMContext &LLVMCtx, TargetInfo &Target,
@@ -63,6 +64,8 @@ namespace fly {
         virtual ~CodeGenModule();
 
         llvm::Module *Module;
+
+        DiagnosticBuilder Diag(const SourceLocation &Loc, unsigned DiagID);
 
         bool Generate();
 
@@ -74,7 +77,7 @@ namespace fly {
 
         Type *GenType(const TypeBase *TyData);
 
-        llvm::Constant *GenValue(const TypeBase *TyData, StringRef StrVal);
+        llvm::Constant *GenValue(const TypeBase *TyData, const ASTValue *Val);
 
         void GenStmt(Stmt * S);
 

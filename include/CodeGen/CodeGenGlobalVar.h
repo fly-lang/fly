@@ -19,6 +19,7 @@
 namespace fly {
 
     class CodeGenModule;
+    class ASTValue;
 
     class CodeGenGlobalVar {
 
@@ -29,7 +30,7 @@ namespace fly {
         bool needLoad;
 
     public:
-        CodeGenGlobalVar(CodeGenModule *CGM, llvm::StringRef Name, const TypeBase *Ty, llvm::StringRef StrVal,
+        CodeGenGlobalVar(CodeGenModule *CGM, const llvm::StringRef &Name, const TypeBase *Ty, const ASTValue *Val,
                          const bool isConstant);
 
         llvm::GlobalVariable *getGlobalVar() const;

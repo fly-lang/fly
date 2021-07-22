@@ -35,7 +35,7 @@ namespace fly {
         llvm::StringMap<GlobalVarDecl *> GlobalVars;
 
         // Public & Default Functions
-        std::unordered_set<FuncDecl*, FuncDeclHash, FuncDeclComp> Functions;
+        std::unordered_set<FuncDecl*> Functions;
 
         // Calls into NameSpace resolution
         llvm::StringMap<std::vector<FuncCall *>> ResolvedCalls;
@@ -57,7 +57,7 @@ namespace fly {
         const llvm::StringMap<GlobalVarDecl *> &getGlobalVars() const;
         bool addGlobalVar(GlobalVarDecl *GVar);
 
-        const std::unordered_set<FuncDecl*, FuncDeclHash, FuncDeclComp> &getFunctions() const;
+        const std::unordered_set<FuncDecl*> &getFunctions() const;
         bool addFunction(FuncDecl *Func);
 
         const llvm::StringMap<std::vector<FuncCall *>> &getResolvedCalls() const;

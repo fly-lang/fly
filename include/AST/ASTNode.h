@@ -42,7 +42,7 @@ namespace fly {
         llvm::StringMap<GlobalVarDecl *> GlobalVars;
 
         // Public Functions
-        std::unordered_set<FuncDecl*, FuncDeclHash, FuncDeclComp> Functions;
+        std::unordered_set<FuncDecl*> Functions;
 
         // Calls into Node resolution
         llvm::StringMap<std::vector<FuncCall *>> ResolvedCalls;
@@ -53,7 +53,7 @@ namespace fly {
 
         ~ASTNode();
 
-        ASTNode(const llvm::StringRef &fileName, const FileID &fid, ASTContext *Context);
+        ASTNode(const llvm::StringRef &FileName, const FileID &FID, ASTContext *Context);
 
         bool isFirstNode() const;
         void setFirstNode(bool firstNode);
@@ -70,7 +70,7 @@ namespace fly {
         const llvm::StringMap<GlobalVarDecl *> &getGlobalVars();
 
         bool addFunction(FuncDecl *Func);
-        const std::unordered_set<FuncDecl*, FuncDeclHash, FuncDeclComp> &getFunctions() const;
+        const std::unordered_set<FuncDecl*> &getFunctions() const;
 
         bool addResolvedCall(FuncCall *Call);
         const llvm::StringMap<std::vector<FuncCall *>> &getResolvedCalls() const;

@@ -24,6 +24,7 @@ namespace fly {
         BlockStmt *Init;
         GroupExpr *Cond;
         BlockStmt *Post;
+        BlockStmt *Loop;
 
     public:
         ForBlockStmt(const SourceLocation &Loc, BlockStmt *Parent);
@@ -35,6 +36,8 @@ namespace fly {
         GroupExpr *getCondition();
 
         BlockStmt *getPost();
+
+        BlockStmt *getLoop();
 
     };
 }

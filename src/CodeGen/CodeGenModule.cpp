@@ -79,6 +79,10 @@ CodeGenModule::CodeGenModule(DiagnosticsEngine &Diags, ASTNode &Node, LLVMContex
     // todo Add dependencies, Linker Options
 }
 
+DiagnosticBuilder CodeGenModule::Diag(const SourceLocation &Loc, unsigned DiagID) {
+    return Diags.Report(Loc, DiagID);
+}
+
 /**
  * GenStmt from ASTContext
  */
@@ -100,15 +104,18 @@ bool CodeGenModule::Generate() {
  */
 CodeGenGlobalVar *CodeGenModule::GenGlobalVar(GlobalVarDecl* VDecl) {
     // Check Value
-    llvm::StringRef StrVal;
+    CodeGenGlobalVar *CG = nullptr;
     if (VDecl->getExpr() && !VDecl->getExpr()->isEmpty()) {
         assert(VDecl->getExpr()->getGroup().size() == 1 &&
                        VDecl->getExpr()->getGroup().at(0)->getKind() == EXPR_VALUE && "Invalid Global Var value");
         ValueExpr *E = static_cast<ValueExpr *>(VDecl->getExpr()->getGroup().at(0));
-        StrVal = E->getValue().str();
+        CG = new CodeGenGlobalVar(this, VDecl->getName(), VDecl->getType(), &E->getValue(),
+                                                    VDecl->isConstant());
+    } else {
+        CG = new CodeGenGlobalVar(this, VDecl->getName(), VDecl->getType(), nullptr,
+                                  VDecl->isConstant());
     }
 
-    CodeGenGlobalVar *CG = new CodeGenGlobalVar(this, VDecl->getName(), VDecl->getType(), StrVal, VDecl->isConstant());
     VDecl->setCodeGen(CG);
     return CG;
 }
@@ -120,7 +127,11 @@ CodeGenFunction *CodeGenModule::GenFunction(FuncDecl *FDecl) {
 }
 
 CallInst *CodeGenModule::GenCall(FuncCall *Call) {
-    assert(Call->getDecl() && "Declaration not resolved");
+    // Check if Func is declared
+    if (Call->getDecl() == nullptr) {
+        Diag(Call->getLocation(), diag::err_func_notfound);
+        return nullptr;
+    }
 
     const std::vector<FuncParam *> &Params = Call->getDecl()->getHeader()->getParams();
     llvm::SmallVector<llvm::Value *, 8> Args;
@@ -130,7 +141,7 @@ CallInst *CodeGenModule::GenCall(FuncCall *Call) {
 
             case EXPR_VALUE: {
                 ValueExpr *ValExp = static_cast<ValueExpr *>(Arg->getValue());
-                Constant *C = GenValue(Arg->getType(), ValExp->getValue().str());
+                Constant *C = GenValue(Arg->getType(), &ValExp->getValue());
                 Args.push_back(C);
                 break;
             }
@@ -142,7 +153,7 @@ CallInst *CodeGenModule::GenCall(FuncCall *Call) {
             case EXPR_GROUP:
                 break;
             default:
-                assert("Invalid Function Args");
+                assert(0 && "Invalid Function Args");
         }
     }
     return Builder->CreateCall(Call->getDecl()->getCodeGen()->getFunction(), Args);
@@ -225,51 +236,47 @@ void CodeGenModule::GenStmt(Stmt * S) {
 llvm::Type *CodeGenModule::GenType(const TypeBase *TyData) {
     llvm::Type *Ty = nullptr;
     llvm::Constant *Const = nullptr;
-    GenTypeValue(TyData, Ty, Const, "");
-    return Ty;
-}
-
-llvm::Constant *CodeGenModule::GenValue(const TypeBase *TyData, StringRef StrVal) {
-    llvm::Type *Ty = nullptr;
-    llvm::Constant *Const = nullptr;
-    GenTypeValue(TyData, Ty, Const, StrVal);
-    return Const;
-}
-
-void CodeGenModule::GenTypeValue(const TypeBase *TyData, llvm::Type *&Ty, llvm::Constant *&Const, StringRef StrVal) {
     // Check Type
     switch (TyData->getKind()) {
 
         case TYPE_VOID:
-            Ty = VoidTy;
+            return VoidTy;
+        case TYPE_INT:
+            return Int32Ty;
+        case TYPE_FLOAT:
+            return FloatTy;
+        case TYPE_BOOL:
+            return BoolTy;
+        default:
+            llvm_unreachable("Unknown Var Type Kind");
+    }
+    return Ty;
+}
+
+llvm::Constant *CodeGenModule::GenValue(const TypeBase *Ty, const ASTValue *Val) {
+    //TODO value conversion from Val->getType() to TypeBase (if are different)
+    switch (Ty->getKind()) {
+
+        case TYPE_VOID:
             break;
         case TYPE_INT:
-            if (!StrVal.empty()) {
-                uint64_t intVal = std::stoi(StrVal.str());
-                Const = llvm::ConstantInt::get(Int32Ty, intVal, true);
+            if (!Val->empty()) {
+                uint64_t intVal = std::stoi(Val->str().str());
+                return llvm::ConstantInt::get(Int32Ty, intVal, true);
             }
-            Ty = Int32Ty;
-            break;
+            return llvm::ConstantInt::get(Int32Ty, 0, false);;
         case TYPE_FLOAT:
-            if (!StrVal.empty()) {
-                Const = llvm::ConstantFP::get(FloatTy, StrVal);
+            if (!Val->empty()) {
+                return llvm::ConstantFP::get(FloatTy, Val->str());
             }
-            Ty = FloatTy;
-            break;
+            return llvm::ConstantFP::get(FloatTy, 0);
         case TYPE_BOOL:
-            if (!StrVal.empty()) {
-                if (StrVal.equals("true")) {
-                    Const = llvm::ConstantInt::get(BoolTy, 1, false);
-                } else if (StrVal.equals("false")) {
-                    Const = llvm::ConstantInt::get(BoolTy, 0, false);
-                } else {
-                    // TODO error bad Bool value
-                }
+            if (Val->isTrue()) {
+                return llvm::ConstantInt::get(BoolTy, 1, false);
             }
-            Ty = BoolTy;
+            return llvm::ConstantInt::get(BoolTy, 0, false);
+        case TYPE_CLASS:
             break;
-        default:
-            llvm_unreachable("Missing Var Type");
     }
 }
 
@@ -279,7 +286,7 @@ llvm::Value *CodeGenModule::GenExpr(const TypeBase *Typ, GroupExpr *Expr) {
 
             case EXPR_VALUE: {
                 ValueExpr *ValEx = static_cast<ValueExpr *>(E);
-                return GenValue(Typ, ValEx->getValue().str());
+                return GenValue(Typ, &ValEx->getValue());
             }
             case EXPR_OPERATOR:
                 return nullptr;

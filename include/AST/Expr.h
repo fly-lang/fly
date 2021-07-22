@@ -13,7 +13,7 @@
 
 #include "Basic/SourceLocation.h"
 #include "llvm/ADT/StringRef.h"
-#include "Value.h"
+#include "ASTValue.h"
 #include <vector>
 #include <utility>
 
@@ -51,16 +51,16 @@ namespace fly {
 
         const SourceLocation &Loc;
         const ExprKind Kind = ExprKind::EXPR_VALUE;
-        const Value *Val;
+        const ASTValue *Val;
 
     public:
-        ValueExpr(const SourceLocation &Loc, const Value *Val);
+        ValueExpr(const SourceLocation &Loc, const ASTValue *Val);
 
         const SourceLocation &getLocation() const;
 
         ExprKind getKind() const override;
 
-        const Value &getValue() const;
+        const ASTValue &getValue() const;
     };
 
     /**

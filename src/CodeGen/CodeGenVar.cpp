@@ -36,7 +36,7 @@ llvm::UnaryInstruction *CodeGenVar::get() {
 
 llvm::StoreInst *CodeGenVar::Store(llvm::Value *Val) {
     assert(!Constant && "Cannot store into constant var");
-    assert(AllocaI && "Connot store into unallocated stack");
+    assert(AllocaI && "Cannot store into unallocated stack");
     llvm::StoreInst *S = CGM->Builder->CreateStore(Val, AllocaI);
     isStored = true;
     needLoad = true;

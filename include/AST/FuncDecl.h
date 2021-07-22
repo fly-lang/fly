@@ -110,15 +110,6 @@ namespace fly {
         bool operator==(const FuncDecl& F) const;
     };
 
-    struct FuncDeclHash : std::hash<FuncDecl *>{
-        // id is returned as hash function
-        size_t operator()(FuncDecl *Decl) const noexcept;
-    };
-
-    struct FuncDeclComp : std::equal_to<FuncDecl *> {
-        bool operator()(const FuncDecl *C1, const FuncDecl *C2) const;
-    };
-
     class FuncDeclAlloc : std::allocator<FuncDecl *> {
 
     };
@@ -254,5 +245,21 @@ namespace fly {
         FuncCall *getCall() const;
     };
 }
+
+namespace std {
+    using namespace fly;
+
+    template <>
+    struct hash<FuncDecl *> {
+        // id is returned as hash function
+        size_t operator()(FuncDecl *Decl) const noexcept;
+    };
+
+    template <>
+    struct equal_to<FuncDecl *> {
+        bool operator()(const FuncDecl *C1, const FuncDecl *C2) const;
+    };
+}
+
 
 #endif //FLY_FUNCTION_H

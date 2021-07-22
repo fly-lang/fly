@@ -9,6 +9,9 @@
 
 
 #include "AST/IfBlockStmt.h"
+#include "AST/FuncDecl.h"
+#include "AST/ASTNode.h"
+#include "AST/ASTContext.h"
 
 using namespace fly;
 
@@ -18,8 +21,7 @@ void IfBlockStmt::AddBranch(BlockStmt *Parent, ConditionBlockStmt *Cond) {
         enum BlockStmtKind PrevIfKind = static_cast<BlockStmt *>(PrevIf)->getBlockKind();
         if (Cond->getBlockKind() == BlockStmtKind::BLOCK_STMT_IF) {
 
-            assert("Do not add If branch with AddBranch()");
-
+            assert(0 && "Do not add If branch with AddBranch()");
         } else if (Cond->getBlockKind() == BlockStmtKind::BLOCK_STMT_ELSIF) {
 
             ElsifBlockStmt *Elsif = static_cast<ElsifBlockStmt *>(Cond);
@@ -34,10 +36,10 @@ void IfBlockStmt::AddBranch(BlockStmt *Parent, ConditionBlockStmt *Cond) {
                     static_cast<ElsifBlockStmt *>(PrevIf)->Elsif.push_back(Elsif);
                     break;
                 case BlockStmtKind::BLOCK_STMT_ELSE:
-                    // TODO Error cannot add elseif after an else
+                    Parent->Top->getNode()->getContext().Diag(Cond->getLocation(), diag::err_elseif_after_else);
                     break;
                 default:
-                    assert("Not CondStmtDecl class");
+                    assert(0 && "Not CondStmtDecl class");
             }
 
         } else if (Cond->getBlockKind() == BlockStmtKind::BLOCK_STMT_ELSE) {
@@ -57,7 +59,7 @@ void IfBlockStmt::AddBranch(BlockStmt *Parent, ConditionBlockStmt *Cond) {
                     // TODO Error cannot add else after another else
                     break;
                 default:
-                    assert("Not CondStmtDecl class");
+                    assert(0 && "Not CondStmtDecl class");
             }
 
         }

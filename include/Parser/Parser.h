@@ -205,8 +205,8 @@ namespace fly {
         bool ParseStartParen();
         bool ParseEndParen(bool hasParen);
         bool ParseIfStmt(BlockStmt *Block);
-        bool ParseSwitchStmt(BlockStmt *CurrStmt);
-        bool ParseForStmt(BlockStmt *CurrStmt);
+        bool ParseSwitchStmt(BlockStmt *Block);
+        bool ParseForStmt(BlockStmt *Block);
         bool ParseInitForStmt(BlockStmt *InitStmt, GroupExpr *Cond);
         bool ParseCondForStmt(BlockStmt *Block, GroupExpr* Cond);
         bool ParsePostForStmt(BlockStmt *PostStmt);

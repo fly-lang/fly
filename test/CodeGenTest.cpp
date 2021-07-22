@@ -117,7 +117,7 @@ namespace {
         delete Node;
         deleteTestFile(testFile);
     }
-
+//
 //    TEST_F(CodeGenTest, EmitLL) {
 //
 //        EXPECT_TRUE(createTestFile(testFile));
@@ -230,6 +230,7 @@ namespace {
 
         EXPECT_EQ(output, "@a = external global i32");
         delete Node;
+        deleteTestFile(testFile);
     }
 
     TEST_F(CodeGenTest, CGFunc) {
@@ -246,7 +247,7 @@ namespace {
         Node->addFunction(MainFn);
         
         GroupExpr *Exp = new GroupExpr();
-        Exp->Add(new ValueExpr(SourceLoc, new fly::Value("1", new IntPrimType(SourceLoc))));
+        Exp->Add(new ValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new IntPrimType(SourceLoc))));
         MainFn->getBody()->addReturn(SourceLoc, Exp);
 
         CodeGenOptions CodeGenOpts;
@@ -274,6 +275,7 @@ namespace {
                           "  ret i32 1\n"
                           "}\n");
         delete Node;
+        deleteTestFile(testFile);
     }
 
     TEST_F(CodeGenTest, CGFuncRetVar) {
@@ -295,7 +297,7 @@ namespace {
         // A = 1
         VarStmt * VStmt = new VarStmt(SourceLoc, MainFn->getBody(), VarA->getName());
         GroupExpr *Gr = new GroupExpr();
-        Gr->Add(new ValueExpr(SourceLoc, new fly::Value("1", new IntPrimType(SourceLoc))));
+        Gr->Add(new ValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new IntPrimType(SourceLoc))));
         VStmt->setExpr(Gr);
         MainFn->getBody()->addVar(VStmt);
 
@@ -336,6 +338,7 @@ namespace {
                           "  ret i32 %1\n"
                           "}\n");
         delete Node;
+        deleteTestFile(testFile);
     }
 
     TEST_F(CodeGenTest, CGFuncRetFn) {

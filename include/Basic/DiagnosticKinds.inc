@@ -109,6 +109,7 @@ DIAG(err_fe_unable_to_open_output, CLASS_ERROR, (unsigned)diag::Severity::Error,
 DIAG(warn_fe_cc_log_diagnostics_failure, CLASS_WARNING, (unsigned)diag::Severity::Warning, "unable to open CC_LOG_DIAGNOSTICS file: %0 (using stderr)", 0, SFINAE_Suppress, false, false, 0)
 DIAG(warn_unknown_diag_option, CLASS_WARNING, (unsigned)diag::Severity::Warning, "unknown %select{warning|remark}0 option '%1'%select{|; did you mean '%3'?}2", 764, SFINAE_Suppress, false, false, 0)
 DIAG(warn_unknown_warning_specifier, CLASS_WARNING, (unsigned)diag::Severity::Warning, "unknown %0 warning specifier: '%1'", 764, SFINAE_Suppress, false, false, 0)
+DIAG(note_no_input_process, CLASS_NOTE, (unsigned)diag::Severity::Remark, "No input files for processing", 0, SFINAE_Suppress, false, true, 0)
 
 // Lexer
 DIAG(backslash_newline_space, CLASS_WARNING, (unsigned)diag::Severity::Warning, "backslash and newline separated by space", 58, SFINAE_Suppress, false, false, 1)
@@ -298,17 +299,26 @@ DIAG(warn_use_of_private_header_outside_module, CLASS_WARNING, (unsigned)diag::S
 DIAG(warn_utf8_symbol_homoglyph, CLASS_WARNING, (unsigned)diag::Severity::Warning, "treating Unicode character <U+%0> as identifier character rather than as '%1' symbol", 754, SFINAE_Suppress, false, false, 1)
 DIAG(warn_utf8_symbol_zero_width, CLASS_WARNING, (unsigned)diag::Severity::Warning, "identifier contains Unicode character <U+%0> that is invisible in some environments", 756, SFINAE_Suppress, false, false, 1)
 
-// AST & Parser
+// Parser Errors
 DIAG(err_namespace_undefined, CLASS_ERROR, (unsigned)diag::Severity::Error, "namespace undefined", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_type_undefined, CLASS_ERROR, (unsigned)diag::Severity::Error, "type is not defined", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_func_param, CLASS_ERROR, (unsigned)diag::Severity::Error, "function parameter not well format", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_unbalanced_brace, CLASS_ERROR, (unsigned)diag::Severity::Error, "braces not balanced", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_parse_stmt, CLASS_ERROR, (unsigned)diag::Severity::Error, "statement parse error", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_top_decl, CLASS_ERROR, (unsigned)diag::Severity::Error, "declaration error", 0, SFINAE_Suppress, false, true, 0)
+
+DIAG(warn_empty_code, CLASS_WARNING, (unsigned)diag::Severity::Warning, "code empty", 0, SFINAE_Suppress, false, true, 0)
+
+// AST
 DIAG(err_unresolved_import, CLASS_ERROR, (unsigned)diag::Severity::Error, "unresolved import", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_duplicate_import, CLASS_ERROR, (unsigned)diag::Severity::Error, "import '%0' duplicated", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_namespace_notfound, CLASS_ERROR, (unsigned)diag::Severity::Error, "namespace '%0' not found", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_duplicate_gvar, CLASS_ERROR, (unsigned)diag::Severity::Error, "variable '%0' duplicated", 0, SFINAE_Suppress, false, true, 0)
-DIAG(err_type_undefined, CLASS_ERROR, (unsigned)diag::Severity::Error, "type is not defined", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_duplicate_func, CLASS_ERROR, (unsigned)diag::Severity::Error, "function '%0' duplicated", 0, SFINAE_Suppress, false, true, 0)
-DIAG(err_unbalanced_brace, CLASS_ERROR, (unsigned)diag::Severity::Error, "braces not balanced", 0, SFINAE_Suppress, false, true, 0)
-DIAG(err_func_param, CLASS_ERROR, (unsigned)diag::Severity::Error, "function parameter not well format", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_add_func, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot add function '%0'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_duplicate_class, CLASS_ERROR, (unsigned)diag::Severity::Error, "class '%0' duplicated", 0, SFINAE_Suppress, false, true, 0)
-DIAG(err_parse_stmt, CLASS_ERROR, (unsigned)diag::Severity::Error, "statement parse error", 0, SFINAE_Suppress, false, true, 0)
-
 DIAG(err_vardecl_notfound, CLASS_ERROR, (unsigned)diag::Severity::Error, "var '%0' not declared before its use", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_conflict_vardecl, CLASS_ERROR, (unsigned)diag::Severity::Error, "var '%0' conflict", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_func_notfound, CLASS_ERROR, (unsigned)diag::Severity::Error, "function '%0' not declared", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_gvar_notfound, CLASS_ERROR, (unsigned)diag::Severity::Error, "global var '%0' not declared", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_elseif_after_else, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot add an elsif {} statement after else {}", 0, SFINAE_Suppress, false, true, 0)

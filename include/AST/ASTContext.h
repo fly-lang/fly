@@ -55,6 +55,8 @@ namespace fly {
         const llvm::StringMap<ASTNameSpace *> &getNameSpaces() const;
 
         DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID) const;
+
+        bool hasErrors() const;
     };
 }
 

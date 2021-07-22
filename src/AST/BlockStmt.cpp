@@ -77,11 +77,11 @@ bool BlockStmt::ResolveVarRef(VarRef* Var) {
                 Diag(Var->getLocation(), diag::err_vardecl_notfound) << Var->getName();
                 return false;
             }
-            // Check if var declaration happen before this var use
-            if (((VarDeclStmt *) VDecl)->getOrder() < Var->getOrder()) {
-                Diag(Var->getLocation(), diag::err_vardecl_notfound) << Var->getName();
-                return false;
-            }
+            // Check if var declaration happen before this var use // FIXME need or not? TODO add order into Expr
+//            if (((VarDeclStmt *) VDecl)->getOrder() > Var->getOrder()) {
+//                Diag(Var->getLocation(), diag::err_vardecl_notfound) << Var->getName();
+//                return false;
+//            }
 
             // Resolve with VarDecl
             Var->setDecl(VDecl);
@@ -121,22 +121,22 @@ bool BlockStmt::ResolveExpr(Expr *E) {
         case EXPR_OPERATOR:
             return true;
     }
-    assert("Unknown Expr Kind");
+
+    assert(0 && "Unknown Expr Kind");
 }
 
 bool BlockStmt::addVar(VarStmt *Var) {
-    assert(Var->getExpr() && "Expr mandatory into VarStmt");
+    assert(Var->getExpr() && "Expr unset into VarStmt");
 
     if (ResolveExpr(Var->getExpr())) {
 
-        if (Var->getDecl() == nullptr) {
-            ResolveVarRef(Var);
-        }
         Var->setOrder(Order++);
         Content.push_back(Var);
-        return true;
+        if (Var->getDecl() == nullptr) {
+            return ResolveVarRef(Var);
+        }
     }
-    return Var->getDecl() != nullptr;
+    return true;
 }
 
 bool BlockStmt::addVar(VarDeclStmt *Var) {
@@ -144,12 +144,13 @@ bool BlockStmt::addVar(VarDeclStmt *Var) {
     if (Var->getExpr()) {
         Result &= ResolveExpr(Var->getExpr());
     }
+    Var->setOrder(Order++);
 
     const auto &It = DeclVars.find(Var->getName());
     // Check if this var is already declared
     if (It != DeclVars.end()) {
-        assert("Var already declared");
-        Result = false;
+        Top->getNode()->getContext().Diag(Var->getLocation(), diag::err_conflict_vardecl) << Var->getName();
+        return false;
     }
     DeclVars.insert(std::pair<StringRef, VarDeclStmt *>(Var->getName(), Var));
     Var->setOrder(Order++);
@@ -163,26 +164,28 @@ bool BlockStmt::addCall(FuncCall *Call) {
     return Top->addUnRefCall(Call);
 }
 
-ReturnStmt *BlockStmt::addReturn(const SourceLocation &Loc, GroupExpr *E) {
-    assert(E && "Return Expr is mandatory");
-    ReturnStmt *Ret;
+bool BlockStmt::addReturn(const SourceLocation &Loc, GroupExpr *E) {
+    assert(E && "Expr unset into Return");
     if (ResolveExpr(E)) {
-        Ret = new ReturnStmt(Loc, this, E);
+        ReturnStmt *Ret = new ReturnStmt(Loc, this, E);
         Content.push_back(Ret);
+        return true;
     }
-    return Ret;
+    return false;
+}
+
+bool BlockStmt::addBreak(const SourceLocation &Loc) {
+    Content.push_back(new BreakStmt(Loc, this));
+    return true;
+}
+
+bool BlockStmt::addContinue(const SourceLocation &Loc) {
+    Content.push_back(new ContinueStmt(Loc, this));
+    return true;
 }
 
 DiagnosticBuilder BlockStmt::Diag(SourceLocation Loc, unsigned int DiagID) {
     return Top->getNode()->getContext().Diag(Loc, DiagID);
-}
-
-BreakStmt *BlockStmt::addBreak(const SourceLocation &Loc) {
-    return new BreakStmt(Loc, this);
-}
-
-ContinueStmt *BlockStmt::addContinue(const SourceLocation &Loc) {
-    return new ContinueStmt(Loc, this);
 }
 
 ConditionBlockStmt::ConditionBlockStmt(const SourceLocation &Loc, BlockStmt *Parent) : BlockStmt(Loc, Parent) {}

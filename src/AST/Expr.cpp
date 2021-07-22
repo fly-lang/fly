@@ -12,7 +12,7 @@
 
 using namespace fly;
 
-ValueExpr::ValueExpr(const SourceLocation &Loc, const Value *Val) : Loc(Loc), Val(Val) {}
+ValueExpr::ValueExpr(const SourceLocation &Loc, const ASTValue *Val) : Loc(Loc), Val(Val) {}
 
 const SourceLocation &ValueExpr::getLocation() const {
     return Loc;
@@ -22,7 +22,7 @@ ExprKind ValueExpr::getKind() const {
     return Kind;
 }
 
-const Value &ValueExpr::getValue() const {
+const ASTValue &ValueExpr::getValue() const {
     return *Val;
 }
 

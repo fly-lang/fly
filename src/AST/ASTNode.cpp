@@ -21,8 +21,20 @@
 
 using namespace fly;
 
-ASTNode::ASTNode(const llvm::StringRef &fileName, const FileID &fid, ASTContext *Context) :
-        ASTNodeBase(fileName, fid, Context) {
+ASTNode::ASTNode(const llvm::StringRef &FileName, const FileID &FID, ASTContext *Context) :
+        ASTNodeBase(FileName, FID, Context) {
+}
+
+ASTNode::~ASTNode() {
+    Imports.clear();
+}
+
+bool ASTNode::isFirstNode() const {
+    return FirstNode;
+}
+
+void ASTNode::setFirstNode(bool First) {
+    ASTNode::FirstNode = First;
 }
 
 ASTNameSpace* ASTNode::getNameSpace() {
@@ -88,7 +100,6 @@ const llvm::StringMap<GlobalVarDecl *> &ASTNode::getGlobalVars() {
 
 bool ASTNode::addGlobalVar(GlobalVarDecl *Var) {
     assert(Var->Visibility && "Function Visibility is unset");
-    bool Added = false;
 
     // Lookup into namespace for public var
     if(Var->Visibility == VisibilityKind::V_PUBLIC || Var->Visibility == VisibilityKind::V_DEFAULT) {
@@ -112,8 +123,7 @@ bool ASTNode::addGlobalVar(GlobalVarDecl *Var) {
         return GlobalVars.insert(Pair).second;
     }
 
-    assert(Added && "Error on GlobalVar add");
-    return false;
+    assert(0 && "Error when adding GlobalVar");
 }
 
 bool ASTNode::addResolvedCall(FuncCall *Call) {
@@ -133,7 +143,6 @@ const llvm::StringMap<std::vector<FuncCall *>> &ASTNode::getResolvedCalls() cons
 
 bool ASTNode::addFunction(FuncDecl *Func) {
     assert(Func->Visibility && "Function Visibility is unset");
-    bool Added = false;
 
     // Lookup into namespace for public var
     if(Func->Visibility == VisibilityKind::V_PUBLIC || Func->Visibility == VisibilityKind::V_DEFAULT) {
@@ -144,14 +153,13 @@ bool ASTNode::addFunction(FuncDecl *Func) {
         }
 
         // Add into NameSpace for global resolution
-        Added = NameSpace->addFunction(Func);
-        assert(Added && "Error on Function insert into NameSpace");
-
         // Add into Node for local resolution
-        Added = Functions.insert(Func).second;
-        assert(Added && "Error on Function insert into Node");
+        if (NameSpace->addFunction(Func) && Functions.insert(Func).second) {
+            return true;
+        }
 
-        return Added;
+        Context->Diag(Func->getLocation(), diag::err_add_func) << Func->getName();
+        return false;
     }
 
     // Lookup into node for private var
@@ -163,17 +171,18 @@ bool ASTNode::addFunction(FuncDecl *Func) {
         }
 
         // Add into Node for local resolution
-        Added = Functions.insert(Func).second;
-        assert(Added && "Error on Function insert into Node");
+        if (Functions.insert(Func).second && addResolvedCall(FuncCall::CreateCall(Func))) {
+            return true;
+        }
 
-        return addResolvedCall(FuncCall::CreateCall(Func));
+        Context->Diag(Func->getLocation(), diag::err_add_func) << Func->getName();
+        return false;
     }
 
-    assert(Added && "Error on Function add");
-    return false;
+    assert(0 && "Error when adding Function");
 }
 
-const std::unordered_set<FuncDecl *, FuncDeclHash, FuncDeclComp> &ASTNode::getFunctions() const {
+const std::unordered_set<FuncDecl*> &ASTNode::getFunctions() const {
     return Functions;
 }
 
@@ -208,20 +217,10 @@ TypeBase *ASTNode::ResolveExprType(Expr *E) {
 
 bool ASTNode::Finalize() {
     for (const auto &Function : Functions) {
-        Function->Finalize();
+        if (!Function->Finalize()) {
+            return false;
+        }
     }
 
     return Context->AddNode(this);
-}
-
-bool ASTNode::isFirstNode() const {
-    return FirstNode;
-}
-
-void ASTNode::setFirstNode(bool First) {
-    ASTNode::FirstNode = First;
-}
-
-ASTNode::~ASTNode() {
-    Imports.clear();
 }

@@ -17,7 +17,7 @@ add_library(FlyAST
         TypeBase.cpp
         VarDecl.cpp
         VarDeclStmt.cpp
-        Value.cpp
+        ASTValue.cpp
         )
 
 target_link_libraries(FlyAST

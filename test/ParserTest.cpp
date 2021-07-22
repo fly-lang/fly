@@ -35,14 +35,15 @@ namespace {
         std::unique_ptr<Parser> Parse(llvm::StringRef FileName, llvm::StringRef Source) {
 
             // Create a lexer starting at the beginning of this token.
-            InputFile Input (FileName);
+            InputFile Input(FileName);
             Input.Load(Source, SourceMgr);
 
             std::unique_ptr<Parser> P = std::make_unique<Parser>(Input, SourceMgr, Diags);
             ASTContext *Ctx = new ASTContext(Diags);
             ASTNode *AST = new ASTNode(FileName, Input.getFileID(), Ctx);
-            P->Parse(AST);
-            AST->Finalize();
+            if (P->Parse(AST)) {
+                AST->Finalize();
+            }
             return P;
         }
 
@@ -51,7 +52,8 @@ namespace {
     TEST_F(ParserTest, SinglePackage) {
         llvm::StringRef str = ("namespace std");
         auto P = Parse("package.fly", str);
-        auto AST = P->getAST();
+        ASTNode *AST = P->getAST();
+        ASSERT_FALSE(AST->getContext().hasErrors());
 
         EXPECT_EQ(AST->getFileName(), "package.fly");
 
@@ -64,7 +66,6 @@ namespace {
         llvm::StringRef str = ("namespace std\n"
                          "namespace bad");
         auto P = Parse("error.fly", str);
-
         EXPECT_TRUE(Diags.hasErrorOccurred());
     }
 
@@ -73,6 +74,7 @@ namespace {
                          "import \"packageA\"");
         auto P = Parse("import.fly", str);
         auto AST = P->getAST();
+        ASSERT_FALSE(AST->getContext().hasErrors());
 
         ImportDecl* Verify = AST->getImports().lookup("packageA");
 
@@ -97,6 +99,7 @@ namespace {
                          "import \"packageB\"");
         auto P = Parse("imports.fly", str);
         auto AST = P->getAST();
+        ASSERT_FALSE(AST->getContext().hasErrors());
 
         ImportDecl* VerifyB = AST->getImports().lookup("packageB");
         ImportDecl* VerifyA = AST->getImports().lookup("packageA");
@@ -111,6 +114,7 @@ namespace {
                          "import (\"packageA\")");
         auto P = Parse("import.fly", str);
         auto AST = P->getAST();
+        ASSERT_FALSE(AST->getContext().hasErrors());
 
         ImportDecl* Verify = AST->getImports().lookup("packageA");
         EXPECT_EQ(Verify->getName(), "packageA");
@@ -122,6 +126,7 @@ namespace {
                          "import (\"packageA\", \"packageB\")");
         auto P = Parse("imports.fly", str);
         auto AST = P->getAST();
+        ASSERT_FALSE(AST->getContext().hasErrors());
 
         ImportDecl* VerifyB = AST->getImports().lookup("packageB");
         ImportDecl* VerifyA = AST->getImports().lookup("packageA");
@@ -139,6 +144,7 @@ namespace {
                          );
         auto P = Parse("var.fly", str);
         auto AST = P->getAST();
+        ASSERT_FALSE(AST->getContext().hasErrors());
 
         GlobalVarDecl *VerifyA = AST->getGlobalVars().find("a")->getValue();
         GlobalVarDecl *VerifyB = AST->getNameSpace()->getGlobalVars().find("b")->getValue();
@@ -169,6 +175,8 @@ namespace {
                          "const bool c = false\n");
         auto P = Parse("var.fly", str);
         auto AST = P->getAST();
+        ASSERT_FALSE(AST->getContext().hasErrors());
+
         GlobalVarDecl *VerifyA = AST->getGlobalVars().find("a")->getValue();
         GlobalVarDecl *VerifyB = AST->getGlobalVars().find("b")->getValue();
         GlobalVarDecl *VerifyC = AST->getGlobalVars().find("c")->getValue();
@@ -198,14 +206,15 @@ namespace {
         llvm::StringRef str = ("namespace std\n"
                          "void func() {}\n");
         auto P = Parse("function.fly", str);
-        auto AST = P->getAST();
+        auto *AST = P->getAST();
+        ASSERT_FALSE(AST->getContext().hasErrors());
 
         EXPECT_TRUE(AST->getFunctions().size() == 1); // Fun has DEFAULT Visibility
         EXPECT_TRUE(AST->getNameSpace()->getFunctions().size() == 1);
         FuncDecl *VerifyFunc = *(AST->getNameSpace()->getFunctions().begin());
         EXPECT_EQ(VerifyFunc->getVisibility(), VisibilityKind::V_DEFAULT);
         ASSERT_FALSE(VerifyFunc->isConstant());
-        const std::unordered_set<FuncDecl *, FuncDeclHash, FuncDeclComp> &NSFuncs = AST->getContext().getNameSpaces().lookup("std")->getFunctions();
+        const std::unordered_set<FuncDecl *> &NSFuncs = AST->getContext().getNameSpaces().lookup("std")->getFunctions();
         ASSERT_TRUE(NSFuncs.find(VerifyFunc) != NSFuncs.end());
 
         delete AST;
@@ -218,12 +227,13 @@ namespace {
                          "}\n");
         auto P = Parse("function.fly", str);
         auto AST = P->getAST();
+        ASSERT_FALSE(AST->getContext().hasErrors());
 
         EXPECT_TRUE(AST->getFunctions().size() == 1); // func() has PRIVATE Visibility
         FuncDecl *VerifyFunc = *(AST->getFunctions().begin());
         EXPECT_EQ(VerifyFunc->getVisibility(), VisibilityKind::V_PRIVATE);
         ASSERT_FALSE(VerifyFunc->isConstant());
-        const std::unordered_set<FuncDecl *, FuncDeclHash, FuncDeclComp> &NSFuncs = AST->getContext().getNameSpaces()
+        const std::unordered_set<FuncDecl *> &NSFuncs = AST->getContext().getNameSpaces()
                 .lookup("std")->getFunctions();
         ASSERT_TRUE(NSFuncs.find(VerifyFunc) == NSFuncs.end());
         ASSERT_TRUE(AST->getFunctions().find(VerifyFunc) != NSFuncs.end());
@@ -268,6 +278,7 @@ namespace {
                          "}\n");
         auto P = Parse("fbody.fly", str);
         auto AST = P->getAST();
+        ASSERT_FALSE(AST->getContext().hasErrors());
 
         // Get Body
         FuncDecl *F = *(AST->getNameSpace()->getFunctions().begin());
@@ -338,6 +349,7 @@ namespace {
                                "}\n");
         auto P = Parse("fbody.fly", str);
         auto AST = P->getAST();
+        ASSERT_FALSE(AST->getContext().hasErrors());
 
         // Get all functions
         FuncDecl *doSome = *AST->getFunctions().begin();
@@ -388,45 +400,46 @@ namespace {
 
     TEST_F(ParserTest, FunctionBodyIncDec) {
         llvm::StringRef str = ("namespace std\n"
-                         "void func() {\n"
+                         "void func(int a) {\n"
                          "  ++a"
-                         "  b++"
-                         "  --c"
-                         "  d--"
+                         "  a++"
+                         "  --a"
+                         "  a--"
                          "}\n");
         auto P = Parse("fbody.fly", str);
         auto AST = P->getAST();
+        ASSERT_FALSE(AST->getContext().hasErrors());
 
         // Get Body
         FuncDecl *F = *(AST->getNameSpace()->getFunctions().begin());
         const BlockStmt *Body = F->getBody();
 
         // ++a
-        VarStmt *aVar = static_cast<VarStmt *>(Body->getContent()[0]);
-        EXPECT_EQ(aVar->getExpr()->getKind(), ExprKind::EXPR_GROUP);
-        EXPECT_EQ(aVar->getName(), "a");
-        IncDecExpr *aExpr = static_cast<IncDecExpr *>(aVar->getExpr()->getGroup()[0]);
+        VarStmt *a1Var = static_cast<VarStmt *>(Body->getContent()[0]);
+        EXPECT_EQ(a1Var->getExpr()->getKind(), ExprKind::EXPR_GROUP);
+        EXPECT_EQ(a1Var->getName(), "a");
+        IncDecExpr *aExpr = static_cast<IncDecExpr *>(a1Var->getExpr()->getGroup()[0]);
         EXPECT_EQ(aExpr->getIncDecKind(), IncDecOpKind::PRE_INCREMENT);
 
         // b++
-        VarStmt *bVar = static_cast<VarStmt *>(Body->getContent()[1]);
-        EXPECT_EQ(bVar->getExpr()->getKind(), ExprKind::EXPR_GROUP);
-        EXPECT_EQ(bVar->getName(), "b");
-        IncDecExpr *bExpr = static_cast<IncDecExpr *>(bVar->getExpr()->getGroup()[0]);
+        VarStmt *a2Var = static_cast<VarStmt *>(Body->getContent()[1]);
+        EXPECT_EQ(a2Var->getExpr()->getKind(), ExprKind::EXPR_GROUP);
+        EXPECT_EQ(a2Var->getName(), "a");
+        IncDecExpr *bExpr = static_cast<IncDecExpr *>(a2Var->getExpr()->getGroup()[0]);
         EXPECT_EQ(bExpr->getIncDecKind(), IncDecOpKind::POST_INCREMENT);
 
         // ++c
-        VarStmt *cVar = static_cast<VarStmt *>(Body->getContent()[2]);
-        EXPECT_EQ(cVar->getExpr()->getKind(), ExprKind::EXPR_GROUP);
-        EXPECT_EQ(cVar->getName(), "c");
-        IncDecExpr *cExpr = static_cast<IncDecExpr *>(cVar->getExpr()->getGroup()[0]);
+        VarStmt *a3Var = static_cast<VarStmt *>(Body->getContent()[2]);
+        EXPECT_EQ(a3Var->getExpr()->getKind(), ExprKind::EXPR_GROUP);
+        EXPECT_EQ(a3Var->getName(), "a");
+        IncDecExpr *cExpr = static_cast<IncDecExpr *>(a3Var->getExpr()->getGroup()[0]);
         EXPECT_EQ(cExpr->getIncDecKind(), IncDecOpKind::PRE_DECREMENT);
 
         // d++
-        const VarStmt *dVar = static_cast<VarStmt *>(Body->getContent()[3]);
-        EXPECT_EQ(dVar->getExpr()->getKind(), ExprKind::EXPR_GROUP);
-        EXPECT_EQ(dVar->getName(), "d");
-        IncDecExpr *dExpr = static_cast<IncDecExpr *>(dVar->getExpr()->getGroup()[0]);
+        const VarStmt *a4Var = static_cast<VarStmt *>(Body->getContent()[3]);
+        EXPECT_EQ(a4Var->getExpr()->getKind(), ExprKind::EXPR_GROUP);
+        EXPECT_EQ(a4Var->getName(), "a");
+        IncDecExpr *dExpr = static_cast<IncDecExpr *>(a4Var->getExpr()->getGroup()[0]);
         EXPECT_EQ(dExpr->getIncDecKind(), IncDecOpKind::POST_DECREMENT);
 
         delete AST;
@@ -434,7 +447,7 @@ namespace {
 
     TEST_F(ParserTest, FunctionBodyIfStmt) {
         llvm::StringRef str = ("namespace std\n"
-                         "void func(int a) {\n"
+                         "void func(int a, int b) {\n"
                          "  if (a == 1) {"
                          "    return"
                          "  } elsif (a == 2) {"
@@ -445,6 +458,7 @@ namespace {
                          "}\n");
         auto P = Parse("fbody.fly", str);
         auto AST = P->getAST();
+        ASSERT_FALSE(AST->getContext().hasErrors());
 
         // Get Body
         FuncDecl *F = *(AST->getNameSpace()->getFunctions().begin());
@@ -488,6 +502,7 @@ namespace {
                          "}\n");
         auto P = Parse("fbody.fly", str);
         auto AST = P->getAST();
+        ASSERT_FALSE(AST->getContext().hasErrors());
 
         // Get Body
         FuncDecl *F = *(AST->getNameSpace()->getFunctions().begin());
@@ -535,6 +550,7 @@ namespace {
                          "}\n");
         auto P = Parse("fbody.fly", str);
         auto AST = P->getAST();
+        ASSERT_FALSE(AST->getContext().hasErrors());
 
         // Get Body
         FuncDecl *F = *(AST->getFunctions().begin());
@@ -560,6 +576,7 @@ namespace {
                          "}\n");
         auto P = Parse("fbody.fly", str);
         auto AST = P->getAST();
+        ASSERT_FALSE(AST->getContext().hasErrors());
 
         // Get Body
         FuncDecl *F = *(AST->getFunctions().begin());
@@ -582,6 +599,8 @@ namespace {
         IncDecExpr *Expr2 = static_cast<IncDecExpr *>(static_cast<VarStmt *>(Stmt->getPost()->getContent()[1])->getExpr()->getGroup()[0]);
         EXPECT_EQ(Expr2->getIncDecKind(), IncDecOpKind::PRE_DECREMENT);
 
+        EXPECT_TRUE(Stmt->getLoop()->isEmpty());
+
         delete AST;
     }
 
@@ -592,6 +611,7 @@ namespace {
                          "}\n");
         auto P = Parse("fbody.fly", str);
         auto AST = P->getAST();
+        ASSERT_FALSE(AST->getContext().hasErrors());
 
         // Get Body
         FuncDecl *F = *(AST->getFunctions().begin());
@@ -601,6 +621,7 @@ namespace {
         EXPECT_TRUE(Stmt->getInit()->isEmpty());
         EXPECT_FALSE(Stmt->getCondition()->isEmpty());
         EXPECT_TRUE(Stmt->getPost()->isEmpty());
+        EXPECT_TRUE(Stmt->getLoop()->isEmpty());
 
         const GroupExpr *Cond = Stmt->getCondition();
         EXPECT_EQ(static_cast<VarRefExpr *>(Cond->getGroup()[0])->getVarRef()->getName(), "a");
@@ -617,6 +638,7 @@ namespace {
                          "}\n");
         auto P = Parse("fbody.fly", str);
         auto AST = P->getAST();
+        ASSERT_FALSE(AST->getContext().hasErrors());
 
         // Get Body
         FuncDecl *F = *(AST->getFunctions().begin());
@@ -626,6 +648,7 @@ namespace {
         EXPECT_TRUE(Stmt->getInit()->isEmpty());
         EXPECT_TRUE(Stmt->getCondition()->isEmpty());
         EXPECT_TRUE(Stmt->getPost()->isEmpty());
+        EXPECT_TRUE(Stmt->getLoop()->isEmpty());
 
         delete AST;
     }

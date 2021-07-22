@@ -8,19 +8,31 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#include "AST/Value.h"
+#include "AST/ASTValue.h"
 
 using namespace fly;
 
-fly::Value::Value(llvm::StringRef Str, TypeBase *Ty) : Loc(Loc), Str(Str), Ty(Ty) {
+ASTValue::ASTValue(const SourceLocation &Loc, llvm::StringRef Str, TypeBase *Ty) : Loc(Loc), Str(Str), Ty(Ty) {
 
 }
 
-const StringRef &Value::str() const {
+const StringRef &ASTValue::str() const {
     return Str;
 }
 
-TypeBase *Value::getType() const {
+TypeBase *ASTValue::getType() const {
     return Ty;
+}
+
+bool ASTValue::empty() const {
+    return Str.empty();
+}
+
+bool ASTValue::isFalse() const {
+    return Str.empty() || Str.equals("0") || Str.equals("false");
+}
+
+bool ASTValue::isTrue() const {
+    return !isFalse();
 }
 

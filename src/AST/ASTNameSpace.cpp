@@ -45,7 +45,7 @@ bool ASTNameSpace::addGlobalVar(GlobalVarDecl *Var) {
     return GlobalVars.insert(Pair).second;
 }
 
-const std::unordered_set<FuncDecl*, FuncDeclHash, FuncDeclComp> &ASTNameSpace::getFunctions() const {
+const std::unordered_set<FuncDecl*> &ASTNameSpace::getFunctions() const {
     return Functions;
 }
 
@@ -53,6 +53,7 @@ bool ASTNameSpace::addFunction(FuncDecl *Func) {
     if (Functions.insert(Func).second) {
         return addResolvedCall(FuncCall::CreateCall(Func));
     }
+
     return false;
 }
 
@@ -82,7 +83,9 @@ bool ASTNameSpace::addClass(ClassDecl *Class) {
 
 bool ASTNameSpace::Finalize() {
     for (auto *Function : Functions) {
-        Function->Finalize();
+        if (!Function->Finalize()) {
+            return false;
+        }
     }
-    return false;
+    return true;
 }

@@ -61,7 +61,8 @@ namespace fly {
         llvm::StringMap<VarDeclStmt *> DeclVars;
 
         // Order assigned when add a VarDeclStmt or when add VarStmt
-        unsigned long Order;
+        unsigned long Order = 0;
+
     public:
 
         BlockStmt(const SourceLocation &Loc, BlockStmt *Parent);
@@ -92,13 +93,13 @@ namespace fly {
 
         bool addCall(FuncCall *Invoke);
 
-        ReturnStmt *addReturn(const SourceLocation &Loc, GroupExpr *Expr);
+        bool addReturn(const SourceLocation &Loc, GroupExpr *Expr);
+
+        bool addBreak(const SourceLocation &Loc);
+
+        bool addContinue(const SourceLocation &Loc);
 
         DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID);
-
-        BreakStmt *addBreak(const SourceLocation &Loc);
-
-        ContinueStmt *addContinue(const SourceLocation &Loc);
     };
 
     class ConditionBlockStmt : public BlockStmt {

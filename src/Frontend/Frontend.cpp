@@ -21,12 +21,12 @@ Frontend::~Frontend() {
 
 bool Frontend::Execute() const {
     bool Success = true;
+    unsigned NInputs = 0;
 
     // Create Compiler Instance for each input file
     for (auto InputFile : CI.getFrontendOptions().getInputFiles()) {
         // Print file name and create instance for file compilation
 //        llvm::outs() << llvm::sys::path::filename(InputFile.getFile()) << "\n";
-        const SourceLocation &Loc = SourceLocation();
         FrontendAction *Action = new FrontendAction(CI, InputFile, Context);
         if (!Diags.hasErrorOccurred()) {
             Diags.getClient()->BeginSourceFile();
@@ -35,18 +35,22 @@ bool Frontend::Execute() const {
             Success &= Action->BuildASTNode();
 
             Diags.getClient()->EndSourceFile();
+            NInputs++;
         }
+
     }
-    Context->Finalize();
 
-    llvm::outs().flush();
+    if (Success && NInputs > 0) {
+        Context->Finalize();
 
-    if (Success) {
+        llvm::outs().flush();
         
         // Generate Backend Code
         CodeGen CG(Diags, CI.getCodeGenOptions(), CI.getTargetOptions(), *Context,
                    CI.getFrontendOptions().getBackendAction());
         return CG.Execute();
+    } else {
+        Diags.Report(SourceLocation(), diag::note_no_input_process);
     }
 
     return Success;

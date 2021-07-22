@@ -13,7 +13,10 @@
 using namespace fly;
 
 ForBlockStmt::ForBlockStmt(const SourceLocation &Loc, BlockStmt *Parent) : BlockStmt(Loc, Parent) {
-
+    Init = new BlockStmt(Loc, this);
+    Cond = new GroupExpr();
+    Post = new BlockStmt(Loc, Init);
+    Loop = new BlockStmt(Loc, Init);
 }
 
 enum BlockStmtKind ForBlockStmt::getBlockKind() const {
@@ -30,4 +33,8 @@ GroupExpr *ForBlockStmt::getCondition() {
 
 BlockStmt *ForBlockStmt::getPost() {
     return Post;
+}
+
+BlockStmt *ForBlockStmt::getLoop() {
+    return Loop;
 }

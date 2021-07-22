@@ -99,3 +99,7 @@ DiagnosticBuilder ASTContext::Diag(SourceLocation Loc, unsigned DiagID) const {
 ASTNameSpace *ASTContext::getDefaultNameSpace() const {
     return DefaultNS;
 }
+
+bool ASTContext::hasErrors() const {
+    return Diags.hasErrorOccurred();
+}

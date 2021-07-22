@@ -10,21 +10,22 @@
 
 #include "CodeGen/CodeGenGlobalVar.h"
 #include "CodeGen/CodeGen.h"
+#include "AST/ASTValue.h"
 
 using namespace fly;
 
-CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, const llvm::StringRef Name, const TypeBase *Ty,
-                                   llvm::StringRef StrVal, const bool isConstant) : CGM(CGM) {
+CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, const llvm::StringRef &Name, const TypeBase *Ty,
+                                   const ASTValue *Val, const bool isConstant) : CGM(CGM) {
     // Check Value
-    llvm::Constant *Val = nullptr;
+    llvm::Constant *Const = nullptr;
     llvm::Type *Typ;
-    if (StrVal.empty()) {
+    if (Val == nullptr || Val->empty()) {
         Typ = CGM->GenType(Ty);
     } else {
-        Val = CGM->GenValue(Ty, StrVal);
-        Typ = Val->getType();
+        Const = CGM->GenValue(Ty, Val);
+        Typ = Const->getType();
     }
-    GVar = new llvm::GlobalVariable(*CGM->Module, Typ, isConstant,GlobalValue::ExternalLinkage, Val, Name);
+    GVar = new llvm::GlobalVariable(*CGM->Module, Typ, isConstant,GlobalValue::ExternalLinkage, Const, Name);
 }
 
 GlobalVariable *CodeGenGlobalVar::getGlobalVar() const {

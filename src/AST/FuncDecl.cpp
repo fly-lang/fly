@@ -13,6 +13,7 @@
 #include "AST/BlockStmt.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTNode.h"
+#include "AST/ASTContext.h"
 #include <string>
 
 using namespace fly;
@@ -139,7 +140,7 @@ bool FuncDecl::operator==(const FuncDecl &F) const {
     return Result;
 }
 
-size_t FuncDeclHash::operator()(FuncDecl *Decl) const noexcept {
+size_t std::hash<FuncDecl *>::operator()(FuncDecl *Decl) const noexcept {
     size_t Hash = (std::hash<std::string>()(Decl->getName().str()));
     Hash ^= (std::hash<std::string>()(Decl->getNameSpace()->getNameSpace().str()));
     for (auto &Param : Decl->getHeader()->getParams()) {
@@ -148,7 +149,7 @@ size_t FuncDeclHash::operator()(FuncDecl *Decl) const noexcept {
     return Hash;
 }
 
-bool FuncDeclComp::operator()(const FuncDecl *C1, const FuncDecl *C2) const {
+bool std::equal_to<FuncDecl *>::operator()(const FuncDecl *C1, const FuncDecl *C2) const {
     bool Result = C1->getName().equals(C2->getName()) &&
                   C1->getNameSpace()->getNameSpace().equals(C2->getNameSpace()->getNameSpace()) &&
                   C1->getHeader()->getParams().size() == C2->getHeader()->getParams().size();
@@ -168,11 +169,15 @@ bool FuncDecl::Finalize() {
     for (const auto &UnRefGVar : UnRefGlobalVars) {
         const auto &NS = Node->findNameSpace(UnRefGVar->getNameSpace());
         if (!NS) {
-            assert("NameSpace not found");
+            getNode()->getContext().Diag(UnRefGVar->getLocation(), diag::err_namespace_notfound)
+                << NS->getNameSpace();
+            return false;
         }
         const auto &GVar = NS->getGlobalVars().find(UnRefGVar->getName());
         if (GVar == NS->getGlobalVars().end()) {
-            assert("Global Var reference not found");
+            getNode()->getContext().Diag(UnRefGVar->getLocation(), diag::err_gvar_notfound)
+                << UnRefGVar->getName();
+            return false;
         }
         UnRefGVar->setDecl((VarDecl *) GVar->getValue());
     }
@@ -197,10 +202,18 @@ bool FuncDecl::Finalize() {
             } else {
                 // Search into NameSpace
                 const ASTNameSpace *NS = Node->findNameSpace(UnRefCall->getNameSpace());
-                assert(NS && "Namespace not found"); // FIXME Error Message
+                if (NS == nullptr) {
+                    getNode()->getContext().Diag(UnRefCall->getLocation(), diag::err_namespace_notfound)
+                            << UnRefCall->getNameSpace();
+                    return false;
+                }
 
                 auto ItNS = NS->getResolvedCalls().find(UnRefCall->getName());
-                assert(ItNS != NS->getResolvedCalls().end() && "Unresolved Call"); // FIXME Error Message
+                if (ItNS == NS->getResolvedCalls().end()) {
+                    getNode()->getContext().Diag(UnRefCall->getLocation(), diag::err_func_notfound)
+                            << UnRefCall->getName();
+                    return false;
+                }
 
                 for (auto &ResolvedCall : ItNS->getValue()) {
                     if (ResolveCall(ResolvedCall, UnRefCall)) {

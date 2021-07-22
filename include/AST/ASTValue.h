@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/Value.h - Var declaration
+// include/AST/ASTValue.h - AST Value
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,15 +7,15 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_VALUE_H
-#define FLY_VALUE_H
+#ifndef FLY_ASTVALUE_H
+#define FLY_ASTVALUE_H
 
 #include <llvm/ADT/StringRef.h>
 #include "TypeBase.h"
 
 namespace fly {
 
-    class Value {
+    class ASTValue {
 
         const SourceLocation &Loc;
 
@@ -24,12 +24,18 @@ namespace fly {
         TypeBase *Ty;
 
     public:
-        Value(llvm::StringRef Str, TypeBase *Ty);
+        ASTValue(const SourceLocation &Loc, llvm::StringRef Str, TypeBase *Ty);
 
         const StringRef &str() const;
 
         TypeBase *getType() const;
+
+        bool empty() const;
+
+        bool isFalse() const;
+
+        bool isTrue() const;
     };
 }
 
-#endif //FLY_VALUE_H
+#endif //FLY_ASTVALUE_H
