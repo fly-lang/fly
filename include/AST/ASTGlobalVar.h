@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/GlobalVarDecl.h - Global Var declaration
+// include/AST/ASTGlobalVar.h - Global Var declaration
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -10,14 +10,14 @@
 #ifndef FLY_PACKAGEVAR_H
 #define FLY_PACKAGEVAR_H
 
-#include "TopDecl.h"
-#include "VarDecl.h"
+#include "ASTTopDecl.h"
+#include "ASTVar.h"
 
 namespace fly {
 
     class CodeGenGlobalVar;
 
-    class GlobalVarDecl : public VarDecl, public TopDecl {
+    class ASTGlobalVar : public ASTVar, public ASTTopDecl {
 
         friend class ASTNode;
         const TopDeclKind Kind;
@@ -25,7 +25,7 @@ namespace fly {
 
     public:
 
-        GlobalVarDecl(ASTNode *Node, SourceLocation &Loc, TypeBase *Type, const llvm::StringRef &Name);
+        ASTGlobalVar(ASTNode *Node, SourceLocation &Loc, ASTType *Type, const llvm::StringRef &Name);
 
         TopDeclKind getKind() const override;
 
@@ -33,7 +33,7 @@ namespace fly {
 
         void setCodeGen(CodeGenGlobalVar *codeGen);
 
-        ~GlobalVarDecl() = default;
+        ~ASTGlobalVar() = default;
     };
 }
 

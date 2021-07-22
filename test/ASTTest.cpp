@@ -10,11 +10,11 @@
 #include <Frontend/TextDiagnosticPrinter.h>
 #include <Basic/FileManager.h>
 #include <Basic/SourceManager.h>
-#include <AST/GlobalVarDecl.h>
+#include <AST/ASTGlobalVar.h>
 #include "AST/ASTNode.h"
 #include "AST/ASTContext.h"
 #include "AST/ASTNameSpace.h"
-#include "AST/GlobalVarDecl.h"
+#include "AST/ASTGlobalVar.h"
 #include "gtest/gtest.h"
 
 namespace {
@@ -65,7 +65,7 @@ namespace {
     TEST_F(ASTTest, SingleImport) {
         auto Node1 = NewASTNode("file1.fly");
         Node1->setNameSpace("packageA");
-        Node1->addImport(new ImportDecl(SourceLoc, "packageB"));
+        Node1->addImport(new ASTImport(SourceLoc, "packageB"));
         Node1->Finalize();
         ASSERT_EQ(Node1->getNameSpace()->getNameSpace(), "packageA");
         ASSERT_EQ(Context->getNameSpaces().lookup("packageB"), nullptr);
@@ -76,7 +76,7 @@ namespace {
 
         auto Node2 = NewASTNode("file2.fly");
         Node2->setNameSpace("packageB");
-        Node2->addImport(new ImportDecl(SourceLoc, "packageA"));
+        Node2->addImport(new ASTImport(SourceLoc, "packageA"));
         Node2->Finalize();
         ASSERT_EQ(Context->getNameSpaces().size(), 3); // Consider Default namespace
         EXPECT_TRUE(Node1->getImports().lookup("packageB")->getNameSpace() == nullptr);
@@ -95,8 +95,8 @@ namespace {
         Diags.getClient()->BeginSourceFile();
         auto Node1 = NewASTNode("file1.fly");
         Node1->setNameSpace("packageA");
-        Node1->addImport(new ImportDecl(SourceLoc, "packageB"));
-        Node1->addImport(new ImportDecl(SourceLoc, "packageB"));
+        Node1->addImport(new ASTImport(SourceLoc, "packageB"));
+        Node1->addImport(new ASTImport(SourceLoc, "packageB"));
         Node1->Finalize();
         Context->Finalize();
         Diags.getClient()->EndSourceFile();
@@ -108,12 +108,12 @@ namespace {
         auto Node1 = NewASTNode("file1.fly");
         const ASTNameSpace *NS = Node1->setNameSpace("packageA");
         SourceLocation &Loc = SourceLoc;
-        GlobalVarDecl *G1 = new GlobalVarDecl(Node1, Loc, new IntPrimType(Loc), "a");
+        ASTGlobalVar *G1 = new ASTGlobalVar(Node1, Loc, new IntPrimType(Loc), "a");
         G1->setVisibility(V_PRIVATE);
         Node1->addGlobalVar(G1);
-        GlobalVarDecl *G2 = new GlobalVarDecl(Node1, Loc, new FloatPrimType(Loc), "b"); // Default
+        ASTGlobalVar *G2 = new ASTGlobalVar(Node1, Loc, new FloatPrimType(Loc), "b"); // Default
         Node1->addGlobalVar(G2);
-        GlobalVarDecl *G3 = new GlobalVarDecl(Node1, Loc, new BoolPrimType(Loc), "c");
+        ASTGlobalVar *G3 = new ASTGlobalVar(Node1, Loc, new BoolPrimType(Loc), "c");
         G3->setVisibility(V_PUBLIC);
         Node1->addGlobalVar(G3);
         Node1->Finalize();

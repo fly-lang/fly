@@ -14,9 +14,10 @@
 #include "AST/ASTContext.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTNode.h"
-#include "AST/GlobalVarDecl.h"
-#include "AST/FuncDecl.h"
-#include "AST/ClassDecl.h"
+#include "AST/ASTGlobalVar.h"
+#include "AST/ASTFunc.h"
+#include "AST/ASTClass.h"
+#include "AST/ASTLocalVar.h"
 #include "llvm/ADT/StringMap.h"
 
 using namespace fly;
@@ -50,7 +51,7 @@ ASTNameSpace *ASTNode::findNameSpace(const StringRef &Name) {
         return NameSpace;
     } else {
         auto NS = Context->NameSpaces.find(Name);
-        return NS == Context->NameSpaces.end() ? NULL : NS->getValue();
+        return NS == Context->NameSpaces.end() ? nullptr : NS->getValue();
     }
 }
 
@@ -64,13 +65,13 @@ ASTNameSpace *ASTNode::setNameSpace(llvm::StringRef NS) {
     return NameSpace;
 }
 
-const llvm::StringMap<ImportDecl*> &ASTNode::getImports() {
+const llvm::StringMap<ASTImport*> &ASTNode::getImports() {
     return Imports;
 }
 
-bool ASTNode::addImport(ImportDecl * NewImport) {
+bool ASTNode::addImport(ASTImport * NewImport) {
     // Check if this Node already own this Import
-    ImportDecl* Import = Imports.lookup(NewImport->getName());
+    ASTImport* Import = Imports.lookup(NewImport->getName());
     if (Import != nullptr) {
         Context->Diag(NewImport->getLocation(), diag::err_duplicate_import)  << NewImport->getName();
         return false;
@@ -94,16 +95,16 @@ bool ASTNode::addImport(ImportDecl * NewImport) {
     return true;
 }
 
-const llvm::StringMap<GlobalVarDecl *> &ASTNode::getGlobalVars() {
+const llvm::StringMap<ASTGlobalVar *> &ASTNode::getGlobalVars() {
     return GlobalVars;
 }
 
-bool ASTNode::addGlobalVar(GlobalVarDecl *Var) {
+bool ASTNode::addGlobalVar(ASTGlobalVar *Var) {
     assert(Var->Visibility && "Function Visibility is unset");
 
     // Lookup into namespace for public var
     if(Var->Visibility == VisibilityKind::V_PUBLIC || Var->Visibility == VisibilityKind::V_DEFAULT) {
-        GlobalVarDecl *LookupVar = NameSpace->getGlobalVars().lookup(Var->getName());
+        ASTGlobalVar *LookupVar = NameSpace->getGlobalVars().lookup(Var->getName());
         if (LookupVar) {
             Context->Diag(LookupVar->getLocation(), diag::err_duplicate_gvar) << LookupVar->getName();
             return false;
@@ -114,7 +115,7 @@ bool ASTNode::addGlobalVar(GlobalVarDecl *Var) {
 
     // Lookup into node for private var
     if(Var->Visibility == VisibilityKind::V_PRIVATE) {
-        GlobalVarDecl *LookupVar = GlobalVars.lookup(Var->getName());
+        ASTGlobalVar *LookupVar = GlobalVars.lookup(Var->getName());
         if (LookupVar) {
             Context->Diag(LookupVar->getLocation(), diag::err_duplicate_gvar) << LookupVar->getName();
             return false;
@@ -126,10 +127,10 @@ bool ASTNode::addGlobalVar(GlobalVarDecl *Var) {
     assert(0 && "Error when adding GlobalVar");
 }
 
-bool ASTNode::addResolvedCall(FuncCall *Call) {
+bool ASTNode::addResolvedCall(ASTFuncCall *Call) {
     const auto &It = ResolvedCalls.find(Call->getName());
     if (It == ResolvedCalls.end()) {
-        std::vector<FuncCall *> Functions;
+        std::vector<ASTFuncCall *> Functions;
         Functions.push_back(Call);
         return ResolvedCalls.insert(std::make_pair(Call->getName(), Functions)).second;
     }
@@ -137,11 +138,11 @@ bool ASTNode::addResolvedCall(FuncCall *Call) {
     return true;
 }
 
-const llvm::StringMap<std::vector<FuncCall *>> &ASTNode::getResolvedCalls() const {
+const llvm::StringMap<std::vector<ASTFuncCall *>> &ASTNode::getResolvedCalls() const {
     return ResolvedCalls;
 }
 
-bool ASTNode::addFunction(FuncDecl *Func) {
+bool ASTNode::addFunction(ASTFunc *Func) {
     assert(Func->Visibility && "Function Visibility is unset");
 
     // Lookup into namespace for public var
@@ -171,7 +172,7 @@ bool ASTNode::addFunction(FuncDecl *Func) {
         }
 
         // Add into Node for local resolution
-        if (Functions.insert(Func).second && addResolvedCall(FuncCall::CreateCall(Func))) {
+        if (Functions.insert(Func).second && addResolvedCall(ASTFuncCall::CreateCall(Func))) {
             return true;
         }
 
@@ -182,13 +183,13 @@ bool ASTNode::addFunction(FuncDecl *Func) {
     assert(0 && "Error when adding Function");
 }
 
-const std::unordered_set<FuncDecl*> &ASTNode::getFunctions() const {
+const std::unordered_set<ASTFunc*> &ASTNode::getFunctions() const {
     return Functions;
 }
 
-bool ASTNode::addClass(ClassDecl *Class) {
+bool ASTNode::addClass(ASTClass *Class) {
     // Lookup into namespace
-    ClassDecl *LookupClass = NameSpace->getClasses().lookup(Class->getName());
+    ASTClass *LookupClass = NameSpace->getClasses().lookup(Class->getName());
     if (LookupClass) {
         Context->Diag(LookupClass->Location, diag::err_duplicate_class)  << LookupClass->getName();
         return false;
@@ -196,21 +197,21 @@ bool ASTNode::addClass(ClassDecl *Class) {
     return NameSpace->addClass(Class);
 }
 
-const llvm::StringMap<ClassDecl *> &ASTNode::getClasses() {
+const llvm::StringMap<ASTClass *> &ASTNode::getClasses() {
     return NameSpace->getClasses();
 }
 
-TypeBase *ASTNode::ResolveExprType(Expr *E) {
+ASTType *ASTNode::ResolveExprType(ASTExpr *E) {
     switch (E->getKind()) {
 
         case EXPR_VALUE:
-            return ((ValueExpr *) E)->getValue().getType();
+            return ((ASTValueExpr *) E)->getValue().getType();
         case EXPR_REF_VAR:
-            return ((VarRefExpr *) E)->getVarRef()->getDecl()->getType();
+            return ((ASTVarRefExpr *) E)->getVarRef()->getDecl()->getType();
         case EXPR_REF_FUNC:
-            return ((FuncCallExpr *) E)->getCall()->getDecl()->getType();
+            return ((ASTFuncCallExpr *) E)->getCall()->getDecl()->getType();
         case EXPR_GROUP:
-            return ResolveExprType(((GroupExpr *) E)->getGroup().at(0));
+            return ResolveExprType(((ASTGroupExpr *) E)->getGroup().at(0));
     }
     return nullptr;
 }

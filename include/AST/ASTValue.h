@@ -11,7 +11,7 @@
 #define FLY_ASTVALUE_H
 
 #include <llvm/ADT/StringRef.h>
-#include "TypeBase.h"
+#include "ASTType.h"
 
 namespace fly {
 
@@ -21,14 +21,14 @@ namespace fly {
 
         llvm::StringRef Str;
 
-        TypeBase *Ty;
+        ASTType *Ty;
 
     public:
-        ASTValue(const SourceLocation &Loc, llvm::StringRef Str, TypeBase *Ty);
+        ASTValue(const SourceLocation &Loc, llvm::StringRef Str, ASTType *Ty);
 
         const StringRef &str() const;
 
-        TypeBase *getType() const;
+        ASTType *getType() const;
 
         bool empty() const;
 

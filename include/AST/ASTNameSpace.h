@@ -11,7 +11,7 @@
 #ifndef FLY_ASTNAMESPACE_H
 #define FLY_ASTNAMESPACE_H
 
-#include "AST/FuncDecl.h"
+#include "AST/ASTFunc.h"
 #include "llvm/ADT/StringMap.h"
 #include <unordered_set>
 
@@ -19,8 +19,8 @@ namespace fly {
 
     class ASTNode;
     class ASTContext;
-    class GlobalVarDecl;
-    class ClassDecl;
+    class ASTGlobalVar;
+    class ASTClass;
 
     class ASTNameSpace {
 
@@ -32,16 +32,16 @@ namespace fly {
         llvm::StringMap<ASTNode *> Nodes;
 
         // Public & Default Global Vars
-        llvm::StringMap<GlobalVarDecl *> GlobalVars;
+        llvm::StringMap<ASTGlobalVar *> GlobalVars;
 
         // Public & Default Functions
-        std::unordered_set<FuncDecl*> Functions;
+        std::unordered_set<ASTFunc*> Functions;
 
         // Calls into NameSpace resolution
-        llvm::StringMap<std::vector<FuncCall *>> ResolvedCalls;
+        llvm::StringMap<std::vector<ASTFuncCall *>> ResolvedCalls;
 
         // Public Classes
-        llvm::StringMap<ClassDecl *> Classes;
+        llvm::StringMap<ASTClass *> Classes;
 
     public:
         ASTNameSpace(const llvm::StringRef &NS);
@@ -54,17 +54,17 @@ namespace fly {
 
         const llvm::StringMap<ASTNode *> &getNodes() const;
 
-        const llvm::StringMap<GlobalVarDecl *> &getGlobalVars() const;
-        bool addGlobalVar(GlobalVarDecl *GVar);
+        const llvm::StringMap<ASTGlobalVar *> &getGlobalVars() const;
+        bool addGlobalVar(ASTGlobalVar *GVar);
 
-        const std::unordered_set<FuncDecl*> &getFunctions() const;
-        bool addFunction(FuncDecl *Func);
+        const std::unordered_set<ASTFunc*> &getFunctions() const;
+        bool addFunction(ASTFunc *Func);
 
-        const llvm::StringMap<std::vector<FuncCall *>> &getResolvedCalls() const;
-        bool addResolvedCall(FuncCall *Call);
+        const llvm::StringMap<std::vector<ASTFuncCall *>> &getResolvedCalls() const;
+        bool addResolvedCall(ASTFuncCall *Call);
 
-        const llvm::StringMap<ClassDecl *> &getClasses() const;
-        bool addClass(ClassDecl *Class);
+        const llvm::StringMap<ASTClass *> &getClasses() const;
+        bool addClass(ASTClass *Class);
 
         bool Finalize();
     };

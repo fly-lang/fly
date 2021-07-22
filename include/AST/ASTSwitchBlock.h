@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/SwitchBlockStmt.cpp - For Block Statements
+// src/AST/SwitchBlock.h - For Block Statements
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,28 +7,28 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_SWITCHBLOCKSTMT_H
-#define FLY_SWITCHBLOCKSTMT_H
+#ifndef FLY_ASTSWITCHBLOCK_H
+#define FLY_ASTSWITCHBLOCK_H
 
 
-#include "BlockStmt.h"
+#include "ASTBlock.h"
 
 namespace fly {
 
     class CaseBlockStmt;
     class DefaultBlockStmt;
 
-    class SwitchBlockStmt : public BlockStmt {
+    class ASTSwitchBlock : public ASTBlock {
 
         enum BlockStmtKind StmtKind = BlockStmtKind::BLOCK_STMT_SWITCH;
-        const VarRef *Var;
+        const ASTVarRef *Var;
         std::vector<CaseBlockStmt *> Cases;
         DefaultBlockStmt *Default;
 
     public:
-        SwitchBlockStmt(const SourceLocation &Loc, BlockStmt *Parent, VarRef *Var);
+        ASTSwitchBlock(const SourceLocation &Loc, ASTBlock *Parent, ASTVarRef *Var);
 
-        CaseBlockStmt * AddCase(const SourceLocation &Loc, Expr *Value);
+        CaseBlockStmt * AddCase(const SourceLocation &Loc, ASTExpr *Value);
         DefaultBlockStmt * AddDefault(const SourceLocation &Loc);
 
         enum BlockStmtKind getBlockKind() const override;
@@ -38,29 +38,29 @@ namespace fly {
         DefaultBlockStmt *getDefault();
     };
 
-    class CaseBlockStmt : public BlockStmt{
+    class CaseBlockStmt : public ASTBlock{
 
         enum BlockStmtKind StmtKind = BlockStmtKind::BLOCK_STMT_CASE;
-        Expr *Exp;
+        ASTExpr *Exp;
 
     public:
-        CaseBlockStmt(const SourceLocation &Loc, SwitchBlockStmt *Switch, Expr *Value);
+        CaseBlockStmt(const SourceLocation &Loc, ASTSwitchBlock *Switch, ASTExpr *Value);
 
-        Expr *getExpr();
+        ASTExpr *getExpr();
 
         enum BlockStmtKind getBlockKind() const override;
     };
 
-    class DefaultBlockStmt : public BlockStmt{
+    class DefaultBlockStmt : public ASTBlock{
 
         enum BlockStmtKind StmtKind = BlockStmtKind::BLOCK_STMT_DEFAULT;
 
     public:
-        DefaultBlockStmt(const SourceLocation &Loc, SwitchBlockStmt *Switch);
+        DefaultBlockStmt(const SourceLocation &Loc, ASTSwitchBlock *Switch);
 
         enum BlockStmtKind getBlockKind() const override;
     };
 }
 
 
-#endif //FLY_SWITCHBLOCKSTMT_H
+#endif //FLY_ASTSWITCHBLOCK_H

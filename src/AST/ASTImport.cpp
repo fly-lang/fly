@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ImportDecl.cpp - AST Namespace implementation
+// src/AST/ASTImport.cpp - AST Namespace implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -12,35 +12,35 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#include "AST/ImportDecl.h"
+#include "AST/ASTImport.h"
 
 using namespace fly;
 
-ImportDecl::ImportDecl(const SourceLocation &Loc, llvm::StringRef Name) : Location(Loc), Name(Name), Alias(Name) {}
+ASTImport::ASTImport(const SourceLocation &Loc, llvm::StringRef Name) : Location(Loc), Name(Name), Alias(Name) {}
 
-ImportDecl::ImportDecl(const SourceLocation &Loc, llvm::StringRef Name, llvm::StringRef Alias) : Location(Loc), Name(Name),
-                                                                                     Alias(Alias) {}
+ASTImport::ASTImport(const SourceLocation &Loc, llvm::StringRef Name, llvm::StringRef Alias) : Location(Loc), Name(Name),
+                                                                                               Alias(Alias) {}
 
-ImportDecl::~ImportDecl() {
+ASTImport::~ASTImport() {
     NameSpace = nullptr;
 }
 
-const llvm::StringRef &ImportDecl::getName() const {
+const llvm::StringRef &ASTImport::getName() const {
     return Name;
 }
 
-const llvm::StringRef &ImportDecl::getAlias() const {
+const llvm::StringRef &ASTImport::getAlias() const {
     return Alias;
 }
 
-ASTNameSpace *ImportDecl::getNameSpace() const {
+ASTNameSpace *ASTImport::getNameSpace() const {
     return NameSpace;
 }
 
-void ImportDecl::setNameSpace(ASTNameSpace *NS) {
+void ASTImport::setNameSpace(ASTNameSpace *NS) {
     NameSpace = NS;
 }
 
-const SourceLocation &ImportDecl::getLocation() const {
+const SourceLocation &ASTImport::getLocation() const {
     return Location;
 }

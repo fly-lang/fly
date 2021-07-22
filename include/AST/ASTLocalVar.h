@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// include/AST/VarDeclStmt.h - Variable declaration statement
+// include/AST/ASTLocalVar.h - AST Local Variable statement
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,22 +7,22 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_VARDECLSTMT_H
-#define FLY_VARDECLSTMT_H
+#ifndef FLY_ASTLOCALVAR_H
+#define FLY_ASTLOCALVAR_H
 
-#include "Stmt.h"
-#include "VarDecl.h"
+#include "ASTStmt.h"
+#include "ASTVar.h"
 
 namespace fly {
 
     class CodeGenVar;
 
     /**
-     * Var Declaration
+     * Local Var Declaration
      * Ex.
      *  int a = 1
      */
-    class VarDeclStmt : public VarDecl, public Stmt {
+    class ASTLocalVar : public ASTVar, public ASTStmt {
 
         friend class Parser;
         friend class GlobalVarParser;
@@ -34,7 +34,7 @@ namespace fly {
         CodeGenVar *CodeGen;
 
     public:
-        VarDeclStmt(const SourceLocation &Loc, BlockStmt *Block, TypeBase *Type, const llvm::StringRef &Name);
+        ASTLocalVar(const SourceLocation &Loc, ASTBlock *Block, ASTType *Type, const llvm::StringRef &Name);
 
         StmtKind getKind() const;
 
@@ -46,6 +46,26 @@ namespace fly {
 
         void setCodeGen(CodeGenVar *CG);
     };
+
+    /**
+     * Assign somethings to a Local Var
+     * Ex.
+     *  a = 1
+     */
+    class ASTLocalVarStmt : public ASTVarRef, public ASTStmt {
+
+        ASTGroupExpr *Expr;
+
+    public:
+        ASTLocalVarStmt(const SourceLocation &Loc, ASTBlock *Block, const llvm::StringRef &Name,
+                        const llvm::StringRef &NameSpace = "");
+
+        StmtKind getKind() const override;
+
+        ASTGroupExpr *getExpr() const;
+
+        void setExpr(ASTGroupExpr *E);
+    };
 }
 
-#endif //FLY_VARDECLSTMT_H
+#endif //FLY_ASTLOCALVAR_H

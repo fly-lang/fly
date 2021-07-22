@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ClassDecl.cpp - Class implementation
+// src/AST/ASTClass.cpp - Class implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,10 +7,10 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "AST/ClassDecl.h"
+#include "AST/ASTClass.h"
 
 using namespace fly;
 
-const llvm::StringRef &ClassDecl::getName() const {
+const llvm::StringRef &ASTClass::getName() const {
     return Name;
 }

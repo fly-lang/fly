@@ -11,7 +11,7 @@
 #ifndef FLY_CODEGENFUNCTION_H
 #define FLY_CODEGENFUNCTION_H
 
-#include "AST/FuncDecl.h"
+#include "AST/ASTFunc.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/IR/Function.h"
 
@@ -26,11 +26,11 @@ namespace fly {
         llvm::StringRef Name;
         llvm::BasicBlock *Entry;
 
-        llvm::FunctionType *GenFuncType(const TypeBase *RetTyData, const FuncHeader *Params);
+        llvm::FunctionType *GenFuncType(const ASTType *RetTyData, const ASTFuncHeader *Params);
 
     public:
-        CodeGenFunction(CodeGenModule *CGM, const llvm::StringRef FName, const TypeBase *FType,
-                        const FuncHeader *FParams, const BlockStmt *FBody);
+        CodeGenFunction(CodeGenModule *CGM, const llvm::StringRef FName, const ASTType *FType,
+                        const ASTFuncHeader *FParams, const ASTBlock *FBody);
 
         const llvm::StringRef &getName() const;
 

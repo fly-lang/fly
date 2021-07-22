@@ -10,14 +10,14 @@
 #include "CodeGen/CodeGenFunction.h"
 #include "CodeGen/CodeGenVar.h"
 #include "CodeGen/CodeGen.h"
-#include "AST/VarDeclStmt.h"
-#include "AST/BlockStmt.h"
+#include "AST/ASTLocalVar.h"
+#include "AST/ASTBlock.h"
 #include "llvm/IR/DerivedTypes.h"
 
 using namespace fly;
 
-CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, const llvm::StringRef FName, const TypeBase *FType,
-                                 const FuncHeader *FParams, const BlockStmt *FBody) : CGM(CGM) {
+CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, const llvm::StringRef FName, const ASTType *FType,
+                                 const ASTFuncHeader *FParams, const ASTBlock *FBody) : CGM(CGM) {
     llvm::FunctionType *FnTy = GenFuncType(FType, FParams);
 
     // Create Function
@@ -55,7 +55,7 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, const llvm::StringRef FName
     }
 }
 
-llvm::FunctionType *CodeGenFunction::GenFuncType(const TypeBase *RetTyData, const FuncHeader *Params) {
+llvm::FunctionType *CodeGenFunction::GenFuncType(const ASTType *RetTyData, const ASTFuncHeader *Params) {
     if (Params->getParams().empty()) {
         // Create empty Function Type
         return llvm::FunctionType::get(CGM->GenType(RetTyData), Params->getVarArg() != nullptr);

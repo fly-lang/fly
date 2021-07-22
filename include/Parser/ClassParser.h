@@ -13,7 +13,7 @@
 
 #include "Parser.h"
 #include "Lex/Token.h"
-#include "AST/ClassDecl.h"
+#include "AST/ASTClass.h"
 
 namespace fly {
 
@@ -24,7 +24,7 @@ namespace fly {
         friend class Parser;
 
         Parser *P;
-        ClassDecl *Class = NULL;
+        ASTClass *Class = NULL;
 
     public:
         ClassParser(Parser *P);

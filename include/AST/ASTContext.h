@@ -13,7 +13,7 @@
 
 #include <Basic/SourceLocation.h>
 #include <Basic/Diagnostic.h>
-#include "ImportDecl.h"
+#include "ASTImport.h"
 #include "llvm/ADT/StringMap.h"
 
 namespace fly {
@@ -37,7 +37,7 @@ namespace fly {
         llvm::StringMap<ASTNameSpace *> NameSpaces;
 
         // All Files: <FileName, FileId>
-        llvm::StringMap<ImportDecl *> Imports;
+        llvm::StringMap<ASTImport *> Imports;
 
     public:
         ASTContext(DiagnosticsEngine &Diags);

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/TopDecl.h - Abstract Top declaration
+// include/AST/ASTTopDecl.h - Abstract Top declaration
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,8 +8,8 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#ifndef FLY_TOPDECL_H
-#define FLY_TOPDECL_H
+#ifndef FLY_ASTTOPDECL_H
+#define FLY_ASTTOPDECL_H
 
 #include "Basic/SourceLocation.h"
 
@@ -32,7 +32,7 @@ namespace fly {
         V_PRIVATE = 3
     };
 
-    class TopDecl {
+    class ASTTopDecl {
 
         friend class ASTNode;
         friend class Parser;
@@ -43,7 +43,7 @@ namespace fly {
         VisibilityKind Visibility = V_DEFAULT;
 
     public:
-        TopDecl(ASTNode *Node, const SourceLocation &Loc);
+        ASTTopDecl(ASTNode *Node, const SourceLocation &Loc);
 
         ASTNode *getNode();
 
@@ -60,4 +60,4 @@ namespace fly {
     };
 }
 
-#endif //FLY_TOPDECL_H
+#endif //FLY_ASTTOPDECL_H

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/Stmt.h - Abstract Statement
+// include/AST/ASTStmt.h - AST Statement
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,17 +8,16 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#ifndef FLY_STMT_H
-#define FLY_STMT_H
+#ifndef FLY_ASTSTMT_H
+#define FLY_ASTSTMT_H
 
 #include "Basic/SourceLocation.h"
 
 namespace fly {
 
-    class ASTNode; // Pre-declare
-
     enum StmtKind {
         STMT_BLOCK,
+        STMT_EXPR,
         STMT_FUNC_CALL,
         STMT_VAR_DECL,
         STMT_VAR_ASSIGN,
@@ -28,32 +27,47 @@ namespace fly {
         STMT_RETURN
     };
 
-    class BlockStmt;
-    class FuncDecl;
+    class ASTExpr;
+    class ASTBlock;
+    class ASTFunc;
 
-    class Stmt {
+    class ASTStmt {
 
         const SourceLocation Location;
 
     protected:
-        FuncDecl *Top;
+        ASTFunc *Top;
 
-        const BlockStmt *Parent;
+        const ASTBlock *Parent;
 
     public:
-        Stmt(const SourceLocation &Loc, BlockStmt *Parent);
+        ASTStmt(const SourceLocation &Loc, ASTBlock *Parent);
 
-        Stmt(const SourceLocation &Loc, FuncDecl *Top, BlockStmt *Parent);
+        ASTStmt(const SourceLocation &Loc, ASTFunc *Top, ASTBlock *Parent);
 
         const SourceLocation &getLocation() const;
 
         virtual StmtKind getKind() const = 0;
 
-        FuncDecl *getTop() const;
+        ASTFunc *getTop() const;
 
-        const BlockStmt *getParent() const;
+        const ASTBlock *getParent() const;
+    };
+
+    class ASTExprStmt : ASTStmt {
+
+        ASTExpr *Expr = nullptr;
+
+    public:
+        ASTExprStmt(const SourceLocation &Loc, ASTBlock *Block);
+
+        StmtKind getKind() const override;
+
+        ASTExpr *getExpr() const;
+
+        void setExpr(ASTExpr *E);
     };
 }
 
 
-#endif //FLY_STMT_H
+#endif //FLY_ASTSTMT_H

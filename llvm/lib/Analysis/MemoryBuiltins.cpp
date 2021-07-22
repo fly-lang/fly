@@ -356,7 +356,7 @@ static Value *computeArraySize(const CallInst *CI, const DataLayout &DL,
     ElementSize = DL.getStructLayout(ST)->getSizeInBytes();
 
   // If malloc call's arg can be determined to be a multiple of ElementSize,
-  // return the multiple.  Otherwise, return NULL.
+  // return the multiple.  Otherwise, return nullptr.
   Value *MallocArg = CI->getArgOperand(0);
   Value *Multiple = nullptr;
   if (ComputeMultiple(MallocArg, ElementSize, Multiple, LookThroughSExt))

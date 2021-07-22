@@ -29,15 +29,15 @@ namespace fly {
     class ASTContext;
     class ASTNode;
     class ASTValue;
-    class GlobalVarDecl;
-    class FuncDecl;
-    class FuncCall;
-    class TypeBase;
+    class ASTGlobalVar;
+    class ASTFunc;
+    class ASTFuncCall;
+    class ASTType;
     class CodeGenGlobalVar;
     class CodeGenFunction;
     class CodeGenCall;
-    class Stmt;
-    class GroupExpr;
+    class ASTStmt;
+    class ASTGroupExpr;
 
     class CodeGenModule : public CodeGenTypeCache {
 
@@ -55,7 +55,7 @@ namespace fly {
         llvm::IRBuilder<> *Builder;
         // CGDebugInfo *DebugInfo; // TODO
 
-        void GenTypeValue(const TypeBase *TyData, llvm::Type *&Ty, llvm::Constant *&Const, ASTValue *Val);
+        void GenTypeValue(const ASTType *TyData, llvm::Type *&Ty, llvm::Constant *&Const, ASTValue *Val);
 
     public:
         CodeGenModule(DiagnosticsEngine &Diags, ASTNode &Node, LLVMContext &LLVMCtx, TargetInfo &Target,
@@ -69,19 +69,19 @@ namespace fly {
 
         bool Generate();
 
-        CodeGenGlobalVar *GenGlobalVar(GlobalVarDecl *VDecl);
+        CodeGenGlobalVar *GenGlobalVar(ASTGlobalVar *VDecl);
 
-        CodeGenFunction *GenFunction(FuncDecl *FDecl);
+        CodeGenFunction *GenFunction(ASTFunc *FDecl);
 
-        CallInst *GenCall(FuncCall *Call);
+        CallInst *GenCall(ASTFuncCall *Call);
 
-        Type *GenType(const TypeBase *TyData);
+        Type *GenType(const ASTType *TyData);
 
-        llvm::Constant *GenValue(const TypeBase *TyData, const ASTValue *Val);
+        llvm::Constant *GenValue(const ASTType *TyData, const ASTValue *Val);
 
-        void GenStmt(Stmt * S);
+        void GenStmt(ASTStmt * S);
 
-        llvm::Value *GenExpr(const TypeBase *Typ, GroupExpr *pExpr);
+        llvm::Value *GenExpr(const ASTType *Typ, ASTGroupExpr *pExpr);
     };
 }
 

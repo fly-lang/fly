@@ -4,26 +4,26 @@
 
 #include "Parser/GlobalVarParser.h"
 #include "AST/ASTNameSpace.h"
-#include "AST/Stmt.h"
+#include "AST/ASTStmt.h"
 
 using namespace fly;
 
-GlobalVarParser::GlobalVarParser(Parser *P, TypeBase *TyDecl, const StringRef &VarName,
+GlobalVarParser::GlobalVarParser(Parser *P, ASTType *TyDecl, const StringRef &VarName,
                                  SourceLocation &VarNameLoc) :
         P(P), TyDecl(TyDecl), Name(VarName), Location(VarNameLoc) {
 }
 
 bool GlobalVarParser::Parse() {
 
-    Var = new GlobalVarDecl(P->AST, Location, TyDecl, Name);
+    Var = new ASTGlobalVar(P->AST, Location, TyDecl, Name);
 
     // Parsing =
     if (P->Tok.is(tok::equal)) {
         P->ConsumeToken();
 
-        ValueExpr *Ex = P->ParseValueExpr();
+        ASTValueExpr *Ex = P->ParseValueExpr();
         if (Ex) {
-            Var->Expression = new GroupExpr();
+            Var->Expression = new ASTGroupExpr();
             Var->Expression->Add(Ex);
         }
     }
@@ -31,10 +31,10 @@ bool GlobalVarParser::Parse() {
     return true;
 }
 
-GlobalVarDecl *GlobalVarParser::getVar() const {
+ASTGlobalVar *GlobalVarParser::getVar() const {
     return Var;
 }
 
-Expr *GlobalVarParser::getVal() const {
+ASTExpr *GlobalVarParser::getVal() const {
     return Val;
 }

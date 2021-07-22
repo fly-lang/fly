@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ForBlockStmt.h - For Block Statement
+// include/AST/ASTForBlock.h - AST For Block Statement
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,39 +8,39 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#ifndef FLY_FORBLOCKSTMT_H
-#define FLY_FORBLOCKSTMT_H
+#ifndef FLY_ASTFORBLOCK_H
+#define FLY_ASTFORBLOCK_H
 
-#include "BlockStmt.h"
+#include "ASTBlock.h"
 
 namespace fly {
 
-    class ForBlockStmt : public BlockStmt {
+    class ASTForBlock : public ASTBlock {
 
         friend class Parser;
 
         enum BlockStmtKind StmtKind = BlockStmtKind::BLOCK_STMT_FOR;
 
-        BlockStmt *Init;
-        GroupExpr *Cond;
-        BlockStmt *Post;
-        BlockStmt *Loop;
+        ASTBlock *Init;
+        ASTGroupExpr *Cond;
+        ASTBlock *Post;
+        ASTBlock *Loop;
 
     public:
-        ForBlockStmt(const SourceLocation &Loc, BlockStmt *Parent);
+        ASTForBlock(const SourceLocation &Loc, ASTBlock *Parent);
 
         enum BlockStmtKind getBlockKind() const override;
 
-        BlockStmt *getInit();
+        ASTBlock *getInit();
 
-        GroupExpr *getCondition();
+        ASTGroupExpr *getCondition();
 
-        BlockStmt *getPost();
+        ASTBlock *getPost();
 
-        BlockStmt *getLoop();
+        ASTBlock *getLoop();
 
     };
 }
 
 
-#endif //FLY_FORBLOCKSTMT_H
+#endif //FLY_ASTFORBLOCK_H

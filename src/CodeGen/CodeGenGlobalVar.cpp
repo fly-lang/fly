@@ -14,7 +14,7 @@
 
 using namespace fly;
 
-CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, const llvm::StringRef &Name, const TypeBase *Ty,
+CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, const llvm::StringRef &Name, const ASTType *Ty,
                                    const ASTValue *Val, const bool isConstant) : CGM(CGM) {
     // Check Value
     llvm::Constant *Const = nullptr;

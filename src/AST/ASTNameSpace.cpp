@@ -13,9 +13,9 @@
 
 
 #include "AST/ASTNameSpace.h"
-#include "AST/FuncDecl.h"
-#include "AST/GlobalVarDecl.h"
-#include "AST/ClassDecl.h"
+#include "AST/ASTFunc.h"
+#include "AST/ASTGlobalVar.h"
+#include "AST/ASTClass.h"
 
 using namespace fly;
 
@@ -36,35 +36,35 @@ const llvm::StringMap<ASTNode*> &ASTNameSpace::getNodes() const {
     return Nodes;
 }
 
-const llvm::StringMap<GlobalVarDecl *> &ASTNameSpace::getGlobalVars() const {
+const llvm::StringMap<ASTGlobalVar *> &ASTNameSpace::getGlobalVars() const {
     return GlobalVars;
 }
 
-bool ASTNameSpace::addGlobalVar(GlobalVarDecl *Var) {
+bool ASTNameSpace::addGlobalVar(ASTGlobalVar *Var) {
     auto Pair = std::make_pair(Var->getName(), Var);
     return GlobalVars.insert(Pair).second;
 }
 
-const std::unordered_set<FuncDecl*> &ASTNameSpace::getFunctions() const {
+const std::unordered_set<ASTFunc*> &ASTNameSpace::getFunctions() const {
     return Functions;
 }
 
-bool ASTNameSpace::addFunction(FuncDecl *Func) {
+bool ASTNameSpace::addFunction(ASTFunc *Func) {
     if (Functions.insert(Func).second) {
-        return addResolvedCall(FuncCall::CreateCall(Func));
+        return addResolvedCall(ASTFuncCall::CreateCall(Func));
     }
 
     return false;
 }
 
-const llvm::StringMap<std::vector<FuncCall *>> &ASTNameSpace::getResolvedCalls() const {
+const llvm::StringMap<std::vector<ASTFuncCall *>> &ASTNameSpace::getResolvedCalls() const {
     return ResolvedCalls;
 }
 
-bool ASTNameSpace::addResolvedCall(FuncCall *Call) {
+bool ASTNameSpace::addResolvedCall(ASTFuncCall *Call) {
     const auto &It = ResolvedCalls.find(Call->getName());
     if (It == ResolvedCalls.end()) {
-        std::vector<FuncCall *> Functions;
+        std::vector<ASTFuncCall *> Functions;
         Functions.push_back(Call);
         return ResolvedCalls.insert(std::make_pair(Call->getName(), Functions)).second;
     }
@@ -72,11 +72,11 @@ bool ASTNameSpace::addResolvedCall(FuncCall *Call) {
     return true;
 }
 
-const llvm::StringMap<ClassDecl *> &ASTNameSpace::getClasses() const {
+const llvm::StringMap<ASTClass *> &ASTNameSpace::getClasses() const {
     return Classes;
 }
 
-bool ASTNameSpace::addClass(ClassDecl *Class) {
+bool ASTNameSpace::addClass(ASTClass *Class) {
     auto Pair = std::make_pair(Class->getName(), Class);
     return Classes.insert(Pair).second;
 }

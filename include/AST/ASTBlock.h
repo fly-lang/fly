@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/BlockStmt.h - Block Statement
+// include/AST/ASTBlock.h - Block Statement
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,23 +8,23 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#ifndef FLY_BLOCKSTMT_H
-#define FLY_BLOCKSTMT_H
+#ifndef FLY_ASTBLOCK_H
+#define FLY_ASTBLOCK_H
 
 #include "Basic/Diagnostic.h"
-#include "Stmt.h"
-#include "VarDecl.h"
+#include "ASTStmt.h"
+#include "ASTVar.h"
 #include "llvm/ADT/StringMap.h"
 #include <vector>
 
 namespace fly {
 
-    class ReturnStmt;
-    class FuncCall;
-    class FuncCallStmt;
-    class VarDeclStmt;
-    class VarStmt;
-    class GroupExpr;
+    class ASTReturn;
+    class ASTFuncCall;
+    class ASTFuncCallStmt;
+    class ASTLocalVar;
+    class ASTLocalVarStmt;
+    class ASTGroupExpr;
     class BreakStmt;
     class ContinueStmt;
 
@@ -39,14 +39,14 @@ namespace fly {
         BLOCK_STMT_FOR
     };
 
-    class BlockStmt : public Stmt {
+    class ASTBlock : public ASTStmt {
 
         friend class Parser;
         friend class FunctionParser;
-        friend class IfBlockStmt;
+        friend class ASTIfBlock;
         friend class ElsifBlockStmt;
         friend class ElseBlockStmt;
-        friend class FuncDecl;
+        friend class ASTFunc;
 
         // Kind of Stmt identified by enum
         StmtKind Kind = StmtKind::STMT_BLOCK;
@@ -55,19 +55,19 @@ namespace fly {
         BlockStmtKind BlockKind = BlockStmtKind::BLOCK_STMT;
 
         // List of Statements of the Block
-        std::vector<Stmt *> Content;
+        std::vector<ASTStmt *> Content;
 
         // Contains all vars declared in this Block
-        llvm::StringMap<VarDeclStmt *> DeclVars;
+        llvm::StringMap<ASTLocalVar *> DeclVars;
 
         // Order assigned when add a VarDeclStmt or when add VarStmt
         unsigned long Order = 0;
 
     public:
 
-        BlockStmt(const SourceLocation &Loc, BlockStmt *Parent);
+        ASTBlock(const SourceLocation &Loc, ASTBlock *Parent);
 
-        BlockStmt(const SourceLocation &Loc, FuncDecl *Top, BlockStmt *Parent);
+        ASTBlock(const SourceLocation &Loc, ASTFunc *Top, ASTBlock *Parent);
 
         StmtKind getKind() const override;
 
@@ -75,25 +75,25 @@ namespace fly {
             return BlockKind;
         };
 
-        const std::vector<Stmt *> &getContent() const;
+        const std::vector<ASTStmt *> &getContent() const;
 
         bool isEmpty() const;
 
-        const llvm::StringMap<VarDeclStmt *> &getDeclVars() const;
+        const llvm::StringMap<ASTLocalVar *> &getDeclVars() const;
 
-        VarDeclStmt *findVarDecl(const BlockStmt *Block, VarRef *Var);
+        ASTLocalVar *findVarDecl(const ASTBlock *Block, ASTVarRef *Var);
 
-        bool ResolveVarRef(VarRef *Var);
+        bool ResolveVarRef(ASTVarRef *Var);
 
-        bool ResolveExpr(Expr *E);
+        bool ResolveExpr(ASTExpr *E);
 
-        bool addVar(VarStmt *Var);
+        bool addVar(ASTLocalVarStmt *Var);
 
-        bool addVar(VarDeclStmt *Var);
+        bool addVar(ASTLocalVar *Var);
 
-        bool addCall(FuncCall *Invoke);
+        bool addCall(ASTFuncCall *Invoke);
 
-        bool addReturn(const SourceLocation &Loc, GroupExpr *Expr);
+        bool addReturn(const SourceLocation &Loc, ASTGroupExpr *Expr);
 
         bool addBreak(const SourceLocation &Loc);
 
@@ -102,38 +102,38 @@ namespace fly {
         DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID);
     };
 
-    class ConditionBlockStmt : public BlockStmt {
+    class ConditionBlockStmt : public ASTBlock {
 
     public:
-        ConditionBlockStmt(const SourceLocation &Loc, BlockStmt *Parent);
+        ConditionBlockStmt(const SourceLocation &Loc, ASTBlock *Parent);
     };
 
-    class LoopBlockStmt : public BlockStmt {
+    class LoopBlockStmt : public ASTBlock {
 
     public:
-        LoopBlockStmt(const SourceLocation &Loc, BlockStmt *Parent);
+        LoopBlockStmt(const SourceLocation &Loc, ASTBlock *Parent);
     };
 
-    class BreakStmt : public Stmt {
+    class BreakStmt : public ASTStmt {
 
         StmtKind Kind = StmtKind::STMT_BREAK;
 
     public:
-        BreakStmt(const SourceLocation &Loc, BlockStmt *Parent);
+        BreakStmt(const SourceLocation &Loc, ASTBlock *Parent);
 
         StmtKind getKind() const override;
     };
 
-    class ContinueStmt : public Stmt {
+    class ContinueStmt : public ASTStmt {
 
         StmtKind Kind = StmtKind::STMT_CONTINUE;
 
     public:
-        ContinueStmt(const SourceLocation &Loc, BlockStmt *Parent);
+        ContinueStmt(const SourceLocation &Loc, ASTBlock *Parent);
 
         StmtKind getKind() const override;
     };
 }
 
 
-#endif //FLY_BLOCKSTMT_H
+#endif //FLY_ASTBLOCK_H

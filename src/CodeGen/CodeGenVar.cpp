@@ -10,21 +10,21 @@
 
 #include "CodeGen/CodeGenVar.h"
 #include "CodeGen/CodeGen.h"
-#include "AST/VarDeclStmt.h"
-#include "AST/FuncDecl.h"
+#include "AST/ASTLocalVar.h"
+#include "AST/ASTFunc.h"
 #include "llvm/IR/Value.h"
 
 using namespace fly;
 
-CodeGenVar::CodeGenVar(CodeGenModule *CGM, VarDeclStmt *S) : CGM(CGM), Constant(S->isConstant()) {
-    const TypeBase *Tyb = S->getType();
+CodeGenVar::CodeGenVar(CodeGenModule *CGM, ASTLocalVar *S) : CGM(CGM), Constant(S->isConstant()) {
+    const ASTType *Tyb = S->getType();
     Type *Ty = CGM->GenType(Tyb);
     AllocaI = CGM->Builder->CreateAlloca(Ty);
     AllocaI->getAllocatedType();
 }
 
-CodeGenVar::CodeGenVar(CodeGenModule *CGM, FuncParam *P) : CGM(CGM), Constant(P->isConstant()) {
-    const TypeBase *Tyb = P->getType();
+CodeGenVar::CodeGenVar(CodeGenModule *CGM, ASTFuncParam *P) : CGM(CGM), Constant(P->isConstant()) {
+    const ASTType *Tyb = P->getType();
     Type *Ty = CGM->GenType(Tyb);
     AllocaI = CGM->Builder->CreateAlloca(Ty);
     AllocaI->getAllocatedType();

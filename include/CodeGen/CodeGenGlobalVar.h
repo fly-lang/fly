@@ -11,7 +11,7 @@
 #ifndef FLY_CODEGENGLOBALVAR_H
 #define FLY_CODEGENGLOBALVAR_H
 
-#include "AST/TypeBase.h"
+#include "AST/ASTType.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/ADT/StringRef.h"
 #include <llvm/IR/Instructions.h>
@@ -30,7 +30,7 @@ namespace fly {
         bool needLoad;
 
     public:
-        CodeGenGlobalVar(CodeGenModule *CGM, const llvm::StringRef &Name, const TypeBase *Ty, const ASTValue *Val,
+        CodeGenGlobalVar(CodeGenModule *CGM, const llvm::StringRef &Name, const ASTType *Ty, const ASTValue *Val,
                          const bool isConstant);
 
         llvm::GlobalVariable *getGlobalVar() const;

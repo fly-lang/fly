@@ -13,11 +13,11 @@
 #include "CodeGen/CodeGenFunction.h"
 #include "AST/ASTNode.h"
 #include "AST/ASTNameSpace.h"
-#include "AST/GlobalVarDecl.h"
-#include "AST/FuncDecl.h"
-#include "AST/VarDecl.h"
-#include "AST/VarDeclStmt.h"
-#include "AST/BlockStmt.h"
+#include "AST/ASTGlobalVar.h"
+#include "AST/ASTFunc.h"
+#include "AST/ASTVar.h"
+#include "AST/ASTLocalVar.h"
+#include "AST/ASTBlock.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/DiagnosticOptions.h"
 #include "Basic/FileManager.h"
@@ -208,7 +208,7 @@ namespace {
 
         ASTContext *Ctx = new ASTContext(Diags);
         ASTNode *Node = createAST(testFile, Ctx);
-        GlobalVarDecl *Var = new GlobalVarDecl(Node, SourceLoc, new IntPrimType(SourceLoc), "a");
+        ASTGlobalVar *Var = new ASTGlobalVar(Node, SourceLoc, new IntPrimType(SourceLoc), "a");
         Node->addGlobalVar(Var);
 
         llvm::InitializeAllTargets();
@@ -239,15 +239,15 @@ namespace {
         ASTContext *Ctx = new ASTContext(Diags);
         ASTNode *Node = createAST(testFile, Ctx);
         
-        FuncDecl *MainFn = new FuncDecl(Node, SourceLoc, new IntPrimType(SourceLoc),
-                                        "main");
+        ASTFunc *MainFn = new ASTFunc(Node, SourceLoc, new IntPrimType(SourceLoc),
+                                      "main");
         MainFn->addParam(SourceLoc, new IntPrimType(SourceLoc), "P1");
         MainFn->addParam(SourceLoc, new FloatPrimType(SourceLoc), "P2");
         MainFn->addParam(SourceLoc, new BoolPrimType(SourceLoc), "P3");
         Node->addFunction(MainFn);
         
-        GroupExpr *Exp = new GroupExpr();
-        Exp->Add(new ValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new IntPrimType(SourceLoc))));
+        ASTGroupExpr *Exp = new ASTGroupExpr();
+        Exp->Add(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new IntPrimType(SourceLoc))));
         MainFn->getBody()->addReturn(SourceLoc, Exp);
 
         CodeGenOptions CodeGenOpts;
@@ -284,32 +284,32 @@ namespace {
         ASTContext *Ctx = new ASTContext(Diags);
         ASTNode *Node = createAST(testFile, Ctx);
 
-        GlobalVarDecl *GVar = new GlobalVarDecl(Node, SourceLoc, new FloatPrimType(SourceLoc), "G");
+        ASTGlobalVar *GVar = new ASTGlobalVar(Node, SourceLoc, new FloatPrimType(SourceLoc), "G");
         Node->addGlobalVar(GVar);
 
-        FuncDecl *MainFn = new FuncDecl(Node, SourceLoc, new IntPrimType(SourceLoc), "main");
+        ASTFunc *MainFn = new ASTFunc(Node, SourceLoc, new IntPrimType(SourceLoc), "main");
         Node->addFunction(MainFn);
 
         // int A
-        VarDeclStmt *VarA = new VarDeclStmt(SourceLoc, MainFn->getBody(), new IntPrimType(SourceLoc), "A");
+        ASTLocalVar *VarA = new ASTLocalVar(SourceLoc, MainFn->getBody(), new IntPrimType(SourceLoc), "A");
         MainFn->getBody()->addVar(VarA);
 
         // A = 1
-        VarStmt * VStmt = new VarStmt(SourceLoc, MainFn->getBody(), VarA->getName());
-        GroupExpr *Gr = new GroupExpr();
-        Gr->Add(new ValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new IntPrimType(SourceLoc))));
+        ASTLocalVarStmt * VStmt = new ASTLocalVarStmt(SourceLoc, MainFn->getBody(), VarA->getName());
+        ASTGroupExpr *Gr = new ASTGroupExpr();
+        Gr->Add(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new IntPrimType(SourceLoc))));
         VStmt->setExpr(Gr);
         MainFn->getBody()->addVar(VStmt);
 
         // GlobalVar
         // G = 1
-        VarStmt * GStmt = new VarStmt(SourceLoc, MainFn->getBody(), GVar->getName(), "default");
+        ASTLocalVarStmt * GStmt = new ASTLocalVarStmt(SourceLoc, MainFn->getBody(), GVar->getName(), "default");
         GStmt->setExpr(Gr);
         MainFn->getBody()->addVar(GStmt);
 
         // return A
-        GroupExpr *Exp = new GroupExpr();
-        Exp->Add(new VarRefExpr(SourceLoc, new VarRef(SourceLoc, VarA->getName())));
+        ASTGroupExpr *Exp = new ASTGroupExpr();
+        Exp->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(SourceLoc, VarA->getName())));
         MainFn->getBody()->addReturn(SourceLoc, Exp);
 
         Node->Finalize();
@@ -348,21 +348,21 @@ namespace {
         ASTNode *Node = createAST(testFile, Ctx);
 
         // main()
-        FuncDecl *MainFn = new FuncDecl(Node, SourceLoc, new IntPrimType(SourceLoc), "main");
+        ASTFunc *MainFn = new ASTFunc(Node, SourceLoc, new IntPrimType(SourceLoc), "main");
         Node->addFunction(MainFn);
 
         // test()
-        FuncDecl *TestFn = new FuncDecl(Node, SourceLoc, new IntPrimType(SourceLoc), "test");
+        ASTFunc *TestFn = new ASTFunc(Node, SourceLoc, new IntPrimType(SourceLoc), "test");
         TestFn->setVisibility(V_PRIVATE);
         Node->addFunction(TestFn);
 
-        FuncCall *TestCall = new FuncCall(SourceLoc, Ctx->getDefaultNameSpace()->getNameSpace(), TestFn->getName());
+        ASTFuncCall *TestCall = new ASTFuncCall(SourceLoc, Ctx->getDefaultNameSpace()->getNameSpace(), TestFn->getName());
 //        TestCall->addArg(new ValueExpr(SourceLoc, "1"));
         // call test()
         MainFn->getBody()->addCall(TestCall);
         //return test()
-        GroupExpr *Exp = new GroupExpr();
-        Exp->Add(new FuncCallExpr(SourceLoc, TestCall));
+        ASTGroupExpr *Exp = new ASTGroupExpr();
+        Exp->Add(new ASTFuncCallExpr(SourceLoc, TestCall));
         MainFn->getBody()->addReturn(SourceLoc, Exp);
         // Finalize Context for Resolutions of Call and Ref
         Node->Finalize();

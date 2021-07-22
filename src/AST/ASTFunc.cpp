@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/FuncDecl.cpp - Function implementation
+// src/AST/ASTFunc.cpp - Function implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,10 +7,10 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "AST/FuncDecl.h"
-#include "AST/VarDeclStmt.h"
-#include "AST/Stmt.h"
-#include "AST/BlockStmt.h"
+#include "AST/ASTFunc.h"
+#include "AST/ASTLocalVar.h"
+#include "AST/ASTStmt.h"
+#include "AST/ASTBlock.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTNode.h"
 #include "AST/ASTContext.h"
@@ -18,70 +18,70 @@
 
 using namespace fly;
 
-FuncDecl::FuncDecl(ASTNode *Node, const SourceLocation &Loc, TypeBase *RetType, const llvm::StringRef &Name) :
-    Kind(TopDeclKind::DECL_FUNCTION), TopDecl(Node, Loc), Type(RetType), Name(Name), Header(new FuncHeader),
-                   Body(new BlockStmt(Loc, this, NULL)) {}
+ASTFunc::ASTFunc(ASTNode *Node, const SourceLocation &Loc, ASTType *RetType, const llvm::StringRef &Name) :
+        Kind(TopDeclKind::DECL_FUNCTION), ASTTopDecl(Node, Loc), Type(RetType), Name(Name), Header(new ASTFuncHeader),
+        Body(new ASTBlock(Loc, this, nullptr)) {}
 
-TopDeclKind FuncDecl::getKind() const {
+TopDeclKind ASTFunc::getKind() const {
 return Kind;
 }
 
-const llvm::StringRef &FuncDecl::getName() const {
+const llvm::StringRef &ASTFunc::getName() const {
     return Name;
 }
 
-bool FuncDecl::isConstant() const {
+bool ASTFunc::isConstant() const {
     return Constant;
 }
 
-BlockStmt *FuncDecl::getBody() {
+ASTBlock *ASTFunc::getBody() {
     return Body;
 }
 
-const std::vector<FuncCall *> &FuncDecl::getUnRefCalls() const {
+const std::vector<ASTFuncCall *> &ASTFunc::getUnRefCalls() const {
     return UnRefCalls;
 }
 
-const FuncHeader *FuncDecl::getHeader() const {
+const ASTFuncHeader *ASTFunc::getHeader() const {
     return Header;
 }
 
-TypeBase *FuncDecl::getType() const {
+ASTType *ASTFunc::getType() const {
     return Type;
 }
 
-CodeGenFunction *FuncDecl::getCodeGen() const {
+CodeGenFunction *ASTFunc::getCodeGen() const {
     return CodeGen;
 }
 
-void FuncDecl::setCodeGen(CodeGenFunction *CGF) {
+void ASTFunc::setCodeGen(CodeGenFunction *CGF) {
     CodeGen = CGF;
 }
 
-FuncParam *FuncDecl::addParam(const SourceLocation &Loc, TypeBase *Type, const StringRef &Name) {
-    FuncParam *VDecl = new FuncParam(Loc, Type, Name);
+ASTFuncParam *ASTFunc::addParam(const SourceLocation &Loc, ASTType *Type, const StringRef &Name) {
+    ASTFuncParam *VDecl = new ASTFuncParam(Loc, Type, Name);
     Header->Params.push_back(VDecl);
     return VDecl;
 }
 
-bool FuncDecl::isVarArg() {
-    return Header->VarArg != NULL;
+bool ASTFunc::isVarArg() {
+    return Header->VarArg != nullptr;
 }
 
-void FuncDecl::setVarArg(FuncParam* VarArg) {
+void ASTFunc::setVarArg(ASTFuncParam* VarArg) {
     Header->VarArg = VarArg;
 }
 
-bool FuncDecl::addUnRefCall(FuncCall *Call) {
+bool ASTFunc::addUnRefCall(ASTFuncCall *Call) {
     UnRefCalls.push_back(Call);
     return true;
 }
 
-void FuncDecl::addUnRefGlobalVar(VarRef *Var) {
+void ASTFunc::addUnRefGlobalVar(ASTVarRef *Var) {
     UnRefGlobalVars.push_back(Var);
 }
 
-bool FuncDecl::ResolveCall(FuncCall *ResolvedCall, FuncCall *Call) {
+bool ASTFunc::ResolveCall(ASTFuncCall *ResolvedCall, ASTFuncCall *Call) {
     const auto &Params = ResolvedCall->getDecl()->getHeader()->getParams();
     const bool isVarArg = ResolvedCall->getDecl()->isVarArg();
     const auto &Args = Call->getArgs();
@@ -110,9 +110,9 @@ bool FuncDecl::ResolveCall(FuncCall *ResolvedCall, FuncCall *Call) {
                 }
             }
         } else {
-            FuncArg *Arg = Args[i];
-            if (Arg->getType() == NULL) {
-                TypeBase *Ty = ASTNode::ResolveExprType(Arg->getValue());
+            ASTFuncArg *Arg = Args[i];
+            if (Arg->getType() == nullptr) {
+                ASTType *Ty = ASTNode::ResolveExprType(Arg->getValue());
                 Arg->setType(Ty);
             }
 
@@ -126,7 +126,7 @@ bool FuncDecl::ResolveCall(FuncCall *ResolvedCall, FuncCall *Call) {
     return true;
 }
 
-bool FuncDecl::operator==(const FuncDecl &F) const {
+bool ASTFunc::operator==(const ASTFunc &F) const {
     bool Result = this->getName().equals(F.getName()) &&
             this->getNameSpace()->getNameSpace().equals(F.getNameSpace()->getNameSpace()) &&
             this->getHeader()->getParams().size() == F.getHeader()->getParams().size();
@@ -140,7 +140,7 @@ bool FuncDecl::operator==(const FuncDecl &F) const {
     return Result;
 }
 
-size_t std::hash<FuncDecl *>::operator()(FuncDecl *Decl) const noexcept {
+size_t std::hash<ASTFunc *>::operator()(ASTFunc *Decl) const noexcept {
     size_t Hash = (std::hash<std::string>()(Decl->getName().str()));
     Hash ^= (std::hash<std::string>()(Decl->getNameSpace()->getNameSpace().str()));
     for (auto &Param : Decl->getHeader()->getParams()) {
@@ -149,7 +149,7 @@ size_t std::hash<FuncDecl *>::operator()(FuncDecl *Decl) const noexcept {
     return Hash;
 }
 
-bool std::equal_to<FuncDecl *>::operator()(const FuncDecl *C1, const FuncDecl *C2) const {
+bool std::equal_to<ASTFunc *>::operator()(const ASTFunc *C1, const ASTFunc *C2) const {
     bool Result = C1->getName().equals(C2->getName()) &&
                   C1->getNameSpace()->getNameSpace().equals(C2->getNameSpace()->getNameSpace()) &&
                   C1->getHeader()->getParams().size() == C2->getHeader()->getParams().size();
@@ -163,7 +163,7 @@ bool std::equal_to<FuncDecl *>::operator()(const FuncDecl *C1, const FuncDecl *C
     return Result;
 }
 
-bool FuncDecl::Finalize() {
+bool ASTFunc::Finalize() {
 
     // Resolve RefGlobalVars with GlobalVars of the NameSpace
     for (const auto &UnRefGVar : UnRefGlobalVars) {
@@ -179,7 +179,7 @@ bool FuncDecl::Finalize() {
                 << UnRefGVar->getName();
             return false;
         }
-        UnRefGVar->setDecl((VarDecl *) GVar->getValue());
+        UnRefGVar->setDecl((ASTVar *) GVar->getValue());
     }
 
     // Resolve Calls with FuncDecl by searching into ResolvedCalls
@@ -226,119 +226,119 @@ bool FuncDecl::Finalize() {
     return true;
 }
 
-FuncParam::FuncParam(const SourceLocation &Loc, TypeBase *Type, const llvm::StringRef &Name) :
-        VarDecl(Type, Name), Location(Loc) {
+ASTFuncParam::ASTFuncParam(const SourceLocation &Loc, ASTType *Type, const llvm::StringRef &Name) :
+        ASTVar(Type, Name), Location(Loc) {
 
 }
 
-CodeGenVar *FuncParam::getCodeGen() const {
+CodeGenVar *ASTFuncParam::getCodeGen() const {
     return CodeGen;
 }
 
-void FuncParam::setCodeGen(CodeGenVar *CG) {
+void ASTFuncParam::setCodeGen(CodeGenVar *CG) {
     CodeGen = CG;
 }
 
-const std::vector<FuncParam *> &FuncHeader::getParams() const {
+const std::vector<ASTFuncParam *> &ASTFuncHeader::getParams() const {
     return Params;
 }
 
-const FuncParam *FuncHeader::getVarArg() const {
+const ASTFuncParam *ASTFuncHeader::getVarArg() const {
     return VarArg;
 }
 
-ReturnStmt::ReturnStmt(const SourceLocation &Loc, BlockStmt *Block, Expr *Exp) : Stmt(Loc, Block),
+ASTReturn::ASTReturn(const SourceLocation &Loc, ASTBlock *Block, ASTExpr *Exp) : ASTStmt(Loc, Block),
                                                                                  Ty(Block->getTop()->getType()),
                                                                                  Exp(Exp) {}
 
-Expr *ReturnStmt::getExpr() const {
+ASTExpr *ASTReturn::getExpr() const {
     return Exp;
 }
 
-StmtKind ReturnStmt::getKind() const {
+StmtKind ASTReturn::getKind() const {
     return Kind;
 }
 
-FuncCall::FuncCall(const SourceLocation &Loc, const StringRef &NameSpace, const StringRef &Name) :
+ASTFuncCall::ASTFuncCall(const SourceLocation &Loc, const StringRef &NameSpace, const StringRef &Name) :
     Loc(Loc), NameSpace(NameSpace), Name(Name) {
 
 }
 
-const SourceLocation &FuncCall::getLocation() const {
+const SourceLocation &ASTFuncCall::getLocation() const {
     return Loc;
 }
 
-const llvm::StringRef &FuncCall::getName() const {
+const llvm::StringRef &ASTFuncCall::getName() const {
     return Name;
 }
 
-const std::vector<FuncArg*> FuncCall::getArgs() const {
+const std::vector<ASTFuncArg*> ASTFuncCall::getArgs() const {
     return Args;
 }
 
-FuncDecl *FuncCall::getDecl() const {
+ASTFunc *ASTFuncCall::getDecl() const {
     return Decl;
 }
 
-void FuncCall::setDecl(FuncDecl *FDecl) {
+void ASTFuncCall::setDecl(ASTFunc *FDecl) {
     Decl = FDecl;
 }
 
-CodeGenCall *FuncCall::getCodeGen() const {
+CodeGenCall *ASTFuncCall::getCodeGen() const {
     return CGC;
 }
 
-void FuncCall::setCodeGen(CodeGenCall *CGC) {
+void ASTFuncCall::setCodeGen(CodeGenCall *CGC) {
     CGC = CGC;
 }
 
-FuncArg *FuncCall::addArg(FuncArg *Arg) {
+ASTFuncArg *ASTFuncCall::addArg(ASTFuncArg *Arg) {
     Args.push_back(Arg);
     return Arg;
 }
 
-const StringRef &FuncCall::getNameSpace() const {
+const StringRef &ASTFuncCall::getNameSpace() const {
     return NameSpace;
 }
 
-void FuncCall::setNameSpace(const llvm::StringRef &NS) {
+void ASTFuncCall::setNameSpace(const llvm::StringRef &NS) {
     NameSpace = NS;
 }
 
-FuncCall *FuncCall::CreateCall(FuncDecl *FDecl) {
-    FuncCall *FCall = new FuncCall(SourceLocation(), FDecl->getNameSpace()->getNameSpace(), FDecl->getName());
+ASTFuncCall *ASTFuncCall::CreateCall(ASTFunc *FDecl) {
+    ASTFuncCall *FCall = new ASTFuncCall(SourceLocation(), FDecl->getNameSpace()->getNameSpace(), FDecl->getName());
     FCall->setDecl(FDecl);
     for (auto &Param : FDecl->getHeader()->getParams()) {
-        FCall->addArg(new FuncArg(NULL, Param->getType()));
+        FCall->addArg(new ASTFuncArg(nullptr, Param->getType()));
     }
     return FCall;
 }
 
-FuncCallStmt::FuncCallStmt(const SourceLocation &Loc, BlockStmt *Block, FuncCall *Call) :
-    Stmt(Loc, Block), Call(Call) {
+ASTFuncCallStmt::ASTFuncCallStmt(const SourceLocation &Loc, ASTBlock *Block, ASTFuncCall *Call) :
+    ASTStmt(Loc, Block), Call(Call) {
 
 }
 
-StmtKind FuncCallStmt::getKind() const {
+StmtKind ASTFuncCallStmt::getKind() const {
     return STMT_FUNC_CALL;
 }
 
-FuncCall *FuncCallStmt::getCall() const {
+ASTFuncCall *ASTFuncCallStmt::getCall() const {
     return Call;
 }
 
-FuncArg::FuncArg(Expr *Value, TypeBase *Ty) : Value(Value), Ty(Ty) {
+ASTFuncArg::ASTFuncArg(ASTExpr *Value, ASTType *Ty) : Value(Value), Ty(Ty) {
 
 }
 
-Expr *FuncArg::getValue() const {
+ASTExpr *ASTFuncArg::getValue() const {
     return Value;
 }
 
-TypeBase *FuncArg::getType() const {
+ASTType *ASTFuncArg::getType() const {
     return Ty;
 }
 
-void FuncArg::setType(TypeBase *T) {
+void ASTFuncArg::setType(ASTType *T) {
     Ty = T;
 }

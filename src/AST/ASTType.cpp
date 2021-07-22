@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// include/AST/Type.h - Type implementation
+// include/AST/ASTType.cpp - Type implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,21 +8,21 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#include "AST/TypeBase.h"
+#include "AST/ASTType.h"
 
 using namespace fly;
 
-TypeBase::TypeBase(SourceLocation Loc) : Loc(Loc) {}
+ASTType::ASTType(SourceLocation Loc) : Loc(Loc) {}
 
-const SourceLocation &TypeBase::getLocation() const  {
+const SourceLocation &ASTType::getLocation() const  {
     return Loc;
 }
 
-bool TypeBase::equals(TypeBase *Ty) const {
+bool ASTType::equals(ASTType *Ty) const {
     return this->getKind() == Ty->getKind();
 }
 
-IntPrimType::IntPrimType(SourceLocation Loc)  : TypeBase(Loc) {
+IntPrimType::IntPrimType(SourceLocation Loc)  : ASTType(Loc) {
 
 }
 
@@ -30,7 +30,7 @@ const TypeKind &IntPrimType::getKind() const {
     return Kind;
 }
 
-FloatPrimType::FloatPrimType(SourceLocation Loc) : TypeBase(Loc) {
+FloatPrimType::FloatPrimType(SourceLocation Loc) : ASTType(Loc) {
 
 }
 
@@ -38,7 +38,7 @@ const TypeKind &FloatPrimType::getKind() const {
     return Kind;
 }
 
-BoolPrimType::BoolPrimType(SourceLocation Loc) : TypeBase(Loc) {
+BoolPrimType::BoolPrimType(SourceLocation Loc) : ASTType(Loc) {
 
 }
 
@@ -46,7 +46,7 @@ const TypeKind &BoolPrimType::getKind() const  {
     return Kind;
 }
 
-VoidRetType::VoidRetType(SourceLocation Loc) : TypeBase(Loc) {
+VoidRetType::VoidRetType(SourceLocation Loc) : ASTType(Loc) {
 
 }
 
@@ -54,7 +54,7 @@ const TypeKind &VoidRetType::getKind() const {
     return Kind;
 }
 
-ClassTypeRef::ClassTypeRef(SourceLocation Loc, StringRef &Name)  : TypeBase(Loc), Name(Name) {
+ClassTypeRef::ClassTypeRef(SourceLocation Loc, StringRef &Name)  : ASTType(Loc), Name(Name) {
 
 }
 

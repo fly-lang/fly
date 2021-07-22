@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/OperatorExpr.h - Expression for operations
+// include/AST/ASTOperatorExpr.h - Expression for operations
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,10 +7,10 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_OPERATOREXPR_H
-#define FLY_OPERATOREXPR_H
+#ifndef FLY_ASTOPERATOREXPR_H
+#define FLY_ASTOPERATOREXPR_H
 
-#include "Expr.h"
+#include "ASTExpr.h"
 
 namespace fly {
 
@@ -69,13 +69,13 @@ namespace fly {
         COND_ELSE
     };
 
-    class OperatorExpr : public Expr {
+    class ASTOperatorExpr : public ASTExpr {
 
         const SourceLocation &Loc;
         const ExprKind Kind = ExprKind::EXPR_OPERATOR;
 
     public:
-        explicit OperatorExpr(const SourceLocation &Loc) : Loc(Loc) {}
+        explicit ASTOperatorExpr(const SourceLocation &Loc) : Loc(Loc) {}
 
         const SourceLocation &getLocation() const {
             return Loc;
@@ -88,13 +88,13 @@ namespace fly {
         virtual OpKind getOpKind() = 0;
     };
 
-    class ArithExpr : public OperatorExpr {
+    class ArithExpr : public ASTOperatorExpr {
 
         const OpKind OperatorKind = OpKind::OP_ARITH;
         const ArithOpKind ArithKind;
 
     public:
-        ArithExpr(const SourceLocation Loc, const ArithOpKind &AKind) : OperatorExpr(Loc), ArithKind(AKind) {}
+        ArithExpr(const SourceLocation Loc, const ArithOpKind &AKind) : ASTOperatorExpr(Loc), ArithKind(AKind) {}
 
         OpKind getOpKind() override {
             return OperatorKind;
@@ -106,13 +106,13 @@ namespace fly {
 
     };
 
-    class BitExpr : public OperatorExpr {
+    class BitExpr : public ASTOperatorExpr {
 
         const OpKind OperatorKind = OpKind::OP_BIT;
         const BitOpKind BitKind;
 
     public:
-        BitExpr(const SourceLocation Loc, const BitOpKind &BKind) : OperatorExpr(Loc), BitKind(BKind) {}
+        BitExpr(const SourceLocation Loc, const BitOpKind &BKind) : ASTOperatorExpr(Loc), BitKind(BKind) {}
 
         OpKind getOpKind() {
             return OperatorKind;
@@ -123,13 +123,13 @@ namespace fly {
         }
     };
 
-    class BoolExpr : public OperatorExpr {
+    class BoolExpr : public ASTOperatorExpr {
 
         const OpKind OperatorKind = OpKind::OP_BOOL;
         const BoolOpKind BoolKind;
 
     public:
-        BoolExpr(const SourceLocation Loc, const BoolOpKind &BKind) : OperatorExpr(Loc), BoolKind(BKind) {}
+        BoolExpr(const SourceLocation Loc, const BoolOpKind &BKind) : ASTOperatorExpr(Loc), BoolKind(BKind) {}
 
         OpKind getOpKind() {
             return OperatorKind;
@@ -140,13 +140,13 @@ namespace fly {
         }
     };
 
-    class LogicExpr : public OperatorExpr {
+    class LogicExpr : public ASTOperatorExpr {
 
         const OpKind OperatorKind = OpKind::OP_LOGIC;
         const LogicOpKind LogicKind;
 
     public:
-        LogicExpr(const SourceLocation Loc, const LogicOpKind &LKind) : OperatorExpr(Loc), LogicKind(LKind) {}
+        LogicExpr(const SourceLocation Loc, const LogicOpKind &LKind) : ASTOperatorExpr(Loc), LogicKind(LKind) {}
 
         OpKind getOpKind() {
             return OperatorKind;
@@ -157,12 +157,12 @@ namespace fly {
         }
     };
 
-    class IncDecExpr : public OperatorExpr {
+    class IncDecExpr : public ASTOperatorExpr {
         const OpKind OperatorKind = OpKind::OP_INCDEC;
         const IncDecOpKind IncDecKind;
 
     public:
-        IncDecExpr(const SourceLocation Loc, const IncDecOpKind &Kind) : OperatorExpr(Loc), IncDecKind(Kind) {}
+        IncDecExpr(const SourceLocation Loc, const IncDecOpKind &Kind) : ASTOperatorExpr(Loc), IncDecKind(Kind) {}
 
         OpKind getOpKind() {
             return OperatorKind;
@@ -173,13 +173,13 @@ namespace fly {
         }
     };
 
-    class CondExpr : public OperatorExpr {
+    class CondExpr : public ASTOperatorExpr {
 
         const OpKind OperatorKind = OpKind::OP_COND;
         const CondOpKind CondKind;
 
     public:
-        CondExpr(const SourceLocation Loc, const CondOpKind &CondKind) : OperatorExpr(Loc), CondKind(CondKind) {}
+        CondExpr(const SourceLocation Loc, const CondOpKind &CondKind) : ASTOperatorExpr(Loc), CondKind(CondKind) {}
 
         OpKind getOpKind() {
             return OperatorKind;
@@ -192,4 +192,4 @@ namespace fly {
 }
 
 
-#endif //FLY_OPERATOREXPR_H
+#endif //FLY_ASTOPERATOREXPR_H

@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// include/AST/TypeBase.h - Base Type
+// include/AST/ASTType.h - AST Type
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,8 +8,8 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#ifndef FLY_TYPEBASE_H
-#define FLY_TYPEBASE_H
+#ifndef FLY_ASTTYPE_H
+#define FLY_ASTTYPE_H
 
 #include "Basic/SourceLocation.h"
 #include "llvm/ADT/StringRef.h"
@@ -27,10 +27,10 @@ namespace fly {
     /**
      * Abstract Base Type
      */
-    class TypeBase {
+    class ASTType {
 
     protected:
-        TypeBase(SourceLocation Loc);
+        ASTType(SourceLocation Loc);
         const SourceLocation Loc;
 
     public:
@@ -38,17 +38,17 @@ namespace fly {
 
         const SourceLocation &getLocation() const;
 
-        virtual ~TypeBase() = default;
+        virtual ~ASTType() = default;
 
         virtual std::string str() const = 0;
 
-        virtual bool equals(TypeBase *Ty) const;
+        virtual bool equals(ASTType *Ty) const;
     };
 
     /**
      * Int Type
      */
-    class IntPrimType : public TypeBase {
+    class IntPrimType : public ASTType {
 
         const TypeKind Kind = TypeKind::TYPE_INT;
 
@@ -65,7 +65,7 @@ namespace fly {
     /**
      * Float Type
      */
-    class FloatPrimType : public TypeBase {
+    class FloatPrimType : public ASTType {
 
         const TypeKind Kind = TypeKind::TYPE_FLOAT;
 
@@ -82,7 +82,7 @@ namespace fly {
     /**
      * Boolean Type
      */
-    class BoolPrimType : public TypeBase {
+    class BoolPrimType : public ASTType {
 
         const TypeKind Kind = TypeKind::TYPE_BOOL;
 
@@ -99,7 +99,7 @@ namespace fly {
     /**
      * Void Type
      */
-    class VoidRetType : public TypeBase {
+    class VoidRetType : public ASTType {
 
         const TypeKind Kind = TypeKind::TYPE_VOID;
 
@@ -116,7 +116,7 @@ namespace fly {
     /**
      * Custom Type
      */
-    class ClassTypeRef : public TypeBase {
+    class ClassTypeRef : public ASTType {
 
         const TypeKind Kind = TypeKind::TYPE_CLASS;
         const llvm::StringRef Name;
@@ -136,4 +136,4 @@ namespace fly {
     };
 }
 
-#endif //FLY_TYPEBASE_H
+#endif //FLY_ASTTYPE_H

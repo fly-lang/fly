@@ -12,13 +12,13 @@ FunctionParser::FunctionParser(Parser *P, const StringRef &FuncName, SourceLocat
 
 }
 
-bool FunctionParser::ParseCall(BlockStmt *Block, llvm::StringRef NameSpace) {
-    Call = new FuncCall(FuncNameLoc, NameSpace, FuncName);
+bool FunctionParser::ParseCall(ASTBlock *Block, llvm::StringRef NameSpace) {
+    Call = new ASTFuncCall(FuncNameLoc, NameSpace, FuncName);
     return ParseArgs(Block);
 }
 
-bool FunctionParser::ParseDecl(TypeBase *TyDecl) {
-    Function = new FuncDecl(P->AST, FuncNameLoc, TyDecl, FuncName);
+bool FunctionParser::ParseDecl(ASTType *TyDecl) {
+    Function = new ASTFunc(P->AST, FuncNameLoc, TyDecl, FuncName);
     if (ParseParams()) {
         return ParseBody();
     }
@@ -56,13 +56,13 @@ bool FunctionParser::ParseParam() {
     P->ParseConstant(Constant);
 
     // Var Type
-    TypeBase *TyDecl = P->ParseType();
+    ASTType *TyDecl = P->ParseType();
 
     // Var Name
     const StringRef Name = P->Tok.getIdentifierInfo()->getName();
     const SourceLocation IdLoc = P->Tok.getLocation();
     P->ConsumeToken();
-    FuncParam *Param = new FuncParam(IdLoc, TyDecl, Name);
+    ASTFuncParam *Param = new ASTFuncParam(IdLoc, TyDecl, Name);
     Param->Constant = Constant;
 
     // Parse assignment =
@@ -71,8 +71,8 @@ bool FunctionParser::ParseParam() {
 
         // Start Parsing
         if (P->isValue()) {
-            GroupExpr *Group = new GroupExpr();
-            ValueExpr *Val = P->ParseValueExpr();
+            ASTGroupExpr *Group = new ASTGroupExpr();
+            ASTValueExpr *Val = P->ParseValueExpr();
             if (Val) {
                 Group->Add(Val);
             }
@@ -96,7 +96,7 @@ bool FunctionParser::ParseParam() {
     return false;
 }
 
-bool FunctionParser::ParseArgs(BlockStmt *Block, bool isStart) {
+bool FunctionParser::ParseArgs(ASTBlock *Block, bool isStart) {
     if (P->Tok.is(tok::l_paren)) { // parse start of function ()
         P->ConsumeParen(); // consume l_paren
     }
@@ -109,13 +109,13 @@ bool FunctionParser::ParseArgs(BlockStmt *Block, bool isStart) {
     return ParseArg(Block);
 }
 
-bool FunctionParser::ParseArg(BlockStmt *Block) {
+bool FunctionParser::ParseArg(ASTBlock *Block) {
     // Parse Args in a Function Call
-    Expr *E = P->ParseExpr(Block);
+    ASTExpr *E = P->ParseExpr(Block);
 
     // Type will be resolved into AST Finalize
-    TypeBase *Ty = NULL;
-    FuncArg *Arg = new FuncArg(E, Ty);
+    ASTType *Ty = nullptr;
+    ASTFuncArg *Arg = new ASTFuncArg(E, Ty);
     Call->addArg(Arg);
 
     if (P->Tok.is(tok::comma)) {

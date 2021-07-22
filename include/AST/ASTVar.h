@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/VarDecl.h - Var declaration
+// include/AST/ASTVar.h - Var declaration
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,53 +8,59 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#ifndef FLY_VARDECL_H
-#define FLY_VARDECL_H
+#ifndef FLY_ASTVAR_H
+#define FLY_ASTVAR_H
 
-#include "TypeBase.h"
-#include "Expr.h"
-#include "Stmt.h"
+#include "ASTType.h"
+#include "ASTExpr.h"
+#include "ASTStmt.h"
 
 namespace fly {
 
-    class VarDecl {
+    /**
+     * Base Var used in:
+     *  - LocalVar
+     *  - GlobalVar
+     */
+    class ASTVar {
 
         friend class ASTNode;
         friend class Parser;
         friend class GlobalVarParser;
         friend class FunctionParser;
-        friend class VarDeclStmt;
+        friend class ASTLocalVar;
 
-        TypeBase *Type;
+        ASTType *Type;
         const llvm::StringRef NameSpace;
         const llvm::StringRef Name;
         bool Constant = false;
-        GroupExpr *Expression = NULL;
+        ASTGroupExpr *Expression = nullptr;
 
     public:
-        VarDecl(TypeBase *Type, const StringRef &Name, const StringRef &NameSpace = "");
+        ASTVar(ASTType *Type, const StringRef &Name, const StringRef &NameSpace = "");
 
-        virtual ~VarDecl();
+        virtual ~ASTVar();
 
         const bool isGlobal() const;
 
         virtual bool isConstant() const;
 
-        virtual TypeBase *getType() const;
+        virtual ASTType *getType() const;
 
         virtual const llvm::StringRef &getName() const;
 
-        void setExpr(GroupExpr *Exp);
+        void setExpr(ASTGroupExpr *Exp);
 
-        GroupExpr *getExpr() const;
+        ASTGroupExpr *getExpr() const;
     };
 
     /**
-     * Reference to Var Declaration
+     * Reference to ASTVar declaration
      * Ex.
-     *  ... = a + 1
+     *  ... = a + ...
+     *  b = ...
      */
-    class VarRef {
+    class ASTVarRef {
 
         friend class Parser;
 
@@ -64,10 +70,10 @@ namespace fly {
 
         unsigned long Order;
 
-        VarDecl *Decl = nullptr;
+        ASTVar *Decl = nullptr;
 
     public:
-        VarRef(const SourceLocation &Loc, const llvm::StringRef &Name, const llvm::StringRef &NameSpace = "");
+        ASTVarRef(const SourceLocation &Loc, const llvm::StringRef &Name, const llvm::StringRef &NameSpace = "");
 
         const SourceLocation &getLocation() const;
 
@@ -79,30 +85,10 @@ namespace fly {
 
         void setOrder(unsigned long order);
 
-        VarDecl *getDecl() const;
+        ASTVar *getDecl() const;
 
-        void setDecl(VarDecl *decl);
-    };
-
-    /**
-     * Declaration of a reference to a Var
-     * Ex.
-     *  a = 1
-     */
-    class VarStmt : public VarRef, public Stmt {
-
-        GroupExpr *Expr;
-
-    public:
-        VarStmt(const SourceLocation &Loc, BlockStmt *Block, const llvm::StringRef &Name,
-                const llvm::StringRef &NameSpace = "");
-
-        StmtKind getKind() const override;
-
-        GroupExpr *getExpr() const;
-
-        void setExpr(GroupExpr *E);
+        void setDecl(ASTVar *decl);
     };
 }
 
-#endif //FLY_VARDECL_H
+#endif //FLY_ASTVAR_H

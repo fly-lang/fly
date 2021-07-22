@@ -16,8 +16,8 @@
 namespace fly {
 
     class CodeGenModule;
-    class VarDeclStmt;
-    class FuncParam;
+    class ASTLocalVar;
+    class ASTFuncParam;
 
     class CodeGenVar {
 
@@ -29,9 +29,9 @@ namespace fly {
         bool isStored;
 
     public:
-        CodeGenVar(CodeGenModule *CGM, VarDeclStmt *S);
+        CodeGenVar(CodeGenModule *CGM, ASTLocalVar *S);
 
-        CodeGenVar(CodeGenModule *CGM, FuncParam *P);
+        CodeGenVar(CodeGenModule *CGM, ASTFuncParam *P);
 
         llvm::UnaryInstruction *get();
 

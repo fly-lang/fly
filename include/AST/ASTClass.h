@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ClassDecl.h - Class declaration
+// include/AST/ASTClass.h - Class declaration
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,14 +8,14 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#ifndef FLY_CLASSDECL_H
-#define FLY_CLASSDECL_H
+#ifndef FLY_ASTCLASS_H
+#define FLY_ASTCLASS_H
 
-#include "TopDecl.h"
+#include "ASTTopDecl.h"
 
 namespace fly {
 
-    class ClassDecl : public TopDecl {
+    class ASTClass : public ASTTopDecl {
 
         friend class ASTNode;
         friend class Parser;
@@ -36,7 +36,7 @@ namespace fly {
     class ClassRef {
 
         const llvm::StringRef Name;
-        const ClassDecl *D;
+        const ASTClass *D;
 
     public:
         ClassRef(const llvm::StringRef &Name);
@@ -44,4 +44,4 @@ namespace fly {
     };
 }
 
-#endif //FLY_CLASSDECL_H
+#endif //FLY_ASTCLASS_H

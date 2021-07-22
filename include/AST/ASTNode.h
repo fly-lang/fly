@@ -12,16 +12,16 @@
 #define FLY_ASTNODE_H
 
 #include "ASTNodeBase.h"
-#include "FuncDecl.h"
+#include "ASTFunc.h"
 #include <unordered_set>
 
 namespace fly {
 
     class ASTNodeBase;
     class ASTNameSpace;
-    class ImportDecl;
-    class GlobalVarDecl;
-    class ClassDecl;
+    class ASTImport;
+    class ASTGlobalVar;
+    class ASTClass;
     class FileID;
 
     class ASTNode : public ASTNodeBase {
@@ -33,19 +33,19 @@ namespace fly {
         ASTNameSpace *NameSpace = NULL;
 
         // Contains all Imports which will be converted in Dependencies
-        llvm::StringMap<ImportDecl *> Imports;
+        llvm::StringMap<ASTImport *> Imports;
 
         // true if this is the first node Finalized in the Context
         bool FirstNode;
 
         // Private Global Vars
-        llvm::StringMap<GlobalVarDecl *> GlobalVars;
+        llvm::StringMap<ASTGlobalVar *> GlobalVars;
 
         // Public Functions
-        std::unordered_set<FuncDecl*> Functions;
+        std::unordered_set<ASTFunc*> Functions;
 
         // Calls into Node resolution
-        llvm::StringMap<std::vector<FuncCall *>> ResolvedCalls;
+        llvm::StringMap<std::vector<ASTFuncCall *>> ResolvedCalls;
 
     public:
 
@@ -63,22 +63,22 @@ namespace fly {
         ASTNameSpace* getNameSpace();
         ASTNameSpace *findNameSpace(const StringRef &string);
 
-        bool addImport(ImportDecl *NewImport);
-        const llvm::StringMap<ImportDecl*> &getImports();
+        bool addImport(ASTImport *NewImport);
+        const llvm::StringMap<ASTImport*> &getImports();
 
-        bool addGlobalVar(GlobalVarDecl *Var);
-        const llvm::StringMap<GlobalVarDecl *> &getGlobalVars();
+        bool addGlobalVar(ASTGlobalVar *Var);
+        const llvm::StringMap<ASTGlobalVar *> &getGlobalVars();
 
-        bool addFunction(FuncDecl *Func);
-        const std::unordered_set<FuncDecl*> &getFunctions() const;
+        bool addFunction(ASTFunc *Func);
+        const std::unordered_set<ASTFunc*> &getFunctions() const;
 
-        bool addResolvedCall(FuncCall *Call);
-        const llvm::StringMap<std::vector<FuncCall *>> &getResolvedCalls() const;
+        bool addResolvedCall(ASTFuncCall *Call);
+        const llvm::StringMap<std::vector<ASTFuncCall *>> &getResolvedCalls() const;
 
-        bool addClass(ClassDecl *Class);
-        const llvm::StringMap<ClassDecl *> &getClasses();
+        bool addClass(ASTClass *Class);
+        const llvm::StringMap<ASTClass *> &getClasses();
 
-        static TypeBase *ResolveExprType(Expr *E);
+        static ASTType *ResolveExprType(ASTExpr *E);
 
         bool Finalize();
     };

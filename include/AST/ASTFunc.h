@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/FunctionDecl.h - Function declaration
+// include/AST/ASTFunc.h - Function declaration
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -10,23 +10,23 @@
 #ifndef FLY_FUNCTION_H
 #define FLY_FUNCTION_H
 
-#include "TopDecl.h"
-#include "VarDecl.h"
-#include "Stmt.h"
+#include "ASTTopDecl.h"
+#include "ASTVar.h"
+#include "ASTStmt.h"
 #include "llvm/ADT/StringMap.h"
 #include <vector>
 
 namespace fly {
 
-    class GroupExpr;
-    class Expr;
-    class TypeBase;
-    class VarRef;
-    class FuncHeader;
-    class BlockStmt;
-    class FuncCall;
-    class FuncParam;
-    class GlobalVarDecl;
+    class ASTGroupExpr;
+    class ASTExpr;
+    class ASTType;
+    class ASTVarRef;
+    class ASTFuncHeader;
+    class ASTBlock;
+    class ASTFuncCall;
+    class ASTFuncParam;
+    class ASTGlobalVar;
     class CodeGenFunction;
     class CodeGenVar;
     class CodeGenCall;
@@ -38,7 +38,7 @@ namespace fly {
      *     return 1
      *   }
      */
-    class FuncDecl : public TopDecl {
+    class ASTFunc : public ASTTopDecl {
 
         friend class ASTNode;
         friend class Parser;
@@ -49,7 +49,7 @@ namespace fly {
         const TopDeclKind Kind;
 
         // Function return type
-        TypeBase *Type;
+        ASTType *Type;
 
         // Function Name
         const llvm::StringRef Name;
@@ -58,73 +58,69 @@ namespace fly {
         bool Constant;
 
         // Header contains parameters
-        FuncHeader *Header;
+        ASTFuncHeader *Header;
 
         // Body is the main BlockStmt
-        BlockStmt *Body;
+        ASTBlock *Body;
 
         // Contains all Calls to be resolved with Function
-        std::vector<FuncCall *> UnRefCalls;
+        std::vector<ASTFuncCall *> UnRefCalls;
 
         // Contains all VarRef to be resolved with GlobalVar
-        std::vector<VarRef *> UnRefGlobalVars;
+        std::vector<ASTVarRef *> UnRefGlobalVars;
 
         // Populated during codegen phase
-        CodeGenFunction *CodeGen = NULL;
+        CodeGenFunction *CodeGen = nullptr;
 
     public:
-        FuncDecl(ASTNode *Node, const SourceLocation &Loc, TypeBase *RetType, const llvm::StringRef &Name);
+        ASTFunc(ASTNode *Node, const SourceLocation &Loc, ASTType *RetType, const llvm::StringRef &Name);
 
         TopDeclKind getKind() const override;
 
-        TypeBase *getType() const;
+        ASTType *getType() const;
 
         const llvm::StringRef &getName() const;
 
         bool isConstant() const;
 
-        const FuncHeader *getHeader() const;
+        const ASTFuncHeader *getHeader() const;
 
-        BlockStmt *getBody();
+        ASTBlock *getBody();
 
-        const std::vector<FuncCall *> &getUnRefCalls() const;
+        const std::vector<ASTFuncCall *> &getUnRefCalls() const;
 
         CodeGenFunction *getCodeGen() const;
 
         void setCodeGen(CodeGenFunction *CGF);
 
-        FuncParam *addParam(const SourceLocation &Loc, TypeBase *Type, const StringRef &Name);
+        ASTFuncParam *addParam(const SourceLocation &Loc, ASTType *Type, const StringRef &Name);
 
         bool isVarArg();
 
-        void setVarArg(FuncParam* VarArg);
+        void setVarArg(ASTFuncParam* VarArg);
 
-        bool addUnRefCall(FuncCall *Call);
+        bool addUnRefCall(ASTFuncCall *Call);
 
-        void addUnRefGlobalVar(VarRef *Var);
+        void addUnRefGlobalVar(ASTVarRef *Var);
 
-        bool ResolveCall(FuncCall *ResolvedCall, FuncCall *Call);
+        bool ResolveCall(ASTFuncCall *ResolvedCall, ASTFuncCall *Call);
 
         bool Finalize();
 
-        bool operator==(const FuncDecl& F) const;
-    };
-
-    class FuncDeclAlloc : std::allocator<FuncDecl *> {
-
+        bool operator==(const ASTFunc& F) const;
     };
 
     /**
      * Function Parameter
      */
-    class FuncParam : public VarDecl {
+    class ASTFuncParam : public ASTVar {
 
         const SourceLocation Location;
 
         CodeGenVar *CodeGen;
 
     public:
-        FuncParam(const SourceLocation &Loc, TypeBase *Type, const llvm::StringRef &Name);
+        ASTFuncParam(const SourceLocation &Loc, ASTType *Type, const llvm::StringRef &Name);
 
         CodeGenVar *getCodeGen() const;
 
@@ -136,18 +132,18 @@ namespace fly {
      * Ex.
      *   func(int param1, float param2, bool param3, ...)
      */
-    class FuncHeader {
+    class ASTFuncHeader {
 
         friend class FunctionParser;
-        friend class FuncDecl;
+        friend class ASTFunc;
 
-        std::vector<FuncParam *> Params;
-        FuncParam* VarArg = NULL;
+        std::vector<ASTFuncParam *> Params;
+        ASTFuncParam* VarArg = nullptr;
 
     public:
-        const std::vector<FuncParam *> &getParams() const;
+        const std::vector<ASTFuncParam *> &getParams() const;
 
-        const FuncParam* getVarArg() const;
+        const ASTFuncParam* getVarArg() const;
     };
 
     /**
@@ -155,33 +151,33 @@ namespace fly {
      * Ex.
      *   return true
      */
-    class ReturnStmt: public Stmt {
+    class ASTReturn : public ASTStmt {
 
         StmtKind Kind = StmtKind::STMT_RETURN;
-        Expr* Exp;
-        const TypeBase *Ty;
+        ASTExpr* Exp;
+        const ASTType *Ty;
 
     public:
-        ReturnStmt(const SourceLocation &Loc, BlockStmt *Block, Expr *Exp);
+        ASTReturn(const SourceLocation &Loc, ASTBlock *Block, ASTExpr *Exp);
 
         StmtKind getKind() const override;
 
-        Expr *getExpr() const;
+        ASTExpr *getExpr() const;
     };
 
-    class FuncArg {
-        Expr *Value;
-        TypeBase *Ty;
+    class ASTFuncArg {
+        ASTExpr *Value;
+        ASTType *Ty;
 
     public:
 
-        FuncArg(Expr *Value, TypeBase *Ty);
+        ASTFuncArg(ASTExpr *Value, ASTType *Ty);
 
-        Expr *getValue() const;
+        ASTExpr *getValue() const;
 
-        TypeBase *getType() const;
+        ASTType *getType() const;
 
-        void setType(TypeBase *T);
+        void setType(ASTType *T);
     };
 
     /**
@@ -189,7 +185,7 @@ namespace fly {
      * Ex.
      *  int a = sqrt(4)
      */
-    class FuncCall {
+    class ASTFuncCall {
 
         friend class Parser;
         friend class FunctionParser;
@@ -197,12 +193,12 @@ namespace fly {
         const SourceLocation Loc;
         llvm::StringRef NameSpace;
         const llvm::StringRef Name;
-        std::vector<FuncArg *> Args;
-        FuncDecl *Decl = NULL;
-        CodeGenCall *CGC = NULL;
+        std::vector<ASTFuncArg *> Args;
+        ASTFunc *Decl = nullptr;
+        CodeGenCall *CGC = nullptr;
 
     public:
-        FuncCall(const SourceLocation &Loc, const llvm::StringRef &NameSpace, const llvm::StringRef &Name);
+        ASTFuncCall(const SourceLocation &Loc, const llvm::StringRef &NameSpace, const llvm::StringRef &Name);
 
         const SourceLocation &getLocation() const;
 
@@ -212,19 +208,19 @@ namespace fly {
 
         const StringRef &getName() const;
 
-        const std::vector<FuncArg *> getArgs() const;
+        const std::vector<ASTFuncArg *> getArgs() const;
 
-        FuncArg *addArg(FuncArg *Arg);
+        ASTFuncArg *addArg(ASTFuncArg *Arg);
 
-        FuncDecl *getDecl() const;
+        ASTFunc *getDecl() const;
 
-        void setDecl(FuncDecl *FDecl);
+        void setDecl(ASTFunc *FDecl);
 
         CodeGenCall *getCodeGen() const;
 
         void setCodeGen(CodeGenCall *CGC);
 
-        static FuncCall *CreateCall(FuncDecl *FDecl);
+        static ASTFuncCall *CreateCall(ASTFunc *FDecl);
 
     };
 
@@ -233,16 +229,16 @@ namespace fly {
      * Ex.
      *  func()
      */
-    class FuncCallStmt : public Stmt {
+    class ASTFuncCallStmt : public ASTStmt {
 
-        FuncCall *Call;
+        ASTFuncCall *Call;
 
     public:
-        FuncCallStmt(const SourceLocation &Loc, BlockStmt *Block, FuncCall *Call);
+        ASTFuncCallStmt(const SourceLocation &Loc, ASTBlock *Block, ASTFuncCall *Call);
 
         StmtKind getKind() const override;
 
-        FuncCall *getCall() const;
+        ASTFuncCall *getCall() const;
     };
 }
 
@@ -250,14 +246,14 @@ namespace std {
     using namespace fly;
 
     template <>
-    struct hash<FuncDecl *> {
+    struct hash<ASTFunc *> {
         // id is returned as hash function
-        size_t operator()(FuncDecl *Decl) const noexcept;
+        size_t operator()(ASTFunc *Decl) const noexcept;
     };
 
     template <>
-    struct equal_to<FuncDecl *> {
-        bool operator()(const FuncDecl *C1, const FuncDecl *C2) const;
+    struct equal_to<ASTFunc *> {
+        bool operator()(const ASTFunc *C1, const ASTFunc *C2) const;
     };
 }
 

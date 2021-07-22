@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// include/AST/ImportDecl.h - AST Import declaration
+// include/AST/ASTImport.h - AST Import declaration
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,8 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_IMPORTDECL_H
-#define FLY_IMPORTDECL_H
+#ifndef FLY_ASTIMPORT_H
+#define FLY_ASTIMPORT_H
 
 #include "Basic/SourceLocation.h"
 
@@ -16,7 +16,7 @@ namespace fly {
 
     class ASTNameSpace;
 
-    class ImportDecl {
+    class ASTImport {
 
         const SourceLocation Location;
 
@@ -28,11 +28,11 @@ namespace fly {
 
     public:
 
-        ImportDecl(const SourceLocation &Loc, llvm::StringRef Name);
+        ASTImport(const SourceLocation &Loc, llvm::StringRef Name);
 
-        ImportDecl(const SourceLocation &Loc, llvm::StringRef Name, llvm::StringRef Alias);
+        ASTImport(const SourceLocation &Loc, llvm::StringRef Name, llvm::StringRef Alias);
 
-        ~ImportDecl();
+        ~ASTImport();
 
         const SourceLocation &getLocation() const;
 
@@ -46,4 +46,4 @@ namespace fly {
     };
 }
 
-#endif //FLY_IMPORTDECL_H
+#endif //FLY_ASTIMPORT_H

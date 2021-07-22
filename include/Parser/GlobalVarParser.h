@@ -13,7 +13,7 @@
 
 #include "Parser.h"
 #include "Lex/Token.h"
-#include "AST/GlobalVarDecl.h"
+#include "AST/ASTGlobalVar.h"
 
 namespace fly {
 
@@ -24,21 +24,21 @@ namespace fly {
         friend Parser;
 
         Parser *P;
-        TypeBase *TyDecl;
+        ASTType *TyDecl;
         const StringRef Name;
         SourceLocation &Location;
-        GlobalVarDecl *Var = NULL;
-        Expr *Val = NULL;
+        ASTGlobalVar *Var = NULL;
+        ASTExpr *Val = NULL;
 
     public:
-        GlobalVarParser(Parser *P, TypeBase *TyDecl, const StringRef &VarName,
+        GlobalVarParser(Parser *P, ASTType *TyDecl, const StringRef &VarName,
                         SourceLocation &VarNameLoc);
 
         bool Parse();
 
-        GlobalVarDecl *getVar() const;
+        ASTGlobalVar *getVar() const;
 
-        Expr *getVal() const;
+        ASTExpr *getVal() const;
     };
 
 }

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/BlockStmt.cpp - Block Statement implementation
+// src/AST/ASTBlockStmt.cpp - Block Statement implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -9,42 +9,42 @@
 
 
 #include "Basic/DiagnosticIDs.h"
-#include "AST/BlockStmt.h"
+#include "AST/ASTBlock.h"
 #include "AST/ASTNode.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTContext.h"
-#include "AST/FuncDecl.h"
-#include "AST/Stmt.h"
-#include "AST/VarDeclStmt.h"
+#include "AST/ASTFunc.h"
+#include "AST/ASTStmt.h"
+#include "AST/ASTLocalVar.h"
 
 using namespace fly;
 
-BlockStmt::BlockStmt(const SourceLocation &Loc, FuncDecl *Top, BlockStmt *Parent) :
-    Stmt(Loc, Top, Parent) {
+ASTBlock::ASTBlock(const SourceLocation &Loc, ASTFunc *Top, ASTBlock *Parent) :
+    ASTStmt(Loc, Top, Parent) {
 
 }
 
-BlockStmt::BlockStmt(const SourceLocation &Loc, BlockStmt *Parent) : Stmt(Loc, Parent->getTop(), Parent) {
+ASTBlock::ASTBlock(const SourceLocation &Loc, ASTBlock *Parent) : ASTStmt(Loc, Parent->getTop(), Parent) {
 
 }
 
-StmtKind BlockStmt::getKind() const {
+StmtKind ASTBlock::getKind() const {
     return Kind;
 }
 
-const std::vector<Stmt *> &BlockStmt::getContent() const {
+const std::vector<ASTStmt *> &ASTBlock::getContent() const {
     return Content;
 }
 
-bool BlockStmt::isEmpty() const {
+bool ASTBlock::isEmpty() const {
     return Content.empty();
 }
 
-const llvm::StringMap<VarDeclStmt *> &BlockStmt::getDeclVars() const {
+const llvm::StringMap<ASTLocalVar *> &ASTBlock::getDeclVars() const {
     return DeclVars;
 }
 
-VarDeclStmt *BlockStmt::findVarDecl(const BlockStmt *Block, VarRef *Var) {
+ASTLocalVar *ASTBlock::findVarDecl(const ASTBlock *Block, ASTVarRef *Var) {
     const auto &It = Block->DeclVars.find(Var->getName());
     if (It != Block->DeclVars.end()) { // Search into this Block
         return It->getValue();
@@ -54,8 +54,8 @@ VarDeclStmt *BlockStmt::findVarDecl(const BlockStmt *Block, VarRef *Var) {
     return nullptr;
 }
 
-bool BlockStmt::ResolveVarRef(VarRef* Var) {
-    VarDecl *VDecl;
+bool ASTBlock::ResolveVarRef(ASTVarRef* Var) {
+    ASTVar *VDecl;
     // Check if var is not a GlobalVar
     if (Var->getNameSpace().empty()) {
 
@@ -90,7 +90,7 @@ bool BlockStmt::ResolveVarRef(VarRef* Var) {
         // Try to resolve here or will be resolved after by addRefGlobalVar() into FuncDecl Finalize()
         const auto &It = Top->getNameSpace()->getGlobalVars().find(Var->getNameSpace());
         if (It != Top->getNameSpace()->getGlobalVars().end()) {
-            VDecl = (VarDecl *) It->getValue();
+            VDecl = (ASTVar *) It->getValue();
             Var->setDecl(VDecl); // Resolve with VarDecl
         } else {
             Top->addUnRefGlobalVar(Var); // Push into Content but need resolve into Finalize()
@@ -99,19 +99,19 @@ bool BlockStmt::ResolveVarRef(VarRef* Var) {
     return true;
 }
 
-bool BlockStmt::ResolveExpr(Expr *E) {
+bool ASTBlock::ResolveExpr(ASTExpr *E) {
     switch (E->getKind()) {
         case EXPR_REF_VAR: {
-            VarRef *Var = static_cast<VarRefExpr *>(E)->getVarRef();
+            ASTVarRef *Var = static_cast<ASTVarRefExpr *>(E)->getVarRef();
             return Var->getDecl() == nullptr ? ResolveVarRef(Var) : true;
         }
         case EXPR_REF_FUNC: {
-            FuncCall *Call = static_cast<FuncCallExpr *>(E)->getCall();
+            ASTFuncCall *Call = static_cast<ASTFuncCallExpr *>(E)->getCall();
             return Top->addUnRefCall(Call);
         }
         case EXPR_GROUP: {
             bool Result = true;
-            for (auto &GE : static_cast<GroupExpr *>(E)->getGroup()) {
+            for (auto &GE : static_cast<ASTGroupExpr *>(E)->getGroup()) {
                 Result &= ResolveExpr(GE);
             }
             return Result;
@@ -125,7 +125,7 @@ bool BlockStmt::ResolveExpr(Expr *E) {
     assert(0 && "Unknown Expr Kind");
 }
 
-bool BlockStmt::addVar(VarStmt *Var) {
+bool ASTBlock::addVar(ASTLocalVarStmt *Var) {
     assert(Var->getExpr() && "Expr unset into VarStmt");
 
     if (ResolveExpr(Var->getExpr())) {
@@ -139,7 +139,7 @@ bool BlockStmt::addVar(VarStmt *Var) {
     return true;
 }
 
-bool BlockStmt::addVar(VarDeclStmt *Var) {
+bool ASTBlock::addVar(ASTLocalVar *Var) {
     bool Result = true;
     if (Var->getExpr()) {
         Result &= ResolveExpr(Var->getExpr());
@@ -152,49 +152,49 @@ bool BlockStmt::addVar(VarDeclStmt *Var) {
         Top->getNode()->getContext().Diag(Var->getLocation(), diag::err_conflict_vardecl) << Var->getName();
         return false;
     }
-    DeclVars.insert(std::pair<StringRef, VarDeclStmt *>(Var->getName(), Var));
+    DeclVars.insert(std::pair<StringRef, ASTLocalVar *>(Var->getName(), Var));
     Var->setOrder(Order++);
     Content.push_back(Var);
     return Result;
 }
 
-bool BlockStmt::addCall(FuncCall *Call) {
-    FuncCallStmt *CallStmt = new FuncCallStmt(Call->getLocation(), this, Call);
+bool ASTBlock::addCall(ASTFuncCall *Call) {
+    ASTFuncCallStmt *CallStmt = new ASTFuncCallStmt(Call->getLocation(), this, Call);
     Content.push_back(CallStmt);
     return Top->addUnRefCall(Call);
 }
 
-bool BlockStmt::addReturn(const SourceLocation &Loc, GroupExpr *E) {
+bool ASTBlock::addReturn(const SourceLocation &Loc, ASTGroupExpr *E) {
     assert(E && "Expr unset into Return");
     if (ResolveExpr(E)) {
-        ReturnStmt *Ret = new ReturnStmt(Loc, this, E);
+        ASTReturn *Ret = new ASTReturn(Loc, this, E);
         Content.push_back(Ret);
         return true;
     }
     return false;
 }
 
-bool BlockStmt::addBreak(const SourceLocation &Loc) {
+bool ASTBlock::addBreak(const SourceLocation &Loc) {
     Content.push_back(new BreakStmt(Loc, this));
     return true;
 }
 
-bool BlockStmt::addContinue(const SourceLocation &Loc) {
+bool ASTBlock::addContinue(const SourceLocation &Loc) {
     Content.push_back(new ContinueStmt(Loc, this));
     return true;
 }
 
-DiagnosticBuilder BlockStmt::Diag(SourceLocation Loc, unsigned int DiagID) {
+DiagnosticBuilder ASTBlock::Diag(SourceLocation Loc, unsigned int DiagID) {
     return Top->getNode()->getContext().Diag(Loc, DiagID);
 }
 
-ConditionBlockStmt::ConditionBlockStmt(const SourceLocation &Loc, BlockStmt *Parent) : BlockStmt(Loc, Parent) {}
+ConditionBlockStmt::ConditionBlockStmt(const SourceLocation &Loc, ASTBlock *Parent) : ASTBlock(Loc, Parent) {}
 
-LoopBlockStmt::LoopBlockStmt(const SourceLocation &Loc, BlockStmt *Parent) : BlockStmt(Loc, Parent) {
+LoopBlockStmt::LoopBlockStmt(const SourceLocation &Loc, ASTBlock *Parent) : ASTBlock(Loc, Parent) {
 
 }
 
-BreakStmt::BreakStmt(const SourceLocation &Loc, BlockStmt *Parent) : Stmt(Loc, Parent) {
+BreakStmt::BreakStmt(const SourceLocation &Loc, ASTBlock *Parent) : ASTStmt(Loc, Parent) {
 
 }
 
@@ -202,7 +202,7 @@ StmtKind BreakStmt::getKind() const {
     return Kind;
 }
 
-ContinueStmt::ContinueStmt(const SourceLocation &Loc, BlockStmt *Parent) : Stmt(Loc, Parent) {
+ContinueStmt::ContinueStmt(const SourceLocation &Loc, ASTBlock *Parent) : ASTStmt(Loc, Parent) {
 
 }
 

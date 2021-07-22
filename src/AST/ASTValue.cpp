@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// include/AST/Value.h - Value
+// include/AST/ASTValue.h - Value
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -12,7 +12,7 @@
 
 using namespace fly;
 
-ASTValue::ASTValue(const SourceLocation &Loc, llvm::StringRef Str, TypeBase *Ty) : Loc(Loc), Str(Str), Ty(Ty) {
+ASTValue::ASTValue(const SourceLocation &Loc, llvm::StringRef Str, ASTType *Ty) : Loc(Loc), Str(Str), Ty(Ty) {
 
 }
 
@@ -20,7 +20,7 @@ const StringRef &ASTValue::str() const {
     return Str;
 }
 
-TypeBase *ASTValue::getType() const {
+ASTType *ASTValue::getType() const {
     return Ty;
 }
 

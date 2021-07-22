@@ -10,16 +10,16 @@
 #ifndef FLY_PARSE_PARSEAST_H
 #define FLY_PARSE_PARSEAST_H
 
-#include <AST/BlockStmt.h>
-#include <AST/IfBlockStmt.h>
-#include <AST/SwitchBlockStmt.h>
-#include <AST/ForBlockStmt.h>
-#include <AST/VarDeclStmt.h>
-#include <AST/Stmt.h>
-#include <AST/VarDecl.h>
-#include <AST/OperatorExpr.h>
-#include <AST/Expr.h>
-#include <AST/FuncDecl.h>
+#include <AST/ASTBlock.h>
+#include <AST/ASTIfBlock.h>
+#include <AST/ASTSwitchBlock.h>
+#include <AST/ASTForBlock.h>
+#include <AST/ASTLocalVar.h>
+#include <AST/ASTStmt.h>
+#include <AST/ASTVar.h>
+#include <AST/ASTOperatorExpr.h>
+#include <AST/ASTExpr.h>
+#include <AST/ASTFunc.h>
 #include "Frontend/InputFile.h"
 #include "GlobalVarParser.h"
 #include "FunctionParser.h"
@@ -192,31 +192,31 @@ namespace fly {
 
         bool ParseTopDecl();
 
-        bool ParseGlobalVarDecl(VisibilityKind &VisKind, bool &Constant, TypeBase *TyDecl,
+        bool ParseGlobalVarDecl(VisibilityKind &VisKind, bool &Constant, ASTType *TyDecl,
                                 IdentifierInfo *Id, SourceLocation &IdLoc);
 
         bool ParseClassDecl(VisibilityKind &VisKind, bool &Constant);
 
-        bool ParseFunctionDecl(VisibilityKind &VisKind, bool Constant, TypeBase *TyDecl, IdentifierInfo *Id,
+        bool ParseFunctionDecl(VisibilityKind &VisKind, bool Constant, ASTType *TyDecl, IdentifierInfo *Id,
                                SourceLocation &IdLoc);
-        bool ParseStmt(BlockStmt *Block, GroupExpr *Group = NULL);
-        bool ParseBlock(BlockStmt *Block);
-        bool ParseInnerBlock(BlockStmt *Block);
+        bool ParseStmt(ASTBlock *Block, ASTGroupExpr *Group = NULL);
+        bool ParseBlock(ASTBlock *Block);
+        bool ParseInnerBlock(ASTBlock *Block);
         bool ParseStartParen();
         bool ParseEndParen(bool hasParen);
-        bool ParseIfStmt(BlockStmt *Block);
-        bool ParseSwitchStmt(BlockStmt *Block);
-        bool ParseForStmt(BlockStmt *Block);
-        bool ParseInitForStmt(BlockStmt *InitStmt, GroupExpr *Cond);
-        bool ParseCondForStmt(BlockStmt *Block, GroupExpr* Cond);
-        bool ParsePostForStmt(BlockStmt *PostStmt);
+        bool ParseIfStmt(ASTBlock *Block);
+        bool ParseSwitchStmt(ASTBlock *Block);
+        bool ParseForStmt(ASTBlock *Block);
+        bool ParseInitForStmt(ASTBlock *InitStmt, ASTGroupExpr *Cond);
+        bool ParseCondForStmt(ASTBlock *Block, ASTGroupExpr* Cond);
+        bool ParsePostForStmt(ASTBlock *PostStmt);
 
-        FuncCall *ParseFunctionCall(BlockStmt *Block, IdentifierInfo *Id, SourceLocation &IdLoc);
-        VarDeclStmt* ParseVarDecl(BlockStmt *Block, bool Constant, TypeBase *TyDecl);
-        ValueExpr* ParseValueExpr();
-        GroupExpr* ParseExpr(BlockStmt *Block, GroupExpr *CurrGroup = NULL);
-        VarRef* ParseVarRef();
-        VarStmt* ParseIncDec(SourceLocation &Loc, BlockStmt *CurrStmt, IdentifierInfo *Id);
+        ASTFuncCall *ParseFunctionCall(ASTBlock *Block, IdentifierInfo *Id, SourceLocation &IdLoc);
+        ASTLocalVar* ParseVarDecl(ASTBlock *Block, bool Constant, ASTType *TyDecl);
+        ASTValueExpr* ParseValueExpr();
+        ASTGroupExpr* ParseExpr(ASTBlock *Block, ASTGroupExpr *CurrGroup = NULL);
+        ASTVarRef* ParseVarRef();
+        ASTLocalVarStmt* ParseIncDec(SourceLocation &Loc, ASTBlock *CurrStmt, IdentifierInfo *Id);
 
         bool isVoidType();
         bool isBuiltinType();
@@ -225,11 +225,11 @@ namespace fly {
         bool isOpIncDec();
         bool isOperator();
 
-        TypeBase *ParseType();
-        TypeBase *ParseType(SourceLocation Loc, tok::TokenKind Kind);
+        ASTType *ParseType();
+        ASTType *ParseType(SourceLocation Loc, tok::TokenKind Kind);
         llvm::StringRef ParseBoolValue();
-        OperatorExpr* ParseOperator();
-        GroupExpr* ParseOpAssign(VarRef *Ref);
+        ASTOperatorExpr* ParseOperator();
+        ASTGroupExpr* ParseOpAssign(ASTVarRef *Ref);
         IncDecExpr* ParseOpIncrement(bool post = false);
     };
 
