@@ -54,7 +54,7 @@ namespace fly {
         const ASTBlock *getParent() const;
     };
 
-    class ASTExprStmt : ASTStmt {
+    class ASTExprStmt : public ASTStmt {
 
         ASTExpr *Expr = nullptr;
 

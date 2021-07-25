@@ -26,7 +26,7 @@ namespace fly {
         friend class ElseBlockStmt;
 
         enum BlockStmtKind StmtKind = BlockStmtKind::BLOCK_STMT_IF;
-        ASTGroupExpr *Condition;
+        ASTExpr *Condition;
         std::vector<ElsifBlockStmt *> Elsif;
         ElseBlockStmt *Else = NULL;
 
@@ -37,7 +37,7 @@ namespace fly {
 
         enum BlockStmtKind getBlockKind() const override;
 
-        ASTGroupExpr *getCondition();
+        ASTExpr *getCondition();
 
         std::vector<ElsifBlockStmt *> getElsif();
 

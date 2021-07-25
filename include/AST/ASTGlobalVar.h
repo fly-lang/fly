@@ -22,18 +22,23 @@ namespace fly {
         friend class ASTNode;
         const TopDeclKind Kind;
         CodeGenGlobalVar *CodeGen;
+        ASTValueExpr *Expr = nullptr;
 
     public:
 
         ASTGlobalVar(ASTNode *Node, SourceLocation &Loc, ASTType *Type, const llvm::StringRef &Name);
 
+        ~ASTGlobalVar() = default;
+
         TopDeclKind getKind() const override;
+
+        ASTExpr *getExpr() const override;
+
+        void setExpr(ASTExpr *E) override;
 
         CodeGenGlobalVar *getCodeGen() const;
 
         void setCodeGen(CodeGenGlobalVar *codeGen);
-
-        ~ASTGlobalVar() = default;
     };
 }
 

@@ -306,6 +306,7 @@ DIAG(err_func_param, CLASS_ERROR, (unsigned)diag::Severity::Error, "function par
 DIAG(err_unbalanced_brace, CLASS_ERROR, (unsigned)diag::Severity::Error, "braces not balanced", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_parse_stmt, CLASS_ERROR, (unsigned)diag::Severity::Error, "statement parse error", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_top_decl, CLASS_ERROR, (unsigned)diag::Severity::Error, "declaration error", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_paren_unclosed, CLASS_ERROR, (unsigned)diag::Severity::Error, "parenthesis not closed ')'", 0, SFINAE_Suppress, false, true, 0)
 
 DIAG(warn_empty_code, CLASS_WARNING, (unsigned)diag::Severity::Warning, "code empty", 0, SFINAE_Suppress, false, true, 0)
 

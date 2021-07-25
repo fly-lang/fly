@@ -23,8 +23,7 @@ bool GlobalVarParser::Parse() {
 
         ASTValueExpr *Ex = P->ParseValueExpr();
         if (Ex) {
-            Var->Expression = new ASTGroupExpr();
-            Var->Expression->Add(Ex);
+            Var->setExpr(Ex);
         }
     }
 

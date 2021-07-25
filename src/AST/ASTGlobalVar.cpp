@@ -24,6 +24,15 @@ TopDeclKind ASTGlobalVar::getKind() const {
     return Kind;
 }
 
+ASTExpr *ASTGlobalVar::getExpr() const {
+    return Expr;
+}
+
+void ASTGlobalVar::setExpr(ASTExpr *E) {
+    assert(E->getKind() == EXPR_VALUE && "Invalid Value for GlobalVar");
+    Expr = (ASTValueExpr *)E;
+}
+
 CodeGenGlobalVar *ASTGlobalVar::getCodeGen() const {
     return CodeGen;
 }

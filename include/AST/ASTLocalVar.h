@@ -22,7 +22,7 @@ namespace fly {
      * Ex.
      *  int a = 1
      */
-    class ASTLocalVar : public ASTVar, public ASTStmt {
+    class ASTLocalVar : public ASTVar, public ASTExprStmt {
 
         friend class Parser;
         friend class GlobalVarParser;
@@ -42,6 +42,10 @@ namespace fly {
 
         void setOrder(unsigned long order);
 
+        ASTExpr *getExpr() const;
+
+        void setExpr(ASTExpr *E);
+
         CodeGenVar *getCodeGen() const;
 
         void setCodeGen(CodeGenVar *CG);
@@ -52,19 +56,13 @@ namespace fly {
      * Ex.
      *  a = 1
      */
-    class ASTLocalVarStmt : public ASTVarRef, public ASTStmt {
-
-        ASTGroupExpr *Expr;
+    class ASTLocalVarStmt : public ASTVarRef, public ASTExprStmt {
 
     public:
         ASTLocalVarStmt(const SourceLocation &Loc, ASTBlock *Block, const llvm::StringRef &Name,
                         const llvm::StringRef &NameSpace = "");
 
         StmtKind getKind() const override;
-
-        ASTGroupExpr *getExpr() const;
-
-        void setExpr(ASTGroupExpr *E);
     };
 }
 

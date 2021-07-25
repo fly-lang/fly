@@ -164,14 +164,14 @@ bool ASTBlock::addCall(ASTFuncCall *Call) {
     return Top->addUnRefCall(Call);
 }
 
-bool ASTBlock::addReturn(const SourceLocation &Loc, ASTGroupExpr *E) {
-    assert(E && "Expr unset into Return");
-    if (ResolveExpr(E)) {
-        ASTReturn *Ret = new ASTReturn(Loc, this, E);
-        Content.push_back(Ret);
-        return true;
+bool ASTBlock::addReturn(const SourceLocation &Loc, ASTExpr *Expr) {
+    bool Success = true;
+    if (Expr != nullptr) {
+        Success &= ResolveExpr(Expr);
     }
-    return false;
+    ASTReturn *Ret = new ASTReturn(Loc, this, Expr);
+    Content.push_back(Ret);
+    return Success;
 }
 
 bool ASTBlock::addBreak(const SourceLocation &Loc) {

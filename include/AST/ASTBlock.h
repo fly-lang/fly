@@ -36,6 +36,7 @@ namespace fly {
         BLOCK_STMT_SWITCH,
         BLOCK_STMT_CASE,
         BLOCK_STMT_DEFAULT,
+        BLOCK_STMT_WHILE,
         BLOCK_STMT_FOR
     };
 
@@ -93,7 +94,9 @@ namespace fly {
 
         bool addCall(ASTFuncCall *Invoke);
 
-        bool addReturn(const SourceLocation &Loc, ASTGroupExpr *Expr);
+        bool addReturn(const SourceLocation &Loc);
+
+        bool addReturn(const SourceLocation &Loc, ASTExpr *Expr);
 
         bool addBreak(const SourceLocation &Loc);
 

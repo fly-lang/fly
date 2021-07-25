@@ -88,13 +88,13 @@ namespace fly {
         virtual OpKind getOpKind() = 0;
     };
 
-    class ArithExpr : public ASTOperatorExpr {
+    class ASTArithExpr : public ASTOperatorExpr {
 
         const OpKind OperatorKind = OpKind::OP_ARITH;
         const ArithOpKind ArithKind;
 
     public:
-        ArithExpr(const SourceLocation Loc, const ArithOpKind &AKind) : ASTOperatorExpr(Loc), ArithKind(AKind) {}
+        ASTArithExpr(const SourceLocation Loc, const ArithOpKind &AKind) : ASTOperatorExpr(Loc), ArithKind(AKind) {}
 
         OpKind getOpKind() override {
             return OperatorKind;
@@ -106,13 +106,13 @@ namespace fly {
 
     };
 
-    class BitExpr : public ASTOperatorExpr {
+    class ASTBitExpr : public ASTOperatorExpr {
 
         const OpKind OperatorKind = OpKind::OP_BIT;
         const BitOpKind BitKind;
 
     public:
-        BitExpr(const SourceLocation Loc, const BitOpKind &BKind) : ASTOperatorExpr(Loc), BitKind(BKind) {}
+        ASTBitExpr(const SourceLocation Loc, const BitOpKind &BKind) : ASTOperatorExpr(Loc), BitKind(BKind) {}
 
         OpKind getOpKind() {
             return OperatorKind;
@@ -123,13 +123,13 @@ namespace fly {
         }
     };
 
-    class BoolExpr : public ASTOperatorExpr {
+    class ASTBoolExpr : public ASTOperatorExpr {
 
         const OpKind OperatorKind = OpKind::OP_BOOL;
         const BoolOpKind BoolKind;
 
     public:
-        BoolExpr(const SourceLocation Loc, const BoolOpKind &BKind) : ASTOperatorExpr(Loc), BoolKind(BKind) {}
+        ASTBoolExpr(const SourceLocation Loc, const BoolOpKind &BKind) : ASTOperatorExpr(Loc), BoolKind(BKind) {}
 
         OpKind getOpKind() {
             return OperatorKind;
@@ -140,13 +140,13 @@ namespace fly {
         }
     };
 
-    class LogicExpr : public ASTOperatorExpr {
+    class ASTLogicExpr : public ASTOperatorExpr {
 
         const OpKind OperatorKind = OpKind::OP_LOGIC;
         const LogicOpKind LogicKind;
 
     public:
-        LogicExpr(const SourceLocation Loc, const LogicOpKind &LKind) : ASTOperatorExpr(Loc), LogicKind(LKind) {}
+        ASTLogicExpr(const SourceLocation Loc, const LogicOpKind &LKind) : ASTOperatorExpr(Loc), LogicKind(LKind) {}
 
         OpKind getOpKind() {
             return OperatorKind;
@@ -157,12 +157,12 @@ namespace fly {
         }
     };
 
-    class IncDecExpr : public ASTOperatorExpr {
+    class ASTIncDecExpr : public ASTOperatorExpr {
         const OpKind OperatorKind = OpKind::OP_INCDEC;
         const IncDecOpKind IncDecKind;
 
     public:
-        IncDecExpr(const SourceLocation Loc, const IncDecOpKind &Kind) : ASTOperatorExpr(Loc), IncDecKind(Kind) {}
+        ASTIncDecExpr(const SourceLocation Loc, const IncDecOpKind &Kind) : ASTOperatorExpr(Loc), IncDecKind(Kind) {}
 
         OpKind getOpKind() {
             return OperatorKind;
@@ -173,13 +173,13 @@ namespace fly {
         }
     };
 
-    class CondExpr : public ASTOperatorExpr {
+    class ASTCondExpr : public ASTOperatorExpr {
 
         const OpKind OperatorKind = OpKind::OP_COND;
         const CondOpKind CondKind;
 
     public:
-        CondExpr(const SourceLocation Loc, const CondOpKind &CondKind) : ASTOperatorExpr(Loc), CondKind(CondKind) {}
+        ASTCondExpr(const SourceLocation Loc, const CondOpKind &CondKind) : ASTOperatorExpr(Loc), CondKind(CondKind) {}
 
         OpKind getOpKind() {
             return OperatorKind;

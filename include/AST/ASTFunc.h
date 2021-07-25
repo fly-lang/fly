@@ -117,10 +117,16 @@ namespace fly {
 
         const SourceLocation Location;
 
+        ASTValueExpr *Expr = nullptr;
+
         CodeGenVar *CodeGen;
 
     public:
         ASTFuncParam(const SourceLocation &Loc, ASTType *Type, const llvm::StringRef &Name);
+
+        ASTExpr *getExpr() const override;
+
+        void setExpr(ASTExpr *E) override;
 
         CodeGenVar *getCodeGen() const;
 
@@ -154,11 +160,11 @@ namespace fly {
     class ASTReturn : public ASTStmt {
 
         StmtKind Kind = StmtKind::STMT_RETURN;
-        ASTExpr* Exp;
+        ASTExpr* Expr;
         const ASTType *Ty;
 
     public:
-        ASTReturn(const SourceLocation &Loc, ASTBlock *Block, ASTExpr *Exp);
+        ASTReturn(const SourceLocation &Loc, ASTBlock *Block, ASTExpr *Expr);
 
         StmtKind getKind() const override;
 

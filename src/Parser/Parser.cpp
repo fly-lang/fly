@@ -7,6 +7,7 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
+#include <AST/ASTWhileBlock.h>
 #include "Parser/Parser.h"
 #include "AST/ASTImport.h"
 
@@ -29,7 +30,7 @@ bool Parser::Parse(ASTNode *Node) {
     if (ParseNameSpace()) {
 
         // Parse Imports
-        if (ParseImportDecl()) {
+        if (ParseImports()) {
 
             // If Node is empty it is not added to the Context
             if (Tok.is(tok::eof)) {
@@ -100,14 +101,14 @@ bool Parser::ParseNameSpace() {
  * Parse import declarations
  * @return
  */
-bool Parser::ParseImportDecl() {
+bool Parser::ParseImports() {
     if (Tok.is(tok::kw_import)) {
         const SourceLocation ImportLoc = ConsumeToken();
         if (Tok.is(tok::l_paren)) {
             ConsumeParen();
 
             // Parse import ( ... ) declarations
-            return ParseImportParenDecl();
+            return ParseImportParen();
 
         } else if (Tok.isLiteral()) {
 
@@ -121,7 +122,7 @@ bool Parser::ParseImportDecl() {
             }
 
             if (ParseImportAliasDecl(ImportLoc, Name)) {
-                return ParseImportDecl();
+                return ParseImports();
             }
         }
     }
@@ -181,7 +182,7 @@ StringRef Parser::getLiteralString() {
     return "";
 }
 
-bool Parser::ParseImportParenDecl() {
+bool Parser::ParseImportParen() {
     if (Tok.isLiteral()) {
         SourceLocation ImportLoc = Tok.getLocation();
         StringRef Name = getLiteralString();
@@ -197,7 +198,7 @@ bool Parser::ParseImportParenDecl() {
 
         if (Tok.is(tok::comma)) {
             ConsumeNext();
-            return ParseImportParenDecl();
+            return ParseImportParen();
         }
 
         if (Tok.is(tok::r_paren)) {
@@ -284,97 +285,6 @@ bool Parser::ParseFunctionDecl(VisibilityKind &VisKind, bool Constant, ASTType *
 }
 
 /**
- * Parse a single statement like Variable declaration, assignment or Function invocation
- *
- * cont int a
- * a = ...
- * a()
- * a v1 = ...
- * int a = ...
- *
- * @param Block
- * @return
- */
-bool Parser::ParseStmt(ASTBlock *Block, ASTGroupExpr *Group) {
-    // Parse return
-    if (Tok.is(tok::kw_return)) {
-        SourceLocation RetLoc = ConsumeToken();
-        ASTGroupExpr *Exp = ParseExpr(Block);
-        if (Exp) {
-            return Block->addReturn(RetLoc, Exp);
-        }
-    } else if (Tok.is(tok::kw_break)) {
-        return Block->addBreak(ConsumeToken());
-    } else if (Tok.is(tok::kw_continue)) {
-        return Block->addContinue(ConsumeToken());
-    }
-
-    // const int a
-    bool Constant = false;
-    ParseConstant(Constant);
-
-    SourceLocation Loc = Tok.getLocation();
-    IdentifierInfo *Id = nullptr;
-    if (Tok.isAnyIdentifier()) {
-        // a = ... (Var)
-        // a()     (Func)
-        // T a = ... (Type)
-        Id = Tok.getIdentifierInfo();
-        ConsumeToken();
-    } else if (isBuiltinType()) {
-        // int a = ...
-        ASTLocalVar* Var = ParseVarDecl(Block, Constant, ParseType());
-        return Block->addVar(Var);
-    }
-
-    if (Tok.isAnyIdentifier()) { // variable definition
-        // T a = ...
-        StringRef Name = Id->getName();
-        ASTType *TyDecl = new ClassTypeRef(Loc, Name);
-        if (TyDecl) {
-            ASTLocalVar* Var = ParseVarDecl(Block, Constant, TyDecl);
-            return Block->addVar(Var);
-        }
-    } else if (Tok.is(tok::l_paren)) { // function invocation
-        // a()
-        if (Constant) {
-            // TODO Error cannot use const with function call
-        }
-        ASTFuncCall *Call = ParseFunctionCall(Block, Id, Loc);
-        if (Call)
-            return Block->addCall(Call);
-    } else if (isOpAssign()) {
-        ASTLocalVarStmt *VStmt = new ASTLocalVarStmt(Loc, Block, Id->getName());
-        ASTGroupExpr *GrExp = ParseOpAssign(VStmt);
-        ConsumeToken();
-
-        ASTGroupExpr* Ex = ParseExpr(Block, GrExp);
-        if (Ex) {
-            VStmt->setExpr(Ex);
-            return Block->addVar(VStmt);
-        }
-    } else if (isOpIncDec()) {
-        ASTLocalVarStmt *S = ParseIncDec(Loc, Block, Id);
-        if (S) {
-            return Block->addVar(S);
-        }
-    } else if (isOperator()) {
-
-        if (Group == nullptr) {
-            // TODO Error this is an Expression only a Declaration is permitted
-            return false;
-        }
-
-        ASTVarRefExpr *VRef = new ASTVarRefExpr(Loc, new ASTVarRef(Loc, Id->getName()));
-        Group->Add(VRef);
-        return ParseExpr(Block, Group);
-    }
-
-    Diag(Tok.getLocation(), diag::err_parse_stmt);
-    return false;
-}
-
-/**
  * Parse statements not yet contained into braces
  * @param Block
  * @return
@@ -389,14 +299,9 @@ bool Parser::ParseBlock(ASTBlock *Block) {
     if (Tok.is(tok::kw_for)) {
         return ParseForStmt(Block);
     }
-//    if (Tok.is(tok::kw_break)) {
-//        Block->Content.push_back(new BreakStmt(ConsumeToken(), Block));
-//        return true;
-//    }
-//    if (Tok.is(tok::kw_continue)) {
-//        Block->Content.push_back(new ContinueStmt(ConsumeToken(), Block));
-//        return true;
-//    }
+    if (Tok.is(tok::kw_while)) {
+        return ParseWhileStmt(Block);
+    }
 
     return ParseStmt(Block);
 }
@@ -418,6 +323,90 @@ bool Parser::ParseInnerBlock(ASTBlock *Block) {
     if (Tok.is(tok::r_brace)) { // Close Brace
         ConsumeBrace();
         return true;
+    }
+
+    Diag(Tok.getLocation(), diag::err_parse_stmt);
+    return false;
+}
+
+
+/**
+ * Parse a single statement like Variable declaration, assignment or Function invocation
+ *
+ * cont int a
+ * a = ...
+ * a()
+ * a v1 = ...
+ * int a = ...
+ *
+ * @param Block
+ * @return
+ */
+bool Parser::ParseStmt(ASTBlock *Block) {
+    // Parse keywords
+    if (Tok.is(tok::kw_return)) { // Parse return
+        SourceLocation Loc = ConsumeToken();
+        ASTExpr *Expr = ParseExpr(Block);
+        return Block->addReturn(Loc, Expr);
+    } else if (Tok.is(tok::kw_break)) { // Parse break
+        return Block->addBreak(ConsumeToken());
+    } else if (Tok.is(tok::kw_continue)) { // Parse continue
+        return Block->addContinue(ConsumeToken());
+    }
+
+    // const int a
+    bool Constant = false;
+    ParseConstant(Constant);
+
+    SourceLocation Loc = Tok.getLocation();
+    if (Tok.isAnyIdentifier()) {
+
+        // T a = ... (Type)
+        // a()     (Func)
+        // a++
+        // a = ... (Var)
+        IdentifierInfo *Id = Tok.getIdentifierInfo();
+        ConsumeToken();
+
+        if (Tok.isAnyIdentifier()) { // variable declaration
+            // T a = ...
+            StringRef Name = Id->getName();
+            ASTType *Type = new ClassTypeRef(Loc, Name);
+            if (Type) {
+                ASTLocalVar* Var = ParseLocalVar(Block, Constant, Type);
+                return Block->addVar(Var);
+            }
+        } else if (Tok.is(tok::l_paren)) { // function invocation
+            // a()
+            if (Constant) {
+                // TODO Error cannot use const with function call
+            }
+            ASTFuncCall *Call = ParseFunctionCall(Block, Id, Loc);
+            if (Call)
+                return Block->addCall(Call);
+        } else if (isOpIncDec()) { // variable increment or decrement
+            // a++
+            ASTLocalVarStmt *S = ParseIncDec(Loc, Block, Id);
+            if (S) {
+                return Block->addVar(S);
+            }
+        } else { // variable assign
+            // a = ...
+            ASTLocalVarStmt* Var = new ASTLocalVarStmt(Loc, Block, Id->getName());
+            ASTExpr *Expr = ParseStmtExpr(Block, Var);
+            Var->setExpr(Expr);
+            return Block->addVar(Var);
+        }
+    } else if (isBuiltinType()) {
+        // int a = ...
+        ASTLocalVar* Var = ParseLocalVar(Block, Constant, ParseType());
+        return Block->addVar(Var);
+    } else if (isOpIncDec()) { // variable increment or decrement
+        // ++a
+        ASTLocalVarStmt *S = ParseIncDec(Loc, Block, nullptr);
+        if (S) {
+            return Block->addVar(S);
+        }
     }
 
     Diag(Tok.getLocation(), diag::err_parse_stmt);
@@ -505,9 +494,10 @@ bool Parser::ParseIfStmt(ASTBlock *Block) {
             Stmt->getBlockKind() == BlockStmtKind::BLOCK_STMT_ELSIF) {
 
         // Parse the group of expressions into parenthesis
-        ASTGroupExpr *Group = ParseExpr(Block);
-        if (Group) {
-            static_cast<ASTIfBlock *>(Stmt)->Condition = Group;
+        ASTIfBlock *IfStmt = (ASTIfBlock *) Stmt;
+        IfStmt->Condition = ParseExpr(Block);
+        if (IfStmt->Condition == nullptr) {
+            return false;
         }
 
         // Consume Right Parenthesis ) if exists
@@ -547,100 +537,134 @@ bool Parser::ParseIfStmt(ASTBlock *Block) {
  */
 bool Parser::ParseSwitchStmt(ASTBlock *Block) {
     // Parse switch keyword
-    if (Tok.is(tok::kw_switch)) {
-        const SourceLocation &SwitchLoc = ConsumeToken();
+    const SourceLocation &SwitchLoc = ConsumeToken();
 
-        // Parse (
-        bool hasParen = ParseStartParen();
+    // Parse (
+    bool hasParen = ParseStartParen();
 
-        // Parse Var reference like (a)
-        ASTVarRef *VRef = ParseVarRef();
-        if (VRef) {
+    // Parse Var reference like (a)
+    ASTVarRef *VRef = ParseVarRef();
+    if (VRef) {
 
-            // Consume Right Parenthesis ) if exists
-            ParseEndParen(hasParen);
+        // Consume Right Parenthesis ) if exists
+        ParseEndParen(hasParen);
 
-            // Init Switch Statement and start parse from brace
-            ASTSwitchBlock *Stmt = new ASTSwitchBlock(SwitchLoc, Block, VRef);
-            if (Tok.is(tok::l_brace)) {
-                ConsumeBrace();
+        // Init Switch Statement and start parse from brace
+        ASTSwitchBlock *Stmt = new ASTSwitchBlock(SwitchLoc, Block, VRef);
+        if (Tok.is(tok::l_brace)) {
+            ConsumeBrace();
 
-                // Exit only Statement find a closed brace or EOF
-                while (Tok.isNot(tok::r_brace) && Tok.isNot(tok::eof)) {
+            // Exit only Statement find a closed brace or EOF
+            while (Tok.isNot(tok::r_brace) && Tok.isNot(tok::eof)) {
 
-                    // Parse case keyword
-                    if (Tok.is(tok::kw_case)) {
-                        const SourceLocation &CaseLoc = ConsumeToken();
+                // Parse case keyword
+                if (Tok.is(tok::kw_case)) {
+                    const SourceLocation &CaseLoc = ConsumeToken();
 
-                        // Parse Expression for different cases
-                        // for a Value  -> case 1:
-                        // or for a Var -> case a:
-                        // or for a default
-                        ASTExpr * CaseExp = nullptr;
-                        ASTVarRef *VRef = nullptr;
-                        if (isValue()) {
-                            CaseExp = ParseValueExpr();
-                        } else if (Tok.isAnyIdentifier()) {
-                            IdentifierInfo *Id = Tok.getIdentifierInfo();
-                            VRef = new ASTVarRef(Tok.getLocation(), Id->getName());
-                            CaseExp = new ASTVarRefExpr(Tok.getLocation(), VRef);
-                            ConsumeToken();
-                        } else {
-                            // TODO Error
-                        }
-                        if (Tok.is(tok::colon)) {
-                            ConsumeToken();
-
-                            // Add Case to Switch statement and parse statement not contained into braces
-                            CaseBlockStmt *CaseStmt = Stmt->AddCase(CaseLoc, CaseExp);
-                            while (!Tok.isOneOf(tok::r_brace, tok::kw_case, tok::kw_default, tok::eof)) {
-                                ParseBlock(CaseStmt);
-                            }
-                        }
-                    } else if (Tok.is(tok::kw_default)) {
+                    // Parse Expression for different cases
+                    // for a Value  -> case 1:
+                    // or for a Var -> case a:
+                    // or for a default
+                    ASTExpr * CaseExp = nullptr;
+                    ASTVarRef *VRef = nullptr;
+                    if (isValue()) {
+                        CaseExp = ParseValueExpr();
+                    } else if (Tok.isAnyIdentifier()) {
+                        IdentifierInfo *Id = Tok.getIdentifierInfo();
+                        VRef = new ASTVarRef(Tok.getLocation(), Id->getName());
+                        CaseExp = new ASTVarRefExpr(Tok.getLocation(), VRef);
+                        ConsumeToken();
+                    } else {
+                        // TODO Error
+                    }
+                    if (Tok.is(tok::colon)) {
                         ConsumeToken();
 
-                        if (Tok.is(tok::colon)) {
-                            const SourceLocation &Loc = ConsumeToken();
-
-                            // Add Default to Switch statement and parse statement not contained into braces
-                            DefaultBlockStmt *DefStmt = Stmt->AddDefault(Loc);
-                            ParseBlock(DefStmt);
-                        } else {
-                            // TODO add error, missing :
+                        // Add Case to Switch statement and parse statement not contained into braces
+                        CaseBlockStmt *CaseStmt = Stmt->AddCase(CaseLoc, CaseExp);
+                        while (!Tok.isOneOf(tok::r_brace, tok::kw_case, tok::kw_default, tok::eof)) {
+                            ParseBlock(CaseStmt);
                         }
                     }
-                }
+                } else if (Tok.is(tok::kw_default)) {
+                    ConsumeToken();
 
-                // Switch statement is at end of it's time add current Switch to parent statement
-                if (Tok.is(tok::r_brace)) {
-                    ConsumeBrace();
-                    Block->Content.push_back(Stmt);
-                    return true;
+                    if (Tok.is(tok::colon)) {
+                        const SourceLocation &Loc = ConsumeToken();
+
+                        // Add Default to Switch statement and parse statement not contained into braces
+                        DefaultBlockStmt *DefStmt = Stmt->AddDefault(Loc);
+                        ParseBlock(DefStmt);
+                    } else {
+                        // TODO add error, missing :
+                    }
                 }
+            }
+
+            // Switch statement is at end of it's time add current Switch to parent statement
+            if (Tok.is(tok::r_brace)) {
+                ConsumeBrace();
+                Block->Content.push_back(Stmt);
+                return true;
             }
         }
     }
-    
+
     return false;
+}
+
+/**
+ * Parse the While statement
+ *
+ * while (...) {
+ *  ...
+ * }
+ *
+ * or
+ *
+ * while ... {
+ *  ...
+ * }
+ *
+ * @param Block
+ * @return
+ */
+bool Parser::ParseWhileStmt(ASTBlock *Block) {
+    const SourceLocation &Loc = ConsumeToken();
+
+    // Consume Left Parenthesis ( if exists
+    bool hasParen = ParseStartParen();
+
+    ASTWhileBlock *While = new ASTWhileBlock(Loc, Block);
+    While->Cond = ParseExpr(Block);
+    bool Success = true;
+
+    // Consume Right Parenthesis ) if exists
+    ParseEndParen(hasParen);
+
+    // Parse statement between braces
+    if (Tok.is(tok::l_brace)) {
+        ConsumeBrace();
+        if (Success && ParseInnerBlock(While)) {
+            Block->Content.push_back(While);
+            return true;
+        }
+    } else if (Success && ParseStmt(While)) { // Only for a single Stmt without braces
+        Block->Content.push_back(While);
+        return true;
+    }
 }
 
 /**
  * Parse the For statement
  *
- * for {
- *  ...
- * }
- *
- * or
- *
- * for ... {
- *  ...
- * }
- *
- * or
- *
  * for ...; ...; ... {
+ *  ...
+ * }
+ *
+ * or
+ *
+ * for (...; ...; ...) {
  *  ...
  * }
  *
@@ -648,85 +672,86 @@ bool Parser::ParseSwitchStmt(ASTBlock *Block) {
  * @return
  */
 bool Parser::ParseForStmt(ASTBlock *Block) {
-    if (Tok.is(tok::kw_for)) {
-        const SourceLocation &ForLoc = ConsumeToken();
+    const SourceLocation &Loc = ConsumeToken();
 
-        bool hasParen = ParseStartParen();
+    // Consume Left Parenthesis ( if exists
+    bool hasParen = ParseStartParen();
 
-        // Init For Statement and start parse components
-        ASTForBlock *For = new ASTForBlock(ForLoc, Block);
-        bool noError = true;
-        // could be an Init component, or a Condition component or empty
-        if (Tok.is(tok::kw_const) || Tok.isAnyIdentifier() || isBuiltinType()) {
-            // could be a variable assign or variable definition with custom type
-            // or could be a function call
-            if (ParseInitForStmt(For->Init, For->Cond)) {
+    // Init For Statement and start parse components
+    ASTForBlock *For = new ASTForBlock(Loc, Block);
+    bool Success = true;
+    // parse comma separated or single statements
+    if (ParseForCommaStmt(For->Init)) {
+        assert(Tok.isNot(tok::comma) && "Comma not parsed");
 
-                // This is an Expression, it could be a Condition
-                if (For->Init->isEmpty() && !For->Cond->isEmpty() && !Tok.isOneOf(tok::comma, tok::semi)) {
-                    noError &= ParseCondForStmt(Block, For->Cond);
-                }
+        // This is an Expression, it could be a Condition
+        if (Tok.is(tok::semi)) {
+            ConsumeToken();
+            For->Cond = ParseExpr(For->Init);
 
-                if (Tok.is(tok::semi)) {
-                    ConsumeToken();
-
-                    if (ParseCondForStmt(For->Init, For->Cond)) {
-                        if (Tok.is(tok::semi)) {
-                            ConsumeToken();
-
-                            noError &= ParsePostForStmt(For->Post);
-                        }
-                    }
-                }
-            } else if (For->Cond) {
-                 // TODO
+            if (Tok.is(tok::semi)) {
+                ConsumeToken();
+                Success = ParseForCommaStmt(For->Post);
             }
         }
+    }
 
-        // Consume Right Parenthesis ) if exists
-        ParseEndParen(hasParen);
+    // Consume Right Parenthesis ) if exists
+    ParseEndParen(hasParen);
 
-        // Parse statement between braces
-        if (Tok.is(tok::l_brace)) {
-            ConsumeBrace();
-            if (noError && ParseInnerBlock(For->Loop)) {
-                Block->Content.push_back(For);
-                return true;
-            }
-        } else if (noError && ParseStmt(For->Loop)) { // Only for a single Stmt without braces
+    // Parse statement between braces
+    if (Tok.is(tok::l_brace)) {
+        ConsumeBrace();
+        if (Success && ParseInnerBlock(For->Loop)) {
             Block->Content.push_back(For);
             return true;
         }
-
+    } else if (Success && ParseStmt(For->Loop)) { // Only for a single Stmt without braces
+        Block->Content.push_back(For);
+        return true;
     }
+
     return false;
 }
 
-bool Parser::ParseInitForStmt(ASTBlock *InitStmt, ASTGroupExpr *Cond) {
-    if (ParseStmt(InitStmt, Cond)) {
+bool Parser::ParseForCommaStmt(ASTBlock *Block) {
+    if (ParseStmt(Block)) {
 
         if (Tok.is(tok::comma)) {
             ConsumeToken();
-            return ParseInitForStmt(InitStmt, nullptr);
+            return ParseForCommaStmt(Block);
         }
         return true;
     }
     return false;
 }
 
-bool Parser::ParseCondForStmt(ASTBlock *Block, ASTGroupExpr* Cond) {
-    return ParseExpr(Block, Cond);
-}
-
-bool Parser::ParsePostForStmt(ASTBlock *PostStmt) {
-    if (ParseStmt(PostStmt)) {
-        if (Tok.is(tok::comma)) {
-            ConsumeToken();
-            return ParsePostForStmt(PostStmt);
-        }
-        return true;
+ASTType* Parser::ParseType() {
+    const SourceLocation &Loc = Tok.getLocation();
+    ASTType *Type = nullptr;
+    switch (Tok.getKind()) {
+        case tok::kw_bool:
+            Type = new BoolPrimType(Loc);
+            break;
+        case tok::kw_int:
+            Type = new IntPrimType(Loc);
+            break;
+        case tok::kw_float:
+            Type = new FloatPrimType(Loc);
+            break;
+        case tok::kw_void:
+            Type = new VoidRetType(Loc);
+            break;
+        default:
+            StringRef Name = Tok.getIdentifierInfo()->getName();
+            if (Name.empty()) {
+                Diag(Loc, diag::err_type_undefined);
+            } else {
+                Type = new ClassTypeRef(Loc, Name);
+            }
     }
-    return false;
+    ConsumeToken();
+    return Type;
 }
 
 ASTFuncCall *Parser::ParseFunctionCall(ASTBlock *Block, IdentifierInfo *Id, SourceLocation &IdLoc) {
@@ -736,28 +761,37 @@ ASTFuncCall *Parser::ParseFunctionCall(ASTBlock *Block, IdentifierInfo *Id, Sour
     return Parser.Call;
 }
 
-ASTLocalVar *Parser::ParseVarDecl(ASTBlock *Block, bool Constant, ASTType *TyDecl) {
-    // Var Name
+ASTLocalVar *Parser::ParseLocalVar(ASTBlock *Block, bool Constant, ASTType *Type) {
     const StringRef Name = Tok.getIdentifierInfo()->getName();
-    const SourceLocation IdLoc = Tok.getLocation();
-    ConsumeToken();
-    ASTLocalVar *Var = new ASTLocalVar(IdLoc, Block, TyDecl, Name);
+    const SourceLocation Loc = Tok.getLocation();
+    ASTLocalVar *Var = new ASTLocalVar(Loc, Block, Type, Name);
     Var->Constant = Constant;
+    ConsumeToken();
 
-    // Parsing =, +=, -=, ...
-    if (isOpAssign()) {
-        ASTVarRef *VRef = new ASTVarRef(Tok.getLocation(), Var->getName());
-        VRef->Decl = Var;
-        ASTGroupExpr *GrExp = ParseOpAssign(VRef);
+    Var->setExpr(ParseStmtExpr(Block, Var));
+    return Var;
+}
+
+ASTLocalVarStmt *Parser::ParseIncDec(SourceLocation &Loc, ASTBlock *Block, IdentifierInfo *Id) {
+    ASTLocalVarStmt *VStmt;
+    ASTIncDecExpr* Expr;
+    if (Id) {
+        Expr = ParseOpIncrement(true);
         ConsumeToken();
-
-        ASTGroupExpr* Ex = ParseExpr(Block, GrExp);
-        if (Ex) {
-            Var->Expression = Ex;
+        VStmt = new ASTLocalVarStmt(Loc, Block, Id->getName());
+    } else {
+        Expr = ParseOpIncrement(false);
+        ConsumeToken();
+        if (Tok.isAnyIdentifier()) {
+            VStmt = new ASTLocalVarStmt(Tok.getLocation(), Block, Tok.getIdentifierInfo()->getName());
+            ConsumeToken();
+        } else {
+            // TODO Error var not specified for inc dec
+            return nullptr;
         }
     }
-
-    return Var;
+    VStmt->setExpr(Expr);
+    return VStmt;
 }
 
 ASTVarRef* Parser::ParseVarRef() {
@@ -766,26 +800,149 @@ ASTVarRef* Parser::ParseVarRef() {
     return VRef;
 }
 
-ASTLocalVarStmt *Parser::ParseIncDec(SourceLocation &Loc, ASTBlock *CurrStmt, IdentifierInfo *Id) {
-    ASTLocalVarStmt *VStmt;
-    IncDecExpr* Exp;
-    if (Id) {
-        Exp = ParseOpIncrement(true);
+ASTExpr* Parser::ParseStmtExpr(ASTBlock *Block, ASTLocalVar *Var) {
+    ASTVarRef *VarRef = new ASTVarRef(Tok.getLocation(), Var->getName());
+    VarRef->Decl = Var;
+    return ParseStmtExpr(Block, VarRef);
+}
+
+ASTExpr* Parser::ParseStmtExpr(ASTBlock *Block, ASTVarRef *VarRef) {
+    // Parsing =, +=, -=, ...
+    if (Tok.is(tok::equal)) {
         ConsumeToken();
-        VStmt = new ASTLocalVarStmt(Loc, CurrStmt, Id->getName());
+        return ParseExpr(Block);
+    } else if (Tok.isOneOf(tok::plusequal, tok::minusequal, tok::starequal, tok::slashequal,
+                           tok::percentequal, tok::ampequal, tok::pipeequal, tok::caretequal, tok::lesslessequal,
+                           tok::greatergreaterequal)) {
+
+        SourceLocation Loc = Tok.getLocation();
+        ASTGroupExpr* GroupExpr = new ASTGroupExpr;
+        ASTVarRefExpr *VarRefExpr = new ASTVarRefExpr(Loc, VarRef);
+        GroupExpr->Add(VarRefExpr);
+        switch (Tok.getKind()) {
+
+                // Arithmetic
+            case tok::plusequal:
+                GroupExpr->Add( new ASTArithExpr(Loc, ArithOpKind::ARITH_ADD) );
+                break;
+            case tok::minusequal:
+                GroupExpr->Add( new ASTArithExpr(Loc, ArithOpKind::ARITH_SUB) );
+                break;
+            case tok::starequal:
+                GroupExpr->Add( new ASTArithExpr(Loc, ArithOpKind::ARITH_MUL) );
+                break;
+            case tok::slashequal:
+                GroupExpr->Add( new ASTArithExpr(Loc, ArithOpKind::ARITH_DIV) );
+                break;
+            case tok::percentequal:
+                GroupExpr->Add( new ASTArithExpr(Loc, ArithOpKind::ARITH_MOD) );
+                break;
+
+                // Bit
+            case tok::ampequal:
+                GroupExpr->Add( new ASTBitExpr(Loc, BitOpKind::BIT_AND));
+                break;
+            case tok::pipeequal:
+                GroupExpr->Add( new ASTBitExpr(Loc, BitOpKind::BIT_OR));
+                break;
+            case tok::caretequal:
+                GroupExpr->Add( new ASTBitExpr(Loc, BitOpKind::BIT_NOT));
+                break;
+            case tok::lesslessequal:
+                GroupExpr->Add( new ASTBitExpr(Loc, BitOpKind::BIT_SHIFT_L));
+                break;
+            case tok::greatergreaterequal:
+                GroupExpr->Add( new ASTBitExpr(Loc, BitOpKind::BIT_SHIFT_R));
+                break;
+            default:
+                assert(0 && "Accept Only assignment operators");
+        }
+        ConsumeToken();
+        return ParseExpr(Block, GroupExpr);
+    }
+    return nullptr;
+}
+
+ASTExpr* Parser::ParseExpr(ASTBlock *Block, ASTGroupExpr *ParentGroup) {
+    assert(Block != nullptr && "Invalid Block");
+
+    if (Tok.is(tok::l_paren)) {
+        ConsumeParen();
+        ASTGroupExpr *CurrGroup = (ASTGroupExpr *) ParseExpr(Block, new ASTGroupExpr());
+
+        if (Tok.is(tok::r_paren)) {
+            ConsumeParen();
+            if (ParentGroup != nullptr) {
+                ParentGroup->Add(CurrGroup);
+            }
+            if (isOperator()) {
+
+                // Add Operator
+                ASTOperatorExpr *OpExpr = ParseOperator();
+                ConsumeToken();
+                CurrGroup->Add(OpExpr);
+
+                // Parse with recursion
+                ParseExpr(Block, CurrGroup);
+                return CurrGroup;
+            }
+            return CurrGroup;
+        }
+
+        Diag(Tok.getLocation(), diag::err_paren_unclosed);
     } else {
-        Exp = ParseOpIncrement(false);
-        ConsumeToken();
-        if (Tok.isAnyIdentifier()) {
-            VStmt = new ASTLocalVarStmt(Tok.getLocation(), CurrStmt, Tok.getIdentifierInfo()->getName());
-            ConsumeToken();
-        } else {
-            // TODO Error var not specified for inc dec
-            return nullptr;
+        ASTExpr *Expr = ParseOneExpr(Block);
+        if (Expr) {
+
+            // If there is an Operator start creating a GroupExpr
+            if (isOperator()) {
+                ASTGroupExpr *GroupExpr = ParentGroup == nullptr ? new ASTGroupExpr : ParentGroup;
+
+                // Continue recursively with group parsing
+                // Add Expr
+                GroupExpr->Add(Expr);
+
+                // Add Operator
+                ASTOperatorExpr *OpExpr = ParseOperator();
+                ConsumeToken();
+                GroupExpr->Add(OpExpr);
+
+                // Parse with recursion
+                return ParseExpr(Block, GroupExpr);
+            }
+
+            if (ParentGroup != nullptr) {
+                ParentGroup->Add(Expr);
+                return ParentGroup;
+            }
+            return Expr;
         }
     }
-    VStmt->getExpr()->Add(Exp);
-    return VStmt;
+    return nullptr;
+}
+
+// Parse by using inheritance for return different Expr
+ASTExpr* Parser::ParseOneExpr(ASTBlock *Block) {
+    // Start Parsing
+    if (isValue()) {
+        return ParseValueExpr();
+    } else if (Tok.isAnyIdentifier()) {
+        IdentifierInfo *Id = Tok.getIdentifierInfo();
+        SourceLocation Loc = ConsumeToken();
+        if (Tok.is(tok::l_paren)) { // function invocation
+            // a()
+            ASTFuncCall *Call = ParseFunctionCall(Block, Id, Loc);
+            if (Call) {
+                Block->Top->addUnRefCall(Call);
+                return new ASTFuncCallExpr(Loc, Call);
+            }
+        } else {
+            ASTVarRef *VRef = new ASTVarRef(Loc, Id->getName());
+            Block->ResolveVarRef(VRef);
+            return new ASTVarRefExpr(Loc, VRef);
+        }
+    }
+    return nullptr;
 }
 
 ASTValueExpr *Parser::ParseValueExpr() {
@@ -817,54 +974,81 @@ ASTValueExpr *Parser::ParseValueExpr() {
     assert(0 && "Incorrect Value");
 }
 
-// TODO return Expr*
-// Parse not always as Group but use inheritance for return different Expr
-ASTGroupExpr* Parser::ParseExpr(ASTBlock *Block, ASTGroupExpr *CurrGroup) {
-//    SourceLocation Loc = Tok.getLocation();
-    if (CurrGroup == nullptr) {
-        CurrGroup = new ASTGroupExpr();
+ASTOperatorExpr* Parser::ParseOperator() {
+    SourceLocation Loc = Tok.getLocation();
+    switch (Tok.getKind()) {
+
+        // Increment / Decrement
+        case tok::plusplus:
+            return new ASTArithExpr(Loc, ArithOpKind::ARITH_INCR);
+        case tok::minusminus:
+            return new ASTArithExpr(Loc, ArithOpKind::ARITH_DECR);
+
+            // Bit
+        case tok::amp:
+            return new ASTBitExpr(Loc, BitOpKind::BIT_AND);
+        case tok::pipe:
+            return new ASTBitExpr(Loc, BitOpKind::BIT_OR);
+        case tok::caret:
+            return new ASTBitExpr(Loc, BitOpKind::BIT_NOT);
+        case tok::lessless:
+            return new ASTBitExpr(Loc, BitOpKind::BIT_SHIFT_L);
+        case tok::greatergreater:
+            return new ASTBitExpr(Loc, BitOpKind::BIT_SHIFT_R);
+
+            // Boolean
+        case tok::ampamp:
+            return new ASTBoolExpr(Loc, BoolOpKind::BOOL_AND);
+        case tok::pipepipe:
+            return new ASTBoolExpr(Loc, BoolOpKind::BOOL_OR);
+        case tok::exclaim:
+            return new ASTBoolExpr(Loc, BoolOpKind::BOOL_NOT);
+
+            // Arithmetic
+        case tok::plus:
+            return new ASTArithExpr(Loc, ArithOpKind::ARITH_ADD);
+        case tok::minus:
+            return new ASTArithExpr(Loc, ArithOpKind::ARITH_SUB);
+        case tok::star:
+            return new ASTArithExpr(Loc, ArithOpKind::ARITH_MUL);
+        case tok::slash:
+            return new ASTArithExpr(Loc, ArithOpKind::ARITH_DIV);
+        case tok::percent:
+            return new ASTArithExpr(Loc, ArithOpKind::ARITH_MOD);
+
+            // Logic
+        case tok::less:
+            return new ASTLogicExpr(Loc, LogicOpKind::LOGIC_LT);
+        case tok::lessequal:
+            return new ASTLogicExpr(Loc, LogicOpKind::LOGIC_LTE);
+        case tok::greater:
+            return new ASTLogicExpr(Loc, LogicOpKind::LOGIC_GT);
+        case tok::greaterequal:
+            return new ASTLogicExpr(Loc, LogicOpKind::LOGIC_GTE);
+        case tok::exclaimequal:
+            return new ASTLogicExpr(Loc, LogicOpKind::LOGIC_NE);
+        case tok::equalequal:
+            return new ASTLogicExpr(Loc, LogicOpKind::LOGIC_EQ);
+
+            // Condition
+        case tok::question:
+            return new ASTCondExpr(Loc, CondOpKind::COND_THAN);
+        case tok::colon:
+            return new ASTCondExpr(Loc, CondOpKind::COND_ELSE);
     }
 
-    // Start Parsing
-    if (isValue()) {
-        ASTValueExpr *Val = ParseValueExpr();
-        if (Val) {
-            CurrGroup->Add(Val);
-        }
-    } else if (Tok.isAnyIdentifier()) {
-        IdentifierInfo *Id = Tok.getIdentifierInfo();
-        SourceLocation Loc = ConsumeToken();
-        if (Tok.is(tok::l_paren)) { // function invocation
-            // a()
-            ASTFuncCall *Call = ParseFunctionCall(Block, Id, Loc);
-            if (Call) {
-                Block->Top->addUnRefCall(Call);
-                CurrGroup->Add(new ASTFuncCallExpr(Loc, Call));
-            }
-        } else {
-            ASTVarRef *VRef = new ASTVarRef(Loc, Id->getName());
-            Block->ResolveVarRef(VRef);
-            CurrGroup->Add(new ASTVarRefExpr(Loc, VRef));
-        }
-    } else if (Tok.is(tok::l_paren)) {
-        ConsumeToken();
-        ASTGroupExpr *GroupE = new ASTGroupExpr();
-        ParseExpr(Block, GroupE);
-        if (Tok.is(tok::r_paren)) {
-            ConsumeToken();
-            CurrGroup->Add(GroupE);
-        }
-    }
+    assert(0 && "Operator not accepted");
+}
 
-    // Always check if there is an operator
-    if (isOperator()) {
-        ASTExpr* E = ParseOperator();
-        ConsumeToken();
-        CurrGroup->Add(E);
-        ParseExpr(Block, CurrGroup);
+ASTIncDecExpr* Parser::ParseOpIncrement(bool post) {
+    switch (Tok.getKind()) {
+        case tok::plusplus:
+            return new ASTIncDecExpr(Tok.getLocation(), post ? IncDecOpKind::POST_INCREMENT : IncDecOpKind::PRE_INCREMENT);
+        case tok::minusminus:
+            return new ASTIncDecExpr(Tok.getLocation(), post ? IncDecOpKind::POST_DECREMENT : IncDecOpKind::PRE_DECREMENT);
+        default:
+            assert(0 && "Only Increment ++ or Decrement -- are accepted");
     }
-
-    return CurrGroup;
 }
 
 bool Parser::isVoidType() {
@@ -873,12 +1057,6 @@ bool Parser::isVoidType() {
 
 bool Parser::isBuiltinType() {
     return Tok.isOneOf(tok::kw_int, tok::kw_bool, tok::kw_float);
-}
-
-bool Parser::isOpAssign() {
-    return Tok.isOneOf(tok::plusequal, tok::minusequal, tok::starequal, tok::slashequal, tok::percentequal,
-                       tok::ampequal, tok::pipeequal, tok::caretequal, tok::lesslessequal, tok::greatergreaterequal,
-                       tok::equal);
 }
 
 bool Parser::isOpIncDec() {
@@ -894,167 +1072,6 @@ bool Parser::isOperator() {
                        tok::question, tok::colon);
 }
 
-ASTType* Parser::ParseType() {
-    ASTType *TyDecl = ParseType(Tok.getLocation(), Tok.getKind());
-    ConsumeToken();
-    return TyDecl;
-}
-
-ASTType* Parser::ParseType(SourceLocation Loc, tok::TokenKind Kind) {
-    ASTType *TyDecl = nullptr;
-    switch (Kind) {
-        case tok::kw_bool:
-            TyDecl = new BoolPrimType(Loc);
-            break;
-        case tok::kw_int:
-            TyDecl = new IntPrimType(Loc);
-            break;
-        case tok::kw_float:
-            TyDecl = new FloatPrimType(Loc);
-            break;
-        case tok::kw_void:
-            TyDecl = new VoidRetType(Loc);
-            break;
-        default:
-            StringRef Name = Tok.getIdentifierInfo()->getName();
-            if (Name.empty()) {
-                Diag(Loc, diag::err_type_undefined);
-            } else {
-                TyDecl = new ClassTypeRef(Loc, Name);
-            }
-    }
-
-    return TyDecl;
-}
-
 bool Parser::isValue() {
     return Tok.isOneOf(tok::numeric_constant, tok::kw_true, tok::kw_false);
-}
-
-ASTOperatorExpr* Parser::ParseOperator() {
-    SourceLocation Loc = Tok.getLocation();
-    switch (Tok.getKind()) {
-
-        // Increment / Decrement
-        case tok::plusplus:
-            return new ArithExpr(Loc, ArithOpKind::ARITH_INCR);
-        case tok::minusminus:
-            return new ArithExpr(Loc, ArithOpKind::ARITH_DECR);
-
-        // Bit
-        case tok::amp:
-            return new BitExpr(Loc, BitOpKind::BIT_AND);
-        case tok::pipe:
-            return new BitExpr(Loc, BitOpKind::BIT_OR);
-        case tok::caret:
-            return new BitExpr(Loc, BitOpKind::BIT_NOT);
-        case tok::lessless:
-            return new BitExpr(Loc, BitOpKind::BIT_SHIFT_L);
-        case tok::greatergreater:
-            return new BitExpr(Loc, BitOpKind::BIT_SHIFT_R);
-
-        // Boolean
-        case tok::ampamp:
-            return new BoolExpr(Loc, BoolOpKind::BOOL_AND);
-        case tok::pipepipe:
-            return new BoolExpr(Loc, BoolOpKind::BOOL_OR);
-        case tok::exclaim:
-            return new BoolExpr(Loc, BoolOpKind::BOOL_NOT);
-
-        // Arithmetic
-        case tok::plus:
-            return new ArithExpr(Loc, ArithOpKind::ARITH_ADD);
-        case tok::minus:
-            return new ArithExpr(Loc, ArithOpKind::ARITH_SUB);
-        case tok::star:
-            return new ArithExpr(Loc, ArithOpKind::ARITH_MUL);
-        case tok::slash:
-            return new ArithExpr(Loc, ArithOpKind::ARITH_DIV);
-        case tok::percent:
-            return new ArithExpr(Loc, ArithOpKind::ARITH_MOD);
-
-        // Logic
-        case tok::less:
-            return new LogicExpr(Loc, LogicOpKind::LOGIC_LT);
-        case tok::lessequal:
-            return new LogicExpr(Loc, LogicOpKind::LOGIC_LTE);
-        case tok::greater:
-            return new LogicExpr(Loc, LogicOpKind::LOGIC_GT);
-        case tok::greaterequal:
-            return new LogicExpr(Loc, LogicOpKind::LOGIC_GTE);
-        case tok::exclaimequal:
-            return new LogicExpr(Loc, LogicOpKind::LOGIC_NE);
-        case tok::equalequal:
-            return new LogicExpr(Loc, LogicOpKind::LOGIC_EQ);
-
-        // Condition
-        case tok::question:
-            return new CondExpr(Loc, CondOpKind::COND_THAN);
-        case tok::colon:
-            return new CondExpr(Loc, CondOpKind::COND_ELSE);
-
-        default:
-            assert(0 && "Operator not accepted");
-    }
-}
-
-ASTGroupExpr* Parser::ParseOpAssign(ASTVarRef *Ref) {
-    SourceLocation Loc = Tok.getLocation();
-    ASTGroupExpr* Gr = new ASTGroupExpr;
-    ASTVarRefExpr *VRefE = new ASTVarRefExpr(Loc, Ref);
-    Gr->Add(VRefE);
-    switch (Tok.getKind()) {
-
-        // Only Assign with =
-        case tok::equal:
-            return nullptr;
-
-        // Arithmetic
-        case tok::plusequal:
-            Gr->Add( new ArithExpr(Loc, ArithOpKind::ARITH_ADD) );
-            break;
-        case tok::minusequal:
-            Gr->Add( new ArithExpr(Loc, ArithOpKind::ARITH_SUB) );
-            break;
-        case tok::starequal:
-            Gr->Add( new ArithExpr(Loc, ArithOpKind::ARITH_MUL) );
-            break;
-        case tok::slashequal:
-            Gr->Add( new ArithExpr(Loc, ArithOpKind::ARITH_DIV) );
-            break;
-        case tok::percentequal:
-            Gr->Add( new ArithExpr(Loc, ArithOpKind::ARITH_MOD) );
-            break;
-
-            // Bit
-        case tok::ampequal:
-            Gr->Add( new BitExpr(Loc, BitOpKind::BIT_AND));
-            break;
-        case tok::pipeequal:
-            Gr->Add( new BitExpr(Loc, BitOpKind::BIT_OR));
-            break;
-        case tok::caretequal:
-            Gr->Add( new BitExpr(Loc, BitOpKind::BIT_NOT));
-            break;
-        case tok::lesslessequal:
-            Gr->Add( new BitExpr(Loc, BitOpKind::BIT_SHIFT_L));
-            break;
-        case tok::greatergreaterequal:
-            Gr->Add( new BitExpr(Loc, BitOpKind::BIT_SHIFT_R));
-            break;
-        default:
-            assert(0 && "Only assign operations are accepted");
-    }
-    return Gr;
-}
-
-IncDecExpr* Parser::ParseOpIncrement(bool post) {
-    switch (Tok.getKind()) {
-        case tok::plusplus:
-            return new IncDecExpr(Tok.getLocation(), post ? IncDecOpKind::POST_INCREMENT : IncDecOpKind::PRE_INCREMENT);
-        case tok::minusminus:
-            return new IncDecExpr(Tok.getLocation(), post ? IncDecOpKind::POST_DECREMENT : IncDecOpKind::PRE_DECREMENT);
-        default:
-            assert(0 && "Only Increment ++ or Decrement -- are accepted");
-    }
 }

@@ -13,7 +13,7 @@
 using namespace fly;
 
 ASTLocalVar::ASTLocalVar(const SourceLocation &Loc, ASTBlock *Block, ASTType *Type, const StringRef &Name) :
-        ASTStmt(Loc, Block), ASTVar(Type, Name) {}
+        ASTExprStmt(Loc, Block), ASTVar(Type, Name) {}
 
 StmtKind ASTLocalVar::getKind() const {
     return Kind;
@@ -27,6 +27,14 @@ void ASTLocalVar::setOrder(unsigned long order) {
     Order = order;
 }
 
+ASTExpr *ASTLocalVar::getExpr() const {
+    return ASTExprStmt::getExpr();
+}
+
+void ASTLocalVar::setExpr(ASTExpr *E) {
+    ASTExprStmt::setExpr(E);
+}
+
 CodeGenVar *ASTLocalVar::getCodeGen() const {
     return CodeGen;
 }
@@ -37,18 +45,10 @@ void ASTLocalVar::setCodeGen(CodeGenVar *CG) {
 
 ASTLocalVarStmt::ASTLocalVarStmt(const SourceLocation &Loc, ASTBlock *Block, const llvm::StringRef &Name,
                                  const StringRef &NameSpace) :
-        ASTStmt(Loc, Block), ASTVarRef(Loc, Name, NameSpace), Expr(new ASTGroupExpr) {
+        ASTExprStmt(Loc, Block), ASTVarRef(Loc, Name, NameSpace) {
 
 }
 
 StmtKind ASTLocalVarStmt::getKind() const {
     return STMT_VAR_ASSIGN;
-}
-
-ASTGroupExpr *ASTLocalVarStmt::getExpr() const {
-    return Expr;
-}
-
-void ASTLocalVarStmt::setExpr(ASTGroupExpr *E) {
-    Expr = E;
 }

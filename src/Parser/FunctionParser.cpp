@@ -71,12 +71,11 @@ bool FunctionParser::ParseParam() {
 
         // Start Parsing
         if (P->isValue()) {
-            ASTGroupExpr *Group = new ASTGroupExpr();
             ASTValueExpr *Val = P->ParseValueExpr();
             if (Val) {
-                Group->Add(Val);
+                Param->setExpr(Val);
             }
-            Param->Expression = Group;
+            ;
         }
     }
 

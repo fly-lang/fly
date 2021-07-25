@@ -25,7 +25,6 @@ const llvm::StringRef &ASTVar::getName() const {
 
 ASTVar::~ASTVar() {
     delete Type;
-    delete Expression;
 }
 
 bool ASTVar::isConstant() const {
@@ -36,13 +35,6 @@ const bool ASTVar::isGlobal() const {
     return !NameSpace.empty();
 }
 
-ASTGroupExpr *ASTVar::getExpr() const {
-    return Expression;
-}
-
-void ASTVar::setExpr(ASTGroupExpr *Exp) {
-    Expression = Exp;
-}
 
 ASTVarRef::ASTVarRef(const SourceLocation &Loc, const llvm::StringRef &Name, const StringRef &NameSpace) :
         Loc(Loc), NameSpace(NameSpace), Name(Name) {

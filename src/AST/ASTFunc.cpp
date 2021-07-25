@@ -231,6 +231,15 @@ ASTFuncParam::ASTFuncParam(const SourceLocation &Loc, ASTType *Type, const llvm:
 
 }
 
+ASTExpr *ASTFuncParam::getExpr() const {
+    return Expr;
+}
+
+void ASTFuncParam::setExpr(ASTExpr *E) {
+    assert(E->getKind() == EXPR_VALUE && "Invalid Value for GlobalVar");
+    Expr = (ASTValueExpr *)E;
+}
+
 CodeGenVar *ASTFuncParam::getCodeGen() const {
     return CodeGen;
 }
@@ -247,12 +256,12 @@ const ASTFuncParam *ASTFuncHeader::getVarArg() const {
     return VarArg;
 }
 
-ASTReturn::ASTReturn(const SourceLocation &Loc, ASTBlock *Block, ASTExpr *Exp) : ASTStmt(Loc, Block),
-                                                                                 Ty(Block->getTop()->getType()),
-                                                                                 Exp(Exp) {}
+ASTReturn::ASTReturn(const SourceLocation &Loc, ASTBlock *Block, ASTExpr *Expr) : ASTStmt(Loc, Block),
+                                                                                  Ty(Block->getTop()->getType()),
+                                                                                  Expr(Expr) {}
 
 ASTExpr *ASTReturn::getExpr() const {
-    return Exp;
+    return Expr;
 }
 
 StmtKind ASTReturn::getKind() const {

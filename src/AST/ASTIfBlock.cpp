@@ -82,7 +82,7 @@ ElseBlockStmt *ASTIfBlock::getElse() {
     return Else;
 }
 
-ASTGroupExpr *ASTIfBlock::getCondition() {
+ASTExpr *ASTIfBlock::getCondition() {
     return Condition;
 }
 

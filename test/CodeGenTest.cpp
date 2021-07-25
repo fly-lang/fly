@@ -245,10 +245,9 @@ namespace {
         MainFn->addParam(SourceLoc, new FloatPrimType(SourceLoc), "P2");
         MainFn->addParam(SourceLoc, new BoolPrimType(SourceLoc), "P3");
         Node->addFunction(MainFn);
-        
-        ASTGroupExpr *Exp = new ASTGroupExpr();
-        Exp->Add(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new IntPrimType(SourceLoc))));
-        MainFn->getBody()->addReturn(SourceLoc, Exp);
+
+        ASTValueExpr *Expr = new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new IntPrimType(SourceLoc)));
+        MainFn->getBody()->addReturn(SourceLoc, Expr);
 
         CodeGenOptions CodeGenOpts;
         std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();
@@ -296,21 +295,19 @@ namespace {
 
         // A = 1
         ASTLocalVarStmt * VStmt = new ASTLocalVarStmt(SourceLoc, MainFn->getBody(), VarA->getName());
-        ASTGroupExpr *Gr = new ASTGroupExpr();
-        Gr->Add(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new IntPrimType(SourceLoc))));
-        VStmt->setExpr(Gr);
+        ASTExpr *Expr = new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new IntPrimType(SourceLoc)));
+        VStmt->setExpr(Expr);
         MainFn->getBody()->addVar(VStmt);
 
         // GlobalVar
         // G = 1
         ASTLocalVarStmt * GStmt = new ASTLocalVarStmt(SourceLoc, MainFn->getBody(), GVar->getName(), "default");
-        GStmt->setExpr(Gr);
+        GStmt->setExpr(Expr);
         MainFn->getBody()->addVar(GStmt);
 
         // return A
-        ASTGroupExpr *Exp = new ASTGroupExpr();
-        Exp->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(SourceLoc, VarA->getName())));
-        MainFn->getBody()->addReturn(SourceLoc, Exp);
+        MainFn->getBody()->addReturn(SourceLoc, new ASTVarRefExpr(SourceLoc,
+                                                                  new ASTVarRef(SourceLoc, VarA->getName())));
 
         Node->Finalize();
 
@@ -361,9 +358,7 @@ namespace {
         // call test()
         MainFn->getBody()->addCall(TestCall);
         //return test()
-        ASTGroupExpr *Exp = new ASTGroupExpr();
-        Exp->Add(new ASTFuncCallExpr(SourceLoc, TestCall));
-        MainFn->getBody()->addReturn(SourceLoc, Exp);
+        MainFn->getBody()->addReturn(SourceLoc, new ASTFuncCallExpr(SourceLoc, TestCall));
         // Finalize Context for Resolutions of Call and Ref
         Node->Finalize();
         Ctx->Finalize();

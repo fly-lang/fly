@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTForBlock.h - AST For Block Statement
+// include/AST/ASTWhileBlock.h - AST While Block Statement
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,34 +8,27 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#ifndef FLY_ASTFORBLOCK_H
-#define FLY_ASTFORBLOCK_H
+#ifndef FLY_ASTWHILEBLOCK_H
+#define FLY_ASTWHILEBLOCK_H
 
 #include "ASTBlock.h"
 
 namespace fly {
 
-    class ASTForBlock : public ASTBlock {
+    class ASTWhileBlock : public ASTBlock {
 
         friend class Parser;
 
-        enum BlockStmtKind StmtKind = BlockStmtKind::BLOCK_STMT_FOR;
+        enum BlockStmtKind StmtKind = BlockStmtKind::BLOCK_STMT_WHILE;
 
-        ASTBlock *Init;
         ASTExpr *Cond;
-        ASTBlock *Post;
-        ASTBlock *Loop;
 
     public:
-        ASTForBlock(const SourceLocation &Loc, ASTBlock *Parent);
+        ASTWhileBlock(const SourceLocation &Loc, ASTBlock *Parent);
 
         enum BlockStmtKind getBlockKind() const override;
 
-        ASTBlock *getInit();
-
         ASTExpr *getCondition();
-
-        ASTBlock *getPost();
 
         ASTBlock *getLoop();
 

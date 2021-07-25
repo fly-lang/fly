@@ -34,7 +34,6 @@ namespace fly {
         const llvm::StringRef NameSpace;
         const llvm::StringRef Name;
         bool Constant = false;
-        ASTGroupExpr *Expression = nullptr;
 
     public:
         ASTVar(ASTType *Type, const StringRef &Name, const StringRef &NameSpace = "");
@@ -49,9 +48,9 @@ namespace fly {
 
         virtual const llvm::StringRef &getName() const;
 
-        void setExpr(ASTGroupExpr *Exp);
+        virtual void setExpr(ASTExpr *Exp) = 0;
 
-        ASTGroupExpr *getExpr() const;
+        virtual ASTExpr *getExpr() const = 0;
     };
 
     /**

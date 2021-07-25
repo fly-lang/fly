@@ -1,24 +1,25 @@
 add_library(FlyAST
+        ASTBlock.cpp
+        ASTClass.cpp
         ASTContext.cpp
+        ASTExpr.cpp
+        ASTForBlock.cpp
+        ASTFunc.cpp
+        ASTGlobalVar.cpp
+        ASTIfBlock.cpp
+        ASTImport.cpp
+        ASTLocalVar.cpp
         ASTNameSpace.cpp
         ASTNode.cpp
         ASTNodeBase.cpp
         ASTOperatorExpr.cpp
-        ASTClass.cpp
         ASTStmt.cpp
-        ASTForBlock.cpp
-        ASTFunc.cpp
-        ASTGlobalVar.cpp
-        ASTExpr.cpp
-        ASTIfBlock.cpp
-        ASTImport.cpp
-        ASTBlock.cpp
         ASTSwitchBlock.cpp
         ASTTopDecl.cpp
         ASTType.cpp
-        ASTVar.cpp
-        ASTLocalVar.cpp
         ASTValue.cpp
+        ASTVar.cpp
+        ASTWhileBlock.cpp
         )
 
 target_link_libraries(FlyAST

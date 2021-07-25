@@ -105,10 +105,9 @@ bool CodeGenModule::Generate() {
 CodeGenGlobalVar *CodeGenModule::GenGlobalVar(ASTGlobalVar* VDecl) {
     // Check Value
     CodeGenGlobalVar *CG = nullptr;
-    if (VDecl->getExpr() && !VDecl->getExpr()->isEmpty()) {
-        assert(VDecl->getExpr()->getGroup().size() == 1 &&
-                       VDecl->getExpr()->getGroup().at(0)->getKind() == EXPR_VALUE && "Invalid Global Var value");
-        ASTValueExpr *E = static_cast<ASTValueExpr *>(VDecl->getExpr()->getGroup().at(0));
+    if (VDecl->getExpr()) {
+        assert((VDecl->getExpr() == nullptr || VDecl->getExpr()->getKind() == EXPR_VALUE) && "Invalid Global Var value");
+        ASTValueExpr *E = static_cast<ASTValueExpr *>(VDecl->getExpr());
         CG = new CodeGenGlobalVar(this, VDecl->getName(), VDecl->getType(), &E->getValue(),
                                                     VDecl->isConstant());
     } else {
@@ -175,7 +174,7 @@ void CodeGenModule::GenStmt(ASTStmt * S) {
         // Var Assignment
         case STMT_VAR_ASSIGN: {
             ASTLocalVarStmt *V = static_cast<ASTLocalVarStmt *>(S);
-            assert(!V->getExpr()->isEmpty() && "Var assign empty");
+            assert(V->getExpr() && "Var Expr is unset empty");
             llvm::Value *Val = GenExpr(V->getDecl()->getType(), V->getExpr());
             if (V->getDecl()->isGlobal()) {
                 ASTGlobalVar *GV = static_cast<ASTGlobalVar *>(V->getDecl());
@@ -221,12 +220,11 @@ void CodeGenModule::GenStmt(ASTStmt * S) {
         case STMT_CONTINUE:
             break;
         case STMT_RETURN:
-            ASTReturn *R = static_cast<ASTReturn *>(S);
-            ASTGroupExpr *Group = static_cast<ASTGroupExpr *>(R->getExpr());
-            if (Group->isEmpty()) {
+            ASTReturn *R = (ASTReturn *) S;
+            if (R->getExpr() == nullptr) {
                 Builder->CreateRetVoid();
             } else {
-                llvm::Value *V = GenExpr(R->getTop()->getType(), Group);
+                llvm::Value *V = GenExpr(R->getTop()->getType(), R->getExpr());
                 Builder->CreateRet(V);
             }
             break;
@@ -234,8 +232,6 @@ void CodeGenModule::GenStmt(ASTStmt * S) {
 }
 
 llvm::Type *CodeGenModule::GenType(const ASTType *TyData) {
-    llvm::Type *Ty = nullptr;
-    llvm::Constant *Const = nullptr;
     // Check Type
     switch (TyData->getKind()) {
 
@@ -247,10 +243,8 @@ llvm::Type *CodeGenModule::GenType(const ASTType *TyData) {
             return FloatTy;
         case TYPE_BOOL:
             return BoolTy;
-        default:
-            llvm_unreachable("Unknown Var Type Kind");
     }
-    return Ty;
+    assert(0 && "Unknown Var Type Kind");
 }
 
 llvm::Constant *CodeGenModule::GenValue(const ASTType *Ty, const ASTValue *Val) {
@@ -280,36 +274,37 @@ llvm::Constant *CodeGenModule::GenValue(const ASTType *Ty, const ASTValue *Val) 
     }
 }
 
-llvm::Value *CodeGenModule::GenExpr(const ASTType *Typ, ASTGroupExpr *Expr) {
-    for (auto *E : Expr->getGroup()) {
-        switch (E->getKind()) {
+llvm::Value *CodeGenModule::GenExpr(const ASTType *Typ, ASTExpr *Expr) {
+    switch (Expr->getKind()) {
 
-            case EXPR_VALUE: {
-                ASTValueExpr *ValEx = static_cast<ASTValueExpr *>(E);
-                return GenValue(Typ, &ValEx->getValue());
-            }
-            case EXPR_OPERATOR:
-                return nullptr;
-            case EXPR_REF_VAR: {
-                ASTVarRefExpr *RefExp = static_cast<ASTVarRefExpr *>(E);
-                assert(RefExp->getVarRef() && "Missing Ref");
-                ASTVar *VDecl = RefExp->getVarRef()->getDecl();
-                assert(VDecl && "Ref to undeclared var");
-                if (VDecl->isGlobal()) {
-                    return static_cast<ASTGlobalVar *>(VDecl)->getCodeGen()->getGlobalVar();
-                }
-                return static_cast<ASTLocalVar *>(VDecl)->getCodeGen()->get();
-            }
-            case EXPR_REF_FUNC: {
-                ASTFuncCallExpr *RefExp = static_cast<ASTFuncCallExpr *>(E);
-                assert(RefExp->getCall() && "Missing Ref");
-                return GenCall(RefExp->getCall());
-            }
-            case EXPR_GROUP:
-                return GenExpr(Typ, static_cast<ASTGroupExpr *>(E));
+        case EXPR_VALUE: {
+            ASTValueExpr *ValEx = static_cast<ASTValueExpr *>(Expr);
+            return GenValue(Typ, &ValEx->getValue());
         }
+        case EXPR_OPERATOR:
+            return nullptr;
+        case EXPR_REF_VAR: {
+            ASTVarRefExpr *RefExp = static_cast<ASTVarRefExpr *>(Expr);
+            assert(RefExp->getVarRef() && "Missing Ref");
+            ASTVar *VDecl = RefExp->getVarRef()->getDecl();
+            assert(VDecl && "Ref to undeclared var");
+            if (VDecl->isGlobal()) {
+                return static_cast<ASTGlobalVar *>(VDecl)->getCodeGen()->getGlobalVar();
+            }
+            return static_cast<ASTLocalVar *>(VDecl)->getCodeGen()->get();
+        }
+        case EXPR_REF_FUNC: {
+            ASTFuncCallExpr *RefExp = static_cast<ASTFuncCallExpr *>(Expr);
+            assert(RefExp->getCall() && "Missing Ref");
+            return GenCall(RefExp->getCall());
+        }
+        case EXPR_GROUP:
+            for (auto *E : ((ASTGroupExpr *) Expr)->getGroup()) {
+                return GenExpr(Typ, E); // FIXME
+            }
     }
-    llvm_unreachable("Missing Expr Type");
+
+    assert(0 && "Missing Expr Type");
 }
 
 CodeGenModule::~CodeGenModule() {

@@ -37,7 +37,7 @@ namespace fly {
     class CodeGenFunction;
     class CodeGenCall;
     class ASTStmt;
-    class ASTGroupExpr;
+    class ASTExpr;
 
     class CodeGenModule : public CodeGenTypeCache {
 
@@ -81,7 +81,7 @@ namespace fly {
 
         void GenStmt(ASTStmt * S);
 
-        llvm::Value *GenExpr(const ASTType *Typ, ASTGroupExpr *pExpr);
+        llvm::Value *GenExpr(const ASTType *Typ, ASTExpr *Expr);
     };
 }
 
