@@ -14,20 +14,20 @@ GlobalVarParser::GlobalVarParser(Parser *P, ASTType *TyDecl, const StringRef &Va
 }
 
 bool GlobalVarParser::Parse() {
-
+    bool Success = true;
     Var = new ASTGlobalVar(P->AST, Location, TyDecl, Name);
 
     // Parsing =
     if (P->Tok.is(tok::equal)) {
         P->ConsumeToken();
 
-        ASTValueExpr *Ex = P->ParseValueExpr();
-        if (Ex) {
+        ASTValueExpr *Ex = P->ParseValueExpr(Success);
+        if (Success) {
             Var->setExpr(Ex);
         }
     }
 
-    return true;
+    return Success;
 }
 
 ASTGlobalVar *GlobalVarParser::getVar() const {

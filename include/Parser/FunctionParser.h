@@ -41,7 +41,7 @@ namespace fly {
 
         bool ParseParam();
 
-        bool ParseArgs(ASTBlock *Block, bool isStart = true);
+        bool ParseArgs(ASTBlock *Block);
 
         bool ParseArg(ASTBlock *Block);
     };

@@ -252,20 +252,20 @@ namespace fly {
         bool ParseForStmt(ASTBlock *Block);
         bool ParseForCommaStmt(ASTBlock *Block);
 
-        ASTFuncCall *ParseFunctionCall(ASTBlock *Block, IdentifierInfo *Id, SourceLocation &IdLoc);
-        ASTLocalVar* ParseLocalVar(ASTBlock *Block, bool Constant, ASTType *Type);
-        ASTLocalVarStmt* ParseIncDec(SourceLocation &Loc, ASTBlock *Block, IdentifierInfo *Id);
-        ASTVarRef* ParseVarRef();
+        ASTFuncCall *ParseFunctionCall(ASTBlock *Block, IdentifierInfo *Id, SourceLocation &Loc, bool &Success);
+        ASTLocalVar* ParseLocalVar(ASTBlock *Block, bool Constant, ASTType *Type, bool &Success);
+        ASTLocalVarStmt* ParseIncDec(SourceLocation &Loc, ASTBlock *Block, IdentifierInfo *Id, bool &Success);
+        ASTVarRef* ParseVarRef(bool &Success);
 
         // Parse Expressions
 
-        ASTExpr* ParseStmtExpr(ASTBlock *Block, ASTLocalVar *Var);
-        ASTExpr* ParseStmtExpr(ASTBlock *Block, ASTVarRef *VarRef);
-        ASTExpr* ParseExpr(ASTBlock *Block, ASTGroupExpr *ParentGroup = nullptr);
-        ASTExpr* ParseOneExpr(ASTBlock *Block);
-        ASTValueExpr* ParseValueExpr();
-        ASTOperatorExpr* ParseOperator();
-        ASTIncDecExpr* ParseOpIncrement(bool post = false);
+        ASTExpr* ParseStmtExpr(ASTBlock *Block, ASTLocalVar *Var, bool &Success);
+        ASTExpr* ParseStmtExpr(ASTBlock *Block, ASTVarRef *VarRef, bool &Success);
+        ASTExpr* ParseExpr(ASTBlock *Block, bool &Success, ASTGroupExpr *ParentGroup = nullptr);
+        ASTExpr* ParseOneExpr(ASTBlock *Block, bool &Success);
+        ASTValueExpr* ParseValueExpr(bool &Success);
+        ASTOperatorExpr* ParseOperator(bool &Success);
+        ASTIncDecExpr* ParseOpIncrement(bool &Success, bool Post = false);
 
         // Check Keywords
 

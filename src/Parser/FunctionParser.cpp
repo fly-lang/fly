@@ -51,6 +51,8 @@ bool FunctionParser::ParseParams() {
 }
 
 bool FunctionParser::ParseParam() {
+    bool Success = true;
+
     // Var Constant
     bool Constant = false;
     P->ParseConstant(Constant);
@@ -71,31 +73,32 @@ bool FunctionParser::ParseParam() {
 
         // Start Parsing
         if (P->isValue()) {
-            ASTValueExpr *Val = P->ParseValueExpr();
-            if (Val) {
+            ASTValueExpr *Val = P->ParseValueExpr(Success);
+            if (Success) {
                 Param->setExpr(Val);
             }
-            ;
         }
     }
 
-    Function->Header->Params.push_back(Param);
+    if (Success) {
+        Function->Header->Params.push_back(Param);
 
-    if (P->Tok.is(tok::comma)) {
-        P->ConsumeToken();
-        return ParseParam();
-    }
+        if (P->Tok.is(tok::comma)) {
+            P->ConsumeToken();
+            return ParseParam();
+        }
 
-    if (P->Tok.is(tok::r_paren)) {
-        P->ConsumeParen();
-        return true; // end
+        if (P->Tok.is(tok::r_paren)) {
+            P->ConsumeParen();
+            return true; // end
+        }
     }
 
     P->Diag(P->Tok.getLocation(), diag::err_func_param);
     return false;
 }
 
-bool FunctionParser::ParseArgs(ASTBlock *Block, bool isStart) {
+bool FunctionParser::ParseArgs(ASTBlock *Block) {
     if (P->Tok.is(tok::l_paren)) { // parse start of function ()
         P->ConsumeParen(); // consume l_paren
     }
@@ -109,22 +112,26 @@ bool FunctionParser::ParseArgs(ASTBlock *Block, bool isStart) {
 }
 
 bool FunctionParser::ParseArg(ASTBlock *Block) {
+    bool Success = true;
+
     // Parse Args in a Function Call
-    ASTExpr *E = P->ParseExpr(Block);
+    ASTExpr *E = P->ParseExpr(Block, Success);
 
-    // Type will be resolved into AST Finalize
-    ASTType *Ty = nullptr;
-    ASTFuncArg *Arg = new ASTFuncArg(E, Ty);
-    Call->addArg(Arg);
+    if (Success) {
+        // Type will be resolved into AST Finalize
+        ASTType *Ty = nullptr;
+        ASTFuncArg *Arg = new ASTFuncArg(E, Ty);
+        Call->addArg(Arg);
 
-    if (P->Tok.is(tok::comma)) {
-        P->ConsumeToken();
-        return ParseArg(Block);
-    }
+        if (P->Tok.is(tok::comma)) {
+            P->ConsumeToken();
+            return ParseArg(Block);
+        }
 
-    if (P->Tok.is(tok::r_paren)) {
-        P->ConsumeParen();
-        return true; // end
+        if (P->Tok.is(tok::r_paren)) {
+            P->ConsumeParen();
+            return true; // end
+        }
     }
 
     P->Diag(P->Tok.getLocation(), diag::err_func_param);
