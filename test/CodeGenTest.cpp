@@ -31,6 +31,7 @@
 #include <fstream>
 #include <iostream>
 #include <vector>
+#include <AST/ASTOperatorExpr.h>
 
 
 namespace {
@@ -138,7 +139,7 @@ namespace {
 //        deleteTestFile(testFile);
 //        delete Node;
 //    }
-//
+
 //    TEST_F(CodeGenTest, EmitBC) {
 //
 //        EXPECT_TRUE(createTestFile(testFile));
@@ -387,6 +388,65 @@ namespace {
                           "  ret i32 %1\n"
                           "}\n");
         delete Node;
+    }
+
+    TEST_F(CodeGenTest, CGExpr) {
+        EXPECT_TRUE(createTestFile(testFile));
+
+        ASTContext *Ctx = new ASTContext(Diags);
+        ASTNode *Node = createAST(testFile, Ctx);
+
+        ASTFunc *MainFn = new ASTFunc(Node, SourceLoc, new VoidRetType(SourceLoc),"main");
+        MainFn->addParam(SourceLoc, new IntPrimType(SourceLoc), "a");
+        MainFn->addParam(SourceLoc, new IntPrimType(SourceLoc), "b");
+        MainFn->addParam(SourceLoc, new IntPrimType(SourceLoc), "c");
+        Node->addFunction(MainFn);
+
+        // Create this expression: 1 + a * b / (c - 2)
+        ASTGroupExpr *Group = new ASTGroupExpr(SourceLoc);
+        Group->Add(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1",
+                                                            new IntPrimType(SourceLoc))));
+        Group->Add(new ASTArithExpr(SourceLoc, ARITH_ADD));
+        Group->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(SourceLoc, "a")));
+        Group->Add(new ASTArithExpr(SourceLoc, ARITH_MUL));
+        Group->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(SourceLoc, "b")));
+        Group->Add(new ASTArithExpr(SourceLoc, ARITH_DIV));
+
+        ASTGroupExpr *SubGroup = new ASTGroupExpr(SourceLoc);
+        SubGroup->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(SourceLoc, "c")));
+        SubGroup->Add(new ASTArithExpr(SourceLoc, ARITH_SUB));
+        SubGroup->Add(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "2",
+                                                            new IntPrimType(SourceLoc))));
+        Group->Add(SubGroup);
+
+        MainFn->getBody()->addReturn(SourceLoc, Group);
+
+        CodeGenOptions CodeGenOpts;
+        std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();
+        TargetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
+        TargetOpts->CodeModel = "default";
+        TargetInfo *Target = CodeGen::CreateTargetInfo(Diags, TargetOpts);
+        LLVMContext LLVMCtx;
+        CodeGenModule CGM(Diags, *Node, LLVMCtx, *Target, CodeGenOpts);
+
+        Function *F = CGM.GenFunction(MainFn)->getFunction();
+
+        testing::internal::CaptureStdout();
+        F->print(llvm::outs());
+        std::string output = testing::internal::GetCapturedStdout();
+
+        EXPECT_EQ(output, "define i32 @main(i32 %0, float %1, i1 %2) {\n"
+                          "entry:\n"
+                          "  %3 = alloca i32, align 4\n"
+                          "  %4 = alloca float, align 4\n"
+                          "  %5 = alloca i1, align 1\n"
+                          "  store i32 %0, i32* %3, align 4\n"
+                          "  store float %1, float* %4, align 4\n"
+                          "  store i1 %2, i1* %5, align 1\n"
+                          "  ret i32 1\n"
+                          "}\n");
+        delete Node;
+        deleteTestFile(testFile);
     }
 
 } // anonymous namespace

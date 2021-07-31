@@ -324,3 +324,8 @@ DIAG(err_conflict_vardecl, CLASS_ERROR, (unsigned)diag::Severity::Error, "var '%
 DIAG(err_func_notfound, CLASS_ERROR, (unsigned)diag::Severity::Error, "function '%0' not declared", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_gvar_notfound, CLASS_ERROR, (unsigned)diag::Severity::Error, "global var '%0' not declared", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_elseif_after_else, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot add an elsif {} statement after else {}", 0, SFINAE_Suppress, false, true, 0)
+
+// CodeGen
+DIAG(err_void_value, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot assign void value", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_expr_operator_unexpected, CLASS_ERROR, (unsigned)diag::Severity::Error, "unexpected operator into expression", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_expr_operator_expected, CLASS_ERROR, (unsigned)diag::Severity::Error, "operator expected", 0, SFINAE_Suppress, false, true, 0)

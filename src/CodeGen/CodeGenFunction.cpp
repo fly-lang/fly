@@ -10,6 +10,7 @@
 #include "CodeGen/CodeGenFunction.h"
 #include "CodeGen/CodeGenVar.h"
 #include "CodeGen/CodeGen.h"
+#include "CodeGen/CodeGenModule.h"
 #include "AST/ASTLocalVar.h"
 #include "AST/ASTBlock.h"
 #include "llvm/IR/DerivedTypes.h"

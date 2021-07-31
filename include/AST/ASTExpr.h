@@ -24,7 +24,8 @@ namespace fly {
         EXPR_OPERATOR = 2,
         EXPR_REF_VAR = 3,
         EXPR_REF_FUNC = 4,
-        EXPR_GROUP = 5
+        EXPR_GROUP = 5,
+        EXPR_VIRTUAL = 10
     };
 
     class ASTVarRef;
@@ -39,9 +40,17 @@ namespace fly {
      */
     class ASTExpr {
 
+        const SourceLocation &Loc;
+
     public:
 
+        ASTExpr(const SourceLocation &Loc);
+
+        const SourceLocation &getLocation() const;
+
         virtual ExprKind getKind() const = 0;
+
+        virtual ASTType *getType() const = 0;
     };
 
     /**
@@ -49,18 +58,53 @@ namespace fly {
      */
     class ASTValueExpr : public ASTExpr {
 
-        const SourceLocation &Loc;
         const ExprKind Kind = ExprKind::EXPR_VALUE;
         const ASTValue *Val;
 
     public:
         ASTValueExpr(const SourceLocation &Loc, const ASTValue *Val);
 
-        const SourceLocation &getLocation() const;
-
         ExprKind getKind() const override;
 
         const ASTValue &getValue() const;
+
+        ASTType *getType() const;
+    };
+
+    /**
+     * Var Expression Reference
+     */
+    class ASTVarRefExpr : public ASTExpr {
+
+        const ExprKind Kind = ExprKind::EXPR_REF_VAR;
+        ASTVarRef *Ref;
+
+    public:
+        ASTVarRefExpr(const SourceLocation &Loc, ASTVarRef *Ref);
+
+        ExprKind getKind() const override;
+
+        ASTVarRef *getVarRef() const;
+
+        ASTType *getType() const;
+    };
+
+    /**
+     * Var Expression Reference
+     */
+    class ASTFuncCallExpr : public ASTExpr {
+
+        const ExprKind Kind = ExprKind::EXPR_REF_FUNC;
+        ASTFuncCall * Call;
+
+    public:
+        ASTFuncCallExpr(const SourceLocation &Loc, ASTFuncCall *Ref);
+
+        ExprKind getKind() const override;
+
+        ASTFuncCall *getCall() const;
+
+        ASTType *getType() const;
     };
 
     /**
@@ -73,6 +117,8 @@ namespace fly {
 
     public:
 
+        ASTGroupExpr(const SourceLocation &Loc);
+
         ExprKind getKind() const override;
 
         const std::vector<ASTExpr *> &getGroup() const;
@@ -81,44 +127,8 @@ namespace fly {
 
         void Add(ASTExpr * Exp);
 
-    };
+        ASTType *getType() const;
 
-    /**
-     * Var Expression Reference
-     */
-    class ASTVarRefExpr : public ASTExpr {
-
-        const SourceLocation Loc;
-        const ExprKind Kind = ExprKind::EXPR_REF_VAR;
-        ASTVarRef *Ref;
-
-    public:
-        ASTVarRefExpr(const SourceLocation &Loc, ASTVarRef *Ref);
-
-        const SourceLocation &getLocation() const;
-
-        ExprKind getKind() const override;
-
-        ASTVarRef *getVarRef() const;
-    };
-
-    /**
-     * Var Expression Reference
-     */
-    class ASTFuncCallExpr : public ASTExpr {
-
-        const SourceLocation &Loc;
-        const ExprKind Kind = ExprKind::EXPR_REF_FUNC;
-        ASTFuncCall * Call;
-
-    public:
-        ASTFuncCallExpr(const SourceLocation &Loc, ASTFuncCall *Ref);
-
-        const SourceLocation &getLocation() const;
-
-        ExprKind getKind() const override;
-
-        ASTFuncCall *getCall() const;
     };
 }
 

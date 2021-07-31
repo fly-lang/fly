@@ -9,13 +9,21 @@
 
 
 #include "AST/ASTExpr.h"
+#include "AST/ASTVar.h"
+#include "AST/ASTFunc.h"
 
 using namespace fly;
 
-ASTValueExpr::ASTValueExpr(const SourceLocation &Loc, const ASTValue *Val) : Loc(Loc), Val(Val) {}
+ASTExpr::ASTExpr(const SourceLocation &Loc) : Loc(Loc) {
 
-const SourceLocation &ASTValueExpr::getLocation() const {
+}
+
+const SourceLocation &ASTExpr::getLocation() const {
     return Loc;
+}
+
+ASTValueExpr::ASTValueExpr(const SourceLocation &Loc, const ASTValue *Val) : ASTExpr(Loc), Val(Val) {
+
 }
 
 ExprKind ASTValueExpr::getKind() const {
@@ -26,8 +34,46 @@ const ASTValue &ASTValueExpr::getValue() const {
     return *Val;
 }
 
-ExprKind ASTGroupExpr::getKind() const {
+ASTType *ASTValueExpr::getType() const {
+    return Val->getType();
+}
+
+ASTVarRefExpr::ASTVarRefExpr(const SourceLocation &Loc, ASTVarRef *Ref) : ASTExpr(Loc), Ref(Ref) {
+
+}
+
+ExprKind ASTVarRefExpr::getKind() const {
 return Kind;
+}
+
+ASTVarRef *ASTVarRefExpr::getVarRef() const {
+    return Ref;
+}
+
+ASTType *ASTVarRefExpr::getType() const {
+    return Ref->getDecl()->getType();
+}
+
+ASTFuncCallExpr::ASTFuncCallExpr(const SourceLocation &Loc, ASTFuncCall *Ref) : ASTExpr(Loc), Call(Ref) {}
+
+ExprKind ASTFuncCallExpr::getKind() const {
+return Kind;
+}
+
+ASTFuncCall *ASTFuncCallExpr::getCall() const {
+    return Call;
+}
+
+ASTType *ASTFuncCallExpr::getType() const {
+    return Call->getDecl()->getType();
+}
+
+ASTGroupExpr::ASTGroupExpr(const SourceLocation &Loc) : ASTExpr(Loc) {
+
+}
+
+ExprKind ASTGroupExpr::getKind() const {
+    return Kind;
 }
 
 const std::vector<ASTExpr *> &ASTGroupExpr::getGroup() const {
@@ -42,30 +88,7 @@ void ASTGroupExpr::Add(ASTExpr *Exp) {
     Group.push_back(Exp);
 }
 
-ASTVarRefExpr::ASTVarRefExpr(const SourceLocation &Loc, ASTVarRef *Ref) : Loc(Loc), Ref(Ref) {}
-
-const SourceLocation &ASTVarRefExpr::getLocation() const {
-    return Loc;
-}
-
-ExprKind ASTVarRefExpr::getKind() const {
-return Kind;
-}
-
-ASTVarRef *ASTVarRefExpr::getVarRef() const {
-    return Ref;
-}
-
-ASTFuncCallExpr::ASTFuncCallExpr(const SourceLocation &Loc, ASTFuncCall *Ref) : Loc(Loc), Call(Ref) {}
-
-const SourceLocation &ASTFuncCallExpr::getLocation() const {
-    return Loc;
-}
-
-ExprKind ASTFuncCallExpr::getKind() const {
-return Kind;
-}
-
-ASTFuncCall *ASTFuncCallExpr::getCall() const {
-    return Call;
+ASTType *ASTGroupExpr::getType() const {
+    assert(!isEmpty() && "Unknown Type with empty Group");
+    return Group.at(0)->getType();
 }

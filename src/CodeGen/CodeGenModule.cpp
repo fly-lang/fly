@@ -17,10 +17,12 @@
 #include "CodeGen/CodeGenFunction.h"
 #include "CodeGen/CodeGenGlobalVar.h"
 #include "CodeGen/CodeGenVar.h"
+#include "CodeGen/CodeGenExpr.h"
 #include "AST/ASTNode.h"
 #include "AST/ASTLocalVar.h"
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTBlock.h"
+#include "AST/ASTOperatorExpr.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Value.h"
@@ -76,7 +78,12 @@ CodeGenModule::CodeGenModule(DiagnosticsEngine &Diags, ASTNode &Node, LLVMContex
     if (!SDKVersion.empty())
         Module->setSDKVersion(SDKVersion);
 
-    // todo Add dependencies, Linker Options
+    // TODO Add dependencies, Linker Options
+}
+
+CodeGenModule::~CodeGenModule() {
+    delete Module;
+    delete Builder;
 }
 
 DiagnosticBuilder CodeGenModule::Diag(const SourceLocation &Loc, unsigned DiagID) {
@@ -104,7 +111,7 @@ bool CodeGenModule::Generate() {
  */
 CodeGenGlobalVar *CodeGenModule::GenGlobalVar(ASTGlobalVar* VDecl) {
     // Check Value
-    CodeGenGlobalVar *CG = nullptr;
+    CodeGenGlobalVar *CG;
     if (VDecl->getExpr()) {
         assert((VDecl->getExpr() == nullptr || VDecl->getExpr()->getKind() == EXPR_VALUE) && "Invalid Global Var value");
         ASTValueExpr *E = static_cast<ASTValueExpr *>(VDecl->getExpr());
@@ -120,7 +127,8 @@ CodeGenGlobalVar *CodeGenModule::GenGlobalVar(ASTGlobalVar* VDecl) {
 }
 
 CodeGenFunction *CodeGenModule::GenFunction(ASTFunc *FDecl) {
-    CodeGenFunction *CGF = new CodeGenFunction(this, FDecl->getName(), FDecl->getType(), FDecl->getHeader(), FDecl->getBody());
+    CodeGenFunction *CGF = new CodeGenFunction(this, FDecl->getName(), FDecl->getType(), FDecl->getHeader(), 
+                                               FDecl->getBody());
     FDecl->setCodeGen(CGF);
     return CGF;
 }
@@ -136,24 +144,8 @@ CallInst *CodeGenModule::GenCall(ASTFuncCall *Call) {
     llvm::SmallVector<llvm::Value *, 8> Args;
     for (ASTFuncArg *Arg : Call->getArgs()) {
 
-        switch (Arg->getValue()->getKind()) {
-
-            case EXPR_VALUE: {
-                ASTValueExpr *ValExp = static_cast<ASTValueExpr *>(Arg->getValue());
-                Constant *C = GenValue(Arg->getType(), &ValExp->getValue());
-                Args.push_back(C);
-                break;
-            }
-            case EXPR_REF_VAR:
-                // TODO
-                break;
-            case EXPR_REF_FUNC:
-                break;
-            case EXPR_GROUP:
-                break;
-            default:
-                assert(0 && "Invalid Function Args");
-        }
+        Value *V = GenExpr(Arg->getType(), Arg->getValue());
+        Args.push_back(V);
     }
     return Builder->CreateCall(Call->getDecl()->getCodeGen()->getFunction(), Args);
 }
@@ -191,10 +183,13 @@ void CodeGenModule::GenStmt(ASTStmt * S) {
             break;
         }
         case STMT_BLOCK: {
-            ASTBlock *BS = static_cast<ASTBlock *>(S);
-            switch (BS->getBlockKind()) {
+            ASTBlock *Block = static_cast<ASTBlock *>(S);
+            switch (Block->getBlockKind()) {
                 // TODO
                 case BLOCK_STMT:
+                    for (ASTStmt *Stmt : Block->getContent()) {
+                        GenStmt(Stmt);
+                    }
                     break;
                 case BLOCK_STMT_IF:
                     break;
@@ -231,9 +226,9 @@ void CodeGenModule::GenStmt(ASTStmt * S) {
     }
 }
 
-llvm::Type *CodeGenModule::GenType(const ASTType *TyData) {
+llvm::Type *CodeGenModule::GenType(const ASTType *Ty) {
     // Check Type
-    switch (TyData->getKind()) {
+    switch (Ty->getKind()) {
 
         case TYPE_VOID:
             return VoidTy;
@@ -252,7 +247,8 @@ llvm::Constant *CodeGenModule::GenValue(const ASTType *Ty, const ASTValue *Val) 
     switch (Ty->getKind()) {
 
         case TYPE_VOID:
-            break;
+            Diag(Val->getType()->getLocation(), diag::err_void_value);
+            return nullptr;
         case TYPE_INT:
             if (!Val->empty()) {
                 uint64_t intVal = std::stoi(Val->str().str());
@@ -272,42 +268,10 @@ llvm::Constant *CodeGenModule::GenValue(const ASTType *Ty, const ASTValue *Val) 
         case TYPE_CLASS:
             break;
     }
+    assert(0 && "Unknown Type");
 }
 
-llvm::Value *CodeGenModule::GenExpr(const ASTType *Typ, ASTExpr *Expr) {
-    switch (Expr->getKind()) {
-
-        case EXPR_VALUE: {
-            ASTValueExpr *ValEx = static_cast<ASTValueExpr *>(Expr);
-            return GenValue(Typ, &ValEx->getValue());
-        }
-        case EXPR_OPERATOR:
-            return nullptr;
-        case EXPR_REF_VAR: {
-            ASTVarRefExpr *RefExp = static_cast<ASTVarRefExpr *>(Expr);
-            assert(RefExp->getVarRef() && "Missing Ref");
-            ASTVar *VDecl = RefExp->getVarRef()->getDecl();
-            assert(VDecl && "Ref to undeclared var");
-            if (VDecl->isGlobal()) {
-                return static_cast<ASTGlobalVar *>(VDecl)->getCodeGen()->getGlobalVar();
-            }
-            return static_cast<ASTLocalVar *>(VDecl)->getCodeGen()->get();
-        }
-        case EXPR_REF_FUNC: {
-            ASTFuncCallExpr *RefExp = static_cast<ASTFuncCallExpr *>(Expr);
-            assert(RefExp->getCall() && "Missing Ref");
-            return GenCall(RefExp->getCall());
-        }
-        case EXPR_GROUP:
-            for (auto *E : ((ASTGroupExpr *) Expr)->getGroup()) {
-                return GenExpr(Typ, E); // FIXME
-            }
-    }
-
-    assert(0 && "Missing Expr Type");
-}
-
-CodeGenModule::~CodeGenModule() {
-    delete Module;
-    delete Builder;
+llvm::Value *CodeGenModule::GenExpr(const ASTType *Type, ASTExpr *Expr) {
+    CodeGenExpr *CGExpr = new CodeGenExpr(this, Expr, Type);
+    return CGExpr->getValue();
 }

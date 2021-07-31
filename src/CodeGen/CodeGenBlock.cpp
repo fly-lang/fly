@@ -8,6 +8,6 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#include "CodeGen/CGBlock.h"
+#include "CodeGen/CodeGenBlock.h"
 
 using namespace fly;

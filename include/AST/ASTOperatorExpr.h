@@ -18,7 +18,6 @@ namespace fly {
         OP_ARITH,
         OP_LOGIC,
         OP_BOOL,
-        OP_BIT,
         OP_INCDEC,
         OP_COND
     };
@@ -29,38 +28,33 @@ namespace fly {
         ARITH_MUL,
         ARITH_DIV,
         ARITH_MOD,
-        ARITH_INCR,
-        ARITH_DECR
+        ARITH_AND,
+        ARITH_OR,
+        ARITH_XOR,
+        ARITH_SHIFT_L,
+        ARITH_SHIFT_R
     };
 
-    enum BitOpKind {
-        BIT_AND,
-        BIT_OR,
-        BIT_NOT,
-        BIT_SHIFT_L,
-        BIT_SHIFT_R
+    enum LogicOpKind {
+        LOGIC_AND,
+        LOGIC_OR,
+        LOGIC_NOT
     };
 
-    enum BoolOpKind {
-        BOOL_AND,
-        BOOL_OR,
-        BOOL_NOT
-    };
-
-    enum LogicOpKind{
-        LOGIC_EQ,
-        LOGIC_NE,
-        LOGIC_GT,
-        LOGIC_GTE,
-        LOGIC_LT,
-        LOGIC_LTE
+    enum ComparisonOpKind {
+        COMP_EQ,
+        COMP_NE,
+        COMP_GT,
+        COMP_GTE,
+        COMP_LT,
+        COMP_LTE
     };
 
     enum IncDecOpKind {
-        PRE_INCREMENT,
-        POST_INCREMENT,
-        PRE_DECREMENT,
-        POST_DECREMENT
+        PRE_INCR,
+        POST_INCR,
+        PRE_DECR,
+        POST_DECR
     };
 
     enum CondOpKind {
@@ -71,19 +65,14 @@ namespace fly {
 
     class ASTOperatorExpr : public ASTExpr {
 
-        const SourceLocation &Loc;
         const ExprKind Kind = ExprKind::EXPR_OPERATOR;
 
     public:
-        explicit ASTOperatorExpr(const SourceLocation &Loc) : Loc(Loc) {}
+        explicit ASTOperatorExpr(const SourceLocation &Loc);
 
-        const SourceLocation &getLocation() const {
-            return Loc;
-        }
+        ExprKind getKind() const override;
 
-        ExprKind getKind() const override {
-            return Kind;
-        }
+        ASTType *getType() const override;
 
         virtual OpKind getOpKind() = 0;
     };
@@ -94,67 +83,37 @@ namespace fly {
         const ArithOpKind ArithKind;
 
     public:
-        ASTArithExpr(const SourceLocation Loc, const ArithOpKind &AKind) : ASTOperatorExpr(Loc), ArithKind(AKind) {}
+        ASTArithExpr(const SourceLocation &Loc, const ArithOpKind &AKind);
 
-        OpKind getOpKind() override {
-            return OperatorKind;
-        }
+        OpKind getOpKind() override;
 
-        ArithOpKind getArithKind() const {
-            return ArithKind;
-        }
-
-    };
-
-    class ASTBitExpr : public ASTOperatorExpr {
-
-        const OpKind OperatorKind = OpKind::OP_BIT;
-        const BitOpKind BitKind;
-
-    public:
-        ASTBitExpr(const SourceLocation Loc, const BitOpKind &BKind) : ASTOperatorExpr(Loc), BitKind(BKind) {}
-
-        OpKind getOpKind() {
-            return OperatorKind;
-        }
-
-        BitOpKind getBitKind() const {
-            return BitKind;
-        }
-    };
-
-    class ASTBoolExpr : public ASTOperatorExpr {
-
-        const OpKind OperatorKind = OpKind::OP_BOOL;
-        const BoolOpKind BoolKind;
-
-    public:
-        ASTBoolExpr(const SourceLocation Loc, const BoolOpKind &BKind) : ASTOperatorExpr(Loc), BoolKind(BKind) {}
-
-        OpKind getOpKind() {
-            return OperatorKind;
-        }
-
-        BoolOpKind getBoolKind() const {
-            return BoolKind;
-        }
+        ArithOpKind getArithKind() const;
     };
 
     class ASTLogicExpr : public ASTOperatorExpr {
 
-        const OpKind OperatorKind = OpKind::OP_LOGIC;
-        const LogicOpKind LogicKind;
+        const OpKind OperatorKind = OpKind::OP_BOOL;
+        const LogicOpKind BoolKind;
 
     public:
-        ASTLogicExpr(const SourceLocation Loc, const LogicOpKind &LKind) : ASTOperatorExpr(Loc), LogicKind(LKind) {}
+        ASTLogicExpr(const SourceLocation &Loc, const LogicOpKind &BKind);
 
-        OpKind getOpKind() {
-            return OperatorKind;
-        }
+        OpKind getOpKind() override;
 
-        LogicOpKind getLogicKind() const {
-            return LogicKind;
-        }
+        LogicOpKind getBoolKind() const;
+    };
+
+    class ASTComparisonExpr : public ASTOperatorExpr {
+
+        const OpKind OperatorKind = OpKind::OP_LOGIC;
+        const ComparisonOpKind ComparisonKind;
+
+    public:
+        ASTComparisonExpr(const SourceLocation &Loc, const ComparisonOpKind &LKind);
+
+        OpKind getOpKind() override;
+
+        ComparisonOpKind getComparisonKind() const;
     };
 
     class ASTIncDecExpr : public ASTOperatorExpr {
@@ -162,15 +121,11 @@ namespace fly {
         const IncDecOpKind IncDecKind;
 
     public:
-        ASTIncDecExpr(const SourceLocation Loc, const IncDecOpKind &Kind) : ASTOperatorExpr(Loc), IncDecKind(Kind) {}
+        ASTIncDecExpr(const SourceLocation &Loc, const IncDecOpKind &Kind);
 
-        OpKind getOpKind() {
-            return OperatorKind;
-        }
+        OpKind getOpKind() override;
 
-        IncDecOpKind getIncDecKind() const {
-            return IncDecKind;
-        }
+        IncDecOpKind getIncDecKind() const;
     };
 
     class ASTCondExpr : public ASTOperatorExpr {
@@ -179,15 +134,11 @@ namespace fly {
         const CondOpKind CondKind;
 
     public:
-        ASTCondExpr(const SourceLocation Loc, const CondOpKind &CondKind) : ASTOperatorExpr(Loc), CondKind(CondKind) {}
+        ASTCondExpr(const SourceLocation &Loc, const CondOpKind &CondKind);
 
-        OpKind getOpKind() {
-            return OperatorKind;
-        }
+        OpKind getOpKind() override;
 
-        CondOpKind getCustKind() const {
-            return CondKind;
-        }
+        CondOpKind getCondKind() const;
     };
 }
 

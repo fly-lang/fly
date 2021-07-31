@@ -784,11 +784,9 @@ ASTLocalVar *Parser::ParseLocalVar(ASTBlock *Block, bool Constant, ASTType *Type
 ASTLocalVarStmt *Parser::ParseIncDec(SourceLocation &Loc, ASTBlock *Block, IdentifierInfo *Id, bool &Success) {
     ASTLocalVarStmt *VStmt;
     ASTIncDecExpr* Expr;
-    if (Id) {
-        Expr = ParseOpIncrement(Success, true);
-        ConsumeToken();
-        VStmt = new ASTLocalVarStmt(Loc, Block, Id->getName());
-    } else {
+    // Check if ++a or a++ (--a or a--)
+    if (Id == nullptr) { // Pre Increment or Decrement
+        // Pre
         Expr = ParseOpIncrement(Success, false);
         ConsumeToken();
         if (Tok.isAnyIdentifier()) {
@@ -798,6 +796,10 @@ ASTLocalVarStmt *Parser::ParseIncDec(SourceLocation &Loc, ASTBlock *Block, Ident
             // TODO Error var not specified for inc dec
             return nullptr;
         }
+    } else { // Post Increment or Decrement
+        Expr = ParseOpIncrement(Success, true);
+        ConsumeToken();
+        VStmt = new ASTLocalVarStmt(Loc, Block, Id->getName());
     }
     VStmt->setExpr(Expr);
     return VStmt;
@@ -825,7 +827,7 @@ ASTExpr* Parser::ParseStmtExpr(ASTBlock *Block, ASTVarRef *VarRef, bool &Success
                            tok::greatergreaterequal)) {
 
         SourceLocation Loc = Tok.getLocation();
-        ASTGroupExpr* GroupExpr = new ASTGroupExpr;
+        ASTGroupExpr* GroupExpr = new ASTGroupExpr(Loc);
         ASTVarRefExpr *VarRefExpr = new ASTVarRefExpr(Loc, VarRef);
         GroupExpr->Add(VarRefExpr);
         switch (Tok.getKind()) {
@@ -849,19 +851,19 @@ ASTExpr* Parser::ParseStmtExpr(ASTBlock *Block, ASTVarRef *VarRef, bool &Success
 
                 // Bit
             case tok::ampequal:
-                GroupExpr->Add( new ASTBitExpr(Loc, BitOpKind::BIT_AND));
+                GroupExpr->Add( new ASTArithExpr(Loc, ArithOpKind::ARITH_AND));
                 break;
             case tok::pipeequal:
-                GroupExpr->Add( new ASTBitExpr(Loc, BitOpKind::BIT_OR));
+                GroupExpr->Add( new ASTArithExpr(Loc, ArithOpKind::ARITH_OR));
                 break;
             case tok::caretequal:
-                GroupExpr->Add( new ASTBitExpr(Loc, BitOpKind::BIT_NOT));
+                GroupExpr->Add( new ASTArithExpr(Loc, ArithOpKind::ARITH_XOR));
                 break;
             case tok::lesslessequal:
-                GroupExpr->Add( new ASTBitExpr(Loc, BitOpKind::BIT_SHIFT_L));
+                GroupExpr->Add( new ASTArithExpr(Loc, ArithOpKind::ARITH_SHIFT_L));
                 break;
             case tok::greatergreaterequal:
-                GroupExpr->Add( new ASTBitExpr(Loc, BitOpKind::BIT_SHIFT_R));
+                GroupExpr->Add( new ASTArithExpr(Loc, ArithOpKind::ARITH_SHIFT_R));
                 break;
             default:
                 assert(0 && "Accept Only assignment operators");
@@ -876,8 +878,8 @@ ASTExpr* Parser::ParseExpr(ASTBlock *Block, bool &Success, ASTGroupExpr *ParentG
     assert(Block != nullptr && "Invalid Block");
 
     if (Tok.is(tok::l_paren)) {
-        ConsumeParen();
-        ASTGroupExpr *CurrGroup = (ASTGroupExpr *) ParseExpr(Block, Success, new ASTGroupExpr());
+        const SourceLocation &Loc = ConsumeParen();
+        ASTGroupExpr *CurrGroup = (ASTGroupExpr *) ParseExpr(Block, Success, new ASTGroupExpr(Loc));
 
         if (Tok.is(tok::r_paren)) {
             ConsumeParen();
@@ -905,7 +907,8 @@ ASTExpr* Parser::ParseExpr(ASTBlock *Block, bool &Success, ASTGroupExpr *ParentG
 
             // If there is an Operator start creating a GroupExpr
             if (isOperator()) {
-                ASTGroupExpr *GroupExpr = ParentGroup == nullptr ? new ASTGroupExpr : ParentGroup;
+                ASTGroupExpr *GroupExpr = ParentGroup == nullptr ?
+                        new ASTGroupExpr(Tok.getLocation()) : ParentGroup;
 
                 // Continue recursively with group parsing
                 // Add Expr
@@ -987,33 +990,7 @@ ASTOperatorExpr* Parser::ParseOperator(bool &Success) {
     SourceLocation Loc = Tok.getLocation();
     switch (Tok.getKind()) {
 
-        // Increment / Decrement
-        case tok::plusplus:
-            return new ASTArithExpr(Loc, ArithOpKind::ARITH_INCR);
-        case tok::minusminus:
-            return new ASTArithExpr(Loc, ArithOpKind::ARITH_DECR);
-
-            // Bit
-        case tok::amp:
-            return new ASTBitExpr(Loc, BitOpKind::BIT_AND);
-        case tok::pipe:
-            return new ASTBitExpr(Loc, BitOpKind::BIT_OR);
-        case tok::caret:
-            return new ASTBitExpr(Loc, BitOpKind::BIT_NOT);
-        case tok::lessless:
-            return new ASTBitExpr(Loc, BitOpKind::BIT_SHIFT_L);
-        case tok::greatergreater:
-            return new ASTBitExpr(Loc, BitOpKind::BIT_SHIFT_R);
-
-            // Boolean
-        case tok::ampamp:
-            return new ASTBoolExpr(Loc, BoolOpKind::BOOL_AND);
-        case tok::pipepipe:
-            return new ASTBoolExpr(Loc, BoolOpKind::BOOL_OR);
-        case tok::exclaim:
-            return new ASTBoolExpr(Loc, BoolOpKind::BOOL_NOT);
-
-            // Arithmetic
+        // Arithmetic
         case tok::plus:
             return new ASTArithExpr(Loc, ArithOpKind::ARITH_ADD);
         case tok::minus:
@@ -1024,22 +1001,40 @@ ASTOperatorExpr* Parser::ParseOperator(bool &Success) {
             return new ASTArithExpr(Loc, ArithOpKind::ARITH_DIV);
         case tok::percent:
             return new ASTArithExpr(Loc, ArithOpKind::ARITH_MOD);
+        case tok::amp:
+            return new ASTArithExpr(Loc, ArithOpKind::ARITH_AND);
+        case tok::pipe:
+            return new ASTArithExpr(Loc, ArithOpKind::ARITH_OR);
+        case tok::caret:
+            return new ASTArithExpr(Loc, ArithOpKind::ARITH_XOR);
+        case tok::lessless:
+            return new ASTArithExpr(Loc, ArithOpKind::ARITH_SHIFT_L);
+        case tok::greatergreater:
+            return new ASTArithExpr(Loc, ArithOpKind::ARITH_SHIFT_R);
 
-            // Logic
+        // Logic
+        case tok::ampamp:
+            return new ASTLogicExpr(Loc, LogicOpKind::LOGIC_AND);
+        case tok::pipepipe:
+            return new ASTLogicExpr(Loc, LogicOpKind::LOGIC_OR);
+        case tok::exclaim:
+            return new ASTLogicExpr(Loc, LogicOpKind::LOGIC_NOT);
+
+        // Comparator
         case tok::less:
-            return new ASTLogicExpr(Loc, LogicOpKind::LOGIC_LT);
+            return new ASTComparisonExpr(Loc, ComparisonOpKind::COMP_LT);
         case tok::lessequal:
-            return new ASTLogicExpr(Loc, LogicOpKind::LOGIC_LTE);
+            return new ASTComparisonExpr(Loc, ComparisonOpKind::COMP_LTE);
         case tok::greater:
-            return new ASTLogicExpr(Loc, LogicOpKind::LOGIC_GT);
+            return new ASTComparisonExpr(Loc, ComparisonOpKind::COMP_GT);
         case tok::greaterequal:
-            return new ASTLogicExpr(Loc, LogicOpKind::LOGIC_GTE);
+            return new ASTComparisonExpr(Loc, ComparisonOpKind::COMP_GTE);
         case tok::exclaimequal:
-            return new ASTLogicExpr(Loc, LogicOpKind::LOGIC_NE);
+            return new ASTComparisonExpr(Loc, ComparisonOpKind::COMP_NE);
         case tok::equalequal:
-            return new ASTLogicExpr(Loc, LogicOpKind::LOGIC_EQ);
+            return new ASTComparisonExpr(Loc, ComparisonOpKind::COMP_EQ);
 
-            // Condition
+        // Condition
         case tok::question:
             return new ASTCondExpr(Loc, CondOpKind::COND_THAN);
         case tok::colon:
@@ -1052,9 +1047,9 @@ ASTOperatorExpr* Parser::ParseOperator(bool &Success) {
 ASTIncDecExpr* Parser::ParseOpIncrement(bool &Success, bool Post) {
     switch (Tok.getKind()) {
         case tok::plusplus:
-            return new ASTIncDecExpr(Tok.getLocation(), Post ? IncDecOpKind::POST_INCREMENT : IncDecOpKind::PRE_INCREMENT);
+            return new ASTIncDecExpr(Tok.getLocation(), Post ? IncDecOpKind::POST_INCR : IncDecOpKind::PRE_INCR);
         case tok::minusminus:
-            return new ASTIncDecExpr(Tok.getLocation(), Post ? IncDecOpKind::POST_DECREMENT : IncDecOpKind::PRE_DECREMENT);
+            return new ASTIncDecExpr(Tok.getLocation(), Post ? IncDecOpKind::POST_DECR : IncDecOpKind::PRE_DECR);
         default:
             assert(0 && "Only Increment ++ or Decrement -- are accepted");
     }

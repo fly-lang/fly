@@ -8,14 +8,18 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#ifndef FLY_CGBLOCK_H
-#define FLY_CGBLOCK_H
+#ifndef FLY_CODEGENBLOCK_H
+#define FLY_CODEGENBLOCK_H
 
 namespace fly {
 
-    class CGBlock {
+    class CodeGenModule;
+
+    class CodeGenBlock {
+
+        CodeGenBlock(CodeGenModule *CGM);
 
     };
 }
 
-#endif //FLY_CGBLOCK_H
+#endif //FLY_CODEGENBLOCK_H

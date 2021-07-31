@@ -38,6 +38,7 @@ namespace fly {
     class CodeGenCall;
     class ASTStmt;
     class ASTExpr;
+    class ASTGroupExpr;
 
     class CodeGenModule : public CodeGenTypeCache {
 
@@ -45,6 +46,7 @@ namespace fly {
         friend class CodeGenFunction;
         friend class CodeGenCall;
         friend class CodeGenVar;
+        friend class CodeGenExpr;
 
     private:
         DiagnosticsEngine &Diags;
@@ -54,8 +56,6 @@ namespace fly {
         llvm::LLVMContext &LLVMCtx;
         llvm::IRBuilder<> *Builder;
         // CGDebugInfo *DebugInfo; // TODO
-
-        void GenTypeValue(const ASTType *TyData, llvm::Type *&Ty, llvm::Constant *&Const, ASTValue *Val);
 
     public:
         CodeGenModule(DiagnosticsEngine &Diags, ASTNode &Node, LLVMContext &LLVMCtx, TargetInfo &Target,
@@ -75,7 +75,7 @@ namespace fly {
 
         CallInst *GenCall(ASTFuncCall *Call);
 
-        Type *GenType(const ASTType *TyData);
+        Type *GenType(const ASTType *Ty);
 
         llvm::Constant *GenValue(const ASTType *TyData, const ASTValue *Val);
 

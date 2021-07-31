@@ -8,10 +8,11 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "CodeGen/CodeGen.h"
+#include "CodeGen/CodeGenModule.h"
 #include "AST/ASTNode.h"
 #include "AST/ASTNameSpace.h"
 #include "Basic/FileManager.h"
-#include <llvm/Target/TargetMachine.h>
+#include "Basic/TargetInfo.h"
 #include <llvm/IR/LLVMContext.h>
 
 using namespace fly;

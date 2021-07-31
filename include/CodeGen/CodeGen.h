@@ -14,10 +14,10 @@
 #ifndef FLY_CODEGEN_H
 #define FLY_CODEGEN_H
 
-#include "CodeGenModule.h"
 #include "CodeGen/BackendUtil.h"
 #include "Basic/Diagnostic.h"
 #include "AST/ASTContext.h"
+#include "llvm/IR/LLVMContext.h"
 #include <memory>
 
 namespace llvm {
@@ -28,7 +28,9 @@ namespace llvm {
 }
 
 namespace fly {
+
     class CodeGenModule;
+    class TargetInfo;
 
     class CodeGen {
 
@@ -38,7 +40,7 @@ namespace fly {
         TargetOptions &TargetOpts;
         const ASTContext &Context;
         IntrusiveRefCntPtr<TargetInfo> Target;
-        LLVMContext LLVMCtx;
+        llvm::LLVMContext LLVMCtx;
         CodeGenModule *CGM;
         BackendAction ActionKind;
 

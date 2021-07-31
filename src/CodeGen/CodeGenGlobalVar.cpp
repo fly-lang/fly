@@ -9,6 +9,7 @@
 
 
 #include "CodeGen/CodeGenGlobalVar.h"
+#include "CodeGen/CodeGenModule.h"
 #include "CodeGen/CodeGen.h"
 #include "AST/ASTValue.h"
 
