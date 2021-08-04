@@ -8,7 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#include "CodeGen/CodeGenVar.h"
+#include "CodeGen/CodeGenLocalVar.h"
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
 #include "AST/ASTLocalVar.h"
@@ -17,25 +17,25 @@
 
 using namespace fly;
 
-CodeGenVar::CodeGenVar(CodeGenModule *CGM, ASTLocalVar *S) : CGM(CGM), Constant(S->isConstant()) {
+CodeGenLocalVar::CodeGenLocalVar(CodeGenModule *CGM, ASTLocalVar *S) : CGM(CGM), Constant(S->isConstant()) {
     const ASTType *Tyb = S->getType();
     Type *Ty = CGM->GenType(Tyb);
     AllocaI = CGM->Builder->CreateAlloca(Ty);
     AllocaI->getAllocatedType();
 }
 
-CodeGenVar::CodeGenVar(CodeGenModule *CGM, ASTFuncParam *P) : CGM(CGM), Constant(P->isConstant()) {
+CodeGenLocalVar::CodeGenLocalVar(CodeGenModule *CGM, ASTFuncParam *P) : CGM(CGM), Constant(P->isConstant()) {
     const ASTType *Tyb = P->getType();
     Type *Ty = CGM->GenType(Tyb);
     AllocaI = CGM->Builder->CreateAlloca(Ty);
     AllocaI->getAllocatedType();
 }
 
-llvm::UnaryInstruction *CodeGenVar::get() {
-    return isStored ? (needLoad ? Load() : LoadI) : static_cast<llvm::UnaryInstruction *>(AllocaI);
+llvm::UnaryInstruction *CodeGenLocalVar::get() {
+    return isStored ? (needLoad ? Load() : LoadI) : (llvm::UnaryInstruction *) AllocaI;
 }
 
-llvm::StoreInst *CodeGenVar::Store(llvm::Value *Val) {
+llvm::StoreInst *CodeGenLocalVar::Store(llvm::Value *Val) {
     assert(!Constant && "Cannot store into constant var");
     assert(AllocaI && "Cannot store into unallocated stack");
     llvm::StoreInst *S = CGM->Builder->CreateStore(Val, AllocaI);
@@ -44,7 +44,7 @@ llvm::StoreInst *CodeGenVar::Store(llvm::Value *Val) {
     return S;
 }
 
-llvm::LoadInst *CodeGenVar::Load() {
+llvm::LoadInst *CodeGenLocalVar::Load() {
     assert(AllocaI && "Connot load from unallocated stack");
     llvm::LoadInst *L = CGM->Builder->CreateLoad(AllocaI);
     needLoad = false;

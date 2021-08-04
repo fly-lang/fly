@@ -414,11 +414,15 @@ bool Parser::ParseStmt(ASTBlock *Block) {
             ASTFuncCall *Call = ParseFunctionCall(Block, Id, Loc, Success);
             if (Call)
                 return Block->addCall(Call);
-        } else if (isOpIncDec()) { // variable increment or decrement
-            // a++
-            ASTLocalVarStmt *S = ParseIncDec(Loc, Block, Id, Success);
-            if (S) {
-                return Block->addVar(S);
+        } else if (isIncrDecrOperator()) { // variable increment or decrement
+            // a++ or a--
+            ASTOperatorExpr *Expr = ParseIncrDecrOperatorExpr(Success);
+            ConsumeToken();
+            if (Success) {
+                ASTExprStmt *ExprStmt = new ASTExprStmt(Loc, Block);
+                ASTVarRef *VarRef = new ASTVarRef(Loc, Id->getName());
+                ExprStmt->setExpr(new ASTUnaryExpr(Loc, Expr, VarRef, UNARY_POST));
+                return Block->addExprStmt(ExprStmt);
             }
         } else { // variable assign
             // a = ...
@@ -431,12 +435,20 @@ bool Parser::ParseStmt(ASTBlock *Block) {
         // int a = ...
         ASTLocalVar* Var = ParseLocalVar(Block, Constant, ParseType(), Success);
         return Block->addVar(Var);
-    } else if (isOpIncDec()) { // variable increment or decrement
-        // ++a
-        ASTLocalVarStmt *S = ParseIncDec(Loc, Block, nullptr, Success);
-        if (Success) {
-            return Block->addVar(S);
+    } else if (isIncrDecrOperator()) { // variable increment or decrement
+        // ++a or --a or !a
+        ASTOperatorExpr *Expr = ParseIncrDecrOperatorExpr(Success);
+        ConsumeToken();
+        if (Success && Tok.isAnyIdentifier()) {
+            ASTVarRef *VarRef = new ASTVarRef(Loc, Tok.getIdentifierInfo()->getName());
+            ConsumeToken();
+            ASTExprStmt *ExprStmt = new ASTExprStmt(Loc, Block);
+            ExprStmt->setExpr(new ASTUnaryExpr(Loc, Expr, VarRef, UNARY_PRE));
+            return Block->addExprStmt(ExprStmt);
         }
+        
+        Diag(Loc, diag::err_unary_operator) << Tok.getLocation();
+        return false;
     }
 
     Diag(Tok.getLocation(), diag::err_parse_stmt);
@@ -781,30 +793,6 @@ ASTLocalVar *Parser::ParseLocalVar(ASTBlock *Block, bool Constant, ASTType *Type
     return Var;
 }
 
-ASTLocalVarStmt *Parser::ParseIncDec(SourceLocation &Loc, ASTBlock *Block, IdentifierInfo *Id, bool &Success) {
-    ASTLocalVarStmt *VStmt;
-    ASTIncDecExpr* Expr;
-    // Check if ++a or a++ (--a or a--)
-    if (Id == nullptr) { // Pre Increment or Decrement
-        // Pre
-        Expr = ParseOpIncrement(Success, false);
-        ConsumeToken();
-        if (Tok.isAnyIdentifier()) {
-            VStmt = new ASTLocalVarStmt(Tok.getLocation(), Block, Tok.getIdentifierInfo()->getName());
-            ConsumeToken();
-        } else {
-            // TODO Error var not specified for inc dec
-            return nullptr;
-        }
-    } else { // Post Increment or Decrement
-        Expr = ParseOpIncrement(Success, true);
-        ConsumeToken();
-        VStmt = new ASTLocalVarStmt(Loc, Block, Id->getName());
-    }
-    VStmt->setExpr(Expr);
-    return VStmt;
-}
-
 ASTVarRef* Parser::ParseVarRef(bool &Success) {
     ASTVarRef *VRef = new ASTVarRef(Tok.getLocation(), Tok.getIdentifierInfo()->getName());
     ConsumeToken();
@@ -889,7 +877,7 @@ ASTExpr* Parser::ParseExpr(ASTBlock *Block, bool &Success, ASTGroupExpr *ParentG
             if (isOperator()) {
 
                 // Add Operator
-                ASTOperatorExpr *OpExpr = ParseOperator(Success);
+                ASTOperatorExpr *OpExpr = ParseOperatorExpr(Success);
                 ConsumeToken();
                 CurrGroup->Add(OpExpr);
 
@@ -903,32 +891,30 @@ ASTExpr* Parser::ParseExpr(ASTBlock *Block, bool &Success, ASTGroupExpr *ParentG
         Diag(Tok.getLocation(), diag::err_paren_unclosed);
     } else {
         ASTExpr *Expr = ParseOneExpr(Block, Success);
-        if (Expr) {
 
-            // If there is an Operator start creating a GroupExpr
-            if (isOperator()) {
-                ASTGroupExpr *GroupExpr = ParentGroup == nullptr ?
-                        new ASTGroupExpr(Tok.getLocation()) : ParentGroup;
-
-                // Continue recursively with group parsing
-                // Add Expr
-                GroupExpr->Add(Expr);
-
-                // Add Operator
-                ASTOperatorExpr *OpExpr = ParseOperator(Success);
-                ConsumeToken();
-                GroupExpr->Add(OpExpr);
-
-                // Parse with recursion
-                return ParseExpr(Block, Success, GroupExpr);
+        // If there is an Operator start creating a GroupExpr
+        if (Success && isOperator()) {
+            if (ParentGroup == nullptr) {
+                ParentGroup = new ASTGroupExpr(Tok.getLocation());
             }
+            ParentGroup->Add(Expr); // Add Expr on First
 
-            if (ParentGroup != nullptr) {
-                ParentGroup->Add(Expr);
-                return ParentGroup;
-            }
-            return Expr;
+            // Continue recursively with group parsing
+            // Add Operator
+            ASTOperatorExpr *OpExpr = ParseOperatorExpr(Success);
+            ConsumeToken();
+            ParentGroup->Add(OpExpr);
+
+            // Parse with recursion
+            return ParseExpr(Block, Success, ParentGroup);
         }
+
+        if (ParentGroup != nullptr) {
+            ParentGroup->Add(Expr);
+            return ParentGroup;
+        }
+        return Expr;
+
     }
     return nullptr;
 }
@@ -951,8 +937,29 @@ ASTExpr* Parser::ParseOneExpr(ASTBlock *Block, bool &Success) {
         } else {
             ASTVarRef *VRef = new ASTVarRef(Loc, Id->getName());
             Block->ResolveVarRef(VRef);
+            if (isIncrDecrOperator()) { // variable increment or decrement
+                // a++ or a--
+                ASTOperatorExpr *Expr = ParseIncrDecrOperatorExpr(Success);
+                ConsumeToken();
+                return new ASTUnaryExpr(Loc, Expr, VRef, UNARY_POST);
+            }
             return new ASTVarRefExpr(Loc, VRef);
         }
+    } else if (isUnaryPreOperator()) { // variable increment or decrement
+        // ++a or --a or !a
+        ASTOperatorExpr *Expr = ParseUnaryPreOperator(Success);
+        ConsumeToken();
+        if (Tok.isAnyIdentifier()) {
+            IdentifierInfo *Id = Tok.getIdentifierInfo();
+            SourceLocation Loc = ConsumeToken();
+            ASTVarRef *VRef = new ASTVarRef(Loc, Id->getName());
+            Block->ResolveVarRef(VRef);
+            return new ASTUnaryExpr(Loc, Expr, VRef, UNARY_PRE);
+        }
+
+        Diag(Tok.getLocation(), diag::err_unary_operator)
+                << getPunctuatorSpelling(Tok.getKind());
+        Success = false;
     }
     return nullptr;
 }
@@ -986,7 +993,7 @@ ASTValueExpr *Parser::ParseValueExpr(bool &Success) {
     assert(0 && "Incorrect Value");
 }
 
-ASTOperatorExpr* Parser::ParseOperator(bool &Success) {
+ASTOperatorExpr* Parser::ParseOperatorExpr(bool &Success) {
     SourceLocation Loc = Tok.getLocation();
     switch (Tok.getKind()) {
 
@@ -1011,6 +1018,10 @@ ASTOperatorExpr* Parser::ParseOperator(bool &Success) {
             return new ASTArithExpr(Loc, ArithOpKind::ARITH_SHIFT_L);
         case tok::greatergreater:
             return new ASTArithExpr(Loc, ArithOpKind::ARITH_SHIFT_R);
+        case tok::plusplus:
+            return new ASTArithExpr(Loc, ArithOpKind::ARITH_INCR);
+        case tok::minusminus:
+            return new ASTArithExpr(Loc, ArithOpKind::ARITH_DECR);
 
         // Logic
         case tok::ampamp:
@@ -1044,12 +1055,41 @@ ASTOperatorExpr* Parser::ParseOperator(bool &Success) {
     assert(0 && "Operator not accepted");
 }
 
-ASTIncDecExpr* Parser::ParseOpIncrement(bool &Success, bool Post) {
+ASTOperatorExpr *Parser::ParseUnaryPreOperator(bool &Success) {
+    // Check if ++a, --a, !a
+    switch (Tok.getKind()) {
+        case tok::exclaim:
+            return new ASTLogicExpr(Tok.getLocation(), LOGIC_NOT);
+        case tok::plusplus:
+            return new ASTArithExpr(Tok.getLocation(), ARITH_INCR);
+        case tok::minusminus:
+            return new ASTArithExpr(Tok.getLocation(), ARITH_DECR);
+            break;
+        default:
+            assert(0 && "Only Increment '++' or Decrement '--' or Exclaim '!' are accepted");
+    }
+}
+
+ASTOperatorExpr *Parser::ParseIncrDecrOperatorExpr(bool &Success) {
+    // Check if a++ or a--
     switch (Tok.getKind()) {
         case tok::plusplus:
-            return new ASTIncDecExpr(Tok.getLocation(), Post ? IncDecOpKind::POST_INCR : IncDecOpKind::PRE_INCR);
+            return new ASTArithExpr(Tok.getLocation(), ARITH_INCR);
         case tok::minusminus:
-            return new ASTIncDecExpr(Tok.getLocation(), Post ? IncDecOpKind::POST_DECR : IncDecOpKind::PRE_DECR);
+            return new ASTArithExpr(Tok.getLocation(), ARITH_DECR);
+        default:
+            assert(0 && "Only Increment ++ or Decrement -- are accepted");
+    }
+}
+
+ASTOperatorExpr* Parser::ParseUnaryOperatorExpr(bool &Success) {
+    switch (Tok.getKind()) {
+        case tok::exclaim:
+            return new ASTLogicExpr(Tok.getLocation(), LOGIC_NOT);
+        case tok::plusplus:
+            return new ASTArithExpr(Tok.getLocation(), ARITH_INCR);
+        case tok::minusminus:
+            return new ASTArithExpr(Tok.getLocation(), ARITH_DECR);
         default:
             assert(0 && "Only Increment ++ or Decrement -- are accepted");
     }
@@ -1063,10 +1103,6 @@ bool Parser::isBuiltinType() {
     return Tok.isOneOf(tok::kw_int, tok::kw_bool, tok::kw_float);
 }
 
-bool Parser::isOpIncDec() {
-    return Tok.isOneOf(tok::plusplus, tok::minusminus);
-}
-
 bool Parser::isOperator() {
     return Tok.isOneOf(tok::plus, tok::minus, tok::star, tok::slash, tok::percent,
                        tok::amp, tok::pipe, tok::caret,
@@ -1074,6 +1110,14 @@ bool Parser::isOperator() {
                        tok::less, tok::lessless, tok::lessequal, tok::greater, tok::greatergreater, tok::greaterequal,
                        tok::equalequal, tok::exclaimequal,
                        tok::question, tok::colon);
+}
+
+bool Parser::isUnaryPreOperator() {
+    return Tok.isOneOf(tok::plusplus, tok::minusminus, tok::exclaim);
+}
+
+bool Parser::isIncrDecrOperator() {
+    return Tok.isOneOf(tok::plusplus, tok::minusminus);
 }
 
 bool Parser::isValue() {

@@ -60,11 +60,3 @@ const StringRef &ASTVarRef::getNameSpace() const {
 const SourceLocation &ASTVarRef::getLocation() const {
     return Loc;
 }
-
-unsigned long ASTVarRef::getOrder() const {
-    return Order;
-}
-
-void ASTVarRef::setOrder(unsigned long order) {
-    Order = order;
-}

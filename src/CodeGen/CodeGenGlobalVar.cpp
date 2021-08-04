@@ -33,8 +33,8 @@ GlobalVariable *CodeGenGlobalVar::getGlobalVar() const {
     return GVar;
 }
 
-llvm::User *CodeGenGlobalVar::get() {
-    return isStored ? (needLoad ? Load() : LoadI) : static_cast<llvm::User *>(GVar);
+llvm::Value *CodeGenGlobalVar::get() {
+    return isStored ? (needLoad ? Load() : LoadI) : (llvm::Value *)GVar;
 }
 
 llvm::StoreInst *CodeGenGlobalVar::Store(llvm::Value *Val) {

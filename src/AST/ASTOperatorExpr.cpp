@@ -37,19 +37,19 @@ ArithOpKind ASTArithExpr::getArithKind() const {
     return ArithKind;
 }
 
-ASTLogicExpr::ASTLogicExpr(const SourceLocation &Loc, const LogicOpKind &BKind) : ASTOperatorExpr(Loc), BoolKind(BKind) {
-
+ASTLogicExpr::ASTLogicExpr(const SourceLocation &Loc, const LogicOpKind &LKind) : ASTOperatorExpr(Loc), LogicKind(LKind) {
+    assert(LKind == LogicOpKind::LOGIC_AND || LKind == LogicOpKind::LOGIC_OR && "Only && or ||");
 }
 
 OpKind ASTLogicExpr::getOpKind() {
     return OperatorKind;
 }
 
-LogicOpKind ASTLogicExpr::getBoolKind() const {
-    return BoolKind;
+LogicOpKind ASTLogicExpr::getLogicKind() const {
+    return LogicKind;
 }
 
-ASTComparisonExpr::ASTComparisonExpr(const SourceLocation &Loc, const ComparisonOpKind &LKind) : ASTOperatorExpr(Loc), ComparisonKind(LKind) {}
+ASTComparisonExpr::ASTComparisonExpr(const SourceLocation &Loc, const ComparisonOpKind &CKind) : ASTOperatorExpr(Loc), ComparisonKind(CKind) {}
 
 OpKind ASTComparisonExpr::getOpKind() {
     return OperatorKind;
@@ -57,19 +57,6 @@ OpKind ASTComparisonExpr::getOpKind() {
 
 ComparisonOpKind ASTComparisonExpr::getComparisonKind() const {
     return ComparisonKind;
-}
-
-ASTIncDecExpr::ASTIncDecExpr(const SourceLocation &Loc, const IncDecOpKind &Kind) : ASTOperatorExpr(Loc),
-    IncDecKind(Kind) {
-
-}
-
-OpKind ASTIncDecExpr::getOpKind() {
-    return OperatorKind;
-}
-
-IncDecOpKind ASTIncDecExpr::getIncDecKind() const {
-    return IncDecKind;
 }
 
 ASTCondExpr::ASTCondExpr(const SourceLocation &Loc, const CondOpKind &CondKind) : ASTOperatorExpr(Loc),
@@ -83,4 +70,26 @@ OpKind ASTCondExpr::getOpKind() {
 
 CondOpKind ASTCondExpr::getCondKind() const {
     return CondKind;
+}
+
+ASTUnaryExpr::ASTUnaryExpr(const SourceLocation &Loc, ASTOperatorExpr *OperatorExpr, ASTVarRef *VarRef,
+                           UnaryOpKind UKind) : OperatorExpr(OperatorExpr), VarRef(VarRef), UKind(UKind),
+                           ASTOperatorExpr(Loc){
+
+}
+
+OpKind ASTUnaryExpr::getOpKind() {
+    return OperatorKind;
+}
+
+UnaryOpKind ASTUnaryExpr::getUnaryKind() const {
+    return UKind;
+}
+
+ASTOperatorExpr *ASTUnaryExpr::getOperatorExpr() const {
+    return OperatorExpr;
+}
+
+ASTVarRef *ASTUnaryExpr::getVarRef() const {
+    return VarRef;
 }

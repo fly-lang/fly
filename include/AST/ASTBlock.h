@@ -88,13 +88,13 @@ namespace fly {
 
         bool ResolveExpr(ASTExpr *E);
 
+        bool addExprStmt(ASTExprStmt *ExprStmt);
+
         bool addVar(ASTLocalVarStmt *Var);
 
         bool addVar(ASTLocalVar *Var);
 
         bool addCall(ASTFuncCall *Invoke);
-
-        bool addReturn(const SourceLocation &Loc);
 
         bool addReturn(const SourceLocation &Loc, ASTExpr *Expr);
 

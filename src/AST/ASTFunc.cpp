@@ -240,11 +240,11 @@ void ASTFuncParam::setExpr(ASTExpr *E) {
     Expr = (ASTValueExpr *)E;
 }
 
-CodeGenVar *ASTFuncParam::getCodeGen() const {
+CodeGenLocalVar *ASTFuncParam::getCodeGen() const {
     return CodeGen;
 }
 
-void ASTFuncParam::setCodeGen(CodeGenVar *CG) {
+void ASTFuncParam::setCodeGen(CodeGenLocalVar *CG) {
     CodeGen = CG;
 }
 

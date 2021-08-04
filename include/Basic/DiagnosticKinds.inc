@@ -308,6 +308,8 @@ DIAG(err_parse_stmt, CLASS_ERROR, (unsigned)diag::Severity::Error, "statement pa
 DIAG(err_top_decl, CLASS_ERROR, (unsigned)diag::Severity::Error, "declaration error", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_paren_unclosed, CLASS_ERROR, (unsigned)diag::Severity::Error, "parenthesis not closed ')'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_const_call, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot use const with function call", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_unary_operator, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot parse unary operator '%0'", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_multiple_unary_operator, CLASS_ERROR, (unsigned)diag::Severity::Error, "multiple unary operator '%0'", 0, SFINAE_Suppress, false, true, 0)
 
 DIAG(warn_empty_code, CLASS_WARNING, (unsigned)diag::Severity::Warning, "code empty", 0, SFINAE_Suppress, false, true, 0)
 

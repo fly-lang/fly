@@ -45,7 +45,7 @@ namespace fly {
         friend class CodeGenGlobalVar;
         friend class CodeGenFunction;
         friend class CodeGenCall;
-        friend class CodeGenVar;
+        friend class CodeGenLocalVar;
         friend class CodeGenExpr;
 
     private:

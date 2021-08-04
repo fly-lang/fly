@@ -12,6 +12,7 @@
 
 #include "ASTTopDecl.h"
 #include "ASTVar.h"
+#include "CodeGen/CodeGenGlobalVar.h"
 
 namespace fly {
 
@@ -20,6 +21,7 @@ namespace fly {
     class ASTGlobalVar : public ASTVar, public ASTTopDecl {
 
         friend class ASTNode;
+
         const TopDeclKind Kind;
         CodeGenGlobalVar *CodeGen;
         ASTValueExpr *Expr = nullptr;

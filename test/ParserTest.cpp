@@ -408,6 +408,7 @@ namespace {
                          "  a++"
                          "  --a"
                          "  a--"
+                         "  a = ++a + 1"
                          "}\n");
         auto P = Parse("fbody.fly", str);
         auto AST = P->getAST();
@@ -418,34 +419,44 @@ namespace {
         const ASTBlock *Body = F->getBody();
 
         // ++a
-        ASTLocalVarStmt *a1Var = static_cast<ASTLocalVarStmt *>(Body->getContent()[0]);
-        EXPECT_EQ(a1Var->getExpr()->getKind(), ExprKind::EXPR_OPERATOR);
-        EXPECT_EQ(a1Var->getName(), "a");
+        ASTExprStmt *a1Stmt = static_cast<ASTExprStmt *>(Body->getContent()[0]);
+        ASTUnaryExpr *a1Unary = (ASTUnaryExpr *) a1Stmt->getExpr();
+        EXPECT_EQ(((ASTArithExpr *) a1Unary->getOperatorExpr())->getArithKind(), ARITH_INCR);
+        EXPECT_EQ(a1Unary->getUnaryKind(), UnaryOpKind::UNARY_PRE);
+        EXPECT_EQ(a1Unary->getVarRef()->getName(), "a");
 
-        ASTIncDecExpr *aExpr = static_cast<ASTIncDecExpr *>(a1Var->getExpr());
-        EXPECT_EQ(aExpr->getIncDecKind(), IncDecOpKind::PRE_INCR);
+        // a++
+        ASTExprStmt *a2Stmt = static_cast<ASTExprStmt *>(Body->getContent()[1]);
+        ASTUnaryExpr *a2Unary = (ASTUnaryExpr *) a2Stmt->getExpr();
+        EXPECT_EQ(((ASTArithExpr *) a2Unary->getOperatorExpr())->getArithKind(), ARITH_INCR);
+        EXPECT_EQ(a2Unary->getUnaryKind(), UnaryOpKind::UNARY_POST);
+        EXPECT_EQ(a2Unary->getVarRef()->getName(), "a");
 
-        // b++
-        ASTLocalVarStmt *a2Var = static_cast<ASTLocalVarStmt *>(Body->getContent()[1]);
-        EXPECT_EQ(a2Var->getExpr()->getKind(), ExprKind::EXPR_OPERATOR);
-        EXPECT_EQ(a2Var->getName(), "a");
-        ASTIncDecExpr *bExpr = static_cast<ASTIncDecExpr *>(a2Var->getExpr());
-        EXPECT_EQ(bExpr->getIncDecKind(), IncDecOpKind::POST_INCR);
+        // --a
+        ASTExprStmt *a3Stmt = static_cast<ASTExprStmt *>(Body->getContent()[2]);
+        ASTUnaryExpr *a3Unary = (ASTUnaryExpr *) a3Stmt->getExpr();
+        EXPECT_EQ(((ASTArithExpr *) a3Unary->getOperatorExpr())->getArithKind(), ARITH_DECR);
+        EXPECT_EQ(a3Unary->getUnaryKind(), UnaryOpKind::UNARY_PRE);
+        EXPECT_EQ(a3Unary->getVarRef()->getName(), "a");
 
-        // ++c
-        ASTLocalVarStmt *a3Var = static_cast<ASTLocalVarStmt *>(Body->getContent()[2]);
-        EXPECT_EQ(a3Var->getExpr()->getKind(), ExprKind::EXPR_OPERATOR);
-        EXPECT_EQ(a3Var->getName(), "a");
-        ASTIncDecExpr *cExpr = static_cast<ASTIncDecExpr *>(a3Var->getExpr());
-        EXPECT_EQ(cExpr->getIncDecKind(), IncDecOpKind::PRE_DECR);
+        // a--
+        ASTExprStmt *a4Stmt = static_cast<ASTExprStmt *>(Body->getContent()[3]);
+        ASTUnaryExpr *a4Unary = (ASTUnaryExpr *) a4Stmt->getExpr();
+        EXPECT_EQ(((ASTArithExpr *) a4Unary->getOperatorExpr())->getArithKind(), ARITH_DECR);
+        EXPECT_EQ(a4Unary->getUnaryKind(), UnaryOpKind::UNARY_POST);
+        EXPECT_EQ(a4Unary->getVarRef()->getName(), "a");
 
-        // d++
-        const ASTLocalVarStmt *a4Var = static_cast<ASTLocalVarStmt *>(Body->getContent()[3]);
-        EXPECT_EQ(a4Var->getExpr()->getKind(), ExprKind::EXPR_OPERATOR);
-        EXPECT_EQ(a4Var->getName(), "a");
-        ASTIncDecExpr *dExpr = static_cast<ASTIncDecExpr *>(a4Var->getExpr());
-        EXPECT_EQ(dExpr->getIncDecKind(), IncDecOpKind::POST_DECR);
-
+        // a = ++a + 1
+        const ASTLocalVarStmt *a5Var = static_cast<ASTLocalVarStmt *>(Body->getContent()[4]);
+        EXPECT_EQ(a5Var->getExpr()->getKind(), EXPR_GROUP);
+        ASTExpr *E1 = ((ASTGroupExpr *) a5Var->getExpr())->getGroup()[0];
+        EXPECT_EQ(E1->getKind(), EXPR_OPERATOR);
+        EXPECT_EQ(((ASTOperatorExpr *)E1)->getOpKind(), OP_UNARY);
+        EXPECT_EQ(((ASTUnaryExpr *)E1)->getUnaryKind(), UNARY_PRE);
+        EXPECT_EQ(((ASTArithExpr *)((ASTUnaryExpr *)E1)->getOperatorExpr())->getArithKind(), ARITH_INCR);
+        EXPECT_EQ(((ASTArithExpr *)((ASTGroupExpr *) a5Var->getExpr())->getGroup()[1])->getArithKind(), ARITH_ADD);
+        ASTExpr *Value = ((ASTGroupExpr *) a5Var->getExpr())->getGroup()[2];
+        EXPECT_EQ(Value->getKind(), EXPR_VALUE);
         delete AST;
     }
 
@@ -598,12 +609,14 @@ namespace {
         EXPECT_EQ(static_cast<ASTComparisonExpr *>(Cond->getGroup()[1])->getComparisonKind(), ComparisonOpKind::COMP_LT);
         EXPECT_EQ(static_cast<ASTValueExpr *>(Cond->getGroup()[2])->getValue().str(), "10");
 
-        EXPECT_EQ(static_cast<ASTLocalVarStmt *>(Stmt->getPost()->getContent()[0])->getName(), "b");
-        ASTIncDecExpr *Expr1 = static_cast<ASTIncDecExpr *>(static_cast<ASTLocalVarStmt *>(Stmt->getPost()->getContent()[0])->getExpr());
-        EXPECT_EQ(Expr1->getIncDecKind(), IncDecOpKind::POST_INCR);
-        EXPECT_EQ(static_cast<ASTLocalVarStmt *>(Stmt->getPost()->getContent()[1])->getName(), "c");
-        ASTIncDecExpr *Expr2 = static_cast<ASTIncDecExpr *>(static_cast<ASTLocalVarStmt *>(Stmt->getPost()->getContent()[1])->getExpr());
-        EXPECT_EQ(Expr2->getIncDecKind(), IncDecOpKind::PRE_DECR);
+        ASTExprStmt * ExprStmt1 = static_cast<ASTExprStmt *>(Stmt->getPost()->getContent()[0]);
+        EXPECT_EQ(((ASTUnaryExpr *) ExprStmt1->getExpr())->getVarRef()->getName(), "b");
+        ASTArithExpr *Expr1 = static_cast<ASTArithExpr *>(((ASTUnaryExpr *) ExprStmt1->getExpr())->getOperatorExpr());
+        EXPECT_EQ(Expr1->getArithKind(), ArithOpKind::ARITH_INCR);
+        ASTExprStmt * ExprStmt2 = static_cast<ASTExprStmt *>(Stmt->getPost()->getContent()[1]);
+        EXPECT_EQ(((ASTUnaryExpr *) ExprStmt2->getExpr())->getVarRef()->getName(), "c");
+        ASTArithExpr *Expr2 = static_cast<ASTArithExpr *>(((ASTUnaryExpr *) ExprStmt2->getExpr())->getOperatorExpr());
+        EXPECT_EQ(Expr2->getArithKind(), ArithOpKind::ARITH_DECR);
 
         EXPECT_TRUE(Stmt->getLoop()->isEmpty());
 

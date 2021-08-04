@@ -331,7 +331,7 @@ namespace {
                           "entry:\n"
                           "  %0 = alloca i32, align 4\n"
                           "  store i32 1, i32* %0, align 4\n"
-                          "  store float 1.000000e+00, float* @G, align 4\n"
+                          "  store i32 1, float* @G, align 4\n"
                           "  %1 = load i32, i32* %0, align 4\n"
                           "  ret i32 %1\n"
                           "}\n");
@@ -435,15 +435,22 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define i32 @main(i32 %0, float %1, i1 %2) {\n"
+        EXPECT_EQ(output, "define void @main(i32 %0, i32 %1, i32 %2) {\n"
                           "entry:\n"
                           "  %3 = alloca i32, align 4\n"
-                          "  %4 = alloca float, align 4\n"
-                          "  %5 = alloca i1, align 1\n"
+                          "  %4 = alloca i32, align 4\n"
+                          "  %5 = alloca i32, align 4\n"
                           "  store i32 %0, i32* %3, align 4\n"
-                          "  store float %1, float* %4, align 4\n"
-                          "  store i1 %2, i1* %5, align 1\n"
-                          "  ret i32 1\n"
+                          "  store i32 %1, i32* %4, align 4\n"
+                          "  store i32 %2, i32* %5, align 4\n"
+                          "  %6 = load i32, i32* %3, align 4\n"
+                          "  %7 = load i32, i32* %4, align 4\n"
+                          "  %8 = mul i32 %6, %7\n"
+                          "  %9 = load i32, i32* %5, align 4\n"
+                          "  %10 = sub i32 %9, 2\n"
+                          "  %11 = sdiv i32 %8, %10\n"
+                          "  %12 = add i32 1, %11\n"
+                          "  ret i32 %12\n"
                           "}\n");
         delete Node;
         deleteTestFile(testFile);

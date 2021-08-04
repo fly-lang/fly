@@ -17,6 +17,8 @@
 
 namespace fly {
 
+    class CodeGenVar;
+
     /**
      * Base Var used in:
      *  - LocalVar
@@ -39,6 +41,8 @@ namespace fly {
         ASTVar(ASTType *Type, const StringRef &Name, const StringRef &NameSpace = "");
 
         virtual ~ASTVar();
+
+        virtual CodeGenVar *getCodeGen() const = 0;
 
         const bool isGlobal() const;
 
@@ -66,8 +70,6 @@ namespace fly {
         const SourceLocation Loc;
         const llvm::StringRef NameSpace;
         const llvm::StringRef Name;
-
-        unsigned long Order;
 
         ASTVar *Decl = nullptr;
 

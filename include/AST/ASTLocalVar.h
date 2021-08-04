@@ -12,10 +12,9 @@
 
 #include "ASTStmt.h"
 #include "ASTVar.h"
+#include "CodeGen/CodeGenLocalVar.h"
 
 namespace fly {
-
-    class CodeGenVar;
 
     /**
      * Local Var Declaration
@@ -31,7 +30,7 @@ namespace fly {
 
         unsigned long Order;
 
-        CodeGenVar *CodeGen;
+        CodeGenLocalVar *CodeGen;
 
     public:
         ASTLocalVar(const SourceLocation &Loc, ASTBlock *Block, ASTType *Type, const llvm::StringRef &Name);
@@ -46,9 +45,9 @@ namespace fly {
 
         void setExpr(ASTExpr *E);
 
-        CodeGenVar *getCodeGen() const;
+        CodeGenLocalVar *getCodeGen() const;
 
-        void setCodeGen(CodeGenVar *CG);
+        void setCodeGen(CodeGenLocalVar *CG);
     };
 
     /**

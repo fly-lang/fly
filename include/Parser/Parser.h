@@ -254,7 +254,6 @@ namespace fly {
 
         ASTFuncCall *ParseFunctionCall(ASTBlock *Block, IdentifierInfo *Id, SourceLocation &Loc, bool &Success);
         ASTLocalVar* ParseLocalVar(ASTBlock *Block, bool Constant, ASTType *Type, bool &Success);
-        ASTLocalVarStmt* ParseIncDec(SourceLocation &Loc, ASTBlock *Block, IdentifierInfo *Id, bool &Success);
         ASTVarRef* ParseVarRef(bool &Success);
 
         // Parse Expressions
@@ -264,16 +263,19 @@ namespace fly {
         ASTExpr* ParseExpr(ASTBlock *Block, bool &Success, ASTGroupExpr *ParentGroup = nullptr);
         ASTExpr* ParseOneExpr(ASTBlock *Block, bool &Success);
         ASTValueExpr* ParseValueExpr(bool &Success);
-        ASTOperatorExpr* ParseOperator(bool &Success);
-        ASTIncDecExpr* ParseOpIncrement(bool &Success, bool Post = false);
+        ASTOperatorExpr* ParseOperatorExpr(bool &Success);
+        ASTOperatorExpr* ParseUnaryPreOperator(bool &Success);
+        ASTOperatorExpr* ParseIncrDecrOperatorExpr(bool &Success);
+        ASTOperatorExpr* ParseUnaryOperatorExpr(bool &Success);
 
         // Check Keywords
 
         bool isVoidType();
         bool isBuiltinType();
         bool isValue();
-        bool isOpIncDec();
         bool isOperator();
+        bool isUnaryPreOperator();
+        bool isIncrDecrOperator();
     };
 
 }  // end namespace fly

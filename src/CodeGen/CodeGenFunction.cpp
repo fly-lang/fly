@@ -8,7 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "CodeGen/CodeGenFunction.h"
-#include "CodeGen/CodeGenVar.h"
+#include "CodeGen/CodeGenLocalVar.h"
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
 #include "AST/ASTLocalVar.h"
@@ -29,20 +29,20 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, const llvm::StringRef FName
 
     // CodeGen of Params and Allocation
     for (auto &P : FParams->getParams()) {
-        CodeGenVar *CGV = new CodeGenVar(CGM, P);
+        CodeGenLocalVar *CGV = new CodeGenLocalVar(CGM, P);
         P->setCodeGen(CGV);
     }
 
     // CodeGen of Vars and Allocation
     for (auto &EntryV : FBody->getDeclVars()) {
-        CodeGenVar *CGV = new CodeGenVar(CGM, EntryV.getValue());
+        CodeGenLocalVar *CGV = new CodeGenLocalVar(CGM, EntryV.getValue());
         EntryV.getValue()->setCodeGen(CGV);
     }
 
     // Store Values
     int n = 0;
     for (auto &P : FParams->getParams()) {
-        CodeGenVar *CGV = P->getCodeGen();
+        CodeGenLocalVar *CGV = P->getCodeGen();
         CGV->Store(Fn->getArg(n));
         if (P->getExpr()) { // TODO check Expr
             CGM->GenExpr(P->getType(), P->getExpr());

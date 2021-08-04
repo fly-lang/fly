@@ -8,9 +8,10 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#ifndef FLY_CGVAR_H
-#define FLY_CGVAR_H
+#ifndef FLY_CGLOCALVAR_H
+#define FLY_CGLOCALVAR_H
 
+#include "CodeGenVar.h"
 #include "llvm/IR/Instructions.h"
 
 namespace fly {
@@ -19,12 +20,26 @@ namespace fly {
     class ASTLocalVar;
     class ASTFuncParam;
 
-    class CodeGenVar {
+    class CodeGenLocalVar : public CodeGenVar {
+
+        CodeGenModule *CGM;
+        bool Constant;
+        llvm::AllocaInst *AllocaI;
+        llvm::LoadInst *LoadI;
+        bool needLoad;
+        bool isStored;
 
     public:
+        CodeGenLocalVar(CodeGenModule *CGM, ASTLocalVar *S);
 
-        virtual llvm::Value *get() = 0;
+        CodeGenLocalVar(CodeGenModule *CGM, ASTFuncParam *P);
+
+        llvm::UnaryInstruction *get() override;
+
+        llvm::StoreInst *Store(llvm::Value *Val);
+
+        llvm::LoadInst *Load();
     };
 }
 
-#endif //FLY_CGVAR_H
+#endif //FLY_CGLOCALVAR_H

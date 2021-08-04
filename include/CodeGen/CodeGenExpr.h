@@ -17,6 +17,7 @@ namespace fly {
 
     class CodeGenModule;
     class ASTOperatorExpr;
+    class ASTArithExpr;
 
     class VirtualExpr : public ASTExpr {
 
@@ -33,7 +34,7 @@ namespace fly {
             return nullptr;
         }
 
-        Value *getVal() const {
+        llvm::Value *getVal() const {
             return Val;
         }
     };
@@ -62,11 +63,13 @@ namespace fly {
         llvm::Value *GenGroup(ASTGroupExpr *Origin, ASTGroupExpr *New, int Idx, ASTExpr *E1 = nullptr,
                               ASTOperatorExpr * OP1 = nullptr);
 
-        llvm::Value *GenOperation(ASTExpr *E1, ASTOperatorExpr *Op, ASTExpr *E2);
-
         bool hasOpPrecedence(ASTExpr *OP);
 
         bool canIterate(int Idx, ASTGroupExpr *Group);
+
+        llvm::Value *GenOperation(ASTExpr *E1, ASTOperatorExpr *OP, ASTExpr *E2);
+
+        Value *OpArith(ASTExpr *E1, ASTArithExpr *OP, ASTExpr *E2);
     };
 }
 

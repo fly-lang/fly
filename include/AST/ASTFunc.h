@@ -10,6 +10,8 @@
 #ifndef FLY_FUNCTION_H
 #define FLY_FUNCTION_H
 
+#include "CodeGen/CodeGenLocalVar.h"
+#include "CodeGen/CodeGenVar.h"
 #include "ASTTopDecl.h"
 #include "ASTVar.h"
 #include "ASTStmt.h"
@@ -28,7 +30,6 @@ namespace fly {
     class ASTFuncParam;
     class ASTGlobalVar;
     class CodeGenFunction;
-    class CodeGenVar;
     class CodeGenCall;
 
     /**
@@ -119,7 +120,7 @@ namespace fly {
 
         ASTValueExpr *Expr = nullptr;
 
-        CodeGenVar *CodeGen;
+        CodeGenLocalVar *CodeGen;
 
     public:
         ASTFuncParam(const SourceLocation &Loc, ASTType *Type, const llvm::StringRef &Name);
@@ -128,9 +129,9 @@ namespace fly {
 
         void setExpr(ASTExpr *E) override;
 
-        CodeGenVar *getCodeGen() const;
+        CodeGenLocalVar *getCodeGen() const override;
 
-        void setCodeGen(CodeGenVar *CG);
+        void setCodeGen(CodeGenLocalVar *CG);
     };
 
     /**

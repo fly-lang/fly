@@ -10,8 +10,6 @@
 
 #include "CodeGen/CodeGenModule.h"
 #include "CodeGen/CodeGenExpr.h"
-#include "CodeGen/CodeGenGlobalVar.h"
-#include "CodeGen/CodeGenVar.h"
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTLocalVar.h"
 #include "AST/ASTExpr.h"
@@ -45,9 +43,10 @@ llvm::Value *CodeGenExpr::Generate(ASTExpr *Expr) {
 llvm::Value *CodeGenExpr::GenValue(ASTExpr *Expr) {
     switch (Expr->getKind()) {
 
+        case EXPR_VIRTUAL:
+            return ((VirtualExpr *)Expr)->getVal();
         case EXPR_VALUE: {
-            ASTValueExpr *ValExpr = (ASTValueExpr *)Expr;
-            return CGM->GenValue(Type, &ValExpr->getValue());
+            return CGM->GenValue(Expr->getType(), &((ASTValueExpr *)Expr)->getValue());
         }
         case EXPR_OPERATOR:
             CGM->Diag(Expr->getLocation(), diag::err_expr_operator_unexpected);
@@ -60,7 +59,7 @@ llvm::Value *CodeGenExpr::GenValue(ASTExpr *Expr) {
             if (VDecl->isGlobal()) {
                 return ((ASTGlobalVar *) VDecl)->getCodeGen()->getGlobalVar();
             }
-            return ((ASTLocalVar *) VDecl)->getCodeGen()->get();
+            return ((ASTVar *) VDecl)->getCodeGen()->get();
         }
         case EXPR_REF_FUNC: {
             ASTFuncCallExpr *RefExp = (ASTFuncCallExpr *)Expr;
@@ -70,6 +69,7 @@ llvm::Value *CodeGenExpr::GenValue(ASTExpr *Expr) {
         case EXPR_GROUP:
             assert(0 && "Cannot process Group from here");
     }
+    return nullptr;
 }
 
 void CodeGenExpr::GenIncDec(ASTGroupExpr *Group) {
@@ -77,16 +77,23 @@ void CodeGenExpr::GenIncDec(ASTGroupExpr *Group) {
     for (auto &Expr : Group->getGroup()) {
         if (Expr->getKind() == EXPR_GROUP) {
             GenIncDec((ASTGroupExpr *) Expr);
-        } else if (Expr->getKind() == EXPR_OPERATOR && ((ASTOperatorExpr *)Expr)->getOpKind() == OP_INCDEC) {
-            switch(((ASTIncDecExpr *)Expr)->getIncDecKind()) {
+        } else if (Expr->getKind() == EXPR_OPERATOR && ((ASTOperatorExpr *)Expr)->getOpKind() == OP_UNARY) {
+            ASTOperatorExpr *Operator = ((ASTUnaryExpr *)Expr)->getOperatorExpr();
+            if (Operator->getOpKind() == OP_ARITH)
+            switch(((ASTArithExpr *)Operator)->getArithKind()) {
+                case ARITH_INCR:
+                    if (((ASTUnaryExpr *)Expr)->getUnaryKind() == UNARY_PRE) { // PRE
 
-                case PRE_INCR:
+                    } else { // POST
+
+                    }
                     break;
-                case PRE_DECR:
-                    break;
-                case POST_INCR:
-                    break;
-                case POST_DECR:
+                case ARITH_DECR:
+                    if (((ASTUnaryExpr *)Expr)->getUnaryKind() == UNARY_PRE) { // PRE
+
+                    } else { // POST
+
+                    }
                     break;
             }
         }
@@ -101,7 +108,7 @@ llvm::Value *CodeGenExpr::GenGroup(ASTGroupExpr *Origin, ASTGroupExpr *New, int 
     // Example: E1 + E2 * E3 -> E1 + (E2 * E3)
 
     // Take first (no operator expected)
-    auto E2 = Origin->getGroup().at(Idx++);
+    ASTExpr *E2 = Origin->getGroup().at(Idx++);
 
     // If E1 is Operation -> Error
     if (E2->getKind() == EXPR_OPERATOR) {
@@ -166,7 +173,7 @@ llvm::Value *CodeGenExpr::GenGroup(ASTGroupExpr *Origin, ASTGroupExpr *New, int 
     // All Origin Group are Processed
     if (Idx > Origin->getGroup().size()-1) {
 
-        if (OP2 != nullptr) {
+        if (OP2 != nullptr) { // cannot have Operation at end
             CGM->Diag(OP2->getLocation(), diag::err_expr_operator_unexpected);
             return nullptr;
         }
@@ -179,39 +186,16 @@ llvm::Value *CodeGenExpr::GenGroup(ASTGroupExpr *Origin, ASTGroupExpr *New, int 
 
         // Remain only one Expr into New Group, the last, need to be returned
         if (E2->getKind() == EXPR_GROUP) { // If E1 is a Group -> Generate Value
-            return GenGroup(((ASTGroupExpr *)E1), new ASTGroupExpr(SourceLocation()), 0);
+            return GenGroup(((ASTGroupExpr *)E2), new ASTGroupExpr(SourceLocation()), 0);
         } else if (E2->getKind() == EXPR_VIRTUAL) {
-            return ((VirtualExpr *)E1)->getVal();
+            return ((VirtualExpr *)E2)->getVal();
         } else {
-            return GenValue(E1);
+            return GenValue(E2);
         }
     }
 
     // Continue with recursion
     return GenGroup(Origin, New, Idx, E2, (ASTOperatorExpr *) OP2);
-}
-
-llvm::Value *CodeGenExpr::GenOperation(ASTExpr *E1, ASTOperatorExpr *Op, ASTExpr *E2) {
-    assert(E1->getKind() != EXPR_OPERATOR && E1->getKind() != EXPR_GROUP && "Expr1 Error");
-    assert(E2->getKind() != EXPR_OPERATOR && E2->getKind() != EXPR_GROUP && "Expr2 Error");
-
-    llvm::Value *V = nullptr;
-    switch (Op->getOpKind()) {
-
-        case OP_ARITH:
-            break;
-        case OP_LOGIC:
-            break;
-        case OP_BOOL:
-            break;
-        case OP_INCDEC:
-            // Already Done into GenIncDec
-            break;
-        case OP_COND:
-            break;
-    }
-
-    return V;
 }
 
 bool CodeGenExpr::hasOpPrecedence(ASTExpr *OP) {
@@ -221,4 +205,67 @@ bool CodeGenExpr::hasOpPrecedence(ASTExpr *OP) {
 
 bool CodeGenExpr::canIterate(int Idx, ASTGroupExpr *Group) {
     return Idx < Group->getGroup().size();
+}
+
+llvm::Value *CodeGenExpr::GenOperation(ASTExpr *E1, ASTOperatorExpr *OP, ASTExpr *E2) {
+    assert(E1->getKind() != EXPR_OPERATOR && E1->getKind() != EXPR_GROUP && "Expr1 Error");
+    assert(E2->getKind() != EXPR_OPERATOR && E2->getKind() != EXPR_GROUP && "Expr2 Error");
+
+    switch (OP->getOpKind()) {
+
+        case OP_ARITH:
+            return OpArith(E1, (ASTArithExpr *) OP, E2);
+        case OP_COMPARISON:
+//            return OpLogic();
+        case OP_LOGIC:
+//            return OpLogic();
+        case OP_COND:
+//            return OpCond();
+            break;
+    }
+
+    return nullptr;
+}
+
+Value *CodeGenExpr::OpArith(ASTExpr *E1, ASTArithExpr *OP, ASTExpr *E2) {
+    llvm::Value *V1 = GenValue(E1);
+    llvm::Value *V2 = GenValue(E2);
+    switch (OP->getArithKind()) {
+
+        case ARITH_ADD:
+            return CGM->Builder->CreateAdd(V1, V2);
+            break;
+        case ARITH_SUB:
+            return CGM->Builder->CreateSub(V1, V2);
+            break;
+        case ARITH_MUL:
+            return CGM->Builder->CreateMul(V1, V2);
+            break;
+        case ARITH_DIV:
+            return CGM->Builder->CreateSDiv(V1, V2);
+            break;
+        case ARITH_MOD:
+            return CGM->Builder->CreateSRem(V1, V2);
+            break;
+        case ARITH_AND:
+            return CGM->Builder->CreateAnd(V1, V2);
+            break;
+        case ARITH_OR:
+            return CGM->Builder->CreateOr(V1, V2);
+            break;
+        case ARITH_XOR:
+            return CGM->Builder->CreateXor(V1, V2);
+            break;
+        case ARITH_SHIFT_L:
+            return CGM->Builder->CreateShl(V1, V2);
+            break;
+        case ARITH_SHIFT_R:
+            return CGM->Builder->CreateAShr(V1, V2);
+            break;
+        case ARITH_INCR:
+        case ARITH_DECR:
+            // done into GenIncDec() on start
+            break;
+    }
+    return nullptr;
 }

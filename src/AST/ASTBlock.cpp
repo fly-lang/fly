@@ -77,11 +77,6 @@ bool ASTBlock::ResolveVarRef(ASTVarRef* Var) {
                 Diag(Var->getLocation(), diag::err_vardecl_notfound) << Var->getName();
                 return false;
             }
-            // Check if var declaration happen before this var use // FIXME need or not? TODO add order into Expr
-//            if (((VarDeclStmt *) VDecl)->getOrder() > Var->getOrder()) {
-//                Diag(Var->getLocation(), diag::err_vardecl_notfound) << Var->getName();
-//                return false;
-//            }
 
             // Resolve with VarDecl
             Var->setDecl(VDecl);
@@ -125,12 +120,18 @@ bool ASTBlock::ResolveExpr(ASTExpr *E) {
     assert(0 && "Unknown Expr Kind");
 }
 
+bool ASTBlock::addExprStmt(ASTExprStmt *ExprStmt) {
+    if (ResolveExpr(ExprStmt->getExpr())) {
+        Content.push_back(ExprStmt);
+        return true;
+    }
+    return false;
+}
+
 bool ASTBlock::addVar(ASTLocalVarStmt *Var) {
     assert(Var->getExpr() && "Expr unset into VarStmt");
 
     if (ResolveExpr(Var->getExpr())) {
-
-        Var->setOrder(Order++);
         Content.push_back(Var);
         if (Var->getDecl() == nullptr) {
             return ResolveVarRef(Var);
@@ -144,7 +145,6 @@ bool ASTBlock::addVar(ASTLocalVar *Var) {
     if (Var->getExpr()) {
         Result &= ResolveExpr(Var->getExpr());
     }
-    Var->setOrder(Order++);
 
     const auto &It = DeclVars.find(Var->getName());
     // Check if this var is already declared

@@ -16,7 +16,7 @@
 #include "CodeGen/CharUnits.h"
 #include "CodeGen/CodeGenFunction.h"
 #include "CodeGen/CodeGenGlobalVar.h"
-#include "CodeGen/CodeGenVar.h"
+#include "CodeGen/CodeGenLocalVar.h"
 #include "CodeGen/CodeGenExpr.h"
 #include "AST/ASTNode.h"
 #include "AST/ASTLocalVar.h"
