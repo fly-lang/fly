@@ -289,23 +289,23 @@ ASTType* Parser::ParseType() {
     ASTType *Type = nullptr;
     switch (Tok.getKind()) {
         case tok::kw_bool:
-            Type = new BoolPrimType(Loc);
+            Type = new ASTBoolType(Loc);
             break;
         case tok::kw_int:
-            Type = new IntPrimType(Loc);
+            Type = new ASTIntType(Loc);
             break;
         case tok::kw_float:
-            Type = new FloatPrimType(Loc);
+            Type = new ASTFloatType(Loc);
             break;
         case tok::kw_void:
-            Type = new VoidRetType(Loc);
+            Type = new ASTVoidType(Loc);
             break;
         default:
             StringRef Name = Tok.getIdentifierInfo()->getName();
             if (Name.empty()) {
                 Diag(Loc, diag::err_type_undefined);
             } else {
-                Type = new ClassTypeRef(Loc, Name);
+                Type = new ASTClassType(Loc, Name);
             }
     }
     ConsumeToken();
@@ -400,7 +400,7 @@ bool Parser::ParseStmt(ASTBlock *Block) {
         if (Tok.isAnyIdentifier()) { // variable declaration
             // T a = ...
             StringRef Name = Id->getName();
-            ASTType *Type = new ClassTypeRef(Loc, Name);
+            ASTType *Type = new ASTClassType(Loc, Name);
             if (Type) {
                 ASTLocalVar* Var = ParseLocalVar(Block, Constant, Type, Success);
                 return Block->addVar(Var);
@@ -518,12 +518,12 @@ bool Parser::ParseIfStmt(ASTBlock *Block) {
             break;
         case tok::kw_elsif:
             ConsumeToken();
-            Stmt = new ElsifBlockStmt(Loc, Block);
+            Stmt = new ASTElsifBlock(Loc, Block);
             ASTIfBlock::AddBranch(Block, Stmt);
             break;
         case tok::kw_else:
             ConsumeToken();
-            Stmt = new ElseBlockStmt(Loc, Block);
+            Stmt = new ASTElseBlock(Loc, Block);
             ASTIfBlock::AddBranch(Block, Stmt);
             break;
         default:
@@ -589,14 +589,14 @@ bool Parser::ParseSwitchStmt(ASTBlock *Block) {
     bool hasParen = ParseStartParen();
 
     // Parse Var reference like (a)
-    ASTVarRef *VRef = ParseVarRef(Success);
+    ASTExpr *Expr = ParseExpr(Block, Success);
     if (Success) {
 
         // Consume Right Parenthesis ) if exists
         ParseEndParen(hasParen);
 
         // Init Switch Statement and start parse from brace
-        ASTSwitchBlock *Stmt = new ASTSwitchBlock(SwitchLoc, Block, VRef);
+        ASTSwitchBlock *Stmt = new ASTSwitchBlock(SwitchLoc, Block, Expr);
         if (Tok.is(tok::l_brace)) {
             ConsumeBrace();
 
@@ -627,7 +627,7 @@ bool Parser::ParseSwitchStmt(ASTBlock *Block) {
                         ConsumeToken();
 
                         // Add Case to Switch statement and parse statement not contained into braces
-                        CaseBlockStmt *CaseStmt = Stmt->AddCase(CaseLoc, CaseExp);
+                        ASTSwitchCaseBlock *CaseStmt = Stmt->AddCase(CaseLoc, CaseExp);
                         while (!Tok.isOneOf(tok::r_brace, tok::kw_case, tok::kw_default, tok::eof)) {
                             ParseBlock(CaseStmt);
                         }
@@ -639,7 +639,7 @@ bool Parser::ParseSwitchStmt(ASTBlock *Block) {
                         const SourceLocation &Loc = ConsumeToken();
 
                         // Add Default to Switch statement and parse statement not contained into braces
-                        DefaultBlockStmt *DefStmt = Stmt->AddDefault(Loc);
+                        ASTSwitchDefaultBlock *DefStmt = Stmt->setDefault(Loc);
                         ParseBlock(DefStmt);
                     } else {
                         // TODO add error, missing :
@@ -972,21 +972,21 @@ ASTValueExpr *Parser::ParseValueExpr(bool &Success) {
         if (Val.contains(".")) {
             // Parse Float
             float FloatVal = std::stof(Val.str());
-            V = new ASTValue(Tok.getLocation(), Val, new FloatPrimType(Tok.getLocation()));
+            V = new ASTValue(Tok.getLocation(), Val, new ASTFloatType(Tok.getLocation()));
         } else {
             // Parse Int
             int IntVal = std::stoi(Val.str());
-            V = new ASTValue(Tok.getLocation(), Val, new IntPrimType(Tok.getLocation()));
+            V = new ASTValue(Tok.getLocation(), Val, new ASTIntType(Tok.getLocation()));
         }
         return new ASTValueExpr(ConsumeToken(), V);
     }
 
     // Parse true or false boolean values
     if (Tok.is(tok::kw_true)) {
-        ASTValue *V = new ASTValue(Tok.getLocation(), "true", new BoolPrimType(Tok.getLocation()));
+        ASTValue *V = new ASTValue(Tok.getLocation(), "true", new ASTBoolType(Tok.getLocation()));
         return new ASTValueExpr(ConsumeToken(), V);
     } else if (Tok.is(tok::kw_false)) {
-        ASTValue *V = new ASTValue(Tok.getLocation(), "false", new BoolPrimType(Tok.getLocation()));
+        ASTValue *V = new ASTValue(Tok.getLocation(), "false", new ASTBoolType(Tok.getLocation()));
         return new ASTValueExpr(ConsumeToken(), V);
     }
 
@@ -1047,9 +1047,9 @@ ASTOperatorExpr* Parser::ParseOperatorExpr(bool &Success) {
 
         // Condition
         case tok::question:
-            return new ASTCondExpr(Loc, CondOpKind::COND_THAN);
+            return new ASTTernaryExpr(Loc, CondOpKind::COND_THAN);
         case tok::colon:
-            return new ASTCondExpr(Loc, CondOpKind::COND_ELSE);
+            return new ASTTernaryExpr(Loc, CondOpKind::COND_ELSE);
     }
 
     assert(0 && "Operator not accepted");

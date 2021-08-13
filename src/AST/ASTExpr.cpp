@@ -90,5 +90,6 @@ void ASTGroupExpr::Add(ASTExpr *Exp) {
 
 ASTType *ASTGroupExpr::getType() const {
     assert(!isEmpty() && "Unknown Type with empty Group");
+
     return Group.at(0)->getType();
 }

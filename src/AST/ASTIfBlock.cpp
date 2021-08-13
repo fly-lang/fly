@@ -24,7 +24,7 @@ void ASTIfBlock::AddBranch(ASTBlock *Parent, ConditionBlockStmt *Cond) {
             assert(0 && "Do not add If branch with AddBranch()");
         } else if (Cond->getBlockKind() == BlockStmtKind::BLOCK_STMT_ELSIF) {
 
-            ElsifBlockStmt *Elsif = static_cast<ElsifBlockStmt *>(Cond);
+            ASTElsifBlock *Elsif = static_cast<ASTElsifBlock *>(Cond);
             switch (PrevIfKind) {
                 case BlockStmtKind::BLOCK_STMT_IF:
                     // Add current elsif
@@ -32,8 +32,8 @@ void ASTIfBlock::AddBranch(ASTBlock *Parent, ConditionBlockStmt *Cond) {
                     static_cast<ASTIfBlock *>(PrevIf)->Elsif.push_back(Elsif);
                     break;
                 case BlockStmtKind::BLOCK_STMT_ELSIF:
-                    Elsif->Head = static_cast<ElsifBlockStmt *>(PrevIf)->Head;
-                    static_cast<ElsifBlockStmt *>(PrevIf)->Elsif.push_back(Elsif);
+                    Elsif->Head = static_cast<ASTElsifBlock *>(PrevIf)->Head;
+                    static_cast<ASTElsifBlock *>(PrevIf)->Elsif.push_back(Elsif);
                     break;
                 case BlockStmtKind::BLOCK_STMT_ELSE:
                     Parent->Top->getNode()->getContext().Diag(Cond->getLocation(), diag::err_elseif_after_else);
@@ -44,7 +44,7 @@ void ASTIfBlock::AddBranch(ASTBlock *Parent, ConditionBlockStmt *Cond) {
 
         } else if (Cond->getBlockKind() == BlockStmtKind::BLOCK_STMT_ELSE) {
 
-            ElseBlockStmt *Else = static_cast<ElseBlockStmt *>(Cond);
+            ASTElseBlock *Else = static_cast<ASTElseBlock *>(Cond);
             switch (PrevIfKind) {
                 case BlockStmtKind::BLOCK_STMT_IF:
                     // Add current else
@@ -52,8 +52,8 @@ void ASTIfBlock::AddBranch(ASTBlock *Parent, ConditionBlockStmt *Cond) {
                     static_cast<ASTIfBlock *>(PrevIf)->Else = Else;
                     break;
                 case BlockStmtKind::BLOCK_STMT_ELSIF:
-                    Else->Head = static_cast<ElsifBlockStmt *>(PrevIf)->Head;
-                    static_cast<ElsifBlockStmt *>(PrevIf)->Head->Else = Else;
+                    Else->Head = static_cast<ASTElsifBlock *>(PrevIf)->Head;
+                    static_cast<ASTElsifBlock *>(PrevIf)->Head->Else = Else;
                     break;
                 case BlockStmtKind::BLOCK_STMT_ELSE:
                     // TODO Error cannot add else after another else
@@ -74,11 +74,16 @@ ASTIfBlock::ASTIfBlock(const SourceLocation &Loc, ASTBlock *Parent) : ConditionB
 
 }
 
-std::vector<ElsifBlockStmt *> ASTIfBlock::getElsif() {
+ASTIfBlock::ASTIfBlock(const SourceLocation &Loc, ASTBlock *Parent, ASTExpr *Condition) : Condition(Condition),
+    ConditionBlockStmt(Loc, Parent) {
+
+}
+
+std::vector<ASTElsifBlock *> ASTIfBlock::getElsif() {
     return Elsif;
 }
 
-ElseBlockStmt *ASTIfBlock::getElse() {
+ASTElseBlock *ASTIfBlock::getElse() {
     return Else;
 }
 
@@ -90,18 +95,18 @@ enum BlockStmtKind ASTIfBlock::getBlockKind() const {
     return StmtKind;
 }
 
-ElsifBlockStmt::ElsifBlockStmt(const SourceLocation &Loc, ASTBlock *Parent) : ASTIfBlock(Loc, Parent) {
+ASTElsifBlock::ASTElsifBlock(const SourceLocation &Loc, ASTBlock *Parent) : ASTIfBlock(Loc, Parent) {
     
 }
 
-enum BlockStmtKind ElsifBlockStmt::getBlockKind() const {
+enum BlockStmtKind ASTElsifBlock::getBlockKind() const {
     return StmtKind;
 }
 
-ElseBlockStmt::ElseBlockStmt(const SourceLocation &Loc, ASTBlock *Parent) : ConditionBlockStmt(Loc, Parent) {
+ASTElseBlock::ASTElseBlock(const SourceLocation &Loc, ASTBlock *Parent) : ConditionBlockStmt(Loc, Parent) {
     
 }
 
-enum BlockStmtKind ElseBlockStmt::getBlockKind() const {
+enum BlockStmtKind ASTElseBlock::getBlockKind() const {
     return StmtKind;
 }

@@ -23,7 +23,3 @@ enum BlockStmtKind ASTWhileBlock::getBlockKind() const {
 ASTExpr *ASTWhileBlock::getCondition() {
     return Cond;
 }
-
-ASTBlock *ASTWhileBlock::getLoop() {
-    return this;
-}

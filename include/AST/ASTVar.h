@@ -52,6 +52,8 @@ namespace fly {
 
         virtual const llvm::StringRef &getName() const;
 
+        const StringRef &getNameSpace() const;
+
         virtual void setExpr(ASTExpr *Exp) = 0;
 
         virtual ASTExpr *getExpr() const = 0;
@@ -75,6 +77,8 @@ namespace fly {
 
     public:
         ASTVarRef(const SourceLocation &Loc, const llvm::StringRef &Name, const llvm::StringRef &NameSpace = "");
+
+        ASTVarRef(ASTVar *Var);
 
         const SourceLocation &getLocation() const;
 

@@ -12,19 +12,23 @@
 
 using namespace fly;
 
-ASTSwitchBlock::ASTSwitchBlock(const SourceLocation &Loc, ASTBlock *Parent, ASTVarRef *Var) : ASTBlock(Loc, Parent),
-                                                                                              Var(Var) {
+ASTSwitchBlock::ASTSwitchBlock(const SourceLocation &Loc, ASTBlock *Parent, ASTExpr *Expr) : ASTBlock(Loc, Parent),
+                                                                                              Expr(Expr) {
+    if (Expr->getKind() != EXPR_REF_VAR || Expr->getKind() != EXPR_REF_FUNC) {
+        Diag(Loc, diag::err_switch_expression);
+        // TODO Handle Error
+    }
 
 }
 
-CaseBlockStmt *ASTSwitchBlock::AddCase(const SourceLocation &Loc, ASTExpr *Value) {
-    CaseBlockStmt *Case = new CaseBlockStmt(Loc, this, Value);
+ASTSwitchCaseBlock *ASTSwitchBlock::AddCase(const SourceLocation &Loc, ASTExpr *Value) {
+    ASTSwitchCaseBlock *Case = new ASTSwitchCaseBlock(Loc, this, Value);
     Cases.push_back(Case);
     return Case;
 }
 
-DefaultBlockStmt *ASTSwitchBlock::AddDefault(const SourceLocation &Loc) {
-    Default = new DefaultBlockStmt(Loc, this);
+ASTSwitchDefaultBlock *ASTSwitchBlock::setDefault(const SourceLocation &Loc) {
+    Default = new ASTSwitchDefaultBlock(Loc, this);
     return Default;
 }
 
@@ -32,31 +36,35 @@ enum BlockStmtKind ASTSwitchBlock::getBlockKind() const {
     return StmtKind;
 }
 
-std::vector<CaseBlockStmt *> &ASTSwitchBlock::getCases() {
+std::vector<ASTSwitchCaseBlock *> &ASTSwitchBlock::getCases() {
     return Cases;
 }
 
-DefaultBlockStmt *ASTSwitchBlock::getDefault() {
+ASTSwitchDefaultBlock *ASTSwitchBlock::getDefault() {
     return Default;
 }
 
-CaseBlockStmt::CaseBlockStmt(const SourceLocation &Loc, ASTSwitchBlock *Switch, ASTExpr *Value) : ASTBlock(Loc, Switch),
-                                                                                                  Exp(Value) {
+ASTExpr *ASTSwitchBlock::getExpr() const {
+    return Expr;
+}
+
+ASTSwitchCaseBlock::ASTSwitchCaseBlock(const SourceLocation &Loc, ASTSwitchBlock *Switch, ASTExpr *Value) : ASTBlock(Loc, Switch),
+                                                                                                            Expr(Value) {
 
 }
 
-enum BlockStmtKind CaseBlockStmt::getBlockKind() const {
+enum BlockStmtKind ASTSwitchCaseBlock::getBlockKind() const {
     return StmtKind;
 };
 
-ASTExpr *CaseBlockStmt::getExpr() {
-    return Exp;
+ASTExpr *ASTSwitchCaseBlock::getExpr() {
+    return Expr;
 }
 
-DefaultBlockStmt::DefaultBlockStmt(const SourceLocation &Loc, ASTSwitchBlock *Switch) : ASTBlock(Loc, Switch) {
+ASTSwitchDefaultBlock::ASTSwitchDefaultBlock(const SourceLocation &Loc, ASTSwitchBlock *Switch) : ASTBlock(Loc, Switch) {
 
 }
 
-enum BlockStmtKind DefaultBlockStmt::getBlockKind() const {
+enum BlockStmtKind ASTSwitchDefaultBlock::getBlockKind() const {
     return StmtKind;
 }

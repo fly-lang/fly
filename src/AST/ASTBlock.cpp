@@ -184,6 +184,11 @@ bool ASTBlock::addContinue(const SourceLocation &Loc) {
     return true;
 }
 
+bool ASTBlock::addBlock(const SourceLocation &Loc, ASTBlock *Block) {
+    Content.push_back(Block);
+    return true;
+}
+
 DiagnosticBuilder ASTBlock::Diag(SourceLocation Loc, unsigned int DiagID) {
     return Top->getNode()->getContext().Diag(Loc, DiagID);
 }

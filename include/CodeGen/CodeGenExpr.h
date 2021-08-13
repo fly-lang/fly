@@ -11,7 +11,10 @@
 #ifndef FLY_CODEGENEXPR_H
 #define FLY_CODEGENEXPR_H
 
+#include <AST/ASTOperatorExpr.h>
 #include "AST/ASTExpr.h"
+#include "CodeGenModule.h"
+
 
 namespace fly {
 
@@ -43,11 +46,9 @@ namespace fly {
 
         CodeGenModule * CGM;
 
-        const ASTType *Type;
-
         llvm::Value *Val;
 
-        std::vector<llvm::Value *> PostIncrements;
+        std::vector<llvm::Value *> PostValues;
 
     public:
         CodeGenExpr(CodeGenModule *CGM, ASTExpr *Expr, const ASTType *Type);
@@ -56,9 +57,11 @@ namespace fly {
 
         llvm::Value *Generate(ASTExpr *Origin);
 
-        llvm::Value *GenValue(ASTExpr *Origin);
+        llvm::Value *Convert(llvm::Value *V, const ASTType *ToType);
 
-        void GenIncDec(ASTGroupExpr *Group);
+        llvm::Value *Convert(llvm::Value *V, llvm::Type *ToType);
+
+        llvm::Value *GenValue(ASTExpr *Origin);
 
         llvm::Value *GenGroup(ASTGroupExpr *Origin, ASTGroupExpr *New, int Idx, ASTExpr *E1 = nullptr,
                               ASTOperatorExpr * OP1 = nullptr);
@@ -67,9 +70,15 @@ namespace fly {
 
         bool canIterate(int Idx, ASTGroupExpr *Group);
 
-        llvm::Value *GenOperation(ASTExpr *E1, ASTOperatorExpr *OP, ASTExpr *E2);
+        llvm::Value *OpUnary(ASTUnaryExpr *E);
 
-        Value *OpArith(ASTExpr *E1, ASTArithExpr *OP, ASTExpr *E2);
+        llvm::Value *OpBinary(ASTExpr *E1, ASTOperatorExpr *OP, ASTExpr *E2);
+
+        Value *OpArith(llvm::Value *V1, ASTArithExpr *OP, llvm::Value *V2);
+
+        Value *OpComparison(llvm::Value *V1, fly::ASTComparisonExpr *OP, llvm::Value *V2);
+
+        Value *OpLogic(llvm::Value *V1, ASTLogicExpr *OP, llvm::Value *V2);
     };
 }
 

@@ -23,6 +23,10 @@ const llvm::StringRef &ASTVar::getName() const {
     return Name;
 }
 
+const StringRef &ASTVar::getNameSpace() const {
+    return NameSpace;
+}
+
 ASTVar::~ASTVar() {
     delete Type;
 }
@@ -39,6 +43,10 @@ const bool ASTVar::isGlobal() const {
 ASTVarRef::ASTVarRef(const SourceLocation &Loc, const llvm::StringRef &Name, const StringRef &NameSpace) :
         Loc(Loc), NameSpace(NameSpace), Name(Name) {
 
+}
+
+ASTVarRef::ASTVarRef(ASTVar *Var) : ASTVarRef(Loc, Var->getName(), Var->getNameSpace()) {
+    Decl = Var;
 }
 
 const llvm::StringRef &ASTVarRef::getName() const {

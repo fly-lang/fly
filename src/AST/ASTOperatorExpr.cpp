@@ -24,62 +24,14 @@ ExprKind ASTOperatorExpr::getKind() const {
     return Kind;
 }
 
-ASTArithExpr::ASTArithExpr(const SourceLocation &Loc, const ArithOpKind &AKind) : ASTOperatorExpr(Loc),
-    ArithKind(AKind) {
-
-}
-
-OpKind ASTArithExpr::getOpKind() {
-return OperatorKind;
-}
-
-ArithOpKind ASTArithExpr::getArithKind() const {
-    return ArithKind;
-}
-
-ASTLogicExpr::ASTLogicExpr(const SourceLocation &Loc, const LogicOpKind &LKind) : ASTOperatorExpr(Loc), LogicKind(LKind) {
-    assert(LKind == LogicOpKind::LOGIC_AND || LKind == LogicOpKind::LOGIC_OR && "Only && or ||");
-}
-
-OpKind ASTLogicExpr::getOpKind() {
-    return OperatorKind;
-}
-
-LogicOpKind ASTLogicExpr::getLogicKind() const {
-    return LogicKind;
-}
-
-ASTComparisonExpr::ASTComparisonExpr(const SourceLocation &Loc, const ComparisonOpKind &CKind) : ASTOperatorExpr(Loc), ComparisonKind(CKind) {}
-
-OpKind ASTComparisonExpr::getOpKind() {
-    return OperatorKind;
-}
-
-ComparisonOpKind ASTComparisonExpr::getComparisonKind() const {
-    return ComparisonKind;
-}
-
-ASTCondExpr::ASTCondExpr(const SourceLocation &Loc, const CondOpKind &CondKind) : ASTOperatorExpr(Loc),
-    CondKind(CondKind) {
-
-}
-
-OpKind ASTCondExpr::getOpKind() {
-    return OperatorKind;
-}
-
-CondOpKind ASTCondExpr::getCondKind() const {
-    return CondKind;
-}
-
 ASTUnaryExpr::ASTUnaryExpr(const SourceLocation &Loc, ASTOperatorExpr *OperatorExpr, ASTVarRef *VarRef,
                            UnaryOpKind UKind) : OperatorExpr(OperatorExpr), VarRef(VarRef), UKind(UKind),
-                           ASTOperatorExpr(Loc){
+                                                ASTOperatorExpr(Loc){
 
 }
 
 OpKind ASTUnaryExpr::getOpKind() {
-    return OperatorKind;
+    return OperatorExpr->getOpKind();
 }
 
 UnaryOpKind ASTUnaryExpr::getUnaryKind() const {
@@ -92,4 +44,57 @@ ASTOperatorExpr *ASTUnaryExpr::getOperatorExpr() const {
 
 ASTVarRef *ASTUnaryExpr::getVarRef() const {
     return VarRef;
+}
+
+ASTBinaryExpr::ASTBinaryExpr(const SourceLocation &Loc) : ASTOperatorExpr(Loc) {
+
+}
+
+ASTArithExpr::ASTArithExpr(const SourceLocation &Loc, const ArithOpKind &AKind) : ASTBinaryExpr(Loc),
+    ArithKind(AKind) {
+
+}
+
+OpKind ASTArithExpr::getOpKind() {
+return OperatorKind;
+}
+
+ArithOpKind ASTArithExpr::getArithKind() const {
+    return ArithKind;
+}
+
+ASTLogicExpr::ASTLogicExpr(const SourceLocation &Loc, const LogicOpKind &LKind) : ASTBinaryExpr(Loc), LogicKind(LKind) {
+    assert(LKind == LogicOpKind::LOGIC_AND || LKind == LogicOpKind::LOGIC_OR && "Only && or ||");
+}
+
+OpKind ASTLogicExpr::getOpKind() {
+    return OperatorKind;
+}
+
+LogicOpKind ASTLogicExpr::getLogicKind() const {
+    return LogicKind;
+}
+
+ASTComparisonExpr::ASTComparisonExpr(const SourceLocation &Loc, const ComparisonOpKind &CKind) : ASTBinaryExpr(Loc),
+    ComparisonKind(CKind) {}
+
+OpKind ASTComparisonExpr::getOpKind() {
+    return OperatorKind;
+}
+
+ComparisonOpKind ASTComparisonExpr::getComparisonKind() const {
+    return ComparisonKind;
+}
+
+ASTTernaryExpr::ASTTernaryExpr(const SourceLocation &Loc, const CondOpKind &CondKind) : ASTOperatorExpr(Loc),
+                                                                                        CondKind(CondKind) {
+
+}
+
+OpKind ASTTernaryExpr::getOpKind() {
+    return OperatorKind;
+}
+
+CondOpKind ASTTernaryExpr::getCondKind() const {
+    return CondKind;
 }

@@ -48,12 +48,12 @@ namespace fly {
     /**
      * Int Type
      */
-    class IntPrimType : public ASTType {
+    class ASTIntType : public ASTType {
 
         const TypeKind Kind = TypeKind::TYPE_INT;
 
     public:
-        IntPrimType(SourceLocation Loc);
+        ASTIntType(SourceLocation Loc);
 
         const TypeKind &getKind() const override;
 
@@ -65,12 +65,12 @@ namespace fly {
     /**
      * Float Type
      */
-    class FloatPrimType : public ASTType {
+    class ASTFloatType : public ASTType {
 
         const TypeKind Kind = TypeKind::TYPE_FLOAT;
 
     public:
-        FloatPrimType(SourceLocation Loc);
+        ASTFloatType(SourceLocation Loc);
 
         const TypeKind &getKind() const override;
 
@@ -82,12 +82,12 @@ namespace fly {
     /**
      * Boolean Type
      */
-    class BoolPrimType : public ASTType {
+    class ASTBoolType : public ASTType {
 
         const TypeKind Kind = TypeKind::TYPE_BOOL;
 
     public:
-        BoolPrimType(SourceLocation Loc);
+        ASTBoolType(SourceLocation Loc);
 
         const TypeKind &getKind() const override;
 
@@ -99,12 +99,12 @@ namespace fly {
     /**
      * Void Type
      */
-    class VoidRetType : public ASTType {
+    class ASTVoidType : public ASTType {
 
         const TypeKind Kind = TypeKind::TYPE_VOID;
 
     public:
-        VoidRetType(SourceLocation Loc);
+        ASTVoidType(SourceLocation Loc);
 
         const TypeKind &getKind() const override;
 
@@ -116,19 +116,19 @@ namespace fly {
     /**
      * Custom Type
      */
-    class ClassTypeRef : public ASTType {
+    class ASTClassType : public ASTType {
 
         const TypeKind Kind = TypeKind::TYPE_CLASS;
         const llvm::StringRef Name;
 
     public:
-        ClassTypeRef(SourceLocation Loc, llvm::StringRef &Name);
+        ASTClassType(SourceLocation Loc, llvm::StringRef &Name);
 
         const TypeKind &getKind() const override;
 
         const llvm::StringRef &getName() const;
 
-        bool operator ==(const ClassTypeRef &Ty) const;
+        bool operator ==(const ASTClassType &Ty) const;
 
         std::string str() const override {
             return Name.str();

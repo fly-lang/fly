@@ -30,8 +30,6 @@ namespace fly {
 
         ASTExpr *getCondition();
 
-        ASTBlock *getLoop();
-
     };
 }
 

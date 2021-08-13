@@ -45,8 +45,8 @@ namespace fly {
         friend class Parser;
         friend class FunctionParser;
         friend class ASTIfBlock;
-        friend class ElsifBlockStmt;
-        friend class ElseBlockStmt;
+        friend class ASTElsifBlock;
+        friend class ASTElseBlock;
         friend class ASTFunc;
 
         // Kind of Stmt identified by enum
@@ -101,6 +101,8 @@ namespace fly {
         bool addBreak(const SourceLocation &Loc);
 
         bool addContinue(const SourceLocation &Loc);
+
+        bool addBlock(const SourceLocation &Loc, ASTBlock *Block);
 
         DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID);
     };

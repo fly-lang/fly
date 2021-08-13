@@ -15,7 +15,6 @@
 namespace fly {
 
     enum OpKind {
-        OP_UNARY,
         OP_ARITH,
         OP_COMPARISON,
         OP_LOGIC,
@@ -72,22 +71,25 @@ namespace fly {
 
         ExprKind getKind() const override;
 
-        ASTType *getType() const override;
+        virtual ASTType *getType() const;
 
         virtual OpKind getOpKind() = 0;
+
+        virtual bool isUnary() = 0;
+
+        virtual bool isBinary() = 0;
+
+        virtual bool isTernary() = 0;
     };
 
     class ASTUnaryExpr : public ASTOperatorExpr {
-
-        const OpKind OperatorKind = OpKind::OP_UNARY;
 
         ASTOperatorExpr *OperatorExpr;
         ASTVarRef *VarRef;
         UnaryOpKind UKind;
 
     public:
-        ASTUnaryExpr(const SourceLocation &Loc, ASTOperatorExpr *OperatorExpr, ASTVarRef *VarRef,
-                     UnaryOpKind UKind);
+        ASTUnaryExpr(const SourceLocation &Loc, ASTOperatorExpr *OperatorExpr, ASTVarRef *VarRef, UnaryOpKind UKind);
 
         OpKind getOpKind() override;
 
@@ -97,9 +99,40 @@ namespace fly {
 
         ASTVarRef *getVarRef() const;
 
+        bool isUnary() override{
+            return true;
+        }
+
+        bool isBinary() override{
+            return false;
+        }
+
+        bool isTernary() override{
+            return false;
+        }
+
     };
 
-    class ASTArithExpr : public ASTOperatorExpr {
+    class ASTBinaryExpr : public ASTOperatorExpr {
+
+    public:
+        explicit ASTBinaryExpr(const SourceLocation &Loc);
+
+        bool isUnary() override{
+            return false;
+        }
+
+        bool isBinary() override{
+            return true;
+        }
+
+        bool isTernary() override{
+            return false;
+        }
+
+    };
+
+    class ASTArithExpr : public ASTBinaryExpr {
 
         const OpKind OperatorKind = OpKind::OP_ARITH;
         const ArithOpKind ArithKind;
@@ -112,7 +145,7 @@ namespace fly {
         ArithOpKind getArithKind() const;
     };
 
-    class ASTLogicExpr : public ASTOperatorExpr {
+    class ASTLogicExpr : public ASTBinaryExpr {
 
         const OpKind OperatorKind = OpKind::OP_LOGIC;
         const LogicOpKind LogicKind;
@@ -125,7 +158,7 @@ namespace fly {
         LogicOpKind getLogicKind() const;
     };
 
-    class ASTComparisonExpr : public ASTOperatorExpr {
+    class ASTComparisonExpr : public ASTBinaryExpr {
 
         const OpKind OperatorKind = OpKind::OP_COMPARISON;
         const ComparisonOpKind ComparisonKind;
@@ -138,17 +171,29 @@ namespace fly {
         ComparisonOpKind getComparisonKind() const;
     };
 
-    class ASTCondExpr : public ASTOperatorExpr {
+    class ASTTernaryExpr : public ASTOperatorExpr {
 
         const OpKind OperatorKind = OpKind::OP_COND;
         const CondOpKind CondKind;
 
     public:
-        ASTCondExpr(const SourceLocation &Loc, const CondOpKind &CondKind);
+        ASTTernaryExpr(const SourceLocation &Loc, const CondOpKind &CondKind);
 
         OpKind getOpKind() override;
 
         CondOpKind getCondKind() const;
+
+        bool isUnary() override{
+            return false;
+        }
+
+        bool isBinary() override{
+            return false;
+        }
+
+        bool isTernary() override{
+            return true;
+        }
     };
 }
 

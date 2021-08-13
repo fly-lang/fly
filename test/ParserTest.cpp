@@ -294,14 +294,14 @@ namespace {
         ASTLocalVar *typeVar = static_cast<ASTLocalVar *>(Body->getContent()[1]);
         EXPECT_EQ(typeVar->getName(), "t");
         EXPECT_EQ(typeVar->getType()->getKind(), TypeKind::TYPE_CLASS);
-        ClassTypeRef *TypeT = static_cast<ClassTypeRef *>(typeVar->getType());
+        ASTClassType *TypeT = static_cast<ASTClassType *>(typeVar->getType());
         EXPECT_EQ(TypeT->getName(), "Type");
 
         // Test: float b=2.0 + 1.0
         ASTLocalVar *bVar = static_cast<ASTLocalVar *>(Body->getContent()[2]);
         EXPECT_EQ(bVar->getName(), "b");
         EXPECT_EQ(bVar->getType()->getKind(), TypeKind::TYPE_FLOAT);
-        FloatPrimType *FloatType = static_cast<FloatPrimType *>(bVar->getType());
+        ASTFloatType *FloatType = static_cast<ASTFloatType *>(bVar->getType());
         EXPECT_EQ(bVar->getExpr()->getKind(), ExprKind::EXPR_GROUP);
         ASTGroupExpr *Group1 = static_cast<ASTGroupExpr *>(bVar->getExpr());
         EXPECT_EQ(Group1->getGroup()[0]->getKind(), ExprKind::EXPR_VALUE);
@@ -451,7 +451,7 @@ namespace {
         EXPECT_EQ(a5Var->getExpr()->getKind(), EXPR_GROUP);
         ASTExpr *E1 = ((ASTGroupExpr *) a5Var->getExpr())->getGroup()[0];
         EXPECT_EQ(E1->getKind(), EXPR_OPERATOR);
-        EXPECT_EQ(((ASTOperatorExpr *)E1)->getOpKind(), OP_UNARY);
+        EXPECT_TRUE(((ASTOperatorExpr *)E1)->isUnary());
         EXPECT_EQ(((ASTUnaryExpr *)E1)->getUnaryKind(), UNARY_PRE);
         EXPECT_EQ(((ASTArithExpr *)((ASTUnaryExpr *)E1)->getOperatorExpr())->getArithKind(), ARITH_INCR);
         EXPECT_EQ(((ASTArithExpr *)((ASTGroupExpr *) a5Var->getExpr())->getGroup()[1])->getArithKind(), ARITH_ADD);
@@ -492,7 +492,7 @@ namespace {
         EXPECT_TRUE(Stmt->getElse());
 
         // Elsif
-        ElsifBlockStmt *EIStmt = static_cast<ElsifBlockStmt *>(Body->getContent()[1]);
+        ASTElsifBlock *EIStmt = static_cast<ASTElsifBlock *>(Body->getContent()[1]);
         EXPECT_EQ(EIStmt->getBlockKind(), BlockStmtKind::BLOCK_STMT_ELSIF);
         ASTGroupExpr *ElsifCond = static_cast<ASTGroupExpr *>(EIStmt->getCondition());
         EXPECT_EQ(static_cast<ASTVarRefExpr *>(ElsifCond->getGroup()[0])->getVarRef()->getName(), "a");
@@ -502,7 +502,7 @@ namespace {
         EXPECT_EQ(static_cast<ASTLocalVarStmt *>(EIStmt->getContent()[0])->getName(), "b");
 
         // Else
-        ElseBlockStmt *EEStmt = static_cast<ElseBlockStmt *>(Body->getContent()[2]);
+        ASTElseBlock *EEStmt = static_cast<ASTElseBlock *>(Body->getContent()[2]);
         EXPECT_EQ(EEStmt->getBlockKind(), BlockStmtKind::BLOCK_STMT_ELSE);
         EXPECT_EQ(static_cast<ASTLocalVarStmt *>(EEStmt->getContent()[0])->getName(), "b");
 
@@ -538,7 +538,7 @@ namespace {
         EXPECT_TRUE(Stmt->getElse());
 
         // Elsif
-        ElsifBlockStmt *EIStmt = static_cast<ElsifBlockStmt *>(Body->getContent()[1]);
+        ASTElsifBlock *EIStmt = static_cast<ASTElsifBlock *>(Body->getContent()[1]);
         EXPECT_EQ(EIStmt->getBlockKind(), BlockStmtKind::BLOCK_STMT_ELSIF);
         ASTGroupExpr *ElsifCond = static_cast<ASTGroupExpr *>(EIStmt->getCondition());
         EXPECT_EQ(static_cast<ASTVarRefExpr *>(ElsifCond->getGroup()[0])->getVarRef()->getName(), "a");
@@ -547,7 +547,7 @@ namespace {
         EXPECT_EQ(static_cast<ASTValueExpr *>(ElsifCond->getGroup()[2])->getValue().str(), "2");
 
         // Else
-        ElseBlockStmt *EEStmt = static_cast<ElseBlockStmt *>(Body->getContent()[2]);
+        ASTElseBlock *EEStmt = static_cast<ASTElseBlock *>(Body->getContent()[2]);
         EXPECT_EQ(EEStmt->getBlockKind(), BlockStmtKind::BLOCK_STMT_ELSE);
         EXPECT_EQ(static_cast<ASTLocalVarStmt *>(EEStmt->getContent()[0])->getName(), "a");
 
@@ -639,7 +639,7 @@ namespace {
         ASTWhileBlock *Stmt = static_cast<ASTWhileBlock *>(Body->getContent()[0]);
         EXPECT_EQ(Stmt->getBlockKind(), BlockStmtKind::BLOCK_STMT_WHILE);
         EXPECT_FALSE(Stmt->getCondition() == nullptr);
-        EXPECT_TRUE(Stmt->getLoop()->isEmpty());
+        EXPECT_TRUE(Stmt->isEmpty());
 
         const ASTGroupExpr *Cond = static_cast<ASTGroupExpr *>(Stmt->getCondition());
         EXPECT_EQ(static_cast<ASTVarRefExpr *>(Cond->getGroup()[0])->getVarRef()->getName(), "a");
@@ -649,7 +649,7 @@ namespace {
         ASTWhileBlock *Stmt2 = static_cast<ASTWhileBlock *>(Body->getContent()[1]);
         EXPECT_EQ(Stmt2->getBlockKind(), BlockStmtKind::BLOCK_STMT_WHILE);
         EXPECT_TRUE(Stmt2->getCondition() == nullptr);
-        EXPECT_TRUE(Stmt2->getLoop()->isEmpty());
+        EXPECT_TRUE(Stmt2->isEmpty());
 
         delete AST;
     }

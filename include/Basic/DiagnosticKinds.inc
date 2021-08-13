@@ -326,8 +326,11 @@ DIAG(err_conflict_vardecl, CLASS_ERROR, (unsigned)diag::Severity::Error, "var '%
 DIAG(err_func_notfound, CLASS_ERROR, (unsigned)diag::Severity::Error, "function '%0' not declared", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_gvar_notfound, CLASS_ERROR, (unsigned)diag::Severity::Error, "global var '%0' not declared", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_elseif_after_else, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot add an elsif {} statement after else {}", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_switch_expression, CLASS_ERROR, (unsigned)diag::Severity::Error, "unexpected switch expression type", 0, SFINAE_Suppress, false, true, 0)
 
 // CodeGen
 DIAG(err_void_value, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot assign void value", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_expr_operator_unexpected, CLASS_ERROR, (unsigned)diag::Severity::Error, "unexpected operator into expression", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_expr_operator_expected, CLASS_ERROR, (unsigned)diag::Severity::Error, "operator expected", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_type_expect, CLASS_ERROR, (unsigned)diag::Severity::Error, "expected type '%0'", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_for_condition_mandatory, CLASS_ERROR, (unsigned)diag::Severity::Error, "for loop need always a condition into 2nd parameter for (1st;2nd;3rd)", 0, SFINAE_Suppress, false, true, 0)

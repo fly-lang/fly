@@ -16,22 +16,24 @@
 namespace fly {
 
     class ASTIfBlock;
-    class ElsifBlockStmt;
-    class ElseBlockStmt;
+    class ASTElsifBlock;
+    class ASTElseBlock;
 
     class ASTIfBlock : public ConditionBlockStmt {
 
         friend class Parser;
-        friend class ElsifBlockStmt;
-        friend class ElseBlockStmt;
+        friend class ASTElsifBlock;
+        friend class ASTElseBlock;
 
         enum BlockStmtKind StmtKind = BlockStmtKind::BLOCK_STMT_IF;
         ASTExpr *Condition;
-        std::vector<ElsifBlockStmt *> Elsif;
-        ElseBlockStmt *Else = NULL;
+        std::vector<ASTElsifBlock *> Elsif;
+        ASTElseBlock *Else = nullptr;
 
     public:
         ASTIfBlock(const SourceLocation &Loc, ASTBlock *Parent);
+
+        ASTIfBlock(const SourceLocation &Loc, ASTBlock *Parent, ASTExpr *Condition);
 
         static void AddBranch(ASTBlock *Parent, ConditionBlockStmt *Cond);
 
@@ -39,12 +41,12 @@ namespace fly {
 
         ASTExpr *getCondition();
 
-        std::vector<ElsifBlockStmt *> getElsif();
+        std::vector<ASTElsifBlock *> getElsif();
 
-        ElseBlockStmt *getElse();
+        ASTElseBlock *getElse();
     };
 
-    class ElsifBlockStmt : public ASTIfBlock {
+    class ASTElsifBlock : public ASTIfBlock {
 
         friend class Parser;
         friend class ASTIfBlock;
@@ -53,12 +55,12 @@ namespace fly {
         ASTIfBlock *Head;
 
     public:
-        ElsifBlockStmt(const SourceLocation &Loc, ASTBlock *Parent);
+        ASTElsifBlock(const SourceLocation &Loc, ASTBlock *Parent);
 
         enum BlockStmtKind getBlockKind() const override;
     };
 
-    class ElseBlockStmt : public ConditionBlockStmt {
+    class ASTElseBlock : public ConditionBlockStmt {
 
         friend class Parser;
         friend class ASTIfBlock;
@@ -67,7 +69,7 @@ namespace fly {
         ASTIfBlock *Head;
 
     public:
-        ElseBlockStmt(const SourceLocation &Loc, ASTBlock *Parent);
+        ASTElseBlock(const SourceLocation &Loc, ASTBlock *Parent);
 
         enum BlockStmtKind getBlockKind() const override;
     };

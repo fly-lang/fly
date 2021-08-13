@@ -21,6 +21,8 @@
 #include <llvm/IR/Module.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/IRBuilder.h>
+#include <AST/ASTBlock.h>
+#include <AST/ASTIfBlock.h>
 
 using namespace llvm;
 
@@ -39,6 +41,10 @@ namespace fly {
     class ASTStmt;
     class ASTExpr;
     class ASTGroupExpr;
+    class ASTIfBlock;
+    class ASTSwitchBlock;
+    class ASTForBlock;
+    class ASTWhileBlock;
 
     class CodeGenModule : public CodeGenTypeCache {
 
@@ -82,6 +88,19 @@ namespace fly {
         void GenStmt(ASTStmt * S);
 
         llvm::Value *GenExpr(const ASTType *Typ, ASTExpr *Expr);
+
+        void GenBlock(const std::vector<ASTStmt *> &Content, llvm::BasicBlock *BB = nullptr);
+
+        void GenIfBlock(ASTIfBlock *If);
+
+        llvm::BasicBlock *GenElsifBlock(llvm::Value *Cond, llvm::BasicBlock *TrueBB, ASTIfBlock *TrueBlock,
+                                        std::vector<ASTElsifBlock *>::iterator It);
+
+        void GenSwitchBlock(ASTSwitchBlock *Switch);
+
+        void GenForBlock(ASTForBlock *For);
+
+        void GenWhileBlock(ASTWhileBlock *While);
     };
 }
 

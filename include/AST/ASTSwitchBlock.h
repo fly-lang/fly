@@ -15,48 +15,51 @@
 
 namespace fly {
 
-    class CaseBlockStmt;
-    class DefaultBlockStmt;
+    class ASTSwitchCaseBlock;
+    class ASTSwitchDefaultBlock;
 
     class ASTSwitchBlock : public ASTBlock {
 
         enum BlockStmtKind StmtKind = BlockStmtKind::BLOCK_STMT_SWITCH;
-        const ASTVarRef *Var;
-        std::vector<CaseBlockStmt *> Cases;
-        DefaultBlockStmt *Default;
+        ASTExpr *Expr;
+        std::vector<ASTSwitchCaseBlock *> Cases;
+        ASTSwitchDefaultBlock *Default = nullptr;
 
     public:
-        ASTSwitchBlock(const SourceLocation &Loc, ASTBlock *Parent, ASTVarRef *Var);
+        ASTSwitchBlock(const SourceLocation &Loc, ASTBlock *Parent, ASTExpr *Expr);
 
-        CaseBlockStmt * AddCase(const SourceLocation &Loc, ASTExpr *Value);
-        DefaultBlockStmt * AddDefault(const SourceLocation &Loc);
+        ASTExpr *getExpr() const;
+
+        ASTSwitchCaseBlock * AddCase(const SourceLocation &Loc, ASTExpr *Value);
+
+        ASTSwitchDefaultBlock * setDefault(const SourceLocation &Loc);
 
         enum BlockStmtKind getBlockKind() const override;
 
-        std::vector<CaseBlockStmt *> &getCases();
+        std::vector<ASTSwitchCaseBlock *> &getCases();
 
-        DefaultBlockStmt *getDefault();
+        ASTSwitchDefaultBlock *getDefault();
     };
 
-    class CaseBlockStmt : public ASTBlock{
+    class ASTSwitchCaseBlock : public ASTBlock{
 
         enum BlockStmtKind StmtKind = BlockStmtKind::BLOCK_STMT_CASE;
-        ASTExpr *Exp;
+        ASTExpr *Expr;
 
     public:
-        CaseBlockStmt(const SourceLocation &Loc, ASTSwitchBlock *Switch, ASTExpr *Value);
+        ASTSwitchCaseBlock(const SourceLocation &Loc, ASTSwitchBlock *Switch, ASTExpr *Value);
 
         ASTExpr *getExpr();
 
         enum BlockStmtKind getBlockKind() const override;
     };
 
-    class DefaultBlockStmt : public ASTBlock{
+    class ASTSwitchDefaultBlock : public ASTBlock{
 
         enum BlockStmtKind StmtKind = BlockStmtKind::BLOCK_STMT_DEFAULT;
 
     public:
-        DefaultBlockStmt(const SourceLocation &Loc, ASTSwitchBlock *Switch);
+        ASTSwitchDefaultBlock(const SourceLocation &Loc, ASTSwitchBlock *Switch);
 
         enum BlockStmtKind getBlockKind() const override;
     };

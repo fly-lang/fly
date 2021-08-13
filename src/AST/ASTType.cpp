@@ -22,50 +22,50 @@ bool ASTType::equals(ASTType *Ty) const {
     return this->getKind() == Ty->getKind();
 }
 
-IntPrimType::IntPrimType(SourceLocation Loc)  : ASTType(Loc) {
+ASTIntType::ASTIntType(SourceLocation Loc)  : ASTType(Loc) {
 
 }
 
-const TypeKind &IntPrimType::getKind() const {
+const TypeKind &ASTIntType::getKind() const {
     return Kind;
 }
 
-FloatPrimType::FloatPrimType(SourceLocation Loc) : ASTType(Loc) {
+ASTFloatType::ASTFloatType(SourceLocation Loc) : ASTType(Loc) {
 
 }
 
-const TypeKind &FloatPrimType::getKind() const {
+const TypeKind &ASTFloatType::getKind() const {
     return Kind;
 }
 
-BoolPrimType::BoolPrimType(SourceLocation Loc) : ASTType(Loc) {
+ASTBoolType::ASTBoolType(SourceLocation Loc) : ASTType(Loc) {
 
 }
 
-const TypeKind &BoolPrimType::getKind() const  {
+const TypeKind &ASTBoolType::getKind() const  {
     return Kind;
 }
 
-VoidRetType::VoidRetType(SourceLocation Loc) : ASTType(Loc) {
+ASTVoidType::ASTVoidType(SourceLocation Loc) : ASTType(Loc) {
 
 }
 
-const TypeKind &VoidRetType::getKind() const {
+const TypeKind &ASTVoidType::getKind() const {
     return Kind;
 }
 
-ClassTypeRef::ClassTypeRef(SourceLocation Loc, StringRef &Name)  : ASTType(Loc), Name(Name) {
+ASTClassType::ASTClassType(SourceLocation Loc, StringRef &Name)  : ASTType(Loc), Name(Name) {
 
 }
 
-const TypeKind &ClassTypeRef::getKind() const {
+const TypeKind &ASTClassType::getKind() const {
     return Kind;
 }
 
-const llvm::StringRef &ClassTypeRef::getName() const {
+const llvm::StringRef &ASTClassType::getName() const {
     return Name;
 }
 
-bool ClassTypeRef::operator==(const ClassTypeRef &Ty) const {
+bool ASTClassType::operator==(const ASTClassType &Ty) const {
     return getKind() == Ty.getKind() && Name.equals(Ty.Name);
 }
