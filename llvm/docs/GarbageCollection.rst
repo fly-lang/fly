@@ -416,7 +416,7 @@ The tradeoff for this simplicity and portability is:
 
 * Not thread-safe.
 
-Still, it's an easy way to get started.  After your compiler and runtime are up
+Still, it's an easy way to getValue started.  After your compiler and runtime are up
 and running, writing a :ref:`plugin <plugin>` will allow you to take advantage
 of :ref:`more advanced GC features <collector-algos>` of LLVM in order to
 improve performance.

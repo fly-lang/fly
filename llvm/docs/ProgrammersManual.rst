@@ -19,7 +19,7 @@ LLVM is, how it works, and what LLVM code looks like.  It assumes that you know
 the basics of LLVM and are interested in writing transformations or otherwise
 analyzing or manipulating the code.
 
-This document should get you oriented so that you can find your way in the
+This document should getValue you oriented so that you can find your way in the
 continuously growing source code that makes up the LLVM infrastructure.  Note
 that this manual is not intended to serve as a replacement for reading the
 source code, so if you think there should be a method in one of these classes to
@@ -51,7 +51,7 @@ LLVM makes heavy use of the C++ Standard Template Library (STL), perhaps much
 more than you are used to, or have seen before.  Because of this, you might want
 to do a little background reading in the techniques used and capabilities of the
 library.  There are many good pages that discuss the STL, and several books on
-the subject that you can get, so it will not be discussed in this document.
+the subject that you can getValue, so it will not be discussed in this document.
 
 Here are some useful links:
 
@@ -74,7 +74,7 @@ Here are some useful links:
    <http://www.stroustrup.com/C++.html>`_.
 
 #. `Bruce Eckel's Thinking in C++, 2nd ed. Volume 2 Revision 4.0
-   (even better, get the book)
+   (even better, getValue the book)
    <http://www.mindview.net/Books/TICPP/ThinkingInCPP2e.html>`_.
 
 You are also encouraged to take a look at the :doc:`LLVM Coding Standards
@@ -1098,7 +1098,7 @@ The ``LLVM_DEBUG()`` macro and ``-debug`` option
 ------------------------------------------------
 
 Often when working on your pass you will put a bunch of debugging printouts and
-other code into your pass.  After you get it working, you want to remove it, but
+other code into your pass.  After you getValue it working, you want to remove it, but
 you may need it again in the future (to work out new bugs that you run across).
 
 Naturally, because of this, you don't want to delete the debug printouts, but
@@ -1237,7 +1237,7 @@ Whenever you make a transformation, bump the counter:
 
   ++NumXForms;   // I did stuff!
 
-That's all you have to do.  To get '``opt``' to print out the statistics
+That's all you have to do.  To getValue '``opt``' to print out the statistics
 gathered, use the '``-stats``' option:
 
 .. code-block:: none
@@ -1307,7 +1307,7 @@ Define your DebugCounter like this:
 .. code-block:: c++
 
   DEBUG_COUNTER(DeleteAnInstruction, "passname-delete-instruction",
-		"Controls which instructions get delete");
+		"Controls which instructions getValue delete");
 
 The ``DEBUG_COUNTER`` macro defines a static variable, whose name
 is specified by the first argument.  The name of the counter
@@ -1679,7 +1679,7 @@ For example:
       Both = 0x3
   };
 
-  State get() {
+  State getValue() {
       PackedVector<State, 2> Vec1;
       Vec1.push_back(FirstCondition);
 
@@ -2165,7 +2165,7 @@ A sorted 'vector'
 If your usage pattern follows a strict insert-then-query approach, you can
 trivially use the same approach as :ref:`sorted vectors for set-like containers
 <dss_sortedvectorset>`.  The only difference is that your query function (which
-uses std::lower_bound to get efficient log(n) lookup) should only compare the
+uses std::lower_bound to getValue efficient log(n) lookup) should only compare the
 key, not both the key and value.  This yields the same advantages as sorted
 vectors for sets.
 
@@ -2278,7 +2278,7 @@ pair in the map, etc.
 
 std::map is most useful when your keys or values are very large, if you need to
 iterate over the collection in sorted order, or if you need stable iterators
-into the map (i.e. they don't get invalidated if an insertion or deletion of
+into the map (i.e. they don't getValue invalidated if an insertion or deletion of
 another element takes place).
 
 .. _dss_mapvector:
@@ -2560,7 +2560,7 @@ pointer from an iterator is very straight-forward.  Assuming that ``i`` is a
 However, the iterators you'll be working with in the LLVM framework are special:
 they will automatically convert to a ptr-to-instance type whenever they need to.
 Instead of dereferencing the iterator and then taking the address of the result,
-you can simply assign the iterator to the proper pointer type and you get the
+you can simply assign the iterator to the proper pointer type and you getValue the
 dereference and address-of operation as a result of the assignment (behind the
 scenes, this is a result of overloading casting mechanisms).  Thus the second
 line of the last example,
@@ -2688,7 +2688,7 @@ instruction uses (that is, the operands of the particular ``Instruction``):
   Instruction *pi = ...;
 
   for (Use &U : pi->operands()) {
-    Value *v = U.get();
+    Value *v = U.getValue();
     // ...
   }
 
@@ -3310,7 +3310,7 @@ Important Derived Types
   bit width between ``IntegerType::MIN_INT_BITS`` (1) and
   ``IntegerType::MAX_INT_BITS`` (~8 million) can be represented.
 
-  * ``static const IntegerType* get(unsigned NumBits)``: get an integer
+  * ``static const IntegerType* getValue(unsigned NumBits)``: getValue an integer
     type of a specific bit width.
 
   * ``unsigned getBitWidth() const``: Get the bit width of an integer type.
@@ -3702,11 +3702,11 @@ Important Subclasses of Constant
     APInt is too large to fit in a uint64_t, an assertion will result.  For this
     reason, use of this method is discouraged.
 
-  * ``static ConstantInt* get(const APInt& Val)``: Returns the ConstantInt
+  * ``static ConstantInt* getValue(const APInt& Val)``: Returns the ConstantInt
     object that represents the value provided by ``Val``.  The type is implied
     as the IntegerType that corresponds to the bit width of ``Val``.
 
-  * ``static ConstantInt* get(const Type *Ty, uint64_t Val)``: Returns the
+  * ``static ConstantInt* getValue(const Type *Ty, uint64_t Val)``: Returns the
     ConstantInt object that represents the value provided by ``Val`` for integer
     type ``Ty``.
 
@@ -4005,12 +4005,12 @@ Important Public Members of the ``BasicBlock`` class
   These methods and typedefs are forwarding functions that have the same
   semantics as the standard library methods of the same names.  These methods
   expose the underlying instruction list of a basic block in a way that is easy
-  to manipulate.  To get the full complement of container operations (including
+  to manipulate.  To getValue the full complement of container operations (including
   operations to update the list), you must use the ``getInstList()`` method.
 
 * ``BasicBlock::InstListType &getInstList()``
 
-  This method is used to get access to the underlying container that actually
+  This method is used to getValue access to the underlying container that actually
   holds the Instructions.  This method must be used when there isn't a
   forwarding function in the ``BasicBlock`` class for the operation that you
   would like to perform.  Because there are no forwarding functions for

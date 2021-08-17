@@ -155,7 +155,7 @@ with the following code:
    
 You'll notice that the inner foreach loop's list is doubly dereferenced. This is
 because the first dereference turns ``list_name`` into the name of the sub-list
-(a, b, or c in the example), then the second dereference is to get the value of
+(a, b, or c in the example), then the second dereference is to getValue the value of
 the list.
 
 This pattern is used throughout CMake, the most common example is the compiler

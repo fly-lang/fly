@@ -918,7 +918,7 @@ afterwards).
 -----------------------------------------------------
 
 Rewrites switch instructions with a sequence of branches, which allows targets
-to get away with not implementing the switch instruction until it is
+to getValue away with not implementing the switch instruction until it is
 convenient.
 
 .. _passes-mem2reg:

@@ -55,11 +55,13 @@ namespace fly {
      * Ex.
      *  a = 1
      */
-    class ASTLocalVarStmt : public ASTVarRef, public ASTExprStmt {
+    class ASTLocalVarRef : public ASTVarRef, public ASTExprStmt {
 
     public:
-        ASTLocalVarStmt(const SourceLocation &Loc, ASTBlock *Block, const llvm::StringRef &Name,
-                        const llvm::StringRef &NameSpace = "");
+        ASTLocalVarRef(const SourceLocation &Loc, ASTBlock *Block, const llvm::StringRef &Name,
+                       const llvm::StringRef &NameSpace = "");
+
+        ASTLocalVarRef(const SourceLocation &Loc, ASTBlock *Block, ASTVarRef Var);
 
         StmtKind getKind() const override;
     };

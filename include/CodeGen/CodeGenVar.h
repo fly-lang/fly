@@ -23,7 +23,9 @@ namespace fly {
 
     public:
 
-        virtual llvm::Value *get() = 0;
+        virtual llvm::Value *getPointer() = 0;
+
+        virtual llvm::Value *getValue() = 0;
     };
 }
 

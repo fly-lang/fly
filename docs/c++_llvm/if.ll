@@ -16,11 +16,11 @@ define dso_local i32 @main() #0 {
   br i1 %5, label %6, label %7
 
 6:                                                ; preds = %0
-  store i8 1, i8* %3, align 1
+  store i32 2, i32* %2, align 4
   br label %7
 
 7:                                                ; preds = %6, %0
-  %8 = load i32, i32* %1, align 4
+  %8 = load i32, i32* %2, align 4
   ret i32 %8
 }
 

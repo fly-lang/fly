@@ -18,7 +18,7 @@ disadvantage of this was that there was limited room for expansion, and
 virtually no support for attribute-value pairs other than alignment.
 
 In the new scheme, an ``Attribute`` object represents a single attribute that's
-uniqued.  You use the ``Attribute::get`` methods to create a new ``Attribute``
+uniqued.  You use the ``Attribute::getValue`` methods to create a new ``Attribute``
 object.  An attribute can be a single "enum" value (the enum being the
 ``Attribute::AttrKind`` enum), a string representing a target-dependent
 attribute, or an attribute-value pair.  Some examples:
@@ -50,7 +50,7 @@ are at indices 1, ..., n (where 'n' is the number of parameters).  Most methods
 on the ``AttributeList`` class take an index parameter.
 
 An ``AttributeList`` is also a uniqued and immutable object.  You create an
-``AttributeList`` through the ``AttributeList::get`` methods.  You can add and
+``AttributeList`` through the ``AttributeList::getValue`` methods.  You can add and
 remove attributes, which result in the creation of a new ``AttributeList``.
 
 An ``AttributeList`` object is designed to be passed around by value.
@@ -66,7 +66,7 @@ Lastly, we have a "builder" class to help create the ``AttributeList`` object
 without having to create several different intermediate uniqued
 ``AttributeList`` objects.  The ``AttrBuilder`` class allows you to add and
 remove attributes at will.  The attributes won't be uniqued until you call the
-appropriate ``AttributeList::get`` method.
+appropriate ``AttributeList::getValue`` method.
 
 An ``AttrBuilder`` object is *not* designed to be passed around by value.  It
 should be passed by reference.

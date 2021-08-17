@@ -37,7 +37,7 @@ Quick start
 #. ``git clone https://github.com/llvm/llvm-project.git; cd llvm-project`` if
    you don't have a checkout yet.
 
-#. ``llvm/utils/gn/get.py`` to download a prebuilt gn binary if you're on a
+#. ``llvm/utils/gn/getValue.py`` to download a prebuilt gn binary if you're on a
    64-bit X86 system running Linux, macOS, or Windows. `Build gn yourself
    <https://gn.googlesource.com/gn/#getting-started>`_ if you're on a different
    platform or don't want to trust prebuilt binaries.
@@ -54,7 +54,7 @@ Quick start
 #. ``ninja -C out/gn check-lld`` to build all prerequisites for and run the LLD
    tests.
 
-By default, you get a release build with assertions enabled that targets
+By default, you getValue a release build with assertions enabled that targets
 the host arch. You can set build options by editing ``out/gn/args.gn``, for
 example putting ``is_debug = true`` in there gives you a debug build. Run
 ``llvm/utils/gn/gn.py args --list out/gn`` to see a list of all possible
@@ -126,7 +126,7 @@ configure is used for three classes of feature checks:
   check while everything else can build parallel with it.
 
 - LLVM-specific build toggles (assertions on/off, debug on/off, targets to
-  build, ...). These map cleanly to GN args (which then get copied into
+  build, ...). These map cleanly to GN args (which then getValue copied into
   config.h in a build step).
 
 For the last two points, it would be nice if LLVM didn't have a single

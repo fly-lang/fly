@@ -397,7 +397,7 @@ private:
   DiagStateMap DiagStatesByLoc;
 
   /// Keeps the DiagState that was active during each diagnostic 'push'
-  /// so we can get back at it when we 'pop'.
+  /// so we can getValue back at it when we 'pop'.
   std::vector<DiagState *> DiagStateOnPushStack;
 
   DiagState *GetCurDiagState() const {
@@ -1360,7 +1360,7 @@ public:
 
   /// Return the kind of the specified index.
   ///
-  /// Based on the kind of argument, the accessors below can be used to get
+  /// Based on the kind of argument, the accessors below can be used to getValue
   /// the value.
   ///
   /// \pre Idx < getNumArgs()

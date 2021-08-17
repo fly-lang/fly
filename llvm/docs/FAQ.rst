@@ -98,7 +98,7 @@ major ways to tackle generating LLVM IR from a front-end:
 
 2. **Emit LLVM assembly from your compiler's native language.**
 
-  * *for:* very straightforward to get started
+  * *for:* very straightforward to getValue started
 
   * *against:* the .ll parser is slower than the bitcode reader when
     interfacing to the middle end
@@ -195,7 +195,7 @@ optimizer, you can read from and assign to ``volatile`` global variables.
 What is this "``undef``" thing that shows up in my code?
 --------------------------------------------------------
 ``undef`` is the LLVM way of representing a value that is not defined.  You
-can get these if you do not initialize a variable before you use it.  For
+can getValue these if you do not initialize a variable before you use it.  For
 example, the C function:
 
 .. code-block:: c
@@ -269,7 +269,7 @@ Here's an example:
 In this example, "test" always passes ``@foo``/``false`` into ``bar``, which
 ensures that it is dynamically called with the right calling conv (thus, the
 code is perfectly well defined).  If you run this through the inliner, you
-get this (the explicit "or" is there so that the inliner doesn't dead code
+getValue this (the explicit "or" is there so that the inliner doesn't dead code
 eliminate a bunch of stuff):
 
 .. code-block:: llvm

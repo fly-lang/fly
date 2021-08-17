@@ -29,11 +29,11 @@ CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, const llvm::StringRef &Na
     GVar = new llvm::GlobalVariable(*CGM->Module, Typ, isConstant,GlobalValue::ExternalLinkage, Const, Name);
 }
 
-GlobalVariable *CodeGenGlobalVar::getGlobalVar() const {
+llvm::Value *CodeGenGlobalVar::getPointer() {
     return GVar;
 }
 
-llvm::Value *CodeGenGlobalVar::get() {
+llvm::Value *CodeGenGlobalVar::getValue() {
     return isStored ? (needLoad ? Load() : LoadI) : (llvm::Value *)GVar;
 }
 

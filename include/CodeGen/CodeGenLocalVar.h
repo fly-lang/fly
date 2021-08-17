@@ -25,20 +25,25 @@ namespace fly {
         CodeGenModule *CGM;
         bool Constant;
         llvm::AllocaInst *AllocaI;
-        llvm::LoadInst *LoadI;
-        bool needLoad;
+        llvm::LoadInst *LoadI = nullptr;
+        bool Reload;
         bool isStored;
+        llvm::StringRef BlockID;
 
     public:
         CodeGenLocalVar(CodeGenModule *CGM, ASTLocalVar *S);
 
         CodeGenLocalVar(CodeGenModule *CGM, ASTFuncParam *P);
 
-        llvm::UnaryInstruction *get() override;
+        llvm::Value *getPointer() override;
+
+        llvm::Value *getValue() override;
 
         llvm::StoreInst *Store(llvm::Value *Val);
 
         llvm::LoadInst *Load();
+
+        bool needReload();
     };
 }
 

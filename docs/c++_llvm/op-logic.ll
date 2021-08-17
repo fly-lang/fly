@@ -10,60 +10,36 @@ define dso_local i32 @main() #0 {
   %3 = alloca i8, align 1
   %4 = alloca i8, align 1
   store i32 0, i32* %1, align 4
-  store i8 1, i8* %2, align 1
-  store i8 0, i8* %3, align 1
-  store i8 0, i8* %4, align 1
   %5 = load i8, i8* %2, align 1
   %6 = trunc i8 %5 to i1
-  %7 = xor i1 %6, true
-  %8 = zext i1 %7 to i8
-  store i8 %8, i8* %4, align 1
-  %9 = load i8, i8* %2, align 1
-  %10 = trunc i8 %9 to i1
-  br i1 %10, label %11, label %14
+  br i1 %6, label %7, label %10
 
-11:                                               ; preds = %0
-  %12 = load i8, i8* %3, align 1
-  %13 = trunc i8 %12 to i1
-  br label %14
+7:                                                ; preds = %0
+  %8 = load i8, i8* %3, align 1
+  %9 = trunc i8 %8 to i1
+  br label %10
 
-14:                                               ; preds = %11, %0
-  %15 = phi i1 [ false, %0 ], [ %13, %11 ]
-  %16 = zext i1 %15 to i8
-  store i8 %16, i8* %4, align 1
-  %17 = load i8, i8* %2, align 1
-  %18 = trunc i8 %17 to i1
-  br i1 %18, label %22, label %19
+10:                                               ; preds = %7, %0
+  %11 = phi i1 [ false, %0 ], [ %9, %7 ]
+  %12 = zext i1 %11 to i8
+  store i8 %12, i8* %4, align 1
+  %13 = load i8, i8* %2, align 1
+  %14 = trunc i8 %13 to i1
+  br i1 %14, label %18, label %15
 
-19:                                               ; preds = %14
-  %20 = load i8, i8* %3, align 1
-  %21 = trunc i8 %20 to i1
-  br label %22
+15:                                               ; preds = %10
+  %16 = load i8, i8* %3, align 1
+  %17 = trunc i8 %16 to i1
+  br label %18
 
-22:                                               ; preds = %19, %14
-  %23 = phi i1 [ true, %14 ], [ %21, %19 ]
-  %24 = zext i1 %23 to i8
-  store i8 %24, i8* %4, align 1
-  %25 = load i8, i8* %2, align 1
-  %26 = trunc i8 %25 to i1
-  br i1 %26, label %27, label %30
-
-27:                                               ; preds = %22
-  %28 = load i8, i8* %3, align 1
-  %29 = trunc i8 %28 to i1
-  br i1 %29, label %33, label %30
-
-30:                                               ; preds = %27, %22
-  %31 = load i8, i8* %2, align 1
-  %32 = trunc i8 %31 to i1
-  br label %33
-
-33:                                               ; preds = %30, %27
-  %34 = phi i1 [ true, %27 ], [ %32, %30 ]
-  %35 = zext i1 %34 to i8
-  store i8 %35, i8* %4, align 1
-  %36 = load i32, i32* %1, align 4
-  ret i32 %36
+18:                                               ; preds = %15, %10
+  %19 = phi i1 [ true, %10 ], [ %17, %15 ]
+  %20 = zext i1 %19 to i8
+  store i8 %20, i8* %4, align 1
+  %21 = load i8, i8* %4, align 1
+  %22 = trunc i8 %21 to i1
+  %23 = zext i1 %22 to i32
+  ret i32 %23
 }
 
 attributes #0 = { noinline norecurse nounwind optnone uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "frame-pointer"="all" "less-precise-fpmad"="false" "min-legal-vector-width"="0" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }

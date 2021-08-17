@@ -3,6 +3,7 @@ int main() {
     bool b = false;
 
     if (a == 1) {
-        b = true;
+        a = 2;
     }
+    return a;
 }

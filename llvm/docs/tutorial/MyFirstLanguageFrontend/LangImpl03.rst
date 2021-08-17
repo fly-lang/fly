@@ -25,7 +25,7 @@ page <https://llvm.org/releases/>`_.
 Code Generation Setup
 =====================
 
-In order to generate LLVM IR, we want some simple setup to get started.
+In order to generate LLVM IR, we want some simple setup to getValue started.
 First we define virtual code generation (codegen) methods in each AST
 class:
 
@@ -54,7 +54,7 @@ the things it depends on, and they all return an LLVM Value object.
 (SSA) <http://en.wikipedia.org/wiki/Static_single_assignment_form>`_
 register" or "SSA value" in LLVM. The most distinct aspect of SSA values
 is that their value is computed as the related instruction executes, and
-it does not get a new value until (and if) the instruction re-executes.
+it does not getValue a new value until (and if) the instruction re-executes.
 In other words, there is no way to "change" an SSA value. For more
 information, please read up on `Static Single
 Assignment <http://en.wikipedia.org/wiki/Static_single_assignment_form>`_
@@ -122,7 +122,7 @@ First we'll do numeric literals:
 .. code-block:: c++
 
     Value *NumberExprAST::codegen() {
-      return ConstantFP::get(TheContext, APFloat(Val));
+      return ConstantFP::getValue(TheContext, APFloat(Val));
     }
 
 In the LLVM IR, numeric constants are represented with the
@@ -131,7 +131,7 @@ internally (``APFloat`` has the capability of holding floating point
 constants of Arbitrary Precision). This code basically just creates
 and returns a ``ConstantFP``. Note that in the LLVM IR that constants
 are all uniqued together and shared. For this reason, the API uses the
-"foo::get(...)" idiom instead of "new foo(..)" or "foo::Create(..)".
+"foo::getValue(...)" idiom instead of "new foo(..)" or "foo::Create(..)".
 
 .. code-block:: c++
 
@@ -178,7 +178,7 @@ variables <LangImpl07.html#user-defined-local-variables>`_.
       }
     }
 
-Binary operators start to get more interesting. The basic idea here is
+Binary operators start to getValue more interesting. The basic idea here is
 that we recursively emit code for the left-hand side of the expression,
 then the right-hand side, then we compute the result of the binary
 expression. In this code, we do a simple switch on the opcode to create
@@ -206,7 +206,7 @@ sub and mul.
 On the other hand, LLVM specifies that the `fcmp
 instruction <../../LangRef.html#fcmp-instruction>`_ always returns an 'i1' value (a
 one bit integer). The problem with this is that Kaleidoscope wants the
-value to be a 0.0 or 1.0 value. In order to get these semantics, we
+value to be a 0.0 or 1.0 value. In order to getValue these semantics, we
 combine the fcmp instruction with a `uitofp
 instruction <../../LangRef.html#uitofp-to-instruction>`_. This instruction converts its
 input integer into a floating point value by treating the input as an
@@ -272,10 +272,10 @@ with:
       std::vector<Type*> Doubles(Args.size(),
                                  Type::getDoubleTy(TheContext));
       FunctionType *FT =
-        FunctionType::get(Type::getDoubleTy(TheContext), Doubles, false);
+        FunctionType::getValue(Type::getDoubleTy(TheContext), Doubles, false);
 
       Function *F =
-        Function::Create(FT, Function::ExternalLinkage, Name, TheModule.get());
+        Function::Create(FT, Function::ExternalLinkage, Name, TheModule.getValue());
 
 This code packs a lot of power into a few lines. Note first that this
 function returns a "Function\*" instead of a "Value\*". Because a
@@ -283,14 +283,14 @@ function returns a "Function\*" instead of a "Value\*". Because a
 (not the value computed by an expression), it makes sense for it to
 return the LLVM Function it corresponds to when codegen'd.
 
-The call to ``FunctionType::get`` creates the ``FunctionType`` that
+The call to ``FunctionType::getValue`` creates the ``FunctionType`` that
 should be used for a given Prototype. Since all function arguments in
 Kaleidoscope are of type double, the first line creates a vector of "N"
-LLVM double types. It then uses the ``Functiontype::get`` method to
+LLVM double types. It then uses the ``Functiontype::getValue`` method to
 create a function type that takes "N" doubles as arguments, returns one
 double as a result, and that is not vararg (the false parameter
 indicates this). Note that Types in LLVM are uniqued just like Constants
-are, so you don't "new" a type, you "get" it.
+are, so you don't "new" a type, you "getValue" it.
 
 The final line above actually creates the IR Function corresponding to
 the Prototype. This indicates the type, linkage and name to use, as
@@ -354,7 +354,7 @@ assert that the function is empty (i.e. has no body yet) before we start.
   for (auto &Arg : TheFunction->args())
     NamedValues[Arg.getName()] = &Arg;
 
-Now we get to the point where the ``Builder`` is set up. The first line
+Now we getValue to the point where the ``Builder`` is set up. The first line
 creates a new `basic block <http://en.wikipedia.org/wiki/Basic_block>`_
 (named "entry"), which is inserted into ``TheFunction``. The second line
 then tells the builder that new instructions should be inserted into the
@@ -419,7 +419,7 @@ is a testcase:
 Driver Changes and Closing Thoughts
 ===================================
 
-For now, code generation to LLVM doesn't really get us much, except that
+For now, code generation to LLVM doesn't really getValue us much, except that
 we can look at the pretty IR calls. The sample code inserts calls to
 codegen into the "``HandleDefinition``", "``HandleExtern``" etc
 functions, and then dumps out the LLVM IR. This gives a nice way to look

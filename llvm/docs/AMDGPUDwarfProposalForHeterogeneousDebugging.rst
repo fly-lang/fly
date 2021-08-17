@@ -126,7 +126,7 @@ memory, and this spilling may be done only for lanes that are active on entry
 to the subprogram. To support this, a location description that can be created
 as a masked select is required. See ``DW_OP_LLVM_select_bit_piece``.
 
-Since the active lane mask may be held in a register, a way to get the value
+Since the active lane mask may be held in a register, a way to getValue the value
 of a register on entry to a subprogram is required. To support this an
 operation that returns the caller value of a register as specified by the Call
 Frame Information (CFI) is required. See ``DW_OP_LLVM_call_frame_entry_reg``
@@ -979,7 +979,7 @@ expression.
         In DWARF Version 5, if D does not have a ``DW_AT_location`` then
         ``DW_OP_call*`` is defined to have no effect. It is unclear that this is
         the right definition as a producer should be able to rely on using
-        ``DW_OP_call*`` to get a location description for any non-\
+        ``DW_OP_call*`` to getValue a location description for any non-\
         ``DW_TAG_dwarf_procedure`` debugging information entries. Also, the
         producer should not be creating DWARF with ``DW_OP_call*`` to a
         ``DW_TAG_dwarf_procedure`` that does not have a ``DW_AT_location``
@@ -1238,7 +1238,7 @@ There are these special value operations currently defined:
     .. note::
 
       It is unclear why the operand S is needed. Unlike ``DW_OP_const_type``,
-      the size is not needed for parsing. Any evaluation needs to get the base
+      the size is not needed for parsing. Any evaluation needs to getValue the base
       type to record with the value to know its encoding and bit size.
 
       This definition allows the base type to be a bit size since there seems no
@@ -3015,7 +3015,7 @@ Standard Content Descriptions
     *When the source field is present, consumers can use the embedded source
     instead of attempting to discover the source on disk using the file path
     provided by the* ``DW_LNCT_path`` *field. When the source field is absent,
-    consumers can access the file to get the source text.*
+    consumers can access the file to getValue the source text.*
 
     *This is particularly useful for programing languages that support runtime
     compilation and runtime generation of source text. In these cases, the

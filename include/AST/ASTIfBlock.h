@@ -30,9 +30,10 @@ namespace fly {
         std::vector<ASTElsifBlock *> Elsif;
         ASTElseBlock *Else = nullptr;
 
-    public:
+    protected:
         ASTIfBlock(const SourceLocation &Loc, ASTBlock *Parent);
 
+    public:
         ASTIfBlock(const SourceLocation &Loc, ASTBlock *Parent, ASTExpr *Condition);
 
         static void AddBranch(ASTBlock *Parent, ConditionBlockStmt *Cond);
@@ -55,7 +56,7 @@ namespace fly {
         ASTIfBlock *Head;
 
     public:
-        ASTElsifBlock(const SourceLocation &Loc, ASTBlock *Parent);
+        ASTElsifBlock(const SourceLocation &Loc, ASTBlock *Parent, ASTExpr *Condition);
 
         enum BlockStmtKind getBlockKind() const override;
     };

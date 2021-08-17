@@ -128,7 +128,7 @@ bool ASTBlock::addExprStmt(ASTExprStmt *ExprStmt) {
     return false;
 }
 
-bool ASTBlock::addVar(ASTLocalVarStmt *Var) {
+bool ASTBlock::addVar(ASTLocalVarRef *Var) {
     assert(Var->getExpr() && "Expr unset into VarStmt");
 
     if (ResolveExpr(Var->getExpr())) {
@@ -153,7 +153,6 @@ bool ASTBlock::addVar(ASTLocalVar *Var) {
         return false;
     }
     DeclVars.insert(std::pair<StringRef, ASTLocalVar *>(Var->getName(), Var));
-    Var->setOrder(Order++);
     Content.push_back(Var);
     return Result;
 }

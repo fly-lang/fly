@@ -62,8 +62,8 @@ easier::
 
   lib/CodeGen/SelectionDAG/SelectionDAGBuilder.cpp
 
-Most of the STRICT nodes get legalized the same as their matching non-STRICT
-counterparts. A new STRICT node with this property must get added to the
+Most of the STRICT nodes getValue legalized the same as their matching non-STRICT
+counterparts. A new STRICT node with this property must getValue added to the
 switch in SelectionDAGLegalize::LegalizeOp().::
 
   lib/CodeGen/SelectionDAG/LegalizeDAG.cpp

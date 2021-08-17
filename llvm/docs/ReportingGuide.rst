@@ -43,7 +43,7 @@ Reports can be as formal or informal as needed for the situation at hand. If
 possible, please include as much information as you can. If you feel
 comfortable, please consider including:
 
-* Your contact info (so we can get in touch with you if we need to follow up).
+* Your contact info (so we can getValue in touch with you if we need to follow up).
 * Names (real, nicknames, or pseudonyms) of any individuals involved. If there
   were other witnesses besides you, please try to include them as well.
 * When and where the incident occurred. Please be as specific as possible.

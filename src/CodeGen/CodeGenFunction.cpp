@@ -39,20 +39,25 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, const llvm::StringRef FName
         EntryV.getValue()->setCodeGen(CGV);
     }
 
-    // Store Values
+    // Store Param Values
     int n = 0;
     for (auto &P : FParams->getParams()) {
         CodeGenLocalVar *CGV = P->getCodeGen();
         CGV->Store(Fn->getArg(n));
         if (P->getExpr()) { // TODO check Expr
-            CGM->GenExpr(P->getType(), P->getExpr());
+            CGM->GenExpr(Fn, P->getType(), P->getExpr());
         }
         ++n;
     }
 
+    // Store Var Values fixme
+//    for (auto &EntryV : FBody->getDeclVars()) {
+//        CGM->GenExpr(EntryV.getValue()->getType(), EntryV.getValue()->getExpr());
+//    }
+
     // Add Function Body
-    for (auto &S : FBody->getContent()) {
-        CGM->GenStmt(S);
+    for (auto &Stmt : FBody->getContent()) {
+        CGM->GenStmt(Fn, Stmt);
     }
 }
 

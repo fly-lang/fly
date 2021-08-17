@@ -102,7 +102,7 @@ Next we need to update our addModule method to replace the call to
   static Expected<ThreadSafeModule>
   optimizeModule(ThreadSafeModule M, const MaterializationResponsibility &R) {
     // Create a function pass manager.
-    auto FPM = std::make_unique<legacy::FunctionPassManager>(M.get());
+    auto FPM = std::make_unique<legacy::FunctionPassManager>(M.getValue());
 
     // Add some optimizations.
     FPM->add(createInstructionCombiningPass());
@@ -241,7 +241,7 @@ focused on when compilation happens. Our current REPL is eager: Each function
 definition is optimized and compiled as soon as it is referenced by any other
 code, regardless of whether it is ever called at runtime. In the next chapter we
 will introduce fully lazy compilation, in which functions are not compiled until
-they are first called at run-time. At this point the trade-offs get much more
+they are first called at run-time. At this point the trade-offs getValue much more
 interesting: the lazier we are, the quicker we can start executing the first
 function, but the more often we will have to pause to compile newly encountered
 functions. If we only code-gen lazily, but optimize eagerly, we will have a

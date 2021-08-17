@@ -86,10 +86,6 @@ namespace fly {
 
         const llvm::StringRef &getName() const;
 
-        unsigned long getOrder() const;
-
-        void setOrder(unsigned long order);
-
         ASTVar *getDecl() const;
 
         void setDecl(ASTVar *decl);

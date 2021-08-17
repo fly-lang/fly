@@ -132,7 +132,7 @@ lexical features of LLVM:
    incrementing counter, starting with 0). Note that basic blocks and unnamed
    function parameters are included in this numbering. For example, if the
    entry basic block is not given a label name and all function parameters are
-   named, then it will get number 0.
+   named, then it will getValue number 0.
 
 It also shows a convention that we follow in this document. When
 demonstrating instructions, we will follow an instruction with a comment
@@ -953,9 +953,9 @@ There are some restrictions on the properties of the global object.
 It, or an alias to it, must have the same name as the COMDAT group when
 targeting COFF.
 The contents and size of this object may be used during link-time to determine
-which COMDAT groups get selected depending on the selection kind.
+which COMDAT groups getValue selected depending on the selection kind.
 Because the name of the object must match the name of the COMDAT group, the
-linkage of the global object must not be local; local symbols can get renamed
+linkage of the global object must not be local; local symbols can getValue renamed
 if a collision occurs in the symbol table.
 
 The combined use of COMDATS and section attributes may yield surprising results.
@@ -2361,18 +2361,18 @@ as follows:
     directly to the assembler without the escape character. The mangling style
     options are
 
-    * ``e``: ELF mangling: Private symbols get a ``.L`` prefix.
-    * ``m``: Mips mangling: Private symbols get a ``$`` prefix.
-    * ``o``: Mach-O mangling: Private symbols get ``L`` prefix. Other
-      symbols get a ``_`` prefix.
-    * ``x``: Windows x86 COFF mangling: Private symbols get the usual prefix.
-      Regular C symbols get a ``_`` prefix. Functions with ``__stdcall``,
+    * ``e``: ELF mangling: Private symbols getValue a ``.L`` prefix.
+    * ``m``: Mips mangling: Private symbols getValue a ``$`` prefix.
+    * ``o``: Mach-O mangling: Private symbols getValue ``L`` prefix. Other
+      symbols getValue a ``_`` prefix.
+    * ``x``: Windows x86 COFF mangling: Private symbols getValue the usual prefix.
+      Regular C symbols getValue a ``_`` prefix. Functions with ``__stdcall``,
       ``__fastcall``, and ``__vectorcall`` have custom mangling that appends
       ``@N`` where N is the number of bytes used to pass parameters. C++ symbols
       starting with ``?`` are not mangled in any way.
     * ``w``: Windows COFF mangling: Similar to ``x``, except that normal C
       symbols do not receive a ``_`` prefix.
-    * ``a``: XCOFF mangling: Private symbols get a ``L..`` prefix.
+    * ``a``: XCOFF mangling: Private symbols getValue a ``L..`` prefix.
 ``n<size1>:<size2>:<size3>...``
     This specifies a set of native integer widths for the target CPU in
     bits. For example, it might contain ``n32`` for 32-bit PowerPC,
@@ -3868,7 +3868,7 @@ GCC-compatible inline-asm support. Thus, the feature-set and the constraint and
 modifier codes listed here are similar or identical to those in GCC's inline asm
 support. However, to be clear, the syntax of the template and constraint strings
 described here is *not* the same as the syntax accepted by GCC and Clang, and,
-while most constraint letters are passed through as-is by Clang, some get
+while most constraint letters are passed through as-is by Clang, some getValue
 translated to other codes when converting from the C source to the LLVM
 assembly.
 
@@ -4369,9 +4369,9 @@ X86:
   512-bit vector operand in an AVX512 register, Otherwise, an error.
 - ``Y``: The same as ``x``, if *SSE2* is enabled, otherwise an error.
 - ``A``: Special case: allocates EAX first, then EDX, for a single operand (in
-  32-bit mode, a 64-bit integer operand will get split into two registers). It
+  32-bit mode, a 64-bit integer operand will getValue split into two registers). It
   is not recommended to use this constraint, as in 64-bit mode, the 64-bit
-  operand will get allocated only to RAX -- if two 32-bit operands are needed,
+  operand will getValue allocated only to RAX -- if two 32-bit operands are needed,
   you're better off splitting it yourself, before passing it to the asm
   statement.
 
@@ -4855,7 +4855,7 @@ For ``DW_TAG_array_type``, the ``elements:`` should be :ref:`subrange
 descriptors <DISubrange>`, each representing the range of subscripts at that
 level of indexing. The ``DIFlagVector`` flag to ``flags:`` indicates that an
 array type is a native packed vector. The optional ``dataLocation`` is a
-DIExpression that describes how to get from an object's address to the actual
+DIExpression that describes how to getValue from an object's address to the actual
 raw data, if they aren't equivalent. This is only supported for array types,
 particularly to describe Fortran arrays, which have an array descriptor in
 addition to the array data. Alternatively it can also be DIVariable which
@@ -6280,7 +6280,7 @@ Examples:
 
    call void @foo(i8* %ptr)
    %newPtr2 = call i8* @llvm.launder.invariant.group(i8* %ptr)
-   %d = load i8, i8* %newPtr2, !invariant.group !0  ; Can't step through launder.invariant.group to get value of %ptr
+   %d = load i8, i8* %newPtr2, !invariant.group !0  ; Can't step through launder.invariant.group to getValue value of %ptr
 
    ...
    declare void @foo(i8*)
@@ -8317,7 +8317,7 @@ Semantics:
 """"""""""
 
 This instruction returns the unsigned integer *remainder* of a division.
-This instruction always performs an unsigned division to get the
+This instruction always performs an unsigned division to getValue the
 remainder.
 
 Note that unsigned integer remainder and signed integer remainder are
@@ -9543,7 +9543,7 @@ Syntax:
 Overview:
 """""""""
 
-The '``getelementptr``' instruction is used to get the address of a
+The '``getelementptr``' instruction is used to getValue the address of a
 subelement of an :ref:`aggregate <t_aggregate>` data structure. It performs
 address calculation only and does not access memory. The instruction can also
 be used to calculate a vector of such addresses.
@@ -9736,7 +9736,7 @@ makes sense:
 
 .. code-block:: llvm
 
-    ; get pointers for 8 elements from array B
+    ; getValue pointers for 8 elements from array B
     %ptrs = getelementptr double, double* %B, <8 x i32> %C
     ; load 8 elements from array B into A
     %A = call <8 x double> @llvm.masked.gather.v8f64.v8p0f64(<8 x double*> %ptrs,
@@ -11755,7 +11755,7 @@ See the description for :ref:`llvm.stacksave <int_stacksave>`.
 
 .. _int_get_dynamic_area_offset:
 
-'``llvm.get.dynamic.area.offset``' Intrinsic
+'``llvm.getValue.dynamic.area.offset``' Intrinsic
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Syntax:
@@ -11763,17 +11763,17 @@ Syntax:
 
 ::
 
-      declare i32 @llvm.get.dynamic.area.offset.i32()
-      declare i64 @llvm.get.dynamic.area.offset.i64()
+      declare i32 @llvm.getValue.dynamic.area.offset.i32()
+      declare i64 @llvm.getValue.dynamic.area.offset.i64()
 
 Overview:
 """""""""
 
-      The '``llvm.get.dynamic.area.offset.*``' intrinsic family is used to
-      get the offset from native stack pointer to the address of the most
+      The '``llvm.getValue.dynamic.area.offset.*``' intrinsic family is used to
+      getValue the offset from native stack pointer to the address of the most
       recent dynamic alloca on the caller's stack. These intrinsics are
       intendend for use in combination with
-      :ref:`llvm.stacksave <int_stacksave>` to get a
+      :ref:`llvm.stacksave <int_stacksave>` to getValue a
       pointer to the most recent dynamic alloca. This is useful, for example,
       for AddressSanitizer's stack unpoisoning routines.
 
@@ -11781,18 +11781,18 @@ Semantics:
 """"""""""
 
       These intrinsics return a non-negative integer value that can be used to
-      get the address of the most recent dynamic alloca, allocated by :ref:`alloca <i_alloca>`
+      getValue the address of the most recent dynamic alloca, allocated by :ref:`alloca <i_alloca>`
       on the caller's stack. In particular, for targets where stack grows downwards,
-      adding this offset to the native stack pointer would get the address of the most
+      adding this offset to the native stack pointer would getValue the address of the most
       recent dynamic alloca. For targets where stack grows upwards, the situation is a bit more
-      complicated, because subtracting this value from stack pointer would get the address
+      complicated, because subtracting this value from stack pointer would getValue the address
       one past the end of the most recent dynamic alloca.
 
-      Although for most targets `llvm.get.dynamic.area.offset <int_get_dynamic_area_offset>`
+      Although for most targets `llvm.getValue.dynamic.area.offset <int_get_dynamic_area_offset>`
       returns just a zero, for others, such as PowerPC and PowerPC64, it returns a
       compile-time-known constant value.
 
-      The return value type of :ref:`llvm.get.dynamic.area.offset <int_get_dynamic_area_offset>`
+      The return value type of :ref:`llvm.getValue.dynamic.area.offset <int_get_dynamic_area_offset>`
       must match the target's default address space's (address space 0) pointer type.
 
 '``llvm.prefetch``' Intrinsic
@@ -12102,7 +12102,7 @@ Semantics:
 
 The '``llvm.call.preallocated.setup``' intrinsic returns a token which is
 associated with at most one call. The token can be passed to
-'``@llvm.call.preallocated.arg``' to get a pointer to get that
+'``@llvm.call.preallocated.arg``' to get a pointer to getValue that
 corresponding argument. The token must be the parameter to a
 ``"preallocated"`` operand bundle for the corresponding call.
 
@@ -15879,7 +15879,7 @@ Semantics:
 
 The block of memory pointed to by ``tramp`` is filled with target
 dependent code, turning it into a function. Then ``tramp`` needs to be
-passed to :ref:`llvm.adjust.trampoline <int_at>` to get a pointer which can
+passed to :ref:`llvm.adjust.trampoline <int_at>` to getValue a pointer which can
 be :ref:`bitcast (to a new function) and called <int_trampoline>`. The new
 function's signature is the same as that of ``func`` with any arguments
 marked with the ``nest`` attribute removed. At most one such ``nest``
@@ -16598,7 +16598,7 @@ Examples:
 
 .. _int_get_active_lane_mask:
 
-'``llvm.get.active.lane.mask.*``' Intrinsics
+'``llvm.getValue.active.lane.mask.*``' Intrinsics
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Syntax:
@@ -16607,10 +16607,10 @@ This is an overloaded intrinsic.
 
 ::
 
-      declare <4 x i1> @llvm.get.active.lane.mask.v4i1.i32(i32 %base, i32 %n)
-      declare <8 x i1> @llvm.get.active.lane.mask.v8i1.i64(i64 %base, i64 %n)
-      declare <16 x i1> @llvm.get.active.lane.mask.v16i1.i64(i64 %base, i64 %n)
-      declare <vscale x 16 x i1> @llvm.get.active.lane.mask.nxv16i1.i64(i64 %base, i64 %n)
+      declare <4 x i1> @llvm.getValue.active.lane.mask.v4i1.i32(i32 %base, i32 %n)
+      declare <8 x i1> @llvm.getValue.active.lane.mask.v8i1.i64(i64 %base, i64 %n)
+      declare <16 x i1> @llvm.getValue.active.lane.mask.v16i1.i64(i64 %base, i64 %n)
+      declare <vscale x 16 x i1> @llvm.getValue.active.lane.mask.nxv16i1.i64(i64 %base, i64 %n)
 
 
 Overview:
@@ -16628,7 +16628,7 @@ the i1 element type.
 Semantics:
 """"""""""
 
-The '``llvm.get.active.lane.mask.*``' intrinsics are semantically equivalent
+The '``llvm.getValue.active.lane.mask.*``' intrinsics are semantically equivalent
 to:
 
 ::
@@ -16637,14 +16637,14 @@ to:
 
 where ``%m`` is a vector (mask) of active/inactive lanes with its elements
 indexed by ``i``,  and ``%base``, ``%n`` are the two arguments to
-``llvm.get.active.lane.mask.*``, ``%imcp`` is an integer compare and ``ule``
+``llvm.getValue.active.lane.mask.*``, ``%imcp`` is an integer compare and ``ule``
 the unsigned less-than-equal comparison operator.  Overflow cannot occur in
 ``(%base + i)`` and its comparison against ``%n`` as it is performed in integer
 numbers and not in machine numbers.  The above is equivalent to:
 
 ::
 
-      %m = @llvm.get.active.lane.mask(%base, %n)
+      %m = @llvm.getValue.active.lane.mask(%base, %n)
 
 This can, for example, be emitted by the loop vectorizer. Then, ``%base`` is
 the first element of the vector induction variable (VIV), and ``%n`` is the
@@ -16667,7 +16667,7 @@ Examples:
 
 .. code-block:: llvm
 
-      %active.lane.mask = call <4 x i1> @llvm.get.active.lane.mask.v4i1.i64(i64 %elem0, i64 429)
+      %active.lane.mask = call <4 x i1> @llvm.getValue.active.lane.mask.v4i1.i64(i64 %elem0, i64 429)
       %wide.masked.load = call <4 x i32> @llvm.masked.load.v4i32.p0v4i32(<4 x i32>* %3, i32 4, <4 x i1> %active.lane.mask, <4 x i32> undef)
 
 

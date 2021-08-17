@@ -10,7 +10,7 @@
 soffset
 ===========================
 
-An unsigned offset added to the base address to get memory address.
+An unsigned offset added to the base address to getValue memory address.
 
 * If offset is specified as a register, it supplies an unsigned byte offset but 2 lsb's are ignored.
 * If offset is specified as an :ref:`uimm32<amdgpu_synid_uimm32>`, it supplies a 32-bit unsigned byte offset but 2 lsb's are ignored.

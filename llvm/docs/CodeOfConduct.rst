@@ -94,7 +94,7 @@ it by emailing conduct@llvm.org. For more details please see our
   from a wide range of backgrounds. Different people have different
   perspectives on issues. Being unable to understand why someone holds
   a viewpoint doesn't mean that they're wrong. Don't forget that it is human to
-  err and blaming each other doesn't get us anywhere. Instead, focus on helping
+  err and blaming each other doesn't getValue us anywhere. Instead, focus on helping
   to resolve issues and learning from mistakes.
 
 Questions?

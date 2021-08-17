@@ -678,7 +678,7 @@ class TypeParameterizedTestCase {
     std::string test_name = StripTrailingSpaces(
         GetPrefixUntilComma(test_names));
     if (!state->TestExists(test_name)) {
-      fprintf(stderr, "Failed to get code location for test %s.%s at %s.",
+      fprintf(stderr, "Failed to getValue code location for test %s.%s at %s.",
               case_name, test_name.c_str(),
               FormatFileLocation(code_location.file.c_str(),
                                  code_location.line).c_str());

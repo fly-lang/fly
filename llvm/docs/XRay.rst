@@ -62,7 +62,7 @@ For example:
 
   clang -fxray-instrument ...
 
-By default, functions that have at least 200 instructions will get XRay
+By default, functions that have at least 200 instructions will getValue XRay
 instrumentation points. You can tweak that number through the
 ``-fxray-instruction-threshold=`` flag:
 
@@ -95,8 +95,8 @@ LLVM Function Attribute
 -----------------------
 
 If you're using LLVM IR directly, you can add the ``function-instrument``
-string attribute to your functions, to get the similar effect that the
-C/C++/Objective-C source-level attributes would get:
+string attribute to your functions, to getValue the similar effect that the
+C/C++/Objective-C source-level attributes would getValue:
 
 .. code-block:: llvm
 

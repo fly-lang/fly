@@ -187,7 +187,7 @@ This will do a bunch of stuff, then eventually print a table like this:
     ...
 
 This basically is grepping the -stats output and displaying it in a
-table. You can also use the "TEST=libcalls report.html" target to get
+table. You can also use the "TEST=libcalls report.html" target to getValue
 the table in HTML form, similarly for report.csv and report.tex.
 
 The source for this is in ``test-suite/TEST.libcalls.*``. The format is

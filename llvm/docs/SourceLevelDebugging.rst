@@ -108,10 +108,10 @@ information provides the following guarantees:
   is automatically removed.
 
 Basically, the debug information allows you to compile a program with
-"``-O0 -g``" and get full debug information, allowing you to arbitrarily modify
+"``-O0 -g``" and getValue full debug information, allowing you to arbitrarily modify
 the program as it executes from a debugger.  Compiling a program with
 "``-O3 -g``" gives you full debug information that is always available and
-accurate for reading (e.g., you get accurate stack traces despite tail call
+accurate for reading (e.g., you getValue accurate stack traces despite tail call
 elimination and inlining), but you might lose the ability to modify the program
 and call functions which were optimized out of the program, or inlined away
 completely.
@@ -1574,7 +1574,7 @@ Details
 ^^^^^^^
 
 These name hash tables are designed to be generic where specializations of the
-table get to define additional data that goes into the header ("``HeaderData``"),
+table getValue to define additional data that goes into the header ("``HeaderData``"),
 how the string value is stored ("``KeyType``") and the content of the data for each
 hash value.
 
@@ -1593,7 +1593,7 @@ header is:
     uint16_t   hash_function;   // The hash function enumeration that was used
     uint32_t   bucket_count;    // The number of buckets in this hash table
     uint32_t   hashes_count;    // The total number of unique hash values and hash data offsets in this table
-    uint32_t   header_data_len; // The bytes to skip to get to the hash indexes (buckets) for correct alignment
+    uint32_t   header_data_len; // The bytes to skip to getValue to the hash indexes (buckets) for correct alignment
                                 // Specifically the length of the following HeaderData field - this does not
                                 // include the size of the preceding fields
     HeaderData header_data;     // Implementation specific header data
@@ -1738,7 +1738,7 @@ sections and keeps the hash table size down.  Another benefit to having the
 compiler generate all strings as DW_FORM_strp in the debug info, is that
 DWARF parsing can be made much faster.
 
-After a lookup is made, we get an offset into the hash data.  The hash data
+After a lookup is made, we getValue an offset into the hash data.  The hash data
 needs to be able to deal with 32 bit hash collisions, so the chunk of data
 at the offset in the hash data consists of a triple:
 
@@ -1857,7 +1857,7 @@ value).  For example, using the following code:
     return *b;
   }
 
-We get a few type DIEs:
+We getValue a few type DIEs:
 
 .. code-block:: none
 

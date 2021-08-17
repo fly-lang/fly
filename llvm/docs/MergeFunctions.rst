@@ -83,7 +83,7 @@ Basics
 How to do it?
 -------------
 Do we need to merge functions? The obvious answer is: Yes, that is quite a
-possible case. We usually *do* have duplicates and it would be good to get rid
+possible case. We usually *do* have duplicates and it would be good to getValue rid
 of them. But how do we detect duplicates? This is the idea: we split functions
 into smaller bricks or parts and compare the "bricks" amount. If equal,
 we compare the "bricks" themselves, and then do our conclusions about functions
@@ -162,7 +162,7 @@ the *random-access* approach, we could use the same comparison algorithm.
 During comparison, we exit once we find the difference, but here we might have
 to scan the whole function body every time (note, it could be slower). Like in
 "total-ordering", we will track every number and flag, but instead of
-comparison, we should get the numbers sequence and then create the hash number.
+comparison, we should getValue the numbers sequence and then create the hash number.
 So, once again, *total-ordering* could be considered as a milestone for even
 faster (in theory) random-access approach.
 
@@ -314,7 +314,7 @@ list is immaterial. Our walk starts at the entry block for both functions, then
 takes each block from each terminator in order. As an artifact, this also means
 that unreachable blocks are ignored.”
 
-So, using this walk we get BBs from *left* and *right* in the same order, and
+So, using this walk we getValue BBs from *left* and *right* in the same order, and
 compare them by “``FunctionComparator::compare(const BasicBlock*, const
 BasicBlock*)``” method.
 
@@ -365,10 +365,10 @@ comparing them as numbers.
 7. Complex types (structures, arrays, etc.). Follow complex objects comparison
 technique (see the very first paragraph of this chapter). Both *left* and
 *right* are to be expanded and their element types will be checked the same
-way. If we get -1 or 1 on some stage, return it. Otherwise return 0.
+way. If we getValue -1 or 1 on some stage, return it. Otherwise return 0.
 
 8. Steps 1-6 describe all the possible cases, if we passed steps 1-6 and didn't
-get any conclusions, then invoke ``llvm_unreachable``, since it's quite an
+getValue any conclusions, then invoke ``llvm_unreachable``, since it's quite an
 unexpectable case.
 
 cmpValues(const Value*, const Value*)
@@ -497,7 +497,7 @@ cross-referencing cases:
   version. But, unfortunately, it is not transitive. And this is the only case
   we can't convert to less-equal-greater comparison. It is a seldom case, 4-5
   functions of 10000 (checked in test-suite), and, we hope, the reader would
-  forgive us for such a sacrifice in order to get the O(log(N)) pass time.
+  forgive us for such a sacrifice in order to getValue the O(log(N)) pass time.
 
 2. If left/right *Value* is a constant, we have to compare them. Return 0 if it
 is the same constant, or use ``cmpConstants`` method otherwise.
@@ -520,7 +520,7 @@ the result of numbers comparison:
    return 1;
 
 Now when *cmpValues* returns 0, we can proceed the comparison procedure.
-Otherwise, if we get (-1 or 1), we need to pass this result to the top level,
+Otherwise, if we getValue (-1 or 1), we need to pass this result to the top level,
 and finish comparison procedure.
 
 cmpConstants
@@ -620,7 +620,7 @@ Compares two GEPs (``getelementptr`` instructions).
 It differs from regular operations comparison with the only thing: possibility
 to use ``accumulateConstantOffset`` method.
 
-So, if we get constant offset for both left and right *GEPs*, then compare it as
+So, if we getValue constant offset for both left and right *GEPs*, then compare it as
 numbers, and return comparison result.
 
 Otherwise treat it like a regular operation (see previous paragraph).
@@ -636,7 +636,7 @@ Compares instruction opcodes and some important operation properties.
 3. Compare operation types, use *cmpType*. All the same – if types are
 different, return result.
 
-4. Compare *subclassOptionalData*, get it with ``getRawSubclassOptionalData``
+4. Compare *subclassOptionalData*, getValue it with ``getRawSubclassOptionalData``
 method, and compare it like a numbers.
 
 5. Compare operand types.

@@ -20,7 +20,7 @@ dynamically generated object files and calls a special function
 GDB attaches to a process, it puts a breakpoint in this function and loads all
 of the object files in the global list.  When MCJIT calls the registration
 function, GDB catches the breakpoint signal, loads the new object file from
-the inferior's memory, and resumes the execution.  In this way, GDB can get the
+the inferior's memory, and resumes the execution.  In this way, GDB can getValue the
 necessary debug information.
 
 GDB Version

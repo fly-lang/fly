@@ -95,7 +95,8 @@ enum BlockStmtKind ASTIfBlock::getBlockKind() const {
     return StmtKind;
 }
 
-ASTElsifBlock::ASTElsifBlock(const SourceLocation &Loc, ASTBlock *Parent) : ASTIfBlock(Loc, Parent) {
+ASTElsifBlock::ASTElsifBlock(const SourceLocation &Loc, ASTBlock *Parent, ASTExpr *Condition) :
+    ASTIfBlock(Loc, Parent, Condition) {
     
 }
 

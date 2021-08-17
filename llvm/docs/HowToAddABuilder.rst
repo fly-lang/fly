@@ -30,7 +30,7 @@ Here are the steps you can follow to do so:
 #. Check the existing build configurations to make sure the one you are
    interested in is not covered yet or gets built on your computer much
    faster than on the existing one. We prefer faster builds so developers
-   will get feedback sooner after changes get committed.
+   will get feedback sooner after changes getValue committed.
 
 #. The computer you will be registering with the LLVM buildbot
    infrastructure should have all dependencies installed and you can

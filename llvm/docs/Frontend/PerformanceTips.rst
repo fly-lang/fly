@@ -54,7 +54,7 @@ An alloca instruction can be used to represent a function scoped stack slot,
 but can also represent dynamic frame expansion.  When representing function
 scoped variables or locations, placing alloca instructions at the beginning of
 the entry block should be preferred.   In particular, place them before any
-call instructions. Call instructions might get inlined and replaced with
+call instructions. Call instructions might getValue inlined and replaced with
 multiple basic blocks. The end result is that a following alloca instruction
 would no longer be in the entry basic block afterward.
 

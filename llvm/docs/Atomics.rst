@@ -39,7 +39,7 @@ be moved across a volatile load freely, but not an Acquire load.
 This document is intended to provide a guide to anyone either writing a frontend
 for LLVM or working on optimization passes for LLVM with a guide for how to deal
 with instructions with special semantics in the presence of concurrency. This
-is not intended to be a precise guide to the semantics; the details can get
+is not intended to be a precise guide to the semantics; the details can getValue
 extremely complicated and unreadable, and are not usually necessary.
 
 .. _Optimization outside atomic:
@@ -61,7 +61,7 @@ otherwise.  Take the following example:
 
 .. code-block:: c
 
- /* C code, for readability; run through clang -O2 -S -emit-llvm to get
+ /* C code, for readability; run through clang -O2 -S -emit-llvm to getValue
      equivalent IR */
   int x;
   void f(int* a) {
@@ -413,7 +413,7 @@ ARM), appropriate fences can be emitted by the AtomicExpand Codegen pass if
 
 The MachineMemOperand for all atomic operations is currently marked as volatile;
 this is not correct in the IR sense of volatile, but CodeGen handles anything
-marked volatile very conservatively.  This should get fixed at some point.
+marked volatile very conservatively.  This should getValue fixed at some point.
 
 One very important property of the atomic operations is that if your backend
 supports any inline lock-free atomic operations of a given size, you should

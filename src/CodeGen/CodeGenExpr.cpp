@@ -18,12 +18,13 @@
 
 using namespace fly;
 
-CodeGenExpr::CodeGenExpr(CodeGenModule *CGM, ASTExpr *Expr, const ASTType *Type) : CGM(CGM) {
+CodeGenExpr::CodeGenExpr(CodeGenModule *CGM, llvm::Function *Fn, ASTExpr *Expr, const ASTType *Type) : CGM(CGM),
+    Fn(Fn) {
     Val = Generate(Expr);
     for (auto &Value : PostValues) {
         CGM->Builder->Insert(Value);
     }
-    Convert(Val, Type);
+    Val = Convert(Val, Type);
 }
 
 llvm::Value *CodeGenExpr::getValue() const {
@@ -50,6 +51,7 @@ llvm::Value *CodeGenExpr::Convert(llvm::Value *V, const ASTType *ToType) {
         case TYPE_CLASS:
             return nullptr;
     }
+    assert(0 && "Conversion failed");
 }
 
 llvm::Value *CodeGenExpr::Convert(llvm::Value *V, llvm::Type *ToType) {
@@ -63,6 +65,7 @@ llvm::Value *CodeGenExpr::Convert(llvm::Value *V, llvm::Type *ToType) {
             } else if (FromType->isDoubleTy()) { // INT to DOUBLE
                 return CGM->Builder->CreateFPExt(V, ToType); // FIXME
             } // else do not convert because are equal types
+            return V;
         case Type::DoubleTyID:
             // TODO
             break;
@@ -83,6 +86,7 @@ llvm::Value *CodeGenExpr::Convert(llvm::Value *V, llvm::Type *ToType) {
                         return CGM->Builder->CreateZExt(V, ToType);
                     }
                 } // else do not convert because are equal types
+                return V;
             } else if (FromType->isFloatTy() || FromType->isDoubleTy()) { // TO FLOAT or DOUBLE
                 if (ToBit == 1) {
                     llvm::Value *LHS = llvm::ConstantInt::get(CGM->BoolTy, 0, false);
@@ -102,9 +106,15 @@ llvm::Value *CodeGenExpr::Convert(llvm::Value *V, llvm::Type *ToType) {
 //        case Type::PointerTyID:
 //            break;
     }
+    assert(0 && "Unknown conversion Type");
 }
 
 llvm::Value *CodeGenExpr::GenValue(ASTExpr *Expr) {
+    llvm::Value *Pointer = nullptr;
+    return GenValue(Expr, Pointer);
+}
+
+llvm::Value *CodeGenExpr::GenValue(ASTExpr *Expr, llvm::Value *&Pointer) {
     switch (Expr->getKind()) {
 
         case EXPR_VIRTUAL:
@@ -120,22 +130,19 @@ llvm::Value *CodeGenExpr::GenValue(ASTExpr *Expr) {
         case EXPR_REF_VAR: {
             ASTVarRefExpr *VarRefExpr = (ASTVarRefExpr *)Expr;
             assert(VarRefExpr->getVarRef() && "Missing Ref");
-            ASTVar *VDecl = VarRefExpr->getVarRef()->getDecl();
-            assert(VDecl && "Ref to undeclared var");
-            if (VDecl->isGlobal()) {
-                return ((ASTGlobalVar *) VDecl)->getCodeGen()->getGlobalVar();
-            }
-            return ((ASTVar *) VDecl)->getCodeGen()->get();
+            ASTVar *VarRef = VarRefExpr->getVarRef()->getDecl();
+            assert(VarRef && "Ref to undeclared var");
+            Pointer = VarRef->getCodeGen()->getPointer();
+            return VarRef->getCodeGen()->getValue();
         }
         case EXPR_REF_FUNC: {
             ASTFuncCallExpr *RefExp = (ASTFuncCallExpr *)Expr;
             assert(RefExp->getCall() && "Missing Ref");
-            return CGM->GenCall(RefExp->getCall());
+            return CGM->GenCall(Fn, RefExp->getCall());
         }
         case EXPR_GROUP:
             assert(0 && "Cannot process Group from here");
     }
-    return nullptr;
 }
 
 llvm::Value *CodeGenExpr::GenGroup(ASTGroupExpr *Origin, ASTGroupExpr *New, int Idx, ASTExpr *E1,
@@ -264,7 +271,6 @@ llvm::Value *CodeGenExpr::OpUnary(ASTUnaryExpr *E) {
                     PostValues.push_back(PostV);
                     return V;
                 }
-                break;
             case ARITH_DECR:
                 if (E->getUnaryKind() == UNARY_PRE) { // PRE DECREMENT --a
                     llvm::Value *RHS = llvm::ConstantInt::get(CGM->BoolTy, -1, true);
@@ -275,7 +281,6 @@ llvm::Value *CodeGenExpr::OpUnary(ASTUnaryExpr *E) {
                     PostValues.push_back(PostV);
                     return V;
                 }
-                break;
         }
     }
 
@@ -293,69 +298,63 @@ llvm::Value *CodeGenExpr::OpBinary(ASTExpr *E1, ASTOperatorExpr *OP, ASTExpr *E2
     assert(E1->getKind() != EXPR_OPERATOR && E1->getKind() != EXPR_GROUP && "E1 Error");
     assert(E2->getKind() != EXPR_OPERATOR && E2->getKind() != EXPR_GROUP && "E2 Error");
 
-    llvm::Value *V1 = GenValue(E1);
-    llvm::Value *V2 = GenValue(E2);
-    
+    llvm::Value *PV1 = nullptr;
+
+
     switch (OP->getOpKind()) {
 
         case OP_ARITH:
-            return OpArith(V1, (ASTArithExpr *) OP, V2);
+            return OpArith(E1, (ASTArithExpr *) OP, E2);
         case OP_COMPARISON:
-            return OpComparison(V1, (ASTComparisonExpr *) OP, V2);
+            return OpComparison(E1, (ASTComparisonExpr *) OP, E2);
         case OP_LOGIC:
-            return OpLogic(V1, (ASTLogicExpr *) OP, V2);
+            return OpLogic(E1, (ASTLogicExpr *) OP, E2);
         case OP_COND:
 //            return OpCond(); // TODO
             break;
     }
 
-    return nullptr;
+    assert(0 && "Unknown Operation");
 }
 
-Value *CodeGenExpr::OpArith(llvm::Value *V1, ASTArithExpr *OP, llvm::Value *V2) {
+Value *CodeGenExpr::OpArith(ASTExpr *E1, ASTArithExpr *OP, ASTExpr *E2) {
+    llvm::Value *V1 = GenValue(E1);
+    llvm::Value *V2 = GenValue(E2);
     V2 = Convert(V2, V1->getType()); // Implicit conversion
 
     switch (OP->getArithKind()) {
 
         case ARITH_ADD:
             return CGM->Builder->CreateAdd(V1, V2);
-            break;
         case ARITH_SUB:
             return CGM->Builder->CreateSub(V1, V2);
-            break;
         case ARITH_MUL:
             return CGM->Builder->CreateMul(V1, V2);
-            break;
         case ARITH_DIV:
             return CGM->Builder->CreateSDiv(V1, V2);
-            break;
         case ARITH_MOD:
             return CGM->Builder->CreateSRem(V1, V2);
-            break;
         case ARITH_AND:
             return CGM->Builder->CreateAnd(V1, V2);
-            break;
         case ARITH_OR:
             return CGM->Builder->CreateOr(V1, V2);
-            break;
         case ARITH_XOR:
             return CGM->Builder->CreateXor(V1, V2);
-            break;
         case ARITH_SHIFT_L:
             return CGM->Builder->CreateShl(V1, V2);
-            break;
         case ARITH_SHIFT_R:
             return CGM->Builder->CreateAShr(V1, V2);
-            break;
         case ARITH_INCR:
         case ARITH_DECR:
-            // done into GenIncDec() on start
-            break;
+            assert(0 && "Not a Binary Arith Operation");
     }
-    return nullptr;
+    assert(0 && "Unknown Arith Operation");
 }
 
-Value *CodeGenExpr::OpComparison(llvm::Value *V1, fly::ASTComparisonExpr *OP, llvm::Value *V2) {
+Value *CodeGenExpr::OpComparison(ASTExpr *E1, fly::ASTComparisonExpr *OP, ASTExpr *E2) {
+    llvm::Value *V1 = GenValue(E1);
+    llvm::Value *V2 = GenValue(E2);
+
     if (V1->getType()->isIntegerTy() && V2->getType()->isIntegerTy()) {
         switch (OP->getComparisonKind()) {
 
@@ -399,14 +398,58 @@ Value *CodeGenExpr::OpComparison(llvm::Value *V1, fly::ASTComparisonExpr *OP, ll
     }
 }
 
-Value *CodeGenExpr::OpLogic(llvm::Value *V1, ASTLogicExpr *OP, llvm::Value *V2) {
+Value *CodeGenExpr::OpLogic(ASTExpr *E1, ASTLogicExpr *OP, ASTExpr *E2) {
+    llvm::Value *V1 = GenValue(E1);
+    V1 = Convert(V1, CGM->BoolTy);
+    BasicBlock *FromBB = CGM->Builder->GetInsertBlock();
+
+
+
     switch (OP->getLogicKind()) {
 
-        case LOGIC_AND:
+        case LOGIC_AND: {
+            llvm::BasicBlock *LeftBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "and", Fn);
+            llvm::BasicBlock *RightBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "and", Fn);
 
-            break;
-        case LOGIC_OR:
-            break;
+            // From Branch
+            CGM->Builder->CreateCondBr(V1, LeftBB, RightBB);
+
+            // Left Branch
+            CGM->Builder->SetInsertPoint(LeftBB);
+            llvm::Value *PtrV2 = nullptr;
+            llvm::Value *V2 = GenValue(E2, PtrV2);
+            V2 = Convert(V2, CGM->BoolTy);
+            llvm::Value *V2Trunc = CGM->Builder->CreateTrunc(V2, CGM->BoolTy);
+            CGM->Builder->CreateBr(RightBB);
+
+            // Right Branch
+            CGM->Builder->SetInsertPoint(RightBB);
+            PHINode *Phi = CGM->Builder->CreatePHI(CGM->BoolTy, 2);
+            Phi->addIncoming(llvm::ConstantInt::get(CGM->BoolTy, false, false), FromBB);
+            Phi->addIncoming(V2Trunc, LeftBB);
+            return CGM->Builder->CreateZExt(Phi, CGM->Int8Ty);
+        }
+        case LOGIC_OR: {
+            llvm::BasicBlock *LeftBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "or", Fn);
+            llvm::BasicBlock *RightBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "or", Fn);
+
+            // From Branch
+            CGM->Builder->CreateCondBr(V1, RightBB, LeftBB);
+
+            // Left Branch
+            CGM->Builder->SetInsertPoint(LeftBB);
+            llvm::Value *PtrV2 = nullptr;
+            llvm::Value *V2 = GenValue(E2, PtrV2);
+            llvm::Value *V2Trunc = CGM->Builder->CreateTrunc(V2, CGM->BoolTy);
+            CGM->Builder->CreateBr(RightBB);
+
+            // Right Branch
+            CGM->Builder->SetInsertPoint(RightBB);
+            PHINode *Phi = CGM->Builder->CreatePHI(CGM->BoolTy, 2);
+            Phi->addIncoming(llvm::ConstantInt::get(CGM->BoolTy, true, false), FromBB);
+            Phi->addIncoming(V2Trunc, LeftBB);
+            return CGM->Builder->CreateZExt(Phi, CGM->Int8Ty);
+        }
     }
     return nullptr;
 }

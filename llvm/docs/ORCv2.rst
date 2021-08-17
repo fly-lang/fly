@@ -147,7 +147,7 @@ specified before the JIT instance is constructed. For example:
 
   // ...
 
-For users wanting to get started with LLJIT a minimal example program can be
+For users wanting to getValue started with LLJIT a minimal example program can be
 found at ``llvm/examples/HowToUseLLJIT``.
 
 Design Overview
@@ -214,7 +214,7 @@ main.cpp is part of the "main" dylib, and the main dylib links against LibA
 before LibB.
 
 Many JIT clients will have no need for this strict adherence to the usual
-ahead-of-time linking rules, and should be able to get by just fine by putting
+ahead-of-time linking rules, and should be able to getValue by just fine by putting
 all of their code in a single JITDylib. However, clients who want to JIT code
 for languages/projects that traditionally rely on ahead-of-time linking (e.g.
 C++) will find that this feature makes life much easier.
@@ -528,7 +528,7 @@ How to manage symbol strings
 ----------------------------
 
 Symbol strings in ORC are uniqued to improve lookup performance, reduce memory
-overhead, and allow symbol names to function as efficient keys. To get the
+overhead, and allow symbol names to function as efficient keys. To getValue the
 unique ``SymbolStringPtr`` for a string value, call the
 ``ExecutionSession::intern`` method:
 

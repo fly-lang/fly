@@ -79,28 +79,29 @@ namespace fly {
 
         CodeGenFunction *GenFunction(ASTFunc *FDecl);
 
-        CallInst *GenCall(ASTFuncCall *Call);
+        CallInst *GenCall(llvm::Function *Fn, ASTFuncCall *Call);
 
         Type *GenType(const ASTType *Ty);
 
         llvm::Constant *GenValue(const ASTType *TyData, const ASTValue *Val);
 
-        void GenStmt(ASTStmt * S);
+        void GenStmt(llvm::Function *Fn, ASTStmt * Stmt);
 
-        llvm::Value *GenExpr(const ASTType *Typ, ASTExpr *Expr);
+        llvm::Value *GenExpr(llvm::Function *Fn, const ASTType *Typ, ASTExpr *Expr);
 
-        void GenBlock(const std::vector<ASTStmt *> &Content, llvm::BasicBlock *BB = nullptr);
+        void GenBlock(llvm::Function *Fn, const std::vector<ASTStmt *> &Content, llvm::BasicBlock *BB = nullptr);
 
-        void GenIfBlock(ASTIfBlock *If);
+        void GenIfBlock(llvm::Function *Fn, ASTIfBlock *If);
 
-        llvm::BasicBlock *GenElsifBlock(llvm::Value *Cond, llvm::BasicBlock *TrueBB, ASTIfBlock *TrueBlock,
+        llvm::BasicBlock *GenElsifBlock(llvm::Function *Fn, llvm::Value *Cond, llvm::BasicBlock *TrueBB,
+                                        ASTIfBlock *TrueBlock,
                                         std::vector<ASTElsifBlock *>::iterator It);
 
-        void GenSwitchBlock(ASTSwitchBlock *Switch);
+        void GenSwitchBlock(llvm::Function *Fn, ASTSwitchBlock *Switch);
 
-        void GenForBlock(ASTForBlock *For);
+        void GenForBlock(llvm::Function *Fn, ASTForBlock *For);
 
-        void GenWhileBlock(ASTWhileBlock *While);
+        void GenWhileBlock(llvm::Function *Fn, ASTWhileBlock *While);
     };
 }
 

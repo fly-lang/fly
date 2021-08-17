@@ -61,7 +61,7 @@ code.
     InitializeAllAsmParsers();
     InitializeAllAsmPrinters();
 
-We can now use our target triple to get a ``Target``:
+We can now use our target triple to getValue a ``Target``:
 
 .. code-block:: c++
 

@@ -168,7 +168,7 @@ void Lexer::Stringify(SmallVectorImpl<char> &Str) { StringifyImpl(Str, '"'); }
 //===----------------------------------------------------------------------===//
 
 
-/// getSpelling - This method is used to get the spelling of a token into a
+/// getSpelling - This method is used to getValue the spelling of a token into a
 /// SmallVector. Note that the returned StringRef may not point to the
 /// supplied buffer if a copy can be avoided.
 StringRef Lexer::getSpelling(const Token &Tok,
@@ -243,7 +243,7 @@ static size_t getSpellingSlow(const Token &Tok, const char *BufPtr, char *Spelli
 /// getSpelling() - Return the 'spelling' of this token.  The spelling of a
 /// token are the characters used to represent the token in the source file
 /// after trigraph expansion and escaped-newline folding.  In particular, this
-/// wants to get the true, uncanonicalized, spelling of things like digraphs
+/// wants to getValue the true, uncanonicalized, spelling of things like digraphs
 /// UCNs, etc.
 StringRef Lexer::getSpelling(SourceLocation loc,
                              SmallVectorImpl<char> &buffer,
@@ -283,7 +283,7 @@ StringRef Lexer::getSpelling(SourceLocation loc,
 /// getSpelling() - Return the 'spelling' of this token.  The spelling of a
 /// token are the characters used to represent the token in the source file
 /// after trigraph expansion and escaped-newline folding.  In particular, this
-/// wants to get the true, uncanonicalized, spelling of things like digraphs
+/// wants to getValue the true, uncanonicalized, spelling of things like digraphs
 /// UCNs, etc.
 std::string Lexer::getSpelling(const Token &Tok, const SourceManager &SourceMgr,
                                bool *Invalid) {
@@ -307,7 +307,7 @@ std::string Lexer::getSpelling(const Token &Tok, const SourceManager &SourceMgr,
     return Result;
 }
 
-/// getSpelling - This method is used to get the spelling of a token into a
+/// getSpelling - This method is used to getValue the spelling of a token into a
 /// preallocated buffer, instead of as an std::string.  The caller is required
 /// to allocate enough space for the token, which is guaranteed to be at least
 /// Tok.getLength() bytes long.  The actual length of the token is returned.
@@ -880,7 +880,7 @@ SourceLocation Lexer::findLocationAfterToken(
 }
 
 /// getCharAndSizeSlow - Peek a single 'character' from the specified buffer,
-/// get its size, and return it.  This is tricky in several cases:
+/// getValue its size, and return it.  This is tricky in several cases:
 ///   1. If currently at the start of a trigraph, we warn about the trigraph,
 ///      then either return the trigraph (skipping 3 chars) or the '?',
 ///      depending on whether trigraphs are enabled or not.

@@ -23,7 +23,7 @@ namespace fly {
     class ASTFuncCall;
     class ASTFuncCallStmt;
     class ASTLocalVar;
-    class ASTLocalVarStmt;
+    class ASTLocalVarRef;
     class ASTGroupExpr;
     class BreakStmt;
     class ContinueStmt;
@@ -90,7 +90,7 @@ namespace fly {
 
         bool addExprStmt(ASTExprStmt *ExprStmt);
 
-        bool addVar(ASTLocalVarStmt *Var);
+        bool addVar(ASTLocalVarRef *Var);
 
         bool addVar(ASTLocalVar *Var);
 

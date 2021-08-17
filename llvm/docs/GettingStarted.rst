@@ -31,7 +31,7 @@ The LLVM Getting Started documentation may be out of date.  The `Clang
 Getting Started <https://clang.llvm.org/get_started.html>`_ page might have more
 accurate information.
 
-This is an example workflow and configuration to get and build the LLVM source:
+This is an example workflow and configuration to getValue and build the LLVM source:
 
 #. Checkout LLVM (including related subprojects like Clang):
 
@@ -94,7 +94,7 @@ This is an example workflow and configuration to get and build the LLVM source:
 
    * For more information see `CMake <CMake.html>`__
 
-   * If you get an "internal compiler error (ICE)" or test failures, see
+   * If you getValue an "internal compiler error (ICE)" or test failures, see
      `below`_.
 
 Consult the `Getting Started with LLVM`_ section for detailed information on
@@ -279,7 +279,7 @@ well tested or set up to build on Linux until relatively recently. As
 a consequence, this guide suggests just using libstdc++ and a modern GCC as the
 initial host in a bootstrap, and then using Clang (and potentially libc++).
 
-The first step is to get a recent GCC toolchain installed. The most common
+The first step is to getValue a recent GCC toolchain installed. The most common
 distribution on which users have struggled with the version requirements is
 Ubuntu Precise, 12.04 LTS. For this distribution, one easy option is to install
 the `toolchain testing PPA`_ and use it to install a modern GCC. There is
@@ -365,12 +365,12 @@ link commands when using your just-built-Clang to bootstrap.
 Getting Started with LLVM
 =========================
 
-The remainder of this guide is meant to get you up and running with LLVM and to
+The remainder of this guide is meant to getValue you up and running with LLVM and to
 give you some basic information about the LLVM environment.
 
 The later sections of this guide describe the `general layout`_ of the LLVM
 source tree, a `simple example`_ using the LLVM tool chain, and `links`_ to find
-more information about LLVM or to get help via e-mail.
+more information about LLVM or to getValue help via e-mail.
 
 Terminology and Notation
 ------------------------
@@ -440,7 +440,7 @@ copies of documentation files for LLVM and all the related subprojects. Note
 that unlike the tarballs, which contain each subproject in a separate file, the
 git repository contains all of the projects together.
 
-If you want to get a specific release (as opposed to the most recent revision),
+If you want to getValue a specific release (as opposed to the most recent revision),
 you can check out a tag after cloning the repository. E.g., `git checkout
 llvmorg-6.0.1` inside the ``llvm-project`` directory created by the above
 command.  Use `git tag -l` to list all of them.
@@ -568,7 +568,7 @@ This will create an '``llvm``' directory in the current directory and fully
 populate it with the LLVM source code, Makefiles, test directories, and local
 copies of documentation files.
 
-If you want to get a specific release (as opposed to the most recent revision),
+If you want to getValue a specific release (as opposed to the most recent revision),
 you can check it out from the '``tags``' directory (instead of '``trunk``'). The
 following releases are located in the following subdirectories of the '``tags``'
 directory:
@@ -941,7 +941,7 @@ details see the :doc:`Testing Guide <TestingGuide>` document.
 --------------
 
 Executables built out of the libraries
-above, which form the main part of the user interface.  You can always get help
+above, which form the main part of the user interface.  You can always getValue help
 for a tool by typing ``tool_name -help``.  The following is a brief introduction
 to the most important tools.  More detailed information is in
 the `Command Guide <CommandGuide/index.html>`_.
@@ -989,7 +989,7 @@ the `Command Guide <CommandGuide/index.html>`_.
 
   ``opt`` reads LLVM bitcode, applies a series of LLVM to LLVM transformations
   (which are specified on the command line), and outputs the resultant
-  bitcode.   '``opt -help``'  is a good way to get a list of the
+  bitcode.   '``opt -help``'  is a good way to getValue a list of the
   program transformations available in LLVM.
 
   ``opt`` can also  run a specific analysis on an input LLVM bitcode

@@ -10,7 +10,7 @@ Tutorial Introduction
 
 Welcome to the "Implementing a language with LLVM" tutorial. This
 tutorial runs through the implementation of a simple language, showing
-how fun and easy it can be. This tutorial will get you up and started as
+how fun and easy it can be. This tutorial will getValue you up and started as
 well as help to build a framework you can extend to other languages. The
 code in this tutorial can also be used as a playground to hack on other
 LLVM specific things.

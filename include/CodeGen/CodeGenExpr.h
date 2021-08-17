@@ -50,8 +50,10 @@ namespace fly {
 
         std::vector<llvm::Value *> PostValues;
 
+        llvm::Function *Fn;
+
     public:
-        CodeGenExpr(CodeGenModule *CGM, ASTExpr *Expr, const ASTType *Type);
+        CodeGenExpr(CodeGenModule *CGM, llvm::Function *Fn, ASTExpr *Expr, const ASTType *Type);
 
         llvm::Value *getValue() const;
 
@@ -62,6 +64,8 @@ namespace fly {
         llvm::Value *Convert(llvm::Value *V, llvm::Type *ToType);
 
         llvm::Value *GenValue(ASTExpr *Origin);
+
+        llvm::Value *GenValue(ASTExpr *Origin, llvm::Value *&Pointer);
 
         llvm::Value *GenGroup(ASTGroupExpr *Origin, ASTGroupExpr *New, int Idx, ASTExpr *E1 = nullptr,
                               ASTOperatorExpr * OP1 = nullptr);
@@ -74,11 +78,11 @@ namespace fly {
 
         llvm::Value *OpBinary(ASTExpr *E1, ASTOperatorExpr *OP, ASTExpr *E2);
 
-        Value *OpArith(llvm::Value *V1, ASTArithExpr *OP, llvm::Value *V2);
+        Value *OpArith(ASTExpr *E1, ASTArithExpr *OP, ASTExpr *E2);
 
-        Value *OpComparison(llvm::Value *V1, fly::ASTComparisonExpr *OP, llvm::Value *V2);
+        Value *OpComparison(ASTExpr *E1, fly::ASTComparisonExpr *OP, ASTExpr *E2);
 
-        Value *OpLogic(llvm::Value *V1, ASTLogicExpr *OP, llvm::Value *V2);
+        Value *OpLogic(ASTExpr *E1, ASTLogicExpr *OP, ASTExpr *E2);
     };
 }
 

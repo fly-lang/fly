@@ -11,7 +11,7 @@ You can also _Posting in Discussions_ for all arguments which not need to be tra
 
 ## Opening Issues
 Use the [issue tracker](https://github.com/fly-lang/fly/issues) to suggest feature requests, report bugs, and ask questions.
-This is also a great way to connect with the developers of the project and get
+This is also a great way to connect with the developers of the project and getValue
 confirmation of your bug or approval for your feature request this way before starting to code.
 
 ## Doing code changes

@@ -13,18 +13,26 @@
 using namespace fly;
 
 ASTLocalVar::ASTLocalVar(const SourceLocation &Loc, ASTBlock *Block, ASTType *Type, const StringRef &Name) :
-        ASTExprStmt(Loc, Block), ASTVar(Type, Name) {}
+        ASTExprStmt(Loc, Block), ASTVar(Type, Name) {
+    switch (Type->getKind()) {
+
+        case TYPE_INT:
+            setExpr(new ASTValueExpr(Loc, new ASTValue(Loc, "0", Type)));
+            break;
+        case TYPE_FLOAT:
+            setExpr(new ASTValueExpr(Loc, new ASTValue(Loc, "0", Type)));
+            break;
+        case TYPE_BOOL:
+            setExpr(new ASTValueExpr(Loc, new ASTValue(Loc, "false", Type)));
+            break;
+        case TYPE_CLASS:
+            setExpr(new ASTValueExpr(Loc, new ASTValue(Loc, "null", Type)));
+            break;
+    }
+}
 
 StmtKind ASTLocalVar::getKind() const {
     return Kind;
-}
-
-unsigned long ASTLocalVar::getOrder() const {
-    return Order;
-}
-
-void ASTLocalVar::setOrder(unsigned long order) {
-    Order = order;
 }
 
 ASTExpr *ASTLocalVar::getExpr() const {
@@ -43,12 +51,17 @@ void ASTLocalVar::setCodeGen(CodeGenLocalVar *CG) {
     CodeGen = CG;
 }
 
-ASTLocalVarStmt::ASTLocalVarStmt(const SourceLocation &Loc, ASTBlock *Block, const llvm::StringRef &Name,
-                                 const StringRef &NameSpace) :
+ASTLocalVarRef::ASTLocalVarRef(const SourceLocation &Loc, ASTBlock *Block, const llvm::StringRef &Name,
+                               const StringRef &NameSpace) :
         ASTExprStmt(Loc, Block), ASTVarRef(Loc, Name, NameSpace) {
 
 }
 
-StmtKind ASTLocalVarStmt::getKind() const {
+ASTLocalVarRef::ASTLocalVarRef(const SourceLocation &Loc, ASTBlock *Block, ASTVarRef Var) :
+        ASTExprStmt(Loc, Block), ASTVarRef(Var) {
+
+}
+
+StmtKind ASTLocalVarRef::getKind() const {
     return STMT_VAR_ASSIGN;
 }

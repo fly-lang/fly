@@ -144,7 +144,7 @@ non-obvious ways.  Here are some hints and tips:
 
     $ bugpoint  ... |& tee bugpoint.log
 
-  to get a copy of ``bugpoint``'s output in the file ``bugpoint.log``, as well
+  to getValue a copy of ``bugpoint``'s output in the file ``bugpoint.log``, as well
   as on your terminal.
 
 * ``bugpoint`` cannot debug problems with the LLVM linker. If ``bugpoint``

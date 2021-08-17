@@ -426,7 +426,7 @@ bool Parser::ParseStmt(ASTBlock *Block) {
             }
         } else { // variable assign
             // a = ...
-            ASTLocalVarStmt* Var = new ASTLocalVarStmt(Loc, Block, Id->getName());
+            ASTLocalVarRef* Var = new ASTLocalVarRef(Loc, Block, Id->getName());
             ASTExpr *Expr = ParseStmtExpr(Block, Var, Success);
             Var->setExpr(Expr);
             return Block->addVar(Var);
@@ -512,40 +512,37 @@ bool Parser::ParseIfStmt(ASTBlock *Block) {
 
     // Init the current statement parsing if, elsif or else keywords
     switch (Tok.getKind()) {
-        case tok::kw_if:
+        case tok::kw_if: {
             ConsumeToken();
-            Stmt = new ASTIfBlock(Loc, Block);
+            // Parse (
+            bool hasParen = ParseStartParen();
+            // Parse the group of expressions into parenthesis
+            ASTExpr *Expr = ParseExpr(Block, Success);
+            // Parse ) if exists
+            ParseEndParen(hasParen);
+            Stmt = new ASTIfBlock(Loc, Block, Expr);
+        }
             break;
-        case tok::kw_elsif:
+        case tok::kw_elsif: {
             ConsumeToken();
-            Stmt = new ASTElsifBlock(Loc, Block);
+            // Parse (
+            bool hasParen = ParseStartParen();
+            // Parse the group of expressions into parenthesis
+            ASTExpr *Expr = ParseExpr(Block, Success);
+            // Parse ) if exists
+            ParseEndParen(hasParen);
+            Stmt = new ASTElsifBlock(Loc, Block, Expr);
             ASTIfBlock::AddBranch(Block, Stmt);
+        }
             break;
-        case tok::kw_else:
+        case tok::kw_else: {
             ConsumeToken();
             Stmt = new ASTElseBlock(Loc, Block);
             ASTIfBlock::AddBranch(Block, Stmt);
+        }
             break;
         default:
             assert(0 && "Unknow conditional statement");
-    }
-
-    // Check parenthesis content only for If and Elsif
-    // Parse (
-    bool hasParen = ParseStartParen();
-
-    if (Stmt->getBlockKind() == BlockStmtKind::BLOCK_STMT_IF ||
-            Stmt->getBlockKind() == BlockStmtKind::BLOCK_STMT_ELSIF) {
-
-        // Parse the group of expressions into parenthesis
-        ASTIfBlock *IfStmt = (ASTIfBlock *) Stmt;
-        IfStmt->Condition = ParseExpr(Block, Success);
-        if (IfStmt->Condition == nullptr) {
-            return false;
-        }
-
-        // Consume Right Parenthesis ) if exists
-        ParseEndParen(hasParen);
     }
 
     // Parse statement between braces for If, Elsif, Else
@@ -682,8 +679,8 @@ bool Parser::ParseWhileStmt(ASTBlock *Block) {
     // Consume Left Parenthesis ( if exists
     bool hasParen = ParseStartParen();
 
-    ASTWhileBlock *While = new ASTWhileBlock(Loc, Block);
-    While->Cond = ParseExpr(Block, Success);
+    ASTExpr *Cond = ParseExpr(Block, Success);
+    ASTWhileBlock *While = new ASTWhileBlock(Loc, Block, Cond);
 
     // Consume Right Parenthesis ) if exists
     ParseEndParen(hasParen);

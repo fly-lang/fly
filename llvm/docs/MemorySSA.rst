@@ -13,7 +13,7 @@ interactions between various memory operations. Its goal is to replace
 ``MemoryDependenceAnalysis`` for most (if not all) use-cases. This is because,
 unless you're very careful, use of ``MemoryDependenceAnalysis`` can easily
 result in quadratic-time algorithms in LLVM. Additionally, ``MemorySSA`` doesn't
-have as many arbitrary limits as ``MemoryDependenceAnalysis``, so you should get
+have as many arbitrary limits as ``MemoryDependenceAnalysis``, so you should getValue
 better results, too. One common use of ``MemorySSA`` is to quickly find out
 that something definitely cannot happen (for example, reason that a hoist
 out of a loop can't happen).
@@ -193,7 +193,7 @@ Design of MemorySSA
 ``MemorySSA`` is an analysis that can be built for any arbitrary function. When
 it's built, it does a pass over the function's IR in order to build up its
 mapping of ``MemoryAccess``\ es. You can then query ``MemorySSA`` for things
-like the dominance relation between ``MemoryAccess``\ es, and get the
+like the dominance relation between ``MemoryAccess``\ es, and getValue the
 ``MemoryAccess`` for any given ``Instruction`` .
 
 When ``MemorySSA`` is done building, it also hands you a ``MemorySSAWalker``

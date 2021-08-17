@@ -100,7 +100,7 @@ Quick start
 
 The tests are located in two separate Subversion modules. The unit and
 regression tests are in the main "llvm" module under the directories
-``llvm/unittests`` and ``llvm/test`` (so you get these tests for free with the
+``llvm/unittests`` and ``llvm/test`` (so you getValue these tests for free with the
 main LLVM tree). Use ``make check-all`` to run the unit and regression tests
 after building LLVM.
 
@@ -122,7 +122,7 @@ To run all of the LLVM regression tests use the check-llvm target:
 
     % make check-llvm
 
-In order to get reasonable testing performance, build LLVM and subprojects
+In order to getValue reasonable testing performance, build LLVM and subprojects
 in release mode, i.e.
 
 .. code-block:: bash
@@ -193,7 +193,7 @@ have a ``lit.local.cfg`` file. :program:`lit` looks for this file to determine
 how to run the tests. This file is just Python code and thus is very
 flexible, but we've standardized it for the LLVM regression tests. If
 you're adding a directory of tests, just copy ``lit.local.cfg`` from
-another directory to get running. The standard ``lit.local.cfg`` simply
+another directory to getValue running. The standard ``lit.local.cfg`` simply
 specifies which files to look in for tests. Any directory that contains
 only directories does not need the ``lit.local.cfg`` file. Read the :doc:`Lit
 documentation <CommandGuide/lit>` for more information.
@@ -240,7 +240,7 @@ redirection to be used.
 
 There are some quoting rules that you must pay attention to when writing
 your RUN lines. In general nothing needs to be quoted. :program:`lit` won't
-strip off any quote characters so they will get passed to the invoked program.
+strip off any quote characters so they will getValue passed to the invoked program.
 To avoid this use curly braces to tell :program:`lit` that it should treat
 everything enclosed as one value.
 
@@ -543,7 +543,7 @@ RUN lines:
    Invokes the Clang frontend.
 
 ``%itanium_abi_triple``, ``%ms_abi_triple``
-   These substitutions can be used to get the current target triple adjusted to
+   These substitutions can be used to getValue the current target triple adjusted to
    the desired ABI. For example, if the test suite is running with the
    ``i686-pc-win32`` target, ``%itanium_abi_triple`` will expand to
    ``i686-pc-mingw32``. This allows a test to run with a specific ABI without
@@ -594,7 +594,7 @@ the lines of the test case for ones that contain a pattern that matches
 ``PR[0-9]+``. This is the syntax for specifying a PR (Problem Report) number
 that is related to the test case. The number after "PR" specifies the
 LLVM Bugzilla number. When a PR number is specified, it will be used in
-the pass/fail reporting. This is useful to quickly get some context when
+the pass/fail reporting. This is useful to quickly getValue some context when
 a test fails.
 
 Finally, any line that contains "END." will cause the special

@@ -185,7 +185,7 @@ public:
   /// returns a pointer to the start of it in the text buffer if known, null
   /// otherwise.
   const char *getLiteralData() const {
-    assert(isLiteral() && "Cannot get literal data of non-literal");
+    assert(isLiteral() && "Cannot getValue literal data of non-literal");
     return reinterpret_cast<const char*>(PtrData);
   }
   void setLiteralData(const char *Ptr) {

@@ -201,8 +201,8 @@ representation.
 
 Instead, the statepoint intrinsic marks the actual site of the
 safepoint or statepoint.  The statepoint returns a token value (which
-exists only at compile time).  To get back the original return value
-of the call, we use the ``gc.result`` intrinsic.  To get the relocation
+exists only at compile time).  To getValue back the original return value
+of the call, we use the ``gc.result`` intrinsic.  To getValue the relocation
 of each pointer in turn, we use the ``gc.relocate`` intrinsic with the
 appropriate index.  Note that both the ``gc.relocate`` and ``gc.result`` are
 tied to the statepoint.  The combination forms a "statepoint relocation 
@@ -333,7 +333,7 @@ over the associated call safepoint even if the base is otherwise unused
 afterwards.
 
 If we extend our previous example to include a pointless derived pointer, 
-we get:
+we getValue:
 
 .. code-block:: llvm
 

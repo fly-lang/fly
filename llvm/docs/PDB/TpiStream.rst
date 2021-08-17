@@ -288,7 +288,7 @@ accurate.
   of pairs of uint32_t's where the first value is a :ref:`Type Index
   <type_indices>` and the second value is the offset in the type record data of
   the type with this index.  This can be used to do a binary search followed by
-  a linear search to get O(log n) lookup by type index.
+  a linear search to getValue O(log n) lookup by type index.
 
 - **HashAdjBufferOffset / HashAdjBufferLength** - The offset and size within
   the TPI hash stream of a serialized hash table whose keys are the hash values

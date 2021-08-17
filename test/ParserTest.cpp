@@ -313,7 +313,7 @@ namespace {
         EXPECT_EQ(static_cast<ASTValueExpr *>(Group1->getGroup()[2])->getValue().str(), "1.0");
 
         // Test: a += 2
-        const ASTLocalVarStmt *aVar = static_cast<ASTLocalVarStmt *>(Body->getContent()[3]);
+        const ASTLocalVarRef *aVar = static_cast<ASTLocalVarRef *>(Body->getContent()[3]);
         EXPECT_EQ(aVar->getName(), "a");
         EXPECT_EQ(aVar->getExpr()->getKind(), ExprKind::EXPR_GROUP);
         ASTGroupExpr *Group2 = static_cast<ASTGroupExpr *>(aVar->getExpr());
@@ -325,7 +325,7 @@ namespace {
         EXPECT_EQ(opC1Expr->getValue().str(), "2");
 
         // Test: c = b == 1.0
-        const ASTLocalVarStmt *c2Var = static_cast<ASTLocalVarStmt *>(Body->getContent()[4]);
+        const ASTLocalVarRef *c2Var = static_cast<ASTLocalVarRef *>(Body->getContent()[4]);
         EXPECT_EQ(c2Var->getName(), "c");
         EXPECT_EQ(c2Var->getExpr()->getKind(), ExprKind::EXPR_GROUP);
         ASTGroupExpr *Group3 = static_cast<ASTGroupExpr *>(c2Var->getExpr());
@@ -447,7 +447,7 @@ namespace {
         EXPECT_EQ(a4Unary->getVarRef()->getName(), "a");
 
         // a = ++a + 1
-        const ASTLocalVarStmt *a5Var = static_cast<ASTLocalVarStmt *>(Body->getContent()[4]);
+        const ASTLocalVarRef *a5Var = static_cast<ASTLocalVarRef *>(Body->getContent()[4]);
         EXPECT_EQ(a5Var->getExpr()->getKind(), EXPR_GROUP);
         ASTExpr *E1 = ((ASTGroupExpr *) a5Var->getExpr())->getGroup()[0];
         EXPECT_EQ(E1->getKind(), EXPR_OPERATOR);
@@ -499,12 +499,12 @@ namespace {
         EXPECT_EQ(static_cast<ASTComparisonExpr *>(ElsifCond->getGroup()[1])->getComparisonKind(),
                   ComparisonOpKind::COMP_EQ);
         EXPECT_EQ(static_cast<ASTValueExpr *>(ElsifCond->getGroup()[2])->getValue().str(), "2");
-        EXPECT_EQ(static_cast<ASTLocalVarStmt *>(EIStmt->getContent()[0])->getName(), "b");
+        EXPECT_EQ(static_cast<ASTLocalVarRef *>(EIStmt->getContent()[0])->getName(), "b");
 
         // Else
         ASTElseBlock *EEStmt = static_cast<ASTElseBlock *>(Body->getContent()[2]);
         EXPECT_EQ(EEStmt->getBlockKind(), BlockStmtKind::BLOCK_STMT_ELSE);
-        EXPECT_EQ(static_cast<ASTLocalVarStmt *>(EEStmt->getContent()[0])->getName(), "b");
+        EXPECT_EQ(static_cast<ASTLocalVarRef *>(EEStmt->getContent()[0])->getName(), "b");
 
         delete AST;
     }
@@ -549,7 +549,7 @@ namespace {
         // Else
         ASTElseBlock *EEStmt = static_cast<ASTElseBlock *>(Body->getContent()[2]);
         EXPECT_EQ(EEStmt->getBlockKind(), BlockStmtKind::BLOCK_STMT_ELSE);
-        EXPECT_EQ(static_cast<ASTLocalVarStmt *>(EEStmt->getContent()[0])->getName(), "a");
+        EXPECT_EQ(static_cast<ASTLocalVarRef *>(EEStmt->getContent()[0])->getName(), "a");
 
         delete AST;
     }

@@ -54,7 +54,7 @@ centered around optimized code. First, optimization makes keeping source
 locations more difficult. In LLVM IR we keep the original source location
 for each IR level instruction on the instruction. Optimization passes
 should keep the source locations for newly created instructions, but merged
-instructions only get to keep a single location - this can cause jumping
+instructions only getValue to keep a single location - this can cause jumping
 around when stepping through optimized programs. Secondly, optimization
 can move variables in ways that are either optimized out, shared in memory
 with other variables, or difficult to track. For the purposes of this
@@ -143,7 +143,7 @@ code is that the LLVM IR goes to standard error:
 
      // Set the global so the code gen can use this.
 
-This relatively small set of changes get us to the point that we can compile
+This relatively small set of changes getValue us to the point that we can compile
 our piece of Kaleidoscope language down to an executable program via this
 command line:
 
@@ -341,7 +341,7 @@ We use a small helper function for this:
     else
       Scope = LexicalBlocks.back();
     Builder.SetCurrentDebugLocation(
-        DebugLoc::get(AST->getLine(), AST->getCol(), Scope));
+        DebugLoc::getValue(AST->getLine(), AST->getCol(), Scope));
   }
 
 This both tells the main ``IRBuilder`` where we are, but also what scope
@@ -380,7 +380,7 @@ Variables
 =========
 
 Now that we have functions, we need to be able to print out the variables
-we have in scope. Let's get our function arguments set up so we can get
+we have in scope. Let's get our function arguments set up so we can getValue
 decent backtraces and see how our functions are being called. It isn't
 a lot of code, and we generally handle it when we're creating the
 argument allocas in ``FunctionAST::codegen``.
@@ -400,7 +400,7 @@ argument allocas in ``FunctionAST::codegen``.
           true);
 
       DBuilder->insertDeclare(Alloca, D, DBuilder->createExpression(),
-                              DebugLoc::get(LineNo, 0, SP),
+                              DebugLoc::getValue(LineNo, 0, SP),
                               Builder.GetInsertBlock());
 
       // Store the initial value into the alloca.
@@ -437,7 +437,7 @@ body of the function:
 
 .. code-block:: c++
 
-  KSDbgInfo.emitLocation(Body.get());
+  KSDbgInfo.emitLocation(Body.getValue());
 
 With this we have enough debug information to set breakpoints in functions,
 print out argument variables, and call functions. Not too bad for just a

@@ -86,7 +86,7 @@ For example, try adding:
 
 Have fun - try doing something crazy and unusual. Building a language
 like everyone else always has, is much less fun than trying something a
-little crazy or off the wall and seeing how it turns out. If you get
+little crazy or off the wall and seeing how it turns out. If you getValue
 stuck or want to talk about it, feel free to email the `llvm-dev mailing
 list <http://lists.llvm.org/mailman/listinfo/llvm-dev>`_: it has lots
 of people who are interested in languages and are often willing to help
@@ -101,7 +101,7 @@ Properties of the LLVM IR
 =========================
 
 We have a couple of common questions about code in the LLVM IR form -
-let's just get these out of the way right now, shall we?
+let's just getValue these out of the way right now, shall we?
 
 Target Independence
 -------------------
@@ -182,7 +182,7 @@ information".  Here are a few observations about this:
 First, you're right that LLVM does lose information. For example, as of
 this writing, there is no way to distinguish in the LLVM IR whether an
 SSA-value came from a C "int" or a C "long" on an ILP32 machine (other
-than debug info). Both get compiled down to an 'i32' value and the
+than debug info). Both getValue compiled down to an 'i32' value and the
 information about what it came from is lost. The more general issue
 here, is that the LLVM type system uses "structural equivalence" instead
 of "name equivalence". Another place this surprises people is if you

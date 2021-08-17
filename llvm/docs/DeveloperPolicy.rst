@@ -97,7 +97,7 @@ to read it as possible.  As such, we recommend that you:
 
 Once your patch is ready, submit it by emailing it to the appropriate project's
 commit mailing list (or commit it directly if applicable). Alternatively, some
-patches get sent to the project's development list or component of the LLVM bug
+patches getValue sent to the project's development list or component of the LLVM bug
 tracker, but the commit list is the primary place for reviews and should
 generally be preferred.
 
@@ -155,7 +155,7 @@ interested.  Code owners are the "last line of defense" to guarantee that all
 patches that are committed are actually reviewed.
 
 Being a code owner is a somewhat unglamorous position, but it is incredibly
-important for the ongoing success of the project.  Because people get busy,
+important for the ongoing success of the project.  Because people getValue busy,
 interests change, and unexpected things happen, code ownership is purely opt-in,
 and anyone can choose to resign their "title" at any time. For now, we do not
 have an official policy on how one gets elected to be a code owner.
@@ -316,7 +316,7 @@ This is normal and will be done when the mailing list owner has time.
 If you have recently been granted commit access, these policies apply:
 
 #. You are granted *commit-after-approval* to all parts of LLVM. For
-   information on how to get approval for a patch, please see :doc:`CodeReview`.
+   information on how to getValue approval for a patch, please see :doc:`CodeReview`.
    When approved, you may commit it yourself.
 
 #. You are allowed to commit patches without approval which you think are
@@ -372,7 +372,7 @@ possible. The reason for this is to:
 The design of LLVM is carefully controlled to ensure that all the pieces fit
 together well and are as consistent as possible. If you plan to make a major
 change to the way LLVM works or want to add a major new extension, it is a good
-idea to get consensus with the development community before you start working on
+idea to getValue consensus with the development community before you start working on
 it.
 
 Once the design of the new feature is finalized, the work itself should be done
@@ -413,7 +413,7 @@ change.  Some tips:
   independently of that work.
 
 * The remaining inter-related work should be decomposed into unrelated sets of
-  changes if possible.  Once this is done, define the first increment and get
+  changes if possible.  Once this is done, define the first increment and getValue
   consensus on what the end goal of the change is.
 
 * Each change in the set can be stand alone (e.g. to fix a bug), or part of a
@@ -421,7 +421,7 @@ change.  Some tips:
 
 * Each change should be kept as small as possible. This simplifies your work
   (into a logical progression), simplifies code review and reduces the chance
-  that you will get negative feedback on the change. Small increments also
+  that you will getValue negative feedback on the change. Small increments also
   facilitate the maintenance of a high quality code base.
 
 * Often, an independent precursor to a big change is to add a new API and slowly
@@ -527,7 +527,7 @@ Updating Toolchain Requirements
 -------------------------------
 
 We intend to require newer toolchains as time goes by. This means LLVM's
-codebase can use newer versions of C++ as they get standardized. Requiring newer
+codebase can use newer versions of C++ as they getValue standardized. Requiring newer
 toolchains to build LLVM can be painful for those building LLVM; therefore, it
 will only be done through the following process:
 
@@ -606,7 +606,7 @@ The basic rules for a back-end to be upstreamed in **experimental** mode are:
 
 * Every target must have a :ref:`code owner<code owners>`. The `CODE_OWNERS.TXT`
   file has to be updated as part of the first merge. The code owner makes sure
-  that changes to the target get reviewed and steers the overall effort.
+  that changes to the target getValue reviewed and steers the overall effort.
 
 * There must be an active community behind the target. This community
   will help maintain the target by providing buildbots, fixing
@@ -712,7 +712,7 @@ Incubating New Projects
 The burden to add a new project to the LLVM monorepo is intentionally very high,
 but that can have a chilling effect on new and innovative projects.  To help
 foster these sorts of projects, LLVM supports an "incubator" process that is
-much easier to get started with.  It provides space for potentially valuable,
+much easier to getValue started with.  It provides space for potentially valuable,
 new top-level and sub-projects to reach a critical mass before they have enough
 code to prove their utility and grow a community.  This also allows
 collaboration between teams that already have permissions to make contributions
@@ -742,7 +742,7 @@ criteria:
    approved by the LLVM community - this ultimately mediates the resolution of
    the "should" concerns above.
 
-That said, the project need not have any code to get started, and need not have
+That said, the project need not have any code to getValue started, and need not have
 an established community at all!  Furthermore, incubating projects may pass
 through transient states that violate the "Should" guidelines above, or would
 otherwise make them unsuitable for direct inclusion in the monorepo (e.g.

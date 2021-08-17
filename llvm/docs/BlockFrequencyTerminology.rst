@@ -100,7 +100,7 @@ After analysing the complete series of DAGs, each block has a mass (local to
 its containing loop, if any), and each loop pseudo-node has a loop scale and
 its own mass (from its parent's DAG).
 
-We can get an initial frequency assignment (with entry frequency of 1.0) by
+We can getValue an initial frequency assignment (with entry frequency of 1.0) by
 multiplying these masses and loop scales together.  A given block's frequency
 is the product of its mass, the mass of containing loops' pseudo nodes, and the
 containing loops' loop scales.

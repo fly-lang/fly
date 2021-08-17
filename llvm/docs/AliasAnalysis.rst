@@ -47,7 +47,7 @@ several different ways.  In particular, memory objects are represented as a
 starting address and size, and function calls are represented as the actual
 ``call`` or ``invoke`` instructions that performs the call.  The
 ``AliasAnalysis`` interface also exposes some helper methods which allow you to
-get mod/ref information for arbitrary instructions.
+getValue mod/ref information for arbitrary instructions.
 
 All ``AliasAnalysis`` interfaces require that in queries involving multiple
 values, values which are not :ref:`constants <constants>` are all
@@ -278,7 +278,7 @@ implementing, you just override the interfaces you can improve.
 
 With only one special exception (the :ref:`-no-aa <aliasanalysis-no-aa>` pass)
 every alias analysis pass chains to another alias analysis implementation (for
-example, the user can specify "``-basic-aa -ds-aa -licm``" to get the maximum
+example, the user can specify "``-basic-aa -ds-aa -licm``" to getValue the maximum
 benefit from both alias analyses).  The alias analysis class automatically
 takes care of most of this for methods that you don't override.  For methods
 that you do override, in code paths that return a conservative MayAlias or
@@ -485,7 +485,7 @@ Using the ``AliasAnalysis`` interface directly
 If neither of these utility class are what your pass needs, you should use the
 interfaces exposed by the ``AliasAnalysis`` class directly.  Try to use the
 higher-level methods when possible (e.g., use mod/ref information instead of the
-`alias`_ method directly if possible) to get the best precision and efficiency.
+`alias`_ method directly if possible) to getValue the best precision and efficiency.
 
 Existing alias analysis implementations and clients
 ===================================================

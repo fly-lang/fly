@@ -62,7 +62,7 @@ will point at the already-compiled function, so there is no further overhead
 from the compiler. We will look at this process in more detail in the next
 chapter of this tutorial, but for now we'll trust the CompileOnDemandLayer to
 set all the stubs and callbacks up for us. All we need to do is to add the
-CompileOnDemandLayer to the top of our stack and we'll get the benefits of
+CompileOnDemandLayer to the top of our stack and we'll getValue the benefits of
 lazy compilation. We just need a few changes to the source:
 
 .. code-block:: c++

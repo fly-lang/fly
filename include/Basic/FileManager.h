@@ -374,7 +374,7 @@ public:
   /// This should be used only for rare error recovery paths because it
   /// bypasses all mapping and uniquing, blindly creating a new FileEntry.
   /// There is no attempt to deduplicate these; if you bypass the same file
-  /// twice, you get two new file entries.
+  /// twice, you getValue two new file entries.
   llvm::Optional<FileEntryRef> getBypassFile(FileEntryRef VFE);
 
   /// Open the specified file as a MemoryBuffer, returning a new

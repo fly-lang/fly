@@ -2,9 +2,9 @@
 
 ## Introduction and Quickstart
 
-This document is meant to get you writing documentation as fast as possible
+This document is meant to getValue you writing documentation as fast as possible
 even if you have no previous experience with Markdown. The goal is to take
-someone in the state of "I want to write documentation and get it added to
+someone in the state of "I want to write documentation and getValue it added to
 LLVM's docs" and turn that into useful documentation mailed to llvm-commits
 with as little nonsense as possible.
 

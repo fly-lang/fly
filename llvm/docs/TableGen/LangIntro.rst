@@ -291,7 +291,7 @@ supported include:
   'b' if the result of 'int' or 'bit' operator 'a' is nonzero, 'c' otherwise.
 
 ``!cond(condition_1 : val1, condition_2 : val2, ..., condition_n : valn)``
-    Instead of embedding !if inside !if which can get cumbersome,
+    Instead of embedding !if inside !if which can getValue cumbersome,
     one can use !cond. !cond returns 'val1' if the result of 'int' or 'bit'
     operator 'condition1' is nonzero. Otherwise, it checks 'condition2'.
     If 'condition2' is nonzero, returns 'val2', and so on.
@@ -346,7 +346,7 @@ Here is a simple TableGen file:
   }
 
 This example defines two definitions, ``X`` and ``Y``, both of which derive from
-the ``C`` class.  Because of this, they both get the ``V`` bit value.  The ``Y``
+the ``C`` class.  Because of this, they both getValue the ``V`` bit value.  The ``Y``
 definition also gets the Greeting member as well.
 
 In general, classes are useful for collecting together the commonality between a

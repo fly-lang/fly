@@ -31,8 +31,12 @@ CodeGenLocalVar::CodeGenLocalVar(CodeGenModule *CGM, ASTFuncParam *P) : CGM(CGM)
     AllocaI->getAllocatedType();
 }
 
-llvm::UnaryInstruction *CodeGenLocalVar::get() {
-    return isStored ? (needLoad ? Load() : LoadI) : (llvm::UnaryInstruction *) AllocaI;
+llvm::Value *CodeGenLocalVar::getPointer() {
+    return AllocaI;
+}
+
+llvm::Value *CodeGenLocalVar::getValue() {
+    return isStored ? (needReload() ? Load() : LoadI) : (llvm::UnaryInstruction *) AllocaI;
 }
 
 llvm::StoreInst *CodeGenLocalVar::Store(llvm::Value *Val) {
@@ -40,13 +44,19 @@ llvm::StoreInst *CodeGenLocalVar::Store(llvm::Value *Val) {
     assert(AllocaI && "Cannot store into unallocated stack");
     llvm::StoreInst *S = CGM->Builder->CreateStore(Val, AllocaI);
     isStored = true;
-    needLoad = true;
+    Reload = true;
+    BlockID = CGM->Builder->GetInsertBlock()->getName();
     return S;
 }
 
 llvm::LoadInst *CodeGenLocalVar::Load() {
     assert(AllocaI && "Connot load from unallocated stack");
-    llvm::LoadInst *L = CGM->Builder->CreateLoad(AllocaI);
-    needLoad = false;
-    return L;
+    LoadI = CGM->Builder->CreateLoad(AllocaI);
+    Reload = false;
+    BlockID = CGM->Builder->GetInsertBlock()->getName();
+    return LoadI;
+}
+
+bool CodeGenLocalVar::needReload() {
+    return Reload || BlockID != CGM->Builder->GetInsertBlock()->getName();
 }

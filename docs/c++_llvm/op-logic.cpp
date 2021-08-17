@@ -1,10 +1,7 @@
 int main() {
-    bool a = true;
-    bool b = false;
-    bool c = false;
-
-    c = !a;
-    c = a && b;
+    bool a;
+    bool b;
+    bool c = a && b;
     c = a || b;
-    c = (a && b) || a;
+    return c;
 }

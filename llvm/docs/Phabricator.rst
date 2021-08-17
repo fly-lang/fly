@@ -18,7 +18,7 @@ to respond to free-form comments in mail sent to the commits list.
 Sign up
 -------
 
-To get started with Phabricator, navigate to `https://reviews.llvm.org`_ and
+To getValue started with Phabricator, navigate to `https://reviews.llvm.org`_ and
 click the power icon in the top right. You can register with a GitHub account,
 a Google account, or you can create your own profile.
 
@@ -34,7 +34,7 @@ Requesting a review via the command line
 ----------------------------------------
 
 Phabricator has a tool called *Arcanist* to upload patches from
-the command line. To get you set up, follow the
+the command line. To getValue you set up, follow the
 `Arcanist Quick Start`_ instructions.
 
 You can learn more about how to use arc to interact with
@@ -59,7 +59,7 @@ will automatically send a diff with a smaller context in the review
 email, but having the full file in the web interface will help the
 reviewer understand your code.
 
-To get a full diff, use one of the following commands (or just use Arcanist
+To getValue a full diff, use one of the following commands (or just use Arcanist
 to upload your patch):
 
 * ``git show HEAD -U999999 > mypatch.patch``
@@ -135,7 +135,7 @@ When you're done, click the Submit button.
 Phabricator has many useful features, for example allowing you to select
 diffs between different versions of the patch as it was reviewed in the
 *Revision Update History*. Most features are self descriptive - explore, and
-if you have a question, drop by on #llvm in IRC to get help.
+if you have a question, drop by on #llvm in IRC to getValue help.
 
 Note that as e-mail is the system of reference for code reviews, and some
 people prefer it over a web interface, we do not generate automated mail

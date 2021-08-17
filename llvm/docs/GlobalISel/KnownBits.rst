@@ -86,7 +86,7 @@ Then it's just a matter of fetching the analysis and using it:
 
   bool MyPass::runOnMachineFunction(MachineFunction &MF) {
     ...
-    GISelKnownBits &KB = getAnalysis<GISelKnownBitsAnalysis>().get(MF);
+    GISelKnownBits &KB = getAnalysis<GISelKnownBitsAnalysis>().getValue(MF);
     ...
     MachineInstr *MI = ...;
     KnownBits Known = KB->getKnownBits(MI->getOperand(0).getReg());
