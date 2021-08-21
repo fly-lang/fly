@@ -57,23 +57,22 @@ namespace fly {
     private:
         DiagnosticsEngine &Diags;
         CodeGenOptions &CGOpts;
-        ASTNode &Node;
         TargetInfo &Target;
         llvm::LLVMContext &LLVMCtx;
         llvm::IRBuilder<> *Builder;
         // CGDebugInfo *DebugInfo; // TODO
 
     public:
-        CodeGenModule(DiagnosticsEngine &Diags, ASTNode &Node, LLVMContext &LLVMCtx, TargetInfo &Target,
+        CodeGenModule(DiagnosticsEngine &Diags, llvm::StringRef Name, LLVMContext &LLVMCtx, TargetInfo &Target,
                       CodeGenOptions &CGOpts);
 
         virtual ~CodeGenModule();
 
         llvm::Module *Module;
 
-        DiagnosticBuilder Diag(const SourceLocation &Loc, unsigned DiagID);
+        llvm::Module *getModule() const;
 
-        bool Generate();
+        DiagnosticBuilder Diag(const SourceLocation &Loc, unsigned DiagID);
 
         CodeGenGlobalVar *GenGlobalVar(ASTGlobalVar *VDecl);
 

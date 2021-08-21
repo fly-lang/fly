@@ -17,13 +17,11 @@
 
 using namespace fly;
 
-CodeGen::CodeGen(DiagnosticsEngine &Diags, CodeGenOptions &CodeGenOpts, const std::shared_ptr<TargetOptions> &TargetOpts,
-                 ASTContext &Context, BackendAction ActionKind) :
-        Diags(Diags), CodeGenOpts(CodeGenOpts), TargetOpts(*TargetOpts), Context(Context),
+CodeGen::CodeGen(DiagnosticsEngine &Diags, CodeGenOptions &CodeGenOpts,
+                 const std::shared_ptr<TargetOptions> &TargetOpts, BackendAction ActionKind) :
+        Diags(Diags), CodeGenOpts(CodeGenOpts), TargetOpts(*TargetOpts),
         Target(CreateTargetInfo(Diags, TargetOpts)), ActionKind(ActionKind) {
 }
-
-
 
 std::string CodeGen::getOutputFileName(BackendAction ActionKind, StringRef BaseInput) {
     StringRef FileName = llvm::sys::path::filename(BaseInput);
@@ -44,26 +42,21 @@ std::string CodeGen::getOutputFileName(BackendAction ActionKind, StringRef BaseI
     llvm_unreachable("Invalid backend action!");
 }
 
-llvm::Module *CodeGen::getModule() {
-    return CGM->Module;
-}
-
-bool CodeGen::Execute() {
-
-    // Generate default namespace on first
-    ASTNameSpace *Default = Context.getNameSpaces().lookup("default");
-    if (Default && !GenerateModules(Default)) {
-        return false;
+bool CodeGen::Emit(CodeGenModule *CGM) {
+    // Skip CodeGenModule instance creation
+    if (ActionKind == Backend_EmitNothing) {
+        return true;
     }
 
     // After generate all other modules
-    for(auto &EntryNS : Context.getNameSpaces()) {
-        if (!EntryNS.getKey().equals("default")) {
-            if (!GenerateModules(EntryNS.getValue())) {
-                return false;
-            }
-        }
-    }
+    EmbedBitcode(CGM->Module, CodeGenOpts, llvm::MemoryBufferRef());
+
+    std::string OutputFileName = getOutputFileName(ActionKind, CGM->getModule()->getName());
+    std::error_code ErrCode;
+    std::unique_ptr<llvm::raw_fd_ostream> OS =
+            std::make_unique<raw_fd_ostream>(OutputFileName, ErrCode, llvm::sys::fs::F_None);
+    EmitBackendOutput(Diags, CodeGenOpts, TargetOpts, Target->getDataLayout(), CGM->Module,
+                      ActionKind, std::move(OS));
     return true;
 }
 
@@ -77,36 +70,6 @@ TargetInfo &CodeGen::getTargetInfo() const {
     return *Target;
 }
 
-bool CodeGen::GenerateModules(ASTNameSpace *NS) {
-
-    for (auto &EntryNode : NS->getNodes()) {
-
-        ASTNode *Node = EntryNode.getValue();
-        if (!GenerateModule(Node)) {
-            return false;
-        }
-    }
-    return true;
-}
-
-bool CodeGen::GenerateModule(ASTNode *Node) {
-    // Skip CodeGenModule instance creation
-    if (ActionKind == Backend_EmitNothing) {
-        return true;
-    }
-    std::string OutputFileName = getOutputFileName(ActionKind, Node->getFileName());
-    std::error_code ErrCode;
-    std::unique_ptr<llvm::raw_fd_ostream> OS =
-            std::make_unique<raw_fd_ostream>(OutputFileName, ErrCode, llvm::sys::fs::F_None);
-
-    CGM = new CodeGenModule(Diags, *Node, LLVMCtx, *Target, CodeGenOpts);
-    if (CGM->Generate()) {
-
-        EmbedBitcode(CGM->Module, CodeGenOpts, llvm::MemoryBufferRef());
-
-        EmitBackendOutput(Diags, CodeGenOpts, TargetOpts, Target->getDataLayout(), CGM->Module,
-                          ActionKind, std::move(OS));
-        return true;
-    }
-    return false;
+CodeGenModule *CodeGen::CreateModule(llvm::StringRef Name) {
+    return new CodeGenModule(Diags, Name, LLVMCtx, *Target, CodeGenOpts);
 }

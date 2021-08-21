@@ -38,10 +38,6 @@ ASTBlock *ASTFunc::getBody() {
     return Body;
 }
 
-const std::vector<ASTFuncCall *> &ASTFunc::getUnRefCalls() const {
-    return UnRefCalls;
-}
-
 const ASTFuncHeader *ASTFunc::getHeader() const {
     return Header;
 }
@@ -73,12 +69,26 @@ void ASTFunc::setVarArg(ASTFuncParam* VarArg) {
 }
 
 bool ASTFunc::addUnRefCall(ASTFuncCall *Call) {
-    UnRefCalls.push_back(Call);
+    if (Call->getNameSpace().empty()) {
+        getNode()->addUnRefCall(Call);
+    } else if (Call->getNameSpace() == getNameSpace()->getName()) {
+        getNameSpace()->addUnRefCall(Call);
+    } else {
+        getNode()->getContext().addUnRefCall(Call);
+    }
     return true;
 }
 
 void ASTFunc::addUnRefGlobalVar(ASTVarRef *Var) {
-    UnRefGlobalVars.push_back(Var);
+    getNode()->addUnRefGlobalVar(Var);
+}
+
+void ASTFunc::addNSUnRefGlobalVar(ASTVarRef *Var) {
+    if (Var->getNameSpace() == getNameSpace()->getName()) {
+        getNameSpace()->addUnRefGlobalVar(Var);
+    } else {
+        getNode()->getContext().addUnRefGlobalVar(Var);
+    }
 }
 
 bool ASTFunc::ResolveCall(ASTFuncCall *ResolvedCall, ASTFuncCall *Call) {
@@ -128,7 +138,7 @@ bool ASTFunc::ResolveCall(ASTFuncCall *ResolvedCall, ASTFuncCall *Call) {
 
 bool ASTFunc::operator==(const ASTFunc &F) const {
     bool Result = this->getName().equals(F.getName()) &&
-            this->getNameSpace()->getNameSpace().equals(F.getNameSpace()->getNameSpace()) &&
+            this->getNameSpace()->getName().equals(F.getNameSpace()->getName()) &&
             this->getHeader()->getParams().size() == F.getHeader()->getParams().size();
     if (Result) {
         for (int i = 0; i < this->getHeader()->getParams().size(); i++) {
@@ -142,7 +152,7 @@ bool ASTFunc::operator==(const ASTFunc &F) const {
 
 size_t std::hash<ASTFunc *>::operator()(ASTFunc *Decl) const noexcept {
     size_t Hash = (std::hash<std::string>()(Decl->getName().str()));
-    Hash ^= (std::hash<std::string>()(Decl->getNameSpace()->getNameSpace().str()));
+    Hash ^= (std::hash<std::string>()(Decl->getNameSpace()->getName().str()));
     for (auto &Param : Decl->getHeader()->getParams()) {
         Hash ^= (std::hash<std::string>()(Param->getType()->str()));
     }
@@ -151,7 +161,7 @@ size_t std::hash<ASTFunc *>::operator()(ASTFunc *Decl) const noexcept {
 
 bool std::equal_to<ASTFunc *>::operator()(const ASTFunc *C1, const ASTFunc *C2) const {
     bool Result = C1->getName().equals(C2->getName()) &&
-                  C1->getNameSpace()->getNameSpace().equals(C2->getNameSpace()->getNameSpace()) &&
+            C1->getNameSpace()->getName().equals(C2->getNameSpace()->getName()) &&
                   C1->getHeader()->getParams().size() == C2->getHeader()->getParams().size();
     if (Result) {
         for (int i = 0; i < C1->getHeader()->getParams().size(); i++) {
@@ -161,69 +171,6 @@ bool std::equal_to<ASTFunc *>::operator()(const ASTFunc *C1, const ASTFunc *C2) 
         }
     }
     return Result;
-}
-
-bool ASTFunc::Finalize() {
-
-    // Resolve RefGlobalVars with GlobalVars of the NameSpace
-    for (const auto &UnRefGVar : UnRefGlobalVars) {
-        const auto &NS = Node->findNameSpace(UnRefGVar->getNameSpace());
-        if (!NS) {
-            getNode()->getContext().Diag(UnRefGVar->getLocation(), diag::err_namespace_notfound)
-                << NS->getNameSpace();
-            return false;
-        }
-        const auto &GVar = NS->getGlobalVars().find(UnRefGVar->getName());
-        if (GVar == NS->getGlobalVars().end()) {
-            getNode()->getContext().Diag(UnRefGVar->getLocation(), diag::err_gvar_notfound)
-                << UnRefGVar->getName();
-            return false;
-        }
-        UnRefGVar->setDecl((ASTVar *) GVar->getValue());
-    }
-
-    // Resolve Calls with FuncDecl by searching into ResolvedCalls
-    for (auto *UnRefCall : UnRefCalls) {
-        if (UnRefCall->getDecl() == nullptr) {
-
-            // Set Call NameSpace of the Node if not specified
-            if (UnRefCall->getNameSpace().empty()) {
-                UnRefCall->setNameSpace(Node->getNameSpace()->getNameSpace());
-            }
-
-            // Search into Node
-            const auto &It = Node->getResolvedCalls().find(UnRefCall->getName());
-            if (It != Node->getResolvedCalls().end()) {
-                for (auto &ResolvedCall : It->getValue()) {
-                    if (ResolveCall(ResolvedCall, UnRefCall)) {
-                        UnRefCall->setDecl(ResolvedCall->getDecl());
-                    }
-                }
-            } else {
-                // Search into NameSpace
-                const ASTNameSpace *NS = Node->findNameSpace(UnRefCall->getNameSpace());
-                if (NS == nullptr) {
-                    getNode()->getContext().Diag(UnRefCall->getLocation(), diag::err_namespace_notfound)
-                            << UnRefCall->getNameSpace();
-                    return false;
-                }
-
-                auto ItNS = NS->getResolvedCalls().find(UnRefCall->getName());
-                if (ItNS == NS->getResolvedCalls().end()) {
-                    getNode()->getContext().Diag(UnRefCall->getLocation(), diag::err_func_notfound)
-                            << UnRefCall->getName();
-                    return false;
-                }
-
-                for (auto &ResolvedCall : ItNS->getValue()) {
-                    if (ResolveCall(ResolvedCall, UnRefCall)) {
-                        UnRefCall->setDecl(ResolvedCall->getDecl());
-                    }
-                }
-            }
-        }
-    }
-    return true;
 }
 
 ASTFuncParam::ASTFuncParam(const SourceLocation &Loc, ASTType *Type, const llvm::StringRef &Name) :
@@ -315,7 +262,7 @@ void ASTFuncCall::setNameSpace(const llvm::StringRef &NS) {
 }
 
 ASTFuncCall *ASTFuncCall::CreateCall(ASTFunc *FDecl) {
-    ASTFuncCall *FCall = new ASTFuncCall(SourceLocation(), FDecl->getNameSpace()->getNameSpace(), FDecl->getName());
+    ASTFuncCall *FCall = new ASTFuncCall(SourceLocation(), FDecl->getNameSpace()->getName(), FDecl->getName());
     FCall->setDecl(FDecl);
     for (auto &Param : FDecl->getHeader()->getParams()) {
         FCall->addArg(new ASTFuncArg(nullptr, Param->getType()));

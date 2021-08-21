@@ -73,23 +73,15 @@ bool ASTBlock::ResolveVarRef(ASTVarRef* Var) {
             // Search recursively into current Block or in one of Parents
             VDecl = findVarDecl(this, Var);
             // Check if var declaration var is resolved
-            if (!VDecl) {
-                Diag(Var->getLocation(), diag::err_vardecl_notfound) << Var->getName();
-                return false;
+            if (VDecl) {
+                Var->setDecl(VDecl); // Resolved
+            } else {
+                Top->addUnRefGlobalVar(Var); // Resolve Later by searching into Node GlobalVars
             }
-
-            // Resolve with VarDecl
-            Var->setDecl(VDecl);
         }
-    } else { // Var with NameSpace refers to a GlobalVar
-        // Try to resolve here or will be resolved after by addRefGlobalVar() into FuncDecl Finalize()
-        const auto &It = Top->getNameSpace()->getGlobalVars().find(Var->getNameSpace());
-        if (It != Top->getNameSpace()->getGlobalVars().end()) {
-            VDecl = (ASTVar *) It->getValue();
-            Var->setDecl(VDecl); // Resolve with VarDecl
-        } else {
-            Top->addUnRefGlobalVar(Var); // Push into Content but need resolve into Finalize()
-        }
+    } else {
+        // Resolve Later by searching into NameSpace GlobalVars
+        Top->addNSUnRefGlobalVar(Var); // Push into Content but need resolve after
     }
     return true;
 }
@@ -102,7 +94,8 @@ bool ASTBlock::ResolveExpr(ASTExpr *E) {
         }
         case EXPR_REF_FUNC: {
             ASTFuncCall *Call = static_cast<ASTFuncCallExpr *>(E)->getCall();
-            return Top->addUnRefCall(Call);
+            Top->addUnRefCall(Call);
+            return true;
         }
         case EXPR_GROUP: {
             bool Result = true;
@@ -154,6 +147,11 @@ bool ASTBlock::addVar(ASTLocalVar *Var) {
     }
     DeclVars.insert(std::pair<StringRef, ASTLocalVar *>(Var->getName(), Var));
     Content.push_back(Var);
+
+    //Set CodeGen
+    CodeGenLocalVar *CGV = new CodeGenLocalVar(Top->getNode()->getCodeGen(), Var);
+    Var->setCodeGen(CGV);
+
     return Result;
 }
 

@@ -7,6 +7,7 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
+#include "TestUtils.h"
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
 #include "CodeGen/CodeGenGlobalVar.h"
@@ -24,9 +25,7 @@
 #include "AST/ASTOperatorExpr.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/DiagnosticOptions.h"
-#include "Basic/FileManager.h"
 #include "Basic/SourceLocation.h"
-#include "Basic/SourceManager.h"
 #include "Basic/TargetOptions.h"
 #include "Basic/Builtins.h"
 #include "llvm/Support/Host.h"
@@ -46,27 +45,21 @@ namespace {
     class CodeGenTest : public ::testing::Test {
 
     public:
-
-        CodeGenTest() :
-                FileMgr(FileMgrOpts),
-                DiagID(new DiagnosticIDs()),
-                Diags(DiagID, new DiagnosticOptions, new IgnoringDiagConsumer()),
-                SourceMgr(Diags, FileMgr)
-                {}
-
-        FileSystemOptions FileMgrOpts;
-        FileManager FileMgr;
-        IntrusiveRefCntPtr<DiagnosticIDs> DiagID;
-        DiagnosticsEngine Diags;
-        SourceManager SourceMgr;
+        const CompilerInstance CI;
+        ASTContext *Context;
+        CodeGen *CG;
+        DiagnosticsEngine &Diags;
         SourceLocation SourceLoc;
 
-        ASTNode *createAST(const llvm::StringRef Name, ASTContext *Ctx, const StringRef NameSpace = "default") {
-            ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> result = FileMgr.getBufferForFile(Name);
-            std::unique_ptr<MemoryBuffer> &Buf = result.get();
-            FileID FID = SourceMgr.createFileID(std::move(Buf));
-            SourceLoc = SourceMgr.getLocForStartOfFile(FID);
-            auto *Node = new ASTNode(Name, FID, Ctx);
+        CodeGenTest() : CI(*TestUtils::CreateCompilerInstance()),
+                   Context(new ASTContext(CI.getDiagnostics())),
+                   CG(TestUtils::CreateCodeGen(CI)),
+                   Diags(CI.getDiagnostics()) {
+
+        }
+
+        ASTNode *CreateAST(const llvm::StringRef Name, const StringRef NameSpace = "default") {
+            auto *Node = new ASTNode(Name, Context, CG->CreateModule(Name));
             Node->setNameSpace(NameSpace);
             return Node;
         }
@@ -108,14 +101,14 @@ namespace {
 
         EXPECT_TRUE(createTestFile(testFile));
 
-        ASTContext *Ctx = new ASTContext(Diags);
-        ASTNode *Node = createAST(testFile, Ctx);
+        ASTNode *Node = CreateAST(testFile);
 
         CodeGenOptions codeGenOpts;
         std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();
         TargetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
-        CodeGen CG(Diags, codeGenOpts, TargetOpts, *Ctx, Backend_EmitNothing);
-        bool Success = CG.Execute();
+        CodeGen CG(Diags, codeGenOpts, TargetOpts, Backend_EmitNothing);
+        CI.getTargetOptions()->CodeModel = "default";
+        bool Success = CG.Emit(nullptr);
 
         ASSERT_TRUE(Success);
         delete Node;
@@ -127,7 +120,7 @@ namespace {
 //        EXPECT_TRUE(createTestFile(testFile));
 //
 //        ASTContext *Ctx = new ASTContext(Diags);
-//        ASTNode *Node = createAST(testFile, Ctx);
+//        ASTNode *Node = createAST(testFile);
 //
 //        CodeGenOptions CodeGenOpts;
 //        std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();
@@ -148,7 +141,7 @@ namespace {
 //        EXPECT_TRUE(createTestFile(testFile));
 //
 //        ASTContext *Ctx = new ASTContext(Diags);
-//        ASTNode *Node = createAST(testFile, Ctx);
+//        ASTNode *Node = createAST(testFile);
 //
 //        CodeGenOptions CodeGenOpts;
 //        std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();
@@ -170,7 +163,7 @@ namespace {
 //        EXPECT_TRUE(createTestFile(testFile));
 //
 //        ASTContext *Ctx = new ASTContext(Diags);
-//        ASTNode *Node = createAST(testFile, Ctx);
+//        ASTNode *Node = createAST(testFile);
 //
 //        CodeGenOptions CodeGenOpts;
 //        std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();
@@ -191,7 +184,7 @@ namespace {
 //        EXPECT_TRUE(createTestFile(testFile));
 //
 //        ASTContext *Ctx = new ASTContext(Diags);
-//        ASTNode *Node = createAST(testFile, Ctx);
+//        ASTNode *Node = createAST(testFile);
 //
 //        CodeGenOptions CodeGenOpts;
 //        std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();
@@ -210,8 +203,7 @@ namespace {
     TEST_F(CodeGenTest, CGGlobalVar) {
         EXPECT_TRUE(createTestFile(testFile));
 
-        ASTContext *Ctx = new ASTContext(Diags);
-        ASTNode *Node = createAST(testFile, Ctx);
+        ASTNode *Node = CreateAST(testFile);
         ASTGlobalVar *Var = new ASTGlobalVar(Node, SourceLoc, new ASTIntType(SourceLoc), "a");
         Node->addGlobalVar(Var);
 
@@ -219,15 +211,9 @@ namespace {
         llvm::InitializeAllTargetMCs();
         llvm::InitializeAllAsmPrinters();
 
-        CodeGenOptions CodeGenOpts;
-        std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();
-        TargetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
-        TargetOpts->CodeModel = "default";
-        LLVMContext LLVMCtx;
-        CodeGenModule CGM(Diags, *Node, LLVMCtx, *CodeGen::CreateTargetInfo(Diags, TargetOpts), CodeGenOpts);
-
-        GlobalVariable *GVar = (GlobalVariable *)CGM.GenGlobalVar(Var)->getPointer();
-
+        // Generate Code
+        CodeGenModule *CGM = Node->getCodeGen();
+        GlobalVariable *GVar = (GlobalVariable *)CGM->GenGlobalVar(Var)->getPointer();
         testing::internal::CaptureStdout();
         GVar->print(llvm::outs(), true);
         std::string output = testing::internal::GetCapturedStdout();
@@ -240,8 +226,7 @@ namespace {
     TEST_F(CodeGenTest, CGFunc) {
         EXPECT_TRUE(createTestFile(testFile));
 
-        ASTContext *Ctx = new ASTContext(Diags);
-        ASTNode *Node = createAST(testFile, Ctx);
+        ASTNode *Node = CreateAST(testFile);
         
         ASTFunc *MainFn = new ASTFunc(Node, SourceLoc, new ASTIntType(SourceLoc),
                                       "main");
@@ -253,16 +238,9 @@ namespace {
         ASTValueExpr *Expr = new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc)));
         MainFn->getBody()->addReturn(SourceLoc, Expr);
 
-        CodeGenOptions CodeGenOpts;
-        std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();
-        TargetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
-        TargetOpts->CodeModel = "default";
-        TargetInfo *Target = CodeGen::CreateTargetInfo(Diags, TargetOpts);
-        LLVMContext LLVMCtx;
-        CodeGenModule CGM(Diags, *Node, LLVMCtx, *Target, CodeGenOpts);
-
-        Function *F = CGM.GenFunction(MainFn)->getFunction();
-
+        // Generate Code
+        CodeGenModule *CGM = Node->getCodeGen();
+        Function *F = CGM->GenFunction(MainFn)->getFunction();
         testing::internal::CaptureStdout();
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
@@ -284,8 +262,7 @@ namespace {
     TEST_F(CodeGenTest, CGFuncRetVar) {
         EXPECT_TRUE(createTestFile(testFile));
 
-        ASTContext *Ctx = new ASTContext(Diags);
-        ASTNode *Node = createAST(testFile, Ctx);
+        ASTNode *Node = CreateAST(testFile);
 
         ASTGlobalVar *GVar = new ASTGlobalVar(Node, SourceLoc, new ASTFloatType(SourceLoc), "G");
         Node->addGlobalVar(GVar);
@@ -313,19 +290,12 @@ namespace {
         MainFn->getBody()->addReturn(SourceLoc, new ASTVarRefExpr(SourceLoc,
                                                                   new ASTVarRef(SourceLoc, VarA->getName())));
 
-        Node->Finalize();
+        Node->Resolve();
 
-        CodeGenOptions CodeGenOpts;
-        std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();
-        TargetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
-        TargetOpts->CodeModel = "default";
-        TargetInfo *Target = CodeGen::CreateTargetInfo(Diags, TargetOpts);
-        LLVMContext LLVMCtx;
-        CodeGenModule CGM(Diags, *Node, LLVMCtx, *Target, CodeGenOpts);
-
-        CodeGenGlobalVar *G = CGM.GenGlobalVar(GVar);
-        Function *F = CGM.GenFunction(MainFn)->getFunction();
-
+        // Generate Code
+        CodeGenModule *CGM = Node->getCodeGen();
+        CGM->GenGlobalVar(GVar);
+        Function *F = CGM->GenFunction(MainFn)->getFunction();
         testing::internal::CaptureStdout();
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
@@ -333,8 +303,9 @@ namespace {
         EXPECT_EQ(output, "define i32 @main() {\n"
                           "entry:\n"
                           "  %0 = alloca i32, align 4\n"
+                          "  store i32 0, i32* %0, align 4\n"
                           "  store i32 1, i32* %0, align 4\n"
-                          "  store i32 1, float* @G, align 4\n"
+                          "  store float 1.000000e+00, float* @G, align 4\n"
                           "  %1 = load i32, i32* %0, align 4\n"
                           "  ret i32 %1\n"
                           "}\n");
@@ -346,7 +317,7 @@ namespace {
         EXPECT_TRUE(createTestFile(testFile));
 
         ASTContext *Ctx = new ASTContext(Diags);
-        ASTNode *Node = createAST(testFile, Ctx);
+        ASTNode *Node = CreateAST(testFile);
 
         // main()
         ASTFunc *MainFn = new ASTFunc(Node, SourceLoc, new ASTIntType(SourceLoc), "main");
@@ -357,29 +328,19 @@ namespace {
         TestFn->setVisibility(V_PRIVATE);
         Node->addFunction(TestFn);
 
-        ASTFuncCall *TestCall = new ASTFuncCall(SourceLoc, Ctx->getDefaultNameSpace()->getNameSpace(), TestFn->getName());
+        ASTFuncCall *TestCall = new ASTFuncCall(SourceLoc, Ctx->getDefaultNameSpace()->getName(), TestFn->getName());
 //        TestCall->addArg(new ValueExpr(SourceLoc, "1"));
         // call test()
         MainFn->getBody()->addCall(TestCall);
         //return test()
         MainFn->getBody()->addReturn(SourceLoc, new ASTFuncCallExpr(SourceLoc, TestCall));
-        // Finalize Context for Resolutions of Call and Ref
-        Node->Finalize();
-        Ctx->Finalize();
+        // Resolve Context for Resolutions of Call and Ref
+        Node->Resolve();
+        Ctx->Resolve();
 
-        CodeGenOptions CodeGenOpts;
-        std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();
-        TargetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
-        TargetOpts->CodeModel = "default";
-        TargetInfo *Target = CodeGen::CreateTargetInfo(Diags, TargetOpts);
-        LLVMContext LLVMCtx;
-        CodeGenModule CGM(Diags, *Node, LLVMCtx, *Target, CodeGenOpts);
-
-        // CodeGen of test function
-        CGM.GenFunction(TestFn);
-
-        Function *F = CGM.GenFunction(MainFn)->getFunction();
-
+        // Generate Code
+        CodeGenModule *CGM = Node->getCodeGen();
+        Function *F = CGM->GenFunction(MainFn)->getFunction();
         testing::internal::CaptureStdout();
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
@@ -397,7 +358,7 @@ namespace {
         EXPECT_TRUE(createTestFile(testFile));
 
         ASTContext *Ctx = new ASTContext(Diags);
-        ASTNode *Node = createAST(testFile, Ctx);
+        ASTNode *Node = CreateAST(testFile);
 
         ASTFunc *MainFn = new ASTFunc(Node, SourceLoc, new ASTVoidType(SourceLoc), "main");
         MainFn->addParam(SourceLoc, new ASTIntType(SourceLoc), "a");
@@ -424,16 +385,9 @@ namespace {
 
         MainFn->getBody()->addReturn(SourceLoc, Group);
 
-        CodeGenOptions CodeGenOpts;
-        std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();
-        TargetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
-        TargetOpts->CodeModel = "default";
-        TargetInfo *Target = CodeGen::CreateTargetInfo(Diags, TargetOpts);
-        LLVMContext LLVMCtx;
-        CodeGenModule CGM(Diags, *Node, LLVMCtx, *Target, CodeGenOpts);
-
-        Function *F = CGM.GenFunction(MainFn)->getFunction();
-
+        // Generate Code
+        CodeGenModule *CGM = Node->getCodeGen();
+        Function *F = CGM->GenFunction(MainFn)->getFunction();
         testing::internal::CaptureStdout();
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
@@ -463,7 +417,7 @@ namespace {
         EXPECT_TRUE(createTestFile(testFile));
 
         ASTContext *Ctx = new ASTContext(Diags);
-        ASTNode *Node = createAST(testFile, Ctx);
+        ASTNode *Node = CreateAST(testFile);
 
         // main()
         ASTFunc *MainFn = new ASTFunc(Node, SourceLoc, new ASTIntType(SourceLoc), "main");
@@ -566,20 +520,13 @@ namespace {
 
         //return test()
         MainFn->getBody()->addReturn(SourceLoc, new ASTVarRefExpr(SourceLoc, new ASTVarRef(C)));
-        // Finalize Context for Resolutions of Call and Ref
-        Node->Finalize();
-        Ctx->Finalize();
+        // Resolve Context for Resolutions of Call and Ref
+        Node->Resolve();
+        Ctx->Resolve();
 
-        CodeGenOptions CodeGenOpts;
-        std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();
-        TargetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
-        TargetOpts->CodeModel = "default";
-        TargetInfo *Target = CodeGen::CreateTargetInfo(Diags, TargetOpts);
-        LLVMContext LLVMCtx;
-        CodeGenModule CGM(Diags, *Node, LLVMCtx, *Target, CodeGenOpts);
-
-        Function *F = CGM.GenFunction(MainFn)->getFunction();
-
+        // Generate Code
+        CodeGenModule *CGM = Node->getCodeGen();
+        Function *F = CGM->GenFunction(MainFn)->getFunction();
         testing::internal::CaptureStdout();
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
@@ -623,7 +570,7 @@ namespace {
         EXPECT_TRUE(createTestFile(testFile));
 
         ASTContext *Ctx = new ASTContext(Diags);
-        ASTNode *Node = createAST(testFile, Ctx);
+        ASTNode *Node = CreateAST(testFile);
 
         // main()
         ASTFunc *MainFn = new ASTFunc(Node, SourceLoc, new ASTIntType(SourceLoc), "main");
@@ -690,20 +637,13 @@ namespace {
 
         //return test()
         MainFn->getBody()->addReturn(SourceLoc, new ASTVarRefExpr(SourceLoc, new ASTVarRef(C)));
-        // Finalize Context for Resolutions of Call and Ref
-        Node->Finalize();
-        Ctx->Finalize();
+        // Resolve Context for Resolutions of Call and Ref
+        Node->Resolve();
+        Ctx->Resolve();
 
-        CodeGenOptions CodeGenOpts;
-        std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();
-        TargetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
-        TargetOpts->CodeModel = "default";
-        TargetInfo *Target = CodeGen::CreateTargetInfo(Diags, TargetOpts);
-        LLVMContext LLVMCtx;
-        CodeGenModule CGM(Diags, *Node, LLVMCtx, *Target, CodeGenOpts);
-
-        Function *F = CGM.GenFunction(MainFn)->getFunction();
-
+        // Generate Code
+        CodeGenModule *CGM = Node->getCodeGen();
+        Function *F = CGM->GenFunction(MainFn)->getFunction();
         testing::internal::CaptureStdout();
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
@@ -739,7 +679,7 @@ namespace {
         EXPECT_TRUE(createTestFile(testFile));
 
         ASTContext *Ctx = new ASTContext(Diags);
-        ASTNode *Node = createAST(testFile, Ctx);
+        ASTNode *Node = CreateAST(testFile);
 
         // main()
         ASTFunc *MainFn = new ASTFunc(Node, SourceLoc, new ASTIntType(SourceLoc), "main");
@@ -770,20 +710,13 @@ namespace {
 
         //return test()
         MainFn->getBody()->addReturn(SourceLoc, new ASTVarRefExpr(SourceLoc, new ASTVarRef(C)));
-        // Finalize Context for Resolutions of Call and Ref
-        Node->Finalize();
-        Ctx->Finalize();
+        // Resolve Context for Resolutions of Call and Ref
+        Node->Resolve();
+        Ctx->Resolve();
 
-        CodeGenOptions CodeGenOpts;
-        std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();
-        TargetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
-        TargetOpts->CodeModel = "default";
-        TargetInfo *Target = CodeGen::CreateTargetInfo(Diags, TargetOpts);
-        LLVMContext LLVMCtx;
-        CodeGenModule CGM(Diags, *Node, LLVMCtx, *Target, CodeGenOpts);
-
-        Function *F = CGM.GenFunction(MainFn)->getFunction();
-
+        // Generate Code
+        CodeGenModule *CGM = Node->getCodeGen();
+        Function *F = CGM->GenFunction(MainFn)->getFunction();
         testing::internal::CaptureStdout();
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
@@ -827,7 +760,7 @@ namespace {
         EXPECT_TRUE(createTestFile(testFile));
 
         ASTContext *Ctx = new ASTContext(Diags);
-        ASTNode *Node = createAST(testFile, Ctx);
+        ASTNode *Node = CreateAST(testFile);
 
         ASTFunc *MainFn = new ASTFunc(Node, SourceLoc, new ASTIntType(SourceLoc), "main");
         ASTFuncParam *Param = MainFn->addParam(SourceLoc, new ASTIntType(SourceLoc), "a");
@@ -850,16 +783,9 @@ namespace {
         MainFn->getBody()->addBlock(SourceLoc, IfBlock);
         MainFn->getBody()->addReturn(SourceLoc, ARef);
 
-        CodeGenOptions CodeGenOpts;
-        std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();
-        TargetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
-        TargetOpts->CodeModel = "default";
-        TargetInfo *Target = CodeGen::CreateTargetInfo(Diags, TargetOpts);
-        LLVMContext LLVMCtx;
-        CodeGenModule CGM(Diags, *Node, LLVMCtx, *Target, CodeGenOpts);
-
-        Function *F = CGM.GenFunction(MainFn)->getFunction();
-
+        // Generate Code
+        CodeGenModule *CGM = Node->getCodeGen();
+        Function *F = CGM->GenFunction(MainFn)->getFunction();
         testing::internal::CaptureStdout();
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
@@ -888,7 +814,7 @@ namespace {
         EXPECT_TRUE(createTestFile(testFile));
 
         ASTContext *Ctx = new ASTContext(Diags);
-        ASTNode *Node = createAST(testFile, Ctx);
+        ASTNode *Node = CreateAST(testFile);
 
         ASTFunc *MainFn = new ASTFunc(Node, SourceLoc, new ASTIntType(SourceLoc), "main");
         ASTFuncParam *Param = MainFn->addParam(SourceLoc, new ASTIntType(SourceLoc), "a");
@@ -916,16 +842,9 @@ namespace {
 
         MainFn->getBody()->addReturn(SourceLoc, ARef);
 
-        CodeGenOptions CodeGenOpts;
-        std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();
-        TargetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
-        TargetOpts->CodeModel = "default";
-        TargetInfo *Target = CodeGen::CreateTargetInfo(Diags, TargetOpts);
-        LLVMContext LLVMCtx;
-        CodeGenModule CGM(Diags, *Node, LLVMCtx, *Target, CodeGenOpts);
-
-        Function *F = CGM.GenFunction(MainFn)->getFunction();
-
+        // Generate Code
+        CodeGenModule *CGM = Node->getCodeGen();
+        Function *F = CGM->GenFunction(MainFn)->getFunction();
         testing::internal::CaptureStdout();
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
@@ -958,7 +877,7 @@ namespace {
         EXPECT_TRUE(createTestFile(testFile));
 
         ASTContext *Ctx = new ASTContext(Diags);
-        ASTNode *Node = createAST(testFile, Ctx);
+        ASTNode *Node = CreateAST(testFile);
 
         ASTFunc *MainFn = new ASTFunc(Node, SourceLoc, new ASTIntType(SourceLoc), "main");
         ASTFuncParam *Param = MainFn->addParam(SourceLoc, new ASTIntType(SourceLoc), "a");
@@ -998,16 +917,9 @@ namespace {
 
         MainFn->getBody()->addReturn(SourceLoc, ARef);
 
-        CodeGenOptions CodeGenOpts;
-        std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();
-        TargetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
-        TargetOpts->CodeModel = "default";
-        TargetInfo *Target = CodeGen::CreateTargetInfo(Diags, TargetOpts);
-        LLVMContext LLVMCtx;
-        CodeGenModule CGM(Diags, *Node, LLVMCtx, *Target, CodeGenOpts);
-
-        Function *F = CGM.GenFunction(MainFn)->getFunction();
-
+        // Generate Code
+        CodeGenModule *CGM = Node->getCodeGen();
+        Function *F = CGM->GenFunction(MainFn)->getFunction();
         testing::internal::CaptureStdout();
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
@@ -1040,7 +952,7 @@ namespace {
         EXPECT_TRUE(createTestFile(testFile));
 
         ASTContext *Ctx = new ASTContext(Diags);
-        ASTNode *Node = createAST(testFile, Ctx);
+        ASTNode *Node = CreateAST(testFile);
 
         ASTFunc *MainFn = new ASTFunc(Node, SourceLoc, new ASTIntType(SourceLoc), "main");
         ASTFuncParam *Param = MainFn->addParam(SourceLoc, new ASTIntType(SourceLoc), "a");
@@ -1073,16 +985,9 @@ namespace {
         
         MainFn->getBody()->addReturn(SourceLoc, Cost1);
 
-        CodeGenOptions CodeGenOpts;
-        std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();
-        TargetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
-        TargetOpts->CodeModel = "default";
-        TargetInfo *Target = CodeGen::CreateTargetInfo(Diags, TargetOpts);
-        LLVMContext LLVMCtx;
-        CodeGenModule CGM(Diags, *Node, LLVMCtx, *Target, CodeGenOpts);
-
-        Function *F = CGM.GenFunction(MainFn)->getFunction();
-
+        // Generate Code
+        CodeGenModule *CGM = Node->getCodeGen();
+        Function *F = CGM->GenFunction(MainFn)->getFunction();
         testing::internal::CaptureStdout();
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
@@ -1119,8 +1024,7 @@ namespace {
     TEST_F(CodeGenTest, CGWhileBlock) {
         EXPECT_TRUE(createTestFile(testFile));
 
-        ASTContext *Ctx = new ASTContext(Diags);
-        ASTNode *Node = createAST(testFile, Ctx);
+        ASTNode *Node = CreateAST(testFile);
 
         ASTFunc *MainFn = new ASTFunc(Node, SourceLoc, new ASTIntType(SourceLoc), "main");
         ASTFuncParam *Param = MainFn->addParam(SourceLoc, new ASTIntType(SourceLoc), "a");
@@ -1143,16 +1047,83 @@ namespace {
 
         MainFn->getBody()->addReturn(SourceLoc, OneCost);
 
-        CodeGenOptions CodeGenOpts;
-        std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();
-        TargetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
-        TargetOpts->CodeModel = "default";
-        TargetInfo *Target = CodeGen::CreateTargetInfo(Diags, TargetOpts);
-        LLVMContext LLVMCtx;
-        CodeGenModule CGM(Diags, *Node, LLVMCtx, *Target, CodeGenOpts);
+        // Generate Code
+        CodeGenModule *CGM = Node->getCodeGen();
+        Function *F = CGM->GenFunction(MainFn)->getFunction();
+        testing::internal::CaptureStdout();
+        F->print(llvm::outs());
+        std::string output = testing::internal::GetCapturedStdout();
 
-        Function *F = CGM.GenFunction(MainFn)->getFunction();
+        EXPECT_EQ(output, "define i32 @main(i32 %0) {\n"
+                          "entry:\n"
+                          "  %1 = alloca i32, align 4\n"
+                          "  store i32 %0, i32* %1, align 4\n"
+                          "  br label %whilecond\n"
+                          "\n"
+                          "whilecond:                                        ; preds = %whileloop, %entry\n"
+                          "  %2 = load i32, i32* %1, align 4\n"
+                          "  %3 = icmp eq i32 %2, 1\n"
+                          "  br i1 %3, label %whileloop, label %whileend\n"
+                          "\n"
+                          "whileloop:                                        ; preds = %whilecond\n"
+                          "  store i32 1, i32* %1, align 4\n"
+                          "  br label %whilecond\n"
+                          "\n"
+                          "whileend:                                         ; preds = %whilecond\n"
+                          "  ret i32 1\n"
+                          "}\n");
+        delete Node;
+        deleteTestFile(testFile);
+    }
 
+    TEST_F(CodeGenTest, CGForBlock) {
+        EXPECT_TRUE(createTestFile(testFile));
+
+        ASTContext *Ctx = new ASTContext(Diags);
+        ASTNode *Node = CreateAST(testFile);
+
+        ASTFunc *MainFn = new ASTFunc(Node, SourceLoc, new ASTIntType(SourceLoc), "main");
+        MainFn->setVisibility(V_PRIVATE);
+        ASTFuncParam *Param = MainFn->addParam(SourceLoc, new ASTIntType(SourceLoc), "a");
+        Node->addFunction(MainFn);
+        
+        ASTForBlock *ForBlock = new ASTForBlock(SourceLoc, MainFn->getBody());
+        ASTValueExpr *OneCost = new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc)));
+        
+        // Init
+        ASTBlock *InitBlock = ForBlock->getInit();
+        ASTLocalVar *InitVar = new ASTLocalVar(SourceLoc, InitBlock, new ASTIntType(SourceLoc), "i");
+        InitVar->setExpr(OneCost);
+        InitBlock->addVar(InitVar);
+
+        //Cond
+        ASTGroupExpr *Cond = new ASTGroupExpr(SourceLoc);
+        ASTComparisonExpr *Comp = new ASTComparisonExpr(SourceLoc, COMP_LTE);
+        ASTVarRefExpr *InitVarRef = new ASTVarRefExpr(SourceLoc, new ASTVarRef(InitVar));
+        Cond->Add(InitVarRef);
+        Cond->Add(Comp);
+        Cond->Add(OneCost);
+        ForBlock->setCond(Cond);
+        
+        // Post
+        ASTBlock *PostBlock = ForBlock->getPost();
+        ASTArithExpr *Incr = new ASTArithExpr(SourceLoc, ARITH_INCR);
+        ASTUnaryExpr *IncrExpr = new ASTUnaryExpr(SourceLoc, Incr, new ASTVarRef(InitVar), UnaryOpKind::UNARY_PRE);
+        ASTExprStmt *ExprStmt = new ASTExprStmt(SourceLoc, PostBlock);
+        ExprStmt->setExpr(IncrExpr);
+        PostBlock->addExprStmt(ExprStmt);
+
+        ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, ForBlock->getLoop(), Param);
+        A2->setExpr(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc))));
+        ForBlock->getLoop()->addVar(A2);
+        ForBlock->getLoop()->addContinue(SourceLoc);
+        MainFn->getBody()->addBlock(SourceLoc, ForBlock);
+
+        MainFn->getBody()->addReturn(SourceLoc, OneCost);
+
+        // Generate Code
+        CodeGenModule *CGM = Node->getCodeGen();
+        Function *F = CGM->GenFunction(MainFn)->getFunction();
         testing::internal::CaptureStdout();
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();

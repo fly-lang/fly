@@ -61,22 +61,22 @@ CompilerInstance &Driver::BuildCompilerInstance() {
 
     // Create diagnostics
 
-    IntrusiveRefCntPtr <DiagnosticOptions> DiagOpts = BuildDiagnosticOpts();
+    IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts = BuildDiagnosticOpts();
     IntrusiveRefCntPtr<DiagnosticsEngine> Diags = CreateDiagnostics(DiagOpts);
 
     // Create all options.
 
     FileSystemOptions fileSystemOpts;
-    std::shared_ptr<TargetOptions> targetOpts = std::make_shared<TargetOptions>();
-    std::unique_ptr<FrontendOptions> frontendOpts = std::make_unique<FrontendOptions>();
-    std::unique_ptr<CodeGenOptions> codeGenOpts = std::make_unique<CodeGenOptions>();
-    BuildOptions(fileSystemOpts, targetOpts, frontendOpts, codeGenOpts);
+    std::shared_ptr<TargetOptions> TargetOpts = std::make_shared<TargetOptions>();
+    FrontendOptions *FrontendOpts = new FrontendOptions();
+    CodeGenOptions *CodeGenOpts = new CodeGenOptions();
+    BuildOptions(fileSystemOpts, TargetOpts, &*FrontendOpts, &*CodeGenOpts);
 
     CI = std::make_shared<CompilerInstance>(Diags,
                                             std::move(fileSystemOpts),
-                                            std::move(frontendOpts),
-                                            std::move(codeGenOpts),
-                                            std::move(targetOpts));
+                                            FrontendOpts,
+                                            CodeGenOpts,
+                                            std::move(TargetOpts));
     if (!CI) {
         llvm::errs() << "Error while creating compiler instance!" << "\n";
         exit(1);
@@ -86,7 +86,6 @@ CompilerInstance &Driver::BuildCompilerInstance() {
 }
 
 // Diagnostics
-
 IntrusiveRefCntPtr<DiagnosticsEngine> Driver::CreateDiagnostics(IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts) {
     DiagOpts = new DiagnosticOptions;
     TextDiagnosticPrinter *DiagClient = new TextDiagnosticPrinter(llvm::errs(), &*DiagOpts);
@@ -140,8 +139,8 @@ IntrusiveRefCntPtr<DiagnosticOptions> Driver::BuildDiagnosticOpts() {
 
 void Driver::BuildOptions(FileSystemOptions &fileSystemOpts,
                             std::shared_ptr<TargetOptions> &targetOpts,
-                            std::unique_ptr<FrontendOptions> &frontendOpts,
-                            std::unique_ptr<CodeGenOptions> &codeGenOpts) {
+                            FrontendOptions *FrontendOpts,
+                            CodeGenOptions *CodeGenOpts) {
 
     llvm::PrettyStackTraceString CrashInfo("Command line argument parsing");
 
@@ -157,7 +156,7 @@ void Driver::BuildOptions(FileSystemOptions &fileSystemOpts,
     // Check for missing argument error.
     if (MissingArgCount) {
         llvm::errs() << diag::err_drv_missing_argument << ArgList.getArgString(MissingArgIndex) << MissingArgCount;
-        doCompile = false;
+        doExecute = false;
         return;
     }
 
@@ -168,14 +167,14 @@ void Driver::BuildOptions(FileSystemOptions &fileSystemOpts,
         }
         llvm::errs() << "Use '" << Path
                      << " --help' for a complete list of options.\n";
-        doCompile = false;
+        doExecute = false;
         return;
     }
 
     // Show Version
     if (ArgList.hasArg(options::OPT_VERSION)) {
         printVersion();
-        doCompile = false;
+        doExecute = false;
         return;
     }
 
@@ -187,20 +186,20 @@ void Driver::BuildOptions(FileSystemOptions &fileSystemOpts,
                 "Fly Compiler",
                 /*Include=*/driver::options::CoreOption, /*Exclude=*/0,
                 /*ShowAllAliases=*/false);
-        doCompile = false;
+        doExecute = false;
         return;
     }
 
     // Parse Input args
     if (ArgList.hasArg(options::OPT_INPUT)) {
         for (const llvm::opt::Arg *a : ArgList.filtered(options::OPT_INPUT)) {
-            frontendOpts->addInputFile(a->getValue());
+            FrontendOpts->addInputFile(a->getValue());
         }
     }
 
     // Enable Verbose Log
     if (ArgList.hasArg(options::OPT_VERBOSE)) {
-        frontendOpts->setVerbose();
+        FrontendOpts->setVerbose();
     }
 
     // Output Options
@@ -208,22 +207,22 @@ void Driver::BuildOptions(FileSystemOptions &fileSystemOpts,
     // Parse Output arg
     if (ArgList.hasArg(options::OPT_OUTPUT)) {
         const StringRef &output = ArgList.getLastArgValue(options::OPT_OUTPUT);
-        frontendOpts->setOutputFile(output);
+        FrontendOpts->setOutputFile(output);
     }
     // Set Working Directory
     if (const llvm::opt::Arg *A = ArgList.getLastArg(options::OPT_WORKING_DIR))
         fileSystemOpts.WorkingDir = A->getValue();
     // Emit different kind of file
     if (ArgList.hasArg(options::OPT_EMIT_LL)) {
-        frontendOpts->setBackendAction(BackendAction::Backend_EmitLL);
+        FrontendOpts->setBackendAction(BackendAction::Backend_EmitLL);
     } else if (ArgList.hasArg(options::OPT_EMIT_BC)) {
-        frontendOpts->setBackendAction(BackendAction::Backend_EmitBC);
+        FrontendOpts->setBackendAction(BackendAction::Backend_EmitBC);
     } else if (ArgList.hasArg(options::OPT_EMIT_AS)) {
-        frontendOpts->setBackendAction(BackendAction::Backend_EmitAssembly);
+        FrontendOpts->setBackendAction(BackendAction::Backend_EmitAssembly);
     } else if (ArgList.hasArg(options::OPT_EMIT_NOTHING)) {
-        frontendOpts->setBackendAction(BackendAction::Backend_EmitNothing);
+        FrontendOpts->setBackendAction(BackendAction::Backend_EmitNothing);
     } else {
-        frontendOpts->setBackendAction(BackendAction::Backend_EmitObj);
+        FrontendOpts->setBackendAction(BackendAction::Backend_EmitObj);
     }
     // Target Options
     if (const llvm::opt::Arg *A = ArgList.getLastArg(options::OPT_TARGET))
@@ -234,18 +233,17 @@ void Driver::BuildOptions(FileSystemOptions &fileSystemOpts,
     targetOpts->CPU = std::string(ArgList.getLastArgValue(options::OPT_TARGET_CPU));
 
     // CodeGen Options
-    codeGenOpts->CodeModel = targetOpts->CodeModel;
-    codeGenOpts->ThreadModel = std::string(ArgList.getLastArgValue(options::OPT_MTHREAD_MODEL, "posix"));
-    if (codeGenOpts->ThreadModel != "posix" && codeGenOpts->ThreadModel != "single")
+    CodeGenOpts->CodeModel = targetOpts->CodeModel;
+    CodeGenOpts->ThreadModel = std::string(ArgList.getLastArgValue(options::OPT_MTHREAD_MODEL, "posix"));
+    if (CodeGenOpts->ThreadModel != "posix" && CodeGenOpts->ThreadModel != "single")
         llvm::errs() << ArgList.getLastArg(options::OPT_MTHREAD_MODEL)->getAsString(ArgList)
-                << codeGenOpts->ThreadModel;
+                << CodeGenOpts->ThreadModel;
 }
 
 bool Driver::Execute() {
     bool Success = true;
 
-
-    if (doCompile) {
+    if (doExecute) {
 
         Frontend Front(*CI);
         Success = Front.Execute();

@@ -47,7 +47,7 @@ namespace fly {
 
         ASTNode *getNode();
 
-        const ASTNameSpace *getNameSpace() const;
+        ASTNameSpace *getNameSpace() const;
 
         const SourceLocation &getLocation() const;
 

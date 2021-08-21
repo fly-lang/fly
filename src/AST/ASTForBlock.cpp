@@ -14,7 +14,7 @@ using namespace fly;
 
 ASTForBlock::ASTForBlock(const SourceLocation &Loc, ASTBlock *Parent) : ASTBlock(Loc, Parent) {
     Init = new ASTBlock(Loc, this);
-    Cond = nullptr;
+    Cond = new ASTBlock(Loc, Init);
     Post = new ASTBlock(Loc, Init);
     Loop = new ASTBlock(Loc, Init);
 }
@@ -28,7 +28,14 @@ ASTBlock *ASTForBlock::getInit() {
 }
 
 ASTExpr *ASTForBlock::getCondition() {
-    return Cond;
+    return CondExpr;
+}
+
+void ASTForBlock::setCond(ASTExpr *Expr) {
+    CondExpr = Expr;
+    ASTExprStmt *ExprStmt = new ASTExprStmt(Expr->getLocation(), Cond);
+    ExprStmt->setExpr(CondExpr);
+    Cond->addExprStmt(ExprStmt);
 }
 
 ASTBlock *ASTForBlock::getPost() {

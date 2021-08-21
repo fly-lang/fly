@@ -19,25 +19,26 @@ namespace fly {
     class CodeGenModule;
     class ASTLocalVar;
     class ASTFuncParam;
+    class ASTVar;
 
     class CodeGenLocalVar : public CodeGenVar {
 
         CodeGenModule *CGM;
-        bool Constant;
-        llvm::AllocaInst *AllocaI;
+        ASTVar *Var;
+        llvm::AllocaInst *AllocaI = nullptr;
         llvm::LoadInst *LoadI = nullptr;
-        bool Reload;
-        bool isStored;
+        bool Reload = false;
+        bool isStored = false;
         llvm::StringRef BlockID;
 
     public:
-        CodeGenLocalVar(CodeGenModule *CGM, ASTLocalVar *S);
-
-        CodeGenLocalVar(CodeGenModule *CGM, ASTFuncParam *P);
+        CodeGenLocalVar(CodeGenModule *CGM, ASTVar *Var);
 
         llvm::Value *getPointer() override;
 
         llvm::Value *getValue() override;
+
+        llvm::AllocaInst *Alloca();
 
         llvm::StoreInst *Store(llvm::Value *Val);
 

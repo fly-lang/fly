@@ -13,11 +13,11 @@ using namespace fly;
 
 CompilerInstance::CompilerInstance(IntrusiveRefCntPtr<DiagnosticsEngine> Diags,
                                    FileSystemOptions &&FileSystemOpts,
-                                   std::unique_ptr<FrontendOptions> &&FrontendOptions,
-                                   std::unique_ptr<CodeGenOptions> &&CodeGenOptions,
+                                   FrontendOptions *FrontendOptions,
+                                   CodeGenOptions *CodeGenOptions,
                                    std::shared_ptr<TargetOptions> &&TargetOptions) :
         Diags(Diags), FileSystemOpts(std::move(FileSystemOpts)),
-        FrontendOpts(std::move(FrontendOptions)), CodeGenOpts(std::move(CodeGenOptions)),
+        FrontendOpts(FrontendOptions), CodeGenOpts(CodeGenOptions),
         TargetOpts(std::move(TargetOptions)) {
 
     /// Create file manager.
@@ -75,10 +75,6 @@ CodeGenOptions &CompilerInstance::getCodeGenOptions() const {
 }
 
 const std::shared_ptr<fly::TargetOptions> &CompilerInstance::getTargetOptions() const {
+    assert(TargetOpts && "Compiler invocation has no Target options");
     return TargetOpts;
 }
-
-//std::shared_ptr<fly::TargetOptions> &CompilerInstance::getTargetOptions() const {
-//    assert(TargetOpts && "Compiler invocation has no CodeGen options");
-//    return TargetOpts;
-//}

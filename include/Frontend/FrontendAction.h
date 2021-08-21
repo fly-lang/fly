@@ -10,45 +10,51 @@
 #ifndef FLY_FRONTENDACTION_H
 #define FLY_FRONTENDACTION_H
 
-#include "CompilerInstance.h"
-#include "InputFile.h"
-#include "FrontendOptions.h"
+#include <CodeGen/CodeGen.h>
 #include "OutputFile.h"
-#include "ChainedDiagnosticConsumer.h"
-#include "AST/ASTNode.h"
-#include "Basic/FileManager.h"
-#include "Parser/Parser.h"
-#include "llvm/Support/VirtualFileSystem.h"
 
 namespace fly {
 
+    class CodeGen;
+    class CodeGenModule;
+    class CompilerInstance;
+    class ASTNode;
+    class ASTContext;
+    class Parser;
+    class DiagnosticsEngine;
+    class InputFile;
+    class FileManager;
+    class SourceManager;
+
     class FrontendAction {
 
-        const InputFile &Input;
+        CodeGen &CG;
 
-        ASTNode *AST;
+        Parser *P = nullptr;
+
+        ASTNode *AST = nullptr;
+
+        CodeGenModule *CGM = nullptr;
 
         ASTContext *Context;
-
-        FileManager &FileMgr;
 
         SourceManager &SourceMgr;
 
         DiagnosticsEngine &Diags;
 
-        OutputFile Output;
-
-        Parser *Parse;
-
     public:
 
-        FrontendAction(const CompilerInstance &CI, InputFile &Input, ASTContext *Context);
+        FrontendAction(const CompilerInstance &CI, ASTContext *Context, CodeGen &CG);
 
         ~FrontendAction();
 
-        bool BuildASTNode();
+        ASTNode *getAST();
 
-        ASTNode &getASTNode();
+        bool Parse(InputFile &Input);
+
+        bool Compile();
+
+        bool EmitOutput();
     };
 }
 

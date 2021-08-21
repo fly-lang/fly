@@ -38,20 +38,16 @@ namespace fly {
         DiagnosticsEngine &Diags;
         CodeGenOptions &CodeGenOpts;
         TargetOptions &TargetOpts;
-        const ASTContext &Context;
         IntrusiveRefCntPtr<TargetInfo> Target;
         llvm::LLVMContext LLVMCtx;
-        CodeGenModule *CGM;
         BackendAction ActionKind;
 
         static std::string getOutputFileName(BackendAction Action, StringRef BaseInput);
     public:
         CodeGen(DiagnosticsEngine &Diags, CodeGenOptions &CodeGenOpts, const std::shared_ptr<TargetOptions> &TargetOpts,
-                ASTContext &Context, BackendAction Action);
+                BackendAction Action);
 
-        bool Execute();
-
-        llvm::Module *getModule();
+        bool Emit(CodeGenModule *CGM);
 
         static TargetInfo* CreateTargetInfo(DiagnosticsEngine &Diags,
                                                  const std::shared_ptr<TargetOptions> &TargetOpts);
@@ -59,9 +55,7 @@ namespace fly {
         /// Get the current target info.
         TargetInfo &getTargetInfo() const;
 
-        bool GenerateModules(ASTNameSpace * NS);
-
-        bool GenerateModule(ASTNode *Node);
+        CodeGenModule *CreateModule(llvm::StringRef Name);
     };
 }
 

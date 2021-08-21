@@ -17,18 +17,8 @@
 
 using namespace fly;
 
-CodeGenLocalVar::CodeGenLocalVar(CodeGenModule *CGM, ASTLocalVar *S) : CGM(CGM), Constant(S->isConstant()) {
-    const ASTType *Tyb = S->getType();
-    Type *Ty = CGM->GenType(Tyb);
-    AllocaI = CGM->Builder->CreateAlloca(Ty);
-    AllocaI->getAllocatedType();
-}
+CodeGenLocalVar::CodeGenLocalVar(CodeGenModule *CGM, ASTVar *Var) : CGM(CGM), Var(Var) {
 
-CodeGenLocalVar::CodeGenLocalVar(CodeGenModule *CGM, ASTFuncParam *P) : CGM(CGM), Constant(P->isConstant()) {
-    const ASTType *Tyb = P->getType();
-    Type *Ty = CGM->GenType(Tyb);
-    AllocaI = CGM->Builder->CreateAlloca(Ty);
-    AllocaI->getAllocatedType();
 }
 
 llvm::Value *CodeGenLocalVar::getPointer() {
@@ -39,8 +29,16 @@ llvm::Value *CodeGenLocalVar::getValue() {
     return isStored ? (needReload() ? Load() : LoadI) : (llvm::UnaryInstruction *) AllocaI;
 }
 
+llvm::AllocaInst *CodeGenLocalVar::Alloca() {
+    const ASTType *Tyb = Var->getType();
+    Type *Ty = CGM->GenType(Tyb);
+    AllocaI = CGM->Builder->CreateAlloca(Ty);
+    AllocaI->getAllocatedType();
+    return AllocaI;
+}
+
 llvm::StoreInst *CodeGenLocalVar::Store(llvm::Value *Val) {
-    assert(!Constant && "Cannot store into constant var");
+    assert(!Var->isConstant() && "Cannot store into constant var");
     assert(AllocaI && "Cannot store into unallocated stack");
     llvm::StoreInst *S = CGM->Builder->CreateStore(Val, AllocaI);
     isStored = true;

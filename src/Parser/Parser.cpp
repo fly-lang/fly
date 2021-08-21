@@ -10,10 +10,11 @@
 #include <AST/ASTWhileBlock.h>
 #include "Parser/Parser.h"
 #include "AST/ASTImport.h"
+#include "AST/ASTNameSpace.h"
 
 using namespace fly;
 
-Parser::Parser(InputFile &Input, SourceManager &SourceMgr, DiagnosticsEngine &Diags) : Input(Input), Diags(Diags),
+Parser::Parser(const InputFile &Input, SourceManager &SourceMgr, DiagnosticsEngine &Diags) : Input(Input), Diags(Diags),
             Lex(Input.getFileID(), Input.getBuffer(), SourceMgr) {
 
 }
@@ -46,7 +47,7 @@ bool Parser::Parse(ASTNode *Node) {
                 }
             }
 
-            return AST->Finalize();
+            return AST->Resolve();
         }
     }
 
@@ -59,10 +60,6 @@ DiagnosticBuilder Parser::Diag(SourceLocation Loc, unsigned DiagID) {
 
 DiagnosticBuilder Parser::Diag(const Token &Tok, unsigned DiagID) {
     return Diag(Tok.getLocation(), DiagID);
-}
-
-ASTNode *Parser::getAST() {
-    return AST;
 }
 
 /**
@@ -733,11 +730,15 @@ bool Parser::ParseForStmt(ASTBlock *Block) {
         // This is an Expression, it could be a Condition
         if (Tok.is(tok::semi)) {
             ConsumeToken();
-            For->Cond = ParseExpr(For->Init, Success);
 
-            if (Tok.is(tok::semi)) {
-                ConsumeToken();
-                Success &= ParseForCommaStmt(For->Post);
+            ASTExpr *CondExpr = ParseExpr(For->Init, Success);
+            if (Success) {
+                For->setCond(CondExpr);
+
+                if (Tok.is(tok::semi)) {
+                    ConsumeToken();
+                    Success &= ParseForCommaStmt(For->Post);
+                }
             }
         }
     }
@@ -928,7 +929,7 @@ ASTExpr* Parser::ParseOneExpr(ASTBlock *Block, bool &Success) {
             // a()
             ASTFuncCall *Call = ParseFunctionCall(Block, Id, Loc, Success);
             if (Success) {
-                Block->Top->addUnRefCall(Call);
+                Success = Block->Top->addUnRefCall(Call);
                 return new ASTFuncCallExpr(Loc, Call);
             }
         } else {

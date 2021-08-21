@@ -70,8 +70,8 @@ namespace fly {
         friend class Parser;
 
         const SourceLocation Loc;
-        const llvm::StringRef NameSpace;
-        const llvm::StringRef Name;
+        llvm::StringRef NameSpace;
+        llvm::StringRef Name;
 
         ASTVar *Decl = nullptr;
 
@@ -82,7 +82,7 @@ namespace fly {
 
         const SourceLocation &getLocation() const;
 
-        const StringRef &getNameSpace() const;
+        const llvm::StringRef &getNameSpace() const;
 
         const llvm::StringRef &getName() const;
 

@@ -19,13 +19,7 @@ CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, const llvm::StringRef &Na
                                    const ASTValue *Val, const bool isConstant) : CGM(CGM) {
     // Check Value
     llvm::Constant *Const = nullptr;
-    llvm::Type *Typ;
-    if (Val == nullptr || Val->empty()) {
-        Typ = CGM->GenType(Ty);
-    } else {
-        Const = CGM->GenValue(Ty, Val);
-        Typ = Const->getType();
-    }
+    llvm::Type *Typ = CGM->GenType(Ty);
     GVar = new llvm::GlobalVariable(*CGM->Module, Typ, isConstant,GlobalValue::ExternalLinkage, Const, Name);
 }
 

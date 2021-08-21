@@ -40,11 +40,11 @@ CharUnits toCharUnitsFromBits(int64_t BitSize) {
     return CharUnits::fromQuantity(BitSize / 8);
 }
 
-CodeGenModule::CodeGenModule(DiagnosticsEngine &Diags, ASTNode &Node, LLVMContext &LLVMCtx, TargetInfo &Target, CodeGenOptions &CGOpts) :
+CodeGenModule::CodeGenModule(DiagnosticsEngine &Diags, llvm::StringRef Name, LLVMContext &LLVMCtx, TargetInfo &Target,
+                             CodeGenOptions &CGOpts) :
         Diags(Diags),
-        Node(Node),
         Target(Target),
-        Module(new llvm::Module(Node.getFileName(), LLVMCtx)),
+        Module(new llvm::Module(Name, LLVMCtx)),
         LLVMCtx(LLVMCtx),
         Builder(new IRBuilder<>(LLVMCtx)),
         CGOpts(CGOpts) {
@@ -94,19 +94,8 @@ DiagnosticBuilder CodeGenModule::Diag(const SourceLocation &Loc, unsigned DiagID
     return Diags.Report(Loc, DiagID);
 }
 
-/**
- * GenStmt from ASTContext
- */
-bool CodeGenModule::Generate() {
-    // Manage Top Decl
-    Node.getGlobalVars().begin();
-    for (const auto &V : Node.getGlobalVars()) {
-        GenGlobalVar(V.getValue());
-    }
-    for (ASTFunc *F : Node.getFunctions()) {
-        GenFunction(F);
-    }
-    return true;
+Module *CodeGenModule::getModule() const {
+    return Module;
 }
 
 /**
@@ -119,11 +108,9 @@ CodeGenGlobalVar *CodeGenModule::GenGlobalVar(ASTGlobalVar* VDecl) {
     if (VDecl->getExpr()) {
         assert((VDecl->getExpr() == nullptr || VDecl->getExpr()->getKind() == EXPR_VALUE) && "Invalid Global Var value");
         ASTValueExpr *E = static_cast<ASTValueExpr *>(VDecl->getExpr());
-        CG = new CodeGenGlobalVar(this, VDecl->getName(), VDecl->getType(), &E->getValue(),
-                                                    VDecl->isConstant());
+        CG = new CodeGenGlobalVar(this, VDecl->getName(), VDecl->getType(), &E->getValue(), VDecl->isConstant());
     } else {
-        CG = new CodeGenGlobalVar(this, VDecl->getName(), VDecl->getType(), nullptr,
-                                  VDecl->isConstant());
+        CG = new CodeGenGlobalVar(this, VDecl->getName(), VDecl->getType(), nullptr, VDecl->isConstant());
     }
 
     VDecl->setCodeGen(CG);

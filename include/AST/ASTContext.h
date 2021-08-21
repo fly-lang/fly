@@ -11,15 +11,19 @@
 #ifndef FLY_ASTCONTEXT_H
 #define FLY_ASTCONTEXT_H
 
-#include <Basic/SourceLocation.h>
-#include <Basic/Diagnostic.h>
-#include "ASTImport.h"
 #include "llvm/ADT/StringMap.h"
+#include <vector>
 
 namespace fly {
 
+    class SourceLocation;
+    class DiagnosticsEngine;
+    class DiagnosticBuilder;
     class ASTNode;
     class ASTNameSpace;
+    class ASTVarRef;
+    class ASTFuncCall;
+    class ASTImport;
 
     class ASTContext {
 
@@ -28,16 +32,19 @@ namespace fly {
 
         DiagnosticsEngine &Diags;
 
-        // First inserted node, useful for Finalize on last
-        ASTNode *FirstNode = NULL;
-
         ASTNameSpace * DefaultNS;
 
         // All Context Namespaces
         llvm::StringMap<ASTNameSpace *> NameSpaces;
 
-        // All Files: <FileName, FileId>
+        // All Files: <Name, ASTImport>
         llvm::StringMap<ASTImport *> Imports;
+
+        // Contains all unresolved VarRef with GlobalVar
+        std::vector<ASTVarRef *> UnRefGlobalVars;
+
+        // Contains all unresolved Calls with Function
+        std::vector<ASTFuncCall *> UnRefCalls;
 
     public:
         ASTContext(DiagnosticsEngine &Diags);
@@ -50,13 +57,16 @@ namespace fly {
 
         bool DelNode(ASTNode *Node);
 
-        bool Finalize();
+        bool Resolve();
+
+        void addUnRefCall(ASTFuncCall *Call);
+
+        void addUnRefGlobalVar(ASTVarRef *Var);
 
         const llvm::StringMap<ASTNameSpace *> &getNameSpaces() const;
 
         DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID) const;
 
-        bool hasErrors() const;
     };
 }
 

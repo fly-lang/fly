@@ -32,13 +32,17 @@ namespace fly {
 
         ASTContext* Context;
 
+        OutputFile Output;
+
+        std::vector<FrontendAction *> Actions;
+
     public:
 
         explicit Frontend(CompilerInstance &CI);
 
         ~Frontend();
 
-        bool Execute() const;
+        bool Execute();
     };
 }
 

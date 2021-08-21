@@ -28,9 +28,7 @@ namespace fly {
 
         const StmtKind Kind = StmtKind::STMT_VAR_DECL;
 
-        unsigned long Order;
-
-        CodeGenLocalVar *CodeGen;
+        CodeGenLocalVar *CodeGen = nullptr;
 
     public:
         ASTLocalVar(const SourceLocation &Loc, ASTBlock *Block, ASTType *Type, const llvm::StringRef &Name);

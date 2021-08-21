@@ -22,7 +22,8 @@ namespace fly {
         enum BlockStmtKind StmtKind = BlockStmtKind::BLOCK_STMT_FOR;
 
         ASTBlock *Init;
-        ASTExpr *Cond;
+        ASTExpr *CondExpr;
+        ASTBlock *Cond;
         ASTBlock *Post;
         ASTBlock *Loop;
 
@@ -34,6 +35,8 @@ namespace fly {
         ASTBlock *getInit();
 
         ASTExpr *getCondition();
+
+        void setCond(ASTExpr *Expr);
 
         ASTBlock *getPost();
 

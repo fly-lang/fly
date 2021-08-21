@@ -10,6 +10,7 @@
 #ifndef FLY_OUTPUTFILE_H
 #define FLY_OUTPUTFILE_H
 
+#include "llvm/ADT/StringRef.h"
 #include <string>
 
 namespace fly {

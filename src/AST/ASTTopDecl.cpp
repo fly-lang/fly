@@ -21,7 +21,7 @@ ASTNode *ASTTopDecl::getNode() {
     return Node;
 }
 
-const ASTNameSpace *ASTTopDecl::getNameSpace() const {
+ASTNameSpace *ASTTopDecl::getNameSpace() const {
     return Node->getNameSpace();
 }
 

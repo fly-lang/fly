@@ -12,18 +12,14 @@
 
 using namespace fly;
 
-ASTNodeBase::ASTNodeBase(const llvm::StringRef &FileName, const FileID &FID, ASTContext *Context) :
-        FileName(FileName), FID(FID), Context(Context) {
+ASTNodeBase::ASTNodeBase(const llvm::StringRef &FileName, ASTContext *Context) :
+        FileName(FileName), Context(Context) {
 }
 
-const ASTContext &ASTNodeBase::getContext() const {
+ASTContext &ASTNodeBase::getContext() const {
     return *Context;
 }
 
 const llvm::StringRef &ASTNodeBase::getFileName() {
     return FileName;
-}
-
-const FileID &ASTNodeBase::getFileID() const {
-    return FID;
 }

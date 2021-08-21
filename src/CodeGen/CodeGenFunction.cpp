@@ -31,12 +31,12 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, const llvm::StringRef FName
     for (auto &P : FParams->getParams()) {
         CodeGenLocalVar *CGV = new CodeGenLocalVar(CGM, P);
         P->setCodeGen(CGV);
+        P->getCodeGen()->Alloca();
     }
 
     // CodeGen of Vars and Allocation
     for (auto &EntryV : FBody->getDeclVars()) {
-        CodeGenLocalVar *CGV = new CodeGenLocalVar(CGM, EntryV.getValue());
-        EntryV.getValue()->setCodeGen(CGV);
+        EntryV.getValue()->getCodeGen()->Alloca();
     }
 
     // Store Param Values
@@ -50,15 +50,11 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, const llvm::StringRef FName
         ++n;
     }
 
-    // Store Var Values fixme
-//    for (auto &EntryV : FBody->getDeclVars()) {
-//        CGM->GenExpr(EntryV.getValue()->getType(), EntryV.getValue()->getExpr());
-//    }
+    // Store Default LocalVar Values
+    // TODO
 
     // Add Function Body
-    for (auto &Stmt : FBody->getContent()) {
-        CGM->GenStmt(Fn, Stmt);
-    }
+    CGM->GenBlock(Fn, FBody->getContent());
 }
 
 llvm::FunctionType *CodeGenFunction::GenFuncType(const ASTType *RetTyData, const ASTFuncHeader *Params) {

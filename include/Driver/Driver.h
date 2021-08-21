@@ -30,9 +30,9 @@ namespace fly {
         // Contains all parsed options
         llvm::opt::InputArgList ArgList;
 
-        // Can go ahead with compilation phase
+        // Can go ahead with execute phase
         // It is false if some error happens or an option doesn't allow compilation like help or version
-        bool doCompile = true;
+        bool doExecute = true;
 
         /// The name the driver was invoked as.
         std::string Name;
@@ -58,8 +58,8 @@ namespace fly {
 
         void BuildOptions(FileSystemOptions &FileSystemOpts,
                            std::shared_ptr<TargetOptions> &TargetOpts,
-                           std::unique_ptr<FrontendOptions> &FrontendOpts,
-                           std::unique_ptr<CodeGenOptions> &CodeGenOpts);
+                           FrontendOptions *FrontendOpts,
+                           CodeGenOptions *CodeGenOpts);
 
     public:
 

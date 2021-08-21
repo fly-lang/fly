@@ -7,9 +7,13 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
+#include "TestUtils.h"
+#include "Frontend/FrontendAction.h"
 #include "Parser/Parser.h"
+#include "Frontend/CompilerInstance.h"
 #include "AST/ASTContext.h"
 #include "AST/ASTNameSpace.h"
+#include "AST/ASTImport.h"
 #include <unordered_set>
 #include <gtest/gtest.h>
 #include <AST/ASTWhileBlock.h>
@@ -20,62 +24,53 @@ namespace {
     class ParserTest : public ::testing::Test {
 
     public:
+        const CompilerInstance CI;
+        ASTContext *Context;
+        CodeGen *CG;
+        DiagnosticsEngine &Diags;
 
-        FileSystemOptions FileMgrOpts;
-        FileManager FileMgr;
-        IntrusiveRefCntPtr<DiagnosticIDs> DiagID;
-        DiagnosticsEngine Diags;
-        SourceManager SourceMgr;
+        ParserTest() : CI(*TestUtils::CreateCompilerInstance()),
+                      Context(new ASTContext(CI.getDiagnostics())),
+                      CG(TestUtils::CreateCodeGen(CI)),
+                      Diags(CI.getDiagnostics()) {
 
-        ParserTest(): FileMgr(FileMgrOpts),
-                      DiagID(new DiagnosticIDs()),
-                      Diags(DiagID, new DiagnosticOptions, new IgnoringDiagConsumer()),
-                      SourceMgr(Diags, FileMgr) {
         }
 
-        std::unique_ptr<Parser> Parse(llvm::StringRef FileName, llvm::StringRef Source) {
-
-            // Create a lexer starting at the beginning of this token.
+        ASTNode *Parse(llvm::StringRef FileName, llvm::StringRef Source) {
+            FrontendAction *Action = new FrontendAction(CI, Context, *CG);
             InputFile Input(FileName);
-            Input.Load(Source, SourceMgr);
-
-            std::unique_ptr<Parser> P = std::make_unique<Parser>(Input, SourceMgr, Diags);
-            ASTContext *Ctx = new ASTContext(Diags);
-            ASTNode *AST = new ASTNode(FileName, Input.getFileID(), Ctx);
-            if (P->Parse(AST)) {
-                AST->Finalize();
-            }
-            return P;
+            Input.Load(Source, CI.getSourceManager());
+            Action->Parse(Input);
+            return Action->getAST();
         }
 
     };
 
     TEST_F(ParserTest, SinglePackage) {
         llvm::StringRef str = ("namespace std");
-        auto P = Parse("package.fly", str);
-        ASTNode *AST = P->getAST();
-        ASSERT_FALSE(AST->getContext().hasErrors());
+        ASTNode *AST = Parse("package.fly", str);
+        ASSERT_FALSE(Diags.hasErrorOccurred());
 
         EXPECT_EQ(AST->getFileName(), "package.fly");
 
         // verify AST contains package
-        EXPECT_EQ(AST->getNameSpace()->getNameSpace(), "std");
+        EXPECT_EQ(AST->getNameSpace()->getName(), "std");
         delete AST;
     }
 
     TEST_F(ParserTest, MultiPackageError) {
         llvm::StringRef str = ("namespace std\n"
                          "namespace bad");
-        auto P = Parse("error.fly", str);
+        ASTNode *AST = Parse("error.fly", str);
         EXPECT_TRUE(Diags.hasErrorOccurred());
     }
 
     TEST_F(ParserTest, SingleImport) {
         llvm::StringRef str = ("namespace std\n"
                          "import \"packageA\"");
-        auto P = Parse("import.fly", str);
-        auto AST = P->getAST();
-        ASSERT_FALSE(AST->getContext().hasErrors());
+        ASTNode *AST = Parse("import.fly", str);
+
+        ASSERT_FALSE(Diags.hasErrorOccurred());
 
         ASTImport* Verify = AST->getImports().lookup("packageA");
 
@@ -86,9 +81,9 @@ namespace {
 
     TEST_F(ParserTest, SingleImportAlias) {
         llvm::StringRef str = ("\n import  \"standard\" as \"std\"\n");
-        auto P = Parse("package.fly", str);
-        auto AST = P->getAST();
-        EXPECT_EQ(AST->getNameSpace()->getNameSpace(), "default");
+        ASTNode *AST = Parse("package.fly", str);
+
+        EXPECT_EQ(AST->getNameSpace()->getName(), "default");
         EXPECT_EQ(AST->getImports().lookup("standard")->getName(), "standard");
         EXPECT_EQ(AST->getImports().lookup("standard")->getAlias(), "std");
         delete AST;
@@ -98,9 +93,9 @@ namespace {
         llvm::StringRef str = ("namespace std\n"
                          "import \"packageA\""
                          "import \"packageB\"");
-        auto P = Parse("imports.fly", str);
-        auto AST = P->getAST();
-        ASSERT_FALSE(AST->getContext().hasErrors());
+        ASTNode *AST = Parse("imports.fly", str);
+
+        ASSERT_FALSE(Diags.hasErrorOccurred());
 
         ASTImport* VerifyB = AST->getImports().lookup("packageB");
         ASTImport* VerifyA = AST->getImports().lookup("packageA");
@@ -113,9 +108,9 @@ namespace {
     TEST_F(ParserTest, SingleParenImport) {
         llvm::StringRef str = ("namespace std\n"
                          "import (\"packageA\")");
-        auto P = Parse("import.fly", str);
-        auto AST = P->getAST();
-        ASSERT_FALSE(AST->getContext().hasErrors());
+        ASTNode *AST = Parse("import.fly", str);
+
+        ASSERT_FALSE(Diags.hasErrorOccurred());
 
         ASTImport* Verify = AST->getImports().lookup("packageA");
         EXPECT_EQ(Verify->getName(), "packageA");
@@ -125,9 +120,9 @@ namespace {
     TEST_F(ParserTest, MultiParenImports) {
         llvm::StringRef str = ("namespace std\n"
                          "import (\"packageA\", \"packageB\")");
-        auto P = Parse("imports.fly", str);
-        auto AST = P->getAST();
-        ASSERT_FALSE(AST->getContext().hasErrors());
+        ASTNode *AST = Parse("imports.fly", str);
+
+        ASSERT_FALSE(Diags.hasErrorOccurred());
 
         ASTImport* VerifyB = AST->getImports().lookup("packageB");
         ASTImport* VerifyA = AST->getImports().lookup("packageA");
@@ -143,9 +138,9 @@ namespace {
                          "public float b\n"
                          "bool c\n"
                          );
-        auto P = Parse("var.fly", str);
-        auto AST = P->getAST();
-        ASSERT_FALSE(AST->getContext().hasErrors());
+        ASTNode *AST = Parse("var.fly", str);
+
+        ASSERT_FALSE(Diags.hasErrorOccurred());
 
         ASTGlobalVar *VerifyA = AST->getGlobalVars().find("a")->getValue();
         ASTGlobalVar *VerifyB = AST->getNameSpace()->getGlobalVars().find("b")->getValue();
@@ -174,9 +169,9 @@ namespace {
                          "private const int a = 1\n"
                          "const public float b = 2.0\n"
                          "const bool c = false\n");
-        auto P = Parse("var.fly", str);
-        auto AST = P->getAST();
-        ASSERT_FALSE(AST->getContext().hasErrors());
+        ASTNode *AST = Parse("var.fly", str);
+
+        ASSERT_FALSE(Diags.hasErrorOccurred());
 
         ASTGlobalVar *VerifyA = AST->getGlobalVars().find("a")->getValue();
         ASTGlobalVar *VerifyB = AST->getGlobalVars().find("b")->getValue();
@@ -206,9 +201,8 @@ namespace {
     TEST_F(ParserTest, FunctionDefaultVoidEmpty) {
         llvm::StringRef str = ("namespace std\n"
                          "void func() {}\n");
-        auto P = Parse("function.fly", str);
-        auto *AST = P->getAST();
-        ASSERT_FALSE(AST->getContext().hasErrors());
+        ASTNode *AST = Parse("function.fly", str);
+        ASSERT_FALSE(Diags.hasErrorOccurred());
 
         EXPECT_TRUE(AST->getFunctions().size() == 1); // Fun has DEFAULT Visibility
         EXPECT_TRUE(AST->getNameSpace()->getFunctions().size() == 1);
@@ -226,9 +220,9 @@ namespace {
                          "private int func(int a, const float b, bool c=false) {\n"
                          "  return 1"
                          "}\n");
-        auto P = Parse("function.fly", str);
-        auto AST = P->getAST();
-        ASSERT_FALSE(AST->getContext().hasErrors());
+        ASTNode *AST = Parse("function.fly", str);
+
+        ASSERT_FALSE(Diags.hasErrorOccurred());
 
         EXPECT_TRUE(AST->getFunctions().size() == 1); // func() has PRIVATE Visibility
         ASTFunc *VerifyFunc = *(AST->getFunctions().begin());
@@ -276,9 +270,9 @@ namespace {
                          "  c = (b == 1.0) && (true)"
                          "  return c\n"
                          "}\n");
-        auto P = Parse("fbody.fly", str);
-        auto AST = P->getAST();
-        ASSERT_FALSE(AST->getContext().hasErrors());
+        ASTNode *AST = Parse("fbody.fly", str);
+
+        ASSERT_FALSE(Diags.hasErrorOccurred());
 
         // Get Body
         ASTFunc *F = *(AST->getNameSpace()->getFunctions().begin());
@@ -351,9 +345,9 @@ namespace {
                                "  doOther(a, 1)"
                                "  return do()"
                                "}\n");
-        auto P = Parse("fbody.fly", str);
-        auto AST = P->getAST();
-        ASSERT_FALSE(AST->getContext().hasErrors());
+        ASTNode *AST = Parse("fbody.fly", str);
+
+        ASSERT_FALSE(Diags.hasErrorOccurred());
 
         // Get all functions
         ASTFunc *doSome = *AST->getFunctions().begin();
@@ -410,9 +404,9 @@ namespace {
                          "  a--"
                          "  a = ++a + 1"
                          "}\n");
-        auto P = Parse("fbody.fly", str);
-        auto AST = P->getAST();
-        ASSERT_FALSE(AST->getContext().hasErrors());
+        ASTNode *AST = Parse("fbody.fly", str);
+
+        ASSERT_FALSE(Diags.hasErrorOccurred());
 
         // Get Body
         ASTFunc *F = *(AST->getNameSpace()->getFunctions().begin());
@@ -471,9 +465,9 @@ namespace {
                          "    b = 2"
                          "  }"
                          "}\n");
-        auto P = Parse("fbody.fly", str);
-        auto AST = P->getAST();
-        ASSERT_FALSE(AST->getContext().hasErrors());
+        ASTNode *AST = Parse("fbody.fly", str);
+
+        ASSERT_FALSE(Diags.hasErrorOccurred());
 
         // Get Body
         ASTFunc *F = *(AST->getNameSpace()->getFunctions().begin());
@@ -516,9 +510,9 @@ namespace {
                          "  elsif a == 2 a = 1"
                          "  else a = 2"
                          "}\n");
-        auto P = Parse("fbody.fly", str);
-        auto AST = P->getAST();
-        ASSERT_FALSE(AST->getContext().hasErrors());
+        ASTNode *AST = Parse("fbody.fly", str);
+
+        ASSERT_FALSE(Diags.hasErrorOccurred());
 
         // Get Body
         ASTFunc *F = *(AST->getNameSpace()->getFunctions().begin());
@@ -565,9 +559,9 @@ namespace {
                          "      return"
                          "  }"
                          "}\n");
-        auto P = Parse("fbody.fly", str);
-        auto AST = P->getAST();
-        ASSERT_FALSE(AST->getContext().hasErrors());
+        ASTNode *AST = Parse("fbody.fly", str);
+
+        ASSERT_FALSE(Diags.hasErrorOccurred());
 
         // Get Body
         ASTFunc *F = *(AST->getFunctions().begin());
@@ -591,9 +585,9 @@ namespace {
                          "  for int b = 1, int c = 2; b < 10; b++, --c {"
                          "  }"
                          "}\n");
-        auto P = Parse("fbody.fly", str);
-        auto AST = P->getAST();
-        ASSERT_FALSE(AST->getContext().hasErrors());
+        ASTNode *AST = Parse("fbody.fly", str);
+
+        ASSERT_FALSE(Diags.hasErrorOccurred());
 
         // Get Body
         ASTFunc *F = *(AST->getFunctions().begin());
@@ -629,9 +623,9 @@ namespace {
                          "  while (a==1) {}"
                          "  while {}"
                          "}\n");
-        auto P = Parse("fbody.fly", str);
-        auto AST = P->getAST();
-        ASSERT_FALSE(AST->getContext().hasErrors());
+        ASTNode *AST = Parse("fbody.fly", str);
+
+        ASSERT_FALSE(Diags.hasErrorOccurred());
 
         // Get Body
         ASTFunc *F = *(AST->getFunctions().begin());

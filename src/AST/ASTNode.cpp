@@ -14,28 +14,26 @@
 #include "AST/ASTContext.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTNode.h"
+#include "AST/ASTImport.h"
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTFunc.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTLocalVar.h"
+#include "Basic/Diagnostic.h"
 #include "llvm/ADT/StringMap.h"
 
 using namespace fly;
 
-ASTNode::ASTNode(const llvm::StringRef &FileName, const FileID &FID, ASTContext *Context) :
-        ASTNodeBase(FileName, FID, Context) {
+ASTNode::ASTNode(const llvm::StringRef &FileName, ASTContext *Context, CodeGenModule * CGM) :
+        ASTNodeBase(FileName, Context), CGM(CGM) {
 }
 
 ASTNode::~ASTNode() {
     Imports.clear();
 }
 
-bool ASTNode::isFirstNode() const {
-    return FirstNode;
-}
-
-void ASTNode::setFirstNode(bool First) {
-    ASTNode::FirstNode = First;
+CodeGenModule *ASTNode::getCodeGen() const {
+    return CGM;
 }
 
 ASTNameSpace* ASTNode::getNameSpace() {
@@ -216,12 +214,73 @@ ASTType *ASTNode::ResolveExprType(ASTExpr *E) {
     return nullptr;
 }
 
-bool ASTNode::Finalize() {
-    for (const auto &Function : Functions) {
-        if (!Function->Finalize()) {
-            return false;
+void ASTNode::addUnRefCall(ASTFuncCall *Call) {
+    UnRefCalls.push_back(Call);
+}
+
+void ASTNode::addUnRefGlobalVar(ASTVarRef *Var) {
+    UnRefGlobalVars.push_back(Var);
+}
+
+bool ASTNode::Resolve() {
+    return Resolve(UnRefGlobalVars, GlobalVars, UnRefCalls,ResolvedCalls);
+}
+
+bool ASTNode::Resolve(std::vector<ASTVarRef *> &UnRefGlobalVars,
+                      llvm::StringMap<ASTGlobalVar *> &GlobalVars,
+                      std::vector<ASTFuncCall *> &UnRefCalls,
+                      llvm::StringMap<std::vector<ASTFuncCall *>> &ResolvedCalls) {
+    bool Success = ResolveGlobalVar(UnRefGlobalVars, GlobalVars);
+    for (ASTFunc *Function : Functions) {
+        Success &= ResolveFunction(Function,UnRefCalls,ResolvedCalls);
+    }
+    return Success;
+}
+
+bool ASTNode::ResolveGlobalVar(std::vector<ASTVarRef *> &UnRefGlobalVars,
+                      llvm::StringMap<ASTGlobalVar *> &GlobalVars) {
+    bool Success = true;
+
+    // Resolve Unreferenced Global Var (node internal)
+    for (const auto &UnRefGlobalVar : UnRefGlobalVars) {
+        const auto &It = GlobalVars.find(UnRefGlobalVar->getName());
+        if (It == GlobalVars.end()) {
+            Context->Diag(UnRefGlobalVar->getLocation(), diag::err_gvar_notfound)
+                    << UnRefGlobalVar->getName();
+            Success = false; // collects other errors
+        } else {
+            UnRefGlobalVar->setDecl((ASTVar *)It->getValue());
         }
     }
 
-    return Context->AddNode(this);
+    return Success;
 }
+
+bool ASTNode::ResolveFunction(ASTFunc *Function,
+                      std::vector<ASTFuncCall *> &UnRefCalls,
+                      llvm::StringMap<std::vector<ASTFuncCall *>> &ResolvedCalls) {
+    bool Success = true;
+
+    // Resolve Unreferenced Function Calls (node internal)
+    for (auto *UnRefCall : UnRefCalls) {
+        const auto &It = ResolvedCalls.find(UnRefCall->getName());
+        if (It == ResolvedCalls.end()) {
+            Context->Diag(UnRefCall->getLocation(), diag::err_func_notfound)
+                    << UnRefCall->getName();
+            Success = false; // collects other errors
+        } else {
+            for (auto &ResolvedCall : It->getValue()) {
+                if (Function->ResolveCall(ResolvedCall, UnRefCall)) {
+                    UnRefCall->setDecl(ResolvedCall->getDecl());
+                    Success = false;
+                }
+            }
+            if (!Success) { // Not Found
+                Context->Diag(UnRefCall->getLocation(), diag::err_func_notfound)
+                        << UnRefCall->getName();
+            }
+        }
+    }
+    return Success;
+}
+

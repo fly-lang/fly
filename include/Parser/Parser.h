@@ -62,11 +62,9 @@ namespace fly {
 
     public:
 
-        Parser(InputFile &Input, SourceManager &SourceMgr, DiagnosticsEngine &Diags);
+        Parser(const InputFile &Input, SourceManager &SourceMgr, DiagnosticsEngine &Diags);
 
         bool Parse(ASTNode* Unit);
-
-        ASTNode* getAST();
 
         DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID);
         DiagnosticBuilder Diag(const Token &Tok, unsigned DiagID);

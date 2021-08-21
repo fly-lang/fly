@@ -26,7 +26,7 @@ namespace fly {
 
         friend ASTContext;
 
-        llvm::StringRef NameSpace;
+        llvm::StringRef Name;
 
         // AST by FileID
         llvm::StringMap<ASTNode *> Nodes;
@@ -40,6 +40,12 @@ namespace fly {
         // Calls into NameSpace resolution
         llvm::StringMap<std::vector<ASTFuncCall *>> ResolvedCalls;
 
+        // Contains all unresolved VarRef with GlobalVar
+        std::vector<ASTVarRef *> UnRefGlobalVars;
+
+        // Contains all unresolved Calls with Function
+        std::vector<ASTFuncCall *> UnRefCalls;
+
         // Public Classes
         llvm::StringMap<ASTClass *> Classes;
 
@@ -50,7 +56,7 @@ namespace fly {
 
         static const llvm::StringRef DEFAULT;
 
-        const llvm::StringRef &getNameSpace() const;
+        const llvm::StringRef &getName() const;
 
         const llvm::StringMap<ASTNode *> &getNodes() const;
 
@@ -66,7 +72,11 @@ namespace fly {
         const llvm::StringMap<ASTClass *> &getClasses() const;
         bool addClass(ASTClass *Class);
 
-        bool Finalize();
+        void addUnRefCall(ASTFuncCall *Call);
+
+        void addUnRefGlobalVar(ASTVarRef *Var);
+
+        bool Resolve();
     };
 }
 

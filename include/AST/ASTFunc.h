@@ -42,6 +42,7 @@ namespace fly {
     class ASTFunc : public ASTTopDecl {
 
         friend class ASTNode;
+        friend class ASTNameSpace;
         friend class Parser;
         friend class FunctionParser;
         friend class CodeGenTest;
@@ -63,12 +64,6 @@ namespace fly {
 
         // Body is the main BlockStmt
         ASTBlock *Body;
-
-        // Contains all Calls to be resolved with Function
-        std::vector<ASTFuncCall *> UnRefCalls;
-
-        // Contains all VarRef to be resolved with GlobalVar
-        std::vector<ASTVarRef *> UnRefGlobalVars;
 
         // Populated during codegen phase
         CodeGenFunction *CodeGen = nullptr;
@@ -104,9 +99,15 @@ namespace fly {
 
         void addUnRefGlobalVar(ASTVarRef *Var);
 
-        bool ResolveCall(ASTFuncCall *ResolvedCall, ASTFuncCall *Call);
+        bool addNSUnRefCall(ASTFuncCall *Call);
 
-        bool Finalize();
+        void addNSUnRefGlobalVar(ASTVarRef *Var);
+
+        bool addExtUnRefCall(ASTFuncCall *Call);
+
+        void addExtUnRefGlobalVar(ASTVarRef *Var);
+
+        bool ResolveCall(ASTFuncCall *ResolvedCall, ASTFuncCall *Call);
 
         bool operator==(const ASTFunc& F) const;
     };

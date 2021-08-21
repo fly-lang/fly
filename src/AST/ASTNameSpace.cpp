@@ -13,13 +13,14 @@
 
 
 #include "AST/ASTNameSpace.h"
+#include "AST/ASTNode.h"
 #include "AST/ASTFunc.h"
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTClass.h"
 
 using namespace fly;
 
-ASTNameSpace::ASTNameSpace(const llvm::StringRef &NS) : NameSpace(NS) {}
+ASTNameSpace::ASTNameSpace(const llvm::StringRef &NS) : Name(NS) {}
 
 const llvm::StringRef ASTNameSpace::DEFAULT = "default";
 
@@ -28,8 +29,8 @@ ASTNameSpace::~ASTNameSpace() {
     GlobalVars.clear();
 }
 
-const llvm::StringRef &fly::ASTNameSpace::getNameSpace() const {
-    return NameSpace;
+const llvm::StringRef &fly::ASTNameSpace::getName() const {
+    return Name;
 }
 
 const llvm::StringMap<ASTNode*> &ASTNameSpace::getNodes() const {
@@ -81,11 +82,26 @@ bool ASTNameSpace::addClass(ASTClass *Class) {
     return Classes.insert(Pair).second;
 }
 
-bool ASTNameSpace::Finalize() {
-    for (auto *Function : Functions) {
-        if (!Function->Finalize()) {
-            return false;
-        }
+void ASTNameSpace::addUnRefCall(ASTFuncCall *Call) {
+    UnRefCalls.push_back(Call);
+}
+
+void ASTNameSpace::addUnRefGlobalVar(ASTVarRef *Var) {
+    UnRefGlobalVars.push_back(Var);
+}
+
+/**
+ * Take all unreferenced Global Variables from Functions and try to resolve them
+ * into this NameSpace
+ * @return
+ */
+bool ASTNameSpace::Resolve() {
+    bool Success = true;
+    for (auto &Node : Nodes) {
+        Success &= Node.getValue()->Resolve(UnRefGlobalVars,
+                                         GlobalVars,
+                                         UnRefCalls,
+                                         ResolvedCalls);
     }
-    return true;
+    return Success;
 }
