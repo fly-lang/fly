@@ -55,7 +55,9 @@ namespace {
                    Context(new ASTContext(CI.getDiagnostics())),
                    CG(TestUtils::CreateCodeGen(CI)),
                    Diags(CI.getDiagnostics()) {
-
+            llvm::InitializeAllTargets();
+            llvm::InitializeAllTargetMCs();
+            llvm::InitializeAllAsmPrinters();
         }
 
         ASTNode *CreateAST(const llvm::StringRef Name, const StringRef NameSpace = "default") {
@@ -97,108 +99,41 @@ namespace {
         std::cout << "File " << testFile << " deleted successfully!\n";
     }
 
-    TEST_F(CodeGenTest, EmitNothing) {
+    TEST_F(CodeGenTest, Emit) {
 
         EXPECT_TRUE(createTestFile(testFile));
 
         ASTNode *Node = CreateAST(testFile);
-
-        CodeGenOptions codeGenOpts;
+        CodeGenOptions CodeGenOpts;
         std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();
         TargetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
-        CodeGen CG(Diags, codeGenOpts, TargetOpts, Backend_EmitNothing);
-        CI.getTargetOptions()->CodeModel = "default";
-        bool Success = CG.Emit(nullptr);
+        TargetOpts->CodeModel = "default";
+        CodeGenOpts.CodeModel = "default";
+        CodeGenOpts.ThreadModel = "single";
 
+        CodeGen CG(Diags, CodeGenOpts, TargetOpts, Backend_EmitNothing);
+        bool Success = CG.Emit(nullptr);
         ASSERT_TRUE(Success);
+
+        CodeGen CG2(Diags, CodeGenOpts, TargetOpts, Backend_EmitLL);
+        Success = CG2.Emit(Node->getCodeGen());
+        ASSERT_TRUE(Success);
+
+        CodeGen CG3(Diags, CodeGenOpts, TargetOpts, Backend_EmitBC);
+        Success = CG3.Emit(Node->getCodeGen());
+        ASSERT_TRUE(Success);
+
+        CodeGen CG4(Diags, CodeGenOpts, TargetOpts, Backend_EmitAssembly);
+        Success = CG4.Emit(Node->getCodeGen());
+        ASSERT_TRUE(Success);
+
+        CodeGen CG5(Diags, CodeGenOpts, TargetOpts, Backend_EmitObj);
+        Success = CG5.Emit(Node->getCodeGen());
+        ASSERT_TRUE(Success);
+
         delete Node;
         deleteTestFile(testFile);
     }
-//
-//    TEST_F(CodeGenTest, EmitLL) {
-//
-//        EXPECT_TRUE(createTestFile(testFile));
-//
-//        ASTContext *Ctx = new ASTContext(Diags);
-//        ASTNode *Node = createAST(testFile);
-//
-//        CodeGenOptions CodeGenOpts;
-//        std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();
-//        TargetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
-//        TargetOpts->CodeModel = "default";
-//        LLVMContext LLVMCtx;
-//        CodeGen CG(Diags, CodeGenOpts, TargetOpts, *Ctx, Backend_EmitLL);
-//        ASSERT_TRUE(CG.GenerateModule(Node));
-//
-//        CG.getModule()->print(llvm::outs(), nullptr);
-//        read();
-//        deleteTestFile(testFile);
-//        delete Node;
-//    }
-
-//    TEST_F(CodeGenTest, EmitBC) {
-//
-//        EXPECT_TRUE(createTestFile(testFile));
-//
-//        ASTContext *Ctx = new ASTContext(Diags);
-//        ASTNode *Node = createAST(testFile);
-//
-//        CodeGenOptions CodeGenOpts;
-//        std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();
-//        TargetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
-//        TargetOpts->CodeModel = "default";
-//        LLVMContext LLVMCtx;
-//        CodeGen CG(Diags, CodeGenOpts, TargetOpts, *Ctx, Backend_EmitLL);
-//        ASSERT_TRUE(CG.GenerateModule(Node));
-//
-//        CG.getModule()->print(llvm::outs(), nullptr);
-//
-//        read();
-//        deleteTestFile(testFile);
-//        delete Node;
-//    }
-//
-//    TEST_F(CodeGenTest, EmitAS) {
-//
-//        EXPECT_TRUE(createTestFile(testFile));
-//
-//        ASTContext *Ctx = new ASTContext(Diags);
-//        ASTNode *Node = createAST(testFile);
-//
-//        CodeGenOptions CodeGenOpts;
-//        std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();
-//        TargetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
-//        TargetOpts->CodeModel = "default";
-//        LLVMContext LLVMCtx;
-//        CodeGen CG(Diags, CodeGenOpts, TargetOpts, *Ctx, Backend_EmitAssembly);
-//        ASSERT_TRUE(CG.GenerateModule(Node));
-//
-//        CG.getModule()->print(llvm::outs(), nullptr);
-//
-//        deleteTestFile(testFile);
-//        delete Node;
-//    }
-//
-//    TEST_F(CodeGenTest, EmitOBJ) {
-//
-//        EXPECT_TRUE(createTestFile(testFile));
-//
-//        ASTContext *Ctx = new ASTContext(Diags);
-//        ASTNode *Node = createAST(testFile);
-//
-//        CodeGenOptions CodeGenOpts;
-//        std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();
-//        TargetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
-//        TargetOpts->CodeModel = "default";
-//        LLVMContext LLVMCtx;
-//        CodeGen CG(Diags, CodeGenOpts, TargetOpts, *Ctx, Backend_EmitObj);
-//        ASSERT_TRUE(CG.GenerateModule(Node));
-//
-//        CG.getModule()->print(llvm::outs(), nullptr);
-//
-//        deleteTestFile(testFile);
-//        delete Node;
-//    }
 
     TEST_F(CodeGenTest, CGGlobalVar) {
         EXPECT_TRUE(createTestFile(testFile));
@@ -206,10 +141,6 @@ namespace {
         ASTNode *Node = CreateAST(testFile);
         ASTGlobalVar *Var = new ASTGlobalVar(Node, SourceLoc, new ASTIntType(SourceLoc), "a");
         Node->addGlobalVar(Var);
-
-        llvm::InitializeAllTargets();
-        llvm::InitializeAllTargetMCs();
-        llvm::InitializeAllAsmPrinters();
 
         // Generate Code
         CodeGenModule *CGM = Node->getCodeGen();
@@ -227,7 +158,7 @@ namespace {
         EXPECT_TRUE(createTestFile(testFile));
 
         ASTNode *Node = CreateAST(testFile);
-        
+
         ASTFunc *MainFn = new ASTFunc(Node, SourceLoc, new ASTIntType(SourceLoc),
                                       "main");
         MainFn->addParam(SourceLoc, new ASTIntType(SourceLoc), "P1");
@@ -265,6 +196,7 @@ namespace {
         ASTNode *Node = CreateAST(testFile);
 
         ASTGlobalVar *GVar = new ASTGlobalVar(Node, SourceLoc, new ASTFloatType(SourceLoc), "G");
+        GVar->setVisibility(V_PRIVATE);
         Node->addGlobalVar(GVar);
 
         ASTFunc *MainFn = new ASTFunc(Node, SourceLoc, new ASTIntType(SourceLoc), "main");
@@ -275,16 +207,16 @@ namespace {
         MainFn->getBody()->addVar(VarA);
 
         // A = 1
-        ASTLocalVarRef * VStmt = new ASTLocalVarRef(SourceLoc, MainFn->getBody(), VarA->getName());
+        ASTLocalVarRef * VarAAssign = new ASTLocalVarRef(SourceLoc, MainFn->getBody(), VarA->getName());
         ASTExpr *Expr = new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc)));
-        VStmt->setExpr(Expr);
-        MainFn->getBody()->addVar(VStmt);
+        VarAAssign->setExpr(Expr);
+        MainFn->getBody()->addVar(VarAAssign);
 
         // GlobalVar
         // G = 1
-        ASTLocalVarRef * GStmt = new ASTLocalVarRef(SourceLoc, MainFn->getBody(), GVar->getName(), "default");
-        GStmt->setExpr(Expr);
-        MainFn->getBody()->addVar(GStmt);
+        ASTLocalVarRef * GVarAssign = new ASTLocalVarRef(SourceLoc, MainFn->getBody(), GVar->getName(), "");
+        GVarAssign->setExpr(Expr);
+        MainFn->getBody()->addVar(GVarAssign);
 
         // return A
         MainFn->getBody()->addReturn(SourceLoc, new ASTVarRefExpr(SourceLoc,
@@ -316,7 +248,6 @@ namespace {
     TEST_F(CodeGenTest, CGFuncRetFn) {
         EXPECT_TRUE(createTestFile(testFile));
 
-        ASTContext *Ctx = new ASTContext(Diags);
         ASTNode *Node = CreateAST(testFile);
 
         // main()
@@ -328,18 +259,19 @@ namespace {
         TestFn->setVisibility(V_PRIVATE);
         Node->addFunction(TestFn);
 
-        ASTFuncCall *TestCall = new ASTFuncCall(SourceLoc, Ctx->getDefaultNameSpace()->getName(), TestFn->getName());
+        ASTFuncCall *TestCall = new ASTFuncCall(SourceLoc, "", TestFn->getName());
 //        TestCall->addArg(new ValueExpr(SourceLoc, "1"));
         // call test()
         MainFn->getBody()->addCall(TestCall);
         //return test()
         MainFn->getBody()->addReturn(SourceLoc, new ASTFuncCallExpr(SourceLoc, TestCall));
         // Resolve Context for Resolutions of Call and Ref
+
         Node->Resolve();
-        Ctx->Resolve();
 
         // Generate Code
         CodeGenModule *CGM = Node->getCodeGen();
+        CGM->GenFunction(TestFn);
         Function *F = CGM->GenFunction(MainFn)->getFunction();
         testing::internal::CaptureStdout();
         F->print(llvm::outs());
@@ -357,10 +289,9 @@ namespace {
     TEST_F(CodeGenTest, CGGroupExpr) {
         EXPECT_TRUE(createTestFile(testFile));
 
-        ASTContext *Ctx = new ASTContext(Diags);
         ASTNode *Node = CreateAST(testFile);
 
-        ASTFunc *MainFn = new ASTFunc(Node, SourceLoc, new ASTVoidType(SourceLoc), "main");
+        ASTFunc *MainFn = new ASTFunc(Node, SourceLoc, new ASTIntType(SourceLoc), "main");
         MainFn->addParam(SourceLoc, new ASTIntType(SourceLoc), "a");
         MainFn->addParam(SourceLoc, new ASTIntType(SourceLoc), "b");
         MainFn->addParam(SourceLoc, new ASTIntType(SourceLoc), "c");
@@ -382,7 +313,6 @@ namespace {
         SubGroup->Add(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "2",
                                                                new ASTIntType(SourceLoc))));
         Group->Add(SubGroup);
-
         MainFn->getBody()->addReturn(SourceLoc, Group);
 
         // Generate Code
@@ -392,7 +322,7 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define void @main(i32 %0, i32 %1, i32 %2) {\n"
+        EXPECT_EQ(output, "define i32 @main(i32 %0, i32 %1, i32 %2) {\n"
                           "entry:\n"
                           "  %3 = alloca i32, align 4\n"
                           "  %4 = alloca i32, align 4\n"
@@ -416,7 +346,7 @@ namespace {
     TEST_F(CodeGenTest, CGArithOp) {
         EXPECT_TRUE(createTestFile(testFile));
 
-        ASTContext *Ctx = new ASTContext(Diags);
+
         ASTNode *Node = CreateAST(testFile);
 
         // main()
@@ -518,11 +448,39 @@ namespace {
         Cshr->setExpr(GroupShr);
         MainFn->getBody()->addVar(Cshr);
 
+        // Pre-Increment
+        ASTArithExpr *PreIncr = new ASTArithExpr(SourceLoc, ARITH_INCR);
+        ASTUnaryExpr *PreIncrExpr = new ASTUnaryExpr(SourceLoc, PreIncr, new ASTVarRef(A), UnaryOpKind::UNARY_PRE);
+        ASTExprStmt *PreIncrExprStmt = new ASTExprStmt(SourceLoc, MainFn->getBody());
+        PreIncrExprStmt->setExpr(PreIncrExpr);
+        MainFn->getBody()->addExprStmt(PreIncrExprStmt);
+
+        // Post-Increment
+        ASTArithExpr *PostIncr = new ASTArithExpr(SourceLoc, ARITH_INCR);
+        ASTUnaryExpr *PostIncrExpr = new ASTUnaryExpr(SourceLoc, PostIncr, new ASTVarRef(A), UnaryOpKind::UNARY_POST);
+        ASTExprStmt *PostIncrExprStmt = new ASTExprStmt(SourceLoc, MainFn->getBody());
+        PostIncrExprStmt->setExpr(PostIncrExpr);
+        MainFn->getBody()->addExprStmt(PostIncrExprStmt);
+
+        // Pre-Decrement
+        ASTArithExpr *PreDecr = new ASTArithExpr(SourceLoc, ARITH_DECR);
+        ASTUnaryExpr *PreDecrExpr = new ASTUnaryExpr(SourceLoc, PreDecr, new ASTVarRef(A), UnaryOpKind::UNARY_PRE);
+        ASTExprStmt *PreDecrExprStmt = new ASTExprStmt(SourceLoc, MainFn->getBody());
+        PreDecrExprStmt->setExpr(PreDecrExpr);
+        MainFn->getBody()->addExprStmt(PreDecrExprStmt);
+
+        // Post-Decrement
+        ASTArithExpr *PostDecr = new ASTArithExpr(SourceLoc, ARITH_DECR);
+        ASTUnaryExpr *PostDecrExpr = new ASTUnaryExpr(SourceLoc, PostDecr, new ASTVarRef(A), UnaryOpKind::UNARY_POST);
+        ASTExprStmt *PostDecrExprStmt = new ASTExprStmt(SourceLoc, MainFn->getBody());
+        PostDecrExprStmt->setExpr(PostDecrExpr);
+        MainFn->getBody()->addExprStmt(PostDecrExprStmt);
+
         //return test()
         MainFn->getBody()->addReturn(SourceLoc, new ASTVarRefExpr(SourceLoc, new ASTVarRef(C)));
+
         // Resolve Context for Resolutions of Call and Ref
         Node->Resolve();
-        Ctx->Resolve();
 
         // Generate Code
         CodeGenModule *CGM = Node->getCodeGen();
@@ -560,8 +518,19 @@ namespace {
                           "  store i32 %13, i32* %2, align 4\n"
                           "  %14 = ashr i32 %3, %4\n"
                           "  store i32 %14, i32* %2, align 4\n"
-                          "  %15 = load i32, i32* %2, align 4\n"
-                          "  ret i32 %15\n"
+                          "  %15 = add nsw i32 %3, 1\n"
+                          "  store i32 %15, i32* %0, align 4\n"
+                          "  %16 = load i32, i32* %0, align 4\n"
+                          "  %17 = add i32 %16, 1\n"
+                          "  store i32 %16, i32* %0, align 4\n"
+                          "  %18 = load i32, i32* %0, align 4\n"
+                          "  %19 = add nsw i32 %18, -1\n"
+                          "  store i32 %19, i32* %0, align 4\n"
+                          "  %20 = load i32, i32* %0, align 4\n"
+                          "  %21 = add i32 %20, -1\n"
+                          "  store i32 %20, i32* %0, align 4\n"
+                          "  %22 = load i32, i32* %2, align 4\n"
+                          "  ret i32 %22\n"
                           "}\n");
         delete Node;
     }
@@ -569,7 +538,6 @@ namespace {
     TEST_F(CodeGenTest, CGComparatorOp) {
         EXPECT_TRUE(createTestFile(testFile));
 
-        ASTContext *Ctx = new ASTContext(Diags);
         ASTNode *Node = CreateAST(testFile);
 
         // main()
@@ -639,7 +607,6 @@ namespace {
         MainFn->getBody()->addReturn(SourceLoc, new ASTVarRefExpr(SourceLoc, new ASTVarRef(C)));
         // Resolve Context for Resolutions of Call and Ref
         Node->Resolve();
-        Ctx->Resolve();
 
         // Generate Code
         CodeGenModule *CGM = Node->getCodeGen();
@@ -678,7 +645,6 @@ namespace {
     TEST_F(CodeGenTest, CGLogicOp) {
         EXPECT_TRUE(createTestFile(testFile));
 
-        ASTContext *Ctx = new ASTContext(Diags);
         ASTNode *Node = CreateAST(testFile);
 
         // main()
@@ -712,7 +678,6 @@ namespace {
         MainFn->getBody()->addReturn(SourceLoc, new ASTVarRefExpr(SourceLoc, new ASTVarRef(C)));
         // Resolve Context for Resolutions of Call and Ref
         Node->Resolve();
-        Ctx->Resolve();
 
         // Generate Code
         CodeGenModule *CGM = Node->getCodeGen();
@@ -759,7 +724,6 @@ namespace {
     TEST_F(CodeGenTest, CGIfBlock) {
         EXPECT_TRUE(createTestFile(testFile));
 
-        ASTContext *Ctx = new ASTContext(Diags);
         ASTNode *Node = CreateAST(testFile);
 
         ASTFunc *MainFn = new ASTFunc(Node, SourceLoc, new ASTIntType(SourceLoc), "main");
@@ -813,7 +777,6 @@ namespace {
     TEST_F(CodeGenTest, CGIfElseBlock) {
         EXPECT_TRUE(createTestFile(testFile));
 
-        ASTContext *Ctx = new ASTContext(Diags);
         ASTNode *Node = CreateAST(testFile);
 
         ASTFunc *MainFn = new ASTFunc(Node, SourceLoc, new ASTIntType(SourceLoc), "main");
@@ -821,19 +784,21 @@ namespace {
         Node->addFunction(MainFn);
 
         ASTValueExpr *OneCost = new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc)));
-        ASTGroupExpr *Group = new ASTGroupExpr(SourceLoc);
+        ASTGroupExpr *Cond = new ASTGroupExpr(SourceLoc);
         ASTComparisonExpr *Comp = new ASTComparisonExpr(SourceLoc, COMP_EQ);
         ASTVarRefExpr *ARef = new ASTVarRefExpr(SourceLoc, new ASTVarRef(Param));
-        Group->Add(ARef);
-        Group->Add(Comp);
-        Group->Add(OneCost);
+        Cond->Add(ARef);
+        Cond->Add(Comp);
+        Cond->Add(OneCost);
 
-        ASTIfBlock *IfBlock = new ASTIfBlock(SourceLoc, MainFn->getBody(), Group);
+        // if (a == 1) { a = 1 }
+        ASTIfBlock *IfBlock = new ASTIfBlock(SourceLoc, MainFn->getBody(), Cond);
         ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, IfBlock, Param);
         A2->setExpr(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc))));
         IfBlock->addVar(A2);
         MainFn->getBody()->addBlock(SourceLoc, IfBlock);
 
+        // else {a == 2}
         ASTElseBlock *ElseBlock = new ASTElseBlock(SourceLoc, MainFn->getBody());
         ASTLocalVarRef *A3 = new ASTLocalVarRef(SourceLoc, ElseBlock, Param);
         A3->setExpr(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "2", new ASTIntType(SourceLoc))));
@@ -876,7 +841,6 @@ namespace {
     TEST_F(CodeGenTest, CGIfElsifElseBlock) {
         EXPECT_TRUE(createTestFile(testFile));
 
-        ASTContext *Ctx = new ASTContext(Diags);
         ASTNode *Node = CreateAST(testFile);
 
         ASTFunc *MainFn = new ASTFunc(Node, SourceLoc, new ASTIntType(SourceLoc), "main");
@@ -884,34 +848,38 @@ namespace {
         Node->addFunction(MainFn);
 
         ASTValueExpr *OneCost = new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc)));
-        ASTGroupExpr *Group = new ASTGroupExpr(SourceLoc);
+        ASTGroupExpr *Cond = new ASTGroupExpr(SourceLoc);
         ASTComparisonExpr *Comp = new ASTComparisonExpr(SourceLoc, COMP_EQ);
         ASTVarRefExpr *ARef = new ASTVarRefExpr(SourceLoc, new ASTVarRef(Param));
-        Group->Add(ARef);
-        Group->Add(Comp);
-        Group->Add(OneCost);
+        Cond->Add(ARef);
+        Cond->Add(Comp);
+        Cond->Add(OneCost);
 
-        ASTIfBlock *IfBlock = new ASTIfBlock(SourceLoc, MainFn->getBody(), Group);
+        // if (a == 1) { a = 11 }
+        ASTIfBlock *IfBlock = new ASTIfBlock(SourceLoc, MainFn->getBody(), Cond);
         ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, IfBlock, Param);
-        A2->setExpr(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc))));
+        A2->setExpr(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "11", new ASTIntType(SourceLoc))));
         IfBlock->addVar(A2);
         MainFn->getBody()->addBlock(SourceLoc, IfBlock);
 
-        ASTElsifBlock *ElsifBlock = new ASTElsifBlock(SourceLoc, MainFn->getBody(), Group);
+        // elsif (a == 1) { a = 22 }
+        ASTElsifBlock *ElsifBlock = new ASTElsifBlock(SourceLoc, MainFn->getBody(), Cond);
         ASTLocalVarRef *A3 = new ASTLocalVarRef(SourceLoc, ElsifBlock, Param);
-        A3->setExpr(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "2", new ASTIntType(SourceLoc))));
+        A3->setExpr(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "22", new ASTIntType(SourceLoc))));
         ElsifBlock->addVar(A3);
         IfBlock->AddBranch(MainFn->getBody(), ElsifBlock);
 
-        ASTElsifBlock *Elsif2Block = new ASTElsifBlock(SourceLoc, MainFn->getBody(), Group);
+        // elsif (a == 1) { a = 33 }
+        ASTElsifBlock *Elsif2Block = new ASTElsifBlock(SourceLoc, MainFn->getBody(), Cond);
         ASTLocalVarRef *A4 = new ASTLocalVarRef(SourceLoc, Elsif2Block, Param);
-        A4->setExpr(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "3", new ASTIntType(SourceLoc))));
+        A4->setExpr(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "33", new ASTIntType(SourceLoc))));
         Elsif2Block->addVar(A4);
         IfBlock->AddBranch(MainFn->getBody(), Elsif2Block);
 
+        // else { a = 44 }
         ASTElseBlock *ElseBlock = new ASTElseBlock(SourceLoc, MainFn->getBody());
         ASTLocalVarRef *A5 = new ASTLocalVarRef(SourceLoc, ElseBlock, Param);
-        A5->setExpr(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "4", new ASTIntType(SourceLoc))));
+        A5->setExpr(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "44", new ASTIntType(SourceLoc))));
         ElseBlock->addVar(A5);
         IfBlock->AddBranch(MainFn->getBody(), ElseBlock);
 
@@ -930,19 +898,122 @@ namespace {
                           "  store i32 %0, i32* %1, align 4\n"
                           "  %2 = load i32, i32* %1, align 4\n"
                           "  %3 = icmp eq i32 %2, 1\n"
-                          "  br i1 %3, label %ifthen, label %else\n"
+                          "  br i1 %3, label %ifthen, label %elsif\n"
                           "\n"
                           "ifthen:                                           ; preds = %entry\n"
-                          "  store i32 1, i32* %1, align 4\n"
+                          "  store i32 11, i32* %1, align 4\n"
                           "  br label %endif\n"
                           "\n"
-                          "else:                                             ; preds = %entry\n"
-                          "  store i32 2, i32* %1, align 4\n"
-                          "  br label %endif\n"
-                          "\n"
-                          "endif:                                            ; preds = %else, %ifthen\n"
+                          "elsif:                                            ; preds = %entry\n"
                           "  %4 = load i32, i32* %1, align 4\n"
-                          "  ret i32 %4\n"
+                          "  %5 = icmp eq i32 %4, 1\n"
+                          "  br i1 %5, label %elsifthen, label %elsif1\n"
+                          "\n"
+                          "elsifthen:                                        ; preds = %elsif\n"
+                          "  store i32 22, i32* %1, align 4\n"
+                          "  br label %endif\n"
+                          "\n"
+                          "elsif1:                                           ; preds = %elsif\n"
+                          "  %6 = load i32, i32* %1, align 4\n"
+                          "  %7 = icmp eq i32 %6, 1\n"
+                          "  br i1 %7, label %elsifthen2, label %else\n"
+                          "\n"
+                          "elsifthen2:                                       ; preds = %elsif1\n"
+                          "  store i32 33, i32* %1, align 4\n"
+                          "  br label %endif\n"
+                          "\n"
+                          "else:                                             ; preds = %elsif1\n"
+                          "  store i32 44, i32* %1, align 4\n"
+                          "  br label %endif\n"
+                          "\n"
+                          "endif:                                            ; preds = %else, %elsifthen2, %elsifthen, %ifthen\n"
+                          "  %8 = load i32, i32* %1, align 4\n"
+                          "  ret i32 %8\n"
+                          "}\n");
+        delete Node;
+        deleteTestFile(testFile);
+    }
+
+    TEST_F(CodeGenTest, CGIfElsifBlock) {
+        EXPECT_TRUE(createTestFile(testFile));
+
+        ASTNode *Node = CreateAST(testFile);
+
+        ASTFunc *MainFn = new ASTFunc(Node, SourceLoc, new ASTIntType(SourceLoc), "main");
+        ASTFuncParam *Param = MainFn->addParam(SourceLoc, new ASTIntType(SourceLoc), "a");
+        Node->addFunction(MainFn);
+
+        ASTValueExpr *OneCost = new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc)));
+        ASTGroupExpr *Cond = new ASTGroupExpr(SourceLoc);
+        ASTComparisonExpr *Comp = new ASTComparisonExpr(SourceLoc, COMP_EQ);
+        ASTVarRefExpr *ARef = new ASTVarRefExpr(SourceLoc, new ASTVarRef(Param));
+        Cond->Add(ARef);
+        Cond->Add(Comp);
+        Cond->Add(OneCost);
+
+        // if (a == 1) { a = 11 }
+        ASTIfBlock *IfBlock = new ASTIfBlock(SourceLoc, MainFn->getBody(), Cond);
+        ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, IfBlock, Param);
+        A2->setExpr(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "11", new ASTIntType(SourceLoc))));
+        IfBlock->addVar(A2);
+        MainFn->getBody()->addBlock(SourceLoc, IfBlock);
+
+        // elsif (a == 1) { a = 22 }
+        ASTElsifBlock *ElsifBlock = new ASTElsifBlock(SourceLoc, MainFn->getBody(), Cond);
+        ASTLocalVarRef *A3 = new ASTLocalVarRef(SourceLoc, ElsifBlock, Param);
+        A3->setExpr(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "22", new ASTIntType(SourceLoc))));
+        ElsifBlock->addVar(A3);
+        IfBlock->AddBranch(MainFn->getBody(), ElsifBlock);
+
+        // elsif (a == 1) { a = 33 }
+        ASTElsifBlock *Elsif2Block = new ASTElsifBlock(SourceLoc, MainFn->getBody(), Cond);
+        ASTLocalVarRef *A4 = new ASTLocalVarRef(SourceLoc, Elsif2Block, Param);
+        A4->setExpr(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "33", new ASTIntType(SourceLoc))));
+        Elsif2Block->addVar(A4);
+        IfBlock->AddBranch(MainFn->getBody(), Elsif2Block);
+
+        MainFn->getBody()->addReturn(SourceLoc, ARef);
+
+        // Generate Code
+        CodeGenModule *CGM = Node->getCodeGen();
+        Function *F = CGM->GenFunction(MainFn)->getFunction();
+        testing::internal::CaptureStdout();
+        F->print(llvm::outs());
+        std::string output = testing::internal::GetCapturedStdout();
+
+        EXPECT_EQ(output, "define i32 @main(i32 %0) {\n"
+                          "entry:\n"
+                          "  %1 = alloca i32, align 4\n"
+                          "  store i32 %0, i32* %1, align 4\n"
+                          "  %2 = load i32, i32* %1, align 4\n"
+                          "  %3 = icmp eq i32 %2, 1\n"
+                          "  br i1 %3, label %ifthen, label %elsif\n"
+                          "\n"
+                          "ifthen:                                           ; preds = %entry\n"
+                          "  store i32 11, i32* %1, align 4\n"
+                          "  br label %endif\n"
+                          "\n"
+                          "elsif:                                            ; preds = %entry\n"
+                          "  %4 = load i32, i32* %1, align 4\n"
+                          "  %5 = icmp eq i32 %4, 1\n"
+                          "  br i1 %5, label %elsifthen, label %elsif1\n"
+                          "\n"
+                          "elsifthen:                                        ; preds = %elsif\n"
+                          "  store i32 22, i32* %1, align 4\n"
+                          "  br label %endif\n"
+                          "\n"
+                          "elsif1:                                           ; preds = %elsif\n"
+                          "  %6 = load i32, i32* %1, align 4\n"
+                          "  %7 = icmp eq i32 %6, 1\n"
+                          "  br i1 %7, label %elsifthen2, label %endif\n"
+                          "\n"
+                          "elsifthen2:                                       ; preds = %elsif1\n"
+                          "  store i32 33, i32* %1, align 4\n"
+                          "  br label %endif\n"
+                          "\n"
+                          "endif:                                            ; preds = %elsifthen2, %elsif1, %elsifthen, %ifthen\n"
+                          "  %8 = load i32, i32* %1, align 4\n"
+                          "  ret i32 %8\n"
                           "}\n");
         delete Node;
         deleteTestFile(testFile);
@@ -951,7 +1022,7 @@ namespace {
     TEST_F(CodeGenTest, CGSwitchBlock) {
         EXPECT_TRUE(createTestFile(testFile));
 
-        ASTContext *Ctx = new ASTContext(Diags);
+
         ASTNode *Node = CreateAST(testFile);
 
         ASTFunc *MainFn = new ASTFunc(Node, SourceLoc, new ASTIntType(SourceLoc), "main");
@@ -963,7 +1034,7 @@ namespace {
 
         ASTVarRefExpr *SwitchExpr = new ASTVarRefExpr(SourceLoc, new ASTVarRef(Param));
         ASTSwitchBlock *SwitchBlock = new ASTSwitchBlock(SourceLoc, MainFn->getBody(), SwitchExpr);
-        
+
         ASTSwitchCaseBlock *Case1Block = SwitchBlock->AddCase(SourceLoc, Cost1);
         ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, Case1Block, Param);
         A2->setExpr(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc))));
@@ -982,7 +1053,7 @@ namespace {
         DefaultBlock->addBreak(SourceLoc);
 
         MainFn->getBody()->addBlock(SourceLoc, SwitchBlock);
-        
+
         MainFn->getBody()->addReturn(SourceLoc, Cost1);
 
         // Generate Code
@@ -1076,20 +1147,19 @@ namespace {
         deleteTestFile(testFile);
     }
 
-    TEST_F(CodeGenTest, CGForBlock) {
+    TEST_F(CodeGenTest, CGForInitCondPostBlock) {
         EXPECT_TRUE(createTestFile(testFile));
 
-        ASTContext *Ctx = new ASTContext(Diags);
         ASTNode *Node = CreateAST(testFile);
 
         ASTFunc *MainFn = new ASTFunc(Node, SourceLoc, new ASTIntType(SourceLoc), "main");
         MainFn->setVisibility(V_PRIVATE);
         ASTFuncParam *Param = MainFn->addParam(SourceLoc, new ASTIntType(SourceLoc), "a");
         Node->addFunction(MainFn);
-        
+
         ASTForBlock *ForBlock = new ASTForBlock(SourceLoc, MainFn->getBody());
         ASTValueExpr *OneCost = new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc)));
-        
+
         // Init
         ASTBlock *InitBlock = ForBlock->getInit();
         ASTLocalVar *InitVar = new ASTLocalVar(SourceLoc, InitBlock, new ASTIntType(SourceLoc), "i");
@@ -1104,7 +1174,7 @@ namespace {
         Cond->Add(Comp);
         Cond->Add(OneCost);
         ForBlock->setCond(Cond);
-        
+
         // Post
         ASTBlock *PostBlock = ForBlock->getPost();
         ASTArithExpr *Incr = new ASTArithExpr(SourceLoc, ARITH_INCR);
@@ -1120,6 +1190,75 @@ namespace {
         MainFn->getBody()->addBlock(SourceLoc, ForBlock);
 
         MainFn->getBody()->addReturn(SourceLoc, OneCost);
+        Node->Resolve();
+
+        // Generate Code
+        CodeGenModule *CGM = Node->getCodeGen();
+        Function *F = CGM->GenFunction(MainFn)->getFunction();
+        testing::internal::CaptureStdout();
+        F->print(llvm::outs());
+        std::string output = testing::internal::GetCapturedStdout();
+
+        EXPECT_EQ(output, "define i32 @main(i32 %0) {\n"
+                          "entry:\n"
+                          "  %1 = alloca i32, align 4\n"
+                          "  %2 = alloca i32, align 4\n"
+                          "  store i32 %0, i32* %1, align 4\n"
+                          "  store i32 1, i32* %2, align 4\n"
+                          "  br label %forcond\n"
+                          "\n"
+                          "forcond:                                          ; preds = %forpost, %entry\n"
+                          "  %3 = load i32, i32* %2, align 4\n"
+                          "  %4 = icmp sle i32 %3, 1\n"
+                          "  br i1 %4, label %forloop, label %endfor\n"
+                          "\n"
+                          "forloop:                                          ; preds = %forcond\n"
+                          "  store i32 1, i32* %1, align 4\n"
+                          "  br label %forpost\n"
+                          "\n"
+                          "forpost:                                          ; preds = %forloop\n"
+                          "  %5 = load i32, i32* %2, align 4\n"
+                          "  %6 = add nsw i32 %5, 1\n"
+                          "  store i32 %6, i32* %2, align 4\n"
+                          "  br label %forcond\n"
+                          "\n"
+                          "endfor:                                           ; preds = %forcond\n"
+                          "  ret i32 1\n"
+                          "}\n");
+        delete Node;
+        deleteTestFile(testFile);
+    }
+
+    TEST_F(CodeGenTest, CGForCondBlock) {
+        EXPECT_TRUE(createTestFile(testFile));
+
+        ASTNode *Node = CreateAST(testFile);
+
+        ASTFunc *MainFn = new ASTFunc(Node, SourceLoc, new ASTIntType(SourceLoc), "main");
+        MainFn->setVisibility(V_PRIVATE);
+        ASTFuncParam *Param = MainFn->addParam(SourceLoc, new ASTIntType(SourceLoc), "a");
+        Node->addFunction(MainFn);
+
+        ASTForBlock *ForBlock = new ASTForBlock(SourceLoc, MainFn->getBody());
+        ASTValueExpr *OneCost = new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc)));
+
+        //Cond
+        ASTGroupExpr *Cond = new ASTGroupExpr(SourceLoc);
+        ASTComparisonExpr *Comp = new ASTComparisonExpr(SourceLoc, COMP_LTE);
+        ASTVarRefExpr *InitVarRef = new ASTVarRefExpr(SourceLoc, new ASTVarRef(Param));
+        Cond->Add(InitVarRef);
+        Cond->Add(Comp);
+        Cond->Add(OneCost);
+        ForBlock->setCond(Cond);
+
+        ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, ForBlock->getLoop(), Param);
+        A2->setExpr(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc))));
+        ForBlock->getLoop()->addVar(A2);
+        ForBlock->getLoop()->addContinue(SourceLoc);
+        MainFn->getBody()->addBlock(SourceLoc, ForBlock);
+
+        MainFn->getBody()->addReturn(SourceLoc, OneCost);
+        Node->Resolve();
 
         // Generate Code
         CodeGenModule *CGM = Node->getCodeGen();
@@ -1132,18 +1271,79 @@ namespace {
                           "entry:\n"
                           "  %1 = alloca i32, align 4\n"
                           "  store i32 %0, i32* %1, align 4\n"
-                          "  br label %whilecond\n"
+                          "  br label %forcond\n"
                           "\n"
-                          "whilecond:                                        ; preds = %whileloop, %entry\n"
+                          "forcond:                                          ; preds = %forloop, %entry\n"
                           "  %2 = load i32, i32* %1, align 4\n"
-                          "  %3 = icmp eq i32 %2, 1\n"
-                          "  br i1 %3, label %whileloop, label %whileend\n"
+                          "  %3 = icmp sle i32 %2, 1\n"
+                          "  br i1 %3, label %forloop, label %endfor\n"
                           "\n"
-                          "whileloop:                                        ; preds = %whilecond\n"
+                          "forloop:                                          ; preds = %forcond\n"
                           "  store i32 1, i32* %1, align 4\n"
-                          "  br label %whilecond\n"
+                          "  br label %forcond\n"
                           "\n"
-                          "whileend:                                         ; preds = %whilecond\n"
+                          "endfor:                                           ; preds = %forcond\n"
+                          "  ret i32 1\n"
+                          "}\n");
+        delete Node;
+        deleteTestFile(testFile);
+    }
+
+    TEST_F(CodeGenTest, CGForPostBlock) {
+        EXPECT_TRUE(createTestFile(testFile));
+
+
+        ASTNode *Node = CreateAST(testFile);
+
+        ASTFunc *MainFn = new ASTFunc(Node, SourceLoc, new ASTIntType(SourceLoc), "main");
+        MainFn->setVisibility(V_PRIVATE);
+        ASTFuncParam *Param = MainFn->addParam(SourceLoc, new ASTIntType(SourceLoc), "a");
+        Node->addFunction(MainFn);
+
+        ASTForBlock *ForBlock = new ASTForBlock(SourceLoc, MainFn->getBody());
+        ASTValueExpr *OneCost = new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc)));
+
+        // Post
+        ASTBlock *PostBlock = ForBlock->getPost();
+        ASTArithExpr *Incr = new ASTArithExpr(SourceLoc, ARITH_INCR);
+        ASTUnaryExpr *IncrExpr = new ASTUnaryExpr(SourceLoc, Incr, new ASTVarRef(Param), UnaryOpKind::UNARY_PRE);
+        ASTExprStmt *ExprStmt = new ASTExprStmt(SourceLoc, PostBlock);
+        ExprStmt->setExpr(IncrExpr);
+        PostBlock->addExprStmt(ExprStmt);
+
+        ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, ForBlock->getLoop(), Param);
+        A2->setExpr(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc))));
+        ForBlock->getLoop()->addVar(A2);
+        ForBlock->getLoop()->addContinue(SourceLoc);
+        MainFn->getBody()->addBlock(SourceLoc, ForBlock);
+
+        MainFn->getBody()->addReturn(SourceLoc, OneCost);
+        Node->Resolve();
+
+        // Generate Code
+        CodeGenModule *CGM = Node->getCodeGen();
+        Function *F = CGM->GenFunction(MainFn)->getFunction();
+        testing::internal::CaptureStdout();
+        F->print(llvm::outs());
+        std::string output = testing::internal::GetCapturedStdout();
+
+        EXPECT_EQ(output, "define i32 @main(i32 %0) {\n"
+                          "entry:\n"
+                          "  %1 = alloca i32, align 4\n"
+                          "  store i32 %0, i32* %1, align 4\n"
+                          "  br label %forloop\n"
+                          "\n"
+                          "forloop:                                          ; preds = %forpost, %entry\n"
+                          "  store i32 1, i32* %1, align 4\n"
+                          "  br label %forpost\n"
+                          "\n"
+                          "forpost:                                          ; preds = %forloop\n"
+                          "  %2 = load i32, i32* %1, align 4\n"
+                          "  %3 = add nsw i32 %2, 1\n"
+                          "  store i32 %3, i32* %1, align 4\n"
+                          "  br label %forloop\n"
+                          "\n"
+                          "endfor:                                           ; No predecessors!\n"
                           "  ret i32 1\n"
                           "}\n");
         delete Node;

@@ -153,7 +153,8 @@ bool ASTNode::addFunction(ASTFunc *Func) {
 
         // Add into NameSpace for global resolution
         // Add into Node for local resolution
-        if (NameSpace->addFunction(Func) && Functions.insert(Func).second) {
+        if (NameSpace->addFunction(Func) && Functions.insert(Func).second &&
+                addResolvedCall(ASTFuncCall::CreateCall(Func))) {
             return true;
         }
 
@@ -272,6 +273,7 @@ bool ASTNode::ResolveFunction(ASTFunc *Function,
             for (auto &ResolvedCall : It->getValue()) {
                 if (Function->ResolveCall(ResolvedCall, UnRefCall)) {
                     UnRefCall->setDecl(ResolvedCall->getDecl());
+                } else {
                     Success = false;
                 }
             }

@@ -65,6 +65,9 @@ namespace fly {
         // Body is the main BlockStmt
         ASTBlock *Body;
 
+        // Contains all vars declared in this Block
+        std::vector<ASTLocalVar *> DeclVars;
+
         // Populated during codegen phase
         CodeGenFunction *CodeGen = nullptr;
 
@@ -83,7 +86,9 @@ namespace fly {
 
         ASTBlock *getBody();
 
-        const std::vector<ASTFuncCall *> &getUnRefCalls() const;
+        const std::vector<ASTLocalVar *> &getDeclVars() const;
+
+        void addDeclVars(ASTLocalVar *DeclVar);
 
         CodeGenFunction *getCodeGen() const;
 
@@ -99,13 +104,7 @@ namespace fly {
 
         void addUnRefGlobalVar(ASTVarRef *Var);
 
-        bool addNSUnRefCall(ASTFuncCall *Call);
-
         void addNSUnRefGlobalVar(ASTVarRef *Var);
-
-        bool addExtUnRefCall(ASTFuncCall *Call);
-
-        void addExtUnRefGlobalVar(ASTVarRef *Var);
 
         bool ResolveCall(ASTFuncCall *ResolvedCall, ASTFuncCall *Call);
 

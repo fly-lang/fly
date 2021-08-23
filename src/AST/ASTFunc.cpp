@@ -46,6 +46,14 @@ ASTType *ASTFunc::getType() const {
     return Type;
 }
 
+const std::vector<ASTLocalVar *> &ASTFunc::getDeclVars() const {
+    return DeclVars;
+}
+
+void ASTFunc::addDeclVars(ASTLocalVar *DeclVar) {
+    DeclVars.push_back(DeclVar);
+}
+
 CodeGenFunction *ASTFunc::getCodeGen() const {
     return CodeGen;
 }

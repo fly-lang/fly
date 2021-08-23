@@ -119,7 +119,7 @@ CodeGenGlobalVar *CodeGenModule::GenGlobalVar(ASTGlobalVar* VDecl) {
 
 CodeGenFunction *CodeGenModule::GenFunction(ASTFunc *FDecl) {
     CodeGenFunction *CGF = new CodeGenFunction(this, FDecl->getName(), FDecl->getType(), FDecl->getHeader(), 
-                                               FDecl->getBody());
+                                               FDecl->getBody(), FDecl->getDeclVars());
     FDecl->setCodeGen(CGF);
     return CGF;
 }
@@ -171,6 +171,17 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
         case STMT_FUNC_CALL: {
             ASTFuncCallStmt *FCall = static_cast<ASTFuncCallStmt *>(Stmt);
             GenCall(Fn, FCall->getCall());
+            break;
+        }
+        case STMT_EXPR: {
+            ASTExprStmt *ExprStmt = static_cast<ASTExprStmt *>(Stmt);
+            if (ExprStmt->getExpr()->getKind() == EXPR_OPERATOR &&
+                    ((ASTOperatorExpr *)ExprStmt->getExpr())->isUnary()) {
+                ASTUnaryExpr *UnaryExpr = (ASTUnaryExpr *) ExprStmt->getExpr();
+
+                Value *V = GenExpr(Fn, UnaryExpr->getVarRef()->getDecl()->getType(), UnaryExpr);
+                UnaryExpr->getVarRef()->getDecl()->getCodeGen()->Store(V);
+            }
             break;
         }
         case STMT_BLOCK: {
@@ -287,67 +298,116 @@ void CodeGenModule::GenIfBlock(llvm::Function *Fn, ASTIfBlock *If) {
 
     // If Block
     llvm::Value *IfCond = GenExpr(Fn, BoolType, If->getCondition());
-    llvm::BasicBlock *IfBR = llvm::BasicBlock::Create(LLVMCtx, "ifthen", Fn);
+    llvm::BasicBlock *IfBB = llvm::BasicBlock::Create(LLVMCtx, "ifthen", Fn);
 
-    // Create Elsif Blocks
-    llvm::BasicBlock *ElsifBR = nullptr;
-    if (!If->getElsif().empty()) {
-        ElsifBR = GenElsifBlock(Fn, IfCond, IfBR, If, If->getElsif().begin());
-    }
+    // Create End block
+    llvm::BasicBlock *EndBB = llvm::BasicBlock::Create(LLVMCtx, "endif", Fn);
 
-    // Create Else
-    llvm::BasicBlock *EndBR;
     if (If->getElse() == nullptr) {
 
-        // Create End Block
-        EndBR = llvm::BasicBlock::Create(LLVMCtx, "endif", Fn);
-
-        if (ElsifBR == nullptr) { // If ...
-            Builder->CreateCondBr(IfCond, IfBR, EndBR);
-            GenBlock(Fn, If->getContent(), IfBR);
+        if (If->getElsif().empty()) { // If ...
+            Builder->CreateCondBr(IfCond, IfBB, EndBB);
+            GenBlock(Fn, If->getContent(), IfBB);
+            Builder->CreateBr(EndBB);
         } else { // If - elsif ...
-            GenBlock(Fn, ((ASTElsifBlock *) If->getElsif().back())->getContent(), ElsifBR);
+            llvm::BasicBlock *ElsifBB = llvm::BasicBlock::Create(LLVMCtx, "elsif", Fn, EndBB);
+            Builder->CreateCondBr(IfCond, IfBB, ElsifBB);
+
+            // Start if-then
+            GenBlock(Fn, If->getContent(), IfBB);
+            Builder->CreateBr(EndBB);
+
+            // Create Elsif Blocks
+            unsigned long Size = If->getElsif().size();
+            for (unsigned long i = 0; i < If->getElsif().size(); i++) {
+                llvm::BasicBlock *ElsifThenBB = llvm::BasicBlock::Create(LLVMCtx, "elsifthen", Fn, EndBB);
+
+                llvm::BasicBlock *NextElsifBB;
+                if (i == Size-1) { // is Last
+                    NextElsifBB = EndBB;
+                } else {
+                    NextElsifBB = llvm::BasicBlock::Create(LLVMCtx, "elsif", Fn, EndBB);
+                }
+                ASTElsifBlock *Elsif = If->getElsif()[i];
+                Builder->SetInsertPoint(ElsifBB);
+                ASTBoolType * BoolType = new ASTBoolType(SourceLocation());
+                llvm::Value *ElsifCond = GenExpr(Fn, BoolType, Elsif->getCondition());
+                Builder->CreateCondBr(ElsifCond, ElsifThenBB, NextElsifBB);
+
+                GenBlock(Fn, Elsif->getContent(), ElsifThenBB);
+                Builder->CreateBr(EndBB);
+
+                ElsifBB = NextElsifBB;
+            }
         }
-        Builder->CreateBr(EndBR);
+
     } else {
-        llvm::BasicBlock *ElseBR = llvm::BasicBlock::Create(LLVMCtx, "else", Fn);
 
-        // Create End Block
-        EndBR = llvm::BasicBlock::Create(LLVMCtx, "endif", Fn);
+        // Create Else block
+        llvm::BasicBlock *ElseBB = llvm::BasicBlock::Create(LLVMCtx, "else", Fn, EndBB);
 
-        if (ElsifBR == nullptr) { // If - Else
-            Builder->CreateCondBr(IfCond, IfBR, ElseBR);
-            GenBlock(Fn, If->getContent(), IfBR);
+        if (If->getElsif().empty()) { // If - Else
+            Builder->CreateCondBr(IfCond, IfBB, ElseBB);
+            GenBlock(Fn, If->getContent(), IfBB);
+            Builder->CreateBr(EndBB);
         } else { // If - Elsif - Else
-            Builder->CreateCondBr(IfCond, ElsifBR, ElseBR);
-            GenBlock(Fn, ((ASTElsifBlock *) If->getElsif().back())->getContent(), ElsifBR);
-        }
-        Builder->CreateBr(EndBR);
+            llvm::BasicBlock *ElsifBB = llvm::BasicBlock::Create(LLVMCtx, "elsif", Fn, ElseBB);
+            Builder->CreateCondBr(IfCond, IfBB, ElsifBB);
 
-        GenBlock(Fn, If->getElse()->getContent(), ElseBR);
-        Builder->CreateBr(EndBR);
+            // Start if-then
+            GenBlock(Fn, If->getContent(), IfBB);
+            Builder->CreateBr(EndBB);
+
+            // Create Elsif Blocks
+            unsigned long Size = If->getElsif().size();
+            for (unsigned long i = 0; i < If->getElsif().size(); i++) {
+                llvm::BasicBlock *ElsifThenBB = llvm::BasicBlock::Create(LLVMCtx, "elsifthen", Fn, ElseBB);
+
+                llvm::BasicBlock *NextElsifBB;
+                if (i == Size-1) { // is Last
+                    NextElsifBB = ElseBB;
+                } else {
+                    NextElsifBB = llvm::BasicBlock::Create(LLVMCtx, "elsif", Fn, ElseBB);
+                }
+                ASTElsifBlock *Elsif = If->getElsif()[i];
+                Builder->SetInsertPoint(ElsifBB);
+                ASTBoolType * BoolType = new ASTBoolType(SourceLocation());
+                llvm::Value *ElsifCond = GenExpr(Fn, BoolType, Elsif->getCondition());
+                Builder->CreateCondBr(ElsifCond, ElsifThenBB, NextElsifBB);
+
+                GenBlock(Fn, Elsif->getContent(), ElsifThenBB);
+                Builder->CreateBr(EndBB);
+
+                ElsifBB = NextElsifBB;
+            }
+        }
+
+        GenBlock(Fn, If->getElse()->getContent(), ElseBB);
+        Builder->CreateBr(EndBB);
     }
 
     // Continue insertions into End Branch
-    Builder->SetInsertPoint(EndBR);
+    Builder->SetInsertPoint(EndBB);
 }
 
-llvm::BasicBlock *CodeGenModule::GenElsifBlock(llvm::Function *Fn, llvm::Value *Cond, llvm::BasicBlock *TrueBB,
-                                               ASTIfBlock *TrueBlock,
-                                               std::vector<ASTElsifBlock *>::iterator It) {
-    ASTElsifBlock *Elsif = *It;
-    llvm::BasicBlock *FalseBB = llvm::BasicBlock::Create(LLVMCtx, "elsif", Fn);
-    Builder->CreateCondBr(Cond, TrueBB, FalseBB);
-    GenBlock(Fn, TrueBlock->getContent(), TrueBB);
-
-    ASTBoolType * BoolType = new ASTBoolType(SourceLocation());
-    llvm::Value *NextCond = GenExpr(Fn, BoolType, Elsif->getCondition());
-
+llvm::BasicBlock *CodeGenModule::GenElsifBlock(llvm::Function *Fn,
+                                               llvm::BasicBlock *ElsifBB,
+                                               std::vector<ASTElsifBlock *>::iterator &It) {
+    ASTElsifBlock *&Elsif = *It;
     It++;
     if (*It == nullptr) {
-        return FalseBB;
+        return ElsifBB;
+    } else {
+        Builder->SetInsertPoint(ElsifBB);
+        ASTBoolType * BoolType = new ASTBoolType(SourceLocation());
+        llvm::Value *Cond = GenExpr(Fn, BoolType, Elsif->getCondition());
+        llvm::BasicBlock *NextElsifBB = llvm::BasicBlock::Create(LLVMCtx, "elsif", Fn);
+        Builder->CreateCondBr(Cond, ElsifBB, NextElsifBB);
+
+        llvm::BasicBlock *ElsifThenBB = llvm::BasicBlock::Create(LLVMCtx, "elsifthen", Fn);
+        GenBlock(Fn, Elsif->getContent(), ElsifThenBB);
+        return GenElsifBlock(Fn, ElsifThenBB, It);
     }
-    return GenElsifBlock(Fn, NextCond, FalseBB, Elsif, It);
 }
 
 void CodeGenModule::GenSwitchBlock(llvm::Function *Fn, ASTSwitchBlock *Switch) {
@@ -397,47 +457,59 @@ void CodeGenModule::GenSwitchBlock(llvm::Function *Fn, ASTSwitchBlock *Switch) {
 void CodeGenModule::GenForBlock(llvm::Function *Fn, ASTForBlock *For) {
     ASTBoolType * BoolType = new ASTBoolType(SourceLocation()); // used to force bool in condition expr
 
-
     // Add to Current Block
     if (!For->getInit()->isEmpty()) {
         GenBlock(Fn, For->getInit()->getContent());
     }
 
-    // Create Condition Block
-    if (For->getCondition() == nullptr) {
-        Diag(For->getCondition()->getLocation(), diag::err_for_condition_mandatory);
-    }
-    llvm::BasicBlock *CondBR = llvm::BasicBlock::Create(LLVMCtx, "forcond", Fn);
-    Builder->CreateBr(CondBR); // Start by positioning into condition
-
     // Create Loop Block
-    llvm::BasicBlock *LoopBR = nullptr;
-    if (!For->getLoop()->isEmpty()) {
-        LoopBR = llvm::BasicBlock::Create(LLVMCtx, "forloop", Fn);
-    }
+    llvm::BasicBlock *LoopBB = LoopBB = llvm::BasicBlock::Create(LLVMCtx, "forloop", Fn);
 
     // Create Post Block
-    llvm::BasicBlock *PostBR = nullptr;
+    llvm::BasicBlock *PostBB = nullptr;
     if (!For->getPost()->isEmpty()) {
-        PostBR = llvm::BasicBlock::Create(LLVMCtx, "forpost", Fn);
+        PostBB = llvm::BasicBlock::Create(LLVMCtx, "forpost", Fn);
     }
 
     // Create End Block
-    llvm::BasicBlock *EndBR = llvm::BasicBlock::Create(LLVMCtx, "endfor", Fn);
-    
+    llvm::BasicBlock *EndBB = llvm::BasicBlock::Create(LLVMCtx, "endfor", Fn);
+
     // Add to Condition
-    Value *Cond = GenExpr(Fn, BoolType, For->getCondition());
-    Builder->CreateCondBr(Cond, LoopBR, EndBR);
+    llvm::BasicBlock *CondBB = nullptr;
+    if (For->getCondition()) {
+        CondBB = llvm::BasicBlock::Create(LLVMCtx, "forcond", Fn, LoopBB);
+        Builder->CreateBr(CondBB);
+
+        // Create
+        Builder->SetInsertPoint(CondBB);
+        Value *Cond = GenExpr(Fn, BoolType, For->getCondition());
+        Builder->CreateCondBr(Cond, LoopBB, EndBB);
+    } else {
+        Builder->CreateBr(LoopBB);
+    }
 
     // Add to Loop
-    GenBlock(Fn, For->getLoop()->getContent(), LoopBR);
+    GenBlock(Fn, For->getLoop()->getContent(), LoopBB);
+    if (PostBB) {
+        Builder->CreateBr(PostBB);
+    } else if (CondBB) {
+        Builder->CreateBr(CondBB);
+    } else {
+        Builder->CreateBr(LoopBB);
+    }
 
     // Add to Post
-    GenBlock(Fn, For->getPost()->getContent(), PostBR);
-    Builder->CreateBr(CondBR);
+    if (PostBB) {
+        GenBlock(Fn, For->getPost()->getContent(), PostBB);
+        if (CondBB) {
+            Builder->CreateBr(CondBB);
+        } else {
+            Builder->CreateBr(LoopBB);
+        }
+    }
 
     // Continue insertions into End Branch
-    Builder->SetInsertPoint(EndBR);
+    Builder->SetInsertPoint(EndBB);
 }
 
 void CodeGenModule::GenWhileBlock(llvm::Function *Fn, ASTWhileBlock *While) {

@@ -147,6 +147,7 @@ bool ASTBlock::addVar(ASTLocalVar *Var) {
     }
     DeclVars.insert(std::pair<StringRef, ASTLocalVar *>(Var->getName(), Var));
     Content.push_back(Var);
+    Top->addDeclVars(Var);
 
     //Set CodeGen
     CodeGenLocalVar *CGV = new CodeGenLocalVar(Top->getNode()->getCodeGen(), Var);

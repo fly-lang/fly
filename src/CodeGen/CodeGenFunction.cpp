@@ -17,8 +17,9 @@
 
 using namespace fly;
 
-CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, const llvm::StringRef FName, const ASTType *FType,
-                                 const ASTFuncHeader *FParams, const ASTBlock *FBody) : CGM(CGM) {
+CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, const llvm::StringRef &FName, const ASTType *FType,
+                                 const ASTFuncHeader *FParams, const ASTBlock *FBody,
+                                 const std::vector<ASTLocalVar *> &DeclVars) : CGM(CGM) {
     llvm::FunctionType *FnTy = GenFuncType(FType, FParams);
 
     // Create Function
@@ -34,9 +35,9 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, const llvm::StringRef FName
         P->getCodeGen()->Alloca();
     }
 
-    // CodeGen of Vars and Allocation
-    for (auto &EntryV : FBody->getDeclVars()) {
-        EntryV.getValue()->getCodeGen()->Alloca();
+    // Allocation of declared vars
+    for (auto &DeclVar : DeclVars) {
+        DeclVar->getCodeGen()->Alloca();
     }
 
     // Store Param Values

@@ -38,9 +38,9 @@ namespace fly {
 
         llvm::Value *getValue() override;
 
-        llvm::StoreInst *Store(llvm::Value *Val);
+        llvm::StoreInst *Store(llvm::Value *Val) override;
 
-        llvm::LoadInst *Load();
+        llvm::LoadInst *Load() override;
     };
 }
 

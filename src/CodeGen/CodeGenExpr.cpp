@@ -253,9 +253,11 @@ bool CodeGenExpr::canIterate(int Idx, ASTGroupExpr *Group) {
 }
 
 llvm::Value *CodeGenExpr::OpUnary(ASTUnaryExpr *E) {
-    assert(E->getKind() != EXPR_OPERATOR && E->getKind() != EXPR_GROUP && "Expr Error");
+    assert(E->getKind() != EXPR_GROUP && "Expr cannot be a group");
+    assert(E->getVarRef() && "Var empty");
+    assert(E->isUnary() && "Expr is not unary");
 
-    llvm::Value *V = GenValue(E);
+    llvm::Value *V = E->getVarRef()->getDecl()->getCodeGen()->getValue();
     ASTOperatorExpr *OP = E->getOperatorExpr();
 
     // PRE or POST INCREMENT/DECREMENT
@@ -263,21 +265,21 @@ llvm::Value *CodeGenExpr::OpUnary(ASTUnaryExpr *E) {
         switch(((ASTArithExpr *)OP)->getArithKind()) {
             case ARITH_INCR:
                 if (E->getUnaryKind() == UNARY_PRE) { // PRE INCREMENT ++a
-                    llvm::Value *RHS = llvm::ConstantInt::get(CGM->BoolTy, 1);
+                    llvm::Value *RHS = llvm::ConstantInt::get(CGM->Int32Ty, 1);
                     return CGM->Builder->CreateNSWAdd(V, RHS);
                 } else { // POST INCREMENT a++
                     llvm::Value *PostV = BinaryOperator::Create(Instruction::Add, V,
-                                                                ConstantInt::get(CGM->BoolTy, 1));
+                                                                ConstantInt::get(CGM->Int32Ty, 1));
                     PostValues.push_back(PostV);
                     return V;
                 }
             case ARITH_DECR:
                 if (E->getUnaryKind() == UNARY_PRE) { // PRE DECREMENT --a
-                    llvm::Value *RHS = llvm::ConstantInt::get(CGM->BoolTy, -1, true);
+                    llvm::Value *RHS = llvm::ConstantInt::get(CGM->Int32Ty, -1, true);
                     return CGM->Builder->CreateNSWAdd(V, RHS);
                 } else { // POST DECREMENT a--
                     llvm::Value *PostV = BinaryOperator::Create(Instruction::Add, V,
-                                                                ConstantInt::get(CGM->BoolTy, 1));
+                                                                ConstantInt::get(CGM->Int32Ty, -1));
                     PostValues.push_back(PostV);
                     return V;
                 }

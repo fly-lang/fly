@@ -92,9 +92,9 @@ namespace fly {
 
         void GenIfBlock(llvm::Function *Fn, ASTIfBlock *If);
 
-        llvm::BasicBlock *GenElsifBlock(llvm::Function *Fn, llvm::Value *Cond, llvm::BasicBlock *TrueBB,
-                                        ASTIfBlock *TrueBlock,
-                                        std::vector<ASTElsifBlock *>::iterator It);
+        llvm::BasicBlock *GenElsifBlock(llvm::Function *Fn,
+                                        llvm::BasicBlock *ElsifBB,
+                                        std::vector<ASTElsifBlock *>::iterator &It);
 
         void GenSwitchBlock(llvm::Function *Fn, ASTSwitchBlock *Switch);
 

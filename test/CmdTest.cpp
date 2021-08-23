@@ -30,8 +30,6 @@ namespace {
         const char* Argv[] = {"fly", "-ll", "main.fly", "-o", "test"};
         int Argc = sizeof Argv / sizeof Argv[0];
 
-        const char **ArgvLL = static_cast<const char **>(Argv);
-        llvm::InitLLVM X(Argc, ArgvLL);
         SmallVector<const char *, 256> Args(Argv, Argv + Argc);
         llvm::InitializeAllTargets();
         llvm::InitializeAllTargetMCs();
@@ -43,7 +41,6 @@ namespace {
         Driver driver(Args);
         CompilerInstance &CI = driver.BuildCompilerInstance();
         driver.Execute();
-        llvm::llvm_shutdown();
 
         std::string output = testing::internal::GetCapturedStdout();
         llvm::outs() << output;

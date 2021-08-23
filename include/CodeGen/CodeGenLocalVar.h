@@ -40,9 +40,9 @@ namespace fly {
 
         llvm::AllocaInst *Alloca();
 
-        llvm::StoreInst *Store(llvm::Value *Val);
+        llvm::StoreInst *Store(llvm::Value *Val) override;
 
-        llvm::LoadInst *Load();
+        llvm::LoadInst *Load() override;
 
         bool needReload();
     };

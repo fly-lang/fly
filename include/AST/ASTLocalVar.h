@@ -35,10 +35,6 @@ namespace fly {
 
         StmtKind getKind() const;
 
-        unsigned long getOrder() const;
-
-        void setOrder(unsigned long order);
-
         ASTExpr *getExpr() const;
 
         void setExpr(ASTExpr *E);

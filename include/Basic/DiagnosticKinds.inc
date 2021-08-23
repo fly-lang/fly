@@ -333,5 +333,4 @@ DIAG(err_void_value, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot assig
 DIAG(err_expr_operator_unexpected, CLASS_ERROR, (unsigned)diag::Severity::Error, "unexpected operator into expression", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_expr_operator_expected, CLASS_ERROR, (unsigned)diag::Severity::Error, "operator expected", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_type_expect, CLASS_ERROR, (unsigned)diag::Severity::Error, "expected type '%0'", 0, SFINAE_Suppress, false, true, 0)
-DIAG(err_for_condition_mandatory, CLASS_ERROR, (unsigned)diag::Severity::Error, "for loop need always a condition into 2nd parameter for (1st;2nd;3rd)", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_invalid_return_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "Invalid return type", 0, SFINAE_Suppress, false, true, 0)
