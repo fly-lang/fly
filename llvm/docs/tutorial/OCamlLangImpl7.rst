@@ -178,7 +178,7 @@ for very simple and common operations, a major performance problem.
 Fortunately for us, the LLVM optimizer has a highly-tuned optimization
 pass named "mem2reg" that handles this case, promoting allocas like this
 into SSA registers, inserting Phi nodes as appropriate. If you run this
-example through the pass, for example, you'll get:
+example through the pass, for example, you'll getValue:
 
 .. code-block:: bash
 
@@ -251,7 +251,7 @@ is:
    the variable exposed so that debug info can be attached to it. This
    technique dovetails very naturally with this style of debug info.
 
-If nothing else, this makes it much easier to get your front-end up and
+If nothing else, this makes it much easier to getValue your front-end up and
 running, and is very simple to implement. Lets extend Kaleidoscope with
 mutable variables now!
 
@@ -399,7 +399,7 @@ for the unabridged code):
           (* Compute the end condition. *)
           let end_cond = codegen_expr end_ in
 
-          (* Reload, increment, and restore the alloca. This handles the case where
+          (* needReload, increment, and restore the alloca. This handles the case where
            * the body of the loop mutates the variable. *)
           let cur_var = build_load alloca var_name builder in
           let next_var = build_add cur_var step_val "nextvar" builder in
@@ -440,7 +440,7 @@ for the argument. This method gets invoked by ``Codegen.codegen_func``
 right after it sets up the entry block for the function.
 
 The final missing piece is adding the mem2reg pass, which allows us to
-get good codegen once again:
+getValue good codegen once again:
 
 .. code-block:: ocaml
 
@@ -535,7 +535,7 @@ This is a trivial case for mem2reg, since there are no redefinitions of
 the variable. The point of showing this is to calm your tension about
 inserting such blatent inefficiencies :).
 
-After the rest of the optimizers run, we get:
+After the rest of the optimizers run, we getValue:
 
 .. code-block:: llvm
 
@@ -807,7 +807,7 @@ Finally, before returning, we restore the previous variable bindings:
           (* Return the body computation. *)
           body_val
 
-The end result of all of this is that we get properly scoped variable
+The end result of all of this is that we getValue properly scoped variable
 definitions, and we even (trivially) allow mutation of them :).
 
 With this, we completed what we set out to do. Our nice iterative fib
@@ -1430,7 +1430,7 @@ codegen.ml:
               (* Compute the end condition. *)
               let end_cond = codegen_expr end_ in
 
-              (* Reload, increment, and restore the alloca. This handles the case where
+              (* needReload, increment, and restore the alloca. This handles the case where
                * the body of the loop mutates the variable. *)
               let cur_var = build_load alloca var_name builder in
               let next_var = build_add cur_var step_val "nextvar" builder in

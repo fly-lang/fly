@@ -178,7 +178,7 @@ for very simple and common operations, a major performance problem.
 Fortunately for us, the LLVM optimizer has a highly-tuned optimization
 pass named "mem2reg" that handles this case, promoting allocas like this
 into SSA registers, inserting Phi nodes as appropriate. If you run this
-example through the pass, for example, you'll get:
+example through the pass, for example, you'll getValue:
 
 .. code-block:: bash
 
@@ -251,7 +251,7 @@ is:
    the variable exposed so that debug info can be attached to it. This
    technique dovetails very naturally with this style of debug info.
 
-If nothing else, this makes it much easier to get your front-end up and
+If nothing else, this makes it much easier to getValue your front-end up and
 running, and is very simple to implement. Let's extend Kaleidoscope with
 mutable variables now!
 
@@ -391,7 +391,7 @@ the unabridged code):
       if (!EndCond)
         return nullptr;
 
-      // Reload, increment, and restore the alloca.  This handles the case where
+      // needReload, increment, and restore the alloca.  This handles the case where
       // the body of the loop mutates the variable.
       Value *CurVar = Builder.CreateLoad(Alloca);
       Value *NextVar = Builder.CreateFAdd(CurVar, StepVal, "nextvar");
@@ -434,7 +434,7 @@ for the argument. This method gets invoked by ``FunctionAST::codegen()``
 right after it sets up the entry block for the function.
 
 The final missing piece is adding the mem2reg pass, which allows us to
-get good codegen once again:
+getValue good codegen once again:
 
 .. code-block:: c++
 
@@ -520,7 +520,7 @@ This is a trivial case for mem2reg, since there are no redefinitions of
 the variable. The point of showing this is to calm your tension about
 inserting such blatant inefficiencies :).
 
-After the rest of the optimizers run, we get:
+After the rest of the optimizers run, we getValue:
 
 .. code-block:: llvm
 
@@ -578,7 +578,7 @@ implement codegen for the assignment operator. This looks like:
       // Special case '=' because we don't want to emit the LHS as an expression.
       if (Op == '=') {
         // Assignment requires the LHS to be an identifier.
-        VariableExprAST *LHSE = dynamic_cast<VariableExprAST*>(LHS.get());
+        VariableExprAST *LHSE = dynamic_cast<VariableExprAST*>(LHS.getValue());
         if (!LHSE)
           return LogErrorV("destination of '=' must be a variable");
 
@@ -795,7 +795,7 @@ emission of LLVM IR for it. This code starts out with:
       // Register all variables and emit their initializer.
       for (unsigned i = 0, e = VarNames.size(); i != e; ++i) {
         const std::string &VarName = VarNames[i].first;
-        ExprAST *Init = VarNames[i].second.get();
+        ExprAST *Init = VarNames[i].second.getValue();
 
 Basically it loops over all the variables, installing them one at a
 time. For each variable we put into the symbol table, we remember the
@@ -814,7 +814,7 @@ previous value that we replace in OldBindings.
           if (!InitVal)
             return nullptr;
         } else { // If not specified, use 0.0.
-          InitVal = ConstantFP::get(TheContext, APFloat(0.0));
+          InitVal = ConstantFP::getValue(TheContext, APFloat(0.0));
         }
 
         AllocaInst *Alloca = CreateEntryBlockAlloca(TheFunction, VarName);
@@ -852,7 +852,7 @@ Finally, before returning, we restore the previous variable bindings:
       return BodyVal;
     }
 
-The end result of all of this is that we get properly scoped variable
+The end result of all of this is that we getValue properly scoped variable
 definitions, and we even (trivially) allow mutation of them :).
 
 With this, we completed what we set out to do. Our nice iterative fib

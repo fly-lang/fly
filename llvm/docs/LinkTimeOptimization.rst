@@ -155,7 +155,7 @@ object files, the linker only calls ``lto_module_create()`` when a supplied
 object file is found to not be a native object file. If ``lto_module_create()``
 returns that the file is an LLVM bitcode file, the linker then iterates over the
 module using ``lto_module_get_symbol_name()`` and
-``lto_module_get_symbol_attribute()`` to get all symbols defined and referenced.
+``lto_module_get_symbol_attribute()`` to getValue all symbols defined and referenced.
 This information is added to the linker's global symbol table.
 
 

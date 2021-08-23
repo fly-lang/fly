@@ -7,53 +7,76 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
+
 #ifndef FLY_ASTNAMESPACE_H
 #define FLY_ASTNAMESPACE_H
 
-#include "AST/ASTNode.h"
-#include "AST/GlobalVarDecl.h"
-#include "AST/FunctionDecl.h"
-#include "AST/ClassDecl.h"
+#include "AST/ASTFunc.h"
 #include "llvm/ADT/StringMap.h"
-#include "llvm/ADT/StringRef.h"
+#include <unordered_set>
 
 namespace fly {
 
     class ASTNode;
+    class ASTContext;
+    class ASTGlobalVar;
+    class ASTClass;
 
     class ASTNameSpace {
 
         friend ASTContext;
-        friend ASTNode;
 
-        llvm::StringRef NameSpace;
+        llvm::StringRef Name;
 
         // AST by FileID
         llvm::StringMap<ASTNode *> Nodes;
 
-        // Public Global Vars
-        llvm::StringMap<GlobalVarDecl *> Vars;
+        // Public & Default Global Vars
+        llvm::StringMap<ASTGlobalVar *> GlobalVars;
 
-        // Public Functions
-        llvm::StringMap<FunctionDecl *> Functions;
+        // Public & Default Functions
+        std::unordered_set<ASTFunc*> Functions;
+
+        // Calls into NameSpace resolution
+        llvm::StringMap<std::vector<ASTFuncCall *>> ResolvedCalls;
+
+        // Contains all unresolved VarRef with GlobalVar
+        std::vector<ASTVarRef *> UnRefGlobalVars;
+
+        // Contains all unresolved Calls with Function
+        std::vector<ASTFuncCall *> UnRefCalls;
 
         // Public Classes
-        llvm::StringMap<ClassDecl *> Classes;
+        llvm::StringMap<ASTClass *> Classes;
 
     public:
-        ASTNameSpace(llvm::StringRef NS);
+        ASTNameSpace(const llvm::StringRef &NS);
 
         ~ASTNameSpace();
 
-        const llvm::StringRef &getNameSpace() const;
+        static const llvm::StringRef DEFAULT;
+
+        const llvm::StringRef &getName() const;
 
         const llvm::StringMap<ASTNode *> &getNodes() const;
 
-        const llvm::StringMap<GlobalVarDecl *> &getVars() const;
+        const llvm::StringMap<ASTGlobalVar *> &getGlobalVars() const;
+        bool addGlobalVar(ASTGlobalVar *GVar);
 
-        const llvm::StringMap<FunctionDecl *> &getFunctions() const;
+        const std::unordered_set<ASTFunc*> &getFunctions() const;
+        bool addFunction(ASTFunc *Func);
 
-        const llvm::StringMap<ClassDecl *> &getClasses() const;
+        const llvm::StringMap<std::vector<ASTFuncCall *>> &getResolvedCalls() const;
+        bool addResolvedCall(ASTFuncCall *Call);
+
+        const llvm::StringMap<ASTClass *> &getClasses() const;
+        bool addClass(ASTClass *Class);
+
+        void addUnRefCall(ASTFuncCall *Call);
+
+        void addUnRefGlobalVar(ASTVarRef *Var);
+
+        bool Resolve();
     };
 }
 

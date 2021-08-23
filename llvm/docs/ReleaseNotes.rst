@@ -149,7 +149,7 @@ Changes to the ARM Backend
 * Clang now defaults to ``-fomit-frame-pointer`` when targeting non-Android
   Linux for arm and thumb when optimizations are enabled. Users that were
   previously not specifying a value and relying on the implicit compiler
-  default may wish to specify ``-fno-omit-frame-pointer`` to get the old
+  default may wish to specify ``-fno-omit-frame-pointer`` to getValue the old
   behavior. This improves compatibility with GCC.
 
 * Added support for Armv8.6-A:

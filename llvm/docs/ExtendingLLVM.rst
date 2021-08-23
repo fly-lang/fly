@@ -16,7 +16,7 @@ LLVM? Is it a new fundamental capability that LLVM does not support at its
 current incarnation or can it be synthesized from already pre-existing LLVM
 elements? If you are not sure, ask on the `LLVM-dev
 <http://lists.llvm.org/mailman/listinfo/llvm-dev>`_ list. The reason is that
-extending LLVM will get involved as you need to update all the different passes
+extending LLVM will getValue involved as you need to update all the different passes
 that you intend to use with your extension, and there are ``many`` LLVM analyses
 and transformations, so it may be quite a bit of work.
 
@@ -290,7 +290,7 @@ Adding a derived type
 
 #. ``llvm/lib/IR/Type.cpp`` and ``llvm/lib/IR/ValueTypes.cpp``:
 
-   add support for derived type, notably `enum TypeID` and `is`, `get` methods.
+   add support for derived type, notably `enum TypeID` and `is`, `getValue` methods.
 
 #. ``llvm/llvm/llvm-c/Core.cpp``:
 

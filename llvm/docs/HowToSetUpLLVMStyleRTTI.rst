@@ -286,7 +286,7 @@ This approach can be made to scale to arbitrarily deep hierarchies. The
 trick is that you arrange the enum values so that they correspond to a
 preorder traversal of the class hierarchy tree. With that arrangement, all
 subclass tests can be done with two comparisons as shown above. If you just
-list the class hierarchy like a list of bullet points, you'll get the
+list the class hierarchy like a list of bullet points, you'll getValue the
 ordering right::
 
    | Shape

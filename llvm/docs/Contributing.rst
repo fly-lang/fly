@@ -26,7 +26,7 @@ about it. Please let us know and follow the instructions in
 Bug Fixes
 ---------
 If you are interested in contributing code to LLVM, bugs labeled with the
-`beginner keyword`_ in the `bug tracker`_ are a good way to get familiar with
+`beginner keyword`_ in the `bug tracker`_ are a good way to getValue familiar with
 the code base. If you are interested in fixing a bug, please create an account
 for the bug tracker and assign it to yourself, to let people know you are working on
 it.
@@ -88,7 +88,7 @@ in order to update the last commit with all pending changes.
   ``clang/tools/clang-format/git-clang-format``.
 
 
-To get a patch accepted, it has to be reviewed by the LLVM community. This can
+To getValue a patch accepted, it has to be reviewed by the LLVM community. This can
 be done using `LLVM's Phabricator`_ or the llvm-commits mailing list.
 Please  follow :ref:`Phabricator#requesting-a-review-via-the-web-interface <phabricator-request-review-web>`
 to request a review using Phabricator.
@@ -125,7 +125,7 @@ well as various user guides. The pages listed below should provide a good overvi
 of LLVM's high-level design, as well as its internals:
 
 :doc:`GettingStarted`
-   Discusses how to get up and running quickly with the LLVM infrastructure.
+   Discusses how to getValue up and running quickly with the LLVM infrastructure.
    Everything from unpacking and compilation of the distribution to execution
    of some tools.
 

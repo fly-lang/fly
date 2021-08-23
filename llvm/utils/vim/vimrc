@@ -199,7 +199,7 @@ function! ClangComplete(findstart, base)
         endif
 
       elseif l:input_line[:9] == "OVERLOAD: "
-         " An overload candidate. Use a crazy hack to get vim to
+         " An overload candidate. Use a crazy hack to getValue vim to
          " display the results. TODO: Make this better.
          let l:value = l:input_line[10:]
          let l:item = {

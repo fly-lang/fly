@@ -16,36 +16,91 @@
 
 #include "CharUnits.h"
 #include "CodeGenTypeCache.h"
-#include "AST/ASTContext.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/TargetInfo.h"
 #include <llvm/IR/Module.h>
 #include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/IRBuilder.h>
+#include <AST/ASTBlock.h>
+#include <AST/ASTIfBlock.h>
 
 using namespace llvm;
 
 namespace fly {
 
+    class ASTContext;
+    class ASTNode;
+    class ASTValue;
+    class ASTGlobalVar;
+    class ASTFunc;
+    class ASTFuncCall;
+    class ASTType;
+    class CodeGenGlobalVar;
+    class CodeGenFunction;
+    class CodeGenCall;
+    class ASTStmt;
+    class ASTExpr;
+    class ASTGroupExpr;
+    class ASTIfBlock;
+    class ASTSwitchBlock;
+    class ASTForBlock;
+    class ASTWhileBlock;
+
     class CodeGenModule : public CodeGenTypeCache {
+
+        friend class CodeGenGlobalVar;
+        friend class CodeGenFunction;
+        friend class CodeGenCall;
+        friend class CodeGenLocalVar;
+        friend class CodeGenExpr;
 
     private:
         DiagnosticsEngine &Diags;
-        ASTNode &AST;
+        CodeGenOptions &CGOpts;
         TargetInfo &Target;
-        llvm::LLVMContext VMContext;
+        llvm::LLVMContext &LLVMCtx;
+        llvm::IRBuilder<> *Builder;
+        // CGDebugInfo *DebugInfo; // TODO
 
     public:
-        CodeGenModule(DiagnosticsEngine &Diags, ASTNode &AST, TargetInfo &Target);
+        CodeGenModule(DiagnosticsEngine &Diags, llvm::StringRef Name, LLVMContext &LLVMCtx, TargetInfo &Target,
+                      CodeGenOptions &CGOpts);
 
-        std::unique_ptr<llvm::Module> Module;
+        virtual ~CodeGenModule();
 
-        void Generate();
+        llvm::Module *Module;
 
-        void GenerateGlobalVar(VarDecl *Var);
+        llvm::Module *getModule() const;
 
-        GlobalVariable* GenerateAndGetGlobalVar(GlobalVarDecl* Var);
+        DiagnosticBuilder Diag(const SourceLocation &Loc, unsigned DiagID);
 
-        void GenerateGlobalVars(std::vector<GlobalVarDecl*>  Vars);
+        CodeGenGlobalVar *GenGlobalVar(ASTGlobalVar *VDecl);
+
+        CodeGenFunction *GenFunction(ASTFunc *FDecl);
+
+        CallInst *GenCall(llvm::Function *Fn, ASTFuncCall *Call);
+
+        Type *GenType(const ASTType *Ty);
+
+        llvm::Constant *GenValue(const ASTType *TyData, const ASTValue *Val);
+
+        void GenStmt(llvm::Function *Fn, ASTStmt * Stmt);
+
+        llvm::Value *GenExpr(llvm::Function *Fn, const ASTType *Typ, ASTExpr *Expr);
+
+        void GenBlock(llvm::Function *Fn, const std::vector<ASTStmt *> &Content, llvm::BasicBlock *BB = nullptr);
+
+        void GenIfBlock(llvm::Function *Fn, ASTIfBlock *If);
+
+        llvm::BasicBlock *GenElsifBlock(llvm::Function *Fn,
+                                        llvm::BasicBlock *ElsifBB,
+                                        std::vector<ASTElsifBlock *>::iterator &It);
+
+        void GenSwitchBlock(llvm::Function *Fn, ASTSwitchBlock *Switch);
+
+        void GenForBlock(llvm::Function *Fn, ASTForBlock *For);
+
+        void GenWhileBlock(llvm::Function *Fn, ASTWhileBlock *While);
     };
 }
 

@@ -49,3 +49,7 @@ int main(int Argc, char **Argv) {
 
   return RUN_ALL_TESTS();
 }
+
+void getCompilerInstance() {
+
+}

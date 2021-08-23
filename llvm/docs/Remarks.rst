@@ -628,7 +628,7 @@ Typically, a specialized remark streamer will hold a reference to the one set
 up in the ``LLVMContext``, and will operate on its own type of diagnostics.
 
 For example, LLVM IR passes will emit ``llvm::DiagnosticInfoOptimization*``
-that get converted to ``llvm::remarks::Remark`` objects.  Then, clang could set
+that getValue converted to ``llvm::remarks::Remark`` objects.  Then, clang could set
 up its own specialized remark streamer that takes ``clang::Diagnostic``
 objects. This can allow various components of the frontend to emit remarks
 using the same techniques as the LLVM remarks.

@@ -14,10 +14,10 @@
 #ifndef FLY_CODEGEN_H
 #define FLY_CODEGEN_H
 
-#include "CodeGenModule.h"
 #include "CodeGen/BackendUtil.h"
 #include "Basic/Diagnostic.h"
 #include "AST/ASTContext.h"
+#include "llvm/IR/LLVMContext.h"
 #include <memory>
 
 namespace llvm {
@@ -28,33 +28,34 @@ namespace llvm {
 }
 
 namespace fly {
+
     class CodeGenModule;
+    class TargetInfo;
 
     class CodeGen {
 
     protected:
         DiagnosticsEngine &Diags;
-        const CodeGenOptions &CodeGenOpts;
+        CodeGenOptions &CodeGenOpts;
         TargetOptions &TargetOpts;
-        const ASTContext &Context;
         IntrusiveRefCntPtr<TargetInfo> Target;
-        std::unique_ptr<CodeGenModule> Builder;
+        llvm::LLVMContext LLVMCtx;
         BackendAction ActionKind;
 
         static std::string getOutputFileName(BackendAction Action, StringRef BaseInput);
     public:
         CodeGen(DiagnosticsEngine &Diags, CodeGenOptions &CodeGenOpts, const std::shared_ptr<TargetOptions> &TargetOpts,
-                ASTContext &Context, BackendAction Action);
+                BackendAction Action);
 
-        bool Execute();
-
-        std::unique_ptr<llvm::Module>& getModule();
+        bool Emit(CodeGenModule *CGM);
 
         static TargetInfo* CreateTargetInfo(DiagnosticsEngine &Diags,
                                                  const std::shared_ptr<TargetOptions> &TargetOpts);
 
         /// Get the current target info.
         TargetInfo &getTargetInfo() const;
+
+        CodeGenModule *CreateModule(llvm::StringRef Name);
     };
 }
 

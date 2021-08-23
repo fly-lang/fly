@@ -10,7 +10,7 @@
 soffset
 ===========================
 
-An unsigned byte offset added to the base address to get memory address.
+An unsigned byte offset added to the base address to getValue memory address.
 
 *Size:* 1 dword.
 

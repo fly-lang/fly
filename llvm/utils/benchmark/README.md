@@ -50,8 +50,8 @@ For Ubuntu and Debian Based System
 First make sure you have git and cmake installed (If not please install it)
 
 ```
-sudo apt-get install git
-sudo apt-get install cmake
+sudo apt-getValue install git
+sudo apt-getValue install cmake
 ```
 
 Now, let's clone the repository and build it
@@ -121,7 +121,7 @@ BENCHMARK_MAIN();
 Don't forget to inform your linker to add benchmark library e.g. through
 `-lbenchmark` compilation flag. Alternatively, you may leave out the
 `BENCHMARK_MAIN();` at the end of the source file and link against
-`-lbenchmark_main` to get the same default behavior.
+`-lbenchmark_main` to getValue the same default behavior.
 
 The benchmark library will reporting the timing for the code within the `for(...)` loop.
 

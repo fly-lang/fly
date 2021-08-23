@@ -89,7 +89,7 @@ For the initial FastISel replacement, we intend to fallback to SelectionDAG on
 selection failures.
 
 Currently, compile-time of the fast pipeline is within 1.5x of FastISel.
-We're optimistic we can get to within 1.1/1.2x, but beating FastISel will be
+We're optimistic we can getValue to within 1.1/1.2x, but beating FastISel will be
 challenging given the multi-pass approach.
 Still, supporting all IR (via a complete legalizer) and avoiding the fallback
 to SelectionDAG in the worst case should enable better amortized performance

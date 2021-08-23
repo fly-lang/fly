@@ -93,7 +93,7 @@ bucket hashes the string at the corresponding offset in the string data buffer.
 The on-disk layout of the serialized hash table is described at :doc:`HashTable`.
 
 Note that the entire Named Stream Map is not length-prefixed, so the only way to
-get to the data following it is to de-serialize it in its entirety.
+getValue to the data following it is to de-serialize it in its entirety.
 
   
 .. _pdb_stream_features:

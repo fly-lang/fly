@@ -6,22 +6,24 @@
 // Thank you to LLVM Project https://llvm.org/
 //
 //===--------------------------------------------------------------------------------------------------------------===//
-/// \file
-/// Defines the fly::ASTContext interface.
-///
-//===--------------------------------------------------------------------------------------------------------------===//
+
 
 #ifndef FLY_ASTCONTEXT_H
 #define FLY_ASTCONTEXT_H
 
-#include "ASTNode.h"
-#include "GlobalVarDecl.h"
-#include "Frontend/CompilerInstance.h"
+#include "llvm/ADT/StringMap.h"
+#include <vector>
 
 namespace fly {
 
+    class SourceLocation;
+    class DiagnosticsEngine;
+    class DiagnosticBuilder;
     class ASTNode;
     class ASTNameSpace;
+    class ASTVarRef;
+    class ASTFuncCall;
+    class ASTImport;
 
     class ASTContext {
 
@@ -30,29 +32,41 @@ namespace fly {
 
         DiagnosticsEngine &Diags;
 
-        // First inserted node, useful for Finalize on last
-        ASTNode *FirstNode = NULL;
+        ASTNameSpace * DefaultNS;
 
         // All Context Namespaces
         llvm::StringMap<ASTNameSpace *> NameSpaces;
 
-        // All Files: <FileName, FileId>
-        llvm::StringMap<ImportDecl *> Imports;
+        // All Files: <Name, ASTImport>
+        llvm::StringMap<ASTImport *> Imports;
+
+        // Contains all unresolved VarRef with GlobalVar
+        std::vector<ASTVarRef *> UnRefGlobalVars;
+
+        // Contains all unresolved Calls with Function
+        std::vector<ASTFuncCall *> UnRefCalls;
 
     public:
         ASTContext(DiagnosticsEngine &Diags);
 
         ~ASTContext();
 
+        ASTNameSpace *getDefaultNameSpace() const;
+
         bool AddNode(ASTNode *Node);
 
         bool DelNode(ASTNode *Node);
 
-        bool Finalize();
+        bool Resolve();
 
-        const StringMap<ASTNameSpace *> &getNameSpaces() const;
+        void addUnRefCall(ASTFuncCall *Call);
 
-        DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID);
+        void addUnRefGlobalVar(ASTVarRef *Var);
+
+        const llvm::StringMap<ASTNameSpace *> &getNameSpaces() const;
+
+        DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID) const;
+
     };
 }
 

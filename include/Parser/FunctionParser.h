@@ -13,7 +13,7 @@
 
 #include "Parser.h"
 #include "Lex/Token.h"
-#include "AST/FunctionDecl.h"
+#include "AST/ASTFunc.h"
 
 namespace fly {
 
@@ -24,21 +24,26 @@ namespace fly {
         friend class Parser;
 
         Parser *P;
-        TypeDecl *RetTyDecl;
-        const StringRef &FuncName;
+        const llvm::StringRef &FuncName;
         SourceLocation &FuncNameLoc;
-        FunctionDecl *Function;
-
-        bool ParseParameters(bool isStart = false);
+        ASTFunc *Function = NULL;
+        ASTFuncCall *Call = NULL;
 
         bool ParseBody();
 
-    public:
-        FunctionParser(Parser *P, TypeDecl *RetTyDecl, const StringRef &FuncName,
-                       SourceLocation &FuncNameLoc);
+        FunctionParser(Parser *P, const llvm::StringRef &FuncName, SourceLocation &FuncNameLoc);
 
-        bool Parse();
+        bool ParseCall(ASTBlock *Block, llvm::StringRef NameSpace = "");
 
+        bool ParseDecl(ASTType *TyDecl);
+
+        bool ParseParams();
+
+        bool ParseParam();
+
+        bool ParseArgs(ASTBlock *Block);
+
+        bool ParseArg(ASTBlock *Block);
     };
 }
 

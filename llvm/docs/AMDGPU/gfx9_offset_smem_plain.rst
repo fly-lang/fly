@@ -10,7 +10,7 @@
 soffset
 ===========================
 
-An offset added to the base address to get memory address.
+An offset added to the base address to getValue memory address.
 
 * If offset is specified as a register, it supplies an unsigned byte offset.
 * If offset is specified as a 21-bit immediate, it supplies a signed byte offset.

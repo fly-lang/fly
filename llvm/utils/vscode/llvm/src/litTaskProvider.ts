@@ -57,7 +57,7 @@ export class LITTaskProvider implements vscode.TaskProvider {
   private async getLITTasks(): Promise<vscode.Task[]> {
     let result: vscode.Task[] = [];
 
-    let bld_dir: string | undefined = vscode.workspace.getConfiguration().get("cmake.buildDirectory");
+    let bld_dir: string | undefined = vscode.workspace.getConfiguration().getValue("cmake.buildDirectory");
     if (bld_dir == undefined || !fs.existsSync(bld_dir)) {
       return result;
     }

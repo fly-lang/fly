@@ -267,7 +267,7 @@ operators to and from the base type.  For example:
 This generates two classes MyFooFlags and MyBarFlags which you can use in your
 native data structures instead of uint32_t. They are implicitly 
 converted to and from uint32_t.  The point of creating these unique types
-is that you can now specify traits on them to get different YAML conversions.
+is that you can now specify traits on them to getValue different YAML conversions.
 
 Hex types
 ---------

@@ -376,7 +376,7 @@ Can I compare two values computed with GEPs?
 --------------------------------------------
 
 Yes. If both addresses are within the same allocated object, or
-one-past-the-end, you'll get the comparison result you expect. If either is
+one-past-the-end, you'll getValue the comparison result you expect. If either is
 outside of it, integer arithmetic wrapping may occur, so the comparison may not
 be meaningful.
 

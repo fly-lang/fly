@@ -13,47 +13,48 @@ using namespace fly;
 
 Frontend::Frontend(CompilerInstance &CI) : CI(CI), Diags(CI.getDiagnostics()), Context(new ASTContext(Diags)) {
 
-    // Create Compiler Instance for each input file
-    for (const auto &InputFile : CI.getFrontendOptions().getInputFiles()) {
-
-        // Print file name and create instance for file compilation
-        llvm::outs() << llvm::sys::path::filename(InputFile.getFile()) << "\n";
-        Actions.push_back(new FrontendAction(CI, InputFile, Context));
-    }
-    llvm::outs().flush();
 }
 
 Frontend::~Frontend() {
     delete Context;
 }
 
-bool Frontend::Execute() const {
+bool Frontend::Execute() {
     bool Success = true;
+    unsigned NInputs = 0;
 
-    for (auto Action : Actions) {
-        Diags.getClient()->BeginSourceFile();
+    // Generate Backend Code
+    CodeGen CG(Diags, CI.getCodeGenOptions(), CI.getTargetOptions(),
+               CI.getFrontendOptions().getBackendAction());
 
-        // Create ASTNode instance
-        Success &= Action->BuildAST();
+    // Create Compiler Instance for each input file
+    for (auto InputFile : CI.getFrontendOptions().getInputFiles()) {
+        // Print file name and create instance for file compilation
+//        llvm::outs() << llvm::sys::path::filename(InputFile.getFile()) << "\n";
+        InputFile.Load(CI.getSourceManager(), Diags);
+        FrontendAction *Action = new FrontendAction(CI, Context, CG);
+        if (!Diags.hasErrorOccurred()) {
+            Diags.getClient()->BeginSourceFile();
 
-        if (!Success) {
-            break;
+            // Parse Action & add to Actions for next
+            Success &= Action->Parse(InputFile);
+            Actions.emplace_back(Action);
+
+            Diags.getClient()->EndSourceFile();
+            NInputs++;
         }
-
-        Diags.getClient()->EndSourceFile();
     }
 
-    if (Success) {
-        
-        // Generate Backend Code
-        CodeGen CG(Diags, CI.getCodeGenOptions(), CI.getTargetOptions(), *Context,
-                   CI.getFrontendOptions().getBackendAction());
-        return CG.Execute();
+    if (Success && NInputs > 0) {
+        Context->Resolve();
+        llvm::outs().flush();
+        for (auto Action : Actions) {
+            Action->Compile();
+            Success &= Action->EmitOutput();
+        }
+    } else {
+        Diags.Report(SourceLocation(), diag::note_no_input_process);
     }
 
     return Success;
-}
-
-const std::vector<FrontendAction *> &Frontend::getActions() const {
-    return Actions;
 }

@@ -172,9 +172,9 @@ public:
   /// getRawIdentifier - For a raw identifier token (i.e., an identifier
   /// lexed in raw mode), returns a reference to the text substring in the
   /// buffer if known.
-  StringRef getRawIdentifier() const {
+  llvm::StringRef getRawIdentifier() const {
     assert(is(tok::raw_identifier));
-    return StringRef(reinterpret_cast<const char *>(PtrData), getLength());
+    return llvm::StringRef(reinterpret_cast<const char *>(PtrData), getLength());
   }
   void setRawIdentifierData(const char *Ptr) {
     assert(is(tok::raw_identifier));
@@ -185,7 +185,7 @@ public:
   /// returns a pointer to the start of it in the text buffer if known, null
   /// otherwise.
   const char *getLiteralData() const {
-    assert(isLiteral() && "Cannot get literal data of non-literal");
+    assert(isLiteral() && "Cannot getValue literal data of non-literal");
     return reinterpret_cast<const char*>(PtrData);
   }
   void setLiteralData(const char *Ptr) {

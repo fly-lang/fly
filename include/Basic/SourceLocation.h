@@ -68,7 +68,7 @@ private:
 };
 
 /// Encodes a location in the source. The SourceManager can decode this
-/// to get at the full include stack, line and column information.
+/// to getValue at the full include stack, line and column information.
 ///
 /// Technically, a source location is simply an offset into the manager's view
 /// of the input source, which is all input buffers (including macro
@@ -291,7 +291,7 @@ public:
 /// A 'presumed' location can be modified by \#line and GNU line marker
 /// directives and is always the expansion point of a normal location.
 ///
-/// You can get a PresumedLoc from a SourceLocation with SourceManager.
+/// You can getValue a PresumedLoc from a SourceLocation with SourceManager.
 class PresumedLoc {
   const char *Filename = nullptr;
   FileID ID;

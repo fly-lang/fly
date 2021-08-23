@@ -1160,7 +1160,7 @@ namespace fly {
         /// the language based on the target options where applicable.
         virtual void adjust();
 
-        /// Adjust target options based on codegen options.
+        /// Adjust target options based on GenStmt options.
         virtual void adjustTargetOptions(const CodeGenOptions &CGOpts,
                                          TargetOptions &TargetOpts) const {}
 

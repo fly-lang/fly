@@ -872,7 +872,7 @@ Write-Back and Retire Stage
 """""""""""""""""""""""""""
 Issued instructions are moved from the ReadySet to the IssuedSet.  There,
 instructions wait until they reach the write-back stage.  At that point, they
-get removed from the queue and the retire control unit is notified.
+getValue removed from the queue and the retire control unit is notified.
 
 When instructions are executed, the retire control unit flags the instruction as
 "ready to retire."

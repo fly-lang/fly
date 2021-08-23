@@ -1859,7 +1859,7 @@ For AMDGPU the register number follows the numbering defined in
 :ref:`amdgpu-dwarf-register-identifier`.
 
 For AMDGPU the instructions are variable size. A consumer can subtract 1 from
-the return address to get the address of a byte within the call site
+the return address to getValue the address of a byte within the call site
 instructions. See DWARF Version 5 section 6.4.4.
 
 Accelerated Access
@@ -3936,7 +3936,7 @@ GFX7-GFX8
      ``SH_HIDDEN_PRIVATE_BASE_VIMID`` to the base of scratch backing memory
      being managed by SPI for the queue executing the kernel dispatch. This is
      the same value used in the Scratch Segment Buffer V# base address. The
-     prolog must add the value of Scratch Wavefront Offset to get the
+     prolog must add the value of Scratch Wavefront Offset to getValue the
      wavefront's byte scratch backing memory offset from
      ``SH_HIDDEN_PRIVATE_BASE_VIMID``. Since FLAT_SCRATCH_LO is in units of 256
      bytes, the offset must be right shifted by 8 before moving into
@@ -6569,7 +6569,7 @@ On exit from a function:
 
         *Except the argument registers, the VGPR cloberred and the preserved
         registers are intermixed at regular intervals in order to
-        get a better occupancy.*
+        getValue a better occupancy.*
 
       For the AMDGPU backend, an inter-procedural register allocation (IPRA)
       optimization may mark some of clobbered SGPR and VGPR registers as
@@ -6713,7 +6713,7 @@ after the source language arguments in the following order:
 
 9.  Implicit Argument Ptr (2 SGPRs)
 
-    The value is computed by adding an offset to Kernarg Segment Ptr to get the
+    The value is computed by adding an offset to Kernarg Segment Ptr to getValue the
     global address space pointer to the first kernarg implicit argument.
 
 The input and result arguments are assigned in order in the following manner:

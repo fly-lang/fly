@@ -8,37 +8,61 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Frontend/FrontendAction.h"
-#include "Lex/Lexer.h"
+#include "Frontend/CompilerInstance.h"
+#include "Frontend/InputFile.h"
+#include "AST/ASTContext.h"
+#include "AST/ASTNode.h"
+#include "CodeGen/CodeGen.h"
+#include "CodeGen/CodeGenModule.h"
 #include "Parser/Parser.h"
 
 using namespace fly;
 
-FrontendAction::FrontendAction(const CompilerInstance & CI, const class InputFile & Input, ASTContext *Context) :
-        Input(Input), Output(CI.getFrontendOptions().getOutputFile()), Context(Context),
-        Diags(CI.getDiagnostics()), FileMgr(CI.getFileManager()),
-        SourceMgr(CI.getSourceManager()) {
-
-    ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> result = FileMgr.getBufferForFile(Input.getFile());
-    assert(!result.getError() && "Error while opening file");
-    std::unique_ptr<MemoryBuffer> &Buf = result.get();
-    MemoryBuffer *BufPtr = Buf.get();
-    FID = SourceMgr.createFileID(std::move(Buf));
-
-    // Create Lexer
-    Lexer Lex(FID, BufPtr, SourceMgr);
-
-    // Create Parser and start to parse
-    P = std::make_unique<Parser>(Lex, Diags);
+FrontendAction::FrontendAction(const CompilerInstance & CI, ASTContext *Context, CodeGen &CG) :
+        Context(Context), Diags(CI.getDiagnostics()), SourceMgr(CI.getSourceManager()), CG(CG) {
 }
 
-bool FrontendAction::BuildAST() {
-
-    // Create AST Unit
-    AST = std::make_unique<ASTNode>(Input.getFile(), FID, Context);
-
-    return P->Parse(AST.get());
+FrontendAction::~FrontendAction() {
+    delete P;
+    delete AST;
 }
 
-ASTNode& FrontendAction::getAST() {
-    return *AST;
+ASTNode *FrontendAction::getAST() {
+    assert(AST && "AST not built, need a Parse()");
+    return AST;
+}
+
+bool FrontendAction::Parse(InputFile & Input) {
+    bool Success = false;
+
+    if (P == nullptr) {
+        // Create CodeGen
+        CGM = CG.CreateModule(Input.getFile());
+
+        // Create AST
+        AST = new ASTNode(Input.getFile(), Context, CGM);
+
+        // Create Parser and start to parse
+        P = new Parser(Input, SourceMgr, Diags);
+        Success = P->Parse(AST) && Context->AddNode(AST);
+    }
+
+    return Success;
+}
+
+bool FrontendAction::Compile() {
+    assert(AST && "AST not built, need a Parse()");
+    // Manage Top Decl
+    AST->getGlobalVars().begin();
+    for (const auto &V : AST->getGlobalVars()) {
+        CGM->GenGlobalVar(V.getValue());
+    }
+    for (ASTFunc *F : AST->getFunctions()) {
+        CGM->GenFunction(F);
+    }
+    return true;
+}
+
+bool FrontendAction::EmitOutput() {
+    return CG.Emit(CGM);
 }

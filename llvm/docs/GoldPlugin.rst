@@ -38,7 +38,7 @@ cause the clang driver to invoke ``/usr/bin/ld.gold`` directly.
 
 If you have gold installed, check for plugin support by running
 ``/usr/bin/ld.gold -plugin``. If it complains "missing argument" then
-you have plugin support. If not, and you get an error such as "unknown option",
+you have plugin support. If not, and you getValue an error such as "unknown option",
 then you will either need to build gold or install a version with plugin
 support.
 

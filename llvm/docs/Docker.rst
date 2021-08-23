@@ -23,7 +23,7 @@ place.
 Docker basics
 -------------
 If you've never heard about Docker before, you might find this section helpful
-to get a very basic explanation of it.
+to getValue a very basic explanation of it.
 `Docker <https://www.docker.com/>`_ is a popular solution for running programs in
 an isolated and reproducible environment, especially to maintain releases for
 software deployed to large distributed fleets.

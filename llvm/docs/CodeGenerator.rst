@@ -180,7 +180,7 @@ As LLVM continues to be developed and refined, we plan to move more and more of
 the target description to the ``.td`` form.  Doing so gives us a number of
 advantages.  The most important is that it makes it easier to port LLVM because
 it reduces the amount of C++ code that has to be written, and the surface area
-of the code generator that needs to be understood before someone can get
+of the code generator that needs to be understood before someone can getValue
 something working.  Second, it makes it easier to change things. In particular,
 if tables and other things are all emitted by ``tblgen``, we only need a change
 in one place (``tblgen``) to update all of the targets to a new interface.
@@ -199,7 +199,7 @@ not incorporate any particular pieces of code generation algorithms.
 
 All of the target description classes (except the :raw-html:`<tt>` `DataLayout`_
 :raw-html:`</tt>` class) are designed to be subclassed by the concrete target
-implementation, and have virtual methods implemented.  To get to these
+implementation, and have virtual methods implemented.  To getValue to these
 implementations, the :raw-html:`<tt>` `TargetMachine`_ :raw-html:`</tt>` class
 provides accessors that should be implemented by the target.
 
@@ -210,7 +210,7 @@ The ``TargetMachine`` class
 
 The ``TargetMachine`` class provides virtual methods that are used to access the
 target-specific implementations of the various target description classes via
-the ``get*Info`` methods (``getInstrInfo``, ``getRegisterInfo``,
+the ``getValue*Info`` methods (``getInstrInfo``, ``getRegisterInfo``,
 ``getFrameInfo``, etc.).  This class is designed to be specialized by a concrete
 target implementation (e.g., ``X86TargetMachine``) which implements the various
 virtual methods.  The only required target description class is the
@@ -390,20 +390,20 @@ functions make it easy to build arbitrary machine instructions.  Usage of the
   const TargetInstrInfo &TII = ...
   MachineBasicBlock &MBB = ...
   DebugLoc DL;
-  MachineInstr *MI = BuildMI(MBB, DL, TII.get(X86::MOV32ri), DestReg).addImm(42);
+  MachineInstr *MI = BuildMI(MBB, DL, TII.getValue(X86::MOV32ri), DestReg).addImm(42);
 
   // Create the same instr, but insert it before a specified iterator point.
   MachineBasicBlock::iterator MBBI = ...
-  BuildMI(MBB, MBBI, DL, TII.get(X86::MOV32ri), DestReg).addImm(42);
+  BuildMI(MBB, MBBI, DL, TII.getValue(X86::MOV32ri), DestReg).addImm(42);
 
   // Create a 'cmp Reg, 0' instruction, no destination reg.
-  MI = BuildMI(MBB, DL, TII.get(X86::CMP32ri8)).addReg(Reg).addImm(42);
+  MI = BuildMI(MBB, DL, TII.getValue(X86::CMP32ri8)).addReg(Reg).addImm(42);
 
   // Create an 'sahf' instruction which takes no operands and stores nothing.
-  MI = BuildMI(MBB, DL, TII.get(X86::SAHF));
+  MI = BuildMI(MBB, DL, TII.getValue(X86::SAHF));
 
   // Create a self looping branch instruction.
-  BuildMI(MBB, DL, TII.get(X86::JNE)).addMBB(&MBB);
+  BuildMI(MBB, DL, TII.getValue(X86::JNE)).addMBB(&MBB);
 
 If you need to add a definition operand (other than the optional destination
 register), you must explicitly mark it as such:
@@ -825,7 +825,7 @@ rest of the code generation passes are run.
 
 One great way to visualize what is going on here is to take advantage of a few
 LLC command line options.  The following options pop up a window displaying the
-SelectionDAG at specific times (if you only get errors printed to the console
+SelectionDAG at specific times (if you only getValue errors printed to the console
 while using this, you probably `need to configure your
 system <ProgrammersManual.html#viewing-graphs-while-debugging-code>`_ to add support for it).
 
@@ -1053,7 +1053,7 @@ for your target.  It has the following strengths:
   propagate this knowledge from the fact that ``F4RC`` has type 'f32'.
 
 * Targets can define their own (and rely on built-in) "pattern fragments".
-  Pattern fragments are chunks of reusable patterns that get inlined into your
+  Pattern fragments are chunks of reusable patterns that getValue inlined into your
   patterns during compiler-compile time.  For example, the integer "``(not
   x)``" operation is actually defined as a pattern fragment that expands as
   "``(xor x, -1)``", since the SelectionDAG does not have a native '``not``'
@@ -1316,14 +1316,14 @@ registers: the ones *implicitly* defined, and those *explicitly*
 defined. Explicitly defined registers are normal operands, and can be accessed
 with ``MachineInstr::getOperand(int)::getReg()``.  In order to check which
 registers are implicitly defined by an instruction, use the
-``TargetInstrInfo::get(opcode)::ImplicitDefs``, where ``opcode`` is the opcode
+``TargetInstrInfo::getValue(opcode)::ImplicitDefs``, where ``opcode`` is the opcode
 of the target instruction. One important difference between explicit and
 implicit physical registers is that the latter are defined statically for each
 instruction, whereas the former may vary depending on the program being
 compiled. For example, an instruction that represents a function call will
 always implicitly define or use the same set of physical registers. To read the
 registers implicitly used by an instruction, use
-``TargetInstrInfo::get(opcode)::ImplicitUses``. Pre-colored registers impose
+``TargetInstrInfo::getValue(opcode)::ImplicitUses``. Pre-colored registers impose
 constraints on any register allocation algorithm. The register allocator must
 make sure that none of them are overwritten by the values of virtual registers
 while still alive.
@@ -1342,7 +1342,7 @@ The direct mapping provides more flexibility to the developer of the register
 allocator; however, it is more error prone, and demands more implementation
 work.  Basically, the programmer will have to specify where load and store
 instructions should be inserted in the target function being compiled in order
-to get and store values in memory. To assign a physical register to a virtual
+to getValue and store values in memory. To assign a physical register to a virtual
 register present in a given operand, use ``MachineOperand::setReg(p_reg)``. To
 insert a store instruction, use ``TargetInstrInfo::storeRegToStackSlot(...)``,
 and to insert a load instruction, use ``TargetInstrInfo::loadRegFromStackSlot``.
@@ -1582,7 +1582,7 @@ three important things that you have to implement for your target:
    implements the general lowering process converting MachineFunction's into MC
    label constructs.  The AsmPrinter base class provides a number of useful
    methods and routines, and also allows you to override the lowering process in
-   some important ways.  You should get much of the lowering for free if you are
+   some important ways.  You should getValue much of the lowering for free if you are
    implementing an ELF, COFF, or MachO target, because the
    TargetLoweringObjectFile class implements much of the common logic.
 

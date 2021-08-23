@@ -491,11 +491,11 @@ understood for formatting nested function calls. Examples:
   foo({a, b, c}, {1, 2, 3});
 
   llvm::Constant *Mask[] = {
-      llvm::ConstantInt::get(llvm::Type::getInt32Ty(getLLVMContext()), 0),
-      llvm::ConstantInt::get(llvm::Type::getInt32Ty(getLLVMContext()), 1),
-      llvm::ConstantInt::get(llvm::Type::getInt32Ty(getLLVMContext()), 2)};
+      llvm::ConstantInt::getValue(llvm::Type::getInt32Ty(getLLVMContext()), 0),
+      llvm::ConstantInt::getValue(llvm::Type::getInt32Ty(getLLVMContext()), 1),
+      llvm::ConstantInt::getValue(llvm::Type::getInt32Ty(getLLVMContext()), 2)};
 
-This formatting scheme also makes it particularly easy to get predictable,
+This formatting scheme also makes it particularly easy to getValue predictable,
 consistent, and automatic formatting with tools like `Clang Format`_.
 
 .. _Clang Format: https://clang.llvm.org/docs/ClangFormat.html
@@ -1168,7 +1168,7 @@ Here are more examples:
 
   assert(isa<PHINode>(Succ->front()) && "Only works on PHId BBs!");
 
-You get the idea.
+You getValue the idea.
 
 In the past, asserts were used to indicate a piece of code that should not be
 reached.  These were typically of the form:
@@ -1283,7 +1283,7 @@ off by default but turned on when building LLVM with a version of Clang that
 supports the warning.
 
 A knock-on effect of this stylistic requirement is that when building LLVM with
-GCC you may get warnings related to "control may reach end of non-void function"
+GCC you may getValue warnings related to "control may reach end of non-void function"
 if you return from each case of a covered switch-over-enum because GCC assumes
 that the enum expression may take any representable value, not just those of
 individual enumerators. To suppress this warning, use ``llvm_unreachable`` after
@@ -1469,7 +1469,7 @@ incremented, returning it, and then preincrementing the "work value".  For
 primitive types, this isn't a big deal. But for iterators, it can be a huge
 issue (for example, some iterators contains stack and set objects in them...
 copying an iterator could invoke the copy ctor's of these as well).  In general,
-get in the habit of always using preincrement, and you won't have a problem.
+getValue in the habit of always using preincrement, and you won't have a problem.
 
 
 Namespace Indentation
@@ -1634,5 +1634,5 @@ Two particularly important books for our work are:
    <https://www.amazon.com/Large-Scale-Software-Design-John-Lakos/dp/0201633620>`_
    by John Lakos
 
-If you get some free time, and you haven't read them: do so, you might learn
+If you getValue some free time, and you haven't read them: do so, you might learn
 something.

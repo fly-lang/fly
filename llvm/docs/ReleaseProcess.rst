@@ -26,7 +26,7 @@ and it'll be the role of each volunteer to:
 
 * Identify, reduce and report every regression found during tests and benchmarks
 
-* Make sure the critical bugs get fixed and merged to the next release candidate
+* Make sure the critical bugs getValue fixed and merged to the next release candidate
 
 Not all bugs or regressions are show-stoppers and it's a bit of a grey area what
 should be fixed before the next candidate and what can wait until the next
@@ -74,7 +74,7 @@ Each system will require different options. For instance, x86_64 will
 obviously not need ``-no-64bit`` while 32-bit systems will, or the script will
 fail.
 
-The important flags to get right are:
+The important flags to getValue right are:
 
 * On the pre-release, you should change ``-rc 1`` to ``-final``. On RC2,
   change it to ``-rc 2`` and so on.

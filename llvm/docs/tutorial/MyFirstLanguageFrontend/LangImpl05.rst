@@ -27,7 +27,7 @@ lexer, parser, AST, and LLVM code emitter. This example is nice, because
 it shows how easy it is to "grow" a language over time, incrementally
 extending it as new ideas are discovered.
 
-Before we get going on "how" we add this extension, let's talk about
+Before we getValue going on "how" we add this extension, let's talk about
 "what" we want. The basic idea is that we want to be able to write this
 sort of thing:
 
@@ -185,7 +185,7 @@ example. Consider:
     extern bar();
     def baz(x) if x then foo() else bar();
 
-If you disable optimizations, the code you'll (soon) get from
+If you disable optimizations, the code you'll (soon) getValue from
 Kaleidoscope looks like this:
 
 .. code-block:: llvm
@@ -224,7 +224,7 @@ see this graph:
 
    Example CFG
 
-Another way to get this is to call "``F->viewCFG()``" or
+Another way to getValue this is to call "``F->viewCFG()``" or
 "``F->viewCFGOnly()``" (where F is a "``Function*``") either by
 inserting actual calls into the code and recompiling or by calling these
 in the debugger. LLVM has many nice features for visualizing various
@@ -293,10 +293,10 @@ for ``IfExprAST``:
 
       // Convert condition to a bool by comparing non-equal to 0.0.
       CondV = Builder.CreateFCmpONE(
-          CondV, ConstantFP::get(TheContext, APFloat(0.0)), "ifcond");
+          CondV, ConstantFP::getValue(TheContext, APFloat(0.0)), "ifcond");
 
 This code is straightforward and similar to what we saw before. We emit
-the expression for the condition, then compare that value to zero to get
+the expression for the condition, then compare that value to zero to getValue
 a truth value as a 1-bit (bool) value.
 
 .. code-block:: c++
@@ -371,7 +371,7 @@ we just set it to ThenBB 5 lines above? The problem is that the "Then"
 expression may actually itself change the block that the Builder is
 emitting into if, for example, it contains a nested "if/then/else"
 expression. Because calling ``codegen()`` recursively could arbitrarily change
-the notion of the current block, we are required to get an up-to-date
+the notion of the current block, we are required to getValue an up-to-date
 value for code that will set up the Phi node.
 
 .. code-block:: c++
@@ -448,7 +448,7 @@ true, incrementing by an optional step value ("1.0" in this case). If
 the step value is omitted, it defaults to 1.0. While the loop is true,
 it executes its body expression. Because we don't have anything better
 to return, we'll just define the loop as always returning 0.0. In the
-future when we have mutable variables, it will get more useful.
+future when we have mutable variables, it will getValue more useful.
 
 As before, let's talk about the changes that we need to Kaleidoscope to
 support this.
@@ -587,8 +587,8 @@ And again we hook it up as a primary expression:
 LLVM IR for the 'for' Loop
 --------------------------
 
-Now we get to the good part: the LLVM IR we want to generate for this
-thing. With the simple example above, we get this LLVM IR (note that
+Now we getValue to the good part: the LLVM IR we want to generate for this
+thing. With the simple example above, we getValue this LLVM IR (note that
 this dump is generated with optimizations disabled for clarity):
 
 .. code-block:: llvm
@@ -674,7 +674,7 @@ Now that the "preheader" for the loop is set up, we switch to emitting
 code for the loop body. To begin with, we move the insertion point and
 create the PHI node for the loop induction variable. Since we already
 know the incoming value for the starting value, we add it to the Phi
-node. Note that the Phi will eventually get a second value for the
+node. Note that the Phi will eventually getValue a second value for the
 backedge, but we can't set it up yet (because it doesn't exist!).
 
 .. code-block:: c++
@@ -690,7 +690,7 @@ backedge, but we can't set it up yet (because it doesn't exist!).
       if (!Body->codegen())
         return nullptr;
 
-Now the code starts to get more interesting. Our 'for' loop introduces a
+Now the code starts to getValue more interesting. Our 'for' loop introduces a
 new variable to the symbol table. This means that our symbol table can
 now contain either function arguments or loop variables. To handle this,
 before we codegen the body of the loop, we add the loop variable as the
@@ -717,7 +717,7 @@ table.
           return nullptr;
       } else {
         // If not specified, use 1.0.
-        StepVal = ConstantFP::get(TheContext, APFloat(1.0));
+        StepVal = ConstantFP::getValue(TheContext, APFloat(1.0));
       }
 
       Value *NextVar = Builder.CreateFAdd(Variable, StepVal, "nextvar");
@@ -736,7 +736,7 @@ iteration of the loop.
 
       // Convert condition to a bool by comparing non-equal to 0.0.
       EndCond = Builder.CreateFCmpONE(
-          EndCond, ConstantFP::get(TheContext, APFloat(0.0)), "loopcond");
+          EndCond, ConstantFP::getValue(TheContext, APFloat(0.0)), "loopcond");
 
 Finally, we evaluate the exit value of the loop, to determine whether
 the loop should exit. This mirrors the condition evaluation for the
@@ -789,7 +789,7 @@ With this, we conclude the "adding control flow to Kaleidoscope" chapter
 of the tutorial. In this chapter we added two control flow constructs,
 and used them to motivate a couple of aspects of the LLVM IR that are
 important for front-end implementors to know. In the next chapter of our
-saga, we will get a bit crazier and add `user-defined
+saga, we will getValue a bit crazier and add `user-defined
 operators <LangImpl06.html>`_ to our poor innocent language.
 
 Full Code Listing

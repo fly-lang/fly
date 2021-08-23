@@ -223,7 +223,7 @@ but more difficult. The main problems are:
 * The targets to compile compiler-rt have the suffix -none-eabi. This uses the BareMetal driver in clang and by default won't find the libraries needed to pass the cmake compiler check.
 
 As the Armv6-M, Armv7-M and Armv7E-M builds of compiler-rt only use instructions
-that are supported on Armv7-A we can still get most of the value of running the
+that are supported on Armv7-A we can still getValue most of the value of running the
 tests using the same ``qemu-arm`` that we used for Armv7-A by building and
 running the test cases for Armv7-A but using the builtins compiled for
 Armv6-M, Armv7-M or Armv7E-M. This will test that the builtins can be linked
@@ -231,7 +231,7 @@ into a binary and execute the tests correctly but it will not catch if the
 builtins use instructions that are supported on Armv7-A but not Armv6-M,
 Armv7-M and Armv7E-M.
 
-To get the cmake compile test to pass you will need to pass the libraries
+To getValue the cmake compile test to pass you will need to pass the libraries
 needed to successfully link the cmake test via ``CMAKE_CFLAGS``. It is
 strongly recommended that you use version 3.6 or above of cmake so you can use
 ``CMAKE_TRY_COMPILE_TARGET=STATIC_LIBRARY`` to skip the link step.

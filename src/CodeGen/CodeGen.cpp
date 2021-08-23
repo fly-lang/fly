@@ -8,19 +8,20 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "CodeGen/CodeGen.h"
+#include "CodeGen/CodeGenModule.h"
+#include "AST/ASTNode.h"
+#include "AST/ASTNameSpace.h"
 #include "Basic/FileManager.h"
-#include <llvm/Target/TargetMachine.h>
+#include "Basic/TargetInfo.h"
 #include <llvm/IR/LLVMContext.h>
 
 using namespace fly;
 
-CodeGen::CodeGen(DiagnosticsEngine &Diags, CodeGenOptions &CodeGenOpts, const std::shared_ptr<TargetOptions> &TargetOpts,
-                 ASTContext &Context, BackendAction ActionKind) :
-        Diags(Diags), CodeGenOpts(CodeGenOpts), TargetOpts(*TargetOpts), Context(Context),
+CodeGen::CodeGen(DiagnosticsEngine &Diags, CodeGenOptions &CodeGenOpts,
+                 const std::shared_ptr<TargetOptions> &TargetOpts, BackendAction ActionKind) :
+        Diags(Diags), CodeGenOpts(CodeGenOpts), TargetOpts(*TargetOpts),
         Target(CreateTargetInfo(Diags, TargetOpts)), ActionKind(ActionKind) {
 }
-
-
 
 std::string CodeGen::getOutputFileName(BackendAction ActionKind, StringRef BaseInput) {
     StringRef FileName = llvm::sys::path::filename(BaseInput);
@@ -41,35 +42,21 @@ std::string CodeGen::getOutputFileName(BackendAction ActionKind, StringRef BaseI
     llvm_unreachable("Invalid backend action!");
 }
 
-std::unique_ptr<llvm::Module>& CodeGen::getModule() {
-    return Builder->Module;
-}
-
-bool CodeGen::Execute() {
-
+bool CodeGen::Emit(CodeGenModule *CGM) {
+    // Skip CodeGenModule instance creation
     if (ActionKind == Backend_EmitNothing) {
         return true;
     }
 
-    for(auto &EntryNS : Context.getNameSpaces()) {
-        for (auto &EntryNode : EntryNS.getValue()->getNodes()) {
+    // After generate all other modules
+    EmbedBitcode(CGM->Module, CodeGenOpts, llvm::MemoryBufferRef());
 
-            ASTNode *AST = EntryNode.getValue();
-
-            std::string OutputFileName = getOutputFileName(ActionKind, AST->getFileName());
-            std::error_code Code;
-            std::unique_ptr<llvm::raw_fd_ostream> OS =
-                    std::make_unique<raw_fd_ostream>(OutputFileName, Code, llvm::sys::fs::F_None);
-
-            Builder = std::make_unique<CodeGenModule>(Diags, *AST, *Target);
-            Builder->Generate();
-
-            EmbedBitcode(Builder->Module.get(), CodeGenOpts, llvm::MemoryBufferRef());
-
-            EmitBackendOutput(Diags, CodeGenOpts, TargetOpts, Target->getDataLayout(),
-                              Builder->Module.get(), ActionKind, std::move(OS));
-        }
-    }
+    std::string OutputFileName = getOutputFileName(ActionKind, CGM->getModule()->getName());
+    std::error_code ErrCode;
+    std::unique_ptr<llvm::raw_fd_ostream> OS =
+            std::make_unique<raw_fd_ostream>(OutputFileName, ErrCode, llvm::sys::fs::F_None);
+    EmitBackendOutput(Diags, CodeGenOpts, TargetOpts, Target->getDataLayout(), CGM->Module,
+                      ActionKind, std::move(OS));
     return true;
 }
 
@@ -81,4 +68,8 @@ TargetInfo* CodeGen::CreateTargetInfo(DiagnosticsEngine &Diags,
 TargetInfo &CodeGen::getTargetInfo() const {
     assert(Target && "Compiler invocation has no target info!");
     return *Target;
+}
+
+CodeGenModule *CodeGen::CreateModule(llvm::StringRef Name) {
+    return new CodeGenModule(Diags, Name, LLVMCtx, *Target, CodeGenOpts);
 }

@@ -475,7 +475,7 @@ We can use the LLVM ``llc`` tool to directly run the NVPTX code generator:
   target triple.
 
 
-The output we get from ``llc`` (as of LLVM 3.4):
+The output we getValue from ``llc`` (as of LLVM 3.4):
 
 .. code-block:: text
 

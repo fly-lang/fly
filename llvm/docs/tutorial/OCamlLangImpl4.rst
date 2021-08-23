@@ -13,7 +13,7 @@ LLVM <index.html>`_" tutorial. Chapters 1-3 described the implementation
 of a simple language and added support for generating LLVM IR. This
 chapter describes two new techniques: adding optimizer support to your
 language, and adding JIT compiler support. These additions will
-demonstrate how to get nice, efficient code for the Kaleidoscope
+demonstrate how to getValue nice, efficient code for the Kaleidoscope
 language.
 
 Trivial Constant Folding
@@ -24,7 +24,7 @@ folding optimisations below.
 
 Our demonstration for Chapter 3 is elegant and easy to extend.
 Unfortunately, it does not produce wonderful code. For example, when
-compiling simple code, we don't get obvious optimizations:
+compiling simple code, we don't getValue obvious optimizations:
 
 ::
 
@@ -39,7 +39,7 @@ compiling simple code, we don't get obvious optimizations:
 
 This code is a very, very literal transcription of the AST built by
 parsing the input. As such, this transcription lacks optimizations like
-constant folding (we'd like to get "``add x, 3.0``" in the example
+constant folding (we'd like to getValue "``add x, 3.0``" in the example
 above) as well as other more important optimizations. Constant folding,
 in particular, is a very common and very important optimization: so much
 so that many language implementors implement constant folding support in
@@ -129,7 +129,7 @@ in. If we wanted to make a "static Kaleidoscope compiler", we would use
 exactly the code we have now, except that we would defer running the
 optimizer until the entire file has been parsed.
 
-In order to get per-function optimizations going, we need to set up a
+In order to getValue per-function optimizations going, we need to set up a
 `Llvm.PassManager <../WritingAnLLVMPass.html#what-passmanager-does>`_ to hold and
 organize the LLVM optimizations that we want to run. Once we have that,
 we can add a set of optimizations to run. The code looks like this:
@@ -167,7 +167,7 @@ set up, we use a series of "add" calls to add a bunch of LLVM passes.
 The first pass is basically boilerplate, it adds a pass so that later
 optimizations know how the data structures in the program are laid out.
 The "``the_execution_engine``" variable is related to the JIT, which we
-will get to in the next section.
+will getValue to in the next section.
 
 In this case, we choose to add 4 optimization passes. The passes we
 chose here are a pretty standard set of "cleanup" optimizations that are
@@ -212,14 +212,14 @@ again:
             ret double %multmp
     }
 
-As expected, we now get our nicely optimized code, saving a floating
+As expected, we now getValue our nicely optimized code, saving a floating
 point add instruction from every execution of this function.
 
 LLVM provides a wide variety of optimizations that can be used in
 certain circumstances. Some `documentation about the various
 passes <../Passes.html>`_ is available, but it isn't very complete.
 Another good source of ideas can come from looking at the passes that
-``Clang`` runs to get started. The "``opt``" tool allows you to
+``Clang`` runs to getValue started. The "``opt``" tool allows you to
 experiment with passes from the command line, so you can see if they do
 anything.
 
@@ -340,9 +340,9 @@ function and compiled all of them before returning from
 
 The JIT provides a number of other more advanced interfaces for things
 like freeing allocated machine code, rejit'ing functions to update them,
-etc. However, even with this simple code, we get some surprisingly
+etc. However, even with this simple code, we getValue some surprisingly
 powerful capabilities - check this out (I removed the dump of the
-anonymous functions, you should get the idea by now :) :
+anonymous functions, you should getValue the idea by now :) :
 
 ::
 
@@ -384,7 +384,7 @@ of ``sin`` directly.
 
 The LLVM JIT provides a number of interfaces (look in the
 ``llvm_executionengine.mli`` file) for controlling how unknown functions
-get resolved. It allows you to establish explicit mappings between IR
+getValue resolved. It allows you to establish explicit mappings between IR
 objects and addresses (useful for LLVM global variables that you want to
 map to static tables, for example), allows you to dynamically decide on
 the fly based on the function name, and even allows you to have the JIT

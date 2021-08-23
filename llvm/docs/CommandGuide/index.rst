@@ -4,7 +4,7 @@ LLVM Command Guide
 The following documents are command descriptions for all of the LLVM tools.
 These pages describe how to use the LLVM commands and what their options are.
 Note that these pages do not describe all of the options available for all
-tools. To get a complete listing, pass the ``--help`` (general options) or
+tools. To getValue a complete listing, pass the ``--help`` (general options) or
 ``--help-hidden`` (general and debugging options) arguments to the tool you are
 interested in.
 

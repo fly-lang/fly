@@ -50,12 +50,12 @@ Tech talks
 ----------
 
 * It’s a great idea to have several talks scheduled for several upcoming
-  meetups to get the ball rolling.
+  meetups to getValue the ball rolling.
 * Keep looking for speakers far in advance, ideally you should have 2-3
   speakers ready in the pipeline.
 * Try to record the talks if possible. It adds visibility to the meetup and
   just a good idea in general. Any modern smartphone or tablet should work, but
-  you can also get a camera. Though, it is recommended to get an external
+  you can also get a camera. Though, it is recommended to getValue an external
   microphone for better sound.
 
 Where to host the meetup?

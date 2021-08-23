@@ -110,7 +110,7 @@ G
     explicit memory management to reclaim unused memory.
 
 **GEP**
-    ``GetElementPtr``. An LLVM IR instruction that is used to get the address
+    ``GetElementPtr``. An LLVM IR instruction that is used to getValue the address
     of a subelement of an aggregate data structure. It is documented in detail
     `here <https://llvm.org/docs/GetElementPtr.html>`_.
 

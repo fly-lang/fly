@@ -102,7 +102,7 @@ new interactions with our JIT class, but for now we will take this setup for
 granted and focus our attention on the implementation of our JIT itself.
 
 Our KaleidoscopeJIT class is defined in the KaleidoscopeJIT.h header. After the
-usual include guards and #includes [2]_, we get to the definition of our class:
+usual include guards and #includes [2]_, we getValue to the definition of our class:
 
 .. code-block:: c++
 

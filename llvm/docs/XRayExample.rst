@@ -18,7 +18,7 @@ for more technical details of how XRay works for background information.
 
 In our example, we need to add ``-fxray-instrument`` to the list of flags
 passed to Clang when building a binary. Note that we need to link with Clang as
-well to get the XRay runtime linked in appropriately. For building ``llc`` with
+well to getValue the XRay runtime linked in appropriately. For building ``llc`` with
 XRay, we do something similar below for our LLVM build:
 
 ::
@@ -49,7 +49,7 @@ Getting Traces
 
 By default, XRay does not write out the trace files or patch the application
 before main starts. If we run ``llc`` it should work like a normally built
-binary. If we want to get a full trace of the application's operations (of the
+binary. If we want to getValue a full trace of the application's operations (of the
 functions we do end up instrumenting with XRay) then we need to enable XRay
 at application start. To do this, XRay checks the ``XRAY_OPTIONS`` environment
 variable.
@@ -73,7 +73,7 @@ instrumented, and how much time we're spending in parts of the code. To make
 sense of this data, we use the ``llvm-xray`` tool which has a few subcommands
 to help us understand our trace.
 
-One of the things we can do is to get an accounting of the functions that have
+One of the things we can do is to getValue an accounting of the functions that have
 been instrumented. We can see an example accounting with ``llvm-xray account``:
 
 ::
@@ -97,8 +97,8 @@ in the lexer (a total of 1 millisecond). If we wanted for example to work with
 this data in a spreadsheet, we can output the results as CSV using the
 ``-format=csv`` option to the command for further analysis.
 
-If we want to get a textual representation of the raw trace we can use the
-``llvm-xray convert`` tool to get YAML output. The first few lines of that
+If we want to getValue a textual representation of the raw trace we can use the
+``llvm-xray convert`` tool to getValue YAML output. The first few lines of that
 output for an example trace would look like the following:
 
 ::
@@ -129,7 +129,7 @@ Controlling Fidelity
 --------------------
 
 So far in our examples, we haven't been getting full coverage of the functions
-we have in the binary. To get that, we need to modify the compiler flags so
+we have in the binary. To getValue that, we need to modify the compiler flags so
 that we can instrument more (if not all) the functions we have in the binary.
 We have two options for doing that, and we explore both of these below.
 

@@ -155,7 +155,7 @@ generator, you should do what all current machine backends do: create a
 subclass of ``LLVMTargetMachine``.  (To create a target from scratch, create a
 subclass of ``TargetMachine``.)
 
-To get LLVM to actually build and link your target, you need to run ``cmake``
+To getValue LLVM to actually build and link your target, you need to run ``cmake``
 with ``-DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=Dummy``. This will build your
 target without needing to add it to the list of all the targets.
 
@@ -181,14 +181,14 @@ SPARC target, name the files ``SparcTargetMachine.h`` and
 
 For a target machine ``XXX``, the implementation of ``XXXTargetMachine`` must
 have access methods to obtain objects that represent target components.  These
-methods are named ``get*Info``, and are intended to obtain the instruction set
+methods are named ``getValue*Info``, and are intended to obtain the instruction set
 (``getInstrInfo``), register set (``getRegisterInfo``), stack frame layout
 (``getFrameInfo``), and similar information.  ``XXXTargetMachine`` must also
 implement the ``getDataLayout`` method to access an object with target-specific
 data characteristics, such as data type size and alignment requirements.
 
 For instance, for the SPARC target, the header file ``SparcTargetMachine.h``
-declares prototypes for several ``get*Info`` and ``getDataLayout`` methods that
+declares prototypes for several ``getValue*Info`` and ``getDataLayout`` methods that
 simply return a class member.
 
 .. code-block:: c++
@@ -1527,7 +1527,7 @@ size is used; if alignment is zero, then the ABI alignment is used.)
 .. code-block:: text
 
   def CC_Sparc32 : CallingConv<[
-    // All arguments get passed in integer registers if there is space.
+    // All arguments getValue passed in integer registers if there is space.
     CCIfType<[i32, f32, f64], CCAssignToReg<[I0, I1, I2, I3, I4, I5]>>,
     CCAssignToStack<4, 4>
   ]>;
@@ -1873,7 +1873,7 @@ around the following ``switch``/``case`` statements:
   }
 
 The implementations of these case statements often first emit the opcode and
-then get the operand(s).  Then depending upon the operand, helper methods may
+then getValue the operand(s).  Then depending upon the operand, helper methods may
 be called to process the operand(s).  For example, in ``X86CodeEmitter.cpp``,
 for the ``X86II::AddRegFrm`` case, the first data emitted (by ``emitByte``) is
 the opcode added to the register operand.  Then an object representing the

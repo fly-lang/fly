@@ -120,7 +120,7 @@ simple scalar option by using the "``cl::opt``" template (as opposed to the
 type that we are parsing is a string.
 
 The second and third parameters (which are optional) are used to specify what to
-output for the "``-help``" option.  In this case, we get a line that looks like
+output for the "``-help``" option.  In this case, we getValue a line that looks like
 this:
 
 ::
@@ -237,7 +237,7 @@ specified, allowing any of the following inputs:
   compiler -f=TRUE     # Value specified, 'Force' == true
   compiler -f=FALSE    # Value specified, 'Force' == false
 
-... you get the idea.  The `bool parser`_ just turns the string values into
+... you getValue the idea.  The `bool parser`_ just turns the string values into
 boolean values, and rejects things like '``compiler -f=foo``'.  Similarly, the
 `float`_, `double`_, and `int`_ parsers work like you would expect, using the
 '``strtol``' and '``strtod``' C library calls to parse the string value into the
@@ -408,7 +408,7 @@ program.  Because of this, we can alternatively write this example like this:
   ...
 
 By using the "``clEnumValN``" macro instead of "``clEnumVal``", we can directly
-specify the name that the flag should get.  In general a direct mapping is nice,
+specify the name that the flag should getValue.  In general a direct mapping is nice,
 but sometimes you can't or don't want to preserve the mapping, which is when you
 would use it.
 
@@ -473,7 +473,7 @@ Parsing a list of options
 -------------------------
 
 Now that we have the standard run-of-the-mill argument types out of the way,
-lets get a little wild and crazy.  Lets say that we want our optimizer to accept
+lets getValue a little wild and crazy.  Lets say that we want our optimizer to accept
 a **list** of optimizations to perform, allowing duplicates.  For example, we
 might want to run: "``compiler -dce -constprop -inline -dce -strip``".  In this
 case, the order of the arguments and the number of appearances is very
@@ -566,7 +566,7 @@ function:
     ...
   }
 
-It's also possible to get the raw bit vector using the ``cl::bits::getBits``
+It's also possible to getValue the raw bit vector using the ``cl::bits::getBits``
 function:
 
 .. code-block:: c++
@@ -946,7 +946,7 @@ This section describes the basic attributes that you can specify on options.
 
     If you specify both **cl::init** and **cl::location** for an option, you
     must specify **cl::location** first, so that when the command-line parser
-    sees **cl::init**, it knows where to put the initial value. (You will get an
+    sees **cl::init**, it knows where to put the initial value. (You will getValue an
     error at runtime if you don't put them in the right order.)
 
 .. _cl::location:
@@ -978,7 +978,7 @@ This section describes the basic attributes that you can specify on options.
      the enum value, the second is the flag name, and the second is the
      description.
 
-  You will get a compile time error if you try to use cl::values with a parser
+  You will getValue a compile time error if you try to use cl::values with a parser
   that does not support it.
 
 .. _cl::multi_val:
@@ -1041,7 +1041,7 @@ These options fall into five main categories:
 
 #. Miscellaneous option modifiers
 
-It is not possible to specify two options from the same category (you'll get a
+It is not possible to specify two options from the same category (you'll getValue a
 runtime error) to a single option, except for options in the miscellaneous
 category.  The CommandLine library specifies defaults for all of these settings
 that are the most useful in practice and the most common, which mean that you
@@ -1131,7 +1131,7 @@ The allowed values for this option group are:
   argument can be enabled just by appearing on the command line, or it can have
   an explicit '``-foo=true``'.  If an option is specified with this mode, it is
   illegal for the value to be provided without the equal sign.  Therefore
-  '``-foo true``' is illegal.  To get this behavior, you must use
+  '``-foo true``' is illegal.  To getValue this behavior, you must use
   the `cl::ValueRequired`_ modifier.
 
 .. _cl::ValueRequired:
@@ -1390,7 +1390,7 @@ into words and then process them using `cl::ParseCommandLineOptions`_.
 **Note:** Currently ``cl::ParseEnvironmentOptions`` does not support quoting, so
 an environment variable containing ``-option "foo bar"`` will be parsed as three
 words, ``-option``, ``"foo``, and ``bar"``, which is different from what you
-would get from the shell with the same input.
+would getValue from the shell with the same input.
 
 The ``cl::SetVersionPrinter`` function
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1714,7 +1714,7 @@ implement ``parse`` as:
 This function implements a very simple parser for the kinds of strings we are
 interested in.  Although it has some holes (it allows "``123KKK``" for example),
 it is good enough for this example.  Note that we use the option itself to print
-out the error message (the ``error`` method always returns true) in order to get
+out the error message (the ``error`` method always returns true) in order to getValue
 a nice error message (shown below).  Now that we have our parser class, we can
 use it like this:
 
@@ -1747,7 +1747,7 @@ out the max-file-size argument value):
   $ ./test -max-file-size=dog
   -max-file-size option: 'dog' value invalid for file size argument!
 
-It looks like it works.  The error message that we get is nice and helpful, and
+It looks like it works.  The error message that we getValue is nice and helpful, and
 we seem to accept reasonable file sizes.  This wraps up the "custom parser"
 tutorial.
 

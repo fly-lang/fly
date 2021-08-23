@@ -30,10 +30,11 @@ namespace fly {
         // Compiler Invocation contains all a CompilerInstance needs
         CompilerInstance &CI;
 
-        // Compiler instances
-        std::vector<FrontendAction*> Actions;
-
         ASTContext* Context;
+
+        OutputFile Output;
+
+        std::vector<FrontendAction *> Actions;
 
     public:
 
@@ -41,9 +42,7 @@ namespace fly {
 
         ~Frontend();
 
-        bool Execute() const;
-        
-        const std::vector<FrontendAction *> &getActions() const;
+        bool Execute();
     };
 }
 

@@ -142,7 +142,7 @@ and from the command line.
   Variables with names that start with ``$`` are considered global and
   remain set throughout the file.
 
-  All other variables get undefined after each encountered ``CHECK-LABEL``.
+  All other variables getValue undefined after each encountered ``CHECK-LABEL``.
 
 .. option:: -D<VAR=VALUE>
 
@@ -270,7 +270,7 @@ circumstances, for example, testing different architectural variants with
    ; X64:    pinsrd $1, %edi, %xmm0
    }
 
-In this case, we're testing that we get the expected code generation with
+In this case, we're testing that we getValue the expected code generation with
 both 32-bit and 64-bit code generation.
 
 The "COM:" directive
@@ -651,7 +651,7 @@ colon follows the name, then it is a definition of the variable; otherwise, it
 is a substitution.
 
 :program:`FileCheck` variables can be defined multiple times, and substitutions
-always get the latest value.  Variables can also be substituted later on the
+always getValue the latest value.  Variables can also be substituted later on the
 same line they were defined on. For example:
 
 .. code-block:: llvm
@@ -663,7 +663,7 @@ and don't care exactly which register it is.
 
 If ``--enable-var-scope`` is in effect, variables with names that
 start with ``$`` are considered to be global. All others variables are
-local.  All local variables get undefined at the beginning of each
+local.  All local variables getValue undefined at the beginning of each
 CHECK-LABEL block. Global variables are not affected by CHECK-LABEL.
 This makes it easier to ensure that individual tests are not affected
 by variables set in preceding tests.

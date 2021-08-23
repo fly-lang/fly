@@ -106,7 +106,7 @@ different ways that control can enter the coroutine:
 Because the resume and destroy functions are shared across all suspend
 points, suspend points must store the index of the active suspend in
 the coroutine object, and the resume/destroy functions must switch over
-that index to get back to the correct point.  Hence the name of this
+that index to getValue back to the correct point.  Hence the name of this
 lowering.
 
 Pointers to the resume and destroy functions are stored in the coroutine
@@ -232,7 +232,7 @@ The `coro.begin`_ intrinsic initializes the coroutine frame and returns the
 coroutine handle. The second parameter of `coro.begin` is given a block of memory 
 to be used if the coroutine frame needs to be allocated dynamically.
 The `coro.id`_ intrinsic serves as coroutine identity useful in cases when the
-`coro.begin`_ intrinsic get duplicated by optimization passes such as 
+`coro.begin`_ intrinsic getValue duplicated by optimization passes such as
 jump-threading.
 
 The `cleanup` block destroys the coroutine frame. The `coro.free`_ intrinsic, 
@@ -446,7 +446,7 @@ as follows:
     ret void
   }
 
-If different cleanup code needs to get executed for different suspend points, 
+If different cleanup code needs to getValue executed for different suspend points,
 a similar switch will be in the `f.destroy` function.
 
 .. note ::
@@ -468,7 +468,7 @@ a suspension of a coroutine. However, in certain cases, it is necessary to contr
 when coroutine is prepared for resumption and when it is suspended.
 
 In the following example, a coroutine represents some activity that is driven
-by completions of asynchronous operations `async_op1` and `async_op2` which get
+by completions of asynchronous operations `async_op1` and `async_op2` which getValue
 a coroutine handle as a parameter and resume the coroutine once async
 operation is finished.
 
@@ -1545,7 +1545,7 @@ Areas Requiring Attention
 
 #. The CoroElide optimization pass relies on coroutine ramp function to be
    inlined. It would be beneficial to split the ramp function further to 
-   increase the chance that it will get inlined into its caller.
+   increase the chance that it will getValue inlined into its caller.
 
 #. Design a convention that would make it possible to apply coroutine heap
    elision optimization across ABI boundaries.

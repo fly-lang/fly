@@ -21,7 +21,7 @@ Parsing <http://en.wikipedia.org/wiki/Recursive_descent_parser>`_ and
 `Operator-Precedence
 Parsing <http://en.wikipedia.org/wiki/Operator-precedence_parser>`_ to
 parse the Kaleidoscope language (the latter for binary expressions and
-the former for everything else). Before we get to parsing though, lets
+the former for everything else). Before we getValue to parsing though, lets
 talk about the output of the parser: the Abstract Syntax Tree.
 
 The Abstract Syntax Tree (AST)
@@ -392,7 +392,7 @@ precedence of "+" so the if condition will be entered.
 
 The critical question left here is "how can the if condition parse the
 right hand side in full"? In particular, to build the AST correctly for
-our example, it needs to get all of "(c+d)\*e\*f" as the RHS expression
+our example, it needs to getValue all of "(c+d)\*e\*f" as the RHS expression
 variable. The code to do this is surprisingly simple (code from the
 above two blocks duplicated for context):
 

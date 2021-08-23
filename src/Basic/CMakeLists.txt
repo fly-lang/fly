@@ -48,7 +48,7 @@ add_library(FlyBasic
         )
 
 target_link_libraries(FlyBasic
-        LLVMSupport
         LLVMCore
         LLVMMC
+        LLVMSupport
         )

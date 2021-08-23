@@ -1,0 +1,7 @@
+namespace default
+
+int a
+
+int main(int b, float c) {
+    return 1
+}

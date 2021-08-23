@@ -299,7 +299,7 @@ LOOP:
 	}
 
 	switch args[0] {
-	case "build", "get", "install", "run", "test":
+	case "build", "getValue", "install", "run", "test":
 		runGoWithLLVMEnv(args, cc, cxx, gocmd, llgo, cppflags, cxxflags, ldflags, packages)
 	case "print-components":
 		printComponents()

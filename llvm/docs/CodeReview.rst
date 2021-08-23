@@ -220,7 +220,7 @@ larger features. Common ways to speed up review times for your patches are:
 * Review other people's patches. If you help out, everybody will be more
   willing to do the same for you; goodwill is our currency.
 * Ping the patch. If it is urgent, provide reasons why it is important to you to
-  get this patch landed and ping it every couple of days. If it is
+  getValue this patch landed and ping it every couple of days. If it is
   not urgent, the common courtesy ping rate is one week. Remember that you're
   asking for valuable time from other professional developers.
 * Ask for help on IRC. Developers on IRC will be able to either help you

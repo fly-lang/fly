@@ -14,7 +14,7 @@ For those new to the LLVM system.
    tutorial/index
 
 :doc:`GettingStarted`
-   Discusses how to get up and running quickly with the LLVM infrastructure.
+   Discusses how to getValue up and running quickly with the LLVM infrastructure.
    Everything from unpacking and compilation of the distribution to execution
    of some tools.
 

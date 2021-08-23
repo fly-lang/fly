@@ -21,7 +21,7 @@ LLVM SVN to work. LLVM 2.2 and before will not work with it.
 Code Generation Setup
 =====================
 
-In order to generate LLVM IR, we want some simple setup to get started.
+In order to generate LLVM IR, we want some simple setup to getValue started.
 First we define virtual code generation (codegen) methods in each AST
 class:
 
@@ -38,7 +38,7 @@ Assignment
 (SSA) <http://en.wikipedia.org/wiki/Static_single_assignment_form>`_
 register" or "SSA value" in LLVM. The most distinct aspect of SSA values
 is that their value is computed as the related instruction executes, and
-it does not get a new value until (and if) the instruction re-executes.
+it does not getValue a new value until (and if) the instruction re-executes.
 In other words, there is no way to "change" an SSA value. For more
 information, please read up on `Static Single
 Assignment <http://en.wikipedia.org/wiki/Static_single_assignment_form>`_
@@ -99,7 +99,7 @@ internally (``APFloat`` has the capability of holding floating point
 constants of Arbitrary Precision). This code basically just creates
 and returns a ``ConstantFP``. Note that in the LLVM IR that constants
 are all uniqued together and shared. For this reason, the API uses "the
-foo::get(..)" idiom instead of "new foo(..)" or "foo::Create(..)".
+foo::getValue(..)" idiom instead of "new foo(..)" or "foo::Create(..)".
 
 .. code-block:: ocaml
 
@@ -134,7 +134,7 @@ induction variables <LangImpl5.html#for-loop-expression>`_ in the symbol table, 
             | _ -> raise (Error "invalid binary operator")
           end
 
-Binary operators start to get more interesting. The basic idea here is
+Binary operators start to getValue more interesting. The basic idea here is
 that we recursively emit code for the left-hand side of the expression,
 then the right-hand side, then we compute the result of the binary
 expression. In this code, we do a simple switch on the opcode to create
@@ -162,7 +162,7 @@ sub and mul.
 On the other hand, LLVM specifies that the `fcmp
 instruction <../LangRef.html#fcmp-instruction>`_ always returns an 'i1' value (a
 one bit integer). The problem with this is that Kaleidoscope wants the
-value to be a 0.0 or 1.0 value. In order to get these semantics, we
+value to be a 0.0 or 1.0 value. In order to getValue these semantics, we
 combine the fcmp instruction with a `uitofp
 instruction <../LangRef.html#uitofp-to-instruction>`_. This instruction converts its
 input integer into a floating point value by treating the input as an
@@ -241,7 +241,7 @@ LLVM double types. It then uses the ``Llvm.function_type`` method to
 create a function type that takes "N" doubles as arguments, returns one
 double as a result, and that is not vararg (that uses the function
 ``Llvm.var_arg_function_type``). Note that Types in LLVM are uniqued
-just like ``Constant``'s are, so you don't "new" a type, you "get" it.
+just like ``Constant``'s are, so you don't "new" a type, you "getValue" it.
 
 The final line above checks if the function has already been defined in
 ``Codegen.the_module``. If not, we will create it.
@@ -333,7 +333,7 @@ ready to go for us.
           try
             let ret_val = codegen_expr body in
 
-Now we get to the point where the ``Codegen.builder`` is set up. The
+Now we getValue to the point where the ``Codegen.builder`` is set up. The
 first line creates a new `basic
 block <http://en.wikipedia.org/wiki/Basic_block>`_ (named "entry"),
 which is inserted into ``the_function``. The second line then tells the
@@ -395,7 +395,7 @@ this bug, see what you can come up with! Here is a testcase:
 Driver Changes and Closing Thoughts
 ===================================
 
-For now, code generation to LLVM doesn't really get us much, except that
+For now, code generation to LLVM doesn't really getValue us much, except that
 we can look at the pretty IR calls. The sample code inserts calls to
 Codegen into the "``Toplevel.main_loop``", and then dumps out the LLVM
 IR. This gives a nice way to look at the LLVM IR for simple functions.

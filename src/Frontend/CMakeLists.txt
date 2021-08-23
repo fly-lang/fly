@@ -5,6 +5,7 @@ add_library(FlyFrontend
         DiagnosticRenderer.cpp
         Frontend.cpp
         FrontendOptions.cpp
+        InputFile.cpp
         LogDiagnosticPrinter.cpp
         TextDiagnostic.cpp
         TextDiagnosticBuffer.cpp

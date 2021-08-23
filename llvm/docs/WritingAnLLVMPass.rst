@@ -226,7 +226,7 @@ As a whole, the ``.cpp`` file looks like:
          legacy::PassManagerBase &PM) { PM.add(new Hello()); });
 
 Now that it's all together, compile the file with a simple "``gmake``" command
-from the top level of your build directory and you should get a new file
+from the top level of your build directory and you should getValue a new file
 "``lib/LLVMHello.so``".  Note that everything in this file is
 contained in an anonymous namespace --- this reflects the fact that passes
 are self contained units that do not need external interfaces (although they
@@ -283,9 +283,9 @@ To see what happened to the other string you registered, try running
 The pass name gets added as the information string for your pass, giving some
 documentation to users of :program:`opt`.  Now that you have a working pass,
 you would go ahead and make it do the cool transformations you want.  Once you
-get it all working and tested, it may become useful to find out how fast your
+getValue it all working and tested, it may become useful to find out how fast your
 pass is.  The :ref:`PassManager <writing-an-llvm-pass-passmanager>` provides a
-nice command line option (:option:`-time-passes`) that allows you to get
+nice command line option (:option:`-time-passes`) that allows you to getValue
 information about the execution time of your pass along with the other passes
 you queue up.  For example:
 
@@ -425,7 +425,7 @@ The ``doInitialization(CallGraph &)`` method
 
 The ``doInitialization`` method is allowed to do most of the things that
 ``CallGraphSCCPass``\ es are not allowed to do.  They can add and remove
-functions, get pointers to functions, etc.  The ``doInitialization`` method is
+functions, getValue pointers to functions, etc.  The ``doInitialization`` method is
 designed to do simple initialization type of stuff that does not depend on the
 SCCs being processed.  The ``doInitialization`` method call is not scheduled to
 overlap with any other pass executions (thus it should be very fast).
@@ -492,7 +492,7 @@ The ``doInitialization(Module &)`` method
 
 The ``doInitialization`` method is allowed to do most of the things that
 ``FunctionPass``\ es are not allowed to do.  They can add and remove functions,
-get pointers to functions, etc.  The ``doInitialization`` method is designed to
+getValue pointers to functions, etc.  The ``doInitialization`` method is designed to
 do simple initialization type of stuff that does not depend on the functions
 being processed.  The ``doInitialization`` method call is not scheduled to
 overlap with any other pass executions (thus it should be very fast).
@@ -501,7 +501,7 @@ A good example of how this method should be used is the `LowerAllocations
 <https://llvm.org/doxygen/LowerAllocations_8cpp-source.html>`_ pass.  This pass
 converts ``malloc`` and ``free`` instructions into platform dependent
 ``malloc()`` and ``free()`` function calls.  It uses the ``doInitialization``
-method to get a reference to the ``malloc`` and ``free`` functions that it
+method to getValue a reference to the ``malloc`` and ``free`` functions that it
 needs, adding prototypes to the module if necessary.
 
 .. _writing-an-llvm-pass-runOnFunction:
@@ -550,7 +550,7 @@ A ``LoopPass`` subclass which is intended to run as part of the main loop pass
 pipeline needs to preserve all of the same *function* analyses that the other
 loop passes in its pipeline require. To make that easier,
 a ``getLoopAnalysisUsage`` function is provided by ``LoopUtils.h``. It can be
-called within the subclass's ``getAnalysisUsage`` override to get consistent
+called within the subclass's ``getAnalysisUsage`` override to getValue consistent
 and correct behavior. Analogously, ``INITIALIZE_PASS_DEPENDENCY(LoopPass)``
 will initialize this set of function analyses.
 
@@ -684,7 +684,7 @@ work of your ``MachineFunctionPass``.
 
 The ``runOnMachineFunction`` method is called on every ``MachineFunction`` in a
 ``Module``, so that the ``MachineFunctionPass`` may perform optimizations on
-the machine-dependent representation of the function.  If you want to get at
+the machine-dependent representation of the function.  If you want to getValue at
 the LLVM ``Function`` for the ``MachineFunction`` you're working on, use
 ``MachineFunction``'s ``getFunction()`` accessor method --- but remember, you
 may not modify the LLVM ``Function`` or its contents from a
@@ -835,8 +835,8 @@ you want, and returns a reference to that pass.  For example:
     //...
   }
 
-This method call returns a reference to the pass desired.  You may get a
-runtime assertion failure if you attempt to get an analysis that you did not
+This method call returns a reference to the pass desired.  You may getValue a
+runtime assertion failure if you attempt to getValue an analysis that you did not
 declare as required in your :ref:`getAnalysisUsage
 <writing-an-llvm-pass-getAnalysisUsage>` implementation.  This method can be
 called by your ``run*`` method implementation, or by any other local method
@@ -871,7 +871,7 @@ Implementing Analysis Groups
 ----------------------------
 
 Now that we understand the basics of how passes are defined, how they are used,
-and how they are required from other passes, it's time to get a little bit
+and how they are required from other passes, it's time to getValue a little bit
 fancier.  All of the pass relationships that we have seen so far are very
 simple: one pass depends on one other specific pass to be run before it can
 run.  For many applications, this is great, for others, more flexibility is
@@ -1010,7 +1010,7 @@ series of passes:
 
 #. **Share analysis results.**  The ``PassManager`` attempts to avoid
    recomputing analysis results as much as possible.  This means keeping track
-   of which analyses are available already, which analyses get invalidated, and
+   of which analyses are available already, which analyses getValue invalidated, and
    which analyses are needed to be run for a pass.  An important part of work
    is that the ``PassManager`` tracks the exact lifetime of all analysis
    results, allowing it to :ref:`free memory
@@ -1018,7 +1018,7 @@ series of passes:
    as soon as they are no longer needed.
 
 #. **Pipeline the execution of passes on the program.**  The ``PassManager``
-   attempts to get better cache and memory usage behavior out of a series of
+   attempts to getValue better cache and memory usage behavior out of a series of
    passes by pipelining the passes together.  This means that, given a series
    of consecutive :ref:`FunctionPass <writing-an-llvm-pass-FunctionPass>`, it
    will execute all of the :ref:`FunctionPass
@@ -1043,7 +1043,7 @@ not allowing any analysis results to live across the execution of your pass.
 
 The ``PassManager`` class exposes a ``--debug-pass`` command line options that
 is useful for debugging pass execution, seeing how things work, and diagnosing
-when you should be preserving more analyses than you currently are.  (To get
+when you should be preserving more analyses than you currently are.  (To getValue
 information about all of the variants of the ``--debug-pass`` option, just type
 "``opt -help-hidden``").
 
@@ -1122,7 +1122,7 @@ all!  To fix this, we need to add the following :ref:`getAnalysisUsage
     AU.setPreservesAll();
   }
 
-Now when we run our pass, we get this output:
+Now when we run our pass, we getValue this output:
 
 .. code-block:: console
 
@@ -1191,7 +1191,7 @@ This project must contain the following minimal ``CMakeLists.txt``:
 The pass must provide two entry points for the new pass manager, one for static
 registration and one for dynamically loaded plugins:
 
-- ``llvm::PassPluginLibraryInfo get##Name##PluginInfo();``
+- ``llvm::PassPluginLibraryInfo getValue##Name##PluginInfo();``
 - ``extern "C" ::llvm::PassPluginLibraryInfo llvmGetPassPluginInfo() LLVM_ATTRIBUTE_WEAK;``
 
 Pass plugins are compiled and link dynamically by default, but it's
@@ -1207,13 +1207,13 @@ include statically linked pass plugins:
 .. code-block:: c++
 
     // fetch the declaration
-    #define HANDLE_EXTENSION(Ext) llvm::PassPluginLibraryInfo get##Ext##PluginInfo();
+    #define HANDLE_EXTENSION(Ext) llvm::PassPluginLibraryInfo getValue##Ext##PluginInfo();
     #include "llvm/Support/Extension.def"
 
     [...]
 
     // use them, PB is an llvm::PassBuilder instance
-    #define HANDLE_EXTENSION(Ext) get##Ext##PluginInfo().RegisterPassBuilderCallbacks(PB);
+    #define HANDLE_EXTENSION(Ext) getValue##Ext##PluginInfo().RegisterPassBuilderCallbacks(PB);
     #include "llvm/Support/Extension.def"
 
 
@@ -1308,7 +1308,7 @@ declaration to ``Passes.h`` and add a "pseudo" call line to
 Creating new registries
 -----------------------
 
-The easiest way to get started is to clone one of the existing registries; we
+The easiest way to getValue started is to clone one of the existing registries; we
 recommend ``llvm/CodeGen/RegAllocRegistry.h``.  The key things to modify are
 the class name and the ``FunctionPassCtor`` type.
 

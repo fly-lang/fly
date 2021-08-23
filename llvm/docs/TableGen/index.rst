@@ -53,7 +53,7 @@ reads from standard input.
 
 To be useful, one of the `backends`_ must be used.  These backends are
 selectable on the command line (type '``llvm-tblgen -help``' for a list).  For
-example, to get a list of all of the definitions that subclass a particular type
+example, to getValue a list of all of the definitions that subclass a particular type
 (which can be useful for building up an enum list of these records), use the
 ``-print-enums`` option:
 

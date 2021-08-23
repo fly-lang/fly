@@ -64,11 +64,10 @@ namespace fly {
 
         DiagnosticsEngine &Diags;
 
-    protected:
         const SourceManager *SM = nullptr;
 
         /// The SourceManager FileID corresponding to the file being lexed.
-        const FileID FID;
+        FileID FID;
 
         //===------------------------------------------------------------------------------------------------------===//
         // Context-specific lexing flags set by the preprocessor.
@@ -99,6 +98,9 @@ namespace fly {
         /// Mapping/lookup information for all identifiers in
         /// the program, including program keywords.
         mutable IdentifierTable Identifiers;
+
+        void InitLexer(const char *BufStart, const char *BufPtr, const char *BufEnd);
+
     public:
 
         //===------------------------------------------------------------------------------------------------------===//
@@ -123,7 +125,7 @@ namespace fly {
         /// ExtendedTokenMode - The lexer can optionally keep comments and whitespace
         /// and return them as tokens.  This is used for -C and -CC modes, and
         /// whitespace preservation can be useful for some clients that want to lex
-        /// the file in raw mode and get every character from the file.
+        /// the file in raw mode and getValue every character from the file.
         ///
         /// When this is set to 2 it returns comments and whitespace.  When set to 1
         /// it returns comments, when it is set to 0 it returns normal tokens only.
@@ -149,8 +151,6 @@ namespace fly {
         // CurrentConflictMarkerState - The kind of conflict marker we are handling.
         ConflictMarkerKind CurrentConflictMarkerState;
 
-        void InitLexer(const char *BufStart, const char *BufPtr, const char *BufEnd);
-
         /// Lexer constructor - Create a new raw lexer object.  This object is only
         /// suitable for calls to 'LexFromRawLexer'.  This lexer assumes that the
         /// text range will outlive it, so it doesn't take ownership of it.
@@ -160,8 +160,8 @@ namespace fly {
         /// Lexer constructor - Create a new raw lexer object.  This object is only
         /// suitable for calls to 'LexFromRawLexer'.  This lexer assumes that the
         /// text range will outlive it, so it doesn't take ownership of it.
-        Lexer(SourceLocation FileLoc,
-              const char *BufStart, const char *BufPtr, const char *BufEnd, const SourceManager &SM);
+        Lexer(SourceLocation FileLoc, const char *BufStart, const char *BufPtr, const char *BufEnd,
+              const SourceManager &SM);
 
         Lexer(const Lexer &) = delete;
 
@@ -279,7 +279,7 @@ namespace fly {
         /// '\\' and " characters and ii) replacing newline character(s) with "\\n".
         static void Stringify(SmallVectorImpl<char> &Str);
 
-        /// getSpelling - This method is used to get the spelling of a token into a
+        /// getSpelling - This method is used to getValue the spelling of a token into a
         /// preallocated buffer, instead of as an std::string.  The caller is required
         /// to allocate enough space for the token, which is guaranteed to be at least
         /// Tok.getLength() bytes long.  The length of the actual result is returned.
@@ -296,13 +296,13 @@ namespace fly {
         /// getSpelling() - Return the 'spelling' of the Tok token.  The spelling of a
         /// token is the characters used to represent the token in the source file
         /// after trigraph expansion and escaped-newline folding.  In particular, this
-        /// wants to get the true, uncanonicalized, spelling of things like digraphs
+        /// wants to getValue the true, uncanonicalized, spelling of things like digraphs
         /// UCNs, etc.
         static std::string getSpelling(const Token &Tok,
                                        const SourceManager &SourceMgr,
                                        bool *Invalid = nullptr);
 
-        /// getSpelling - This method is used to get the spelling of the
+        /// getSpelling - This method is used to getValue the spelling of the
         /// token at the given source location.  If, as is usually true, it
         /// is not necessary to copy any data, then the returned string may
         /// not point into the provided buffer.
@@ -553,7 +553,7 @@ namespace fly {
         }
 
         /// getCharAndSize - Peek a single 'character' from the specified buffer,
-        /// get its size, and return it.  This is tricky in several cases.  Here we
+        /// getValue its size, and return it.  This is tricky in several cases.  Here we
         /// just handle the trivial case and fall-back to the non-inlined
         /// getCharAndSizeSlow method to handle the hard case.
         inline char getCharAndSize(const char *Ptr, unsigned &Size) {

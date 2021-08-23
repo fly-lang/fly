@@ -19,7 +19,7 @@ This chapter of the tutorial takes a wild digression into adding
 user-defined operators to the simple and beautiful Kaleidoscope
 language. This digression now gives us a simple and ugly language in
 some ways, but also a powerful one at the same time. One of the great
-things about creating your own language is that you get to decide what
+things about creating your own language is that you getValue to decide what
 is good or bad. In this tutorial we'll assume that it is okay to use
 this as a way to show some interesting parsing techniques.
 

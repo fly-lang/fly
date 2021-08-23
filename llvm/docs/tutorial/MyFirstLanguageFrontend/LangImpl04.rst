@@ -13,7 +13,7 @@ LLVM <index.html>`_" tutorial. Chapters 1-3 described the implementation
 of a simple language and added support for generating LLVM IR. This
 chapter describes two new techniques: adding optimizer support to your
 language, and adding JIT compiler support. These additions will
-demonstrate how to get nice, efficient code for the Kaleidoscope
+demonstrate how to getValue nice, efficient code for the Kaleidoscope
 language.
 
 Trivial Constant Folding
@@ -127,7 +127,7 @@ in. If we wanted to make a "static Kaleidoscope compiler", we would use
 exactly the code we have now, except that we would defer running the
 optimizer until the entire file has been parsed.
 
-In order to get per-function optimizations going, we need to set up a
+In order to getValue per-function optimizations going, we need to set up a
 `FunctionPassManager <../../WritingAnLLVMPass.html#what-passmanager-doesr>`_ to hold
 and organize the LLVM optimizations that we want to run. Once we have
 that, we can add a set of optimizations to run. We'll need a new
@@ -142,7 +142,7 @@ for us:
       TheModule = std::make_unique<Module>("my cool jit", TheContext);
 
       // Create a new pass manager attached to it.
-      TheFPM = std::make_unique<legacy::FunctionPassManager>(TheModule.get());
+      TheFPM = std::make_unique<legacy::FunctionPassManager>(TheModule.getValue());
 
       // Do simple "peephole" optimizations and bit-twiddling optzns.
       TheFPM->add(createInstructionCombiningPass());
@@ -200,14 +200,14 @@ our test above again:
             ret double %multmp
     }
 
-As expected, we now get our nicely optimized code, saving a floating
+As expected, we now getValue our nicely optimized code, saving a floating
 point add instruction from every execution of this function.
 
 LLVM provides a wide variety of optimizations that can be used in
 certain circumstances. Some `documentation about the various
 passes <../../Passes.html>`_ is available, but it isn't very complete.
 Another good source of ideas can come from looking at the passes that
-``Clang`` runs to get started. The "``opt``" tool allows you to
+``Clang`` runs to getValue started. The "``opt``" tool allows you to
 experiment with passes from the command line, so you can see if they do
 anything.
 
@@ -275,7 +275,7 @@ We also need to setup the data layout for the JIT:
       TheModule->setDataLayout(TheJIT->getTargetMachine().createDataLayout());
 
       // Create a new pass manager attached to it.
-      TheFPM = std::make_unique<legacy::FunctionPassManager>(TheModule.get());
+      TheFPM = std::make_unique<legacy::FunctionPassManager>(TheModule.getValue());
       ...
 
 The KaleidoscopeJIT class is a simple JIT built specifically for these
@@ -323,12 +323,12 @@ handle that can be used to remove the module from the JIT later. Once the module
 has been added to the JIT it can no longer be modified, so we also open a new
 module to hold subsequent code by calling ``InitializeModuleAndPassManager()``.
 
-Once we've added the module to the JIT we need to get a pointer to the final
+Once we've added the module to the JIT we need to getValue a pointer to the final
 generated code. We do this by calling the JIT's findSymbol method, and passing
 the name of the top-level expression function: ``__anon_expr``. Since we just
 added this function, we assert that findSymbol returned a result.
 
-Next, we get the in-memory address of the ``__anon_expr`` function by calling
+Next, we getValue the in-memory address of the ``__anon_expr`` function by calling
 ``getAddress()`` on the symbol. Recall that we compile top-level expressions
 into a self-contained LLVM function that takes no arguments and returns the
 computed double. Because the LLVM JIT compiler matches the native platform ABI,
@@ -490,7 +490,7 @@ We also need to update HandleDefinition and HandleExtern:
 .. code-block:: c++
 
     static void HandleDefinition() {
-      if (auto FnAST = ParseDefinition()) {
+      if (auto FnAST = ParseDecl()) {
         if (auto *FnIR = FnAST->codegen()) {
           fprintf(stderr, "Read function definition:");
           FnIR->print(errs());
@@ -523,7 +523,7 @@ the JIT and open a new module. In HandleExtern, we just need to add one line to
 add the prototype to FunctionProtos.
 
 With these changes made, let's try our REPL again (I removed the dump of the
-anonymous functions this time, you should get the idea by now :) :
+anonymous functions this time, you should getValue the idea by now :) :
 
 ::
 
@@ -537,7 +537,7 @@ anonymous functions this time, you should get the idea by now :) :
 
 It works!
 
-Even with this simple code, we get some surprisingly powerful capabilities -
+Even with this simple code, we getValue some surprisingly powerful capabilities -
 check this out:
 
 ::

@@ -12,10 +12,17 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTContext.h"
+#include "AST/ASTNameSpace.h"
+#include "AST/ASTNode.h"
+#include "AST/ASTImport.h"
+#include "Basic/Diagnostic.h"
 
 using namespace fly;
 
-ASTContext::ASTContext(DiagnosticsEngine &Diags) : Diags(Diags) {}
+ASTContext::ASTContext(DiagnosticsEngine &Diags) : Diags(Diags) {
+    DefaultNS = new ASTNameSpace(ASTNameSpace::DEFAULT);
+    NameSpaces.insert(std::make_pair(ASTNameSpace::DEFAULT, DefaultNS));
+}
 
 ASTContext::~ASTContext() {
     NameSpaces.clear();
@@ -23,33 +30,21 @@ ASTContext::~ASTContext() {
 }
 
 bool ASTContext::AddNode(ASTNode *Node) {
-    assert(Node->getFileID().isValid() && "ASTNode FileID is not valid!");
     assert(Node->NameSpace && "NameSpace is empty!");
     assert(!Node->FileName.empty() && "FileName is empty!");
     llvm::StringMap<ASTNode *> &NSNodes = Node->NameSpace->Nodes;
-
-    // Set FirstNode
-    bool isFirstAddition = false;
-    if (!FirstNode) {
-        FirstNode = Node;
-        isFirstAddition = true;
-        Node->setFirstNode(true);
-    }
 
     // Add to Nodes
     auto Pair = std::make_pair(Node->FileName, Node);
     NSNodes.insert(Pair);
 
-    // Search only if this node is the first one because Nodes are empty
-    if (!isFirstAddition) {
-        // Try to link Node Imports to already resolved Nodes
-        // Iterate over Node Imports
-        for (auto &Import : Node->Imports) {
-            if (Import.getValue()->getNameSpace() == nullptr) {
-                ASTNameSpace *NameSpace = Node->Context->NameSpaces.lookup(Import.getKey());
-                if (NameSpace != nullptr) {
-                    Import.getValue()->setNameSpace(NameSpace);
-                }
+    // Try to link Node Imports to already resolved Nodes
+    // Iterate over Node Imports
+    for (auto &MapImport : Node->Imports) {
+        if (MapImport.getValue()->getNameSpace() == nullptr) {
+            ASTNameSpace *NameSpace = NameSpaces.lookup(MapImport.getKey());
+            if (NameSpace != nullptr) {
+                MapImport.getValue()->setNameSpace(NameSpace);
             }
         }
     }
@@ -58,14 +53,33 @@ bool ASTContext::AddNode(ASTNode *Node) {
 }
 
 bool ASTContext::DelNode(ASTNode *Node) {
-    assert(Node->getFileID().isValid() && "ASTNode FileID is not valid!");
     Node->NameSpace->Nodes.erase(Node->getFileName());
     return true;
 }
+/**
+ * Take all unreferenced Global Variables from Functions and try to resolve them
+ * into this NameSpace
+ * @return
+ */
+bool ASTContext::Resolve() {
+    bool Success = true;
 
-bool ASTContext::Finalize() {
-    // Close the chain by resolving nodes of first one
-    bool Success = FirstNode->Finalize();
+    // add UnRefGlobalVars and UnRefCalls to respectively namespace
+    // Resolve NameSpaces
+    for (auto &NSEntry : NameSpaces) {
+        ASTNameSpace *&NS = NSEntry.getValue();
+        for (auto &UnRefGlobalVar : UnRefGlobalVars) {
+            if (UnRefGlobalVar->getNameSpace() == NS->getName()) {
+                NS->addUnRefGlobalVar(UnRefGlobalVar);
+            }
+        }
+        for (auto UnRefCall : UnRefCalls) {
+            if (UnRefCall->getNameSpace() == NS->getName()) {
+                NS->addUnRefCall(UnRefCall);
+            }
+        }
+        NS->Resolve();
+    }
 
     // Now all Imports must be read
     for(auto &Import : Imports) {
@@ -77,10 +91,22 @@ bool ASTContext::Finalize() {
     return Success;
 }
 
-const StringMap<ASTNameSpace *> &ASTContext::getNameSpaces() const {
+const llvm::StringMap<ASTNameSpace *> &ASTContext::getNameSpaces() const {
     return NameSpaces;
 }
 
-DiagnosticBuilder ASTContext::Diag(SourceLocation Loc, unsigned DiagID) {
+void ASTContext::addUnRefCall(ASTFuncCall *Call) {
+    UnRefCalls.push_back(Call);
+}
+
+void ASTContext::addUnRefGlobalVar(ASTVarRef *Var) {
+    UnRefGlobalVars.push_back(Var);
+}
+
+DiagnosticBuilder ASTContext::Diag(SourceLocation Loc, unsigned DiagID) const {
     return Diags.Report(Loc, DiagID);
+}
+
+ASTNameSpace *ASTContext::getDefaultNameSpace() const {
+    return DefaultNS;
 }

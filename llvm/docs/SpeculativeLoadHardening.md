@@ -77,7 +77,7 @@ void example(int* pointer1, int* pointer2) {
 }
 ```
 
-This would get transformed into something resembling the following:
+This would getValue transformed into something resembling the following:
 ```
 uintptr_t all_ones_mask = std::numerical_limits<uintptr_t>::max();
 uintptr_t all_zeros_mask = 0;
@@ -788,7 +788,7 @@ We implement this optimization on x86 by skipping the checking of loads which
 use a fixed frame pointer offset.
 
 The result of this optimization is that patterns like reloading a spilled
-register or accessing a global field don't get checked. This is a very
+register or accessing a global field don't getValue checked. This is a very
 significant performance win.
 
 
@@ -808,7 +808,7 @@ following:
         movl    (%rdi), %edx
 ```
 
-This will get transformed into:
+This will getValue transformed into:
 ```
         ...
 
@@ -1033,7 +1033,7 @@ approaches such as the `lfence` instruction. Just as users can restrict the
 scope of `lfence` to control its performance impact, this mitigation technique
 could be restricted in scope as well.
 
-However, it is important to understand what it would cost to get a fully
+However, it is important to understand what it would cost to getValue a fully
 mitigated baseline. Here we assume targeting a Haswell (or newer) processor and
 using all of the tricks to improve performance (so leaves the low 2gb
 unprotected and +/- 2gb surrounding any PC in the program). We ran both

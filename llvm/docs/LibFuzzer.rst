@@ -446,7 +446,7 @@ A simple function that does something interesting if it receives the input
   # Run the fuzzer with no corpus.
   ./a.out
 
-You should get an error pretty quickly::
+You should getValue an error pretty quickly::
 
   INFO: Seed: 1523017872
   INFO: Loaded 1 modules (16 guards): [0x744e60, 0x744ea0),

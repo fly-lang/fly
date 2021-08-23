@@ -39,7 +39,7 @@ the TableGen files, the back-ends and their users.
 For instance, a global contract is that each back-end produces macro-guarded
 sections. Based on whether the file is included by a header or a source file,
 or even in which context of each file the include is being used, you have
-todefine a macro just before including it, to get the right output:
+todefine a macro just before including it, to getValue the right output:
 
 .. code-block:: c++
 
@@ -561,7 +561,7 @@ How to write a back-end
 
 TODO.
 
-Until we get a step-by-step HowTo for writing TableGen backends, you can at
+Until we getValue a step-by-step HowTo for writing TableGen backends, you can at
 least grab the boilerplate (build system, new files, etc.) from Clang's
 r173931.
 

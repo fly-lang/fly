@@ -616,7 +616,7 @@ class SourceManager : public RefCountedBase<SourceManager> {
 
   /// The table of SLocEntries that are loaded from other modules.
   ///
-  /// Negative FileIDs are indexes into this table. To get from ID to an index,
+  /// Negative FileIDs are indexes into this table. To getValue from ID to an index,
   /// use (-ID - 2).
   mutable SmallVector<SrcMgr::SLocEntry, 0> LoadedSLocEntryTable;
 
@@ -819,14 +819,6 @@ public:
   /// new FileID for the \p SourceFile.
   FileID getOrCreateFileID(const FileEntry *SourceFile,
                            SrcMgr::CharacteristicKind FileCharacter);
-
-  /// Return a new SourceLocation that encodes the
-  /// fact that a token from SpellingLoc should actually be referenced from
-  /// ExpansionLoc, and that it represents the expansion of a macro argument
-  /// into the function-like macro body.
-  SourceLocation createMacroArgExpansionLoc(SourceLocation Loc,
-                                            SourceLocation ExpansionLoc,
-                                            unsigned TokLength);
 
   /// Return a new SourceLocation that encodes the fact
   /// that a token from SpellingLoc should actually be referenced from

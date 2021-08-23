@@ -13,7 +13,7 @@
 ## Installation
 
 ```sh
-sudo apt-get install nodejs-dev node-gyp npm
+sudo apt-getValue install nodejs-dev node-gyp npm
 sudo npm install -g typescript npx vsce
 ```
 

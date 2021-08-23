@@ -21,7 +21,7 @@ tested on a few Linux flavors, and requires a checkout of LLVM, Clang, and
 compiler-rt. Despite the name, it performs four clean builds of Clang, so it
 can take a while to run to completion. Please see the script's ``--help`` for
 more information on how to run it, and the different options available to you.
-If you want to get the most out of PGO for a particular use-case (e.g. compiling
+If you want to getValue the most out of PGO for a particular use-case (e.g. compiling
 a specific large piece of software), please do read the section below on
 'benchmark' selection.
 
@@ -39,7 +39,7 @@ PGO does best when the profiles gathered represent how the user plans to use the
 compiler. Notably, highly accurate profiles of llc building x86_64 code aren't
 incredibly helpful if you're going to be targeting ARM.
 
-By default, the script above does two things to get solid coverage. It:
+By default, the script above does two things to getValue solid coverage. It:
 
 - runs all of Clang and LLVM's lit tests, and
 - uses the instrumented Clang to build Clang, LLVM, and all of the other

@@ -37,7 +37,7 @@ namespace {
             Target = TargetInfo::CreateTargetInfo(Diags, TargetOpts);
         }
 
-        std::vector<Token> Lex(StringRef Source) {
+        std::vector<Token> Lex(llvm::StringRef Source) {
 
             std::unique_ptr<llvm::MemoryBuffer> Buf =
                     llvm::MemoryBuffer::getMemBuffer(Source);
@@ -83,7 +83,7 @@ namespace {
 
         std::string getSourceText(Token Begin, Token End) {
             bool Invalid;
-            StringRef Str =
+            llvm::StringRef Str =
                     Lexer::getSourceText(CharSourceRange::getTokenRange(SourceRange(
                             Begin.getLocation(), End.getLocation())),
                                          SourceMgr, &Invalid);
@@ -102,7 +102,7 @@ namespace {
     };
 
     TEST_F(LexerTest, PunctuatorLex) {
-        StringRef str = ("[]"
+        llvm::StringRef str = ("[]"
                          "()"
                          "{} "
                          ". "
@@ -196,7 +196,7 @@ namespace {
     }
 
     TEST_F(LexerTest, KeywordLex) {
-        StringRef str = ("namespace");
+        llvm::StringRef str = ("namespace");
         auto toks = Lex(str);
 
         std::vector<std::pair<std::string, tok::TokenKind>> exps;

@@ -1,15 +1,29 @@
 add_library(FlyAST
+        ASTBlock.cpp
+        ASTClass.cpp
         ASTContext.cpp
+        ASTExpr.cpp
+        ASTForBlock.cpp
+        ASTFunc.cpp
+        ASTGlobalVar.cpp
+        ASTIfBlock.cpp
+        ASTImport.cpp
+        ASTLocalVar.cpp
         ASTNameSpace.cpp
         ASTNode.cpp
         ASTNodeBase.cpp
-        FuncDecl.cpp
+        ASTOperatorExpr.cpp
+        ASTStmt.cpp
+        ASTSwitchBlock.cpp
+        ASTTopDecl.cpp
+        ASTType.cpp
+        ASTValue.cpp
+        ASTVar.cpp
+        ASTWhileBlock.cpp
         )
 
 target_link_libraries(FlyAST
-        LLVMBinaryFormat
-        LLVMCore
-        LLVMSupport
         FlyBasic
         FlyLex
+        FlyCodeGen
         )

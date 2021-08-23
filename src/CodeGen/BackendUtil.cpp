@@ -140,7 +140,7 @@ namespace {
                            Module *M)
                 : Diags(_Diags), CodeGenOpts(CGOpts),
                   TargetOpts(TOpts), TheModule(M),
-                  CodeGenerationTime("codegen", "Code Generation Time") {}
+                  CodeGenerationTime("GenStmt", "Code Generation Time") {}
 
         ~EmitAssemblyHelper() {
             if (CodeGenOpts.DisableFree)

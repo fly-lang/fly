@@ -64,7 +64,7 @@ brackets as described below:
   y[2] = 6
   y[3] = 8
 
-On MacOS, replace `-lcudart_static` with `-lcudart`; otherwise, you may get
+On MacOS, replace `-lcudart_static` with `-lcudart`; otherwise, you may getValue
 "CUDA driver version is insufficient for CUDA runtime version" errors when you
 run your program.
 
@@ -175,7 +175,7 @@ available.
 nvcc does not officially support ``std::complex``.  It's an error to use
 ``std::complex`` in ``__device__`` code, but it often works in ``__host__
 __device__`` code due to nvcc's interpretation of the "wrong-side rule" (see
-below).  However, we have heard from implementers that it's possible to get
+below).  However, we have heard from implementers that it's possible to getValue
 into situations where nvcc will omit a call to an ``std::complex`` function,
 especially when compiling without optimizations.
 
@@ -412,7 +412,7 @@ clang's behavior with respect to the wrong-side rule matches nvcc's, except
 nvcc only emits a warning for ``not_inline_hd``; device code is allowed to call
 ``not_inline_hd``.  In its generated code, nvcc may omit ``not_inline_hd``'s
 call to ``host_only`` entirely, or it may try to generate code for
-``host_only`` on the device.  What you get seems to depend on whether or not
+``host_only`` on the device.  What you getValue seems to depend on whether or not
 the compiler chooses to inline ``host_only``.
 
 Member functions, including constructors, may be overloaded using H and D

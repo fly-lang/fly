@@ -252,7 +252,7 @@ accordingly, like so:
     }
     X4 = phi(X3, X3')
 
-Now, all uses of X4 will get the updated value (in general,
+Now, all uses of X4 will getValue the updated value (in general,
 if a loop is in LCSSA form, in any loop transformation,
 we only need to update the loop closing PHI nodes for the changes
 to take effect).  If we did not have Loop Closed SSA form, it means that X3 could
@@ -294,7 +294,7 @@ An expression is represented in LLVM by an
 `llvm::Instruction <https://llvm.org/doxygen/classllvm_1_1Instruction.html>`.
 If the expression is inside two (or more) loops (which can only
 happen if the loops are nested, like in the example above) and you want
-to get an analysis of its evolution (from SCEV),
+to getValue an analysis of its evolution (from SCEV),
 you have to also specify relative to what Loop you want it.
 Specifically, you have to use
 `getSCEVAtScope() <https://llvm.org/doxygen/classllvm_1_1ScalarEvolution.html#a21d6ee82eed29080d911dbb548a8bb68>`_.
@@ -371,7 +371,7 @@ above, that would be:
 It's important to understand the effect of loop rotation
 at the LLVM IR level. We follow with the previous examples
 in LLVM IR while also providing a graphical representation
-of the control-flow graphs (CFG). You can get the same graphical
+of the control-flow graphs (CFG). You can getValue the same graphical
 results by utilizing the :ref:`view-cfg <passes-view-cfg>` pass.
 
 The initial **for** loop could be translated to:
