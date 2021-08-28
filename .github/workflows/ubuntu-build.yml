@@ -1,6 +1,14 @@
-name: CMake
+name: Build on Ubuntu
 
-on: [push]
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the main branch
+  push:
+    branches-ignore:
+      - main
+  pull_request:
+    branches-ignore:
+      - main
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
@@ -19,8 +27,8 @@ jobs:
 
     - name: Install LLVM
       run: |
-        chmod 777 ./.github/scripts/install-llvm.sh
-        sudo ./.github/scripts/install-llvm.sh
+        chmod 777 ./.github/scripts/apt-install-llvm.sh
+        sudo ./.github/scripts/apt-install-llvm.sh
       shell: bash
 
     - name: Create Build Environment
