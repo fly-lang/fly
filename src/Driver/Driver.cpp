@@ -145,7 +145,7 @@ void Driver::BuildOptions(FileSystemOptions &fileSystemOpts,
     llvm::PrettyStackTraceString CrashInfo("Command line argument parsing");
 
     if (Args.empty()) {
-        printVersion(false);
+        printVersion();
     }
 
     unsigned MissingArgIndex, MissingArgCount;
@@ -174,6 +174,11 @@ void Driver::BuildOptions(FileSystemOptions &fileSystemOpts,
     // Show Version
     if (ArgList.hasArg(options::OPT_VERSION)) {
         printVersion();
+        doExecute = false;
+        return;
+    }
+    if (ArgList.hasArg(options::OPT_VERSION_SHORT)) {
+        printVersion(false);
         doExecute = false;
         return;
     }
@@ -254,7 +259,10 @@ bool Driver::Execute() {
 }
 
 void Driver::printVersion(bool full) {
-    llvm::outs() << "FLY version " << FLY_VERSION << " (https://flylang.org)" << "\n";
-    if (full)
+    if (full) {
+        llvm::outs() << "FLY version " << FLY_VERSION << " (https://flylang.org)" << "\n";
         llvm::outs() << "with LLVM version " << LLVM_VERSION_STRING << "\n";
+    } else {
+        llvm::outs() << FLY_VERSION << "\n";
+    }
 }

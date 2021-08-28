@@ -68,6 +68,8 @@ OPTION(prefix_1, "target", TARGET, Separate, INVALID, INVALID, nullptr, CoreOpti
        "Generate code for the given target", nullptr, nullptr)
 OPTION(prefix_4, "version", VERSION, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
        "Print version information", nullptr, nullptr)
+OPTION(prefix_4, "version-short", VERSION_SHORT, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
+       "Print version number", nullptr, nullptr)
 OPTION(prefix_1, "v", VERBOSE, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
        "Show commands to run and use verbose output", nullptr, nullptr)
 OPTION(prefix_1, "working-dir", WORKING_DIR, JoinedOrSeparate, INVALID, INVALID, nullptr, CoreOption, 0,
