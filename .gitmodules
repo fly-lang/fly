@@ -1,3 +1,6 @@
 [submodule "docs/wiki"]
 	path = docs/wiki
 	url = https://github.com/fly-lang/fly.wiki.git
+[submodule "llvm"]
+	path = llvm
+	url = https://github.com/fly-lang/llvm-project.git
