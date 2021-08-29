@@ -26,17 +26,7 @@ env:
 jobs:
 
   # This workflow contains multiple "build" jobs
-  checkout:
-    # The type of runner that the job will run on
-    runs-on: ubuntu-latest
-
-    steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v2
-
-  # This workflow contains multiple "build" jobs
   linux_build:
-    needs: checkout
 
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
@@ -47,6 +37,8 @@ jobs:
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
 
       - name: Install LLVM
         run: |
@@ -79,10 +71,15 @@ jobs:
         id: version
         run: echo "::set-output name=version::$(./src/fly --version-short)"
         working-directory: ${{env.LINUX_BUILD_PATH}}
-          
+
       - name: Packaging
         working-directory: ${{env.LINUX_BUILD_PATH}}/src
-        run: tar -czvf ../fly-${{ steps.version.outputs.version }}-linux-amd64.tar.gz fly    
+        run: tar -czvf ../fly-${{ steps.version.outputs.version }}-linux-amd64.tar.gz fly
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: linux-artifact
+          path: ${{env.LINUX_BUILD_PATH}}/fly-${{ steps.version.outputs.version }}-linux-amd64.tar.gz
 
   win_build:
     needs: linux_build
@@ -94,6 +91,9 @@ jobs:
         shell: bash
 
     steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+
       - name: Install LLVM
         run: |
           choco install llvm --version=11.1.0
@@ -119,15 +119,20 @@ jobs:
         # Execute tests defined by the CMake configuration.
         # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
         run: ctest -C $BUILD_TYPE
-        
+
       - name: Read Version
         id: version
         run: echo "::set-output name=version::$(./src/fly --version-short)"
         working-directory: ${{env.LINUX_BUILD_PATH}}
-        
+
       - name: Packaging
         working-directory: ${{env.WIN_BUILD_PATH}}
         run: zip fly-${{ steps.version.outputs.version }}-win-x64 ./src/fly
+        
+      - uses: actions/upload-artifact@v2
+        with:
+          name: win-artifact
+          path: ${{env.LINUX_BUILD_PATH}}/fly-${{ steps.version.outputs.version }}-win-x64.zip  
 
   release:
     needs: [linux_build, win_build]
@@ -151,15 +156,23 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
+      - uses: actions/download-artifact@v2
+        with:
+          name: linux-artifact
+
       - name: Linux Upload
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{env.LINUX_BUILD_PATH}}/fly-${{ steps.version.outputs.version }}-linux-amd64.tar.gz
+          asset_path: fly-${{ steps.version.outputs.version }}-linux-amd64.tar.gz
           asset_name: fly-${{ steps.version.outputs.version }}-linux-amd64.tar.gz
           asset_content_type: application/gzip
+
+      - uses: actions/download-artifact@v2
+        with:
+          name: win-artifact
 
       - name: Windows Upload
         uses: actions/upload-release-asset@v1
