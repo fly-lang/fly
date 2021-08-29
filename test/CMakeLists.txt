@@ -4,14 +4,14 @@
 
 message(STATUS "Adding GoogleTest")
 include_directories(
-        ../llvm/utils/unittest/googletest
-        ../llvm/utils/unittest/googletest/include
-        ../llvm/utils/unittest/googlemock
-        ../llvm/utils/unittest/googlemock/include
+        ./utils/googletest
+        ./utils/googletest/include
+        ./utils/googlemock
+        ./utils/googlemock/include
 )
 add_library(fly_gtest
-        ../llvm/utils/unittest/googletest/src/gtest-all.cc
-        ../llvm/utils/unittest/googlemock/src/gmock-all.cc
+        ./utils/googletest/src/gtest-all.cc
+        ./utils/googlemock/src/gmock-all.cc
         )
 
 add_library(fly_gtest_main
