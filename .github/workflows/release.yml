@@ -31,6 +31,7 @@ jobs:
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
 
       - name: Install LLVM
@@ -77,14 +78,14 @@ jobs:
         with:
           draft: false
           prerelease: true
-          release_name: Pre Release ${{ steps.version.outputs.version }}
+          release_name: Fly ${{ steps.version.outputs.version }} Pre-release
           tag_name: v${{ steps.version.outputs.version }}
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
       - name: Packaging
         working-directory: ${{env.LINUX_BUILD_PATH}}/src
-        run: tar -czvf ../fly.linux-amd64-${{ steps.version.outputs.version }}.tar.gz fly
+        run: tar -czvf ../fly-${{ steps.version.outputs.version }}-linux-amd64.tar.gz fly
         shell: bash
 
       - name: Upload
@@ -93,6 +94,6 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{env.LINUX_BUILD_PATH}}/fly.linux-amd64.${{ steps.version.outputs.version }}.tar.gz
-          asset_name: fly.linux-amd64.${{ steps.version.outputs.version }}.tar.gz
+          asset_path: ${{env.LINUX_BUILD_PATH}}/fly-${{ steps.version.outputs.version }}-linux-amd64.tar.gz
+          asset_name: fly-${{ steps.version.outputs.version }}-linux-amd64.tar.gz
           asset_content_type: application/gzip
