@@ -50,8 +50,8 @@ jobs:
 
       - name: Install LLVM
         run: |
-          chmod 777 $GITHUB_WORKSPACE/.github/scripts/apt-install-llvm.sh
-          sudo $GITHUB_WORKSPACE/.github/scripts/apt-install-llvm.sh
+          chmod 777 ./.github/scripts/apt-install-llvm.sh
+          sudo ./.github/scripts/apt-install-llvm.sh
 
       - name: Create Build Environment
         # Use this as our working directory for all subsequent commands
