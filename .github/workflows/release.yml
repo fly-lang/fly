@@ -18,16 +18,16 @@ on:
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
   BUILD_TYPE: Release
+  LINUX_BUILD_PATH: ${{github.workspace}}/build/linux
+  WIN_BUILD_PATH: ${{github.workspace}}/build/win
+  MACOS_BUILD_PATH: ${{github.workspace}}/build/macos
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   # This workflow contains multiple "build" jobs
-  linux_release:
+  linux_build:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
-
-    env:
-      BUILD_PATH: ${{github.workspace}}/build/linux
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
@@ -44,33 +44,41 @@ jobs:
       # Runs a set of commands using the runners shell
       - name: Create Build Environment
         # Use this as our working directory for all subsequent commands
-        run: cmake -E make_directory $BUILD_PATH
+        run: cmake -E make_directory $LINUX_BUILD_PATH
 
       - name: Configure CMake
         # Use a bash shell so we can use the same syntax for environment variable
         # access regardless of the host operating system
         shell: bash
-        working-directory: ${{env.BUILD_PATH}}
+        working-directory: ${{env.LINUX_BUILD_PATH}}
         # Note the current convention is to use the -S and -B options here to specify source
         # and build directories, but this is only available with CMake 3.13 and higher.
         # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
         run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE
 
       - name: Build
-        working-directory: ${{env.BUILD_PATH}}
+        working-directory: ${{env.LINUX_BUILD_PATH}}
         shell: bash
         # Execute the build.  You can specify a specific target with "--target <NAME>"
         run: cmake --build . --config $BUILD_TYPE
 
       - name: Test
-        working-directory: ${{env.BUILD_PATH}}
+        working-directory: ${{env.LINUX_BUILD_PATH}}
         shell: bash
         # Execute tests defined by the CMake configuration.
         # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
         run: ctest -C $BUILD_TYPE
 
+  release:
+
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+
       - name: Read Version
-        working-directory: ${{env.BUILD_PATH}}
+        working-directory: ${{env.LINUX_BUILD_PATH}}
         id: version
         run: echo "::set-output name=version::$(./src/fly --version-short)"
 
@@ -86,8 +94,8 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
 
       - name: Packaging
-        working-directory: ${{env.BUILD_PATH}}
-        run: tar -czvf fly.linux-amd64.${{ steps.version.outputs.version }}.tar.gz ./src/fly
+        working-directory: ${{env.LINUX_BUILD_PATH}}/src
+        run: tar -czvf ../fly.linux-amd64-${{ steps.version.outputs.version }}.tar.gz fly
         shell: bash
 
       - name: Upload
@@ -96,6 +104,6 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{env.BUILD_PATH}}/fly.linux-amd64.${{ steps.version.outputs.version }}.tar.gz
+          asset_path: ${{env.LINUX_BUILD_PATH}}/fly.linux-amd64.${{ steps.version.outputs.version }}.tar.gz
           asset_name: fly.linux-amd64.${{ steps.version.outputs.version }}.tar.gz
           asset_content_type: application/gzip
