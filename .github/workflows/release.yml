@@ -25,23 +25,20 @@ env:
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   # This workflow contains multiple "build" jobs
-  linux_build:
+  release:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
 
-      # Runs a single command using the runners shell
       - name: Install LLVM
         run: |
           chmod 777 ./.github/scripts/apt-install-llvm.sh
           sudo ./.github/scripts/apt-install-llvm.sh
         shell: bash
 
-      # Runs a set of commands using the runners shell
       - name: Create Build Environment
         # Use this as our working directory for all subsequent commands
         run: cmake -E make_directory $LINUX_BUILD_PATH
@@ -68,14 +65,6 @@ jobs:
         # Execute tests defined by the CMake configuration.
         # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
         run: ctest -C $BUILD_TYPE
-
-  release:
-
-    # The type of runner that the job will run on
-    runs-on: ubuntu-latest
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
-    steps:
 
       - name: Read Version
         working-directory: ${{env.LINUX_BUILD_PATH}}
