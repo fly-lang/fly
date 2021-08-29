@@ -29,7 +29,7 @@ jobs:
   checkout:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
-        
+
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
@@ -44,31 +44,33 @@ jobs:
     defaults:
       run:
         shell: bash
-        working-directory: ${{env.LINUX_BUILD_PATH}}
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
 
       - name: Install LLVM
         run: |
-          chmod 777 ./.github/scripts/apt-install-llvm.sh
-          sudo ./.github/scripts/apt-install-llvm.sh
+          chmod 777 $GITHUB_WORKSPACE/.github/scripts/apt-install-llvm.sh
+          sudo $GITHUB_WORKSPACE/.github/scripts/apt-install-llvm.sh
 
       - name: Create Build Environment
         # Use this as our working directory for all subsequent commands
         run: cmake -E make_directory $LINUX_BUILD_PATH
 
       - name: Configure CMake
+        working-directory: ${{env.LINUX_BUILD_PATH}}
         # Note the current convention is to use the -S and -B options here to specify source
         # and build directories, but this is only available with CMake 3.13 and higher.
         # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
         run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE
 
       - name: Build
+        working-directory: ${{env.LINUX_BUILD_PATH}}
         # Execute the build.  You can specify a specific target with "--target <NAME>"
         run: cmake --build . --config $BUILD_TYPE
 
       - name: Test
+        working-directory: ${{env.LINUX_BUILD_PATH}}
         # Execute tests defined by the CMake configuration.
         # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
         run: ctest -C $BUILD_TYPE
@@ -76,8 +78,11 @@ jobs:
       - name: Read Version
         id: version
         run: echo "::set-output name=version::$(./src/fly --version-short)"
-        env:
-          FLY_VERSION: ${{ steps.version.outputs.version }}
+        working-directory: ${{env.LINUX_BUILD_PATH}}
+          
+      - name: Packaging
+        working-directory: ${{env.LINUX_BUILD_PATH}}/src
+        run: tar -czvf ../fly-${{ steps.version.outputs.version }}-linux-amd64.tar.gz fly    
 
   win_build:
     needs: linux_build
@@ -87,7 +92,6 @@ jobs:
     defaults:
       run:
         shell: bash
-        working-directory: ${{env.WIN_BUILD_PATH}}
 
     steps:
       - name: Install LLVM
@@ -99,19 +103,31 @@ jobs:
         run: cmake -E make_directory $WIN_BUILD_PATH
 
       - name: Configure CMake
+        working-directory: ${{env.WIN_BUILD_PATH}}
         # Note the current convention is to use the -S and -B options here to specify source
         # and build directories, but this is only available with CMake 3.13 and higher.
         # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
         run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE
 
       - name: Build
+        working-directory: ${{env.WIN_BUILD_PATH}}
         # Execute the build.  You can specify a specific target with "--target <NAME>"
         run: cmake --build . --config $BUILD_TYPE
 
       - name: Test
+        working-directory: ${{env.WIN_BUILD_PATH}}
         # Execute tests defined by the CMake configuration.
         # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
         run: ctest -C $BUILD_TYPE
+        
+      - name: Read Version
+        id: version
+        run: echo "::set-output name=version::$(./src/fly --version-short)"
+        working-directory: ${{env.LINUX_BUILD_PATH}}
+        
+      - name: Packaging
+        working-directory: ${{env.WIN_BUILD_PATH}}
+        run: zip fly-${{ steps.version.outputs.version }}-win-x64 ./src/fly
 
   release:
     needs: [linux_build, win_build]
@@ -134,14 +150,6 @@ jobs:
           tag_name: v${{env.FLY_VERSION}}
         env:
           GITHUB_TOKEN: ${{ github.token }}
-
-      - name: Linux Packaging
-        working-directory: ${{env.LINUX_BUILD_PATH}}/src
-        run: tar -czvf ../fly-${{ steps.version.outputs.version }}-linux-amd64.tar.gz fly
-
-      - name: Windows Packaging
-        working-directory: ${{env.WIN_BUILD_PATH}}
-        run: zip fly-${{ steps.version.outputs.version }}-win-x64 ./src/fly
 
       - name: Linux Upload
         uses: actions/upload-release-asset@v1
