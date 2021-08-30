@@ -46,7 +46,7 @@ jobs:
           Invoke-WebRequest -Uri 'https://github.com/llvm/llvm-project/releases/download/llvmorg-11.1.0/llvm-11.1.0.src.tar.xz' -Out llvm-11.1.0.src.tar.xz
           7z e llvm-11.1.0.src.tar.xz
           7z x llvm-11.1.0.src.tar
-          MoveItem llvm-11.1.0.src $WIN_BUILD_PATH\llvm 
+          Move-Item llvm-11.1.0.src $WIN_BUILD_PATH\llvm 
 
       - name: Configure CMake
         working-directory: ${{env.WIN_BUILD_PATH}}
