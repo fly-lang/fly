@@ -30,23 +30,23 @@ jobs:
 
     defaults:
       run:
-        shell: pwsh
+        shell: bash
 
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
 
+      - name: Create Build Environment
+        # Use this as our working directory for all subsequent commands
+        run: cmake -E make_directory $WIN_BUILD_PATH    
+
       - name: Download LLVM sources
+        shell: pwsh
         run: |
           Invoke-WebRequest -Uri 'https://github.com/llvm/llvm-project/releases/download/llvmorg-11.1.0/llvm-11.1.0.src.tar.xz' -Out llvm-11.1.0.src.tar.xz
           7z e llvm-11.1.0.src.tar.xz
           7z x llvm-11.1.0.src.tar
-
-      - name: Create Build Environment
-        # Use this as our working directory for all subsequent commands
-        run: |
-          cmake -E make_directory $WIN_BUILD_PATH
-          MoveItem llvm-11.1.0.src $WIN_BUILD_PATH\llvm
+          MoveItem llvm-11.1.0.src $WIN_BUILD_PATH\llvm 
 
       - name: Configure CMake
         working-directory: ${{env.WIN_BUILD_PATH}}
