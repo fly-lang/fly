@@ -31,7 +31,7 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - windows
+          - windows-latest
           - ubuntu-latest
 
     defaults:
@@ -94,7 +94,7 @@ jobs:
         if: startsWith(matrix.os, 'linux')
         working-directory: ${{env.BUILD_PATH}}/src
         run: tar -czvf ../fly-${{ steps.version.outputs.version }}-linux-x86_64.tar.gz fly
-        
+
       - uses: actions/upload-artifact@v2
         if: startsWith(matrix.os, 'linux')
         with:
