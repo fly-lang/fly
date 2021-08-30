@@ -44,9 +44,9 @@ endif()
 
 # Use LLVM from this project
 if (NOT DEFINED LLVM_FOUND)
-    set(FLY_LLVM_DIR ${CMAKE_BINARY_DIR}/llvm/lib/cmake/llvm)
+    set(FLY_LLVM_DIR ${CMAKE_BINARY_DIR}/llvm/llvm/lib/cmake/llvm)
     set(LLVM_DIR ${FLY_LLVM_DIR})
-    add_subdirectory(${CMAKE_SOURCE_DIR}/llvm)
+    add_subdirectory(${CMAKE_SOURCE_DIR}/llvm/llvm)
     find_package(LLVM REQUIRED CONFIG)
     addLLVM()
 endif()
