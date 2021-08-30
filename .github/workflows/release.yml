@@ -88,7 +88,7 @@ jobs:
 
     defaults:
       run:
-        shell: bash
+        shell: pwsh
 
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
@@ -97,6 +97,10 @@ jobs:
       - name: Install LLVM
         run: |
           choco install llvm --version=11.1.0
+          Invoke-WebRequest -Uri 'https://github.com/llvm/llvm-project/releases/download/llvmorg-11.1.0/llvm-11.1.0.src.tar.xz' -Out llvm-11.1.0.src.tar.xz
+          7z e llvm-11.1.0.src.tar.xz
+          7z e llvm-11.1.0.src.tar
+          Rename-Item llvm-11.1.0.src llvm
 
       - name: Create Build Environment
         # Use this as our working directory for all subsequent commands
@@ -128,11 +132,11 @@ jobs:
       - name: Packaging
         working-directory: ${{env.WIN_BUILD_PATH}}
         run: zip fly-${{ steps.version.outputs.version }}-win-x64 ./src/fly
-        
+
       - uses: actions/upload-artifact@v2
         with:
           name: win-artifact
-          path: ${{env.LINUX_BUILD_PATH}}/fly-${{ steps.version.outputs.version }}-win-x64.zip  
+          path: ${{env.LINUX_BUILD_PATH}}/fly-${{ steps.version.outputs.version }}-win-x64.zip
 
   release:
     needs: [linux_build, win_build]
