@@ -4,3 +4,4 @@
 [submodule "llvm"]
 	path = llvm
 	url = https://github.com/fly-lang/llvm-project.git
+    branch = fly-llvm-11.1.0
