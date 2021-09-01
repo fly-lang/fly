@@ -43,7 +43,7 @@ jobs:
 
       - name: Download LLVM (Linux Release)
         working-directory: ${{github.workspace}}/llvm
-        if: matrix.os == 'linux-latest'
+        if: matrix.os == 'ubuntu-latest'
         run: |
           wget -q https://github.com/fly-lang/llvm-project/releases/download/v11.1.0-linux-x86_64/llvm-11.1.0-x86_64-linux-gnu.tar.gz
           tar -zxvf *.tar.gz
@@ -78,12 +78,12 @@ jobs:
         run: ctest -C $BUILD_TYPE
 
       - name: Read Version
-        working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}
+        working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/src
         id: version
-        run: echo "::set-output name=version::$(./src/fly --version-short)"
+        run: echo "::set-output name=version::$(fly --version-short)"
 
       - name: Linux Packaging
-        if: matrix.os == 'linux-latest'
+        if: matrix.os == 'ubuntu-latest'
         working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/src
         run: tar -czvf ../fly-${{ steps.version.outputs.version }}-linux-x86_64.tar.gz fly
 
@@ -98,18 +98,21 @@ jobs:
         run: tar -czvf ../fly-${{ steps.version.outputs.version }}-macos-x86_64.tar.gz fly
 
       - uses: actions/upload-artifact@v2
+        if: matrix.os == 'ubuntu-latest'
         with:
           name: linux-artifact
           path: ${{github.workspace}}/${{env.BUILD_DIR}}/fly-${{ steps.version.outputs.version }}-linux-x86_64.tar.gz
 
       - uses: actions/upload-artifact@v2
+        if: matrix.os == 'windows-latest'
         with:
           name: windows-artifact
           path: ${{github.workspace}}/${{env.BUILD_DIR}}/fly-${{ steps.version.outputs.version }}-win-x64.zip
 
       - uses: actions/upload-artifact@v2
+        if: matrix.os == 'macos-latest'
         with:
-          name: linux-artifact
+          name: macos-artifact
           path: ${{github.workspace}}/${{env.BUILD_DIR}}/fly-${{ steps.version.outputs.version }}-macos-x86_64.tar.gz
 
   release:
@@ -135,15 +138,49 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
 
       - uses: actions/download-artifact@v2
+        if: matrix.os == 'ubuntu-latest'
         with:
           name: linux-artifact
 
+      - uses: actions/download-artifact@v2
+        if: matrix.os == 'windows-latest'
+        with:
+          name: windows-artifact
+
+      - uses: actions/download-artifact@v2
+        if: matrix.os == 'macos-latest'
+        with:
+          name: macos-artifact
+
       - name: Linux Upload
         uses: actions/upload-release-asset@v1
+        if: matrix.os == 'ubuntu-latest'
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: fly-${{ steps.version.outputs.version }}-linux-x86_64.tar.gz
           asset_name: fly-${{ steps.version.outputs.version }}-linux-x86_64.tar.gz
+          asset_content_type: application/gzip
+
+      - name: Windows Upload
+        uses: actions/upload-release-asset@v1
+        if: matrix.os == 'windows-latest'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: fly-${{ steps.version.outputs.version }}-win-x64.zip
+          asset_name: fly-${{ steps.version.outputs.version }}-win-x64.zip
+          asset_content_type: application/gzip
+
+      - name: macOS Upload
+        uses: actions/upload-release-asset@v1
+        if: matrix.os == 'macos-latest'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: fly-${{ steps.version.outputs.version }}-macos-x86_64.tar.gz
+          asset_name: fly-${{ steps.version.outputs.version }}-macos-x86_64.tar.gz
           asset_content_type: application/gzip
