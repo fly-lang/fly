@@ -39,7 +39,7 @@ jobs:
     - name: Download LLVM
       working-directory: ${{github.workspace}}/llvm
       run: |
-        wget -quiet https://github.com/fly-lang/llvm-project/releases/download/v11.1.0-linux-x86_64/llvm-11.1.0-x86_64-linux-gnu.tar.gz
+        wget -q https://github.com/fly-lang/llvm-project/releases/download/v11.1.0-linux-x86_64/llvm-11.1.0-x86_64-linux-gnu.tar.gz
         tar -zxvf *.tar.gz
         ls -Al ..
 
