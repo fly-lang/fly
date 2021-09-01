@@ -33,6 +33,12 @@ endmacro()
 
 message(STATUS "Searching LLVM (version ${FLY_LLVM_VERSION})")
 
+if (DEFINED LLVM_INSTALL_PATH)
+    message(STATUS "Find LLVM installation into ${LLVM_INSTALL_PATH}")
+    find_package(LLVM ${FLY_LLVM_VERSION} REQUIRED CONFIG PATHS ${LLVM_INSTALL_PATH} NO_DEFAULT_PATH)
+    addLLVM()
+else()
+
 # Default your installed LLVM is used if the version is equal to ${FLY_LLVM_VERSION}
 # Force to use LLVM from this project by -DUSE_INSTALLED_LLVM=false
 if (USE_INSTALLED_LLVM OR NOT DEFINED USE_INSTALLED_LLVM)
@@ -47,8 +53,9 @@ if (NOT DEFINED LLVM_FOUND)
     set(FLY_LLVM_DIR ${CMAKE_BINARY_DIR}/llvm/llvm/lib/cmake/llvm)
     set(LLVM_DIR ${FLY_LLVM_DIR})
     add_subdirectory(${CMAKE_SOURCE_DIR}/llvm/llvm)
-    find_package(LLVM REQUIRED CONFIG)
+    find_package(LLVM ${FLY_LLVM_VERSION} REQUIRED CONFIG)
     addLLVM()
+endif()
 endif()
 
 #Enable Verbose for best debugging
