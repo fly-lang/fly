@@ -32,7 +32,9 @@ jobs:
     - name: Create Build Environment
       # Some projects don't allow in-source building, so create a separate build directory
       # We'll use this as our working directory for all subsequent commands
-      run: cmake -E make_directory $BUILD_DIR
+      run: |
+        cmake -E make_directory $BUILD_DIR
+        cmake -E make_directory llvm
 
     - uses: actions/checkout@v2
       with:
@@ -41,8 +43,9 @@ jobs:
         path: $GITHUB_WORKSPACE/llvm
 
     - name: Extract LLVM
-      working-directory: ${{github.workspace}}/llvm
-      run: tar -zxvf *.tar.gz
+      run: |
+        cd $GITHUB_WORKSPACE/llvm
+        tar -zxvf *.tar.gz
 
     - name: Build
       working-directory: ${{github.workspace}}/$BUILD_DIR
