@@ -46,7 +46,8 @@ jobs:
       # We'll use this as our working directory for all subsequent commands
       run: |
         cmake -E make_directory $BUILD_DIR
-        cmake . -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DLLVM_DIR=llvm/lib/cmake
+        pwd
+        cmake . -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DLLVM_DIR=./llvm/lib/cmake
         cmake --build $BUILD_DIR
 
     - name: Test
