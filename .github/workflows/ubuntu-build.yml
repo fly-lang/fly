@@ -34,6 +34,7 @@ jobs:
       # We'll use this as our working directory for all subsequent commands
       run: |
         cmake -E make_directory $BUILD_DIR
+        cmake -E make_directory llvm
 
     - uses: actions/checkout@v2
       with:
