@@ -61,7 +61,7 @@ jobs:
         shell: pwsh
         run: |
           Invoke-WebRequest -Uri https://github.com/fly-lang/llvm-project/releases/download/v11.1.0-win-x64/llvm-11.1.0-win-x64.zip -OutFile llvm.zip
-          7z e llvm.zip
+          7z x llvm.zip
 
       - name: Build
         working-directory: ${{github.workspace}}/llvm
@@ -78,9 +78,12 @@ jobs:
         run: ctest -C $BUILD_TYPE
 
       - name: Read Version
-        working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/src
+        working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}
         id: version
-        run: echo "::set-output name=version::$(fly --version-short)"
+        run: |
+          ls -Al
+          pwd
+          echo "::set-output name=version::$(./src/fly --version-short)"
 
       - name: Linux Packaging
         if: matrix.os == 'ubuntu-latest'
