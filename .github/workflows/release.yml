@@ -18,13 +18,69 @@ on:
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
   BUILD_TYPE: Release
-  UNIX_BUILD_PATH: ${{github.workspace}}/build
-  WIN_BUILD_PATH: ${{github.workspace}}\build
+  BUILD_PATH: ${{github.workspace}}/build
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
 
+  # This workflow contains multiple "build" jobs
+  linux_build:
+
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+
+      - name: Install LLVM
+        run: |
+          chmod 777 ./.github/scripts/apt-install-llvm.sh
+          sudo ./.github/scripts/apt-install-llvm.sh
+
+      - name: Create Build Environment
+        # Use this as our working directory for all subsequent commands
+        run: cmake -E make_directory $BUILD_PATH
+
+      - name: Configure CMake
+        working-directory: ${{env.BUILD_PATH}}
+        # Note the current convention is to use the -S and -B options here to specify source
+        # and build directories, but this is only available with CMake 3.13 and higher.
+        # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
+        run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE
+
+      - name: Build
+        working-directory: ${{env.BUILD_PATH}}
+        # Execute the build.  You can specify a specific target with "--target <NAME>"
+        run: cmake --build . --config $BUILD_TYPE
+
+      - name: Test
+        working-directory: ${{env.BUILD_PATH}}
+        # Execute tests defined by the CMake configuration.
+        # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
+        run: ctest -C $BUILD_TYPE
+
+      - name: Read Version
+        id: version
+        run: echo "::set-output name=version::$(./src/fly --version-short)"
+        working-directory: ${{env.BUILD_PATH}}
+
+      - name: Packaging
+        working-directory: ${{env.BUILD_PATH}}/src
+        run: tar -czvf ../fly-${{ steps.version.outputs.version }}-linux-x86_64.tar.gz fly
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: linux-artifact
+          path: ${{env.BUILD_PATH}}/fly-${{ steps.version.outputs.version }}-linux-x86_64.tar.gz
+
   win_build:
+    needs: linux_build
     # The type of runner that the job will run on
     runs-on: windows-latest
 
@@ -38,7 +94,7 @@ jobs:
 
       - name: Create Build Environment
         # Use this as our working directory for all subsequent commands
-        run: cmake -E make_directory $WIN_BUILD_PATH    
+        run: cmake -E make_directory $BUILD_PATH
 
       - name: Download LLVM sources
         shell: pwsh
@@ -49,19 +105,19 @@ jobs:
           Move-Item llvm-11.1.0.src $GITHUB_WORKSPACE\llvm
 
       - name: Configure CMake
-        working-directory: ${{env.WIN_BUILD_PATH}}
+        working-directory: ${{env.BUILD_PATH}}
         # Note the current convention is to use the -S and -B options here to specify source
         # and build directories, but this is only available with CMake 3.13 and higher.
         # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
         run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DUSE_INSTALLED_LLVM=false
 
       - name: Build
-        working-directory: ${{env.WIN_BUILD_PATH}}
+        working-directory: ${{env.BUILD_PATH}}
         # Execute the build.  You can specify a specific target with "--target <NAME>"
         run: cmake --build . --config $BUILD_TYPE
 
       - name: Test
-        working-directory: ${{env.WIN_BUILD_PATH}}
+        working-directory: ${{env.BUILD_PATH}}
         # Execute tests defined by the CMake configuration.
         # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
         run: ctest -C $BUILD_TYPE
@@ -69,19 +125,19 @@ jobs:
       - name: Read Version
         id: version
         run: echo "::set-output name=version::$(./src/fly --version-short)"
-        working-directory: ${{env.WIN_BUILD_PATH}}
+        working-directory: ${{env.BUILD_PATH}}
 
       - name: Packaging
-        working-directory: ${{env.WIN_BUILD_PATH}}
+        working-directory: ${{env.BUILD_PATH}}
         run: zip fly-${{ steps.version.outputs.version }}-win-x64 ./src/fly
 
       - uses: actions/upload-artifact@v2
         with:
           name: windows-artifact
-          path: ${{env.WIN_BUILD_PATH}}/fly-${{ steps.version.outputs.version }}-win-x64.zip
-          
+          path: ${{env.BUILD_PATH}}/fly-${{ steps.version.outputs.version }}-win-x64.zip
+
   release:
-    needs: [win_build]
+    needs: [linux_build, win_build]
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
 
@@ -102,6 +158,19 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
+      - uses: actions/download-artifact@v2
+        with:
+          name: linux-artifact
+
+      - name: Linux Upload
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: fly-${{ steps.version.outputs.version }}-linux-x86_64.tar.gz
+          asset_name: fly-${{ steps.version.outputs.version }}-linux-x86_64.tar.gz
+          asset_content_type: application/gzip
 
       - uses: actions/download-artifact@v2
         with:
@@ -113,6 +182,6 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{env.WIN_BUILD_PATH}}/fly-${{ steps.version.outputs.version }}-win-x64.zip
+          asset_path: ${{env.BUILD_PATH}}/fly-${{ steps.version.outputs.version }}-win-x64.zip
           asset_name: fly-${{ steps.version.outputs.version }}-win-x64.zip
           asset_content_type: application/zip
