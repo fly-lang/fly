@@ -38,8 +38,8 @@ jobs:
         # Some projects don't allow in-source building, so create a separate build directory
         # We'll use this as our working directory for all subsequent commands
         run: |
-          cmake -E make_directory $BUILD_DIR
           cmake -E make_directory llvm
+          cmake -E make_directory $BUILD_DIR
 
       - name: Download LLVM (Linux Release)
         working-directory: ${{github.workspace}}/llvm
@@ -56,17 +56,14 @@ jobs:
           tar -zxvf *.tar.gz
 
       - name: Download LLVM (Windows Release)
-        working-directory: ${{github.workspace}}/llvm
         if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
           Invoke-WebRequest -Uri https://github.com/fly-lang/llvm-project/releases/download/v11.1.0-win-x64/llvm-11.1.0-win-x64.zip
-          ls
-          pwd
-          7z x llvm-11.1.0-win-x64.zip
+          7z x *.zip -o$GITHUB_WORKSPACE/llvm
 
       - name: Build
-        working-directory: ${{github.workspace}}/llvm
+        working-directory: ${{github.workspace}}/{env.BUILD_DIR}
         # Some projects don't allow in-source building, so create a separate build directory
         # We'll use this as our working directory for all subsequent commands
         run: |
