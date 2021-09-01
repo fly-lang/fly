@@ -34,18 +34,14 @@ jobs:
       # We'll use this as our working directory for all subsequent commands
       run: |
         cmake -E make_directory $BUILD_DIR
-        cmake -E make_directory llvm
 
     - uses: actions/checkout@v2
       with:
         repository: 'fly-lang/llvm-project'
         ref: 'fly-llvm-11.1.0'
-        path: $GITHUB_WORKSPACE/llvm
 
     - name: Extract LLVM
-      run: |
-        cd $GITHUB_WORKSPACE/llvm
-        tar -zxvf *.tar.gz
+      run: tar -zxvf *.tar.gz -C $GITHUB_WORKSPACE/llvm
 
     - name: Build
       working-directory: ${{github.workspace}}/$BUILD_DIR
