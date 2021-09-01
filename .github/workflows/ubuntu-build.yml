@@ -36,13 +36,11 @@ jobs:
         cmake -E make_directory $BUILD_DIR
         cmake -E make_directory llvm
 
-    - uses: actions/checkout@v2
-      with:
-        repository: 'fly-lang/llvm-project'
-        ref: 'fly-llvm-11.1.0'
-
-    - name: Extract LLVM
-      run: tar -zxvf *.tar.gz -C $GITHUB_WORKSPACE/llvm
+    - name: Download LLVM
+      working-directory: ${{github.workspace}}/llvm
+      run: |
+        wget https://github.com/fly-lang/llvm-project/releases/download/v11.1.0-linux-x86_64/llvm-11.1.0-x86_64-linux-gnu.tar.gz
+        tar -zxvf *.tar.gz
 
     - name: Build
       working-directory: ${{github.workspace}}/$BUILD_DIR
