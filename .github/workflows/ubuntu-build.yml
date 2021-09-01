@@ -39,16 +39,17 @@ jobs:
     - name: Download LLVM
       working-directory: ${{github.workspace}}/llvm
       run: |
-        wget https://github.com/fly-lang/llvm-project/releases/download/v11.1.0-linux-x86_64/llvm-11.1.0-x86_64-linux-gnu.tar.gz
+        wget -quiet https://github.com/fly-lang/llvm-project/releases/download/v11.1.0-linux-x86_64/llvm-11.1.0-x86_64-linux-gnu.tar.gz
         tar -zxvf *.tar.gz
+        ls -Al ..
 
     - name: Build
       working-directory: ${{github.workspace}}/$BUILD_DIR
       # Some projects don't allow in-source building, so create a separate build directory
       # We'll use this as our working directory for all subsequent commands
       run: |
-        cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DLLVM_DIR=../llvm/lib/cmake ..
-        cmake --build . --config $BUILD_TYPE
+        cmake .. -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DLLVM_DIR=../llvm/lib/cmake
+        cmake --build .
 
     - name: Test
       working-directory: ${{github.workspace}}/$BUILD_DIR
