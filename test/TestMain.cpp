@@ -7,14 +7,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Support/Signals.h"
-#include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "gmock/gmock.h"
 
 int main(int Argc, char **Argv) {
   llvm::sys::PrintStackTraceOnErrorSignal(Argv[0],true /* Disable crash reporting */);
 
   // Initialize both gmock and gtest.
-  testing::InitGoogleMock(&Argc, Argv);
+  ::testing::InitGoogleMock(&Argc, Argv);
 
   return RUN_ALL_TESTS();
 }

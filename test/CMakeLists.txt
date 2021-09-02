@@ -14,10 +14,6 @@ add_library(fly_gtest
         ./lib/googlemock/src/gmock-all.cc
         )
 
-add_library(fly_gtest_main
-        TestMain.cpp
-        )
-
 add_executable(fly_test
         ASTTest.cpp
         CmdTest.cpp
@@ -26,10 +22,11 @@ add_executable(fly_test
         FrontendTest.cpp
         LexerTest.cpp
         ParserTest.cpp
+        TestMain.cpp
         )
 
 target_link_libraries(fly_test PRIVATE
-        fly_gtest fly_gtest_main
+        fly_gtest
         FlyBasic
         FlyLex
         FlyParser
