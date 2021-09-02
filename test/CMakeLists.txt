@@ -4,23 +4,19 @@
 
 message(STATUS "Adding GoogleTest")
 include_directories(
-        ./utils/googletest
-        ./utils/googletest/include
-        ./utils/googlemock
-        ./utils/googlemock/include
+        ./lib/googletest
+        ./lib/googletest/include
+        ./lib/googlemock
+        ./lib/googlemock/include
 )
 add_library(fly_gtest
-        ./utils/googletest/src/gtest-all.cc
-        ./utils/googlemock/src/gmock-all.cc
+        ./lib/googletest/src/gtest-all.cc
+        ./lib/googlemock/src/gmock-all.cc
         )
 
 add_library(fly_gtest_main
         TestMain.cpp
         )
-
-target_link_libraries(fly_gtest_main
-        fly_gtest
-        LLVMSupport)
 
 add_executable(fly_test
         ASTTest.cpp
