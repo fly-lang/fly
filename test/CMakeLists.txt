@@ -3,16 +3,9 @@
 ######################################
 
 message(STATUS "Adding GoogleTest")
-include_directories(
-        ./lib/googletest
-        ./lib/googletest/include
-        ./lib/googlemock
-        ./lib/googlemock/include
+add_subdirectory(
+        ./googletest
 )
-add_library(fly_gtest
-        ./lib/googletest/src/gtest-all.cc
-        ./lib/googlemock/src/gmock-all.cc
-        )
 
 add_executable(fly_test
         ASTTest.cpp
@@ -26,7 +19,8 @@ add_executable(fly_test
         )
 
 target_link_libraries(fly_test PRIVATE
-        fly_gtest
+        gtest gtest_main
+        gmock
         FlyBasic
         FlyLex
         FlyParser
