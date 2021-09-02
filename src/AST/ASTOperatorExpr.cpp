@@ -18,6 +18,7 @@ ASTOperatorExpr::ASTOperatorExpr(const SourceLocation &Loc) : ASTExpr(Loc) {
 
 ASTType *ASTOperatorExpr::getType() const {
     assert(0 && "Unknown Type from Operator Expr");
+    return nullptr;
 }
 
 ExprKind ASTOperatorExpr::getKind() const {
