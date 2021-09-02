@@ -75,7 +75,15 @@ add_subdirectory(test/googletest)
 # when building with Visual Studio
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 
-
+# Compile with /MT instead of /MD using CMake
+# https://stackoverflow.com/questions/14172856/compile-with-mt-instead-of-md-using-cmake
+if(MSVC)
+    add_compile_options(
+            $<$<CONFIG:>:/MT> #---------|
+            $<$<CONFIG:Debug>:/MTd> #---|-- Statically link the runtime libraries
+            $<$<CONFIG:Release>:/MT> #--|
+    )
+endif()
 
 enable_testing()
 add_subdirectory(test)
