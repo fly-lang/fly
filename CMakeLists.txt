@@ -75,5 +75,7 @@ add_subdirectory(test/googletest)
 # when building with Visual Studio
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 
+
+
 enable_testing()
 add_subdirectory(test)
