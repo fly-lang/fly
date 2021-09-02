@@ -4,10 +4,6 @@
 
 message(STATUS "Adding GoogleTest")
 
-add_subdirectory(
-        ./googletest
-)
-
 add_executable(fly_test
         ASTTest.cpp
         CmdTest.cpp
