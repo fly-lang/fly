@@ -460,11 +460,11 @@ DiagnosticIDs::getDiagnosticSeverity(unsigned DiagID, SourceLocation Loc,
   return Result;
 }
 
-static const int16_t DiagArrays[] = {};
+static const int16_t DiagArrays[1] = {};
 
-static const int16_t DiagSubGroups[] = {};
+static const int16_t DiagSubGroups[1] = {};
 
-static const char DiagGroupNames[] = {};
+static const char DiagGroupNames[1] = {};
 
 namespace {
   struct WarningOption {
