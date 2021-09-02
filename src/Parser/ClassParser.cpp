@@ -11,5 +11,5 @@ ClassParser::ClassParser(Parser *P) : P(P){
 }
 
 bool ClassParser::Parse() {
-
+    return true;
 }
