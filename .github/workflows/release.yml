@@ -19,6 +19,9 @@ env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
   BUILD_TYPE: Release
   BUILD_DIR: build
+  WIN_FILE: win-x64.zip
+  MACOS_FILE: macos-x86_64.tar.gz
+  LINUX_FILE: linux-x86_64.tar.gz
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
@@ -76,12 +79,12 @@ jobs:
           cmake --build . --config ${{env.BUILD_TYPE}}
 
       - name: Test
-        working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/test
+        working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}
         # Execute tests defined by the CMake configuration.
         # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
         run: ctest -C ${{env.BUILD_TYPE}} --rerun-failed --output-on-failure
 
-      - name: Read Version (Linux/macOS)
+      - name: Set File Name (Linux)
         id: version-unix
         if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
         run: echo "::set-output name=version::$(${{github.workspace}}/${{env.BUILD_DIR}}/src/fly --version-short)"
@@ -89,41 +92,42 @@ jobs:
       - name: Read Version (Windows)
         id: version-win
         if: matrix.os == 'windows-latest'
+        working-directory: ${{env.BUILD_DIR}}/src
         run: |
-          echo "::set-output name=version::$(& ${{github.workspace}}/${{env.BUILD_DIR}}/src/fly --version-short)"
+          echo "::set-output name=version::$(.\fly --version-short)"
 
       - name: Linux Packaging
         if: matrix.os == 'ubuntu-latest'
         working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/src
-        run: tar -czvf ../fly-${{ steps.version-unix.outputs.version }}-linux-x86_64.tar.gz fly
+        run: tar -czvf ../fly-${{ steps.version-unix.outputs.version }}-${{env.LINUX_FILE}} fly
 
       - name: Windows Packaging
         if: matrix.os == 'windows-latest'
         working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/src
-        run: 7z a ../llvm-${{ steps.version-win.outputs.version }}-win-x64.zip fly
+        run: 7z a ../llvm-${{ steps.version-win.outputs.version }}-${{env.WIN_FILE}} fly
 
       - name: macOS Packaging
         if: matrix.os == 'macos-latest'
         working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/src
-        run: tar -czvf ../fly-${{ steps.version-unix.outputs.version }}-macos-x86_64.tar.gz fly
+        run: tar -czvf ../fly-${{ steps.version-unix.outputs.version }}-${{env.MACOS_FILE}} fly
 
       - uses: actions/upload-artifact@v2
         if: matrix.os == 'ubuntu-latest'
         with:
           name: linux-artifact
-          path: ${{github.workspace}}/${{env.BUILD_DIR}}/fly-${{ steps.version-unix.outputs.version }}-linux-x86_64.tar.gz
+          path: ${{github.workspace}}/${{env.BUILD_DIR}}/fly-${{ steps.version-unix.outputs.version }}-${{env.LINUX_FILE}}
 
       - uses: actions/upload-artifact@v2
         if: matrix.os == 'windows-latest'
         with:
           name: windows-artifact
-          path: ${{github.workspace}}/${{env.BUILD_DIR}}/fly-${{ steps.version-win.outputs.version }}-win-x64.zip
+          path: ${{github.workspace}}/${{env.BUILD_DIR}}/fly-${{ steps.version-win.outputs.version }}-${{env.WIN_FILE}}
 
       - uses: actions/upload-artifact@v2
         if: matrix.os == 'macos-latest'
         with:
           name: macos-artifact
-          path: ${{github.workspace}}/${{env.BUILD_DIR}}/fly-${{ steps.version-unix.outputs.version }}-macos-x86_64.tar.gz
+          path: ${{github.workspace}}/${{env.BUILD_DIR}}/fly-${{ steps.version-unix.outputs.version }}-${{env.MACOS_FILE}}
 
   release:
     needs: [build]
@@ -169,8 +173,8 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: fly-${{ needs.build.outputs.version }}-linux-x86_64.tar.gz
-          asset_name: fly-${{ needs.build.outputs.version }}-linux-x86_64.tar.gz
+          asset_path: fly-${{ needs.build.outputs.version }}-${{env.LINUX_FILE}}
+          asset_name: fly-${{ needs.build.outputs.version }}-${{env.LINUX_FILE}}
           asset_content_type: application/gzip
 
       - name: Windows Upload
@@ -180,8 +184,8 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: fly-${{ needs.build.outputs.version }}-win-x64.zip
-          asset_name: fly-${{ needs.build.outputs.version }}-win-x64.zip
+          asset_path: fly-${{ needs.build.outputs.version }}-${{env.WIN_FILE}}
+          asset_name: fly-${{ needs.build.outputs.version }}-${{env.WIN_FILE}}
           asset_content_type: application/gzip
 
       - name: macOS Upload
@@ -191,6 +195,6 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: fly-${{ needs.build.outputs.version }}-macos-x86_64.tar.gz
-          asset_name: fly-${{ needs.build.outputs.version }}-macos-x86_64.tar.gz
+          asset_path: fly-${{ needs.build.outputs.version }}-${{env.MACOS_FILE}}
+          asset_name: fly-${{ needs.build.outputs.version }}-${{env.MACOS_FILE}}
           asset_content_type: application/gzip
