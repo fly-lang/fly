@@ -1292,7 +1292,6 @@ namespace {
     TEST_F(CodeGenTest, CGForPostBlock) {
         EXPECT_TRUE(createTestFile(testFile));
 
-
         ASTNode *Node = CreateAST(testFile);
 
         ASTFunc *MainFn = new ASTFunc(Node, SourceLoc, new ASTIntType(SourceLoc), "main");

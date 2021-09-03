@@ -73,8 +73,9 @@ add_subdirectory(src)
 # when building with Visual Studio
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 if (MSVC)
-    set(GTEST_LINKED_AS_SHARED_LIBRARY 1)
     message(STATUS "MSVC Build")
+    set(GTEST_LINKED_AS_SHARED_LIBRARY 1)
+    target_compile_options(fly_test PRIVATE /Zp1)
 endif()
 add_subdirectory(test/googletest)
 
