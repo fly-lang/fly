@@ -69,6 +69,13 @@ include_directories(include)
 add_subdirectory(src)
 
 # Add Fly Tests
+# Prevent GoogleTest from overriding our compiler/linker options
+# when building with Visual Studio
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+if (MSVC)
+    set(GTEST_LINKED_AS_SHARED_LIBRARY 1)
+    message(STATUS "MSVC Build")
+endif()
 add_subdirectory(test/googletest)
 
 enable_testing()
