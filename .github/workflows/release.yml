@@ -31,6 +31,10 @@ jobs:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
     runs-on: ${{ matrix.os }}
 
+    outputs:
+      winversion: ${{ steps.version-win.outputs.version }}
+      unixversion: ${{ steps.version-unix.outputs.version }}
+
     steps:
       - uses: actions/checkout@v2
 
@@ -77,14 +81,13 @@ jobs:
         # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
         run: ctest -C ${{env.BUILD_TYPE}} --rerun-failed --output-on-failure
 
-      - name: Read Version
-        id: version
+      - name: Read Version (Linux/macOS)
+        id: version-unix
         if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
-        run: |
-          echo "::set-output name=version::$(${{github.workspace}}/${{env.BUILD_DIR}}/src/fly --version-short)"
+        run: echo "::set-output name=version::$(${{github.workspace}}/${{env.BUILD_DIR}}/src/fly --version-short)"
 
-      - name: Read Version
-        id: version
+      - name: Read Version (Windows)
+        id: version-win
         if: matrix.os == 'windows-latest'
         run: |
           echo "::set-output name=version::$(& ${{github.workspace}}/${{env.BUILD_DIR}}/src/fly --version-short)"
@@ -92,35 +95,35 @@ jobs:
       - name: Linux Packaging
         if: matrix.os == 'ubuntu-latest'
         working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/src
-        run: tar -czvf ../fly-${{ steps.version.outputs.version }}-linux-x86_64.tar.gz fly
+        run: tar -czvf ../fly-${{ steps.version-unix.outputs.version }}-linux-x86_64.tar.gz fly
 
       - name: Windows Packaging
         if: matrix.os == 'windows-latest'
         working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/src
-        run: 7z a ../llvm-${{ steps.version.outputs.version }}-win-x64.zip fly
+        run: 7z a ../llvm-${{ steps.version-win.outputs.version }}-win-x64.zip fly
 
       - name: macOS Packaging
         if: matrix.os == 'macos-latest'
         working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/src
-        run: tar -czvf ../fly-${{ steps.version.outputs.version }}-macos-x86_64.tar.gz fly
+        run: tar -czvf ../fly-${{ steps.version-unix.outputs.version }}-macos-x86_64.tar.gz fly
 
       - uses: actions/upload-artifact@v2
         if: matrix.os == 'ubuntu-latest'
         with:
           name: linux-artifact
-          path: ${{github.workspace}}/${{env.BUILD_DIR}}/fly-${{ steps.version.outputs.version }}-linux-x86_64.tar.gz
+          path: ${{github.workspace}}/${{env.BUILD_DIR}}/fly-${{ steps.version-unix.outputs.version }}-linux-x86_64.tar.gz
 
       - uses: actions/upload-artifact@v2
         if: matrix.os == 'windows-latest'
         with:
           name: windows-artifact
-          path: ${{github.workspace}}/${{env.BUILD_DIR}}/fly-${{ steps.version.outputs.version }}-win-x64.zip
+          path: ${{github.workspace}}/${{env.BUILD_DIR}}/fly-${{ steps.version-win.outputs.version }}-win-x64.zip
 
       - uses: actions/upload-artifact@v2
         if: matrix.os == 'macos-latest'
         with:
           name: macos-artifact
-          path: ${{github.workspace}}/${{env.BUILD_DIR}}/fly-${{ steps.version.outputs.version }}-macos-x86_64.tar.gz
+          path: ${{github.workspace}}/${{env.BUILD_DIR}}/fly-${{ steps.version-unix.outputs.version }}-macos-x86_64.tar.gz
 
   release:
     needs: [build]
@@ -166,8 +169,8 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: fly-${{ steps.version.outputs.version }}-linux-x86_64.tar.gz
-          asset_name: fly-${{ steps.version.outputs.version }}-linux-x86_64.tar.gz
+          asset_path: fly-${{ needs.build.outputs.version }}-linux-x86_64.tar.gz
+          asset_name: fly-${{ needs.build.outputs.version }}-linux-x86_64.tar.gz
           asset_content_type: application/gzip
 
       - name: Windows Upload
@@ -177,8 +180,8 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: fly-${{ steps.version.outputs.version }}-win-x64.zip
-          asset_name: fly-${{ steps.version.outputs.version }}-win-x64.zip
+          asset_path: fly-${{ needs.build.outputs.version }}-win-x64.zip
+          asset_name: fly-${{ needs.build.outputs.version }}-win-x64.zip
           asset_content_type: application/gzip
 
       - name: macOS Upload
@@ -188,6 +191,6 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: fly-${{ steps.version.outputs.version }}-macos-x86_64.tar.gz
-          asset_name: fly-${{ steps.version.outputs.version }}-macos-x86_64.tar.gz
+          asset_path: fly-${{ needs.build.outputs.version }}-macos-x86_64.tar.gz
+          asset_name: fly-${{ needs.build.outputs.version }}-macos-x86_64.tar.gz
           asset_content_type: application/gzip
