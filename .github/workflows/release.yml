@@ -92,9 +92,8 @@ jobs:
       - name: Read Version (Windows)
         id: version-win
         if: matrix.os == 'windows-latest'
-        working-directory: ${{env.BUILD_DIR}}/src
-        run: |
-          echo "::set-output name=version::$(.\fly --version-short)"
+        working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}\src
+        run: echo "::set-output name=version::$(.\fly --version-short)"
 
       - name: Linux Packaging
         if: matrix.os == 'ubuntu-latest'
