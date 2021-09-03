@@ -12,11 +12,18 @@
 
 using namespace fly;
 
-ASTForBlock::ASTForBlock(const SourceLocation &Loc, ASTBlock *Parent) : ASTBlock(Loc, Parent) {
-    Init = new ASTBlock(Loc, this);
-    Cond = new ASTBlock(Loc, Init);
-    Post = new ASTBlock(Loc, Init);
-    Loop = new ASTBlock(Loc, Init);
+ASTForBlock::ASTForBlock(const SourceLocation &Loc, ASTBlock *Parent) : ASTBlock(Loc, Parent),
+    Init(new ASTBlock(Loc, this)),
+    Cond(new ASTBlock(Loc, Init)),
+    Post(new ASTBlock(Loc, Init)),
+    Loop(new ASTBlock(Loc, Init)) {
+}
+
+ASTForBlock::~ASTForBlock() {
+    delete Init;
+    delete Cond;
+    delete Post;
+    delete Loop;
 }
 
 enum BlockStmtKind ASTForBlock::getBlockKind() const {

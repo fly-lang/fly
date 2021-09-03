@@ -30,6 +30,8 @@ namespace fly {
     public:
         ASTForBlock(const SourceLocation &Loc, ASTBlock *Parent);
 
+        virtual ~ASTForBlock();
+
         enum BlockStmtKind getBlockKind() const override;
 
         ASTBlock *getInit();
