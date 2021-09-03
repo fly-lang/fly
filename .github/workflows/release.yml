@@ -84,7 +84,7 @@ jobs:
         # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
         run: ctest -C ${{env.BUILD_TYPE}} --rerun-failed --output-on-failure
 
-      - name: Set File Name (Linux)
+      - name: Read Version (Linux)
         id: version-unix
         if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
         run: echo "::set-output name=version::$(${{github.workspace}}/${{env.BUILD_DIR}}/src/fly --version-short)"
@@ -93,7 +93,9 @@ jobs:
         id: version-win
         if: matrix.os == 'windows-latest'
         working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}\src
-        run: echo "::set-output name=version::$(.\fly --version-short)"
+        run: |
+          $ver = & ".\fly --version-short"
+          echo "::set-output name=version::$ver"
 
       - name: Linux Packaging
         if: matrix.os == 'ubuntu-latest'
