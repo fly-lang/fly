@@ -79,8 +79,16 @@ jobs:
 
       - name: Read Version
         id: version
+        if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
         run: |
           echo "::set-output name=version::$(${{github.workspace}}/${{env.BUILD_DIR}}/src/fly --version-short)"
+
+      - name: Read Version
+        id: version
+        if: matrix.os == 'windows-latest'
+        run: |
+          $version = & "${{github.workspace}}/${{env.BUILD_DIR}}/src/fly --version-short"
+          echo "::set-output name=version::$($version)"
 
       - name: Linux Packaging
         if: matrix.os == 'ubuntu-latest'
