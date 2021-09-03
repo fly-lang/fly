@@ -16,13 +16,11 @@
 #include "Basic/TargetInfo.h"
 #include "Basic/TargetOptions.h"
 #include "Basic/TokenKinds.h"
-#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include <vector>
 
 namespace {
     using namespace fly;
-    using testing::ElementsAre;
 
     // The test fixture.
     class LexerTest : public ::testing::Test {

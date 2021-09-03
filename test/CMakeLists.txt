@@ -14,13 +14,9 @@ add_executable(fly_test
         ParserTest.cpp
         TestMain.cpp
         )
-# Resolve SEH exception with code 0xc0000005 thrown in the test body
-if (MSVC)
-    target_compile_options(fly_test PRIVATE /Zp1)
-endif()
 
 target_link_libraries(fly_test PRIVATE
-        gmock_main
+        gtest_main
         FlyBasic
         FlyLex
         FlyParser

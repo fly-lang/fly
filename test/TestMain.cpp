@@ -9,13 +9,12 @@
 #include "llvm/Support/Signals.h"
 #include "llvm/ADT/StringRef.h"
 #include "gtest/gtest.h"
-#include "gmock/gmock.h"
 
 int main(int Argc, char **Argv) {
   llvm::sys::PrintStackTraceOnErrorSignal(Argv[0],true /* Disable crash reporting */);
 
   // Initialize both gmock and gtest.
-  ::testing::InitGoogleMock(&Argc, Argv);
+  ::testing::InitGoogleTest(&Argc, Argv);
 
   return RUN_ALL_TESTS();
 }
