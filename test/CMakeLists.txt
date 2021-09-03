@@ -4,6 +4,10 @@
 
 message(STATUS "Adding GoogleTest")
 
+add_library(fly_test_main
+        TestMain.cpp)
+target_link_libraries(fly_test_main gmock_main)
+
 add_executable(fly_test
         ASTTest.cpp
         CmdTest.cpp
@@ -12,11 +16,10 @@ add_executable(fly_test
         FrontendTest.cpp
         LexerTest.cpp
         ParserTest.cpp
-        TestMain.cpp
         )
 
 target_link_libraries(fly_test PRIVATE
-        gmock_main
+        fly_test_main
         FlyBasic
         FlyLex
         FlyParser
