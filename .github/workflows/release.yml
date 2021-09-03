@@ -80,7 +80,7 @@ jobs:
       - name: Read Version
         id: version
         run: |
-          echo "::set-output name=version::$($GITHUB_WORKSPACE/$BUILD_DIR/src/fly --version-short)"
+          echo "::set-output name=version::$(${{github.workspace}}/${{env.BUILD_DIR}}/src/fly --version-short)"
 
       - name: Linux Packaging
         if: matrix.os == 'ubuntu-latest'
