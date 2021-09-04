@@ -1229,65 +1229,65 @@ namespace {
         deleteTestFile(testFile);
     }
 
-    TEST_F(CodeGenTest, CGForCondBlock) {
-        EXPECT_TRUE(createTestFile(testFile));
-
-        ASTNode *Node = CreateAST(testFile);
-
-        ASTFunc *MainFn = new ASTFunc(Node, SourceLoc, new ASTIntType(SourceLoc), "main");
-        MainFn->setVisibility(V_PRIVATE);
-        ASTFuncParam *Param = MainFn->addParam(SourceLoc, new ASTIntType(SourceLoc), "a");
-        Node->addFunction(MainFn);
-
-        ASTForBlock *ForBlock = new ASTForBlock(SourceLoc, MainFn->getBody());
-        ASTValueExpr *OneCost = new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc)));
-
-        //Cond
-        ASTGroupExpr *Cond = new ASTGroupExpr(SourceLoc);
-        ASTComparisonExpr *Comp = new ASTComparisonExpr(SourceLoc, COMP_LTE);
-        ASTVarRefExpr *InitVarRef = new ASTVarRefExpr(SourceLoc, new ASTVarRef(Param));
-        Cond->Add(InitVarRef);
-        Cond->Add(Comp);
-        Cond->Add(OneCost);
-        ForBlock->setCond(Cond);
-
-        ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, ForBlock->getLoop(), Param);
-        A2->setExpr(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc))));
-        ForBlock->getLoop()->addVar(A2);
-        ForBlock->getLoop()->addContinue(SourceLoc);
-        MainFn->getBody()->addBlock(SourceLoc, ForBlock);
-
-        MainFn->getBody()->addReturn(SourceLoc, OneCost);
-        Node->Resolve();
-
-        // Generate Code
-        CodeGenModule *CGM = Node->getCodeGen();
-        Function *F = CGM->GenFunction(MainFn)->getFunction();
-        testing::internal::CaptureStdout();
-        F->print(llvm::outs());
-        std::string output = testing::internal::GetCapturedStdout();
-
-        EXPECT_EQ(output, "define i32 @main(i32 %0) {\n"
-                          "entry:\n"
-                          "  %1 = alloca i32, align 4\n"
-                          "  store i32 %0, i32* %1, align 4\n"
-                          "  br label %forcond\n"
-                          "\n"
-                          "forcond:                                          ; preds = %forloop, %entry\n"
-                          "  %2 = load i32, i32* %1, align 4\n"
-                          "  %3 = icmp sle i32 %2, 1\n"
-                          "  br i1 %3, label %forloop, label %endfor\n"
-                          "\n"
-                          "forloop:                                          ; preds = %forcond\n"
-                          "  store i32 1, i32* %1, align 4\n"
-                          "  br label %forcond\n"
-                          "\n"
-                          "endfor:                                           ; preds = %forcond\n"
-                          "  ret i32 1\n"
-                          "}\n");
-        delete Node;
-        deleteTestFile(testFile);
-    }
+//    TEST_F(CodeGenTest, CGForCondBlock) {
+//        EXPECT_TRUE(createTestFile(testFile));
+//
+//        ASTNode *Node = CreateAST(testFile);
+//
+//        ASTFunc *MainFn = new ASTFunc(Node, SourceLoc, new ASTIntType(SourceLoc), "main");
+//        MainFn->setVisibility(V_PRIVATE);
+//        ASTFuncParam *Param = MainFn->addParam(SourceLoc, new ASTIntType(SourceLoc), "a");
+//        Node->addFunction(MainFn);
+//
+//        ASTForBlock *ForBlock = new ASTForBlock(SourceLoc, MainFn->getBody());
+//        ASTValueExpr *OneCost = new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc)));
+//
+//        //Cond
+//        ASTGroupExpr *Cond = new ASTGroupExpr(SourceLoc);
+//        ASTComparisonExpr *Comp = new ASTComparisonExpr(SourceLoc, COMP_LTE);
+//        ASTVarRefExpr *InitVarRef = new ASTVarRefExpr(SourceLoc, new ASTVarRef(Param));
+//        Cond->Add(InitVarRef);
+//        Cond->Add(Comp);
+//        Cond->Add(OneCost);
+//        ForBlock->setCond(Cond);
+//
+//        ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, ForBlock->getLoop(), Param);
+//        A2->setExpr(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc))));
+//        ForBlock->getLoop()->addVar(A2);
+//        ForBlock->getLoop()->addContinue(SourceLoc);
+//        MainFn->getBody()->addBlock(SourceLoc, ForBlock);
+//
+//        MainFn->getBody()->addReturn(SourceLoc, OneCost);
+//        Node->Resolve();
+//
+//        // Generate Code
+//        CodeGenModule *CGM = Node->getCodeGen();
+//        Function *F = CGM->GenFunction(MainFn)->getFunction();
+//        testing::internal::CaptureStdout();
+//        F->print(llvm::outs());
+//        std::string output = testing::internal::GetCapturedStdout();
+//
+//        EXPECT_EQ(output, "define i32 @main(i32 %0) {\n"
+//                          "entry:\n"
+//                          "  %1 = alloca i32, align 4\n"
+//                          "  store i32 %0, i32* %1, align 4\n"
+//                          "  br label %forcond\n"
+//                          "\n"
+//                          "forcond:                                          ; preds = %forloop, %entry\n"
+//                          "  %2 = load i32, i32* %1, align 4\n"
+//                          "  %3 = icmp sle i32 %2, 1\n"
+//                          "  br i1 %3, label %forloop, label %endfor\n"
+//                          "\n"
+//                          "forloop:                                          ; preds = %forcond\n"
+//                          "  store i32 1, i32* %1, align 4\n"
+//                          "  br label %forcond\n"
+//                          "\n"
+//                          "endfor:                                           ; preds = %forcond\n"
+//                          "  ret i32 1\n"
+//                          "}\n");
+//        delete Node;
+//        deleteTestFile(testFile);
+//    }
 
     TEST_F(CodeGenTest, CGForPostBlock) {
         EXPECT_TRUE(createTestFile(testFile));
