@@ -84,7 +84,7 @@ jobs:
         # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
         run: ctest -C ${{env.BUILD_TYPE}} --rerun-failed --output-on-failure
 
-      - name: Read Version (Linux)
+      - name: Read Version (Unix)
         id: version-unix
         if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
         run: echo "::set-output name=version::$(${{github.workspace}}/${{env.BUILD_DIR}}/src/fly --version-short)"
@@ -104,7 +104,7 @@ jobs:
       - name: Windows Packaging
         if: matrix.os == 'windows-latest'
         working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}\src\${{env.BUILD_TYPE}}
-        run: 7z a ..\..\llvm-${{ steps.version-win.outputs.version }}-${{env.WIN_FILE}} fly.exe
+        run: 7z a ..\..\fly-${{ steps.version-win.outputs.version }}-${{env.WIN_FILE}} fly.exe
 
       - name: macOS Packaging
         if: matrix.os == 'macos-latest'
@@ -140,35 +140,31 @@ jobs:
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
+      - uses: actions/download-artifact@v2
+        with:
+          name: linux-artifact
+
+      - uses: actions/download-artifact@v2
+        with:
+          name: windows-artifact
+
+      - uses: actions/download-artifact@v2
+        with:
+          name: macos-artifact
+
       - name: Release
         uses: actions/create-release@v1
         id: create_release
         with:
           draft: false
           prerelease: true
-          release_name: Fly ${{env.FLY_VERSION}} Pre-release
-          tag_name: v${{env.FLY_VERSION}}
+          release_name: Fly ${{ needs.build.outputs.version }} Pre-release
+          tag_name: v${{ needs.build.outputs.version }}
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
-      - uses: actions/download-artifact@v2
-        if: matrix.os == 'ubuntu-latest'
-        with:
-          name: linux-artifact
-
-      - uses: actions/download-artifact@v2
-        if: matrix.os == 'windows-latest'
-        with:
-          name: windows-artifact
-
-      - uses: actions/download-artifact@v2
-        if: matrix.os == 'macos-latest'
-        with:
-          name: macos-artifact
-
       - name: Linux Upload
         uses: actions/upload-release-asset@v1
-        if: matrix.os == 'ubuntu-latest'
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
@@ -179,7 +175,6 @@ jobs:
 
       - name: Windows Upload
         uses: actions/upload-release-asset@v1
-        if: matrix.os == 'windows-latest'
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
@@ -190,7 +185,6 @@ jobs:
 
       - name: macOS Upload
         uses: actions/upload-release-asset@v1
-        if: matrix.os == 'macos-latest'
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
