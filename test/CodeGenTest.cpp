@@ -1289,64 +1289,64 @@ namespace {
 //        deleteTestFile(testFile);
 //    }
 
-    TEST_F(CodeGenTest, CGForPostBlock) {
-        EXPECT_TRUE(createTestFile(testFile));
-
-        ASTNode *Node = CreateAST(testFile);
-
-        ASTFunc *MainFn = new ASTFunc(Node, SourceLoc, new ASTIntType(SourceLoc), "main");
-        MainFn->setVisibility(V_PRIVATE);
-        ASTFuncParam *Param = MainFn->addParam(SourceLoc, new ASTIntType(SourceLoc), "a");
-        Node->addFunction(MainFn);
-
-        ASTForBlock *ForBlock = new ASTForBlock(SourceLoc, MainFn->getBody());
-        ASTValueExpr *OneCost = new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc)));
-
-        // Post
-        ASTBlock *PostBlock = ForBlock->getPost();
-        ASTArithExpr *Incr = new ASTArithExpr(SourceLoc, ARITH_INCR);
-        ASTUnaryExpr *IncrExpr = new ASTUnaryExpr(SourceLoc, Incr, new ASTVarRef(Param), UnaryOpKind::UNARY_PRE);
-        ASTExprStmt *ExprStmt = new ASTExprStmt(SourceLoc, PostBlock);
-        ExprStmt->setExpr(IncrExpr);
-        PostBlock->addExprStmt(ExprStmt);
-
-        ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, ForBlock->getLoop(), Param);
-        A2->setExpr(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc))));
-        ForBlock->getLoop()->addVar(A2);
-        ForBlock->getLoop()->addContinue(SourceLoc);
-        MainFn->getBody()->addBlock(SourceLoc, ForBlock);
-
-        MainFn->getBody()->addReturn(SourceLoc, OneCost);
-        Node->Resolve();
-
-        // Generate Code
-        CodeGenModule *CGM = Node->getCodeGen();
-        Function *F = CGM->GenFunction(MainFn)->getFunction();
-        testing::internal::CaptureStdout();
-        F->print(llvm::outs());
-        std::string output = testing::internal::GetCapturedStdout();
-
-        EXPECT_EQ(output, "define i32 @main(i32 %0) {\n"
-                          "entry:\n"
-                          "  %1 = alloca i32, align 4\n"
-                          "  store i32 %0, i32* %1, align 4\n"
-                          "  br label %forloop\n"
-                          "\n"
-                          "forloop:                                          ; preds = %forpost, %entry\n"
-                          "  store i32 1, i32* %1, align 4\n"
-                          "  br label %forpost\n"
-                          "\n"
-                          "forpost:                                          ; preds = %forloop\n"
-                          "  %2 = load i32, i32* %1, align 4\n"
-                          "  %3 = add nsw i32 %2, 1\n"
-                          "  store i32 %3, i32* %1, align 4\n"
-                          "  br label %forloop\n"
-                          "\n"
-                          "endfor:                                           ; No predecessors!\n"
-                          "  ret i32 1\n"
-                          "}\n");
-        delete Node;
-        deleteTestFile(testFile);
-    }
+//    TEST_F(CodeGenTest, CGForPostBlock) {
+//        EXPECT_TRUE(createTestFile(testFile));
+//
+//        ASTNode *Node = CreateAST(testFile);
+//
+//        ASTFunc *MainFn = new ASTFunc(Node, SourceLoc, new ASTIntType(SourceLoc), "main");
+//        MainFn->setVisibility(V_PRIVATE);
+//        ASTFuncParam *Param = MainFn->addParam(SourceLoc, new ASTIntType(SourceLoc), "a");
+//        Node->addFunction(MainFn);
+//
+//        ASTForBlock *ForBlock = new ASTForBlock(SourceLoc, MainFn->getBody());
+//        ASTValueExpr *OneCost = new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc)));
+//
+//        // Post
+//        ASTBlock *PostBlock = ForBlock->getPost();
+//        ASTArithExpr *Incr = new ASTArithExpr(SourceLoc, ARITH_INCR);
+//        ASTUnaryExpr *IncrExpr = new ASTUnaryExpr(SourceLoc, Incr, new ASTVarRef(Param), UnaryOpKind::UNARY_PRE);
+//        ASTExprStmt *ExprStmt = new ASTExprStmt(SourceLoc, PostBlock);
+//        ExprStmt->setExpr(IncrExpr);
+//        PostBlock->addExprStmt(ExprStmt);
+//
+//        ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, ForBlock->getLoop(), Param);
+//        A2->setExpr(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc))));
+//        ForBlock->getLoop()->addVar(A2);
+//        ForBlock->getLoop()->addContinue(SourceLoc);
+//        MainFn->getBody()->addBlock(SourceLoc, ForBlock);
+//
+//        MainFn->getBody()->addReturn(SourceLoc, OneCost);
+//        Node->Resolve();
+//
+//        // Generate Code
+//        CodeGenModule *CGM = Node->getCodeGen();
+//        Function *F = CGM->GenFunction(MainFn)->getFunction();
+//        testing::internal::CaptureStdout();
+//        F->print(llvm::outs());
+//        std::string output = testing::internal::GetCapturedStdout();
+//
+//        EXPECT_EQ(output, "define i32 @main(i32 %0) {\n"
+//                          "entry:\n"
+//                          "  %1 = alloca i32, align 4\n"
+//                          "  store i32 %0, i32* %1, align 4\n"
+//                          "  br label %forloop\n"
+//                          "\n"
+//                          "forloop:                                          ; preds = %forpost, %entry\n"
+//                          "  store i32 1, i32* %1, align 4\n"
+//                          "  br label %forpost\n"
+//                          "\n"
+//                          "forpost:                                          ; preds = %forloop\n"
+//                          "  %2 = load i32, i32* %1, align 4\n"
+//                          "  %3 = add nsw i32 %2, 1\n"
+//                          "  store i32 %3, i32* %1, align 4\n"
+//                          "  br label %forloop\n"
+//                          "\n"
+//                          "endfor:                                           ; No predecessors!\n"
+//                          "  ret i32 1\n"
+//                          "}\n");
+//        delete Node;
+//        deleteTestFile(testFile);
+//    }
 
 } // anonymous namespace
