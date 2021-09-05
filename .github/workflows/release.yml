@@ -94,8 +94,7 @@ jobs:
         if: matrix.os == 'windows-latest'
         working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}\src\${{env.BUILD_TYPE}}
         run: |
-          $ver = & ".\fly" --version-short
-          echo "::set-output name=version::$(fly.exe --version-short)"
+          echo "::set-output name=version::$(.\fly.exe --version-short)"
 
       - name: Linux Packaging
         if: matrix.os == 'ubuntu-latest'
