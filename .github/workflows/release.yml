@@ -19,6 +19,7 @@ env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
   BUILD_TYPE: Release
   BUILD_DIR: build
+  LLVM_VERSION: 11.1.0
   WIN_FILE: win-x64.zip
   MACOS_FILE: macos-x86_64.tar.gz
   LINUX_FILE: linux-x86_64.tar.gz
@@ -52,14 +53,14 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         working-directory: ${{github.workspace}}/llvm
         run: |
-          wget -q https://github.com/fly-lang/llvm-project/releases/download/v11.1.0-linux-x86_64/llvm-11.1.0-x86_64-linux-gnu.tar.gz
+          wget -q https://github.com/fly-lang/llvm-project/releases/download/v${{env.LLVM_VERSION}}-linux-x86_64/llvm-11.1.0-x86_64-linux-gnu.tar.gz
           tar -zxvf *.tar.gz
 
       - name: Download LLVM (macOS Release)
         if: matrix.os == 'macos-latest'
         working-directory: ${{github.workspace}}/llvm
         run: |
-          wget -q https://github.com/fly-lang/llvm-project/releases/download/v11.1.0-macos-x86_64/llvm-11.1.0-x86_64-apple-darwin.tar.gz
+          wget -q https://github.com/fly-lang/llvm-project/releases/download/v${{env.LLVM_VERSION}}-macos-x86_64/llvm-11.1.0-x86_64-apple-darwin.tar.gz
           tar -zxvf *.tar.gz
 
       - name: Download LLVM (Windows Release)
@@ -67,7 +68,7 @@ jobs:
         working-directory: ${{github.workspace}}/llvm
         shell: pwsh
         run: |
-          Invoke-WebRequest -Uri https://github.com/fly-lang/llvm-project/releases/download/v11.1.0-win-x64/llvm-11.1.0-win-x64.zip -OutFile llvm.zip
+          Invoke-WebRequest -Uri https://github.com/fly-lang/llvm-project/releases/download/v${{env.LLVM_VERSION}}-win-x64/llvm-11.1.0-win-x64.zip -OutFile llvm.zip
           7z x *.zip
 
       - name: Configure & Build
