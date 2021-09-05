@@ -36,7 +36,7 @@ jobs:
 
     outputs:
       winversion: ${{ steps.version-win.outputs.version }}
-      unixversion: ${{ steps.version-unix.outputs.version }}
+      version: ${{ steps.version.outputs.version }}
 
     steps:
       - uses: actions/checkout@v2
@@ -85,7 +85,7 @@ jobs:
         run: ctest -C ${{env.BUILD_TYPE}} --rerun-failed --output-on-failure
 
       - name: Read Version (Unix)
-        id: version-unix
+        id: version
         if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
         run: echo "::set-output name=version::$(${{github.workspace}}/${{env.BUILD_DIR}}/src/fly --version-short)"
 
@@ -99,7 +99,7 @@ jobs:
       - name: Linux Packaging
         if: matrix.os == 'ubuntu-latest'
         working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/src
-        run: tar -czvf ../fly-${{ steps.version-unix.outputs.version }}-${{env.LINUX_FILE}} fly
+        run: tar -czvf ../fly-${{ steps.version.outputs.version }}-${{env.LINUX_FILE}} fly
 
       - name: Windows Packaging
         if: matrix.os == 'windows-latest'
@@ -109,13 +109,13 @@ jobs:
       - name: macOS Packaging
         if: matrix.os == 'macos-latest'
         working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/src
-        run: tar -czvf ../fly-${{ steps.version-unix.outputs.version }}-${{env.MACOS_FILE}} fly
+        run: tar -czvf ../fly-${{ steps.version.outputs.version }}-${{env.MACOS_FILE}} fly
 
       - uses: actions/upload-artifact@v2
         if: matrix.os == 'ubuntu-latest'
         with:
           name: linux-artifact
-          path: ${{github.workspace}}/${{env.BUILD_DIR}}/fly-${{ steps.version-unix.outputs.version }}-${{env.LINUX_FILE}}
+          path: ${{github.workspace}}/${{env.BUILD_DIR}}/fly-${{ steps.version.outputs.version }}-${{env.LINUX_FILE}}
 
       - uses: actions/upload-artifact@v2
         if: matrix.os == 'windows-latest'
@@ -127,7 +127,7 @@ jobs:
         if: matrix.os == 'macos-latest'
         with:
           name: macos-artifact
-          path: ${{github.workspace}}/${{env.BUILD_DIR}}/fly-${{ steps.version-unix.outputs.version }}-${{env.MACOS_FILE}}
+          path: ${{github.workspace}}/${{env.BUILD_DIR}}/fly-${{ steps.version.outputs.version }}-${{env.MACOS_FILE}}
 
   release:
     needs: [build]
