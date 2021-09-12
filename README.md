@@ -1,5 +1,5 @@
 <!-- PROJECT LOGO -->
-[![CMake](https://github.com/fly-lang/fly/actions/workflows/cmake.yml/badge.svg)](https://github.com/fly-lang/fly/actions/workflows/cmake.yml)
+[![Release](https://github.com/fly-lang/fly/actions/workflows/release.yml/badge.svg)](https://github.com/fly-lang/fly/actions/workflows/release.yml)
 <br />
 <p align="center">
   <a href="https://github.com/fly-lang/fly">
