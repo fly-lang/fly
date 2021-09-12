@@ -3,7 +3,7 @@
 <br />
 <p align="center">
   <a href="https://github.com/fly-lang/fly">
-    <img src="https://github.com/fly-lang/web/blob/main/img/flylang-logo.png" alt="Logo" width="80" height="80">
+    <img src="https://github.com/fly-lang/web/blob/main/src/img/flylang-logo.png" alt="Logo" width="80" height="80">
   </a>
 
   <h3 align="center">Fly Programming Language</h3>
