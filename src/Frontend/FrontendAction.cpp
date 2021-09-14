@@ -34,6 +34,7 @@ ASTNode *FrontendAction::getAST() {
 
 bool FrontendAction::Parse(InputFile & Input) {
     bool Success = false;
+    Diags.getClient()->BeginSourceFile();
 
     if (P == nullptr) {
         // Create CodeGen
@@ -44,14 +45,17 @@ bool FrontendAction::Parse(InputFile & Input) {
 
         // Create Parser and start to parse
         P = new Parser(Input, SourceMgr, Diags);
-        Success = P->Parse(AST) && Context->AddNode(AST);
+        Success &= P->Parse(AST) && Context->AddNode(AST);
     }
 
+    Diags.getClient()->EndSourceFile();
     return Success;
 }
 
 bool FrontendAction::Compile() {
     assert(AST && "AST not built, need a Parse()");
+    Diags.getClient()->BeginSourceFile();
+
     // Manage Top Decl
     AST->getGlobalVars().begin();
     for (const auto &V : AST->getGlobalVars()) {
@@ -60,9 +64,14 @@ bool FrontendAction::Compile() {
     for (ASTFunc *F : AST->getFunctions()) {
         CGM->GenFunction(F);
     }
-    return true;
+
+    Diags.getClient()->EndSourceFile();
+    return Diags.hasErrorOccurred();
 }
 
 bool FrontendAction::EmitOutput() {
-    return CG.Emit(CGM);
+    Diags.getClient()->BeginSourceFile();
+    CG.Emit(CGM);
+    Diags.getClient()->EndSourceFile();
+    return Diags.hasErrorOccurred();
 }

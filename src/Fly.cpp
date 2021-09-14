@@ -56,7 +56,9 @@ int main(int Argc, const char **Argv)
 
     Driver driver(Args);
     CompilerInstance &CI = driver.BuildCompilerInstance();
-    driver.Execute();
+    if (!driver.Execute()) {
+        llvm::outs() << "Fly Compiler Error\n";
+    }
 
     // Set an error handler, so that any LLVM backend diagnostics go through our error handler.
     llvm::install_fatal_error_handler(LLVMErrorHandler, static_cast<void*>(&CI.getDiagnostics()));

@@ -266,7 +266,7 @@ bool ASTNode::ResolveFunction(ASTFunc *Function,
     for (auto *UnRefCall : UnRefCalls) {
         const auto &It = ResolvedCalls.find(UnRefCall->getName());
         if (It == ResolvedCalls.end()) {
-            Context->Diag(UnRefCall->getLocation(), diag::err_func_notfound)
+            Context->Diag(UnRefCall->getLocation(), diag::err_unref_call)
                     << UnRefCall->getName();
             Success = false; // collects other errors
         } else {
@@ -278,7 +278,7 @@ bool ASTNode::ResolveFunction(ASTFunc *Function,
                 }
             }
             if (!Success) { // Not Found
-                Context->Diag(UnRefCall->getLocation(), diag::err_func_notfound)
+                Context->Diag(UnRefCall->getLocation(), diag::err_unref_call)
                         << UnRefCall->getName();
             }
         }

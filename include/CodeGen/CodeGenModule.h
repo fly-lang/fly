@@ -74,13 +74,13 @@ namespace fly {
 
         DiagnosticBuilder Diag(const SourceLocation &Loc, unsigned DiagID);
 
-        CodeGenGlobalVar *GenGlobalVar(ASTGlobalVar *VDecl);
+        CodeGenGlobalVar *GenGlobalVar(ASTGlobalVar *AST);
 
         CodeGenFunction *GenFunction(ASTFunc *FDecl);
 
         CallInst *GenCall(llvm::Function *Fn, ASTFuncCall *Call);
 
-        Type *GenType(const ASTType *Ty);
+        Type *GenType(const ASTType *Type);
 
         llvm::Constant *GenValue(const ASTType *TyData, const ASTValue *Val);
 

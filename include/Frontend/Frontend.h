@@ -16,8 +16,12 @@
 #include "Basic/Diagnostic.h"
 #include "AST/ASTContext.h"
 
+namespace llvm {
+    class TimerGroup;
+    class Timer;
+}
+
 namespace fly {
-    using namespace llvm;
 
     class FrontendAction;
     class CompilerInstance;
@@ -36,6 +40,12 @@ namespace fly {
 
         std::vector<FrontendAction *> Actions;
 
+        /// The frontend timer group.
+        std::unique_ptr<llvm::TimerGroup> FrontendTimerGroup;
+
+        /// The frontend timer.
+        std::unique_ptr<llvm::Timer> FrontendTimer;
+
     public:
 
         explicit Frontend(CompilerInstance &CI);
@@ -43,6 +53,8 @@ namespace fly {
         ~Frontend();
 
         bool Execute();
+
+        void createFrontendTimer();
     };
 }
 

@@ -20,7 +20,7 @@
 
 namespace fly {
 
-    enum BackendAction {
+    enum BackendActionKind {
         Backend_EmitAssembly,  ///< Emit native assembly files
         Backend_EmitBC,        ///< Emit LLVM bitcode files
         Backend_EmitLL,        ///< Emit human-readable LLVM assembly
@@ -29,7 +29,7 @@ namespace fly {
     };
 
     void EmitBackendOutput(DiagnosticsEngine &Diags, const CodeGenOptions &CGOpts, const TargetOptions &TOpts,
-                           const llvm::DataLayout &TDesc, llvm::Module *M, BackendAction Action,
+                           bool TimePasses, const llvm::DataLayout &TDesc, llvm::Module *M, BackendActionKind Action,
                            std::unique_ptr<raw_pwrite_stream> OS);
 
     void EmbedBitcode(llvm::Module *M, const CodeGenOptions &CGOpts, llvm::MemoryBufferRef Buf);

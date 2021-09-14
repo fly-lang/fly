@@ -17,7 +17,7 @@ ASTWhileBlock::ASTWhileBlock(const SourceLocation &Loc, ASTBlock *Parent, ASTExp
 
 }
 
-enum BlockStmtKind ASTWhileBlock::getBlockKind() const {
+enum ASTBlockKind ASTWhileBlock::getBlockKind() const {
     return StmtKind;
 }
 

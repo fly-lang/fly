@@ -26,14 +26,18 @@ public:
         CI.getTargetOptions()->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
         CI.getTargetOptions()->CodeModel = "default";
         return new CodeGen(CI.getDiagnostics(), CI.getCodeGenOptions(), CI.getTargetOptions(),
-                   CI.getFrontendOptions().getBackendAction());
+                           CI.getFrontendOptions().BackendAction, CI.getFrontendOptions().ShowTimers);
     }
 
     static std::shared_ptr<CompilerInstance> CreateCompilerInstance() {
-
+        IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts = new DiagnosticOptions;
         IntrusiveRefCntPtr<DiagnosticIDs> DiagID = new DiagnosticIDs();
-        IntrusiveRefCntPtr<DiagnosticsEngine> Diags = new DiagnosticsEngine(DiagID, new DiagnosticOptions,
-                                                                            new IgnoringDiagConsumer());
+        TextDiagnosticPrinter *DiagClient = new TextDiagnosticPrinter(llvm::errs(), &*DiagOpts);
+        IntrusiveRefCntPtr<DiagnosticsEngine> Diags = new DiagnosticsEngine(DiagID, DiagOpts,
+                                                                            DiagClient);
+        ProcessWarningOptions(*Diags, *DiagOpts, /*ReportDiags=*/true);
+
+
         FileSystemOptions fileSystemOpts;
         std::shared_ptr<fly::TargetOptions> targetOpts = std::make_shared<fly::TargetOptions>();
         FrontendOptions *FrontendOpts = new FrontendOptions();

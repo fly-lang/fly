@@ -102,9 +102,9 @@ namespace fly {
 
         bool addUnRefCall(ASTFuncCall *Call);
 
-        void addUnRefGlobalVar(ASTVarRef *Var);
+        void addUnRefGlobalVar(ASTVarRef *VarRef);
 
-        void addNSUnRefGlobalVar(ASTVarRef *Var);
+        void addNSUnRefGlobalVar(ASTVarRef *VarRef);
 
         bool ResolveCall(ASTFuncCall *ResolvedCall, ASTFuncCall *Call);
 

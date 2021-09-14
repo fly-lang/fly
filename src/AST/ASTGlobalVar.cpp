@@ -29,7 +29,6 @@ ASTExpr *ASTGlobalVar::getExpr() const {
 }
 
 void ASTGlobalVar::setExpr(ASTExpr *E) {
-    assert(E->getKind() == EXPR_VALUE && "Invalid Value for GlobalVar");
     Expr = (ASTValueExpr *)E;
 }
 

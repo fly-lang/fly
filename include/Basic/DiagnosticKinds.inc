@@ -109,6 +109,7 @@ DIAG(err_fe_unable_to_open_output, CLASS_ERROR, (unsigned)diag::Severity::Error,
 DIAG(warn_fe_cc_log_diagnostics_failure, CLASS_WARNING, (unsigned)diag::Severity::Warning, "unable to open CC_LOG_DIAGNOSTICS file: %0 (using stderr)", 0, SFINAE_Suppress, false, false, 0)
 DIAG(warn_unknown_diag_option, CLASS_WARNING, (unsigned)diag::Severity::Warning, "unknown %select{warning|remark}0 option '%1'%select{|; did you mean '%3'?}2", 764, SFINAE_Suppress, false, false, 0)
 DIAG(warn_unknown_warning_specifier, CLASS_WARNING, (unsigned)diag::Severity::Warning, "unknown %0 warning specifier: '%1'", 764, SFINAE_Suppress, false, false, 0)
+DIAG(warn_fe_unable_to_open_stats_file, CLASS_WARNING, (unsigned)diag::Severity::Warning, "unable to open statistics output file '%0': '%1'", 764, SFINAE_Suppress, false, false, 0)
 DIAG(note_no_input_process, CLASS_NOTE, (unsigned)diag::Severity::Remark, "No input files for processing", 0, SFINAE_Suppress, false, true, 0)
 
 // Lexer
@@ -310,6 +311,7 @@ DIAG(err_paren_unclosed, CLASS_ERROR, (unsigned)diag::Severity::Error, "parenthe
 DIAG(err_const_call, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot use const with function call", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_unary_operator, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot parse unary operator '%0'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_multiple_unary_operator, CLASS_ERROR, (unsigned)diag::Severity::Error, "multiple unary operator '%0'", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_invalid_value, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid value '%0'", 0, SFINAE_Suppress, false, true, 0)
 
 DIAG(warn_empty_code, CLASS_WARNING, (unsigned)diag::Severity::Warning, "code empty", 0, SFINAE_Suppress, false, true, 0)
 
@@ -323,9 +325,9 @@ DIAG(err_add_func, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot add fun
 DIAG(err_duplicate_class, CLASS_ERROR, (unsigned)diag::Severity::Error, "class '%0' duplicated", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_vardecl_notfound, CLASS_ERROR, (unsigned)diag::Severity::Error, "var '%0' not declared before its use", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_conflict_vardecl, CLASS_ERROR, (unsigned)diag::Severity::Error, "var '%0' conflict", 0, SFINAE_Suppress, false, true, 0)
-DIAG(err_func_notfound, CLASS_ERROR, (unsigned)diag::Severity::Error, "function '%0' not declared", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_gvar_notfound, CLASS_ERROR, (unsigned)diag::Severity::Error, "global var '%0' not declared", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_elseif_after_else, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot add an elsif {} statement after else {}", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_else_after_else, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot add an else {} statement after another else {}", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_switch_expression, CLASS_ERROR, (unsigned)diag::Severity::Error, "unexpected switch expression type", 0, SFINAE_Suppress, false, true, 0)
 
 // CodeGen
@@ -334,3 +336,6 @@ DIAG(err_expr_operator_unexpected, CLASS_ERROR, (unsigned)diag::Severity::Error,
 DIAG(err_expr_operator_expected, CLASS_ERROR, (unsigned)diag::Severity::Error, "operator expected", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_type_expect, CLASS_ERROR, (unsigned)diag::Severity::Error, "expected type '%0'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_invalid_return_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "Invalid return type", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_unref_call, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unreferenced call '%0'", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_unref_var, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unreferenced var '%0'", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_invalid_gvar_value, CLASS_ERROR, (unsigned)diag::Severity::Error, "Invalid global var value", 0, SFINAE_Suppress, false, true, 0)

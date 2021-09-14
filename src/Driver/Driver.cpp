@@ -124,7 +124,6 @@ IntrusiveRefCntPtr<DiagnosticsEngine> Driver::CreateDiagnostics(IntrusiveRefCntP
                 new ChainedDiagnosticConsumer(Diags->getClient(), std::move(Logger)));
     }
 
-
     ProcessWarningOptions(*Diags, *DiagOpts, /*ReportDiags=*/false);
 
     return std::move(Diags);
@@ -204,7 +203,7 @@ void Driver::BuildOptions(FileSystemOptions &fileSystemOpts,
 
     // Enable Verbose Log
     if (ArgList.hasArg(options::OPT_VERBOSE)) {
-        FrontendOpts->setVerbose();
+        FrontendOpts->Verbose = true;
     }
 
     // Output Options
@@ -217,17 +216,23 @@ void Driver::BuildOptions(FileSystemOptions &fileSystemOpts,
     // Set Working Directory
     if (const llvm::opt::Arg *A = ArgList.getLastArg(options::OPT_WORKING_DIR))
         fileSystemOpts.WorkingDir = A->getValue();
+
+    // Stats
+    FrontendOpts->ShowStats = ArgList.hasArg(options::OPT_PRINT_STATS);
+    FrontendOpts->ShowTimers = ArgList.hasArg(options::OPT_FTIME_REPORT);
+    FrontendOpts->StatsFile = std::string(ArgList.getLastArgValue(options::OPT_STATS_FILE));
+
     // Emit different kind of file
     if (ArgList.hasArg(options::OPT_EMIT_LL)) {
-        FrontendOpts->setBackendAction(BackendAction::Backend_EmitLL);
+        FrontendOpts->BackendAction = BackendActionKind::Backend_EmitLL;
     } else if (ArgList.hasArg(options::OPT_EMIT_BC)) {
-        FrontendOpts->setBackendAction(BackendAction::Backend_EmitBC);
+        FrontendOpts->BackendAction = BackendActionKind::Backend_EmitBC;
     } else if (ArgList.hasArg(options::OPT_EMIT_AS)) {
-        FrontendOpts->setBackendAction(BackendAction::Backend_EmitAssembly);
+        FrontendOpts->BackendAction =BackendActionKind::Backend_EmitAssembly;
     } else if (ArgList.hasArg(options::OPT_EMIT_NOTHING)) {
-        FrontendOpts->setBackendAction(BackendAction::Backend_EmitNothing);
+        FrontendOpts->BackendAction = BackendActionKind::Backend_EmitNothing;
     } else {
-        FrontendOpts->setBackendAction(BackendAction::Backend_EmitObj);
+        FrontendOpts->BackendAction = BackendActionKind::Backend_EmitObj;
     }
     // Target Options
     if (const llvm::opt::Arg *A = ArgList.getLastArg(options::OPT_TARGET))
@@ -252,8 +257,6 @@ bool Driver::Execute() {
 
         Frontend Front(*CI);
         Success = Front.Execute();
-
-        CI->getDiagnostics().getClient()->finish();
     }
     return Success;
 }

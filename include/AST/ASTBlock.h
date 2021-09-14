@@ -11,9 +11,9 @@
 #ifndef FLY_ASTBLOCK_H
 #define FLY_ASTBLOCK_H
 
-#include "Basic/Diagnostic.h"
 #include "ASTStmt.h"
 #include "ASTVar.h"
+#include "Basic/Diagnostic.h"
 #include "llvm/ADT/StringMap.h"
 #include <vector>
 
@@ -28,7 +28,7 @@ namespace fly {
     class BreakStmt;
     class ContinueStmt;
 
-    enum BlockStmtKind {
+    enum ASTBlockKind {
         BLOCK_STMT,
         BLOCK_STMT_IF,
         BLOCK_STMT_ELSIF,
@@ -40,6 +40,9 @@ namespace fly {
         BLOCK_STMT_FOR
     };
 
+    /**
+     * AST Block
+     */
     class ASTBlock : public ASTStmt {
 
         friend class Parser;
@@ -53,7 +56,7 @@ namespace fly {
         StmtKind Kind = StmtKind::STMT_BLOCK;
 
         // Kind of BlockStmt identified by enum
-        BlockStmtKind BlockKind = BlockStmtKind::BLOCK_STMT;
+        ASTBlockKind BlockKind = ASTBlockKind::BLOCK_STMT;
 
         // List of Statements of the Block
         std::vector<ASTStmt *> Content;
@@ -72,7 +75,7 @@ namespace fly {
 
         StmtKind getKind() const override;
 
-        virtual enum BlockStmtKind getBlockKind() const {
+        virtual enum ASTBlockKind getBlockKind() const {
             return BlockKind;
         };
 
@@ -80,45 +83,38 @@ namespace fly {
 
         bool isEmpty() const;
 
+        void Clear();
+
         const llvm::StringMap<ASTLocalVar *> &getDeclVars() const;
 
-        ASTLocalVar *findVarDecl(const ASTBlock *Block, ASTVarRef *Var);
+        ASTLocalVar *FindVarDecl(const ASTBlock *Block, ASTVarRef *VarRef);
 
-        bool ResolveVarRef(ASTVarRef *Var);
+        bool ResolveVarRef(ASTVarRef *VarRef);
 
-        bool ResolveExpr(ASTExpr *E);
+        bool ResolveExpr(ASTExpr *Expr);
 
-        bool addExprStmt(ASTExprStmt *ExprStmt);
+        bool AddExprStmt(ASTExprStmt *ExprStmt);
 
-        bool addVar(ASTLocalVarRef *Var);
+        bool AddVarRef(ASTLocalVarRef *LocalVarRef);
 
-        bool addVar(ASTLocalVar *Var);
+        bool AddVar(ASTLocalVar *LocalVar);
 
-        bool addCall(ASTFuncCall *Invoke);
+        bool AddCall(ASTFuncCall *Invoke);
 
-        bool addReturn(const SourceLocation &Loc, ASTExpr *Expr);
+        bool AddReturn(const SourceLocation &Loc, ASTExpr *Expr);
 
-        bool addBreak(const SourceLocation &Loc);
+        bool AddBreak(const SourceLocation &Loc);
 
-        bool addContinue(const SourceLocation &Loc);
+        bool AddContinue(const SourceLocation &Loc);
 
-        bool addBlock(const SourceLocation &Loc, ASTBlock *Block);
+        bool AddBlock(const SourceLocation &Loc, ASTBlock *Block);
 
         DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID);
     };
 
-    class ConditionBlockStmt : public ASTBlock {
-
-    public:
-        ConditionBlockStmt(const SourceLocation &Loc, ASTBlock *Parent);
-    };
-
-    class LoopBlockStmt : public ASTBlock {
-
-    public:
-        LoopBlockStmt(const SourceLocation &Loc, ASTBlock *Parent);
-    };
-
+    /**
+     * Break Stmt
+     */
     class BreakStmt : public ASTStmt {
 
         StmtKind Kind = StmtKind::STMT_BREAK;
@@ -129,6 +125,9 @@ namespace fly {
         StmtKind getKind() const override;
     };
 
+    /**
+     * Continue Stmt
+     */
     class ContinueStmt : public ASTStmt {
 
         StmtKind Kind = StmtKind::STMT_CONTINUE;

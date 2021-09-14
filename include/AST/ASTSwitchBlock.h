@@ -20,7 +20,7 @@ namespace fly {
 
     class ASTSwitchBlock : public ASTBlock {
 
-        enum BlockStmtKind StmtKind = BlockStmtKind::BLOCK_STMT_SWITCH;
+        enum ASTBlockKind StmtKind = ASTBlockKind::BLOCK_STMT_SWITCH;
         ASTExpr *Expr;
         std::vector<ASTSwitchCaseBlock *> Cases;
         ASTSwitchDefaultBlock *Default = nullptr;
@@ -34,7 +34,7 @@ namespace fly {
 
         ASTSwitchDefaultBlock * setDefault(const SourceLocation &Loc);
 
-        enum BlockStmtKind getBlockKind() const override;
+        enum ASTBlockKind getBlockKind() const override;
 
         std::vector<ASTSwitchCaseBlock *> &getCases();
 
@@ -43,7 +43,7 @@ namespace fly {
 
     class ASTSwitchCaseBlock : public ASTBlock{
 
-        enum BlockStmtKind StmtKind = BlockStmtKind::BLOCK_STMT_CASE;
+        enum ASTBlockKind StmtKind = ASTBlockKind::BLOCK_STMT_CASE;
         ASTExpr *Expr;
 
     public:
@@ -51,17 +51,17 @@ namespace fly {
 
         ASTExpr *getExpr();
 
-        enum BlockStmtKind getBlockKind() const override;
+        enum ASTBlockKind getBlockKind() const override;
     };
 
     class ASTSwitchDefaultBlock : public ASTBlock{
 
-        enum BlockStmtKind StmtKind = BlockStmtKind::BLOCK_STMT_DEFAULT;
+        enum ASTBlockKind StmtKind = ASTBlockKind::BLOCK_STMT_DEFAULT;
 
     public:
         ASTSwitchDefaultBlock(const SourceLocation &Loc, ASTSwitchBlock *Switch);
 
-        enum BlockStmtKind getBlockKind() const override;
+        enum ASTBlockKind getBlockKind() const override;
     };
 }
 

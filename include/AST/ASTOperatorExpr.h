@@ -64,14 +64,14 @@ namespace fly {
 
     class ASTOperatorExpr : public ASTExpr {
 
-        const ExprKind Kind = ExprKind::EXPR_OPERATOR;
+        const ASTExprKind Kind = ASTExprKind::EXPR_OPERATOR;
 
     public:
         explicit ASTOperatorExpr(const SourceLocation &Loc);
 
-        ExprKind getKind() const override;
+        ASTExprKind getKind() const override;
 
-        virtual ASTType *getType() const;
+        virtual ASTType *getType() const override;
 
         virtual OpKind getOpKind() = 0;
 

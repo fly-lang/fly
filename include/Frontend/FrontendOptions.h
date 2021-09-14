@@ -26,11 +26,26 @@ namespace fly {
 
         OutputFile Output;
 
+    public:
+
         bool Verbose;
 
-        BackendAction Action;
+        BackendActionKind BackendAction;
 
-    public:
+        /// Show the -version text.
+        bool ShowVersion = false;
+
+        /// Show the -help text.
+        bool ShowHelp = false;
+
+        /// Show frontend performance metrics and statistics.
+        bool ShowStats = false;
+
+        /// Show timers for individual actions.
+        bool ShowTimers = false;
+
+        /// Filename to write statistics to.
+        std::string StatsFile;
 
         void addInputFile(llvm::StringRef input);
 
@@ -44,9 +59,9 @@ namespace fly {
 
         void setVerbose();
 
-        BackendAction getBackendAction();
+        BackendActionKind getBackendAction();
 
-        void setBackendAction(BackendAction action);
+        void setBackendAction(BackendActionKind action);
 
     };
 }

@@ -12,7 +12,8 @@ InputFile::InputFile(llvm::StringRef File) : File(File) {
 
 bool InputFile::Load(llvm::StringRef Source, SourceManager &SourceMgr) {
     // Set Source Manager file id
-    std::unique_ptr<llvm::MemoryBuffer> Buf = llvm::MemoryBuffer::getMemBuffer(Source);
+    std::unique_ptr<llvm::MemoryBuffer> Buf = llvm::MemoryBuffer::getMemBuffer(Source, File);
+
     Buffer = Buf.get();
     FID = SourceMgr.createFileID(std::move(Buf));
 //    SourceMgr.setMainFileID(FID);

@@ -87,15 +87,15 @@ bool ASTFunc::addUnRefCall(ASTFuncCall *Call) {
     return true;
 }
 
-void ASTFunc::addUnRefGlobalVar(ASTVarRef *Var) {
-    getNode()->addUnRefGlobalVar(Var);
+void ASTFunc::addUnRefGlobalVar(ASTVarRef *VarRef) {
+    getNode()->addUnRefGlobalVar(VarRef);
 }
 
-void ASTFunc::addNSUnRefGlobalVar(ASTVarRef *Var) {
-    if (Var->getNameSpace() == getNameSpace()->getName()) {
-        getNameSpace()->addUnRefGlobalVar(Var);
+void ASTFunc::addNSUnRefGlobalVar(ASTVarRef *VarRef) {
+    if (VarRef->getNameSpace() == getNameSpace()->getName()) {
+        getNameSpace()->addUnRefGlobalVar(VarRef);
     } else {
-        getNode()->getContext().addUnRefGlobalVar(Var);
+        getNode()->getContext().addUnRefGlobalVar(VarRef);
     }
 }
 

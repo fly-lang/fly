@@ -10,8 +10,6 @@
 
 #include <Driver/Driver.h>
 #include <Driver/DriverOptions.h>
-#include "llvm/Option/OptTable.h"
-#include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/InitLLVM.h"
 #include "gtest/gtest.h"
@@ -36,14 +34,9 @@ namespace {
         llvm::InitializeAllAsmPrinters();
 //        llvm::InitializeAllAsmParsers();
 
-        testing::internal::CaptureStdout();
-
         Driver driver(Args);
         CompilerInstance &CI = driver.BuildCompilerInstance();
         driver.Execute();
-
-        std::string output = testing::internal::GetCapturedStdout();
-        llvm::outs() << output;
     }
 
 } // anonymous namespace

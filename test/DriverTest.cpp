@@ -66,13 +66,13 @@ namespace {
         const char *argv[] = {"fly", "-v", testFile, "-o", "file.o"};
         Driver driver(argv);
         CompilerInstance &CI = driver.BuildCompilerInstance();
-        const FrontendOptions &fopts = CI.getFrontendOptions();
-        for(const InputFile &inputFile : fopts.getInputFiles()) {
+        const FrontendOptions &FrontendOpts = CI.getFrontendOptions();
+        for(const InputFile &inputFile : FrontendOpts.getInputFiles()) {
             ASSERT_EQ(inputFile.getFile(), "file1.fly");
             break;
         }
-        ASSERT_EQ(fopts.getOutputFile().getFile(), "file.o");
-        ASSERT_TRUE(fopts.isVerbose());
+        ASSERT_EQ(FrontendOpts.getOutputFile().getFile(), "file.o");
+        ASSERT_TRUE(FrontendOpts.Verbose);
 
         deleteTestFile(testFile);
     }

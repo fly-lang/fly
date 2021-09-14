@@ -26,9 +26,6 @@ namespace fly {
         llvm::StringRef Name;
         SourceLocation Location;
 
-
-
-
         const StringRef &getName() const;
 
     };

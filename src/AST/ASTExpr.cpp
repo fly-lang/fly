@@ -26,7 +26,7 @@ ASTValueExpr::ASTValueExpr(const SourceLocation &Loc, const ASTValue *Val) : AST
 
 }
 
-ExprKind ASTValueExpr::getKind() const {
+ASTExprKind ASTValueExpr::getKind() const {
     return Kind;
 }
 
@@ -42,7 +42,7 @@ ASTVarRefExpr::ASTVarRefExpr(const SourceLocation &Loc, ASTVarRef *Ref) : ASTExp
 
 }
 
-ExprKind ASTVarRefExpr::getKind() const {
+ASTExprKind ASTVarRefExpr::getKind() const {
 return Kind;
 }
 
@@ -56,7 +56,7 @@ ASTType *ASTVarRefExpr::getType() const {
 
 ASTFuncCallExpr::ASTFuncCallExpr(const SourceLocation &Loc, ASTFuncCall *Ref) : ASTExpr(Loc), Call(Ref) {}
 
-ExprKind ASTFuncCallExpr::getKind() const {
+ASTExprKind ASTFuncCallExpr::getKind() const {
 return Kind;
 }
 
@@ -72,7 +72,7 @@ ASTGroupExpr::ASTGroupExpr(const SourceLocation &Loc) : ASTExpr(Loc) {
 
 }
 
-ExprKind ASTGroupExpr::getKind() const {
+ASTExprKind ASTGroupExpr::getKind() const {
     return Kind;
 }
 
@@ -89,7 +89,8 @@ void ASTGroupExpr::Add(ASTExpr *Exp) {
 }
 
 ASTType *ASTGroupExpr::getType() const {
-    assert(!isEmpty() && "Unknown Type with empty Group");
-
+    if (isEmpty()) {
+        return nullptr;
+    }
     return Group.at(0)->getType();
 }

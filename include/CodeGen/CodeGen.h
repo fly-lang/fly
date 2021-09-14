@@ -31,6 +31,7 @@ namespace fly {
 
     class CodeGenModule;
     class TargetInfo;
+    class FrontendOptions;
 
     class CodeGen {
 
@@ -40,14 +41,15 @@ namespace fly {
         TargetOptions &TargetOpts;
         IntrusiveRefCntPtr<TargetInfo> Target;
         llvm::LLVMContext LLVMCtx;
-        BackendAction ActionKind;
+        BackendActionKind ActionKind;
+        bool ShowTimers;
 
-        static std::string getOutputFileName(BackendAction Action, StringRef BaseInput);
+        static std::string getOutputFileName(BackendActionKind Action, StringRef BaseInput);
     public:
-        CodeGen(DiagnosticsEngine &Diags, CodeGenOptions &CodeGenOpts, const std::shared_ptr<TargetOptions> &TargetOpts,
-                BackendAction Action);
+        CodeGen(DiagnosticsEngine &Diags, CodeGenOptions &CodeGenOpts,
+                const std::shared_ptr<TargetOptions> &TargetOpts, BackendActionKind BackendAction, bool ShowTimers);
 
-        bool Emit(CodeGenModule *CGM);
+        void Emit(CodeGenModule *CGM);
 
         static TargetInfo* CreateTargetInfo(DiagnosticsEngine &Diags,
                                                  const std::shared_ptr<TargetOptions> &TargetOpts);

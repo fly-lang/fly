@@ -11,15 +11,15 @@
 #ifndef FLY_ASTEXPR_H
 #define FLY_ASTEXPR_H
 
+#include "ASTValue.h"
 #include "Basic/SourceLocation.h"
 #include "llvm/ADT/StringRef.h"
-#include "ASTValue.h"
 #include <vector>
 #include <utility>
 
 namespace fly {
 
-    enum ExprKind {
+    enum ASTExprKind {
         EXPR_VALUE = 1,
         EXPR_OPERATOR = 2,
         EXPR_REF_VAR = 3,
@@ -48,7 +48,7 @@ namespace fly {
 
         const SourceLocation &getLocation() const;
 
-        virtual ExprKind getKind() const = 0;
+        virtual ASTExprKind getKind() const = 0;
 
         virtual ASTType *getType() const = 0;
     };
@@ -58,17 +58,17 @@ namespace fly {
      */
     class ASTValueExpr : public ASTExpr {
 
-        const ExprKind Kind = ExprKind::EXPR_VALUE;
+        const ASTExprKind Kind = ASTExprKind::EXPR_VALUE;
         const ASTValue *Val;
 
     public:
         ASTValueExpr(const SourceLocation &Loc, const ASTValue *Val);
 
-        ExprKind getKind() const override;
+        ASTExprKind getKind() const override;
 
         const ASTValue &getValue() const;
 
-        ASTType *getType() const;
+        ASTType *getType() const override;
     };
 
     /**
@@ -76,35 +76,35 @@ namespace fly {
      */
     class ASTVarRefExpr : public ASTExpr {
 
-        const ExprKind Kind = ExprKind::EXPR_REF_VAR;
+        const ASTExprKind Kind = ASTExprKind::EXPR_REF_VAR;
         ASTVarRef *Ref;
 
     public:
         ASTVarRefExpr(const SourceLocation &Loc, ASTVarRef *Ref);
 
-        ExprKind getKind() const override;
+        ASTExprKind getKind() const override;
 
         ASTVarRef *getVarRef() const;
 
-        ASTType *getType() const;
+        ASTType *getType() const override;
     };
 
     /**
-     * Var Expression Reference
+     * Function Call Expression Reference
      */
     class ASTFuncCallExpr : public ASTExpr {
 
-        const ExprKind Kind = ExprKind::EXPR_REF_FUNC;
+        const ASTExprKind Kind = ASTExprKind::EXPR_REF_FUNC;
         ASTFuncCall * Call;
 
     public:
         ASTFuncCallExpr(const SourceLocation &Loc, ASTFuncCall *Ref);
 
-        ExprKind getKind() const override;
+        ASTExprKind getKind() const override;
 
         ASTFuncCall *getCall() const;
 
-        ASTType *getType() const;
+        ASTType *getType() const override;
     };
 
     /**
@@ -112,14 +112,14 @@ namespace fly {
      */
     class ASTGroupExpr : public ASTExpr {
 
-        const ExprKind Kind = ExprKind::EXPR_GROUP;
+        const ASTExprKind Kind = ASTExprKind::EXPR_GROUP;
         std::vector<ASTExpr *> Group;
 
     public:
 
         ASTGroupExpr(const SourceLocation &Loc);
 
-        ExprKind getKind() const override;
+        ASTExprKind getKind() const override;
 
         const std::vector<ASTExpr *> &getGroup() const;
 
@@ -127,7 +127,7 @@ namespace fly {
 
         void Add(ASTExpr * Exp);
 
-        ASTType *getType() const;
+        ASTType *getType() const override;
 
     };
 }

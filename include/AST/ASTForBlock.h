@@ -19,10 +19,8 @@ namespace fly {
 
         friend class Parser;
 
-        enum BlockStmtKind StmtKind = BlockStmtKind::BLOCK_STMT_FOR;
+        enum ASTBlockKind StmtKind = ASTBlockKind::BLOCK_STMT_FOR;
 
-        ASTBlock *Init;
-        ASTExpr *CondExpr;
         ASTBlock *Cond;
         ASTBlock *Post;
         ASTBlock *Loop;
@@ -32,11 +30,9 @@ namespace fly {
 
         virtual ~ASTForBlock();
 
-        enum BlockStmtKind getBlockKind() const override;
+        enum ASTBlockKind getBlockKind() const override;
 
-        ASTBlock *getInit();
-
-        ASTExpr *getCondition();
+        ASTBlock *getCondition();
 
         void setCond(ASTExpr *Expr);
 
