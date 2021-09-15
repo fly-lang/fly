@@ -10,6 +10,9 @@
 
 #include <Driver/Driver.h>
 #include <Driver/DriverOptions.h>
+#include <fstream>
+#include <Basic/Stack.h>
+#include <llvm/Support/ManagedStatic.h>
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/InitLLVM.h"
 #include "gtest/gtest.h"
@@ -25,18 +28,26 @@ namespace {
     };
 
     TEST_F(CmdTest, LaunchAsMain) {
-        const char* Argv[] = {"fly", "-ll", "main.fly", "-o", "test"};
-        int Argc = sizeof Argv / sizeof Argv[0];
+        char* Args[] = {"fly", "-debug", "-ll", "main.fly", "-o", "test"};
+        char** Argv = (char**)Args;
+        int Argc = 6;
 
-        SmallVector<const char *, 256> Args(Argv, Argv + Argc);
+        llvm::InitLLVM X(Argc, Argv);
+
+        SmallVector<const char *, 256> ArgList(Argv, Argv + Argc);
         llvm::InitializeAllTargets();
         llvm::InitializeAllTargetMCs();
         llvm::InitializeAllAsmPrinters();
-//        llvm::InitializeAllAsmParsers();
+        //llvm::DebugFlag = true;
 
-        Driver driver(Args);
-        CompilerInstance &CI = driver.BuildCompilerInstance();
-        driver.Execute();
+        Driver TheDriver(ArgList);
+        CompilerInstance &CI = TheDriver.BuildCompilerInstance();
+        TheDriver.Execute();
+
+        std::ifstream reader("test") ;
+        ASSERT_TRUE(reader && "Error opening compiled file");
+
+        llvm::llvm_shutdown();
     }
 
 } // anonymous namespace

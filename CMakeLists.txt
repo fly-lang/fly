@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.4.3)
 project(Fly VERSION 0.0.4 LANGUAGES C CXX ASM)
 #set(FLY_VERSION_PHASE alpha) #remove this line for stable release
 
+message(STATUS "Fly Project directory: ${CMAKE_SOURCE_DIR}")
+
 if(DEFINED FLY_VERSION_PHASE)
     set(FLY_VERSION "${PROJECT_VERSION}-${FLY_VERSION_PHASE}")
 else()
@@ -12,13 +14,33 @@ endif()
 set(CMAKE_CXX_STANDARD 14 CACHE STRING "C++ standard to conform to")
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_EXTENSIONS NO)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti -Wno-switch")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti")
+
+set(CMAKE_CONFIGURATION_TYPES Debug Release)
+message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
+if(MSVC)
+    set(CMAKE_C_FLAGS_DEBUG "/W4")
+    set(CMAKE_CXX_FLAGS_DEBUG "/W4")
+    set(CMAKE_C_FLAGS_RELEASE "/O2")
+    set(CMAKE_CXX_FLAGS_RELEASE "/O2 /DNDEBUG")
+else()
+    set(CMAKE_C_FLAGS_DEBUG "-g3 -O0")
+    set(CMAKE_CXX_FLAGS_DEBUG "-g3 -O0")
+    set(CMAKE_C_FLAGS_RELEASE "-O3")
+    set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
+endif()
+
+string(TOUPPER ${CMAKE_BUILD_TYPE} BUILD_TYPE)
+message(STATUS "C Flags: ${CMAKE_C_FLAGS_${BUILD_TYPE}}")
+message(STATUS "C++ Flags: ${CMAKE_CXX_FLAGS_${BUILD_TYPE}}")
+if (BUILD_TYPE STREQUAL DEBUG)
+    set(LLVM_ENABLE_ASSERTIONS "On")
+    message(STATUS "LLVM_ENABLE_ASSERTIONS: On")
+endif()
 
 #Fly config options
 set(FLY_LLVM_VERSION 11.1.0)
 set(FLY_BUG_REPORT_URL "https://github.com/fly-lang/fly/issues")
-
-message(STATUS "Fly Project directory: ${CMAKE_SOURCE_DIR}")
 
 ######################################
 # Add LLVM dependency (version 11)

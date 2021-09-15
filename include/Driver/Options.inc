@@ -48,6 +48,8 @@ OPTION(prefix_1, "as", EMIT_AS, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
        "Produce assembly output .as file", nullptr, nullptr)
 OPTION(prefix_1, "bc", EMIT_BC, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
        "Produce bitecode output .bc file", "nullptr", nullptr)
+OPTION(prefix_1, "debug", DEBUG, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
+       "Print debug messages", "nullptr", nullptr)
 OPTION(prefix_1, "ftime-report", FTIME_REPORT, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
         "Show timers for individual actions", nullptr, nullptr)
 OPTION(prefix_4, "help", HELP, Flag, INVALID, INVALID, nullptr, CoreOption, 0,

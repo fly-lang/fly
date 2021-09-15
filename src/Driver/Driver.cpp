@@ -23,6 +23,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Process.h"
 #include "llvm/Support/Program.h"
+#include "llvm/Support/Debug.h"
 #include <utility>
 
 using namespace fly;
@@ -221,6 +222,10 @@ void Driver::BuildOptions(FileSystemOptions &fileSystemOpts,
     FrontendOpts->ShowStats = ArgList.hasArg(options::OPT_PRINT_STATS);
     FrontendOpts->ShowTimers = ArgList.hasArg(options::OPT_FTIME_REPORT);
     FrontendOpts->StatsFile = std::string(ArgList.getLastArgValue(options::OPT_STATS_FILE));
+
+    if (ArgList.hasArg(options::OPT_DEBUG)) {
+        llvm::DebugFlag = true;
+    }
 
     // Emit different kind of file
     if (ArgList.hasArg(options::OPT_EMIT_LL)) {
