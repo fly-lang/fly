@@ -33,7 +33,6 @@ bool InputFile::Load(SourceManager &SourceMgr, DiagnosticsEngine &Diags) {
     std::unique_ptr<llvm::MemoryBuffer> &Buf = FileBuf.get();
     Buffer = Buf.get();
     FID = SourceMgr.createFileID(std::move(Buf));
-//    llvm::outs() << Buffer->getBuffer();
-//    SourceMgr.setMainFileID(FID);
+//    SourceMgr.setMainFileID(FID); // TODO set for main file
     return true;
 }

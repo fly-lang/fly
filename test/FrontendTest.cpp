@@ -48,8 +48,8 @@ namespace {
     TEST_F(FrontendTest, FileMgr) {
         EXPECT_TRUE(createTestFile(testFile));
 
-        Driver driver;
-        CompilerInstance &CI = driver.BuildCompilerInstance();
+        Driver TheDriver;
+        CompilerInstance &CI = TheDriver.BuildCompilerInstance();
         FrontendOptions &options = CI.getFrontendOptions();
         options.addInputFile(testFile);
         Frontend frontend(CI);

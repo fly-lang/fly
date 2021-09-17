@@ -15,6 +15,7 @@
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
 #include "Parser/Parser.h"
+#include "Basic/Debug.h"
 
 using namespace fly;
 
@@ -33,7 +34,8 @@ ASTNode *FrontendAction::getAST() {
 }
 
 bool FrontendAction::Parse(InputFile & Input) {
-    bool Success = false;
+    FLY_DEBUG_MESSAGE("FrontendAction", "Parse", "Input=" << Input.getFile());
+    bool Success = true;
     Diags.getClient()->BeginSourceFile();
 
     if (P == nullptr) {
@@ -66,12 +68,12 @@ bool FrontendAction::Compile() {
     }
 
     Diags.getClient()->EndSourceFile();
-    return Diags.hasErrorOccurred();
+    return !Diags.hasErrorOccurred();
 }
 
 bool FrontendAction::EmitOutput() {
     Diags.getClient()->BeginSourceFile();
     CG.Emit(CGM);
     Diags.getClient()->EndSourceFile();
-    return Diags.hasErrorOccurred();
+    return !Diags.hasErrorOccurred();
 }

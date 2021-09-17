@@ -302,6 +302,9 @@ DIAG(warn_utf8_symbol_zero_width, CLASS_WARNING, (unsigned)diag::Severity::Warni
 
 // Parser Errors
 DIAG(err_namespace_undefined, CLASS_ERROR, (unsigned)diag::Severity::Error, "namespace undefined", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_import_undefined, CLASS_ERROR, (unsigned)diag::Severity::Error, "import undefined", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_scope_visibility_duplicate, CLASS_ERROR, (unsigned)diag::Severity::Error, "visibility scope '%0' already defined", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_scope_const_duplicate, CLASS_ERROR, (unsigned)diag::Severity::Error, "constant scope already defined", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_type_undefined, CLASS_ERROR, (unsigned)diag::Severity::Error, "type is not defined", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_func_param, CLASS_ERROR, (unsigned)diag::Severity::Error, "function parameter not well format", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_unbalanced_brace, CLASS_ERROR, (unsigned)diag::Severity::Error, "braces not balanced", 0, SFINAE_Suppress, false, true, 0)

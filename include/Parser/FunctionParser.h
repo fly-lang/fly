@@ -29,21 +29,21 @@ namespace fly {
         ASTFunc *Function = NULL;
         ASTFuncCall *Call = NULL;
 
-        bool ParseBody();
-
         FunctionParser(Parser *P, const llvm::StringRef &FuncName, SourceLocation &FuncNameLoc);
+
+        bool ParseFunctionDecl(ASTType *Type);
+
+        bool ParseFunctionBody();
+
+        bool ParseFunctionParams();
+
+        bool ParseFunctionParam();
 
         bool ParseCall(ASTBlock *Block, llvm::StringRef NameSpace = "");
 
-        bool ParseDecl(ASTType *TyDecl);
+        bool ParseCallArgs(ASTBlock *Block);
 
-        bool ParseParams();
-
-        bool ParseParam();
-
-        bool ParseArgs(ASTBlock *Block);
-
-        bool ParseArg(ASTBlock *Block);
+        bool ParseCallArg(ASTBlock *Block);
     };
 }
 

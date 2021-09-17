@@ -78,7 +78,7 @@ void ASTFunc::setVarArg(ASTFuncParam* VarArg) {
 
 bool ASTFunc::addUnRefCall(ASTFuncCall *Call) {
     if (Call->getNameSpace().empty()) {
-        getNode()->addUnRefCall(Call);
+        getNode()->AddUnRefCall(Call);
     } else if (Call->getNameSpace() == getNameSpace()->getName()) {
         getNameSpace()->addUnRefCall(Call);
     } else {
@@ -88,7 +88,7 @@ bool ASTFunc::addUnRefCall(ASTFuncCall *Call) {
 }
 
 void ASTFunc::addUnRefGlobalVar(ASTVarRef *VarRef) {
-    getNode()->addUnRefGlobalVar(VarRef);
+    getNode()->AddUnRefGlobalVar(VarRef);
 }
 
 void ASTFunc::addNSUnRefGlobalVar(ASTVarRef *VarRef) {

@@ -64,30 +64,30 @@ namespace fly {
         CodeGenModule *getCodeGen() const;
 
         void setDefaultNameSpace();
-        ASTNameSpace *setNameSpace(llvm::StringRef NS);
+        ASTNameSpace *setNameSpace(llvm::StringRef Name);
         ASTNameSpace* getNameSpace();
-        ASTNameSpace *findNameSpace(const StringRef &string);
+        ASTNameSpace *FindNameSpace(const StringRef &string);
 
-        bool addImport(ASTImport *NewImport);
+        bool AddImport(ASTImport *NewImport);
         const llvm::StringMap<ASTImport*> &getImports();
 
-        bool addGlobalVar(ASTGlobalVar *Var);
+        bool AddGlobalVar(ASTGlobalVar *Var);
         const llvm::StringMap<ASTGlobalVar *> &getGlobalVars();
 
-        bool addFunction(ASTFunc *Func);
+        bool AddFunction(ASTFunc *Func);
         const std::unordered_set<ASTFunc*> &getFunctions() const;
 
-        bool addResolvedCall(ASTFuncCall *Call);
+        bool AddResolvedCall(ASTFuncCall *Call);
         const llvm::StringMap<std::vector<ASTFuncCall *>> &getResolvedCalls() const;
 
-        bool addClass(ASTClass *Class);
+        bool AddClass(ASTClass *Class);
         const llvm::StringMap<ASTClass *> &getClasses();
 
         static ASTType *ResolveExprType(ASTExpr *E);
 
-        void addUnRefCall(ASTFuncCall *Call);
+        void AddUnRefCall(ASTFuncCall *Call);
 
-        void addUnRefGlobalVar(ASTVarRef *Var);
+        void AddUnRefGlobalVar(ASTVarRef *Var);
 
         bool Resolve();
 
@@ -102,6 +102,8 @@ namespace fly {
         bool ResolveFunction(ASTFunc *Function,
                      std::vector<ASTFuncCall *> &UnRefCalls,
                      llvm::StringMap<std::vector<ASTFuncCall *>> &ResolvedCalls);
+
+
     };
 }
 

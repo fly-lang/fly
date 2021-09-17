@@ -14,6 +14,7 @@
 #include "AST/ASTFunc.h"
 #include "llvm/ADT/StringMap.h"
 #include <unordered_set>
+#include <ostream>
 
 namespace fly {
 
@@ -77,6 +78,8 @@ namespace fly {
         void addUnRefGlobalVar(ASTVarRef *Var);
 
         bool Resolve();
+
+        friend std::ostream &operator<<(std::ostream &OS, const ASTNameSpace &NameSpace);
     };
 }
 

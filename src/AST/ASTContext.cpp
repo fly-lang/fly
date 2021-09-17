@@ -16,6 +16,7 @@
 #include "AST/ASTNode.h"
 #include "AST/ASTImport.h"
 #include "Basic/Diagnostic.h"
+#include "Basic/Debug.h"
 
 using namespace fly;
 
@@ -68,6 +69,8 @@ DiagnosticBuilder ASTContext::Diag(SourceLocation Loc, unsigned DiagID) const {
  * @return true if no error occurs, otherwise false
  */
 bool ASTContext::AddNode(ASTNode *Node) {
+    FLY_DEBUG_MESSAGE("ASTContext", "AddNode", "FileName= " << Node->FileName
+        << ", NameSpace=" << Node->NameSpace);
     assert(Node->NameSpace && "NameSpace is empty!");
     assert(!Node->FileName.empty() && "FileName is empty!");
     llvm::StringMap<ASTNode *> &NSNodes = Node->NameSpace->Nodes;
@@ -79,6 +82,7 @@ bool ASTContext::AddNode(ASTNode *Node) {
     // Try to link Node Imports to already resolved Nodes
     // Iterate over Node Imports
     for (auto &MapImport : Node->Imports) {
+        FLY_DEBUG_MESSAGE("ASTContext", "AddNode", "Import= " << MapImport.getValue());
         if (MapImport.getValue()->getNameSpace() == nullptr) {
             ASTNameSpace *NameSpace = NameSpaces.lookup(MapImport.getKey());
             if (NameSpace != nullptr) {

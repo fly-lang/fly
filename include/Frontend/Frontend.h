@@ -54,7 +54,7 @@ namespace fly {
 
         bool Execute();
 
-        void createFrontendTimer();
+        void CreateFrontendTimer();
     };
 }
 

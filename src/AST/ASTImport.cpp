@@ -44,3 +44,8 @@ void ASTImport::setNameSpace(ASTNameSpace *NS) {
 const SourceLocation &ASTImport::getLocation() const {
     return Location;
 }
+
+std::ostream &fly::operator<<(std::ostream &OS, const ASTImport &Import) {
+    OS << "Name: " << Import.Name.str() << " Alias: " << Import.Alias.str() << " NameSpace: " << Import.NameSpace;
+    return OS;
+}

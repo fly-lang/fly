@@ -10,14 +10,12 @@
 
 #include "Frontend/Frontend.h"
 #include "CodeGen/CodeGen.h"
+#include "Basic/Debug.h"
 #include <llvm/ADT/Statistic.h>
 #include <llvm/Support/Timer.h>
-#include <llvm/Support/Debug.h>
 #include <Basic/Stack.h>
 
 using namespace fly;
-
-#define DEBUG_TYPE "Frontend"
 
 Frontend::Frontend(CompilerInstance &CI) : CI(CI), Diags(CI.getDiagnostics()), Context(new ASTContext(Diags)) {
 
@@ -30,14 +28,14 @@ Frontend::~Frontend() {
 bool Frontend::Execute() {
     assert(!CI.getFrontendOptions().ShowHelp && "Client must handle '-help'!");
     assert(!CI.getFrontendOptions().ShowVersion && "Client must handle '-version'!");
-    LLVM_DEBUG(llvm::dbgs() << "Starting Frontend::Execute()" << "\n");
+    FLY_DEBUG("Frontend", "Execute");
 
     unsigned NumberOfInputs = 0;
     raw_ostream &OS = llvm::errs();
 
     // Create Timers and show after compilation
     if (CI.getFrontendOptions().ShowTimers)
-        createFrontendTimer();
+        CreateFrontendTimer();
 
     if (CI.getFrontendOptions().ShowStats)
         llvm::EnableStatistics(false);
@@ -50,7 +48,7 @@ bool Frontend::Execute() {
     for (auto InputFile : CI.getFrontendOptions().getInputFiles()) {
         // Print file name and create instance for file compilation
 
-        LLVM_DEBUG(llvm::dbgs() << "Frontend::Execute() Reading input file " << llvm::sys::path::filename(InputFile.getFile()) << "\n");
+        FLY_DEBUG_MESSAGE("Frontend", "Execute", "Loading input file " << llvm::sys::path::filename(InputFile.getFile()) << "\n");
         if (InputFile.Load(CI.getSourceManager(), Diags)) {
             FrontendAction *Action = new FrontendAction(CI, Context, CG);
             // Parse Action & add to Actions for next
@@ -62,10 +60,11 @@ bool Frontend::Execute() {
     }
 
     if (NumberOfInputs > 0) {
-        Context->Resolve();
-        llvm::outs().flush();
-        for (auto Action : Actions) {
-           Action->Compile() && Action->EmitOutput();
+        if (Context->Resolve()) {
+            llvm::outs().flush();
+            for (auto Action: Actions) {
+                Action->Compile() && Action->EmitOutput();
+            }
         }
     } else {
         Diags.Report(SourceLocation(), diag::note_no_input_process);
@@ -112,7 +111,8 @@ bool Frontend::Execute() {
     return !CI.getDiagnostics().getClient()->getNumErrors();
 }
 
-void Frontend::createFrontendTimer() {
+void Frontend::CreateFrontendTimer() {
+    FLY_DEBUG("Frontend", "CreateFrontendTimer");
     FrontendTimerGroup.reset(
             new llvm::TimerGroup("frontend", "Clang front-end time report"));
     FrontendTimer.reset(

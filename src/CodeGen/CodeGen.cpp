@@ -14,6 +14,7 @@
 #include "Frontend/FrontendOptions.h"
 #include "Basic/FileManager.h"
 #include "Basic/TargetInfo.h"
+#include "Basic/Debug.h"
 #include <llvm/IR/LLVMContext.h>
 
 using namespace fly;
@@ -45,6 +46,8 @@ std::string CodeGen::getOutputFileName(BackendActionKind ActionKind, StringRef B
 }
 
 void CodeGen::Emit(CodeGenModule *CGM) {
+    FLY_DEBUG_MESSAGE("CodeGen", "Emit","ActionKind" << ActionKind);
+
     // Skip CodeGenModule instance creation
     if (ActionKind == Backend_EmitNothing) {
         return;
@@ -72,5 +75,6 @@ TargetInfo &CodeGen::getTargetInfo() const {
 }
 
 CodeGenModule *CodeGen::CreateModule(llvm::StringRef Name) {
+    FLY_DEBUG("CodeGen", "CreateModule");
     return new CodeGenModule(Diags, Name, LLVMCtx, *Target, CodeGenOpts);
 }

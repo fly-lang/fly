@@ -105,3 +105,8 @@ bool ASTNameSpace::Resolve() {
     }
     return Success;
 }
+
+std::ostream &fly::operator<<(std::ostream &OS, const ASTNameSpace &NameSpace) {
+    OS << "Name: " << NameSpace.Name;
+    return OS;
+}

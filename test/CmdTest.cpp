@@ -28,9 +28,9 @@ namespace {
     };
 
     TEST_F(CmdTest, LaunchAsMain) {
-        char* Args[] = {"fly", "-debug", "-ll", "main.fly", "-o", "test"};
+        char* Args[] = {"fly", "-debug", "-ll", "main.fly"};
         char** Argv = (char**)Args;
-        int Argc = 6;
+        int Argc = 4;
 
         llvm::InitLLVM X(Argc, Argv);
 
@@ -38,13 +38,12 @@ namespace {
         llvm::InitializeAllTargets();
         llvm::InitializeAllTargetMCs();
         llvm::InitializeAllAsmPrinters();
-        //llvm::DebugFlag = true;
 
         Driver TheDriver(ArgList);
         CompilerInstance &CI = TheDriver.BuildCompilerInstance();
         TheDriver.Execute();
 
-        std::ifstream reader("test") ;
+        std::ifstream reader("main.fly.ll") ;
         ASSERT_TRUE(reader && "Error opening compiled file");
 
         llvm::llvm_shutdown();
