@@ -28,7 +28,7 @@ namespace {
     };
 
     TEST_F(CmdTest, LaunchAsMain) {
-        char* Args[] = {"fly", "-debug", "-ll", "main.fly"};
+        char* Args[] = {"fly", "-debug", "-ll", "src/main.fly"};
         char** Argv = (char**)Args;
         int Argc = 4;
 
@@ -44,7 +44,7 @@ namespace {
         TheDriver.Execute();
 
         std::ifstream reader("main.fly.ll") ;
-        ASSERT_TRUE(reader && "Error opening compiled file");
+        ASSERT_TRUE(reader && "Error opening main.fly");
 
         llvm::llvm_shutdown();
     }

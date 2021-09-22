@@ -26,8 +26,6 @@ target_link_libraries(fly_test PRIVATE
         FlyDriver
         )
 
-configure_file(src/main.fly
-        ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-
+file(COPY src DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 add_test(NAME fly_test COMMAND fly_test)
 set_target_properties(fly_test PROPERTIES LINK_FLAGS "-v")
