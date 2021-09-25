@@ -23,3 +23,7 @@ ASTContext &ASTNodeBase::getContext() const {
 const llvm::StringRef &ASTNodeBase::getFileName() {
     return FileName;
 }
+
+std::string ASTNodeBase::str() const {
+    return "{ FileName=" + FileName.str() + " }";
+}

@@ -265,6 +265,7 @@ namespace fly {
         ASTExpr* ParseOneExpr(ASTBlock *Block, bool &Success);
         ASTValueExpr* ParseValueExpr(bool &Success);
         ASTOperatorExpr* ParseOperatorExpr(bool &Success);
+        ASTTernaryExpr *ParseTernaryOperatorExpr(bool &Success);
         ASTOperatorExpr* ParseUnaryPreOperatorExpr(bool &Success);
         ASTOperatorExpr* ParseUnaryPostOperatorExpr(bool &Success);
 

@@ -51,6 +51,13 @@ void ASTLocalVar::setCodeGen(CodeGenLocalVar *CG) {
     CodeGen = CG;
 }
 
+std::string ASTLocalVar::str() const {
+    return "{ " +
+           ASTVar::str() +
+           ", Kind: " + std::to_string(Kind) +
+           " }";
+}
+
 ASTLocalVarRef::ASTLocalVarRef(const SourceLocation &Loc, ASTBlock *Block, const llvm::StringRef &Name,
                                const StringRef &NameSpace) :
         ASTExprStmt(Loc, Block), ASTVarRef(Loc, Name, NameSpace) {
@@ -64,4 +71,8 @@ ASTLocalVarRef::ASTLocalVarRef(const SourceLocation &Loc, ASTBlock *Block, ASTVa
 
 StmtKind ASTLocalVarRef::getKind() const {
     return STMT_VAR_ASSIGN;
+}
+
+std::string ASTLocalVarRef::str() const {
+    return ASTVarRef::str();
 }

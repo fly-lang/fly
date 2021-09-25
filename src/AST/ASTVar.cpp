@@ -12,8 +12,8 @@
 
 using namespace fly;
 
-ASTVar::ASTVar(ASTType *Type, const StringRef &Name, const StringRef &NameSpace) :
-    Type(Type), Name(Name), NameSpace(NameSpace) {}
+ASTVar::ASTVar(ASTType *Type, const StringRef &Name, const StringRef &NameSpaceStr, bool Global) :
+        Type(Type), Name(Name), NameSpaceStr(NameSpaceStr), Global(Global) {}
 
 ASTType *ASTVar::getType() const {
     return Type;
@@ -23,8 +23,8 @@ const llvm::StringRef &ASTVar::getName() const {
     return Name;
 }
 
-const StringRef &ASTVar::getNameSpace() const {
-    return NameSpace;
+const llvm::StringRef &ASTVar::getPrefix() const {
+    return NameSpaceStr;
 }
 
 ASTVar::~ASTVar() {
@@ -35,17 +35,24 @@ bool ASTVar::isConstant() const {
     return Constant;
 }
 
-const bool ASTVar::isGlobal() const {
-    return !NameSpace.empty();
+bool ASTVar::isGlobal() const {
+    return Global;
 }
 
+std::string ASTVar::str() const {
+    return "Type=" + Type->str() + ", " +
+           "NameSpace=" + NameSpaceStr.str() + ", " +
+           "Name=" + Name.str() + ", " +
+            "Constant=" + (Constant ? "true" : "false") + ", " +
+            "Global=" + (Global ? "true" : "false");
+}
 
 ASTVarRef::ASTVarRef(const SourceLocation &Loc, const llvm::StringRef &Name, const StringRef &NameSpace) :
         Loc(Loc), NameSpace(NameSpace), Name(Name) {
 
 }
 
-ASTVarRef::ASTVarRef(ASTVar *Var) : ASTVarRef(Loc, Var->getName(), Var->getNameSpace()) {
+ASTVarRef::ASTVarRef(ASTVar *Var) : ASTVarRef(Loc, Var->getName(), Var->getPrefix()) {
     Decl = Var;
 }
 
@@ -67,4 +74,9 @@ const StringRef &ASTVarRef::getNameSpace() const {
 
 const SourceLocation &ASTVarRef::getLocation() const {
     return Loc;
+}
+
+std::string ASTVarRef::str() const {
+    return "{ Name=" + Name.str() + ", " +
+           "NameSpace=" + NameSpace.str() + " }";
 }

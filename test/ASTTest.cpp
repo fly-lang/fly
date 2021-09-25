@@ -97,12 +97,12 @@ namespace {
         auto Node1 = NewASTNode("file1.fly");
         const ASTNameSpace *NS = Node1->setNameSpace("packageA");
         SourceLocation &Loc = SourceLoc;
-        ASTGlobalVar *G1 = new ASTGlobalVar(Node1, Loc, new ASTIntType(Loc), "a");
+        ASTGlobalVar *G1 = new ASTGlobalVar(Loc, Node1, new ASTIntType(Loc), "a");
         G1->setVisibility(V_PRIVATE);
         Node1->AddGlobalVar(G1);
-        ASTGlobalVar *G2 = new ASTGlobalVar(Node1, Loc, new ASTFloatType(Loc), "b"); // Default
+        ASTGlobalVar *G2 = new ASTGlobalVar(Loc, Node1, new ASTFloatType(Loc), "b"); // Default
         Node1->AddGlobalVar(G2);
-        ASTGlobalVar *G3 = new ASTGlobalVar(Node1, Loc, new ASTBoolType(Loc), "c");
+        ASTGlobalVar *G3 = new ASTGlobalVar(Loc, Node1, new ASTBoolType(Loc), "c");
         G3->setVisibility(V_PUBLIC);
         Node1->AddGlobalVar(G3);
         Node1->Resolve();

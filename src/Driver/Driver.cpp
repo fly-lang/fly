@@ -109,9 +109,9 @@ IntrusiveRefCntPtr<DiagnosticsEngine> Driver::CreateDiagnostics(IntrusiveRefCntP
     IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
     IntrusiveRefCntPtr<DiagnosticsEngine> Diags = new DiagnosticsEngine(DiagID, &*DiagOpts, DiagClient);
 
-    raw_ostream *OS = &llvm::errs();
+    llvm::raw_ostream *OS = &llvm::errs();
     std::error_code EC;
-    std::unique_ptr<raw_ostream> StreamOwner;
+    std::unique_ptr<llvm::raw_ostream> StreamOwner;
 
     if (!DiagOpts->DiagnosticLogFile.empty()) {
         // Create the output stream.

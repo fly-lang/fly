@@ -22,7 +22,7 @@ using namespace fly;
  */
 GlobalVarParser::GlobalVarParser(Parser *P, ASTType *TyDecl, const StringRef &VarName,
                                  SourceLocation &VarNameLoc) :
-        P(P), TyDecl(TyDecl), Name(VarName), Location(VarNameLoc) {
+        P(P), Type(TyDecl), Name(VarName), Location(VarNameLoc) {
 }
 
 /**
@@ -31,7 +31,7 @@ GlobalVarParser::GlobalVarParser(Parser *P, ASTType *TyDecl, const StringRef &Va
  */
 bool GlobalVarParser::Parse() {
     bool Success = true;
-    Var = new ASTGlobalVar(P->AST, Location, TyDecl, Name);
+    Var = new ASTGlobalVar(Location, P->AST, Type, Name);
 
     // Parsing =
     if (P->Tok.is(tok::equal)) {

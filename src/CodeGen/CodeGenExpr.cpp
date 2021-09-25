@@ -314,7 +314,7 @@ llvm::Value *CodeGenExpr::OpBinary(ASTExpr *E1, ASTOperatorExpr *OP, ASTExpr *E2
             return OpComparison(E1, (ASTComparisonExpr *) OP, E2);
         case OP_LOGIC:
             return OpLogic(E1, (ASTLogicExpr *) OP, E2);
-        case OP_COND:
+        case OP_CONDITION:
 //            return OpCond(); // TODO
             break;
     }

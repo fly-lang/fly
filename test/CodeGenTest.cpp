@@ -140,7 +140,7 @@ namespace {
 
     TEST_F(CodeGenTest, CGGlobalVar) {
         ASTNode *Node = CreateAST();
-        ASTGlobalVar *Var = new ASTGlobalVar(Node, SourceLoc, new ASTIntType(SourceLoc), "a");
+        ASTGlobalVar *Var = new ASTGlobalVar(SourceLoc, Node, new ASTIntType(SourceLoc), "a");
         Node->AddGlobalVar(Var);
 
         // Generate Code
@@ -188,7 +188,7 @@ namespace {
     TEST_F(CodeGenTest, CGFuncRetVar) {
         ASTNode *Node = CreateAST();
 
-        ASTGlobalVar *GVar = new ASTGlobalVar(Node, SourceLoc, new ASTFloatType(SourceLoc), "G");
+        ASTGlobalVar *GVar = new ASTGlobalVar(SourceLoc, Node, new ASTFloatType(SourceLoc), "G");
         GVar->setVisibility(V_PRIVATE);
         Node->AddGlobalVar(GVar);
 

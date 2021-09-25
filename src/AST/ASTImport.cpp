@@ -13,6 +13,7 @@
 
 
 #include "AST/ASTImport.h"
+#include "AST/ASTNameSpace.h"
 
 using namespace fly;
 
@@ -45,7 +46,9 @@ const SourceLocation &ASTImport::getLocation() const {
     return Location;
 }
 
-std::ostream &fly::operator<<(std::ostream &OS, const ASTImport &Import) {
-    OS << "Name: " << Import.Name.str() << " Alias: " << Import.Alias.str() << " NameSpace: " << Import.NameSpace;
-    return OS;
+std::string ASTImport::str() const {
+    return "{ Name=" + Name.str() +
+            ", NameSpace=" + (NameSpace ? NameSpace->str() : "{}") +
+            ", Alias=" + Alias.str() +
+            " }";
 }

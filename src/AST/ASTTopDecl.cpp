@@ -13,8 +13,14 @@
 
 using namespace fly;
 
-ASTTopDecl::ASTTopDecl(ASTNode *Node, const SourceLocation &Loc) : Node(Node), Location(Loc), Visibility(V_DEFAULT) {
+ASTTopDecl::ASTTopDecl(const SourceLocation &Loc, ASTNode *Node, TopDeclKind Kind) : Location(Loc), Node(Node),
+        Visibility(V_DEFAULT), Kind(Kind) {
 
+}
+
+TopDeclKind ASTTopDecl::getKind() const {
+    assert(Kind != DECL_NONE && "Invalid Kind");
+    return Kind;
 }
 
 ASTNode *ASTTopDecl::getNode() {
@@ -35,4 +41,9 @@ VisibilityKind ASTTopDecl::getVisibility() const {
 
 void ASTTopDecl::setVisibility(VisibilityKind V) {
     Visibility = V;
+}
+
+std::string ASTTopDecl::str() const {
+    return "Visibility=" + std::to_string(Visibility) +
+            ", Kind=" + std::to_string(Kind);
 }

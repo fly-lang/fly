@@ -288,6 +288,16 @@ DiagnosticBuilder ASTBlock::Diag(SourceLocation Loc, unsigned int DiagID) {
 }
 
 /**
+ * Convert to String
+ * @return string info for debugging
+ */
+std::string ASTBlock::str() const {
+    return "{ Kind=" + std::to_string(Kind) +
+            ", BlockKind=" + std::to_string(BlockKind) +
+            + " }";
+}
+
+/**
  * BreakStmt constructor
  * @param Loc
  * @param Parent
@@ -295,6 +305,14 @@ DiagnosticBuilder ASTBlock::Diag(SourceLocation Loc, unsigned int DiagID) {
 BreakStmt::BreakStmt(const SourceLocation &Loc, ASTBlock *Parent) : ASTStmt(Loc, Parent) {
 
 }
+/**
+ * Convert to String
+ * @return string info for debugging
+ */
+std::string BreakStmt::str() const {
+    return "{ Kind=" + std::to_string(Kind) + " }";
+}
+
 
 /**
  * Get the Kind of Stmt
@@ -311,6 +329,14 @@ StmtKind BreakStmt::getKind() const {
  */
 ContinueStmt::ContinueStmt(const SourceLocation &Loc, ASTBlock *Parent) : ASTStmt(Loc, Parent) {
 
+}
+
+/**
+ * Convert to String
+ * @return string info for debugging
+ */
+std::string ContinueStmt::str() const {
+    return "{ Kind=" + std::to_string(Kind) + " }";
 }
 
 /**

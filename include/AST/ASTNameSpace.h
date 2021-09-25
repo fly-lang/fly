@@ -51,7 +51,7 @@ namespace fly {
         llvm::StringMap<ASTClass *> Classes;
 
     public:
-        ASTNameSpace(const llvm::StringRef &NS);
+        ASTNameSpace(const llvm::StringRef &Name);
 
         ~ASTNameSpace();
 
@@ -79,7 +79,7 @@ namespace fly {
 
         bool Resolve();
 
-        friend std::ostream &operator<<(std::ostream &OS, const ASTNameSpace &NameSpace);
+        std::string str() const;
     };
 }
 

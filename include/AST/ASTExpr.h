@@ -51,6 +51,8 @@ namespace fly {
         virtual ASTExprKind getKind() const = 0;
 
         virtual ASTType *getType() const = 0;
+
+        virtual std::string str() const = 0;
     };
 
     /**
@@ -69,6 +71,8 @@ namespace fly {
         const ASTValue &getValue() const;
 
         ASTType *getType() const override;
+
+        std::string str() const override;
     };
 
     /**
@@ -87,6 +91,8 @@ namespace fly {
         ASTVarRef *getVarRef() const;
 
         ASTType *getType() const override;
+
+        std::string str() const override;
     };
 
     /**
@@ -105,6 +111,8 @@ namespace fly {
         ASTFuncCall *getCall() const;
 
         ASTType *getType() const override;
+
+        std::string str() const override;
     };
 
     /**
@@ -128,6 +136,8 @@ namespace fly {
         void Add(ASTExpr * Exp);
 
         ASTType *getType() const override;
+
+        std::string str() const override;
 
     };
 }

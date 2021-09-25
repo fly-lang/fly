@@ -16,8 +16,8 @@ ASTValue::ASTValue(const SourceLocation &Loc, llvm::StringRef Str, ASTType *Ty) 
 
 }
 
-const StringRef &ASTValue::str() const {
-    return Str;
+std::string ASTValue::str() const {
+    return Str.str();
 }
 
 ASTType *ASTValue::getType() const {

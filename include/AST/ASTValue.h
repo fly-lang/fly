@@ -26,8 +26,6 @@ namespace fly {
     public:
         ASTValue(const SourceLocation &Loc, llvm::StringRef Str, ASTType *Ty);
 
-        const StringRef &str() const;
-
         ASTType *getType() const;
 
         bool empty() const;
@@ -35,6 +33,8 @@ namespace fly {
         bool isFalse() const;
 
         bool isTrue() const;
+
+        std::string str() const;
     };
 }
 

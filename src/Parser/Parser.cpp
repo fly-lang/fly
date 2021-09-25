@@ -423,7 +423,7 @@ bool Parser::ParseType(ASTType *&Type) {
             Type = new ASTClassType(Loc, Name);
     }
     ConsumeToken();
-    FLY_DEBUG_MESSAGE("Parser", "ParseType", "Type=" << Type);
+    FLY_DEBUG_MESSAGE("Parser", "ParseType", "Type=" << Type->str());
     return true;
 }
 
@@ -1229,15 +1229,17 @@ ASTOperatorExpr* Parser::ParseOperatorExpr(bool &Success) {
         case tok::equalequal:
             return new ASTComparisonExpr(Loc, ComparisonOpKind::COMP_EQ);
 
-        // Condition
+        // Ternary Condition
         case tok::question:
-            return new ASTTernaryExpr(Loc, CondOpKind::COND_THAN);
-        case tok::colon:
-            return new ASTTernaryExpr(Loc, CondOpKind::COND_ELSE);
+            return ParseTernaryOperatorExpr(Success);
 
         default:
             assert(0 && "Operator not accepted");
     }
+}
+
+ASTTernaryExpr *Parser::ParseTernaryOperatorExpr(bool &Success) {
+    return nullptr; //new ASTTernaryExpr(Loc, TernaryOpKind::COND_ELSE);
 }
 
 /**

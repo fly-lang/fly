@@ -48,7 +48,7 @@ void ASTNode::setDefaultNameSpace() {
 }
 
 ASTNameSpace *ASTNode::FindNameSpace(const StringRef &Name) {
-    FLY_DEBUG_MESSAGE("ASTNode", "findNameSpace", Name);
+    FLY_DEBUG_MESSAGE("ASTNode", "findNameSpace", "Name=" << Name);
     if (Name.empty()) { // return current NameSpace if not set
         return NameSpace;
     } else {
@@ -58,7 +58,7 @@ ASTNameSpace *ASTNode::FindNameSpace(const StringRef &Name) {
 }
 
 ASTNameSpace *ASTNode::setNameSpace(llvm::StringRef Name) {
-    FLY_DEBUG_MESSAGE("ASTNode", "setNameSpace", "Name" << Name);
+    FLY_DEBUG_MESSAGE("ASTNode", "setNameSpace", "Name=" << Name);
 
     // Check if Name exist or add
     NameSpace = Context->NameSpaces.lookup(Name);
@@ -73,21 +73,21 @@ const llvm::StringMap<ASTImport*> &ASTNode::getImports() {
     return Imports;
 }
 
-bool ASTNode::AddImport(ASTImport * NewImport) {
-    FLY_DEBUG_MESSAGE("ASTNode", "AddImport", NewImport);
+bool ASTNode::AddImport(ASTImport * Import) {
+    FLY_DEBUG_MESSAGE("ASTNode", "AddImport", "Import=" << Import->str());
     // Check if this Node already own this Import
-    ASTImport* Import = Imports.lookup(NewImport->getName());
-    if (Import != nullptr) {
-        Context->Diag(NewImport->getLocation(), diag::err_duplicate_import)  << NewImport->getName();
+    ASTImport* FoundImport = Imports.lookup(Import->getName());
+    if (FoundImport != nullptr) {
+        Context->Diag(Import->getLocation(), diag::err_duplicate_import) << Import->getName();
         return false;
     }
 
     // Retrieve Import from Context if already exists in order to maintain only one instance of ImportDecl
-    Import = Context->Imports.lookup(NewImport->getName());
-    if (Import == nullptr) {
-        Import = NewImport;
+    FoundImport = Context->Imports.lookup(Import->getName());
+    if (FoundImport == nullptr) {
+        FoundImport = Import;
     }
-    auto Pair = std::make_pair(Import->getName(), Import);
+    auto Pair = std::make_pair(FoundImport->getName(), FoundImport);
 
     // Add Import to Context
     Context->Imports.insert(Pair);
@@ -103,8 +103,8 @@ const llvm::StringMap<ASTGlobalVar *> &ASTNode::getGlobalVars() {
 }
 
 bool ASTNode::AddGlobalVar(ASTGlobalVar *Var) {
-    FLY_DEBUG_MESSAGE("ASTNode", "AddGlobalVar", Var);
     assert(Var->Visibility && "Function Visibility is unset");
+    FLY_DEBUG_MESSAGE("ASTNode", "AddGlobalVar", "Var=" << Var->str());
 
     // Lookup into namespace for public var
     if(Var->Visibility == VisibilityKind::V_PUBLIC || Var->Visibility == VisibilityKind::V_DEFAULT) {
@@ -132,7 +132,7 @@ bool ASTNode::AddGlobalVar(ASTGlobalVar *Var) {
 }
 
 bool ASTNode::AddResolvedCall(ASTFuncCall *Call) {
-    FLY_DEBUG_MESSAGE("ASTNode", "AddResolvedCall", Call);
+    FLY_DEBUG_MESSAGE("ASTNode", "AddResolvedCall", "Call=" << Call->str());
     const auto &It = ResolvedCalls.find(Call->getName());
     if (It == ResolvedCalls.end()) {
         std::vector<ASTFuncCall *> Functions;
@@ -148,7 +148,7 @@ const llvm::StringMap<std::vector<ASTFuncCall *>> &ASTNode::getResolvedCalls() c
 }
 
 bool ASTNode::AddFunction(ASTFunc *Func) {
-    FLY_DEBUG_MESSAGE("ASTNode", "AddFunction", Func);
+    FLY_DEBUG_MESSAGE("ASTNode", "AddFunction", "Func=" << Func->str());
     assert(Func->Visibility && "Function Visibility is unset");
 
     // Lookup into namespace for public var
@@ -195,7 +195,7 @@ const std::unordered_set<ASTFunc*> &ASTNode::getFunctions() const {
 }
 
 bool ASTNode::AddClass(ASTClass *Class) {
-    FLY_DEBUG_MESSAGE("ASTNode", "AddFunction", Class);
+    FLY_DEBUG_MESSAGE("ASTNode", "AddFunction", "Class" << Class->str());
 
     // Lookup into namespace
     ASTClass *LookupClass = NameSpace->getClasses().lookup(Class->getName());
@@ -210,29 +210,29 @@ const llvm::StringMap<ASTClass *> &ASTNode::getClasses() {
     return NameSpace->getClasses();
 }
 
-ASTType *ASTNode::ResolveExprType(ASTExpr *E) {
-    FLY_DEBUG_MESSAGE("ASTNode", "ResolveExprType", E);
-    switch (E->getKind()) {
+ASTType *ASTNode::ResolveExprType(ASTExpr *Expr) {
+    FLY_DEBUG_MESSAGE("ASTNode", "ResolveExprType", "Expr=" << Expr->str());
+    switch (Expr->getKind()) {
 
         case EXPR_VALUE:
-            return ((ASTValueExpr *) E)->getValue().getType();
+            return ((ASTValueExpr *) Expr)->getValue().getType();
         case EXPR_REF_VAR:
-            return ((ASTVarRefExpr *) E)->getVarRef()->getDecl()->getType();
+            return ((ASTVarRefExpr *) Expr)->getVarRef()->getDecl()->getType();
         case EXPR_REF_FUNC:
-            return ((ASTFuncCallExpr *) E)->getCall()->getDecl()->getType();
+            return ((ASTFuncCallExpr *) Expr)->getCall()->getDecl()->getType();
         case EXPR_GROUP:
-            return ResolveExprType(((ASTGroupExpr *) E)->getGroup().at(0));
+            return ResolveExprType(((ASTGroupExpr *) Expr)->getGroup().at(0));
     }
     return nullptr;
 }
 
 void ASTNode::AddUnRefCall(ASTFuncCall *Call) {
-    FLY_DEBUG_MESSAGE("ASTNode", "AddUnRefCall", Call);
+    FLY_DEBUG_MESSAGE("ASTNode", "AddUnRefCall", "Call=" << Call->str());
     UnRefCalls.push_back(Call);
 }
 
 void ASTNode::AddUnRefGlobalVar(ASTVarRef *Var) {
-    FLY_DEBUG_MESSAGE("ASTNode", "AddUnRefGlobalVar", Var);
+    FLY_DEBUG_MESSAGE("ASTNode", "AddUnRefGlobalVar", "Var=" << Var->str());
     UnRefGlobalVars.push_back(Var);
 }
 

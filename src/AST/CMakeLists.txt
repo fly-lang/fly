@@ -20,7 +20,7 @@ add_library(FlyAST
         ASTValue.cpp
         ASTVar.cpp
         ASTWhileBlock.cpp
-        )
+)
 
 target_link_libraries(FlyAST
         FlyBasic

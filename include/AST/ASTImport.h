@@ -10,7 +10,6 @@
 #ifndef FLY_ASTIMPORT_H
 #define FLY_ASTIMPORT_H
 
-#include <ostream>
 #include "Basic/SourceLocation.h"
 
 namespace fly {
@@ -45,7 +44,7 @@ namespace fly {
 
         void setNameSpace(ASTNameSpace *NS);
 
-        friend std::ostream &operator<<(std::ostream &OS, const ASTImport &Import);
+        std::string str() const;
     };
 }
 

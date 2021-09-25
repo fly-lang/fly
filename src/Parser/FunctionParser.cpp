@@ -166,7 +166,7 @@ bool FunctionParser::ParseCallArg(ASTBlock *Block) {
     if (Success) {
         // Type will be resolved into AST Finalize
         ASTType *Ty = nullptr;
-        ASTFuncArg *Arg = new ASTFuncArg(E, Ty);
+        ASTCallArg *Arg = new ASTCallArg(E, Ty);
         Call->addArg(Arg);
 
         if (P->Tok.is(tok::comma)) {

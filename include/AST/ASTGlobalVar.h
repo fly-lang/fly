@@ -10,6 +10,7 @@
 #ifndef FLY_PACKAGEVAR_H
 #define FLY_PACKAGEVAR_H
 
+#include <ostream>
 #include "ASTTopDecl.h"
 #include "ASTVar.h"
 #include "CodeGen/CodeGenGlobalVar.h"
@@ -22,17 +23,17 @@ namespace fly {
 
         friend class ASTNode;
 
-        const TopDeclKind Kind;
+        // Code Generator
         CodeGenGlobalVar *CodeGen;
+
+        // Value Expression
         ASTValueExpr *Expr = nullptr;
 
     public:
 
-        ASTGlobalVar(ASTNode *Node, SourceLocation &Loc, ASTType *Type, const llvm::StringRef &Name);
+        ASTGlobalVar(SourceLocation &Loc, ASTNode *Node, ASTType *Type, const llvm::StringRef &Name);
 
         ~ASTGlobalVar() = default;
-
-        TopDeclKind getKind() const override;
 
         ASTExpr *getExpr() const override;
 
@@ -41,6 +42,9 @@ namespace fly {
         CodeGenGlobalVar *getCodeGen() const override;
 
         void setCodeGen(CodeGenGlobalVar *codeGen);
+
+        std::string str() const override;
+
     };
 }
 

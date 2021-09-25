@@ -16,7 +16,9 @@
 namespace fly {
 
     class ASTNode;
+
     enum TopDeclKind {
+        DECL_NONE,
         DECL_NAMESPACE,
         DECL_IMPORT,
         DECL_GLOBALVAR,
@@ -39,11 +41,18 @@ namespace fly {
 
     protected:
         ASTNode *Node;
+
+        // File Source Location
         const SourceLocation Location;
+
+        // Visibility of the declaration
         VisibilityKind Visibility = V_DEFAULT;
 
+        // Kind of TopDecl identified by enum
+        TopDeclKind Kind;
+
     public:
-        ASTTopDecl(ASTNode *Node, const SourceLocation &Loc);
+        ASTTopDecl(const SourceLocation &Loc, ASTNode *Node, TopDeclKind Kind);
 
         ASTNode *getNode();
 
@@ -55,8 +64,9 @@ namespace fly {
 
         void setVisibility(VisibilityKind V);
 
-        virtual TopDeclKind getKind() const = 0;
+        TopDeclKind getKind() const;
 
+        virtual std::string str() const;
     };
 }
 

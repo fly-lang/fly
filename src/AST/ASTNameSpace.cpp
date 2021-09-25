@@ -20,7 +20,7 @@
 
 using namespace fly;
 
-ASTNameSpace::ASTNameSpace(const llvm::StringRef &NS) : Name(NS) {}
+ASTNameSpace::ASTNameSpace(const llvm::StringRef &Name) : Name(Name) {}
 
 const llvm::StringRef ASTNameSpace::DEFAULT = "default";
 
@@ -106,7 +106,6 @@ bool ASTNameSpace::Resolve() {
     return Success;
 }
 
-std::ostream &fly::operator<<(std::ostream &OS, const ASTNameSpace &NameSpace) {
-    OS << "Name: " << NameSpace.Name;
-    return OS;
+std::string ASTNameSpace::str() const {
+    return "{ Name=" + Name.str() + " }";
 }

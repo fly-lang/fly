@@ -18,13 +18,12 @@
 
 using namespace fly;
 
-ASTFunc::ASTFunc(ASTNode *Node, const SourceLocation &Loc, ASTType *RetType, const llvm::StringRef &Name) :
-        Kind(TopDeclKind::DECL_FUNCTION), ASTTopDecl(Node, Loc), Type(RetType), Name(Name), Header(new ASTFuncHeader),
-        Body(new ASTBlock(Loc, this, nullptr)) {}
+ASTFunc::ASTFunc(ASTNode *Node, const SourceLocation &Loc, ASTType *ReturnType, const llvm::StringRef &Name) :
+        ASTTopDecl(Loc, Node, TopDeclKind::DECL_FUNCTION), ReturnType(ReturnType), Name(Name), Header(new ASTFuncHeader),
+        Body(new ASTBlock(Loc, this, nullptr)) {
 
-TopDeclKind ASTFunc::getKind() const {
-return Kind;
 }
+
 
 const llvm::StringRef &ASTFunc::getName() const {
     return Name;
@@ -43,7 +42,7 @@ const ASTFuncHeader *ASTFunc::getHeader() const {
 }
 
 ASTType *ASTFunc::getType() const {
-    return Type;
+    return ReturnType;
 }
 
 const std::vector<ASTLocalVar *> &ASTFunc::getDeclVars() const {
@@ -128,7 +127,7 @@ bool ASTFunc::ResolveCall(ASTFuncCall *ResolvedCall, ASTFuncCall *Call) {
                 }
             }
         } else {
-            ASTFuncArg *Arg = Args[i];
+            ASTCallArg *Arg = Args[i];
             if (Arg->getType() == nullptr) {
                 ASTType *Ty = ASTNode::ResolveExprType(Arg->getValue());
                 Arg->setType(Ty);
@@ -142,6 +141,19 @@ bool ASTFunc::ResolveCall(ASTFuncCall *ResolvedCall, ASTFuncCall *Call) {
     }
 
     return true;
+}
+
+std::string ASTFunc::str() const {
+    std::string Str = "{ Name=" + Name.str() +
+            ", Params=[";
+    if(!Header->getParams().empty()) {
+        for (ASTFuncParam *Param: Header->getParams()) {
+            Str += Param->str() + ", ";
+        }
+        Str = Str.substr(0, Str.length()-2);
+    }
+    Str += "], ReturnType=" + ReturnType->str();
+    return Str;
 }
 
 bool ASTFunc::operator==(const ASTFunc &F) const {
@@ -203,6 +215,12 @@ void ASTFuncParam::setCodeGen(CodeGenLocalVar *CG) {
     CodeGen = CG;
 }
 
+std::string ASTFuncParam::str() const {
+    return "{ " + ASTVar::str() +
+            ", Expr=" + (Expr ? Expr->str() : "{}") +
+            " }";
+}
+
 const std::vector<ASTFuncParam *> &ASTFuncHeader::getParams() const {
     return Params;
 }
@@ -212,7 +230,7 @@ const ASTFuncParam *ASTFuncHeader::getVarArg() const {
 }
 
 ASTReturn::ASTReturn(const SourceLocation &Loc, ASTBlock *Block, ASTExpr *Expr) : ASTStmt(Loc, Block),
-                                                                                  Ty(Block->getTop()->getType()),
+                                                                                  Type(Block->getTop()->getType()),
                                                                                   Expr(Expr) {}
 
 ASTExpr *ASTReturn::getExpr() const {
@@ -221,6 +239,13 @@ ASTExpr *ASTReturn::getExpr() const {
 
 StmtKind ASTReturn::getKind() const {
     return Kind;
+}
+
+std::string ASTReturn::str() const {
+    return "{ Kind=" + std::to_string(Kind) +
+           ", Type=" + Type->str() +
+           ", Expr=" + Expr->str() +
+           " }";
 }
 
 ASTFuncCall::ASTFuncCall(const SourceLocation &Loc, const StringRef &NameSpace, const StringRef &Name) :
@@ -236,7 +261,7 @@ const llvm::StringRef &ASTFuncCall::getName() const {
     return Name;
 }
 
-const std::vector<ASTFuncArg*> ASTFuncCall::getArgs() const {
+const std::vector<ASTCallArg*> ASTFuncCall::getArgs() const {
     return Args;
 }
 
@@ -256,7 +281,7 @@ void ASTFuncCall::setCodeGen(CodeGenCall *CGC) {
     CGC = CGC;
 }
 
-ASTFuncArg *ASTFuncCall::addArg(ASTFuncArg *Arg) {
+ASTCallArg *ASTFuncCall::addArg(ASTCallArg *Arg) {
     Args.push_back(Arg);
     return Arg;
 }
@@ -273,9 +298,23 @@ ASTFuncCall *ASTFuncCall::CreateCall(ASTFunc *FDecl) {
     ASTFuncCall *FCall = new ASTFuncCall(SourceLocation(), FDecl->getNameSpace()->getName(), FDecl->getName());
     FCall->setDecl(FDecl);
     for (auto &Param : FDecl->getHeader()->getParams()) {
-        FCall->addArg(new ASTFuncArg(nullptr, Param->getType()));
+        FCall->addArg(new ASTCallArg(nullptr, Param->getType()));
     }
     return FCall;
+}
+
+std::string ASTFuncCall::str() const {
+    std::string Str = "{ NameSpace=" + NameSpace.str() +
+           ", Name=" + Name.str() +
+           ", Args=[";
+    if (!Args.empty()) {
+        for (ASTCallArg *Arg : Args) {
+            Str += Arg->str() + ", ";
+        }
+        Str = Str.substr(0, Str.length()-2);
+    }
+    Str += "] }";
+    return Str;
 }
 
 ASTFuncCallStmt::ASTFuncCallStmt(const SourceLocation &Loc, ASTBlock *Block, ASTFuncCall *Call) :
@@ -291,18 +330,30 @@ ASTFuncCall *ASTFuncCallStmt::getCall() const {
     return Call;
 }
 
-ASTFuncArg::ASTFuncArg(ASTExpr *Value, ASTType *Ty) : Value(Value), Ty(Ty) {
+std::string ASTFuncCallStmt::str() const {
+    return "{ Call=" + Call->str() +
+           ", Kind=" + std::to_string(STMT_FUNC_CALL) +
+           " }";
+}
+
+ASTCallArg::ASTCallArg(ASTExpr *Value, ASTType *Type) : Value(Value), Type(Type) {
 
 }
 
-ASTExpr *ASTFuncArg::getValue() const {
+ASTExpr *ASTCallArg::getValue() const {
     return Value;
 }
 
-ASTType *ASTFuncArg::getType() const {
-    return Ty;
+ASTType *ASTCallArg::getType() const {
+    return Type;
 }
 
-void ASTFuncArg::setType(ASTType *T) {
-    Ty = T;
+void ASTCallArg::setType(ASTType *T) {
+    Type = T;
+}
+
+std::string ASTCallArg::str() const {
+    return "{ Value=" + (Value  ? Value->str() : "{}") +
+           ", Type=" + (Type ? Type->str() : "{}") +
+           " }";
 }

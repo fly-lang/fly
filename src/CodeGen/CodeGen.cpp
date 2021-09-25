@@ -46,7 +46,7 @@ std::string CodeGen::getOutputFileName(BackendActionKind ActionKind, StringRef B
 }
 
 void CodeGen::Emit(CodeGenModule *CGM) {
-    FLY_DEBUG_MESSAGE("CodeGen", "Emit","ActionKind" << ActionKind);
+    FLY_DEBUG_MESSAGE("CodeGen", "Emit","ActionKind=" << ActionKind);
 
     // Skip CodeGenModule instance creation
     if (ActionKind == Backend_EmitNothing) {

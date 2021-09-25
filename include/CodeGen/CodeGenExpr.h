@@ -40,6 +40,13 @@ namespace fly {
         llvm::Value *getVal() const {
             return Val;
         }
+
+        std::string str() const override {
+            return "{ Type=" + getType()->str() +
+                   ", Kind=" + std::to_string(ASTExprKind::EXPR_VIRTUAL) +
+                   ", Val=" + Val->getName().str() +
+                   " }";
+        }
     };
 
     class CodeGenExpr {

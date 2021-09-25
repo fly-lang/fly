@@ -128,7 +128,7 @@ CallInst *CodeGenModule::GenCall(llvm::Function *Fn, ASTFuncCall *Call) {
 
     const std::vector<ASTFuncParam *> &Params = Call->getDecl()->getHeader()->getParams();
     llvm::SmallVector<llvm::Value *, 8> Args;
-    for (ASTFuncArg *Arg : Call->getArgs()) {
+    for (ASTCallArg *Arg : Call->getArgs()) {
 
         Value *V = GenExpr(Fn, Arg->getType(), Arg->getValue());
         Args.push_back(V);
@@ -209,8 +209,6 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
             }
             break;
         }
-        case DECL_TYPE:
-            break;
         case STMT_BREAK:
             break;
         case STMT_CONTINUE:
@@ -256,7 +254,7 @@ llvm::Constant *CodeGenModule::GenValue(const ASTType *Ty, const ASTValue *Val) 
             return nullptr;
         case TYPE_INT:
             if (!Val->empty()) {
-                uint64_t intVal = std::stoi(Val->str().str());
+                uint64_t intVal = std::stoi(Val->str());
                 return llvm::ConstantInt::get(Int32Ty, intVal, true);
             }
             return llvm::ConstantInt::get(Int32Ty, 0, false);;

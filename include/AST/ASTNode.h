@@ -68,7 +68,7 @@ namespace fly {
         ASTNameSpace* getNameSpace();
         ASTNameSpace *FindNameSpace(const StringRef &string);
 
-        bool AddImport(ASTImport *NewImport);
+        bool AddImport(ASTImport *Import);
         const llvm::StringMap<ASTImport*> &getImports();
 
         bool AddGlobalVar(ASTGlobalVar *Var);
@@ -83,7 +83,7 @@ namespace fly {
         bool AddClass(ASTClass *Class);
         const llvm::StringMap<ASTClass *> &getClasses();
 
-        static ASTType *ResolveExprType(ASTExpr *E);
+        static ASTType *ResolveExprType(ASTExpr *Expr);
 
         void AddUnRefCall(ASTFuncCall *Call);
 

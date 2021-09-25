@@ -64,9 +64,6 @@ namespace fly {
         // Contains all vars declared in this Block
         llvm::StringMap<ASTLocalVar *> DeclVars;
 
-        // Order assigned when add a VarDeclStmt or when add VarStmt
-        unsigned long Order = 0;
-
     public:
 
         ASTBlock(const SourceLocation &Loc, ASTBlock *Parent);
@@ -110,6 +107,8 @@ namespace fly {
         bool AddBlock(const SourceLocation &Loc, ASTBlock *Block);
 
         DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID);
+
+        std::string str() const override;
     };
 
     /**
@@ -123,6 +122,8 @@ namespace fly {
         BreakStmt(const SourceLocation &Loc, ASTBlock *Parent);
 
         StmtKind getKind() const override;
+
+        std::string str() const override;
     };
 
     /**
@@ -136,6 +137,8 @@ namespace fly {
         ContinueStmt(const SourceLocation &Loc, ASTBlock *Parent);
 
         StmtKind getKind() const override;
+
+        std::string str() const override;
     };
 }
 
