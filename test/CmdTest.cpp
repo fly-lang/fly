@@ -26,7 +26,7 @@ namespace {
     };
 
     TEST_F(CmdTest, LaunchAsMain) {
-        char* Argv[] = {"fly", "-debug", "-ll", "src/main.fly"};
+        char* Argv[] = {"fly", "-debug", "-ll", "src/main.fly", NULL};
         int Argc = sizeof(Argv) / sizeof(char*) - 1;;
 
         SmallVector<const char *, 256> ArgList(Argv, Argv + Argc);
