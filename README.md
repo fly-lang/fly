@@ -1,5 +1,5 @@
 <!-- PROJECT LOGO -->
-[![Build](https://github.com/fly-lang/fly/actions/workflows/build.yml/badge.svg)](https://github.com/fly-lang/fly/actions/workflows/build.yml)
+[![Release](https://github.com/fly-lang/fly/actions/workflows/release.yml/badge.svg)](https://github.com/fly-lang/fly/actions/workflows/release.yml)
 <br />
 <p align="center">
   <a href="https://github.com/fly-lang/fly">
