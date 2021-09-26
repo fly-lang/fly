@@ -48,7 +48,7 @@ llvm::StoreInst *CodeGenLocalVar::Store(llvm::Value *Val) {
 }
 
 llvm::LoadInst *CodeGenLocalVar::Load() {
-    assert(AllocaI && "Connot load from unallocated stack");
+    assert(AllocaI && "Cannot load from unallocated stack");
     LoadI = CGM->Builder->CreateLoad(AllocaI);
     Reload = false;
     BlockID = CGM->Builder->GetInsertBlock()->getName();

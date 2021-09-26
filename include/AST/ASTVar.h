@@ -32,19 +32,21 @@ namespace fly {
         friend class FunctionParser;
         friend class ASTLocalVar;
 
+    protected:
         ASTType *Type;
-        const llvm::StringRef NameSpace;
+        const llvm::StringRef NameSpaceStr;
         const llvm::StringRef Name;
         bool Constant = false;
+        bool Global = false;
 
     public:
-        ASTVar(ASTType *Type, const StringRef &Name, const StringRef &NameSpace = "");
+        ASTVar(ASTType *Type, const StringRef &Name, const StringRef &NameSpaceStr = "", bool Global = false);
 
         virtual ~ASTVar();
 
         virtual CodeGenVar *getCodeGen() const = 0;
 
-        const bool isGlobal() const;
+        bool isGlobal() const;
 
         virtual bool isConstant() const;
 
@@ -52,11 +54,14 @@ namespace fly {
 
         virtual const llvm::StringRef &getName() const;
 
-        const StringRef &getNameSpace() const;
+        const llvm::StringRef &getPrefix() const;
 
         virtual void setExpr(ASTExpr *Exp) = 0;
 
         virtual ASTExpr *getExpr() const = 0;
+
+        virtual std::string str() const;
+
     };
 
     /**
@@ -89,6 +94,8 @@ namespace fly {
         ASTVar *getDecl() const;
 
         void setDecl(ASTVar *decl);
+
+        std::string str() const;
     };
 }
 

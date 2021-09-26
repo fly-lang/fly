@@ -20,7 +20,7 @@
 
 using namespace fly;
 
-ASTNameSpace::ASTNameSpace(const llvm::StringRef &NS) : Name(NS) {}
+ASTNameSpace::ASTNameSpace(const llvm::StringRef &Name) : Name(Name) {}
 
 const llvm::StringRef ASTNameSpace::DEFAULT = "default";
 
@@ -104,4 +104,8 @@ bool ASTNameSpace::Resolve() {
                                          ResolvedCalls);
     }
     return Success;
+}
+
+std::string ASTNameSpace::str() const {
+    return "{ Name=" + Name.str() + " }";
 }

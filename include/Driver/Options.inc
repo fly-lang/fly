@@ -48,6 +48,10 @@ OPTION(prefix_1, "as", EMIT_AS, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
        "Produce assembly output .as file", nullptr, nullptr)
 OPTION(prefix_1, "bc", EMIT_BC, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
        "Produce bitecode output .bc file", "nullptr", nullptr)
+OPTION(prefix_1, "debug", DEBUG, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
+       "Print debug messages", "nullptr", nullptr)
+OPTION(prefix_1, "ftime-report", FTIME_REPORT, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
+        "Show timers for individual actions", nullptr, nullptr)
 OPTION(prefix_4, "help", HELP, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
        "Display available options", nullptr, nullptr)
 OPTION(prefix_1, "ll", EMIT_LL, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
@@ -62,6 +66,10 @@ OPTION(prefix_1, "no", EMIT_NOTHING, Flag, INVALID, INVALID, nullptr, CoreOption
        "Produce no output", nullptr, nullptr)
 OPTION(prefix_1, "o", OUTPUT, JoinedOrSeparate, INVALID, INVALID, nullptr, CoreOption, 0,
        "Write output to <file>", "<file>", nullptr)
+OPTION(prefix_1, "print-stats", PRINT_STATS, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
+        "Print performance metrics and statistics", nullptr, nullptr)
+OPTION(prefix_1, "stats-file=", STATS_FILE, Joined, INVALID, INVALID, nullptr, CoreOption, 0,
+        "Filename to write statistics to", nullptr, nullptr)
 OPTION(prefix_1, "target-cpu", TARGET_CPU, Separate, INVALID, INVALID, nullptr, CoreOption, 0,
        "Generate code for the given CPU", nullptr, nullptr)
 OPTION(prefix_1, "target", TARGET, Separate, INVALID, INVALID, nullptr, CoreOption, 0,
@@ -76,4 +84,5 @@ OPTION(prefix_1, "working-dir", WORKING_DIR, JoinedOrSeparate, INVALID, INVALID,
        "Resolve file paths relative to the specified directory", nullptr, nullptr)
 OPTION(prefix_1, "w", NO_WARNING, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
        "Suppress all warnings", nullptr, nullptr)
+
 #endif // OPTION

@@ -12,15 +12,28 @@
 #include "CodeGen/CodeGenModule.h"
 #include "CodeGen/CodeGen.h"
 #include "AST/ASTValue.h"
+#include "AST/ASTGlobalVar.h"
 
 using namespace fly;
 
-CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, const llvm::StringRef &Name, const ASTType *Ty,
-                                   const ASTValue *Val, const bool isConstant) : CGM(CGM) {
+CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, ASTGlobalVar* AST) : CGM(CGM) {
     // Check Value
-    llvm::Constant *Const = nullptr;
-    llvm::Type *Typ = CGM->GenType(Ty);
-    GVar = new llvm::GlobalVariable(*CGM->Module, Typ, isConstant,GlobalValue::ExternalLinkage, Const, Name);
+    bool Success = true;
+    llvm::Constant *Const;
+    if (AST->getExpr() == nullptr) {
+        Const = nullptr;
+    } else if (AST->getExpr()->getKind() == EXPR_VALUE) {
+        const ASTValue &Value = ((ASTValueExpr *) AST->getExpr())->getValue();
+        Const = CGM->GenValue(AST->getType(), &Value);
+    } else {
+        CGM->Diag(AST->getExpr()->getLocation(), diag::err_invalid_gvar_value);
+        Success = false;
+    }
+    if (Success) {
+        llvm::Type *Typ = CGM->GenType(AST->getType());
+        GVar = new llvm::GlobalVariable(*CGM->Module, Typ, AST->isConstant(), GlobalValue::ExternalLinkage,
+                                        Const, AST->getName());
+    }
 }
 
 llvm::Value *CodeGenGlobalVar::getPointer() {

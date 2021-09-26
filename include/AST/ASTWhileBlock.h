@@ -19,14 +19,14 @@ namespace fly {
 
         friend class Parser;
 
-        enum BlockStmtKind StmtKind = BlockStmtKind::BLOCK_STMT_WHILE;
+        enum ASTBlockKind StmtKind = ASTBlockKind::BLOCK_STMT_WHILE;
 
         ASTExpr *Cond;
 
     public:
         ASTWhileBlock(const SourceLocation &Loc, ASTBlock *Parent, ASTExpr *Cond);
 
-        enum BlockStmtKind getBlockKind() const override;
+        enum ASTBlockKind getBlockKind() const override;
 
         ASTExpr *getCondition();
 

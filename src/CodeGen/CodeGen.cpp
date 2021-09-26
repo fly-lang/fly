@@ -11,19 +11,22 @@
 #include "CodeGen/CodeGenModule.h"
 #include "AST/ASTNode.h"
 #include "AST/ASTNameSpace.h"
+#include "Frontend/FrontendOptions.h"
 #include "Basic/FileManager.h"
 #include "Basic/TargetInfo.h"
+#include "Basic/Debug.h"
 #include <llvm/IR/LLVMContext.h>
 
 using namespace fly;
 
 CodeGen::CodeGen(DiagnosticsEngine &Diags, CodeGenOptions &CodeGenOpts,
-                 const std::shared_ptr<TargetOptions> &TargetOpts, BackendAction ActionKind) :
+                 const std::shared_ptr<TargetOptions> &TargetOpts,
+                 BackendActionKind BackendAction, bool ShowTimers) :
         Diags(Diags), CodeGenOpts(CodeGenOpts), TargetOpts(*TargetOpts),
-        Target(CreateTargetInfo(Diags, TargetOpts)), ActionKind(ActionKind) {
+        Target(CreateTargetInfo(Diags, TargetOpts)), ActionKind(BackendAction), ShowTimers(ShowTimers) {
 }
 
-std::string CodeGen::getOutputFileName(BackendAction ActionKind, StringRef BaseInput) {
+std::string CodeGen::getOutputFileName(BackendActionKind ActionKind, StringRef BaseInput) {
     StringRef FileName = llvm::sys::path::filename(BaseInput);
     std::string Name = FileName.str();//.substr(0,FileName.size()-4/* sizeof('.fly') = 4 */).str();
     switch (ActionKind) {
@@ -42,10 +45,12 @@ std::string CodeGen::getOutputFileName(BackendAction ActionKind, StringRef BaseI
     llvm_unreachable("Invalid backend action!");
 }
 
-bool CodeGen::Emit(CodeGenModule *CGM) {
+void CodeGen::Emit(CodeGenModule *CGM) {
+    FLY_DEBUG_MESSAGE("CodeGen", "Emit","ActionKind=" << ActionKind);
+
     // Skip CodeGenModule instance creation
     if (ActionKind == Backend_EmitNothing) {
-        return true;
+        return;
     }
 
     // After generate all other modules
@@ -55,9 +60,8 @@ bool CodeGen::Emit(CodeGenModule *CGM) {
     std::error_code ErrCode;
     std::unique_ptr<llvm::raw_fd_ostream> OS =
             std::make_unique<raw_fd_ostream>(OutputFileName, ErrCode, llvm::sys::fs::F_None);
-    EmitBackendOutput(Diags, CodeGenOpts, TargetOpts, Target->getDataLayout(), CGM->Module,
+    EmitBackendOutput(Diags, CodeGenOpts, TargetOpts, ShowTimers, Target->getDataLayout(), CGM->Module,
                       ActionKind, std::move(OS));
-    return true;
 }
 
 TargetInfo* CodeGen::CreateTargetInfo(DiagnosticsEngine &Diags,
@@ -71,5 +75,6 @@ TargetInfo &CodeGen::getTargetInfo() const {
 }
 
 CodeGenModule *CodeGen::CreateModule(llvm::StringRef Name) {
+    FLY_DEBUG("CodeGen", "CreateModule");
     return new CodeGenModule(Diags, Name, LLVMCtx, *Target, CodeGenOpts);
 }

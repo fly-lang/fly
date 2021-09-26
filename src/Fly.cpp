@@ -10,6 +10,7 @@
 #include <Config/config.h>
 #include "Driver/Driver.h"
 #include <Basic/Stack.h>
+#include "Basic/Debug.h"
 #include <llvm/Support/Process.h>
 #include <llvm/Support/Host.h>
 #include "llvm/Support/ManagedStatic.h"
@@ -54,15 +55,16 @@ int main(int Argc, const char **Argv)
     llvm::BumpPtrAllocator A;
     llvm::StringSaver Saver(A);
 
-    Driver driver(Args);
-    CompilerInstance &CI = driver.BuildCompilerInstance();
-    driver.Execute();
+    Driver TheDriver(Args);
+    CompilerInstance &CI = TheDriver.BuildCompilerInstance();
+    if (!TheDriver.Execute()) {
+        llvm::errs() << "Fly Compiler Error\n";
+    }
 
     // Set an error handler, so that any LLVM backend diagnostics go through our error handler.
     llvm::install_fatal_error_handler(LLVMErrorHandler, static_cast<void*>(&CI.getDiagnostics()));
 
     // Shutdown after execution
     llvm::llvm_shutdown();
-
     return 0;
 }

@@ -16,10 +16,12 @@
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/ADT/StringRef.h"
 #include <llvm/IR/Instructions.h>
+#include <AST/ASTExpr.h>
 
 namespace fly {
 
     class CodeGenModule;
+    class ASTGlobalVar;
     class ASTValue;
 
     class CodeGenGlobalVar : public CodeGenVar {
@@ -31,8 +33,7 @@ namespace fly {
         bool needLoad;
 
     public:
-        CodeGenGlobalVar(CodeGenModule *CGM, const llvm::StringRef &Name, const ASTType *Ty, const ASTValue *Val,
-                         const bool isConstant);
+        CodeGenGlobalVar(CodeGenModule *CGM, ASTGlobalVar* AST);
 
         llvm::Value *getPointer() override;
 

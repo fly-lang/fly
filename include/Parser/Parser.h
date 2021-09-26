@@ -33,7 +33,7 @@ namespace fly {
     class DiagnosticsEngine;
     class Lexer;
 
-    /// ParseDecl the main file known to the preprocessor, producing an
+    /// Parse the main file known to the preprocessor, producing an
     /// abstract syntax tree.
     class Parser {
 
@@ -182,11 +182,12 @@ namespace fly {
 
         bool ParseImportParen();
 
-        bool ParseImportAliasDecl(const SourceLocation &Loc, llvm::StringRef Name);
+        bool ParseImportAlias(const SourceLocation &Location, llvm::StringRef Name);
 
-        bool ParseTopScopes(VisibilityKind &Visibility, bool &Constant);
+        bool ParseTopScopes(VisibilityKind &Visibility, bool &isConst,
+                            bool isParsedVisibility = false, bool isParsedConstant = false);
 
-        bool ParseConstant(bool &Constant);
+        bool ParseConst(bool &Constant);
 
         bool ParseTopDecl();
 
@@ -200,7 +201,7 @@ namespace fly {
          * @return
          */
         bool ParseGlobalVarDecl(VisibilityKind &VisKind, bool &Constant, ASTType *TyDecl,
-                                IdentifierInfo *Id, SourceLocation &IdLoc);
+                                llvm::StringRef &Name, SourceLocation &NameLoc);
 
         /**
          * Parse Class declaration
@@ -219,14 +220,14 @@ namespace fly {
          * @param IdLoc
          * @return
          */
-        bool ParseFunctionDecl(VisibilityKind &VisKind, bool Constant, ASTType *TyDecl, IdentifierInfo *Id,
-                               SourceLocation &IdLoc);
+        bool ParseFunctionDecl(VisibilityKind &VisKind, bool Constant, ASTType *TyDecl, llvm::StringRef &Name,
+                               SourceLocation &NameLoc);
 
         /**
          * Parse Type
          * @return
          */
-        ASTType *ParseType();
+        bool ParseType(ASTType *&Type);
 
         // Parse Block Statement
 
@@ -250,6 +251,8 @@ namespace fly {
         bool ParseForStmt(ASTBlock *Block);
         bool ParseForCommaStmt(ASTBlock *Block);
 
+        // Parse Calls, Vars
+
         ASTFuncCall *ParseFunctionCall(ASTBlock *Block, IdentifierInfo *Id, SourceLocation &Loc, bool &Success);
         ASTLocalVar* ParseLocalVar(ASTBlock *Block, bool Constant, ASTType *Type, bool &Success);
         ASTVarRef* ParseVarRef(bool &Success);
@@ -258,22 +261,21 @@ namespace fly {
 
         ASTExpr* ParseStmtExpr(ASTBlock *Block, ASTLocalVar *Var, bool &Success);
         ASTExpr* ParseStmtExpr(ASTBlock *Block, ASTVarRef *VarRef, bool &Success);
-        ASTExpr* ParseExpr(ASTBlock *Block, bool &Success, ASTGroupExpr *ParentGroup = nullptr);
+        ASTExpr* ParseAllExpr(ASTBlock *Block, bool &Success, ASTGroupExpr *ParentGroup = nullptr);
         ASTExpr* ParseOneExpr(ASTBlock *Block, bool &Success);
         ASTValueExpr* ParseValueExpr(bool &Success);
         ASTOperatorExpr* ParseOperatorExpr(bool &Success);
-        ASTOperatorExpr* ParseUnaryPreOperator(bool &Success);
-        ASTOperatorExpr* ParseIncrDecrOperatorExpr(bool &Success);
-        ASTOperatorExpr* ParseUnaryOperatorExpr(bool &Success);
+        ASTTernaryExpr *ParseTernaryOperatorExpr(bool &Success);
+        ASTOperatorExpr* ParseUnaryPreOperatorExpr(bool &Success);
+        ASTOperatorExpr* ParseUnaryPostOperatorExpr(bool &Success);
 
         // Check Keywords
 
-        bool isVoidType();
         bool isBuiltinType();
         bool isValue();
         bool isOperator();
         bool isUnaryPreOperator();
-        bool isIncrDecrOperator();
+        bool isUnaryPostOperator();
     };
 
 }  // end namespace fly

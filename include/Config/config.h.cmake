@@ -1,5 +1,3 @@
-/* This generated file is for internal use. Do not include it from headers. */
-
 #ifdef FLY_CONFIG_H
 #error config.h can only be included once
 #else

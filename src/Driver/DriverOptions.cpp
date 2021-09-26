@@ -10,7 +10,6 @@
 #include "Driver/DriverOptions.h"
 #include "llvm/Option/OptTable.h"
 #include "llvm/Option/Option.h"
-#include <cassert>
 
 using namespace fly::driver;
 using namespace fly::driver::options;

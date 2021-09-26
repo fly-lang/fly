@@ -12,7 +12,8 @@ InputFile::InputFile(llvm::StringRef File) : File(File) {
 
 bool InputFile::Load(llvm::StringRef Source, SourceManager &SourceMgr) {
     // Set Source Manager file id
-    std::unique_ptr<llvm::MemoryBuffer> Buf = llvm::MemoryBuffer::getMemBuffer(Source);
+    std::unique_ptr<llvm::MemoryBuffer> Buf = llvm::MemoryBuffer::getMemBuffer(Source, File);
+
     Buffer = Buf.get();
     FID = SourceMgr.createFileID(std::move(Buf));
 //    SourceMgr.setMainFileID(FID);
@@ -32,7 +33,6 @@ bool InputFile::Load(SourceManager &SourceMgr, DiagnosticsEngine &Diags) {
     std::unique_ptr<llvm::MemoryBuffer> &Buf = FileBuf.get();
     Buffer = Buf.get();
     FID = SourceMgr.createFileID(std::move(Buf));
-//    llvm::outs() << Buffer->getBuffer();
-//    SourceMgr.setMainFileID(FID);
+//    SourceMgr.setMainFileID(FID); // TODO set for main file
     return true;
 }

@@ -53,7 +53,7 @@ namespace {
     TEST_F(ASTTest, SingleImport) {
         auto Node1 = NewASTNode("file1.fly");
         Node1->setNameSpace("packageA");
-        Node1->addImport(new ASTImport(SourceLoc, "packageB"));
+        Node1->AddImport(new ASTImport(SourceLoc, "packageB"));
         Node1->Resolve();
         Context->AddNode(Node1);
         
@@ -66,7 +66,7 @@ namespace {
 
         auto Node2 = NewASTNode("file2.fly");
         Node2->setNameSpace("packageB");
-        Node2->addImport(new ASTImport(SourceLoc, "packageA"));
+        Node2->AddImport(new ASTImport(SourceLoc, "packageA"));
         Node2->Resolve();
         Context->AddNode(Node2);
         ASSERT_EQ(Context->getNameSpaces().size(), 3); // Consider Default namespace
@@ -84,8 +84,8 @@ namespace {
         Diags.getClient()->BeginSourceFile();
         auto Node1 = NewASTNode("file1.fly");
         Node1->setNameSpace("packageA");
-        Node1->addImport(new ASTImport(SourceLoc, "packageB"));
-        Node1->addImport(new ASTImport(SourceLoc, "packageB"));
+        Node1->AddImport(new ASTImport(SourceLoc, "packageB"));
+        Node1->AddImport(new ASTImport(SourceLoc, "packageB"));
         Node1->Resolve();
         Context->Resolve();
         Diags.getClient()->EndSourceFile();
@@ -97,14 +97,14 @@ namespace {
         auto Node1 = NewASTNode("file1.fly");
         const ASTNameSpace *NS = Node1->setNameSpace("packageA");
         SourceLocation &Loc = SourceLoc;
-        ASTGlobalVar *G1 = new ASTGlobalVar(Node1, Loc, new ASTIntType(Loc), "a");
+        ASTGlobalVar *G1 = new ASTGlobalVar(Loc, Node1, new ASTIntType(Loc), "a");
         G1->setVisibility(V_PRIVATE);
-        Node1->addGlobalVar(G1);
-        ASTGlobalVar *G2 = new ASTGlobalVar(Node1, Loc, new ASTFloatType(Loc), "b"); // Default
-        Node1->addGlobalVar(G2);
-        ASTGlobalVar *G3 = new ASTGlobalVar(Node1, Loc, new ASTBoolType(Loc), "c");
+        Node1->AddGlobalVar(G1);
+        ASTGlobalVar *G2 = new ASTGlobalVar(Loc, Node1, new ASTFloatType(Loc), "b"); // Default
+        Node1->AddGlobalVar(G2);
+        ASTGlobalVar *G3 = new ASTGlobalVar(Loc, Node1, new ASTBoolType(Loc), "c");
         G3->setVisibility(V_PUBLIC);
-        Node1->addGlobalVar(G3);
+        Node1->AddGlobalVar(G3);
         Node1->Resolve();
     }
 }

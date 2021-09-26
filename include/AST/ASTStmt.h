@@ -21,7 +21,6 @@ namespace fly {
         STMT_FUNC_CALL,
         STMT_VAR_DECL,
         STMT_VAR_ASSIGN,
-        DECL_TYPE,
         STMT_BREAK,
         STMT_CONTINUE,
         STMT_RETURN
@@ -52,6 +51,8 @@ namespace fly {
         ASTFunc *getTop() const;
 
         const ASTBlock *getParent() const;
+
+        virtual std::string str() const = 0;
     };
 
     class ASTExprStmt : public ASTStmt {
@@ -66,6 +67,8 @@ namespace fly {
         ASTExpr *getExpr() const;
 
         void setExpr(ASTExpr *E);
+
+        std::string str() const override;
     };
 }
 

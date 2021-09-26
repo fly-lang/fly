@@ -14,14 +14,10 @@
 
 using namespace fly;
 
-ASTGlobalVar::ASTGlobalVar(ASTNode *Node, SourceLocation &Loc, ASTType *Type, const llvm::StringRef &Name) :
-    Kind(TopDeclKind::DECL_GLOBALVAR), ASTTopDecl(Node, Loc),
-    ASTVar(Type, Name, Node->getNameSpace()->getName()) {
+ASTGlobalVar::ASTGlobalVar(SourceLocation &Loc, ASTNode *Node, ASTType *Type, const llvm::StringRef &Name) :
+    ASTTopDecl(Loc, Node, TopDeclKind::DECL_GLOBALVAR),
+    ASTVar(Type, Name, Node->getNameSpace()->getName(), true) {
 
-}
-
-TopDeclKind ASTGlobalVar::getKind() const {
-    return Kind;
 }
 
 ASTExpr *ASTGlobalVar::getExpr() const {
@@ -29,7 +25,6 @@ ASTExpr *ASTGlobalVar::getExpr() const {
 }
 
 void ASTGlobalVar::setExpr(ASTExpr *E) {
-    assert(E->getKind() == EXPR_VALUE && "Invalid Value for GlobalVar");
     Expr = (ASTValueExpr *)E;
 }
 
@@ -39,4 +34,12 @@ CodeGenGlobalVar *ASTGlobalVar::getCodeGen() const {
 
 void ASTGlobalVar::setCodeGen(CodeGenGlobalVar *codeGen) {
     CodeGen = codeGen;
+}
+
+std::string ASTGlobalVar::str() const {
+    return "{ " +
+        ASTTopDecl::str() +
+        ", " + ASTVar::str() +
+        ", Expr= " + (Expr ? Expr->str() : "{}") +
+        " }";
 }

@@ -47,11 +47,8 @@ namespace fly {
         friend class FunctionParser;
         friend class CodeGenTest;
 
-        // Kind of TopDecl identified by enum
-        const TopDeclKind Kind;
-
         // Function return type
-        ASTType *Type;
+        ASTType *ReturnType;
 
         // Function Name
         const llvm::StringRef Name;
@@ -72,9 +69,7 @@ namespace fly {
         CodeGenFunction *CodeGen = nullptr;
 
     public:
-        ASTFunc(ASTNode *Node, const SourceLocation &Loc, ASTType *RetType, const llvm::StringRef &Name);
-
-        TopDeclKind getKind() const override;
+        ASTFunc(ASTNode *Node, const SourceLocation &Loc, ASTType *ReturnType, const llvm::StringRef &Name);
 
         ASTType *getType() const;
 
@@ -102,11 +97,13 @@ namespace fly {
 
         bool addUnRefCall(ASTFuncCall *Call);
 
-        void addUnRefGlobalVar(ASTVarRef *Var);
+        void addUnRefGlobalVar(ASTVarRef *VarRef);
 
-        void addNSUnRefGlobalVar(ASTVarRef *Var);
+        void addNSUnRefGlobalVar(ASTVarRef *VarRef);
 
         bool ResolveCall(ASTFuncCall *ResolvedCall, ASTFuncCall *Call);
+
+        std::string str() const;
 
         bool operator==(const ASTFunc& F) const;
     };
@@ -132,6 +129,8 @@ namespace fly {
         CodeGenLocalVar *getCodeGen() const override;
 
         void setCodeGen(CodeGenLocalVar *CG);
+
+        std::string str() const override;
     };
 
     /**
@@ -162,7 +161,7 @@ namespace fly {
 
         StmtKind Kind = StmtKind::STMT_RETURN;
         ASTExpr* Expr;
-        const ASTType *Ty;
+        const ASTType *Type;
 
     public:
         ASTReturn(const SourceLocation &Loc, ASTBlock *Block, ASTExpr *Expr);
@@ -170,21 +169,25 @@ namespace fly {
         StmtKind getKind() const override;
 
         ASTExpr *getExpr() const;
+
+        std::string str() const override;
     };
 
-    class ASTFuncArg {
+    class ASTCallArg {
         ASTExpr *Value;
-        ASTType *Ty;
+        ASTType *Type;
 
     public:
 
-        ASTFuncArg(ASTExpr *Value, ASTType *Ty);
+        ASTCallArg(ASTExpr *Value, ASTType *Type);
 
         ASTExpr *getValue() const;
 
         ASTType *getType() const;
 
         void setType(ASTType *T);
+
+        std::string str() const;
     };
 
     /**
@@ -200,7 +203,7 @@ namespace fly {
         const SourceLocation Loc;
         llvm::StringRef NameSpace;
         const llvm::StringRef Name;
-        std::vector<ASTFuncArg *> Args;
+        std::vector<ASTCallArg *> Args;
         ASTFunc *Decl = nullptr;
         CodeGenCall *CGC = nullptr;
 
@@ -209,15 +212,15 @@ namespace fly {
 
         const SourceLocation &getLocation() const;
 
-        const StringRef &getNameSpace() const;
+        const llvm::StringRef &getNameSpace() const;
 
         void setNameSpace(const llvm::StringRef &NameSpace);
 
-        const StringRef &getName() const;
+        const llvm::StringRef &getName() const;
 
-        const std::vector<ASTFuncArg *> getArgs() const;
+        const std::vector<ASTCallArg *> getArgs() const;
 
-        ASTFuncArg *addArg(ASTFuncArg *Arg);
+        ASTCallArg *addArg(ASTCallArg *Arg);
 
         ASTFunc *getDecl() const;
 
@@ -229,6 +232,7 @@ namespace fly {
 
         static ASTFuncCall *CreateCall(ASTFunc *FDecl);
 
+        std::string str() const;
     };
 
     /**
@@ -246,6 +250,8 @@ namespace fly {
         StmtKind getKind() const override;
 
         ASTFuncCall *getCall() const;
+
+        std::string str() const override;
     };
 }
 

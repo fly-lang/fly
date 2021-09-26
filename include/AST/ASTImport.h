@@ -43,6 +43,8 @@ namespace fly {
         ASTNameSpace *getNameSpace() const;
 
         void setNameSpace(ASTNameSpace *NS);
+
+        std::string str() const;
     };
 }
 

@@ -26,19 +26,3 @@ void FrontendOptions::setOutputFile(llvm::StringRef FileName) {
 const OutputFile &FrontendOptions::getOutputFile() const {
     return Output;
 }
-
-bool FrontendOptions::isVerbose() const {
-    return Verbose;
-}
-
-void FrontendOptions::setVerbose() {
-    FrontendOptions::Verbose = true;
-}
-
-BackendAction FrontendOptions::getBackendAction() {
-    return Action;
-}
-
-void FrontendOptions::setBackendAction(BackendAction action) {
-    Action = action;
-}

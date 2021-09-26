@@ -16,9 +16,10 @@
 #include "llvm/ADT/StringRef.h"
 
 namespace fly {
-class DiagnosticOptions;
 
-class LogDiagnosticPrinter : public DiagnosticConsumer {
+    class DiagnosticOptions;
+
+    class LogDiagnosticPrinter : public DiagnosticConsumer {
   struct DiagEntry {
     /// The primary message line of the diagnostic.
     std::string Message;

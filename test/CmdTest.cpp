@@ -10,11 +10,10 @@
 
 #include <Driver/Driver.h>
 #include <Driver/DriverOptions.h>
-#include "llvm/Option/OptTable.h"
-#include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/TargetSelect.h"
-#include "llvm/Support/InitLLVM.h"
+#include "Basic/Debug.h"
 #include "gtest/gtest.h"
+#include <fstream>
 
 namespace {
     using namespace fly;
@@ -27,23 +26,20 @@ namespace {
     };
 
     TEST_F(CmdTest, LaunchAsMain) {
-        const char* Argv[] = {"fly", "-ll", "main.fly", "-o", "test"};
-        int Argc = sizeof Argv / sizeof Argv[0];
+        char* Argv[] = {"fly", "-debug", "-ll", "src/main.fly", NULL};
+        int Argc = sizeof(Argv) / sizeof(char*) - 1;;
 
-        SmallVector<const char *, 256> Args(Argv, Argv + Argc);
+        SmallVector<const char *, 256> ArgList(Argv, Argv + Argc);
         llvm::InitializeAllTargets();
         llvm::InitializeAllTargetMCs();
         llvm::InitializeAllAsmPrinters();
-//        llvm::InitializeAllAsmParsers();
 
-        testing::internal::CaptureStdout();
+        Driver TheDriver(ArgList);
+        CompilerInstance &CI = TheDriver.BuildCompilerInstance();
+        TheDriver.Execute();
 
-        Driver driver(Args);
-        CompilerInstance &CI = driver.BuildCompilerInstance();
-        driver.Execute();
-
-        std::string output = testing::internal::GetCapturedStdout();
-        llvm::outs() << output;
+        std::ifstream reader("main.fly.ll");
+        ASSERT_TRUE(reader && "Error opening main.fly.ll");
     }
 
 } // anonymous namespace

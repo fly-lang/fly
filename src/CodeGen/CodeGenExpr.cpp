@@ -18,8 +18,8 @@
 
 using namespace fly;
 
-CodeGenExpr::CodeGenExpr(CodeGenModule *CGM, llvm::Function *Fn, ASTExpr *Expr, const ASTType *Type) : CGM(CGM),
-    Fn(Fn) {
+CodeGenExpr::CodeGenExpr(CodeGenModule *CGM, llvm::Function *Fn, ASTExpr *Expr, const ASTType *Type) :
+    CGM(CGM), Fn(Fn) {
     Val = Generate(Expr);
     for (auto &Value : PostValues) {
         CGM->Builder->Insert(Value);
@@ -131,14 +131,16 @@ llvm::Value *CodeGenExpr::GenValue(ASTExpr *Expr, llvm::Value *&Pointer) {
             ASTVarRefExpr *VarRefExpr = (ASTVarRefExpr *)Expr;
             assert(VarRefExpr->getVarRef() && "Missing Ref");
             ASTVar *VarRef = VarRefExpr->getVarRef()->getDecl();
-            assert(VarRef && "Ref to undeclared var");
+            if (VarRef == nullptr) {
+                CGM->Diag(VarRefExpr->getLocation(), diag::err_unref_var) << VarRefExpr->getVarRef()->getName();
+                return nullptr;
+            }
             Pointer = VarRef->getCodeGen()->getPointer();
             return VarRef->getCodeGen()->getValue();
         }
         case EXPR_REF_FUNC: {
-            ASTFuncCallExpr *RefExp = (ASTFuncCallExpr *)Expr;
-            assert(RefExp->getCall() && "Missing Ref");
-            return CGM->GenCall(Fn, RefExp->getCall());
+            ASTFuncCallExpr *CallExpr = (ASTFuncCallExpr *)Expr;
+            return CGM->GenCall(Fn, CallExpr->getCall());
         }
         case EXPR_GROUP:
             assert(0 && "Cannot process Group from here");
@@ -262,27 +264,28 @@ llvm::Value *CodeGenExpr::OpUnary(ASTUnaryExpr *E) {
 
     // PRE or POST INCREMENT/DECREMENT
     if (OP->getOpKind() == OP_ARITH) {
-        switch(((ASTArithExpr *)OP)->getArithKind()) {
-            case ARITH_INCR:
-                if (E->getUnaryKind() == UNARY_PRE) { // PRE INCREMENT ++a
-                    llvm::Value *RHS = llvm::ConstantInt::get(CGM->Int32Ty, 1);
-                    return CGM->Builder->CreateNSWAdd(V, RHS);
-                } else { // POST INCREMENT a++
-                    llvm::Value *PostV = BinaryOperator::Create(Instruction::Add, V,
-                                                                ConstantInt::get(CGM->Int32Ty, 1));
-                    PostValues.push_back(PostV);
-                    return V;
-                }
-            case ARITH_DECR:
-                if (E->getUnaryKind() == UNARY_PRE) { // PRE DECREMENT --a
-                    llvm::Value *RHS = llvm::ConstantInt::get(CGM->Int32Ty, -1, true);
-                    return CGM->Builder->CreateNSWAdd(V, RHS);
-                } else { // POST DECREMENT a--
-                    llvm::Value *PostV = BinaryOperator::Create(Instruction::Add, V,
-                                                                ConstantInt::get(CGM->Int32Ty, -1));
-                    PostValues.push_back(PostV);
-                    return V;
-                }
+        if (((ASTArithExpr *)OP)->getArithKind() == ARITH_INCR) {
+            if (E->getUnaryKind() == UNARY_PRE) { // PRE INCREMENT ++a
+                llvm::Value *RHS = llvm::ConstantInt::get(CGM->Int32Ty, 1);
+                return CGM->Builder->CreateNSWAdd(V, RHS);
+            } else { // POST INCREMENT a++
+                llvm::Value *PostV = BinaryOperator::Create(Instruction::Add, V,
+                                                            ConstantInt::get(CGM->Int32Ty, 1));
+                PostValues.push_back(PostV);
+                return V;
+            }
+        }
+
+        if (((ASTArithExpr *)OP)->getArithKind() == ARITH_DECR) {
+            if (E->getUnaryKind() == UNARY_PRE) { // PRE DECREMENT --a
+                llvm::Value *RHS = llvm::ConstantInt::get(CGM->Int32Ty, -1, true);
+                return CGM->Builder->CreateNSWAdd(V, RHS);
+            } else { // POST DECREMENT a--
+                llvm::Value *PostV = BinaryOperator::Create(Instruction::Add, V,
+                                                            ConstantInt::get(CGM->Int32Ty, -1));
+                PostValues.push_back(PostV);
+                return V;
+            }
         }
     }
 
@@ -293,7 +296,7 @@ llvm::Value *CodeGenExpr::OpUnary(ASTUnaryExpr *E) {
         return CGM->Builder->CreateZExt(V, CGM->Int8Ty);
     }
 
-    assert(0 && "Not Unary Operation");
+    assert(0 && "Invalid Unary Operation");
 }
 
 llvm::Value *CodeGenExpr::OpBinary(ASTExpr *E1, ASTOperatorExpr *OP, ASTExpr *E2) {
@@ -311,7 +314,7 @@ llvm::Value *CodeGenExpr::OpBinary(ASTExpr *E1, ASTOperatorExpr *OP, ASTExpr *E2
             return OpComparison(E1, (ASTComparisonExpr *) OP, E2);
         case OP_LOGIC:
             return OpLogic(E1, (ASTLogicExpr *) OP, E2);
-        case OP_COND:
+        case OP_CONDITION:
 //            return OpCond(); // TODO
             break;
     }
@@ -348,7 +351,7 @@ Value *CodeGenExpr::OpArith(ASTExpr *E1, ASTArithExpr *OP, ASTExpr *E2) {
             return CGM->Builder->CreateAShr(V1, V2);
         case ARITH_INCR:
         case ARITH_DECR:
-            assert(0 && "Not a Binary Arith Operation");
+            assert(0 && "Invalid Binary Arith Operation");
     }
     assert(0 && "Unknown Arith Operation");
 }
@@ -453,5 +456,5 @@ Value *CodeGenExpr::OpLogic(ASTExpr *E1, ASTLogicExpr *OP, ASTExpr *E2) {
             return CGM->Builder->CreateZExt(Phi, CGM->Int8Ty);
         }
     }
-    return nullptr;
+    assert(0 && "Invalid Logic Operator");
 }

@@ -13,6 +13,7 @@
 
 
 #include "AST/ASTImport.h"
+#include "AST/ASTNameSpace.h"
 
 using namespace fly;
 
@@ -43,4 +44,11 @@ void ASTImport::setNameSpace(ASTNameSpace *NS) {
 
 const SourceLocation &ASTImport::getLocation() const {
     return Location;
+}
+
+std::string ASTImport::str() const {
+    return "{ Name=" + Name.str() +
+            ", NameSpace=" + (NameSpace ? NameSpace->str() : "{}") +
+            ", Alias=" + Alias.str() +
+            " }";
 }

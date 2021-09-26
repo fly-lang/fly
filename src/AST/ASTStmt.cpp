@@ -49,3 +49,7 @@ ASTExpr *ASTExprStmt::getExpr() const {
 void ASTExprStmt::setExpr(ASTExpr *E) {
     Expr = E;
 }
+
+std::string ASTExprStmt::str() const {
+    return "{ Expr=" + Expr->str() + " }";
+}

@@ -25,6 +25,9 @@ namespace fly {
     class ASTFuncCall;
     class ASTImport;
 
+    /**
+     * AST Context
+     */
     class ASTContext {
 
         friend ASTNameSpace;
@@ -53,6 +56,10 @@ namespace fly {
 
         ASTNameSpace *getDefaultNameSpace() const;
 
+        const llvm::StringMap<ASTNameSpace *> &getNameSpaces() const;
+
+        DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID) const;
+
         bool AddNode(ASTNode *Node);
 
         bool DelNode(ASTNode *Node);
@@ -62,10 +69,6 @@ namespace fly {
         void addUnRefCall(ASTFuncCall *Call);
 
         void addUnRefGlobalVar(ASTVarRef *Var);
-
-        const llvm::StringMap<ASTNameSpace *> &getNameSpaces() const;
-
-        DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID) const;
 
     };
 }

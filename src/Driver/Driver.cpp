@@ -16,6 +16,7 @@
 #include "Frontend/ChainedDiagnosticConsumer.h"
 #include "Frontend/LogDiagnosticPrinter.h"
 #include "CodeGen/BackendUtil.h"
+#include "Basic/Debug.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Host.h"
@@ -23,7 +24,9 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Process.h"
 #include "llvm/Support/Program.h"
+#include "llvm/Support/Debug.h"
 #include <utility>
+
 
 using namespace fly;
 using namespace fly::driver;
@@ -49,19 +52,28 @@ Driver::Driver() : Driver(initDriver()) {}
 Driver::Driver(llvm::ArrayRef<const char *> ArrArgs) :
         Path(GetExecutablePath(ArrArgs[0])),
         Args(ArrArgs.slice(1)) {
-
     Name = std::string(llvm::sys::path::filename(Path));
     Dir = std::string(llvm::sys::path::parent_path(Path));
     InstalledDir = Dir; // Provide a sensible default installed dir.
+
+    unsigned MissingArgIndex, MissingArgCount;
+    const llvm::opt::OptTable &optTable = fly::driver::getDriverOptTable();
+    const unsigned IncludedFlagsBitmask = options::CoreOption;
+    ArgList = optTable.ParseArgs(Args, MissingArgIndex, MissingArgCount);
+
+    if (ArgList.hasArg(options::OPT_DEBUG)) {
+        llvm::DebugFlag = true;
+        FLY_DEBUG_MESSAGE("Driver", "Driver", "Set OPT_DEBUG");
+    }
 }
 
 CompilerInstance &Driver::BuildCompilerInstance() {
-
+    FLY_DEBUG("Driver", "BuildCompilerInstance");
     llvm::PrettyStackTraceString CrashInfo("Building compiler instance");
 
     // Create diagnostics
 
-    IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts = BuildDiagnosticOpts();
+    IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts = BuildDiagnosticOptions();
     IntrusiveRefCntPtr<DiagnosticsEngine> Diags = CreateDiagnostics(DiagOpts);
 
     // Create all options.
@@ -72,14 +84,16 @@ CompilerInstance &Driver::BuildCompilerInstance() {
     CodeGenOptions *CodeGenOpts = new CodeGenOptions();
     BuildOptions(fileSystemOpts, TargetOpts, &*FrontendOpts, &*CodeGenOpts);
 
-    CI = std::make_shared<CompilerInstance>(Diags,
-                                            std::move(fileSystemOpts),
-                                            FrontendOpts,
-                                            CodeGenOpts,
-                                            std::move(TargetOpts));
-    if (!CI) {
-        llvm::errs() << "Error while creating compiler instance!" << "\n";
-        exit(1);
+    if (doExecute) {
+        CI = std::make_shared<CompilerInstance>(Diags,
+                                                std::move(fileSystemOpts),
+                                                FrontendOpts,
+                                                CodeGenOpts,
+                                                std::move(TargetOpts));
+        if (!CI) {
+            llvm::errs() << "Error while creating compiler instance!" << "\n";
+            exit(1);
+        }
     }
 
     return *CI;
@@ -87,6 +101,7 @@ CompilerInstance &Driver::BuildCompilerInstance() {
 
 // Diagnostics
 IntrusiveRefCntPtr<DiagnosticsEngine> Driver::CreateDiagnostics(IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts) {
+    FLY_DEBUG("Driver", "CreateDiagnostics");
     DiagOpts = new DiagnosticOptions;
     TextDiagnosticPrinter *DiagClient = new TextDiagnosticPrinter(llvm::errs(), &*DiagOpts);
     StringRef ExeBasename(llvm::sys::path::stem(Path));
@@ -94,9 +109,9 @@ IntrusiveRefCntPtr<DiagnosticsEngine> Driver::CreateDiagnostics(IntrusiveRefCntP
     IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
     IntrusiveRefCntPtr<DiagnosticsEngine> Diags = new DiagnosticsEngine(DiagID, &*DiagOpts, DiagClient);
 
-    raw_ostream *OS = &llvm::errs();
+    llvm::raw_ostream *OS = &llvm::errs();
     std::error_code EC;
-    std::unique_ptr<raw_ostream> StreamOwner;
+    std::unique_ptr<llvm::raw_ostream> StreamOwner;
 
     if (!DiagOpts->DiagnosticLogFile.empty()) {
         // Create the output stream.
@@ -124,41 +139,25 @@ IntrusiveRefCntPtr<DiagnosticsEngine> Driver::CreateDiagnostics(IntrusiveRefCntP
                 new ChainedDiagnosticConsumer(Diags->getClient(), std::move(Logger)));
     }
 
-
     ProcessWarningOptions(*Diags, *DiagOpts, /*ReportDiags=*/false);
 
     return std::move(Diags);
 }
 
-IntrusiveRefCntPtr<DiagnosticOptions> Driver::BuildDiagnosticOpts() {
+IntrusiveRefCntPtr<DiagnosticOptions> Driver::BuildDiagnosticOptions() {
+    FLY_DEBUG("Driver", "BuildDiagnosticOptions");
     IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts(new DiagnosticOptions);
     DiagOpts->DiagnosticLogFile = std::string(ArgList.getLastArgValue(options::OPT_LOG_FILE));
     DiagOpts->IgnoreWarnings = ArgList.hasArg(options::OPT_NO_WARNING);
     return std::move(DiagOpts);
 }
 
-void Driver::BuildOptions(FileSystemOptions &fileSystemOpts,
-                            std::shared_ptr<TargetOptions> &targetOpts,
+void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
+                            std::shared_ptr<TargetOptions> &TargetOpts,
                             FrontendOptions *FrontendOpts,
                             CodeGenOptions *CodeGenOpts) {
-
+    FLY_DEBUG_MESSAGE("Driver", "BuildOptions", "Parsing command line arguments");
     llvm::PrettyStackTraceString CrashInfo("Command line argument parsing");
-
-    if (Args.empty()) {
-        printVersion();
-    }
-
-    unsigned MissingArgIndex, MissingArgCount;
-    const llvm::opt::OptTable &optTable = fly::driver::getDriverOptTable();
-    const unsigned IncludedFlagsBitmask = options::CoreOption;
-    ArgList = optTable.ParseArgs(Args, MissingArgIndex, MissingArgCount);
-
-    // Check for missing argument error.
-    if (MissingArgCount) {
-        llvm::errs() << diag::err_drv_missing_argument << ArgList.getArgString(MissingArgIndex) << MissingArgCount;
-        doExecute = false;
-        return;
-    }
 
     // Error out on unknown options.
     if (ArgList.hasArg(options::OPT_UNKNOWN)) {
@@ -197,49 +196,116 @@ void Driver::BuildOptions(FileSystemOptions &fileSystemOpts,
 
     // Parse Input args
     if (ArgList.hasArg(options::OPT_INPUT)) {
-        for (const llvm::opt::Arg *a : ArgList.filtered(options::OPT_INPUT)) {
-            FrontendOpts->addInputFile(a->getValue());
+        for (const llvm::opt::Arg *A : ArgList.filtered(options::OPT_INPUT)) {
+            FLY_DEBUG_MESSAGE("Driver", "BuildOptions",
+                              "Set OPT_INPUT=" << A->getValue());
+            FrontendOpts->addInputFile(A->getValue());
+        }
+        if (FrontendOpts->getInputFiles().empty()) {
+            llvm::errs() << "no input files" << "\n";
+            doExecute = false;
+            return;
         }
     }
 
     // Enable Verbose Log
     if (ArgList.hasArg(options::OPT_VERBOSE)) {
-        FrontendOpts->setVerbose();
+        FLY_DEBUG_MESSAGE("Driver", "BuildOptions", "Set OPT_VERBOSE");
+        FrontendOpts->Verbose = true;
     }
 
-    // Output Options
+    // Configure Options
 
-    // Parse Output arg
+    // Set Output file
     if (ArgList.hasArg(options::OPT_OUTPUT)) {
-        const StringRef &output = ArgList.getLastArgValue(options::OPT_OUTPUT);
-        FrontendOpts->setOutputFile(output);
+        const StringRef &Out = ArgList.getLastArgValue(options::OPT_OUTPUT);
+        FLY_DEBUG_MESSAGE("Driver", "BuildOptions", "Set OPT_OUTPUT=" << Out);
+        FrontendOpts->setOutputFile(Out);
     }
+
     // Set Working Directory
-    if (const llvm::opt::Arg *A = ArgList.getLastArg(options::OPT_WORKING_DIR))
-        fileSystemOpts.WorkingDir = A->getValue();
+    if (const llvm::opt::Arg *A = ArgList.getLastArg(options::OPT_WORKING_DIR)) {
+        FLY_DEBUG_MESSAGE("Driver", "BuildOptions",
+                          "Set OPT_WORKING_DIR=" << A->getValue());
+        FileSystemOpts.WorkingDir = A->getValue();
+    }
+
+    // Print Statistics
+    if (ArgList.hasArg(options::OPT_PRINT_STATS)) {
+        FLY_DEBUG_MESSAGE("Driver", "BuildOptions", "Set OPT_PRINT_STATS");
+        FrontendOpts->ShowStats = true;
+    }
+
+    // Show Timers
+    if (ArgList.hasArg(options::OPT_FTIME_REPORT)) {
+        FLY_DEBUG_MESSAGE("Driver", "BuildOptions", "Set OPT_FTIME_REPORT");
+        FrontendOpts->ShowTimers = true;
+    }
+
+    // Output Statistics file
+    if (ArgList.hasArg(options::OPT_STATS_FILE)) {
+        FrontendOpts->StatsFile = std::string(ArgList.getLastArgValue(options::OPT_STATS_FILE));
+        FLY_DEBUG_MESSAGE("Driver", "BuildOptions",
+                          "Set OPT_STATS_FILE=" << FrontendOpts->StatsFile);
+    }
+
     // Emit different kind of file
     if (ArgList.hasArg(options::OPT_EMIT_LL)) {
-        FrontendOpts->setBackendAction(BackendAction::Backend_EmitLL);
+        FLY_DEBUG_MESSAGE("Driver", "BuildOptions", "Set OPT_EMIT_LL");
+        FrontendOpts->BackendAction = BackendActionKind::Backend_EmitLL;
     } else if (ArgList.hasArg(options::OPT_EMIT_BC)) {
-        FrontendOpts->setBackendAction(BackendAction::Backend_EmitBC);
+        FLY_DEBUG_MESSAGE("Driver", "BuildOptions", "Set OPT_EMIT_BC");
+        FrontendOpts->BackendAction = BackendActionKind::Backend_EmitBC;
     } else if (ArgList.hasArg(options::OPT_EMIT_AS)) {
-        FrontendOpts->setBackendAction(BackendAction::Backend_EmitAssembly);
+        FLY_DEBUG_MESSAGE("Driver", "BuildOptions", "Set OPT_EMIT_AS");
+        FrontendOpts->BackendAction =BackendActionKind::Backend_EmitAssembly;
     } else if (ArgList.hasArg(options::OPT_EMIT_NOTHING)) {
-        FrontendOpts->setBackendAction(BackendAction::Backend_EmitNothing);
+        FLY_DEBUG_MESSAGE("Driver", "BuildOptions", "Set OPT_EMIT_NOTHING");
+        FrontendOpts->BackendAction = BackendActionKind::Backend_EmitNothing;
     } else {
-        FrontendOpts->setBackendAction(BackendAction::Backend_EmitObj);
+        FrontendOpts->BackendAction = BackendActionKind::Backend_EmitObj;
     }
+
     // Target Options
-    if (const llvm::opt::Arg *A = ArgList.getLastArg(options::OPT_TARGET))
-        targetOpts->Triple = A->getValue();
-    else
-        targetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
-    targetOpts->CodeModel = std::string(ArgList.getLastArgValue(options::OPT_MC_MODEL, "default"));
-    targetOpts->CPU = std::string(ArgList.getLastArgValue(options::OPT_TARGET_CPU));
+
+    // Target Triple
+    if (const llvm::opt::Arg *A = ArgList.getLastArg(options::OPT_TARGET)) {
+        TargetOpts->Triple = A->getValue();
+        FLY_DEBUG_MESSAGE("Driver", "BuildOptions",
+                          "Set OPT_TARGET=" << TargetOpts->Triple);
+    } else {
+        TargetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
+    }
+
+    // Target Machine Code Model
+    if (ArgList.hasArg(options::OPT_MC_MODEL)) {
+        TargetOpts->CodeModel = std::string(ArgList.getLastArgValue(options::OPT_MC_MODEL));
+        FLY_DEBUG_MESSAGE("Driver", "BuildOptions",
+                          "Set OPT_MC_MODEL=" << TargetOpts->CodeModel);
+    } else {
+        TargetOpts->CodeModel = "default";
+    }
+
+    // Target CPU
+    if (ArgList.hasArg(options::OPT_TARGET_CPU)) {
+        TargetOpts->CPU = std::string(ArgList.getLastArgValue(options::OPT_TARGET_CPU));
+        FLY_DEBUG_MESSAGE("Driver", "BuildOptions",
+                          "Set OPT_TARGET_CPU=" << TargetOpts->CPU);
+    }
 
     // CodeGen Options
-    CodeGenOpts->CodeModel = targetOpts->CodeModel;
-    CodeGenOpts->ThreadModel = std::string(ArgList.getLastArgValue(options::OPT_MTHREAD_MODEL, "posix"));
+
+    // Code Model
+    CodeGenOpts->CodeModel = TargetOpts->CodeModel;
+
+    // Thread Model
+    if (ArgList.hasArg(options::OPT_MTHREAD_MODEL)) {
+        CodeGenOpts->ThreadModel = std::string(ArgList.getLastArgValue(options::OPT_MTHREAD_MODEL));
+        FLY_DEBUG_MESSAGE("Driver", "BuildOptions",
+                          "Set OPT_MTHREAD_MODEL=" << CodeGenOpts->ThreadModel);
+    } else {
+        CodeGenOpts->ThreadModel = "posix";
+    }
     if (CodeGenOpts->ThreadModel != "posix" && CodeGenOpts->ThreadModel != "single")
         llvm::errs() << ArgList.getLastArg(options::OPT_MTHREAD_MODEL)->getAsString(ArgList)
                 << CodeGenOpts->ThreadModel;
@@ -249,11 +315,8 @@ bool Driver::Execute() {
     bool Success = true;
 
     if (doExecute) {
-
         Frontend Front(*CI);
         Success = Front.Execute();
-
-        CI->getDiagnostics().getClient()->finish();
     }
     return Success;
 }

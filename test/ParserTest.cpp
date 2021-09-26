@@ -48,10 +48,10 @@ namespace {
 
     TEST_F(ParserTest, SinglePackage) {
         llvm::StringRef str = ("namespace std");
-        ASTNode *AST = Parse("package.fly", str);
+        ASTNode *AST = Parse("SinglePackage", str);
         ASSERT_FALSE(Diags.hasErrorOccurred());
 
-        EXPECT_EQ(AST->getFileName(), "package.fly");
+        EXPECT_EQ(AST->getFileName(), "SinglePackage");
 
         // verify AST contains package
         EXPECT_EQ(AST->getNameSpace()->getName(), "std");
@@ -61,14 +61,14 @@ namespace {
     TEST_F(ParserTest, MultiPackageError) {
         llvm::StringRef str = ("namespace std\n"
                          "namespace bad");
-        ASTNode *AST = Parse("error.fly", str);
+        ASTNode *AST = Parse("MultiPackageError", str);
         EXPECT_TRUE(Diags.hasErrorOccurred());
     }
 
     TEST_F(ParserTest, SingleImport) {
         llvm::StringRef str = ("namespace std\n"
                          "import \"packageA\"");
-        ASTNode *AST = Parse("import.fly", str);
+        ASTNode *AST = Parse("SingleImport", str);
 
         ASSERT_FALSE(Diags.hasErrorOccurred());
 
@@ -81,7 +81,7 @@ namespace {
 
     TEST_F(ParserTest, SingleImportAlias) {
         llvm::StringRef str = ("\n import  \"standard\" as \"std\"\n");
-        ASTNode *AST = Parse("package.fly", str);
+        ASTNode *AST = Parse("SingleImportAlias", str);
 
         EXPECT_EQ(AST->getNameSpace()->getName(), "default");
         EXPECT_EQ(AST->getImports().lookup("standard")->getName(), "standard");
@@ -93,7 +93,7 @@ namespace {
         llvm::StringRef str = ("namespace std\n"
                          "import \"packageA\""
                          "import \"packageB\"");
-        ASTNode *AST = Parse("imports.fly", str);
+        ASTNode *AST = Parse("MultiImports", str);
 
         ASSERT_FALSE(Diags.hasErrorOccurred());
 
@@ -108,7 +108,7 @@ namespace {
     TEST_F(ParserTest, SingleParenImport) {
         llvm::StringRef str = ("namespace std\n"
                          "import (\"packageA\")");
-        ASTNode *AST = Parse("import.fly", str);
+        ASTNode *AST = Parse("SingleParenImport", str);
 
         ASSERT_FALSE(Diags.hasErrorOccurred());
 
@@ -120,7 +120,7 @@ namespace {
     TEST_F(ParserTest, MultiParenImports) {
         llvm::StringRef str = ("namespace std\n"
                          "import (\"packageA\", \"packageB\")");
-        ASTNode *AST = Parse("imports.fly", str);
+        ASTNode *AST = Parse("MultiParenImports", str);
 
         ASSERT_FALSE(Diags.hasErrorOccurred());
 
@@ -138,7 +138,7 @@ namespace {
                          "public float b\n"
                          "bool c\n"
                          );
-        ASTNode *AST = Parse("var.fly", str);
+        ASTNode *AST = Parse("GlobalVars", str);
 
         ASSERT_FALSE(Diags.hasErrorOccurred());
 
@@ -169,7 +169,7 @@ namespace {
                          "private const int a = 1\n"
                          "const public float b = 2.0\n"
                          "const bool c = false\n");
-        ASTNode *AST = Parse("var.fly", str);
+        ASTNode *AST = Parse("GlobalConstants", str);
 
         ASSERT_FALSE(Diags.hasErrorOccurred());
 
@@ -201,7 +201,7 @@ namespace {
     TEST_F(ParserTest, FunctionDefaultVoidEmpty) {
         llvm::StringRef str = ("namespace std\n"
                          "void func() {}\n");
-        ASTNode *AST = Parse("function.fly", str);
+        ASTNode *AST = Parse("FunctionDefaultVoidEmpty", str);
         ASSERT_FALSE(Diags.hasErrorOccurred());
 
         EXPECT_TRUE(AST->getFunctions().size() == 1); // Fun has DEFAULT Visibility
@@ -220,7 +220,7 @@ namespace {
                          "private int func(int a, const float b, bool c=false) {\n"
                          "  return 1"
                          "}\n");
-        ASTNode *AST = Parse("function.fly", str);
+        ASTNode *AST = Parse("FunctionPrivateReturnParams", str);
 
         ASSERT_FALSE(Diags.hasErrorOccurred());
 
@@ -248,12 +248,12 @@ namespace {
         EXPECT_EQ(Par2->getName(), "c");
         EXPECT_EQ(Par2->getType()->getKind(), TypeKind::TYPE_BOOL);
         EXPECT_EQ(Par2->isConstant(), false);
-        EXPECT_EQ(Par2->getExpr()->getKind(), ExprKind::EXPR_VALUE);
+        EXPECT_EQ(Par2->getExpr()->getKind(), ASTExprKind::EXPR_VALUE);
         ASTValueExpr *DefArg2 = static_cast<ASTValueExpr *>(Par2->getExpr());
         EXPECT_EQ(DefArg2->getValue().str(), "false");
 
         ASTReturn *Return = static_cast<ASTReturn*>(VerifyFunc->getBody()->getContent()[0]);
-        EXPECT_EQ(static_cast<ASTValueExpr*>(Return->getExpr())->getKind(), ExprKind::EXPR_VALUE);
+        EXPECT_EQ(static_cast<ASTValueExpr*>(Return->getExpr())->getKind(), ASTExprKind::EXPR_VALUE);
         EXPECT_EQ(static_cast<ASTValueExpr*>(Return->getExpr())->getValue().str(), "1");
         EXPECT_EQ(Return->getKind(), StmtKind::STMT_RETURN);
 
@@ -270,7 +270,7 @@ namespace {
                          "  c = (b == 1.0) && (true)"
                          "  return c\n"
                          "}\n");
-        ASTNode *AST = Parse("fbody.fly", str);
+        ASTNode *AST = Parse("FunctionBodyVar", str);
 
         ASSERT_FALSE(Diags.hasErrorOccurred());
 
@@ -296,20 +296,20 @@ namespace {
         EXPECT_EQ(bVar->getName(), "b");
         EXPECT_EQ(bVar->getType()->getKind(), TypeKind::TYPE_FLOAT);
         ASTFloatType *FloatType = static_cast<ASTFloatType *>(bVar->getType());
-        EXPECT_EQ(bVar->getExpr()->getKind(), ExprKind::EXPR_GROUP);
+        EXPECT_EQ(bVar->getExpr()->getKind(), ASTExprKind::EXPR_GROUP);
         ASTGroupExpr *Group1 = static_cast<ASTGroupExpr *>(bVar->getExpr());
-        EXPECT_EQ(Group1->getGroup()[0]->getKind(), ExprKind::EXPR_VALUE);
+        EXPECT_EQ(Group1->getGroup()[0]->getKind(), ASTExprKind::EXPR_VALUE);
         EXPECT_EQ(static_cast<ASTValueExpr *>(Group1->getGroup()[0])->getValue().str(), "2.0");
-        EXPECT_EQ(Group1->getGroup()[1]->getKind(), ExprKind::EXPR_OPERATOR);
+        EXPECT_EQ(Group1->getGroup()[1]->getKind(), ASTExprKind::EXPR_OPERATOR);
         EXPECT_EQ(static_cast<ASTOperatorExpr *>(Group1->getGroup()[1])->getOpKind(), OpKind::OP_ARITH);
         EXPECT_EQ(static_cast<ASTArithExpr *>(Group1->getGroup()[1])->getArithKind(), ArithOpKind::ARITH_ADD);
-        EXPECT_EQ(Group1->getGroup()[2]->getKind(), ExprKind::EXPR_VALUE);
+        EXPECT_EQ(Group1->getGroup()[2]->getKind(), ASTExprKind::EXPR_VALUE);
         EXPECT_EQ(static_cast<ASTValueExpr *>(Group1->getGroup()[2])->getValue().str(), "1.0");
 
         // Test: a += 2
         const ASTLocalVarRef *aVar = static_cast<ASTLocalVarRef *>(Body->getContent()[3]);
         EXPECT_EQ(aVar->getName(), "a");
-        EXPECT_EQ(aVar->getExpr()->getKind(), ExprKind::EXPR_GROUP);
+        EXPECT_EQ(aVar->getExpr()->getKind(), ASTExprKind::EXPR_GROUP);
         ASTGroupExpr *Group2 = static_cast<ASTGroupExpr *>(aVar->getExpr());
         ASTVarRefExpr *aExpr = static_cast<ASTVarRefExpr *>(Group2->getGroup()[0]);
         EXPECT_TRUE(aExpr->getVarRef()->getDecl() != nullptr);
@@ -321,7 +321,7 @@ namespace {
         // Test: c = b == 1.0
         const ASTLocalVarRef *c2Var = static_cast<ASTLocalVarRef *>(Body->getContent()[4]);
         EXPECT_EQ(c2Var->getName(), "c");
-        EXPECT_EQ(c2Var->getExpr()->getKind(), ExprKind::EXPR_GROUP);
+        EXPECT_EQ(c2Var->getExpr()->getKind(), ASTExprKind::EXPR_GROUP);
         ASTGroupExpr *Group3 = static_cast<ASTGroupExpr *>(c2Var->getExpr());
         ASTVarRefExpr *c2Expr = static_cast<ASTVarRefExpr *>(Group3->getGroup()[0]);
         EXPECT_EQ(static_cast<ASTVarRef *>(c2Expr->getVarRef())->getName(), "b");
@@ -345,7 +345,7 @@ namespace {
                                "  doOther(a, 1)"
                                "  return do()"
                                "}\n");
-        ASTNode *AST = Parse("fbody.fly", str);
+        ASTNode *AST = Parse("FunctionBodyCallFunc", str);
 
         ASSERT_FALSE(Diags.hasErrorOccurred());
 
@@ -372,7 +372,7 @@ namespace {
         ASTLocalVar *VarB = static_cast<ASTLocalVar *>(Body->getContent()[0]);
         ASTFuncCallExpr *doSomeCall = (ASTFuncCallExpr *) VarB->getExpr();
         EXPECT_EQ(doSomeCall->getCall()->getName(), "doSome");
-        EXPECT_EQ(doSomeCall->getKind(), ExprKind::EXPR_REF_FUNC);
+        EXPECT_EQ(doSomeCall->getKind(), ASTExprKind::EXPR_REF_FUNC);
         ASSERT_FALSE(doSomeCall->getCall()->getDecl() == nullptr);
 
         // Test: doOther(a, b)
@@ -389,7 +389,7 @@ namespace {
         ASTReturn *Ret = static_cast<ASTReturn *>(Body->getContent()[2]);
         ASTFuncCallExpr *RetCallEx = static_cast<ASTFuncCallExpr *>(Ret->getExpr());
         EXPECT_EQ(RetCallEx->getCall()->getName(), "do");
-        EXPECT_EQ(RetCallEx->getKind(), ExprKind::EXPR_REF_FUNC);
+        EXPECT_EQ(RetCallEx->getKind(), ASTExprKind::EXPR_REF_FUNC);
         EXPECT_TRUE(RetCallEx->getCall()->getArgs().empty());
 
         delete AST;
@@ -404,7 +404,7 @@ namespace {
                          "  a--"
                          "  a = ++a + 1"
                          "}\n");
-        ASTNode *AST = Parse("fbody.fly", str);
+        ASTNode *AST = Parse("FunctionBodyIncDec", str);
 
         ASSERT_FALSE(Diags.hasErrorOccurred());
 
@@ -465,7 +465,7 @@ namespace {
                          "    b = 2"
                          "  }"
                          "}\n");
-        ASTNode *AST = Parse("fbody.fly", str);
+        ASTNode *AST = Parse("FunctionBodyIfStmt", str);
 
         ASSERT_FALSE(Diags.hasErrorOccurred());
 
@@ -475,7 +475,7 @@ namespace {
 
         // if
         ASTIfBlock *Stmt = static_cast<ASTIfBlock *>(Body->getContent()[0]);
-        EXPECT_EQ(Stmt->getBlockKind(), BlockStmtKind::BLOCK_STMT_IF);
+        EXPECT_EQ(Stmt->getBlockKind(), ASTBlockKind::BLOCK_STMT_IF);
         ASTGroupExpr *IfCond = static_cast<ASTGroupExpr *>(Stmt->getCondition());
         EXPECT_EQ(static_cast<ASTVarRefExpr *>(IfCond->getGroup()[0])->getVarRef()->getName(), "a");
         EXPECT_EQ(static_cast<ASTComparisonExpr *>(IfCond->getGroup()[1])->getComparisonKind(),
@@ -487,7 +487,7 @@ namespace {
 
         // Elsif
         ASTElsifBlock *EIStmt = static_cast<ASTElsifBlock *>(Body->getContent()[1]);
-        EXPECT_EQ(EIStmt->getBlockKind(), BlockStmtKind::BLOCK_STMT_ELSIF);
+        EXPECT_EQ(EIStmt->getBlockKind(), ASTBlockKind::BLOCK_STMT_ELSIF);
         ASTGroupExpr *ElsifCond = static_cast<ASTGroupExpr *>(EIStmt->getCondition());
         EXPECT_EQ(static_cast<ASTVarRefExpr *>(ElsifCond->getGroup()[0])->getVarRef()->getName(), "a");
         EXPECT_EQ(static_cast<ASTComparisonExpr *>(ElsifCond->getGroup()[1])->getComparisonKind(),
@@ -497,7 +497,7 @@ namespace {
 
         // Else
         ASTElseBlock *EEStmt = static_cast<ASTElseBlock *>(Body->getContent()[2]);
-        EXPECT_EQ(EEStmt->getBlockKind(), BlockStmtKind::BLOCK_STMT_ELSE);
+        EXPECT_EQ(EEStmt->getBlockKind(), ASTBlockKind::BLOCK_STMT_ELSE);
         EXPECT_EQ(static_cast<ASTLocalVarRef *>(EEStmt->getContent()[0])->getName(), "b");
 
         delete AST;
@@ -510,7 +510,7 @@ namespace {
                          "  elsif a == 2 a = 1"
                          "  else a = 2"
                          "}\n");
-        ASTNode *AST = Parse("fbody.fly", str);
+        ASTNode *AST = Parse("FunctionBodyIfInlineStmt", str);
 
         ASSERT_FALSE(Diags.hasErrorOccurred());
 
@@ -520,7 +520,7 @@ namespace {
 
         // if
         ASTIfBlock *Stmt = static_cast<ASTIfBlock *>(Body->getContent()[0]);
-        EXPECT_EQ(Stmt->getBlockKind(), BlockStmtKind::BLOCK_STMT_IF);
+        EXPECT_EQ(Stmt->getBlockKind(), ASTBlockKind::BLOCK_STMT_IF);
         ASTGroupExpr *IfCond = static_cast<ASTGroupExpr *>(Stmt->getCondition());
         EXPECT_EQ(static_cast<ASTVarRefExpr *>(IfCond->getGroup()[0])->getVarRef()->getName(), "a");
         EXPECT_EQ(static_cast<ASTComparisonExpr *>(IfCond->getGroup()[1])->getComparisonKind(),
@@ -533,7 +533,7 @@ namespace {
 
         // Elsif
         ASTElsifBlock *EIStmt = static_cast<ASTElsifBlock *>(Body->getContent()[1]);
-        EXPECT_EQ(EIStmt->getBlockKind(), BlockStmtKind::BLOCK_STMT_ELSIF);
+        EXPECT_EQ(EIStmt->getBlockKind(), ASTBlockKind::BLOCK_STMT_ELSIF);
         ASTGroupExpr *ElsifCond = static_cast<ASTGroupExpr *>(EIStmt->getCondition());
         EXPECT_EQ(static_cast<ASTVarRefExpr *>(ElsifCond->getGroup()[0])->getVarRef()->getName(), "a");
         EXPECT_EQ(static_cast<ASTComparisonExpr *>(ElsifCond->getGroup()[1])->getComparisonKind(),
@@ -542,7 +542,7 @@ namespace {
 
         // Else
         ASTElseBlock *EEStmt = static_cast<ASTElseBlock *>(Body->getContent()[2]);
-        EXPECT_EQ(EEStmt->getBlockKind(), BlockStmtKind::BLOCK_STMT_ELSE);
+        EXPECT_EQ(EEStmt->getBlockKind(), ASTBlockKind::BLOCK_STMT_ELSE);
         EXPECT_EQ(static_cast<ASTLocalVarRef *>(EEStmt->getContent()[0])->getName(), "a");
 
         delete AST;
@@ -559,7 +559,7 @@ namespace {
                          "      return"
                          "  }"
                          "}\n");
-        ASTNode *AST = Parse("fbody.fly", str);
+        ASTNode *AST = Parse("FunctionBodySwitchStmt", str);
 
         ASSERT_FALSE(Diags.hasErrorOccurred());
 
@@ -568,12 +568,12 @@ namespace {
         const ASTBlock *Body = F->getBody();
 
         ASTSwitchBlock *Stmt = static_cast<ASTSwitchBlock *>(Body->getContent()[0]);
-        EXPECT_EQ(Stmt->getBlockKind(), BlockStmtKind::BLOCK_STMT_SWITCH);
+        EXPECT_EQ(Stmt->getBlockKind(), ASTBlockKind::BLOCK_STMT_SWITCH);
         EXPECT_EQ(static_cast<ASTValueExpr *>(Stmt->getCases()[0]->getExpr())->getValue().str(), "1");
         EXPECT_EQ(Stmt->getCases()[0]->getContent()[0]->getKind(), StmtKind::STMT_BREAK);
         EXPECT_EQ(static_cast<ASTValueExpr *>(Stmt->getCases()[1]->getExpr())->getValue().str(), "2");
         EXPECT_TRUE(Stmt->getCases()[1]->getContent().empty());
-        EXPECT_EQ(Stmt->getDefault()->getBlockKind(), BlockStmtKind::BLOCK_STMT_DEFAULT);
+        EXPECT_EQ(Stmt->getDefault()->getBlockKind(), ASTBlockKind::BLOCK_STMT_DEFAULT);
         EXPECT_EQ(static_cast<ASTFuncCallStmt *>(Stmt->getDefault()->getContent()[0])->getKind(), StmtKind::STMT_RETURN);
 
         delete AST;
@@ -585,34 +585,35 @@ namespace {
                          "  for int b = 1, int c = 2; b < 10; b++, --c {"
                          "  }"
                          "}\n");
-        ASTNode *AST = Parse("fbody.fly", str);
+        ASTNode *AST = Parse("FunctionBodyForStmt", str);
 
         ASSERT_FALSE(Diags.hasErrorOccurred());
 
         // Get Body
         ASTFunc *F = *(AST->getFunctions().begin());
         const ASTBlock *Body = F->getBody();
-        ASTForBlock *Stmt = static_cast<ASTForBlock *>(Body->getContent()[0]);
-        EXPECT_EQ(Stmt->getBlockKind(), BlockStmtKind::BLOCK_STMT_FOR);
+        ASTForBlock *ForBlock = static_cast<ASTForBlock *>(Body->getContent()[0]);
+        EXPECT_EQ(ForBlock->getBlockKind(), ASTBlockKind::BLOCK_STMT_FOR);
 
-        EXPECT_EQ(static_cast<ASTLocalVar *>(Stmt->getInit()->getContent()[0])->getName(), "b");
-        EXPECT_EQ(static_cast<ASTLocalVar *>(Stmt->getInit()->getContent()[1])->getName(), "c");
+        EXPECT_EQ(static_cast<ASTLocalVar *>(ForBlock->getContent()[0])->getName(), "b");
+        EXPECT_EQ(static_cast<ASTLocalVar *>(ForBlock->getContent()[1])->getName(), "c");
 
-        ASTGroupExpr *Cond = static_cast<ASTGroupExpr *>(Stmt->getCondition());
+        ASTExprStmt *ExprStmt = static_cast<ASTExprStmt *>(ForBlock->getCondition()->getContent()[0]);
+        ASTGroupExpr *Cond = static_cast<ASTGroupExpr *>(ExprStmt->getExpr());
         EXPECT_EQ(static_cast<ASTVarRefExpr *>(Cond->getGroup()[0])->getVarRef()->getName(), "b");
         EXPECT_EQ(static_cast<ASTComparisonExpr *>(Cond->getGroup()[1])->getComparisonKind(), ComparisonOpKind::COMP_LT);
         EXPECT_EQ(static_cast<ASTValueExpr *>(Cond->getGroup()[2])->getValue().str(), "10");
 
-        ASTExprStmt * ExprStmt1 = static_cast<ASTExprStmt *>(Stmt->getPost()->getContent()[0]);
+        ASTExprStmt * ExprStmt1 = static_cast<ASTExprStmt *>(ForBlock->getPost()->getContent()[0]);
         EXPECT_EQ(((ASTUnaryExpr *) ExprStmt1->getExpr())->getVarRef()->getName(), "b");
         ASTArithExpr *Expr1 = static_cast<ASTArithExpr *>(((ASTUnaryExpr *) ExprStmt1->getExpr())->getOperatorExpr());
         EXPECT_EQ(Expr1->getArithKind(), ArithOpKind::ARITH_INCR);
-        ASTExprStmt * ExprStmt2 = static_cast<ASTExprStmt *>(Stmt->getPost()->getContent()[1]);
+        ASTExprStmt * ExprStmt2 = static_cast<ASTExprStmt *>(ForBlock->getPost()->getContent()[1]);
         EXPECT_EQ(((ASTUnaryExpr *) ExprStmt2->getExpr())->getVarRef()->getName(), "c");
         ASTArithExpr *Expr2 = static_cast<ASTArithExpr *>(((ASTUnaryExpr *) ExprStmt2->getExpr())->getOperatorExpr());
         EXPECT_EQ(Expr2->getArithKind(), ArithOpKind::ARITH_DECR);
 
-        EXPECT_TRUE(Stmt->getLoop()->isEmpty());
+        EXPECT_TRUE(ForBlock->getLoop()->isEmpty());
 
         delete AST;
     }
@@ -623,7 +624,7 @@ namespace {
                          "  while (a==1) {}"
                          "  while {}"
                          "}\n");
-        ASTNode *AST = Parse("fbody.fly", str);
+        ASTNode *AST = Parse("FunctionBodyWhileStmt", str);
 
         ASSERT_FALSE(Diags.hasErrorOccurred());
 
@@ -631,7 +632,7 @@ namespace {
         ASTFunc *F = *(AST->getFunctions().begin());
         const ASTBlock *Body = F->getBody();
         ASTWhileBlock *Stmt = static_cast<ASTWhileBlock *>(Body->getContent()[0]);
-        EXPECT_EQ(Stmt->getBlockKind(), BlockStmtKind::BLOCK_STMT_WHILE);
+        EXPECT_EQ(Stmt->getBlockKind(), ASTBlockKind::BLOCK_STMT_WHILE);
         EXPECT_FALSE(Stmt->getCondition() == nullptr);
         EXPECT_TRUE(Stmt->isEmpty());
 
@@ -641,7 +642,7 @@ namespace {
         EXPECT_EQ(static_cast<ASTValueExpr *>(Cond->getGroup()[2])->getValue().str(), "1");
 
         ASTWhileBlock *Stmt2 = static_cast<ASTWhileBlock *>(Body->getContent()[1]);
-        EXPECT_EQ(Stmt2->getBlockKind(), BlockStmtKind::BLOCK_STMT_WHILE);
+        EXPECT_EQ(Stmt2->getBlockKind(), ASTBlockKind::BLOCK_STMT_WHILE);
         EXPECT_TRUE(Stmt2->getCondition() == nullptr);
         EXPECT_TRUE(Stmt2->isEmpty());
 

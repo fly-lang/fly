@@ -26,7 +26,7 @@ ASTValueExpr::ASTValueExpr(const SourceLocation &Loc, const ASTValue *Val) : AST
 
 }
 
-ExprKind ASTValueExpr::getKind() const {
+ASTExprKind ASTValueExpr::getKind() const {
     return Kind;
 }
 
@@ -38,11 +38,18 @@ ASTType *ASTValueExpr::getType() const {
     return Val->getType();
 }
 
+std::string ASTValueExpr::str() const {
+    return "{ Type=" + getType()->str() +
+           ", Kind=" + std::to_string(Kind) +
+           ", Value=" + Val->str() +
+           " }";
+}
+
 ASTVarRefExpr::ASTVarRefExpr(const SourceLocation &Loc, ASTVarRef *Ref) : ASTExpr(Loc), Ref(Ref) {
 
 }
 
-ExprKind ASTVarRefExpr::getKind() const {
+ASTExprKind ASTVarRefExpr::getKind() const {
 return Kind;
 }
 
@@ -54,9 +61,16 @@ ASTType *ASTVarRefExpr::getType() const {
     return Ref->getDecl()->getType();
 }
 
+std::string ASTVarRefExpr::str() const {
+    return "{ Type=" + getType()->str() +
+           ", Kind=" + std::to_string(Kind) +
+           ", Ref=" + Ref->str() +
+           " }";
+}
+
 ASTFuncCallExpr::ASTFuncCallExpr(const SourceLocation &Loc, ASTFuncCall *Ref) : ASTExpr(Loc), Call(Ref) {}
 
-ExprKind ASTFuncCallExpr::getKind() const {
+ASTExprKind ASTFuncCallExpr::getKind() const {
 return Kind;
 }
 
@@ -68,11 +82,18 @@ ASTType *ASTFuncCallExpr::getType() const {
     return Call->getDecl()->getType();
 }
 
+std::string ASTFuncCallExpr::str() const {
+    return "{ Type=" + getType()->str() +
+           ", Kind=" + std::to_string(Kind) +
+           ", Call=" + Call->str() +
+           " }";
+}
+
 ASTGroupExpr::ASTGroupExpr(const SourceLocation &Loc) : ASTExpr(Loc) {
 
 }
 
-ExprKind ASTGroupExpr::getKind() const {
+ASTExprKind ASTGroupExpr::getKind() const {
     return Kind;
 }
 
@@ -89,7 +110,22 @@ void ASTGroupExpr::Add(ASTExpr *Exp) {
 }
 
 ASTType *ASTGroupExpr::getType() const {
-    assert(!isEmpty() && "Unknown Type with empty Group");
-
+    if (isEmpty()) {
+        return nullptr;
+    }
     return Group.at(0)->getType();
+}
+
+std::string ASTGroupExpr::str() const {
+    std::string Str = "{ Type=" + getType()->str() +
+                      ", Kind=" + std::to_string(Kind) +
+                      ", Group=[";
+    if (!Group.empty()) {
+        for (ASTExpr *Expr: Group) {
+            Str += Expr->str() + ", ";
+        }
+        Str = Str.substr(0, Str.length()-2);
+    }
+    Str += "] }";
+    return Str;
 }

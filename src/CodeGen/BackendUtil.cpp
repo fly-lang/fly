@@ -85,13 +85,19 @@ using namespace llvm;
 
 namespace {
 
-// Default filename used for profile generation.
+    // Default filename used for profile generation.
     static constexpr StringLiteral DefaultProfileGenName = "default_%m.profraw";
 
     class EmitAssemblyHelper {
+
         DiagnosticsEngine &Diags;
+
         const CodeGenOptions &CodeGenOpts;
+
         const fly::TargetOptions &TargetOpts;
+
+        const bool FrontendTimesIsEnabled;
+
         Module *TheModule;
 
         Timer CodeGenerationTime;
@@ -120,7 +126,7 @@ namespace {
         /// Add passes necessary to emit assembly or LLVM IR.
         ///
         /// \return True on success.
-        bool AddEmitPasses(legacy::PassManager &CodeGenPasses, BackendAction Action,
+        bool AddEmitPasses(legacy::PassManager &CodeGenPasses, BackendActionKind Action,
                            raw_pwrite_stream &OS, raw_pwrite_stream *DwoOS);
 
         std::unique_ptr<llvm::ToolOutputFile> openOutputFile(StringRef Path) {
@@ -134,13 +140,16 @@ namespace {
         }
 
     public:
-        EmitAssemblyHelper(DiagnosticsEngine &_Diags,
+        EmitAssemblyHelper(DiagnosticsEngine &Diags,
                            const CodeGenOptions &CGOpts,
                            const fly::TargetOptions &TOpts,
+                           bool TimePasses,
                            Module *M)
-                : Diags(_Diags), CodeGenOpts(CGOpts),
-                  TargetOpts(TOpts), TheModule(M),
-                  CodeGenerationTime("GenStmt", "Code Generation Time") {}
+        : Diags(Diags), CodeGenOpts(CGOpts),
+                  TargetOpts(TOpts), FrontendTimesIsEnabled(TimePasses), TheModule(M),
+                  CodeGenerationTime("GenStmt", "Code Generation Time") {
+            llvm::TimePassesIsEnabled = TimePasses;
+        }
 
         ~EmitAssemblyHelper() {
             if (CodeGenOpts.DisableFree)
@@ -149,10 +158,10 @@ namespace {
 
         std::unique_ptr<TargetMachine> TM;
 
-        void EmitAssembly(BackendAction Action,
+        void EmitAssembly(BackendActionKind Action,
                           std::unique_ptr<raw_pwrite_stream> OS);
 
-        void EmitAssemblyWithNewPassManager(BackendAction Action,
+        void EmitAssemblyWithNewPassManager(BackendActionKind Action,
                                             std::unique_ptr<raw_pwrite_stream> OS);
     };
 
@@ -169,21 +178,6 @@ class PassManagerBuilderWrapper : public PassManagerBuilder {
         const Triple &TargetTriple;
         const CodeGenOptions &CGOpts;
     };
-}
-
-static void addObjCARCAPElimPass(const PassManagerBuilder &Builder, PassManagerBase &PM) {
-    if (Builder.OptLevel > 0)
-        PM.add(createObjCARCAPElimPass());
-}
-
-static void addObjCARCExpandPass(const PassManagerBuilder &Builder, PassManagerBase &PM) {
-    if (Builder.OptLevel > 0)
-        PM.add(createObjCARCExpandPass());
-}
-
-static void addObjCARCOptPass(const PassManagerBuilder &Builder, PassManagerBase &PM) {
-    if (Builder.OptLevel > 0)
-        PM.add(createObjCARCOptPass());
 }
 
 static void addAddDiscriminatorsPass(const PassManagerBuilder &Builder,
@@ -397,7 +391,7 @@ static Optional<llvm::CodeModel::Model> getCodeModel(const CodeGenOptions &CodeG
     return static_cast<llvm::CodeModel::Model>(CodeModel);
 }
 
-static CodeGenFileType getCodeGenFileType(BackendAction Action) {
+static CodeGenFileType getCodeGenFileType(BackendActionKind Action) {
     if (Action == Backend_EmitObj)
         return CGFT_ObjectFile;
     else if (Action == Backend_EmitNothing)
@@ -759,7 +753,7 @@ void EmitAssemblyHelper::CreateTargetMachine(bool MustCreateTM) {
 }
 
 bool EmitAssemblyHelper::AddEmitPasses(legacy::PassManager &CodeGenPasses,
-                                       BackendAction Action,
+                                       BackendActionKind Action,
                                        raw_pwrite_stream &OS,
                                        raw_pwrite_stream *DwoOS) {
     // Add LibraryInfo.
@@ -781,9 +775,9 @@ bool EmitAssemblyHelper::AddEmitPasses(legacy::PassManager &CodeGenPasses,
     return true;
 }
 
-void EmitAssemblyHelper::EmitAssembly(BackendAction Action,
+void EmitAssemblyHelper::EmitAssembly(BackendActionKind Action,
                                       std::unique_ptr<raw_pwrite_stream> OS) {
-    TimeRegion Region(&CodeGenerationTime);
+    TimeRegion Region(FrontendTimesIsEnabled ? &CodeGenerationTime : nullptr);
 
     setCommandLineOpts(CodeGenOpts);
 
@@ -808,8 +802,7 @@ void EmitAssemblyHelper::EmitAssembly(BackendAction Action,
     CreatePasses(PerModulePasses, PerFunctionPasses);
 
     legacy::PassManager CodeGenPasses;
-    CodeGenPasses.add(
-            createTargetTransformInfoWrapperPass(getTargetIRAnalysis()));
+    CodeGenPasses.add(createTargetTransformInfoWrapperPass(getTargetIRAnalysis()));
 
     std::unique_ptr<llvm::ToolOutputFile> ThinLinkOS, DwoOS;
 
@@ -1002,7 +995,7 @@ static void addSanitizersAtO0(ModulePassManager &MPM,
 /// This API is planned to have its functionality finished and then to replace
 /// `EmitAssembly` at some point in the future when the default switches.
 void EmitAssemblyHelper::EmitAssemblyWithNewPassManager(
-        BackendAction Action, std::unique_ptr<raw_pwrite_stream> OS) {
+        BackendActionKind Action, std::unique_ptr<raw_pwrite_stream> OS) {
     TimeRegion Region(&CodeGenerationTime);
     setCommandLineOpts(CodeGenOpts);
 
@@ -1419,10 +1412,10 @@ BitcodeModule *fly::FindThinLTOModule(MutableArrayRef<BitcodeModule> BMs) {
 }
 
 static void runThinLTOBackend(DiagnosticsEngine &Diags, ModuleSummaryIndex *CombinedIndex, Module *M,
-        const CodeGenOptions &CGOpts,
-        const fly::TargetOptions &TOpts,
-        std::unique_ptr<raw_pwrite_stream> OS, std::string SampleProfile,
-        std::string ProfileRemapping, BackendAction Action) {
+                              const CodeGenOptions &CGOpts,
+                              const fly::TargetOptions &TOpts,
+                              std::unique_ptr<raw_pwrite_stream> OS, std::string SampleProfile,
+                              std::string ProfileRemapping, BackendActionKind Action) {
     StringMap<DenseMap<GlobalValue::GUID, GlobalValueSummary *>>
             ModuleToDefinedGVSummaries;
     CombinedIndex->collectDefinedGVSummariesPerModule(ModuleToDefinedGVSummaries);
@@ -1554,12 +1547,13 @@ static void runThinLTOBackend(DiagnosticsEngine &Diags, ModuleSummaryIndex *Comb
 }
 
 void fly::EmitBackendOutput(DiagnosticsEngine &Diags,
-                              const CodeGenOptions &CGOpts,
-                              const fly::TargetOptions &TOpts,
-                              const llvm::DataLayout &TDesc,
-                              Module *M,
-                              BackendAction Action,
-                              std::unique_ptr<raw_pwrite_stream> OS) {
+                            const CodeGenOptions &CGOpts,
+                            const fly::TargetOptions &TOpts,
+                            bool TimePasses,
+                            const llvm::DataLayout &TDesc,
+                            Module *M,
+                            BackendActionKind Action,
+                            std::unique_ptr<raw_pwrite_stream> OS) {
 
     llvm::TimeTraceScope TimeScope("Backend");
 
@@ -1600,7 +1594,7 @@ void fly::EmitBackendOutput(DiagnosticsEngine &Diags,
         }
     }
 
-    EmitAssemblyHelper AsmHelper(Diags, CGOpts, TOpts, M);
+    EmitAssemblyHelper AsmHelper(Diags, CGOpts, TOpts, TimePasses, M);
 
     if (CGOpts.ExperimentalNewPassManager)
         AsmHelper.EmitAssemblyWithNewPassManager(Action, std::move(OS));

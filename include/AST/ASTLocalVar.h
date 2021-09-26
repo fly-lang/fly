@@ -26,8 +26,10 @@ namespace fly {
         friend class Parser;
         friend class GlobalVarParser;
 
+        // Statement Kind
         const StmtKind Kind = StmtKind::STMT_VAR_DECL;
 
+        // LocalVar Code Generator
         CodeGenLocalVar *CodeGen = nullptr;
 
     public:
@@ -42,6 +44,8 @@ namespace fly {
         CodeGenLocalVar *getCodeGen() const;
 
         void setCodeGen(CodeGenLocalVar *CG);
+
+        std::string str() const;
     };
 
     /**
@@ -58,6 +62,8 @@ namespace fly {
         ASTLocalVarRef(const SourceLocation &Loc, ASTBlock *Block, ASTVarRef Var);
 
         StmtKind getKind() const override;
+
+        std::string str() const override;
     };
 }
 

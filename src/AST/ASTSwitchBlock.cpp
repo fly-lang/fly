@@ -32,7 +32,7 @@ ASTSwitchDefaultBlock *ASTSwitchBlock::setDefault(const SourceLocation &Loc) {
     return Default;
 }
 
-enum BlockStmtKind ASTSwitchBlock::getBlockKind() const {
+enum ASTBlockKind ASTSwitchBlock::getBlockKind() const {
     return StmtKind;
 }
 
@@ -53,7 +53,7 @@ ASTSwitchCaseBlock::ASTSwitchCaseBlock(const SourceLocation &Loc, ASTSwitchBlock
 
 }
 
-enum BlockStmtKind ASTSwitchCaseBlock::getBlockKind() const {
+enum ASTBlockKind ASTSwitchCaseBlock::getBlockKind() const {
     return StmtKind;
 };
 
@@ -65,6 +65,6 @@ ASTSwitchDefaultBlock::ASTSwitchDefaultBlock(const SourceLocation &Loc, ASTSwitc
 
 }
 
-enum BlockStmtKind ASTSwitchDefaultBlock::getBlockKind() const {
+enum ASTBlockKind ASTSwitchDefaultBlock::getBlockKind() const {
     return StmtKind;
 }

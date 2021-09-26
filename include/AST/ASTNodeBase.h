@@ -35,6 +35,8 @@ namespace fly {
         const llvm::StringRef& getFileName();
 
         ASTContext &getContext() const;
+
+        virtual std::string str() const;
     };
 }
 

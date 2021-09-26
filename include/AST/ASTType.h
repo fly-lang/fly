@@ -40,9 +40,9 @@ namespace fly {
 
         virtual ~ASTType() = default;
 
-        virtual std::string str() const = 0;
-
         virtual bool equals(ASTType *Ty) const;
+
+        virtual std::string str() const = 0;
     };
 
     /**
@@ -58,7 +58,7 @@ namespace fly {
         const TypeKind &getKind() const override;
 
         std::string str() const override {
-            return "int";
+            return "{int}";
         }
     };
 
@@ -75,7 +75,7 @@ namespace fly {
         const TypeKind &getKind() const override;
 
         std::string str() const override {
-            return "float";
+            return "{float}";
         }
     };
 
@@ -92,7 +92,7 @@ namespace fly {
         const TypeKind &getKind() const override;
 
         std::string str() const override {
-            return "bool";
+            return "{bool}";
         }
     };
 
@@ -109,7 +109,7 @@ namespace fly {
         const TypeKind &getKind() const override;
 
         std::string str() const override {
-            return "void";
+            return "{void}";
         }
     };
 

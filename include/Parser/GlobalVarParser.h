@@ -24,7 +24,7 @@ namespace fly {
         friend Parser;
 
         Parser *P;
-        ASTType *TyDecl;
+        ASTType *Type;
         const StringRef Name;
         SourceLocation &Location;
         ASTGlobalVar *Var = NULL;

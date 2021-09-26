@@ -14,6 +14,7 @@
 #include "AST/ASTFunc.h"
 #include "llvm/ADT/StringMap.h"
 #include <unordered_set>
+#include <ostream>
 
 namespace fly {
 
@@ -50,7 +51,7 @@ namespace fly {
         llvm::StringMap<ASTClass *> Classes;
 
     public:
-        ASTNameSpace(const llvm::StringRef &NS);
+        ASTNameSpace(const llvm::StringRef &Name);
 
         ~ASTNameSpace();
 
@@ -77,6 +78,8 @@ namespace fly {
         void addUnRefGlobalVar(ASTVarRef *Var);
 
         bool Resolve();
+
+        std::string str() const;
     };
 }
 

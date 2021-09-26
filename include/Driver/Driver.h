@@ -54,7 +54,7 @@ namespace fly {
         // and replace any existing one with it.
         IntrusiveRefCntPtr<DiagnosticsEngine> CreateDiagnostics(IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts);
 
-        IntrusiveRefCntPtr<DiagnosticOptions> BuildDiagnosticOpts();
+        IntrusiveRefCntPtr<DiagnosticOptions> BuildDiagnosticOptions();
 
         void BuildOptions(FileSystemOptions &FileSystemOpts,
                            std::shared_ptr<TargetOptions> &TargetOpts,
