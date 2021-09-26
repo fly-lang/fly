@@ -592,15 +592,16 @@ bool Parser::ParseStartParen() {
  * @return true on Success or false on Error
  */
 bool Parser::ParseEndParen(bool hasParen) {
-    if (Tok.is(tok::r_paren)) {
-        if (hasParen) {
+    if (hasParen) {
+        if (Tok.is(tok::r_paren)) {
             ConsumeParen();
             return true;
         } else {
-            // TODO Error missing start paren
+            Diag(diag::err_right_paren);
+            return false;
         }
     }
-    return false;
+    return true;
 }
 
 /**
@@ -638,7 +639,9 @@ bool Parser::ParseIfStmt(ASTBlock *Block) {
             // Parse the group of expressions into parenthesis
             ASTExpr *Expr = ParseAllExpr(Block, Success);
             // Parse ) if exists
-            ParseEndParen(hasParen);
+            if (!ParseEndParen(hasParen)) {
+                return false;
+            }
             Stmt = new ASTIfBlock(Loc, Block, Expr);
         }
             break;
@@ -649,7 +652,9 @@ bool Parser::ParseIfStmt(ASTBlock *Block) {
             // Parse the group of expressions into parenthesis
             ASTExpr *Expr = ParseAllExpr(Block, Success);
             // Parse ) if exists
-            ParseEndParen(hasParen);
+            if (!ParseEndParen(hasParen)) {
+                return false;
+            }
             Stmt = new ASTElsifBlock(Loc, Block, Expr);
             ASTIfBlock::AddBranch(Block, Stmt);
         }
@@ -709,7 +714,9 @@ bool Parser::ParseSwitchStmt(ASTBlock *Block) {
     if (Success) {
 
         // Consume Right Parenthesis ) if exists
-        ParseEndParen(hasParen);
+        if (!ParseEndParen(hasParen)) {
+            return false;
+        }
 
         // Init Switch Statement and start parse from brace
         ASTSwitchBlock *Stmt = new ASTSwitchBlock(SwitchLoc, Block, Expr);
@@ -725,19 +732,19 @@ bool Parser::ParseSwitchStmt(ASTBlock *Block) {
 
                     // Parse Expression for different cases
                     // for a Value  -> case 1:
-                    // or for a Var -> case a:
-                    // or for a default
+                    // for a Var -> case a:
+                    // for a default
                     ASTExpr * CaseExp = nullptr;
-                    ASTVarRef *VRef = nullptr;
                     if (isValue()) {
                         CaseExp = ParseValueExpr(Success);
                     } else if (Tok.isAnyIdentifier()) {
                         IdentifierInfo *Id = Tok.getIdentifierInfo();
-                        VRef = new ASTVarRef(Tok.getLocation(), Id->getName());
-                        CaseExp = new ASTVarRefExpr(Tok.getLocation(), VRef);
+                        ASTVarRef *VarRef = new ASTVarRef(Tok.getLocation(), Id->getName());
+                        CaseExp = new ASTVarRefExpr(Tok.getLocation(), VarRef);
                         ConsumeToken();
                     } else {
-                        // TODO Error
+                        Diag(diag::err_syntax_error);
+                        return false;
                     }
                     if (Tok.is(tok::colon)) {
                         ConsumeToken();
@@ -758,7 +765,8 @@ bool Parser::ParseSwitchStmt(ASTBlock *Block) {
                         ASTSwitchDefaultBlock *DefStmt = Stmt->setDefault(Loc);
                         ParseBlock(DefStmt);
                     } else {
-                        // TODO add error, missing :
+                        Diag(diag::err_syntax_error);
+                        return false;
                     }
                 }
             }
@@ -802,7 +810,9 @@ bool Parser::ParseWhileStmt(ASTBlock *Block) {
     ASTWhileBlock *While = new ASTWhileBlock(Loc, Block, Cond);
 
     // Consume Right Parenthesis ) if exists
-    ParseEndParen(hasParen);
+    if (!ParseEndParen(hasParen)) {
+        return false;
+    }
 
     // Parse statement between braces
     if (Tok.is(tok::l_brace)) {
@@ -866,7 +876,9 @@ bool Parser::ParseForStmt(ASTBlock *Block) {
     }
 
     // Consume Right Parenthesis ) if exists
-    ParseEndParen(hasParen);
+    if (!ParseEndParen(hasParen)) {
+        return false;
+    }
 
     // Parse statement between braces
     if (Tok.is(tok::l_brace)) {

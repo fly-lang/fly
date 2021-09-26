@@ -142,8 +142,8 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
         // Var Declaration
         case StmtKind::STMT_VAR_DECL: {
             ASTLocalVar *LocalVar = static_cast<ASTLocalVar *>(Stmt);
-            assert(LocalVar->getCodeGen() && "VarDeclStmt is not CodeGen initialized");
-            assert(LocalVar->getExpr() && "Expr Mandatory in STMT_VAR_DECL");
+            assert(LocalVar->getCodeGen() && "LocalVar is not CodeGen initialized");
+            assert(LocalVar->getExpr() && "Expr Mandatory in declaration");
             Value *V = GenExpr(Fn, LocalVar->getType(), LocalVar->getExpr());
             LocalVar->getCodeGen()->Store(V);
             break;
@@ -152,7 +152,7 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
         // Var Assignment
         case STMT_VAR_ASSIGN: {
             ASTLocalVarRef *LocalVarRef = (ASTLocalVarRef *) Stmt;
-            assert(LocalVarRef->getExpr() && "Var Expr is unset");
+            assert(LocalVarRef->getExpr() && "Expr Mandatory in assignment");
             llvm::Value *V = GenExpr(Fn, LocalVarRef->getDecl()->getType(), LocalVarRef->getExpr());
             if (LocalVarRef->getDecl()->isGlobal()) {
                 ASTGlobalVar *GlobalVar = static_cast<ASTGlobalVar *>(LocalVarRef->getDecl());
@@ -182,7 +182,6 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
         case STMT_BLOCK: {
             ASTBlock *Block = static_cast<ASTBlock *>(Stmt);
             switch (Block->getBlockKind()) {
-                // TODO
                 case BLOCK_STMT:
                     GenBlock(Fn, Block->getContent());
                     break;

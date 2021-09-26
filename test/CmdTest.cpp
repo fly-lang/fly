@@ -8,12 +8,9 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#include "ConfigTest.h"
 #include <Driver/Driver.h>
 #include <Driver/DriverOptions.h>
-#include <llvm/Support/ManagedStatic.h>
 #include "llvm/Support/TargetSelect.h"
-#include "llvm/Support/InitLLVM.h"
 #include "Basic/Debug.h"
 #include "gtest/gtest.h"
 #include <fstream>
@@ -29,13 +26,8 @@ namespace {
     };
 
     TEST_F(CmdTest, LaunchAsMain) {
-        std::string Source = std::string(FLY_TEST_SRC_PATH).append("/main.fly");
-        char* Args[] = {"fly", "-debug", "-ll", const_cast<char *>(Source.c_str())};
-        char** Argv = (char**)Args;
-        int Argc = 4;
-        llvm::outs() << "Testing " << Source << "\n";
-        llvm::outs() << "FLY_TEST_BUILD_PATH=" << FLY_TEST_BUILD_PATH << "\n";
-        llvm::InitLLVM X(Argc, Argv);
+        char* Argv[] = {"fly", "-debug", "-ll", "src/main.fly"};
+        int Argc = sizeof(Argv) / sizeof(char*) - 1;;
 
         SmallVector<const char *, 256> ArgList(Argv, Argv + Argc);
         llvm::InitializeAllTargets();
@@ -46,10 +38,8 @@ namespace {
         CompilerInstance &CI = TheDriver.BuildCompilerInstance();
         TheDriver.Execute();
 
-        std::ifstream reader(std::string(FLY_TEST_BUILD_PATH).append("/main.fly.ll")) ;
-        ASSERT_TRUE(reader && "Error opening main.fly");
-
-        llvm::llvm_shutdown();
+        std::ifstream reader("main.fly.ll");
+        ASSERT_TRUE(reader && "Error opening main.fly.ll");
     }
 
 } // anonymous namespace

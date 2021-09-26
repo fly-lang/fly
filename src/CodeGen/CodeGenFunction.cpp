@@ -45,14 +45,11 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, const llvm::StringRef &FNam
     for (auto &P : FParams->getParams()) {
         CodeGenLocalVar *CGV = P->getCodeGen();
         CGV->Store(Fn->getArg(n));
-        if (P->getExpr()) { // TODO check Expr
+        if (P->getExpr()) {
             CGM->GenExpr(Fn, P->getType(), P->getExpr());
         }
         ++n;
     }
-
-    // Store Default LocalVar Values
-    // TODO
 
     // Add Function Body
     CGM->GenBlock(Fn, FBody->getContent());

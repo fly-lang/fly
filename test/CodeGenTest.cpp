@@ -121,21 +121,21 @@ namespace {
         CG.Emit(nullptr);
         ASSERT_FALSE(Diags.hasErrorOccurred());
 
-//        CodeGen CG2(Diags, CodeGenOpts, TargetOpts, Backend_EmitLL, ShowTimers);
-//        CG2.Emit(Node->getCodeGen());
-//        ASSERT_FALSE(Diags.hasErrorOccurred());
-//
-//        CodeGen CG3(Diags, CodeGenOpts, TargetOpts, Backend_EmitBC, ShowTimers);
-//        CG3.Emit(Node->getCodeGen());
-//        ASSERT_FALSE(Diags.hasErrorOccurred());
-//
-//        CodeGen CG4(Diags, CodeGenOpts, TargetOpts, Backend_EmitAssembly, ShowTimers);
-//        CG4.Emit(Node->getCodeGen());
-//        ASSERT_FALSE(Diags.hasErrorOccurred());
-//
-//        CodeGen CG5(Diags, CodeGenOpts, TargetOpts, Backend_EmitObj, ShowTimers);
-//        CG5.Emit(Node->getCodeGen());
-//        ASSERT_FALSE(Diags.hasErrorOccurred());
+        CodeGen CG2(Diags, CodeGenOpts, TargetOpts, Backend_EmitLL, ShowTimers);
+        CG2.Emit(Node->getCodeGen());
+        ASSERT_FALSE(Diags.hasErrorOccurred());
+
+        CodeGen CG3(Diags, CodeGenOpts, TargetOpts, Backend_EmitBC, ShowTimers);
+        CG3.Emit(Node->getCodeGen());
+        ASSERT_FALSE(Diags.hasErrorOccurred());
+
+        CodeGen CG4(Diags, CodeGenOpts, TargetOpts, Backend_EmitAssembly, ShowTimers);
+        CG4.Emit(Node->getCodeGen());
+        ASSERT_FALSE(Diags.hasErrorOccurred());
+
+        CodeGen CG5(Diags, CodeGenOpts, TargetOpts, Backend_EmitObj, ShowTimers);
+        CG5.Emit(Node->getCodeGen());
+        ASSERT_FALSE(Diags.hasErrorOccurred());
     }
 
     TEST_F(CodeGenTest, CGGlobalVar) {
