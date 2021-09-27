@@ -61,7 +61,7 @@ OPTION(prefix_1, "log-file", LOG_FILE, JoinedOrSeparate, INVALID, INVALID, nullp
 OPTION(prefix_1, "mc-model", MC_MODEL, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
        "Produce different Memory Code Model", "nullptr", nullptr)
 OPTION(prefix_1, "mthread-model", MTHREAD_MODEL, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
-       "Produce different Memory Code Model", "nullptr", nullptr)
+       "Produce different Memory Thread Model", "nullptr", nullptr)
 OPTION(prefix_1, "no", EMIT_NOTHING, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
        "Produce no output", nullptr, nullptr)
 OPTION(prefix_1, "o", OUTPUT, JoinedOrSeparate, INVALID, INVALID, nullptr, CoreOption, 0,

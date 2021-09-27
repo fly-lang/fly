@@ -318,6 +318,10 @@ bool Driver::Execute() {
         Frontend Front(*CI);
         Success = Front.Execute();
     }
+
+    // Shutdown after execution
+    llvm::llvm_shutdown();
+
     return Success;
 }
 

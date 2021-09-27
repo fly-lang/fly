@@ -25,7 +25,7 @@ namespace {
         CmdTest() {}
     };
 
-    TEST_F(CmdTest, LaunchAsMain) {
+    TEST_F(CmdTest, LaunchMain) {
         char* Argv[] = {"fly", "-debug", "-ll", "src/main.fly", NULL};
         int Argc = sizeof(Argv) / sizeof(char*) - 1;;
 
@@ -40,6 +40,21 @@ namespace {
 
         std::ifstream reader("main.fly.ll");
         ASSERT_TRUE(reader && "Error opening main.fly.ll");
+    }
+
+    TEST_F(CmdTest, ShowVersion) {
+        char* Argv[] = {"fly", "--version-short", NULL};
+        int Argc = sizeof(Argv) / sizeof(char*) - 1;;
+
+        SmallVector<const char *, 256> ArgList(Argv, Argv + Argc);
+        llvm::InitializeAllTargets();
+        llvm::InitializeAllTargetMCs();
+        llvm::InitializeAllAsmPrinters();
+
+        Driver TheDriver(ArgList);
+        CompilerInstance &CI = TheDriver.BuildCompilerInstance();
+        TheDriver.Execute();
+
     }
 
 } // anonymous namespace

@@ -56,15 +56,7 @@ int main(int Argc, const char **Argv)
     llvm::StringSaver Saver(A);
 
     Driver TheDriver(Args);
+
     CompilerInstance &CI = TheDriver.BuildCompilerInstance();
-    if (!TheDriver.Execute()) {
-        llvm::errs() << "Fly Compiler Error\n";
-    }
-
-    // Set an error handler, so that any LLVM backend diagnostics go through our error handler.
-    llvm::install_fatal_error_handler(LLVMErrorHandler, static_cast<void*>(&CI.getDiagnostics()));
-
-    // Shutdown after execution
-    llvm::llvm_shutdown();
-    return 0;
+    return !TheDriver.Execute();
 }
