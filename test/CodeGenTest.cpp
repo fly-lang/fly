@@ -107,37 +107,6 @@ namespace {
         }
     };
 
-    TEST_F(CodeGenTest, Emit) {
-        ASTNode *Node = CreateAST();
-        CodeGenOptions CodeGenOpts;
-        std::shared_ptr<fly::TargetOptions> TargetOpts = std::make_shared<fly::TargetOptions>();
-        TargetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
-        TargetOpts->CodeModel = "default";
-        CodeGenOpts.CodeModel = "default";
-        CodeGenOpts.ThreadModel = "single";
-        bool ShowTimers = false;
-
-        CodeGen CG(Diags, CodeGenOpts, TargetOpts, Backend_EmitNothing, ShowTimers);
-        CG.Emit(nullptr);
-        ASSERT_FALSE(Diags.hasErrorOccurred());
-
-        CodeGen CG2(Diags, CodeGenOpts, TargetOpts, Backend_EmitLL, ShowTimers);
-        CG2.Emit(Node->getCodeGen());
-        ASSERT_FALSE(Diags.hasErrorOccurred());
-
-        CodeGen CG3(Diags, CodeGenOpts, TargetOpts, Backend_EmitBC, ShowTimers);
-        CG3.Emit(Node->getCodeGen());
-        ASSERT_FALSE(Diags.hasErrorOccurred());
-
-        CodeGen CG4(Diags, CodeGenOpts, TargetOpts, Backend_EmitAssembly, ShowTimers);
-        CG4.Emit(Node->getCodeGen());
-        ASSERT_FALSE(Diags.hasErrorOccurred());
-
-        CodeGen CG5(Diags, CodeGenOpts, TargetOpts, Backend_EmitObj, ShowTimers);
-        CG5.Emit(Node->getCodeGen());
-        ASSERT_FALSE(Diags.hasErrorOccurred());
-    }
-
     TEST_F(CodeGenTest, CGGlobalVar) {
         ASTNode *Node = CreateAST();
         ASTGlobalVar *Var = new ASTGlobalVar(SourceLoc, Node, new ASTIntType(SourceLoc), "a");

@@ -1,8 +1,8 @@
 ######################################
-# Add Google Test dependency
+# Add Fly Tests
 ######################################
 
-message(STATUS "Adding GoogleTest")
+message(STATUS "Adding Fly Tests")
 
 add_executable(fly_test
         ASTTest.cpp

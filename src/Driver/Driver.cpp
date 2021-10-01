@@ -67,6 +67,10 @@ Driver::Driver(llvm::ArrayRef<const char *> ArrArgs) :
     }
 }
 
+Driver::~Driver() {
+
+}
+
 CompilerInstance &Driver::BuildCompilerInstance() {
     FLY_DEBUG("Driver", "BuildCompilerInstance");
     llvm::PrettyStackTraceString CrashInfo("Building compiler instance");
@@ -175,15 +179,14 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
         printVersion();
         doExecute = false;
         return;
-    }
-    if (ArgList.hasArg(options::OPT_VERSION_SHORT)) {
+    } else if (ArgList.hasArg(options::OPT_VERSION_SHORT)) {
         printVersion(false);
         doExecute = false;
         return;
     }
 
     // Show Help
-    if (ArgList.hasArg(options::OPT_HELP)) {
+    else if (ArgList.hasArg(options::OPT_HELP)) {
         getDriverOptTable().PrintHelp(
                 llvm::outs(), "fly [options] source.fly ...\n",
                 "Example: fly -v -o out main.fly\n"
@@ -318,9 +321,6 @@ bool Driver::Execute() {
         Frontend Front(*CI);
         Success = Front.Execute();
     }
-
-    // Shutdown after execution
-    llvm::llvm_shutdown();
 
     return Success;
 }

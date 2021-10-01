@@ -52,11 +52,12 @@ int main(int Argc, const char **Argv)
     llvm::InitializeAllTargetMCs();
     llvm::InitializeAllAsmPrinters();
 
-    llvm::BumpPtrAllocator A;
-    llvm::StringSaver Saver(A);
-
     Driver TheDriver(Args);
-
     CompilerInstance &CI = TheDriver.BuildCompilerInstance();
-    return !TheDriver.Execute();
+    bool Result = !TheDriver.Execute();
+
+    // Shutdown after execution
+    llvm::llvm_shutdown();
+
+    return Result;
 }

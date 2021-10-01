@@ -67,6 +67,8 @@ namespace fly {
 
         Driver(llvm::ArrayRef<const char *> ArgList);
 
+        ~Driver();
+
         CompilerInstance &BuildCompilerInstance();
 
         bool Execute();
