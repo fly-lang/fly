@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTStmt.h"
+#include "AST/ASTExpr.h"
 #include "AST/ASTBlock.h"
 
 using namespace fly;

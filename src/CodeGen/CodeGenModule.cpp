@@ -18,7 +18,9 @@
 #include "CodeGen/CodeGenGlobalVar.h"
 #include "CodeGen/CodeGenLocalVar.h"
 #include "CodeGen/CodeGenExpr.h"
+#include "AST/ASTImport.h"
 #include "AST/ASTNode.h"
+#include "AST/ASTNameSpace.h"
 #include "AST/ASTLocalVar.h"
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTBlock.h"
@@ -27,6 +29,7 @@
 #include "AST/ASTSwitchBlock.h"
 #include "AST/ASTWhileBlock.h"
 #include "AST/ASTForBlock.h"
+#include "Basic/Debug.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Value.h"
@@ -86,7 +89,6 @@ CodeGenModule::CodeGenModule(DiagnosticsEngine &Diags, llvm::StringRef Name, LLV
 }
 
 CodeGenModule::~CodeGenModule() {
-    delete Module;
     delete Builder;
 }
 
@@ -94,32 +96,47 @@ DiagnosticBuilder CodeGenModule::Diag(const SourceLocation &Loc, unsigned DiagID
     return Diags.Report(Loc, DiagID);
 }
 
-Module *CodeGenModule::getModule() const {
-    return Module;
+llvm::Module *CodeGenModule::getModule() const {
+    return Module.get();
+}
+
+llvm::Module *CodeGenModule::ReleaseModule() {
+    return Module.release();
+}
+
+void CodeGenModule::GenImport(ASTImport *Import) {
+    // Read Import: compiled Module or to compile
+    FLY_DEBUG_MESSAGE("CodeGenModule", "GenImport",
+                      "Import=" << Import->str());
 }
 
 /**
  * GenStmt from VarDecl
  * @param Decl
  */
-CodeGenGlobalVar *CodeGenModule::GenGlobalVar(ASTGlobalVar* AST) {
+CodeGenGlobalVar *CodeGenModule::GenGlobalVar(ASTGlobalVar* GlobalVar, bool isExternal) {
+    FLY_DEBUG_MESSAGE("CodeGenModule", "GenGlobalVar",
+                      "GlobalVar=" << GlobalVar->str() << ", isExternal=" << isExternal);
     // Check Value
-    CodeGenGlobalVar *CG = new CodeGenGlobalVar(this, AST);
+    CodeGenGlobalVar *CG = new CodeGenGlobalVar(this, GlobalVar, isExternal);
     if (CG->getPointer() != nullptr) { // Pointer is the GlobalVar, if nullptr Success = false
-        AST->setCodeGen(CG);
+        GlobalVar->setCodeGen(CG);
         return CG;
     }
     return nullptr; // Error occurs
 }
 
-CodeGenFunction *CodeGenModule::GenFunction(ASTFunc *FDecl) {
-    CodeGenFunction *CGF = new CodeGenFunction(this, FDecl->getName(), FDecl->getType(), FDecl->getHeader(),
-                                               FDecl->getBody(), FDecl->getDeclVars());
-    FDecl->setCodeGen(CGF);
+CodeGenFunction *CodeGenModule::GenFunction(ASTFunc *Func, bool isExternal) {
+    FLY_DEBUG_MESSAGE("CodeGenModule", "GenFunction",
+                      "Func=" << Func->str() << ", isExternal=" << isExternal);
+    CodeGenFunction *CGF = new CodeGenFunction(this, Func, isExternal);
+    Func->setCodeGen(CGF);
     return CGF;
 }
 
 CallInst *CodeGenModule::GenCall(llvm::Function *Fn, ASTFuncCall *Call) {
+    FLY_DEBUG_MESSAGE("CodeGenModule", "GenCall",
+                      "Call=" << Call->str());
     // Check if Func is declared
     if (Call->getDecl() == nullptr) {
         Diag(Call->getLocation(), diag::err_unref_call) << Call->getName();
@@ -244,9 +261,24 @@ llvm::Type *CodeGenModule::GenType(const ASTType *Type) {
     assert(0 && "Unknown Var Type Kind");
 }
 
-llvm::Constant *CodeGenModule::GenValue(const ASTType *Ty, const ASTValue *Val) {
+llvm::Constant *CodeGenModule::GenDefaultValue(const ASTType *Type) {
+    assert(Type->getKind() != TYPE_VOID && "No default value for Void Type");
+    switch (Type->getKind()) {
+        case TYPE_INT:
+            return llvm::ConstantInt::get(Int32Ty, 0, true);
+        case TYPE_FLOAT:
+            return llvm::ConstantFP::get(FloatTy, "0.0");
+        case TYPE_BOOL:
+            return llvm::ConstantInt::get(BoolTy, 0, false);
+        case TYPE_CLASS:
+            return nullptr; // TODO
+    }
+    assert(0 && "Unknown Type");
+}
+
+llvm::Constant *CodeGenModule::GenValue(const ASTType *Type, const ASTValue *Val) {
     //TODO value conversion from Val->getType() to TypeBase (if are different)
-    switch (Ty->getKind()) {
+    switch (Type->getKind()) {
 
         case TYPE_VOID:
             Diag(Val->getType()->getLocation(), diag::err_void_value);

@@ -12,19 +12,20 @@
 #define FLY_ASTBLOCK_H
 
 #include "ASTStmt.h"
-#include "ASTVar.h"
-#include "Basic/Diagnostic.h"
 #include "llvm/ADT/StringMap.h"
 #include <vector>
 
 namespace fly {
 
+    class DiagnosticBuilder;
     class ASTReturn;
     class ASTFuncCall;
     class ASTFuncCallStmt;
     class ASTLocalVar;
     class ASTLocalVarRef;
     class ASTGroupExpr;
+    class ASTVarRef;
+    class ASTExpr;
     class BreakStmt;
     class ContinueStmt;
 
@@ -84,17 +85,13 @@ namespace fly {
 
         const llvm::StringMap<ASTLocalVar *> &getDeclVars() const;
 
-        ASTLocalVar *FindVarDecl(const ASTBlock *Block, ASTVarRef *VarRef);
-
-        bool ResolveVarRef(ASTVarRef *VarRef);
-
-        bool ResolveExpr(ASTExpr *Expr);
-
         bool AddExprStmt(ASTExprStmt *ExprStmt);
 
-        bool AddVarRef(ASTLocalVarRef *LocalVarRef);
+        bool AddLocalVarRef(ASTLocalVarRef *LocalVarRef);
 
-        bool AddVar(ASTLocalVar *LocalVar);
+        bool RecursiveFindDeclVars(ASTBlock *Block, ASTLocalVar *LocalVar);
+
+        bool AddLocalVar(ASTLocalVar *LocalVar);
 
         bool AddCall(ASTFuncCall *Invoke);
 

@@ -130,17 +130,17 @@ IntrusiveRefCntPtr<DiagnosticsEngine> Driver::CreateDiagnostics(IntrusiveRefCntP
             OS = FileOS.get();
             StreamOwner = std::move(FileOS);
         }
-    }
 
-    // Chain in the diagnostic client which will log the diagnostics.
-    auto Logger = std::make_unique<LogDiagnosticPrinter>(*OS, DiagOpts.get(), std::move(StreamOwner));
+        // Chain in the diagnostic client which will log the diagnostics.
+        auto Logger = std::make_unique<LogDiagnosticPrinter>(*OS, DiagOpts.get(), std::move(StreamOwner));
 
-    if (Diags->ownsClient()) {
-        Diags->setClient(
-                new ChainedDiagnosticConsumer(Diags->takeClient(), std::move(Logger)));
-    } else {
-        Diags->setClient(
-                new ChainedDiagnosticConsumer(Diags->getClient(), std::move(Logger)));
+        if (Diags->ownsClient()) {
+            Diags->setClient(
+                    new ChainedDiagnosticConsumer(Diags->takeClient(), std::move(Logger)));
+        } else {
+            Diags->setClient(
+                    new ChainedDiagnosticConsumer(Diags->getClient(), std::move(Logger)));
+        }
     }
 
     ProcessWarningOptions(*Diags, *DiagOpts, /*ReportDiags=*/false);
@@ -151,7 +151,8 @@ IntrusiveRefCntPtr<DiagnosticsEngine> Driver::CreateDiagnostics(IntrusiveRefCntP
 IntrusiveRefCntPtr<DiagnosticOptions> Driver::BuildDiagnosticOptions() {
     FLY_DEBUG("Driver", "BuildDiagnosticOptions");
     IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts(new DiagnosticOptions);
-    DiagOpts->DiagnosticLogFile = std::string(ArgList.getLastArgValue(options::OPT_LOG_FILE));
+    DiagOpts->DiagnosticLogFile = ArgList.hasArg(options::OPT_LOG_FILE) ?
+            std::string(ArgList.getLastArgValue(options::OPT_LOG_FILE)) : "";
     DiagOpts->IgnoreWarnings = ArgList.hasArg(options::OPT_NO_WARNING);
     return std::move(DiagOpts);
 }
@@ -220,7 +221,17 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
     // Configure Options
 
     // Set Output file
+    // FrontendOpts->setOutputFile("out");
     if (ArgList.hasArg(options::OPT_OUTPUT)) {
+        if (ArgList.hasArg(options::OPT_EMIT_LL) ||
+                ArgList.hasArg(options::OPT_EMIT_BC) ||
+                ArgList.hasArg(options::OPT_EMIT_AS) ||
+                ArgList.hasArg(options::OPT_EMIT_NOTHING)) {
+            llvm::errs() << "cannot specify -o when not emit object files\n";
+            doExecute = false;
+            return;
+        }
+
         const StringRef &Out = ArgList.getLastArgValue(options::OPT_OUTPUT);
         FLY_DEBUG_MESSAGE("Driver", "BuildOptions", "Set OPT_OUTPUT=" << Out);
         FrontendOpts->setOutputFile(Out);
@@ -256,15 +267,19 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
     if (ArgList.hasArg(options::OPT_EMIT_LL)) {
         FLY_DEBUG_MESSAGE("Driver", "BuildOptions", "Set OPT_EMIT_LL");
         FrontendOpts->BackendAction = BackendActionKind::Backend_EmitLL;
+        FrontendOpts->setOutputFile("");
     } else if (ArgList.hasArg(options::OPT_EMIT_BC)) {
         FLY_DEBUG_MESSAGE("Driver", "BuildOptions", "Set OPT_EMIT_BC");
         FrontendOpts->BackendAction = BackendActionKind::Backend_EmitBC;
+        FrontendOpts->setOutputFile("");
     } else if (ArgList.hasArg(options::OPT_EMIT_AS)) {
         FLY_DEBUG_MESSAGE("Driver", "BuildOptions", "Set OPT_EMIT_AS");
         FrontendOpts->BackendAction =BackendActionKind::Backend_EmitAssembly;
+        FrontendOpts->setOutputFile("");
     } else if (ArgList.hasArg(options::OPT_EMIT_NOTHING)) {
         FLY_DEBUG_MESSAGE("Driver", "BuildOptions", "Set OPT_EMIT_NOTHING");
         FrontendOpts->BackendAction = BackendActionKind::Backend_EmitNothing;
+        FrontendOpts->setOutputFile("");
     } else {
         FrontendOpts->BackendAction = BackendActionKind::Backend_EmitObj;
     }

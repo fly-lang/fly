@@ -17,42 +17,46 @@
 
 using namespace fly;
 
-CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, const llvm::StringRef &FName, const ASTType *FType,
-                                 const ASTFuncHeader *FParams, const ASTBlock *FBody,
-                                 const std::vector<ASTLocalVar *> &DeclVars) : CGM(CGM) {
-    llvm::FunctionType *FnTy = GenFuncType(FType, FParams);
+CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, ASTFunc *Func, bool isExternal) : CGM(CGM) {
+    llvm::FunctionType *FnTy = GenFuncType(Func->getType(), Func->getHeader());
 
     // Create Function
-    Fn = llvm::Function::Create(FnTy, llvm::Function::ExternalLinkage, FName, CGM->Module);
+    llvm::GlobalValue::LinkageTypes Linkage = isExternal && Func->getVisibility() != V_PRIVATE ?
+            llvm::GlobalValue::ExternalLinkage : llvm::GlobalValue::InternalLinkage;
+    Fn = llvm::Function::Create(FnTy, Linkage, Func->getName(), CGM->getModule());
     Name = Fn->getName();
-    Entry = BasicBlock::Create(CGM->LLVMCtx, "entry", Fn);
-    CGM->Builder->SetInsertPoint(Entry);
 
-    // CodeGen of Params and Allocation
-    for (auto &P : FParams->getParams()) {
-        CodeGenLocalVar *CGV = new CodeGenLocalVar(CGM, P);
-        P->setCodeGen(CGV);
-        P->getCodeGen()->Alloca();
-    }
+    // Generate Body
+    if (!isExternal) {
+        Entry = BasicBlock::Create(CGM->LLVMCtx, "entry", Fn);
+        CGM->Builder->SetInsertPoint(Entry);
 
-    // Allocation of declared vars
-    for (auto &DeclVar : DeclVars) {
-        DeclVar->getCodeGen()->Alloca();
-    }
-
-    // Store Param Values
-    int n = 0;
-    for (auto &P : FParams->getParams()) {
-        CodeGenLocalVar *CGV = P->getCodeGen();
-        CGV->Store(Fn->getArg(n));
-        if (P->getExpr()) {
-            CGM->GenExpr(Fn, P->getType(), P->getExpr());
+        // CodeGen of Params and Allocation
+        for (auto &P: Func->getHeader()->getParams()) {
+            CodeGenLocalVar *CGV = new CodeGenLocalVar(CGM, P);
+            P->setCodeGen(CGV);
+            P->getCodeGen()->Alloca();
         }
-        ++n;
-    }
 
-    // Add Function Body
-    CGM->GenBlock(Fn, FBody->getContent());
+        // Allocation of declared vars
+        for (auto &DeclVar: Func->getDeclVars()) {
+            DeclVar->getCodeGen()->Alloca();
+        }
+
+        // Store Param Values
+        int n = 0;
+        for (auto &P: Func->getHeader()->getParams()) {
+            CodeGenLocalVar *CGV = P->getCodeGen();
+            CGV->Store(Fn->getArg(n));
+            if (P->getExpr()) {
+                CGM->GenExpr(Fn, P->getType(), P->getExpr());
+            }
+            ++n;
+        }
+
+        // Add Function Body
+        CGM->GenBlock(Fn, Func->getBody()->getContent());
+    }
 }
 
 llvm::FunctionType *CodeGenFunction::GenFuncType(const ASTType *RetTyData, const ASTFuncHeader *Params) {
@@ -76,8 +80,4 @@ const llvm::StringRef &CodeGenFunction::getName() const {
 
 llvm::Function *CodeGenFunction::getFunction() {
     return Fn;
-}
-
-BasicBlock *CodeGenFunction::getEntry() {
-    return Entry;
 }

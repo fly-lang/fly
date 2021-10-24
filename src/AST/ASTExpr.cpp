@@ -58,11 +58,11 @@ ASTVarRef *ASTVarRefExpr::getVarRef() const {
 }
 
 ASTType *ASTVarRefExpr::getType() const {
-    return Ref->getDecl()->getType();
+    return Ref->getDecl() == nullptr ? nullptr : Ref->getDecl()->getType();
 }
 
 std::string ASTVarRefExpr::str() const {
-    return "{ Type=" + getType()->str() +
+    return "{ Type=" +  (getType() ? getType()->str() : "") +
            ", Kind=" + std::to_string(Kind) +
            ", Ref=" + Ref->str() +
            " }";
@@ -79,11 +79,11 @@ ASTFuncCall *ASTFuncCallExpr::getCall() const {
 }
 
 ASTType *ASTFuncCallExpr::getType() const {
-    return Call->getDecl()->getType();
+    return Call->getDecl() == nullptr ? nullptr : Call->getDecl()->getType();
 }
 
 std::string ASTFuncCallExpr::str() const {
-    return "{ Type=" + getType()->str() +
+    return "{ Type=" + (getType() ? getType()->str() : "") +
            ", Kind=" + std::to_string(Kind) +
            ", Call=" + Call->str() +
            " }";
@@ -117,7 +117,7 @@ ASTType *ASTGroupExpr::getType() const {
 }
 
 std::string ASTGroupExpr::str() const {
-    std::string Str = "{ Type=" + getType()->str() +
+    std::string Str = "{ Type=" + (getType() ? getType()->str() : "") +
                       ", Kind=" + std::to_string(Kind) +
                       ", Group=[";
     if (!Group.empty()) {

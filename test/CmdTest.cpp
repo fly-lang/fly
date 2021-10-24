@@ -29,6 +29,10 @@ namespace {
             llvm::InitializeAllAsmPrinters();
         }
 
+        ~CmdTest() {
+            llvm::outs().flush();
+        }
+
         void deleteFile(const char* testFile) {
             remove(testFile);
         }
@@ -55,22 +59,29 @@ namespace {
     }
 
     TEST_F(CmdTest, EmitLL) {
-        char* Argv[] = {"fly", "-debug", "-ll", "src/main.fly", NULL};
+        deleteFile("main.fly.ll");
+        deleteFile("utils.fly.ll");
+
+        char* Argv[] = {"fly", "-ll", "src/main.fly", "src/utils.fly", NULL};
         int Argc = sizeof(Argv) / sizeof(char*) - 1;
 
         SmallVector<const char *, 256> ArgList(Argv, Argv + Argc);
         Driver TheDriver(ArgList);
         CompilerInstance &CI = TheDriver.BuildCompilerInstance();
-        TheDriver.Execute();
+        ASSERT_TRUE(TheDriver.Execute());
 
-        std::ifstream reader("main.fly.ll");
-        ASSERT_TRUE(reader && "Error opening main.fly.ll");
+        std::ifstream main("main.fly.ll");
+        ASSERT_TRUE(main && "Error opening main.fly.ll");
 
-        deleteFile("main.fly.ll");
+        std::ifstream utils("utils.fly.ll");
+        ASSERT_TRUE(utils && "Error opening utils.fly.ll");
     }
 
     TEST_F(CmdTest, EmitBC) {
-        char* Argv[] = {"fly", "-bc", "src/main.fly", NULL};
+        deleteFile("main.fly.bc");
+        deleteFile("utils.fly.bc");
+
+        char* Argv[] = {"fly", "-bc", "src/main.fly",  "src/utils.fly", NULL};
         int Argc = sizeof(Argv) / sizeof(char*) - 1;
 
         SmallVector<const char *, 256> ArgList(Argv, Argv + Argc);
@@ -78,13 +89,18 @@ namespace {
         CompilerInstance &CI = TheDriver.BuildCompilerInstance();
         TheDriver.Execute();
 
-        std::ifstream reader("main.fly.bc");
-        ASSERT_TRUE(reader && "Error opening main.fly.bc");
-        deleteFile("main.fly.bc");
+        std::ifstream main("main.fly.bc");
+        ASSERT_TRUE(main && "Error opening main.fly.bc");
+
+        std::ifstream utils("utils.fly.bc");
+        ASSERT_TRUE(utils && "Error opening utils.fly.bc");
     }
 
     TEST_F(CmdTest, EmitAS) {
-        char* Argv[] = {"fly", "-as", "src/main.fly", NULL};
+        deleteFile("main.fly.as");
+        deleteFile("utils.fly.as");
+
+        char* Argv[] = {"fly", "-as", "src/main.fly", "src/utils.fly", NULL};
         int Argc = sizeof(Argv) / sizeof(char*) - 1;
 
         SmallVector<const char *, 256> ArgList(Argv, Argv + Argc);
@@ -92,13 +108,18 @@ namespace {
         CompilerInstance &CI = TheDriver.BuildCompilerInstance();
         TheDriver.Execute();
 
-        std::ifstream reader("main.fly.as");
-        ASSERT_TRUE(reader && "Error opening main.fly.as");
-        deleteFile("main.fly.as");
+        std::ifstream main("main.fly.as");
+        ASSERT_TRUE(main && "Error opening main.fly.as");
+
+        std::ifstream utils("utils.fly.as");
+        ASSERT_TRUE(utils && "Error opening utils.fly.as");
     }
 
     TEST_F(CmdTest, EmitObj) {
-        char* Argv[] = {"fly", "src/main.fly", NULL};
+        deleteFile("main.fly.o");
+        deleteFile("utils.fly.o");
+
+        char* Argv[] = {"fly", "src/main.fly", "src/utils.fly", "-o", "out", NULL};
         int Argc = sizeof(Argv) / sizeof(char*) - 1;
 
         SmallVector<const char *, 256> ArgList(Argv, Argv + Argc);
@@ -106,9 +127,8 @@ namespace {
         CompilerInstance &CI = TheDriver.BuildCompilerInstance();
         TheDriver.Execute();
 
-        std::ifstream reader("main.fly.o");
-        ASSERT_TRUE(reader && "Error opening main.fly.o");
-        deleteFile("main.fly.o");
+        std::ifstream main("out");
+        ASSERT_TRUE(main && "Error opening out");
     }
 
 

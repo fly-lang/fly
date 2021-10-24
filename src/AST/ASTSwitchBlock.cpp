@@ -9,6 +9,8 @@
 
 
 #include "AST/ASTSwitchBlock.h"
+#include "AST/ASTExpr.h"
+#include "Basic/Diagnostic.h"
 
 using namespace fly;
 

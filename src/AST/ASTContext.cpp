@@ -15,6 +15,7 @@
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTNode.h"
 #include "AST/ASTImport.h"
+#include "AST/ASTUnref.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/Debug.h"
 
@@ -25,7 +26,7 @@ using namespace fly;
  * @param Diags
  */
 ASTContext::ASTContext(DiagnosticsEngine &Diags) : Diags(Diags) {
-    DefaultNS = new ASTNameSpace(ASTNameSpace::DEFAULT);
+    DefaultNS = new ASTNameSpace(ASTNameSpace::DEFAULT, this);
     NameSpaces.insert(std::make_pair(ASTNameSpace::DEFAULT, DefaultNS));
 }
 
@@ -70,12 +71,12 @@ DiagnosticBuilder ASTContext::Diag(SourceLocation Loc, unsigned DiagID) const {
  */
 bool ASTContext::AddNode(ASTNode *Node) {
     assert(Node->NameSpace && "NameSpace is empty!");
-    assert(!Node->FileName.empty() && "FileName is empty!");
+    assert(!Node->Name.empty() && "FileName is empty!");
     FLY_DEBUG_MESSAGE("ASTContext", "AddNode", "Node=" << Node->str());
     llvm::StringMap<ASTNode *> &NSNodes = Node->NameSpace->Nodes;
 
     // Add to Nodes
-    auto Pair = std::make_pair(Node->FileName, Node);
+    auto Pair = std::make_pair(Node->Name, Node);
     NSNodes.insert(Pair);
 
     // Try to link Node Imports to already resolved Nodes
@@ -99,13 +100,12 @@ bool ASTContext::AddNode(ASTNode *Node) {
  * @return true if no error occurs, otherwise false
  */
 bool ASTContext::DelNode(ASTNode *Node) {
-    Node->NameSpace->Nodes.erase(Node->getFileName());
+    Node->NameSpace->Nodes.erase(Node->getName());
     return true;
 }
 
 /**
- * Take all unreferenced Global Variables from Functions and try to resolve them
- * into this NameSpace
+ * Resolve AST
  * @return true if no error occurs, otherwise false
  */
 bool ASTContext::Resolve() {
@@ -114,18 +114,7 @@ bool ASTContext::Resolve() {
     // add UnRefGlobalVars and UnRefCalls to respectively namespace
     // Resolve NameSpaces
     for (auto &NSEntry : NameSpaces) {
-        ASTNameSpace *&NS = NSEntry.getValue();
-        for (auto &UnRefGlobalVar : UnRefGlobalVars) {
-            if (UnRefGlobalVar->getNameSpace() == NS->getName()) {
-                NS->addUnRefGlobalVar(UnRefGlobalVar);
-            }
-        }
-        for (auto UnRefCall : UnRefCalls) {
-            if (UnRefCall->getNameSpace() == NS->getName()) {
-                NS->addUnRefCall(UnRefCall);
-            }
-        }
-        NS->Resolve();
+        Success &= ASTResolver::Resolve(NSEntry.getValue());
     }
 
     // Now all Imports must be read
@@ -136,20 +125,4 @@ bool ASTContext::Resolve() {
         }
     }
     return Success;
-}
-
-/**
- * Add unreferenced Call
- * @param Call
- */
-void ASTContext::addUnRefCall(ASTFuncCall *Call) {
-    UnRefCalls.push_back(Call);
-}
-
-/**
- * Add unreferenced
- * @param Var
- */
-void ASTContext::addUnRefGlobalVar(ASTVarRef *Var) {
-    UnRefGlobalVars.push_back(Var);
 }

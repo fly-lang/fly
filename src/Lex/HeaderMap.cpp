@@ -106,7 +106,7 @@ bool HeaderMapImpl::checkHeader(const llvm::MemoryBuffer &File,
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-/// getFileName - Return the filename of the headermap.
+/// getName - Return the filename of the headermap.
 StringRef HeaderMapImpl::getFileName() const {
   return FileBuffer->getBufferIdentifier();
 }

@@ -37,10 +37,10 @@ namespace {
         }
 
         ASTNode *Parse(llvm::StringRef FileName, llvm::StringRef Source) {
-            FrontendAction *Action = new FrontendAction(CI, Context, *CG);
             InputFile Input(FileName);
             Input.Load(Source, CI.getSourceManager());
-            Action->Parse(Input);
+            FrontendAction *Action = new FrontendAction(CI, Context, *CG, Input);
+            Action->Parse();
             return Action->getAST();
         }
 
@@ -51,7 +51,7 @@ namespace {
         ASTNode *AST = Parse("SinglePackage", str);
         ASSERT_FALSE(Diags.hasErrorOccurred());
 
-        EXPECT_EQ(AST->getFileName(), "SinglePackage");
+        EXPECT_EQ(AST->getName(), "SinglePackage");
 
         // verify AST contains package
         EXPECT_EQ(AST->getNameSpace()->getName(), "std");

@@ -13,10 +13,12 @@ add_library(FlyAST
         ASTNode.cpp
         ASTNodeBase.cpp
         ASTOperatorExpr.cpp
+        ASTResolver.cpp
         ASTStmt.cpp
         ASTSwitchBlock.cpp
         ASTTopDecl.cpp
         ASTType.cpp
+        ASTUnref.cpp
         ASTValue.cpp
         ASTVar.cpp
         ASTWhileBlock.cpp

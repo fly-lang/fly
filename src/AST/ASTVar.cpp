@@ -64,8 +64,8 @@ ASTVar *ASTVarRef::getDecl() const {
     return Decl;
 }
 
-void ASTVarRef::setDecl(ASTVar *D) {
-    Decl = D;
+void ASTVarRef::setDecl(ASTVar *Var) {
+    Decl = Var;
 }
 
 const StringRef &ASTVarRef::getNameSpace() const {

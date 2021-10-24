@@ -41,6 +41,7 @@ llvm::Value *CodeGenExpr::Generate(ASTExpr *Expr) {
 }
 
 llvm::Value *CodeGenExpr::Convert(llvm::Value *V, const ASTType *ToType) {
+    assert(V && "Undefined Value");
     switch (ToType->getKind()) {
         case TYPE_INT: // TO INT 32
             return Convert(V, CGM->Int32Ty);
@@ -130,13 +131,13 @@ llvm::Value *CodeGenExpr::GenValue(ASTExpr *Expr, llvm::Value *&Pointer) {
         case EXPR_REF_VAR: {
             ASTVarRefExpr *VarRefExpr = (ASTVarRefExpr *)Expr;
             assert(VarRefExpr->getVarRef() && "Missing Ref");
-            ASTVar *VarRef = VarRefExpr->getVarRef()->getDecl();
-            if (VarRef == nullptr) {
+            ASTVar *Var = VarRefExpr->getVarRef()->getDecl();
+            if (Var == nullptr) {
                 CGM->Diag(VarRefExpr->getLocation(), diag::err_unref_var) << VarRefExpr->getVarRef()->getName();
                 return nullptr;
             }
-            Pointer = VarRef->getCodeGen()->getPointer();
-            return VarRef->getCodeGen()->getValue();
+            Pointer = Var->getCodeGen()->getPointer();
+            return Var->getCodeGen()->getValue();
         }
         case EXPR_REF_FUNC: {
             ASTFuncCallExpr *CallExpr = (ASTFuncCallExpr *)Expr;

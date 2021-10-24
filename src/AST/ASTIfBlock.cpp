@@ -12,6 +12,7 @@
 #include "AST/ASTFunc.h"
 #include "AST/ASTNode.h"
 #include "AST/ASTContext.h"
+#include "Basic/Diagnostic.h"
 
 using namespace fly;
 

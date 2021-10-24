@@ -3,6 +3,7 @@
 //
 
 #include "Frontend/InputFile.h"
+#include "Basic/Debug.h"
 
 using namespace fly;
 
@@ -11,6 +12,7 @@ InputFile::InputFile(llvm::StringRef File) : File(File) {
 }
 
 bool InputFile::Load(llvm::StringRef Source, SourceManager &SourceMgr) {
+    FLY_DEBUG_MESSAGE("InputFile", "Load", "Source=" + Source);
     // Set Source Manager file id
     std::unique_ptr<llvm::MemoryBuffer> Buf = llvm::MemoryBuffer::getMemBuffer(Source, File);
 
@@ -21,6 +23,7 @@ bool InputFile::Load(llvm::StringRef Source, SourceManager &SourceMgr) {
 }
 
 bool InputFile::Load(SourceManager &SourceMgr, DiagnosticsEngine &Diags) {
+    FLY_DEBUG_MESSAGE("InputFile", "Load", "File=" + File);
     llvm::ErrorOr <std::unique_ptr<llvm::MemoryBuffer>> FileBuf = llvm::MemoryBuffer::getFileOrSTDIN(getFile());
 
     // Check file error

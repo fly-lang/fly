@@ -29,12 +29,9 @@ namespace fly {
         llvm::FunctionType *GenFuncType(const ASTType *RetTyData, const ASTFuncHeader *Params);
 
     public:
-        CodeGenFunction(CodeGenModule *CGM, const llvm::StringRef &FName, const ASTType *FType,
-                        const ASTFuncHeader *FParams, const ASTBlock *FBody, const std::vector<ASTLocalVar *> &DeclVars);
+        CodeGenFunction(CodeGenModule *CGM, ASTFunc *Func, bool isExternal = false);
 
         const llvm::StringRef &getName() const;
-
-        llvm::BasicBlock *getEntry();
 
         llvm::Function *getFunction();
     };

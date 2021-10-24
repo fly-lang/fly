@@ -21,12 +21,17 @@ using namespace fly;
 
 CodeGen::CodeGen(DiagnosticsEngine &Diags, CodeGenOptions &CodeGenOpts,
                  const std::shared_ptr<TargetOptions> &TargetOpts,
-                 BackendActionKind BackendAction, bool ShowTimers) :
+                 BackendActionKind BackendAction, StringRef OutFile, bool ShowTimers) :
         Diags(Diags), CodeGenOpts(CodeGenOpts), TargetOpts(*TargetOpts),
-        Target(CreateTargetInfo(Diags, TargetOpts)), ActionKind(BackendAction), ShowTimers(ShowTimers) {
+        Target(CreateTargetInfo(Diags, TargetOpts)), ActionKind(BackendAction),
+        ShowTimers(ShowTimers) {
+    if (!OutFile.empty()) {
+        OutModule = new llvm::Module(OutFile, LLVMCtx);
+        Link = new llvm::Linker(*OutModule);
+    }
 }
 
-std::string CodeGen::getOutputFileName(BackendActionKind ActionKind, StringRef BaseInput) {
+std::string CodeGen::getOutputFileName(StringRef BaseInput) {
     StringRef FileName = llvm::sys::path::filename(BaseInput);
     std::string Name = FileName.str();//.substr(0,FileName.size()-4/* sizeof('.fly') = 4 */).str();
     switch (ActionKind) {
@@ -45,23 +50,34 @@ std::string CodeGen::getOutputFileName(BackendActionKind ActionKind, StringRef B
     llvm_unreachable("Invalid backend action!");
 }
 
-void CodeGen::Emit(CodeGenModule *CGM) {
-    FLY_DEBUG_MESSAGE("CodeGen", "Emit","ActionKind=" << ActionKind);
+void CodeGen::Emit(llvm::Module *M, llvm::StringRef OutName) {
+    FLY_DEBUG_MESSAGE("CodeGen", "Emit","Module.Name=" << M->getName());
 
     // Skip CodeGenModule instance creation
     if (ActionKind == Backend_EmitNothing) {
         return;
     }
 
-    // After generate all other modules
-    EmbedBitcode(CGM->Module, CodeGenOpts, llvm::MemoryBufferRef());
-
-    std::string OutputFileName = getOutputFileName(ActionKind, CGM->getModule()->getName());
     std::error_code ErrCode;
     std::unique_ptr<llvm::raw_fd_ostream> OS =
-            std::make_unique<raw_fd_ostream>(OutputFileName, ErrCode, llvm::sys::fs::F_None);
-    EmitBackendOutput(Diags, CodeGenOpts, TargetOpts, ShowTimers, Target->getDataLayout(), CGM->Module,
-                      ActionKind, std::move(OS));
+            std::make_unique<raw_fd_ostream>(OutName, ErrCode, llvm::sys::fs::F_None);
+
+    // After generate all other modules
+    EmbedBitcode(M, CodeGenOpts, llvm::MemoryBufferRef());
+
+    EmitBackendOutput(Diags, CodeGenOpts, TargetOpts, ShowTimers, Target->getDataLayout(),
+                      M, ActionKind, std::move(OS));
+}
+
+void CodeGen::HandleTranslationUnit(std::unique_ptr<llvm::Module> &M) {
+    FLY_DEBUG_MESSAGE("CodeGen", "HandleTranslationUnit","ActionKind=" << ActionKind);
+
+    std::string OutputFileName = getOutputFileName(M->getName());
+    Emit(M.get(), OutputFileName);
+
+    if (ActionKind == Backend_EmitObj && Link) {
+        Linker::linkModules(*OutModule, std::move(M));
+    }
 }
 
 TargetInfo* CodeGen::CreateTargetInfo(DiagnosticsEngine &Diags,
@@ -77,4 +93,14 @@ TargetInfo &CodeGen::getTargetInfo() const {
 CodeGenModule *CodeGen::CreateModule(llvm::StringRef Name) {
     FLY_DEBUG("CodeGen", "CreateModule");
     return new CodeGenModule(Diags, Name, LLVMCtx, *Target, CodeGenOpts);
+}
+
+LLVMContext &CodeGen::getLLVMCtx() {
+    return LLVMCtx;
+}
+
+void CodeGen::Linkin() {
+    if (Link) {
+        Emit(OutModule, OutModule->getName());
+    }
 }

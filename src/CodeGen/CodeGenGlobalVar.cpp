@@ -16,24 +16,29 @@
 
 using namespace fly;
 
-CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, ASTGlobalVar* AST) : CGM(CGM) {
+CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, ASTGlobalVar* AST, bool isExternal) : CGM(CGM) {
     // Check Value
     bool Success = true;
-    llvm::Constant *Const;
-    if (AST->getExpr() == nullptr) {
-        Const = nullptr;
-    } else if (AST->getExpr()->getKind() == EXPR_VALUE) {
-        const ASTValue &Value = ((ASTValueExpr *) AST->getExpr())->getValue();
-        Const = CGM->GenValue(AST->getType(), &Value);
-    } else {
-        CGM->Diag(AST->getExpr()->getLocation(), diag::err_invalid_gvar_value);
-        Success = false;
+    llvm::Constant *Const = nullptr;;
+    if (!isExternal) {
+        if (AST->getExpr() == nullptr) {
+            Const = CGM->GenDefaultValue(AST->getType());
+        } else if (AST->getExpr()->getKind() == EXPR_VALUE) {
+            const ASTValue &Value = ((ASTValueExpr *) AST->getExpr())->getValue();
+            Const = CGM->GenValue(AST->getType(), &Value);
+        } else {
+            CGM->Diag(AST->getExpr()->getLocation(), diag::err_invalid_gvar_value);
+            Success = false;
+        }
     }
+
     if (Success) {
         llvm::Type *Typ = CGM->GenType(AST->getType());
-        GVar = new llvm::GlobalVariable(*CGM->Module, Typ, AST->isConstant(), GlobalValue::ExternalLinkage,
-                                        Const, AST->getName());
+        GlobalValue::LinkageTypes Linkage = isExternal ? GlobalValue::LinkageTypes::ExternalLinkage :
+                GlobalValue::LinkageTypes::InternalLinkage;
+        GVar = new llvm::GlobalVariable(*CGM->Module, Typ, AST->isConstant(), Linkage, Const, AST->getName());
     }
+    needLoad = true;
 }
 
 llvm::Value *CodeGenGlobalVar::getPointer() {
@@ -41,13 +46,12 @@ llvm::Value *CodeGenGlobalVar::getPointer() {
 }
 
 llvm::Value *CodeGenGlobalVar::getValue() {
-    return isStored ? (needLoad ? Load() : LoadI) : (llvm::Value *)GVar;
+    return needLoad ? Load() : LoadI;
 }
 
 llvm::StoreInst *CodeGenGlobalVar::Store(llvm::Value *Val) {
     assert(!GVar->isConstant() && "Cannot store into constant var");
     llvm::StoreInst *S = CGM->Builder->CreateStore(Val, GVar);
-    isStored = true;
     needLoad = true;
     return S;
 }

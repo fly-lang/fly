@@ -11,6 +11,7 @@
 #ifndef FLY_ASTCONTEXT_H
 #define FLY_ASTCONTEXT_H
 
+#include "AST/ASTResolver.h"
 #include "llvm/ADT/StringMap.h"
 #include <vector>
 
@@ -22,16 +23,19 @@ namespace fly {
     class ASTNode;
     class ASTNameSpace;
     class ASTVarRef;
-    class ASTFuncCall;
+    class ASTFunc;
     class ASTImport;
+    class ASTUnrefGlobalVar;
+    class ASTUnrefCall;
 
     /**
      * AST Context
      */
     class ASTContext {
 
-        friend ASTNameSpace;
-        friend ASTNode;
+        friend class ASTResolver;
+        friend class ASTNameSpace;
+        friend class ASTNode;
 
         DiagnosticsEngine &Diags;
 
@@ -42,12 +46,6 @@ namespace fly {
 
         // All Files: <Name, ASTImport>
         llvm::StringMap<ASTImport *> Imports;
-
-        // Contains all unresolved VarRef with GlobalVar
-        std::vector<ASTVarRef *> UnRefGlobalVars;
-
-        // Contains all unresolved Calls with Function
-        std::vector<ASTFuncCall *> UnRefCalls;
 
     public:
         ASTContext(DiagnosticsEngine &Diags);
@@ -65,10 +63,6 @@ namespace fly {
         bool DelNode(ASTNode *Node);
 
         bool Resolve();
-
-        void addUnRefCall(ASTFuncCall *Call);
-
-        void addUnRefGlobalVar(ASTVarRef *Var);
 
     };
 }

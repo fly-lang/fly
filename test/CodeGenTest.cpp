@@ -119,7 +119,7 @@ namespace {
         GVar->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "@a = external global i32");
+        EXPECT_EQ(output, "@a = internal global i32 0");
     }
 
     TEST_F(CodeGenTest, CGFunc) {
@@ -142,7 +142,7 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define i32 @main(i32 %0, float %1, i1 %2) {\n"
+        EXPECT_EQ(output, "define internal i32 @main(i32 %0, float %1, i1 %2) {\n"
                           "entry:\n"
                           "  %3 = alloca i32, align 4\n"
                           "  %4 = alloca float, align 4\n"
@@ -166,19 +166,19 @@ namespace {
 
         // int A
         ASTLocalVar *VarA = new ASTLocalVar(SourceLoc, MainFn->getBody(), new ASTIntType(SourceLoc), "A");
-        MainFn->getBody()->AddVar(VarA);
+        MainFn->getBody()->AddLocalVar(VarA);
 
         // A = 1
         ASTLocalVarRef * VarAAssign = new ASTLocalVarRef(SourceLoc, MainFn->getBody(), VarA->getName());
         ASTExpr *Expr = new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc)));
         VarAAssign->setExpr(Expr);
-        MainFn->getBody()->AddVarRef(VarAAssign);
+        MainFn->getBody()->AddLocalVarRef(VarAAssign);
 
         // GlobalVar
         // G = 1
         ASTLocalVarRef * GVarAssign = new ASTLocalVarRef(SourceLoc, MainFn->getBody(), GVar->getName(), "");
         GVarAssign->setExpr(Expr);
-        MainFn->getBody()->AddVarRef(GVarAssign);
+        MainFn->getBody()->AddLocalVarRef(GVarAssign);
 
         // return A
         MainFn->getBody()->AddReturn(SourceLoc, new ASTVarRefExpr(SourceLoc,
@@ -194,7 +194,7 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define i32 @main() {\n"
+        EXPECT_EQ(output, "define internal i32 @main() {\n"
                           "entry:\n"
                           "  %0 = alloca i32, align 4\n"
                           "  store i32 0, i32* %0, align 4\n"
@@ -235,7 +235,7 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define i32 @main() {\n"
+        EXPECT_EQ(output, "define internal i32 @main() {\n"
                           "entry:\n"
                           "  %0 = call i32 @test()\n"
                           "  %1 = call i32 @test()\n"
@@ -277,7 +277,7 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define i32 @main(i32 %0, i32 %1, i32 %2) {\n"
+        EXPECT_EQ(output, "define internal i32 @main(i32 %0, i32 %1, i32 %2) {\n"
                           "entry:\n"
                           "  %3 = alloca i32, align 4\n"
                           "  %4 = alloca i32, align 4\n"
@@ -306,8 +306,8 @@ namespace {
         ASTLocalVar *A = new ASTLocalVar(SourceLoc, MainFn->getBody(), new ASTIntType(SourceLoc), "A");
         ASTLocalVar *B = new ASTLocalVar(SourceLoc, MainFn->getBody(), new ASTIntType(SourceLoc), "B");
         ASTLocalVar *C = new ASTLocalVar(SourceLoc, MainFn->getBody(), new ASTIntType(SourceLoc), "C");
-        MainFn->getBody()->AddVar(A);
-        MainFn->getBody()->AddVar(B);
+        MainFn->getBody()->AddLocalVar(A);
+        MainFn->getBody()->AddLocalVar(B);
 
         // Operation Add
         ASTGroupExpr *GroupAdd = new ASTGroupExpr(SourceLoc);
@@ -315,7 +315,7 @@ namespace {
         GroupAdd->Add(new ASTArithExpr(SourceLoc, ArithOpKind::ARITH_ADD));
         GroupAdd->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(B)));
         C->setExpr(GroupAdd);
-        MainFn->getBody()->AddVar(C);
+        MainFn->getBody()->AddLocalVar(C);
 
         // Operation Sub
         ASTLocalVarRef *Csub = new ASTLocalVarRef(SourceLoc, MainFn->getBody(), C);
@@ -324,7 +324,7 @@ namespace {
         GroupSub->Add(new ASTArithExpr(SourceLoc, ArithOpKind::ARITH_SUB));
         GroupSub->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(B)));
         Csub->setExpr(GroupSub);
-        MainFn->getBody()->AddVarRef(Csub);
+        MainFn->getBody()->AddLocalVarRef(Csub);
 
         // Operation Mul
         ASTLocalVarRef *Cmul = new ASTLocalVarRef(SourceLoc, MainFn->getBody(), C);
@@ -333,7 +333,7 @@ namespace {
         GroupMul->Add(new ASTArithExpr(SourceLoc, ArithOpKind::ARITH_MUL));
         GroupMul->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(B)));
         Cmul->setExpr(GroupMul);
-        MainFn->getBody()->AddVarRef(Cmul);
+        MainFn->getBody()->AddLocalVarRef(Cmul);
 
         // Operation Div
         ASTLocalVarRef *Cdiv = new ASTLocalVarRef(SourceLoc, MainFn->getBody(), C);
@@ -342,7 +342,7 @@ namespace {
         GroupDiv->Add(new ASTArithExpr(SourceLoc, ArithOpKind::ARITH_DIV));
         GroupDiv->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(B)));
         Cdiv->setExpr(GroupDiv);
-        MainFn->getBody()->AddVarRef(Cdiv);
+        MainFn->getBody()->AddLocalVarRef(Cdiv);
 
         // Operation Mod
         ASTLocalVarRef *Cmod = new ASTLocalVarRef(SourceLoc, MainFn->getBody(), C);
@@ -351,7 +351,7 @@ namespace {
         GroupMod->Add(new ASTArithExpr(SourceLoc, ArithOpKind::ARITH_MOD));
         GroupMod->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(B)));
         Cmod->setExpr(GroupMod);
-        MainFn->getBody()->AddVarRef(Cmod);
+        MainFn->getBody()->AddLocalVarRef(Cmod);
 
         // Operation And
         ASTLocalVarRef *Cand = new ASTLocalVarRef(SourceLoc, MainFn->getBody(), C);
@@ -360,7 +360,7 @@ namespace {
         GroupAnd->Add(new ASTArithExpr(SourceLoc, ArithOpKind::ARITH_AND));
         GroupAnd->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(B)));
         Cand->setExpr(GroupAnd);
-        MainFn->getBody()->AddVarRef(Cand);
+        MainFn->getBody()->AddLocalVarRef(Cand);
 
         // Operation Or
         ASTLocalVarRef *Cor = new ASTLocalVarRef(SourceLoc, MainFn->getBody(), C);
@@ -369,7 +369,7 @@ namespace {
         GroupOr->Add(new ASTArithExpr(SourceLoc, ArithOpKind::ARITH_OR));
         GroupOr->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(B)));
         Cor->setExpr(GroupOr);
-        MainFn->getBody()->AddVarRef(Cor);
+        MainFn->getBody()->AddLocalVarRef(Cor);
 
         // Operation Xor
         ASTLocalVarRef *Cxor = new ASTLocalVarRef(SourceLoc, MainFn->getBody(), C);
@@ -378,7 +378,7 @@ namespace {
         GroupXor->Add(new ASTArithExpr(SourceLoc, ArithOpKind::ARITH_XOR));
         GroupXor->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(B)));
         Cxor->setExpr(GroupXor);
-        MainFn->getBody()->AddVarRef(Cxor);
+        MainFn->getBody()->AddLocalVarRef(Cxor);
 
         // Operation Shl
         ASTLocalVarRef *Cshl = new ASTLocalVarRef(SourceLoc, MainFn->getBody(), C);
@@ -387,7 +387,7 @@ namespace {
         GroupShl->Add(new ASTArithExpr(SourceLoc, ArithOpKind::ARITH_SHIFT_L));
         GroupShl->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(B)));
         Cshl->setExpr(GroupShl);
-        MainFn->getBody()->AddVarRef(Cshl);
+        MainFn->getBody()->AddLocalVarRef(Cshl);
 
         // Operation Shr
         ASTLocalVarRef *Cshr = new ASTLocalVarRef(SourceLoc, MainFn->getBody(), C);
@@ -396,7 +396,7 @@ namespace {
         GroupShr->Add(new ASTArithExpr(SourceLoc, ArithOpKind::ARITH_SHIFT_R));
         GroupShr->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(B)));
         Cshr->setExpr(GroupShr);
-        MainFn->getBody()->AddVarRef(Cshr);
+        MainFn->getBody()->AddLocalVarRef(Cshr);
 
         // Pre-Increment
         ASTArithExpr *PreIncr = new ASTArithExpr(SourceLoc, ARITH_INCR);
@@ -439,7 +439,7 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define i32 @main() {\n"
+        EXPECT_EQ(output, "define internal i32 @main() {\n"
                           "entry:\n"
                           "  %0 = alloca i32, align 4\n"
                           "  %1 = alloca i32, align 4\n"
@@ -494,8 +494,8 @@ namespace {
         ASTLocalVar *A = new ASTLocalVar(SourceLoc, MainFn->getBody(), new ASTIntType(SourceLoc), "A");
         ASTLocalVar *B = new ASTLocalVar(SourceLoc, MainFn->getBody(), new ASTIntType(SourceLoc), "B");
         ASTLocalVar *C = new ASTLocalVar(SourceLoc, MainFn->getBody(), new ASTBoolType(SourceLoc), "C");
-        MainFn->getBody()->AddVar(A);
-        MainFn->getBody()->AddVar(B);
+        MainFn->getBody()->AddLocalVar(A);
+        MainFn->getBody()->AddLocalVar(B);
 
         // Operation Equal
         ASTGroupExpr *GroupEq = new ASTGroupExpr(SourceLoc);
@@ -503,7 +503,7 @@ namespace {
         GroupEq->Add(new ASTComparisonExpr(SourceLoc, ComparisonOpKind::COMP_EQ));
         GroupEq->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(B)));
         C->setExpr(GroupEq);
-        MainFn->getBody()->AddVar(C);
+        MainFn->getBody()->AddLocalVar(C);
 
         // Operation Not Equal
         ASTLocalVarRef *Cneq = new ASTLocalVarRef(SourceLoc, MainFn->getBody(), C);
@@ -512,7 +512,7 @@ namespace {
         GroupNeq->Add(new ASTComparisonExpr(SourceLoc, ComparisonOpKind::COMP_NE));
         GroupNeq->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(B)));
         Cneq->setExpr(GroupNeq);
-        MainFn->getBody()->AddVarRef(Cneq);
+        MainFn->getBody()->AddLocalVarRef(Cneq);
 
         // Operation Greater Than
         ASTLocalVarRef *Cgt = new ASTLocalVarRef(SourceLoc, MainFn->getBody(), C);
@@ -521,7 +521,7 @@ namespace {
         GroupGt->Add(new ASTComparisonExpr(SourceLoc, ComparisonOpKind::COMP_GT));
         GroupGt->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(B)));
         Cgt->setExpr(GroupGt);
-        MainFn->getBody()->AddVarRef(Cgt);
+        MainFn->getBody()->AddLocalVarRef(Cgt);
 
         // Operation Greater Than or Equal
         ASTLocalVarRef *Cgte = new ASTLocalVarRef(SourceLoc, MainFn->getBody(), C);
@@ -530,7 +530,7 @@ namespace {
         GroupGte->Add(new ASTComparisonExpr(SourceLoc, ComparisonOpKind::COMP_GTE));
         GroupGte->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(B)));
         Cgte->setExpr(GroupGte);
-        MainFn->getBody()->AddVarRef(Cgte);
+        MainFn->getBody()->AddLocalVarRef(Cgte);
 
         // Operation Less Than
         ASTLocalVarRef *Clt = new ASTLocalVarRef(SourceLoc, MainFn->getBody(), C);
@@ -539,7 +539,7 @@ namespace {
         GroupLt->Add(new ASTComparisonExpr(SourceLoc, ComparisonOpKind::COMP_LT));
         GroupLt->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(B)));
         Clt->setExpr(GroupLt);
-        MainFn->getBody()->AddVarRef(Clt);
+        MainFn->getBody()->AddLocalVarRef(Clt);
 
         // Operation Less Than or Equal
         ASTLocalVarRef *Clte = new ASTLocalVarRef(SourceLoc, MainFn->getBody(), C);
@@ -548,7 +548,7 @@ namespace {
         GroupLte->Add(new ASTComparisonExpr(SourceLoc, ComparisonOpKind::COMP_LTE));
         GroupLte->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(B)));
         Clte->setExpr(GroupLte);
-        MainFn->getBody()->AddVarRef(Clte);
+        MainFn->getBody()->AddLocalVarRef(Clte);
 
         //return test()
         MainFn->getBody()->AddReturn(SourceLoc, new ASTVarRefExpr(SourceLoc, new ASTVarRef(C)));
@@ -562,7 +562,7 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define i32 @main() {\n"
+        EXPECT_EQ(output, "define internal i32 @main() {\n"
                           "entry:\n"
                           "  %0 = alloca i32, align 4\n"
                           "  %1 = alloca i32, align 4\n"
@@ -598,9 +598,9 @@ namespace {
         ASTLocalVar *A = new ASTLocalVar(SourceLoc, MainFn->getBody(), new ASTBoolType(SourceLoc), "A");
         ASTLocalVar *B = new ASTLocalVar(SourceLoc, MainFn->getBody(), new ASTBoolType(SourceLoc), "B");
         ASTLocalVar *C = new ASTLocalVar(SourceLoc, MainFn->getBody(), new ASTBoolType(SourceLoc), "C");
-        MainFn->getBody()->AddVar(A);
-        MainFn->getBody()->AddVar(B);
-        MainFn->getBody()->AddVar(C);
+        MainFn->getBody()->AddLocalVar(A);
+        MainFn->getBody()->AddLocalVar(B);
+        MainFn->getBody()->AddLocalVar(C);
 
         // Operation And Logic
         ASTGroupExpr *GroupAnd = new ASTGroupExpr(SourceLoc);
@@ -616,7 +616,7 @@ namespace {
         GroupOr->Add(new ASTLogicExpr(SourceLoc, LogicOpKind::LOGIC_OR));
         GroupOr->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(B)));
         Cor->setExpr(GroupOr);
-        MainFn->getBody()->AddVarRef(Cor);
+        MainFn->getBody()->AddLocalVarRef(Cor);
 
         //return test()
         MainFn->getBody()->AddReturn(SourceLoc, new ASTVarRefExpr(SourceLoc, new ASTVarRef(C)));
@@ -630,7 +630,7 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define i32 @main() {\n"
+        EXPECT_EQ(output, "define internal i32 @main() {\n"
                           "entry:\n"
                           "  %0 = alloca i1, align 1\n"
                           "  %1 = alloca i1, align 1\n"
@@ -684,7 +684,7 @@ namespace {
         ASTIfBlock *IfBlock = new ASTIfBlock(SourceLoc, MainFn->getBody(), Group);
         ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, IfBlock, Param);
         A2->setExpr(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc))));
-        IfBlock->AddVarRef(A2);
+        IfBlock->AddLocalVarRef(A2);
         MainFn->getBody()->AddBlock(SourceLoc, IfBlock);
         MainFn->getBody()->AddReturn(SourceLoc, ARef);
 
@@ -695,7 +695,7 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define i32 @main(i32 %0) {\n"
+        EXPECT_EQ(output, "define internal i32 @main(i32 %0) {\n"
                           "entry:\n"
                           "  %1 = alloca i32, align 4\n"
                           "  store i32 %0, i32* %1, align 4\n"
@@ -732,14 +732,14 @@ namespace {
         ASTIfBlock *IfBlock = new ASTIfBlock(SourceLoc, MainFn->getBody(), Cond);
         ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, IfBlock, Param);
         A2->setExpr(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc))));
-        IfBlock->AddVarRef(A2);
+        IfBlock->AddLocalVarRef(A2);
         MainFn->getBody()->AddBlock(SourceLoc, IfBlock);
 
         // else {a == 2}
         ASTElseBlock *ElseBlock = new ASTElseBlock(SourceLoc, MainFn->getBody());
         ASTLocalVarRef *A3 = new ASTLocalVarRef(SourceLoc, ElseBlock, Param);
         A3->setExpr(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "2", new ASTIntType(SourceLoc))));
-        ElseBlock->AddVarRef(A3);
+        ElseBlock->AddLocalVarRef(A3);
         IfBlock->AddBranch(MainFn->getBody(), ElseBlock);
 
         MainFn->getBody()->AddReturn(SourceLoc, ARef);
@@ -751,7 +751,7 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define i32 @main(i32 %0) {\n"
+        EXPECT_EQ(output, "define internal i32 @main(i32 %0) {\n"
                           "entry:\n"
                           "  %1 = alloca i32, align 4\n"
                           "  store i32 %0, i32* %1, align 4\n"
@@ -792,28 +792,28 @@ namespace {
         ASTIfBlock *IfBlock = new ASTIfBlock(SourceLoc, MainFn->getBody(), Cond);
         ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, IfBlock, Param);
         A2->setExpr(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "11", new ASTIntType(SourceLoc))));
-        IfBlock->AddVarRef(A2);
+        IfBlock->AddLocalVarRef(A2);
         MainFn->getBody()->AddBlock(SourceLoc, IfBlock);
 
         // elsif (a == 1) { a = 22 }
         ASTElsifBlock *ElsifBlock = new ASTElsifBlock(SourceLoc, MainFn->getBody(), Cond);
         ASTLocalVarRef *A3 = new ASTLocalVarRef(SourceLoc, ElsifBlock, Param);
         A3->setExpr(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "22", new ASTIntType(SourceLoc))));
-        ElsifBlock->AddVarRef(A3);
+        ElsifBlock->AddLocalVarRef(A3);
         IfBlock->AddBranch(MainFn->getBody(), ElsifBlock);
 
         // elsif (a == 1) { a = 33 }
         ASTElsifBlock *Elsif2Block = new ASTElsifBlock(SourceLoc, MainFn->getBody(), Cond);
         ASTLocalVarRef *A4 = new ASTLocalVarRef(SourceLoc, Elsif2Block, Param);
         A4->setExpr(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "33", new ASTIntType(SourceLoc))));
-        Elsif2Block->AddVarRef(A4);
+        Elsif2Block->AddLocalVarRef(A4);
         IfBlock->AddBranch(MainFn->getBody(), Elsif2Block);
 
         // else { a = 44 }
         ASTElseBlock *ElseBlock = new ASTElseBlock(SourceLoc, MainFn->getBody());
         ASTLocalVarRef *A5 = new ASTLocalVarRef(SourceLoc, ElseBlock, Param);
         A5->setExpr(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "44", new ASTIntType(SourceLoc))));
-        ElseBlock->AddVarRef(A5);
+        ElseBlock->AddLocalVarRef(A5);
         IfBlock->AddBranch(MainFn->getBody(), ElseBlock);
 
         MainFn->getBody()->AddReturn(SourceLoc, ARef);
@@ -825,7 +825,7 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define i32 @main(i32 %0) {\n"
+        EXPECT_EQ(output, "define internal i32 @main(i32 %0) {\n"
                           "entry:\n"
                           "  %1 = alloca i32, align 4\n"
                           "  store i32 %0, i32* %1, align 4\n"
@@ -884,21 +884,21 @@ namespace {
         ASTIfBlock *IfBlock = new ASTIfBlock(SourceLoc, MainFn->getBody(), Cond);
         ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, IfBlock, Param);
         A2->setExpr(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "11", new ASTIntType(SourceLoc))));
-        IfBlock->AddVarRef(A2);
+        IfBlock->AddLocalVarRef(A2);
         MainFn->getBody()->AddBlock(SourceLoc, IfBlock);
 
         // elsif (a == 1) { a = 22 }
         ASTElsifBlock *ElsifBlock = new ASTElsifBlock(SourceLoc, MainFn->getBody(), Cond);
         ASTLocalVarRef *A3 = new ASTLocalVarRef(SourceLoc, ElsifBlock, Param);
         A3->setExpr(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "22", new ASTIntType(SourceLoc))));
-        ElsifBlock->AddVarRef(A3);
+        ElsifBlock->AddLocalVarRef(A3);
         IfBlock->AddBranch(MainFn->getBody(), ElsifBlock);
 
         // elsif (a == 1) { a = 33 }
         ASTElsifBlock *Elsif2Block = new ASTElsifBlock(SourceLoc, MainFn->getBody(), Cond);
         ASTLocalVarRef *A4 = new ASTLocalVarRef(SourceLoc, Elsif2Block, Param);
         A4->setExpr(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "33", new ASTIntType(SourceLoc))));
-        Elsif2Block->AddVarRef(A4);
+        Elsif2Block->AddLocalVarRef(A4);
         IfBlock->AddBranch(MainFn->getBody(), Elsif2Block);
 
         MainFn->getBody()->AddReturn(SourceLoc, ARef);
@@ -910,7 +910,7 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define i32 @main(i32 %0) {\n"
+        EXPECT_EQ(output, "define internal i32 @main(i32 %0) {\n"
                           "entry:\n"
                           "  %1 = alloca i32, align 4\n"
                           "  store i32 %0, i32* %1, align 4\n"
@@ -962,18 +962,18 @@ namespace {
         ASTSwitchCaseBlock *Case1Block = SwitchBlock->AddCase(SourceLoc, Cost1);
         ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, Case1Block, Param);
         A2->setExpr(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc))));
-        Case1Block->AddVarRef(A2);
+        Case1Block->AddLocalVarRef(A2);
 
         ASTSwitchCaseBlock *Case2Block = SwitchBlock->AddCase(SourceLoc, Cost2);
         ASTLocalVarRef *A3 = new ASTLocalVarRef(SourceLoc, Case2Block, Param);
         A3->setExpr(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "2", new ASTIntType(SourceLoc))));
-        Case2Block->AddVarRef(A3);
+        Case2Block->AddLocalVarRef(A3);
         Case2Block->AddBreak(SourceLoc);
 
         ASTBlock *DefaultBlock = SwitchBlock->setDefault(SourceLoc);
         ASTLocalVarRef *A4 = new ASTLocalVarRef(SourceLoc, DefaultBlock, Param);
         A4->setExpr(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "3", new ASTIntType(SourceLoc))));
-        DefaultBlock->AddVarRef(A4);
+        DefaultBlock->AddLocalVarRef(A4);
         DefaultBlock->AddBreak(SourceLoc);
 
         MainFn->getBody()->AddBlock(SourceLoc, SwitchBlock);
@@ -987,7 +987,7 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define i32 @main(i32 %0) {\n"
+        EXPECT_EQ(output, "define internal i32 @main(i32 %0) {\n"
                           "entry:\n"
                           "  %1 = alloca i32, align 4\n"
                           "  store i32 %0, i32* %1, align 4\n"
@@ -1032,7 +1032,7 @@ namespace {
 
         ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, WhileBlock, Param);
         A2->setExpr(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc))));
-        WhileBlock->AddVarRef(A2);
+        WhileBlock->AddLocalVarRef(A2);
         WhileBlock->AddContinue(SourceLoc);
         MainFn->getBody()->AddBlock(SourceLoc, WhileBlock);
 
@@ -1045,7 +1045,7 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define i32 @main(i32 %0) {\n"
+        EXPECT_EQ(output, "define internal i32 @main(i32 %0) {\n"
                           "entry:\n"
                           "  %1 = alloca i32, align 4\n"
                           "  store i32 %0, i32* %1, align 4\n"
@@ -1079,7 +1079,7 @@ namespace {
         // Init
         ASTLocalVar *InitVar = new ASTLocalVar(SourceLoc, ForBlock, new ASTIntType(SourceLoc), "i");
         InitVar->setExpr(OneCost);
-        ForBlock->AddVar(InitVar);
+        ForBlock->AddLocalVar(InitVar);
 
         //Cond
         ASTGroupExpr *Cond = new ASTGroupExpr(SourceLoc);
@@ -1100,7 +1100,7 @@ namespace {
 
         ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, ForBlock->getLoop(), Param);
         A2->setExpr(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc))));
-        ForBlock->getLoop()->AddVarRef(A2);
+        ForBlock->getLoop()->AddLocalVarRef(A2);
         ForBlock->getLoop()->AddContinue(SourceLoc);
         MainFn->getBody()->AddBlock(SourceLoc, ForBlock);
 
@@ -1114,7 +1114,7 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define i32 @main(i32 %0) {\n"
+        EXPECT_EQ(output, "define internal i32 @main(i32 %0) {\n"
                           "entry:\n"
                           "  %1 = alloca i32, align 4\n"
                           "  %2 = alloca i32, align 4\n"
@@ -1164,7 +1164,7 @@ namespace {
 
         ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, ForBlock->getLoop(), Param);
         A2->setExpr(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc))));
-        ForBlock->getLoop()->AddVarRef(A2);
+        ForBlock->getLoop()->AddLocalVarRef(A2);
         ForBlock->getLoop()->AddContinue(SourceLoc);
         MainFn->getBody()->AddBlock(SourceLoc, ForBlock);
 
@@ -1178,7 +1178,7 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define i32 @main(i32 %0) {\n"
+        EXPECT_EQ(output, "define internal i32 @main(i32 %0) {\n"
                           "entry:\n"
                           "  %1 = alloca i32, align 4\n"
                           "  store i32 %0, i32* %1, align 4\n"
@@ -1219,7 +1219,7 @@ namespace {
 
         ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, ForBlock->getLoop(), Param);
         A2->setExpr(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc))));
-        ForBlock->getLoop()->AddVarRef(A2);
+        ForBlock->getLoop()->AddLocalVarRef(A2);
         ForBlock->getLoop()->AddContinue(SourceLoc);
         MainFn->getBody()->AddBlock(SourceLoc, ForBlock);
 
@@ -1233,7 +1233,7 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define i32 @main(i32 %0) {\n"
+        EXPECT_EQ(output, "define internal i32 @main(i32 %0) {\n"
                           "entry:\n"
                           "  %1 = alloca i32, align 4\n"
                           "  store i32 %0, i32* %1, align 4\n"

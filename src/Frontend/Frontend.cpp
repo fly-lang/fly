@@ -10,7 +10,9 @@
 
 #include "Frontend/Frontend.h"
 #include "CodeGen/CodeGen.h"
+#include "CodeGen/CodeGenModule.h"
 #include "Basic/Debug.h"
+#include <llvm/Linker/Linker.h>
 #include <llvm/ADT/Statistic.h>
 #include <llvm/Support/Timer.h>
 #include <Basic/Stack.h>
@@ -40,38 +42,54 @@ bool Frontend::Execute() {
     if (CI.getFrontendOptions().ShowStats)
         llvm::EnableStatistics(false);
 
+    bool EnableLink = CI.getFrontendOptions().getOutputFile().getFile().empty();
+
     // Generate Backend Code
     CodeGen CG(Diags, CI.getCodeGenOptions(), CI.getTargetOptions(),
-               CI.getFrontendOptions().BackendAction, CI.getFrontendOptions().ShowTimers);
+               CI.getFrontendOptions().BackendAction,
+               CI.getFrontendOptions().getOutputFile().getFile(),
+               CI.getFrontendOptions().ShowTimers);
 
     // Create Compiler Instance for each input file
     for (auto InputFile : CI.getFrontendOptions().getInputFiles()) {
         // Print file name and create instance for file compilation
 
-        FLY_DEBUG_MESSAGE("Frontend", "Execute", "Loading input file " << llvm::sys::path::filename(InputFile.getFile()) << "\n");
+        FLY_DEBUG_MESSAGE("Frontend", "Execute", "Loading input file " <<
+            llvm::sys::path::filename(InputFile.getFile()));
         if (InputFile.Load(CI.getSourceManager(), Diags)) {
-            FrontendAction *Action = new FrontendAction(CI, Context, CG);
+            FrontendAction *Action = new FrontendAction(CI, Context, CG, InputFile);
             // Parse Action & add to Actions for next
-            if (Action->Parse(InputFile)) {
+            if (Action->Parse()) {
                 Actions.emplace_back(Action);
                 NumberOfInputs++;
             }
         }
     }
 
+    // Compile and Emit Output
     if (NumberOfInputs > 0) {
         if (Context->Resolve()) {
-            llvm::outs().flush();
-            for (auto Action: Actions) {
-                Action->Compile() && Action->EmitOutput();
+            for (auto Action : Actions) {
+                if (!Action->HandleASTTopDecl()) {
+                    return false;
+                }
+                if (!Action->HandleTranslationUnit()) {
+                    return false;
+                }
             }
+        } else {
+            return false;
         }
     } else {
         Diags.Report(SourceLocation(), diag::note_no_input_process);
     }
 
+    // Set Output File
+    CG.Linkin();
+
     Diags.getClient()->finish();
 
+    // Show Errors Warnings and Notes
     if (CI.getDiagnostics().getDiagnosticOptions().ShowCarets) {
         // We can have multiple diagnostics sharing one diagnostic client.
         // Get the total number of warnings/errors from the client.
@@ -90,6 +108,7 @@ bool Frontend::Execute() {
         }
     }
 
+    // Show Stats
     if (CI.getFrontendOptions().ShowStats) {
         CI.getFileManager().PrintStats();
         OS << '\n';

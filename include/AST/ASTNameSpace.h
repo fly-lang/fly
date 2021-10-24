@@ -11,10 +11,7 @@
 #ifndef FLY_ASTNAMESPACE_H
 #define FLY_ASTNAMESPACE_H
 
-#include "AST/ASTFunc.h"
-#include "llvm/ADT/StringMap.h"
-#include <unordered_set>
-#include <ostream>
+#include "AST/ASTNodeBase.h"
 
 namespace fly {
 
@@ -22,64 +19,26 @@ namespace fly {
     class ASTContext;
     class ASTGlobalVar;
     class ASTClass;
+    class ASTUnrefGlobalVar;
+    class ASTUnrefCall;
 
-    class ASTNameSpace {
+    class ASTNameSpace : public ASTNodeBase {
 
-        friend ASTContext;
-
-        llvm::StringRef Name;
+        friend class ASTResolver;
+        friend class ASTContext;
+        friend class ASTNode;
 
         // AST by FileID
         llvm::StringMap<ASTNode *> Nodes;
 
-        // Public & Default Global Vars
-        llvm::StringMap<ASTGlobalVar *> GlobalVars;
-
-        // Public & Default Functions
-        std::unordered_set<ASTFunc*> Functions;
-
-        // Calls into NameSpace resolution
-        llvm::StringMap<std::vector<ASTFuncCall *>> ResolvedCalls;
-
-        // Contains all unresolved VarRef with GlobalVar
-        std::vector<ASTVarRef *> UnRefGlobalVars;
-
-        // Contains all unresolved Calls with Function
-        std::vector<ASTFuncCall *> UnRefCalls;
-
-        // Public Classes
-        llvm::StringMap<ASTClass *> Classes;
-
     public:
-        ASTNameSpace(const llvm::StringRef &Name);
+        ASTNameSpace(const llvm::StringRef &Name, ASTContext *Context);
 
         ~ASTNameSpace();
 
         static const llvm::StringRef DEFAULT;
 
-        const llvm::StringRef &getName() const;
-
         const llvm::StringMap<ASTNode *> &getNodes() const;
-
-        const llvm::StringMap<ASTGlobalVar *> &getGlobalVars() const;
-        bool addGlobalVar(ASTGlobalVar *GVar);
-
-        const std::unordered_set<ASTFunc*> &getFunctions() const;
-        bool addFunction(ASTFunc *Func);
-
-        const llvm::StringMap<std::vector<ASTFuncCall *>> &getResolvedCalls() const;
-        bool addResolvedCall(ASTFuncCall *Call);
-
-        const llvm::StringMap<ASTClass *> &getClasses() const;
-        bool addClass(ASTClass *Class);
-
-        void addUnRefCall(ASTFuncCall *Call);
-
-        void addUnRefGlobalVar(ASTVarRef *Var);
-
-        bool Resolve();
-
-        std::string str() const;
     };
 }
 

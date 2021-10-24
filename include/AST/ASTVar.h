@@ -93,7 +93,7 @@ namespace fly {
 
         ASTVar *getDecl() const;
 
-        void setDecl(ASTVar *decl);
+        void setDecl(ASTVar *Var);
 
         std::string str() const;
     };

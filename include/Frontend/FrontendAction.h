@@ -38,23 +38,27 @@ namespace fly {
 
         ASTContext *Context;
 
+        InputFile &Input;
+
         SourceManager &SourceMgr;
 
         DiagnosticsEngine &Diags;
 
     public:
 
-        FrontendAction(const CompilerInstance &CI, ASTContext *Context, CodeGen &CG);
+        FrontendAction(const CompilerInstance &CI, ASTContext *Context, CodeGen &CG, InputFile &Input);
 
         ~FrontendAction();
 
         ASTNode *getAST();
 
-        bool Parse(InputFile &Input);
+        CodeGenModule *getCodeGenModule() const;
 
-        bool Compile();
+        bool Parse();
 
-        bool EmitOutput();
+        bool HandleASTTopDecl();
+
+        bool HandleTranslationUnit();
     };
 }
 

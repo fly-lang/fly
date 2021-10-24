@@ -15,6 +15,7 @@
 namespace fly {
 
     class ASTNameSpace;
+    class ASTNode;
 
     class ASTImport {
 
