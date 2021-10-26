@@ -24,8 +24,10 @@ namespace {
 
     public:
         CmdTest() {
+            llvm::InitializeAllTargetInfos();
             llvm::InitializeAllTargets();
             llvm::InitializeAllTargetMCs();
+            InitializeAllAsmParsers();
             llvm::InitializeAllAsmPrinters();
         }
 
@@ -97,8 +99,8 @@ namespace {
     }
 
     TEST_F(CmdTest, EmitAS) {
-        deleteFile("main.fly.as");
-        deleteFile("utils.fly.as");
+        deleteFile("main.fly.s");
+        deleteFile("utils.fly.s");
 
         char* Argv[] = {"fly", "-as", "src/main.fly", "src/utils.fly", NULL};
         int Argc = sizeof(Argv) / sizeof(char*) - 1;
@@ -108,11 +110,11 @@ namespace {
         CompilerInstance &CI = TheDriver.BuildCompilerInstance();
         TheDriver.Execute();
 
-        std::ifstream main("main.fly.as");
-        ASSERT_TRUE(main && "Error opening main.fly.as");
+        std::ifstream main("main.fly.s");
+        ASSERT_TRUE(main && "Error opening main.fly.s");
 
-        std::ifstream utils("utils.fly.as");
-        ASSERT_TRUE(utils && "Error opening utils.fly.as");
+        std::ifstream utils("utils.fly.s");
+        ASSERT_TRUE(utils && "Error opening utils.fly.s");
     }
 
     TEST_F(CmdTest, EmitObj) {

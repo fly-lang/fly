@@ -2,7 +2,11 @@ namespace default
 
 int a = 0
 
-int main(int b, float c) {
+int main() {
+    return add()
+}
+
+int add() {
     a = getA() + getB()
     return a + b
 }

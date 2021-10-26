@@ -48,8 +48,10 @@ int main(int Argc, const char **Argv)
     if (llvm::sys::Process::FixupStandardFileDescriptors())
         return 1;
 
+    llvm::InitializeAllTargetInfos();
     llvm::InitializeAllTargets();
     llvm::InitializeAllTargetMCs();
+    InitializeAllAsmParsers();
     llvm::InitializeAllAsmPrinters();
 
     Driver TheDriver(Args);

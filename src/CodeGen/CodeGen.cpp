@@ -42,7 +42,7 @@ std::string CodeGen::getOutputFileName(StringRef BaseInput) {
         case Backend_EmitBC:
             return Name + ".bc";
         case Backend_EmitAssembly:
-            return Name + ".as";
+            return Name + ".s";
         case Backend_EmitObj:
             return Name + ".o";
     }
