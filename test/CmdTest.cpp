@@ -121,6 +121,25 @@ namespace {
         deleteFile("main.fly.o");
         deleteFile("utils.fly.o");
 
+        char* Argv[] = {"fly", "src/main.fly", "src/utils.fly", NULL};
+        int Argc = sizeof(Argv) / sizeof(char*) - 1;
+
+        SmallVector<const char *, 256> ArgList(Argv, Argv + Argc);
+        Driver TheDriver(ArgList);
+        CompilerInstance &CI = TheDriver.BuildCompilerInstance();
+        TheDriver.Execute();
+
+        std::ifstream main("main.fly.o");
+        ASSERT_TRUE(main && "Error opening main.fly.o");
+
+        std::ifstream utils("utils.fly.o");
+        ASSERT_TRUE(utils && "Error opening utils.fly.o");
+    }
+
+    TEST_F(CmdTest, EmitOut) {
+        deleteFile("main.fly.o");
+        deleteFile("utils.fly.o");
+
         char* Argv[] = {"fly", "src/main.fly", "src/utils.fly", "-o", "out", NULL};
         int Argc = sizeof(Argv) / sizeof(char*) - 1;
 

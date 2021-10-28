@@ -62,7 +62,7 @@ void CodeGen::Emit(llvm::Module *M, llvm::StringRef OutName) {
     std::unique_ptr<llvm::raw_fd_ostream> OS =
             std::make_unique<raw_fd_ostream>(OutName, ErrCode, llvm::sys::fs::F_None);
 
-    // After generate all other modules
+    // Include Bitcode in module
     EmbedBitcode(M, CodeGenOpts, llvm::MemoryBufferRef());
 
     EmitBackendOutput(Diags, CodeGenOpts, TargetOpts, ShowTimers, Target->getDataLayout(),
@@ -72,11 +72,11 @@ void CodeGen::Emit(llvm::Module *M, llvm::StringRef OutName) {
 void CodeGen::HandleTranslationUnit(std::unique_ptr<llvm::Module> &M) {
     FLY_DEBUG_MESSAGE("CodeGen", "HandleTranslationUnit","ActionKind=" << ActionKind);
 
-    std::string OutputFileName = getOutputFileName(M->getName());
-    Emit(M.get(), OutputFileName);
-
     if (ActionKind == Backend_EmitObj && Link) {
         Linker::linkModules(*OutModule, std::move(M));
+    } else {
+        std::string OutputFileName = getOutputFileName(M->getName());
+        Emit(M.get(), OutputFileName);
     }
 }
 

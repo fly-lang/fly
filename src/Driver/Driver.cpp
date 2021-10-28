@@ -9,6 +9,7 @@
 
 #include "Driver/Driver.h"
 #include "Driver/DriverOptions.h"
+#include "Driver/ToolChain.h"
 #include "Config/config.h"
 #include "Basic/PrettyStackTrace.h"
 #include "Basic/FileSystemOptions.h"
@@ -88,6 +89,9 @@ CompilerInstance &Driver::BuildCompilerInstance() {
     CodeGenOptions *CodeGenOpts = new CodeGenOptions();
     BuildOptions(fileSystemOpts, TargetOpts, &*FrontendOpts, &*CodeGenOpts);
 
+    const llvm::Triple &T = TargetInfo::CreateTargetInfo(*Diags, TargetOpts)->getTriple();
+    ToolChain *TC = new ToolChain(T);
+    
     if (doExecute) {
         CI = std::make_shared<CompilerInstance>(Diags,
                                                 std::move(fileSystemOpts),
@@ -98,6 +102,8 @@ CompilerInstance &Driver::BuildCompilerInstance() {
             llvm::errs() << "Error while creating compiler instance!" << "\n";
             exit(1);
         }
+
+        TC->Link(FrontendOpts->getOutputFile().getFile());
     }
 
     return *CI;
