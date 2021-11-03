@@ -10,6 +10,7 @@
 #ifndef FLY_TOOLCHAIN_H
 #define FLY_TOOLCHAIN_H
 
+#include <Frontend/InputFile.h>
 #include "llvm/ADT/Triple.h"
 
 namespace fly {
@@ -23,7 +24,7 @@ namespace fly {
     public:
         ToolChain(const llvm::Triple &T);
 
-        bool Link(llvm::StringRef File);
+        bool Link(const llvm::SmallVector<std::string, 4> &ObjFiles, llvm::StringRef OutFile);
     };
 }
 

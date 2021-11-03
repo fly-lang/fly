@@ -44,6 +44,8 @@ namespace fly {
 
         DiagnosticsEngine &Diags;
 
+        std::string OutputFile;
+
     public:
 
         FrontendAction(const CompilerInstance &CI, ASTContext *Context, CodeGen &CG, InputFile &Input);
@@ -59,6 +61,8 @@ namespace fly {
         bool HandleASTTopDecl();
 
         bool HandleTranslationUnit();
+
+        const std::string &getOutputFile() const;
     };
 }
 

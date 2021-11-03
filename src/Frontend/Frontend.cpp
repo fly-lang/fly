@@ -12,7 +12,6 @@
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
 #include "Basic/Debug.h"
-#include <llvm/Linker/Linker.h>
 #include <llvm/ADT/Statistic.h>
 #include <llvm/Support/Timer.h>
 #include <Basic/Stack.h>
@@ -47,7 +46,6 @@ bool Frontend::Execute() {
     // Generate Backend Code
     CodeGen CG(Diags, CI.getCodeGenOptions(), CI.getTargetOptions(),
                CI.getFrontendOptions().BackendAction,
-               CI.getFrontendOptions().getOutputFile().getFile(),
                CI.getFrontendOptions().ShowTimers);
 
     // Create Compiler Instance for each input file
@@ -76,6 +74,7 @@ bool Frontend::Execute() {
                 if (!Action->HandleTranslationUnit()) {
                     return false;
                 }
+                OutputFiles.push_back(Action->getOutputFile());
             }
         } else {
             return false;
@@ -83,9 +82,6 @@ bool Frontend::Execute() {
     } else {
         Diags.Report(SourceLocation(), diag::note_no_input_process);
     }
-
-    // Set Output File
-    CG.Linkin();
 
     Diags.getClient()->finish();
 
@@ -137,4 +133,8 @@ void Frontend::CreateFrontendTimer() {
     FrontendTimer.reset(
             new llvm::Timer("frontend", "Clang front-end timer",
                             *FrontendTimerGroup));
+}
+
+const SmallVector<std::string, 4> &Frontend::getOutputFiles() const {
+    return OutputFiles;
 }

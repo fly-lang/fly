@@ -44,64 +44,86 @@ set(FLY_LLD_INCLUDE_DIRS )
 ######################################
 # Add LLVM dependency
 ######################################
-
-macro(addLLVM)
-    message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
-    message(STATUS "Using LLVMConfig.cmake from: ${LLVM_DIR}")
-    include_directories(${LLVM_INCLUDE_DIRS})
-    add_definitions(${LLVM_DEFINITIONS})
-endmacro()
-
-macro(addLLD)
-    include_directories(${CMAKE_SOURCE_DIR}/llvm-project/lld/include)
-endmacro()
-
-message(STATUS "Searching LLVM (version ${FLY_LLVM_VERSION})")
+message(STATUS "Adding LLVM (version ${FLY_LLVM_VERSION})")
 option(ENABLE_LLVM_GTEST "" OFF)
 
-# Use custom LLVM binary path
-# Example -DLLVM_INSTALL_PATH=/usr/lib/llvm/lib/cmake
-if (DEFINED LLVM_INSTALL_PATH AND DEFINED LLD_INSTALL_PATH)
-    message(STATUS "Use LLVM installation from ${LLVM_INSTALL_PATH}")
-    set(LLVM_ENABLE_PROJECTS lld)
-    find_package(LLVM ${FLY_LLVM_VERSION} REQUIRED CONFIG PATHS ${LLVM_INSTALL_PATH} NO_DEFAULT_PATH)
-    addLLVM()
+macro(buildLLVM)
 
-    # Use custom LLD binary path
-    # Example -DLLD_INSTALL_PATH=/usr/lib/llvm-11/lib/cmake/lld
-    message(STATUS "Use LLD installation from ${LLD_INSTALL_PATH}")
-    find_package(LLD REQUIRED CONFIG PATHS ${LLD_INSTALL_PATH} NO_DEFAULT_PATH)
-    set(LLD_INCLUDE_DIR ${LLD_INSTALL_PATH}/include)
+endmacro()
 
-# Compile LLVM with this project
-# Example -DENABLE_LLVM_PROJECT=true
-elseif (DEFINED ENABLE_LLVM_PROJECT AND ENABLE_LLVM_PROJECT)
-    message(STATUS "Use llvm-project sources")
+if (DEFINED LLVM_BUILD AND LLVM_BUILD)
+    set(LLVM_GIT_REPO https://github.com/fly-lang/llvm-project.git)
+    message(STATUS "Checkout llvm-project from ${LLVM_GIT_REPO}")
 
+    include(ExternalProject)
+    ExternalProject_Add(llvm-project
+            GIT_REPOSITORY https://github.com/fly-lang/llvm-project.git
+            GIT_TAG fly-llvm-${FLY_LLVM_VERSION}
+            GIT_PROGRESS true
+            GIT_REMOTE_UPDATE_STRATEGY CHECKOUT)
+
+    message(STATUS "Building LLVM from sources")
     set(LLVM_DIR ${CMAKE_BINARY_DIR}/llvm-project/llvm/lib/cmake/llvm)
-    set(LLD_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/llvm-project/lld/include)
+    set(LLD_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/llvm-project/lld/include)
     set(LLVM_ENABLE_PROJECTS lld)
 
     add_subdirectory(${CMAKE_SOURCE_DIR}/llvm-project/llvm)
     find_package(LLVM ${FLY_LLVM_VERSION} REQUIRED CONFIG)
-    addLLVM()
+    add_definitions(${LLVM_DEFINITIONS})
+
+    message(STATUS "Include LLD directory: ${LLD_INCLUDE_DIRS}")
+    include_directories(${LLD_INCLUDE_DIRS})
+
+    include_directories(
+            ${CMAKE_SOURCE_DIR}/llvm-project/llvm/utils/unittest/googletest/include
+            ${CMAKE_SOURCE_DIR}/llvm-project/llvm/utils/unittest/googlemock/include)
 
     #GTest
     set(ENABLE_LLVM_GTEST true)
 
 else()
-    # Find LLVM installation
-    message(STATUS "Search for LLVM installations" )
-    find_package(LLVM ${FLY_LLVM_VERSION} REQUIRED CONFIG)
-    addLLVM()
+    # Download precompiled LLVM
+    message(STATUS "Downloading LLVM precompiled files")
+    set(LLVM_DOWNLOAD_PATH ${CMAKE_SOURCE_DIR}/llvm)
+    set(LLVM_RELEASES_PREFIX_URL https://github.com/fly-lang/llvm-project/releases/download)
+    if (MSVC)
+        set(LLVM_RELEASES_URL "${LLVM_RELEASES_PREFIX_URL}/v11.1.0-win-x64/llvm-11.1.0-win-x64.zip")
+        set(LLVM_RELEASE_EXT zip)
+    elseif (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+        set(LLVM_RELEASES_URL "${LLVM_RELEASES_PREFIX_URL}/v11.1.0-macos-x86_64/llvm-11.1.0-x86_64-apple-darwin.tar.gz")
+        set(LLVM_RELEASE_EXT tar.gz)
+    elseif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+        set(LLVM_RELEASES_URL "${LLVM_RELEASES_PREFIX_URL}/v11.1.0-linux-x86_64/llvm-11.1.0-x86_64-linux-gnu.tar.gz")
+        set(LLVM_RELEASE_EXT tar.gz)
+    else()
+        message(FATAL_ERROR "Unknown system, cannot download pre-build llvm packages, run with -DLLVM_BUILD")
+    endif()
 
-    ## Find LLD installation
-    message(STATUS "Search for LLD installations")
-    find_package(LLD REQUIRED CONFIG PATHS ${LLVM_DIR}/../lib/cmake/lld NO_DEFAULT_PATH)
+    file(DOWNLOAD ${LLVM_RELEASES_URL} "${CMAKE_SOURCE_DIR}/llvm.${LLVM_RELEASE_EXT}")
+    file(ARCHIVE_EXTRACT
+            INPUT "${CMAKE_SOURCE_DIR}/llvm.${LLVM_RELEASE_EXT}"
+            DESTINATION ${LLVM_DOWNLOAD_PATH})
+    file(REMOVE ${CMAKE_SOURCE_DIR}/llvm.${LLVM_RELEASE_EXT})
+
+    message(STATUS "Downloaded precompiled LLVM from ${LLVM_RELEASES_URL}")
+    find_package(LLD REQUIRED CONFIG PATHS ${LLVM_DOWNLOAD_PATH} NO_DEFAULT_PATH)
+    message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
+    add_definitions(${LLVM_DEFINITIONS})
+
+    add_subdirectory(test/googletest)
+    # Add Fly Tests
+    # Prevent GoogleTest from overriding our compiler/linker options
+    # when building with Visual Studio
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+    if (MSVC)
+        message(STATUS "MSVC Build -> GTEST_LINKED_AS_SHARED_LIBRARY 1")
+        set(GTEST_LINKED_AS_SHARED_LIBRARY 1)
+    endif()
+
 endif()
 
-message(STATUS "Include LLD directory: ${LLD_INCLUDE_DIR}")
-include_directories(${LLD_INCLUDE_DIR})
+message(STATUS "Include LLVM directory: ${LLVM_INCLUDE_DIRS}")
+include_directories(${LLVM_INCLUDE_DIRS})
 
 #Enable Verbose for best debugging
 set(CMAKE_VERBOSE_MAKEFILE ON)
@@ -112,26 +134,6 @@ include_directories(include)
 
 # Add Fly Sources
 add_subdirectory(src)
-
-# Add Fly Tests
-if (ENABLE_LLVM_GTEST)
-    message(STATUS "Use LLVM GTEST")
-    include_directories(
-            ${CMAKE_SOURCE_DIR}/llvm-project/llvm/utils/unittest/googletest/include
-            ${CMAKE_SOURCE_DIR}/llvm-project/llvm/utils/unittest/googlemock/include
-            )
-else()
-    message(STATUS "Use Fly GTEST")
-    add_subdirectory(test/googletest)
-    # Add Fly Tests
-    # Prevent GoogleTest from overriding our compiler/linker options
-    # when building with Visual Studio
-    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-    if (MSVC)
-        message(STATUS "MSVC Build -> GTEST_LINKED_AS_SHARED_LIBRARY 1")
-        set(GTEST_LINKED_AS_SHARED_LIBRARY 1)
-    endif()
-endif()
 
 enable_testing()
 add_subdirectory(test)

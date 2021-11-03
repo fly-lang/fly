@@ -88,9 +88,6 @@ CompilerInstance &Driver::BuildCompilerInstance() {
     FrontendOptions *FrontendOpts = new FrontendOptions();
     CodeGenOptions *CodeGenOpts = new CodeGenOptions();
     BuildOptions(fileSystemOpts, TargetOpts, &*FrontendOpts, &*CodeGenOpts);
-
-    const llvm::Triple &T = TargetInfo::CreateTargetInfo(*Diags, TargetOpts)->getTriple();
-    ToolChain *TC = new ToolChain(T);
     
     if (doExecute) {
         CI = std::make_shared<CompilerInstance>(Diags,
@@ -102,8 +99,6 @@ CompilerInstance &Driver::BuildCompilerInstance() {
             llvm::errs() << "Error while creating compiler instance!" << "\n";
             exit(1);
         }
-
-        TC->Link(FrontendOpts->getOutputFile().getFile());
     }
 
     return *CI;
@@ -238,7 +233,7 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
             return;
         }
 
-        const StringRef &Out = ArgList.getLastArgValue(options::OPT_OUTPUT);
+        StringRef Out = ArgList.getLastArgValue(options::OPT_OUTPUT);
         FLY_DEBUG_MESSAGE("Driver", "BuildOptions", "Set OPT_OUTPUT=" << Out);
         FrontendOpts->setOutputFile(Out);
     }
@@ -341,6 +336,11 @@ bool Driver::Execute() {
     if (doExecute) {
         Frontend Front(*CI);
         Success = Front.Execute();
+        const llvm::Triple &T = TargetInfo::CreateTargetInfo(CI->getDiagnostics(), CI->getTargetOptions())->getTriple();
+        if (!CI->getFrontendOptions().getOutputFile().getFile().empty()) {
+            ToolChain *TC = new ToolChain(T);
+            TC->Link(Front.getOutputFiles(), CI->getFrontendOptions().getOutputFile().getFile());
+        }
     }
 
     return Success;

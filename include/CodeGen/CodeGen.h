@@ -40,8 +40,6 @@ namespace fly {
         DiagnosticsEngine &Diags;
         CodeGenOptions &CodeGenOpts;
         TargetOptions &TargetOpts;
-        llvm::Module *OutModule;
-        llvm::Linker *Link = nullptr;
         IntrusiveRefCntPtr<TargetInfo> Target;
         llvm::LLVMContext LLVMCtx;
         BackendActionKind ActionKind;
@@ -50,13 +48,13 @@ namespace fly {
     public:
         CodeGen(DiagnosticsEngine &Diags, CodeGenOptions &CodeGenOpts,
                 const std::shared_ptr<TargetOptions> &TargetOpts,
-                BackendActionKind BackendAction, StringRef OutFile = "", bool ShowTimers = false);
+                BackendActionKind BackendAction, bool ShowTimers = false);
 
         std::string getOutputFileName(StringRef BaseInput);
 
         void Emit(llvm::Module *M, llvm::StringRef OutName);
 
-        void HandleTranslationUnit(std::unique_ptr<llvm::Module> &M);
+        std::string HandleTranslationUnit(std::unique_ptr<llvm::Module> &M, llvm::StringRef OutFile = "");
 
         static TargetInfo* CreateTargetInfo(DiagnosticsEngine &Diags,
                                                  const std::shared_ptr<TargetOptions> &TargetOpts);
@@ -67,8 +65,6 @@ namespace fly {
         CodeGenModule *CreateModule(llvm::StringRef Name);
 
         llvm::LLVMContext &getLLVMCtx();
-
-        void Linkin();
     };
 }
 

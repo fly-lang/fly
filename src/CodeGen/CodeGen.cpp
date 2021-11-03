@@ -21,14 +21,10 @@ using namespace fly;
 
 CodeGen::CodeGen(DiagnosticsEngine &Diags, CodeGenOptions &CodeGenOpts,
                  const std::shared_ptr<TargetOptions> &TargetOpts,
-                 BackendActionKind BackendAction, StringRef OutFile, bool ShowTimers) :
+                 BackendActionKind BackendAction, bool ShowTimers) :
         Diags(Diags), CodeGenOpts(CodeGenOpts), TargetOpts(*TargetOpts),
         Target(CreateTargetInfo(Diags, TargetOpts)), ActionKind(BackendAction),
         ShowTimers(ShowTimers) {
-    if (!OutFile.empty()) {
-        OutModule = new llvm::Module(OutFile, LLVMCtx);
-        Link = new llvm::Linker(*OutModule);
-    }
 }
 
 std::string CodeGen::getOutputFileName(StringRef BaseInput) {
@@ -36,14 +32,19 @@ std::string CodeGen::getOutputFileName(StringRef BaseInput) {
     std::string Name = FileName.str();//.substr(0,FileName.size()-4/* sizeof('.fly') = 4 */).str();
     switch (ActionKind) {
         case Backend_EmitNothing:
+            FLY_DEBUG_MESSAGE("CodeGen", "getOutputFileName","return ''");
             return "";
         case Backend_EmitLL:
+            FLY_DEBUG_MESSAGE("CodeGen", "getOutputFileName","return " << Name + ".ll");
             return Name + ".ll";
         case Backend_EmitBC:
+            FLY_DEBUG_MESSAGE("CodeGen", "getOutputFileName","return " << Name + ".bc");
             return Name + ".bc";
         case Backend_EmitAssembly:
+            FLY_DEBUG_MESSAGE("CodeGen", "getOutputFileName","return " << Name + ".s");
             return Name + ".s";
         case Backend_EmitObj:
+            FLY_DEBUG_MESSAGE("CodeGen", "getOutputFileName","return " << Name + ".o");
             return Name + ".o";
     }
 
@@ -69,15 +70,14 @@ void CodeGen::Emit(llvm::Module *M, llvm::StringRef OutName) {
                       M, ActionKind, std::move(OS));
 }
 
-void CodeGen::HandleTranslationUnit(std::unique_ptr<llvm::Module> &M) {
+std::string CodeGen::HandleTranslationUnit(std::unique_ptr<llvm::Module> &M, llvm::StringRef OutFile) {
     FLY_DEBUG_MESSAGE("CodeGen", "HandleTranslationUnit","ActionKind=" << ActionKind);
-
-    if (ActionKind == Backend_EmitObj && Link) {
-        Linker::linkModules(*OutModule, std::move(M));
-    } else {
-        std::string OutputFileName = getOutputFileName(M->getName());
-        Emit(M.get(), OutputFileName);
-    }
+    std::string OutputFileName = OutFile.empty() ? getOutputFileName(M->getName()) : OutFile.str();
+    // TODO link to libraries
+//    Link = new llvm::Linker(*OutModule);
+//    Linker::linkModules(*OutModule, std::move(M));
+    Emit(M.get(), OutputFileName);
+    return OutputFileName;
 }
 
 TargetInfo* CodeGen::CreateTargetInfo(DiagnosticsEngine &Diags,
@@ -97,10 +97,4 @@ CodeGenModule *CodeGen::CreateModule(llvm::StringRef Name) {
 
 LLVMContext &CodeGen::getLLVMCtx() {
     return LLVMCtx;
-}
-
-void CodeGen::Linkin() {
-    if (Link) {
-        Emit(OutModule, OutModule->getName());
-    }
 }

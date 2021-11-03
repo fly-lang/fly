@@ -105,7 +105,11 @@ bool FrontendAction::HandleASTTopDecl() {
 bool FrontendAction::HandleTranslationUnit() {
     FLY_DEBUG_MESSAGE("FrontendAction", "Emit", "Input=" << Input.getFile());
     Diags.getClient()->BeginSourceFile();
-    CG.HandleTranslationUnit(CGM->Module);
+    OutputFile = CG.HandleTranslationUnit(CGM->Module);
     Diags.getClient()->EndSourceFile();
     return !Diags.hasErrorOccurred();
+}
+
+const std::string &FrontendAction::getOutputFile() const {
+    return OutputFile;
 }

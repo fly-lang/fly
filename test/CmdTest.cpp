@@ -136,7 +136,7 @@ namespace {
         ASSERT_TRUE(utils && "Error opening utils.fly.o");
     }
 
-    TEST_F(CmdTest, EmitOut) {
+    TEST_F(CmdTest, DISABLED_EmitOut) {
         deleteFile("main.fly.o");
         deleteFile("utils.fly.o");
 
