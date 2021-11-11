@@ -41,7 +41,7 @@ llvm::Value *CodeGenExpr::Generate(ASTExpr *Expr) {
 }
 
 llvm::Value *CodeGenExpr::Convert(llvm::Value *V, const ASTType *ToType) {
-    assert(V && "Undefined Value");
+//    assert(V && "Undefined Value");
     switch (ToType->getKind()) {
         case TYPE_INT: // TO INT 32
             return Convert(V, CGM->Int32Ty);

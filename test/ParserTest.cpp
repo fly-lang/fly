@@ -39,7 +39,7 @@ namespace {
         ASTNode *Parse(llvm::StringRef FileName, llvm::StringRef Source) {
             InputFile Input(FileName);
             Input.Load(Source, CI.getSourceManager());
-            FrontendAction *Action = new FrontendAction(CI, Context, *CG, Input);
+            FrontendAction *Action = new FrontendAction(CI, Context, *CG, &Input);
             Action->Parse();
             return Action->getAST();
         }

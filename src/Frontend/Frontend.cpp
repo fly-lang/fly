@@ -31,7 +31,6 @@ bool Frontend::Execute() {
     assert(!CI.getFrontendOptions().ShowVersion && "Client must handle '-version'!");
     FLY_DEBUG("Frontend", "Execute");
 
-    unsigned NumberOfInputs = 0;
     raw_ostream &OS = llvm::errs();
 
     // Create Timers and show after compilation
@@ -55,17 +54,16 @@ bool Frontend::Execute() {
         FLY_DEBUG_MESSAGE("Frontend", "Execute", "Loading input file " <<
             llvm::sys::path::filename(InputFile.getFile()));
         if (InputFile.Load(CI.getSourceManager(), Diags)) {
-            FrontendAction *Action = new FrontendAction(CI, Context, CG, InputFile);
+            FrontendAction *Action = new FrontendAction(CI, Context, CG, &InputFile);
             // Parse Action & add to Actions for next
             if (Action->Parse()) {
                 Actions.emplace_back(Action);
-                NumberOfInputs++;
             }
         }
     }
 
     // Compile and Emit Output
-    if (NumberOfInputs > 0) {
+    if (!Actions.empty()) {
         if (Context->Resolve()) {
             for (auto Action : Actions) {
                 if (!Action->HandleASTTopDecl()) {

@@ -195,21 +195,19 @@ bool ASTNode::AddClass(ASTClass *Class) {
 
 bool ASTNode::AddExternalGlobalVar(ASTGlobalVar *Var) {
     FLY_DEBUG_MESSAGE("ASTNode", "AddExternalGlobalVar", "Var=" << Var->str());
-    ExternalGlobalVars.push_back(Var);
-    return true;
+    return ExternalGlobalVars.insert(std::make_pair(Var->getName(), Var)).second;
 }
 
-const std::vector<ASTGlobalVar *> &ASTNode::getExternalGlobalVars() const {
+const llvm::StringMap<ASTGlobalVar *> &ASTNode::getExternalGlobalVars() const {
     return ExternalGlobalVars;
 }
 
 bool ASTNode::AddExternalFunction(ASTFunc *Call) {
     FLY_DEBUG_MESSAGE("ASTNode", "AddExternalFunction", "Call=" << Call->str());
-    ExternalFunctions.push_back(Call);
-    return true;
+    return ExternalFunctions.insert(Call).second;
 }
 
-const std::vector<ASTFunc *> &ASTNode::getExternalFunctions() const {
+const std::unordered_set<ASTFunc *> &ASTNode::getExternalFunctions() const {
     return ExternalFunctions;
 }
 

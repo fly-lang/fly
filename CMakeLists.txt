@@ -13,8 +13,13 @@ message(STATUS "Fly Project directory: ${CMAKE_SOURCE_DIR}")
 set(CMAKE_CXX_STANDARD 14 CACHE STRING "C++ standard to conform to")
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_EXTENSIONS NO)
+if (NOT MSVC)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti")
+endif()
 
+if (NOT DEFINED CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE DEBUG)
+endif()
 message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
 if(MSVC)
     set(CMAKE_C_FLAGS_DEBUG "/W4")
@@ -46,10 +51,6 @@ set(FLY_LLD_INCLUDE_DIRS )
 ######################################
 message(STATUS "Adding LLVM (version ${FLY_LLVM_VERSION})")
 option(ENABLE_LLVM_GTEST "" OFF)
-
-macro(buildLLVM)
-
-endmacro()
 
 if (DEFINED LLVM_BUILD AND LLVM_BUILD)
     set(LLVM_GIT_REPO https://github.com/fly-lang/llvm-project.git)
@@ -124,10 +125,6 @@ endif()
 
 message(STATUS "Include LLVM directory: ${LLVM_INCLUDE_DIRS}")
 include_directories(${LLVM_INCLUDE_DIRS})
-
-#Enable Verbose for best debugging
-set(CMAKE_VERBOSE_MAKEFILE ON)
-add_link_options("-v")
 
 # Include Fly headers
 include_directories(include)

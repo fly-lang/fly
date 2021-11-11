@@ -114,7 +114,6 @@ bool ASTResolver::ResolveFuncCall(ASTNode *Node) {
             for (auto &FunctionCall : It->getValue()) {
                 if (FunctionCall->isUsable(UnrefFunctionCall->getCall())) {
                     UnrefFunctionCall->getCall()->setDecl(FunctionCall->getDecl());
-                    UnrefFunctionCall->getNode()->AddExternalFunction(FunctionCall->getDecl());
                 } else {
                     Success = false;
                 }

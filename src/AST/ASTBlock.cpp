@@ -164,7 +164,7 @@ bool ASTBlock::AddCall(ASTFuncCall *Call) {
  * @return true if no error occurs, otherwise false
  */
 bool ASTBlock::AddReturn(const SourceLocation &Loc, ASTExpr *Expr) {
-    FLY_DEBUG_MESSAGE("ASTBlock", "AddReturn", "Expr=" << Expr->str());
+    FLY_DEBUG_MESSAGE("ASTBlock", "AddReturn", "Expr=" << (Expr ? Expr->str() : ""));
     bool Success = true;
     if (Expr) {
         Success = ASTResolver::ResolveExpr(this, Expr);

@@ -119,14 +119,13 @@ namespace {
         GVar->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "@a = internal global i32 0");
+        EXPECT_EQ(output, "@a = global i32 0");
     }
 
     TEST_F(CodeGenTest, CGFunc) {
         ASTNode *Node = CreateAST();
 
-        ASTFunc *MainFn = new ASTFunc(Node, SourceLoc, new ASTIntType(SourceLoc),
-                                      "main");
+        ASTFunc *MainFn = new ASTFunc(Node, SourceLoc, new ASTIntType(SourceLoc),"main");
         MainFn->addParam(SourceLoc, new ASTIntType(SourceLoc), "P1");
         MainFn->addParam(SourceLoc, new ASTFloatType(SourceLoc), "P2");
         MainFn->addParam(SourceLoc, new ASTBoolType(SourceLoc), "P3");
@@ -142,7 +141,7 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define internal i32 @main(i32 %0, float %1, i1 %2) {\n"
+        EXPECT_EQ(output, "define i32 @main(i32 %0, float %1, i1 %2) {\n"
                           "entry:\n"
                           "  %3 = alloca i32, align 4\n"
                           "  %4 = alloca float, align 4\n"
@@ -194,7 +193,7 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define internal i32 @main() {\n"
+        EXPECT_EQ(output, "define i32 @main() {\n"
                           "entry:\n"
                           "  %0 = alloca i32, align 4\n"
                           "  store i32 0, i32* %0, align 4\n"
@@ -235,7 +234,7 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define internal i32 @main() {\n"
+        EXPECT_EQ(output, "define i32 @main() {\n"
                           "entry:\n"
                           "  %0 = call i32 @test()\n"
                           "  %1 = call i32 @test()\n"
@@ -277,7 +276,7 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define internal i32 @main(i32 %0, i32 %1, i32 %2) {\n"
+        EXPECT_EQ(output, "define i32 @main(i32 %0, i32 %1, i32 %2) {\n"
                           "entry:\n"
                           "  %3 = alloca i32, align 4\n"
                           "  %4 = alloca i32, align 4\n"
@@ -439,7 +438,7 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define internal i32 @main() {\n"
+        EXPECT_EQ(output, "define i32 @main() {\n"
                           "entry:\n"
                           "  %0 = alloca i32, align 4\n"
                           "  %1 = alloca i32, align 4\n"
@@ -562,7 +561,7 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define internal i32 @main() {\n"
+        EXPECT_EQ(output, "define i32 @main() {\n"
                           "entry:\n"
                           "  %0 = alloca i32, align 4\n"
                           "  %1 = alloca i32, align 4\n"
@@ -630,7 +629,7 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define internal i32 @main() {\n"
+        EXPECT_EQ(output, "define i32 @main() {\n"
                           "entry:\n"
                           "  %0 = alloca i1, align 1\n"
                           "  %1 = alloca i1, align 1\n"
@@ -695,7 +694,7 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define internal i32 @main(i32 %0) {\n"
+        EXPECT_EQ(output, "define i32 @main(i32 %0) {\n"
                           "entry:\n"
                           "  %1 = alloca i32, align 4\n"
                           "  store i32 %0, i32* %1, align 4\n"
@@ -751,7 +750,7 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define internal i32 @main(i32 %0) {\n"
+        EXPECT_EQ(output, "define i32 @main(i32 %0) {\n"
                           "entry:\n"
                           "  %1 = alloca i32, align 4\n"
                           "  store i32 %0, i32* %1, align 4\n"
@@ -825,7 +824,7 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define internal i32 @main(i32 %0) {\n"
+        EXPECT_EQ(output, "define i32 @main(i32 %0) {\n"
                           "entry:\n"
                           "  %1 = alloca i32, align 4\n"
                           "  store i32 %0, i32* %1, align 4\n"
@@ -910,7 +909,7 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define internal i32 @main(i32 %0) {\n"
+        EXPECT_EQ(output, "define i32 @main(i32 %0) {\n"
                           "entry:\n"
                           "  %1 = alloca i32, align 4\n"
                           "  store i32 %0, i32* %1, align 4\n"
@@ -987,7 +986,7 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define internal i32 @main(i32 %0) {\n"
+        EXPECT_EQ(output, "define i32 @main(i32 %0) {\n"
                           "entry:\n"
                           "  %1 = alloca i32, align 4\n"
                           "  store i32 %0, i32* %1, align 4\n"
@@ -1045,7 +1044,7 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define internal i32 @main(i32 %0) {\n"
+        EXPECT_EQ(output, "define i32 @main(i32 %0) {\n"
                           "entry:\n"
                           "  %1 = alloca i32, align 4\n"
                           "  store i32 %0, i32* %1, align 4\n"

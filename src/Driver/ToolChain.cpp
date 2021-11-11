@@ -30,18 +30,13 @@ bool ToolChain::Link(const llvm::SmallVector<std::string, 4> &ObjFiles, llvm::St
 
     switch (T.getObjectFormat()) {
         case llvm::Triple::MachO:
-            lld::macho::link(Args, true, llvm::outs(), llvm::errs());
-            break;
+            return lld::macho::link(Args, false, llvm::outs(), llvm::errs());
         case llvm::Triple::COFF:
-            lld::coff::link(Args, true, llvm::outs(), llvm::errs());
-            break;
+            return lld::coff::link(Args, false, llvm::outs(), llvm::errs());
         case llvm::Triple::ELF:
-            lld::elf::link(Args, true, llvm::outs(), llvm::errs());
-            break;
+            return lld::elf::link(Args, false, llvm::outs(), llvm::errs());
         case llvm::Triple::Wasm:
-            lld::wasm::link(Args, true, llvm::outs(), llvm::errs());
-            break;
+            return lld::wasm::link(Args, false, llvm::outs(), llvm::errs());
     }
     assert(0 && "Unknown Object Format");
-    return false;
 }

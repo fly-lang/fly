@@ -20,9 +20,9 @@
 
 using namespace fly;
 
-FrontendAction::FrontendAction(const CompilerInstance & CI, ASTContext *Context, CodeGen &CG, InputFile &Input) :
+FrontendAction::FrontendAction(const CompilerInstance & CI, ASTContext *Context, CodeGen &CG, InputFile *Input) :
         Context(Context), Diags(CI.getDiagnostics()), SourceMgr(CI.getSourceManager()), CG(CG), Input(Input) {
-    FLY_DEBUG_MESSAGE("FrontendAction", "FrontendAction", "Input=" << Input.getFile());
+    FLY_DEBUG_MESSAGE("FrontendAction", "FrontendAction", "Input=" << Input->getFile());
 }
 
 FrontendAction::~FrontendAction() {
@@ -42,19 +42,19 @@ CodeGenModule *FrontendAction::getCodeGenModule() const {
 }
 
 bool FrontendAction::Parse() {
-    FLY_DEBUG_MESSAGE("FrontendAction", "Parse", "Input=" << Input.getFile());
+    FLY_DEBUG_MESSAGE("FrontendAction", "Parse", "Input=" << Input->getFile());
     bool Success = true;
     Diags.getClient()->BeginSourceFile();
 
     if (P == nullptr) {
         // Create CodeGen
-        CGM = CG.CreateModule(Input.getFile());
+        CGM = CG.CreateModule(Input->getFile());
 
         // Create AST
-        AST = new ASTNode(Input.getFile(), Context, CGM);
+        AST = new ASTNode(Input->getFile(), Context, CGM);
 
         // Create Parser and start to parse
-        P = new Parser(Input, SourceMgr, Diags);
+        P = new Parser(*Input, SourceMgr, Diags);
         Success &= P->Parse(AST) && Context->AddNode(AST);
     }
 
@@ -64,7 +64,7 @@ bool FrontendAction::Parse() {
 
 bool FrontendAction::HandleASTTopDecl() {
     assert(AST && "AST not built, need a Parse()");
-    FLY_DEBUG_MESSAGE("FrontendAction", "HandleASTTopDecl", "Input=" << Input.getFile());
+    FLY_DEBUG_MESSAGE("FrontendAction", "HandleASTTopDecl", "Input=" << Input->getFile());
     Diags.getClient()->BeginSourceFile();
 
     // Manage Imports
@@ -73,10 +73,10 @@ bool FrontendAction::HandleASTTopDecl() {
     }
 
     // Manage External GlobalVars
-    for (const auto &EGV : AST->getExternalGlobalVars()) {
+    for (const auto &Entry : AST->getExternalGlobalVars()) {
         FLY_DEBUG_MESSAGE("FrontendAction", "HandleASTTopDecl",
-                          "ExternalGlobalVar=" << EGV->str());
-        CGM->GenGlobalVar(EGV, true);
+                          "ExternalGlobalVar=" << Entry.getValue()->str());
+        CGM->GenGlobalVar(Entry.getValue(), true);
     }
 
     // Manage External Function
@@ -103,7 +103,7 @@ bool FrontendAction::HandleASTTopDecl() {
 }
 
 bool FrontendAction::HandleTranslationUnit() {
-    FLY_DEBUG_MESSAGE("FrontendAction", "Emit", "Input=" << Input.getFile());
+    FLY_DEBUG_MESSAGE("FrontendAction", "Emit", "Input=" << Input->getFile());
     Diags.getClient()->BeginSourceFile();
     OutputFile = CG.HandleTranslationUnit(CGM->Module);
     Diags.getClient()->EndSourceFile();

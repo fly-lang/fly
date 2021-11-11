@@ -112,7 +112,8 @@ void CodeGenModule::GenImport(ASTImport *Import) {
 
 /**
  * GenStmt from VarDecl
- * @param Decl
+ * @param GlobalVar
+ * @param isExternal
  */
 CodeGenGlobalVar *CodeGenModule::GenGlobalVar(ASTGlobalVar* GlobalVar, bool isExternal) {
     FLY_DEBUG_MESSAGE("CodeGenModule", "GenGlobalVar",

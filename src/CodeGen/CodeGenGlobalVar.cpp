@@ -19,8 +19,14 @@ using namespace fly;
 CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, ASTGlobalVar* AST, bool isExternal) : CGM(CGM) {
     // Check Value
     bool Success = true;
-    llvm::Constant *Const = nullptr;;
-    if (!isExternal) {
+    llvm::Constant *Const = nullptr;
+    GlobalValue::LinkageTypes Linkage;
+    if (isExternal) {
+        Linkage = GlobalValue::LinkageTypes::ExternalLinkage;
+    } else {
+        if (AST->getVisibility() == V_PRIVATE) {
+            Linkage = GlobalValue::LinkageTypes::InternalLinkage;
+        }
         if (AST->getExpr() == nullptr) {
             Const = CGM->GenDefaultValue(AST->getType());
         } else if (AST->getExpr()->getKind() == EXPR_VALUE) {
@@ -34,8 +40,6 @@ CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, ASTGlobalVar* AST, bool i
 
     if (Success) {
         llvm::Type *Typ = CGM->GenType(AST->getType());
-        GlobalValue::LinkageTypes Linkage = isExternal ? GlobalValue::LinkageTypes::ExternalLinkage :
-                GlobalValue::LinkageTypes::InternalLinkage;
         GVar = new llvm::GlobalVariable(*CGM->Module, Typ, AST->isConstant(), Linkage, Const, AST->getName());
     }
     needLoad = true;

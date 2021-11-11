@@ -28,6 +28,7 @@ target_link_libraries(fly_test PRIVATE
 
 # Copy all .fly from test/src/ dir
 file(COPY src DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
-
+configure_file(
+        ${CMAKE_SOURCE_DIR}/test/TestConfig.h.cmake
+        ${CMAKE_SOURCE_DIR}/test/TestConfig.h)
 add_test(NAME fly_test COMMAND fly_test)
-set_target_properties(fly_test PROPERTIES LINK_FLAGS "-v")

@@ -45,10 +45,10 @@ namespace fly {
         llvm::StringMap<ASTImport *> Imports;
         
         // All used GlobalVars
-        std::vector<ASTGlobalVar *> ExternalGlobalVars;
+        llvm::StringMap<ASTGlobalVar *> ExternalGlobalVars;
         
         // All invoked Calls
-        std::vector<ASTFunc *> ExternalFunctions;
+        std::unordered_set<ASTFunc *> ExternalFunctions;
 
     public:
         ASTNode() = delete;
@@ -79,11 +79,11 @@ namespace fly {
 
         bool AddExternalGlobalVar(ASTGlobalVar *Var);
 
-        const std::vector<ASTGlobalVar *> &getExternalGlobalVars() const;
+        const llvm::StringMap<ASTGlobalVar *> &getExternalGlobalVars() const;
 
         bool AddExternalFunction(ASTFunc *Call);
 
-        const std::vector<ASTFunc *> &getExternalFunctions() const;
+        const std::unordered_set<ASTFunc *> &getExternalFunctions() const;
 
         bool AddUnrefCall(ASTFuncCall *Call);
 

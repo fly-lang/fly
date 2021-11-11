@@ -42,41 +42,12 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Create Build Environment
-        # Some projects don't allow in-source building, so create a separate build directory
-        # We'll use this as our working directory for all subsequent commands
-        run: |
-          cmake -E make_directory llvm
-          cmake -E make_directory ${{env.BUILD_DIR}}
-
-      - name: Download LLVM (Linux Release)
-        if: matrix.os == 'ubuntu-latest'
-        working-directory: ${{github.workspace}}/llvm
-        run: |
-          wget -q https://github.com/fly-lang/llvm-project/releases/download/v${{env.LLVM_VERSION}}-linux-x86_64/llvm-11.1.0-x86_64-linux-gnu.tar.gz
-          tar -zxvf *.tar.gz
-
-      - name: Download LLVM (macOS Release)
-        if: matrix.os == 'macos-latest'
-        working-directory: ${{github.workspace}}/llvm
-        run: |
-          wget -q https://github.com/fly-lang/llvm-project/releases/download/v${{env.LLVM_VERSION}}-macos-x86_64/llvm-11.1.0-x86_64-apple-darwin.tar.gz
-          tar -zxvf *.tar.gz
-
-      - name: Download LLVM (Windows Release)
-        if: matrix.os == 'windows-latest'
-        working-directory: ${{github.workspace}}/llvm
-        shell: pwsh
-        run: |
-          Invoke-WebRequest -Uri https://github.com/fly-lang/llvm-project/releases/download/v${{env.LLVM_VERSION}}-win-x64/llvm-11.1.0-win-x64.zip -OutFile llvm.zip
-          7z x *.zip
-
       - name: Configure & Build
         working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}
         # Some projects don't allow in-source building, so create a separate build directory
         # We'll use this as our working directory for all subsequent commands
         run: |
-          cmake .. -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_VERBOSE_MAKEFILE=ON -DLLVM_INSTALL_PATH=${{github.workspace}}/llvm/lib/cmake
+          cmake .. -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_VERBOSE_MAKEFILE=ON
           cmake --build . --config ${{env.BUILD_TYPE}}
 
       - name: Test

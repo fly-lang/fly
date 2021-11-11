@@ -38,7 +38,7 @@ namespace fly {
 
         ASTContext *Context;
 
-        InputFile &Input;
+        InputFile *Input;
 
         SourceManager &SourceMgr;
 
@@ -48,7 +48,7 @@ namespace fly {
 
     public:
 
-        FrontendAction(const CompilerInstance &CI, ASTContext *Context, CodeGen &CG, InputFile &Input);
+        FrontendAction(const CompilerInstance &CI, ASTContext *Context, CodeGen &CG, InputFile *Input);
 
         ~FrontendAction();
 

@@ -11,6 +11,7 @@
 #include "AST/ASTExpr.h"
 #include "AST/ASTVar.h"
 #include "AST/ASTFunc.h"
+#include "AST/ASTOperatorExpr.h"
 
 using namespace fly;
 
@@ -112,6 +113,10 @@ void ASTGroupExpr::Add(ASTExpr *Exp) {
 ASTType *ASTGroupExpr::getType() const {
     if (isEmpty()) {
         return nullptr;
+    }
+    ASTExpr *FirstExpr = Group.at(0);
+    if (FirstExpr->getKind() == EXPR_OPERATOR && ((ASTOperatorExpr *) FirstExpr)->isUnary()) {
+        return ((ASTUnaryExpr *) FirstExpr)->getVarRef()->getDecl()->getType();
     }
     return Group.at(0)->getType();
 }

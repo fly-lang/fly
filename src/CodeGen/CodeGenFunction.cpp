@@ -21,13 +21,17 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, ASTFunc *Func, bool isExter
     llvm::FunctionType *FnTy = GenFuncType(Func->getType(), Func->getHeader());
 
     // Create Function
-    llvm::GlobalValue::LinkageTypes Linkage = isExternal && Func->getVisibility() != V_PRIVATE ?
-            llvm::GlobalValue::ExternalLinkage : llvm::GlobalValue::InternalLinkage;
-    Fn = llvm::Function::Create(FnTy, Linkage, Func->getName(), CGM->getModule());
-    Name = Fn->getName();
+    llvm::GlobalValue::LinkageTypes Linkage;
 
     // Generate Body
-    if (!isExternal) {
+    if (isExternal) {
+        Linkage = llvm::GlobalValue::ExternalLinkage;
+        Fn = llvm::Function::Create(FnTy, Linkage, Func->getName(), CGM->getModule());
+    } else {
+        if (Func->getVisibility() == V_PRIVATE) {
+            Linkage = GlobalValue::LinkageTypes::InternalLinkage;
+        }
+        Fn = llvm::Function::Create(FnTy, Linkage, Func->getName(), CGM->getModule());
         Entry = BasicBlock::Create(CGM->LLVMCtx, "entry", Fn);
         CGM->Builder->SetInsertPoint(Entry);
 
@@ -57,6 +61,7 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, ASTFunc *Func, bool isExter
         // Add Function Body
         CGM->GenBlock(Fn, Func->getBody()->getContent());
     }
+    Name = Fn->getName();
 }
 
 llvm::FunctionType *CodeGenFunction::GenFuncType(const ASTType *RetTyData, const ASTFuncHeader *Params) {
