@@ -20,10 +20,8 @@ CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, ASTGlobalVar* AST, bool i
     // Check Value
     bool Success = true;
     llvm::Constant *Const = nullptr;
-    GlobalValue::LinkageTypes Linkage;
-    if (isExternal) {
-        Linkage = GlobalValue::LinkageTypes::ExternalLinkage;
-    } else {
+    GlobalValue::LinkageTypes Linkage = GlobalValue::LinkageTypes::ExternalLinkage;
+    if (!isExternal) {
         if (AST->getVisibility() == V_PRIVATE) {
             Linkage = GlobalValue::LinkageTypes::InternalLinkage;
         }

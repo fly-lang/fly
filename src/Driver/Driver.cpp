@@ -331,6 +331,7 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
 }
 
 bool Driver::Execute() {
+    FLY_DEBUG("Driver", "Execute");
     bool Success = true;
 
     if (doExecute) {
@@ -342,6 +343,7 @@ bool Driver::Execute() {
             TC->Link(Front.getOutputFiles(), CI->getFrontendOptions().getOutputFile().getFile());
         }
     }
+    FLY_DEBUG_MESSAGE("Driver", "Execute", "return " << Success);
 
     return Success;
 }

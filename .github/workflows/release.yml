@@ -1,16 +1,8 @@
-# This is a basic workflow to help you get started with Actions
-
-name: Build & Release
+# This workflow is used only on main branch
+name: release
 
 # Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the main branch
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -42,7 +34,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Configure & Build
+      - name: Build
         working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}
         # Some projects don't allow in-source building, so create a separate build directory
         # We'll use this as our working directory for all subsequent commands

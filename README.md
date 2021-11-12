@@ -1,5 +1,7 @@
 <!-- PROJECT LOGO -->
-[![Build & Release](https://github.com/fly-lang/fly/actions/workflows/release.yml/badge.svg)](https://github.com/fly-lang/fly/actions/workflows/release.yml)
+[![Build Status](https://github.com/fly-lang/fly/actions/workflows/build.yml/badge.svg)](https://github.com/fly-lang/fly/actions/workflows/build.yml)
+![GitHub issues](https://img.shields.io/github/issues-raw/fly-lang/fly?color=blue)
+![GitHub closed issues](https://img.shields.io/github/issues-closed/fly-lang/fly?color=blue)
 <br />
 <p align="center">
   <a href="https://github.com/fly-lang/fly">

@@ -15,6 +15,7 @@
 #include "AST/ASTImport.h"
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
+#include "CodeGen/CodeGenFunction.h"
 #include "Parser/Parser.h"
 #include "Basic/Debug.h"
 
@@ -93,9 +94,16 @@ bool FrontendAction::HandleASTTopDecl() {
         CGM->GenGlobalVar(GV.getValue());
     }
 
-    // Manage Functions
+    // Instantiates all Function CodeGen in order to be set in all Call references
+    std::vector<CodeGenFunction *> CGFunctions;
     for (ASTFunc *F : AST->getFunctions()) {
-        CGM->GenFunction(F);
+        CodeGenFunction *CGF = CGM->GenFunction(F);
+        CGFunctions.push_back(CGF);
+    }
+
+    // Body must be generated after all CodeGen has been set for each TopDecl
+    for (auto &CGF : CGFunctions) {
+        CGF->GenBody();
     }
 
     Diags.getClient()->EndSourceFile();

@@ -136,7 +136,9 @@ namespace {
 
         // Generate Code
         CodeGenModule *CGM = Node->getCodeGen();
-        Function *F = CGM->GenFunction(MainFn)->getFunction();
+        CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+        CGF->GenBody();
+        Function *F = CGF->getFunction();
         testing::internal::CaptureStdout();
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
@@ -188,7 +190,10 @@ namespace {
         // Generate Code
         CodeGenModule *CGM = Node->getCodeGen();
         CGM->GenGlobalVar(GVar);
-        Function *F = CGM->GenFunction(MainFn)->getFunction();
+        CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+        CGF->GenBody();
+        Function *F = CGF->getFunction();
+
         testing::internal::CaptureStdout();
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
@@ -222,14 +227,17 @@ namespace {
         MainFn->getBody()->AddCall(TestCall);
         //return test()
         MainFn->getBody()->AddReturn(SourceLoc, new ASTFuncCallExpr(SourceLoc, TestCall));
-        // Resolve Context for Resolutions of Call and Ref
 
+        // Resolve Context for Resolutions of Call and Ref
         Node->Resolve();
 
         // Generate Code
         CodeGenModule *CGM = Node->getCodeGen();
         CGM->GenFunction(TestFn);
-        Function *F = CGM->GenFunction(MainFn)->getFunction();
+        CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+        CGF->GenBody();
+        Function *F = CGF->getFunction();
+
         testing::internal::CaptureStdout();
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
@@ -271,7 +279,10 @@ namespace {
 
         // Generate Code
         CodeGenModule *CGM = Node->getCodeGen();
-        Function *F = CGM->GenFunction(MainFn)->getFunction();
+        CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+        CGF->GenBody();
+        Function *F = CGF->getFunction();
+
         testing::internal::CaptureStdout();
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
@@ -433,7 +444,10 @@ namespace {
 
         // Generate Code
         CodeGenModule *CGM = Node->getCodeGen();
-        Function *F = CGM->GenFunction(MainFn)->getFunction();
+        CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+        CGF->GenBody();
+        Function *F = CGF->getFunction();
+
         testing::internal::CaptureStdout();
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
@@ -556,7 +570,10 @@ namespace {
 
         // Generate Code
         CodeGenModule *CGM = Node->getCodeGen();
-        Function *F = CGM->GenFunction(MainFn)->getFunction();
+        CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+        CGF->GenBody();
+        Function *F = CGF->getFunction();
+
         testing::internal::CaptureStdout();
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
@@ -624,7 +641,10 @@ namespace {
 
         // Generate Code
         CodeGenModule *CGM = Node->getCodeGen();
-        Function *F = CGM->GenFunction(MainFn)->getFunction();
+        CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+        CGF->GenBody();
+        Function *F = CGF->getFunction();
+
         testing::internal::CaptureStdout();
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
@@ -689,7 +709,10 @@ namespace {
 
         // Generate Code
         CodeGenModule *CGM = Node->getCodeGen();
-        Function *F = CGM->GenFunction(MainFn)->getFunction();
+        CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+        CGF->GenBody();
+        Function *F = CGF->getFunction();
+
         testing::internal::CaptureStdout();
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
@@ -745,7 +768,10 @@ namespace {
 
         // Generate Code
         CodeGenModule *CGM = Node->getCodeGen();
-        Function *F = CGM->GenFunction(MainFn)->getFunction();
+        CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+        CGF->GenBody();
+        Function *F = CGF->getFunction();
+
         testing::internal::CaptureStdout();
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
@@ -819,7 +845,10 @@ namespace {
 
         // Generate Code
         CodeGenModule *CGM = Node->getCodeGen();
-        Function *F = CGM->GenFunction(MainFn)->getFunction();
+        CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+        CGF->GenBody();
+        Function *F = CGF->getFunction();
+
         testing::internal::CaptureStdout();
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
@@ -904,7 +933,10 @@ namespace {
 
         // Generate Code
         CodeGenModule *CGM = Node->getCodeGen();
-        Function *F = CGM->GenFunction(MainFn)->getFunction();
+        CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+        CGF->GenBody();
+        Function *F = CGF->getFunction();
+
         testing::internal::CaptureStdout();
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
@@ -981,7 +1013,10 @@ namespace {
 
         // Generate Code
         CodeGenModule *CGM = Node->getCodeGen();
-        Function *F = CGM->GenFunction(MainFn)->getFunction();
+        CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+        CGF->GenBody();
+        Function *F = CGF->getFunction();
+
         testing::internal::CaptureStdout();
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
@@ -1039,7 +1074,10 @@ namespace {
 
         // Generate Code
         CodeGenModule *CGM = Node->getCodeGen();
-        Function *F = CGM->GenFunction(MainFn)->getFunction();
+        CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+        CGF->GenBody();
+        Function *F = CGF->getFunction();
+
         testing::internal::CaptureStdout();
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
@@ -1108,7 +1146,10 @@ namespace {
 
         // Generate Code
         CodeGenModule *CGM = Node->getCodeGen();
-        Function *F = CGM->GenFunction(MainFn)->getFunction();
+        CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+        CGF->GenBody();
+        Function *F = CGF->getFunction();
+
         testing::internal::CaptureStdout();
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
@@ -1172,7 +1213,10 @@ namespace {
 
         // Generate Code
         CodeGenModule *CGM = Node->getCodeGen();
-        Function *F = CGM->GenFunction(MainFn)->getFunction();
+        CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+        CGF->GenBody();
+        Function *F = CGF->getFunction();
+
         testing::internal::CaptureStdout();
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
@@ -1227,7 +1271,10 @@ namespace {
 
         // Generate Code
         CodeGenModule *CGM = Node->getCodeGen();
-        Function *F = CGM->GenFunction(MainFn)->getFunction();
+        CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+        CGF->GenBody();
+        Function *F = CGF->getFunction();
+
         testing::internal::CaptureStdout();
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
