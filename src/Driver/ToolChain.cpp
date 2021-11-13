@@ -24,10 +24,18 @@ bool ToolChain::Link(const llvm::SmallVector<std::string, 4> &ObjFiles, llvm::St
         FLY_DEBUG_MESSAGE("ToolChain", "Link", "Input=" << ObjFile);
         Args.push_back(ObjFile.c_str());
     }
-    Args.push_back("-o");
-    FLY_DEBUG_MESSAGE("ToolChain", "Link", "Output=" << OutFile);
-    Args.push_back(OutFile.str().c_str());
 
+    // Select right options format by platform (Win or others)
+    FLY_DEBUG_MESSAGE("ToolChain", "Link", "Output=" << OutFile);
+    if (T.isWindowsMSVCEnvironment()) {
+        std::string Out = "/out:out" + OutFile.str();
+        Args.push_back(Out.c_str());
+    } else{
+        Args.push_back("-o");
+        Args.push_back(OutFile.str().c_str());
+    }
+
+    // Link by selecting the Object format
     switch (T.getObjectFormat()) {
         case llvm::Triple::MachO:
             return lld::macho::link(Args, false, llvm::outs(), llvm::errs());
