@@ -28,14 +28,16 @@ bool ToolChain::Link(const llvm::SmallVector<std::string, 4> &ObjFiles, llvm::St
     // Select right options format by platform (Win or others)
     FLY_DEBUG_MESSAGE("ToolChain", "Link", "Output=" << OutFile);
     if (T.isWindowsMSVCEnvironment()) {
-        std::string Out = "/out:out" + OutFile.str();
+        Args.push_back("/entry:main");
+        std::string Out = "/out:" + OutFile.str() + ".exe";
         Args.push_back(Out.c_str());
     } else{
+        Args.push_back("--entry=main");
         Args.push_back("-o");
         Args.push_back(OutFile.str().c_str());
     }
 
-    // Link by selecting the Object format
+    // Link by selecting the Object code format
     switch (T.getObjectFormat()) {
         case llvm::Triple::MachO:
             return lld::macho::link(Args, false, llvm::outs(), llvm::errs());

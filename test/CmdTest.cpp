@@ -150,8 +150,8 @@ namespace {
         CompilerInstance &CI = TheDriver.BuildCompilerInstance();
         ASSERT_TRUE(TheDriver.Execute());
 
-        std::ifstream main("out");
-        ASSERT_TRUE(main && "Error opening out");
+        std::ifstream out("out");
+        ASSERT_TRUE(out && "Error opening out");
     }
 
 
