@@ -16,6 +16,7 @@
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
 #include "CodeGen/CodeGenFunction.h"
+#include "CodeGen/CodeGenGlobalVar.h"
 #include "Parser/Parser.h"
 #include "Basic/Debug.h"
 
@@ -88,25 +89,36 @@ bool FrontendAction::HandleASTTopDecl() {
     }
 
     // Manage GlobalVars
+    std::vector<CodeGenGlobalVar *> CGGlobalVars;
     for (const auto &GV : AST->getGlobalVars()) {
         FLY_DEBUG_MESSAGE("FrontendAction", "HandleASTTopDecl",
                           "GlobalVar=" << GV.getValue()->str());
-        CGM->GenGlobalVar(GV.getValue());
+        CodeGenGlobalVar *CGV = CGM->GenGlobalVar(GV.getValue());
+        CGGlobalVars.push_back(CGV);
     }
 
     // Instantiates all Function CodeGen in order to be set in all Call references
     std::vector<CodeGenFunction *> CGFunctions;
     for (ASTFunc *F : AST->getFunctions()) {
+        FLY_DEBUG_MESSAGE("FrontendAction", "HandleASTTopDecl",
+                          "Function=" << F->str());
         CodeGenFunction *CGF = CGM->GenFunction(F);
         CGFunctions.push_back(CGF);
     }
 
     // Body must be generated after all CodeGen has been set for each TopDecl
     for (auto &CGF : CGFunctions) {
+        FLY_DEBUG_MESSAGE("FrontendAction", "HandleASTTopDecl",
+                          "FunctionBody=" << CGF->getName());
+        for (auto &CGV : CGGlobalVars) {
+            CGV->reset();
+        }
         CGF->GenBody();
     }
 
     Diags.getClient()->EndSourceFile();
+    FLY_DEBUG_MESSAGE("FrontendAction", "HandleASTTopDecl",
+                      "hasErrorOccurred=" << Diags.hasErrorOccurred());
     return !Diags.hasErrorOccurred();
 }
 

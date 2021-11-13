@@ -59,7 +59,14 @@ llvm::StoreInst *CodeGenGlobalVar::Store(llvm::Value *Val) {
 }
 
 llvm::LoadInst *CodeGenGlobalVar::Load() {
-    llvm::LoadInst *L = CGM->Builder->CreateLoad(GVar);
+    LoadI = CGM->Builder->CreateLoad(GVar);
     needLoad = false;
-    return L;
+    return LoadI;
+}
+
+/**
+ * Need to be called on function body complete
+ */
+void CodeGenGlobalVar::reset() {
+    needLoad = true;
 }

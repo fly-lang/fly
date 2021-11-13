@@ -51,8 +51,16 @@ std::string CodeGen::getOutputFileName(StringRef BaseInput) {
     llvm_unreachable("Invalid backend action!");
 }
 
+std::string str(llvm::Module *M) {
+    std::string str;
+    llvm::raw_string_ostream rso(str);
+    M->print(rso, nullptr);
+    return str;
+}
+
 void CodeGen::Emit(llvm::Module *M, llvm::StringRef OutName) {
-    FLY_DEBUG_MESSAGE("CodeGen", "Emit","Module.Name=" << M->getName());
+    FLY_DEBUG_MESSAGE("CodeGen", "Emit",
+                      "Module.Name=" << M->getName() << "Module.Output=" << str(M));
 
     // Skip CodeGenModule instance creation
     if (ActionKind == Backend_EmitNothing) {
@@ -81,7 +89,7 @@ std::string CodeGen::HandleTranslationUnit(std::unique_ptr<llvm::Module> &M, llv
 }
 
 TargetInfo* CodeGen::CreateTargetInfo(DiagnosticsEngine &Diags,
-                                            const std::shared_ptr<TargetOptions> &TargetOpts) {
+                                      const std::shared_ptr<TargetOptions> &TargetOpts) {
     return TargetInfo::CreateTargetInfo(Diags, TargetOpts);
 }
 

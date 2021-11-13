@@ -76,7 +76,7 @@ namespace fly {
 
         OpTypeKind getTypeKind() const;
 
-        virtual ASTType *getType() const override;
+        ASTType *getType() const override;
 
         virtual OpKind getOpKind() = 0;
 
@@ -86,7 +86,7 @@ namespace fly {
 
         virtual bool isTernary() = 0;
 
-        std::string str() const override;
+        virtual std::string str() const = 0;
     };
 
     class ASTUnaryExpr : public ASTOperatorExpr {
@@ -119,7 +119,6 @@ namespace fly {
         }
 
         std::string str() const override;
-
     };
 
     class ASTBinaryExpr : public ASTOperatorExpr {
@@ -129,15 +128,15 @@ namespace fly {
     public:
         explicit ASTBinaryExpr(const SourceLocation &Loc);
 
-        bool isUnary() override{
+        bool isUnary() override {
             return false;
         }
 
-        bool isBinary() override{
+        bool isBinary() override {
             return true;
         }
 
-        bool isTernary() override{
+        bool isTernary() override {
             return false;
         }
 
@@ -185,7 +184,7 @@ namespace fly {
 
         ComparisonOpKind getComparisonKind() const;
 
-        std::string str() const override;
+        virtual std::string str() const override;
     };
 
     class ASTTernaryExpr : public ASTOperatorExpr {
@@ -212,7 +211,7 @@ namespace fly {
             return true;
         }
 
-        std::string str() const override;
+        virtual std::string str() const override;
     };
 }
 

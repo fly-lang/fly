@@ -13,6 +13,7 @@
 #include "CodeGen/CodeGenModule.h"
 #include "AST/ASTLocalVar.h"
 #include "AST/ASTBlock.h"
+#include "Basic/Debug.h"
 #include "llvm/IR/DerivedTypes.h"
 
 using namespace fly;
@@ -59,6 +60,7 @@ llvm::Function *CodeGenFunction::getFunction() {
 }
 
 void CodeGenFunction::GenBody() {
+    FLY_DEBUG("CodeGenFunction", "GenBody");
     Entry = BasicBlock::Create(CGM->LLVMCtx, "entry", Fn);
     CGM->Builder->SetInsertPoint(Entry);
 

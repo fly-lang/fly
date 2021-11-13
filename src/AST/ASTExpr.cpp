@@ -51,7 +51,7 @@ ASTVarRefExpr::ASTVarRefExpr(const SourceLocation &Loc, ASTVarRef *Ref) : ASTExp
 }
 
 ASTExprKind ASTVarRefExpr::getKind() const {
-return Kind;
+    return Kind;
 }
 
 ASTVarRef *ASTVarRefExpr::getVarRef() const {
@@ -65,14 +65,14 @@ ASTType *ASTVarRefExpr::getType() const {
 std::string ASTVarRefExpr::str() const {
     return "{ Type=" +  (getType() ? getType()->str() : "") +
            ", Kind=" + std::to_string(Kind) +
-           ", Ref=" + Ref->str() +
+           ", VarRef=" + Ref->str() +
            " }";
 }
 
 ASTFuncCallExpr::ASTFuncCallExpr(const SourceLocation &Loc, ASTFuncCall *Ref) : ASTExpr(Loc), Call(Ref) {}
 
 ASTExprKind ASTFuncCallExpr::getKind() const {
-return Kind;
+    return Kind;
 }
 
 ASTFuncCall *ASTFuncCallExpr::getCall() const {
@@ -132,5 +132,5 @@ std::string ASTGroupExpr::str() const {
         Str = Str.substr(0, Str.length()-2);
     }
     Str += "] }";
-    return Str;
+    return "";
 }

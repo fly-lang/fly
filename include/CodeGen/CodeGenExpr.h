@@ -27,26 +27,15 @@ namespace fly {
         llvm::Value *Val;
 
     public:
-        VirtualExpr(llvm::Value *Val) : Val(Val), ASTExpr(SourceLocation()) {}
+        VirtualExpr(llvm::Value *Val);
 
-        ASTExprKind getKind() const override {
-            return ASTExprKind::EXPR_VIRTUAL;
-        }
+        ASTExprKind getKind() const override;
 
-        ASTType *getType() const override {
-            return nullptr;
-        }
+        ASTType *getType() const;
 
-        llvm::Value *getVal() const {
-            return Val;
-        }
+        llvm::Value *getVal() const;
 
-        std::string str() const override {
-            return "{ Type=" + getType()->str() +
-                   ", Kind=" + std::to_string(ASTExprKind::EXPR_VIRTUAL) +
-                   ", Val=" + Val->getName().str() +
-                   " }";
-        }
+        std::string str() const override;
     };
 
     class CodeGenExpr {

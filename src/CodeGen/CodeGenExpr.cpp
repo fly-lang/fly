@@ -14,17 +14,39 @@
 #include "AST/ASTLocalVar.h"
 #include "AST/ASTExpr.h"
 #include "AST/ASTOperatorExpr.h"
+#include "Basic/Debug.h"
 #include "llvm/IR/Value.h"
 
 using namespace fly;
 
+VirtualExpr::VirtualExpr(llvm::Value *Val) : Val(Val), ASTExpr(SourceLocation()) {}
+
+ASTExprKind VirtualExpr::getKind() const {
+    return ASTExprKind::EXPR_VIRTUAL;
+}
+
+ASTType *VirtualExpr::getType() const {
+    return nullptr;
+}
+
+llvm::Value *VirtualExpr::getVal() const {
+    return Val;
+}
+
+std::string VirtualExpr::str() const {
+    return "{ Type=, Kind=" + std::to_string(ASTExprKind::EXPR_VIRTUAL) +
+           ", Val=" + Val->getName().str() +
+           " }";
+}
+
 CodeGenExpr::CodeGenExpr(CodeGenModule *CGM, llvm::Function *Fn, ASTExpr *Expr, const ASTType *Type) :
-    CGM(CGM), Fn(Fn) {
-    Val = Generate(Expr);
+        CGM(CGM), Fn(Fn) {
+    FLY_DEBUG("CodeGenExpr", "CodeGenExpr");
+    Value *ExprVal = Generate(Expr);
     for (auto &Value : PostValues) {
         CGM->Builder->Insert(Value);
     }
-    Val = Convert(Val, Type);
+    Val = Convert(ExprVal, Type);
 }
 
 llvm::Value *CodeGenExpr::getValue() const {
@@ -32,6 +54,7 @@ llvm::Value *CodeGenExpr::getValue() const {
 }
 
 llvm::Value *CodeGenExpr::Generate(ASTExpr *Expr) {
+    FLY_DEBUG("CodeGenExpr", "Generate");
     // Generate Values from a Group
     if (Expr->getKind() == EXPR_GROUP) {
         return GenGroup((ASTGroupExpr *) Expr, new ASTGroupExpr(SourceLocation()), 0);
@@ -41,7 +64,9 @@ llvm::Value *CodeGenExpr::Generate(ASTExpr *Expr) {
 }
 
 llvm::Value *CodeGenExpr::Convert(llvm::Value *V, const ASTType *ToType) {
-//    assert(V && "Undefined Value");
+    FLY_DEBUG_MESSAGE("CodeGenExpr", "Convert",
+                      "Value=" << V << " to ASTType=" << ToType->str());
+    assert(ToType && "Invalid conversion type");
     switch (ToType->getKind()) {
         case TYPE_INT: // TO INT 32
             return Convert(V, CGM->Int32Ty);
@@ -56,10 +81,12 @@ llvm::Value *CodeGenExpr::Convert(llvm::Value *V, const ASTType *ToType) {
 }
 
 llvm::Value *CodeGenExpr::Convert(llvm::Value *V, llvm::Type *ToType) {
-    llvm::Type *FromType = V->getType();
+    FLY_DEBUG_MESSAGE("CodeGenExpr", "Convert",
+                      "Value=" << V << " to TypeID=" << ToType->getTypeID());
 
+    llvm::Type *FromType = V->getType();
     switch (ToType->getTypeID()) {
-        
+
         case Type::FloatTyID:
             if (FromType->isIntegerTy()) { // INT to FLOAT
                 return CGM->Builder->CreateSIToFP(V, ToType);
@@ -116,11 +143,15 @@ llvm::Value *CodeGenExpr::GenValue(ASTExpr *Expr) {
 }
 
 llvm::Value *CodeGenExpr::GenValue(ASTExpr *Expr, llvm::Value *&Pointer) {
+    FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "Expr=" << Expr->str());
     switch (Expr->getKind()) {
 
-        case EXPR_VIRTUAL:
+        case EXPR_VIRTUAL: {
+            FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_VIRTUAL");
             return ((VirtualExpr *)Expr)->getVal();
+        }
         case EXPR_VALUE: {
+            FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_VALUE");
             return CGM->GenValue(Expr->getType(), &((ASTValueExpr *)Expr)->getValue());
         }
         case EXPR_OPERATOR:
@@ -129,6 +160,7 @@ llvm::Value *CodeGenExpr::GenValue(ASTExpr *Expr, llvm::Value *&Pointer) {
             }
             assert(0 && "Operator unexpected here!");
         case EXPR_REF_VAR: {
+            FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_REF_VAR");
             ASTVarRefExpr *VarRefExpr = (ASTVarRefExpr *)Expr;
             assert(VarRefExpr->getVarRef() && "Missing Ref");
             ASTVar *Var = VarRefExpr->getVarRef()->getDecl();
@@ -136,21 +168,23 @@ llvm::Value *CodeGenExpr::GenValue(ASTExpr *Expr, llvm::Value *&Pointer) {
                 CGM->Diag(VarRefExpr->getLocation(), diag::err_unref_var) << VarRefExpr->getVarRef()->getName();
                 return nullptr;
             }
-            Pointer = Var->getCodeGen()->getPointer();
+            Pointer = Var->getCodeGen()->getPointer(); // TODO what do you do with?
             return Var->getCodeGen()->getValue();
         }
         case EXPR_REF_FUNC: {
+            FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_REF_FUNC");
             ASTFuncCallExpr *CallExpr = (ASTFuncCallExpr *)Expr;
             return CGM->GenCall(Fn, CallExpr->getCall());
         }
         case EXPR_GROUP:
+            FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_GROUP");
             assert(0 && "Cannot process Group from here");
     }
 }
 
 llvm::Value *CodeGenExpr::GenGroup(ASTGroupExpr *Origin, ASTGroupExpr *New, int Idx, ASTExpr *E1,
                                    ASTOperatorExpr * OP1) {
-
+    FLY_DEBUG("CodeGenExpr", "GenGroup");
     // Starting from: E2
     // Evaluate: E1 OP1 E2 OP2 E3
     // Example: E1 + E2 * E3 -> E1 + (E2 * E3)
@@ -247,6 +281,7 @@ llvm::Value *CodeGenExpr::GenGroup(ASTGroupExpr *Origin, ASTGroupExpr *New, int 
 }
 
 bool CodeGenExpr::hasOpPrecedence(ASTExpr *OP) {
+    FLY_DEBUG("CodeGenExpr", "hasOpPrecedence");
     return OP != nullptr && ((ASTOperatorExpr *)OP)->getOpKind() == OP_ARITH &&
            ( ((ASTArithExpr *)OP)->getArithKind() == ARITH_MUL || ((ASTArithExpr *)OP)->getArithKind() == ARITH_DIV);
 }
@@ -256,6 +291,7 @@ bool CodeGenExpr::canIterate(int Idx, ASTGroupExpr *Group) {
 }
 
 llvm::Value *CodeGenExpr::OpUnary(ASTUnaryExpr *E) {
+    FLY_DEBUG("CodeGenExpr", "OpUnary");
     assert(E->getKind() != EXPR_GROUP && "Expr cannot be a group");
     assert(E->getVarRef() && "Var empty");
     assert(E->isUnary() && "Expr is not unary");
@@ -301,6 +337,7 @@ llvm::Value *CodeGenExpr::OpUnary(ASTUnaryExpr *E) {
 }
 
 llvm::Value *CodeGenExpr::OpBinary(ASTExpr *E1, ASTOperatorExpr *OP, ASTExpr *E2) {
+    FLY_DEBUG("CodeGenExpr", "OpBinary");
     assert(E1->getKind() != EXPR_OPERATOR && E1->getKind() != EXPR_GROUP && "E1 Error");
     assert(E2->getKind() != EXPR_OPERATOR && E2->getKind() != EXPR_GROUP && "E2 Error");
 
@@ -324,6 +361,7 @@ llvm::Value *CodeGenExpr::OpBinary(ASTExpr *E1, ASTOperatorExpr *OP, ASTExpr *E2
 }
 
 Value *CodeGenExpr::OpArith(ASTExpr *E1, ASTArithExpr *OP, ASTExpr *E2) {
+    FLY_DEBUG("CodeGenExpr", "OpArith");
     llvm::Value *V1 = GenValue(E1);
     llvm::Value *V2 = GenValue(E2);
     V2 = Convert(V2, V1->getType()); // Implicit conversion
@@ -358,6 +396,7 @@ Value *CodeGenExpr::OpArith(ASTExpr *E1, ASTArithExpr *OP, ASTExpr *E2) {
 }
 
 Value *CodeGenExpr::OpComparison(ASTExpr *E1, fly::ASTComparisonExpr *OP, ASTExpr *E2) {
+    FLY_DEBUG("CodeGenExpr", "OpComparison");
     llvm::Value *V1 = GenValue(E1);
     llvm::Value *V2 = GenValue(E2);
 
@@ -380,7 +419,7 @@ Value *CodeGenExpr::OpComparison(ASTExpr *E1, fly::ASTComparisonExpr *OP, ASTExp
     } else {
         // Convert values to Float if one of them is Float
         if ( (V1->getType()->isFloatTy() || V1->getType()->isDoubleTy()) &&
-            (V2->getType()->isIntegerTy() || V2->getType()->isIntegerTy()) ) {
+             (V2->getType()->isIntegerTy() || V2->getType()->isIntegerTy()) ) {
             V2 = Convert(V2, V1->getType()); // Explicit conversion
         } else if ( (V1->getType()->isIntegerTy() || V1->getType()->isIntegerTy()) &&
                     (V2->getType()->isFloatTy() || V2->getType()->isDoubleTy()) ) {
@@ -405,6 +444,7 @@ Value *CodeGenExpr::OpComparison(ASTExpr *E1, fly::ASTComparisonExpr *OP, ASTExp
 }
 
 Value *CodeGenExpr::OpLogic(ASTExpr *E1, ASTLogicExpr *OP, ASTExpr *E2) {
+    FLY_DEBUG("CodeGenExpr", "OpLogic");
     llvm::Value *V1 = GenValue(E1);
     V1 = Convert(V1, CGM->BoolTy);
     BasicBlock *FromBB = CGM->Builder->GetInsertBlock();

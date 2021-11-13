@@ -41,6 +41,8 @@ namespace fly {
         llvm::StoreInst *Store(llvm::Value *Val) override;
 
         llvm::LoadInst *Load() override;
+
+        void reset();
     };
 }
 
