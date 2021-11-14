@@ -150,8 +150,14 @@ namespace {
         CompilerInstance &CI = TheDriver.BuildCompilerInstance();
         ASSERT_TRUE(TheDriver.Execute());
 
-        std::ifstream out("out.exe");
-        ASSERT_TRUE(out && "Error opening out");
+        const llvm::Triple &T = TargetInfo::CreateTargetInfo(CI.getDiagnostics(), CI.getTargetOptions())->getTriple();
+        if (T.isWindowsMSVCEnvironment()) {
+            std::ifstream out("out.exe");
+            ASSERT_TRUE(out && "Error opening out");
+        } else {
+            std::ifstream out("out");
+            ASSERT_TRUE(out && "Error opening out");
+        }
     }
 
 
