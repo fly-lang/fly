@@ -33,7 +33,7 @@ bool ToolChain::Link(const llvm::SmallVector<std::string, 4> &ObjFiles, llvm::St
         Args.push_back(Out.c_str());
     } else if (T.isOSDarwin()) {
         Args.push_back("-e");
-        Args.push_back("main");
+        Args.push_back("_main");
         Args.push_back("-o");
         Args.push_back(OutFile.str().c_str());
     } else{
