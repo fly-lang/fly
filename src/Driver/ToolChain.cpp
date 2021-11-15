@@ -32,7 +32,10 @@ bool ToolChain::Link(const llvm::SmallVector<std::string, 4> &ObjFiles, llvm::St
         std::string Out = "/out:" + OutFile.str() + ".exe";
         Args.push_back(Out.c_str());
     } else if (T.isOSDarwin()) {
-        Args.push_back("-e main");
+        Args.push_back("-e");
+        Args.push_back("main");
+        Args.push_back("-o");
+        Args.push_back(OutFile.str().c_str());
     } else{
         Args.push_back("--entry=main");
         Args.push_back("-o");
