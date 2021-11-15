@@ -85,29 +85,30 @@ if (DEFINED LLVM_BUILD AND LLVM_BUILD)
 else()
     # Download precompiled LLVM
     message(STATUS "Downloading LLVM precompiled files")
-    set(LLVM_DOWNLOAD_PATH ${CMAKE_SOURCE_DIR}/llvm)
+
+    set(LLVM_BUILD_PATH ${CMAKE_BINARY_DIR}/llvm-project)
     set(LLVM_RELEASES_PREFIX_URL https://github.com/fly-lang/llvm-project/releases/download)
     if (MSVC)
         set(LLVM_RELEASES_URL "${LLVM_RELEASES_PREFIX_URL}/v11.1.0-win-x64/llvm-11.1.0-win-x64.zip")
-        set(LLVM_RELEASE_EXT zip)
+        set(LLVM_DOWNLOAD_FILE "${CMAKE_BINARY_DIR}/llvm.zip")
     elseif (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
         set(LLVM_RELEASES_URL "${LLVM_RELEASES_PREFIX_URL}/v11.1.0-macos-x86_64/llvm-11.1.0-x86_64-apple-darwin.tar.gz")
-        set(LLVM_RELEASE_EXT tar.gz)
+        set(LLVM_DOWNLOAD_FILE "${CMAKE_BINARY_DIR}/llvm.tar.gz")
     elseif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
         set(LLVM_RELEASES_URL "${LLVM_RELEASES_PREFIX_URL}/v11.1.0-linux-x86_64/llvm-11.1.0-x86_64-linux-gnu.tar.gz")
-        set(LLVM_RELEASE_EXT tar.gz)
+        set(LLVM_DOWNLOAD_FILE "${CMAKE_BINARY_DIR}/llvm.tar.gz")
     else()
         message(FATAL_ERROR "Unknown system, cannot download pre-build llvm packages, run with -DLLVM_BUILD")
     endif()
 
-    file(DOWNLOAD ${LLVM_RELEASES_URL} "${CMAKE_SOURCE_DIR}/llvm.${LLVM_RELEASE_EXT}")
+    file(DOWNLOAD ${LLVM_RELEASES_URL} ${LLVM_DOWNLOAD_FILE})
     file(ARCHIVE_EXTRACT
-            INPUT "${CMAKE_SOURCE_DIR}/llvm.${LLVM_RELEASE_EXT}"
-            DESTINATION ${LLVM_DOWNLOAD_PATH})
-    file(REMOVE ${CMAKE_SOURCE_DIR}/llvm.${LLVM_RELEASE_EXT})
+            INPUT ${LLVM_DOWNLOAD_FILE}
+            DESTINATION ${LLVM_BUILD_PATH})
+    file(REMOVE ${LLVM_DOWNLOAD_FILE})
 
     message(STATUS "Downloaded precompiled LLVM from ${LLVM_RELEASES_URL}")
-    find_package(LLD REQUIRED CONFIG PATHS ${LLVM_DOWNLOAD_PATH} NO_DEFAULT_PATH)
+    find_package(LLD REQUIRED CONFIG PATHS ${LLVM_BUILD_PATH} NO_DEFAULT_PATH)
     message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
     add_definitions(${LLVM_DEFINITIONS})
 
