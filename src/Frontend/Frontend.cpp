@@ -10,6 +10,7 @@
 
 #include "Frontend/Frontend.h"
 #include "CodeGen/CodeGen.h"
+#include "CodeGen/CodeGenModule.h"
 #include "Basic/Debug.h"
 #include <llvm/ADT/Statistic.h>
 #include <llvm/Support/Timer.h>
@@ -30,7 +31,6 @@ bool Frontend::Execute() {
     assert(!CI.getFrontendOptions().ShowVersion && "Client must handle '-version'!");
     FLY_DEBUG("Frontend", "Execute");
 
-    unsigned NumberOfInputs = 0;
     raw_ostream &OS = llvm::errs();
 
     // Create Timers and show after compilation
@@ -40,31 +40,42 @@ bool Frontend::Execute() {
     if (CI.getFrontendOptions().ShowStats)
         llvm::EnableStatistics(false);
 
+    bool EnableLink = CI.getFrontendOptions().getOutputFile().getFile().empty();
+
     // Generate Backend Code
     CodeGen CG(Diags, CI.getCodeGenOptions(), CI.getTargetOptions(),
-               CI.getFrontendOptions().BackendAction, CI.getFrontendOptions().ShowTimers);
+               CI.getFrontendOptions().BackendAction,
+               CI.getFrontendOptions().ShowTimers);
 
     // Create Compiler Instance for each input file
     for (auto InputFile : CI.getFrontendOptions().getInputFiles()) {
         // Print file name and create instance for file compilation
 
-        FLY_DEBUG_MESSAGE("Frontend", "Execute", "Loading input file " << llvm::sys::path::filename(InputFile.getFile()) << "\n");
+        FLY_DEBUG_MESSAGE("Frontend", "Execute", "Loading input file " <<
+            llvm::sys::path::filename(InputFile.getFile()));
         if (InputFile.Load(CI.getSourceManager(), Diags)) {
-            FrontendAction *Action = new FrontendAction(CI, Context, CG);
+            FrontendAction *Action = new FrontendAction(CI, Context, CG, &InputFile);
             // Parse Action & add to Actions for next
-            if (Action->Parse(InputFile)) {
+            if (Action->Parse()) {
                 Actions.emplace_back(Action);
-                NumberOfInputs++;
             }
         }
     }
 
-    if (NumberOfInputs > 0) {
+    // Compile and Emit Output
+    if (!Actions.empty()) {
         if (Context->Resolve()) {
-            llvm::outs().flush();
-            for (auto Action: Actions) {
-                Action->Compile() && Action->EmitOutput();
+            for (auto Action : Actions) {
+                if (!Action->HandleASTTopDecl()) {
+                    return false;
+                }
+                if (!Action->HandleTranslationUnit()) {
+                    return false;
+                }
+                OutputFiles.push_back(Action->getOutputFile());
             }
+        } else {
+            return false;
         }
     } else {
         Diags.Report(SourceLocation(), diag::note_no_input_process);
@@ -72,6 +83,7 @@ bool Frontend::Execute() {
 
     Diags.getClient()->finish();
 
+    // Show Errors Warnings and Notes
     if (CI.getDiagnostics().getDiagnosticOptions().ShowCarets) {
         // We can have multiple diagnostics sharing one diagnostic client.
         // Get the total number of warnings/errors from the client.
@@ -90,6 +102,7 @@ bool Frontend::Execute() {
         }
     }
 
+    // Show Stats
     if (CI.getFrontendOptions().ShowStats) {
         CI.getFileManager().PrintStats();
         OS << '\n';
@@ -118,4 +131,8 @@ void Frontend::CreateFrontendTimer() {
     FrontendTimer.reset(
             new llvm::Timer("frontend", "Clang front-end timer",
                             *FrontendTimerGroup));
+}
+
+const SmallVector<std::string, 4> &Frontend::getOutputFiles() const {
+    return OutputFiles;
 }

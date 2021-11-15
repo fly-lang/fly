@@ -18,7 +18,6 @@ ASTOperatorExpr::ASTOperatorExpr(const SourceLocation &Loc, OpTypeKind TypeKind)
 }
 
 ASTType *ASTOperatorExpr::getType() const {
-    assert(0 && "Operator Expr not have Type");
     return nullptr;
 }
 
@@ -68,12 +67,12 @@ ASTBinaryExpr::ASTBinaryExpr(const SourceLocation &Loc) : ASTOperatorExpr(Loc, T
 }
 
 ASTArithExpr::ASTArithExpr(const SourceLocation &Loc, const ArithOpKind &AKind) : ASTBinaryExpr(Loc),
-    ArithKind(AKind) {
+                                                                                  ArithKind(AKind) {
 
 }
 
 OpKind ASTArithExpr::getOpKind() {
-return OperatorKind;
+    return OperatorKind;
 }
 
 ArithOpKind ASTArithExpr::getArithKind() const {
@@ -109,7 +108,7 @@ std::string ASTLogicExpr::str() const {
 }
 
 ASTComparisonExpr::ASTComparisonExpr(const SourceLocation &Loc, const ComparisonOpKind &CKind) : ASTBinaryExpr(Loc),
-    ComparisonKind(CKind) {
+                                                                                                 ComparisonKind(CKind) {
 
 }
 
@@ -130,7 +129,7 @@ std::string ASTComparisonExpr::str() const {
 }
 
 ASTTernaryExpr::ASTTernaryExpr(const SourceLocation &Loc, ASTExpr *Condition, ASTExprStmt *Stmt1, ASTExprStmt *Stmt2) :
-    ASTOperatorExpr(Loc, TY_TERNARY), Condition(Condition), Stmt1(Stmt1), Stmt2(Stmt2) {
+        ASTOperatorExpr(Loc, TY_TERNARY), Condition(Condition), Stmt1(Stmt1), Stmt2(Stmt2) {
 
 }
 

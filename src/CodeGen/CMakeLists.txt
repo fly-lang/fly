@@ -12,6 +12,21 @@ target_link_libraries(FlyCodeGen
         LLVMSupport
         LLVMPasses
         LLVMLTO
+        LLVMTarget
+        LLVMAArch64AsmParser
+        LLVMAMDGPUAsmParser
+        LLVMARMAsmParser
+        LLVMAVRAsmParser
+        LLVMBPFAsmParser
+        LLVMMipsAsmParser
+        LLVMMSP430AsmParser
+        LLVMPowerPCAsmParser
+        LLVMRISCVAsmParser
+        LLVMSparcAsmParser
+        LLVMSystemZAsmParser
+        LLVMWebAssemblyAsmParser
+        LLVMX86AsmParser
+
         FlyBasic
         FlyAST
         )

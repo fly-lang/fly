@@ -37,7 +37,7 @@ namespace fly {
     protected:
         ASTFunc *Top;
 
-        const ASTBlock *Parent;
+        ASTBlock *Parent;
 
     public:
         ASTStmt(const SourceLocation &Loc, ASTBlock *Parent);

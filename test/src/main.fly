@@ -1,7 +1,16 @@
 namespace default
 
-int a
+int a = 0
 
-int main(int b, float c) {
-    return 1
+int main() {
+    return add()
+}
+
+int add() {
+    a = getA() + getB()
+    return a + b
+}
+
+int getA() {
+    return a
 }

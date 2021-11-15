@@ -10,12 +10,12 @@
 #ifndef FLY_FUNCTION_H
 #define FLY_FUNCTION_H
 
-#include "CodeGen/CodeGenLocalVar.h"
-#include "CodeGen/CodeGenVar.h"
 #include "ASTTopDecl.h"
 #include "ASTVar.h"
+#include "ASTLocalVar.h"
 #include "ASTStmt.h"
 #include "llvm/ADT/StringMap.h"
+#include <unordered_set>
 #include <vector>
 
 namespace fly {
@@ -30,6 +30,8 @@ namespace fly {
     class ASTFuncParam;
     class ASTGlobalVar;
     class CodeGenFunction;
+    class CodeGenVar;
+    class CodeGenLocalVar;
     class CodeGenCall;
 
     /**
@@ -95,14 +97,6 @@ namespace fly {
 
         void setVarArg(ASTFuncParam* VarArg);
 
-        bool addUnRefCall(ASTFuncCall *Call);
-
-        void addUnRefGlobalVar(ASTVarRef *VarRef);
-
-        void addNSUnRefGlobalVar(ASTVarRef *VarRef);
-
-        bool ResolveCall(ASTFuncCall *ResolvedCall, ASTFuncCall *Call);
-
         std::string str() const;
 
         bool operator==(const ASTFunc& F) const;
@@ -161,7 +155,6 @@ namespace fly {
 
         StmtKind Kind = StmtKind::STMT_RETURN;
         ASTExpr* Expr;
-        const ASTType *Type;
 
     public:
         ASTReturn(const SourceLocation &Loc, ASTBlock *Block, ASTExpr *Expr);
@@ -231,6 +224,8 @@ namespace fly {
         void setCodeGen(CodeGenCall *CGC);
 
         static ASTFuncCall *CreateCall(ASTFunc *FDecl);
+
+        bool isUsable(ASTFuncCall *Call);
 
         std::string str() const;
     };

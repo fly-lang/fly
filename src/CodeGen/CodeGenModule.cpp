@@ -18,7 +18,9 @@
 #include "CodeGen/CodeGenGlobalVar.h"
 #include "CodeGen/CodeGenLocalVar.h"
 #include "CodeGen/CodeGenExpr.h"
+#include "AST/ASTImport.h"
 #include "AST/ASTNode.h"
+#include "AST/ASTNameSpace.h"
 #include "AST/ASTLocalVar.h"
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTBlock.h"
@@ -27,6 +29,7 @@
 #include "AST/ASTSwitchBlock.h"
 #include "AST/ASTWhileBlock.h"
 #include "AST/ASTForBlock.h"
+#include "Basic/Debug.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Value.h"
@@ -86,7 +89,6 @@ CodeGenModule::CodeGenModule(DiagnosticsEngine &Diags, llvm::StringRef Name, LLV
 }
 
 CodeGenModule::~CodeGenModule() {
-    delete Module;
     delete Builder;
 }
 
@@ -94,32 +96,48 @@ DiagnosticBuilder CodeGenModule::Diag(const SourceLocation &Loc, unsigned DiagID
     return Diags.Report(Loc, DiagID);
 }
 
-Module *CodeGenModule::getModule() const {
-    return Module;
+llvm::Module *CodeGenModule::getModule() const {
+    return Module.get();
+}
+
+llvm::Module *CodeGenModule::ReleaseModule() {
+    return Module.release();
+}
+
+void CodeGenModule::GenImport(ASTImport *Import) {
+    // Read Import: compiled Module or to compile
+    FLY_DEBUG_MESSAGE("CodeGenModule", "GenImport",
+                      "Import=" << Import->str());
 }
 
 /**
  * GenStmt from VarDecl
- * @param Decl
+ * @param GlobalVar
+ * @param isExternal
  */
-CodeGenGlobalVar *CodeGenModule::GenGlobalVar(ASTGlobalVar* AST) {
+CodeGenGlobalVar *CodeGenModule::GenGlobalVar(ASTGlobalVar* GlobalVar, bool isExternal) {
+    FLY_DEBUG_MESSAGE("CodeGenModule", "GenGlobalVar",
+                      "GlobalVar=" << GlobalVar->str() << ", isExternal=" << isExternal);
     // Check Value
-    CodeGenGlobalVar *CG = new CodeGenGlobalVar(this, AST);
+    CodeGenGlobalVar *CG = new CodeGenGlobalVar(this, GlobalVar, isExternal);
     if (CG->getPointer() != nullptr) { // Pointer is the GlobalVar, if nullptr Success = false
-        AST->setCodeGen(CG);
+        GlobalVar->setCodeGen(CG);
         return CG;
     }
     return nullptr; // Error occurs
 }
 
-CodeGenFunction *CodeGenModule::GenFunction(ASTFunc *FDecl) {
-    CodeGenFunction *CGF = new CodeGenFunction(this, FDecl->getName(), FDecl->getType(), FDecl->getHeader(),
-                                               FDecl->getBody(), FDecl->getDeclVars());
-    FDecl->setCodeGen(CGF);
+CodeGenFunction *CodeGenModule::GenFunction(ASTFunc *Func, bool isExternal) {
+    FLY_DEBUG_MESSAGE("CodeGenModule", "GenFunction",
+                      "Func=" << Func->str() << ", isExternal=" << isExternal);
+    CodeGenFunction *CGF = new CodeGenFunction(this, Func, isExternal);
+    Func->setCodeGen(CGF);
     return CGF;
 }
 
 CallInst *CodeGenModule::GenCall(llvm::Function *Fn, ASTFuncCall *Call) {
+    FLY_DEBUG_MESSAGE("CodeGenModule", "GenCall",
+                      "Call=" << Call->str());
     // Check if Func is declared
     if (Call->getDecl() == nullptr) {
         Diag(Call->getLocation(), diag::err_unref_call) << Call->getName();
@@ -129,14 +147,15 @@ CallInst *CodeGenModule::GenCall(llvm::Function *Fn, ASTFuncCall *Call) {
     const std::vector<ASTFuncParam *> &Params = Call->getDecl()->getHeader()->getParams();
     llvm::SmallVector<llvm::Value *, 8> Args;
     for (ASTCallArg *Arg : Call->getArgs()) {
-
         Value *V = GenExpr(Fn, Arg->getType(), Arg->getValue());
         Args.push_back(V);
     }
+    CodeGenFunction *CGF = Call->getDecl()->getCodeGen();
     return Builder->CreateCall(Call->getDecl()->getCodeGen()->getFunction(), Args);
 }
 
 void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
+    FLY_DEBUG("CodeGenModule", "GenStmt");
     switch (Stmt->getKind()) {
 
         // Var Declaration
@@ -149,7 +168,7 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
             break;
         }
 
-        // Var Assignment
+            // Var Assignment
         case STMT_VAR_ASSIGN: {
             ASTLocalVarRef *LocalVarRef = (ASTLocalVarRef *) Stmt;
             assert(LocalVarRef->getExpr() && "Expr Mandatory in assignment");
@@ -171,7 +190,7 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
         case STMT_EXPR: {
             ASTExprStmt *ExprStmt = static_cast<ASTExprStmt *>(Stmt);
             if (ExprStmt->getExpr()->getKind() == EXPR_OPERATOR &&
-                    ((ASTOperatorExpr *)ExprStmt->getExpr())->isUnary()) {
+                ((ASTOperatorExpr *)ExprStmt->getExpr())->isUnary()) {
                 ASTUnaryExpr *UnaryExpr = (ASTUnaryExpr *) ExprStmt->getExpr();
 
                 Value *V = GenExpr(Fn, UnaryExpr->getVarRef()->getDecl()->getType(), UnaryExpr);
@@ -180,7 +199,7 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
             break;
         }
         case STMT_BLOCK: {
-            ASTBlock *Block = static_cast<ASTBlock *>(Stmt);
+            ASTBlock *Block = (ASTBlock *) Stmt;
             switch (Block->getBlockKind()) {
                 case BLOCK_STMT:
                     GenBlock(Fn, Block->getContent());
@@ -229,6 +248,7 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
 }
 
 llvm::Type *CodeGenModule::GenType(const ASTType *Type) {
+    FLY_DEBUG("CodeGenFunction", "GenType");
     // Check Type
     switch (Type->getKind()) {
 
@@ -244,9 +264,26 @@ llvm::Type *CodeGenModule::GenType(const ASTType *Type) {
     assert(0 && "Unknown Var Type Kind");
 }
 
-llvm::Constant *CodeGenModule::GenValue(const ASTType *Ty, const ASTValue *Val) {
+llvm::Constant *CodeGenModule::GenDefaultValue(const ASTType *Type) {
+    FLY_DEBUG("CodeGenFunction", "GenDefaultValue");
+    assert(Type->getKind() != TYPE_VOID && "No default value for Void Type");
+    switch (Type->getKind()) {
+        case TYPE_INT:
+            return llvm::ConstantInt::get(Int32Ty, 0, true);
+        case TYPE_FLOAT:
+            return llvm::ConstantFP::get(FloatTy, "0.0");
+        case TYPE_BOOL:
+            return llvm::ConstantInt::get(BoolTy, 0, false);
+        case TYPE_CLASS:
+            return nullptr; // TODO
+    }
+    assert(0 && "Unknown Type");
+}
+
+llvm::Constant *CodeGenModule::GenValue(const ASTType *Type, const ASTValue *Val) {
+    FLY_DEBUG("CodeGenModule", "GenValue");
     //TODO value conversion from Val->getType() to TypeBase (if are different)
-    switch (Ty->getKind()) {
+    switch (Type->getKind()) {
 
         case TYPE_VOID:
             Diag(Val->getType()->getLocation(), diag::err_void_value);
@@ -274,11 +311,13 @@ llvm::Constant *CodeGenModule::GenValue(const ASTType *Ty, const ASTValue *Val) 
 }
 
 llvm::Value *CodeGenModule::GenExpr(llvm::Function *Fn, const ASTType *Type, ASTExpr *Expr) {
+    FLY_DEBUG("CodeGenFunction", "GenExpr");
     CodeGenExpr *CGExpr = new CodeGenExpr(this, Fn, Expr, Type);
     return CGExpr->getValue();
 }
 
 void CodeGenModule::GenBlock(llvm::Function *Fn, const std::vector<ASTStmt *> &Content, llvm::BasicBlock *BB) {
+    FLY_DEBUG("CodeGenModule", "GenBlock");
     if (BB) Builder->SetInsertPoint(BB);
     for (ASTStmt *Stmt : Content) {
         GenStmt(Fn, Stmt);
@@ -286,6 +325,7 @@ void CodeGenModule::GenBlock(llvm::Function *Fn, const std::vector<ASTStmt *> &C
 }
 
 void CodeGenModule::GenIfBlock(llvm::Function *Fn, ASTIfBlock *If) {
+    FLY_DEBUG("CodeGenFunction", "GenIfBlock");
     ASTBoolType * BoolType = new ASTBoolType(SourceLocation()); // used to force bool in condition expr
 
     // If Block
@@ -385,6 +425,7 @@ void CodeGenModule::GenIfBlock(llvm::Function *Fn, ASTIfBlock *If) {
 llvm::BasicBlock *CodeGenModule::GenElsifBlock(llvm::Function *Fn,
                                                llvm::BasicBlock *ElsifBB,
                                                std::vector<ASTElsifBlock *>::iterator &It) {
+    FLY_DEBUG("CodeGenFunction", "GenElsifBlock");
     ASTElsifBlock *&Elsif = *It;
     It++;
     if (*It == nullptr) {
@@ -403,6 +444,7 @@ llvm::BasicBlock *CodeGenModule::GenElsifBlock(llvm::Function *Fn,
 }
 
 void CodeGenModule::GenSwitchBlock(llvm::Function *Fn, ASTSwitchBlock *Switch) {
+    FLY_DEBUG("CodeGenFunction", "GenSwitchBlock");
     ASTIntType * IntType = new ASTIntType(SourceLocation()); // used to force int in switch case expr valuation
 
     // Create End Block
@@ -421,7 +463,7 @@ void CodeGenModule::GenSwitchBlock(llvm::Function *Fn, ASTSwitchBlock *Switch) {
         llvm::Value *CaseVal = GenExpr(Fn, IntType, Case->getExpr());
         llvm::ConstantInt *CaseConst = llvm::cast<llvm::ConstantInt, llvm::Value>(CaseVal);
         llvm::BasicBlock *CaseBB = NextCaseBB == nullptr ?
-                llvm::BasicBlock::Create(LLVMCtx, "case", Fn, EndBR) : NextCaseBB;
+                                   llvm::BasicBlock::Create(LLVMCtx, "case", Fn, EndBR) : NextCaseBB;
         Inst->addCase(CaseConst, CaseBB);
         GenBlock(Fn, Case->getContent(), CaseBB);
 
@@ -447,6 +489,7 @@ void CodeGenModule::GenSwitchBlock(llvm::Function *Fn, ASTSwitchBlock *Switch) {
 }
 
 void CodeGenModule::GenForBlock(llvm::Function *Fn, ASTForBlock *For) {
+    FLY_DEBUG("CodeGenFunction", "GenForBlock");
     ASTBoolType * BoolType = new ASTBoolType(SourceLocation()); // used to force bool in condition expr
 
     // Add to Current Block
@@ -509,6 +552,7 @@ void CodeGenModule::GenForBlock(llvm::Function *Fn, ASTForBlock *For) {
 }
 
 void CodeGenModule::GenWhileBlock(llvm::Function *Fn, ASTWhileBlock *While) {
+    FLY_DEBUG("CodeGenFunction", "GenWhileBlock");
     ASTBoolType * BoolType = new ASTBoolType(SourceLocation()); // used to force bool in while condition expr
 
     // Create Expression evaluator for While

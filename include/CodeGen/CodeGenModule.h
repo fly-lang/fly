@@ -30,14 +30,12 @@ namespace fly {
 
     class ASTContext;
     class ASTNode;
-    class ASTValue;
+    class ASTImport;
     class ASTGlobalVar;
     class ASTFunc;
     class ASTFuncCall;
     class ASTType;
-    class CodeGenGlobalVar;
-    class CodeGenFunction;
-    class CodeGenCall;
+    class ASTValue;
     class ASTStmt;
     class ASTExpr;
     class ASTGroupExpr;
@@ -45,6 +43,9 @@ namespace fly {
     class ASTSwitchBlock;
     class ASTForBlock;
     class ASTWhileBlock;
+    class CodeGenGlobalVar;
+    class CodeGenFunction;
+    class CodeGenCall;
 
     class CodeGenModule : public CodeGenTypeCache {
 
@@ -54,39 +55,55 @@ namespace fly {
         friend class CodeGenLocalVar;
         friend class CodeGenExpr;
 
-    private:
+        // Diagnostics
         DiagnosticsEngine &Diags;
+
+        // CodeGen Options
         CodeGenOptions &CGOpts;
+
+        // Target Info
         TargetInfo &Target;
+
+        // LLVM Context
         llvm::LLVMContext &LLVMCtx;
+
+        // LLVM Builder
         llvm::IRBuilder<> *Builder;
+
         // CGDebugInfo *DebugInfo; // TODO
 
     public:
+        // LLVM Module
+        std::unique_ptr<llvm::Module> Module;
+
         CodeGenModule(DiagnosticsEngine &Diags, llvm::StringRef Name, LLVMContext &LLVMCtx, TargetInfo &Target,
                       CodeGenOptions &CGOpts);
 
         virtual ~CodeGenModule();
 
-        llvm::Module *Module;
+        DiagnosticBuilder Diag(const SourceLocation &Loc, unsigned DiagID);
 
         llvm::Module *getModule() const;
 
-        DiagnosticBuilder Diag(const SourceLocation &Loc, unsigned DiagID);
+        llvm::Module *ReleaseModule();
 
-        CodeGenGlobalVar *GenGlobalVar(ASTGlobalVar *AST);
+        void GenImport(ASTImport *Import);
 
-        CodeGenFunction *GenFunction(ASTFunc *FDecl);
+        CodeGenGlobalVar *GenGlobalVar(ASTGlobalVar *GlobalVar, bool isExternal = false);
+
+        CodeGenFunction *GenFunction(ASTFunc *Func, bool isExternal = false);
 
         CallInst *GenCall(llvm::Function *Fn, ASTFuncCall *Call);
 
         Type *GenType(const ASTType *Type);
 
-        llvm::Constant *GenValue(const ASTType *TyData, const ASTValue *Val);
+        llvm::Constant *GenDefaultValue(const ASTType *Type);
+
+        llvm::Constant *GenValue(const ASTType *Type, const ASTValue *Val);
 
         void GenStmt(llvm::Function *Fn, ASTStmt * Stmt);
 
-        llvm::Value *GenExpr(llvm::Function *Fn, const ASTType *Typ, ASTExpr *Expr);
+        llvm::Value *GenExpr(llvm::Function *Fn, const ASTType *Type, ASTExpr *Expr);
 
         void GenBlock(llvm::Function *Fn, const std::vector<ASTStmt *> &Content, llvm::BasicBlock *BB = nullptr);
 
@@ -101,6 +118,8 @@ namespace fly {
         void GenForBlock(llvm::Function *Fn, ASTForBlock *For);
 
         void GenWhileBlock(llvm::Function *Fn, ASTWhileBlock *While);
+
+
     };
 }
 

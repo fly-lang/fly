@@ -27,6 +27,10 @@ namespace {
 
     public:
         DriverTest() {}
+
+        ~DriverTest() {
+            llvm::outs().flush();
+        }
     };
 
     bool createTestFile(const char* testFile) {

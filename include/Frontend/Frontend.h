@@ -36,7 +36,7 @@ namespace fly {
 
         ASTContext* Context;
 
-        OutputFile Output;
+        llvm::SmallVector<std::string, 4> OutputFiles;
 
         std::vector<FrontendAction *> Actions;
 
@@ -55,6 +55,8 @@ namespace fly {
         bool Execute();
 
         void CreateFrontendTimer();
+
+        const SmallVector<std::string, 4> &getOutputFiles() const;
     };
 }
 

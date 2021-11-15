@@ -8,14 +8,15 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#include "Basic/DiagnosticIDs.h"
 #include "AST/ASTBlock.h"
-#include "AST/ASTNode.h"
-#include "AST/ASTNameSpace.h"
 #include "AST/ASTContext.h"
+#include "AST/ASTNode.h"
 #include "AST/ASTFunc.h"
 #include "AST/ASTStmt.h"
+#include "AST/ASTExpr.h"
 #include "AST/ASTLocalVar.h"
+#include "Basic/Diagnostic.h"
+#include "Basic/Debug.h"
 
 using namespace fly;
 
@@ -27,7 +28,7 @@ using namespace fly;
  */
 ASTBlock::ASTBlock(const SourceLocation &Loc, ASTFunc *Top, ASTBlock *Parent) :
     ASTStmt(Loc, Top, Parent) {
-
+    FLY_DEBUG("ASTBlock", "ASTBlock");
 }
 
 /**
@@ -36,7 +37,7 @@ ASTBlock::ASTBlock(const SourceLocation &Loc, ASTFunc *Top, ASTBlock *Parent) :
  * @param Parent
  */
 ASTBlock::ASTBlock(const SourceLocation &Loc, ASTBlock *Parent) : ASTStmt(Loc, Parent->getTop(), Parent) {
-
+        FLY_DEBUG("ASTBlock", "~ASTBlock");
 }
 
 /**
@@ -76,98 +77,13 @@ const llvm::StringMap<ASTLocalVar *> &ASTBlock::getDeclVars() const {
 }
 
 /**
- * Search a VarRef into declared Block's vars
- * If found set LocalVar
- * @param Block
- * @param LocalVar
- * @param VarRef
- * @return the found LocalVar
- */
-ASTLocalVar *ASTBlock::FindVarDecl(const ASTBlock *Block, ASTVarRef *VarRef) {
-    const auto &It = Block->DeclVars.find(VarRef->getName());
-    if (It != Block->DeclVars.end()) { // Search into this Block
-        return It->getValue();
-    } else if (Block->Parent) { // Traverse Parent Block to find the right VarDeclStmt
-        return FindVarDecl(Block->getParent(), VarRef);
-    }
-    return nullptr;
-}
-
-/**
- * Resolve a VarRef with its declaration
- * @param VarRef
- * @return true if no error occurs, otherwise false
- */
-bool ASTBlock::ResolveVarRef(ASTVarRef* VarRef) {
-    // Check if var is not a GlobalVar
-    if (VarRef->getNameSpace().empty()) {
-
-        // Search into parameters
-        for (auto &Param : Top->getHeader()->getParams()) {
-            if (VarRef->getName().equals(Param->getName())) {
-                // Resolve with Param
-                VarRef->setDecl(Param);
-                break;
-            }
-        }
-
-        // If VarRef is not resolved with parameters, search into declaration
-        if (VarRef->getDecl() == nullptr) {
-            // Search recursively into current Block or in one of Parents
-            ASTLocalVar *LocalVar = FindVarDecl(this, VarRef);
-            // Check if var declaration var is resolved
-            if (LocalVar != nullptr) {
-                VarRef->setDecl(LocalVar); // Resolved
-            } else {
-                Top->addUnRefGlobalVar(VarRef); // Resolve Later by searching into Node GlobalVars
-            }
-        }
-    } else {
-        // Resolve Later by searching into NameSpace GlobalVars
-        Top->addNSUnRefGlobalVar(VarRef); // Push into Content but need resolve after
-    }
-    return true;
-}
-
-/**
- * Resolve Expr contents
- * @param Expr
- * @return true if no error occurs, otherwise false
- */
-bool ASTBlock::ResolveExpr(ASTExpr *Expr) {
-    switch (Expr->getKind()) {
-        case EXPR_REF_VAR: {
-            ASTVarRef *Var = static_cast<ASTVarRefExpr *>(Expr)->getVarRef();
-            return Var->getDecl() == nullptr ? ResolveVarRef(Var) : true;
-        }
-        case EXPR_REF_FUNC: {
-            ASTFuncCall *Call = static_cast<ASTFuncCallExpr *>(Expr)->getCall();
-            Top->addUnRefCall(Call);
-            return true;
-        }
-        case EXPR_GROUP: {
-            bool Result = true;
-            for (auto &GE : static_cast<ASTGroupExpr *>(Expr)->getGroup()) {
-                Result &= ResolveExpr(GE);
-            }
-            return Result;
-        }
-        case EXPR_VALUE:
-            return true;
-        case EXPR_OPERATOR:
-            return true;
-    }
-
-    assert(0 && "Invalid ASTExprKind");
-}
-
-/**
  * Add ExprStmt to Content
  * @param ExprStmt
  * @return true if no error occurs, otherwise false
  */
 bool ASTBlock::AddExprStmt(ASTExprStmt *ExprStmt) {
-    if (ResolveExpr(ExprStmt->getExpr())) {
+    FLY_DEBUG_MESSAGE("ASTBlock", "AddExprStmt", "ExprStmt=" << ExprStmt->str());
+    if (ASTResolver::ResolveExpr(this, ExprStmt->getExpr())) {
         Content.push_back(ExprStmt);
         return true;
     }
@@ -179,16 +95,23 @@ bool ASTBlock::AddExprStmt(ASTExprStmt *ExprStmt) {
  * @param LocalVarRef
  * @return true if no error occurs, otherwise false
  */
-bool ASTBlock::AddVarRef(ASTLocalVarRef *LocalVarRef) {
+bool ASTBlock::AddLocalVarRef(ASTLocalVarRef *LocalVarRef) {
     assert(LocalVarRef->getExpr() && "Expr unset into VarStmt");
+    FLY_DEBUG_MESSAGE("ASTBlock", "AddLocalVarRef", "LocalVarRef=" << LocalVarRef->str());
 
-    if (ResolveExpr(LocalVarRef->getExpr())) {
+    if (ASTResolver::ResolveExpr(this, LocalVarRef->getExpr()) &&
+            (LocalVarRef->getDecl() != nullptr || ASTResolver::ResolveVarRef(this, LocalVarRef))) {
         Content.push_back(LocalVarRef);
-        if (LocalVarRef->getDecl() == nullptr) {
-            return ResolveVarRef(LocalVarRef);
-        }
+        return true;
     }
     return true;
+}
+
+bool ASTBlock::RecursiveFindDeclVars(ASTBlock *Block, ASTLocalVar *LocalVar) {
+    if (Block->DeclVars.find(LocalVar->getName()) != Block->DeclVars.end()) {
+        return true;
+    }
+    return Block->Parent ? RecursiveFindDeclVars(Block->Parent, LocalVar) : false;
 }
 
 /**
@@ -196,25 +119,28 @@ bool ASTBlock::AddVarRef(ASTLocalVarRef *LocalVarRef) {
  * @param LocalVar
  * @return true if no error occurs, otherwise false
  */
-bool ASTBlock::AddVar(ASTLocalVar *LocalVar) {
+bool ASTBlock::AddLocalVar(ASTLocalVar *LocalVar) {
+    FLY_DEBUG_MESSAGE("ASTBlock", "AddLocalVar", "LocalVar=" << LocalVar->str());
     bool Result = true;
     if (LocalVar->getExpr()) {
-        Result &= ResolveExpr(LocalVar->getExpr());
+        Result = ASTResolver::ResolveExpr(this, LocalVar->getExpr());
+
+        // Check if this var is already declared
+        if (RecursiveFindDeclVars(this, LocalVar)) {
+            Top->getNode()->getContext().Diag(LocalVar->getLocation(), diag::err_conflict_vardecl)
+                    << LocalVar->getName();
+            return false;
+        }
+
+        //Set CodeGen
+        CodeGenLocalVar *CGLV = new CodeGenLocalVar(Top->getNode()->getCodeGen(), LocalVar);
+        LocalVar->setCodeGen(CGLV);
     }
 
-    const auto &It = DeclVars.find(LocalVar->getName());
-    // Check if this var is already declared
-    if (It != DeclVars.end()) {
-        Top->getNode()->getContext().Diag(LocalVar->getLocation(), diag::err_conflict_vardecl) << LocalVar->getName();
-        return false;
-    }
+    // Add LocalVar
     DeclVars.insert(std::pair<StringRef, ASTLocalVar *>(LocalVar->getName(), LocalVar));
     Content.push_back(LocalVar);
-    Top->addDeclVars(LocalVar);
-
-    //Set CodeGen
-    CodeGenLocalVar *CGV = new CodeGenLocalVar(Top->getNode()->getCodeGen(), LocalVar);
-    LocalVar->setCodeGen(CGV);
+    Top->addDeclVars(LocalVar); //Useful for Alloca into CodeGen
 
     return Result;
 }
@@ -225,9 +151,10 @@ bool ASTBlock::AddVar(ASTLocalVar *LocalVar) {
  * @return true if no error occurs, otherwise false
  */
 bool ASTBlock::AddCall(ASTFuncCall *Call) {
+    FLY_DEBUG_MESSAGE("ASTBlock", "AddBreak", "Call=" << Call->str());
     ASTFuncCallStmt *CallStmt = new ASTFuncCallStmt(Call->getLocation(), this, Call);
     Content.push_back(CallStmt);
-    return Top->addUnRefCall(Call);
+    return Call->getDecl() || Top->getNode()->AddUnrefCall(Call);
 }
 
 /**
@@ -237,9 +164,10 @@ bool ASTBlock::AddCall(ASTFuncCall *Call) {
  * @return true if no error occurs, otherwise false
  */
 bool ASTBlock::AddReturn(const SourceLocation &Loc, ASTExpr *Expr) {
+    FLY_DEBUG_MESSAGE("ASTBlock", "AddReturn", "Expr=" << (Expr ? Expr->str() : ""));
     bool Success = true;
-    if (Expr != nullptr) {
-        Success &= ResolveExpr(Expr);
+    if (Expr) {
+        Success = ASTResolver::ResolveExpr(this, Expr);
     }
     ASTReturn *Ret = new ASTReturn(Loc, this, Expr);
     Content.push_back(Ret);
@@ -252,6 +180,7 @@ bool ASTBlock::AddReturn(const SourceLocation &Loc, ASTExpr *Expr) {
  * @return true if no error occurs, otherwise false
  */
 bool ASTBlock::AddBreak(const SourceLocation &Loc) {
+    FLY_DEBUG("ASTBlock", "AddBreak");
     Content.push_back(new BreakStmt(Loc, this));
     return true;
 }
@@ -262,6 +191,7 @@ bool ASTBlock::AddBreak(const SourceLocation &Loc) {
  * @return true if no error occurs, otherwise false
  */
 bool ASTBlock::AddContinue(const SourceLocation &Loc) {
+    FLY_DEBUG("ASTBlock", "AddContinue");
     Content.push_back(new ContinueStmt(Loc, this));
     return true;
 }
@@ -273,6 +203,7 @@ bool ASTBlock::AddContinue(const SourceLocation &Loc) {
  * @return true if no error occurs, otherwise false
  */
 bool ASTBlock::AddBlock(const SourceLocation &Loc, ASTBlock *Block) {
+    FLY_DEBUG("ASTBlock", "AddBlock");
     Content.push_back(Block);
     return true;
 }

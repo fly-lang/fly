@@ -2350,7 +2350,7 @@ class ContainerEqMatcher {
       : expected_(View::Copy(expected)) {}
 
   void DescribeTo(::std::ostream* os) const {
-    *os << "equals ";
+    *os << "isUsable ";
     UniversalPrint(expected_, os);
   }
   void DescribeNegationTo(::std::ostream* os) const {

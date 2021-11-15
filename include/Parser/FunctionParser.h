@@ -31,7 +31,7 @@ namespace fly {
 
         FunctionParser(Parser *P, const llvm::StringRef &FuncName, SourceLocation &FuncNameLoc);
 
-        bool ParseFunctionDecl(ASTType *Type);
+        bool ParseFunction(ASTType *Type);
 
         bool ParseFunctionBody();
 

@@ -60,7 +60,7 @@ namespace {
         ASSERT_EQ(Node1->getNameSpace()->getName(), "packageA");
         ASSERT_EQ(Context->getNameSpaces().lookup("packageB"), nullptr);
         ASTNameSpace *NS1 = Context->getNameSpaces().lookup(Node1->getNameSpace()->getName());
-        ASSERT_EQ(NS1->getNodes().lookup(Node1->getFileName())->getFileName(), "file1.fly");
+        ASSERT_EQ(NS1->getNodes().lookup(Node1->getName())->getName(), "file1.fly");
         ASSERT_EQ(Node1->getImports().lookup("packageA"), nullptr);
         ASSERT_EQ(Node1->getImports().lookup("packageB")->getNameSpace(), nullptr);
 

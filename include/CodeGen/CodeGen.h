@@ -18,6 +18,7 @@
 #include "Basic/Diagnostic.h"
 #include "AST/ASTContext.h"
 #include "llvm/IR/LLVMContext.h"
+#include "llvm/Linker/Linker.h"
 #include <memory>
 
 namespace llvm {
@@ -44,12 +45,16 @@ namespace fly {
         BackendActionKind ActionKind;
         bool ShowTimers;
 
-        static std::string getOutputFileName(BackendActionKind Action, StringRef BaseInput);
     public:
         CodeGen(DiagnosticsEngine &Diags, CodeGenOptions &CodeGenOpts,
-                const std::shared_ptr<TargetOptions> &TargetOpts, BackendActionKind BackendAction, bool ShowTimers);
+                const std::shared_ptr<TargetOptions> &TargetOpts,
+                BackendActionKind BackendAction, bool ShowTimers = false);
 
-        void Emit(CodeGenModule *CGM);
+        std::string getOutputFileName(StringRef BaseInput);
+
+        void Emit(llvm::Module *M, llvm::StringRef OutName);
+
+        std::string HandleTranslationUnit(std::unique_ptr<llvm::Module> &M, llvm::StringRef OutFile = "");
 
         static TargetInfo* CreateTargetInfo(DiagnosticsEngine &Diags,
                                                  const std::shared_ptr<TargetOptions> &TargetOpts);
@@ -58,6 +63,8 @@ namespace fly {
         TargetInfo &getTargetInfo() const;
 
         CodeGenModule *CreateModule(llvm::StringRef Name);
+
+        llvm::LLVMContext &getLLVMCtx();
     };
 }
 

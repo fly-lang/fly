@@ -26,7 +26,7 @@ public:
         CI.getTargetOptions()->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
         CI.getTargetOptions()->CodeModel = "default";
         return new CodeGen(CI.getDiagnostics(), CI.getCodeGenOptions(), CI.getTargetOptions(),
-                           CI.getFrontendOptions().BackendAction, CI.getFrontendOptions().ShowTimers);
+                           CI.getFrontendOptions().BackendAction);
     }
 
     static std::shared_ptr<CompilerInstance> CreateCompilerInstance() {

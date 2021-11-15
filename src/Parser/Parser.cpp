@@ -11,6 +11,7 @@
 #include "AST/ASTWhileBlock.h"
 #include "AST/ASTImport.h"
 #include "AST/ASTNameSpace.h"
+#include "AST/ASTResolver.h"
 #include "Basic/Debug.h"
 
 using namespace fly;
@@ -55,7 +56,6 @@ bool Parser::Parse(ASTNode *Node) {
             // Parse All
             while (Tok.isNot(tok::eof)) {
                 if (!ParseTopDecl()) {
-                    Diag(Tok.getLocation(), diag::err_top_decl);
                     return false;
                 }
             }
@@ -87,19 +87,32 @@ DiagnosticBuilder Parser::Diag(const Token &Tok, unsigned DiagID) {
     return Diag(Tok.getLocation(), DiagID);
 }
 
+DiagnosticBuilder Parser::Diag(unsigned DiagID) {
+    return Diag(Tok, DiagID);
+}
+
+void Parser::DiagInvalidId(SourceLocation Loc) {
+    if (isKeyword(Tok.getKind())) {
+        Diag(Loc, diag::err_invalid_id) << tok::getKeywordSpelling(Tok.getKind());
+    } else {
+        Diag(Loc, diag::err_invalid_id) << tok::getPunctuatorSpelling(Tok.getKind());
+    }
+}
+
 /**
  * Get String between quotes from token
  * @return string
  */
 llvm::StringRef Parser::getLiteralString() {
     StringRef Name(Tok.getLiteralData(), Tok.getLength());
+    StringRef Str = "";
     if (Name.startswith("\"") && Name.endswith("\"")) {
         StringRef StrRefName = Name.substr(1, Name.size()-2);
         ConsumeStringToken();
         return StrRefName;
     }
-
-    return "";
+    FLY_DEBUG_MESSAGE("Parser", "getLiteralString", "String=" << Str);
+    return Str;
 }
 
 /**
@@ -134,7 +147,7 @@ bool Parser::ParseNameSpace() {
     }
 
     // Define Default NameSpace also if it has not been defined
-    FLY_DEBUG_MESSAGE("Parser", "ParseNameSpace", "No namespace defined, set default");
+    FLY_DEBUG_MESSAGE("Parser", "ParseNameSpace", "No namespace defined");
     AST->setDefaultNameSpace();
     return true;
 }
@@ -145,7 +158,7 @@ bool Parser::ParseNameSpace() {
  * @return true on Success or false on Error
  */
 bool Parser::ParseTopDecl() {
-
+    FLY_DEBUG("Parser", "ParseTopDecl");
     VisibilityKind Visibility = VisibilityKind::V_DEFAULT;
     bool Constant = false;
 
@@ -166,7 +179,7 @@ bool Parser::ParseTopDecl() {
                 SourceLocation IdLoc = Tok.getLocation();
                 ConsumeToken();
                 if (Tok.is(tok::l_paren)) {
-                    return ParseFunctionDecl(Visibility, Constant, Type, Name, IdLoc);
+                    return ParseFunction(Visibility, Constant, Type, Name, IdLoc);
                 }
                 return ParseGlobalVarDecl(Visibility, Constant, Type, Name, IdLoc);
             }
@@ -195,7 +208,7 @@ bool Parser::ParseImports() {
 
             // Parse import "..."
             StringRef Name = getLiteralString();
-            FLY_DEBUG_MESSAGE("Parser", "ParseImports", "Single Import Name=" << Name);
+            FLY_DEBUG_MESSAGE("Parser", "ParseImports", "Single Import.Name=" << Name);
 
             // Syntax Error Quote
             if (Name.empty()) {
@@ -233,7 +246,7 @@ bool Parser::ParseImportParen() {
 
         // Parse Import
         StringRef Name = getLiteralString();
-        FLY_DEBUG_MESSAGE("Parser", "ParseImportParen", "Multiple Import Name=" << Name);
+        FLY_DEBUG_MESSAGE("Parser", "ParseImportParen", "Multiple Import.Name=" << Name);
 
         if (Name.empty()) {
             Diag(Tok, diag::err_import_undefined);
@@ -274,7 +287,7 @@ bool Parser::ParseImportAlias(const SourceLocation &Location, StringRef Name) {
         if (Tok.isLiteral()) {
             StringRef Alias = getLiteralString();
             FLY_DEBUG_MESSAGE("Parser", "ParseImportAlias",
-                              "Import Name=" + Name + " ,Alias=" << Name);
+                              "Name=" + Name + " , Alias=" << Alias);
             return AST->AddImport(new ASTImport(Location, Name, Alias));
         }
     }
@@ -339,14 +352,16 @@ bool Parser::ParseConst(bool &Constant) {
  * Parse GlobalVar declaration
  * @param VisKind
  * @param Constant
- * @param TyDecl
+ * @param Type
  * @param Id
  * @param IdLoc
  * @return true on Success or false on Error
  */
-bool Parser::ParseGlobalVarDecl(VisibilityKind &VisKind, bool &Constant, ASTType *TyDecl,
+bool Parser::ParseGlobalVarDecl(VisibilityKind &VisKind, bool &Constant, ASTType *Type,
                                 llvm::StringRef &Name, SourceLocation &NameLoc) {
-    GlobalVarParser Parser(this, TyDecl, Name, NameLoc);
+    FLY_DEBUG_MESSAGE("Parser", "ParseGlobalVarDecl", "Name=" << Name <<
+    ", Type=" << Type->str());
+    GlobalVarParser Parser(this, Type, Name, NameLoc);
     if (Parser.Parse()) {
         Parser.Var->Constant = Constant;
         Parser.Var->Visibility = VisKind;
@@ -363,6 +378,7 @@ bool Parser::ParseGlobalVarDecl(VisibilityKind &VisKind, bool &Constant, ASTType
  * @return true on Success or false on Error
  */
 bool Parser::ParseClassDecl(VisibilityKind &VisKind, bool &Constant) {
+    FLY_DEBUG("Parser", "ParseClassDecl");
     ClassParser Parser(this);
     if (Parser.Parse()) {
         Parser.Class->Constant = Constant;
@@ -377,16 +393,17 @@ bool Parser::ParseClassDecl(VisibilityKind &VisKind, bool &Constant) {
  * Parse Function declaration
  * @param VisKind
  * @param Constant
- * @param TyDecl
+ * @param Type
  * @param Id
  * @param IdLoc
  * @return true on Success or false on Error
  */
-bool Parser::ParseFunctionDecl(VisibilityKind &VisKind, bool Constant, ASTType *TyDecl,
-                               llvm::StringRef &Name, SourceLocation &NameLoc) {
-    FLY_DEBUG_MESSAGE("Parser", "ParseFunctionDecl","Visibility=" << VisKind);
+bool Parser::ParseFunction(VisibilityKind &VisKind, bool Constant, ASTType *Type,
+                           llvm::StringRef &Name, SourceLocation &NameLoc) {
+    FLY_DEBUG_MESSAGE("Parser", "ParseFunction","Name=" << Name <<
+        ", Type=" << Type->str());
     FunctionParser Parser(this, Name, NameLoc);
-    if (Parser.ParseFunctionDecl(TyDecl)) {
+    if (Parser.ParseFunction(Type)) {
         Parser.Function->Constant = Constant;
         Parser.Function->Visibility = VisKind;
         return AST->AddFunction(Parser.Function);
@@ -414,13 +431,14 @@ bool Parser::ParseType(ASTType *&Type) {
         case tok::kw_void:
             Type = new ASTVoidType(Loc);
             break;
-        default:
-            StringRef Name = Tok.getIdentifierInfo()->getName();
-            if (Name.empty()) {
-                Diag(Loc, diag::err_type_undefined);
+        default: {
+            if (!Tok.getIdentifierInfo()) {
+                DiagInvalidId(Loc);
                 return false;
             }
+            StringRef Name = Tok.getIdentifierInfo()->getName();
             Type = new ASTClassType(Loc, Name);
+        }
     }
     ConsumeToken();
     FLY_DEBUG_MESSAGE("Parser", "ParseType", "Type=" << Type->str());
@@ -433,6 +451,7 @@ bool Parser::ParseType(ASTType *&Type) {
  * @return true on Success or false on Error
  */
 bool Parser::ParseBlock(ASTBlock *Block) {
+    FLY_DEBUG("Parser", "ParseBlock");
     if (Tok.isOneOf(tok::kw_if, tok::kw_elsif, tok::kw_else)) {
         return ParseIfStmt(Block);
     }
@@ -486,11 +505,12 @@ bool Parser::ParseInnerBlock(ASTBlock *Block) {
  * @return true on Success or false on Error
  */
 bool Parser::ParseStmt(ASTBlock *Block) {
+    FLY_DEBUG("Parser", "ParseStmt");
     bool Success = true;
     // Parse keywords
     if (Tok.is(tok::kw_return)) { // Parse return
         SourceLocation Loc = ConsumeToken();
-        ASTExpr *Expr = ParseAllExpr(Block, Success);
+        ASTExpr *Expr = ParseExpr(Block, Success);
         return Block->AddReturn(Loc, Expr);
     } else if (Tok.is(tok::kw_break)) { // Parse break
         return Block->AddBreak(ConsumeToken());
@@ -502,7 +522,6 @@ bool Parser::ParseStmt(ASTBlock *Block) {
     bool Constant = false;
     ParseConst(Constant);
 
-    SourceLocation Loc = Tok.getLocation();
     if (Tok.isAnyIdentifier()) {
 
         // T a = ... (Type)
@@ -510,7 +529,7 @@ bool Parser::ParseStmt(ASTBlock *Block) {
         // a++
         // a = ... (Var)
         IdentifierInfo *Id = Tok.getIdentifierInfo();
-        ConsumeToken();
+        SourceLocation Loc = ConsumeToken();
 
         if (Tok.isAnyIdentifier()) { // variable declaration
             // T a = ...
@@ -518,7 +537,7 @@ bool Parser::ParseStmt(ASTBlock *Block) {
             ASTType *Type = new ASTClassType(Loc, Name);
             if (Type) {
                 ASTLocalVar* Var = ParseLocalVar(Block, Constant, Type, Success);
-                return Block->AddVar(Var);
+                return Block->AddLocalVar(Var);
             }
         } else if (Tok.is(tok::l_paren)) { // function invocation
             // a()
@@ -544,23 +563,23 @@ bool Parser::ParseStmt(ASTBlock *Block) {
             ASTLocalVarRef* Var = new ASTLocalVarRef(Loc, Block, Id->getName());
             ASTExpr *Expr = ParseStmtExpr(Block, Var, Success);
             Var->setExpr(Expr);
-            return Block->AddVarRef(Var);
+            return Block->AddLocalVarRef(Var);
         }
     } else if (isBuiltinType()) {
         // int a = ...
         ASTType *Type = nullptr;
         if (ParseType(Type)) {
             ASTLocalVar *Var = ParseLocalVar(Block, Constant, Type, Success);
-            return Block->AddVar(Var);
+            return Block->AddLocalVar(Var);
         }
         return false;
     } else if (isUnaryPostOperator()) { // variable increment or decrement
         // ++a or --a or !a
         ASTOperatorExpr *Expr = ParseUnaryPostOperatorExpr(Success);
-        ConsumeToken();
+        SourceLocation Loc = ConsumeToken();
         if (Success && Tok.isAnyIdentifier()) {
-            ASTVarRef *VarRef = new ASTVarRef(Loc, Tok.getIdentifierInfo()->getName());
-            ConsumeToken();
+            ASTVarRef *VarRef = new ASTVarRef(Tok.getLocation(), Tok.getIdentifierInfo()->getName());
+            Loc = ConsumeToken();
             ASTExprStmt *ExprStmt = new ASTExprStmt(Loc, Block);
             ExprStmt->setExpr(new ASTUnaryExpr(Loc, Expr, VarRef, UNARY_PRE));
             return Block->AddExprStmt(ExprStmt);
@@ -570,7 +589,7 @@ bool Parser::ParseStmt(ASTBlock *Block) {
         return false;
     }
 
-    Diag(Tok.getLocation(), diag::err_parse_stmt);
+    Diag(diag::err_parse_stmt);
     return false;
 }
 
@@ -579,20 +598,22 @@ bool Parser::ParseStmt(ASTBlock *Block) {
  * @return true on Success or false on Error
  */
 bool Parser::ParseStartParen() {
-    bool hasParen = false;
+    bool HasParen = false;
     if (Tok.is(tok::l_paren)) {
         ConsumeParen();
-        hasParen = true;
+        HasParen = true;
     }
-    return hasParen;
+    FLY_DEBUG_MESSAGE("Parser", "ParseStartParen", "HasParen=" << HasParen);
+    return HasParen;
 }
 
 /**
  * Parse close paren ) at end of cycle into condition statements
  * @return true on Success or false on Error
  */
-bool Parser::ParseEndParen(bool hasParen) {
-    if (hasParen) {
+bool Parser::ParseEndParen(bool HasParen) {
+    if (HasParen) {
+        FLY_DEBUG_MESSAGE("Parser", "ParseEndParen", "HasParen=" << HasParen);
         if (Tok.is(tok::r_paren)) {
             ConsumeParen();
             return true;
@@ -625,6 +646,7 @@ bool Parser::ParseEndParen(bool hasParen) {
  * @return true on Success or false on Error
  */
 bool Parser::ParseIfStmt(ASTBlock *Block) {
+    FLY_DEBUG("Parser", "ParseIfStmt");
     bool Success = true;
 
     ASTIfBlock *Stmt;
@@ -637,7 +659,7 @@ bool Parser::ParseIfStmt(ASTBlock *Block) {
             // Parse (
             bool hasParen = ParseStartParen();
             // Parse the group of expressions into parenthesis
-            ASTExpr *Expr = ParseAllExpr(Block, Success);
+            ASTExpr *Expr = ParseExpr(Block, Success);
             // Parse ) if exists
             if (!ParseEndParen(hasParen)) {
                 return false;
@@ -650,7 +672,7 @@ bool Parser::ParseIfStmt(ASTBlock *Block) {
             // Parse (
             bool hasParen = ParseStartParen();
             // Parse the group of expressions into parenthesis
-            ASTExpr *Expr = ParseAllExpr(Block, Success);
+            ASTExpr *Expr = ParseExpr(Block, Success);
             // Parse ) if exists
             if (!ParseEndParen(hasParen)) {
                 return false;
@@ -701,6 +723,7 @@ bool Parser::ParseIfStmt(ASTBlock *Block) {
  * @return true on Success or false on Error
  */
 bool Parser::ParseSwitchStmt(ASTBlock *Block) {
+    FLY_DEBUG("Parser", "ParseSwitchStmt");
     bool Success = true;
 
     // Parse switch keyword
@@ -710,7 +733,7 @@ bool Parser::ParseSwitchStmt(ASTBlock *Block) {
     bool hasParen = ParseStartParen();
 
     // Parse Var reference like (a)
-    ASTExpr *Expr = ParseAllExpr(Block, Success);
+    ASTExpr *Expr = ParseExpr(Block, Success);
     if (Success) {
 
         // Consume Right Parenthesis ) if exists
@@ -734,7 +757,7 @@ bool Parser::ParseSwitchStmt(ASTBlock *Block) {
                     // for a Value  -> case 1:
                     // for a Var -> case a:
                     // for a default
-                    ASTExpr * CaseExp = nullptr;
+                    ASTExpr * CaseExp;
                     if (isValue()) {
                         CaseExp = ParseValueExpr(Success);
                     } else if (Tok.isAnyIdentifier()) {
@@ -800,13 +823,14 @@ bool Parser::ParseSwitchStmt(ASTBlock *Block) {
  * @return true on Success or false on Error
  */
 bool Parser::ParseWhileStmt(ASTBlock *Block) {
+    FLY_DEBUG("Parser", "ParseWhileStmt");
     bool Success = true;
     const SourceLocation &Loc = ConsumeToken();
 
     // Consume Left Parenthesis ( if exists
     bool hasParen = ParseStartParen();
 
-    ASTExpr *Cond = ParseAllExpr(Block, Success);
+    ASTExpr *Cond = ParseExpr(Block, Success);
     ASTWhileBlock *While = new ASTWhileBlock(Loc, Block, Cond);
 
     // Consume Right Parenthesis ) if exists
@@ -846,6 +870,7 @@ bool Parser::ParseWhileStmt(ASTBlock *Block) {
  * @return true on Success or false on Error
  */
 bool Parser::ParseForStmt(ASTBlock *Block) {
+    FLY_DEBUG("Parser", "ParseForStmt");
     bool Success = true;
     const SourceLocation &Loc = ConsumeToken();
 
@@ -863,7 +888,7 @@ bool Parser::ParseForStmt(ASTBlock *Block) {
         if (Tok.is(tok::semi)) {
             ConsumeToken();
 
-            ASTExpr *CondExpr = ParseAllExpr(For, Success);
+            ASTExpr *CondExpr = ParseExpr(For, Success);
             if (Success) {
                 For->setCond(CondExpr);
 
@@ -901,6 +926,7 @@ bool Parser::ParseForStmt(ASTBlock *Block) {
  * @return true on Success or false on Error
  */
 bool Parser::ParseForCommaStmt(ASTBlock *Block) {
+    FLY_DEBUG("Parser", "ParseForCommaStmt");
     if (ParseStmt(Block)) {
 
         if (Tok.is(tok::comma)) {
@@ -921,8 +947,9 @@ bool Parser::ParseForCommaStmt(ASTBlock *Block) {
  * @return true on Success or false on Error
  */
 ASTFuncCall *Parser::ParseFunctionCall(ASTBlock *Block, IdentifierInfo *Id, SourceLocation &Loc, bool &Success) {
-    const StringRef &IdName = Id->getName();
-    FunctionParser Parser(this, IdName, Loc);
+    const StringRef &Name = Id->getName();
+    FLY_DEBUG_MESSAGE("Parser", "ParseFunctionCall", "Name=" << Name);
+    FunctionParser Parser(this, Name, Loc);
     Parser.ParseCall(Block);
     return Parser.Call;
 }
@@ -936,7 +963,14 @@ ASTFuncCall *Parser::ParseFunctionCall(ASTBlock *Block, IdentifierInfo *Id, Sour
  * @return the ASTLocalVar
  */
 ASTLocalVar *Parser::ParseLocalVar(ASTBlock *Block, bool Constant, ASTType *Type, bool &Success) {
+    if (!Tok.getIdentifierInfo()) {
+        Diag(Tok, diag::err_var_undefined);
+        Success = false;
+        return nullptr;
+    }
     const StringRef Name = Tok.getIdentifierInfo()->getName();
+    FLY_DEBUG_MESSAGE("Parser", "ParseLocalVar",
+                      "Name=" << Name << ", Constant=" << Constant << ", Type=" << Type->str());
     const SourceLocation Loc = Tok.getLocation();
     ASTLocalVar *Var = new ASTLocalVar(Loc, Block, Type, Name);
     Var->Constant = Constant;
@@ -952,6 +986,11 @@ ASTLocalVar *Parser::ParseLocalVar(ASTBlock *Block, bool Constant, ASTType *Type
  * @return the ASTVarRef
  */
 ASTVarRef* Parser::ParseVarRef(bool &Success) {
+    if (!Tok.getIdentifierInfo()) {
+        Diag(Tok, diag::err_var_undefined);
+        Success = false;
+        return nullptr;
+    }
     ASTVarRef *VRef = new ASTVarRef(Tok.getLocation(), Tok.getIdentifierInfo()->getName());
     ConsumeToken();
     return VRef;
@@ -981,7 +1020,7 @@ ASTExpr* Parser::ParseStmtExpr(ASTBlock *Block, ASTVarRef *VarRef, bool &Success
     // Parsing =, +=, -=, ...
     if (Tok.is(tok::equal)) {
         ConsumeToken();
-        return ParseAllExpr(Block, Success);
+        return ParseExpr(Block, Success);
     } else if (Tok.isOneOf(tok::plusequal, tok::minusequal, tok::starequal, tok::slashequal,
                            tok::percentequal, tok::ampequal, tok::pipeequal, tok::caretequal, tok::lesslessequal,
                            tok::greatergreaterequal)) {
@@ -1029,7 +1068,7 @@ ASTExpr* Parser::ParseStmtExpr(ASTBlock *Block, ASTVarRef *VarRef, bool &Success
                 assert(0 && "Accept Only assignment operators");
         }
         ConsumeToken();
-        return ParseAllExpr(Block, Success, GroupExpr);
+        return ParseExpr(Block, Success, GroupExpr);
     }
     return nullptr;
 }
@@ -1041,12 +1080,13 @@ ASTExpr* Parser::ParseStmtExpr(ASTBlock *Block, ASTVarRef *VarRef, bool &Success
  * @param ParentGroup
  * @return the ASTExpr
  */
-ASTExpr* Parser::ParseAllExpr(ASTBlock *Block, bool &Success, ASTGroupExpr *ParentGroup) {
+ASTExpr* Parser::ParseExpr(ASTBlock *Block, bool &Success, ASTGroupExpr *ParentGroup) {
     assert(Block != nullptr && "Block is nullptr");
+    FLY_DEBUG("Parser", "ParseExpr");
 
     if (Tok.is(tok::l_paren)) {
         const SourceLocation &Loc = ConsumeParen();
-        ASTGroupExpr *CurrGroup = (ASTGroupExpr *) ParseAllExpr(Block, Success, new ASTGroupExpr(Loc));
+        ASTGroupExpr *CurrGroup = (ASTGroupExpr *) ParseExpr(Block, Success, new ASTGroupExpr(Loc));
 
         if (Tok.is(tok::r_paren)) {
             ConsumeParen();
@@ -1061,7 +1101,7 @@ ASTExpr* Parser::ParseAllExpr(ASTBlock *Block, bool &Success, ASTGroupExpr *Pare
                 CurrGroup->Add(OpExpr);
 
                 // Parse with recursion
-                ParseAllExpr(Block, Success, CurrGroup);
+                ParseExpr(Block, Success, CurrGroup);
                 return CurrGroup;
             }
             return CurrGroup;
@@ -1069,7 +1109,7 @@ ASTExpr* Parser::ParseAllExpr(ASTBlock *Block, bool &Success, ASTGroupExpr *Pare
 
         Diag(Tok.getLocation(), diag::err_paren_unclosed);
     } else {
-        ASTExpr *Expr = ParseOneExpr(Block, Success);
+        ASTExpr *Expr = ParseExprChunk(Block, Success);
 
         // If there is an Operator start creating a GroupExpr
         if (Success && isOperator()) {
@@ -1085,7 +1125,7 @@ ASTExpr* Parser::ParseAllExpr(ASTBlock *Block, bool &Success, ASTGroupExpr *Pare
             ParentGroup->Add(OpExpr);
 
             // Parse with recursion
-            return ParseAllExpr(Block, Success, ParentGroup);
+            return ParseExpr(Block, Success, ParentGroup);
         }
 
         if (ParentGroup != nullptr) {
@@ -1104,7 +1144,8 @@ ASTExpr* Parser::ParseAllExpr(ASTBlock *Block, bool &Success, ASTGroupExpr *Pare
  * @param Success true on Success or false on Error
  * @return the ASTExpr
  */
-ASTExpr* Parser::ParseOneExpr(ASTBlock *Block, bool &Success) {
+ASTExpr* Parser::ParseExprChunk(ASTBlock *Block, bool &Success) {
+    FLY_DEBUG("Parser", "ParseExprChunk");
     // Start Parsing
     if (isValue()) {
         return ParseValueExpr(Success);
@@ -1115,19 +1156,19 @@ ASTExpr* Parser::ParseOneExpr(ASTBlock *Block, bool &Success) {
             // a()
             ASTFuncCall *Call = ParseFunctionCall(Block, Id, Loc, Success);
             if (Success) {
-                Success = Block->Top->addUnRefCall(Call);
+                Success = Block->Top->getNode()->AddUnrefCall(Call);
                 return new ASTFuncCallExpr(Loc, Call);
             }
         } else {
-            ASTVarRef *VRef = new ASTVarRef(Loc, Id->getName());
-            Block->ResolveVarRef(VRef);
+            ASTVarRef *VarRef = new ASTVarRef(Loc, Id->getName());
+            Success &= ASTResolver::ResolveVarRef(Block, VarRef);
             if (isUnaryPostOperator()) { // variable increment or decrement
                 // a++ or a--
                 ASTOperatorExpr *Expr = ParseUnaryPostOperatorExpr(Success);
                 ConsumeToken();
-                return new ASTUnaryExpr(Loc, Expr, VRef, UNARY_POST);
+                return new ASTUnaryExpr(Loc, Expr, VarRef, UNARY_POST);
             }
-            return new ASTVarRefExpr(Loc, VRef);
+            return new ASTVarRefExpr(Loc, VarRef);
         }
     } else if (isUnaryPreOperator()) { // variable increment or decrement
         // ++a or --a or !a
@@ -1136,9 +1177,9 @@ ASTExpr* Parser::ParseOneExpr(ASTBlock *Block, bool &Success) {
         if (Tok.isAnyIdentifier()) {
             IdentifierInfo *Id = Tok.getIdentifierInfo();
             SourceLocation Loc = ConsumeToken();
-            ASTVarRef *VRef = new ASTVarRef(Loc, Id->getName());
-            Block->ResolveVarRef(VRef);
-            return new ASTUnaryExpr(Loc, Expr, VRef, UNARY_PRE);
+            ASTVarRef *VarRef = new ASTVarRef(Loc, Id->getName());
+            ASTResolver::ResolveVarRef(Block, VarRef);
+            return new ASTUnaryExpr(Loc, Expr, VarRef, UNARY_PRE);
         }
 
         Diag(Tok.getLocation(), diag::err_unary_operator)
@@ -1154,6 +1195,7 @@ ASTExpr* Parser::ParseOneExpr(ASTBlock *Block, bool &Success) {
  * @return the ASTValueExpr
  */
 ASTValueExpr *Parser::ParseValueExpr(bool &Success) {
+    FLY_DEBUG("Parser", "ParseValueExpr");
     // Parse Numeric Constants
     if (Tok.is(tok::numeric_constant)) {
         const StringRef Val = StringRef(Tok.getLiteralData(), Tok.getLength());
@@ -1190,6 +1232,7 @@ ASTValueExpr *Parser::ParseValueExpr(bool &Success) {
  * @return the ASTOperatorExpr
  */
 ASTOperatorExpr* Parser::ParseOperatorExpr(bool &Success) {
+    FLY_DEBUG("Parser", "ParseOperatorExpr");
     SourceLocation Loc = Tok.getLocation();
     switch (Tok.getKind()) {
 

@@ -75,74 +75,6 @@ void ASTFunc::setVarArg(ASTFuncParam* VarArg) {
     Header->VarArg = VarArg;
 }
 
-bool ASTFunc::addUnRefCall(ASTFuncCall *Call) {
-    if (Call->getNameSpace().empty()) {
-        getNode()->AddUnRefCall(Call);
-    } else if (Call->getNameSpace() == getNameSpace()->getName()) {
-        getNameSpace()->addUnRefCall(Call);
-    } else {
-        getNode()->getContext().addUnRefCall(Call);
-    }
-    return true;
-}
-
-void ASTFunc::addUnRefGlobalVar(ASTVarRef *VarRef) {
-    getNode()->AddUnRefGlobalVar(VarRef);
-}
-
-void ASTFunc::addNSUnRefGlobalVar(ASTVarRef *VarRef) {
-    if (VarRef->getNameSpace() == getNameSpace()->getName()) {
-        getNameSpace()->addUnRefGlobalVar(VarRef);
-    } else {
-        getNode()->getContext().addUnRefGlobalVar(VarRef);
-    }
-}
-
-bool ASTFunc::ResolveCall(ASTFuncCall *ResolvedCall, ASTFuncCall *Call) {
-    const auto &Params = ResolvedCall->getDecl()->getHeader()->getParams();
-    const bool isVarArg = ResolvedCall->getDecl()->isVarArg();
-    const auto &Args = Call->getArgs();
-
-    // Check Number of Args on First
-    if (isVarArg) {
-        if (Params.size() > Args.size()) {
-            return false;
-        }
-    } else {
-        if (Params.size() != Args.size()) {
-            return false;
-        }
-    }
-
-    // Check Type
-    for (int i = 0; i < Params.size(); i++) {
-        bool isLast = i+1 == Params.size();
-
-        //Check VarArgs by compare each Arg Type with last Param Type
-        if (isLast && isVarArg) {
-            for (int n = i; n < Args.size(); n++) {
-                // Check Equal Type
-                if (Params[i]->getType()->getKind() == Args[n]->getType()->getKind()) {
-                    return false;
-                }
-            }
-        } else {
-            ASTCallArg *Arg = Args[i];
-            if (Arg->getType() == nullptr) {
-                ASTType *Ty = ASTNode::ResolveExprType(Arg->getValue());
-                Arg->setType(Ty);
-            }
-
-            // Check Equal Type
-            if (!Params[i]->getType()->equals(Arg->getType())) {
-                return false;
-            }
-        }
-    }
-
-    return true;
-}
-
 std::string ASTFunc::str() const {
     std::string Str = "{ Name=" + Name.str() +
             ", Params=[";
@@ -230,7 +162,6 @@ const ASTFuncParam *ASTFuncHeader::getVarArg() const {
 }
 
 ASTReturn::ASTReturn(const SourceLocation &Loc, ASTBlock *Block, ASTExpr *Expr) : ASTStmt(Loc, Block),
-                                                                                  Type(Block->getTop()->getType()),
                                                                                   Expr(Expr) {}
 
 ASTExpr *ASTReturn::getExpr() const {
@@ -243,7 +174,6 @@ StmtKind ASTReturn::getKind() const {
 
 std::string ASTReturn::str() const {
     return "{ Kind=" + std::to_string(Kind) +
-           ", Type=" + Type->str() +
            ", Expr=" + Expr->str() +
            " }";
 }
@@ -301,6 +231,49 @@ ASTFuncCall *ASTFuncCall::CreateCall(ASTFunc *FDecl) {
         FCall->addArg(new ASTCallArg(nullptr, Param->getType()));
     }
     return FCall;
+}
+
+bool ASTFuncCall::isUsable(ASTFuncCall *Call) {
+    const auto &Params = Decl->getHeader()->getParams();
+    const auto &Args = Call->getArgs();
+
+    // Check Number of Args on First
+    if (Decl->isVarArg()) {
+        if (Params.size() > Args.size()) {
+            return false;
+        }
+    } else {
+        if (Params.size() != Args.size()) {
+            return false;
+        }
+    }
+
+    // Check Type
+    for (int i = 0; i < Params.size(); i++) {
+        bool isLast = i+1 == Params.size();
+
+        //Check VarArgs by compare each Arg Type with last Param Type
+        if (isLast && Decl->isVarArg()) {
+            for (int n = i; n < Args.size(); n++) {
+                // Check Equal Type
+                if (Params[i]->getType()->getKind() == Args[n]->getType()->getKind()) {
+                    return false;
+                }
+            }
+        } else {
+            ASTCallArg *Arg = Args[i];
+            if (Arg->getType() == nullptr) {
+                ASTType *Ty = ASTResolver::ResolveExprType(Arg->getValue());
+                Arg->setType(Ty);
+            }
+
+            // Check Equal Type
+            if (!Params[i]->getType()->equals(Arg->getType())) {
+                return false;
+            }
+        }
+    }
+    return true;
 }
 
 std::string ASTFuncCall::str() const {

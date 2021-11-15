@@ -29,11 +29,10 @@ namespace fly {
         CodeGenModule *CGM;
         llvm::GlobalVariable *GVar;
         llvm::LoadInst *LoadI = nullptr;
-        bool isStored;
         bool needLoad;
 
     public:
-        CodeGenGlobalVar(CodeGenModule *CGM, ASTGlobalVar* AST);
+        CodeGenGlobalVar(CodeGenModule *CGM, ASTGlobalVar* AST, bool isExternal = false);
 
         llvm::Value *getPointer() override;
 
@@ -42,6 +41,8 @@ namespace fly {
         llvm::StoreInst *Store(llvm::Value *Val) override;
 
         llvm::LoadInst *Load() override;
+
+        void reset();
     };
 }
 

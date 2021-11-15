@@ -28,7 +28,7 @@ FunctionParser::FunctionParser(Parser *P, const StringRef &FuncName, SourceLocat
  * @param Type
  * @return true on Success or false on Error
  */
-bool FunctionParser::ParseFunctionDecl(ASTType *Type) {
+bool FunctionParser::ParseFunction(ASTType *Type) {
     Function = new ASTFunc(P->AST, FuncNameLoc, Type, FuncName);
     if (ParseFunctionParams()) {
         return ParseFunctionBody();
@@ -161,7 +161,7 @@ bool FunctionParser::ParseCallArg(ASTBlock *Block) {
     bool Success = true;
 
     // Parse Args in a Function Call
-    ASTExpr *E = P->ParseAllExpr(Block, Success);
+    ASTExpr *E = P->ParseExpr(Block, Success);
 
     if (Success) {
         // Type will be resolved into AST Finalize

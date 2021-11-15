@@ -68,9 +68,8 @@ namespace fly {
 
         DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID);
         DiagnosticBuilder Diag(const Token &Tok, unsigned DiagID);
-        DiagnosticBuilder Diag(unsigned DiagID) {
-            return Diag(Tok, DiagID);
-        }
+        DiagnosticBuilder Diag(unsigned DiagID);
+        void DiagInvalidId(SourceLocation Loc);
 
     private:
 
@@ -195,12 +194,12 @@ namespace fly {
          * Parse Global Var declaration
          * @param VisKind
          * @param Constant
-         * @param TyDecl
+         * @param Type
          * @param Id
          * @param IdLoc
          * @return
          */
-        bool ParseGlobalVarDecl(VisibilityKind &VisKind, bool &Constant, ASTType *TyDecl,
+        bool ParseGlobalVarDecl(VisibilityKind &VisKind, bool &Constant, ASTType *Type,
                                 llvm::StringRef &Name, SourceLocation &NameLoc);
 
         /**
@@ -215,13 +214,13 @@ namespace fly {
          * Parse Function declaration
          * @param VisKind
          * @param Constant
-         * @param TyDecl
+         * @param Type
          * @param Id
          * @param IdLoc
          * @return
          */
-        bool ParseFunctionDecl(VisibilityKind &VisKind, bool Constant, ASTType *TyDecl, llvm::StringRef &Name,
-                               SourceLocation &NameLoc);
+        bool ParseFunction(VisibilityKind &VisKind, bool Constant, ASTType *Type, llvm::StringRef &Name,
+                           SourceLocation &NameLoc);
 
         /**
          * Parse Type
@@ -244,7 +243,7 @@ namespace fly {
         // Parse Block Structures
 
         bool ParseStartParen();
-        bool ParseEndParen(bool hasParen);
+        bool ParseEndParen(bool HasParen);
         bool ParseIfStmt(ASTBlock *Block);
         bool ParseSwitchStmt(ASTBlock *Block);
         bool ParseWhileStmt(ASTBlock *Block);
@@ -261,8 +260,8 @@ namespace fly {
 
         ASTExpr* ParseStmtExpr(ASTBlock *Block, ASTLocalVar *Var, bool &Success);
         ASTExpr* ParseStmtExpr(ASTBlock *Block, ASTVarRef *VarRef, bool &Success);
-        ASTExpr* ParseAllExpr(ASTBlock *Block, bool &Success, ASTGroupExpr *ParentGroup = nullptr);
-        ASTExpr* ParseOneExpr(ASTBlock *Block, bool &Success);
+        ASTExpr* ParseExpr(ASTBlock *Block, bool &Success, ASTGroupExpr *ParentGroup = nullptr);
+        ASTExpr* ParseExprChunk(ASTBlock *Block, bool &Success);
         ASTValueExpr* ParseValueExpr(bool &Success);
         ASTOperatorExpr* ParseOperatorExpr(bool &Success);
         ASTTernaryExpr *ParseTernaryOperatorExpr(bool &Success);

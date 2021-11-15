@@ -11,6 +11,7 @@
 #include "AST/ASTExpr.h"
 #include "AST/ASTVar.h"
 #include "AST/ASTFunc.h"
+#include "AST/ASTOperatorExpr.h"
 
 using namespace fly;
 
@@ -50,7 +51,7 @@ ASTVarRefExpr::ASTVarRefExpr(const SourceLocation &Loc, ASTVarRef *Ref) : ASTExp
 }
 
 ASTExprKind ASTVarRefExpr::getKind() const {
-return Kind;
+    return Kind;
 }
 
 ASTVarRef *ASTVarRefExpr::getVarRef() const {
@@ -58,20 +59,20 @@ ASTVarRef *ASTVarRefExpr::getVarRef() const {
 }
 
 ASTType *ASTVarRefExpr::getType() const {
-    return Ref->getDecl()->getType();
+    return Ref->getDecl() == nullptr ? nullptr : Ref->getDecl()->getType();
 }
 
 std::string ASTVarRefExpr::str() const {
-    return "{ Type=" + getType()->str() +
+    return "{ Type=" +  (getType() ? getType()->str() : "") +
            ", Kind=" + std::to_string(Kind) +
-           ", Ref=" + Ref->str() +
+           ", VarRef=" + Ref->str() +
            " }";
 }
 
 ASTFuncCallExpr::ASTFuncCallExpr(const SourceLocation &Loc, ASTFuncCall *Ref) : ASTExpr(Loc), Call(Ref) {}
 
 ASTExprKind ASTFuncCallExpr::getKind() const {
-return Kind;
+    return Kind;
 }
 
 ASTFuncCall *ASTFuncCallExpr::getCall() const {
@@ -79,11 +80,11 @@ ASTFuncCall *ASTFuncCallExpr::getCall() const {
 }
 
 ASTType *ASTFuncCallExpr::getType() const {
-    return Call->getDecl()->getType();
+    return Call->getDecl() == nullptr ? nullptr : Call->getDecl()->getType();
 }
 
 std::string ASTFuncCallExpr::str() const {
-    return "{ Type=" + getType()->str() +
+    return "{ Type=" + (getType() ? getType()->str() : "") +
            ", Kind=" + std::to_string(Kind) +
            ", Call=" + Call->str() +
            " }";
@@ -113,11 +114,15 @@ ASTType *ASTGroupExpr::getType() const {
     if (isEmpty()) {
         return nullptr;
     }
+    ASTExpr *FirstExpr = Group.at(0);
+    if (FirstExpr->getKind() == EXPR_OPERATOR && ((ASTOperatorExpr *) FirstExpr)->isUnary()) {
+        return ((ASTUnaryExpr *) FirstExpr)->getVarRef()->getDecl()->getType();
+    }
     return Group.at(0)->getType();
 }
 
 std::string ASTGroupExpr::str() const {
-    std::string Str = "{ Type=" + getType()->str() +
+    std::string Str = "{ Type=" + (getType() ? getType()->str() : "") +
                       ", Kind=" + std::to_string(Kind) +
                       ", Group=[";
     if (!Group.empty()) {
@@ -127,5 +132,5 @@ std::string ASTGroupExpr::str() const {
         Str = Str.substr(0, Str.length()-2);
     }
     Str += "] }";
-    return Str;
+    return "";
 }

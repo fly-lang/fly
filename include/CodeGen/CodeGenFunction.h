@@ -22,21 +22,23 @@ namespace fly {
     class CodeGenFunction {
 
         CodeGenModule * CGM;
+        ASTFunc *AST;
         llvm::Function *Fn;
         llvm::StringRef Name;
         llvm::BasicBlock *Entry;
 
-        llvm::FunctionType *GenFuncType(const ASTType *RetTyData, const ASTFuncHeader *Params);
-
     public:
-        CodeGenFunction(CodeGenModule *CGM, const llvm::StringRef &FName, const ASTType *FType,
-                        const ASTFuncHeader *FParams, const ASTBlock *FBody, const std::vector<ASTLocalVar *> &DeclVars);
+        CodeGenFunction(CodeGenModule *CGM, ASTFunc *AST, bool isExternal = false);
 
         const llvm::StringRef &getName() const;
 
-        llvm::BasicBlock *getEntry();
-
         llvm::Function *getFunction();
+
+        void GenBody();
+
+    private:
+        llvm::FunctionType *GenFuncType(const ASTType *RetTyData, const ASTFuncHeader *Params);
+
     };
 }
 

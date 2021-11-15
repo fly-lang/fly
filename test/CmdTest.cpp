@@ -7,7 +7,7 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-
+#include "TestConfig.h"
 #include <Driver/Driver.h>
 #include <Driver/DriverOptions.h>
 #include "llvm/Support/TargetSelect.h"
@@ -19,14 +19,22 @@
 namespace {
     using namespace fly;
 
-    // The test fixture.
     class CmdTest : public ::testing::Test {
 
     public:
+        std::string mainfly = FLY_TEST_SRC_PATH + "/main.fly";
+        std::string utilsfly = FLY_TEST_SRC_PATH + "/utils.fly";
+
         CmdTest() {
+            llvm::InitializeAllTargetInfos();
             llvm::InitializeAllTargets();
             llvm::InitializeAllTargetMCs();
+            InitializeAllAsmParsers();
             llvm::InitializeAllAsmPrinters();
+        }
+
+        ~CmdTest() {
+            llvm::outs().flush();
         }
 
         void deleteFile(const char* testFile) {
@@ -55,60 +63,101 @@ namespace {
     }
 
     TEST_F(CmdTest, EmitLL) {
-        char* Argv[] = {"fly", "-debug", "-ll", "src/main.fly", NULL};
+        deleteFile("main.fly.ll");
+        deleteFile("utils.fly.ll");
+
+        const char* Argv[] = {"fly", "-debug", "-ll", CmdTest::mainfly.c_str(), CmdTest::utilsfly.c_str(), NULL};
         int Argc = sizeof(Argv) / sizeof(char*) - 1;
 
         SmallVector<const char *, 256> ArgList(Argv, Argv + Argc);
         Driver TheDriver(ArgList);
         CompilerInstance &CI = TheDriver.BuildCompilerInstance();
-        TheDriver.Execute();
+        ASSERT_TRUE(TheDriver.Execute());
 
-        std::ifstream reader("main.fly.ll");
-        ASSERT_TRUE(reader && "Error opening main.fly.ll");
+        std::ifstream main("main.fly.ll");
+        ASSERT_TRUE(main && "Error opening main.fly.ll");
 
-        deleteFile("main.fly.ll");
+        std::ifstream utils("utils.fly.ll");
+        ASSERT_TRUE(utils && "Error opening utils.fly.ll");
     }
 
     TEST_F(CmdTest, EmitBC) {
-        char* Argv[] = {"fly", "-bc", "src/main.fly", NULL};
+        deleteFile("main.fly.bc");
+        deleteFile("utils.fly.bc");
+
+        const char* Argv[] = {"fly", "-bc", CmdTest::mainfly.c_str(), CmdTest::utilsfly.c_str(), NULL};
         int Argc = sizeof(Argv) / sizeof(char*) - 1;
 
         SmallVector<const char *, 256> ArgList(Argv, Argv + Argc);
         Driver TheDriver(ArgList);
         CompilerInstance &CI = TheDriver.BuildCompilerInstance();
-        TheDriver.Execute();
+        ASSERT_TRUE(TheDriver.Execute());
 
-        std::ifstream reader("main.fly.bc");
-        ASSERT_TRUE(reader && "Error opening main.fly.bc");
-        deleteFile("main.fly.bc");
+        std::ifstream main("main.fly.bc");
+        ASSERT_TRUE(main && "Error opening main.fly.bc");
+
+        std::ifstream utils("utils.fly.bc");
+        ASSERT_TRUE(utils && "Error opening utils.fly.bc");
     }
 
     TEST_F(CmdTest, EmitAS) {
-        char* Argv[] = {"fly", "-as", "src/main.fly", NULL};
+        deleteFile("main.fly.s");
+        deleteFile("utils.fly.s");
+
+        const char* Argv[] = {"fly", "-as", CmdTest::mainfly.c_str(), CmdTest::utilsfly.c_str(), NULL};
         int Argc = sizeof(Argv) / sizeof(char*) - 1;
 
         SmallVector<const char *, 256> ArgList(Argv, Argv + Argc);
         Driver TheDriver(ArgList);
         CompilerInstance &CI = TheDriver.BuildCompilerInstance();
-        TheDriver.Execute();
+        ASSERT_TRUE(TheDriver.Execute());
 
-        std::ifstream reader("main.fly.as");
-        ASSERT_TRUE(reader && "Error opening main.fly.as");
-        deleteFile("main.fly.as");
+        std::ifstream main("main.fly.s");
+        ASSERT_TRUE(main && "Error opening main.fly.s");
+
+        std::ifstream utils("utils.fly.s");
+        ASSERT_TRUE(utils && "Error opening utils.fly.s");
     }
 
     TEST_F(CmdTest, EmitObj) {
-        char* Argv[] = {"fly", "src/main.fly", NULL};
+        deleteFile("main.fly.o");
+        deleteFile("utils.fly.o");
+
+        const char* Argv[] = {"fly", CmdTest::mainfly.c_str(), CmdTest::utilsfly.c_str(), NULL};
         int Argc = sizeof(Argv) / sizeof(char*) - 1;
 
         SmallVector<const char *, 256> ArgList(Argv, Argv + Argc);
         Driver TheDriver(ArgList);
         CompilerInstance &CI = TheDriver.BuildCompilerInstance();
-        TheDriver.Execute();
+        ASSERT_TRUE(TheDriver.Execute());
 
-        std::ifstream reader("main.fly.o");
-        ASSERT_TRUE(reader && "Error opening main.fly.o");
+        std::ifstream main("main.fly.o");
+        ASSERT_TRUE(main && "Error opening main.fly.o");
+
+        std::ifstream utils("utils.fly.o");
+        ASSERT_TRUE(utils && "Error opening utils.fly.o");
+    }
+
+    TEST_F(CmdTest, EmitOut) {
         deleteFile("main.fly.o");
+        deleteFile("utils.fly.o");
+
+        const char* Argv[] = {"fly", "-debug", CmdTest::mainfly.c_str(), CmdTest::utilsfly.c_str(), "-o", "out", NULL};
+        int Argc = sizeof(Argv) / sizeof(char*) - 1;
+
+        SmallVector<const char *, 256> ArgList(Argv, Argv + Argc);
+        Driver TheDriver(ArgList);
+        CompilerInstance &CI = TheDriver.BuildCompilerInstance();
+        ASSERT_TRUE(TheDriver.Execute());
+
+        const llvm::Triple &T = TargetInfo::CreateTargetInfo(CI.getDiagnostics(), CI.getTargetOptions())->getTriple();
+        if (T.isWindowsMSVCEnvironment()) {
+            std::ifstream out("out.exe");
+            ASSERT_TRUE(out && "Error opening out");
+        } else {
+            std::ifstream out("out");
+            ASSERT_TRUE(out && "Error opening out");
+        }
     }
 
 
