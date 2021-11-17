@@ -133,7 +133,7 @@ jobs:
         with:
           draft: false
           prerelease: true
-          release_name: Fly ${{ needs.build.outputs.version }} Pre-release
+          release_name: Fly ${{ needs.build.outputs.version }}
           tag_name: v${{ needs.build.outputs.version }}
         env:
           GITHUB_TOKEN: ${{ github.token }}
