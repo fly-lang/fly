@@ -147,6 +147,7 @@ jobs:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: fly-${{ needs.build.outputs.version }}-${{env.LINUX_FILE}}
           asset_name: fly-${{ needs.build.outputs.version }}-${{env.LINUX_FILE}}
+          asset_label: linux
           asset_content_type: application/gzip
 
       - name: Windows Upload
@@ -158,6 +159,7 @@ jobs:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: fly-${{ needs.build.outputs.version }}-${{env.WIN_FILE}}
           asset_name: fly-${{ needs.build.outputs.version }}-${{env.WIN_FILE}}
+          asset_label: windows
           asset_content_type: application/gzip
 
       - name: macOS Upload
@@ -169,4 +171,5 @@ jobs:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: fly-${{ needs.build.outputs.version }}-${{env.MACOS_FILE}}
           asset_name: fly-${{ needs.build.outputs.version }}-${{env.MACOS_FILE}}
+          asset_label: macos
           asset_content_type: application/gzip
