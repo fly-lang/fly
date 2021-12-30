@@ -102,25 +102,32 @@ bool ASTResolver::ResolveGlobalVar(ASTNameSpace *NameSpace) {
 bool ASTResolver::ResolveFuncCall(ASTNode *Node) {
     bool Success = true;
 
+    // Skip Function Reference to libc
+    bool IsBaseLib = Node->getNameSpace()->getName().find("fly.base.") == 0;
+
     // Resolve Unreferenced Function Calls (node internal)
     for (auto *UnrefFunctionCall : Node->UnrefFunctionCalls) {
         FLY_DEBUG_MESSAGE("ASTResolver", "ResolveFuncCall",
                           "Node=" << Node->str() <<
                           ", UnrefFunctionCall=" << UnrefFunctionCall->getCall()->str());
-        const auto &It = Node->FunctionCalls.find(UnrefFunctionCall->getCall()->getName());
-        if (It == Node->FunctionCalls.end()) {
-            Node->NameSpace->UnrefFunctionCalls.push_back(UnrefFunctionCall);
+        if (IsBaseLib && UnrefFunctionCall->getCall()->getName().find("c__") == 0) {
+            continue; // TODO UnrefFunctionCalls can be checked with all possible libc functions
         } else {
-            for (auto &FunctionCall : It->getValue()) {
-                if (FunctionCall->isUsable(UnrefFunctionCall->getCall())) {
-                    UnrefFunctionCall->getCall()->setDecl(FunctionCall->getDecl());
-                } else {
-                    Success = false;
+            const auto &It = Node->FunctionCalls.find(UnrefFunctionCall->getCall()->getName());
+            if (It == Node->FunctionCalls.end()) {
+                Node->NameSpace->UnrefFunctionCalls.push_back(UnrefFunctionCall);
+            } else {
+                for (auto &FunctionCall: It->getValue()) {
+                    if (FunctionCall->isUsable(UnrefFunctionCall->getCall())) {
+                        UnrefFunctionCall->getCall()->setDecl(FunctionCall->getDecl());
+                    } else {
+                        Success = false;
+                    }
                 }
-            }
-            if (!Success) { // Not Found
-                Node->NameSpace->Context->Diag(UnrefFunctionCall->getCall()->getLocation(), diag::err_unref_call)
-                        << UnrefFunctionCall->getCall()->getName();
+                if (!Success) { // Not Found
+                    Node->NameSpace->Context->Diag(UnrefFunctionCall->getCall()->getLocation(), diag::err_unref_call)
+                            << UnrefFunctionCall->getCall()->getName();
+                }
             }
         }
     }
@@ -209,7 +216,7 @@ bool ASTResolver::ResolveVarRef(const ASTBlock *Block, ASTVarRef *VarRef) {
     FLY_DEBUG_MESSAGE("ASTResolver", "ResolveVarRef", "VarRef=" << VarRef->str());
     // Search into parameters
     for (auto &Param : Block->getTop()->getHeader()->getParams()) {
-        if (VarRef->getName().equals(Param->getName())) {
+        if (VarRef->getName() == Param->getName()) {
             // Resolve with Param
             VarRef->setDecl(Param);
             break;

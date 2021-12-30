@@ -22,9 +22,10 @@
 
 using namespace fly;
 
-const llvm::StringRef ASTNameSpace::DEFAULT = "default";
+const std::string ASTNameSpace::DEFAULT = "default";
 
-ASTNameSpace::ASTNameSpace(const llvm::StringRef &Name, ASTContext *Context) : ASTNodeBase(Name, Context) {
+ASTNameSpace::ASTNameSpace(llvm::SmallVector<std::string, 4> Names, ASTContext *Context) :
+    ASTNodeBase(flat(Names), Context) {
     FLY_DEBUG_MESSAGE("ASTNameSpace", "ASTNameSpace", "Name=" << Name);
 }
 
@@ -36,4 +37,12 @@ ASTNameSpace::~ASTNameSpace() {
 
 const llvm::StringMap<ASTNode*> &ASTNameSpace::getNodes() const {
     return Nodes;
+}
+
+std::string ASTNameSpace::flat(SmallVector<std::string, 4> &Names) {
+    std::string Str;
+    for (auto &N : Names) {
+        Str += N;
+    }
+    return Str;
 }

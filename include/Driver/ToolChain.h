@@ -24,7 +24,18 @@ namespace fly {
     public:
         ToolChain(const llvm::Triple &T);
 
+        bool BuildLib();
+
         bool Link(const llvm::SmallVector<std::string, 4> &ObjFiles, llvm::StringRef OutFile);
+
+        bool LinkWindows(const llvm::SmallVector<std::string, 4> &ObjFiles, llvm::StringRef OutFile,
+                   SmallVector<const char *, 4> &Args);
+
+        bool LinkDarwin(const llvm::SmallVector<std::string, 4> &ObjFiles, llvm::StringRef OutFile,
+                    SmallVector<const char *, 4> &Args);
+
+        bool LinkLinux(const llvm::SmallVector<std::string, 4> &ObjFiles, llvm::StringRef OutFile,
+                     SmallVector<const char *, 4> &Args);
     };
 }
 

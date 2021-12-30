@@ -24,7 +24,7 @@ using namespace fly;
 
 FrontendAction::FrontendAction(const CompilerInstance & CI, ASTContext *Context, CodeGen &CG, InputFile *Input) :
         Context(Context), Diags(CI.getDiagnostics()), SourceMgr(CI.getSourceManager()), CG(CG), Input(Input) {
-    FLY_DEBUG_MESSAGE("FrontendAction", "FrontendAction", "Input=" << Input->getFile());
+    FLY_DEBUG_MESSAGE("FrontendAction", "FrontendAction", "Input=" << Input->getFileName());
 }
 
 FrontendAction::~FrontendAction() {
@@ -44,16 +44,16 @@ CodeGenModule *FrontendAction::getCodeGenModule() const {
 }
 
 bool FrontendAction::Parse() {
-    FLY_DEBUG_MESSAGE("FrontendAction", "Parse", "Input=" << Input->getFile());
+    FLY_DEBUG_MESSAGE("FrontendAction", "Parse", "Input=" << Input->getFileName());
     bool Success = true;
     Diags.getClient()->BeginSourceFile();
 
     if (P == nullptr) {
         // Create CodeGen
-        CGM = CG.CreateModule(Input->getFile());
+        CGM = CG.CreateModule(Input->getFileName());
 
         // Create AST
-        AST = new ASTNode(Input->getFile(), Context, CGM);
+        AST = new ASTNode(Input->getFileName(), Context, CGM);
 
         // Create Parser and start to parse
         P = new Parser(*Input, SourceMgr, Diags);
@@ -66,7 +66,7 @@ bool FrontendAction::Parse() {
 
 bool FrontendAction::HandleASTTopDecl() {
     assert(AST && "AST not built, need a Parse()");
-    FLY_DEBUG_MESSAGE("FrontendAction", "HandleASTTopDecl", "Input=" << Input->getFile());
+    FLY_DEBUG_MESSAGE("FrontendAction", "HandleASTTopDecl", "Input=" << Input->getFileName());
     Diags.getClient()->BeginSourceFile();
 
     // Manage Imports
@@ -123,7 +123,7 @@ bool FrontendAction::HandleASTTopDecl() {
 }
 
 bool FrontendAction::HandleTranslationUnit() {
-    FLY_DEBUG_MESSAGE("FrontendAction", "Emit", "Input=" << Input->getFile());
+    FLY_DEBUG_MESSAGE("FrontendAction", "Emit", "Input=" << Input->getFileName());
     Diags.getClient()->BeginSourceFile();
     OutputFile = CG.HandleTranslationUnit(CGM->Module);
     Diags.getClient()->EndSourceFile();

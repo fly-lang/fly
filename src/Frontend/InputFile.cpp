@@ -7,14 +7,14 @@
 
 using namespace fly;
 
-InputFile::InputFile(llvm::StringRef File) : File(File) {
+InputFile::InputFile(std::string FileName) : FileName(FileName) {
 
 }
 
 bool InputFile::Load(llvm::StringRef Source, SourceManager &SourceMgr) {
     FLY_DEBUG_MESSAGE("InputFile", "Load", "Source=" + Source);
     // Set Source Manager file id
-    std::unique_ptr<llvm::MemoryBuffer> Buf = llvm::MemoryBuffer::getMemBuffer(Source, File);
+    std::unique_ptr<llvm::MemoryBuffer> Buf = llvm::MemoryBuffer::getMemBuffer(Source, FileName);
 
     Buffer = Buf.get();
     FID = SourceMgr.createFileID(std::move(Buf));
@@ -23,12 +23,12 @@ bool InputFile::Load(llvm::StringRef Source, SourceManager &SourceMgr) {
 }
 
 bool InputFile::Load(SourceManager &SourceMgr, DiagnosticsEngine &Diags) {
-    FLY_DEBUG_MESSAGE("InputFile", "Load", "File=" + File);
-    llvm::ErrorOr <std::unique_ptr<llvm::MemoryBuffer>> FileBuf = llvm::MemoryBuffer::getFileOrSTDIN(getFile());
+    FLY_DEBUG_MESSAGE("InputFile", "Load", "File=" + FileName);
+    llvm::ErrorOr <std::unique_ptr<llvm::MemoryBuffer>> FileBuf = llvm::MemoryBuffer::getFileOrSTDIN(getFileName());
 
     // Check file error
     if (FileBuf.getError()) {
-        Diags.Report(diag::err_cannot_open_file) << getFile() << FileBuf.getError().message();
+        Diags.Report(diag::err_cannot_open_file) << getFileName() << FileBuf.getError().message();
         return false;
     }
 

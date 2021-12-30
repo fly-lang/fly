@@ -8,10 +8,12 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Frontend/FrontendOptions.h"
+#include "Basic/Debug.h"
 
 using namespace fly;
 
-void FrontendOptions::addInputFile(llvm::StringRef FileName) {
+void FrontendOptions::addInputFile(std::string FileName) {
+    FLY_DEBUG_MESSAGE("FrontendOptions", "addInputFile", "FileName=" + FileName);
     Inputs.emplace_back(InputFile(FileName));
 }
 

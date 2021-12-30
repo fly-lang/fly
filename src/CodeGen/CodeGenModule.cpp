@@ -106,6 +106,7 @@ llvm::Module *CodeGenModule::ReleaseModule() {
 
 void CodeGenModule::GenImport(ASTImport *Import) {
     // Read Import: compiled Module or to compile
+    // TODO
     FLY_DEBUG_MESSAGE("CodeGenModule", "GenImport",
                       "Import=" << Import->str());
 }

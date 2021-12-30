@@ -12,18 +12,18 @@
 
 using namespace fly;
 
-ASTVar::ASTVar(ASTType *Type, const StringRef &Name, const StringRef &NameSpaceStr, bool Global) :
+ASTVar::ASTVar(ASTType *Type, const std::string &Name, const std::string &NameSpaceStr, bool Global) :
         Type(Type), Name(Name), NameSpaceStr(NameSpaceStr), Global(Global) {}
 
 ASTType *ASTVar::getType() const {
     return Type;
 }
 
-const llvm::StringRef &ASTVar::getName() const {
+const std::string &ASTVar::getName() const {
     return Name;
 }
 
-const llvm::StringRef &ASTVar::getPrefix() const {
+const std::string &ASTVar::getPrefix() const {
     return NameSpaceStr;
 }
 
@@ -41,13 +41,13 @@ bool ASTVar::isGlobal() const {
 
 std::string ASTVar::str() const {
     return "Type=" + Type->str() + ", " +
-           "NameSpace=" + NameSpaceStr.str() + ", " +
-           "Name=" + Name.str() + ", " +
+           "NameSpace=" + NameSpaceStr + ", " +
+           "Name=" + Name + ", " +
             "Constant=" + (Constant ? "true" : "false") + ", " +
             "Global=" + (Global ? "true" : "false");
 }
 
-ASTVarRef::ASTVarRef(const SourceLocation &Loc, const llvm::StringRef &Name, const StringRef &NameSpace) :
+ASTVarRef::ASTVarRef(const SourceLocation &Loc, const std::string &Name, const std::string &NameSpace) :
         Loc(Loc), NameSpace(NameSpace), Name(Name) {
 
 }
@@ -56,7 +56,7 @@ ASTVarRef::ASTVarRef(ASTVar *Var) : ASTVarRef(Loc, Var->getName(), Var->getPrefi
     Decl = Var;
 }
 
-const llvm::StringRef &ASTVarRef::getName() const {
+const std::string &ASTVarRef::getName() const {
     return Name;
 }
 
@@ -68,7 +68,7 @@ void ASTVarRef::setDecl(ASTVar *Var) {
     Decl = Var;
 }
 
-const StringRef &ASTVarRef::getNameSpace() const {
+const std::string &ASTVarRef::getNameSpace() const {
     return NameSpace;
 }
 
@@ -77,6 +77,6 @@ const SourceLocation &ASTVarRef::getLocation() const {
 }
 
 std::string ASTVarRef::str() const {
-    return "{ Name=" + Name.str() + ", " +
-           "NameSpace=" + NameSpace.str() + " }";
+    return "{ Name=" + Name + ", " +
+           "NameSpace=" + NameSpace + " }";
 }

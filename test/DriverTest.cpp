@@ -72,7 +72,7 @@ namespace {
         CompilerInstance &CI = driver.BuildCompilerInstance();
         const FrontendOptions &FrontendOpts = CI.getFrontendOptions();
         for(const InputFile &inputFile : FrontendOpts.getInputFiles()) {
-            ASSERT_EQ(inputFile.getFile(), "file1.fly");
+            ASSERT_EQ(inputFile.getFileName(), "file1.fly");
             break;
         }
         ASSERT_EQ(FrontendOpts.getOutputFile().getFile(), "file.o");

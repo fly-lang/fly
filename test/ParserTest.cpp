@@ -36,7 +36,7 @@ namespace {
 
         }
 
-        ASTNode *Parse(llvm::StringRef FileName, llvm::StringRef Source) {
+        ASTNode *Parse(std::string FileName, llvm::StringRef Source) {
             InputFile Input(FileName);
             Input.Load(Source, CI.getSourceManager());
             FrontendAction *Action = new FrontendAction(CI, Context, *CG, &Input);
@@ -355,9 +355,9 @@ namespace {
         ASTFunc *main = nullptr;
 
         for (auto *F : AST->getNameSpace()->getFunctions()) {
-            if (F->getName().equals("doOther")) {
+            if (F->getName() == "doOther") {
                 doOther = F;
-            } else if (F->getName().equals("main")) {
+            } else if (F->getName() == "main") {
                 main = F;
             }
         }

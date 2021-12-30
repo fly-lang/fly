@@ -301,8 +301,9 @@ DIAG(warn_utf8_symbol_homoglyph, CLASS_WARNING, (unsigned)diag::Severity::Warnin
 DIAG(warn_utf8_symbol_zero_width, CLASS_WARNING, (unsigned)diag::Severity::Warning, "identifier contains Unicode character <U+%0> that is invisible in some environments", 756, SFINAE_Suppress, false, false, 1)
 
 // Parser Errors
-DIAG(err_namespace_undefined, CLASS_ERROR, (unsigned)diag::Severity::Error, "namespace undefined", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_namespace_invalid, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid namespace defined '%0'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_import_undefined, CLASS_ERROR, (unsigned)diag::Severity::Error, "import undefined", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_alias_missing, CLASS_ERROR, (unsigned)diag::Severity::Error, "import undefined", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_scope_visibility_duplicate, CLASS_ERROR, (unsigned)diag::Severity::Error, "visibility scope '%0' already defined", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_scope_const_duplicate, CLASS_ERROR, (unsigned)diag::Severity::Error, "constant scope already defined", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_invalid_id, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid identifier '%0'", 0, SFINAE_Suppress, false, true, 0)

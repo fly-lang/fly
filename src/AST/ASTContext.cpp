@@ -26,7 +26,9 @@ using namespace fly;
  * @param Diags
  */
 ASTContext::ASTContext(DiagnosticsEngine &Diags) : Diags(Diags) {
-    DefaultNS = new ASTNameSpace(ASTNameSpace::DEFAULT, this);
+    llvm::SmallVector<std::string, 4> Names;
+    Names.push_back(ASTNameSpace::DEFAULT);
+    DefaultNS = new ASTNameSpace(Names, this);
     NameSpaces.insert(std::make_pair(ASTNameSpace::DEFAULT, DefaultNS));
 }
 

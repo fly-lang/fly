@@ -29,7 +29,7 @@ FunctionParser::FunctionParser(Parser *P, const StringRef &FuncName, SourceLocat
  * @return true on Success or false on Error
  */
 bool FunctionParser::ParseFunction(ASTType *Type) {
-    Function = new ASTFunc(P->AST, FuncNameLoc, Type, FuncName);
+    Function = new ASTFunc(P->AST, FuncNameLoc, Type, FuncName.str());
     if (ParseFunctionParams()) {
         return ParseFunctionBody();
     }
@@ -88,7 +88,7 @@ bool FunctionParser::ParseFunctionParam() {
         const StringRef Name = P->Tok.getIdentifierInfo()->getName();
         const SourceLocation IdLoc = P->Tok.getLocation();
         P->ConsumeToken();
-        ASTFuncParam *Param = new ASTFuncParam(IdLoc, Type, Name);
+        ASTFuncParam *Param = new ASTFuncParam(IdLoc, Type, Name.str());
         Param->Constant = Constant;
 
         // Parse assignment =
@@ -130,7 +130,7 @@ bool FunctionParser::ParseFunctionParam() {
  * @return true on Success or false on Error
  */
 bool FunctionParser::ParseCall(ASTBlock *Block, llvm::StringRef NameSpace) {
-    Call = new ASTFuncCall(FuncNameLoc, NameSpace, FuncName);
+    Call = new ASTFuncCall(FuncNameLoc, NameSpace.str(), FuncName.str());
     return ParseCallArgs(Block);
 }
 

@@ -120,6 +120,7 @@ namespace {
     }
 
     TEST_F(CmdTest, EmitObj) {
+        deleteFile("out");
         deleteFile("main.fly.o");
         deleteFile("utils.fly.o");
 

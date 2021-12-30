@@ -44,31 +44,33 @@ endif()
 #Fly config options
 set(FLY_LLVM_VERSION 11.1.0)
 set(FLY_BUG_REPORT_URL "https://github.com/fly-lang/fly/issues")
-set(FLY_LLD_INCLUDE_DIRS )
+set(FLY_SOURCE_DIR ${CMAKE_SOURCE_DIR})
 
 ######################################
 # Add LLVM dependency
 ######################################
 message(STATUS "Adding LLVM (version ${FLY_LLVM_VERSION})")
 option(ENABLE_LLVM_GTEST "" OFF)
+set(FLY_LLVM_PROJECT llvm-project)
+set(FLY_LLVM_BINARY_DIR ${CMAKE_BINARY_DIR}/${FLY_LLVM_PROJECT})
 
 if (DEFINED LLVM_BUILD AND LLVM_BUILD)
     set(LLVM_GIT_REPO https://github.com/fly-lang/llvm-project.git)
     message(STATUS "Checkout llvm-project from ${LLVM_GIT_REPO}")
 
     include(ExternalProject)
-    ExternalProject_Add(llvm-project
+    ExternalProject_Add(${FLY_LLVM_PROJECT}
             GIT_REPOSITORY https://github.com/fly-lang/llvm-project.git
             GIT_TAG fly-llvm-${FLY_LLVM_VERSION}
             GIT_PROGRESS true
             GIT_REMOTE_UPDATE_STRATEGY CHECKOUT)
 
     message(STATUS "Building LLVM from sources")
-    set(LLVM_DIR ${CMAKE_BINARY_DIR}/llvm-project/llvm/lib/cmake/llvm)
-    set(LLD_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/llvm-project/lld/include)
+    set(LLVM_DIR ${FLY_LLVM_BINARY_DIR}/llvm/lib/cmake/llvm)
+    set(LLD_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/${FLY_LLVM_PROJECT}/lld/include)
     set(LLVM_ENABLE_PROJECTS lld)
 
-    add_subdirectory(${CMAKE_SOURCE_DIR}/llvm-project/llvm)
+    add_subdirectory(${CMAKE_SOURCE_DIR}/${FLY_LLVM_PROJECT}/llvm)
     find_package(LLVM ${FLY_LLVM_VERSION} REQUIRED CONFIG)
     add_definitions(${LLVM_DEFINITIONS})
 
@@ -76,17 +78,14 @@ if (DEFINED LLVM_BUILD AND LLVM_BUILD)
     include_directories(${LLD_INCLUDE_DIRS})
 
     include_directories(
-            ${CMAKE_SOURCE_DIR}/llvm-project/llvm/utils/unittest/googletest/include
-            ${CMAKE_SOURCE_DIR}/llvm-project/llvm/utils/unittest/googlemock/include)
+            ${CMAKE_SOURCE_DIR}/${FLY_LLVM_PROJECT}/llvm/utils/unittest/googletest/include
+            ${CMAKE_SOURCE_DIR}/${FLY_LLVM_PROJECT}/llvm/utils/unittest/googlemock/include)
 
     #GTest
     set(ENABLE_LLVM_GTEST true)
 
 else()
     # Download precompiled LLVM
-    message(STATUS "Downloading LLVM precompiled files")
-
-    set(LLVM_BUILD_PATH ${CMAKE_BINARY_DIR}/llvm-project)
     set(LLVM_RELEASES_PREFIX_URL https://github.com/fly-lang/llvm-project/releases/download)
     if (MSVC)
         set(LLVM_RELEASES_URL "${LLVM_RELEASES_PREFIX_URL}/v11.1.0-win-x64/llvm-11.1.0-win-x64.zip")
@@ -97,18 +96,22 @@ else()
     elseif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
         set(LLVM_RELEASES_URL "${LLVM_RELEASES_PREFIX_URL}/v11.1.0-linux-x86_64/llvm-11.1.0-x86_64-linux-gnu.tar.gz")
         set(LLVM_DOWNLOAD_FILE "${CMAKE_BINARY_DIR}/llvm.tar.gz")
+        execute_process(COMMAND bash "-c" "gcc -print-search-dirs | grep install | sed 's/install: //' | tr -d '\n' | head -c -1"
+                OUTPUT_VARIABLE GCC_LIB_PATH)
+        MESSAGE(STATUS "GCC_LIB_PATH: " ${GCC_LIB_PATH})
     else()
         message(FATAL_ERROR "Unknown system, cannot download pre-build llvm packages, run with -DLLVM_BUILD")
     endif()
 
+    message(STATUS "Downloading LLVM precompiled files")
     file(DOWNLOAD ${LLVM_RELEASES_URL} ${LLVM_DOWNLOAD_FILE})
     file(ARCHIVE_EXTRACT
             INPUT ${LLVM_DOWNLOAD_FILE}
-            DESTINATION ${LLVM_BUILD_PATH})
+            DESTINATION ${FLY_LLVM_BINARY_DIR})
     file(REMOVE ${LLVM_DOWNLOAD_FILE})
 
     message(STATUS "Downloaded precompiled LLVM from ${LLVM_RELEASES_URL}")
-    find_package(LLD REQUIRED CONFIG PATHS ${LLVM_BUILD_PATH} NO_DEFAULT_PATH)
+    find_package(LLD REQUIRED CONFIG PATHS ${FLY_LLVM_BINARY_DIR} NO_DEFAULT_PATH)
     message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
     add_definitions(${LLVM_DEFINITIONS})
 

@@ -26,7 +26,7 @@
 
 using namespace fly;
 
-ASTNode::ASTNode(const llvm::StringRef &FileName, ASTContext *Context, CodeGenModule * CGM) :
+ASTNode::ASTNode(const std::string FileName, ASTContext *Context, CodeGenModule * CGM) :
         ASTNodeBase(FileName, Context), CGM(CGM) {
     FLY_DEBUG_MESSAGE("ASTNode", "ASTNode", "FileName=" << FileName);
 }
@@ -45,11 +45,13 @@ ASTNameSpace* ASTNode::getNameSpace() {
 }
 
 void ASTNode::setDefaultNameSpace() {
+    llvm::SmallVector<std::string, 4> Names;
+    Names.push_back(ASTNameSpace::DEFAULT);
     FLY_DEBUG("ASTNode", "setDefaultNameSpace");
-    setNameSpace(ASTNameSpace::DEFAULT);
+    setNameSpace(Names);
 }
 
-ASTNameSpace *ASTNode:: FindNameSpace(const StringRef &Name) {
+ASTNameSpace *ASTNode:: FindNameSpace(const std::string &Name) {
     FLY_DEBUG_MESSAGE("ASTNode", "findNameSpace", "Name=" << Name);
     if (Name.empty()) { // return current NameSpace if not set
         return NameSpace;
@@ -59,14 +61,21 @@ ASTNameSpace *ASTNode:: FindNameSpace(const StringRef &Name) {
     }
 }
 
-ASTNameSpace *ASTNode::setNameSpace(llvm::StringRef Name) {
-    FLY_DEBUG_MESSAGE("ASTNode", "setNameSpace", "Name=" << Name);
+ASTNameSpace *ASTNode::setNameSpace(std::string Name) {
+    SmallVector<std::string, 4> Names;
+    Names.push_back(Name);
+    return setNameSpace(Names);
+}
+
+ASTNameSpace *ASTNode::setNameSpace(llvm::SmallVector<std::string, 4> Names) {
+    std::string NS = ASTNameSpace::flat(Names);
+    FLY_DEBUG_MESSAGE("ASTNode", "setNameSpace", "Names=" << NS);
 
     // Check if Name exist or add it
-    NameSpace = Context->NameSpaces.lookup(Name);
+    NameSpace = Context->NameSpaces.lookup(NS);
     if (NameSpace == nullptr) {
-        NameSpace = new ASTNameSpace(Name, Context);
-        Context->NameSpaces.insert(std::make_pair(Name, NameSpace));
+        NameSpace = new ASTNameSpace(Names, Context);
+        Context->NameSpaces.insert(std::make_pair(NS, NameSpace));
     }
     return NameSpace;
 }

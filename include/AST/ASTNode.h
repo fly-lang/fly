@@ -55,17 +55,19 @@ namespace fly {
 
         ~ASTNode();
 
-        ASTNode(const llvm::StringRef &FileName, ASTContext *Context, CodeGenModule * CGM);
+        ASTNode(const std::string FileName, ASTContext *Context, CodeGenModule * CGM);
 
         CodeGenModule *getCodeGen() const;
 
-        void setDefaultNameSpace();
+        ASTNameSpace *setNameSpace(std::string Name);
 
-        ASTNameSpace *setNameSpace(llvm::StringRef Name);
+        ASTNameSpace *setNameSpace(llvm::SmallVector<std::string, 4> Names);
 
         ASTNameSpace* getNameSpace();
 
-        ASTNameSpace *FindNameSpace(const StringRef &string);
+        void setDefaultNameSpace();
+
+        ASTNameSpace *FindNameSpace(const std::string &string);
 
         bool AddImport(ASTImport *Import);
 

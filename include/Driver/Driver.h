@@ -73,7 +73,7 @@ namespace fly {
 
         bool Execute();
 
-        void printVersion(bool full = true);
+        void printVersion(bool Full = true);
     };
 }
 

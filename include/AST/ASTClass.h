@@ -23,20 +23,20 @@ namespace fly {
     public:
         VisibilityKind Visibility;
         bool Constant;
-        llvm::StringRef Name;
+        std::string Name;
         SourceLocation Location;
 
-        const StringRef &getName() const;
+        const std::string &getName() const;
 
     };
 
     class ClassRef {
 
-        const llvm::StringRef Name;
+        const std::string Name;
         const ASTClass *D;
 
     public:
-        ClassRef(const llvm::StringRef &Name);
+        ClassRef(const std::string &Name);
 
     };
 }

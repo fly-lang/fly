@@ -21,25 +21,25 @@ namespace fly {
 
         const SourceLocation Location;
 
-        llvm::StringRef Name;
+        std::string Name;
 
-        llvm::StringRef Alias;
+        std::string Alias;
 
         ASTNameSpace *NameSpace = nullptr;
 
     public:
 
-        ASTImport(const SourceLocation &Loc, llvm::StringRef Name);
+        ASTImport(const SourceLocation &Loc, const std::string Name);
 
-        ASTImport(const SourceLocation &Loc, llvm::StringRef Name, llvm::StringRef Alias);
+        ASTImport(const SourceLocation &Loc, const std::string Name, const std::string Alias);
 
         ~ASTImport();
 
         const SourceLocation &getLocation() const;
 
-        const llvm::StringRef &getName() const;
+        const std::string &getName() const;
 
-        const llvm::StringRef &getAlias() const;
+        const std::string &getAlias() const;
 
         ASTNameSpace *getNameSpace() const;
 

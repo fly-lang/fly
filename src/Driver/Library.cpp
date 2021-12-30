@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTClass.cpp - Class implementation
+// src/Driver/Library.cpp - Library
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,10 +7,12 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "AST/ASTClass.h"
+#include "Driver/Library.h"
+#include "Config/config.h"
+#include "Basic/Debug.h"
 
 using namespace fly;
 
-const std::string &ASTClass::getName() const {
-    return Name;
+Library::Library() {
+
 }

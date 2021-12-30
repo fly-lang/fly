@@ -39,7 +39,7 @@ namespace {
             delete Context;
         }
 
-        ASTNode* NewASTNode(llvm::StringRef FileName) {
+        ASTNode* NewASTNode(std::string FileName) {
 
             // Create CodeGen
             CodeGenModule *CGM = CG->CreateModule(FileName);

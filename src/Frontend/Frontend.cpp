@@ -12,9 +12,15 @@
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
 #include "Basic/Debug.h"
+#include <Config/Config.h>
 #include <llvm/ADT/Statistic.h>
 #include <llvm/Support/Timer.h>
 #include <Basic/Stack.h>
+
+#include <iostream>
+#include <dirent.h>
+#include <sys/types.h>
+
 
 using namespace fly;
 
@@ -24,6 +30,33 @@ Frontend::Frontend(CompilerInstance &CI) : CI(CI), Diags(CI.getDiagnostics()), C
 
 Frontend::~Frontend() {
     delete Context;
+}
+
+void Frontend::AddLibDir(llvm::SmallString<256> Path) {
+    DIR *dir = opendir(Path.c_str());
+    struct dirent *entry;
+    while ((entry = readdir(dir)) != NULL) {
+        llvm::SmallString<256> CurrPath(Path.str());
+        if (entry->d_type == DT_DIR && *entry->d_name != '.' && strcmp(entry->d_name, "..") != 0) {
+            llvm::sys::path::append(CurrPath, entry->d_name);
+            FLY_DEBUG_MESSAGE("Frontend", "AddLibDir", "CurrPath=" + CurrPath);
+            AddLibDir(CurrPath);
+        } else if (entry->d_type == DT_REG) {
+            llvm::sys::path::append(CurrPath, entry->d_name);
+            FLY_DEBUG_MESSAGE("Frontend", "AddLibDir", "CurrPath=" + CurrPath);
+            CI.getFrontendOptions().addInputFile(CurrPath.c_str());
+        }
+    }
+    closedir(dir);
+}
+
+bool Frontend::AddLibBaseInputs() {
+    llvm::SmallString<256> LibPath;
+    llvm::sys::path::native(FLY_SOURCE_DIR, LibPath);
+    llvm::sys::path::append(LibPath, "lib");
+    FLY_DEBUG_MESSAGE("Frontend", "AddLibBaseInputs", "LibPath=" + LibPath);
+    AddLibDir(LibPath);
+    return true;
 }
 
 bool Frontend::Execute() {
@@ -40,19 +73,19 @@ bool Frontend::Execute() {
     if (CI.getFrontendOptions().ShowStats)
         llvm::EnableStatistics(false);
 
-    bool EnableLink = CI.getFrontendOptions().getOutputFile().getFile().empty();
-
     // Generate Backend Code
     CodeGen CG(Diags, CI.getCodeGenOptions(), CI.getTargetOptions(),
                CI.getFrontendOptions().BackendAction,
                CI.getFrontendOptions().ShowTimers);
 
+    // Build Libs
+    AddLibBaseInputs();
+
     // Create Compiler Instance for each input file
     for (auto InputFile : CI.getFrontendOptions().getInputFiles()) {
         // Print file name and create instance for file compilation
 
-        FLY_DEBUG_MESSAGE("Frontend", "Execute", "Loading input file " <<
-            llvm::sys::path::filename(InputFile.getFile()));
+        FLY_DEBUG_MESSAGE("Frontend", "Execute", "Loading input file " + InputFile.getFileName());
         if (InputFile.Load(CI.getSourceManager(), Diags)) {
             FrontendAction *Action = new FrontendAction(CI, Context, CG, &InputFile);
             // Parse Action & add to Actions for next

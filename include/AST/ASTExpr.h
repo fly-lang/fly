@@ -13,7 +13,6 @@
 
 #include "ASTValue.h"
 #include "Basic/SourceLocation.h"
-#include "llvm/ADT/StringRef.h"
 #include <vector>
 #include <utility>
 

@@ -27,7 +27,7 @@ namespace fly {
         InputOptions Options;
 
         /// The file name, or "-" to read from standard input.
-        llvm::StringRef File;
+        std::string FileName;
 
         FileID FID;
 
@@ -37,19 +37,19 @@ namespace fly {
         const llvm::MemoryBuffer *Buffer = nullptr;
 
     public:
-        InputFile(llvm::StringRef File);
+        InputFile(std::string FileName);
 
         bool Load(llvm::StringRef Source, SourceManager &SourceMgr);
 
         bool Load(SourceManager &SourceMgr, DiagnosticsEngine &Diags);
 
-        bool isFile() const { return !File.empty(); }
+        bool isFile() const { return !FileName.empty(); }
 
         bool isBuffer() const { return Buffer != nullptr; }
 
-        llvm::StringRef getFile() const {
+        std::string getFileName() const {
             assert(isFile());
-            return File;
+            return FileName;
         }
 
         FileID getFileID() const {

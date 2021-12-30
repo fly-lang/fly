@@ -32,13 +32,15 @@ namespace fly {
         llvm::StringMap<ASTNode *> Nodes;
 
     public:
-        ASTNameSpace(const llvm::StringRef &Name, ASTContext *Context);
+        ASTNameSpace(llvm::SmallVector<std::string, 4> Names, ASTContext *Context);
 
         ~ASTNameSpace();
 
-        static const llvm::StringRef DEFAULT;
+        static const std::string DEFAULT;
 
         const llvm::StringMap<ASTNode *> &getNodes() const;
+
+        static std::string flat(SmallVector<std::string, 4> &Names);
     };
 }
 

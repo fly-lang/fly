@@ -54,6 +54,10 @@ namespace fly {
 
         bool Execute();
 
+        void AddLibDir(llvm::SmallString<256> Path);
+
+        bool AddLibBaseInputs();
+
         void CreateFrontendTimer();
 
         const SmallVector<std::string, 4> &getOutputFiles() const;

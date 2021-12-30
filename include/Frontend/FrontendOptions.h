@@ -47,7 +47,7 @@ namespace fly {
         /// Filename to write statistics to.
         std::string StatsFile;
 
-        void addInputFile(llvm::StringRef input);
+        void addInputFile(std::string input);
 
         const llvm::SmallVector<InputFile, 0> &getInputFiles() const;
 

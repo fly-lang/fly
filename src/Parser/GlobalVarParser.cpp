@@ -31,7 +31,7 @@ GlobalVarParser::GlobalVarParser(Parser *P, ASTType *TyDecl, const StringRef &Va
  */
 bool GlobalVarParser::Parse() {
     bool Success = true;
-    Var = new ASTGlobalVar(Location, P->AST, Type, Name);
+    Var = new ASTGlobalVar(Location, P->AST, Type, Name.str());
 
     // Parsing =
     if (P->Tok.is(tok::equal)) {

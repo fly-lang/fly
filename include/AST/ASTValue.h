@@ -10,7 +10,6 @@
 #ifndef FLY_ASTVALUE_H
 #define FLY_ASTVALUE_H
 
-#include <llvm/ADT/StringRef.h>
 #include "ASTType.h"
 
 namespace fly {
@@ -19,12 +18,12 @@ namespace fly {
 
         const SourceLocation &Loc;
 
-        llvm::StringRef Str;
+        std::string Str;
 
         ASTType *Ty;
 
     public:
-        ASTValue(const SourceLocation &Loc, llvm::StringRef Str, ASTType *Ty);
+        ASTValue(const SourceLocation &Loc, std::string Str, ASTType *Ty);
 
         ASTType *getType() const;
 

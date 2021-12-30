@@ -14,7 +14,7 @@
 
 using namespace fly;
 
-ASTGlobalVar::ASTGlobalVar(SourceLocation &Loc, ASTNode *Node, ASTType *Type, const llvm::StringRef &Name) :
+ASTGlobalVar::ASTGlobalVar(SourceLocation &Loc, ASTNode *Node, ASTType *Type, const std::string Name) :
     ASTTopDecl(Loc, Node, TopDeclKind::DECL_GLOBALVAR),
     ASTVar(Type, Name, Node->getNameSpace()->getName(), true) {
 

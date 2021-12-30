@@ -10,7 +10,7 @@
 #include "Driver/Driver.h"
 #include "Driver/DriverOptions.h"
 #include "Driver/ToolChain.h"
-#include "Config/config.h"
+#include "Config/Config.h"
 #include "Basic/PrettyStackTrace.h"
 #include "Basic/FileSystemOptions.h"
 #include "Frontend/Frontend.h"
@@ -337,8 +337,10 @@ bool Driver::Execute() {
     if (doExecute) {
         Frontend Front(*CI);
         Success = Front.Execute();
-        const llvm::Triple &T = TargetInfo::CreateTargetInfo(CI->getDiagnostics(), CI->getTargetOptions())->getTriple();
+
         if (!CI->getFrontendOptions().getOutputFile().getFile().empty()) {
+            const llvm::Triple &T = TargetInfo::CreateTargetInfo(CI->getDiagnostics(),
+                                                                 CI->getTargetOptions())->getTriple();
             ToolChain *TC = new ToolChain(T);
             TC->Link(Front.getOutputFiles(), CI->getFrontendOptions().getOutputFile().getFile());
         }
