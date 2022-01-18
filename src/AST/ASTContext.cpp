@@ -37,7 +37,7 @@ ASTContext::ASTContext(DiagnosticsEngine &Diags) : Diags(Diags) {
  */
 ASTContext::~ASTContext() {
     NameSpaces.clear();
-    Imports.clear();
+    ExternalImports.clear();
 }
 
 /**
@@ -64,6 +64,16 @@ const llvm::StringMap<ASTNameSpace *> &ASTContext::getNameSpaces() const {
  */
 DiagnosticBuilder ASTContext::Diag(SourceLocation Loc, unsigned DiagID) const {
     return Diags.Report(Loc, DiagID);
+}
+
+/**
+ * Write Diagnostics
+ * @param Loc
+ * @param DiagID
+ * @return
+ */
+DiagnosticBuilder ASTContext::Diag(unsigned DiagID) const {
+    return Diags.Report(DiagID);
 }
 
 /**
@@ -120,7 +130,7 @@ bool ASTContext::Resolve() {
     }
 
     // Now all Imports must be read
-    for(auto &Import : Imports) {
+    for(auto &Import : ExternalImports) {
         if (Import.getValue()->getNameSpace() == nullptr) {
             Diag(Import.getValue()->getLocation(), diag::err_unresolved_import);
             return false;

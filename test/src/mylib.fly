@@ -1,0 +1,5 @@
+namespace mylib
+
+int myfunc() {
+    return 1
+}

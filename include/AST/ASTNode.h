@@ -41,7 +41,7 @@ namespace fly {
         // Namespace declaration
         ASTNameSpace *NameSpace = nullptr;
 
-        // Contains all Imports which will be converted in Dependencies
+        // Contains all Imports, the key is Alias or Name
         llvm::StringMap<ASTImport *> Imports;
         
         // All used GlobalVars
@@ -67,7 +67,7 @@ namespace fly {
 
         void setDefaultNameSpace();
 
-        ASTNameSpace *FindNameSpace(const std::string &string);
+        ASTImport *FindImport(const std::string &string);
 
         bool AddImport(ASTImport *Import);
 

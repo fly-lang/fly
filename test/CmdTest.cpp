@@ -120,7 +120,6 @@ namespace {
     }
 
     TEST_F(CmdTest, EmitObj) {
-        deleteFile("out");
         deleteFile("main.fly.o");
         deleteFile("utils.fly.o");
 
@@ -140,6 +139,7 @@ namespace {
     }
 
     TEST_F(CmdTest, EmitOut) {
+        deleteFile("out");
         deleteFile("main.fly.o");
         deleteFile("utils.fly.o");
 

@@ -35,6 +35,8 @@ namespace fly {
 
         ~ASTGlobalVar() = default;
 
+        const std::string &getName() const override;
+
         ASTExpr *getExpr() const override;
 
         void setExpr(ASTExpr *E) override;

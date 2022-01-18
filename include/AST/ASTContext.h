@@ -45,7 +45,7 @@ namespace fly {
         llvm::StringMap<ASTNameSpace *> NameSpaces;
 
         // All Files: <Name, ASTImport>
-        llvm::StringMap<ASTImport *> Imports;
+        llvm::StringMap<ASTImport *> ExternalImports; // TODO
 
     public:
         ASTContext(DiagnosticsEngine &Diags);
@@ -58,12 +58,13 @@ namespace fly {
 
         DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID) const;
 
+        DiagnosticBuilder Diag(unsigned DiagID) const;
+
         bool AddNode(ASTNode *Node);
 
         bool DelNode(ASTNode *Node);
 
         bool Resolve();
-
     };
 }
 

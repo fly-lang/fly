@@ -12,6 +12,7 @@
 
 #include <AST/ASTContext.h>
 #include "AST/ASTResolver.h"
+#include "AST/ASTImport.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTNode.h"
 #include "AST/ASTUnref.h"
@@ -33,7 +34,7 @@ bool fly::ASTResolver::Resolve(ASTNameSpace *NameSpace) {
     bool Success = true;
 
     NameSpace->Context->Diags.getClient()->BeginSourceFile();
-    Success &= ResolveGlobalVar(NameSpace) && ResolveFuncCall(NameSpace);
+    Success &= ResolveImports(NameSpace) && ResolveGlobalVars(NameSpace) && ResolveFuncCalls(NameSpace);
     NameSpace->Context->Diags.getClient()->EndSourceFile();
     return Success;
 }
@@ -41,23 +42,61 @@ bool fly::ASTResolver::Resolve(ASTNameSpace *NameSpace) {
 bool ASTResolver::Resolve(ASTNode *Node) {
     FLY_DEBUG_MESSAGE("ASTResolver", "Resolve",
                       "NameSpace=" << Node->NameSpace->str() << ", Node=" << Node->str());
-    return ResolveGlobalVar(Node) && ResolveFuncCall(Node);
+    return ResolveGlobalVars(Node) && ResolveFuncCalls(Node);
 }
 
+/**
+ * Resolve Imports with relative Namespace
+ * Sync Un-references from Import to Namespace for next resolving
+ * @param Node
+ * @return
+ */
+bool ASTResolver::ResolveImports(ASTNameSpace *NameSpace) {
+    bool Success = true;
+    for (auto &NodeEntry : NameSpace->Nodes) {
+        ASTNode *&Node = NodeEntry.getValue();
+        for (auto &ImportEntry : Node->getImports()) {
+
+            // Search Namespace of the Import
+            auto &Import = ImportEntry.getValue();
+            ASTNameSpace *NameSpaceFound = NameSpace->Context->NameSpaces.lookup(Import->getName());
+
+            if (NameSpaceFound == nullptr) { // Error
+                Success = false;
+                NameSpace->Context->Diag(diag::err_namespace_notfound) << Import->getName();
+            } else {
+                Import->setNameSpace(NameSpaceFound);
+
+                // Sync Un-referenced GlobalVars
+                for (auto &UnrefGlobalVar : Import->UnrefGlobalVars) {
+                    NameSpaceFound->UnrefGlobalVars.push_back(UnrefGlobalVar);
+                }
+
+                // Sync Un-referenced FunctionCalls
+                for (auto &UnrefFunctionCall : Import->UnrefFunctionCalls) {
+                    NameSpaceFound->UnrefFunctionCalls.push_back(UnrefFunctionCall);
+                }
+            }
+        }
+    }
+    return Success;
+}
 
 /**
  * Resolve GlobalVar into Node
  * @param Node
  * @return
  */
-bool ASTResolver::ResolveGlobalVar(ASTNode *Node) {
+bool ASTResolver::ResolveGlobalVars(ASTNode *Node) {
+    
     // Resolve Unreferenced Global Var (node internal)
     for (auto &Unref : Node->UnrefGlobalVars) {
-        FLY_DEBUG_MESSAGE("ASTResolver", "ResolveGlobalVar",
+        FLY_DEBUG_MESSAGE("ASTResolver", "ResolveGlobalVars",
                           "Node=" << Node->str() <<
                           ", VarRef=" << Unref->getVarRef().str());
         const auto &It = Node->GlobalVars.find(Unref->getVarRef().getName());
         if (It == Node->GlobalVars.end()) {
+            // of the current NameSpace
             Node->NameSpace->UnrefGlobalVars.push_back(Unref);
         } else {
             ASTVarRef &VarRef = Unref->getVarRef();
@@ -73,18 +112,19 @@ bool ASTResolver::ResolveGlobalVar(ASTNode *Node) {
  * @param NameSpace
  * @return
  */
-bool ASTResolver::ResolveGlobalVar(ASTNameSpace *NameSpace) {
+bool ASTResolver::ResolveGlobalVars(ASTNameSpace *NameSpace) {
     bool Success = true;
 
     // Resolve Unreferenced Global Var (node internal)
     for (auto &Unref : NameSpace->UnrefGlobalVars) {
-        FLY_DEBUG_MESSAGE("ASTResolver", "ResolveGlobalVar",
+        FLY_DEBUG_MESSAGE("ASTResolver", "ResolveGlobalVars",
                           "NameSpace=" << NameSpace->str() <<
                           ", VarRef=" << Unref->getVarRef().str());
         const auto &It = NameSpace->GlobalVars.find(Unref->getVarRef().getName());
         if (It == NameSpace->GlobalVars.end()) {
             NameSpace->Context->Diag(Unref->getVarRef().getLocation(), diag::err_gvar_notfound)
                         << Unref->getVarRef().getName();
+            Success = false;
         } else {
             Unref->getVarRef().setDecl(It->getValue());
             Unref->getNode()->AddExternalGlobalVar(It->getValue());
@@ -99,7 +139,7 @@ bool ASTResolver::ResolveGlobalVar(ASTNameSpace *NameSpace) {
  * @param Function
  * @return
  */
-bool ASTResolver::ResolveFuncCall(ASTNode *Node) {
+bool ASTResolver::ResolveFuncCalls(ASTNode *Node) {
     bool Success = true;
 
     // Skip Function Reference to libc
@@ -107,7 +147,7 @@ bool ASTResolver::ResolveFuncCall(ASTNode *Node) {
 
     // Resolve Unreferenced Function Calls (node internal)
     for (auto *UnrefFunctionCall : Node->UnrefFunctionCalls) {
-        FLY_DEBUG_MESSAGE("ASTResolver", "ResolveFuncCall",
+        FLY_DEBUG_MESSAGE("ASTResolver", "ResolveFuncCalls",
                           "Node=" << Node->str() <<
                           ", UnrefFunctionCall=" << UnrefFunctionCall->getCall()->str());
         if (IsBaseLib && UnrefFunctionCall->getCall()->getName().find("c__") == 0) {
@@ -139,12 +179,12 @@ bool ASTResolver::ResolveFuncCall(ASTNode *Node) {
  * @param Function
  * @return
  */
-bool ASTResolver::ResolveFuncCall(ASTNameSpace *NameSpace) {
+bool ASTResolver::ResolveFuncCalls(ASTNameSpace *NameSpace) {
     bool Success = true;
 
-    // Resolve Unreferenced Function Calls (node internal)
+    // Resolve Unreferenced Function Calls (at namespace level)
     for (auto *UnrefFunctionCall : NameSpace->UnrefFunctionCalls) {
-        FLY_DEBUG_MESSAGE("ASTResolver", "ResolveFuncCall",
+        FLY_DEBUG_MESSAGE("ASTResolver", "ResolveFuncCalls",
                           "NameSpace=" << NameSpace->Name <<
                           ", UnrefFunctionCall=" << UnrefFunctionCall->getCall()->str());
         const auto &It = NameSpace->FunctionCalls.find(UnrefFunctionCall->getCall()->getName());

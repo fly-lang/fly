@@ -119,9 +119,10 @@ namespace fly {
 
         const TypeKind Kind = TypeKind::TYPE_CLASS;
         const std::string Name;
+        const std::string NameSpace;
 
     public:
-        ASTClassType(SourceLocation Loc, std::string Name);
+        ASTClassType(SourceLocation Loc, std::string Name, std::string NameSpace = "");
 
         const TypeKind &getKind() const override;
 

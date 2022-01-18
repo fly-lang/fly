@@ -46,28 +46,28 @@ namespace {
 
     };
 
-    TEST_F(ParserTest, SinglePackage) {
+    TEST_F(ParserTest, SingleNameSpace) {
         llvm::StringRef str = ("namespace std");
-        ASTNode *AST = Parse("SinglePackage", str);
+        ASTNode *AST = Parse("SingleNameSpace", str);
         ASSERT_FALSE(Diags.hasErrorOccurred());
 
-        EXPECT_EQ(AST->getName(), "SinglePackage");
+        EXPECT_EQ(AST->getName(), "SingleNameSpace");
 
         // verify AST contains package
         EXPECT_EQ(AST->getNameSpace()->getName(), "std");
         delete AST;
     }
 
-    TEST_F(ParserTest, MultiPackageError) {
+    TEST_F(ParserTest, MultiNamespaceError) {
         llvm::StringRef str = ("namespace std\n"
                          "namespace bad");
-        ASTNode *AST = Parse("MultiPackageError", str);
+        ASTNode *AST = Parse("MultiNamespaceError", str);
         EXPECT_TRUE(Diags.hasErrorOccurred());
     }
 
     TEST_F(ParserTest, SingleImport) {
         llvm::StringRef str = ("namespace std\n"
-                         "import \"packageA\"");
+                         "import packageA");
         ASTNode *AST = Parse("SingleImport", str);
 
         ASSERT_FALSE(Diags.hasErrorOccurred());
@@ -75,52 +75,26 @@ namespace {
         ASTImport* Verify = AST->getImports().lookup("packageA");
 
         EXPECT_EQ(Verify->getName(), "packageA");
-        EXPECT_EQ(Verify->getAlias(), Verify->getName());
+        EXPECT_EQ(Verify->getAlias(), "");
         delete AST;
     }
 
     TEST_F(ParserTest, SingleImportAlias) {
-        llvm::StringRef str = ("\n import  \"standard\" as \"std\"\n");
+        llvm::StringRef str = ("\n import standard std\n");
         ASTNode *AST = Parse("SingleImportAlias", str);
 
         EXPECT_EQ(AST->getNameSpace()->getName(), "default");
-        EXPECT_EQ(AST->getImports().lookup("standard")->getName(), "standard");
-        EXPECT_EQ(AST->getImports().lookup("standard")->getAlias(), "std");
+        ASTImport *Import = AST->getImports().lookup("std");
+        EXPECT_EQ(Import->getName(), "standard");
+        EXPECT_EQ(Import->getAlias(), "std");
         delete AST;
     }
 
     TEST_F(ParserTest, MultiImports) {
         llvm::StringRef str = ("namespace std\n"
-                         "import \"packageA\""
-                         "import \"packageB\"");
+                         "import packageA "
+                         "import packageB");
         ASTNode *AST = Parse("MultiImports", str);
-
-        ASSERT_FALSE(Diags.hasErrorOccurred());
-
-        ASTImport* VerifyB = AST->getImports().lookup("packageB");
-        ASTImport* VerifyA = AST->getImports().lookup("packageA");
-
-        EXPECT_EQ(VerifyA->getName(), "packageA");
-        EXPECT_EQ(VerifyB->getName(), "packageB");
-        delete AST;
-    }
-
-    TEST_F(ParserTest, SingleParenImport) {
-        llvm::StringRef str = ("namespace std\n"
-                         "import (\"packageA\")");
-        ASTNode *AST = Parse("SingleParenImport", str);
-
-        ASSERT_FALSE(Diags.hasErrorOccurred());
-
-        ASTImport* Verify = AST->getImports().lookup("packageA");
-        EXPECT_EQ(Verify->getName(), "packageA");
-        delete AST;
-    }
-
-    TEST_F(ParserTest, MultiParenImports) {
-        llvm::StringRef str = ("namespace std\n"
-                         "import (\"packageA\", \"packageB\")");
-        ASTNode *AST = Parse("MultiParenImports", str);
 
         ASSERT_FALSE(Diags.hasErrorOccurred());
 

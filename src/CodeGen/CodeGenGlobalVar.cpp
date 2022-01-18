@@ -11,6 +11,7 @@
 #include "CodeGen/CodeGenGlobalVar.h"
 #include "CodeGen/CodeGenModule.h"
 #include "CodeGen/CodeGen.h"
+#include "AST/ASTNameSpace.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTGlobalVar.h"
 
@@ -38,7 +39,8 @@ CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, ASTGlobalVar* AST, bool i
 
     if (Success) {
         llvm::Type *Typ = CGM->GenType(AST->getType());
-        GVar = new llvm::GlobalVariable(*CGM->Module, Typ, AST->isConstant(), Linkage, Const, AST->getName());
+        std::string Id = CodeGen::toIdentifier(AST->getName(), AST->getNameSpace()->getName());
+        GVar = new llvm::GlobalVariable(*CGM->Module, Typ, AST->isConstant(), Linkage, Const, Id);
     }
     needLoad = true;
 }

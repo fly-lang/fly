@@ -20,6 +20,10 @@ ASTGlobalVar::ASTGlobalVar(SourceLocation &Loc, ASTNode *Node, ASTType *Type, co
 
 }
 
+const std::string &ASTGlobalVar::getName() const {
+    return ASTVar::getName();
+}
+
 ASTExpr *ASTGlobalVar::getExpr() const {
     return Expr;
 }

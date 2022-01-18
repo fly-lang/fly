@@ -17,10 +17,6 @@
 
 using namespace fly;
 
-ASTImport::ASTImport(const SourceLocation &Loc, const std::string Name) : Location(Loc), Name(Name), Alias(Name) {
-
-}
-
 ASTImport::ASTImport(const SourceLocation &Loc, const std::string Name, const std::string Alias) :
     Location(Loc), Name(Name), Alias(Alias) {
 

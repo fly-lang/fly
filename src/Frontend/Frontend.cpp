@@ -19,7 +19,6 @@
 
 #include <iostream>
 #include <dirent.h>
-#include <sys/types.h>
 
 
 using namespace fly;
@@ -79,39 +78,39 @@ bool Frontend::Execute() {
                CI.getFrontendOptions().ShowTimers);
 
     // Build Libs
-    AddLibBaseInputs();
+    // AddLibBaseInputs(); TODO
 
-    // Create Compiler Instance for each input file
+    // Read Input Files from options and add to actions if parsing is true.
+    bool FileLoadError = false;
+    bool FileParseError = false;
     for (auto InputFile : CI.getFrontendOptions().getInputFiles()) {
-        // Print file name and create instance for file compilation
-
         FLY_DEBUG_MESSAGE("Frontend", "Execute", "Loading input file " + InputFile.getFileName());
         if (InputFile.Load(CI.getSourceManager(), Diags)) {
             FrontendAction *Action = new FrontendAction(CI, Context, CG, &InputFile);
             // Parse Action & add to Actions for next
             if (Action->Parse()) {
                 Actions.emplace_back(Action);
+            } else {
+                FileParseError = true;
             }
+        } else {
+            FileLoadError = true;
         }
     }
 
     // Compile and Emit Output
-    if (!Actions.empty()) {
-        if (Context->Resolve()) {
-            for (auto Action : Actions) {
-                if (!Action->HandleASTTopDecl()) {
-                    return false;
-                }
-                if (!Action->HandleTranslationUnit()) {
-                    return false;
-                }
-                OutputFiles.push_back(Action->getOutputFile());
-            }
-        } else {
-            return false;
-        }
-    } else {
+    if (Actions.empty()) {
         Diags.Report(SourceLocation(), diag::note_no_input_process);
+    } else if (!FileLoadError && !FileParseError && Context->Resolve()) {
+        for (auto Action : Actions) {
+            if (!Action->HandleASTTopDecl()) {
+                break;
+            }
+            if (!Action->HandleTranslationUnit()) {
+                break;
+            }
+            OutputFiles.push_back(Action->getOutputFile());
+        }
     }
 
     Diags.getClient()->finish();

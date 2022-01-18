@@ -47,7 +47,7 @@ bool Parser::Parse(ASTNode *Node) {
         // Parse Imports
         if (ParseImports()) {
 
-            // If Node is empty it is not added to the Context
+            // Node empty
             if (Tok.is(tok::eof)) {
                 Diag(Tok.getLocation(), diag::warn_empty_code);
                 return true;
@@ -55,6 +55,23 @@ bool Parser::Parse(ASTNode *Node) {
 
             // Parse All
             while (Tok.isNot(tok::eof)) {
+
+                // if parse "namespace" there is multiple package declarations
+                if (Tok.is(tok::kw_namespace)) {
+
+                    // Multiple Package declaration is invalid, you can define only one and on top of declarations
+                    Diag(Tok, diag::err_namespace_invalid) << Tok.getName();
+                    return false;
+                }
+
+                // if parse "import" there is import declaration position error
+                if (Tok.is(tok::kw_import)) {
+
+                    // Import can be defined after namespace and before all other declarations
+                    Diag(Tok, diag::err_import_invalid) << Tok.getName();
+                    return false;
+                }
+
                 if (!ParseTopDecl()) {
                     return false;
                 }
@@ -145,7 +162,7 @@ bool Parser::ParseNameSpace() {
             return false;
         }
 
-
+        // Push Names into namespace
         while (Tok.is(tok::period)) {
             ConsumeToken();
             if (Tok.isAnyIdentifier()) {
@@ -163,6 +180,46 @@ bool Parser::ParseNameSpace() {
     // Define Default NameSpace also if it has not been defined
     FLY_DEBUG_MESSAGE("Parser", "ParseNameSpace", "No namespace defined");
     AST->setDefaultNameSpace();
+    return true;
+}
+
+/**
+ * Parse import declaration
+ * @return true on Success or false on Error
+ */
+bool Parser::ParseImports() {
+    if (Tok.is(tok::kw_import)) {
+        const SourceLocation Loc = ConsumeToken();
+
+        if (Tok.isAnyIdentifier()) {
+            IdentifierInfo *ImportId = Tok.getIdentifierInfo();
+            llvm::StringRef Name = ImportId->getName();
+            SourceLocation ImportLoc = ConsumeToken();
+
+            // Syntax Error Quote
+            if (Name.empty()) {
+                Diag(ImportLoc, diag::err_import_undefined);
+                return false;
+            }
+
+            if (Tok.isAnyIdentifier()) {
+                IdentifierInfo *AliasId = Tok.getIdentifierInfo();
+                llvm::StringRef Alias = AliasId->getName();
+                ConsumeToken();
+                FLY_DEBUG_MESSAGE("Parser", "ParseImportAlias",
+                                  "Import=" + Name + " , Alias=" << Alias);
+                return AST->AddImport(new ASTImport(Loc, Name.str(), Alias.str())) && ParseImports();
+            } else {
+                FLY_DEBUG_MESSAGE("Parser", "ParseImports",
+                                  "Import=" << Name);
+                return AST->AddImport(new ASTImport(Loc, Name.str())) && ParseImports();
+            }
+        } else {
+            Diag(Loc, diag::err_import_undefined);
+            return false;
+        }
+    }
+
     return true;
 }
 
@@ -192,9 +249,13 @@ bool Parser::ParseTopDecl() {
                 llvm::StringRef Name = Id->getName();
                 SourceLocation IdLoc = Tok.getLocation();
                 ConsumeToken();
+
+                // parse function
                 if (Tok.is(tok::l_paren)) {
                     return ParseFunction(Visibility, Constant, Type, Name, IdLoc);
                 }
+
+                // parse global var
                 return ParseGlobalVarDecl(Visibility, Constant, Type, Name, IdLoc);
             }
         }
@@ -202,113 +263,6 @@ bool Parser::ParseTopDecl() {
 
     // Check Error: type without identifier
     return false;
-}
-
-/**
- * Parse import declaration
- * @return true on Success or false on Error
- */
-bool Parser::ParseImports() {
-    if (Tok.is(tok::kw_import)) {
-        const SourceLocation ImportLoc = ConsumeToken();
-
-        if (Tok.is(tok::l_paren)) {
-            ConsumeParen();
-
-            // Parse import ( ... ) declarations
-            return ParseImportParen();
-
-        } else if (Tok.isLiteral()) {
-
-            // Parse import "..."
-            StringRef Name = getLiteralString();
-            FLY_DEBUG_MESSAGE("Parser", "ParseImports", "Single Import.Name=" << Name);
-
-            // Syntax Error Quote
-            if (Name.empty()) {
-                Diag(Tok, diag::err_import_undefined);
-                return false;
-            }
-
-            if (ParseImportAlias(ImportLoc, Name)) {
-                return ParseImports();
-            }
-        } else {
-            Diag(Tok, diag::err_import_undefined);
-            return false;
-        }
-    }
-
-    // if parse "namespace" there is multiple package declarations
-    if (Tok.is(tok::kw_namespace)) {
-
-        // Multiple Package declaration is invalid, you can define only one
-        Diag(Tok, diag::err_namespace_invalid) << Tok.getName();
-        return false;
-    }
-
-    return true;
-}
-
-/**
- * Parse Import with multiple items between parenthesis
- * @return true on Success or false on Error
- */
-bool Parser::ParseImportParen() {
-    if (Tok.isLiteral()) {
-        SourceLocation ImportLoc = Tok.getLocation();
-
-        // Parse Import
-        StringRef Name = getLiteralString();
-        FLY_DEBUG_MESSAGE("Parser", "ParseImportParen", "Multiple Import.Name=" << Name);
-
-        if (Name.empty()) {
-            Diag(Tok, diag::err_import_undefined);
-            return false;
-        }
-
-        // Check if Alias exists
-        if (!ParseImportAlias(ImportLoc, Name)) {
-            return false;
-        }
-
-        // Parse multiple imports like (import1, import2, import3)
-        if (Tok.is(tok::comma)) {
-            ConsumeNext();
-            return ParseImportParen();
-        }
-
-        // Right Paren ) is the end of multiple imports
-        if (Tok.is(tok::r_paren)) {
-            ConsumeParen();
-            return true;
-        }
-    }
-
-    return true;
-}
-
-/**
- * Parse Import Alias
- * @param Location 
- * @param Name 
- * @return true if no error otherwise fals
- */
-bool Parser::ParseImportAlias(const SourceLocation &Location, llvm::StringRef Name) {
-    if (Tok.is(tok::kw_as)) {
-        ConsumeToken();
-
-        if (Tok.isLiteral()) {
-            StringRef Alias = getLiteralString();
-            FLY_DEBUG_MESSAGE("Parser", "ParseImportAlias",
-                              "Name=" + Name + " , Alias=" << Alias);
-            return AST->AddImport(new ASTImport(Location, Name.str(), Alias.str()));
-        } else {
-            Diag(Tok, diag::err_alias_missing);
-            return false;
-        }
-    }
-    return AST->AddImport(new ASTImport(Location, Name.str()));
 }
 
 /**
@@ -541,17 +495,19 @@ bool Parser::ParseStmt(ASTBlock *Block) {
 
     if (Tok.isAnyIdentifier()) {
 
-        // T a = ... (Type)
-        // a()     (Func)
-        // a++
-        // a = ... (Var)
-        IdentifierInfo *Id = Tok.getIdentifierInfo();
-        SourceLocation Loc = ConsumeToken();
+        // T a = ... (Type)      ns1:T a = ... (namespace Type)
+        // a()       (Func)      ns1:a()       (namespace Func)
+        // a++       (Var Incr)  ns1:a++       (namespace Var Increment)
+        // a = ...   (Var)       ns1:a = ...   (namespace Var)
+
+        llvm::StringRef Name;
+        llvm::StringRef NameSpace;
+        SourceLocation Loc;
+        ParseIdentifier(Name, NameSpace, Loc);
 
         if (Tok.isAnyIdentifier()) { // variable declaration
             // T a = ...
-            StringRef Name = Id->getName();
-            ASTType *Type = new ASTClassType(Loc, Name.str());
+            ASTType *Type = new ASTClassType(Loc, Name.str(), NameSpace.str());
             if (Type) {
                 ASTLocalVar* Var = ParseLocalVar(Block, Constant, Type, Success);
                 return Block->AddLocalVar(Var);
@@ -562,7 +518,7 @@ bool Parser::ParseStmt(ASTBlock *Block) {
                 Diag(Tok.getLocation(), diag::err_const_call);
                 return false;
             }
-            ASTFuncCall *Call = ParseFunctionCall(Block, Id, Loc, Success);
+            ASTFuncCall *Call = ParseFunctionCall(Block, Name, NameSpace, Loc, Success);
             if (Call)
                 return Block->AddCall(Call);
         } else if (isUnaryPostOperator()) { // variable increment or decrement
@@ -571,13 +527,13 @@ bool Parser::ParseStmt(ASTBlock *Block) {
             ConsumeToken();
             if (Success) {
                 ASTExprStmt *ExprStmt = new ASTExprStmt(Loc, Block);
-                ASTVarRef *VarRef = new ASTVarRef(Loc, Id->getName().str());
+                ASTVarRef *VarRef = new ASTVarRef(Loc, Name.str(), NameSpace.str());
                 ExprStmt->setExpr(new ASTUnaryExpr(Loc, Expr, VarRef, UNARY_POST));
                 return Block->AddExprStmt(ExprStmt);
             }
         } else { // variable assign
             // a = ...
-            ASTLocalVarRef* Var = new ASTLocalVarRef(Loc, Block, Id->getName().str());
+            ASTLocalVarRef* Var = new ASTLocalVarRef(Loc, Block, Name.str(), NameSpace.str());
             ASTExpr *Expr = ParseStmtExpr(Block, Var, Success);
             Var->setExpr(Expr);
             return Block->AddLocalVarRef(Var);
@@ -595,19 +551,48 @@ bool Parser::ParseStmt(ASTBlock *Block) {
         ASTOperatorExpr *Expr = ParseUnaryPostOperatorExpr(Success);
         SourceLocation Loc = ConsumeToken();
         if (Success && Tok.isAnyIdentifier()) {
-            ASTVarRef *VarRef = new ASTVarRef(Tok.getLocation(), Tok.getIdentifierInfo()->getName().str());
-            Loc = ConsumeToken();
-            ASTExprStmt *ExprStmt = new ASTExprStmt(Loc, Block);
-            ExprStmt->setExpr(new ASTUnaryExpr(Loc, Expr, VarRef, UNARY_PRE));
-            return Block->AddExprStmt(ExprStmt);
+
+            llvm::StringRef Name;
+            llvm::StringRef NameSpace;
+
+            if (ParseIdentifier(Name, NameSpace, Loc)) {
+                ASTVarRef *VarRef = new ASTVarRef(Tok.getLocation(), Name.str(), NameSpace.str());
+                ASTExprStmt *ExprStmt = new ASTExprStmt(Loc, Block);
+                ExprStmt->setExpr(new ASTUnaryExpr(Loc, Expr, VarRef, UNARY_PRE));
+                return Block->AddExprStmt(ExprStmt);
+            }
         }
-        
-        Diag(Loc, diag::err_unary_operator) << Tok.getLocation();
+
+        Diag(Loc, diag::err_unary_operator) << getPunctuatorSpelling(Tok.getKind());
         return false;
     }
 
     Diag(diag::err_parse_stmt);
     return false;
+}
+
+/**
+ * Parse as Identifier with a Name and NameSpace
+ * @param Name
+ * @param NameSpace
+ * @return
+ */
+bool Parser::ParseIdentifier(llvm::StringRef &Name, llvm::StringRef &NameSpace, SourceLocation &Loc) {
+    Name = Tok.getIdentifierInfo()->getName();
+    Loc = ConsumeToken();
+    if (Tok.is(tok::colon)) {
+        Loc = ConsumeToken();
+        if (Tok.isAnyIdentifier()) {
+            NameSpace = Name;
+            Name = Tok.getIdentifierInfo()->getName();
+            Loc = ConsumeToken();
+            return true;
+        }
+
+        Diag(Loc, diag::err_invalid_namespace_id);
+        return false;
+    }
+    return true;
 }
 
 /**
@@ -963,11 +948,10 @@ bool Parser::ParseForCommaStmt(ASTBlock *Block) {
  * @param Success true on Success or false on Error
  * @return true on Success or false on Error
  */
-ASTFuncCall *Parser::ParseFunctionCall(ASTBlock *Block, IdentifierInfo *Id, SourceLocation &Loc, bool &Success) {
-    const StringRef &Name = Id->getName();
-    FLY_DEBUG_MESSAGE("Parser", "ParseFunctionCall", "Name=" << Name);
+ASTFuncCall *Parser::ParseFunctionCall(ASTBlock *Block, llvm::StringRef Name, llvm::StringRef NameSpace, SourceLocation &Loc, bool &Success) {
+    FLY_DEBUG_MESSAGE("Parser", "ParseFunctionCall", "Name=" << Name + ", NameSpace=" << NameSpace);
     FunctionParser Parser(this, Name, Loc);
-    Parser.ParseCall(Block);
+    Parser.ParseCall(Block, NameSpace);
     return Parser.Call;
 }
 
@@ -1156,7 +1140,7 @@ ASTExpr* Parser::ParseExpr(ASTBlock *Block, bool &Success, ASTGroupExpr *ParentG
 }
 
 /**
- * Parse one Expression
+ * Parse a chunk of an Expression
  * @param Block
  * @param Success true on Success or false on Error
  * @return the ASTExpr
@@ -1167,40 +1151,50 @@ ASTExpr* Parser::ParseExprChunk(ASTBlock *Block, bool &Success) {
     if (isValue()) {
         return ParseValueExpr(Success);
     } else if (Tok.isAnyIdentifier()) {
-        IdentifierInfo *Id = Tok.getIdentifierInfo();
-        SourceLocation Loc = ConsumeToken();
-        if (Tok.is(tok::l_paren)) { // function invocation
-            // a()
-            ASTFuncCall *Call = ParseFunctionCall(Block, Id, Loc, Success);
-            if (Success) {
-                Success = Block->Top->getNode()->AddUnrefCall(Call);
-                return new ASTFuncCallExpr(Loc, Call);
+
+        llvm::StringRef Name;
+        llvm::StringRef NameSpace;
+        SourceLocation Loc;
+
+        if (ParseIdentifier(Name, NameSpace, Loc)) {
+
+            if (Tok.is(tok::l_paren)) { // function invocation
+                // a()
+                ASTFuncCall *Call = ParseFunctionCall(Block, Name, NameSpace, Loc, Success);
+                if (Success && Block->Top->getNode()->AddUnrefCall(Call)) { // To Resolve on the next
+                    return new ASTFuncCallExpr(Loc, Call);
+                }
+            } else {
+                ASTVarRef *VarRef = new ASTVarRef(Loc, Name.str(), NameSpace.str());
+                Success &= ASTResolver::ResolveVarRef(Block, VarRef);
+                if (isUnaryPostOperator()) { // variable increment or decrement
+                    // a++ or a--
+                    ASTOperatorExpr *Expr = ParseUnaryPostOperatorExpr(Success);
+                    ConsumeToken();
+                    return new ASTUnaryExpr(Loc, Expr, VarRef, UNARY_POST);
+                }
+                return new ASTVarRefExpr(Loc, VarRef);
             }
-        } else {
-            ASTVarRef *VarRef = new ASTVarRef(Loc, Id->getName().str());
-            Success &= ASTResolver::ResolveVarRef(Block, VarRef);
-            if (isUnaryPostOperator()) { // variable increment or decrement
-                // a++ or a--
-                ASTOperatorExpr *Expr = ParseUnaryPostOperatorExpr(Success);
-                ConsumeToken();
-                return new ASTUnaryExpr(Loc, Expr, VarRef, UNARY_POST);
-            }
-            return new ASTVarRefExpr(Loc, VarRef);
         }
     } else if (isUnaryPreOperator()) { // variable increment or decrement
         // ++a or --a or !a
         ASTOperatorExpr *Expr = ParseUnaryPreOperatorExpr(Success);
         ConsumeToken();
         if (Tok.isAnyIdentifier()) {
-            IdentifierInfo *Id = Tok.getIdentifierInfo();
-            SourceLocation Loc = ConsumeToken();
-            ASTVarRef *VarRef = new ASTVarRef(Loc, Id->getName().str());
-            ASTResolver::ResolveVarRef(Block, VarRef);
-            return new ASTUnaryExpr(Loc, Expr, VarRef, UNARY_PRE);
+
+            llvm::StringRef Name;
+            llvm::StringRef NameSpace;
+            SourceLocation Loc;
+
+            if (ParseIdentifier(Name, NameSpace, Loc)) {
+                ASTVarRef *VarRef = new ASTVarRef(Loc, Name.str(), NameSpace.str());
+                if (ASTResolver::ResolveVarRef(Block, VarRef)) {
+                    return new ASTUnaryExpr(Loc, Expr, VarRef, UNARY_PRE);
+                }
+            }
         }
 
-        Diag(Tok.getLocation(), diag::err_unary_operator)
-                << getPunctuatorSpelling(Tok.getKind());
+        Diag(Tok.getLocation(), diag::err_unary_operator) << getPunctuatorSpelling(Tok.getKind());
         Success = false;
     }
     return nullptr;

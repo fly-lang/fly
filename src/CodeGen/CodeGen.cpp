@@ -106,3 +106,10 @@ CodeGenModule *CodeGen::CreateModule(llvm::StringRef Name) {
 LLVMContext &CodeGen::getLLVMCtx() {
     return LLVMCtx;
 }
+
+const std::string CodeGen::toIdentifier(std::string Name, std::string NameSpace) {
+    if (NameSpace == "default") {
+        return Name;
+    }
+    return NameSpace + "_" + Name;
+}

@@ -54,9 +54,10 @@ const TypeKind &ASTVoidType::getKind() const {
     return Kind;
 }
 
-ASTClassType::ASTClassType(SourceLocation Loc, std::string Name)  : ASTType(Loc), Name(Name) {
+ASTClassType::ASTClassType(SourceLocation Loc, std::string Name, std::string NameSpace) : ASTType(Loc), Name(Name) {
 
 }
+
 
 const TypeKind &ASTClassType::getKind() const {
     return Kind;

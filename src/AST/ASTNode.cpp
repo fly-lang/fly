@@ -51,14 +51,11 @@ void ASTNode::setDefaultNameSpace() {
     setNameSpace(Names);
 }
 
-ASTNameSpace *ASTNode:: FindNameSpace(const std::string &Name) {
-    FLY_DEBUG_MESSAGE("ASTNode", "findNameSpace", "Name=" << Name);
-    if (Name.empty()) { // return current NameSpace if not set
-        return NameSpace;
-    } else {
-        auto NS = Context->NameSpaces.find(Name);
-        return NS == Context->NameSpaces.end() ? nullptr : NS->getValue();
-    }
+ASTImport *ASTNode:: FindImport(const std::string &Name) {
+    FLY_DEBUG_MESSAGE("ASTNode", "FindImport", "Name=" << Name);
+
+    // Search into Node imports
+    return Imports.lookup(Name);
 }
 
 ASTNameSpace *ASTNode::setNameSpace(std::string Name) {
@@ -86,27 +83,28 @@ const llvm::StringMap<ASTImport*> &ASTNode::getImports() {
 
 bool ASTNode::AddImport(ASTImport * Import) {
     FLY_DEBUG_MESSAGE("ASTNode", "AddImport", "Import=" << Import->str());
-    // Check if this Node already own this Import
-    ASTImport* FoundImport = Imports.lookup(Import->getName());
-    if (FoundImport != nullptr) {
-        Context->Diag(Import->getLocation(), diag::err_duplicate_import) << Import->getName();
+
+    if (Import->getName() == NameSpace->getName()) {
+        Context->Diag(Import->getLocation(), diag::err_import_conflict_namespace) << Name;
         return false;
     }
 
-    // Retrieve Import from Context if already exists in order to maintain only one instance of ImportDecl
-    FoundImport = Context->Imports.lookup(Import->getName());
-    if (FoundImport == nullptr) {
-        FoundImport = Import;
+    if (Import->getAlias() == NameSpace->getName()) {
+        Context->Diag(Import->getLocation(), diag::err_alias_conflict_namespace) << Name;
+        return false;
     }
-    auto Pair = std::make_pair(FoundImport->getName(), FoundImport);
 
-    // Add Import to Context
-    Context->Imports.insert(Pair);
+    std::string Name = Import->getAlias().empty() ? Import->getName() : Import->getAlias();
+
+    // Check if this Node already own this Import
+    if (Imports.lookup(Name) != nullptr) {
+        Context->Diag(Import->getLocation(), diag::err_conflict_import) << Name;
+        return false;
+    }
 
     // Add Import to Node
-    Imports.insert(Pair);
-
-    return true;
+    auto Pair = std::make_pair(Name, Import);
+    return Imports.insert(Pair).second;
 }
 
 bool ASTNode::AddGlobalVar(ASTGlobalVar *GVar) {
@@ -225,17 +223,16 @@ bool ASTNode::AddUnrefCall(ASTFuncCall *Call) {
         ", Call=" << Call->str());
     ASTUnrefCall *Unref = new ASTUnrefCall(this, Call);
     if (Call->getNameSpace().empty()) {
-        UnrefFunctionCalls.push_back(Unref);
-    } else if (Call->getNameSpace() == getNameSpace()->getName()) {
+        UnrefFunctionCalls.push_back(Unref); // Unref of Node or from a Namespace not specified
+     } else if (Call->getNameSpace() == getNameSpace()->getName()) { // call must be resolved into current namespace
         getNameSpace()->UnrefFunctionCalls.push_back(Unref);
     } else {
-        ASTNameSpace *FoundNS = FindNameSpace(Call->getNameSpace());
-        if (FoundNS == nullptr) {
-            Context->Diag(Call->getLocation(), diag::err_namespace_notfound)
-                    << Call->getNameSpace();
+        ASTImport *Import = FindImport(Call->getNameSpace());
+        if (Import == nullptr) {
+            Context->Diag(Call->getLocation(), diag::err_import_notfound) << Call->getNameSpace();
             return false;
         }
-        FoundNS->UnrefFunctionCalls.push_back(Unref);
+        Import->UnrefFunctionCalls.push_back(Unref);
     }
     return true;
 }
@@ -245,17 +242,17 @@ bool ASTNode::AddUnrefGlobalVar(ASTVarRef *VarRef) {
         ", VarRef=" << VarRef->str());
     ASTUnrefGlobalVar *Unref = new ASTUnrefGlobalVar(this, *VarRef);
     if (VarRef->getNameSpace().empty()) {
-        UnrefGlobalVars.push_back(Unref);
+        UnrefGlobalVars.push_back(Unref); // Unref of Node or from a Namespace not specified
     } else if (VarRef->getNameSpace() == getNameSpace()->getName()) {
         getNameSpace()->UnrefGlobalVars.push_back(Unref);
     } else {
-        ASTNameSpace *FoundNS = FindNameSpace(VarRef->getNameSpace());
-        if (FoundNS == nullptr) {
-            Context->Diag(VarRef->getLocation(), diag::err_namespace_notfound)
+        ASTImport *Import = FindImport(VarRef->getNameSpace());
+        if (Import == nullptr) {
+            Context->Diag(VarRef->getLocation(), diag::err_import_notfound)
                     << VarRef->getNameSpace();
             return false;
         }
-        FoundNS->UnrefGlobalVars.push_back(Unref);
+        Import->UnrefGlobalVars.push_back(Unref);
     }
     return true;
 }
