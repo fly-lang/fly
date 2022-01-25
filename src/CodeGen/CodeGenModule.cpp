@@ -84,7 +84,6 @@ CodeGenModule::CodeGenModule(DiagnosticsEngine &Diags, llvm::StringRef Name, LLV
     const auto &SDKVersion = Target.getSDKVersion();
     if (!SDKVersion.empty())
         Module->setSDKVersion(SDKVersion);
-
     // TODO Add dependencies, Linker Options
 }
 
@@ -104,32 +103,25 @@ llvm::Module *CodeGenModule::ReleaseModule() {
     return Module.release();
 }
 
-void CodeGenModule::GenImport(ASTImport *Import) {
-    // Read Import: compiled Module or to compile
-    // TODO
-    FLY_DEBUG_MESSAGE("CodeGenModule", "GenImport",
-                      "Import=" << Import->str());
-}
-
 /**
  * GenStmt from VarDecl
  * @param GlobalVar
  * @param isExternal
  */
 CodeGenGlobalVar *CodeGenModule::GenGlobalVar(ASTGlobalVar* GlobalVar, bool isExternal) {
-    FLY_DEBUG_MESSAGE("CodeGenModule", "GenGlobalVar",
+    FLY_DEBUG_MESSAGE("CodeGenModule", "AddGlobalVar",
                       "GlobalVar=" << GlobalVar->str() << ", isExternal=" << isExternal);
     // Check Value
-    CodeGenGlobalVar *CG = new CodeGenGlobalVar(this, GlobalVar, isExternal);
-    if (CG->getPointer() != nullptr) { // Pointer is the GlobalVar, if nullptr Success = false
-        GlobalVar->setCodeGen(CG);
-        return CG;
+    CodeGenGlobalVar *CGGV = new CodeGenGlobalVar(this, GlobalVar, isExternal);
+    if (CGGV->getPointer() != nullptr) { // Pointer is the GlobalVar, if nullptr Success = false
+        GlobalVar->setCodeGen(CGGV);
+        return CGGV;
     }
     return nullptr; // Error occurs
 }
 
 CodeGenFunction *CodeGenModule::GenFunction(ASTFunc *Func, bool isExternal) {
-    FLY_DEBUG_MESSAGE("CodeGenModule", "GenFunction",
+    FLY_DEBUG_MESSAGE("CodeGenModule", "AddFunction",
                       "Func=" << Func->str() << ", isExternal=" << isExternal);
     CodeGenFunction *CGF = new CodeGenFunction(this, Func, isExternal);
     Func->setCodeGen(CGF);
@@ -152,7 +144,7 @@ CallInst *CodeGenModule::GenCall(llvm::Function *Fn, ASTFuncCall *Call) {
         Args.push_back(V);
     }
     CodeGenFunction *CGF = Call->getDecl()->getCodeGen();
-    return Builder->CreateCall(Call->getDecl()->getCodeGen()->getFunction(), Args);
+    return Builder->CreateCall(CGF->getFunction(), Args);
 }
 
 void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {

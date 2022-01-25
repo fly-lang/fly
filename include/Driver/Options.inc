@@ -56,6 +56,8 @@ OPTION(prefix_4, "help", HELP, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
        "Display available options", nullptr, nullptr)
 OPTION(prefix_1, "ll", EMIT_LL, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
        "Produce LLVM formats output .ll file", nullptr, nullptr)
+OPTION(prefix_1, "lib", OUTPUT_LIB, JoinedOrSeparate, INVALID, INVALID, nullptr, CoreOption, 0,
+        "Write output as library to <file>.lib", nullptr, nullptr)
 OPTION(prefix_1, "log-file", LOG_FILE, JoinedOrSeparate, INVALID, INVALID, nullptr, CoreOption, 0,
        "log diagnostics to <file>", "<file>", nullptr)
 OPTION(prefix_1, "mc-model", MC_MODEL, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
@@ -84,5 +86,6 @@ OPTION(prefix_1, "working-dir", WORKING_DIR, JoinedOrSeparate, INVALID, INVALID,
        "Resolve file paths relative to the specified directory", nullptr, nullptr)
 OPTION(prefix_1, "w", NO_WARNING, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
        "Suppress all warnings", nullptr, nullptr)
-
+OPTION(prefix_1, "H", HEADER_GENERATOR, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
+       "Generate Header File", nullptr, nullptr)
 #endif // OPTION

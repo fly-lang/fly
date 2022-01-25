@@ -222,7 +222,6 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
     // Configure Options
 
     // Set Output file
-    // FrontendOpts->setOutputFile("out");
     if (ArgList.hasArg(options::OPT_OUTPUT)) {
         if (ArgList.hasArg(options::OPT_EMIT_LL) ||
                 ArgList.hasArg(options::OPT_EMIT_BC) ||
@@ -235,7 +234,11 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
 
         StringRef Out = ArgList.getLastArgValue(options::OPT_OUTPUT);
         FLY_DEBUG_MESSAGE("Driver", "BuildOptions", "Set OPT_OUTPUT=" << Out);
-        FrontendOpts->setOutputFile(Out);
+        FrontendOpts->setOutputFile(Out.str());
+    } else if (ArgList.hasArg(options::OPT_OUTPUT_LIB)) {
+        StringRef Out = ArgList.getLastArgValue(options::OPT_OUTPUT_LIB);
+        FLY_DEBUG_MESSAGE("Driver", "BuildOptions", "Set OPT_OUTPUT_LIB=" << Out);
+        FrontendOpts->setOutputFile(Out.str(), true);
     }
 
     // Set Working Directory
@@ -283,6 +286,18 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
         FrontendOpts->setOutputFile("");
     } else {
         FrontendOpts->BackendAction = BackendActionKind::Backend_EmitObj;
+    }
+
+    // Lib produce Obj files and need Header files
+    if (ArgList.hasArg(options::OPT_OUTPUT_LIB)) {
+        FrontendOpts->LibraryGen = true;
+        FrontendOpts->BackendAction = BackendActionKind::Backend_EmitObj;
+        FrontendOpts->HeaderGen = true;
+    }
+
+    // Header Generator
+    if (ArgList.hasArg(options::OPT_HEADER_GENERATOR)) {
+        FrontendOpts->HeaderGen = true;
     }
 
     // Target Options
@@ -341,8 +356,17 @@ bool Driver::Execute() {
         if (!CI->getFrontendOptions().getOutputFile().getFile().empty()) {
             const llvm::Triple &T = TargetInfo::CreateTargetInfo(CI->getDiagnostics(),
                                                                  CI->getTargetOptions())->getTriple();
-            ToolChain *TC = new ToolChain(T);
-            TC->Link(Front.getOutputFiles(), CI->getFrontendOptions().getOutputFile().getFile());
+            ToolChain *TC = new ToolChain(CI->getDiagnostics(), T);
+            Success = TC->BuildOutput(Front.getOutputFiles(), CI->getFrontendOptions());
+
+            // Delete Output Files on Library generation
+            if (CI->getFrontendOptions().LibraryGen) {
+                for (auto &Output: Front.getOutputFiles()) {
+                    FLY_DEBUG_MESSAGE("Driver", "Execute",
+                                      "Delete Output File " << Output);
+                    llvm::sys::fs::remove(Output, false);
+                }
+            }
         }
     }
     FLY_DEBUG_MESSAGE("Driver", "Execute", "return " << Success);

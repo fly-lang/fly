@@ -41,6 +41,8 @@ namespace fly {
         // Namespace declaration
         ASTNameSpace *NameSpace = nullptr;
 
+        const bool Header;
+
         // Contains all Imports, the key is Alias or Name
         llvm::StringMap<ASTImport *> Imports;
         
@@ -55,13 +57,15 @@ namespace fly {
 
         ~ASTNode();
 
+        ASTNode(const std::string FileName, ASTContext *Context);
+
         ASTNode(const std::string FileName, ASTContext *Context, CodeGenModule * CGM);
 
         CodeGenModule *getCodeGen() const;
 
-        ASTNameSpace *setNameSpace(std::string Name);
+        const bool isHeader() const;
 
-        ASTNameSpace *setNameSpace(llvm::SmallVector<std::string, 4> Names);
+        void setNameSpace(std::string Name);
 
         ASTNameSpace* getNameSpace();
 

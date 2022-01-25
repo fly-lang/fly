@@ -24,8 +24,8 @@ using namespace fly;
 
 const std::string ASTNameSpace::DEFAULT = "default";
 
-ASTNameSpace::ASTNameSpace(llvm::SmallVector<std::string, 4> Names, ASTContext *Context) :
-    ASTNodeBase(flat(Names), Context) {
+ASTNameSpace::ASTNameSpace(std::string NameSpace, ASTContext *Context, bool ExternalLib) :
+        ASTNodeBase(NameSpace, Context), ExternalLib(ExternalLib) {
     FLY_DEBUG_MESSAGE("ASTNameSpace", "ASTNameSpace", "Name=" << Name);
 }
 
@@ -39,10 +39,6 @@ const llvm::StringMap<ASTNode*> &ASTNameSpace::getNodes() const {
     return Nodes;
 }
 
-std::string ASTNameSpace::flat(SmallVector<std::string, 4> &Names) {
-    std::string Str;
-    for (auto &N : Names) {
-        Str += N;
-    }
-    return Str;
+bool ASTNameSpace::isExternalLib() const {
+    return ExternalLib;
 }

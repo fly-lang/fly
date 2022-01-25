@@ -54,7 +54,7 @@ llvm::Value *CodeGenExpr::getValue() const {
 }
 
 llvm::Value *CodeGenExpr::Generate(ASTExpr *Expr) {
-    FLY_DEBUG("CodeGenExpr", "Generate");
+    FLY_DEBUG("CodeGenExpr", "Convert");
     // Generate Values from a Group
     if (Expr->getKind() == EXPR_GROUP) {
         return GenGroup((ASTGroupExpr *) Expr, new ASTGroupExpr(SourceLocation()), 0);

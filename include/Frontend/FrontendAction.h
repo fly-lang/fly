@@ -25,6 +25,7 @@ namespace fly {
     class InputFile;
     class FileManager;
     class SourceManager;
+    class FrontendOptions;
 
     class FrontendAction {
 
@@ -36,6 +37,8 @@ namespace fly {
 
         CodeGenModule *CGM = nullptr;
 
+        CodeGenHeader *CGH = nullptr;
+
         ASTContext *Context;
 
         InputFile *Input;
@@ -44,7 +47,13 @@ namespace fly {
 
         DiagnosticsEngine &Diags;
 
+        FrontendOptions &FrontendOpts;
+
         std::string OutputFile;
+
+        std::string HeaderFile;
+
+        bool CGDone = false;
 
     public:
 
@@ -54,15 +63,17 @@ namespace fly {
 
         ASTNode *getAST();
 
-        CodeGenModule *getCodeGenModule() const;
-
         bool Parse();
 
-        bool HandleASTTopDecl();
+        bool ParseHeader();
+
+        bool GenerateCode();
 
         bool HandleTranslationUnit();
 
         const std::string &getOutputFile() const;
+
+        const std::string &getHeaderFile() const;
     };
 }
 

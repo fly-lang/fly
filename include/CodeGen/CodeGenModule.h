@@ -16,6 +16,7 @@
 
 #include "CharUnits.h"
 #include "CodeGenTypeCache.h"
+#include "CodeGenHeader.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/TargetInfo.h"
 #include <llvm/IR/Module.h>
@@ -86,8 +87,6 @@ namespace fly {
         llvm::Module *getModule() const;
 
         llvm::Module *ReleaseModule();
-
-        void GenImport(ASTImport *Import);
 
         CodeGenGlobalVar *GenGlobalVar(ASTGlobalVar *GlobalVar, bool isExternal = false);
 

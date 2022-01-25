@@ -23,7 +23,8 @@
 using namespace fly;
 
 FrontendAction::FrontendAction(const CompilerInstance & CI, ASTContext *Context, CodeGen &CG, InputFile *Input) :
-        Context(Context), Diags(CI.getDiagnostics()), SourceMgr(CI.getSourceManager()), CG(CG), Input(Input) {
+        Context(Context), Diags(CI.getDiagnostics()), SourceMgr(CI.getSourceManager()),
+        FrontendOpts(CI.getFrontendOptions()), CG(CG), Input(Input) {
     FLY_DEBUG_MESSAGE("FrontendAction", "FrontendAction", "Input=" << Input->getFileName());
 }
 
@@ -38,11 +39,6 @@ ASTNode *FrontendAction::getAST() {
     return AST;
 }
 
-CodeGenModule *FrontendAction::getCodeGenModule() const {
-    assert(AST && "CGM not built, need a Parse()");
-    return CGM;
-}
-
 bool FrontendAction::Parse() {
     FLY_DEBUG_MESSAGE("FrontendAction", "Parse", "Input=" << Input->getFileName());
     bool Success = true;
@@ -51,6 +47,9 @@ bool FrontendAction::Parse() {
     if (P == nullptr) {
         // Create CodeGen
         CGM = CG.CreateModule(Input->getFileName());
+        if (FrontendOpts.HeaderGen) {
+            CGH = CG.CreateHeader(Input->getFileName());
+        }
 
         // Create AST
         AST = new ASTNode(Input->getFileName(), Context, CGM);
@@ -58,57 +57,82 @@ bool FrontendAction::Parse() {
         // Create Parser and start to parse
         P = new Parser(*Input, SourceMgr, Diags);
         Success &= P->Parse(AST) && Context->AddNode(AST);
+        if (FrontendOpts.HeaderGen) {
+            CGH->AddNameSpace(AST->getNameSpace());
+        }
     }
 
     Diags.getClient()->EndSourceFile();
     return Success;
 }
 
-bool FrontendAction::HandleASTTopDecl() {
-    assert(AST && "AST not built, need a Parse()");
-    FLY_DEBUG_MESSAGE("FrontendAction", "HandleASTTopDecl", "Input=" << Input->getFileName());
+bool FrontendAction::ParseHeader() {
+    FLY_DEBUG_MESSAGE("FrontendAction", "ParseHeader", "Input=" << Input->getFileName());
+    bool Success = true;
     Diags.getClient()->BeginSourceFile();
 
-    // Manage Imports
-    for(const auto &I : AST->getImports()) {
-        CGM->GenImport(I.getValue());
+    if (P == nullptr) {
+        // Create AST
+        ASTNode *Node = new ASTNode(Input->getFileName(), Context);
+
+        // Create Parser and start to parse
+        P = new Parser(*Input, SourceMgr, Diags);
+        Success &= P->ParseHeader(Node) && Context->AddNode(Node);
     }
+
+    Diags.getClient()->EndSourceFile();
+    return Success;
+}
+
+bool FrontendAction::GenerateCode() {
+    assert(AST && "AST not built, need a Parse()");
+    assert(!AST->isHeader() && "Cannot generate code from Header");
+    FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode", "Input=" << Input->getFileName());
+    Diags.getClient()->BeginSourceFile();
 
     // Manage External GlobalVars
     for (const auto &Entry : AST->getExternalGlobalVars()) {
-        FLY_DEBUG_MESSAGE("FrontendAction", "HandleASTTopDecl",
-                          "ExternalGlobalVar=" << Entry.getValue()->str());
-        CGM->GenGlobalVar(Entry.getValue(), true);
+        ASTGlobalVar *GlobalVar = Entry.getValue();
+        FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode",
+                          "ExternalGlobalVar=" << GlobalVar->str());
+        CGM->GenGlobalVar(GlobalVar, true);
     }
 
     // Manage External Function
     for (const auto &EF : AST->getExternalFunctions()) {
-        FLY_DEBUG_MESSAGE("FrontendAction", "HandleASTTopDecl",
+        FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode",
                           "ExternalFunction=" << EF->str());
         CGM->GenFunction(EF, true);
     }
 
     // Manage GlobalVars
     std::vector<CodeGenGlobalVar *> CGGlobalVars;
-    for (const auto &GV : AST->getGlobalVars()) {
-        FLY_DEBUG_MESSAGE("FrontendAction", "HandleASTTopDecl",
-                          "GlobalVar=" << GV.getValue()->str());
-        CodeGenGlobalVar *CGV = CGM->GenGlobalVar(GV.getValue());
+    for (const auto &Entry : AST->getGlobalVars()) {
+        ASTGlobalVar *GlobalVar = Entry.getValue();
+        FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode",
+                          "GlobalVar=" << GlobalVar->str());
+        CodeGenGlobalVar *CGV = CGM->GenGlobalVar(GlobalVar);
         CGGlobalVars.push_back(CGV);
+        if (FrontendOpts.HeaderGen) {
+            CGH->AddGlobalVar(GlobalVar);
+        }
     }
 
     // Instantiates all Function CodeGen in order to be set in all Call references
     std::vector<CodeGenFunction *> CGFunctions;
-    for (ASTFunc *F : AST->getFunctions()) {
-        FLY_DEBUG_MESSAGE("FrontendAction", "HandleASTTopDecl",
-                          "Function=" << F->str());
-        CodeGenFunction *CGF = CGM->GenFunction(F);
+    for (ASTFunc *Func : AST->getFunctions()) {
+        FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode",
+                          "Function=" << Func->str());
+        CodeGenFunction *CGF = CGM->GenFunction(Func);
         CGFunctions.push_back(CGF);
+        if (FrontendOpts.HeaderGen) {
+            CGH->AddFunction(Func);
+        }
     }
 
     // Body must be generated after all CodeGen has been set for each TopDecl
     for (auto &CGF : CGFunctions) {
-        FLY_DEBUG_MESSAGE("FrontendAction", "HandleASTTopDecl",
+        FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode",
                           "FunctionBody=" << CGF->getName());
         for (auto &CGV : CGGlobalVars) {
             CGV->reset();
@@ -117,19 +141,28 @@ bool FrontendAction::HandleASTTopDecl() {
     }
 
     Diags.getClient()->EndSourceFile();
-    FLY_DEBUG_MESSAGE("FrontendAction", "HandleASTTopDecl",
+    FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode",
                       "hasErrorOccurred=" << Diags.hasErrorOccurred());
-    return !Diags.hasErrorOccurred();
+    CGDone = !Diags.hasErrorOccurred();
+    return CGDone;
 }
 
 bool FrontendAction::HandleTranslationUnit() {
+    assert(CGDone && "Code not generated successfully");
     FLY_DEBUG_MESSAGE("FrontendAction", "Emit", "Input=" << Input->getFileName());
     Diags.getClient()->BeginSourceFile();
     OutputFile = CG.HandleTranslationUnit(CGM->Module);
+    if (FrontendOpts.HeaderGen) {
+        HeaderFile = CGH->GenerateFile();
+    }
     Diags.getClient()->EndSourceFile();
     return !Diags.hasErrorOccurred();
 }
 
 const std::string &FrontendAction::getOutputFile() const {
     return OutputFile;
+}
+
+const std::string &FrontendAction::getHeaderFile() const {
+    return HeaderFile;
 }

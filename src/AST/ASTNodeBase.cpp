@@ -34,10 +34,6 @@ const std::unordered_set<ASTFunc*> &ASTNodeBase::getFunctions() const {
     return Functions;
 }
 
-const llvm::StringMap<std::vector<ASTFuncCall *>> &ASTNodeBase::getFunctionCalls() const {
-    return FunctionCalls;
-}
-
 const llvm::StringMap<ASTClass *> &ASTNodeBase::getClasses() const {
     return Classes;
 }

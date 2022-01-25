@@ -22,22 +22,22 @@ namespace fly {
 /// failed.
     class OutputFile {
 
-        llvm::StringRef file;
-        llvm::StringRef tempFile;
+        bool Lib = false;
+        std::string FileName;
 
     public:
 
-        void setFile(const llvm::StringRef &file) {
-            OutputFile::file = file;
-            OutputFile::tempFile = llvm::StringRef(file.str() + ".tmp");
+        void setFile(std::string FileName, bool Lib = false) {
+            OutputFile::FileName = FileName;
+            OutputFile::Lib = Lib;
         }
 
-        const llvm::StringRef &getFile() const {
-            return file;
+        bool isLib() const {
+            return Lib;
         }
 
-        const llvm::StringRef &getTempFile() const {
-            return tempFile;
+        const std::string &getFile() const {
+            return FileName;
         }
     };
 }

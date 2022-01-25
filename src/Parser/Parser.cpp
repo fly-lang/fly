@@ -41,47 +41,65 @@ bool Parser::Parse(ASTNode *Node) {
     // Prime the lexer look-ahead.
     ConsumeToken();
 
-    // Parse Package on first
-    if (ParseNameSpace()) {
+    // Parse NameSpace on first
+    AST->setNameSpace(ParseNameSpace());
 
-        // Parse Imports
-        if (ParseImports()) {
+    // Parse Imports
+    if (ParseImports()) {
 
-            // Node empty
-            if (Tok.is(tok::eof)) {
-                Diag(Tok.getLocation(), diag::warn_empty_code);
-                return true;
+        // Node empty
+        if (Tok.is(tok::eof)) {
+            Diag(Tok.getLocation(), diag::warn_empty_code);
+            return true;
+        }
+
+        // Parse All
+        while (Tok.isNot(tok::eof)) {
+
+            // if parse "namespace" there is multiple package declarations
+            if (Tok.is(tok::kw_namespace)) {
+
+                // Multiple Package declaration is invalid, you can define only one and on top of declarations
+                Diag(Tok, diag::err_namespace_invalid) << Tok.getName();
+                return false;
             }
 
-            // Parse All
-            while (Tok.isNot(tok::eof)) {
+            // if parse "import" there is import declaration position error
+            if (Tok.is(tok::kw_import)) {
 
-                // if parse "namespace" there is multiple package declarations
-                if (Tok.is(tok::kw_namespace)) {
-
-                    // Multiple Package declaration is invalid, you can define only one and on top of declarations
-                    Diag(Tok, diag::err_namespace_invalid) << Tok.getName();
-                    return false;
-                }
-
-                // if parse "import" there is import declaration position error
-                if (Tok.is(tok::kw_import)) {
-
-                    // Import can be defined after namespace and before all other declarations
-                    Diag(Tok, diag::err_import_invalid) << Tok.getName();
-                    return false;
-                }
-
-                if (!ParseTopDecl()) {
-                    return false;
-                }
+                // Import can be defined after namespace and before all other declarations
+                Diag(Tok, diag::err_import_invalid) << Tok.getName();
+                return false;
             }
 
-            return AST->Resolve();
+            if (!ParseTopDecl()) {
+                return false;
+            }
         }
     }
 
-    return false;
+    return !Diags.hasErrorOccurred() && AST->Resolve();
+}
+
+bool Parser::ParseHeader(ASTNode *Node) {
+    FLY_DEBUG("Parser", "ParseHeader");
+    AST = Node;
+    Tok.startToken();
+    Tok.setKind(tok::eof);
+
+    // Prime the lexer look-ahead.
+    ConsumeToken();
+
+    // Parse NameSpace on first
+    Node->setNameSpace(ParseNameSpace());
+
+    while (Tok.isNot(tok::eof)) {
+        if (!ParseTopDecl()) {
+            return false;
+        }
+    }
+
+    return !Diags.hasErrorOccurred();
 }
 
 /**
@@ -137,50 +155,45 @@ llvm::StringRef Parser::getLiteralString() {
  * @param fileName
  * @return true on Success or false on Error
  */
-bool Parser::ParseNameSpace() {
+std::string Parser::ParseNameSpace() {
     // Check namespace declaration
     if (Tok.is(tok::kw_namespace)) {
         ConsumeToken();
 
-        // NameSpace is divided by period char
-        llvm::SmallVector<std::string, 4> Names;
-
+        StringRef Name;
         // Check if default namespace specified
         if (Tok.is(tok::kw_default)) {
-            FLY_DEBUG_MESSAGE("Parser", "ParseNameSpace", "NameSpace=default");
             ConsumeToken();
-            Names.push_back(ASTNameSpace::DEFAULT);
-            FLY_DEBUG_MESSAGE("Parser", "ParseNameSpace", "Space=" << ASTNameSpace::DEFAULT);
+            Name = ASTNameSpace::DEFAULT;
+            FLY_DEBUG_MESSAGE("Parser", "ParseNameSpace", "NameSpace=" << ASTNameSpace::DEFAULT);
         } else if (Tok.isAnyIdentifier()) { // Check if a different namespace identifier has been defined
-            StringRef Name = Tok.getIdentifierInfo()->getName();
+            Name = Tok.getIdentifierInfo()->getName();
             ConsumeToken();
-            Names.push_back(Name.str());
-            FLY_DEBUG_MESSAGE("Parser", "ParseNameSpace", "Space=" << Name);
+            FLY_DEBUG_MESSAGE("Parser", "ParseNameSpace", "NameSpace=" << Name);
         } else {
             // Invalid NameSpace defined with error
             Diag(Tok, diag::err_namespace_invalid) << Tok.getName();
-            return false;
         }
 
         // Push Names into namespace
+        std::string NS = Name.str();
         while (Tok.is(tok::period)) {
+            NS += ".";
             ConsumeToken();
             if (Tok.isAnyIdentifier()) {
-                StringRef SubName = Tok.getIdentifierInfo()->getName();
+                NS += Tok.getIdentifierInfo()->getName();
                 ConsumeToken();
-                Names.push_back(SubName.str());
-                FLY_DEBUG_MESSAGE("Parser", "ParseNameSpace", "Space=" << SubName);
+            } else {
+                Diag(Tok, diag::err_namespace_invalid) << Tok.getName();
             }
         }
-
-        AST->setNameSpace(Names);
-        return true;
+        FLY_DEBUG_MESSAGE("Parser", "ParseNameSpace", "NameSpace=" << NS);
+        return NS;
     }
 
     // Define Default NameSpace also if it has not been defined
     FLY_DEBUG_MESSAGE("Parser", "ParseNameSpace", "No namespace defined");
-    AST->setDefaultNameSpace();
-    return true;
+    return ASTNameSpace::DEFAULT;
 }
 
 /**
@@ -377,6 +390,9 @@ bool Parser::ParseFunction(VisibilityKind &VisKind, bool Constant, ASTType *Type
     if (Parser.ParseFunction(Type)) {
         Parser.Function->Constant = Constant;
         Parser.Function->Visibility = VisKind;
+        if (!AST->isHeader()) {
+            return Parser.ParseFunctionBody() && AST->AddFunction(Parser.Function);
+        }
         return AST->AddFunction(Parser.Function);
     }
 

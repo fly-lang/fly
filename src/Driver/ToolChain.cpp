@@ -7,15 +7,18 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
+#include "Frontend/FrontendOptions.h"
 #include "Driver/ToolChain.h"
-#include "lld/Common/Driver.h"
-#include "lld/Core/Writer.h"
+#include "Driver/Archiver.h"
 #include "Config/Config.h"
 #include "Basic/Debug.h"
 
+#include "lld/Common/Driver.h"
+#include "lld/Core/Writer.h"
+
 using namespace fly;
 
-ToolChain::ToolChain(const llvm::Triple &T) : T(T){
+ToolChain::ToolChain(DiagnosticsEngine &Diag, const llvm::Triple &T) : Diag(Diag), T(T){
 
 }
 
@@ -28,24 +31,29 @@ bool BuildLib() {
     return false;
 }
 
-bool ToolChain::Link(const llvm::SmallVector<std::string, 4> &ObjFiles, llvm::StringRef OutFile) {
+bool ToolChain::BuildOutput(const llvm::SmallVector<std::string, 4> &InFiles, FrontendOptions &FrontendOpts) {
     llvm::SmallVector<const char *, 4> Args = {"fly"};
+    const OutputFile &OutFile = FrontendOpts.getOutputFile();
 
     // Select right options format by platform (Win or others)
-    FLY_DEBUG_MESSAGE("ToolChain", "Link", "Output=" << OutFile);
+    FLY_DEBUG_MESSAGE("ToolChain", "Link", "Output=" << OutFile.getFile());
     if (T.isWindowsMSVCEnvironment()) {
-        return LinkWindows(ObjFiles, OutFile, Args);
+        return LinkWindows(InFiles, OutFile.getFile(), Args);
     } else if (T.isOSDarwin()) {
-        return LinkDarwin(ObjFiles, OutFile, Args);
+        return LinkDarwin(InFiles, OutFile.getFile(), Args);
     } else{
-        return LinkLinux(ObjFiles, OutFile, Args);
+        if (FrontendOpts.LibraryGen) {
+            Archiver *Archive = new Archiver(Diag, OutFile.getFile() + ".lib");
+            return Archive->CreateLib(InFiles);
+        }
+        return LinkLinux(InFiles, OutFile.getFile(), Args);
     }
 
     assert(0 && "Unknown Object Format");
 }
 
-bool ToolChain::LinkWindows(const llvm::SmallVector<std::string, 4> &ObjFiles, llvm::StringRef OutFile,
-                        SmallVector<const char *, 4> &Args) {
+bool ToolChain::LinkWindows(const llvm::SmallVector<std::string, 4> &InFiles, llvm::StringRef OutFile,
+                            SmallVector<const char *, 4> &Args) {
     std::string Out = "/out:" + OutFile.str() + ".exe";
     // Args.push_back("/entry:main");
     // https://docs.microsoft.com/en-us/cpp/c-runtime-library/crt-library-features?view=msvc-170
@@ -59,8 +67,8 @@ bool ToolChain::LinkWindows(const llvm::SmallVector<std::string, 4> &ObjFiles, l
     assert(0 && "Invalid Object Format for Windows OS");
 }
 
-bool ToolChain::LinkDarwin(const llvm::SmallVector<std::string, 4> &ObjFiles, llvm::StringRef OutFile,
-                       SmallVector<const char *, 4> &Args) {
+bool ToolChain::LinkDarwin(const llvm::SmallVector<std::string, 4> &InFiles, llvm::StringRef OutFile,
+                           SmallVector<const char *, 4> &Args) {
     Args.push_back("-e");
     Args.push_back("_main");
     Args.push_back("-o");
@@ -73,8 +81,8 @@ bool ToolChain::LinkDarwin(const llvm::SmallVector<std::string, 4> &ObjFiles, ll
     assert(0 && "Invalid Object Format for Apple OS");
 }
 
-bool ToolChain::LinkLinux(const llvm::SmallVector<std::string, 4> &ObjFiles, llvm::StringRef OutFile,
-                        SmallVector<const char *, 4> &Args) {
+bool ToolChain::LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, llvm::StringRef OutFile,
+                          SmallVector<const char *, 4> &Args) {
     // Args.push_back("--entry=main");
     Args.push_back("-o");
     Args.push_back(OutFile.str().c_str());
@@ -85,7 +93,7 @@ bool ToolChain::LinkLinux(const llvm::SmallVector<std::string, 4> &ObjFiles, llv
     Args.push_back("/usr/lib/x86_64-linux-gnu/crti.o");
 //    Args.push_back("/usr/lib/gcc/x86_64-linux-gnu/10/crtbegin.o"); // for dynamic link
     Args.push_back("/usr/lib/gcc/x86_64-linux-gnu/10/crtbeginT.o"); // for static link
-    for(const std::string &ObjFile : ObjFiles) {
+    for(const std::string &ObjFile : InFiles) {
         FLY_DEBUG_MESSAGE("ToolChain", "Link", "Input=" << ObjFile);
         Args.push_back(ObjFile.c_str());
     }

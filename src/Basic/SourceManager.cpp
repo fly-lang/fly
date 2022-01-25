@@ -147,14 +147,14 @@ const llvm::MemoryBuffer *ContentCache::getBuffer(DiagnosticsEngine &Diag,
     Buffer.setPointer(
         llvm::MemoryBuffer::getMemBuffer("", ContentsEntry->getName())
             .release());
-    if (Diag.isDiagnosticInFlight())
-      Diag.SetDelayedDiagnostic(diag::err_file_too_large,
-                                ContentsEntry->getName());
-    else
-      Diag.Report(Loc, diag::err_file_too_large)
-        << ContentsEntry->getName();
 
-    Buffer.setInt(Buffer.getInt() | InvalidFlag);
+      if (Diag.isDiagnosticInFlight())
+          Diag.SetDelayedDiagnostic(diag::err_file_too_large,
+                                    ContentsEntry->getName());
+      else
+          Diag.Report(Loc, diag::err_file_too_large)
+                  << ContentsEntry->getName();
+      Buffer.setInt(Buffer.getInt() | InvalidFlag);
     if (Invalid) *Invalid = true;
     return Buffer.getPointer();
   }

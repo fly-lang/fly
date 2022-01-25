@@ -21,8 +21,8 @@ const llvm::SmallVector<InputFile, 0> &FrontendOptions::getInputFiles() const {
     return Inputs;
 }
 
-void FrontendOptions::setOutputFile(llvm::StringRef FileName) {
-    FrontendOptions::Output.setFile(FileName);
+void FrontendOptions::setOutputFile(std::string FileName, bool isLib) {
+    FrontendOptions::Output.setFile(FileName, isLib);
 }
 
 const OutputFile &FrontendOptions::getOutputFile() const {

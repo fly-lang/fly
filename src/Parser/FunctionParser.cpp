@@ -30,10 +30,7 @@ FunctionParser::FunctionParser(Parser *P, const StringRef &FuncName, SourceLocat
  */
 bool FunctionParser::ParseFunction(ASTType *Type) {
     Function = new ASTFunc(P->AST, FuncNameLoc, Type, FuncName.str());
-    if (ParseFunctionParams()) {
-        return ParseFunctionBody();
-    }
-    return false;
+    return ParseFunctionParams();
 }
 
 /**

@@ -1,5 +1,5 @@
 namespace mylib
 
-int myfunc() {
+public int myfunc() {
     return 1
 }

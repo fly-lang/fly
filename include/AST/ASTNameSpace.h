@@ -31,8 +31,10 @@ namespace fly {
         // AST by FileID
         llvm::StringMap<ASTNode *> Nodes;
 
+        bool ExternalLib;
+
     public:
-        ASTNameSpace(llvm::SmallVector<std::string, 4> Names, ASTContext *Context);
+        ASTNameSpace(std::string NameSpace, ASTContext *Context, bool ExternalLib = false);
 
         ~ASTNameSpace();
 
@@ -40,7 +42,7 @@ namespace fly {
 
         const llvm::StringMap<ASTNode *> &getNodes() const;
 
-        static std::string flat(SmallVector<std::string, 4> &Names);
+        bool isExternalLib() const;
     };
 }
 

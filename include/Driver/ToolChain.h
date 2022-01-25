@@ -10,7 +10,8 @@
 #ifndef FLY_TOOLCHAIN_H
 #define FLY_TOOLCHAIN_H
 
-#include <Frontend/InputFile.h>
+#include "Frontend/InputFile.h"
+#include "Frontend/OutputFile.h"
 #include "llvm/ADT/Triple.h"
 
 namespace fly {
@@ -19,23 +20,25 @@ namespace fly {
 
     class ToolChain {
 
+        DiagnosticsEngine &Diag;
+
         const llvm::Triple &T;
 
     public:
-        ToolChain(const llvm::Triple &T);
+        ToolChain(DiagnosticsEngine &Diag, const llvm::Triple &T);
 
         bool BuildLib();
 
-        bool Link(const llvm::SmallVector<std::string, 4> &ObjFiles, llvm::StringRef OutFile);
+        bool BuildOutput(const llvm::SmallVector<std::string, 4> &InFiles, FrontendOptions &FrontendOpts);
 
-        bool LinkWindows(const llvm::SmallVector<std::string, 4> &ObjFiles, llvm::StringRef OutFile,
-                   SmallVector<const char *, 4> &Args);
+        bool LinkWindows(const llvm::SmallVector<std::string, 4> &InFiles, llvm::StringRef OutFile,
+                         SmallVector<const char *, 4> &Args);
 
-        bool LinkDarwin(const llvm::SmallVector<std::string, 4> &ObjFiles, llvm::StringRef OutFile,
-                    SmallVector<const char *, 4> &Args);
+        bool LinkDarwin(const llvm::SmallVector<std::string, 4> &InFiles, llvm::StringRef OutFile,
+                        SmallVector<const char *, 4> &Args);
 
-        bool LinkLinux(const llvm::SmallVector<std::string, 4> &ObjFiles, llvm::StringRef OutFile,
-                     SmallVector<const char *, 4> &Args);
+        bool LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, llvm::StringRef OutFile,
+                       SmallVector<const char *, 4> &Args);
     };
 }
 

@@ -15,6 +15,7 @@
 #include "Basic/FileManager.h"
 #include "Basic/TargetInfo.h"
 #include "Basic/Debug.h"
+
 #include <llvm/IR/LLVMContext.h>
 
 using namespace fly;
@@ -112,4 +113,10 @@ const std::string CodeGen::toIdentifier(std::string Name, std::string NameSpace)
         return Name;
     }
     return NameSpace + "_" + Name;
+}
+
+CodeGenHeader *CodeGen::CreateHeader(std::string FileName){
+    FLY_DEBUG_MESSAGE("CodeGen", "HandleHeader",
+                      "FileName=" << FileName);
+    return new CodeGenHeader(Diags, CodeGenOpts, FileName);
 }

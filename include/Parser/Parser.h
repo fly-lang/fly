@@ -65,6 +65,7 @@ namespace fly {
         Parser(const InputFile &Input, SourceManager &SourceMgr, DiagnosticsEngine &Diags);
 
         bool Parse(ASTNode* Unit);
+        bool ParseHeader(ASTNode *Node);
 
         DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID);
         DiagnosticBuilder Diag(const Token &Tok, unsigned DiagID);
@@ -175,7 +176,7 @@ namespace fly {
 
         llvm::StringRef getLiteralString();
 
-        bool ParseNameSpace();
+        std::string ParseNameSpace();
 
         bool ParseImports();
 

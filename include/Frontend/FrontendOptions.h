@@ -28,6 +28,12 @@ namespace fly {
 
     public:
 
+        /// Generate Library
+        bool LibraryGen;
+
+        /// Generate Header
+        bool HeaderGen;
+
         bool Verbose;
 
         BackendActionKind BackendAction;
@@ -53,7 +59,7 @@ namespace fly {
 
         const OutputFile &getOutputFile() const;
 
-        void setOutputFile(llvm::StringRef output);
+        void setOutputFile(std::string output, bool isLib = false);
 
         bool isVerbose() const;
 

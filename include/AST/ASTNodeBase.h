@@ -66,8 +66,6 @@ namespace fly {
 
         const std::unordered_set<ASTFunc*> &getFunctions() const;
 
-        const llvm::StringMap<std::vector<ASTFuncCall *>> &getFunctionCalls() const;
-
         const llvm::StringMap<ASTClass *> &getClasses() const;
 
         bool AddFunctionCall(ASTFuncCall *Call);

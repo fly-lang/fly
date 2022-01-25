@@ -7,14 +7,30 @@
 
 using namespace fly;
 
-InputFile::InputFile(std::string FileName) : FileName(FileName) {
+FileExt TakeExt(std::string FileName) {
+    if (FileName.substr(FileName.size() - 4, FileName.size()) == ".fly") {
+        return FLY;
+    } else if (FileName.substr(FileName.size() - 4, FileName.size()) == ".lib") {
+        return LIB;
+    } else if (FileName.substr(FileName.size() - 4, FileName.size()) == ".o") {
+        return OBJ;
+    }
+    return UNKNOWN;
+}
+
+std::string TakeName(std::string FileName) {
+    return FileName.substr(0, FileName.size()-4);
+}
+
+InputFile::InputFile(std::string FileName) : FileName(FileName), Name(TakeName(FileName)),
+                                             Ext(TakeExt(FileName)) {
 
 }
 
 bool InputFile::Load(llvm::StringRef Source, SourceManager &SourceMgr) {
     FLY_DEBUG_MESSAGE("InputFile", "Load", "Source=" + Source);
     // Set Source Manager file id
-    std::unique_ptr<llvm::MemoryBuffer> Buf = llvm::MemoryBuffer::getMemBuffer(Source, FileName);
+    std::unique_ptr<llvm::MemoryBuffer> Buf = llvm::MemoryBuffer::getMemBuffer(Source, Name);
 
     Buffer = Buf.get();
     FID = SourceMgr.createFileID(std::move(Buf));
@@ -23,7 +39,7 @@ bool InputFile::Load(llvm::StringRef Source, SourceManager &SourceMgr) {
 }
 
 bool InputFile::Load(SourceManager &SourceMgr, DiagnosticsEngine &Diags) {
-    FLY_DEBUG_MESSAGE("InputFile", "Load", "File=" + FileName);
+    FLY_DEBUG_MESSAGE("InputFile", "Load", "File=" + Name);
     llvm::ErrorOr <std::unique_ptr<llvm::MemoryBuffer>> FileBuf = llvm::MemoryBuffer::getFileOrSTDIN(getFileName());
 
     // Check file error
@@ -38,4 +54,37 @@ bool InputFile::Load(SourceManager &SourceMgr, DiagnosticsEngine &Diags) {
     FID = SourceMgr.createFileID(std::move(Buf));
 //    SourceMgr.setMainFileID(FID); // TODO set for main file
     return true;
+}
+
+bool InputFile::isEmpty() const {
+    return !FileName.empty();
+}
+
+bool InputFile::isBuffer() const {
+    return Buffer != nullptr;
+}
+
+const std::string &InputFile::getFileName() const {
+    assert(isEmpty());
+    return FileName;
+}
+
+const std::string &InputFile::getName() const {
+    assert(isEmpty());
+    return Name;
+}
+
+const FileExt &InputFile::getExt() const {
+    assert(isEmpty());
+    return Ext;
+}
+
+FileID InputFile::getFileID() const {
+    assert(FID.isValid() && "Invalid FileID");
+    return FID;
+}
+
+const llvm::MemoryBuffer *InputFile::getBuffer() const {
+    assert(isBuffer());
+    return Buffer;
 }

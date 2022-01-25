@@ -24,7 +24,6 @@ ASTFunc::ASTFunc(ASTNode *Node, const SourceLocation &Loc, ASTType *ReturnType, 
 
 }
 
-
 const std::string &ASTFunc::getName() const {
     return Name;
 }

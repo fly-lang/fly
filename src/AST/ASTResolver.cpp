@@ -65,15 +65,18 @@ bool ASTResolver::ResolveImports(ASTNameSpace *NameSpace) {
                 Success = false;
                 NameSpace->Context->Diag(diag::err_namespace_notfound) << Import->getName();
             } else {
+                FLY_DEBUG_MESSAGE("ASTResolver", "ResolveImports",
+                                  "Import=" << Import->getName() <<
+                                            ", NameSpace=" << NameSpaceFound->getName());
                 Import->setNameSpace(NameSpaceFound);
 
                 // Sync Un-referenced GlobalVars
-                for (auto &UnrefGlobalVar : Import->UnrefGlobalVars) {
+                for (auto &UnrefGlobalVar: Import->UnrefGlobalVars) {
                     NameSpaceFound->UnrefGlobalVars.push_back(UnrefGlobalVar);
                 }
 
                 // Sync Un-referenced FunctionCalls
-                for (auto &UnrefFunctionCall : Import->UnrefFunctionCalls) {
+                for (auto &UnrefFunctionCall: Import->UnrefFunctionCalls) {
                     NameSpaceFound->UnrefFunctionCalls.push_back(UnrefFunctionCall);
                 }
             }
@@ -187,6 +190,15 @@ bool ASTResolver::ResolveFuncCalls(ASTNameSpace *NameSpace) {
         FLY_DEBUG_MESSAGE("ASTResolver", "ResolveFuncCalls",
                           "NameSpace=" << NameSpace->Name <<
                           ", UnrefFunctionCall=" << UnrefFunctionCall->getCall()->str());
+        // Auto resolve in Lib
+        if (NameSpace->isExternalLib()) {
+            // TODO
+            // need to to read the prototype for external function declaration
+            // UnrefFunctionCall->getCall()->setDecl(Func);
+            // UnrefFunctionCall->getNode()->AddExternalFunction(Func);
+        }
+
+        // Resolve with Sources
         const auto &It = NameSpace->FunctionCalls.find(UnrefFunctionCall->getCall()->getName());
         if (It == NameSpace->FunctionCalls.end()) {
             NameSpace->Context->Diag(UnrefFunctionCall->getCall()->getLocation(), diag::err_unref_call)
@@ -196,7 +208,7 @@ bool ASTResolver::ResolveFuncCalls(ASTNameSpace *NameSpace) {
             for (auto &FunctionCall : It->getValue()) {
                 if (FunctionCall->isUsable(UnrefFunctionCall->getCall())) {
                     UnrefFunctionCall->getCall()->setDecl(FunctionCall->getDecl());
-                    UnrefFunctionCall->getNode()->AddExternalFunction(FunctionCall->getDecl());
+                    UnrefFunctionCall->getNode()->AddExternalFunction(FunctionCall->getDecl()); // Call resolved with external function
                 } else {
                     Success = false;
                 }

@@ -9,17 +9,18 @@
 
 
 #include "Frontend/Frontend.h"
+#include "AST/ASTNameSpace.h"
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
+#include "Driver/Archiver.h"
 #include "Basic/Debug.h"
-#include <Config/Config.h>
+#include "Basic/Stack.h"
+#include "Config/Config.h"
 #include <llvm/ADT/Statistic.h>
 #include <llvm/Support/Timer.h>
-#include <Basic/Stack.h>
 
 #include <iostream>
 #include <dirent.h>
-
 
 using namespace fly;
 
@@ -82,32 +83,52 @@ bool Frontend::Execute() {
 
     // Read Input Files from options and add to actions if parsing is true.
     bool FileLoadError = false;
-    bool FileParseError = false;
-    for (auto InputFile : CI.getFrontendOptions().getInputFiles()) {
-        FLY_DEBUG_MESSAGE("Frontend", "Execute", "Loading input file " + InputFile.getFileName());
-        if (InputFile.Load(CI.getSourceManager(), Diags)) {
-            FrontendAction *Action = new FrontendAction(CI, Context, CG, &InputFile);
-            // Parse Action & add to Actions for next
-            if (Action->Parse()) {
-                Actions.emplace_back(Action);
+    for (auto Input : CI.getFrontendOptions().getInputFiles()) {
+        FLY_DEBUG_MESSAGE("Frontend", "Execute",
+                          "Loading input file " + Input.getFileName());
+
+        if (Input.getExt() == FileExt::FLY) {
+            if (Input.Load(CI.getSourceManager(), Diags)) {
+                FrontendAction *Action = new FrontendAction(CI, Context, CG, &Input);
+                // Parse Action & add to Actions for next
+                if (Action->Parse()) {
+                    Actions.emplace_back(Action);
+                } else {
+                    FileLoadError = true;
+                }
             } else {
-                FileParseError = true;
+                FileLoadError = true;
             }
-        } else {
-            FileLoadError = true;
+        } else if (Input.getExt() == FileExt::LIB) {
+            // Read Header Files from library by extracting them
+            const std::vector<std::string> &HeaderFiles = LoadHeaderFiles(Input.getFileName());
+            for (auto &HeaderFile : HeaderFiles) {
+                InputFile *InputHeader = new InputFile(HeaderFile);
+                InputHeader->Load(CI.getSourceManager(), CI.getDiagnostics());
+                FrontendAction *Action = new FrontendAction(CI, Context, CG, InputHeader);
+                if (!Action->ParseHeader()) {
+                    FileLoadError = true;
+                }
+
+                // Remove Header File after extraction and parsing
+                llvm::sys::fs::remove(HeaderFile, false);
+            }
         }
     }
 
     // Compile and Emit Output
     if (Actions.empty()) {
         Diags.Report(SourceLocation(), diag::note_no_input_process);
-    } else if (!FileLoadError && !FileParseError && Context->Resolve()) {
+    } else if (!FileLoadError && Context->Resolve()) {
         for (auto Action : Actions) {
-            if (!Action->HandleASTTopDecl()) {
+            if (!Action->GenerateCode()) {
                 break;
             }
             if (!Action->HandleTranslationUnit()) {
                 break;
+            }
+            if (!Action->getHeaderFile().empty()) { // Add Header File if exists to output files
+                OutputFiles.push_back(Action->getHeaderFile());
             }
             OutputFiles.push_back(Action->getOutputFile());
         }
@@ -167,4 +188,9 @@ void Frontend::CreateFrontendTimer() {
 
 const SmallVector<std::string, 4> &Frontend::getOutputFiles() const {
     return OutputFiles;
+}
+
+std::vector<std::string> Frontend::LoadHeaderFiles(const std::string &LibFileName) {
+    Archiver *Ar = new Archiver(Diags, LibFileName);
+    return Ar->ExtractFiles(CI.getFileManager());
 }
