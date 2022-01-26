@@ -1,5 +1,0 @@
-namespace fly.base.io
-
-void print() {
-    c__print(1)
-}

@@ -1,5 +1,0 @@
-import fly.base.io
-int main() {
-    print()
-    return 1
-}
