@@ -54,10 +54,12 @@ OPTION(prefix_1, "ftime-report", FTIME_REPORT, Flag, INVALID, INVALID, nullptr, 
         "Show timers for individual actions", nullptr, nullptr)
 OPTION(prefix_4, "help", HELP, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
        "Display available options", nullptr, nullptr)
-OPTION(prefix_1, "ll", EMIT_LL, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
-       "Produce LLVM formats output .ll file", nullptr, nullptr)
+OPTION(prefix_1, "H", HEADER_GENERATOR, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
+       "Generate Header File", nullptr, nullptr)
 OPTION(prefix_1, "lib", OUTPUT_LIB, JoinedOrSeparate, INVALID, INVALID, nullptr, CoreOption, 0,
         "Write output as library to <file>.lib", nullptr, nullptr)
+OPTION(prefix_1, "ll", EMIT_LL, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
+       "Produce LLVM formats output .ll file", nullptr, nullptr)
 OPTION(prefix_1, "log-file", LOG_FILE, JoinedOrSeparate, INVALID, INVALID, nullptr, CoreOption, 0,
        "log diagnostics to <file>", "<file>", nullptr)
 OPTION(prefix_1, "mc-model", MC_MODEL, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
@@ -72,20 +74,18 @@ OPTION(prefix_1, "print-stats", PRINT_STATS, Flag, INVALID, INVALID, nullptr, Co
         "Print performance metrics and statistics", nullptr, nullptr)
 OPTION(prefix_1, "stats-file=", STATS_FILE, Joined, INVALID, INVALID, nullptr, CoreOption, 0,
         "Filename to write statistics to", nullptr, nullptr)
-OPTION(prefix_1, "target-cpu", TARGET_CPU, Separate, INVALID, INVALID, nullptr, CoreOption, 0,
-       "Generate code for the given CPU", nullptr, nullptr)
 OPTION(prefix_1, "target", TARGET, Separate, INVALID, INVALID, nullptr, CoreOption, 0,
        "Generate code for the given target", nullptr, nullptr)
-OPTION(prefix_4, "version-short", VERSION_SHORT, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
-       "Print version number", nullptr, nullptr)
-OPTION(prefix_4, "version", VERSION, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
-       "Print version information", nullptr, nullptr)
+OPTION(prefix_1, "target-cpu", TARGET_CPU, Separate, INVALID, INVALID, nullptr, CoreOption, 0,
+       "Generate code for the given CPU", nullptr, nullptr)
 OPTION(prefix_1, "v", VERBOSE, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
        "Show commands to run and use verbose output", nullptr, nullptr)
+OPTION(prefix_4, "version", VERSION, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
+       "Print version information", nullptr, nullptr)
+OPTION(prefix_4, "version-short", VERSION_SHORT, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
+       "Print version number", nullptr, nullptr)
 OPTION(prefix_1, "working-dir", WORKING_DIR, JoinedOrSeparate, INVALID, INVALID, nullptr, CoreOption, 0,
        "Resolve file paths relative to the specified directory", nullptr, nullptr)
 OPTION(prefix_1, "w", NO_WARNING, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
        "Suppress all warnings", nullptr, nullptr)
-OPTION(prefix_1, "H", HEADER_GENERATOR, Flag, INVALID, INVALID, nullptr, CoreOption, 0,
-       "Generate Header File", nullptr, nullptr)
 #endif // OPTION
