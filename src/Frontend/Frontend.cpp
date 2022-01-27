@@ -12,7 +12,7 @@
 #include "AST/ASTNameSpace.h"
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
-#include "Driver/Archiver.h"
+#include "Basic/Archiver.h"
 #include "Basic/Debug.h"
 #include "Basic/Stack.h"
 #include <llvm/ADT/Statistic.h>

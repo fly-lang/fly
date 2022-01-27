@@ -3,7 +3,6 @@ foreach(target ${LLVM_TARGETS_TO_BUILD})
 endforeach()
 
 add_library(FlyDriver
-        Archiver.cpp
         Driver.cpp
         DriverOptions.cpp
         ToolChain.cpp

@@ -11,8 +11,35 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "Driver/Archiver.h"
+#include "Basic/Archiver.h"
 #include "Basic/Debug.h"
+#include "llvm/ADT/StringSwitch.h"
+#include "llvm/ADT/Triple.h"
+#include "llvm/BinaryFormat/Magic.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/Object/IRObjectFile.h"
+#include "llvm/Object/MachO.h"
+#include "llvm/Object/ObjectFile.h"
+#include "llvm/Object/SymbolicFile.h"
+#include "llvm/Support/Chrono.h"
+#include "llvm/Support/CommandLine.h"
+#include "llvm/Support/ConvertUTF.h"
+#include "llvm/Support/Errc.h"
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Format.h"
+#include "llvm/Support/FormatVariadic.h"
+#include "llvm/Support/Host.h"
+#include "llvm/Support/InitLLVM.h"
+#include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/Path.h"
+#include "llvm/Support/StringSaver.h"
+#include "llvm/Support/raw_ostream.h"
+
+#if !defined(_MSC_VER) && !defined(__MINGW32__)
+#include <unistd.h>
+#else
+#include <io.h>
+#endif
 
 using namespace llvm;
 using namespace fly;
@@ -97,19 +124,7 @@ std::string Archiver::normalizePath(StringRef Path) {
 }
 
 bool Archiver::comparePaths(StringRef Path1, StringRef Path2) {
-// When on Windows this function calls CompareStringOrdinal
-// as Windows file paths are case-insensitive.
-// CompareStringOrdinal compares two Unicode strings for
-// binary equivalence and allows for case insensitivity.
-#ifdef _WIN32
-    SmallVector<wchar_t, 128> WPath1, WPath2;
-    return !isError(sys::windows::UTF8ToUTF16(normalizePath(Path1), WPath1)) &&
-        !isError(sys::windows::UTF8ToUTF16(normalizePath(Path2), WPath2)) &&
-        CompareStringOrdinal(WPath1.data(), WPath1.size(), WPath2.data(),
-                                WPath2.size(), true) == CSTR_EQUAL;
-#else
     return normalizePath(Path1) == normalizePath(Path2);
-#endif
 }
 
 // Implement the 'x' operation. This function extracts files back to the file

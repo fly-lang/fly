@@ -9,7 +9,7 @@
 
 #include "Frontend/FrontendOptions.h"
 #include "Driver/ToolChain.h"
-#include "Driver/Archiver.h"
+#include "Basic/Archiver.h"
 #include "Config/Config.h"
 #include "Basic/Debug.h"
 

@@ -1,4 +1,5 @@
 add_library(FlyBasic
+        Archiver.cpp
         Builtins.cpp
         CharInfo.cpp
         CodeGenOptions.cpp
@@ -51,4 +52,5 @@ target_link_libraries(FlyBasic
         LLVMCore
         LLVMMC
         LLVMSupport
+        LLVMObject
         )
