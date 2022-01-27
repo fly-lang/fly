@@ -19,7 +19,6 @@
 #include <llvm/Support/Timer.h>
 
 #include <iostream>
-#include <dirent.h>
 
 using namespace fly;
 
