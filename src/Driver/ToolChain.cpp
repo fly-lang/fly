@@ -37,16 +37,17 @@ bool ToolChain::BuildOutput(const llvm::SmallVector<std::string, 4> &InFiles, Fr
 
     // Select right options format by platform (Win or others)
     FLY_DEBUG_MESSAGE("ToolChain", "Link", "Output=" << OutFile.getFile());
-    if (T.isWindowsMSVCEnvironment()) {
-        return LinkWindows(InFiles, OutFile.getFile(), Args);
-    } else if (T.isOSDarwin()) {
-        return LinkDarwin(InFiles, OutFile.getFile(), Args);
-    } else{
-        if (FrontendOpts.LibraryGen) {
-            Archiver *Archive = new Archiver(Diag, OutFile.getFile() + ".lib");
-            return Archive->CreateLib(InFiles);
+    if (FrontendOpts.LibraryGen) {
+        Archiver *Archive = new Archiver(Diag, OutFile.getFile() + ".lib");
+        return Archive->CreateLib(InFiles);
+    } else {
+        if (T.isWindowsMSVCEnvironment()) {
+            return LinkWindows(InFiles, OutFile.getFile(), Args);
+        } else if (T.isOSDarwin()) {
+            return LinkDarwin(InFiles, OutFile.getFile(), Args);
+        } else {
+            return LinkLinux(InFiles, OutFile.getFile(), Args);
         }
-        return LinkLinux(InFiles, OutFile.getFile(), Args);
     }
 
     assert(0 && "Unknown Object Format");
