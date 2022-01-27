@@ -13,8 +13,6 @@
 #include "InputFile.h"
 #include "OutputFile.h"
 #include "CodeGen/BackendUtil.h"
-#include <llvm/ADT/ArrayRef.h>
-#include <llvm/Option/ArgList.h>
 #include <string>
 
 namespace fly {
@@ -60,14 +58,6 @@ namespace fly {
         const OutputFile &getOutputFile() const;
 
         void setOutputFile(std::string output, bool isLib = false);
-
-        bool isVerbose() const;
-
-        void setVerbose();
-
-        BackendActionKind getBackendAction();
-
-        void setBackendAction(BackendActionKind action);
 
     };
 }

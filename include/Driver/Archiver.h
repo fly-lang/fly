@@ -44,14 +44,8 @@
 
 #if !defined(_MSC_VER) && !defined(__MINGW32__)
 #include <unistd.h>
-
-
 #else
 #include <io.h>
-#endif
-
-#ifdef _WIN32
-#include "llvm/Support/Windows/WindowsSupport.h"
 #endif
 
 namespace fly {
