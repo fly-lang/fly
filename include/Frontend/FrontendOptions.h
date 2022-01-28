@@ -57,7 +57,7 @@ namespace fly {
 
         const OutputFile &getOutputFile() const;
 
-        void setOutputFile(std::string output, bool isLib = false);
+        void setOutputFile(const std::string &FileName, bool isLib = false);
 
     };
 }

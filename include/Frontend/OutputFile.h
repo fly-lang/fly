@@ -27,18 +27,11 @@ namespace fly {
 
     public:
 
-        void setFile(std::string FileName, bool Lib = false) {
-            OutputFile::FileName = FileName;
-            OutputFile::Lib = Lib;
-        }
+        void setFile(const std::string &Name, bool isLib = false);
 
-        bool isLib() const {
-            return Lib;
-        }
+        bool isLib() const;
 
-        const std::string &getFile() const {
-            return FileName;
-        }
+        const std::string &getFile() const;
     };
 }
 

@@ -1,6 +1,11 @@
+//===--------------------------------------------------------------------------------------------------------------===//
+// src/Frontend/InputFile.cpp - Input File
 //
-// Created by marco on 5/22/21.
+// Part of the Fly Project https://flylang.org
+// Under the Apache License v2.0 see LICENSE for details.
+// Thank you to LLVM Project https://llvm.org/
 //
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Frontend/InputFile.h"
 #include "Basic/Debug.h"

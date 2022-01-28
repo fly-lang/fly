@@ -41,21 +41,22 @@ bool ToolChain::BuildOutput(const llvm::SmallVector<std::string, 4> &InFiles, Fr
         Archiver *Archive = new Archiver(Diag, OutFile.getFile() + ".lib");
         return Archive->CreateLib(InFiles);
     } else {
+        const std::string &OutFileName = OutFile.getFile();
         if (T.isWindowsMSVCEnvironment()) {
-            return LinkWindows(InFiles, OutFile.getFile(), Args);
+            return LinkWindows(InFiles, OutFileName, Args);
         } else if (T.isOSDarwin()) {
-            return LinkDarwin(InFiles, OutFile.getFile(), Args);
+            return LinkDarwin(InFiles, OutFileName, Args);
         } else {
-            return LinkLinux(InFiles, OutFile.getFile(), Args);
+            return LinkLinux(InFiles, OutFileName, Args);
         }
     }
 
     assert(0 && "Unknown Object Format");
 }
 
-bool ToolChain::LinkWindows(const llvm::SmallVector<std::string, 4> &InFiles, llvm::StringRef OutFile,
+bool ToolChain::LinkWindows(const llvm::SmallVector<std::string, 4> &InFiles, const std::string &OutFile,
                             SmallVector<const char *, 4> &Args) {
-    std::string Out = "/out:" + OutFile.str() + ".exe";
+    std::string Out = "/out:" + OutFile + ".exe";
     // Args.push_back("/entry:main");
     // https://docs.microsoft.com/en-us/cpp/c-runtime-library/crt-library-features?view=msvc-170
     Args.push_back("/defaultlib:libcmt"); // DLL import library for the UCRT.
@@ -65,28 +66,31 @@ bool ToolChain::LinkWindows(const llvm::SmallVector<std::string, 4> &InFiles, ll
         return lld::coff::link(Args, false, llvm::outs(), llvm::errs());
     }
 
-    assert(0 && "Invalid Object Format for Windows OS");
+//    assert(0 && "Invalid Object Format for Windows OS");
+    return false;
 }
 
-bool ToolChain::LinkDarwin(const llvm::SmallVector<std::string, 4> &InFiles, llvm::StringRef OutFile,
+bool ToolChain::LinkDarwin(const llvm::SmallVector<std::string, 4> &InFiles, const std::string &OutFile,
                            SmallVector<const char *, 4> &Args) {
     Args.push_back("-e");
     Args.push_back("_main");
     Args.push_back("-o");
-    Args.push_back(OutFile.str().c_str());
+    Args.push_back(OutFile.c_str());
 
     if (T.getObjectFormat() == llvm::Triple::MachO) {
         return lld::macho::link(Args, false, llvm::outs(), llvm::errs());
     }
 
-    assert(0 && "Invalid Object Format for Apple OS");
+//    assert(0 && "Invalid Object Format for Apple OS");
+    return false;
 }
 
-bool ToolChain::LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, llvm::StringRef OutFile,
+bool ToolChain::LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, const std::string &OutFile,
                           SmallVector<const char *, 4> &Args) {
     // Args.push_back("--entry=main");
     Args.push_back("-o");
-    Args.push_back(OutFile.str().c_str());
+    Args.push_back(OutFile.c_str());
+
     Args.push_back("-static"); // for static link
 //    Args.push_back("-dynamic-linker"); // for dynamic link
 //    Args.push_back("/lib64/ld-linux-x86-64.so.2"); // for dynamic link
@@ -112,14 +116,17 @@ bool ToolChain::LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, llvm
     Args.push_back("/usr/lib/x86_64-linux-gnu/crtn.o");
 
     std::string ArgStr;
-    for (auto Arg : Args) {
-        ArgStr.append(Arg).append(" ");
+    for (auto &A : Args) {
+        llvm::outs() << A;
+        //ArgStr.append(Arg).append(" ");
     }
     FLY_DEBUG_MESSAGE("ToolChain", "Link", "Arguments: " + ArgStr);
+
 
     if (T.getObjectFormat() == llvm::Triple::ELF) {
         return lld::elf::link(Args, false, llvm::outs(), llvm::errs());
     }
 
-    assert(0 && "Invalid Object Format for Linux OS");
+//    assert(Diag"Invalid Object Format for Linux OS");
+    return false;
 }

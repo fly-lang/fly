@@ -31,13 +31,13 @@ namespace fly {
 
         bool BuildOutput(const llvm::SmallVector<std::string, 4> &InFiles, FrontendOptions &FrontendOpts);
 
-        bool LinkWindows(const llvm::SmallVector<std::string, 4> &InFiles, llvm::StringRef OutFile,
+        bool LinkWindows(const llvm::SmallVector<std::string, 4> &InFiles, const std::string &OutFile,
                          SmallVector<const char *, 4> &Args);
 
-        bool LinkDarwin(const llvm::SmallVector<std::string, 4> &InFiles, llvm::StringRef OutFile,
+        bool LinkDarwin(const llvm::SmallVector<std::string, 4> &InFiles, const std::string &OutFile,
                         SmallVector<const char *, 4> &Args);
 
-        bool LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, llvm::StringRef OutFile,
+        bool LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, const std::string &OutFile,
                        SmallVector<const char *, 4> &Args);
     };
 }

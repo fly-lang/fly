@@ -59,7 +59,6 @@ Driver::Driver(llvm::ArrayRef<const char *> ArrArgs) :
 
     unsigned MissingArgIndex, MissingArgCount;
     const llvm::opt::OptTable &optTable = fly::driver::getDriverOptTable();
-    const unsigned IncludedFlagsBitmask = options::CoreOption;
     ArgList = optTable.ParseArgs(Args, MissingArgIndex, MissingArgCount);
 
     if (ArgList.hasArg(options::OPT_DEBUG)) {
@@ -177,18 +176,15 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
     }
 
     // Show Version
-    if (ArgList.hasArg(options::OPT_VERSION)) {
+    if (ArgList.hasArg(options::OPT_VERSION)) { // Show Version
         printVersion();
         doExecute = false;
         return;
-    } else if (ArgList.hasArg(options::OPT_VERSION_SHORT)) {
+    } else if (ArgList.hasArg(options::OPT_VERSION_SHORT)) { // Show Version (short)
         printVersion(false);
         doExecute = false;
         return;
-    }
-
-    // Show Help
-    else if (ArgList.hasArg(options::OPT_HELP)) {
+    } else if (ArgList.hasArg(options::OPT_HELP)) { // Show Help
         getDriverOptTable().PrintHelp(
                 llvm::outs(), "fly [options] source.fly ...\n",
                 "Example: fly -v -o out main.fly\n"
@@ -226,19 +222,21 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
         if (ArgList.hasArg(options::OPT_EMIT_LL) ||
                 ArgList.hasArg(options::OPT_EMIT_BC) ||
                 ArgList.hasArg(options::OPT_EMIT_AS) ||
-                ArgList.hasArg(options::OPT_EMIT_NOTHING)) {
+                ArgList.hasArg(options::OPT_NO_OUTPUT)) {
             llvm::errs() << "cannot specify -o when not emit object files\n";
             doExecute = false;
             return;
         }
 
-        StringRef Out = ArgList.getLastArgValue(options::OPT_OUTPUT);
+        llvm::StringRef Out = ArgList.getLastArgValue(options::OPT_OUTPUT);
         FLY_DEBUG_MESSAGE("Driver", "BuildOptions", "Set OPT_OUTPUT=" << Out);
-        FrontendOpts->setOutputFile(Out.str());
+        const std::string Output = Out.str();
+        FrontendOpts->setOutputFile(Output);
     } else if (ArgList.hasArg(options::OPT_OUTPUT_LIB)) {
         StringRef Out = ArgList.getLastArgValue(options::OPT_OUTPUT_LIB);
         FLY_DEBUG_MESSAGE("Driver", "BuildOptions", "Set OPT_OUTPUT_LIB=" << Out);
-        FrontendOpts->setOutputFile(Out.str(), true);
+        const std::string Output = Out.str();
+        FrontendOpts->setOutputFile(Output, true);
     }
 
     // Set Working Directory
@@ -280,7 +278,7 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
         FLY_DEBUG_MESSAGE("Driver", "BuildOptions", "Set OPT_EMIT_AS");
         FrontendOpts->BackendAction =BackendActionKind::Backend_EmitAssembly;
         FrontendOpts->setOutputFile("");
-    } else if (ArgList.hasArg(options::OPT_EMIT_NOTHING)) {
+    } else if (ArgList.hasArg(options::OPT_NO_OUTPUT)) {
         FLY_DEBUG_MESSAGE("Driver", "BuildOptions", "Set OPT_EMIT_NOTHING");
         FrontendOpts->BackendAction = BackendActionKind::Backend_EmitNothing;
         FrontendOpts->setOutputFile("");
@@ -345,6 +343,15 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
                 << CodeGenOpts->ThreadModel;
 }
 
+void Driver::printVersion(bool full) {
+    if (full) {
+        llvm::outs() << "FLY version " << FLY_VERSION << " (https://flylang.org)" << "\n";
+        llvm::outs() << "with LLVM version " << LLVM_VERSION_STRING << "\n";
+    } else {
+        llvm::outs() << FLY_VERSION << "\n";
+    }
+}
+
 bool Driver::Execute() {
     FLY_DEBUG("Driver", "Execute");
     bool Success = true;
@@ -374,11 +381,28 @@ bool Driver::Execute() {
     return Success;
 }
 
-void Driver::printVersion(bool full) {
-    if (full) {
-        llvm::outs() << "FLY version " << FLY_VERSION << " (https://flylang.org)" << "\n";
-        llvm::outs() << "with LLVM version " << LLVM_VERSION_STRING << "\n";
-    } else {
-        llvm::outs() << FLY_VERSION << "\n";
-    }
-}
+//const ToolChain &Driver::getToolChain(const llvm::opt::ArgList &Args, const llvm::Triple &Target) const {
+//
+//    std::unique_ptr<ToolChain> TC;
+//    if (!TC) {
+//        switch (Target.getOS()) {
+//            case llvm::Triple::Darwin:
+//            case llvm::Triple::MacOSX:
+//            case llvm::Triple::IOS:
+//            case llvm::Triple::TvOS:
+//            case llvm::Triple::WatchOS:
+//                TC = std::make_unique<toolchains::DarwinClang>(*this, Target, Args);
+//                break;
+//            case llvm::Triple::Linux:
+//                TC = std::make_unique<toolchains::Linux>(*this, Target, Args);
+//                break;
+//            case llvm::Triple::Win32:
+//                TC = std::make_unique<toolchains::MSVCToolChain>(*this, Target, Args);
+//                break;
+//            default:
+//                llvm_unreachable("OS not managed yet " + Target.getOS());
+//        }
+//    }
+//
+//    return *TC;
+//}

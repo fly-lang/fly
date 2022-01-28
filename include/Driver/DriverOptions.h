@@ -32,13 +32,30 @@ namespace fly {
 
             enum ID {
                 OPT_INVALID = 0, // This is not an option ID.
-                #define OPTION(PREFIX, NAME, ID, KIND, GROUP, ALIAS, ALIASARGS, FLAGS, PARAM, HELPTEXT, METAVAR, VALUES)                                      \
-                OPT_##ID,
-
-                #include "Options.inc"
-
-                LastOption
-                #undef OPTION
+                OPT_INPUT,
+                OPT_UNKNOWN,
+                OPT_EMIT_AS,
+                OPT_EMIT_BC,
+                OPT_EMIT_LL,
+                OPT_DEBUG,
+                OPT_FTIME_REPORT,
+                OPT_HEADER_GENERATOR,
+                OPT_HELP,
+                OPT_NO_WARNING,
+                OPT_LOG_FILE,
+                OPT_MC_MODEL,
+                OPT_MTHREAD_MODEL,
+                OPT_NO_OUTPUT,
+                OPT_OUTPUT,
+                OPT_OUTPUT_LIB,
+                OPT_PRINT_STATS,
+                OPT_STATS_FILE,
+                OPT_TARGET_CPU,
+                OPT_TARGET,
+                OPT_VERSION_SHORT,
+                OPT_VERSION,
+                OPT_VERBOSE,
+                OPT_WORKING_DIR,
             };
         }
 

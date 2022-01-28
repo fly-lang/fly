@@ -19,6 +19,8 @@
 
 namespace fly {
 
+    class ToolChain;
+
     class Driver {
 
         // The Compiler Instance contains components needs for compilation phase
@@ -71,9 +73,11 @@ namespace fly {
 
         CompilerInstance &BuildCompilerInstance();
 
+        void printVersion(bool Full = true);
+
         bool Execute();
 
-        void printVersion(bool Full = true);
+//        const ToolChain &getToolChain(const llvm::opt::ArgList &Args, const llvm::Triple &Target) const;
     };
 }
 
