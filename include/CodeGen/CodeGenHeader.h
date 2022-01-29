@@ -45,7 +45,7 @@ namespace fly {
 
         void AddFunction(ASTFunc *Func);
 
-        const std::string &Convert(ASTType *Type);
+        const std::string Convert(ASTType *Type);
 
         void AddNameSpace(ASTNameSpace *pSpace);
     };

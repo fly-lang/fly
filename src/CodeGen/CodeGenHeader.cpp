@@ -31,7 +31,7 @@ CodeGenHeader::CodeGenHeader(DiagnosticsEngine &Diags, CodeGenOptions &CodeGenOp
 }
 
 std::string CodeGenHeader::GenerateFile() {
-    std::string Header;
+    std::string Header = "";
     llvm::StringRef FileName = llvm::sys::path::filename(Name + ".h");
     FLY_DEBUG_MESSAGE("CodeGenHeader", "GenerateFile","FileName=" << FileName);
 
@@ -93,7 +93,7 @@ void CodeGenHeader::AddFunction(ASTFunc *Func) {
     Functions.push_back(Func);
 }
 
-const std::string &CodeGenHeader::Convert(ASTType *Type) {
+const std::string CodeGenHeader::Convert(ASTType *Type) {
     switch (Type->getKind()) {
         case TYPE_INT:
             return "int";
