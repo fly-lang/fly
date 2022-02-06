@@ -76,8 +76,6 @@ namespace fly {
         void printVersion(bool Full = true);
 
         bool Execute();
-
-//        const ToolChain &getToolChain(const llvm::opt::ArgList &Args, const llvm::Triple &Target) const;
     };
 }
 

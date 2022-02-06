@@ -61,7 +61,7 @@ std::string str(llvm::Module *M) {
 
 void CodeGen::Emit(llvm::Module *M, llvm::StringRef OutName) {
     FLY_DEBUG_MESSAGE("CodeGen", "Emit",
-                      "Module.Name=" << M->getName() << "Module.Output=" << str(M));
+                      "Module.Name=" << M->getName() << "\nModule.Output=" << str(M));
 
     // Skip CodeGenModule instance creation
     if (ActionKind == Backend_EmitNothing) {

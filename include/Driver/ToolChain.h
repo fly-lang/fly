@@ -24,8 +24,12 @@ namespace fly {
 
         const llvm::Triple &T;
 
+        const CodeGenOptions &CodeGenOpts;
+
+        IntrusiveRefCntPtr<llvm::vfs::FileSystem> VFS;
+
     public:
-        ToolChain(DiagnosticsEngine &Diag, const llvm::Triple &T);
+        ToolChain(DiagnosticsEngine &Diag, const llvm::Triple &T, CodeGenOptions &CodeGenOpts);
 
         bool BuildLib();
 
@@ -37,8 +41,21 @@ namespace fly {
         bool LinkDarwin(const llvm::SmallVector<std::string, 4> &InFiles, const std::string &OutFile,
                         SmallVector<const char *, 4> &Args);
 
-        bool LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, const std::string &OutFile,
-                       SmallVector<const char *, 4> &Args);
+
+        bool LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, const std::string &OutFile);
+
+        bool getPIE();
+        bool isArmBigEndian();
+        const char *getLDMOption();
+        std::string GetFilePath(llvm::Twine Name, SmallVector<std::string, 16> &PathList) const;
+        llvm::vfs::FileSystem &getVFS() const;
+
+        void AddRunTimeLibs(SmallVector<const char *, 4> &vector);
+        std::string getCompilerRT(const char *string, SmallVector<std::string, 16> &PathList);
+        std::string getMultiarch() const;
+        std::string getOSLibDir();
+
+        SmallVector<std::string, 16> CreatePathList();
     };
 }
 

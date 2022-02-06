@@ -31,8 +31,10 @@ CodeGenHeader::CodeGenHeader(DiagnosticsEngine &Diags, CodeGenOptions &CodeGenOp
 }
 
 std::string CodeGenHeader::GenerateFile() {
-    std::string Header = "";
-    llvm::StringRef FileName = llvm::sys::path::filename(Name + ".h");
+    std::string Header;
+    FLY_DEBUG_MESSAGE("CodeGenHeader", "GenerateFile","FileName=" << Name);
+    std::string FileHeader = Name + ".h";
+    llvm::StringRef FileName = llvm::sys::path::filename(FileHeader);
     FLY_DEBUG_MESSAGE("CodeGenHeader", "GenerateFile","FileName=" << FileName);
 
     // generate namespace
@@ -65,7 +67,7 @@ std::string CodeGenHeader::GenerateFile() {
     int FD;
     const std::error_code &EC = llvm::sys::fs::openFileForWrite(FileName, FD,
                                                                 llvm::sys::fs::CD_CreateAlways,
-                                                                llvm::sys::fs::OF_None);
+                                                                llvm::sys::fs::F_None);
     if (EC) {
         Diags.Report(diag::err_generate_header) << EC.message();
         return "";

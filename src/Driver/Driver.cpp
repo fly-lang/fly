@@ -363,7 +363,7 @@ bool Driver::Execute() {
         if (!CI->getFrontendOptions().getOutputFile().getFile().empty()) {
             const llvm::Triple &T = TargetInfo::CreateTargetInfo(CI->getDiagnostics(),
                                                                  CI->getTargetOptions())->getTriple();
-            ToolChain *TC = new ToolChain(CI->getDiagnostics(), T);
+            ToolChain *TC = new ToolChain(CI->getDiagnostics(), T, CI->getCodeGenOptions());
             Success = TC->BuildOutput(Front.getOutputFiles(), CI->getFrontendOptions());
 
             // Delete Output Files on Library generation
@@ -380,29 +380,3 @@ bool Driver::Execute() {
 
     return Success;
 }
-
-//const ToolChain &Driver::getToolChain(const llvm::opt::ArgList &Args, const llvm::Triple &Target) const {
-//
-//    std::unique_ptr<ToolChain> TC;
-//    if (!TC) {
-//        switch (Target.getOS()) {
-//            case llvm::Triple::Darwin:
-//            case llvm::Triple::MacOSX:
-//            case llvm::Triple::IOS:
-//            case llvm::Triple::TvOS:
-//            case llvm::Triple::WatchOS:
-//                TC = std::make_unique<toolchains::DarwinClang>(*this, Target, Args);
-//                break;
-//            case llvm::Triple::Linux:
-//                TC = std::make_unique<toolchains::Linux>(*this, Target, Args);
-//                break;
-//            case llvm::Triple::Win32:
-//                TC = std::make_unique<toolchains::MSVCToolChain>(*this, Target, Args);
-//                break;
-//            default:
-//                llvm_unreachable("OS not managed yet " + Target.getOS());
-//        }
-//    }
-//
-//    return *TC;
-//}

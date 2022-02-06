@@ -131,6 +131,12 @@ public:
     All,         // Keep all frame pointers.
   };
 
+  bool Static = true;
+  bool Shared = false;
+  bool RDynamic = false;
+  bool PIE = false; // Position Independent Code
+  bool StaticPIE = false; // Static Position Independent Code
+
   /// The code model to use (-mcmodel).
   std::string CodeModel;
 
