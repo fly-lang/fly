@@ -11,7 +11,6 @@
 #define FLY_FRONTENDACTION_H
 
 #include <CodeGen/CodeGen.h>
-#include "OutputFile.h"
 
 namespace fly {
 

@@ -37,8 +37,8 @@ namespace {
         }
 
         ASTNode *Parse(std::string FileName, llvm::StringRef Source) {
-            InputFile Input(FileName);
-            Input.Load(Source, CI.getSourceManager());
+            InputFile Input(Diags, CI.getSourceManager(), FileName);
+            Input.Load(Source);
             FrontendAction *Action = new FrontendAction(CI, Context, *CG, &Input);
             Action->Parse();
             return Action->getAST();

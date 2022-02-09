@@ -62,9 +62,9 @@ namespace fly {
 
         CompilerInstance(IntrusiveRefCntPtr<DiagnosticsEngine> Diags,
                          FileSystemOptions &&FileSystemOpts,
+                         std::shared_ptr<TargetOptions> &&TargetOpts,
                          FrontendOptions *FrontendOpts,
-                         CodeGenOptions *CodeGenOpts,
-                         std::shared_ptr<TargetOptions> &&TargetOpts);
+                         CodeGenOptions *CodeGenOpts);
 
         /// Get the current diagnostics engine.
         DiagnosticsEngine &getDiagnostics() const;

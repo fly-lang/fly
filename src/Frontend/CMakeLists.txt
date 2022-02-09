@@ -7,7 +7,6 @@ add_library(FlyFrontend
         FrontendOptions.cpp
         InputFile.cpp
         LogDiagnosticPrinter.cpp
-        OutputFile.cpp
         TextDiagnostic.cpp
         TextDiagnosticBuffer.cpp
         TextDiagnosticPrinter.cpp

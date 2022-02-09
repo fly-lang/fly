@@ -15,10 +15,6 @@
 
 namespace fly {
 
-    class InputOptions {
-
-    };
-
     enum FileExt {
         UNKNOWN,
         FLY,
@@ -32,7 +28,9 @@ namespace fly {
 
         friend class FrontendAction;
 
-        InputOptions Options;
+        DiagnosticsEngine &Diags;
+
+        SourceManager &SourceMgr;
 
         /// The file name, or "-" to read from standard input.
         const std::string FileName;
@@ -49,11 +47,11 @@ namespace fly {
         const llvm::MemoryBuffer *Buffer = nullptr;
 
     public:
-        explicit InputFile(std::string FileName);
+        explicit InputFile(DiagnosticsEngine &Diags, SourceManager &SourceMgr, std::string FileName);
 
-        bool Load(llvm::StringRef Source, SourceManager &SourceMgr);
+        bool Load(llvm::StringRef Source);
 
-        bool Load(SourceManager &SourceMgr, DiagnosticsEngine &Diags);
+        bool Load();
 
         bool isEmpty() const;
 

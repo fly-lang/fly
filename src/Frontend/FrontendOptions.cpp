@@ -12,19 +12,24 @@
 
 using namespace fly;
 
-void FrontendOptions::addInputFile(std::string FileName) {
-    FLY_DEBUG_MESSAGE("FrontendOptions", "addInputFile", "FileName=" + FileName);
-    Inputs.emplace_back(InputFile(FileName));
+void FrontendOptions::addInputFile(const char * FileName) {
+    FLY_DEBUG_MESSAGE("FrontendOptions", "addInputFile", "FileName=" << FileName);
+    Inputs.emplace_back(FileName);
 }
 
-const llvm::SmallVector<InputFile, 0> &FrontendOptions::getInputFiles() const {
+const llvm::SmallVector<std::string, 16> &FrontendOptions::getInputFiles() const {
     return Inputs;
 }
 
-void FrontendOptions::setOutputFile(const std::string &FileName, bool isLib) {
-    Output.setFile(FileName, isLib);
+void FrontendOptions::setOutputFile(llvm::StringRef FileName, bool isLib) {
+    Output = std::string(FileName);
+    OutputLib = isLib;
 }
 
-const OutputFile &FrontendOptions::getOutputFile() const {
+const std::string &FrontendOptions::getOutputFile() const {
     return Output;
+}
+
+bool FrontendOptions::isOutputLib() const {
+    return OutputLib;
 }

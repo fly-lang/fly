@@ -11,7 +11,6 @@
 #define FLY_TOOLCHAIN_H
 
 #include "Frontend/InputFile.h"
-#include "Frontend/OutputFile.h"
 #include "llvm/ADT/Triple.h"
 
 namespace fly {

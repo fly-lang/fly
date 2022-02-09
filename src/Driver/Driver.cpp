@@ -82,18 +82,18 @@ CompilerInstance &Driver::BuildCompilerInstance() {
 
     // Create all options.
 
-    FileSystemOptions fileSystemOpts;
+    FileSystemOptions FileSystemOpts;
     std::shared_ptr<TargetOptions> TargetOpts = std::make_shared<TargetOptions>();
     FrontendOptions *FrontendOpts = new FrontendOptions();
     CodeGenOptions *CodeGenOpts = new CodeGenOptions();
-    BuildOptions(fileSystemOpts, TargetOpts, &*FrontendOpts, &*CodeGenOpts);
+    BuildOptions(FileSystemOpts, TargetOpts, FrontendOpts, CodeGenOpts);
     
     if (doExecute) {
         CI = std::make_shared<CompilerInstance>(Diags,
-                                                std::move(fileSystemOpts),
+                                                std::move(FileSystemOpts),
+                                                std::move(TargetOpts),
                                                 FrontendOpts,
-                                                CodeGenOpts,
-                                                std::move(TargetOpts));
+                                                CodeGenOpts);
         if (!CI) {
             llvm::errs() << "Error while creating compiler instance!" << "\n";
             exit(1);
@@ -198,15 +198,13 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
     // Parse Input args
     if (ArgList.hasArg(options::OPT_INPUT)) {
         for (const llvm::opt::Arg *A : ArgList.filtered(options::OPT_INPUT)) {
-            FLY_DEBUG_MESSAGE("Driver", "BuildOptions",
-                              "Set OPT_INPUT=" << A->getValue());
+            FLY_DEBUG_MESSAGE("Driver", "BuildOptions","Set OPT_INPUT=" << A->getValue());
             FrontendOpts->addInputFile(A->getValue());
         }
-        if (FrontendOpts->getInputFiles().empty()) {
-            llvm::errs() << "no input files" << "\n";
-            doExecute = false;
-            return;
-        }
+    } else {
+        llvm::errs() << "no input files" << "\n";
+        doExecute = false;
+        return;
     }
 
     // Enable Verbose Log
@@ -230,13 +228,11 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
 
         llvm::StringRef Out = ArgList.getLastArgValue(options::OPT_OUTPUT);
         FLY_DEBUG_MESSAGE("Driver", "BuildOptions", "Set OPT_OUTPUT=" << Out);
-        const std::string Output = Out.str();
-        FrontendOpts->setOutputFile(Output);
+        FrontendOpts->setOutputFile(Out);
     } else if (ArgList.hasArg(options::OPT_OUTPUT_LIB)) {
         StringRef Out = ArgList.getLastArgValue(options::OPT_OUTPUT_LIB);
         FLY_DEBUG_MESSAGE("Driver", "BuildOptions", "Set OPT_OUTPUT_LIB=" << Out);
-        const std::string Output = Out.str();
-        FrontendOpts->setOutputFile(Output, true);
+        FrontendOpts->setOutputFile(Out, true);
     }
 
     // Set Working Directory
@@ -360,7 +356,7 @@ bool Driver::Execute() {
         Frontend Front(*CI);
         Success = Front.Execute();
 
-        if (!CI->getFrontendOptions().getOutputFile().getFile().empty()) {
+        if (!CI->getFrontendOptions().getOutputFile().empty()) {
             const llvm::Triple &T = TargetInfo::CreateTargetInfo(CI->getDiagnostics(),
                                                                  CI->getTargetOptions())->getTriple();
             ToolChain *TC = new ToolChain(CI->getDiagnostics(), T, CI->getCodeGenOptions());

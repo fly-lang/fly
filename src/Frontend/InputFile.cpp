@@ -27,12 +27,13 @@ std::string TakeName(std::string FileName) {
     return FileName.substr(0, FileName.size()-4);
 }
 
-InputFile::InputFile(std::string FileName) : FileName(FileName), Name(TakeName(FileName)),
-                                             Ext(TakeExt(FileName)) {
+InputFile::InputFile(DiagnosticsEngine &Diags, SourceManager &SourceMgr, std::string FileName) :
+    Diags(Diags), SourceMgr(SourceMgr), FileName(FileName),
+    Name(TakeName(FileName)), Ext(TakeExt(FileName)) {
 
 }
 
-bool InputFile::Load(llvm::StringRef Source, SourceManager &SourceMgr) {
+bool InputFile::Load(llvm::StringRef Source) {
     FLY_DEBUG_MESSAGE("InputFile", "Load", "Source=" + Source);
     // Set Source Manager file id
     std::unique_ptr<llvm::MemoryBuffer> Buf = llvm::MemoryBuffer::getMemBuffer(Source, Name);
@@ -43,9 +44,9 @@ bool InputFile::Load(llvm::StringRef Source, SourceManager &SourceMgr) {
     return true;
 }
 
-bool InputFile::Load(SourceManager &SourceMgr, DiagnosticsEngine &Diags) {
+bool InputFile::Load() {
     FLY_DEBUG_MESSAGE("InputFile", "Load", "File=" + Name);
-    llvm::ErrorOr <std::unique_ptr<llvm::MemoryBuffer>> FileBuf = llvm::MemoryBuffer::getFileOrSTDIN(getFileName());
+    llvm::ErrorOr <std::unique_ptr<llvm::MemoryBuffer>> FileBuf = llvm::MemoryBuffer::getFile(FileName);
 
     // Check file error
     if (FileBuf.getError()) {

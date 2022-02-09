@@ -10,8 +10,6 @@
 #ifndef FLY_FRONTENDOPTIONS_H
 #define FLY_FRONTENDOPTIONS_H
 
-#include "InputFile.h"
-#include "OutputFile.h"
 #include "CodeGen/BackendUtil.h"
 #include <string>
 
@@ -20,9 +18,11 @@ namespace fly {
     class FrontendOptions {
 
         /// The input files.
-        llvm::SmallVector<InputFile, 0> Inputs;
+        llvm::SmallVector<std::string, 16> Inputs;
 
-        OutputFile Output;
+        std::string Output;
+
+        bool OutputLib;
 
     public:
 
@@ -51,13 +51,15 @@ namespace fly {
         /// Filename to write statistics to.
         std::string StatsFile;
 
-        void addInputFile(std::string input);
+        void addInputFile(const char* FileName);
 
-        const llvm::SmallVector<InputFile, 0> &getInputFiles() const;
+        const llvm::SmallVector<std::string, 16> &getInputFiles() const;
 
-        const OutputFile &getOutputFile() const;
+        const std::string &getOutputFile() const;
 
-        void setOutputFile(const std::string &FileName, bool isLib = false);
+        void setOutputFile(llvm::StringRef FileName, bool isLib = false);
+
+        bool isOutputLib() const;
 
     };
 }

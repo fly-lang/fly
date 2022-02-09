@@ -51,13 +51,13 @@ bool Frontend::Execute() {
 
     // Read Input Files from options and add to actions if parsing is true.
     bool FileLoadError = false;
-    for (auto Input : CI.getFrontendOptions().getInputFiles()) {
+    for (auto &InputFileName : CI.getFrontendOptions().getInputFiles()) {
         FLY_DEBUG_MESSAGE("Frontend", "Execute",
-                          "Loading input file " + Input.getFileName());
-
-        if (Input.getExt() == FileExt::FLY) {
-            if (Input.Load(CI.getSourceManager(), Diags)) {
-                FrontendAction *Action = new FrontendAction(CI, Context, CG, &Input);
+                          "Loading input file " + InputFileName);
+        InputFile *Input = new InputFile(Diags, CI.getSourceManager(), InputFileName);
+        if (Input->getExt() == FileExt::FLY) {
+            if (Input->Load()) {
+                FrontendAction *Action = new FrontendAction(CI, Context, CG, Input);
                 // Parse Action & add to Actions for next
                 if (Action->Parse()) {
                     Actions.emplace_back(Action);
@@ -67,14 +67,17 @@ bool Frontend::Execute() {
             } else {
                 FileLoadError = true;
             }
-        } else if (Input.getExt() == FileExt::LIB) {
+        } else if (Input->getExt() == FileExt::LIB) {
             // Read Header Files from library by extracting them
-            const std::vector<std::string> &HeaderFiles = LoadHeaderFiles(Input.getFileName());
+            const std::vector<std::string> &HeaderFiles = LoadHeaderFiles(InputFileName);
             for (auto &HeaderFile : HeaderFiles) {
-                InputFile *InputHeader = new InputFile(HeaderFile);
-                InputHeader->Load(CI.getSourceManager(), CI.getDiagnostics());
-                FrontendAction *Action = new FrontendAction(CI, Context, CG, InputHeader);
-                if (!Action->ParseHeader()) {
+                InputFile *InputHeader = new InputFile(Diags, CI.getSourceManager(), HeaderFile);
+                if (InputHeader->Load()) {
+                    FrontendAction *Action = new FrontendAction(CI, Context, CG, InputHeader);
+                    if (!Action->ParseHeader()) {
+                        FileLoadError = true;
+                    }
+                } else {
                     FileLoadError = true;
                 }
 

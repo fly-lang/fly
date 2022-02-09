@@ -36,15 +36,14 @@ bool BuildLib() {
 
 bool ToolChain::BuildOutput(const llvm::SmallVector<std::string, 4> &InFiles, FrontendOptions &FrontendOpts) {
     llvm::SmallVector<const char *, 4> Args = {"fly"};
-    const OutputFile &OutFile = FrontendOpts.getOutputFile();
+    const std::string OutFileName = FrontendOpts.getOutputFile();
 
     // Select right options format by platform (Win or others)
-    FLY_DEBUG_MESSAGE("ToolChain", "Link", "Output=" << OutFile.getFile());
+    FLY_DEBUG_MESSAGE("ToolChain", "Link", "Output=" << OutFileName);
     if (FrontendOpts.LibraryGen) {
-        Archiver *Archive = new Archiver(Diag, OutFile.getFile() + ".lib");
+        Archiver *Archive = new Archiver(Diag, OutFileName + ".lib");
         return Archive->CreateLib(InFiles);
     } else {
-        const std::string &OutFileName = OutFile.getFile();
         if (T.isWindowsMSVCEnvironment()) {
             return LinkWindows(InFiles, OutFileName, Args);
         } else if (T.isOSDarwin()) {

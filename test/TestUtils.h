@@ -44,9 +44,9 @@ public:
         CodeGenOptions *CodeGenOpts = new CodeGenOptions();
         std::shared_ptr<CompilerInstance> CI = std::make_shared<CompilerInstance>(Diags,
                                                                                   std::move(fileSystemOpts),
+                                                                                  std::move(targetOpts),
                                                                                   FrontendOpts,
-                                                                                  CodeGenOpts,
-                                                                                  std::move(targetOpts));
+                                                                                  CodeGenOpts);
         if (!CI) {
             llvm::errs() << "Error while creating compiler instance!" << "\n";
             exit(1);

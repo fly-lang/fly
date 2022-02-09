@@ -149,7 +149,7 @@ bool FrontendAction::GenerateCode() {
 
 bool FrontendAction::HandleTranslationUnit() {
     assert(CGDone && "Code not generated successfully");
-    FLY_DEBUG_MESSAGE("FrontendAction", "Emit", "Input=" << Input->getFileName());
+    FLY_DEBUG_MESSAGE("FrontendAction", "HandleTranslationUnit", "Input=" << Input->getFileName());
     Diags.getClient()->BeginSourceFile();
     OutputFile = CG.HandleTranslationUnit(CGM->Module);
     if (FrontendOpts.HeaderGen) {
