@@ -34,22 +34,18 @@ namespace fly {
 
         bool BuildOutput(const llvm::SmallVector<std::string, 4> &InFiles, FrontendOptions &FrontendOpts);
 
-        bool LinkWindows(const llvm::SmallVector<std::string, 4> &InFiles, const std::string &OutFile,
-                         SmallVector<const char *, 4> &Args);
+        bool LinkWindows(const llvm::SmallVector<std::string, 4> &InFiles, const std::string &OutFile);
+        bool getUniversalCRTLibraryPath(std::string &Path) const;
+        bool getWindowsSDKLibraryPath(std::string &path) const;
 
-        bool LinkDarwin(const llvm::SmallVector<std::string, 4> &InFiles, const std::string &OutFile,
-                        SmallVector<const char *, 4> &Args);
-
+        bool LinkDarwin(const llvm::SmallVector<std::string, 4> &InFiles, const std::string &OutFile);
 
         bool LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, const std::string &OutFile);
-
         bool getPIE();
         bool isArmBigEndian();
         const char *getLDMOption();
         std::string GetFilePath(llvm::Twine Name, SmallVector<std::string, 16> &PathList) const;
         llvm::vfs::FileSystem &getVFS() const;
-
-        void AddRunTimeLibs(SmallVector<const char *, 4> &vector);
         std::string getCompilerRT(const char *string, SmallVector<std::string, 16> &PathList);
         std::string getMultiarch() const;
         std::string getOSLibDir();
