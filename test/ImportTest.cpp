@@ -12,6 +12,7 @@
 #include "Driver/DriverOptions.h"
 #include "llvm/Support/TargetSelect.h"
 #include "Basic/Debug.h"
+#include "Basic/Archiver.h"
 #include "gtest/gtest.h"
 #include <fstream>
 
@@ -101,8 +102,8 @@ namespace {
     }
 
     TEST_F(ImportTest, MyLibExternal) {
+        //Create mylib.lib
         deleteFile("mylib.lib");
-        deleteFile("import_mylib_external.fly.o");
 
         const char* Argv[] = {"fly", "-debug", ImportTest::mylib.c_str(), "-lib", "mylib", NULL};
         int Argc = sizeof(Argv) / sizeof(char*) - 1;
@@ -111,18 +112,45 @@ namespace {
         CompilerInstance &CI = TheDriver.BuildCompilerInstance();
         ASSERT_TRUE(TheDriver.Execute());
 
-        const char* Argv2[] = {"fly", "-debug", "mylib.lib", ImportTest::import_mylib_external.c_str(), NULL};
-        int Argc2 = sizeof(Argv2) / sizeof(char*) - 1;
-        SmallVector<const char *, 256> ArgList2(Argv2, Argv2 + Argc2);
-        Driver TheDriver2(ArgList2);
-        CompilerInstance &CI2 = TheDriver2.BuildCompilerInstance();
-        ASSERT_TRUE(TheDriver2.Execute());
-
         std::ifstream main("mylib.lib");
         ASSERT_TRUE(main && "Error opening mylib.lib");
 
+        // Import mylib.lib
+
+        deleteFile("import_mylib_external.fly.o");
+
+        const char* Argv2[] = { "fly", "-debug", "mylib.lib", ImportTest::import_mylib_external.c_str(), NULL };
+        int Argc2 = sizeof(Argv2) / sizeof(char*) - 1;
+        SmallVector<const char*, 256> ArgList2(Argv2, Argv2 + Argc2);
+        Driver TheDriver2(ArgList2);
+        CompilerInstance& CI2 = TheDriver2.BuildCompilerInstance();
+        ASSERT_TRUE(TheDriver2.Execute());
+
         std::ifstream utils("import_mylib_external.fly.o");
         ASSERT_TRUE(utils && "Error opening import_mylib_external.fly.o");
+    }
+
+    TEST_F(ImportTest, ArchiverLib) {
+        deleteFile("import_mylib_external.fly.o");
+
+        FileSystemOptions FileMgrOpts;
+        FileManager FileMgr(FileMgrOpts);
+        IntrusiveRefCntPtr<DiagnosticIDs> DiagID = new DiagnosticIDs();
+        DiagnosticsEngine Diags(DiagID, new DiagnosticOptions, new IgnoringDiagConsumer());
+
+        //Create Lib
+        Archiver LibCreate(Diags, "yourlib.lib");
+        llvm::SmallVector<std::string, 4> Inputs;
+        Inputs.emplace_back("src/yourlib.fly.h");
+        ASSERT_TRUE(LibCreate.CreateLib(Inputs));
+        std::ifstream lib("yourlib.lib");
+        ASSERT_TRUE(lib && "Error opening yourlib.lib");
+
+        // Extract from Lib
+        Archiver LibExtract(Diags, "yourlib.lib");
+        const std::vector<std::string> &Files = LibExtract.ExtractFiles(FileMgr);
+        std::ifstream h("yourlib.fly.h");
+        ASSERT_TRUE(h && "Error opening yourlib.fly.h");
     }
 
 } // anonymous namespace

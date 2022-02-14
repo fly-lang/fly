@@ -91,9 +91,6 @@ namespace fly {
         // command line.
         std::string ArchiveName;
 
-        std::vector <std::unique_ptr<MemoryBuffer>> ArchiveBuffers;
-        std::vector <std::unique_ptr<object::Archive>> Archives;
-
         // This variable holds the list of member files to proecess, as given
         // on the command line.
         std::vector <llvm::StringRef> Members;

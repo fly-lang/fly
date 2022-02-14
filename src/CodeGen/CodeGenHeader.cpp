@@ -73,7 +73,7 @@ std::string CodeGenHeader::GenerateFile() {
         return "";
     }
 
-    llvm::raw_fd_ostream file(FD, false);
+    llvm::raw_fd_ostream file(FD, true);
 
     // Write the data.
     StringRef StrRef(Header);

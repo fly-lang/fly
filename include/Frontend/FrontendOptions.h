@@ -27,13 +27,15 @@ namespace fly {
     public:
 
         /// Generate Library
-        bool LibraryGen;
+        bool CreateLibrary;
 
         /// Generate Header
-        bool HeaderGen;
+        bool CreateHeader;
 
+        /// Enable Verbose output
         bool Verbose;
 
+        /// The Backend action
         BackendActionKind BackendAction;
 
         /// Show the -version text.

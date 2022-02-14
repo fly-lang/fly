@@ -97,7 +97,7 @@ DIAG(err_unavailable_in_arc, CLASS_ERROR, (unsigned)diag::Severity::Error, "%0 i
 DIAG(err_unavailable_message, CLASS_ERROR, (unsigned)diag::Severity::Error, "%0 is unavailable: %1", 0, SFINAE_SubstitutionFailure, false, true, 2)
 DIAG(err_drv_unable_to_set_working_directory, CLASS_ERROR, (unsigned)diag::Severity::Error, "unable to set working directory: %0", 0, SFINAE_SubstitutionFailure, false, true, 0)
 DIAG(err_drv_missing_argument, CLASS_ERROR, (unsigned)diag::Severity::Error, "argument to '%0' is missing (expected %1 value%s1)", 0, SFINAE_SubstitutionFailure, false, true, 0)
-DIAG(err_drv_archive, CLASS_ERROR, (unsigned)diag::Severity::Error, "Error while archiving %0", 0, SFINAE_SubstitutionFailure, false, true, 0)
+DIAG(err_drv_archive, CLASS_ERROR, (unsigned)diag::Severity::Error, "Lib Archive error: %0", 0, SFINAE_SubstitutionFailure, false, true, 0)
 
 // Frontend
 DIAG(err_fe_error_backend, CLASS_ERROR, (unsigned)diag::Severity::Fatal, "error in backend: %0", 0, SFINAE_SubstitutionFailure, false, true, 0)

@@ -154,7 +154,7 @@ namespace {
         const llvm::Triple &T = TargetInfo::CreateTargetInfo(CI.getDiagnostics(), CI.getTargetOptions())->getTriple();
         if (T.isWindowsMSVCEnvironment()) {
             std::ifstream out("out.exe");
-            ASSERT_TRUE(out && "Error opening out");
+            ASSERT_TRUE(out && "Error opening out.exe");
         } else {
             std::ifstream out("out");
             ASSERT_TRUE(out && "Error opening out");

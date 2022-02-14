@@ -58,20 +58,23 @@ bool Archiver::CreateLib(const llvm::SmallVector<std::string, 4> &Files) {
 }
 
 std::vector<std::string> Archiver::ExtractFiles(FileManager &FileMgr) {
+    FLY_DEBUG("Archiver", "ExtractFiles");
     std::vector<std::string> HeaderFiles;
     if (performOperation(Extract, nullptr)) {
         const StringRef &Path = llvm::sys::path::filename(".");
         std::error_code EC;
         const sys::fs::directory_iterator &It = llvm::sys::fs::directory_iterator(Path, EC);
 
-        if (!EC) {
-            llvm::vfs::FileSystem &FS = FileMgr.getVirtualFileSystem();
-            for (llvm::vfs::directory_iterator Dir = FS.dir_begin(Path, EC), DirEnd;
-                 Dir != DirEnd && !EC; Dir.increment(EC)) {
-                bool IsHeader = llvm::sys::path::extension(Dir->path()) == ".h";
-                if (IsHeader)
-                    HeaderFiles.push_back(Dir->path().str());
-            }
+        if (isError(EC, "Error on directory listing")) {
+            return HeaderFiles;
+        }
+
+        llvm::vfs::FileSystem &FS = FileMgr.getVirtualFileSystem();
+        for (llvm::vfs::directory_iterator Dir = FS.dir_begin(Path, EC), DirEnd;
+             Dir != DirEnd && !EC; Dir.increment(EC)) {
+            bool IsHeader = llvm::sys::path::extension(Dir->path()) == ".h";
+            if (IsHeader)
+                HeaderFiles.push_back(Dir->path().str());
         }
     }
     return HeaderFiles;
@@ -110,11 +113,14 @@ object::Archive *Archiver::readLibrary(const Twine &Library) {
     if (isError(BufOrErr.getError(), "could not open library " + Library)) {
         return nullptr;
     }
+    std::vector <std::unique_ptr<MemoryBuffer>> ArchiveBuffers;
     ArchiveBuffers.push_back(std::move(*BufOrErr));
     auto LibOrErr = object::Archive::create(ArchiveBuffers.back()->getMemBufferRef());
     if (isError(errorToErrorCode(LibOrErr.takeError()), "could not parse library")) {
         return nullptr;
     }
+
+    std::vector <std::unique_ptr<object::Archive>> Archives;
     Archives.push_back(std::move(*LibOrErr));
     return &*Archives.back();
 }
@@ -592,6 +598,7 @@ bool Archiver::performOperation(ArchiveOperation Operation,
 }
 
 bool Archiver::performOperation(ArchiveOperation Operation, std::vector<NewArchiveMember> *NewMembers) {
+    FLY_DEBUG_MESSAGE("Archiver", "performOperation", "Operation" << Operation);
     // Create or open the archive object.
     ErrorOr<std::unique_ptr<MemoryBuffer>> Buf =
             MemoryBuffer::getFile(ArchiveName, -1, false);

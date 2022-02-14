@@ -47,7 +47,7 @@ bool FrontendAction::Parse() {
     if (P == nullptr) {
         // Create CodeGen
         CGM = CG.CreateModule(Input->getFileName());
-        if (FrontendOpts.HeaderGen) {
+        if (FrontendOpts.CreateHeader) {
             CGH = CG.CreateHeader(Input->getFileName());
         }
 
@@ -57,7 +57,7 @@ bool FrontendAction::Parse() {
         // Create Parser and start to parse
         P = new Parser(*Input, SourceMgr, Diags);
         Success &= P->Parse(AST) && Context->AddNode(AST);
-        if (FrontendOpts.HeaderGen) {
+        if (FrontendOpts.CreateHeader) {
             CGH->AddNameSpace(AST->getNameSpace());
         }
     }
@@ -113,7 +113,7 @@ bool FrontendAction::GenerateCode() {
                           "GlobalVar=" << GlobalVar->str());
         CodeGenGlobalVar *CGV = CGM->GenGlobalVar(GlobalVar);
         CGGlobalVars.push_back(CGV);
-        if (FrontendOpts.HeaderGen) {
+        if (FrontendOpts.CreateHeader) {
             CGH->AddGlobalVar(GlobalVar);
         }
     }
@@ -125,7 +125,7 @@ bool FrontendAction::GenerateCode() {
                           "Function=" << Func->str());
         CodeGenFunction *CGF = CGM->GenFunction(Func);
         CGFunctions.push_back(CGF);
-        if (FrontendOpts.HeaderGen) {
+        if (FrontendOpts.CreateHeader) {
             CGH->AddFunction(Func);
         }
     }
@@ -152,7 +152,7 @@ bool FrontendAction::HandleTranslationUnit() {
     FLY_DEBUG_MESSAGE("FrontendAction", "HandleTranslationUnit", "Input=" << Input->getFileName());
     Diags.getClient()->BeginSourceFile();
     OutputFile = CG.HandleTranslationUnit(CGM->Module);
-    if (FrontendOpts.HeaderGen) {
+    if (FrontendOpts.CreateHeader) {
         HeaderFile = CGH->GenerateFile();
     }
     Diags.getClient()->EndSourceFile();

@@ -284,14 +284,14 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
 
     // Lib produce Obj files and need Header files
     if (ArgList.hasArg(options::OPT_OUTPUT_LIB)) {
-        FrontendOpts->LibraryGen = true;
+        FrontendOpts->CreateLibrary = true;
         FrontendOpts->BackendAction = BackendActionKind::Backend_EmitObj;
-        FrontendOpts->HeaderGen = true;
+        FrontendOpts->CreateHeader = true;
     }
 
     // Header Generator
     if (ArgList.hasArg(options::OPT_HEADER_GENERATOR)) {
-        FrontendOpts->HeaderGen = true;
+        FrontendOpts->CreateHeader = true;
     }
 
     // Target Options
@@ -363,11 +363,15 @@ bool Driver::Execute() {
             Success = TC->BuildOutput(Front.getOutputFiles(), CI->getFrontendOptions());
 
             // Delete Output Files on Library generation
-            if (CI->getFrontendOptions().LibraryGen) {
+            if (CI->getFrontendOptions().CreateLibrary) {
                 for (auto &Output: Front.getOutputFiles()) {
                     FLY_DEBUG_MESSAGE("Driver", "Execute",
                                       "Delete Output File " << Output);
-                    llvm::sys::fs::remove(Output, false);
+                    const std::error_code &EC = llvm::sys::fs::remove(Output, false);
+                    if (EC) {
+                        CI->getDiagnostics().Report(diag::err_drv_archive) << EC.message();
+                        return false;
+                    }
                 }
             }
         }

@@ -162,6 +162,6 @@ const SmallVector<std::string, 4> &Frontend::getOutputFiles() const {
 }
 
 std::vector<std::string> Frontend::LoadHeaderFiles(const std::string &LibFileName) {
-    Archiver *Ar = new Archiver(Diags, LibFileName);
-    return Ar->ExtractFiles(CI.getFileManager());
+    Archiver Ar(Diags, LibFileName);
+    return Ar.ExtractFiles(CI.getFileManager());
 }

@@ -13,7 +13,6 @@
 #include "Config/Config.h"
 #include "Basic/Debug.h"
 
-#include "llvm/Option/ArgList.h"
 #include "llvm/Support/Process.h"
 #include "llvm/Support/Program.h"
 #include "llvm/Support/ConvertUTF.h"
@@ -63,9 +62,9 @@ bool ToolChain::BuildOutput(const llvm::SmallVector<std::string, 4> &InFiles, Fr
 
     // Select right options format by platform (Win or others)
     FLY_DEBUG_MESSAGE("ToolChain", "Link", "Output=" << OutFileName);
-    if (FrontendOpts.LibraryGen) {
-        Archiver *Archive = new Archiver(Diag, OutFileName + ".lib");
-        return Archive->CreateLib(InFiles);
+    if (FrontendOpts.CreateLibrary) {
+        Archiver Library(Diag, OutFileName + ".lib");
+        return Library.CreateLib(InFiles);
     } else {
         if (T.isWindowsMSVCEnvironment()) {
             return LinkWindows(InFiles, OutFileName);
@@ -379,6 +378,7 @@ static const char *llvmArchToWindowsSDKArch(llvm::Triple::ArchType Arch) {
 bool ToolChain::LinkWindows(const llvm::SmallVector<std::string, 4> &InFiles, const std::string &OutFile) {
     FLY_DEBUG_MESSAGE("ToolChain", "LinkWindows", "Out: " + OutFile);
     llvm::SmallVector<std::string, 16> CmdArgs;
+    CmdArgs.push_back("lld-link");
 
     // Out file
     std::string Out = "/out:" + OutFile + ".exe";
@@ -402,17 +402,17 @@ bool ToolChain::LinkWindows(const llvm::SmallVector<std::string, 4> &InFiles, co
             llvmArchToWindowsSDKArch(T.getArch());
     llvm::SmallString<256> VCToolChainLibPath(VCToolChainPath);
     llvm::sys::path::append(VCToolChainLibPath, "lib", SubdirName);
-    CmdArgs.push_back((Twine("-libpath:") + VCToolChainLibPath).str().c_str());
+    CmdArgs.push_back("/libpath:" + VCToolChainLibPath.str().str());
 
     // Ex. -libpath:C:\\Program Files (x86)\\Windows Kits\\10\\Lib\\10.0.19041.0\\ucrt\\x64"
     std::string UniversalCRTLibPath;
     if (getUniversalCRTLibraryPath(UniversalCRTLibPath))
-        CmdArgs.push_back((Twine("-libpath:") + UniversalCRTLibPath).str().c_str());
+        CmdArgs.push_back("/libpath:" + UniversalCRTLibPath);
 
     // Ex. -libpath:C:\\Program Files (x86)\\Windows Kits\\10\\Lib\\10.0.19041.0\\um\\x64
     std::string WindowsSdkLibPath;
     if (getWindowsSDKLibraryPath(WindowsSdkLibPath))
-        CmdArgs.push_back(std::string("-libpath:") + WindowsSdkLibPath);
+        CmdArgs.push_back("/libpath:" + WindowsSdkLibPath);
 
     // Add Inputs
     for (const std::string& ObjFile : InFiles) {
@@ -570,6 +570,7 @@ bool ToolChain::getWindowsSDKLibraryPath(std::string &path) const {
 
 bool ToolChain::LinkDarwin(const llvm::SmallVector<std::string, 4> &InFiles, const std::string &OutFile) {
     llvm::SmallVector<std::string, 16> CmdArgs;
+    CmdArgs.push_back("ld64.lld");
 
     CmdArgs.push_back("-e");
     CmdArgs.push_back("_main");
@@ -587,13 +588,14 @@ bool ToolChain::LinkDarwin(const llvm::SmallVector<std::string, 4> &InFiles, con
         return lld::macho::link(LinkArgs, false, llvm::outs(), llvm::errs());
     }
 
-
     return false;
 }
 
 bool ToolChain::LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, const std::string &OutFile) {
     FLY_DEBUG_MESSAGE("ToolChain", "LinkLinux", "Out: " + OutFile);
     llvm::SmallVector<std::string, 16> CmdArgs;
+    CmdArgs.push_back("ld.lld");
+
 //    switch (T.getArch()) {
 //        default:
 //            break;
