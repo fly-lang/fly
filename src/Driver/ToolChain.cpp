@@ -402,7 +402,8 @@ bool ToolChain::LinkWindows(const llvm::SmallVector<std::string, 4> &InFiles, co
             llvmArchToWindowsSDKArch(T.getArch());
     llvm::SmallString<256> VCToolChainLibPath(VCToolChainPath);
     llvm::sys::path::append(VCToolChainLibPath, "lib", SubdirName);
-    CmdArgs.push_back("/libpath:" + VCToolChainLibPath.str().str());
+    const std::string VCToolChainLibPathStr = VCToolChainLibPath.str().str();
+    CmdArgs.push_back("/libpath:" + VCToolChainLibPathStr);
 
     // Ex. -libpath:C:\\Program Files (x86)\\Windows Kits\\10\\Lib\\10.0.19041.0\\ucrt\\x64"
     std::string UniversalCRTLibPath;
