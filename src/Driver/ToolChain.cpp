@@ -35,14 +35,22 @@
 // Make sure this comes before MSVCSetupApi.h
 #include <comdef.h>
 
+#include "MSVCSetupApi.h"
 #include "llvm/Support/COM.h"
+_COM_SMARTPTR_TYPEDEF(ISetupConfiguration, __uuidof(ISetupConfiguration));
+_COM_SMARTPTR_TYPEDEF(ISetupConfiguration2, __uuidof(ISetupConfiguration2));
+_COM_SMARTPTR_TYPEDEF(ISetupHelper, __uuidof(ISetupHelper));
+_COM_SMARTPTR_TYPEDEF(IEnumSetupInstances, __uuidof(IEnumSetupInstances));
+_COM_SMARTPTR_TYPEDEF(ISetupInstance, __uuidof(ISetupInstance));
+_COM_SMARTPTR_TYPEDEF(ISetupInstance2, __uuidof(ISetupInstance2));
 #endif
+
 
 
 using namespace fly;
 
 ToolChain::ToolChain(DiagnosticsEngine &Diag, const llvm::Triple &T, CodeGenOptions &CodeGenOpts) :
-    Diag(Diag), T(T), CodeGenOpts(CodeGenOpts) {
+        Diag(Diag), T(T), CodeGenOpts(CodeGenOpts) {
     VFS = this->VFS = llvm::vfs::getRealFileSystem();
 
 }
@@ -315,6 +323,97 @@ static bool getSystemRegistryString(const char *keyPath, const char *valueName,
 #endif // _WIN32
 }
 
+// Query the Setup Config server for installs, then pick the newest version
+// and find its default VC toolchain.
+// This is the preferred way to discover new Visual Studios, as they're no
+// longer listed in the registry.
+static bool findVCToolChainViaSetupConfig(std::string &Path, bool &isLegacyVersion) {
+#if !defined(USE_MSVC_SETUP_API)
+    return false;
+#else
+    // FIXME: This really should be done once in the top-level program's main
+  // function, as it may have already been initialized with a different
+  // threading model otherwise.
+  llvm::sys::InitializeCOMRAII COM(llvm::sys::COMThreadingMode::SingleThreaded);
+  HRESULT HR;
+
+  // _com_ptr_t will throw a _com_error if a COM calls fail.
+  // The LLVM coding standards forbid exception handling, so we'll have to
+  // stop them from being thrown in the first place.
+  // The destructor will put the regular error handler back when we leave
+  // this scope.
+  struct SuppressCOMErrorsRAII {
+    static void __stdcall handler(HRESULT hr, IErrorInfo *perrinfo) {}
+
+    SuppressCOMErrorsRAII() { _set_com_error_handler(handler); }
+
+    ~SuppressCOMErrorsRAII() { _set_com_error_handler(_com_raise_error); }
+
+  } COMErrorSuppressor;
+
+  ISetupConfigurationPtr Query;
+  HR = Query.CreateInstance(__uuidof(SetupConfiguration));
+  if (FAILED(HR))
+    return false;
+
+  IEnumSetupInstancesPtr EnumInstances;
+  HR = ISetupConfiguration2Ptr(Query)->EnumAllInstances(&EnumInstances);
+  if (FAILED(HR))
+    return false;
+
+  ISetupInstancePtr Instance;
+  HR = EnumInstances->Next(1, &Instance, nullptr);
+  if (HR != S_OK)
+    return false;
+
+  ISetupInstancePtr NewestInstance;
+  Optional<uint64_t> NewestVersionNum;
+  do {
+    bstr_t VersionString;
+    uint64_t VersionNum;
+    HR = Instance->GetInstallationVersion(VersionString.GetAddress());
+    if (FAILED(HR))
+      continue;
+    HR = ISetupHelperPtr(Query)->ParseVersion(VersionString, &VersionNum);
+    if (FAILED(HR))
+      continue;
+    if (!NewestVersionNum || (VersionNum > NewestVersionNum)) {
+      NewestInstance = Instance;
+      NewestVersionNum = VersionNum;
+    }
+  } while ((HR = EnumInstances->Next(1, &Instance, nullptr)) == S_OK);
+
+  if (!NewestInstance)
+    return false;
+
+  bstr_t VCPathWide;
+  HR = NewestInstance->ResolvePath(L"VC", VCPathWide.GetAddress());
+  if (FAILED(HR))
+    return false;
+
+  std::string VCRootPath;
+  llvm::convertWideToUTF8(std::wstring(VCPathWide), VCRootPath);
+
+  llvm::SmallString<256> ToolsVersionFilePath(VCRootPath);
+  llvm::sys::path::append(ToolsVersionFilePath, "Auxiliary", "Build",
+                          "Microsoft.VCToolsVersion.default.txt");
+
+  auto ToolsVersionFile = llvm::MemoryBuffer::getFile(ToolsVersionFilePath);
+  if (!ToolsVersionFile)
+    return false;
+
+  llvm::SmallString<256> ToolchainPath(VCRootPath);
+  llvm::sys::path::append(ToolchainPath, "Tools", "MSVC",
+                          ToolsVersionFile->get()->getBuffer().rtrim());
+  if (!llvm::sys::fs::is_directory(ToolchainPath))
+    return false;
+
+  Path = std::string(ToolchainPath.str());
+  isLegacyVersion = false;
+  return true;
+#endif
+}
+
 // Look in the registry for Visual Studio installs, and use that to get
 // a toolchain path. VS2017 and newer don't get added to the registry.
 // So if we find something here, we know that it's an older version.
@@ -394,12 +493,13 @@ bool ToolChain::LinkWindows(const llvm::SmallVector<std::string, 4> &InFiles, co
     std::string VCToolChainPath;
     bool isLegacyVersion;
     findVCToolChainViaEnvironment(VCToolChainPath, isLegacyVersion) ||
-        findVCToolChainViaRegistry(VCToolChainPath, isLegacyVersion);
+    findVCToolChainViaSetupConfig(VCToolChainPath, isLegacyVersion) ||
+    findVCToolChainViaRegistry(VCToolChainPath, isLegacyVersion);
 
     // Ex. -libpath:C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30133\\lib\\x64"
     const char *SubdirName = isLegacyVersion ?
-            llvmArchToLegacyVCArch(T.getArch()) :
-            llvmArchToWindowsSDKArch(T.getArch());
+                             llvmArchToLegacyVCArch(T.getArch()) :
+                             llvmArchToWindowsSDKArch(T.getArch());
     llvm::SmallString<256> VCToolChainLibPath(VCToolChainPath);
     llvm::sys::path::append(VCToolChainLibPath, "lib", SubdirName);
     const std::string VCToolChainLibPathStr = VCToolChainLibPath.str().str();

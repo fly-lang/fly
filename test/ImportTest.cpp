@@ -26,6 +26,7 @@ namespace {
         std::string import_mylib = FLY_TEST_SRC_PATH + "/import_mylib.fly";
         std::string import_mylib_alias = FLY_TEST_SRC_PATH + "/import_mylib_alias.fly";
         std::string import_mylib_external = FLY_TEST_SRC_PATH + "/import_mylib_external.fly";
+        std::string yourlib_h = FLY_TEST_SRC_PATH + "/yourlib.fly.h";
 
         ImportTest() {
             llvm::InitializeAllTargetInfos();
@@ -141,7 +142,7 @@ namespace {
         //Create Lib
         Archiver LibCreate(Diags, "yourlib.lib");
         llvm::SmallVector<std::string, 4> Inputs;
-        Inputs.emplace_back("src/yourlib.fly.h");
+        Inputs.emplace_back(yourlib_h);
         ASSERT_TRUE(LibCreate.CreateLib(Inputs));
         std::ifstream lib("yourlib.lib");
         ASSERT_TRUE(lib && "Error opening yourlib.lib");
