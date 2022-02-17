@@ -62,7 +62,7 @@ jobs:
 
       - name: Read Version (Windows)
         id: version-win
-        if: github.ref == 'refs/heads/main' && matrix.os == 'windows-latest'
+        if: github.ref == 'refs/heads/main' && matrix.os == 'windows-2019'
         working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}\src\${{env.BUILD_TYPE}}
         run: |
           echo "::set-output name=version::$(.\fly.exe --version-short)"
@@ -73,7 +73,7 @@ jobs:
         run: tar -czvf ../fly-${{ steps.version.outputs.version }}-${{env.LINUX_FILE}} fly
 
       - name: Windows Packaging
-        if: github.ref == 'refs/heads/main' && matrix.os == 'windows-latest'
+        if: github.ref == 'refs/heads/main' && matrix.os == 'windows-2019'
         working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}\src\${{env.BUILD_TYPE}}
         run: 7z a ..\..\fly-${{ steps.version-win.outputs.version }}-${{env.WIN_FILE}} fly.exe
 
@@ -89,7 +89,7 @@ jobs:
           path: ${{github.workspace}}/${{env.BUILD_DIR}}/fly-${{ steps.version.outputs.version }}-${{env.LINUX_FILE}}
 
       - uses: actions/upload-artifact@v2
-        if: github.ref == 'refs/heads/main' && matrix.os == 'windows-latest'
+        if: github.ref == 'refs/heads/main' && matrix.os == 'windows-2019'
         with:
           name: windows-artifact
           path: ${{github.workspace}}/${{env.BUILD_DIR}}/fly-${{ steps.version-win.outputs.version }}-${{env.WIN_FILE}}
