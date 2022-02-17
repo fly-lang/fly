@@ -42,6 +42,9 @@ namespace fly {
     protected:
         ASTNode *Node;
 
+        // Function Name
+        const std::string Name;
+
         // File Source Location
         const SourceLocation Location;
 
@@ -55,6 +58,8 @@ namespace fly {
         ASTTopDecl(const SourceLocation &Loc, ASTNode *Node, TopDeclKind Kind);
 
         ASTNode *getNode();
+
+        virtual const std::string &getName() const = 0;
 
         ASTNameSpace *getNameSpace() const;
 

@@ -11,6 +11,7 @@
 #include "CodeGen/CodeGenLocalVar.h"
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
+#include "AST/ASTNameSpace.h"
 #include "AST/ASTLocalVar.h"
 #include "AST/ASTBlock.h"
 #include "Basic/Debug.h"
@@ -25,13 +26,14 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, ASTFunc *AST, bool isExtern
     llvm::GlobalValue::LinkageTypes Linkage = llvm::GlobalValue::ExternalLinkage;
 
     // Generate Body
+    std::string Id = CodeGen::toIdentifier(AST->getName(), AST->getNameSpace()->getName());
     if (isExternal) {
-        Fn = llvm::Function::Create(FnTy, Linkage, AST->getName(), CGM->getModule());
+        Fn = llvm::Function::Create(FnTy, Linkage, Id, CGM->getModule());
     } else {
         if (AST->getVisibility() == V_PRIVATE) {
             Linkage = GlobalValue::LinkageTypes::InternalLinkage;
         }
-        Fn = llvm::Function::Create(FnTy, Linkage, AST->getName(), CGM->getModule());
+        Fn = llvm::Function::Create(FnTy, Linkage, Id, CGM->getModule());
     }
     Name = Fn->getName();
 }

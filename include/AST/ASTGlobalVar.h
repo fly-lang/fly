@@ -31,9 +31,11 @@ namespace fly {
 
     public:
 
-        ASTGlobalVar(SourceLocation &Loc, ASTNode *Node, ASTType *Type, const llvm::StringRef &Name);
+        ASTGlobalVar(SourceLocation &Loc, ASTNode *Node, ASTType *Type, const std::string Name);
 
         ~ASTGlobalVar() = default;
+
+        const std::string &getName() const override;
 
         ASTExpr *getExpr() const override;
 

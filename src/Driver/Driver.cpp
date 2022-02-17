@@ -10,7 +10,7 @@
 #include "Driver/Driver.h"
 #include "Driver/DriverOptions.h"
 #include "Driver/ToolChain.h"
-#include "Config/config.h"
+#include "Config/Config.h"
 #include "Basic/PrettyStackTrace.h"
 #include "Basic/FileSystemOptions.h"
 #include "Frontend/Frontend.h"
@@ -59,7 +59,6 @@ Driver::Driver(llvm::ArrayRef<const char *> ArrArgs) :
 
     unsigned MissingArgIndex, MissingArgCount;
     const llvm::opt::OptTable &optTable = fly::driver::getDriverOptTable();
-    const unsigned IncludedFlagsBitmask = options::CoreOption;
     ArgList = optTable.ParseArgs(Args, MissingArgIndex, MissingArgCount);
 
     if (ArgList.hasArg(options::OPT_DEBUG)) {
@@ -83,18 +82,18 @@ CompilerInstance &Driver::BuildCompilerInstance() {
 
     // Create all options.
 
-    FileSystemOptions fileSystemOpts;
+    FileSystemOptions FileSystemOpts;
     std::shared_ptr<TargetOptions> TargetOpts = std::make_shared<TargetOptions>();
     FrontendOptions *FrontendOpts = new FrontendOptions();
     CodeGenOptions *CodeGenOpts = new CodeGenOptions();
-    BuildOptions(fileSystemOpts, TargetOpts, &*FrontendOpts, &*CodeGenOpts);
+    BuildOptions(FileSystemOpts, TargetOpts, FrontendOpts, CodeGenOpts);
     
     if (doExecute) {
         CI = std::make_shared<CompilerInstance>(Diags,
-                                                std::move(fileSystemOpts),
+                                                std::move(FileSystemOpts),
+                                                std::move(TargetOpts),
                                                 FrontendOpts,
-                                                CodeGenOpts,
-                                                std::move(TargetOpts));
+                                                CodeGenOpts);
         if (!CI) {
             llvm::errs() << "Error while creating compiler instance!" << "\n";
             exit(1);
@@ -177,18 +176,15 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
     }
 
     // Show Version
-    if (ArgList.hasArg(options::OPT_VERSION)) {
+    if (ArgList.hasArg(options::OPT_VERSION)) { // Show Version
         printVersion();
         doExecute = false;
         return;
-    } else if (ArgList.hasArg(options::OPT_VERSION_SHORT)) {
+    } else if (ArgList.hasArg(options::OPT_VERSION_SHORT)) { // Show Version (short)
         printVersion(false);
         doExecute = false;
         return;
-    }
-
-    // Show Help
-    else if (ArgList.hasArg(options::OPT_HELP)) {
+    } else if (ArgList.hasArg(options::OPT_HELP)) { // Show Help
         getDriverOptTable().PrintHelp(
                 llvm::outs(), "fly [options] source.fly ...\n",
                 "Example: fly -v -o out main.fly\n"
@@ -202,15 +198,13 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
     // Parse Input args
     if (ArgList.hasArg(options::OPT_INPUT)) {
         for (const llvm::opt::Arg *A : ArgList.filtered(options::OPT_INPUT)) {
-            FLY_DEBUG_MESSAGE("Driver", "BuildOptions",
-                              "Set OPT_INPUT=" << A->getValue());
+            FLY_DEBUG_MESSAGE("Driver", "BuildOptions","Set OPT_INPUT=" << A->getValue());
             FrontendOpts->addInputFile(A->getValue());
         }
-        if (FrontendOpts->getInputFiles().empty()) {
-            llvm::errs() << "no input files" << "\n";
-            doExecute = false;
-            return;
-        }
+    } else {
+        llvm::errs() << "no input files" << "\n";
+        doExecute = false;
+        return;
     }
 
     // Enable Verbose Log
@@ -222,20 +216,23 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
     // Configure Options
 
     // Set Output file
-    // FrontendOpts->setOutputFile("out");
     if (ArgList.hasArg(options::OPT_OUTPUT)) {
         if (ArgList.hasArg(options::OPT_EMIT_LL) ||
                 ArgList.hasArg(options::OPT_EMIT_BC) ||
                 ArgList.hasArg(options::OPT_EMIT_AS) ||
-                ArgList.hasArg(options::OPT_EMIT_NOTHING)) {
+                ArgList.hasArg(options::OPT_NO_OUTPUT)) {
             llvm::errs() << "cannot specify -o when not emit object files\n";
             doExecute = false;
             return;
         }
 
-        StringRef Out = ArgList.getLastArgValue(options::OPT_OUTPUT);
+        llvm::StringRef Out = ArgList.getLastArgValue(options::OPT_OUTPUT);
         FLY_DEBUG_MESSAGE("Driver", "BuildOptions", "Set OPT_OUTPUT=" << Out);
         FrontendOpts->setOutputFile(Out);
+    } else if (ArgList.hasArg(options::OPT_OUTPUT_LIB)) {
+        StringRef Out = ArgList.getLastArgValue(options::OPT_OUTPUT_LIB);
+        FLY_DEBUG_MESSAGE("Driver", "BuildOptions", "Set OPT_OUTPUT_LIB=" << Out);
+        FrontendOpts->setOutputFile(Out, true);
     }
 
     // Set Working Directory
@@ -277,12 +274,24 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
         FLY_DEBUG_MESSAGE("Driver", "BuildOptions", "Set OPT_EMIT_AS");
         FrontendOpts->BackendAction =BackendActionKind::Backend_EmitAssembly;
         FrontendOpts->setOutputFile("");
-    } else if (ArgList.hasArg(options::OPT_EMIT_NOTHING)) {
+    } else if (ArgList.hasArg(options::OPT_NO_OUTPUT)) {
         FLY_DEBUG_MESSAGE("Driver", "BuildOptions", "Set OPT_EMIT_NOTHING");
         FrontendOpts->BackendAction = BackendActionKind::Backend_EmitNothing;
         FrontendOpts->setOutputFile("");
     } else {
         FrontendOpts->BackendAction = BackendActionKind::Backend_EmitObj;
+    }
+
+    // Lib produce Obj files and need Header files
+    if (ArgList.hasArg(options::OPT_OUTPUT_LIB)) {
+        FrontendOpts->CreateLibrary = true;
+        FrontendOpts->BackendAction = BackendActionKind::Backend_EmitObj;
+        FrontendOpts->CreateHeader = true;
+    }
+
+    // Header Generator
+    if (ArgList.hasArg(options::OPT_HEADER_GENERATOR)) {
+        FrontendOpts->CreateHeader = true;
     }
 
     // Target Options
@@ -330,24 +339,6 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
                 << CodeGenOpts->ThreadModel;
 }
 
-bool Driver::Execute() {
-    FLY_DEBUG("Driver", "Execute");
-    bool Success = true;
-
-    if (doExecute) {
-        Frontend Front(*CI);
-        Success = Front.Execute();
-        const llvm::Triple &T = TargetInfo::CreateTargetInfo(CI->getDiagnostics(), CI->getTargetOptions())->getTriple();
-        if (!CI->getFrontendOptions().getOutputFile().getFile().empty()) {
-            ToolChain *TC = new ToolChain(T);
-            TC->Link(Front.getOutputFiles(), CI->getFrontendOptions().getOutputFile().getFile());
-        }
-    }
-    FLY_DEBUG_MESSAGE("Driver", "Execute", "return " << Success);
-
-    return Success;
-}
-
 void Driver::printVersion(bool full) {
     if (full) {
         llvm::outs() << "FLY version " << FLY_VERSION << " (https://flylang.org)" << "\n";
@@ -355,4 +346,37 @@ void Driver::printVersion(bool full) {
     } else {
         llvm::outs() << FLY_VERSION << "\n";
     }
+}
+
+bool Driver::Execute() {
+    FLY_DEBUG("Driver", "Execute");
+    bool Success = true;
+
+    if (doExecute) {
+        Frontend Front(*CI);
+        Success = Front.Execute();
+
+        if (!CI->getFrontendOptions().getOutputFile().empty()) {
+            const llvm::Triple &T = TargetInfo::CreateTargetInfo(CI->getDiagnostics(),
+                                                                 CI->getTargetOptions())->getTriple();
+            ToolChain *TC = new ToolChain(CI->getDiagnostics(), T, CI->getCodeGenOptions());
+            Success = TC->BuildOutput(Front.getOutputFiles(), CI->getFrontendOptions());
+
+            // Delete Output Files on Library generation
+            if (CI->getFrontendOptions().CreateLibrary) {
+                for (auto &Output: Front.getOutputFiles()) {
+                    FLY_DEBUG_MESSAGE("Driver", "Execute",
+                                      "Delete Output File " << Output);
+                    const std::error_code &EC = llvm::sys::fs::remove(Output, false);
+                    if (EC) {
+                        CI->getDiagnostics().Report(diag::err_drv_archive) << EC.message();
+                        return false;
+                    }
+                }
+            }
+        }
+    }
+    FLY_DEBUG_MESSAGE("Driver", "Execute", "return " << Success);
+
+    return Success;
 }

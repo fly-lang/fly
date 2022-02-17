@@ -41,7 +41,9 @@ namespace fly {
         // Namespace declaration
         ASTNameSpace *NameSpace = nullptr;
 
-        // Contains all Imports which will be converted in Dependencies
+        const bool Header;
+
+        // Contains all Imports, the key is Alias or Name
         llvm::StringMap<ASTImport *> Imports;
         
         // All used GlobalVars
@@ -55,17 +57,21 @@ namespace fly {
 
         ~ASTNode();
 
-        ASTNode(const llvm::StringRef &FileName, ASTContext *Context, CodeGenModule * CGM);
+        ASTNode(const std::string FileName, ASTContext *Context);
+
+        ASTNode(const std::string FileName, ASTContext *Context, CodeGenModule * CGM);
 
         CodeGenModule *getCodeGen() const;
 
-        void setDefaultNameSpace();
+        const bool isHeader() const;
 
-        ASTNameSpace *setNameSpace(llvm::StringRef Name);
+        void setNameSpace(std::string Name);
 
         ASTNameSpace* getNameSpace();
 
-        ASTNameSpace *FindNameSpace(const StringRef &string);
+        void setDefaultNameSpace();
+
+        ASTImport *FindImport(const std::string &string);
 
         bool AddImport(ASTImport *Import);
 

@@ -32,7 +32,7 @@ namespace fly {
         ASTContext* Context;
 
         // Node FileName
-        const llvm::StringRef Name;
+        const std::string Name;
 
         // Private Global Vars
         llvm::StringMap<ASTGlobalVar *> GlobalVars;
@@ -56,17 +56,15 @@ namespace fly {
 
         ASTNodeBase() = delete;
 
-        ASTNodeBase(const llvm::StringRef &Name, ASTContext* Context);
+        ASTNodeBase(const std::string &Name, ASTContext* Context);
 
-        const llvm::StringRef& getName();
+        const std::string& getName();
 
         ASTContext &getContext() const;
 
         const llvm::StringMap<ASTGlobalVar *> &getGlobalVars() const;
 
         const std::unordered_set<ASTFunc*> &getFunctions() const;
-
-        const llvm::StringMap<std::vector<ASTFuncCall *>> &getFunctionCalls() const;
 
         const llvm::StringMap<ASTClass *> &getClasses() const;
 

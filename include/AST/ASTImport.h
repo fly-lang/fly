@@ -11,6 +11,9 @@
 #define FLY_ASTIMPORT_H
 
 #include "Basic/SourceLocation.h"
+#include "AST/ASTUnref.h"
+
+#include <vector>
 
 namespace fly {
 
@@ -19,27 +22,34 @@ namespace fly {
 
     class ASTImport {
 
+        friend class ASTResolver;
+        friend class ASTNode;
+
         const SourceLocation Location;
 
-        llvm::StringRef Name;
+        std::string Name;
 
-        llvm::StringRef Alias;
+        std::string Alias;
 
         ASTNameSpace *NameSpace = nullptr;
 
+        // Contains all unresolved VarRef to a GlobalVar
+        std::vector<ASTUnrefGlobalVar *>  UnrefGlobalVars;
+
+        // Contains all unresolved Function Calls
+        std::vector<ASTUnrefCall *> UnrefFunctionCalls;
+
     public:
 
-        ASTImport(const SourceLocation &Loc, llvm::StringRef Name);
-
-        ASTImport(const SourceLocation &Loc, llvm::StringRef Name, llvm::StringRef Alias);
+        ASTImport(const SourceLocation &Loc, const std::string Name, const std::string Alias = "");
 
         ~ASTImport();
 
         const SourceLocation &getLocation() const;
 
-        const llvm::StringRef &getName() const;
+        const std::string &getName() const;
 
-        const llvm::StringRef &getAlias() const;
+        const std::string &getAlias() const;
 
         ASTNameSpace *getNameSpace() const;
 

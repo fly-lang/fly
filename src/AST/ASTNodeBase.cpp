@@ -14,7 +14,7 @@
 
 using namespace fly;
 
-ASTNodeBase::ASTNodeBase(const llvm::StringRef &Name, ASTContext *Context) :
+ASTNodeBase::ASTNodeBase(const std::string &Name, ASTContext *Context) :
         Name(Name), Context(Context) {
 }
 
@@ -22,7 +22,7 @@ ASTContext &ASTNodeBase::getContext() const {
     return *Context;
 }
 
-const llvm::StringRef &ASTNodeBase::getName() {
+const std::string &ASTNodeBase::getName() {
     return Name;
 }
 
@@ -32,10 +32,6 @@ const llvm::StringMap<ASTGlobalVar *> &ASTNodeBase::getGlobalVars() const {
 
 const std::unordered_set<ASTFunc*> &ASTNodeBase::getFunctions() const {
     return Functions;
-}
-
-const llvm::StringMap<std::vector<ASTFuncCall *>> &ASTNodeBase::getFunctionCalls() const {
-    return FunctionCalls;
 }
 
 const llvm::StringMap<ASTClass *> &ASTNodeBase::getClasses() const {
@@ -55,5 +51,5 @@ bool ASTNodeBase::AddFunctionCall(ASTFuncCall *Call) {
 }
 
 std::string ASTNodeBase::str() const {
-    return "{ Name=" + Name.str() + " }";
+    return "{ Name=" + Name + " }";
 }

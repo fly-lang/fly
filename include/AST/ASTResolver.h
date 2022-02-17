@@ -35,13 +35,15 @@ namespace fly {
 
         static bool Resolve(ASTNode *Node);
 
-        static bool ResolveGlobalVar(ASTNode *Node);
+        static bool ResolveImports(ASTNameSpace *NameSpace);
 
-        static bool ResolveGlobalVar(ASTNameSpace *NameSpace);
+        static bool ResolveGlobalVars(ASTNode *Node);
 
-        static bool ResolveFuncCall(ASTNode *Node);
+        static bool ResolveGlobalVars(ASTNameSpace *NameSpace);
 
-        static bool ResolveFuncCall(ASTNameSpace *NameSpace);
+        static bool ResolveFuncCalls(ASTNode *Node);
+
+        static bool ResolveFuncCalls(ASTNameSpace *NameSpace);
 
         static ASTType *ResolveExprType(ASTExpr *Expr);
 

@@ -12,7 +12,6 @@
 #define FLY_ASTTYPE_H
 
 #include "Basic/SourceLocation.h"
-#include "llvm/ADT/StringRef.h"
 
 namespace fly {
 
@@ -119,19 +118,20 @@ namespace fly {
     class ASTClassType : public ASTType {
 
         const TypeKind Kind = TypeKind::TYPE_CLASS;
-        const llvm::StringRef Name;
+        const std::string Name;
+        const std::string NameSpace;
 
     public:
-        ASTClassType(SourceLocation Loc, llvm::StringRef &Name);
+        ASTClassType(SourceLocation Loc, std::string Name, std::string NameSpace = "");
 
         const TypeKind &getKind() const override;
 
-        const llvm::StringRef &getName() const;
+        const std::string &getName() const;
 
         bool operator ==(const ASTClassType &Ty) const;
 
         std::string str() const override {
-            return Name.str();
+            return Name;
         }
     };
 }

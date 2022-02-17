@@ -18,14 +18,13 @@
 
 using namespace fly;
 
-ASTFunc::ASTFunc(ASTNode *Node, const SourceLocation &Loc, ASTType *ReturnType, const llvm::StringRef &Name) :
+ASTFunc::ASTFunc(ASTNode *Node, const SourceLocation &Loc, ASTType *ReturnType, const std::string Name) :
         ASTTopDecl(Loc, Node, TopDeclKind::DECL_FUNCTION), ReturnType(ReturnType), Name(Name), Header(new ASTFuncHeader),
         Body(new ASTBlock(Loc, this, nullptr)) {
 
 }
 
-
-const llvm::StringRef &ASTFunc::getName() const {
+const std::string &ASTFunc::getName() const {
     return Name;
 }
 
@@ -61,7 +60,7 @@ void ASTFunc::setCodeGen(CodeGenFunction *CGF) {
     CodeGen = CGF;
 }
 
-ASTFuncParam *ASTFunc::addParam(const SourceLocation &Loc, ASTType *Type, const StringRef &Name) {
+ASTFuncParam *ASTFunc::addParam(const SourceLocation &Loc, ASTType *Type, const std::string &Name) {
     ASTFuncParam *VDecl = new ASTFuncParam(Loc, Type, Name);
     Header->Params.push_back(VDecl);
     return VDecl;
@@ -76,7 +75,7 @@ void ASTFunc::setVarArg(ASTFuncParam* VarArg) {
 }
 
 std::string ASTFunc::str() const {
-    std::string Str = "{ Name=" + Name.str() +
+    std::string Str = "{ Name=" + Name +
             ", Params=[";
     if(!Header->getParams().empty()) {
         for (ASTFuncParam *Param: Header->getParams()) {
@@ -89,8 +88,8 @@ std::string ASTFunc::str() const {
 }
 
 bool ASTFunc::operator==(const ASTFunc &F) const {
-    bool Result = this->getName().equals(F.getName()) &&
-            this->getNameSpace()->getName().equals(F.getNameSpace()->getName()) &&
+    bool Result = this->getName() == F.getName() &&
+            this->getNameSpace()->getName() == F.getNameSpace()->getName() &&
             this->getHeader()->getParams().size() == F.getHeader()->getParams().size();
     if (Result) {
         for (int i = 0; i < this->getHeader()->getParams().size(); i++) {
@@ -103,8 +102,8 @@ bool ASTFunc::operator==(const ASTFunc &F) const {
 }
 
 size_t std::hash<ASTFunc *>::operator()(ASTFunc *Decl) const noexcept {
-    size_t Hash = (std::hash<std::string>()(Decl->getName().str()));
-    Hash ^= (std::hash<std::string>()(Decl->getNameSpace()->getName().str()));
+    size_t Hash = (std::hash<std::string>()(Decl->getName()));
+    Hash ^= (std::hash<std::string>()(Decl->getNameSpace()->getName()));
     for (auto &Param : Decl->getHeader()->getParams()) {
         Hash ^= (std::hash<std::string>()(Param->getType()->str()));
     }
@@ -112,8 +111,8 @@ size_t std::hash<ASTFunc *>::operator()(ASTFunc *Decl) const noexcept {
 }
 
 bool std::equal_to<ASTFunc *>::operator()(const ASTFunc *C1, const ASTFunc *C2) const {
-    bool Result = C1->getName().equals(C2->getName()) &&
-            C1->getNameSpace()->getName().equals(C2->getNameSpace()->getName()) &&
+    bool Result = C1->getName() == C2->getName() &&
+            C1->getNameSpace()->getName() == C2->getNameSpace()->getName() &&
                   C1->getHeader()->getParams().size() == C2->getHeader()->getParams().size();
     if (Result) {
         for (int i = 0; i < C1->getHeader()->getParams().size(); i++) {
@@ -125,7 +124,7 @@ bool std::equal_to<ASTFunc *>::operator()(const ASTFunc *C1, const ASTFunc *C2) 
     return Result;
 }
 
-ASTFuncParam::ASTFuncParam(const SourceLocation &Loc, ASTType *Type, const llvm::StringRef &Name) :
+ASTFuncParam::ASTFuncParam(const SourceLocation &Loc, ASTType *Type, const std::string &Name) :
         ASTVar(Type, Name), Location(Loc) {
 
 }
@@ -178,7 +177,7 @@ std::string ASTReturn::str() const {
            " }";
 }
 
-ASTFuncCall::ASTFuncCall(const SourceLocation &Loc, const StringRef &NameSpace, const StringRef &Name) :
+ASTFuncCall::ASTFuncCall(const SourceLocation &Loc, const std::string &NameSpace, const std::string &Name) :
     Loc(Loc), NameSpace(NameSpace), Name(Name) {
 
 }
@@ -187,7 +186,7 @@ const SourceLocation &ASTFuncCall::getLocation() const {
     return Loc;
 }
 
-const llvm::StringRef &ASTFuncCall::getName() const {
+const std::string &ASTFuncCall::getName() const {
     return Name;
 }
 
@@ -216,11 +215,11 @@ ASTCallArg *ASTFuncCall::addArg(ASTCallArg *Arg) {
     return Arg;
 }
 
-const StringRef &ASTFuncCall::getNameSpace() const {
+const std::string &ASTFuncCall::getNameSpace() const {
     return NameSpace;
 }
 
-void ASTFuncCall::setNameSpace(const llvm::StringRef &NS) {
+void ASTFuncCall::setNameSpace(const std::string &NS) {
     NameSpace = NS;
 }
 
@@ -277,8 +276,8 @@ bool ASTFuncCall::isUsable(ASTFuncCall *Call) {
 }
 
 std::string ASTFuncCall::str() const {
-    std::string Str = "{ NameSpace=" + NameSpace.str() +
-           ", Name=" + Name.str() +
+    std::string Str = "{ NameSpace=" + NameSpace +
+           ", Name=" + Name +
            ", Args=[";
     if (!Args.empty()) {
         for (ASTCallArg *Arg : Args) {

@@ -97,6 +97,7 @@ DIAG(err_unavailable_in_arc, CLASS_ERROR, (unsigned)diag::Severity::Error, "%0 i
 DIAG(err_unavailable_message, CLASS_ERROR, (unsigned)diag::Severity::Error, "%0 is unavailable: %1", 0, SFINAE_SubstitutionFailure, false, true, 2)
 DIAG(err_drv_unable_to_set_working_directory, CLASS_ERROR, (unsigned)diag::Severity::Error, "unable to set working directory: %0", 0, SFINAE_SubstitutionFailure, false, true, 0)
 DIAG(err_drv_missing_argument, CLASS_ERROR, (unsigned)diag::Severity::Error, "argument to '%0' is missing (expected %1 value%s1)", 0, SFINAE_SubstitutionFailure, false, true, 0)
+DIAG(err_drv_archive, CLASS_ERROR, (unsigned)diag::Severity::Error, "Lib Archive error: %0", 0, SFINAE_SubstitutionFailure, false, true, 0)
 
 // Frontend
 DIAG(err_fe_error_backend, CLASS_ERROR, (unsigned)diag::Severity::Fatal, "error in backend: %0", 0, SFINAE_SubstitutionFailure, false, true, 0)
@@ -301,8 +302,9 @@ DIAG(warn_utf8_symbol_homoglyph, CLASS_WARNING, (unsigned)diag::Severity::Warnin
 DIAG(warn_utf8_symbol_zero_width, CLASS_WARNING, (unsigned)diag::Severity::Warning, "identifier contains Unicode character <U+%0> that is invisible in some environments", 756, SFINAE_Suppress, false, false, 1)
 
 // Parser Errors
-DIAG(err_namespace_undefined, CLASS_ERROR, (unsigned)diag::Severity::Error, "namespace undefined", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_namespace_invalid, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid namespace defined '%0'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_import_undefined, CLASS_ERROR, (unsigned)diag::Severity::Error, "import undefined", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_import_invalid, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid import", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_scope_visibility_duplicate, CLASS_ERROR, (unsigned)diag::Severity::Error, "visibility scope '%0' already defined", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_scope_const_duplicate, CLASS_ERROR, (unsigned)diag::Severity::Error, "constant scope already defined", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_invalid_id, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid identifier '%0'", 0, SFINAE_Suppress, false, true, 0)
@@ -312,17 +314,21 @@ DIAG(err_parse_stmt, CLASS_ERROR, (unsigned)diag::Severity::Error, "statement pa
 DIAG(err_top_decl, CLASS_ERROR, (unsigned)diag::Severity::Error, "declaration error", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_paren_unclosed, CLASS_ERROR, (unsigned)diag::Severity::Error, "parenthesis not closed ')'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_const_call, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot use const with function call", 0, SFINAE_Suppress, false, true, 0)
-DIAG(err_unary_operator, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot parse unary operator '%0'", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_unary_operator, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot parse unary operator", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_multiple_unary_operator, CLASS_ERROR, (unsigned)diag::Severity::Error, "multiple unary operator '%0'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_invalid_value, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid value '%0'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_right_paren, CLASS_ERROR, (unsigned)diag::Severity::Error, "unclosed parenthesis", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_syntax_error, CLASS_ERROR, (unsigned)diag::Severity::Error, "syntax error", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_invalid_namespace_id, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid namespace in identifier", 0, SFINAE_Suppress, false, true, 0)
 
 DIAG(warn_empty_code, CLASS_WARNING, (unsigned)diag::Severity::Warning, "code empty", 0, SFINAE_Suppress, false, true, 0)
 
 // AST
 DIAG(err_unresolved_import, CLASS_ERROR, (unsigned)diag::Severity::Error, "unresolved import", 0, SFINAE_Suppress, false, true, 0)
-DIAG(err_duplicate_import, CLASS_ERROR, (unsigned)diag::Severity::Error, "import '%0' duplicated", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_import_conflict_namespace, CLASS_ERROR, (unsigned)diag::Severity::Error, "import name '%0' conflicts with namespace", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_alias_conflict_namespace, CLASS_ERROR, (unsigned)diag::Severity::Error, "import alias '%0' conflicts with namespace", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_conflict_import, CLASS_ERROR, (unsigned)diag::Severity::Error, "import name '%0' already used", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_import_notfound, CLASS_ERROR, (unsigned)diag::Severity::Error, "import '%0' not found", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_namespace_notfound, CLASS_ERROR, (unsigned)diag::Severity::Error, "namespace '%0' not found", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_duplicate_gvar, CLASS_ERROR, (unsigned)diag::Severity::Error, "variable '%0' duplicated", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_duplicate_func, CLASS_ERROR, (unsigned)diag::Severity::Error, "function '%0' duplicated", 0, SFINAE_Suppress, false, true, 0)
@@ -345,3 +351,4 @@ DIAG(err_invalid_return_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "Inv
 DIAG(err_unref_call, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unreferenced call '%0'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_unref_var, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unreferenced var '%0'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_invalid_gvar_value, CLASS_ERROR, (unsigned)diag::Severity::Error, "Invalid global var value", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_generate_header, CLASS_ERROR, (unsigned)diag::Severity::Error, "Error on header file generation %0", 0, SFINAE_Suppress, false, true, 0)

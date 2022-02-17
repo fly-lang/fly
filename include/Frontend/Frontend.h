@@ -57,6 +57,8 @@ namespace fly {
         void CreateFrontendTimer();
 
         const SmallVector<std::string, 4> &getOutputFiles() const;
+
+        std::vector<std::string> LoadHeaderFiles(const std::string &LibFileName);
     };
 }
 

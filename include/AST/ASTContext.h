@@ -13,6 +13,7 @@
 
 #include "AST/ASTResolver.h"
 #include "llvm/ADT/StringMap.h"
+
 #include <vector>
 
 namespace fly {
@@ -36,6 +37,7 @@ namespace fly {
         friend class ASTResolver;
         friend class ASTNameSpace;
         friend class ASTNode;
+        friend class ASTHeader;
 
         DiagnosticsEngine &Diags;
 
@@ -45,7 +47,7 @@ namespace fly {
         llvm::StringMap<ASTNameSpace *> NameSpaces;
 
         // All Files: <Name, ASTImport>
-        llvm::StringMap<ASTImport *> Imports;
+        llvm::StringMap<ASTImport *> ExternalImports; // TODO
 
     public:
         ASTContext(DiagnosticsEngine &Diags);
@@ -58,12 +60,15 @@ namespace fly {
 
         DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID) const;
 
+        DiagnosticBuilder Diag(unsigned DiagID) const;
+
+        ASTNameSpace *AddNameSpace(std::string Name, bool ExternLib = false);
+
         bool AddNode(ASTNode *Node);
 
         bool DelNode(ASTNode *Node);
 
         bool Resolve();
-
     };
 }
 

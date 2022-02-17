@@ -53,7 +53,7 @@ namespace fly {
         ASTType *ReturnType;
 
         // Function Name
-        const llvm::StringRef Name;
+        const std::string Name;
 
         // this function return a constant value
         bool Constant;
@@ -71,11 +71,11 @@ namespace fly {
         CodeGenFunction *CodeGen = nullptr;
 
     public:
-        ASTFunc(ASTNode *Node, const SourceLocation &Loc, ASTType *ReturnType, const llvm::StringRef &Name);
+        ASTFunc(ASTNode *Node, const SourceLocation &Loc, ASTType *ReturnType, const std::string Name);
 
         ASTType *getType() const;
 
-        const llvm::StringRef &getName() const;
+        const std::string &getName() const;
 
         bool isConstant() const;
 
@@ -91,7 +91,7 @@ namespace fly {
 
         void setCodeGen(CodeGenFunction *CGF);
 
-        ASTFuncParam *addParam(const SourceLocation &Loc, ASTType *Type, const StringRef &Name);
+        ASTFuncParam *addParam(const SourceLocation &Loc, ASTType *Type, const std::string &Name);
 
         bool isVarArg();
 
@@ -114,7 +114,7 @@ namespace fly {
         CodeGenLocalVar *CodeGen;
 
     public:
-        ASTFuncParam(const SourceLocation &Loc, ASTType *Type, const llvm::StringRef &Name);
+        ASTFuncParam(const SourceLocation &Loc, ASTType *Type, const std::string &Name);
 
         ASTExpr *getExpr() const override;
 
@@ -194,22 +194,22 @@ namespace fly {
         friend class FunctionParser;
 
         const SourceLocation Loc;
-        llvm::StringRef NameSpace;
-        const llvm::StringRef Name;
+        std::string NameSpace;
+        const std::string Name;
         std::vector<ASTCallArg *> Args;
         ASTFunc *Decl = nullptr;
         CodeGenCall *CGC = nullptr;
 
     public:
-        ASTFuncCall(const SourceLocation &Loc, const llvm::StringRef &NameSpace, const llvm::StringRef &Name);
+        ASTFuncCall(const SourceLocation &Loc, const std::string &NameSpace, const std::string &Name);
 
         const SourceLocation &getLocation() const;
 
-        const llvm::StringRef &getNameSpace() const;
+        const std::string &getNameSpace() const;
 
-        void setNameSpace(const llvm::StringRef &NameSpace);
+        void setNameSpace(const std::string &NameSpace);
 
-        const llvm::StringRef &getName() const;
+        const std::string &getName() const;
 
         const std::vector<ASTCallArg *> getArgs() const;
 

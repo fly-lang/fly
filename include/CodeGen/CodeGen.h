@@ -30,6 +30,7 @@ namespace llvm {
 
 namespace fly {
 
+    class CodeGenHeader;
     class CodeGenModule;
     class TargetInfo;
     class FrontendOptions;
@@ -65,6 +66,10 @@ namespace fly {
         CodeGenModule *CreateModule(llvm::StringRef Name);
 
         llvm::LLVMContext &getLLVMCtx();
+
+        static const std::string toIdentifier(std::string Name, std::string NameSpace);
+
+        CodeGenHeader *CreateHeader(std::string FileName);
     };
 }
 

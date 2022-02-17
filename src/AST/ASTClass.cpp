@@ -11,6 +11,6 @@
 
 using namespace fly;
 
-const llvm::StringRef &ASTClass::getName() const {
+const std::string &ASTClass::getName() const {
     return Name;
 }

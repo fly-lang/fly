@@ -33,7 +33,7 @@ namespace fly {
         CodeGenLocalVar *CodeGen = nullptr;
 
     public:
-        ASTLocalVar(const SourceLocation &Loc, ASTBlock *Block, ASTType *Type, const llvm::StringRef &Name);
+        ASTLocalVar(const SourceLocation &Loc, ASTBlock *Block, ASTType *Type, const std::string Name);
 
         StmtKind getKind() const;
 
@@ -56,8 +56,8 @@ namespace fly {
     class ASTLocalVarRef : public ASTVarRef, public ASTExprStmt {
 
     public:
-        ASTLocalVarRef(const SourceLocation &Loc, ASTBlock *Block, const llvm::StringRef &Name,
-                       const llvm::StringRef &NameSpace = "");
+        ASTLocalVarRef(const SourceLocation &Loc, ASTBlock *Block, const std::string &Name,
+                       const std::string &NameSpace = "");
 
         ASTLocalVarRef(const SourceLocation &Loc, ASTBlock *Block, ASTVarRef Var);
 

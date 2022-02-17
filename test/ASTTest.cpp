@@ -39,7 +39,7 @@ namespace {
             delete Context;
         }
 
-        ASTNode* NewASTNode(llvm::StringRef FileName) {
+        ASTNode* NewASTNode(std::string FileName) {
 
             // Create CodeGen
             CodeGenModule *CGM = CG->CreateModule(FileName);
@@ -95,7 +95,8 @@ namespace {
 
     TEST_F(ASTTest, GlobalVarVisibility) {
         auto Node1 = NewASTNode("file1.fly");
-        const ASTNameSpace *NS = Node1->setNameSpace("packageA");
+        Node1->setNameSpace("packageA");
+        const ASTNameSpace *NS = Node1->getNameSpace();
         SourceLocation &Loc = SourceLoc;
         ASTGlobalVar *G1 = new ASTGlobalVar(Loc, Node1, new ASTIntType(Loc), "a");
         G1->setVisibility(V_PRIVATE);

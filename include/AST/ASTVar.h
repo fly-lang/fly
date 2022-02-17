@@ -34,13 +34,13 @@ namespace fly {
 
     protected:
         ASTType *Type;
-        const llvm::StringRef NameSpaceStr;
-        const llvm::StringRef Name;
+        const std::string NameSpaceStr;
+        const std::string Name;
         bool Constant = false;
         bool Global = false;
 
     public:
-        ASTVar(ASTType *Type, const StringRef &Name, const StringRef &NameSpaceStr = "", bool Global = false);
+        ASTVar(ASTType *Type, const std::string &Name, const std::string &NameSpaceStr = "", bool Global = false);
 
         virtual ~ASTVar();
 
@@ -52,9 +52,9 @@ namespace fly {
 
         virtual ASTType *getType() const;
 
-        virtual const llvm::StringRef &getName() const;
+        virtual const std::string &getName() const;
 
-        const llvm::StringRef &getPrefix() const;
+        const std::string &getPrefix() const;
 
         virtual void setExpr(ASTExpr *Exp) = 0;
 
@@ -75,21 +75,21 @@ namespace fly {
         friend class Parser;
 
         const SourceLocation Loc;
-        llvm::StringRef NameSpace;
-        llvm::StringRef Name;
+        std::string NameSpace;
+        std::string Name;
 
         ASTVar *Decl = nullptr;
 
     public:
-        ASTVarRef(const SourceLocation &Loc, const llvm::StringRef &Name, const llvm::StringRef &NameSpace = "");
+        ASTVarRef(const SourceLocation &Loc, const std::string &Name, const std::string &NameSpace = "");
 
         ASTVarRef(ASTVar *Var);
 
         const SourceLocation &getLocation() const;
 
-        const llvm::StringRef &getNameSpace() const;
+        const std::string &getNameSpace() const;
 
-        const llvm::StringRef &getName() const;
+        const std::string &getName() const;
 
         ASTVar *getDecl() const;
 

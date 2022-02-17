@@ -13,9 +13,9 @@ using namespace fly;
 
 CompilerInstance::CompilerInstance(IntrusiveRefCntPtr<DiagnosticsEngine> Diags,
                                    FileSystemOptions &&FileSystemOpts,
+                                   std::shared_ptr<TargetOptions> &&TargetOptions,
                                    FrontendOptions *FrontendOptions,
-                                   CodeGenOptions *CodeGenOptions,
-                                   std::shared_ptr<TargetOptions> &&TargetOptions) :
+                                   CodeGenOptions *CodeGenOptions) :
         Diags(Diags), FileSystemOpts(std::move(FileSystemOpts)),
         FrontendOpts(FrontendOptions), CodeGenOpts(CodeGenOptions),
         TargetOpts(std::move(TargetOptions)) {

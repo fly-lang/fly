@@ -20,5 +20,5 @@ target_link_libraries(fly
 )
 
 configure_file(
-        ${CMAKE_SOURCE_DIR}/include/Config/config.h.cmake
-        ${CMAKE_SOURCE_DIR}/include/Config/config.h)
+        ${CMAKE_SOURCE_DIR}/include/Config/Config.h.cmake
+        ${CMAKE_SOURCE_DIR}/include/Config/Config.h)

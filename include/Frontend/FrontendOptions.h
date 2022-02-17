@@ -10,11 +10,7 @@
 #ifndef FLY_FRONTENDOPTIONS_H
 #define FLY_FRONTENDOPTIONS_H
 
-#include "InputFile.h"
-#include "OutputFile.h"
 #include "CodeGen/BackendUtil.h"
-#include <llvm/ADT/ArrayRef.h>
-#include <llvm/Option/ArgList.h>
 #include <string>
 
 namespace fly {
@@ -22,14 +18,24 @@ namespace fly {
     class FrontendOptions {
 
         /// The input files.
-        llvm::SmallVector<InputFile, 0> Inputs;
+        llvm::SmallVector<std::string, 16> Inputs;
 
-        OutputFile Output;
+        std::string Output;
+
+        bool OutputLib;
 
     public:
 
+        /// Generate Library
+        bool CreateLibrary;
+
+        /// Generate Header
+        bool CreateHeader;
+
+        /// Enable Verbose output
         bool Verbose;
 
+        /// The Backend action
         BackendActionKind BackendAction;
 
         /// Show the -version text.
@@ -47,21 +53,15 @@ namespace fly {
         /// Filename to write statistics to.
         std::string StatsFile;
 
-        void addInputFile(llvm::StringRef input);
+        void addInputFile(const char* FileName);
 
-        const llvm::SmallVector<InputFile, 0> &getInputFiles() const;
+        const llvm::SmallVector<std::string, 16> &getInputFiles() const;
 
-        const OutputFile &getOutputFile() const;
+        const std::string &getOutputFile() const;
 
-        void setOutputFile(llvm::StringRef output);
+        void setOutputFile(llvm::StringRef FileName, bool isLib = false);
 
-        bool isVerbose() const;
-
-        void setVerbose();
-
-        BackendActionKind getBackendAction();
-
-        void setBackendAction(BackendActionKind action);
+        bool isOutputLib() const;
 
     };
 }

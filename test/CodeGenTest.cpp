@@ -65,9 +65,9 @@ namespace {
             return CreateAST(testFile);
         }
 
-        ASTNode *CreateAST(const llvm::StringRef Name, const StringRef NameSpace = "default") {
+        ASTNode *CreateAST(const std::string Name) {
             auto *Node = new ASTNode(Name, Context, CG->CreateModule(Name));
-            Node->setNameSpace(NameSpace);
+            Node->setDefaultNameSpace();
             return Node;
         }
 

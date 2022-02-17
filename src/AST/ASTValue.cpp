@@ -12,12 +12,12 @@
 
 using namespace fly;
 
-ASTValue::ASTValue(const SourceLocation &Loc, llvm::StringRef Str, ASTType *Ty) : Loc(Loc), Str(Str), Ty(Ty) {
+ASTValue::ASTValue(const SourceLocation &Loc, std::string Str, ASTType *Ty) : Loc(Loc), Str(Str), Ty(Ty) {
 
 }
 
 std::string ASTValue::str() const {
-    return Str.str();
+    return Str;
 }
 
 ASTType *ASTValue::getType() const {
@@ -29,7 +29,7 @@ bool ASTValue::empty() const {
 }
 
 bool ASTValue::isFalse() const {
-    return Str.empty() || Str.equals("0") || Str.equals("false");
+    return Str.empty() || Str == "0" || Str == "false";
 }
 
 bool ASTValue::isTrue() const {

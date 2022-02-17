@@ -65,6 +65,7 @@ namespace fly {
         Parser(const InputFile &Input, SourceManager &SourceMgr, DiagnosticsEngine &Diags);
 
         bool Parse(ASTNode* Unit);
+        bool ParseHeader(ASTNode *Node);
 
         DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID);
         DiagnosticBuilder Diag(const Token &Tok, unsigned DiagID);
@@ -175,20 +176,16 @@ namespace fly {
 
         llvm::StringRef getLiteralString();
 
-        bool ParseNameSpace();
+        std::string ParseNameSpace();
 
         bool ParseImports();
 
-        bool ParseImportParen();
-
-        bool ParseImportAlias(const SourceLocation &Location, llvm::StringRef Name);
+        bool ParseTopDecl();
 
         bool ParseTopScopes(VisibilityKind &Visibility, bool &isConst,
                             bool isParsedVisibility = false, bool isParsedConstant = false);
 
         bool ParseConst(bool &Constant);
-
-        bool ParseTopDecl();
 
         /**
          * Parse Global Var declaration
@@ -239,6 +236,7 @@ namespace fly {
          * @return
          */
         bool ParseStmt(ASTBlock *Block);
+        bool ParseIdentifier(llvm::StringRef &Name, llvm::StringRef &NameSpace, SourceLocation &Loc);
 
         // Parse Block Structures
 
@@ -252,7 +250,7 @@ namespace fly {
 
         // Parse Calls, Vars
 
-        ASTFuncCall *ParseFunctionCall(ASTBlock *Block, IdentifierInfo *Id, SourceLocation &Loc, bool &Success);
+        ASTFuncCall *ParseFunctionCall(ASTBlock *Block, llvm::StringRef Name, llvm::StringRef NameSpace, SourceLocation &Loc, bool &Success);
         ASTLocalVar* ParseLocalVar(ASTBlock *Block, bool Constant, ASTType *Type, bool &Success);
         ASTVarRef* ParseVarRef(bool &Success);
 

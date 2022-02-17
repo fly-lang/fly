@@ -10,7 +10,7 @@
 #ifndef FLY_TOOLCHAIN_H
 #define FLY_TOOLCHAIN_H
 
-#include <Frontend/InputFile.h>
+#include "Frontend/InputFile.h"
 #include "llvm/ADT/Triple.h"
 
 namespace fly {
@@ -19,12 +19,38 @@ namespace fly {
 
     class ToolChain {
 
+        DiagnosticsEngine &Diag;
+
         const llvm::Triple &T;
 
-    public:
-        ToolChain(const llvm::Triple &T);
+        const CodeGenOptions &CodeGenOpts;
 
-        bool Link(const llvm::SmallVector<std::string, 4> &ObjFiles, llvm::StringRef OutFile);
+        IntrusiveRefCntPtr<llvm::vfs::FileSystem> VFS;
+
+    public:
+        ToolChain(DiagnosticsEngine &Diag, const llvm::Triple &T, CodeGenOptions &CodeGenOpts);
+
+        bool BuildLib();
+
+        bool BuildOutput(const llvm::SmallVector<std::string, 4> &InFiles, FrontendOptions &FrontendOpts);
+
+        bool LinkWindows(const llvm::SmallVector<std::string, 4> &InFiles, const std::string &OutFile);
+        bool getUniversalCRTLibraryPath(std::string &Path) const;
+        bool getWindowsSDKLibraryPath(std::string &path) const;
+
+        bool LinkDarwin(const llvm::SmallVector<std::string, 4> &InFiles, const std::string &OutFile);
+
+        bool LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, const std::string &OutFile);
+        bool getPIE();
+        bool isArmBigEndian();
+        const char *getLDMOption();
+        std::string GetFilePath(llvm::Twine Name, SmallVector<std::string, 16> &PathList) const;
+        llvm::vfs::FileSystem &getVFS() const;
+        std::string getCompilerRT(const char *string, SmallVector<std::string, 16> &PathList);
+        std::string getMultiarch() const;
+        std::string getOSLibDir();
+
+        SmallVector<std::string, 16> CreatePathList();
     };
 }
 

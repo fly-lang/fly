@@ -15,6 +15,7 @@
 #include "Basic/FileManager.h"
 #include "Basic/TargetInfo.h"
 #include "Basic/Debug.h"
+
 #include <llvm/IR/LLVMContext.h>
 
 using namespace fly;
@@ -60,7 +61,7 @@ std::string str(llvm::Module *M) {
 
 void CodeGen::Emit(llvm::Module *M, llvm::StringRef OutName) {
     FLY_DEBUG_MESSAGE("CodeGen", "Emit",
-                      "Module.Name=" << M->getName() << "Module.Output=" << str(M));
+                      "Module.Name=" << M->getName() << "\nModule.Output=" << str(M));
 
     // Skip CodeGenModule instance creation
     if (ActionKind == Backend_EmitNothing) {
@@ -105,4 +106,17 @@ CodeGenModule *CodeGen::CreateModule(llvm::StringRef Name) {
 
 LLVMContext &CodeGen::getLLVMCtx() {
     return LLVMCtx;
+}
+
+const std::string CodeGen::toIdentifier(std::string Name, std::string NameSpace) {
+    if (NameSpace == "default") {
+        return Name;
+    }
+    return NameSpace + "_" + Name;
+}
+
+CodeGenHeader *CodeGen::CreateHeader(std::string FileName){
+    FLY_DEBUG_MESSAGE("CodeGen", "HandleHeader",
+                      "FileName=" << FileName);
+    return new CodeGenHeader(Diags, CodeGenOpts, FileName);
 }

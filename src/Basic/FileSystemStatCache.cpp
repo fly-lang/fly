@@ -27,7 +27,7 @@ void FileSystemStatCache::anchor() {}
 /// path, using the cache to accelerate it if possible.  This returns true if
 /// the path does not exist or false if it exists.
 ///
-/// If isFile is true, then this lookup should only return success for files
+/// If isEmpty is true, then this lookup should only return success for files
 /// (not directories).  If it is false this lookup should only return
 /// success for directories (not files).  On a successful file lookup, the
 /// implementation can optionally fill in FileDescriptor with a valid

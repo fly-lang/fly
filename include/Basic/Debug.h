@@ -7,8 +7,7 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-
-#include <llvm/Support/Debug.h>
+#include "llvm/Support/Debug.h"
 #include <iostream>
 
 #define DEBUG_TYPE "FLY_DEBUG"
@@ -17,12 +16,16 @@
 #define FLY_DEBUG_PRINT_SEPMESS " - "
 #define FLY_DEBUG_PRINT_POSTFIX "\n"
 
+#define FLY_DEBUG_WITH_TYPE(TYPE, X)                                       \
+  do { if (::llvm::DebugFlag) { X; } \
+  } while (false)
+
 #define FLY_DEBUG_MESSAGE(CLASS, METHOD, MESSAGE) \
-    LLVM_DEBUG(llvm::dbgs() << FLY_DEBUG_PRINT_PREFIX \
+    FLY_DEBUG_WITH_TYPE(DEBUG_TYPE, llvm::dbgs() << FLY_DEBUG_PRINT_PREFIX \
         << CLASS << FLY_DEBUG_PRINT_SEPCLASS << METHOD << FLY_DEBUG_PRINT_SEPMESS << MESSAGE \
         << FLY_DEBUG_PRINT_POSTFIX)
 
 #define FLY_DEBUG(CLASS, METHOD) \
-    LLVM_DEBUG(llvm::dbgs() << FLY_DEBUG_PRINT_PREFIX \
+    FLY_DEBUG_WITH_TYPE(DEBUG_TYPE, llvm::dbgs() << FLY_DEBUG_PRINT_PREFIX \
         << CLASS << FLY_DEBUG_PRINT_SEPCLASS << METHOD \
         << FLY_DEBUG_PRINT_POSTFIX)

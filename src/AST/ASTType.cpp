@@ -54,18 +54,19 @@ const TypeKind &ASTVoidType::getKind() const {
     return Kind;
 }
 
-ASTClassType::ASTClassType(SourceLocation Loc, StringRef &Name)  : ASTType(Loc), Name(Name) {
+ASTClassType::ASTClassType(SourceLocation Loc, std::string Name, std::string NameSpace) : ASTType(Loc), Name(Name) {
 
 }
+
 
 const TypeKind &ASTClassType::getKind() const {
     return Kind;
 }
 
-const llvm::StringRef &ASTClassType::getName() const {
+const std::string &ASTClassType::getName() const {
     return Name;
 }
 
 bool ASTClassType::operator==(const ASTClassType &Ty) const {
-    return getKind() == Ty.getKind() && Name.equals(Ty.Name);
+    return getKind() == Ty.getKind() && Name == Ty.Name;
 }

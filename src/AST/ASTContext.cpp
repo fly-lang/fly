@@ -26,8 +26,7 @@ using namespace fly;
  * @param Diags
  */
 ASTContext::ASTContext(DiagnosticsEngine &Diags) : Diags(Diags) {
-    DefaultNS = new ASTNameSpace(ASTNameSpace::DEFAULT, this);
-    NameSpaces.insert(std::make_pair(ASTNameSpace::DEFAULT, DefaultNS));
+    DefaultNS = AddNameSpace(ASTNameSpace::DEFAULT);
 }
 
 /**
@@ -35,7 +34,7 @@ ASTContext::ASTContext(DiagnosticsEngine &Diags) : Diags(Diags) {
  */
 ASTContext::~ASTContext() {
     NameSpaces.clear();
-    Imports.clear();
+    ExternalImports.clear();
 }
 
 /**
@@ -65,28 +64,50 @@ DiagnosticBuilder ASTContext::Diag(SourceLocation Loc, unsigned DiagID) const {
 }
 
 /**
+ * Write Diagnostics
+ * @param Loc
+ * @param DiagID
+ * @return
+ */
+DiagnosticBuilder ASTContext::Diag(unsigned DiagID) const {
+    return Diags.Report(DiagID);
+}
+
+ASTNameSpace *ASTContext::AddNameSpace(std::string Name, bool ExternLib) {
+    // Check if Name exist or add it
+    ASTNameSpace *NameSpace = NameSpaces.lookup(Name);
+    if (NameSpace == nullptr) {
+        NameSpace = new ASTNameSpace(Name, this, ExternLib);
+        NameSpaces.insert(std::make_pair(Name, NameSpace));
+    }
+    return NameSpace;
+}
+
+/**
  * Add an ASTNode to the context
  * @param Node
  * @return true if no error occurs, otherwise false
  */
 bool ASTContext::AddNode(ASTNode *Node) {
-    assert(Node->NameSpace && "NameSpace is empty!");
-    assert(!Node->Name.empty() && "FileName is empty!");
+    assert(Node->getNameSpace() && "NameSpace is empty!");
+    assert(!Node->getName().empty() && "FileName is empty!");
     FLY_DEBUG_MESSAGE("ASTContext", "AddNode", "Node=" << Node->str());
-    llvm::StringMap<ASTNode *> &NSNodes = Node->NameSpace->Nodes;
+    llvm::StringMap<ASTNode *> &NSNodes = Node->getNameSpace()->Nodes;
 
     // Add to Nodes
-    auto Pair = std::make_pair(Node->Name, Node);
+    auto Pair = std::make_pair(Node->getName(), Node);
     NSNodes.insert(Pair);
 
-    // Try to link Node Imports to already resolved Nodes
-    // Iterate over Node Imports
-    for (auto &MapImport : Node->Imports) {
-        FLY_DEBUG_MESSAGE("ASTContext", "AddNode", "Import=" << MapImport.getValue()->str());
-        if (MapImport.getValue()->getNameSpace() == nullptr) {
-            ASTNameSpace *NameSpace = NameSpaces.lookup(MapImport.getKey());
-            if (NameSpace != nullptr) {
-                MapImport.getValue()->setNameSpace(NameSpace);
+    if (!Node->isHeader()) {
+        // Try to link Node Imports to already resolved Nodes
+        // Iterate over Node Imports
+        for (auto &MapImport: Node->getImports()) {
+            FLY_DEBUG_MESSAGE("ASTContext", "AddNode", "Import=" << MapImport.getValue()->str());
+            if (MapImport.getValue()->getNameSpace() == nullptr) {
+                ASTNameSpace *NameSpace = NameSpaces.lookup(MapImport.getKey());
+                if (NameSpace != nullptr) {
+                    MapImport.getValue()->setNameSpace(NameSpace);
+                }
             }
         }
     }
@@ -118,7 +139,7 @@ bool ASTContext::Resolve() {
     }
 
     // Now all Imports must be read
-    for(auto &Import : Imports) {
+    for(auto &Import : ExternalImports) {
         if (Import.getValue()->getNameSpace() == nullptr) {
             Diag(Import.getValue()->getLocation(), diag::err_unresolved_import);
             return false;

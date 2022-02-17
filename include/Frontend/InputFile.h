@@ -15,8 +15,12 @@
 
 namespace fly {
 
-    class InputOptions {
-
+    enum FileExt {
+        UNKNOWN,
+        FLY,
+        LIB,
+        OBJ,
+        HEAD
     };
 
     /// An input file for the front end.
@@ -24,10 +28,16 @@ namespace fly {
 
         friend class FrontendAction;
 
-        InputOptions Options;
+        DiagnosticsEngine &Diags;
+
+        SourceManager &SourceMgr;
 
         /// The file name, or "-" to read from standard input.
-        llvm::StringRef File;
+        const std::string FileName;
+
+        const std::string Name;
+
+        const  FileExt Ext;
 
         FileID FID;
 
@@ -37,30 +47,26 @@ namespace fly {
         const llvm::MemoryBuffer *Buffer = nullptr;
 
     public:
-        InputFile(llvm::StringRef File);
+        explicit InputFile(DiagnosticsEngine &Diags, SourceManager &SourceMgr, std::string FileName);
 
-        bool Load(llvm::StringRef Source, SourceManager &SourceMgr);
+        bool Load(llvm::StringRef Source);
 
-        bool Load(SourceManager &SourceMgr, DiagnosticsEngine &Diags);
+        bool Load();
 
-        bool isFile() const { return !File.empty(); }
+        bool isEmpty() const;
 
-        bool isBuffer() const { return Buffer != nullptr; }
+        bool isBuffer() const;
 
-        llvm::StringRef getFile() const {
-            assert(isFile());
-            return File;
-        }
+        const std::string &getFileName() const;
 
-        FileID getFileID() const {
-            assert(FID.isValid() && "Invalid FileID");
-            return FID;
-        }
+        const std::string &getName() const;
 
-        const llvm::MemoryBuffer *getBuffer() const {
-            assert(isBuffer());
-            return Buffer;
-        }
+        const FileExt &getExt() const;
+
+        FileID getFileID() const;
+
+        const llvm::MemoryBuffer *getBuffer() const;
+
     };
 }
 

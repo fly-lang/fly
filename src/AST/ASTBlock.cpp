@@ -138,7 +138,7 @@ bool ASTBlock::AddLocalVar(ASTLocalVar *LocalVar) {
     }
 
     // Add LocalVar
-    DeclVars.insert(std::pair<StringRef, ASTLocalVar *>(LocalVar->getName(), LocalVar));
+    DeclVars.insert(std::pair<std::string, ASTLocalVar *>(LocalVar->getName(), LocalVar));
     Content.push_back(LocalVar);
     Top->addDeclVars(LocalVar); //Useful for Alloca into CodeGen
 

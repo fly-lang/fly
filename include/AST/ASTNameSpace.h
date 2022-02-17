@@ -31,14 +31,18 @@ namespace fly {
         // AST by FileID
         llvm::StringMap<ASTNode *> Nodes;
 
+        bool ExternalLib;
+
     public:
-        ASTNameSpace(const llvm::StringRef &Name, ASTContext *Context);
+        ASTNameSpace(std::string NameSpace, ASTContext *Context, bool ExternalLib = false);
 
         ~ASTNameSpace();
 
-        static const llvm::StringRef DEFAULT;
+        static const std::string DEFAULT;
 
         const llvm::StringMap<ASTNode *> &getNodes() const;
+
+        bool isExternalLib() const;
     };
 }
 

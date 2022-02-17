@@ -7,7 +7,7 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include <Config/config.h>
+#include <Config/Config.h>
 #include "Driver/Driver.h"
 #include <Basic/Stack.h>
 #include "Basic/Debug.h"

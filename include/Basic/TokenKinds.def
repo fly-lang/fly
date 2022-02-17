@@ -115,7 +115,6 @@ PUNCTUATOR(comma,               ",")
 
 KEYWORD(namespace)
 KEYWORD(import)
-KEYWORD(as)
 KEYWORD(public)
 KEYWORD(private)
 KEYWORD(const)

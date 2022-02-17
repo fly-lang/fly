@@ -71,11 +71,11 @@ namespace {
         Driver driver(argv);
         CompilerInstance &CI = driver.BuildCompilerInstance();
         const FrontendOptions &FrontendOpts = CI.getFrontendOptions();
-        for(const InputFile &inputFile : FrontendOpts.getInputFiles()) {
-            ASSERT_EQ(inputFile.getFile(), "file1.fly");
+        for(const std::string &inputFile : FrontendOpts.getInputFiles()) {
+            ASSERT_EQ(inputFile, "file1.fly");
             break;
         }
-        ASSERT_EQ(FrontendOpts.getOutputFile().getFile(), "file.o");
+        ASSERT_EQ(FrontendOpts.getOutputFile(), "file.o");
         ASSERT_TRUE(FrontendOpts.Verbose);
 
         deleteTestFile(testFile);

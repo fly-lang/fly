@@ -12,7 +12,7 @@
 
 using namespace fly;
 
-ASTLocalVar::ASTLocalVar(const SourceLocation &Loc, ASTBlock *Block, ASTType *Type, const StringRef &Name) :
+ASTLocalVar::ASTLocalVar(const SourceLocation &Loc, ASTBlock *Block, ASTType *Type, const std::string Name) :
         ASTExprStmt(Loc, Block), ASTVar(Type, Name) {
     switch (Type->getKind()) {
 
@@ -58,8 +58,8 @@ std::string ASTLocalVar::str() const {
            " }";
 }
 
-ASTLocalVarRef::ASTLocalVarRef(const SourceLocation &Loc, ASTBlock *Block, const llvm::StringRef &Name,
-                               const StringRef &NameSpace) :
+ASTLocalVarRef::ASTLocalVarRef(const SourceLocation &Loc, ASTBlock *Block, const std::string &Name,
+                               const std::string &NameSpace) :
         ASTExprStmt(Loc, Block), ASTVarRef(Loc, Name, NameSpace) {
 
 }
