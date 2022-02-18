@@ -1,11 +1,10 @@
-<!-- PROJECT LOGO -->
-[![Build Status](https://github.com/fly-lang/fly/actions/workflows/build.yml/badge.svg)](https://github.com/fly-lang/fly/actions/workflows/build.yml)
-![GitHub issues](https://img.shields.io/github/issues-raw/fly-lang/fly?color=blue)
-![GitHub closed issues](https://img.shields.io/github/issues-closed/fly-lang/fly?color=blue)
-<br />
+  [![Build Status](https://github.com/fly-lang/fly/actions/workflows/build.yml/badge.svg)](https://github.com/fly-lang/fly/actions/workflows/build.yml)
+  ![GitHub issues](https://img.shields.io/github/issues-raw/fly-lang/fly?color=blue)
+  ![GitHub closed issues](https://img.shields.io/github/issues-closed/fly-lang/fly?color=blue)
+  <br />
 <p align="center">
   <a href="https://github.com/fly-lang/fly">
-    <img src="https://github.com/fly-lang/graphics/blob/main/logo/fly_logo_500.png?raw=true" alt="Logo" width="80" height="80">
+    <img src="https://github.com/fly-lang/graphics/blob/main/logo/fly_logo_300.png?raw=true" alt="Logo" width="300" height="300">
   </a>
 
   <h3 align="center">Fly Programming Language</h3>
