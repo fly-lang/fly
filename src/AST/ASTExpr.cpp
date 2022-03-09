@@ -10,8 +10,8 @@
 
 #include "AST/ASTExpr.h"
 #include "AST/ASTVar.h"
+#include "AST/ASTValue.h"
 #include "AST/ASTFunc.h"
-#include "AST/ASTOperatorExpr.h"
 
 using namespace fly;
 
@@ -90,7 +90,10 @@ std::string ASTFuncCallExpr::str() const {
            " }";
 }
 
-ASTGroupExpr::ASTGroupExpr(const SourceLocation &Loc) : ASTExpr(Loc) {
+ASTGroupExpr::ASTGroupExpr(const SourceLocation &Loc,
+                           ASTExprGroupKind GroupKind) :
+                           ASTExpr(Loc),
+                           GroupKind(GroupKind) {
 
 }
 
@@ -98,39 +101,111 @@ ASTExprKind ASTGroupExpr::getKind() const {
     return Kind;
 }
 
-const std::vector<ASTExpr *> &ASTGroupExpr::getGroup() const {
-    return Group;
+ASTExprGroupKind ASTGroupExpr::getGroupKind() {
+    return GroupKind;
 }
 
-bool ASTGroupExpr::isEmpty() const {
-    return Group.empty();
+ASTUnaryGroupExpr::ASTUnaryGroupExpr(const SourceLocation &Loc, UnaryOpKind Operator,
+                                     UnaryOptionKind Option, ASTVarRefExpr *First) :
+        ASTGroupExpr(Loc, GROUP_UNARY), OperatorKind(Operator), OptionKind(Option), First(First) {
+
 }
 
-void ASTGroupExpr::Add(ASTExpr *Exp) {
-    Group.push_back(Exp);
+UnaryOpKind ASTUnaryGroupExpr::getOperatorKind() const {
+    return OperatorKind;
 }
 
-ASTType *ASTGroupExpr::getType() const {
-    if (isEmpty()) {
-        return nullptr;
-    }
-    ASTExpr *FirstExpr = Group.at(0);
-    if (FirstExpr->getKind() == EXPR_OPERATOR && ((ASTOperatorExpr *) FirstExpr)->isUnary()) {
-        return ((ASTUnaryExpr *) FirstExpr)->getVarRef()->getDecl()->getType();
-    }
-    return Group.at(0)->getType();
+UnaryOptionKind ASTUnaryGroupExpr::getOptionKind() const {
+    return OptionKind;
 }
 
-std::string ASTGroupExpr::str() const {
-    std::string Str = "{ Type=" + (getType() ? getType()->str() : "") +
-                      ", Kind=" + std::to_string(Kind) +
-                      ", Group=[";
-    if (!Group.empty()) {
-        for (ASTExpr *Expr: Group) {
-            Str += Expr->str() + ", ";
-        }
-        Str = Str.substr(0, Str.length()-2);
-    }
-    Str += "] }";
-    return "";
+const ASTVarRefExpr *ASTUnaryGroupExpr::getFirst() const {
+    return First;
+}
+
+ASTType *ASTUnaryGroupExpr::getType() const {
+    return First->getType();
+}
+
+std::string ASTUnaryGroupExpr::str() const {
+    return "{ First=" + First->str() +
+           ", Operator=" + std::to_string(OperatorKind) +
+           ", Option=" + std::to_string(OptionKind) +
+           ", Type=" + (getType() ? getType()->str() : "") +
+           ", Kind=" + std::to_string(getKind());
+}
+
+ASTBinaryGroupExpr::ASTBinaryGroupExpr(const SourceLocation &Loc,
+                                       BinaryOpKind Operator,
+                                       ASTExpr *First,
+                                       ASTExpr *Second) :
+        ASTGroupExpr(Loc, GROUP_BINARY),
+        OperatorKind(Operator),
+        OptionKind(Operator < 300 ? (Operator < 200 ?  BINARY_ARITH : BINARY_LOGIC) : BINARY_COMPARISON),
+        First(First),
+        Second(Second) {
+
+}
+
+BinaryOpKind ASTBinaryGroupExpr::getOperatorKind() const {
+    return OperatorKind;
+}
+
+BinaryOptionKind ASTBinaryGroupExpr::getOptionKind() const {
+    return OptionKind;
+}
+
+const ASTExpr *ASTBinaryGroupExpr::getFirst() const {
+    return First;
+}
+
+const ASTExpr *ASTBinaryGroupExpr::getSecond() const {
+    return Second;
+}
+
+ASTType *ASTBinaryGroupExpr::getType() const {
+    return First->getType();
+}
+
+std::string ASTBinaryGroupExpr::str() const {
+    return "{ First=" + First->str() +
+           ", Operator=" + std::to_string(OperatorKind) +
+           ", Second=" + Second->str() +
+           ", Type=" + (getType() ? getType()->str() : "") +
+           ", Kind=" + std::to_string(getKind());
+}
+
+ASTTernaryGroupExpr::ASTTernaryGroupExpr(const SourceLocation &Loc,
+                                         ASTExpr *First,
+                                         ASTExpr *Second,
+                                         ASTExpr *Third) :
+                                         ASTGroupExpr(Loc, GROUP_TERNARY),
+                                         First(First),
+                                         Second(Second),
+                                         Third(Third) {
+
+}
+
+ASTType *ASTTernaryGroupExpr::getType() const {
+    return Second->getType();
+}
+
+const ASTExpr *ASTTernaryGroupExpr::getFirst() const {
+    return First;
+}
+
+const ASTExpr *ASTTernaryGroupExpr::getSecond() const {
+    return Second;
+}
+
+const ASTExpr *ASTTernaryGroupExpr::getThird() const {
+    return Third;
+}
+
+std::string ASTTernaryGroupExpr::str() const {
+    return "{ First=" + First->str() +
+           ", Second=" + Second->str() +
+           ", Third=" + Third->str() +
+           ", Type=" + (getType() ? getType()->str() : "") +
+           ", Kind=" + std::to_string(getKind());
 }

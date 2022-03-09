@@ -51,7 +51,7 @@ namespace fly {
 
         static bool ResolveVarRef(const ASTBlock *Block, ASTVarRef *VarRef);
 
-        static bool ResolveExpr(const ASTBlock *Block, ASTExpr *Expr);
+        static bool ResolveExpr(const ASTBlock *Block, const ASTExpr *Expr);
     };
 }
 

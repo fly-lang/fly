@@ -134,7 +134,7 @@ ASTExpr *ASTFuncParam::getExpr() const {
 }
 
 void ASTFuncParam::setExpr(ASTExpr *E) {
-    assert(E->getKind() == EXPR_VALUE && "Invalid Value for GlobalVar");
+    assert(E->getKind() == EXPR_VALUE && "Invalid Value for Param");
     Expr = (ASTValueExpr *)E;
 }
 

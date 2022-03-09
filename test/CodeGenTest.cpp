@@ -17,12 +17,12 @@
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTFunc.h"
 #include "AST/ASTVar.h"
+#include "AST/ASTValue.h"
 #include "AST/ASTLocalVar.h"
 #include "AST/ASTIfBlock.h"
 #include "AST/ASTSwitchBlock.h"
 #include "AST/ASTWhileBlock.h"
 #include "AST/ASTForBlock.h"
-#include "AST/ASTOperatorExpr.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/DiagnosticOptions.h"
 #include "Basic/SourceLocation.h"
@@ -129,6 +129,13 @@ namespace {
         MainFn->addParam(SourceLoc, new ASTIntType(SourceLoc), "P1");
         MainFn->addParam(SourceLoc, new ASTFloatType(SourceLoc), "P2");
         MainFn->addParam(SourceLoc, new ASTBoolType(SourceLoc), "P3");
+        MainFn->addParam(SourceLoc, new ASTLongType(SourceLoc), "P4");
+        MainFn->addParam(SourceLoc, new ASTDoubleType(SourceLoc), "P5");
+        MainFn->addParam(SourceLoc, new ASTByteType(SourceLoc), "P6");
+        MainFn->addParam(SourceLoc, new ASTShortType(SourceLoc), "P7");
+        MainFn->addParam(SourceLoc, new ASTUShortType(SourceLoc), "P8");
+        MainFn->addParam(SourceLoc, new ASTUIntType(SourceLoc), "P9");
+        MainFn->addParam(SourceLoc, new ASTULongType(SourceLoc), "P10");
         Node->AddFunction(MainFn);
 
         ASTValueExpr *Expr = new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc)));
@@ -143,14 +150,28 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define i32 @main(i32 %0, float %1, i1 %2) {\n"
+        EXPECT_EQ(output, "define i32 @main(i32 %0, float %1, i1 %2, i64 %3, double %4, i8 %5, i16 %6, i16 %7, i32 %8, i64 %9) {\n"
                           "entry:\n"
-                          "  %3 = alloca i32, align 4\n"
-                          "  %4 = alloca float, align 4\n"
-                          "  %5 = alloca i1, align 1\n"
-                          "  store i32 %0, i32* %3, align 4\n"
-                          "  store float %1, float* %4, align 4\n"
-                          "  store i1 %2, i1* %5, align 1\n"
+                          "  %10 = alloca i32, align 4\n"
+                          "  %11 = alloca float, align 4\n"
+                          "  %12 = alloca i1, align 1\n"
+                          "  %13 = alloca i64, align 8\n"
+                          "  %14 = alloca double, align 8\n"
+                          "  %15 = alloca i8, align 1\n"
+                          "  %16 = alloca i16, align 2\n"
+                          "  %17 = alloca i16, align 2\n"
+                          "  %18 = alloca i32, align 4\n"
+                          "  %19 = alloca i64, align 8\n"
+                          "  store i32 %0, i32* %10, align 4\n"
+                          "  store float %1, float* %11, align 4\n"
+                          "  store i1 %2, i1* %12, align 1\n"
+                          "  store i64 %3, i64* %13, align 8\n"
+                          "  store double %4, double* %14, align 8\n"
+                          "  store i8 %5, i8* %15, align 1\n"
+                          "  store i16 %6, i16* %16, align 2\n"
+                          "  store i16 %7, i16* %17, align 2\n"
+                          "  store i32 %8, i32* %18, align 4\n"
+                          "  store i64 %9, i64* %19, align 8\n"
                           "  ret i32 1\n"
                           "}\n");
     }
@@ -260,21 +281,22 @@ namespace {
         Node->AddFunction(MainFn);
 
         // Create this expression: 1 + a * b / (c - 2)
-        ASTGroupExpr *Group = new ASTGroupExpr(SourceLoc);
-        Group->Add(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1",
-                                                            new ASTIntType(SourceLoc))));
-        Group->Add(new ASTArithExpr(SourceLoc, ARITH_ADD));
-        Group->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(SourceLoc, "a")));
-        Group->Add(new ASTArithExpr(SourceLoc, ARITH_MUL));
-        Group->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(SourceLoc, "b")));
-        Group->Add(new ASTArithExpr(SourceLoc, ARITH_DIV));
+        // E1 + (E2 * E3) / (E4 - E5)
+        // E1 + (G2 / G3)
+        // E1 + F2
+        ASTValueExpr *E1 = new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1",
+                                                                    new ASTIntType(SourceLoc)));
+        ASTVarRefExpr *E2 = new ASTVarRefExpr(SourceLoc, new ASTVarRef(SourceLoc, "a"));
+        ASTVarRefExpr *E3 = new ASTVarRefExpr(SourceLoc, new ASTVarRef(SourceLoc, "b"));
+        ASTVarRefExpr *E4 = new ASTVarRefExpr(SourceLoc, new ASTVarRef(SourceLoc, "c"));
+        ASTValueExpr *E5 = new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "2",
+                                                                    new ASTIntType(SourceLoc)));
+        
+        ASTBinaryGroupExpr *G2 = new ASTBinaryGroupExpr(SourceLoc, ARITH_MUL, E2, E3);
+        ASTBinaryGroupExpr *G3 = new ASTBinaryGroupExpr(SourceLoc, ARITH_SUB, E1, E2);
+        ASTBinaryGroupExpr *F2 = new ASTBinaryGroupExpr(SourceLoc, ARITH_DIV, G2, G3);
+        ASTBinaryGroupExpr *Group = new ASTBinaryGroupExpr(SourceLoc, ARITH_ADD, E1, F2);
 
-        ASTGroupExpr *SubGroup = new ASTGroupExpr(SourceLoc);
-        SubGroup->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(SourceLoc, "c")));
-        SubGroup->Add(new ASTArithExpr(SourceLoc, ARITH_SUB));
-        SubGroup->Add(new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "2",
-                                                               new ASTIntType(SourceLoc))));
-        Group->Add(SubGroup);
         MainFn->getBody()->AddReturn(SourceLoc, Group);
 
         // Generate Code
@@ -320,120 +342,106 @@ namespace {
         MainFn->getBody()->AddLocalVar(B);
 
         // Operation Add
-        ASTGroupExpr *GroupAdd = new ASTGroupExpr(SourceLoc);
-        GroupAdd->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(A)));
-        GroupAdd->Add(new ASTArithExpr(SourceLoc, ArithOpKind::ARITH_ADD));
-        GroupAdd->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(B)));
-        C->setExpr(GroupAdd);
+        C->setExpr(new ASTBinaryGroupExpr(SourceLoc,
+                                          ARITH_ADD,
+                                          new ASTVarRefExpr(SourceLoc, new ASTVarRef(A)),
+                                          new ASTVarRefExpr(SourceLoc, new ASTVarRef(B))));
         MainFn->getBody()->AddLocalVar(C);
 
         // Operation Sub
         ASTLocalVarRef *Csub = new ASTLocalVarRef(SourceLoc, MainFn->getBody(), C);
-        ASTGroupExpr *GroupSub = new ASTGroupExpr(SourceLoc);
-        GroupSub->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(A)));
-        GroupSub->Add(new ASTArithExpr(SourceLoc, ArithOpKind::ARITH_SUB));
-        GroupSub->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(B)));
-        Csub->setExpr(GroupSub);
+        Csub->setExpr(new ASTBinaryGroupExpr(SourceLoc,
+                                             ARITH_SUB,
+                                             new ASTVarRefExpr(SourceLoc, new ASTVarRef(A)),
+                                             new ASTVarRefExpr(SourceLoc, new ASTVarRef(B))));
         MainFn->getBody()->AddLocalVarRef(Csub);
 
         // Operation Mul
         ASTLocalVarRef *Cmul = new ASTLocalVarRef(SourceLoc, MainFn->getBody(), C);
-        ASTGroupExpr *GroupMul = new ASTGroupExpr(SourceLoc);
-        GroupMul->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(A)));
-        GroupMul->Add(new ASTArithExpr(SourceLoc, ArithOpKind::ARITH_MUL));
-        GroupMul->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(B)));
-        Cmul->setExpr(GroupMul);
+        Cmul->setExpr(new ASTBinaryGroupExpr(SourceLoc,
+                                             ARITH_MUL,
+                                             new ASTVarRefExpr(SourceLoc, new ASTVarRef(A)),
+                                             new ASTVarRefExpr(SourceLoc, new ASTVarRef(B))));
         MainFn->getBody()->AddLocalVarRef(Cmul);
 
         // Operation Div
         ASTLocalVarRef *Cdiv = new ASTLocalVarRef(SourceLoc, MainFn->getBody(), C);
-        ASTGroupExpr *GroupDiv = new ASTGroupExpr(SourceLoc);
-        GroupDiv->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(A)));
-        GroupDiv->Add(new ASTArithExpr(SourceLoc, ArithOpKind::ARITH_DIV));
-        GroupDiv->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(B)));
-        Cdiv->setExpr(GroupDiv);
+        Cdiv->setExpr(new ASTBinaryGroupExpr(SourceLoc,
+                                             ARITH_DIV,
+                                             new ASTVarRefExpr(SourceLoc, new ASTVarRef(A)),
+                                             new ASTVarRefExpr(SourceLoc, new ASTVarRef(B))));
         MainFn->getBody()->AddLocalVarRef(Cdiv);
 
         // Operation Mod
         ASTLocalVarRef *Cmod = new ASTLocalVarRef(SourceLoc, MainFn->getBody(), C);
-        ASTGroupExpr *GroupMod = new ASTGroupExpr(SourceLoc);
-        GroupMod->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(A)));
-        GroupMod->Add(new ASTArithExpr(SourceLoc, ArithOpKind::ARITH_MOD));
-        GroupMod->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(B)));
-        Cmod->setExpr(GroupMod);
+        Cmod->setExpr(new ASTBinaryGroupExpr(SourceLoc,
+                                             ARITH_MOD,
+                                             new ASTVarRefExpr(SourceLoc, new ASTVarRef(A)),
+                                             new ASTVarRefExpr(SourceLoc, new ASTVarRef(B))));
         MainFn->getBody()->AddLocalVarRef(Cmod);
 
         // Operation And
         ASTLocalVarRef *Cand = new ASTLocalVarRef(SourceLoc, MainFn->getBody(), C);
-        ASTGroupExpr *GroupAnd = new ASTGroupExpr(SourceLoc);
-        GroupAnd->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(A)));
-        GroupAnd->Add(new ASTArithExpr(SourceLoc, ArithOpKind::ARITH_AND));
-        GroupAnd->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(B)));
-        Cand->setExpr(GroupAnd);
+        Cand->setExpr(new ASTBinaryGroupExpr(SourceLoc,
+                                             ARITH_AND,
+                                             new ASTVarRefExpr(SourceLoc, new ASTVarRef(A)),
+                                             new ASTVarRefExpr(SourceLoc, new ASTVarRef(B))));
         MainFn->getBody()->AddLocalVarRef(Cand);
 
         // Operation Or
         ASTLocalVarRef *Cor = new ASTLocalVarRef(SourceLoc, MainFn->getBody(), C);
-        ASTGroupExpr *GroupOr = new ASTGroupExpr(SourceLoc);
-        GroupOr->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(A)));
-        GroupOr->Add(new ASTArithExpr(SourceLoc, ArithOpKind::ARITH_OR));
-        GroupOr->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(B)));
-        Cor->setExpr(GroupOr);
+        Cor->setExpr(new ASTBinaryGroupExpr(SourceLoc,
+                                            ARITH_OR,
+                                            new ASTVarRefExpr(SourceLoc, new ASTVarRef(A)),
+                                            new ASTVarRefExpr(SourceLoc, new ASTVarRef(B))));
         MainFn->getBody()->AddLocalVarRef(Cor);
 
         // Operation Xor
         ASTLocalVarRef *Cxor = new ASTLocalVarRef(SourceLoc, MainFn->getBody(), C);
-        ASTGroupExpr *GroupXor = new ASTGroupExpr(SourceLoc);
-        GroupXor->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(A)));
-        GroupXor->Add(new ASTArithExpr(SourceLoc, ArithOpKind::ARITH_XOR));
-        GroupXor->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(B)));
-        Cxor->setExpr(GroupXor);
+        Cxor->setExpr(new ASTBinaryGroupExpr(SourceLoc,
+                                             ARITH_XOR,
+                                             new ASTVarRefExpr(SourceLoc, new ASTVarRef(A)),
+                                             new ASTVarRefExpr(SourceLoc, new ASTVarRef(B))));
         MainFn->getBody()->AddLocalVarRef(Cxor);
 
         // Operation Shl
         ASTLocalVarRef *Cshl = new ASTLocalVarRef(SourceLoc, MainFn->getBody(), C);
-        ASTGroupExpr *GroupShl = new ASTGroupExpr(SourceLoc);
-        GroupShl->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(A)));
-        GroupShl->Add(new ASTArithExpr(SourceLoc, ArithOpKind::ARITH_SHIFT_L));
-        GroupShl->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(B)));
-        Cshl->setExpr(GroupShl);
+        Cshl->setExpr(new ASTBinaryGroupExpr(SourceLoc,
+                                             ARITH_SHIFT_L,
+                                             new ASTVarRefExpr(SourceLoc, new ASTVarRef(A)),
+                                             new ASTVarRefExpr(SourceLoc, new ASTVarRef(B))));
         MainFn->getBody()->AddLocalVarRef(Cshl);
 
         // Operation Shr
         ASTLocalVarRef *Cshr = new ASTLocalVarRef(SourceLoc, MainFn->getBody(), C);
-        ASTGroupExpr *GroupShr = new ASTGroupExpr(SourceLoc);
-        GroupShr->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(A)));
-        GroupShr->Add(new ASTArithExpr(SourceLoc, ArithOpKind::ARITH_SHIFT_R));
-        GroupShr->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(B)));
-        Cshr->setExpr(GroupShr);
+        Cshr->setExpr(new ASTBinaryGroupExpr(SourceLoc,
+                                             ARITH_SHIFT_R,
+                                             new ASTVarRefExpr(SourceLoc, new ASTVarRef(A)),
+                                             new ASTVarRefExpr(SourceLoc, new ASTVarRef(B))));
         MainFn->getBody()->AddLocalVarRef(Cshr);
 
         // Pre-Increment
-        ASTArithExpr *PreIncr = new ASTArithExpr(SourceLoc, ARITH_INCR);
-        ASTUnaryExpr *PreIncrExpr = new ASTUnaryExpr(SourceLoc, PreIncr, new ASTVarRef(A), UnaryOpKind::UNARY_PRE);
         ASTExprStmt *PreIncrExprStmt = new ASTExprStmt(SourceLoc, MainFn->getBody());
-        PreIncrExprStmt->setExpr(PreIncrExpr);
+        PreIncrExprStmt->setExpr(new ASTUnaryGroupExpr(SourceLoc, ARITH_INCR, UNARY_PRE,
+                                                       new ASTVarRefExpr(SourceLoc, new ASTVarRef(A))));
         MainFn->getBody()->AddExprStmt(PreIncrExprStmt);
 
         // Post-Increment
-        ASTArithExpr *PostIncr = new ASTArithExpr(SourceLoc, ARITH_INCR);
-        ASTUnaryExpr *PostIncrExpr = new ASTUnaryExpr(SourceLoc, PostIncr, new ASTVarRef(A), UnaryOpKind::UNARY_POST);
         ASTExprStmt *PostIncrExprStmt = new ASTExprStmt(SourceLoc, MainFn->getBody());
-        PostIncrExprStmt->setExpr(PostIncrExpr);
+        PostIncrExprStmt->setExpr(new ASTUnaryGroupExpr(SourceLoc, ARITH_INCR, UNARY_POST,
+                                                        new ASTVarRefExpr(SourceLoc, new ASTVarRef(A))));
         MainFn->getBody()->AddExprStmt(PostIncrExprStmt);
 
         // Pre-Decrement
-        ASTArithExpr *PreDecr = new ASTArithExpr(SourceLoc, ARITH_DECR);
-        ASTUnaryExpr *PreDecrExpr = new ASTUnaryExpr(SourceLoc, PreDecr, new ASTVarRef(A), UnaryOpKind::UNARY_PRE);
         ASTExprStmt *PreDecrExprStmt = new ASTExprStmt(SourceLoc, MainFn->getBody());
-        PreDecrExprStmt->setExpr(PreDecrExpr);
+        PreDecrExprStmt->setExpr(new ASTUnaryGroupExpr(SourceLoc, ARITH_DECR, UNARY_PRE,
+                                                       new ASTVarRefExpr(SourceLoc, new ASTVarRef(A))));
         MainFn->getBody()->AddExprStmt(PreDecrExprStmt);
 
         // Post-Decrement
-        ASTArithExpr *PostDecr = new ASTArithExpr(SourceLoc, ARITH_DECR);
-        ASTUnaryExpr *PostDecrExpr = new ASTUnaryExpr(SourceLoc, PostDecr, new ASTVarRef(A), UnaryOpKind::UNARY_POST);
         ASTExprStmt *PostDecrExprStmt = new ASTExprStmt(SourceLoc, MainFn->getBody());
-        PostDecrExprStmt->setExpr(PostDecrExpr);
+        PostDecrExprStmt->setExpr(new ASTUnaryGroupExpr(SourceLoc, ARITH_DECR, UNARY_POST,
+                                                        new ASTVarRefExpr(SourceLoc, new ASTVarRef(A))));
         MainFn->getBody()->AddExprStmt(PostDecrExprStmt);
 
         //return test()
@@ -511,56 +519,50 @@ namespace {
         MainFn->getBody()->AddLocalVar(B);
 
         // Operation Equal
-        ASTGroupExpr *GroupEq = new ASTGroupExpr(SourceLoc);
-        GroupEq->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(A)));
-        GroupEq->Add(new ASTComparisonExpr(SourceLoc, ComparisonOpKind::COMP_EQ));
-        GroupEq->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(B)));
-        C->setExpr(GroupEq);
+        C->setExpr(new ASTBinaryGroupExpr(SourceLoc,
+                                          COMP_EQ,
+                                          new ASTVarRefExpr(SourceLoc, new ASTVarRef(A)),
+                                          new ASTVarRefExpr(SourceLoc, new ASTVarRef(B))));
         MainFn->getBody()->AddLocalVar(C);
 
         // Operation Not Equal
         ASTLocalVarRef *Cneq = new ASTLocalVarRef(SourceLoc, MainFn->getBody(), C);
-        ASTGroupExpr *GroupNeq = new ASTGroupExpr(SourceLoc);
-        GroupNeq->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(A)));
-        GroupNeq->Add(new ASTComparisonExpr(SourceLoc, ComparisonOpKind::COMP_NE));
-        GroupNeq->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(B)));
-        Cneq->setExpr(GroupNeq);
+        Cneq->setExpr(new ASTBinaryGroupExpr(SourceLoc,
+                                             COMP_NE,
+                                             new ASTVarRefExpr(SourceLoc, new ASTVarRef(A)),
+                                             new ASTVarRefExpr(SourceLoc, new ASTVarRef(B))));
         MainFn->getBody()->AddLocalVarRef(Cneq);
 
         // Operation Greater Than
         ASTLocalVarRef *Cgt = new ASTLocalVarRef(SourceLoc, MainFn->getBody(), C);
-        ASTGroupExpr *GroupGt = new ASTGroupExpr(SourceLoc);
-        GroupGt->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(A)));
-        GroupGt->Add(new ASTComparisonExpr(SourceLoc, ComparisonOpKind::COMP_GT));
-        GroupGt->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(B)));
-        Cgt->setExpr(GroupGt);
+        Cgt->setExpr(new ASTBinaryGroupExpr(SourceLoc,
+                                            COMP_GT,
+                                            new ASTVarRefExpr(SourceLoc, new ASTVarRef(A)),
+                                            new ASTVarRefExpr(SourceLoc, new ASTVarRef(B))));
         MainFn->getBody()->AddLocalVarRef(Cgt);
 
         // Operation Greater Than or Equal
         ASTLocalVarRef *Cgte = new ASTLocalVarRef(SourceLoc, MainFn->getBody(), C);
-        ASTGroupExpr *GroupGte = new ASTGroupExpr(SourceLoc);
-        GroupGte->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(A)));
-        GroupGte->Add(new ASTComparisonExpr(SourceLoc, ComparisonOpKind::COMP_GTE));
-        GroupGte->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(B)));
-        Cgte->setExpr(GroupGte);
+        Cgte->setExpr(new ASTBinaryGroupExpr(SourceLoc,
+                                             COMP_GTE,
+                                             new ASTVarRefExpr(SourceLoc, new ASTVarRef(A)),
+                                             new ASTVarRefExpr(SourceLoc, new ASTVarRef(B))));
         MainFn->getBody()->AddLocalVarRef(Cgte);
 
         // Operation Less Than
         ASTLocalVarRef *Clt = new ASTLocalVarRef(SourceLoc, MainFn->getBody(), C);
-        ASTGroupExpr *GroupLt = new ASTGroupExpr(SourceLoc);
-        GroupLt->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(A)));
-        GroupLt->Add(new ASTComparisonExpr(SourceLoc, ComparisonOpKind::COMP_LT));
-        GroupLt->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(B)));
-        Clt->setExpr(GroupLt);
+        Clt->setExpr(new ASTBinaryGroupExpr(SourceLoc,
+                                            COMP_LT,
+                                            new ASTVarRefExpr(SourceLoc, new ASTVarRef(A)),
+                                            new ASTVarRefExpr(SourceLoc, new ASTVarRef(B))));
         MainFn->getBody()->AddLocalVarRef(Clt);
 
         // Operation Less Than or Equal
         ASTLocalVarRef *Clte = new ASTLocalVarRef(SourceLoc, MainFn->getBody(), C);
-        ASTGroupExpr *GroupLte = new ASTGroupExpr(SourceLoc);
-        GroupLte->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(A)));
-        GroupLte->Add(new ASTComparisonExpr(SourceLoc, ComparisonOpKind::COMP_LTE));
-        GroupLte->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(B)));
-        Clte->setExpr(GroupLte);
+        Clte->setExpr(new ASTBinaryGroupExpr(SourceLoc,
+                                             COMP_LTE,
+                                             new ASTVarRefExpr(SourceLoc, new ASTVarRef(A)),
+                                             new ASTVarRefExpr(SourceLoc, new ASTVarRef(B))));
         MainFn->getBody()->AddLocalVarRef(Clte);
 
         //return test()
@@ -619,19 +621,17 @@ namespace {
         MainFn->getBody()->AddLocalVar(C);
 
         // Operation And Logic
-        ASTGroupExpr *GroupAnd = new ASTGroupExpr(SourceLoc);
-        GroupAnd->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(A)));
-        GroupAnd->Add(new ASTLogicExpr(SourceLoc, LogicOpKind::LOGIC_AND));
-        GroupAnd->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(B)));
-        C->setExpr(GroupAnd);
+        C->setExpr(new ASTBinaryGroupExpr(SourceLoc,
+                                      LOGIC_AND,
+                                      new ASTVarRefExpr(SourceLoc, new ASTVarRef(A)),
+                                      new ASTVarRefExpr(SourceLoc, new ASTVarRef(B))));
 
         // Operation Or Logic
         ASTLocalVarRef *Cor = new ASTLocalVarRef(SourceLoc, MainFn->getBody(), C);
-        ASTGroupExpr *GroupOr = new ASTGroupExpr(SourceLoc);
-        GroupOr->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(A)));
-        GroupOr->Add(new ASTLogicExpr(SourceLoc, LogicOpKind::LOGIC_OR));
-        GroupOr->Add(new ASTVarRefExpr(SourceLoc, new ASTVarRef(B)));
-        Cor->setExpr(GroupOr);
+        Cor->setExpr(new ASTBinaryGroupExpr(SourceLoc,
+                                            LOGIC_OR,
+                                            new ASTVarRefExpr(SourceLoc, new ASTVarRef(A)),
+                                            new ASTVarRefExpr(SourceLoc, new ASTVarRef(B))));
         MainFn->getBody()->AddLocalVarRef(Cor);
 
         //return test()
@@ -691,13 +691,12 @@ namespace {
         Node->AddFunction(MainFn);
 
         // Compare
-        ASTValueExpr *OneCost = new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc)));
-        ASTGroupExpr *Group = new ASTGroupExpr(SourceLoc);
-        ASTComparisonExpr *Comp = new ASTComparisonExpr(SourceLoc, COMP_EQ);
+        ASTValueExpr *V = new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc)));
         ASTVarRefExpr *ARef = new ASTVarRefExpr(SourceLoc, new ASTVarRef(Param));
-        Group->Add(ARef);
-        Group->Add(Comp);
-        Group->Add(OneCost);
+        ASTBinaryGroupExpr *Group = new ASTBinaryGroupExpr(SourceLoc,
+                                                           COMP_EQ,
+                                                           V,
+                                                           ARef);
 
         // First If
         ASTIfBlock *IfBlock = new ASTIfBlock(SourceLoc, MainFn->getBody(), Group);
@@ -743,12 +742,11 @@ namespace {
         Node->AddFunction(MainFn);
 
         ASTValueExpr *OneCost = new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc)));
-        ASTGroupExpr *Cond = new ASTGroupExpr(SourceLoc);
-        ASTComparisonExpr *Comp = new ASTComparisonExpr(SourceLoc, COMP_EQ);
         ASTVarRefExpr *ARef = new ASTVarRefExpr(SourceLoc, new ASTVarRef(Param));
-        Cond->Add(ARef);
-        Cond->Add(Comp);
-        Cond->Add(OneCost);
+        ASTGroupExpr *Cond = new ASTBinaryGroupExpr(SourceLoc,
+                                                    COMP_EQ,
+                                                    ARef,
+                                                    OneCost);
 
         // if (a == 1) { a = 1 }
         ASTIfBlock *IfBlock = new ASTIfBlock(SourceLoc, MainFn->getBody(), Cond);
@@ -806,12 +804,11 @@ namespace {
         Node->AddFunction(MainFn);
 
         ASTValueExpr *OneCost = new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc)));
-        ASTGroupExpr *Cond = new ASTGroupExpr(SourceLoc);
-        ASTComparisonExpr *Comp = new ASTComparisonExpr(SourceLoc, COMP_EQ);
         ASTVarRefExpr *ARef = new ASTVarRefExpr(SourceLoc, new ASTVarRef(Param));
-        Cond->Add(ARef);
-        Cond->Add(Comp);
-        Cond->Add(OneCost);
+        ASTGroupExpr *Cond = new ASTBinaryGroupExpr(SourceLoc,
+                                                    COMP_EQ,
+                                                    ARef,
+                                                    OneCost);
 
         // if (a == 1) { a = 11 }
         ASTIfBlock *IfBlock = new ASTIfBlock(SourceLoc, MainFn->getBody(), Cond);
@@ -901,12 +898,11 @@ namespace {
         Node->AddFunction(MainFn);
 
         ASTValueExpr *OneCost = new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc)));
-        ASTGroupExpr *Cond = new ASTGroupExpr(SourceLoc);
-        ASTComparisonExpr *Comp = new ASTComparisonExpr(SourceLoc, COMP_EQ);
         ASTVarRefExpr *ARef = new ASTVarRefExpr(SourceLoc, new ASTVarRef(Param));
-        Cond->Add(ARef);
-        Cond->Add(Comp);
-        Cond->Add(OneCost);
+        ASTGroupExpr *Cond = new ASTBinaryGroupExpr(SourceLoc,
+                                                    COMP_EQ,
+                                                    ARef,
+                                                    OneCost);
 
         // if (a == 1) { a = 11 }
         ASTIfBlock *IfBlock = new ASTIfBlock(SourceLoc, MainFn->getBody(), Cond);
@@ -1056,12 +1052,12 @@ namespace {
         Node->AddFunction(MainFn);
 
         ASTValueExpr *OneCost = new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc)));
-        ASTGroupExpr *Group = new ASTGroupExpr(SourceLoc);
-        ASTComparisonExpr *Comp = new ASTComparisonExpr(SourceLoc, COMP_EQ);
         ASTVarRefExpr *ARef = new ASTVarRefExpr(SourceLoc, new ASTVarRef(Param));
-        Group->Add(ARef);
-        Group->Add(Comp);
-        Group->Add(OneCost);
+        ASTGroupExpr *Group = new ASTBinaryGroupExpr(SourceLoc,
+                                                     COMP_EQ,
+                                                     ARef,
+                                                     OneCost);
+
         ASTWhileBlock *WhileBlock = new ASTWhileBlock(SourceLoc, MainFn->getBody(), Group);
 
         ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, WhileBlock, Param);
@@ -1119,20 +1115,17 @@ namespace {
         ForBlock->AddLocalVar(InitVar);
 
         //Cond
-        ASTGroupExpr *Cond = new ASTGroupExpr(SourceLoc);
-        ASTComparisonExpr *Comp = new ASTComparisonExpr(SourceLoc, COMP_LTE);
+
         ASTVarRefExpr *InitVarRef = new ASTVarRefExpr(SourceLoc, new ASTVarRef(InitVar));
-        Cond->Add(InitVarRef);
-        Cond->Add(Comp);
-        Cond->Add(OneCost);
+        ASTGroupExpr *Cond = new ASTBinaryGroupExpr(SourceLoc, COMP_LTE,
+                                                    InitVarRef, OneCost);
         ForBlock->setCond(Cond);
 
         // Post
         ASTBlock *PostBlock = ForBlock->getPost();
-        ASTArithExpr *Incr = new ASTArithExpr(SourceLoc, ARITH_INCR);
-        ASTUnaryExpr *IncrExpr = new ASTUnaryExpr(SourceLoc, Incr, new ASTVarRef(InitVar), UnaryOpKind::UNARY_PRE);
         ASTExprStmt *ExprStmt = new ASTExprStmt(SourceLoc, PostBlock);
-        ExprStmt->setExpr(IncrExpr);
+        ExprStmt->setExpr(new ASTUnaryGroupExpr(SourceLoc, ARITH_INCR, UNARY_PRE,
+                                                new ASTVarRefExpr(SourceLoc, new ASTVarRef(InitVar))));
         PostBlock->AddExprStmt(ExprStmt);
 
         ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, ForBlock->getLoop(), Param);
@@ -1194,12 +1187,9 @@ namespace {
         ASTValueExpr *OneCost = new ASTValueExpr(SourceLoc, new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc)));
 
         //Cond
-        ASTGroupExpr *Cond = new ASTGroupExpr(SourceLoc);
-        ASTComparisonExpr *Comp = new ASTComparisonExpr(SourceLoc, COMP_LTE);
         ASTVarRefExpr *InitVarRef = new ASTVarRefExpr(SourceLoc, new ASTVarRef(Param));
-        Cond->Add(InitVarRef);
-        Cond->Add(Comp);
-        Cond->Add(OneCost);
+        ASTGroupExpr *Cond = new ASTBinaryGroupExpr(SourceLoc, COMP_LTE,
+                                                    InitVarRef, OneCost);
         ForBlock->setCond(Cond);
 
         ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, ForBlock->getLoop(), Param);
@@ -1254,10 +1244,9 @@ namespace {
 
         // Post
         ASTBlock *PostBlock = ForBlock->getPost();
-        ASTArithExpr *Incr = new ASTArithExpr(SourceLoc, ARITH_INCR);
-        ASTUnaryExpr *IncrExpr = new ASTUnaryExpr(SourceLoc, Incr, new ASTVarRef(Param), UnaryOpKind::UNARY_PRE);
         ASTExprStmt *ExprStmt = new ASTExprStmt(SourceLoc, PostBlock);
-        ExprStmt->setExpr(IncrExpr);
+        ExprStmt->setExpr(new ASTUnaryGroupExpr(SourceLoc, ARITH_INCR, UNARY_PRE,
+                                                new ASTVarRefExpr(SourceLoc, new ASTVarRef(Param))));
         PostBlock->AddExprStmt(ExprStmt);
 
         ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, ForBlock->getLoop(), Param);

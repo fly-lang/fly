@@ -28,11 +28,6 @@ bool ASTValue::empty() const {
     return Str.empty();
 }
 
-bool ASTValue::isFalse() const {
-    return Str.empty() || Str == "0" || Str == "false";
+const SourceLocation &ASTValue::getLocation() const {
+    return Loc;
 }
-
-bool ASTValue::isTrue() const {
-    return !isFalse();
-}
-

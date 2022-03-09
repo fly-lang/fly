@@ -17,7 +17,6 @@
 #include <AST/ASTLocalVar.h>
 #include <AST/ASTStmt.h>
 #include <AST/ASTVar.h>
-#include <AST/ASTOperatorExpr.h>
 #include <AST/ASTExpr.h>
 #include <AST/ASTFunc.h>
 #include "Frontend/InputFile.h"
@@ -223,7 +222,7 @@ namespace fly {
          * Parse Type
          * @return
          */
-        bool ParseType(ASTType *&Type);
+        bool ParseType(ASTType *&Type, bool OnlyBuiltin = false);
 
         // Parse Block Statement
 
@@ -256,23 +255,22 @@ namespace fly {
 
         // Parse Expressions
 
-        ASTExpr* ParseStmtExpr(ASTBlock *Block, ASTLocalVar *Var, bool &Success);
-        ASTExpr* ParseStmtExpr(ASTBlock *Block, ASTVarRef *VarRef, bool &Success);
-        ASTExpr* ParseExpr(ASTBlock *Block, bool &Success, ASTGroupExpr *ParentGroup = nullptr);
-        ASTExpr* ParseExprChunk(ASTBlock *Block, bool &Success);
+        ASTExpr* ParseAssignmentExpr(ASTBlock *Block, ASTVarRef *VarRef, bool &Success);
+        ASTExpr* ParseExpr(ASTBlock *Block, bool &Success);
+        ASTExpr* ParseUnaryPreExpr(ASTBlock *Block, ASTVarRef *VarRef, bool &Success);
+        ASTExpr* ParseUnaryPostExpr(ASTBlock *Block, bool &Success);
+        ASTExpr* ParseBinaryExpr(ASTBlock *Block, ASTExpr *First, bool &Success);
+        ASTExpr* ParseTernaryExpr(ASTBlock *Block, ASTExpr *First, bool &Success);
         ASTValueExpr* ParseValueExpr(bool &Success);
-        ASTOperatorExpr* ParseOperatorExpr(bool &Success);
-        ASTTernaryExpr *ParseTernaryOperatorExpr(bool &Success);
-        ASTOperatorExpr* ParseUnaryPreOperatorExpr(bool &Success);
-        ASTOperatorExpr* ParseUnaryPostOperatorExpr(bool &Success);
 
         // Check Keywords
 
         bool isBuiltinType();
         bool isValue();
-        bool isOperator();
         bool isUnaryPreOperator();
         bool isUnaryPostOperator();
+        bool isBinaryOperator();
+        bool isTernaryOperator();
     };
 
 }  // end namespace fly

@@ -118,7 +118,7 @@ namespace fly {
 
         void GenWhileBlock(llvm::Function *Fn, ASTWhileBlock *While);
 
-
+        void CheckMinMax(const ASTValue &Val, const char *Type, uint64_t Min, uint64_t Max);
     };
 }
 
