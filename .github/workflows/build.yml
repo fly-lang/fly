@@ -4,7 +4,11 @@ name: Build
 on:
   # Triggers the workflow on push or pull request
   push:
+    paths-ignore:
+      - "**.md"
   pull_request:
+    paths-ignore:
+      - "**.md"
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
