@@ -15,9 +15,9 @@
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTImport.h"
 #include "AST/ASTValue.h"
+#include <AST/ASTWhileBlock.h>
 #include <unordered_set>
 #include <gtest/gtest.h>
-#include <AST/ASTWhileBlock.h>
 
 namespace {
     using namespace fly;
@@ -285,17 +285,123 @@ namespace {
         delete AST;
     }
 
-    TEST_F(ParserTest, FunctionBodyVar) {
-        llvm::StringRef str = ("namespace std\n"
-                         "bool func(int a) {\n"
-                         "  bool c"
-                         "  Type t"
-                         "  float b=2.0 + 1.0"
-                         "  a += 2"
-                         "  c = (b == 1.0) && (true)"
-                         "  return c\n"
-                         "}\n");
-        ASTNode *AST = Parse("FunctionBodyVar", str);
+    TEST_F(ParserTest, BoolDefaultVarReturn) {
+        llvm::StringRef str = ("bool func() {\n"
+                                 "  bool c"
+                                 "  return c\n"
+                                 "}\n");
+        ASTNode *AST = Parse("BoolDefaultVarReturn", str);
+
+        ASSERT_FALSE(Diags.hasErrorOccurred());
+
+        // Get Body
+        ASTFunc *F = *(AST->getNameSpace()->getFunctions().begin());
+        EXPECT_EQ(F->getType()->getKind(), TypeKind::TYPE_BOOL);
+        const ASTBlock *Body = F->getBody();
+
+        // Test: bool c
+        ASTLocalVar *cVar = (ASTLocalVar *) Body->getContent()[0];
+        EXPECT_EQ(cVar->getName(), "c");
+        EXPECT_EQ(cVar->getType()->getKind(), TypeKind::TYPE_BOOL);
+        ASSERT_EQ(((ASTValueExpr *) cVar->getExpr())->getValue().str(), "false");
+
+        const ASTReturn *Ret = (ASTReturn *) Body->getContent()[1];
+        ASTVarRefExpr *RetRef = (ASTVarRefExpr *) Ret->getExpr();
+        EXPECT_EQ(RetRef->getVarRef()->getName(), "c");
+
+        delete AST;
+    }
+
+    TEST_F(ParserTest, IntDefaultVarReturn) {
+        llvm::StringRef str = ("int func() {\n"
+                               "  int c"
+                               "  return c\n"
+                               "}\n");
+        ASTNode *AST = Parse("IntDefaultVarReturn", str);
+
+        ASSERT_FALSE(Diags.hasErrorOccurred());
+
+        // Get Body
+        ASTFunc *F = *(AST->getNameSpace()->getFunctions().begin());
+        EXPECT_EQ(F->getType()->getKind(), TypeKind::TYPE_INT);
+        const ASTBlock *Body = F->getBody();
+
+        // Test: int c
+        ASTLocalVar *cVar = (ASTLocalVar *) Body->getContent()[0];
+        EXPECT_EQ(cVar->getName(), "c");
+        EXPECT_EQ(cVar->getType()->getKind(), TypeKind::TYPE_INT);
+        ASSERT_EQ(((ASTValueExpr *) cVar->getExpr())->getValue().str(), "0");
+
+        const ASTReturn *Ret = (ASTReturn *) Body->getContent()[1];
+        ASTVarRefExpr *RetRef = (ASTVarRefExpr *) Ret->getExpr();
+        EXPECT_EQ(RetRef->getVarRef()->getName(), "c");
+
+        delete AST;
+    }
+
+    TEST_F(ParserTest, FloatDefaultVarReturn) {
+        llvm::StringRef str = ("float func() {\n"
+                               "  float c"
+                               "  return c\n"
+                               "}\n");
+        ASTNode *AST = Parse("FloatDefaultVarReturn", str);
+
+        ASSERT_FALSE(Diags.hasErrorOccurred());
+
+        // Get Body
+        ASTFunc *F = *(AST->getNameSpace()->getFunctions().begin());
+        EXPECT_EQ(F->getType()->getKind(), TypeKind::TYPE_FLOAT);
+        const ASTBlock *Body = F->getBody();
+
+        // Test: int c
+        ASTLocalVar *cVar = (ASTLocalVar *) Body->getContent()[0];
+        EXPECT_EQ(cVar->getName(), "c");
+        EXPECT_EQ(cVar->getType()->getKind(), TypeKind::TYPE_FLOAT);
+        ASSERT_EQ(((ASTValueExpr *) cVar->getExpr())->getValue().str(), "0");
+
+        const ASTReturn *Ret = (ASTReturn *) Body->getContent()[1];
+        ASTVarRefExpr *RetRef = (ASTVarRefExpr *) Ret->getExpr();
+        EXPECT_EQ(RetRef->getVarRef()->getName(), "c");
+
+        delete AST;
+    }
+
+    TEST_F(ParserTest, TypeDefaultVarReturn) {
+        llvm::StringRef str = ("Type func() {\n"
+                               "  Type t"
+                               "  return t\n"
+                               "}\n");
+        ASTNode *AST = Parse("TypeDefaultVarReturn", str);
+
+        ASSERT_FALSE(Diags.hasErrorOccurred());
+
+        // Get Body
+        ASTFunc *F = *(AST->getNameSpace()->getFunctions().begin());
+        EXPECT_EQ(F->getType()->getKind(), TypeKind::TYPE_CLASS);
+        const ASTBlock *Body = F->getBody();
+
+        // Test: Type t
+        ASTLocalVar *typeVar = (ASTLocalVar *) Body->getContent()[0];
+        EXPECT_EQ(typeVar->getName(), "t");
+        EXPECT_EQ(typeVar->getType()->getKind(), TypeKind::TYPE_CLASS);
+        ASTClassType *TypeT = (ASTClassType *) typeVar->getType();
+        EXPECT_EQ(TypeT->getName(), "Type");
+        // ASSERT_EQ(((ASTValueExpr *) cVar->getExpr())->getValue().str(), "false"); TODO nullptr test
+
+        const ASTReturn *Ret = (ASTReturn *) Body->getContent()[1];
+        ASTVarRefExpr *RetRef = (ASTVarRefExpr *) Ret->getExpr();
+        EXPECT_EQ(RetRef->getVarRef()->getName(), "t");
+
+        delete AST;
+    }
+
+    TEST_F(ParserTest, IntBinaryArithOperation) {
+        llvm::StringRef str = ("int func() {\n"
+                               "  int a += 2\n"
+                               "  int b = a + b / a - b\n"
+                               "  return a\n"
+                               "}\n");
+        ASTNode *AST = Parse("IntBinaryArithOperation", str);
 
         ASSERT_FALSE(Diags.hasErrorOccurred());
 
@@ -303,60 +409,83 @@ namespace {
         ASTFunc *F = *(AST->getNameSpace()->getFunctions().begin());
         const ASTBlock *Body = F->getBody();
 
-        // Test: bool c
-        ASTLocalVar *cVar = (ASTLocalVar *) Body->getContent()[0];
-        EXPECT_EQ(cVar->getName(), "c");
-        EXPECT_EQ(cVar->getType()->getKind(), TypeKind::TYPE_BOOL);
-        ASSERT_FALSE(cVar->getExpr());
-
-        // Test: Type t
-        ASTLocalVar *typeVar = (ASTLocalVar *) Body->getContent()[1];
-        EXPECT_EQ(typeVar->getName(), "t");
-        EXPECT_EQ(typeVar->getType()->getKind(), TypeKind::TYPE_CLASS);
-        ASTClassType *TypeT = (ASTClassType *) typeVar->getType();
-        EXPECT_EQ(TypeT->getName(), "Type");
-
-        // Test: float b = 2.0 + 1.0
-        ASTLocalVar *bVar = (ASTLocalVar *) Body->getContent()[2];
-        EXPECT_EQ(bVar->getName(), "b");
-        EXPECT_EQ(bVar->getType()->getKind(), TypeKind::TYPE_FLOAT);
-        ASTFloatType *FloatType = ((ASTFloatType *) bVar->getType());
-        EXPECT_EQ(bVar->getExpr()->getKind(), ASTExprKind::EXPR_GROUP);
-        EXPECT_EQ(((ASTGroupExpr *) bVar->getExpr())->getGroupKind(), ASTExprGroupKind::GROUP_BINARY);
-        ASTBinaryGroupExpr *Group1 = ((ASTBinaryGroupExpr *) bVar->getExpr());
-        EXPECT_EQ(Group1->getFirst()->getKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(((ASTValueExpr *) Group1->getFirst())->getValue().str(), "2.0");
-        EXPECT_EQ(Group1->getOperatorKind(), BinaryOpKind::ARITH_ADD);
-        EXPECT_EQ(((ASTValueExpr *) Group1->getSecond())->getKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(((ASTValueExpr *) Group1->getSecond())->getValue().str(), "1.0");
-
-        // Test: a += 2
-        const ASTLocalVarRef *aVar = (ASTLocalVarRef *) Body->getContent()[3];
+        // Test: int a += 2
+        const ASTLocalVarRef *aVar = (ASTLocalVarRef *) Body->getContent()[0];
         EXPECT_EQ(aVar->getName(), "a");
         EXPECT_EQ(aVar->getExpr()->getKind(), ASTExprKind::EXPR_GROUP);
         EXPECT_EQ(((ASTGroupExpr *) aVar->getExpr())->getGroupKind(), ASTExprGroupKind::GROUP_BINARY);
-        ASTBinaryGroupExpr *Group2 = (ASTBinaryGroupExpr *) aVar->getExpr();
-        EXPECT_TRUE(((ASTVarRefExpr *) Group2->getFirst())->getVarRef()->getDecl() != nullptr);
-        EXPECT_EQ(Group2->getOperatorKind(), BinaryOpKind::ARITH_ADD);
-        EXPECT_EQ(((ASTValueExpr *) Group2->getSecond())->getValue().str(), "2");
+        ASTBinaryGroupExpr *aGroup = (ASTBinaryGroupExpr *) aVar->getExpr();
+        EXPECT_TRUE(((ASTVarRefExpr *) aGroup->getFirst())->getVarRef()->getDecl() != nullptr);
+        EXPECT_EQ(aGroup->getOperatorKind(), BinaryOpKind::ARITH_ADD);
+        EXPECT_EQ(((ASTValueExpr *) aGroup->getSecond())->getValue().str(), "2");
 
-        // Test: c = b == 1.0
-        const ASTLocalVarRef *c2Var = (ASTLocalVarRef *) Body->getContent()[4];
-        EXPECT_EQ(c2Var->getName(), "c");
-        EXPECT_EQ(c2Var->getExpr()->getKind(), ASTExprKind::EXPR_GROUP);
-        EXPECT_EQ(((ASTGroupExpr *) c2Var->getExpr())->getGroupKind(), ASTExprGroupKind::GROUP_BINARY);
-        ASTBinaryGroupExpr *Group3 = (ASTBinaryGroupExpr *) c2Var->getExpr();
-        EXPECT_EQ(((ASTVarRefExpr *)Group3->getFirst())->getVarRef()->getName(), "b");
-        EXPECT_EQ(Group3->getOperatorKind(), BinaryOpKind::COMP_EQ);
-
-        const ASTReturn *Ret = (ASTReturn *) Body->getContent()[5];
-        ASTVarRefExpr *RetRef = (ASTVarRefExpr *) Ret->getExpr();
-        EXPECT_EQ(RetRef->getVarRef()->getName(), "c");
+        // Test: int b = a + b / (a + b)
+        // E1 + (E2 / (E3 + E4))
+        const ASTLocalVarRef *bVar = (ASTLocalVarRef *) Body->getContent()[1];
+        EXPECT_EQ(bVar->getName(), "b");
+        EXPECT_EQ(bVar->getExpr()->getKind(), ASTExprKind::EXPR_GROUP);
+        EXPECT_EQ(((ASTGroupExpr *) bVar->getExpr())->getGroupKind(), ASTExprGroupKind::GROUP_BINARY);
+        ASTBinaryGroupExpr *bGroup = (ASTBinaryGroupExpr *) bVar->getExpr();
+        EXPECT_EQ(((ASTVarRefExpr *) bGroup->getFirst())->getVarRef()->getDecl()->getName(), "a");
+        EXPECT_EQ(bGroup->getOperatorKind(), BinaryOpKind::ARITH_ADD);
+        EXPECT_EQ(((ASTValueExpr *) bGroup->getSecond())->getValue().str(), "2");
 
         delete AST;
     }
 
-    TEST_F(ParserTest, FunctionBodyCallFunc) {
+    TEST_F(ParserTest, FloatBinaryArithOperation) {
+        llvm::StringRef str = ("float func() {\n"
+                               "  float a -= 1.0"
+                               "  float b = a * b - (a / b)"
+                               "  return b\n"
+                               "}\n");
+        ASTNode *AST = Parse("FloatBinaryArithOperation", str);
+
+        ASSERT_FALSE(Diags.hasErrorOccurred());
+
+        // Get Body
+        ASTFunc *F = *(AST->getNameSpace()->getFunctions().begin());
+        const ASTBlock *Body = F->getBody();
+
+        // Test: float a -= 1.0
+        const ASTLocalVarRef *aVar = (ASTLocalVarRef *) Body->getContent()[0];
+        EXPECT_EQ(aVar->getName(), "a");
+        EXPECT_EQ(aVar->getExpr()->getKind(), ASTExprKind::EXPR_GROUP);
+        EXPECT_EQ(((ASTGroupExpr *) aVar->getExpr())->getGroupKind(), ASTExprGroupKind::GROUP_BINARY);
+        ASTBinaryGroupExpr *Group = (ASTBinaryGroupExpr *) aVar->getExpr();
+        EXPECT_TRUE(((ASTVarRefExpr *) Group->getFirst())->getVarRef()->getDecl() != nullptr);
+        EXPECT_EQ(Group->getOperatorKind(), BinaryOpKind::ARITH_SUB);
+        EXPECT_EQ(((ASTValueExpr *) Group->getSecond())->getValue().str(), "1.0");
+
+        delete AST;
+    }
+
+    TEST_F(ParserTest, BoolBinaryLogicOperation) {
+        llvm::StringRef str = ("bool func(float b) {\n"
+                               "  bool c = b == 1.0"
+                               "  return c\n"
+                               "}\n");
+        ASTNode *AST = Parse("FloatBinaryArithOperation", str);
+
+        ASSERT_FALSE(Diags.hasErrorOccurred());
+
+        // Get Body
+        ASTFunc *F = *(AST->getNameSpace()->getFunctions().begin());
+        const ASTBlock *Body = F->getBody();
+
+        // Test: c = b == 1.0
+        const ASTLocalVarRef *cVar = (ASTLocalVarRef *) Body->getContent()[0];
+        EXPECT_EQ(cVar->getName(), "c");
+        EXPECT_EQ(cVar->getExpr()->getKind(), ASTExprKind::EXPR_GROUP);
+        EXPECT_EQ(((ASTGroupExpr *) cVar->getExpr())->getGroupKind(), ASTExprGroupKind::GROUP_BINARY);
+        ASTBinaryGroupExpr *Group = (ASTBinaryGroupExpr *) cVar->getExpr();
+        EXPECT_EQ(((ASTVarRefExpr *)Group->getFirst())->getVarRef()->getName(), "b");
+        EXPECT_EQ(Group->getOperatorKind(), BinaryOpKind::COMP_EQ);
+
+        delete AST;
+    }
+
+    TEST_F(ParserTest, FunctionCall) {
         llvm::StringRef str = ("namespace std\n"
                                "private int doSome() {return 1}\n"
                                "public void doOther(int a, int b) {}\n"
@@ -416,7 +545,7 @@ namespace {
         delete AST;
     }
 
-    TEST_F(ParserTest, FunctionBodyIncDec) {
+    TEST_F(ParserTest, UnaryExpr) {
         llvm::StringRef str = ("namespace std\n"
                          "void func(int a) {\n"
                          "  ++a"
@@ -476,7 +605,7 @@ namespace {
         delete AST;
     }
 
-    TEST_F(ParserTest, FunctionBodyIfStmt) {
+    TEST_F(ParserTest, IfElsifElseStmt) {
         llvm::StringRef str = ("namespace std\n"
                          "void func(int a, int b) {\n"
                          "  if (a == 1) {"
@@ -523,7 +652,7 @@ namespace {
         delete AST;
     }
 
-    TEST_F(ParserTest, FunctionBodyIfInlineStmt) {
+    TEST_F(ParserTest, IfElsifElseInlineStmt) {
         llvm::StringRef str = ("namespace std\n"
                          "void func(int a) {\n"
                          "  if (a == 1) return"
@@ -566,7 +695,7 @@ namespace {
         delete AST;
     }
 
-    TEST_F(ParserTest, FunctionBodySwitchStmt) {
+    TEST_F(ParserTest, SwitchCaseDefaultStmt) {
         llvm::StringRef str = ("namespace std\n"
                          "private void func(int a) {\n"
                          "  switch (a) {"
@@ -597,7 +726,7 @@ namespace {
         delete AST;
     }
 
-    TEST_F(ParserTest, FunctionBodyForStmt) {
+    TEST_F(ParserTest, ForStmt) {
         llvm::StringRef str = ("namespace std\n"
                          "private void func(int a) {\n"
                          "  for int b = 1, int c = 2; b < 10; b++, --c {"
@@ -637,7 +766,7 @@ namespace {
         delete AST;
     }
 
-    TEST_F(ParserTest, FunctionBodyWhileStmt) {
+    TEST_F(ParserTest, WhileStmt) {
         llvm::StringRef str = ("namespace std\n"
                          "private void func(int a) {\n"
                          "  while (a==1) {}"

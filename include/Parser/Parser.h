@@ -31,6 +31,7 @@ namespace fly {
 
     class DiagnosticsEngine;
     class Lexer;
+    class RawBinaryGroup;
 
     /// Parse the main file known to the preprocessor, producing an
     /// abstract syntax tree.
@@ -38,6 +39,7 @@ namespace fly {
 
         friend class GlobalVarParser;
         friend class FunctionParser;
+        friend class ExprParser;
 
         const InputFile &Input;
 
@@ -249,28 +251,21 @@ namespace fly {
 
         // Parse Calls, Vars
 
-        ASTFuncCall *ParseFunctionCall(ASTBlock *Block, llvm::StringRef Name, llvm::StringRef NameSpace, SourceLocation &Loc, bool &Success);
-        ASTLocalVar* ParseLocalVar(ASTBlock *Block, bool Constant, ASTType *Type, bool &Success);
-        ASTVarRef* ParseVarRef(bool &Success);
+        ASTFuncCall * ParseFunctionCall(ASTBlock *Block, llvm::StringRef Name, llvm::StringRef NameSpace,
+                                        SourceLocation &Loc);
+        ASTValue *ParseValue();
+        ASTLocalVar *ParseLocalVar(ASTBlock *Block, bool Constant, ASTType *Type);
 
         // Parse Expressions
 
-        ASTExpr* ParseAssignmentExpr(ASTBlock *Block, ASTVarRef *VarRef, bool &Success);
-        ASTExpr* ParseExpr(ASTBlock *Block, bool &Success);
-        ASTExpr* ParseUnaryPreExpr(ASTBlock *Block, ASTVarRef *VarRef, bool &Success);
-        ASTExpr* ParseUnaryPostExpr(ASTBlock *Block, bool &Success);
-        ASTExpr* ParseBinaryExpr(ASTBlock *Block, ASTExpr *First, bool &Success);
-        ASTExpr* ParseTernaryExpr(ASTBlock *Block, ASTExpr *First, bool &Success);
-        ASTValueExpr* ParseValueExpr(bool &Success);
+        ASTExpr *ParseAssignmentExpr(ASTBlock *Block, ASTVarRef *VarRef);
+        ASTExpr *ParseExpr(ASTBlock *Block);
+        ASTExpr *ParseExpr(ASTBlock *Block, llvm::StringRef Name, llvm::StringRef NameSpace, SourceLocation Loc);
 
         // Check Keywords
 
         bool isBuiltinType();
         bool isValue();
-        bool isUnaryPreOperator();
-        bool isUnaryPostOperator();
-        bool isBinaryOperator();
-        bool isTernaryOperator();
     };
 
 }  // end namespace fly

@@ -94,9 +94,9 @@ bool FunctionParser::ParseFunctionParam() {
 
             // Start Parsing
             if (P->isValue()) {
-                ASTValueExpr *Val = P->ParseValueExpr(Success);
-                if (Success) {
-                    Param->setExpr(Val);
+                ASTValue *Val = P->ParseValue();
+                if (Val != nullptr) {
+                    Param->setExpr(new ASTValueExpr(Val));
                 }
             }
         }
@@ -155,15 +155,14 @@ bool FunctionParser::ParseCallArgs(ASTBlock *Block) {
  * @return true on Success or false on Error
  */
 bool FunctionParser::ParseCallArg(ASTBlock *Block) {
-    bool Success = true;
 
     // Parse Args in a Function Call
-    ASTExpr *E = P->ParseExpr(Block, Success);
+    ASTExpr *Expr = P->ParseExpr(Block);
 
-    if (Success) {
+    if (Expr != nullptr) {
         // Type will be resolved into AST Finalize
         ASTType *Ty = nullptr;
-        ASTCallArg *Arg = new ASTCallArg(E, Ty);
+        ASTCallArg *Arg = new ASTCallArg(Expr, Ty);
         Call->addArg(Arg);
 
         if (P->Tok.is(tok::comma)) {

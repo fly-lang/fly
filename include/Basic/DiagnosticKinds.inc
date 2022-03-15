@@ -315,6 +315,7 @@ DIAG(err_top_decl, CLASS_ERROR, (unsigned)diag::Severity::Error, "declaration er
 DIAG(err_paren_unclosed, CLASS_ERROR, (unsigned)diag::Severity::Error, "parenthesis not closed ')'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_parser_miss_expr, CLASS_ERROR, (unsigned)diag::Severity::Error, "missing expression", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_parser_miss_oper, CLASS_ERROR, (unsigned)diag::Severity::Error, "missing operator", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_parser_unexpect_oper, CLASS_ERROR, (unsigned)diag::Severity::Error, "unexpected operator", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_parser_invalid_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid type", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_const_call, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot use const with function call", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_unary_operator, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot parse unary operator", 0, SFINAE_Suppress, false, true, 0)

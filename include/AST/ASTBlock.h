@@ -48,6 +48,7 @@ namespace fly {
 
         friend class Parser;
         friend class FunctionParser;
+        friend class ExprParser;
         friend class ASTIfBlock;
         friend class ASTElsifBlock;
         friend class ASTElseBlock;

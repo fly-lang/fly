@@ -23,7 +23,7 @@ const SourceLocation &ASTExpr::getLocation() const {
     return Loc;
 }
 
-ASTValueExpr::ASTValueExpr(const SourceLocation &Loc, const ASTValue *Val) : ASTExpr(Loc), Val(Val) {
+ASTValueExpr::ASTValueExpr(const ASTValue *Val) : ASTExpr(Val->getLocation()), Val(Val) {
 
 }
 
@@ -46,7 +46,7 @@ std::string ASTValueExpr::str() const {
            " }";
 }
 
-ASTVarRefExpr::ASTVarRefExpr(const SourceLocation &Loc, ASTVarRef *Ref) : ASTExpr(Loc), Ref(Ref) {
+ASTVarRefExpr::ASTVarRefExpr(ASTVarRef *Ref) : ASTExpr(Ref->getLocation()), Ref(Ref) {
 
 }
 
@@ -69,7 +69,7 @@ std::string ASTVarRefExpr::str() const {
            " }";
 }
 
-ASTFuncCallExpr::ASTFuncCallExpr(const SourceLocation &Loc, ASTFuncCall *Ref) : ASTExpr(Loc), Call(Ref) {}
+ASTFuncCallExpr::ASTFuncCallExpr(ASTFuncCall *Ref) : ASTExpr(Ref->getLocation()), Call(Ref) {}
 
 ASTExprKind ASTFuncCallExpr::getKind() const {
     return Kind;
@@ -184,6 +184,10 @@ ASTTernaryGroupExpr::ASTTernaryGroupExpr(const SourceLocation &Loc,
                                          Second(Second),
                                          Third(Third) {
 
+}
+
+TernaryOpKind ASTTernaryGroupExpr::getOperatorKind() const {
+    return OperatorKind;
 }
 
 ASTType *ASTTernaryGroupExpr::getType() const {

@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Parser/Parser.h"
+#include "Parser/ExprParser.h"
 #include "AST/ASTExpr.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTWhileBlock.h"
@@ -526,8 +527,9 @@ bool Parser::ParseStmt(ASTBlock *Block) {
     // Parse keywords
     if (Tok.is(tok::kw_return)) { // Parse return
         SourceLocation Loc = ConsumeToken();
-        ASTExpr *Expr = ParseExpr(Block, Success);
-        return Block->AddReturn(Loc, Expr);
+        ASTExpr *Expr = ParseExpr(Block);
+        if (Expr != nullptr)
+            return Block->AddReturn(Loc, Expr);
     } else if (Tok.is(tok::kw_break)) { // Parse break
         return Block->AddBreak(ConsumeToken());
     } else if (Tok.is(tok::kw_continue)) { // Parse continue
@@ -548,84 +550,55 @@ bool Parser::ParseStmt(ASTBlock *Block) {
         llvm::StringRef Name;
         llvm::StringRef NameSpace;
         SourceLocation Loc;
-        ParseIdentifier(Name, NameSpace, Loc);
+        if (ParseIdentifier(Name, NameSpace, Loc)) {
 
-        if (Tok.isAnyIdentifier()) { // variable declaration
-            // T a = ...
-            // T a
-            ASTType *Type = new ASTClassType(Loc, Name.str(), NameSpace.str());
-            if (Type) {
-                ASTLocalVar *Var = ParseLocalVar(Block, Constant, Type, Success);
-                if (Success)
-                    return Block->AddLocalVar(Var);
+            if (Tok.isAnyIdentifier()) { // variable declaration
+                // T a = ...
+                // T a
+                ASTType *Type = new ASTClassType(Loc, Name.str(), NameSpace.str());
+                if (Type) {
+                    ASTLocalVar *Var = ParseLocalVar(Block, Constant, Type);
+                    if (Var)
+                        return Block->AddLocalVar(Var);
+                }
+
+                // Error: Invalid Type format
+                Diag(diag::err_parser_invalid_type);
+                return false;
+            } else if (ExprParser::isAssignOperator(Tok)) { // variable assignment
+                // a = ...
+                ASTLocalVarRef* LocalVarRef = new ASTLocalVarRef(Loc, Block, Name.str(), NameSpace.str());
+                ASTExpr *Expr = ParseAssignmentExpr(Block, LocalVarRef);
+                if (Expr != nullptr) {
+                    LocalVarRef->setExpr(Expr);
+                    return Block->AddLocalVarRef(LocalVarRef);
+                }
+            } else {
+                // TODO need to do Tok--
+                // a()
+                // a++
+                // a  FIXME ??
+                ASTExprStmt *ExprStmt = new ASTExprStmt(Tok.getLocation(), Block);
+                ASTExpr *Expr = ParseExpr(Block, Name, NameSpace, Loc);
+                if (Expr != nullptr) {
+                    ExprStmt->setExpr(Expr);
+                    return Block->AddExprStmt(ExprStmt);
+                }
             }
-
-            // Error: Invalid Type format
-            Diag(diag::err_parser_invalid_type);
-            return false;
         }
-
-//        else if (Tok.is(tok::l_paren)) { // function invocation
-//            // a()
-//            if (Constant) { // const a() -> Error
-//                Diag(Tok.getLocation(), diag::err_const_call);
-//                return false;
-//            }
-//            ASTFuncCall *Call = ParseFunctionCall(Block, Name, NameSpace, Loc, Success);
-//            if (Call)
-//                return Block->AddCall(Call);
-//        } else if (isUnaryPostOperator()) { // variable increment or decrement
-//            // a++ or a--
-//            ASTExprStmt *ExprStmt = new ASTExprStmt(Loc, Block);
-//            ExprStmt->setExpr(ParseUnaryPostExpr(Block, Success));
-//            return Block->AddExprStmt(ExprStmt);
-//        } else { // variable assign
-//            // a = ...
-//            ASTLocalVarRef* LocalVarRef = new ASTLocalVarRef(Loc, Block, Name.str(), NameSpace.str());
-//            ASTDataExpr *Expr = ParseAssignmentExpr(Block, LocalVarRef, Success);
-//            LocalVarRef->setExpr(Expr);
-//            return Block->AddLocalVarRef(LocalVarRef);
-//        }
-//    } else 
-    }
-    
-    if (isBuiltinType()) { // variable declaration
+    } else if (isBuiltinType()) { // variable declaration
         // int a = ...
         // int a
         ASTType *Type = nullptr;
         if (ParseType(Type, /* OnlyBuiltin */ true)) {
-            ASTLocalVar *Var = ParseLocalVar(Block, Constant, Type, Success);
-            if (Success)
+            ASTLocalVar *Var = ParseLocalVar(Block, Constant, Type);
+            if (Var != nullptr)
                 return Block->AddLocalVar(Var);
         }
 
         Diag(diag::err_parser_invalid_type);
         return false;
     }
-
-    ASTExprStmt *ExprStmt = new ASTExprStmt(Tok.getLocation(), Block);
-    ASTExpr *Expr = ParseExpr(Block, Success);
-    if (Success) {
-        ExprStmt->setExpr(Expr);
-        return Block->AddExprStmt(ExprStmt);
-    }
-    
-//    else if (isUnaryPreOperator()) { // variable increment or decrement
-//        // ++a or --a or !a
-//        llvm::StringRef Name;
-//        llvm::StringRef NameSpace;
-//
-//        SourceLocation Loc = ConsumeToken();
-//        if (ParseIdentifier(Name, NameSpace, Loc)) {
-//            ASTExprStmt *ExprStmt = new ASTExprStmt(Loc, Block);
-//            ASTVarRef *VarRef = new ASTVarRef(Tok.getLocation(), Name.str(), NameSpace.str());
-//            ExprStmt->setExpr(ParseUnaryPreExpr(Block, VarRef, Success));
-//            return Block->AddExprStmt(ExprStmt);
-//        }
-//
-//        Diag(Loc, diag::err_unary_operator) << getPunctuatorSpelling(Tok.getKind());
-//        return false;
-//    }
 
     Diag(diag::err_parse_stmt);
     return false;
@@ -721,9 +694,9 @@ bool Parser::ParseIfStmt(ASTBlock *Block) {
             // Parse (
             bool hasParen = ParseStartParen();
             // Parse the group of expressions into parenthesis
-            ASTExpr *Expr = ParseExpr(Block, Success);
+            ASTExpr *Expr = ParseExpr(Block);
             // Parse ) if exists
-            if (!ParseEndParen(hasParen)) {
+            if (Expr == nullptr || !ParseEndParen(hasParen)) {
                 return false;
             }
             Stmt = new ASTIfBlock(Loc, Block, Expr);
@@ -734,9 +707,9 @@ bool Parser::ParseIfStmt(ASTBlock *Block) {
             // Parse (
             bool hasParen = ParseStartParen();
             // Parse the group of expressions into parenthesis
-            ASTExpr *Expr = ParseExpr(Block, Success);
+            ASTExpr *Expr = ParseExpr(Block);
             // Parse ) if exists
-            if (!ParseEndParen(hasParen)) {
+            if (Expr == nullptr || !ParseEndParen(hasParen)) {
                 return false;
             }
             Stmt = new ASTElsifBlock(Loc, Block, Expr);
@@ -795,8 +768,8 @@ bool Parser::ParseSwitchStmt(ASTBlock *Block) {
     bool hasParen = ParseStartParen();
 
     // Parse Var reference like (a)
-    ASTExpr *Expr = ParseExpr(Block, Success);
-    if (Success) {
+    ASTExpr *Expr = ParseExpr(Block);
+    if (Expr != nullptr) {
 
         // Consume Right Parenthesis ) if exists
         if (!ParseEndParen(hasParen)) {
@@ -821,11 +794,12 @@ bool Parser::ParseSwitchStmt(ASTBlock *Block) {
                     // for a default
                     ASTExpr * CaseExp;
                     if (isValue()) {
-                        CaseExp = ParseValueExpr(Success);
+                        ASTValue *Val = ParseValue();
+                        CaseExp = new ASTValueExpr(Val);
                     } else if (Tok.isAnyIdentifier()) {
                         IdentifierInfo *Id = Tok.getIdentifierInfo();
                         ASTVarRef *VarRef = new ASTVarRef(Tok.getLocation(), Id->getName().str());
-                        CaseExp = new ASTVarRefExpr(Tok.getLocation(), VarRef);
+                        CaseExp = new ASTVarRefExpr(VarRef);
                         ConsumeToken();
                     } else {
                         Diag(diag::err_syntax_error);
@@ -892,24 +866,26 @@ bool Parser::ParseWhileStmt(ASTBlock *Block) {
     // Consume Left Parenthesis ( if exists
     bool hasParen = ParseStartParen();
 
-    ASTExpr *Cond = ParseExpr(Block, Success);
-    ASTWhileBlock *While = new ASTWhileBlock(Loc, Block, Cond);
+    ASTExpr *Cond = ParseExpr(Block);
+    if (Cond != nullptr) {
+        ASTWhileBlock *While = new ASTWhileBlock(Loc, Block, Cond);
 
-    // Consume Right Parenthesis ) if exists
-    if (!ParseEndParen(hasParen)) {
-        return false;
-    }
+        // Consume Right Parenthesis ) if exists
+        if (!ParseEndParen(hasParen)) {
+            return false;
+        }
 
-    // Parse statement between braces
-    if (Tok.is(tok::l_brace)) {
-        ConsumeBrace();
-        if (Success && ParseInnerBlock(While)) {
+        // Parse statement between braces
+        if (Tok.is(tok::l_brace)) {
+            ConsumeBrace();
+            if (Success && ParseInnerBlock(While)) {
+                Block->Content.push_back(While);
+                return true;
+            }
+        } else if (Success && ParseStmt(While)) { // Only for a single Stmt without braces
             Block->Content.push_back(While);
             return true;
         }
-    } else if (Success && ParseStmt(While)) { // Only for a single Stmt without braces
-        Block->Content.push_back(While);
-        return true;
     }
 
     return false;
@@ -950,8 +926,8 @@ bool Parser::ParseForStmt(ASTBlock *Block) {
         if (Tok.is(tok::semi)) {
             ConsumeToken();
 
-            ASTExpr *CondExpr = ParseExpr(For, Success);
-            if (Success) {
+            ASTExpr *CondExpr = ParseExpr(For);
+            if (CondExpr) {
                 For->setCond(CondExpr);
 
                 if (Tok.is(tok::semi)) {
@@ -1008,11 +984,49 @@ bool Parser::ParseForCommaStmt(ASTBlock *Block) {
  * @param Success true on Success or false on Error
  * @return true on Success or false on Error
  */
-ASTFuncCall *Parser::ParseFunctionCall(ASTBlock *Block, llvm::StringRef Name, llvm::StringRef NameSpace, SourceLocation &Loc, bool &Success) {
+ASTFuncCall * Parser::ParseFunctionCall(ASTBlock *Block, llvm::StringRef Name, llvm::StringRef NameSpace,
+                                        SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("Parser", "ParseFunctionCall", "Name=" << Name + ", NameSpace=" << NameSpace);
     FunctionParser Parser(this, Name, Loc);
-    Parser.ParseCall(Block, NameSpace);
+    bool Result = Parser.ParseCall(Block, NameSpace);
     return Parser.Call;
+}
+
+/**
+ * Parse a Value Expression
+ * @param Success true on Success or false on Error
+ * @return the ASTValueExpr
+ */
+ASTValue *Parser::ParseValue() {
+    FLY_DEBUG("Parser", "ParseValue");
+
+    // Parse Numeric Constants
+    if (Tok.is(tok::numeric_constant)) {
+        const StringRef Val = StringRef(Tok.getLiteralData(), Tok.getLength());
+        const SourceLocation &Loc = ConsumeToken();
+        ASTValue *V;
+        if (Val.contains(".")) {
+            // Parse Float
+            float FloatVal = std::stof(Val.str()); // TODO remove?
+            V = new ASTValue(Loc, Val.str(), new ASTFloatType(Loc));
+        } else {
+            // Parse Int
+            int IntVal = std::stoi(Val.str()); // TODO remove?
+            V = new ASTValue(Loc, Val.str(), new ASTIntType(Loc));
+        }
+        return V;
+    }
+
+    // Parse true or false boolean values
+    if (Tok.is(tok::kw_true)) {
+        return new ASTValue(ConsumeToken(), "true", new ASTBoolType(Tok.getLocation()));
+    }
+    if (Tok.is(tok::kw_false)) {
+        return new ASTValue(ConsumeToken(), "false", new ASTBoolType(Tok.getLocation()));
+    }
+
+    Diag(diag::err_invalid_value) << Tok.getName();
+    return nullptr;
 }
 
 /**
@@ -1023,11 +1037,10 @@ ASTFuncCall *Parser::ParseFunctionCall(ASTBlock *Block, llvm::StringRef Name, ll
  * @param Success true on Success or false on Error
  * @return the ASTLocalVar
  */
-ASTLocalVar *Parser::ParseLocalVar(ASTBlock *Block, bool Constant, ASTType *Type, bool &Success) {
+ASTLocalVar *Parser::ParseLocalVar(ASTBlock *Block, bool Constant, ASTType *Type) {
     IdentifierInfo *Id = Tok.getIdentifierInfo();
     if (!Id) {
         Diag(Tok, diag::err_var_undefined);
-        Success = false;
         return nullptr;
     }
     
@@ -1035,414 +1048,34 @@ ASTLocalVar *Parser::ParseLocalVar(ASTBlock *Block, bool Constant, ASTType *Type
     FLY_DEBUG_MESSAGE("Parser", "ParseLocalVar",
                       "Name=" << Name << ", Constant=" << Constant << ", Type=" << Type->str());
     const SourceLocation Loc = Tok.getLocation();
-    ASTLocalVar *Var = new ASTLocalVar(Loc, Block, Type, Name.str());
-    Var->Constant = Constant;
+    ASTLocalVar *Result = new ASTLocalVar(Loc, Block, Type, Name.str());
+    Result->Constant = Constant;
     ConsumeToken();
 
-    ASTVarRef *VarRef = new ASTVarRef(Tok.getLocation(), Var->getName());
-    VarRef->Decl = Var;
-    ASTExpr *Assignment = ParseAssignmentExpr(Block, VarRef, Success);
+    ASTVarRef *VarRef = new ASTVarRef(Tok.getLocation(), Result->getName());
+    VarRef->Decl = Result;
 
-    if (Assignment) // int a or Type a is allowed
-        Var->setExpr(Assignment);
+    ASTExpr *Assignment = ParseAssignmentExpr(Block, VarRef);
+    if (Assignment != nullptr) {// int a or Type a is allowed
+        Result->setExpr(Assignment);
+    }
 
-    return Var;
+    return Result;
 }
 
-/**
- * Parse a Variable Reference
- * @param Success true on Success or false on Error
- * @return the ASTVarRef
- */
-ASTVarRef* Parser::ParseVarRef(bool &Success) {
-    if (!Tok.getIdentifierInfo()) {
-        Diag(Tok, diag::err_var_undefined);
-        Success = false;
-        return nullptr;
-    }
-    ASTVarRef *VRef = new ASTVarRef(Tok.getLocation(), Tok.getIdentifierInfo()->getName().str());
-    ConsumeToken();
-    return VRef;
+ASTExpr *Parser::ParseAssignmentExpr(ASTBlock *Block, ASTVarRef *VarRef) {
+    ExprParser Parser(this);
+    return Parser.ParseAssignmentExpr(Block, VarRef);
 }
 
-/**
- * Parse a statement assignment Expression
- * @param Block
- * @param VarRef
- * @param Success true on Success or false on Error
- * @return the ASTExpr
- */
-ASTExpr* Parser::ParseAssignmentExpr(ASTBlock *Block, ASTVarRef *VarRef, bool &Success) {
-    // Parsing =
-    if (Tok.is(tok::equal)) {
-        ConsumeToken();
-        return ParseExpr(Block, Success);
-    }
-
-    // Parsing =, +=, -=, ...
-    if (Tok.isOneOf(tok::plusequal, tok::minusequal, tok::starequal, tok::slashequal,
-                           tok::percentequal, tok::ampequal, tok::pipeequal, tok::caretequal, tok::lesslessequal,
-                           tok::greatergreaterequal)) {
-
-        // Create First Expr
-        SourceLocation Loc = Tok.getLocation();
-        ASTVarRefExpr *First = new ASTVarRefExpr(Loc, VarRef);
-        
-        // Parse binary assignment operator
-        BinaryOpKind Op;
-        switch (Tok.getKind()) {
-
-                // Arithmetic
-            case tok::plusequal:
-                Op = BinaryOpKind::ARITH_ADD;
-                break;
-            case tok::minusequal:
-                Op = BinaryOpKind::ARITH_SUB;
-                break;
-            case tok::starequal:
-                Op = BinaryOpKind::ARITH_MUL;
-                break;
-            case tok::slashequal:
-                Op = BinaryOpKind::ARITH_DIV;
-                break;
-            case tok::percentequal:
-                Op = BinaryOpKind::ARITH_MOD;
-                break;
-
-                // Bit
-            case tok::ampequal:
-                Op = BinaryOpKind::ARITH_AND;
-                break;
-            case tok::pipeequal:
-                Op = BinaryOpKind::ARITH_OR;
-                break;
-            case tok::caretequal:
-                Op = BinaryOpKind::ARITH_XOR;
-                break;
-            case tok::lesslessequal:
-                Op = BinaryOpKind::ARITH_SHIFT_L;
-                break;
-            case tok::greatergreaterequal:
-                Op = BinaryOpKind::ARITH_SHIFT_R;
-                break;
-            default:
-                assert(0 && "Accept Only assignment operators");
-        }
-        ConsumeToken();
-
-        ASTExpr *Second = ParseExpr(Block, Success);
-        if (!Second) {
-            // Error: missing operator 
-            Diag(Tok, diag::err_parser_miss_oper);
-            Success = false;
-            return nullptr;
-        }
-        return new ASTBinaryGroupExpr(First->getLocation(), Op, First, Second);
-    }
-
-    // Statement without assignment
-    // int a
-    // Type a
-    return nullptr;
+ASTExpr *Parser::ParseExpr(ASTBlock *Block) {
+    ExprParser Parser(this);
+    return Parser.ParseExpr(Block);
 }
 
-/**
- * Parse all Expressions
- * @param Block
- * @param Success true on Success or false on Error
- * @param ParentGroup
- * @return the ASTExpr
- */
-ASTExpr* Parser::ParseExpr(ASTBlock *Block, bool &Success) {
-    assert(Block != nullptr && "Block is nullptr");
-    FLY_DEBUG("Parser", "ParseExpr");
-
-    // Return
-    ASTExpr *Expr = nullptr;
-
-    // Location of the starting expression
-    const SourceLocation &StartLoc = Tok.getLocation();
-
-    if (Tok.is(tok::l_paren)) { // Start a new Group of Expressions
-        Expr = ParseExpr(Block, Success);
-
-        if (Tok.is(tok::r_paren)) {
-            ConsumeParen();
-            return Expr; // Ok
-        }
-
-        // Error: parenthesis unclosed
-        Diag(Tok.getLocation(), diag::err_paren_unclosed);
-        Success = false;
-    }
-
-
-    // Ex. 1
-    if (isValue()) {
-        Expr = ParseValueExpr(Success); // Parse a value
-
-    } else if (Tok.isAnyIdentifier()) { // Ex. a or a++ or func()
-        llvm::StringRef Name;
-        llvm::StringRef NameSpace;
-        SourceLocation IdLoc;
-        if (ParseIdentifier(Name, NameSpace, IdLoc)) {
-            if (Tok.is(tok::l_paren)) { // Ex. a()
-                ASTFuncCall *Call = ParseFunctionCall(Block, Name, NameSpace, IdLoc, Success);
-                if (Success && Block->Top->getNode()->AddUnrefCall(Call)) { // To Resolve on the next
-                    Expr = new ASTFuncCallExpr(IdLoc, Call);
-                }
-                // TODO add Error of Call or AddUnrefCall()
-            } else { // variable post increment/decrement or simple var
-                ASTVarRef *VarRef = new ASTVarRef(IdLoc, Name.str(), NameSpace.str());
-                Success &= ASTResolver::ResolveVarRef(Block, VarRef);
-                if (isUnaryPostOperator()) { // variable post increment/decrement
-                    // a++ or a--
-                    Expr = ParseUnaryPreExpr(Block, VarRef, Success); // Parse Unary Pre Expression
-                } else {
-                    // Simple Var
-                    Expr = new ASTVarRefExpr(IdLoc, VarRef);
-                }
-            }
-        }
-        // TODO add Error of ParseIdentifier()
-    } else if (isUnaryPreOperator()) { // Ex. ++a or --a or !a
-        return ParseUnaryPostExpr(Block, Success); // Parse Unary Post Expression
-    }
-
-    // Error: missing expression
-    if (Expr == nullptr) {
-        Diag(Tok.getLocation(), diag::err_parser_miss_expr);
-        Success = false;
-    }
-
-    // Check if binary operator exists
-    if (isBinaryOperator()) { // Parse Binary Expression
-        return ParseBinaryExpr(Block, Expr, Success);
-
-    // Check if binary operator exists
-    } else if (isTernaryOperator()) { // Parse Ternary Expression
-        return ParseTernaryExpr(Block, Expr, Success);
-    }
-
-    return Expr;
-}
-
-/**
- * Parse unary pre operators ++a, --a, !a
- * @param Block
- * @param VarRef
- * @param Success
- * @return
- */
-ASTExpr* Parser::ParseUnaryPreExpr(ASTBlock *Block, ASTVarRef *VarRef, bool &Success) {
-    ASTVarRefExpr *VarRefExpr = new ASTVarRefExpr(VarRef->getLocation(), VarRef);
-    Success &= ASTResolver::ResolveVarRef(Block, VarRef);
-
-    UnaryOpKind Op;
-    switch (Tok.getKind()) {
-        case tok::exclaim:
-            Op = LOGIC_NOT;
-            break;
-        case tok::plusplus:
-            Op = ARITH_INCR;
-            break;
-        case tok::minusminus:
-            Op = ARITH_DECR;
-            break;
-        default:
-            assert(0 && "Unary Operator not accepted");
-    }
-    ConsumeToken();
-    return new ASTUnaryGroupExpr(VarRef->getLocation(), Op, UNARY_POST, VarRefExpr);
-}
-
-/**
- * Parse unary operators ++a, --a, !a
- * @param Block
- * @param Success
- * @return
- */
-ASTExpr* Parser::ParseUnaryPostExpr(ASTBlock *Block, bool &Success) {
-
-    UnaryOpKind Op;
-    switch (Tok.getKind()) {
-        case tok::exclaim:
-            Op = LOGIC_NOT;
-            break;
-        case tok::plusplus:
-            Op = ARITH_INCR;
-            break;
-        case tok::minusminus:
-            Op = ARITH_DECR;
-            break;
-        default:
-            assert(0 && "Unary Pre Operator not accepted");
-    }
-    ConsumeToken();
-
-    // Check var identifier
-    if (Tok.isAnyIdentifier()) {
-
-        llvm::StringRef Name;
-        llvm::StringRef NameSpace;
-        SourceLocation Loc;
-
-        if (ParseIdentifier(Name, NameSpace, Loc)) {
-            ASTVarRef *VarRef = new ASTVarRef(Loc, Name.str(), NameSpace.str());
-            ASTVarRefExpr *VarRefExpr = new ASTVarRefExpr(Loc, VarRef);
-            if (ASTResolver::ResolveVarRef(Block, VarRef)) {
-                return new ASTUnaryGroupExpr(Loc, Op, UNARY_PRE, VarRefExpr);
-            }
-        }
-    }
-
-    Diag(Tok.getLocation(), diag::err_unary_operator) << getPunctuatorSpelling(Tok.getKind());
-    Success = false;
-    return nullptr;
-}
-
-/**
- * Parse Binary operators
- * @param Block
- * @param First
- * @param Success
- * @return
- */
-ASTExpr* Parser::ParseBinaryExpr(ASTBlock *Block, ASTExpr *First, bool &Success) {
-    FLY_DEBUG("Parser", "ParseBinaryOperator");
-
-    BinaryOpKind Op;
-    switch (Tok.getKind()) {
-
-        // Binary Arithmetic
-        case tok::plus:
-            Op = BinaryOpKind::ARITH_ADD;
-            break;
-        case tok::minus:
-            Op = BinaryOpKind::ARITH_SUB;
-            break;
-        case tok::star:
-            Op = BinaryOpKind::ARITH_MUL;
-            break;
-        case tok::slash:
-            Op = BinaryOpKind::ARITH_DIV;
-            break;
-        case tok::percent:
-            Op = BinaryOpKind::ARITH_MOD;
-            break;
-        case tok::amp:
-            Op = BinaryOpKind::ARITH_AND;
-            break;
-        case tok::pipe:
-            Op = BinaryOpKind::ARITH_OR;
-            break;
-        case tok::caret:
-            Op = BinaryOpKind::ARITH_XOR;
-            break;
-        case tok::lessless:
-            Op = BinaryOpKind::ARITH_SHIFT_L;
-            break;
-        case tok::greatergreater:
-            Op = BinaryOpKind::ARITH_SHIFT_R;
-            break;
-
-            // Logic
-        case tok::ampamp:
-            Op = BinaryOpKind::LOGIC_AND;
-            break;
-        case tok::pipepipe:
-            Op = BinaryOpKind::LOGIC_OR;
-            break;
-
-            // Comparator
-        case tok::less:
-            Op = BinaryOpKind::COMP_LT;
-            break;
-        case tok::lessequal:
-            Op = BinaryOpKind::COMP_LTE;
-            break;
-        case tok::greater:
-            Op = BinaryOpKind::COMP_GT;
-            break;
-        case tok::greaterequal:
-            Op = BinaryOpKind::COMP_GTE;
-            break;
-        case tok::exclaimequal:
-            Op = BinaryOpKind::COMP_NE;
-            break;
-        case tok::equalequal:
-            Op = BinaryOpKind::COMP_EQ;
-            break;
-
-        default:
-            assert(0 && "Binary Operator not accepted");
-    }
-    ConsumeToken();
-
-    ASTExpr *Second = ParseExpr(Block, Success);
-    if (!Second) {
-        // Error: missing operator
-    }
-    return new ASTBinaryGroupExpr(First->getLocation(), Op, First, Second);
-}
-
-ASTExpr* Parser::ParseTernaryExpr(ASTBlock *Block, ASTExpr *First, bool &Success) {
-    
-    // Parse if condition after the ?
-    if (Tok.getKind() == tok::question) {
-        ConsumeToken();
-
-        // Parse else condition after the :
-        ASTExpr *Second = ParseExpr(Block, Success);
-        if (!Second) {
-            // Error: missing operator
-        }
-
-        if (Tok.getKind() == tok::semi) {
-            ConsumeToken();
-
-            return new ASTTernaryGroupExpr(First->getLocation(), First, Second, ParseExpr(Block, Success));
-        }
-
-        // Error: missing operator
-    }
-}
-
-/**
- * Parse a Value Expression
- * @param Success true on Success or false on Error
- * @return the ASTValueExpr
- */
-ASTValueExpr *Parser::ParseValueExpr(bool &Success) {
-    FLY_DEBUG("Parser", "ParseValueExpr");
-    // Parse Numeric Constants
-    if (Tok.is(tok::numeric_constant)) {
-        const StringRef Val = StringRef(Tok.getLiteralData(), Tok.getLength());
-        ASTValue *V;
-        if (Val.contains(".")) {
-            // Parse Float
-            float FloatVal = std::stof(Val.str()); // TODO remove?
-            V = new ASTValue(Tok.getLocation(), Val.str(), new ASTFloatType(Tok.getLocation()));
-        } else {
-            // Parse Int
-            int IntVal = std::stoi(Val.str()); // TODO remove?
-            V = new ASTValue(Tok.getLocation(), Val.str(), new ASTIntType(Tok.getLocation()));
-        }
-        return new ASTValueExpr(ConsumeToken(), V);
-    }
-
-    // Parse true or false boolean values
-    if (Tok.is(tok::kw_true)) {
-        ASTValue *V = new ASTValue(Tok.getLocation(), "true", new ASTBoolType(Tok.getLocation()));
-        return new ASTValueExpr(ConsumeToken(), V);
-    } else if (Tok.is(tok::kw_false)) {
-        ASTValue *V = new ASTValue(Tok.getLocation(), "false", new ASTBoolType(Tok.getLocation()));
-        return new ASTValueExpr(ConsumeToken(), V);
-    }
-
-    Diag(diag::err_invalid_value) << Tok.getName();
-    Success = false;
-    return nullptr;
+ASTExpr *Parser::ParseExpr(ASTBlock *Block, llvm::StringRef Name, llvm::StringRef NameSpace, SourceLocation Loc) {
+    ExprParser Parser(this);
+    return Parser.ParseExpr(Block, Name, NameSpace, Loc);
 }
 
 /**
@@ -1468,60 +1101,4 @@ bool Parser::isBuiltinType() {
  */
 bool Parser::isValue() {
     return Tok.isOneOf(tok::numeric_constant, tok::kw_true, tok::kw_false);
-}
-
-/**
- * Check if Token is one of the Unary Pre Operators
- * @return true on Success or false on Error
- */
-bool Parser::isUnaryPreOperator() {
-    return Tok.isOneOf(tok::plusplus, tok::minusminus, tok::exclaim);
-}
-
-/**
- * Check if Token is one of the Unary Post Operators
- * @return true on Success or false on Error
- */
-bool Parser::isUnaryPostOperator() {
-    return Tok.isOneOf(tok::plusplus, tok::minusminus);
-}
-
-/**
- * Check if Token is one of Binary Operators
- * @return true on Success or false on Error
- */
-bool Parser::isBinaryOperator() {
-    return Tok.isOneOf(
-                       // Arithmetci Operators
-                       tok::plus, // + add
-                       tok::minus, // - subtract
-                       tok::star, // * multiply
-                       tok::slash, // / divide
-                       tok::percent, // % percentage
-
-                       // Logic Operators
-                       tok::ampamp, // && logic and
-                       tok::pipepipe, // || logic or
-                       tok::less, // <
-                       tok::greater, // >
-                       tok::lessequal, // <= less than
-                       tok::greaterequal, // >= greater than
-                       tok::equalequal, // == equal compare
-                       tok::exclaimequal, // != different compare
-
-                       // Bit operators
-                       tok::amp, // & and
-                       tok::pipe, // | or
-                       tok::caret, // ^ xor
-                       tok::lessless, // << shift left
-                       tok::greatergreater // >> shift right
-                       );
-}
-
-/**
- * Check if Token is one of Binary Operators
- * @return true on Success or false on Error
- */
-bool Parser::isTernaryOperator() {
-    return Tok.isOneOf(tok::question, tok::colon);
 }

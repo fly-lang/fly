@@ -21,7 +21,7 @@ namespace fly {
         EXPR_VALUE,
         EXPR_REF_VAR,
         EXPR_REF_FUNC,
-        EXPR_GROUP,
+        EXPR_GROUP
     };
 
     enum ASTExprGroupKind {
@@ -115,7 +115,7 @@ namespace fly {
         const ASTValue *Val;
 
     public:
-        ASTValueExpr(const SourceLocation &Loc, const ASTValue *Val);
+        ASTValueExpr(const ASTValue *Val);
 
         ASTExprKind getKind() const override;
 
@@ -135,7 +135,7 @@ namespace fly {
         ASTVarRef *Ref;
 
     public:
-        ASTVarRefExpr(const SourceLocation &Loc, ASTVarRef *Ref);
+        ASTVarRefExpr(ASTVarRef *Ref);
 
         ASTExprKind getKind() const override;
 
@@ -155,7 +155,7 @@ namespace fly {
         ASTFuncCall * Call;
 
     public:
-        ASTFuncCallExpr(const SourceLocation &Loc, ASTFuncCall *Ref);
+        ASTFuncCallExpr(ASTFuncCall *Ref);
 
         ASTExprKind getKind() const override;
 
@@ -216,7 +216,7 @@ namespace fly {
     };
 
     /**
-     * Unary Group Expression
+     * Binary Group Expression
      */
     class ASTBinaryGroupExpr : public ASTGroupExpr {
 
@@ -250,8 +250,8 @@ namespace fly {
      */
     class ASTTernaryGroupExpr : public ASTGroupExpr {
 
-        // No Ternary Operator defined because default is condition (if ? than : else)
-
+        // Only Ternary Condition (if ? than : else)
+        const TernaryOpKind OperatorKind = CONDITION;
         const ASTExpr *First;
         const ASTExpr *Second;
         const ASTExpr *Third;
@@ -259,6 +259,8 @@ namespace fly {
     public:
 
         ASTTernaryGroupExpr(const SourceLocation &Loc, ASTExpr *First, ASTExpr *Second, ASTExpr *Third);
+
+        TernaryOpKind getOperatorKind() const;
 
         ASTType *getType() const override;
 
