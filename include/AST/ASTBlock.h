@@ -20,7 +20,6 @@ namespace fly {
     class DiagnosticBuilder;
     class ASTReturn;
     class ASTFuncCall;
-    class ASTFuncCallStmt;
     class ASTLocalVar;
     class ASTLocalVarRef;
     class ASTGroupExpr;

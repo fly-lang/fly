@@ -410,25 +410,38 @@ namespace {
         const ASTBlock *Body = F->getBody();
 
         // Test: int a += 2
-        const ASTLocalVarRef *aVar = (ASTLocalVarRef *) Body->getContent()[0];
+
+        const ASTLocalVar *aVar = (ASTLocalVar *) Body->getContent()[0];
         EXPECT_EQ(aVar->getName(), "a");
         EXPECT_EQ(aVar->getExpr()->getKind(), ASTExprKind::EXPR_GROUP);
         EXPECT_EQ(((ASTGroupExpr *) aVar->getExpr())->getGroupKind(), ASTExprGroupKind::GROUP_BINARY);
         ASTBinaryGroupExpr *aGroup = (ASTBinaryGroupExpr *) aVar->getExpr();
-        EXPECT_TRUE(((ASTVarRefExpr *) aGroup->getFirst())->getVarRef()->getDecl() != nullptr);
+        EXPECT_EQ(((ASTVarRefExpr *) aGroup->getFirst())->getVarRef()->getName(), "a");
         EXPECT_EQ(aGroup->getOperatorKind(), BinaryOpKind::ARITH_ADD);
         EXPECT_EQ(((ASTValueExpr *) aGroup->getSecond())->getValue().str(), "2");
 
-        // Test: int b = a + b / (a + b)
-        // E1 + (E2 / (E3 + E4))
-        const ASTLocalVarRef *bVar = (ASTLocalVarRef *) Body->getContent()[1];
+        // Test: int b = a + b / a - b
+
+        const ASTLocalVar *bVar = (ASTLocalVar *) Body->getContent()[1];
         EXPECT_EQ(bVar->getName(), "b");
         EXPECT_EQ(bVar->getExpr()->getKind(), ASTExprKind::EXPR_GROUP);
         EXPECT_EQ(((ASTGroupExpr *) bVar->getExpr())->getGroupKind(), ASTExprGroupKind::GROUP_BINARY);
         ASTBinaryGroupExpr *bGroup = (ASTBinaryGroupExpr *) bVar->getExpr();
-        EXPECT_EQ(((ASTVarRefExpr *) bGroup->getFirst())->getVarRef()->getDecl()->getName(), "a");
-        EXPECT_EQ(bGroup->getOperatorKind(), BinaryOpKind::ARITH_ADD);
-        EXPECT_EQ(((ASTValueExpr *) bGroup->getSecond())->getValue().str(), "2");
+
+        // int b = G1 - b
+        const ASTBinaryGroupExpr *G1 = (ASTBinaryGroupExpr *) bGroup->getFirst();
+        EXPECT_EQ(bGroup->getOperatorKind(), BinaryOpKind::ARITH_SUB);
+        EXPECT_EQ(((ASTVarRefExpr *) bGroup->getSecond())->getVarRef()->getName(), "b");
+
+        // G1 = a + G2
+        EXPECT_EQ(((ASTVarRefExpr *) G1->getFirst())->getVarRef()->getName(), "a");
+        EXPECT_EQ(G1->getOperatorKind(), BinaryOpKind::ARITH_ADD);
+        const ASTBinaryGroupExpr *G2 = (ASTBinaryGroupExpr *) G1->getSecond();
+
+        // G2 = b / a
+        const ASTVarRefExpr *b = (ASTVarRefExpr *) G2->getFirst();
+        EXPECT_EQ(G2->getOperatorKind(), BinaryOpKind::ARITH_DIV);
+        const ASTVarRefExpr *a = (ASTVarRefExpr *) G2->getSecond();
 
         delete AST;
     }
@@ -436,7 +449,7 @@ namespace {
     TEST_F(ParserTest, FloatBinaryArithOperation) {
         llvm::StringRef str = ("float func() {\n"
                                "  float a -= 1.0"
-                               "  float b = a * b - (a / b)"
+                               "  float b = a * b - a / b"
                                "  return b\n"
                                "}\n");
         ASTNode *AST = Parse("FloatBinaryArithOperation", str);
@@ -448,21 +461,44 @@ namespace {
         const ASTBlock *Body = F->getBody();
 
         // Test: float a -= 1.0
-        const ASTLocalVarRef *aVar = (ASTLocalVarRef *) Body->getContent()[0];
+        const ASTLocalVar *aVar = (ASTLocalVar *) Body->getContent()[0];
         EXPECT_EQ(aVar->getName(), "a");
         EXPECT_EQ(aVar->getExpr()->getKind(), ASTExprKind::EXPR_GROUP);
         EXPECT_EQ(((ASTGroupExpr *) aVar->getExpr())->getGroupKind(), ASTExprGroupKind::GROUP_BINARY);
-        ASTBinaryGroupExpr *Group = (ASTBinaryGroupExpr *) aVar->getExpr();
-        EXPECT_TRUE(((ASTVarRefExpr *) Group->getFirst())->getVarRef()->getDecl() != nullptr);
-        EXPECT_EQ(Group->getOperatorKind(), BinaryOpKind::ARITH_SUB);
-        EXPECT_EQ(((ASTValueExpr *) Group->getSecond())->getValue().str(), "1.0");
+        ASTBinaryGroupExpr *aGroup = (ASTBinaryGroupExpr *) aVar->getExpr();
+        EXPECT_EQ(((ASTVarRefExpr *) aGroup->getFirst())->getVarRef()->getName(), "a");
+        EXPECT_EQ(aGroup->getOperatorKind(), BinaryOpKind::ARITH_SUB);
+        EXPECT_EQ(((ASTValueExpr *) aGroup->getSecond())->getValue().str(), "1.0");
+
+        // Test: int b = a * b - a / b
+        const ASTLocalVar *bVar = (ASTLocalVar *) Body->getContent()[1];
+        EXPECT_EQ(bVar->getName(), "b");
+        EXPECT_EQ(bVar->getExpr()->getKind(), ASTExprKind::EXPR_GROUP);
+        EXPECT_EQ(((ASTGroupExpr *) bVar->getExpr())->getGroupKind(), ASTExprGroupKind::GROUP_BINARY);
+        ASTBinaryGroupExpr *bGroup = (ASTBinaryGroupExpr *) bVar->getExpr();
+
+        // int b = G1 - G2
+        const ASTBinaryGroupExpr *G1 = (ASTBinaryGroupExpr *) bGroup->getFirst();
+        const ASTBinaryGroupExpr *G2 = (ASTBinaryGroupExpr *) bGroup->getSecond();
+        EXPECT_EQ(bGroup->getOperatorKind(), BinaryOpKind::ARITH_SUB);
+
+        // G1 = a * b
+        EXPECT_EQ(((ASTVarRefExpr *) G1->getFirst())->getVarRef()->getName(), "a");
+        EXPECT_EQ(G1->getOperatorKind(), BinaryOpKind::ARITH_MUL);
+        EXPECT_EQ(((ASTVarRefExpr *) G1->getSecond())->getVarRef()->getName(), "b");
+
+        // G2 = a / b
+        EXPECT_EQ(((ASTVarRefExpr *) G2->getFirst())->getVarRef()->getName(), "a");
+        EXPECT_EQ(G2->getOperatorKind(), BinaryOpKind::ARITH_DIV);
+        EXPECT_EQ(((ASTVarRefExpr *) G2->getSecond())->getVarRef()->getName(), "b");
 
         delete AST;
     }
 
     TEST_F(ParserTest, BoolBinaryLogicOperation) {
-        llvm::StringRef str = ("bool func(float b) {\n"
-                               "  bool c = b == 1.0"
+        llvm::StringRef str = ("bool func() {\n"
+                               "  bool a &= true"
+                               "  bool b = a || false && a == true"
                                "  return c\n"
                                "}\n");
         ASTNode *AST = Parse("FloatBinaryArithOperation", str);
@@ -473,14 +509,84 @@ namespace {
         ASTFunc *F = *(AST->getNameSpace()->getFunctions().begin());
         const ASTBlock *Body = F->getBody();
 
-        // Test: c = b == 1.0
-        const ASTLocalVarRef *cVar = (ASTLocalVarRef *) Body->getContent()[0];
-        EXPECT_EQ(cVar->getName(), "c");
-        EXPECT_EQ(cVar->getExpr()->getKind(), ASTExprKind::EXPR_GROUP);
-        EXPECT_EQ(((ASTGroupExpr *) cVar->getExpr())->getGroupKind(), ASTExprGroupKind::GROUP_BINARY);
-        ASTBinaryGroupExpr *Group = (ASTBinaryGroupExpr *) cVar->getExpr();
-        EXPECT_EQ(((ASTVarRefExpr *)Group->getFirst())->getVarRef()->getName(), "b");
-        EXPECT_EQ(Group->getOperatorKind(), BinaryOpKind::COMP_EQ);
+        // Test: bool a = true
+        const ASTLocalVar *aVar = (ASTLocalVar *) Body->getContent()[0];
+        EXPECT_EQ(aVar->getName(), "a");
+        EXPECT_EQ(aVar->getExpr()->getKind(), ASTExprKind::EXPR_GROUP);
+        EXPECT_EQ(((ASTGroupExpr *) aVar->getExpr())->getGroupKind(), ASTExprGroupKind::GROUP_BINARY);
+        ASTBinaryGroupExpr *aGroup = (ASTBinaryGroupExpr *) aVar->getExpr();
+        EXPECT_EQ(((ASTVarRefExpr *) aGroup->getFirst())->getVarRef()->getName(), "a");
+        EXPECT_EQ(aGroup->getOperatorKind(), BinaryOpKind::ARITH_AND);
+        EXPECT_EQ(((ASTValueExpr *) aGroup->getSecond())->getValue().str(), "true");
+
+        // Test: bool b = a || false && a == true
+        const ASTLocalVar *bVar = (ASTLocalVar *) Body->getContent()[1];
+        EXPECT_EQ(bVar->getName(), "b");
+        EXPECT_EQ(bVar->getExpr()->getKind(), ASTExprKind::EXPR_GROUP);
+        EXPECT_EQ(((ASTGroupExpr *) bVar->getExpr())->getGroupKind(), ASTExprGroupKind::GROUP_BINARY);
+        ASTBinaryGroupExpr *bGroup = (ASTBinaryGroupExpr *) bVar->getExpr();
+
+        // int b = G1 == true
+        const ASTBinaryGroupExpr *G1 = (ASTBinaryGroupExpr *) bGroup->getFirst();
+        EXPECT_EQ(bGroup->getOperatorKind(), BinaryOpKind::COMP_EQ);
+        EXPECT_EQ(((ASTValueExpr *) bGroup->getSecond())->getValue().str(), "true");
+
+        // G1 = G2 && a
+        const ASTBinaryGroupExpr *G2 = (ASTBinaryGroupExpr *) G1->getFirst();
+        EXPECT_EQ(G1->getOperatorKind(), BinaryOpKind::LOGIC_AND);
+        EXPECT_EQ(((ASTValueExpr *) G2->getSecond())->getValue().str(), "false");
+
+        // G2 = a || false
+        EXPECT_EQ(((ASTVarRefExpr *) G2->getFirst())->getVarRef()->getName(), "a");
+        EXPECT_EQ(G2->getOperatorKind(), BinaryOpKind::LOGIC_OR);
+        EXPECT_EQ(((ASTValueExpr *) G2->getSecond())->getValue().str(), "false");
+
+        delete AST;
+    }
+
+    TEST_F(ParserTest, LongBinaryArithOperation) {
+        llvm::StringRef str = ("long func() {\n"
+                               "  long a = 1\n"
+                               "  long b = (a + b) / (a - b)\n"
+                               "  return b\n"
+                               "}\n");
+        ASTNode *AST = Parse("IntBinaryArithOperation", str);
+
+        ASSERT_FALSE(Diags.hasErrorOccurred());
+
+        // Get Body
+        ASTFunc *F = *(AST->getNameSpace()->getFunctions().begin());
+        const ASTBlock *Body = F->getBody();
+
+        // Test: long a = 1
+
+        const ASTLocalVar *aVar = (ASTLocalVar *) Body->getContent()[0];
+        EXPECT_EQ(aVar->getName(), "a");
+        EXPECT_EQ(aVar->getExpr()->getKind(), ASTExprKind::EXPR_VALUE);
+        EXPECT_EQ(((ASTValueExpr *) aVar->getExpr())->getValue().str(), "1");
+
+        // Test: long b = (a + b) / (a - b)
+
+        const ASTLocalVar *bVar = (ASTLocalVar *) Body->getContent()[1];
+        EXPECT_EQ(bVar->getName(), "b");
+        EXPECT_EQ(bVar->getExpr()->getKind(), ASTExprKind::EXPR_GROUP);
+        EXPECT_EQ(((ASTGroupExpr *) bVar->getExpr())->getGroupKind(), ASTExprGroupKind::GROUP_BINARY);
+        ASTBinaryGroupExpr *bGroup = (ASTBinaryGroupExpr *) bVar->getExpr();
+
+        // long b = G1 / G2
+        const ASTBinaryGroupExpr *G1 = (ASTBinaryGroupExpr *) bGroup->getFirst();
+        const ASTBinaryGroupExpr *G2 = (ASTBinaryGroupExpr *) bGroup->getSecond();
+        EXPECT_EQ(bGroup->getOperatorKind(), BinaryOpKind::ARITH_DIV);
+
+        // G1 = a + b
+        EXPECT_EQ(((ASTVarRefExpr *) G1->getFirst())->getVarRef()->getName(), "a");
+        EXPECT_EQ(G1->getOperatorKind(), BinaryOpKind::ARITH_ADD);
+        EXPECT_EQ(((ASTVarRefExpr *) G1->getSecond())->getVarRef()->getName(), "b");
+
+        // G2 = a - b
+        EXPECT_EQ(((ASTVarRefExpr *) G2->getFirst())->getVarRef()->getName(), "a");
+        EXPECT_EQ(G2->getOperatorKind(), BinaryOpKind::ARITH_SUB);
+        EXPECT_EQ(((ASTVarRefExpr *) G2->getSecond())->getVarRef()->getName(), "b");
 
         delete AST;
     }
@@ -526,16 +632,16 @@ namespace {
         ASSERT_FALSE(doSomeCall->getCall()->getDecl() == nullptr);
 
         // Test: doOther(a, b)
-        ASTFuncCallStmt *doOtherStmt = (ASTFuncCallStmt *) Body->getContent()[1];
-        EXPECT_EQ(doOtherStmt->getKind(), StmtKind::STMT_FUNC_CALL);
-        ASTFuncCall *doOtherCall = doOtherStmt->getCall();
-        EXPECT_EQ(doOtherCall->getName(), "doOther");
-        ASTVarRefExpr *VRefExpr = (ASTVarRefExpr *) doOtherCall->getArgs()[0]->getValue();
+        ASTExprStmt *doOtherStmt = (ASTExprStmt *) Body->getContent()[1];
+        EXPECT_EQ(doOtherStmt->getKind(), StmtKind::STMT_EXPR);
+        ASTFuncCallExpr *doOtherCall = (ASTFuncCallExpr *) doOtherStmt->getExpr();
+        EXPECT_EQ(doOtherCall->getCall()->getName(), "doOther");
+        ASTVarRefExpr *VRefExpr = (ASTVarRefExpr *) doOtherCall->getCall()->getArgs()[0]->getValue();
         EXPECT_EQ(VRefExpr->getVarRef()->getName(), "a");
-        ASTValueExpr *ValExpr = (ASTValueExpr *) doOtherCall->getArgs()[1]->getValue();
+        ASTValueExpr *ValExpr = (ASTValueExpr *) doOtherCall->getCall()->getArgs()[1]->getValue();
         EXPECT_EQ(ValExpr->getValue().str(), "1");
-        EXPECT_FALSE(doOtherCall->getDecl() == nullptr);
 
+        // return do()
         ASTReturn *Ret = (ASTReturn *) Body->getContent()[2];
         ASTFuncCallExpr *RetCallEx = (ASTFuncCallExpr *) Ret->getExpr();
         EXPECT_EQ(RetCallEx->getCall()->getName(), "do");
@@ -721,7 +827,7 @@ namespace {
         EXPECT_EQ(((ASTValueExpr *) Stmt->getCases()[1]->getExpr())->getValue().str(), "2");
         EXPECT_TRUE(Stmt->getCases()[1]->getContent().empty());
         EXPECT_EQ(Stmt->getDefault()->getBlockKind(), ASTBlockKind::BLOCK_STMT_DEFAULT);
-        EXPECT_EQ(((ASTFuncCallStmt *) Stmt->getDefault()->getContent()[0])->getKind(), StmtKind::STMT_RETURN);
+        EXPECT_EQ((Stmt->getDefault()->getContent()[0])->getKind(), StmtKind::STMT_RETURN);
 
         delete AST;
     }
@@ -759,7 +865,7 @@ namespace {
 
         ASTExprStmt * ExprStmt2 = (ASTExprStmt *) ForBlock->getPost()->getContent()[1];
         EXPECT_EQ(((ASTUnaryGroupExpr *) ExprStmt2->getExpr())->getFirst()->getVarRef()->getName(), "c");
-        EXPECT_EQ(((ASTUnaryGroupExpr *) ExprStmt1->getExpr())->getOperatorKind(), UnaryOpKind::ARITH_DECR);
+        EXPECT_EQ(((ASTUnaryGroupExpr *) ExprStmt2->getExpr())->getOperatorKind(), UnaryOpKind::ARITH_DECR);
 
         EXPECT_TRUE(ForBlock->getLoop()->isEmpty());
 

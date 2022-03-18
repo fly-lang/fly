@@ -229,25 +229,6 @@ namespace fly {
 
         std::string str() const;
     };
-
-    /**
-     * Declaration of Reference to a Function
-     * Ex.
-     *  func()
-     */
-    class ASTFuncCallStmt : public ASTStmt {
-
-        ASTFuncCall *Call;
-
-    public:
-        ASTFuncCallStmt(const SourceLocation &Loc, ASTBlock *Block, ASTFuncCall *Call);
-
-        StmtKind getKind() const override;
-
-        ASTFuncCall *getCall() const;
-
-        std::string str() const override;
-    };
 }
 
 namespace std {

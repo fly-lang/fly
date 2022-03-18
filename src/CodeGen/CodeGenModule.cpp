@@ -176,11 +176,6 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
             }
             break;
         }
-        case STMT_FUNC_CALL: {
-            ASTFuncCallStmt *FCall = static_cast<ASTFuncCallStmt *>(Stmt);
-            GenCall(Fn, FCall->getCall());
-            break;
-        }
         case STMT_EXPR: {
             ASTExprStmt *ExprStmt = (ASTExprStmt *) Stmt;
             Value *V = GenExpr(Fn, ExprStmt->getExpr()->getType(), ExprStmt->getExpr());

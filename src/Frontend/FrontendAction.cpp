@@ -56,7 +56,7 @@ bool FrontendAction::Parse() {
 
         // Create Parser and start to parse
         P = new Parser(*Input, SourceMgr, Diags);
-        Success &= P->Parse(AST) && Context->AddNode(AST);
+        Success = P->Parse(AST) && Context->AddNode(AST);
         if (FrontendOpts.CreateHeader) {
             CGH->AddNameSpace(AST->getNameSpace());
         }

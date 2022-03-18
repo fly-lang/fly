@@ -13,7 +13,7 @@
 
 using namespace fly;
 
-ExprParser::ExprParser(Parser *P) : P(P){
+ExprParser::ExprParser(Parser *P, bool CanBeEmpty) : P(P), CanBeEmpty(CanBeEmpty) {
 
 }
 
@@ -35,8 +35,8 @@ ASTExpr *ExprParser::ParseAssignmentExpr(ASTBlock *Block, ASTVarRef *VarRef) {
     if (isAssignOperator(P->Tok)) {
 
         // Create First Expr
-        ASTVarRefExpr *Expr = new ASTVarRefExpr(VarRef);
-        Group.push_back(Expr);
+        ASTVarRefExpr *First = new ASTVarRefExpr(VarRef);
+        Group.push_back(First);
 
         // Parse binary assignment operator
         BinaryOpKind Op;
@@ -80,7 +80,26 @@ ASTExpr *ExprParser::ParseAssignmentExpr(ASTBlock *Block, ASTVarRef *VarRef) {
         }
         RawBinaryOperator *RawOp = new RawBinaryOperator(P->ConsumeToken(), Op);
         Group.push_back(RawOp);
-        return ParseExpr(Block);
+
+        // Parse second operator
+        ASTExpr *Second = ParseExpr(Block);
+
+        // Error: missing second operator
+        if (First == nullptr) {
+            P->Diag(P->Tok.getLocation(), diag::err_parser_miss_oper);
+            return nullptr;
+        }
+
+        // This is the last item in the expression
+        Group.push_back(Second);
+
+        // Update Group
+        UpdateBinaryGroup(false);
+        UpdateBinaryGroup(true);
+        assert(Group.size() == 1 && "Only one Group entry at the end");
+        assert(Group[0]->getKind() == EXPR_GROUP && "Only one Group entry at the end");
+        assert(((ASTGroupExpr *) Group[0])->getGroupKind() == GROUP_BINARY && "Only one Group entry at the end");
+        return (ASTBinaryGroupExpr *) Group[0];
     }
 
     // Statement without assignment
@@ -112,20 +131,12 @@ ASTExpr *ExprParser::ParseExpr(ASTBlock *Block, bool Start) {
         if (Expr != nullptr) {
             if (P->Tok.is(tok::r_paren)) {
                 P->ConsumeParen();
-                return Expr; // Ok
+            } else { // Error: parenthesis unclosed
+                P->Diag(P->Tok.getLocation(), diag::err_paren_unclosed);
+                return nullptr;
             }
-
-            // Error: parenthesis unclosed
-            P->Diag(P->Tok.getLocation(), diag::err_paren_unclosed);
-            return nullptr;
         }
-        return nullptr;
-    }
-
-    // Populate Expr
-
-    // Ex. 1
-    if (P->isValue()) {
+    } else if (P->isValue()) { // Ex. 1
         ASTValue *Val = P->ParseValue();
         if (Val != nullptr) // Parse a value
             Expr = new ASTValueExpr(Val);
@@ -136,9 +147,10 @@ ASTExpr *ExprParser::ParseExpr(ASTBlock *Block, bool Start) {
         if (P->ParseIdentifier(Name, NameSpace, IdLoc)) {
             Expr = ParseExpr(Block, Name, NameSpace, IdLoc);
         }
-        // TODO add Error of ParseIdentifier()
-    } else if (isUnaryPreOperator()) { // Ex. ++a or --a or !a
-        Expr = ParseUnaryPreExpr(Block); // Parse Unary Post Expression
+    } else if (isUnaryPreOperator(P->Tok)) { // Ex. ++a or --a or !a
+        Expr = ParseUnaryPreExpr(P, Block); // Parse Unary Post Expression
+    } else if (CanBeEmpty) {
+        return nullptr;
     } else {
         // Error: unexpected operator
         P->Diag(P->Tok.getLocation(), diag::err_parser_unexpect_oper);
@@ -243,7 +255,7 @@ ASTUnaryGroupExpr* ExprParser::ParseUnaryPostExpr(ASTBlock *Block, ASTVarRef *Va
  * @param Success
  * @return
  */
-ASTUnaryGroupExpr* ExprParser::ParseUnaryPreExpr(ASTBlock *Block) {
+ASTUnaryGroupExpr* ExprParser::ParseUnaryPreExpr(Parser *P, ASTBlock *Block) {
 
     UnaryOpKind Op;
     switch (P->Tok.getKind()) {
@@ -419,8 +431,8 @@ bool ExprParser::isAssignOperator(Token &Tok) {
  * Check if Token is one of the Unary Pre Operators
  * @return true on Success or false on Error
  */
-bool ExprParser::isUnaryPreOperator() {
-    return P->Tok.isOneOf(tok::plusplus, tok::minusminus, tok::exclaim);
+bool ExprParser::isUnaryPreOperator(Token &Tok) {
+    return Tok.isOneOf(tok::plusplus, tok::minusminus, tok::exclaim);
 }
 
 /**

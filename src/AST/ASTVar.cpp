@@ -9,6 +9,7 @@
 
 
 #include "AST/ASTVar.h"
+#include "Basic/Debug.h"
 
 using namespace fly;
 

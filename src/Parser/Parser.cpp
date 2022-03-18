@@ -137,6 +137,131 @@ void Parser::DiagInvalidId(SourceLocation Loc) {
     }
 }
 
+
+/**
+ * ConsumeToken - Consume the current 'peek token' and lex the next one.
+ * This does not work with special tokens: string literals,
+ * annotation tokens and balanced tokens must be handled using the specific
+ * consume methods.
+ * @return the location of the consumed token
+ */
+SourceLocation Parser::ConsumeToken() {
+    assert(!isTokenSpecial() &&
+           "Should consume special tokens with Consume*Token");
+    return ConsumeNext();
+}
+
+/**
+ * isTokenParen - Return true if the cur token is '(' or ')'.
+ * @return
+ */
+bool Parser::isTokenParen() const {
+    return Tok.isOneOf(tok::l_paren, tok::r_paren);
+}
+
+/**
+ * isTokenBracket - Return true if the cur token is '[' or ']'.
+ * @return
+ */
+bool Parser::isTokenBracket() const {
+    return Tok.isOneOf(tok::l_square, tok::r_square);
+}
+
+/**
+ * isTokenBrace - Return true if the cur token is '{' or '}'.
+ * @return
+ */
+bool Parser::isTokenBrace() const {
+    return Tok.isOneOf(tok::l_brace, tok::r_brace);
+}
+
+/**
+ * isTokenConsumeParenStringLiteral - True if this token is a string-literal.
+ * @return
+ */
+bool Parser::isTokenStringLiteral() const {
+    return tok::isStringLiteral(Tok.getKind());
+}
+
+/**
+ * isTokenSpecial - True if this token requires special consumption methods.
+ * @return
+ */
+bool Parser::isTokenSpecial() const {
+    return isTokenStringLiteral() || isTokenParen() || isTokenBracket() ||
+           isTokenBrace();
+}
+
+/**
+ * ConsumeParen - This consume method keeps the paren count up-to-date.
+ * @return
+ */
+SourceLocation Parser::ConsumeParen() {
+    assert(isTokenParen() && "wrong consume method");
+    if (Tok.getKind() == tok::l_paren)
+        ++ParenCount;
+    else if (ParenCount) {
+        //AngleBrackets.clear(*this);
+        --ParenCount;       // Don't let unbalanced )'s drive the count negative.
+    }
+
+    return ConsumeNext();
+}
+
+/**
+ * ConsumeBracket - This consume method keeps the bracket count up-to-date.
+ * @return
+ */
+SourceLocation Parser::ConsumeBracket() {
+    assert(isTokenBracket() && "wrong consume method");
+    if (Tok.getKind() == tok::l_square)
+        ++BracketCount;
+    else if (BracketCount) {
+        //AngleBrackets.clear(*this);
+        --BracketCount;     // Don't let unbalanced ]'s drive the count negative.
+    }
+
+    return ConsumeNext();
+}
+
+/**
+ * ConsumeBrace - This consume method keeps the brace count up-to-date.
+ * @return
+ */
+SourceLocation Parser::ConsumeBrace() {
+    assert(isTokenBrace() && "wrong consume method");
+    if (Tok.getKind() == tok::l_brace)
+        ++BraceCount;
+    else if (BraceCount) {
+        //AngleBrackets.clear(*this);
+        --BraceCount;     // Don't let unbalanced }'s drive the count negative.
+    }
+
+    return ConsumeNext();
+}
+
+bool Parser::isBraceBalanced() const {
+    return BraceCount == 0;
+}
+
+/**
+ * ConsumeStringToken - Consume the current 'peek token', lexing a new one
+ * and returning the token kind.  This method is specific to strings, as it
+ * handles string literal concatenation, as per C99 5.1.1.2, translation
+ * phase #6.
+ * @return
+ */
+SourceLocation Parser::ConsumeStringToken() {
+    assert(isTokenStringLiteral() && "Should only consume string literals with this method");
+    return ConsumeNext();
+}
+
+SourceLocation Parser::ConsumeNext() {
+    PrevTokLocation = Tok.getLocation();
+    Lex.Lex(Tok);
+    return PrevTokLocation;
+}
+
 /**
  * Get String between quotes from token
  * @return string
@@ -336,13 +461,13 @@ bool Parser::ParseConst(bool &Constant) {
 }
 
 /**
- * Parse GlobalVar declaration
+ * Parse Global Var declaration
  * @param VisKind
  * @param Constant
  * @param Type
- * @param Id
- * @param IdLoc
- * @return true on Success or false on Error
+ * @param Name
+ * @param NameLoc
+ * @return
  */
 bool Parser::ParseGlobalVarDecl(VisibilityKind &VisKind, bool &Constant, ASTType *Type,
                                 llvm::StringRef &Name, SourceLocation &NameLoc) {
@@ -359,10 +484,10 @@ bool Parser::ParseGlobalVarDecl(VisibilityKind &VisKind, bool &Constant, ASTType
 }
 
 /**
- * Parse Class Declaration
+ * Parse Class declaration
  * @param VisKind
  * @param Constant
- * @return true on Success or false on Error
+ * @return
  */
 bool Parser::ParseClassDecl(VisibilityKind &VisKind, bool &Constant) {
     FLY_DEBUG("Parser", "ParseClassDecl");
@@ -381,9 +506,9 @@ bool Parser::ParseClassDecl(VisibilityKind &VisKind, bool &Constant) {
  * @param VisKind
  * @param Constant
  * @param Type
- * @param Id
- * @param IdLoc
- * @return true on Success or false on Error
+ * @param Name
+ * @param NameLoc
+ * @return
  */
 bool Parser::ParseFunction(VisibilityKind &VisKind, bool Constant, ASTType *Type,
                            llvm::StringRef &Name, SourceLocation &NameLoc) {
@@ -522,14 +647,12 @@ bool Parser::ParseInnerBlock(ASTBlock *Block) {
  */
 bool Parser::ParseStmt(ASTBlock *Block) {
     FLY_DEBUG("Parser", "ParseStmt");
-    bool Success = true;
 
     // Parse keywords
     if (Tok.is(tok::kw_return)) { // Parse return
         SourceLocation Loc = ConsumeToken();
-        ASTExpr *Expr = ParseExpr(Block);
-        if (Expr != nullptr)
-            return Block->AddReturn(Loc, Expr);
+        ASTExpr *Expr = ParseExprEmpty(Block);
+        return Block->AddReturn(Loc, Expr);
     } else if (Tok.is(tok::kw_break)) { // Parse break
         return Block->AddBreak(ConsumeToken());
     } else if (Tok.is(tok::kw_continue)) { // Parse continue
@@ -567,17 +690,16 @@ bool Parser::ParseStmt(ASTBlock *Block) {
                 return false;
             } else if (ExprParser::isAssignOperator(Tok)) { // variable assignment
                 // a = ...
-                ASTLocalVarRef* LocalVarRef = new ASTLocalVarRef(Loc, Block, Name.str(), NameSpace.str());
+                ASTLocalVarRef* LocalVarRef = new ASTLocalVarRef(Loc, Block, std::string(Name), std::string(NameSpace));
                 ASTExpr *Expr = ParseAssignmentExpr(Block, LocalVarRef);
                 if (Expr != nullptr) {
                     LocalVarRef->setExpr(Expr);
                     return Block->AddLocalVarRef(LocalVarRef);
                 }
             } else {
-                // TODO need to do Tok--
                 // a()
                 // a++
-                // a  FIXME ??
+                // a  FIXME only var ??
                 ASTExprStmt *ExprStmt = new ASTExprStmt(Tok.getLocation(), Block);
                 ASTExpr *Expr = ParseExpr(Block, Name, NameSpace, Loc);
                 if (Expr != nullptr) {
@@ -598,34 +720,17 @@ bool Parser::ParseStmt(ASTBlock *Block) {
 
         Diag(diag::err_parser_invalid_type);
         return false;
+    } else if (ExprParser::isUnaryPreOperator(Tok)) {
+        ASTExprStmt *ExprStmt = new ASTExprStmt(Tok.getLocation(), Block);
+        ASTUnaryGroupExpr *Expr = ExprParser::ParseUnaryPreExpr(this, Block);
+        if (Expr != nullptr) {
+            ExprStmt->setExpr(Expr);
+            return Block->AddExprStmt(ExprStmt);
+        }
     }
 
     Diag(diag::err_parse_stmt);
     return false;
-}
-
-/**
- * Parse as Identifier with a Name and NameSpace
- * @param Name
- * @param NameSpace
- * @return
- */
-bool Parser::ParseIdentifier(llvm::StringRef &Name, llvm::StringRef &NameSpace, SourceLocation &Loc) {
-    Name = Tok.getIdentifierInfo()->getName();
-    Loc = ConsumeToken();
-    if (Tok.is(tok::colon)) {
-        Loc = ConsumeToken();
-        if (Tok.isAnyIdentifier()) {
-            NameSpace = Name;
-            Name = Tok.getIdentifierInfo()->getName();
-            Loc = ConsumeToken();
-            return true;
-        }
-
-        Diag(Loc, diag::err_invalid_namespace_id);
-        return false;
-    }
-    return true;
 }
 
 /**
@@ -682,7 +787,6 @@ bool Parser::ParseEndParen(bool HasParen) {
  */
 bool Parser::ParseIfStmt(ASTBlock *Block) {
     FLY_DEBUG("Parser", "ParseIfStmt");
-    bool Success = true;
 
     ASTIfBlock *Stmt;
     const SourceLocation &Loc = Tok.getLocation();
@@ -735,7 +839,7 @@ bool Parser::ParseIfStmt(ASTBlock *Block) {
         }
     } else if (ParseStmt(Stmt)) { // Only for a single Stmt without braces
         Block->Content.push_back(Stmt);
-        return Success;
+        return true;
     }
 
     return false;
@@ -759,7 +863,6 @@ bool Parser::ParseIfStmt(ASTBlock *Block) {
  */
 bool Parser::ParseSwitchStmt(ASTBlock *Block) {
     FLY_DEBUG("Parser", "ParseSwitchStmt");
-    bool Success = true;
 
     // Parse switch keyword
     const SourceLocation &SwitchLoc = ConsumeToken();
@@ -834,7 +937,7 @@ bool Parser::ParseSwitchStmt(ASTBlock *Block) {
             if (Tok.is(tok::r_brace)) {
                 ConsumeBrace();
                 Block->Content.push_back(Stmt);
-                return Success;
+                return true;
             }
         }
     }
@@ -860,34 +963,33 @@ bool Parser::ParseSwitchStmt(ASTBlock *Block) {
  */
 bool Parser::ParseWhileStmt(ASTBlock *Block) {
     FLY_DEBUG("Parser", "ParseWhileStmt");
-    bool Success = true;
     const SourceLocation &Loc = ConsumeToken();
 
     // Consume Left Parenthesis ( if exists
     bool hasParen = ParseStartParen();
 
-    ASTExpr *Cond = ParseExpr(Block);
-    if (Cond != nullptr) {
-        ASTWhileBlock *While = new ASTWhileBlock(Loc, Block, Cond);
+    // Create AST While Block
+    ASTExpr *Cond = ParseExprEmpty(Block);
+    ASTWhileBlock *While = new ASTWhileBlock(Loc, Block, Cond);
 
-        // Consume Right Parenthesis ) if exists
-        if (!ParseEndParen(hasParen)) {
-            return false;
-        }
+    // Consume Right Parenthesis ) if exists
+    if (!ParseEndParen(hasParen)) {
+        return false;
+    }
 
-        // Parse statement between braces
-        if (Tok.is(tok::l_brace)) {
-            ConsumeBrace();
-            if (Success && ParseInnerBlock(While)) {
-                Block->Content.push_back(While);
-                return true;
-            }
-        } else if (Success && ParseStmt(While)) { // Only for a single Stmt without braces
+    // Parse statement between braces
+    if (Tok.is(tok::l_brace)) {
+        ConsumeBrace();
+        if (ParseInnerBlock(While)) {
             Block->Content.push_back(While);
             return true;
         }
+    } else if (ParseStmt(While)) { // Only for a single Stmt without braces
+        Block->Content.push_back(While);
+        return true;
     }
 
+    Diag(diag::err_parse_stmt);
     return false;
 }
 
@@ -977,24 +1079,48 @@ bool Parser::ParseForCommaStmt(ASTBlock *Block) {
 }
 
 /**
+ * Parse as Identifier with a Name and NameSpace
+ * @param Name
+ * @param NameSpace
+ * @return
+ */
+bool Parser::ParseIdentifier(llvm::StringRef &Name, llvm::StringRef &NameSpace, SourceLocation &Loc) {
+    Name = Tok.getIdentifierInfo()->getName();
+    Loc = ConsumeToken();
+    if (Tok.is(tok::colon)) {
+        Loc = ConsumeToken();
+        if (Tok.isAnyIdentifier()) {
+            NameSpace = Name;
+            Name = Tok.getIdentifierInfo()->getName();
+            Loc = ConsumeToken();
+            return true;
+        }
+
+        Diag(Loc, diag::err_invalid_namespace_id);
+        return false;
+    }
+    return true;
+}
+
+/**
  * Parse a Function Call
  * @param Block
  * @param Id
  * @param Loc
- * @param Success true on Success or false on Error
  * @return true on Success or false on Error
  */
 ASTFuncCall * Parser::ParseFunctionCall(ASTBlock *Block, llvm::StringRef Name, llvm::StringRef NameSpace,
                                         SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("Parser", "ParseFunctionCall", "Name=" << Name + ", NameSpace=" << NameSpace);
     FunctionParser Parser(this, Name, Loc);
-    bool Result = Parser.ParseCall(Block, NameSpace);
-    return Parser.Call;
+    if (Parser.ParseCall(Block, NameSpace)) {
+        return Parser.Call;
+    }
+    return nullptr;
 }
 
 /**
  * Parse a Value Expression
- * @param Success true on Success or false on Error
  * @return the ASTValueExpr
  */
 ASTValue *Parser::ParseValue() {
@@ -1031,10 +1157,10 @@ ASTValue *Parser::ParseValue() {
 
 /**
  * Parse a Local Variable
+ * This is a var declaration with assignment
  * @param Block
  * @param Constant
  * @param Type
- * @param Success true on Success or false on Error
  * @return the ASTLocalVar
  */
 ASTLocalVar *Parser::ParseLocalVar(ASTBlock *Block, bool Constant, ASTType *Type) {
@@ -1043,18 +1169,21 @@ ASTLocalVar *Parser::ParseLocalVar(ASTBlock *Block, bool Constant, ASTType *Type
         Diag(Tok, diag::err_var_undefined);
         return nullptr;
     }
-    
-    const StringRef Name = Id->getName();
+
+    //Assign to ASTLocalVar
+    const std::string Name = std::string(Id->getName());
+    const SourceLocation Loc = Tok.getLocation();
     FLY_DEBUG_MESSAGE("Parser", "ParseLocalVar",
                       "Name=" << Name << ", Constant=" << Constant << ", Type=" << Type->str());
-    const SourceLocation Loc = Tok.getLocation();
-    ASTLocalVar *Result = new ASTLocalVar(Loc, Block, Type, Name.str());
+    ASTLocalVar *Result = new ASTLocalVar(Loc, Block, Type, Name);
     Result->Constant = Constant;
     ConsumeToken();
 
-    ASTVarRef *VarRef = new ASTVarRef(Tok.getLocation(), Result->getName());
+    // Need to create a reference and assign the previous Var declaration in order to be found from references
+    ASTVarRef *VarRef = new ASTVarRef(Loc, Name);
     VarRef->Decl = Result;
 
+    // Parse the assignment if exists
     ASTExpr *Assignment = ParseAssignmentExpr(Block, VarRef);
     if (Assignment != nullptr) {// int a or Type a is allowed
         Result->setExpr(Assignment);
@@ -1066,6 +1195,11 @@ ASTLocalVar *Parser::ParseLocalVar(ASTBlock *Block, bool Constant, ASTType *Type
 ASTExpr *Parser::ParseAssignmentExpr(ASTBlock *Block, ASTVarRef *VarRef) {
     ExprParser Parser(this);
     return Parser.ParseAssignmentExpr(Block, VarRef);
+}
+
+ASTExpr *Parser::ParseExprEmpty(ASTBlock *Block) {
+    ExprParser Parser(this, true);
+    return Parser.ParseExpr(Block);
 }
 
 ASTExpr *Parser::ParseExpr(ASTBlock *Block) {
