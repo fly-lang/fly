@@ -14,7 +14,9 @@ int main() {
     c = a << b;
     c = a >> b;
     c++;
+    ++c;
     c--;
+    --c;
     c += a;
     c -= a;
     c *= a;

@@ -164,7 +164,15 @@ const ASTExpr *ASTBinaryGroupExpr::getSecond() const {
 }
 
 ASTType *ASTBinaryGroupExpr::getType() const {
-    return First->getType();
+    switch (OptionKind) {
+
+        case BINARY_ARITH:
+            return First->getType();
+        case BINARY_LOGIC:
+            return new ASTBoolType(SourceLocation());
+        case BINARY_COMPARISON:
+            return new ASTBoolType(SourceLocation());
+    }
 }
 
 std::string ASTBinaryGroupExpr::str() const {

@@ -26,7 +26,7 @@ namespace fly {
 
         llvm::Value *Val;
 
-        std::vector<llvm::Value *> PostValues;
+//        std::vector<llvm::Value *> PostValues;
 
         llvm::Function *Fn;
 
@@ -35,15 +35,11 @@ namespace fly {
 
         llvm::Value *getValue() const;
 
-        llvm::Value *Convert(llvm::Value *V, const ASTType *FromType, const ASTType *ToType);
-
-        llvm::Value *Convert(llvm::Value *V, llvm::Type *ToType, bool SignedInt = false);
+        llvm::Value *Convert(llvm::Value *FromVal, const ASTType *FromType, const ASTType *ToType);
 
         llvm::Value *GenValue(const ASTExpr *Origin, llvm::Value *Pointer = nullptr);
 
         llvm::Value *GenGroup(ASTGroupExpr *Group);
-
-        bool hasOpPrecedence(BinaryOpKind Op);
 
         llvm::Value *GenUnary(ASTUnaryGroupExpr *Expr);
 
@@ -52,6 +48,8 @@ namespace fly {
         llvm::Value *GenTernary(ASTTernaryGroupExpr *Expr);
 
         Value *GenBinaryArith(const ASTExpr *E1, BinaryOpKind Op, const ASTExpr *E2);
+
+        bool isSigned(const ASTType * T1);
 
         Value *GenBinaryComparison(const ASTExpr *E1, BinaryOpKind Op, const ASTExpr *E2);
 

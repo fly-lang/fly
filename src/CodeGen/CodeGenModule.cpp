@@ -157,7 +157,7 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
             ASTLocalVar *LocalVar = static_cast<ASTLocalVar *>(Stmt);
             assert(LocalVar->getCodeGen() && "LocalVar is not CodeGen initialized");
             assert(LocalVar->getExpr() && "Expr Mandatory in declaration");
-            Value *V = GenExpr(Fn, LocalVar->getType(), LocalVar->getExpr());
+            llvm::Value *V = GenExpr(Fn, LocalVar->getType(), LocalVar->getExpr());
             LocalVar->getCodeGen()->Store(V);
             break;
         }
@@ -179,7 +179,6 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
         case STMT_EXPR: {
             ASTExprStmt *ExprStmt = (ASTExprStmt *) Stmt;
             Value *V = GenExpr(Fn, ExprStmt->getExpr()->getType(), ExprStmt->getExpr());
-            //UnaryExpr->getFirst()->getDecl()->getCodeGen()->Store(V); // FIXME
             break;
         }
         case STMT_BLOCK: {

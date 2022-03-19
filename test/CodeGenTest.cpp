@@ -270,6 +270,11 @@ namespace {
                           "}\n");
     }
 
+    /**
+     * main(int a, int b, int c) {
+     *  return 1 + a * b / (c - 2)
+     * }
+     */
     TEST_F(CodeGenTest, CGGroupExpr) {
         ASTNode *Node = CreateAST();
 
@@ -282,7 +287,7 @@ namespace {
         // Create this expression: 1 + a * b / (c - 2)
         // E1 + (E2 * E3) / (E4 - E5)
         // E1 + (G2 / G3)
-        // E1 + F2
+        // E1 + G1
         ASTValueExpr *E1 = new ASTValueExpr(new ASTValue(SourceLoc, "1",
                                                                     new ASTIntType(SourceLoc)));
         ASTVarRefExpr *E2 = new ASTVarRefExpr(new ASTVarRef(SourceLoc, "a"));
@@ -292,9 +297,9 @@ namespace {
                                                                     new ASTIntType(SourceLoc)));
         
         ASTBinaryGroupExpr *G2 = new ASTBinaryGroupExpr(SourceLoc, ARITH_MUL, E2, E3);
-        ASTBinaryGroupExpr *G3 = new ASTBinaryGroupExpr(SourceLoc, ARITH_SUB, E1, E2);
-        ASTBinaryGroupExpr *F2 = new ASTBinaryGroupExpr(SourceLoc, ARITH_DIV, G2, G3);
-        ASTBinaryGroupExpr *Group = new ASTBinaryGroupExpr(SourceLoc, ARITH_ADD, E1, F2);
+        ASTBinaryGroupExpr *G3 = new ASTBinaryGroupExpr(SourceLoc, ARITH_SUB, E4, E5);
+        ASTBinaryGroupExpr *G1 = new ASTBinaryGroupExpr(SourceLoc, ARITH_DIV, G2, G3);
+        ASTBinaryGroupExpr *Group = new ASTBinaryGroupExpr(SourceLoc, ARITH_ADD, E1, G1);
 
         MainFn->getBody()->AddReturn(SourceLoc, Group);
 
@@ -491,14 +496,14 @@ namespace {
                           "  %15 = add nsw i32 %3, 1\n"
                           "  store i32 %15, i32* %0, align 4\n"
                           "  %16 = load i32, i32* %0, align 4\n"
-                          "  %17 = add i32 %16, 1\n"
-                          "  store i32 %16, i32* %0, align 4\n"
+                          "  %17 = add nsw i32 %16, 1\n"
+                          "  store i32 %17, i32* %0, align 4\n"
                           "  %18 = load i32, i32* %0, align 4\n"
                           "  %19 = add nsw i32 %18, -1\n"
                           "  store i32 %19, i32* %0, align 4\n"
                           "  %20 = load i32, i32* %0, align 4\n"
-                          "  %21 = add i32 %20, -1\n"
-                          "  store i32 %20, i32* %0, align 4\n"
+                          "  %21 = add nsw i32 %20, -1\n"
+                          "  store i32 %21, i32* %0, align 4\n"
                           "  %22 = load i32, i32* %2, align 4\n"
                           "  ret i32 %22\n"
                           "}\n");
@@ -589,19 +594,26 @@ namespace {
                           "  %3 = load i32, i32* %0, align 4\n"
                           "  %4 = load i32, i32* %1, align 4\n"
                           "  %5 = icmp eq i32 %3, %4\n"
-                          "  store i1 %5, i1* %2, align 1\n"
-                          "  %6 = icmp ne i32 %3, %4\n"
-                          "  store i1 %6, i1* %2, align 1\n"
-                          "  %7 = icmp sgt i32 %3, %4\n"
-                          "  store i1 %7, i1* %2, align 1\n"
-                          "  %8 = icmp sge i32 %3, %4\n"
-                          "  store i1 %8, i1* %2, align 1\n"
-                          "  %9 = icmp slt i32 %3, %4\n"
-                          "  store i1 %9, i1* %2, align 1\n"
-                          "  %10 = icmp sle i32 %3, %4\n"
-                          "  store i1 %10, i1* %2, align 1\n"
-                          "  %11 = load i1, i1* %2, align 1\n"
-                          "  ret i1 %11\n"
+                          "  %6 = zext i1 %5 to i8\n"
+                          "  store i8 %6, i1* %2, align 1\n"
+                          "  %7 = icmp ne i32 %3, %4\n"
+                          "  %8 = zext i1 %7 to i8\n"
+                          "  store i8 %8, i1* %2, align 1\n"
+                          "  %9 = icmp sgt i32 %3, %4\n"
+                          "  %10 = zext i1 %9 to i8\n"
+                          "  store i8 %10, i1* %2, align 1\n"
+                          "  %11 = icmp sge i32 %3, %4\n"
+                          "  %12 = zext i1 %11 to i8\n"
+                          "  store i8 %12, i1* %2, align 1\n"
+                          "  %13 = icmp slt i32 %3, %4\n"
+                          "  %14 = zext i1 %13 to i8\n"
+                          "  store i8 %14, i1* %2, align 1\n"
+                          "  %15 = icmp sle i32 %3, %4\n"
+                          "  %16 = zext i1 %15 to i8\n"
+                          "  store i8 %16, i1* %2, align 1\n"
+                          "  %17 = load i1, i1* %2, align 1\n"
+                          "  %18 = zext i1 %17 to i32\n"
+                          "  ret i32 %18\n"
                           "}\n");
     }
 
@@ -653,32 +665,41 @@ namespace {
                           "  %0 = alloca i1, align 1\n"
                           "  %1 = alloca i1, align 1\n"
                           "  %2 = alloca i1, align 1\n"
-                          "  store i1 false, i1* %0, align 1\n"
-                          "  store i1 false, i1* %1, align 1\n"
+                          "  store i8 0, i1* %0, align 1\n"
+                          "  store i8 0, i1* %1, align 1\n"
                           "  %3 = load i1, i1* %0, align 1\n"
-                          "  br i1 %3, label %and, label %and1\n"
+                          "  %4 = zext i1 %3 to i8\n"
+                          "  br i8 %4, label %and, label %and1\n"
                           "\n"
                           "and:                                              ; preds = %entry\n"
-                          "  %4 = load i1, i1* %1, align 1\n"
+                          "  %5 = load i1, i1* %1, align 1\n"
+                          "  %6 = zext i1 %5 to i8\n"
+                          "  %7 = trunc i8 %6 to i1\n"
                           "  br label %and1\n"
                           "\n"
                           "and1:                                             ; preds = %and, %entry\n"
-                          "  %5 = phi i1 [ false, %entry ], [ %4, %and ]\n"
-                          "  %6 = zext i1 %5 to i8\n"
-                          "  store i8 %6, i1* %2, align 1\n"
-                          "  %7 = load i1, i1* %0, align 1\n"
-                          "  br i1 %7, label %or2, label %or\n"
+                          "  %8 = phi i1 [ false, %entry ], [ %7, %and ]\n"
+                          "  %9 = zext i1 %8 to i8\n"
+                          "  %10 = trunc i8 %9 to i1\n"
+                          "  %11 = zext i1 %10 to i8\n"
+                          "  store i8 %11, i1* %2, align 1\n"
+                          "  %12 = load i1, i1* %0, align 1\n"
+                          "  %13 = zext i1 %12 to i8\n"
+                          "  br i8 %13, label %or2, label %or\n"
                           "\n"
                           "or:                                               ; preds = %and1\n"
-                          "  %8 = load i1, i1* %1, align 1\n"
+                          "  %14 = load i1, i1* %1, align 1\n"
                           "  br label %or2\n"
                           "\n"
                           "or2:                                              ; preds = %or, %and1\n"
-                          "  %9 = phi i1 [ true, %and1 ], [ %8, %or ]\n"
-                          "  %10 = zext i1 %9 to i8\n"
-                          "  store i8 %10, i1* %2, align 1\n"
-                          "  %11 = load i1, i1* %2, align 1\n"
-                          "  ret i1 %11\n"
+                          "  %15 = phi i1 [ true, %and1 ], [ %14, %or ]\n"
+                          "  %16 = zext i1 %15 to i8\n"
+                          "  %17 = trunc i8 %16 to i1\n"
+                          "  %18 = zext i1 %17 to i8\n"
+                          "  store i8 %18, i1* %2, align 1\n"
+                          "  %19 = load i1, i1* %2, align 1\n"
+                          "  %20 = zext i1 %19 to i32\n"
+                          "  ret i32 %20\n"
                           "}\n");
     }
 
@@ -720,16 +741,17 @@ namespace {
                           "  %1 = alloca i32, align 4\n"
                           "  store i32 %0, i32* %1, align 4\n"
                           "  %2 = load i32, i32* %1, align 4\n"
-                          "  %3 = icmp eq i32 %2, 1\n"
-                          "  br i1 %3, label %ifthen, label %endif\n"
+                          "  %3 = icmp eq i32 1, %2\n"
+                          "  %4 = zext i1 %3 to i8\n"
+                          "  br i8 %4, label %ifthen, label %endif\n"
                           "\n"
                           "ifthen:                                           ; preds = %entry\n"
                           "  store i32 1, i32* %1, align 4\n"
                           "  br label %endif\n"
                           "\n"
                           "endif:                                            ; preds = %ifthen, %entry\n"
-                          "  %4 = load i32, i32* %1, align 4\n"
-                          "  ret i32 %4\n"
+                          "  %5 = load i32, i32* %1, align 4\n"
+                          "  ret i32 %5\n"
                           "}\n");
     }
 
@@ -779,7 +801,8 @@ namespace {
                           "  store i32 %0, i32* %1, align 4\n"
                           "  %2 = load i32, i32* %1, align 4\n"
                           "  %3 = icmp eq i32 %2, 1\n"
-                          "  br i1 %3, label %ifthen, label %else\n"
+                          "  %4 = zext i1 %3 to i8\n"
+                          "  br i8 %4, label %ifthen, label %else\n"
                           "\n"
                           "ifthen:                                           ; preds = %entry\n"
                           "  store i32 1, i32* %1, align 4\n"
@@ -790,8 +813,8 @@ namespace {
                           "  br label %endif\n"
                           "\n"
                           "endif:                                            ; preds = %else, %ifthen\n"
-                          "  %4 = load i32, i32* %1, align 4\n"
-                          "  ret i32 %4\n"
+                          "  %5 = load i32, i32* %1, align 4\n"
+                          "  ret i32 %5\n"
                           "}\n");
     }
 
@@ -855,25 +878,28 @@ namespace {
                           "  store i32 %0, i32* %1, align 4\n"
                           "  %2 = load i32, i32* %1, align 4\n"
                           "  %3 = icmp eq i32 %2, 1\n"
-                          "  br i1 %3, label %ifthen, label %elsif\n"
+                          "  %4 = zext i1 %3 to i8\n"
+                          "  br i8 %4, label %ifthen, label %elsif\n"
                           "\n"
                           "ifthen:                                           ; preds = %entry\n"
                           "  store i32 11, i32* %1, align 4\n"
                           "  br label %endif\n"
                           "\n"
                           "elsif:                                            ; preds = %entry\n"
-                          "  %4 = load i32, i32* %1, align 4\n"
-                          "  %5 = icmp eq i32 %4, 1\n"
-                          "  br i1 %5, label %elsifthen, label %elsif1\n"
+                          "  %5 = load i32, i32* %1, align 4\n"
+                          "  %6 = icmp eq i32 %5, 1\n"
+                          "  %7 = zext i1 %6 to i8\n"
+                          "  br i8 %7, label %elsifthen, label %elsif1\n"
                           "\n"
                           "elsifthen:                                        ; preds = %elsif\n"
                           "  store i32 22, i32* %1, align 4\n"
                           "  br label %endif\n"
                           "\n"
                           "elsif1:                                           ; preds = %elsif\n"
-                          "  %6 = load i32, i32* %1, align 4\n"
-                          "  %7 = icmp eq i32 %6, 1\n"
-                          "  br i1 %7, label %elsifthen2, label %else\n"
+                          "  %8 = load i32, i32* %1, align 4\n"
+                          "  %9 = icmp eq i32 %8, 1\n"
+                          "  %10 = zext i1 %9 to i8\n"
+                          "  br i8 %10, label %elsifthen2, label %else\n"
                           "\n"
                           "elsifthen2:                                       ; preds = %elsif1\n"
                           "  store i32 33, i32* %1, align 4\n"
@@ -884,8 +910,8 @@ namespace {
                           "  br label %endif\n"
                           "\n"
                           "endif:                                            ; preds = %else, %elsifthen2, %elsifthen, %ifthen\n"
-                          "  %8 = load i32, i32* %1, align 4\n"
-                          "  ret i32 %8\n"
+                          "  %11 = load i32, i32* %1, align 4\n"
+                          "  ret i32 %11\n"
                           "}\n");
     }
 
@@ -937,38 +963,39 @@ namespace {
         std::string output = testing::internal::GetCapturedStdout();
 
         EXPECT_EQ(output, "define i32 @main(i32 %0) {\n"
-                          "entry:\n"
-                          "  %1 = alloca i32, align 4\n"
+                          "entry:\n  %1 = alloca i32, align 4\n"
                           "  store i32 %0, i32* %1, align 4\n"
-                          "  %2 = load i32, i32* %1, align 4\n"
-                          "  %3 = icmp eq i32 %2, 1\n"
-                          "  br i1 %3, label %ifthen, label %elsif\n"
+                          "  %2 = load i32, i32* %1, align 4\n"  
+                          "  %3 = icmp eq i32 %2, 1\n" 
+                          "  %4 = zext i1 %3 to i8\n"  
+                          "  br i8 %4, label %ifthen, label %elsif\n"
                           "\n"
                           "ifthen:                                           ; preds = %entry\n"
                           "  store i32 11, i32* %1, align 4\n"
                           "  br label %endif\n"
-                          "\n"
-                          "elsif:                                            ; preds = %entry\n"
-                          "  %4 = load i32, i32* %1, align 4\n"
-                          "  %5 = icmp eq i32 %4, 1\n"
-                          "  br i1 %5, label %elsifthen, label %elsif1\n"
+                          "\nelsif:                                            ; preds = %entry\n"
+                          "  %5 = load i32, i32* %1, align 4\n"
+                          "  %6 = icmp eq i32 %5, 1\n"
+                          "  %7 = zext i1 %6 to i8\n"
+                          "  br i8 %7, label %elsifthen, label %elsif1\n"
                           "\n"
                           "elsifthen:                                        ; preds = %elsif\n"
                           "  store i32 22, i32* %1, align 4\n"
                           "  br label %endif\n"
                           "\n"
                           "elsif1:                                           ; preds = %elsif\n"
-                          "  %6 = load i32, i32* %1, align 4\n"
-                          "  %7 = icmp eq i32 %6, 1\n"
-                          "  br i1 %7, label %elsifthen2, label %endif\n"
+                          "  %8 = load i32, i32* %1, align 4\n"
+                          "  %9 = icmp eq i32 %8, 1\n"
+                          "  %10 = zext i1 %9 to i8\n"
+                          "  br i8 %10, label %elsifthen2, label %endif\n"
                           "\n"
                           "elsifthen2:                                       ; preds = %elsif1\n"
                           "  store i32 33, i32* %1, align 4\n"
                           "  br label %endif\n"
                           "\n"
                           "endif:                                            ; preds = %elsifthen2, %elsif1, %elsifthen, %ifthen\n"
-                          "  %8 = load i32, i32* %1, align 4\n"
-                          "  ret i32 %8\n"
+                          "  %11 = load i32, i32* %1, align 4\n"
+                          "  ret i32 %11\n"
                           "}\n");
     }
 
@@ -1086,7 +1113,8 @@ namespace {
                           "whilecond:                                        ; preds = %whileloop, %entry\n"
                           "  %2 = load i32, i32* %1, align 4\n"
                           "  %3 = icmp eq i32 %2, 1\n"
-                          "  br i1 %3, label %whileloop, label %whileend\n"
+                          "  %4 = zext i1 %3 to i8\n"
+                          "  br i8 %4, label %whileloop, label %whileend\n"
                           "\n"
                           "whileloop:                                        ; preds = %whilecond\n"
                           "  store i32 1, i32* %1, align 4\n"
@@ -1157,16 +1185,17 @@ namespace {
                           "forcond:                                          ; preds = %forpost, %entry\n"
                           "  %3 = load i32, i32* %2, align 4\n"
                           "  %4 = icmp sle i32 %3, 1\n"
-                          "  br i1 %4, label %forloop, label %endfor\n"
+                          "  %5 = zext i1 %4 to i8\n"
+                          "  br i8 %5, label %forloop, label %endfor\n"
                           "\n"
                           "forloop:                                          ; preds = %forcond\n"
                           "  store i32 1, i32* %1, align 4\n"
                           "  br label %forpost\n"
                           "\n"
                           "forpost:                                          ; preds = %forloop\n"
-                          "  %5 = load i32, i32* %2, align 4\n"
-                          "  %6 = add nsw i32 %5, 1\n"
-                          "  store i32 %6, i32* %2, align 4\n"
+                          "  %6 = load i32, i32* %2, align 4\n"
+                          "  %7 = add nsw i32 %6, 1\n"
+                          "  store i32 %7, i32* %2, align 4\n"
                           "  br label %forcond\n"
                           "\n"
                           "endfor:                                           ; preds = %forcond\n"
@@ -1219,7 +1248,8 @@ namespace {
                           "forcond:                                          ; preds = %forloop, %entry\n"
                           "  %2 = load i32, i32* %1, align 4\n"
                           "  %3 = icmp sle i32 %2, 1\n"
-                          "  br i1 %3, label %forloop, label %endfor\n"
+                          "  %4 = zext i1 %3 to i8\n"
+                          "  br i8 %4, label %forloop, label %endfor\n"
                           "\n"
                           "forloop:                                          ; preds = %forcond\n"
                           "  store i32 1, i32* %1, align 4\n"

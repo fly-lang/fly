@@ -1,6 +1,7 @@
 int test() {
 
     bool b;
+    unsigned char c;
 
     unsigned short us;
     short s;
@@ -16,6 +17,8 @@ int test() {
 
     // bool to bool
     b=b;
+    // char to bool
+    b=c;
     // short to bool
     b=s;
     // unsigned short to bool
@@ -33,8 +36,31 @@ int test() {
     // double to bool
     b=d;
 
+    // bool to bool
+    c=b;
+    // char to bool
+    c=c;
+    // short to bool
+    c=s;
+    // unsigned short to bool
+    c=us;
+    // int to bool
+    c=i;
+    // unsigned int to bool
+    c=ui;
+    // long to bool
+    c=l;
+    // unsigned long to bool
+    c=ul;
+    // float to bool
+    c=f;
+    // double to bool
+    c=d;
+
     // bool to short
     s=b;
+    // char to short
+    s=c;
     // short to short
     s=s;
     // unsigned short to short
@@ -54,6 +80,8 @@ int test() {
 
     // bool to unsigned short
     us=b;
+    // char to unsigned short
+    us=c;
     // short to unsigned short
     us=s;
     // unsigned short to unsigned short
@@ -73,6 +101,8 @@ int test() {
 
     // bool to int
     i=b;
+    // char to int
+    i=c;
     // short to int
     i=s;
     // unsigned short to int
@@ -92,6 +122,8 @@ int test() {
 
     // bool to unsigned int
     ui=b;
+    // char to unsigned int
+    ui=c;
     // short to unsigned int
     ui=s;
     // unsigned short to unsigned int
@@ -111,6 +143,8 @@ int test() {
 
     // bool to long
     l=b;
+    // char to long
+    l=c;
     // short to long
     l=s;
     // unsigned short to long
@@ -130,6 +164,8 @@ int test() {
 
     // bool to unsigned long
     ul=b;
+    // char to unsigned long
+    ul=c;
     // short to unsigned long
     ul=s;
     // unsigned short to unsigned long
@@ -149,6 +185,8 @@ int test() {
 
     // bool to float
     f=b;
+    // char to float
+    f=c;
     // short to float
     f=s;
     // unsigned short to float
@@ -168,6 +206,8 @@ int test() {
 
     // bool to double
     d=b;
+    // char to double
+    d=c;
     // short to double
     d=s;
     // unsigned short to double
