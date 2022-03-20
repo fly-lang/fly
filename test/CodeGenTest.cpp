@@ -703,6 +703,72 @@ namespace {
                           "}\n");
     }
 
+    TEST_F(CodeGenTest, CGTernaryOp) {
+        ASTNode *Node = CreateAST();
+
+        // main()
+        ASTFunc *MainFn = new ASTFunc(Node, SourceLoc, new ASTIntType(SourceLoc), "main");
+        Node->AddFunction(MainFn);
+
+        ASTLocalVar *A = new ASTLocalVar(SourceLoc, MainFn->getBody(), new ASTBoolType(SourceLoc), "A");
+        ASTLocalVar *B = new ASTLocalVar(SourceLoc, MainFn->getBody(), new ASTBoolType(SourceLoc), "B");
+        ASTLocalVar *C = new ASTLocalVar(SourceLoc, MainFn->getBody(), new ASTIntType(SourceLoc), "C");
+        MainFn->getBody()->AddLocalVar(A);
+        MainFn->getBody()->AddLocalVar(B);
+        MainFn->getBody()->AddLocalVar(C);
+
+        // Operation And Logic
+        C->setExpr(new ASTTernaryGroupExpr(SourceLoc,
+                                          new ASTBinaryGroupExpr(SourceLoc, fly::COMP_EQ,
+                                                                 new ASTVarRefExpr(new ASTVarRef(A)),
+                                                                 new ASTVarRefExpr(new ASTVarRef(B))),
+                                          new ASTVarRefExpr(new ASTVarRef(A)),
+                                          new ASTVarRefExpr(new ASTVarRef(B))));
+
+        //return test()
+        MainFn->getBody()->AddReturn(SourceLoc, new ASTVarRefExpr(new ASTVarRef(C)));
+        // Resolve Context for Resolutions of Call and Ref
+        Node->Resolve();
+
+        // Generate Code
+        CodeGenModule *CGM = Node->getCodeGen();
+        CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+        CGF->GenBody();
+        Function *F = CGF->getFunction();
+
+        testing::internal::CaptureStdout();
+        F->print(llvm::outs());
+        std::string output = testing::internal::GetCapturedStdout();
+
+        EXPECT_EQ(output, "define i32 @main() {\n"
+                          "entry:\n"
+                          "  %0 = alloca i1, align 1\n"
+                          "  %1 = alloca i1, align 1\n"
+                          "  %2 = alloca i32, align 4\n"
+                          "  store i8 0, i1* %0, align 1\n"
+                          "  store i8 0, i1* %1, align 1\n"
+                          "  %3 = load i1, i1* %0, align 1\n"
+                          "  %4 = load i1, i1* %1, align 1\n"
+                          "  %5 = icmp eq i1 %3, %4\n"
+                          "  br i1 %5, label %terntrue, label %ternfalse\n"
+                          "\n"
+                          "terntrue:                                         ; preds = %entry\n"
+                          "  %6 = load i1, i1* %0, align 1\n"
+                          "  br label %ternend\n"
+                          "\n"
+                          "ternfalse:                                        ; preds = %entry\n"
+                          "  %7 = load i1, i1* %1, align 1\n"
+                          "  br label %ternend\n"
+                          "\n"
+                          "ternend:                                          ; preds = %ternfalse, %terntrue\n"
+                          "  %8 = phi i1 [ %6, %terntrue ], [ %7, %ternfalse ]\n"
+                          "  %9 = zext i1 %8 to i32\n"
+                          "  store i32 %9, i32* %2, align 4\n"
+                          "  %10 = load i32, i32* %2, align 4\n"
+                          "  ret i32 %10\n"
+                          "}\n");
+    }
+
     TEST_F(CodeGenTest, CGIfBlock) {
         ASTNode *Node = CreateAST();
 

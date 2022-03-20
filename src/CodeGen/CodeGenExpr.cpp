@@ -485,7 +485,6 @@ Value *CodeGenExpr::GenBinaryLogic(const ASTExpr *E1, BinaryOpKind Op, const AST
             CGM->Builder->SetInsertPoint(LeftBB);
             llvm::Value *PtrV2 = nullptr;
             llvm::Value *V2 = GenValue(E2, PtrV2);
-            V2 = Convert(V2, E2->getType(), BoolType);
             llvm::Value *V2Trunc = CGM->Builder->CreateTrunc(V2, CGM->BoolTy);
             CGM->Builder->CreateBr(RightBB);
 
@@ -522,10 +521,36 @@ Value *CodeGenExpr::GenBinaryLogic(const ASTExpr *E1, BinaryOpKind Op, const AST
 }
 
 llvm::Value *CodeGenExpr::GenTernary(ASTTernaryGroupExpr *Expr) {
-    assert(Expr->getGroupKind() != GROUP_TERNARY && "Expected Ternary Group Expr");
+    assert(Expr->getGroupKind() == GROUP_TERNARY && "Expected Ternary Group Expr");
     assert(Expr->getFirst() && "First Expr is empty");
     assert(Expr->getSecond() && "Second Expr is empty");
-    assert(Expr->getFirst() && "Third Expr is empty");
+    assert(Expr->getThird() && "Third Expr is empty");
 
-    // TODO
+    ASTBoolType * BoolType = new ASTBoolType(SourceLocation());
+    llvm::Value *Condition = GenValue(Expr->getFirst());
+
+    // Create Blocks
+    llvm::BasicBlock *TrueBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "terntrue", Fn);
+    llvm::BasicBlock *FalseBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "ternfalse", Fn);
+    llvm::BasicBlock *EndBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "ternend", Fn);
+
+    // Create Condition
+    CGM->Builder->CreateCondBr(Condition, TrueBB, FalseBB);
+
+    // True Label
+    CGM->Builder->SetInsertPoint(TrueBB);
+    llvm::Value *True = GenValue(Expr->getSecond());
+    CGM->Builder->CreateBr(EndBB);
+
+    // False Label
+    CGM->Builder->SetInsertPoint(FalseBB);
+    llvm::Value *False = GenValue(Expr->getThird());
+    CGM->Builder->CreateBr(EndBB);
+
+    // End Label
+    CGM->Builder->SetInsertPoint(EndBB);
+    PHINode *Phi = CGM->Builder->CreatePHI(CGM->BoolTy, 2);
+    Phi->addIncoming(True, TrueBB);
+    Phi->addIncoming(False, FalseBB);
+    return Phi;
 }

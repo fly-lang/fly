@@ -591,6 +591,28 @@ namespace {
         delete AST;
     }
 
+    TEST_F(ParserTest, DISABLED_CondTernaryOperation) {
+        llvm::StringRef str = ("int func(bool a) {\n"
+                               "  return a==1 ? 1 : a\n"
+                               "}\n");
+        ASTNode *AST = Parse("CondTernaryOperation", str);
+
+        ASSERT_FALSE(Diags.hasErrorOccurred());
+
+        // Get Body
+        ASTFunc *F = *(AST->getNameSpace()->getFunctions().begin());
+        ASTFuncParam *a = F->getHeader()->getParams()[0];
+        const ASTBlock *Body = F->getBody();
+
+        ASTReturn *Ret = (ASTReturn *) Body->getContent()[0];
+        ASTTernaryGroupExpr *Expr = (ASTTernaryGroupExpr *) Ret->getExpr();
+        EXPECT_EQ(((ASTBinaryGroupExpr *) Expr->getFirst())->getOperatorKind(), BinaryOpKind::COMP_EQ);
+        EXPECT_EQ(((ASTValueExpr *) Expr->getSecond())->getValue().str(), "1");
+        EXPECT_EQ(((ASTVarRefExpr *) Expr->getThird())->getVarRef()->getName(), "a");
+
+        delete AST;
+    }
+
     TEST_F(ParserTest, FunctionCall) {
         llvm::StringRef str = ("namespace std\n"
                                "private int doSome() {return 1}\n"

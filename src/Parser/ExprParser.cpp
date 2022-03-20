@@ -190,8 +190,27 @@ ASTExpr *ExprParser::ParseExpr(ASTBlock *Block, bool Start) {
             return (ASTBinaryGroupExpr *) Group[0];
         }
 
-    } else if (isTernaryOperator()) { // Parse Ternary Expression
-        return ParseTernaryExpr(Block, Expr);
+    } else if (P->Tok.getKind() == tok::question) { // Parse Ternary Expression
+        // Parse if condition after the ?
+        P->ConsumeToken();
+
+        // Parse else condition after the :
+        ExprParser SubSecond(P);
+        ASTExpr *Second = SubSecond.ParseExpr(Block);
+        if (Second) {
+            if (P->Tok.getKind() == tok::colon) {
+                P->ConsumeToken();
+
+                ExprParser SubThird(P);
+                ASTExpr *Third = SubThird.ParseExpr(Block);
+                if (Third != nullptr)
+                    return new ASTTernaryGroupExpr(Expr->getLocation(), Expr, Second, Third);
+            }
+        }
+
+        // Error: missing operator
+        P->Diag(P->Tok.getLocation(), diag::err_parser_miss_oper);
+        return nullptr;
     }
 
     return Expr;
@@ -391,30 +410,6 @@ void ExprParser::UpdateBinaryGroup(bool NoPrecedence) {
         }
     }
     Group = Result;
-}
-
-ASTTernaryGroupExpr* ExprParser::ParseTernaryExpr(ASTBlock *Block, ASTExpr *First) {
-
-    // Parse if condition after the ?
-    if (P->Tok.getKind() == tok::question) {
-        P->ConsumeToken();
-
-        // Parse else condition after the :
-        ASTExpr *Second = ParseExpr(Block);
-        if (Second) {
-            if (P->Tok.getKind() == tok::semi) {
-                P->ConsumeToken();
-
-                ASTExpr *Third = ParseExpr(Block);
-                if (Third != nullptr)
-                    return new ASTTernaryGroupExpr(First->getLocation(), First, Second, Third);
-            }
-        }
-
-        // Error: missing operator
-        P->Diag(P->Tok.getLocation(), diag::err_parser_miss_oper);
-        return nullptr;
-    }
 }
 
 /**
