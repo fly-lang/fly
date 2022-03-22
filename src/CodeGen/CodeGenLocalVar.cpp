@@ -30,8 +30,9 @@ llvm::Value *CodeGenLocalVar::getValue() {
 }
 
 llvm::AllocaInst *CodeGenLocalVar::Alloca() {
-    const ASTType *Tyb = Var->getType();
-    Type *Ty = CGM->GenType(Tyb);
+    const ASTType *T = Var->getType();
+    // Fix Architecture Compatibility of bool i1 to i8
+    Type *Ty = T->getKind() == TYPE_BOOL ? CGM->Int8Ty : CGM->GenType(T);
     AllocaI = CGM->Builder->CreateAlloca(Ty);
     AllocaI->getAllocatedType();
     return AllocaI;
@@ -40,6 +41,9 @@ llvm::AllocaInst *CodeGenLocalVar::Alloca() {
 llvm::StoreInst *CodeGenLocalVar::Store(llvm::Value *Val) {
     assert(!Var->isConstant() && "Cannot store into constant var");
     assert(AllocaI && "Cannot store into unallocated stack");
+    if (Var->getType()->getKind() == TYPE_BOOL) { // Fix Architecture Compatibility of bool i1 to i8
+        Val = CGM->Builder->CreateZExt(Val, CGM->Int8Ty);
+    }
     llvm::StoreInst *S = CGM->Builder->CreateStore(Val, AllocaI);
     isStored = true;
     Reload = true;

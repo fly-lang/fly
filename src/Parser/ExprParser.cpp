@@ -187,31 +187,32 @@ ASTExpr *ExprParser::ParseExpr(ASTBlock *Block, bool Start) {
             assert(Group.size() == 1 && "Only one Group entry at the end");
             assert(Group[0]->getKind() == EXPR_GROUP && "Only one Group entry at the end");
             assert(((ASTGroupExpr *) Group[0])->getGroupKind() == GROUP_BINARY && "Only one Group entry at the end");
-            return (ASTBinaryGroupExpr *) Group[0];
+            Expr = Group[0];
         }
-
-    } else if (P->Tok.getKind() == tok::question) { // Parse Ternary Expression
-        // Parse if condition after the ?
+    }
+    
+    if (P->Tok.is(tok::question) && Start) { // Parse Ternary Expression
+        
+        // Parse True Expr
         P->ConsumeToken();
 
-        // Parse else condition after the :
         ExprParser SubSecond(P);
-        ASTExpr *Second = SubSecond.ParseExpr(Block);
-        if (Second) {
-            if (P->Tok.getKind() == tok::colon) {
-                P->ConsumeToken();
+        ASTExpr *True = SubSecond.ParseExpr(Block);
 
-                ExprParser SubThird(P);
-                ASTExpr *Third = SubThird.ParseExpr(Block);
-                if (Third != nullptr)
-                    return new ASTTernaryGroupExpr(Expr->getLocation(), Expr, Second, Third);
-            }
+        if (P->Tok.getKind() == tok::colon) {
+            P->ConsumeToken();
+
+            ExprParser SubThird(P);
+            ASTExpr *False = SubThird.ParseExpr(Block);
+            if (False != nullptr)
+                return new ASTTernaryGroupExpr(Expr->getLocation(), Expr, True, False);
         }
 
-        // Error: missing operator
+        // Error: Invalid operator in Ternary condition
         P->Diag(P->Tok.getLocation(), diag::err_parser_miss_oper);
         return nullptr;
     }
+
 
     return Expr;
 }

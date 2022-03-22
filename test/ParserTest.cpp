@@ -591,7 +591,7 @@ namespace {
         delete AST;
     }
 
-    TEST_F(ParserTest, DISABLED_CondTernaryOperation) {
+    TEST_F(ParserTest, CondTernaryOperation) {
         llvm::StringRef str = ("int func(bool a) {\n"
                                "  return a==1 ? 1 : a\n"
                                "}\n");
@@ -606,7 +606,10 @@ namespace {
 
         ASTReturn *Ret = (ASTReturn *) Body->getContent()[0];
         ASTTernaryGroupExpr *Expr = (ASTTernaryGroupExpr *) Ret->getExpr();
-        EXPECT_EQ(((ASTBinaryGroupExpr *) Expr->getFirst())->getOperatorKind(), BinaryOpKind::COMP_EQ);
+        ASTBinaryGroupExpr *Comp = ((ASTBinaryGroupExpr *) Expr->getFirst());
+        EXPECT_EQ(Comp->getOperatorKind(), BinaryOpKind::COMP_EQ);
+        EXPECT_EQ(((ASTVarRefExpr *) Comp->getFirst())->getVarRef()->getName(), "a");
+        EXPECT_EQ(((ASTValueExpr *) Comp->getSecond())->getValue().str(), "1");
         EXPECT_EQ(((ASTValueExpr *) Expr->getSecond())->getValue().str(), "1");
         EXPECT_EQ(((ASTVarRefExpr *) Expr->getThird())->getVarRef()->getName(), "a");
 

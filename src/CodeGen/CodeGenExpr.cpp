@@ -42,8 +42,7 @@ llvm::Value *CodeGenExpr::Convert(llvm::Value *FromVal, const ASTType *FromType,
         case TYPE_BOOL:
             switch (FromType->getKind()) {
                 case TYPE_BOOL: {
-                    llvm::Value *ToVal = CGM->Builder->CreateTrunc(FromVal, CGM->BoolTy);
-                    return CGM->Builder->CreateZExt(ToVal, CGM->Int8Ty);
+                    return CGM->Builder->CreateTrunc(FromVal, CGM->BoolTy);
                 }
                 case TYPE_BYTE:
                 case TYPE_USHORT:
@@ -53,14 +52,12 @@ llvm::Value *CodeGenExpr::Convert(llvm::Value *FromVal, const ASTType *FromType,
                 case TYPE_ULONG:
                 case TYPE_LONG: {
                     llvm::Value *ZERO = llvm::ConstantInt::get(FromLLVMType, 0, false);
-                    llvm::Value *ToVal = CGM->Builder->CreateICmpNE(FromVal, ZERO);
-                    return CGM->Builder->CreateZExt(ToVal, CGM->Int8Ty);
+                    return CGM->Builder->CreateICmpNE(FromVal, ZERO);
                 }
                 case TYPE_FLOAT:
                 case TYPE_DOUBLE:
                     llvm::Value *ZERO = llvm::ConstantInt::get(FromLLVMType, 0, false);
-                    llvm::Value *ToVal = CGM->Builder->CreateFCmpUNE(FromVal, ZERO);
-                    return CGM->Builder->CreateZExt(ToVal, CGM->Int8Ty);
+                    return CGM->Builder->CreateFCmpUNE(FromVal, ZERO);
             }
 
             // to INT 8
@@ -493,7 +490,7 @@ Value *CodeGenExpr::GenBinaryLogic(const ASTExpr *E1, BinaryOpKind Op, const AST
             PHINode *Phi = CGM->Builder->CreatePHI(CGM->BoolTy, 2);
             Phi->addIncoming(llvm::ConstantInt::get(CGM->BoolTy, false, false), FromBB);
             Phi->addIncoming(V2Trunc, LeftBB);
-            return CGM->Builder->CreateZExt(Phi, CGM->Int8Ty);
+            return Phi;
         }
         case LOGIC_OR: {
             llvm::BasicBlock *LeftBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "or", Fn);
@@ -514,7 +511,7 @@ Value *CodeGenExpr::GenBinaryLogic(const ASTExpr *E1, BinaryOpKind Op, const AST
             PHINode *Phi = CGM->Builder->CreatePHI(CGM->BoolTy, 2);
             Phi->addIncoming(llvm::ConstantInt::get(CGM->BoolTy, true, false), FromBB);
             Phi->addIncoming(V2Trunc, LeftBB);
-            return CGM->Builder->CreateZExt(Phi, CGM->Int8Ty);
+            return Phi;
         }
     }
     assert(0 && "Invalid Logic Operator");
@@ -527,7 +524,7 @@ llvm::Value *CodeGenExpr::GenTernary(ASTTernaryGroupExpr *Expr) {
     assert(Expr->getThird() && "Third Expr is empty");
 
     ASTBoolType * BoolType = new ASTBoolType(SourceLocation());
-    llvm::Value *Condition = GenValue(Expr->getFirst());
+    llvm::Value *Cond = GenValue(Expr->getFirst());
 
     // Create Blocks
     llvm::BasicBlock *TrueBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "terntrue", Fn);
@@ -535,22 +532,24 @@ llvm::Value *CodeGenExpr::GenTernary(ASTTernaryGroupExpr *Expr) {
     llvm::BasicBlock *EndBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "ternend", Fn);
 
     // Create Condition
-    CGM->Builder->CreateCondBr(Condition, TrueBB, FalseBB);
+    CGM->Builder->CreateCondBr(Cond, TrueBB, FalseBB);
 
     // True Label
     CGM->Builder->SetInsertPoint(TrueBB);
     llvm::Value *True = GenValue(Expr->getSecond());
+    llvm::Value *BoolTrue = Convert(True, Expr->getSecond()->getType(), BoolType);
     CGM->Builder->CreateBr(EndBB);
 
     // False Label
     CGM->Builder->SetInsertPoint(FalseBB);
     llvm::Value *False = GenValue(Expr->getThird());
+    llvm::Value *BoolFalse = Convert(False, Expr->getThird()->getType(), BoolType);
     CGM->Builder->CreateBr(EndBB);
 
     // End Label
     CGM->Builder->SetInsertPoint(EndBB);
     PHINode *Phi = CGM->Builder->CreatePHI(CGM->BoolTy, 2);
-    Phi->addIncoming(True, TrueBB);
-    Phi->addIncoming(False, FalseBB);
+    Phi->addIncoming(BoolTrue, TrueBB);
+    Phi->addIncoming(BoolFalse, FalseBB);
     return Phi;
 }
