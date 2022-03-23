@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.18.0)
-project(Fly VERSION 0.2.0 LANGUAGES C CXX ASM)
+project(Fly VERSION 0.3.0 LANGUAGES C CXX ASM)
 #set(FLY_VERSION_PHASE alpha) #remove this line for stable release
 if(DEFINED FLY_VERSION_PHASE)
     set(FLY_VERSION "${PROJECT_VERSION}-${FLY_VERSION_PHASE}")
