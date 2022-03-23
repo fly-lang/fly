@@ -11,7 +11,6 @@
 #ifndef FLY_CODEGENEXPR_H
 #define FLY_CODEGENEXPR_H
 
-#include <AST/ASTOperatorExpr.h>
 #include "AST/ASTExpr.h"
 #include "CodeGenModule.h"
 
@@ -19,24 +18,7 @@
 namespace fly {
 
     class CodeGenModule;
-    class ASTOperatorExpr;
-    class ASTArithExpr;
-
-    class VirtualExpr : public ASTExpr {
-
-        llvm::Value *Val;
-
-    public:
-        VirtualExpr(llvm::Value *Val);
-
-        ASTExprKind getKind() const override;
-
-        ASTType *getType() const;
-
-        llvm::Value *getVal() const;
-
-        std::string str() const override;
-    };
+    class ASTArithOpExpr;
 
     class CodeGenExpr {
 
@@ -44,41 +26,34 @@ namespace fly {
 
         llvm::Value *Val;
 
-        std::vector<llvm::Value *> PostValues;
+//        std::vector<llvm::Value *> PostValues;
 
         llvm::Function *Fn;
 
     public:
-        CodeGenExpr(CodeGenModule *CGM, llvm::Function *Fn, ASTExpr *Expr, const ASTType *Type);
+        CodeGenExpr(CodeGenModule *CGM, llvm::Function *Fn, ASTExpr *Expr, const ASTType *ToType);
 
         llvm::Value *getValue() const;
 
-        llvm::Value *Generate(ASTExpr *Origin);
+        llvm::Value *Convert(llvm::Value *FromVal, const ASTType *FromType, const ASTType *ToType);
 
-        llvm::Value *Convert(llvm::Value *V, const ASTType *ToType);
+        llvm::Value *GenValue(const ASTExpr *Origin, llvm::Value *Pointer = nullptr);
 
-        llvm::Value *Convert(llvm::Value *V, llvm::Type *ToType);
+        llvm::Value *GenGroup(ASTGroupExpr *Group);
 
-        llvm::Value *GenValue(ASTExpr *Origin);
+        llvm::Value *GenUnary(ASTUnaryGroupExpr *Expr);
 
-        llvm::Value *GenValue(ASTExpr *Origin, llvm::Value *&Pointer);
+        llvm::Value *GenBinary(ASTBinaryGroupExpr *Expr);
 
-        llvm::Value *GenGroup(ASTGroupExpr *Origin, ASTGroupExpr *New, int Idx, ASTExpr *E1 = nullptr,
-                              ASTOperatorExpr * OP1 = nullptr);
+        llvm::Value *GenTernary(ASTTernaryGroupExpr *Expr);
 
-        bool hasOpPrecedence(ASTExpr *OP);
+        Value *GenBinaryArith(const ASTExpr *E1, BinaryOpKind Op, const ASTExpr *E2);
 
-        bool canIterate(int Idx, ASTGroupExpr *Group);
+        bool isSigned(const ASTType * T1);
 
-        llvm::Value *OpUnary(ASTUnaryExpr *E);
+        Value *GenBinaryComparison(const ASTExpr *E1, BinaryOpKind Op, const ASTExpr *E2);
 
-        llvm::Value *OpBinary(ASTExpr *E1, ASTOperatorExpr *OP, ASTExpr *E2);
-
-        Value *OpArith(ASTExpr *E1, ASTArithExpr *OP, ASTExpr *E2);
-
-        Value *OpComparison(ASTExpr *E1, fly::ASTComparisonExpr *OP, ASTExpr *E2);
-
-        Value *OpLogic(ASTExpr *E1, ASTLogicExpr *OP, ASTExpr *E2);
+        Value *GenBinaryLogic(const ASTExpr *E1, BinaryOpKind Op, const ASTExpr *E2);
     };
 }
 

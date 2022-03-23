@@ -134,7 +134,7 @@ ASTExpr *ASTFuncParam::getExpr() const {
 }
 
 void ASTFuncParam::setExpr(ASTExpr *E) {
-    assert(E->getKind() == EXPR_VALUE && "Invalid Value for GlobalVar");
+    assert(E->getKind() == EXPR_VALUE && "Invalid Value for Param");
     Expr = (ASTValueExpr *)E;
 }
 
@@ -287,25 +287,6 @@ std::string ASTFuncCall::str() const {
     }
     Str += "] }";
     return Str;
-}
-
-ASTFuncCallStmt::ASTFuncCallStmt(const SourceLocation &Loc, ASTBlock *Block, ASTFuncCall *Call) :
-    ASTStmt(Loc, Block), Call(Call) {
-
-}
-
-StmtKind ASTFuncCallStmt::getKind() const {
-    return STMT_FUNC_CALL;
-}
-
-ASTFuncCall *ASTFuncCallStmt::getCall() const {
-    return Call;
-}
-
-std::string ASTFuncCallStmt::str() const {
-    return "{ Call=" + Call->str() +
-           ", Kind=" + std::to_string(STMT_FUNC_CALL) +
-           " }";
 }
 
 ASTCallArg::ASTCallArg(ASTExpr *Value, ASTType *Type) : Value(Value), Type(Type) {

@@ -55,33 +55,41 @@ define dso_local i32 @main() #0 {
   %35 = add nsw i32 %34, 1
   store i32 %35, i32* %3, align 4
   %36 = load i32, i32* %3, align 4
-  %37 = add nsw i32 %36, -1
+  %37 = add nsw i32 %36, 1
   store i32 %37, i32* %3, align 4
-  %38 = load i32, i32* %1, align 4
-  %39 = load i32, i32* %3, align 4
-  %40 = add nsw i32 %39, %38
-  store i32 %40, i32* %3, align 4
-  %41 = load i32, i32* %1, align 4
-  %42 = load i32, i32* %3, align 4
-  %43 = sub nsw i32 %42, %41
-  store i32 %43, i32* %3, align 4
-  %44 = load i32, i32* %1, align 4
-  %45 = load i32, i32* %3, align 4
-  %46 = mul nsw i32 %45, %44
-  store i32 %46, i32* %3, align 4
-  %47 = load i32, i32* %1, align 4
-  %48 = load i32, i32* %3, align 4
-  %49 = sdiv i32 %48, %47
-  store i32 %49, i32* %3, align 4
-  %50 = load i32, i32* %1, align 4
-  %51 = load i32, i32* %3, align 4
-  %52 = srem i32 %51, %50
-  store i32 %52, i32* %3, align 4
+  %38 = load i32, i32* %3, align 4
+  %39 = add nsw i32 %38, -1
+  store i32 %39, i32* %3, align 4
+  %40 = load i32, i32* %3, align 4
+  %41 = add nsw i32 %40, -1
+  store i32 %41, i32* %3, align 4
+  %42 = load i32, i32* %1, align 4
+  %43 = load i32, i32* %3, align 4
+  %44 = add nsw i32 %43, %42
+  store i32 %44, i32* %3, align 4
+  %45 = load i32, i32* %1, align 4
+  %46 = load i32, i32* %3, align 4
+  %47 = sub nsw i32 %46, %45
+  store i32 %47, i32* %3, align 4
+  %48 = load i32, i32* %1, align 4
+  %49 = load i32, i32* %3, align 4
+  %50 = mul nsw i32 %49, %48
+  store i32 %50, i32* %3, align 4
+  %51 = load i32, i32* %1, align 4
+  %52 = load i32, i32* %3, align 4
+  %53 = sdiv i32 %52, %51
+  store i32 %53, i32* %3, align 4
+  %54 = load i32, i32* %1, align 4
+  %55 = load i32, i32* %3, align 4
+  %56 = srem i32 %55, %54
+  store i32 %56, i32* %3, align 4
   ret i32 0
 }
 
 attributes #0 = { noinline norecurse nounwind optnone uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "frame-pointer"="all" "less-precise-fpmad"="false" "min-legal-vector-width"="0" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 
 !llvm.module.flags = !{!0}
+!llvm.ident = !{!1}
 
 !0 = !{i32 1, !"wchar_size", i32 4}
+!1 = !{!"Debian clang version 11.1.0-++20211011094159+1fdec59bffc1-1~exp1~20211011214627.7"}

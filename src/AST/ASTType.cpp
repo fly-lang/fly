@@ -12,55 +12,67 @@
 
 using namespace fly;
 
-ASTType::ASTType(SourceLocation Loc) : Loc(Loc) {}
+ASTType::ASTType(SourceLocation Loc, TypeKind Kind) : Loc(Loc), Kind(Kind) {}
 
 const SourceLocation &ASTType::getLocation() const  {
     return Loc;
+}
+
+const TypeKind &ASTType::getKind() const  {
+    return Kind;
 }
 
 bool ASTType::equals(ASTType *Ty) const {
     return this->getKind() == Ty->getKind();
 }
 
-ASTIntType::ASTIntType(SourceLocation Loc)  : ASTType(Loc) {
+ASTVoidType::ASTVoidType(SourceLocation Loc) : ASTType(Loc, TypeKind::TYPE_VOID) {
 
 }
 
-const TypeKind &ASTIntType::getKind() const {
-    return Kind;
-}
-
-ASTFloatType::ASTFloatType(SourceLocation Loc) : ASTType(Loc) {
+ASTBoolType::ASTBoolType(SourceLocation Loc) : ASTType(Loc, TypeKind::TYPE_BOOL) {
 
 }
 
-const TypeKind &ASTFloatType::getKind() const {
-    return Kind;
-}
-
-ASTBoolType::ASTBoolType(SourceLocation Loc) : ASTType(Loc) {
+ASTByteType::ASTByteType(SourceLocation Loc) : ASTType(Loc, TypeKind::TYPE_BYTE) {
 
 }
 
-const TypeKind &ASTBoolType::getKind() const  {
-    return Kind;
-}
-
-ASTVoidType::ASTVoidType(SourceLocation Loc) : ASTType(Loc) {
+ASTUShortType::ASTUShortType(SourceLocation Loc) : ASTType(Loc, TypeKind::TYPE_USHORT) {
 
 }
 
-const TypeKind &ASTVoidType::getKind() const {
-    return Kind;
-}
-
-ASTClassType::ASTClassType(SourceLocation Loc, std::string Name, std::string NameSpace) : ASTType(Loc), Name(Name) {
+ASTShortType::ASTShortType(SourceLocation Loc) : ASTType(Loc, TypeKind::TYPE_SHORT) {
 
 }
 
+ASTUIntType::ASTUIntType(SourceLocation Loc)  : ASTType(Loc, TypeKind::TYPE_UINT) {
 
-const TypeKind &ASTClassType::getKind() const {
-    return Kind;
+}
+
+ASTIntType::ASTIntType(SourceLocation Loc)  : ASTType(Loc, TypeKind::TYPE_INT) {
+
+}
+
+ASTULongType::ASTULongType(SourceLocation Loc)  : ASTType(Loc, TypeKind::TYPE_ULONG) {
+
+}
+
+ASTLongType::ASTLongType(SourceLocation Loc)  : ASTType(Loc, TypeKind::TYPE_LONG) {
+
+}
+
+ASTFloatType::ASTFloatType(SourceLocation Loc) : ASTType(Loc, TypeKind::TYPE_FLOAT) {
+
+}
+
+ASTDoubleType::ASTDoubleType(SourceLocation Loc) : ASTType(Loc, TypeKind::TYPE_DOUBLE) {
+
+}
+
+ASTClassType::ASTClassType(SourceLocation Loc, std::string Name, std::string NameSpace) :
+    ASTType(Loc, TypeKind::TYPE_CLASS), Name(Name) {
+
 }
 
 const std::string &ASTClassType::getName() const {

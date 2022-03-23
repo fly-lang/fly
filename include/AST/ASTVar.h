@@ -75,8 +75,8 @@ namespace fly {
         friend class Parser;
 
         const SourceLocation Loc;
-        std::string NameSpace;
-        std::string Name;
+        const std::string NameSpace;
+        const std::string Name;
 
         ASTVar *Decl = nullptr;
 

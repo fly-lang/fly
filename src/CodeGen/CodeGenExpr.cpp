@@ -13,152 +13,254 @@
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTLocalVar.h"
 #include "AST/ASTExpr.h"
-#include "AST/ASTOperatorExpr.h"
 #include "Basic/Debug.h"
 #include "llvm/IR/Value.h"
 
 using namespace fly;
 
-VirtualExpr::VirtualExpr(llvm::Value *Val) : Val(Val), ASTExpr(SourceLocation()) {}
-
-ASTExprKind VirtualExpr::getKind() const {
-    return ASTExprKind::EXPR_VIRTUAL;
-}
-
-ASTType *VirtualExpr::getType() const {
-    return nullptr;
-}
-
-llvm::Value *VirtualExpr::getVal() const {
-    return Val;
-}
-
-std::string VirtualExpr::str() const {
-    return "{ Type=, Kind=" + std::to_string(ASTExprKind::EXPR_VIRTUAL) +
-           ", Val=" + Val->getName().str() +
-           " }";
-}
-
-CodeGenExpr::CodeGenExpr(CodeGenModule *CGM, llvm::Function *Fn, ASTExpr *Expr, const ASTType *Type) :
+CodeGenExpr::CodeGenExpr(CodeGenModule *CGM, llvm::Function *Fn, ASTExpr *Expr, const ASTType *ToType) :
         CGM(CGM), Fn(Fn) {
     FLY_DEBUG("CodeGenExpr", "CodeGenExpr");
-    Value *ExprVal = Generate(Expr);
-    for (auto &Value : PostValues) {
-        CGM->Builder->Insert(Value);
-    }
-    Val = Convert(ExprVal, Type);
+    ASTType *FromType = Expr->getType();
+    llvm::Value *TheVal = GenValue(Expr);
+    Val = Convert(TheVal, FromType, ToType);
 }
 
 llvm::Value *CodeGenExpr::getValue() const {
     return Val;
 }
 
-llvm::Value *CodeGenExpr::Generate(ASTExpr *Expr) {
-    FLY_DEBUG("CodeGenExpr", "Convert");
-    // Generate Values from a Group
-    if (Expr->getKind() == EXPR_GROUP) {
-        return GenGroup((ASTGroupExpr *) Expr, new ASTGroupExpr(SourceLocation()), 0);
-    }
-    // Generate Value from a single expr
-    return GenValue(Expr);
-}
-
-llvm::Value *CodeGenExpr::Convert(llvm::Value *V, const ASTType *ToType) {
+llvm::Value *CodeGenExpr::Convert(llvm::Value *FromVal, const ASTType *FromType, const ASTType *ToType) {
     FLY_DEBUG_MESSAGE("CodeGenExpr", "Convert",
-                      "Value=" << V << " to ASTType=" << ToType->str());
+                      "Value=" << FromVal << " to ASTType=" << ToType->str());
     assert(ToType && "Invalid conversion type");
+
+    llvm::Type *FromLLVMType = FromVal->getType();
     switch (ToType->getKind()) {
-        case TYPE_INT: // TO INT 32
-            return Convert(V, CGM->Int32Ty);
-        case TYPE_FLOAT: // TO FLOAT 32
-            return Convert(V, CGM->FloatTy);
-        case TYPE_BOOL: // INT 8
-            return Convert(V, CGM->BoolTy);
+
+            // to INT 1
+        case TYPE_BOOL:
+            switch (FromType->getKind()) {
+                case TYPE_BOOL: {
+                    return CGM->Builder->CreateTrunc(FromVal, CGM->BoolTy);
+                }
+                case TYPE_BYTE:
+                case TYPE_USHORT:
+                case TYPE_SHORT:
+                case TYPE_UINT:
+                case TYPE_INT:
+                case TYPE_ULONG:
+                case TYPE_LONG: {
+                    llvm::Value *ZERO = llvm::ConstantInt::get(FromLLVMType, 0, false);
+                    return CGM->Builder->CreateICmpNE(FromVal, ZERO);
+                }
+                case TYPE_FLOAT:
+                case TYPE_DOUBLE:
+                    llvm::Value *ZERO = llvm::ConstantInt::get(FromLLVMType, 0, false);
+                    return CGM->Builder->CreateFCmpUNE(FromVal, ZERO);
+            }
+
+            // to INT 8
+        case TYPE_BYTE:
+            switch (FromType->getKind()) {
+                case TYPE_BOOL: {
+                    llvm::Value *ToVal = CGM->Builder->CreateTrunc(FromVal, CGM->BoolTy);
+                    return CGM->Builder->CreateZExt(ToVal, CGM->Int8Ty);
+                }
+                case TYPE_BYTE:
+                    return FromVal;
+                case TYPE_USHORT:
+                case TYPE_SHORT:
+                case TYPE_UINT:
+                case TYPE_INT:
+                case TYPE_ULONG:
+                case TYPE_LONG:
+                    return CGM->Builder->CreateTrunc(FromVal, CGM->Int8Ty);
+                case TYPE_FLOAT:
+                case TYPE_DOUBLE:
+                    return CGM->Builder->CreateFPToUI(FromVal, CGM->Int8Ty);
+            }
+
+            // to Unsigned INT 16
+        case TYPE_USHORT:
+            switch (FromType->getKind()) {
+                case TYPE_BOOL: {
+                    llvm::Value *ToVal = CGM->Builder->CreateTrunc(FromVal, CGM->BoolTy);
+                    return CGM->Builder->CreateZExt(ToVal, CGM->Int16Ty);
+                }
+                case TYPE_BYTE:
+                    return CGM->Builder->CreateZExt(FromVal, CGM->Int16Ty);
+                case TYPE_USHORT:
+                case TYPE_SHORT:
+                    return FromVal;
+                case TYPE_UINT:
+                case TYPE_INT:
+                case TYPE_ULONG:
+                case TYPE_LONG:
+                    return CGM->Builder->CreateTrunc(FromVal, CGM->Int16Ty);
+                case TYPE_FLOAT:
+                case TYPE_DOUBLE:
+                    return CGM->Builder->CreateFPToUI(FromVal, CGM->Int16Ty);
+            }
+
+            // to Signed INT 16
+        case TYPE_SHORT:
+            switch (FromType->getKind()) {
+                case TYPE_BOOL: {
+                    llvm::Value *ToVal = CGM->Builder->CreateTrunc(FromVal, CGM->BoolTy);
+                    return CGM->Builder->CreateZExt(ToVal, CGM->Int16Ty);
+                }
+                case TYPE_BYTE:
+                    return CGM->Builder->CreateZExt(FromVal, CGM->Int16Ty);
+                case TYPE_USHORT:
+                case TYPE_SHORT:
+                    return FromVal;
+                case TYPE_UINT:
+                case TYPE_INT:
+                case TYPE_ULONG:
+                case TYPE_LONG:
+                    return CGM->Builder->CreateTrunc(FromVal, CGM->Int16Ty);
+                case TYPE_FLOAT:
+                case TYPE_DOUBLE:
+                    return CGM->Builder->CreateFPToSI(FromVal, CGM->Int16Ty);
+            }
+
+            // to Unsigned INT 32
+        case TYPE_UINT:
+            switch (FromType->getKind()) {
+                case TYPE_BOOL: {
+                    llvm::Value *ToVal = CGM->Builder->CreateTrunc(FromVal, CGM->BoolTy);
+                    return CGM->Builder->CreateZExt(ToVal, CGM->Int32Ty);
+                }
+                case TYPE_BYTE:
+                case TYPE_USHORT:
+                    return CGM->Builder->CreateZExt(FromVal, CGM->Int32Ty);
+                case TYPE_SHORT:
+                    return CGM->Builder->CreateSExt(FromVal, CGM->Int32Ty);
+                case TYPE_UINT:
+                case TYPE_INT:
+                    return FromVal;
+                case TYPE_ULONG:
+                case TYPE_LONG:
+                    return CGM->Builder->CreateTrunc(FromVal, CGM->Int32Ty);
+                case TYPE_FLOAT:
+                case TYPE_DOUBLE:
+                    return CGM->Builder->CreateFPToUI(FromVal, CGM->Int32Ty);;
+            }
+
+            // to Signed INT 32
+        case TYPE_INT:
+            switch (FromType->getKind()) {
+                case TYPE_BOOL: {
+                    llvm::Value *ToVal = CGM->Builder->CreateTrunc(FromVal, CGM->BoolTy);
+                    return CGM->Builder->CreateZExt(ToVal, CGM->Int32Ty);
+                }
+                case TYPE_BYTE:
+                case TYPE_USHORT:
+                    return CGM->Builder->CreateZExt(FromVal, CGM->Int32Ty);
+                case TYPE_SHORT:
+                    return CGM->Builder->CreateSExt(FromVal, CGM->Int32Ty);
+                case TYPE_UINT:
+                case TYPE_INT:
+                    return FromVal;
+                case TYPE_ULONG:
+                case TYPE_LONG:
+                    return CGM->Builder->CreateTrunc(FromVal, CGM->Int32Ty);
+                case TYPE_FLOAT:
+                case TYPE_DOUBLE:
+                    return CGM->Builder->CreateFPToSI(FromVal, CGM->Int32Ty);
+            }
+
+            // to Unsigned INT 64
+        case TYPE_ULONG:
+            switch (FromType->getKind()) {
+                case TYPE_BOOL: {
+                    llvm::Value *ToVal = CGM->Builder->CreateTrunc(FromVal, CGM->BoolTy);
+                    return CGM->Builder->CreateZExt(ToVal, CGM->Int64Ty);
+                }
+                case TYPE_BYTE:
+                case TYPE_USHORT:
+                case TYPE_UINT:
+                    return CGM->Builder->CreateZExt(FromVal, CGM->Int64Ty);
+                case TYPE_SHORT:
+                case TYPE_INT:
+                    return CGM->Builder->CreateSExt(FromVal, CGM->Int64Ty);
+                case TYPE_ULONG:
+                case TYPE_LONG:
+                    return FromVal;
+                case TYPE_FLOAT:
+                case TYPE_DOUBLE:
+                    return CGM->Builder->CreateFPToUI(FromVal, CGM->Int64Ty);
+            }
+
+            // to Signed INT 64
+        case TYPE_LONG:
+            switch (FromType->getKind()) {
+                case TYPE_BOOL: {
+                    llvm::Value *ToVal = CGM->Builder->CreateTrunc(FromVal, CGM->BoolTy);
+                    return CGM->Builder->CreateZExt(ToVal, CGM->Int64Ty);
+                }
+                case TYPE_BYTE:
+                case TYPE_USHORT:
+                case TYPE_UINT:
+                    return CGM->Builder->CreateZExt(FromVal, CGM->Int64Ty);
+                case TYPE_SHORT:
+                case TYPE_INT:
+                    return CGM->Builder->CreateSExt(FromVal, CGM->Int64Ty);
+                case TYPE_ULONG:
+                case TYPE_LONG:
+                    return FromVal;
+                case TYPE_FLOAT:
+                case TYPE_DOUBLE:
+                    return CGM->Builder->CreateFPToSI(FromVal, CGM->Int64Ty);
+            }
+
+            // to FLOAT 32
+        case TYPE_FLOAT:
+            if (FromLLVMType->isIntegerTy()) { // INT to FLOAT
+                if (FromType->getKind() == TYPE_BOOL) {
+                    FromVal = CGM->Builder->CreateTrunc(FromVal, CGM->BoolTy);
+                }
+                return isSigned(FromType) ?
+                       CGM->Builder->CreateSIToFP(FromVal, CGM->FloatTy) :
+                       CGM->Builder->CreateUIToFP(FromVal, CGM->FloatTy);
+            } else if (FromType->getKind() == TYPE_FLOAT) { // FLOAT to FLOAT
+                return FromVal;
+            } else if (FromType->getKind() == TYPE_DOUBLE) { // DOUBLE to FLOAT
+                return CGM->Builder->CreateFPTrunc(FromVal, CGM->FloatTy);
+            }
+
+            // to DOUBLE 64
+        case TYPE_DOUBLE: {
+            if (FromLLVMType->isIntegerTy()) { // INT to DOUBLE
+                if (FromType->getKind() == TYPE_BOOL) {
+                    FromVal = CGM->Builder->CreateTrunc(FromVal, CGM->BoolTy);
+                }
+                return isSigned(FromType) ?
+                       CGM->Builder->CreateSIToFP(FromVal, CGM->DoubleTy) :
+                       CGM->Builder->CreateUIToFP(FromVal, CGM->DoubleTy);
+            } else if (FromType->getKind() == TYPE_FLOAT) { // FLOAT to DOUBLE
+                return CGM->Builder->CreateFPExt(FromVal, CGM->DoubleTy);
+            } else if (FromType->getKind() == TYPE_DOUBLE) { // DOUBLE to DOUBLE
+                return FromVal;
+            }
+        }
+
+            // to Class
         case TYPE_CLASS:
             return nullptr;
     }
     assert(0 && "Conversion failed");
 }
 
-llvm::Value *CodeGenExpr::Convert(llvm::Value *V, llvm::Type *ToType) {
-    FLY_DEBUG_MESSAGE("CodeGenExpr", "Convert",
-                      "Value=" << V << " to TypeID=" << ToType->getTypeID());
-
-    llvm::Type *FromType = V->getType();
-    switch (ToType->getTypeID()) {
-
-        case Type::FloatTyID:
-            if (FromType->isIntegerTy()) { // INT to FLOAT
-                return CGM->Builder->CreateSIToFP(V, ToType);
-            } else if (FromType->isDoubleTy()) { // INT to DOUBLE
-                return CGM->Builder->CreateFPExt(V, ToType); // FIXME
-            } // else do not convert because are equal types
-            return V;
-        case Type::DoubleTyID:
-            // TODO
-            break;
-        case Type::IntegerTyID: {
-            unsigned int ToBit = ToType->getIntegerBitWidth();
-            // TO INT
-            if (FromType->isIntegerTy()) {
-                unsigned int FromBit = ToType->getIntegerBitWidth();
-                if (FromBit < ToBit) { // INT TO LONG, BOOL TO INT ...
-                    return CGM->Builder->CreateZExt(V, CGM->Int32Ty);
-                } else if (FromBit > ToBit) {
-                    if (ToBit == 1) { // INT TO BOOL
-                        llvm::Value *LHS = llvm::ConstantInt::get(CGM->BoolTy, 0, false);
-                        V = CGM->Builder->CreateICmpNE(LHS, V);
-                        return CGM->Builder->CreateZExt(V, CGM->Int8Ty);
-                    } else { // LONG TO INT
-                        V = CGM->Builder->CreateTrunc(V, ToType);
-                        return CGM->Builder->CreateZExt(V, ToType);
-                    }
-                } // else do not convert because are equal types
-                return V;
-            } else if (FromType->isFloatTy() || FromType->isDoubleTy()) { // TO FLOAT or DOUBLE
-                if (ToBit == 1) {
-                    llvm::Value *LHS = llvm::ConstantInt::get(CGM->BoolTy, 0, false);
-                    V = CGM->Builder->CreateFCmpUNE(LHS, V);
-                    return CGM->Builder->CreateZExt(V, CGM->Int8Ty);
-                } else {
-                    return CGM->Builder->CreateFPToSI(V, ToType);
-                }
-            }
-        }
-//        case Type::FunctionTyID:
-//            break;
-//        case Type::StructTyID:
-//            break;
-//        case Type::ArrayTyID:
-//            break;
-//        case Type::PointerTyID:
-//            break;
-    }
-    assert(0 && "Unknown conversion Type");
-}
-
-llvm::Value *CodeGenExpr::GenValue(ASTExpr *Expr) {
-    llvm::Value *Pointer = nullptr;
-    return GenValue(Expr, Pointer);
-}
-
-llvm::Value *CodeGenExpr::GenValue(ASTExpr *Expr, llvm::Value *&Pointer) {
+llvm::Value *CodeGenExpr::GenValue(const ASTExpr *Expr, llvm::Value *Pointer) {
     FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "Expr=" << Expr->str());
     switch (Expr->getKind()) {
 
-        case EXPR_VIRTUAL: {
-            FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_VIRTUAL");
-            return ((VirtualExpr *)Expr)->getVal();
-        }
         case EXPR_VALUE: {
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_VALUE");
             return CGM->GenValue(Expr->getType(), &((ASTValueExpr *)Expr)->getValue());
         }
-        case EXPR_OPERATOR:
-            if (((ASTOperatorExpr *) Expr)->isUnary()) {
-                return OpUnary((ASTUnaryExpr *) Expr);
-            }
-            assert(0 && "Operator unexpected here!");
         case EXPR_REF_VAR: {
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_REF_VAR");
             ASTVarRefExpr *VarRefExpr = (ASTVarRefExpr *)Expr;
@@ -178,195 +280,105 @@ llvm::Value *CodeGenExpr::GenValue(ASTExpr *Expr, llvm::Value *&Pointer) {
         }
         case EXPR_GROUP:
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_GROUP");
-            assert(0 && "Cannot process Group from here");
+            return GenGroup((ASTGroupExpr *) Expr);
     }
 }
 
-llvm::Value *CodeGenExpr::GenGroup(ASTGroupExpr *Origin, ASTGroupExpr *New, int Idx, ASTExpr *E1,
-                                   ASTOperatorExpr * OP1) {
-    FLY_DEBUG("CodeGenExpr", "GenGroup");
-    // Starting from: E2
-    // Evaluate: E1 OP1 E2 OP2 E3
-    // Example: E1 + E2 * E3 -> E1 + (E2 * E3)
+/**
+ * Generate the Value by generating expression recursively
+ * @param Origin
+ * @param New
+ * @param Idx
+ * @param E1
+ * @param OP1
+ * @return
+ */
+llvm::Value *CodeGenExpr::GenGroup(ASTGroupExpr *Group) {
+    FLY_DEBUG_MESSAGE("CodeGenExpr", "GenGroup", "GroupKind=" + Group->getGroupKind());
 
-    // Take first (no operator expected)
-    ASTExpr *E2 = Origin->getGroup().at(Idx++);
-
-    // If E1 is a Binary Operator -> Error
-    if (E2->getKind() == EXPR_OPERATOR && ((ASTOperatorExpr *) E2)->isBinary()) {
-        CGM->Diag(E2->getLocation(), diag::err_expr_operator_unexpected);
-        return nullptr;
+    switch (Group->getGroupKind()) {
+        case GROUP_UNARY:
+            return GenUnary((ASTUnaryGroupExpr *) Group);
+        case GROUP_BINARY:
+            return GenBinary((ASTBinaryGroupExpr *) Group);
+        case GROUP_TERNARY:
+            return GenTernary((ASTTernaryGroupExpr *) Group);
     }
-
-    // Check if there is a next (operator expected)
-    ASTExpr *OP2 = nullptr;
-    if (canIterate(Idx, Origin)) {
-        OP2 = Origin->getGroup().at(Idx++);
-
-        // Check unexpected Operator
-        if (OP2->getKind() != EXPR_OPERATOR) {
-            CGM->Diag(E2->getLocation(), diag::err_expr_operator_expected);
-            return nullptr;
-        }
-    }
-
-    // Generate Operation from last Expr, last Operation and current Expr, adding to the New Group
-    if (E1 && OP1) {
-
-        // If E1 is a Group -> Generate Value
-        if (E1->getKind() == EXPR_GROUP) {
-            llvm::Value *V = GenGroup(((ASTGroupExpr *)E1), new ASTGroupExpr(SourceLocation()), 0);
-            E1 = new VirtualExpr(V);
-        }
-
-        // If OP is * or / try to process the operation
-        if (hasOpPrecedence(OP1)){
-
-            // If E2 is a Group -> Generate Value (always after E1)
-            if (E2->getKind() == EXPR_GROUP) {
-                llvm::Value *V = GenGroup(((ASTGroupExpr *)E2), new ASTGroupExpr(SourceLocation()), 0);
-                E2 = new VirtualExpr(V);
-            }
-
-            // E1 * E2
-            llvm::Value *V = OpBinary(E1, OP1, E2);
-            E2 = new VirtualExpr(V);
-        } else {
-            if (hasOpPrecedence(OP2)) { // E1 + E2 * E3
-
-                // Or add to a New Group for processing on next cycle and continue recursion
-                New->Add(E1);
-                New->Add(OP1);
-            } else { // E1 + E2 + E3
-
-                // If E2 is a Group -> Generate Value (always after E1)
-                if (E2->getKind() == EXPR_GROUP) {
-                    llvm::Value *V = GenGroup(((ASTGroupExpr *)E2), new ASTGroupExpr(SourceLocation()), 0);
-                    E2 = new VirtualExpr(V);
-                }
-
-                // E1 + E2
-                llvm::Value *V = OpBinary(E1, OP1, E2);
-                E2 = new VirtualExpr(V);
-            }
-        }
-    }
-
-    // All Origin Group are Processed
-    if (Idx > Origin->getGroup().size()-1) {
-
-        if (OP2 != nullptr) { // cannot have Operation at end
-            CGM->Diag(OP2->getLocation(), diag::err_expr_operator_unexpected);
-            return nullptr;
-        }
-
-        // If New Group is not empty need other recursions, reset Idx to 0 and restart generator
-        if (!New->isEmpty()) {
-            New->Add(E2);
-            return GenGroup(New, new ASTGroupExpr(SourceLocation()), 0);
-        }
-
-        // Remain only one Expr into New Group, the last, need to be returned
-        if (E2->getKind() == EXPR_GROUP) { // If E1 is a Group -> Generate Value
-            return GenGroup(((ASTGroupExpr *)E2), new ASTGroupExpr(SourceLocation()), 0);
-        } else if (E2->getKind() == EXPR_VIRTUAL) {
-            return ((VirtualExpr *)E2)->getVal();
-        } else {
-            return GenValue(E2);
-        }
-    }
-
-    // Continue with recursion
-    return GenGroup(Origin, New, Idx, E2, (ASTOperatorExpr *) OP2);
 }
 
-bool CodeGenExpr::hasOpPrecedence(ASTExpr *OP) {
-    FLY_DEBUG("CodeGenExpr", "hasOpPrecedence");
-    return OP != nullptr && ((ASTOperatorExpr *)OP)->getOpKind() == OP_ARITH &&
-           ( ((ASTArithExpr *)OP)->getArithKind() == ARITH_MUL || ((ASTArithExpr *)OP)->getArithKind() == ARITH_DIV);
-}
+llvm::Value *CodeGenExpr::GenUnary(ASTUnaryGroupExpr *Expr) {
+    FLY_DEBUG("CodeGenExpr", "GenUnary");
+    assert(Expr->getGroupKind() == GROUP_UNARY  && "Expected Unary Group Expr");
+    assert(Expr->getFirst() && "Unary Expr empty");
 
-bool CodeGenExpr::canIterate(int Idx, ASTGroupExpr *Group) {
-    return Idx < Group->getGroup().size();
-}
-
-llvm::Value *CodeGenExpr::OpUnary(ASTUnaryExpr *E) {
-    FLY_DEBUG("CodeGenExpr", "OpUnary");
-    assert(E->getKind() != EXPR_GROUP && "Expr cannot be a group");
-    assert(E->getVarRef() && "Var empty");
-    assert(E->isUnary() && "Expr is not unary");
-
-    llvm::Value *V = E->getVarRef()->getDecl()->getCodeGen()->getValue();
-    ASTOperatorExpr *OP = E->getOperatorExpr();
+    CodeGenVar *CGVal = Expr->getFirst()->getVarRef()->getDecl()->getCodeGen();
+    llvm::Value *OldVal = CGVal->getValue();
 
     // PRE or POST INCREMENT/DECREMENT
-    if (OP->getOpKind() == OP_ARITH) {
-        if (((ASTArithExpr *)OP)->getArithKind() == ARITH_INCR) {
-            if (E->getUnaryKind() == UNARY_PRE) { // PRE INCREMENT ++a
-                llvm::Value *RHS = llvm::ConstantInt::get(CGM->Int32Ty, 1);
-                return CGM->Builder->CreateNSWAdd(V, RHS);
-            } else { // POST INCREMENT a++
-                llvm::Value *PostV = BinaryOperator::Create(Instruction::Add, V,
-                                                            ConstantInt::get(CGM->Int32Ty, 1));
-                PostValues.push_back(PostV);
-                return V;
-            }
+    if (Expr->getOperatorKind() == ARITH_INCR) {
+        llvm::Value *RHS = llvm::ConstantInt::get(CGM->Int32Ty, 1);
+        Value *NewVal = CGM->Builder->CreateNSWAdd(OldVal, RHS);
+        CGVal->Store(NewVal);
+        if (Expr->getOptionKind() == UNARY_PRE) { // PRE INCREMENT ++a
+            return NewVal;
+        } else if (Expr->getOptionKind() == UNARY_POST) { // POST INCREMENT a++
+            return OldVal;
+        } else {
+            assert(0 && "Invalid Unary Option Kind");
         }
+    }
 
-        if (((ASTArithExpr *)OP)->getArithKind() == ARITH_DECR) {
-            if (E->getUnaryKind() == UNARY_PRE) { // PRE DECREMENT --a
-                llvm::Value *RHS = llvm::ConstantInt::get(CGM->Int32Ty, -1, true);
-                return CGM->Builder->CreateNSWAdd(V, RHS);
-            } else { // POST DECREMENT a--
-                llvm::Value *PostV = BinaryOperator::Create(Instruction::Add, V,
-                                                            ConstantInt::get(CGM->Int32Ty, -1));
-                PostValues.push_back(PostV);
-                return V;
-            }
+    if (Expr->getOperatorKind() == ARITH_DECR) {
+        llvm::Value *RHS = llvm::ConstantInt::get(CGM->Int32Ty, -1, true);
+        Value *NewVal = CGM->Builder->CreateNSWAdd(OldVal, RHS);
+        CGVal->Store(NewVal);
+        if (Expr->getOptionKind() == UNARY_PRE) { // PRE DECREMENT --a
+            return NewVal;
+        } else if (Expr->getOptionKind() == UNARY_POST) { // POST DECREMENT a--
+            return OldVal;
+        } else {
+            assert(0 && "Invalid Unary Option Kind");
         }
     }
 
     // NOT Operator '!'
-    if (OP->getOpKind() == OP_LOGIC && ((ASTLogicExpr *)OP)->getLogicKind() == LOGIC_NOT) {
-        V = CGM->Builder->CreateTrunc(V, CGM->BoolTy);
-        V = CGM->Builder->CreateXor(V, true);
-        return CGM->Builder->CreateZExt(V, CGM->Int8Ty);
+    if (Expr->getOperatorKind() == LOGIC_NOT) {
+        OldVal = CGM->Builder->CreateTrunc(OldVal, CGM->BoolTy);
+        OldVal = CGM->Builder->CreateXor(OldVal, true);
+        return CGM->Builder->CreateZExt(OldVal, CGM->Int8Ty);
     }
 
     assert(0 && "Invalid Unary Operation");
 }
 
-llvm::Value *CodeGenExpr::OpBinary(ASTExpr *E1, ASTOperatorExpr *OP, ASTExpr *E2) {
-    FLY_DEBUG("CodeGenExpr", "OpBinary");
-    assert(E1->getKind() != EXPR_OPERATOR && E1->getKind() != EXPR_GROUP && "E1 Error");
-    assert(E2->getKind() != EXPR_OPERATOR && E2->getKind() != EXPR_GROUP && "E2 Error");
+llvm::Value *CodeGenExpr::GenBinary(ASTBinaryGroupExpr *Expr) {
+    FLY_DEBUG("CodeGenExpr", "GenBinary");
+    assert(Expr->getGroupKind() == GROUP_BINARY && "Expected Binary Group Expr");
+    assert(Expr->getFirst() && "First Expr is empty");
+    assert(Expr->getSecond() && "Second Expr is empty");
 
-    llvm::Value *PV1 = nullptr;
+    switch (Expr->getOptionKind()) {
 
-
-    switch (OP->getOpKind()) {
-
-        case OP_ARITH:
-            return OpArith(E1, (ASTArithExpr *) OP, E2);
-        case OP_COMPARISON:
-            return OpComparison(E1, (ASTComparisonExpr *) OP, E2);
-        case OP_LOGIC:
-            return OpLogic(E1, (ASTLogicExpr *) OP, E2);
-        case OP_CONDITION:
-//            return OpCond(); // TODO
-            break;
+        case BINARY_ARITH:
+            return GenBinaryArith(Expr->getFirst(), Expr->getOperatorKind(), Expr->getSecond());
+        case BINARY_COMPARISON:
+            return GenBinaryComparison(Expr->getFirst(), Expr->getOperatorKind(), Expr->getSecond());
+        case BINARY_LOGIC:
+            return GenBinaryLogic(Expr->getFirst(), Expr->getOperatorKind(), Expr->getSecond());
     }
 
     assert(0 && "Unknown Operation");
 }
 
-Value *CodeGenExpr::OpArith(ASTExpr *E1, ASTArithExpr *OP, ASTExpr *E2) {
-    FLY_DEBUG("CodeGenExpr", "OpArith");
+Value *CodeGenExpr::GenBinaryArith(const ASTExpr *E1, BinaryOpKind Op, const ASTExpr *E2) {
+    FLY_DEBUG("CodeGenExpr", "GenBinaryArith");
     llvm::Value *V1 = GenValue(E1);
     llvm::Value *V2 = GenValue(E2);
-    V2 = Convert(V2, V1->getType()); // Implicit conversion
 
-    switch (OP->getArithKind()) {
+    // Convert E2 to E1 Type
+    V2 = Convert(V2, E2->getType(), E1->getType()); // Implicit conversion
+
+    switch (Op) {
 
         case ARITH_ADD:
             return CGM->Builder->CreateAdd(V1, V2);
@@ -388,44 +400,49 @@ Value *CodeGenExpr::OpArith(ASTExpr *E1, ASTArithExpr *OP, ASTExpr *E2) {
             return CGM->Builder->CreateShl(V1, V2);
         case ARITH_SHIFT_R:
             return CGM->Builder->CreateAShr(V1, V2);
-        case ARITH_INCR:
-        case ARITH_DECR:
-            assert(0 && "Invalid Binary Arith Operation");
     }
     assert(0 && "Unknown Arith Operation");
 }
 
-Value *CodeGenExpr::OpComparison(ASTExpr *E1, fly::ASTComparisonExpr *OP, ASTExpr *E2) {
-    FLY_DEBUG("CodeGenExpr", "OpComparison");
+bool CodeGenExpr::isSigned(const ASTType * T1) {
+    return T1->getKind() == TYPE_SHORT ||
+            T1->getKind() == TYPE_INT ||
+            T1->getKind() == TYPE_LONG;
+}
+
+Value *CodeGenExpr::GenBinaryComparison(const ASTExpr *E1, BinaryOpKind Op, const ASTExpr *E2) {
+    FLY_DEBUG("CodeGenExpr", "GenBinaryComparison");
     llvm::Value *V1 = GenValue(E1);
     llvm::Value *V2 = GenValue(E2);
+    ASTType *V2Type = E2->getType();
 
     if (V1->getType()->isIntegerTy() && V2->getType()->isIntegerTy()) {
-        switch (OP->getComparisonKind()) {
+        bool Signed = isSigned(E1->getType()) || isSigned(E2->getType());
+        switch (Op) {
 
             case COMP_EQ:
                 return CGM->Builder->CreateICmpEQ(V1, V2);
             case COMP_NE:
                 return CGM->Builder->CreateICmpNE(V1, V2);
             case COMP_GT:
-                return CGM->Builder->CreateICmpSGT(V1, V2);
+                return Signed ? CGM->Builder->CreateICmpSGT(V1, V2) : CGM->Builder->CreateICmpUGT(V1, V2);
             case COMP_GTE:
-                return CGM->Builder->CreateICmpSGE(V1, V2);
+                return Signed ? CGM->Builder->CreateICmpSGE(V1, V2) : CGM->Builder->CreateICmpUGE(V1, V2);
             case COMP_LT:
-                return CGM->Builder->CreateICmpSLT(V1, V2);
+                return Signed ? CGM->Builder->CreateICmpSLT(V1, V2) : CGM->Builder->CreateICmpULT(V1, V2);
             case COMP_LTE:
-                return CGM->Builder->CreateICmpSLE(V1, V2);
+                return Signed ? CGM->Builder->CreateICmpSLE(V1, V2) : CGM->Builder->CreateICmpULE(V1, V2);
         }
     } else {
         // Convert values to Float if one of them is Float
         if ( (V1->getType()->isFloatTy() || V1->getType()->isDoubleTy()) &&
              (V2->getType()->isIntegerTy() || V2->getType()->isIntegerTy()) ) {
-            V2 = Convert(V2, V1->getType()); // Explicit conversion
+            V2 = Convert(V2, V2Type, E1->getType()); // Explicit conversion
         } else if ( (V1->getType()->isIntegerTy() || V1->getType()->isIntegerTy()) &&
                     (V2->getType()->isFloatTy() || V2->getType()->isDoubleTy()) ) {
-            V1 = Convert(V1, V2->getType()); // Explicit conversion
+            V1 = Convert(V1, V2Type, E1->getType()); // Explicit conversion
         }
-        switch (OP->getComparisonKind()) {
+        switch (Op) {
 
             case COMP_EQ:
                 return CGM->Builder->CreateFCmpOEQ(V1, V2);
@@ -441,17 +458,18 @@ Value *CodeGenExpr::OpComparison(ASTExpr *E1, fly::ASTComparisonExpr *OP, ASTExp
                 return CGM->Builder->CreateFCmpOLE(V1, V2);
         }
     }
+
+    assert(0 && "Invalid Comparator Operator");
 }
 
-Value *CodeGenExpr::OpLogic(ASTExpr *E1, ASTLogicExpr *OP, ASTExpr *E2) {
-    FLY_DEBUG("CodeGenExpr", "OpLogic");
+Value *CodeGenExpr::GenBinaryLogic(const ASTExpr *E1, BinaryOpKind Op, const ASTExpr *E2) {
+    FLY_DEBUG("CodeGenExpr", "GenBinaryLogic");
     llvm::Value *V1 = GenValue(E1);
-    V1 = Convert(V1, CGM->BoolTy);
+    ASTBoolType *BoolType = new ASTBoolType(SourceLocation());
+    V1 = Convert(V1, E1->getType(), BoolType);
     BasicBlock *FromBB = CGM->Builder->GetInsertBlock();
 
-
-
-    switch (OP->getLogicKind()) {
+    switch (Op) {
 
         case LOGIC_AND: {
             llvm::BasicBlock *LeftBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "and", Fn);
@@ -464,7 +482,6 @@ Value *CodeGenExpr::OpLogic(ASTExpr *E1, ASTLogicExpr *OP, ASTExpr *E2) {
             CGM->Builder->SetInsertPoint(LeftBB);
             llvm::Value *PtrV2 = nullptr;
             llvm::Value *V2 = GenValue(E2, PtrV2);
-            V2 = Convert(V2, CGM->BoolTy);
             llvm::Value *V2Trunc = CGM->Builder->CreateTrunc(V2, CGM->BoolTy);
             CGM->Builder->CreateBr(RightBB);
 
@@ -473,7 +490,7 @@ Value *CodeGenExpr::OpLogic(ASTExpr *E1, ASTLogicExpr *OP, ASTExpr *E2) {
             PHINode *Phi = CGM->Builder->CreatePHI(CGM->BoolTy, 2);
             Phi->addIncoming(llvm::ConstantInt::get(CGM->BoolTy, false, false), FromBB);
             Phi->addIncoming(V2Trunc, LeftBB);
-            return CGM->Builder->CreateZExt(Phi, CGM->Int8Ty);
+            return Phi;
         }
         case LOGIC_OR: {
             llvm::BasicBlock *LeftBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "or", Fn);
@@ -494,8 +511,45 @@ Value *CodeGenExpr::OpLogic(ASTExpr *E1, ASTLogicExpr *OP, ASTExpr *E2) {
             PHINode *Phi = CGM->Builder->CreatePHI(CGM->BoolTy, 2);
             Phi->addIncoming(llvm::ConstantInt::get(CGM->BoolTy, true, false), FromBB);
             Phi->addIncoming(V2Trunc, LeftBB);
-            return CGM->Builder->CreateZExt(Phi, CGM->Int8Ty);
+            return Phi;
         }
     }
     assert(0 && "Invalid Logic Operator");
+}
+
+llvm::Value *CodeGenExpr::GenTernary(ASTTernaryGroupExpr *Expr) {
+    assert(Expr->getGroupKind() == GROUP_TERNARY && "Expected Ternary Group Expr");
+    assert(Expr->getFirst() && "First Expr is empty");
+    assert(Expr->getSecond() && "Second Expr is empty");
+    assert(Expr->getThird() && "Third Expr is empty");
+
+    ASTBoolType * BoolType = new ASTBoolType(SourceLocation());
+    llvm::Value *Cond = GenValue(Expr->getFirst());
+
+    // Create Blocks
+    llvm::BasicBlock *TrueBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "terntrue", Fn);
+    llvm::BasicBlock *FalseBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "ternfalse", Fn);
+    llvm::BasicBlock *EndBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "ternend", Fn);
+
+    // Create Condition
+    CGM->Builder->CreateCondBr(Cond, TrueBB, FalseBB);
+
+    // True Label
+    CGM->Builder->SetInsertPoint(TrueBB);
+    llvm::Value *True = GenValue(Expr->getSecond());
+    llvm::Value *BoolTrue = Convert(True, Expr->getSecond()->getType(), BoolType);
+    CGM->Builder->CreateBr(EndBB);
+
+    // False Label
+    CGM->Builder->SetInsertPoint(FalseBB);
+    llvm::Value *False = GenValue(Expr->getThird());
+    llvm::Value *BoolFalse = Convert(False, Expr->getThird()->getType(), BoolType);
+    CGM->Builder->CreateBr(EndBB);
+
+    // End Label
+    CGM->Builder->SetInsertPoint(EndBB);
+    PHINode *Phi = CGM->Builder->CreatePHI(CGM->BoolTy, 2);
+    Phi->addIncoming(BoolTrue, TrueBB);
+    Phi->addIncoming(BoolFalse, FalseBB);
+    return Phi;
 }

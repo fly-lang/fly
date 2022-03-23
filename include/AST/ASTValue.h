@@ -25,13 +25,11 @@ namespace fly {
     public:
         ASTValue(const SourceLocation &Loc, std::string Str, ASTType *Ty);
 
+        const SourceLocation &getLocation() const;
+
         ASTType *getType() const;
 
         bool empty() const;
-
-        bool isFalse() const;
-
-        bool isTrue() const;
 
         std::string str() const;
     };

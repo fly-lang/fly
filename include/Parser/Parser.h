@@ -17,7 +17,6 @@
 #include <AST/ASTLocalVar.h>
 #include <AST/ASTStmt.h>
 #include <AST/ASTVar.h>
-#include <AST/ASTOperatorExpr.h>
 #include <AST/ASTExpr.h>
 #include <AST/ASTFunc.h>
 #include "Frontend/InputFile.h"
@@ -32,6 +31,7 @@ namespace fly {
 
     class DiagnosticsEngine;
     class Lexer;
+    class RawBinaryGroup;
 
     /// Parse the main file known to the preprocessor, producing an
     /// abstract syntax tree.
@@ -39,6 +39,7 @@ namespace fly {
 
         friend class GlobalVarParser;
         friend class FunctionParser;
+        friend class ExprParser;
 
         const InputFile &Input;
 
@@ -74,106 +75,19 @@ namespace fly {
 
     private:
 
-        /// ConsumeToken - Consume the current 'peek token' and lex the next one.
-        /// This does not work with special tokens: string literals,
-        /// annotation tokens and balanced tokens must be handled using the specific
-        /// consume methods.
-        /// Returns the location of the consumed token.
-        SourceLocation ConsumeToken() {
-            assert(!isTokenSpecial() &&
-                   "Should consume special tokens with Consume*Token");
-            return ConsumeNext();
-        }
-
-        /// isTokenParen - Return true if the cur token is '(' or ')'.
-        bool isTokenParen() const {
-            return Tok.isOneOf(tok::l_paren, tok::r_paren);
-        }
-
-        /// isTokenBracket - Return true if the cur token is '[' or ']'.
-        bool isTokenBracket() const {
-            return Tok.isOneOf(tok::l_square, tok::r_square);
-        }
-
-        /// isTokenBrace - Return true if the cur token is '{' or '}'.
-        bool isTokenBrace() const {
-            return Tok.isOneOf(tok::l_brace, tok::r_brace);
-        }
-
-        /// isTokenConsumeParenStringLiteral - True if this token is a string-literal.
-        bool isTokenStringLiteral() const {
-            return tok::isStringLiteral(Tok.getKind());
-        }
-
-        /// isTokenSpecial - True if this token requires special consumption methods.
-        bool isTokenSpecial() const {
-            return isTokenStringLiteral() || isTokenParen() || isTokenBracket() ||
-                   isTokenBrace();
-        }
-
-        /// ConsumeParen - This consume method keeps the paren count up-to-date.
-        ///
-        SourceLocation ConsumeParen() {
-            assert(isTokenParen() && "wrong consume method");
-            if (Tok.getKind() == tok::l_paren)
-                ++ParenCount;
-            else if (ParenCount) {
-                //AngleBrackets.clear(*this);
-                --ParenCount;       // Don't let unbalanced )'s drive the count negative.
-            }
-
-            return ConsumeNext();
-        }
-
-        /// ConsumeBracket - This consume method keeps the bracket count up-to-date.
-        ///
-        SourceLocation ConsumeBracket() {
-            assert(isTokenBracket() && "wrong consume method");
-            if (Tok.getKind() == tok::l_square)
-                ++BracketCount;
-            else if (BracketCount) {
-                //AngleBrackets.clear(*this);
-                --BracketCount;     // Don't let unbalanced ]'s drive the count negative.
-            }
-
-            return ConsumeNext();
-        }
-
-        /// ConsumeBrace - This consume method keeps the brace count up-to-date.
-        ///
-        SourceLocation ConsumeBrace() {
-            assert(isTokenBrace() && "wrong consume method");
-            if (Tok.getKind() == tok::l_brace)
-                ++BraceCount;
-            else if (BraceCount) {
-                //AngleBrackets.clear(*this);
-                --BraceCount;     // Don't let unbalanced }'s drive the count negative.
-            }
-
-            return ConsumeNext();
-        }
-
-        bool isBraceBalanced() const {
-            return BraceCount == 0;
-        }
-
-        /// ConsumeStringToken - Consume the current 'peek token', lexing a new one
-        /// and returning the token kind.  This method is specific to strings, as it
-        /// handles string literal concatenation, as per C99 5.1.1.2, translation
-        /// phase #6.
-        SourceLocation ConsumeStringToken() {
-            assert(isTokenStringLiteral() &&
-                   "Should only consume string literals with this method");
-
-            return ConsumeNext();
-        }
-
-        SourceLocation ConsumeNext() {
-            PrevTokLocation = Tok.getLocation();
-            Lex.Lex(Tok);
-            return PrevTokLocation;
-        }
-
+        // Parse Tokens
+        SourceLocation ConsumeToken();
+        bool isTokenParen() const;
+        bool isTokenBracket() const;
+        bool isTokenBrace() const;
+        bool isTokenStringLiteral() const;
+        bool isTokenSpecial() const;
+        SourceLocation ConsumeParen();
+        SourceLocation ConsumeBracket();
+        SourceLocation ConsumeBrace();
+        bool isBraceBalanced() const;
+        SourceLocation ConsumeStringToken();
+        SourceLocation ConsumeNext();
         llvm::StringRef getLiteralString();
 
         std::string ParseNameSpace();
@@ -187,59 +101,21 @@ namespace fly {
 
         bool ParseConst(bool &Constant);
 
-        /**
-         * Parse Global Var declaration
-         * @param VisKind
-         * @param Constant
-         * @param Type
-         * @param Id
-         * @param IdLoc
-         * @return
-         */
         bool ParseGlobalVarDecl(VisibilityKind &VisKind, bool &Constant, ASTType *Type,
                                 llvm::StringRef &Name, SourceLocation &NameLoc);
 
-        /**
-         * Parse Class declaration
-         * @param VisKind
-         * @param Constant
-         * @return
-         */
         bool ParseClassDecl(VisibilityKind &VisKind, bool &Constant);
 
-        /**
-         * Parse Function declaration
-         * @param VisKind
-         * @param Constant
-         * @param Type
-         * @param Id
-         * @param IdLoc
-         * @return
-         */
         bool ParseFunction(VisibilityKind &VisKind, bool Constant, ASTType *Type, llvm::StringRef &Name,
                            SourceLocation &NameLoc);
 
-        /**
-         * Parse Type
-         * @return
-         */
-        bool ParseType(ASTType *&Type);
+        bool ParseType(ASTType *&Type, bool OnlyBuiltin = false);
 
         // Parse Block Statement
 
         bool ParseBlock(ASTBlock *Block);
         bool ParseInnerBlock(ASTBlock *Block);
-
-        /**
-         * Parse a Statement
-         * @param Block
-         * @return
-         */
         bool ParseStmt(ASTBlock *Block);
-        bool ParseIdentifier(llvm::StringRef &Name, llvm::StringRef &NameSpace, SourceLocation &Loc);
-
-        // Parse Block Structures
-
         bool ParseStartParen();
         bool ParseEndParen(bool HasParen);
         bool ParseIfStmt(ASTBlock *Block);
@@ -248,31 +124,29 @@ namespace fly {
         bool ParseForStmt(ASTBlock *Block);
         bool ParseForCommaStmt(ASTBlock *Block);
 
-        // Parse Calls, Vars
+        // Parse Identifier
+        bool ParseIdentifier(llvm::StringRef &Name, llvm::StringRef &NameSpace, SourceLocation &Loc);
 
-        ASTFuncCall *ParseFunctionCall(ASTBlock *Block, llvm::StringRef Name, llvm::StringRef NameSpace, SourceLocation &Loc, bool &Success);
-        ASTLocalVar* ParseLocalVar(ASTBlock *Block, bool Constant, ASTType *Type, bool &Success);
-        ASTVarRef* ParseVarRef(bool &Success);
+        // Parse Calls
+        ASTFuncCall * ParseFunctionCall(ASTBlock *Block, llvm::StringRef Name, llvm::StringRef NameSpace,
+                                        SourceLocation &Loc);
+        // Parse a Value
+        ASTValue *ParseValue();
+
+        // Parse a Local Var
+        ASTLocalVar *ParseLocalVar(ASTBlock *Block, bool Constant, ASTType *Type);
 
         // Parse Expressions
 
-        ASTExpr* ParseStmtExpr(ASTBlock *Block, ASTLocalVar *Var, bool &Success);
-        ASTExpr* ParseStmtExpr(ASTBlock *Block, ASTVarRef *VarRef, bool &Success);
-        ASTExpr* ParseExpr(ASTBlock *Block, bool &Success, ASTGroupExpr *ParentGroup = nullptr);
-        ASTExpr* ParseExprChunk(ASTBlock *Block, bool &Success);
-        ASTValueExpr* ParseValueExpr(bool &Success);
-        ASTOperatorExpr* ParseOperatorExpr(bool &Success);
-        ASTTernaryExpr *ParseTernaryOperatorExpr(bool &Success);
-        ASTOperatorExpr* ParseUnaryPreOperatorExpr(bool &Success);
-        ASTOperatorExpr* ParseUnaryPostOperatorExpr(bool &Success);
+        ASTExpr *ParseAssignmentExpr(ASTBlock *Block, ASTVarRef *VarRef);
+        ASTExpr *ParseExprEmpty(ASTBlock *Block);
+        ASTExpr *ParseExpr(ASTBlock *Block);
+        ASTExpr *ParseExpr(ASTBlock *Block, llvm::StringRef Name, llvm::StringRef NameSpace, SourceLocation Loc);
 
         // Check Keywords
 
         bool isBuiltinType();
         bool isValue();
-        bool isOperator();
-        bool isUnaryPreOperator();
-        bool isUnaryPostOperator();
     };
 
 }  // end namespace fly

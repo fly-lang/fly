@@ -1,12 +1,13 @@
 int main() {
-    int a = 1;
-    float b = 2.0;
+    int a;
+    int b;
+    bool c;
 
-    int c = b == a;
+    c = a == b;
     c = a != b;
-    c = a <= b;
-    c = a >= b;
     c = a > b;
+    c = a >= b;
     c = a < b;
+    c = a <= b;
     c = (a == b) == (a != b);
 }

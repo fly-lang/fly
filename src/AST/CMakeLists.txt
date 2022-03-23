@@ -12,7 +12,6 @@ add_library(FlyAST
         ASTNameSpace.cpp
         ASTNode.cpp
         ASTNodeBase.cpp
-        ASTOperatorExpr.cpp
         ASTResolver.cpp
         ASTStmt.cpp
         ASTSwitchBlock.cpp

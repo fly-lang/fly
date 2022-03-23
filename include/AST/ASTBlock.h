@@ -20,7 +20,6 @@ namespace fly {
     class DiagnosticBuilder;
     class ASTReturn;
     class ASTFuncCall;
-    class ASTFuncCallStmt;
     class ASTLocalVar;
     class ASTLocalVarRef;
     class ASTGroupExpr;
@@ -48,6 +47,7 @@ namespace fly {
 
         friend class Parser;
         friend class FunctionParser;
+        friend class ExprParser;
         friend class ASTIfBlock;
         friend class ASTElsifBlock;
         friend class ASTElseBlock;

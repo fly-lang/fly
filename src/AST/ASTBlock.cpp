@@ -152,8 +152,9 @@ bool ASTBlock::AddLocalVar(ASTLocalVar *LocalVar) {
  */
 bool ASTBlock::AddCall(ASTFuncCall *Call) {
     FLY_DEBUG_MESSAGE("ASTBlock", "AddBreak", "Call=" << Call->str());
-    ASTFuncCallStmt *CallStmt = new ASTFuncCallStmt(Call->getLocation(), this, Call);
-    Content.push_back(CallStmt);
+    ASTExprStmt *ExprStmt = new ASTExprStmt(Call->getLocation(), this);
+    ExprStmt->setExpr(new ASTFuncCallExpr(Call));
+    Content.push_back(ExprStmt);
     return Call->getDecl() || Top->getNode()->AddUnrefCall(Call);
 }
 

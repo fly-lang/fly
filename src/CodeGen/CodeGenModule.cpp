@@ -24,16 +24,17 @@
 #include "AST/ASTLocalVar.h"
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTBlock.h"
-#include "AST/ASTOperatorExpr.h"
 #include "AST/ASTIfBlock.h"
 #include "AST/ASTSwitchBlock.h"
 #include "AST/ASTWhileBlock.h"
 #include "AST/ASTForBlock.h"
+#include "AST/ASTValue.h"
 #include "Basic/Debug.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Value.h"
 #include<iostream>
+#include <regex>
 
 using namespace llvm;
 using namespace fly;
@@ -156,7 +157,7 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
             ASTLocalVar *LocalVar = static_cast<ASTLocalVar *>(Stmt);
             assert(LocalVar->getCodeGen() && "LocalVar is not CodeGen initialized");
             assert(LocalVar->getExpr() && "Expr Mandatory in declaration");
-            Value *V = GenExpr(Fn, LocalVar->getType(), LocalVar->getExpr());
+            llvm::Value *V = GenExpr(Fn, LocalVar->getType(), LocalVar->getExpr());
             LocalVar->getCodeGen()->Store(V);
             break;
         }
@@ -175,20 +176,9 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
             }
             break;
         }
-        case STMT_FUNC_CALL: {
-            ASTFuncCallStmt *FCall = static_cast<ASTFuncCallStmt *>(Stmt);
-            GenCall(Fn, FCall->getCall());
-            break;
-        }
         case STMT_EXPR: {
-            ASTExprStmt *ExprStmt = static_cast<ASTExprStmt *>(Stmt);
-            if (ExprStmt->getExpr()->getKind() == EXPR_OPERATOR &&
-                ((ASTOperatorExpr *)ExprStmt->getExpr())->isUnary()) {
-                ASTUnaryExpr *UnaryExpr = (ASTUnaryExpr *) ExprStmt->getExpr();
-
-                Value *V = GenExpr(Fn, UnaryExpr->getVarRef()->getDecl()->getType(), UnaryExpr);
-                UnaryExpr->getVarRef()->getDecl()->getCodeGen()->Store(V);
-            }
+            ASTExprStmt *ExprStmt = (ASTExprStmt *) Stmt;
+            Value *V = GenExpr(Fn, ExprStmt->getExpr()->getType(), ExprStmt->getExpr());
             break;
         }
         case STMT_BLOCK: {
@@ -247,12 +237,23 @@ llvm::Type *CodeGenModule::GenType(const ASTType *Type) {
 
         case TYPE_VOID:
             return VoidTy;
-        case TYPE_INT:
-            return Int32Ty;
-        case TYPE_FLOAT:
-            return FloatTy;
         case TYPE_BOOL:
             return BoolTy;
+        case TYPE_BYTE:
+            return Int8Ty;
+        case TYPE_USHORT:
+        case TYPE_SHORT:
+            return Int16Ty;
+        case TYPE_UINT:
+        case TYPE_INT:
+            return Int32Ty;
+        case TYPE_ULONG:
+        case TYPE_LONG:
+            return Int64Ty;
+        case TYPE_FLOAT:
+            return FloatTy;
+        case TYPE_DOUBLE:
+            return DoubleTy;
     }
     assert(0 && "Unknown Var Type Kind");
 }
@@ -261,12 +262,26 @@ llvm::Constant *CodeGenModule::GenDefaultValue(const ASTType *Type) {
     FLY_DEBUG("CodeGenFunction", "GenDefaultValue");
     assert(Type->getKind() != TYPE_VOID && "No default value for Void Type");
     switch (Type->getKind()) {
-        case TYPE_INT:
-            return llvm::ConstantInt::get(Int32Ty, 0, true);
-        case TYPE_FLOAT:
-            return llvm::ConstantFP::get(FloatTy, "0.0");
         case TYPE_BOOL:
             return llvm::ConstantInt::get(BoolTy, 0, false);
+        case TYPE_BYTE:
+            return llvm::ConstantInt::get(Int8Ty, 0, false);
+        case TYPE_USHORT:
+            return llvm::ConstantInt::get(Int32Ty, 0, false);
+        case TYPE_SHORT:
+            return llvm::ConstantInt::get(Int32Ty, 0, true);
+        case TYPE_UINT:
+            return llvm::ConstantInt::get(Int32Ty, 0, false);
+        case TYPE_INT:
+            return llvm::ConstantInt::get(Int32Ty, 0, true);
+        case TYPE_ULONG:
+            return llvm::ConstantInt::get(Int64Ty, 0, false);
+        case TYPE_LONG:
+            return llvm::ConstantInt::get(Int64Ty, 0, true);
+        case TYPE_FLOAT:
+            return llvm::ConstantFP::get(FloatTy, 0.0);
+        case TYPE_DOUBLE:
+            return llvm::ConstantFP::get(DoubleTy, 0.0);
         case TYPE_CLASS:
             return nullptr; // TODO
     }
@@ -276,27 +291,185 @@ llvm::Constant *CodeGenModule::GenDefaultValue(const ASTType *Type) {
 llvm::Constant *CodeGenModule::GenValue(const ASTType *Type, const ASTValue *Val) {
     FLY_DEBUG("CodeGenModule", "GenValue");
     //TODO value conversion from Val->getType() to TypeBase (if are different)
+    std::string IntRegex     = "[-]?[0-9]+";
+    std::string IntRegex16   = "[-]?[0x][A-Fa-f0-9]+";
+    std::string UIntRegex    = "[0-9]+";
+    std::string UIntRegex16  = "[0x][A-Fa-f0-9]+";
+    std::string DecimalRegex = "[-]?[0-9]+\\.?[0-9]*";
     switch (Type->getKind()) {
 
-        case TYPE_VOID:
-            Diag(Val->getType()->getLocation(), diag::err_void_value);
-            return nullptr;
-        case TYPE_INT:
-            if (!Val->empty()) {
-                uint64_t intVal = std::stoi(Val->str());
-                return llvm::ConstantInt::get(Int32Ty, intVal, true);
+        case TYPE_BOOL: {
+            if (Val->empty()) {
+                return llvm::ConstantInt::get(BoolTy, 0, false);
             }
-            return llvm::ConstantInt::get(Int32Ty, 0, false);;
-        case TYPE_FLOAT:
-            if (!Val->empty()) {
-                return llvm::ConstantFP::get(FloatTy, Val->str());
-            }
-            return llvm::ConstantFP::get(FloatTy, 0);
-        case TYPE_BOOL:
-            if (Val->isTrue()) {
+            // Check bool value
+            if (Val->str() == "true") {
                 return llvm::ConstantInt::get(BoolTy, 1, false);
+            } else if (Val->str() == "false") {
+                return llvm::ConstantInt::get(BoolTy, 0, false);
             }
+            // Invalid value
+            Diag(Type->getLocation(), diag::err_invalid_bool_val) << Val->str();
             return llvm::ConstantInt::get(BoolTy, 0, false);
+        }
+
+        case TYPE_BYTE: {
+            if (Val->empty()) {
+                return llvm::ConstantInt::get(Int8Ty, 0, false); // Default value
+            }
+            // Check byte value (radix 10)
+            if (std::regex_match(Val->str(), std::regex(UIntRegex))) {
+                CheckMinMax(*Val, "byte", 0, MAX_BYTE);
+                return llvm::ConstantInt::get(Int8Ty, StringRef(Val->str()), 10);
+            }
+            // Check byte value (radix 16)
+            if (std::regex_match(Val->str(), std::regex(UIntRegex16))) {
+                CheckMinMax(*Val, "byte", 0, MAX_BYTE);
+                return llvm::ConstantInt::get(Int8Ty, StringRef(Val->str()), 16);
+            }
+            // Invalid value
+            Diag(Type->getLocation(), diag::err_type_invalid_type) << "byte";
+            return llvm::ConstantInt::get(Int8Ty, 0, false);
+        }
+
+        case TYPE_USHORT: {
+            if (Val->empty()) {
+                return llvm::ConstantInt::get(Int16Ty, 0, false);
+            }
+            // Check byte value (radix 10)
+            if (std::regex_match(Val->str(), std::regex(UIntRegex))) {
+                CheckMinMax(*Val, "ushort", 0, MAX_USHORT);
+                return llvm::ConstantInt::get(Int16Ty, StringRef(Val->str()), 10);
+            }
+            // Check byte value (radix 16)
+            if (std::regex_match(Val->str(), std::regex(UIntRegex16))) {
+                CheckMinMax(*Val, "ushort", 0, MAX_USHORT);
+                return llvm::ConstantInt::get(Int16Ty, StringRef(Val->str()), 16);
+            }
+            // Invalid value
+            Diag(Type->getLocation(), diag::err_type_invalid_type) << "ushort";
+            return llvm::ConstantInt::get(Int16Ty, 0, false);
+        }
+
+        case TYPE_SHORT: {
+            if (Val->empty()) {
+                return llvm::ConstantInt::get(Int16Ty, 0, TYPE_SHORT);  // Default value
+            }
+            // Check byte value (radix 10)
+            if (std::regex_match(Val->str(), std::regex(UIntRegex))) {
+                CheckMinMax(*Val, "short", MIN_SHORT, MAX_SHORT);
+                return llvm::ConstantInt::get(Int16Ty, StringRef(Val->str()), 10);
+            }
+            // Check byte value (radix 16)
+            if (std::regex_match(Val->str(), std::regex(UIntRegex16))) {
+                CheckMinMax(*Val, "short", MIN_SHORT, MAX_SHORT);
+                return llvm::ConstantInt::get(Int16Ty, StringRef(Val->str()), 16);
+            }
+            // Invalid value
+            Diag(Type->getLocation(), diag::err_type_invalid_type) << "short";
+            return llvm::ConstantInt::get(Int16Ty, 0, TYPE_SHORT);
+        }
+
+        case TYPE_UINT: {
+            if (Val->empty()) {
+                return llvm::ConstantInt::get(Int32Ty, 0, false);
+            }
+            // Check byte value (radix 10)
+            if (std::regex_match(Val->str(), std::regex(UIntRegex))) {
+                CheckMinMax(*Val, "uint", 0, MAX_UINT);
+                return llvm::ConstantInt::get(Int32Ty, StringRef(Val->str()), 10);
+            }
+            // Check byte value (radix 16)
+            if (std::regex_match(Val->str(), std::regex(UIntRegex16))) {
+                CheckMinMax(*Val, "uint", 0, MAX_UINT);
+                return llvm::ConstantInt::get(Int32Ty, StringRef(Val->str()), 16);
+            }
+            // Invalid value
+            Diag(Type->getLocation(), diag::err_type_invalid_type) << "uint";
+            return llvm::ConstantInt::get(Int32Ty, 0, false);
+        }
+
+        case TYPE_INT: {
+            if (Val->empty()) {
+                return llvm::ConstantInt::get(Int32Ty, 0, TYPE_INT);  // Default value
+            }
+            // Check byte value (radix 10)
+            if (std::regex_match(Val->str(), std::regex(IntRegex))) {
+                CheckMinMax(*Val, "int", MIN_INT, MAX_INT);
+                return llvm::ConstantInt::get(Int32Ty, StringRef(Val->str()), 10);
+            }
+            // Check byte value (radix 16)
+            if (std::regex_match(Val->str(), std::regex(IntRegex16))) {
+                CheckMinMax(*Val, "int", MIN_INT, MAX_INT);
+                return llvm::ConstantInt::get(Int32Ty, StringRef(Val->str()), 16);
+            }
+            // Invalid value
+            Diag(Type->getLocation(), diag::err_type_invalid_type) << "int";
+            return llvm::ConstantInt::get(Int32Ty, 0, TYPE_INT);
+        }
+
+        case TYPE_ULONG: {
+            if (Val->empty()) {
+                return llvm::ConstantInt::get(Int64Ty, 0, false);  // Default value
+            }
+            // Check byte value (radix 10)
+            if (std::regex_match(Val->str(), std::regex(UIntRegex))) {
+                CheckMinMax(*Val, "ulong", 0, MAX_ULONG);
+                return llvm::ConstantInt::get(Int64Ty, StringRef(Val->str()), 10);
+            }
+            // Check byte value (radix 16)
+            if (std::regex_match(Val->str(), std::regex(UIntRegex16))) {
+                CheckMinMax(*Val, "ulong", 0, MAX_ULONG);
+                return llvm::ConstantInt::get(Int64Ty, StringRef(Val->str()), 16);
+            }
+            // Invalid value
+            Diag(Type->getLocation(), diag::err_type_invalid_type) << "ulong";
+            return llvm::ConstantInt::get(Int64Ty, 0, false);
+        }
+
+        case TYPE_LONG: {
+            if (Val->empty()) {
+                return llvm::ConstantInt::get(Int64Ty, 0, TYPE_LONG);  // Default value
+            }
+            // Check byte value (radix 10)
+            if (std::regex_match(Val->str(), std::regex(IntRegex))) {
+                CheckMinMax(*Val, "long", MIN_LONG, MAX_LONG);
+                return llvm::ConstantInt::get(Int64Ty, StringRef(Val->str()), 10);
+            }
+            // Check byte value (radix 16)
+            if (std::regex_match(Val->str(), std::regex(IntRegex16))) {
+                CheckMinMax(*Val, "long", MIN_LONG, MAX_LONG);
+                return llvm::ConstantInt::get(Int64Ty, StringRef(Val->str()), 16);
+            }
+            // Invalid value
+            Diag(Type->getLocation(), diag::err_type_invalid_type) << "ulong";
+            return llvm::ConstantInt::get(Int64Ty, 0, TYPE_LONG);
+        }
+
+        case TYPE_FLOAT: {
+            if (Val->empty()) {
+                return llvm::ConstantFP::get(FloatTy, 0.0);
+            }
+            if (std::regex_match(Val->str(), std::regex(DecimalRegex))) {
+                return llvm::ConstantFP::get(FloatTy, StringRef(Val->str()));
+            }
+            // Invalid value
+            Diag(Type->getLocation(), diag::err_type_invalid_type) << "float";
+            return llvm::ConstantFP::get(FloatTy, 0);  // Default value
+        }
+
+        case TYPE_DOUBLE: {
+            if (Val->empty()) {
+                return llvm::ConstantFP::get(DoubleTy, 0.0);
+            }
+            if (std::regex_match(Val->str(), std::regex(DecimalRegex))) {
+                return llvm::ConstantFP::get(FloatTy, StringRef(Val->str()));
+            }
+            // Invalid value
+            Diag(Type->getLocation(), diag::err_type_invalid_type) << "float";
+            return llvm::ConstantFP::get(DoubleTy, 0);  // Default value
+        }
+
         case TYPE_CLASS:
             break;
     }
@@ -305,7 +478,7 @@ llvm::Constant *CodeGenModule::GenValue(const ASTType *Type, const ASTValue *Val
 
 llvm::Value *CodeGenModule::GenExpr(llvm::Function *Fn, const ASTType *Type, ASTExpr *Expr) {
     FLY_DEBUG("CodeGenFunction", "GenExpr");
-    CodeGenExpr *CGExpr = new CodeGenExpr(this, Fn, Expr, Type);
+    CodeGenExpr *CGExpr = new CodeGenExpr(this, Fn, (ASTExpr *)Expr, Type);
     return CGExpr->getValue();
 }
 
@@ -570,4 +743,54 @@ void CodeGenModule::GenWhileBlock(llvm::Function *Fn, ASTWhileBlock *While) {
 
     // Continue insertions into End Branch
     Builder->SetInsertPoint(EndBR);
+}
+
+void CodeGenModule::CheckMinMax(const ASTValue &Val, const char *Type, uint64_t Min, uint64_t Max) {
+    std::string Str = Val.str();
+    const char *c = Str.c_str();
+    int Sign = 1;
+    int Radix = 10;
+    uint64_t Result = 0;
+
+    // Check Negative number
+    if (*c == '-') {
+        Sign = -1;
+        if (Min == 0) {
+            Diag(Val.getLocation(), diag::err_value_unexpected_neg) << Type << Str;
+            return;
+        }
+        c++;
+    }
+
+    // Check if zero, hexadecimal or decimal
+    if (*c == '0') {
+        c++;
+
+        if (*c == 'x') {
+            c++;
+            Radix = 0xF;
+        }
+    }
+
+    for (; *c!='\0'; c++) {
+        Result = Result * Radix + *c - '0';
+        if (Result < 0) {
+            if (Sign > 0)
+                Diag(Val.getLocation(), diag::err_value_max_overflow) << Type << Str;
+            else if (Sign < 0)
+                Diag(Val.getLocation(), diag::err_value_min_underflow) << Type << Str;
+            return;
+        }
+    }
+
+    if (Result > Max) {
+        Diag(Val.getLocation(), diag::err_value_max_overflow) << Type << Str;
+        return;
+    }
+
+    if ((Min == 0 && Result < 0) || Result > Min) {
+        Diag(Val.getLocation(), diag::err_value_min_underflow) << Type << Str;
+        return;
+    }
+
 }

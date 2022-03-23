@@ -11,7 +11,6 @@
 #ifndef FLY_ASTEXPR_H
 #define FLY_ASTEXPR_H
 
-#include "ASTValue.h"
 #include "Basic/SourceLocation.h"
 #include <vector>
 #include <utility>
@@ -19,20 +18,73 @@
 namespace fly {
 
     enum ASTExprKind {
-        EXPR_VALUE = 1,
-        EXPR_OPERATOR = 2,
-        EXPR_REF_VAR = 3,
-        EXPR_REF_FUNC = 4,
-        EXPR_GROUP = 5,
-        EXPR_VIRTUAL = 10
+        EXPR_VALUE,
+        EXPR_REF_VAR,
+        EXPR_REF_FUNC,
+        EXPR_GROUP
     };
 
+    enum ASTExprGroupKind {
+        GROUP_UNARY,
+        GROUP_BINARY,
+        GROUP_TERNARY
+    };
+
+    enum UnaryOptionKind {
+        UNARY_PRE,
+        UNARY_POST
+    };
+
+    enum UnaryOpKind {
+        ARITH_INCR,
+        ARITH_DECR,
+        LOGIC_NOT
+    };
+
+    enum BinaryOptionKind {
+        BINARY_ARITH,
+        BINARY_LOGIC,
+        BINARY_COMPARISON
+    };
+
+    enum BinaryOpKind {
+
+        // Arithmetic
+        ARITH_ADD = 101,
+        ARITH_SUB = 102,
+        ARITH_MUL = 103,
+        ARITH_DIV = 104,
+        ARITH_MOD = 105,
+        ARITH_AND = 106,
+        ARITH_OR = 107,
+        ARITH_XOR = 108,
+        ARITH_SHIFT_L = 109,
+        ARITH_SHIFT_R = 110,
+
+        // Logic
+        LOGIC_AND = 201,
+        LOGIC_OR = 202,
+
+        // Comparison
+        COMP_EQ = 301,
+        COMP_NE = 302,
+        COMP_GT = 303,
+        COMP_GTE = 304,
+        COMP_LT = 305,
+        COMP_LTE = 306
+    };
+
+    enum TernaryOpKind {
+        CONDITION
+    };
+
+    class ASTType;
+    class ASTValue;
     class ASTVarRef;
     class ASTFuncCall;
     class ASTVarRefExpr;
     class ASTFuncCallExpr;
     class ASTValueExpr;
-    class ASTGroupExpr;
 
     /**
      * Expression Abstract Class
@@ -47,15 +99,15 @@ namespace fly {
 
         const SourceLocation &getLocation() const;
 
-        virtual ASTExprKind getKind() const = 0;
-
         virtual ASTType *getType() const = 0;
+
+        virtual ASTExprKind getKind() const = 0;
 
         virtual std::string str() const = 0;
     };
 
     /**
-     * Expression Value
+     * Value Expression
      */
     class ASTValueExpr : public ASTExpr {
 
@@ -63,7 +115,7 @@ namespace fly {
         const ASTValue *Val;
 
     public:
-        ASTValueExpr(const SourceLocation &Loc, const ASTValue *Val);
+        ASTValueExpr(const ASTValue *Val);
 
         ASTExprKind getKind() const override;
 
@@ -75,7 +127,7 @@ namespace fly {
     };
 
     /**
-     * Var Expression Reference
+     * Var Reference Expression
      */
     class ASTVarRefExpr : public ASTExpr {
 
@@ -83,7 +135,7 @@ namespace fly {
         ASTVarRef *Ref;
 
     public:
-        ASTVarRefExpr(const SourceLocation &Loc, ASTVarRef *Ref);
+        ASTVarRefExpr(ASTVarRef *Ref);
 
         ASTExprKind getKind() const override;
 
@@ -95,7 +147,7 @@ namespace fly {
     };
 
     /**
-     * Function Call Expression Reference
+     * Function Call Expression
      */
     class ASTFuncCallExpr : public ASTExpr {
 
@@ -103,7 +155,7 @@ namespace fly {
         ASTFuncCall * Call;
 
     public:
-        ASTFuncCallExpr(const SourceLocation &Loc, ASTFuncCall *Ref);
+        ASTFuncCallExpr(ASTFuncCall *Ref);
 
         ASTExprKind getKind() const override;
 
@@ -115,29 +167,110 @@ namespace fly {
     };
 
     /**
-     * Expression List of Expressions
+     * Group Expression
      */
     class ASTGroupExpr : public ASTExpr {
 
         const ASTExprKind Kind = ASTExprKind::EXPR_GROUP;
-        std::vector<ASTExpr *> Group;
+
+        const ASTExprGroupKind GroupKind;
 
     public:
 
-        ASTGroupExpr(const SourceLocation &Loc);
+        ASTGroupExpr(const SourceLocation &Loc, ASTExprGroupKind GroupKind);
 
         ASTExprKind getKind() const override;
 
-        const std::vector<ASTExpr *> &getGroup() const;
+        virtual ASTExprGroupKind getGroupKind();
 
-        bool isEmpty() const;
+        virtual ASTType *getType() const override = 0;
 
-        void Add(ASTExpr * Exp);
+        virtual std::string str() const override = 0;
+    };
+
+    /**
+     * Unary Group Expression
+     */
+    class ASTUnaryGroupExpr : public ASTGroupExpr {
+
+        const UnaryOpKind OperatorKind;
+
+        const UnaryOptionKind OptionKind;
+
+        const ASTVarRefExpr *First;
+
+    public:
+
+        ASTUnaryGroupExpr(const SourceLocation &Loc, UnaryOpKind Operator, UnaryOptionKind Option,
+                          ASTVarRefExpr *First);
+
+        UnaryOpKind getOperatorKind() const;
+
+        UnaryOptionKind getOptionKind() const;
+
+        const ASTVarRefExpr *getFirst() const;
 
         ASTType *getType() const override;
 
         std::string str() const override;
+    };
 
+    /**
+     * Binary Group Expression
+     */
+    class ASTBinaryGroupExpr : public ASTGroupExpr {
+
+        const BinaryOpKind OperatorKind;
+
+        const BinaryOptionKind OptionKind;
+
+        const ASTExpr *First;
+
+        const ASTExpr *Second;
+
+    public:
+
+        ASTBinaryGroupExpr(const SourceLocation &Loc, BinaryOpKind Operator, ASTExpr *First, ASTExpr *Second);
+
+        BinaryOpKind getOperatorKind() const;
+
+        BinaryOptionKind getOptionKind() const;
+
+        const ASTExpr *getFirst() const;
+
+        const ASTExpr *getSecond() const;
+
+        ASTType *getType() const override;
+
+        std::string str() const override;
+    };
+
+    /**
+     * Ternary Group Expression
+     */
+    class ASTTernaryGroupExpr : public ASTGroupExpr {
+
+        // Only Ternary Condition (if ? than : else)
+        const TernaryOpKind OperatorKind = CONDITION;
+        const ASTExpr *First;
+        const ASTExpr *Second;
+        const ASTExpr *Third;
+
+    public:
+
+        ASTTernaryGroupExpr(const SourceLocation &Loc, ASTExpr *First, ASTExpr *Second, ASTExpr *Third);
+
+        TernaryOpKind getOperatorKind() const;
+
+        ASTType *getType() const override;
+
+        const ASTExpr *getFirst() const;
+
+        const ASTExpr *getSecond() const;
+
+        const ASTExpr *getThird() const;
+
+        std::string str() const override;
     };
 }
 

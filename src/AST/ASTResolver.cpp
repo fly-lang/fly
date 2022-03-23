@@ -223,20 +223,8 @@ bool ASTResolver::ResolveFuncCalls(ASTNameSpace *NameSpace) {
 }
 
 ASTType *ASTResolver::ResolveExprType(ASTExpr *Expr) {
-    FLY_DEBUG_MESSAGE("ASTResolver", "ResolveExprType",
-                      "Expr=" << Expr->str());
-    switch (Expr->getKind()) {
-
-        case EXPR_VALUE:
-            return ((ASTValueExpr *) Expr)->getValue().getType();
-        case EXPR_REF_VAR:
-            return ((ASTVarRefExpr *) Expr)->getVarRef()->getDecl()->getType();
-        case EXPR_REF_FUNC:
-            return ((ASTFuncCallExpr *) Expr)->getCall()->getDecl()->getType();
-        case EXPR_GROUP:
-            return ResolveExprType(((ASTGroupExpr *) Expr)->getGroup().at(0));
-    }
-    return nullptr;
+    FLY_DEBUG_MESSAGE("ASTResolver", "ResolveExprType","Expr=" << Expr->str());
+    return Expr->getType();
 }
 
 /**
@@ -294,7 +282,7 @@ bool ASTResolver::ResolveVarRef(const ASTBlock *Block, ASTVarRef *VarRef) {
  * @param Expr
  * @return true if no error occurs, otherwise false
  */
-bool ASTResolver::ResolveExpr(const ASTBlock *Block, ASTExpr *Expr) {
+bool ASTResolver::ResolveExpr(const ASTBlock *Block, const ASTExpr *Expr) {
     FLY_DEBUG_MESSAGE("ASTResolver", "ResolveExpr", "Expr=" << Expr->str());
     switch (Expr->getKind()) {
         case EXPR_REF_VAR: {
@@ -306,15 +294,21 @@ bool ASTResolver::ResolveExpr(const ASTBlock *Block, ASTExpr *Expr) {
             return Call->getDecl() || Block->getTop()->getNode()->AddUnrefCall(Call);
         }
         case EXPR_GROUP: {
-            bool Result = true;
-            for (auto &GroupExpr : ((ASTGroupExpr *)Expr)->getGroup()) {
-                Result &= ResolveExpr(Block, GroupExpr);
+            ASTGroupExpr *GroupExpr = (ASTGroupExpr *) Expr;
+            switch (GroupExpr->getGroupKind()) {
+
+                case GROUP_UNARY:
+                    return ResolveExpr(Block, (ASTExpr *)((ASTUnaryGroupExpr *)GroupExpr)->getFirst());
+                case GROUP_BINARY:
+                    return ResolveExpr(Block, ((ASTBinaryGroupExpr *)GroupExpr)->getFirst()) &&
+                            ResolveExpr(Block, ((ASTBinaryGroupExpr *)GroupExpr)->getSecond());
+                case GROUP_TERNARY:
+                    return ResolveExpr(Block, ((ASTTernaryGroupExpr *)GroupExpr)->getFirst()) &&
+                           ResolveExpr(Block, ((ASTTernaryGroupExpr *)GroupExpr)->getSecond()) &&
+                            ResolveExpr(Block, ((ASTTernaryGroupExpr *)GroupExpr)->getThird());
             }
-            return Result;
         }
         case EXPR_VALUE:
-            return true;
-        case EXPR_OPERATOR:
             return true;
     }
 

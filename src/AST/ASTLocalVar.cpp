@@ -7,7 +7,7 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-
+#include "AST/ASTValue.h"
 #include "AST/ASTLocalVar.h"
 
 using namespace fly;
@@ -17,16 +17,16 @@ ASTLocalVar::ASTLocalVar(const SourceLocation &Loc, ASTBlock *Block, ASTType *Ty
     switch (Type->getKind()) {
 
         case TYPE_INT:
-            setExpr(new ASTValueExpr(Loc, new ASTValue(Loc, "0", Type)));
+            setExpr(new ASTValueExpr(new ASTValue(Loc, "0", Type)));
             break;
         case TYPE_FLOAT:
-            setExpr(new ASTValueExpr(Loc, new ASTValue(Loc, "0", Type)));
+            setExpr(new ASTValueExpr(new ASTValue(Loc, "0", Type)));
             break;
         case TYPE_BOOL:
-            setExpr(new ASTValueExpr(Loc, new ASTValue(Loc, "false", Type)));
+            setExpr(new ASTValueExpr(new ASTValue(Loc, "false", Type)));
             break;
         case TYPE_CLASS:
-            setExpr(new ASTValueExpr(Loc, new ASTValue(Loc, "null", Type)));
+            setExpr(new ASTValueExpr(new ASTValue(Loc, "null", Type)));
             break;
     }
 }
