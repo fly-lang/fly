@@ -24,12 +24,10 @@ namespace fly {
         friend class Parser;
 
         Parser *P;
-        const llvm::StringRef &FuncName;
-        SourceLocation &FuncNameLoc;
-        ASTFunc *Function = NULL;
-        ASTFuncCall *Call = NULL;
+        ASTFunc *AST = nullptr;
+        ASTFuncCall *Call = nullptr;
 
-        FunctionParser(Parser *P, const llvm::StringRef &FuncName, SourceLocation &FuncNameLoc);
+        FunctionParser(Parser *P);
 
         bool ParseFunction(ASTType *Type);
 
@@ -39,7 +37,7 @@ namespace fly {
 
         bool ParseFunctionParam();
 
-        bool ParseCall(ASTBlock *Block, llvm::StringRef NameSpace = "");
+        bool ParseCall(ASTBlock *Block, SourceLocation &Loc, llvm::StringRef Name, llvm::StringRef NameSpace = "");
 
         bool ParseCallArgs(ASTBlock *Block);
 

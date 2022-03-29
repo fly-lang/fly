@@ -45,6 +45,8 @@ namespace fly {
 
         DiagnosticsEngine &Diags;
 
+        SourceManager &SourceMgr;
+
         Lexer Lex;
 
         ASTNode *AST;
@@ -60,6 +62,8 @@ namespace fly {
         SourceLocation PrevTokLocation;
 
         unsigned short ParenCount = 0, BracketCount = 0, BraceCount = 0;
+
+        std::string BlockComment;
 
     public:
 
@@ -89,8 +93,9 @@ namespace fly {
         SourceLocation ConsumeStringToken();
         SourceLocation ConsumeNext();
         llvm::StringRef getLiteralString();
+        void ClearBlockComment();
 
-        std::string ParseNameSpace();
+        bool ParseNameSpace();
 
         bool ParseImports();
 
@@ -101,13 +106,11 @@ namespace fly {
 
         bool ParseConst(bool &Constant);
 
-        bool ParseGlobalVarDecl(VisibilityKind &VisKind, bool &Constant, ASTType *Type,
-                                llvm::StringRef &Name, SourceLocation &NameLoc);
+        bool ParseGlobalVarDecl(VisibilityKind &VisKind, bool &Constant, ASTType *Type);
+
+        bool ParseFunction(VisibilityKind &VisKind, bool Constant, ASTType *Type);
 
         bool ParseClassDecl(VisibilityKind &VisKind, bool &Constant);
-
-        bool ParseFunction(VisibilityKind &VisKind, bool Constant, ASTType *Type, llvm::StringRef &Name,
-                           SourceLocation &NameLoc);
 
         bool ParseType(ASTType *&Type, bool OnlyBuiltin = false);
 

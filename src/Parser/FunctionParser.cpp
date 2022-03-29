@@ -18,8 +18,7 @@ using namespace fly;
  * @param FuncName
  * @param FuncNameLoc
  */
-FunctionParser::FunctionParser(Parser *P, const StringRef &FuncName, SourceLocation &FuncNameLoc)
-                                    : P(P), FuncName(FuncName), FuncNameLoc(FuncNameLoc) {
+FunctionParser::FunctionParser(Parser *P) : P(P) {
 
 }
 
@@ -29,7 +28,21 @@ FunctionParser::FunctionParser(Parser *P, const StringRef &FuncName, SourceLocat
  * @return true on Success or false on Error
  */
 bool FunctionParser::ParseFunction(ASTType *Type) {
-    Function = new ASTFunc(P->AST, FuncNameLoc, Type, FuncName.str());
+    assert(P->Tok.isAnyIdentifier() && "Tok must be an Identifier");
+
+    IdentifierInfo *Id = P->Tok.getIdentifierInfo();
+    llvm::StringRef Name = Id->getName();
+    SourceLocation Loc = P->Tok.getLocation();
+
+    AST = new ASTFunc(P->AST, Loc, Type, Name.str());
+
+    // Add Comment to AST
+    if (!P->BlockComment.empty()) {
+        AST->setComment(P->BlockComment);
+        P->ClearBlockComment(); // Clear for next use
+    }
+
+    P->ConsumeToken();
     return ParseFunctionParams();
 }
 
@@ -40,8 +53,12 @@ bool FunctionParser::ParseFunction(ASTType *Type) {
 bool FunctionParser::ParseFunctionBody() {
     if (P->Tok.is(tok::l_brace)) {
         P->ConsumeBrace();
-        if (P->ParseInnerBlock(Function->Body)) {
-            return P->isBraceBalanced();
+        if (P->ParseInnerBlock(AST->Body)) {
+            if (P->isBraceBalanced()) {
+                // If next Top declaration do not have a block comment it could be taken the last from function body
+                P->ClearBlockComment();
+                return true;
+            }
         }
     }
 
@@ -102,7 +119,7 @@ bool FunctionParser::ParseFunctionParam() {
         }
 
         if (Success) {
-            Function->Header->Params.push_back(Param);
+            AST->Header->Params.push_back(Param);
 
             if (P->Tok.is(tok::comma)) {
                 P->ConsumeToken();
@@ -126,8 +143,8 @@ bool FunctionParser::ParseFunctionParam() {
  * @param NameSpace
  * @return true on Success or false on Error
  */
-bool FunctionParser::ParseCall(ASTBlock *Block, llvm::StringRef NameSpace) {
-    Call = new ASTFuncCall(FuncNameLoc, NameSpace.str(), FuncName.str());
+bool FunctionParser::ParseCall(ASTBlock *Block, SourceLocation &Loc, llvm::StringRef Name, llvm::StringRef NameSpace) {
+    Call = new ASTFuncCall(Loc, NameSpace.str(), Name.str());
     return ParseCallArgs(Block);
 }
 

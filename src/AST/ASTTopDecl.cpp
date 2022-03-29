@@ -47,3 +47,14 @@ std::string ASTTopDecl::str() const {
     return "Visibility=" + std::to_string(Visibility) +
             ", Kind=" + std::to_string(Kind);
 }
+
+const std::string &ASTTopDecl::getComment() const {
+    return Comment;
+}
+
+void ASTTopDecl::setComment(std::string &C) {
+    const char* t = " \t\n\r\f\v";
+    C = C.substr(2, C.size()-4);
+    C = C.erase(0, C.find_first_not_of(t));
+    Comment = C.erase(C.find_last_not_of(t) + 1);
+}

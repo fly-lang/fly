@@ -26,7 +26,7 @@ using namespace fly;
  * @param Diags 
  */
 Parser::Parser(const InputFile &Input, SourceManager &SourceMgr, DiagnosticsEngine &Diags) : Input(Input), Diags(Diags),
-            Lex(Input.getFileID(), Input.getBuffer(), SourceMgr) {
+            SourceMgr(SourceMgr), Lex(Input.getFileID(), Input.getBuffer(), SourceMgr) {
 
 }
 
@@ -45,38 +45,39 @@ bool Parser::Parse(ASTNode *Node) {
     ConsumeToken();
 
     // Parse NameSpace on first
-    AST->setNameSpace(ParseNameSpace());
+    if (ParseNameSpace()) {
 
-    // Parse Imports
-    if (ParseImports()) {
+        // Parse Imports
+        if (ParseImports()) {
 
-        // Node empty
-        if (Tok.is(tok::eof)) {
-            Diag(Tok.getLocation(), diag::warn_empty_code);
-            return true;
-        }
-
-        // Parse All
-        while (Tok.isNot(tok::eof)) {
-
-            // if parse "namespace" there is multiple package declarations
-            if (Tok.is(tok::kw_namespace)) {
-
-                // Multiple Package declaration is invalid, you can define only one and on top of declarations
-                Diag(Tok, diag::err_namespace_invalid) << Tok.getName();
-                return false;
+            // Node empty
+            if (Tok.is(tok::eof)) {
+                Diag(Tok.getLocation(), diag::warn_empty_code);
+                return true;
             }
 
-            // if parse "import" there is import declaration position error
-            if (Tok.is(tok::kw_import)) {
+            // Parse All
+            while (Tok.isNot(tok::eof)) {
 
-                // Import can be defined after namespace and before all other declarations
-                Diag(Tok, diag::err_import_invalid) << Tok.getName();
-                return false;
-            }
+                // if parse "namespace" there is multiple package declarations
+                if (Tok.is(tok::kw_namespace)) {
 
-            if (!ParseTopDecl()) {
-                return false;
+                    // Multiple Package declaration is invalid, you can define only one and on top of declarations
+                    Diag(Tok, diag::err_namespace_invalid) << Tok.getName();
+                    return false;
+                }
+
+                // if parse "import" there is import declaration position error
+                if (Tok.is(tok::kw_import)) {
+
+                    // Import can be defined after namespace and before all other declarations
+                    Diag(Tok, diag::err_import_invalid) << Tok.getName();
+                    return false;
+                }
+
+                if (!ParseTopDecl()) {
+                    return false;
+                }
             }
         }
     }
@@ -94,11 +95,13 @@ bool Parser::ParseHeader(ASTNode *Node) {
     ConsumeToken();
 
     // Parse NameSpace on first
-    Node->setNameSpace(ParseNameSpace());
+    if (ParseNameSpace()) {
 
-    while (Tok.isNot(tok::eof)) {
-        if (!ParseTopDecl()) {
-            return false;
+        // Parse Top declarations
+        while (Tok.isNot(tok::eof)) {
+            if (!ParseTopDecl()) {
+                return false;
+            }
         }
     }
 
@@ -146,8 +149,7 @@ void Parser::DiagInvalidId(SourceLocation Loc) {
  * @return the location of the consumed token
  */
 SourceLocation Parser::ConsumeToken() {
-    assert(!isTokenSpecial() &&
-           "Should consume special tokens with Consume*Token");
+    assert(!isTokenSpecial() && "Should consume special tokens with Consume*Token");
     return ConsumeNext();
 }
 
@@ -257,9 +259,12 @@ SourceLocation Parser::ConsumeStringToken() {
 }
 
 SourceLocation Parser::ConsumeNext() {
-    PrevTokLocation = Tok.getLocation();
     Lex.Lex(Tok);
-    return PrevTokLocation;
+    while (Tok.is(tok::comment)) {
+        BlockComment = Tok.getCommentData().str();
+        Lex.Lex(Tok);
+    }
+    return Tok.getLocation();
 }
 
 /**
@@ -278,12 +283,15 @@ llvm::StringRef Parser::getLiteralString() {
     return Str;
 }
 
+void Parser::ClearBlockComment() {
+    BlockComment = "";
+}
+
 /**
  * Parse package declaration
- * @param fileName
  * @return true on Success or false on Error
  */
-std::string Parser::ParseNameSpace() {
+bool Parser::ParseNameSpace() {
     // Check namespace declaration
     if (Tok.is(tok::kw_namespace)) {
         ConsumeToken();
@@ -301,6 +309,7 @@ std::string Parser::ParseNameSpace() {
         } else {
             // Invalid NameSpace defined with error
             Diag(Tok, diag::err_namespace_invalid) << Tok.getName();
+            return false;
         }
 
         // Push Names into namespace
@@ -313,15 +322,18 @@ std::string Parser::ParseNameSpace() {
                 ConsumeToken();
             } else {
                 Diag(Tok, diag::err_namespace_invalid) << Tok.getName();
+                return false;
             }
         }
         FLY_DEBUG_MESSAGE("Parser", "ParseNameSpace", "NameSpace=" << NS);
-        return NS;
+        AST->setNameSpace(NS);
+        return true;
     }
 
     // Define Default NameSpace also if it has not been defined
     FLY_DEBUG_MESSAGE("Parser", "ParseNameSpace", "No namespace defined");
-    return ASTNameSpace::DEFAULT;
+    AST->setNameSpace(ASTNameSpace::DEFAULT);
+    return true;
 }
 
 /**
@@ -371,6 +383,7 @@ bool Parser::ParseImports() {
  */
 bool Parser::ParseTopDecl() {
     FLY_DEBUG("Parser", "ParseTopDecl");
+
     VisibilityKind Visibility = VisibilityKind::V_DEFAULT;
     bool Constant = false;
 
@@ -386,18 +399,15 @@ bool Parser::ParseTopDecl() {
         if (ParseType(Type)) {
 
             if (Tok.isAnyIdentifier()) {
-                IdentifierInfo *Id = Tok.getIdentifierInfo();
-                llvm::StringRef Name = Id->getName();
-                SourceLocation IdLoc = Tok.getLocation();
-                ConsumeToken();
+                const Optional<Token> &NextTok = Lex.findNextToken(Tok.getLocation(), SourceMgr);
 
                 // parse function
-                if (Tok.is(tok::l_paren)) {
-                    return ParseFunction(Visibility, Constant, Type, Name, IdLoc);
+                if (NextTok->is(tok::l_paren)) {
+                    return ParseFunction(Visibility, Constant, Type);
                 }
 
                 // parse global var
-                return ParseGlobalVarDecl(Visibility, Constant, Type, Name, IdLoc);
+                return ParseGlobalVarDecl(Visibility, Constant, Type);
             }
         }
     }
@@ -469,15 +479,44 @@ bool Parser::ParseConst(bool &Constant) {
  * @param NameLoc
  * @return
  */
-bool Parser::ParseGlobalVarDecl(VisibilityKind &VisKind, bool &Constant, ASTType *Type,
-                                llvm::StringRef &Name, SourceLocation &NameLoc) {
-    FLY_DEBUG_MESSAGE("Parser", "ParseGlobalVarDecl", "Name=" << Name <<
-    ", Type=" << Type->str());
-    GlobalVarParser Parser(this, Type, Name, NameLoc);
+bool Parser::ParseGlobalVarDecl(VisibilityKind &VisKind, bool &Constant, ASTType *Type) {
+    FLY_DEBUG_MESSAGE("Parser", "ParseGlobalVarDecl", "VisKind=" << VisKind <<
+    ", Constant=" << Constant << ", Type=" << Type->str());
+    GlobalVarParser Parser(this, Type);
     if (Parser.Parse()) {
-        Parser.Var->Constant = Constant;
-        Parser.Var->Visibility = VisKind;
-        return AST->AddGlobalVar(Parser.Var);
+        Parser.AST->Constant = Constant;
+        Parser.AST->Visibility = VisKind;
+
+        return AST->AddGlobalVar(Parser.AST);
+    }
+
+    return false;
+}
+
+
+/**
+ * Parse Function declaration
+ * @param VisKind
+ * @param Constant
+ * @param Type
+ * @param Name
+ * @param NameLoc
+ * @return
+ */
+bool Parser::ParseFunction(VisibilityKind &VisKind, bool Constant, ASTType *Type) {
+    FLY_DEBUG_MESSAGE("Parser", "ParseFunction","VisKind=" << VisKind << ", Constant="
+                                                           << Constant << ", Type=" << Type->str());
+    FunctionParser Parser(this);
+    if (Parser.ParseFunction(Type)) {
+        Parser.AST->Constant = Constant;
+        Parser.AST->Visibility = VisKind;
+
+        if (AST->isHeader()) {
+            return AST->AddFunction(Parser.AST);
+        }
+
+        return Parser.ParseFunctionBody() && AST->AddFunction(Parser.AST);
+
     }
 
     return false;
@@ -495,33 +534,12 @@ bool Parser::ParseClassDecl(VisibilityKind &VisKind, bool &Constant) {
     if (Parser.Parse()) {
         Parser.Class->Constant = Constant;
         Parser.Class->Visibility = VisKind;
+
+        // Add Comment to AST
+        Parser.Class->setComment(BlockComment);
+        ClearBlockComment(); // Clear for next use
+
         return AST->AddClass(Parser.Class);
-    }
-
-    return false;
-}
-
-/**
- * Parse Function declaration
- * @param VisKind
- * @param Constant
- * @param Type
- * @param Name
- * @param NameLoc
- * @return
- */
-bool Parser::ParseFunction(VisibilityKind &VisKind, bool Constant, ASTType *Type,
-                           llvm::StringRef &Name, SourceLocation &NameLoc) {
-    FLY_DEBUG_MESSAGE("Parser", "ParseFunction","Name=" << Name <<
-        ", Type=" << Type->str());
-    FunctionParser Parser(this, Name, NameLoc);
-    if (Parser.ParseFunction(Type)) {
-        Parser.Function->Constant = Constant;
-        Parser.Function->Visibility = VisKind;
-        if (!AST->isHeader()) {
-            return Parser.ParseFunctionBody() && AST->AddFunction(Parser.Function);
-        }
-        return AST->AddFunction(Parser.Function);
     }
 
     return false;
@@ -577,7 +595,7 @@ bool Parser::ParseType(ASTType *&Type, bool OnlyBuiltin) {
                 DiagInvalidId(Loc);
                 return false;
             }
-            StringRef Name = Id->getName();
+            llvm::StringRef Name = Id->getName();
             Type = new ASTClassType(Loc, Name.str());
         }
     }
@@ -1112,8 +1130,8 @@ bool Parser::ParseIdentifier(llvm::StringRef &Name, llvm::StringRef &NameSpace, 
 ASTFuncCall * Parser::ParseFunctionCall(ASTBlock *Block, llvm::StringRef Name, llvm::StringRef NameSpace,
                                         SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("Parser", "ParseFunctionCall", "Name=" << Name + ", NameSpace=" << NameSpace);
-    FunctionParser Parser(this, Name, Loc);
-    if (Parser.ParseCall(Block, NameSpace)) {
+    FunctionParser Parser(this);
+    if (Parser.ParseCall(Block, Loc, Name, NameSpace)) {
         return Parser.Call;
     }
     return nullptr;

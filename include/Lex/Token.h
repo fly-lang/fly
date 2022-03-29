@@ -193,6 +193,15 @@ public:
     PtrData = const_cast<char*>(Ptr);
   }
 
+  llvm::StringRef getCommentData() const {
+    assert(is(tok::comment) && "Cannot getValue comment data of non-comment");
+    return llvm::StringRef(reinterpret_cast<const char *>(PtrData), getLength());
+  }
+  void setCommentData(const char *Ptr) {
+    assert(is(tok::comment) && "Cannot set comment data of non-comment");
+    PtrData = const_cast<char*>(Ptr);
+  }
+
   /// Set the specified flag.
   void setFlag(TokenFlags Flag) {
     Flags |= Flag;

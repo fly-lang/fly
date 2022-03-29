@@ -25,20 +25,14 @@ namespace fly {
 
         Parser *P;
         ASTType *Type;
-        const StringRef Name;
-        SourceLocation &Location;
-        ASTGlobalVar *Var = NULL;
-        ASTExpr *Val = NULL;
+        ASTGlobalVar *AST = nullptr;
 
     public:
-        GlobalVarParser(Parser *P, ASTType *TyDecl, const StringRef &VarName,
-                        SourceLocation &VarNameLoc);
+        GlobalVarParser(Parser *P, ASTType *TyDecl);
 
         bool Parse();
 
-        ASTGlobalVar *getVar() const;
-
-        ASTExpr *getVal() const;
+        ASTGlobalVar *getAST() const;
     };
 
 }

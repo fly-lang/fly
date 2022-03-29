@@ -70,7 +70,6 @@ void Lexer::InitLexer(const char *BufStart, const char *BufPtr, const char *BufE
         BufferPtr += BOMLength;
     }
 
-    Is_PragmaLexer = false;
     CurrentConflictMarkerState = CMK_None;
 
     // Start of the file is a start of line.
@@ -93,6 +92,9 @@ void Lexer::InitLexer(const char *BufStart, const char *BufPtr, const char *BufE
 
     // Populate the identifier table with info about keywords for the current language.
     Identifiers.AddKeywords();
+
+    // Default to not keeping comments.
+    ExtendedTokenMode = 1;
 }
 
 /// Lexer constructor - Create a new raw lexer object.  This object is only
@@ -1904,8 +1906,13 @@ bool Lexer::SkipLineComment(Token &Result, const char *CurPtr,
     }
 
     // If we are returning comments as tokens, return this comment as a token.
-    if (inKeepCommentMode())
-        return SaveLineComment(Result, CurPtr);
+    // Do not return token for line comment
+//    if (inKeepCommentMode()) {
+//        const char *TokStart = BufferPtr;
+//        FormTokenWithChars(Result, CurPtr, tok::comment);
+//        Result.setCommentData(TokStart);
+//        return true;
+//    }
 
     // Otherwise, eat the \n character.  We don't care if this is a \n\r or
     // \r\n sequence.  This is an efficiency hack (because we know the \n can't
@@ -1921,33 +1928,6 @@ bool Lexer::SkipLineComment(Token &Result, const char *CurPtr,
     Result.clearFlag(Token::LeadingSpace);
     BufferPtr = CurPtr;
     return false;
-}
-
-/// If in save-comment mode, package up this Line comment in an appropriate
-/// way and return it.
-bool Lexer::SaveLineComment(Token &Result, const char *CurPtr) {
-    // If we're not in a preprocessor directive, just return the // comment
-    // directly.
-    FormTokenWithChars(Result, CurPtr, tok::comment);
-
-    if (LexingRawMode)
-        return true;
-
-    // If this Line-style comment is in a macro definition, transmogrify it into
-    // a C-style block comment.
-    bool Invalid = false;
-    std::string Spelling = getSpelling(Result, *SM, &Invalid);
-    if (Invalid)
-        return true;
-
-    assert(Spelling[0] == '/' && Spelling[1] == '/' && "Not line comment?");
-    Spelling[1] = '*';   // Change prefix to "/*".
-    Spelling += "*/";    // add suffix.
-
-    Result.setKind(tok::comment);
-//  PP->CreateString(Spelling, Result,
-//                   Result.getLocation(), Result.getLocation()); //FIXME
-    return true;
 }
 
 /// isBlockCommentEndOfEscapedNewLine - Return true if the specified newline
@@ -2172,7 +2152,9 @@ bool Lexer::SkipBlockComment(Token &Result, const char *CurPtr,
 
     // If we are returning comments as tokens, return this comment as a token.
     if (inKeepCommentMode()) {
+        const char *TokStart = BufferPtr;
         FormTokenWithChars(Result, CurPtr, tok::comment);
+        Result.setCommentData(TokStart);
         return true;
     }
 
@@ -3014,23 +2996,19 @@ bool Lexer::LexTokenInternal(Token &Result, bool TokAtPhysicalStartOfLine) {
                 // "foo".  Check to see if the character after the second slash is a '*'.
                 // If so, we will lex that as a "/" instead of the start of a comment.
                 // However, we never do this if we are just preprocessing.
-                bool TreatAsComment = true;
-                if (!TreatAsComment)
-//        if (!(PP->isPreprocessedOutput())) FIXME
-//          TreatAsComment = getCharAndSize(CurPtr+SizeTmp, SizeTmp2) != '*';
+                bool TreatAsComment = getCharAndSize(CurPtr + SizeTmp, SizeTmp2) != '*';
 
-                    if (TreatAsComment) {
-                        if (SkipLineComment(Result, ConsumeChar(CurPtr, SizeTmp, Result),
-                                            TokAtPhysicalStartOfLine))
-                            return true; // There is a token to return.
+                if (TreatAsComment) {
+                    if (SkipLineComment(Result, ConsumeChar(CurPtr, SizeTmp, Result),
+                                        TokAtPhysicalStartOfLine))
+                        return true; // There is a token to return.
 
-                        // It is common for the tokens immediately after a // comment to be
-                        // whitespace (indentation for the next line).  Instead of going through
-                        // the big switch, handle it efficiently now.
-                        goto SkipIgnoredUnits;
-                    }
+                    // It is common for the tokens immediately after a // comment to be
+                    // whitespace (indentation for the next line).  Instead of going through
+                    // the big switch, handle it efficiently now.
+                    goto SkipIgnoredUnits;
+                }
             }
-
             if (Char == '*') {  // /**/ comment.
                 if (SkipBlockComment(Result, ConsumeChar(CurPtr, SizeTmp, Result),
                                      TokAtPhysicalStartOfLine))
