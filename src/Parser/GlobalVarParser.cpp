@@ -20,9 +20,7 @@ using namespace fly;
  * @param VarName
  * @param VarNameLoc
  */
-GlobalVarParser::GlobalVarParser(Parser *P, ASTType *TyDecl, const StringRef &VarName,
-                                 SourceLocation &VarNameLoc) :
-        P(P), Type(TyDecl), Name(VarName), Location(VarNameLoc) {
+GlobalVarParser::GlobalVarParser(Parser *P, ASTType *TyDecl) : P(P), Type(TyDecl) {
 }
 
 /**
@@ -30,34 +28,38 @@ GlobalVarParser::GlobalVarParser(Parser *P, ASTType *TyDecl, const StringRef &Va
  * @return true on Success or false on Error
  */
 bool GlobalVarParser::Parse() {
-    bool Success = true;
-    Var = new ASTGlobalVar(Location, P->AST, Type, Name.str());
+    assert(P->Tok.isAnyIdentifier() && "Tok must be an Identifier");
+
+    IdentifierInfo *Id = P->Tok.getIdentifierInfo();
+    llvm::StringRef Name = Id->getName();
+    SourceLocation Loc = P->Tok.getLocation();
+
+    AST = new ASTGlobalVar(Loc, P->AST, Type, Name.str());
+
+    // Add Comment to AST
+    if (!P->BlockComment.empty()) {
+        AST->setComment(P->BlockComment);
+        P->ClearBlockComment(); // Clear for next use
+    }
 
     // Parsing =
+    P->ConsumeToken();
     if (P->Tok.is(tok::equal)) {
         P->ConsumeToken();
 
         ASTValue *Val = P->ParseValue();
         if (Val != nullptr) {
-            Var->setExpr(new ASTValueExpr(Val));
+            AST->setExpr(new ASTValueExpr(Val));
         }
     }
 
-    return Success;
+    return true;
 }
 
 /**
  * Get Var
  * @return Var
  */
-ASTGlobalVar *GlobalVarParser::getVar() const {
-    return Var;
-}
-
-/**
- * Get Val
- * @return Val
- */
-ASTExpr *GlobalVarParser::getVal() const {
-    return Val;
+ASTGlobalVar *GlobalVarParser::getAST() const {
+    return AST;
 }

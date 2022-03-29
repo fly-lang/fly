@@ -115,9 +115,6 @@ namespace fly {
         // Location for start of file.
         SourceLocation FileLoc;
 
-        // True if lexer for _Pragma handling.
-        bool Is_PragmaLexer;
-
         //===------------------------------------------------------------------------------------------------------===//
         // Context-specific lexing flags set by the preprocessor.
         //
@@ -489,11 +486,6 @@ namespace fly {
             Result.setKind(Kind);
             BufferPtr = TokEnd;
         }
-
-        /// isNextPPTokenLParen - Return 1 if the next unexpanded token will return a
-        /// tok::l_paren token, 0 if it is something else and 2 if there are no more
-        /// tokens in the buffer controlled by this lexer.
-        unsigned isNextPPTokenLParen();
 
         //===------------------------------------------------------------------------------------------------------===//
         // Lexer character reading interfaces.

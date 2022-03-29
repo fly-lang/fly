@@ -107,6 +107,61 @@ namespace {
         delete AST;
     }
 
+    TEST_F(ParserTest,  LineComments) {
+        llvm::StringRef str = ("namespace std\n"
+                               "// Global var comment\n"
+                               "int b\n"
+                               "// Func comment\n"
+                               "void func() {}\n"
+        );
+        ASTNode *AST = Parse("LineComments", str);
+
+        ASSERT_FALSE(Diags.hasErrorOccurred());
+
+        ASTGlobalVar *GlobalB = AST->getGlobalVars().find("b")->getValue();
+        EXPECT_EQ(GlobalB->getName(), "b");
+        EXPECT_EQ(GlobalB->getComment(), "");
+
+        const ASTFunc *Func = *AST->getFunctions().begin();
+        EXPECT_EQ(Func->getName(), "func");
+        EXPECT_EQ(Func->getComment(), "");
+    }
+
+    TEST_F(ParserTest, BlockComments) {
+        llvm::StringRef str = ("namespace std\n"
+                               " /* Global var block comment */\n"
+                               "// Global var line comment\n"
+                               "int b\n"
+                               "// Func line comment\n"
+                               "\t /*   Func block comment \n*/\n"
+                               "void func() {\n"
+                               "  /* body comment */\n"
+                               "}\n"
+                               "//body comment\n"
+                               "void func2() {}\n"
+        );
+        ASTNode *AST = Parse("BlockComments", str);
+        ASSERT_FALSE(Diags.hasErrorOccurred());
+
+        ASTGlobalVar *GlobalB = AST->getGlobalVars().find("b")->getValue();
+        EXPECT_EQ(GlobalB->getName(), "b");
+        EXPECT_EQ(GlobalB->getComment(), "Global var block comment");
+
+        ASTFunc *Func, *Func2;
+        for (auto F : AST->getFunctions()) {
+            if (F->getName() == "func") {
+                Func = F;
+            } else {
+                Func2 = F;
+            }
+        }
+        EXPECT_EQ(Func->getName(), "func");
+        EXPECT_EQ(Func->getComment(), "Func block comment");
+
+        EXPECT_EQ(Func2->getName(), "func2");
+        EXPECT_EQ(Func2->getComment(), "");
+    }
+
     TEST_F(ParserTest, GlobalVars) {
         llvm::StringRef str = ("namespace std\n"
                         "private int a\n"

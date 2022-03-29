@@ -12,6 +12,7 @@
 #define FLY_ASTTOPDECL_H
 
 #include "Basic/SourceLocation.h"
+#include "llvm/ADT/SmallVector.h"
 
 namespace fly {
 
@@ -54,6 +55,8 @@ namespace fly {
         // Kind of TopDecl identified by enum
         TopDeclKind Kind;
 
+        std::string Comment;
+
     public:
         ASTTopDecl(const SourceLocation &Loc, ASTNode *Node, TopDeclKind Kind);
 
@@ -70,6 +73,10 @@ namespace fly {
         void setVisibility(VisibilityKind V);
 
         TopDeclKind getKind() const;
+
+        const std::string &getComment() const;
+
+        void setComment(std::string &C);
 
         virtual std::string str() const;
     };
