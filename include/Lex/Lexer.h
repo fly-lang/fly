@@ -151,8 +151,7 @@ namespace fly {
         /// Lexer constructor - Create a new raw lexer object.  This object is only
         /// suitable for calls to 'LexFromRawLexer'.  This lexer assumes that the
         /// text range will outlive it, so it doesn't take ownership of it.
-        Lexer(FileID FID, const llvm::MemoryBuffer *FromFile,
-              const SourceManager &SM);
+        Lexer(FileID FID, const llvm::MemoryBuffer *FromFile, const SourceManager &SM);
 
         /// Lexer constructor - Create a new raw lexer object.  This object is only
         /// suitable for calls to 'LexFromRawLexer'.  This lexer assumes that the
@@ -614,22 +613,13 @@ namespace fly {
         bool SkipBlockComment(Token &Result, const char *CurPtr,
                               bool &TokAtPhysicalStartOfLine);
 
-        bool SaveLineComment(Token &Result, const char *CurPtr);
-
         bool IsStartOfConflictMarker(const char *CurPtr);
 
         bool HandleEndOfConflictMarker(const char *CurPtr);
 
         bool lexEditorPlaceholder(Token &Result, const char *CurPtr);
 
-        bool isCodeCompletionPoint(const char *CurPtr) const;
-
-        void cutOffLexing() { BufferPtr = BufferEnd; }
-
         bool isHexaLiteral(const char *Start);
-
-        void codeCompleteIncludedFile(const char *PathStart,
-                                      const char *CompletionPoint, bool IsAngled);
 
         /// Read a universal character name.
         ///

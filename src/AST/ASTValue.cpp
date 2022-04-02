@@ -12,22 +12,67 @@
 
 using namespace fly;
 
-ASTValue::ASTValue(const SourceLocation &Loc, std::string Str, ASTType *Ty) : Loc(Loc), Str(Str), Ty(Ty) {
+ASTValue::ASTValue(const SourceLocation &Loc, ASTType *Ty) : Loc(Loc), Ty(Ty) {
 
 }
 
-std::string ASTValue::str() const {
-    return Str;
+const SourceLocation &ASTValue::getLocation() const {
+    return Loc;
 }
 
 ASTType *ASTValue::getType() const {
     return Ty;
 }
 
-bool ASTValue::empty() const {
+ASTSingleValue::ASTSingleValue(const SourceLocation &Loc, ASTType *Ty) : ASTValue(Loc, Ty) {
+    if (Ty->isInteger() || Ty->isFloatingPoint()) {
+        Str = "0";
+    } else if (Ty->isBool()) {
+        Str = "false";
+    } else {
+        Str = "";
+    }
+}
+
+ASTSingleValue::ASTSingleValue(const SourceLocation &Loc, ASTType *Ty, std::string Str) : ASTValue(Loc, Ty), Str(Str) {
+
+}
+
+std::string ASTSingleValue::str() const {
+    return Str;
+}
+
+bool ASTSingleValue::empty() const {
     return Str.empty();
 }
 
-const SourceLocation &ASTValue::getLocation() const {
-    return Loc;
+ASTArrayValue::ASTArrayValue(const SourceLocation &Loc, ASTType *Type) :
+    ASTValue(Loc, new ASTArrayType(Type->getLocation(), Type)) {
+
+}
+
+void ASTArrayValue::addValue(ASTValue * Value) {
+    Values.push_back(Value);
+}
+
+unsigned int ASTArrayValue::size() const {
+    return Values.size();
+}
+
+std::string ASTArrayValue::str() const {
+    std::string Str = "{";
+    for (auto Value : Values) {
+        Str += Value->str() + ", ";
+    }
+    Str = Str.substr(0, Str.size()-1); // remove final comma
+    Str += "}";
+    return Str;
+}
+
+bool ASTArrayValue::empty() const {
+    return Values.empty();
+}
+
+const std::vector<ASTValue *> &ASTArrayValue::getValues() const {
+    return Values;
 }

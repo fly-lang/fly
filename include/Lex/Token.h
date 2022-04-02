@@ -115,6 +115,16 @@ public:
     return tok::isLiteral(getKind());
   }
 
+    /// Return true if this is a 'char'
+    bool isCharLiteral() const {
+        return tok::isCharLiteral(getKind());
+    }
+
+    /// Return true if this is a 'char'
+    bool isStringLiteral() const {
+        return tok::isStringLiteral(getKind());
+    }
+
   /// Return a source location identifier for the specified
   /// offset in the current file.
   SourceLocation getLocation() const {

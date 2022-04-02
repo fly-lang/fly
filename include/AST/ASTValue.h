@@ -11,6 +11,7 @@
 #define FLY_ASTVALUE_H
 
 #include "ASTType.h"
+#include <vector>
 
 namespace fly {
 
@@ -18,20 +19,55 @@ namespace fly {
 
         const SourceLocation &Loc;
 
-        std::string Str;
-
         ASTType *Ty;
 
     public:
-        ASTValue(const SourceLocation &Loc, std::string Str, ASTType *Ty);
+        ASTValue(const SourceLocation &Loc, ASTType *Ty);
 
         const SourceLocation &getLocation() const;
 
         ASTType *getType() const;
 
-        bool empty() const;
+        virtual bool empty() const = 0;
 
-        std::string str() const;
+        virtual std::string str() const = 0;
+    };
+
+    /**
+     * Used for Numbers, Bool
+     */
+    class ASTSingleValue : public ASTValue {
+
+        std::string Str;
+
+    public:
+        ASTSingleValue(const SourceLocation &Loc, ASTType *Ty);
+        ASTSingleValue(const SourceLocation &Loc, ASTType *Ty, std::string Str);
+
+        bool empty() const override;
+
+        std::string str() const override;
+    };
+
+    /**
+     * Used for Arrays
+     */
+    class ASTArrayValue : public ASTValue {
+
+        std::vector<ASTValue *> Values;
+
+    public:
+        ASTArrayValue(const SourceLocation &Loc, ASTType *Type);
+
+        void addValue(ASTValue * Value);
+
+        const std::vector<ASTValue *> &getValues() const;
+
+        unsigned int size() const ;
+
+        bool empty() const override;
+
+        std::string str() const override;
     };
 }
 

@@ -18,6 +18,18 @@ const SourceLocation &ASTType::getLocation() const  {
     return Loc;
 }
 
+const bool ASTType::isBool() const {
+    return Kind == TYPE_BOOL;
+}
+
+const bool ASTType::isInteger() const {
+    return Kind > 1 && Kind < 9;
+}
+
+const bool ASTType::isFloatingPoint() const {
+    return Kind == TYPE_FLOAT || Kind == TYPE_DOUBLE;
+}
+
 const TypeKind &ASTType::getKind() const  {
     return Kind;
 }
@@ -68,6 +80,23 @@ ASTFloatType::ASTFloatType(SourceLocation Loc) : ASTType(Loc, TypeKind::TYPE_FLO
 
 ASTDoubleType::ASTDoubleType(SourceLocation Loc) : ASTType(Loc, TypeKind::TYPE_DOUBLE) {
 
+}
+
+ASTArrayType::ASTArrayType(SourceLocation Loc, ASTType *Type, std::string Size) :
+    ASTType(Loc, TypeKind::TYPE_ARRAY), Type(Type), Size(Size) {
+
+}
+
+const std::string &ASTArrayType::getSize() const {
+    return Size;
+}
+
+ASTType *ASTArrayType::getType() const {
+    return Type;
+}
+
+void ASTArrayType::setSize(std::string S) {
+    Size = S;
 }
 
 ASTClassType::ASTClassType(SourceLocation Loc, std::string Name, std::string NameSpace) :

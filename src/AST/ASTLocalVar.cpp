@@ -12,22 +12,12 @@
 
 using namespace fly;
 
-ASTLocalVar::ASTLocalVar(const SourceLocation &Loc, ASTBlock *Block, ASTType *Type, const std::string Name) :
+ASTLocalVar::ASTLocalVar(const SourceLocation &Loc, ASTBlock *Block, ASTType *Type, const std::string &Name) :
         ASTExprStmt(Loc, Block), ASTVar(Type, Name) {
-    switch (Type->getKind()) {
-
-        case TYPE_INT:
-            setExpr(new ASTValueExpr(new ASTValue(Loc, "0", Type)));
-            break;
-        case TYPE_FLOAT:
-            setExpr(new ASTValueExpr(new ASTValue(Loc, "0", Type)));
-            break;
-        case TYPE_BOOL:
-            setExpr(new ASTValueExpr(new ASTValue(Loc, "false", Type)));
-            break;
-        case TYPE_CLASS:
-            setExpr(new ASTValueExpr(new ASTValue(Loc, "null", Type)));
-            break;
+    if (Type->getKind() == TYPE_ARRAY) {
+        setExpr(new ASTValueExpr(new ASTArrayValue(Loc, Type)));
+    } else {
+        setExpr(new ASTValueExpr(new ASTSingleValue(Loc, Type)));
     }
 }
 

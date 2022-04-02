@@ -138,7 +138,7 @@ namespace {
         MainFn->addParam(SourceLoc, new ASTULongType(SourceLoc), "P10");
         Node->AddFunction(MainFn);
 
-        ASTValueExpr *Expr = new ASTValueExpr(new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc)));
+        ASTValueExpr *Expr = new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "1"));
         MainFn->getBody()->AddReturn(SourceLoc, Expr);
 
         // Generate Code
@@ -193,7 +193,7 @@ namespace {
 
         // A = 1
         ASTLocalVarRef * VarAAssign = new ASTLocalVarRef(SourceLoc, MainFn->getBody(), VarA->getName());
-        ASTExpr *Expr = new ASTValueExpr(new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc)));
+        ASTExpr *Expr = new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "1"));
         VarAAssign->setExpr(Expr);
         MainFn->getBody()->AddLocalVarRef(VarAAssign);
 
@@ -289,13 +289,11 @@ namespace {
         // E1 + (E2 * E3) / (E4 - E5)
         // E1 + (G2 / G3)
         // E1 + G1
-        ASTValueExpr *E1 = new ASTValueExpr(new ASTValue(SourceLoc, "1",
-                                                                    new ASTIntType(SourceLoc)));
+        ASTValueExpr *E1 = new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "1"));
         ASTVarRefExpr *E2 = new ASTVarRefExpr(new ASTVarRef(SourceLoc, "a"));
         ASTVarRefExpr *E3 = new ASTVarRefExpr(new ASTVarRef(SourceLoc, "b"));
         ASTVarRefExpr *E4 = new ASTVarRefExpr(new ASTVarRef(SourceLoc, "c"));
-        ASTValueExpr *E5 = new ASTValueExpr(new ASTValue(SourceLoc, "2",
-                                                                    new ASTIntType(SourceLoc)));
+        ASTValueExpr *E5 = new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "2"));
         
         ASTBinaryGroupExpr *G2 = new ASTBinaryGroupExpr(SourceLoc, ARITH_MUL, E2, E3);
         ASTBinaryGroupExpr *G3 = new ASTBinaryGroupExpr(SourceLoc, ARITH_SUB, E4, E5);
@@ -778,7 +776,7 @@ namespace {
         Node->AddFunction(MainFn);
 
         // Compare
-        ASTValueExpr *V = new ASTValueExpr(new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc)));
+        ASTValueExpr *V = new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "1"));
         ASTVarRefExpr *ARef = new ASTVarRefExpr(new ASTVarRef(Param));
         ASTBinaryGroupExpr *Group = new ASTBinaryGroupExpr(SourceLoc,
                                                            COMP_EQ,
@@ -788,7 +786,7 @@ namespace {
         // First If
         ASTIfBlock *IfBlock = new ASTIfBlock(SourceLoc, MainFn->getBody(), Group);
         ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, IfBlock, Param);
-        A2->setExpr(new ASTValueExpr(new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc))));
+        A2->setExpr(new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "1")));
         IfBlock->AddLocalVarRef(A2);
         MainFn->getBody()->AddBlock(SourceLoc, IfBlock);
         MainFn->getBody()->AddReturn(SourceLoc, ARef);
@@ -828,7 +826,7 @@ namespace {
         ASTFuncParam *Param = MainFn->addParam(SourceLoc, new ASTIntType(SourceLoc), "a");
         Node->AddFunction(MainFn);
 
-        ASTValueExpr *OneCost = new ASTValueExpr(new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc)));
+        ASTValueExpr *OneCost = new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "1"));
         ASTVarRefExpr *ARef = new ASTVarRefExpr(new ASTVarRef(Param));
         ASTGroupExpr *Cond = new ASTBinaryGroupExpr(SourceLoc,
                                                     COMP_EQ,
@@ -838,14 +836,14 @@ namespace {
         // if (a == 1) { a = 1 }
         ASTIfBlock *IfBlock = new ASTIfBlock(SourceLoc, MainFn->getBody(), Cond);
         ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, IfBlock, Param);
-        A2->setExpr(new ASTValueExpr(new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc))));
+        A2->setExpr(new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "1")));
         IfBlock->AddLocalVarRef(A2);
         MainFn->getBody()->AddBlock(SourceLoc, IfBlock);
 
         // else {a == 2}
         ASTElseBlock *ElseBlock = new ASTElseBlock(SourceLoc, MainFn->getBody());
         ASTLocalVarRef *A3 = new ASTLocalVarRef(SourceLoc, ElseBlock, Param);
-        A3->setExpr(new ASTValueExpr(new ASTValue(SourceLoc, "2", new ASTIntType(SourceLoc))));
+        A3->setExpr(new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "2")));
         ElseBlock->AddLocalVarRef(A3);
         IfBlock->AddBranch(MainFn->getBody(), ElseBlock);
 
@@ -890,7 +888,7 @@ namespace {
         ASTFuncParam *Param = MainFn->addParam(SourceLoc, new ASTIntType(SourceLoc), "a");
         Node->AddFunction(MainFn);
 
-        ASTValueExpr *OneCost = new ASTValueExpr(new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc)));
+        ASTValueExpr *OneCost = new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "1"));
         ASTVarRefExpr *ARef = new ASTVarRefExpr(new ASTVarRef(Param));
         ASTGroupExpr *Cond = new ASTBinaryGroupExpr(SourceLoc,
                                                     COMP_EQ,
@@ -900,28 +898,28 @@ namespace {
         // if (a == 1) { a = 11 }
         ASTIfBlock *IfBlock = new ASTIfBlock(SourceLoc, MainFn->getBody(), Cond);
         ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, IfBlock, Param);
-        A2->setExpr(new ASTValueExpr(new ASTValue(SourceLoc, "11", new ASTIntType(SourceLoc))));
+        A2->setExpr(new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "11")));
         IfBlock->AddLocalVarRef(A2);
         MainFn->getBody()->AddBlock(SourceLoc, IfBlock);
 
         // elsif (a == 1) { a = 22 }
         ASTElsifBlock *ElsifBlock = new ASTElsifBlock(SourceLoc, MainFn->getBody(), Cond);
         ASTLocalVarRef *A3 = new ASTLocalVarRef(SourceLoc, ElsifBlock, Param);
-        A3->setExpr(new ASTValueExpr(new ASTValue(SourceLoc, "22", new ASTIntType(SourceLoc))));
+        A3->setExpr(new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "22")));
         ElsifBlock->AddLocalVarRef(A3);
         IfBlock->AddBranch(MainFn->getBody(), ElsifBlock);
 
         // elsif (a == 1) { a = 33 }
         ASTElsifBlock *Elsif2Block = new ASTElsifBlock(SourceLoc, MainFn->getBody(), Cond);
         ASTLocalVarRef *A4 = new ASTLocalVarRef(SourceLoc, Elsif2Block, Param);
-        A4->setExpr(new ASTValueExpr(new ASTValue(SourceLoc, "33", new ASTIntType(SourceLoc))));
+        A4->setExpr(new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "33")));
         Elsif2Block->AddLocalVarRef(A4);
         IfBlock->AddBranch(MainFn->getBody(), Elsif2Block);
 
         // else { a = 44 }
         ASTElseBlock *ElseBlock = new ASTElseBlock(SourceLoc, MainFn->getBody());
         ASTLocalVarRef *A5 = new ASTLocalVarRef(SourceLoc, ElseBlock, Param);
-        A5->setExpr(new ASTValueExpr(new ASTValue(SourceLoc, "44", new ASTIntType(SourceLoc))));
+        A5->setExpr(new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "44")));
         ElseBlock->AddLocalVarRef(A5);
         IfBlock->AddBranch(MainFn->getBody(), ElseBlock);
 
@@ -984,7 +982,7 @@ namespace {
         ASTFuncParam *Param = MainFn->addParam(SourceLoc, new ASTIntType(SourceLoc), "a");
         Node->AddFunction(MainFn);
 
-        ASTValueExpr *OneCost = new ASTValueExpr(new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc)));
+        ASTValueExpr *OneCost = new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "1"));
         ASTVarRefExpr *ARef = new ASTVarRefExpr(new ASTVarRef(Param));
         ASTGroupExpr *Cond = new ASTBinaryGroupExpr(SourceLoc,
                                                     COMP_EQ,
@@ -994,21 +992,21 @@ namespace {
         // if (a == 1) { a = 11 }
         ASTIfBlock *IfBlock = new ASTIfBlock(SourceLoc, MainFn->getBody(), Cond);
         ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, IfBlock, Param);
-        A2->setExpr(new ASTValueExpr(new ASTValue(SourceLoc, "11", new ASTIntType(SourceLoc))));
+        A2->setExpr(new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "11")));
         IfBlock->AddLocalVarRef(A2);
         MainFn->getBody()->AddBlock(SourceLoc, IfBlock);
 
         // elsif (a == 1) { a = 22 }
         ASTElsifBlock *ElsifBlock = new ASTElsifBlock(SourceLoc, MainFn->getBody(), Cond);
         ASTLocalVarRef *A3 = new ASTLocalVarRef(SourceLoc, ElsifBlock, Param);
-        A3->setExpr(new ASTValueExpr(new ASTValue(SourceLoc, "22", new ASTIntType(SourceLoc))));
+        A3->setExpr(new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "22")));
         ElsifBlock->AddLocalVarRef(A3);
         IfBlock->AddBranch(MainFn->getBody(), ElsifBlock);
 
         // elsif (a == 1) { a = 33 }
         ASTElsifBlock *Elsif2Block = new ASTElsifBlock(SourceLoc, MainFn->getBody(), Cond);
         ASTLocalVarRef *A4 = new ASTLocalVarRef(SourceLoc, Elsif2Block, Param);
-        A4->setExpr(new ASTValueExpr(new ASTValue(SourceLoc, "33", new ASTIntType(SourceLoc))));
+        A4->setExpr(new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "33")));
         Elsif2Block->AddLocalVarRef(A4);
         IfBlock->AddBranch(MainFn->getBody(), Elsif2Block);
 
@@ -1065,26 +1063,26 @@ namespace {
         ASTFuncParam *Param = MainFn->addParam(SourceLoc, new ASTIntType(SourceLoc), "a");
         Node->AddFunction(MainFn);
 
-        ASTExpr *Cost1 = new ASTValueExpr(new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc)));
-        ASTExpr *Cost2 = new ASTValueExpr(new ASTValue(SourceLoc, "2", new ASTIntType(SourceLoc)));
+        ASTExpr *Cost1 = new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "1"));
+        ASTExpr *Cost2 = new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "2"));
 
         ASTVarRefExpr *SwitchExpr = new ASTVarRefExpr(new ASTVarRef(Param));
         ASTSwitchBlock *SwitchBlock = new ASTSwitchBlock(SourceLoc, MainFn->getBody(), SwitchExpr);
 
         ASTSwitchCaseBlock *Case1Block = SwitchBlock->AddCase(SourceLoc, Cost1);
         ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, Case1Block, Param);
-        A2->setExpr(new ASTValueExpr(new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc))));
+        A2->setExpr(new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "1")));
         Case1Block->AddLocalVarRef(A2);
 
         ASTSwitchCaseBlock *Case2Block = SwitchBlock->AddCase(SourceLoc, Cost2);
         ASTLocalVarRef *A3 = new ASTLocalVarRef(SourceLoc, Case2Block, Param);
-        A3->setExpr(new ASTValueExpr(new ASTValue(SourceLoc, "2", new ASTIntType(SourceLoc))));
+        A3->setExpr(new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "2")));
         Case2Block->AddLocalVarRef(A3);
         Case2Block->AddBreak(SourceLoc);
 
         ASTBlock *DefaultBlock = SwitchBlock->setDefault(SourceLoc);
         ASTLocalVarRef *A4 = new ASTLocalVarRef(SourceLoc, DefaultBlock, Param);
-        A4->setExpr(new ASTValueExpr(new ASTValue(SourceLoc, "3", new ASTIntType(SourceLoc))));
+        A4->setExpr(new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "3")));
         DefaultBlock->AddLocalVarRef(A4);
         DefaultBlock->AddBreak(SourceLoc);
 
@@ -1136,7 +1134,7 @@ namespace {
         ASTFuncParam *Param = MainFn->addParam(SourceLoc, new ASTIntType(SourceLoc), "a");
         Node->AddFunction(MainFn);
 
-        ASTValueExpr *OneCost = new ASTValueExpr(new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc)));
+        ASTValueExpr *OneCost = new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "1"));
         ASTVarRefExpr *ARef = new ASTVarRefExpr(new ASTVarRef(Param));
         ASTGroupExpr *Group = new ASTBinaryGroupExpr(SourceLoc,
                                                      COMP_EQ,
@@ -1146,7 +1144,7 @@ namespace {
         ASTWhileBlock *WhileBlock = new ASTWhileBlock(SourceLoc, MainFn->getBody(), Group);
 
         ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, WhileBlock, Param);
-        A2->setExpr(new ASTValueExpr(new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc))));
+        A2->setExpr(new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "1")));
         WhileBlock->AddLocalVarRef(A2);
         WhileBlock->AddContinue(SourceLoc);
         MainFn->getBody()->AddBlock(SourceLoc, WhileBlock);
@@ -1192,7 +1190,7 @@ namespace {
         Node->AddFunction(MainFn);
 
         ASTForBlock *ForBlock = new ASTForBlock(SourceLoc, MainFn->getBody());
-        ASTValueExpr *OneCost = new ASTValueExpr(new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc)));
+        ASTValueExpr *OneCost = new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "1"));
 
         // Init
         ASTLocalVar *InitVar = new ASTLocalVar(SourceLoc, ForBlock, new ASTIntType(SourceLoc), "i");
@@ -1214,7 +1212,7 @@ namespace {
         PostBlock->AddExprStmt(ExprStmt);
 
         ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, ForBlock->getLoop(), Param);
-        A2->setExpr(new ASTValueExpr(new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc))));
+        A2->setExpr(new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "1")));
         ForBlock->getLoop()->AddLocalVarRef(A2);
         ForBlock->getLoop()->AddContinue(SourceLoc);
         MainFn->getBody()->AddBlock(SourceLoc, ForBlock);
@@ -1269,7 +1267,7 @@ namespace {
         Node->AddFunction(MainFn);
 
         ASTForBlock *ForBlock = new ASTForBlock(SourceLoc, MainFn->getBody());
-        ASTValueExpr *OneCost = new ASTValueExpr(new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc)));
+        ASTValueExpr *OneCost = new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "1"));
 
         //Cond
         ASTVarRefExpr *InitVarRef = new ASTVarRefExpr(new ASTVarRef(Param));
@@ -1278,7 +1276,7 @@ namespace {
         ForBlock->setCond(Cond);
 
         ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, ForBlock->getLoop(), Param);
-        A2->setExpr(new ASTValueExpr(new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc))));
+        A2->setExpr(new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "1")));
         ForBlock->getLoop()->AddLocalVarRef(A2);
         ForBlock->getLoop()->AddContinue(SourceLoc);
         MainFn->getBody()->AddBlock(SourceLoc, ForBlock);
@@ -1325,7 +1323,7 @@ namespace {
         Node->AddFunction(MainFn);
 
         ASTForBlock *ForBlock = new ASTForBlock(SourceLoc, MainFn->getBody());
-        ASTValueExpr *OneCost = new ASTValueExpr(new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc)));
+        ASTValueExpr *OneCost = new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "1"));
 
         // Post
         ASTBlock *PostBlock = ForBlock->getPost();
@@ -1335,7 +1333,7 @@ namespace {
         PostBlock->AddExprStmt(ExprStmt);
 
         ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, ForBlock->getLoop(), Param);
-        A2->setExpr(new ASTValueExpr(new ASTValue(SourceLoc, "1", new ASTIntType(SourceLoc))));
+        A2->setExpr(new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "1")));
         ForBlock->getLoop()->AddLocalVarRef(A2);
         ForBlock->getLoop()->AddContinue(SourceLoc);
         MainFn->getBody()->AddBlock(SourceLoc, ForBlock);

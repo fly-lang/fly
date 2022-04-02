@@ -31,7 +31,9 @@ namespace fly {
 
     class DiagnosticsEngine;
     class Lexer;
-    class RawBinaryGroup;
+    class ASTValue;
+    class ASTSingleValue;
+    class ASTArrayValue;
 
     /// Parse the main file known to the preprocessor, producing an
     /// abstract syntax tree.
@@ -114,6 +116,8 @@ namespace fly {
 
         bool ParseType(ASTType *&Type, bool OnlyBuiltin = false);
 
+        bool ParseArrayType(ASTType *&Type, ASTBlock * Block = nullptr);
+
         // Parse Block Statement
 
         bool ParseBlock(ASTBlock *Block);
@@ -135,6 +139,8 @@ namespace fly {
                                         SourceLocation &Loc);
         // Parse a Value
         ASTValue *ParseValue();
+        ASTValue *ParseValue(ASTType &Type);
+        ASTArrayValue *ParseMultiValue(ASTType &Type);
 
         // Parse a Local Var
         ASTLocalVar *ParseLocalVar(ASTBlock *Block, bool Constant, ASTType *Type);

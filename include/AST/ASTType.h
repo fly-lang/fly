@@ -27,19 +27,22 @@ namespace fly {
     const uint64_t  MIN_LONG     = 0x8000000000000000;
 
     enum TypeKind {
-        TYPE_VOID,
-        TYPE_BOOL,
-        TYPE_BYTE,
-        TYPE_USHORT,
-        TYPE_SHORT,
-        TYPE_UINT,
-        TYPE_INT,
-        TYPE_ULONG,
-        TYPE_LONG,
-        TYPE_FLOAT,
-        TYPE_DOUBLE,
-        TYPE_CLASS,
+        TYPE_VOID = 0,
+        TYPE_BOOL = 1,
+        TYPE_BYTE = 2,
+        TYPE_USHORT = 3,
+        TYPE_SHORT = 4,
+        TYPE_UINT = 5,
+        TYPE_INT = 6,
+        TYPE_ULONG = 7,
+        TYPE_LONG = 8,
+        TYPE_FLOAT = 9,
+        TYPE_DOUBLE = 10,
+        TYPE_ARRAY = 11,
+        TYPE_CLASS = 12,
     };
+
+    class ASTExpr;
 
     /**
      * Abstract Base Type
@@ -57,11 +60,30 @@ namespace fly {
 
         const SourceLocation &getLocation() const;
 
+        const bool isBool() const;
+
+        const bool isInteger() const;
+
+        const bool isFloatingPoint() const;
+
         virtual ~ASTType() = default;
 
         virtual bool equals(ASTType *Ty) const;
 
         virtual std::string str() const = 0;
+    };
+
+    /**
+     * Void Type
+     */
+    class ASTVoidType : public ASTType {
+
+    public:
+        explicit ASTVoidType(SourceLocation Loc);
+
+        std::string str() const override {
+            return "void";
+        }
     };
 
     /**
@@ -73,7 +95,7 @@ namespace fly {
         explicit ASTBoolType(SourceLocation Loc);
 
         std::string str() const override {
-            return "{bool}";
+            return "bool";
         }
     };
 
@@ -82,13 +104,11 @@ namespace fly {
      */
     class ASTByteType : public ASTType {
 
-        const TypeKind Kind = TypeKind::TYPE_BYTE;
-
     public:
         explicit ASTByteType(SourceLocation Loc);
 
         std::string str() const override {
-            return "{byte}";
+            return "byte";
         }
     };
 
@@ -97,13 +117,11 @@ namespace fly {
      */
     class ASTUShortType : public ASTType {
 
-        const TypeKind Kind = TypeKind::TYPE_USHORT;
-
     public:
         explicit ASTUShortType(SourceLocation Loc);
 
         std::string str() const override {
-            return "{unsigned short}";
+            return "ushort";
         }
     };
 
@@ -112,13 +130,11 @@ namespace fly {
      */
     class ASTShortType : public ASTType {
 
-        const TypeKind Kind = TypeKind::TYPE_SHORT;
-
     public:
         explicit ASTShortType(SourceLocation Loc);
 
         std::string str() const override {
-            return "{short}";
+            return "short";
         }
     };
 
@@ -127,13 +143,11 @@ namespace fly {
      */
     class ASTUIntType : public ASTType {
 
-        const TypeKind Kind = TypeKind::TYPE_INT;
-
     public:
         explicit ASTUIntType(SourceLocation Loc);
 
         std::string str() const override {
-            return "{unsigned int}";
+            return "uint";
         }
     };
 
@@ -142,13 +156,11 @@ namespace fly {
      */
     class ASTIntType : public ASTType {
 
-        const TypeKind Kind = TypeKind::TYPE_INT;
-
     public:
         explicit ASTIntType(SourceLocation Loc);
 
         std::string str() const override {
-            return "{int}";
+            return "int";
         }
     };
 
@@ -157,13 +169,11 @@ namespace fly {
      */
     class ASTULongType : public ASTType {
 
-        const TypeKind Kind = TypeKind::TYPE_LONG;
-
     public:
         explicit ASTULongType(SourceLocation Loc);
 
         std::string str() const override {
-            return "{unsigned long}";
+            return "ulong";
         }
     };
 
@@ -172,13 +182,11 @@ namespace fly {
      */
     class ASTLongType : public ASTType {
 
-        const TypeKind Kind = TypeKind::TYPE_LONG;
-
     public:
         explicit ASTLongType(SourceLocation Loc);
 
         std::string str() const override {
-            return "{long}";
+            return "long";
         }
     };
 
@@ -187,13 +195,11 @@ namespace fly {
      */
     class ASTFloatType : public ASTType {
 
-        const TypeKind Kind = TypeKind::TYPE_FLOAT;
-
     public:
         explicit ASTFloatType(SourceLocation Loc);
 
         std::string str() const override {
-            return "{float}";
+            return "float";
         }
     };
 
@@ -202,33 +208,39 @@ namespace fly {
      */
     class ASTDoubleType : public ASTType {
 
-        const TypeKind Kind = TypeKind::TYPE_DOUBLE;
-
     public:
         explicit ASTDoubleType(SourceLocation Loc);
 
         std::string str() const override {
-            return "{double}";
+            return "double";
         }
     };
 
     /**
-     * Void Type
+     * String Type
      */
-    class ASTVoidType : public ASTType {
+    class ASTArrayType : public ASTType {
 
-        const TypeKind Kind = TypeKind::TYPE_VOID;
+        std::string Size;
+        ASTType *Type;
 
     public:
-        explicit ASTVoidType(SourceLocation Loc);
+
+        ASTArrayType(SourceLocation Loc, ASTType *Type, std::string Size = "0");
+
+        void setSize(std::string S);
+
+        const std::string &getSize() const;
+
+        ASTType *getType() const;
 
         std::string str() const override {
-            return "{void}";
+            return Type->str() + "[]";
         }
     };
 
     /**
-     * Custom Type
+     * Class Type
      */
     class ASTClassType : public ASTType {
 

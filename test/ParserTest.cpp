@@ -278,6 +278,176 @@ namespace {
         delete AST;
     }
 
+    TEST_F(ParserTest, GlobalArray) {
+        llvm::StringRef str = (
+                               "byte[] a\n" // array of zero bytes
+                               "byte[] b = {}\n"
+                               "byte[] c = {1, 2, 3}\n"
+                               "byte[3] d\n" // array of 4 bytes without values
+                               "byte[3] e = {1, 2, 3}\n"
+
+        );
+        ASTNode *AST = Parse("GlobalArray", str);
+        ASSERT_FALSE(Diags.hasErrorOccurred());
+
+        ASTGlobalVar *a = AST->getGlobalVars().find("a")->getValue();
+        ASTGlobalVar *b = AST->getGlobalVars().find("b")->getValue();
+        ASTGlobalVar *c = AST->getGlobalVars().find("c")->getValue();
+        ASTGlobalVar *d = AST->getGlobalVars().find("d")->getValue();
+        ASTGlobalVar *e = AST->getGlobalVars().find("e")->getValue();
+
+        // a
+        EXPECT_EQ(a->getType()->getKind(), TypeKind::TYPE_ARRAY);
+        EXPECT_EQ(((ASTArrayType *) a->getType())->getType()->getKind(), TypeKind::TYPE_BYTE);
+        EXPECT_EQ(((ASTArrayType *) a->getType())->getSize(), "0");
+        EXPECT_EQ(a->getExpr(), nullptr);
+
+        // b
+        EXPECT_EQ(b->getType()->getKind(), TypeKind::TYPE_ARRAY);
+        EXPECT_EQ(((ASTArrayType *) b->getType())->getType()->getKind(), TypeKind::TYPE_BYTE);
+        EXPECT_EQ(((ASTArrayType *) b->getType())->getSize(), "0");
+        EXPECT_NE(b->getExpr(), nullptr);
+        ASTValueExpr *bExpr = (ASTValueExpr *) b->getExpr();
+        EXPECT_EQ(((const ASTArrayValue &) bExpr->getValue()).getType()->getKind(), TypeKind::TYPE_ARRAY);
+        EXPECT_EQ(((ASTArrayType *) ((const ASTArrayValue &) bExpr->getValue()).getType())->getType()->getKind(), TypeKind::TYPE_BYTE);
+        EXPECT_EQ(((const ASTArrayValue &) bExpr->getValue()).size(), 0);
+        EXPECT_TRUE(((const ASTArrayValue &) bExpr->getValue()).empty());
+
+        // c
+        EXPECT_EQ(c->getType()->getKind(), TypeKind::TYPE_ARRAY);
+        EXPECT_EQ(((ASTArrayType *) c->getType())->getType()->getKind(), TypeKind::TYPE_BYTE);
+        EXPECT_EQ(((ASTArrayType *) c->getType())->getSize(), "3");
+        EXPECT_NE(c->getExpr(), nullptr);
+        ASTValueExpr *cExpr = (ASTValueExpr *) c->getExpr();
+        EXPECT_EQ(((const ASTArrayValue &) cExpr->getValue()).getType()->getKind(), TypeKind::TYPE_ARRAY);
+        EXPECT_EQ(((ASTArrayType *) ((const ASTArrayValue &) cExpr->getValue()).getType())->getType()->getKind(), TypeKind::TYPE_BYTE);
+        EXPECT_EQ(((const ASTArrayValue &) cExpr->getValue()).size(), 3);
+        EXPECT_FALSE(((const ASTArrayValue &) cExpr->getValue()).empty());
+        EXPECT_EQ(((const ASTArrayValue &) cExpr->getValue()).getValues()[0]->str(), "1");
+        EXPECT_EQ(((const ASTArrayValue &) cExpr->getValue()).getValues()[1]->str(), "2");
+        EXPECT_EQ(((const ASTArrayValue &) cExpr->getValue()).getValues()[2]->str(), "3");
+
+        // d
+        EXPECT_EQ(d->getType()->getKind(), TypeKind::TYPE_ARRAY);
+        EXPECT_EQ(((ASTArrayType *) d->getType())->getType()->getKind(), TypeKind::TYPE_BYTE);
+        EXPECT_EQ(((ASTArrayType *) d->getType())->getSize(), "3");
+        EXPECT_EQ(d->getExpr(), nullptr);
+
+        // e
+        EXPECT_EQ(e->getType()->getKind(), TypeKind::TYPE_ARRAY);
+        EXPECT_EQ(((ASTArrayType *) e->getType())->getType()->getKind(), TypeKind::TYPE_BYTE);
+        EXPECT_EQ(((ASTArrayType *) e->getType())->getSize(), "3");
+        EXPECT_NE(e->getExpr(), nullptr);
+        ASTValueExpr *eExpr = (ASTValueExpr *) c->getExpr();
+        EXPECT_EQ(((const ASTArrayValue &) eExpr->getValue()).getType()->getKind(), TypeKind::TYPE_ARRAY);
+        EXPECT_EQ(((ASTArrayType *) ((const ASTArrayValue &) eExpr->getValue()).getType())->getType()->getKind(), TypeKind::TYPE_BYTE);
+        EXPECT_EQ(((const ASTArrayValue &) eExpr->getValue()).size(), 3);
+        EXPECT_FALSE(((const ASTArrayValue &) eExpr->getValue()).empty());
+        EXPECT_EQ(((const ASTArrayValue &) eExpr->getValue()).getValues()[0]->str(), "1");
+        EXPECT_EQ(((const ASTArrayValue &) eExpr->getValue()).getValues()[1]->str(), "2");
+        EXPECT_EQ(((const ASTArrayValue &) eExpr->getValue()).getValues()[2]->str(), "3");
+
+        delete AST;
+    }
+
+    TEST_F(ParserTest, GlobalChar) {
+        llvm::StringRef str = (
+               "byte a = ''\n"
+               "byte b = 'b'\n"
+
+               "byte[] c = {'a', 'b', 'c', 0}\n"
+               "byte[2] d = {'', ''}\n" // Empty string
+
+//               "byte[] c = \"\"\n" // array of zero bytes
+//               "byte[] x = \"abc\"\n" // string abc/0 -> array of 4 bytes
+
+        );
+        ASTNode *AST = Parse("GlobalChar", str);
+        ASSERT_FALSE(Diags.hasErrorOccurred());
+
+        ASTGlobalVar *a = AST->getGlobalVars().find("a")->getValue();
+        ASTGlobalVar *b = AST->getGlobalVars().find("b")->getValue();
+        ASTGlobalVar *c = AST->getGlobalVars().find("c")->getValue();
+        ASTGlobalVar *d = AST->getGlobalVars().find("d")->getValue();
+
+        // a
+        EXPECT_EQ(a->getType()->getKind(), TypeKind::TYPE_BYTE);
+        EXPECT_NE(a->getExpr(), nullptr);
+        EXPECT_EQ(((ASTValueExpr *)a->getExpr())->getValue().str(), "");
+
+        // b
+        EXPECT_EQ(b->getType()->getKind(), TypeKind::TYPE_BYTE);
+        EXPECT_NE(b->getExpr(), nullptr);
+        EXPECT_EQ(((ASTValueExpr *)b->getExpr())->getValue().str(), "'b'");
+
+        // c
+        EXPECT_EQ(c->getType()->getKind(), TypeKind::TYPE_ARRAY);
+        EXPECT_EQ(((ASTArrayType *) c->getType())->getType()->getKind(), TypeKind::TYPE_BYTE);
+        EXPECT_EQ(((ASTArrayType *) c->getType())->getSize(), "4");
+        EXPECT_NE(c->getExpr(), nullptr);
+        ASTValueExpr *cExpr = (ASTValueExpr *) c->getExpr();
+        EXPECT_EQ(((const ASTArrayValue &) cExpr->getValue()).getType()->getKind(), TypeKind::TYPE_ARRAY);
+        EXPECT_EQ(((ASTArrayType *) ((const ASTArrayValue &) cExpr->getValue()).getType())->getType()->getKind(), TypeKind::TYPE_BYTE);
+        EXPECT_EQ(((const ASTArrayValue &) cExpr->getValue()).size(), 4);
+        EXPECT_FALSE(((const ASTArrayValue &) cExpr->getValue()).empty());
+        EXPECT_EQ(((const ASTArrayValue &) cExpr->getValue()).getValues()[0]->str(), "'a'");
+        EXPECT_EQ(((const ASTArrayValue &) cExpr->getValue()).getValues()[1]->str(), "'b'");
+        EXPECT_EQ(((const ASTArrayValue &) cExpr->getValue()).getValues()[2]->str(), "'c'");
+        EXPECT_EQ(((const ASTArrayValue &) cExpr->getValue()).getValues()[3]->str(), "0");
+
+        // d
+        EXPECT_EQ(d->getType()->getKind(), TypeKind::TYPE_ARRAY);
+        EXPECT_EQ(((ASTArrayType *) d->getType())->getType()->getKind(), TypeKind::TYPE_BYTE);
+        EXPECT_EQ(((ASTArrayType *) d->getType())->getSize(), "2");
+        EXPECT_NE(d->getExpr(), nullptr);
+        ASTValueExpr *dExpr = (ASTValueExpr *) d->getExpr();
+        EXPECT_EQ(((const ASTArrayValue &) dExpr->getValue()).getType()->getKind(), TypeKind::TYPE_ARRAY);
+        EXPECT_EQ(((ASTArrayType *) ((const ASTArrayValue &) dExpr->getValue()).getType())->getType()->getKind(), TypeKind::TYPE_BYTE);
+        EXPECT_EQ(((const ASTArrayValue &) dExpr->getValue()).size(), 2);
+        EXPECT_FALSE(((const ASTArrayValue &) dExpr->getValue()).empty());
+        EXPECT_EQ(((const ASTArrayValue &) dExpr->getValue()).getValues()[0]->str(), "");
+        EXPECT_EQ(((const ASTArrayValue &) dExpr->getValue()).getValues()[1]->str(), "");
+
+        delete AST;
+    }
+
+    TEST_F(ParserTest, GlobalString) {
+        llvm::StringRef str = (
+               "byte[] a = \"\"\n" // array of zero bytes
+               "byte[] b = \"abc\"\n" // string abc/0 -> array of 4 bytes
+
+        );
+        ASTNode *AST = Parse("GlobalString", str);
+        ASSERT_FALSE(Diags.hasErrorOccurred());
+
+        ASTGlobalVar *a = AST->getGlobalVars().find("a")->getValue();
+        ASTGlobalVar *b = AST->getGlobalVars().find("b")->getValue();
+
+        // a
+        EXPECT_EQ(a->getType()->getKind(), TypeKind::TYPE_ARRAY);
+        EXPECT_EQ(((ASTArrayType *) a->getType())->getType()->getKind(), TypeKind::TYPE_BYTE);
+        EXPECT_EQ(((ASTArrayType *) a->getType())->getSize(), "0");
+        EXPECT_NE(a->getExpr(), nullptr);
+        const ASTValue &Val = ((ASTValueExpr *) a->getExpr())->getValue();
+        EXPECT_EQ(((ASTArrayValue &) Val).getValues().size(), 0);
+
+        // b
+        EXPECT_EQ(b->getType()->getKind(), TypeKind::TYPE_ARRAY);
+        EXPECT_EQ(((ASTArrayType *) b->getType())->getType()->getKind(), TypeKind::TYPE_BYTE);
+        EXPECT_EQ(((ASTArrayType *) b->getType())->getSize(), "3");
+        EXPECT_NE(b->getExpr(), nullptr);
+        ASTValueExpr *bExpr = (ASTValueExpr *) b->getExpr();
+        EXPECT_EQ(((const ASTArrayValue &) bExpr->getValue()).getType()->getKind(), TypeKind::TYPE_ARRAY);
+        EXPECT_EQ(((ASTArrayType *) ((const ASTArrayValue &) bExpr->getValue()).getType())->getType()->getKind(), TypeKind::TYPE_BYTE);
+        EXPECT_EQ(((const ASTArrayValue &) bExpr->getValue()).size(), 3);
+        EXPECT_FALSE(((const ASTArrayValue &) bExpr->getValue()).empty());
+        EXPECT_EQ(((const ASTArrayValue &) bExpr->getValue()).getValues()[0]->str(), "a");
+        EXPECT_EQ(((const ASTArrayValue &) bExpr->getValue()).getValues()[1]->str(), "b");
+        EXPECT_EQ(((const ASTArrayValue &) bExpr->getValue()).getValues()[2]->str(), "c");
+
+        delete AST;
+    }
+
     TEST_F(ParserTest, FunctionDefaultVoidEmpty) {
         llvm::StringRef str = ("namespace std\n"
                          "void func() {}\n");

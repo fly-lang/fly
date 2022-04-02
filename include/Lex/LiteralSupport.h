@@ -190,10 +190,6 @@ public:
 
   bool hadError() const { return HadError; }
   bool isAscii() const { return Kind == tok::char_constant; }
-  bool isWide() const { return Kind == tok::wide_char_constant; }
-  bool isUTF8() const { return Kind == tok::utf8_char_constant; }
-  bool isUTF16() const { return Kind == tok::utf16_char_constant; }
-  bool isUTF32() const { return Kind == tok::utf32_char_constant; }
   bool isMultiChar() const { return IsMultiChar; }
   uint64_t getValue() const { return Value; }
   StringRef getUDSuffix() const { return UDSuffixBuf; }
@@ -255,10 +251,6 @@ public:
   unsigned getOffsetOfStringByte(const Token &TheTok, unsigned ByteNo) const;
 
   bool isAscii() const { return Kind == tok::string_literal; }
-  bool isWide() const { return Kind == tok::wide_string_literal; }
-  bool isUTF8() const { return Kind == tok::utf8_string_literal; }
-  bool isUTF16() const { return Kind == tok::utf16_string_literal; }
-  bool isUTF32() const { return Kind == tok::utf32_string_literal; }
   bool isPascal() const { return Pascal; }
 
   StringRef getUDSuffix() const { return UDSuffixBuf; }

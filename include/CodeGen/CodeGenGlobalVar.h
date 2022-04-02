@@ -22,7 +22,6 @@ namespace fly {
 
     class CodeGenModule;
     class ASTGlobalVar;
-    class ASTValue;
 
     class CodeGenGlobalVar : public CodeGenVar {
 

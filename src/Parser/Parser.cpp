@@ -16,6 +16,7 @@
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTResolver.h"
 #include "Basic/Debug.h"
+#include <regex>
 
 using namespace fly;
 
@@ -396,7 +397,8 @@ bool Parser::ParseTopDecl() {
 
         // Parse Type
         ASTType *Type = nullptr;
-        if (ParseType(Type)) {
+        if (ParseType(Type) && ParseArrayType(Type)) {
+
 
             if (Tok.isAnyIdentifier()) {
                 const Optional<Token> &NextTok = Lex.findNextToken(Tok.getLocation(), SourceMgr);
@@ -550,40 +552,43 @@ bool Parser::ParseClassDecl(VisibilityKind &VisKind, bool &Constant) {
  * @return true on Success or false on Error
  */
 bool Parser::ParseType(ASTType *&Type, bool OnlyBuiltin) {
-    const SourceLocation &Loc = Tok.getLocation();
-    switch (Tok.getKind()) {
+    const SourceLocation &TypeLoc = Tok.getLocation();
+    tok::TokenKind Kind = Tok.getKind();
+    ConsumeToken();
+    
+    switch (Kind) {
         case tok::kw_bool:
-            Type = new ASTBoolType(Loc);
+            Type = new ASTBoolType(TypeLoc);
             break;
         case tok::kw_byte:
-            Type = new ASTByteType(Loc);
+            Type = new ASTByteType(TypeLoc);
             break;
         case tok::kw_ushort:
-            Type = new ASTUShortType(Loc);
+            Type = new ASTUShortType(TypeLoc);
             break;
         case tok::kw_short:
-            Type = new ASTShortType(Loc);
+            Type = new ASTShortType(TypeLoc);
             break;
         case tok::kw_uint:
-            Type = new ASTUIntType(Loc);
+            Type = new ASTUIntType(TypeLoc);
             break;
         case tok::kw_int:
-            Type = new ASTIntType(Loc);
+            Type = new ASTIntType(TypeLoc);
             break;
         case tok::kw_ulong:
-            Type = new ASTULongType(Loc);
+            Type = new ASTULongType(TypeLoc);
             break;
         case tok::kw_long:
-            Type = new ASTLongType(Loc);
+            Type = new ASTLongType(TypeLoc);
             break;
         case tok::kw_float:
-            Type = new ASTFloatType(Loc);
+            Type = new ASTFloatType(TypeLoc);
             break;
         case tok::kw_double:
-            Type = new ASTDoubleType(Loc);
+            Type = new ASTDoubleType(TypeLoc);
             break;
         case tok::kw_void:
-            Type = new ASTVoidType(Loc);
+            Type = new ASTVoidType(TypeLoc);
             break;
         default: {
             if (OnlyBuiltin) {
@@ -592,15 +597,50 @@ bool Parser::ParseType(ASTType *&Type, bool OnlyBuiltin) {
             }
             IdentifierInfo *Id = Tok.getIdentifierInfo();
             if (!Id) {
-                DiagInvalidId(Loc);
+                DiagInvalidId(TypeLoc);
                 return false;
             }
             llvm::StringRef Name = Id->getName();
-            Type = new ASTClassType(Loc, Name.str());
+            Type = new ASTClassType(TypeLoc, Name.str());
         }
     }
-    ConsumeToken();
+
     FLY_DEBUG_MESSAGE("Parser", "ParseType", "Type=" << Type->str());
+    return true;
+}
+
+bool Parser::ParseArrayType(ASTType *&Type, ASTBlock * Block) {
+    // Check Bracket [] for Array
+    if (Tok.is(tok::l_square)) {
+        const SourceLocation &Loc = ConsumeBracket();
+
+        if (Block) { // if block is true it come from a local var assign
+            ASTExpr *Expr = ParseExpr(Block);
+            if (Expr && !Expr->getType()->isInteger()) {
+                // Error: array size must be of integer type TODO
+                return false;
+            }
+            Type = new ASTArrayType(Loc, Type);
+        } else if (Tok.is(tok::numeric_constant)) { // Parse unsigned int array size
+            std::string Size = StringRef(Tok.getLiteralData(), Tok.getLength()).str();
+            ConsumeToken();
+            Type = new ASTArrayType(Loc, Type, Size);
+        } else {
+            Type = new ASTArrayType(Loc, Type);
+        }
+
+        if (!Type) {
+            // Error: array type is unset TODO
+            return false;
+        }
+
+        if (Tok.is(tok::r_square)) {
+            ConsumeBracket();
+            return true;
+        }
+    }
+
+    // No Array found
     return true;
 }
 
@@ -915,7 +955,7 @@ bool Parser::ParseSwitchStmt(ASTBlock *Block) {
                     // for a default
                     ASTExpr * CaseExp;
                     if (isValue()) {
-                        ASTValue *Val = ParseValue();
+                        ASTValue *Val = ParseValue(*Expr->getType()); // TODO check Type
                         CaseExp = new ASTValueExpr(Val);
                     } else if (Tok.isAnyIdentifier()) {
                         IdentifierInfo *Id = Tok.getIdentifierInfo();
@@ -1137,11 +1177,16 @@ ASTFuncCall * Parser::ParseFunctionCall(ASTBlock *Block, llvm::StringRef Name, l
     return nullptr;
 }
 
+ASTValue *Parser::ParseValue() {
+    ASTType *Type = nullptr;
+    return ParseValue(*Type);
+}
+
 /**
  * Parse a Value Expression
  * @return the ASTValueExpr
  */
-ASTValue *Parser::ParseValue() {
+ASTValue *Parser::ParseValue(ASTType &Type) {
     FLY_DEBUG("Parser", "ParseValue");
 
     // Parse Numeric Constants
@@ -1149,24 +1194,97 @@ ASTValue *Parser::ParseValue() {
         const StringRef Val = StringRef(Tok.getLiteralData(), Tok.getLength());
         const SourceLocation &Loc = ConsumeToken();
         ASTValue *V;
-        if (Val.contains(".")) {
+        if (&Type) {
+            V = new ASTSingleValue(Loc, &Type, Val.str());
+        } else if (Val.contains(".")) {
             // Parse Float
-            float FloatVal = std::stof(Val.str()); // TODO remove?
-            V = new ASTValue(Loc, Val.str(), new ASTFloatType(Loc));
+            V = new ASTSingleValue(Loc, new ASTFloatType(Loc), Val.str());
         } else {
             // Parse Int
-            int IntVal = std::stoi(Val.str()); // TODO remove?
-            V = new ASTValue(Loc, Val.str(), new ASTIntType(Loc));
+            V = new ASTSingleValue(Loc, new ASTIntType(Loc), Val.str());
         }
         return V;
     }
 
+    if (Tok.isCharLiteral()) {
+        const StringRef Val = StringRef(Tok.getLiteralData(), Tok.getLength());
+        const SourceLocation &Loc = ConsumeToken();
+        // TODO check Val type if need more than 1 byte of memory
+        return new ASTSingleValue(Loc, new ASTByteType(Loc), Val.str());
+    }
+
+    if (Tok.isStringLiteral()) {
+        const char *StringData = Tok.getLiteralData();
+        unsigned int StringLength = Tok.getLength();
+        const SourceLocation &Loc = ConsumeStringToken();
+        // TODO check Val type if need more than 1 byte of memory
+        ASTArrayValue *String = new ASTArrayValue(Loc, new ASTByteType(Loc));
+        for (unsigned int i = 0; i < StringLength ;i++) {
+            ASTSingleValue *StringChar = new ASTSingleValue(Loc, new ASTByteType(Loc),
+                                                            std::string(1, StringData[i]));
+            String->addValue(StringChar);
+        }
+        // set size to ASTArrayType on var declaration
+        ((ASTArrayType *) &Type)->setSize(std::to_string(String->size()));
+        return String;
+    }
+
     // Parse true or false boolean values
     if (Tok.is(tok::kw_true)) {
-        return new ASTValue(ConsumeToken(), "true", new ASTBoolType(Tok.getLocation()));
+        return new ASTSingleValue(ConsumeToken(), new ASTBoolType(Tok.getLocation()), "true");
     }
     if (Tok.is(tok::kw_false)) {
-        return new ASTValue(ConsumeToken(), "false", new ASTBoolType(Tok.getLocation()));
+        return new ASTSingleValue(ConsumeToken(), new ASTBoolType(Tok.getLocation()), "false");
+    }
+
+    // Parse Array values
+    if (Tok.is(tok::l_brace)) {
+        return ParseMultiValue(Type);
+    }
+
+    Diag(diag::err_invalid_value) << Tok.getName();
+    return nullptr;
+}
+
+/**
+ * Parse Array Value Expression
+ * @return the ASTValueExpr
+ */
+ASTArrayValue *Parser::ParseMultiValue(ASTType &Type) {
+    const SourceLocation &Loc = ConsumeBrace();
+
+    ASTArrayValue *ArrayValue;
+    if (&Type && Type.getKind() == TYPE_ARRAY) { // Type can be null if it not came from assignation
+        ArrayValue = new ASTArrayValue(Loc, ((ASTArrayType *) &Type)->getType());
+    }
+
+    // Parse array values Ex. {1, 2, 3}
+    while (Tok.isNot(tok::r_brace) && Tok.isNot(tok::eof)) {
+        ASTValue *Value = ParseValue(Type);
+        if (Value) {
+            if (!ArrayValue) { // Take the ASTType from first ASTValue
+                ArrayValue = new ASTArrayValue(Loc, Value->getType());
+            }
+            ArrayValue->addValue(Value);
+            if (Tok.is(tok::comma)) {
+                ConsumeToken();
+                continue;
+            }
+        }
+    }
+
+    if (!ArrayValue) { // Error: cannot use empty array without declaring it
+        Diag(diag::err_invalid_value) << Tok.getName();
+        return nullptr;
+    }
+
+    // Very important for set size to ASTArrayType on var declaration
+    ((ASTArrayType *) &Type)->setSize(std::to_string(ArrayValue->size()));
+
+    // End of Array
+    if (Tok.is(tok::r_brace)) {
+        ConsumeBrace();
+        return ArrayValue;
     }
 
     Diag(diag::err_invalid_value) << Tok.getName();
