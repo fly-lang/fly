@@ -15,9 +15,7 @@ using namespace fly;
 ASTLocalVar::ASTLocalVar(const SourceLocation &Loc, ASTBlock *Block, ASTType *Type, const std::string &Name) :
         ASTExprStmt(Loc, Block), ASTVar(Type, Name) {
     if (Type->getKind() == TYPE_ARRAY) {
-        setExpr(new ASTValueExpr(new ASTArrayValue(Loc, Type)));
-    } else {
-        setExpr(new ASTValueExpr(new ASTSingleValue(Loc, Type)));
+        setExpr(new ASTValueExpr(new ASTArrayValue(Loc, ((ASTArrayType *)Type)->getType())));
     }
 }
 

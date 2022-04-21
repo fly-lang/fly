@@ -107,19 +107,244 @@ namespace {
         }
     };
 
-    TEST_F(CodeGenTest, CGGlobalVar) {
+    TEST_F(CodeGenTest, CGDefaultValueGlobalVar) {
         ASTNode *Node = CreateAST();
-        ASTGlobalVar *Var = new ASTGlobalVar(SourceLoc, Node, new ASTIntType(SourceLoc), "a");
-        Node->AddGlobalVar(Var);
+        ASTGlobalVar *aVar = new ASTGlobalVar(SourceLoc, Node, new ASTBoolType(SourceLoc), "a");
+        Node->AddGlobalVar(aVar);
+        ASTGlobalVar *bVar = new ASTGlobalVar(SourceLoc, Node, new ASTByteType(SourceLoc), "b");
+        Node->AddGlobalVar(bVar);
+        ASTGlobalVar *cVar = new ASTGlobalVar(SourceLoc, Node, new ASTShortType(SourceLoc), "c");
+        Node->AddGlobalVar(cVar);
+        ASTGlobalVar *dVar = new ASTGlobalVar(SourceLoc, Node, new ASTUShortType(SourceLoc), "d");
+        Node->AddGlobalVar(dVar);
+        ASTGlobalVar *eVar = new ASTGlobalVar(SourceLoc, Node, new ASTIntType(SourceLoc), "e");
+        Node->AddGlobalVar(eVar);
+        ASTGlobalVar *fVar = new ASTGlobalVar(SourceLoc, Node, new ASTUIntType(SourceLoc), "f");
+        Node->AddGlobalVar(fVar);
+        ASTGlobalVar *gVar = new ASTGlobalVar(SourceLoc, Node, new ASTLongType(SourceLoc), "g");
+        Node->AddGlobalVar(gVar);
+        ASTGlobalVar *hVar = new ASTGlobalVar(SourceLoc, Node, new ASTULongType(SourceLoc), "h");
+        Node->AddGlobalVar(hVar);
+        ASTGlobalVar *iVar = new ASTGlobalVar(SourceLoc, Node, new ASTFloatType(SourceLoc), "i");
+        Node->AddGlobalVar(iVar);
+        ASTGlobalVar *jVar = new ASTGlobalVar(SourceLoc, Node, new ASTDoubleType(SourceLoc), "j");
+        Node->AddGlobalVar(jVar);
+        ASTGlobalVar *kVar = new ASTGlobalVar(SourceLoc, Node, new ASTArrayType(SourceLoc, new ASTIntType(SourceLoc), new ASTIntegerValue(SourceLoc, 0)), "k");
+        Node->AddGlobalVar(kVar);
 
         // Generate Code
         CodeGenModule *CGM = Node->getCodeGen();
-        GlobalVariable *GVar = (GlobalVariable *)CGM->GenGlobalVar(Var)->getPointer();
-        testing::internal::CaptureStdout();
-        GVar->print(llvm::outs());
-        std::string output = testing::internal::GetCapturedStdout();
+        std::string output;
 
-        EXPECT_EQ(output, "@a = global i32 0");
+        // a
+        GlobalVariable *aGVar = (GlobalVariable *)CGM->GenGlobalVar(aVar)->getPointer();
+        testing::internal::CaptureStdout();
+        aGVar->print(llvm::outs());
+        output = testing::internal::GetCapturedStdout();
+        EXPECT_EQ(output, "@a = global i1 false");
+
+        // b
+        GlobalVariable *bGVar = (GlobalVariable *)CGM->GenGlobalVar(bVar)->getPointer();
+        testing::internal::CaptureStdout();
+        bGVar->print(llvm::outs());
+        output = testing::internal::GetCapturedStdout();
+        EXPECT_EQ(output, "@b = global i8 0");
+
+        // c
+        GlobalVariable *cGVar = (GlobalVariable *)CGM->GenGlobalVar(cVar)->getPointer();
+        testing::internal::CaptureStdout();
+        cGVar->print(llvm::outs());
+        output = testing::internal::GetCapturedStdout();
+        EXPECT_EQ(output, "@c = global i16 0");
+
+        // d
+        GlobalVariable *dGVar = (GlobalVariable *)CGM->GenGlobalVar(dVar)->getPointer();
+        testing::internal::CaptureStdout();
+        dGVar->print(llvm::outs());
+        output = testing::internal::GetCapturedStdout();
+        EXPECT_EQ(output, "@d = global i16 0");
+
+        // e
+        GlobalVariable *eGVar = (GlobalVariable *)CGM->GenGlobalVar(eVar)->getPointer();
+        testing::internal::CaptureStdout();
+        eGVar->print(llvm::outs());
+        output = testing::internal::GetCapturedStdout();
+        EXPECT_EQ(output, "@e = global i32 0");
+
+        // f
+        GlobalVariable *fGVar = (GlobalVariable *)CGM->GenGlobalVar(fVar)->getPointer();
+        testing::internal::CaptureStdout();
+        fGVar->print(llvm::outs());
+        output = testing::internal::GetCapturedStdout();
+        EXPECT_EQ(output, "@f = global i32 0");
+
+        // g
+        GlobalVariable *gGVar = (GlobalVariable *)CGM->GenGlobalVar(gVar)->getPointer();
+        testing::internal::CaptureStdout();
+        gGVar->print(llvm::outs());
+        output = testing::internal::GetCapturedStdout();
+        EXPECT_EQ(output, "@g = global i64 0");
+
+        // h
+        GlobalVariable *hGVar = (GlobalVariable *)CGM->GenGlobalVar(hVar)->getPointer();
+        testing::internal::CaptureStdout();
+        hGVar->print(llvm::outs());
+        output = testing::internal::GetCapturedStdout();
+        EXPECT_EQ(output, "@h = global i64 0");
+
+        // i
+        GlobalVariable *iGVar = (GlobalVariable *)CGM->GenGlobalVar(iVar)->getPointer();
+        testing::internal::CaptureStdout();
+        iGVar->print(llvm::outs());
+        output = testing::internal::GetCapturedStdout();
+        EXPECT_EQ(output, "@i = global float 0.000000e+00");
+
+        // l
+        GlobalVariable *jGVar = (GlobalVariable *)CGM->GenGlobalVar(jVar)->getPointer();
+        testing::internal::CaptureStdout();
+        jGVar->print(llvm::outs());
+        output = testing::internal::GetCapturedStdout();
+        EXPECT_EQ(output, "@j = global double 0.000000e+00");
+
+        GlobalVariable *kGVar = (GlobalVariable *)CGM->GenGlobalVar(kVar)->getPointer();
+        testing::internal::CaptureStdout();
+        kGVar->print(llvm::outs());
+        output = testing::internal::GetCapturedStdout();
+        EXPECT_EQ(output, "@k = global [0 x i32] zeroinitializer");
+    }
+
+    TEST_F(CodeGenTest, CGValuedGlobalVar) {
+        ASTNode *Node = CreateAST();
+
+        // a
+        ASTBoolType *BoolType = new ASTBoolType(SourceLoc);
+        ASTValueExpr *BoolExpr = new ASTValueExpr(new ASTBoolValue(SourceLoc, true));
+        ASTGlobalVar *aVar = new ASTGlobalVar(SourceLoc, Node, BoolType, "a");
+        aVar->setExpr(BoolExpr);
+        Node->AddGlobalVar(aVar);
+
+        // b
+        ASTByteType *ByteType = new ASTByteType(SourceLoc);
+        ASTValueExpr *ByteExpr = new ASTValueExpr(new ASTIntegerValue(SourceLoc, ByteType, 1));
+        ASTGlobalVar *bVar = new ASTGlobalVar(SourceLoc, Node, ByteType, "b");
+        bVar->setExpr(ByteExpr);
+        Node->AddGlobalVar(bVar);
+
+//        // c
+//        ASTGlobalVar *cVar = new ASTGlobalVar(SourceLoc, Node, new ASTShortType(SourceLoc), "c");
+//        Node->AddGlobalVar(cVar);
+//
+//        // d
+//        ASTGlobalVar *dVar = new ASTGlobalVar(SourceLoc, Node, new ASTUShortType(SourceLoc), "d");
+//        Node->AddGlobalVar(dVar);
+//
+//        // e
+//        ASTGlobalVar *eVar = new ASTGlobalVar(SourceLoc, Node, new ASTIntType(SourceLoc), "e");
+//        Node->AddGlobalVar(eVar);
+//
+//        // f
+//        ASTGlobalVar *fVar = new ASTGlobalVar(SourceLoc, Node, new ASTUIntType(SourceLoc), "f");
+//        Node->AddGlobalVar(fVar);
+//
+//        // g
+//        ASTGlobalVar *gVar = new ASTGlobalVar(SourceLoc, Node, new ASTLongType(SourceLoc), "g");
+//        Node->AddGlobalVar(gVar);
+//
+//        // h
+//        ASTGlobalVar *hVar = new ASTGlobalVar(SourceLoc, Node, new ASTULongType(SourceLoc), "h");
+//        Node->AddGlobalVar(hVar);
+//
+//        // i
+//        ASTGlobalVar *iVar = new ASTGlobalVar(SourceLoc, Node, new ASTFloatType(SourceLoc), "i");
+//        Node->AddGlobalVar(iVar);
+//
+//        // j
+//        ASTGlobalVar *jVar = new ASTGlobalVar(SourceLoc, Node, new ASTDoubleType(SourceLoc), "j");
+//        Node->AddGlobalVar(jVar);
+//
+//        // k
+//        ASTGlobalVar *kVar = new ASTGlobalVar(SourceLoc, Node, new ASTArrayType(SourceLoc, new ASTIntType(SourceLoc)), "k");
+//        Node->AddGlobalVar(kVar);
+
+        // Generate Code
+        CodeGenModule *CGM = Node->getCodeGen();
+        std::string output;
+
+        // a
+        GlobalVariable *aGVar = (GlobalVariable *)CGM->GenGlobalVar(aVar)->getPointer();
+        testing::internal::CaptureStdout();
+        aGVar->print(llvm::outs());
+        output = testing::internal::GetCapturedStdout();
+        EXPECT_EQ(output, "@a = global i1 true");
+
+        // b
+        GlobalVariable *bGVar = (GlobalVariable *)CGM->GenGlobalVar(bVar)->getPointer();
+        testing::internal::CaptureStdout();
+        bGVar->print(llvm::outs());
+        output = testing::internal::GetCapturedStdout();
+        EXPECT_EQ(output, "@b = global i8 1");
+
+//        // c
+//        GlobalVariable *cGVar = (GlobalVariable *)CGM->GenGlobalVar(cVar)->getPointer();
+//        testing::internal::CaptureStdout();
+//        cGVar->print(llvm::outs());
+//        output = testing::internal::GetCapturedStdout();
+//        EXPECT_EQ(output, "@c = global i16 0");
+//
+//        // d
+//        GlobalVariable *dGVar = (GlobalVariable *)CGM->GenGlobalVar(dVar)->getPointer();
+//        testing::internal::CaptureStdout();
+//        dGVar->print(llvm::outs());
+//        output = testing::internal::GetCapturedStdout();
+//        EXPECT_EQ(output, "@d = global i16 0");
+//
+//        // e
+//        GlobalVariable *eGVar = (GlobalVariable *)CGM->GenGlobalVar(eVar)->getPointer();
+//        testing::internal::CaptureStdout();
+//        eGVar->print(llvm::outs());
+//        output = testing::internal::GetCapturedStdout();
+//        EXPECT_EQ(output, "@e = global i32 0");
+//
+//        // f
+//        GlobalVariable *fGVar = (GlobalVariable *)CGM->GenGlobalVar(fVar)->getPointer();
+//        testing::internal::CaptureStdout();
+//        fGVar->print(llvm::outs());
+//        output = testing::internal::GetCapturedStdout();
+//        EXPECT_EQ(output, "@f = global i32 0");
+//
+//        // g
+//        GlobalVariable *gGVar = (GlobalVariable *)CGM->GenGlobalVar(gVar)->getPointer();
+//        testing::internal::CaptureStdout();
+//        gGVar->print(llvm::outs());
+//        output = testing::internal::GetCapturedStdout();
+//        EXPECT_EQ(output, "@g = global i64 0");
+//
+//        // h
+//        GlobalVariable *hGVar = (GlobalVariable *)CGM->GenGlobalVar(hVar)->getPointer();
+//        testing::internal::CaptureStdout();
+//        hGVar->print(llvm::outs());
+//        output = testing::internal::GetCapturedStdout();
+//        EXPECT_EQ(output, "@h = global i64 0");
+//
+//        // i
+//        GlobalVariable *iGVar = (GlobalVariable *)CGM->GenGlobalVar(iVar)->getPointer();
+//        testing::internal::CaptureStdout();
+//        iGVar->print(llvm::outs());
+//        output = testing::internal::GetCapturedStdout();
+//        EXPECT_EQ(output, "@i = global float 0.000000e+00");
+//
+//        // j
+//        GlobalVariable *jGVar = (GlobalVariable *)CGM->GenGlobalVar(jVar)->getPointer();
+//        testing::internal::CaptureStdout();
+//        jGVar->print(llvm::outs());
+//        output = testing::internal::GetCapturedStdout();
+//        EXPECT_EQ(output, "@j = global double 0.000000e+00");
+//
+//        GlobalVariable *kGVar = (GlobalVariable *)CGM->GenGlobalVar(kVar)->getPointer();
+//        testing::internal::CaptureStdout();
+//        kGVar->print(llvm::outs());
+//        output = testing::internal::GetCapturedStdout();
+//        EXPECT_EQ(output, "@k = global [0 x i32] zeroinitializer");
     }
 
     TEST_F(CodeGenTest, CGFunc) {
@@ -138,7 +363,7 @@ namespace {
         MainFn->addParam(SourceLoc, new ASTULongType(SourceLoc), "P10");
         Node->AddFunction(MainFn);
 
-        ASTValueExpr *Expr = new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "1"));
+        ASTValueExpr *Expr = new ASTValueExpr(new ASTIntegerValue(SourceLoc, new ASTIntType(SourceLoc), 1));
         MainFn->getBody()->AddReturn(SourceLoc, Expr);
 
         // Generate Code
@@ -193,7 +418,7 @@ namespace {
 
         // A = 1
         ASTLocalVarRef * VarAAssign = new ASTLocalVarRef(SourceLoc, MainFn->getBody(), VarA->getName());
-        ASTExpr *Expr = new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "1"));
+        ASTExpr *Expr = new ASTValueExpr(new ASTIntegerValue(SourceLoc, new ASTIntType(SourceLoc), 1));
         VarAAssign->setExpr(Expr);
         MainFn->getBody()->AddLocalVarRef(VarAAssign);
 
@@ -289,11 +514,11 @@ namespace {
         // E1 + (E2 * E3) / (E4 - E5)
         // E1 + (G2 / G3)
         // E1 + G1
-        ASTValueExpr *E1 = new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "1"));
+        ASTValueExpr *E1 = new ASTValueExpr(new ASTIntegerValue(SourceLoc, new ASTIntType(SourceLoc), 1));
         ASTVarRefExpr *E2 = new ASTVarRefExpr(new ASTVarRef(SourceLoc, "a"));
         ASTVarRefExpr *E3 = new ASTVarRefExpr(new ASTVarRef(SourceLoc, "b"));
         ASTVarRefExpr *E4 = new ASTVarRefExpr(new ASTVarRef(SourceLoc, "c"));
-        ASTValueExpr *E5 = new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "2"));
+        ASTValueExpr *E5 = new ASTValueExpr(new ASTIntegerValue(SourceLoc, new ASTIntType(SourceLoc), 2));
         
         ASTBinaryGroupExpr *G2 = new ASTBinaryGroupExpr(SourceLoc, ARITH_MUL, E2, E3);
         ASTBinaryGroupExpr *G3 = new ASTBinaryGroupExpr(SourceLoc, ARITH_SUB, E4, E5);
@@ -776,7 +1001,7 @@ namespace {
         Node->AddFunction(MainFn);
 
         // Compare
-        ASTValueExpr *V = new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "1"));
+        ASTValueExpr *V = new ASTValueExpr(new ASTIntegerValue(SourceLoc, new ASTIntType(SourceLoc), 1));
         ASTVarRefExpr *ARef = new ASTVarRefExpr(new ASTVarRef(Param));
         ASTBinaryGroupExpr *Group = new ASTBinaryGroupExpr(SourceLoc,
                                                            COMP_EQ,
@@ -786,7 +1011,7 @@ namespace {
         // First If
         ASTIfBlock *IfBlock = new ASTIfBlock(SourceLoc, MainFn->getBody(), Group);
         ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, IfBlock, Param);
-        A2->setExpr(new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "1")));
+        A2->setExpr(new ASTValueExpr(new ASTIntegerValue(SourceLoc, new ASTIntType(SourceLoc), 1)));
         IfBlock->AddLocalVarRef(A2);
         MainFn->getBody()->AddBlock(SourceLoc, IfBlock);
         MainFn->getBody()->AddReturn(SourceLoc, ARef);
@@ -826,7 +1051,7 @@ namespace {
         ASTFuncParam *Param = MainFn->addParam(SourceLoc, new ASTIntType(SourceLoc), "a");
         Node->AddFunction(MainFn);
 
-        ASTValueExpr *OneCost = new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "1"));
+        ASTValueExpr *OneCost = new ASTValueExpr(new ASTIntegerValue(SourceLoc, new ASTIntType(SourceLoc), 1));
         ASTVarRefExpr *ARef = new ASTVarRefExpr(new ASTVarRef(Param));
         ASTGroupExpr *Cond = new ASTBinaryGroupExpr(SourceLoc,
                                                     COMP_EQ,
@@ -836,14 +1061,14 @@ namespace {
         // if (a == 1) { a = 1 }
         ASTIfBlock *IfBlock = new ASTIfBlock(SourceLoc, MainFn->getBody(), Cond);
         ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, IfBlock, Param);
-        A2->setExpr(new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "1")));
+        A2->setExpr(new ASTValueExpr(new ASTIntegerValue(SourceLoc, new ASTIntType(SourceLoc), 1)));
         IfBlock->AddLocalVarRef(A2);
         MainFn->getBody()->AddBlock(SourceLoc, IfBlock);
 
         // else {a == 2}
         ASTElseBlock *ElseBlock = new ASTElseBlock(SourceLoc, MainFn->getBody());
         ASTLocalVarRef *A3 = new ASTLocalVarRef(SourceLoc, ElseBlock, Param);
-        A3->setExpr(new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "2")));
+        A3->setExpr(new ASTValueExpr(new ASTIntegerValue(SourceLoc, new ASTIntType(SourceLoc), 2)));
         ElseBlock->AddLocalVarRef(A3);
         IfBlock->AddBranch(MainFn->getBody(), ElseBlock);
 
@@ -888,7 +1113,7 @@ namespace {
         ASTFuncParam *Param = MainFn->addParam(SourceLoc, new ASTIntType(SourceLoc), "a");
         Node->AddFunction(MainFn);
 
-        ASTValueExpr *OneCost = new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "1"));
+        ASTValueExpr *OneCost = new ASTValueExpr(new ASTIntegerValue(SourceLoc, new ASTIntType(SourceLoc), 1));
         ASTVarRefExpr *ARef = new ASTVarRefExpr(new ASTVarRef(Param));
         ASTGroupExpr *Cond = new ASTBinaryGroupExpr(SourceLoc,
                                                     COMP_EQ,
@@ -898,28 +1123,28 @@ namespace {
         // if (a == 1) { a = 11 }
         ASTIfBlock *IfBlock = new ASTIfBlock(SourceLoc, MainFn->getBody(), Cond);
         ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, IfBlock, Param);
-        A2->setExpr(new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "11")));
+        A2->setExpr(new ASTValueExpr(new ASTIntegerValue(SourceLoc, new ASTIntType(SourceLoc), 11)));
         IfBlock->AddLocalVarRef(A2);
         MainFn->getBody()->AddBlock(SourceLoc, IfBlock);
 
         // elsif (a == 1) { a = 22 }
         ASTElsifBlock *ElsifBlock = new ASTElsifBlock(SourceLoc, MainFn->getBody(), Cond);
         ASTLocalVarRef *A3 = new ASTLocalVarRef(SourceLoc, ElsifBlock, Param);
-        A3->setExpr(new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "22")));
+        A3->setExpr(new ASTValueExpr(new ASTIntegerValue(SourceLoc, new ASTIntType(SourceLoc), 22)));
         ElsifBlock->AddLocalVarRef(A3);
         IfBlock->AddBranch(MainFn->getBody(), ElsifBlock);
 
         // elsif (a == 1) { a = 33 }
         ASTElsifBlock *Elsif2Block = new ASTElsifBlock(SourceLoc, MainFn->getBody(), Cond);
         ASTLocalVarRef *A4 = new ASTLocalVarRef(SourceLoc, Elsif2Block, Param);
-        A4->setExpr(new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "33")));
+        A4->setExpr(new ASTValueExpr(new ASTIntegerValue(SourceLoc, new ASTIntType(SourceLoc), 33)));
         Elsif2Block->AddLocalVarRef(A4);
         IfBlock->AddBranch(MainFn->getBody(), Elsif2Block);
 
         // else { a = 44 }
         ASTElseBlock *ElseBlock = new ASTElseBlock(SourceLoc, MainFn->getBody());
         ASTLocalVarRef *A5 = new ASTLocalVarRef(SourceLoc, ElseBlock, Param);
-        A5->setExpr(new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "44")));
+        A5->setExpr(new ASTValueExpr(new ASTIntegerValue(SourceLoc, new ASTIntType(SourceLoc), 44)));
         ElseBlock->AddLocalVarRef(A5);
         IfBlock->AddBranch(MainFn->getBody(), ElseBlock);
 
@@ -982,7 +1207,7 @@ namespace {
         ASTFuncParam *Param = MainFn->addParam(SourceLoc, new ASTIntType(SourceLoc), "a");
         Node->AddFunction(MainFn);
 
-        ASTValueExpr *OneCost = new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "1"));
+        ASTValueExpr *OneCost = new ASTValueExpr(new ASTIntegerValue(SourceLoc, new ASTIntType(SourceLoc), 1));
         ASTVarRefExpr *ARef = new ASTVarRefExpr(new ASTVarRef(Param));
         ASTGroupExpr *Cond = new ASTBinaryGroupExpr(SourceLoc,
                                                     COMP_EQ,
@@ -992,21 +1217,21 @@ namespace {
         // if (a == 1) { a = 11 }
         ASTIfBlock *IfBlock = new ASTIfBlock(SourceLoc, MainFn->getBody(), Cond);
         ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, IfBlock, Param);
-        A2->setExpr(new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "11")));
+        A2->setExpr(new ASTValueExpr(new ASTIntegerValue(SourceLoc, new ASTIntType(SourceLoc), 11)));
         IfBlock->AddLocalVarRef(A2);
         MainFn->getBody()->AddBlock(SourceLoc, IfBlock);
 
         // elsif (a == 1) { a = 22 }
         ASTElsifBlock *ElsifBlock = new ASTElsifBlock(SourceLoc, MainFn->getBody(), Cond);
         ASTLocalVarRef *A3 = new ASTLocalVarRef(SourceLoc, ElsifBlock, Param);
-        A3->setExpr(new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "22")));
+        A3->setExpr(new ASTValueExpr(new ASTIntegerValue(SourceLoc, new ASTIntType(SourceLoc), 22)));
         ElsifBlock->AddLocalVarRef(A3);
         IfBlock->AddBranch(MainFn->getBody(), ElsifBlock);
 
         // elsif (a == 1) { a = 33 }
         ASTElsifBlock *Elsif2Block = new ASTElsifBlock(SourceLoc, MainFn->getBody(), Cond);
         ASTLocalVarRef *A4 = new ASTLocalVarRef(SourceLoc, Elsif2Block, Param);
-        A4->setExpr(new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "33")));
+        A4->setExpr(new ASTValueExpr(new ASTIntegerValue(SourceLoc, new ASTIntType(SourceLoc), 33)));
         Elsif2Block->AddLocalVarRef(A4);
         IfBlock->AddBranch(MainFn->getBody(), Elsif2Block);
 
@@ -1063,26 +1288,26 @@ namespace {
         ASTFuncParam *Param = MainFn->addParam(SourceLoc, new ASTIntType(SourceLoc), "a");
         Node->AddFunction(MainFn);
 
-        ASTExpr *Cost1 = new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "1"));
-        ASTExpr *Cost2 = new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "2"));
+        ASTExpr *Cost1 = new ASTValueExpr(new ASTIntegerValue(SourceLoc, new ASTIntType(SourceLoc), 1));
+        ASTExpr *Cost2 = new ASTValueExpr(new ASTIntegerValue(SourceLoc, new ASTIntType(SourceLoc), 2));
 
         ASTVarRefExpr *SwitchExpr = new ASTVarRefExpr(new ASTVarRef(Param));
         ASTSwitchBlock *SwitchBlock = new ASTSwitchBlock(SourceLoc, MainFn->getBody(), SwitchExpr);
 
         ASTSwitchCaseBlock *Case1Block = SwitchBlock->AddCase(SourceLoc, Cost1);
         ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, Case1Block, Param);
-        A2->setExpr(new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "1")));
+        A2->setExpr(new ASTValueExpr(new ASTIntegerValue(SourceLoc, new ASTIntType(SourceLoc), 1)));
         Case1Block->AddLocalVarRef(A2);
 
         ASTSwitchCaseBlock *Case2Block = SwitchBlock->AddCase(SourceLoc, Cost2);
         ASTLocalVarRef *A3 = new ASTLocalVarRef(SourceLoc, Case2Block, Param);
-        A3->setExpr(new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "2")));
+        A3->setExpr(new ASTValueExpr(new ASTIntegerValue(SourceLoc, new ASTIntType(SourceLoc), 2)));
         Case2Block->AddLocalVarRef(A3);
         Case2Block->AddBreak(SourceLoc);
 
         ASTBlock *DefaultBlock = SwitchBlock->setDefault(SourceLoc);
         ASTLocalVarRef *A4 = new ASTLocalVarRef(SourceLoc, DefaultBlock, Param);
-        A4->setExpr(new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "3")));
+        A4->setExpr(new ASTValueExpr(new ASTIntegerValue(SourceLoc, new ASTIntType(SourceLoc), 3)));
         DefaultBlock->AddLocalVarRef(A4);
         DefaultBlock->AddBreak(SourceLoc);
 
@@ -1134,7 +1359,7 @@ namespace {
         ASTFuncParam *Param = MainFn->addParam(SourceLoc, new ASTIntType(SourceLoc), "a");
         Node->AddFunction(MainFn);
 
-        ASTValueExpr *OneCost = new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "1"));
+        ASTValueExpr *OneCost = new ASTValueExpr(new ASTIntegerValue(SourceLoc, new ASTIntType(SourceLoc), 1));
         ASTVarRefExpr *ARef = new ASTVarRefExpr(new ASTVarRef(Param));
         ASTGroupExpr *Group = new ASTBinaryGroupExpr(SourceLoc,
                                                      COMP_EQ,
@@ -1144,7 +1369,7 @@ namespace {
         ASTWhileBlock *WhileBlock = new ASTWhileBlock(SourceLoc, MainFn->getBody(), Group);
 
         ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, WhileBlock, Param);
-        A2->setExpr(new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "1")));
+        A2->setExpr(new ASTValueExpr(new ASTIntegerValue(SourceLoc, new ASTIntType(SourceLoc), 1)));
         WhileBlock->AddLocalVarRef(A2);
         WhileBlock->AddContinue(SourceLoc);
         MainFn->getBody()->AddBlock(SourceLoc, WhileBlock);
@@ -1190,7 +1415,7 @@ namespace {
         Node->AddFunction(MainFn);
 
         ASTForBlock *ForBlock = new ASTForBlock(SourceLoc, MainFn->getBody());
-        ASTValueExpr *OneCost = new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "1"));
+        ASTValueExpr *OneCost = new ASTValueExpr(new ASTIntegerValue(SourceLoc, new ASTIntType(SourceLoc), 1));
 
         // Init
         ASTLocalVar *InitVar = new ASTLocalVar(SourceLoc, ForBlock, new ASTIntType(SourceLoc), "i");
@@ -1212,7 +1437,7 @@ namespace {
         PostBlock->AddExprStmt(ExprStmt);
 
         ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, ForBlock->getLoop(), Param);
-        A2->setExpr(new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "1")));
+        A2->setExpr(new ASTValueExpr(new ASTIntegerValue(SourceLoc, new ASTIntType(SourceLoc), 1)));
         ForBlock->getLoop()->AddLocalVarRef(A2);
         ForBlock->getLoop()->AddContinue(SourceLoc);
         MainFn->getBody()->AddBlock(SourceLoc, ForBlock);
@@ -1267,7 +1492,7 @@ namespace {
         Node->AddFunction(MainFn);
 
         ASTForBlock *ForBlock = new ASTForBlock(SourceLoc, MainFn->getBody());
-        ASTValueExpr *OneCost = new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "1"));
+        ASTValueExpr *OneCost = new ASTValueExpr(new ASTIntegerValue(SourceLoc, new ASTIntType(SourceLoc), 1));
 
         //Cond
         ASTVarRefExpr *InitVarRef = new ASTVarRefExpr(new ASTVarRef(Param));
@@ -1276,7 +1501,7 @@ namespace {
         ForBlock->setCond(Cond);
 
         ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, ForBlock->getLoop(), Param);
-        A2->setExpr(new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "1")));
+        A2->setExpr(new ASTValueExpr(new ASTIntegerValue(SourceLoc, new ASTIntType(SourceLoc), 1)));
         ForBlock->getLoop()->AddLocalVarRef(A2);
         ForBlock->getLoop()->AddContinue(SourceLoc);
         MainFn->getBody()->AddBlock(SourceLoc, ForBlock);
@@ -1323,7 +1548,7 @@ namespace {
         Node->AddFunction(MainFn);
 
         ASTForBlock *ForBlock = new ASTForBlock(SourceLoc, MainFn->getBody());
-        ASTValueExpr *OneCost = new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "1"));
+        ASTValueExpr *OneCost = new ASTValueExpr(new ASTIntegerValue(SourceLoc, new ASTIntType(SourceLoc), 1));
 
         // Post
         ASTBlock *PostBlock = ForBlock->getPost();
@@ -1333,7 +1558,7 @@ namespace {
         PostBlock->AddExprStmt(ExprStmt);
 
         ASTLocalVarRef *A2 = new ASTLocalVarRef(SourceLoc, ForBlock->getLoop(), Param);
-        A2->setExpr(new ASTValueExpr(new ASTSingleValue(SourceLoc, new ASTIntType(SourceLoc), "1")));
+        A2->setExpr(new ASTValueExpr(new ASTIntegerValue(SourceLoc, new ASTIntType(SourceLoc), 1)));
         ForBlock->getLoop()->AddLocalVarRef(A2);
         ForBlock->getLoop()->AddContinue(SourceLoc);
         MainFn->getBody()->AddBlock(SourceLoc, ForBlock);

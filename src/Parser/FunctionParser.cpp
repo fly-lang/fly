@@ -111,7 +111,7 @@ bool FunctionParser::ParseFunctionParam() {
 
             // Start Parsing
             if (P->isValue()) {
-                ASTValue *Val = P->ParseValue(*Type);
+                ASTValue *Val = P->ParseValue(Type);
                 if (Val != nullptr) {
                     Param->setExpr(new ASTValueExpr(Val));
                 }

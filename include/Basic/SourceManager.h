@@ -616,7 +616,7 @@ class SourceManager : public RefCountedBase<SourceManager> {
 
   /// The table of SLocEntries that are loaded from other modules.
   ///
-  /// Negative FileIDs are indexes into this table. To getValue from ID to an index,
+  /// Negative FileIDs are indexes into this table. To getDouble from ID to an index,
   /// use (-ID - 2).
   mutable SmallVector<SrcMgr::SLocEntry, 0> LoadedSLocEntryTable;
 

@@ -1,0 +1,59 @@
+-----------------------------------------------------------------------------------------------------
+Global Var String (Array)
+-----------------------------------------------------------------------------------------------------
+//C++
+char s[] = "Ciao";
+
+;LLVM
+@s = dso_local global [5 x i8] c"Ciao\00", align 1
+
+-----------------------------------------------------------------------------------------------------
+Global Var String (Pointer)
+-----------------------------------------------------------------------------------------------------
+//C++
+char *s = "Ciao";
+
+;LLVM
+@.str = private unnamed_addr constant [5 x i8] c"Ciao\00", align 1
+@s = dso_local global i8* getelementptr inbounds ([5 x i8], [5 x i8]* @.str, i32 0, i32 0), align 8
+
+-----------------------------------------------------------------------------------------------------
+Local Var String (Array)
+-----------------------------------------------------------------------------------------------------
+//C++
+int main() {
+    char s[] = "Bye";
+}
+
+;LLVM
+@__const.main.s = private unnamed_addr constant [4 x i8] c"Bye\00", align 1
+
+define dso_local i32 @main() #0 {
+  %1 = alloca [4 x i8], align 1
+  %2 = bitcast [4 x i8]* %1 to i8*
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 1 %2,
+                                    i8* align 1 getelementptr inbounds ([4 x i8],
+                                                                        [4 x i8]* @__const.main.s,
+                                                                        i32 0,
+                                                                        i32 0),
+                                    i64 4,
+                                    i1 false)
+  ret i32 0
+}
+
+-----------------------------------------------------------------------------------------------------
+Local Var String (Pointer)
+-----------------------------------------------------------------------------------------------------
+//C++
+int main() {
+    char *s = "Ciao";
+}
+
+;LLVM
+@.str = private unnamed_addr constant [5 x i8] c"Ciao\00", align 1
+
+define dso_local i32 @main() #0 {
+  %1 = alloca i8*, align 8
+  store i8* getelementptr inbounds ([5 x i8], [5 x i8]* @.str, i64 0, i64 0), i8** %1, align 8
+  ret i32 0
+}

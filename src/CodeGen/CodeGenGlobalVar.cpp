@@ -22,12 +22,13 @@ CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, ASTGlobalVar* AST, bool i
     bool Success = true;
     llvm::Constant *Const = nullptr;
     GlobalValue::LinkageTypes Linkage = GlobalValue::LinkageTypes::ExternalLinkage;
+    llvm::Type *Ty = CGM->GenType(AST->getType());
     if (!isExternal) {
         if (AST->getVisibility() == V_PRIVATE) {
             Linkage = GlobalValue::LinkageTypes::InternalLinkage;
         }
         if (AST->getExpr() == nullptr) {
-            Const = CGM->GenDefaultValue(AST->getType());
+            Const = CGM->GenDefaultValue(AST->getType(), Ty);
         } else if (AST->getExpr()->getKind() == EXPR_VALUE) {
             const ASTValue &Value = ((ASTValueExpr *) AST->getExpr())->getValue();
             Const = CGM->GenValue(AST->getType(), &Value);
@@ -38,9 +39,8 @@ CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, ASTGlobalVar* AST, bool i
     }
 
     if (Success) {
-        llvm::Type *Typ = CGM->GenType(AST->getType());
         std::string Id = CodeGen::toIdentifier(AST->getName(), AST->getNameSpace()->getName());
-        GVar = new llvm::GlobalVariable(*CGM->Module, Typ, AST->isConstant(), Linkage, Const, Id);
+        GVar = new llvm::GlobalVariable(*CGM->Module, Ty, AST->isConstant(), Linkage, Const, Id);
     }
     needLoad = true;
 }

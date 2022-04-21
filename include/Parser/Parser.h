@@ -7,8 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_PARSE_PARSEAST_H
-#define FLY_PARSE_PARSEAST_H
+#ifndef FLY_PARSER_H
+#define FLY_PARSER_H
 
 #include <AST/ASTBlock.h>
 #include <AST/ASTIfBlock.h>
@@ -139,8 +139,8 @@ namespace fly {
                                         SourceLocation &Loc);
         // Parse a Value
         ASTValue *ParseValue();
-        ASTValue *ParseValue(ASTType &Type);
-        ASTArrayValue *ParseMultiValue(ASTType &Type);
+        ASTValue *ParseValue(ASTType *Type);
+        ASTArrayValue *ParseValues(ASTArrayValue *ArrayValues);
 
         // Parse a Local Var
         ASTLocalVar *ParseLocalVar(ASTBlock *Block, bool Constant, ASTType *Type);

@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Parser/Parser.h"
+#include "Parser/NumberParser.h"
 #include "Parser/ExprParser.h"
 #include "AST/ASTExpr.h"
 #include "AST/ASTValue.h"
@@ -620,13 +621,18 @@ bool Parser::ParseArrayType(ASTType *&Type, ASTBlock * Block) {
                 // Error: array size must be of integer type TODO
                 return false;
             }
-            Type = new ASTArrayType(Loc, Type);
+            Type = new ASTArrayType(Loc, Type, Expr);
         } else if (Tok.is(tok::numeric_constant)) { // Parse unsigned int array size
             std::string Size = StringRef(Tok.getLiteralData(), Tok.getLength()).str();
-            ConsumeToken();
-            Type = new ASTArrayType(Loc, Type, Size);
+            NumberParser *NumberP = new NumberParser(ConsumeToken(), Size);
+            ASTSingleValue *SizeValue = NumberP->getValue();
+            if (!SizeValue->getType()->isInteger()) {
+                // Error: must be integer
+            }
+            Type = new ASTArrayType(Loc, Type, (ASTIntegerValue *) SizeValue);
         } else {
-            Type = new ASTArrayType(Loc, Type);
+            // Array Type without size have default size of 0
+            Type = new ASTArrayType(Loc, Type, new ASTIntegerValue(Loc, new ASTUIntType(Loc), 0));
         }
 
         if (!Type) {
@@ -955,7 +961,7 @@ bool Parser::ParseSwitchStmt(ASTBlock *Block) {
                     // for a default
                     ASTExpr * CaseExp;
                     if (isValue()) {
-                        ASTValue *Val = ParseValue(*Expr->getType()); // TODO check Type
+                        ASTValue *Val = ParseValue(Expr->getType()); // TODO check Type
                         CaseExp = new ASTValueExpr(Val);
                     } else if (Tok.isAnyIdentifier()) {
                         IdentifierInfo *Id = Tok.getIdentifierInfo();
@@ -1179,67 +1185,78 @@ ASTFuncCall * Parser::ParseFunctionCall(ASTBlock *Block, llvm::StringRef Name, l
 
 ASTValue *Parser::ParseValue() {
     ASTType *Type = nullptr;
-    return ParseValue(*Type);
+    return ParseValue(Type);
 }
 
 /**
  * Parse a Value Expression
  * @return the ASTValueExpr
  */
-ASTValue *Parser::ParseValue(ASTType &Type) {
+ASTValue *Parser::ParseValue(ASTType *Type) {
     FLY_DEBUG("Parser", "ParseValue");
 
     // Parse Numeric Constants
     if (Tok.is(tok::numeric_constant)) {
-        const StringRef Val = StringRef(Tok.getLiteralData(), Tok.getLength());
+        std::string StrVal = StringRef(Tok.getLiteralData(), Tok.getLength()).str();
         const SourceLocation &Loc = ConsumeToken();
-        ASTValue *V;
-        if (&Type) {
-            V = new ASTSingleValue(Loc, &Type, Val.str());
-        } else if (Val.contains(".")) {
-            // Parse Float
-            V = new ASTSingleValue(Loc, new ASTFloatType(Loc), Val.str());
-        } else {
-            // Parse Int
-            V = new ASTSingleValue(Loc, new ASTIntType(Loc), Val.str());
-        }
-        return V;
+        NumberParser *Number = new NumberParser(Loc, StrVal);
+        return Number->getValue(Type);
     }
 
     if (Tok.isCharLiteral()) {
+        // empty char is like a zero byte
+        if (Tok.getLiteralData() == nullptr && Tok.getLength() == 0) {
+            const SourceLocation &Loc = ConsumeToken();
+            return new ASTIntegerValue(Loc, new ASTByteType(Loc), 0);
+        }
+
         const StringRef Val = StringRef(Tok.getLiteralData(), Tok.getLength());
+        char Ch = *Val.begin();
+
         const SourceLocation &Loc = ConsumeToken();
-        // TODO check Val type if need more than 1 byte of memory
-        return new ASTSingleValue(Loc, new ASTByteType(Loc), Val.str());
+        return new ASTIntegerValue(Loc, new ASTByteType(Loc), Ch);
     }
 
     if (Tok.isStringLiteral()) {
-        const char *StringData = Tok.getLiteralData();
+        const char *Chars = Tok.getLiteralData();
         unsigned int StringLength = Tok.getLength();
         const SourceLocation &Loc = ConsumeStringToken();
         // TODO check Val type if need more than 1 byte of memory
         ASTArrayValue *String = new ASTArrayValue(Loc, new ASTByteType(Loc));
-        for (unsigned int i = 0; i < StringLength ;i++) {
-            ASTSingleValue *StringChar = new ASTSingleValue(Loc, new ASTByteType(Loc),
-                                                            std::string(1, StringData[i]));
+        for (unsigned int i = 0; i < StringLength ; i++) {
+            ASTIntegerValue *StringChar = new ASTIntegerValue(Loc, new ASTByteType(Loc), Chars[i]);
             String->addValue(StringChar);
         }
         // set size to ASTArrayType on var declaration
-        ((ASTArrayType *) &Type)->setSize(std::to_string(String->size()));
+        ((ASTArrayType *) &Type)->setSize(new ASTIntegerValue(Loc, new ASTUIntType(Loc), String->size()));
         return String;
     }
 
     // Parse true or false boolean values
     if (Tok.is(tok::kw_true)) {
-        return new ASTSingleValue(ConsumeToken(), new ASTBoolType(Tok.getLocation()), "true");
+        return new ASTBoolValue(ConsumeToken(), true);
     }
     if (Tok.is(tok::kw_false)) {
-        return new ASTSingleValue(ConsumeToken(), new ASTBoolType(Tok.getLocation()), "false");
+        return new ASTBoolValue(ConsumeToken(), false);
     }
 
     // Parse Array values
     if (Tok.is(tok::l_brace)) {
-        return ParseMultiValue(Type);
+        const SourceLocation &Loc = ConsumeBrace();
+
+        ASTArrayValue *ArrayValues = nullptr;
+        if (Type) {
+            if (Type->getKind() == TYPE_ARRAY) { // Type can be null if it not came from assignation
+                ArrayValues = new ASTArrayValue(Loc, ((ASTArrayType *) Type)->getType());
+            }
+        }
+        ArrayValues = ParseValues(ArrayValues);
+
+        // Very important for set size to ASTArrayType on var declaration
+        ASTArrayType *SubType = (ASTArrayType *) Type;
+        ((ASTArrayType *) Type)->setSize(new ASTIntegerValue(Type->getLocation(), SubType->getType(), ArrayValues->size()));
+
+        return ArrayValues;
     }
 
     Diag(diag::err_invalid_value) << Tok.getName();
@@ -1250,41 +1267,32 @@ ASTValue *Parser::ParseValue(ASTType &Type) {
  * Parse Array Value Expression
  * @return the ASTValueExpr
  */
-ASTArrayValue *Parser::ParseMultiValue(ASTType &Type) {
-    const SourceLocation &Loc = ConsumeBrace();
-
-    ASTArrayValue *ArrayValue;
-    if (&Type && Type.getKind() == TYPE_ARRAY) { // Type can be null if it not came from assignation
-        ArrayValue = new ASTArrayValue(Loc, ((ASTArrayType *) &Type)->getType());
-    }
-
+ASTArrayValue *Parser::ParseValues(ASTArrayValue *ArrayValues) {
     // Parse array values Ex. {1, 2, 3}
     while (Tok.isNot(tok::r_brace) && Tok.isNot(tok::eof)) {
-        ASTValue *Value = ParseValue(Type);
+        ASTValue *Value = ParseValue();
         if (Value) {
-            if (!ArrayValue) { // Take the ASTType from first ASTValue
-                ArrayValue = new ASTArrayValue(Loc, Value->getType());
+            if (!ArrayValues) { // Take the ASTType from first ASTValue
+                ArrayValues = new ASTArrayValue(Tok.getLocation(), Value->getType());
             }
-            ArrayValue->addValue(Value);
+            ArrayValues->addValue(Value);
             if (Tok.is(tok::comma)) {
                 ConsumeToken();
-                continue;
+            } else {
+                break;
             }
         }
     }
 
-    if (!ArrayValue) { // Error: cannot use empty array without declaring it
+    if (!ArrayValues) { // Error: cannot use empty array without declaring it
         Diag(diag::err_invalid_value) << Tok.getName();
         return nullptr;
     }
 
-    // Very important for set size to ASTArrayType on var declaration
-    ((ASTArrayType *) &Type)->setSize(std::to_string(ArrayValue->size()));
-
     // End of Array
     if (Tok.is(tok::r_brace)) {
         ConsumeBrace();
-        return ArrayValue;
+        return ArrayValues;
     }
 
     Diag(diag::err_invalid_value) << Tok.getName();

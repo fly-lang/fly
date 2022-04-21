@@ -366,8 +366,8 @@ namespace fly {
         /// Gets an IdentifierInfo for the given name without consulting
         ///        external sources.
         ///
-        /// This is a version of getValue() meant for external sources that want to
-        /// introduce or modify an identifier. If they called getValue(), they would
+        /// This is a version of getDouble() meant for external sources that want to
+        /// introduce or modify an identifier. If they called getDouble(), they would
         /// likely end up in a recursion.
         IdentifierInfo &getOwn(StringRef Name) {
             auto &Entry = *HashTable.insert(std::make_pair(Name, nullptr)).first;

@@ -23,7 +23,7 @@ const SourceLocation &ASTExpr::getLocation() const {
     return Loc;
 }
 
-ASTValueExpr::ASTValueExpr(const ASTValue *Val) : ASTExpr(Val->getLocation()), Val(Val) {
+ASTValueExpr::ASTValueExpr(ASTValue *Val) : ASTExpr(Val->getLocation()), Val(Val) {
 
 }
 
@@ -31,7 +31,7 @@ ASTExprKind ASTValueExpr::getKind() const {
     return Kind;
 }
 
-const ASTValue &ASTValueExpr::getValue() const {
+ASTValue &ASTValueExpr::getValue() const {
     return *Val;
 }
 

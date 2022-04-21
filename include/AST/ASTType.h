@@ -15,16 +15,20 @@
 
 namespace fly {
 
+    const uint8_t   MIN_BYTE     = 0x0;
     const uint8_t   MAX_BYTE     = 0xFF;
+    const uint16_t  MIN_USHORT   = 0x0;
     const uint16_t  MAX_USHORT   = 0xFFFF;
-    const uint16_t  MAX_SHORT    = 0x7FFF;
     const uint16_t  MIN_SHORT    = 0x8000;
+    const uint16_t  MAX_SHORT    = 0x7FFF;
+    const uint32_t  MIN_UINT     = 0x0;
     const uint32_t  MAX_UINT     = 0xFFFFFFFF;
-    const uint32_t  MAX_INT      = 0x7FFFFFFF;
     const uint32_t  MIN_INT      = 0x80000000;
+    const uint32_t  MAX_INT      = 0x7FFFFFFF;
+    const uint64_t  MIN_ULONG    = 0x0;
     const uint64_t  MAX_ULONG    = 0xFFFFFFFFFFFFFFFF;
-    const uint64_t  MAX_LONG     = 0x7FFFFFFFFFFFFFFF;
     const uint64_t  MIN_LONG     = 0x8000000000000000;
+    const uint64_t  MAX_LONG     = 0x7FFFFFFFFFFFFFFF;
 
     enum TypeKind {
         TYPE_VOID = 0,
@@ -42,6 +46,9 @@ namespace fly {
         TYPE_CLASS = 12,
     };
 
+    class ASTIntegerValue;
+    class ASTValueExpr;
+
     class ASTExpr;
 
     /**
@@ -53,7 +60,7 @@ namespace fly {
         const SourceLocation Loc;
 
     protected:
-        ASTType(SourceLocation Loc, TypeKind Kind);
+        ASTType(const SourceLocation &Loc, TypeKind Kind);
 
     public:
         const TypeKind &getKind() const;
@@ -79,7 +86,7 @@ namespace fly {
     class ASTVoidType : public ASTType {
 
     public:
-        explicit ASTVoidType(SourceLocation Loc);
+        explicit ASTVoidType(const SourceLocation &Loc);
 
         std::string str() const override {
             return "void";
@@ -92,7 +99,7 @@ namespace fly {
     class ASTBoolType : public ASTType {
 
     public:
-        explicit ASTBoolType(SourceLocation Loc);
+        explicit ASTBoolType(const SourceLocation &Loc);
 
         std::string str() const override {
             return "bool";
@@ -105,7 +112,7 @@ namespace fly {
     class ASTByteType : public ASTType {
 
     public:
-        explicit ASTByteType(SourceLocation Loc);
+        explicit ASTByteType(const SourceLocation &Loc);
 
         std::string str() const override {
             return "byte";
@@ -118,7 +125,7 @@ namespace fly {
     class ASTUShortType : public ASTType {
 
     public:
-        explicit ASTUShortType(SourceLocation Loc);
+        explicit ASTUShortType(const SourceLocation &Loc);
 
         std::string str() const override {
             return "ushort";
@@ -131,7 +138,7 @@ namespace fly {
     class ASTShortType : public ASTType {
 
     public:
-        explicit ASTShortType(SourceLocation Loc);
+        explicit ASTShortType(const SourceLocation &Loc);
 
         std::string str() const override {
             return "short";
@@ -144,7 +151,7 @@ namespace fly {
     class ASTUIntType : public ASTType {
 
     public:
-        explicit ASTUIntType(SourceLocation Loc);
+        explicit ASTUIntType(const SourceLocation &Loc);
 
         std::string str() const override {
             return "uint";
@@ -157,7 +164,7 @@ namespace fly {
     class ASTIntType : public ASTType {
 
     public:
-        explicit ASTIntType(SourceLocation Loc);
+        explicit ASTIntType(const SourceLocation &Loc);
 
         std::string str() const override {
             return "int";
@@ -170,7 +177,7 @@ namespace fly {
     class ASTULongType : public ASTType {
 
     public:
-        explicit ASTULongType(SourceLocation Loc);
+        explicit ASTULongType(const SourceLocation &Loc);
 
         std::string str() const override {
             return "ulong";
@@ -183,7 +190,7 @@ namespace fly {
     class ASTLongType : public ASTType {
 
     public:
-        explicit ASTLongType(SourceLocation Loc);
+        explicit ASTLongType(const SourceLocation &Loc);
 
         std::string str() const override {
             return "long";
@@ -196,7 +203,7 @@ namespace fly {
     class ASTFloatType : public ASTType {
 
     public:
-        explicit ASTFloatType(SourceLocation Loc);
+        explicit ASTFloatType(const SourceLocation &Loc);
 
         std::string str() const override {
             return "float";
@@ -209,7 +216,7 @@ namespace fly {
     class ASTDoubleType : public ASTType {
 
     public:
-        explicit ASTDoubleType(SourceLocation Loc);
+        explicit ASTDoubleType(const SourceLocation &Loc);
 
         std::string str() const override {
             return "double";
@@ -221,16 +228,17 @@ namespace fly {
      */
     class ASTArrayType : public ASTType {
 
-        std::string Size;
+        ASTExpr *Size;
         ASTType *Type;
 
     public:
 
-        ASTArrayType(SourceLocation Loc, ASTType *Type, std::string Size = "0");
+        ASTArrayType(const SourceLocation &Loc, ASTType *Type, ASTIntegerValue *Size);
+        ASTArrayType(const SourceLocation &Loc, ASTType *Type, ASTExpr *Size);
 
-        void setSize(std::string S);
+        void setSize(ASTIntegerValue *S);
 
-        const std::string &getSize() const;
+        ASTExpr *getSize() const;
 
         ASTType *getType() const;
 
@@ -249,7 +257,7 @@ namespace fly {
         const std::string NameSpace;
 
     public:
-        ASTClassType(SourceLocation Loc, std::string Name, std::string NameSpace = "");
+        ASTClassType(const SourceLocation &Loc, std::string Name, std::string NameSpace = "");
 
         const std::string &getName() const;
 

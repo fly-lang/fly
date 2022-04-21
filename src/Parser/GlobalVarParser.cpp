@@ -47,7 +47,7 @@ bool GlobalVarParser::Parse() {
     if (P->Tok.is(tok::equal)) {
         P->ConsumeToken();
 
-        ASTValue *Val = P->ParseValue(*Type);
+        ASTValue *Val = P->ParseValue(Type);
         if (Val) {
             AST->setExpr(new ASTValueExpr(Val));
         }

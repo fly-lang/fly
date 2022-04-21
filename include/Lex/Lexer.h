@@ -122,7 +122,7 @@ namespace fly {
         /// ExtendedTokenMode - The lexer can optionally keep comments and whitespace
         /// and return them as tokens.  This is used for -C and -CC modes, and
         /// whitespace preservation can be useful for some clients that want to lex
-        /// the file in raw mode and getValue every character from the file.
+        /// the file in raw mode and getDouble every character from the file.
         ///
         /// When this is set to 2 it returns comments and whitespace.  When set to 1
         /// it returns comments, when it is set to 0 it returns normal tokens only.
@@ -275,7 +275,7 @@ namespace fly {
         /// '\\' and " characters and ii) replacing newline character(s) with "\\n".
         static void Stringify(SmallVectorImpl<char> &Str);
 
-        /// getSpelling - This method is used to getValue the spelling of a token into a
+        /// getSpelling - This method is used to getDouble the spelling of a token into a
         /// preallocated buffer, instead of as an std::string.  The caller is required
         /// to allocate enough space for the token, which is guaranteed to be at least
         /// Tok.getLength() bytes long.  The length of the actual result is returned.
@@ -292,13 +292,13 @@ namespace fly {
         /// getSpelling() - Return the 'spelling' of the Tok token.  The spelling of a
         /// token is the characters used to represent the token in the source file
         /// after trigraph expansion and escaped-newline folding.  In particular, this
-        /// wants to getValue the true, uncanonicalized, spelling of things like digraphs
+        /// wants to getDouble the true, uncanonicalized, spelling of things like digraphs
         /// UCNs, etc.
         static std::string getSpelling(const Token &Tok,
                                        const SourceManager &SourceMgr,
                                        bool *Invalid = nullptr);
 
-        /// getSpelling - This method is used to getValue the spelling of the
+        /// getSpelling - This method is used to getDouble the spelling of the
         /// token at the given source location.  If, as is usually true, it
         /// is not necessary to copy any data, then the returned string may
         /// not point into the provided buffer.
@@ -544,7 +544,7 @@ namespace fly {
         }
 
         /// getCharAndSize - Peek a single 'character' from the specified buffer,
-        /// getValue its size, and return it.  This is tricky in several cases.  Here we
+        /// getDouble its size, and return it.  This is tricky in several cases.  Here we
         /// just handle the trivial case and fall-back to the non-inlined
         /// getCharAndSizeSlow method to handle the hard case.
         inline char getCharAndSize(const char *Ptr, unsigned &Size) {
@@ -583,8 +583,8 @@ namespace fly {
 
         void PropagateLineStartLeadingSpaceInfo(Token &Result);
 
-        const char *LexUDSuffix(Token &Result, const char *CurPtr,
-                                bool IsStringLiteral);
+//        const char *LexUDSuffix(Token &Result, const char *CurPtr,
+//                                bool IsStringLiteral);
 
         // Helper functions to lex the remainder of a token of the specific type.
         bool LexIdentifier(Token &Result, const char *CurPtr);
@@ -594,8 +594,7 @@ namespace fly {
         bool LexStringLiteral(Token &Result, const char *CurPtr,
                               tok::TokenKind Kind);
 
-        bool LexRawStringLiteral(Token &Result, const char *CurPtr,
-                                 tok::TokenKind Kind);
+//        bool LexRawStringLiteral(Token &Result, const char *CurPtr, tok::TokenKind Kind);
 
         bool LexAngledStringLiteral(Token &Result, const char *CurPtr);
 

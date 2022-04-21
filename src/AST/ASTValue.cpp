@@ -9,10 +9,11 @@
 
 
 #include "AST/ASTValue.h"
+#include <string>
 
 using namespace fly;
 
-ASTValue::ASTValue(const SourceLocation &Loc, ASTType *Ty) : Loc(Loc), Ty(Ty) {
+ASTValue::ASTValue(const SourceLocation &Loc, ASTType *Type) : Loc(Loc), Type(Type) {
 
 }
 
@@ -21,33 +22,63 @@ const SourceLocation &ASTValue::getLocation() const {
 }
 
 ASTType *ASTValue::getType() const {
-    return Ty;
+    return Type;
 }
 
-ASTSingleValue::ASTSingleValue(const SourceLocation &Loc, ASTType *Ty) : ASTValue(Loc, Ty) {
-    if (Ty->isInteger() || Ty->isFloatingPoint()) {
-        Str = "0";
-    } else if (Ty->isBool()) {
-        Str = "false";
-    } else {
-        Str = "";
-    }
-}
-
-ASTSingleValue::ASTSingleValue(const SourceLocation &Loc, ASTType *Ty, std::string Str) : ASTValue(Loc, Ty), Str(Str) {
+ASTSingleValue::ASTSingleValue(const SourceLocation &Loc, ASTType *Type) : ASTValue(Loc, Type) {
 
 }
 
-std::string ASTSingleValue::str() const {
-    return Str;
+ASTBoolValue::ASTBoolValue(const SourceLocation &Loc, bool Value) :
+        ASTSingleValue(Loc, new ASTBoolType(Loc)), Value(Value) {
+
 }
 
-bool ASTSingleValue::empty() const {
-    return Str.empty();
+bool ASTBoolValue::getValue() const {
+    return Value;
+}
+
+std::string ASTBoolValue::str() const {
+    return std::to_string(Value);
+}
+
+ASTIntegerValue::ASTIntegerValue(const SourceLocation &Loc, ASTType *Type, uint64_t Value, bool Sign) :
+        ASTSingleValue(Loc, Type), Value(Value), Sign(Sign) {
+
+}
+
+bool ASTIntegerValue::isNegative() const {
+    return Sign;
+}
+
+bool ASTIntegerValue::isPositive() const {
+    return !Sign;
+}
+
+uint64_t ASTIntegerValue::getValue() const {
+    return Value;
+}
+
+std::string ASTIntegerValue::str() const {
+    return std::to_string(Value);
+}
+
+ASTFloatingValue::ASTFloatingValue(const SourceLocation &Loc, ASTType *Type, std::string &Value)
+    : ASTSingleValue(Loc, Type), Value(Value) {
+
+}
+
+std::string ASTFloatingValue::getValue() const {
+    return Value;
+}
+
+std::string ASTFloatingValue::str() const {
+    return getValue();
 }
 
 ASTArrayValue::ASTArrayValue(const SourceLocation &Loc, ASTType *Type) :
-    ASTValue(Loc, new ASTArrayType(Type->getLocation(), Type)) {
+    ASTValue(Loc, new ASTArrayType(Type->getLocation(), Type,
+                                   new ASTIntegerValue(Loc, Type, (uint64_t) 0, false))) {
 
 }
 
@@ -55,7 +86,7 @@ void ASTArrayValue::addValue(ASTValue * Value) {
     Values.push_back(Value);
 }
 
-unsigned int ASTArrayValue::size() const {
+uint64_t ASTArrayValue::size() const {
     return Values.size();
 }
 

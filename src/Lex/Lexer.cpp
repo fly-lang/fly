@@ -170,7 +170,7 @@ void Lexer::Stringify(SmallVectorImpl<char> &Str) { StringifyImpl(Str, '"'); }
 //===----------------------------------------------------------------------===//
 
 
-/// getSpelling - This method is used to getValue the spelling of a token into a
+/// getSpelling - This method is used to getDouble the spelling of a token into a
 /// SmallVector. Note that the returned StringRef may not point to the
 /// supplied buffer if a copy can be avoided.
 StringRef Lexer::getSpelling(const Token &Tok,
@@ -245,7 +245,7 @@ static size_t getSpellingSlow(const Token &Tok, const char *BufPtr, char *Spelli
 /// getSpelling() - Return the 'spelling' of this token.  The spelling of a
 /// token are the characters used to represent the token in the source file
 /// after trigraph expansion and escaped-newline folding.  In particular, this
-/// wants to getValue the true, uncanonicalized, spelling of things like digraphs
+/// wants to getDouble the true, uncanonicalized, spelling of things like digraphs
 /// UCNs, etc.
 StringRef Lexer::getSpelling(SourceLocation loc,
                              SmallVectorImpl<char> &buffer,
@@ -285,7 +285,7 @@ StringRef Lexer::getSpelling(SourceLocation loc,
 /// getSpelling() - Return the 'spelling' of this token.  The spelling of a
 /// token are the characters used to represent the token in the source file
 /// after trigraph expansion and escaped-newline folding.  In particular, this
-/// wants to getValue the true, uncanonicalized, spelling of things like digraphs
+/// wants to getDouble the true, uncanonicalized, spelling of things like digraphs
 /// UCNs, etc.
 std::string Lexer::getSpelling(const Token &Tok, const SourceManager &SourceMgr,
                                bool *Invalid) {
@@ -309,7 +309,7 @@ std::string Lexer::getSpelling(const Token &Tok, const SourceManager &SourceMgr,
     return Result;
 }
 
-/// getSpelling - This method is used to getValue the spelling of a token into a
+/// getSpelling - This method is used to getDouble the spelling of a token into a
 /// preallocated buffer, instead of as an std::string.  The caller is required
 /// to allocate enough space for the token, which is guaranteed to be at least
 /// Tok.getLength() bytes long.  The actual length of the token is returned.
@@ -882,7 +882,7 @@ SourceLocation Lexer::findLocationAfterToken(
 }
 
 /// getCharAndSizeSlow - Peek a single 'character' from the specified buffer,
-/// getValue its size, and return it.  This is tricky in several cases:
+/// getDouble its size, and return it.  This is tricky in several cases:
 ///   1. If currently at the start of a trigraph, we warn about the trigraph,
 ///      then either return the trigraph (skipping 3 chars) or the '?',
 ///      depending on whether trigraphs are enabled or not.
@@ -1479,48 +1479,26 @@ bool Lexer::LexAngledStringLiteral(Token &Result, const char *CurPtr) {
 
 /// LexCharConstant - Lex the remainder of a character constant, after having
 bool Lexer::LexCharConstant(Token &Result, const char *CurPtr, tok::TokenKind Kind) {
-    // Does this character contain the \0 character?
-    const char *NulCharacter = nullptr;
-
     char C = getAndAdvanceChar(CurPtr, Result);
-    if (C == '\'') {
-        if (!isLexingRawMode())
-            Diag(BufferPtr, diag::ext_empty_character);
-        FormTokenWithChars(Result, CurPtr, Kind);
-        Result.setLength(0);
-        return true;
-    }
-
+    unsigned Size = 0;
     while (C != '\'') {
         // Skip escaped characters.
         if (C == '\\')
             C = getAndAdvanceChar(CurPtr, Result);
-
-        if (C == '\n' || C == '\r' ||             // Newline.
-            (C == 0 && CurPtr - 1 == BufferEnd)) {  // End of file.
-            if (!isLexingRawMode())
-                Diag(BufferPtr, diag::ext_unterminated_char_or_string) << 0;
-            FormTokenWithChars(Result, CurPtr - 1, Kind);
-            return true;
-        }
-
-        if (C == 0) {
-            NulCharacter = CurPtr - 1;
-        }
         C = getAndAdvanceChar(CurPtr, Result);
+        Size++;
     }
 
-    // If we are in C++11, lex the optional ud-suffix.
-//    CurPtr = LexUDSuffix(Result, CurPtr, false);
-
-    // If a nul character existed in the character, warn about it.
-    if (NulCharacter && !isLexingRawMode())
-        Diag(NulCharacter, diag::null_in_char_or_string) << 0;
-
     // Update the location of token as well as BufferPtr.
-    const char *TokStart = BufferPtr;
-    FormTokenWithChars(Result, CurPtr, Kind);
-    Result.setLiteralData(TokStart);
+    const char *TokStart = BufferPtr + 1;
+    const char *TokEnd = CurPtr - Size;
+    FormTokenWithChars(Result, TokEnd, Kind);
+    if (Size)
+        Result.setLiteralData(TokStart);
+    else
+        Result.setLiteralData(nullptr);
+    Result.setLength(Size);
+    BufferPtr = CurPtr;
     return true;
 }
 

@@ -19,32 +19,73 @@ namespace fly {
 
         const SourceLocation &Loc;
 
-        ASTType *Ty;
+        ASTType *Type;
 
     public:
-        ASTValue(const SourceLocation &Loc, ASTType *Ty);
+        ASTValue(const SourceLocation &Loc, ASTType *Type);
 
         const SourceLocation &getLocation() const;
 
         ASTType *getType() const;
 
-        virtual bool empty() const = 0;
-
         virtual std::string str() const = 0;
     };
 
     /**
-     * Used for Numbers, Bool
+     * Abstract Value for Integer, Floating Point and Boolean
      */
     class ASTSingleValue : public ASTValue {
 
-        std::string Str;
-
     public:
         ASTSingleValue(const SourceLocation &Loc, ASTType *Ty);
-        ASTSingleValue(const SourceLocation &Loc, ASTType *Ty, std::string Str);
+    };
 
-        bool empty() const override;
+    /**
+     * Used for Integer Numbers
+     */
+    class ASTBoolValue : public ASTSingleValue {
+
+        bool Value = false;
+
+    public:
+        ASTBoolValue(const SourceLocation &Loc, bool Value = false);
+
+        bool getValue() const;
+
+        std::string str() const override;
+    };
+
+    /**
+     * Used for Integer Numbers
+     */
+    class ASTIntegerValue : public ASTSingleValue {
+
+        bool Sign = true;
+        uint64_t Value = 0;
+
+    public:
+        ASTIntegerValue(const SourceLocation &Loc, ASTType *Ty, uint64_t Value = 0, bool Sign = true);
+
+        bool isNegative() const;
+
+        bool isPositive() const;
+
+        uint64_t getValue() const;
+
+        std::string str() const override;
+    };
+
+    /**
+     * Used for Floating Point Numbers
+     */
+    class ASTFloatingValue : public ASTSingleValue {
+
+        std::string Value;
+
+    public:
+        ASTFloatingValue(const SourceLocation &Loc, ASTType *Type, std::string &Val);
+
+        std::string getValue() const;
 
         std::string str() const override;
     };
@@ -63,9 +104,9 @@ namespace fly {
 
         const std::vector<ASTValue *> &getValues() const;
 
-        unsigned int size() const ;
+        uint64_t size() const;
 
-        bool empty() const override;
+        bool empty() const;
 
         std::string str() const override;
     };
