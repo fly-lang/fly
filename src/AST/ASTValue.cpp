@@ -39,20 +39,20 @@ bool ASTBoolValue::getValue() const {
 }
 
 std::string ASTBoolValue::str() const {
-    return std::to_string(Value);
+    return Value ? "true" : "false";
 }
 
-ASTIntegerValue::ASTIntegerValue(const SourceLocation &Loc, ASTType *Type, uint64_t Value, bool Sign) :
-        ASTSingleValue(Loc, Type), Value(Value), Sign(Sign) {
+ASTIntegerValue::ASTIntegerValue(const SourceLocation &Loc, ASTType *Type, uint64_t Value, bool Negative) :
+        ASTSingleValue(Loc, Type), Value(Value), Negative(Negative) {
 
 }
 
 bool ASTIntegerValue::isNegative() const {
-    return Sign;
+    return Negative;
 }
 
 bool ASTIntegerValue::isPositive() const {
-    return !Sign;
+    return !Negative;
 }
 
 uint64_t ASTIntegerValue::getValue() const {
@@ -60,7 +60,7 @@ uint64_t ASTIntegerValue::getValue() const {
 }
 
 std::string ASTIntegerValue::str() const {
-    return std::to_string(Value);
+    return (Negative ? "-" : "") + std::to_string(Value);
 }
 
 ASTFloatingValue::ASTFloatingValue(const SourceLocation &Loc, ASTType *Type, std::string &Value)
@@ -73,12 +73,11 @@ std::string ASTFloatingValue::getValue() const {
 }
 
 std::string ASTFloatingValue::str() const {
-    return getValue();
+    return Value;
 }
 
 ASTArrayValue::ASTArrayValue(const SourceLocation &Loc, ASTType *Type) :
-    ASTValue(Loc, new ASTArrayType(Type->getLocation(), Type,
-                                   new ASTIntegerValue(Loc, Type, (uint64_t) 0, false))) {
+    ASTValue(Loc, new ASTArrayType(Type->getLocation(), Type,new ASTIntegerValue(Loc, Type, 0))) {
 
 }
 

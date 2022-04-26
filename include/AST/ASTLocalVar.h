@@ -27,7 +27,7 @@ namespace fly {
         friend class GlobalVarParser;
 
         // Statement Kind
-        const StmtKind Kind = StmtKind::STMT_VAR_DECL;
+        const StmtKind Kind = StmtKind::STMT_VAR;
 
         // LocalVar Code Generator
         CodeGenLocalVar *CodeGen = nullptr;

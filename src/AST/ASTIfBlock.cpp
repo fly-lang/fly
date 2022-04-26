@@ -16,68 +16,40 @@
 
 using namespace fly;
 
-bool ASTIfBlock::AddBranch(ASTBlock *Parent, ASTIfBlock *Cond) {
-    ASTStmt *&PrevIf = Parent->Content.at(Parent->Content.size() - 1);
-    if (PrevIf->getKind() == StmtKind::STMT_BLOCK) {
-        enum ASTBlockKind PrevIfKind = static_cast<ASTBlock *>(PrevIf)->getBlockKind();
-        if (Cond->getBlockKind() == ASTBlockKind::BLOCK_STMT_IF) {
-
-            assert(0 && "Do not add If branch with AddBranch()");
-        } else if (Cond->getBlockKind() == ASTBlockKind::BLOCK_STMT_ELSIF) {
-
-            ASTElsifBlock *Elsif = static_cast<ASTElsifBlock *>(Cond);
-            switch (PrevIfKind) {
-                case ASTBlockKind::BLOCK_STMT_IF:
-                    // Add current elsif
-                    Elsif->Head = static_cast<ASTIfBlock *>(PrevIf);
-                    static_cast<ASTIfBlock *>(PrevIf)->Elsif.push_back(Elsif);
-                    return true;
-                case ASTBlockKind::BLOCK_STMT_ELSIF:
-                    Elsif->Head = static_cast<ASTElsifBlock *>(PrevIf)->Head;
-                    static_cast<ASTElsifBlock *>(PrevIf)->Elsif.push_back(Elsif);
-                    return true;
-                case ASTBlockKind::BLOCK_STMT_ELSE:
-                    Parent->Top->getNode()->getContext().Diag(Cond->getLocation(), diag::err_elseif_after_else);
-                    return false;
-            }
-
-        } else if (Cond->getBlockKind() == ASTBlockKind::BLOCK_STMT_ELSE) {
-
-            ASTElseBlock *Else = static_cast<ASTElseBlock *>(Cond);
-            switch (PrevIfKind) {
-                case ASTBlockKind::BLOCK_STMT_IF:
-                    // Add current else
-                    Else->Head = static_cast<ASTIfBlock *>(PrevIf);
-                    static_cast<ASTIfBlock *>(PrevIf)->Else = Else;
-                    return true;
-                case ASTBlockKind::BLOCK_STMT_ELSIF:
-                    Else->Head = static_cast<ASTElsifBlock *>(PrevIf)->Head;
-                    static_cast<ASTElsifBlock *>(PrevIf)->Head->Else = Else;
-                    return true;
-                case ASTBlockKind::BLOCK_STMT_ELSE:
-                    Parent->Top->getNode()->getContext().Diag(Cond->getLocation(), diag::err_else_after_else);
-                    return false;
-            }
-        }
-    }
-    assert(0 && "Invalid ASTBlockKind");
-}
-
 ASTIfBlock::ASTIfBlock(const SourceLocation &Loc, ASTBlock *Parent) : ASTBlock(Loc, Parent) {
-
+    // The UndefVars are copied from Parent to this if block
+    UndefVars = Parent->UndefVars;
 }
 
 ASTIfBlock::ASTIfBlock(const SourceLocation &Loc, ASTBlock *Parent, ASTExpr *Condition) : Condition(Condition),
     ASTBlock(Loc, Parent) {
-
+    // The UndefVars are copied from Parent to this if block
+    UndefVars = Parent->UndefVars;
 }
 
-std::vector<ASTElsifBlock *> ASTIfBlock::getElsif() {
+ASTElsifBlock *ASTIfBlock::AddElsifBlock(const SourceLocation &Loc, ASTExpr *Expr) {
+    if (ElseBlock) {
+        Parent->Top->getNode()->getContext().Diag(Loc, diag::err_elseif_after_else);
+    }
+    ASTElsifBlock *Elsif = new ASTElsifBlock(Loc, this, Expr); // TODO continue here!
+    ElsifBlocks.push_back(Elsif);
     return Elsif;
 }
 
-ASTElseBlock *ASTIfBlock::getElse() {
-    return Else;
+std::vector<ASTElsifBlock *> ASTIfBlock::getElsifBlocks() {
+    return ElsifBlocks;
+}
+
+ASTElseBlock *ASTIfBlock::AddElseBlock(const SourceLocation &Loc) {
+    if (ElseBlock) {
+        Parent->Top->getNode()->getContext().Diag(Loc, diag::err_else_after_else);
+    }
+    ElseBlock = new ASTElseBlock(Loc, this);
+    return ElseBlock;
+}
+
+ASTElseBlock *ASTIfBlock::getElseBlock() {
+    return ElseBlock;
 }
 
 ASTExpr *ASTIfBlock::getCondition() {

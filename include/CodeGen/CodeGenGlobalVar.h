@@ -41,7 +41,7 @@ namespace fly {
 
         llvm::LoadInst *Load() override;
 
-        void reset();
+        void Init();
     };
 }
 

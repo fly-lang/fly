@@ -28,7 +28,7 @@ namespace fly {
 
         const SourceLocation Loc;
         std::string Str;
-        bool Sign; // true is negative and false is positive
+        bool NegativeInt; // true is negative and false is positive
         uint64_t Integer;
         uint64_t Fraction;
         bool isFloatingPoint;

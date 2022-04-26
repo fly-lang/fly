@@ -27,6 +27,11 @@ namespace fly {
     class ASTExpr;
     class BreakStmt;
     class ContinueStmt;
+    class ASTIfBlock;
+    class ASTIfBlock;
+    class ASTSwitchBlock;
+    class ASTForBlock;
+    class ASTWhileBlock;
 
     enum ASTBlockKind {
         BLOCK_STMT,
@@ -48,10 +53,8 @@ namespace fly {
         friend class Parser;
         friend class FunctionParser;
         friend class ExprParser;
-        friend class ASTIfBlock;
-        friend class ASTElsifBlock;
-        friend class ASTElseBlock;
         friend class ASTFunc;
+        friend class ASTIfBlock;
 
         // Kind of Stmt identified by enum
         StmtKind Kind = StmtKind::STMT_BLOCK;
@@ -63,7 +66,12 @@ namespace fly {
         std::vector<ASTStmt *> Content;
 
         // Contains all vars declared in this Block
-        llvm::StringMap<ASTLocalVar *> DeclVars;
+        llvm::StringMap<ASTLocalVar *> LocalVars;
+
+    protected:
+
+        // Contains all declared vars not yet defined with value;
+        llvm::StringMap<ASTLocalVar *> UndefVars;
 
     public:
 
@@ -83,15 +91,19 @@ namespace fly {
 
         void Clear();
 
-        const llvm::StringMap<ASTLocalVar *> &getDeclVars() const;
+        const llvm::StringMap<ASTLocalVar *> &getLocalVars() const;
 
         bool AddExprStmt(ASTExprStmt *ExprStmt);
 
+        bool AddLocalVar(ASTLocalVar *LocalVar);
+
         bool AddLocalVarRef(ASTLocalVarRef *LocalVarRef);
 
-        bool RecursiveFindDeclVars(ASTBlock *Block, ASTLocalVar *LocalVar);
+        bool RecursiveFindLocalVars(ASTBlock *Block, ASTLocalVar *LocalVar);
 
-        bool AddLocalVar(ASTLocalVar *LocalVar);
+        bool HasUndefVar(ASTVarRef *VarRef);
+
+        bool RemoveUndefVar(ASTVarRef *VarRef);
 
         bool AddCall(ASTFuncCall *Invoke);
 
@@ -101,7 +113,15 @@ namespace fly {
 
         bool AddContinue(const SourceLocation &Loc);
 
-        bool AddBlock(const SourceLocation &Loc, ASTBlock *Block);
+        ASTIfBlock* AddIfBlock(const SourceLocation &Loc, ASTExpr *Expr);
+
+        ASTSwitchBlock* AddSwitchBlock(const SourceLocation &Loc, ASTExpr *Expr);
+
+        ASTWhileBlock* AddWhileBlock(const SourceLocation &Loc, ASTExpr *Expr);
+
+        ASTForBlock* AddForBlock(const SourceLocation &Loc);
+
+        bool OnCloseBlock();
 
         DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID);
 

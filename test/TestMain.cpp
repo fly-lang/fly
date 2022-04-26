@@ -11,7 +11,7 @@
 #include "gtest/gtest.h"
 
 int main(int Argc, char **Argv) {
-  llvm::sys::PrintStackTraceOnErrorSignal(Argv[0],true /* Disable crash reporting */);
+  llvm::sys::PrintStackTraceOnErrorSignal(Argv[0], false /* Disable crash reporting */);
 
   // Initialize both gmock and gtest.
   ::testing::InitGoogleTest(&Argc, Argv);

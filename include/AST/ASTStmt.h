@@ -18,8 +18,8 @@ namespace fly {
     enum StmtKind {
         STMT_BLOCK,
         STMT_EXPR,
-        STMT_VAR_DECL,
-        STMT_VAR_ASSIGN,
+        STMT_VAR,
+        STMT_VAR_REF,
         STMT_BREAK,
         STMT_CONTINUE,
         STMT_RETURN
@@ -49,7 +49,7 @@ namespace fly {
 
         ASTFunc *getTop() const;
 
-        const ASTBlock *getParent() const;
+        ASTBlock *getParent() const;
 
         virtual std::string str() const = 0;
     };

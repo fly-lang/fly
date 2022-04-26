@@ -26,9 +26,15 @@ namespace fly {
         friend class ASTElseBlock;
 
         enum ASTBlockKind StmtKind = ASTBlockKind::BLOCK_STMT_IF;
+
+        // The If expression condition
         ASTExpr *Condition;
-        std::vector<ASTElsifBlock *> Elsif;
-        ASTElseBlock *Else = nullptr;
+
+        // The list of Elseif Blocks
+        std::vector<ASTElsifBlock *> ElsifBlocks;
+
+        // The Else Block
+        ASTElseBlock *ElseBlock = nullptr;
 
     protected:
         ASTIfBlock(const SourceLocation &Loc, ASTBlock *Parent);
@@ -36,15 +42,17 @@ namespace fly {
     public:
         ASTIfBlock(const SourceLocation &Loc, ASTBlock *Parent, ASTExpr *Condition);
 
-        static bool AddBranch(ASTBlock *Parent, ASTIfBlock *Cond);
+        ASTElsifBlock *AddElsifBlock(const SourceLocation &Loc, ASTExpr *Expr);
+
+        std::vector<ASTElsifBlock *> getElsifBlocks();
+
+        ASTElseBlock *AddElseBlock(const SourceLocation &Loc);
+
+        ASTElseBlock *getElseBlock();
 
         enum ASTBlockKind getBlockKind() const override;
 
         ASTExpr *getCondition();
-
-        std::vector<ASTElsifBlock *> getElsif();
-
-        ASTElseBlock *getElse();
     };
 
     class ASTElsifBlock : public ASTIfBlock {
@@ -53,7 +61,6 @@ namespace fly {
         friend class ASTIfBlock;
 
         enum ASTBlockKind StmtKind = ASTBlockKind::BLOCK_STMT_ELSIF;
-        ASTIfBlock *Head;
 
     public:
         ASTElsifBlock(const SourceLocation &Loc, ASTBlock *Parent, ASTExpr *Condition);
@@ -67,7 +74,6 @@ namespace fly {
         friend class ASTIfBlock;
 
         enum ASTBlockKind StmtKind = ASTBlockKind::BLOCK_STMT_ELSE;
-        ASTIfBlock *Head;
 
     public:
         ASTElseBlock(const SourceLocation &Loc, ASTBlock *Parent);

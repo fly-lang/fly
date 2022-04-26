@@ -1,6 +1,6 @@
 int main() {
     int a = 1;
-    bool b = false;
+    bool b;
 
     if (a == 1) {
         b = true;

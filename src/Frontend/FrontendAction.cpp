@@ -135,7 +135,7 @@ bool FrontendAction::GenerateCode() {
         FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode",
                           "FunctionBody=" << CGF->getName());
         for (auto &CGV : CGGlobalVars) {
-            CGV->reset();
+            CGV->Init();
         }
         CGF->GenBody();
     }

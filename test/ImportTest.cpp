@@ -150,8 +150,12 @@ namespace {
         // Extract from Lib
         Archiver LibExtract(Diags, "yourlib.lib");
         const std::vector<std::string> &Files = LibExtract.ExtractFiles(FileMgr);
-        std::ifstream h("yourlib.fly.h");
-        ASSERT_TRUE(h && "Error opening yourlib.fly.h");
+        ASSERT_FALSE(Files.empty());
+        for (auto &File : Files) {
+            std::ifstream F(File);
+            ASSERT_TRUE(F && "Error opening File");
+        }
+
     }
 
 } // anonymous namespace

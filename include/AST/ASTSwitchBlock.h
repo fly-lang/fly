@@ -20,9 +20,16 @@ namespace fly {
 
     class ASTSwitchBlock : public ASTBlock {
 
+        // The Stmt Block Kind
         enum ASTBlockKind StmtKind = ASTBlockKind::BLOCK_STMT_SWITCH;
+
+        // The Switch Expression
         ASTExpr *Expr;
+
+        // The Case Blocks
         std::vector<ASTSwitchCaseBlock *> Cases;
+
+        // The Default Block
         ASTSwitchDefaultBlock *Default = nullptr;
 
     public:

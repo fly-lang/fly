@@ -25,7 +25,7 @@ ASTSingleValue *NumberParser::getValue(ASTType *Type) {
         return getValue();
     }
     if (Type->isInteger()) {
-        return new ASTIntegerValue(Loc, Type, Integer, Sign);
+        return new ASTIntegerValue(Loc, Type, Integer, NegativeInt);
     } else if (Type->isFloatingPoint()) {
         return new ASTFloatingValue(Loc, Type, Str);
     } else if (Type->isBool()) {
@@ -39,13 +39,13 @@ ASTSingleValue *NumberParser::getValue() {
     if (isFloatingPoint) {
         return new ASTFloatingValue(Loc, new ASTFloatType(Loc), Str);
     } else {
-        return new ASTIntegerValue(Loc, new ASTIntType(Loc), Integer, Sign);
+        return new ASTIntegerValue(Loc, new ASTIntType(Loc), Integer, NegativeInt);
     }
 }
 
 void NumberParser::Parse() {
     // TODO Check Hex Value
-    Sign = Str[0] != '-';
+    NegativeInt = Str[0] == '-';
     Integer = 0;
     unsigned J = Str.size();
     for (unsigned I = 0; I < Str.size(); I++, J--) {

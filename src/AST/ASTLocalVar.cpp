@@ -46,6 +46,7 @@ std::string ASTLocalVar::str() const {
            " }";
 }
 
+
 ASTLocalVarRef::ASTLocalVarRef(const SourceLocation &Loc, ASTBlock *Block, const std::string &Name,
                                const std::string &NameSpace) :
         ASTExprStmt(Loc, Block), ASTVarRef(Loc, Name, NameSpace) {
@@ -58,7 +59,7 @@ ASTLocalVarRef::ASTLocalVarRef(const SourceLocation &Loc, ASTBlock *Block, ASTVa
 }
 
 StmtKind ASTLocalVarRef::getKind() const {
-    return STMT_VAR_ASSIGN;
+    return STMT_VAR_REF;
 }
 
 std::string ASTLocalVarRef::str() const {

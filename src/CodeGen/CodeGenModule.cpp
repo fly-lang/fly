@@ -153,17 +153,18 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
     switch (Stmt->getKind()) {
 
         // Var Declaration
-        case StmtKind::STMT_VAR_DECL: {
+        case StmtKind::STMT_VAR: {
             ASTLocalVar *LocalVar = static_cast<ASTLocalVar *>(Stmt);
             assert(LocalVar->getCodeGen() && "LocalVar is not CodeGen initialized");
-            assert(LocalVar->getExpr() && "Expr Mandatory in declaration");
-            llvm::Value *V = GenExpr(Fn, LocalVar->getType(), LocalVar->getExpr());
-            LocalVar->getCodeGen()->Store(V);
+            if (LocalVar->getExpr()) {
+                llvm::Value *V = GenExpr(Fn, LocalVar->getType(), LocalVar->getExpr());
+                LocalVar->getCodeGen()->Store(V);
+            }
             break;
         }
 
             // Var Assignment
-        case STMT_VAR_ASSIGN: {
+        case STMT_VAR_REF: {
             ASTLocalVarRef *LocalVarRef = (ASTLocalVarRef *) Stmt;
             assert(LocalVarRef->getExpr() && "Expr Mandatory in assignment");
             llvm::Value *V = GenExpr(Fn, LocalVarRef->getDecl()->getType(), LocalVarRef->getExpr());
@@ -318,109 +319,26 @@ llvm::Constant *CodeGenModule::GenValue(const ASTType *Type, const ASTValue *Val
     //TODO value conversion from Val->getType() to TypeBase (if are different)
     
     switch (Type->getKind()) {
-
         case TYPE_BOOL:
-            return ((ASTBoolValue *)Val)->getValue() ? 
-                llvm::ConstantInt::get(BoolTy, 1, false) :
-                llvm::ConstantInt::get(BoolTy, 0, false);
-
-        case TYPE_BYTE: {
-            uint64_t UIntVal = ((ASTIntegerValue *) Val)->getValue();
-            if (UIntVal > MAX_BYTE) {
-                Diag(Type->getLocation(), diag::err_value_max_overflow) << "byte";
-                UIntVal = MAX_BYTE;
-            }
-            if (UIntVal < MIN_BYTE) {
-                Diag(Type->getLocation(), diag::err_value_min_underflow) << "byte";
-                UIntVal = MIN_BYTE;
-            }
-            return llvm::ConstantInt::get(Int8Ty, UIntVal, false);
-        }
-
-        case TYPE_USHORT: {
-            uint64_t UIntVal = ((ASTIntegerValue *) Val)->getValue();
-            if (UIntVal > MAX_USHORT) {
-                Diag(Type->getLocation(), diag::err_value_max_overflow) << "ushort";
-                UIntVal = MAX_USHORT;
-            }
-            if (UIntVal < MIN_USHORT) {
-                Diag(Type->getLocation(), diag::err_value_min_underflow) << "ushort";
-                UIntVal = MIN_USHORT;
-            }
-            return llvm::ConstantInt::get(Int16Ty, UIntVal, false);
-        }
-
-        case TYPE_SHORT: {
-            uint64_t UIntVal = ((ASTIntegerValue *) Val)->getValue();
-            if (UIntVal > MAX_SHORT) {
-                Diag(Type->getLocation(), diag::err_value_max_overflow) << "short";
-                UIntVal = MAX_SHORT;
-            }
-            if (UIntVal < MIN_SHORT) {
-                Diag(Type->getLocation(), diag::err_value_min_underflow) << "short";
-                UIntVal = MIN_SHORT;
-            }
-            return llvm::ConstantInt::get(Int16Ty, UIntVal, true);
-        }
-
-        case TYPE_UINT: {
-            uint64_t UIntVal = ((ASTIntegerValue *) Val)->getValue();
-            if (UIntVal > MAX_UINT) {
-                Diag(Type->getLocation(), diag::err_value_max_overflow) << "uint";
-                UIntVal = MAX_UINT;
-            }
-            if (UIntVal < MIN_UINT) {
-                Diag(Type->getLocation(), diag::err_value_min_underflow) << "uint";
-                UIntVal = MIN_UINT;
-            }
-            return llvm::ConstantInt::get(Int32Ty, UIntVal, false);
-        }
-
-        case TYPE_INT: {
-            uint64_t UIntVal = ((ASTIntegerValue *) Val)->getValue();
-            if (UIntVal > MAX_INT) {
-                Diag(Type->getLocation(), diag::err_value_max_overflow) << "int";
-                UIntVal = MAX_INT;
-            }
-            if (UIntVal < MIN_INT) {
-                Diag(Type->getLocation(), diag::err_value_min_underflow) << "int";
-                UIntVal = MIN_INT;
-            }
-            return llvm::ConstantInt::get(Int32Ty, UIntVal, true);
-        }
-
-        case TYPE_ULONG: {
-            uint64_t UIntVal = ((ASTIntegerValue *) Val)->getValue();
-            if (UIntVal > MAX_ULONG) {
-                Diag(Type->getLocation(), diag::err_value_max_overflow) << "ulong";
-                UIntVal = MAX_ULONG;
-            }
-            if (UIntVal < MIN_ULONG) {
-                Diag(Type->getLocation(), diag::err_value_min_underflow) << "ulong";
-                UIntVal = MIN_ULONG;
-            }
-            return llvm::ConstantInt::get(Int64Ty, UIntVal, false);
-        }
-
-        case TYPE_LONG: {
-            uint64_t UIntVal = ((ASTIntegerValue *) Val)->getValue();
-            if (UIntVal > MAX_LONG) {
-                Diag(Type->getLocation(), diag::err_type_invalid_type) << "long";
-                UIntVal = MAX_LONG;
-            }
-            if (UIntVal < MIN_LONG) {
-                Diag(Type->getLocation(), diag::err_value_min_underflow) << "long";
-                UIntVal = MIN_LONG;
-            }
-            return llvm::ConstantInt::get(Int64Ty, UIntVal, true);
-        }
-
+            return llvm::ConstantInt::get(BoolTy, ((ASTBoolValue *)Val)->getValue(), false);
+        case TYPE_BYTE:
+            return llvm::ConstantInt::get(Int8Ty, ((ASTIntegerValue *) Val)->getValue(), false);
+        case TYPE_USHORT:
+            return llvm::ConstantInt::get(Int16Ty, ((ASTIntegerValue *) Val)->getValue(), false);
+        case TYPE_SHORT:
+            return llvm::ConstantInt::get(Int16Ty, ((ASTIntegerValue *) Val)->getValue(), true);
+        case TYPE_UINT:
+            return llvm::ConstantInt::get(Int32Ty, ((ASTIntegerValue *) Val)->getValue(), false);
+        case TYPE_INT:
+            return llvm::ConstantInt::get(Int32Ty, ((ASTIntegerValue *) Val)->getValue(), true);
+        case TYPE_ULONG:
+            return llvm::ConstantInt::get(Int64Ty, ((ASTIntegerValue *) Val)->getValue(), false);
+        case TYPE_LONG:
+            return llvm::ConstantInt::get(Int64Ty, ((ASTIntegerValue *) Val)->getValue(), true);
         case TYPE_FLOAT:
             return llvm::ConstantFP::get(FloatTy, ((ASTFloatingValue *) Val)->getValue());
-
         case TYPE_DOUBLE:
             return llvm::ConstantFP::get(DoubleTy, ((ASTFloatingValue *) Val)->getValue());
-
         case TYPE_CLASS:
             break;
     }
@@ -429,7 +347,7 @@ llvm::Constant *CodeGenModule::GenValue(const ASTType *Type, const ASTValue *Val
 
 llvm::Value *CodeGenModule::GenExpr(llvm::Function *Fn, const ASTType *Type, ASTExpr *Expr) {
     FLY_DEBUG("CodeGenFunction", "GenExpr");
-    CodeGenExpr *CGExpr = new CodeGenExpr(this, Fn, (ASTExpr *)Expr, Type);
+    CodeGenExpr *CGExpr = new CodeGenExpr(this, Fn, Expr, Type);
     return CGExpr->getValue();
 }
 
@@ -452,9 +370,9 @@ void CodeGenModule::GenIfBlock(llvm::Function *Fn, ASTIfBlock *If) {
     // Create End block
     llvm::BasicBlock *EndBB = llvm::BasicBlock::Create(LLVMCtx, "endif", Fn);
 
-    if (If->getElse() == nullptr) {
+    if (If->getElseBlock() == nullptr) {
 
-        if (If->getElsif().empty()) { // If ...
+        if (If->getElsifBlocks().empty()) { // If ...
             Builder->CreateCondBr(IfCond, IfBB, EndBB);
             GenBlock(Fn, If->getContent(), IfBB);
             Builder->CreateBr(EndBB);
@@ -467,8 +385,8 @@ void CodeGenModule::GenIfBlock(llvm::Function *Fn, ASTIfBlock *If) {
             Builder->CreateBr(EndBB);
 
             // Create Elsif Blocks
-            unsigned long Size = If->getElsif().size();
-            for (unsigned long i = 0; i < If->getElsif().size(); i++) {
+            unsigned long Size = If->getElsifBlocks().size();
+            for (unsigned long i = 0; i < If->getElsifBlocks().size(); i++) {
                 llvm::BasicBlock *ElsifThenBB = llvm::BasicBlock::Create(LLVMCtx, "elsifthen", Fn, EndBB);
 
                 llvm::BasicBlock *NextElsifBB;
@@ -477,7 +395,7 @@ void CodeGenModule::GenIfBlock(llvm::Function *Fn, ASTIfBlock *If) {
                 } else {
                     NextElsifBB = llvm::BasicBlock::Create(LLVMCtx, "elsif", Fn, EndBB);
                 }
-                ASTElsifBlock *Elsif = If->getElsif()[i];
+                ASTElsifBlock *Elsif = If->getElsifBlocks()[i];
                 Builder->SetInsertPoint(ElsifBB);
                 ASTBoolType * BoolType = new ASTBoolType(SourceLocation());
                 llvm::Value *ElsifCond = GenExpr(Fn, BoolType, Elsif->getCondition());
@@ -495,7 +413,7 @@ void CodeGenModule::GenIfBlock(llvm::Function *Fn, ASTIfBlock *If) {
         // Create Else block
         llvm::BasicBlock *ElseBB = llvm::BasicBlock::Create(LLVMCtx, "else", Fn, EndBB);
 
-        if (If->getElsif().empty()) { // If - Else
+        if (If->getElsifBlocks().empty()) { // If - Else
             Builder->CreateCondBr(IfCond, IfBB, ElseBB);
             GenBlock(Fn, If->getContent(), IfBB);
             Builder->CreateBr(EndBB);
@@ -508,8 +426,8 @@ void CodeGenModule::GenIfBlock(llvm::Function *Fn, ASTIfBlock *If) {
             Builder->CreateBr(EndBB);
 
             // Create Elsif Blocks
-            unsigned long Size = If->getElsif().size();
-            for (unsigned long i = 0; i < If->getElsif().size(); i++) {
+            unsigned long Size = If->getElsifBlocks().size();
+            for (unsigned long i = 0; i < If->getElsifBlocks().size(); i++) {
                 llvm::BasicBlock *ElsifThenBB = llvm::BasicBlock::Create(LLVMCtx, "elsifthen", Fn, ElseBB);
 
                 llvm::BasicBlock *NextElsifBB;
@@ -518,7 +436,7 @@ void CodeGenModule::GenIfBlock(llvm::Function *Fn, ASTIfBlock *If) {
                 } else {
                     NextElsifBB = llvm::BasicBlock::Create(LLVMCtx, "elsif", Fn, ElseBB);
                 }
-                ASTElsifBlock *Elsif = If->getElsif()[i];
+                ASTElsifBlock *Elsif = If->getElsifBlocks()[i];
                 Builder->SetInsertPoint(ElsifBB);
                 ASTBoolType * BoolType = new ASTBoolType(SourceLocation());
                 llvm::Value *ElsifCond = GenExpr(Fn, BoolType, Elsif->getCondition());
@@ -531,7 +449,7 @@ void CodeGenModule::GenIfBlock(llvm::Function *Fn, ASTIfBlock *If) {
             }
         }
 
-        GenBlock(Fn, If->getElse()->getContent(), ElseBB);
+        GenBlock(Fn, If->getElseBlock()->getContent(), ElseBB);
         Builder->CreateBr(EndBB);
     }
 

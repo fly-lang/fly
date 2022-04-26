@@ -13,6 +13,9 @@
 namespace fly {
 
     class ASTNode;
+    class ASTVarRef;
+    class ASTExpr;
+    class ASTBlock;
 
     class Sema {
 
@@ -20,6 +23,10 @@ namespace fly {
 
     public:
         Sema(ASTNode *AST);
+
+        static bool CheckUndefVar(ASTBlock *Block, ASTVarRef *VarRef);
+
+        static bool CheckOnCloseBlock(ASTBlock *Block);
     };
 
 }  // end namespace fly

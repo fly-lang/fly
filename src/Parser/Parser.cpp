@@ -298,7 +298,7 @@ bool Parser::ParseNameSpace() {
     if (Tok.is(tok::kw_namespace)) {
         ConsumeToken();
 
-        StringRef Name;
+        llvm::StringRef Name;
         // Check if default namespace specified
         if (Tok.is(tok::kw_default)) {
             ConsumeToken();
@@ -623,7 +623,7 @@ bool Parser::ParseArrayType(ASTType *&Type, ASTBlock * Block) {
             }
             Type = new ASTArrayType(Loc, Type, Expr);
         } else if (Tok.is(tok::numeric_constant)) { // Parse unsigned int array size
-            std::string Size = StringRef(Tok.getLiteralData(), Tok.getLength()).str();
+            std::string Size = std::string(Tok.getLiteralData(), Tok.getLength());
             NumberParser *NumberP = new NumberParser(ConsumeToken(), Size);
             ASTSingleValue *SizeValue = NumberP->getValue();
             if (!SizeValue->getType()->isInteger()) {
@@ -852,7 +852,17 @@ bool Parser::ParseEndParen(bool HasParen) {
 bool Parser::ParseIfStmt(ASTBlock *Block) {
     FLY_DEBUG("Parser", "ParseIfStmt");
 
-    ASTIfBlock *Stmt;
+    // Get previous ASTIfBlock if present
+    ASTIfBlock *IfBlock = nullptr;
+    if (!Block->Content.empty()) {
+        ASTStmt *PrevIf = Block->Content.at(Block->Content.size() - 1);
+        if (PrevIf->getKind() == StmtKind::STMT_BLOCK &&
+            ((ASTBlock *) PrevIf)->getBlockKind() == ASTBlockKind::BLOCK_STMT_IF) {
+            IfBlock = ((ASTIfBlock *) PrevIf);
+        }
+    }
+
+    ASTBlock *CurrentBlock;
     const SourceLocation &Loc = Tok.getLocation();
 
     // Init the current statement parsing if, elsif or else keywords
@@ -867,9 +877,13 @@ bool Parser::ParseIfStmt(ASTBlock *Block) {
             if (Expr == nullptr || !ParseEndParen(hasParen)) {
                 return false;
             }
-            Stmt = new ASTIfBlock(Loc, Block, Expr);
-        }
+            if (IfBlock) {
+                Diag(Loc, diag::err_duplicate_if);
+                return false;
+            }
+            CurrentBlock = Block->AddIfBlock(Loc, Expr);
             break;
+        }
         case tok::kw_elsif: {
             ConsumeToken();
             // Parse (
@@ -880,16 +894,22 @@ bool Parser::ParseIfStmt(ASTBlock *Block) {
             if (Expr == nullptr || !ParseEndParen(hasParen)) {
                 return false;
             }
-            Stmt = new ASTElsifBlock(Loc, Block, Expr);
-            ASTIfBlock::AddBranch(Block, Stmt);
-        }
+            if (!IfBlock) {
+                Diag(Loc, diag::err_missing_if_first);
+                return false;
+            }
+            CurrentBlock = IfBlock->AddElsifBlock(Loc, Expr);
             break;
+        }
         case tok::kw_else: {
             ConsumeToken();
-            Stmt = new ASTElseBlock(Loc, Block);
-            ASTIfBlock::AddBranch(Block, Stmt);
-        }
+            if (!IfBlock) {
+                Diag(Loc, diag::err_missing_if_first);
+                return false;
+            }
+            CurrentBlock = IfBlock->AddElseBlock(Loc);
             break;
+        }
         default:
             assert(0 && "Unknown conditional statement");
     }
@@ -897,12 +917,10 @@ bool Parser::ParseIfStmt(ASTBlock *Block) {
     // Parse statement between braces for If, Elsif, Else
     if (Tok.is(tok::l_brace)) {
         ConsumeBrace();
-        if (ParseInnerBlock(Stmt)) {
-            Block->Content.push_back(Stmt);
+        if (ParseInnerBlock(CurrentBlock)) {
             return true;
         }
-    } else if (ParseStmt(Stmt)) { // Only for a single Stmt without braces
-        Block->Content.push_back(Stmt);
+    } else if (ParseStmt(CurrentBlock)) { // Only for a single Stmt without braces
         return true;
     }
 
@@ -944,7 +962,7 @@ bool Parser::ParseSwitchStmt(ASTBlock *Block) {
         }
 
         // Init Switch Statement and start parse from brace
-        ASTSwitchBlock *Stmt = new ASTSwitchBlock(SwitchLoc, Block, Expr);
+        ASTSwitchBlock *SwitchBlock = Block->AddSwitchBlock(SwitchLoc, Expr);
         if (Tok.is(tok::l_brace)) {
             ConsumeBrace();
 
@@ -976,9 +994,9 @@ bool Parser::ParseSwitchStmt(ASTBlock *Block) {
                         ConsumeToken();
 
                         // Add Case to Switch statement and parse statement not contained into braces
-                        ASTSwitchCaseBlock *CaseStmt = Stmt->AddCase(CaseLoc, CaseExp);
+                        ASTSwitchCaseBlock *CaseBlock = SwitchBlock->AddCase(CaseLoc, CaseExp);
                         while (!Tok.isOneOf(tok::r_brace, tok::kw_case, tok::kw_default, tok::eof)) {
-                            ParseBlock(CaseStmt);
+                            ParseBlock(CaseBlock);
                         }
                     }
                 } else if (Tok.is(tok::kw_default)) {
@@ -988,8 +1006,8 @@ bool Parser::ParseSwitchStmt(ASTBlock *Block) {
                         const SourceLocation &Loc = ConsumeToken();
 
                         // Add Default to Switch statement and parse statement not contained into braces
-                        ASTSwitchDefaultBlock *DefStmt = Stmt->setDefault(Loc);
-                        ParseBlock(DefStmt);
+                        ASTSwitchDefaultBlock *DefaultBlock = SwitchBlock->setDefault(Loc);
+                        ParseBlock(DefaultBlock);
                     } else {
                         Diag(diag::err_syntax_error);
                         return false;
@@ -1000,7 +1018,6 @@ bool Parser::ParseSwitchStmt(ASTBlock *Block) {
             // Switch statement is at end of it's time add current Switch to parent statement
             if (Tok.is(tok::r_brace)) {
                 ConsumeBrace();
-                Block->Content.push_back(Stmt);
                 return true;
             }
         }
@@ -1034,7 +1051,7 @@ bool Parser::ParseWhileStmt(ASTBlock *Block) {
 
     // Create AST While Block
     ASTExpr *Cond = ParseExprEmpty(Block);
-    ASTWhileBlock *While = new ASTWhileBlock(Loc, Block, Cond);
+    ASTWhileBlock *While = Block->AddWhileBlock(Loc, Cond);
 
     // Consume Right Parenthesis ) if exists
     if (!ParseEndParen(hasParen)) {
@@ -1045,11 +1062,9 @@ bool Parser::ParseWhileStmt(ASTBlock *Block) {
     if (Tok.is(tok::l_brace)) {
         ConsumeBrace();
         if (ParseInnerBlock(While)) {
-            Block->Content.push_back(While);
             return true;
         }
     } else if (ParseStmt(While)) { // Only for a single Stmt without braces
-        Block->Content.push_back(While);
         return true;
     }
 
@@ -1082,7 +1097,7 @@ bool Parser::ParseForStmt(ASTBlock *Block) {
     bool hasParen = ParseStartParen();
 
     // Init For Statement and start parse components
-    ASTForBlock *For = new ASTForBlock(Loc, Block);
+    ASTForBlock *For = Block->AddForBlock(Loc);
 
     // parse comma separated or single statements
     if (ParseForCommaStmt(For)) {
@@ -1094,7 +1109,7 @@ bool Parser::ParseForStmt(ASTBlock *Block) {
 
             ASTExpr *CondExpr = ParseExpr(For);
             if (CondExpr) {
-                For->setCond(CondExpr);
+                For->setCondition(CondExpr);
 
                 if (Tok.is(tok::semi)) {
                     ConsumeToken();
@@ -1113,11 +1128,9 @@ bool Parser::ParseForStmt(ASTBlock *Block) {
     if (Tok.is(tok::l_brace)) {
         ConsumeBrace();
         if (Success && ParseInnerBlock(For->Loop)) {
-            Block->Content.push_back(For);
             return true;
         }
     } else if (Success && ParseStmt(For->Loop)) { // Only for a single Stmt without braces
-        Block->Content.push_back(For);
         return true;
     }
 
@@ -1197,7 +1210,7 @@ ASTValue *Parser::ParseValue(ASTType *Type) {
 
     // Parse Numeric Constants
     if (Tok.is(tok::numeric_constant)) {
-        std::string StrVal = StringRef(Tok.getLiteralData(), Tok.getLength()).str();
+        std::string StrVal = std::string(Tok.getLiteralData(), Tok.getLength());
         const SourceLocation &Loc = ConsumeToken();
         NumberParser *Number = new NumberParser(Loc, StrVal);
         return Number->getValue(Type);

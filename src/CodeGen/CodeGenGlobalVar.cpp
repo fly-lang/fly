@@ -69,6 +69,6 @@ llvm::LoadInst *CodeGenGlobalVar::Load() {
 /**
  * Need to be called on function body complete
  */
-void CodeGenGlobalVar::reset() {
+void CodeGenGlobalVar::Init() {
     needLoad = true;
 }

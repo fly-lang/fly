@@ -45,7 +45,7 @@ namespace fly {
      */
     class ASTBoolValue : public ASTSingleValue {
 
-        bool Value = false;
+        bool Value;
 
     public:
         ASTBoolValue(const SourceLocation &Loc, bool Value = false);
@@ -60,11 +60,11 @@ namespace fly {
      */
     class ASTIntegerValue : public ASTSingleValue {
 
-        bool Sign = true;
-        uint64_t Value = 0;
+        bool Negative; // true is positive, false is negative
+        uint64_t Value;
 
     public:
-        ASTIntegerValue(const SourceLocation &Loc, ASTType *Ty, uint64_t Value = 0, bool Sign = true);
+        ASTIntegerValue(const SourceLocation &Loc, ASTType *Ty, uint64_t Value = 0, bool Negative = false);
 
         bool isNegative() const;
 

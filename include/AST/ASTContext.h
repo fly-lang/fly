@@ -37,7 +37,6 @@ namespace fly {
         friend class ASTResolver;
         friend class ASTNameSpace;
         friend class ASTNode;
-        friend class ASTHeader;
 
         DiagnosticsEngine &Diags;
 

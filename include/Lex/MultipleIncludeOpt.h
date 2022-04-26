@@ -29,7 +29,7 @@ class IdentifierInfo;
 class MultipleIncludeOpt {
   /// ReadAnyTokens - This is set to false when a file is first opened and true
   /// any time a token is returned to the client or a (non-multiple-include)
-  /// directive is parsed.  When the final \#endif is parsed this is reset back
+  /// directive is parsed.  When the final \#endif is parsed this is Init back
   /// to false, that way any tokens before the first \#ifdef or after the last
   /// \#endif can be easily detected.
   bool ReadAnyTokens;
@@ -41,7 +41,7 @@ class MultipleIncludeOpt {
 
   /// ReadAnyTokens - This is set to false when a file is first opened and true
   /// any time a token is returned to the client or a (non-multiple-include)
-  /// directive is parsed.  When the final #endif is parsed this is reset back
+  /// directive is parsed.  When the final #endif is parsed this is Init back
   /// to false, that way any tokens before the first #ifdef or after the last
   /// #endif can be easily detected.
   bool DidMacroExpansion;
