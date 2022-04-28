@@ -28,10 +28,10 @@ namespace fly {
 
         const SourceLocation Loc;
         std::string Str;
-        bool NegativeInt; // true is negative and false is positive
-        uint64_t Integer;
-        uint64_t Fraction;
-        bool isFloatingPoint;
+        bool NegativeInt = false; // true is negative and false is positive
+        uint64_t Integer = 0;
+        uint64_t Fraction = 0;
+        bool isFloatingPoint = false;
 
     public:
         NumberParser(const SourceLocation &Loc, std::string &Str);

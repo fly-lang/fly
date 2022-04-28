@@ -132,7 +132,7 @@ namespace {
     }
 
     TEST_F(ImportTest, ArchiverLib) {
-        deleteFile("import_mylib_external.fly.o");
+        deleteFile("yourlib.lib");
 
         FileSystemOptions FileMgrOpts;
         FileManager FileMgr(FileMgrOpts);
@@ -149,10 +149,12 @@ namespace {
 
         // Extract from Lib
         Archiver LibExtract(Diags, "yourlib.lib");
-        const std::vector<std::string> &Files = LibExtract.ExtractFiles(FileMgr);
-        ASSERT_FALSE(Files.empty());
-        for (auto &File : Files) {
-            std::ifstream F(File);
+        LibExtract.ExtractLib(FileMgr);
+        ASSERT_FALSE(LibExtract.getExtractFiles().empty());
+        for (StringRef File : LibExtract.getExtractFiles()) {
+            std::string FileStr = File.str();
+            ASSERT_EQ(FileStr, "yourlib.fly.h");
+            std::ifstream F(FileStr);
             ASSERT_TRUE(F && "Error opening File");
         }
 

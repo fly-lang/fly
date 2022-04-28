@@ -54,30 +54,37 @@ bool Archiver::CreateLib(const llvm::SmallVector<std::string, 4> &Files) {
         // Everything on the command line at this point is a member.
         Members.emplace_back(File);
     }
-    return performOperation(ReplaceOrInsert, nullptr);
+    // Create or open the archive object.
+    ErrorOr<std::unique_ptr<MemoryBuffer>> Buf =
+            MemoryBuffer::getFile(ArchiveName, -1, false);
+    std::error_code EC = Buf.getError();
+    if (EC && EC == errc::no_such_file_or_directory) {
+        return performWriteOperation(ReplaceOrInsert, nullptr, nullptr, nullptr);
+    }
+    return fail("File error: '" + ArchiveName + "' already exists " + EC.message());
 }
 
-std::vector<std::string> Archiver::ExtractFiles(FileManager &FileMgr) {
-    FLY_DEBUG("Archiver", "ExtractFiles");
-    std::vector<std::string> HeaderFiles;
-    if (performOperation(Extract, nullptr)) {
-        const StringRef &Path = llvm::sys::path::filename(".");
-        std::error_code EC;
-        const sys::fs::directory_iterator &It = llvm::sys::fs::directory_iterator(Path, EC);
-
-        if (isError(EC, "Error on directory listing")) {
-            return HeaderFiles;
-        }
-
-        llvm::vfs::FileSystem &FS = FileMgr.getVirtualFileSystem();
-        for (llvm::vfs::directory_iterator Dir = FS.dir_begin(Path, EC), DirEnd;
-             Dir != DirEnd && !EC; Dir.increment(EC)) {
-            bool IsHeader = llvm::sys::path::extension(Dir->path()) == ".h";
-            if (IsHeader)
-                HeaderFiles.push_back(Dir->path().str());
-        }
+bool Archiver::ExtractLib(FileManager &FileMgr) {
+    FLY_DEBUG("Archiver", "ExtractLib");
+    // Create or open the archive object.
+    ErrorOr<std::unique_ptr<MemoryBuffer>> Buf =
+            MemoryBuffer::getFile(ArchiveName, -1, false);
+    std::error_code EC = Buf.getError();
+    std::vector<StringRef> HeaderFiles;
+    if (EC) {
+        return fail("unable to open '" + ArchiveName + "': " + EC.message());
     }
-    return HeaderFiles;
+
+    Error Err = Error::success();
+    object::Archive Arch(Buf.get()->getMemBufferRef(), Err);
+    if (isError(std::move(Err), "unable to load '" + ArchiveName + "'")) {
+        return false;
+    }
+    return performReadOperation(Extract, &Arch);
+}
+
+const std::vector<StringRef> &Archiver::getExtractFiles() const {
+    return ExtractFiles;
 }
 
 bool Archiver::fail(Twine Error) {
@@ -113,14 +120,14 @@ object::Archive *Archiver::readLibrary(const Twine &Library) {
     if (isError(BufOrErr.getError(), "could not open library " + Library)) {
         return nullptr;
     }
-    std::vector <std::unique_ptr<MemoryBuffer>> ArchiveBuffers;
+    std::vector<std::unique_ptr<MemoryBuffer>> ArchiveBuffers;
     ArchiveBuffers.push_back(std::move(*BufOrErr));
     auto LibOrErr = object::Archive::create(ArchiveBuffers.back()->getMemBufferRef());
     if (isError(errorToErrorCode(LibOrErr.takeError()), "could not parse library")) {
         return nullptr;
     }
 
-    std::vector <std::unique_ptr<object::Archive>> Archives;
+    std::vector<std::unique_ptr<object::Archive>> Archives;
     Archives.push_back(std::move(*LibOrErr));
     return &*Archives.back();
 }
@@ -144,10 +151,11 @@ bool Archiver::doExtract(StringRef Name, const object::Archive::Child &C) {
     sys::fs::perms Mode = ModeOrErr.get();
 
     llvm::StringRef outputFilePath = sys::path::filename(Name);
+    ExtractFiles.push_back(outputFilePath);
     int FD;
     std::error_code EC = sys::fs::openFileForWrite(outputFilePath, FD,
-                                   sys::fs::CD_CreateAlways,
-                                   sys::fs::OF_None, Mode);
+                                                   sys::fs::CD_CreateAlways,
+                                                   sys::fs::OF_None, Mode);
     if (isError(EC, Name))
         return false;
 
@@ -155,7 +163,7 @@ bool Archiver::doExtract(StringRef Name, const object::Archive::Child &C) {
         raw_fd_ostream file(FD, false);
 
         // Get the data and its length
-        Expected <StringRef> BufOrErr = C.getBuffer();
+        Expected<StringRef> BufOrErr = C.getBuffer();
         if (isError(BufOrErr.takeError()))
             return false;
         StringRef Data = BufOrErr.get();
@@ -280,10 +288,10 @@ bool Archiver::addMember(std::vector<NewArchiveMember> &Members,
 }
 
 bool Archiver::computeInsertAction(InsertAction &Action, ArchiveOperation Operation,
-                                           const object::Archive::Child &Member,
-                                           StringRef Name,
-                                           std::vector<StringRef>::iterator &Pos,
-                                           StringMap<int> &MemberCount) {
+                                   const object::Archive::Child &Member,
+                                   StringRef Name,
+                                   std::vector<StringRef>::iterator &Pos,
+                                   StringMap<int> &MemberCount) {
 
     if (Operation == QuickAppend || Members.empty())
         return IA_AddOldMember;
@@ -337,8 +345,8 @@ bool Archiver::computeInsertAction(InsertAction &Action, ArchiveOperation Operat
 // We have to walk this twice and computing it is not trivial, so creating an
 // explicit std::vector is actually fairly efficient.
 bool Archiver::computeNewArchiveMembers(ArchiveOperation Operation,
-                                                                 object::Archive *OldArchive,
-                                                                 std::vector<NewArchiveMember> &Ret) {
+                                        object::Archive *OldArchive,
+                                        std::vector<NewArchiveMember> &Ret) {
     std::vector<NewArchiveMember> Moved;
     int InsertPos = -1;
     if (OldArchive) {
@@ -511,7 +519,7 @@ bool Archiver::performReadOperation(ArchiveOperation Operation, object::Archive 
     if (Members.empty())
         return true;
     for (StringRef Name: Members)
-        fail( "'" + Name + "' was not found");
+        fail("'" + Name + "' was not found");
     return false;
 }
 
@@ -521,9 +529,9 @@ bool Archiver::performWriteOperation(ArchiveOperation Operation,
                                      std::vector<NewArchiveMember> *NewMembersP) {
     std::vector<NewArchiveMember> NewMembers;
     if (!NewMembersP)
-         if (!computeNewArchiveMembers(Operation, OldArchive, NewMembers)) {
-             return false;
-         }
+        if (!computeNewArchiveMembers(Operation, OldArchive, NewMembers)) {
+            return false;
+        }
 
     object::Archive::Kind Kind;
     switch (FormatType) {
@@ -557,67 +565,10 @@ bool Archiver::performWriteOperation(ArchiveOperation Operation,
     }
 
     Error E = writeArchive(ArchiveName, NewMembersP ? *NewMembersP : NewMembers, Symtab,
-                         Kind, Deterministic, Thin, std::move(OldArchiveBuf));
+                           Kind, Deterministic, Thin, std::move(OldArchiveBuf));
     if (isError(std::move(E), ArchiveName)) {
         return false;
     }
 
     return true;
-}
-
-bool Archiver::createSymbolTable(object::Archive *OldArchive) {
-    // When an archive is created or modified, if the s option is given, the
-    // resulting archive will have a current symbol table. If the S option
-    // is given, it will have no symbol table.
-    // In summary, we only need to update the symbol table if we have none.
-    // This is actually very common because of broken build systems that think
-    // they have to run ranlib.
-    if (OldArchive->hasSymbolTable())
-        return true;
-
-    return performWriteOperation(CreateSymTab, OldArchive, nullptr, nullptr);
-}
-
-bool Archiver::performOperation(ArchiveOperation Operation,
-                                object::Archive *OldArchive,
-                                std::unique_ptr<MemoryBuffer> OldArchiveBuf,
-                                std::vector<NewArchiveMember> *NewMembers) {
-    switch (Operation) {
-        case Extract:
-            return performReadOperation(Operation, OldArchive);
-
-        case Delete:
-        case Move:
-        case QuickAppend:
-        case ReplaceOrInsert:
-            return performWriteOperation(Operation, OldArchive, std::move(OldArchiveBuf), NewMembers);
-        case CreateSymTab:
-            return createSymbolTable(OldArchive);
-    }
-    llvm_unreachable("Unknown operation.");
-}
-
-bool Archiver::performOperation(ArchiveOperation Operation, std::vector<NewArchiveMember> *NewMembers) {
-    FLY_DEBUG_MESSAGE("Archiver", "performOperation", "Operation" << Operation);
-    // Create or open the archive object.
-    ErrorOr<std::unique_ptr<MemoryBuffer>> Buf =
-            MemoryBuffer::getFile(ArchiveName, -1, false);
-    std::error_code EC = Buf.getError();
-    if (EC && EC != errc::no_such_file_or_directory)
-        return fail("unable to open '" + ArchiveName + "': " + EC.message());
-
-    if (!EC) {
-        Error Err = Error::success();
-        object::Archive Archive(Buf.get()->getMemBufferRef(), Err);
-        if (isError(std::move(Err), "unable to load '" + ArchiveName + "'")) {
-            return false;
-        }
-        if (Archive.isThin())
-            CompareFullPath = true;
-        return performOperation(Operation, &Archive, std::move(Buf.get()), NewMembers);
-    }
-
-    assert(EC == errc::no_such_file_or_directory);
-
-    return performOperation(Operation, nullptr, nullptr, NewMembers);
 }

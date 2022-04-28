@@ -22,6 +22,7 @@ target_link_libraries(fly_test PRIVATE
         FlyParser
         FlyAST
         FlyCodeGen
+        FlySema
         FlyFrontend
         FlyDriver
         )

@@ -58,7 +58,7 @@ namespace fly {
 
         const SmallVector<std::string, 4> &getOutputFiles() const;
 
-        std::vector<std::string> LoadHeaderFiles(const std::string &LibFileName);
+        std::vector<StringRef> ExtractFiles(const std::string &LibFileName);
     };
 }
 
