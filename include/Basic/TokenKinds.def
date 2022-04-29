@@ -50,22 +50,12 @@ TOK(numeric_constant)    // 0x123
 
 // Character Constants
 TOK(char_constant)       // 'a'
-TOK(wide_char_constant)  // L'b'
-TOK(utf8_char_constant)  // u8'a'
-TOK(utf16_char_constant) // u'a'
-TOK(utf32_char_constant) // U'a'
 
 // String Literals.
 TOK(string_literal)      // "foo"
-TOK(wide_string_literal) // L"foo"
 
 // C11 6.4.7: Header Names
 TOK(header_name)         // <foo>, or "foo" lexed as a header-name
-
-// String Literals.
-TOK(utf8_string_literal) // u8"foo"
-TOK(utf16_string_literal)// u"foo"
-TOK(utf32_string_literal)// U"foo"
 
 // Punctuators.
 PUNCTUATOR(l_square,            "[")
@@ -112,6 +102,7 @@ PUNCTUATOR(semi,                ";")
 PUNCTUATOR(equal,               "=")
 PUNCTUATOR(equalequal,          "==")
 PUNCTUATOR(comma,               ",")
+PUNCTUATOR(at,               "@")
 
 KEYWORD(namespace)
 KEYWORD(import)

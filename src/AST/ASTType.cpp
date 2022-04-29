@@ -9,13 +9,28 @@
 
 
 #include "AST/ASTType.h"
+#include "AST/ASTExpr.h"
 
 using namespace fly;
 
-ASTType::ASTType(SourceLocation Loc, TypeKind Kind) : Loc(Loc), Kind(Kind) {}
+ASTType::ASTType(const SourceLocation &Loc, TypeKind Kind) : Loc(Loc), Kind(Kind) {
+
+}
 
 const SourceLocation &ASTType::getLocation() const  {
     return Loc;
+}
+
+const bool ASTType::isBool() const {
+    return Kind == TYPE_BOOL;
+}
+
+const bool ASTType::isInteger() const {
+    return Kind > 1 && Kind < 9;
+}
+
+const bool ASTType::isFloatingPoint() const {
+    return Kind == TYPE_FLOAT || Kind == TYPE_DOUBLE;
 }
 
 const TypeKind &ASTType::getKind() const  {
@@ -26,51 +41,73 @@ bool ASTType::equals(ASTType *Ty) const {
     return this->getKind() == Ty->getKind();
 }
 
-ASTVoidType::ASTVoidType(SourceLocation Loc) : ASTType(Loc, TypeKind::TYPE_VOID) {
+ASTVoidType::ASTVoidType(const SourceLocation &Loc) : ASTType(Loc, TypeKind::TYPE_VOID) {
 
 }
 
-ASTBoolType::ASTBoolType(SourceLocation Loc) : ASTType(Loc, TypeKind::TYPE_BOOL) {
+ASTBoolType::ASTBoolType(const SourceLocation &Loc) : ASTType(Loc, TypeKind::TYPE_BOOL) {
 
 }
 
-ASTByteType::ASTByteType(SourceLocation Loc) : ASTType(Loc, TypeKind::TYPE_BYTE) {
+ASTByteType::ASTByteType(const SourceLocation &Loc) : ASTType(Loc, TypeKind::TYPE_BYTE) {
 
 }
 
-ASTUShortType::ASTUShortType(SourceLocation Loc) : ASTType(Loc, TypeKind::TYPE_USHORT) {
+ASTUShortType::ASTUShortType(const SourceLocation &Loc) : ASTType(Loc, TypeKind::TYPE_USHORT) {
 
 }
 
-ASTShortType::ASTShortType(SourceLocation Loc) : ASTType(Loc, TypeKind::TYPE_SHORT) {
+ASTShortType::ASTShortType(const SourceLocation &Loc) : ASTType(Loc, TypeKind::TYPE_SHORT) {
 
 }
 
-ASTUIntType::ASTUIntType(SourceLocation Loc)  : ASTType(Loc, TypeKind::TYPE_UINT) {
+ASTUIntType::ASTUIntType(const SourceLocation &Loc)  : ASTType(Loc, TypeKind::TYPE_UINT) {
 
 }
 
-ASTIntType::ASTIntType(SourceLocation Loc)  : ASTType(Loc, TypeKind::TYPE_INT) {
+ASTIntType::ASTIntType(const SourceLocation &Loc)  : ASTType(Loc, TypeKind::TYPE_INT) {
 
 }
 
-ASTULongType::ASTULongType(SourceLocation Loc)  : ASTType(Loc, TypeKind::TYPE_ULONG) {
+ASTULongType::ASTULongType(const SourceLocation &Loc)  : ASTType(Loc, TypeKind::TYPE_ULONG) {
 
 }
 
-ASTLongType::ASTLongType(SourceLocation Loc)  : ASTType(Loc, TypeKind::TYPE_LONG) {
+ASTLongType::ASTLongType(const SourceLocation &Loc)  : ASTType(Loc, TypeKind::TYPE_LONG) {
 
 }
 
-ASTFloatType::ASTFloatType(SourceLocation Loc) : ASTType(Loc, TypeKind::TYPE_FLOAT) {
+ASTFloatType::ASTFloatType(const SourceLocation &Loc) : ASTType(Loc, TypeKind::TYPE_FLOAT) {
 
 }
 
-ASTDoubleType::ASTDoubleType(SourceLocation Loc) : ASTType(Loc, TypeKind::TYPE_DOUBLE) {
+ASTDoubleType::ASTDoubleType(const SourceLocation &Loc) : ASTType(Loc, TypeKind::TYPE_DOUBLE) {
 
 }
 
-ASTClassType::ASTClassType(SourceLocation Loc, std::string Name, std::string NameSpace) :
+ASTArrayType::ASTArrayType(const SourceLocation &Loc, ASTType *Type, ASTIntegerValue *Size) :
+    ASTType(Loc, TypeKind::TYPE_ARRAY), Type(Type), Size(new ASTValueExpr((ASTValue *) Size)) {
+
+}
+
+ASTArrayType::ASTArrayType(const SourceLocation &Loc, ASTType *Type, ASTExpr *Size) :
+        ASTType(Loc, TypeKind::TYPE_ARRAY), Type(Type), Size(Size) {
+
+}
+
+ASTExpr *ASTArrayType::getSize() const {
+    return Size;
+}
+
+ASTType *ASTArrayType::getType() const {
+    return Type;
+}
+
+void ASTArrayType::setSize(ASTIntegerValue *S) {
+    Size = new ASTValueExpr((ASTValue *) S);
+}
+
+ASTClassType::ASTClassType(const SourceLocation &Loc, std::string Name, std::string NameSpace) :
     ASTType(Loc, TypeKind::TYPE_CLASS), Name(Name) {
 
 }

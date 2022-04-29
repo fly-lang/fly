@@ -34,7 +34,7 @@ namespace fly {
 
         ASTBlock *getCondition();
 
-        void setCond(ASTExpr *Expr);
+        void setCondition(ASTExpr *Expr);
 
         ASTBlock *getPost();
 

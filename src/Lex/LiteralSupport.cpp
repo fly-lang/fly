@@ -38,18 +38,7 @@ static unsigned getCharWidth(tok::TokenKind kind, const TargetInfo &Target) {
   default: llvm_unreachable("Unknown token type!");
   case tok::char_constant:
   case tok::string_literal:
-  case tok::utf8_char_constant:
-  case tok::utf8_string_literal:
     return Target.getCharWidth();
-  case tok::wide_char_constant:
-  case tok::wide_string_literal:
-    return Target.getWCharWidth();
-  case tok::utf16_char_constant:
-  case tok::utf16_string_literal:
-    return Target.getChar16Width();
-  case tok::utf32_char_constant:
-  case tok::utf32_string_literal:
-    return Target.getChar32Width();
   }
 }
 
@@ -1188,8 +1177,6 @@ CharLiteralParser::CharLiteralParser(const char *begin, const char *end,
   // Skip over wide character determinant.
   if (Kind != tok::char_constant)
     ++begin;
-  if (Kind == tok::utf8_char_constant)
-    ++begin;
 
   // Skip over the entry quote.
   assert(begin[0] == '\'' && "Invalid token lexed");
@@ -1229,19 +1216,7 @@ CharLiteralParser::CharLiteralParser(const char *begin, const char *end,
   // Unicode escapes representing characters that cannot be correctly
   // represented in a single code unit are disallowed in character literals
   // by this implementation.
-  uint32_t largest_character_for_kind;
-  if (tok::wide_char_constant == Kind) {
-    largest_character_for_kind =
-        0xFFFFFFFFu >> (32-Target.getWCharWidth());
-  } else if (tok::utf8_char_constant == Kind) {
-    largest_character_for_kind = 0x7F;
-  } else if (tok::utf16_char_constant == Kind) {
-    largest_character_for_kind = 0xFFFF;
-  } else if (tok::utf32_char_constant == Kind) {
-    largest_character_for_kind = 0x10FFFF;
-  } else {
-    largest_character_for_kind = 0x7Fu;
-  }
+  uint32_t largest_character_for_kind = 0x7Fu;
 
   while (begin != end) {
     // Is this a span of non-escape characters?
@@ -1311,9 +1286,7 @@ CharLiteralParser::CharLiteralParser(const char *begin, const char *end,
   unsigned NumCharsSoFar = buffer_begin - &codepoint_buffer.front();
 
   if (NumCharsSoFar > 1) {
-    if (isWide())
-      Diags.Report(Loc, diag::warn_extraneous_char_constant);
-    else if (isAscii() && NumCharsSoFar == 4)
+    if (isAscii() && NumCharsSoFar == 4)
       Diags.Report(Loc, diag::ext_four_char_character_literal);
     else if (isAscii())
       Diags.Report(Loc, diag::ext_multichar_character_literal);

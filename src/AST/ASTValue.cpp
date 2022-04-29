@@ -9,25 +9,100 @@
 
 
 #include "AST/ASTValue.h"
+#include <string>
 
 using namespace fly;
 
-ASTValue::ASTValue(const SourceLocation &Loc, std::string Str, ASTType *Ty) : Loc(Loc), Str(Str), Ty(Ty) {
+ASTValue::ASTValue(const SourceLocation &Loc, ASTType *Type) : Loc(Loc), Type(Type) {
 
-}
-
-std::string ASTValue::str() const {
-    return Str;
-}
-
-ASTType *ASTValue::getType() const {
-    return Ty;
-}
-
-bool ASTValue::empty() const {
-    return Str.empty();
 }
 
 const SourceLocation &ASTValue::getLocation() const {
     return Loc;
+}
+
+ASTType *ASTValue::getType() const {
+    return Type;
+}
+
+ASTSingleValue::ASTSingleValue(const SourceLocation &Loc, ASTType *Type) : ASTValue(Loc, Type) {
+
+}
+
+ASTBoolValue::ASTBoolValue(const SourceLocation &Loc, bool Value) :
+        ASTSingleValue(Loc, new ASTBoolType(Loc)), Value(Value) {
+
+}
+
+bool ASTBoolValue::getValue() const {
+    return Value;
+}
+
+std::string ASTBoolValue::str() const {
+    return Value ? "true" : "false";
+}
+
+ASTIntegerValue::ASTIntegerValue(const SourceLocation &Loc, ASTType *Type, uint64_t Value, bool Negative) :
+        ASTSingleValue(Loc, Type), Value(Value), Negative(Negative) {
+
+}
+
+bool ASTIntegerValue::isNegative() const {
+    return Negative;
+}
+
+bool ASTIntegerValue::isPositive() const {
+    return !Negative;
+}
+
+uint64_t ASTIntegerValue::getValue() const {
+    return Value;
+}
+
+std::string ASTIntegerValue::str() const {
+    return (Negative ? "-" : "") + std::to_string(Value);
+}
+
+ASTFloatingValue::ASTFloatingValue(const SourceLocation &Loc, ASTType *Type, std::string &Value)
+    : ASTSingleValue(Loc, Type), Value(Value) {
+
+}
+
+std::string ASTFloatingValue::getValue() const {
+    return Value;
+}
+
+std::string ASTFloatingValue::str() const {
+    return Value;
+}
+
+ASTArrayValue::ASTArrayValue(const SourceLocation &Loc, ASTType *Type) :
+    ASTValue(Loc, new ASTArrayType(Type->getLocation(), Type,new ASTIntegerValue(Loc, Type, 0))) {
+
+}
+
+void ASTArrayValue::addValue(ASTValue * Value) {
+    Values.push_back(Value);
+}
+
+uint64_t ASTArrayValue::size() const {
+    return Values.size();
+}
+
+std::string ASTArrayValue::str() const {
+    std::string Str = "{";
+    for (auto Value : Values) {
+        Str += Value->str() + ", ";
+    }
+    Str = Str.substr(0, Str.size()-1); // remove final comma
+    Str += "}";
+    return Str;
+}
+
+bool ASTArrayValue::empty() const {
+    return Values.empty();
+}
+
+const std::vector<ASTValue *> &ASTArrayValue::getValues() const {
+    return Values;
 }

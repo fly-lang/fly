@@ -27,4 +27,5 @@ target_link_libraries(FlyAST
         FlyBasic
         FlyLex
         FlyCodeGen
+        FlySema
         )

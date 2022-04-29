@@ -33,7 +33,7 @@ ASTBlock *ASTForBlock::getCondition() {
     return Cond;
 }
 
-void ASTForBlock::setCond(ASTExpr *Expr) {
+void ASTForBlock::setCondition(ASTExpr *Expr) {
     ASTExprStmt *ExprStmt = new ASTExprStmt(Expr->getLocation(), Cond);
     ExprStmt->setExpr(Expr);
     Cond->Clear();

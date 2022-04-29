@@ -28,7 +28,7 @@ namespace fly {
         ASTGlobalVar *AST = nullptr;
 
     public:
-        GlobalVarParser(Parser *P, ASTType *TyDecl);
+        GlobalVarParser(Parser *P, ASTType *Type);
 
         bool Parse();
 

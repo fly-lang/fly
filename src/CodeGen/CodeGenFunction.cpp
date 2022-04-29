@@ -73,9 +73,9 @@ void CodeGenFunction::GenBody() {
         P->getCodeGen()->Alloca();
     }
 
-    // Allocation of declared vars
-    for (auto &DeclVar: AST->getDeclVars()) {
-        DeclVar->getCodeGen()->Alloca();
+    // Allocation of declared local vars
+    for (auto &LocalVar: AST->getLocalVars()) {
+        LocalVar->getCodeGen()->Alloca();
     }
 
     // Store Param Values

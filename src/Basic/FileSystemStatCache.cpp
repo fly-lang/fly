@@ -23,7 +23,7 @@ using namespace fly;
 
 void FileSystemStatCache::anchor() {}
 
-/// FileSystemStatCache::getValue - Get the 'stat' information for the specified
+/// FileSystemStatCache::getDouble - Get the 'stat' information for the specified
 /// path, using the cache to accelerate it if possible.  This returns true if
 /// the path does not exist or false if it exists.
 ///

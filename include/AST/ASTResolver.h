@@ -47,11 +47,11 @@ namespace fly {
 
         static ASTType *ResolveExprType(ASTExpr *Expr);
 
-        static ASTLocalVar *FindVarDecl(const ASTBlock *Block, ASTVarRef *VarRef);
+        static ASTLocalVar *FindVarDecl(ASTBlock *Block, ASTVarRef *VarRef);
 
-        static bool ResolveVarRef(const ASTBlock *Block, ASTVarRef *VarRef);
+        static bool ResolveVarRef(ASTBlock *Block, ASTVarRef *VarRef);
 
-        static bool ResolveExpr(const ASTBlock *Block, const ASTExpr *Expr);
+        static bool ResolveExpr(ASTBlock *Block, const ASTExpr *Expr);
     };
 }
 

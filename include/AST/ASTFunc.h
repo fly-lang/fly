@@ -65,7 +65,7 @@ namespace fly {
         ASTBlock *Body;
 
         // Contains all vars declared in this Block
-        std::vector<ASTLocalVar *> DeclVars;
+        std::vector<ASTLocalVar *> LocalVars;
 
         // Populated during codegen phase
         CodeGenFunction *CodeGen = nullptr;
@@ -83,9 +83,9 @@ namespace fly {
 
         ASTBlock *getBody();
 
-        const std::vector<ASTLocalVar *> &getDeclVars() const;
+        const std::vector<ASTLocalVar *> &getLocalVars() const;
 
-        void addDeclVars(ASTLocalVar *DeclVar);
+        void addLocalVar(ASTLocalVar *LocalVar);
 
         CodeGenFunction *getCodeGen() const;
 

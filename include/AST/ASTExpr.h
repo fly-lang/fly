@@ -112,14 +112,14 @@ namespace fly {
     class ASTValueExpr : public ASTExpr {
 
         const ASTExprKind Kind = ASTExprKind::EXPR_VALUE;
-        const ASTValue *Val;
+        ASTValue *Val;
 
     public:
-        ASTValueExpr(const ASTValue *Val);
+        explicit ASTValueExpr(ASTValue *Val);
 
         ASTExprKind getKind() const override;
 
-        const ASTValue &getValue() const;
+        ASTValue &getValue() const;
 
         ASTType *getType() const override;
 

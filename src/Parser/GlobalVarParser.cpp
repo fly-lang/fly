@@ -16,11 +16,11 @@ using namespace fly;
 /**
  * GlobalVarParser Constructor
  * @param P
- * @param TyDecl
+ * @param Type
  * @param VarName
  * @param VarNameLoc
  */
-GlobalVarParser::GlobalVarParser(Parser *P, ASTType *TyDecl) : P(P), Type(TyDecl) {
+GlobalVarParser::GlobalVarParser(Parser *P, ASTType *Type) : P(P), Type(Type) {
 }
 
 /**
@@ -47,8 +47,8 @@ bool GlobalVarParser::Parse() {
     if (P->Tok.is(tok::equal)) {
         P->ConsumeToken();
 
-        ASTValue *Val = P->ParseValue();
-        if (Val != nullptr) {
+        ASTValue *Val = P->ParseValue(Type);
+        if (Val) {
             AST->setExpr(new ASTValueExpr(Val));
         }
     }

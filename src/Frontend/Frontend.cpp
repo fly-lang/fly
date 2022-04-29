@@ -69,20 +69,22 @@ bool Frontend::Execute() {
             }
         } else if (Input->getExt() == FileExt::LIB) {
             // Read Header Files from library by extracting them
-            const std::vector<std::string> &HeaderFiles = LoadHeaderFiles(InputFileName);
-            for (auto &HeaderFile : HeaderFiles) {
-                InputFile *InputHeader = new InputFile(Diags, CI.getSourceManager(), HeaderFile);
-                if (InputHeader->Load()) {
-                    FrontendAction *Action = new FrontendAction(CI, Context, CG, InputHeader);
-                    if (!Action->ParseHeader()) {
+            const std::vector<StringRef> Files = ExtractFiles(InputFileName);
+            for (StringRef File : Files) {
+                if (llvm::sys::path::extension(File) == ".h") {
+                    InputFile *InputHeader = new InputFile(Diags, CI.getSourceManager(), File.str());
+                    if (InputHeader->Load()) {
+                        FrontendAction *Action = new FrontendAction(CI, Context, CG, InputHeader);
+                        if (!Action->ParseHeader()) {
+                            FileLoadError = true;
+                        }
+                    } else {
                         FileLoadError = true;
                     }
-                } else {
-                    FileLoadError = true;
-                }
 
-                // Remove Header File after extraction and parsing
-                llvm::sys::fs::remove(HeaderFile, false);
+                    // Remove Header File after extraction and parsing
+                    llvm::sys::fs::remove(File, false);
+                }
             }
         }
     }
@@ -161,7 +163,11 @@ const SmallVector<std::string, 4> &Frontend::getOutputFiles() const {
     return OutputFiles;
 }
 
-std::vector<std::string> Frontend::LoadHeaderFiles(const std::string &LibFileName) {
+std::vector<StringRef> Frontend::ExtractFiles(const std::string &LibFileName) {
     Archiver Ar(Diags, LibFileName);
-    return Ar.ExtractFiles(CI.getFileManager());
+    std::vector<StringRef> List;
+    if (Ar.ExtractLib(CI.getFileManager())) {
+        return Ar.getExtractFiles();
+    }
+    return List;
 }

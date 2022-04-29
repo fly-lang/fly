@@ -22,7 +22,6 @@ namespace fly {
 
     class CodeGenModule;
     class ASTGlobalVar;
-    class ASTValue;
 
     class CodeGenGlobalVar : public CodeGenVar {
 
@@ -42,7 +41,7 @@ namespace fly {
 
         llvm::LoadInst *Load() override;
 
-        void reset();
+        void Init();
     };
 }
 

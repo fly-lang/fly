@@ -95,13 +95,18 @@ namespace fly {
         // on the command line.
         std::vector <llvm::StringRef> Members;
 
+        // File Extracted from Lib
+        std::vector<StringRef> ExtractFiles;
+
         // Static buffer to hold StringRefs.
         BumpPtrAllocator Alloc;
 
     public:
         Archiver(DiagnosticsEngine &Diag, const std::string &ArchiveName);
         bool CreateLib(const llvm::SmallVector<std::string, 4> &Files);
-        std::vector<std::string> ExtractFiles(FileManager &FileMgr);
+        bool ExtractLib(FileManager &FileMgr);
+
+        const std::vector<StringRef> &getExtractFiles() const;
 
     private:
         bool fail(Twine Error);
@@ -126,9 +131,5 @@ namespace fly {
         bool performWriteOperation(ArchiveOperation Operation, object::Archive *OldArchive,
                                    std::unique_ptr<MemoryBuffer> OldArchiveBuf,
                                    std::vector<NewArchiveMember> *NewMembersP);
-        bool createSymbolTable(object::Archive *OldArchive);
-        bool performOperation(ArchiveOperation Operation, object::Archive *OldArchive,
-                              std::unique_ptr<MemoryBuffer> OldArchiveBuf, std::vector<NewArchiveMember> *NewMembers);
-        bool performOperation(ArchiveOperation Operation, std::vector<NewArchiveMember> *NewMembers);
     };
 }

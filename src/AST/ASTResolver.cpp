@@ -18,6 +18,7 @@
 #include "AST/ASTUnref.h"
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTBlock.h"
+#include "Sema/Sema.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/Debug.h"
 #include "llvm/ADT/StringMap.h"
@@ -103,7 +104,8 @@ bool ASTResolver::ResolveGlobalVars(ASTNode *Node) {
             Node->NameSpace->UnrefGlobalVars.push_back(Unref);
         } else {
             ASTVarRef &VarRef = Unref->getVarRef();
-            VarRef.setDecl(It->getValue());
+            ASTGlobalVar *Var = It->getValue();
+            VarRef.setDecl(Var);
         }
     }
 
@@ -235,10 +237,10 @@ ASTType *ASTResolver::ResolveExprType(ASTExpr *Expr) {
  * @param VarRef
  * @return the found LocalVar
  */
-ASTLocalVar *ASTResolver::FindVarDecl(const ASTBlock *Block, ASTVarRef *VarRef) {
+ASTLocalVar *ASTResolver::FindVarDecl(ASTBlock *Block, ASTVarRef *VarRef) {
     FLY_DEBUG_MESSAGE("ASTResolver", "FindVarDecl", "VarRef=" << VarRef->str());
-    const auto &It = Block->getDeclVars().find(VarRef->getName());
-    if (It != Block->getDeclVars().end()) { // Search into this Block
+    const auto &It = Block->getLocalVars().find(VarRef->getName());
+    if (It != Block->getLocalVars().end()) { // Search into this Block
         FLY_DEBUG_MESSAGE("ASTResolver", "FindVarDecl", "Found=" << It->getValue()->str());
         return It->getValue();
     } else if (Block->getParent()) { // Traverse Parent Block to find the right VarDeclStmt
@@ -252,7 +254,7 @@ ASTLocalVar *ASTResolver::FindVarDecl(const ASTBlock *Block, ASTVarRef *VarRef) 
  * @param VarRef
  * @return true if no error occurs, otherwise false
  */
-bool ASTResolver::ResolveVarRef(const ASTBlock *Block, ASTVarRef *VarRef) {
+bool ASTResolver::ResolveVarRef(ASTBlock *Block, ASTVarRef *VarRef) {
     FLY_DEBUG_MESSAGE("ASTResolver", "ResolveVarRef", "VarRef=" << VarRef->str());
     // Search into parameters
     for (auto &Param : Block->getTop()->getHeader()->getParams()) {
@@ -268,7 +270,7 @@ bool ASTResolver::ResolveVarRef(const ASTBlock *Block, ASTVarRef *VarRef) {
         // Search recursively into current Block or in one of Parents
         ASTLocalVar *LocalVar = FindVarDecl(Block, VarRef);
         // Check if var declaration var is resolved
-        if (LocalVar != nullptr) {
+        if (LocalVar) {
             VarRef->setDecl(LocalVar); // Resolved
         } else {
             Block->getTop()->getNode()->AddUnrefGlobalVar(VarRef); // Resolve Later by searching into Node GlobalVars
@@ -282,12 +284,12 @@ bool ASTResolver::ResolveVarRef(const ASTBlock *Block, ASTVarRef *VarRef) {
  * @param Expr
  * @return true if no error occurs, otherwise false
  */
-bool ASTResolver::ResolveExpr(const ASTBlock *Block, const ASTExpr *Expr) {
+bool ASTResolver::ResolveExpr(ASTBlock *Block, const ASTExpr *Expr) {
     FLY_DEBUG_MESSAGE("ASTResolver", "ResolveExpr", "Expr=" << Expr->str());
     switch (Expr->getKind()) {
         case EXPR_REF_VAR: {
             ASTVarRef *Var = ((ASTVarRefExpr *)Expr)->getVarRef();
-            return Var->getDecl() || ResolveVarRef(Block, Var);
+            return Sema::CheckUndefVar(Block, Var) && (Var->getDecl() || ResolveVarRef(Block, Var));
         }
         case EXPR_REF_FUNC: {
             ASTFuncCall *Call = ((ASTFuncCallExpr *)Expr)->getCall();

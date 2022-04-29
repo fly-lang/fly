@@ -27,13 +27,13 @@ namespace fly {
         friend class GlobalVarParser;
 
         // Statement Kind
-        const StmtKind Kind = StmtKind::STMT_VAR_DECL;
+        const StmtKind Kind = StmtKind::STMT_VAR;
 
         // LocalVar Code Generator
         CodeGenLocalVar *CodeGen = nullptr;
 
     public:
-        ASTLocalVar(const SourceLocation &Loc, ASTBlock *Block, ASTType *Type, const std::string Name);
+        ASTLocalVar(const SourceLocation &Loc, ASTBlock *Block, ASTType *Type, const std::string &Name);
 
         StmtKind getKind() const;
 

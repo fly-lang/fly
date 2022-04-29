@@ -153,17 +153,18 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
     switch (Stmt->getKind()) {
 
         // Var Declaration
-        case StmtKind::STMT_VAR_DECL: {
+        case StmtKind::STMT_VAR: {
             ASTLocalVar *LocalVar = static_cast<ASTLocalVar *>(Stmt);
             assert(LocalVar->getCodeGen() && "LocalVar is not CodeGen initialized");
-            assert(LocalVar->getExpr() && "Expr Mandatory in declaration");
-            llvm::Value *V = GenExpr(Fn, LocalVar->getType(), LocalVar->getExpr());
-            LocalVar->getCodeGen()->Store(V);
+            if (LocalVar->getExpr()) {
+                llvm::Value *V = GenExpr(Fn, LocalVar->getType(), LocalVar->getExpr());
+                LocalVar->getCodeGen()->Store(V);
+            }
             break;
         }
 
             // Var Assignment
-        case STMT_VAR_ASSIGN: {
+        case STMT_VAR_REF: {
             ASTLocalVarRef *LocalVarRef = (ASTLocalVarRef *) Stmt;
             assert(LocalVarRef->getExpr() && "Expr Mandatory in assignment");
             llvm::Value *V = GenExpr(Fn, LocalVarRef->getDecl()->getType(), LocalVarRef->getExpr());
@@ -254,11 +255,25 @@ llvm::Type *CodeGenModule::GenType(const ASTType *Type) {
             return FloatTy;
         case TYPE_DOUBLE:
             return DoubleTy;
+        case TYPE_ARRAY: {
+            ASTArrayType *ArrType = (ASTArrayType *) Type;
+            llvm::Type *SubType = GenType(ArrType->getType());
+            if (ArrType->getSize()->getKind() == EXPR_VALUE) {
+                ASTValueExpr *SizeExpr = (ASTValueExpr *) ArrType->getSize();
+                assert(SizeExpr->getType()->isInteger());
+                ASTIntegerValue &SizeValue = (ASTIntegerValue &) SizeExpr->getValue();
+                return llvm::ArrayType::get(SubType, SizeValue.getValue());
+            }
+            // TODO
+            //Value *Size = GenExpr(ArrType, ArrType->getSize());
+            
+        }
+
     }
     assert(0 && "Unknown Var Type Kind");
 }
 
-llvm::Constant *CodeGenModule::GenDefaultValue(const ASTType *Type) {
+llvm::Constant *CodeGenModule::GenDefaultValue(const ASTType *Type, llvm::Type *Ty) {
     FLY_DEBUG("CodeGenFunction", "GenDefaultValue");
     assert(Type->getKind() != TYPE_VOID && "No default value for Void Type");
     switch (Type->getKind()) {
@@ -282,194 +297,48 @@ llvm::Constant *CodeGenModule::GenDefaultValue(const ASTType *Type) {
             return llvm::ConstantFP::get(FloatTy, 0.0);
         case TYPE_DOUBLE:
             return llvm::ConstantFP::get(DoubleTy, 0.0);
+        case TYPE_ARRAY:
+            return ConstantAggregateZero::get(Ty);
         case TYPE_CLASS:
             return nullptr; // TODO
     }
     assert(0 && "Unknown Type");
 }
 
+/**
+ * Generate a LLVM Constant Value
+ * @param Type is the parsed ASTType
+ * @param Val need to be correctly configured or you need to call GenDefaultValue()
+ * @return
+ */
 llvm::Constant *CodeGenModule::GenValue(const ASTType *Type, const ASTValue *Val) {
     FLY_DEBUG("CodeGenModule", "GenValue");
+    assert(Type && "Type has to be not empty");
+    assert(Val && "Value has to be not empty");
+
     //TODO value conversion from Val->getType() to TypeBase (if are different)
-    std::string IntRegex     = "[-]?[0-9]+";
-    std::string IntRegex16   = "[-]?[0x][A-Fa-f0-9]+";
-    std::string UIntRegex    = "[0-9]+";
-    std::string UIntRegex16  = "[0x][A-Fa-f0-9]+";
-    std::string DecimalRegex = "[-]?[0-9]+\\.?[0-9]*";
+    
     switch (Type->getKind()) {
-
-        case TYPE_BOOL: {
-            if (Val->empty()) {
-                return llvm::ConstantInt::get(BoolTy, 0, false);
-            }
-            // Check bool value
-            if (Val->str() == "true") {
-                return llvm::ConstantInt::get(BoolTy, 1, false);
-            } else if (Val->str() == "false") {
-                return llvm::ConstantInt::get(BoolTy, 0, false);
-            }
-            // Invalid value
-            Diag(Type->getLocation(), diag::err_invalid_bool_val) << Val->str();
-            return llvm::ConstantInt::get(BoolTy, 0, false);
-        }
-
-        case TYPE_BYTE: {
-            if (Val->empty()) {
-                return llvm::ConstantInt::get(Int8Ty, 0, false); // Default value
-            }
-            // Check byte value (radix 10)
-            if (std::regex_match(Val->str(), std::regex(UIntRegex))) {
-                CheckMinMax(*Val, "byte", 0, MAX_BYTE);
-                return llvm::ConstantInt::get(Int8Ty, StringRef(Val->str()), 10);
-            }
-            // Check byte value (radix 16)
-            if (std::regex_match(Val->str(), std::regex(UIntRegex16))) {
-                CheckMinMax(*Val, "byte", 0, MAX_BYTE);
-                return llvm::ConstantInt::get(Int8Ty, StringRef(Val->str()), 16);
-            }
-            // Invalid value
-            Diag(Type->getLocation(), diag::err_type_invalid_type) << "byte";
-            return llvm::ConstantInt::get(Int8Ty, 0, false);
-        }
-
-        case TYPE_USHORT: {
-            if (Val->empty()) {
-                return llvm::ConstantInt::get(Int16Ty, 0, false);
-            }
-            // Check byte value (radix 10)
-            if (std::regex_match(Val->str(), std::regex(UIntRegex))) {
-                CheckMinMax(*Val, "ushort", 0, MAX_USHORT);
-                return llvm::ConstantInt::get(Int16Ty, StringRef(Val->str()), 10);
-            }
-            // Check byte value (radix 16)
-            if (std::regex_match(Val->str(), std::regex(UIntRegex16))) {
-                CheckMinMax(*Val, "ushort", 0, MAX_USHORT);
-                return llvm::ConstantInt::get(Int16Ty, StringRef(Val->str()), 16);
-            }
-            // Invalid value
-            Diag(Type->getLocation(), diag::err_type_invalid_type) << "ushort";
-            return llvm::ConstantInt::get(Int16Ty, 0, false);
-        }
-
-        case TYPE_SHORT: {
-            if (Val->empty()) {
-                return llvm::ConstantInt::get(Int16Ty, 0, TYPE_SHORT);  // Default value
-            }
-            // Check byte value (radix 10)
-            if (std::regex_match(Val->str(), std::regex(UIntRegex))) {
-                CheckMinMax(*Val, "short", MIN_SHORT, MAX_SHORT);
-                return llvm::ConstantInt::get(Int16Ty, StringRef(Val->str()), 10);
-            }
-            // Check byte value (radix 16)
-            if (std::regex_match(Val->str(), std::regex(UIntRegex16))) {
-                CheckMinMax(*Val, "short", MIN_SHORT, MAX_SHORT);
-                return llvm::ConstantInt::get(Int16Ty, StringRef(Val->str()), 16);
-            }
-            // Invalid value
-            Diag(Type->getLocation(), diag::err_type_invalid_type) << "short";
-            return llvm::ConstantInt::get(Int16Ty, 0, TYPE_SHORT);
-        }
-
-        case TYPE_UINT: {
-            if (Val->empty()) {
-                return llvm::ConstantInt::get(Int32Ty, 0, false);
-            }
-            // Check byte value (radix 10)
-            if (std::regex_match(Val->str(), std::regex(UIntRegex))) {
-                CheckMinMax(*Val, "uint", 0, MAX_UINT);
-                return llvm::ConstantInt::get(Int32Ty, StringRef(Val->str()), 10);
-            }
-            // Check byte value (radix 16)
-            if (std::regex_match(Val->str(), std::regex(UIntRegex16))) {
-                CheckMinMax(*Val, "uint", 0, MAX_UINT);
-                return llvm::ConstantInt::get(Int32Ty, StringRef(Val->str()), 16);
-            }
-            // Invalid value
-            Diag(Type->getLocation(), diag::err_type_invalid_type) << "uint";
-            return llvm::ConstantInt::get(Int32Ty, 0, false);
-        }
-
-        case TYPE_INT: {
-            if (Val->empty()) {
-                return llvm::ConstantInt::get(Int32Ty, 0, TYPE_INT);  // Default value
-            }
-            // Check byte value (radix 10)
-            if (std::regex_match(Val->str(), std::regex(IntRegex))) {
-                CheckMinMax(*Val, "int", MIN_INT, MAX_INT);
-                return llvm::ConstantInt::get(Int32Ty, StringRef(Val->str()), 10);
-            }
-            // Check byte value (radix 16)
-            if (std::regex_match(Val->str(), std::regex(IntRegex16))) {
-                CheckMinMax(*Val, "int", MIN_INT, MAX_INT);
-                return llvm::ConstantInt::get(Int32Ty, StringRef(Val->str()), 16);
-            }
-            // Invalid value
-            Diag(Type->getLocation(), diag::err_type_invalid_type) << "int";
-            return llvm::ConstantInt::get(Int32Ty, 0, TYPE_INT);
-        }
-
-        case TYPE_ULONG: {
-            if (Val->empty()) {
-                return llvm::ConstantInt::get(Int64Ty, 0, false);  // Default value
-            }
-            // Check byte value (radix 10)
-            if (std::regex_match(Val->str(), std::regex(UIntRegex))) {
-                CheckMinMax(*Val, "ulong", 0, MAX_ULONG);
-                return llvm::ConstantInt::get(Int64Ty, StringRef(Val->str()), 10);
-            }
-            // Check byte value (radix 16)
-            if (std::regex_match(Val->str(), std::regex(UIntRegex16))) {
-                CheckMinMax(*Val, "ulong", 0, MAX_ULONG);
-                return llvm::ConstantInt::get(Int64Ty, StringRef(Val->str()), 16);
-            }
-            // Invalid value
-            Diag(Type->getLocation(), diag::err_type_invalid_type) << "ulong";
-            return llvm::ConstantInt::get(Int64Ty, 0, false);
-        }
-
-        case TYPE_LONG: {
-            if (Val->empty()) {
-                return llvm::ConstantInt::get(Int64Ty, 0, TYPE_LONG);  // Default value
-            }
-            // Check byte value (radix 10)
-            if (std::regex_match(Val->str(), std::regex(IntRegex))) {
-                CheckMinMax(*Val, "long", MIN_LONG, MAX_LONG);
-                return llvm::ConstantInt::get(Int64Ty, StringRef(Val->str()), 10);
-            }
-            // Check byte value (radix 16)
-            if (std::regex_match(Val->str(), std::regex(IntRegex16))) {
-                CheckMinMax(*Val, "long", MIN_LONG, MAX_LONG);
-                return llvm::ConstantInt::get(Int64Ty, StringRef(Val->str()), 16);
-            }
-            // Invalid value
-            Diag(Type->getLocation(), diag::err_type_invalid_type) << "ulong";
-            return llvm::ConstantInt::get(Int64Ty, 0, TYPE_LONG);
-        }
-
-        case TYPE_FLOAT: {
-            if (Val->empty()) {
-                return llvm::ConstantFP::get(FloatTy, 0.0);
-            }
-            if (std::regex_match(Val->str(), std::regex(DecimalRegex))) {
-                return llvm::ConstantFP::get(FloatTy, StringRef(Val->str()));
-            }
-            // Invalid value
-            Diag(Type->getLocation(), diag::err_type_invalid_type) << "float";
-            return llvm::ConstantFP::get(FloatTy, 0);  // Default value
-        }
-
-        case TYPE_DOUBLE: {
-            if (Val->empty()) {
-                return llvm::ConstantFP::get(DoubleTy, 0.0);
-            }
-            if (std::regex_match(Val->str(), std::regex(DecimalRegex))) {
-                return llvm::ConstantFP::get(FloatTy, StringRef(Val->str()));
-            }
-            // Invalid value
-            Diag(Type->getLocation(), diag::err_type_invalid_type) << "float";
-            return llvm::ConstantFP::get(DoubleTy, 0);  // Default value
-        }
-
+        case TYPE_BOOL:
+            return llvm::ConstantInt::get(BoolTy, ((ASTBoolValue *)Val)->getValue(), false);
+        case TYPE_BYTE:
+            return llvm::ConstantInt::get(Int8Ty, ((ASTIntegerValue *) Val)->getValue(), false);
+        case TYPE_USHORT:
+            return llvm::ConstantInt::get(Int16Ty, ((ASTIntegerValue *) Val)->getValue(), false);
+        case TYPE_SHORT:
+            return llvm::ConstantInt::get(Int16Ty, ((ASTIntegerValue *) Val)->getValue(), true);
+        case TYPE_UINT:
+            return llvm::ConstantInt::get(Int32Ty, ((ASTIntegerValue *) Val)->getValue(), false);
+        case TYPE_INT:
+            return llvm::ConstantInt::get(Int32Ty, ((ASTIntegerValue *) Val)->getValue(), true);
+        case TYPE_ULONG:
+            return llvm::ConstantInt::get(Int64Ty, ((ASTIntegerValue *) Val)->getValue(), false);
+        case TYPE_LONG:
+            return llvm::ConstantInt::get(Int64Ty, ((ASTIntegerValue *) Val)->getValue(), true);
+        case TYPE_FLOAT:
+            return llvm::ConstantFP::get(FloatTy, ((ASTFloatingValue *) Val)->getValue());
+        case TYPE_DOUBLE:
+            return llvm::ConstantFP::get(DoubleTy, ((ASTFloatingValue *) Val)->getValue());
         case TYPE_CLASS:
             break;
     }
@@ -478,7 +347,7 @@ llvm::Constant *CodeGenModule::GenValue(const ASTType *Type, const ASTValue *Val
 
 llvm::Value *CodeGenModule::GenExpr(llvm::Function *Fn, const ASTType *Type, ASTExpr *Expr) {
     FLY_DEBUG("CodeGenFunction", "GenExpr");
-    CodeGenExpr *CGExpr = new CodeGenExpr(this, Fn, (ASTExpr *)Expr, Type);
+    CodeGenExpr *CGExpr = new CodeGenExpr(this, Fn, Expr, Type);
     return CGExpr->getValue();
 }
 
@@ -501,9 +370,9 @@ void CodeGenModule::GenIfBlock(llvm::Function *Fn, ASTIfBlock *If) {
     // Create End block
     llvm::BasicBlock *EndBB = llvm::BasicBlock::Create(LLVMCtx, "endif", Fn);
 
-    if (If->getElse() == nullptr) {
+    if (If->getElseBlock() == nullptr) {
 
-        if (If->getElsif().empty()) { // If ...
+        if (If->getElsifBlocks().empty()) { // If ...
             Builder->CreateCondBr(IfCond, IfBB, EndBB);
             GenBlock(Fn, If->getContent(), IfBB);
             Builder->CreateBr(EndBB);
@@ -516,8 +385,8 @@ void CodeGenModule::GenIfBlock(llvm::Function *Fn, ASTIfBlock *If) {
             Builder->CreateBr(EndBB);
 
             // Create Elsif Blocks
-            unsigned long Size = If->getElsif().size();
-            for (unsigned long i = 0; i < If->getElsif().size(); i++) {
+            unsigned long Size = If->getElsifBlocks().size();
+            for (unsigned long i = 0; i < If->getElsifBlocks().size(); i++) {
                 llvm::BasicBlock *ElsifThenBB = llvm::BasicBlock::Create(LLVMCtx, "elsifthen", Fn, EndBB);
 
                 llvm::BasicBlock *NextElsifBB;
@@ -526,7 +395,7 @@ void CodeGenModule::GenIfBlock(llvm::Function *Fn, ASTIfBlock *If) {
                 } else {
                     NextElsifBB = llvm::BasicBlock::Create(LLVMCtx, "elsif", Fn, EndBB);
                 }
-                ASTElsifBlock *Elsif = If->getElsif()[i];
+                ASTElsifBlock *Elsif = If->getElsifBlocks()[i];
                 Builder->SetInsertPoint(ElsifBB);
                 ASTBoolType * BoolType = new ASTBoolType(SourceLocation());
                 llvm::Value *ElsifCond = GenExpr(Fn, BoolType, Elsif->getCondition());
@@ -544,7 +413,7 @@ void CodeGenModule::GenIfBlock(llvm::Function *Fn, ASTIfBlock *If) {
         // Create Else block
         llvm::BasicBlock *ElseBB = llvm::BasicBlock::Create(LLVMCtx, "else", Fn, EndBB);
 
-        if (If->getElsif().empty()) { // If - Else
+        if (If->getElsifBlocks().empty()) { // If - Else
             Builder->CreateCondBr(IfCond, IfBB, ElseBB);
             GenBlock(Fn, If->getContent(), IfBB);
             Builder->CreateBr(EndBB);
@@ -557,8 +426,8 @@ void CodeGenModule::GenIfBlock(llvm::Function *Fn, ASTIfBlock *If) {
             Builder->CreateBr(EndBB);
 
             // Create Elsif Blocks
-            unsigned long Size = If->getElsif().size();
-            for (unsigned long i = 0; i < If->getElsif().size(); i++) {
+            unsigned long Size = If->getElsifBlocks().size();
+            for (unsigned long i = 0; i < If->getElsifBlocks().size(); i++) {
                 llvm::BasicBlock *ElsifThenBB = llvm::BasicBlock::Create(LLVMCtx, "elsifthen", Fn, ElseBB);
 
                 llvm::BasicBlock *NextElsifBB;
@@ -567,7 +436,7 @@ void CodeGenModule::GenIfBlock(llvm::Function *Fn, ASTIfBlock *If) {
                 } else {
                     NextElsifBB = llvm::BasicBlock::Create(LLVMCtx, "elsif", Fn, ElseBB);
                 }
-                ASTElsifBlock *Elsif = If->getElsif()[i];
+                ASTElsifBlock *Elsif = If->getElsifBlocks()[i];
                 Builder->SetInsertPoint(ElsifBB);
                 ASTBoolType * BoolType = new ASTBoolType(SourceLocation());
                 llvm::Value *ElsifCond = GenExpr(Fn, BoolType, Elsif->getCondition());
@@ -580,7 +449,7 @@ void CodeGenModule::GenIfBlock(llvm::Function *Fn, ASTIfBlock *If) {
             }
         }
 
-        GenBlock(Fn, If->getElse()->getContent(), ElseBB);
+        GenBlock(Fn, If->getElseBlock()->getContent(), ElseBB);
         Builder->CreateBr(EndBB);
     }
 
@@ -743,54 +612,4 @@ void CodeGenModule::GenWhileBlock(llvm::Function *Fn, ASTWhileBlock *While) {
 
     // Continue insertions into End Branch
     Builder->SetInsertPoint(EndBR);
-}
-
-void CodeGenModule::CheckMinMax(const ASTValue &Val, const char *Type, uint64_t Min, uint64_t Max) {
-    std::string Str = Val.str();
-    const char *c = Str.c_str();
-    int Sign = 1;
-    int Radix = 10;
-    uint64_t Result = 0;
-
-    // Check Negative number
-    if (*c == '-') {
-        Sign = -1;
-        if (Min == 0) {
-            Diag(Val.getLocation(), diag::err_value_unexpected_neg) << Type << Str;
-            return;
-        }
-        c++;
-    }
-
-    // Check if zero, hexadecimal or decimal
-    if (*c == '0') {
-        c++;
-
-        if (*c == 'x') {
-            c++;
-            Radix = 0xF;
-        }
-    }
-
-    for (; *c!='\0'; c++) {
-        Result = Result * Radix + *c - '0';
-        if (Result < 0) {
-            if (Sign > 0)
-                Diag(Val.getLocation(), diag::err_value_max_overflow) << Type << Str;
-            else if (Sign < 0)
-                Diag(Val.getLocation(), diag::err_value_min_underflow) << Type << Str;
-            return;
-        }
-    }
-
-    if (Result > Max) {
-        Diag(Val.getLocation(), diag::err_value_max_overflow) << Type << Str;
-        return;
-    }
-
-    if ((Min == 0 && Result < 0) || Result > Min) {
-        Diag(Val.getLocation(), diag::err_value_min_underflow) << Type << Str;
-        return;
-    }
-
 }

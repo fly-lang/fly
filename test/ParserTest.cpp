@@ -261,19 +261,184 @@ namespace {
         EXPECT_EQ(VerifyA->isConstant(), true);
         EXPECT_EQ(VerifyA->getType()->getKind(), TypeKind::TYPE_INT);
         EXPECT_EQ(VerifyA->getName(), "a");
-        EXPECT_EQ(((ASTValueExpr *)VerifyA->getExpr())->getValue().str(), "1");
+        EXPECT_EQ(((ASTIntegerValue &) ((ASTValueExpr *)VerifyA->getExpr())->getValue()).getValue(), 1);
 
         EXPECT_EQ(VerifyB->getVisibility(), VisibilityKind::V_PUBLIC);
         EXPECT_EQ(VerifyB->isConstant(), true);
         EXPECT_EQ(VerifyB->getType()->getKind(), TypeKind::TYPE_FLOAT);
         EXPECT_EQ(VerifyB->getName(), "b");
-        EXPECT_EQ(((ASTValueExpr *)VerifyB->getExpr())->getValue().str(), "2.0");
+        EXPECT_EQ(((ASTFloatingValue &) ((ASTValueExpr *) VerifyB->getExpr())->getValue()).getValue(), "2.0");
 
         EXPECT_EQ(VerifyC->getVisibility(), VisibilityKind::V_DEFAULT);
         EXPECT_EQ(VerifyC->isConstant(), true);
         EXPECT_EQ(VerifyC->getType()->getKind(), TypeKind::TYPE_BOOL);
         EXPECT_EQ(VerifyC->getName(), "c");
-        EXPECT_EQ(((ASTValueExpr *)VerifyC->getExpr())->getValue().str(), "false");
+        EXPECT_EQ(((ASTBoolValue &) ((ASTValueExpr *)VerifyC->getExpr())->getValue()).getValue(), false);
+
+        delete AST;
+    }
+
+    TEST_F(ParserTest, GlobalArray) {
+        llvm::StringRef str = (
+                               "byte[] a\n" // array of zero bytes
+                               "byte[] b = {}\n"
+                               "byte[] c = {1, 2, 3}\n"
+                               "byte[3] d\n" // array of 4 bytes without values
+                               "byte[3] e = {1, 2, 3}\n"
+
+        );
+        ASTNode *AST = Parse("GlobalArray", str);
+        ASSERT_FALSE(Diags.hasErrorOccurred());
+
+        ASTGlobalVar *a = AST->getGlobalVars().find("a")->getValue();
+        ASTGlobalVar *b = AST->getGlobalVars().find("b")->getValue();
+        ASTGlobalVar *c = AST->getGlobalVars().find("c")->getValue();
+        ASTGlobalVar *d = AST->getGlobalVars().find("d")->getValue();
+        ASTGlobalVar *e = AST->getGlobalVars().find("e")->getValue();
+
+        // a
+        EXPECT_EQ(a->getType()->getKind(), TypeKind::TYPE_ARRAY);
+        EXPECT_EQ(((ASTArrayType *) a->getType())->getType()->getKind(), TypeKind::TYPE_BYTE);
+        EXPECT_EQ(((ASTIntegerValue &) ((ASTValueExpr *)((ASTArrayType *) a->getType())->getSize())->getValue()).getValue(), 0);
+        EXPECT_EQ(a->getExpr(), nullptr);
+
+        // b
+        EXPECT_EQ(b->getType()->getKind(), TypeKind::TYPE_ARRAY);
+        EXPECT_EQ(((ASTArrayType *) b->getType())->getType()->getKind(), TypeKind::TYPE_BYTE);
+        EXPECT_EQ(((ASTIntegerValue &) ((ASTValueExpr *)((ASTArrayType *) b->getType())->getSize())->getValue()).getValue(), 0);
+        EXPECT_NE(b->getExpr(), nullptr);
+        ASTValueExpr *bExpr = (ASTValueExpr *) b->getExpr();
+        EXPECT_EQ(((const ASTArrayValue &) bExpr->getValue()).getType()->getKind(), TypeKind::TYPE_ARRAY);
+        EXPECT_EQ(((ASTArrayType *) ((const ASTArrayValue &) bExpr->getValue()).getType())->getType()->getKind(), TypeKind::TYPE_BYTE);
+        EXPECT_EQ(((const ASTArrayValue &) bExpr->getValue()).size(), 0);
+        EXPECT_TRUE(((const ASTArrayValue &) bExpr->getValue()).empty());
+
+        // c
+        EXPECT_EQ(c->getType()->getKind(), TypeKind::TYPE_ARRAY);
+        EXPECT_EQ(((ASTArrayType *) c->getType())->getType()->getKind(), TypeKind::TYPE_BYTE);
+        EXPECT_EQ(((ASTIntegerValue &) ((ASTValueExpr *)((ASTArrayType *) c->getType())->getSize())->getValue()).getValue(), 3);
+        EXPECT_NE(c->getExpr(), nullptr);
+        ASTValueExpr *cExpr = (ASTValueExpr *) c->getExpr();
+        EXPECT_EQ(((const ASTArrayValue &) cExpr->getValue()).getType()->getKind(), TypeKind::TYPE_ARRAY);
+        EXPECT_EQ(((ASTArrayType *) ((const ASTArrayValue &) cExpr->getValue()).getType())->getType()->getKind(), TypeKind::TYPE_BYTE);
+        EXPECT_EQ(((const ASTArrayValue &) cExpr->getValue()).size(), 3);
+        EXPECT_FALSE(((const ASTArrayValue &) cExpr->getValue()).empty());
+        EXPECT_EQ(((const ASTArrayValue &) cExpr->getValue()).getValues()[0]->str(), "1");
+        EXPECT_EQ(((const ASTArrayValue &) cExpr->getValue()).getValues()[1]->str(), "2");
+        EXPECT_EQ(((const ASTArrayValue &) cExpr->getValue()).getValues()[2]->str(), "3");
+
+        // d
+        EXPECT_EQ(d->getType()->getKind(), TypeKind::TYPE_ARRAY);
+        EXPECT_EQ(((ASTArrayType *) d->getType())->getType()->getKind(), TypeKind::TYPE_BYTE);
+        EXPECT_EQ(((ASTIntegerValue &) ((ASTValueExpr *)((ASTArrayType *) d->getType())->getSize())->getValue()).getValue(), 3);
+        EXPECT_EQ(d->getExpr(), nullptr);
+
+        // e
+        EXPECT_EQ(e->getType()->getKind(), TypeKind::TYPE_ARRAY);
+        EXPECT_EQ(((ASTArrayType *) e->getType())->getType()->getKind(), TypeKind::TYPE_BYTE);
+        EXPECT_EQ(((ASTIntegerValue &) ((ASTValueExpr *)((ASTArrayType *) e->getType())->getSize())->getValue()).getValue(), 3);
+        EXPECT_NE(e->getExpr(), nullptr);
+        ASTValueExpr *eExpr = (ASTValueExpr *) c->getExpr();
+        EXPECT_EQ(((const ASTArrayValue &) eExpr->getValue()).getType()->getKind(), TypeKind::TYPE_ARRAY);
+        EXPECT_EQ(((ASTArrayType *) ((const ASTArrayValue &) eExpr->getValue()).getType())->getType()->getKind(), TypeKind::TYPE_BYTE);
+        EXPECT_EQ(((const ASTArrayValue &) eExpr->getValue()).size(), 3);
+        EXPECT_FALSE(((const ASTArrayValue &) eExpr->getValue()).empty());
+        EXPECT_EQ(((const ASTArrayValue &) eExpr->getValue()).getValues()[0]->str(), "1");
+        EXPECT_EQ(((const ASTArrayValue &) eExpr->getValue()).getValues()[1]->str(), "2");
+        EXPECT_EQ(((const ASTArrayValue &) eExpr->getValue()).getValues()[2]->str(), "3");
+
+        delete AST;
+    }
+
+    TEST_F(ParserTest, GlobalChar) {
+        llvm::StringRef str = (
+               "byte a = ''\n"
+               "byte b = 'b'\n"
+
+               "byte[] c = {'a', 'b', 'c', 0}\n"
+               "byte[2] d = {'', ''}\n" // Empty string
+        );
+        ASTNode *AST = Parse("GlobalChar", str);
+        ASSERT_FALSE(Diags.hasErrorOccurred());
+
+        ASTGlobalVar *a = AST->getGlobalVars().find("a")->getValue();
+        ASTGlobalVar *b = AST->getGlobalVars().find("b")->getValue();
+        ASTGlobalVar *c = AST->getGlobalVars().find("c")->getValue();
+        ASTGlobalVar *d = AST->getGlobalVars().find("d")->getValue();
+
+        // a
+        EXPECT_EQ(a->getType()->getKind(), TypeKind::TYPE_BYTE);
+        EXPECT_NE(a->getExpr(), nullptr);
+        EXPECT_EQ(((ASTIntegerValue &) ((ASTValueExpr *)a->getExpr())->getValue()).getValue(), 0);
+
+        // b
+        EXPECT_EQ(b->getType()->getKind(), TypeKind::TYPE_BYTE);
+        EXPECT_NE(b->getExpr(), nullptr);
+        EXPECT_EQ(((ASTIntegerValue &) ((ASTValueExpr *)b->getExpr())->getValue()).getValue(), 'b');
+
+        // c
+        EXPECT_EQ(c->getType()->getKind(), TypeKind::TYPE_ARRAY);
+        EXPECT_EQ(((ASTArrayType *) c->getType())->getType()->getKind(), TypeKind::TYPE_BYTE);
+        EXPECT_EQ(((ASTIntegerValue &) ((ASTValueExpr *)((ASTArrayType *) c->getType())->getSize())->getValue()).getValue(), 4);
+        EXPECT_NE(c->getExpr(), nullptr);
+        ASTValueExpr *cExpr = (ASTValueExpr *) c->getExpr();
+        EXPECT_EQ(((const ASTArrayValue &) cExpr->getValue()).getType()->getKind(), TypeKind::TYPE_ARRAY);
+        EXPECT_EQ(((ASTArrayType *) ((const ASTArrayValue &) cExpr->getValue()).getType())->getType()->getKind(), TypeKind::TYPE_BYTE);
+        EXPECT_EQ(((const ASTArrayValue &) cExpr->getValue()).size(), 4);
+        EXPECT_FALSE(((const ASTArrayValue &) cExpr->getValue()).empty());
+        EXPECT_EQ(((ASTIntegerValue *) ((const ASTArrayValue &) cExpr->getValue()).getValues()[0])->getValue(), (uint64_t)'a');
+        EXPECT_EQ(((ASTIntegerValue *) ((const ASTArrayValue &) cExpr->getValue()).getValues()[1])->getValue(), 'b');
+        EXPECT_EQ(((ASTIntegerValue *) ((const ASTArrayValue &) cExpr->getValue()).getValues()[2])->getValue(), 'c');
+        EXPECT_EQ(((ASTIntegerValue *) ((const ASTArrayValue &) cExpr->getValue()).getValues()[3])->getValue(), 0);
+
+        // d
+        EXPECT_EQ(d->getType()->getKind(), TypeKind::TYPE_ARRAY);
+        EXPECT_EQ(((ASTArrayType *) d->getType())->getType()->getKind(), TypeKind::TYPE_BYTE);
+        EXPECT_EQ(((ASTIntegerValue &) ((ASTValueExpr *)((ASTArrayType *) d->getType())->getSize())->getValue()).getValue(), 2);
+        EXPECT_NE(d->getExpr(), nullptr);
+        ASTValueExpr *dExpr = (ASTValueExpr *) d->getExpr();
+        EXPECT_EQ(((const ASTArrayValue &) dExpr->getValue()).getType()->getKind(), TypeKind::TYPE_ARRAY);
+        EXPECT_EQ(((ASTArrayType *) ((const ASTArrayValue &) dExpr->getValue()).getType())->getType()->getKind(), TypeKind::TYPE_BYTE);
+        EXPECT_EQ(((const ASTArrayValue &) dExpr->getValue()).size(), 2);
+        EXPECT_FALSE(((const ASTArrayValue &) dExpr->getValue()).empty());
+        EXPECT_EQ(((const ASTArrayValue &) dExpr->getValue()).getValues()[0]->str(), "0");
+        EXPECT_EQ(((const ASTArrayValue &) dExpr->getValue()).getValues()[1]->str(), "0");
+
+        delete AST;
+    }
+
+    TEST_F(ParserTest, GlobalString) {
+        llvm::StringRef str = (
+               "byte[] a = \"\"\n" // array of zero bytes
+               "byte[] b = \"abc\"\n" // string abc/0 -> array of 4 bytes
+        );
+        ASTNode *AST = Parse("GlobalString", str);
+        ASSERT_FALSE(Diags.hasErrorOccurred());
+
+        ASTGlobalVar *a = AST->getGlobalVars().find("a")->getValue();
+        ASTGlobalVar *b = AST->getGlobalVars().find("b")->getValue();
+
+        // a
+        EXPECT_EQ(a->getType()->getKind(), TypeKind::TYPE_ARRAY);
+        EXPECT_EQ(((ASTArrayType *) a->getType())->getType()->getKind(), TypeKind::TYPE_BYTE);
+        EXPECT_EQ(((ASTIntegerValue &) ((ASTValueExpr *)((ASTArrayType *) a->getType())->getSize())->getValue()).getValue(), 0);
+        EXPECT_NE(a->getExpr(), nullptr);
+        const ASTValue &Val = ((ASTValueExpr *) a->getExpr())->getValue();
+        EXPECT_EQ(((ASTArrayValue &) Val).getValues().size(), 0);
+
+        // b
+        EXPECT_EQ(b->getType()->getKind(), TypeKind::TYPE_ARRAY);
+        EXPECT_EQ(((ASTArrayType *) b->getType())->getType()->getKind(), TypeKind::TYPE_BYTE);
+        EXPECT_EQ(((ASTArrayValue &) ((ASTValueExpr *) b->getExpr())->getValue()).getValues().size(), 3);
+        EXPECT_NE(b->getExpr(), nullptr);
+        ASTValueExpr *bExpr = (ASTValueExpr *) b->getExpr();
+        EXPECT_EQ(((const ASTArrayValue &) bExpr->getValue()).getType()->getKind(), TypeKind::TYPE_ARRAY);
+        EXPECT_EQ(((ASTArrayType *) ((const ASTArrayValue &) bExpr->getValue()).getType())->getType()->getKind(), TypeKind::TYPE_BYTE);
+        EXPECT_EQ(((const ASTArrayValue &) bExpr->getValue()).size(), 3);
+        EXPECT_FALSE(((const ASTArrayValue &) bExpr->getValue()).empty());
+        EXPECT_EQ(((const ASTArrayValue &) bExpr->getValue()).getValues()[0]->str(), "97");
+        EXPECT_EQ(((const ASTArrayValue &) bExpr->getValue()).getValues()[1]->str(), "98");
+        EXPECT_EQ(((const ASTArrayValue &) bExpr->getValue()).getValues()[2]->str(), "99");
 
         delete AST;
     }
@@ -330,6 +495,7 @@ namespace {
         EXPECT_EQ(Par2->isConstant(), false);
         EXPECT_EQ(Par2->getExpr()->getKind(), ASTExprKind::EXPR_VALUE);
         ASTValueExpr *DefArg2 = (ASTValueExpr *)Par2->getExpr();
+        EXPECT_EQ(((ASTBoolValue &) DefArg2->getValue()).getValue(), false);
         EXPECT_EQ(DefArg2->getValue().str(), "false");
 
         ASTReturn *Return = (ASTReturn *) VerifyFunc->getBody()->getContent()[0];
@@ -340,88 +506,92 @@ namespace {
         delete AST;
     }
 
-    TEST_F(ParserTest, BoolDefaultVarReturn) {
-        llvm::StringRef str = ("bool func() {\n"
-                                 "  bool c"
-                                 "  return c\n"
-                                 "}\n");
-        ASTNode *AST = Parse("BoolDefaultVarReturn", str);
-
-        ASSERT_FALSE(Diags.hasErrorOccurred());
-
-        // Get Body
-        ASTFunc *F = *(AST->getNameSpace()->getFunctions().begin());
-        EXPECT_EQ(F->getType()->getKind(), TypeKind::TYPE_BOOL);
-        const ASTBlock *Body = F->getBody();
-
-        // Test: bool c
-        ASTLocalVar *cVar = (ASTLocalVar *) Body->getContent()[0];
-        EXPECT_EQ(cVar->getName(), "c");
-        EXPECT_EQ(cVar->getType()->getKind(), TypeKind::TYPE_BOOL);
-        ASSERT_EQ(((ASTValueExpr *) cVar->getExpr())->getValue().str(), "false");
-
-        const ASTReturn *Ret = (ASTReturn *) Body->getContent()[1];
-        ASTVarRefExpr *RetRef = (ASTVarRefExpr *) Ret->getExpr();
-        EXPECT_EQ(RetRef->getVarRef()->getName(), "c");
-
-        delete AST;
-    }
-
-    TEST_F(ParserTest, IntDefaultVarReturn) {
-        llvm::StringRef str = ("int func() {\n"
-                               "  int c"
-                               "  return c\n"
+    TEST_F(ParserTest, DefaultLocalVar) {
+        llvm::StringRef str = ("void func() {\n"
+                               "bool a\n"
+                               "byte b\n"
+                               "short c\n"
+                               "ushort d\n"
+                               "int e\n"
+                               "uint f\n"
+                               "long g\n"
+                               "ulong h\n"
+                               "float i\n"
+                               "double j\n"
                                "}\n");
-        ASTNode *AST = Parse("IntDefaultVarReturn", str);
+        ASTNode *AST = Parse("DefaultLocalVar", str);
 
         ASSERT_FALSE(Diags.hasErrorOccurred());
 
         // Get Body
         ASTFunc *F = *(AST->getNameSpace()->getFunctions().begin());
-        EXPECT_EQ(F->getType()->getKind(), TypeKind::TYPE_INT);
+        EXPECT_EQ(F->getType()->getKind(), TypeKind::TYPE_VOID);
         const ASTBlock *Body = F->getBody();
 
-        // Test: int c
-        ASTLocalVar *cVar = (ASTLocalVar *) Body->getContent()[0];
-        EXPECT_EQ(cVar->getName(), "c");
-        EXPECT_EQ(cVar->getType()->getKind(), TypeKind::TYPE_INT);
-        ASSERT_EQ(((ASTValueExpr *) cVar->getExpr())->getValue().str(), "0");
+        // Test: bool a
+        ASTLocalVar *aVar = (ASTLocalVar *) Body->getContent()[0];
+        EXPECT_EQ(aVar->getName(), "a");
+        EXPECT_EQ(aVar->getType()->getKind(), TypeKind::TYPE_BOOL);
+        ASSERT_EQ(aVar->getExpr(), nullptr);
 
-        const ASTReturn *Ret = (ASTReturn *) Body->getContent()[1];
-        ASTVarRefExpr *RetRef = (ASTVarRefExpr *) Ret->getExpr();
-        EXPECT_EQ(RetRef->getVarRef()->getName(), "c");
+        // Test: byte b
+        ASTLocalVar *bVar = (ASTLocalVar *) Body->getContent()[1];
+        EXPECT_EQ(bVar->getName(), "b");
+        EXPECT_EQ(bVar->getType()->getKind(), TypeKind::TYPE_BYTE);
+        ASSERT_EQ(bVar->getExpr(), nullptr);
+
+        // Test: short c
+        ASTLocalVar *cVar = (ASTLocalVar *) Body->getContent()[2];
+        EXPECT_EQ(cVar->getName(), "c");
+        EXPECT_EQ(cVar->getType()->getKind(), TypeKind::TYPE_SHORT);
+        ASSERT_EQ(cVar->getExpr(), nullptr);
+
+        // Test: ushort d
+        ASTLocalVar *dVar = (ASTLocalVar *) Body->getContent()[3];
+        EXPECT_EQ(dVar->getName(), "d");
+        EXPECT_EQ(dVar->getType()->getKind(), TypeKind::TYPE_USHORT);
+        ASSERT_EQ(dVar->getExpr(), nullptr);
+
+        // Test: int e
+        ASTLocalVar *eVar = (ASTLocalVar *) Body->getContent()[4];
+        EXPECT_EQ(eVar->getName(), "e");
+        EXPECT_EQ(eVar->getType()->getKind(), TypeKind::TYPE_INT);
+        ASSERT_EQ(eVar->getExpr(), nullptr);
+
+        // Test: uint f
+        ASTLocalVar *fVar = (ASTLocalVar *) Body->getContent()[5];
+        EXPECT_EQ(fVar->getName(), "f");
+        EXPECT_EQ(fVar->getType()->getKind(), TypeKind::TYPE_UINT);
+        ASSERT_EQ(fVar->getExpr(), nullptr);
+
+        // Test: long g
+        ASTLocalVar *gVar = (ASTLocalVar *) Body->getContent()[6];
+        EXPECT_EQ(gVar->getName(), "g");
+        EXPECT_EQ(gVar->getType()->getKind(), TypeKind::TYPE_LONG);
+        ASSERT_EQ(gVar->getExpr(), nullptr);
+
+        // Test: ulong h
+        ASTLocalVar *hVar = (ASTLocalVar *) Body->getContent()[7];
+        EXPECT_EQ(hVar->getName(), "h");
+        EXPECT_EQ(hVar->getType()->getKind(), TypeKind::TYPE_ULONG);
+        ASSERT_EQ(hVar->getExpr(), nullptr);
+
+        // Test: float i
+        ASTLocalVar *iVar = (ASTLocalVar *) Body->getContent()[8];
+        EXPECT_EQ(iVar->getName(), "i");
+        EXPECT_EQ(iVar->getType()->getKind(), TypeKind::TYPE_FLOAT);
+        ASSERT_EQ(iVar->getExpr(), nullptr);
+
+        // Test: double j
+        ASTLocalVar *jVar = (ASTLocalVar *) Body->getContent()[9];
+        EXPECT_EQ(jVar->getName(), "j");
+        EXPECT_EQ(jVar->getType()->getKind(), TypeKind::TYPE_DOUBLE);
+        ASSERT_EQ(jVar->getExpr(), nullptr);
 
         delete AST;
     }
 
-    TEST_F(ParserTest, FloatDefaultVarReturn) {
-        llvm::StringRef str = ("float func() {\n"
-                               "  float c"
-                               "  return c\n"
-                               "}\n");
-        ASTNode *AST = Parse("FloatDefaultVarReturn", str);
-
-        ASSERT_FALSE(Diags.hasErrorOccurred());
-
-        // Get Body
-        ASTFunc *F = *(AST->getNameSpace()->getFunctions().begin());
-        EXPECT_EQ(F->getType()->getKind(), TypeKind::TYPE_FLOAT);
-        const ASTBlock *Body = F->getBody();
-
-        // Test: int c
-        ASTLocalVar *cVar = (ASTLocalVar *) Body->getContent()[0];
-        EXPECT_EQ(cVar->getName(), "c");
-        EXPECT_EQ(cVar->getType()->getKind(), TypeKind::TYPE_FLOAT);
-        ASSERT_EQ(((ASTValueExpr *) cVar->getExpr())->getValue().str(), "0");
-
-        const ASTReturn *Ret = (ASTReturn *) Body->getContent()[1];
-        ASTVarRefExpr *RetRef = (ASTVarRefExpr *) Ret->getExpr();
-        EXPECT_EQ(RetRef->getVarRef()->getName(), "c");
-
-        delete AST;
-    }
-
-    TEST_F(ParserTest, TypeDefaultVarReturn) {
+    TEST_F(ParserTest, DISABLED_TypeDefaultVarReturn) {
         llvm::StringRef str = ("Type func() {\n"
                                "  Type t"
                                "  return t\n"
@@ -556,7 +726,7 @@ namespace {
                                "  bool b = a || false && a == true"
                                "  return c\n"
                                "}\n");
-        ASTNode *AST = Parse("FloatBinaryArithOperation", str);
+        ASTNode *AST = Parse("BoolBinaryLogicOperation", str);
 
         ASSERT_FALSE(Diags.hasErrorOccurred());
 
@@ -605,7 +775,7 @@ namespace {
                                "  long b = (a + b) / (a - b)\n"
                                "  return b\n"
                                "}\n");
-        ASTNode *AST = Parse("IntBinaryArithOperation", str);
+        ASTNode *AST = Parse("LongBinaryArithOperation", str);
 
         ASSERT_FALSE(Diags.hasErrorOccurred());
 
@@ -681,7 +851,7 @@ namespace {
                                "  doOther(a, 1)"
                                "  return do()"
                                "}\n");
-        ASTNode *AST = Parse("FunctionBodyCallFunc", str);
+        ASTNode *AST = Parse("FunctionCall", str);
 
         ASSERT_FALSE(Diags.hasErrorOccurred());
 
@@ -740,7 +910,7 @@ namespace {
                          "  a--"
                          "  a = ++a + 1"
                          "}\n");
-        ASTNode *AST = Parse("FunctionBodyIncDec", str);
+        ASTNode *AST = Parse("UnaryExpr", str);
 
         ASSERT_FALSE(Diags.hasErrorOccurred());
 
@@ -802,7 +972,7 @@ namespace {
                          "    b = 2"
                          "  }"
                          "}\n");
-        ASTNode *AST = Parse("FunctionBodyIfStmt", str);
+        ASTNode *AST = Parse("IfElsifElseStmt", str);
 
         ASSERT_FALSE(Diags.hasErrorOccurred());
 
@@ -810,30 +980,29 @@ namespace {
         ASTFunc *F = *(AST->getNameSpace()->getFunctions().begin());
         const ASTBlock *Body = F->getBody();
 
-        // if
-        ASTIfBlock *Stmt = (ASTIfBlock *) Body->getContent()[0];
-        EXPECT_EQ(Stmt->getBlockKind(), ASTBlockKind::BLOCK_STMT_IF);
-        ASTBinaryGroupExpr *IfCond = (ASTBinaryGroupExpr *) Stmt->getCondition();
+        // If
+        ASTIfBlock *IfBlock = (ASTIfBlock *) Body->getContent()[0];
+        EXPECT_EQ(IfBlock->getBlockKind(), ASTBlockKind::BLOCK_STMT_IF);
+        ASTBinaryGroupExpr *IfCond = (ASTBinaryGroupExpr *) IfBlock->getCondition();
         EXPECT_EQ(((ASTVarRefExpr *) IfCond->getFirst())->getVarRef()->getName(), "a");
         EXPECT_EQ(IfCond->getOperatorKind(),BinaryOpKind::COMP_EQ);
         EXPECT_EQ(((ASTValueExpr *) IfCond->getSecond())->getValue().str(), "1");
-        EXPECT_TRUE(((ASTReturn *) Stmt->getContent()[0])->getExpr() == nullptr);
-        EXPECT_FALSE(Stmt->getElsif().empty());
-        EXPECT_TRUE(Stmt->getElse());
+        EXPECT_TRUE(((ASTReturn *) IfBlock->getContent()[0])->getExpr() == nullptr);
+        EXPECT_FALSE(IfBlock->getElsifBlocks().empty());
+        EXPECT_TRUE(IfBlock->getElseBlock());
 
         // Elsif
-        ASTElsifBlock *EIStmt = (ASTElsifBlock *) Body->getContent()[1];
-        EXPECT_EQ(EIStmt->getBlockKind(), ASTBlockKind::BLOCK_STMT_ELSIF);
-        ASTBinaryGroupExpr *ElsifCond = (ASTBinaryGroupExpr *) EIStmt->getCondition();
+        ASTElsifBlock *ElsifBlock = IfBlock->getElsifBlocks()[0];
+        ASTBinaryGroupExpr *ElsifCond = (ASTBinaryGroupExpr *) ElsifBlock->getCondition();
         EXPECT_EQ(((ASTVarRefExpr *) ElsifCond->getFirst())->getVarRef()->getName(), "a");
         EXPECT_EQ(ElsifCond->getOperatorKind(), BinaryOpKind::COMP_EQ);
         EXPECT_EQ(((ASTValueExpr *) ElsifCond->getSecond())->getValue().str(), "2");
-        EXPECT_EQ(((ASTLocalVarRef *) EIStmt->getContent()[0])->getName(), "b");
+        EXPECT_EQ(((ASTLocalVarRef *) ElsifBlock->getContent()[0])->getName(), "b");
 
         // Else
-        ASTElseBlock *EEStmt = (ASTElseBlock *) Body->getContent()[2];
-        EXPECT_EQ(EEStmt->getBlockKind(), ASTBlockKind::BLOCK_STMT_ELSE);
-        EXPECT_EQ(((ASTLocalVarRef *)EEStmt->getContent()[0])->getName(), "b");
+        ASTElseBlock *ElseBlock = IfBlock->getElseBlock();
+        EXPECT_EQ(ElseBlock->getBlockKind(), ASTBlockKind::BLOCK_STMT_ELSE);
+        EXPECT_EQ(((ASTLocalVarRef *)ElseBlock->getContent()[0])->getName(), "b");
 
         delete AST;
     }
@@ -845,7 +1014,7 @@ namespace {
                          "  elsif a == 2 a = 1"
                          "  else a = 2"
                          "}\n");
-        ASTNode *AST = Parse("FunctionBodyIfInlineStmt", str);
+        ASTNode *AST = Parse("IfElsifElseInlineStmt", str);
 
         ASSERT_FALSE(Diags.hasErrorOccurred());
 
@@ -854,29 +1023,29 @@ namespace {
         const ASTBlock *Body = F->getBody();
 
         // if
-        ASTIfBlock *Stmt = (ASTIfBlock *) Body->getContent()[0];
-        EXPECT_EQ(Stmt->getBlockKind(), ASTBlockKind::BLOCK_STMT_IF);
-        ASTBinaryGroupExpr *IfCond = (ASTBinaryGroupExpr *) Stmt->getCondition();
+        ASTIfBlock *IfBlock = (ASTIfBlock *) Body->getContent()[0];
+        EXPECT_EQ(IfBlock->getBlockKind(), ASTBlockKind::BLOCK_STMT_IF);
+        ASTBinaryGroupExpr *IfCond = (ASTBinaryGroupExpr *) IfBlock->getCondition();
         EXPECT_EQ(((ASTVarRefExpr *) IfCond->getFirst())->getVarRef()->getName(), "a");
         EXPECT_EQ(IfCond->getOperatorKind(), BinaryOpKind::COMP_EQ);
         EXPECT_EQ(((ASTValueExpr *) IfCond->getSecond())->getValue().str(), "1");
-        EXPECT_TRUE(((ASTReturn *) Stmt->getContent()[0])->getExpr() == nullptr);
+        EXPECT_TRUE(((ASTReturn *) IfBlock->getContent()[0])->getExpr() == nullptr);
 
-        EXPECT_FALSE(Stmt->getElsif().empty());
-        EXPECT_TRUE(Stmt->getElse());
+        EXPECT_FALSE(IfBlock->getElsifBlocks().empty());
+        EXPECT_TRUE(IfBlock->getElseBlock());
 
         // Elsif
-        ASTElsifBlock *EIStmt = (ASTElsifBlock *) Body->getContent()[1];
-        EXPECT_EQ(EIStmt->getBlockKind(), ASTBlockKind::BLOCK_STMT_ELSIF);
-        ASTBinaryGroupExpr *ElsifCond = (ASTBinaryGroupExpr *) EIStmt->getCondition();
+        ASTElsifBlock *ElsifBlock = IfBlock->getElsifBlocks()[0];
+        EXPECT_EQ(ElsifBlock->getBlockKind(), ASTBlockKind::BLOCK_STMT_ELSIF);
+        ASTBinaryGroupExpr *ElsifCond = (ASTBinaryGroupExpr *) ElsifBlock->getCondition();
         EXPECT_EQ(((ASTVarRefExpr *) ElsifCond->getFirst())->getVarRef()->getName(), "a");
         EXPECT_EQ(ElsifCond->getOperatorKind(), BinaryOpKind::COMP_EQ);
         EXPECT_EQ(((ASTValueExpr *) ElsifCond->getSecond())->getValue().str(), "2");
 
         // Else
-        ASTElseBlock *EEStmt = (ASTElseBlock *) Body->getContent()[2];
-        EXPECT_EQ(EEStmt->getBlockKind(), ASTBlockKind::BLOCK_STMT_ELSE);
-        EXPECT_EQ(((ASTLocalVarRef *) EEStmt->getContent()[0])->getName(), "a");
+        ASTElseBlock *ElseBlock = IfBlock->getElseBlock();
+        EXPECT_EQ(ElseBlock->getBlockKind(), ASTBlockKind::BLOCK_STMT_ELSE);
+        EXPECT_EQ(((ASTLocalVarRef *) ElseBlock->getContent()[0])->getName(), "a");
 
         delete AST;
     }
@@ -892,7 +1061,7 @@ namespace {
                          "      return"
                          "  }"
                          "}\n");
-        ASTNode *AST = Parse("FunctionBodySwitchStmt", str);
+        ASTNode *AST = Parse("SwitchCaseDefaultStmt", str);
 
         ASSERT_FALSE(Diags.hasErrorOccurred());
 
@@ -900,14 +1069,14 @@ namespace {
         ASTFunc *F = *(AST->getFunctions().begin());
         const ASTBlock *Body = F->getBody();
 
-        ASTSwitchBlock *Stmt = (ASTSwitchBlock *) Body->getContent()[0];
-        EXPECT_EQ(Stmt->getBlockKind(), ASTBlockKind::BLOCK_STMT_SWITCH);
-        EXPECT_EQ(((ASTValueExpr *) Stmt->getCases()[0]->getExpr())->getValue().str(), "1");
-        EXPECT_EQ(Stmt->getCases()[0]->getContent()[0]->getKind(), StmtKind::STMT_BREAK);
-        EXPECT_EQ(((ASTValueExpr *) Stmt->getCases()[1]->getExpr())->getValue().str(), "2");
-        EXPECT_TRUE(Stmt->getCases()[1]->getContent().empty());
-        EXPECT_EQ(Stmt->getDefault()->getBlockKind(), ASTBlockKind::BLOCK_STMT_DEFAULT);
-        EXPECT_EQ((Stmt->getDefault()->getContent()[0])->getKind(), StmtKind::STMT_RETURN);
+        ASTSwitchBlock *SwitchBlock = (ASTSwitchBlock *) Body->getContent()[0];
+        EXPECT_EQ(SwitchBlock->getBlockKind(), ASTBlockKind::BLOCK_STMT_SWITCH);
+        EXPECT_EQ(((ASTValueExpr *) SwitchBlock->getCases()[0]->getExpr())->getValue().str(), "1");
+        EXPECT_EQ(SwitchBlock->getCases()[0]->getContent()[0]->getKind(), StmtKind::STMT_BREAK);
+        EXPECT_EQ(((ASTValueExpr *) SwitchBlock->getCases()[1]->getExpr())->getValue().str(), "2");
+        EXPECT_TRUE(SwitchBlock->getCases()[1]->getContent().empty());
+        EXPECT_EQ(SwitchBlock->getDefault()->getBlockKind(), ASTBlockKind::BLOCK_STMT_DEFAULT);
+        EXPECT_EQ((SwitchBlock->getDefault()->getContent()[0])->getKind(), StmtKind::STMT_RETURN);
 
         delete AST;
     }
@@ -918,7 +1087,7 @@ namespace {
                          "  for int b = 1, int c = 2; b < 10; b++, --c {"
                          "  }"
                          "}\n");
-        ASTNode *AST = Parse("FunctionBodyForStmt", str);
+        ASTNode *AST = Parse("ForStmt", str);
 
         ASSERT_FALSE(Diags.hasErrorOccurred());
 
@@ -958,27 +1127,27 @@ namespace {
                          "  while (a==1) {}"
                          "  while {}"
                          "}\n");
-        ASTNode *AST = Parse("FunctionBodyWhileStmt", str);
+        ASTNode *AST = Parse("WhileStmt", str);
 
         ASSERT_FALSE(Diags.hasErrorOccurred());
 
         // Get Body
         ASTFunc *F = *(AST->getFunctions().begin());
         const ASTBlock *Body = F->getBody();
-        ASTWhileBlock *Stmt = (ASTWhileBlock *) Body->getContent()[0];
-        EXPECT_EQ(Stmt->getBlockKind(), ASTBlockKind::BLOCK_STMT_WHILE);
-        EXPECT_FALSE(Stmt->getCondition() == nullptr);
-        EXPECT_TRUE(Stmt->isEmpty());
+        ASTWhileBlock *WhileBlock = (ASTWhileBlock *) Body->getContent()[0];
+        EXPECT_EQ(WhileBlock->getBlockKind(), ASTBlockKind::BLOCK_STMT_WHILE);
+        EXPECT_FALSE(WhileBlock->getCondition() == nullptr);
+        EXPECT_TRUE(WhileBlock->isEmpty());
 
-        const ASTBinaryGroupExpr *Cond = (ASTBinaryGroupExpr *) Stmt->getCondition();
+        const ASTBinaryGroupExpr *Cond = (ASTBinaryGroupExpr *) WhileBlock->getCondition();
         EXPECT_EQ(((ASTVarRefExpr *) Cond->getFirst())->getVarRef()->getName(), "a");
         EXPECT_EQ(Cond->getOperatorKind(), COMP_EQ);
         EXPECT_EQ(((ASTValueExpr *) Cond->getSecond())->getValue().str(), "1");
 
-        ASTWhileBlock *Stmt2 = (ASTWhileBlock *) Body->getContent()[1];
-        EXPECT_EQ(Stmt2->getBlockKind(), ASTBlockKind::BLOCK_STMT_WHILE);
-        EXPECT_TRUE(Stmt2->getCondition() == nullptr);
-        EXPECT_TRUE(Stmt2->isEmpty());
+        ASTWhileBlock *WhileBlockEmpty = (ASTWhileBlock *) Body->getContent()[1];
+        EXPECT_EQ(WhileBlockEmpty->getBlockKind(), ASTBlockKind::BLOCK_STMT_WHILE);
+        EXPECT_TRUE(WhileBlockEmpty->getCondition() == nullptr);
+        EXPECT_TRUE(WhileBlockEmpty->isEmpty());
 
         delete AST;
     }

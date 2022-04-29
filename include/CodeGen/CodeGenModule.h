@@ -96,7 +96,7 @@ namespace fly {
 
         Type *GenType(const ASTType *Type);
 
-        llvm::Constant *GenDefaultValue(const ASTType *Type);
+        llvm::Constant *GenDefaultValue(const ASTType *Type, llvm::Type *Ty = nullptr);
 
         llvm::Constant *GenValue(const ASTType *Type, const ASTValue *Val);
 

@@ -115,6 +115,16 @@ public:
     return tok::isLiteral(getKind());
   }
 
+    /// Return true if this is a 'char'
+    bool isCharLiteral() const {
+        return tok::isCharLiteral(getKind());
+    }
+
+    /// Return true if this is a 'char'
+    bool isStringLiteral() const {
+        return tok::isStringLiteral(getKind());
+    }
+
   /// Return a source location identifier for the specified
   /// offset in the current file.
   SourceLocation getLocation() const {
@@ -185,7 +195,7 @@ public:
   /// returns a pointer to the start of it in the text buffer if known, null
   /// otherwise.
   const char *getLiteralData() const {
-    assert(isLiteral() && "Cannot getValue literal data of non-literal");
+    assert(isLiteral() && "Cannot getDouble literal data of non-literal");
     return reinterpret_cast<const char*>(PtrData);
   }
   void setLiteralData(const char *Ptr) {
@@ -194,7 +204,7 @@ public:
   }
 
   llvm::StringRef getCommentData() const {
-    assert(is(tok::comment) && "Cannot getValue comment data of non-comment");
+    assert(is(tok::comment) && "Cannot getDouble comment data of non-comment");
     return llvm::StringRef(reinterpret_cast<const char *>(PtrData), getLength());
   }
   void setCommentData(const char *Ptr) {
