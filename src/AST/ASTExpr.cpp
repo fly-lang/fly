@@ -11,7 +11,8 @@
 #include "AST/ASTExpr.h"
 #include "AST/ASTVar.h"
 #include "AST/ASTValue.h"
-#include "AST/ASTFunc.h"
+#include "AST/ASTFunction.h"
+#include "AST/ASTFunctionCall.h"
 
 using namespace fly;
 
@@ -27,7 +28,7 @@ ASTValueExpr::ASTValueExpr(ASTValue *Val) : ASTExpr(Val->getLocation()), Val(Val
 
 }
 
-ASTExprKind ASTValueExpr::getKind() const {
+ASTExprKind ASTValueExpr::getExprKind() const {
     return Kind;
 }
 
@@ -50,7 +51,7 @@ ASTVarRefExpr::ASTVarRefExpr(ASTVarRef *Ref) : ASTExpr(Ref->getLocation()), Ref(
 
 }
 
-ASTExprKind ASTVarRefExpr::getKind() const {
+ASTExprKind ASTVarRefExpr::getExprKind() const {
     return Kind;
 }
 
@@ -69,13 +70,13 @@ std::string ASTVarRefExpr::str() const {
            " }";
 }
 
-ASTFuncCallExpr::ASTFuncCallExpr(ASTFuncCall *Ref) : ASTExpr(Ref->getLocation()), Call(Ref) {}
+ASTFuncCallExpr::ASTFuncCallExpr(ASTFunctionCall *Ref) : ASTExpr(Ref->getLocation()), Call(Ref) {}
 
-ASTExprKind ASTFuncCallExpr::getKind() const {
+ASTExprKind ASTFuncCallExpr::getExprKind() const {
     return Kind;
 }
 
-ASTFuncCall *ASTFuncCallExpr::getCall() const {
+ASTFunctionCall *ASTFuncCallExpr::getCall() const {
     return Call;
 }
 
@@ -97,7 +98,7 @@ ASTGroupExpr::ASTGroupExpr(const SourceLocation &Loc,
 
 }
 
-ASTExprKind ASTGroupExpr::getKind() const {
+ASTExprKind ASTGroupExpr::getExprKind() const {
     return Kind;
 }
 
@@ -132,7 +133,7 @@ std::string ASTUnaryGroupExpr::str() const {
            ", Operator=" + std::to_string(OperatorKind) +
            ", Option=" + std::to_string(OptionKind) +
            ", Type=" + (getType() ? getType()->str() : "") +
-           ", Kind=" + std::to_string(getKind());
+           ", Kind=" + std::to_string(getExprKind());
 }
 
 ASTBinaryGroupExpr::ASTBinaryGroupExpr(const SourceLocation &Loc,
@@ -180,7 +181,7 @@ std::string ASTBinaryGroupExpr::str() const {
            ", Operator=" + std::to_string(OperatorKind) +
            ", Second=" + Second->str() +
            ", Type=" + (getType() ? getType()->str() : "") +
-           ", Kind=" + std::to_string(getKind());
+           ", Kind=" + std::to_string(getExprKind());
 }
 
 ASTTernaryGroupExpr::ASTTernaryGroupExpr(const SourceLocation &Loc,
@@ -219,5 +220,5 @@ std::string ASTTernaryGroupExpr::str() const {
            ", Second=" + Second->str() +
            ", Third=" + Third->str() +
            ", Type=" + (getType() ? getType()->str() : "") +
-           ", Kind=" + std::to_string(getKind());
+           ", Kind=" + std::to_string(getExprKind());
 }

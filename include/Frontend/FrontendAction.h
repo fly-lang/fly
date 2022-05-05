@@ -10,11 +10,11 @@
 #ifndef FLY_FRONTENDACTION_H
 #define FLY_FRONTENDACTION_H
 
-#include <CodeGen/CodeGen.h>
-
 namespace fly {
 
     class CodeGen;
+    class CodeGenHeader;
+    class SemaBuilder;
     class CodeGenModule;
     class CompilerInstance;
     class ASTNode;
@@ -29,6 +29,8 @@ namespace fly {
     class FrontendAction {
 
         CodeGen &CG;
+
+        SemaBuilder &Builder;
 
         Parser *P = nullptr;
 
@@ -56,7 +58,8 @@ namespace fly {
 
     public:
 
-        FrontendAction(const CompilerInstance &CI, ASTContext *Context, CodeGen &CG, InputFile *Input);
+        FrontendAction(const CompilerInstance &CI, ASTContext *Context, CodeGen &CG, SemaBuilder &Builder,
+                       InputFile *Input);
 
         ~FrontendAction();
 

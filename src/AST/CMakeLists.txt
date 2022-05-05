@@ -3,8 +3,10 @@ add_library(FlyAST
         ASTClass.cpp
         ASTContext.cpp
         ASTExpr.cpp
+        ASTExprStmt.cpp
         ASTForBlock.cpp
-        ASTFunc.cpp
+        ASTFunction.cpp
+        ASTFunctionCall.cpp
         ASTGlobalVar.cpp
         ASTIfBlock.cpp
         ASTImport.cpp
@@ -12,7 +14,7 @@ add_library(FlyAST
         ASTNameSpace.cpp
         ASTNode.cpp
         ASTNodeBase.cpp
-        ASTResolver.cpp
+        ASTParams.cpp
         ASTStmt.cpp
         ASTSwitchBlock.cpp
         ASTTopDecl.cpp
@@ -20,6 +22,7 @@ add_library(FlyAST
         ASTUnref.cpp
         ASTValue.cpp
         ASTVar.cpp
+        ASTVarAssign.cpp
         ASTWhileBlock.cpp
 )
 

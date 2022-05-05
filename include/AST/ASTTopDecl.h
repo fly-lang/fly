@@ -37,14 +37,12 @@ namespace fly {
 
     class ASTTopDecl {
 
-        friend class ASTNode;
-        friend class Parser;
+        friend class SemaBuilder;
 
     protected:
         ASTNode *Node;
 
-        // Function Name
-        const std::string Name;
+        ASTNameSpace *NameSpace;
 
         // File Source Location
         const SourceLocation Location;
@@ -58,7 +56,7 @@ namespace fly {
         std::string Comment;
 
     public:
-        ASTTopDecl(const SourceLocation &Loc, ASTNode *Node, TopDeclKind Kind);
+        ASTTopDecl(const SourceLocation &Loc, ASTNode *Node, TopDeclKind Kind,  VisibilityKind Visibility);
 
         ASTNode *getNode();
 
@@ -75,8 +73,6 @@ namespace fly {
         TopDeclKind getKind() const;
 
         const std::string &getComment() const;
-
-        void setComment(std::string &C);
 
         virtual std::string str() const;
     };

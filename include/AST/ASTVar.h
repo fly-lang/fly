@@ -19,6 +19,12 @@ namespace fly {
 
     class CodeGenVar;
 
+    enum ASTVarKind {
+        VAR_LOCAL,
+        VAR_GLOBAL,
+        VAR_CLASS
+    };
+
     /**
      * Base Var used in:
      *  - LocalVar
@@ -26,27 +32,24 @@ namespace fly {
      */
     class ASTVar {
 
-        friend class ASTNode;
-        friend class Parser;
-        friend class GlobalVarParser;
-        friend class FunctionParser;
-        friend class ASTLocalVar;
+        friend class SemaBuilder;
+
+        ASTVarKind VarKind;
 
     protected:
         ASTType *Type;
-        const std::string NameSpaceStr;
         const std::string Name;
         bool Constant = false;
-        bool Global = false;
+        ASTExpr *Expr = nullptr;
+
+        ASTVar(ASTVarKind VarKind, ASTType *Type, const std::string &Name, bool Constant);
 
     public:
-        ASTVar(ASTType *Type, const std::string &Name, const std::string &NameSpaceStr = "", bool Global = false);
-
         virtual ~ASTVar();
 
-        virtual CodeGenVar *getCodeGen() const = 0;
+        ASTVarKind getVarKind();
 
-        bool isGlobal() const;
+        virtual ASTVarRef *CreateVarRef() = 0;
 
         virtual bool isConstant() const;
 
@@ -54,11 +57,11 @@ namespace fly {
 
         virtual const std::string &getName() const;
 
-        const std::string &getPrefix() const;
+        void setExpr(ASTExpr *Exp);
 
-        virtual void setExpr(ASTExpr *Exp) = 0;
+        ASTExpr *getExpr() const;
 
-        virtual ASTExpr *getExpr() const = 0;
+        virtual CodeGenVar *getCodeGen() const = 0;
 
         virtual std::string str() const;
 
@@ -72,7 +75,7 @@ namespace fly {
      */
     class ASTVarRef {
 
-        friend class Parser;
+        friend class SemaBuilder;
 
         const SourceLocation Loc;
         const std::string NameSpace;
@@ -82,8 +85,6 @@ namespace fly {
 
     public:
         ASTVarRef(const SourceLocation &Loc, const std::string &Name, const std::string &NameSpace = "");
-
-        ASTVarRef(ASTVar *Var);
 
         const SourceLocation &getLocation() const;
 

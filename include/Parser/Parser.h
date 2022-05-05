@@ -18,7 +18,7 @@
 #include <AST/ASTStmt.h>
 #include <AST/ASTVar.h>
 #include <AST/ASTExpr.h>
-#include <AST/ASTFunc.h>
+#include <AST/ASTFunction.h>
 #include "Frontend/InputFile.h"
 #include "GlobalVarParser.h"
 #include "FunctionParser.h"
@@ -30,6 +30,7 @@
 namespace fly {
 
     class DiagnosticsEngine;
+    class SemaBuilder;
     class Lexer;
     class ASTValue;
     class ASTSingleValue;
@@ -41,6 +42,7 @@ namespace fly {
 
         friend class GlobalVarParser;
         friend class FunctionParser;
+        friend class ClassParser;
         friend class ExprParser;
 
         const InputFile &Input;
@@ -49,9 +51,11 @@ namespace fly {
 
         SourceManager &SourceMgr;
 
+        SemaBuilder &Builder;
+
         Lexer Lex;
 
-        ASTNode *AST;
+        ASTNode *Node;
 
         /// Tok - The current token we are peeking ahead.  All parsing methods assume
         /// that this is valid.
@@ -69,9 +73,9 @@ namespace fly {
 
     public:
 
-        Parser(const InputFile &Input, SourceManager &SourceMgr, DiagnosticsEngine &Diags);
+        Parser(const InputFile &Input, SourceManager &SourceMgr, DiagnosticsEngine &Diags, SemaBuilder &Builder);
 
-        bool Parse(ASTNode* Unit);
+        bool Parse(ASTNode* N);
         bool ParseHeader(ASTNode *Node);
 
         DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID);
@@ -110,9 +114,9 @@ namespace fly {
 
         bool ParseGlobalVarDecl(VisibilityKind &VisKind, bool &Constant, ASTType *Type);
 
-        bool ParseFunction(VisibilityKind &VisKind, bool Constant, ASTType *Type);
+        bool ParseFunction(VisibilityKind &Visibility, bool Constant, ASTType *Type);
 
-        bool ParseClassDecl(VisibilityKind &VisKind, bool &Constant);
+        bool ParseClass(VisibilityKind &Visibility, bool &Constant);
 
         bool ParseType(ASTType *&Type, bool OnlyBuiltin = false);
 
@@ -135,10 +139,13 @@ namespace fly {
         bool ParseIdentifier(llvm::StringRef &Name, llvm::StringRef &NameSpace, SourceLocation &Loc);
 
         // Parse Calls
-        ASTFuncCall * ParseFunctionCall(ASTBlock *Block, llvm::StringRef Name, llvm::StringRef NameSpace,
-                                        SourceLocation &Loc);
+        ASTFunctionCall * ParseFunctionCall(ASTBlock *Block, llvm::StringRef Name, llvm::StringRef NameSpace,
+                                            SourceLocation &Loc);
+        bool ParseCall(ASTBlock *Block, SourceLocation &Loc, llvm::StringRef Name, llvm::StringRef NameSpace = "");
+        bool ParseCallArgs(ASTBlock *Block);
+        bool ParseCallArg(ASTBlock *Block);
+
         // Parse a Value
-        ASTValue *ParseValue();
         ASTValue *ParseValue(ASTType *Type);
         ASTArrayValue *ParseValues(ASTArrayValue *ArrayValues);
 

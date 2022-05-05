@@ -20,7 +20,7 @@ namespace fly {
     class ASTNameSpace;
     class ASTImport;
     class ASTGlobalVar;
-    class ASTFunc;
+    class ASTFunction;
     class ASTClass;
     class FileID;
     class ASTUnrefGlobalVar;
@@ -31,9 +31,9 @@ namespace fly {
 
     class ASTNode : public ASTNodeBase {
 
-        friend class ASTResolver;
-        friend class ASTContext;
-        friend class ASTNameSpace;
+        friend class Sema;
+        friend class SemaResolver;
+        friend class SemaBuilder;
 
         // CodeGen Module
         CodeGenModule *CGM;
@@ -50,7 +50,7 @@ namespace fly {
         llvm::StringMap<ASTGlobalVar *> ExternalGlobalVars;
         
         // All invoked Calls
-        std::unordered_set<ASTFunc *> ExternalFunctions;
+        std::unordered_set<ASTFunction *> ExternalFunctions;
 
     public:
         ASTNode() = delete;
@@ -79,7 +79,7 @@ namespace fly {
 
         bool AddGlobalVar(ASTGlobalVar *GVar);
 
-        bool AddFunction(ASTFunc *Func);
+        bool AddFunction(ASTFunction *Func);
 
         bool AddClass(ASTClass *Class);
 
@@ -87,15 +87,13 @@ namespace fly {
 
         const llvm::StringMap<ASTGlobalVar *> &getExternalGlobalVars() const;
 
-        bool AddExternalFunction(ASTFunc *Call);
+        bool AddExternalFunction(ASTFunction *Call);
 
-        const std::unordered_set<ASTFunc *> &getExternalFunctions() const;
+        const std::unordered_set<ASTFunction *> &getExternalFunctions() const;
 
-        bool AddUnrefCall(ASTFuncCall *Call);
+        bool AddUnrefCall(ASTFunctionCall *Call);
 
         bool AddUnrefGlobalVar(ASTVarRef *VarRef);
-
-        bool Resolve();
     };
 }
 

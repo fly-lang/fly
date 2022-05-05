@@ -11,7 +11,7 @@
 #ifndef FLY_ASTNODEBASE_H
 #define FLY_ASTNODEBASE_H
 
-#include "ASTFunc.h"
+#include "ASTFunction.h"
 #include "Basic/SourceLocation.h"
 #include "llvm/ADT/StringMap.h"
 
@@ -20,12 +20,16 @@ namespace fly {
     class ASTContext;
     class ASTGlobalVar;
     class ASTClass;
-    class ASTFunc;
-    class ASTFuncCall;
+    class ASTFunction;
+    class ASTFunctionCall;
     class ASTUnrefGlobalVar;
     class ASTUnrefCall;
 
     class ASTNodeBase {
+
+        friend class Sema;
+        friend class SemaBuilder;
+        friend class SemaResolver;
 
     protected:
 
@@ -38,10 +42,10 @@ namespace fly {
         llvm::StringMap<ASTGlobalVar *> GlobalVars;
 
         // Public Functions
-        std::unordered_set<ASTFunc*> Functions;
+        std::unordered_set<ASTFunction*> Functions;
 
         // Calls created on Functions creations, each Function have a Call defined here
-        llvm::StringMap<std::vector<ASTFuncCall *>> FunctionCalls;
+        llvm::StringMap<std::vector<ASTFunctionCall *>> FunctionCalls;
 
         // Public Classes
         llvm::StringMap<ASTClass *> Classes;
@@ -64,11 +68,9 @@ namespace fly {
 
         const llvm::StringMap<ASTGlobalVar *> &getGlobalVars() const;
 
-        const std::unordered_set<ASTFunc*> &getFunctions() const;
+        const std::unordered_set<ASTFunction*> &getFunctions() const;
 
         const llvm::StringMap<ASTClass *> &getClasses() const;
-
-        bool AddFunctionCall(ASTFuncCall *Call);
 
         virtual std::string str() const;
 

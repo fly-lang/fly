@@ -22,10 +22,13 @@ namespace fly {
 
     class ASTImport {
 
-        friend class ASTResolver;
-        friend class ASTNode;
+        friend class Sema;
+        friend class SemaBuilder;
+        friend class SemaResolver;
 
-        const SourceLocation Location;
+        const SourceLocation NameLocation;
+
+        const SourceLocation AliasLocation;
 
         std::string Name;
 
@@ -41,11 +44,16 @@ namespace fly {
 
     public:
 
-        ASTImport(const SourceLocation &Loc, const std::string Name, const std::string Alias = "");
+        ASTImport(const SourceLocation &NameLoc, const std::string Name);
+
+        ASTImport(const SourceLocation &NameLoc, const std::string Name,
+                  const SourceLocation &AliasLoc, const std::string Alias);
 
         ~ASTImport();
 
-        const SourceLocation &getLocation() const;
+        const SourceLocation &getNameLocation() const;
+
+        const SourceLocation &getAliasLocation() const;
 
         const std::string &getName() const;
 

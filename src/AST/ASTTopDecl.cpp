@@ -13,8 +13,8 @@
 
 using namespace fly;
 
-ASTTopDecl::ASTTopDecl(const SourceLocation &Loc, ASTNode *Node, TopDeclKind Kind) : Location(Loc), Node(Node),
-        Visibility(V_DEFAULT), Kind(Kind) {
+ASTTopDecl::ASTTopDecl(const SourceLocation &Loc, ASTNode *Node, TopDeclKind Kind, VisibilityKind Visibility) :
+    Location(Loc), Node(Node), Visibility(Visibility), NameSpace(Node->getNameSpace()), Kind(Kind) {
 
 }
 
@@ -28,7 +28,7 @@ ASTNode *ASTTopDecl::getNode() {
 }
 
 ASTNameSpace *ASTTopDecl::getNameSpace() const {
-    return Node->getNameSpace();
+    return NameSpace;
 }
 
 const SourceLocation &ASTTopDecl::getLocation() const {
@@ -50,11 +50,4 @@ std::string ASTTopDecl::str() const {
 
 const std::string &ASTTopDecl::getComment() const {
     return Comment;
-}
-
-void ASTTopDecl::setComment(std::string &C) {
-    const char* t = " \t\n\r\f\v";
-    C = C.substr(2, C.size()-4);
-    C = C.erase(0, C.find_first_not_of(t));
-    Comment = C.erase(C.find_last_not_of(t) + 1);
 }

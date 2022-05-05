@@ -10,10 +10,11 @@
 #include "CodeGen/CodeGenHeader.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTType.h"
+#include "AST/ASTGlobalVar.h"
+#include "AST/ASTFunction.h"
+#include "AST/ASTParams.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/CodeGenOptions.h"
-#include "AST/ASTGlobalVar.h"
-#include "AST/ASTFunc.h"
 #include "Basic/Debug.h"
 
 #include "llvm/Support/raw_ostream.h"
@@ -54,9 +55,9 @@ std::string CodeGenHeader::GenerateFile() {
             Header += "\npublic " + Convert(Function->getType()) + " " + Function->getName() +
                       "(";
             int i = 0;
-            for (auto &Param : Function->getHeader()->getParams()) {
+            for (auto &Param : Function->getParams()->getList()) {
                 Header += Convert(Param->getType()) + " " + Param->getName();
-                if (i < Function->getHeader()->getParams().size()) {
+                if (i < Function->getParams()->getList().size()) {
                     Header += ",";
                 }
             }
@@ -91,7 +92,7 @@ void CodeGenHeader::AddGlobalVar(ASTGlobalVar *GlobalVar) {
     GlobalVars.push_back(GlobalVar);
 }
 
-void CodeGenHeader::AddFunction(ASTFunc *Func) {
+void CodeGenHeader::AddFunction(ASTFunction *Func) {
     Functions.push_back(Func);
 }
 

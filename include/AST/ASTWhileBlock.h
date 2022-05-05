@@ -17,7 +17,7 @@ namespace fly {
 
     class ASTWhileBlock : public ASTBlock {
 
-        friend class Parser;
+        friend class SemaBuilder;
 
         enum ASTBlockKind StmtKind = ASTBlockKind::BLOCK_STMT_WHILE;
 

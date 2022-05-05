@@ -29,7 +29,7 @@ CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, ASTGlobalVar* AST, bool i
         }
         if (AST->getExpr() == nullptr) {
             Const = CGM->GenDefaultValue(AST->getType(), Ty);
-        } else if (AST->getExpr()->getKind() == EXPR_VALUE) {
+        } else if (AST->getExpr()->getExprKind() == EXPR_VALUE) {
             const ASTValue &Value = ((ASTValueExpr *) AST->getExpr())->getValue();
             Const = CGM->GenValue(AST->getType(), &Value);
         } else {

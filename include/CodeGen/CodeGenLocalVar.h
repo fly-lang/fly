@@ -18,7 +18,7 @@ namespace fly {
 
     class CodeGenModule;
     class ASTLocalVar;
-    class ASTFuncParam;
+    class ASTParam;
     class ASTVar;
 
     class CodeGenLocalVar : public CodeGenVar {

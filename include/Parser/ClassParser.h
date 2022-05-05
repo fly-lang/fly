@@ -12,24 +12,24 @@
 #define FLY_CLASSPARSER_H
 
 #include "Parser.h"
-#include "Lex/Token.h"
-#include "AST/ASTClass.h"
 
 namespace fly {
 
-    class Parser;
+    class ASTClass;
 
     class ClassParser {
 
         friend class Parser;
 
         Parser *P;
-        ASTClass *Class = NULL;
+
+        ASTClass *Class = nullptr;
+
+        ClassParser(Parser *P, VisibilityKind &Visibility, bool &Constant);
 
     public:
-        ClassParser(Parser *P);
 
-        bool Parse();
+        static ASTClass *Parse(Parser *P, VisibilityKind &Visibility, bool &Constant);
     };
 }
 

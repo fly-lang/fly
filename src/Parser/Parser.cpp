@@ -10,12 +10,15 @@
 #include "Parser/Parser.h"
 #include "Parser/NumberParser.h"
 #include "Parser/ExprParser.h"
+#include "AST/ASTClass.h"
+#include "AST/ASTFunctionCall.h"
 #include "AST/ASTExpr.h"
 #include "AST/ASTValue.h"
+#include "AST/ASTVarAssign.h"
 #include "AST/ASTWhileBlock.h"
 #include "AST/ASTImport.h"
 #include "AST/ASTNameSpace.h"
-#include "AST/ASTResolver.h"
+#include "Sema/SemaBuilder.h"
 #include "Basic/Debug.h"
 #include <regex>
 
@@ -27,8 +30,9 @@ using namespace fly;
  * @param SourceMgr 
  * @param Diags 
  */
-Parser::Parser(const InputFile &Input, SourceManager &SourceMgr, DiagnosticsEngine &Diags) : Input(Input), Diags(Diags),
-            SourceMgr(SourceMgr), Lex(Input.getFileID(), Input.getBuffer(), SourceMgr) {
+Parser::Parser(const InputFile &Input, SourceManager &SourceMgr, DiagnosticsEngine &Diags, SemaBuilder &Builder) :
+    Input(Input), Diags(Diags), SourceMgr(SourceMgr), Builder(Builder),
+    Lex(Input.getFileID(), Input.getBuffer(), SourceMgr) {
 
 }
 
@@ -37,9 +41,9 @@ Parser::Parser(const InputFile &Input, SourceManager &SourceMgr, DiagnosticsEngi
  * @param Node 
  * @return true on Success or false on Error
  */
-bool Parser::Parse(ASTNode *Node) {
+bool Parser::Parse(ASTNode *N) {
     FLY_DEBUG("Parser", "Parse");
-    AST = Node;
+    Node = N;
     Tok.startToken();
     Tok.setKind(tok::eof);
 
@@ -84,12 +88,12 @@ bool Parser::Parse(ASTNode *Node) {
         }
     }
 
-    return !Diags.hasErrorOccurred() && AST->Resolve();
+    return !Diags.hasErrorOccurred();
 }
 
 bool Parser::ParseHeader(ASTNode *Node) {
     FLY_DEBUG("Parser", "ParseHeader");
-    AST = Node;
+    Node = Node;
     Tok.startToken();
     Tok.setKind(tok::eof);
 
@@ -328,13 +332,13 @@ bool Parser::ParseNameSpace() {
             }
         }
         FLY_DEBUG_MESSAGE("Parser", "ParseNameSpace", "NameSpace=" << NS);
-        AST->setNameSpace(NS);
+        Node->setNameSpace(NS);
         return true;
     }
 
     // Define Default NameSpace also if it has not been defined
     FLY_DEBUG_MESSAGE("Parser", "ParseNameSpace", "No namespace defined");
-    AST->setNameSpace(ASTNameSpace::DEFAULT);
+    Node->setNameSpace(ASTNameSpace::DEFAULT);
     return true;
 }
 
@@ -351,24 +355,18 @@ bool Parser::ParseImports() {
             llvm::StringRef Name = ImportId->getName();
             SourceLocation ImportLoc = ConsumeToken();
 
-            // Syntax Error Quote
-            if (Name.empty()) {
-                Diag(ImportLoc, diag::err_import_undefined);
-                return false;
-            }
-
+            ASTImport *Import;
             if (Tok.isAnyIdentifier()) {
                 IdentifierInfo *AliasId = Tok.getIdentifierInfo();
                 llvm::StringRef Alias = AliasId->getName();
-                ConsumeToken();
-                FLY_DEBUG_MESSAGE("Parser", "ParseImportAlias",
-                                  "Import=" + Name + " , Alias=" << Alias);
-                return AST->AddImport(new ASTImport(Loc, Name.str(), Alias.str())) && ParseImports();
+                const SourceLocation &AliasLoc = ConsumeToken();
+                Import = new ASTImport(Loc, Name.str(), AliasLoc, Alias.str());
             } else {
-                FLY_DEBUG_MESSAGE("Parser", "ParseImports",
-                                  "Import=" << Name);
-                return AST->AddImport(new ASTImport(Loc, Name.str())) && ParseImports();
+                Import = new ASTImport(Loc, Name.str());
             }
+            FLY_DEBUG_MESSAGE("Parser", "ParseImportAlias",
+                              "Import=" + Import->getName() + " , Alias=" << Import->getAlias());
+            return Builder.AddImport(Node, Import) && ParseImports();
         } else {
             Diag(Loc, diag::err_import_undefined);
             return false;
@@ -393,11 +391,12 @@ bool Parser::ParseTopDecl() {
     if (ParseTopScopes(Visibility, Constant)) {
 
         if (Tok.is(tok::kw_class)) {
-            return ParseClassDecl(Visibility, Constant);
+            return ParseClass(Visibility, Constant);
         }
 
         // Parse Type
         ASTType *Type = nullptr;
+        // Parse Type and after brackets []
         if (ParseType(Type) && ParseArrayType(Type)) {
 
 
@@ -485,12 +484,16 @@ bool Parser::ParseConst(bool &Constant) {
 bool Parser::ParseGlobalVarDecl(VisibilityKind &VisKind, bool &Constant, ASTType *Type) {
     FLY_DEBUG_MESSAGE("Parser", "ParseGlobalVarDecl", "VisKind=" << VisKind <<
     ", Constant=" << Constant << ", Type=" << Type->str());
-    GlobalVarParser Parser(this, Type);
-    if (Parser.Parse()) {
-        Parser.AST->Constant = Constant;
-        Parser.AST->Visibility = VisKind;
+    ASTGlobalVar *GlobalVar = GlobalVarParser::Parse(this, Type, VisKind, Constant);
+    if (GlobalVar) {
 
-        return AST->AddGlobalVar(Parser.AST);
+        // Add Comment to AST
+        if (!BlockComment.empty()) {
+            Builder.AddComment(GlobalVar, BlockComment);
+            ClearBlockComment(); // Clear for next use
+        }
+
+        return Builder.AddGlobalVar(Node, GlobalVar);
     }
 
     return false;
@@ -499,27 +502,26 @@ bool Parser::ParseGlobalVarDecl(VisibilityKind &VisKind, bool &Constant, ASTType
 
 /**
  * Parse Function declaration
- * @param VisKind
+ * @param Visibility
  * @param Constant
  * @param Type
  * @param Name
  * @param NameLoc
  * @return
  */
-bool Parser::ParseFunction(VisibilityKind &VisKind, bool Constant, ASTType *Type) {
-    FLY_DEBUG_MESSAGE("Parser", "ParseFunction","VisKind=" << VisKind << ", Constant="
+bool Parser::ParseFunction(VisibilityKind &Visibility, bool Constant, ASTType *Type) {
+    FLY_DEBUG_MESSAGE("Parser", "ParseFunction","VisKind=" << Visibility << ", Constant="
                                                            << Constant << ", Type=" << Type->str());
-    FunctionParser Parser(this);
-    if (Parser.ParseFunction(Type)) {
-        Parser.AST->Constant = Constant;
-        Parser.AST->Visibility = VisKind;
+    ASTFunction *Function = FunctionParser::Parse(this, Visibility, Type, Node->isHeader());
+    if (Function) {
 
-        if (AST->isHeader()) {
-            return AST->AddFunction(Parser.AST);
+        // Add Comment to AST
+        if (!BlockComment.empty()) {
+            Builder.AddComment(Function, BlockComment);
+            ClearBlockComment(); // Clear for next use
         }
 
-        return Parser.ParseFunctionBody() && AST->AddFunction(Parser.AST);
-
+        return Builder.AddFunction(Node, Function);
     }
 
     return false;
@@ -527,22 +529,22 @@ bool Parser::ParseFunction(VisibilityKind &VisKind, bool Constant, ASTType *Type
 
 /**
  * Parse Class declaration
- * @param VisKind
+ * @param Visibility
  * @param Constant
  * @return
  */
-bool Parser::ParseClassDecl(VisibilityKind &VisKind, bool &Constant) {
-    FLY_DEBUG("Parser", "ParseClassDecl");
-    ClassParser Parser(this);
-    if (Parser.Parse()) {
-        Parser.Class->Constant = Constant;
-        Parser.Class->Visibility = VisKind;
+bool Parser::ParseClass(VisibilityKind &Visibility, bool &Constant) {
+    FLY_DEBUG("Parser", "ParseClass");
+    ASTClass *Class = ClassParser::Parse(this, Visibility, Constant);
+    if (Class) {
 
         // Add Comment to AST
-        Parser.Class->setComment(BlockComment);
-        ClearBlockComment(); // Clear for next use
+        if (!BlockComment.empty()) {
+            Builder.AddComment(Class, BlockComment);
+            ClearBlockComment(); // Clear for next use
+        }
 
-        return AST->AddClass(Parser.Class);
+        return Builder.AddClass(Node, Class);
     }
 
     return false;
@@ -592,10 +594,7 @@ bool Parser::ParseType(ASTType *&Type, bool OnlyBuiltin) {
             Type = new ASTVoidType(TypeLoc);
             break;
         default: {
-            if (OnlyBuiltin) {
-                assert(0 && "Unknown builtin type");
-                return false;
-            }
+            assert(!OnlyBuiltin && "Unknown builtin type");
             IdentifierInfo *Id = Tok.getIdentifierInfo();
             if (!Id) {
                 DiagInvalidId(TypeLoc);
@@ -615,7 +614,7 @@ bool Parser::ParseArrayType(ASTType *&Type, ASTBlock * Block) {
     if (Tok.is(tok::l_square)) {
         const SourceLocation &Loc = ConsumeBracket();
 
-        if (Block) { // if block is true it come from a local var assign
+        if (Block) { // if block is true it comes from a local var assign
             ASTExpr *Expr = ParseExpr(Block);
             if (Expr && !Expr->getType()->isInteger()) {
                 // Error: array size must be of integer type TODO
@@ -754,11 +753,12 @@ bool Parser::ParseStmt(ASTBlock *Block) {
                 return false;
             } else if (ExprParser::isAssignOperator(Tok)) { // variable assignment
                 // a = ...
-                ASTLocalVarRef* LocalVarRef = new ASTLocalVarRef(Loc, Block, std::string(Name), std::string(NameSpace));
-                ASTExpr *Expr = ParseAssignmentExpr(Block, LocalVarRef);
-                if (Expr != nullptr) {
-                    LocalVarRef->setExpr(Expr);
-                    return Block->AddLocalVarRef(LocalVarRef);
+                // if is += or -= ... create the ref to var
+                ASTVarRef* VarRef = new ASTVarRef(Loc, std::string(Name), std::string(NameSpace));
+                ASTExpr *Expr = ParseAssignmentExpr(Block, VarRef);
+                if (Expr) {
+                    ASTVarAssign *VarAssign = new ASTVarAssign(Loc, Block, VarRef, Expr);
+                    return Block->AddVarAssign(VarAssign);
                 }
             } else {
                 // a()
@@ -854,7 +854,7 @@ bool Parser::ParseIfStmt(ASTBlock *Block) {
 
     // Get previous ASTIfBlock if present
     ASTIfBlock *IfBlock = nullptr;
-    if (!Block->Content.empty()) {
+    if (!Block->isEmpty()) {
         ASTStmt *PrevIf = Block->Content.at(Block->Content.size() - 1);
         if (PrevIf->getKind() == StmtKind::STMT_BLOCK &&
             ((ASTBlock *) PrevIf)->getBlockKind() == ASTBlockKind::BLOCK_STMT_IF) {
@@ -891,12 +891,15 @@ bool Parser::ParseIfStmt(ASTBlock *Block) {
             // Parse the group of expressions into parenthesis
             ASTExpr *Expr = ParseExpr(Block);
             // Parse ) if exists
-            if (Expr == nullptr || !ParseEndParen(hasParen)) {
+            if (!Expr || !ParseEndParen(hasParen)) {
                 return false;
             }
             if (!IfBlock) {
                 Diag(Loc, diag::err_missing_if_first);
                 return false;
+            }
+            if (IfBlock->ElseBlock) {
+                Diag(Loc, diag::err_elseif_after_else);
             }
             CurrentBlock = IfBlock->AddElsifBlock(Loc, Expr);
             break;
@@ -906,6 +909,9 @@ bool Parser::ParseIfStmt(ASTBlock *Block) {
             if (!IfBlock) {
                 Diag(Loc, diag::err_missing_if_first);
                 return false;
+            }
+            if (IfBlock->ElseBlock) {
+                Diag(Loc, diag::err_else_after_else);
             }
             CurrentBlock = IfBlock->AddElseBlock(Loc);
             break;
@@ -1186,20 +1192,77 @@ bool Parser::ParseIdentifier(llvm::StringRef &Name, llvm::StringRef &NameSpace, 
  * @param Loc
  * @return true on Success or false on Error
  */
-ASTFuncCall * Parser::ParseFunctionCall(ASTBlock *Block, llvm::StringRef Name, llvm::StringRef NameSpace,
-                                        SourceLocation &Loc) {
+ASTFunctionCall * Parser::ParseFunctionCall(ASTBlock *Block, llvm::StringRef Name, llvm::StringRef NameSpace,
+                                            SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("Parser", "ParseFunctionCall", "Name=" << Name + ", NameSpace=" << NameSpace);
     FunctionParser Parser(this);
-    if (Parser.ParseCall(Block, Loc, Name, NameSpace)) {
+    if (ParseCall(Block, Loc, Name, NameSpace)) {
         return Parser.Call;
     }
     return nullptr;
 }
 
-ASTValue *Parser::ParseValue() {
-    ASTType *Type = nullptr;
-    return ParseValue(Type);
+
+/**
+ * Parse a Function Call
+ * @param Block
+ * @param NameSpace
+ * @return true on Success or false on Error
+ */
+bool Parser::ParseCall(ASTBlock *Block, SourceLocation &Loc, llvm::StringRef Name, llvm::StringRef NameSpace) {
+    Call = new ASTFunctionCall(Loc, NameSpace.str(), Name.str());
+    return ParseCallArgs(Block);
 }
+
+/**
+ * Parse Call Arguments
+ * @param Block
+ * @return true on Success or false on Error
+ */
+bool Parser::ParseCallArgs(ASTBlock *Block) {
+    if (Tok.is(tok::l_paren)) { // parse start of function ()
+        ConsumeParen(); // consume l_paren
+    }
+
+    if (Tok.is(tok::r_paren)) {
+        ConsumeParen();
+        return true; // end
+    }
+
+    return ParseCallArg(Block);
+}
+
+/**
+ * Parse a single Call Argument
+ * @param Block
+ * @return true on Success or false on Error
+ */
+bool Parser::ParseCallArg(ASTBlock *Block) {
+
+    // Parse Args in a Function Call
+    ASTExpr *Expr = ParseExpr(Block);
+
+    if (Expr) {
+        // Type will be resolved into AST Resolve
+        ASTType *Ty = nullptr;
+        ASTCallArg *Arg = new ASTCallArg(Expr, Ty);
+        Call->addArg(Arg);
+
+        if (Tok.is(tok::comma)) {
+            ConsumeToken();
+            return ParseCallArg(Block);
+        }
+
+        if (Tok.is(tok::r_paren)) {
+            ConsumeParen();
+            return true; // end
+        }
+    }
+
+    Diag(Tok.getLocation(), diag::err_func_param);
+    return false;
+}
+
 
 /**
  * Parse a Value Expression
@@ -1207,6 +1270,15 @@ ASTValue *Parser::ParseValue() {
  */
 ASTValue *Parser::ParseValue(ASTType *Type) {
     FLY_DEBUG("Parser", "ParseValue");
+
+    if (Tok.is(tok::kw_null)) {
+        const SourceLocation &Loc = ConsumeToken();
+        if (Type->getKind() != TYPE_CLASS) {
+            Diag(diag::err_parser_invalid_null_value);
+            return nullptr;
+        }
+        return new ASTClassValue(Loc, (ASTClassType *) Type);
+    }
 
     // Parse Numeric Constants
     if (Tok.is(tok::numeric_constant)) {
@@ -1332,21 +1404,21 @@ ASTLocalVar *Parser::ParseLocalVar(ASTBlock *Block, bool Constant, ASTType *Type
     const SourceLocation Loc = Tok.getLocation();
     FLY_DEBUG_MESSAGE("Parser", "ParseLocalVar",
                       "Name=" << Name << ", Constant=" << Constant << ", Type=" << Type->str());
-    ASTLocalVar *Result = new ASTLocalVar(Loc, Block, Type, Name);
-    Result->Constant = Constant;
+    ASTLocalVar *LocalVar = new ASTLocalVar(Loc, Block, Type, Name, Constant);
     ConsumeToken();
 
+    // if is += or -= ... create the ref to var
     // Need to create a reference and assign the previous Var declaration in order to be found from references
     ASTVarRef *VarRef = new ASTVarRef(Loc, Name);
-    VarRef->Decl = Result;
+    VarRef->Decl = LocalVar;
 
     // Parse the assignment if exists
     ASTExpr *Assignment = ParseAssignmentExpr(Block, VarRef);
-    if (Assignment != nullptr) {// int a or Type a is allowed
-        Result->setExpr(Assignment);
+    if (Assignment) {
+        LocalVar->setExpr(Assignment);
     }
 
-    return Result;
+    return LocalVar;
 }
 
 ASTExpr *Parser::ParseAssignmentExpr(ASTBlock *Block, ASTVarRef *VarRef) {
@@ -1391,5 +1463,5 @@ bool Parser::isBuiltinType() {
  * @return true on Success or false on Error
  */
 bool Parser::isValue() {
-    return Tok.isOneOf(tok::numeric_constant, tok::kw_true, tok::kw_false);
+    return Tok.isOneOf(tok::numeric_constant, tok::kw_true, tok::kw_false, tok::kw_null);
 }

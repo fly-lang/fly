@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/CodeGen/CGVar.h - Code Generator of Statements
+// include/AST/ASTStmt.h - AST Statement
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,25 +8,29 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#ifndef FLY_CGVAR_H
-#define FLY_CGVAR_H
+#ifndef FLY_ASTEXPRSTMT_H
+#define FLY_ASTEXPRSTMT_H
 
-#include "llvm/IR/Instructions.h"
+#include "ASTStmt.h"
 
 namespace fly {
 
-    class CodeGenVar {
+    class ASTExprStmt : public ASTStmt {
+
+        ASTExpr *Expr = nullptr;
 
     public:
+        ASTExprStmt(const SourceLocation &Loc, ASTBlock *Block);
 
-        virtual llvm::Value *getPointer() = 0;
+        StmtKind getKind() const override;
 
-        virtual llvm::Value *getValue() = 0;
+        ASTExpr *getExpr() const;
 
-        virtual llvm::StoreInst *Store(llvm::Value *Val) = 0;
+        void setExpr(ASTExpr *E);
 
-        virtual llvm::LoadInst *Load() = 0;
+        std::string str() const override;
     };
 }
 
-#endif //FLY_CGVAR_H
+
+#endif //FLY_ASTEXPRSTMT_H

@@ -43,12 +43,11 @@ namespace fly {
         TYPE_FLOAT = 9,
         TYPE_DOUBLE = 10,
         TYPE_ARRAY = 11,
-        TYPE_CLASS = 12,
+        TYPE_CLASS = 12
     };
 
     class ASTIntegerValue;
     class ASTValueExpr;
-
     class ASTExpr;
 
     /**

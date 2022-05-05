@@ -7,13 +7,14 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "AST/ASTValue.h"
 #include "AST/ASTLocalVar.h"
+#include "AST/ASTValue.h"
 
 using namespace fly;
 
-ASTLocalVar::ASTLocalVar(const SourceLocation &Loc, ASTBlock *Block, ASTType *Type, const std::string &Name) :
-        ASTExprStmt(Loc, Block), ASTVar(Type, Name) {
+ASTLocalVar::ASTLocalVar(const SourceLocation &Loc, ASTBlock *Block, ASTType *Type, const std::string &Name,
+                         bool Constant) :
+        ASTStmt(Loc, Block), ASTVar(VAR_LOCAL, Type, Name, Constant) {
     if (Type->getKind() == TYPE_ARRAY) {
         setExpr(new ASTValueExpr(new ASTArrayValue(Loc, ((ASTArrayType *)Type)->getType())));
     }
@@ -23,12 +24,10 @@ StmtKind ASTLocalVar::getKind() const {
     return Kind;
 }
 
-ASTExpr *ASTLocalVar::getExpr() const {
-    return ASTExprStmt::getExpr();
-}
-
-void ASTLocalVar::setExpr(ASTExpr *E) {
-    ASTExprStmt::setExpr(E);
+ASTVarRef *ASTLocalVar::CreateVarRef() {
+    ASTVarRef *VarRef = new ASTVarRef(Location, Name);
+    VarRef->setDecl(this);
+    return VarRef;
 }
 
 CodeGenLocalVar *ASTLocalVar::getCodeGen() const {
@@ -44,24 +43,4 @@ std::string ASTLocalVar::str() const {
            ASTVar::str() +
            ", Kind: " + std::to_string(Kind) +
            " }";
-}
-
-
-ASTLocalVarRef::ASTLocalVarRef(const SourceLocation &Loc, ASTBlock *Block, const std::string &Name,
-                               const std::string &NameSpace) :
-        ASTExprStmt(Loc, Block), ASTVarRef(Loc, Name, NameSpace) {
-
-}
-
-ASTLocalVarRef::ASTLocalVarRef(const SourceLocation &Loc, ASTBlock *Block, ASTVarRef Var) :
-        ASTExprStmt(Loc, Block), ASTVarRef(Var) {
-
-}
-
-StmtKind ASTLocalVarRef::getKind() const {
-    return STMT_VAR_REF;
-}
-
-std::string ASTLocalVarRef::str() const {
-    return ASTVarRef::str();
 }

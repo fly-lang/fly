@@ -14,33 +14,17 @@
 using namespace fly;
 
 /**
- * GlobalVarParser Constructor
- * @param P
- * @param Type
- * @param VarName
- * @param VarNameLoc
- */
-GlobalVarParser::GlobalVarParser(Parser *P, ASTType *Type) : P(P), Type(Type) {
-}
-
-/**
  * Parse a GlobalVar
  * @return true on Success or false on Error
  */
-bool GlobalVarParser::Parse() {
+ASTGlobalVar *GlobalVarParser::Parse(Parser *P, ASTType *Type, VisibilityKind &Visibility, bool &Constant) {
     assert(P->Tok.isAnyIdentifier() && "Tok must be an Identifier");
 
     IdentifierInfo *Id = P->Tok.getIdentifierInfo();
     llvm::StringRef Name = Id->getName();
     SourceLocation Loc = P->Tok.getLocation();
 
-    AST = new ASTGlobalVar(Loc, P->AST, Type, Name.str());
-
-    // Add Comment to AST
-    if (!P->BlockComment.empty()) {
-        AST->setComment(P->BlockComment);
-        P->ClearBlockComment(); // Clear for next use
-    }
+    ASTGlobalVar *GlobalVar = new ASTGlobalVar(Loc, P->Node, Type, Name.str(), Visibility, Constant);
 
     // Parsing =
     P->ConsumeToken();
@@ -49,17 +33,9 @@ bool GlobalVarParser::Parse() {
 
         ASTValue *Val = P->ParseValue(Type);
         if (Val) {
-            AST->setExpr(new ASTValueExpr(Val));
+            GlobalVar->setExpr(new ASTValueExpr(Val));
         }
     }
 
-    return true;
-}
-
-/**
- * Get Var
- * @return Var
- */
-ASTGlobalVar *GlobalVarParser::getAST() const {
-    return AST;
+    return GlobalVar;
 }

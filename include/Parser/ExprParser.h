@@ -42,7 +42,7 @@ namespace fly {
             return nullptr;
         }
 
-        ASTExprKind getKind() const override {
+        ASTExprKind getExprKind() const override {
             return ASTExprKind::EXPR_GROUP;
         }
 

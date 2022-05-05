@@ -24,9 +24,9 @@ namespace fly {
 
     class ASTNameSpace : public ASTNodeBase {
 
-        friend class ASTResolver;
-        friend class ASTContext;
-        friend class ASTNode;
+        friend class Sema;
+        friend class SemaResolver;
+        friend class SemaBuilder;
 
         // AST by FileID
         llvm::StringMap<ASTNode *> Nodes;

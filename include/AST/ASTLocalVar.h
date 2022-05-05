@@ -21,10 +21,9 @@ namespace fly {
      * Ex.
      *  int a = 1
      */
-    class ASTLocalVar : public ASTVar, public ASTExprStmt {
+    class ASTLocalVar : public ASTVar, public ASTStmt {
 
-        friend class Parser;
-        friend class GlobalVarParser;
+        friend class SemaBuilder;
 
         // Statement Kind
         const StmtKind Kind = StmtKind::STMT_VAR;
@@ -33,37 +32,18 @@ namespace fly {
         CodeGenLocalVar *CodeGen = nullptr;
 
     public:
-        ASTLocalVar(const SourceLocation &Loc, ASTBlock *Block, ASTType *Type, const std::string &Name);
+        ASTLocalVar(const SourceLocation &Loc, ASTBlock *Block, ASTType *Type, const std::string &Name,
+                    bool Constant);
 
         StmtKind getKind() const;
 
-        ASTExpr *getExpr() const;
-
-        void setExpr(ASTExpr *E);
+        ASTVarRef *CreateVarRef() override;
 
         CodeGenLocalVar *getCodeGen() const;
 
         void setCodeGen(CodeGenLocalVar *CG);
 
         std::string str() const;
-    };
-
-    /**
-     * Assign somethings to a Local Var
-     * Ex.
-     *  a = 1
-     */
-    class ASTLocalVarRef : public ASTVarRef, public ASTExprStmt {
-
-    public:
-        ASTLocalVarRef(const SourceLocation &Loc, ASTBlock *Block, const std::string &Name,
-                       const std::string &NameSpace = "");
-
-        ASTLocalVarRef(const SourceLocation &Loc, ASTBlock *Block, ASTVarRef Var);
-
-        StmtKind getKind() const override;
-
-        std::string str() const override;
     };
 }
 

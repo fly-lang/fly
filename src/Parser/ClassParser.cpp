@@ -7,22 +7,36 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
+#include "Parser/Parser.h"
 #include "Parser/ClassParser.h"
+#include "AST/ASTClass.h"
 
 using namespace fly;
 
 /**
  * ClassParser Constructor
  * @param P
+ * @param Visibility
+ * @param Constant
  */
-ClassParser::ClassParser(Parser *P) : P(P){
+ClassParser::ClassParser(Parser *P, VisibilityKind &Visibility, bool &Constant) : P(P) {
+    assert(P->Tok.isAnyIdentifier() && "Tok must be an Identifier");
 
+    IdentifierInfo *Id = P->Tok.getIdentifierInfo();
+    llvm::StringRef Name = Id->getName();
+    const SourceLocation Loc = P->Tok.getLocation();
+    P->ConsumeToken();
+
+    Class = new ASTClass(Loc, P->Node, Name.str(), Visibility, Constant);
+
+    // ParseAttributes() && ParseMethods()
 }
 
 /**
  * Parse Class Declaration
  * @return
  */
-bool ClassParser::Parse() {
-    return true;
+ASTClass *ClassParser::Parse(Parser *P, VisibilityKind &Visibility, bool &Constant) {
+    ClassParser *CP = new ClassParser(P, Visibility, Constant);
+    return CP->Class;
 }

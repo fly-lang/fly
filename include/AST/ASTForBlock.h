@@ -17,7 +17,7 @@ namespace fly {
 
     class ASTForBlock : public ASTBlock {
 
-        friend class Parser;
+        friend class SemaBuilder;
 
         enum ASTBlockKind StmtKind = ASTBlockKind::BLOCK_STMT_FOR;
 
@@ -33,8 +33,6 @@ namespace fly {
         enum ASTBlockKind getBlockKind() const override;
 
         ASTBlock *getCondition();
-
-        void setCondition(ASTExpr *Expr);
 
         ASTBlock *getPost();
 

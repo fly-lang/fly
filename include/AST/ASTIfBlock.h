@@ -21,9 +21,7 @@ namespace fly {
 
     class ASTIfBlock : public ASTBlock {
 
-        friend class Parser;
-        friend class ASTElsifBlock;
-        friend class ASTElseBlock;
+        friend class SemaBuilder;
 
         enum ASTBlockKind StmtKind = ASTBlockKind::BLOCK_STMT_IF;
 

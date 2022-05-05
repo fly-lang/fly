@@ -16,7 +16,7 @@ namespace fly {
 
     class ASTNode;
     class ASTVarRef;
-    class ASTFuncCall;
+    class ASTFunctionCall;
     class ASTType;
 
     class ASTUnref {
@@ -46,12 +46,12 @@ namespace fly {
 
     class ASTUnrefCall : public ASTUnref {
 
-        ASTFuncCall *Call;
+        ASTFunctionCall *Call;
 
     public:
-        ASTUnrefCall(ASTNode *Node, ASTFuncCall *Call);
+        ASTUnrefCall(ASTNode *Node, ASTFunctionCall *Call);
 
-        ASTFuncCall *getCall();
+        ASTFunctionCall *getCall();
 
         std::string str() const;
     };

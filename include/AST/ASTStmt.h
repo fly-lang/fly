@@ -19,7 +19,8 @@ namespace fly {
         STMT_BLOCK,
         STMT_EXPR,
         STMT_VAR,
-        STMT_VAR_REF,
+        STMT_VAR_ASSIGN,
+        STMT_FUNCTION_CALL,
         STMT_BREAK,
         STMT_CONTINUE,
         STMT_RETURN
@@ -27,47 +28,32 @@ namespace fly {
 
     class ASTExpr;
     class ASTBlock;
-    class ASTFunc;
+    class ASTFunction;
 
     class ASTStmt {
 
+    protected:
+
         const SourceLocation Location;
 
-    protected:
-        ASTFunc *Top;
+        ASTFunction *Top;
 
         ASTBlock *Parent;
 
     public:
         ASTStmt(const SourceLocation &Loc, ASTBlock *Parent);
 
-        ASTStmt(const SourceLocation &Loc, ASTFunc *Top, ASTBlock *Parent);
+        ASTStmt(const SourceLocation &Loc, ASTFunction *Top, ASTBlock *Parent);
 
         const SourceLocation &getLocation() const;
 
         virtual StmtKind getKind() const = 0;
 
-        ASTFunc *getTop() const;
+        ASTFunction *getTop() const;
 
         ASTBlock *getParent() const;
 
         virtual std::string str() const = 0;
-    };
-
-    class ASTExprStmt : public ASTStmt {
-
-        ASTExpr *Expr = nullptr;
-
-    public:
-        ASTExprStmt(const SourceLocation &Loc, ASTBlock *Block);
-
-        StmtKind getKind() const override;
-
-        ASTExpr *getExpr() const;
-
-        void setExpr(ASTExpr *E);
-
-        std::string str() const override;
     };
 }
 

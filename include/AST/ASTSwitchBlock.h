@@ -20,6 +20,8 @@ namespace fly {
 
     class ASTSwitchBlock : public ASTBlock {
 
+        friend class SemaBuilder;
+
         // The Stmt Block Kind
         enum ASTBlockKind StmtKind = ASTBlockKind::BLOCK_STMT_SWITCH;
 
@@ -50,6 +52,8 @@ namespace fly {
 
     class ASTSwitchCaseBlock : public ASTBlock{
 
+        friend class SemaBuilder;
+
         enum ASTBlockKind StmtKind = ASTBlockKind::BLOCK_STMT_CASE;
         ASTExpr *Expr;
 
@@ -62,6 +66,8 @@ namespace fly {
     };
 
     class ASTSwitchDefaultBlock : public ASTBlock{
+
+        friend class SemaBuilder;
 
         enum ASTBlockKind StmtKind = ASTBlockKind::BLOCK_STMT_DEFAULT;
 

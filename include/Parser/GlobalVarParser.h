@@ -21,18 +21,9 @@ namespace fly {
 
     class GlobalVarParser {
 
-        friend Parser;
-
-        Parser *P;
-        ASTType *Type;
-        ASTGlobalVar *AST = nullptr;
-
     public:
-        GlobalVarParser(Parser *P, ASTType *Type);
 
-        bool Parse();
-
-        ASTGlobalVar *getAST() const;
+        static ASTGlobalVar *Parse(Parser *P, ASTType *Type, VisibilityKind &Visibility, bool &Constant);
     };
 
 }

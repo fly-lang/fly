@@ -106,3 +106,16 @@ bool ASTArrayValue::empty() const {
 const std::vector<ASTValue *> &ASTArrayValue::getValues() const {
     return Values;
 }
+
+ASTClassValue::ASTClassValue(const SourceLocation &Loc, ASTClassType *ClassType) :
+        ASTValue(Loc, ClassType) {
+
+}
+
+bool ASTClassValue::isNull() const {
+    return true;
+}
+
+std::string ASTClassValue::str() const {
+    return getType()->str() + "@ffffff";
+}

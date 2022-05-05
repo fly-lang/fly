@@ -22,13 +22,16 @@
 #include "AST/ASTNode.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTLocalVar.h"
+#include "AST/ASTFunctionCall.h"
 #include "AST/ASTGlobalVar.h"
+#include "AST/ASTParams.h"
 #include "AST/ASTBlock.h"
 #include "AST/ASTIfBlock.h"
 #include "AST/ASTSwitchBlock.h"
 #include "AST/ASTWhileBlock.h"
 #include "AST/ASTForBlock.h"
 #include "AST/ASTValue.h"
+#include "AST/ASTVarAssign.h"
 #include "Basic/Debug.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/IR/GlobalVariable.h"
@@ -121,7 +124,7 @@ CodeGenGlobalVar *CodeGenModule::GenGlobalVar(ASTGlobalVar* GlobalVar, bool isEx
     return nullptr; // Error occurs
 }
 
-CodeGenFunction *CodeGenModule::GenFunction(ASTFunc *Func, bool isExternal) {
+CodeGenFunction *CodeGenModule::GenFunction(ASTFunction *Func, bool isExternal) {
     FLY_DEBUG_MESSAGE("CodeGenModule", "AddFunction",
                       "Func=" << Func->str() << ", isExternal=" << isExternal);
     CodeGenFunction *CGF = new CodeGenFunction(this, Func, isExternal);
@@ -129,7 +132,7 @@ CodeGenFunction *CodeGenModule::GenFunction(ASTFunc *Func, bool isExternal) {
     return CGF;
 }
 
-CallInst *CodeGenModule::GenCall(llvm::Function *Fn, ASTFuncCall *Call) {
+CallInst *CodeGenModule::GenCall(llvm::Function *Fn, ASTFunctionCall *Call) {
     FLY_DEBUG_MESSAGE("CodeGenModule", "GenCall",
                       "Call=" << Call->str());
     // Check if Func is declared
@@ -138,7 +141,7 @@ CallInst *CodeGenModule::GenCall(llvm::Function *Fn, ASTFuncCall *Call) {
         return nullptr;
     }
 
-    const std::vector<ASTFuncParam *> &Params = Call->getDecl()->getHeader()->getParams();
+    const std::vector<ASTParam *> &Params = Call->getDecl()->getParams()->getList();
     llvm::SmallVector<llvm::Value *, 8> Args;
     for (ASTCallArg *Arg : Call->getArgs()) {
         Value *V = GenExpr(Fn, Arg->getType(), Arg->getValue());
@@ -164,16 +167,25 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
         }
 
             // Var Assignment
-        case STMT_VAR_REF: {
-            ASTLocalVarRef *LocalVarRef = (ASTLocalVarRef *) Stmt;
-            assert(LocalVarRef->getExpr() && "Expr Mandatory in assignment");
-            llvm::Value *V = GenExpr(Fn, LocalVarRef->getDecl()->getType(), LocalVarRef->getExpr());
-            if (LocalVarRef->getDecl()->isGlobal()) {
-                ASTGlobalVar *GlobalVar = static_cast<ASTGlobalVar *>(LocalVarRef->getDecl());
-                GlobalVar->getCodeGen()->Store(V);
-            } else {
-                ASTLocalVar *LocalVar = static_cast<ASTLocalVar *>(LocalVarRef->getDecl());
-                LocalVar->getCodeGen()->Store(V);
+        case STMT_VAR_ASSIGN: {
+            ASTVarAssign *VarAssign = (ASTVarAssign *) Stmt;
+            assert(VarAssign->getExpr() && "Expr Mandatory in assignment");
+            llvm::Value *V = GenExpr(Fn, VarAssign->getVarRef()->getDecl()->getType(), VarAssign->getExpr());
+            switch (VarAssign->getVarRef()->getDecl()->getVarKind()) {
+
+                case VAR_LOCAL: {
+                    ASTLocalVar *LocalVar = static_cast<ASTLocalVar *>(VarAssign->getVarRef()->getDecl());
+                    LocalVar->getCodeGen()->Store(V);
+                    break;
+                }
+                case VAR_GLOBAL: {
+                    ASTGlobalVar *GlobalVar = static_cast<ASTGlobalVar *>(VarAssign->getVarRef()->getDecl());
+                    GlobalVar->getCodeGen()->Store(V);
+                    break;
+                }
+                case VAR_CLASS:
+                    //TODO
+                    break;
             }
             break;
         }
@@ -258,7 +270,7 @@ llvm::Type *CodeGenModule::GenType(const ASTType *Type) {
         case TYPE_ARRAY: {
             ASTArrayType *ArrType = (ASTArrayType *) Type;
             llvm::Type *SubType = GenType(ArrType->getType());
-            if (ArrType->getSize()->getKind() == EXPR_VALUE) {
+            if (ArrType->getSize()->getExprKind() == EXPR_VALUE) {
                 ASTValueExpr *SizeExpr = (ASTValueExpr *) ArrType->getSize();
                 assert(SizeExpr->getType()->isInteger());
                 ASTIntegerValue &SizeValue = (ASTIntegerValue &) SizeExpr->getValue();

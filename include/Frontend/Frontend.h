@@ -25,6 +25,7 @@ namespace fly {
 
     class FrontendAction;
     class CompilerInstance;
+    class SemaBuilder;
 
     class Frontend {
 
@@ -53,6 +54,8 @@ namespace fly {
         ~Frontend();
 
         bool Execute();
+
+        bool LoadActions(CodeGen &CG, SemaBuilder &Builder);
 
         void CreateFrontendTimer();
 

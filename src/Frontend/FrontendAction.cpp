@@ -10,6 +10,7 @@
 #include "Frontend/FrontendAction.h"
 #include "Frontend/CompilerInstance.h"
 #include "Frontend/InputFile.h"
+#include "Sema/SemaBuilder.h"
 #include "AST/ASTContext.h"
 #include "AST/ASTNode.h"
 #include "AST/ASTImport.h"
@@ -22,16 +23,21 @@
 
 using namespace fly;
 
-FrontendAction::FrontendAction(const CompilerInstance & CI, ASTContext *Context, CodeGen &CG, InputFile *Input) :
+FrontendAction::FrontendAction(const CompilerInstance & CI, ASTContext *Context, CodeGen &CG, SemaBuilder &Builder,
+                               InputFile *Input) :
         Context(Context), Diags(CI.getDiagnostics()), SourceMgr(CI.getSourceManager()),
-        FrontendOpts(CI.getFrontendOptions()), CG(CG), Input(Input) {
+        FrontendOpts(CI.getFrontendOptions()), CG(CG), Builder(Builder), Input(Input) {
     FLY_DEBUG_MESSAGE("FrontendAction", "FrontendAction", "Input=" << Input->getFileName());
+    Diags.getClient()->BeginSourceFile();
 }
 
 FrontendAction::~FrontendAction() {
     FLY_DEBUG("FrontendAction", "~FrontendAction");
+    Diags.getClient()->EndSourceFile();
     delete P;
     delete AST;
+    delete CGM;
+    delete CGH;
 }
 
 ASTNode *FrontendAction::getAST() {
@@ -42,7 +48,6 @@ ASTNode *FrontendAction::getAST() {
 bool FrontendAction::Parse() {
     FLY_DEBUG_MESSAGE("FrontendAction", "Parse", "Input=" << Input->getFileName());
     bool Success = true;
-    Diags.getClient()->BeginSourceFile();
 
     if (P == nullptr) {
         // Create CodeGen
@@ -55,14 +60,13 @@ bool FrontendAction::Parse() {
         AST = new ASTNode(Input->getFileName(), Context, CGM);
 
         // Create Parser and start to parse
-        P = new Parser(*Input, SourceMgr, Diags);
-        Success = P->Parse(AST) && Context->AddNode(AST);
+        P = new Parser(*Input, SourceMgr, Diags, Builder);
+        Success = P->Parse(AST);
         if (FrontendOpts.CreateHeader) {
             CGH->AddNameSpace(AST->getNameSpace());
         }
     }
 
-    Diags.getClient()->EndSourceFile();
     return Success;
 }
 
@@ -76,7 +80,7 @@ bool FrontendAction::ParseHeader() {
         ASTNode *Node = new ASTNode(Input->getFileName(), Context);
 
         // Create Parser and start to parse
-        P = new Parser(*Input, SourceMgr, Diags);
+        P = new Parser(*Input, SourceMgr, Diags, Builder);
         Success &= P->ParseHeader(Node) && Context->AddNode(Node);
     }
 
@@ -120,7 +124,7 @@ bool FrontendAction::GenerateCode() {
 
     // Instantiates all Function CodeGen in order to be set in all Call references
     std::vector<CodeGenFunction *> CGFunctions;
-    for (ASTFunc *Func : AST->getFunctions()) {
+    for (ASTFunction *Func : AST->getFunctions()) {
         FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode",
                           "Function=" << Func->str());
         CodeGenFunction *CGF = CGM->GenFunction(Func);

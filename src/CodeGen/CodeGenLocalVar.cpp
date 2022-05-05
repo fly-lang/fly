@@ -12,7 +12,7 @@
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
 #include "AST/ASTLocalVar.h"
-#include "AST/ASTFunc.h"
+#include "AST/ASTFunction.h"
 #include "llvm/IR/Value.h"
 
 using namespace fly;

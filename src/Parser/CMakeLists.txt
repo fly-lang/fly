@@ -12,4 +12,5 @@ target_link_libraries(FlyParser
         LLVMMCParser
         LLVMSupport
         FlyBasic
+        FlySema
         )

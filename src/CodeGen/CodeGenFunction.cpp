@@ -12,6 +12,8 @@
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
 #include "AST/ASTNameSpace.h"
+#include "AST/ASTFunction.h"
+#include "AST/ASTParams.h"
 #include "AST/ASTLocalVar.h"
 #include "AST/ASTBlock.h"
 #include "Basic/Debug.h"
@@ -19,8 +21,8 @@
 
 using namespace fly;
 
-CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, ASTFunc *AST, bool isExternal) : CGM(CGM), AST(AST) {
-    llvm::FunctionType *FnTy = GenFuncType(AST->getType(), AST->getHeader());
+CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, ASTFunction *AST, bool isExternal) : CGM(CGM), AST(AST) {
+    llvm::FunctionType *FnTy = GenFuncType(AST->getType(), AST->getParams());
 
     // Create Function
     llvm::GlobalValue::LinkageTypes Linkage = llvm::GlobalValue::ExternalLinkage;
@@ -38,18 +40,18 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, ASTFunc *AST, bool isExtern
     Name = Fn->getName();
 }
 
-llvm::FunctionType *CodeGenFunction::GenFuncType(const ASTType *RetTyData, const ASTFuncHeader *Params) {
-    if (Params->getParams().empty()) {
+llvm::FunctionType *CodeGenFunction::GenFuncType(const ASTType *RetTyData, const ASTParams *Params) {
+    if (Params->getList().empty()) {
         // Create empty Function Type
-        return llvm::FunctionType::get(CGM->GenType(RetTyData), Params->getVarArg() != nullptr);
+        return llvm::FunctionType::get(CGM->GenType(RetTyData), Params->getEllipsis() != nullptr);
     } else {
         // Create Function Type with parameters
         SmallVector<llvm::Type *, 8> ArrayParams;
-        for (auto Param : Params->getParams()) {
+        for (auto Param : Params->getList()) {
             llvm::Type *ParamTy = CGM->GenType(Param->getType());
             ArrayParams.push_back(ParamTy);
         }
-        return llvm::FunctionType::get(CGM->GenType(RetTyData), ArrayParams, Params->getVarArg() != nullptr);
+        return llvm::FunctionType::get(CGM->GenType(RetTyData), ArrayParams, Params->getEllipsis() != nullptr);
     }
 }
 
@@ -67,7 +69,7 @@ void CodeGenFunction::GenBody() {
     CGM->Builder->SetInsertPoint(Entry);
 
     // CodeGen of Params and Allocation
-    for (auto &P: AST->getHeader()->getParams()) {
+    for (auto &P: AST->getParams()->getList()) {
         CodeGenLocalVar *CGV = new CodeGenLocalVar(CGM, P);
         P->setCodeGen(CGV);
         P->getCodeGen()->Alloca();
@@ -80,7 +82,7 @@ void CodeGenFunction::GenBody() {
 
     // Store Param Values
     int n = 0;
-    for (auto &P: AST->getHeader()->getParams()) {
+    for (auto &P: AST->getParams()->getList()) {
         CodeGenLocalVar *CGV = P->getCodeGen();
         CGV->Store(Fn->getArg(n));
         if (P->getExpr()) {

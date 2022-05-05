@@ -9,7 +9,8 @@
 
 
 #include "AST/ASTNodeBase.h"
-#include "AST/ASTFunc.h"
+#include "AST/ASTFunction.h"
+#include "AST/ASTFunctionCall.h"
 #include "Basic/Debug.h"
 
 using namespace fly;
@@ -30,24 +31,12 @@ const llvm::StringMap<ASTGlobalVar *> &ASTNodeBase::getGlobalVars() const {
     return GlobalVars;
 }
 
-const std::unordered_set<ASTFunc*> &ASTNodeBase::getFunctions() const {
+const std::unordered_set<ASTFunction*> &ASTNodeBase::getFunctions() const {
     return Functions;
 }
 
 const llvm::StringMap<ASTClass *> &ASTNodeBase::getClasses() const {
     return Classes;
-}
-
-bool ASTNodeBase::AddFunctionCall(ASTFuncCall *Call) {
-    const auto &It = FunctionCalls.find(Call->getName());
-    FLY_DEBUG_MESSAGE("ASTNodeBase", "AddFunctionCall", "Call=" << Call->str());
-    if (It == FunctionCalls.end()) {
-        std::vector<ASTFuncCall *> TmpFunctionCalls;
-        TmpFunctionCalls.push_back(Call);
-        return FunctionCalls.insert(std::make_pair(Call->getName(), TmpFunctionCalls)).second;
-    }
-    It->getValue().push_back(Call);
-    return true;
 }
 
 std::string ASTNodeBase::str() const {

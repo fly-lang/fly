@@ -11,7 +11,7 @@
 #ifndef FLY_ASTBLOCK_H
 #define FLY_ASTBLOCK_H
 
-#include "ASTStmt.h"
+#include "ASTExprStmt.h"
 #include "llvm/ADT/StringMap.h"
 #include <vector>
 
@@ -19,9 +19,9 @@ namespace fly {
 
     class DiagnosticBuilder;
     class ASTReturn;
-    class ASTFuncCall;
+    class ASTFunctionCall;
     class ASTLocalVar;
-    class ASTLocalVarRef;
+    class ASTVarAssign;
     class ASTGroupExpr;
     class ASTVarRef;
     class ASTExpr;
@@ -50,11 +50,8 @@ namespace fly {
      */
     class ASTBlock : public ASTStmt {
 
-        friend class Parser;
-        friend class FunctionParser;
-        friend class ExprParser;
-        friend class ASTFunc;
-        friend class ASTIfBlock;
+        friend class SemaBuilder;
+        friend class Sema;
 
         // Kind of Stmt identified by enum
         StmtKind Kind = StmtKind::STMT_BLOCK;
@@ -77,7 +74,7 @@ namespace fly {
 
         ASTBlock(const SourceLocation &Loc, ASTBlock *Parent);
 
-        ASTBlock(const SourceLocation &Loc, ASTFunc *Top, ASTBlock *Parent);
+        ASTBlock(const SourceLocation &Loc, ASTFunction *Top, ASTBlock *Parent);
 
         StmtKind getKind() const override;
 
@@ -92,38 +89,6 @@ namespace fly {
         void Clear();
 
         const llvm::StringMap<ASTLocalVar *> &getLocalVars() const;
-
-        bool AddExprStmt(ASTExprStmt *ExprStmt);
-
-        bool AddLocalVar(ASTLocalVar *LocalVar);
-
-        bool AddLocalVarRef(ASTLocalVarRef *LocalVarRef);
-
-        bool RecursiveFindLocalVars(ASTBlock *Block, ASTLocalVar *LocalVar);
-
-        bool HasUndefVar(ASTVarRef *VarRef);
-
-        bool RemoveUndefVar(ASTVarRef *VarRef);
-
-        bool AddCall(ASTFuncCall *Invoke);
-
-        bool AddReturn(const SourceLocation &Loc, ASTExpr *Expr);
-
-        bool AddBreak(const SourceLocation &Loc);
-
-        bool AddContinue(const SourceLocation &Loc);
-
-        ASTIfBlock* AddIfBlock(const SourceLocation &Loc, ASTExpr *Expr);
-
-        ASTSwitchBlock* AddSwitchBlock(const SourceLocation &Loc, ASTExpr *Expr);
-
-        ASTWhileBlock* AddWhileBlock(const SourceLocation &Loc, ASTExpr *Expr);
-
-        ASTForBlock* AddForBlock(const SourceLocation &Loc);
-
-        bool OnCloseBlock();
-
-        DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID);
 
         std::string str() const override;
     };

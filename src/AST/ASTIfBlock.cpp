@@ -9,7 +9,7 @@
 
 
 #include "AST/ASTIfBlock.h"
-#include "AST/ASTFunc.h"
+#include "AST/ASTFunction.h"
 #include "AST/ASTNode.h"
 #include "AST/ASTContext.h"
 #include "Basic/Diagnostic.h"
@@ -28,10 +28,8 @@ ASTIfBlock::ASTIfBlock(const SourceLocation &Loc, ASTBlock *Parent, ASTExpr *Con
 }
 
 ASTElsifBlock *ASTIfBlock::AddElsifBlock(const SourceLocation &Loc, ASTExpr *Expr) {
-    if (ElseBlock) {
-        Parent->Top->getNode()->getContext().Diag(Loc, diag::err_elseif_after_else);
-    }
-    ASTElsifBlock *Elsif = new ASTElsifBlock(Loc, this, Expr); // TODO continue here!
+    assert(!ElseBlock && "else if error");
+    ASTElsifBlock *Elsif = new ASTElsifBlock(Loc, this, Expr);
     ElsifBlocks.push_back(Elsif);
     return Elsif;
 }
@@ -41,9 +39,7 @@ std::vector<ASTElsifBlock *> ASTIfBlock::getElsifBlocks() {
 }
 
 ASTElseBlock *ASTIfBlock::AddElseBlock(const SourceLocation &Loc) {
-    if (ElseBlock) {
-        Parent->Top->getNode()->getContext().Diag(Loc, diag::err_else_after_else);
-    }
+    assert(!ElseBlock && "else error");
     ElseBlock = new ASTElseBlock(Loc, this);
     return ElseBlock;
 }

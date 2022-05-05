@@ -16,7 +16,7 @@ using namespace fly;
 
 ASTSwitchBlock::ASTSwitchBlock(const SourceLocation &Loc, ASTBlock *Parent, ASTExpr *Expr) : ASTBlock(Loc, Parent),
                                                                                               Expr(Expr) {
-    if (Expr->getKind() != EXPR_REF_VAR && Expr->getKind() != EXPR_REF_FUNC) {
+    if (Expr->getExprKind() != EXPR_REF_VAR && Expr->getExprKind() != EXPR_REF_FUNC) {
         Diag(Loc, diag::err_switch_expression);
         // TODO Handle Error
     }

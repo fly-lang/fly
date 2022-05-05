@@ -13,8 +13,14 @@
 
 using namespace fly;
 
-ASTVar::ASTVar(ASTType *Type, const std::string &Name, const std::string &NameSpaceStr, bool Global) :
-        Type(Type), Name(Name), NameSpaceStr(NameSpaceStr), Global(Global) {}
+ASTVar::ASTVar(ASTVarKind VarKind, ASTType *Type, const std::string &Name, bool Constant) :
+        VarKind(VarKind), Type(Type), Name(Name), Constant(Constant) {
+
+}
+
+ASTVarKind ASTVar::getVarKind() {
+    return VarKind;
+}
 
 ASTType *ASTVar::getType() const {
     return Type;
@@ -22,10 +28,6 @@ ASTType *ASTVar::getType() const {
 
 const std::string &ASTVar::getName() const {
     return Name;
-}
-
-const std::string &ASTVar::getPrefix() const {
-    return NameSpaceStr;
 }
 
 ASTVar::~ASTVar() {
@@ -36,25 +38,24 @@ bool ASTVar::isConstant() const {
     return Constant;
 }
 
-bool ASTVar::isGlobal() const {
-    return Global;
+ASTExpr *ASTVar::getExpr() const {
+    return Expr;
+}
+
+void ASTVar::setExpr(ASTExpr *E) {
+    Expr = E;
 }
 
 std::string ASTVar::str() const {
     return "Type=" + Type->str() + ", " +
-           "NameSpace=" + NameSpaceStr + ", " +
            "Name=" + Name + ", " +
             "Constant=" + (Constant ? "true" : "false") + ", " +
-            "Global=" + (Global ? "true" : "false");
+            "VarKind=" + std::to_string(VarKind);
 }
 
 ASTVarRef::ASTVarRef(const SourceLocation &Loc, const std::string &Name, const std::string &NameSpace) :
         Loc(Loc), NameSpace(NameSpace), Name(Name) {
 
-}
-
-ASTVarRef::ASTVarRef(ASTVar *Var) : ASTVarRef(Loc, Var->getName(), Var->getPrefix()) {
-    Decl = Var;
 }
 
 const std::string &ASTVarRef::getName() const {

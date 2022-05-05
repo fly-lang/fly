@@ -7,7 +7,6 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include <AST/ASTResolver.h>
 #include "Parser/ExprParser.h"
 #include "Basic/Debug.h"
 
@@ -31,7 +30,7 @@ ASTExpr *ExprParser::ParseAssignmentExpr(ASTBlock *Block, ASTVarRef *VarRef) {
         return ParseExpr(Block);
     }
 
-    // Parsing =, +=, -=, ...
+    // Parsing +=, -=, ...
     if (isAssignOperator(P->Tok)) {
 
         // Create First Expr
@@ -97,7 +96,7 @@ ASTExpr *ExprParser::ParseAssignmentExpr(ASTBlock *Block, ASTVarRef *VarRef) {
         UpdateBinaryGroup(false);
         UpdateBinaryGroup(true);
         assert(Group.size() == 1 && "Only one Group entry at the end");
-        assert(Group[0]->getKind() == EXPR_GROUP && "Only one Group entry at the end");
+        assert(Group[0]->getExprKind() == EXPR_GROUP && "Only one Group entry at the end");
         assert(((ASTGroupExpr *) Group[0])->getGroupKind() == GROUP_BINARY && "Only one Group entry at the end");
         return (ASTBinaryGroupExpr *) Group[0];
     }
@@ -108,13 +107,12 @@ ASTExpr *ExprParser::ParseAssignmentExpr(ASTBlock *Block, ASTVarRef *VarRef) {
     return nullptr;
 }
 
-/**
- * Parse all Expressions
- * @param Block
- * @param Success true on Success or false on Error
- * @param ParentGroup
- * @return the ASTExpr
- */
+ /**
+  * Parse all Expressions
+  * @param Block where come from
+  * @param Start when starting parse expression in a binary ternary or other multi expression
+  * @return the ASTExpr
+  */
 ASTExpr *ExprParser::ParseExpr(ASTBlock *Block, bool Start) {
     assert(Block != nullptr && "Block is nullptr");
     FLY_DEBUG("Parser", "ParseExpr");
@@ -185,7 +183,7 @@ ASTExpr *ExprParser::ParseExpr(ASTBlock *Block, bool Start) {
             UpdateBinaryGroup(false);
             UpdateBinaryGroup(true);
             assert(Group.size() == 1 && "Only one Group entry at the end");
-            assert(Group[0]->getKind() == EXPR_GROUP && "Only one Group entry at the end");
+            assert(Group[0]->getExprKind() == EXPR_GROUP && "Only one Group entry at the end");
             assert(((ASTGroupExpr *) Group[0])->getGroupKind() == GROUP_BINARY && "Only one Group entry at the end");
             Expr = Group[0];
         }
@@ -219,7 +217,7 @@ ASTExpr *ExprParser::ParseExpr(ASTBlock *Block, bool Start) {
 
 ASTExpr *ExprParser::ParseExpr(ASTBlock *Block, llvm::StringRef Name, llvm::StringRef NameSpace, SourceLocation IdLoc) {
     if (P->Tok.is(tok::l_paren)) { // Ex. a()
-        ASTFuncCall *Call = P->ParseFunctionCall(Block, Name, NameSpace, IdLoc);
+        ASTFunctionCall *Call = P->ParseFunctionCall(Block, Name, NameSpace, IdLoc);
         if (Call != nullptr && Block->Top->getNode()->AddUnrefCall(Call)) { // To Resolve on the next
             return new ASTFuncCallExpr(Call);
         }

@@ -17,17 +17,17 @@ namespace fly {
 
     class ASTClass : public ASTTopDecl {
 
-        friend class ASTNode;
-        friend class Parser;
-        friend class ClassParser;
-    public:
-        VisibilityKind Visibility;
-        bool Constant;
+        friend class SemaBuilder;
+
         std::string Name;
-        SourceLocation Location;
+
+        bool Constant;
+
+    public:
+        ASTClass(const SourceLocation &Loc, ASTNode *Node, const std::string &Name,
+                 VisibilityKind Visibility, bool Constant);
 
         const std::string &getName() const;
-
     };
 
     class ClassRef {

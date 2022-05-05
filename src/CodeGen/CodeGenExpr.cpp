@@ -255,7 +255,7 @@ llvm::Value *CodeGenExpr::Convert(llvm::Value *FromVal, const ASTType *FromType,
 
 llvm::Value *CodeGenExpr::GenValue(const ASTExpr *Expr, llvm::Value *Pointer) {
     FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "Expr=" << Expr->str());
-    switch (Expr->getKind()) {
+    switch (Expr->getExprKind()) {
 
         case EXPR_VALUE: {
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_VALUE");
@@ -270,7 +270,6 @@ llvm::Value *CodeGenExpr::GenValue(const ASTExpr *Expr, llvm::Value *Pointer) {
                 CGM->Diag(VarRefExpr->getLocation(), diag::err_unref_var) << VarRefExpr->getVarRef()->getName();
                 return nullptr;
             }
-            Pointer = Var->getCodeGen()->getPointer(); // TODO what do you do with?
             return Var->getCodeGen()->getValue();
         }
         case EXPR_REF_FUNC: {

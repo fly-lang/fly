@@ -33,8 +33,8 @@ namespace fly {
     class ASTNode;
     class ASTImport;
     class ASTGlobalVar;
-    class ASTFunc;
-    class ASTFuncCall;
+    class ASTFunction;
+    class ASTFunctionCall;
     class ASTType;
     class ASTValue;
     class ASTStmt;
@@ -90,9 +90,9 @@ namespace fly {
 
         CodeGenGlobalVar *GenGlobalVar(ASTGlobalVar *GlobalVar, bool isExternal = false);
 
-        CodeGenFunction *GenFunction(ASTFunc *Func, bool isExternal = false);
+        CodeGenFunction *GenFunction(ASTFunction *Func, bool isExternal = false);
 
-        CallInst *GenCall(llvm::Function *Fn, ASTFuncCall *Call);
+        CallInst *GenCall(llvm::Function *Fn, ASTFunctionCall *Call);
 
         Type *GenType(const ASTType *Type);
 

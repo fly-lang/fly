@@ -110,6 +110,16 @@ namespace fly {
 
         std::string str() const override;
     };
+
+    class ASTClassValue : public ASTValue {
+
+    public:
+        ASTClassValue(const SourceLocation &Loc, ASTClassType *ClassType);
+
+        bool isNull() const;
+
+        std::string str() const override;
+    };
 }
 
 #endif //FLY_ASTVALUE_H

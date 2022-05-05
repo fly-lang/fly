@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTStmt.cpp - Statement implementation
+// src/AST/ASTExprStmt.cpp - Expression Statement implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,32 +7,10 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "AST/ASTStmt.h"
+#include "AST/ASTExprStmt.h"
 #include "AST/ASTExpr.h"
-#include "AST/ASTBlock.h"
 
 using namespace fly;
-
-ASTStmt::ASTStmt(const SourceLocation &Loc, ASTBlock *Parent) : Location(Loc), Top(Parent->getTop()),
-    Parent(Parent) {
-
-}
-
-ASTStmt::ASTStmt(const SourceLocation &Loc, ASTFunction *Top, ASTBlock *Parent) : Location(Loc), Top(Top), Parent(Parent) {
-
-}
-
-const SourceLocation &ASTStmt::getLocation() const {
-    return Location;
-}
-
-ASTBlock *ASTStmt::getParent() const {
-    return Parent;
-}
-
-ASTFunction *ASTStmt::getTop() const {
-    return Top;
-}
 
 ASTExprStmt::ASTExprStmt(const SourceLocation &Loc, ASTBlock *Block) :
         ASTStmt(Loc, Block) {

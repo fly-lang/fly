@@ -81,7 +81,7 @@ namespace fly {
     class ASTType;
     class ASTValue;
     class ASTVarRef;
-    class ASTFuncCall;
+    class ASTFunctionCall;
     class ASTVarRefExpr;
     class ASTFuncCallExpr;
     class ASTValueExpr;
@@ -101,7 +101,7 @@ namespace fly {
 
         virtual ASTType *getType() const = 0;
 
-        virtual ASTExprKind getKind() const = 0;
+        virtual ASTExprKind getExprKind() const = 0;
 
         virtual std::string str() const = 0;
     };
@@ -117,7 +117,7 @@ namespace fly {
     public:
         explicit ASTValueExpr(ASTValue *Val);
 
-        ASTExprKind getKind() const override;
+        ASTExprKind getExprKind() const override;
 
         ASTValue &getValue() const;
 
@@ -137,7 +137,7 @@ namespace fly {
     public:
         ASTVarRefExpr(ASTVarRef *Ref);
 
-        ASTExprKind getKind() const override;
+        ASTExprKind getExprKind() const override;
 
         ASTVarRef *getVarRef() const;
 
@@ -152,14 +152,14 @@ namespace fly {
     class ASTFuncCallExpr : public ASTExpr {
 
         const ASTExprKind Kind = ASTExprKind::EXPR_REF_FUNC;
-        ASTFuncCall * Call;
+        ASTFunctionCall * Call;
 
     public:
-        ASTFuncCallExpr(ASTFuncCall *Ref);
+        ASTFuncCallExpr(ASTFunctionCall *Ref);
 
-        ASTExprKind getKind() const override;
+        ASTExprKind getExprKind() const override;
 
-        ASTFuncCall *getCall() const;
+        ASTFunctionCall *getCall() const;
 
         ASTType *getType() const override;
 
@@ -179,7 +179,7 @@ namespace fly {
 
         ASTGroupExpr(const SourceLocation &Loc, ASTExprGroupKind GroupKind);
 
-        ASTExprKind getKind() const override;
+        ASTExprKind getExprKind() const override;
 
         virtual ASTExprGroupKind getGroupKind();
 

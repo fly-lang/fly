@@ -116,7 +116,7 @@ unsigned HeaderMapImpl::getEndianAdjustedWord(unsigned X) const {
   return llvm::ByteSwap_32(X);
 }
 
-/// getHeader - Return a reference to the file header, in unbyte-swapped form.
+/// getList - Return a reference to the file header, in unbyte-swapped form.
 /// This method cannot fail.
 const HMapHeader &HeaderMapImpl::getHeader() const {
   // We know the file is at least as big as the header.  Return it.
