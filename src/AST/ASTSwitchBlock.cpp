@@ -7,19 +7,12 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-
 #include "AST/ASTSwitchBlock.h"
 #include "AST/ASTExpr.h"
-#include "Basic/Diagnostic.h"
 
 using namespace fly;
 
-ASTSwitchBlock::ASTSwitchBlock(const SourceLocation &Loc, ASTBlock *Parent, ASTExpr *Expr) : ASTBlock(Loc, Parent),
-                                                                                              Expr(Expr) {
-    if (Expr->getExprKind() != EXPR_REF_VAR && Expr->getExprKind() != EXPR_REF_FUNC) {
-        Diag(Loc, diag::err_switch_expression);
-        // TODO Handle Error
-    }
+ASTSwitchBlock::ASTSwitchBlock(const SourceLocation &Loc, ASTExpr *Expr) : ASTBlock(Loc), Expr(Expr) {
 
 }
 
@@ -50,8 +43,8 @@ ASTExpr *ASTSwitchBlock::getExpr() const {
     return Expr;
 }
 
-ASTSwitchCaseBlock::ASTSwitchCaseBlock(const SourceLocation &Loc, ASTSwitchBlock *Switch, ASTExpr *Value) : ASTBlock(Loc, Switch),
-                                                                                                            Expr(Value) {
+ASTSwitchCaseBlock::ASTSwitchCaseBlock(const SourceLocation &Loc, ASTSwitchBlock *Switch, ASTExpr *Value) :
+    ASTBlock(Loc, Switch), Expr(Value) {
 
 }
 

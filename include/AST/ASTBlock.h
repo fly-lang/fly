@@ -72,9 +72,7 @@ namespace fly {
 
     public:
 
-        ASTBlock(const SourceLocation &Loc, ASTBlock *Parent);
-
-        ASTBlock(const SourceLocation &Loc, ASTFunction *Top, ASTBlock *Parent);
+        ASTBlock(const SourceLocation &Loc);
 
         StmtKind getKind() const override;
 
@@ -101,7 +99,7 @@ namespace fly {
         StmtKind Kind = StmtKind::STMT_BREAK;
 
     public:
-        BreakStmt(const SourceLocation &Loc, ASTBlock *Parent);
+        BreakStmt(const SourceLocation &Loc);
 
         StmtKind getKind() const override;
 
@@ -116,7 +114,7 @@ namespace fly {
         StmtKind Kind = StmtKind::STMT_CONTINUE;
 
     public:
-        ContinueStmt(const SourceLocation &Loc, ASTBlock *Parent);
+        ContinueStmt(const SourceLocation &Loc);
 
         StmtKind getKind() const override;
 

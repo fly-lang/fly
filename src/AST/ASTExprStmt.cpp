@@ -12,8 +12,7 @@
 
 using namespace fly;
 
-ASTExprStmt::ASTExprStmt(const SourceLocation &Loc, ASTBlock *Block) :
-        ASTStmt(Loc, Block) {
+ASTExprStmt::ASTExprStmt(const SourceLocation &Loc) : ASTStmt(Loc) {
 
 }
 

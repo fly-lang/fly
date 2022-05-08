@@ -47,10 +47,6 @@ const std::vector<ASTLocalVar *> &ASTFunction::getLocalVars() const {
     return LocalVars;
 }
 
-void ASTFunction::addLocalVar(ASTLocalVar *LocalVar) {
-    LocalVars.push_back(LocalVar);
-}
-
 CodeGenFunction *ASTFunction::getCodeGen() const {
     return CodeGen;
 }
@@ -113,8 +109,7 @@ bool std::equal_to<ASTFunction *>::operator()(const ASTFunction *F1, const ASTFu
     return Result;
 }
 
-ASTReturn::ASTReturn(const SourceLocation &Loc, ASTBlock *Block, ASTExpr *Expr) : ASTStmt(Loc, Block),
-                                                                                  Expr(Expr) {}
+ASTReturn::ASTReturn(const SourceLocation &Loc, ASTExpr *Expr) : ASTStmt(Loc), Expr(Expr) {}
 
 ASTExpr *ASTReturn::getExpr() const {
     return Expr;

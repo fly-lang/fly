@@ -7,13 +7,12 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-
 #include "AST/ASTWhileBlock.h"
 
 using namespace fly;
 
 ASTWhileBlock::ASTWhileBlock(const SourceLocation &Loc, ASTBlock *Parent, ASTExpr *Cond) :
-    ASTBlock(Loc, Parent), Cond(Cond) {
+                            ASTBlock(Loc), Condition(Cond) {
 
 }
 
@@ -22,5 +21,5 @@ enum ASTBlockKind ASTWhileBlock::getBlockKind() const {
 }
 
 ASTExpr *ASTWhileBlock::getCondition() {
-    return Cond;
+    return Condition;
 }

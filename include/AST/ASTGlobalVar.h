@@ -31,14 +31,12 @@ namespace fly {
 
     public:
 
-        ASTGlobalVar(SourceLocation &Loc, ASTNode *Node, ASTType *Type, const std::string Name,
+        ASTGlobalVar(SourceLocation &Loc, ASTNode *Node, ASTType *Type, const std::string &Name,
                      VisibilityKind Visibility = V_DEFAULT, bool Constant = false);
 
         ~ASTGlobalVar() = default;
 
         const std::string &getName() const override;
-
-        ASTVarRef *CreateVarRef() override;
 
         CodeGenGlobalVar *getCodeGen() const;
 

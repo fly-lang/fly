@@ -12,36 +12,16 @@
 #include "AST/ASTFunction.h"
 #include "AST/ASTNode.h"
 #include "AST/ASTContext.h"
-#include "Basic/Diagnostic.h"
 
 using namespace fly;
 
-ASTIfBlock::ASTIfBlock(const SourceLocation &Loc, ASTBlock *Parent) : ASTBlock(Loc, Parent) {
-    // The UndefVars are copied from Parent to this if block
-    UndefVars = Parent->UndefVars;
-}
+ASTIfBlock::ASTIfBlock(const SourceLocation &Loc, ASTExpr *Condition) : Condition(Condition),
+    ASTBlock(Loc) {
 
-ASTIfBlock::ASTIfBlock(const SourceLocation &Loc, ASTBlock *Parent, ASTExpr *Condition) : Condition(Condition),
-    ASTBlock(Loc, Parent) {
-    // The UndefVars are copied from Parent to this if block
-    UndefVars = Parent->UndefVars;
-}
-
-ASTElsifBlock *ASTIfBlock::AddElsifBlock(const SourceLocation &Loc, ASTExpr *Expr) {
-    assert(!ElseBlock && "else if error");
-    ASTElsifBlock *Elsif = new ASTElsifBlock(Loc, this, Expr);
-    ElsifBlocks.push_back(Elsif);
-    return Elsif;
 }
 
 std::vector<ASTElsifBlock *> ASTIfBlock::getElsifBlocks() {
     return ElsifBlocks;
-}
-
-ASTElseBlock *ASTIfBlock::AddElseBlock(const SourceLocation &Loc) {
-    assert(!ElseBlock && "else error");
-    ElseBlock = new ASTElseBlock(Loc, this);
-    return ElseBlock;
 }
 
 ASTElseBlock *ASTIfBlock::getElseBlock() {
@@ -57,7 +37,7 @@ enum ASTBlockKind ASTIfBlock::getBlockKind() const {
 }
 
 ASTElsifBlock::ASTElsifBlock(const SourceLocation &Loc, ASTBlock *Parent, ASTExpr *Condition) :
-    ASTIfBlock(Loc, Parent, Condition) {
+    ASTBlock(Loc, Parent), Condition(Condition) {
     
 }
 
@@ -65,7 +45,11 @@ enum ASTBlockKind ASTElsifBlock::getBlockKind() const {
     return StmtKind;
 }
 
-ASTElseBlock::ASTElseBlock(const SourceLocation &Loc, ASTBlock *Parent) : ASTIfBlock(Loc, Parent) {
+ASTExpr *ASTElsifBlock::getCondition() {
+    return Condition;
+}
+
+ASTElseBlock::ASTElseBlock(const SourceLocation &Loc, ASTBlock *Parent) : ASTBlock(Loc, Parent) {
     
 }
 

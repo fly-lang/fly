@@ -7,9 +7,7 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-
 #include "AST/ASTVar.h"
-#include "Basic/Debug.h"
 
 using namespace fly;
 
@@ -40,10 +38,6 @@ bool ASTVar::isConstant() const {
 
 ASTExpr *ASTVar::getExpr() const {
     return Expr;
-}
-
-void ASTVar::setExpr(ASTExpr *E) {
-    Expr = E;
 }
 
 std::string ASTVar::str() const {

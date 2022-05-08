@@ -19,14 +19,17 @@ namespace fly {
     class CodeGenCall;
 
     class ASTCallArg {
-        ASTExpr *Value;
+
+        ASTExpr *Expr;
         ASTType *Type;
 
     public:
 
-        ASTCallArg(ASTExpr *Value, ASTType *Type);
+        ASTCallArg(ASTType *Type);
 
-        ASTExpr *getValue() const;
+        ASTCallArg(ASTExpr *Expr);
+
+        ASTExpr *getExpr() const;
 
         ASTType *getType() const;
 

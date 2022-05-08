@@ -12,22 +12,13 @@
 
 using namespace fly;
 
-ASTLocalVar::ASTLocalVar(const SourceLocation &Loc, ASTBlock *Block, ASTType *Type, const std::string &Name,
-                         bool Constant) :
-        ASTStmt(Loc, Block), ASTVar(VAR_LOCAL, Type, Name, Constant) {
-    if (Type->getKind() == TYPE_ARRAY) {
-        setExpr(new ASTValueExpr(new ASTArrayValue(Loc, ((ASTArrayType *)Type)->getType())));
-    }
+ASTLocalVar::ASTLocalVar(const SourceLocation &Loc, ASTType *Type, const std::string &Name, bool Constant) :
+                        ASTStmt(Loc), ASTVar(VAR_LOCAL, Type, Name, Constant) {
+
 }
 
 StmtKind ASTLocalVar::getKind() const {
     return Kind;
-}
-
-ASTVarRef *ASTLocalVar::CreateVarRef() {
-    ASTVarRef *VarRef = new ASTVarRef(Location, Name);
-    VarRef->setDecl(this);
-    return VarRef;
 }
 
 CodeGenLocalVar *ASTLocalVar::getCodeGen() const {

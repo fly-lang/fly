@@ -21,18 +21,18 @@ namespace fly {
 
         enum ASTBlockKind StmtKind = ASTBlockKind::BLOCK_STMT_FOR;
 
-        ASTBlock *Cond;
+        ASTExpr *Condition;
         ASTBlock *Post;
         ASTBlock *Loop;
 
     public:
-        ASTForBlock(const SourceLocation &Loc, ASTBlock *Parent);
+        ASTForBlock(const SourceLocation &Loc);
 
         virtual ~ASTForBlock();
 
         enum ASTBlockKind getBlockKind() const override;
 
-        ASTBlock *getCondition();
+        ASTExpr *getCondition();
 
         ASTBlock *getPost();
 

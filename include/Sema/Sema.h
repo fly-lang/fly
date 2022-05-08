@@ -40,11 +40,11 @@ namespace fly {
 
         SemaResolver *Resolver;
 
-        Sema(DiagnosticsEngine &Diags, ASTContext *Context);
+        Sema(DiagnosticsEngine &Diags);
 
     public:
 
-        static SemaBuilder* Builder(DiagnosticsEngine &Diags, ASTContext *Context);
+        static SemaBuilder* Builder(DiagnosticsEngine &Diags);
 
         DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID) const;
 

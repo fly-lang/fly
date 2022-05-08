@@ -78,17 +78,11 @@ namespace fly {
 
         const std::vector<ASTLocalVar *> &getLocalVars() const;
 
-        void addLocalVar(ASTLocalVar *LocalVar);
-
         CodeGenFunction *getCodeGen() const;
 
         void setCodeGen(CodeGenFunction *CGF);
 
-        ASTParam *addParam(const SourceLocation &Loc, ASTType *Type, const std::string &Name);
-
         bool isVarArg();
-
-        void setVarArg(ASTParam *VarArg);
 
         std::string str() const;
 
@@ -106,7 +100,7 @@ namespace fly {
         ASTExpr *Expr;
 
     public:
-        ASTReturn(const SourceLocation &Loc, ASTBlock *Block, ASTExpr *Expr);
+        ASTReturn(const SourceLocation &Loc, ASTExpr *Expr);
 
         StmtKind getKind() const override;
 

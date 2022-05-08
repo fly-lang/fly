@@ -13,12 +13,7 @@
 
 using namespace fly;
 
-ASTStmt::ASTStmt(const SourceLocation &Loc, ASTBlock *Parent) : Location(Loc), Top(Parent->getTop()),
-    Parent(Parent) {
-
-}
-
-ASTStmt::ASTStmt(const SourceLocation &Loc, ASTFunction *Top, ASTBlock *Parent) : Location(Loc), Top(Top), Parent(Parent) {
+ASTStmt::ASTStmt(const SourceLocation &Loc) : Location(Loc) {
 
 }
 

@@ -23,7 +23,7 @@ namespace fly {
 
     public:
 
-        ASTParam(const SourceLocation &Loc, ASTBlock *Block, ASTType *Type, const std::string &Name, bool Costant);
+        ASTParam(const SourceLocation &Loc, ASTType *Type, const std::string &Name, bool Costant);
 
         std::string str() const override;
     };

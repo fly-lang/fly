@@ -41,9 +41,7 @@ namespace fly {
         ASTBlock *Parent;
 
     public:
-        ASTStmt(const SourceLocation &Loc, ASTBlock *Parent);
-
-        ASTStmt(const SourceLocation &Loc, ASTFunction *Top, ASTBlock *Parent);
+        ASTStmt(const SourceLocation &Loc);
 
         const SourceLocation &getLocation() const;
 

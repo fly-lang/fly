@@ -57,11 +57,7 @@ namespace fly {
 
         const llvm::StringMap<ASTNameSpace *> &getNameSpaces() const;
 
-        ASTNameSpace *AddNameSpace(std::string Name, bool ExternLib = false);
-
         const llvm::StringMap<ASTNode *> &getNodes() const;
-
-        bool AddNode(ASTNode *Node);
     };
 }
 

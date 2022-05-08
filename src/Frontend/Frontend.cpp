@@ -23,12 +23,12 @@
 
 using namespace fly;
 
-Frontend::Frontend(CompilerInstance &CI) : CI(CI), Diags(CI.getDiagnostics()), Context(new ASTContext(Diags)) {
+Frontend::Frontend(CompilerInstance &CI) : CI(CI), Diags(CI.getDiagnostics()), Builder(Sema::Builder(Diags)) {
 
 }
 
 Frontend::~Frontend() {
-    delete Context;
+    delete Builder;
 }
 
 bool Frontend::Execute() {
@@ -51,7 +51,7 @@ bool Frontend::Execute() {
                CI.getFrontendOptions().ShowTimers);
 
     // Parse files, create AST, build Semantics checker
-    SemaBuilder *Builder = Sema::Builder(Diags, Context);
+    SemaBuilder *Builder = Sema::Builder(Diags);
     if (LoadActions(CG, *Builder) && Builder->Build()) {
         for (auto Action: Actions) { // Generate Code/Translation for each Action
             if (!Action->GenerateCode()) {
@@ -128,7 +128,7 @@ bool Frontend::LoadActions(CodeGen &CG, SemaBuilder &Builder) {
         InputFile *Input = new InputFile(Diags, CI.getSourceManager(), InputFileName);
         if (Input->getExt() == FileExt::FLY) {
             if (Input->Load()) {
-                FrontendAction *Action = new FrontendAction(CI, Context, CG, Builder, Input);
+                FrontendAction *Action = new FrontendAction(CI, CG, Builder, Input);
                 // Parse Action & add to Actions for next
                 if (Action->Parse()) {
                     Actions.emplace_back(Action);
@@ -142,7 +142,7 @@ bool Frontend::LoadActions(CodeGen &CG, SemaBuilder &Builder) {
                 if (llvm::sys::path::extension(File) == ".h") {
                     InputFile *InputHeader = new InputFile(Diags, CI.getSourceManager(), File.str());
                     if (InputHeader->Load()) {
-                        FrontendAction *Action = new FrontendAction(CI, Context, CG, Builder, InputHeader);
+                        FrontendAction *Action = new FrontendAction(CI, CG, Builder, InputHeader);
                         Result &= Action->ParseHeader();
                     }
 

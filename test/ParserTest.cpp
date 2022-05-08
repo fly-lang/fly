@@ -10,11 +10,16 @@
 #include "TestUtils.h"
 #include "Frontend/FrontendAction.h"
 #include "Parser/Parser.h"
+#include "Sema/SemaBuilder.h"
 #include "Frontend/CompilerInstance.h"
 #include "AST/ASTContext.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTImport.h"
+#include "AST/ASTGlobalVar.h"
+#include "AST/ASTFunction.h"
+#include "AST/ASTFunctionCall.h"
 #include "AST/ASTValue.h"
+#include "AST/ASTVarAssign.h"
 #include "AST/ASTParams.h"
 #include <AST/ASTWhileBlock.h>
 #include <unordered_set>
@@ -28,22 +33,21 @@ namespace {
     public:
         const CompilerInstance CI;
         ASTContext *Context;
-        CodeGen *CG;
+        SemaBuilder *Builder;
         DiagnosticsEngine &Diags;
 
         ParserTest() : CI(*TestUtils::CreateCompilerInstance()),
-                      Context(new ASTContext(CI.getDiagnostics())),
-                      CG(TestUtils::CreateCodeGen(CI)),
-                      Diags(CI.getDiagnostics()) {
+                      Diags(CI.getDiagnostics()),
+                      Builder(Sema::Builder(Diags)) {
 
         }
 
         ASTNode *Parse(std::string FileName, llvm::StringRef Source) {
             InputFile Input(Diags, CI.getSourceManager(), FileName);
             Input.Load(Source);
-            FrontendAction *Action = new FrontendAction(CI, Context, *CG, &Input);
-            Action->Parse();
-            return Action->getAST();
+            Parser *P = new Parser(Input, CI.getSourceManager(), Diags, *Builder);
+            P->Parse();
+            return P->getNode();
         }
 
     };
@@ -892,9 +896,9 @@ namespace {
         EXPECT_EQ(doOtherStmt->getKind(), StmtKind::STMT_EXPR);
         ASTFuncCallExpr *doOtherCall = (ASTFuncCallExpr *) doOtherStmt->getExpr();
         EXPECT_EQ(doOtherCall->getCall()->getName(), "doOther");
-        ASTVarRefExpr *VRefExpr = (ASTVarRefExpr *) doOtherCall->getCall()->getArgs()[0]->getValue();
+        ASTVarRefExpr *VRefExpr = (ASTVarRefExpr *) doOtherCall->getCall()->getArgs()[0]->getExpr();
         EXPECT_EQ(VRefExpr->getVarRef()->getName(), "a");
-        ASTValueExpr *ValExpr = (ASTValueExpr *) doOtherCall->getCall()->getArgs()[1]->getValue();
+        ASTValueExpr *ValExpr = (ASTValueExpr *) doOtherCall->getCall()->getArgs()[1]->getExpr();
         EXPECT_EQ(ValExpr->getValue().str(), "1");
 
         // return do()
@@ -1003,12 +1007,12 @@ namespace {
         EXPECT_EQ(((ASTVarRefExpr *) ElsifCond->getFirst())->getVarRef()->getName(), "a");
         EXPECT_EQ(ElsifCond->getOperatorKind(), BinaryOpKind::COMP_EQ);
         EXPECT_EQ(((ASTValueExpr *) ElsifCond->getSecond())->getValue().str(), "2");
-        EXPECT_EQ(((ASTVarAssign *) ElsifBlock->getContent()[0])->getName(), "b");
+        EXPECT_EQ(((ASTVarAssign *) ElsifBlock->getContent()[0])->getVarRef()->getName(), "b");
 
         // Else
         ASTElseBlock *ElseBlock = IfBlock->getElseBlock();
         EXPECT_EQ(ElseBlock->getBlockKind(), ASTBlockKind::BLOCK_STMT_ELSE);
-        EXPECT_EQ(((ASTVarAssign *)ElseBlock->getContent()[0])->getName(), "b");
+        EXPECT_EQ(((ASTVarAssign *)ElseBlock->getContent()[0])->getVarRef()->getName(), "b");
 
         delete AST;
     }
@@ -1051,7 +1055,7 @@ namespace {
         // Else
         ASTElseBlock *ElseBlock = IfBlock->getElseBlock();
         EXPECT_EQ(ElseBlock->getBlockKind(), ASTBlockKind::BLOCK_STMT_ELSE);
-        EXPECT_EQ(((ASTVarAssign *) ElseBlock->getContent()[0])->getName(), "a");
+        EXPECT_EQ(((ASTVarAssign *) ElseBlock->getContent()[0])->getVarRef()->getName(), "a");
 
         delete AST;
     }
@@ -1078,11 +1082,11 @@ namespace {
         ASTSwitchBlock *SwitchBlock = (ASTSwitchBlock *) Body->getContent()[0];
         EXPECT_EQ(SwitchBlock->getBlockKind(), ASTBlockKind::BLOCK_STMT_SWITCH);
         EXPECT_EQ(((ASTValueExpr *) SwitchBlock->getCases()[0]->getExpr())->getValue().str(), "1");
-        EXPECT_EQ(SwitchBlock->getCases()[0]->getContent()[0]->getExprKind(), StmtKind::STMT_BREAK);
+        EXPECT_EQ(SwitchBlock->getCases()[0]->getContent()[0]->getKind(), StmtKind::STMT_BREAK);
         EXPECT_EQ(((ASTValueExpr *) SwitchBlock->getCases()[1]->getExpr())->getValue().str(), "2");
         EXPECT_TRUE(SwitchBlock->getCases()[1]->getContent().empty());
         EXPECT_EQ(SwitchBlock->getDefault()->getBlockKind(), ASTBlockKind::BLOCK_STMT_DEFAULT);
-        EXPECT_EQ((SwitchBlock->getDefault()->getContent()[0])->getExprKind(), StmtKind::STMT_RETURN);
+        EXPECT_EQ((SwitchBlock->getDefault()->getContent()[0])->getKind(), StmtKind::STMT_RETURN);
 
         delete AST;
     }

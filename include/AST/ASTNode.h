@@ -57,43 +57,21 @@ namespace fly {
 
         ~ASTNode();
 
-        ASTNode(const std::string FileName, ASTContext *Context);
-
-        ASTNode(const std::string FileName, ASTContext *Context, CodeGenModule * CGM);
+        ASTNode(const std::string FileName, ASTContext *Context, bool isHeader);
 
         CodeGenModule *getCodeGen() const;
 
         const bool isHeader() const;
 
-        void setNameSpace(std::string Name);
-
         ASTNameSpace* getNameSpace();
-
-        void setDefaultNameSpace();
 
         ASTImport *FindImport(const std::string &string);
 
-        bool AddImport(ASTImport *Import);
-
         const llvm::StringMap<ASTImport*> &getImports();
-
-        bool AddGlobalVar(ASTGlobalVar *GVar);
-
-        bool AddFunction(ASTFunction *Func);
-
-        bool AddClass(ASTClass *Class);
-
-        bool AddExternalGlobalVar(ASTGlobalVar *Var);
 
         const llvm::StringMap<ASTGlobalVar *> &getExternalGlobalVars() const;
 
-        bool AddExternalFunction(ASTFunction *Call);
-
         const std::unordered_set<ASTFunction *> &getExternalFunctions() const;
-
-        bool AddUnrefCall(ASTFunctionCall *Call);
-
-        bool AddUnrefGlobalVar(ASTVarRef *VarRef);
     };
 }
 

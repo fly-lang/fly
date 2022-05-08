@@ -25,12 +25,12 @@
 
 using namespace fly;
 
-Sema::Sema(DiagnosticsEngine &Diags, ASTContext *Context) : Diags(Diags), Context(Context) {
+Sema::Sema(DiagnosticsEngine &Diags) : Diags(Diags) {
 
 }
 
-SemaBuilder* Sema::Builder(DiagnosticsEngine &Diags, ASTContext *Context) {
-    Sema *S = new Sema(Diags, Context);
+SemaBuilder* Sema::Builder(DiagnosticsEngine &Diags) {
+    Sema *S = new Sema(Diags);
     SemaBuilder *B = new SemaBuilder(*S);
     S->Resolver = new SemaResolver(*S, *B);
     return B;
@@ -134,7 +134,7 @@ bool Sema::isUsable(ASTFunction *Function, ASTFunctionCall *Call) {
         } else {
             ASTCallArg *Arg = Args[i];
             if (Arg->getType() == nullptr) {
-                ASTType *Ty = Resolver->ResolveExprType(Arg->getValue());
+                ASTType *Ty = Resolver->ResolveExprType(Arg->getExpr());
                 Arg->setType(Ty);
             }
 

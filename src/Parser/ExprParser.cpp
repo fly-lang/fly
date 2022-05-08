@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Parser/ExprParser.h"
+#include "Sema/SemaBuilder.h"
 #include "Basic/Debug.h"
 
 using namespace fly;
@@ -218,20 +219,20 @@ ASTExpr *ExprParser::ParseExpr(ASTBlock *Block, bool Start) {
 ASTExpr *ExprParser::ParseExpr(ASTBlock *Block, llvm::StringRef Name, llvm::StringRef NameSpace, SourceLocation IdLoc) {
     if (P->Tok.is(tok::l_paren)) { // Ex. a()
         ASTFunctionCall *Call = P->ParseFunctionCall(Block, Name, NameSpace, IdLoc);
-        if (Call != nullptr && Block->Top->getNode()->AddUnrefCall(Call)) { // To Resolve on the next
+        if (Call != nullptr && P->Builder.AddUnrefCall(P->Node, Call)) { // To Resolve on the next
             return new ASTFuncCallExpr(Call);
         }
         // TODO add Error of Call or AddUnrefCall()
     } else { // parse variable post increment/decrement or simple var
         ASTVarRef *VarRef = new ASTVarRef(IdLoc, Name.str(), NameSpace.str());
-        if (ASTResolver::ResolveVarRef(Block, VarRef)) {
+        // if (ASTResolver::ResolveVarRef(Block, VarRef)) { // FIXME need to do after
             if (isUnaryPostOperator()) { // Ex. a++ or a--
                 return ParseUnaryPostExpr(Block, VarRef); // Parse Unary Pre Expression
             } else {
                 // Simple Var
                 return new ASTVarRefExpr(VarRef);
             }
-        }
+        // }
     }
     return nullptr;
 }
@@ -245,7 +246,7 @@ ASTExpr *ExprParser::ParseExpr(ASTBlock *Block, llvm::StringRef Name, llvm::Stri
  */
 ASTUnaryGroupExpr* ExprParser::ParseUnaryPostExpr(ASTBlock *Block, ASTVarRef *VarRef) {
     ASTVarRefExpr *VarRefExpr = new ASTVarRefExpr(VarRef);
-    if (ASTResolver::ResolveVarRef(Block, VarRef)) {
+    // if (ASTResolver::ResolveVarRef(Block, VarRef)) { // FIXME need to do after
 
         UnaryOpKind Op;
         switch (P->Tok.getKind()) {
@@ -263,7 +264,7 @@ ASTUnaryGroupExpr* ExprParser::ParseUnaryPostExpr(ASTBlock *Block, ASTVarRef *Va
         }
         P->ConsumeToken();
         return new ASTUnaryGroupExpr(VarRef->getLocation(), Op, UNARY_POST, VarRefExpr);
-    }
+    // }
     return nullptr;
 }
 
@@ -301,9 +302,9 @@ ASTUnaryGroupExpr* ExprParser::ParseUnaryPreExpr(Parser *P, ASTBlock *Block) {
         if (P->ParseIdentifier(Name, NameSpace, Loc)) {
             ASTVarRef *VarRef = new ASTVarRef(Loc, Name.str(), NameSpace.str());
             ASTVarRefExpr *VarRefExpr = new ASTVarRefExpr(VarRef);
-            if (ASTResolver::ResolveVarRef(Block, VarRef)) {
+            // if (ASTResolver::ResolveVarRef(Block, VarRef)) { // FIXME need to do after
                 return new ASTUnaryGroupExpr(Loc, Op, UNARY_PRE, VarRefExpr);
-            }
+            // }
         }
     }
 

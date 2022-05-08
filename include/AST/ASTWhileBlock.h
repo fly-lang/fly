@@ -21,7 +21,7 @@ namespace fly {
 
         enum ASTBlockKind StmtKind = ASTBlockKind::BLOCK_STMT_WHILE;
 
-        ASTExpr *Cond;
+        ASTExpr *Condition;
 
     public:
         ASTWhileBlock(const SourceLocation &Loc, ASTBlock *Parent, ASTExpr *Cond);

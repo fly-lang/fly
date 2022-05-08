@@ -34,13 +34,11 @@ namespace fly {
 
         Parser *P = nullptr;
 
-        ASTNode *AST = nullptr;
+        ASTNode *Node = nullptr;
 
         CodeGenModule *CGM = nullptr;
 
         CodeGenHeader *CGH = nullptr;
-
-        ASTContext *Context;
 
         InputFile *Input;
 
@@ -58,12 +56,10 @@ namespace fly {
 
     public:
 
-        FrontendAction(const CompilerInstance &CI, ASTContext *Context, CodeGen &CG, SemaBuilder &Builder,
+        FrontendAction(const CompilerInstance &CI, CodeGen &CG, SemaBuilder &Builder,
                        InputFile *Input);
 
         ~FrontendAction();
-
-        ASTNode *getAST();
 
         bool Parse();
 

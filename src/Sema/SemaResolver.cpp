@@ -67,6 +67,7 @@ bool SemaResolver::Resolve() {
  */
 bool SemaResolver::ResolveImports(ASTNameSpace *NameSpace) {
     bool Success = true;
+
     for (auto &NodeEntry : NameSpace->Nodes) {
         ASTNode *&Node = NodeEntry.getValue();
         for (auto &ImportEntry : Node->getImports()) {
@@ -75,7 +76,7 @@ bool SemaResolver::ResolveImports(ASTNameSpace *NameSpace) {
             auto &Import = ImportEntry.getValue();
             ASTNameSpace *NameSpaceFound = NameSpace->Context->NameSpaces.lookup(Import->getName());
 
-            if (NameSpaceFound == nullptr) { // Error
+            if (!NameSpaceFound) { // Error
                 Success = false;
                 Diag(diag::err_namespace_notfound) << Import->getName();
             } else {
@@ -145,7 +146,7 @@ bool SemaResolver::ResolveGlobalVars(ASTNameSpace *NameSpace) {
             Success = false;
         } else {
             Unref->getVarRef().setDecl(It->getValue());
-            Unref->getNode()->AddExternalGlobalVar(It->getValue());
+            Builder.AddExternalGlobalVar(Unref->getNode(), It->getValue());
         }
     }
 
@@ -223,7 +224,7 @@ bool SemaResolver::ResolveFunctionCalls(ASTNameSpace *NameSpace) {
             for (auto &FunctionCall : It->getValue()) {
                 if (S.isUsable(FunctionCall->getDecl(), UnrefFunctionCall->getCall())) {
                     UnrefFunctionCall->getCall()->setDecl(FunctionCall->getDecl());
-                    UnrefFunctionCall->getNode()->AddExternalFunction(FunctionCall->getDecl()); // Call resolved with external function
+                    Builder.AddExternalFunction(UnrefFunctionCall->getNode(), FunctionCall->getDecl()); // Call resolved with external function
                 } else {
                     Success = false;
                 }
@@ -353,7 +354,7 @@ bool SemaResolver::ResolveVarRef(ASTBlock *Block, ASTVarRef *VarRef) {
         if (LocalVar) {
             VarRef->setDecl(LocalVar); // Resolved
         } else {
-            Block->getTop()->getNode()->AddUnrefGlobalVar(VarRef); // Resolve Later by searching into Node GlobalVars
+            Builder.AddUnrefGlobalVar(Block->getTop()->getNode(), VarRef); // Resolve Later by searching into Node GlobalVars
         }
     }
 
@@ -378,7 +379,7 @@ bool SemaResolver::ResolveExpr(ASTBlock *Block, const ASTExpr *Expr) {
         }
         case EXPR_REF_FUNC: {
             ASTFunctionCall *Call = ((ASTFuncCallExpr *)Expr)->getCall();
-            return Call->getDecl() || Block->getTop()->getNode()->AddUnrefCall(Call);
+            return Call->getDecl() || Builder.AddUnrefCall(Block->getTop()->getNode(), Call);
         }
         case EXPR_GROUP: {
             ASTGroupExpr *GroupExpr = (ASTGroupExpr *) Expr;

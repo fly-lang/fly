@@ -30,10 +30,6 @@ namespace fly {
 
         ASTFunction *Function = nullptr;
 
-        bool Success;
-
-//        ASTFunctionCall *Call = nullptr;
-
         FunctionParser(Parser *P, VisibilityKind &Visibility, ASTType *Type, bool isHeader);
 
         bool ParseParams();
@@ -41,8 +37,6 @@ namespace fly {
         bool ParseParam();
 
         bool ParseBody();
-
-
 
     public:
 

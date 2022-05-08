@@ -16,14 +16,7 @@
 #include "AST/ASTStmt.h"
 #include "AST/ASTExpr.h"
 #include "AST/ASTLocalVar.h"
-#include "AST/ASTVarAssign.h"
-#include "AST/ASTIfBlock.h"
-#include "AST/ASTSwitchBlock.h"
-#include "AST/ASTWhileBlock.h"
-#include "AST/ASTForBlock.h"
 #include "Sema/Sema.h"
-#include "Basic/Diagnostic.h"
-#include "Basic/Debug.h"
 #include <llvm/ADT/StringMap.h>
 
 using namespace fly;
@@ -34,18 +27,8 @@ using namespace fly;
  * @param Top
  * @param Parent
  */
-ASTBlock::ASTBlock(const SourceLocation &Loc, ASTFunction *Top, ASTBlock *Parent) :
-    ASTStmt(Loc, Top, Parent) {
-    FLY_DEBUG("ASTBlock", "ASTBlock");
-}
+ASTBlock::ASTBlock(const SourceLocation &Loc, ASTFunction *Top, ASTBlock *Parent) : ASTStmt(Loc) {
 
-/**
- * ASTBlock constructor
- * @param Loc
- * @param Parent
- */
-ASTBlock::ASTBlock(const SourceLocation &Loc, ASTBlock *Parent) : ASTStmt(Loc, Parent->getTop(), Parent) {
-        FLY_DEBUG("ASTBlock", "~ASTBlock");
 }
 
 /**
@@ -99,7 +82,7 @@ std::string ASTBlock::str() const {
  * @param Loc
  * @param Parent
  */
-BreakStmt::BreakStmt(const SourceLocation &Loc, ASTBlock *Parent) : ASTStmt(Loc, Parent) {
+BreakStmt::BreakStmt(const SourceLocation &Loc) : ASTStmt(Loc) {
 
 }
 /**
@@ -124,7 +107,7 @@ StmtKind BreakStmt::getKind() const {
  * @param Loc
  * @param Parent
  */
-ContinueStmt::ContinueStmt(const SourceLocation &Loc, ASTBlock *Parent) : ASTStmt(Loc, Parent) {
+ContinueStmt::ContinueStmt(const SourceLocation &Loc) : ASTStmt(Loc) {
 
 }
 

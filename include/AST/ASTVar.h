@@ -49,15 +49,11 @@ namespace fly {
 
         ASTVarKind getVarKind();
 
-        virtual ASTVarRef *CreateVarRef() = 0;
-
         virtual bool isConstant() const;
 
         virtual ASTType *getType() const;
 
         virtual const std::string &getName() const;
-
-        void setExpr(ASTExpr *Exp);
 
         ASTExpr *getExpr() const;
 

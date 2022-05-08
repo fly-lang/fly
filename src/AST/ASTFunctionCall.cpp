@@ -43,13 +43,8 @@ CodeGenCall *ASTFunctionCall::getCodeGen() const {
     return CGC;
 }
 
-void ASTFunctionCall::setCodeGen(CodeGenCall *CGC) {
-    CGC = CGC;
-}
-
-ASTCallArg *ASTFunctionCall::addArg(ASTCallArg *Arg) {
-    Args.push_back(Arg);
-    return Arg;
+void ASTFunctionCall::setCodeGen(CodeGenCall *C) {
+    CGC = C;
 }
 
 const std::string &ASTFunctionCall::getNameSpace() const {
@@ -74,12 +69,16 @@ std::string ASTFunctionCall::str() const {
     return Str;
 }
 
-ASTCallArg::ASTCallArg(ASTExpr *Value, ASTType *Type) : Value(Value), Type(Type) {
+ASTCallArg::ASTCallArg(ASTType *Type) : Type(Type), Expr(nullptr) {
 
 }
 
-ASTExpr *ASTCallArg::getValue() const {
-    return Value;
+ASTCallArg::ASTCallArg(ASTExpr *Expr) : Type(Expr->getType()), Expr(Expr) {
+
+}
+
+ASTExpr *ASTCallArg::getExpr() const {
+    return Expr;
 }
 
 ASTType *ASTCallArg::getType() const {
