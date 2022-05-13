@@ -13,7 +13,7 @@ using namespace fly;
 
 ASTClass::ASTClass(const SourceLocation &Loc, ASTNode *Node, const std::string &Name,
                    VisibilityKind Visibility, bool Constant) :
-                   ASTTopDecl(Loc, Node, TopDeclKind::DECL_CLASS, Visibility), Constant(Constant) {
+        ASTTopDef(Loc, Node, TopDeclKind::DECL_CLASS, Visibility), Constant(Constant) {
 
 }
 

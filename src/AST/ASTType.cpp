@@ -84,11 +84,6 @@ ASTDoubleType::ASTDoubleType(const SourceLocation &Loc) : ASTType(Loc, TypeKind:
 
 }
 
-ASTArrayType::ASTArrayType(const SourceLocation &Loc, ASTType *Type, ASTIntegerValue *Size) :
-    ASTType(Loc, TypeKind::TYPE_ARRAY), Type(Type), Size(new ASTValueExpr((ASTValue *) Size)) {
-
-}
-
 ASTArrayType::ASTArrayType(const SourceLocation &Loc, ASTType *Type, ASTExpr *Size) :
         ASTType(Loc, TypeKind::TYPE_ARRAY), Type(Type), Size(Size) {
 
@@ -106,6 +101,10 @@ void ASTArrayType::setSize(ASTIntegerValue *S) {
     Size = new ASTValueExpr((ASTValue *) S);
 }
 
+std::string ASTArrayType::str() const {
+    return Type->str() + "[]";
+}
+
 ASTClassType::ASTClassType(const SourceLocation &Loc, std::string Name, std::string NameSpace) :
     ASTType(Loc, TypeKind::TYPE_CLASS), Name(Name) {
 
@@ -117,4 +116,16 @@ const std::string &ASTClassType::getName() const {
 
 bool ASTClassType::operator==(const ASTClassType &Ty) const {
     return getKind() == Ty.getKind() && Name == Ty.Name;
+}
+
+const std::string &ASTClassType::getNameSpace() const {
+    return NameSpace;
+}
+
+ASTClass *ASTClassType::getDef() const {
+    return Def;
+}
+
+std::string ASTClassType::str() const {
+    return "Name=" + Name + ", NameSpace=" + NameSpace;
 }

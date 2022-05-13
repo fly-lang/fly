@@ -2,7 +2,6 @@ add_library(FlyParser
         ClassParser.cpp
         ExprParser.cpp
         FunctionParser.cpp
-        NumberParser.cpp
         Parser.cpp
         )
 

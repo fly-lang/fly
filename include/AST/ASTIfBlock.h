@@ -56,7 +56,7 @@ namespace fly {
         ASTExpr *Condition;
 
     public:
-        ASTElsifBlock(const SourceLocation &Loc, ASTBlock *Parent, ASTExpr *Condition);
+        ASTElsifBlock(const SourceLocation &Loc, ASTExpr *Condition);
 
         enum ASTBlockKind getBlockKind() const override;
 
@@ -70,7 +70,7 @@ namespace fly {
         enum ASTBlockKind StmtKind = ASTBlockKind::BLOCK_STMT_ELSE;
 
     public:
-        ASTElseBlock(const SourceLocation &Loc, ASTBlock *Parent);
+        ASTElseBlock(const SourceLocation &Loc);
 
         enum ASTBlockKind getBlockKind() const override;
     };

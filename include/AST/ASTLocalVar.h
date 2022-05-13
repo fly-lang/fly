@@ -32,7 +32,7 @@ namespace fly {
         CodeGenLocalVar *CodeGen = nullptr;
 
     public:
-        ASTLocalVar(const SourceLocation &Loc, ASTType *Type, const std::string &Name, bool Constant);
+        ASTLocalVar(const SourceLocation &Loc, ASTType *Type, const std::string &Name, bool Constant, ASTExpr *Expr);
 
         StmtKind getKind() const;
 

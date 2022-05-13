@@ -9,6 +9,7 @@
 
 #include "Sema/SemaBuilder.h"
 #include "Sema/SemaResolver.h"
+#include "Sema/SemaNumber.h"
 #include "AST/ASTContext.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTNode.h"
@@ -68,22 +69,6 @@ DiagnosticBuilder SemaBuilder::Diag(unsigned DiagID) const {
     return S.Diag(DiagID);
 }
 
-/**
- * Add an ASTNameSpace to the ASTContext if not exists yet
- * @param Name
- * @param ExternLib
- * @return the created or retrieved ASTNameSpace
- */
-ASTNameSpace *SemaBuilder::AddNameSpace(const std::string &Name, bool ExternLib) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "AddNameSpace", "Name=" << Name << ", ExternLib=" << ExternLib);
-    // Check if Name exist or add it
-    ASTNameSpace *NameSpace = S.Context->NameSpaces.lookup(Name);
-    if (NameSpace == nullptr) {
-        NameSpace = new ASTNameSpace(Name, S.Context, ExternLib);
-        S.Context->NameSpaces.insert(std::make_pair(Name, NameSpace));
-    }
-    return NameSpace;
-}
 
 /**
  * Create an ASTHeaderNode: only prototype declarations without definitions
@@ -104,11 +89,183 @@ ASTNode *SemaBuilder::CreateHeaderNode(const std::string &Name, std::string &Nam
  * @param NameSpace
  * @return the ASTNode
  */
-ASTNode *SemaBuilder::CreateNode(const std::string &Name, const std::string &NameSpace) {
+ASTNode *SemaBuilder::CreateNode(const std::string &Name, std::string &NameSpace) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateNode", "Name=" << Name << ", NameSpace=" << NameSpace);
     ASTNode *Node = new ASTNode(Name, S.Context, false);
+
+    // Fix empty namespace with Default
+    if (NameSpace.empty()) {
+        FLY_DEBUG_MESSAGE("SemaBuilder", "CreateNode", "set NameSpace to Default");
+        NameSpace = ASTNameSpace::DEFAULT;
+    }
+
     Node->NameSpace = AddNameSpace(NameSpace);
     return Node;
+}
+
+ASTImport *SemaBuilder::CreateImport(const SourceLocation &NameLoc, llvm::StringRef Name) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateImport", "Name=" << Name);
+    std::string NameStr = Name.str();
+    return new ASTImport(NameLoc, NameStr);
+}
+
+ASTImport *SemaBuilder::CreateImport(const SourceLocation &NameLoc, llvm::StringRef Name,
+                                     const SourceLocation &AliasLoc, llvm::StringRef Alias) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateImport", "Name=" << Name << ", Alias=" << Alias);
+    std::string NameStr = Name.str();
+    std::string AliasStr = Alias.str();
+    return new ASTImport(NameLoc, NameStr, AliasLoc, AliasStr);
+}
+
+/**
+ * Create an ASTGlobalVar
+ * @param Node
+ * @param Loc
+ * @param Type
+ * @param Name
+ * @param Visibility
+ * @param Constant
+ * @return
+ */
+ASTGlobalVar *SemaBuilder::CreateGlobalVar(ASTNode *Node, const SourceLocation Loc, ASTType *Type, const std::string &Name,
+                                            VisibilityKind &Visibility, bool &Constant) {
+    return new ASTGlobalVar(Loc, Node, Type, Name, Visibility, Constant);
+}
+
+/**
+ * Create an ASTClass
+ * @param Node
+ * @param Loc
+ * @param Name
+ * @param Visibility
+ * @param Constant
+ * @return
+ */
+ASTClass *SemaBuilder::CreateClass(ASTNode *Node, const SourceLocation Loc, const std::string &Name,
+                                   VisibilityKind &Visibility, bool &Constant) {
+    return new ASTClass(Loc, Node, Name, Visibility, Constant);
+}
+
+/**
+ * Create an ASTFunctionCall
+ * @param Location
+ * @param Name
+ * @param NameSpace
+ * @return
+ */
+ASTFunctionCall *SemaBuilder::CreateFunctionCall(const SourceLocation &Loc, std::string &Name, std::string &NameSpace) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateFunctionCall",
+                      "Name=" << Name << ", NameSpace=" << NameSpace);
+    return new ASTFunctionCall(Loc, Name, NameSpace);
+}
+
+/**
+ * Create an ASTFunctionCall from ASTFunction
+ * @param Function
+ * @return
+ */
+ASTFunctionCall *SemaBuilder::CreateFunctionCall(ASTFunction *Function) {
+    ASTFunctionCall *Call = new ASTFunctionCall(SourceLocation(),
+                                                Function->getNameSpace()->getName(),
+                                                Function->getName());
+    Call->setDecl(Function);
+    for (auto &Param : Function->Params->List) {
+        ASTCallArg * Arg = CreateCallArg(Param->getType());
+        AddCallArg(Call, Arg);
+    }
+    return Call;
+}
+
+ASTCallArg *SemaBuilder::CreateCallArg(ASTType *Type) {
+    return new ASTCallArg(Type);
+}
+
+ASTCallArg *SemaBuilder::CreateCallArg(ASTExpr *Expr) {
+    return new ASTCallArg(Expr);
+}
+
+ASTType *SemaBuilder::CreateBoolType(const SourceLocation &Loc) {
+    return new ASTBoolType(Loc);
+}
+
+ASTType *SemaBuilder::CreateByteType(const SourceLocation &Loc) {
+    return new ASTByteType(Loc);
+}
+
+ASTType *SemaBuilder::CreateUShortType(const SourceLocation &Loc) {
+    return new ASTUShortType(Loc);
+}
+
+ASTType *SemaBuilder::CreateShortType(const SourceLocation &Loc) {
+    return new ASTShortType(Loc);;
+}
+
+ASTType *SemaBuilder::CreateUIntType(const SourceLocation &Loc) {
+    return new ASTUIntType(Loc);
+}
+
+ASTType *SemaBuilder::CreateIntType(const SourceLocation &Loc) {
+    return new ASTIntType(Loc);
+}
+
+ASTType *SemaBuilder::CreateULongType(const SourceLocation &Loc) {
+    return new ASTULongType(Loc);
+}
+
+ASTType *SemaBuilder::CreateLongType(const SourceLocation &Loc) {
+    return new ASTLongType(Loc);
+}
+
+ASTType *SemaBuilder::CreateFloatType(const SourceLocation &Loc) {
+    return new ASTFloatType(Loc);
+}
+
+ASTType *SemaBuilder::CreateDoubleType(const SourceLocation &Loc) {
+    return new ASTDoubleType(Loc);
+}
+
+ASTType *SemaBuilder::CreateVoidType(const SourceLocation &Loc) {
+    return new ASTVoidType(Loc);
+}
+
+ASTArrayType *SemaBuilder::CreateArrayType(const SourceLocation &Loc, ASTType *Type, ASTExpr *Size) {
+    return new ASTArrayType(Loc, Type, Size);
+}
+
+ASTClassType *SemaBuilder::CreateClassType(const SourceLocation &Loc, StringRef Name, StringRef NameSpace) {
+    return new ASTClassType(Loc, Name.str(), NameSpace.str());
+}
+
+ASTClassType *SemaBuilder::CreateClassType(ASTClass *Class) {
+    ASTClassType *ClassType = new ASTClassType(Class->Location, Class->Name, Class->NameSpace->Name);
+    ClassType->Def = Class;
+    return ClassType;
+}
+
+ASTLocalVar *SemaBuilder::CreateLocalVar(const SourceLocation &Loc, ASTType *Type,
+                                         const std::string &Name, bool Constant, ASTExpr *Expr) {
+    ASTLocalVar *LocalVar = new ASTLocalVar(Loc, Type, Name, Constant, Expr);
+    if (Type->getKind() == TYPE_ARRAY) {
+        LocalVar->Expr = new ASTValueExpr(new ASTArrayValue(Loc));
+    }
+    return LocalVar;
+}
+
+/**
+ * Add an ASTNameSpace to the ASTContext if not exists yet
+ * @param Name
+ * @param ExternLib
+ * @return the created or retrieved ASTNameSpace
+ */
+ASTNameSpace *SemaBuilder::AddNameSpace(const std::string &Name, bool ExternLib) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "AddNameSpace", "Name=" << Name << ", ExternLib=" << ExternLib);
+    // Check if Name exist or add it
+    ASTNameSpace *NameSpace = S.Context->NameSpaces.lookup(Name);
+    if (NameSpace == nullptr) {
+        NameSpace = new ASTNameSpace(Name, S.Context, ExternLib);
+        S.Context->NameSpaces.insert(std::make_pair(Name, NameSpace));
+    }
+    return NameSpace;
 }
 
 /**
@@ -143,11 +300,6 @@ bool SemaBuilder::AddImport(ASTNode *Node, ASTImport * Import) {
     }
 
     return false;
-}
-
-ASTGlobalVar * SemaBuilder::CreateGlobalVar(ASTNode *Node, SourceLocation Loc, ASTType *Type, const std::string &Name,
-                                            VisibilityKind &Visibility, bool &Constant) {
-    return new ASTGlobalVar(Loc, Node, Type, Name, Visibility, Constant);
 }
 
 bool SemaBuilder::AddGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar, ASTValueExpr *Expr) {
@@ -298,7 +450,7 @@ bool SemaBuilder::AddUnrefGlobalVar(ASTNode *Node, ASTVarRef *VarRef) {
     return true;
 }
 
-bool SemaBuilder::AddComment(ASTTopDecl *Top, std::string C) {
+bool SemaBuilder::AddComment(ASTTopDef *Top, std::string C) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddComment", "Top=" << Top->str() << ", Comment=" << C);
     const char* t = " \t\n\r\f\v";
     C = C.substr(2, C.size()-4);
@@ -324,7 +476,126 @@ bool SemaBuilder::AddExternalFunction(ASTNode *Node, ASTFunction *Call) {
 ASTParam *SemaBuilder::CreateParam(const SourceLocation &Loc, ASTType *Type, const std::string &Name, bool Constant) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateParam",
                       "Type=" << Type->str() << ", Name=" << Name << ", Constant=" << Constant);
-    return new ASTParam(Loc, Type, Name, Constant);
+    return new ASTParam(Loc, Type, Name, Constant, nullptr);
+}
+
+ASTExprStmt *SemaBuilder::CreateExprStmt(const SourceLocation &Loc, ASTExpr *Expr) {
+    return new ASTExprStmt(Loc, Expr);
+}
+
+
+ASTValueExpr *SemaBuilder::CreateExpr(ASTValue *Value) {
+    return new ASTValueExpr(Value);
+}
+
+ASTFuncCallExpr *SemaBuilder::CreateExpr(ASTFunctionCall *Call) {
+    return new ASTFuncCallExpr(Call);
+}
+
+ASTVarRefExpr *SemaBuilder::CreateExpr(ASTVarRef *VarRef) {
+    return new ASTVarRefExpr(VarRef);
+}
+
+ASTNullValue *SemaBuilder::CreateNullValue(const SourceLocation &Loc) {
+    return new ASTNullValue(Loc);
+}
+
+ASTBoolValue *SemaBuilder::CreateBoolValue(const SourceLocation &Loc, bool Val) {
+    return new ASTBoolValue(Loc, Val);
+}
+
+ASTIntegerValue *SemaBuilder::CreateIntegerValue(const SourceLocation &Loc, uint64_t Val, bool Negative) {
+    return new ASTIntegerValue(Loc, Val, Negative);
+}
+
+ASTIntegerValue *SemaBuilder::CreateCharValue(const SourceLocation &Loc, char Val) {
+    return CreateIntegerValue(Loc, Val, false);
+}
+
+ASTFloatingValue *SemaBuilder::CreateFloatingValue(const SourceLocation &Loc, double Val) {
+    std::string StrVal = std::to_string(Val);
+    return new ASTFloatingValue(Loc, StrVal);
+}
+
+ASTValue *SemaBuilder::CreateValue(const SourceLocation &Loc, std::string &Val) {
+    return SemaNumber::fromString(Loc, Val);
+}
+
+ASTArrayValue *SemaBuilder::CreateArrayValue(const SourceLocation &Loc) {
+    return new ASTArrayValue(Loc);
+}
+
+ASTVarAssign *SemaBuilder::CreateVarAssign(const SourceLocation &Loc, ASTVarRef * VarRef, ASTExpr *Expr) {
+    return new ASTVarAssign(Loc, VarRef, Expr);
+}
+
+ASTVarRef *SemaBuilder::CreateVarRef(const SourceLocation &Loc, StringRef Name, StringRef NameSpace) {
+    ASTVarRef *VarRef = new ASTVarRef(Loc, std::string(Name), std::string(NameSpace));
+    return VarRef;
+}
+
+ASTVarRef *SemaBuilder::CreateVarRef(ASTLocalVar *LocalVar) {
+    ASTVarRef *VarRef = new ASTVarRef(LocalVar->Location, LocalVar->Name);
+    VarRef->setDecl(LocalVar);
+    return VarRef;
+}
+
+ASTVarRef *SemaBuilder::CreateVarRef(ASTGlobalVar *GlobalVar) {
+    ASTVarRef *VarRef = new ASTVarRef(GlobalVar->Location, GlobalVar->Name, GlobalVar->NameSpace->getName());
+    VarRef->setDecl(GlobalVar);
+    return VarRef;
+}
+
+ASTBlock* SemaBuilder::CreateBlock(const SourceLocation &Loc) {
+    return new ASTBlock(Loc);
+}
+
+ASTIfBlock *SemaBuilder::CreateIfBlock(const SourceLocation &Loc, ASTExpr *Condition) {
+    ASTIfBlock *IfBlock = new ASTIfBlock(Loc, Condition);
+    return IfBlock;
+}
+
+ASTElsifBlock *SemaBuilder::CreateElsifBlock(const SourceLocation &Loc, ASTExpr *Condition) {
+    ASTElsifBlock *ElsifBlock = new ASTElsifBlock(Loc, Condition);
+    return ElsifBlock;
+}
+
+ASTElseBlock *SemaBuilder::CreateElseBlock(const SourceLocation &Loc) {
+    ASTElseBlock *ElseBlock = new ASTElseBlock(Loc);
+    return ElseBlock;
+}
+
+ASTSwitchBlock *SemaBuilder::CreateSwitchBlock(const SourceLocation &Loc, ASTExpr *Expr) {
+    return new ASTSwitchBlock(Loc, Expr);
+}
+
+ASTSwitchCaseBlock *SemaBuilder::CreateSwitchCaseBlock(const SourceLocation &Loc, ASTExpr *Condition) {
+    return new ASTSwitchCaseBlock(Loc, Condition);
+}
+
+ASTSwitchDefaultBlock *SemaBuilder::CreateSwitchDefaultBlock(const SourceLocation &Loc) {
+    return new ASTSwitchDefaultBlock(Loc);
+}
+
+ASTWhileBlock *SemaBuilder::CreateWhileBlock(const SourceLocation &Loc, ASTExpr *Condition) {
+    return new ASTWhileBlock(Loc, Condition);
+}
+
+/**
+ * Create an ASTForBlock
+ * @param Loc
+ * @param Condition
+ * @param PostBlock
+ * @param LoopBlock
+ * @return
+ */
+ASTForBlock *SemaBuilder::CreateForBlock(const SourceLocation &Loc, ASTExpr *Condition, ASTBlock *PostBlock,
+                                         ASTBlock *LoopBlock) {
+    ASTForBlock *ForBlock = new ASTForBlock(Loc);
+    ForBlock->Condition = Condition;
+    ForBlock->Post = PostBlock;
+    ForBlock->Loop = LoopBlock;
+    return ForBlock;
 }
 
 bool SemaBuilder::AddFunctionParam(ASTFunction *Function, ASTParam *Param) {
@@ -332,30 +603,11 @@ bool SemaBuilder::AddFunctionParam(ASTFunction *Function, ASTParam *Param) {
                       "Function=" << Function->str() << ", Param=" << Param->str());
     // TODO Check duplicate
     Function->Params->List.push_back(Param);
-    return AddLocalVar(Function->Body, Param, nullptr);
+    return AddLocalVar(Function->Body, Param);
 }
 
 void SemaBuilder::AddVarArgs(ASTFunction *Function, ASTParam *Param) {
     Function->Params->Ellipsis = Param;
-}
-
-ASTFunctionCall *SemaBuilder::CreateFunctionCall(SourceLocation &Location, std::string &Name, std::string &NameSpace) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateFunctionCall",
-                      "Name=" << Name << ", NameSpace=" << NameSpace);
-    return new ASTFunctionCall(Location, Name, NameSpace);
-}
-
-
-ASTFunctionCall *SemaBuilder::CreateFunctionCall(ASTFunction *Function) {
-    ASTFunctionCall *Call = new ASTFunctionCall(SourceLocation(),
-                                                Function->getNameSpace()->getName(),
-                                                Function->getName());
-    Call->setDecl(Function);
-    for (auto &Param : Function->Params->List) {
-        ASTCallArg * Arg = CreateCallArg(Param->getType());
-        AddCallArg(Call, Arg);
-    }
-    return Call;
 }
 
 bool SemaBuilder::AddFunctionCall(ASTNodeBase * Base, ASTFunctionCall *Call) {
@@ -377,18 +629,9 @@ bool SemaBuilder::AddFunctionCall(ASTNodeBase * Base, ASTFunctionCall *Call) {
  */
 bool SemaBuilder::AddFunctionCall(ASTBlock *Block, ASTFunctionCall *Call) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddFunctionCall", "Call=" << Call->str());
-    ASTExprStmt *ExprStmt = new ASTExprStmt(Call->getLocation());
-    ExprStmt->setExpr(new ASTFuncCallExpr(Call));
+    ASTExprStmt *ExprStmt = new ASTExprStmt(Call->getLocation(), new ASTFuncCallExpr(Call));
     Block->Content.push_back(ExprStmt);
     return Call->getDecl() || AddUnrefCall(Block->Top->getNode(), Call);
-}
-
-ASTCallArg *SemaBuilder::CreateCallArg(ASTType *Type) {
-    return new ASTCallArg(Type);
-}
-
-ASTCallArg *SemaBuilder::CreateCallArg(ASTExpr *Expr) {
-    return new ASTCallArg(Expr);
 }
 
 bool SemaBuilder::AddCallArg(ASTFunctionCall *Call, ASTCallArg *Arg) {
@@ -396,8 +639,8 @@ bool SemaBuilder::AddCallArg(ASTFunctionCall *Call, ASTCallArg *Arg) {
     return Arg;
 }
 
-bool SemaBuilder::setVarExpr(ASTVar *Var, ASTValueExpr *ValueExpr) {
-    Var->Expr = ValueExpr;
+bool SemaBuilder::setVarExpr(ASTVar *Var, ASTExpr *Expr) {
+    Var->Expr = Expr;
     return false;
 }
 
@@ -406,43 +649,10 @@ bool SemaBuilder::setVarExpr(ASTVar *Var, ASTValueExpr *ValueExpr) {
  * @param ExprStmt
  * @return true if no error occurs, otherwise false
  */
-bool SemaBuilder::AddExprStmt(ASTBlock *Block, ASTExprStmt *ExprStmt) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "AddExprStmt", "ExprStmt=" << ExprStmt->str());
-    Block->Content.push_back(ExprStmt);
+bool SemaBuilder::AddStmt(ASTBlock *Block, ASTStmt *Stmt) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "AddStmt", "ExprStmt=" << Stmt->str());
+    Block->Content.push_back(Stmt);
     return true;
-}
-
-ASTExpr *SemaBuilder::CreateExpr(const SourceLocation &Loc, ASTValue *Value) {
-    return new ASTValueExpr(Value);
-}
-
-ASTExpr *SemaBuilder::CreateExpr(const SourceLocation &Loc, ASTFunctionCall *Call) {
-    return new ASTFuncCallExpr(Call);
-}
-
-ASTExpr *SemaBuilder::CreateExpr(const SourceLocation &Loc, ASTVarRef *VarRef) {
-    return new ASTVarRefExpr(VarRef);
-}
-
-ASTBoolValue *SemaBuilder::CreateValue(const SourceLocation &Loc, bool Val) {
-    return new ASTBoolValue(Loc, Val);
-}
-
-ASTIntegerValue *SemaBuilder::CreateValue(const SourceLocation &Loc, int Val) {
-    return new ASTIntegerValue(Loc, new ASTIntType(Loc), Val);
-}
-
-ASTFloatingValue *SemaBuilder::CreateValue(const SourceLocation &Loc, std::string Val) {
-    return new ASTFloatingValue(Loc, new ASTFloatType(Loc), Val);
-}
-
-ASTLocalVar *SemaBuilder::CreateLocalVar(ASTBlock *Block, const SourceLocation &Loc, ASTType *Type,
-                                      const std::string &Name, bool Constant) {
-    ASTLocalVar *LocalVar = new ASTLocalVar(Loc, Type, Name, Constant);
-    if (Type->getKind() == TYPE_ARRAY) {
-        LocalVar->Expr = new ASTValueExpr(new ASTArrayValue(Loc, ((ASTArrayType *)Type)->getType()));
-    }
-    return LocalVar;
 }
 
 /**
@@ -450,7 +660,7 @@ ASTLocalVar *SemaBuilder::CreateLocalVar(ASTBlock *Block, const SourceLocation &
  * @param LocalVar
  * @return true if no error occurs, otherwise false
  */
-bool SemaBuilder::AddLocalVar(ASTBlock *Block, ASTLocalVar *LocalVar, ASTExpr *Expr) {
+bool SemaBuilder::AddLocalVar(ASTBlock *Block, ASTLocalVar *LocalVar) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddLocalVar", "LocalVar=" << LocalVar->str());
 
     // Check if LocalVar have an Expression assigned
@@ -462,25 +672,10 @@ bool SemaBuilder::AddLocalVar(ASTBlock *Block, ASTLocalVar *LocalVar, ASTExpr *E
     CodeGenLocalVar *CGLV = new CodeGenLocalVar(Block->Top->getNode()->getCodeGen(), LocalVar);
     LocalVar->CodeGen =CGLV;
 
-    // Set Expr
-    LocalVar->Expr = Expr;
-
     // Add LocalVar
     Block->Content.push_back(LocalVar);
     Block->Top->LocalVars.push_back(LocalVar); //Useful for Alloca into CodeGen
     return Block->LocalVars.insert(std::pair<std::string, ASTLocalVar *>(LocalVar->getName(), LocalVar)).second;
-}
-
-ASTVarRef *SemaBuilder::CreateVarRef(ASTLocalVar *LocalVar) {
-    ASTVarRef *VarRef = new ASTVarRef(LocalVar->Location, LocalVar->Name);
-    VarRef->setDecl(LocalVar);
-    return VarRef;
-}
-
-ASTVarRef *SemaBuilder::CreateVarRef(ASTGlobalVar *GlobalVar) {
-    ASTVarRef *VarRef = new ASTVarRef(GlobalVar->Location, GlobalVar->Name, GlobalVar->NameSpace->getName());
-    VarRef->setDecl(GlobalVar);
-    return VarRef;
 }
 
 /**
@@ -542,48 +737,42 @@ bool SemaBuilder::AddContinue(ASTBlock *Block, const SourceLocation &Loc) {
     return true;
 }
 
-ASTBlock* SemaBuilder::CreateBlock(const SourceLocation &Loc) {
-    return new ASTBlock(Loc);
-}
-
 /**
  * Add ASTIfBlock
  * @param Loc
  * @param Expr
  * @return
  */
-ASTIfBlock* SemaBuilder::AddIfBlock(ASTBlock *Block, const SourceLocation &Loc, ASTExpr *Expr) {
-    ASTIfBlock *IfBlock = new ASTIfBlock(Loc, Expr);
+bool SemaBuilder::AddIfBlock(ASTBlock *Parent, ASTIfBlock *IfBlock) {
     // The UndefVars are copied from Parent to this if block
-    IfBlock->UndefVars = Block->UndefVars;
-    Block->Content.push_back(Block);
+    IfBlock->UndefVars = Parent->UndefVars;
+    Parent->Content.push_back(IfBlock);
     return IfBlock;
 }
 
-ASTElsifBlock *SemaBuilder::AddElsifBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc, ASTExpr *Expr) {
+bool SemaBuilder::AddElsifBlock(ASTIfBlock *IfBlock, ASTElsifBlock *ElsifBlock) {
     if (!IfBlock) {
-        Diag(Loc, diag::err_missing_if_first);
-        return nullptr;
+        Diag(ElsifBlock->getLocation(), diag::err_missing_if_first);
+        return false;
     }
     if (IfBlock->ElseBlock) {
-        Diag(Loc, diag::err_elseif_after_else);
-        return nullptr;
+        Diag(ElsifBlock->getLocation(), diag::err_elseif_after_else);
+        return false;
     }
-    ASTElsifBlock *Elsif = new ASTElsifBlock(Loc, IfBlock, Expr);
-    IfBlock->ElsifBlocks.push_back(Elsif);
-    return Elsif;
+    IfBlock->ElsifBlocks.push_back(ElsifBlock);
+    return !IfBlock->isEmpty();
 }
 
-ASTElseBlock *SemaBuilder::AddElseBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc) {
+bool SemaBuilder::AddElseBlock(ASTIfBlock *IfBlock, ASTElseBlock *ElseBlock) {
     if (!IfBlock) {
-        Diag(Loc, diag::err_missing_if_first);
-        return nullptr;
+        Diag(ElseBlock->getLocation(), diag::err_missing_if_first);
+        return false;
     }
     if (IfBlock->ElseBlock) {
-        Diag(Loc, diag::err_else_after_else);
-        return nullptr;
+        Diag(ElseBlock->getLocation(), diag::err_else_after_else);
+        return false;
     }
-    IfBlock->ElseBlock = new ASTElseBlock(Loc, IfBlock);
+    IfBlock->ElseBlock =  ElseBlock;
     return IfBlock->ElseBlock;
 }
 
@@ -593,14 +782,23 @@ ASTElseBlock *SemaBuilder::AddElseBlock(ASTIfBlock *IfBlock, const SourceLocatio
  * @param Expr
  * @return
  */
-ASTSwitchBlock *SemaBuilder::AddSwitchBlock(ASTBlock *Block, const SourceLocation &Loc, ASTExpr *Expr) {
-    ASTSwitchBlock *SwitchBlock = new ASTSwitchBlock(Loc, Expr);
-    if (Expr->getExprKind() != EXPR_REF_VAR && Expr->getExprKind() != EXPR_REF_FUNC) {
-        Diag(Loc, diag::err_switch_expression);
-        return nullptr;
+bool SemaBuilder::AddSwitchBlock(ASTBlock *Parent, ASTSwitchBlock * SwitchBlock) {
+    if (SwitchBlock->Expr->getExprKind() != EXPR_REF_VAR && SwitchBlock->Expr->getExprKind() != EXPR_REF_FUNC) {
+        Diag(SwitchBlock->getLocation(), diag::err_switch_expression);
+        return false;
     }
-    Block->Content.push_back(SwitchBlock);
+    Parent->Content.push_back(SwitchBlock);
     return SwitchBlock;
+}
+
+bool SemaBuilder::AddSwitchCaseBlock(ASTSwitchBlock * SwitchBlock, ASTSwitchCaseBlock * CaseBlock) {
+    SwitchBlock->Cases.push_back(CaseBlock);
+    return CaseBlock;
+}
+
+bool SemaBuilder::setSwitchDefaultBlock(ASTSwitchBlock * SwitchBlock, ASTSwitchDefaultBlock *DefaultBlock) {
+    SwitchBlock->Default = DefaultBlock;
+    return DefaultBlock;
 }
 
 /**
@@ -609,27 +807,9 @@ ASTSwitchBlock *SemaBuilder::AddSwitchBlock(ASTBlock *Block, const SourceLocatio
  * @param Expr
  * @return
  */
-ASTWhileBlock *SemaBuilder::AddWhileBlock(ASTBlock *Block, const SourceLocation &Loc, ASTExpr *Expr) {
-    ASTWhileBlock *WhileBlock = new ASTWhileBlock(Loc, Block, Expr);
-    Block->Content.push_back(Block);
+bool SemaBuilder::AddWhileBlock(ASTBlock *Parent, ASTWhileBlock *WhileBlock) {
+    Parent->Content.push_back(WhileBlock);
     return WhileBlock;
-}
-
-/**
- * Create an ASTForBlock
- * @param Loc
- * @param Condition
- * @param PostBlock
- * @param LoopBlock
- * @return
- */
-ASTForBlock *SemaBuilder::CreateForBlock(const SourceLocation &Loc, ASTExpr *Condition, ASTBlock *PostBlock,
-                                         ASTBlock *LoopBlock) {
-    ASTForBlock *ForBlock = new ASTForBlock(Loc);
-    ForBlock->Condition = Condition;
-    ForBlock->Post = PostBlock;
-    ForBlock->Loop = LoopBlock;
-    return ForBlock;
 }
 
 /**
@@ -640,6 +820,11 @@ ASTForBlock *SemaBuilder::CreateForBlock(const SourceLocation &Loc, ASTExpr *Con
  */
 bool SemaBuilder::AddForBlock(ASTBlock *Block, ASTForBlock *ForBlock) {
     Block->Content.push_back(ForBlock);
+    return true;
+}
+
+bool SemaBuilder::AddArrayValue(ASTArrayValue *Array, ASTValue *Value) {
+    Array->Values.push_back(Value);
     return true;
 }
 

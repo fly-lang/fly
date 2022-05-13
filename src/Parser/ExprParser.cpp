@@ -13,7 +13,7 @@
 
 using namespace fly;
 
-ExprParser::ExprParser(Parser *P, bool CanBeEmpty) : P(P), CanBeEmpty(CanBeEmpty) {
+ExprParser::ExprParser(Parser *P) : P(P) {
 
 }
 
@@ -24,11 +24,11 @@ ExprParser::ExprParser(Parser *P, bool CanBeEmpty) : P(P), CanBeEmpty(CanBeEmpty
  * @param Success true on Success or false on Error
  * @return the ASTExpr
  */
-ASTExpr *ExprParser::ParseAssignmentExpr(ASTBlock *Block, ASTVarRef *VarRef) {
+ASTExpr *ExprParser::ParseAssignmentExpr(ASTVarRef *VarRef) {
     // Parsing =
     if (P->Tok.is(tok::equal)) {
         P->ConsumeToken();
-        return ParseExpr(Block);
+        return ParseExpr();
     }
 
     // Parsing +=, -=, ...
@@ -82,7 +82,7 @@ ASTExpr *ExprParser::ParseAssignmentExpr(ASTBlock *Block, ASTVarRef *VarRef) {
         Group.push_back(RawOp);
 
         // Parse second operator
-        ASTExpr *Second = ParseExpr(Block);
+        ASTExpr *Second = ParseExpr();
 
         // Error: missing second operator
         if (First == nullptr) {
@@ -110,12 +110,11 @@ ASTExpr *ExprParser::ParseAssignmentExpr(ASTBlock *Block, ASTVarRef *VarRef) {
 
  /**
   * Parse all Expressions
-  * @param Block where come from
+  * @param Stmt where come from
   * @param Start when starting parse expression in a binary ternary or other multi expression
   * @return the ASTExpr
   */
-ASTExpr *ExprParser::ParseExpr(ASTBlock *Block, bool Start) {
-    assert(Block != nullptr && "Block is nullptr");
+ASTExpr *ExprParser::ParseExpr(bool Start) {
     FLY_DEBUG("Parser", "ParseExpr");
 
     // Return
@@ -126,7 +125,7 @@ ASTExpr *ExprParser::ParseExpr(ASTBlock *Block, bool Start) {
         P->ConsumeParen();
 
         ExprParser SubP(P);
-        Expr = SubP.ParseExpr(Block);
+        Expr = SubP.ParseExpr();
         if (Expr != nullptr) {
             if (P->Tok.is(tok::r_paren)) {
                 P->ConsumeParen();
@@ -144,21 +143,11 @@ ASTExpr *ExprParser::ParseExpr(ASTBlock *Block, bool Start) {
         llvm::StringRef NameSpace;
         SourceLocation IdLoc;
         if (P->ParseIdentifier(Name, NameSpace, IdLoc)) {
-            Expr = ParseExpr(Block, Name, NameSpace, IdLoc);
+            Expr = ParseExpr(Name, NameSpace, IdLoc);
         }
     } else if (isUnaryPreOperator(P->Tok)) { // Ex. ++a or --a or !a
-        Expr = ParseUnaryPreExpr(P, Block); // Parse Unary Post Expression
-    } else if (CanBeEmpty) {
-        return nullptr;
+        Expr = ParseUnaryPreExpr(P); // Parse Unary Post Expression
     } else {
-        // Error: unexpected operator
-        P->Diag(P->Tok.getLocation(), diag::err_parser_unexpect_oper);
-        return nullptr;
-    }
-
-    // Error: missing expression
-    if (Expr == nullptr) {
-        P->Diag(P->Tok.getLocation(), diag::err_parser_miss_expr);
         return nullptr;
     }
 
@@ -168,7 +157,7 @@ ASTExpr *ExprParser::ParseExpr(ASTBlock *Block, bool Start) {
         BinaryOpKind Op = ParseBinaryOperator();
         RawBinaryOperator *RawOp = new RawBinaryOperator(P->ConsumeToken(), Op);
         Group.push_back(RawOp);
-        Expr = ParseExpr(Block, false);
+        Expr = ParseExpr(false);
 
         // Error: missing second operator
         if (Expr == nullptr) {
@@ -190,19 +179,19 @@ ASTExpr *ExprParser::ParseExpr(ASTBlock *Block, bool Start) {
         }
     }
     
-    if (P->Tok.is(tok::question) && Start) { // Parse Ternary Expression
-        
+    if (isTernaryOperator() && Start) { // Parse Ternary Expression
+
         // Parse True Expr
         P->ConsumeToken();
 
         ExprParser SubSecond(P);
-        ASTExpr *True = SubSecond.ParseExpr(Block);
+        ASTExpr *True = SubSecond.ParseExpr();
 
         if (P->Tok.getKind() == tok::colon) {
             P->ConsumeToken();
 
             ExprParser SubThird(P);
-            ASTExpr *False = SubThird.ParseExpr(Block);
+            ASTExpr *False = SubThird.ParseExpr();
             if (False != nullptr)
                 return new ASTTernaryGroupExpr(Expr->getLocation(), Expr, True, False);
         }
@@ -216,10 +205,10 @@ ASTExpr *ExprParser::ParseExpr(ASTBlock *Block, bool Start) {
     return Expr;
 }
 
-ASTExpr *ExprParser::ParseExpr(ASTBlock *Block, llvm::StringRef Name, llvm::StringRef NameSpace, SourceLocation IdLoc) {
+ASTExpr *ExprParser::ParseExpr(llvm::StringRef Name, llvm::StringRef NameSpace, SourceLocation IdLoc) {
     if (P->Tok.is(tok::l_paren)) { // Ex. a()
-        ASTFunctionCall *Call = P->ParseFunctionCall(Block, Name, NameSpace, IdLoc);
-        if (Call != nullptr && P->Builder.AddUnrefCall(P->Node, Call)) { // To Resolve on the next
+        ASTFunctionCall *Call = P->ParseFunctionCall(Name, NameSpace, IdLoc);
+        if (Call && P->Builder.AddUnrefCall(P->Node, Call)) { // To Resolve on the next
             return new ASTFuncCallExpr(Call);
         }
         // TODO add Error of Call or AddUnrefCall()
@@ -227,7 +216,7 @@ ASTExpr *ExprParser::ParseExpr(ASTBlock *Block, llvm::StringRef Name, llvm::Stri
         ASTVarRef *VarRef = new ASTVarRef(IdLoc, Name.str(), NameSpace.str());
         // if (ASTResolver::ResolveVarRef(Block, VarRef)) { // FIXME need to do after
             if (isUnaryPostOperator()) { // Ex. a++ or a--
-                return ParseUnaryPostExpr(Block, VarRef); // Parse Unary Pre Expression
+                return ParseUnaryPostExpr(VarRef); // Parse Unary Pre Expression
             } else {
                 // Simple Var
                 return new ASTVarRefExpr(VarRef);
@@ -244,7 +233,7 @@ ASTExpr *ExprParser::ParseExpr(ASTBlock *Block, llvm::StringRef Name, llvm::Stri
  * @param Success
  * @return
  */
-ASTUnaryGroupExpr* ExprParser::ParseUnaryPostExpr(ASTBlock *Block, ASTVarRef *VarRef) {
+ASTUnaryGroupExpr* ExprParser::ParseUnaryPostExpr(ASTVarRef *VarRef) {
     ASTVarRefExpr *VarRefExpr = new ASTVarRefExpr(VarRef);
     // if (ASTResolver::ResolveVarRef(Block, VarRef)) { // FIXME need to do after
 
@@ -274,7 +263,7 @@ ASTUnaryGroupExpr* ExprParser::ParseUnaryPostExpr(ASTBlock *Block, ASTVarRef *Va
  * @param Success
  * @return
  */
-ASTUnaryGroupExpr* ExprParser::ParseUnaryPreExpr(Parser *P, ASTBlock *Block) {
+ASTUnaryGroupExpr* ExprParser::ParseUnaryPreExpr(Parser *P) {
 
     UnaryOpKind Op;
     switch (P->Tok.getKind()) {
@@ -475,5 +464,5 @@ bool ExprParser::isBinaryOperator() {
  * @return true on Success or false on Error
  */
 bool ExprParser::isTernaryOperator() {
-    return P->Tok.isOneOf(tok::question, tok::colon);
+    return P->Tok.is(tok::question);
 }

@@ -265,7 +265,7 @@ llvm::Value *CodeGenExpr::GenValue(const ASTExpr *Expr, llvm::Value *Pointer) {
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_REF_VAR");
             ASTVarRefExpr *VarRefExpr = (ASTVarRefExpr *)Expr;
             assert(VarRefExpr->getVarRef() && "Missing Ref");
-            ASTVar *Var = VarRefExpr->getVarRef()->getDecl();
+            ASTVar *Var = VarRefExpr->getVarRef()->getDef();
             if (Var == nullptr) {
                 CGM->Diag(VarRefExpr->getLocation(), diag::err_unref_var) << VarRefExpr->getVarRef()->getName();
                 return nullptr;
@@ -310,7 +310,7 @@ llvm::Value *CodeGenExpr::GenUnary(ASTUnaryGroupExpr *Expr) {
     assert(Expr->getGroupKind() == GROUP_UNARY  && "Expected Unary Group Expr");
     assert(Expr->getFirst() && "Unary Expr empty");
 
-    CodeGenVar *CGVal = Expr->getFirst()->getVarRef()->getDecl()->getCodeGen();
+    CodeGenVar *CGVal = Expr->getFirst()->getVarRef()->getDef()->getCodeGen();
     llvm::Value *OldVal = CGVal->getValue();
 
     // PRE or POST INCREMENT/DECREMENT

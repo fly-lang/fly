@@ -7,46 +7,46 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "AST/ASTTopDecl.h"
+#include "AST/ASTTopDef.h"
 #include "AST/ASTNode.h"
 
 using namespace fly;
 
-ASTTopDecl::ASTTopDecl(const SourceLocation &Loc, ASTNode *Node, TopDeclKind Kind, VisibilityKind Visibility) :
+ASTTopDef::ASTTopDef(const SourceLocation &Loc, ASTNode *Node, TopDeclKind Kind, VisibilityKind Visibility) :
     Location(Loc), Node(Node), Visibility(Visibility), NameSpace(Node->getNameSpace()), Kind(Kind) {
 
 }
 
-TopDeclKind ASTTopDecl::getKind() const {
+TopDeclKind ASTTopDef::getKind() const {
     assert(Kind != DECL_NONE && "Invalid Kind");
     return Kind;
 }
 
-ASTNode *ASTTopDecl::getNode() {
+ASTNode *ASTTopDef::getNode() {
     return Node;
 }
 
-ASTNameSpace *ASTTopDecl::getNameSpace() const {
+ASTNameSpace *ASTTopDef::getNameSpace() const {
     return NameSpace;
 }
 
-const SourceLocation &ASTTopDecl::getLocation() const {
+const SourceLocation &ASTTopDef::getLocation() const {
     return Location;
 }
 
-VisibilityKind ASTTopDecl::getVisibility() const {
+VisibilityKind ASTTopDef::getVisibility() const {
     return Visibility;
 }
 
-void ASTTopDecl::setVisibility(VisibilityKind V) {
+void ASTTopDef::setVisibility(VisibilityKind V) {
     Visibility = V;
 }
 
-std::string ASTTopDecl::str() const {
+std::string ASTTopDef::str() const {
     return "Visibility=" + std::to_string(Visibility) +
             ", Kind=" + std::to_string(Kind);
 }
 
-const std::string &ASTTopDecl::getComment() const {
+const std::string &ASTTopDef::getComment() const {
     return Comment;
 }

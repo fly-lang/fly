@@ -24,7 +24,7 @@ namespace fly {
         ASTExpr *Condition;
 
     public:
-        ASTWhileBlock(const SourceLocation &Loc, ASTBlock *Parent, ASTExpr *Cond);
+        ASTWhileBlock(const SourceLocation &Loc, ASTExpr *Cond);
 
         enum ASTBlockKind getBlockKind() const override;
 
@@ -33,5 +33,4 @@ namespace fly {
     };
 }
 
-
-#endif //FLY_ASTFORBLOCK_H
+#endif //FLY_ASTWHILEBLOCK_H

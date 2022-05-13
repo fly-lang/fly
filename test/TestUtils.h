@@ -14,6 +14,7 @@
 #include "Frontend/FrontendOptions.h"
 #include "Frontend/CompilerInstance.h"
 #include "CodeGen/BackendUtil.h"
+#include "CodeGen/CodeGen.h"
 #include "llvm/Support/Host.h"
 
 using namespace fly;

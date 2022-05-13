@@ -14,10 +14,10 @@
 
 using namespace fly;
 
-ASTGlobalVar::ASTGlobalVar(SourceLocation &Loc, ASTNode *Node, ASTType *Type, const std::string &Name,
+ASTGlobalVar::ASTGlobalVar(const SourceLocation &Loc, ASTNode *Node, ASTType *Type, const std::string &Name,
                            VisibilityKind Visibility, bool Constant) :
-    ASTTopDecl(Loc, Node, TopDeclKind::DECL_GLOBALVAR, Visibility),
-    ASTVar(VAR_GLOBAL, Type, Name, Constant) {
+        ASTTopDef(Loc, Node, TopDeclKind::DECL_GLOBALVAR, Visibility),
+        ASTVar(VAR_GLOBAL, Type, Name, Constant) {
 
 }
 
@@ -35,8 +35,8 @@ void ASTGlobalVar::setCodeGen(CodeGenGlobalVar *codeGen) {
 
 std::string ASTGlobalVar::str() const {
     return "{ " +
-        ASTTopDecl::str() +
-        ", " + ASTVar::str() +
+           ASTTopDef::str() +
+           ", " + ASTVar::str() +
         ", Expr= " + (Expr ? Expr->str() : "{}") +
         " }";
 }

@@ -39,10 +39,6 @@ namespace fly {
 
         ASTExpr *getExpr() const;
 
-        ASTSwitchCaseBlock * AddCase(const SourceLocation &Loc, ASTExpr *Value);
-
-        ASTSwitchDefaultBlock * setDefault(const SourceLocation &Loc);
-
         enum ASTBlockKind getBlockKind() const override;
 
         std::vector<ASTSwitchCaseBlock *> &getCases();
@@ -58,21 +54,21 @@ namespace fly {
         ASTExpr *Expr;
 
     public:
-        ASTSwitchCaseBlock(const SourceLocation &Loc, ASTSwitchBlock *Switch, ASTExpr *Value);
+        ASTSwitchCaseBlock(const SourceLocation &Loc, ASTExpr *Value);
 
         ASTExpr *getExpr();
 
         enum ASTBlockKind getBlockKind() const override;
     };
 
-    class ASTSwitchDefaultBlock : public ASTBlock{
+    class ASTSwitchDefaultBlock : public ASTBlock {
 
         friend class SemaBuilder;
 
         enum ASTBlockKind StmtKind = ASTBlockKind::BLOCK_STMT_DEFAULT;
 
     public:
-        ASTSwitchDefaultBlock(const SourceLocation &Loc, ASTSwitchBlock *Switch);
+        ASTSwitchDefaultBlock(const SourceLocation &Loc);
 
         enum ASTBlockKind getBlockKind() const override;
     };

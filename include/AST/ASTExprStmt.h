@@ -20,13 +20,11 @@ namespace fly {
         ASTExpr *Expr = nullptr;
 
     public:
-        ASTExprStmt(const SourceLocation &Loc);
+        ASTExprStmt(const SourceLocation &Loc, ASTExpr *Expr);
 
         StmtKind getKind() const override;
 
         ASTExpr *getExpr() const;
-
-        void setExpr(ASTExpr *E);
 
         std::string str() const override;
     };

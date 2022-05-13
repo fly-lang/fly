@@ -10,6 +10,8 @@
 #ifndef FLY_FRONTENDACTION_H
 #define FLY_FRONTENDACTION_H
 
+#include <string>
+
 namespace fly {
 
     class CodeGen;

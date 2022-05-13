@@ -62,8 +62,7 @@ bool FunctionParser::ParseParam() {
     bool Success = true;
 
     // Var Constant
-    bool Constant = false;
-    P->ParseConst(Constant);
+    bool Const = P->isConst();
 
     // Var Type
     ASTType *Type = nullptr;
@@ -74,7 +73,7 @@ bool FunctionParser::ParseParam() {
         const SourceLocation IdLoc = P->Tok.getLocation();
         P->ConsumeToken();
 
-        ASTParam *Param = new ASTParam(IdLoc, Function->Body, Type, Name.str(), Constant);
+        ASTParam *Param = P->Builder.CreateParam(IdLoc, Type, Name.str(), Const);
 
         // Parse assignment =
         if (P->Tok.is(tok::equal)) {
@@ -82,8 +81,8 @@ bool FunctionParser::ParseParam() {
 
             // Start Parsing
             if (P->isValue()) {
-                ASTValue *Val = P->ParseValue(Type);
-                Val && P->Builder.setVarExpr(Param, new ASTValueExpr(Val));
+                ASTValue *Val = P->ParseValue();
+                Val && P->Builder.setVarExpr(Param, P->Builder.CreateExpr(Val));
             }
         }
 

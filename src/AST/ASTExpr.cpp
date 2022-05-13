@@ -60,7 +60,7 @@ ASTVarRef *ASTVarRefExpr::getVarRef() const {
 }
 
 ASTType *ASTVarRefExpr::getType() const {
-    return Ref->getDecl() == nullptr ? nullptr : Ref->getDecl()->getType();
+    return Ref->getDef() == nullptr ? nullptr : Ref->getDef()->getType();
 }
 
 std::string ASTVarRefExpr::str() const {

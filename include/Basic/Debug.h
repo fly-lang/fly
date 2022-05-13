@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/raw_os_ostream.h"
 #include <iostream>
 
 #define DEBUG_TYPE "FLY_DEBUG"

@@ -304,6 +304,7 @@ DIAG(warn_utf8_symbol_homoglyph, CLASS_WARNING, (unsigned)diag::Severity::Warnin
 DIAG(warn_utf8_symbol_zero_width, CLASS_WARNING, (unsigned)diag::Severity::Warning, "identifier contains Unicode character <U+%0> that is invisible in some environments", 756, SFINAE_Suppress, false, false, 1)
 
 // Parser Errors
+DIAG(err_namespace_multi_defined, CLASS_ERROR, (unsigned)diag::Severity::Error, "namespace defined more than one time", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_namespace_invalid, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid namespace defined '%0'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_import_undefined, CLASS_ERROR, (unsigned)diag::Severity::Error, "import undefined", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_import_invalid, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid import", 0, SFINAE_Suppress, false, true, 0)
@@ -319,6 +320,7 @@ DIAG(err_parser_miss_expr, CLASS_ERROR, (unsigned)diag::Severity::Error, "missin
 DIAG(err_parser_miss_oper, CLASS_ERROR, (unsigned)diag::Severity::Error, "missing operator", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_parser_unexpect_oper, CLASS_ERROR, (unsigned)diag::Severity::Error, "unexpected operator", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_parser_invalid_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid type", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_parser_unclosed_bracket, CLASS_ERROR, (unsigned)diag::Severity::Error, "unclosed bracket", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_parser_invalid_null_value, CLASS_ERROR, (unsigned)diag::Severity::Error, "only class type can have a null value assigned", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_const_call, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot use const with function call", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_unary_operator, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot parse unary operator", 0, SFINAE_Suppress, false, true, 0)

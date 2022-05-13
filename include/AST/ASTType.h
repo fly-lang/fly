@@ -49,6 +49,7 @@ namespace fly {
     class ASTIntegerValue;
     class ASTValueExpr;
     class ASTExpr;
+    class ASTClass;
 
     /**
      * Abstract Base Type
@@ -56,6 +57,7 @@ namespace fly {
     class ASTType {
 
         const TypeKind Kind;
+
         const SourceLocation Loc;
 
     protected:
@@ -232,7 +234,6 @@ namespace fly {
 
     public:
 
-        ASTArrayType(const SourceLocation &Loc, ASTType *Type, ASTIntegerValue *Size);
         ASTArrayType(const SourceLocation &Loc, ASTType *Type, ASTExpr *Size);
 
         void setSize(ASTIntegerValue *S);
@@ -241,9 +242,7 @@ namespace fly {
 
         ASTType *getType() const;
 
-        std::string str() const override {
-            return Type->str() + "[]";
-        }
+        std::string str() const override;
     };
 
     /**
@@ -251,20 +250,25 @@ namespace fly {
      */
     class ASTClassType : public ASTType {
 
+        friend class SemaBuilder;
+
         const TypeKind Kind = TypeKind::TYPE_CLASS;
-        const std::string Name;
-        const std::string NameSpace;
+        std::string Name;
+        std::string NameSpace;
+        ASTClass *Def;
 
     public:
         ASTClassType(const SourceLocation &Loc, std::string Name, std::string NameSpace = "");
 
         const std::string &getName() const;
 
+        const std::string &getNameSpace() const;
+
+        ASTClass *getDef() const;
+
         bool operator ==(const ASTClassType &Ty) const;
 
-        std::string str() const override {
-            return Name;
-        }
+        std::string str() const override;
     };
 }
 

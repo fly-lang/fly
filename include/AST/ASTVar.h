@@ -64,7 +64,7 @@ namespace fly {
     };
 
     /**
-     * Reference to ASTVar declaration
+     * Reference to ASTVar definition
      * Ex.
      *  ... = a + ...
      *  b = ...
@@ -77,7 +77,7 @@ namespace fly {
         const std::string NameSpace;
         const std::string Name;
 
-        ASTVar *Decl = nullptr;
+        ASTVar *Def = nullptr;
 
     public:
         ASTVarRef(const SourceLocation &Loc, const std::string &Name, const std::string &NameSpace = "");
@@ -88,7 +88,7 @@ namespace fly {
 
         const std::string &getName() const;
 
-        ASTVar *getDecl() const;
+        ASTVar *getDef() const;
 
         void setDecl(ASTVar *Var);
 

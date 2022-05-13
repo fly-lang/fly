@@ -10,19 +10,22 @@
 #ifndef FLY_ASTVALUE_H
 #define FLY_ASTVALUE_H
 
-#include "ASTType.h"
+#include <string>
 #include <vector>
 
 namespace fly {
 
+    class ASTType;
+    class SourceLocation;
+
     class ASTValue {
 
-        const SourceLocation &Loc;
+        const SourceLocation &Location;
 
         ASTType *Type;
 
     public:
-        ASTValue(const SourceLocation &Loc, ASTType *Type);
+        ASTValue(const SourceLocation &Location);
 
         const SourceLocation &getLocation() const;
 
@@ -37,7 +40,7 @@ namespace fly {
     class ASTSingleValue : public ASTValue {
 
     public:
-        ASTSingleValue(const SourceLocation &Loc, ASTType *Ty);
+        ASTSingleValue(const SourceLocation &Loc);
     };
 
     /**
@@ -60,11 +63,12 @@ namespace fly {
      */
     class ASTIntegerValue : public ASTSingleValue {
 
+        uint64_t Value; // the integer value
+
         bool Negative; // true is positive, false is negative
-        uint64_t Value;
 
     public:
-        ASTIntegerValue(const SourceLocation &Loc, ASTType *Ty, uint64_t Value = 0, bool Negative = false);
+        ASTIntegerValue(const SourceLocation &Loc, uint64_t Value, bool Negative = false);
 
         bool isNegative() const;
 
@@ -83,7 +87,7 @@ namespace fly {
         std::string Value;
 
     public:
-        ASTFloatingValue(const SourceLocation &Loc, ASTType *Type, std::string &Val);
+        ASTFloatingValue(const SourceLocation &Loc, std::string &Val);
 
         std::string getValue() const;
 
@@ -95,12 +99,12 @@ namespace fly {
      */
     class ASTArrayValue : public ASTValue {
 
+        friend class SemaBuilder;
+
         std::vector<ASTValue *> Values;
 
     public:
-        ASTArrayValue(const SourceLocation &Loc, ASTType *Type);
-
-        void addValue(ASTValue * Value);
+        ASTArrayValue(const SourceLocation &Loc);
 
         const std::vector<ASTValue *> &getValues() const;
 
@@ -111,12 +115,10 @@ namespace fly {
         std::string str() const override;
     };
 
-    class ASTClassValue : public ASTValue {
+    class ASTNullValue : public ASTValue {
 
     public:
-        ASTClassValue(const SourceLocation &Loc, ASTClassType *ClassType);
-
-        bool isNull() const;
+        ASTNullValue(const SourceLocation &Loc);
 
         std::string str() const override;
     };

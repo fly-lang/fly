@@ -36,8 +36,8 @@ enum ASTBlockKind ASTIfBlock::getBlockKind() const {
     return StmtKind;
 }
 
-ASTElsifBlock::ASTElsifBlock(const SourceLocation &Loc, ASTBlock *Parent, ASTExpr *Condition) :
-    ASTBlock(Loc, Parent), Condition(Condition) {
+ASTElsifBlock::ASTElsifBlock(const SourceLocation &Loc, ASTExpr *Condition) :
+    ASTBlock(Loc), Condition(Condition) {
     
 }
 
@@ -49,7 +49,7 @@ ASTExpr *ASTElsifBlock::getCondition() {
     return Condition;
 }
 
-ASTElseBlock::ASTElseBlock(const SourceLocation &Loc, ASTBlock *Parent) : ASTBlock(Loc, Parent) {
+ASTElseBlock::ASTElseBlock(const SourceLocation &Loc) : ASTBlock(Loc) {
     
 }
 

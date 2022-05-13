@@ -11,6 +11,8 @@
 #define FLY_SEMA_BUILDER_H
 
 #include "Sema/Sema.h"
+#include "AST/ASTType.h"
+
 
 namespace fly {
 
@@ -31,6 +33,8 @@ namespace fly {
     class ASTElsifBlock;
     class ASTElseBlock;
     class ASTSwitchBlock;
+    class ASTSwitchCaseBlock;
+    class ASTSwitchDefaultBlock;
     class ASTWhileBlock;
     class ASTForBlock;
     class ASTExprStmt;
@@ -42,6 +46,12 @@ namespace fly {
     class ASTBoolValue;
     class ASTIntegerValue;
     class ASTFloatingValue;
+    class ASTNullValue;
+    class ASTBoolValue;
+    class ASTArrayValue;
+    class ASTIntegerValue;
+    class ASTFloatingValue;
+
 
     class SemaBuilder {
 
@@ -57,11 +67,91 @@ namespace fly {
 
         DiagnosticBuilder Diag(unsigned DiagID) const;
 
-        ASTNameSpace *AddNameSpace(const std::string &Name, bool ExternLib = false);
-
         ASTNode *CreateHeaderNode(const std::string &Name, std::string &NameSpace);
 
-        ASTNode *CreateNode(const std::string &Name, const std::string &NameSpace);
+        ASTNode *CreateNode(const std::string &Name, std::string &NameSpace);
+
+        // Create Top Definitions
+        ASTImport *CreateImport(const SourceLocation &NameLoc, StringRef Name);
+        ASTImport *CreateImport(const SourceLocation &NameLoc, StringRef Name,
+                                const SourceLocation &AliasLoc, StringRef Alias);
+        ASTGlobalVar *CreateGlobalVar(ASTNode *Node, const SourceLocation Loc, ASTType *Type, const std::string &Name,
+                                       VisibilityKind &Visibility, bool &Constant);
+        ASTClass *CreateClass(ASTNode *Node, const SourceLocation Loc, const std::string &Name, VisibilityKind &Visibility,
+                              bool &Constant);
+
+        // Create Function Call
+        ASTFunctionCall *CreateFunctionCall(const SourceLocation &Loc, std::string &Name, std::string &NameSpace);
+        ASTFunctionCall *CreateFunctionCall(ASTFunction *Function);
+        ASTCallArg *CreateCallArg(ASTType *Type);
+        ASTCallArg *CreateCallArg(ASTExpr *Expr);
+
+        // Create Types
+        ASTType *CreateBoolType(const SourceLocation &Loc);
+        ASTType *CreateByteType(const SourceLocation &Loc);
+        ASTType *CreateUShortType(const SourceLocation &Loc);
+        ASTType *CreateShortType(const SourceLocation &Loc);
+        ASTType *CreateUIntType(const SourceLocation &Loc);
+        ASTType *CreateIntType(const SourceLocation &Loc);
+        ASTType *CreateULongType(const SourceLocation &Loc);
+        ASTType *CreateLongType(const SourceLocation &Loc);
+        ASTType *CreateFloatType(const SourceLocation &Loc);
+        ASTType *CreateDoubleType(const SourceLocation &Loc);
+        ASTType *CreateVoidType(const SourceLocation &Loc);
+        ASTArrayType *CreateArrayType(const SourceLocation &Loc, ASTType *Type, ASTExpr *Size);
+        ASTClassType *CreateClassType(const SourceLocation &Loc, StringRef Name, StringRef NameSpace);
+        ASTClassType *CreateClassType(ASTClass *Class);
+
+        // Create Values
+        ASTNullValue *CreateNullValue(const SourceLocation &Loc);
+        ASTBoolValue *CreateBoolValue(const SourceLocation &Loc, bool Val);
+        ASTIntegerValue *CreateIntegerValue(const SourceLocation &Loc, uint64_t Val, bool Negative = false);
+        ASTIntegerValue *CreateCharValue(const SourceLocation &Loc, char Val);
+        ASTFloatingValue *CreateFloatingValue(const SourceLocation &Loc, double Val);
+        ASTValue *CreateValue(const SourceLocation &Loc, std::string &Val);
+        ASTArrayValue *CreateArrayValue(const SourceLocation &Loc);
+
+        ASTLocalVar *CreateLocalVar(const SourceLocation &Loc, ASTType *Type, const std::string &Name, bool Constant,
+                                    ASTExpr *Expr = nullptr);
+
+        ASTParam *CreateParam(const SourceLocation &Loc, ASTType *Type, const std::string &Name, bool Constant);
+
+        ASTExprStmt *CreateExprStmt(const SourceLocation &Loc, ASTExpr *Expr);
+
+        ASTValueExpr *CreateExpr(ASTValue *Value);
+
+        ASTFuncCallExpr *CreateExpr(ASTFunctionCall *Call);
+
+        ASTVarRefExpr *CreateExpr(ASTVarRef *VarRef);
+
+        ASTVarAssign *CreateVarAssign(const SourceLocation &Loc, ASTVarRef * VarRef, ASTExpr *Expr);
+
+        ASTVarRef *CreateVarRef(const SourceLocation &Loc, StringRef Name, StringRef NameSpace);
+
+        ASTVarRef *CreateVarRef(ASTLocalVar *LocalVar);
+
+        ASTVarRef *CreateVarRef(ASTGlobalVar *GlobalVar);
+
+        ASTBlock* CreateBlock(const SourceLocation &Loc);
+
+        ASTIfBlock *CreateIfBlock(const SourceLocation &Loc, ASTExpr *Condition);
+
+        ASTElsifBlock *CreateElsifBlock(const SourceLocation &Loc, ASTExpr *Condition);
+
+        ASTElseBlock *CreateElseBlock(const SourceLocation &Loc);
+
+        ASTSwitchBlock *CreateSwitchBlock(const SourceLocation &Loc, ASTExpr *Expr);
+
+        ASTSwitchCaseBlock *CreateSwitchCaseBlock(const SourceLocation &Loc, ASTExpr *Condition);
+
+        ASTSwitchDefaultBlock *CreateSwitchDefaultBlock(const SourceLocation &Loc);
+
+        ASTWhileBlock *CreateWhileBlock(const SourceLocation &Loc, ASTExpr *Condition);
+
+        ASTForBlock *CreateForBlock(const SourceLocation &Loc, ASTExpr *Condition, ASTBlock *PostBlock,
+                                    ASTBlock *LoopBlock);
+
+        ASTNameSpace *AddNameSpace(const std::string &Name, bool ExternLib = false);
 
         bool AddNode(ASTNode *Node);
 
@@ -71,32 +161,19 @@ namespace fly {
 
         bool AddExternalFunction(ASTNode *Node, ASTFunction *Call);
 
-        bool AddComment(ASTTopDecl *Top, std::string Comment);
-
-        ASTGlobalVar * CreateGlobalVar(ASTNode *Node, SourceLocation Loc, ASTType *Type, const std::string &Name,
-                                       VisibilityKind &Visibility, bool &Constant);
+        bool AddComment(ASTTopDef *Top, std::string Comment);
 
         bool AddGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar, ASTValueExpr *Expr);
 
         bool AddFunction(ASTNode *Node, ASTFunction *Function);
 
-        ASTParam *CreateParam(const SourceLocation &Loc, ASTType *Type, const std::string &Name, bool Constant);
-
         bool AddFunctionParam(ASTFunction *Function, ASTParam *Param);
 
-        void AddVarArgs(ASTFunction *Function, ASTParam *Para);
-
-        ASTFunctionCall *CreateFunctionCall(SourceLocation &Location, std::string &Name, std::string &NameSpace);
-
-        ASTFunctionCall *CreateFunctionCall(ASTFunction *Function);
+        void AddVarArgs(ASTFunction *Function, ASTParam *Param);
 
         bool AddFunctionCall(ASTNodeBase *Base, ASTFunctionCall *Call);
 
         bool AddFunctionCall(ASTBlock *Block, ASTFunctionCall *Call);
-
-        ASTCallArg *CreateCallArg(ASTType *Type);
-
-        ASTCallArg *CreateCallArg(ASTExpr *Expr);
 
         bool AddCallArg(ASTFunctionCall *Call, ASTCallArg *Arg);
 
@@ -106,30 +183,11 @@ namespace fly {
 
         bool AddUnrefGlobalVar(ASTNode *Node, ASTVarRef *VarRef);
 
-        bool setVarExpr(ASTVar *Var, ASTValueExpr *ValueExpr);
+        bool setVarExpr(ASTVar *Var, ASTExpr *Expr);
 
-        bool AddExprStmt(ASTBlock *Block, ASTExprStmt *ExprStmt);
+        bool AddStmt(ASTBlock *Block, ASTStmt *Stmt);
 
-        ASTExpr *CreateExpr(const SourceLocation &Loc, ASTValue *Value);
-
-        ASTExpr *CreateExpr(const SourceLocation &Loc, ASTFunctionCall *Call);
-
-        ASTExpr *CreateExpr(const SourceLocation &Loc, ASTVarRef *VarRef);
-
-        ASTBoolValue *CreateValue(const SourceLocation &Loc, bool Val);
-
-        ASTIntegerValue *CreateValue(const SourceLocation &Loc, int Val);
-
-        ASTFloatingValue *CreateValue(const SourceLocation &Loc, std::string Val);
-
-        ASTLocalVar *CreateLocalVar(ASTBlock *Block, const SourceLocation &Loc, ASTType *Type, const std::string &Name,
-                                    bool Constant);
-
-        bool AddLocalVar(ASTBlock *Block, ASTLocalVar *LocalVar, ASTExpr *Expr);
-
-        ASTVarRef *CreateVarRef(ASTLocalVar *LocalVar);
-
-        ASTVarRef *CreateVarRef(ASTGlobalVar *GlobalVar);
+        bool AddLocalVar(ASTBlock *Block, ASTLocalVar *LocalVar);
 
         bool AddVarAssign(ASTBlock *Block, ASTVarAssign *VarAssign);
 
@@ -141,25 +199,27 @@ namespace fly {
 
         bool AddContinue(ASTBlock *Block, const SourceLocation &Loc);
 
-        ASTBlock* CreateBlock(const SourceLocation &Loc);
+        bool AddIfBlock(ASTBlock *Block, ASTIfBlock *IfBlock);
 
-        ASTIfBlock* AddIfBlock(ASTBlock *Block, const SourceLocation &Loc, ASTExpr *Expr);
+        bool AddElsifBlock(ASTIfBlock *IfBlock, ASTElsifBlock *ElsifBlock);
 
-        ASTElsifBlock *AddElsifBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc, ASTExpr *Expr);
+        bool AddElseBlock(ASTIfBlock *IfBlock, ASTElseBlock *ElseBlock);
 
-        ASTElseBlock *AddElseBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc);
+        bool AddSwitchBlock(ASTBlock *Parent, ASTSwitchBlock *Block);
 
-        ASTSwitchBlock* AddSwitchBlock(ASTBlock *Block, const SourceLocation &Loc, ASTExpr *Expr);
+        bool AddSwitchCaseBlock(ASTSwitchBlock *SwitchBlock, ASTSwitchCaseBlock *CaseBlock);
 
-        ASTWhileBlock* AddWhileBlock(ASTBlock *Block, const SourceLocation &Loc, ASTExpr *Expr);
+        bool setSwitchDefaultBlock(ASTSwitchBlock *SwitchBlock, ASTSwitchDefaultBlock *DefaultBlock);
 
-        ASTForBlock *CreateForBlock(const SourceLocation &Loc, ASTExpr *Condition, ASTBlock *PostBlock, ASTBlock *LoopBlock);
+        bool AddWhileBlock(ASTBlock *Block, ASTWhileBlock *WhileBlock);
 
         bool AddForBlock(ASTBlock *Block, ASTForBlock *ForBlock);
 
-        bool OnCloseBlock(ASTBlock *Block);
+        bool AddArrayValue(ASTArrayValue *Array, ASTValue *Value);
 
         ASTStmt *getLastStmt(ASTBlock *Block);
+
+        bool OnCloseBlock(ASTBlock *Block);
     };
 
 }  // end namespace fly

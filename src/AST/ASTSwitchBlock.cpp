@@ -16,17 +16,6 @@ ASTSwitchBlock::ASTSwitchBlock(const SourceLocation &Loc, ASTExpr *Expr) : ASTBl
 
 }
 
-ASTSwitchCaseBlock *ASTSwitchBlock::AddCase(const SourceLocation &Loc, ASTExpr *Value) {
-    ASTSwitchCaseBlock *Case = new ASTSwitchCaseBlock(Loc, this, Value);
-    Cases.push_back(Case);
-    return Case;
-}
-
-ASTSwitchDefaultBlock *ASTSwitchBlock::setDefault(const SourceLocation &Loc) {
-    Default = new ASTSwitchDefaultBlock(Loc, this);
-    return Default;
-}
-
 enum ASTBlockKind ASTSwitchBlock::getBlockKind() const {
     return StmtKind;
 }
@@ -43,8 +32,7 @@ ASTExpr *ASTSwitchBlock::getExpr() const {
     return Expr;
 }
 
-ASTSwitchCaseBlock::ASTSwitchCaseBlock(const SourceLocation &Loc, ASTSwitchBlock *Switch, ASTExpr *Value) :
-    ASTBlock(Loc, Switch), Expr(Value) {
+ASTSwitchCaseBlock::ASTSwitchCaseBlock(const SourceLocation &Loc, ASTExpr *Value) : ASTBlock(Loc), Expr(Value) {
 
 }
 
@@ -56,7 +44,7 @@ ASTExpr *ASTSwitchCaseBlock::getExpr() {
     return Expr;
 }
 
-ASTSwitchDefaultBlock::ASTSwitchDefaultBlock(const SourceLocation &Loc, ASTSwitchBlock *Switch) : ASTBlock(Loc, Switch) {
+ASTSwitchDefaultBlock::ASTSwitchDefaultBlock(const SourceLocation &Loc) : ASTBlock(Loc) {
 
 }
 

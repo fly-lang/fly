@@ -56,12 +56,12 @@ const std::string &ASTVarRef::getName() const {
     return Name;
 }
 
-ASTVar *ASTVarRef::getDecl() const {
-    return Decl;
+ASTVar *ASTVarRef::getDef() const {
+    return Def;
 }
 
 void ASTVarRef::setDecl(ASTVar *Var) {
-    Decl = Var;
+    Def = Var;
 }
 
 const std::string &ASTVarRef::getNameSpace() const {

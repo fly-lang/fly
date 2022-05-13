@@ -7,11 +7,11 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_PACKAGEVAR_H
-#define FLY_PACKAGEVAR_H
+#ifndef FLY_GLOBALVAR_H
+#define FLY_GLOBALVAR_H
 
 #include <ostream>
-#include "ASTTopDecl.h"
+#include "ASTTopDef.h"
 #include "ASTVar.h"
 #include "CodeGen/CodeGenGlobalVar.h"
 
@@ -19,7 +19,7 @@ namespace fly {
 
     class CodeGenGlobalVar;
 
-    class ASTGlobalVar : public ASTVar, public ASTTopDecl {
+    class ASTGlobalVar : public ASTVar, public ASTTopDef {
 
         friend class SemaBuilder;
 
@@ -31,7 +31,7 @@ namespace fly {
 
     public:
 
-        ASTGlobalVar(SourceLocation &Loc, ASTNode *Node, ASTType *Type, const std::string &Name,
+        ASTGlobalVar(const SourceLocation &Loc, ASTNode *Node, ASTType *Type, const std::string &Name,
                      VisibilityKind Visibility = V_DEFAULT, bool Constant = false);
 
         ~ASTGlobalVar() = default;
@@ -47,4 +47,4 @@ namespace fly {
     };
 }
 
-#endif //FLY_PACKAGEVAR_H
+#endif //FLY_GLOBALVAR_H

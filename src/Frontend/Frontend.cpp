@@ -23,12 +23,12 @@
 
 using namespace fly;
 
-Frontend::Frontend(CompilerInstance &CI) : CI(CI), Diags(CI.getDiagnostics()), Builder(Sema::Builder(Diags)) {
+Frontend::Frontend(CompilerInstance &CI) : CI(CI), Diags(CI.getDiagnostics()) {
 
 }
 
 Frontend::~Frontend() {
-    delete Builder;
+
 }
 
 bool Frontend::Execute() {

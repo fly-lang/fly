@@ -54,25 +54,24 @@ namespace fly {
     class ExprParser {
 
         Parser *P;
-        const bool CanBeEmpty;
         std::vector<ASTExpr *> Group;
 
     public:
-        ExprParser(Parser *P, bool CanBeEmpty = false);
+        ExprParser(Parser *P);
 
-        ASTExpr *ParseAssignmentExpr(ASTBlock *Block, ASTVarRef *VarRef);
-        ASTExpr *ParseExpr(ASTBlock *Block, bool Start = true);
-        ASTExpr *ParseExpr(ASTBlock *Block, llvm::StringRef Name, llvm::StringRef NameSpace, SourceLocation IdLoc);
+        ASTExpr *ParseAssignmentExpr(ASTVarRef *VarRef);
+        ASTExpr *ParseExpr(bool Start = true);
+        ASTExpr *ParseExpr(llvm::StringRef Name, llvm::StringRef NameSpace, SourceLocation IdLoc);
         static bool isAssignOperator(Token &Tok);
         static bool isUnaryPreOperator(Token &Tok);
-        static ASTUnaryGroupExpr *ParseUnaryPreExpr(Parser *P, ASTBlock *Block);
+        static ASTUnaryGroupExpr *ParseUnaryPreExpr(Parser *P);
 
     private:
-        ASTUnaryGroupExpr *ParseUnaryPostExpr(ASTBlock *Block, ASTVarRef *VarRef);
+        ASTUnaryGroupExpr *ParseUnaryPostExpr(ASTVarRef *VarRef);
 
         BinaryOpKind ParseBinaryOperator();
         void UpdateBinaryGroup(bool NoPrecedence);
-        ASTTernaryGroupExpr * ParseTernaryExpr(ASTBlock *Block, ASTExpr *First);
+        ASTTernaryGroupExpr * ParseTernaryGroup(ASTExpr *First);
         bool isUnaryPostOperator();
         bool isBinaryOperator();
         bool isTernaryOperator();

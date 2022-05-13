@@ -170,16 +170,16 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
         case STMT_VAR_ASSIGN: {
             ASTVarAssign *VarAssign = (ASTVarAssign *) Stmt;
             assert(VarAssign->getExpr() && "Expr Mandatory in assignment");
-            llvm::Value *V = GenExpr(Fn, VarAssign->getVarRef()->getDecl()->getType(), VarAssign->getExpr());
-            switch (VarAssign->getVarRef()->getDecl()->getVarKind()) {
+            llvm::Value *V = GenExpr(Fn, VarAssign->getVarRef()->getDef()->getType(), VarAssign->getExpr());
+            switch (VarAssign->getVarRef()->getDef()->getVarKind()) {
 
                 case VAR_LOCAL: {
-                    ASTLocalVar *LocalVar = static_cast<ASTLocalVar *>(VarAssign->getVarRef()->getDecl());
+                    ASTLocalVar *LocalVar = static_cast<ASTLocalVar *>(VarAssign->getVarRef()->getDef());
                     LocalVar->getCodeGen()->Store(V);
                     break;
                 }
                 case VAR_GLOBAL: {
-                    ASTGlobalVar *GlobalVar = static_cast<ASTGlobalVar *>(VarAssign->getVarRef()->getDecl());
+                    ASTGlobalVar *GlobalVar = static_cast<ASTGlobalVar *>(VarAssign->getVarRef()->getDef());
                     GlobalVar->getCodeGen()->Store(V);
                     break;
                 }
@@ -558,20 +558,16 @@ void CodeGenModule::GenForBlock(llvm::Function *Fn, ASTForBlock *For) {
 
     // Add to Condition
     llvm::BasicBlock *CondBB = nullptr;
-    if (For->getCondition()->isEmpty()) {
-        Builder->CreateBr(LoopBB);
-    } else {
+    if (For->getCondition()) {
         CondBB = llvm::BasicBlock::Create(LLVMCtx, "forcond", Fn, LoopBB);
         Builder->CreateBr(CondBB);
 
-        // Take Condition from Block
-        ASTExprStmt *ExprStmt = (ASTExprStmt *)For->getCondition()->getContent()[0];
-        ASTGroupExpr *CondExpr = (ASTGroupExpr *)ExprStmt->getExpr();
-
         // Create Condition
         Builder->SetInsertPoint(CondBB);
-        Value *Cond = GenExpr(Fn, BoolType, CondExpr);
+        Value *Cond = GenExpr(Fn, BoolType, For->getCondition());
         Builder->CreateCondBr(Cond, LoopBB, EndBB);
+    } else {
+        Builder->CreateBr(LoopBB);
     }
 
     // Add to Loop

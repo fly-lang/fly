@@ -81,12 +81,59 @@ namespace fly {
 
         ASTNode *getNode() const;
 
-        DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID);
-        DiagnosticBuilder Diag(const Token &Tok, unsigned DiagID);
-        DiagnosticBuilder Diag(unsigned DiagID);
-        void DiagInvalidId(SourceLocation Loc);
-
     private:
+
+        // Parse NameSpace
+        bool ParseNameSpace();
+
+        // Parse Imports
+        bool ParseImports();
+
+        // Parse Top Definitions
+        bool ParseTopDef();
+        bool ParseTopScopes(VisibilityKind &Visibility, bool &isConst, bool isParsedVisibility = false,
+                            bool isParsedConstant = false);
+        bool ParseGlobalVar(VisibilityKind &VisKind, bool &Constant, ASTType *Type);
+        bool ParseFunction(VisibilityKind &Visibility, bool Constant, ASTType *Type);
+        bool ParseClass(VisibilityKind &Visibility, bool &Constant);
+
+        // Parse Block Statement
+        bool ParseBlock(ASTBlock *Block);
+        bool ParseInnerBlock(ASTBlock *Block);
+        bool ParseStmt(ASTBlock *Block);
+        bool ParseStartParen();
+        bool ParseEndParen(bool HasParen);
+        bool ParseIfStmt(ASTBlock *Block);
+        bool ParseSwitchStmt(ASTBlock *Block);
+        bool ParseWhileStmt(ASTBlock *Block);
+        bool ParseForStmt(ASTBlock *Block);
+        bool ParseForCommaStmt(ASTBlock *Block);
+
+        // Parse Identifiers
+        ASTType *ParseType(bool OnlyBuiltin = false);
+        bool ParseIdentifier(llvm::StringRef &Name, llvm::StringRef &NameSpace, SourceLocation &Loc);
+
+        // Parse Function Calls
+        ASTFunctionCall *ParseFunctionCall(llvm::StringRef Name, llvm::StringRef NameSpace, SourceLocation &Loc);
+        bool ParseCallArgs(ASTFunctionCall *Call);
+        bool ParseCallArg(ASTFunctionCall *Call);
+
+        // Parse a Value
+        ASTValue *ParseValue();
+        ASTArrayValue *ParseValues(ASTArrayValue *ArrayValues);
+
+        // Parse a Local Var
+        ASTLocalVar *ParseLocalVar(bool Constant, ASTType *Type);
+
+        // Parse Expressions
+        ASTExpr *ParseAssignmentExpr(ASTVarRef *VarRef);
+        ASTExpr *ParseExpr();
+        ASTExpr *ParseExpr(llvm::StringRef Name, llvm::StringRef NameSpace, SourceLocation Loc);
+
+        // Check Keywords
+        bool isBuiltinType();
+        bool isValue();
+        bool isConst();
 
         // Parse Tokens
         SourceLocation ConsumeToken();
@@ -104,66 +151,11 @@ namespace fly {
         llvm::StringRef getLiteralString();
         void ClearBlockComment();
 
-        bool ParseNameSpace();
-
-        bool ParseImports();
-
-        bool ParseTopDecl();
-
-        bool ParseTopScopes(VisibilityKind &Visibility, bool &isConst,
-                            bool isParsedVisibility = false, bool isParsedConstant = false);
-
-        bool ParseConst(bool &Constant);
-
-        bool ParseGlobalVarDecl(VisibilityKind &VisKind, bool &Constant, ASTType *Type);
-
-        bool ParseFunction(VisibilityKind &Visibility, bool Constant, ASTType *Type);
-
-        bool ParseClass(VisibilityKind &Visibility, bool &Constant);
-
-        bool ParseType(ASTType *&Type, bool OnlyBuiltin = false);
-
-        bool ParseArrayType(ASTType *&Type, ASTBlock * Block = nullptr);
-
-        // Parse Block Statement
-
-        bool ParseBlock(ASTBlock *Block);
-        bool ParseInnerBlock(ASTBlock *Block);
-        bool ParseStmt(ASTBlock *Block);
-        bool ParseStartParen();
-        bool ParseEndParen(bool HasParen);
-        bool ParseIfStmt(ASTBlock *Block);
-        bool ParseSwitchStmt(ASTBlock *Block);
-        bool ParseWhileStmt(ASTBlock *Block);
-        bool ParseForStmt(ASTBlock *Block);
-        bool ParseForCommaStmt(ASTBlock *Block);
-
-        // Parse Identifier
-        bool ParseIdentifier(llvm::StringRef &Name, llvm::StringRef NameSpace, SourceLocation &Loc);
-
-        // Parse Calls
-        bool ParseFunctionCall(ASTBlock *Block, llvm::StringRef Name, llvm::StringRef NameSpace, SourceLocation &Loc);
-        bool ParseCallArgs(ASTFunctionCall *Call, ASTBlock *Block);
-        bool ParseCallArg(ASTFunctionCall *Call, ASTBlock *Block);
-
-        // Parse a Value
-        ASTValue *ParseValue(ASTType *Type);
-        ASTArrayValue *ParseValues(ASTArrayValue *ArrayValues);
-
-        // Parse a Local Var
-        bool ParseLocalVar(ASTBlock *Block, bool Constant, ASTType *Type);
-
-        // Parse Expressions
-
-        ASTExpr *ParseAssignmentExpr(ASTBlock *Block, ASTVarRef *VarRef);
-        ASTExpr *ParseExprEmpty(ASTBlock *Block);
-        ASTExpr *ParseExpr(ASTBlock *Block);
-        ASTExpr *ParseExpr(ASTBlock *Block, llvm::StringRef Name, llvm::StringRef NameSpace, SourceLocation Loc);
-
-        // Check Keywords
-
-        bool isBuiltinType();
-        bool isValue();
+        // Diagnostics
+        DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID);
+        DiagnosticBuilder Diag(const Token &Tok, unsigned DiagID);
+        DiagnosticBuilder Diag(unsigned DiagID);
+        void DiagInvalidId(SourceLocation Loc);
     };
 
 }  // end namespace fly

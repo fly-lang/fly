@@ -10,7 +10,7 @@
 #ifndef FLY_FUNCTION_H
 #define FLY_FUNCTION_H
 
-#include "ASTTopDecl.h"
+#include "ASTTopDef.h"
 #include "ASTVar.h"
 #include "ASTLocalVar.h"
 #include "ASTStmt.h"
@@ -40,7 +40,7 @@ namespace fly {
      *     return 1
      *   }
      */
-    class ASTFunction : public ASTTopDecl {
+    class ASTFunction : public ASTTopDef {
 
         friend class SemaBuilder;
         friend class SemaResolver;

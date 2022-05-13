@@ -44,10 +44,10 @@ namespace fly {
 
     public:
 
-        ASTImport(const SourceLocation &NameLoc, const std::string Name);
+        ASTImport(const SourceLocation &NameLoc, std::string &Name);
 
-        ASTImport(const SourceLocation &NameLoc, const std::string Name,
-                  const SourceLocation &AliasLoc, const std::string Alias);
+        ASTImport(const SourceLocation &NameLoc, std::string &Name,
+                  const SourceLocation &AliasLoc, std::string &Alias);
 
         ~ASTImport();
 

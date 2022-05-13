@@ -35,65 +35,74 @@ namespace {
         ASTContext *Context;
         SemaBuilder *Builder;
         DiagnosticsEngine &Diags;
+        bool Success;
 
         ParserTest() : CI(*TestUtils::CreateCompilerInstance()),
                       Diags(CI.getDiagnostics()),
                       Builder(Sema::Builder(Diags)) {
+            Diags.getClient()->BeginSourceFile();
+        }
 
+        virtual ~ParserTest() {
+            Diags.getClient()->EndSourceFile();
         }
 
         ASTNode *Parse(std::string FileName, llvm::StringRef Source) {
             InputFile Input(Diags, CI.getSourceManager(), FileName);
             Input.Load(Source);
             Parser *P = new Parser(Input, CI.getSourceManager(), Diags, *Builder);
-            P->Parse();
+            Success = P->Parse();
             return P->getNode();
+        }
+
+        bool isSuccess() const {
+            return Success;
         }
 
     };
 
     TEST_F(ParserTest, SingleNameSpace) {
         llvm::StringRef str = ("namespace std");
-        ASTNode *AST = Parse("SingleNameSpace", str);
-        ASSERT_FALSE(Diags.hasErrorOccurred());
+        ASTNode *Node = Parse("SingleNameSpace", str);
+        ASSERT_TRUE(isSuccess());
 
-        EXPECT_EQ(AST->getName(), "SingleNameSpace");
+        EXPECT_EQ(Node->getName(), "SingleNameSpace");
 
         // verify AST contains package
-        EXPECT_EQ(AST->getNameSpace()->getName(), "std");
-        delete AST;
+        EXPECT_EQ(Node->getNameSpace()->getName(), "std");
+        delete Node;
     }
 
     TEST_F(ParserTest, MultiNamespaceError) {
         llvm::StringRef str = ("namespace std\n"
-                         "namespace bad");
-        ASTNode *AST = Parse("MultiNamespaceError", str);
-        EXPECT_TRUE(Diags.hasErrorOccurred());
+                                "namespace bad");
+        ASTNode *Node = Parse("MultiNamespaceError", str);
+        EXPECT_FALSE(isSuccess());
     }
 
     TEST_F(ParserTest, SingleImport) {
         llvm::StringRef str = ("namespace std\n"
                          "import packageA");
-        ASTNode *AST = Parse("SingleImport", str);
+        ASTNode *Node = Parse("SingleImport", str);
+        ASSERT_TRUE(isSuccess());
 
-        ASSERT_FALSE(Diags.hasErrorOccurred());
-
-        ASTImport* Verify = AST->getImports().lookup("packageA");
+        ASTImport* Verify = Node->getImports().lookup("packageA");
 
         EXPECT_EQ(Verify->getName(), "packageA");
         EXPECT_EQ(Verify->getAlias(), "");
-        delete AST;
+        delete Node;
     }
 
     TEST_F(ParserTest, SingleImportAlias) {
         llvm::StringRef str = ("\n import standard std\n");
-        ASTNode *AST = Parse("SingleImportAlias", str);
+        ASTNode *Node = Parse("SingleImportAlias", str);
+        ASSERT_TRUE(isSuccess());
 
-        EXPECT_EQ(AST->getNameSpace()->getName(), "default");
-        ASTImport *Import = AST->getImports().lookup("std");
+        EXPECT_EQ(Node->getNameSpace()->getName(), "default");
+        ASTImport *Import = Node->getImports().lookup("std");
         EXPECT_EQ(Import->getName(), "standard");
         EXPECT_EQ(Import->getAlias(), "std");
-        delete AST;
+        delete Node;
     }
 
     TEST_F(ParserTest, MultiImports) {
@@ -102,7 +111,7 @@ namespace {
                          "import packageB");
         ASTNode *AST = Parse("MultiImports", str);
 
-        ASSERT_FALSE(Diags.hasErrorOccurred());
+        ASSERT_TRUE(isSuccess());
 
         ASTImport* VerifyB = AST->getImports().lookup("packageB");
         ASTImport* VerifyA = AST->getImports().lookup("packageA");
@@ -121,7 +130,7 @@ namespace {
         );
         ASTNode *AST = Parse("LineComments", str);
 
-        ASSERT_FALSE(Diags.hasErrorOccurred());
+        ASSERT_TRUE(isSuccess());
 
         ASTGlobalVar *GlobalB = AST->getGlobalVars().find("b")->getValue();
         EXPECT_EQ(GlobalB->getName(), "b");
@@ -146,7 +155,7 @@ namespace {
                                "void func2() {}\n"
         );
         ASTNode *AST = Parse("BlockComments", str);
-        ASSERT_FALSE(Diags.hasErrorOccurred());
+        ASSERT_TRUE(isSuccess());
 
         ASTGlobalVar *GlobalB = AST->getGlobalVars().find("b")->getValue();
         EXPECT_EQ(GlobalB->getName(), "b");
@@ -182,7 +191,7 @@ namespace {
                          );
         ASTNode *AST = Parse("GlobalVars", str);
 
-        ASSERT_FALSE(Diags.hasErrorOccurred());
+        ASSERT_TRUE(isSuccess());
 
         ASTGlobalVar *VerifyA = AST->getGlobalVars().find("a")->getValue();
         ASTGlobalVar *VerifyB = AST->getNameSpace()->getGlobalVars().find("b")->getValue();
@@ -256,7 +265,7 @@ namespace {
                          );
         ASTNode *AST = Parse("GlobalConstants", str);
 
-        ASSERT_FALSE(Diags.hasErrorOccurred());
+        ASSERT_TRUE(isSuccess());
 
         ASTGlobalVar *VerifyA = AST->getGlobalVars().find("a")->getValue();
         ASTGlobalVar *VerifyB = AST->getGlobalVars().find("b")->getValue();
@@ -293,7 +302,7 @@ namespace {
 
         );
         ASTNode *AST = Parse("GlobalArray", str);
-        ASSERT_FALSE(Diags.hasErrorOccurred());
+        ASSERT_TRUE(isSuccess());
 
         ASTGlobalVar *a = AST->getGlobalVars().find("a")->getValue();
         ASTGlobalVar *b = AST->getGlobalVars().find("b")->getValue();
@@ -364,7 +373,7 @@ namespace {
                "byte[2] d = {'', ''}\n" // Empty string
         );
         ASTNode *AST = Parse("GlobalChar", str);
-        ASSERT_FALSE(Diags.hasErrorOccurred());
+        ASSERT_TRUE(isSuccess());
 
         ASTGlobalVar *a = AST->getGlobalVars().find("a")->getValue();
         ASTGlobalVar *b = AST->getGlobalVars().find("b")->getValue();
@@ -418,7 +427,7 @@ namespace {
                "byte[] b = \"abc\"\n" // string abc/0 -> array of 4 bytes
         );
         ASTNode *AST = Parse("GlobalString", str);
-        ASSERT_FALSE(Diags.hasErrorOccurred());
+        ASSERT_TRUE(isSuccess());
 
         ASTGlobalVar *a = AST->getGlobalVars().find("a")->getValue();
         ASTGlobalVar *b = AST->getGlobalVars().find("b")->getValue();
@@ -452,7 +461,7 @@ namespace {
         llvm::StringRef str = ("namespace std\n"
                          "void func() {}\n");
         ASTNode *AST = Parse("FunctionDefaultVoidEmpty", str);
-        ASSERT_FALSE(Diags.hasErrorOccurred());
+        ASSERT_TRUE(isSuccess());
 
         EXPECT_TRUE(AST->getFunctions().size() == 1); // Fun has DEFAULT Visibility
         EXPECT_TRUE(AST->getNameSpace()->getFunctions().size() == 1);
@@ -471,7 +480,7 @@ namespace {
                          "}\n");
         ASTNode *AST = Parse("FunctionPrivateReturnParams", str);
 
-        ASSERT_FALSE(Diags.hasErrorOccurred());
+        ASSERT_TRUE(isSuccess());
 
         EXPECT_TRUE(AST->getFunctions().size() == 1); // func() has PRIVATE Visibility
         ASTFunction *VerifyFunc = *(AST->getFunctions().begin());
@@ -516,7 +525,7 @@ namespace {
                                "}\n");
         ASTNode *AST = Parse("TypeDefaultVarReturn", str);
 
-        ASSERT_FALSE(Diags.hasErrorOccurred());
+        ASSERT_TRUE(isSuccess());
 
         // Get Body
         ASTFunction *F = *(AST->getNameSpace()->getFunctions().begin());
@@ -527,9 +536,9 @@ namespace {
         ASTLocalVar *typeVar = (ASTLocalVar *) Body->getContent()[0];
         EXPECT_EQ(typeVar->getName(), "t");
         EXPECT_EQ(typeVar->getType()->getKind(), TypeKind::TYPE_CLASS);
-        ASTClassType *TypeT = (ASTClassType *) typeVar->getType();
-        EXPECT_EQ(TypeT->getName(), "Type");
-        ASSERT_TRUE(((ASTClassValue &)((ASTValueExpr *) typeVar->getExpr())->getValue()).isNull());
+        ASTClassType *ClassType = (ASTClassType *) typeVar->getType();
+        EXPECT_EQ(ClassType->getName(), "Type");
+        ASSERT_EQ(((ASTNullValue &)((ASTValueExpr *) typeVar->getExpr())->getValue()).str(), "null");
 
         const ASTReturn *Ret = (ASTReturn *) Body->getContent()[1];
         ASTVarRefExpr *RetRef = (ASTVarRefExpr *) Ret->getExpr();
@@ -554,7 +563,7 @@ namespace {
                                "}\n");
         ASTNode *AST = Parse("UndefLocalVar", str);
 
-        ASSERT_FALSE(Diags.hasErrorOccurred());
+        ASSERT_TRUE(isSuccess());
 
         // Get Body
         ASTFunction *F = *(AST->getNameSpace()->getFunctions().begin());
@@ -638,7 +647,7 @@ namespace {
                                "}\n");
         ASTNode *AST = Parse("IntBinaryArithOperation", str);
 
-        ASSERT_FALSE(Diags.hasErrorOccurred());
+        ASSERT_TRUE(isSuccess());
 
         // Get Body
         ASTFunction *F = *(AST->getNameSpace()->getFunctions().begin());
@@ -689,7 +698,7 @@ namespace {
                                "}\n");
         ASTNode *AST = Parse("FloatBinaryArithOperation", str);
 
-        ASSERT_FALSE(Diags.hasErrorOccurred());
+        ASSERT_TRUE(isSuccess());
 
         // Get Body
         ASTFunction *F = *(AST->getNameSpace()->getFunctions().begin());
@@ -738,7 +747,7 @@ namespace {
                                "}\n");
         ASTNode *AST = Parse("BoolBinaryLogicOperation", str);
 
-        ASSERT_FALSE(Diags.hasErrorOccurred());
+        ASSERT_TRUE(isSuccess());
 
         // Get Body
         ASTFunction *F = *(AST->getNameSpace()->getFunctions().begin());
@@ -787,7 +796,7 @@ namespace {
                                "}\n");
         ASTNode *AST = Parse("LongBinaryArithOperation", str);
 
-        ASSERT_FALSE(Diags.hasErrorOccurred());
+        ASSERT_TRUE(isSuccess());
 
         // Get Body
         ASTFunction *F = *(AST->getNameSpace()->getFunctions().begin());
@@ -832,7 +841,7 @@ namespace {
                                "}\n");
         ASTNode *AST = Parse("CondTernaryOperation", str);
 
-        ASSERT_FALSE(Diags.hasErrorOccurred());
+        ASSERT_TRUE(isSuccess());
 
         // Get Body
         ASTFunction *F = *(AST->getNameSpace()->getFunctions().begin());
@@ -863,7 +872,7 @@ namespace {
                                "}\n");
         ASTNode *AST = Parse("FunctionCall", str);
 
-        ASSERT_FALSE(Diags.hasErrorOccurred());
+        ASSERT_TRUE(isSuccess());
 
         // Get all functions
         ASTFunction *doSome = *AST->getFunctions().begin();
@@ -922,7 +931,7 @@ namespace {
                          "}\n");
         ASTNode *AST = Parse("UnaryExpr", str);
 
-        ASSERT_FALSE(Diags.hasErrorOccurred());
+        ASSERT_TRUE(isSuccess());
 
         // Get Body
         ASTFunction *F = *(AST->getNameSpace()->getFunctions().begin());
@@ -984,7 +993,7 @@ namespace {
                          "}\n");
         ASTNode *AST = Parse("IfElsifElseStmt", str);
 
-        ASSERT_FALSE(Diags.hasErrorOccurred());
+        ASSERT_TRUE(isSuccess());
 
         // Get Body
         ASTFunction *F = *(AST->getNameSpace()->getFunctions().begin());
@@ -1026,7 +1035,7 @@ namespace {
                          "}\n");
         ASTNode *AST = Parse("IfElsifElseInlineStmt", str);
 
-        ASSERT_FALSE(Diags.hasErrorOccurred());
+        ASSERT_TRUE(isSuccess());
 
         // Get Body
         ASTFunction *F = *(AST->getNameSpace()->getFunctions().begin());
@@ -1073,7 +1082,7 @@ namespace {
                          "}\n");
         ASTNode *AST = Parse("SwitchCaseDefaultStmt", str);
 
-        ASSERT_FALSE(Diags.hasErrorOccurred());
+        ASSERT_TRUE(isSuccess());
 
         // Get Body
         ASTFunction *F = *(AST->getFunctions().begin());
@@ -1099,7 +1108,7 @@ namespace {
                          "}\n");
         ASTNode *AST = Parse("ForStmt", str);
 
-        ASSERT_FALSE(Diags.hasErrorOccurred());
+        ASSERT_TRUE(isSuccess());
 
         // Get Body
         ASTFunction *F = *(AST->getFunctions().begin());
@@ -1112,8 +1121,7 @@ namespace {
         // int c = 2
         EXPECT_EQ(((ASTLocalVar *) ForBlock->getContent()[1])->getName(), "c");
 
-        ASTExprStmt *ExprStmt = (ASTExprStmt *) ForBlock->getCondition()->getContent()[0];
-        ASTBinaryGroupExpr *Cond = (ASTBinaryGroupExpr *) ExprStmt->getExpr();
+        ASTBinaryGroupExpr *Cond = (ASTBinaryGroupExpr *) ForBlock->getCondition();
         EXPECT_EQ(((ASTVarRefExpr *) Cond->getFirst())->getVarRef()->getName(), "b");
         EXPECT_EQ(Cond->getOperatorKind(), BinaryOpKind::COMP_LT);
         EXPECT_EQ(((ASTValueExpr *) Cond->getSecond())->getValue().str(), "10");
@@ -1139,7 +1147,7 @@ namespace {
                          "}\n");
         ASTNode *AST = Parse("WhileStmt", str);
 
-        ASSERT_FALSE(Diags.hasErrorOccurred());
+        ASSERT_TRUE(isSuccess());
 
         // Get Body
         ASTFunction *F = *(AST->getFunctions().begin());

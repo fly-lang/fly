@@ -8,8 +8,8 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#ifndef FLY_ASTTOPDECL_H
-#define FLY_ASTTOPDECL_H
+#ifndef FLY_ASTTOPDEF_H
+#define FLY_ASTTOPDEF_H
 
 #include "Basic/SourceLocation.h"
 #include "llvm/ADT/SmallVector.h"
@@ -35,7 +35,7 @@ namespace fly {
         V_PRIVATE = 3
     };
 
-    class ASTTopDecl {
+    class ASTTopDef {
 
         friend class SemaBuilder;
 
@@ -56,7 +56,7 @@ namespace fly {
         std::string Comment;
 
     public:
-        ASTTopDecl(const SourceLocation &Loc, ASTNode *Node, TopDeclKind Kind,  VisibilityKind Visibility);
+        ASTTopDef(const SourceLocation &Loc, ASTNode *Node, TopDeclKind Kind, VisibilityKind Visibility);
 
         ASTNode *getNode();
 
@@ -78,4 +78,4 @@ namespace fly {
     };
 }
 
-#endif //FLY_ASTTOPDECL_H
+#endif //FLY_ASTTOPDEF_H

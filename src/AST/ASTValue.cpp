@@ -8,28 +8,28 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTValue.h"
+#include "AST/ASTType.h"
 #include <string>
 
 using namespace fly;
 
-ASTValue::ASTValue(const SourceLocation &Loc, ASTType *Type) : Loc(Loc), Type(Type) {
+ASTValue::ASTValue(const SourceLocation &Location) : Location(Location) {
 
 }
 
 const SourceLocation &ASTValue::getLocation() const {
-    return Loc;
+    return Location;
 }
 
 ASTType *ASTValue::getType() const {
-    return Type;
-}
-
-ASTSingleValue::ASTSingleValue(const SourceLocation &Loc, ASTType *Type) : ASTValue(Loc, Type) {
 
 }
 
-ASTBoolValue::ASTBoolValue(const SourceLocation &Loc, bool Value) :
-        ASTSingleValue(Loc, new ASTBoolType(Loc)), Value(Value) {
+ASTSingleValue::ASTSingleValue(const SourceLocation &Loc) : ASTValue(Loc) {
+
+}
+
+ASTBoolValue::ASTBoolValue(const SourceLocation &Loc, bool Value) : ASTSingleValue(Loc), Value(Value) {
 
 }
 
@@ -41,8 +41,8 @@ std::string ASTBoolValue::str() const {
     return Value ? "true" : "false";
 }
 
-ASTIntegerValue::ASTIntegerValue(const SourceLocation &Loc, ASTType *Type, uint64_t Value, bool Negative) :
-        ASTSingleValue(Loc, Type), Value(Value), Negative(Negative) {
+ASTIntegerValue::ASTIntegerValue(const SourceLocation &Loc, uint64_t Value, bool Negative) :
+        ASTSingleValue(Loc), Value(Value), Negative(Negative) {
 
 }
 
@@ -62,8 +62,8 @@ std::string ASTIntegerValue::str() const {
     return (Negative ? "-" : "") + std::to_string(Value);
 }
 
-ASTFloatingValue::ASTFloatingValue(const SourceLocation &Loc, ASTType *Type, std::string &Value)
-    : ASTSingleValue(Loc, Type), Value(Value) {
+ASTFloatingValue::ASTFloatingValue(const SourceLocation &Loc, std::string &Value)
+    : ASTSingleValue(Loc), Value(Value) {
 
 }
 
@@ -75,13 +75,8 @@ std::string ASTFloatingValue::str() const {
     return Value;
 }
 
-ASTArrayValue::ASTArrayValue(const SourceLocation &Loc, ASTType *Type) :
-    ASTValue(Loc, new ASTArrayType(Type->getLocation(), Type,new ASTIntegerValue(Loc, Type, 0))) {
+ASTArrayValue::ASTArrayValue(const SourceLocation &Loc) : ASTValue(Loc) {
 
-}
-
-void ASTArrayValue::addValue(ASTValue * Value) {
-    Values.push_back(Value);
 }
 
 uint64_t ASTArrayValue::size() const {
@@ -106,15 +101,10 @@ const std::vector<ASTValue *> &ASTArrayValue::getValues() const {
     return Values;
 }
 
-ASTClassValue::ASTClassValue(const SourceLocation &Loc, ASTClassType *ClassType) :
-        ASTValue(Loc, ClassType) {
+ASTNullValue::ASTNullValue(const SourceLocation &Loc) : ASTValue(Loc) {
 
 }
 
-bool ASTClassValue::isNull() const {
-    return true;
-}
-
-std::string ASTClassValue::str() const {
-    return getType()->str() + "@ffffff";
+std::string ASTNullValue::str() const {
+    return "null";
 }

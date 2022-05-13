@@ -284,7 +284,7 @@ bool SemaResolver::ResolveBlock(ASTBlock *Block) {
                 break;
             case STMT_VAR_ASSIGN: {
                 ASTVarAssign *VarAssign = ((ASTVarAssign *) Stmt);
-                Success &= (!VarAssign->getVarRef()->getDecl() || ResolveVarRef(Block, VarAssign->getVarRef())) &&
+                Success &= (!VarAssign->getVarRef()->getDef() || ResolveVarRef(Block, VarAssign->getVarRef())) &&
                            ResolveExpr(Block, VarAssign->getExpr());
                 break;
             }
@@ -347,7 +347,7 @@ bool SemaResolver::ResolveVarRef(ASTBlock *Block, ASTVarRef *VarRef) {
     }
 
     // If VarRef is not resolved with parameters, search into Block declarations
-    if (!VarRef->getDecl()) {
+    if (!VarRef->getDef()) {
         // Search recursively into current Block or in one of Parents
         ASTLocalVar *LocalVar = FindVarDecl(Block, VarRef);
         // Check if var declaration var is resolved
@@ -358,7 +358,7 @@ bool SemaResolver::ResolveVarRef(ASTBlock *Block, ASTVarRef *VarRef) {
         }
     }
 
-    if (VarRef->getDecl()) {
+    if (VarRef->getDef()) {
         // The Var is now well-defined: you can remove it from UndefVars
         return Builder.RemoveUndefVar(Block, VarRef);
     }
@@ -375,7 +375,7 @@ bool SemaResolver::ResolveExpr(ASTBlock *Block, const ASTExpr *Expr) {
     switch (Expr->getExprKind()) {
         case EXPR_REF_VAR: {
             ASTVarRef *Var = ((ASTVarRefExpr *)Expr)->getVarRef();
-            return S.CheckUndefVar(Block, Var) && (Var->getDecl() || ResolveVarRef(Block, Var));
+            return S.CheckUndefVar(Block, Var) && (Var->getDef() || ResolveVarRef(Block, Var));
         }
         case EXPR_REF_FUNC: {
             ASTFunctionCall *Call = ((ASTFuncCallExpr *)Expr)->getCall();

@@ -17,7 +17,7 @@ add_library(FlyAST
         ASTParams.cpp
         ASTStmt.cpp
         ASTSwitchBlock.cpp
-        ASTTopDecl.cpp
+        ASTTopDef.cpp
         ASTType.cpp
         ASTUnref.cpp
         ASTValue.cpp

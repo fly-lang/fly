@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTStmt.cpp - Statement implementation
+// include/Sema/Sema.h - Main Parser
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,24 +7,23 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "AST/ASTStmt.h"
-#include "AST/ASTExpr.h"
-#include "AST/ASTBlock.h"
+#ifndef FLY_SEMANUMBER_H
+#define FLY_SEMANUMBER_H
 
-using namespace fly;
+#include <string>
 
-ASTStmt::ASTStmt(const SourceLocation &Loc) : Location(Loc) {
+namespace fly {
 
+    class ASTValue;
+    class SourceLocation;
+
+    class SemaNumber {
+
+    public:
+
+        static ASTValue *fromString(const SourceLocation &Loc, std::string Val);
+
+    };
 }
 
-const SourceLocation &ASTStmt::getLocation() const {
-    return Location;
-}
-
-ASTBlock *ASTStmt::getParent() const {
-    return Parent;
-}
-
-ASTFunction *ASTStmt::getTop() const {
-    return Top;
-}
+#endif //FLY_SEMANUMBER_H

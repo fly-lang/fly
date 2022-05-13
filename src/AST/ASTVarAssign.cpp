@@ -12,8 +12,8 @@
 
 using namespace fly;
 
-ASTVarAssign::ASTVarAssign(const SourceLocation &Loc, ASTBlock *Block, ASTVarRef *VarRef, ASTExpr *Expr) :
-        ASTStmt(Loc, Block), VarRef(VarRef), Expr(Expr) {
+ASTVarAssign::ASTVarAssign(const SourceLocation &Loc, ASTVarRef *VarRef, ASTExpr *Expr) :
+        ASTStmt(Loc), VarRef(VarRef), Expr(Expr) {
 
 }
 

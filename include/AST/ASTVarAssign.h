@@ -29,7 +29,7 @@ namespace fly {
 
     public:
 
-        ASTVarAssign(const SourceLocation &Loc, ASTBlock *Block, ASTVarRef *Var, ASTExpr *Expr);
+        ASTVarAssign(const SourceLocation &Loc, ASTVarRef *VarRef, ASTExpr *Expr);
 
         StmtKind getKind() const override;
 
