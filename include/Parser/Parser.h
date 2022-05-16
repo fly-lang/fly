@@ -120,7 +120,7 @@ namespace fly {
 
         // Parse a Value
         ASTValue *ParseValue();
-        ASTArrayValue *ParseValues(ASTArrayValue *ArrayValues);
+        bool ParseValues(ASTArrayValue &ArrayValues);
 
         // Parse a Local Var
         ASTLocalVar *ParseLocalVar(bool Constant, ASTType *Type);

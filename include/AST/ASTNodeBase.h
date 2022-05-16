@@ -42,7 +42,7 @@ namespace fly {
         llvm::StringMap<ASTGlobalVar *> GlobalVars;
 
         // Public Functions
-        std::unordered_set<ASTFunction*> Functions;
+        std::unordered_set<ASTFunction *> Functions;
 
         // Calls created on Functions creations, each Function have a Call defined here
         llvm::StringMap<std::vector<ASTFunctionCall *>> FunctionCalls;

@@ -10,6 +10,7 @@
 #include "Sema/SemaBuilder.h"
 #include "Sema/SemaResolver.h"
 #include "Sema/SemaNumber.h"
+#include "CodeGen/CodeGen.h"
 #include "AST/ASTContext.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTNode.h"
@@ -39,7 +40,7 @@ using namespace fly;
 SemaBuilder::SemaBuilder(Sema &S) : S(S) {
     FLY_DEBUG("SemaBuilder", "SemaBuilder");
     S.Context = new ASTContext();
-    AddNameSpace(ASTNameSpace::DEFAULT);
+    S.Context->DefaultNameSpace = AddNameSpace(ASTNameSpace::DEFAULT);
 }
 
 /**
@@ -130,6 +131,22 @@ ASTImport *SemaBuilder::CreateImport(const SourceLocation &NameLoc, llvm::String
 ASTGlobalVar *SemaBuilder::CreateGlobalVar(ASTNode *Node, const SourceLocation Loc, ASTType *Type, const std::string &Name,
                                             VisibilityKind &Visibility, bool &Constant) {
     return new ASTGlobalVar(Loc, Node, Type, Name, Visibility, Constant);
+}
+
+/**
+ * Create an ASTFunction
+ * @param Node
+ * @param Loc
+ * @param Type
+ * @param Name
+ * @param Visibility
+ * @return
+ */
+ASTFunction *SemaBuilder::CreateFunction(ASTNode *Node, const SourceLocation Loc, ASTType *Type,
+                                         const std::string &Name, VisibilityKind &Visibility) {
+    ASTFunction *F = new ASTFunction(Loc, Node, Type, Name, Visibility);
+    F->Body->Top = F;
+    return F;
 }
 
 /**
@@ -302,7 +319,7 @@ bool SemaBuilder::AddImport(ASTNode *Node, ASTImport * Import) {
     return false;
 }
 
-bool SemaBuilder::AddGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar, ASTValueExpr *Expr) {
+bool SemaBuilder::AddGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar, ASTExpr *Expr) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddGlobalVar",
                       "Node=" << Node->str() << ", GlobalVar=" << GlobalVar->str() << ", Expr=" << Expr->str());
 
@@ -450,13 +467,16 @@ bool SemaBuilder::AddUnrefGlobalVar(ASTNode *Node, ASTVarRef *VarRef) {
     return true;
 }
 
-bool SemaBuilder::AddComment(ASTTopDef *Top, std::string C) {
+bool SemaBuilder::AddComment(ASTTopDef *Top, std::string &C) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddComment", "Top=" << Top->str() << ", Comment=" << C);
-    const char* t = " \t\n\r\f\v";
-    C = C.substr(2, C.size()-4);
-    C = C.erase(0, C.find_first_not_of(t));
-    Top->Comment = C.erase(C.find_last_not_of(t) + 1);
-    return false;
+    if (!C.empty()) {
+        const char *t = " \t\n\r\f\v";
+        C = C.substr(2, C.size() - 4);
+        C = C.erase(0, C.find_first_not_of(t)); // TODO Check
+        Top->Comment = C.erase(C.find_last_not_of(t) + 1);
+        return true;
+    }
+    return true;
 }
 
 bool SemaBuilder::AddExternalGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar) {
@@ -471,6 +491,52 @@ bool SemaBuilder::AddExternalFunction(ASTNode *Node, ASTFunction *Call) {
                       "Node=" << Node->str() << ", Call=" << Call->str());
     // TODO Check duplicate
     return Node->ExternalFunctions.insert(Call).second;
+}
+
+bool SemaBuilder::AddFunctionParam(ASTFunction *Function, ASTParam *Param) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "AddExternalFunction",
+                      "Function=" << Function->str() << ", Param=" << Param->str());
+    // TODO Check duplicate
+    Function->Params->List.push_back(Param);
+    return AddLocalVar(Function->Body, Param, false);
+}
+
+void SemaBuilder::AddVarArgs(ASTFunction *Function, ASTParam *Param) {
+    Function->Params->Ellipsis = Param;
+}
+
+bool SemaBuilder::AddFunctionCall(ASTNodeBase * Base, ASTFunctionCall *Call) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "AddFunctionCall", "Call=" << Call->str());
+    const auto &It = Base->FunctionCalls.find(Call->getName());
+    if (It == Base->FunctionCalls.end()) {
+        std::vector<ASTFunctionCall *> TmpFunctionCalls;
+        TmpFunctionCalls.push_back(Call);
+        return Base->FunctionCalls.insert(std::make_pair(Call->getName(), TmpFunctionCalls)).second;
+    }
+    It->getValue().push_back(Call);
+    return true;
+}
+
+/**
+ * Add Call
+ * @param Call
+ * @return true if no error occurs, otherwise false
+ */
+bool SemaBuilder::AddFunctionCall(ASTBlock *Block, ASTFunctionCall *Call) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "AddFunctionCall", "Call=" << Call->str());
+    ASTExprStmt *ExprStmt = new ASTExprStmt(Call->getLocation(), new ASTFuncCallExpr(Call));
+    Block->Content.push_back(ExprStmt);
+    return Call->getDecl() || AddUnrefCall(Block->Top->getNode(), Call);
+}
+
+bool SemaBuilder::AddCallArg(ASTFunctionCall *Call, ASTCallArg *Arg) {
+    Call->Args.push_back(Arg);
+    return Arg;
+}
+
+bool SemaBuilder::setVarExpr(ASTVar *Var, ASTExpr *Expr) {
+    Var->Expr = Expr;
+    return false;
 }
 
 ASTParam *SemaBuilder::CreateParam(const SourceLocation &Loc, ASTType *Type, const std::string &Name, bool Constant) {
@@ -598,52 +664,6 @@ ASTForBlock *SemaBuilder::CreateForBlock(const SourceLocation &Loc, ASTExpr *Con
     return ForBlock;
 }
 
-bool SemaBuilder::AddFunctionParam(ASTFunction *Function, ASTParam *Param) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "AddExternalFunction",
-                      "Function=" << Function->str() << ", Param=" << Param->str());
-    // TODO Check duplicate
-    Function->Params->List.push_back(Param);
-    return AddLocalVar(Function->Body, Param);
-}
-
-void SemaBuilder::AddVarArgs(ASTFunction *Function, ASTParam *Param) {
-    Function->Params->Ellipsis = Param;
-}
-
-bool SemaBuilder::AddFunctionCall(ASTNodeBase * Base, ASTFunctionCall *Call) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "AddFunctionCall", "Call=" << Call->str());
-    const auto &It = Base->FunctionCalls.find(Call->getName());
-    if (It == Base->FunctionCalls.end()) {
-        std::vector<ASTFunctionCall *> TmpFunctionCalls;
-        TmpFunctionCalls.push_back(Call);
-        return Base->FunctionCalls.insert(std::make_pair(Call->getName(), TmpFunctionCalls)).second;
-    }
-    It->getValue().push_back(Call);
-    return true;
-}
-
-/**
- * Add Call
- * @param Call
- * @return true if no error occurs, otherwise false
- */
-bool SemaBuilder::AddFunctionCall(ASTBlock *Block, ASTFunctionCall *Call) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "AddFunctionCall", "Call=" << Call->str());
-    ASTExprStmt *ExprStmt = new ASTExprStmt(Call->getLocation(), new ASTFuncCallExpr(Call));
-    Block->Content.push_back(ExprStmt);
-    return Call->getDecl() || AddUnrefCall(Block->Top->getNode(), Call);
-}
-
-bool SemaBuilder::AddCallArg(ASTFunctionCall *Call, ASTCallArg *Arg) {
-    Call->Args.push_back(Arg);
-    return Arg;
-}
-
-bool SemaBuilder::setVarExpr(ASTVar *Var, ASTExpr *Expr) {
-    Var->Expr = Expr;
-    return false;
-}
-
 /**
  * Add ExprStmt to Content
  * @param ExprStmt
@@ -660,7 +680,7 @@ bool SemaBuilder::AddStmt(ASTBlock *Block, ASTStmt *Stmt) {
  * @param LocalVar
  * @return true if no error occurs, otherwise false
  */
-bool SemaBuilder::AddLocalVar(ASTBlock *Block, ASTLocalVar *LocalVar) {
+bool SemaBuilder::AddLocalVar(ASTBlock *Block, ASTLocalVar *LocalVar, bool PushToContent) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddLocalVar", "LocalVar=" << LocalVar->str());
 
     // Check if LocalVar have an Expression assigned
@@ -668,12 +688,9 @@ bool SemaBuilder::AddLocalVar(ASTBlock *Block, ASTLocalVar *LocalVar) {
         Block->UndefVars.insert(std::pair<std::string, ASTLocalVar *>(LocalVar->getName(), LocalVar));
     }
 
-    //Set CodeGen
-    CodeGenLocalVar *CGLV = new CodeGenLocalVar(Block->Top->getNode()->getCodeGen(), LocalVar);
-    LocalVar->CodeGen =CGLV;
-
     // Add LocalVar
-    Block->Content.push_back(LocalVar);
+    if (PushToContent)
+        Block->Content.push_back(LocalVar);
     Block->Top->LocalVars.push_back(LocalVar); //Useful for Alloca into CodeGen
     return Block->LocalVars.insert(std::pair<std::string, ASTLocalVar *>(LocalVar->getName(), LocalVar)).second;
 }

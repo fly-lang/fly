@@ -40,7 +40,7 @@ ASTContext::~ASTContext() {
  * @return DefaultNS
  */
 ASTNameSpace *ASTContext::getDefaultNameSpace() const {
-    return DefaultNS;
+    return DefaultNameSpace;
 }
 
 /**

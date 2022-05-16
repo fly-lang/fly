@@ -24,6 +24,7 @@ namespace fly {
     class ASTLocalVar : public ASTVar, public ASTStmt {
 
         friend class SemaBuilder;
+        friend class SemaResolver;
 
         // Statement Kind
         const StmtKind Kind = StmtKind::STMT_VAR;

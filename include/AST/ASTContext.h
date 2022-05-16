@@ -37,7 +37,7 @@ namespace fly {
         friend class SemaResolver;
         friend class SemaBuilder;
 
-        ASTNameSpace * DefaultNS;
+        ASTNameSpace * DefaultNameSpace;
 
         // All Context Namespaces
         llvm::StringMap<ASTNameSpace *> NameSpaces;

@@ -26,9 +26,6 @@ namespace fly {
         // Code Generator
         CodeGenGlobalVar *CodeGen;
 
-        // Value Expression
-        ASTValueExpr *Expr = nullptr;
-
     public:
 
         ASTGlobalVar(const SourceLocation &Loc, ASTNode *Node, ASTType *Type, const std::string &Name,

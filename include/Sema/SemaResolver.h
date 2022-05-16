@@ -26,6 +26,7 @@ namespace fly {
     class ASTVarRef;
     class ASTExpr;
     class ASTType;
+    class CodeGen;
 
     class SemaResolver {
 
@@ -49,7 +50,7 @@ namespace fly {
 
         bool ResolveFunctionCalls(ASTNameSpace *NameSpace);
 
-        bool ResolveFunctions(ASTNode *Node);
+        bool ResolveBodyFunctions(ASTNode *Node);
 
         bool ResolveBlock(ASTBlock *Block);
 

@@ -295,32 +295,28 @@ bool Parser::ParseGlobalVar(VisibilityKind &VisKind, bool &Constant, ASTType *Ty
 
     assert(Tok.isAnyIdentifier() && "Tok must be an Identifier");
 
+    // Add Comment to AST
+    std::string Comment;
+    if (!BlockComment.empty()) {
+        Comment = BlockComment;
+        ClearBlockComment(); // Clear for next use
+    }
+    
     IdentifierInfo *Id = Tok.getIdentifierInfo();
     llvm::StringRef Name = Id->getName();
-    SourceLocation Loc = Tok.getLocation();
+    SourceLocation Loc = ConsumeToken();
 
     ASTGlobalVar *GlobalVar = Builder.CreateGlobalVar(Node, Loc, Type, Name.str(), VisKind, Constant);
 
     // Parsing =
-    ConsumeToken();
-    ASTValue *Val = nullptr;
+    ASTExpr *Expr = nullptr;
     if (Tok.is(tok::equal)) {
         ConsumeToken();
-        Val = ParseValue();
+        Expr = ParseExpr();
     }
 
-    if (GlobalVar) {
-
-        // Add Comment to AST
-        if (!BlockComment.empty()) {
-            Builder.AddComment(GlobalVar, BlockComment);
-            ClearBlockComment(); // Clear for next use
-        }
-
-        return Builder.AddGlobalVar(Node, GlobalVar, Builder.CreateExpr(Val));
-    }
-
-    return false;
+    return Builder.AddGlobalVar(Node, GlobalVar, Expr) &&
+        Builder.AddComment(GlobalVar, Comment);
 }
 
 
@@ -336,16 +332,19 @@ bool Parser::ParseGlobalVar(VisibilityKind &VisKind, bool &Constant, ASTType *Ty
 bool Parser::ParseFunction(VisibilityKind &Visibility, bool Constant, ASTType *Type) {
     FLY_DEBUG_MESSAGE("Parser", "ParseFunction","VisKind=" << Visibility << ", Constant="
                                                            << Constant << ", Type=" << Type->str());
+
+    // Add Comment to AST
+    std::string Comment;
+    if (!BlockComment.empty()) {
+        Comment = BlockComment;
+        ClearBlockComment(); // Clear for next use
+    }
+
     ASTFunction *Function = FunctionParser::Parse(this, Visibility, Type, Node->isHeader());
     if (Function) {
 
-        // Add Comment to AST
-        if (!BlockComment.empty()) {
-            Builder.AddComment(Function, BlockComment);
-            ClearBlockComment(); // Clear for next use
-        }
-
-        return Builder.AddFunction(Node, Function);
+        return Builder.AddComment(Function, Comment) &&
+            Builder.AddFunction(Node, Function);
     }
 
     return false;
@@ -893,22 +892,23 @@ ASTType *Parser::ParseType(bool OnlyBuiltin) {
                 llvm::StringRef NameSpace;
                 ParseIdentifier(Name, NameSpace, Loc);
                 Type = Builder.CreateClassType(TypeLoc, Name, NameSpace);
+            } else {
+                assert("Undefined Type");
             }
         }
     }
-    assert(Type && "Undefined Type");
 
     while (Tok.is(tok::l_square)) {
         const SourceLocation &Loc = ConsumeBracket();
 
-        ASTExpr *Expr = nullptr;
+        ASTExpr *Expr;
 
         if (Tok.is(tok::r_square)) {
             ConsumeBracket();
+            Expr = Builder.CreateExpr(Builder.CreateIntegerValue(Loc, 0));
             Type = Builder.CreateArrayType(Loc, Type, Expr);
         } else {
             Expr = ParseExpr();
-
             if (Tok.is(tok::r_square)) {
                 ConsumeBracket();
                 Type = Builder.CreateArrayType(Loc, Type, Expr);
@@ -1072,8 +1072,10 @@ ASTValue *Parser::ParseValue() {
     // Parse Array values
     if (Tok.is(tok::l_brace)) {
         const SourceLocation &Loc = ConsumeBrace();
-
-        ASTArrayValue *ArrayValues = ParseValues(ArrayValues);
+        ASTArrayValue *ArrayValues = Builder.CreateArrayValue(Tok.getLocation());
+        if (!ParseValues(*ArrayValues)) {
+            return nullptr;
+        }
         return ArrayValues;
     }
 
@@ -1085,36 +1087,31 @@ ASTValue *Parser::ParseValue() {
  * Parse Array Value Expression
  * @return the ASTValueExpr
  */
-ASTArrayValue *Parser::ParseValues(ASTArrayValue *ArrayValues) {
+bool Parser::ParseValues(ASTArrayValue &ArrayValues) {
     // Parse array values Ex. {1, 2, 3}
     while (Tok.isNot(tok::r_brace) && Tok.isNot(tok::eof)) {
         ASTValue *Value = ParseValue();
         if (Value) {
-            if (!ArrayValues) { // Take the ASTType from first ASTValue
-                ArrayValues = Builder.CreateArrayValue(Tok.getLocation());
-            }
-            Builder.AddArrayValue(ArrayValues, Value);
+            Builder.AddArrayValue(&ArrayValues, Value);
             if (Tok.is(tok::comma)) {
                 ConsumeToken();
             } else {
                 break;
             }
+        } else {
+            Diag(diag::err_invalid_value) << Tok.getName();
+            return false;
         }
-    }
-
-    if (!ArrayValues) { // Error: cannot use empty array without declaring it
-        Diag(diag::err_invalid_value) << Tok.getName();
-        return nullptr;
     }
 
     // End of Array
     if (Tok.is(tok::r_brace)) {
         ConsumeBrace();
-        return ArrayValues;
+        return true;
     }
 
     Diag(diag::err_invalid_value) << Tok.getName();
-    return nullptr;
+    return false;
 }
 
 /**
@@ -1191,7 +1188,8 @@ bool Parser::isBuiltinType() {
  * @return true on Success or false on Error
  */
 bool Parser::isValue() {
-    return Tok.isOneOf(tok::numeric_constant, tok::kw_true, tok::kw_false, tok::kw_null);
+    return Tok.isOneOf(tok::numeric_constant, tok::kw_true, tok::kw_false, tok::kw_null, tok::l_brace,
+                       tok::char_constant, tok::string_literal);
 }
 
 /**

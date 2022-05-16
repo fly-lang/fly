@@ -32,7 +32,7 @@ FunctionParser::FunctionParser(Parser *P, VisibilityKind &Visibility, ASTType *T
     const SourceLocation Loc = P->Tok.getLocation();
     P->ConsumeToken();
 
-    Function = new ASTFunction(Loc, P->Node, Type, Name.str(), Visibility);
+    Function = P->Builder.CreateFunction(P->Node, Loc, Type, Name.str(), Visibility);
     ParseParams() && !isHeader && ParseBody();
 }
 
@@ -65,8 +65,8 @@ bool FunctionParser::ParseParam() {
     bool Const = P->isConst();
 
     // Var Type
-    ASTType *Type = nullptr;
-    if (P->ParseType(Type)) {
+    ASTType *Type = P->ParseType(false);
+    if (Type) {
 
         // Var Name
         const StringRef Name = P->Tok.getIdentifierInfo()->getName();
@@ -112,7 +112,9 @@ bool FunctionParser::ParseBody() {
     if (P->Tok.is(tok::l_brace)) {
         P->ConsumeBrace();
 
-        return P->ParseInnerBlock(Function->Body) && P->isBraceBalanced();
+        bool Success = P->ParseInnerBlock(Function->Body) && P->isBraceBalanced();
+        P->ClearBlockComment(); // Clean Block comments for not using them for top definition
+        return Success;
     }
 
     return false;

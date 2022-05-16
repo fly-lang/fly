@@ -19,6 +19,7 @@ namespace fly {
     class DiagnosticsEngine;
     class DiagnosticBuilder;
     class SourceLocation;
+    class CodeGen;
     class ASTContext;
     class ASTNameSpace;
     class ASTNode;
@@ -77,6 +78,8 @@ namespace fly {
                                 const SourceLocation &AliasLoc, StringRef Alias);
         ASTGlobalVar *CreateGlobalVar(ASTNode *Node, const SourceLocation Loc, ASTType *Type, const std::string &Name,
                                        VisibilityKind &Visibility, bool &Constant);
+        ASTFunction *CreateFunction(ASTNode *Node, const SourceLocation Loc, ASTType *Type, const std::string &Name,
+                                    VisibilityKind &Visibility);
         ASTClass *CreateClass(ASTNode *Node, const SourceLocation Loc, const std::string &Name, VisibilityKind &Visibility,
                               bool &Constant);
 
@@ -157,15 +160,15 @@ namespace fly {
 
         bool AddImport(ASTNode *Node, ASTImport *Import);
 
+        bool AddGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar, ASTExpr *Expr);
+
+        bool AddFunction(ASTNode *Node, ASTFunction *Function);
+
+        bool AddComment(ASTTopDef *Top, std::string &Comment);
+
         bool AddExternalGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar);
 
         bool AddExternalFunction(ASTNode *Node, ASTFunction *Call);
-
-        bool AddComment(ASTTopDef *Top, std::string Comment);
-
-        bool AddGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar, ASTValueExpr *Expr);
-
-        bool AddFunction(ASTNode *Node, ASTFunction *Function);
 
         bool AddFunctionParam(ASTFunction *Function, ASTParam *Param);
 
@@ -187,7 +190,7 @@ namespace fly {
 
         bool AddStmt(ASTBlock *Block, ASTStmt *Stmt);
 
-        bool AddLocalVar(ASTBlock *Block, ASTLocalVar *LocalVar);
+        bool AddLocalVar(ASTBlock *Block, ASTLocalVar *LocalVar, bool PushToContent = true);
 
         bool AddVarAssign(ASTBlock *Block, ASTVarAssign *VarAssign);
 

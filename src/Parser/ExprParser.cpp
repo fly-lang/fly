@@ -35,7 +35,7 @@ ASTExpr *ExprParser::ParseAssignmentExpr(ASTVarRef *VarRef) {
     if (isAssignOperator(P->Tok)) {
 
         // Create First Expr
-        ASTVarRefExpr *First = new ASTVarRefExpr(VarRef);
+        ASTVarRefExpr *First = P->Builder.CreateExpr(VarRef);
         Group.push_back(First);
 
         // Parse binary assignment operator
@@ -119,6 +119,7 @@ ASTExpr *ExprParser::ParseExpr(bool Start) {
 
     // Return
     ASTExpr *Expr = nullptr;
+    Success = true;
 
     // Location of the starting expression
     if (P->Tok.is(tok::l_paren)) { // Start a new Group of Expressions
@@ -126,18 +127,19 @@ ASTExpr *ExprParser::ParseExpr(bool Start) {
 
         ExprParser SubP(P);
         Expr = SubP.ParseExpr();
-        if (Expr != nullptr) {
+        if (Expr) {
             if (P->Tok.is(tok::r_paren)) {
                 P->ConsumeParen();
             } else { // Error: parenthesis unclosed
                 P->Diag(P->Tok.getLocation(), diag::err_paren_unclosed);
+                Success = false;
                 return nullptr;
             }
         }
     } else if (P->isValue()) { // Ex. 1
         ASTValue *Val = P->ParseValue();
-        if (Val != nullptr) // Parse a value
-            Expr = new ASTValueExpr(Val);
+        if (Val) // Parse a value
+            Expr = P->Builder.CreateExpr(Val);
     } else if (P->Tok.isAnyIdentifier()) { // Ex. a or a++ or func()
         llvm::StringRef Name;
         llvm::StringRef NameSpace;
@@ -151,6 +153,13 @@ ASTExpr *ExprParser::ParseExpr(bool Start) {
         return nullptr;
     }
 
+     // Error: missing expression
+     if (Expr == nullptr) {
+         P->Diag(P->Tok.getLocation(), diag::err_parser_miss_expr);
+         Success = false;
+         return nullptr;
+     }
+
     // Check if binary operator exists
     if (isBinaryOperator()) { // Parse Binary Expression
         Group.push_back(Expr);
@@ -162,6 +171,7 @@ ASTExpr *ExprParser::ParseExpr(bool Start) {
         // Error: missing second operator
         if (Expr == nullptr) {
             P->Diag(P->Tok.getLocation(), diag::err_parser_miss_oper);
+            Success = false;
             return nullptr;
         }
 
@@ -209,17 +219,17 @@ ASTExpr *ExprParser::ParseExpr(llvm::StringRef Name, llvm::StringRef NameSpace, 
     if (P->Tok.is(tok::l_paren)) { // Ex. a()
         ASTFunctionCall *Call = P->ParseFunctionCall(Name, NameSpace, IdLoc);
         if (Call && P->Builder.AddUnrefCall(P->Node, Call)) { // To Resolve on the next
-            return new ASTFuncCallExpr(Call);
+            return P->Builder.CreateExpr(Call);
         }
         // TODO add Error of Call or AddUnrefCall()
     } else { // parse variable post increment/decrement or simple var
-        ASTVarRef *VarRef = new ASTVarRef(IdLoc, Name.str(), NameSpace.str());
+        ASTVarRef *VarRef = P->Builder.CreateVarRef(IdLoc, Name.str(), NameSpace.str());
         // if (ASTResolver::ResolveVarRef(Block, VarRef)) { // FIXME need to do after
             if (isUnaryPostOperator()) { // Ex. a++ or a--
                 return ParseUnaryPostExpr(VarRef); // Parse Unary Pre Expression
             } else {
                 // Simple Var
-                return new ASTVarRefExpr(VarRef);
+                return P->Builder.CreateExpr(VarRef);
             }
         // }
     }
@@ -234,7 +244,7 @@ ASTExpr *ExprParser::ParseExpr(llvm::StringRef Name, llvm::StringRef NameSpace, 
  * @return
  */
 ASTUnaryGroupExpr* ExprParser::ParseUnaryPostExpr(ASTVarRef *VarRef) {
-    ASTVarRefExpr *VarRefExpr = new ASTVarRefExpr(VarRef);
+    ASTVarRefExpr *VarRefExpr = P->Builder.CreateExpr(VarRef);
     // if (ASTResolver::ResolveVarRef(Block, VarRef)) { // FIXME need to do after
 
         UnaryOpKind Op;
@@ -289,8 +299,8 @@ ASTUnaryGroupExpr* ExprParser::ParseUnaryPreExpr(Parser *P) {
         SourceLocation Loc;
 
         if (P->ParseIdentifier(Name, NameSpace, Loc)) {
-            ASTVarRef *VarRef = new ASTVarRef(Loc, Name.str(), NameSpace.str());
-            ASTVarRefExpr *VarRefExpr = new ASTVarRefExpr(VarRef);
+            ASTVarRef *VarRef = P->Builder.CreateVarRef(Loc, Name.str(), NameSpace.str());
+            ASTVarRefExpr *VarRefExpr = P->Builder.CreateExpr(VarRef);
             // if (ASTResolver::ResolveVarRef(Block, VarRef)) { // FIXME need to do after
                 return new ASTUnaryGroupExpr(Loc, Op, UNARY_PRE, VarRefExpr);
             // }
@@ -300,6 +310,10 @@ ASTUnaryGroupExpr* ExprParser::ParseUnaryPreExpr(Parser *P) {
     // Error: unary operator
     P->Diag(P->Tok.getLocation(), diag::err_unary_operator) << getPunctuatorSpelling(P->Tok.getKind());
     return nullptr;
+}
+
+bool ExprParser::isSuccess() const {
+    return Success;
 }
 
 /**

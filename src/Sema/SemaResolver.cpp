@@ -19,6 +19,8 @@
 #include "AST/ASTBlock.h"
 #include "AST/ASTVar.h"
 #include "AST/ASTVarAssign.h"
+#include "CodeGen/CodeGen.h"
+#include "CodeGen/CodeGenLocalVar.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/Debug.h"
 
@@ -36,16 +38,21 @@ SemaResolver::SemaResolver(Sema &S, SemaBuilder &Builder) : S(S), Builder(Builde
 bool SemaResolver::Resolve() {
     bool Success = true;
 
-    // Resolve Node UnRefGlobalVars and UnRefCalls
+    // Resolve Nodes
     for (auto &NEntry : S.Context->getNodes()) {
         auto &Node = NEntry.getValue();
-        Success &= ResolveGlobalVars(Node) & ResolveFunctionCalls(Node) & ResolveFunctions(Node) & ResolveClass(Node);
+        Success &= ResolveGlobalVars(Node) & // resolve Node UnrefGlobalVars
+                ResolveFunctionCalls(Node) & // resolve Node UnrefFunctionCalls
+                ResolveBodyFunctions(Node) & // resolve ASTBlock of Body Functions
+                ResolveClass(Node);          // resolve Class attributes and methods
     }
 
-    // Resolve UnRefGlobalVars and UnRefCalls at NameSpace level
+    // Resolve NameSpaces
     for (auto &NSEntry : S.Context->NameSpaces) {
         auto &NameSpace = NSEntry.getValue();
-        Success &= ResolveImports(NameSpace) & ResolveGlobalVars(NameSpace) & ResolveFunctionCalls(NameSpace);
+        Success &= ResolveImports(NameSpace) &   // resolve Imports
+                ResolveGlobalVars(NameSpace) &   // resolve NameSpace UnrefGlobalVars
+                ResolveFunctionCalls(NameSpace); // resolve NameSpace UnrefFunctionCalls
     }
 
     // Now all Imports must be read
@@ -238,7 +245,7 @@ bool SemaResolver::ResolveFunctionCalls(ASTNameSpace *NameSpace) {
     return Success;
 }
 
-bool SemaResolver::ResolveFunctions(ASTNode *Node) {
+bool SemaResolver::ResolveBodyFunctions(ASTNode *Node) {
     bool Success = true;
     for (auto &Function : Node->Functions) {
         Success &= ResolveBlock(Function->Body);

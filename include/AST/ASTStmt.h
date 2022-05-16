@@ -36,9 +36,9 @@ namespace fly {
 
         const SourceLocation Location;
 
-        ASTFunction *Top;
+        ASTFunction *Top = nullptr;
 
-        ASTBlock *Parent;
+        ASTBlock *Parent = nullptr;
 
     public:
         ASTStmt(const SourceLocation &Loc);

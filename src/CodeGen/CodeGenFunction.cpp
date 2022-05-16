@@ -77,6 +77,7 @@ void CodeGenFunction::GenBody() {
 
     // Allocation of declared local vars
     for (auto &LocalVar: AST->getLocalVars()) {
+        LocalVar->setCodeGen(new CodeGenLocalVar(CGM, LocalVar));
         LocalVar->getCodeGen()->Alloca();
     }
 
