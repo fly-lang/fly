@@ -65,8 +65,6 @@ namespace fly {
         // Contains all vars declared in this Block
         llvm::StringMap<ASTLocalVar *> LocalVars;
 
-    protected:
-
         // Contains all declared vars not yet defined with value;
         llvm::StringMap<ASTLocalVar *> UndefVars;
 

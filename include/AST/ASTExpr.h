@@ -21,7 +21,8 @@ namespace fly {
         EXPR_VALUE,
         EXPR_REF_VAR,
         EXPR_REF_FUNC,
-        EXPR_GROUP
+        EXPR_GROUP,
+        EXPR_EMPTY
     };
 
     enum ASTExprGroupKind {
@@ -93,17 +94,34 @@ namespace fly {
 
         const SourceLocation &Loc;
 
+    protected:
+
+        ASTType *Type;
+
     public:
 
         ASTExpr(const SourceLocation &Loc);
 
         const SourceLocation &getLocation() const;
 
-        virtual ASTType *getType() const = 0;
+        virtual ASTType *getType() const;
 
         virtual ASTExprKind getExprKind() const = 0;
 
         virtual std::string str() const = 0;
+    };
+
+    class ASTEmptyExpr : public ASTExpr {
+
+        const ASTExprKind Kind = ASTExprKind::EXPR_EMPTY;
+
+    public:
+
+        ASTEmptyExpr(const SourceLocation &Loc);
+
+        ASTExprKind getExprKind() const override;
+
+        virtual std::string str() const override;
     };
 
     /**
@@ -120,8 +138,6 @@ namespace fly {
         ASTExprKind getExprKind() const override;
 
         ASTValue &getValue() const;
-
-        ASTType *getType() const override;
 
         std::string str() const override;
     };

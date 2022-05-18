@@ -41,7 +41,7 @@ namespace fly {
 
         ASTVarRef &getVarRef();
 
-        std::string str() const;
+        std::string str() const override;
     };
 
     class ASTUnrefCall : public ASTUnref {
@@ -53,7 +53,7 @@ namespace fly {
 
         ASTFunctionCall *getCall();
 
-        std::string str() const;
+        std::string str() const override;
     };
 }
 

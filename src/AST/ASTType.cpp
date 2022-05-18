@@ -24,12 +24,24 @@ const bool ASTType::isBool() const {
     return Kind == TYPE_BOOL;
 }
 
+const bool ASTType::isNumber() const {
+    return Kind > 1 && Kind < 11;
+}
+
 const bool ASTType::isInteger() const {
     return Kind > 1 && Kind < 9;
 }
 
 const bool ASTType::isFloatingPoint() const {
     return Kind == TYPE_FLOAT || Kind == TYPE_DOUBLE;
+}
+
+const bool ASTType::isClass() const {
+    return Kind == TYPE_CLASS;
+}
+
+const bool ASTType::isArray() const {
+    return Kind == TYPE_ARRAY;
 }
 
 const TypeKind &ASTType::getKind() const  {
@@ -95,10 +107,6 @@ ASTExpr *ASTArrayType::getSize() const {
 
 ASTType *ASTArrayType::getType() const {
     return Type;
-}
-
-void ASTArrayType::setSize(ASTIntegerValue *S) {
-    Size = new ASTValueExpr((ASTValue *) S);
 }
 
 std::string ASTArrayType::str() const {

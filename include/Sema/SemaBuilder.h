@@ -28,7 +28,6 @@ namespace fly {
     class ASTClass;
     class ASTFunction;
     class ASTFunctionCall;
-    class ASTCallArg;
     class ASTBlock;
     class ASTIfBlock;
     class ASTElsifBlock;
@@ -43,6 +42,7 @@ namespace fly {
     class ASTLocalVar;
     class ASTVarRef;
     class ASTExpr;
+    class ASTEmptyExpr;
     class ASTType;
     class ASTBoolValue;
     class ASTIntegerValue;
@@ -86,8 +86,6 @@ namespace fly {
         // Create Function Call
         ASTFunctionCall *CreateFunctionCall(const SourceLocation &Loc, std::string &Name, std::string &NameSpace);
         ASTFunctionCall *CreateFunctionCall(ASTFunction *Function);
-        ASTCallArg *CreateCallArg(ASTType *Type);
-        ASTCallArg *CreateCallArg(ASTExpr *Expr);
 
         // Create Types
         ASTType *CreateBoolType(const SourceLocation &Loc);
@@ -113,6 +111,7 @@ namespace fly {
         ASTFloatingValue *CreateFloatingValue(const SourceLocation &Loc, double Val);
         ASTValue *CreateValue(const SourceLocation &Loc, std::string &Val);
         ASTArrayValue *CreateArrayValue(const SourceLocation &Loc);
+        ASTValue *CreateDefaultValue(ASTType *Type);
 
         ASTLocalVar *CreateLocalVar(const SourceLocation &Loc, ASTType *Type, const std::string &Name, bool Constant,
                                     ASTExpr *Expr = nullptr);
@@ -120,6 +119,8 @@ namespace fly {
         ASTParam *CreateParam(const SourceLocation &Loc, ASTType *Type, const std::string &Name, bool Constant);
 
         ASTExprStmt *CreateExprStmt(const SourceLocation &Loc, ASTExpr *Expr);
+
+        ASTEmptyExpr *CreateExpr(const SourceLocation &Loc);
 
         ASTValueExpr *CreateExpr(ASTValue *Value);
 
@@ -176,15 +177,13 @@ namespace fly {
 
         bool AddFunctionCall(ASTNodeBase *Base, ASTFunctionCall *Call);
 
-        bool AddFunctionCall(ASTBlock *Block, ASTFunctionCall *Call);
-
-        bool AddCallArg(ASTFunctionCall *Call, ASTCallArg *Arg);
+        bool AddCallArg(ASTFunctionCall *Call, ASTExpr *Expr);
 
         bool AddClass(ASTNode *Node, ASTClass *Class);
 
-        bool AddUnrefCall(ASTNode *Node, ASTFunctionCall *Call);
-
         bool AddUnrefGlobalVar(ASTNode *Node, ASTVarRef *VarRef);
+
+        bool AddUnrefCall(ASTNode *Node, ASTFunctionCall *Call);
 
         bool setVarExpr(ASTVar *Var, ASTExpr *Expr);
 

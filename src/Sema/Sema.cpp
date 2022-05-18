@@ -103,46 +103,13 @@ bool Sema::CheckImport(ASTNode *Node, ASTImport *Import) {
     return true;
 }
 
-
-bool Sema::isUsable(ASTFunction *Function, ASTFunctionCall *Call) {
-    const auto &Params = Function->getParams()->getList();
-    const auto &Args = Call->getArgs();
-
-    // Check Number of Args on First
-    if (Function->isVarArg()) {
-        if (Params.size() > Args.size()) {
-            return false;
-        }
-    } else {
-        if (Params.size() != Args.size()) {
-            return false;
-        }
-    }
-
-    // Check Type
-    for (int i = 0; i < Params.size(); i++) {
-        bool isLast = i+1 == Params.size();
-
-        //Check VarArgs by compare each Arg Type with last Param Type
-        if (isLast && Function->isVarArg()) {
-            for (int n = i; n < Args.size(); n++) {
-                // Check Equal Type
-                if (Params[i]->getType()->getKind() == Args[n]->getType()->getKind()) {
-                    return false;
-                }
-            }
-        } else {
-            ASTCallArg *Arg = Args[i];
-            if (Arg->getType() == nullptr) {
-                ASTType *Ty = Resolver->ResolveExprType(Arg->getExpr());
-                Arg->setType(Ty);
-            }
-
-            // Check Equal Type
-            if (!Params[i]->getType()->equals(Arg->getType())) {
-                return false;
-            }
-        }
+bool Sema::Check(ASTExpr *Expr) {
+    if (!Expr->getType()) {
+        Diag(Expr->getLocation(), diag::err_expr_type_miss);
+        return false;
     }
     return true;
 }
+
+
+

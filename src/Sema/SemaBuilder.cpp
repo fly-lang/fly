@@ -173,7 +173,7 @@ ASTClass *SemaBuilder::CreateClass(ASTNode *Node, const SourceLocation Loc, cons
 ASTFunctionCall *SemaBuilder::CreateFunctionCall(const SourceLocation &Loc, std::string &Name, std::string &NameSpace) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateFunctionCall",
                       "Name=" << Name << ", NameSpace=" << NameSpace);
-    return new ASTFunctionCall(Loc, Name, NameSpace);
+    return new ASTFunctionCall(Loc, NameSpace, Name);
 }
 
 /**
@@ -185,20 +185,12 @@ ASTFunctionCall *SemaBuilder::CreateFunctionCall(ASTFunction *Function) {
     ASTFunctionCall *Call = new ASTFunctionCall(SourceLocation(),
                                                 Function->getNameSpace()->getName(),
                                                 Function->getName());
-    Call->setDecl(Function);
+    Call->Def = Function;
     for (auto &Param : Function->Params->List) {
-        ASTCallArg * Arg = CreateCallArg(Param->getType());
+        ASTExpr * Arg = CreateExpr(CreateDefaultValue(Param->getType()));
         AddCallArg(Call, Arg);
     }
     return Call;
-}
-
-ASTCallArg *SemaBuilder::CreateCallArg(ASTType *Type) {
-    return new ASTCallArg(Type);
-}
-
-ASTCallArg *SemaBuilder::CreateCallArg(ASTExpr *Expr) {
-    return new ASTCallArg(Expr);
 }
 
 ASTType *SemaBuilder::CreateBoolType(const SourceLocation &Loc) {
@@ -428,41 +420,39 @@ bool SemaBuilder::AddClass(ASTNode *Node, ASTClass *Class) {
     return Node->NameSpace->Classes.insert(std::make_pair(Class->getName(), Class)).second;
 }
 
-bool SemaBuilder::AddUnrefCall(ASTNode *Node, ASTFunctionCall *Call) {
-    FLY_DEBUG_MESSAGE("ASTNode", "AddUnrefCall",
-                      "Node=" << Node->str() << ", Call=" << Call->str());
-    ASTUnrefCall *Unref = new ASTUnrefCall(Node, Call);
-    if (Call->getNameSpace().empty()) {
-        Node->UnrefFunctionCalls.push_back(Unref); // Unref of Node or from a Namespace not specified
-    } else if (Call->getNameSpace() == Node->NameSpace->getName()) { // call must be resolved into current namespace
-        Node->NameSpace->UnrefFunctionCalls.push_back(Unref);
-    } else {
-        ASTImport *Import = Node->FindImport(Call->getNameSpace());
-        if (Import == nullptr) {
-            Diag(Call->getLocation(), diag::err_import_notfound) << Call->getNameSpace();
-            return false;
-        }
-        Import->UnrefFunctionCalls.push_back(Unref);
-    }
-    return true;
-}
 
 bool SemaBuilder::AddUnrefGlobalVar(ASTNode *Node, ASTVarRef *VarRef) {
     FLY_DEBUG_MESSAGE("ASTNode", "AddUnrefGlobalVar",
                       "Node=" << Node->str() << ", VarRef=" << VarRef->str());
     ASTUnrefGlobalVar *Unref = new ASTUnrefGlobalVar(Node, *VarRef);
-    if (VarRef->getNameSpace().empty()) {
-        Node->UnrefGlobalVars.push_back(Unref); // Unref of Node or from a Namespace not specified
-    } else if (VarRef->getNameSpace() == Node->NameSpace->getName()) {
+    ASTImport *Import;
+    if (VarRef->getNameSpace().empty()) { // Add to Unref of current Node
+        Node->UnrefGlobalVars.push_back(Unref);
+    } else if (VarRef->getNameSpace() == Node->NameSpace->getName()) { // Add to Unref of current NameSpace
         Node->NameSpace->UnrefGlobalVars.push_back(Unref);
-    } else {
-        ASTImport *Import = Node->FindImport(VarRef->getNameSpace());
-        if (!Import) {
-            Diag(VarRef->getLocation(), diag::err_import_notfound)
-                    << VarRef->getNameSpace();
-            return false;
-        }
+    } else if ((Import = Node->FindImport(VarRef->getNameSpace()))) { // Add to Unref of current Import
         Import->UnrefGlobalVars.push_back(Unref);
+    } else {
+        Diag(VarRef->getLocation(), diag::err_unref_var);
+        return false;
+    }
+    return true;
+}
+
+bool SemaBuilder::AddUnrefCall(ASTNode *Node, ASTFunctionCall *Call) {
+    FLY_DEBUG_MESSAGE("ASTNode", "AddUnrefCall",
+                      "Node=" << Node->str() << ", Call=" << Call->str());
+    ASTUnrefCall *Unref = new ASTUnrefCall(Node, Call);
+    ASTImport *Import;
+    if (Call->getNameSpace().empty()) {
+        Node->UnrefFunctionCalls.push_back(Unref); // Unref of Node or from a Namespace not specified
+    } else if (Call->getNameSpace() == Node->NameSpace->getName()) { // call must be resolved into current namespace
+        Node->NameSpace->UnrefFunctionCalls.push_back(Unref);
+    } else if ((Import = Node->FindImport(Call->getNameSpace()))) {
+        Import->UnrefFunctionCalls.push_back(Unref);
+    } else {
+        Diag(Call->getLocation(), diag::err_unref_call);
+        return false;
     }
     return true;
 }
@@ -506,37 +496,30 @@ void SemaBuilder::AddVarArgs(ASTFunction *Function, ASTParam *Param) {
 }
 
 bool SemaBuilder::AddFunctionCall(ASTNodeBase * Base, ASTFunctionCall *Call) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "AddFunctionCall", "Call=" << Call->str());
+    FLY_DEBUG_MESSAGE("SemaBuilder", "AddFunctionCall",
+                      "Base=" << Call->str() <<
+                      ", Call=" << Call->str());
     const auto &It = Base->FunctionCalls.find(Call->getName());
+    // Create a List of Function Call with same name
     if (It == Base->FunctionCalls.end()) {
         std::vector<ASTFunctionCall *> TmpFunctionCalls;
         TmpFunctionCalls.push_back(Call);
         return Base->FunctionCalls.insert(std::make_pair(Call->getName(), TmpFunctionCalls)).second;
     }
+
+    // Add to existing one Function Call lists with same name
     It->getValue().push_back(Call);
     return true;
 }
 
-/**
- * Add Call
- * @param Call
- * @return true if no error occurs, otherwise false
- */
-bool SemaBuilder::AddFunctionCall(ASTBlock *Block, ASTFunctionCall *Call) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "AddFunctionCall", "Call=" << Call->str());
-    ASTExprStmt *ExprStmt = new ASTExprStmt(Call->getLocation(), new ASTFuncCallExpr(Call));
-    Block->Content.push_back(ExprStmt);
-    return Call->getDecl() || AddUnrefCall(Block->Top->getNode(), Call);
-}
-
-bool SemaBuilder::AddCallArg(ASTFunctionCall *Call, ASTCallArg *Arg) {
-    Call->Args.push_back(Arg);
-    return Arg;
+bool SemaBuilder::AddCallArg(ASTFunctionCall *Call, ASTExpr *Expr) {
+    Call->Args.push_back(Expr);
+    return Expr;
 }
 
 bool SemaBuilder::setVarExpr(ASTVar *Var, ASTExpr *Expr) {
     Var->Expr = Expr;
-    return false;
+    return true;
 }
 
 ASTParam *SemaBuilder::CreateParam(const SourceLocation &Loc, ASTType *Type, const std::string &Name, bool Constant) {
@@ -549,6 +532,9 @@ ASTExprStmt *SemaBuilder::CreateExprStmt(const SourceLocation &Loc, ASTExpr *Exp
     return new ASTExprStmt(Loc, Expr);
 }
 
+ASTEmptyExpr *SemaBuilder::CreateExpr(const SourceLocation &Loc) {
+    return new ASTEmptyExpr(Loc);
+}
 
 ASTValueExpr *SemaBuilder::CreateExpr(ASTValue *Value) {
     return new ASTValueExpr(Value);
@@ -589,6 +575,23 @@ ASTValue *SemaBuilder::CreateValue(const SourceLocation &Loc, std::string &Val) 
 
 ASTArrayValue *SemaBuilder::CreateArrayValue(const SourceLocation &Loc) {
     return new ASTArrayValue(Loc);
+}
+
+ASTValue *SemaBuilder::CreateDefaultValue(ASTType *Type) {
+    ASTValue *Value;
+    if (Type->isBool()) {
+        Value = CreateBoolValue(Type->getLocation(), false);
+    } else if (Type->isNumber()) {
+        std::string Zero = "0";
+        Value = CreateValue(Type->getLocation(), Zero);
+    } else if (Type->isArray()) {
+        Value = CreateArrayValue(Type->getLocation());
+    } else if (Type->isClass()) {
+        Value = CreateNullValue(Type->getLocation());
+    } else {
+        assert("Unknown type");
+    }
+    return Value;
 }
 
 ASTVarAssign *SemaBuilder::CreateVarAssign(const SourceLocation &Loc, ASTVarRef * VarRef, ASTExpr *Expr) {

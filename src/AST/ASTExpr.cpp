@@ -24,6 +24,22 @@ const SourceLocation &ASTExpr::getLocation() const {
     return Loc;
 }
 
+ASTType *ASTExpr::getType() const {
+    return Type;
+}
+
+ASTEmptyExpr::ASTEmptyExpr(const SourceLocation &Loc) : ASTExpr(Loc) {
+
+}
+
+ASTExprKind ASTEmptyExpr::getExprKind() const {
+    return Kind;
+}
+
+std::string ASTEmptyExpr::str() const {
+    return "";
+}
+
 ASTValueExpr::ASTValueExpr(ASTValue *Val) : ASTExpr(Val->getLocation()), Val(Val) {
 
 }
@@ -34,10 +50,6 @@ ASTExprKind ASTValueExpr::getExprKind() const {
 
 ASTValue &ASTValueExpr::getValue() const {
     return *Val;
-}
-
-ASTType *ASTValueExpr::getType() const {
-    return Val->getType();
 }
 
 std::string ASTValueExpr::str() const {
@@ -60,7 +72,7 @@ ASTVarRef *ASTVarRefExpr::getVarRef() const {
 }
 
 ASTType *ASTVarRefExpr::getType() const {
-    return Ref->getDef() == nullptr ? nullptr : Ref->getDef()->getType();
+    return Type ? Type : Ref->getDef() ? Ref->getDef()->getType() : nullptr;
 }
 
 std::string ASTVarRefExpr::str() const {
@@ -81,7 +93,7 @@ ASTFunctionCall *ASTFuncCallExpr::getCall() const {
 }
 
 ASTType *ASTFuncCallExpr::getType() const {
-    return Call->getDecl() == nullptr ? nullptr : Call->getDecl()->getType();
+    return Type ? Type : Call->getDef() ? Call->getDef()->getType() : nullptr;
 }
 
 std::string ASTFuncCallExpr::str() const {
@@ -125,7 +137,7 @@ const ASTVarRefExpr *ASTUnaryGroupExpr::getFirst() const {
 }
 
 ASTType *ASTUnaryGroupExpr::getType() const {
-    return First->getType();
+    return Type ? Type : First->getType();
 }
 
 std::string ASTUnaryGroupExpr::str() const {
@@ -165,6 +177,10 @@ const ASTExpr *ASTBinaryGroupExpr::getSecond() const {
 }
 
 ASTType *ASTBinaryGroupExpr::getType() const {
+    if (Type) {
+        return Type;
+    }
+
     switch (OptionKind) {
 
         case BINARY_ARITH:
@@ -200,7 +216,7 @@ TernaryOpKind ASTTernaryGroupExpr::getOperatorKind() const {
 }
 
 ASTType *ASTTernaryGroupExpr::getType() const {
-    return Second->getType();
+    return Type ? Type : Second->getType();
 }
 
 const ASTExpr *ASTTernaryGroupExpr::getFirst() const {

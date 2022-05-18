@@ -32,7 +32,7 @@ SemaResolver::SemaResolver(Sema &S, SemaBuilder &Builder) : S(S), Builder(Builde
 
 /**
  * Take all unreferenced Global Variables from Functions and try to resolve them
- * into all NameSapces
+ * into all NameSpaces
  * @return
  */
 bool SemaResolver::Resolve() {
@@ -104,6 +104,7 @@ bool SemaResolver::ResolveImports(ASTNameSpace *NameSpace) {
             }
         }
     }
+
     return Success;
 }
 
@@ -118,7 +119,7 @@ bool SemaResolver::ResolveGlobalVars(ASTNode *Node) {
     for (auto &Unref : Node->UnrefGlobalVars) {
         FLY_DEBUG_MESSAGE("Sema", "ResolveGlobalVars",
                           "Node=" << Node->str() <<
-                                  ", VarRef=" << Unref->getVarRef().str());
+                          ", VarRef=" << Unref->getVarRef().str());
         const auto &It = Node->GlobalVars.find(Unref->getVarRef().getName());
         if (It == Node->GlobalVars.end()) {
             // of the current NameSpace
@@ -145,11 +146,11 @@ bool SemaResolver::ResolveGlobalVars(ASTNameSpace *NameSpace) {
     for (auto &Unref : NameSpace->UnrefGlobalVars) {
         FLY_DEBUG_MESSAGE("Sema", "ResolveGlobalVars",
                           "NameSpace=" << NameSpace->str() <<
-                                       ", VarRef=" << Unref->getVarRef().str());
+                          ", VarRef=" << Unref->getVarRef().str());
         const auto &It = NameSpace->GlobalVars.find(Unref->getVarRef().getName());
-        if (It == NameSpace->GlobalVars.end()) {
+        if (It == NameSpace->GlobalVars.end()) { // NameSpace not contains GlobalVar throw error
             Diag(Unref->getVarRef().getLocation(), diag::err_gvar_notfound)
-                    << Unref->getVarRef().getName();
+                << Unref->getVarRef().getName();
             Success = false;
         } else {
             Unref->getVarRef().setDecl(It->getValue());
@@ -175,17 +176,17 @@ bool SemaResolver::ResolveFunctionCalls(ASTNode *Node) {
     for (auto *UnrefFunctionCall : Node->UnrefFunctionCalls) {
         FLY_DEBUG_MESSAGE("Sema", "ResolveFunctionCalls",
                           "Node=" << Node->str() <<
-                                  ", UnrefFunctionCall=" << UnrefFunctionCall->getCall()->str());
+                          ", UnrefFunctionCall=" << UnrefFunctionCall->getCall()->str());
         if (IsBaseLib && UnrefFunctionCall->getCall()->getName().find("c__") == 0) {
             continue; // TODO UnrefFunctionCalls can be checked with all possible libc functions
         } else {
             const auto &It = Node->FunctionCalls.find(UnrefFunctionCall->getCall()->getName());
-            if (It == Node->FunctionCalls.end()) {
+            if (It == Node->FunctionCalls.end()) { // Node not contains FunctionCall search into NameSpace
                 Node->NameSpace->UnrefFunctionCalls.push_back(UnrefFunctionCall);
             } else {
                 for (auto &FunctionCall: It->getValue()) {
-                    if (S.isUsable(FunctionCall->getDecl(), UnrefFunctionCall->getCall())) {
-                        UnrefFunctionCall->getCall()->setDecl(FunctionCall->getDecl());
+                    if (hasSameParams(FunctionCall->getDef(), UnrefFunctionCall->getCall())) {
+                        UnrefFunctionCall->getCall()->Def = FunctionCall->getDef();
                     } else {
                         Success = false;
                     }
@@ -198,6 +199,49 @@ bool SemaResolver::ResolveFunctionCalls(ASTNode *Node) {
         }
     }
     return Success;
+}
+
+bool SemaResolver::hasSameParams(ASTFunction *Function, ASTFunctionCall *Call) {
+    const auto &Params = Function->getParams()->getList();
+    const auto &Args = Call->getArgs();
+
+    // Check Number of Args on First
+    if (Function->isVarArg()) {
+        if (Params.size() > Args.size()) {
+            return false;
+        }
+    } else {
+        if (Params.size() != Args.size()) {
+            return false;
+        }
+    }
+
+    // Check Type
+    for (int i = 0; i < Params.size(); i++) {
+        bool isLast = i+1 == Params.size();
+
+        //Check VarArgs by compare each Arg Type with last Param Type
+        if (isLast && Function->isVarArg()) {
+            for (int n = i; n < Args.size(); n++) {
+                // Check Equal Type
+                if (Params[i]->getType()->getKind() == Args[n]->getType()->getKind()) {
+                    return false;
+                }
+            }
+        } else {
+            ASTExpr *Arg = Args[i];
+
+            if (!S.Check(Arg)) {
+                return false;
+            }
+
+            // Check Equal Type
+            if (!Params[i]->getType()->equals(Arg->getType())) {
+                return false;
+            }
+        }
+    }
+    return true;
 }
 
 /**
@@ -223,15 +267,16 @@ bool SemaResolver::ResolveFunctionCalls(ASTNameSpace *NameSpace) {
 
         // Resolve with Sources
         const auto &It = NameSpace->FunctionCalls.find(UnrefFunctionCall->getCall()->getName());
-        if (It == NameSpace->FunctionCalls.end()) {
+        if (It == NameSpace->FunctionCalls.end()) { // NameSpace not contains FunctionCall throw error
             Diag(UnrefFunctionCall->getCall()->getLocation(), diag::err_unref_call)
                     << UnrefFunctionCall->getCall()->getName();
             Success = false; // collects other errors
         } else {
             for (auto &FunctionCall : It->getValue()) {
-                if (S.isUsable(FunctionCall->getDecl(), UnrefFunctionCall->getCall())) {
-                    UnrefFunctionCall->getCall()->setDecl(FunctionCall->getDecl());
-                    Builder.AddExternalFunction(UnrefFunctionCall->getNode(), FunctionCall->getDecl()); // Call resolved with external function
+                if (hasSameParams(FunctionCall->getDef(), UnrefFunctionCall->getCall())) {
+                    UnrefFunctionCall->getCall()->Def = FunctionCall->getDef();
+                    // Call resolved with external function
+                    Builder.AddExternalFunction(UnrefFunctionCall->getNode(), FunctionCall->getDef());
                 } else {
                     Success = false;
                 }
@@ -244,6 +289,15 @@ bool SemaResolver::ResolveFunctionCalls(ASTNameSpace *NameSpace) {
     }
     return Success;
 }
+
+bool SemaResolver::ResolveClass(ASTNode *Node) {
+    return true;
+}
+
+bool SemaResolver::ResolveClass(ASTNameSpace *NameSpace) {
+    return true;
+}
+
 
 bool SemaResolver::ResolveBodyFunctions(ASTNode *Node) {
     bool Success = true;
@@ -265,7 +319,6 @@ bool SemaResolver::ResolveBlock(ASTBlock *Block) {
                         Success &= ResolveBlock((ASTBlock *) Stmt);
                         break;
                     case BLOCK_STMT_IF:
-
                         break;
                     case BLOCK_STMT_ELSIF:
                     case BLOCK_STMT_ELSE:
@@ -306,10 +359,6 @@ bool SemaResolver::ResolveBlock(ASTBlock *Block) {
         }
     }
     return false;
-}
-
-bool SemaResolver::ResolveClass(ASTNode *Node) {
-    return true;
 }
 
 ASTType *SemaResolver::ResolveExprType(ASTExpr *Expr) {
@@ -386,7 +435,7 @@ bool SemaResolver::ResolveExpr(ASTBlock *Block, const ASTExpr *Expr) {
         }
         case EXPR_REF_FUNC: {
             ASTFunctionCall *Call = ((ASTFuncCallExpr *)Expr)->getCall();
-            return Call->getDecl() || Builder.AddUnrefCall(Block->getTop()->getNode(), Call);
+            return Call->getDef() || Builder.AddUnrefCall(Block->getTop()->getNode(), Call);
         }
         case EXPR_GROUP: {
             ASTGroupExpr *GroupExpr = (ASTGroupExpr *) Expr;

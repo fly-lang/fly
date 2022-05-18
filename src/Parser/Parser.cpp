@@ -90,7 +90,7 @@ bool Parser::Parse() {
     // Check if error is correctly set
     assert(Success == !Diags.hasErrorOccurred());
 
-    return Success;
+    return Success && Builder.AddNode(Node);
 }
 
 bool Parser::ParseHeader() {
@@ -342,7 +342,6 @@ bool Parser::ParseFunction(VisibilityKind &Visibility, bool Constant, ASTType *T
 
     ASTFunction *Function = FunctionParser::Parse(this, Visibility, Type, Node->isHeader());
     if (Function) {
-
         return Builder.AddComment(Function, Comment) &&
             Builder.AddFunction(Node, Function);
     }
@@ -494,7 +493,8 @@ bool Parser::ParseStmt(ASTBlock *Block) {
             return false;
         }
 
-        return ParseLocalVar(Const, Type);
+        ASTLocalVar *LocalVar = ParseLocalVar(Const, Type);
+        return Builder.AddLocalVar(Block, LocalVar);
     } else if (ExprParser::isUnaryPreOperator(Tok)) { // ++a
         ASTExprStmt *ExprStmt = Builder.CreateExprStmt(Tok.getLocation(),
                                                        ExprParser::ParseUnaryPreExpr(this));
@@ -845,53 +845,50 @@ bool Parser::ParseForCommaStmt(ASTBlock *Block) {
  */
 ASTType *Parser::ParseType(bool OnlyBuiltin) {
     FLY_DEBUG_MESSAGE("Parser", "ParseType", "OnlyBuiltin=" << OnlyBuiltin);
-    const SourceLocation &TypeLoc = Tok.getLocation();
-    tok::TokenKind Kind = Tok.getKind();
-    ConsumeToken();
 
     ASTType *Type;
-    switch (Kind) {
+    switch (Tok.getKind()) {
         case tok::kw_bool:
-            Type = Builder.CreateBoolType(TypeLoc);
+            Type = Builder.CreateBoolType(ConsumeToken());
             break;
         case tok::kw_byte:
-            Type = Builder.CreateByteType(TypeLoc);
+            Type = Builder.CreateByteType(ConsumeToken());
             break;
         case tok::kw_ushort:
-            Type = Builder.CreateUShortType(TypeLoc);
+            Type = Builder.CreateUShortType(ConsumeToken());
             break;
         case tok::kw_short:
-            Type = Builder.CreateShortType(TypeLoc);
+            Type = Builder.CreateShortType(ConsumeToken());
             break;
         case tok::kw_uint:
-            Type = Builder.CreateUIntType(TypeLoc);
+            Type = Builder.CreateUIntType(ConsumeToken());
             break;
         case tok::kw_int:
-            Type = Builder.CreateIntType(TypeLoc);
+            Type = Builder.CreateIntType(ConsumeToken());
             break;
         case tok::kw_ulong:
-            Type = Builder.CreateULongType(TypeLoc);
+            Type = Builder.CreateULongType(ConsumeToken());
             break;
         case tok::kw_long:
-            Type = Builder.CreateLongType(TypeLoc);
+            Type = Builder.CreateLongType(ConsumeToken());
             break;
         case tok::kw_float:
-            Type = Builder.CreateFloatType(TypeLoc);
+            Type = Builder.CreateFloatType(ConsumeToken());
             break;
         case tok::kw_double:
-            Type = Builder.CreateDoubleType(TypeLoc);
+            Type = Builder.CreateDoubleType(ConsumeToken());
             break;
         case tok::kw_void:
-            Type = Builder.CreateVoidType(TypeLoc);
+            Type = Builder.CreateVoidType(ConsumeToken());
             break;
         default: {
             assert(!OnlyBuiltin && "Unknown builtin type");
             if (Tok.isAnyIdentifier()) {
-                SourceLocation Loc = SourceLocation();
+                SourceLocation Loc = Tok.getLocation();
                 llvm::StringRef Name;
                 llvm::StringRef NameSpace;
                 ParseIdentifier(Name, NameSpace, Loc);
-                Type = Builder.CreateClassType(TypeLoc, Name, NameSpace);
+                Type = Builder.CreateClassType(Loc, Name, NameSpace);
             } else {
                 assert("Undefined Type");
             }
@@ -995,8 +992,7 @@ bool Parser::ParseCallArg(ASTFunctionCall *Call) {
     ASTExpr *Expr = ParseExpr();
 
     if (Expr) {
-        ASTCallArg *Arg = Builder.CreateCallArg(Expr);
-        Builder.AddCallArg(Call, Arg);
+        Builder.AddCallArg(Call, Expr);
 
         if (Tok.is(tok::comma)) {
             ConsumeToken();
@@ -1123,11 +1119,11 @@ bool Parser::ParseValues(ASTArrayValue &ArrayValues) {
  * @return the ASTLocalVar
  */
 ASTLocalVar *Parser::ParseLocalVar(bool Constant, ASTType *Type) {
-    IdentifierInfo *Id = Tok.getIdentifierInfo();
-    if (!Id) {
+    if (!Tok.isAnyIdentifier()) {
         Diag(Tok, diag::err_var_undefined);
         return nullptr;
     }
+    IdentifierInfo *Id = Tok.getIdentifierInfo();
 
     //Assign to ASTLocalVar
     const std::string Name = std::string(Id->getName());

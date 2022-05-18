@@ -48,13 +48,17 @@ namespace fly {
 
         bool ResolveFunctionCalls(ASTNode *Node);
 
+        bool hasSameParams(ASTFunction *Function, ASTFunctionCall *Call);
+
         bool ResolveFunctionCalls(ASTNameSpace *NameSpace);
+
+        bool ResolveClass(ASTNode *Node);
+
+        bool ResolveClass(ASTNameSpace *NameSpace);
 
         bool ResolveBodyFunctions(ASTNode *Node);
 
         bool ResolveBlock(ASTBlock *Block);
-
-        bool ResolveClass(ASTNode *Node);
 
         ASTType *ResolveExprType(ASTExpr *Expr);
 

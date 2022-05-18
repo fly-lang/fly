@@ -27,16 +27,12 @@ const std::string &ASTFunctionCall::getName() const {
     return Name;
 }
 
-const std::vector<ASTCallArg*> ASTFunctionCall::getArgs() const {
+const std::vector<ASTExpr*> ASTFunctionCall::getArgs() const {
     return Args;
 }
 
-ASTFunction *ASTFunctionCall::getDecl() const {
-    return Decl;
-}
-
-void ASTFunctionCall::setDecl(ASTFunction *FDecl) {
-    Decl = FDecl;
+ASTFunction *ASTFunctionCall::getDef() const {
+    return Def;
 }
 
 CodeGenCall *ASTFunctionCall::getCodeGen() const {
@@ -60,37 +56,11 @@ std::string ASTFunctionCall::str() const {
            ", Name=" + Name +
            ", Args=[";
     if (!Args.empty()) {
-        for (ASTCallArg *Arg : Args) {
+        for (ASTExpr *Arg : Args) {
             Str += Arg->str() + ", ";
         }
         Str = Str.substr(0, Str.length()-2);
     }
     Str += "] }";
     return Str;
-}
-
-ASTCallArg::ASTCallArg(ASTType *Type) : Type(Type), Expr(nullptr) {
-
-}
-
-ASTCallArg::ASTCallArg(ASTExpr *Expr) : Type(Expr->getType()), Expr(Expr) {
-
-}
-
-ASTExpr *ASTCallArg::getExpr() const {
-    return Expr;
-}
-
-ASTType *ASTCallArg::getType() const {
-    return Type;
-}
-
-void ASTCallArg::setType(ASTType *T) {
-    Type = T;
-}
-
-std::string ASTCallArg::str() const {
-    return "{ Value=" + (Expr  ? Expr->str() : "{}") +
-           ", Type=" + (Type ? Type->str() : "{}") +
-           " }";
 }

@@ -115,11 +115,10 @@ ASTExpr *ExprParser::ParseAssignmentExpr(ASTVarRef *VarRef) {
   * @return the ASTExpr
   */
 ASTExpr *ExprParser::ParseExpr(bool Start) {
-    FLY_DEBUG("Parser", "ParseExpr");
+    FLY_DEBUG_MESSAGE("Parser", "ParseExpr", "Start=" + std::to_string(Start));
 
-    // Return
+    // The parsed ASTExpr
     ASTExpr *Expr = nullptr;
-    Success = true;
 
     // Location of the starting expression
     if (P->Tok.is(tok::l_paren)) { // Start a new Group of Expressions
@@ -132,7 +131,6 @@ ASTExpr *ExprParser::ParseExpr(bool Start) {
                 P->ConsumeParen();
             } else { // Error: parenthesis unclosed
                 P->Diag(P->Tok.getLocation(), diag::err_paren_unclosed);
-                Success = false;
                 return nullptr;
             }
         }
@@ -150,13 +148,12 @@ ASTExpr *ExprParser::ParseExpr(bool Start) {
     } else if (isUnaryPreOperator(P->Tok)) { // Ex. ++a or --a or !a
         Expr = ParseUnaryPreExpr(P); // Parse Unary Post Expression
     } else {
-        return nullptr;
+        return P->Builder.CreateExpr(P->Tok.getLocation()); // return an ASTEmptyExpr
     }
 
      // Error: missing expression
      if (Expr == nullptr) {
          P->Diag(P->Tok.getLocation(), diag::err_parser_miss_expr);
-         Success = false;
          return nullptr;
      }
 
@@ -171,7 +168,6 @@ ASTExpr *ExprParser::ParseExpr(bool Start) {
         // Error: missing second operator
         if (Expr == nullptr) {
             P->Diag(P->Tok.getLocation(), diag::err_parser_miss_oper);
-            Success = false;
             return nullptr;
         }
 
@@ -310,10 +306,6 @@ ASTUnaryGroupExpr* ExprParser::ParseUnaryPreExpr(Parser *P) {
     // Error: unary operator
     P->Diag(P->Tok.getLocation(), diag::err_unary_operator) << getPunctuatorSpelling(P->Tok.getKind());
     return nullptr;
-}
-
-bool ExprParser::isSuccess() const {
-    return Success;
 }
 
 /**

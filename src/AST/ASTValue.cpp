@@ -21,10 +21,6 @@ const SourceLocation &ASTValue::getLocation() const {
     return Location;
 }
 
-ASTType *ASTValue::getType() const {
-
-}
-
 ASTSingleValue::ASTSingleValue(const SourceLocation &Loc) : ASTValue(Loc) {
 
 }

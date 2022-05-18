@@ -20,16 +20,14 @@ namespace fly {
 
     class ASTValue {
 
-        const SourceLocation &Location;
+        friend class SemaBuilder;
 
-        ASTType *Type;
+        const SourceLocation &Location;
 
     public:
         ASTValue(const SourceLocation &Location);
 
         const SourceLocation &getLocation() const;
-
-        ASTType *getType() const;
 
         virtual std::string str() const = 0;
     };

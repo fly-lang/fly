@@ -58,7 +58,7 @@ namespace fly {
 
         bool CheckImport(ASTNode *Node, ASTImport *Import);
 
-        bool isUsable(ASTFunction *Function, ASTFunctionCall *Call);
+        bool Check(ASTExpr *Expr);
     };
 
 }  // end namespace fly

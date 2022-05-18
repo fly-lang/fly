@@ -18,26 +18,6 @@ namespace fly {
     class ASTType;
     class CodeGenCall;
 
-    class ASTCallArg {
-
-        ASTExpr *Expr;
-        ASTType *Type;
-
-    public:
-
-        ASTCallArg(ASTType *Type);
-
-        ASTCallArg(ASTExpr *Expr);
-
-        ASTExpr *getExpr() const;
-
-        ASTType *getType() const;
-
-        void setType(ASTType *T);
-
-        std::string str() const;
-    };
-
     /**
      * A Reference to a Function in a Declaration
      * Ex.
@@ -46,12 +26,13 @@ namespace fly {
     class ASTFunctionCall {
 
         friend class SemaBuilder;
+        friend class SemaResolver;
 
         const SourceLocation Loc;
         std::string NameSpace;
         const std::string Name;
-        std::vector<ASTCallArg *> Args;
-        ASTFunction *Decl = nullptr;
+        std::vector<ASTExpr *> Args;
+        ASTFunction *Def = nullptr;
         CodeGenCall *CGC = nullptr;
 
     public:
@@ -65,13 +46,9 @@ namespace fly {
 
         const std::string &getName() const;
 
-        const std::vector<ASTCallArg *> getArgs() const;
+        const std::vector<ASTExpr *> getArgs() const;
 
-        ASTCallArg *addArg(ASTCallArg *Arg);
-
-        ASTFunction *getDecl() const;
-
-        void setDecl(ASTFunction *FDecl);
+        ASTFunction *getDef() const;
 
         CodeGenCall *getCodeGen() const;
 

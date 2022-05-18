@@ -70,9 +70,15 @@ namespace fly {
 
         const bool isBool() const;
 
+        const bool isNumber() const;
+
         const bool isInteger() const;
 
         const bool isFloatingPoint() const;
+
+        const bool isClass() const;
+
+        const bool isArray() const;
 
         virtual ~ASTType() = default;
 
@@ -235,8 +241,6 @@ namespace fly {
     public:
 
         ASTArrayType(const SourceLocation &Loc, ASTType *Type, ASTExpr *Size);
-
-        void setSize(ASTIntegerValue *S);
 
         ASTExpr *getSize() const;
 

@@ -39,7 +39,7 @@ namespace {
 
         ParserTest() : CI(*TestUtils::CreateCompilerInstance()),
                       Diags(CI.getDiagnostics()),
-                      Builder(Sema::Builder(Diags)) {
+                      Builder(Sema::Builder(CI.getDiagnostics())) {
             Diags.getClient()->BeginSourceFile();
         }
 
@@ -52,7 +52,7 @@ namespace {
             Input.Load(Source);
             Parser *P = new Parser(Input, CI.getSourceManager(), Diags, *Builder);
             Success = P->Parse();
-            Builder->Build();
+            Success = Success && Builder->Build();
 
             return P->getNode();
         }
@@ -525,12 +525,12 @@ namespace {
                                "  Type t = null"
                                "  return t\n"
                                "}\n");
-        ASTNode *AST = Parse("TypeDefaultVarReturn", str);
+        ASTNode *Node = Parse("TypeDefaultVarReturn", str);
 
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *(AST->getNameSpace()->getFunctions().begin());
+        ASTFunction *F = *(Node->getNameSpace()->getFunctions().begin());
         EXPECT_EQ(F->getType()->getKind(), TypeKind::TYPE_CLASS);
         const ASTBlock *Body = F->getBody();
 
@@ -546,7 +546,7 @@ namespace {
         ASTVarRefExpr *RetRef = (ASTVarRefExpr *) Ret->getExpr();
         EXPECT_EQ(RetRef->getVarRef()->getName(), "t");
 
-        delete AST;
+        delete Node;
     }
 
     TEST_F(ParserTest, UndefLocalVar) {
@@ -563,12 +563,12 @@ namespace {
                                "double j\n"
                                "Type t\n"
                                "}\n");
-        ASTNode *AST = Parse("UndefLocalVar", str);
+        ASTNode *Node = Parse("UndefLocalVar", str);
 
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *(AST->getNameSpace()->getFunctions().begin());
+        ASTFunction *F = *(Node->getNameSpace()->getFunctions().begin());
         EXPECT_EQ(F->getType()->getKind(), TypeKind::TYPE_VOID);
         const ASTBlock *Body = F->getBody();
 
@@ -638,7 +638,7 @@ namespace {
         EXPECT_EQ(tVar->getType()->getKind(), TypeKind::TYPE_CLASS);
         ASSERT_EQ(tVar->getExpr(), nullptr);
 
-        delete AST;
+        delete Node;
     }
 
     TEST_F(ParserTest, IntBinaryArithOperation) {
@@ -647,12 +647,12 @@ namespace {
                                "  int b = a + b / a - b\n"
                                "  return a\n"
                                "}\n");
-        ASTNode *AST = Parse("IntBinaryArithOperation", str);
+        ASTNode *Node = Parse("IntBinaryArithOperation", str);
 
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *(AST->getNameSpace()->getFunctions().begin());
+        ASTFunction *F = *(Node->getNameSpace()->getFunctions().begin());
         const ASTBlock *Body = F->getBody();
 
         // Test: int a += 2
@@ -689,7 +689,7 @@ namespace {
         EXPECT_EQ(G2->getOperatorKind(), BinaryOpKind::ARITH_DIV);
         const ASTVarRefExpr *a = (ASTVarRefExpr *) G2->getSecond();
 
-        delete AST;
+        delete Node;
     }
 
     TEST_F(ParserTest, FloatBinaryArithOperation) {
@@ -698,12 +698,12 @@ namespace {
                                "  float b = a * b - a / b"
                                "  return b\n"
                                "}\n");
-        ASTNode *AST = Parse("FloatBinaryArithOperation", str);
+        ASTNode *Node = Parse("FloatBinaryArithOperation", str);
 
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *(AST->getNameSpace()->getFunctions().begin());
+        ASTFunction *F = *(Node->getNameSpace()->getFunctions().begin());
         const ASTBlock *Body = F->getBody();
 
         // Test: float a -= 1.0
@@ -738,7 +738,7 @@ namespace {
         EXPECT_EQ(G2->getOperatorKind(), BinaryOpKind::ARITH_DIV);
         EXPECT_EQ(((ASTVarRefExpr *) G2->getSecond())->getVarRef()->getName(), "b");
 
-        delete AST;
+        delete Node;
     }
 
     TEST_F(ParserTest, BoolBinaryLogicOperation) {
@@ -747,12 +747,12 @@ namespace {
                                "  bool b = a || false && a == true"
                                "  return c\n"
                                "}\n");
-        ASTNode *AST = Parse("BoolBinaryLogicOperation", str);
+        ASTNode *Node = Parse("BoolBinaryLogicOperation", str);
 
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *(AST->getNameSpace()->getFunctions().begin());
+        ASTFunction *F = *(Node->getNameSpace()->getFunctions().begin());
         const ASTBlock *Body = F->getBody();
 
         // Test: bool a = true
@@ -787,7 +787,7 @@ namespace {
         EXPECT_EQ(G2->getOperatorKind(), BinaryOpKind::LOGIC_OR);
         EXPECT_EQ(((ASTValueExpr *) G2->getSecond())->getValue().str(), "false");
 
-        delete AST;
+        delete Node;
     }
 
     TEST_F(ParserTest, LongBinaryArithOperation) {
@@ -796,12 +796,12 @@ namespace {
                                "  long b = (a + b) / (a - b)\n"
                                "  return b\n"
                                "}\n");
-        ASTNode *AST = Parse("LongBinaryArithOperation", str);
+        ASTNode *Node = Parse("LongBinaryArithOperation", str);
 
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *(AST->getNameSpace()->getFunctions().begin());
+        ASTFunction *F = *(Node->getNameSpace()->getFunctions().begin());
         const ASTBlock *Body = F->getBody();
 
         // Test: long a = 1
@@ -834,19 +834,19 @@ namespace {
         EXPECT_EQ(G2->getOperatorKind(), BinaryOpKind::ARITH_SUB);
         EXPECT_EQ(((ASTVarRefExpr *) G2->getSecond())->getVarRef()->getName(), "b");
 
-        delete AST;
+        delete Node;
     }
 
     TEST_F(ParserTest, CondTernaryOperation) {
         llvm::StringRef str = ("int func(bool a) {\n"
                                "  return a==1 ? 1 : a\n"
                                "}\n");
-        ASTNode *AST = Parse("CondTernaryOperation", str);
+        ASTNode *Node = Parse("CondTernaryOperation", str);
 
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *(AST->getNameSpace()->getFunctions().begin());
+        ASTFunction *F = *(Node->getNameSpace()->getFunctions().begin());
         ASTParam *a = F->getParams()->getList()[0];
         const ASTBlock *Body = F->getBody();
 
@@ -859,7 +859,7 @@ namespace {
         EXPECT_EQ(((ASTValueExpr *) Expr->getSecond())->getValue().str(), "1");
         EXPECT_EQ(((ASTVarRefExpr *) Expr->getThird())->getVarRef()->getName(), "a");
 
-        delete AST;
+        delete Node;
     }
 
     TEST_F(ParserTest, FunctionCall) {
@@ -900,16 +900,16 @@ namespace {
         ASTFuncCallExpr *doSomeCall = (ASTFuncCallExpr *) VarB->getExpr();
         EXPECT_EQ(doSomeCall->getCall()->getName(), "doSome");
         EXPECT_EQ(doSomeCall->getExprKind(), ASTExprKind::EXPR_REF_FUNC);
-        ASSERT_FALSE(doSomeCall->getCall()->getDecl() == nullptr);
+        ASSERT_FALSE(doSomeCall->getCall()->getDef() == nullptr);
 
         // Test: doOther(a, b)
         ASTExprStmt *doOtherStmt = (ASTExprStmt *) Body->getContent()[1];
         EXPECT_EQ(doOtherStmt->getKind(), StmtKind::STMT_EXPR);
         ASTFuncCallExpr *doOtherCall = (ASTFuncCallExpr *) doOtherStmt->getExpr();
         EXPECT_EQ(doOtherCall->getCall()->getName(), "doOther");
-        ASTVarRefExpr *VRefExpr = (ASTVarRefExpr *) doOtherCall->getCall()->getArgs()[0]->getExpr();
+        ASTVarRefExpr *VRefExpr = (ASTVarRefExpr *) doOtherCall->getCall()->getArgs()[0];
         EXPECT_EQ(VRefExpr->getVarRef()->getName(), "a");
-        ASTValueExpr *ValExpr = (ASTValueExpr *) doOtherCall->getCall()->getArgs()[1]->getExpr();
+        ASTValueExpr *ValExpr = (ASTValueExpr *) doOtherCall->getCall()->getArgs()[1];
         EXPECT_EQ(ValExpr->getValue().str(), "1");
 
         // return do()

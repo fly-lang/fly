@@ -267,7 +267,7 @@ llvm::Value *CodeGenExpr::GenValue(const ASTExpr *Expr, llvm::Value *Pointer) {
             assert(VarRefExpr->getVarRef() && "Missing Ref");
             ASTVar *Var = VarRefExpr->getVarRef()->getDef();
             if (Var == nullptr) {
-                CGM->Diag(VarRefExpr->getLocation(), diag::err_unref_var) << VarRefExpr->getVarRef()->getName();
+                CGM->Diag(VarRefExpr->getLocation(), diag::err_unref_var);
                 return nullptr;
             }
             return Var->getCodeGen()->getValue();

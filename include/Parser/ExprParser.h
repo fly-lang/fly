@@ -55,7 +55,6 @@ namespace fly {
 
         Parser *P;
         std::vector<ASTExpr *> Group;
-        bool Success;
 
     public:
         ExprParser(Parser *P);
@@ -71,8 +70,6 @@ namespace fly {
         static bool isUnaryPreOperator(Token &Tok);
 
         static ASTUnaryGroupExpr *ParseUnaryPreExpr(Parser *P);
-
-        bool isSuccess() const;
 
     private:
         ASTUnaryGroupExpr *ParseUnaryPostExpr(ASTVarRef *VarRef);

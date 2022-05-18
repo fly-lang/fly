@@ -136,18 +136,18 @@ CallInst *CodeGenModule::GenCall(llvm::Function *Fn, ASTFunctionCall *Call) {
     FLY_DEBUG_MESSAGE("CodeGenModule", "GenCall",
                       "Call=" << Call->str());
     // Check if Func is declared
-    if (Call->getDecl() == nullptr) {
+    if (Call->getDef() == nullptr) {
         Diag(Call->getLocation(), diag::err_unref_call) << Call->getName();
         return nullptr;
     }
 
-    const std::vector<ASTParam *> &Params = Call->getDecl()->getParams()->getList();
+    const std::vector<ASTParam *> &Params = Call->getDef()->getParams()->getList();
     llvm::SmallVector<llvm::Value *, 8> Args;
-    for (ASTCallArg *Arg : Call->getArgs()) {
-        Value *V = GenExpr(Fn, Arg->getType(), Arg->getExpr());
+    for (ASTExpr *Arg : Call->getArgs()) {
+        Value *V = GenExpr(Fn, Arg->getType(), Arg);
         Args.push_back(V);
     }
-    CodeGenFunction *CGF = Call->getDecl()->getCodeGen();
+    CodeGenFunction *CGF = Call->getDef()->getCodeGen();
     return Builder->CreateCall(CGF->getFunction(), Args);
 }
 
