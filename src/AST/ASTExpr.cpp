@@ -13,6 +13,7 @@
 #include "AST/ASTValue.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTFunctionCall.h"
+#include "AST/ASTStmt.h"
 
 using namespace fly;
 
@@ -103,10 +104,8 @@ std::string ASTFuncCallExpr::str() const {
            " }";
 }
 
-ASTGroupExpr::ASTGroupExpr(const SourceLocation &Loc,
-                           ASTExprGroupKind GroupKind) :
-                           ASTExpr(Loc),
-                           GroupKind(GroupKind) {
+ASTGroupExpr::ASTGroupExpr(const SourceLocation &Loc, ASTExprGroupKind GroupKind) :
+                           ASTExpr(Loc), GroupKind(GroupKind) {
 
 }
 
@@ -149,9 +148,7 @@ std::string ASTUnaryGroupExpr::str() const {
 }
 
 ASTBinaryGroupExpr::ASTBinaryGroupExpr(const SourceLocation &Loc,
-                                       BinaryOpKind Operator,
-                                       ASTExpr *First,
-                                       ASTExpr *Second) :
+                                       BinaryOpKind Operator, ASTExpr *First, ASTExpr *Second) :
         ASTGroupExpr(Loc, GROUP_BINARY),
         OperatorKind(Operator),
         OptionKind(Operator < 300 ? (Operator < 200 ?  BINARY_ARITH : BINARY_LOGIC) : BINARY_COMPARISON),
@@ -200,14 +197,9 @@ std::string ASTBinaryGroupExpr::str() const {
            ", Kind=" + std::to_string(getExprKind());
 }
 
-ASTTernaryGroupExpr::ASTTernaryGroupExpr(const SourceLocation &Loc,
-                                         ASTExpr *First,
-                                         ASTExpr *Second,
-                                         ASTExpr *Third) :
+ASTTernaryGroupExpr::ASTTernaryGroupExpr(const SourceLocation &Loc, ASTExpr *First, ASTExpr *Second, ASTExpr *Third) :
                                          ASTGroupExpr(Loc, GROUP_TERNARY),
-                                         First(First),
-                                         Second(Second),
-                                         Third(Third) {
+                                         First(First), Second(Second), Third(Third) {
 
 }
 

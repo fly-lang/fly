@@ -86,13 +86,18 @@ namespace fly {
     class ASTVarRefExpr;
     class ASTFuncCallExpr;
     class ASTValueExpr;
+    class ASTStmt;
 
     /**
      * Expression Abstract Class
      */
     class ASTExpr {
 
+        friend class SemaResolver;
+
         const SourceLocation &Loc;
+
+        ASTStmt *Stmt = nullptr;
 
     protected:
 
@@ -187,6 +192,8 @@ namespace fly {
      */
     class ASTGroupExpr : public ASTExpr {
 
+        friend class SemaResolver;
+
         const ASTExprKind Kind = ASTExprKind::EXPR_GROUP;
 
         const ASTExprGroupKind GroupKind;
@@ -209,6 +216,8 @@ namespace fly {
      */
     class ASTUnaryGroupExpr : public ASTGroupExpr {
 
+        friend class SemaResolver;
+
         const UnaryOpKind OperatorKind;
 
         const UnaryOptionKind OptionKind;
@@ -217,8 +226,7 @@ namespace fly {
 
     public:
 
-        ASTUnaryGroupExpr(const SourceLocation &Loc, UnaryOpKind Operator, UnaryOptionKind Option,
-                          ASTVarRefExpr *First);
+        ASTUnaryGroupExpr(const SourceLocation &Loc, UnaryOpKind Operator, UnaryOptionKind Option, ASTVarRefExpr *First);
 
         UnaryOpKind getOperatorKind() const;
 
@@ -236,13 +244,15 @@ namespace fly {
      */
     class ASTBinaryGroupExpr : public ASTGroupExpr {
 
+        friend class SemaResolver;
+
         const BinaryOpKind OperatorKind;
 
         const BinaryOptionKind OptionKind;
 
-        const ASTExpr *First;
+        ASTExpr *First;
 
-        const ASTExpr *Second;
+        ASTExpr *Second;
 
     public:
 
@@ -266,11 +276,13 @@ namespace fly {
      */
     class ASTTernaryGroupExpr : public ASTGroupExpr {
 
+        friend class SemaResolver;
+
         // Only Ternary Condition (if ? than : else)
         const TernaryOpKind OperatorKind = CONDITION;
-        const ASTExpr *First;
-        const ASTExpr *Second;
-        const ASTExpr *Third;
+        ASTExpr *First;
+        ASTExpr *Second;
+        ASTExpr *Third;
 
     public:
 

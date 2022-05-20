@@ -48,9 +48,9 @@ namespace fly {
 
         bool ResolveFunctionCalls(ASTNode *Node);
 
-        bool hasSameParams(ASTFunction *Function, ASTFunctionCall *Call);
-
         bool ResolveFunctionCalls(ASTNameSpace *NameSpace);
+
+        bool hasSameParams(ASTFunction *Function, ASTFunctionCall *Call);
 
         bool ResolveClass(ASTNode *Node);
 
@@ -66,7 +66,7 @@ namespace fly {
 
         bool ResolveVarRef(ASTBlock *Block, ASTVarRef *VarRef);
 
-        bool ResolveExpr(ASTBlock *Block, const ASTExpr *Expr);
+        bool ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr);
 
         DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID) const;
 

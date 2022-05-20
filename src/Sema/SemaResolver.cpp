@@ -201,49 +201,6 @@ bool SemaResolver::ResolveFunctionCalls(ASTNode *Node) {
     return Success;
 }
 
-bool SemaResolver::hasSameParams(ASTFunction *Function, ASTFunctionCall *Call) {
-    const auto &Params = Function->getParams()->getList();
-    const auto &Args = Call->getArgs();
-
-    // Check Number of Args on First
-    if (Function->isVarArg()) {
-        if (Params.size() > Args.size()) {
-            return false;
-        }
-    } else {
-        if (Params.size() != Args.size()) {
-            return false;
-        }
-    }
-
-    // Check Type
-    for (int i = 0; i < Params.size(); i++) {
-        bool isLast = i+1 == Params.size();
-
-        //Check VarArgs by compare each Arg Type with last Param Type
-        if (isLast && Function->isVarArg()) {
-            for (int n = i; n < Args.size(); n++) {
-                // Check Equal Type
-                if (Params[i]->getType()->getKind() == Args[n]->getType()->getKind()) {
-                    return false;
-                }
-            }
-        } else {
-            ASTExpr *Arg = Args[i];
-
-            if (!S.Check(Arg)) {
-                return false;
-            }
-
-            // Check Equal Type
-            if (!Params[i]->getType()->equals(Arg->getType())) {
-                return false;
-            }
-        }
-    }
-    return true;
-}
-
 /**
  * Resolve Function into NameSpace
  * @param Function
@@ -290,6 +247,49 @@ bool SemaResolver::ResolveFunctionCalls(ASTNameSpace *NameSpace) {
     return Success;
 }
 
+bool SemaResolver::hasSameParams(ASTFunction *Function, ASTFunctionCall *Call) {
+    const auto &Params = Function->getParams()->getList();
+    const auto &Args = Call->getArgs();
+
+    // Check Number of Args on First
+    if (Function->isVarArg()) {
+        if (Params.size() > Args.size()) {
+            return false;
+        }
+    } else {
+        if (Params.size() != Args.size()) {
+            return false;
+        }
+    }
+
+    // Check Type
+    for (int i = 0; i < Params.size(); i++) {
+        bool isLast = i+1 == Params.size();
+
+        //Check VarArgs by compare each Arg Type with last Param Type
+        if (isLast && Function->isVarArg()) {
+            for (int n = i; n < Args.size(); n++) {
+                // Check Equal Type
+                if (Params[i]->getType()->getKind() == Args[n]->getType()->getKind()) {
+                    return false;
+                }
+            }
+        } else {
+            ASTExpr *Arg = Args[i];
+
+            if (!S.Check(Arg)) {
+                return false;
+            }
+
+            // Check Equal Type
+            if (!Params[i]->getType()->equals(Arg->getType())) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 bool SemaResolver::ResolveClass(ASTNode *Node) {
     return true;
 }
@@ -313,43 +313,28 @@ bool SemaResolver::ResolveBlock(ASTBlock *Block) {
         switch (Stmt->getKind()) {
 
             case STMT_BLOCK:
-                switch (((ASTBlock *) Stmt)->getBlockKind()) {
-
-                    case BLOCK_STMT:
-                        Success &= ResolveBlock((ASTBlock *) Stmt);
-                        break;
-                    case BLOCK_STMT_IF:
-                        break;
-                    case BLOCK_STMT_ELSIF:
-                    case BLOCK_STMT_ELSE:
-                        break;
-                    case BLOCK_STMT_SWITCH:
-                        break;
-                    case BLOCK_STMT_CASE:
-                        break;
-                    case BLOCK_STMT_DEFAULT:
-                        break;
-                    case BLOCK_STMT_WHILE:
-                        break;
-                    case BLOCK_STMT_FOR:
-                        break;
-                }
+                Success &= ResolveBlock((ASTBlock *) Stmt);
                 break;
             case STMT_EXPR:
                 Success &= ResolveExpr(Block, ((ASTExprStmt *) Stmt)->getExpr());
                 break;
-            case STMT_VAR:
-                Success &= ResolveExpr(Block, ((ASTLocalVar *) Stmt)->getExpr()) &
+            case STMT_VAR: {
+                ASTLocalVar *LocalVar = ((ASTLocalVar *) Stmt);
+                Success &= ResolveExpr(Block, LocalVar->getExpr()) &
                            S.CheckDuplicatedLocalVars(Block, ((ASTLocalVar *) Stmt));
                 break;
+            }
             case STMT_VAR_ASSIGN: {
                 ASTVarAssign *VarAssign = ((ASTVarAssign *) Stmt);
                 Success &= (!VarAssign->getVarRef()->getDef() || ResolveVarRef(Block, VarAssign->getVarRef())) &&
                            ResolveExpr(Block, VarAssign->getExpr());
                 break;
             }
-            case STMT_FUNCTION_CALL:
+            case STMT_FUNCTION_CALL: {
+                ASTFunctionCall *Call = ((ASTFunctionCall *) Stmt);
+
                 break;
+            }
             case STMT_RETURN:
                 Success &= ResolveExpr(Block, ((ASTReturn *) Stmt)->getExpr());
                 break;
@@ -358,7 +343,7 @@ bool SemaResolver::ResolveBlock(ASTBlock *Block) {
                 break;
         }
     }
-    return false;
+    return Success;
 }
 
 ASTType *SemaResolver::ResolveExprType(ASTExpr *Expr) {
@@ -426,12 +411,14 @@ bool SemaResolver::ResolveVarRef(ASTBlock *Block, ASTVarRef *VarRef) {
  * @param Expr
  * @return true if no error occurs, otherwise false
  */
-bool SemaResolver::ResolveExpr(ASTBlock *Block, const ASTExpr *Expr) {
-    FLY_DEBUG_MESSAGE("Sema", "ResolveExpr", "Expr=" << Expr->str());
+bool SemaResolver::ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr) {
+    FLY_DEBUG_MESSAGE("Sema", "ResolveExpr", "Stmt=" << Stmt->str() << ", Expr=" << Expr->str());
+    ASTBlock *Block = Stmt->getParent();
     switch (Expr->getExprKind()) {
         case EXPR_REF_VAR: {
             ASTVarRef *Var = ((ASTVarRefExpr *)Expr)->getVarRef();
-            return S.CheckUndefVar(Block, Var) && (Var->getDef() || ResolveVarRef(Block, Var));
+            return S.CheckUndefVar(Block, Var) &&
+                (Var->getDef() || ResolveVarRef(Block, Var));
         }
         case EXPR_REF_FUNC: {
             ASTFunctionCall *Call = ((ASTFuncCallExpr *)Expr)->getCall();
@@ -444,15 +431,44 @@ bool SemaResolver::ResolveExpr(ASTBlock *Block, const ASTExpr *Expr) {
                 case GROUP_UNARY:
                     return ResolveExpr(Block, (ASTExpr *)((ASTUnaryGroupExpr *)GroupExpr)->getFirst());
                 case GROUP_BINARY:
-                    return ResolveExpr(Block, ((ASTBinaryGroupExpr *)GroupExpr)->getFirst()) &&
-                           ResolveExpr(Block, ((ASTBinaryGroupExpr *)GroupExpr)->getSecond());
+                    return ResolveExpr(Stmt, ((ASTBinaryGroupExpr *)GroupExpr)->First) &&
+                           ResolveExpr(Stmt, ((ASTBinaryGroupExpr *)GroupExpr)->Second);
                 case GROUP_TERNARY:
-                    return ResolveExpr(Block, ((ASTTernaryGroupExpr *)GroupExpr)->getFirst()) &&
-                           ResolveExpr(Block, ((ASTTernaryGroupExpr *)GroupExpr)->getSecond()) &&
-                           ResolveExpr(Block, ((ASTTernaryGroupExpr *)GroupExpr)->getThird());
+                    return ResolveExpr(Stmt, ((ASTTernaryGroupExpr *)GroupExpr)->First) &&
+                           ResolveExpr(Stmt, ((ASTTernaryGroupExpr *)GroupExpr)->Second) &&
+                           ResolveExpr(Stmt, ((ASTTernaryGroupExpr *)GroupExpr)->Third);
             }
         }
-        case EXPR_VALUE:
+        case EXPR_VALUE: // Resolve ASTExprValue Type
+            if (!Stmt) { // Resolve in ASTBinaryGroupExpr or ASTTernaryGroupExpr
+                // take previous ASTExpr Ex. a = b + 1
+                // for resolve type for 1 need to read b
+                // ASTType of 1 is equal to ASTType of b var
+                return true;
+            }
+
+            switch (Stmt->getKind()) {
+                case STMT_VAR: // a = 1
+                    Expr->Type = ((ASTVarRef *)Stmt)->getDef()->getType();
+                    break;
+                case STMT_VAR_ASSIGN: // int a = 1
+                    Expr->Type = ((ASTLocalVar *)Stmt)->getType();
+                    break;
+                case STMT_FUNCTION_CALL: // func(a, 1)
+                    Expr->Type = ((ASTFunctionCall *)Stmt)->getDef()->getType();
+                    break;
+                case STMT_BLOCK:
+                case STMT_EXPR:
+                case STMT_BREAK:
+                case STMT_CONTINUE:
+                    break;
+                case STMT_RETURN: // return 1
+                    // take the ASTType from function() return type
+                    Expr->Type = Block->Top->getType();
+                    break;
+            }
+            return true;
+        case EXPR_EMPTY:
             return true;
     }
 

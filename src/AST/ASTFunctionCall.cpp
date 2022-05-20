@@ -15,12 +15,12 @@
 using namespace fly;
 
 ASTFunctionCall::ASTFunctionCall(const SourceLocation &Loc, const std::string &NameSpace, const std::string &Name) :
-    Loc(Loc), NameSpace(NameSpace), Name(Name) {
+    ASTStmt(Loc), NameSpace(NameSpace), Name(Name) {
 
 }
 
-const SourceLocation &ASTFunctionCall::getLocation() const {
-    return Loc;
+StmtKind ASTFunctionCall::getKind() const {
+    return STMT_FUNCTION_CALL;
 }
 
 const std::string &ASTFunctionCall::getName() const {
@@ -39,16 +39,8 @@ CodeGenCall *ASTFunctionCall::getCodeGen() const {
     return CGC;
 }
 
-void ASTFunctionCall::setCodeGen(CodeGenCall *C) {
-    CGC = C;
-}
-
 const std::string &ASTFunctionCall::getNameSpace() const {
     return NameSpace;
-}
-
-void ASTFunctionCall::setNameSpace(const std::string &NS) {
-    NameSpace = NS;
 }
 
 std::string ASTFunctionCall::str() const {

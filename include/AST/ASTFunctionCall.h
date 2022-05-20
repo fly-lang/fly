@@ -23,12 +23,11 @@ namespace fly {
      * Ex.
      *  int a = sqrt(4)
      */
-    class ASTFunctionCall {
+    class ASTFunctionCall : public ASTStmt {
 
         friend class SemaBuilder;
         friend class SemaResolver;
 
-        const SourceLocation Loc;
         std::string NameSpace;
         const std::string Name;
         std::vector<ASTExpr *> Args;
@@ -38,11 +37,9 @@ namespace fly {
     public:
         ASTFunctionCall(const SourceLocation &Loc, const std::string &NameSpace, const std::string &Name);
 
-        const SourceLocation &getLocation() const;
+        StmtKind getKind() const override;
 
         const std::string &getNameSpace() const;
-
-        void setNameSpace(const std::string &NameSpace);
 
         const std::string &getName() const;
 
@@ -51,8 +48,6 @@ namespace fly {
         ASTFunction *getDef() const;
 
         CodeGenCall *getCodeGen() const;
-
-        void setCodeGen(CodeGenCall *CGC);
 
         std::string str() const;
     };

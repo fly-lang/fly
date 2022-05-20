@@ -220,14 +220,12 @@ ASTExpr *ExprParser::ParseExpr(llvm::StringRef Name, llvm::StringRef NameSpace, 
         // TODO add Error of Call or AddUnrefCall()
     } else { // parse variable post increment/decrement or simple var
         ASTVarRef *VarRef = P->Builder.CreateVarRef(IdLoc, Name.str(), NameSpace.str());
-        // if (ASTResolver::ResolveVarRef(Block, VarRef)) { // FIXME need to do after
-            if (isUnaryPostOperator()) { // Ex. a++ or a--
-                return ParseUnaryPostExpr(VarRef); // Parse Unary Pre Expression
-            } else {
-                // Simple Var
-                return P->Builder.CreateExpr(VarRef);
-            }
-        // }
+        if (isUnaryPostOperator()) { // Ex. a++ or a--
+            return ParseUnaryPostExpr(VarRef); // Parse Unary Pre Expression
+        } else {
+            // Simple Var
+            return P->Builder.CreateExpr(VarRef);
+        }
     }
     return nullptr;
 }

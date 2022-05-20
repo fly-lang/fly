@@ -51,6 +51,7 @@ namespace fly {
     class ASTBlock : public ASTStmt {
 
         friend class SemaBuilder;
+        friend class SemaResolver;
         friend class Sema;
 
         // Kind of Stmt identified by enum
