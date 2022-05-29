@@ -12,6 +12,7 @@
 
 #include "AST/ASTFunction.h"
 #include "AST/ASTImport.h"
+#include "AST/ASTFunctionCall.h"
 
 namespace fly {
 
@@ -59,6 +60,12 @@ namespace fly {
         bool CheckImport(ASTNode *Node, ASTImport *Import);
 
         bool Check(ASTExpr *Expr);
+
+        bool isEquals(ASTParam *Param1, ASTParam *Param2);
+
+        bool isTypeDerivate(ASTType *T1, ASTType *T2);
+
+        bool VerifyValueType(ASTValueExpr *ValueExpr, ASTType *Type);
     };
 
 }  // end namespace fly

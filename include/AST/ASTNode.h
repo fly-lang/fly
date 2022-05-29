@@ -24,7 +24,7 @@ namespace fly {
     class ASTClass;
     class FileID;
     class ASTUnrefGlobalVar;
-    class ASTUnrefCall;
+    class ASTUnrefFunctionCall;
     class ASTType;
     class ASTExpr;
     class ASTVarRef;

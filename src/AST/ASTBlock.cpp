@@ -39,6 +39,10 @@ StmtKind ASTBlock::getKind() const {
     return Kind;
 }
 
+ASTBlock *ASTBlock::getParent() const {
+    return (ASTBlock *) ASTStmt::getParent();
+}
+
 /**
  * Get Content
  * @return the Block's content

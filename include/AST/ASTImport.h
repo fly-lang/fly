@@ -40,7 +40,7 @@ namespace fly {
         std::vector<ASTUnrefGlobalVar *>  UnrefGlobalVars;
 
         // Contains all unresolved Function Calls
-        std::vector<ASTUnrefCall *> UnrefFunctionCalls;
+        std::vector<ASTUnrefFunctionCall *> UnrefFunctionCalls;
 
     public:
 

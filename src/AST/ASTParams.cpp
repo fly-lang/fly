@@ -29,6 +29,14 @@ std::string ASTParam::str() const {
             " }";
 }
 
+uint64_t ASTParams::getSize() const {
+    return List.size();
+}
+
+ASTParam *ASTParams::at(unsigned long Index) const {
+    return List.at(Index);
+}
+
 const std::vector<ASTParam *> &ASTParams::getList() const {
     return List;
 }

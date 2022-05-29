@@ -82,8 +82,6 @@ namespace fly {
 
         virtual ~ASTType() = default;
 
-        virtual bool equals(ASTType *Ty) const;
-
         virtual std::string str() const = 0;
     };
 

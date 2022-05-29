@@ -18,6 +18,7 @@
 #include "AST/ASTFunctionCall.h"
 #include "AST/ASTParams.h"
 #include "AST/ASTBlock.h"
+#include "AST/ASTValue.h"
 #include "AST/ASTVar.h"
 #include "AST/ASTVarAssign.h"
 #include "Basic/Diagnostic.h"
@@ -67,7 +68,7 @@ bool Sema::CheckDuplicatedLocalVars(ASTBlock *Block, ASTLocalVar *LocalVar) {
         Diag(LocalVar->getLocation(), diag::err_conflict_vardecl) << LocalVar->getName();
         return true;
     }
-    return Block->Parent && CheckDuplicatedLocalVars(Block->Parent, LocalVar);
+    return Block->Parent && CheckDuplicatedLocalVars(Block->getParent(), LocalVar);
 }
 
 bool Sema::CheckUndefVar(ASTBlock *Block, ASTVarRef *VarRef) {
@@ -109,6 +110,31 @@ bool Sema::Check(ASTExpr *Expr) {
         return false;
     }
     return true;
+}
+
+bool Sema::isEquals(ASTParam *Param1, ASTParam *Param2) {
+    return Param1 && Param2 &&
+    Param1->getType() && Param2->getType() &&
+    Param1->getType()->getKind() == Param2->getType()->getKind();
+}
+
+bool Sema::isTypeDerivate(ASTType *T1, ASTType *T2) {
+    return T1 && T2 && T1->getKind() == T2->getKind();
+}
+
+bool Sema::VerifyValueType(ASTValueExpr *ValueExpr, ASTType *Type) {
+    if (Type->isBool()) {
+        return ValueExpr->getValue().getKind() == VALUE_BOOL;
+    } else if (Type->isInteger()) {
+        return ValueExpr->getValue().getKind() == VALUE_INTEGER;
+    } else if (Type->isFloatingPoint()) {
+        return ValueExpr->getValue().getKind() == VALUE_FLOATING_POINT;
+    } else if (Type->isArray()) {
+        return ValueExpr->getValue().getKind() == VALUE_ARRAY;
+    } else if (Type->isClass()) {
+        return ValueExpr->getValue().getKind() == VALUE_NULL;
+    }
+    assert("Unknown Value type");
 }
 
 

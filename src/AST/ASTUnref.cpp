@@ -36,15 +36,14 @@ std::string ASTUnrefGlobalVar::str() const {
            "VarRef=" + VarRef.str();
 }
 
-ASTUnrefCall::ASTUnrefCall(ASTNode *Node, ASTFunctionCall *Call) : ASTUnref(Node), Call(Call) {
+ASTUnrefFunctionCall::ASTUnrefFunctionCall(ASTNode *Node, ASTFunctionCall *Call) : ASTUnref(Node), Call(Call) {
 
 }
 
-ASTFunctionCall *ASTUnrefCall::getCall() {
+ASTFunctionCall *ASTUnrefFunctionCall::getCall() {
     return Call;
 }
 
-std::string ASTUnrefCall::str() const {
-    return "Node=" + Node->str() + ", " +
-           "Call=" + Call->str();
+std::string ASTUnrefFunctionCall::str() const {
+    return "Node=" + Node->str() + ", Call=" + Call->str();
 }

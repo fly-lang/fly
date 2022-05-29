@@ -21,7 +21,7 @@ const SourceLocation &ASTStmt::getLocation() const {
     return Location;
 }
 
-ASTBlock *ASTStmt::getParent() const {
+ASTStmt *ASTStmt::getParent() const {
     return Parent;
 }
 

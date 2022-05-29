@@ -207,14 +207,13 @@ ASTExpr *ExprParser::ParseExpr(bool Start) {
         return nullptr;
     }
 
-
     return Expr;
 }
 
 ASTExpr *ExprParser::ParseExpr(llvm::StringRef Name, llvm::StringRef NameSpace, SourceLocation IdLoc) {
     if (P->Tok.is(tok::l_paren)) { // Ex. a()
         ASTFunctionCall *Call = P->ParseFunctionCall(Name, NameSpace, IdLoc);
-        if (Call && P->Builder.AddUnrefCall(P->Node, Call)) { // To Resolve on the next
+        if (Call && P->Builder.AddUnrefFunctionCall(P->Node, Call)) { // To Resolve on the next
             return P->Builder.CreateExpr(Call);
         }
         // TODO add Error of Call or AddUnrefCall()

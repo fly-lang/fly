@@ -82,7 +82,7 @@ bool FunctionParser::ParseParam() {
             // Start Parsing
             if (P->isValue()) {
                 ASTValue *Val = P->ParseValue();
-                Val && P->Builder.setVarExpr(Param, P->Builder.CreateExpr(Val));
+                Val && P->Builder.setExpr(Param, P->Builder.CreateExpr(Val));
             }
         }
 

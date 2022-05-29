@@ -48,10 +48,6 @@ const TypeKind &ASTType::getKind() const  {
     return Kind;
 }
 
-bool ASTType::equals(ASTType *Ty) const {
-    return this->getKind() == Ty->getKind();
-}
-
 ASTVoidType::ASTVoidType(const SourceLocation &Loc) : ASTType(Loc, TypeKind::TYPE_VOID) {
 
 }

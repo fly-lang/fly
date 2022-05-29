@@ -14,6 +14,35 @@
 
 using namespace fly;
 
+ASTArg::ASTArg(const SourceLocation &Loc, uint64_t Index, ASTExpr *Expr) :
+        ASTStmt(Loc), Index(Index), Expr(Expr) {
+
+}
+
+StmtKind ASTArg::getKind() const {
+    return STMT_ARG;
+}
+
+uint64_t ASTArg::getIndex() const {
+    return Index;
+}
+
+ASTParam *ASTArg::getDef() const {
+    return Def;
+}
+
+std::string ASTArg::str() const {
+    return "ASTArg{Index=" + std::to_string(Index) + ", Expr=" + Expr->str() + "}";
+}
+
+ASTExpr *ASTArg::getExpr() const {
+    return Expr;
+}
+
+ASTFunctionCall *ASTArg::getCall() const {
+    return Call;
+}
+
 ASTFunctionCall::ASTFunctionCall(const SourceLocation &Loc, const std::string &NameSpace, const std::string &Name) :
     ASTStmt(Loc), NameSpace(NameSpace), Name(Name) {
 
@@ -27,7 +56,7 @@ const std::string &ASTFunctionCall::getName() const {
     return Name;
 }
 
-const std::vector<ASTExpr*> ASTFunctionCall::getArgs() const {
+const std::vector<ASTArg*> ASTFunctionCall::getArgs() const {
     return Args;
 }
 
@@ -48,7 +77,7 @@ std::string ASTFunctionCall::str() const {
            ", Name=" + Name +
            ", Args=[";
     if (!Args.empty()) {
-        for (ASTExpr *Arg : Args) {
+        for (ASTArg *Arg : Args) {
             Str += Arg->str() + ", ";
         }
         Str = Str.substr(0, Str.length()-2);

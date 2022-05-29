@@ -341,7 +341,6 @@ DIAG(err_import_notfound, CLASS_ERROR, (unsigned)diag::Severity::Error, "import 
 DIAG(err_namespace_notfound, CLASS_ERROR, (unsigned)diag::Severity::Error, "namespace '%0' not found", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_duplicate_gvar, CLASS_ERROR, (unsigned)diag::Severity::Error, "variable '%0' duplicated", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_duplicate_func, CLASS_ERROR, (unsigned)diag::Severity::Error, "function '%0' duplicated", 0, SFINAE_Suppress, false, true, 0)
-DIAG(err_add_func, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot add function '%0'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_duplicate_class, CLASS_ERROR, (unsigned)diag::Severity::Error, "class '%0' duplicated", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_var_undefined, CLASS_ERROR, (unsigned)diag::Severity::Error, "var name not defined", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_vardecl_notfound, CLASS_ERROR, (unsigned)diag::Severity::Error, "var '%0' not declared before its use", 0, SFINAE_Suppress, false, true, 0)

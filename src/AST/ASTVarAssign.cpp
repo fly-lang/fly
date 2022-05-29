@@ -30,14 +30,6 @@ ASTVarRef *ASTVarAssign::getVarRef() const {
     return VarRef;
 }
 
-void ASTVarAssign::setVarRef(ASTVarRef *varRef) {
-    VarRef = varRef;
-}
-
 ASTExpr *ASTVarAssign::getExpr() const {
     return Expr;
-}
-
-void ASTVarAssign::setExpr(ASTExpr *expr) {
-    Expr = expr;
 }

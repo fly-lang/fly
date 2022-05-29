@@ -18,33 +18,36 @@ namespace fly {
     class ASTType;
     class SourceLocation;
 
+    enum ASTValueKind{
+        VALUE_BOOL,
+        VALUE_INTEGER,
+        VALUE_FLOATING_POINT,
+        VALUE_ARRAY,
+        VALUE_NULL
+    };
+
     class ASTValue {
 
         friend class SemaBuilder;
 
         const SourceLocation &Location;
 
+        const ASTValueKind Kind;
+
     public:
-        ASTValue(const SourceLocation &Location);
+        ASTValue(const ASTValueKind Kind, const SourceLocation &Location);
 
         const SourceLocation &getLocation() const;
+
+        const ASTValueKind &getKind() const;
 
         virtual std::string str() const = 0;
     };
 
     /**
-     * Abstract Value for Integer, Floating Point and Boolean
-     */
-    class ASTSingleValue : public ASTValue {
-
-    public:
-        ASTSingleValue(const SourceLocation &Loc);
-    };
-
-    /**
      * Used for Integer Numbers
      */
-    class ASTBoolValue : public ASTSingleValue {
+    class ASTBoolValue : public ASTValue {
 
         bool Value;
 
@@ -59,7 +62,7 @@ namespace fly {
     /**
      * Used for Integer Numbers
      */
-    class ASTIntegerValue : public ASTSingleValue {
+    class ASTIntegerValue : public ASTValue {
 
         uint64_t Value; // the integer value
 
@@ -80,7 +83,7 @@ namespace fly {
     /**
      * Used for Floating Point Numbers
      */
-    class ASTFloatingValue : public ASTSingleValue {
+    class ASTFloatingValue : public ASTValue {
 
         std::string Value;
 

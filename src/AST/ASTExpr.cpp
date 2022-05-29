@@ -29,6 +29,7 @@ ASTType *ASTExpr::getType() const {
     return Type;
 }
 
+
 ASTEmptyExpr::ASTEmptyExpr(const SourceLocation &Loc) : ASTExpr(Loc) {
 
 }

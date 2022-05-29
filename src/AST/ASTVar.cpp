@@ -60,10 +60,6 @@ ASTVar *ASTVarRef::getDef() const {
     return Def;
 }
 
-void ASTVarRef::setDecl(ASTVar *Var) {
-    Def = Var;
-}
-
 const std::string &ASTVarRef::getNameSpace() const {
     return NameSpace;
 }

@@ -72,6 +72,7 @@ namespace fly {
     class ASTVarRef {
 
         friend class SemaBuilder;
+        friend class SemaResolver;
 
         const SourceLocation Loc;
         const std::string NameSpace;
@@ -89,8 +90,6 @@ namespace fly {
         const std::string &getName() const;
 
         ASTVar *getDef() const;
-
-        void setDecl(ASTVar *Var);
 
         std::string str() const;
     };

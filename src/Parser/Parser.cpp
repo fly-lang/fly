@@ -991,8 +991,7 @@ bool Parser::ParseCallArg(ASTFunctionCall *Call) {
     // Parse Args in a Function Call
     ASTExpr *Expr = ParseExpr();
 
-    if (Expr) {
-        Builder.AddCallArg(Call, Expr);
+    if (Builder.AddCallArg(Call, Expr)) {
 
         if (Tok.is(tok::comma)) {
             ConsumeToken();
@@ -1140,7 +1139,7 @@ ASTLocalVar *Parser::ParseLocalVar(bool Constant, ASTType *Type) {
     // Parse the assignment if exists
     ASTExpr *Expr = ParseAssignmentExpr(VarRef);
 
-    if (Builder.setVarExpr(LocalVar, Expr)) {
+    if (Builder.setExpr(LocalVar, Expr)) {
         return LocalVar;
     }
 

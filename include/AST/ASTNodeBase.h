@@ -23,7 +23,7 @@ namespace fly {
     class ASTFunction;
     class ASTFunctionCall;
     class ASTUnrefGlobalVar;
-    class ASTUnrefCall;
+    class ASTUnrefFunctionCall;
 
     class ASTNodeBase {
 
@@ -38,23 +38,20 @@ namespace fly {
         // Node FileName
         const std::string Name;
 
-        // Private Global Vars
+        // Global Vars
         llvm::StringMap<ASTGlobalVar *> GlobalVars;
 
-        // Public Functions
-        std::unordered_set<ASTFunction *> Functions;
+        // Functions
+        llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> Functions;
 
-        // Calls created on Functions creations, each Function have a Call defined here
-        llvm::StringMap<std::vector<ASTFunctionCall *>> FunctionCalls;
-
-        // Public Classes
+        // Classes
         llvm::StringMap<ASTClass *> Classes;
 
-        // Contains all unresolved VarRef to a GlobalVar
+        // Contains all unresolved VarRefs to a GlobalVars
         std::vector<ASTUnrefGlobalVar *>  UnrefGlobalVars;
 
-        // Contains all unresolved Function Calls
-        std::vector<ASTUnrefCall *> UnrefFunctionCalls;
+        // Contains all unresolved FunctionCalls of Functions
+        std::vector<ASTUnrefFunctionCall *> UnrefFunctionCalls;
 
     public:
 
@@ -68,7 +65,7 @@ namespace fly {
 
         const llvm::StringMap<ASTGlobalVar *> &getGlobalVars() const;
 
-        const std::unordered_set<ASTFunction*> &getFunctions() const;
+        const llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> &getFunctions() const;
 
         const llvm::StringMap<ASTClass *> &getClasses() const;
 

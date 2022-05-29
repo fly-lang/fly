@@ -20,7 +20,7 @@ namespace fly {
     class ASTGlobalVar;
     class ASTClass;
     class ASTUnrefGlobalVar;
-    class ASTUnrefCall;
+    class ASTUnrefFunctionCall;
 
     class ASTNameSpace : public ASTNodeBase {
 

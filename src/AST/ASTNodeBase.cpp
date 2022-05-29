@@ -30,7 +30,7 @@ const llvm::StringMap<ASTGlobalVar *> &ASTNodeBase::getGlobalVars() const {
     return GlobalVars;
 }
 
-const std::unordered_set<ASTFunction*> &ASTNodeBase::getFunctions() const {
+const llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> &ASTNodeBase::getFunctions() const {
     return Functions;
 }
 

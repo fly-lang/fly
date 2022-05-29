@@ -138,7 +138,7 @@ namespace {
         EXPECT_EQ(GlobalB->getName(), "b");
         EXPECT_EQ(GlobalB->getComment(), "");
 
-        const ASTFunction *Func = *Node->getFunctions().begin();
+        const ASTFunction *Func = *Node->getFunctions().begin()->getValue().begin()->second.begin();
         EXPECT_EQ(Func->getName(), "func");
         EXPECT_EQ(Func->getComment(), "");
     }
@@ -163,17 +163,11 @@ namespace {
         EXPECT_EQ(GlobalB->getName(), "b");
         EXPECT_EQ(GlobalB->getComment(), "Global var block comment");
 
-        ASTFunction *Func, *Func2;
-        for (auto F : Node->getFunctions()) {
-            if (F->getName() == "func") {
-                Func = F;
-            } else {
-                Func2 = F;
-            }
-        }
+        ASTFunction *Func = *Node->getFunctions().find("func")->getValue().begin()->second.begin();
         EXPECT_EQ(Func->getName(), "func");
         EXPECT_EQ(Func->getComment(), "Func block comment");
 
+        ASTFunction *Func2 = *Node->getFunctions().find("func2")->getValue().begin()->second.begin();
         EXPECT_EQ(Func2->getName(), "func2");
         EXPECT_EQ(Func2->getComment(), "");
     }
@@ -467,10 +461,10 @@ namespace {
 
         EXPECT_TRUE(AST->getFunctions().size() == 1); // Fun has DEFAULT Visibility
         EXPECT_TRUE(AST->getNameSpace()->getFunctions().size() == 1);
-        ASTFunction *VerifyFunc = *(AST->getNameSpace()->getFunctions().begin());
+        ASTFunction *VerifyFunc = *AST->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
         EXPECT_EQ(VerifyFunc->getVisibility(), VisibilityKind::V_DEFAULT);
-        const std::unordered_set<ASTFunction *> &NSFuncs = AST->getContext().getNameSpaces().lookup("std")->getFunctions();
-        ASSERT_TRUE(NSFuncs.find(VerifyFunc) != NSFuncs.end());
+        const auto &NSFuncs = AST->getContext().getNameSpaces().lookup("std")->getFunctions();
+        ASSERT_TRUE(NSFuncs.find(VerifyFunc->getName()) != NSFuncs.end());
 
         delete AST;
     }
@@ -485,12 +479,11 @@ namespace {
         ASSERT_TRUE(isSuccess());
 
         EXPECT_TRUE(Node->getFunctions().size() == 1); // func() has PRIVATE Visibility
-        ASTFunction *VerifyFunc = *(Node->getFunctions().begin());
+        ASTFunction *VerifyFunc = *Node->getFunctions().begin()->getValue().begin()->second.begin();
         EXPECT_EQ(VerifyFunc->getVisibility(), VisibilityKind::V_PRIVATE);
-        const std::unordered_set<ASTFunction *> &NSFuncs = Node->getContext().getNameSpaces()
-                .lookup("std")->getFunctions();
-        ASSERT_TRUE(NSFuncs.find(VerifyFunc) == NSFuncs.end());
-        ASSERT_TRUE(Node->getFunctions().find(VerifyFunc) != NSFuncs.end());
+        const auto &NSFuncs = Node->getContext().getNameSpaces().lookup("std")->getFunctions();
+        ASSERT_TRUE(NSFuncs.find(VerifyFunc->getName()) == NSFuncs.end());
+        ASSERT_TRUE(Node->getFunctions().find(VerifyFunc->getName()) != NSFuncs.end());
 
         ASTParam *Par0 = VerifyFunc->getParams()->getList()[0];
         ASTParam *Par1 = VerifyFunc->getParams()->getList()[1];
@@ -530,7 +523,7 @@ namespace {
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *(Node->getNameSpace()->getFunctions().begin());
+        ASTFunction *F = *Node->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
         EXPECT_EQ(F->getType()->getKind(), TypeKind::TYPE_CLASS);
         const ASTBlock *Body = F->getBody();
 
@@ -568,7 +561,7 @@ namespace {
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *(Node->getNameSpace()->getFunctions().begin());
+        ASTFunction *F = *Node->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
         EXPECT_EQ(F->getType()->getKind(), TypeKind::TYPE_VOID);
         const ASTBlock *Body = F->getBody();
 
@@ -652,7 +645,7 @@ namespace {
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *(Node->getNameSpace()->getFunctions().begin());
+        ASTFunction *F = *(Node->getNameSpace()->getFunctions().begin())->getValue().begin()->second.begin();
         const ASTBlock *Body = F->getBody();
 
         // Test: int a += 2
@@ -703,7 +696,7 @@ namespace {
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *(Node->getNameSpace()->getFunctions().begin());
+        ASTFunction *F = *Node->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
         const ASTBlock *Body = F->getBody();
 
         // Test: float a -= 1.0
@@ -752,7 +745,7 @@ namespace {
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *(Node->getNameSpace()->getFunctions().begin());
+        ASTFunction *F = *Node->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
         const ASTBlock *Body = F->getBody();
 
         // Test: bool a = true
@@ -801,7 +794,7 @@ namespace {
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *(Node->getNameSpace()->getFunctions().begin());
+        ASTFunction *F = *Node->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
         const ASTBlock *Body = F->getBody();
 
         // Test: long a = 1
@@ -846,7 +839,7 @@ namespace {
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *(Node->getNameSpace()->getFunctions().begin());
+        ASTFunction *F = *Node->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
         ASTParam *a = F->getParams()->getList()[0];
         const ASTBlock *Body = F->getBody();
 
@@ -868,26 +861,19 @@ namespace {
                                "public void doOther(int a, int b) {}\n"
                                "int do() {return 0}"
                                "int main(int a) {\n"
-                               "  int b = doSome()"
-                               "  doOther(a, 1)"
-                               "  return do()"
+                               "  int b = doSome()\n"
+                               "  doOther(a, 1)\n"
+                               "  return do()\n"
                                "}\n");
         ASTNode *AST = Parse("FunctionCall", str);
 
         ASSERT_TRUE(isSuccess());
 
         // Get all functions
-        ASTFunction *doSome = *AST->getFunctions().begin();
-        ASTFunction *doOther = nullptr;
-        ASTFunction *main = nullptr;
+        ASTFunction *doSome = *AST->getFunctions().find("doSome")->getValue().begin()->second.begin();
+        ASTFunction *doOther = *AST->getFunctions().find("doOther")->getValue().begin()->second.begin();
+        ASTFunction *main = *AST->getFunctions().find("main")->getValue().begin()->second.begin();
 
-        for (auto *F : AST->getNameSpace()->getFunctions()) {
-            if (F->getName() == "doOther") {
-                doOther = F;
-            } else if (F->getName() == "main") {
-                main = F;
-            }
-        }
         ASSERT_TRUE(doSome != nullptr);
         ASSERT_TRUE(doOther != nullptr);
         ASSERT_TRUE(main != nullptr);
@@ -936,7 +922,7 @@ namespace {
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *(AST->getNameSpace()->getFunctions().begin());
+        ASTFunction *F = *AST->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
         const ASTBlock *Body = F->getBody();
 
         // ++a
@@ -998,7 +984,7 @@ namespace {
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *(AST->getNameSpace()->getFunctions().begin());
+        ASTFunction *F = *AST->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
         const ASTBlock *Body = F->getBody();
 
         // If
@@ -1040,7 +1026,7 @@ namespace {
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *(AST->getNameSpace()->getFunctions().begin());
+        ASTFunction *F = *AST->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
         const ASTBlock *Body = F->getBody();
 
         // if
@@ -1087,7 +1073,7 @@ namespace {
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *(AST->getFunctions().begin());
+        ASTFunction *F = *AST->getFunctions().begin()->getValue().begin()->second.begin();
         const ASTBlock *Body = F->getBody();
 
         ASTSwitchBlock *SwitchBlock = (ASTSwitchBlock *) Body->getContent()[0];
@@ -1113,7 +1099,7 @@ namespace {
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *(AST->getFunctions().begin());
+        ASTFunction *F = *AST->getFunctions().begin()->getValue().begin()->second.begin();
         const ASTBlock *Body = F->getBody();
         ASTForBlock *ForBlock = (ASTForBlock *) Body->getContent()[0];
         EXPECT_EQ(ForBlock->getBlockKind(), ASTBlockKind::BLOCK_STMT_FOR);
@@ -1152,7 +1138,7 @@ namespace {
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *(AST->getFunctions().begin());
+        ASTFunction *F = *AST->getFunctions().begin()->getValue().begin()->second.begin();
         const ASTBlock *Body = F->getBody();
         ASTWhileBlock *WhileBlock = (ASTWhileBlock *) Body->getContent()[0];
         EXPECT_EQ(WhileBlock->getBlockKind(), ASTBlockKind::BLOCK_STMT_WHILE);

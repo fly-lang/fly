@@ -18,6 +18,7 @@ namespace fly {
     enum StmtKind {
         STMT_BLOCK,
         STMT_EXPR,
+        STMT_ARG,
         STMT_VAR,
         STMT_VAR_ASSIGN,
         STMT_FUNCTION_CALL,
@@ -32,13 +33,15 @@ namespace fly {
 
     class ASTStmt {
 
+        friend class SemaBuilder;
+
     protected:
 
         const SourceLocation Location;
 
         ASTFunction *Top = nullptr;
 
-        ASTBlock *Parent = nullptr;
+        ASTStmt *Parent = nullptr;
 
     public:
         ASTStmt(const SourceLocation &Loc);
@@ -49,7 +52,7 @@ namespace fly {
 
         ASTFunction *getTop() const;
 
-        ASTBlock *getParent() const;
+        virtual ASTStmt *getParent() const;
 
         virtual std::string str() const = 0;
     };

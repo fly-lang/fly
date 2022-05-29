@@ -26,7 +26,7 @@ namespace fly {
     class ASTFunction;
     class ASTImport;
     class ASTUnrefGlobalVar;
-    class ASTUnrefCall;
+    class ASTUnrefFunctionCall;
 
     /**
      * AST Context

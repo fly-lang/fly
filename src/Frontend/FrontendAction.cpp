@@ -105,14 +105,21 @@ bool FrontendAction::GenerateCode() {
 
     // Instantiates all Function CodeGen in order to be set in all Call references
     std::vector<CodeGenFunction *> CGFunctions;
-    for (ASTFunction *Func : Node->getFunctions()) {
-        FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode",
-                          "Function=" << Func->str());
-        CodeGenFunction *CGF = CGM->GenFunction(Func);
-        CGFunctions.push_back(CGF);
-        if (FrontendOpts.CreateHeader) {
-            CGH->AddFunction(Func);
+    for (auto &FuncStrMap : Node->getFunctions()) {
+        for (auto &FuncList : FuncStrMap.getValue()) {
+            for (auto &Func : FuncList.second) {
+
+                FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode",
+                                  "Function=" << Func->str());
+                CodeGenFunction *CGF = CGM->GenFunction(Func);
+                CGFunctions.push_back(CGF);
+                if (FrontendOpts.CreateHeader) {
+                    CGH->AddFunction(Func);
+                }
+            }
         }
+        
+
     }
 
     // Body must be generated after all CodeGen has been set for each TopDecl

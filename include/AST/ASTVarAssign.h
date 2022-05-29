@@ -35,11 +35,7 @@ namespace fly {
 
         ASTVarRef *getVarRef() const;
 
-        void setVarRef(ASTVarRef *varRef);
-
         ASTExpr *getExpr() const;
-
-        void setExpr(ASTExpr *expr);
 
         std::string str() const override;
     };

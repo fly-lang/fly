@@ -41,6 +41,10 @@ namespace fly {
         ASTParam* Ellipsis = nullptr;
 
     public:
+        uint64_t getSize() const;
+
+        ASTParam *at(unsigned long Index) const;
+
         const std::vector<ASTParam *> &getList() const;
 
         const ASTParam* getEllipsis() const;

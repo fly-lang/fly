@@ -65,12 +65,11 @@ namespace fly {
         bool Build();
 
         DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID) const;
-
         DiagnosticBuilder Diag(unsigned DiagID) const;
 
-        ASTNode *CreateHeaderNode(const std::string &Name, std::string &NameSpace);
-
+        // Create Node
         ASTNode *CreateNode(const std::string &Name, std::string &NameSpace);
+        ASTNode *CreateHeaderNode(const std::string &Name, std::string &NameSpace);
 
         // Create Top Definitions
         ASTImport *CreateImport(const SourceLocation &NameLoc, StringRef Name);
@@ -82,10 +81,6 @@ namespace fly {
                                     VisibilityKind &Visibility);
         ASTClass *CreateClass(ASTNode *Node, const SourceLocation Loc, const std::string &Name, VisibilityKind &Visibility,
                               bool &Constant);
-
-        // Create Function Call
-        ASTFunctionCall *CreateFunctionCall(const SourceLocation &Loc, std::string &Name, std::string &NameSpace);
-        ASTFunctionCall *CreateFunctionCall(ASTFunction *Function);
 
         // Create Types
         ASTType *CreateBoolType(const SourceLocation &Loc);
@@ -113,113 +108,85 @@ namespace fly {
         ASTArrayValue *CreateArrayValue(const SourceLocation &Loc);
         ASTValue *CreateDefaultValue(ASTType *Type);
 
+        // Create Statements
+        ASTFunctionCall *CreateFunctionCall(const SourceLocation &Loc, std::string &Name, std::string &NameSpace);
+        ASTParam *CreateParam(const SourceLocation &Loc, ASTType *Type, const std::string &Name, bool Constant);
         ASTLocalVar *CreateLocalVar(const SourceLocation &Loc, ASTType *Type, const std::string &Name, bool Constant,
                                     ASTExpr *Expr = nullptr);
-
-        ASTParam *CreateParam(const SourceLocation &Loc, ASTType *Type, const std::string &Name, bool Constant);
-
-        ASTExprStmt *CreateExprStmt(const SourceLocation &Loc, ASTExpr *Expr);
-
-        ASTEmptyExpr *CreateExpr(const SourceLocation &Loc);
-
-        ASTValueExpr *CreateExpr(ASTValue *Value);
-
-        ASTFuncCallExpr *CreateExpr(ASTFunctionCall *Call);
-
-        ASTVarRefExpr *CreateExpr(ASTVarRef *VarRef);
-
         ASTVarAssign *CreateVarAssign(const SourceLocation &Loc, ASTVarRef * VarRef, ASTExpr *Expr);
 
+        // Create Var References
         ASTVarRef *CreateVarRef(const SourceLocation &Loc, StringRef Name, StringRef NameSpace);
-
         ASTVarRef *CreateVarRef(ASTLocalVar *LocalVar);
-
         ASTVarRef *CreateVarRef(ASTGlobalVar *GlobalVar);
 
+        // Create Expressions
+        ASTExprStmt *CreateExprStmt(const SourceLocation &Loc, ASTExpr *Expr);
+        ASTEmptyExpr *CreateExpr(const SourceLocation &Loc);
+        ASTValueExpr *CreateExpr(ASTValue *Value);
+        ASTFuncCallExpr *CreateExpr(ASTFunctionCall *Call);
+        ASTVarRefExpr *CreateExpr(ASTVarRef *VarRef);
+
+        // Create Blocks structures
         ASTBlock* CreateBlock(const SourceLocation &Loc);
-
         ASTIfBlock *CreateIfBlock(const SourceLocation &Loc, ASTExpr *Condition);
-
         ASTElsifBlock *CreateElsifBlock(const SourceLocation &Loc, ASTExpr *Condition);
-
         ASTElseBlock *CreateElseBlock(const SourceLocation &Loc);
-
         ASTSwitchBlock *CreateSwitchBlock(const SourceLocation &Loc, ASTExpr *Expr);
-
         ASTSwitchCaseBlock *CreateSwitchCaseBlock(const SourceLocation &Loc, ASTExpr *Condition);
-
         ASTSwitchDefaultBlock *CreateSwitchDefaultBlock(const SourceLocation &Loc);
-
         ASTWhileBlock *CreateWhileBlock(const SourceLocation &Loc, ASTExpr *Condition);
-
         ASTForBlock *CreateForBlock(const SourceLocation &Loc, ASTExpr *Condition, ASTBlock *PostBlock,
                                     ASTBlock *LoopBlock);
 
+        // Add Node & NameSpace
         ASTNameSpace *AddNameSpace(const std::string &Name, bool ExternLib = false);
-
         bool AddNode(ASTNode *Node);
 
+        // Add Top definitions
         bool AddImport(ASTNode *Node, ASTImport *Import);
-
         bool AddGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar, ASTExpr *Expr);
-
         bool AddFunction(ASTNode *Node, ASTFunction *Function);
-
+        bool InsertFunction(ASTNodeBase *Base, ASTFunction *Function);
+        bool AddFunctionParam(ASTFunction *Function, ASTParam *Param);
+        bool AddClass(ASTNode *Node, ASTClass *Class);
         bool AddComment(ASTTopDef *Top, std::string &Comment);
-
         bool AddExternalGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar);
-
         bool AddExternalFunction(ASTNode *Node, ASTFunction *Call);
 
-        bool AddFunctionParam(ASTFunction *Function, ASTParam *Param);
-
+        // TODO
         void AddVarArgs(ASTFunction *Function, ASTParam *Param);
-
-        bool AddFunctionCall(ASTNodeBase *Base, ASTFunctionCall *Call);
-
         bool AddCallArg(ASTFunctionCall *Call, ASTExpr *Expr);
 
-        bool AddClass(ASTNode *Node, ASTClass *Class);
-
-        bool AddUnrefGlobalVar(ASTNode *Node, ASTVarRef *VarRef);
-
-        bool AddUnrefCall(ASTNode *Node, ASTFunctionCall *Call);
-
-        bool setVarExpr(ASTVar *Var, ASTExpr *Expr);
-
-        bool AddStmt(ASTBlock *Block, ASTStmt *Stmt);
-
-        bool AddLocalVar(ASTBlock *Block, ASTLocalVar *LocalVar, bool PushToContent = true);
-
-        bool AddVarAssign(ASTBlock *Block, ASTVarAssign *VarAssign);
-
-        bool RemoveUndefVar(ASTBlock *Block, ASTVarRef *VarRef);
-
-        bool AddReturn(ASTBlock *Block, const SourceLocation &Loc, ASTExpr *Expr);
-
-        bool AddBreak(ASTBlock *Block, const SourceLocation &Loc);
-
-        bool AddContinue(ASTBlock *Block, const SourceLocation &Loc);
-
-        bool AddIfBlock(ASTBlock *Block, ASTIfBlock *IfBlock);
-
-        bool AddElsifBlock(ASTIfBlock *IfBlock, ASTElsifBlock *ElsifBlock);
-
-        bool AddElseBlock(ASTIfBlock *IfBlock, ASTElseBlock *ElseBlock);
-
-        bool AddSwitchBlock(ASTBlock *Parent, ASTSwitchBlock *Block);
-
-        bool AddSwitchCaseBlock(ASTSwitchBlock *SwitchBlock, ASTSwitchCaseBlock *CaseBlock);
-
-        bool setSwitchDefaultBlock(ASTSwitchBlock *SwitchBlock, ASTSwitchDefaultBlock *DefaultBlock);
-
-        bool AddWhileBlock(ASTBlock *Block, ASTWhileBlock *WhileBlock);
-
-        bool AddForBlock(ASTBlock *Block, ASTForBlock *ForBlock);
-
+        // Add Value to Array
         bool AddArrayValue(ASTArrayValue *Array, ASTValue *Value);
 
-        ASTStmt *getLastStmt(ASTBlock *Block);
+        // Add/Remove Unreferenced Var or Call //TODO
+        bool AddUnrefGlobalVar(ASTNode *Node, ASTVarRef *VarRef);
+        bool AddUnrefFunctionCall(ASTNode *Node, ASTFunctionCall *Call);
+        bool RemoveUndefVar(ASTBlock *Block, ASTVarRef *VarRef);
+
+        // Set Var Expr
+        bool setExpr(ASTLocalVar *Var, ASTExpr *Expr);
+        bool setExpr(ASTGlobalVar *Var, ASTExpr *Expr);
+
+        // Add Stmt
+        bool AddStmt(ASTBlock *Block, ASTStmt *Stmt);
+        bool AddLocalVar(ASTBlock *Block, ASTLocalVar *LocalVar, bool PushToContent = true);
+        bool AddVarAssign(ASTBlock *Block, ASTVarAssign *VarAssign);
+        bool AddReturn(ASTBlock *Block, const SourceLocation &Loc, ASTExpr *Expr);
+        bool AddBreak(ASTBlock *Block, const SourceLocation &Loc);
+        bool AddContinue(ASTBlock *Block, const SourceLocation &Loc);
+
+        // Add Blocks structures
+        bool AddIfBlock(ASTBlock *Block, ASTIfBlock *IfBlock);
+        bool AddElsifBlock(ASTIfBlock *IfBlock, ASTElsifBlock *ElsifBlock);
+        bool AddElseBlock(ASTIfBlock *IfBlock, ASTElseBlock *ElseBlock);
+        bool AddSwitchBlock(ASTBlock *Parent, ASTSwitchBlock *Block);
+        bool AddSwitchCaseBlock(ASTSwitchBlock *SwitchBlock, ASTSwitchCaseBlock *CaseBlock);
+        bool setSwitchDefaultBlock(ASTSwitchBlock *SwitchBlock, ASTSwitchDefaultBlock *DefaultBlock);
+        bool AddWhileBlock(ASTBlock *Block, ASTWhileBlock *WhileBlock);
+        bool AddForBlock(ASTBlock *Block, ASTForBlock *ForBlock);
 
         bool OnCloseBlock(ASTBlock *Block);
     };

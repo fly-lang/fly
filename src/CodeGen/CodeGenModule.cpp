@@ -143,8 +143,8 @@ CallInst *CodeGenModule::GenCall(llvm::Function *Fn, ASTFunctionCall *Call) {
 
     const std::vector<ASTParam *> &Params = Call->getDef()->getParams()->getList();
     llvm::SmallVector<llvm::Value *, 8> Args;
-    for (ASTExpr *Arg : Call->getArgs()) {
-        Value *V = GenExpr(Fn, Arg->getType(), Arg);
+    for (ASTArg *Arg : Call->getArgs()) {
+        Value *V = GenExpr(Fn, Arg->getDef()->getType(), Arg->getExpr());
         Args.push_back(V);
     }
     CodeGenFunction *CGF = Call->getDef()->getCodeGen();

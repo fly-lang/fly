@@ -79,6 +79,8 @@ namespace fly {
             return BlockKind;
         };
 
+        ASTBlock *getParent() const override;
+
         const std::vector<ASTStmt *> &getContent() const;
 
         bool isEmpty() const;

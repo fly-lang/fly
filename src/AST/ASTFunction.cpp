@@ -22,7 +22,7 @@ using namespace fly;
 ASTFunction::ASTFunction(const SourceLocation &Loc, ASTNode *Node, ASTType *ReturnType, const std::string &Name,
                          VisibilityKind Visibility) :
         ASTTopDef(Loc, Node, TopDeclKind::DECL_FUNCTION, Visibility),
-        ReturnType(ReturnType), Name(Name), Params(new ASTParams),
+        Type(ReturnType), Name(Name), Params(new ASTParams),
         Body(new ASTBlock(Loc)) {
 
 }
@@ -40,7 +40,7 @@ const ASTParams *ASTFunction::getParams() const {
 }
 
 ASTType *ASTFunction::getType() const {
-    return ReturnType;
+    return Type;
 }
 
 const std::vector<ASTLocalVar *> &ASTFunction::getLocalVars() const {
@@ -68,46 +68,46 @@ std::string ASTFunction::str() const {
         }
         Str = Str.substr(0, Str.length()-2);
     }
-    Str += "], ReturnType=" + ReturnType->str();
+    Str += "], ReturnType=" + Type->str();
     return Str;
 }
 
-bool ASTFunction::operator==(const ASTFunction &F) const {
-    bool Result = this->getName() == F.getName() &&
-            this->getNameSpace()->getName() == F.getNameSpace()->getName() &&
-            this->getParams()->getList().size() == F.getParams()->getList().size();
-    if (Result) {
-        for (int i = 0; i < this->getParams()->getList().size(); i++) {
-            if (!this->getParams()->getList()[i]->getType()->equals(F.getParams()->getList()[i]->getType())) {
-                return false;
-            }
-        }
-    }
-    return Result;
-}
+//bool ASTFunction::operator==(const ASTFunction &F) const {
+//    bool Result = this->getName() == F.getName() &&
+//            this->getNameSpace()->getName() == F.getNameSpace()->getName() &&
+//            this->getParams()->getList().size() == F.getParams()->getList().size();
+//    if (Result) {
+//        for (int i = 0; i < this->getParams()->getList().size(); i++) {
+//            if (!this->getParams()->getList()[i]->getType()->equals(F.getParams()->getList()[i]->getType())) {
+//                return false;
+//            }
+//        }
+//    }
+//    return Result;
+//}
 
-size_t std::hash<ASTFunction *>::operator()(ASTFunction *F) const noexcept {
-    size_t Hash = (std::hash<std::string>()(F->getName()));
-    Hash ^= (std::hash<std::string>()(F->getNameSpace()->getName()));
-    for (auto &Param : F->getParams()->getList()) {
-        Hash ^= (std::hash<std::string>()(Param->getType()->str()));
-    }
-    return Hash;
-}
-
-bool std::equal_to<ASTFunction *>::operator()(const ASTFunction *F1, const ASTFunction *F2) const {
-    bool Result = F1->getName() == F2->getName() &&
-                  F1->getNameSpace()->getName() == F2->getNameSpace()->getName() &&
-                  F1->getParams()->getList().size() == F2->getParams()->getList().size();
-    if (Result) {
-        for (int i = 0; i < F1->getParams()->getList().size(); i++) {
-            if (!F1->getParams()->getList()[i]->getType()->equals(F2->getParams()->getList()[i]->getType())) {
-                return false;
-            }
-        }
-    }
-    return Result;
-}
+//size_t std::hash<ASTFunction *>::operator()(ASTFunction *F) const noexcept {
+//    size_t Hash = (std::hash<std::string>()(F->getName()));
+//    Hash ^= (std::hash<std::string>()(F->getNameSpace()->getName()));
+//    for (auto &Param : F->getParams()->getList()) {
+//        Hash ^= (std::hash<std::string>()(Param->getType()->str()));
+//    }
+//    return Hash;
+//}
+//
+//bool std::equal_to<ASTFunction *>::operator()(const ASTFunction *F1, const ASTFunction *F2) const {
+//    bool Result = F1->getName() == F2->getName() &&
+//                  F1->getNameSpace()->getName() == F2->getNameSpace()->getName() &&
+//                  F1->getParams()->getList().size() == F2->getParams()->getList().size();
+//    if (Result) {
+//        for (int i = 0; i < F1->getParams()->getList().size(); i++) {
+//            if (!F1->getParams()->getList()[i]->getType()->equals(F2->getParams()->getList()[i]->getType())) {
+//                return false;
+//            }
+//        }
+//    }
+//    return Result;
+//}
 
 ASTReturn::ASTReturn(const SourceLocation &Loc, ASTExpr *Expr) : ASTStmt(Loc), Expr(Expr) {}
 

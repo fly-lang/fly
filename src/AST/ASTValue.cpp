@@ -13,7 +13,7 @@
 
 using namespace fly;
 
-ASTValue::ASTValue(const SourceLocation &Location) : Location(Location) {
+ASTValue::ASTValue(const ASTValueKind Kind, const SourceLocation &Location) : Kind(Kind), Location(Location) {
 
 }
 
@@ -21,11 +21,11 @@ const SourceLocation &ASTValue::getLocation() const {
     return Location;
 }
 
-ASTSingleValue::ASTSingleValue(const SourceLocation &Loc) : ASTValue(Loc) {
-
+const ASTValueKind &ASTValue::getKind() const {
+    return Kind;
 }
 
-ASTBoolValue::ASTBoolValue(const SourceLocation &Loc, bool Value) : ASTSingleValue(Loc), Value(Value) {
+ASTBoolValue::ASTBoolValue(const SourceLocation &Loc, bool Value) : ASTValue(VALUE_BOOL, Loc), Value(Value) {
 
 }
 
@@ -38,7 +38,7 @@ std::string ASTBoolValue::str() const {
 }
 
 ASTIntegerValue::ASTIntegerValue(const SourceLocation &Loc, uint64_t Value, bool Negative) :
-        ASTSingleValue(Loc), Value(Value), Negative(Negative) {
+        ASTValue(VALUE_INTEGER, Loc), Value(Value), Negative(Negative) {
 
 }
 
@@ -59,7 +59,7 @@ std::string ASTIntegerValue::str() const {
 }
 
 ASTFloatingValue::ASTFloatingValue(const SourceLocation &Loc, std::string &Value)
-    : ASTSingleValue(Loc), Value(Value) {
+    : ASTValue(VALUE_FLOATING_POINT, Loc), Value(Value) {
 
 }
 
@@ -71,7 +71,7 @@ std::string ASTFloatingValue::str() const {
     return Value;
 }
 
-ASTArrayValue::ASTArrayValue(const SourceLocation &Loc) : ASTValue(Loc) {
+ASTArrayValue::ASTArrayValue(const SourceLocation &Loc) : ASTValue(VALUE_ARRAY, Loc) {
 
 }
 
@@ -97,7 +97,7 @@ const std::vector<ASTValue *> &ASTArrayValue::getValues() const {
     return Values;
 }
 
-ASTNullValue::ASTNullValue(const SourceLocation &Loc) : ASTValue(Loc) {
+ASTNullValue::ASTNullValue(const SourceLocation &Loc) : ASTValue(VALUE_NULL, Loc) {
 
 }
 

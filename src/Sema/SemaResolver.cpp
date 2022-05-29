@@ -42,7 +42,7 @@ bool SemaResolver::Resolve() {
     for (auto &NEntry : S.Context->getNodes()) {
         auto &Node = NEntry.getValue();
         Success &= ResolveGlobalVars(Node) & // resolve Node UnrefGlobalVars
-                ResolveFunctionCalls(Node) & // resolve Node UnrefFunctionCalls
+                ResolveFunctions(Node) & // resolve Node UnrefFunctionCalls
                 ResolveBodyFunctions(Node) & // resolve ASTBlock of Body Functions
                 ResolveClass(Node);          // resolve Class attributes and methods
     }
@@ -52,7 +52,7 @@ bool SemaResolver::Resolve() {
         auto &NameSpace = NSEntry.getValue();
         Success &= ResolveImports(NameSpace) &   // resolve Imports
                 ResolveGlobalVars(NameSpace) &   // resolve NameSpace UnrefGlobalVars
-                ResolveFunctionCalls(NameSpace); // resolve NameSpace UnrefFunctionCalls
+                ResolveFunctions(NameSpace); // resolve NameSpace UnrefFunctionCalls
     }
 
     // Now all Imports must be read
@@ -127,7 +127,7 @@ bool SemaResolver::ResolveGlobalVars(ASTNode *Node) {
         } else {
             ASTVarRef &VarRef = Unref->getVarRef();
             ASTGlobalVar *Var = It->getValue();
-            VarRef.setDecl(Var);
+            VarRef.Def = Var;
         }
     }
 
@@ -153,7 +153,7 @@ bool SemaResolver::ResolveGlobalVars(ASTNameSpace *NameSpace) {
                 << Unref->getVarRef().getName();
             Success = false;
         } else {
-            Unref->getVarRef().setDecl(It->getValue());
+            Unref->getVarRef().Def = It->getValue();
             Builder.AddExternalGlobalVar(Unref->getNode(), It->getValue());
         }
     }
@@ -166,7 +166,7 @@ bool SemaResolver::ResolveGlobalVars(ASTNameSpace *NameSpace) {
  * @param Function
  * @return
  */
-bool SemaResolver::ResolveFunctionCalls(ASTNode *Node) {
+bool SemaResolver::ResolveFunctions(ASTNode *Node) {
     bool Success = true;
 
     // Skip Function Reference to libc
@@ -174,26 +174,28 @@ bool SemaResolver::ResolveFunctionCalls(ASTNode *Node) {
 
     // Resolve Unreferenced Function Calls (node internal)
     for (auto *UnrefFunctionCall : Node->UnrefFunctionCalls) {
-        FLY_DEBUG_MESSAGE("Sema", "ResolveFunctionCalls",
+        FLY_DEBUG_MESSAGE("Sema", "ResolveFunctions",
                           "Node=" << Node->str() <<
                           ", UnrefFunctionCall=" << UnrefFunctionCall->getCall()->str());
         if (IsBaseLib && UnrefFunctionCall->getCall()->getName().find("c__") == 0) {
             continue; // TODO UnrefFunctionCalls can be checked with all possible libc functions
         } else {
-            const auto &It = Node->FunctionCalls.find(UnrefFunctionCall->getCall()->getName());
-            if (It == Node->FunctionCalls.end()) { // Node not contains FunctionCall search into NameSpace
+
+            // Search a callable Function by Name
+            const auto &StrMapIt = Node->Functions.find(UnrefFunctionCall->getCall()->getName());
+            if (StrMapIt == Node->Functions.end()) { // Node not contains Function with that name
+                // Search into NameSpace on next step
                 Node->NameSpace->UnrefFunctionCalls.push_back(UnrefFunctionCall);
             } else {
-                for (auto &FunctionCall: It->getValue()) {
-                    if (hasSameParams(FunctionCall->getDef(), UnrefFunctionCall->getCall())) {
-                        UnrefFunctionCall->getCall()->Def = FunctionCall->getDef();
-                    } else {
-                        Success = false;
-                    }
-                }
-                if (!Success) { // Not Found
-                    Diag(UnrefFunctionCall->getCall()->getLocation(), diag::err_unref_call)
-                            << UnrefFunctionCall->getCall()->getName();
+
+                std::map<uint64_t, llvm::SmallVector<ASTFunction *, 4>> &IntMap = StrMapIt->getValue();
+                const auto &IntMapIt = IntMap.find(UnrefFunctionCall->getCall()->getArgs().size());
+                if (IntMapIt == IntMap.end()) { // Node not contains Function with this size of args
+                    // Search into NameSpace on next step
+                    Node->NameSpace->UnrefFunctionCalls.push_back(UnrefFunctionCall);
+                } else {
+                    // Set Candidate Definitions for Call
+                    UnrefFunctionCall->getCall()->CandidateDefs = IntMapIt->second;
                 }
             }
         }
@@ -206,14 +208,15 @@ bool SemaResolver::ResolveFunctionCalls(ASTNode *Node) {
  * @param Function
  * @return
  */
-bool SemaResolver::ResolveFunctionCalls(ASTNameSpace *NameSpace) {
+bool SemaResolver::ResolveFunctions(ASTNameSpace *NameSpace) {
     bool Success = true;
 
     // Resolve Unreferenced Function Calls (at namespace level)
     for (auto *UnrefFunctionCall : NameSpace->UnrefFunctionCalls) {
-        FLY_DEBUG_MESSAGE("Sema", "ResolveFunctionCalls",
+        FLY_DEBUG_MESSAGE("Sema", "ResolveFunctions",
                           "NameSpace=" << NameSpace->Name <<
-                                       ", UnrefFunctionCall=" << UnrefFunctionCall->getCall()->str());
+                          ", UnrefFunctionCall=" << UnrefFunctionCall->getCall()->str());
+
         // Auto resolve in Lib
         if (NameSpace->isExternalLib()) {
             // TODO
@@ -222,72 +225,32 @@ bool SemaResolver::ResolveFunctionCalls(ASTNameSpace *NameSpace) {
             // UnrefFunctionCall->getNode()->AddExternalFunction(Func);
         }
 
-        // Resolve with Sources
-        const auto &It = NameSpace->FunctionCalls.find(UnrefFunctionCall->getCall()->getName());
-        if (It == NameSpace->FunctionCalls.end()) { // NameSpace not contains FunctionCall throw error
+        // Search a callable Function by Name
+        const auto &StrMapIt = NameSpace->Functions.find(UnrefFunctionCall->getCall()->getName());
+        if (StrMapIt == NameSpace->Functions.end()) { // NameSpace not contains Function with that name
             Diag(UnrefFunctionCall->getCall()->getLocation(), diag::err_unref_call)
                     << UnrefFunctionCall->getCall()->getName();
-            Success = false; // collects other errors
+            Success = false; // error
         } else {
-            for (auto &FunctionCall : It->getValue()) {
-                if (hasSameParams(FunctionCall->getDef(), UnrefFunctionCall->getCall())) {
-                    UnrefFunctionCall->getCall()->Def = FunctionCall->getDef();
-                    // Call resolved with external function
-                    Builder.AddExternalFunction(UnrefFunctionCall->getNode(), FunctionCall->getDef());
-                } else {
-                    Success = false;
-                }
-            }
-            if (!Success) { // Not Found
+
+            std::map<uint64_t, llvm::SmallVector<ASTFunction *, 4>> &IntMap = StrMapIt->getValue();
+            const auto &IntMapIt = IntMap.find(UnrefFunctionCall->getCall()->getArgs().size());
+            if (IntMapIt == IntMap.end()) { // Node not contains Function with this size of args
                 Diag(UnrefFunctionCall->getCall()->getLocation(), diag::err_unref_call)
                         << UnrefFunctionCall->getCall()->getName();
+                Success = false; // error
+            } else {
+                // Set Candidate Definitions for Call
+                UnrefFunctionCall->getCall()->CandidateDefs = IntMapIt->second;
+
+//                UnrefFunctionCall->getCall()->Def = FunctionCall->getDef();
+//                // Call resolved with external function
+//                Builder.AddExternalFunction(UnrefFunctionCall->getNode(), FunctionCall->getDef());
             }
         }
     }
+
     return Success;
-}
-
-bool SemaResolver::hasSameParams(ASTFunction *Function, ASTFunctionCall *Call) {
-    const auto &Params = Function->getParams()->getList();
-    const auto &Args = Call->getArgs();
-
-    // Check Number of Args on First
-    if (Function->isVarArg()) {
-        if (Params.size() > Args.size()) {
-            return false;
-        }
-    } else {
-        if (Params.size() != Args.size()) {
-            return false;
-        }
-    }
-
-    // Check Type
-    for (int i = 0; i < Params.size(); i++) {
-        bool isLast = i+1 == Params.size();
-
-        //Check VarArgs by compare each Arg Type with last Param Type
-        if (isLast && Function->isVarArg()) {
-            for (int n = i; n < Args.size(); n++) {
-                // Check Equal Type
-                if (Params[i]->getType()->getKind() == Args[n]->getType()->getKind()) {
-                    return false;
-                }
-            }
-        } else {
-            ASTExpr *Arg = Args[i];
-
-            if (!S.Check(Arg)) {
-                return false;
-            }
-
-            // Check Equal Type
-            if (!Params[i]->getType()->equals(Arg->getType())) {
-                return false;
-            }
-        }
-    }
-    return true;
 }
 
 bool SemaResolver::ResolveClass(ASTNode *Node) {
@@ -301,8 +264,12 @@ bool SemaResolver::ResolveClass(ASTNameSpace *NameSpace) {
 
 bool SemaResolver::ResolveBodyFunctions(ASTNode *Node) {
     bool Success = true;
-    for (auto &Function : Node->Functions) {
-        Success &= ResolveBlock(Function->Body);
+    for (auto &StrMapEntry : Node->Functions) {
+        for (auto &IntMap : StrMapEntry.getValue()) {
+            for (auto &Function : IntMap.second) {
+                Success &= ResolveBlock(Function->Body);
+            }
+        }
     }
     return Success;
 }
@@ -316,39 +283,56 @@ bool SemaResolver::ResolveBlock(ASTBlock *Block) {
                 Success &= ResolveBlock((ASTBlock *) Stmt);
                 break;
             case STMT_EXPR:
-                Success &= ResolveExpr(Block, ((ASTExprStmt *) Stmt)->getExpr());
+                Success &= ResolveExpr(((ASTExprStmt *) Stmt)->getExpr());
                 break;
             case STMT_VAR: {
                 ASTLocalVar *LocalVar = ((ASTLocalVar *) Stmt);
-                Success &= ResolveExpr(Block, LocalVar->getExpr()) &
-                           S.CheckDuplicatedLocalVars(Block, ((ASTLocalVar *) Stmt));
+                Success &= ResolveExpr(LocalVar->getExpr());
                 break;
             }
             case STMT_VAR_ASSIGN: {
                 ASTVarAssign *VarAssign = ((ASTVarAssign *) Stmt);
                 Success &= (!VarAssign->getVarRef()->getDef() || ResolveVarRef(Block, VarAssign->getVarRef())) &&
-                           ResolveExpr(Block, VarAssign->getExpr());
+                           ResolveExpr(VarAssign->getExpr());
                 break;
             }
-            case STMT_FUNCTION_CALL: {
-                ASTFunctionCall *Call = ((ASTFunctionCall *) Stmt);
-
+            case STMT_FUNCTION_CALL:
+                // Chose Def from the Candidate Def of the Call
+                Success &= ResolveFunctionCall(((ASTFunctionCall *) Stmt));
                 break;
-            }
             case STMT_RETURN:
-                Success &= ResolveExpr(Block, ((ASTReturn *) Stmt)->getExpr());
+                Success &= ResolveExpr(((ASTReturn *) Stmt)->getExpr());
                 break;
             case STMT_BREAK:
             case STMT_CONTINUE:
                 break;
+            case STMT_ARG:
+                assert("Block Stmt cannot have an ASTArg");
         }
     }
     return Success;
 }
 
-ASTType *SemaResolver::ResolveExprType(ASTExpr *Expr) {
-    FLY_DEBUG_MESSAGE("Sema", "ResolveExprType","Expr=" << Expr->str());
-    return Expr->getType();
+bool SemaResolver::ResolveFunctionCall(ASTFunctionCall *Call) {
+    if (Call->CandidateDefs.empty()) {
+        // TODO
+        // Error: no candidate Function
+        return false;
+    }
+    bool Success = true;
+    for (ASTFunction *CF : Call->CandidateDefs) {
+        Success = true;
+        if (CF->getParams()->getSize() == Call->getArgs().size()) {
+            for (unsigned long i = 0; i < CF->getParams()->getSize(); i++) {
+                // Resolve Arg Expr on first
+                ASTArg *Arg = Call->getArgs().at(i);
+                ResolveExpr(Arg->Expr);
+                Success = S.isTypeDerivate(CF->getParams()->at(i)->Type,Arg->Expr->Type);
+                if (!Success) break;
+            }
+        }
+    }
+    return Success;
 }
 
 /**
@@ -382,7 +366,7 @@ bool SemaResolver::ResolveVarRef(ASTBlock *Block, ASTVarRef *VarRef) {
     for (auto &Param : Block->getTop()->getParams()->getList()) {
         if (VarRef->getName() == Param->getName()) {
             // Resolve with Param
-            VarRef->setDecl(Param);
+            VarRef->Def = Param;
             break;
         }
     }
@@ -393,7 +377,7 @@ bool SemaResolver::ResolveVarRef(ASTBlock *Block, ASTVarRef *VarRef) {
         ASTLocalVar *LocalVar = FindVarDecl(Block, VarRef);
         // Check if var declaration var is resolved
         if (LocalVar) {
-            VarRef->setDecl(LocalVar); // Resolved
+            VarRef->Def = LocalVar; // Resolved
         } else {
             Builder.AddUnrefGlobalVar(Block->getTop()->getNode(), VarRef); // Resolve Later by searching into Node GlobalVars
         }
@@ -411,63 +395,60 @@ bool SemaResolver::ResolveVarRef(ASTBlock *Block, ASTVarRef *VarRef) {
  * @param Expr
  * @return true if no error occurs, otherwise false
  */
-bool SemaResolver::ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr) {
-    FLY_DEBUG_MESSAGE("Sema", "ResolveExpr", "Stmt=" << Stmt->str() << ", Expr=" << Expr->str());
-    ASTBlock *Block = Stmt->getParent();
+bool SemaResolver::ResolveExpr(ASTExpr *Expr) {
+    FLY_DEBUG_MESSAGE("Sema", "ResolveExpr", "Expr=" << Expr->str());
     switch (Expr->getExprKind()) {
         case EXPR_REF_VAR: {
+            ASTBlock *Block = (ASTBlock *) Expr->Stmt->getParent();
             ASTVarRef *Var = ((ASTVarRefExpr *)Expr)->getVarRef();
             return S.CheckUndefVar(Block, Var) &&
                 (Var->getDef() || ResolveVarRef(Block, Var));
         }
         case EXPR_REF_FUNC: {
+            ASTBlock *Block = (ASTBlock *) Expr->Stmt->getParent();
             ASTFunctionCall *Call = ((ASTFuncCallExpr *)Expr)->getCall();
-            return Call->getDef() || Builder.AddUnrefCall(Block->getTop()->getNode(), Call);
+            return Call->getDef() || Builder.AddUnrefFunctionCall(Block->getTop()->getNode(), Call);
         }
         case EXPR_GROUP: {
             ASTGroupExpr *GroupExpr = (ASTGroupExpr *) Expr;
             switch (GroupExpr->getGroupKind()) {
 
                 case GROUP_UNARY:
-                    return ResolveExpr(Block, (ASTExpr *)((ASTUnaryGroupExpr *)GroupExpr)->getFirst());
+                    return ResolveExpr((ASTExpr *)((ASTUnaryGroupExpr *)GroupExpr)->getFirst());
                 case GROUP_BINARY:
-                    return ResolveExpr(Stmt, ((ASTBinaryGroupExpr *)GroupExpr)->First) &&
-                           ResolveExpr(Stmt, ((ASTBinaryGroupExpr *)GroupExpr)->Second);
+                    return ResolveExpr(((ASTBinaryGroupExpr *)GroupExpr)->First) &&
+                           ResolveExpr(((ASTBinaryGroupExpr *)GroupExpr)->Second);
                 case GROUP_TERNARY:
-                    return ResolveExpr(Stmt, ((ASTTernaryGroupExpr *)GroupExpr)->First) &&
-                           ResolveExpr(Stmt, ((ASTTernaryGroupExpr *)GroupExpr)->Second) &&
-                           ResolveExpr(Stmt, ((ASTTernaryGroupExpr *)GroupExpr)->Third);
+                    return ResolveExpr(((ASTTernaryGroupExpr *)GroupExpr)->First) &&
+                           ResolveExpr(((ASTTernaryGroupExpr *)GroupExpr)->Second) &&
+                           ResolveExpr(((ASTTernaryGroupExpr *)GroupExpr)->Third);
             }
         }
         case EXPR_VALUE: // Resolve ASTExprValue Type
-            if (!Stmt) { // Resolve in ASTBinaryGroupExpr or ASTTernaryGroupExpr
-                // take previous ASTExpr Ex. a = b + 1
-                // for resolve type for 1 need to read b
-                // ASTType of 1 is equal to ASTType of b var
-                return true;
-            }
-
-            switch (Stmt->getKind()) {
+            switch (Expr->Stmt->getKind()) {
                 case STMT_VAR: // a = 1
-                    Expr->Type = ((ASTVarRef *)Stmt)->getDef()->getType();
+                    Expr->Type = ((ASTVarRef *)Expr->Stmt)->getDef()->getType();
                     break;
                 case STMT_VAR_ASSIGN: // int a = 1
-                    Expr->Type = ((ASTLocalVar *)Stmt)->getType();
+                    Expr->Type = ((ASTLocalVar *)Expr->Stmt)->getType();
                     break;
                 case STMT_FUNCTION_CALL: // func(a, 1)
-                    Expr->Type = ((ASTFunctionCall *)Stmt)->getDef()->getType();
+                    assert("Call cannot contain directly an ASTExpr but only by ASTArg");
+                case STMT_ARG:
+                    Expr->Type = ((ASTArg *)Expr->Stmt)->getDef()->getType();
                     break;
                 case STMT_BLOCK:
                 case STMT_EXPR:
                 case STMT_BREAK:
                 case STMT_CONTINUE:
-                    break;
+                    assert("Cannot contains an ASTExpr");
                 case STMT_RETURN: // return 1
-                    // take the ASTType from function() return type
+                    ASTBlock *Block = (ASTBlock *) Expr->Stmt->getParent();
+                    // take the ASTType from function() return type FIXME
                     Expr->Type = Block->Top->getType();
                     break;
             }
-            return true;
+            return S.VerifyValueType((ASTValueExpr *)Expr, Expr->Type);
         case EXPR_EMPTY:
             return true;
     }

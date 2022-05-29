@@ -47,7 +47,7 @@ namespace fly {
         friend class FunctionParser;
 
         // Function return type
-        ASTType *ReturnType;
+        ASTType *Type;
 
         // Function Name
         const std::string Name;
@@ -110,20 +110,20 @@ namespace fly {
     };
 }
 
-namespace std {
-    using namespace fly;
-
-    template <>
-    struct hash<ASTFunction *> {
-        // id is returned as hash function
-        size_t operator()(ASTFunction *F) const noexcept;
-    };
-
-    template <>
-    struct equal_to<ASTFunction *> {
-        bool operator()(const ASTFunction *F1, const ASTFunction *F2) const;
-    };
-}
+//namespace std {
+//    using namespace fly;
+//
+//    template <>
+//    struct hash<ASTFunction *> {
+//        // id is returned as hash function
+//        size_t operator()(ASTFunction *F) const noexcept;
+//    };
+//
+//    template <>
+//    struct equal_to<ASTFunction *> {
+//        bool operator()(const ASTFunction *F1, const ASTFunction *F2) const;
+//    };
+//}
 
 
 #endif //FLY_FUNCTION_H

@@ -44,12 +44,12 @@ namespace fly {
         std::string str() const override;
     };
 
-    class ASTUnrefCall : public ASTUnref {
+    class ASTUnrefFunctionCall : public ASTUnref {
 
         ASTFunctionCall *Call;
 
     public:
-        ASTUnrefCall(ASTNode *Node, ASTFunctionCall *Call);
+        ASTUnrefFunctionCall(ASTNode *Node, ASTFunctionCall *Call);
 
         ASTFunctionCall *getCall();
 
