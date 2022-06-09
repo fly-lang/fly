@@ -18,14 +18,14 @@
 
 using namespace fly;
 
-ASTParam::ASTParam(const SourceLocation &Loc, ASTType *Type, const std::string &Name, bool Constant, ASTExpr *Expr) :
-        ASTLocalVar(Loc, Type, Name, Constant, Expr) {
+ASTParam::ASTParam(const SourceLocation &Loc, ASTType *Type, const std::string &Name, bool Constant) :
+        ASTLocalVar(Loc, Type, Name, Constant) {
 
 }
 
 std::string ASTParam::str() const {
     return "{ " + ASTLocalVar::str() +
-            ", Expr=" + (Expr ? Expr->str() : "{}") +
+            ", Expr=" + (getExpr() ? getExpr()->str() : "{}") +
             " }";
 }
 

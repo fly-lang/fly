@@ -156,7 +156,7 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
     switch (Stmt->getKind()) {
 
         // Var Declaration
-        case StmtKind::STMT_VAR: {
+        case StmtKind::STMT_VAR_DEFINE: {
             ASTLocalVar *LocalVar = static_cast<ASTLocalVar *>(Stmt);
             assert(LocalVar->getCodeGen() && "LocalVar is not CodeGen initialized");
             if (LocalVar->getExpr()) {

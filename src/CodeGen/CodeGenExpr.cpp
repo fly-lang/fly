@@ -274,7 +274,7 @@ llvm::Value *CodeGenExpr::GenValue(const ASTExpr *Expr, llvm::Value *Pointer) {
         }
         case EXPR_REF_FUNC: {
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_REF_FUNC");
-            ASTFuncCallExpr *CallExpr = (ASTFuncCallExpr *)Expr;
+            ASTFunctionCallExpr *CallExpr = (ASTFunctionCallExpr *)Expr;
             return CGM->GenCall(Fn, CallExpr->getCall());
         }
         case EXPR_GROUP:

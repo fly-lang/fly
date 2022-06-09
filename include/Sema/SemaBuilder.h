@@ -52,7 +52,8 @@ namespace fly {
     class ASTArrayValue;
     class ASTIntegerValue;
     class ASTFloatingValue;
-
+    class ASTBreak;
+    class ASTContinue;
 
     class SemaBuilder {
 
@@ -64,6 +65,7 @@ namespace fly {
 
         bool Build();
 
+        // Diagnostics Functions
         DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID) const;
         DiagnosticBuilder Diag(unsigned DiagID) const;
 
@@ -109,11 +111,15 @@ namespace fly {
         ASTValue *CreateDefaultValue(ASTType *Type);
 
         // Create Statements
-        ASTFunctionCall *CreateFunctionCall(const SourceLocation &Loc, std::string &Name, std::string &NameSpace);
+        ASTFunctionCall *CreateFunctionCall(ASTStmt *Parent, const SourceLocation &Loc, std::string &Name, std::string &NameSpace);
+        ASTArg *CreateArg(const SourceLocation &Loc);
         ASTParam *CreateParam(const SourceLocation &Loc, ASTType *Type, const std::string &Name, bool Constant);
-        ASTLocalVar *CreateLocalVar(const SourceLocation &Loc, ASTType *Type, const std::string &Name, bool Constant,
-                                    ASTExpr *Expr = nullptr);
-        ASTVarAssign *CreateVarAssign(const SourceLocation &Loc, ASTVarRef * VarRef, ASTExpr *Expr);
+        ASTLocalVar *CreateLocalVar(const SourceLocation &Loc, ASTType *Type, const std::string &Name, bool Constant);
+        ASTVarAssign *CreateVarAssign(ASTVarRef *VarRef);
+        ASTReturn *CreateReturn(const SourceLocation &Loc);
+        ASTBreak *CreateBreak(const SourceLocation &Loc);
+        ASTContinue *CreateContinue(const SourceLocation &Loc);
+        ASTExprStmt *CreateExprStmt(const SourceLocation &Loc);
 
         // Create Var References
         ASTVarRef *CreateVarRef(const SourceLocation &Loc, StringRef Name, StringRef NameSpace);
@@ -121,11 +127,10 @@ namespace fly {
         ASTVarRef *CreateVarRef(ASTGlobalVar *GlobalVar);
 
         // Create Expressions
-        ASTExprStmt *CreateExprStmt(const SourceLocation &Loc, ASTExpr *Expr);
         ASTEmptyExpr *CreateExpr(const SourceLocation &Loc);
-        ASTValueExpr *CreateExpr(ASTValue *Value);
-        ASTFuncCallExpr *CreateExpr(ASTFunctionCall *Call);
-        ASTVarRefExpr *CreateExpr(ASTVarRef *VarRef);
+        ASTValueExpr *CreateExpr(ASTStmt *Stmt, ASTValue *Value);
+        ASTFunctionCallExpr *CreateExpr(ASTStmt *Stmt, ASTFunctionCall *Call);
+        ASTVarRefExpr *CreateExpr(ASTStmt *Stmt, ASTVarRef *VarRef);
 
         // Create Blocks structures
         ASTBlock* CreateBlock(const SourceLocation &Loc);
@@ -136,8 +141,7 @@ namespace fly {
         ASTSwitchCaseBlock *CreateSwitchCaseBlock(const SourceLocation &Loc, ASTExpr *Condition);
         ASTSwitchDefaultBlock *CreateSwitchDefaultBlock(const SourceLocation &Loc);
         ASTWhileBlock *CreateWhileBlock(const SourceLocation &Loc, ASTExpr *Condition);
-        ASTForBlock *CreateForBlock(const SourceLocation &Loc, ASTExpr *Condition, ASTBlock *PostBlock,
-                                    ASTBlock *LoopBlock);
+        ASTForBlock *CreateForBlock(const SourceLocation &Loc, ASTBlock *PostBlock, ASTBlock *LoopBlock);
 
         // Add Node & NameSpace
         ASTNameSpace *AddNameSpace(const std::string &Name, bool ExternLib = false);
@@ -148,35 +152,21 @@ namespace fly {
         bool AddGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar, ASTExpr *Expr);
         bool AddFunction(ASTNode *Node, ASTFunction *Function);
         bool InsertFunction(ASTNodeBase *Base, ASTFunction *Function);
-        bool AddFunctionParam(ASTFunction *Function, ASTParam *Param);
+        bool AddFunctionParam(ASTFunction *Function, ASTParam *Param, ASTExpr *Expr);
+        void AddFunctionVarParams(ASTFunction *Function, ASTParam *Param); // TODO
         bool AddClass(ASTNode *Node, ASTClass *Class);
         bool AddComment(ASTTopDef *Top, std::string &Comment);
         bool AddExternalGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar);
         bool AddExternalFunction(ASTNode *Node, ASTFunction *Call);
 
-        // TODO
-        void AddVarArgs(ASTFunction *Function, ASTParam *Param);
-        bool AddCallArg(ASTFunctionCall *Call, ASTExpr *Expr);
-
         // Add Value to Array
         bool AddArrayValue(ASTArrayValue *Array, ASTValue *Value);
 
-        // Add/Remove Unreferenced Var or Call //TODO
-        bool AddUnrefGlobalVar(ASTNode *Node, ASTVarRef *VarRef);
-        bool AddUnrefFunctionCall(ASTNode *Node, ASTFunctionCall *Call);
-        bool RemoveUndefVar(ASTBlock *Block, ASTVarRef *VarRef);
-
-        // Set Var Expr
-        bool setExpr(ASTLocalVar *Var, ASTExpr *Expr);
-        bool setExpr(ASTGlobalVar *Var, ASTExpr *Expr);
-
         // Add Stmt
         bool AddStmt(ASTBlock *Block, ASTStmt *Stmt);
-        bool AddLocalVar(ASTBlock *Block, ASTLocalVar *LocalVar, bool PushToContent = true);
-        bool AddVarAssign(ASTBlock *Block, ASTVarAssign *VarAssign);
-        bool AddReturn(ASTBlock *Block, const SourceLocation &Loc, ASTExpr *Expr);
-        bool AddBreak(ASTBlock *Block, const SourceLocation &Loc);
-        bool AddContinue(ASTBlock *Block, const SourceLocation &Loc);
+        bool AddStmt(ASTBlock *Block, ASTExprStmt *ExprStmt, ASTExpr *Expr);
+        bool AddLocalVar(ASTBlock *Block, ASTLocalVar *LocalVar, ASTExpr *Expr);
+        bool AddFunctionCallArg(ASTFunctionCall *Call, ASTArg *Arg, ASTExpr *Expr);
 
         // Add Blocks structures
         bool AddIfBlock(ASTBlock *Block, ASTIfBlock *IfBlock);
@@ -186,7 +176,7 @@ namespace fly {
         bool AddSwitchCaseBlock(ASTSwitchBlock *SwitchBlock, ASTSwitchCaseBlock *CaseBlock);
         bool setSwitchDefaultBlock(ASTSwitchBlock *SwitchBlock, ASTSwitchDefaultBlock *DefaultBlock);
         bool AddWhileBlock(ASTBlock *Block, ASTWhileBlock *WhileBlock);
-        bool AddForBlock(ASTBlock *Block, ASTForBlock *ForBlock);
+        bool AddForBlock(ASTBlock *Parent, ASTForBlock *ForBlock, ASTExpr *Condition);
 
         bool OnCloseBlock(ASTBlock *Block);
     };

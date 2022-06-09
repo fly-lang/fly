@@ -25,6 +25,10 @@ const std::string &ASTGlobalVar::getName() const {
     return ASTVar::getName();
 }
 
+ASTExpr *ASTGlobalVar::getExpr() const {
+    return Expr;
+}
+
 CodeGenGlobalVar *ASTGlobalVar::getCodeGen() const {
     return CodeGen;
 }

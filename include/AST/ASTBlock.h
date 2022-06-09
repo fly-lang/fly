@@ -25,8 +25,8 @@ namespace fly {
     class ASTGroupExpr;
     class ASTVarRef;
     class ASTExpr;
-    class BreakStmt;
-    class ContinueStmt;
+    class ASTBreak;
+    class ASTContinue;
     class ASTIfBlock;
     class ASTIfBlock;
     class ASTSwitchBlock;
@@ -95,12 +95,12 @@ namespace fly {
     /**
      * Break Stmt
      */
-    class BreakStmt : public ASTStmt {
+    class ASTBreak : public ASTStmt {
 
         StmtKind Kind = StmtKind::STMT_BREAK;
 
     public:
-        BreakStmt(const SourceLocation &Loc);
+        ASTBreak(const SourceLocation &Loc);
 
         StmtKind getKind() const override;
 
@@ -110,12 +110,12 @@ namespace fly {
     /**
      * Continue Stmt
      */
-    class ContinueStmt : public ASTStmt {
+    class ASTContinue : public ASTStmt {
 
         StmtKind Kind = StmtKind::STMT_CONTINUE;
 
     public:
-        ContinueStmt(const SourceLocation &Loc);
+        ASTContinue(const SourceLocation &Loc);
 
         StmtKind getKind() const override;
 

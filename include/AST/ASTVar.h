@@ -33,6 +33,7 @@ namespace fly {
     class ASTVar {
 
         friend class SemaBuilder;
+        friend class SemaResolver;
 
         ASTVarKind VarKind;
 
@@ -40,7 +41,6 @@ namespace fly {
         ASTType *Type;
         const std::string Name;
         bool Constant = false;
-        ASTExpr *Expr = nullptr;
 
         ASTVar(ASTVarKind VarKind, ASTType *Type, const std::string &Name, bool Constant);
 
@@ -49,13 +49,13 @@ namespace fly {
 
         ASTVarKind getVarKind();
 
-        virtual bool isConstant() const;
+        bool isConstant() const;
 
-        virtual ASTType *getType() const;
+        ASTType *getType() const;
 
-        virtual const std::string &getName() const;
+        const std::string &getName() const;
 
-        ASTExpr *getExpr() const;
+        virtual ASTExpr *getExpr() const = 0;
 
         virtual CodeGenVar *getCodeGen() const = 0;
 

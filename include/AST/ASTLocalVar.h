@@ -10,7 +10,7 @@
 #ifndef FLY_ASTLOCALVAR_H
 #define FLY_ASTLOCALVAR_H
 
-#include "ASTStmt.h"
+#include "ASTExprStmt.h"
 #include "ASTVar.h"
 #include "CodeGen/CodeGenLocalVar.h"
 
@@ -21,21 +21,25 @@ namespace fly {
      * Ex.
      *  int a = 1
      */
-    class ASTLocalVar : public ASTVar, public ASTStmt {
+    class ASTLocalVar : public ASTVar, public ASTExprStmt {
 
         friend class SemaBuilder;
         friend class SemaResolver;
 
         // Statement Kind
-        const StmtKind Kind = StmtKind::STMT_VAR;
+        const StmtKind Kind = StmtKind::STMT_VAR_DEFINE;
+
+        ASTExpr *Expr = nullptr;
 
         // LocalVar Code Generator
         CodeGenLocalVar *CodeGen = nullptr;
 
     public:
-        ASTLocalVar(const SourceLocation &Loc, ASTType *Type, const std::string &Name, bool Constant, ASTExpr *Expr);
+        ASTLocalVar(const SourceLocation &Loc, ASTType *Type, const std::string &Name, bool Constant);
 
         StmtKind getKind() const;
+
+        ASTExpr *getExpr() const override;
 
         CodeGenLocalVar *getCodeGen() const;
 

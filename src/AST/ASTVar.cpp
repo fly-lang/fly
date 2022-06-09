@@ -36,10 +36,6 @@ bool ASTVar::isConstant() const {
     return Constant;
 }
 
-ASTExpr *ASTVar::getExpr() const {
-    return Expr;
-}
-
 std::string ASTVar::str() const {
     return "Type=" + Type->str() + ", " +
            "Name=" + Name + ", " +

@@ -84,7 +84,7 @@ namespace fly {
     class ASTVarRef;
     class ASTFunctionCall;
     class ASTVarRefExpr;
-    class ASTFuncCallExpr;
+    class ASTFunctionCallExpr;
     class ASTValueExpr;
     class ASTStmt;
 
@@ -98,34 +98,34 @@ namespace fly {
 
         const SourceLocation &Loc;
 
+        const ASTExprKind Kind;
+
         ASTStmt *Stmt = nullptr;
 
     protected:
 
-        ASTType *Type;
+        ASTType *Type = nullptr;
 
     public:
 
-        ASTExpr(const SourceLocation &Loc);
+        ASTExpr(const SourceLocation &Loc, ASTExprKind Kind);
 
         const SourceLocation &getLocation() const;
 
         virtual ASTType *getType() const;
 
-        virtual ASTExprKind getExprKind() const = 0;
+        ASTStmt *getStmt();
+
+        ASTExprKind getExprKind() const;
 
         virtual std::string str() const = 0;
     };
 
     class ASTEmptyExpr : public ASTExpr {
 
-        const ASTExprKind Kind = ASTExprKind::EXPR_EMPTY;
-
     public:
 
         ASTEmptyExpr(const SourceLocation &Loc);
-
-        ASTExprKind getExprKind() const override;
 
         virtual std::string str() const override;
     };
@@ -135,13 +135,10 @@ namespace fly {
      */
     class ASTValueExpr : public ASTExpr {
 
-        const ASTExprKind Kind = ASTExprKind::EXPR_VALUE;
         ASTValue *Val;
 
     public:
         explicit ASTValueExpr(ASTValue *Val);
-
-        ASTExprKind getExprKind() const override;
 
         ASTValue &getValue() const;
 
@@ -153,13 +150,10 @@ namespace fly {
      */
     class ASTVarRefExpr : public ASTExpr {
 
-        const ASTExprKind Kind = ASTExprKind::EXPR_REF_VAR;
         ASTVarRef *Ref;
 
     public:
         ASTVarRefExpr(ASTVarRef *Ref);
-
-        ASTExprKind getExprKind() const override;
 
         ASTVarRef *getVarRef() const;
 
@@ -171,15 +165,14 @@ namespace fly {
     /**
      * Function Call Expression
      */
-    class ASTFuncCallExpr : public ASTExpr {
+    class ASTFunctionCallExpr : public ASTExpr {
 
-        const ASTExprKind Kind = ASTExprKind::EXPR_REF_FUNC;
+        friend class SemaResolver;
+
         ASTFunctionCall * Call;
 
     public:
-        ASTFuncCallExpr(ASTFunctionCall *Ref);
-
-        ASTExprKind getExprKind() const override;
+        ASTFunctionCallExpr(ASTFunctionCall *Call);
 
         ASTFunctionCall *getCall() const;
 
@@ -195,15 +188,11 @@ namespace fly {
 
         friend class SemaResolver;
 
-        const ASTExprKind Kind = ASTExprKind::EXPR_GROUP;
-
         const ASTExprGroupKind GroupKind;
 
     public:
 
         ASTGroupExpr(const SourceLocation &Loc, ASTExprGroupKind GroupKind);
-
-        ASTExprKind getExprKind() const override;
 
         virtual ASTExprGroupKind getGroupKind();
 

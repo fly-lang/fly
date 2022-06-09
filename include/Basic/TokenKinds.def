@@ -102,7 +102,7 @@ PUNCTUATOR(semi,                ";")
 PUNCTUATOR(equal,               "=")
 PUNCTUATOR(equalequal,          "==")
 PUNCTUATOR(comma,               ",")
-PUNCTUATOR(at,               "@")
+PUNCTUATOR(at,                  "@")
 
 KEYWORD(namespace)
 KEYWORD(import)

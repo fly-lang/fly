@@ -53,7 +53,9 @@ namespace fly {
 
         bool CheckDuplicatedLocalVars(ASTBlock *Block, ASTLocalVar *LocalVar);
 
-        bool CheckUndefVar(ASTBlock *Block, ASTVarRef *VarRef);
+        bool CheckUndef(ASTBlock *Block, ASTVarRef *VarRef);
+
+        bool CheckUndef(ASTFunctionCall *Call);
 
         static bool CheckOnCloseBlock(ASTBlock *Block); // TODO
 

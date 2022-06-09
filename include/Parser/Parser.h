@@ -93,7 +93,7 @@ namespace fly {
         bool ParseTopDef();
         bool ParseTopScopes(VisibilityKind &Visibility, bool &isConst, bool isParsedVisibility = false,
                             bool isParsedConstant = false);
-        bool ParseGlobalVar(VisibilityKind &VisKind, bool &Constant, ASTType *Type);
+        bool ParseGlobalVar(VisibilityKind &Visibility, bool &Constant, ASTType *Type);
         bool ParseFunction(VisibilityKind &Visibility, bool Constant, ASTType *Type);
         bool ParseClass(VisibilityKind &Visibility, bool &Constant);
 
@@ -110,11 +110,12 @@ namespace fly {
         bool ParseForCommaStmt(ASTBlock *Block);
 
         // Parse Identifiers
-        ASTType *ParseType(bool OnlyBuiltin = false);
-        bool ParseIdentifier(llvm::StringRef &Name, llvm::StringRef &NameSpace, SourceLocation &Loc);
+        ASTType *ParseType();
+        ASTVarRef *ParseVarRef();
+        bool ParseIdentifier(SourceLocation &Loc, llvm::StringRef &Name, llvm::StringRef &NameSpace);
 
         // Parse Function Calls
-        ASTFunctionCall *ParseFunctionCall(llvm::StringRef Name, llvm::StringRef NameSpace, SourceLocation &Loc);
+        ASTFunctionCall *ParseFunctionCall(ASTStmt *Stmt, SourceLocation &Loc, llvm::StringRef Name, llvm::StringRef NameSpace);
         bool ParseCallArgs(ASTFunctionCall *Call);
         bool ParseCallArg(ASTFunctionCall *Call);
 
@@ -122,16 +123,14 @@ namespace fly {
         ASTValue *ParseValue();
         bool ParseValues(ASTArrayValue &ArrayValues);
 
-        // Parse a Local Var
-        ASTLocalVar *ParseLocalVar(bool Constant, ASTType *Type);
-
         // Parse Expressions
-        ASTExpr *ParseAssignmentExpr(ASTVarRef *VarRef);
-        ASTExpr *ParseExpr();
-        ASTExpr *ParseExpr(llvm::StringRef Name, llvm::StringRef NameSpace, SourceLocation Loc);
+        ASTExpr *ParseExpr(ASTStmt *Stmt = nullptr);
 
         // Check Keywords
-        bool isBuiltinType();
+        bool isType(Optional<Token> &Tok1);
+        bool isBuiltinType(Token &Tok);
+        bool isIdentifier();
+        bool isIdentifier(Optional<Token> &Tok1);
         bool isValue();
         bool isConst();
 
@@ -142,6 +141,14 @@ namespace fly {
         bool isTokenBrace() const;
         bool isTokenStringLiteral() const;
         bool isTokenSpecial() const;
+        bool isTokenOperator() const;
+        bool isTokenAssign() const;
+        bool isTokenAssignOperator() const;
+        bool isTokenAssignOperator(Optional<Token> OptTok) const;
+        bool isUnaryPreOperator(Token &Tok);
+        bool isUnaryPostOperator();
+        bool isBinaryOperator();
+        bool isTernaryOperator();
         SourceLocation ConsumeParen();
         SourceLocation ConsumeBracket();
         SourceLocation ConsumeBrace();

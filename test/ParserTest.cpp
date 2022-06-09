@@ -109,8 +109,8 @@ namespace {
 
     TEST_F(ParserTest, MultiImports) {
         llvm::StringRef str = ("namespace std\n"
-                         "import packageA "
-                         "import packageB");
+                             "import packageA\n"
+                             "import packageB");
         ASTNode *Node = Parse("MultiImports", str);
 
         ASSERT_TRUE(isSuccess());
@@ -636,7 +636,7 @@ namespace {
 
     TEST_F(ParserTest, IntBinaryArithOperation) {
         llvm::StringRef str = ("int func() {\n"
-                               "  int a += 2\n"
+                               "  int a = 2\n"
                                "  int b = a + b / a - b\n"
                                "  return a\n"
                                "}\n");
@@ -859,11 +859,12 @@ namespace {
         llvm::StringRef str = ("namespace std\n"
                                "private int doSome() {return 1}\n"
                                "public void doOther(int a, int b) {}\n"
-                               "int do() {return 0}"
+                               "int doNow() {return 0}"
                                "int main(int a) {\n"
                                "  int b = doSome()\n"
+                               "  b = doNow()\n"
                                "  doOther(a, 1)\n"
-                               "  return do()\n"
+                               "  return b\n"
                                "}\n");
         ASTNode *AST = Parse("FunctionCall", str);
 
@@ -872,6 +873,7 @@ namespace {
         // Get all functions
         ASTFunction *doSome = *AST->getFunctions().find("doSome")->getValue().begin()->second.begin();
         ASTFunction *doOther = *AST->getFunctions().find("doOther")->getValue().begin()->second.begin();
+        ASTFunction *doNow = *AST->getFunctions().find("doNow")->getValue().begin()->second.begin();
         ASTFunction *main = *AST->getFunctions().find("main")->getValue().begin()->second.begin();
 
         ASSERT_TRUE(doSome != nullptr);
@@ -883,27 +885,33 @@ namespace {
 
         // Test: doSome()
         ASTLocalVar *VarB = ((ASTLocalVar *) Body->getContent()[0]);
-        ASTFuncCallExpr *doSomeCall = (ASTFuncCallExpr *) VarB->getExpr();
+        ASTFunctionCallExpr *doSomeCall = (ASTFunctionCallExpr *) VarB->getExpr();
         EXPECT_EQ(doSomeCall->getCall()->getName(), "doSome");
         EXPECT_EQ(doSomeCall->getExprKind(), ASTExprKind::EXPR_REF_FUNC);
         ASSERT_FALSE(doSomeCall->getCall()->getDef() == nullptr);
 
+        // Test: doNow()
+        ASTVarAssign *B = ((ASTVarAssign *) Body->getContent()[1]);
+        ASTFunctionCallExpr *doNowCall = (ASTFunctionCallExpr *) B->getExpr();
+        EXPECT_EQ(doNowCall->getCall()->getName(), "doNow");
+        EXPECT_EQ(doNowCall->getExprKind(), ASTExprKind::EXPR_REF_FUNC);
+        ASSERT_FALSE(doNowCall->getCall()->getDef() == nullptr);
+
         // Test: doOther(a, b)
-        ASTExprStmt *doOtherStmt = (ASTExprStmt *) Body->getContent()[1];
+        ASTExprStmt *doOtherStmt = (ASTExprStmt *) Body->getContent()[2];
         EXPECT_EQ(doOtherStmt->getKind(), StmtKind::STMT_EXPR);
-        ASTFuncCallExpr *doOtherCall = (ASTFuncCallExpr *) doOtherStmt->getExpr();
+        ASTFunctionCallExpr *doOtherCall = (ASTFunctionCallExpr *) doOtherStmt->getExpr();
         EXPECT_EQ(doOtherCall->getCall()->getName(), "doOther");
-        ASTVarRefExpr *VRefExpr = (ASTVarRefExpr *) doOtherCall->getCall()->getArgs()[0];
-        EXPECT_EQ(VRefExpr->getVarRef()->getName(), "a");
-        ASTValueExpr *ValExpr = (ASTValueExpr *) doOtherCall->getCall()->getArgs()[1];
-        EXPECT_EQ(ValExpr->getValue().str(), "1");
+        ASTArg *Arg0 = doOtherCall->getCall()->getArgs()[0];
+        EXPECT_EQ(((ASTVarRefExpr *) Arg0->getExpr())->getVarRef()->getName(), "a");
+        ASTArg *Arg1 = doOtherCall->getCall()->getArgs()[1];
+        EXPECT_EQ(((ASTValueExpr *) Arg1->getExpr())->getValue().str(), "1");
 
         // return do()
-        ASTReturn *Ret = (ASTReturn *) Body->getContent()[2];
-        ASTFuncCallExpr *RetCallEx = (ASTFuncCallExpr *) Ret->getExpr();
-        EXPECT_EQ(RetCallEx->getCall()->getName(), "do");
-        EXPECT_EQ(RetCallEx->getExprKind(), ASTExprKind::EXPR_REF_FUNC);
-        EXPECT_TRUE(RetCallEx->getCall()->getArgs().empty());
+        ASTReturn *Ret = (ASTReturn *) Body->getContent()[3];
+        ASTVarRefExpr *RetExpr = (ASTVarRefExpr *) Ret->getExpr();
+        EXPECT_EQ(RetExpr->getVarRef()->getName(), "b");
+        EXPECT_FALSE(RetExpr->getVarRef()->getDef() == nullptr);
 
         delete AST;
     }

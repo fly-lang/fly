@@ -316,6 +316,7 @@ DIAG(err_unbalanced_brace, CLASS_ERROR, (unsigned)diag::Severity::Error, "braces
 DIAG(err_parse_stmt, CLASS_ERROR, (unsigned)diag::Severity::Error, "statement parse error", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_top_decl, CLASS_ERROR, (unsigned)diag::Severity::Error, "declaration error", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_paren_unclosed, CLASS_ERROR, (unsigned)diag::Severity::Error, "parenthesis not closed ')'", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_parser_generic, CLASS_ERROR, (unsigned)diag::Severity::Error, "parser generic error", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_parser_miss_expr, CLASS_ERROR, (unsigned)diag::Severity::Error, "missing expression", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_parser_miss_oper, CLASS_ERROR, (unsigned)diag::Severity::Error, "missing operator", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_parser_unexpect_oper, CLASS_ERROR, (unsigned)diag::Severity::Error, "unexpected operator", 0, SFINAE_Suppress, false, true, 0)
@@ -353,6 +354,7 @@ DIAG(err_else_after_else, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot 
 DIAG(err_switch_expression, CLASS_ERROR, (unsigned)diag::Severity::Error, "unexpected switch expression type", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_unassigned_var, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unassigned var '%0'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_expr_type_miss, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot resolve expression type", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_var_assign_empty, CLASS_ERROR, (unsigned)diag::Severity::Error, "var assignment '%0' is empty", 0, SFINAE_Suppress, false, true, 0)
 
 // CodeGen
 DIAG(err_void_value, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot assign void value", 0, SFINAE_Suppress, false, true, 0)

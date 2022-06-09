@@ -82,18 +82,18 @@ std::string ASTBlock::str() const {
 }
 
 /**
- * BreakStmt constructor
+ * ASTBreak constructor
  * @param Loc
  * @param Parent
  */
-BreakStmt::BreakStmt(const SourceLocation &Loc) : ASTStmt(Loc) {
+ASTBreak::ASTBreak(const SourceLocation &Loc) : ASTStmt(Loc) {
 
 }
 /**
  * Convert to String
  * @return string info for debugging
  */
-std::string BreakStmt::str() const {
+std::string ASTBreak::str() const {
     return "{ Kind=" + std::to_string(Kind) + " }";
 }
 
@@ -102,16 +102,16 @@ std::string BreakStmt::str() const {
  * Get the Kind of Stmt
  * @return the StmtKind
  */
-StmtKind BreakStmt::getKind() const {
+StmtKind ASTBreak::getKind() const {
     return Kind;
 }
 
 /**
- * ContinueStmt constructor
+ * ASTContinue constructor
  * @param Loc
  * @param Parent
  */
-ContinueStmt::ContinueStmt(const SourceLocation &Loc) : ASTStmt(Loc) {
+ASTContinue::ASTContinue(const SourceLocation &Loc) : ASTStmt(Loc) {
 
 }
 
@@ -119,7 +119,7 @@ ContinueStmt::ContinueStmt(const SourceLocation &Loc) : ASTStmt(Loc) {
  * Convert to String
  * @return string info for debugging
  */
-std::string ContinueStmt::str() const {
+std::string ASTContinue::str() const {
     return "{ Kind=" + std::to_string(Kind) + " }";
 }
 
@@ -127,6 +127,6 @@ std::string ContinueStmt::str() const {
  * Get the Kind of Stmt
  * @return the StmtKind
  */
-StmtKind ContinueStmt::getKind() const {
+StmtKind ASTContinue::getKind() const {
     return Kind;
 }

@@ -71,8 +71,8 @@ bool Sema::CheckDuplicatedLocalVars(ASTBlock *Block, ASTLocalVar *LocalVar) {
     return Block->Parent && CheckDuplicatedLocalVars(Block->getParent(), LocalVar);
 }
 
-bool Sema::CheckUndefVar(ASTBlock *Block, ASTVarRef *VarRef) {
-    if (Block->UndefVars.lookup(VarRef->getName())) {
+bool Sema::CheckUndef(ASTBlock *Block, ASTVarRef *VarRef) {
+    if (Block->UndefVars.find(VarRef->getName()) != Block->UndefVars.end()) {
         Diag(VarRef->getLocation(), diag::err_undef_var) << VarRef->getName();
         return false;
     }
@@ -119,7 +119,14 @@ bool Sema::isEquals(ASTParam *Param1, ASTParam *Param2) {
 }
 
 bool Sema::isTypeDerivate(ASTType *T1, ASTType *T2) {
-    return T1 && T2 && T1->getKind() == T2->getKind();
+    assert(T1 && T2 && "Type is null");
+
+    // Error: different type kind
+    if (T1->getKind() != T2->getKind()) {
+        return false;
+    }
+
+    return true;
 }
 
 bool Sema::VerifyValueType(ASTValueExpr *ValueExpr, ASTType *Type) {

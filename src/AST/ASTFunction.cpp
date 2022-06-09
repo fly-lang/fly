@@ -109,10 +109,8 @@ std::string ASTFunction::str() const {
 //    return Result;
 //}
 
-ASTReturn::ASTReturn(const SourceLocation &Loc, ASTExpr *Expr) : ASTStmt(Loc), Expr(Expr) {}
+ASTReturn::ASTReturn(const SourceLocation &Loc) : ASTExprStmt(Loc) {
 
-ASTExpr *ASTReturn::getExpr() const {
-    return Expr;
 }
 
 StmtKind ASTReturn::getKind() const {
@@ -121,6 +119,5 @@ StmtKind ASTReturn::getKind() const {
 
 std::string ASTReturn::str() const {
     return "{ Kind=" + std::to_string(Kind) +
-           ", Expr=" + Expr->str() +
            " }";
 }

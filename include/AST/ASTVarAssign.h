@@ -10,7 +10,7 @@
 #ifndef FLY_ASTVARASSIGN_H
 #define FLY_ASTVARASSIGN_H
 
-#include "ASTStmt.h"
+#include "ASTExprStmt.h"
 
 namespace fly {
 
@@ -21,21 +21,17 @@ namespace fly {
      * Ex.
      *  a = 1
      */
-    class ASTVarAssign : public ASTStmt {
+    class ASTVarAssign : public ASTExprStmt {
 
         ASTVarRef *VarRef;
 
-        ASTExpr *Expr;
-
     public:
 
-        ASTVarAssign(const SourceLocation &Loc, ASTVarRef *VarRef, ASTExpr *Expr);
+        ASTVarAssign(const SourceLocation &Loc, ASTVarRef *VarRef);
 
         StmtKind getKind() const override;
 
         ASTVarRef *getVarRef() const;
-
-        ASTExpr *getExpr() const;
 
         std::string str() const override;
     };

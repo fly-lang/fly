@@ -65,7 +65,7 @@ bool FunctionParser::ParseParam() {
     bool Const = P->isConst();
 
     // Var Type
-    ASTType *Type = P->ParseType(false);
+    ASTType *Type = P->ParseType();
     if (Type) {
 
         // Var Name
@@ -74,6 +74,7 @@ bool FunctionParser::ParseParam() {
         P->ConsumeToken();
 
         ASTParam *Param = P->Builder.CreateParam(IdLoc, Type, Name.str(), Const);
+        ASTExpr *Expr = nullptr;
 
         // Parse assignment =
         if (P->Tok.is(tok::equal)) {
@@ -82,11 +83,11 @@ bool FunctionParser::ParseParam() {
             // Start Parsing
             if (P->isValue()) {
                 ASTValue *Val = P->ParseValue();
-                Val && P->Builder.setExpr(Param, P->Builder.CreateExpr(Val));
+                Expr = P->Builder.CreateExpr(Param, Val);
             }
         }
 
-        if (Success && P->Builder.AddFunctionParam(Function, Param)) {
+        if (Success && P->Builder.AddFunctionParam(Function, Param, Expr)) {
 
             if (P->Tok.is(tok::comma)) {
                 P->ConsumeToken();

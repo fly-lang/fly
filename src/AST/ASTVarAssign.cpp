@@ -12,8 +12,8 @@
 
 using namespace fly;
 
-ASTVarAssign::ASTVarAssign(const SourceLocation &Loc, ASTVarRef *VarRef, ASTExpr *Expr) :
-        ASTStmt(Loc), VarRef(VarRef), Expr(Expr) {
+ASTVarAssign::ASTVarAssign(const SourceLocation &Loc, ASTVarRef *VarRef) :
+        ASTExprStmt(Loc), VarRef(VarRef) {
 
 }
 
@@ -23,13 +23,9 @@ StmtKind ASTVarAssign::getKind() const {
 
 std::string ASTVarAssign::str() const {
     return "VarRef=" + VarRef->str() +
-        ", Expr=" + Expr->str();
+        ", ExprStmt=" + ASTExprStmt::str();
 }
 
 ASTVarRef *ASTVarAssign::getVarRef() const {
     return VarRef;
-}
-
-ASTExpr *ASTVarAssign::getExpr() const {
-    return Expr;
 }

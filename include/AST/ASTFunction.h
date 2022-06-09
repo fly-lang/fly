@@ -13,7 +13,7 @@
 #include "ASTTopDef.h"
 #include "ASTVar.h"
 #include "ASTLocalVar.h"
-#include "ASTStmt.h"
+#include "ASTExprStmt.h"
 #include "llvm/ADT/StringMap.h"
 #include <unordered_set>
 #include <vector>
@@ -94,17 +94,14 @@ namespace fly {
      * Ex.
      *   return true
      */
-    class ASTReturn : public ASTStmt {
+    class ASTReturn : public ASTExprStmt {
 
         StmtKind Kind = StmtKind::STMT_RETURN;
-        ASTExpr *Expr;
 
     public:
-        ASTReturn(const SourceLocation &Loc, ASTExpr *Expr);
+        ASTReturn(const SourceLocation &Loc);
 
         StmtKind getKind() const override;
-
-        ASTExpr *getExpr() const;
 
         std::string str() const override;
     };

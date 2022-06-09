@@ -14,8 +14,8 @@
 
 using namespace fly;
 
-ASTArg::ASTArg(const SourceLocation &Loc, uint64_t Index, ASTExpr *Expr) :
-        ASTStmt(Loc), Index(Index), Expr(Expr) {
+ASTArg::ASTArg(const SourceLocation &Loc) :
+        ASTExprStmt(Loc) {
 
 }
 
@@ -32,11 +32,7 @@ ASTParam *ASTArg::getDef() const {
 }
 
 std::string ASTArg::str() const {
-    return "ASTArg{Index=" + std::to_string(Index) + ", Expr=" + Expr->str() + "}";
-}
-
-ASTExpr *ASTArg::getExpr() const {
-    return Expr;
+    return "ASTArg{Index=" + std::to_string(Index) + ", StmtExpr=" + ASTExprStmt::str() + "}";
 }
 
 ASTFunctionCall *ASTArg::getCall() const {
@@ -44,12 +40,8 @@ ASTFunctionCall *ASTArg::getCall() const {
 }
 
 ASTFunctionCall::ASTFunctionCall(const SourceLocation &Loc, const std::string &NameSpace, const std::string &Name) :
-    ASTStmt(Loc), NameSpace(NameSpace), Name(Name) {
+    Loc(Loc), NameSpace(NameSpace), Name(Name) {
 
-}
-
-StmtKind ASTFunctionCall::getKind() const {
-    return STMT_FUNCTION_CALL;
 }
 
 const std::string &ASTFunctionCall::getName() const {
@@ -66,6 +58,10 @@ ASTFunction *ASTFunctionCall::getDef() const {
 
 CodeGenCall *ASTFunctionCall::getCodeGen() const {
     return CGC;
+}
+
+const SourceLocation &ASTFunctionCall::getLocation() const {
+    return Loc;
 }
 
 const std::string &ASTFunctionCall::getNameSpace() const {

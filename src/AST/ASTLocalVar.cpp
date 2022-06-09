@@ -12,14 +12,17 @@
 
 using namespace fly;
 
-ASTLocalVar::ASTLocalVar(const SourceLocation &Loc, ASTType *Type, const std::string &Name, bool Constant,
-                         ASTExpr *Expr) :
-                        ASTStmt(Loc), ASTVar(VAR_LOCAL, Type, Name, Constant) {
+ASTLocalVar::ASTLocalVar(const SourceLocation &Loc, ASTType *Type, const std::string &Name, bool Constant) :
+                        ASTExprStmt(Loc), ASTVar(VAR_LOCAL, Type, Name, Constant) {
 
 }
 
 StmtKind ASTLocalVar::getKind() const {
     return Kind;
+}
+
+ASTExpr *ASTLocalVar::getExpr() const {
+    return Expr;
 }
 
 CodeGenLocalVar *ASTLocalVar::getCodeGen() const {

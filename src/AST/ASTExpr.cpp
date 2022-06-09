@@ -17,7 +17,7 @@
 
 using namespace fly;
 
-ASTExpr::ASTExpr(const SourceLocation &Loc) : Loc(Loc) {
+ASTExpr::ASTExpr(const SourceLocation &Loc, ASTExprKind Kind) : Loc(Loc), Kind(Kind) {
 
 }
 
@@ -25,29 +25,28 @@ const SourceLocation &ASTExpr::getLocation() const {
     return Loc;
 }
 
+ASTExprKind ASTExpr::getExprKind() const {
+    return Kind;
+}
+
 ASTType *ASTExpr::getType() const {
     return Type;
 }
 
-
-ASTEmptyExpr::ASTEmptyExpr(const SourceLocation &Loc) : ASTExpr(Loc) {
-
+ASTStmt *ASTExpr::getStmt() {
+    return Stmt;
 }
 
-ASTExprKind ASTEmptyExpr::getExprKind() const {
-    return Kind;
+ASTEmptyExpr::ASTEmptyExpr(const SourceLocation &Loc) : ASTExpr(Loc, EXPR_EMPTY) {
+
 }
 
 std::string ASTEmptyExpr::str() const {
     return "";
 }
 
-ASTValueExpr::ASTValueExpr(ASTValue *Val) : ASTExpr(Val->getLocation()), Val(Val) {
+ASTValueExpr::ASTValueExpr(ASTValue *Val) : ASTExpr(Val->getLocation(), EXPR_VALUE), Val(Val) {
 
-}
-
-ASTExprKind ASTValueExpr::getExprKind() const {
-    return Kind;
 }
 
 ASTValue &ASTValueExpr::getValue() const {
@@ -56,17 +55,13 @@ ASTValue &ASTValueExpr::getValue() const {
 
 std::string ASTValueExpr::str() const {
     return "{ Type=" + getType()->str() +
-           ", Kind=" + std::to_string(Kind) +
+           ", Kind=" + std::to_string(getExprKind()) +
            ", Value=" + Val->str() +
            " }";
 }
 
-ASTVarRefExpr::ASTVarRefExpr(ASTVarRef *Ref) : ASTExpr(Ref->getLocation()), Ref(Ref) {
+ASTVarRefExpr::ASTVarRefExpr(ASTVarRef *Ref) : ASTExpr(Ref->getLocation(), EXPR_REF_VAR), Ref(Ref) {
 
-}
-
-ASTExprKind ASTVarRefExpr::getExprKind() const {
-    return Kind;
 }
 
 ASTVarRef *ASTVarRefExpr::getVarRef() const {
@@ -79,39 +74,34 @@ ASTType *ASTVarRefExpr::getType() const {
 
 std::string ASTVarRefExpr::str() const {
     return "{ Type=" +  (getType() ? getType()->str() : "") +
-           ", Kind=" + std::to_string(Kind) +
+           ", Kind=" + std::to_string(getExprKind()) +
            ", VarRef=" + Ref->str() +
            " }";
 }
 
-ASTFuncCallExpr::ASTFuncCallExpr(ASTFunctionCall *Ref) : ASTExpr(Ref->getLocation()), Call(Ref) {}
+ASTFunctionCallExpr::ASTFunctionCallExpr(ASTFunctionCall *Call) :
+    ASTExpr(Call->getLocation(), EXPR_REF_FUNC), Call(Call) {
 
-ASTExprKind ASTFuncCallExpr::getExprKind() const {
-    return Kind;
 }
 
-ASTFunctionCall *ASTFuncCallExpr::getCall() const {
+ASTFunctionCall *ASTFunctionCallExpr::getCall() const {
     return Call;
 }
 
-ASTType *ASTFuncCallExpr::getType() const {
+ASTType *ASTFunctionCallExpr::getType() const {
     return Type ? Type : Call->getDef() ? Call->getDef()->getType() : nullptr;
 }
 
-std::string ASTFuncCallExpr::str() const {
+std::string ASTFunctionCallExpr::str() const {
     return "{ Type=" + (getType() ? getType()->str() : "") +
-           ", Kind=" + std::to_string(Kind) +
+           ", Kind=" + std::to_string(getExprKind()) +
            ", Call=" + Call->str() +
            " }";
 }
 
 ASTGroupExpr::ASTGroupExpr(const SourceLocation &Loc, ASTExprGroupKind GroupKind) :
-                           ASTExpr(Loc), GroupKind(GroupKind) {
+                           ASTExpr(Loc, EXPR_GROUP), GroupKind(GroupKind) {
 
-}
-
-ASTExprKind ASTGroupExpr::getExprKind() const {
-    return Kind;
 }
 
 ASTExprGroupKind ASTGroupExpr::getGroupKind() {

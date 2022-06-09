@@ -19,9 +19,8 @@ namespace fly {
         STMT_BLOCK,
         STMT_EXPR,
         STMT_ARG,
-        STMT_VAR,
+        STMT_VAR_DEFINE,
         STMT_VAR_ASSIGN,
-        STMT_FUNCTION_CALL,
         STMT_BREAK,
         STMT_CONTINUE,
         STMT_RETURN
@@ -34,6 +33,7 @@ namespace fly {
     class ASTStmt {
 
         friend class SemaBuilder;
+        friend class SemaResolver;
 
     protected:
 

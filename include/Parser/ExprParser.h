@@ -18,13 +18,13 @@ namespace fly {
     /**
      * Raw Binary Operator
      */
-    class RawBinaryOperator : public ASTExpr {
+    class RawBinaryOperator : public ASTEmptyExpr {
 
         BinaryOpKind Op;
         bool Precedence;
 
     public:
-        RawBinaryOperator(const SourceLocation &Loc, BinaryOpKind Op) : ASTExpr(Loc), Op(Op) {
+        RawBinaryOperator(const SourceLocation &Loc, BinaryOpKind Op) : ASTEmptyExpr(Loc), Op(Op) {
             Precedence = Op == BinaryOpKind::ARITH_MUL ||
                          Op == BinaryOpKind::ARITH_DIV ||
                          Op == BinaryOpKind::ARITH_MOD;
@@ -38,38 +38,29 @@ namespace fly {
             return Precedence;
         }
 
-        ASTType *getType() const override {
-            return nullptr;
-        }
-
-        ASTExprKind getExprKind() const override {
-            return ASTExprKind::EXPR_GROUP;
-        }
-
         std::string str() const override {
-            return std::string();
+            return std::to_string(Op);
         }
     };
 
     class ExprParser {
 
         Parser *P;
+
+        ASTStmt *Stmt;
+
         std::vector<ASTExpr *> Group;
 
     public:
-        ExprParser(Parser *P);
+        ExprParser(Parser *P, ASTStmt *Stmt);
 
-        ASTExpr *ParseAssignmentExpr(ASTVarRef *VarRef);
+        ASTExpr *ParseAssignExpr(ASTVarRef *VarRef = nullptr);
 
-        ASTExpr *ParseExpr(bool Start = true);
+        ASTExpr *ParseExpr(bool IsFirst = true);
 
-        ASTExpr *ParseExpr(llvm::StringRef Name, llvm::StringRef NameSpace, SourceLocation IdLoc);
+        ASTExpr *ParseExpr(SourceLocation &Loc, llvm::StringRef Name, llvm::StringRef NameSpace);
 
-        static bool isAssignOperator(Token &Tok);
-
-        static bool isUnaryPreOperator(Token &Tok);
-
-        static ASTUnaryGroupExpr *ParseUnaryPreExpr(Parser *P);
+        ASTUnaryGroupExpr *ParseUnaryPreExpr(Parser *P);
 
     private:
         ASTUnaryGroupExpr *ParseUnaryPostExpr(ASTVarRef *VarRef);
@@ -77,12 +68,6 @@ namespace fly {
         BinaryOpKind ParseBinaryOperator();
 
         void UpdateBinaryGroup(bool NoPrecedence);
-
-        bool isUnaryPostOperator();
-
-        bool isBinaryOperator();
-
-        bool isTernaryOperator();
     };
 
 }
