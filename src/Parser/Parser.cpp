@@ -59,7 +59,7 @@ bool Parser::Parse() {
 
             // Node empty
             if (Tok.is(tok::eof)) {
-                Diag(Tok.getLocation(), diag::warn_empty_code);
+                Diag(diag::warn_empty_code);
             }
 
             // Parse All
@@ -488,8 +488,8 @@ bool Parser::ParseStmt(ASTBlock *Block) {
         }
         
         return Builder.AddLocalVar(Block, LocalVar, nullptr);
-    } else if (isIdentifier(OptTok2) &&
-            isTokenAssignOperator(Lex.findNextToken(OptTok2->getLocation(), SourceMgr))) { // define an ASTVarAssign
+    } else if (isIdentifier(OptTok2) && (OptTok2 = Lex.findNextToken(OptTok2->getLocation(), SourceMgr))
+            && (isTokenAssign(OptTok2) || isTokenAssignOperator(OptTok2))) { // define an ASTVarAssign
 
         ASTVarRef* VarRef = ParseVarRef();
         ASTVarAssign *VarAssign = Builder.CreateVarAssign(VarRef);
@@ -672,8 +672,12 @@ bool Parser::ParseSwitchStmt(ASTBlock *Block) {
 
                         // Add Case to Switch statement and parse statement not contained into braces
                         ASTSwitchCaseBlock *CaseBlock = Builder.CreateSwitchCaseBlock(CaseLoc, CaseExpr);
-                        Success = ParseInnerBlock(CaseBlock) &&
-                                Builder.AddSwitchCaseBlock(SwitchBlock, CaseBlock);
+                        if (Tok.is(tok::l_brace)) {
+                            ConsumeBrace();
+                            Success = ParseInnerBlock(CaseBlock) && Builder.AddSwitchCaseBlock(SwitchBlock, CaseBlock);
+                        } else if (ParseStmt(CaseBlock)) { // Only for a single Stmt without braces
+                            Success = Builder.AddSwitchCaseBlock(SwitchBlock, CaseBlock);
+                        }
                     } else {
                         Diag(diag::err_syntax_error);
                         return false;
@@ -686,8 +690,12 @@ bool Parser::ParseSwitchStmt(ASTBlock *Block) {
                         ConsumeToken();
 
                         // Add Default to Switch statement and parse statement not contained into braces
-                        Success = ParseInnerBlock(DefaultBlock) &&
-                                Builder.setSwitchDefaultBlock(SwitchBlock, DefaultBlock);
+                        if (Tok.is(tok::l_brace)) {
+                            ConsumeBrace();
+                            Success = ParseInnerBlock(DefaultBlock) && Builder.setSwitchDefaultBlock(SwitchBlock, DefaultBlock);
+                        } else if (ParseStmt(DefaultBlock)) { // Only for a single Stmt without braces
+                            Success = Builder.setSwitchDefaultBlock(SwitchBlock, DefaultBlock);
+                        }
                     } else {
                         Diag(diag::err_syntax_error);
                         return false;
@@ -742,8 +750,7 @@ bool Parser::ParseWhileStmt(ASTBlock *Block) {
     // Parse statement between braces
     if (Tok.is(tok::l_brace)) {
         ConsumeBrace();
-        if (ParseInnerBlock(WhileBlock) && Tok.is(tok::r_brace)) {
-            ConsumeBrace();
+        if (ParseInnerBlock(WhileBlock)) {
             return Builder.AddWhileBlock(Block, WhileBlock);
         }
     } else {
@@ -812,10 +819,10 @@ bool Parser::ParseForStmt(ASTBlock *Block) {
     if (Tok.is(tok::l_brace)) {
         ConsumeBrace();
         if (Success && ParseInnerBlock(LoopBlock)) {
-            return Builder.AddForBlock(Block, ForBlock, Condition);
+            return Builder.AddForBlock(Block, ForBlock, Condition, PostBlock, LoopBlock);
         }
     } else if (Success && ParseStmt(LoopBlock)) { // Only for a single Stmt without braces
-        return Builder.AddForBlock(Block, ForBlock, Condition);
+        return Builder.AddForBlock(Block, ForBlock, Condition,  PostBlock, LoopBlock);
     }
 
     return false;
@@ -1407,7 +1414,13 @@ bool Parser::isTokenAssignOperator(Optional<Token> OptTok) const {
 }
 
 bool Parser::isTokenAssign() const {
-    return Tok.is(tok::equal);
+    Optional<Token> None;
+    return isTokenAssign(None);
+}
+
+bool Parser::isTokenAssign(Optional<Token> OptTok) const {
+    const Token &CurTok = OptTok ? OptTok.getValue() : Tok;
+    return CurTok.is(tok::equal);
 }
 
 /**

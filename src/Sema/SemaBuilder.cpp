@@ -413,8 +413,6 @@ ASTWhileBlock *SemaBuilder::CreateWhileBlock(const SourceLocation &Loc, ASTExpr 
 ASTForBlock *SemaBuilder::CreateForBlock(const SourceLocation &Loc, ASTBlock *PostBlock,
                                          ASTBlock *LoopBlock) {
     ASTForBlock *ForBlock = new ASTForBlock(Loc);
-    ForBlock->Post = PostBlock;
-    ForBlock->Loop = LoopBlock;
     return ForBlock;
 }
 
@@ -694,7 +692,6 @@ bool SemaBuilder::AddLocalVar(ASTBlock *Block, ASTLocalVar *LocalVar, ASTExpr *E
     // Add LocalVar
     AddStmt(Block, LocalVar);
 
-    Block->Top->LocalVars.push_back(LocalVar); //Useful for Alloca into CodeGen
     return Block->LocalVars.insert(std::pair<std::string, ASTLocalVar *>(LocalVar->getName(), LocalVar)).second;
 }
 
@@ -710,6 +707,18 @@ bool SemaBuilder::AddFunctionCallArg(ASTFunctionCall *Call, ASTArg *Arg, ASTExpr
     return false;
 }
 
+bool SemaBuilder::AddBlock(ASTBlock *Parent, ASTBlock *Block, bool AddToContent) {
+    Block->Parent = Parent;
+    Block->Top = Parent->Top;
+    if (AddToContent)
+        Parent->Content.push_back(Block);
+
+    //Useful for Alloca into CodeGen
+    for (auto &LocalVarEntry : Block->LocalVars)
+        Block->Top->LocalVars.push_back(LocalVarEntry.getValue());
+    return true;
+}
+
 /**
  * Add ASTIfBlock
  * @param Loc
@@ -718,9 +727,8 @@ bool SemaBuilder::AddFunctionCallArg(ASTFunctionCall *Call, ASTArg *Arg, ASTExpr
  */
 bool SemaBuilder::AddIfBlock(ASTBlock *Parent, ASTIfBlock *IfBlock) {
     // The UndefVars are copied from Parent to this if block
-    IfBlock->Parent = Parent;
+    AddBlock(Parent, IfBlock);
     IfBlock->UndefVars = Parent->UndefVars;
-    Parent->Content.push_back(IfBlock);
     return IfBlock;
 }
 
@@ -734,7 +742,7 @@ bool SemaBuilder::AddElsifBlock(ASTIfBlock *IfBlock, ASTElsifBlock *ElsifBlock) 
         return false;
     }
     IfBlock->ElsifBlocks.push_back(ElsifBlock);
-    ElsifBlock->Parent = IfBlock;
+    AddBlock(IfBlock, ElsifBlock, false);
     return !IfBlock->isEmpty();
 }
 
@@ -748,7 +756,7 @@ bool SemaBuilder::AddElseBlock(ASTIfBlock *IfBlock, ASTElseBlock *ElseBlock) {
         return false;
     }
     IfBlock->ElseBlock =  ElseBlock;
-    ElseBlock->Parent = IfBlock;
+    AddBlock(IfBlock, ElseBlock, false);
     return IfBlock->ElseBlock;
 }
 
@@ -763,20 +771,19 @@ bool SemaBuilder::AddSwitchBlock(ASTBlock *Parent, ASTSwitchBlock * SwitchBlock)
         Diag(SwitchBlock->getLocation(), diag::err_switch_expression);
         return false;
     }
-    SwitchBlock->Parent = Parent;
-    Parent->Content.push_back(SwitchBlock);
+    AddBlock(Parent, SwitchBlock);
     return SwitchBlock;
 }
 
 bool SemaBuilder::AddSwitchCaseBlock(ASTSwitchBlock * SwitchBlock, ASTSwitchCaseBlock * CaseBlock) {
-    CaseBlock->Parent = SwitchBlock;
     SwitchBlock->Cases.push_back(CaseBlock);
+    AddBlock(SwitchBlock, CaseBlock, false);
     return CaseBlock;
 }
 
 bool SemaBuilder::setSwitchDefaultBlock(ASTSwitchBlock * SwitchBlock, ASTSwitchDefaultBlock *DefaultBlock) {
-    DefaultBlock->Parent = SwitchBlock;
     SwitchBlock->Default = DefaultBlock;
+    AddBlock(SwitchBlock, DefaultBlock, false);
     return DefaultBlock;
 }
 
@@ -787,8 +794,7 @@ bool SemaBuilder::setSwitchDefaultBlock(ASTSwitchBlock * SwitchBlock, ASTSwitchD
  * @return
  */
 bool SemaBuilder::AddWhileBlock(ASTBlock *Parent, ASTWhileBlock *WhileBlock) {
-    WhileBlock->Parent = Parent;
-    Parent->Content.push_back(WhileBlock);
+    AddBlock(Parent, WhileBlock);
     return WhileBlock;
 }
 
@@ -798,11 +804,17 @@ bool SemaBuilder::AddWhileBlock(ASTBlock *Parent, ASTWhileBlock *WhileBlock) {
  * @param Expr
  * @return
  */
-bool SemaBuilder::AddForBlock(ASTBlock *Parent, ASTForBlock *ForBlock, ASTExpr *Condition) {
-    ForBlock->Parent = Parent;
-    Parent->Content.push_back(ForBlock);
+bool SemaBuilder::AddForBlock(ASTBlock *Parent, ASTForBlock *ForBlock, ASTExpr *Condition, ASTBlock *PostBlock, ASTBlock *LoopBlock) {
+    AddBlock(Parent, ForBlock);
+
     ForBlock->Condition = Condition;
     Condition->Stmt = ForBlock;
+
+    ForBlock->Post = PostBlock;
+    AddBlock(ForBlock, PostBlock, false);
+
+    ForBlock->Loop = LoopBlock;
+    AddBlock(ForBlock, LoopBlock, false);
     return true;
 }
 

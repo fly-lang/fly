@@ -144,6 +144,7 @@ namespace fly {
         bool isTokenOperator() const;
         bool isTokenAssign() const;
         bool isTokenAssignOperator() const;
+        bool isTokenAssign(Optional<Token> OptTok) const;
         bool isTokenAssignOperator(Optional<Token> OptTok) const;
         bool isUnaryPreOperator(Token &Tok);
         bool isUnaryPostOperator();

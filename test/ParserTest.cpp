@@ -47,12 +47,13 @@ namespace {
             Diags.getClient()->EndSourceFile();
         }
 
-        ASTNode *Parse(std::string FileName, llvm::StringRef Source) {
+        ASTNode *Parse(std::string FileName, llvm::StringRef Source, bool DoBuild = true) {
             InputFile Input(Diags, CI.getSourceManager(), FileName);
             Input.Load(Source);
             Parser *P = new Parser(Input, CI.getSourceManager(), Diags, *Builder);
             Success = P->Parse();
-            Success = Success && Builder->Build();
+            if (DoBuild)
+                Success = Success && Builder->Build();
 
             return P->getNode();
         }
@@ -83,44 +84,35 @@ namespace {
     }
 
     TEST_F(ParserTest, SingleImport) {
-        llvm::StringRef str = ("namespace std\n"
+        llvm::StringRef str1 = ("namespace packageA");
+        llvm::StringRef str2 = ("namespace std\n"
                          "import packageA");
-        ASTNode *Node = Parse("SingleImport", str);
+        ASTNode *Node1 = Parse("packageA.fly", str1, false);
+        ASTNode *Node2 = Parse("std.fly", str2);
         ASSERT_TRUE(isSuccess());
 
-        ASTImport* Verify = Node->getImports().lookup("packageA");
-
+        ASTImport* Verify = Node2->getImports().lookup("packageA");
         EXPECT_EQ(Verify->getName(), "packageA");
         EXPECT_EQ(Verify->getAlias(), "");
-        delete Node;
+
+        delete Node1;
+        delete Node2;
     }
 
     TEST_F(ParserTest, SingleImportAlias) {
-        llvm::StringRef str = ("\n import standard std\n");
-        ASTNode *Node = Parse("SingleImportAlias", str);
+        llvm::StringRef str1 = ("namespace standard");
+        llvm::StringRef str2 = ("import standard std");
+        ASTNode *Node1 = Parse("standard.fly", str1, false);
+        ASTNode *Node2 = Parse("default.fly", str2);
         ASSERT_TRUE(isSuccess());
 
-        EXPECT_EQ(Node->getNameSpace()->getName(), "default");
-        ASTImport *Import = Node->getImports().lookup("std");
+        EXPECT_EQ(Node2->getNameSpace()->getName(), "default");
+        ASTImport *Import = Node2->getImports().lookup("std");
         EXPECT_EQ(Import->getName(), "standard");
         EXPECT_EQ(Import->getAlias(), "std");
-        delete Node;
-    }
 
-    TEST_F(ParserTest, MultiImports) {
-        llvm::StringRef str = ("namespace std\n"
-                             "import packageA\n"
-                             "import packageB");
-        ASTNode *Node = Parse("MultiImports", str);
-
-        ASSERT_TRUE(isSuccess());
-
-        ASTImport* VerifyB = Node->getImports().lookup("packageB");
-        ASTImport* VerifyA = Node->getImports().lookup("packageA");
-
-        EXPECT_EQ(VerifyA->getName(), "packageA");
-        EXPECT_EQ(VerifyB->getName(), "packageB");
-        delete Node;
+        delete Node1;
+        delete Node2;
     }
 
     TEST_F(ParserTest,  LineComments) {
@@ -648,16 +640,12 @@ namespace {
         ASTFunction *F = *(Node->getNameSpace()->getFunctions().begin())->getValue().begin()->second.begin();
         const ASTBlock *Body = F->getBody();
 
-        // Test: int a += 2
+        // Test: int a = 2
 
         const ASTLocalVar *aVar = (ASTLocalVar *) Body->getContent()[0];
         EXPECT_EQ(aVar->getName(), "a");
-        EXPECT_EQ(aVar->getExpr()->getExprKind(), ASTExprKind::EXPR_GROUP);
-        EXPECT_EQ(((ASTGroupExpr *) aVar->getExpr())->getGroupKind(), ASTExprGroupKind::GROUP_BINARY);
-        ASTBinaryGroupExpr *aGroup = (ASTBinaryGroupExpr *) aVar->getExpr();
-        EXPECT_EQ(((ASTVarRefExpr *) aGroup->getFirst())->getVarRef()->getName(), "a");
-        EXPECT_EQ(aGroup->getOperatorKind(), BinaryOpKind::ARITH_ADD);
-        EXPECT_EQ(((ASTValueExpr *) aGroup->getSecond())->getValue().str(), "2");
+        EXPECT_EQ(aVar->getExpr()->getExprKind(), ASTExprKind::EXPR_VALUE);
+        EXPECT_EQ(((ASTValueExpr *) aVar->getExpr())->getValue().str(), "2");
 
         // Test: int b = a + b / a - b
 
@@ -687,7 +675,7 @@ namespace {
 
     TEST_F(ParserTest, FloatBinaryArithOperation) {
         llvm::StringRef str = ("float func() {\n"
-                               "  float a -= 1.0"
+                               "  float a = 1.0"
                                "  float b = a * b - a / b"
                                "  return b\n"
                                "}\n");
@@ -702,12 +690,8 @@ namespace {
         // Test: float a -= 1.0
         const ASTLocalVar *aVar = (ASTLocalVar *) Body->getContent()[0];
         EXPECT_EQ(aVar->getName(), "a");
-        EXPECT_EQ(aVar->getExpr()->getExprKind(), ASTExprKind::EXPR_GROUP);
-        EXPECT_EQ(((ASTGroupExpr *) aVar->getExpr())->getGroupKind(), ASTExprGroupKind::GROUP_BINARY);
-        ASTBinaryGroupExpr *aGroup = (ASTBinaryGroupExpr *) aVar->getExpr();
-        EXPECT_EQ(((ASTVarRefExpr *) aGroup->getFirst())->getVarRef()->getName(), "a");
-        EXPECT_EQ(aGroup->getOperatorKind(), BinaryOpKind::ARITH_SUB);
-        EXPECT_EQ(((ASTValueExpr *) aGroup->getSecond())->getValue().str(), "1.0");
+        EXPECT_EQ(aVar->getExpr()->getExprKind(), ASTExprKind::EXPR_VALUE);
+        EXPECT_EQ(((ASTValueExpr *) aVar->getExpr())->getValue().str(), "1.0");
 
         // Test: int b = a * b - a / b
         const ASTLocalVar *bVar = (ASTLocalVar *) Body->getContent()[1];
@@ -736,9 +720,9 @@ namespace {
 
     TEST_F(ParserTest, BoolBinaryLogicOperation) {
         llvm::StringRef str = ("bool func() {\n"
-                               "  bool a &= true"
-                               "  bool b = a || false && a == true"
-                               "  return c\n"
+                               "  bool a = true"
+                               "  bool b = a || false && a == true\n"
+                               "  return b\n"
                                "}\n");
         ASTNode *Node = Parse("BoolBinaryLogicOperation", str);
 
@@ -751,12 +735,8 @@ namespace {
         // Test: bool a = true
         const ASTLocalVar *aVar = (ASTLocalVar *) Body->getContent()[0];
         EXPECT_EQ(aVar->getName(), "a");
-        EXPECT_EQ(aVar->getExpr()->getExprKind(), ASTExprKind::EXPR_GROUP);
-        EXPECT_EQ(((ASTGroupExpr *) aVar->getExpr())->getGroupKind(), ASTExprGroupKind::GROUP_BINARY);
-        ASTBinaryGroupExpr *aGroup = (ASTBinaryGroupExpr *) aVar->getExpr();
-        EXPECT_EQ(((ASTVarRefExpr *) aGroup->getFirst())->getVarRef()->getName(), "a");
-        EXPECT_EQ(aGroup->getOperatorKind(), BinaryOpKind::ARITH_AND);
-        EXPECT_EQ(((ASTValueExpr *) aGroup->getSecond())->getValue().str(), "true");
+        EXPECT_EQ(aVar->getExpr()->getExprKind(), ASTExprKind::EXPR_VALUE);
+        EXPECT_EQ(((ASTValueExpr *) aVar->getExpr())->getValue().str(), "true");
 
         // Test: bool b = a || false && a == true
         const ASTLocalVar *bVar = (ASTLocalVar *) Body->getContent()[1];
@@ -856,8 +836,7 @@ namespace {
     }
 
     TEST_F(ParserTest, FunctionCall) {
-        llvm::StringRef str = ("namespace std\n"
-                               "private int doSome() {return 1}\n"
+        llvm::StringRef str = ("private int doSome() {return 1}\n"
                                "public void doOther(int a, int b) {}\n"
                                "int doNow() {return 0}"
                                "int main(int a) {\n"
@@ -1002,7 +981,7 @@ namespace {
         EXPECT_EQ(((ASTVarRefExpr *) IfCond->getFirst())->getVarRef()->getName(), "a");
         EXPECT_EQ(IfCond->getOperatorKind(),BinaryOpKind::COMP_EQ);
         EXPECT_EQ(((ASTValueExpr *) IfCond->getSecond())->getValue().str(), "1");
-        EXPECT_TRUE(((ASTReturn *) IfBlock->getContent()[0])->getExpr() == nullptr);
+        EXPECT_TRUE(((ASTEmptyExpr *)((ASTReturn *) IfBlock->getContent()[0])->getExpr())->getExprKind() == EXPR_EMPTY);
         EXPECT_FALSE(IfBlock->getElsifBlocks().empty());
         EXPECT_TRUE(IfBlock->getElseBlock());
 
@@ -1044,7 +1023,7 @@ namespace {
         EXPECT_EQ(((ASTVarRefExpr *) IfCond->getFirst())->getVarRef()->getName(), "a");
         EXPECT_EQ(IfCond->getOperatorKind(), BinaryOpKind::COMP_EQ);
         EXPECT_EQ(((ASTValueExpr *) IfCond->getSecond())->getValue().str(), "1");
-        EXPECT_TRUE(((ASTReturn *) IfBlock->getContent()[0])->getExpr() == nullptr);
+        EXPECT_TRUE(((ASTEmptyExpr *)((ASTReturn *) IfBlock->getContent()[0])->getExpr())->getExprKind() == EXPR_EMPTY);
 
         EXPECT_FALSE(IfBlock->getElsifBlocks().empty());
         EXPECT_TRUE(IfBlock->getElseBlock());
@@ -1117,15 +1096,18 @@ namespace {
         // int c = 2
         EXPECT_EQ(((ASTLocalVar *) ForBlock->getContent()[1])->getName(), "c");
 
+        // b < 10
         ASTBinaryGroupExpr *Cond = (ASTBinaryGroupExpr *) ForBlock->getCondition();
         EXPECT_EQ(((ASTVarRefExpr *) Cond->getFirst())->getVarRef()->getName(), "b");
         EXPECT_EQ(Cond->getOperatorKind(), BinaryOpKind::COMP_LT);
         EXPECT_EQ(((ASTValueExpr *) Cond->getSecond())->getValue().str(), "10");
 
+        // b++
         ASTExprStmt * ExprStmt1 = (ASTExprStmt *) ForBlock->getPost()->getContent()[0];
         EXPECT_EQ(((ASTUnaryGroupExpr *) ExprStmt1->getExpr())->getFirst()->getVarRef()->getName(), "b");
         EXPECT_EQ(((ASTUnaryGroupExpr *) ExprStmt1->getExpr())->getOperatorKind(), UnaryOpKind::ARITH_INCR);
 
+        // c--
         ASTExprStmt * ExprStmt2 = (ASTExprStmt *) ForBlock->getPost()->getContent()[1];
         EXPECT_EQ(((ASTUnaryGroupExpr *) ExprStmt2->getExpr())->getFirst()->getVarRef()->getName(), "c");
         EXPECT_EQ(((ASTUnaryGroupExpr *) ExprStmt2->getExpr())->getOperatorKind(), UnaryOpKind::ARITH_DECR);
@@ -1160,7 +1142,7 @@ namespace {
 
         ASTWhileBlock *WhileBlockEmpty = (ASTWhileBlock *) Body->getContent()[1];
         EXPECT_EQ(WhileBlockEmpty->getBlockKind(), ASTBlockKind::BLOCK_STMT_WHILE);
-        EXPECT_TRUE(WhileBlockEmpty->getCondition() == nullptr);
+        EXPECT_EQ(WhileBlockEmpty->getCondition()->getExprKind(), EXPR_EMPTY);
         EXPECT_TRUE(WhileBlockEmpty->isEmpty());
 
         delete AST;

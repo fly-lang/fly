@@ -36,12 +36,6 @@ namespace fly {
 
         ASTNameSpace *NameSpace = nullptr;
 
-        // Contains all unresolved VarRef to a GlobalVar
-        std::vector<ASTUnrefGlobalVar *>  UnrefGlobalVars;
-
-        // Contains all unresolved Function Calls
-        std::vector<ASTUnrefFunctionCall *> UnrefFunctionCalls;
-
     public:
 
         ASTImport(const SourceLocation &NameLoc, std::string &Name);

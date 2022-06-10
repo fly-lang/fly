@@ -13,11 +13,11 @@
 using namespace fly;
 
 FileExt TakeExt(std::string FileName) {
-    if (FileName.substr(FileName.size() - 4, FileName.size()) == ".fly") {
+    if (FileName.size() > 4 && FileName.substr(FileName.size() - 4, FileName.size()) == ".fly") {
         return FLY;
-    } else if (FileName.substr(FileName.size() - 4, FileName.size()) == ".lib") {
+    } else if (FileName.size() > 4 && FileName.substr(FileName.size() - 4, FileName.size()) == ".lib") {
         return LIB;
-    } else if (FileName.substr(FileName.size() - 4, FileName.size()) == ".o") {
+    } else if (FileName.size() > 2 && FileName.substr(FileName.size() - 2, FileName.size()) == ".o") {
         return OBJ;
     }
     return UNKNOWN;

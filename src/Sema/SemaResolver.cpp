@@ -84,24 +84,16 @@ bool SemaResolver::ResolveImports(ASTNameSpace *NameSpace) {
             auto &Import = ImportEntry.getValue();
             ASTNameSpace *NameSpaceFound = NameSpace->Context->NameSpaces.lookup(Import->getName());
 
-            if (!NameSpaceFound) { // Error
-                Success = false;
-                Diag(diag::err_namespace_notfound) << Import->getName();
-            } else {
+            if (NameSpaceFound) {
                 FLY_DEBUG_MESSAGE("Sema", "ResolveImports",
                                   "Import=" << Import->getName() <<
                                             ", NameSpace=" << NameSpaceFound->getName());
                 Import->setNameSpace(NameSpaceFound);
 
-                // Sync Un-referenced GlobalVars
-                for (auto &UnrefGlobalVar: Import->UnrefGlobalVars) {
-                    NameSpaceFound->UnrefGlobalVars.push_back(UnrefGlobalVar);
-                }
-
-                // Sync Un-referenced FunctionCalls
-                for (auto &UnrefFunctionCall: Import->UnrefFunctionCalls) {
-                    NameSpaceFound->UnrefFunctionCalls.push_back(UnrefFunctionCall);
-                }
+            } else {
+                // Error: NameSpace not found
+                Success = false;
+                Diag(Import->NameLocation, diag::err_namespace_notfound) << Import->getName();
             }
         }
     }
@@ -428,17 +420,22 @@ bool SemaResolver::ResolveVarRef(ASTBlock *Block, ASTVarRef *VarRef) {
             ASTImport *Import;
             if (VarRef->getNameSpace().empty()) {
                 // Find in current Node
-                Node->GlobalVars.find(VarRef->getName());
+                VarRef->Def = Node->GlobalVars.lookup(VarRef->getName());
             } else if (VarRef->getNameSpace() == Node->NameSpace->getName()) {
                 // Find in current NameSpace
-                Node->NameSpace->GlobalVars.find(VarRef->getName());
+                VarRef->Def = Node->NameSpace->GlobalVars.lookup(VarRef->getName());
             } else if ((Import = Node->FindImport(VarRef->getNameSpace()))) {
                 // Find in current Import
-                Import->getNameSpace()->getGlobalVars().find(VarRef->getName());
-            } else {
+                VarRef->Def = Import->getNameSpace()->getGlobalVars().lookup(VarRef->getName());
+            }
+
+            // Error: check unreferenced var
+            // VarRef not found in node, namespace and node imports
+            if (!VarRef->Def) {
                 Diag(VarRef->getLocation(), diag::err_unref_var);
                 return false;
             }
+
             return true;
         }
     }

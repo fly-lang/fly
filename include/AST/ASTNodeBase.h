@@ -47,12 +47,6 @@ namespace fly {
         // Classes
         llvm::StringMap<ASTClass *> Classes;
 
-        // Contains all unresolved VarRefs to a GlobalVars
-        std::vector<ASTUnrefGlobalVar *>  UnrefGlobalVars;
-
-        // Contains all unresolved FunctionCalls of Functions
-        std::vector<ASTUnrefFunctionCall *> UnrefFunctionCalls;
-
     public:
 
         ASTNodeBase() = delete;

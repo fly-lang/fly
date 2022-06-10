@@ -169,6 +169,7 @@ namespace fly {
         bool AddFunctionCallArg(ASTFunctionCall *Call, ASTArg *Arg, ASTExpr *Expr);
 
         // Add Blocks structures
+        bool AddBlock(ASTBlock *Parent, ASTBlock *Block, bool AddToContent = true);
         bool AddIfBlock(ASTBlock *Block, ASTIfBlock *IfBlock);
         bool AddElsifBlock(ASTIfBlock *IfBlock, ASTElsifBlock *ElsifBlock);
         bool AddElseBlock(ASTIfBlock *IfBlock, ASTElseBlock *ElseBlock);
@@ -176,7 +177,7 @@ namespace fly {
         bool AddSwitchCaseBlock(ASTSwitchBlock *SwitchBlock, ASTSwitchCaseBlock *CaseBlock);
         bool setSwitchDefaultBlock(ASTSwitchBlock *SwitchBlock, ASTSwitchDefaultBlock *DefaultBlock);
         bool AddWhileBlock(ASTBlock *Block, ASTWhileBlock *WhileBlock);
-        bool AddForBlock(ASTBlock *Parent, ASTForBlock *ForBlock, ASTExpr *Condition);
+        bool AddForBlock(ASTBlock *Parent, ASTForBlock *ForBlock, ASTExpr *Condition, ASTBlock *PostBlock, ASTBlock *LoopBlock);
 
         bool OnCloseBlock(ASTBlock *Block);
     };
