@@ -116,8 +116,7 @@ namespace {
     }
 
     TEST_F(ParserTest,  LineComments) {
-        llvm::StringRef str = ("namespace std\n"
-                               "// Global var comment\n"
+        llvm::StringRef str = ("// Global var comment\n"
                                "int b\n"
                                "// Func comment\n"
                                "void func() {}\n"
@@ -136,8 +135,7 @@ namespace {
     }
 
     TEST_F(ParserTest, BlockComments) {
-        llvm::StringRef str = ("namespace std\n"
-                               " /* Global var block comment */\n"
+        llvm::StringRef str = (" /* Global var block comment */\n"
                                "// Global var line comment\n"
                                "int b\n"
                                "// Func line comment\n"
@@ -165,18 +163,17 @@ namespace {
     }
 
     TEST_F(ParserTest, GlobalVars) {
-        llvm::StringRef str = ("namespace std\n"
-                        "private int a\n"
-                        "public float b\n"
-                        "bool c\n"
-                        "long d\n"
-                        "double e\n"
-                        "byte f\n"
-                        "ushort g\n"
-                        "short h\n"
-                        "uint i\n"
-                        "ulong j\n"
-                         );
+        llvm::StringRef str = ("private int a\n"
+                                "public float b\n"
+                                "bool c\n"
+                                "long d\n"
+                                "double e\n"
+                                "byte f\n"
+                                "ushort g\n"
+                                "short h\n"
+                                "uint i\n"
+                                "ulong j\n"
+                                 );
         ASTNode *Node = Parse("GlobalVars", str);
 
         ASSERT_TRUE(isSuccess());
@@ -246,11 +243,11 @@ namespace {
     }
 
     TEST_F(ParserTest, GlobalConstants) {
-        llvm::StringRef str = ("namespace std\n"
-                         "private const int a = 1\n"
-                         "const public float b = 2.0\n"
-                         "const bool c = false\n"
-                         );
+        llvm::StringRef str = (
+                "private const int a = 1\n"
+                "const public float b = 2.0\n"
+                "const bool c = false\n"
+                );
         ASTNode *Node = Parse("GlobalConstants", str);
 
         ASSERT_TRUE(isSuccess());
@@ -287,8 +284,7 @@ namespace {
                                "byte[] c = {1, 2, 3}\n"
                                "byte[3] d\n" // array of 4 bytes without values
                                "byte[3] e = {1, 2, 3}\n"
-
-        );
+                               );
         ASTNode *Node = Parse("GlobalArray", str);
         ASSERT_TRUE(isSuccess());
 
@@ -414,11 +410,11 @@ namespace {
                "byte[] a = \"\"\n" // array of zero bytes
                "byte[] b = \"abc\"\n" // string abc/0 -> array of 4 bytes
         );
-        ASTNode *AST = Parse("GlobalString", str);
+        ASTNode *Node = Parse("GlobalString", str);
         ASSERT_TRUE(isSuccess());
 
-        ASTGlobalVar *a = AST->getGlobalVars().find("a")->getValue();
-        ASTGlobalVar *b = AST->getGlobalVars().find("b")->getValue();
+        ASTGlobalVar *a = Node->getGlobalVars().find("a")->getValue();
+        ASTGlobalVar *b = Node->getGlobalVars().find("b")->getValue();
 
         // a
         EXPECT_EQ(a->getType()->getKind(), TypeKind::TYPE_ARRAY);
@@ -442,12 +438,11 @@ namespace {
         EXPECT_EQ(((const ASTArrayValue &) bExpr->getValue()).getValues()[1]->str(), "98");
         EXPECT_EQ(((const ASTArrayValue &) bExpr->getValue()).getValues()[2]->str(), "99");
 
-        delete AST;
+        delete Node;
     }
 
     TEST_F(ParserTest, FunctionDefaultVoidEmpty) {
-        llvm::StringRef str = ("namespace std\n"
-                         "void func() {}\n");
+        llvm::StringRef str = ("void func() {}\n");
         ASTNode *AST = Parse("FunctionDefaultVoidEmpty", str);
         ASSERT_TRUE(isSuccess());
 
@@ -455,17 +450,17 @@ namespace {
         EXPECT_TRUE(AST->getNameSpace()->getFunctions().size() == 1);
         ASTFunction *VerifyFunc = *AST->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
         EXPECT_EQ(VerifyFunc->getVisibility(), VisibilityKind::V_DEFAULT);
-        const auto &NSFuncs = AST->getContext().getNameSpaces().lookup("std")->getFunctions();
+        const auto &NSFuncs = AST->getContext().getDefaultNameSpace()->getFunctions();
         ASSERT_TRUE(NSFuncs.find(VerifyFunc->getName()) != NSFuncs.end());
 
         delete AST;
     }
 
     TEST_F(ParserTest, FunctionPrivateReturnParams) {
-        llvm::StringRef str = ("namespace std\n"
-                         "private int func(int a, const float b, bool c=false) {\n"
-                         "  return 1"
-                         "}\n");
+        llvm::StringRef str = (
+                "private int func(int a, const float b, bool c=false) {\n"
+                "  return 1"
+                "}\n");
         ASTNode *Node = Parse("FunctionPrivateReturnParams", str);
 
         ASSERT_TRUE(isSuccess());
@@ -473,7 +468,7 @@ namespace {
         EXPECT_TRUE(Node->getFunctions().size() == 1); // func() has PRIVATE Visibility
         ASTFunction *VerifyFunc = *Node->getFunctions().begin()->getValue().begin()->second.begin();
         EXPECT_EQ(VerifyFunc->getVisibility(), VisibilityKind::V_PRIVATE);
-        const auto &NSFuncs = Node->getContext().getNameSpaces().lookup("std")->getFunctions();
+        const auto &NSFuncs = Node->getContext().getDefaultNameSpace()->getFunctions();
         ASSERT_TRUE(NSFuncs.find(VerifyFunc->getName()) == NSFuncs.end());
         ASSERT_TRUE(Node->getFunctions().find(VerifyFunc->getName()) != NSFuncs.end());
 
@@ -845,15 +840,15 @@ namespace {
                                "  doOther(a, 1)\n"
                                "  return b\n"
                                "}\n");
-        ASTNode *AST = Parse("FunctionCall", str);
+        ASTNode *Node = Parse("FunctionCall", str);
 
         ASSERT_TRUE(isSuccess());
 
         // Get all functions
-        ASTFunction *doSome = *AST->getFunctions().find("doSome")->getValue().begin()->second.begin();
-        ASTFunction *doOther = *AST->getFunctions().find("doOther")->getValue().begin()->second.begin();
-        ASTFunction *doNow = *AST->getFunctions().find("doNow")->getValue().begin()->second.begin();
-        ASTFunction *main = *AST->getFunctions().find("main")->getValue().begin()->second.begin();
+        ASTFunction *doSome = *Node->getFunctions().find("doSome")->getValue().begin()->second.begin();
+        ASTFunction *doOther = *Node->getFunctions().find("doOther")->getValue().begin()->second.begin();
+        ASTFunction *doNow = *Node->getFunctions().find("doNow")->getValue().begin()->second.begin();
+        ASTFunction *main = *Node->getFunctions().find("main")->getValue().begin()->second.begin();
 
         ASSERT_TRUE(doSome != nullptr);
         ASSERT_TRUE(doOther != nullptr);
@@ -892,11 +887,11 @@ namespace {
         EXPECT_EQ(RetExpr->getVarRef()->getName(), "b");
         EXPECT_FALSE(RetExpr->getVarRef()->getDef() == nullptr);
 
-        delete AST;
+        delete Node;
     }
 
     TEST_F(ParserTest, UnaryExpr) {
-        llvm::StringRef str = ("namespace std\n"
+        llvm::StringRef str = (
                          "void func(int a) {\n"
                          "  ++a"
                          "  a++"
@@ -904,12 +899,12 @@ namespace {
                          "  a--"
                          "  a = ++a + 1"
                          "}\n");
-        ASTNode *AST = Parse("UnaryExpr", str);
+        ASTNode *Node = Parse("UnaryExpr", str);
 
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *AST->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
+        ASTFunction *F = *Node->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
         const ASTBlock *Body = F->getBody();
 
         // ++a
@@ -952,11 +947,11 @@ namespace {
         ASTValueExpr *ValueExpr = (ASTValueExpr *) Group->getSecond();
         EXPECT_EQ(ValueExpr->getExprKind(), EXPR_VALUE);
         EXPECT_EQ(ValueExpr->getValue().str(), "1");
-        delete AST;
+        delete Node;
     }
 
     TEST_F(ParserTest, IfElsifElseStmt) {
-        llvm::StringRef str = ("namespace std\n"
+        llvm::StringRef str = (
                          "void func(int a, int b) {\n"
                          "  if (a == 1) {"
                          "    return"
@@ -966,12 +961,12 @@ namespace {
                          "    b = 2"
                          "  }"
                          "}\n");
-        ASTNode *AST = Parse("IfElsifElseStmt", str);
+        ASTNode *Node = Parse("IfElsifElseStmt", str);
 
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *AST->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
+        ASTFunction *F = *Node->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
         const ASTBlock *Body = F->getBody();
 
         // If
@@ -998,22 +993,22 @@ namespace {
         EXPECT_EQ(ElseBlock->getBlockKind(), ASTBlockKind::BLOCK_STMT_ELSE);
         EXPECT_EQ(((ASTVarAssign *)ElseBlock->getContent()[0])->getVarRef()->getName(), "b");
 
-        delete AST;
+        delete Node;
     }
 
     TEST_F(ParserTest, IfElsifElseInlineStmt) {
-        llvm::StringRef str = ("namespace std\n"
+        llvm::StringRef str = (
                          "void func(int a) {\n"
                          "  if (a == 1) return"
                          "  elsif a == 2 a = 1"
                          "  else a = 2"
                          "}\n");
-        ASTNode *AST = Parse("IfElsifElseInlineStmt", str);
+        ASTNode *Node = Parse("IfElsifElseInlineStmt", str);
 
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *AST->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
+        ASTFunction *F = *Node->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
         const ASTBlock *Body = F->getBody();
 
         // if
@@ -1041,26 +1036,26 @@ namespace {
         EXPECT_EQ(ElseBlock->getBlockKind(), ASTBlockKind::BLOCK_STMT_ELSE);
         EXPECT_EQ(((ASTVarAssign *) ElseBlock->getContent()[0])->getVarRef()->getName(), "a");
 
-        delete AST;
+        delete Node;
     }
 
     TEST_F(ParserTest, SwitchCaseDefaultStmt) {
-        llvm::StringRef str = ("namespace std\n"
-                         "private void func(int a) {\n"
-                         "  switch (a) {"
-                         "    case 1:"
-                         "      break"
-                         "    case 2:"
-                         "    default:"
-                         "      return"
-                         "  }"
-                         "}\n");
-        ASTNode *AST = Parse("SwitchCaseDefaultStmt", str);
+        llvm::StringRef str = (
+                "void func(int a) {\n"
+                "  switch (a) {"
+                "    case 1:"
+                "      break"
+                "    case 2:"
+                "    default:"
+                "      return"
+                "  }"
+                "}\n");
+        ASTNode *Node = Parse("SwitchCaseDefaultStmt", str);
 
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *AST->getFunctions().begin()->getValue().begin()->second.begin();
+        ASTFunction *F = *Node->getFunctions().begin()->getValue().begin()->second.begin();
         const ASTBlock *Body = F->getBody();
 
         ASTSwitchBlock *SwitchBlock = (ASTSwitchBlock *) Body->getContent()[0];
@@ -1072,21 +1067,21 @@ namespace {
         EXPECT_EQ(SwitchBlock->getDefault()->getBlockKind(), ASTBlockKind::BLOCK_STMT_DEFAULT);
         EXPECT_EQ((SwitchBlock->getDefault()->getContent()[0])->getKind(), StmtKind::STMT_RETURN);
 
-        delete AST;
+        delete Node;
     }
 
     TEST_F(ParserTest, ForStmt) {
-        llvm::StringRef str = ("namespace std\n"
+        llvm::StringRef str = (
                          "private void func(int a) {\n"
                          "  for int b = 1, int c = 2; b < 10; b++, --c {"
                          "  }"
                          "}\n");
-        ASTNode *AST = Parse("ForStmt", str);
+        ASTNode *Node = Parse("ForStmt", str);
 
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *AST->getFunctions().begin()->getValue().begin()->second.begin();
+        ASTFunction *F = *Node->getFunctions().begin()->getValue().begin()->second.begin();
         const ASTBlock *Body = F->getBody();
         ASTForBlock *ForBlock = (ASTForBlock *) Body->getContent()[0];
         EXPECT_EQ(ForBlock->getBlockKind(), ASTBlockKind::BLOCK_STMT_FOR);
@@ -1114,37 +1109,52 @@ namespace {
 
         EXPECT_TRUE(ForBlock->getLoop()->isEmpty());
 
-        delete AST;
+        delete Node;
     }
 
     TEST_F(ParserTest, WhileStmt) {
-        llvm::StringRef str = ("namespace std\n"
-                         "private void func(int a) {\n"
-                         "  while (a==1) {}"
-                         "  while {}"
-                         "}\n");
-        ASTNode *AST = Parse("WhileStmt", str);
+        llvm::StringRef str = (
+                "void func(int a) {\n"
+                "  while (a==1) {"
+                "    a++"
+                "  }\n"
+                "}\n");
+        ASTNode *Node = Parse("WhileStmt", str);
 
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *AST->getFunctions().begin()->getValue().begin()->second.begin();
+        ASTFunction *F = *Node->getFunctions().begin()->getValue().begin()->second.begin();
         const ASTBlock *Body = F->getBody();
         ASTWhileBlock *WhileBlock = (ASTWhileBlock *) Body->getContent()[0];
         EXPECT_EQ(WhileBlock->getBlockKind(), ASTBlockKind::BLOCK_STMT_WHILE);
         EXPECT_FALSE(WhileBlock->getCondition() == nullptr);
-        EXPECT_TRUE(WhileBlock->isEmpty());
+        EXPECT_FALSE(WhileBlock->isEmpty());
 
         const ASTBinaryGroupExpr *Cond = (ASTBinaryGroupExpr *) WhileBlock->getCondition();
         EXPECT_EQ(((ASTVarRefExpr *) Cond->getFirst())->getVarRef()->getName(), "a");
         EXPECT_EQ(Cond->getOperatorKind(), COMP_EQ);
         EXPECT_EQ(((ASTValueExpr *) Cond->getSecond())->getValue().str(), "1");
 
-        ASTWhileBlock *WhileBlockEmpty = (ASTWhileBlock *) Body->getContent()[1];
-        EXPECT_EQ(WhileBlockEmpty->getBlockKind(), ASTBlockKind::BLOCK_STMT_WHILE);
-        EXPECT_EQ(WhileBlockEmpty->getCondition()->getExprKind(), EXPR_EMPTY);
-        EXPECT_TRUE(WhileBlockEmpty->isEmpty());
+        delete Node;
+    }
 
-        delete AST;
+    TEST_F(ParserTest, WhileValueStmt) {
+        llvm::StringRef str = ("void func(int a) {\n"
+                               "  while 1 a++\n"
+                               "}\n");
+        ASTNode *Node = Parse("WhileValueStmt", str);
+
+        ASSERT_TRUE(isSuccess());
+
+        // Get Body
+        ASTFunction *F = *Node->getFunctions().begin()->getValue().begin()->second.begin();
+        const ASTBlock *Body = F->getBody();
+        ASTWhileBlock *WhileBlock = (ASTWhileBlock *) Body->getContent()[0];
+        EXPECT_EQ(WhileBlock->getBlockKind(), ASTBlockKind::BLOCK_STMT_WHILE);
+        EXPECT_EQ(((ASTValueExpr *) WhileBlock->getCondition())->getValue().str(), "1");
+        EXPECT_FALSE(WhileBlock->isEmpty());
+
+        delete Node;
     }
 }

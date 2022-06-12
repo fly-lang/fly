@@ -29,6 +29,11 @@ namespace fly {
     class ASTVarRef;
     class ASTExpr;
     class ASTType;
+    class ASTIfBlock;
+    class ASTSwitchBlock;
+    class ASTWhileBlock;
+    class ASTForBlock;
+
 
     class Sema {
 
@@ -55,19 +60,25 @@ namespace fly {
 
         bool CheckUndef(ASTBlock *Block, ASTVarRef *VarRef);
 
-        bool CheckUndef(ASTFunctionCall *Call);
-
         static bool CheckOnCloseBlock(ASTBlock *Block); // TODO
 
         bool CheckImport(ASTNode *Node, ASTImport *Import);
 
-        bool Check(ASTExpr *Expr);
+        bool CheckExpr(ASTExpr *Expr);
 
         bool isEquals(ASTParam *Param1, ASTParam *Param2);
 
         bool isTypeDerivate(ASTType *T1, ASTType *T2);
 
-        bool VerifyValueType(ASTValueExpr *ValueExpr, ASTType *Type);
+        bool CheckValueType(ASTValueExpr *ValueExpr, ASTType *Type);
+
+        bool CheckIfBlock(ASTIfBlock *Block);
+
+        bool CheckSwitchBlock(ASTSwitchBlock *Block);
+
+        bool CheckWhileBlock(ASTWhileBlock *Block);
+
+        bool CheckForBlock(ASTForBlock *Block);
     };
 
 }  // end namespace fly

@@ -739,6 +739,10 @@ bool Parser::ParseWhileStmt(ASTBlock *Block) {
 
     // Create AST While Block
     ASTExpr *Cond = ParseExpr();
+    if (!Cond) { // Error: empty condition expr
+        Diag(diag::err_parse_empty_while_expr);
+        return false;
+    }
 
     ASTWhileBlock *WhileBlock = Builder.CreateWhileBlock(Loc, Cond);
 

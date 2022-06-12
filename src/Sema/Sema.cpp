@@ -104,7 +104,7 @@ bool Sema::CheckImport(ASTNode *Node, ASTImport *Import) {
     return true;
 }
 
-bool Sema::Check(ASTExpr *Expr) {
+bool Sema::CheckExpr(ASTExpr *Expr) {
     if (!Expr->getType()) {
         Diag(Expr->getLocation(), diag::err_expr_type_miss);
         return false;
@@ -129,7 +129,7 @@ bool Sema::isTypeDerivate(ASTType *T1, ASTType *T2) {
     return true;
 }
 
-bool Sema::VerifyValueType(ASTValueExpr *ValueExpr, ASTType *Type) {
+bool Sema::CheckValueType(ASTValueExpr *ValueExpr, ASTType *Type) {
     if (Type->isBool()) {
         return ValueExpr->getValue().getKind() == VALUE_BOOL;
     } else if (Type->isInteger()) {
@@ -144,5 +144,18 @@ bool Sema::VerifyValueType(ASTValueExpr *ValueExpr, ASTType *Type) {
     assert("Unknown Value type");
 }
 
+bool Sema::CheckIfBlock(ASTIfBlock *Block) {
+    return true;
+}
 
+bool Sema::CheckSwitchBlock(ASTSwitchBlock *Block) {
+    return true;
+}
 
+bool Sema::CheckWhileBlock(ASTWhileBlock *Block) {
+    return true;
+}
+
+bool Sema::CheckForBlock(ASTForBlock *Block) {
+    return true;
+}

@@ -330,6 +330,7 @@ DIAG(err_invalid_value, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid v
 DIAG(err_right_paren, CLASS_ERROR, (unsigned)diag::Severity::Error, "unclosed parenthesis", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_syntax_error, CLASS_ERROR, (unsigned)diag::Severity::Error, "syntax error", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_invalid_namespace_id, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid namespace in identifier", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_parse_empty_while_expr, CLASS_ERROR, (unsigned)diag::Severity::Error, "while condition cannot be empty", 0, SFINAE_Suppress, false, true, 0)
 
 DIAG(warn_empty_code, CLASS_WARNING, (unsigned)diag::Severity::Warning, "code empty", 0, SFINAE_Suppress, false, true, 0)
 

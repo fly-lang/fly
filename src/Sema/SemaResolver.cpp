@@ -273,6 +273,31 @@ bool SemaResolver::ResolveBlock(ASTBlock *Block) {
         switch (Stmt->getKind()) {
 
             case STMT_BLOCK:
+                switch (((ASTBlock *) Stmt)->getBlockKind()) {
+
+                    case BLOCK_STMT:
+                        break;
+                    case BLOCK_STMT_IF:
+                        Success &= S.CheckIfBlock((ASTIfBlock *) Stmt);
+                        break;
+                    case BLOCK_STMT_ELSIF:
+                        break;
+                    case BLOCK_STMT_ELSE:
+                        break;
+                    case BLOCK_STMT_SWITCH:
+                        Success &= S.CheckSwitchBlock((ASTSwitchBlock *) Stmt);
+                        break;
+                    case BLOCK_STMT_CASE:
+                        break;
+                    case BLOCK_STMT_DEFAULT:
+                        break;
+                    case BLOCK_STMT_WHILE:
+                        Success &= S.CheckWhileBlock((ASTWhileBlock *) Stmt);
+                        break;
+                    case BLOCK_STMT_FOR:
+                        Success &= S.CheckForBlock((ASTForBlock *) Stmt);
+                        break;
+                }
                 Success &= ResolveBlock((ASTBlock *) Stmt);
                 break;
             case STMT_EXPR:
@@ -515,7 +540,7 @@ bool SemaResolver::ResolveExpr(ASTExpr *Expr) {
                     Expr->Type = Block->Top->getType();
                     break;
             }
-            return S.VerifyValueType((ASTValueExpr *)Expr, Expr->Type);
+            return S.CheckValueType((ASTValueExpr *) Expr, Expr->Type);
         case EXPR_EMPTY:
             return true;
     }
