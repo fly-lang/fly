@@ -18,11 +18,11 @@
 namespace fly {
 
     enum ASTExprKind {
+        EXPR_EMPTY,
         EXPR_VALUE,
         EXPR_REF_VAR,
         EXPR_REF_FUNC,
-        EXPR_GROUP,
-        EXPR_EMPTY
+        EXPR_GROUP
     };
 
     enum ASTExprGroupKind {

@@ -99,7 +99,6 @@ namespace fly {
 
         // Parse Block Statement
         bool ParseBlock(ASTBlock *Block);
-        bool ParseInnerBlock(ASTBlock *Block);
         bool ParseStmt(ASTBlock *Block);
         bool ParseStartParen();
         bool ParseEndParen(bool HasParen);
@@ -133,6 +132,8 @@ namespace fly {
         bool isIdentifier(Optional<Token> &Tok1);
         bool isValue();
         bool isConst();
+        bool isBlockStart();
+        bool isBlockEnd();
 
         // Parse Tokens
         SourceLocation ConsumeToken();

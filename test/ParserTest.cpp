@@ -1063,7 +1063,7 @@ namespace {
         EXPECT_EQ(((ASTValueExpr *) SwitchBlock->getCases()[0]->getExpr())->getValue().str(), "1");
         EXPECT_EQ(SwitchBlock->getCases()[0]->getContent()[0]->getKind(), StmtKind::STMT_BREAK);
         EXPECT_EQ(((ASTValueExpr *) SwitchBlock->getCases()[1]->getExpr())->getValue().str(), "2");
-        EXPECT_TRUE(SwitchBlock->getCases()[1]->getContent().empty());
+        EXPECT_EQ(((ASTExprStmt *) SwitchBlock->getCases()[1]->getContent()[0])->getExpr()->getExprKind(), ASTExprKind::EXPR_EMPTY);
         EXPECT_EQ(SwitchBlock->getDefault()->getBlockKind(), ASTBlockKind::BLOCK_STMT_DEFAULT);
         EXPECT_EQ((SwitchBlock->getDefault()->getContent()[0])->getKind(), StmtKind::STMT_RETURN);
 

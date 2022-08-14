@@ -110,10 +110,8 @@ bool FunctionParser::ParseParam() {
  * @return true on Success or false on Error
  */
 bool FunctionParser::ParseBody() {
-    if (P->Tok.is(tok::l_brace)) {
-        P->ConsumeBrace();
-
-        bool Success = P->ParseInnerBlock(Function->Body) && P->isBraceBalanced();
+    if (P->isBlockStart()) {
+        bool Success = P->ParseBlock(Function->Body) && P->isBraceBalanced();
         P->ClearBlockComment(); // Clean Block comments for not using them for top definition
         return Success;
     }

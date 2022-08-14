@@ -373,45 +373,22 @@ bool Parser::ParseClass(VisibilityKind &Visibility, bool &Constant) {
 }
 
 /**
- * Parse statements not yet contained into braces
- * @param Block
- * @return true on Success or false on Error
- */
-bool Parser::ParseBlock(ASTBlock *Block) {
-    FLY_DEBUG("Parser", "ParseBlock");
-    if (Tok.is(tok::kw_if)) {
-        return ParseIfStmt(Block);
-    }
-    if (Tok.is(tok::kw_switch)) {
-        return ParseSwitchStmt(Block);
-    }
-    if (Tok.is(tok::kw_for)) {
-        return ParseForStmt(Block);
-    }
-    if (Tok.is(tok::kw_while)) {
-        return ParseWhileStmt(Block);
-    }
-
-    return ParseStmt(Block);
-}
-
-/**
  * Parse statements between braces
  * @param Block
  * @return
  */
-bool Parser::ParseInnerBlock(ASTBlock *Block) {
+bool Parser::ParseBlock(ASTBlock *Block) {
+    ConsumeBrace();
+
     // Parse until find a }
+    bool Success = true;
     while (Tok.isNot(tok::r_brace) && Tok.isNot(tok::eof)) {
-        if (!ParseBlock(Block)) {
-            Diag(Tok.getLocation(), diag::err_parse_stmt);
-            return false;
-        }
+        Success &= ParseStmt(Block);
     }
 
-    if (Tok.is(tok::r_brace)) { // Close Brace
+    if (isBlockEnd()) { // Close Brace
         ConsumeBrace();
-        return true;
+        return Success;
     }
 
     Diag(Tok.getLocation(), diag::err_parse_stmt);
@@ -435,15 +412,29 @@ bool Parser::ParseStmt(ASTBlock *Block) {
     FLY_DEBUG("Parser", "ParseStmt");
 
     // Parse keywords
+    if (Tok.is(tok::kw_if)) {
+        return ParseIfStmt(Block);
+    }
+    if (Tok.is(tok::kw_switch)) {
+        return ParseSwitchStmt(Block);
+    }
+    if (Tok.is(tok::kw_for)) {
+        return ParseForStmt(Block);
+    }
+    if (Tok.is(tok::kw_while)) {
+        return ParseWhileStmt(Block);
+    }
     if (Tok.is(tok::kw_return)) { // Parse return
         SourceLocation Loc = ConsumeToken();
         ASTReturn *Return = Builder.CreateReturn(Loc);
         ASTExpr *Expr = ParseExpr(Return);
         return Builder.AddStmt(Block, Return, Expr);
-    } else if (Tok.is(tok::kw_break)) { // Parse break
+    }
+    if (Tok.is(tok::kw_break)) { // Parse break
         ASTBreak *Break = Builder.CreateBreak(ConsumeToken());
         return Builder.AddStmt(Block, Break);
-    } else if (Tok.is(tok::kw_continue)) { // Parse continue
+    }
+    if (Tok.is(tok::kw_continue)) { // Parse continue
         ASTContinue *Continue = Builder.CreateContinue(ConsumeToken());
         return Builder.AddStmt(Block, Continue);
     }
@@ -565,16 +556,15 @@ bool Parser::ParseIfStmt(ASTBlock *Block) {
     // Parse (
     bool hasIfParen = ParseStartParen();
     // Parse the group of expressions into parenthesis
-    ASTExpr *Expr = ParseExpr(); // Parse Expr
+    ASTExpr *IfExpr = ParseExpr(); // Parse Expr
     if (hasIfParen) {
         ParseEndParen(hasIfParen);
     }
-    ASTIfBlock *IfBlock = Builder.CreateIfBlock(Tok.getLocation(), Expr);
+    ASTIfBlock *IfBlock = Builder.CreateIfBlock(Tok.getLocation(), IfExpr);
     // Parse statement between braces for If
     bool Success = false;
-    if (Tok.is(tok::l_brace)) {
-        ConsumeBrace();
-        if (ParseInnerBlock(IfBlock)) {
+    if (isBlockStart()) {
+        if (ParseBlock(IfBlock)) {
             Success = Builder.AddIfBlock(Block, IfBlock);
         }
     } else if (ParseStmt(IfBlock)) { // Only for a single Stmt without braces
@@ -587,14 +577,13 @@ bool Parser::ParseIfStmt(ASTBlock *Block) {
         // Parse (
         bool hasElsifParen = ParseStartParen();
         // Parse the group of expressions into parenthesis
-        ASTExpr *Expr = ParseExpr(); // Parse Expr
+        ASTExpr *ElsifExpr = ParseExpr(); // Parse Expr
         if (hasElsifParen) {
             ParseEndParen(hasElsifParen);
         }
-        ASTElsifBlock *ElsifBlock = Builder.CreateElsifBlock(ElsifLoc, Expr);
-        if (Tok.is(tok::l_brace)) {
-            ConsumeBrace();
-            Success = ParseInnerBlock(ElsifBlock) && Builder.AddElsifBlock(IfBlock, ElsifBlock);
+        ASTElsifBlock *ElsifBlock = Builder.CreateElsifBlock(ElsifLoc, ElsifExpr);
+        if (isBlockStart()) {
+            Success = ParseBlock(ElsifBlock) && Builder.AddElsifBlock(IfBlock, ElsifBlock);
         } else if (ParseStmt(ElsifBlock)) { // Only for a single Stmt without braces
             Success = Builder.AddElsifBlock(IfBlock, ElsifBlock);
         }
@@ -604,9 +593,8 @@ bool Parser::ParseIfStmt(ASTBlock *Block) {
     if (Success && Tok.is(tok::kw_else)) {
         const SourceLocation &ElseLoc = ConsumeToken();
         ASTElseBlock *ElseBlock = Builder.CreateElseBlock(ElseLoc);
-        if (Tok.is(tok::l_brace)) {
-            ConsumeBrace();
-            Success = ParseInnerBlock(ElseBlock) && Builder.AddElseBlock(IfBlock, ElseBlock);
+        if (isBlockStart()) {
+            Success = ParseBlock(ElseBlock) && Builder.AddElseBlock(IfBlock, ElseBlock);
         } else if (ParseStmt(ElseBlock)) { // Only for a single Stmt without braces
             Success = Builder.AddElseBlock(IfBlock, ElseBlock);
         }
@@ -618,15 +606,21 @@ bool Parser::ParseIfStmt(ASTBlock *Block) {
 /**
  * Parse the Switch statement
  *
- * switch ... {"
+ * switch var {
  *  case 1:
  *      ...
  *      break
- *  case 2:
+ *  case 2 {
  *      ...
- *  default:"
  *      ...
- * }"
+ *      }
+ *      break
+ *  case 3:
+ *      break
+ *  case 4
+ *  default
+ *      ...
+ * }
  *
  * @param Block
  * @return true on Success or false on Error
@@ -651,64 +645,59 @@ bool Parser::ParseSwitchStmt(ASTBlock *Block) {
         }
 
         // Init Switch Statement and start parse from brace
+        bool RequireEndBrace = false;
         if (Tok.is(tok::l_brace)) {
             ConsumeBrace();
-            ASTSwitchBlock *SwitchBlock = Builder.CreateSwitchBlock(SwitchLoc, Expr);
-            bool Success = true;
-            // Exit only Statement find a closed brace or EOF
-            while (Success && Tok.isNot(tok::r_brace) && Tok.isNot(tok::eof)) {
+            RequireEndBrace = true;
+        }
 
-                // Parse case keyword
-                if (Tok.is(tok::kw_case)) {
-                    const SourceLocation &CaseLoc = ConsumeToken();
+        ASTSwitchBlock *SwitchBlock = Builder.CreateSwitchBlock(SwitchLoc, Expr);
+        bool Success = true;
+        // Exit only Statement find a closed brace or EOF
+        while (Success && Tok.isNot(tok::r_brace) && Tok.isNot(tok::eof)) {
 
-                    // Parse Expression for different cases
-                    // for a Value  -> case 1:
-                    // for a Var -> case a:
-                    // for a default
-                    ASTExpr * CaseExpr = ParseExpr();
-                    if (Tok.is(tok::colon)) {
-                        ConsumeToken();
+            // Parse case keyword
+            if (Tok.is(tok::kw_case)) {
+                const SourceLocation &CaseLoc = ConsumeToken();
 
-                        // Add Case to Switch statement and parse statement not contained into braces
-                        ASTSwitchCaseBlock *CaseBlock = Builder.CreateSwitchCaseBlock(CaseLoc, CaseExpr);
-                        if (Tok.is(tok::l_brace)) {
-                            ConsumeBrace();
-                            Success = ParseInnerBlock(CaseBlock) && Builder.AddSwitchCaseBlock(SwitchBlock, CaseBlock);
-                        } else if (ParseStmt(CaseBlock)) { // Only for a single Stmt without braces
-                            Success = Builder.AddSwitchCaseBlock(SwitchBlock, CaseBlock);
-                        }
-                    } else {
-                        Diag(diag::err_syntax_error);
-                        return false;
-                    }
-                } else if (Tok.is(tok::kw_default)) {
-                    const SourceLocation &DefaultLoc = ConsumeToken();
-                    ASTSwitchDefaultBlock *DefaultBlock = Builder.CreateSwitchDefaultBlock(DefaultLoc);
+                // Parse Expression for different cases
+                // for a Value  -> case 1:
+                // for a Var -> case a:
+                // for a default
+                ASTExpr * CaseExpr = ParseExpr();
+                ASTSwitchCaseBlock *CaseBlock = Builder.CreateSwitchCaseBlock(CaseLoc, CaseExpr);
+                if (Tok.is(tok::colon)) { // Parse a Block of Stmt
+                    ConsumeToken();
+                    Success = ParseStmt(CaseBlock) && Builder.AddSwitchCaseBlock(SwitchBlock, CaseBlock);
+                } else if (isBlockStart()) { // Parse a single Stmt without braces
+                    ConsumeBrace();
+                    Success = ParseBlock(CaseBlock) && Builder.AddSwitchCaseBlock(SwitchBlock, CaseBlock);
+                } else {
+                    Diag(diag::err_syntax_error);
+                    return false;
+                }
+            } else if (Tok.is(tok::kw_default)) {
+                const SourceLocation &DefaultLoc = ConsumeToken();
+                ASTSwitchDefaultBlock *DefaultBlock = Builder.CreateSwitchDefaultBlock(DefaultLoc);
 
-                    if (Tok.is(tok::colon)) {
-                        ConsumeToken();
-
-                        // Add Default to Switch statement and parse statement not contained into braces
-                        if (Tok.is(tok::l_brace)) {
-                            ConsumeBrace();
-                            Success = ParseInnerBlock(DefaultBlock) && Builder.setSwitchDefaultBlock(SwitchBlock, DefaultBlock);
-                        } else if (ParseStmt(DefaultBlock)) { // Only for a single Stmt without braces
-                            Success = Builder.setSwitchDefaultBlock(SwitchBlock, DefaultBlock);
-                        }
-                    } else {
-                        Diag(diag::err_syntax_error);
-                        return false;
-                    }
+                if (Tok.is(tok::colon)) { // Parse a Block of Stmt
+                    ConsumeToken();
+                    Success = ParseStmt(DefaultBlock) && Builder.setSwitchDefaultBlock(SwitchBlock, DefaultBlock);
+                } else if (isBlockStart()) { // Parse a single Stmt without braces
+                    ConsumeBrace();
+                    Success = ParseBlock(DefaultBlock) && Builder.setSwitchDefaultBlock(SwitchBlock, DefaultBlock);
+                } else {
+                    Diag(diag::err_syntax_error);
+                    return false;
                 }
             }
-
-            // Switch statement is at end of it's time add current Switch to parent statement
-            if (Success && Tok.is(tok::r_brace)) {
-                ConsumeBrace();
-                return Builder.AddSwitchBlock(Block, SwitchBlock);
-            }
         }
+
+        // Switch statement is at end of it's time add current Switch to parent statement
+        if (RequireEndBrace && Tok.is(tok::r_brace)) {
+            ConsumeBrace();
+        }
+        return Success && Builder.AddSwitchBlock(Block, SwitchBlock);
     }
 
     return false;
@@ -752,9 +741,8 @@ bool Parser::ParseWhileStmt(ASTBlock *Block) {
     }
 
     // Parse statement between braces
-    if (Tok.is(tok::l_brace)) {
-        ConsumeBrace();
-        if (ParseInnerBlock(WhileBlock)) {
+    if (isBlockStart()) {
+        if (ParseBlock(WhileBlock)) {
             return Builder.AddWhileBlock(Block, WhileBlock);
         }
     } else {
@@ -820,9 +808,8 @@ bool Parser::ParseForStmt(ASTBlock *Block) {
 
     // Parse statement between braces
     LoopBlock = Builder.CreateBlock(Tok.getLocation());
-    if (Tok.is(tok::l_brace)) {
-        ConsumeBrace();
-        if (Success && ParseInnerBlock(LoopBlock)) {
+    if (isBlockStart()) {
+        if (Success && ParseBlock(LoopBlock)) {
             return Builder.AddForBlock(Block, ForBlock, Condition, PostBlock, LoopBlock);
         }
     } else if (Success && ParseStmt(LoopBlock)) { // Only for a single Stmt without braces
@@ -1222,6 +1209,13 @@ bool Parser::isConst() {
     return false;
 }
 
+bool Parser::isBlockStart() {
+    return Tok.is(tok::l_brace);
+}
+
+bool Parser::isBlockEnd() {
+    return Tok.is(tok::r_brace);
+}
 
 /**
  * ConsumeToken - Consume the current 'peek token' and lex the next one.
