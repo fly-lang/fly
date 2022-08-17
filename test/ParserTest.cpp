@@ -45,6 +45,7 @@ namespace {
 
         virtual ~ParserTest() {
             Diags.getClient()->EndSourceFile();
+            Builder->Destroy();
         }
 
         ASTNode *Parse(std::string FileName, llvm::StringRef Source, bool DoBuild = true) {
@@ -73,7 +74,6 @@ namespace {
 
         // verify AST contains package
         EXPECT_EQ(Node->getNameSpace()->getName(), "std");
-        delete Node;
     }
 
     TEST_F(ParserTest, MultiNamespaceError) {
@@ -94,9 +94,6 @@ namespace {
         ASTImport* Verify = Node2->getImports().lookup("packageA");
         EXPECT_EQ(Verify->getName(), "packageA");
         EXPECT_EQ(Verify->getAlias(), "");
-
-        delete Node1;
-        delete Node2;
     }
 
     TEST_F(ParserTest, SingleImportAlias) {
@@ -110,9 +107,6 @@ namespace {
         ASTImport *Import = Node2->getImports().lookup("std");
         EXPECT_EQ(Import->getName(), "standard");
         EXPECT_EQ(Import->getAlias(), "std");
-
-        delete Node1;
-        delete Node2;
     }
 
     TEST_F(ParserTest,  LineComments) {
@@ -239,7 +233,6 @@ namespace {
         EXPECT_EQ(VerifyJ->getType()->getKind(), TypeKind::TYPE_ULONG);
         EXPECT_EQ(VerifyJ->getName(), "j");
 
-        delete Node;
     }
 
     TEST_F(ParserTest, GlobalConstants) {
@@ -274,7 +267,6 @@ namespace {
         EXPECT_EQ(VerifyC->getName(), "c");
         EXPECT_EQ(((ASTBoolValue &) ((ASTValueExpr *)VerifyC->getExpr())->getValue()).getValue(), false);
 
-        delete Node;
     }
 
     TEST_F(ParserTest, GlobalArray) {
@@ -345,7 +337,6 @@ namespace {
         EXPECT_EQ(((const ASTArrayValue &) eExpr->getValue()).getValues()[1]->str(), "2");
         EXPECT_EQ(((const ASTArrayValue &) eExpr->getValue()).getValues()[2]->str(), "3");
 
-        delete Node;
     }
 
     TEST_F(ParserTest, GlobalChar) {
@@ -402,7 +393,6 @@ namespace {
         EXPECT_EQ(((const ASTArrayValue &) dExpr->getValue()).getValues()[0]->str(), "0");
         EXPECT_EQ(((const ASTArrayValue &) dExpr->getValue()).getValues()[1]->str(), "0");
 
-        delete Node;
     }
 
     TEST_F(ParserTest, GlobalString) {
@@ -438,7 +428,6 @@ namespace {
         EXPECT_EQ(((const ASTArrayValue &) bExpr->getValue()).getValues()[1]->str(), "98");
         EXPECT_EQ(((const ASTArrayValue &) bExpr->getValue()).getValues()[2]->str(), "99");
 
-        delete Node;
     }
 
     TEST_F(ParserTest, FunctionDefaultVoidEmpty) {
@@ -452,8 +441,6 @@ namespace {
         EXPECT_EQ(VerifyFunc->getVisibility(), VisibilityKind::V_DEFAULT);
         const auto &NSFuncs = AST->getContext().getDefaultNameSpace()->getFunctions();
         ASSERT_TRUE(NSFuncs.find(VerifyFunc->getName()) != NSFuncs.end());
-
-        delete AST;
     }
 
     TEST_F(ParserTest, FunctionPrivateReturnParams) {
@@ -497,7 +484,6 @@ namespace {
         EXPECT_EQ(((ASTValueExpr*) Return->getExpr())->getValue().str(), "1");
         EXPECT_EQ(Return->getKind(), StmtKind::STMT_RETURN);
 
-        delete Node;
     }
 
     TEST_F(ParserTest, NullTypeVarReturn) {
@@ -526,7 +512,6 @@ namespace {
         ASTVarRefExpr *RetRef = (ASTVarRefExpr *) Ret->getExpr();
         EXPECT_EQ(RetRef->getVarRef()->getName(), "t");
 
-        delete Node;
     }
 
     TEST_F(ParserTest, UndefLocalVar) {
@@ -618,7 +603,6 @@ namespace {
         EXPECT_EQ(tVar->getType()->getKind(), TypeKind::TYPE_CLASS);
         ASSERT_EQ(tVar->getExpr(), nullptr);
 
-        delete Node;
     }
 
     TEST_F(ParserTest, IntBinaryArithOperation) {
@@ -665,7 +649,6 @@ namespace {
         EXPECT_EQ(G2->getOperatorKind(), BinaryOpKind::ARITH_DIV);
         const ASTVarRefExpr *a = (ASTVarRefExpr *) G2->getSecond();
 
-        delete Node;
     }
 
     TEST_F(ParserTest, FloatBinaryArithOperation) {
@@ -710,7 +693,6 @@ namespace {
         EXPECT_EQ(G2->getOperatorKind(), BinaryOpKind::ARITH_DIV);
         EXPECT_EQ(((ASTVarRefExpr *) G2->getSecond())->getVarRef()->getName(), "b");
 
-        delete Node;
     }
 
     TEST_F(ParserTest, BoolBinaryLogicOperation) {
@@ -755,7 +737,6 @@ namespace {
         EXPECT_EQ(G2->getOperatorKind(), BinaryOpKind::LOGIC_OR);
         EXPECT_EQ(((ASTValueExpr *) G2->getSecond())->getValue().str(), "false");
 
-        delete Node;
     }
 
     TEST_F(ParserTest, LongBinaryArithOperation) {
@@ -802,7 +783,6 @@ namespace {
         EXPECT_EQ(G2->getOperatorKind(), BinaryOpKind::ARITH_SUB);
         EXPECT_EQ(((ASTVarRefExpr *) G2->getSecond())->getVarRef()->getName(), "b");
 
-        delete Node;
     }
 
     TEST_F(ParserTest, CondTernaryOperation) {
@@ -827,7 +807,6 @@ namespace {
         EXPECT_EQ(((ASTValueExpr *) Expr->getSecond())->getValue().str(), "1");
         EXPECT_EQ(((ASTVarRefExpr *) Expr->getThird())->getVarRef()->getName(), "a");
 
-        delete Node;
     }
 
     TEST_F(ParserTest, FunctionCall) {
@@ -887,7 +866,6 @@ namespace {
         EXPECT_EQ(RetExpr->getVarRef()->getName(), "b");
         EXPECT_FALSE(RetExpr->getVarRef()->getDef() == nullptr);
 
-        delete Node;
     }
 
     TEST_F(ParserTest, UnaryExpr) {
@@ -947,7 +925,6 @@ namespace {
         ASTValueExpr *ValueExpr = (ASTValueExpr *) Group->getSecond();
         EXPECT_EQ(ValueExpr->getExprKind(), EXPR_VALUE);
         EXPECT_EQ(ValueExpr->getValue().str(), "1");
-        delete Node;
     }
 
     TEST_F(ParserTest, IfElsifElseStmt) {
@@ -993,7 +970,6 @@ namespace {
         EXPECT_EQ(ElseBlock->getBlockKind(), ASTBlockKind::BLOCK_STMT_ELSE);
         EXPECT_EQ(((ASTVarAssign *)ElseBlock->getContent()[0])->getVarRef()->getName(), "b");
 
-        delete Node;
     }
 
     TEST_F(ParserTest, IfElsifElseInlineStmt) {
@@ -1036,7 +1012,6 @@ namespace {
         EXPECT_EQ(ElseBlock->getBlockKind(), ASTBlockKind::BLOCK_STMT_ELSE);
         EXPECT_EQ(((ASTVarAssign *) ElseBlock->getContent()[0])->getVarRef()->getName(), "a");
 
-        delete Node;
     }
 
     TEST_F(ParserTest, SwitchCaseDefaultStmt) {
@@ -1067,7 +1042,6 @@ namespace {
         EXPECT_EQ(SwitchBlock->getDefault()->getBlockKind(), ASTBlockKind::BLOCK_STMT_DEFAULT);
         EXPECT_EQ((SwitchBlock->getDefault()->getContent()[0])->getKind(), StmtKind::STMT_RETURN);
 
-        delete Node;
     }
 
     TEST_F(ParserTest, ForStmt) {
@@ -1109,7 +1083,6 @@ namespace {
 
         EXPECT_TRUE(ForBlock->getLoop()->isEmpty());
 
-        delete Node;
     }
 
     TEST_F(ParserTest, WhileStmt) {
@@ -1136,7 +1109,6 @@ namespace {
         EXPECT_EQ(Cond->getOperatorKind(), COMP_EQ);
         EXPECT_EQ(((ASTValueExpr *) Cond->getSecond())->getValue().str(), "1");
 
-        delete Node;
     }
 
     TEST_F(ParserTest, WhileValueStmt) {
@@ -1155,6 +1127,5 @@ namespace {
         EXPECT_EQ(((ASTValueExpr *) WhileBlock->getCondition())->getValue().str(), "1");
         EXPECT_FALSE(WhileBlock->isEmpty());
 
-        delete Node;
     }
 }

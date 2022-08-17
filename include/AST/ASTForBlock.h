@@ -25,8 +25,11 @@ namespace fly {
         ASTBlock *Post;
         ASTBlock *Loop;
 
-    public:
+    protected:
+
         ASTForBlock(const SourceLocation &Loc);
+
+    public:
 
         virtual ~ASTForBlock();
 

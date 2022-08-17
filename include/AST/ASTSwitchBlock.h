@@ -34,8 +34,9 @@ namespace fly {
         // The Default Block
         ASTSwitchDefaultBlock *Default = nullptr;
 
-    public:
         ASTSwitchBlock(const SourceLocation &Loc, ASTExpr *Expr);
+
+    public:
 
         ASTExpr *getExpr() const;
 

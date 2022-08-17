@@ -33,7 +33,6 @@ FrontendAction::~FrontendAction() {
     FLY_DEBUG("FrontendAction", "~FrontendAction");
     Diags.getClient()->EndSourceFile();
     delete P;
-    delete Node;
     delete CGM;
     delete CGH;
 }

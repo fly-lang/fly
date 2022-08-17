@@ -69,9 +69,11 @@ namespace fly {
         // Contains all declared vars not yet defined with value;
         llvm::StringMap<ASTLocalVar *> UndefVars;
 
-    public:
+    protected:
 
         ASTBlock(const SourceLocation &Loc);
+
+    public:
 
         StmtKind getKind() const override;
 

@@ -10,6 +10,7 @@
 #include "Parser/Parser.h"
 #include "Parser/ClassParser.h"
 #include "AST/ASTClass.h"
+#include "Sema/SemaBuilder.h"
 
 using namespace fly;
 
@@ -27,7 +28,7 @@ ClassParser::ClassParser(Parser *P, VisibilityKind &Visibility, bool &Constant) 
     const SourceLocation Loc = P->Tok.getLocation();
     P->ConsumeToken();
 
-    Class = new ASTClass(Loc, P->Node, Name.str(), Visibility, Constant);
+    Class = P->Builder.CreateClass(P->Node, Loc, Name.str(), Visibility, Constant);
 
     // ParseAttributes() && ParseMethods()
 }

@@ -23,8 +23,9 @@ namespace fly {
 
         ASTExpr *Condition;
 
-    public:
         ASTWhileBlock(const SourceLocation &Loc, ASTExpr *Cond);
+
+    public:
 
         enum ASTBlockKind getBlockKind() const override;
 

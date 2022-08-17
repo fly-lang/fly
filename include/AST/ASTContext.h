@@ -48,10 +48,11 @@ namespace fly {
         // All Files: <Name, ASTImport>
         llvm::StringMap<ASTImport *> ExternalImports; // TODO
 
-    public:
         ASTContext();
 
         ~ASTContext();
+
+    public:
 
         ASTNameSpace *getDefaultNameSpace() const;
 

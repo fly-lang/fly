@@ -64,9 +64,10 @@ namespace fly {
         // Populated during codegen phase
         CodeGenFunction *CodeGen = nullptr;
 
-    public:
         ASTFunction(const SourceLocation &Loc, ASTNode *Node, ASTType *ReturnType, const std::string &Name,
                     VisibilityKind Visibility);
+
+    public:
 
         ASTType *getType() const;
 
@@ -85,8 +86,6 @@ namespace fly {
         bool isVarArg();
 
         std::string str() const;
-
-        bool operator==(const ASTFunction &F) const;
     };
 
     /**
@@ -96,10 +95,13 @@ namespace fly {
      */
     class ASTReturn : public ASTExprStmt {
 
+        friend class SemaBuilder;
+
         StmtKind Kind = StmtKind::STMT_RETURN;
 
-    public:
         ASTReturn(const SourceLocation &Loc);
+
+    public:
 
         StmtKind getKind() const override;
 

@@ -20,10 +20,13 @@ namespace fly {
         friend class SemaResolver;
         friend class SemaBuilder;
 
+    protected:
+
         ASTExpr *Expr = nullptr;
 
-    public:
         ASTExprStmt(const SourceLocation &Loc);
+
+    public:
 
         StmtKind getKind() const override;
 

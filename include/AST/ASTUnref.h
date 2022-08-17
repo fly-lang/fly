@@ -36,8 +36,9 @@ namespace fly {
 
         ASTVarRef &VarRef;
 
-    public:
         ASTUnrefGlobalVar(ASTNode *Node, ASTVarRef &VarRef);
+
+    public:
 
         ASTVarRef &getVarRef();
 
@@ -48,8 +49,9 @@ namespace fly {
 
         ASTFunctionCall *Call;
 
-    public:
         ASTUnrefFunctionCall(ASTNode *Node, ASTFunctionCall *Call);
+
+    public:
 
         ASTFunctionCall *getCall();
 

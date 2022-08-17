@@ -74,8 +74,8 @@ bool FunctionParser::ParseParam() {
         P->ConsumeToken();
 
         ASTParam *Param = P->Builder.CreateParam(IdLoc, Type, Name.str(), Const);
-        ASTExpr *Expr = nullptr;
 
+        ASTExpr *Expr;
         // Parse assignment =
         if (P->Tok.is(tok::equal)) {
             P->ConsumeToken();
@@ -85,9 +85,11 @@ bool FunctionParser::ParseParam() {
                 ASTValue *Val = P->ParseValue();
                 Expr = P->Builder.CreateExpr(Param, Val);
             }
+        } else {
+            Expr = P->Builder.CreateExpr(); // ASTEmptyExpr
         }
 
-        if (Success && P->Builder.AddFunctionParam(Function, Param, Expr)) {
+        if (Success && P->Builder.AddExpr(Param, Expr) && P->Builder.AddFunctionParam(Function, Param)) {
 
             if (P->Tok.is(tok::comma)) {
                 P->ConsumeToken();

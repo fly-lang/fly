@@ -10,6 +10,7 @@
 
 #include "CodeGen/CodeGenModule.h"
 #include "CodeGen/CodeGenExpr.h"
+#include "Sema/SemaBuilder.h"
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTLocalVar.h"
 #include "AST/ASTExpr.h"
@@ -464,7 +465,7 @@ Value *CodeGenExpr::GenBinaryComparison(const ASTExpr *E1, BinaryOpKind Op, cons
 Value *CodeGenExpr::GenBinaryLogic(const ASTExpr *E1, BinaryOpKind Op, const ASTExpr *E2) {
     FLY_DEBUG("CodeGenExpr", "GenBinaryLogic");
     llvm::Value *V1 = GenValue(E1);
-    ASTBoolType *BoolType = new ASTBoolType(SourceLocation());
+    ASTBoolType *BoolType = SemaBuilder::CreateBoolType(SourceLocation());
     V1 = Convert(V1, E1->getType(), BoolType);
     BasicBlock *FromBB = CGM->Builder->GetInsertBlock();
 
@@ -522,7 +523,7 @@ llvm::Value *CodeGenExpr::GenTernary(ASTTernaryGroupExpr *Expr) {
     assert(Expr->getSecond() && "Second Expr is empty");
     assert(Expr->getThird() && "Third Expr is empty");
 
-    ASTBoolType * BoolType = new ASTBoolType(SourceLocation());
+    ASTBoolType * BoolType = SemaBuilder::CreateBoolType(SourceLocation());
     llvm::Value *Cond = GenValue(Expr->getFirst());
 
     // Create Blocks

@@ -52,12 +52,13 @@ namespace fly {
         // All invoked Calls
         std::unordered_set<ASTFunction *> ExternalFunctions;
 
-    public:
         ASTNode() = delete;
 
         ~ASTNode();
 
         ASTNode(const std::string FileName, ASTContext *Context, bool isHeader);
+
+    public:
 
         CodeGenModule *getCodeGen() const;
 

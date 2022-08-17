@@ -34,8 +34,11 @@ namespace fly {
 
         const ASTValueKind Kind;
 
-    public:
+    protected:
+
         ASTValue(const ASTValueKind Kind, const SourceLocation &Location);
+
+    public:
 
         const SourceLocation &getLocation() const;
 
@@ -49,10 +52,13 @@ namespace fly {
      */
     class ASTBoolValue : public ASTValue {
 
+        friend class SemaBuilder;
+
         bool Value;
 
-    public:
         ASTBoolValue(const SourceLocation &Loc, bool Value = false);
+
+    public:
 
         bool getValue() const;
 
@@ -64,12 +70,15 @@ namespace fly {
      */
     class ASTIntegerValue : public ASTValue {
 
+        friend class SemaBuilder;
+
         uint64_t Value; // the integer value
 
         bool Negative; // true is positive, false is negative
 
-    public:
         ASTIntegerValue(const SourceLocation &Loc, uint64_t Value, bool Negative = false);
+
+    public:
 
         bool isNegative() const;
 
@@ -85,10 +94,13 @@ namespace fly {
      */
     class ASTFloatingValue : public ASTValue {
 
+        friend class SemaBuilder;
+
         std::string Value;
 
-    public:
         ASTFloatingValue(const SourceLocation &Loc, std::string &Val);
+
+    public:
 
         std::string getValue() const;
 
@@ -104,8 +116,9 @@ namespace fly {
 
         std::vector<ASTValue *> Values;
 
-    public:
         ASTArrayValue(const SourceLocation &Loc);
+
+    public:
 
         const std::vector<ASTValue *> &getValues() const;
 
@@ -118,8 +131,11 @@ namespace fly {
 
     class ASTNullValue : public ASTValue {
 
-    public:
+        friend class SemaBuilder;
+
         ASTNullValue(const SourceLocation &Loc);
+
+    public:
 
         std::string str() const override;
     };

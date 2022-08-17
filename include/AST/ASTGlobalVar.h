@@ -28,10 +28,10 @@ namespace fly {
         // Code Generator
         CodeGenGlobalVar *CodeGen;
 
-    public:
-
         ASTGlobalVar(const SourceLocation &Loc, ASTNode *Node, ASTType *Type, const std::string &Name,
                      VisibilityKind Visibility = V_DEFAULT, bool Constant = false);
+
+    public:
 
         ~ASTGlobalVar() = default;
 

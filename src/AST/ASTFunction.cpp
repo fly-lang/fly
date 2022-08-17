@@ -22,8 +22,7 @@ using namespace fly;
 ASTFunction::ASTFunction(const SourceLocation &Loc, ASTNode *Node, ASTType *ReturnType, const std::string &Name,
                          VisibilityKind Visibility) :
         ASTTopDef(Loc, Node, TopDeclKind::DECL_FUNCTION, Visibility),
-        Type(ReturnType), Name(Name), Params(new ASTParams),
-        Body(new ASTBlock(Loc)) {
+        Type(ReturnType), Name(Name) {
 
 }
 

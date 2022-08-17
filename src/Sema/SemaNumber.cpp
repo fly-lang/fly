@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaNumber.h"
+#include "Sema/SemaBuilder.h"
 #include "AST/ASTValue.h"
 #include "Basic/Debug.h"
 
@@ -42,8 +43,8 @@ ASTValue *SemaNumber::fromString(const SourceLocation &Loc, std::string Str) {
     }
 
     if (IsFloatingPoint) {
-        return new ASTFloatingValue(Loc, Str);
+        return SemaBuilder::CreateFloatingValue(Loc, Str);
     }
-    return new ASTIntegerValue(Loc, Integer, IsNegative);
+    return SemaBuilder::CreateIntegerValue(Loc, Integer, IsNegative);
 }
 

@@ -45,6 +45,8 @@ namespace fly {
 
     class ExprParser {
 
+        friend class ASTExpr;
+
         Parser *P;
 
         ASTStmt *Stmt;

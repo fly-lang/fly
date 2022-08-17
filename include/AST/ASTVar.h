@@ -38,14 +38,18 @@ namespace fly {
         ASTVarKind VarKind;
 
     protected:
+
         ASTType *Type;
+
         const std::string Name;
+
         bool Constant = false;
 
         ASTVar(ASTVarKind VarKind, ASTType *Type, const std::string &Name, bool Constant);
 
-    public:
         virtual ~ASTVar();
+
+    public:
 
         ASTVarKind getVarKind();
 

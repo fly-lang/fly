@@ -47,11 +47,11 @@ namespace fly {
         // Classes
         llvm::StringMap<ASTClass *> Classes;
 
-    public:
-
         ASTNodeBase() = delete;
 
         ASTNodeBase(const std::string &Name, ASTContext* Context);
+
+    public:
 
         const std::string& getName();
 

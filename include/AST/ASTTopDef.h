@@ -55,8 +55,11 @@ namespace fly {
 
         std::string Comment;
 
-    public:
+    protected:
+
         ASTTopDef(const SourceLocation &Loc, ASTNode *Node, TopDeclKind Kind, VisibilityKind Visibility);
+
+    public:
 
         ASTNode *getNode();
 
@@ -67,8 +70,6 @@ namespace fly {
         const SourceLocation &getLocation() const;
 
         VisibilityKind getVisibility() const;
-
-        void setVisibility(VisibilityKind V);
 
         TopDeclKind getKind() const;
 

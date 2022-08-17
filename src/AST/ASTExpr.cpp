@@ -14,6 +14,7 @@
 #include "AST/ASTFunction.h"
 #include "AST/ASTFunctionCall.h"
 #include "AST/ASTStmt.h"
+#include "Sema/SemaBuilder.h"
 
 using namespace fly;
 
@@ -174,9 +175,8 @@ ASTType *ASTBinaryGroupExpr::getType() const {
         case BINARY_ARITH:
             return First->getType();
         case BINARY_LOGIC:
-            return new ASTBoolType(SourceLocation());
         case BINARY_COMPARISON:
-            return new ASTBoolType(SourceLocation());
+            return SemaBuilder::CreateBoolType(SourceLocation());
     }
 }
 

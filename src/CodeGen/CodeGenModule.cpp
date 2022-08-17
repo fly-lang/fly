@@ -18,6 +18,7 @@
 #include "CodeGen/CodeGenGlobalVar.h"
 #include "CodeGen/CodeGenLocalVar.h"
 #include "CodeGen/CodeGenExpr.h"
+#include "Sema/SemaBuilder.h"
 #include "AST/ASTImport.h"
 #include "AST/ASTNode.h"
 #include "AST/ASTNameSpace.h"
@@ -373,7 +374,7 @@ void CodeGenModule::GenBlock(llvm::Function *Fn, const std::vector<ASTStmt *> &C
 
 void CodeGenModule::GenIfBlock(llvm::Function *Fn, ASTIfBlock *If) {
     FLY_DEBUG("CodeGenFunction", "GenIfBlock");
-    ASTBoolType * BoolType = new ASTBoolType(SourceLocation()); // used to force bool in condition expr
+    ASTBoolType * BoolType = SemaBuilder::CreateBoolType(SourceLocation()); // used to force bool in condition expr
 
     // If Block
     llvm::Value *IfCond = GenExpr(Fn, BoolType, If->getCondition());
@@ -409,7 +410,7 @@ void CodeGenModule::GenIfBlock(llvm::Function *Fn, ASTIfBlock *If) {
                 }
                 ASTElsifBlock *Elsif = If->getElsifBlocks()[i];
                 Builder->SetInsertPoint(ElsifBB);
-                ASTBoolType * BoolType = new ASTBoolType(SourceLocation());
+                ASTBoolType * BoolType = SemaBuilder::CreateBoolType(SourceLocation());
                 llvm::Value *ElsifCond = GenExpr(Fn, BoolType, Elsif->getCondition());
                 Builder->CreateCondBr(ElsifCond, ElsifThenBB, NextElsifBB);
 
@@ -450,7 +451,7 @@ void CodeGenModule::GenIfBlock(llvm::Function *Fn, ASTIfBlock *If) {
                 }
                 ASTElsifBlock *Elsif = If->getElsifBlocks()[i];
                 Builder->SetInsertPoint(ElsifBB);
-                ASTBoolType * BoolType = new ASTBoolType(SourceLocation());
+                ASTBoolType * BoolType = SemaBuilder::CreateBoolType(SourceLocation());
                 llvm::Value *ElsifCond = GenExpr(Fn, BoolType, Elsif->getCondition());
                 Builder->CreateCondBr(ElsifCond, ElsifThenBB, NextElsifBB);
 
@@ -479,7 +480,7 @@ llvm::BasicBlock *CodeGenModule::GenElsifBlock(llvm::Function *Fn,
         return ElsifBB;
     } else {
         Builder->SetInsertPoint(ElsifBB);
-        ASTBoolType * BoolType = new ASTBoolType(SourceLocation());
+        ASTBoolType * BoolType = SemaBuilder::CreateBoolType(SourceLocation());
         llvm::Value *Cond = GenExpr(Fn, BoolType, Elsif->getCondition());
         llvm::BasicBlock *NextElsifBB = llvm::BasicBlock::Create(LLVMCtx, "elsif", Fn);
         Builder->CreateCondBr(Cond, ElsifBB, NextElsifBB);
@@ -492,7 +493,7 @@ llvm::BasicBlock *CodeGenModule::GenElsifBlock(llvm::Function *Fn,
 
 void CodeGenModule::GenSwitchBlock(llvm::Function *Fn, ASTSwitchBlock *Switch) {
     FLY_DEBUG("CodeGenFunction", "GenSwitchBlock");
-    ASTIntType * IntType = new ASTIntType(SourceLocation()); // used to force int in switch case expr valuation
+    ASTIntType * IntType = SemaBuilder::CreateIntType(SourceLocation()); // used to force int in switch case expr valuation
 
     // Create End Block
     llvm::BasicBlock *EndBR = llvm::BasicBlock::Create(LLVMCtx, "endswitch", Fn);
@@ -537,7 +538,7 @@ void CodeGenModule::GenSwitchBlock(llvm::Function *Fn, ASTSwitchBlock *Switch) {
 
 void CodeGenModule::GenForBlock(llvm::Function *Fn, ASTForBlock *For) {
     FLY_DEBUG("CodeGenFunction", "GenForBlock");
-    ASTBoolType * BoolType = new ASTBoolType(SourceLocation()); // used to force bool in condition expr
+    ASTBoolType * BoolType = SemaBuilder::CreateBoolType(SourceLocation()); // used to force bool in condition expr
 
     // Add to Current Block
     if (!For->isEmpty()) {
@@ -596,7 +597,7 @@ void CodeGenModule::GenForBlock(llvm::Function *Fn, ASTForBlock *For) {
 
 void CodeGenModule::GenWhileBlock(llvm::Function *Fn, ASTWhileBlock *While) {
     FLY_DEBUG("CodeGenFunction", "GenWhileBlock");
-    ASTBoolType * BoolType = new ASTBoolType(SourceLocation()); // used to force bool in while condition expr
+    ASTBoolType * BoolType = SemaBuilder::CreateBoolType(SourceLocation()); // used to force bool in while condition expr
 
     // Create Expression evaluator for While
     llvm::BasicBlock *CondBR = llvm::BasicBlock::Create(LLVMCtx, "whilecond", Fn);

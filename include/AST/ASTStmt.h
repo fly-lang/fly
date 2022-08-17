@@ -43,8 +43,9 @@ namespace fly {
 
         ASTStmt *Parent = nullptr;
 
-    public:
         ASTStmt(const SourceLocation &Loc);
+
+    public:
 
         const SourceLocation &getLocation() const;
 

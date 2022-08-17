@@ -18,7 +18,6 @@
 namespace fly {
 
     class CodeGenModule;
-    class ASTArithOpExpr;
 
     class CodeGenExpr {
 

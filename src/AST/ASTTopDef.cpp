@@ -38,10 +38,6 @@ VisibilityKind ASTTopDef::getVisibility() const {
     return Visibility;
 }
 
-void ASTTopDef::setVisibility(VisibilityKind V) {
-    Visibility = V;
-}
-
 std::string ASTTopDef::str() const {
     return "Visibility=" + std::to_string(Visibility) +
             ", Kind=" + std::to_string(Kind);

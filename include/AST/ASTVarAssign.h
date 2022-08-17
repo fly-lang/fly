@@ -23,11 +23,13 @@ namespace fly {
      */
     class ASTVarAssign : public ASTExprStmt {
 
+        friend class SemaBuilder;
+
         ASTVarRef *VarRef;
 
-    public:
-
         ASTVarAssign(const SourceLocation &Loc, ASTVarRef *VarRef);
+
+    public:
 
         StmtKind getKind() const override;
 

@@ -33,10 +33,11 @@ namespace fly {
 
         bool ExternalLib;
 
-    public:
         ASTNameSpace(std::string NameSpace, ASTContext *Context, bool ExternalLib = false);
 
         ~ASTNameSpace();
+
+    public:
 
         static const std::string DEFAULT;
 

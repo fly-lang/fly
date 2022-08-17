@@ -46,8 +46,9 @@ namespace fly {
 
         CodeGenCall *CGC = nullptr;
 
-    public:
         ASTFunctionCall(const SourceLocation &Loc, const std::string &NameSpace, const std::string &Name);
+
+    public:
 
         const SourceLocation &getLocation() const;
 
@@ -75,9 +76,9 @@ namespace fly {
 
         ASTFunctionCall *Call = nullptr;
 
-    public:
-
         ASTArg(const SourceLocation &Loc);
+
+    public:
 
         StmtKind getKind() const override;
 

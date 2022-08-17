@@ -90,8 +90,11 @@ namespace fly {
      */
     class ASTVoidType : public ASTType {
 
-    public:
+        friend class SemaBuilder;
+
         explicit ASTVoidType(const SourceLocation &Loc);
+
+    public:
 
         std::string str() const override {
             return "void";
@@ -103,8 +106,11 @@ namespace fly {
      */
     class ASTBoolType : public ASTType {
 
-    public:
+        friend class SemaBuilder;
+
         explicit ASTBoolType(const SourceLocation &Loc);
+
+    public:
 
         std::string str() const override {
             return "bool";
@@ -116,8 +122,11 @@ namespace fly {
      */
     class ASTByteType : public ASTType {
 
-    public:
+        friend class SemaBuilder;
+
         explicit ASTByteType(const SourceLocation &Loc);
+
+    public:
 
         std::string str() const override {
             return "byte";
@@ -129,8 +138,11 @@ namespace fly {
      */
     class ASTUShortType : public ASTType {
 
-    public:
+        friend class SemaBuilder;
+
         explicit ASTUShortType(const SourceLocation &Loc);
+
+    public:
 
         std::string str() const override {
             return "ushort";
@@ -142,8 +154,11 @@ namespace fly {
      */
     class ASTShortType : public ASTType {
 
-    public:
+        friend class SemaBuilder;
+
         explicit ASTShortType(const SourceLocation &Loc);
+
+    public:
 
         std::string str() const override {
             return "short";
@@ -155,8 +170,11 @@ namespace fly {
      */
     class ASTUIntType : public ASTType {
 
-    public:
+        friend class SemaBuilder;
+
         explicit ASTUIntType(const SourceLocation &Loc);
+
+    public:
 
         std::string str() const override {
             return "uint";
@@ -168,8 +186,11 @@ namespace fly {
      */
     class ASTIntType : public ASTType {
 
-    public:
+        friend class SemaBuilder;
+
         explicit ASTIntType(const SourceLocation &Loc);
+
+    public:
 
         std::string str() const override {
             return "int";
@@ -181,8 +202,11 @@ namespace fly {
      */
     class ASTULongType : public ASTType {
 
-    public:
+        friend class SemaBuilder;
+
         explicit ASTULongType(const SourceLocation &Loc);
+
+    public:
 
         std::string str() const override {
             return "ulong";
@@ -194,8 +218,11 @@ namespace fly {
      */
     class ASTLongType : public ASTType {
 
-    public:
+        friend class SemaBuilder;
+
         explicit ASTLongType(const SourceLocation &Loc);
+
+    public:
 
         std::string str() const override {
             return "long";
@@ -207,8 +234,11 @@ namespace fly {
      */
     class ASTFloatType : public ASTType {
 
-    public:
+        friend class SemaBuilder;
+
         explicit ASTFloatType(const SourceLocation &Loc);
+
+    public:
 
         std::string str() const override {
             return "float";
@@ -220,8 +250,11 @@ namespace fly {
      */
     class ASTDoubleType : public ASTType {
 
-    public:
+        friend class SemaBuilder;
+
         explicit ASTDoubleType(const SourceLocation &Loc);
+
+    public:
 
         std::string str() const override {
             return "double";
@@ -233,12 +266,15 @@ namespace fly {
      */
     class ASTArrayType : public ASTType {
 
+        friend class SemaBuilder;
+
         ASTExpr *Size;
+
         ASTType *Type;
 
-    public:
-
         ASTArrayType(const SourceLocation &Loc, ASTType *Type, ASTExpr *Size);
+
+    public:
 
         ASTExpr *getSize() const;
 
@@ -255,12 +291,16 @@ namespace fly {
         friend class SemaBuilder;
 
         const TypeKind Kind = TypeKind::TYPE_CLASS;
+
         std::string Name;
+
         std::string NameSpace;
+
         ASTClass *Def;
 
-    public:
         ASTClassType(const SourceLocation &Loc, std::string Name, std::string NameSpace = "");
+
+    public:
 
         const std::string &getName() const;
 

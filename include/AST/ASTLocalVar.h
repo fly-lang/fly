@@ -29,13 +29,14 @@ namespace fly {
         // Statement Kind
         const StmtKind Kind = StmtKind::STMT_VAR_DEFINE;
 
-        ASTExpr *Expr = nullptr;
-
         // LocalVar Code Generator
         CodeGenLocalVar *CodeGen = nullptr;
 
-    public:
+    protected:
+
         ASTLocalVar(const SourceLocation &Loc, ASTType *Type, const std::string &Name, bool Constant);
+
+    public:
 
         StmtKind getKind() const;
 
