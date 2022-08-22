@@ -51,6 +51,10 @@ bool SemaBuilder::Build() {
     return S.Resolver->Resolve();
 }
 
+void SemaBuilder::Destroy() {
+    delete S.Context;
+}
+
 /**
  * Write Diagnostics
  * @param Loc
@@ -128,7 +132,7 @@ ASTImport *SemaBuilder::CreateImport(const SourceLocation &NameLoc, llvm::String
  * @return
  */
 ASTGlobalVar *SemaBuilder::CreateGlobalVar(ASTNode *Node, const SourceLocation Loc, ASTType *Type, const std::string &Name,
-                                            VisibilityKind &Visibility, bool &Constant) {
+                                            VisibilityKind Visibility, bool Constant) {
     return new ASTGlobalVar(Loc, Node, Type, Name, Visibility, Constant);
 }
 
@@ -142,8 +146,10 @@ ASTGlobalVar *SemaBuilder::CreateGlobalVar(ASTNode *Node, const SourceLocation L
  * @return
  */
 ASTFunction *SemaBuilder::CreateFunction(ASTNode *Node, const SourceLocation Loc, ASTType *Type,
-                                         const std::string &Name, VisibilityKind &Visibility) {
+                                         const std::string &Name, VisibilityKind Visibility) {
     ASTFunction *F = new ASTFunction(Loc, Node, Type, Name, Visibility);
+    F->Params = new ASTParams();
+    F->Body = CreateBlock(SourceLocation());
     F->Body->Top = F;
     return F;
 }
@@ -158,51 +164,51 @@ ASTFunction *SemaBuilder::CreateFunction(ASTNode *Node, const SourceLocation Loc
  * @return
  */
 ASTClass *SemaBuilder::CreateClass(ASTNode *Node, const SourceLocation Loc, const std::string &Name,
-                                   VisibilityKind &Visibility, bool &Constant) {
+                                   VisibilityKind &Visibility, bool Constant) {
     return new ASTClass(Loc, Node, Name, Visibility, Constant);
 }
 
-ASTType *SemaBuilder::CreateBoolType(const SourceLocation &Loc) {
+ASTBoolType *SemaBuilder::CreateBoolType(const SourceLocation &Loc) {
     return new ASTBoolType(Loc);
 }
 
-ASTType *SemaBuilder::CreateByteType(const SourceLocation &Loc) {
+ASTByteType *SemaBuilder::CreateByteType(const SourceLocation &Loc) {
     return new ASTByteType(Loc);
 }
 
-ASTType *SemaBuilder::CreateUShortType(const SourceLocation &Loc) {
+ASTUShortType *SemaBuilder::CreateUShortType(const SourceLocation &Loc) {
     return new ASTUShortType(Loc);
 }
 
-ASTType *SemaBuilder::CreateShortType(const SourceLocation &Loc) {
+ASTShortType *SemaBuilder::CreateShortType(const SourceLocation &Loc) {
     return new ASTShortType(Loc);;
 }
 
-ASTType *SemaBuilder::CreateUIntType(const SourceLocation &Loc) {
+ASTUIntType *SemaBuilder::CreateUIntType(const SourceLocation &Loc) {
     return new ASTUIntType(Loc);
 }
 
-ASTType *SemaBuilder::CreateIntType(const SourceLocation &Loc) {
+ASTIntType *SemaBuilder::CreateIntType(const SourceLocation &Loc) {
     return new ASTIntType(Loc);
 }
 
-ASTType *SemaBuilder::CreateULongType(const SourceLocation &Loc) {
+ASTULongType *SemaBuilder::CreateULongType(const SourceLocation &Loc) {
     return new ASTULongType(Loc);
 }
 
-ASTType *SemaBuilder::CreateLongType(const SourceLocation &Loc) {
+ASTLongType *SemaBuilder::CreateLongType(const SourceLocation &Loc) {
     return new ASTLongType(Loc);
 }
 
-ASTType *SemaBuilder::CreateFloatType(const SourceLocation &Loc) {
+ASTFloatType *SemaBuilder::CreateFloatType(const SourceLocation &Loc) {
     return new ASTFloatType(Loc);
 }
 
-ASTType *SemaBuilder::CreateDoubleType(const SourceLocation &Loc) {
+ASTDoubleType *SemaBuilder::CreateDoubleType(const SourceLocation &Loc) {
     return new ASTDoubleType(Loc);
 }
 
-ASTType *SemaBuilder::CreateVoidType(const SourceLocation &Loc) {
+ASTVoidType *SemaBuilder::CreateVoidType(const SourceLocation &Loc) {
     return new ASTVoidType(Loc);
 }
 
@@ -234,6 +240,10 @@ ASTIntegerValue *SemaBuilder::CreateIntegerValue(const SourceLocation &Loc, uint
 
 ASTIntegerValue *SemaBuilder::CreateCharValue(const SourceLocation &Loc, char Val) {
     return CreateIntegerValue(Loc, Val, false);
+}
+
+ASTFloatingValue *SemaBuilder::CreateFloatingValue(const SourceLocation &Loc, std::string Val) {
+    return new ASTFloatingValue(Loc, Val);
 }
 
 ASTFloatingValue *SemaBuilder::CreateFloatingValue(const SourceLocation &Loc, double Val) {
@@ -278,6 +288,15 @@ ASTFunctionCall *SemaBuilder::CreateFunctionCall(ASTStmt *Stmt, const SourceLoca
                       "Name=" << Name << ", NameSpace=" << NameSpace);
     ASTFunctionCall *Call = new ASTFunctionCall(Loc, NameSpace, Name);
     Call->Stmt = Stmt;
+    return Call;
+}
+
+ASTFunctionCall *SemaBuilder::CreateFunctionCall(ASTStmt *Stmt, ASTFunction *Function) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateDefFunctionCall",
+                      "Stmt=" << Stmt << ", Function=" << Function);
+    ASTFunctionCall *Call = new ASTFunctionCall(Stmt->Location, Function->NameSpace->Name, Function->Name);
+    Call->Stmt = Stmt;
+    Call->Def = Function;
     return Call;
 }
 
@@ -345,8 +364,8 @@ ASTVarRef *SemaBuilder::CreateVarRef(ASTGlobalVar *GlobalVar) {
     return VarRef;
 }
 
-ASTEmptyExpr *SemaBuilder::CreateExpr(const SourceLocation &Loc) {
-    return new ASTEmptyExpr(Loc);
+ASTEmptyExpr *SemaBuilder::CreateExpr() {
+    return new ASTEmptyExpr(SourceLocation());
 }
 
 ASTValueExpr *SemaBuilder::CreateExpr(ASTStmt *Stmt, ASTValue *Value) {
@@ -365,6 +384,18 @@ ASTVarRefExpr *SemaBuilder::CreateExpr(ASTStmt *Stmt, ASTVarRef *VarRef) {
     ASTVarRefExpr *VarRefExpr = new ASTVarRefExpr(VarRef);
     VarRefExpr->Stmt = Stmt;
     return VarRefExpr;
+}
+
+ASTUnaryGroupExpr *SemaBuilder::CreateUnaryExpr(const SourceLocation &Loc, UnaryOpKind Kind, UnaryOptionKind OptionKind, ASTVarRefExpr *First) {
+    return new ASTUnaryGroupExpr(Loc, Kind, OptionKind, First);
+}
+
+ASTBinaryGroupExpr *SemaBuilder::CreateBinaryExpr(const SourceLocation &Loc, BinaryOpKind Kind, ASTExpr *First, ASTExpr *Second) {
+    return new ASTBinaryGroupExpr(Loc, Kind, First, Second);
+}
+
+ASTTernaryGroupExpr *SemaBuilder::CreateTernaryExpr(const SourceLocation &Loc, ASTExpr *First, ASTExpr *Second, ASTExpr *Third) {
+    return new ASTTernaryGroupExpr(Loc, First, Second, Third);
 }
 
 ASTBlock* SemaBuilder::CreateBlock(const SourceLocation &Loc) {
@@ -589,13 +620,10 @@ bool SemaBuilder::AddFunction(ASTNode *Node, ASTFunction *Function) {
     assert(0 && "Unknown Function Visibility");
 }
 
-bool SemaBuilder::AddFunctionParam(ASTFunction *Function, ASTParam *Param, ASTExpr *Expr) {
+bool SemaBuilder::AddFunctionParam(ASTFunction *Function, ASTParam *Param) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddExternalFunction",
                       "Function=" << Function->str() << ", Param=" << Param->str());
     // TODO Check duplicate
-    Param->Expr = Expr;
-    if (Expr && Expr->Stmt)
-        Expr->Stmt = Param;
     Function->Params->List.push_back(Param);
     Param->Parent = Function->Body;
 
@@ -655,22 +683,33 @@ bool SemaBuilder::AddExternalFunction(ASTNode *Node, ASTFunction *Call) {
     return Node->ExternalFunctions.insert(Call).second;
 }
 
+bool SemaBuilder::AddExpr(ASTExprStmt *ExprStmt, ASTExpr *Expr) {
+    assert(ExprStmt && "ExprStmt must be defined");
+    FLY_DEBUG_MESSAGE("SemaBuilder", "AddExpr", "ExprStmt=" << ExprStmt->str() << ", Expr=" << Expr->str());
+    ExprStmt->Expr = Expr;
+
+    if (!Expr)
+        return Diag(ExprStmt->getLocation(), diag::err_sema_generic) && false;
+
+    Expr->Stmt = ExprStmt;
+    return true;
+}
+
 /**
  * Add ExprStmt to Content
  * @param ExprStmt
  * @return true if no error occurs, otherwise false
  */
 bool SemaBuilder::AddStmt(ASTBlock *Block, ASTStmt *Stmt) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "AddStmt", "ExprStmt=" << Stmt->str());
+    FLY_DEBUG_MESSAGE("SemaBuilder", "AddStmt", "Stmt=" << Stmt->str());
     Stmt->Parent = Block;
     Block->Content.push_back(Stmt);
     return true;
 }
 
-bool SemaBuilder::AddStmt(ASTBlock *Block, ASTExprStmt *ExprStmt, ASTExpr *Expr) {
-    ExprStmt->Expr = Expr;
-    Expr->Stmt = ExprStmt;
-    return AddStmt(Block, ExprStmt);
+bool SemaBuilder::AddStmt(ASTFunction *Function, ASTStmt *Stmt) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "AddStmt", "Function=" << Function->str() << ", Stmt=" << Stmt->str());
+    return AddStmt(Function->Body, Stmt);
 }
 
 /**
@@ -678,15 +717,12 @@ bool SemaBuilder::AddStmt(ASTBlock *Block, ASTExprStmt *ExprStmt, ASTExpr *Expr)
  * @param LocalVar
  * @return true if no error occurs, otherwise false
  */
-bool SemaBuilder::AddLocalVar(ASTBlock *Block, ASTLocalVar *LocalVar, ASTExpr *Expr) {
+bool SemaBuilder::AddLocalVar(ASTBlock *Block, ASTLocalVar *LocalVar) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddLocalVar", "LocalVar=" << LocalVar->str());
 
     // Check Undefined Var: if LocalVar have an Expression assigned
-    if (!Expr) {  // No Expression: add to Undefined Vars, will be removed on AddLocalVarRef()
+    if (!LocalVar->Expr) {  // No Expression: add to Undefined Vars, will be removed on AddLocalVarRef()
         Block->UndefVars.insert(std::pair<std::string, ASTLocalVar *>(LocalVar->getName(), LocalVar));
-    } else {
-        LocalVar->Expr = Expr;
-        Expr->Stmt = LocalVar;
     }
 
     // Add LocalVar
@@ -695,16 +731,11 @@ bool SemaBuilder::AddLocalVar(ASTBlock *Block, ASTLocalVar *LocalVar, ASTExpr *E
     return Block->LocalVars.insert(std::pair<std::string, ASTLocalVar *>(LocalVar->getName(), LocalVar)).second;
 }
 
-bool SemaBuilder::AddFunctionCallArg(ASTFunctionCall *Call, ASTArg *Arg, ASTExpr *Expr) {
-    if (Expr) {
-        Arg->Index = Call->getArgs().empty() ? 0 : Call->getArgs().size();
-        Arg->Call = Call;
-        Arg->Expr = Expr;
-        Expr->Stmt = Arg;
-        Call->Args.push_back(Arg);
-        return Arg;
-    }
-    return false;
+bool SemaBuilder::AddFunctionCallArg(ASTFunctionCall *Call, ASTArg *Arg) {
+    Arg->Index = Call->getArgs().empty() ? 0 : Call->getArgs().size();
+    Arg->Call = Call;
+    Call->Args.push_back(Arg);
+    return true;
 }
 
 bool SemaBuilder::AddBlock(ASTBlock *Parent, ASTBlock *Block, bool AddToContent) {
@@ -816,12 +847,4 @@ bool SemaBuilder::AddForBlock(ASTBlock *Parent, ASTForBlock *ForBlock, ASTExpr *
     ForBlock->Loop = LoopBlock;
     AddBlock(ForBlock, LoopBlock, false);
     return true;
-}
-
-/**
- *
- * @return
- */
-bool SemaBuilder::OnCloseBlock(ASTBlock *Block) {
-    return false;
 }
