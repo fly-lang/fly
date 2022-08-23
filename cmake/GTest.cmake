@@ -4,33 +4,39 @@ FetchContent_Declare(googletest
         GIT_REPOSITORY https://github.com/google/googletest.git
         GIT_TAG main)
 FetchContent_GetProperties(googletest)
+if(NOT googletest_POPULATED)
+    FetchContent_Populate(googletest)
+    add_subdirectory(${googletest_SOURCE_DIR} ${googletest_BINARY_DIR})
+endif()
 FetchContent_MakeAvailable(googletest)
 
-if (POLICY CMP0048)
-    cmake_policy(SET CMP0048 NEW)
-endif (POLICY CMP0048)
 
-set(GOOGLETEST_VERSION 1.11.0)
-if (CMAKE_VERSION VERSION_GREATER "3.0.2")
-    if(NOT CYGWIN AND NOT MSYS AND NOT ${CMAKE_SYSTEM_NAME} STREQUAL QNX)
-        set(CMAKE_CXX_EXTENSIONS OFF)
-    endif()
-endif()
-
-enable_testing()
-
-include(CMakeDependentOption)
-include(GNUInstallDirs)
-
-#Note that googlemock target already builds googletest
-option(BUILD_GMOCK "Builds the googlemock subproject" ON)
-option(INSTALL_GTEST "Enable installation of googletest. (Projects embedding googletest may want to turn this OFF.)" ON)
-
-if(BUILD_GMOCK)
-    add_subdirectory( googlemock )
-else()
-    add_subdirectory( googletest )
-endif()
+#
+#if (POLICY CMP0048)
+#    cmake_policy(SET CMP0048 NEW)
+#endif (POLICY CMP0048)
+#
+#set(GOOGLETEST_VERSION 1.11.0)
+#if (CMAKE_VERSION VERSION_GREATER "3.0.2")
+#    if(NOT CYGWIN AND NOT MSYS AND NOT ${CMAKE_SYSTEM_NAME} STREQUAL QNX)
+#        set(CMAKE_CXX_EXTENSIONS OFF)
+#    endif()
+#endif()
+#
+#enable_testing()
+#
+#include(CMakeDependentOption)
+#include(GNUInstallDirs)
+#
+##Note that googlemock target already builds googletest
+#option(BUILD_GMOCK "Builds the googlemock subproject" ON)
+#option(INSTALL_GTEST "Enable installation of googletest. (Projects embedding googletest may want to turn this OFF.)" ON)
+#
+#if(BUILD_GMOCK)
+#    add_subdirectory( googlemock )
+#else()
+#    add_subdirectory( googletest )
+#endif()
 
 #
 #set(GTEST_INCLUDE_DIRS ${source_dir}/googletest/include)
