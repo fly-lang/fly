@@ -116,7 +116,7 @@ namespace fly {
         ASTFunctionCall *CreateFunctionCall(ASTStmt *Parent, const SourceLocation &Loc, std::string &Name, std::string &NameSpace);
         ASTFunctionCall *CreateFunctionCall(ASTStmt *Parent, ASTFunction *Function);
         ASTArg *CreateArg(const SourceLocation &Loc);
-        ASTParam *CreateParam(const SourceLocation &Loc, ASTType *Type, const std::string &Name, bool Constant);
+        ASTParam *CreateParam(const SourceLocation &Loc, ASTType *Type, const std::string &Name, bool Constant = false);
         ASTLocalVar *CreateLocalVar(const SourceLocation &Loc, ASTType *Type, const std::string &Name, bool Constant);
         ASTVarAssign *CreateVarAssign(ASTVarRef *VarRef);
         ASTReturn *CreateReturn(const SourceLocation &Loc);

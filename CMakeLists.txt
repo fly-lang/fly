@@ -1,12 +1,16 @@
 cmake_minimum_required(VERSION 3.18.0)
 project(Fly VERSION 0.6.0 LANGUAGES C CXX ASM)
-#set(FLY_VERSION_PHASE alpha) #remove this line for stable release
-if(DEFINED FLY_VERSION_PHASE)
-    set(FLY_VERSION "${PROJECT_VERSION}-${FLY_VERSION_PHASE}")
+#set(FLY_VERSION_POSTFIX alpha) #remove this line for stable release
+if(DEFINED FLY_VERSION_POSTFIX)
+    set(FLY_VERSION "${PROJECT_VERSION}-${FLY_VERSION_POSTFIX}")
 else()
     set(FLY_VERSION "${PROJECT_VERSION}")
 endif()
 
+#Fly config options
+set(FLY_LLVM_VERSION 11.1.0)
+set(FLY_BUG_REPORT_URL "https://github.com/fly-lang/fly/issues")
+set(FLY_SOURCE_DIR ${CMAKE_SOURCE_DIR})
 message(STATUS "Fly Project directory: ${CMAKE_SOURCE_DIR}")
 
 # specify the C++ standard and flags
@@ -20,7 +24,9 @@ endif()
 if (NOT DEFINED CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE DEBUG)
 endif()
-message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
+string(TOUPPER ${CMAKE_BUILD_TYPE} BUILD_TYPE)
+message(STATUS "Build Type: ${BUILD_TYPE}")
+
 if(MSVC)
     set(CMAKE_C_FLAGS_DEBUG "/W4")
     set(CMAKE_CXX_FLAGS_DEBUG "/W4")
@@ -33,18 +39,14 @@ else()
     set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
 endif()
 
-string(TOUPPER ${CMAKE_BUILD_TYPE} BUILD_TYPE)
 message(STATUS "C Flags: ${CMAKE_C_FLAGS_${BUILD_TYPE}}")
 message(STATUS "C++ Flags: ${CMAKE_CXX_FLAGS_${BUILD_TYPE}}")
+
+# Enable LLVM Debug messages
 if (BUILD_TYPE STREQUAL DEBUG)
     set(LLVM_ENABLE_ASSERTIONS "On")
     message(STATUS "LLVM_ENABLE_ASSERTIONS: On")
 endif()
-
-#Fly config options
-set(FLY_LLVM_VERSION 11.1.0)
-set(FLY_BUG_REPORT_URL "https://github.com/fly-lang/fly/issues")
-set(FLY_SOURCE_DIR ${CMAKE_SOURCE_DIR})
 
 ######################################
 # Add LLVM dependency
@@ -60,7 +62,7 @@ if (DEFINED LLVM_BUILD AND LLVM_BUILD)
 
     include(ExternalProject)
     ExternalProject_Add(${FLY_LLVM_PROJECT}
-            GIT_REPOSITORY https://github.com/fly-lang/llvm-project.git
+            GIT_REPOSITORY ${LLVM_GIT_REPO}
             GIT_TAG fly-llvm-${FLY_LLVM_VERSION}
             GIT_PROGRESS true
             GIT_REMOTE_UPDATE_STRATEGY CHECKOUT)
@@ -85,17 +87,20 @@ if (DEFINED LLVM_BUILD AND LLVM_BUILD)
     set(ENABLE_LLVM_GTEST true)
 
 else()
-    # Download precompiled LLVM
+    # Configure LLVM precompiled parameters
     set(LLVM_RELEASES_PREFIX_URL https://github.com/fly-lang/llvm-project/releases/download)
     if (MSVC)
         set(LLVM_RELEASES_URL "${LLVM_RELEASES_PREFIX_URL}/v11.1.0-win-x64/llvm-11.1.0-win-x64.zip")
         set(LLVM_DOWNLOAD_FILE "${CMAKE_BINARY_DIR}/llvm.zip")
+        set(LLVM_HASH 4a15dd48915919923ab1d1dc69a22c2b22808cb1)
     elseif (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
         set(LLVM_RELEASES_URL "${LLVM_RELEASES_PREFIX_URL}/v11.1.0-macos-x86_64/llvm-11.1.0-x86_64-apple-darwin.tar.gz")
         set(LLVM_DOWNLOAD_FILE "${CMAKE_BINARY_DIR}/llvm.tar.gz")
+        set(LLVM_HASH 9c9b5684b5d00ed69be53e3568533fceaea24972)
     elseif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
         set(LLVM_RELEASES_URL "${LLVM_RELEASES_PREFIX_URL}/v11.1.0-linux-x86_64/llvm-11.1.0-x86_64-linux-gnu.tar.gz")
         set(LLVM_DOWNLOAD_FILE "${CMAKE_BINARY_DIR}/llvm.tar.gz")
+        set(LLVM_HASH 1a71e7ae026b6b714b36816fb8cf16adb774dad9)
         execute_process(COMMAND bash "-c" "gcc -print-search-dirs | grep install | sed 's/install: //' | tr -d '\n' | head -c -1"
                 OUTPUT_VARIABLE GCC_LIB_PATH)
         MESSAGE(STATUS "GCC_LIB_PATH: " ${GCC_LIB_PATH})
@@ -103,19 +108,12 @@ else()
         message(FATAL_ERROR "Unknown system, cannot download pre-build llvm packages, run with -DLLVM_BUILD")
     endif()
 
-    message(STATUS "Downloading LLVM precompiled files")
-    file(DOWNLOAD ${LLVM_RELEASES_URL} ${LLVM_DOWNLOAD_FILE})
-    file(ARCHIVE_EXTRACT
-            INPUT ${LLVM_DOWNLOAD_FILE}
-            DESTINATION ${FLY_LLVM_BINARY_DIR})
-    file(REMOVE ${LLVM_DOWNLOAD_FILE})
+    # Add LLVM Precompiled version
+    include(cmake/LLVM-Project.cmake)
 
-    message(STATUS "Downloaded precompiled LLVM from ${LLVM_RELEASES_URL}")
-    find_package(LLD REQUIRED CONFIG PATHS ${FLY_LLVM_BINARY_DIR} NO_DEFAULT_PATH)
-    message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
-    add_definitions(${LLVM_DEFINITIONS})
+    # Configure google-test as a downloadable library.
+    include(cmake/GTest.cmake)
 
-    add_subdirectory(test/googletest)
     # Add Fly Tests
     # Prevent GoogleTest from overriding our compiler/linker options
     # when building with Visual Studio

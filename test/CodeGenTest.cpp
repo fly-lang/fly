@@ -544,70 +544,72 @@ namespace {
                           "}\n");
     }
 
-//    /**
-//     * main(int a, int b, int c) {
-//     *  return 1 + a * b / (c - 2)
-//     * }
-//     */
-//    TEST_F(CodeGenTest, CGGroupExpr) {
-//        ASTNode *Node = CreateNode();
-//
-//        // main()
-//        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main", VisibilityKind::V_DEFAULT);
-//        MainFn->addParam(SourceLoc, IntType, "a");
-//        MainFn->addParam(SourceLoc, IntType, "b");
-//        MainFn->addParam(SourceLoc, IntType, "c");
-//
-//        // Create this expression: 1 + a * b / (c - 2)
-//        // E1 + (E2 * E3) / (E4 - E5)
-//        // E1 + (G2 / G3)
-//        // E1 + G1
-//        ASTValueExpr *E1 = new ASTValueExpr(new ASTIntegerValue(SourceLoc, IntType, 1));
-//        ASTVarRefExpr *E2 = new ASTVarRefExpr(new ASTVarRef(SourceLoc, "a"));
-//        ASTVarRefExpr *E3 = new ASTVarRefExpr(new ASTVarRef(SourceLoc, "b"));
-//        ASTVarRefExpr *E4 = new ASTVarRefExpr(new ASTVarRef(SourceLoc, "c"));
-//        ASTValueExpr *E5 = new ASTValueExpr(new ASTIntegerValue(SourceLoc, IntType, 2));
-//
-//        ASTBinaryGroupExpr *G2 = new ASTBinaryGroupExpr(SourceLoc, ARITH_MUL, E2, E3);
-//        ASTBinaryGroupExpr *G3 = new ASTBinaryGroupExpr(SourceLoc, ARITH_SUB, E4, E5);
-//        ASTBinaryGroupExpr *G1 = new ASTBinaryGroupExpr(SourceLoc, ARITH_DIV, G2, G3);
-//        ASTBinaryGroupExpr *Group = new ASTBinaryGroupExpr(SourceLoc, ARITH_ADD, E1, G1);
-//
-//        MainFn->getBody()->AddReturn(SourceLoc, Group);
-//
-//        // Add to Node
-//        Builder->AddFunction(Node, MainFn);
-//
-//        // Generate Code
-//        CodeGenModule *CGM = Node->getCodeGen();
-//        CodeGenFunction *CGF = CGM->GenFunction(MainFn);
-//        CGF->GenBody();
-//        Function *F = CGF->getFunction();
-//
-//        EXPECT_FALSE(Diags.hasErrorOccurred());
-//        testing::internal::CaptureStdout();
-//        F->print(llvm::outs());
-//        std::string output = testing::internal::GetCapturedStdout();
-//
-//        EXPECT_EQ(output, "define i32 @main(i32 %0, i32 %1, i32 %2) {\n"
-//                          "entry:\n"
-//                          "  %3 = alloca i32, align 4\n"
-//                          "  %4 = alloca i32, align 4\n"
-//                          "  %5 = alloca i32, align 4\n"
-//                          "  store i32 %0, i32* %3, align 4\n"
-//                          "  store i32 %1, i32* %4, align 4\n"
-//                          "  store i32 %2, i32* %5, align 4\n"
-//                          "  %6 = load i32, i32* %3, align 4\n"
-//                          "  %7 = load i32, i32* %4, align 4\n"
-//                          "  %8 = mul i32 %6, %7\n"
-//                          "  %9 = load i32, i32* %5, align 4\n"
-//                          "  %10 = sub i32 %9, 2\n"
-//                          "  %11 = sdiv i32 %8, %10\n"
-//                          "  %12 = add i32 1, %11\n"
-//                          "  ret i32 %12\n"
-//                          "}\n");
-//    }
-//
+    /**
+     * main(int a, int b, int c) {
+     *  return 1 + a * b / (c - 2)
+     * }
+     */
+    TEST_F(CodeGenTest, CGGroupExpr) {
+        ASTNode *Node = CreateNode();
+
+        // main()
+        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main", VisibilityKind::V_DEFAULT);
+        ASTParam *aParam = Builder->CreateParam(SourceLoc, IntType, "a");
+        ASTParam *bParam = Builder->CreateParam(SourceLoc, IntType, "b");
+        ASTParam *cParam = Builder->CreateParam(SourceLoc, IntType, "c");
+
+        ASTReturn *Return = Builder->CreateReturn(SourceLoc);
+        // Create this expression: 1 + a * b / (c - 2)
+        // E1 + (E2 * E3) / (E4 - E5)
+        // E1 + (G2 / G3)
+        // E1 + G1
+        ASTValueExpr *E1 = Builder->CreateExpr(Return, SemaBuilder::CreateIntegerValue(SourceLoc, 1));
+        ASTVarRefExpr *E2 = Builder->CreateExpr(Return, Builder->CreateVarRef(aParam));
+        ASTVarRefExpr *E3 = Builder->CreateExpr(Return, Builder->CreateVarRef(bParam));
+        ASTVarRefExpr *E4 = Builder->CreateExpr(Return, Builder->CreateVarRef(cParam));
+        ASTValueExpr *E5 = Builder->CreateExpr(Return, SemaBuilder::CreateIntegerValue(SourceLoc, 2));
+
+        ASTBinaryGroupExpr *G2 = Builder->CreateBinaryExpr(SourceLoc, ARITH_MUL, E2, E3);
+        ASTBinaryGroupExpr *G3 = Builder->CreateBinaryExpr(SourceLoc, ARITH_SUB, E4, E5);
+        ASTBinaryGroupExpr *G1 = Builder->CreateBinaryExpr(SourceLoc, ARITH_DIV, G2, G3);
+        ASTBinaryGroupExpr *Group = Builder->CreateBinaryExpr(SourceLoc, ARITH_ADD, E1, G1);
+
+        Builder->AddExpr(Return, Group);
+        Builder->AddStmt(MainFn, Return);
+
+        // Add to Node
+        Builder->AddFunction(Node, MainFn);
+
+        // Generate Code
+        CodeGenModule *CGM = Node->getCodeGen();
+        CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+        CGF->GenBody();
+        Function *F = CGF->getFunction();
+
+        EXPECT_FALSE(Diags.hasErrorOccurred());
+        testing::internal::CaptureStdout();
+        F->print(llvm::outs());
+        std::string output = testing::internal::GetCapturedStdout();
+
+        EXPECT_EQ(output, "define i32 @main(i32 %0, i32 %1, i32 %2) {\n"
+                          "entry:\n"
+                          "  %3 = alloca i32, align 4\n"
+                          "  %4 = alloca i32, align 4\n"
+                          "  %5 = alloca i32, align 4\n"
+                          "  store i32 %0, i32* %3, align 4\n"
+                          "  store i32 %1, i32* %4, align 4\n"
+                          "  store i32 %2, i32* %5, align 4\n"
+                          "  %6 = load i32, i32* %3, align 4\n"
+                          "  %7 = load i32, i32* %4, align 4\n"
+                          "  %8 = mul i32 %6, %7\n"
+                          "  %9 = load i32, i32* %5, align 4\n"
+                          "  %10 = sub i32 %9, 2\n"
+                          "  %11 = sdiv i32 %8, %10\n"
+                          "  %12 = add i32 1, %11\n"
+                          "  ret i32 %12\n"
+                          "}\n");
+    }
+
 //    TEST_F(CodeGenTest, CGArithOp) {
 //        ASTNode *Node = CreateNode();
 //

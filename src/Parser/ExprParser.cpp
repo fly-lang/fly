@@ -107,7 +107,7 @@ ASTExpr *ExprParser::ParseAssignExpr(ASTVarRef *VarRef) {
   * @return the ASTExpr
   */
 ASTExpr *ExprParser::ParseExpr(bool IsFirst) {
-    FLY_DEBUG_MESSAGE("Parser", "ParseAssignExpr", "Start=" + std::to_string(IsFirst));
+    FLY_DEBUG_MESSAGE("Parser", "ParseExpr", "IsFirst=" + std::to_string(IsFirst));
 
     // The parsed ASTExpr
     ASTExpr *Expr = nullptr;

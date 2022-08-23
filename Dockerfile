@@ -8,7 +8,7 @@ RUN pip install cmake --upgrade
 
 # Get Sources
 WORKDIR /fly
-COPY fly-src /fly/
+COPY . /fly/
 
 # Start Build
 RUN cmake -E make_directory build
