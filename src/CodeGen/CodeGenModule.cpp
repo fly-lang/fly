@@ -118,7 +118,7 @@ CodeGenGlobalVar *CodeGenModule::GenGlobalVar(ASTGlobalVar* GlobalVar, bool isEx
                       "GlobalVar=" << GlobalVar->str() << ", isExternal=" << isExternal);
     // Check Value
     CodeGenGlobalVar *CGGV = new CodeGenGlobalVar(this, GlobalVar, isExternal);
-    if (CGGV->getPointer() != nullptr) { // Pointer is the GlobalVar, if nullptr Success = false
+    if (CGGV->getPointer()) { // Pointer is the GlobalVar, if is nullptr CodeGenGlobalVar is nullptr
         GlobalVar->setCodeGen(CGGV);
         return CGGV;
     }
@@ -158,7 +158,7 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
 
         // Var Declaration
         case StmtKind::STMT_VAR_DEFINE: {
-            ASTLocalVar *LocalVar = static_cast<ASTLocalVar *>(Stmt);
+            ASTLocalVar *LocalVar = (ASTLocalVar *) Stmt;
             assert(LocalVar->getCodeGen() && "LocalVar is not CodeGen initialized");
             if (LocalVar->getExpr()) {
                 llvm::Value *V = GenExpr(Fn, LocalVar->getType(), LocalVar->getExpr());
@@ -175,12 +175,12 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
             switch (VarAssign->getVarRef()->getDef()->getVarKind()) {
 
                 case VAR_LOCAL: {
-                    ASTLocalVar *LocalVar = static_cast<ASTLocalVar *>(VarAssign->getVarRef()->getDef());
+                    ASTLocalVar *LocalVar = (ASTLocalVar *) VarAssign->getVarRef()->getDef();
                     LocalVar->getCodeGen()->Store(V);
                     break;
                 }
                 case VAR_GLOBAL: {
-                    ASTGlobalVar *GlobalVar = static_cast<ASTGlobalVar *>(VarAssign->getVarRef()->getDef());
+                    ASTGlobalVar *GlobalVar = (ASTGlobalVar *) VarAssign->getVarRef()->getDef();
                     GlobalVar->getCodeGen()->Store(V);
                     break;
                 }
@@ -192,7 +192,7 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
         }
         case STMT_EXPR: {
             ASTExprStmt *ExprStmt = (ASTExprStmt *) Stmt;
-            Value *V = GenExpr(Fn, ExprStmt->getExpr()->getType(), ExprStmt->getExpr());
+            GenExpr(Fn, ExprStmt->getExpr()->getType(), ExprStmt->getExpr());
             break;
         }
         case STMT_BLOCK: {
@@ -225,19 +225,21 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
             break;
         }
         case STMT_BREAK:
+            // TODO
             break;
         case STMT_CONTINUE:
+            // TODO
             break;
         case STMT_RETURN:
             ASTReturn *Return = (ASTReturn *) Stmt;
-            if (Return->getTop()->getType()->getKind() == TYPE_VOID) {
+            if (Return->getParent()->getTop()->getType()->getKind() == TYPE_VOID) {
                 if (Return->getExpr() == nullptr) {
                     Builder->CreateRetVoid();
                 } else {
                     Diag(Return->getExpr()->getLocation(), diag::err_invalid_return_type);
                 }
             } else {
-                llvm::Value *V = GenExpr(Fn, Return->getTop()->getType(), Return->getExpr());
+                llvm::Value *V = GenExpr(Fn, Return->getParent()->getTop()->getType(), Return->getExpr());
                 Builder->CreateRet(V);
             }
             break;
@@ -245,7 +247,7 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
 }
 
 llvm::Type *CodeGenModule::GenType(const ASTType *Type) {
-    FLY_DEBUG("CodeGenFunction", "GenType");
+    FLY_DEBUG("CodeGenModule", "GenType");
     // Check Type
     switch (Type->getKind()) {
 
@@ -287,7 +289,7 @@ llvm::Type *CodeGenModule::GenType(const ASTType *Type) {
 }
 
 llvm::Constant *CodeGenModule::GenDefaultValue(const ASTType *Type, llvm::Type *Ty) {
-    FLY_DEBUG("CodeGenFunction", "GenDefaultValue");
+    FLY_DEBUG("CodeGenModule", "GenDefaultValue");
     assert(Type->getKind() != TYPE_VOID && "No default value for Void Type");
     switch (Type->getKind()) {
         case TYPE_BOOL:
@@ -359,7 +361,7 @@ llvm::Constant *CodeGenModule::GenValue(const ASTType *Type, const ASTValue *Val
 }
 
 llvm::Value *CodeGenModule::GenExpr(llvm::Function *Fn, const ASTType *Type, ASTExpr *Expr) {
-    FLY_DEBUG("CodeGenFunction", "GenExpr");
+    FLY_DEBUG("CodeGenModule", "GenExpr");
     CodeGenExpr *CGExpr = new CodeGenExpr(this, Fn, Expr, Type);
     return CGExpr->getValue();
 }
@@ -373,7 +375,7 @@ void CodeGenModule::GenBlock(llvm::Function *Fn, const std::vector<ASTStmt *> &C
 }
 
 void CodeGenModule::GenIfBlock(llvm::Function *Fn, ASTIfBlock *If) {
-    FLY_DEBUG("CodeGenFunction", "GenIfBlock");
+    FLY_DEBUG("CodeGenModule", "GenIfBlock");
     ASTBoolType * BoolType = SemaBuilder::CreateBoolType(SourceLocation()); // used to force bool in condition expr
 
     // If Block
@@ -473,7 +475,7 @@ void CodeGenModule::GenIfBlock(llvm::Function *Fn, ASTIfBlock *If) {
 llvm::BasicBlock *CodeGenModule::GenElsifBlock(llvm::Function *Fn,
                                                llvm::BasicBlock *ElsifBB,
                                                std::vector<ASTElsifBlock *>::iterator &It) {
-    FLY_DEBUG("CodeGenFunction", "GenElsifBlock");
+    FLY_DEBUG("CodeGenModule", "GenElsifBlock");
     ASTElsifBlock *&Elsif = *It;
     It++;
     if (*It == nullptr) {
@@ -492,7 +494,7 @@ llvm::BasicBlock *CodeGenModule::GenElsifBlock(llvm::Function *Fn,
 }
 
 void CodeGenModule::GenSwitchBlock(llvm::Function *Fn, ASTSwitchBlock *Switch) {
-    FLY_DEBUG("CodeGenFunction", "GenSwitchBlock");
+    FLY_DEBUG("CodeGenModule", "GenSwitchBlock");
     ASTIntType * IntType = SemaBuilder::CreateIntType(SourceLocation()); // used to force int in switch case expr valuation
 
     // Create End Block
@@ -537,7 +539,7 @@ void CodeGenModule::GenSwitchBlock(llvm::Function *Fn, ASTSwitchBlock *Switch) {
 }
 
 void CodeGenModule::GenForBlock(llvm::Function *Fn, ASTForBlock *For) {
-    FLY_DEBUG("CodeGenFunction", "GenForBlock");
+    FLY_DEBUG("CodeGenModule", "GenForBlock");
     ASTBoolType * BoolType = SemaBuilder::CreateBoolType(SourceLocation()); // used to force bool in condition expr
 
     // Add to Current Block
@@ -596,7 +598,7 @@ void CodeGenModule::GenForBlock(llvm::Function *Fn, ASTForBlock *For) {
 }
 
 void CodeGenModule::GenWhileBlock(llvm::Function *Fn, ASTWhileBlock *While) {
-    FLY_DEBUG("CodeGenFunction", "GenWhileBlock");
+    FLY_DEBUG("CodeGenModule", "GenWhileBlock");
     ASTBoolType * BoolType = SemaBuilder::CreateBoolType(SourceLocation()); // used to force bool in while condition expr
 
     // Create Expression evaluator for While

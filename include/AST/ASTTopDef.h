@@ -40,9 +40,9 @@ namespace fly {
         friend class SemaBuilder;
 
     protected:
-        ASTNode *Node;
+        ASTNode *Node = nullptr;
 
-        ASTNameSpace *NameSpace;
+        ASTNameSpace *NameSpace = nullptr;
 
         // File Source Location
         const SourceLocation Location;

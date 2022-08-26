@@ -100,7 +100,7 @@ namespace {
         }
     };
 
-    TEST_F(CodeGenTest, CGDefaultValueGlobalVar) {
+    TEST_F(CodeGenTest, DISABLED_CGDefaultValueGlobalVar) {
         ASTNode *Node = CreateNode();
 
         // default Bool value
@@ -240,7 +240,7 @@ namespace {
         EXPECT_EQ(output, "@k = global [0 x i32] zeroinitializer");
     }
 
-    TEST_F(CodeGenTest, CGValuedGlobalVar) {
+    TEST_F(CodeGenTest, DISABLED_CGValuedGlobalVar) {
         ASTNode *Node = CreateNode();
 
         // a
@@ -382,7 +382,7 @@ namespace {
         EXPECT_EQ(output, "@k = global [2 x i32] zeroinitializer");
     }
 
-    TEST_F(CodeGenTest, CGFunc) {
+    TEST_F(CodeGenTest, DISABLED_CGFunc) {
         ASTNode *Node = CreateNode();
 
         ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main", VisibilityKind::V_DEFAULT);
@@ -440,7 +440,7 @@ namespace {
                           "}\n");
     }
 
-    TEST_F(CodeGenTest, CGFuncUseGlobalVar) {
+    TEST_F(CodeGenTest, DISABLED_CGFuncUseGlobalVar) {
         ASTNode *Node = CreateNode();
 
         ASTFloatingValue *FloatingVal = SemaBuilder::CreateFloatingValue(SourceLoc, true);
@@ -500,7 +500,7 @@ namespace {
                           "}\n");
     }
 
-    TEST_F(CodeGenTest, CGFuncRetFn) {
+    TEST_F(CodeGenTest, DISABLED_CGFuncRetFn) {
         ASTNode *Node = CreateNode();
 
         // main()
@@ -549,7 +549,7 @@ namespace {
      *  return 1 + a * b / (c - 2)
      * }
      */
-    TEST_F(CodeGenTest, CGGroupExpr) {
+    TEST_F(CodeGenTest, DISABLED_CGGroupExpr) {
         ASTNode *Node = CreateNode();
 
         // main()
@@ -615,7 +615,8 @@ namespace {
 //
 //        // main()
 //        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main", VisibilityKind::V_DEFAULT);
-//
+//        ASTBlock *Body = Builder->CreateBlock(SourceLoc);
+
 //        ASTLocalVar *A = new ASTLocalVar(SourceLoc, MainFn->getBody(), IntType, "A");
 //        ASTLocalVar *B = new ASTLocalVar(SourceLoc, MainFn->getBody(), IntType, "B");
 //        ASTLocalVar *C = new ASTLocalVar(SourceLoc, MainFn->getBody(), IntType, "C");

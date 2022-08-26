@@ -5,11 +5,11 @@
 message(STATUS "Adding Fly Tests")
 
 add_executable(fly_test
-        CmdTest.cpp
+#        CmdTest.cpp
         CodeGenTest.cpp
         DriverTest.cpp
         LexerTest.cpp
-        ImportTest.cpp
+#        ImportTest.cpp
         ParserTest.cpp
         TestMain.cpp
         )

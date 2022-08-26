@@ -141,7 +141,9 @@ bool Sema::CheckValueType(ASTValueExpr *ValueExpr, ASTType *Type) {
     } else if (Type->isClass()) {
         return ValueExpr->getValue().getKind() == VALUE_NULL;
     }
+
     assert("Unknown Value type");
+    return false;
 }
 
 bool Sema::CheckIfBlock(ASTIfBlock *Block) {

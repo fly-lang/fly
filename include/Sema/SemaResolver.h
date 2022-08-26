@@ -40,21 +40,11 @@ namespace fly {
 
         bool Resolve();
 
-        bool ResolveImports(ASTNameSpace *NameSpace);
-
-//        bool ResolveGlobalVars(ASTNode *Node);
-//
-//        bool ResolveGlobalVars(ASTNameSpace *NameSpace);
-//
-//        bool ResolveFunctions(ASTNode *Node);
-//
-//        bool ResolveFunctions(ASTNameSpace *NameSpace);
+        bool ResolveImports(ASTNode *Node);
 
         bool ResolveClass(ASTNode *Node);
 
-        bool ResolveClass(ASTNameSpace *NameSpace);
-
-        bool ResolveBodyFunctions(ASTNode *Node);
+        bool ResolveFunctions(ASTNode *Node);
 
         bool ResolveBlock(ASTBlock *Block);
 

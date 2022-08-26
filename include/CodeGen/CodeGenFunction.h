@@ -21,11 +21,11 @@ namespace fly {
 
     class CodeGenFunction {
 
-        CodeGenModule * CGM;
-        ASTFunction *AST;
-        llvm::Function *Fn;
+        CodeGenModule * CGM = nullptr;
+        ASTFunction *AST = nullptr;
+        llvm::Function *Fn = nullptr;
         llvm::StringRef Name;
-        llvm::BasicBlock *Entry;
+        llvm::BasicBlock *Entry = nullptr;
 
     public:
         CodeGenFunction(CodeGenModule *CGM, ASTFunction *AST, bool isExternal = false);

@@ -268,9 +268,9 @@ namespace fly {
 
         friend class SemaBuilder;
 
-        ASTExpr *Size;
+        ASTExpr *Size = nullptr;
 
-        ASTType *Type;
+        ASTType *Type = nullptr;
 
         ASTArrayType(const SourceLocation &Loc, ASTType *Type, ASTExpr *Size);
 
@@ -296,7 +296,7 @@ namespace fly {
 
         std::string NameSpace;
 
-        ASTClass *Def;
+        ASTClass *Def = nullptr;
 
         ASTClassType(const SourceLocation &Loc, std::string Name, std::string NameSpace = "");
 

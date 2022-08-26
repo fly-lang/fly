@@ -22,7 +22,7 @@ namespace fly {
     class ASTUnref {
 
     protected:
-        ASTNode *Node;
+        ASTNode *Node = nullptr;
 
         ASTUnref(ASTNode *Node);
 
@@ -47,7 +47,7 @@ namespace fly {
 
     class ASTUnrefFunctionCall : public ASTUnref {
 
-        ASTFunctionCall *Call;
+        ASTFunctionCall *Call = nullptr;
 
         ASTUnrefFunctionCall(ASTNode *Node, ASTFunctionCall *Call);
 

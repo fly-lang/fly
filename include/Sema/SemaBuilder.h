@@ -139,15 +139,15 @@ namespace fly {
         ASTTernaryGroupExpr *CreateTernaryExpr(const SourceLocation &Loc, ASTExpr *First, ASTExpr *Second, ASTExpr *Third);
 
         // Create Blocks structures
-        ASTBlock* CreateBlock(const SourceLocation &Loc);
-        ASTIfBlock *CreateIfBlock(const SourceLocation &Loc, ASTExpr *Condition);
-        ASTElsifBlock *CreateElsifBlock(const SourceLocation &Loc, ASTExpr *Condition);
-        ASTElseBlock *CreateElseBlock(const SourceLocation &Loc);
-        ASTSwitchBlock *CreateSwitchBlock(const SourceLocation &Loc, ASTExpr *Expr);
-        ASTSwitchCaseBlock *CreateSwitchCaseBlock(const SourceLocation &Loc, ASTExpr *Condition);
-        ASTSwitchDefaultBlock *CreateSwitchDefaultBlock(const SourceLocation &Loc);
-        ASTWhileBlock *CreateWhileBlock(const SourceLocation &Loc, ASTExpr *Condition);
-        ASTForBlock *CreateForBlock(const SourceLocation &Loc, ASTBlock *PostBlock, ASTBlock *LoopBlock);
+        ASTBlock* CreateBlock(ASTBlock *Parent, const SourceLocation &Loc);
+        ASTIfBlock *CreateIfBlock(ASTBlock *Parent, const SourceLocation &Loc, ASTExpr *Condition);
+        ASTElsifBlock *CreateElsifBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc, ASTExpr *Condition);
+        ASTElseBlock *CreateElseBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc);
+        ASTSwitchBlock *CreateSwitchBlock(ASTBlock *Parent, const SourceLocation &Loc, ASTExpr *Expr);
+        ASTSwitchCaseBlock *CreateSwitchCaseBlock(ASTSwitchBlock *SwitchBlock, const SourceLocation &Loc, ASTExpr *Condition);
+        ASTSwitchDefaultBlock *CreateSwitchDefaultBlock(ASTSwitchBlock *SwitchBlock, const SourceLocation &Loc);
+        ASTWhileBlock *CreateWhileBlock(ASTBlock *Parent, const SourceLocation &Loc, ASTExpr *Condition);
+        ASTForBlock *CreateForBlock(ASTBlock *Parent, const SourceLocation &Loc);
 
         // Add Node & NameSpace
         ASTNameSpace *AddNameSpace(const std::string &Name, bool ExternLib = false);
@@ -177,7 +177,7 @@ namespace fly {
         bool AddFunctionCallArg(ASTFunctionCall *Call, ASTArg *Arg);
 
         // Add Blocks structures
-        bool AddBlock(ASTBlock *Parent, ASTBlock *Block, bool AddToContent = true);
+    public:
         bool AddIfBlock(ASTBlock *Block, ASTIfBlock *IfBlock);
         bool AddElsifBlock(ASTIfBlock *IfBlock, ASTElsifBlock *ElsifBlock);
         bool AddElseBlock(ASTIfBlock *IfBlock, ASTElseBlock *ElseBlock);

@@ -37,8 +37,6 @@ namespace fly {
 
         llvm::SmallVector<std::string, 4> OutputFiles;
 
-        std::vector<FrontendAction *> Actions;
-
         /// The frontend timer group.
         std::unique_ptr<llvm::TimerGroup> FrontendTimerGroup;
 
@@ -53,7 +51,7 @@ namespace fly {
 
         bool Execute();
 
-        bool LoadActions(CodeGen &CG, SemaBuilder &Builder);
+        std::vector<FrontendAction *> ParseActions(CodeGen &CG, SemaBuilder &Builder);
 
         void CreateFrontendTimer();
 

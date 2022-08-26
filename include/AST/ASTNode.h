@@ -36,7 +36,7 @@ namespace fly {
         friend class SemaBuilder;
 
         // CodeGen Module
-        CodeGenModule *CGM;
+        CodeGenModule *CGM = nullptr;
 
         // Namespace declaration
         ASTNameSpace *NameSpace = nullptr;

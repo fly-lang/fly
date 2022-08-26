@@ -52,9 +52,17 @@ bool Frontend::Execute() {
 
     // Parse files, create AST, build Semantics checker
     SemaBuilder *Builder = Sema::Builder(Diags);
-    if (LoadActions(CG, *Builder) && Builder->Build()) {
-        for (auto Action: Actions) { // Generate Code/Translation for each Action
-            if (!Action->GenerateCode()) {
+    std::vector<FrontendAction *> Actions = ParseActions(CG, *Builder);
+    if (!Actions.empty() && Builder->Build()) {
+
+        // Generate Code for Top Definitions
+        for (auto Action: Actions) {
+            Action->GenerateTopDef();
+        }
+
+        // Generate Code for Bodies
+        for (auto Action: Actions) {
+            if (!Action->GenerateBodies()) {
                 break;
             }
             if (!Action->HandleTranslationUnit()) {
@@ -115,12 +123,12 @@ bool Frontend::Execute() {
  * @param CG
  * @return
  */
-bool Frontend::LoadActions(CodeGen &CG, SemaBuilder &Builder) {
-    bool Result = true;
+std::vector<FrontendAction *> Frontend::ParseActions(CodeGen &CG, SemaBuilder &Builder) {
+    std::vector<FrontendAction *> Actions;
 
     if (CI.getFrontendOptions().getInputFiles().empty()) {
         Diags.Report(SourceLocation(), diag::note_no_input_process);
-        return false;
+        return Actions;
     }
 
     for (auto &InputFileName : CI.getFrontendOptions().getInputFiles()) {
@@ -132,7 +140,6 @@ bool Frontend::LoadActions(CodeGen &CG, SemaBuilder &Builder) {
                 // Parse Action & add to Actions for next
                 if (Action->Parse()) {
                     Actions.emplace_back(Action);
-                    continue; // goto next
                 }
             }
         } else if (Input->getExt() == FileExt::LIB) {
@@ -143,7 +150,7 @@ bool Frontend::LoadActions(CodeGen &CG, SemaBuilder &Builder) {
                     InputFile *InputHeader = new InputFile(Diags, CI.getSourceManager(), File.str());
                     if (InputHeader->Load()) {
                         FrontendAction *Action = new FrontendAction(CI, CG, Builder, InputHeader);
-                        Result &= Action->ParseHeader();
+                        Action->ParseHeader();
                     }
 
                     // Remove Header File after extraction and parsing
@@ -156,9 +163,8 @@ bool Frontend::LoadActions(CodeGen &CG, SemaBuilder &Builder) {
         } else {
             CI.getDiagnostics().Report(diag::err_fe_input_file_ext) << InputFileName;
         }
-        Result = false;
     }
-    return Result;
+    return Actions;
 }
 
 void Frontend::CreateFrontendTimer() {

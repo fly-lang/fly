@@ -25,5 +25,5 @@ ASTExpr *ASTExprStmt::getExpr() const {
 }
 
 std::string ASTExprStmt::str() const {
-    return "{ Expr=" + Expr->str() + " }";
+    return "{ Expr=" + (Expr ? Expr->str() : "") + " }";
 }

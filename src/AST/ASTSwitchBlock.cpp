@@ -12,7 +12,8 @@
 
 using namespace fly;
 
-ASTSwitchBlock::ASTSwitchBlock(const SourceLocation &Loc, ASTExpr *Expr) : ASTBlock(Loc), Expr(Expr) {
+ASTSwitchBlock::ASTSwitchBlock(ASTBlock *Parent, const SourceLocation &Loc, ASTExpr *Expr) : ASTBlock(Parent, Loc),
+    Expr(Expr) {
 
 }
 
@@ -32,7 +33,8 @@ ASTExpr *ASTSwitchBlock::getExpr() const {
     return Expr;
 }
 
-ASTSwitchCaseBlock::ASTSwitchCaseBlock(const SourceLocation &Loc, ASTExpr *Value) : ASTBlock(Loc), Expr(Value) {
+ASTSwitchCaseBlock::ASTSwitchCaseBlock(ASTSwitchBlock *SwitchBlock, const SourceLocation &Loc, ASTExpr *Value) :
+    ASTBlock(SwitchBlock, Loc), Expr(Value) {
 
 }
 
@@ -44,7 +46,8 @@ ASTExpr *ASTSwitchCaseBlock::getExpr() {
     return Expr;
 }
 
-ASTSwitchDefaultBlock::ASTSwitchDefaultBlock(const SourceLocation &Loc) : ASTBlock(Loc) {
+ASTSwitchDefaultBlock::ASTSwitchDefaultBlock(ASTSwitchBlock *SwitchBlock, const SourceLocation &Loc) :
+    ASTBlock(SwitchBlock, Loc) {
 
 }
 

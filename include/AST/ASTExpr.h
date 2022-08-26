@@ -139,7 +139,7 @@ namespace fly {
 
         friend class SemaBuilder;
 
-        ASTValue *Val;
+        ASTValue *Val = nullptr;
 
         explicit ASTValueExpr(ASTValue *Val);
 
@@ -157,7 +157,7 @@ namespace fly {
 
         friend class SemaBuilder;
 
-        ASTVarRef *Ref;
+        ASTVarRef *Ref = nullptr;
 
         ASTVarRefExpr(ASTVarRef *Ref);
 
@@ -178,7 +178,7 @@ namespace fly {
         friend class SemaBuilder;
         friend class SemaResolver;
 
-        ASTFunctionCall * Call;
+        ASTFunctionCall *Call = nullptr;
 
         ASTFunctionCallExpr(ASTFunctionCall *Call);
 
@@ -226,7 +226,7 @@ namespace fly {
 
         const UnaryOptionKind OptionKind;
 
-        const ASTVarRefExpr *First;
+        const ASTVarRefExpr *First = nullptr;
 
         ASTUnaryGroupExpr(const SourceLocation &Loc, UnaryOpKind Operator, UnaryOptionKind Option, ASTVarRefExpr *First);
 
@@ -255,9 +255,9 @@ namespace fly {
 
         const BinaryOptionKind OptionKind;
 
-        ASTExpr *First;
+        ASTExpr *First = nullptr;
 
-        ASTExpr *Second;
+        ASTExpr *Second = nullptr;
 
         ASTBinaryGroupExpr(const SourceLocation &Loc, BinaryOpKind Operator, ASTExpr *First, ASTExpr *Second);
 
@@ -287,11 +287,11 @@ namespace fly {
         // Only Ternary Condition (if ? than : else)
         const TernaryOpKind OperatorKind = CONDITION;
 
-        ASTExpr *First;
+        ASTExpr *First = nullptr;
 
-        ASTExpr *Second;
+        ASTExpr *Second = nullptr;
 
-        ASTExpr *Third;
+        ASTExpr *Third = nullptr;
 
         ASTTernaryGroupExpr(const SourceLocation &Loc, ASTExpr *First, ASTExpr *Second, ASTExpr *Third);
 

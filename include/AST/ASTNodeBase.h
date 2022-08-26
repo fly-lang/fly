@@ -33,7 +33,7 @@ namespace fly {
 
     protected:
 
-        ASTContext* Context;
+        ASTContext* Context = nullptr;
 
         // Node FileName
         const std::string Name;

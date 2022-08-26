@@ -25,7 +25,7 @@ namespace fly {
 
         friend class SemaBuilder;
 
-        ASTVarRef *VarRef;
+        ASTVarRef *VarRef = nullptr;
 
         ASTVarAssign(const SourceLocation &Loc, ASTVarRef *VarRef);
 

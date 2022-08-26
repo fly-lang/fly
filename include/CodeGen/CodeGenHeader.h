@@ -30,7 +30,7 @@ namespace fly {
 
         std::string Name;
 
-        ASTNameSpace *NameSpace;
+        ASTNameSpace *NameSpace = nullptr;
 
         std::vector<ASTGlobalVar *> GlobalVars;
 

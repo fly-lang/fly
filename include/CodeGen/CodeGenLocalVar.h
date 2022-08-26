@@ -23,8 +23,8 @@ namespace fly {
 
     class CodeGenLocalVar : public CodeGenVar {
 
-        CodeGenModule *CGM;
-        ASTVar *Var;
+        CodeGenModule *CGM = nullptr;
+        ASTVar *Var = nullptr;
         llvm::AllocaInst *AllocaI = nullptr;
         llvm::LoadInst *LoadI = nullptr;
         bool Reload = false;

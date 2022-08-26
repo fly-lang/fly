@@ -52,11 +52,11 @@ namespace {
             InputFile Input(Diags, CI.getSourceManager(), FileName);
             Input.Load(Source);
             Parser *P = new Parser(Input, CI.getSourceManager(), Diags, *Builder);
-            Success = P->Parse();
+            ASTNode *Node = P->Parse();
             if (DoBuild)
-                Success = Success && Builder->Build();
+                Success = Node && Builder->Build();
 
-            return P->getNode();
+            return Node;
         }
 
         bool isSuccess() const {

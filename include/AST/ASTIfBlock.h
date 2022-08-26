@@ -26,7 +26,7 @@ namespace fly {
         enum ASTBlockKind StmtKind = ASTBlockKind::BLOCK_STMT_IF;
 
         // The If expression condition
-        ASTExpr *Condition;
+        ASTExpr *Condition = nullptr;
 
         // The list of Elseif Blocks
         std::vector<ASTElsifBlock *> ElsifBlocks;
@@ -34,7 +34,7 @@ namespace fly {
         // The Else Block
         ASTElseBlock *ElseBlock = nullptr;
 
-        ASTIfBlock(const SourceLocation &Loc, ASTExpr *Condition);
+        ASTIfBlock(ASTBlock *Parent, const SourceLocation &Loc, ASTExpr *Condition);
 
     public:
 
@@ -56,7 +56,7 @@ namespace fly {
         // The Else If expression condition
         ASTExpr *Condition;
 
-        ASTElsifBlock(const SourceLocation &Loc, ASTExpr *Condition);
+        ASTElsifBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc, ASTExpr *Condition);
 
     public:
 
@@ -71,7 +71,7 @@ namespace fly {
 
         enum ASTBlockKind StmtKind = ASTBlockKind::BLOCK_STMT_ELSE;
 
-        ASTElseBlock(const SourceLocation &Loc);
+        ASTElseBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc);
 
     public:
 

@@ -40,7 +40,7 @@ Parser::Parser(const InputFile &Input, SourceManager &SourceMgr, DiagnosticsEngi
  * @param Node 
  * @return true on Success or false on Error
  */
-bool Parser::Parse() {
+ASTNode *Parser::Parse() {
     FLY_DEBUG("Parser", "Parse");
     Tok.startToken();
     Tok.setKind(tok::eof);
@@ -48,14 +48,12 @@ bool Parser::Parse() {
     // Prime the lexer look-ahead.
     ConsumeToken();
 
-    bool Success;
-
     // Parse NameSpace on first
-    if ((Success = ParseNameSpace())) {
+    if (ParseNameSpace()) {
         Node = Builder.CreateNode(Input.getFileName(), NameSpace);
 
         // Parse Imports
-        if ((Success = ParseImports())) {
+        if (Node && ParseImports()) {
 
             // Node empty
             if (Tok.is(tok::eof)) {
@@ -63,14 +61,14 @@ bool Parser::Parse() {
             }
 
             // Parse All
-            while (Tok.isNot(tok::eof) && Success) {
+            while (Tok.isNot(tok::eof)) {
 
                 // if parse "namespace" there is multiple package declarations
                 if (Tok.is(tok::kw_namespace)) {
 
                     // Multiple Package declaration is invalid, you can define only one and on top of declarations
                     Diag(Tok, diag::err_namespace_multi_defined);
-                    return false;
+                    return nullptr;
                 }
 
                 // if parse "import" there is import declaration position error
@@ -78,22 +76,19 @@ bool Parser::Parse() {
 
                     // Import has to be defined after namespace and before all definitions
                     Diag(Tok, diag::err_import_invalid) << Tok.getName();
-                    return false;
+                    return nullptr;
                 }
 
                 // Parse top definitions
-                Success = ParseTopDef();
+                ParseTopDef();
             }
         }
     }
 
-    // Check if error is correctly set
-    assert(Success == !Diags.hasErrorOccurred());
-
-    return Success && Builder.AddNode(Node);
+    return !Diags.hasErrorOccurred() && Node && Builder.AddNode(Node) ? Node : nullptr;
 }
 
-bool Parser::ParseHeader() {
+ASTNode *Parser::ParseHeader() {
     FLY_DEBUG("Parser", "ParseHeader");
     Tok.startToken();
     Tok.setKind(tok::eof);
@@ -108,16 +103,12 @@ bool Parser::ParseHeader() {
         // Parse Top declarations
         while (Tok.isNot(tok::eof)) {
             if (!ParseTopDef()) {
-                return false;
+                return nullptr;
             }
         }
     }
 
-    return !Diags.hasErrorOccurred();
-}
-
-ASTNode *Parser::getNode() const {
-    return Node;
+    return Diags.hasErrorOccurred() ? nullptr : Node;
 }
 
 /**
@@ -560,7 +551,7 @@ bool Parser::ParseIfStmt(ASTBlock *Block) {
     if (hasIfParen) {
         ParseEndParen(hasIfParen);
     }
-    ASTIfBlock *IfBlock = Builder.CreateIfBlock(Tok.getLocation(), IfExpr);
+    ASTIfBlock *IfBlock = Builder.CreateIfBlock(Block, Tok.getLocation(), IfExpr);
     // Parse statement between braces for If
     bool Success = false;
     if (isBlockStart()) {
@@ -581,7 +572,7 @@ bool Parser::ParseIfStmt(ASTBlock *Block) {
         if (hasElsifParen) {
             ParseEndParen(hasElsifParen);
         }
-        ASTElsifBlock *ElsifBlock = Builder.CreateElsifBlock(ElsifLoc, ElsifExpr);
+        ASTElsifBlock *ElsifBlock = Builder.CreateElsifBlock(IfBlock, ElsifLoc, ElsifExpr);
         if (isBlockStart()) {
             Success = ParseBlock(ElsifBlock) && Builder.AddElsifBlock(IfBlock, ElsifBlock);
         } else if (ParseStmt(ElsifBlock)) { // Only for a single Stmt without braces
@@ -592,7 +583,7 @@ bool Parser::ParseIfStmt(ASTBlock *Block) {
     // Add Else
     if (Success && Tok.is(tok::kw_else)) {
         const SourceLocation &ElseLoc = ConsumeToken();
-        ASTElseBlock *ElseBlock = Builder.CreateElseBlock(ElseLoc);
+        ASTElseBlock *ElseBlock = Builder.CreateElseBlock(IfBlock, ElseLoc);
         if (isBlockStart()) {
             Success = ParseBlock(ElseBlock) && Builder.AddElseBlock(IfBlock, ElseBlock);
         } else if (ParseStmt(ElseBlock)) { // Only for a single Stmt without braces
@@ -651,7 +642,7 @@ bool Parser::ParseSwitchStmt(ASTBlock *Block) {
             RequireEndBrace = true;
         }
 
-        ASTSwitchBlock *SwitchBlock = Builder.CreateSwitchBlock(SwitchLoc, Expr);
+        ASTSwitchBlock *SwitchBlock = Builder.CreateSwitchBlock(Block, SwitchLoc, Expr);
         bool Success = true;
         // Exit only Statement find a closed brace or EOF
         while (Success && Tok.isNot(tok::r_brace) && Tok.isNot(tok::eof)) {
@@ -665,7 +656,7 @@ bool Parser::ParseSwitchStmt(ASTBlock *Block) {
                 // for a Var -> case a:
                 // for a default
                 ASTExpr * CaseExpr = ParseExpr();
-                ASTSwitchCaseBlock *CaseBlock = Builder.CreateSwitchCaseBlock(CaseLoc, CaseExpr);
+                ASTSwitchCaseBlock *CaseBlock = Builder.CreateSwitchCaseBlock(SwitchBlock, CaseLoc, CaseExpr);
                 if (Tok.is(tok::colon)) { // Parse a Block of Stmt
                     ConsumeToken();
                     Success = ParseStmt(CaseBlock) && Builder.AddSwitchCaseBlock(SwitchBlock, CaseBlock);
@@ -678,7 +669,7 @@ bool Parser::ParseSwitchStmt(ASTBlock *Block) {
                 }
             } else if (Tok.is(tok::kw_default)) {
                 const SourceLocation &DefaultLoc = ConsumeToken();
-                ASTSwitchDefaultBlock *DefaultBlock = Builder.CreateSwitchDefaultBlock(DefaultLoc);
+                ASTSwitchDefaultBlock *DefaultBlock = Builder.CreateSwitchDefaultBlock(SwitchBlock, DefaultLoc);
 
                 if (Tok.is(tok::colon)) { // Parse a Block of Stmt
                     ConsumeToken();
@@ -733,7 +724,7 @@ bool Parser::ParseWhileStmt(ASTBlock *Block) {
         return false;
     }
 
-    ASTWhileBlock *WhileBlock = Builder.CreateWhileBlock(Loc, Cond);
+    ASTWhileBlock *WhileBlock = Builder.CreateWhileBlock(Block, Loc, Cond);
 
     // Consume Right Parenthesis ) if exists
     if (!ParseEndParen(hasParen)) {
@@ -779,9 +770,9 @@ bool Parser::ParseForStmt(ASTBlock *Block) {
     bool hasParen = ParseStartParen();
 
     // Init For Statement and start parse components
-    ASTBlock *LoopBlock = Builder.CreateBlock(Loc);
-    ASTBlock *PostBlock = Builder.CreateBlock(Loc);
-    ASTForBlock *ForBlock = Builder.CreateForBlock(Loc, PostBlock, LoopBlock);
+    ASTForBlock *ForBlock = Builder.CreateForBlock(Block, Loc);
+    ASTBlock *LoopBlock = Builder.CreateBlock(ForBlock, Loc);
+    ASTBlock *PostBlock = Builder.CreateBlock(ForBlock, Loc);
     ASTExpr *Condition = Builder.CreateExpr(ForBlock, SemaBuilder::CreateBoolValue(Loc, true));
 
     // parse comma separated or single statements
@@ -795,7 +786,7 @@ bool Parser::ParseForStmt(ASTBlock *Block) {
             Condition = ParseExpr(ForBlock);
 
             if (Tok.is(tok::semi)) {
-                PostBlock = Builder.CreateBlock(ConsumeToken());
+                PostBlock = Builder.CreateBlock(Block, ConsumeToken());
                 Success &= ParseForCommaStmt(PostBlock);
             }
         }
@@ -807,7 +798,7 @@ bool Parser::ParseForStmt(ASTBlock *Block) {
     }
 
     // Parse statement between braces
-    LoopBlock = Builder.CreateBlock(Tok.getLocation());
+    LoopBlock = Builder.CreateBlock(Block, Tok.getLocation());
     if (isBlockStart()) {
         if (Success && ParseBlock(LoopBlock)) {
             return Builder.AddForBlock(Block, ForBlock, Condition, PostBlock, LoopBlock);

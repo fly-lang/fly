@@ -55,7 +55,7 @@ ASTValue &ASTValueExpr::getValue() const {
 }
 
 std::string ASTValueExpr::str() const {
-    return "{ Type=" + getType()->str() +
+    return "{ Type=" + (getType() ? getType()->str() : "") +
            ", Kind=" + std::to_string(getExprKind()) +
            ", Value=" + Val->str() +
            " }";

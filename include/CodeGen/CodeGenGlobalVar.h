@@ -25,8 +25,8 @@ namespace fly {
 
     class CodeGenGlobalVar : public CodeGenVar {
 
-        CodeGenModule *CGM;
-        llvm::GlobalVariable *GVar;
+        CodeGenModule *CGM = nullptr;
+        llvm::GlobalVariable *GVar = nullptr;
         llvm::LoadInst *LoadI = nullptr;
         bool needLoad;
 

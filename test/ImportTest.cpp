@@ -45,7 +45,7 @@ namespace {
         }
     };
 
-    TEST_F(ImportTest, MyLib) {
+    TEST_F(ImportTest, DISABLED_MyLib) {
         deleteFile("mylib.fly.o");
         deleteFile("import_mylib.fly.o");
 
@@ -64,7 +64,7 @@ namespace {
         ASSERT_TRUE(utils && "Error opening import_mylib.fly.o");
     }
 
-    TEST_F(ImportTest, MyLibAlias) {
+    TEST_F(ImportTest, DISABLED_MyLibAlias) {
         deleteFile("mylib.fly.o");
         deleteFile("import_mylib_alias.fly.o");
 
@@ -102,7 +102,7 @@ namespace {
         ASSERT_TRUE(utils && "Error opening mylib.fly.h");
     }
 
-    TEST_F(ImportTest, MyLibExternal) {
+    TEST_F(ImportTest, DISABLED_MyLibExternal) {
         //Create mylib.lib
         deleteFile("mylib.lib");
 

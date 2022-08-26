@@ -21,13 +21,13 @@ namespace fly {
 
     class CodeGenExpr {
 
-        CodeGenModule * CGM;
+        CodeGenModule * CGM = nullptr;
 
-        llvm::Value *Val;
+        llvm::Value *Val = nullptr;
 
 //        std::vector<llvm::Value *> PostValues;
 
-        llvm::Function *Fn;
+        llvm::Function *Fn = nullptr;
 
     public:
         CodeGenExpr(CodeGenModule *CGM, llvm::Function *Fn, ASTExpr *Expr, const ASTType *ToType);

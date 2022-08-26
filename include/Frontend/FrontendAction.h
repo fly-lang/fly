@@ -11,6 +11,7 @@
 #define FLY_FRONTENDACTION_H
 
 #include <string>
+#include <vector>
 
 namespace fly {
 
@@ -27,6 +28,8 @@ namespace fly {
     class FileManager;
     class SourceManager;
     class FrontendOptions;
+    class CodeGenGlobalVar;
+    class CodeGenFunction;
 
     class FrontendAction {
 
@@ -54,6 +57,10 @@ namespace fly {
 
         std::string HeaderFile;
 
+        std::vector<CodeGenGlobalVar *> CGGlobalVars;
+
+        std::vector<CodeGenFunction *> CGFunctions;
+
         bool CGDone = false;
 
     public:
@@ -67,7 +74,9 @@ namespace fly {
 
         bool ParseHeader();
 
-        bool GenerateCode();
+        void GenerateTopDef();
+
+        bool GenerateBodies();
 
         bool HandleTranslationUnit();
 

@@ -47,16 +47,16 @@ namespace fly {
         friend class FunctionParser;
 
         // Function return type
-        ASTType *Type;
+        ASTType *Type = nullptr;
 
         // Function Name
         const std::string Name;
 
         // Header contains parameters
-        ASTParams *Params;
+        ASTParams *Params = nullptr;
 
         // Body is the main BlockStmt
-        ASTBlock *Body;
+        ASTBlock *Body = nullptr;
 
         // Contains all vars declared in this Block
         std::vector<ASTLocalVar *> LocalVars;
@@ -108,21 +108,5 @@ namespace fly {
         std::string str() const override;
     };
 }
-
-//namespace std {
-//    using namespace fly;
-//
-//    template <>
-//    struct hash<ASTFunction *> {
-//        // id is returned as hash function
-//        size_t operator()(ASTFunction *F) const noexcept;
-//    };
-//
-//    template <>
-//    struct equal_to<ASTFunction *> {
-//        bool operator()(const ASTFunction *F1, const ASTFunction *F2) const;
-//    };
-//}
-
 
 #endif //FLY_FUNCTION_H

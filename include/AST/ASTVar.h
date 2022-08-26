@@ -39,7 +39,7 @@ namespace fly {
 
     protected:
 
-        ASTType *Type;
+        ASTType *Type = nullptr;
 
         const std::string Name;
 

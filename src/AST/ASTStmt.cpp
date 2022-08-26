@@ -17,14 +17,14 @@ ASTStmt::ASTStmt(const SourceLocation &Loc) : Location(Loc) {
 
 }
 
+ASTStmt::ASTStmt(ASTBlock *Parent, const SourceLocation &Loc) : Parent(Parent), Location(Loc) {
+
+}
+
 const SourceLocation &ASTStmt::getLocation() const {
     return Location;
 }
 
-ASTStmt *ASTStmt::getParent() const {
+ASTBlock *ASTStmt::getParent() const {
     return Parent;
-}
-
-ASTFunction *ASTStmt::getTop() const {
-    return Top;
 }

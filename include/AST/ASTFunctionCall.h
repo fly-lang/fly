@@ -34,7 +34,7 @@ namespace fly {
 
         const SourceLocation Loc;
 
-        ASTStmt *Stmt;
+        ASTStmt *Stmt = nullptr;
 
         const std::string Name;
 
@@ -42,7 +42,7 @@ namespace fly {
 
         std::vector<ASTArg *> Args;
 
-        ASTFunction *Def;
+        ASTFunction *Def = nullptr;
 
         CodeGenCall *CGC = nullptr;
 

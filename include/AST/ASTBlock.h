@@ -71,7 +71,9 @@ namespace fly {
 
     protected:
 
-        ASTBlock(const SourceLocation &Loc);
+        ASTFunction *Top = nullptr;
+
+        ASTBlock(ASTBlock *Parent, const SourceLocation &Loc);
 
     public:
 
@@ -80,6 +82,8 @@ namespace fly {
         virtual enum ASTBlockKind getBlockKind() const {
             return BlockKind;
         };
+
+        ASTFunction *getTop() const;
 
         ASTBlock *getParent() const override;
 

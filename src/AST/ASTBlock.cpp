@@ -27,8 +27,7 @@ using namespace fly;
  * @param Top
  * @param Parent
  */
-ASTBlock::ASTBlock(const SourceLocation &Loc) : ASTStmt(Loc) {
-
+ASTBlock::ASTBlock(ASTBlock *Parent, const SourceLocation &Loc) : ASTStmt(Parent, Loc) {
 }
 
 /**
@@ -37,6 +36,14 @@ ASTBlock::ASTBlock(const SourceLocation &Loc) : ASTStmt(Loc) {
  */
 StmtKind ASTBlock::getKind() const {
     return Kind;
+}
+
+/**
+ * Get the ASTTopDef
+ * @return
+ */
+ASTFunction *ASTBlock::getTop() const {
+    return Top;
 }
 
 ASTBlock *ASTBlock::getParent() const {

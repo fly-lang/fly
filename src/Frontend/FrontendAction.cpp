@@ -49,13 +49,12 @@ bool FrontendAction::Parse() {
 
     // Create Parser and start to parse
     P = new Parser(*Input, SourceMgr, Diags, Builder);
-    Node = P->getNode();
-    bool Success = P->Parse();
-    if (FrontendOpts.CreateHeader) {
+    Node = P->Parse();
+    if (Node && FrontendOpts.CreateHeader) {
         CGH->AddNameSpace(Node->getNameSpace());
     }
 
-    return Success;
+    return Node;
 }
 
 bool FrontendAction::ParseHeader() {
@@ -64,16 +63,12 @@ bool FrontendAction::ParseHeader() {
 
     // Create Parser and start to parse
     P = new Parser(*Input, SourceMgr, Diags, Builder);
-    Node = P->getNode();
-    return P->ParseHeader() && Builder.AddNode(Node);
+    Node = P->ParseHeader();
+    return Node && Builder.AddNode(Node);
 }
 
-bool FrontendAction::GenerateCode() {
-    assert(Node && "Node not built, need a Parse()");
-    assert(!Node->isHeader() && "Cannot generate code from Header");
-    FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode", "Input=" << Input->getFileName());
+void FrontendAction::GenerateTopDef() {
     Diags.getClient()->BeginSourceFile();
-
     // Manage External GlobalVars
     for (const auto &Entry : Node->getExternalGlobalVars()) {
         ASTGlobalVar *GlobalVar = Entry.getValue();
@@ -90,7 +85,6 @@ bool FrontendAction::GenerateCode() {
     }
 
     // Manage GlobalVars
-    std::vector<CodeGenGlobalVar *> CGGlobalVars;
     for (const auto &Entry : Node->getGlobalVars()) {
         ASTGlobalVar *GlobalVar = Entry.getValue();
         FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode",
@@ -103,7 +97,6 @@ bool FrontendAction::GenerateCode() {
     }
 
     // Instantiates all Function CodeGen in order to be set in all Call references
-    std::vector<CodeGenFunction *> CGFunctions;
     for (auto &FuncStrMap : Node->getFunctions()) {
         for (auto &FuncList : FuncStrMap.getValue()) {
             for (auto &Func : FuncList.second) {
@@ -117,9 +110,16 @@ bool FrontendAction::GenerateCode() {
                 }
             }
         }
-        
-
     }
+
+    Diags.getClient()->EndSourceFile();
+}
+
+bool FrontendAction::GenerateBodies() {
+    assert(Node && "Node not built, need a Parse()");
+    assert(!Node->isHeader() && "Cannot generate code from Header");
+    FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode", "Input=" << Input->getFileName());
+    Diags.getClient()->BeginSourceFile();
 
     // Body must be generated after all CodeGen has been set for each TopDecl
     for (auto &CGF : CGFunctions) {
