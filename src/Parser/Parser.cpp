@@ -461,7 +461,7 @@ bool Parser::ParseStmt(ASTBlock *Block) {
         if (isTokenAssign()) {
             ConsumeToken();
             ASTExpr *Expr = ParseExpr(LocalVar);
-            return Expr && Builder.AddExpr(LocalVar, Expr) && Builder.AddLocalVar(Block, LocalVar);
+            return Expr && Builder.AddExpr(LocalVar, Expr) && Builder.AddStmt(Block, LocalVar);
         }
         
         if (isTokenOperator() || isTokenAssignOperator()) {
@@ -469,7 +469,7 @@ bool Parser::ParseStmt(ASTBlock *Block) {
             return false;
         }
         
-        return Builder.AddLocalVar(Block, LocalVar);
+        return Builder.AddStmt(Block, LocalVar);
     } else if (isIdentifier(OptTok2) && (OptTok2 = Lex.findNextToken(OptTok2->getLocation(), SourceMgr))
             && (isTokenAssign(OptTok2) || isTokenAssignOperator(OptTok2))) { // define an ASTVarAssign
 

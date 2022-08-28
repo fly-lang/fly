@@ -36,6 +36,7 @@ namespace fly {
     class ASTFunction;
     class ASTFunctionCall;
     class ASTType;
+    class ASTArrayType;
     class ASTValue;
     class ASTStmt;
     class ASTExpr;
@@ -94,7 +95,9 @@ namespace fly {
 
         CallInst *GenCall(llvm::Function *Fn, ASTFunctionCall *Call);
 
-        Type *GenType(const ASTType *Type);
+        llvm::Type *GenType(const ASTType *Type);
+
+        llvm::ArrayType *GenArrayType(const ASTArrayType *Type);
 
         llvm::Constant *GenDefaultValue(const ASTType *Type, llvm::Type *Ty = nullptr);
 

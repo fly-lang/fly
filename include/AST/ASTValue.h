@@ -18,7 +18,7 @@ namespace fly {
     class ASTType;
     class SourceLocation;
 
-    enum ASTValueKind{
+    enum ASTValueKind {
         VALUE_BOOL,
         VALUE_INTEGER,
         VALUE_FLOATING_POINT,

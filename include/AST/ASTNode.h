@@ -35,9 +35,6 @@ namespace fly {
         friend class SemaResolver;
         friend class SemaBuilder;
 
-        // CodeGen Module
-        CodeGenModule *CGM = nullptr;
-
         // Namespace declaration
         ASTNameSpace *NameSpace = nullptr;
 
@@ -59,8 +56,6 @@ namespace fly {
         ASTNode(const std::string FileName, ASTContext *Context, bool isHeader);
 
     public:
-
-        CodeGenModule *getCodeGen() const;
 
         const bool isHeader() const;
 

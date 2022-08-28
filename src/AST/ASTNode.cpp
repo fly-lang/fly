@@ -33,10 +33,6 @@ ASTNode::~ASTNode() {
     Imports.clear();
 }
 
-CodeGenModule *ASTNode::getCodeGen() const {
-    return CGM;
-}
-
 const bool ASTNode::isHeader() const {
     return Header;
 }

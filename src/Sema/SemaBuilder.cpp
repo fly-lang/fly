@@ -316,7 +316,7 @@ ASTLocalVar *SemaBuilder::CreateLocalVar(const SourceLocation &Loc, ASTType *Typ
                                          const std::string &Name, bool Constant) {
     ASTLocalVar *LocalVar = new ASTLocalVar(Loc, Type, Name, Constant);
     if (Type->getKind() == TYPE_ARRAY) {
-        LocalVar->Expr = new ASTValueExpr(new ASTArrayValue(Loc));
+        LocalVar->Expr = CreateExpr(LocalVar, CreateArrayValue(Loc));
     }
 
     return LocalVar;
@@ -726,40 +726,33 @@ bool SemaBuilder::AddExpr(ASTExprStmt *ExprStmt, ASTExpr *Expr) {
  */
 bool SemaBuilder::AddStmt(ASTBlock *Block, ASTStmt *Stmt) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddStmt", "Stmt=" << Stmt->str());
+
     Stmt->Parent = Block;
     Block->Content.push_back(Stmt);
+
+    if (Stmt->getKind() == STMT_VAR_DEFINE) { // Stmt is ASTLocalVar
+        ASTLocalVar *LocalVar = (ASTLocalVar *) Stmt;
+
+        // Check Undefined Var: if LocalVar have an Expression assigned
+        if (!LocalVar->Expr) {  // No Expression: add to Undefined Vars, will be removed on SemaResolver::ResolveVarRef()
+            Block->UndefVars.insert(std::pair<std::string, ASTLocalVar *>(LocalVar->getName(), LocalVar));
+        }
+
+        // Collects all LocalVars in the hierarchy Block
+        if (Block->LocalVars.insert(std::pair<std::string, ASTLocalVar *>(LocalVar->getName(), LocalVar)).second) {
+
+            //Useful for Alloca into CodeGen
+            Block->Top->LocalVars.push_back(LocalVar);
+            return true;
+        }
+    }
+
     return true;
 }
 
 bool SemaBuilder::AddStmt(ASTFunction *Function, ASTStmt *Stmt) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddStmt", "Function=" << Function->str() << ", Stmt=" << Stmt->str());
     return AddStmt(Function->Body, Stmt);
-}
-
-/**
- * Add Local Var
- * @param LocalVar
- * @return true if no error occurs, otherwise false
- */
-bool SemaBuilder::AddLocalVar(ASTBlock *Block, ASTLocalVar *LocalVar) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "AddLocalVar", "LocalVar=" << LocalVar->str());
-
-    // Check Undefined Var: if LocalVar have an Expression assigned
-    if (!LocalVar->Expr) {  // No Expression: add to Undefined Vars, will be removed on SemaResolver::ResolveVarRef()
-        Block->UndefVars.insert(std::pair<std::string, ASTLocalVar *>(LocalVar->getName(), LocalVar));
-    }
-
-    // Add LocalVar
-    AddStmt(Block, LocalVar);
-
-    if (Block->LocalVars.insert(std::pair<std::string, ASTLocalVar *>(LocalVar->getName(), LocalVar)).second) {
-
-        //Useful for Alloca into CodeGen
-        Block->Top->LocalVars.push_back(LocalVar);
-        return true;
-    }
-
-    return false;
 }
 
 bool SemaBuilder::AddFunctionCallArg(ASTFunctionCall *Call, ASTArg *Arg) {

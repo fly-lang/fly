@@ -271,21 +271,20 @@ llvm::Type *CodeGenModule::GenType(const ASTType *Type) {
         case TYPE_DOUBLE:
             return DoubleTy;
         case TYPE_ARRAY: {
-            ASTArrayType *ArrType = (ASTArrayType *) Type;
-            llvm::Type *SubType = GenType(ArrType->getType());
-            if (ArrType->getSize()->getExprKind() == EXPR_VALUE) {
-                ASTValueExpr *SizeExpr = (ASTValueExpr *) ArrType->getSize();
-                assert(SizeExpr->getType()->isInteger());
-                ASTIntegerValue &SizeValue = (ASTIntegerValue &) SizeExpr->getValue();
-                return llvm::ArrayType::get(SubType, SizeValue.getValue());
-            }
-            // TODO
-            //Value *Size = GenExpr(ArrType, ArrType->getSize());
-            
+            return GenArrayType((ASTArrayType *) Type);
         }
 
     }
     assert(0 && "Unknown Var Type Kind");
+}
+
+llvm::ArrayType *CodeGenModule::GenArrayType(const ASTArrayType *ArrayType) {
+    llvm::Type *SubType = GenType(ArrayType->getType());
+    if (ArrayType->getSize()->getExprKind() == EXPR_VALUE) {
+        ASTValueExpr *SizeExpr = (ASTValueExpr *) ArrayType->getSize();
+        ASTIntegerValue &SizeValue = (ASTIntegerValue &) SizeExpr->getValue();
+        return llvm::ArrayType::get(SubType, SizeValue.getValue());
+    }
 }
 
 llvm::Constant *CodeGenModule::GenDefaultValue(const ASTType *Type, llvm::Type *Ty) {
@@ -354,7 +353,19 @@ llvm::Constant *CodeGenModule::GenValue(const ASTType *Type, const ASTValue *Val
             return llvm::ConstantFP::get(FloatTy, ((ASTFloatingValue *) Val)->getValue());
         case TYPE_DOUBLE:
             return llvm::ConstantFP::get(DoubleTy, ((ASTFloatingValue *) Val)->getValue());
+        case TYPE_ARRAY: {
+            llvm::ArrayType *ArrType = GenArrayType((ASTArrayType *) Type);
+            std::vector<llvm::Constant *> Values;
+            for (ASTValue *Value : ((ASTArrayValue *) Val)->getValues()) {
+                llvm::Constant * V = GenValue(((ASTArrayType *) Type)->getType(), Value);
+                Values.push_back(V);
+            }
+            return llvm::ConstantArray::get(ArrType, makeArrayRef(Values));
+        }
         case TYPE_CLASS:
+            break;
+        case TYPE_VOID:
+            // FIXME
             break;
     }
     assert(0 && "Unknown Type");

@@ -48,6 +48,7 @@ namespace {
     public:
         const CompilerInstance CI;
         CodeGen *CG;
+        CodeGenModule *CGM;
         DiagnosticsEngine &Diags;
         SourceLocation SourceLoc;
         SemaBuilder *Builder;
@@ -66,6 +67,7 @@ namespace {
 
         CodeGenTest() : CI(*TestUtils::CreateCompilerInstance()),
                 CG(TestUtils::CreateCodeGen(CI)),
+                CGM(CG->CreateModule("CodeGenTest")),
                 Diags(CI.getDiagnostics()),
                 Builder(Sema::Builder(CI.getDiagnostics())),
                 BoolType(SemaBuilder::CreateBoolType(SourceLoc)),
@@ -100,66 +102,65 @@ namespace {
         }
     };
 
-    TEST_F(CodeGenTest, DISABLED_CGDefaultValueGlobalVar) {
+    TEST_F(CodeGenTest, CGDefaultValueGlobalVar) {
         ASTNode *Node = CreateNode();
 
         // default Bool value
         ASTValue *DefaultBoolVal = SemaBuilder::CreateDefaultValue(BoolType);
         ASTGlobalVar *aVar = Builder->CreateGlobalVar(Node, SourceLoc, BoolType, "a", VisibilityKind::V_DEFAULT, false);
-        Builder->AddGlobalVar(Node, aVar, Builder->CreateExpr(nullptr, DefaultBoolVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(Node, aVar, Builder->CreateExpr(nullptr, DefaultBoolVal)));
 
         // default Byte value
         ASTValue *DefaultByteVal = SemaBuilder::CreateDefaultValue(ByteType);
         ASTGlobalVar *bVar = Builder->CreateGlobalVar(Node, SourceLoc, ByteType, "b", VisibilityKind::V_DEFAULT, false);
-        Builder->AddGlobalVar(Node, bVar, Builder->CreateExpr(nullptr, DefaultByteVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(Node, bVar, Builder->CreateExpr(nullptr, DefaultByteVal)));
 
         // default Short value
         ASTValue *DefaultShortVal = SemaBuilder::CreateDefaultValue(ShortType);
         ASTGlobalVar *cVar = Builder->CreateGlobalVar(Node, SourceLoc, ShortType, "c", VisibilityKind::V_DEFAULT, false);
-        Builder->AddGlobalVar(Node, cVar, Builder->CreateExpr(nullptr, DefaultShortVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(Node, cVar, Builder->CreateExpr(nullptr, DefaultShortVal)));
 
         // default UShort value
         ASTValue *DefaultUShortVal = SemaBuilder::CreateDefaultValue(UShortType);
         ASTGlobalVar *dVar = Builder->CreateGlobalVar(Node, SourceLoc, UShortType, "d", VisibilityKind::V_DEFAULT, false);
-        Builder->AddGlobalVar(Node, dVar, Builder->CreateExpr(nullptr, DefaultUShortVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(Node, dVar, Builder->CreateExpr(nullptr, DefaultUShortVal)));
 
         // default Int value
         ASTValue *DefaultIntVal = SemaBuilder::CreateDefaultValue(IntType);
         ASTGlobalVar *eVar = Builder->CreateGlobalVar(Node, SourceLoc, IntType, "e", VisibilityKind::V_DEFAULT, false);
-        Builder->AddGlobalVar(Node, eVar, Builder->CreateExpr(nullptr, DefaultIntVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(Node, eVar, Builder->CreateExpr(nullptr, DefaultIntVal)));
 
         // default UInt value
         ASTValue *DefaultUintVal = SemaBuilder::CreateDefaultValue(UIntType);
         ASTGlobalVar *fVar = Builder->CreateGlobalVar(Node, SourceLoc, UIntType, "f", VisibilityKind::V_DEFAULT, false);
-        Builder->AddGlobalVar(Node, fVar, Builder->CreateExpr(nullptr, DefaultUintVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(Node, fVar, Builder->CreateExpr(nullptr, DefaultUintVal)));
 
         // default Long value
         ASTValue *DefaultLongVal = SemaBuilder::CreateDefaultValue(LongType);
         ASTGlobalVar *gVar = Builder->CreateGlobalVar(Node, SourceLoc, LongType, "g", VisibilityKind::V_DEFAULT, false);
-        Builder->AddGlobalVar(Node, gVar, Builder->CreateExpr(nullptr, DefaultLongVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(Node, gVar, Builder->CreateExpr(nullptr, DefaultLongVal)));
 
         // default ULong value
         ASTValue *DefaultULongVal = SemaBuilder::CreateDefaultValue(ULongType);
         ASTGlobalVar *hVar = Builder->CreateGlobalVar(Node, SourceLoc, ULongType, "h", VisibilityKind::V_DEFAULT, false);
-        Builder->AddGlobalVar(Node, hVar, Builder->CreateExpr(nullptr, DefaultULongVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(Node, hVar, Builder->CreateExpr(nullptr, DefaultULongVal)));
 
         // default Float value
         ASTValue *DefaultFloatVal = SemaBuilder::CreateDefaultValue(FloatType);
         ASTGlobalVar *iVar = Builder->CreateGlobalVar(Node, SourceLoc, FloatType, "i", VisibilityKind::V_DEFAULT, false);
-        Builder->AddGlobalVar(Node, iVar, Builder->CreateExpr(nullptr, DefaultFloatVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(Node, iVar, Builder->CreateExpr(nullptr, DefaultFloatVal)));
 
         // default Double value
         ASTValue *DefaultDoubleVal = SemaBuilder::CreateDefaultValue(DoubleType);
         ASTGlobalVar *jVar = Builder->CreateGlobalVar(Node, SourceLoc, DoubleType, "j", VisibilityKind::V_DEFAULT, false);
-        Builder->AddGlobalVar(Node,jVar, Builder->CreateExpr(nullptr, DefaultDoubleVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(Node,jVar, Builder->CreateExpr(nullptr, DefaultDoubleVal)));
 
         // default Array value
         ASTValue *DefaultArrayVal = SemaBuilder::CreateDefaultValue(ArrayInt0Type);
         ASTGlobalVar *kVar = Builder->CreateGlobalVar(Node, SourceLoc, ArrayInt0Type, "k", VisibilityKind::V_DEFAULT, false);
-        Builder->AddGlobalVar(Node, kVar, Builder->CreateExpr(nullptr, DefaultArrayVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(Node, kVar, Builder->CreateExpr(nullptr, DefaultArrayVal)));
 
         // Generate Code
-        CodeGenModule *CGM = Node->getCodeGen();
         EXPECT_FALSE(Diags.hasErrorOccurred());
         std::string output;
 
@@ -240,68 +241,67 @@ namespace {
         EXPECT_EQ(output, "@k = global [0 x i32] zeroinitializer");
     }
 
-    TEST_F(CodeGenTest, DISABLED_CGValuedGlobalVar) {
+    TEST_F(CodeGenTest, CGValuedGlobalVar) {
         ASTNode *Node = CreateNode();
 
         // a
         ASTBoolValue *BoolVal = SemaBuilder::CreateBoolValue(SourceLoc, true);
         ASTGlobalVar *aVar = Builder->CreateGlobalVar(Node, SourceLoc, BoolType, "a", VisibilityKind::V_DEFAULT, false);
-        Builder->AddGlobalVar(Node, aVar, Builder->CreateExpr(nullptr, BoolVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(Node, aVar, Builder->CreateExpr(nullptr, BoolVal)));
 
         // b
         ASTIntegerValue *ByteVal = SemaBuilder::CreateIntegerValue(SourceLoc, 1);
         ASTGlobalVar *bVar = Builder->CreateGlobalVar(Node, SourceLoc, ByteType, "b", VisibilityKind::V_DEFAULT, false);
-        Builder->AddGlobalVar(Node, bVar, Builder->CreateExpr(nullptr, ByteVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(Node, bVar, Builder->CreateExpr(nullptr, ByteVal)));
 
         // c
         ASTIntegerValue *ShortVal = SemaBuilder::CreateIntegerValue(SourceLoc, -2);
         ASTGlobalVar *cVar = Builder->CreateGlobalVar(Node, SourceLoc, ShortType, "c", VisibilityKind::V_DEFAULT, false);
-        Builder->AddGlobalVar(Node, cVar, Builder->CreateExpr(nullptr, ShortVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(Node, cVar, Builder->CreateExpr(nullptr, ShortVal)));
 
         // d
         ASTIntegerValue *UShortVal = SemaBuilder::CreateIntegerValue(SourceLoc, 2);
         ASTGlobalVar *dVar = Builder->CreateGlobalVar(Node, SourceLoc, UShortType, "d", VisibilityKind::V_DEFAULT, false);
-        Builder->AddGlobalVar(Node, dVar, Builder->CreateExpr(nullptr, UShortVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(Node, dVar, Builder->CreateExpr(nullptr, UShortVal)));
 
         // e
         ASTIntegerValue *IntVal = SemaBuilder::CreateIntegerValue(SourceLoc, -3);
         ASTGlobalVar *eVar = Builder->CreateGlobalVar(Node, SourceLoc, IntType, "e", VisibilityKind::V_DEFAULT, false);
-        Builder->AddGlobalVar(Node, eVar, Builder->CreateExpr(nullptr, IntVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(Node, eVar, Builder->CreateExpr(nullptr, IntVal)));
 
         // f
         ASTIntegerValue *UIntVal = SemaBuilder::CreateIntegerValue(SourceLoc, 3);
         ASTGlobalVar *fVar = Builder->CreateGlobalVar(Node, SourceLoc, UIntType, "f", VisibilityKind::V_DEFAULT, false);
-        Builder->AddGlobalVar(Node, fVar, Builder->CreateExpr(nullptr, UIntVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(Node, fVar, Builder->CreateExpr(nullptr, UIntVal)));
 
         // g
         ASTIntegerValue *LongVal = SemaBuilder::CreateIntegerValue(SourceLoc, -4);
         ASTGlobalVar *gVar = Builder->CreateGlobalVar(Node, SourceLoc, LongType, "g", VisibilityKind::V_DEFAULT, false);
-        Builder->AddGlobalVar(Node, gVar, Builder->CreateExpr(nullptr, LongVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(Node, gVar, Builder->CreateExpr(nullptr, LongVal)));
 
         // h
         ASTIntegerValue *ULongVal = SemaBuilder::CreateIntegerValue(SourceLoc, 4);
         ASTGlobalVar *hVar = Builder->CreateGlobalVar(Node, SourceLoc, ULongType, "h", VisibilityKind::V_DEFAULT, false);
-        Builder->AddGlobalVar(Node, hVar, Builder->CreateExpr(nullptr, ULongVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(Node, hVar, Builder->CreateExpr(nullptr, ULongVal)));
 
         // i
         ASTFloatingValue *FloatVal = SemaBuilder::CreateFloatingValue(SourceLoc, 1.5);
         ASTGlobalVar *iVar = Builder->CreateGlobalVar(Node, SourceLoc, FloatType, "i", VisibilityKind::V_DEFAULT, false);
-        Builder->AddGlobalVar(Node, iVar, Builder->CreateExpr(nullptr, FloatVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(Node, iVar, Builder->CreateExpr(nullptr, FloatVal)));
 
         // j
         ASTFloatingValue *DoubleVal = SemaBuilder::CreateFloatingValue(SourceLoc, 2.5);
         ASTGlobalVar *jVar = Builder->CreateGlobalVar(Node, SourceLoc, DoubleType, "j", VisibilityKind::V_DEFAULT, false);
-        Builder->AddGlobalVar(Node,jVar, Builder->CreateExpr(nullptr, DoubleVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(Node,jVar, Builder->CreateExpr(nullptr, DoubleVal)));
 
         // k
         ASTArrayValue *ArrayVal = SemaBuilder::CreateArrayValue(SourceLoc);
         Builder->AddArrayValue(ArrayVal, IntVal); // ArrayVal = {1}
         Builder->AddArrayValue(ArrayVal, IntVal); // ArrayVal = {1, 1}
         ASTGlobalVar *kVar = Builder->CreateGlobalVar(Node, SourceLoc, ArrayInt0Type, "k", VisibilityKind::V_DEFAULT, false);
-        Builder->AddGlobalVar(Node, kVar, Builder->CreateExpr(nullptr, ArrayVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(Node, kVar, Builder->CreateExpr(nullptr, ArrayVal)));
 
         // Generate Code
-        CodeGenModule *CGM = Node->getCodeGen();
         EXPECT_FALSE(Diags.hasErrorOccurred());
         std::string output;
 
@@ -386,24 +386,23 @@ namespace {
         ASTNode *Node = CreateNode();
 
         ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main", VisibilityKind::V_DEFAULT);
-        Builder->AddFunctionParam(MainFn, Builder->CreateParam(SourceLoc, IntType, "P1", false));
-        Builder->AddFunctionParam(MainFn, Builder->CreateParam(SourceLoc, FloatType, "P2", false));
-        Builder->AddFunctionParam(MainFn, Builder->CreateParam(SourceLoc, BoolType, "P3", false));
-        Builder->AddFunctionParam(MainFn, Builder->CreateParam(SourceLoc, LongType, "P4", false));
-        Builder->AddFunctionParam(MainFn, Builder->CreateParam(SourceLoc, DoubleType, "P5", false));
-        Builder->AddFunctionParam(MainFn, Builder->CreateParam(SourceLoc, ByteType, "P6", false));
-        Builder->AddFunctionParam(MainFn, Builder->CreateParam(SourceLoc, ShortType, "P7", false));
-        Builder->AddFunctionParam(MainFn, Builder->CreateParam(SourceLoc, UShortType, "P8", false));
-        Builder->AddFunctionParam(MainFn, Builder->CreateParam(SourceLoc, UIntType, "P9", false));
-        Builder->AddFunctionParam(MainFn, Builder->CreateParam(SourceLoc, ULongType, "P10", false));
+        EXPECT_TRUE(Builder->AddFunctionParam(MainFn, Builder->CreateParam(SourceLoc, IntType, "P1", false)));
+        EXPECT_TRUE(Builder->AddFunctionParam(MainFn, Builder->CreateParam(SourceLoc, FloatType, "P2", false)));
+        EXPECT_TRUE(Builder->AddFunctionParam(MainFn, Builder->CreateParam(SourceLoc, BoolType, "P3", false)));
+        EXPECT_TRUE(Builder->AddFunctionParam(MainFn, Builder->CreateParam(SourceLoc, LongType, "P4", false)));
+        EXPECT_TRUE(Builder->AddFunctionParam(MainFn, Builder->CreateParam(SourceLoc, DoubleType, "P5", false)));
+        EXPECT_TRUE(Builder->AddFunctionParam(MainFn, Builder->CreateParam(SourceLoc, ByteType, "P6", false)));
+        EXPECT_TRUE(Builder->AddFunctionParam(MainFn, Builder->CreateParam(SourceLoc, ShortType, "P7", false)));
+        EXPECT_TRUE(Builder->AddFunctionParam(MainFn, Builder->CreateParam(SourceLoc, UShortType, "P8", false)));
+        EXPECT_TRUE(Builder->AddFunctionParam(MainFn, Builder->CreateParam(SourceLoc, UIntType, "P9", false)));
+        EXPECT_TRUE(Builder->AddFunctionParam(MainFn, Builder->CreateParam(SourceLoc, ULongType, "P10", false)));
 
         ASTIntegerValue *IntVal = SemaBuilder::CreateIntegerValue(SourceLoc, 1);
         ASTReturn *Return = Builder->CreateReturn(SourceLoc);
-        Builder->AddExpr(Return, Builder->CreateExpr(Return, IntVal));
-        Builder->AddStmt(MainFn, Return);
+        EXPECT_TRUE(Builder->AddExpr(Return, Builder->CreateExpr(Return, IntVal)));
+        EXPECT_TRUE(Builder->AddStmt(MainFn, Return));
 
         // Generate Code
-        CodeGenModule *CGM = Node->getCodeGen();
         CodeGenFunction *CGF = CGM->GenFunction(MainFn);
         CGF->GenBody();
         Function *F = CGF->getFunction();
@@ -445,14 +444,14 @@ namespace {
 
         ASTFloatingValue *FloatingVal = SemaBuilder::CreateFloatingValue(SourceLoc, true);
         ASTGlobalVar *GVar = Builder->CreateGlobalVar(Node, SourceLoc, BoolType, "G", VisibilityKind::V_PRIVATE, false);
-        Builder->AddGlobalVar(Node, GVar, Builder->CreateExpr(nullptr, FloatingVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(Node, GVar, Builder->CreateExpr(nullptr, FloatingVal)));
 
         // main()
         ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main", VisibilityKind::V_DEFAULT);
 
         // int A
         ASTLocalVar *VarA = Builder->CreateLocalVar(SourceLoc, IntType, "A", false);
-        Builder->AddStmt(MainFn, VarA);
+        EXPECT_TRUE(Builder->AddStmt(MainFn, VarA));
 
         // 1
         ASTExpr *ConstVal1 = Builder->CreateExpr(VarA, SemaBuilder::CreateIntegerValue(SourceLoc, 1));
@@ -460,26 +459,25 @@ namespace {
         // A = 1
         ASTVarRef *VarRefA = Builder->CreateVarRef(VarA);
         ASTVarAssign * VarAAssign = Builder->CreateVarAssign(VarRefA);
-        Builder->AddExpr(VarAAssign, ConstVal1);
-        Builder->AddStmt(MainFn, VarAAssign);
+        EXPECT_TRUE(Builder->AddExpr(VarAAssign, ConstVal1));
+        EXPECT_TRUE(Builder->AddStmt(MainFn, VarAAssign));
 
         // GlobalVar
         // G = 1
         ASTVarRef *VarRefG = Builder->CreateVarRef(GVar);
         ASTVarAssign * GVarAssign = Builder->CreateVarAssign(VarRefG);
-        Builder->AddExpr(VarAAssign, ConstVal1);
-        Builder->AddStmt(MainFn, GVarAssign);
+        EXPECT_TRUE(Builder->AddExpr(GVarAssign, ConstVal1));
+        EXPECT_TRUE(Builder->AddStmt(MainFn, GVarAssign));
 
         // return A
         ASTReturn *Return = Builder->CreateReturn(SourceLoc);
-        Builder->AddExpr(VarAAssign, Builder->CreateExpr(Return, VarRefA));
-        Builder->AddStmt(MainFn, Return);
+        EXPECT_TRUE(Builder->AddExpr(VarAAssign, Builder->CreateExpr(Return, VarRefA)));
+        EXPECT_TRUE(Builder->AddStmt(MainFn, Return));
         
         // add to Node
-        Builder->AddFunction(Node, MainFn);
+        EXPECT_TRUE(Builder->AddFunction(Node, MainFn));
 
         // Generate Code
-        CodeGenModule *CGM = Node->getCodeGen();
         CGM->GenGlobalVar(GVar);
         CodeGenFunction *CGF = CGM->GenFunction(MainFn);
         CGF->GenBody();
@@ -500,7 +498,7 @@ namespace {
                           "}\n");
     }
 
-    TEST_F(CodeGenTest, DISABLED_CGFuncRetFn) {
+    TEST_F(CodeGenTest, CGFuncRetFn) {
         ASTNode *Node = CreateNode();
 
         // main()
@@ -511,21 +509,20 @@ namespace {
 
         // call test()
         ASTExprStmt *ExprStmt = Builder->CreateExprStmt(SourceLoc);
-        ASTFunctionCall *TestCall = Builder->CreateFunctionCall(ExprStmt, MainFn);
-        Builder->AddExpr(ExprStmt, Builder->CreateExpr(ExprStmt, TestCall));
-        Builder->AddStmt(MainFn, ExprStmt);
+        ASTFunctionCall *TestCall = Builder->CreateFunctionCall(ExprStmt, TestFn);
+        EXPECT_TRUE(Builder->AddExpr(ExprStmt, Builder->CreateExpr(ExprStmt, TestCall)));
+        EXPECT_TRUE(Builder->AddStmt(MainFn, ExprStmt));
 
         //return test()
         ASTReturn *Return = Builder->CreateReturn(SourceLoc);
-        Builder->AddExpr(Return, Builder->CreateExpr(Return, TestCall));
-        Builder->AddStmt(MainFn, Return);
+        EXPECT_TRUE(Builder->AddExpr(Return, Builder->CreateExpr(Return, TestCall)));
+        EXPECT_TRUE(Builder->AddStmt(MainFn, Return));
 
         // add to Node
-        Builder->AddFunction(Node, MainFn);
-        Builder->AddFunction(Node, TestFn);
+        EXPECT_TRUE(Builder->AddFunction(Node, MainFn));
+        EXPECT_TRUE(Builder->AddFunction(Node, TestFn));
 
         // Generate Code
-        CodeGenModule *CGM = Node->getCodeGen();
         CGM->GenFunction(TestFn);
         CodeGenFunction *CGF = CGM->GenFunction(MainFn);
         CGF->GenBody();
@@ -549,7 +546,7 @@ namespace {
      *  return 1 + a * b / (c - 2)
      * }
      */
-    TEST_F(CodeGenTest, DISABLED_CGGroupExpr) {
+    TEST_F(CodeGenTest, CGGroupExpr) {
         ASTNode *Node = CreateNode();
 
         // main()
@@ -574,14 +571,13 @@ namespace {
         ASTBinaryGroupExpr *G1 = Builder->CreateBinaryExpr(SourceLoc, ARITH_DIV, G2, G3);
         ASTBinaryGroupExpr *Group = Builder->CreateBinaryExpr(SourceLoc, ARITH_ADD, E1, G1);
 
-        Builder->AddExpr(Return, Group);
-        Builder->AddStmt(MainFn, Return);
+        EXPECT_TRUE(Builder->AddExpr(Return, Group));
+        EXPECT_TRUE(Builder->AddStmt(MainFn, Return));
 
         // Add to Node
-        Builder->AddFunction(Node, MainFn);
+        EXPECT_TRUE(Builder->AddFunction(Node, MainFn));
 
         // Generate Code
-        CodeGenModule *CGM = Node->getCodeGen();
         CodeGenFunction *CGF = CGM->GenFunction(MainFn);
         CGF->GenBody();
         Function *F = CGF->getFunction();

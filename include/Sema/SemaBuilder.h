@@ -173,7 +173,6 @@ namespace fly {
         // Add Stmt
         bool AddStmt(ASTBlock *Block, ASTStmt *Stmt);
         bool AddStmt(ASTFunction *Function, ASTStmt *Stmt);
-        bool AddLocalVar(ASTBlock *Block, ASTLocalVar *LocalVar);
         bool AddFunctionCallArg(ASTFunctionCall *Call, ASTArg *Arg);
 
         // Add Blocks structures
