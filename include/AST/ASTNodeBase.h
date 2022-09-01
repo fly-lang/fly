@@ -49,11 +49,11 @@ namespace fly {
 
         ASTNodeBase() = delete;
 
-        ASTNodeBase(const std::string &Name, ASTContext* Context);
+        ASTNodeBase(const std::string Name, ASTContext* Context);
 
     public:
 
-        const std::string& getName();
+        const std::string getName();
 
         ASTContext &getContext() const;
 

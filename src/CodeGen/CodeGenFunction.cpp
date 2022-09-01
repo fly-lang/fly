@@ -68,12 +68,7 @@ void CodeGenFunction::GenBody() {
     Entry = BasicBlock::Create(CGM->LLVMCtx, "entry", Fn);
     CGM->Builder->SetInsertPoint(Entry);
 
-    // CodeGen of Params and Allocation
-    for (auto &Param: AST->getParams()->getList()) {
-        CodeGenLocalVar *CGV = new CodeGenLocalVar(CGM, Param);
-        Param->setCodeGen(CGV);
-        Param->getCodeGen()->Alloca();
-    }
+    // CodeGen of Params are contained into LocalVars
 
     // Allocation of declared local vars
     for (auto &LocalVar: AST->getLocalVars()) {

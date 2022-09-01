@@ -378,4 +378,5 @@ DIAG(err_value_min_underflow, CLASS_ERROR, (unsigned)diag::Severity::Error, "min
 
 // Sema
 DIAG(err_sema_generic, CLASS_ERROR, (unsigned)diag::Severity::Error, "semantic error", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_types_incompatible, CLASS_ERROR, (unsigned)diag::Severity::Error, "incompatible types '%0' and '%1'", 0, SFINAE_Suppress, false, true, 0)
 

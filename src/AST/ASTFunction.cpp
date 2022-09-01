@@ -19,14 +19,14 @@
 
 using namespace fly;
 
-ASTFunction::ASTFunction(const SourceLocation &Loc, ASTNode *Node, ASTType *ReturnType, const std::string &Name,
+ASTFunction::ASTFunction(const SourceLocation &Loc, ASTNode *Node, ASTType *ReturnType, const std::string Name,
                          VisibilityKind Visibility) :
         ASTTopDef(Loc, Node, TopDeclKind::DECL_FUNCTION, Visibility),
         Type(ReturnType), Name(Name) {
 
 }
 
-const std::string &ASTFunction::getName() const {
+const std::string ASTFunction::getName() const {
     return Name;
 }
 

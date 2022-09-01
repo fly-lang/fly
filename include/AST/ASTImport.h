@@ -36,10 +36,10 @@ namespace fly {
 
         ASTNameSpace *NameSpace = nullptr;
 
-        ASTImport(const SourceLocation &NameLoc, std::string &Name);
+        ASTImport(const SourceLocation &NameLoc, std::string Name);
 
-        ASTImport(const SourceLocation &NameLoc, std::string &Name,
-                  const SourceLocation &AliasLoc, std::string &Alias);
+        ASTImport(const SourceLocation &NameLoc, std::string Name,
+                  const SourceLocation &AliasLoc, std::string Alias);
 
     public:
 
@@ -49,9 +49,9 @@ namespace fly {
 
         const SourceLocation &getAliasLocation() const;
 
-        const std::string &getName() const;
+        const std::string getName() const;
 
-        const std::string &getAlias() const;
+        const std::string getAlias() const;
 
         ASTNameSpace *getNameSpace() const;
 

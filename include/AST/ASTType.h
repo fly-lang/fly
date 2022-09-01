@@ -46,6 +46,15 @@ namespace fly {
         TYPE_CLASS = 12
     };
 
+    enum MacroTypeKind {
+        MACRO_TYPE_VOID,
+        MACRO_TYPE_BOOL,
+        MACRO_TYPE_INTEGER,
+        MACRO_TYPE_FLOATING_POINT,
+        MACRO_TYPE_ARRAY,
+        MACRO_TYPE_CLASS
+    };
+
     class ASTIntegerValue;
     class ASTValueExpr;
     class ASTExpr;
@@ -58,29 +67,34 @@ namespace fly {
 
         const TypeKind Kind;
 
+        const MacroTypeKind MacroKind;
+
         const SourceLocation Loc;
 
     protected:
-        ASTType(const SourceLocation &Loc, TypeKind Kind);
+        ASTType(const SourceLocation &Loc, TypeKind Kind, MacroTypeKind MacroKind);
 
     public:
-        const TypeKind &getKind() const;
+
+        virtual ~ASTType() = default;
 
         const SourceLocation &getLocation() const;
+
+        const TypeKind &getKind() const;
+
+        const MacroTypeKind &getMacroKind() const;
 
         const bool isBool() const;
 
         const bool isNumber() const;
 
-        const bool isInteger() const;
-
-        const bool isFloatingPoint() const;
-
         const bool isClass() const;
 
         const bool isArray() const;
 
-        virtual ~ASTType() = default;
+        const std::string printMacroType();
+
+        static const std::string printMacroType(const MacroTypeKind Kind);
 
         virtual std::string str() const = 0;
     };
@@ -302,9 +316,9 @@ namespace fly {
 
     public:
 
-        const std::string &getName() const;
+        const std::string getName() const;
 
-        const std::string &getNameSpace() const;
+        const std::string getNameSpace() const;
 
         ASTClass *getDef() const;
 

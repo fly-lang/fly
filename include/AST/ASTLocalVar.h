@@ -34,7 +34,7 @@ namespace fly {
 
     protected:
 
-        ASTLocalVar(const SourceLocation &Loc, ASTType *Type, const std::string &Name, bool Constant);
+        ASTLocalVar(const SourceLocation &Loc, ASTType *Type, const std::string Name, bool Constant);
 
     public:
 

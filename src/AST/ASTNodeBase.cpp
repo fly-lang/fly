@@ -14,7 +14,7 @@
 
 using namespace fly;
 
-ASTNodeBase::ASTNodeBase(const std::string &Name, ASTContext *Context) :
+ASTNodeBase::ASTNodeBase(const std::string Name, ASTContext *Context) :
         Name(Name), Context(Context) {
 }
 
@@ -22,7 +22,7 @@ ASTContext &ASTNodeBase::getContext() const {
     return *Context;
 }
 
-const std::string &ASTNodeBase::getName() {
+const std::string ASTNodeBase::getName() {
     return Name;
 }
 

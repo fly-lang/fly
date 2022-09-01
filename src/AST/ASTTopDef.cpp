@@ -43,6 +43,6 @@ std::string ASTTopDef::str() const {
             ", Kind=" + std::to_string(Kind);
 }
 
-const std::string &ASTTopDef::getComment() const {
+const std::string ASTTopDef::getComment() const {
     return Comment;
 }

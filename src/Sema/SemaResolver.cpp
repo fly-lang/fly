@@ -378,7 +378,7 @@ bool SemaResolver::ResolveExpr(ASTExpr *Expr) {
                     Expr->Type = Block->Top->getType();
                     break;
             }
-            return S.CheckValueType((ASTValueExpr *) Expr, Expr->Type);
+            return S.CheckMacroType((ASTValueExpr *) Expr, Expr->Type);
         case EXPR_EMPTY:
             return true;
     }

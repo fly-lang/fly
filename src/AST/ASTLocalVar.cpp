@@ -12,7 +12,7 @@
 
 using namespace fly;
 
-ASTLocalVar::ASTLocalVar(const SourceLocation &Loc, ASTType *Type, const std::string &Name, bool Constant) :
+ASTLocalVar::ASTLocalVar(const SourceLocation &Loc, ASTType *Type, const std::string Name, bool Constant) :
                         ASTExprStmt(Loc), ASTVar(VAR_LOCAL, Type, Name, Constant) {
 
 }

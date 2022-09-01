@@ -39,12 +39,12 @@ ASTFunctionCall *ASTArg::getCall() const {
     return Call;
 }
 
-ASTFunctionCall::ASTFunctionCall(const SourceLocation &Loc, const std::string &NameSpace, const std::string &Name) :
+ASTFunctionCall::ASTFunctionCall(const SourceLocation &Loc, const std::string NameSpace, const std::string Name) :
     Loc(Loc), NameSpace(NameSpace), Name(Name) {
 
 }
 
-const std::string &ASTFunctionCall::getName() const {
+const std::string ASTFunctionCall::getName() const {
     return Name;
 }
 
@@ -64,7 +64,7 @@ const SourceLocation &ASTFunctionCall::getLocation() const {
     return Loc;
 }
 
-const std::string &ASTFunctionCall::getNameSpace() const {
+const std::string ASTFunctionCall::getNameSpace() const {
     return NameSpace;
 }
 

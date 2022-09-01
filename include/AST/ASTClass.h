@@ -23,12 +23,12 @@ namespace fly {
 
         bool Constant;
 
-        ASTClass(const SourceLocation &Loc, ASTNode *Node, const std::string &Name,
+        ASTClass(const SourceLocation &Loc, ASTNode *Node, const std::string Name,
                  VisibilityKind Visibility, bool Constant);
 
     public:
 
-        const std::string &getName() const;
+        const std::string getName() const;
     };
 }
 

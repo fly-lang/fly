@@ -10,6 +10,7 @@
 #ifndef FLY_ASTVALUE_H
 #define FLY_ASTVALUE_H
 
+#include "AST/ASTType.h"
 #include <string>
 #include <vector>
 
@@ -17,14 +18,7 @@ namespace fly {
 
     class ASTType;
     class SourceLocation;
-
-    enum ASTValueKind {
-        VALUE_BOOL,
-        VALUE_INTEGER,
-        VALUE_FLOATING_POINT,
-        VALUE_ARRAY,
-        VALUE_NULL
-    };
+    enum MacroTypeKind;
 
     class ASTValue {
 
@@ -32,17 +26,21 @@ namespace fly {
 
         const SourceLocation &Location;
 
-        const ASTValueKind Kind;
+        const MacroTypeKind MacroKind;
 
     protected:
 
-        ASTValue(const ASTValueKind Kind, const SourceLocation &Location);
+        ASTValue(const MacroTypeKind Kind, const SourceLocation &Location);
 
     public:
 
         const SourceLocation &getLocation() const;
 
-        const ASTValueKind &getKind() const;
+        const MacroTypeKind &getMacroKind() const;
+
+        const std::string printMacroType() const;
+
+        virtual const std::string print() const = 0;
 
         virtual std::string str() const = 0;
     };
@@ -61,6 +59,8 @@ namespace fly {
     public:
 
         bool getValue() const;
+
+        const std::string print() const;
 
         std::string str() const override;
     };
@@ -86,6 +86,8 @@ namespace fly {
 
         uint64_t getValue() const;
 
+        const std::string print() const;
+
         std::string str() const override;
     };
 
@@ -98,11 +100,13 @@ namespace fly {
 
         std::string Value;
 
-        ASTFloatingValue(const SourceLocation &Loc, std::string &Val);
+        ASTFloatingValue(const SourceLocation &Loc, std::string Val);
 
     public:
 
         std::string getValue() const;
+
+        const std::string print() const;
 
         std::string str() const override;
     };
@@ -126,6 +130,8 @@ namespace fly {
 
         bool empty() const;
 
+        const std::string print() const;
+
         std::string str() const override;
     };
 
@@ -136,6 +142,8 @@ namespace fly {
         ASTNullValue(const SourceLocation &Loc);
 
     public:
+
+        const std::string print() const;
 
         std::string str() const override;
     };

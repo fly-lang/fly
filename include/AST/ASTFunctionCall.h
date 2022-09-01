@@ -46,15 +46,15 @@ namespace fly {
 
         CodeGenCall *CGC = nullptr;
 
-        ASTFunctionCall(const SourceLocation &Loc, const std::string &NameSpace, const std::string &Name);
+        ASTFunctionCall(const SourceLocation &Loc, const std::string NameSpace, const std::string Name);
 
     public:
 
         const SourceLocation &getLocation() const;
 
-        const std::string &getNameSpace() const;
+        const std::string getNameSpace() const;
 
-        const std::string &getName() const;
+        const std::string getName() const;
 
         const std::vector<ASTArg *> getArgs() const;
 

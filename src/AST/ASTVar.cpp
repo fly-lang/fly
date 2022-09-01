@@ -11,7 +11,7 @@
 
 using namespace fly;
 
-ASTVar::ASTVar(ASTVarKind VarKind, ASTType *Type, const std::string &Name, bool Constant) :
+ASTVar::ASTVar(ASTVarKind VarKind, ASTType *Type, const std::string Name, bool Constant) :
         VarKind(VarKind), Type(Type), Name(Name), Constant(Constant) {
 
 }
@@ -24,7 +24,7 @@ ASTType *ASTVar::getType() const {
     return Type;
 }
 
-const std::string &ASTVar::getName() const {
+const std::string ASTVar::getName() const {
     return Name;
 }
 
@@ -43,12 +43,12 @@ std::string ASTVar::str() const {
             "VarKind=" + std::to_string(VarKind);
 }
 
-ASTVarRef::ASTVarRef(const SourceLocation &Loc, const std::string &Name, const std::string &NameSpace) :
+ASTVarRef::ASTVarRef(const SourceLocation &Loc, const std::string Name, const std::string NameSpace) :
         Loc(Loc), NameSpace(NameSpace), Name(Name) {
 
 }
 
-const std::string &ASTVarRef::getName() const {
+const std::string ASTVarRef::getName() const {
     return Name;
 }
 
@@ -56,7 +56,7 @@ ASTVar *ASTVarRef::getDef() const {
     return Def;
 }
 
-const std::string &ASTVarRef::getNameSpace() const {
+const std::string ASTVarRef::getNameSpace() const {
     return NameSpace;
 }
 

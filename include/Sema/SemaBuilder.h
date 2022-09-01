@@ -117,7 +117,7 @@ namespace fly {
         ASTFunctionCall *CreateFunctionCall(ASTStmt *Parent, ASTFunction *Function);
         ASTArg *CreateArg(const SourceLocation &Loc);
         ASTParam *CreateParam(const SourceLocation &Loc, ASTType *Type, const std::string &Name, bool Constant = false);
-        ASTLocalVar *CreateLocalVar(const SourceLocation &Loc, ASTType *Type, const std::string &Name, bool Constant);
+        ASTLocalVar *CreateLocalVar(const SourceLocation &Loc, ASTType *Type, const std::string &Name, bool Constant = false);
         ASTVarAssign *CreateVarAssign(ASTVarRef *VarRef);
         ASTReturn *CreateReturn(const SourceLocation &Loc);
         ASTBreak *CreateBreak(const SourceLocation &Loc);
@@ -140,6 +140,7 @@ namespace fly {
 
         // Create Blocks structures
         ASTBlock* CreateBlock(ASTBlock *Parent, const SourceLocation &Loc);
+        ASTBlock* getBlock(ASTFunction *Function);
         ASTIfBlock *CreateIfBlock(ASTBlock *Parent, const SourceLocation &Loc, ASTExpr *Condition);
         ASTElsifBlock *CreateElsifBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc, ASTExpr *Condition);
         ASTElseBlock *CreateElseBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc);
@@ -155,6 +156,7 @@ namespace fly {
 
         // Add Top definitions
         bool AddImport(ASTNode *Node, ASTImport *Import);
+        bool AddGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar, ASTValue *Value = nullptr);
         bool AddGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar, ASTExpr *Expr);
         bool AddFunction(ASTNode *Node, ASTFunction *Function);
         bool InsertFunction(ASTNodeBase *Base, ASTFunction *Function);
@@ -176,7 +178,6 @@ namespace fly {
         bool AddFunctionCallArg(ASTFunctionCall *Call, ASTArg *Arg);
 
         // Add Blocks structures
-    public:
         bool AddIfBlock(ASTBlock *Block, ASTIfBlock *IfBlock);
         bool AddElsifBlock(ASTIfBlock *IfBlock, ASTElsifBlock *ElsifBlock);
         bool AddElseBlock(ASTIfBlock *IfBlock, ASTElseBlock *ElseBlock);

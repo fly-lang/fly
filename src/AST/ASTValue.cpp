@@ -8,12 +8,10 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTValue.h"
-#include "AST/ASTType.h"
-#include <string>
 
 using namespace fly;
 
-ASTValue::ASTValue(const ASTValueKind Kind, const SourceLocation &Location) : Kind(Kind), Location(Location) {
+ASTValue::ASTValue(const MacroTypeKind MacroKind, const SourceLocation &Location) : MacroKind(MacroKind), Location(Location) {
 
 }
 
@@ -21,11 +19,15 @@ const SourceLocation &ASTValue::getLocation() const {
     return Location;
 }
 
-const ASTValueKind &ASTValue::getKind() const {
-    return Kind;
+const MacroTypeKind &ASTValue::getMacroKind() const {
+    return MacroKind;
 }
 
-ASTBoolValue::ASTBoolValue(const SourceLocation &Loc, bool Value) : ASTValue(VALUE_BOOL, Loc), Value(Value) {
+const std::string ASTValue::printMacroType() const {
+    return ASTType::printMacroType(MacroKind);
+}
+
+ASTBoolValue::ASTBoolValue(const SourceLocation &Loc, bool Value) : ASTValue(MACRO_TYPE_BOOL, Loc), Value(Value) {
 
 }
 
@@ -33,12 +35,16 @@ bool ASTBoolValue::getValue() const {
     return Value;
 }
 
+const std::string ASTBoolValue::print() const {
+    return Value ? "true" : "false";
+}
+
 std::string ASTBoolValue::str() const {
     return Value ? "true" : "false";
 }
 
 ASTIntegerValue::ASTIntegerValue(const SourceLocation &Loc, uint64_t Value, bool Negative) :
-        ASTValue(VALUE_INTEGER, Loc), Value(Value), Negative(Negative) {
+        ASTValue(MACRO_TYPE_INTEGER, Loc), Value(Value), Negative(Negative) {
 
 }
 
@@ -54,12 +60,17 @@ uint64_t ASTIntegerValue::getValue() const {
     return Value;
 }
 
-std::string ASTIntegerValue::str() const {
+const std::string ASTIntegerValue::print() const {
     return (Negative ? "-" : "") + std::to_string(Value);
 }
 
-ASTFloatingValue::ASTFloatingValue(const SourceLocation &Loc, std::string &Value)
-    : ASTValue(VALUE_FLOATING_POINT, Loc), Value(Value) {
+
+std::string ASTIntegerValue::str() const {
+    return "ASTIntegerValue{Negative=" + std::to_string(Negative) + ",Value=" + std::to_string(Value) + "}";
+}
+
+ASTFloatingValue::ASTFloatingValue(const SourceLocation &Loc, std::string Value)
+    : ASTValue(MACRO_TYPE_FLOATING_POINT, Loc), Value(Value) {
 
 }
 
@@ -67,11 +78,15 @@ std::string ASTFloatingValue::getValue() const {
     return Value;
 }
 
-std::string ASTFloatingValue::str() const {
+const std::string ASTFloatingValue::print() const {
     return Value;
 }
 
-ASTArrayValue::ASTArrayValue(const SourceLocation &Loc) : ASTValue(VALUE_ARRAY, Loc) {
+std::string ASTFloatingValue::str() const {
+    return "ASTIntegerValue{Value=" + Value + "}";
+}
+
+ASTArrayValue::ASTArrayValue(const SourceLocation &Loc) : ASTValue(MACRO_TYPE_ARRAY, Loc) {
 
 }
 
@@ -79,14 +94,17 @@ uint64_t ASTArrayValue::size() const {
     return Values.size();
 }
 
-std::string ASTArrayValue::str() const {
-    std::string Str = "{";
+const std::string ASTArrayValue::print() const {
+    std::string Str;
     for (auto Value : Values) {
         Str += Value->str() + ", ";
     }
     Str = Str.substr(0, Str.size()-1); // remove final comma
-    Str += "}";
     return Str;
+}
+
+std::string ASTArrayValue::str() const {
+    return "ASTArrayValue{" + print() + "}";
 }
 
 bool ASTArrayValue::empty() const {
@@ -97,10 +115,14 @@ const std::vector<ASTValue *> &ASTArrayValue::getValues() const {
     return Values;
 }
 
-ASTNullValue::ASTNullValue(const SourceLocation &Loc) : ASTValue(VALUE_NULL, Loc) {
+ASTNullValue::ASTNullValue(const SourceLocation &Loc) : ASTValue(MACRO_TYPE_CLASS, Loc) {
 
 }
 
-std::string ASTNullValue::str() const {
+const std::string ASTNullValue::print() const {
     return "null";
+}
+
+std::string ASTNullValue::str() const {
+    return "ASTNullValue{}";
 }

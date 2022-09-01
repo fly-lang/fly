@@ -31,6 +31,8 @@
 #include "Basic/Diagnostic.h"
 #include "Basic/Debug.h"
 
+#include "llvm/ADT/StringMap.h"
+
 using namespace fly;
 
 /**
@@ -407,6 +409,10 @@ ASTBlock* SemaBuilder::CreateBlock(ASTBlock *Parent, const SourceLocation &Loc) 
     return Block;
 }
 
+ASTBlock* SemaBuilder::getBlock(ASTFunction *Function) {
+    return Function->Body;
+}
+
 ASTIfBlock *SemaBuilder::CreateIfBlock(ASTBlock *Parent, const SourceLocation &Loc, ASTExpr *Condition) {
     ASTIfBlock *Block = new ASTIfBlock(Parent, Loc, Condition);
     Block->Parent = Parent;
@@ -522,11 +528,22 @@ bool SemaBuilder::AddImport(ASTNode *Node, ASTImport * Import) {
     return false;
 }
 
-bool SemaBuilder::AddGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar, ASTExpr *Expr) {
+bool SemaBuilder::AddGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar, ASTValue *Value) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddGlobalVar",
-                      "Node=" << Node->str() << ", GlobalVar=" << GlobalVar->str() << ", Expr=" << Expr->str());
+                      "Node=" << Node->str() << ", GlobalVar=" << GlobalVar->str() << ", Value=" << Value->str());
 
-    // Set Var Expr
+    // Set the Expr with ASTValueExpr
+    return AddGlobalVar(Node, GlobalVar, CreateExpr(nullptr, Value));
+}
+
+bool SemaBuilder::AddGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar, ASTExpr *Expr) {
+
+    // Only ASTExprValue
+    if (Expr && Expr->getExprKind() != EXPR_VALUE) {
+        Diag(Expr->getLocation(),diag::err_sema_generic);
+        return false;
+    }
+
     GlobalVar->Expr = Expr;
 
     // Lookup into namespace for public var
@@ -712,8 +729,9 @@ bool SemaBuilder::AddExpr(ASTExprStmt *ExprStmt, ASTExpr *Expr) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddExpr", "ExprStmt=" << ExprStmt->str() << ", Expr=" << Expr->str());
     ExprStmt->Expr = Expr;
 
-    if (!Expr)
+    if (!Expr) { 
         return Diag(ExprStmt->getLocation(), diag::err_sema_generic) && false;
+    }
 
     Expr->Stmt = ExprStmt;
     return true;
@@ -744,6 +762,15 @@ bool SemaBuilder::AddStmt(ASTBlock *Block, ASTStmt *Stmt) {
             //Useful for Alloca into CodeGen
             Block->Top->LocalVars.push_back(LocalVar);
             return true;
+        }
+    } else if (Stmt->getKind() == STMT_VAR_ASSIGN) {
+        ASTVarAssign *VarAssign = (ASTVarAssign *) Stmt;
+        
+        // Remove from Undefined Var because now have an Expr assigned
+        if (VarAssign->getVarRef()->getNameSpace().empty()) { // only for VarRef with empty NameSpace
+            auto It = Block->UndefVars.find(VarAssign->getVarRef()->getName());
+            if (It != Block->UndefVars.end())
+                Block->UndefVars.erase(It);
         }
     }
 

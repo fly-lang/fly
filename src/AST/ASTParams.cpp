@@ -18,7 +18,7 @@
 
 using namespace fly;
 
-ASTParam::ASTParam(const SourceLocation &Loc, ASTType *Type, const std::string &Name, bool Constant) :
+ASTParam::ASTParam(const SourceLocation &Loc, ASTType *Type, const std::string Name, bool Constant) :
         ASTLocalVar(Loc, Type, Name, Constant) {
 
 }

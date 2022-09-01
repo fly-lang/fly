@@ -21,7 +21,7 @@ namespace fly {
 
         friend class SemaBuilder;
 
-        ASTParam(const SourceLocation &Loc, ASTType *Type, const std::string &Name, bool Constant);
+        ASTParam(const SourceLocation &Loc, ASTType *Type, const std::string Name, bool Constant);
 
     public:
 

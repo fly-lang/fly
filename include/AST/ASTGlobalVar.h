@@ -28,14 +28,14 @@ namespace fly {
         // Code Generator
         CodeGenGlobalVar *CodeGen;
 
-        ASTGlobalVar(const SourceLocation &Loc, ASTNode *Node, ASTType *Type, const std::string &Name,
+        ASTGlobalVar(const SourceLocation &Loc, ASTNode *Node, ASTType *Type, const std::string Name,
                      VisibilityKind Visibility = V_DEFAULT, bool Constant = false);
 
     public:
 
         ~ASTGlobalVar() = default;
 
-        const std::string &getName() const override;
+        const std::string getName() const override;
 
         ASTExpr *getExpr() const override;
 

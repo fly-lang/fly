@@ -64,14 +64,14 @@ namespace fly {
         // Populated during codegen phase
         CodeGenFunction *CodeGen = nullptr;
 
-        ASTFunction(const SourceLocation &Loc, ASTNode *Node, ASTType *ReturnType, const std::string &Name,
+        ASTFunction(const SourceLocation &Loc, ASTNode *Node, ASTType *ReturnType, const std::string Name,
                     VisibilityKind Visibility);
 
     public:
 
         ASTType *getType() const;
 
-        const std::string &getName() const;
+        const std::string getName() const;
 
         const ASTParams *getParams() const;
 

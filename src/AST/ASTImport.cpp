@@ -17,13 +17,13 @@
 
 using namespace fly;
 
-ASTImport::ASTImport(const SourceLocation &NameLoc, std::string &Name) :
+ASTImport::ASTImport(const SourceLocation &NameLoc, std::string Name) :
         NameLocation(NameLoc), Name(Name) {
 
 }
 
-ASTImport::ASTImport(const SourceLocation &NameLoc, std::string &Name,
-                     const SourceLocation &AliasLoc, std::string &Alias) :
+ASTImport::ASTImport(const SourceLocation &NameLoc, std::string Name,
+                     const SourceLocation &AliasLoc, std::string Alias) :
         NameLocation(NameLoc), Name(Name), AliasLocation(AliasLoc), Alias(Alias) {
 
 }
@@ -32,11 +32,11 @@ ASTImport::~ASTImport() {
     NameSpace = nullptr;
 }
 
-const std::string &ASTImport::getName() const {
+const std::string ASTImport::getName() const {
     return Name;
 }
 
-const std::string &ASTImport::getAlias() const {
+const std::string ASTImport::getAlias() const {
     return Alias;
 }
 

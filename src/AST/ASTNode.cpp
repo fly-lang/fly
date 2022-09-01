@@ -41,7 +41,7 @@ ASTNameSpace* ASTNode::getNameSpace() {
     return NameSpace;
 }
 
-ASTImport *ASTNode:: FindImport(const std::string &Name) {
+ASTImport *ASTNode:: FindImport(const std::string Name) {
     // Search into Node imports
     return Imports.lookup(Name);
 }

@@ -129,21 +129,15 @@ bool Sema::isTypeDerivate(ASTType *T1, ASTType *T2) {
     return true;
 }
 
-bool Sema::CheckValueType(ASTValueExpr *ValueExpr, ASTType *Type) {
-    if (Type->isBool()) {
-        return ValueExpr->getValue().getKind() == VALUE_BOOL;
-    } else if (Type->isInteger()) {
-        return ValueExpr->getValue().getKind() == VALUE_INTEGER;
-    } else if (Type->isFloatingPoint()) {
-        return ValueExpr->getValue().getKind() == VALUE_FLOATING_POINT;
-    } else if (Type->isArray()) {
-        return ValueExpr->getValue().getKind() == VALUE_ARRAY;
-    } else if (Type->isClass()) {
-        return ValueExpr->getValue().getKind() == VALUE_NULL;
+bool Sema::CheckMacroType(ASTValueExpr *ValueExpr, ASTType *Type) {
+
+    if (ValueExpr->getValue().getMacroKind() != Type->getMacroKind()) {
+        Diag(ValueExpr->getLocation(),
+             diag::err_sema_types_incompatible) << ValueExpr->getValue().printMacroType() << Type->printMacroType();
+        return false;
     }
 
-    assert("Unknown Value type");
-    return false;
+    return true;
 }
 
 bool Sema::CheckIfBlock(ASTIfBlock *Block) {

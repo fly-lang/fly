@@ -70,7 +70,7 @@ namespace fly {
 
         bool isTypeDerivate(ASTType *T1, ASTType *T2);
 
-        bool CheckValueType(ASTValueExpr *ValueExpr, ASTType *Type);
+        bool CheckMacroType(ASTValueExpr *ValueExpr, ASTType *Type);
 
         bool CheckIfBlock(ASTIfBlock *Block);
 

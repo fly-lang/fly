@@ -45,7 +45,7 @@ namespace fly {
 
         bool Constant = false;
 
-        ASTVar(ASTVarKind VarKind, ASTType *Type, const std::string &Name, bool Constant);
+        ASTVar(ASTVarKind VarKind, ASTType *Type, const std::string Name, bool Constant);
 
         virtual ~ASTVar();
 
@@ -57,7 +57,7 @@ namespace fly {
 
         ASTType *getType() const;
 
-        const std::string &getName() const;
+        const std::string getName() const;
 
         virtual ASTExpr *getExpr() const = 0;
 
@@ -85,13 +85,13 @@ namespace fly {
         ASTVar *Def = nullptr;
 
     public:
-        ASTVarRef(const SourceLocation &Loc, const std::string &Name, const std::string &NameSpace = "");
+        ASTVarRef(const SourceLocation &Loc, const std::string Name, const std::string NameSpace = "");
 
         const SourceLocation &getLocation() const;
 
-        const std::string &getNameSpace() const;
+        const std::string getNameSpace() const;
 
-        const std::string &getName() const;
+        const std::string getName() const;
 
         ASTVar *getDef() const;
 
