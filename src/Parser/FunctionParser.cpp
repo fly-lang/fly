@@ -86,10 +86,10 @@ bool FunctionParser::ParseParam() {
                 Expr = P->Builder.CreateExpr(Param, Val);
             }
         } else {
-            Expr = P->Builder.CreateExpr(); // ASTEmptyExpr
+            Expr = P->Builder.CreateExpr(Param); // ASTEmptyExpr
         }
 
-        if (Success && P->Builder.AddExpr(Param, Expr) && P->Builder.AddFunctionParam(Function, Param)) {
+        if (Success && P->Builder.AddFunctionParam(Function, Param)) {
 
             if (P->Tok.is(tok::comma)) {
                 P->ConsumeToken();

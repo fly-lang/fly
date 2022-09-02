@@ -419,7 +419,7 @@ bool Parser::ParseStmt(ASTBlock *Block) {
         SourceLocation Loc = ConsumeToken();
         ASTReturn *Return = Builder.CreateReturn(Loc);
         ASTExpr *Expr = ParseExpr(Return);
-        return Builder.AddExpr(Return, Expr) && Builder.AddStmt(Block, Return);
+        return Builder.AddStmt(Block, Return);
     }
     if (Tok.is(tok::kw_break)) { // Parse break
         ASTBreak *Break = Builder.CreateBreak(ConsumeToken());
@@ -461,7 +461,7 @@ bool Parser::ParseStmt(ASTBlock *Block) {
         if (isTokenAssign()) {
             ConsumeToken();
             ASTExpr *Expr = ParseExpr(LocalVar);
-            return Expr && Builder.AddExpr(LocalVar, Expr) && Builder.AddStmt(Block, LocalVar);
+            return Expr &&  Builder.AddStmt(Block, LocalVar);
         }
         
         if (isTokenOperator() || isTokenAssignOperator()) {
@@ -479,11 +479,11 @@ bool Parser::ParseStmt(ASTBlock *Block) {
         ExprParser Parser(this, VarAssign);
         ASTExpr *Expr = Parser.ParseAssignExpr();
 
-        return Expr && Builder.AddExpr(VarAssign, Expr) && Builder.AddStmt(Block, VarAssign);
+        return Expr && Builder.AddStmt(Block, VarAssign);
     } else { // parse an ASTExprStmt
         ASTExprStmt *ExprStmt = Builder.CreateExprStmt(Tok.getLocation());
         ASTExpr *Expr = ParseExpr(ExprStmt);
-        return Expr && Builder.AddExpr(ExprStmt, Expr) && Builder.AddStmt(Block, ExprStmt);
+        return Expr && Builder.AddStmt(Block, ExprStmt);
     }
 }
 
@@ -999,7 +999,7 @@ bool Parser::ParseCallArg(ASTFunctionCall *Call) {
     // Parse Args in a Function Call
     ASTExpr *Expr = ParseExpr(Arg);
 
-    if (Builder.AddExpr(Arg, Expr) && Builder.AddFunctionCallArg(Call, Arg)) {
+    if (Builder.AddFunctionCallArg(Call, Arg)) {
 
         if (Tok.is(tok::comma)) {
             ConsumeToken();

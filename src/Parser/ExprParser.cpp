@@ -140,7 +140,7 @@ ASTExpr *ExprParser::ParseExpr(bool IsFirst) {
     } else if (P->isUnaryPreOperator(P->Tok)) { // Ex. ++a or --a or !a
         Expr = ParseUnaryPreExpr(P); // Parse Unary Post Expression
     } else {
-        return P->Builder.CreateExpr(); // return an ASTEmptyExpr
+        return P->Builder.CreateExpr(Stmt); // return an ASTEmptyExpr
     }
 
      // Error: missing expression

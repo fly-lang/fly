@@ -130,7 +130,7 @@ namespace fly {
         ASTVarRef *CreateVarRef(ASTGlobalVar *GlobalVar);
 
         // Create Expressions
-        ASTEmptyExpr *CreateExpr();
+        ASTEmptyExpr *CreateExpr(ASTStmt *Stmt);
         ASTValueExpr *CreateExpr(ASTStmt *Stmt, ASTValue *Value);
         ASTFunctionCallExpr *CreateExpr(ASTStmt *Stmt, ASTFunctionCall *Call);
         ASTVarRefExpr *CreateExpr(ASTStmt *Stmt, ASTVarRef *VarRef);
@@ -173,8 +173,10 @@ namespace fly {
         // Add Value to Array
         bool AddArrayValue(ASTArrayValue *Array, ASTValue *Value);
 
-        bool AddExpr(ASTExprStmt *ExprStmt, ASTExpr *Expr);
+    private:
+        bool AddExpr(ASTStmt *Stmt, ASTExpr *Expr);
 
+    public:
         // Add Stmt
         bool AddStmt(ASTBlock *Block, ASTStmt *Stmt);
         bool AddStmt(ASTFunction *Function, ASTStmt *Stmt);

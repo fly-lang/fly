@@ -366,25 +366,30 @@ ASTVarRef *SemaBuilder::CreateVarRef(ASTGlobalVar *GlobalVar) {
     return VarRef;
 }
 
-ASTEmptyExpr *SemaBuilder::CreateExpr() {
-    return new ASTEmptyExpr(SourceLocation());
-}
-
-ASTValueExpr *SemaBuilder::CreateExpr(ASTStmt *Stmt, ASTValue *Value) {
-    ASTValueExpr *Expr = new ASTValueExpr(Value);
-    Expr->Stmt = Stmt;
+ASTEmptyExpr *SemaBuilder::CreateExpr(ASTStmt *Stmt) {
+    ASTEmptyExpr *Expr = new ASTEmptyExpr(SourceLocation());
+    AddExpr(Stmt, Expr);
     return Expr;
 }
 
+ASTValueExpr *SemaBuilder::CreateExpr(ASTStmt *Stmt, ASTValue *Value) {
+    ASTValueExpr *ValueExpr = new ASTValueExpr(Value);
+    ValueExpr->Stmt = Stmt; // TODO add ASTExpr() constructor
+    AddExpr(Stmt, ValueExpr);
+    return ValueExpr;
+}
+
 ASTFunctionCallExpr *SemaBuilder::CreateExpr(ASTStmt *Stmt, ASTFunctionCall *Call) {
-    ASTFunctionCallExpr *Arg = new ASTFunctionCallExpr(Call);
-    Arg->Stmt = Stmt;
-    return Arg;
+    ASTFunctionCallExpr *FunctionCallExpr = new ASTFunctionCallExpr(Call);
+    FunctionCallExpr->Stmt = Stmt;
+    AddExpr(Stmt, FunctionCallExpr);
+    return FunctionCallExpr;
 }
 
 ASTVarRefExpr *SemaBuilder::CreateExpr(ASTStmt *Stmt, ASTVarRef *VarRef) {
     ASTVarRefExpr *VarRefExpr = new ASTVarRefExpr(VarRef);
     VarRefExpr->Stmt = Stmt;
+    AddExpr(Stmt, VarRefExpr);
     return VarRefExpr;
 }
 
@@ -392,6 +397,7 @@ ASTUnaryGroupExpr *SemaBuilder::CreateUnaryExpr(ASTStmt *Stmt, const SourceLocat
                                                 UnaryOptionKind OptionKind, ASTVarRefExpr *First) {
     ASTUnaryGroupExpr *UnaryExpr = new ASTUnaryGroupExpr(Loc, Kind, OptionKind, First);
     UnaryExpr->Stmt = Stmt;
+    AddExpr(Stmt, UnaryExpr);
     return UnaryExpr;
 }
 
@@ -399,6 +405,7 @@ ASTBinaryGroupExpr *SemaBuilder::CreateBinaryExpr(ASTStmt *Stmt, const SourceLoc
                                                   ASTExpr *First, ASTExpr *Second) {
     ASTBinaryGroupExpr *BinaryExpr = new ASTBinaryGroupExpr(Loc, Kind, First, Second);
     BinaryExpr->Stmt = Stmt;
+    AddExpr(Stmt, BinaryExpr);
     return BinaryExpr;
 }
 
@@ -406,6 +413,7 @@ ASTTernaryGroupExpr *SemaBuilder::CreateTernaryExpr(ASTStmt *Stmt, const SourceL
                                                     ASTExpr *Second, ASTExpr *Third) {
     ASTTernaryGroupExpr *TernaryExpr = new ASTTernaryGroupExpr(Loc, First, Second, Third);
     TernaryExpr->Stmt = Stmt;
+    AddExpr(Stmt, TernaryExpr);
     return TernaryExpr;
 }
 
@@ -713,14 +721,49 @@ bool SemaBuilder::AddExternalFunction(ASTNode *Node, ASTFunction *Call) {
     return Node->ExternalFunctions.insert(Call).second;
 }
 
-bool SemaBuilder::AddExpr(ASTExprStmt *ExprStmt, ASTExpr *Expr) {
-    assert(ExprStmt && "ExprStmt must be defined");
-    FLY_DEBUG_MESSAGE("SemaBuilder", "AddExpr", "ExprStmt=" << ExprStmt->str() << ", Expr=" << Expr->str());
-    ExprStmt->Expr = Expr;
-
-    if (!Expr) { 
-        return Diag(ExprStmt->getLocation(), diag::err_sema_generic) && false;
+bool SemaBuilder::AddExpr(ASTStmt *Stmt, ASTExpr *Expr) {
+    if (!Expr) {
+        return Diag(Expr->getLocation(), diag::err_sema_generic) && false;
     }
+
+    FLY_DEBUG_MESSAGE("SemaBuilder", "AddExpr", "Expr=" << Expr->str());
+    if (Stmt)
+        switch (Stmt->getKind()) {
+            case STMT_EXPR:
+            case STMT_ARG:
+            case STMT_VAR_DEFINE:
+            case STMT_VAR_ASSIGN:
+            case STMT_RETURN:
+                ((ASTExprStmt *) Stmt)->Expr = Expr;
+                break;
+            case STMT_BLOCK:
+                switch (((ASTBlock *) Stmt)->getBlockKind()) {
+
+                    case BLOCK_STMT:
+                        break;
+                    case BLOCK_STMT_IF:
+                        ((ASTIfBlock *) Stmt)->Condition = Expr;
+                        break;
+                    case BLOCK_STMT_ELSIF:
+                        ((ASTElsifBlock *) Stmt)->Condition = Expr;
+                        break;
+                    case BLOCK_STMT_ELSE:
+                        break;
+                    case BLOCK_STMT_SWITCH:
+                        break;
+                    case BLOCK_STMT_CASE:
+                        break;
+                    case BLOCK_STMT_DEFAULT:
+                        break;
+                    case BLOCK_STMT_WHILE:
+                        break;
+                    case BLOCK_STMT_FOR:
+                        break;
+                }
+            case STMT_BREAK:
+            case STMT_CONTINUE:
+                break;
+        }
 
     return true;
 }
