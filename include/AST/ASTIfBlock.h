@@ -34,7 +34,7 @@ namespace fly {
         // The Else Block
         ASTElseBlock *ElseBlock = nullptr;
 
-        ASTIfBlock(ASTBlock *Parent, const SourceLocation &Loc, ASTExpr *Condition);
+        ASTIfBlock(ASTBlock *Parent, const SourceLocation &Loc);
 
     public:
 
@@ -54,9 +54,11 @@ namespace fly {
         enum ASTBlockKind StmtKind = ASTBlockKind::BLOCK_STMT_ELSIF;
 
         // The Else If expression condition
-        ASTExpr *Condition;
+        ASTExpr *Condition = nullptr;
 
-        ASTElsifBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc, ASTExpr *Condition);
+        ASTIfBlock *IfBlock = nullptr;
+
+        ASTElsifBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc);
 
     public:
 
@@ -70,6 +72,8 @@ namespace fly {
         friend class SemaBuilder;
 
         enum ASTBlockKind StmtKind = ASTBlockKind::BLOCK_STMT_ELSE;
+
+        ASTIfBlock *IfBlock = nullptr;
 
         ASTElseBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc);
 

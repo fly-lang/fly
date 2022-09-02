@@ -191,7 +191,7 @@ ASTExpr *ExprParser::ParseExpr(bool IsFirst) {
             ExprParser SubThird(P, Stmt);
             ASTExpr *False = SubThird.ParseExpr();
             if (False != nullptr)
-                return P->Builder.CreateTernaryExpr(Expr->getLocation(), Expr, True, False);
+                return P->Builder.CreateTernaryExpr(Stmt, Expr->getLocation(), Expr, True, False);
         }
 
         // Error: Invalid operator in Ternary condition
@@ -245,7 +245,7 @@ ASTUnaryGroupExpr* ExprParser::ParseUnaryPostExpr(ASTVarRef *VarRef) {
                 assert(0 && "Unary Operator not accepted");
         }
         P->ConsumeToken();
-        return P->Builder.CreateUnaryExpr(VarRef->getLocation(), Op, UNARY_POST, VarRefExpr);
+        return P->Builder.CreateUnaryExpr(Stmt, VarRef->getLocation(), Op, UNARY_POST, VarRefExpr);
 }
 
 /**
@@ -282,7 +282,7 @@ ASTUnaryGroupExpr* ExprParser::ParseUnaryPreExpr(Parser *P) {
         if (P->ParseIdentifier(Loc, Name, NameSpace)) {
             ASTVarRef *VarRef = P->Builder.CreateVarRef(Loc, Name.str(), NameSpace.str());
             ASTVarRefExpr *VarRefExpr = P->Builder.CreateExpr(Stmt, VarRef);
-            return P->Builder.CreateUnaryExpr(Loc, Op, UNARY_PRE, VarRefExpr);
+            return P->Builder.CreateUnaryExpr(Stmt, Loc, Op, UNARY_PRE, VarRefExpr);
         }
     }
 
@@ -373,7 +373,7 @@ void ExprParser::UpdateBinaryGroup(bool NoPrecedence) {
                 if (NoPrecedence || Op->isPrecedence()) {
                     First = Result.back();
                     Result.pop_back();
-                    Result.push_back(P->Builder.CreateBinaryExpr(First->getLocation(), Op->getOp(), First, Second));
+                    Result.push_back(P->Builder.CreateBinaryExpr(Stmt, First->getLocation(), Op->getOp(), First, Second));
                 } else {
                     Result.push_back(Op);
                     Result.push_back(Second);

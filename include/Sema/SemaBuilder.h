@@ -134,15 +134,18 @@ namespace fly {
         ASTValueExpr *CreateExpr(ASTStmt *Stmt, ASTValue *Value);
         ASTFunctionCallExpr *CreateExpr(ASTStmt *Stmt, ASTFunctionCall *Call);
         ASTVarRefExpr *CreateExpr(ASTStmt *Stmt, ASTVarRef *VarRef);
-        ASTUnaryGroupExpr *CreateUnaryExpr(const SourceLocation &Loc, UnaryOpKind Kind, UnaryOptionKind OptionKind,ASTVarRefExpr *First);
-        ASTBinaryGroupExpr *CreateBinaryExpr(const SourceLocation &Loc, BinaryOpKind Kind, ASTExpr *First, ASTExpr *Second);
-        ASTTernaryGroupExpr *CreateTernaryExpr(const SourceLocation &Loc, ASTExpr *First, ASTExpr *Second, ASTExpr *Third);
+        ASTUnaryGroupExpr *CreateUnaryExpr(ASTStmt *Stmt, const SourceLocation &Loc, UnaryOpKind Kind,
+                                           UnaryOptionKind OptionKind,ASTVarRefExpr *First);
+        ASTBinaryGroupExpr *CreateBinaryExpr(ASTStmt *Stmt, const SourceLocation &Loc,
+                                             BinaryOpKind Kind, ASTExpr *First, ASTExpr *Second);
+        ASTTernaryGroupExpr *CreateTernaryExpr(ASTStmt *Stmt, const SourceLocation &Loc,
+                                               ASTExpr *First, ASTExpr *Second, ASTExpr *Third);
 
         // Create Blocks structures
         ASTBlock* CreateBlock(ASTBlock *Parent, const SourceLocation &Loc);
         ASTBlock* getBlock(ASTFunction *Function);
-        ASTIfBlock *CreateIfBlock(ASTBlock *Parent, const SourceLocation &Loc, ASTExpr *Condition);
-        ASTElsifBlock *CreateElsifBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc, ASTExpr *Condition);
+        ASTIfBlock *CreateIfBlock(ASTBlock *Parent, const SourceLocation &Loc);
+        ASTElsifBlock *CreateElsifBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc);
         ASTElseBlock *CreateElseBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc);
         ASTSwitchBlock *CreateSwitchBlock(ASTBlock *Parent, const SourceLocation &Loc, ASTExpr *Expr);
         ASTSwitchCaseBlock *CreateSwitchCaseBlock(ASTSwitchBlock *SwitchBlock, const SourceLocation &Loc, ASTExpr *Condition);
@@ -178,9 +181,9 @@ namespace fly {
         bool AddFunctionCallArg(ASTFunctionCall *Call, ASTArg *Arg);
 
         // Add Blocks structures
-        bool AddIfBlock(ASTBlock *Block, ASTIfBlock *IfBlock);
-        bool AddElsifBlock(ASTIfBlock *IfBlock, ASTElsifBlock *ElsifBlock);
-        bool AddElseBlock(ASTIfBlock *IfBlock, ASTElseBlock *ElseBlock);
+        bool AddIfBlock(ASTIfBlock *IfBlock, ASTExpr *Expr);
+        bool AddElsifBlock(ASTElsifBlock *ElsifBlock, ASTExpr *Expr);
+        bool AddElseBlock(ASTElseBlock *ElseBlock);
         bool AddSwitchBlock(ASTBlock *Parent, ASTSwitchBlock *Block);
         bool AddSwitchCaseBlock(ASTSwitchBlock *SwitchBlock, ASTSwitchCaseBlock *CaseBlock);
         bool setSwitchDefaultBlock(ASTSwitchBlock *SwitchBlock, ASTSwitchDefaultBlock *DefaultBlock);

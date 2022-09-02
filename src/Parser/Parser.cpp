@@ -546,20 +546,21 @@ bool Parser::ParseIfStmt(ASTBlock *Block) {
     ConsumeToken();
     // Parse (
     bool hasIfParen = ParseStartParen();
+    ASTIfBlock *IfBlock = Builder.CreateIfBlock(Block, Tok.getLocation());
+
     // Parse the group of expressions into parenthesis
     ASTExpr *IfExpr = ParseExpr(); // Parse Expr
     if (hasIfParen) {
         ParseEndParen(hasIfParen);
     }
-    ASTIfBlock *IfBlock = Builder.CreateIfBlock(Block, Tok.getLocation(), IfExpr);
     // Parse statement between braces for If
     bool Success = false;
     if (isBlockStart()) {
         if (ParseBlock(IfBlock)) {
-            Success = Builder.AddIfBlock(Block, IfBlock);
+            Success = Builder.AddIfBlock(IfBlock, IfExpr);
         }
     } else if (ParseStmt(IfBlock)) { // Only for a single Stmt without braces
-        Success = Builder.AddIfBlock(Block, IfBlock);
+        Success = Builder.AddIfBlock(IfBlock, IfExpr);
     }
 
     // Add Elsif
@@ -572,11 +573,11 @@ bool Parser::ParseIfStmt(ASTBlock *Block) {
         if (hasElsifParen) {
             ParseEndParen(hasElsifParen);
         }
-        ASTElsifBlock *ElsifBlock = Builder.CreateElsifBlock(IfBlock, ElsifLoc, ElsifExpr);
+        ASTElsifBlock *ElsifBlock = Builder.CreateElsifBlock(IfBlock, ElsifLoc);
         if (isBlockStart()) {
-            Success = ParseBlock(ElsifBlock) && Builder.AddElsifBlock(IfBlock, ElsifBlock);
+            Success = ParseBlock(ElsifBlock) && Builder.AddElsifBlock(ElsifBlock, ElsifExpr);
         } else if (ParseStmt(ElsifBlock)) { // Only for a single Stmt without braces
-            Success = Builder.AddElsifBlock(IfBlock, ElsifBlock);
+            Success = Builder.AddElsifBlock(ElsifBlock, ElsifExpr);
         }
     }
 
@@ -585,9 +586,9 @@ bool Parser::ParseIfStmt(ASTBlock *Block) {
         const SourceLocation &ElseLoc = ConsumeToken();
         ASTElseBlock *ElseBlock = Builder.CreateElseBlock(IfBlock, ElseLoc);
         if (isBlockStart()) {
-            Success = ParseBlock(ElseBlock) && Builder.AddElseBlock(IfBlock, ElseBlock);
+            Success = ParseBlock(ElseBlock) && Builder.AddElseBlock(ElseBlock);
         } else if (ParseStmt(ElseBlock)) { // Only for a single Stmt without braces
-            Success = Builder.AddElseBlock(IfBlock, ElseBlock);
+            Success = Builder.AddElseBlock(ElseBlock);
         }
     }
 

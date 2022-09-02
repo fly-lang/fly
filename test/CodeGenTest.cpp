@@ -482,7 +482,7 @@ namespace {
         ASTVarRef *VarRefG = Builder->CreateVarRef(GVar);
         ASTVarAssign * GVarAssign = Builder->CreateVarAssign(VarRefG);
         EXPECT_TRUE(Builder->AddExpr(GVarAssign,
-                                     Builder->CreateExpr(VarA, SemaBuilder::CreateFloatingValue(SourceLoc, 1))));
+                                     Builder->CreateExpr(GVarAssign, SemaBuilder::CreateFloatingValue(SourceLoc, 1))));
         EXPECT_TRUE(Builder->AddStmt(MainFn, GVarAssign));
 
         // return A
@@ -591,10 +591,10 @@ namespace {
         ASTVarRefExpr *E4 = Builder->CreateExpr(Return, Builder->CreateVarRef(cParam));
         ASTValueExpr *E5 = Builder->CreateExpr(Return, SemaBuilder::CreateIntegerValue(SourceLoc, 2));
 
-        ASTBinaryGroupExpr *G2 = Builder->CreateBinaryExpr(SourceLoc, ARITH_MUL, E2, E3);
-        ASTBinaryGroupExpr *G3 = Builder->CreateBinaryExpr(SourceLoc, ARITH_SUB, E4, E5);
-        ASTBinaryGroupExpr *G1 = Builder->CreateBinaryExpr(SourceLoc, ARITH_DIV, G2, G3);
-        ASTBinaryGroupExpr *Group = Builder->CreateBinaryExpr(SourceLoc, ARITH_ADD, E1, G1);
+        ASTBinaryGroupExpr *G2 = Builder->CreateBinaryExpr(Return, SourceLoc, ARITH_MUL, E2, E3);
+        ASTBinaryGroupExpr *G3 = Builder->CreateBinaryExpr(Return, SourceLoc, ARITH_SUB, E4, E5);
+        ASTBinaryGroupExpr *G1 = Builder->CreateBinaryExpr(Return, SourceLoc, ARITH_DIV, G2, G3);
+        ASTBinaryGroupExpr *Group = Builder->CreateBinaryExpr(Return, SourceLoc, ARITH_ADD, E1, G1);
 
         EXPECT_TRUE(Builder->AddExpr(Return, Group));
         EXPECT_TRUE(Builder->AddStmt(MainFn, Return));
@@ -660,7 +660,7 @@ namespace {
         // c = a + b
         ASTVarAssign * cAddVarAssign = Builder->CreateVarAssign(Builder->CreateVarRef(cParam));
         EXPECT_TRUE(Builder->AddExpr(cAddVarAssign,
-                                     Builder->CreateBinaryExpr(SourceLoc,ARITH_ADD,
+                                     Builder->CreateBinaryExpr(cAddVarAssign, SourceLoc,ARITH_ADD,
                                              Builder->CreateExpr(cAddVarAssign, Builder->CreateVarRef(aParam)),
                                              Builder->CreateExpr(cAddVarAssign, Builder->CreateVarRef(bParam)))));
         EXPECT_TRUE(Builder->AddStmt(MainFn, cAddVarAssign));
@@ -668,7 +668,7 @@ namespace {
         // c = a - b
         ASTVarAssign * cSubVarAssign = Builder->CreateVarAssign(Builder->CreateVarRef(cParam));
         EXPECT_TRUE(Builder->AddExpr(cSubVarAssign,
-                                     Builder->CreateBinaryExpr(SourceLoc,ARITH_SUB,
+                                     Builder->CreateBinaryExpr(cSubVarAssign, SourceLoc,ARITH_SUB,
                                                                Builder->CreateExpr(cSubVarAssign, Builder->CreateVarRef(aParam)),
                                                                Builder->CreateExpr(cSubVarAssign, Builder->CreateVarRef(bParam)))));
         EXPECT_TRUE(Builder->AddStmt(MainFn, cSubVarAssign));
@@ -676,7 +676,7 @@ namespace {
         // c = a * b
         ASTVarAssign * cMulVarAssign = Builder->CreateVarAssign(Builder->CreateVarRef(cParam));
         EXPECT_TRUE(Builder->AddExpr(cMulVarAssign,
-                                     Builder->CreateBinaryExpr(SourceLoc,ARITH_MUL,
+                                     Builder->CreateBinaryExpr(cMulVarAssign, SourceLoc,ARITH_MUL,
                                                                Builder->CreateExpr(cMulVarAssign, Builder->CreateVarRef(aParam)),
                                                                Builder->CreateExpr(cMulVarAssign, Builder->CreateVarRef(bParam)))));
         EXPECT_TRUE(Builder->AddStmt(MainFn, cMulVarAssign));
@@ -684,7 +684,7 @@ namespace {
         // c = a / b
         ASTVarAssign * cDivVarAssign = Builder->CreateVarAssign(Builder->CreateVarRef(cParam));
         EXPECT_TRUE(Builder->AddExpr(cDivVarAssign,
-                                     Builder->CreateBinaryExpr(SourceLoc,ARITH_DIV,
+                                     Builder->CreateBinaryExpr(cDivVarAssign, SourceLoc,ARITH_DIV,
                                                                Builder->CreateExpr(cDivVarAssign, Builder->CreateVarRef(aParam)),
                                                                Builder->CreateExpr(cDivVarAssign, Builder->CreateVarRef(bParam)))));
         EXPECT_TRUE(Builder->AddStmt(MainFn, cDivVarAssign));
@@ -692,7 +692,7 @@ namespace {
         // c = a % b
         ASTVarAssign * cModVarAssign = Builder->CreateVarAssign(Builder->CreateVarRef(cParam));
         EXPECT_TRUE(Builder->AddExpr(cModVarAssign,
-                                     Builder->CreateBinaryExpr(SourceLoc,ARITH_MOD,
+                                     Builder->CreateBinaryExpr(cModVarAssign, SourceLoc,ARITH_MOD,
                                                                Builder->CreateExpr(cModVarAssign, Builder->CreateVarRef(aParam)),
                                                                Builder->CreateExpr(cModVarAssign, Builder->CreateVarRef(bParam)))));
         EXPECT_TRUE(Builder->AddStmt(MainFn, cModVarAssign));
@@ -700,7 +700,7 @@ namespace {
         // c = a & b
         ASTVarAssign * cAndVarAssign = Builder->CreateVarAssign(Builder->CreateVarRef(cParam));
         EXPECT_TRUE(Builder->AddExpr(cAndVarAssign,
-                                     Builder->CreateBinaryExpr(SourceLoc,ARITH_AND,
+                                     Builder->CreateBinaryExpr(cAndVarAssign, SourceLoc,ARITH_AND,
                                                                Builder->CreateExpr(cAndVarAssign, Builder->CreateVarRef(aParam)),
                                                                Builder->CreateExpr(cAndVarAssign, Builder->CreateVarRef(bParam)))));
         EXPECT_TRUE(Builder->AddStmt(MainFn, cAndVarAssign));
@@ -708,7 +708,7 @@ namespace {
         // c = a | b
         ASTVarAssign * cOrVarAssign = Builder->CreateVarAssign(Builder->CreateVarRef(cParam));
         EXPECT_TRUE(Builder->AddExpr(cOrVarAssign,
-                                     Builder->CreateBinaryExpr(SourceLoc,ARITH_OR,
+                                     Builder->CreateBinaryExpr(cOrVarAssign, SourceLoc,ARITH_OR,
                                                                Builder->CreateExpr(cOrVarAssign, Builder->CreateVarRef(aParam)),
                                                                Builder->CreateExpr(cOrVarAssign, Builder->CreateVarRef(bParam)))));
         EXPECT_TRUE(Builder->AddStmt(MainFn, cOrVarAssign));
@@ -716,7 +716,7 @@ namespace {
         // c = a xor b
         ASTVarAssign * cXorVarAssign = Builder->CreateVarAssign(Builder->CreateVarRef(cParam));
         EXPECT_TRUE(Builder->AddExpr(cXorVarAssign,
-                                     Builder->CreateBinaryExpr(SourceLoc,ARITH_XOR,
+                                     Builder->CreateBinaryExpr(cXorVarAssign, SourceLoc,ARITH_XOR,
                                                                Builder->CreateExpr(cXorVarAssign, Builder->CreateVarRef(aParam)),
                                                                Builder->CreateExpr(cXorVarAssign, Builder->CreateVarRef(bParam)))));
         EXPECT_TRUE(Builder->AddStmt(MainFn, cXorVarAssign));
@@ -724,7 +724,7 @@ namespace {
         // c = a << b
         ASTVarAssign * cShlVarAssign = Builder->CreateVarAssign(Builder->CreateVarRef(cParam));
         EXPECT_TRUE(Builder->AddExpr(cShlVarAssign,
-                                     Builder->CreateBinaryExpr(SourceLoc,ARITH_SHIFT_L,
+                                     Builder->CreateBinaryExpr(cShlVarAssign, SourceLoc,ARITH_SHIFT_L,
                                                                Builder->CreateExpr(cShlVarAssign, Builder->CreateVarRef(aParam)),
                                                                Builder->CreateExpr(cShlVarAssign, Builder->CreateVarRef(bParam)))));
         EXPECT_TRUE(Builder->AddStmt(MainFn, cShlVarAssign));
@@ -732,7 +732,7 @@ namespace {
         // c = a >> b
         ASTVarAssign * cShrVarAssign = Builder->CreateVarAssign(Builder->CreateVarRef(cParam));
         EXPECT_TRUE(Builder->AddExpr(cShrVarAssign,
-                                     Builder->CreateBinaryExpr(SourceLoc,ARITH_SHIFT_R,
+                                     Builder->CreateBinaryExpr(cShrVarAssign, SourceLoc,ARITH_SHIFT_R,
                                                                Builder->CreateExpr(cShrVarAssign, Builder->CreateVarRef(aParam)),
                                                                Builder->CreateExpr(cShrVarAssign, Builder->CreateVarRef(bParam)))));
         EXPECT_TRUE(Builder->AddStmt(MainFn, cShrVarAssign));
@@ -740,28 +740,28 @@ namespace {
         // ++c
         ASTExprStmt *cPreIncVarAssign = Builder->CreateExprStmt(SourceLoc);
         EXPECT_TRUE(Builder->AddExpr(cPreIncVarAssign,
-                                     Builder->CreateUnaryExpr(SourceLoc,ARITH_INCR, UNARY_PRE,
+                                     Builder->CreateUnaryExpr(cPreIncVarAssign, SourceLoc,ARITH_INCR, UNARY_PRE,
                                                                Builder->CreateExpr(cPreIncVarAssign, Builder->CreateVarRef(cParam)))));
         EXPECT_TRUE(Builder->AddStmt(MainFn, cPreIncVarAssign));
 
         // c++
         ASTExprStmt *cPostIncVarAssign = Builder->CreateExprStmt(SourceLoc);
         EXPECT_TRUE(Builder->AddExpr(cPostIncVarAssign,
-                                     Builder->CreateUnaryExpr(SourceLoc,ARITH_INCR, UNARY_POST,
+                                     Builder->CreateUnaryExpr(cPostIncVarAssign, SourceLoc,ARITH_INCR, UNARY_POST,
                                                               Builder->CreateExpr(cPostIncVarAssign, Builder->CreateVarRef(cParam)))));
         EXPECT_TRUE(Builder->AddStmt(MainFn, cPostIncVarAssign));
 
         // ++c
         ASTExprStmt *cPreDecVarAssign = Builder->CreateExprStmt(SourceLoc);
         EXPECT_TRUE(Builder->AddExpr(cPreDecVarAssign,
-                                     Builder->CreateUnaryExpr(SourceLoc, ARITH_DECR, UNARY_PRE,
+                                     Builder->CreateUnaryExpr(cPreDecVarAssign, SourceLoc, ARITH_DECR, UNARY_PRE,
                                                               Builder->CreateExpr(cPreDecVarAssign, Builder->CreateVarRef(cParam)))));
         EXPECT_TRUE(Builder->AddStmt(MainFn, cPreDecVarAssign));
 
         // c++
         ASTExprStmt *cPostDecVarAssign = Builder->CreateExprStmt(SourceLoc);
         EXPECT_TRUE(Builder->AddExpr(cPostDecVarAssign,
-                                     Builder->CreateUnaryExpr(SourceLoc, ARITH_DECR, UNARY_POST,
+                                     Builder->CreateUnaryExpr(cPostDecVarAssign, SourceLoc, ARITH_DECR, UNARY_POST,
                                                               Builder->CreateExpr(cPostDecVarAssign, Builder->CreateVarRef(cParam)))));
         EXPECT_TRUE(Builder->AddStmt(MainFn, cPostDecVarAssign));
 
@@ -863,7 +863,7 @@ namespace {
         // Operation Equal
         ASTVarAssign * cEqVarAssign = Builder->CreateVarAssign(Builder->CreateVarRef(cVar));
         EXPECT_TRUE(Builder->AddExpr(cEqVarAssign,
-                                     Builder->CreateBinaryExpr(SourceLoc, COMP_EQ,
+                                     Builder->CreateBinaryExpr(cEqVarAssign, SourceLoc, COMP_EQ,
                                                                Builder->CreateExpr(cEqVarAssign, Builder->CreateVarRef(aVar)),
                                                                Builder->CreateExpr(cEqVarAssign, Builder->CreateVarRef(bVar)))));
         EXPECT_TRUE(Builder->AddStmt(MainFn, cEqVarAssign));
@@ -871,7 +871,7 @@ namespace {
         // Operation Not Equal
         ASTVarAssign * cNeqVarAssign = Builder->CreateVarAssign(Builder->CreateVarRef(cVar));
         EXPECT_TRUE(Builder->AddExpr(cNeqVarAssign,
-                                     Builder->CreateBinaryExpr(SourceLoc, COMP_NE,
+                                     Builder->CreateBinaryExpr(cNeqVarAssign, SourceLoc, COMP_NE,
                                                                Builder->CreateExpr(cNeqVarAssign, Builder->CreateVarRef(aVar)),
                                                                Builder->CreateExpr(cNeqVarAssign, Builder->CreateVarRef(bVar)))));
         EXPECT_TRUE(Builder->AddStmt(MainFn, cNeqVarAssign));
@@ -879,7 +879,7 @@ namespace {
         // Operation Greater Than
         ASTVarAssign * cGtVarAssign = Builder->CreateVarAssign(Builder->CreateVarRef(cVar));
         EXPECT_TRUE(Builder->AddExpr(cGtVarAssign,
-                                     Builder->CreateBinaryExpr(SourceLoc, COMP_GT,
+                                     Builder->CreateBinaryExpr(cGtVarAssign, SourceLoc, COMP_GT,
                                                                Builder->CreateExpr(cGtVarAssign, Builder->CreateVarRef(aVar)),
                                                                Builder->CreateExpr(cGtVarAssign, Builder->CreateVarRef(bVar)))));
         EXPECT_TRUE(Builder->AddStmt(MainFn, cGtVarAssign));
@@ -887,7 +887,7 @@ namespace {
         // Operation Greater Than or Equal
         ASTVarAssign * cGteVarAssign = Builder->CreateVarAssign(Builder->CreateVarRef(cVar));
         EXPECT_TRUE(Builder->AddExpr(cGteVarAssign,
-                                     Builder->CreateBinaryExpr(SourceLoc, COMP_GTE,
+                                     Builder->CreateBinaryExpr(cGteVarAssign, SourceLoc, COMP_GTE,
                                                                Builder->CreateExpr(cGteVarAssign, Builder->CreateVarRef(aVar)),
                                                                Builder->CreateExpr(cGteVarAssign, Builder->CreateVarRef(bVar)))));
         EXPECT_TRUE(Builder->AddStmt(MainFn, cGteVarAssign));
@@ -895,7 +895,7 @@ namespace {
         // Operation Less Than
         ASTVarAssign * cLtVarAssign = Builder->CreateVarAssign(Builder->CreateVarRef(cVar));
         EXPECT_TRUE(Builder->AddExpr(cLtVarAssign,
-                                     Builder->CreateBinaryExpr(SourceLoc, COMP_LT,
+                                     Builder->CreateBinaryExpr(cLtVarAssign, SourceLoc, COMP_LT,
                                                                Builder->CreateExpr(cLtVarAssign, Builder->CreateVarRef(aVar)),
                                                                Builder->CreateExpr(cLtVarAssign, Builder->CreateVarRef(bVar)))));
         EXPECT_TRUE(Builder->AddStmt(MainFn, cLtVarAssign));
@@ -903,7 +903,7 @@ namespace {
         // Operation Less Than or Equal
         ASTVarAssign * cLteVarAssign = Builder->CreateVarAssign(Builder->CreateVarRef(cVar));
         EXPECT_TRUE(Builder->AddExpr(cLteVarAssign,
-                                     Builder->CreateBinaryExpr(SourceLoc, COMP_LTE,
+                                     Builder->CreateBinaryExpr(cLteVarAssign, SourceLoc, COMP_LTE,
                                                                Builder->CreateExpr(cLteVarAssign, Builder->CreateVarRef(aVar)),
                                                                Builder->CreateExpr(cLteVarAssign, Builder->CreateVarRef(bVar)))));
         EXPECT_TRUE(Builder->AddStmt(MainFn, cLteVarAssign));
@@ -990,7 +990,7 @@ namespace {
         // Operation And Logic
         ASTVarAssign * cAndVarAssign = Builder->CreateVarAssign(Builder->CreateVarRef(cVar));
         EXPECT_TRUE(Builder->AddExpr(cAndVarAssign,
-                                     Builder->CreateBinaryExpr(SourceLoc, LOGIC_AND,
+                                     Builder->CreateBinaryExpr(cAndVarAssign, SourceLoc, LOGIC_AND,
                                                                Builder->CreateExpr(cAndVarAssign, Builder->CreateVarRef(aVar)),
                                                                Builder->CreateExpr(cAndVarAssign, Builder->CreateVarRef(bVar)))));
         EXPECT_TRUE(Builder->AddStmt(MainFn, cAndVarAssign));
@@ -998,7 +998,7 @@ namespace {
         // Operation Or Logic
         ASTVarAssign * cOrVarAssign = Builder->CreateVarAssign(Builder->CreateVarRef(cVar));
         EXPECT_TRUE(Builder->AddExpr(cOrVarAssign,
-                                     Builder->CreateBinaryExpr(SourceLoc, LOGIC_OR,
+                                     Builder->CreateBinaryExpr(cOrVarAssign, SourceLoc, LOGIC_OR,
                                                                Builder->CreateExpr(cOrVarAssign, Builder->CreateVarRef(aVar)),
                                                                Builder->CreateExpr(cOrVarAssign, Builder->CreateVarRef(bVar)))));
         EXPECT_TRUE(Builder->AddStmt(MainFn, cOrVarAssign));
@@ -1090,12 +1090,12 @@ namespace {
 
         // return
         ASTVarAssign * cOrVarAssign = Builder->CreateVarAssign(Builder->CreateVarRef(cVar));
-        ASTBinaryGroupExpr *Cond = Builder->CreateBinaryExpr(SourceLoc, COMP_EQ,
+        ASTBinaryGroupExpr *Cond = Builder->CreateBinaryExpr(cOrVarAssign, SourceLoc, COMP_EQ,
                                                              Builder->CreateExpr(cOrVarAssign,
                                                                                  Builder->CreateVarRef(aVar)),
                                                              Builder->CreateExpr(cOrVarAssign,
                                                                                  Builder->CreateVarRef(bVar)));
-        EXPECT_TRUE(Builder->AddExpr(cOrVarAssign,Builder->CreateTernaryExpr(SourceLoc, Cond,
+        EXPECT_TRUE(Builder->AddExpr(cOrVarAssign,Builder->CreateTernaryExpr(cOrVarAssign, SourceLoc, Cond,
                                                                              Builder->CreateExpr(cOrVarAssign,
                                                                                                  Builder->CreateVarRef(aVar)),
                                                                              Builder->CreateExpr(cOrVarAssign,
@@ -1154,67 +1154,70 @@ namespace {
                           "}\n");
     }
 
-//    TEST_F(CodeGenTest, CGIfBlock) {
-//        ASTNode *Node = CreateNode();
-//
-//        // main()
-//        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main", VisibilityKind::V_DEFAULT);
-//        ASTLocalVar *aVar = Builder->CreateLocalVar(SourceLoc, IntType, "a");
-//        EXPECT_TRUE(Builder->AddStmt(MainFn, aVar));
-//
-//        // Create if block
-//        ASTIfBlock *IfBlock = Builder->CreateIfBlock(Builder->getBlock(MainFn), SourceLoc);
-//
-//        // Compare (a == 1)
-//        ASTVarRefExpr *aVarRef = Builder->CreateExpr(IfBlock, Builder->CreateVarRef(aVar));
-//        ASTValueExpr *Value1 = Builder->CreateExpr(IfBlock, SemaBuilder::CreateIntegerValue(SourceLoc, 1));
-//        ASTBinaryGroupExpr *Cond = Builder->CreateBinaryExpr(SourceLoc, COMP_EQ, aVarRef, Value1);
-//        EXPECT_TRUE(Builder->AddExpr(IfBlock, Cond));
-//
-//        // if (a == 1) { a = 2 }
-//        ASTVarAssign *aVarAssign = Builder->CreateVarAssign(Builder->CreateVarRef(aVar));
-//        EXPECT_TRUE(Builder->AddExpr(aVarAssign,
-//                                     Builder->CreateExpr(aVarAssign, SemaBuilder::CreateIntegerValue(SourceLoc, 2))));
-//        EXPECT_TRUE(Builder->AddStmt(IfBlock, aVarAssign));
-//
-//        EXPECT_TRUE(Builder->AddStmt(MainFn, IfBlock));
-//
-//        // return a
-//        ASTReturn *Return = Builder->CreateReturn(SourceLoc);
-//        EXPECT_TRUE(Builder->AddExpr(Return,
-//                                     Builder->CreateExpr(Return, Builder->CreateVarRef(aVar))));
-//        EXPECT_TRUE(Builder->AddStmt(MainFn, Return));
-//
-//        // Add to Node
-//        Builder->AddFunction(Node, MainFn);
-//
-//        // Generate Code
-//        CodeGenFunction *CGF = CGM->GenFunction(MainFn);
-//        CGF->GenBody();
-//        Function *F = CGF->getFunction();
-//
-//        EXPECT_FALSE(Diags.hasErrorOccurred());
-//        testing::internal::CaptureStdout();
-//        F->print(llvm::outs());
-//        std::string output = testing::internal::GetCapturedStdout();
-//
-//        EXPECT_EQ(output, "define i32 @main(i32 %0) {\n"
-//                          "entry:\n"
-//                          "  %1 = alloca i32, align 4\n"
-//                          "  store i32 %0, i32* %1, align 4\n"
-//                          "  %2 = load i32, i32* %1, align 4\n"
-//                          "  %3 = icmp eq i32 1, %2\n"
-//                          "  br i1 %3, label %ifthen, label %endif\n"
-//                          "\n"
-//                          "ifthen:                                           ; preds = %entry\n"
-//                          "  store i32 1, i32* %1, align 4\n"
-//                          "  br label %endif\n"
-//                          "\n"
-//                          "endif:                                            ; preds = %ifthen, %entry\n"
-//                          "  %4 = load i32, i32* %1, align 4\n"
-//                          "  ret i32 %4\n"
-//                          "}\n");
-//    }
+    TEST_F(CodeGenTest, DISABLED_CGIfBlock) {
+        ASTNode *Node = CreateNode();
+
+        // main()
+        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main", VisibilityKind::V_DEFAULT);
+        ASTLocalVar *aVar = Builder->CreateLocalVar(SourceLoc, IntType, "a");
+        EXPECT_TRUE(Builder->AddExpr(aVar, Builder->CreateExpr(aVar, SemaBuilder::CreateIntegerValue(SourceLoc, 0))));
+        EXPECT_TRUE(Builder->AddStmt(MainFn, aVar));
+
+        // Create if block
+        ASTIfBlock *IfBlock = Builder->CreateIfBlock(Builder->getBlock(MainFn), SourceLoc);
+
+        // Compare (a == 1)
+        ASTVarRefExpr *aVarRef = Builder->CreateExpr(IfBlock, Builder->CreateVarRef(aVar));
+        ASTValueExpr *Value1 = Builder->CreateExpr(IfBlock, SemaBuilder::CreateIntegerValue(SourceLoc, 1));
+        ASTBinaryGroupExpr *IfCond = Builder->CreateBinaryExpr(IfBlock, SourceLoc, COMP_EQ, aVarRef, Value1);
+        // TODO Builder->AddExpr(IfBlock, IfCond);
+
+        // if (a == 1) { a = 2 }
+        ASTVarAssign *aVarAssign = Builder->CreateVarAssign(Builder->CreateVarRef(aVar));
+        EXPECT_TRUE(Builder->AddExpr(aVarAssign,
+                                     Builder->CreateExpr(aVarAssign, SemaBuilder::CreateIntegerValue(SourceLoc, 2))));
+        EXPECT_TRUE(Builder->AddStmt(IfBlock, aVarAssign));
+        EXPECT_TRUE(Builder->AddIfBlock(IfBlock, IfCond));
+        EXPECT_TRUE(Builder->AddStmt(MainFn, IfBlock));
+
+        // return a
+        ASTReturn *Return = Builder->CreateReturn(SourceLoc);
+        EXPECT_TRUE(Builder->AddExpr(Return,
+                                     Builder->CreateExpr(Return, Builder->CreateVarRef(aVar))));
+        EXPECT_TRUE(Builder->AddStmt(MainFn, Return));
+
+        // Add to Node
+        EXPECT_TRUE(Builder->AddFunction(Node, MainFn));
+        EXPECT_TRUE(Builder->AddNode(Node));
+        EXPECT_TRUE(Builder->Build());
+
+        // Generate Code
+        CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+        CGF->GenBody();
+        Function *F = CGF->getFunction();
+
+        EXPECT_FALSE(Diags.hasErrorOccurred());
+        testing::internal::CaptureStdout();
+        F->print(llvm::outs());
+        std::string output = testing::internal::GetCapturedStdout();
+
+        EXPECT_EQ(output, "define i32 @main(i32 %0) {\n"
+                          "entry:\n"
+                          "  %1 = alloca i32, align 4\n"
+                          "  store i32 %0, i32* %1, align 4\n"
+                          "  %2 = load i32, i32* %1, align 4\n"
+                          "  %3 = icmp eq i32 1, %2\n"
+                          "  br i1 %3, label %ifthen, label %endif\n"
+                          "\n"
+                          "ifthen:                                           ; preds = %entry\n"
+                          "  store i32 1, i32* %1, align 4\n"
+                          "  br label %endif\n"
+                          "\n"
+                          "endif:                                            ; preds = %ifthen, %entry\n"
+                          "  %4 = load i32, i32* %1, align 4\n"
+                          "  ret i32 %4\n"
+                          "}\n");
+    }
 
 //    TEST_F(CodeGenTest, CGIfElseBlock) {
 //        ASTNode *Node = CreateNode();

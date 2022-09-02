@@ -28,6 +28,9 @@ using namespace fly;
  * @param Parent
  */
 ASTBlock::ASTBlock(ASTBlock *Parent, const SourceLocation &Loc) : ASTStmt(Parent, Loc) {
+    if (Parent) {
+        Top = Parent->Top;
+    }
 }
 
 /**
