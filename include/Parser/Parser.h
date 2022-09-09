@@ -118,6 +118,7 @@ namespace fly {
 
         // Parse a Value
         ASTValue *ParseValue();
+        ASTValue *ParseValueNumber(std::string &Str);
         bool ParseValues(ASTArrayValue &ArrayValues);
 
         // Parse Expressions

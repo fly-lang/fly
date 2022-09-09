@@ -39,19 +39,19 @@ namespace fly {
 
         const SourceLocation Location;
 
-        ASTBlock *Parent = nullptr;
+        ASTStmt *Parent = nullptr;
 
-        ASTStmt(const SourceLocation &Loc);
+        StmtKind Kind;
 
-        ASTStmt(ASTBlock *Parent, const SourceLocation &Loc);
+        ASTStmt(ASTStmt *Parent, const SourceLocation &Loc, StmtKind Kind);
 
     public:
 
+        virtual ASTStmt *getParent() const;
+
         const SourceLocation &getLocation() const;
 
-        virtual StmtKind getKind() const = 0;
-
-        virtual ASTBlock *getParent() const;
+        StmtKind getKind() const;
 
         virtual std::string str() const = 0;
     };

@@ -11,13 +11,12 @@
 
 using namespace fly;
 
-ASTWhileBlock::ASTWhileBlock(ASTBlock *Parent, const SourceLocation &Loc, ASTExpr *Cond) : ASTBlock(Parent, Loc),
-    Condition(Cond) {
+ASTWhileBlock::ASTWhileBlock(ASTBlock *Parent, const SourceLocation &Loc) : ASTBlock(Parent, Loc, BLOCK_WHILE) {
 
 }
 
-enum ASTBlockKind ASTWhileBlock::getBlockKind() const {
-    return StmtKind;
+ASTBlock *ASTWhileBlock::getParent() const {
+    return (ASTBlock *) Parent;
 }
 
 ASTExpr *ASTWhileBlock::getCondition() {

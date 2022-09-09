@@ -34,15 +34,17 @@ namespace fly {
     class ASTWhileBlock;
 
     enum ASTBlockKind {
-        BLOCK_STMT,
-        BLOCK_STMT_IF,
-        BLOCK_STMT_ELSIF,
-        BLOCK_STMT_ELSE,
-        BLOCK_STMT_SWITCH,
-        BLOCK_STMT_CASE,
-        BLOCK_STMT_DEFAULT,
-        BLOCK_STMT_WHILE,
-        BLOCK_STMT_FOR
+        BLOCK,
+        BLOCK_IF,
+        BLOCK_ELSIF,
+        BLOCK_ELSE,
+        BLOCK_SWITCH,
+        BLOCK_SWITCH_CASE,
+        BLOCK_SWITCH_DEFAULT,
+        BLOCK_WHILE,
+        BLOCK_FOR,
+        BLOCK_FOR_LOOP,
+        BLOCK_FOR_POST
     };
 
     /**
@@ -54,11 +56,7 @@ namespace fly {
         friend class SemaResolver;
         friend class Sema;
 
-        // Kind of Stmt identified by enum
-        StmtKind Kind = StmtKind::STMT_BLOCK;
-
-        // Kind of BlockStmt identified by enum
-        ASTBlockKind BlockKind = ASTBlockKind::BLOCK_STMT;
+        ASTBlockKind BlockKind;
 
         // List of Statements of the Block
         std::vector<ASTStmt *> Content;
@@ -75,17 +73,13 @@ namespace fly {
 
         ASTBlock(ASTBlock *Parent, const SourceLocation &Loc);
 
+        ASTBlock(ASTBlock *Parent, const SourceLocation &Loc, ASTBlockKind Kind);
+
     public:
-
-        StmtKind getKind() const override;
-
-        virtual enum ASTBlockKind getBlockKind() const {
-            return BlockKind;
-        };
 
         ASTFunction *getTop() const;
 
-        ASTBlock *getParent() const override;
+        ASTBlockKind getBlockKind() const;
 
         const std::vector<ASTStmt *> &getContent() const;
 
@@ -106,9 +100,7 @@ namespace fly {
         StmtKind Kind = StmtKind::STMT_BREAK;
 
     public:
-        ASTBreak(const SourceLocation &Loc);
-
-        StmtKind getKind() const override;
+        ASTBreak(ASTBlock *Parent, const SourceLocation &Loc);
 
         std::string str() const override;
     };
@@ -121,9 +113,7 @@ namespace fly {
         StmtKind Kind = StmtKind::STMT_CONTINUE;
 
     public:
-        ASTContinue(const SourceLocation &Loc);
-
-        StmtKind getKind() const override;
+        ASTContinue(ASTBlock *Parent, const SourceLocation &Loc);
 
         std::string str() const override;
     };

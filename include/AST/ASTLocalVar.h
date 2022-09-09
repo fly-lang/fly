@@ -26,19 +26,14 @@ namespace fly {
         friend class SemaBuilder;
         friend class SemaResolver;
 
-        // Statement Kind
-        const StmtKind Kind = StmtKind::STMT_VAR_DEFINE;
-
         // LocalVar Code Generator
         CodeGenLocalVar *CodeGen = nullptr;
 
     protected:
 
-        ASTLocalVar(const SourceLocation &Loc, ASTType *Type, const std::string Name, bool Constant);
+        ASTLocalVar(ASTBlock *Parent, const SourceLocation &Loc, ASTType *Type, const std::string Name, bool Constant);
 
     public:
-
-        StmtKind getKind() const;
 
         ASTExpr *getExpr() const override;
 

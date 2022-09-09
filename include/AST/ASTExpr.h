@@ -102,6 +102,8 @@ namespace fly {
 
         ASTStmt *Stmt = nullptr;
 
+        ASTExpr *Parent = nullptr;
+
     protected:
 
         ASTType *Type = nullptr;
@@ -124,6 +126,7 @@ namespace fly {
     class ASTEmptyExpr : public ASTExpr {
 
         friend class SemaBuilder;
+        friend class SemaResolver;
 
     public:
 
@@ -138,8 +141,9 @@ namespace fly {
     class ASTValueExpr : public ASTExpr {
 
         friend class SemaBuilder;
+        friend class SemaResolver;
 
-        ASTValue *Val = nullptr;
+        ASTValue *Value = nullptr;
 
         explicit ASTValueExpr(ASTValue *Val);
 
@@ -156,10 +160,11 @@ namespace fly {
     class ASTVarRefExpr : public ASTExpr {
 
         friend class SemaBuilder;
+        friend class SemaResolver;
 
-        ASTVarRef *Ref = nullptr;
+        ASTVarRef *VarRef = nullptr;
 
-        ASTVarRefExpr(ASTVarRef *Ref);
+        ASTVarRefExpr(ASTVarRef *VarRef);
 
     public:
 
@@ -251,6 +256,8 @@ namespace fly {
         friend class SemaBuilder;
         friend class SemaResolver;
 
+        const SourceLocation OpLoc;
+
         const BinaryOpKind OperatorKind;
 
         const BinaryOptionKind OptionKind;
@@ -259,7 +266,7 @@ namespace fly {
 
         ASTExpr *Second = nullptr;
 
-        ASTBinaryGroupExpr(const SourceLocation &Loc, BinaryOpKind Operator, ASTExpr *First, ASTExpr *Second);
+        ASTBinaryGroupExpr(const SourceLocation &OpLoc, BinaryOpKind Operator, ASTExpr *First, ASTExpr *Second);
 
     public:
 
@@ -287,13 +294,18 @@ namespace fly {
         // Only Ternary Condition (if ? than : else)
         const TernaryOpKind OperatorKind = CONDITION;
 
+        const SourceLocation IfLoc;
+
+        const SourceLocation ElseLoc;
+
         ASTExpr *First = nullptr;
 
         ASTExpr *Second = nullptr;
 
         ASTExpr *Third = nullptr;
 
-        ASTTernaryGroupExpr(const SourceLocation &Loc, ASTExpr *First, ASTExpr *Second, ASTExpr *Third);
+        ASTTernaryGroupExpr(ASTExpr *First, const SourceLocation &IfLoc, ASTExpr *Second,
+                            const SourceLocation &ElseLoc, ASTExpr *Third);
 
     public:
 

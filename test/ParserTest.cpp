@@ -35,7 +35,7 @@ namespace {
         ASTContext *Context;
         SemaBuilder *Builder;
         DiagnosticsEngine &Diags;
-        bool Success;
+        bool Success = false;
 
         ParserTest() : CI(*TestUtils::CreateCompilerInstance()),
                       Diags(CI.getDiagnostics()),
@@ -786,7 +786,7 @@ namespace {
     }
 
     TEST_F(ParserTest, CondTernaryOperation) {
-        llvm::StringRef str = ("int func(bool a) {\n"
+        llvm::StringRef str = ("int func(int a) {\n"
                                "  return a==1 ? 1 : a\n"
                                "}\n");
         ASTNode *Node = Parse("CondTernaryOperation", str);
@@ -948,7 +948,7 @@ namespace {
 
         // If
         ASTIfBlock *IfBlock = (ASTIfBlock *) Body->getContent()[0];
-        EXPECT_EQ(IfBlock->getBlockKind(), ASTBlockKind::BLOCK_STMT_IF);
+        EXPECT_EQ(IfBlock->getBlockKind(), ASTBlockKind::BLOCK_IF);
         ASTBinaryGroupExpr *IfCond = (ASTBinaryGroupExpr *) IfBlock->getCondition();
         EXPECT_EQ(((ASTVarRefExpr *) IfCond->getFirst())->getVarRef()->getName(), "a");
         EXPECT_EQ(IfCond->getOperatorKind(),BinaryOpKind::COMP_EQ);
@@ -967,7 +967,7 @@ namespace {
 
         // Else
         ASTElseBlock *ElseBlock = IfBlock->getElseBlock();
-        EXPECT_EQ(ElseBlock->getBlockKind(), ASTBlockKind::BLOCK_STMT_ELSE);
+        EXPECT_EQ(ElseBlock->getBlockKind(), ASTBlockKind::BLOCK_ELSE);
         EXPECT_EQ(((ASTVarAssign *)ElseBlock->getContent()[0])->getVarRef()->getName(), "b");
 
     }
@@ -989,7 +989,7 @@ namespace {
 
         // if
         ASTIfBlock *IfBlock = (ASTIfBlock *) Body->getContent()[0];
-        EXPECT_EQ(IfBlock->getBlockKind(), ASTBlockKind::BLOCK_STMT_IF);
+        EXPECT_EQ(IfBlock->getBlockKind(), ASTBlockKind::BLOCK_IF);
         ASTBinaryGroupExpr *IfCond = (ASTBinaryGroupExpr *) IfBlock->getCondition();
         EXPECT_EQ(((ASTVarRefExpr *) IfCond->getFirst())->getVarRef()->getName(), "a");
         EXPECT_EQ(IfCond->getOperatorKind(), BinaryOpKind::COMP_EQ);
@@ -1001,7 +1001,7 @@ namespace {
 
         // Elsif
         ASTElsifBlock *ElsifBlock = IfBlock->getElsifBlocks()[0];
-        EXPECT_EQ(ElsifBlock->getBlockKind(), ASTBlockKind::BLOCK_STMT_ELSIF);
+        EXPECT_EQ(ElsifBlock->getBlockKind(), ASTBlockKind::BLOCK_ELSIF);
         ASTBinaryGroupExpr *ElsifCond = (ASTBinaryGroupExpr *) ElsifBlock->getCondition();
         EXPECT_EQ(((ASTVarRefExpr *) ElsifCond->getFirst())->getVarRef()->getName(), "a");
         EXPECT_EQ(ElsifCond->getOperatorKind(), BinaryOpKind::COMP_EQ);
@@ -1009,7 +1009,7 @@ namespace {
 
         // Else
         ASTElseBlock *ElseBlock = IfBlock->getElseBlock();
-        EXPECT_EQ(ElseBlock->getBlockKind(), ASTBlockKind::BLOCK_STMT_ELSE);
+        EXPECT_EQ(ElseBlock->getBlockKind(), ASTBlockKind::BLOCK_ELSE);
         EXPECT_EQ(((ASTVarAssign *) ElseBlock->getContent()[0])->getVarRef()->getName(), "a");
 
     }
@@ -1034,22 +1034,65 @@ namespace {
         const ASTBlock *Body = F->getBody();
 
         ASTSwitchBlock *SwitchBlock = (ASTSwitchBlock *) Body->getContent()[0];
-        EXPECT_EQ(SwitchBlock->getBlockKind(), ASTBlockKind::BLOCK_STMT_SWITCH);
+        EXPECT_EQ(SwitchBlock->getBlockKind(), ASTBlockKind::BLOCK_SWITCH);
         EXPECT_EQ(((ASTValueExpr *) SwitchBlock->getCases()[0]->getExpr())->getValue().print(), "1");
         EXPECT_EQ(SwitchBlock->getCases()[0]->getContent()[0]->getKind(), StmtKind::STMT_BREAK);
         EXPECT_EQ(((ASTValueExpr *) SwitchBlock->getCases()[1]->getExpr())->getValue().print(), "2");
         EXPECT_EQ(((ASTExprStmt *) SwitchBlock->getCases()[1]->getContent()[0])->getExpr()->getExprKind(), ASTExprKind::EXPR_EMPTY);
-        EXPECT_EQ(SwitchBlock->getDefault()->getBlockKind(), ASTBlockKind::BLOCK_STMT_DEFAULT);
+        EXPECT_EQ(SwitchBlock->getDefault()->getBlockKind(), ASTBlockKind::BLOCK_SWITCH_DEFAULT);
         EXPECT_EQ((SwitchBlock->getDefault()->getContent()[0])->getKind(), StmtKind::STMT_RETURN);
 
     }
 
+    TEST_F(ParserTest, WhileStmt) {
+        llvm::StringRef str = (
+                "void func(int a) {\n"
+                "  while (a==1) {"
+                "    a++"
+                "  }\n"
+                "}\n");
+        ASTNode *Node = Parse("WhileStmt", str);
+
+        ASSERT_TRUE(isSuccess());
+
+        // Get Body
+        ASTFunction *F = *Node->getFunctions().begin()->getValue().begin()->second.begin();
+        const ASTBlock *Body = F->getBody();
+        ASTWhileBlock *WhileBlock = (ASTWhileBlock *) Body->getContent()[0];
+        EXPECT_EQ(WhileBlock->getBlockKind(), ASTBlockKind::BLOCK_WHILE);
+        EXPECT_FALSE(WhileBlock->getCondition() == nullptr);
+        EXPECT_FALSE(WhileBlock->isEmpty());
+
+        const ASTBinaryGroupExpr *Cond = (ASTBinaryGroupExpr *) WhileBlock->getCondition();
+        EXPECT_EQ(((ASTVarRefExpr *) Cond->getFirst())->getVarRef()->getName(), "a");
+        EXPECT_EQ(Cond->getOperatorKind(), COMP_EQ);
+        EXPECT_EQ(((ASTValueExpr *) Cond->getSecond())->getValue().print(), "1");
+
+    }
+
+    TEST_F(ParserTest, WhileValueStmt) {
+        llvm::StringRef str = ("void func(int a) {\n"
+                               "  while true a++\n"
+                               "}\n");
+        ASTNode *Node = Parse("WhileValueStmt", str);
+
+        ASSERT_TRUE(isSuccess());
+
+        // Get Body
+        ASTFunction *F = *Node->getFunctions().begin()->getValue().begin()->second.begin();
+        const ASTBlock *Body = F->getBody();
+        ASTWhileBlock *WhileBlock = (ASTWhileBlock *) Body->getContent()[0];
+        EXPECT_EQ(WhileBlock->getBlockKind(), ASTBlockKind::BLOCK_WHILE);
+        EXPECT_EQ(((ASTValueExpr *) WhileBlock->getCondition())->getValue().print(), "true");
+        EXPECT_FALSE(WhileBlock->isEmpty());
+    }
+
     TEST_F(ParserTest, ForStmt) {
         llvm::StringRef str = (
-                         "private void func(int a) {\n"
-                         "  for int b = 1, int c = 2; b < 10; b++, --c {"
-                         "  }"
-                         "}\n");
+                "private void func(int a) {\n"
+                "  for int b = 1, int c = 2; b < 10; b++, --c {"
+                "  }"
+                "}\n");
         ASTNode *Node = Parse("ForStmt", str);
 
         ASSERT_TRUE(isSuccess());
@@ -1058,7 +1101,7 @@ namespace {
         ASTFunction *F = *Node->getFunctions().begin()->getValue().begin()->second.begin();
         const ASTBlock *Body = F->getBody();
         ASTForBlock *ForBlock = (ASTForBlock *) Body->getContent()[0];
-        EXPECT_EQ(ForBlock->getBlockKind(), ASTBlockKind::BLOCK_STMT_FOR);
+        EXPECT_EQ(ForBlock->getBlockKind(), ASTBlockKind::BLOCK_FOR);
 
         // int b =1
         EXPECT_EQ(((ASTLocalVar *) ForBlock->getContent()[0])->getName(), "b");
@@ -1082,50 +1125,6 @@ namespace {
         EXPECT_EQ(((ASTUnaryGroupExpr *) ExprStmt2->getExpr())->getOperatorKind(), UnaryOpKind::ARITH_DECR);
 
         EXPECT_TRUE(ForBlock->getLoop()->isEmpty());
-
-    }
-
-    TEST_F(ParserTest, WhileStmt) {
-        llvm::StringRef str = (
-                "void func(int a) {\n"
-                "  while (a==1) {"
-                "    a++"
-                "  }\n"
-                "}\n");
-        ASTNode *Node = Parse("WhileStmt", str);
-
-        ASSERT_TRUE(isSuccess());
-
-        // Get Body
-        ASTFunction *F = *Node->getFunctions().begin()->getValue().begin()->second.begin();
-        const ASTBlock *Body = F->getBody();
-        ASTWhileBlock *WhileBlock = (ASTWhileBlock *) Body->getContent()[0];
-        EXPECT_EQ(WhileBlock->getBlockKind(), ASTBlockKind::BLOCK_STMT_WHILE);
-        EXPECT_FALSE(WhileBlock->getCondition() == nullptr);
-        EXPECT_FALSE(WhileBlock->isEmpty());
-
-        const ASTBinaryGroupExpr *Cond = (ASTBinaryGroupExpr *) WhileBlock->getCondition();
-        EXPECT_EQ(((ASTVarRefExpr *) Cond->getFirst())->getVarRef()->getName(), "a");
-        EXPECT_EQ(Cond->getOperatorKind(), COMP_EQ);
-        EXPECT_EQ(((ASTValueExpr *) Cond->getSecond())->getValue().print(), "1");
-
-    }
-
-    TEST_F(ParserTest, WhileValueStmt) {
-        llvm::StringRef str = ("void func(int a) {\n"
-                               "  while 1 a++\n"
-                               "}\n");
-        ASTNode *Node = Parse("WhileValueStmt", str);
-
-        ASSERT_TRUE(isSuccess());
-
-        // Get Body
-        ASTFunction *F = *Node->getFunctions().begin()->getValue().begin()->second.begin();
-        const ASTBlock *Body = F->getBody();
-        ASTWhileBlock *WhileBlock = (ASTWhileBlock *) Body->getContent()[0];
-        EXPECT_EQ(WhileBlock->getBlockKind(), ASTBlockKind::BLOCK_STMT_WHILE);
-        EXPECT_EQ(((ASTValueExpr *) WhileBlock->getCondition())->getValue().print(), "1");
-        EXPECT_FALSE(WhileBlock->isEmpty());
 
     }
 }

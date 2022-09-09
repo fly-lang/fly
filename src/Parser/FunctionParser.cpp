@@ -73,7 +73,7 @@ bool FunctionParser::ParseParam() {
         const SourceLocation IdLoc = P->Tok.getLocation();
         P->ConsumeToken();
 
-        ASTParam *Param = P->Builder.CreateParam(IdLoc, Type, Name.str(), Const);
+        ASTParam *Param = P->Builder.CreateParam(Function, IdLoc, Type, Name.str(), Const);
 
         ASTExpr *Expr;
         // Parse assignment =

@@ -8,17 +8,14 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTVarAssign.h"
+#include "AST/ASTBlock.h"
 #include "AST/ASTVar.h"
 
 using namespace fly;
 
-ASTVarAssign::ASTVarAssign(const SourceLocation &Loc, ASTVarRef *VarRef) :
-        ASTExprStmt(Loc), VarRef(VarRef) {
+ASTVarAssign::ASTVarAssign(ASTBlock *Parent, const SourceLocation &Loc, ASTVarRef *VarRef) :
+        ASTExprStmt(Parent, Loc, STMT_VAR_ASSIGN), VarRef(VarRef) {
 
-}
-
-StmtKind ASTVarAssign::getKind() const {
-    return STMT_VAR_ASSIGN;
 }
 
 std::string ASTVarAssign::str() const {

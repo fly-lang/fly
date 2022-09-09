@@ -180,18 +180,18 @@ ASTExpr *ExprParser::ParseExpr(bool IsFirst) {
     if (P->isTernaryOperator() && IsFirst) { // Parse Ternary Expression
 
         // Parse True Expr
-        P->ConsumeToken();
+        const SourceLocation &QuestionLoc = P->ConsumeToken();
 
         ExprParser SubSecond(P, Stmt);
         ASTExpr *True = SubSecond.ParseExpr();
 
         if (P->Tok.getKind() == tok::colon) {
-            P->ConsumeToken();
+            const SourceLocation &ColonLoc = P->ConsumeToken();
 
             ExprParser SubThird(P, Stmt);
             ASTExpr *False = SubThird.ParseExpr();
             if (False != nullptr)
-                return P->Builder.CreateTernaryExpr(Stmt, Expr->getLocation(), Expr, True, False);
+                return P->Builder.CreateTernaryExpr(Stmt, Expr, QuestionLoc, True, ColonLoc, False);
         }
 
         // Error: Invalid operator in Ternary condition
@@ -373,7 +373,7 @@ void ExprParser::UpdateBinaryGroup(bool NoPrecedence) {
                 if (NoPrecedence || Op->isPrecedence()) {
                     First = Result.back();
                     Result.pop_back();
-                    Result.push_back(P->Builder.CreateBinaryExpr(Stmt, First->getLocation(), Op->getOp(), First, Second));
+                    Result.push_back(P->Builder.CreateBinaryExpr(Stmt, Op->getLocation(), Op->getOp(), First, Second));
                 } else {
                     Result.push_back(Op);
                     Result.push_back(Second);

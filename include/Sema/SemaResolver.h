@@ -40,6 +40,8 @@ namespace fly {
 
         bool Resolve();
 
+    private:
+
         bool ResolveImports(ASTNode *Node);
 
         bool ResolveClass(ASTNode *Node);
@@ -48,11 +50,17 @@ namespace fly {
 
         bool ResolveBlock(ASTBlock *Block);
 
+        bool ResolveIfBlock(ASTIfBlock *IfBlock);
+
+        bool ResolveSwitchBlock(ASTSwitchBlock *SwitchBlock);
+
+        bool ResolveWhileBlock(ASTWhileBlock *WhileBlock);
+
+        bool ResolveForBlock(ASTForBlock *ForBlock);
+
         bool ResolveFunctionCall(ASTFunctionCall *Call);
 
         bool ResolveArg(ASTArg *Arg, ASTParam *Param);
-
-        ASTLocalVar *FindVarDef(ASTBlock *Block, ASTVarRef *VarRef);
 
         bool ResolveVarRef(ASTBlock *Block, ASTVarRef *VarRef);
 
@@ -60,11 +68,15 @@ namespace fly {
 
         ASTBlock *getBlock(ASTStmt *Stmt);
 
+        ASTType *getType(ASTStmt *Stmt);
+
+        ASTLocalVar *FindVarDef(ASTBlock *Block, ASTVarRef *VarRef);
+
         DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID) const;
 
         DiagnosticBuilder Diag(unsigned DiagID) const;
 
-
+        bool ResolveValueExpr(ASTValueExpr *pExpr);
     };
 
 }  // end namespace fly

@@ -14,13 +14,9 @@
 
 using namespace fly;
 
-ASTArg::ASTArg(const SourceLocation &Loc) :
-        ASTExprStmt(Loc) {
+ASTArg::ASTArg(ASTStmt *Parent, const SourceLocation &Loc) :
+        ASTExprStmt(Parent, Loc, STMT_ARG) {
 
-}
-
-StmtKind ASTArg::getKind() const {
-    return STMT_ARG;
 }
 
 uint64_t ASTArg::getIndex() const {

@@ -12,13 +12,16 @@
 
 using namespace fly;
 
-ASTSwitchBlock::ASTSwitchBlock(ASTBlock *Parent, const SourceLocation &Loc, ASTExpr *Expr) : ASTBlock(Parent, Loc),
-    Expr(Expr) {
+ASTExpr *ASTSwitchBlock::getExpr() const {
+    return Expr;
+}
+
+ASTSwitchBlock::ASTSwitchBlock(ASTBlock *Parent, const SourceLocation &Loc) : ASTBlock(Parent, Loc, BLOCK_SWITCH) {
 
 }
 
-enum ASTBlockKind ASTSwitchBlock::getBlockKind() const {
-    return StmtKind;
+ASTBlock *ASTSwitchBlock::getParent() const {
+    return (ASTBlock *) Parent;
 }
 
 std::vector<ASTSwitchCaseBlock *> &ASTSwitchBlock::getCases() {
@@ -29,28 +32,16 @@ ASTSwitchDefaultBlock *ASTSwitchBlock::getDefault() {
     return Default;
 }
 
-ASTExpr *ASTSwitchBlock::getExpr() const {
-    return Expr;
+ASTSwitchCaseBlock::ASTSwitchCaseBlock(ASTSwitchBlock *SwitchBlock, const SourceLocation &Loc) :
+    ASTBlock(SwitchBlock->getParent(), Loc, BLOCK_SWITCH_CASE), SwitchBlock(SwitchBlock) {
+    SwitchBlock->Cases.push_back(this);
 }
-
-ASTSwitchCaseBlock::ASTSwitchCaseBlock(ASTSwitchBlock *SwitchBlock, const SourceLocation &Loc, ASTExpr *Value) :
-    ASTBlock(SwitchBlock, Loc), Expr(Value) {
-
-}
-
-enum ASTBlockKind ASTSwitchCaseBlock::getBlockKind() const {
-    return StmtKind;
-};
 
 ASTExpr *ASTSwitchCaseBlock::getExpr() {
     return Expr;
 }
 
 ASTSwitchDefaultBlock::ASTSwitchDefaultBlock(ASTSwitchBlock *SwitchBlock, const SourceLocation &Loc) :
-    ASTBlock(SwitchBlock, Loc) {
-
-}
-
-enum ASTBlockKind ASTSwitchDefaultBlock::getBlockKind() const {
-    return StmtKind;
+    ASTBlock(SwitchBlock->getParent(), Loc, BLOCK_SWITCH_DEFAULT), SwitchBlock(SwitchBlock) {
+    SwitchBlock->Default = this;
 }

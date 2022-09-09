@@ -15,8 +15,16 @@
 
 using namespace fly;
 
-ASTIfBlock::ASTIfBlock(ASTBlock *Parent, const SourceLocation &Loc) : ASTBlock(Parent, Loc) {
+ASTIfBlock::ASTIfBlock(ASTBlock *Parent, const SourceLocation &Loc) : ASTBlock(Parent, Loc, BLOCK_IF) {
 
+}
+
+ASTBlock *ASTIfBlock::getParent() const {
+    return (ASTBlock *) Parent;
+}
+
+ASTExpr *ASTIfBlock::getCondition() {
+    return Condition;
 }
 
 std::vector<ASTElsifBlock *> ASTIfBlock::getElsifBlocks() {
@@ -27,21 +35,9 @@ ASTElseBlock *ASTIfBlock::getElseBlock() {
     return ElseBlock;
 }
 
-ASTExpr *ASTIfBlock::getCondition() {
-    return Condition;
-}
-
-enum ASTBlockKind ASTIfBlock::getBlockKind() const {
-    return StmtKind;
-}
-
 ASTElsifBlock::ASTElsifBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc) :
-    ASTBlock(IfBlock->getParent(), Loc), IfBlock(IfBlock) {
-    
-}
-
-enum ASTBlockKind ASTElsifBlock::getBlockKind() const {
-    return StmtKind;
+    ASTBlock(IfBlock->getParent(), Loc, BLOCK_ELSIF), IfBlock(IfBlock) {
+    IfBlock->ElsifBlocks.push_back(this);
 }
 
 ASTExpr *ASTElsifBlock::getCondition() {
@@ -49,10 +45,6 @@ ASTExpr *ASTElsifBlock::getCondition() {
 }
 
 ASTElseBlock::ASTElseBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc) :
-    ASTBlock(IfBlock->getParent(), Loc), IfBlock(IfBlock) {
-    
-}
-
-enum ASTBlockKind ASTElseBlock::getBlockKind() const {
-    return StmtKind;
+    ASTBlock(IfBlock->getParent(), Loc, BLOCK_ELSE), IfBlock(IfBlock) {
+    IfBlock->ElseBlock = this;
 }

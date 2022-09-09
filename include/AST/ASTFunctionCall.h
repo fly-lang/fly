@@ -76,11 +76,9 @@ namespace fly {
 
         ASTFunctionCall *Call = nullptr;
 
-        ASTArg(const SourceLocation &Loc);
+        ASTArg(ASTStmt *Parent, const SourceLocation &Loc);
 
     public:
-
-        StmtKind getKind() const override;
 
         uint64_t getIndex() const;
 

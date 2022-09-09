@@ -417,17 +417,17 @@ bool Parser::ParseStmt(ASTBlock *Block) {
     }
     if (Tok.is(tok::kw_return)) { // Parse return
         SourceLocation Loc = ConsumeToken();
-        ASTReturn *Return = Builder.CreateReturn(Loc);
+        ASTReturn *Return = Builder.CreateReturn(Block, Loc);
         ASTExpr *Expr = ParseExpr(Return);
-        return Builder.AddStmt(Block, Return);
+        return Builder.AddStmt(Return);
     }
     if (Tok.is(tok::kw_break)) { // Parse break
-        ASTBreak *Break = Builder.CreateBreak(ConsumeToken());
-        return Builder.AddStmt(Block, Break);
+        ASTBreak *Break = Builder.CreateBreak(Block, ConsumeToken());
+        return Builder.AddStmt(Break);
     }
     if (Tok.is(tok::kw_continue)) { // Parse continue
-        ASTContinue *Continue = Builder.CreateContinue(ConsumeToken());
-        return Builder.AddStmt(Block, Continue);
+        ASTContinue *Continue = Builder.CreateContinue(Block, ConsumeToken());
+        return Builder.AddStmt(Continue);
     }
 
     // define a const LocalVar
@@ -456,12 +456,12 @@ bool Parser::ParseStmt(ASTBlock *Block) {
         ConsumeToken();
 
         // create/add LocalVar
-        ASTLocalVar *LocalVar = Builder.CreateLocalVar(Tok.getLocation(), Type, Name, Const);
+        ASTLocalVar *LocalVar = Builder.CreateLocalVar(Block, Tok.getLocation(), Type, Name, Const);
         // Need to create a reference and assign the previous Var declaration in order to be found from references
         if (isTokenAssign()) {
             ConsumeToken();
             ASTExpr *Expr = ParseExpr(LocalVar);
-            return Expr &&  Builder.AddStmt(Block, LocalVar);
+            return Expr &&  Builder.AddStmt(LocalVar);
         }
         
         if (isTokenOperator() || isTokenAssignOperator()) {
@@ -469,21 +469,21 @@ bool Parser::ParseStmt(ASTBlock *Block) {
             return false;
         }
         
-        return Builder.AddStmt(Block, LocalVar);
+        return Builder.AddStmt(LocalVar);
     } else if (isIdentifier(OptTok2) && (OptTok2 = Lex.findNextToken(OptTok2->getLocation(), SourceMgr))
             && (isTokenAssign(OptTok2) || isTokenAssignOperator(OptTok2))) { // define an ASTVarAssign
 
         ASTVarRef* VarRef = ParseVarRef();
-        ASTVarAssign *VarAssign = Builder.CreateVarAssign(VarRef);
+        ASTVarAssign *VarAssign = Builder.CreateVarAssign(Block, VarRef);
 
         ExprParser Parser(this, VarAssign);
         ASTExpr *Expr = Parser.ParseAssignExpr();
 
-        return Expr && Builder.AddStmt(Block, VarAssign);
+        return Expr && Builder.AddStmt(VarAssign);
     } else { // parse an ASTExprStmt
-        ASTExprStmt *ExprStmt = Builder.CreateExprStmt(Tok.getLocation());
+        ASTExprStmt *ExprStmt = Builder.CreateExprStmt(Block, Tok.getLocation());
         ASTExpr *Expr = ParseExpr(ExprStmt);
-        return Expr && Builder.AddStmt(Block, ExprStmt);
+        return Expr && Builder.AddStmt(ExprStmt);
     }
 }
 
@@ -549,35 +549,35 @@ bool Parser::ParseIfStmt(ASTBlock *Block) {
     ASTIfBlock *IfBlock = Builder.CreateIfBlock(Block, Tok.getLocation());
 
     // Parse the group of expressions into parenthesis
-    ASTExpr *IfExpr = ParseExpr(); // Parse Expr
+    ASTExpr *IfExpr = ParseExpr(IfBlock); // Parse Expr
     if (hasIfParen) {
         ParseEndParen(hasIfParen);
     }
     // Parse statement between braces for If
     bool Success = false;
     if (isBlockStart()) {
-        if (ParseBlock(IfBlock)) {
-            Success = Builder.AddIfBlock(IfBlock, IfExpr);
-        }
-    } else if (ParseStmt(IfBlock)) { // Only for a single Stmt without braces
-        Success = Builder.AddIfBlock(IfBlock, IfExpr);
+        Success = ParseBlock(IfBlock);
+    } else { // Only for a single Stmt without braces
+        Success = ParseStmt(IfBlock);
     }
 
     // Add Elsif
     while (Success && Tok.is(tok::kw_elsif)) {
         const SourceLocation &ElsifLoc = ConsumeToken();
+        ASTElsifBlock *ElsifBlock = Builder.CreateElsifBlock(IfBlock, ElsifLoc);
+
         // Parse (
         bool hasElsifParen = ParseStartParen();
         // Parse the group of expressions into parenthesis
-        ASTExpr *ElsifExpr = ParseExpr(); // Parse Expr
+        ASTExpr *ElsifExpr = ParseExpr(ElsifBlock); // Parse Expr
         if (hasElsifParen) {
             ParseEndParen(hasElsifParen);
         }
-        ASTElsifBlock *ElsifBlock = Builder.CreateElsifBlock(IfBlock, ElsifLoc);
+
         if (isBlockStart()) {
-            Success = ParseBlock(ElsifBlock) && Builder.AddElsifBlock(ElsifBlock, ElsifExpr);
-        } else if (ParseStmt(ElsifBlock)) { // Only for a single Stmt without braces
-            Success = Builder.AddElsifBlock(ElsifBlock, ElsifExpr);
+            Success = ParseBlock(ElsifBlock);
+        } else { // Only for a single Stmt without braces
+            Success = ParseStmt(ElsifBlock);
         }
     }
 
@@ -585,14 +585,15 @@ bool Parser::ParseIfStmt(ASTBlock *Block) {
     if (Success && Tok.is(tok::kw_else)) {
         const SourceLocation &ElseLoc = ConsumeToken();
         ASTElseBlock *ElseBlock = Builder.CreateElseBlock(IfBlock, ElseLoc);
+
         if (isBlockStart()) {
-            Success = ParseBlock(ElseBlock) && Builder.AddElseBlock(ElseBlock);
-        } else if (ParseStmt(ElseBlock)) { // Only for a single Stmt without braces
-            Success = Builder.AddElseBlock(ElseBlock);
+            Success = ParseBlock(ElseBlock);
+        } else { // Only for a single Stmt without braces
+            Success = ParseStmt(ElseBlock);
         }
     }
 
-    return Success;
+    return Success & Builder.AddStmt(IfBlock);
 }
 
 /**
@@ -623,12 +624,13 @@ bool Parser::ParseSwitchStmt(ASTBlock *Block) {
 
     // Parse switch keyword
     const SourceLocation &SwitchLoc = ConsumeToken();
+    ASTSwitchBlock *SwitchBlock = Builder.CreateSwitchBlock(Block, SwitchLoc);
 
     // Parse (
     bool hasParen = ParseStartParen();
 
     // Parse Var reference like (a)
-    ASTExpr *Expr = ParseExpr();
+    ASTExpr *Expr = ParseExpr(SwitchBlock);
     if (Expr) {
 
         // Consume Right Parenthesis ) if exists
@@ -643,7 +645,6 @@ bool Parser::ParseSwitchStmt(ASTBlock *Block) {
             RequireEndBrace = true;
         }
 
-        ASTSwitchBlock *SwitchBlock = Builder.CreateSwitchBlock(Block, SwitchLoc, Expr);
         bool Success = true;
         // Exit only Statement find a closed brace or EOF
         while (Success && Tok.isNot(tok::r_brace) && Tok.isNot(tok::eof)) {
@@ -656,14 +657,15 @@ bool Parser::ParseSwitchStmt(ASTBlock *Block) {
                 // for a Value  -> case 1:
                 // for a Var -> case a:
                 // for a default
-                ASTExpr * CaseExpr = ParseExpr();
-                ASTSwitchCaseBlock *CaseBlock = Builder.CreateSwitchCaseBlock(SwitchBlock, CaseLoc, CaseExpr);
+                ASTSwitchCaseBlock *CaseBlock = Builder.CreateSwitchCaseBlock(SwitchBlock, CaseLoc);
+                ASTExpr * CaseExpr = ParseExpr(CaseBlock);
+
                 if (Tok.is(tok::colon)) { // Parse a Block of Stmt
                     ConsumeToken();
-                    Success = ParseStmt(CaseBlock) && Builder.AddSwitchCaseBlock(SwitchBlock, CaseBlock);
+                    Success = ParseStmt(CaseBlock);
                 } else if (isBlockStart()) { // Parse a single Stmt without braces
                     ConsumeBrace();
-                    Success = ParseBlock(CaseBlock) && Builder.AddSwitchCaseBlock(SwitchBlock, CaseBlock);
+                    Success = ParseBlock(CaseBlock);
                 } else {
                     Diag(diag::err_syntax_error);
                     return false;
@@ -674,10 +676,10 @@ bool Parser::ParseSwitchStmt(ASTBlock *Block) {
 
                 if (Tok.is(tok::colon)) { // Parse a Block of Stmt
                     ConsumeToken();
-                    Success = ParseStmt(DefaultBlock) && Builder.setSwitchDefaultBlock(SwitchBlock, DefaultBlock);
+                    Success = ParseStmt(DefaultBlock);
                 } else if (isBlockStart()) { // Parse a single Stmt without braces
                     ConsumeBrace();
-                    Success = ParseBlock(DefaultBlock) && Builder.setSwitchDefaultBlock(SwitchBlock, DefaultBlock);
+                    Success = ParseBlock(DefaultBlock);
                 } else {
                     Diag(diag::err_syntax_error);
                     return false;
@@ -689,7 +691,7 @@ bool Parser::ParseSwitchStmt(ASTBlock *Block) {
         if (RequireEndBrace && Tok.is(tok::r_brace)) {
             ConsumeBrace();
         }
-        return Success && Builder.AddSwitchBlock(Block, SwitchBlock);
+        return Success & Builder.AddStmt(SwitchBlock);
     }
 
     return false;
@@ -717,15 +719,14 @@ bool Parser::ParseWhileStmt(ASTBlock *Block) {
 
     // Consume Left Parenthesis ( if exists
     bool hasParen = ParseStartParen();
+    ASTWhileBlock *WhileBlock = Builder.CreateWhileBlock(Block, Loc);
 
     // Create AST While Block
-    ASTExpr *Cond = ParseExpr();
+    ASTExpr *Cond = ParseExpr(WhileBlock);
     if (!Cond) { // Error: empty condition expr
         Diag(diag::err_parse_empty_while_expr);
         return false;
     }
-
-    ASTWhileBlock *WhileBlock = Builder.CreateWhileBlock(Block, Loc, Cond);
 
     // Consume Right Parenthesis ) if exists
     if (!ParseEndParen(hasParen)) {
@@ -733,17 +734,11 @@ bool Parser::ParseWhileStmt(ASTBlock *Block) {
     }
 
     // Parse statement between braces
-    if (isBlockStart()) {
-        if (ParseBlock(WhileBlock)) {
-            return Builder.AddWhileBlock(Block, WhileBlock);
-        }
-    } else {
-        // Only for a single Stmt without braces
-        return ParseStmt(WhileBlock) && Builder.AddWhileBlock(Block, WhileBlock);
-    }
+    bool Success = isBlockStart() ?
+            ParseBlock(WhileBlock) :
+            Success = ParseStmt(WhileBlock); // Only for a single Stmt without braces
 
-    Diag(diag::err_parse_stmt);
-    return false;
+    return Success & Builder.AddStmt(WhileBlock);
 }
 
 /**
@@ -772,11 +767,10 @@ bool Parser::ParseForStmt(ASTBlock *Block) {
 
     // Init For Statement and start parse components
     ASTForBlock *ForBlock = Builder.CreateForBlock(Block, Loc);
-    ASTBlock *LoopBlock = Builder.CreateBlock(ForBlock, Loc);
-    ASTBlock *PostBlock = Builder.CreateBlock(ForBlock, Loc);
-    ASTExpr *Condition = Builder.CreateExpr(ForBlock, SemaBuilder::CreateBoolValue(Loc, true));
+    ASTForLoopBlock *LoopBlock;
+    ASTForPostBlock *PostBlock;
 
-    // parse comma separated or single statements
+    // parse comma separated stmt in init
     if (ParseForCommaStmt(ForBlock)) {
         assert(Tok.isNot(tok::comma) && "Comma not parsed"); // Already parsed from ParseForCommaStmt()
 
@@ -784,10 +778,10 @@ bool Parser::ParseForStmt(ASTBlock *Block) {
         if (Tok.is(tok::semi)) {
             ConsumeToken();
 
-            Condition = ParseExpr(ForBlock);
+            ParseExpr(ForBlock);
 
             if (Tok.is(tok::semi)) {
-                PostBlock = Builder.CreateBlock(Block, ConsumeToken());
+                PostBlock = Builder.CreateForPostBlock(ForBlock, ConsumeToken());
                 Success &= ParseForCommaStmt(PostBlock);
             }
         }
@@ -799,16 +793,11 @@ bool Parser::ParseForStmt(ASTBlock *Block) {
     }
 
     // Parse statement between braces
-    LoopBlock = Builder.CreateBlock(Block, Tok.getLocation());
-    if (isBlockStart()) {
-        if (Success && ParseBlock(LoopBlock)) {
-            return Builder.AddForBlock(Block, ForBlock, Condition, PostBlock, LoopBlock);
-        }
-    } else if (Success && ParseStmt(LoopBlock)) { // Only for a single Stmt without braces
-        return Builder.AddForBlock(Block, ForBlock, Condition,  PostBlock, LoopBlock);
-    }
-
-    return false;
+    LoopBlock = Builder.CreateForLoopBlock(ForBlock, Tok.getLocation());
+    Success &= isBlockStart() ?
+            ParseBlock(LoopBlock) :
+            ParseStmt(LoopBlock); // Only for a single Stmt without braces
+    return Success & Builder.AddStmt(ForBlock);
 }
 
 /**
@@ -995,7 +984,7 @@ bool Parser::ParseCallArgs(ASTFunctionCall *Call) {
  */
 bool Parser::ParseCallArg(ASTFunctionCall *Call) {
 
-    ASTArg *Arg = Builder.CreateArg(Tok.getLocation());
+    ASTArg *Arg = Builder.CreateArg(Call, Tok.getLocation());
     // Parse Args in a Function Call
     ASTExpr *Expr = ParseExpr(Arg);
 
@@ -1032,8 +1021,7 @@ ASTValue *Parser::ParseValue() {
     // Parse Numeric Constants
     if (Tok.is(tok::numeric_constant)) {
         std::string Val = std::string(Tok.getLiteralData(), Tok.getLength());
-        const SourceLocation &Loc = ConsumeToken();
-        return SemaBuilder::CreateValue(Loc, Val);
+        return ParseValueNumber(Val);
     }
 
     if (Tok.isCharLiteral()) {
@@ -1084,6 +1072,42 @@ ASTValue *Parser::ParseValue() {
 
     Diag(diag::err_invalid_value) << Tok.getName();
     return nullptr;
+}
+
+ASTValue *Parser::ParseValueNumber(std::string &Str) {
+    FLY_DEBUG_MESSAGE("Parser", "ParseValueNumber", "Str=" + Str);
+    const SourceLocation &Loc = ConsumeToken();
+
+    // TODO Check Hex Value
+    bool IsNegative = Str[0] == '-';
+    uint64_t Integer = 0;
+    uint64_t Fraction = 0;
+    bool IsFloatingPoint = false;
+    for (unsigned I = 0; I < Str.size(); I++) {
+        if (Str[I] == '.') { // check if contain decimals
+            Integer = 0;
+            IsFloatingPoint = true;
+            continue;
+        }
+
+        unsigned char N = Str[I] - '0';
+        if (N > 9) {
+            Diag(Loc, diag::err_parse_number) << Str;
+            return nullptr;
+        }
+        // subtract '0' from ASCII value of a digit, to obtain integer value of the digit.
+        if (IsFloatingPoint) {
+            Fraction += Fraction; // need only for zero verify
+        }
+        else {
+            Integer = Integer * 10 + N;
+        }
+    }
+
+    if (IsFloatingPoint) {
+        return SemaBuilder::CreateFloatingValue(Loc, Str);
+    }
+    return SemaBuilder::CreateIntegerValue(Loc, Integer, IsNegative);
 }
 
 /**

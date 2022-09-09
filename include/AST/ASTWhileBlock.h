@@ -18,16 +18,15 @@ namespace fly {
     class ASTWhileBlock : public ASTBlock {
 
         friend class SemaBuilder;
-
-        enum ASTBlockKind StmtKind = ASTBlockKind::BLOCK_STMT_WHILE;
+        friend class SemaResolver;
 
         ASTExpr *Condition = nullptr;
 
-        ASTWhileBlock(ASTBlock *Parent, const SourceLocation &Loc, ASTExpr *Cond);
+        ASTWhileBlock(ASTBlock *Parent, const SourceLocation &Loc);
 
     public:
 
-        enum ASTBlockKind getBlockKind() const override;
+        ASTBlock *getParent() const;
 
         ASTExpr *getCondition();
 

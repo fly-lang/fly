@@ -13,18 +13,21 @@
 
 using namespace fly;
 
-ASTStmt::ASTStmt(const SourceLocation &Loc) : Location(Loc) {
+ASTStmt::ASTStmt(ASTStmt *Parent, const SourceLocation &Loc, StmtKind Kind) :
+    Parent(Parent), Location(Loc), Kind(Kind) {
 
 }
 
-ASTStmt::ASTStmt(ASTBlock *Parent, const SourceLocation &Loc) : Parent(Parent), Location(Loc) {
-
+ASTStmt *ASTStmt::getParent() const {
+    return Parent;
 }
 
 const SourceLocation &ASTStmt::getLocation() const {
     return Location;
 }
 
-ASTBlock *ASTStmt::getParent() const {
-    return Parent;
+StmtKind ASTStmt::getKind() const {
+    return Kind;
 }
+
+

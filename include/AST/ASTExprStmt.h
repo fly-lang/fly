@@ -24,11 +24,11 @@ namespace fly {
 
         ASTExpr *Expr = nullptr;
 
-        ASTExprStmt(const SourceLocation &Loc);
+        ASTExprStmt(ASTStmt *Parent, const SourceLocation &Loc);
+
+        ASTExprStmt(ASTStmt *Parent, const SourceLocation &Loc, StmtKind Kind);
 
     public:
-
-        StmtKind getKind() const override;
 
         ASTExpr *getExpr() const;
 

@@ -97,13 +97,9 @@ namespace fly {
 
         friend class SemaBuilder;
 
-        StmtKind Kind = StmtKind::STMT_RETURN;
-
-        ASTReturn(const SourceLocation &Loc);
+        ASTReturn(ASTBlock *Parent, const SourceLocation &Loc);
 
     public:
-
-        StmtKind getKind() const override;
 
         std::string str() const override;
     };

@@ -21,9 +21,10 @@ namespace fly {
 
     class ASTIfBlock : public ASTBlock {
 
+        friend class ASTElsifBlock;
+        friend class ASTElseBlock;
         friend class SemaBuilder;
-
-        enum ASTBlockKind StmtKind = ASTBlockKind::BLOCK_STMT_IF;
+        friend class SemaResolver;
 
         // The If expression condition
         ASTExpr *Condition = nullptr;
@@ -38,31 +39,29 @@ namespace fly {
 
     public:
 
+        ASTBlock *getParent() const override;
+
+        ASTExpr *getCondition();
+
         std::vector<ASTElsifBlock *> getElsifBlocks();
 
         ASTElseBlock *getElseBlock();
-
-        enum ASTBlockKind getBlockKind() const override;
-
-        ASTExpr *getCondition();
     };
 
     class ASTElsifBlock : public ASTBlock {
 
         friend class SemaBuilder;
+        friend class SemaResolver;
 
-        enum ASTBlockKind StmtKind = ASTBlockKind::BLOCK_STMT_ELSIF;
+        // The If Block
+        ASTIfBlock *IfBlock = nullptr;
 
         // The Else If expression condition
         ASTExpr *Condition = nullptr;
 
-        ASTIfBlock *IfBlock = nullptr;
-
         ASTElsifBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc);
 
     public:
-
-        enum ASTBlockKind getBlockKind() const override;
 
         ASTExpr *getCondition();
     };
@@ -70,16 +69,12 @@ namespace fly {
     class ASTElseBlock : public ASTBlock {
 
         friend class SemaBuilder;
+        friend class SemaResolver;
 
-        enum ASTBlockKind StmtKind = ASTBlockKind::BLOCK_STMT_ELSE;
-
+        // The If Block
         ASTIfBlock *IfBlock = nullptr;
 
         ASTElseBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc);
-
-    public:
-
-        enum ASTBlockKind getBlockKind() const override;
     };
 }
 

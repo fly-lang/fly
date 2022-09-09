@@ -15,17 +15,19 @@
 
 namespace fly {
 
+    class ASTForLoopBlock;
+    class ASTForPostBlock;
+
     class ASTForBlock : public ASTBlock {
 
         friend class SemaBuilder;
-
-        enum ASTBlockKind StmtKind = ASTBlockKind::BLOCK_STMT_FOR;
+        friend class SemaResolver;
+        friend class ASTForLoopBlock;
+        friend class ASTForPostBlock;
 
         ASTExpr *Condition = nullptr;
-        ASTBlock *Post = nullptr;
-        ASTBlock *Loop = nullptr;
-
-    protected:
+        ASTForPostBlock *Post = nullptr;
+        ASTForLoopBlock *Loop = nullptr;
 
         ASTForBlock(ASTBlock *Parent, const SourceLocation &Loc);
 
@@ -33,14 +35,35 @@ namespace fly {
 
         virtual ~ASTForBlock();
 
-        enum ASTBlockKind getBlockKind() const override;
+        ASTBlock *getParent() const;
 
         ASTExpr *getCondition();
 
-        ASTBlock *getPost();
+        ASTForPostBlock *getPost();
 
-        ASTBlock *getLoop();
+        ASTForLoopBlock *getLoop();
+    };
 
+    class ASTForLoopBlock : public ASTBlock {
+
+        friend class SemaBuilder;
+        friend class SemaResolver;
+
+        // The For Block
+        ASTForBlock *ForBlock = nullptr;
+
+        ASTForLoopBlock(ASTForBlock *ForBlock, const SourceLocation &Loc);
+    };
+
+    class ASTForPostBlock : public ASTBlock {
+
+        friend class SemaBuilder;
+        friend class SemaResolver;
+
+        // The For Block
+        ASTForBlock *ForBlock = nullptr;
+
+        ASTForPostBlock(ASTForBlock *ForBlock, const SourceLocation &Loc);
     };
 }
 

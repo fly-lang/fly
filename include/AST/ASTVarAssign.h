@@ -27,11 +27,9 @@ namespace fly {
 
         ASTVarRef *VarRef = nullptr;
 
-        ASTVarAssign(const SourceLocation &Loc, ASTVarRef *VarRef);
+        ASTVarAssign(ASTBlock *Parent, const SourceLocation &Loc, ASTVarRef *VarRef);
 
     public:
-
-        StmtKind getKind() const override;
 
         ASTVarRef *getVarRef() const;
 

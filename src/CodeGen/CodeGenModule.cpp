@@ -198,27 +198,27 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
         case STMT_BLOCK: {
             ASTBlock *Block = (ASTBlock *) Stmt;
             switch (Block->getBlockKind()) {
-                case BLOCK_STMT:
+                case BLOCK:
                     GenBlock(Fn, Block->getContent());
                     break;
-                case BLOCK_STMT_IF:
+                case BLOCK_IF:
                     GenIfBlock(Fn, (ASTIfBlock *)Block);
                     break;
-                case BLOCK_STMT_ELSIF:
-                case BLOCK_STMT_ELSE:
+                case BLOCK_ELSIF:
+                case BLOCK_ELSE:
                     // All done into BLOCK_STMT_IF
                     break;
-                case BLOCK_STMT_SWITCH:
+                case BLOCK_SWITCH:
                     GenSwitchBlock(Fn, (ASTSwitchBlock *)Block);
                     break;
-                case BLOCK_STMT_CASE:
-                case BLOCK_STMT_DEFAULT:
+                case BLOCK_SWITCH_CASE:
+                case BLOCK_SWITCH_DEFAULT:
                     // All done into BLOCK_STMT_SWITCH
                     break;
-                case BLOCK_STMT_FOR:
+                case BLOCK_FOR:
                     GenForBlock(Fn, (ASTForBlock *)Block);
                     break;
-                case BLOCK_STMT_WHILE:
+                case BLOCK_WHILE:
                     GenWhileBlock(Fn, (ASTWhileBlock *)Block);
                     break;
             }
@@ -232,15 +232,17 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
             break;
         case STMT_RETURN:
             ASTReturn *Return = (ASTReturn *) Stmt;
-            if (Return->getParent()->getTop()->getType()->getKind() == TYPE_VOID) {
-                if (Return->getExpr() == nullptr) {
-                    Builder->CreateRetVoid();
+            if (Return->getParent()->getKind() == STMT_BLOCK) {
+                if (((ASTBlock *) Return->getParent())->getTop()->getType()->getKind() == TYPE_VOID) {
+                    if (Return->getExpr() == nullptr) {
+                        Builder->CreateRetVoid();
+                    } else {
+                        Diag(Return->getExpr()->getLocation(), diag::err_invalid_return_type);
+                    }
                 } else {
-                    Diag(Return->getExpr()->getLocation(), diag::err_invalid_return_type);
+                    llvm::Value *V = GenExpr(Fn, ((ASTBlock *) Return->getParent())->getTop()->getType(), Return->getExpr());
+                    Builder->CreateRet(V);
                 }
-            } else {
-                llvm::Value *V = GenExpr(Fn, Return->getParent()->getTop()->getType(), Return->getExpr());
-                Builder->CreateRet(V);
             }
             break;
     }
@@ -396,7 +398,7 @@ void CodeGenModule::GenIfBlock(llvm::Function *Fn, ASTIfBlock *If) {
     // Create End block
     llvm::BasicBlock *EndBB = llvm::BasicBlock::Create(LLVMCtx, "endif", Fn);
 
-    if (If->getElseBlock() == nullptr) {
+    if (!If->getElseBlock()) {
 
         if (If->getElsifBlocks().empty()) { // If ...
             Builder->CreateCondBr(IfCond, IfBB, EndBB);
@@ -423,7 +425,6 @@ void CodeGenModule::GenIfBlock(llvm::Function *Fn, ASTIfBlock *If) {
                 }
                 ASTElsifBlock *Elsif = If->getElsifBlocks()[i];
                 Builder->SetInsertPoint(ElsifBB);
-                ASTBoolType * BoolType = SemaBuilder::CreateBoolType(SourceLocation());
                 llvm::Value *ElsifCond = GenExpr(Fn, BoolType, Elsif->getCondition());
                 Builder->CreateCondBr(ElsifCond, ElsifThenBB, NextElsifBB);
 

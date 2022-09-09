@@ -12,12 +12,13 @@
 
 using namespace fly;
 
-ASTExprStmt::ASTExprStmt(const SourceLocation &Loc) : ASTStmt(Loc) {
+ASTExprStmt::ASTExprStmt(ASTStmt *Parent, const SourceLocation &Loc) : ASTStmt(Parent, Loc, STMT_EXPR) {
 
 }
 
-StmtKind ASTExprStmt::getKind() const {
-    return STMT_EXPR;
+ASTExprStmt::ASTExprStmt(ASTStmt *Parent, const SourceLocation &Loc, StmtKind Kind) :
+    ASTStmt(Parent, Loc, Kind) {
+
 }
 
 ASTExpr *ASTExprStmt::getExpr() const {

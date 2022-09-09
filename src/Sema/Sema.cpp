@@ -63,12 +63,15 @@ DiagnosticBuilder Sema::Diag(unsigned DiagID) const {
  * @param Var
  * @return
  */
-bool Sema::CheckDuplicatedLocalVars(ASTBlock *Block, ASTLocalVar *LocalVar) {
-    if (Block->LocalVars.find(LocalVar->getName()) != Block->LocalVars.end()) {
-        Diag(LocalVar->getLocation(), diag::err_conflict_vardecl) << LocalVar->getName();
-        return true;
+bool Sema::CheckDuplicatedLocalVars(ASTStmt *Stmt, ASTLocalVar *LocalVar) {
+    if (Stmt->getKind() == STMT_BLOCK) {
+        ASTBlock *Block = (ASTBlock *) Stmt;
+        if (Block->LocalVars.find(LocalVar->getName()) != Block->LocalVars.end()) {
+            Diag(LocalVar->getLocation(), diag::err_conflict_vardecl) << LocalVar->getName();
+            return true;
+        }
+        return Block->Parent && CheckDuplicatedLocalVars(Stmt->getParent(), LocalVar);
     }
-    return Block->Parent && CheckDuplicatedLocalVars(Block->getParent(), LocalVar);
 }
 
 bool Sema::CheckUndef(ASTBlock *Block, ASTVarRef *VarRef) {
@@ -77,11 +80,6 @@ bool Sema::CheckUndef(ASTBlock *Block, ASTVarRef *VarRef) {
         return false;
     }
     return true;
-}
-
-bool Sema::CheckOnCloseBlock(ASTBlock *Block) {
-
-    return false;
 }
 
 bool Sema::CheckImport(ASTNode *Node, ASTImport *Import) {
@@ -118,40 +116,99 @@ bool Sema::isEquals(ASTParam *Param1, ASTParam *Param2) {
     Param1->getType()->getKind() == Param2->getType()->getKind();
 }
 
-bool Sema::isTypeDerivate(ASTType *T1, ASTType *T2) {
-    assert(T1 && T2 && "Type is null");
-
-    // Error: different type kind
-    if (T1->getKind() != T2->getKind()) {
+bool Sema::CheckMacroType(ASTType *Type, MacroTypeKind Kind) {
+    if (Type->getMacroKind() != Kind) {
+        Diag(Type->getLocation(), diag::err_sema_macro_type) << Type->printMacroType();
         return false;
     }
 
     return true;
 }
 
-bool Sema::CheckMacroType(ASTValueExpr *ValueExpr, ASTType *Type) {
+bool Sema::CheckType(ASTType *FromType, ASTType *ToType) {
+    assert(FromType && "FromType cannot be null");
+    assert(FromType && "ToType cannot be null");
 
-    if (ValueExpr->getValue().getMacroKind() != Type->getMacroKind()) {
-        Diag(ValueExpr->getLocation(),
-             diag::err_sema_types_incompatible) << ValueExpr->getValue().printMacroType() << Type->printMacroType();
-        return false;
+    // Simplest Case: Types are equals
+    if (FromType->getKind() == ToType->getKind()) {
+        return true;
     }
 
-    return true;
+    if (FromType->isInteger() && ToType->isInteger()) {
+        switch (FromType->getKind()) { // You can always convert from low integer to high int
+            // Signed Integer
+
+            case TYPE_SHORT:
+                return ToType->getKind() != TYPE_BYTE && ToType->getKind() != TYPE_USHORT;
+            case TYPE_INT:
+                return ToType->getKind() != TYPE_BYTE
+                && ToType->getKind() != TYPE_SHORT && ToType->getKind() != TYPE_USHORT
+                && ToType->getKind() != TYPE_UINT;
+            case TYPE_LONG:
+                return ToType->getKind() != TYPE_BYTE
+                && ToType->getKind() != TYPE_SHORT && ToType->getKind() != TYPE_USHORT
+                && ToType->getKind() != TYPE_INT && ToType->getKind() != TYPE_UINT
+                && ToType->getKind() != TYPE_ULONG;
+
+            // Unsigned Integer
+
+            case TYPE_BYTE:
+                return true;
+            case TYPE_USHORT:
+                return ToType->getKind() != TYPE_BYTE && ToType->getKind() != TYPE_SHORT;
+            case TYPE_UINT:
+                return ToType->getKind() == TYPE_UINT || ToType->getKind() == TYPE_LONG
+                || ToType->getKind() == TYPE_ULONG;
+            case TYPE_ULONG:
+                return ToType->getKind() == TYPE_ULONG;
+        }
+    } else if (FromType->isFloatingPoint() && ToType->isFloatingPoint()) {
+        switch (FromType->getKind()) {
+            case TYPE_FLOAT:
+                return true;
+            case TYPE_DOUBLE:
+                return ToType->getKind() == TYPE_DOUBLE;
+        }
+    } else if (FromType->isClass()) {
+        // Check Inheritance
+    }
+
+    Diag(FromType->getLocation(), diag::err_sema_types_incompatible)
+        << FromType->print()
+        << ToType->print();
+    return false;
 }
 
-bool Sema::CheckIfBlock(ASTIfBlock *Block) {
-    return true;
+bool Sema::CheckArithTypes(const SourceLocation &Loc, ASTType *Type1, ASTType *Type2) {
+    if ((Type1->getMacroKind() == MACRO_TYPE_INTEGER || Type1->getMacroKind() == MACRO_TYPE_FLOATING_POINT) &&
+        (Type2->getMacroKind() == MACRO_TYPE_INTEGER || Type2->getMacroKind() == MACRO_TYPE_FLOATING_POINT)) {
+        return true;
+    }
+
+    Diag(Loc, diag::err_sema_types_arithmetics)
+            << Type1->print()
+            << Type2->print();
+    return false;
 }
 
-bool Sema::CheckSwitchBlock(ASTSwitchBlock *Block) {
-    return true;
+bool Sema::CheckLogicalTypes(const SourceLocation &Loc, ASTType *Type1, ASTType *Type2) {
+    if (Type1->getKind() == TYPE_BOOL && Type2->getKind() == TYPE_BOOL) {
+        return true;
+    }
+
+    Diag(Loc, diag::err_sema_types_logical)
+            << Type1->print()
+            << Type2->print();
+    return false;
 }
 
-bool Sema::CheckWhileBlock(ASTWhileBlock *Block) {
-    return true;
-}
+bool Sema::CheckComparableTypes(const SourceLocation &Loc,ASTType *Type1, ASTType *Type2) {
+    if (Type1->getMacroKind() == Type2->getMacroKind()) {
+        return true;
+    }
 
-bool Sema::CheckForBlock(ASTForBlock *Block) {
-    return true;
+    Diag(Loc, diag::err_sema_types_comparable)
+            << Type1->print()
+            << Type2->print();
+    return false;
 }

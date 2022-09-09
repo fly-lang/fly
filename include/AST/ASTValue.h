@@ -23,6 +23,7 @@ namespace fly {
     class ASTValue {
 
         friend class SemaBuilder;
+        friend class SemaResolver;
 
         const SourceLocation &Location;
 
@@ -71,6 +72,7 @@ namespace fly {
     class ASTIntegerValue : public ASTValue {
 
         friend class SemaBuilder;
+        friend class SemaResolver;
 
         uint64_t Value; // the integer value
 
@@ -97,6 +99,7 @@ namespace fly {
     class ASTFloatingValue : public ASTValue {
 
         friend class SemaBuilder;
+        friend class SemaResolver;
 
         std::string Value;
 

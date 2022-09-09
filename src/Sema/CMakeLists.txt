@@ -1,7 +1,6 @@
 add_library(FlySema
         Sema.cpp
         SemaBuilder.cpp
-        SemaNumber.cpp
         SemaResolver.cpp
         )
 

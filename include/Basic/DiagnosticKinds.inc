@@ -331,7 +331,9 @@ DIAG(err_right_paren, CLASS_ERROR, (unsigned)diag::Severity::Error, "unclosed pa
 DIAG(err_syntax_error, CLASS_ERROR, (unsigned)diag::Severity::Error, "syntax error", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_invalid_namespace_id, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid namespace in identifier", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_parse_empty_while_expr, CLASS_ERROR, (unsigned)diag::Severity::Error, "while condition cannot be empty", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_parse_number, CLASS_ERROR, (unsigned)diag::Severity::Error, "'%0' is not a number ", 0, SFINAE_Suppress, false, true, 0)
 
+// Parser Warnings
 DIAG(warn_empty_code, CLASS_WARNING, (unsigned)diag::Severity::Warning, "code empty", 0, SFINAE_Suppress, false, true, 0)
 
 // AST
@@ -349,13 +351,21 @@ DIAG(err_vardecl_notfound, CLASS_ERROR, (unsigned)diag::Severity::Error, "var '%
 DIAG(err_conflict_vardecl, CLASS_ERROR, (unsigned)diag::Severity::Error, "var '%0' conflict", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_gvar_notfound, CLASS_ERROR, (unsigned)diag::Severity::Error, "global var '%0' not declared", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_missing_if_first, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot add else {} or elsif {} without if {} statement first", 0, SFINAE_Suppress, false, true, 0)
-DIAG(err_duplicate_if, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot add if {} after another if {} statement", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_elseif_after_else, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot add an elsif {} statement after else {}", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_else_after_else, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot add an else {} statement after another else {}", 0, SFINAE_Suppress, false, true, 0)
-DIAG(err_switch_expression, CLASS_ERROR, (unsigned)diag::Severity::Error, "unexpected switch expression type", 0, SFINAE_Suppress, false, true, 0)
-DIAG(err_unassigned_var, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unassigned var '%0'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_expr_type_miss, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot resolve expression type", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_var_assign_empty, CLASS_ERROR, (unsigned)diag::Severity::Error, "var assignment '%0' is empty", 0, SFINAE_Suppress, false, true, 0)
+
+// Sema
+DIAG(err_sema_generic, CLASS_ERROR, (unsigned)diag::Severity::Error, "semantic error", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_macro_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid macro type '%0'", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_types_incompatible, CLASS_ERROR, (unsigned)diag::Severity::Error, "incompatible types, cannot convert from '%0' to '%1'", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_types_arithmetics, CLASS_ERROR, (unsigned)diag::Severity::Error, "types '%0' and '%1' cannot be used in arithmetics operations", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_types_logical, CLASS_ERROR, (unsigned)diag::Severity::Error, "types '%0' and '%1' cannot be used in logical operations", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_types_comparable, CLASS_ERROR, (unsigned)diag::Severity::Error, "types '%0' and '%1' cannot be used in comparable operations", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_int_min_overflow, CLASS_ERROR, (unsigned)diag::Severity::Error, "value overflow integer min limit '%0'", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_int_max_overflow, CLASS_ERROR, (unsigned)diag::Severity::Error, "value overflow integer max limit '%0'", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_empty_expr, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot assign an empty expression", 0, SFINAE_Suppress, false, true, 0)
 
 // CodeGen
 DIAG(err_void_value, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot assign void value", 0, SFINAE_Suppress, false, true, 0)
@@ -375,8 +385,3 @@ DIAG(err_type_invalid_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "inval
 DIAG(err_value_unexpected_neg, CLASS_ERROR, (unsigned)diag::Severity::Error, "unexpected type '%0' for negative value '%1'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_value_max_overflow, CLASS_ERROR, (unsigned)diag::Severity::Error, "max value overflow for type '%0' for value '%1'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_value_min_underflow, CLASS_ERROR, (unsigned)diag::Severity::Error, "min value underflow for type '%0' for value '%1'", 0, SFINAE_Suppress, false, true, 0)
-
-// Sema
-DIAG(err_sema_generic, CLASS_ERROR, (unsigned)diag::Severity::Error, "semantic error", 0, SFINAE_Suppress, false, true, 0)
-DIAG(err_sema_types_incompatible, CLASS_ERROR, (unsigned)diag::Severity::Error, "incompatible types '%0' and '%1'", 0, SFINAE_Suppress, false, true, 0)
-

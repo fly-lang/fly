@@ -27,18 +27,15 @@ using namespace fly;
  * @param Top
  * @param Parent
  */
-ASTBlock::ASTBlock(ASTBlock *Parent, const SourceLocation &Loc) : ASTStmt(Parent, Loc) {
+ASTBlock::ASTBlock(ASTBlock *Parent, const SourceLocation &Loc) : ASTBlock(Parent, Loc, BLOCK) {
+
+}
+
+ASTBlock::ASTBlock(ASTBlock *Parent, const SourceLocation &Loc, ASTBlockKind Kind) :
+    ASTStmt(Parent, Loc, STMT_BLOCK), BlockKind(Kind) {
     if (Parent) {
         Top = Parent->Top;
     }
-}
-
-/**
- * Get Kind
- * @return StmtKind
- */
-StmtKind ASTBlock::getKind() const {
-    return Kind;
 }
 
 /**
@@ -49,8 +46,8 @@ ASTFunction *ASTBlock::getTop() const {
     return Top;
 }
 
-ASTBlock *ASTBlock::getParent() const {
-    return (ASTBlock *) ASTStmt::getParent();
+ASTBlockKind ASTBlock::getBlockKind() const {
+    return BlockKind;
 }
 
 /**
@@ -87,7 +84,6 @@ const llvm::StringMap<ASTLocalVar *> &ASTBlock::getLocalVars() const {
  */
 std::string ASTBlock::str() const {
     return "{ Kind=" + std::to_string(Kind) +
-            ", BlockKind=" + std::to_string(BlockKind) +
             + " }";
 }
 
@@ -96,7 +92,7 @@ std::string ASTBlock::str() const {
  * @param Loc
  * @param Parent
  */
-ASTBreak::ASTBreak(const SourceLocation &Loc) : ASTStmt(Loc) {
+ASTBreak::ASTBreak(ASTBlock *Parent, const SourceLocation &Loc) : ASTStmt(Parent, Loc, STMT_BREAK) {
 
 }
 /**
@@ -107,21 +103,12 @@ std::string ASTBreak::str() const {
     return "{ Kind=" + std::to_string(Kind) + " }";
 }
 
-
-/**
- * Get the Kind of Stmt
- * @return the StmtKind
- */
-StmtKind ASTBreak::getKind() const {
-    return Kind;
-}
-
 /**
  * ASTContinue constructor
  * @param Loc
  * @param Parent
  */
-ASTContinue::ASTContinue(const SourceLocation &Loc) : ASTStmt(Loc) {
+ASTContinue::ASTContinue(ASTBlock *Parent, const SourceLocation &Loc) : ASTStmt(Parent, Loc, STMT_CONTINUE) {
 
 }
 
@@ -131,12 +118,4 @@ ASTContinue::ASTContinue(const SourceLocation &Loc) : ASTStmt(Loc) {
  */
 std::string ASTContinue::str() const {
     return "{ Kind=" + std::to_string(Kind) + " }";
-}
-
-/**
- * Get the Kind of Stmt
- * @return the StmtKind
- */
-StmtKind ASTContinue::getKind() const {
-    return Kind;
 }

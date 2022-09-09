@@ -32,16 +32,26 @@ namespace fly {
 
     enum TypeKind {
         TYPE_VOID = 0,
+
+        // Boolean
         TYPE_BOOL = 1,
+
+        // Signed Integer
         TYPE_BYTE = 2,
-        TYPE_USHORT = 3,
-        TYPE_SHORT = 4,
-        TYPE_UINT = 5,
-        TYPE_INT = 6,
-        TYPE_ULONG = 7,
-        TYPE_LONG = 8,
+        TYPE_SHORT = 3,
+        TYPE_INT = 4,
+        TYPE_LONG = 5,
+
+        // Unsigned Integer
+        TYPE_USHORT = 6,
+        TYPE_UINT = 7,
+        TYPE_ULONG = 8,
+
+        // Floating Point
         TYPE_FLOAT = 9,
         TYPE_DOUBLE = 10,
+
+        // Aggregates
         TYPE_ARRAY = 11,
         TYPE_CLASS = 12
     };
@@ -65,6 +75,9 @@ namespace fly {
      */
     class ASTType {
 
+        friend class SemaBuilder;
+        friend class SemaResolver;
+
         const TypeKind Kind;
 
         const MacroTypeKind MacroKind;
@@ -86,17 +99,23 @@ namespace fly {
 
         const bool isBool() const;
 
+        const bool isFloatingPoint() const;
+
+        const bool isInteger() const;
+
         const bool isNumber() const;
 
-        const bool isClass() const;
-
         const bool isArray() const;
+
+        const bool isClass() const;
 
         const std::string printMacroType();
 
         static const std::string printMacroType(const MacroTypeKind Kind);
 
-        virtual std::string str() const = 0;
+        virtual const std::string print() const = 0;
+
+        virtual const std::string str() const = 0;
     };
 
     /**
@@ -110,9 +129,9 @@ namespace fly {
 
     public:
 
-        std::string str() const override {
-            return "void";
-        }
+        const std::string print() const override;
+
+        const std::string str() const override;
     };
 
     /**
@@ -126,9 +145,9 @@ namespace fly {
 
     public:
 
-        std::string str() const override {
-            return "bool";
-        }
+        const std::string print() const override;
+
+        const std::string str() const override;
     };
 
     /**
@@ -142,9 +161,9 @@ namespace fly {
 
     public:
 
-        std::string str() const override {
-            return "byte";
-        }
+        const std::string print() const override;
+
+        const std::string str() const override;
     };
 
     /**
@@ -158,9 +177,9 @@ namespace fly {
 
     public:
 
-        std::string str() const override {
-            return "ushort";
-        }
+        const std::string print() const override;
+
+        const std::string str() const override;
     };
 
     /**
@@ -174,9 +193,9 @@ namespace fly {
 
     public:
 
-        std::string str() const override {
-            return "short";
-        }
+        const std::string print() const override;
+
+        const std::string str() const override;
     };
 
     /**
@@ -190,9 +209,9 @@ namespace fly {
 
     public:
 
-        std::string str() const override {
-            return "uint";
-        }
+        const std::string print() const override;
+
+        const std::string str() const override;
     };
 
     /**
@@ -206,9 +225,9 @@ namespace fly {
 
     public:
 
-        std::string str() const override {
-            return "int";
-        }
+        const std::string print() const override;
+
+        const std::string str() const override;
     };
 
     /**
@@ -222,9 +241,9 @@ namespace fly {
 
     public:
 
-        std::string str() const override {
-            return "ulong";
-        }
+        const std::string print() const override;
+
+        const std::string str() const override;
     };
 
     /**
@@ -238,9 +257,9 @@ namespace fly {
 
     public:
 
-        std::string str() const override {
-            return "long";
-        }
+        const std::string print() const override;
+
+        const std::string str() const override;
     };
 
     /**
@@ -254,9 +273,9 @@ namespace fly {
 
     public:
 
-        std::string str() const override {
-            return "float";
-        }
+        const std::string print() const override;
+
+        const std::string str() const override;
     };
 
     /**
@@ -270,9 +289,9 @@ namespace fly {
 
     public:
 
-        std::string str() const override {
-            return "double";
-        }
+        const std::string print() const override;
+
+        const std::string str() const override;
     };
 
     /**
@@ -294,7 +313,9 @@ namespace fly {
 
         ASTType *getType() const;
 
-        std::string str() const override;
+        const std::string print() const override;
+
+        const std::string str() const override;
     };
 
     /**
@@ -324,7 +345,9 @@ namespace fly {
 
         bool operator ==(const ASTClassType &Ty) const;
 
-        std::string str() const override;
+        const std::string print() const override;
+
+        const std::string str() const override;
     };
 }
 

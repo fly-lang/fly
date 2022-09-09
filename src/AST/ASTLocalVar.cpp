@@ -8,17 +8,14 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTLocalVar.h"
+#include "AST/ASTBlock.h"
 #include "AST/ASTValue.h"
 
 using namespace fly;
 
-ASTLocalVar::ASTLocalVar(const SourceLocation &Loc, ASTType *Type, const std::string Name, bool Constant) :
-                        ASTExprStmt(Loc), ASTVar(VAR_LOCAL, Type, Name, Constant) {
+ASTLocalVar::ASTLocalVar(ASTBlock *Parent, const SourceLocation &Loc, ASTType *Type, const std::string Name, bool Constant) :
+                        ASTExprStmt(Parent, Loc, STMT_VAR_DEFINE), ASTVar(VAR_LOCAL, Type, Name, Constant) {
 
-}
-
-StmtKind ASTLocalVar::getKind() const {
-    return Kind;
 }
 
 ASTExpr *ASTLocalVar::getExpr() const {

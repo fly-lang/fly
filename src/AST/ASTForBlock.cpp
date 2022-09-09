@@ -13,7 +13,7 @@
 
 using namespace fly;
 
-ASTForBlock::ASTForBlock(ASTBlock *Parent, const SourceLocation &Loc) : ASTBlock(Parent, Loc) {
+ASTForBlock::ASTForBlock(ASTBlock *Parent, const SourceLocation &Loc) : ASTBlock(Parent, Loc, BLOCK_FOR) {
 
 }
 
@@ -23,18 +23,28 @@ ASTForBlock::~ASTForBlock() {
     delete Loop;
 }
 
-enum ASTBlockKind ASTForBlock::getBlockKind() const {
-    return StmtKind;
+ASTBlock *ASTForBlock::getParent() const {
+    return (ASTBlock *) Parent;
 }
 
 ASTExpr *ASTForBlock::getCondition() {
     return Condition;
 }
 
-ASTBlock *ASTForBlock::getPost() {
+ASTForPostBlock *ASTForBlock::getPost() {
     return Post;
 }
 
-ASTBlock *ASTForBlock::getLoop() {
+ASTForLoopBlock *ASTForBlock::getLoop() {
     return Loop;
+}
+
+ASTForLoopBlock::ASTForLoopBlock(ASTForBlock *ForBlock, const SourceLocation &Loc) :
+    ASTBlock(ForBlock, Loc, BLOCK_FOR_LOOP) {
+    ForBlock->Loop = this;
+}
+
+ASTForPostBlock::ASTForPostBlock(ASTForBlock *ForBlock, const SourceLocation &Loc) :
+    ASTBlock(ForBlock, Loc, BLOCK_FOR_POST) {
+    ForBlock->Post = this;
 }

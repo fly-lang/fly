@@ -56,11 +56,9 @@ namespace fly {
 
         DiagnosticBuilder Diag(unsigned DiagID) const;
 
-        bool CheckDuplicatedLocalVars(ASTBlock *Block, ASTLocalVar *LocalVar);
+        bool CheckDuplicatedLocalVars(ASTStmt *Stmt, ASTLocalVar *LocalVar);
 
         bool CheckUndef(ASTBlock *Block, ASTVarRef *VarRef);
-
-        static bool CheckOnCloseBlock(ASTBlock *Block); // TODO
 
         bool CheckImport(ASTNode *Node, ASTImport *Import);
 
@@ -68,17 +66,15 @@ namespace fly {
 
         bool isEquals(ASTParam *Param1, ASTParam *Param2);
 
-        bool isTypeDerivate(ASTType *T1, ASTType *T2);
+        bool CheckMacroType(ASTType *Type, MacroTypeKind Kind);
 
-        bool CheckMacroType(ASTValueExpr *ValueExpr, ASTType *Type);
+        bool CheckType(ASTType *FromType, ASTType *ToType);
 
-        bool CheckIfBlock(ASTIfBlock *Block);
+        bool CheckArithTypes(const SourceLocation &Loc,ASTType *Type1, ASTType *Type2);
 
-        bool CheckSwitchBlock(ASTSwitchBlock *Block);
+        bool CheckLogicalTypes(const SourceLocation &Loc,ASTType *Type1, ASTType *Type2);
 
-        bool CheckWhileBlock(ASTWhileBlock *Block);
-
-        bool CheckForBlock(ASTForBlock *Block);
+        bool CheckComparableTypes(const SourceLocation &Loc,ASTType *Type1, ASTType *Type2);
     };
 
 }  // end namespace fly
