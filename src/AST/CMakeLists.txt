@@ -1,11 +1,15 @@
 add_library(FlyAST
         ASTBlock.cpp
         ASTClass.cpp
+        ASTClassField.cpp
+        ASTClassMethod.cpp
         ASTContext.cpp
         ASTExpr.cpp
         ASTExprStmt.cpp
+        ASTClassField.cpp
         ASTForBlock.cpp
         ASTFunction.cpp
+        ASTFunctionBase.cpp
         ASTFunctionCall.cpp
         ASTGlobalVar.cpp
         ASTIfBlock.cpp

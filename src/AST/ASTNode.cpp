@@ -54,6 +54,6 @@ const llvm::StringMap<ASTGlobalVar *> &ASTNode::getExternalGlobalVars() const {
     return ExternalGlobalVars;
 }
 
-const std::unordered_set<ASTFunction *> &ASTNode::getExternalFunctions() const {
+const llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> &ASTNode::getExternalFunctions() const {
     return ExternalFunctions;
 }

@@ -14,8 +14,13 @@
 using namespace fly;
 
 ASTLocalVar::ASTLocalVar(ASTBlock *Parent, const SourceLocation &Loc, ASTType *Type, const std::string Name, bool Constant) :
-                        ASTExprStmt(Parent, Loc, STMT_VAR_DEFINE), ASTVar(VAR_LOCAL, Type, Name, Constant) {
+                        ASTExprStmt(Parent, Loc, STMT_VAR_DEFINE), ASTVar(VAR_LOCAL, Type, Name),
+                        Constant(Constant) {
 
+}
+
+bool ASTLocalVar::isConstant() const {
+    return Constant;
 }
 
 ASTExpr *ASTLocalVar::getExpr() const {
@@ -33,6 +38,7 @@ void ASTLocalVar::setCodeGen(CodeGenLocalVar *CG) {
 std::string ASTLocalVar::str() const {
     return "{ " +
            ASTVar::str() +
+           ", Constant=" + (Constant ? "true" : "false") + ", " +
            ", Kind: " + std::to_string(Kind) +
            " }";
 }

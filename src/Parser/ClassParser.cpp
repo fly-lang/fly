@@ -11,6 +11,7 @@
 #include "Parser/ClassParser.h"
 #include "AST/ASTClass.h"
 #include "Sema/SemaBuilder.h"
+#include "Basic/Debug.h"
 
 using namespace fly;
 
@@ -20,7 +21,7 @@ using namespace fly;
  * @param Visibility
  * @param Constant
  */
-ClassParser::ClassParser(Parser *P, VisibilityKind &Visibility, bool &Constant) : P(P) {
+ClassParser::ClassParser(Parser *P, ASTTopScopes *Scopes) : P(P) {
     assert(P->Tok.isAnyIdentifier() && "Tok must be an Identifier");
 
     IdentifierInfo *Id = P->Tok.getIdentifierInfo();
@@ -28,16 +29,68 @@ ClassParser::ClassParser(Parser *P, VisibilityKind &Visibility, bool &Constant) 
     const SourceLocation Loc = P->Tok.getLocation();
     P->ConsumeToken();
 
-    Class = P->Builder.CreateClass(P->Node, Loc, Name.str(), Visibility, Constant);
+    Class = P->Builder.CreateClass(P->Node, Loc, Name.str(), Scopes);
 
-    // ParseAttributes() && ParseMethods()
+    do {
+        ASTClassScopes *ClassScopes = ParseScopes();
+        if (isField()) {
+            Success =  ParseField();
+        } else if (isMethod()) {
+            Success = ParseMethod();
+        }
+    } while (Success || P->Tok.isNot(tok::eof));
 }
 
 /**
  * Parse Class Declaration
  * @return
  */
-ASTClass *ClassParser::Parse(Parser *P, VisibilityKind &Visibility, bool &Constant) {
-    ClassParser *CP = new ClassParser(P, Visibility, Constant);
+ASTClass *ClassParser::Parse(Parser *P, ASTTopScopes *Scopes) {
+    ClassParser *CP = new ClassParser(P, Scopes);
     return CP->Class;
+}
+
+ASTClassScopes *ClassParser::ParseScopes() {
+    return nullptr;
+}
+
+bool ClassParser::isField() {
+    return true;
+}
+
+ASTClassField *ClassParser::ParseField() {
+    FLY_DEBUG("Parser", "ParseGlobalVar");
+
+    assert(P->Tok.isAnyIdentifier() && "Tok must be an Identifier");
+
+    // Add Comment to AST
+    std::string Comment;
+    if (!P->BlockComment.empty()) {
+        Comment = P->BlockComment;
+        P->ClearBlockComment(); // Clear for next use
+    }
+
+    IdentifierInfo *Id = P->Tok.getIdentifierInfo();
+    llvm::StringRef Name = Id->getName();
+    SourceLocation Loc = P->ConsumeToken();
+
+//    ASTGlobalVar *GlobalVar = P->Builder.CreateGlobalVar(Node, Loc, Type, Name.str(), Visibility, Constant);
+
+    // Parsing =
+    ASTExpr *Expr = nullptr;
+    if (P->isTokenAssign()) {
+        P->ConsumeToken();
+        Expr = P->ParseExpr();
+    }
+
+//    return P->Builder.AddClassField(Node, GlobalVar, Expr) &&
+//            P->Builder.AddComment(GlobalVar, Comment);
+}
+
+bool ClassParser::isMethod() {
+    return true;
+}
+
+ASTClassMethod *ClassParser::ParseMethod() {
+    return nullptr;
 }

@@ -105,59 +105,61 @@ namespace {
     TEST_F(CodeGenTest, CGDefaultValueGlobalVar) {
         ASTNode *Node = CreateNode();
 
+        ASTTopScopes *TopScopes = SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false);
+
         // default Bool value
         ASTValue *DefaultBoolVal = SemaBuilder::CreateDefaultValue(BoolType);
-        ASTGlobalVar *aVar = Builder->CreateGlobalVar(Node, SourceLoc, BoolType, "a", VisibilityKind::V_DEFAULT, false);
+        ASTGlobalVar *aVar = Builder->CreateGlobalVar(Node, SourceLoc, BoolType, "a", TopScopes);
         EXPECT_TRUE(Builder->AddGlobalVar(Node, aVar, DefaultBoolVal));
 
         // default Byte value
         ASTValue *DefaultByteVal = SemaBuilder::CreateDefaultValue(ByteType);
-        ASTGlobalVar *bVar = Builder->CreateGlobalVar(Node, SourceLoc, ByteType, "b", VisibilityKind::V_DEFAULT, false);
+        ASTGlobalVar *bVar = Builder->CreateGlobalVar(Node, SourceLoc, ByteType, "b", TopScopes);
         EXPECT_TRUE(Builder->AddGlobalVar(Node, bVar, DefaultByteVal));
 
         // default Short value
         ASTValue *DefaultShortVal = SemaBuilder::CreateDefaultValue(ShortType);
-        ASTGlobalVar *cVar = Builder->CreateGlobalVar(Node, SourceLoc, ShortType, "c", VisibilityKind::V_DEFAULT, false);
+        ASTGlobalVar *cVar = Builder->CreateGlobalVar(Node, SourceLoc, ShortType, "c", TopScopes);
         EXPECT_TRUE(Builder->AddGlobalVar(Node, cVar, DefaultShortVal));
 
         // default UShort value
         ASTValue *DefaultUShortVal = SemaBuilder::CreateDefaultValue(UShortType);
-        ASTGlobalVar *dVar = Builder->CreateGlobalVar(Node, SourceLoc, UShortType, "d", VisibilityKind::V_DEFAULT, false);
+        ASTGlobalVar *dVar = Builder->CreateGlobalVar(Node, SourceLoc, UShortType, "d", TopScopes);
         EXPECT_TRUE(Builder->AddGlobalVar(Node, dVar, DefaultUShortVal));
 
         // default Int value
         ASTValue *DefaultIntVal = SemaBuilder::CreateDefaultValue(IntType);
-        ASTGlobalVar *eVar = Builder->CreateGlobalVar(Node, SourceLoc, IntType, "e", VisibilityKind::V_DEFAULT, false);
+        ASTGlobalVar *eVar = Builder->CreateGlobalVar(Node, SourceLoc, IntType, "e", TopScopes);
         EXPECT_TRUE(Builder->AddGlobalVar(Node, eVar, DefaultIntVal));
 
         // default UInt value
         ASTValue *DefaultUintVal = SemaBuilder::CreateDefaultValue(UIntType);
-        ASTGlobalVar *fVar = Builder->CreateGlobalVar(Node, SourceLoc, UIntType, "f", VisibilityKind::V_DEFAULT, false);
+        ASTGlobalVar *fVar = Builder->CreateGlobalVar(Node, SourceLoc, UIntType, "f", TopScopes);
         EXPECT_TRUE(Builder->AddGlobalVar(Node, fVar, DefaultUintVal));
 
         // default Long value
         ASTValue *DefaultLongVal = SemaBuilder::CreateDefaultValue(LongType);
-        ASTGlobalVar *gVar = Builder->CreateGlobalVar(Node, SourceLoc, LongType, "g", VisibilityKind::V_DEFAULT, false);
+        ASTGlobalVar *gVar = Builder->CreateGlobalVar(Node, SourceLoc, LongType, "g", TopScopes);
         EXPECT_TRUE(Builder->AddGlobalVar(Node, gVar, DefaultLongVal));
 
         // default ULong value
         ASTValue *DefaultULongVal = SemaBuilder::CreateDefaultValue(ULongType);
-        ASTGlobalVar *hVar = Builder->CreateGlobalVar(Node, SourceLoc, ULongType, "h", VisibilityKind::V_DEFAULT, false);
+        ASTGlobalVar *hVar = Builder->CreateGlobalVar(Node, SourceLoc, ULongType, "h", TopScopes);
         EXPECT_TRUE(Builder->AddGlobalVar(Node, hVar, DefaultULongVal));
 
         // default Float value
         ASTValue *DefaultFloatVal = SemaBuilder::CreateDefaultValue(FloatType);
-        ASTGlobalVar *iVar = Builder->CreateGlobalVar(Node, SourceLoc, FloatType, "i", VisibilityKind::V_DEFAULT, false);
+        ASTGlobalVar *iVar = Builder->CreateGlobalVar(Node, SourceLoc, FloatType, "i", TopScopes);
         EXPECT_TRUE(Builder->AddGlobalVar(Node, iVar, DefaultFloatVal));
 
         // default Double value
         ASTValue *DefaultDoubleVal = SemaBuilder::CreateDefaultValue(DoubleType);
-        ASTGlobalVar *jVar = Builder->CreateGlobalVar(Node, SourceLoc, DoubleType, "j", VisibilityKind::V_DEFAULT, false);
+        ASTGlobalVar *jVar = Builder->CreateGlobalVar(Node, SourceLoc, DoubleType, "j", TopScopes);
         EXPECT_TRUE(Builder->AddGlobalVar(Node,jVar, DefaultDoubleVal));
 
         // default Array value
         ASTValue *DefaultArrayVal = SemaBuilder::CreateDefaultValue(ArrayInt0Type);
-        ASTGlobalVar *kVar = Builder->CreateGlobalVar(Node, SourceLoc, ArrayInt0Type, "k", VisibilityKind::V_DEFAULT, false);
+        ASTGlobalVar *kVar = Builder->CreateGlobalVar(Node, SourceLoc, ArrayInt0Type, "k", TopScopes);
         EXPECT_TRUE(Builder->AddGlobalVar(Node, kVar, DefaultArrayVal));
 
         // Generate Code
@@ -244,59 +246,61 @@ namespace {
     TEST_F(CodeGenTest, CGValuedGlobalVar) {
         ASTNode *Node = CreateNode();
 
+        ASTTopScopes *TopScopes = SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false);
+
         // a
         ASTBoolValue *BoolVal = SemaBuilder::CreateBoolValue(SourceLoc, true);
-        ASTGlobalVar *aVar = Builder->CreateGlobalVar(Node, SourceLoc, BoolType, "a", VisibilityKind::V_DEFAULT, false);
+        ASTGlobalVar *aVar = Builder->CreateGlobalVar(Node, SourceLoc, BoolType, "a", TopScopes);
         EXPECT_TRUE(Builder->AddGlobalVar(Node, aVar, BoolVal));
 
         // b
         ASTIntegerValue *ByteVal = SemaBuilder::CreateIntegerValue(SourceLoc, 1);
-        ASTGlobalVar *bVar = Builder->CreateGlobalVar(Node, SourceLoc, ByteType, "b", VisibilityKind::V_DEFAULT, false);
+        ASTGlobalVar *bVar = Builder->CreateGlobalVar(Node, SourceLoc, ByteType, "b", TopScopes);
         EXPECT_TRUE(Builder->AddGlobalVar(Node, bVar, ByteVal));
 
         // c
         ASTIntegerValue *ShortVal = SemaBuilder::CreateIntegerValue(SourceLoc, -2);
-        ASTGlobalVar *cVar = Builder->CreateGlobalVar(Node, SourceLoc, ShortType, "c", VisibilityKind::V_DEFAULT, false);
+        ASTGlobalVar *cVar = Builder->CreateGlobalVar(Node, SourceLoc, ShortType, "c", TopScopes);
         EXPECT_TRUE(Builder->AddGlobalVar(Node, cVar, ShortVal));
 
         // d
         ASTIntegerValue *UShortVal = SemaBuilder::CreateIntegerValue(SourceLoc, 2);
-        ASTGlobalVar *dVar = Builder->CreateGlobalVar(Node, SourceLoc, UShortType, "d", VisibilityKind::V_DEFAULT, false);
+        ASTGlobalVar *dVar = Builder->CreateGlobalVar(Node, SourceLoc, UShortType, "d", TopScopes);
         EXPECT_TRUE(Builder->AddGlobalVar(Node, dVar, UShortVal));
 
         // e
         ASTIntegerValue *IntVal = SemaBuilder::CreateIntegerValue(SourceLoc, -3);
-        ASTGlobalVar *eVar = Builder->CreateGlobalVar(Node, SourceLoc, IntType, "e", VisibilityKind::V_DEFAULT, false);
+        ASTGlobalVar *eVar = Builder->CreateGlobalVar(Node, SourceLoc, IntType, "e", TopScopes);
         EXPECT_TRUE(Builder->AddGlobalVar(Node, eVar, IntVal));
 
         // f
         ASTIntegerValue *UIntVal = SemaBuilder::CreateIntegerValue(SourceLoc, 3);
-        ASTGlobalVar *fVar = Builder->CreateGlobalVar(Node, SourceLoc, UIntType, "f", VisibilityKind::V_DEFAULT, false);
+        ASTGlobalVar *fVar = Builder->CreateGlobalVar(Node, SourceLoc, UIntType, "f", TopScopes);
         EXPECT_TRUE(Builder->AddGlobalVar(Node, fVar, UIntVal));
 
         // g
         ASTIntegerValue *LongVal = SemaBuilder::CreateIntegerValue(SourceLoc, -4);
-        ASTGlobalVar *gVar = Builder->CreateGlobalVar(Node, SourceLoc, LongType, "g", VisibilityKind::V_DEFAULT, false);
+        ASTGlobalVar *gVar = Builder->CreateGlobalVar(Node, SourceLoc, LongType, "g", TopScopes);
         EXPECT_TRUE(Builder->AddGlobalVar(Node, gVar, LongVal));
 
         // h
         ASTIntegerValue *ULongVal = SemaBuilder::CreateIntegerValue(SourceLoc, 4);
-        ASTGlobalVar *hVar = Builder->CreateGlobalVar(Node, SourceLoc, ULongType, "h", VisibilityKind::V_DEFAULT, false);
+        ASTGlobalVar *hVar = Builder->CreateGlobalVar(Node, SourceLoc, ULongType, "h", TopScopes);
         EXPECT_TRUE(Builder->AddGlobalVar(Node, hVar, ULongVal));
 
         // i
         ASTFloatingValue *FloatVal = SemaBuilder::CreateFloatingValue(SourceLoc, 1.5);
-        ASTGlobalVar *iVar = Builder->CreateGlobalVar(Node, SourceLoc, FloatType, "i", VisibilityKind::V_DEFAULT, false);
+        ASTGlobalVar *iVar = Builder->CreateGlobalVar(Node, SourceLoc, FloatType, "i", TopScopes);
         EXPECT_TRUE(Builder->AddGlobalVar(Node, iVar, FloatVal));
 
         // j
         ASTFloatingValue *DoubleVal = SemaBuilder::CreateFloatingValue(SourceLoc, 2.5);
-        ASTGlobalVar *jVar = Builder->CreateGlobalVar(Node, SourceLoc, DoubleType, "j", VisibilityKind::V_DEFAULT, false);
+        ASTGlobalVar *jVar = Builder->CreateGlobalVar(Node, SourceLoc, DoubleType, "j", TopScopes);
         EXPECT_TRUE(Builder->AddGlobalVar(Node,jVar, DoubleVal));
 
         // k (empty array)
         ASTArrayValue *ArrayValEmpty = SemaBuilder::CreateArrayValue(SourceLoc);
-        ASTGlobalVar *kVar = Builder->CreateGlobalVar(Node, SourceLoc, ArrayInt0Type, "k", VisibilityKind::V_DEFAULT, false);
+        ASTGlobalVar *kVar = Builder->CreateGlobalVar(Node, SourceLoc, ArrayInt0Type, "k", TopScopes);
         EXPECT_TRUE(Builder->AddGlobalVar(Node, kVar, ArrayValEmpty));
 
         // l (2 val)
@@ -305,7 +309,7 @@ namespace {
           Builder->CreateExpr(nullptr, SemaBuilder::CreateIntegerValue(SourceLoc, 2)));
         Builder->AddArrayValue(ArrayVal, SemaBuilder::CreateIntegerValue(SourceLoc, 1)); // ArrayVal = {1}
         Builder->AddArrayValue(ArrayVal, SemaBuilder::CreateIntegerValue(SourceLoc, 2)); // ArrayVal = {1, 1}
-        ASTGlobalVar *lVar = Builder->CreateGlobalVar(Node, SourceLoc, ArrayInt2Type, "l", VisibilityKind::V_DEFAULT, false);
+        ASTGlobalVar *lVar = Builder->CreateGlobalVar(Node, SourceLoc, ArrayInt2Type, "l", TopScopes);
         EXPECT_TRUE(Builder->AddGlobalVar(Node, lVar, ArrayVal));
 
         // Generate Code
@@ -398,7 +402,9 @@ namespace {
     TEST_F(CodeGenTest, CGFunc) {
         ASTNode *Node = CreateNode();
 
-        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main", VisibilityKind::V_DEFAULT);
+        ASTTopScopes *TopScopes = SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false);
+
+        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main", TopScopes);
         EXPECT_TRUE(Builder->AddFunctionParam(MainFn, Builder->CreateParam(MainFn,SourceLoc, IntType, "P1", false)));
         EXPECT_TRUE(Builder->AddFunctionParam(MainFn, Builder->CreateParam(MainFn,SourceLoc, FloatType, "P2", false)));
         EXPECT_TRUE(Builder->AddFunctionParam(MainFn, Builder->CreateParam(MainFn,SourceLoc, BoolType, "P3", false)));
@@ -461,11 +467,13 @@ namespace {
 
         // float G = 2.0
         ASTFloatingValue *FloatingVal = SemaBuilder::CreateFloatingValue(SourceLoc, 2.0);
-        ASTGlobalVar *GVar = Builder->CreateGlobalVar(Node, SourceLoc, FloatType, "G", VisibilityKind::V_PRIVATE, false);
+        ASTGlobalVar *GVar = Builder->CreateGlobalVar(Node, SourceLoc, FloatType, "G",
+                                                      SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_PRIVATE, false));
         EXPECT_TRUE(Builder->AddGlobalVar(Node, GVar, FloatingVal));
 
         // main()
-        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main", VisibilityKind::V_DEFAULT);
+        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",
+                                                      SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false));
         ASTBlock *Body = Builder->getBlock(MainFn);
 
         // int A
@@ -519,11 +527,13 @@ namespace {
         ASTNode *Node = CreateNode();
 
         // main()
-        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main", VisibilityKind::V_DEFAULT);
+        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",
+                                                      SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false));
         ASTBlock *Body = Builder->getBlock(MainFn);
 
         // test()
-        ASTFunction *TestFn = Builder->CreateFunction(Node, SourceLoc, IntType, "test", VisibilityKind::V_DEFAULT);
+        ASTFunction *TestFn = Builder->CreateFunction(Node, SourceLoc, IntType, "test",
+                                                      SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false));
 
         // call test()
         ASTExprStmt *ExprStmt = Builder->CreateExprStmt(Body, SourceLoc);
@@ -571,7 +581,8 @@ namespace {
         ASTNode *Node = CreateNode();
 
         // main()
-        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main", VisibilityKind::V_DEFAULT);
+        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",
+                                                      SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false));
         ASTBlock *Body = Builder->getBlock(MainFn);
         ASTParam *aParam = Builder->CreateParam(MainFn, SourceLoc, IntType, "a");
         EXPECT_TRUE(Builder->AddFunctionParam(MainFn, aParam));
@@ -636,7 +647,8 @@ namespace {
         ASTNode *Node = CreateNode();
 
         // main()
-        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main", VisibilityKind::V_DEFAULT);
+        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",
+                                                      SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false));
         ASTBlock *Body = Builder->getBlock(MainFn);
         ASTParam *aParam = Builder->CreateParam(MainFn, SourceLoc, IntType, "a");
         EXPECT_TRUE(Builder->AddFunctionParam(MainFn, aParam));
@@ -823,7 +835,8 @@ namespace {
         ASTNode *Node = CreateNode();
 
         // main()
-        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, BoolType, "main", VisibilityKind::V_DEFAULT);
+        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, BoolType, "main",
+                                                      SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false));
         ASTBlock *Body = Builder->getBlock(MainFn);
         ASTLocalVar *aVar = Builder->CreateLocalVar(Body, SourceLoc, IntType, "a");
         EXPECT_TRUE(Builder->AddStmt(aVar));
@@ -941,7 +954,8 @@ namespace {
         ASTNode *Node = CreateNode();
 
         // main()
-        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, BoolType, "main", VisibilityKind::V_DEFAULT);
+        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, BoolType, "main",
+                                                      SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false));
         ASTBlock *Body = Builder->getBlock(MainFn);
         ASTLocalVar *aVar = Builder->CreateLocalVar(Body, SourceLoc, BoolType, "a");
         EXPECT_TRUE(Builder->AddStmt(aVar));
@@ -1037,7 +1051,8 @@ namespace {
         ASTNode *Node = CreateNode();
 
         // main()
-        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main", VisibilityKind::V_DEFAULT);
+        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",
+                                                      SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false));
         ASTBlock *Body = Builder->getBlock(MainFn);
         ASTLocalVar *aVar = Builder->CreateLocalVar(Body, SourceLoc, BoolType, "a");
         EXPECT_TRUE(Builder->AddStmt(aVar));
@@ -1124,7 +1139,8 @@ namespace {
         ASTNode *Node = CreateNode();
 
         // main()
-        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main", VisibilityKind::V_DEFAULT);
+        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",
+                                                      SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false));
         ASTBlock *Body = Builder->getBlock(MainFn);
         ASTLocalVar *aVar = Builder->CreateLocalVar(Body, SourceLoc, IntType, "a");
         Builder->CreateExpr(aVar, SemaBuilder::CreateIntegerValue(SourceLoc, 0));
@@ -1182,7 +1198,7 @@ namespace {
                           "}\n");
     }
 
-//    TEST_F(CodeGenTest, CGIfElseBlock) {
+//    TEST_F(CodeGenTest, DISABLED_CGIfElseBlock) {
 //        ASTNode *Node = CreateNode();
 //
 //        // main()
@@ -1246,7 +1262,7 @@ namespace {
 //                          "}\n");
 //    }
 //
-//    TEST_F(CodeGenTest, CGIfElsifElseBlock) {
+//    TEST_F(CodeGenTest, DISABLED_CGIfElsifElseBlock) {
 //        ASTNode *Node = CreateNode();
 //
 //        // main()
@@ -1340,7 +1356,7 @@ namespace {
 //                          "}\n");
 //    }
 //
-//    TEST_F(CodeGenTest, CGIfElsifBlock) {
+//    TEST_F(CodeGenTest, DISABLED_CGIfElsifBlock) {
 //        ASTNode *Node = CreateNode();
 //
 //        // main()
@@ -1422,7 +1438,7 @@ namespace {
 //                          "}\n");
 //    }
 //
-//    TEST_F(CodeGenTest, CGSwitchBlock) {
+//    TEST_F(CodeGenTest, DISABLED_CGSwitchBlock) {
 //        ASTNode *Node = CreateNode();
 //
 //        // main()
@@ -1495,7 +1511,7 @@ namespace {
 //                          "}\n");
 //    }
 //
-//    TEST_F(CodeGenTest, CGWhileBlock) {
+//    TEST_F(CodeGenTest, DISABLED_CGWhileBlock) {
 //        ASTNode *Node = CreateNode();
 //
 //        // main()
@@ -1552,7 +1568,7 @@ namespace {
 //                          "}\n");
 //    }
 //
-//    TEST_F(CodeGenTest, CGForInitCondPostBlock) {
+//    TEST_F(CodeGenTest, DISABLED_CGForInitCondPostBlock) {
 //        ASTNode *Node = CreateNode();
 //
 //        // main()
@@ -1631,7 +1647,7 @@ namespace {
 //                          "}\n");
 //    }
 //
-//    TEST_F(CodeGenTest, CGForCondBlock) {
+//    TEST_F(CodeGenTest, DISABLED_CGForCondBlock) {
 //        ASTNode *Node = CreateNode();
 //
 //        // main()
@@ -1688,7 +1704,7 @@ namespace {
 //                          "}\n");
 //    }
 //
-//    TEST_F(CodeGenTest, CGForPostBlock) {
+//    TEST_F(CodeGenTest, DISABLED_CGForPostBlock) {
 //        ASTNode *Node = CreateNode();
 //
 //        // main()

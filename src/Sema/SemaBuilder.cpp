@@ -75,6 +75,10 @@ DiagnosticBuilder SemaBuilder::Diag(unsigned DiagID) const {
     return S.Diag(DiagID);
 }
 
+Sema &SemaBuilder::getSema() {
+    return S;
+}
+
 /**
  * Create an ASTNode with basic mandatory details: Name and NameSpace
  * If NameSpace doesn't exists it will be created
@@ -122,6 +126,10 @@ ASTImport *SemaBuilder::CreateImport(const SourceLocation &NameLoc, llvm::String
     return new ASTImport(NameLoc, NameStr, AliasLoc, AliasStr);
 }
 
+ASTTopScopes *SemaBuilder::CreateTopScopes(ASTVisibilityKind Visibility, bool Constant) {
+    return new ASTTopScopes(Visibility, Constant);
+}
+
 /**
  * Create an ASTGlobalVar
  * @param Node
@@ -132,9 +140,9 @@ ASTImport *SemaBuilder::CreateImport(const SourceLocation &NameLoc, llvm::String
  * @param Constant
  * @return
  */
-ASTGlobalVar *SemaBuilder::CreateGlobalVar(ASTNode *Node, const SourceLocation Loc, ASTType *Type, const std::string &Name,
-                                            VisibilityKind Visibility, bool Constant) {
-    return new ASTGlobalVar(Loc, Node, Type, Name, Visibility, Constant);
+ASTGlobalVar *SemaBuilder::CreateGlobalVar(ASTNode *Node, const SourceLocation &Loc, ASTType *Type, const std::string &Name,
+                                           ASTTopScopes *Scopes) {
+    return new ASTGlobalVar(Loc, Node, Type, Name, Scopes);
 }
 
 /**
@@ -146,9 +154,9 @@ ASTGlobalVar *SemaBuilder::CreateGlobalVar(ASTNode *Node, const SourceLocation L
  * @param Visibility
  * @return
  */
-ASTFunction *SemaBuilder::CreateFunction(ASTNode *Node, const SourceLocation Loc, ASTType *Type,
-                                         const std::string &Name, VisibilityKind Visibility) {
-    ASTFunction *F = new ASTFunction(Loc, Node, Type, Name, Visibility);
+ASTFunction *SemaBuilder::CreateFunction(ASTNode *Node, const SourceLocation &Loc, ASTType *Type,
+                                         const std::string &Name, ASTTopScopes *Scopes) {
+    ASTFunction *F = new ASTFunction(Loc, Node, Type, Name, Scopes);
     F->Params = new ASTParams();
     F->Body = CreateBlock(nullptr, SourceLocation());
     F->Body->Top = F;
@@ -164,9 +172,9 @@ ASTFunction *SemaBuilder::CreateFunction(ASTNode *Node, const SourceLocation Loc
  * @param Constant
  * @return
  */
-ASTClass *SemaBuilder::CreateClass(ASTNode *Node, const SourceLocation Loc, const std::string &Name,
-                                   VisibilityKind &Visibility, bool Constant) {
-    return new ASTClass(Loc, Node, Name, Visibility, Constant);
+ASTClass *SemaBuilder::CreateClass(ASTNode *Node, const SourceLocation &Loc, const std::string &Name,
+                                   ASTTopScopes *Scopes) {
+    return new ASTClass(Loc, Node, Name, Scopes);
 }
 
 ASTBoolType *SemaBuilder::CreateBoolType(const SourceLocation &Loc) {
@@ -565,7 +573,8 @@ bool SemaBuilder::AddGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar, ASTExpr *
     GlobalVar->Expr = Expr;
 
     // Lookup into namespace for public var
-    if(GlobalVar->Visibility == VisibilityKind::V_PUBLIC || GlobalVar->Visibility == VisibilityKind::V_DEFAULT) {
+    if(GlobalVar->Scopes->Visibility == ASTVisibilityKind::V_PUBLIC ||
+        GlobalVar->Scopes->Visibility == ASTVisibilityKind::V_DEFAULT) {
         ASTGlobalVar *LookupVar = Node->NameSpace->getGlobalVars().lookup(GlobalVar->getName());
 
         if (LookupVar) { // This NameSpace already contains this GlobalVar
@@ -581,7 +590,7 @@ bool SemaBuilder::AddGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar, ASTExpr *
     }
 
     // Lookup into node for private var
-    if(GlobalVar->Visibility == VisibilityKind::V_PRIVATE) {
+    if(GlobalVar->Scopes->Visibility == ASTVisibilityKind::V_PRIVATE) {
         ASTGlobalVar *LookupVar = Node->GlobalVars.lookup(GlobalVar->getName());
 
         if (LookupVar) { // This Node already contains this Function
@@ -598,12 +607,37 @@ bool SemaBuilder::AddGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar, ASTExpr *
     assert(0 && "Unknown GlobalVar Visibility");
 }
 
-bool SemaBuilder::InsertFunction(ASTNodeBase *Base, ASTFunction *Function) {
+bool SemaBuilder::AddFunction(ASTNode *Node, ASTFunction *Function) {
+    FLY_DEBUG_MESSAGE("ASTNode", "AddFunction",
+                      "Node=" << Node->str() << ", Function=" << Function->str());
+
+    // Lookup into namespace for public var
+    if(Function->Scopes->Visibility == ASTVisibilityKind::V_PUBLIC ||
+        Function->Scopes->Visibility == ASTVisibilityKind::V_DEFAULT) {
+
+        // Add into NameSpace for global resolution
+        // Add into Node for local resolution
+        return InsertFunction(Node->NameSpace->Functions, Function) && InsertFunction(Node->Functions, Function);
+    }
+
+    // Lookup into node for private var
+    if (Function->Scopes->Visibility == ASTVisibilityKind::V_PRIVATE) {
+
+        // Add into Node for local resolution
+        return InsertFunction(Node->Functions, Function);
+    }
+
+    assert(0 && "Unknown Function Visibility");
+}
+
+
+bool SemaBuilder::InsertFunction(llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> &Functions,
+                                 ASTFunction *Function) {
     // Functions is llvm::StringMap<std::map <uint64_t, llvm::SmallVector <ASTFunction *, 4>>>
-    const auto &StrMapIt = Base->getFunctions().find(Function->getName());
+    const auto &StrMapIt = Functions.find(Function->getName());
 
     // This Node not contains a Function with this Function->Name
-    if (StrMapIt == Base->getFunctions().end()) {
+    if (StrMapIt == Functions.end()) {
 
         // add to llvm::SmallVector
         llvm::SmallVector<ASTFunction *, 4> Vect;
@@ -614,7 +648,7 @@ bool SemaBuilder::InsertFunction(ASTNodeBase *Base, ASTFunction *Function) {
         IntMap.insert(std::make_pair(Function->Params->getSize(),Vect));
 
         // add to llvm::StringMap
-        return Base->Functions.insert(std::make_pair(Function->getName(), IntMap)).second;
+        return Functions.insert(std::make_pair(Function->getName(), IntMap)).second;
     } else { // This Node contains a Function with this Function->Name
         const auto &IntMapIt = StrMapIt->getValue().find(Function->Params->getSize());
         if (IntMapIt == StrMapIt->getValue().end()) { // but not have the same number of Params
@@ -657,28 +691,6 @@ bool SemaBuilder::InsertFunction(ASTNodeBase *Base, ASTFunction *Function) {
     }
 }
 
-bool SemaBuilder::AddFunction(ASTNode *Node, ASTFunction *Function) {
-    FLY_DEBUG_MESSAGE("ASTNode", "AddFunction",
-                      "Node=" << Node->str() << ", Function=" << Function->str());
-
-    // Lookup into namespace for public var
-    if(Function->Visibility == VisibilityKind::V_PUBLIC || Function->Visibility == VisibilityKind::V_DEFAULT) {
-
-        // Add into NameSpace for global resolution
-        // Add into Node for local resolution
-        return InsertFunction(Node->NameSpace, Function) && InsertFunction(Node, Function);
-    }
-
-    // Lookup into node for private var
-    if (Function->Visibility == VisibilityKind::V_PRIVATE) {
-
-        // Add into Node for local resolution
-        return InsertFunction(Node, Function);
-    }
-
-    assert(0 && "Unknown Function Visibility");
-}
-
 bool SemaBuilder::AddFunctionParam(ASTFunction *Function, ASTParam *Param) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddExternalFunction",
                       "Function=" << Function->str() << ", Param=" << Param->str());
@@ -698,6 +710,14 @@ void SemaBuilder::AddFunctionVarParams(ASTFunction *Function, ASTParam *Param) {
 bool SemaBuilder::AddClass(ASTNode *Node, ASTClass *Class) {
     FLY_DEBUG_MESSAGE("ASTNode", "AddFunction",
                       "Node=" << Node->str() << ", Class" << Class->str());
+
+    /**
+     * CLASS_STRUCT has only Fields
+     * CLASS_INTERFACE has only prototype Methods
+     * CLASS_ABSTRACT has at least one prototype Method
+     * CLASS_STANDARD has no prototype Methods
+     */
+    Class->ClassKind = CLASS_STRUCT; // TODO need to be calculated
 
     // Lookup into namespace
     // TODO Class scope differences
@@ -730,11 +750,11 @@ bool SemaBuilder::AddExternalGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar) {
     return Node->ExternalGlobalVars.insert(std::make_pair(GlobalVar->getName(), GlobalVar)).second;
 }
 
-bool SemaBuilder::AddExternalFunction(ASTNode *Node, ASTFunction *Call) {
+bool SemaBuilder::AddExternalFunction(ASTNode *Node, ASTFunction *Function) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddExternalFunction",
-                      "Node=" << Node->str() << ", Call=" << Call->str());
+                      "Node=" << Node->str() << ", Function=" << Function->str());
     // TODO Check duplicate
-    return Node->ExternalFunctions.insert(Call).second;
+    return InsertFunction(Node->ExternalFunctions, Function);
 }
 
 bool SemaBuilder::AddArrayValue(ASTArrayValue *Array, ASTValue *Value) {

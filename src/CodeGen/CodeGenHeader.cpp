@@ -43,7 +43,7 @@ std::string CodeGenHeader::GenerateFile() {
 
     // generate global var declarations
     for (auto &GlobalVar : GlobalVars) {
-        if (GlobalVar->getVisibility() == V_PUBLIC) {
+        if (GlobalVar->getScopes()->getVisibility() == V_PUBLIC) {
             Header += "\npublic " + Convert(GlobalVar->getType()) + "." +
                       GlobalVar->getName() + "\n";
         }
@@ -51,7 +51,7 @@ std::string CodeGenHeader::GenerateFile() {
 
     // generate function declarations
     for (auto &Function : Functions) {
-        if (Function->getVisibility() == V_PUBLIC) {
+        if (Function->getScopes()->getVisibility() == V_PUBLIC) {
             Header += "\npublic " + Convert(Function->getType()) + " " + Function->getName() +
                       "(";
             int i = 0;

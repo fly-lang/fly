@@ -29,11 +29,15 @@ namespace fly {
         // LocalVar Code Generator
         CodeGenLocalVar *CodeGen = nullptr;
 
+        bool Constant = false;
+
     protected:
 
         ASTLocalVar(ASTBlock *Parent, const SourceLocation &Loc, ASTType *Type, const std::string Name, bool Constant);
 
     public:
+
+        bool isConstant() const;
 
         ASTExpr *getExpr() const override;
 

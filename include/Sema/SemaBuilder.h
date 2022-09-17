@@ -72,6 +72,8 @@ namespace fly {
         DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID) const;
         DiagnosticBuilder Diag(unsigned DiagID) const;
 
+        Sema &getSema();
+
         // Create Node
         ASTNode *CreateNode(const std::string &Name, std::string &NameSpace);
         ASTNode *CreateHeaderNode(const std::string &Name, std::string &NameSpace);
@@ -80,12 +82,13 @@ namespace fly {
         ASTImport *CreateImport(const SourceLocation &NameLoc, StringRef Name);
         ASTImport *CreateImport(const SourceLocation &NameLoc, StringRef Name,
                                 const SourceLocation &AliasLoc, StringRef Alias);
-        ASTGlobalVar *CreateGlobalVar(ASTNode *Node, const SourceLocation Loc, ASTType *Type, const std::string &Name,
-                                       VisibilityKind Visibility, bool Constant);
-        ASTFunction *CreateFunction(ASTNode *Node, const SourceLocation Loc, ASTType *Type, const std::string &Name,
-                                    VisibilityKind Visibility);
-        ASTClass *CreateClass(ASTNode *Node, const SourceLocation Loc, const std::string &Name, VisibilityKind &Visibility,
-                              bool Constant);
+        static ASTTopScopes *CreateTopScopes(ASTVisibilityKind Visibility, bool Constant);
+        ASTGlobalVar *CreateGlobalVar(ASTNode *Node, const SourceLocation &Loc, ASTType *Type, const std::string &Name,
+                                      ASTTopScopes *Scopes);
+        ASTFunction *CreateFunction(ASTNode *Node, const SourceLocation &Loc, ASTType *Type, const std::string &Name,
+                                    ASTTopScopes *Scopes);
+        ASTClass *CreateClass(ASTNode *Node, const SourceLocation &Loc, const std::string &Name,
+                              ASTTopScopes *Scopes);
 
         // Create Types
         static ASTBoolType *CreateBoolType(const SourceLocation &Loc);
@@ -165,13 +168,14 @@ namespace fly {
         bool AddGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar, ASTValue *Value = nullptr);
         bool AddGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar, ASTExpr *Expr);
         bool AddFunction(ASTNode *Node, ASTFunction *Function);
-        bool InsertFunction(ASTNodeBase *Base, ASTFunction *Function);
+        bool InsertFunction(llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> &Functions,
+                            ASTFunction *Function);
         bool AddFunctionParam(ASTFunction *Function, ASTParam *Param);
         void AddFunctionVarParams(ASTFunction *Function, ASTParam *Param); // TODO
         bool AddClass(ASTNode *Node, ASTClass *Class);
         bool AddComment(ASTTopDef *Top, std::string &Comment);
         bool AddExternalGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar);
-        bool AddExternalFunction(ASTNode *Node, ASTFunction *Call);
+        bool AddExternalFunction(ASTNode *Node, ASTFunction *Function);
 
         // Add Value to Array
         bool AddArrayValue(ASTArrayValue *Array, ASTValue *Value);
@@ -180,6 +184,8 @@ namespace fly {
         // Add Stmt
         bool AddStmt(ASTStmt *Stmt);
         bool AddBlock(ASTBlock *Block);
+
+
 
     private:
         bool AddExpr(ASTStmt *Stmt, ASTExpr *Expr);

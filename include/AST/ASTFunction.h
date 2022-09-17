@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTFunc.h - Function declaration
+// include/AST/ASTFunction.h - Function declaration
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -11,27 +11,15 @@
 #define FLY_FUNCTION_H
 
 #include "ASTTopDef.h"
-#include "ASTVar.h"
-#include "ASTLocalVar.h"
-#include "ASTExprStmt.h"
-#include "llvm/ADT/StringMap.h"
-#include <unordered_set>
+#include "ASTFunctionBase.h"
 #include <vector>
 
 namespace fly {
 
-    class ASTGroupExpr;
+    class ASTNode;
     class ASTParams;
-    class ASTExpr;
     class ASTType;
-    class ASTVarRef;
     class ASTBlock;
-    class ASTFunctionCall;
-    class ASTGlobalVar;
-    class CodeGenFunction;
-    class CodeGenVar;
-    class CodeGenLocalVar;
-    class CodeGenCall;
 
     /**
      * The Function Declaration and definition
@@ -40,68 +28,20 @@ namespace fly {
      *     return 1
      *   }
      */
-    class ASTFunction : public ASTTopDef {
+    class ASTFunction : public ASTFunctionBase, public ASTTopDef {
 
         friend class SemaBuilder;
         friend class SemaResolver;
         friend class FunctionParser;
 
-        // Function return type
-        ASTType *Type = nullptr;
-
-        // Function Name
-        const std::string Name;
-
-        // Header contains parameters
-        ASTParams *Params = nullptr;
-
-        // Body is the main BlockStmt
-        ASTBlock *Body = nullptr;
-
-        // Contains all vars declared in this Block
-        std::vector<ASTLocalVar *> LocalVars;
-
-        // Populated during codegen phase
-        CodeGenFunction *CodeGen = nullptr;
-
         ASTFunction(const SourceLocation &Loc, ASTNode *Node, ASTType *ReturnType, const std::string Name,
-                    VisibilityKind Visibility);
+                    ASTTopScopes *Scopes);
 
     public:
 
-        ASTType *getType() const;
-
-        const std::string getName() const;
-
-        const ASTParams *getParams() const;
-
-        const ASTBlock *getBody() const;
-
-        const std::vector<ASTLocalVar *> &getLocalVars() const;
-
-        CodeGenFunction *getCodeGen() const;
-
-        void setCodeGen(CodeGenFunction *CGF);
-
-        bool isVarArg();
+        const std::string getName() const override;
 
         std::string str() const;
-    };
-
-    /**
-     * The Return Declaration into a Function
-     * Ex.
-     *   return true
-     */
-    class ASTReturn : public ASTExprStmt {
-
-        friend class SemaBuilder;
-
-        ASTReturn(ASTBlock *Parent, const SourceLocation &Loc);
-
-    public:
-
-        std::string str() const override;
     };
 }
 

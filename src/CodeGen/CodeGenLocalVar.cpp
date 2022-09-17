@@ -17,7 +17,7 @@
 
 using namespace fly;
 
-CodeGenLocalVar::CodeGenLocalVar(CodeGenModule *CGM, ASTVar *Var) : CGM(CGM), Var(Var) {
+CodeGenLocalVar::CodeGenLocalVar(CodeGenModule *CGM, ASTLocalVar *Var) : CGM(CGM), Var(Var) {
 
 }
 

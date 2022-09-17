@@ -12,13 +12,30 @@
 
 using namespace fly;
 
-ASTTopDef::ASTTopDef(const SourceLocation &Loc, ASTNode *Node, TopDeclKind Kind, VisibilityKind Visibility) :
-    Location(Loc), Node(Node), Visibility(Visibility), NameSpace(Node->getNameSpace()), Kind(Kind) {
+ASTTopScopes::ASTTopScopes(ASTVisibilityKind visibility, bool constant) : Visibility(visibility), Constant(constant) {
 
 }
 
-TopDeclKind ASTTopDef::getKind() const {
-    assert(Kind != DECL_NONE && "Invalid Kind");
+ASTVisibilityKind ASTTopScopes::getVisibility() const {
+    return Visibility;
+}
+
+bool ASTTopScopes::isConstant() const {
+    return Constant;
+}
+
+std::string ASTTopScopes::str() const {
+    return "Visibility=" + std::to_string(Visibility) +
+           ", Constant=" + std::to_string(Constant);
+}
+
+ASTTopDef::ASTTopDef(const SourceLocation &Loc, ASTNode *Node, ASTTopDefKind Kind, ASTTopScopes *Scopes) :
+    Location(Loc), Node(Node), Scopes(Scopes), NameSpace(Node->getNameSpace()), Kind(Kind) {
+
+}
+
+ASTTopDefKind ASTTopDef::getKind() const {
+    assert(Kind != DEF_NONE && "Invalid Kind");
     return Kind;
 }
 
@@ -34,15 +51,17 @@ const SourceLocation &ASTTopDef::getLocation() const {
     return Location;
 }
 
-VisibilityKind ASTTopDef::getVisibility() const {
-    return Visibility;
-}
-
-std::string ASTTopDef::str() const {
-    return "Visibility=" + std::to_string(Visibility) +
-            ", Kind=" + std::to_string(Kind);
+ASTTopScopes *ASTTopDef::getScopes() const {
+    return Scopes;
 }
 
 const std::string ASTTopDef::getComment() const {
     return Comment;
+}
+
+std::string ASTTopDef::str() const {
+    return "ASTTopDef { Scopes=" + Scopes->str() +
+            ", Kind=" + std::to_string(Kind) +
+            ", Comment=" + Comment +
+            " }";
 }

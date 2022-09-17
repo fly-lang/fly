@@ -183,53 +183,53 @@ namespace {
         ASTGlobalVar *VerifyI = Node->getGlobalVars().find("i")->getValue();
         ASTGlobalVar *VerifyJ = Node->getGlobalVars().find("j")->getValue();
 
-        EXPECT_EQ(VerifyA->getVisibility(), VisibilityKind::V_PRIVATE);
-        EXPECT_FALSE(VerifyA->isConstant());
+        EXPECT_EQ(VerifyA->getScopes()->getVisibility(), ASTVisibilityKind::V_PRIVATE);
+        EXPECT_FALSE(VerifyA->getScopes()->isConstant());
         EXPECT_EQ(VerifyA->getType()->getKind(), TypeKind::TYPE_INT);
         EXPECT_EQ(VerifyA->getName(), "a");
 
-        EXPECT_EQ(VerifyB->getVisibility(), VisibilityKind::V_PUBLIC);
-        EXPECT_FALSE(VerifyB->isConstant());
+        EXPECT_EQ(VerifyB->getScopes()->getVisibility(), ASTVisibilityKind::V_PUBLIC);
+        EXPECT_FALSE(VerifyB->getScopes()->isConstant());
         EXPECT_EQ(VerifyB->getType()->getKind(), TypeKind::TYPE_FLOAT);
         EXPECT_EQ(VerifyB->getName(), "b");
 
-        EXPECT_EQ(VerifyC->getVisibility(), VisibilityKind::V_DEFAULT);
-        ASSERT_FALSE(VerifyC->isConstant());
+        EXPECT_EQ(VerifyC->getScopes()->getVisibility(), ASTVisibilityKind::V_DEFAULT);
+        ASSERT_FALSE(VerifyC->getScopes()->isConstant());
         EXPECT_EQ(VerifyC->getType()->getKind(), TypeKind::TYPE_BOOL);
         EXPECT_EQ(VerifyC->getName(), "c");
 
-        EXPECT_EQ(VerifyD->getVisibility(), VisibilityKind::V_DEFAULT);
-        ASSERT_FALSE(VerifyD->isConstant());
+        EXPECT_EQ(VerifyD->getScopes()->getVisibility(), ASTVisibilityKind::V_DEFAULT);
+        ASSERT_FALSE(VerifyD->getScopes()->isConstant());
         EXPECT_EQ(VerifyD->getType()->getKind(), TypeKind::TYPE_LONG);
         EXPECT_EQ(VerifyD->getName(), "d");
 
-        EXPECT_EQ(VerifyE->getVisibility(), VisibilityKind::V_DEFAULT);
-        ASSERT_FALSE(VerifyE->isConstant());
+        EXPECT_EQ(VerifyE->getScopes()->getVisibility(), ASTVisibilityKind::V_DEFAULT);
+        ASSERT_FALSE(VerifyE->getScopes()->isConstant());
         EXPECT_EQ(VerifyE->getType()->getKind(), TypeKind::TYPE_DOUBLE);
         EXPECT_EQ(VerifyE->getName(), "e");
 
-        EXPECT_EQ(VerifyF->getVisibility(), VisibilityKind::V_DEFAULT);
-        ASSERT_FALSE(VerifyF->isConstant());
+        EXPECT_EQ(VerifyF->getScopes()->getVisibility(), ASTVisibilityKind::V_DEFAULT);
+        ASSERT_FALSE(VerifyF->getScopes()->isConstant());
         EXPECT_EQ(VerifyF->getType()->getKind(), TypeKind::TYPE_BYTE);
         EXPECT_EQ(VerifyF->getName(), "f");
 
-        EXPECT_EQ(VerifyG->getVisibility(), VisibilityKind::V_DEFAULT);
-        ASSERT_FALSE(VerifyG->isConstant());
+        EXPECT_EQ(VerifyG->getScopes()->getVisibility(), ASTVisibilityKind::V_DEFAULT);
+        ASSERT_FALSE(VerifyG->getScopes()->isConstant());
         EXPECT_EQ(VerifyG->getType()->getKind(), TypeKind::TYPE_USHORT);
         EXPECT_EQ(VerifyG->getName(), "g");
 
-        EXPECT_EQ(VerifyH->getVisibility(), VisibilityKind::V_DEFAULT);
-        ASSERT_FALSE(VerifyH->isConstant());
+        EXPECT_EQ(VerifyH->getScopes()->getVisibility(), ASTVisibilityKind::V_DEFAULT);
+        ASSERT_FALSE(VerifyH->getScopes()->isConstant());
         EXPECT_EQ(VerifyH->getType()->getKind(), TypeKind::TYPE_SHORT);
         EXPECT_EQ(VerifyH->getName(), "h");
 
-        EXPECT_EQ(VerifyI->getVisibility(), VisibilityKind::V_DEFAULT);
-        ASSERT_FALSE(VerifyI->isConstant());
+        EXPECT_EQ(VerifyI->getScopes()->getVisibility(), ASTVisibilityKind::V_DEFAULT);
+        ASSERT_FALSE(VerifyI->getScopes()->isConstant());
         EXPECT_EQ(VerifyI->getType()->getKind(), TypeKind::TYPE_UINT);
         EXPECT_EQ(VerifyI->getName(), "i");
 
-        EXPECT_EQ(VerifyJ->getVisibility(), VisibilityKind::V_DEFAULT);
-        ASSERT_FALSE(VerifyJ->isConstant());
+        EXPECT_EQ(VerifyJ->getScopes()->getVisibility(), ASTVisibilityKind::V_DEFAULT);
+        ASSERT_FALSE(VerifyJ->getScopes()->isConstant());
         EXPECT_EQ(VerifyJ->getType()->getKind(), TypeKind::TYPE_ULONG);
         EXPECT_EQ(VerifyJ->getName(), "j");
 
@@ -249,20 +249,20 @@ namespace {
         ASTGlobalVar *VerifyB = Node->getGlobalVars().find("b")->getValue();
         ASTGlobalVar *VerifyC = Node->getGlobalVars().find("c")->getValue();
 
-        EXPECT_EQ(VerifyA->getVisibility(), VisibilityKind::V_PRIVATE);
-        EXPECT_EQ(VerifyA->isConstant(), true);
+        EXPECT_EQ(VerifyA->getScopes()->getVisibility(), ASTVisibilityKind::V_PRIVATE);
+        EXPECT_EQ(VerifyA->getScopes()->isConstant(), true);
         EXPECT_EQ(VerifyA->getType()->getKind(), TypeKind::TYPE_INT);
         EXPECT_EQ(VerifyA->getName(), "a");
         EXPECT_EQ(((ASTIntegerValue &) ((ASTValueExpr *)VerifyA->getExpr())->getValue()).getValue(), 1);
 
-        EXPECT_EQ(VerifyB->getVisibility(), VisibilityKind::V_PUBLIC);
-        EXPECT_EQ(VerifyB->isConstant(), true);
+        EXPECT_EQ(VerifyB->getScopes()->getVisibility(), ASTVisibilityKind::V_PUBLIC);
+        EXPECT_EQ(VerifyB->getScopes()->isConstant(), true);
         EXPECT_EQ(VerifyB->getType()->getKind(), TypeKind::TYPE_FLOAT);
         EXPECT_EQ(VerifyB->getName(), "b");
         EXPECT_EQ(((ASTFloatingValue &) ((ASTValueExpr *) VerifyB->getExpr())->getValue()).getValue(), "2.0");
 
-        EXPECT_EQ(VerifyC->getVisibility(), VisibilityKind::V_DEFAULT);
-        EXPECT_EQ(VerifyC->isConstant(), true);
+        EXPECT_EQ(VerifyC->getScopes()->getVisibility(), ASTVisibilityKind::V_DEFAULT);
+        EXPECT_EQ(VerifyC->getScopes()->isConstant(), true);
         EXPECT_EQ(VerifyC->getType()->getKind(), TypeKind::TYPE_BOOL);
         EXPECT_EQ(VerifyC->getName(), "c");
         EXPECT_EQ(((ASTBoolValue &) ((ASTValueExpr *)VerifyC->getExpr())->getValue()).getValue(), false);
@@ -438,7 +438,7 @@ namespace {
         EXPECT_TRUE(AST->getFunctions().size() == 1); // Fun has DEFAULT Visibility
         EXPECT_TRUE(AST->getNameSpace()->getFunctions().size() == 1);
         ASTFunction *VerifyFunc = *AST->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
-        EXPECT_EQ(VerifyFunc->getVisibility(), VisibilityKind::V_DEFAULT);
+        EXPECT_EQ(VerifyFunc->getScopes()->getVisibility(), ASTVisibilityKind::V_DEFAULT);
         const auto &NSFuncs = AST->getContext().getDefaultNameSpace()->getFunctions();
         ASSERT_TRUE(NSFuncs.find(VerifyFunc->getName()) != NSFuncs.end());
     }
@@ -454,7 +454,7 @@ namespace {
 
         EXPECT_TRUE(Node->getFunctions().size() == 1); // func() has PRIVATE Visibility
         ASTFunction *VerifyFunc = *Node->getFunctions().begin()->getValue().begin()->second.begin();
-        EXPECT_EQ(VerifyFunc->getVisibility(), VisibilityKind::V_PRIVATE);
+        EXPECT_EQ(VerifyFunc->getScopes()->getVisibility(), ASTVisibilityKind::V_PRIVATE);
         const auto &NSFuncs = Node->getContext().getDefaultNameSpace()->getFunctions();
         ASSERT_TRUE(NSFuncs.find(VerifyFunc->getName()) == NSFuncs.end());
         ASSERT_TRUE(Node->getFunctions().find(VerifyFunc->getName()) != NSFuncs.end());

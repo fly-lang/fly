@@ -30,7 +30,9 @@ namespace fly {
 
         ASTFunction *Function = nullptr;
 
-        FunctionParser(Parser *P, VisibilityKind &Visibility, ASTType *Type, bool isHeader);
+        bool Success = true;
+
+        FunctionParser(Parser *P, ASTTopScopes *Scopes, ASTType *Type, bool isHeader);
 
         bool ParseParams();
 
@@ -40,7 +42,7 @@ namespace fly {
 
     public:
 
-        static ASTFunction *Parse(Parser *P, VisibilityKind &Visibility, ASTType *Type, bool isHeader);
+        static ASTFunction *Parse(Parser *P, ASTTopScopes *Scopes, ASTType *Type, bool isHeader);
     };
 }
 

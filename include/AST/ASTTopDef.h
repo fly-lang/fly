@@ -18,21 +18,40 @@ namespace fly {
 
     class ASTNode;
 
-    enum TopDeclKind {
-        DECL_NONE,
-        DECL_NAMESPACE,
-        DECL_IMPORT,
-        DECL_GLOBALVAR,
-        DECL_FUNCTION,
-        DECL_CLASS
+    enum ASTTopDefKind {
+        DEF_NONE,
+        DEF_NAMESPACE,
+        DEF_IMPORT,
+        DEF_GLOBALVAR,
+        DEF_FUNCTION,
+        DEF_CLASS
     };
 
     class ASTNameSpace;
 
-    enum VisibilityKind {
-        V_DEFAULT = 1,
-        V_PUBLIC = 2,
-        V_PRIVATE = 3
+    enum ASTVisibilityKind {
+        V_DEFAULT,
+        V_PUBLIC,
+        V_PRIVATE
+    };
+
+    class ASTTopScopes {
+
+        friend class SemaBuilder;
+
+        // Visibility of the declaration
+        ASTVisibilityKind Visibility = V_DEFAULT;
+
+        bool Constant = false;
+
+        ASTTopScopes(ASTVisibilityKind visibility, bool constant);
+
+    public:
+        ASTVisibilityKind getVisibility() const;
+
+        bool isConstant() const;
+
+        std::string str() const;
     };
 
     class ASTTopDef {
@@ -40,6 +59,7 @@ namespace fly {
         friend class SemaBuilder;
 
     protected:
+
         ASTNode *Node = nullptr;
 
         ASTNameSpace *NameSpace = nullptr;
@@ -47,17 +67,17 @@ namespace fly {
         // File Source Location
         const SourceLocation Location;
 
-        // Visibility of the declaration
-        VisibilityKind Visibility = V_DEFAULT;
-
         // Kind of TopDecl identified by enum
-        TopDeclKind Kind;
+        ASTTopDefKind Kind;
+
+        // The TopDef Scopes
+        ASTTopScopes *Scopes;
 
         std::string Comment;
 
     protected:
 
-        ASTTopDef(const SourceLocation &Loc, ASTNode *Node, TopDeclKind Kind, VisibilityKind Visibility);
+        ASTTopDef(const SourceLocation &Loc, ASTNode *Node, ASTTopDefKind Kind, ASTTopScopes *Scopes);
 
     public:
 
@@ -69,9 +89,9 @@ namespace fly {
 
         const SourceLocation &getLocation() const;
 
-        VisibilityKind getVisibility() const;
+        ASTTopScopes *getScopes() const;
 
-        TopDeclKind getKind() const;
+        ASTTopDefKind getKind() const;
 
         const std::string getComment() const;
 

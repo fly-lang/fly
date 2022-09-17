@@ -184,7 +184,7 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
                     GlobalVar->getCodeGen()->Store(V);
                     break;
                 }
-                case VAR_CLASS:
+                case VAR_FIELD:
                     //TODO
                     break;
             }

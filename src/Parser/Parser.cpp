@@ -47,6 +47,7 @@ ASTNode *Parser::Parse() {
 
     // Prime the lexer look-ahead.
     ConsumeToken();
+    bool Success = true;
 
     // Parse NameSpace on first
     if (ParseNameSpace()) {
@@ -58,34 +59,17 @@ ASTNode *Parser::Parse() {
             // Node empty
             if (Tok.is(tok::eof)) {
                 Diag(diag::warn_empty_code);
-            }
-
-            // Parse All
-            while (Tok.isNot(tok::eof)) {
-
-                // if parse "namespace" there is multiple package declarations
-                if (Tok.is(tok::kw_namespace)) {
-
-                    // Multiple Package declaration is invalid, you can define only one and on top of declarations
-                    Diag(Tok, diag::err_namespace_multi_defined);
-                    return nullptr;
-                }
-
-                // if parse "import" there is import declaration position error
-                if (Tok.is(tok::kw_import)) {
-
-                    // Import has to be defined after namespace and before all definitions
-                    Diag(Tok, diag::err_import_invalid) << Tok.getName();
-                    return nullptr;
-                }
-
-                // Parse top definitions
-                ParseTopDef();
+            } else {
+                // Parse top definitions until return true
+                // if return false an error occurred or parsing is complete
+                do {
+                    Success = ParseTopDef();
+                } while (Success && Tok.isNot(tok::eof));
             }
         }
     }
 
-    return !Diags.hasErrorOccurred() && Node && Builder.AddNode(Node) ? Node : nullptr;
+    return !Diags.hasErrorOccurred() && Success && Node && Builder.AddNode(Node) ? Node : nullptr;
 }
 
 ASTNode *Parser::ParseHeader() {
@@ -198,35 +182,36 @@ bool Parser::ParseImports() {
 bool Parser::ParseTopDef() {
     FLY_DEBUG("Parser", "ParseTopDef");
 
-    VisibilityKind Visibility = VisibilityKind::V_DEFAULT;
+    ASTVisibilityKind Visibility = ASTVisibilityKind::V_DEFAULT;
     bool Constant = false;
 
-    // Parse Public or Private and Constant
-    if (ParseTopScopes(Visibility, Constant)) {
+    // Parse Public/Private and Constant
+    ASTTopScopes *Scopes = ParseTopScopes();
+    bool Success = !Diags.hasErrorOccurred();
+    Optional<Token> OptTok = Tok;
 
-        if (Tok.is(tok::kw_class)) {
-            return ParseClass(Visibility, Constant);
-        }
-
-        // Parse Type and after brackets []
-        ASTType *Type = ParseType();
-        if (Type) {
-
-            if (Tok.isAnyIdentifier()) {
-                const Optional<Token> &NextTok = Lex.findNextToken(Tok.getLocation(), SourceMgr);
-
-                // parse function
-                if (NextTok->is(tok::l_paren)) {
-                    return ParseFunction(Visibility, Constant, Type);
-                }
-
-                // parse global var
-                return ParseGlobalVar(Visibility, Constant, Type);
-            }
-        }
+    // Define a Class
+    if (isIdentifier(OptTok) && (OptTok = Lex.findNextToken(OptTok->getLocation(), SourceMgr)) &&
+        OptTok->is(tok::l_brace)) {
+        return Success & ParseClass(Scopes);
     }
 
-    // Check Error: type without identifier
+    // Parse Type
+    ASTType *Type = ParseType();
+    Success = !Diags.hasErrorOccurred();
+    if (Type) {
+
+        // Define a Function
+        if (Tok.isAnyIdentifier() &&
+            Lex.findNextToken(Tok.getLocation(), SourceMgr)->is(tok::l_paren)) {
+            return Success & ParseFunction(Scopes, Type);
+        }
+
+        // Define a GlobalVar
+        return Success & ParseGlobalVar(Scopes, Type);
+    }
+
+    // Unknown Top Definition
     return false;
 }
 
@@ -238,37 +223,46 @@ bool Parser::ParseTopDef() {
  * @param isParsedConstant true when isConst is already parsed
  * @return true on Success or false on Error
  */
-bool Parser::ParseTopScopes(VisibilityKind &Visibility, bool &isConst,
-                            bool isParsedVisibility, bool isParsedConstant) {
-    if (Tok.is(tok::kw_private)) {
-        Visibility = VisibilityKind::V_PRIVATE;
-        ConsumeToken();
-        if (isParsedVisibility) {
-            Diag(Tok, diag::err_scope_visibility_duplicate << Visibility);
-            return false;
+ASTTopScopes *Parser::ParseTopScopes() {
+    bool isPrivate = false;
+    bool isPublic = false;
+    bool isConst = false;
+    bool Found = false;
+    do {
+        if (Tok.is(tok::kw_private)) {
+            if (isPrivate) {
+                Diag(Tok, diag::err_scope_visibility_duplicate << V_PRIVATE);
+            }
+            if (isPublic) {
+                Diag(Tok, diag::err_scope_visibility_conflict << V_PRIVATE << V_PUBLIC);
+            }
+            isPrivate = true;
+            Found = true;
+            ConsumeToken();
+        } else if (Tok.is(tok::kw_public)) {
+            if (isPublic) {
+                Diag(Tok, diag::err_scope_visibility_conflict << V_PUBLIC << V_PUBLIC);
+            }
+            if (isPrivate) {
+                Diag(Tok, diag::err_scope_visibility_duplicate << V_PRIVATE);
+            }
+            isPublic = true;
+            Found = true;
+            ConsumeToken();
+        } else if (Tok.is(tok::kw_const)) {
+            if (isConst) {
+                Diag(Tok, diag::err_scope_const_duplicate);
+            }
+            isConst = true;
+            Found = true;
+            ConsumeToken();
+        } else {
+            Found = false;
         }
-        FLY_DEBUG_MESSAGE("Parser", "ParseTopScopes","Visibility=" << Visibility);
-        return isParsedConstant || ParseTopScopes(Visibility, isConst, true, isParsedConstant);
-    } else if (Tok.is(tok::kw_public)) {
-        Visibility = VisibilityKind::V_PUBLIC;
-        ConsumeToken();
-        if (isParsedVisibility) {
-            Diag(Tok, diag::err_scope_visibility_duplicate << Visibility);
-            return false;
-        }
-        FLY_DEBUG_MESSAGE("Parser", "ParseTopScopes","Visibility=" << Visibility);
-        return isParsedConstant || ParseTopScopes(Visibility, isConst, true, isParsedConstant);
-    } else if (Tok.is(tok::kw_const)) {
-        isConst = true;
-        ConsumeToken();
-        if (isParsedConstant) {
-            Diag(Tok, diag::err_scope_const_duplicate);
-            return false;
-        }
-        FLY_DEBUG_MESSAGE("Parser", "ParseTopScopes","isConst=true");
-        return isParsedVisibility || ParseTopScopes(Visibility, isConst, isParsedVisibility, true);
-    }
-    return true;
+    } while (Found);
+
+    ASTVisibilityKind Visibility = isPrivate ? V_PRIVATE : (isPublic ? V_PUBLIC : V_DEFAULT);
+    return SemaBuilder::CreateTopScopes(Visibility, isConst);
 }
 
 /**
@@ -280,9 +274,9 @@ bool Parser::ParseTopScopes(VisibilityKind &Visibility, bool &isConst,
  * @param NameLoc
  * @return
  */
-bool Parser::ParseGlobalVar(VisibilityKind &Visibility, bool &Constant, ASTType *Type) {
+bool Parser::ParseGlobalVar(ASTTopScopes *Scopes, ASTType *Type) {
     FLY_DEBUG_MESSAGE("Parser", "ParseGlobalVar",
-                      "Visibility=" << Visibility << ", Constant=" << Constant << ", Type=" << Type->str());
+                      "Scopes=" << Scopes << ", Type=" << Type->str());
 
     assert(Tok.isAnyIdentifier() && "Tok must be an Identifier");
 
@@ -297,7 +291,7 @@ bool Parser::ParseGlobalVar(VisibilityKind &Visibility, bool &Constant, ASTType 
     llvm::StringRef Name = Id->getName();
     SourceLocation Loc = ConsumeToken();
 
-    ASTGlobalVar *GlobalVar = Builder.CreateGlobalVar(Node, Loc, Type, Name.str(), Visibility, Constant);
+    ASTGlobalVar *GlobalVar = Builder.CreateGlobalVar(Node, Loc, Type, Name.str(), Scopes);
 
     // Parsing =
     ASTExpr *Expr = nullptr;
@@ -320,9 +314,8 @@ bool Parser::ParseGlobalVar(VisibilityKind &Visibility, bool &Constant, ASTType 
  * @param NameLoc
  * @return
  */
-bool Parser::ParseFunction(VisibilityKind &Visibility, bool Constant, ASTType *Type) {
-    FLY_DEBUG_MESSAGE("Parser", "ParseFunction","VisKind=" << Visibility << ", Constant="
-                                                           << Constant << ", Type=" << Type->str());
+bool Parser::ParseFunction(ASTTopScopes *Scopes, ASTType *Type) {
+    FLY_DEBUG_MESSAGE("Parser", "ParseFunction","Scopes=" << Scopes->str() << ", Type=" << Type->str());
 
     // Add Comment to AST
     std::string Comment;
@@ -331,7 +324,7 @@ bool Parser::ParseFunction(VisibilityKind &Visibility, bool Constant, ASTType *T
         ClearBlockComment(); // Clear for next use
     }
 
-    ASTFunction *Function = FunctionParser::Parse(this, Visibility, Type, Node->isHeader());
+    ASTFunction *Function = FunctionParser::Parse(this, Scopes, Type, Node->isHeader());
     if (Function) {
         return Builder.AddComment(Function, Comment) &&
             Builder.AddFunction(Node, Function);
@@ -346,18 +339,19 @@ bool Parser::ParseFunction(VisibilityKind &Visibility, bool Constant, ASTType *T
  * @param Constant
  * @return
  */
-bool Parser::ParseClass(VisibilityKind &Visibility, bool &Constant) {
+bool Parser::ParseClass(ASTTopScopes *Scopes) {
     FLY_DEBUG("Parser", "ParseClass");
-    ASTClass *Class = ClassParser::Parse(this, Visibility, Constant);
+
+    // Add Comment to AST
+    std::string Comment;
+    if (!BlockComment.empty()) {
+        Comment = BlockComment;
+        ClearBlockComment(); // Clear for next use
+    }
+
+    ASTClass *Class = ClassParser::Parse(this, Scopes);
     if (Class) {
-
-        // Add Comment to AST
-        if (!BlockComment.empty()) {
-            Builder.AddComment(Class, BlockComment);
-            ClearBlockComment(); // Clear for next use
-        }
-
-        return Builder.AddClass(Node, Class);
+        return Builder.AddComment(Class, Comment) && Builder.AddClass(Node, Class);
     }
 
     return false;
@@ -434,8 +428,8 @@ bool Parser::ParseStmt(ASTBlock *Block) {
     bool Const = isConst();
 
     // Used for know next tokens
-    Optional<Token> OptTok1 = Tok;
-    Optional<Token> OptTok2 = Tok;
+    Optional<Token> OptTok1 = Tok; // Used for ASTLocalVar
+    Optional<Token> OptTok2 = Tok; // Used for ASTVarAssign
     
     // Define an ASTLocalVar
     // Type a
@@ -472,6 +466,7 @@ bool Parser::ParseStmt(ASTBlock *Block) {
         return Builder.AddStmt(LocalVar);
     } else if (isIdentifier(OptTok2) && (OptTok2 = Lex.findNextToken(OptTok2->getLocation(), SourceMgr))
             && (isTokenAssign(OptTok2) || isTokenAssignOperator(OptTok2))) { // define an ASTVarAssign
+        // a = ...
 
         ASTVarRef* VarRef = ParseVarRef();
         ASTVarAssign *VarAssign = Builder.CreateVarAssign(Block, VarRef);
@@ -818,60 +813,39 @@ bool Parser::ParseForCommaStmt(ASTBlock *Block) {
     return false;
 }
 
-/**
- * Parse a data Type
- * @return true on Success or false on Error
- */
-ASTType *Parser::ParseType() {
-    FLY_DEBUG("Parser", "ParseType");
+ASTType *Parser::ParseBuiltinType() {
+    FLY_DEBUG("Parser", "ParseBuiltinType");
 
-    ASTType *Type;
     switch (Tok.getKind()) {
         case tok::kw_bool:
-            Type = SemaBuilder::CreateBoolType(ConsumeToken());
-            break;
+            return SemaBuilder::CreateBoolType(ConsumeToken());
         case tok::kw_byte:
-            Type = SemaBuilder::CreateByteType(ConsumeToken());
-            break;
+            return SemaBuilder::CreateByteType(ConsumeToken());
         case tok::kw_ushort:
-            Type = SemaBuilder::CreateUShortType(ConsumeToken());
-            break;
+            return SemaBuilder::CreateUShortType(ConsumeToken());
         case tok::kw_short:
-            Type = SemaBuilder::CreateShortType(ConsumeToken());
-            break;
+            return SemaBuilder::CreateShortType(ConsumeToken());
         case tok::kw_uint:
-            Type = SemaBuilder::CreateUIntType(ConsumeToken());
-            break;
+            return SemaBuilder::CreateUIntType(ConsumeToken());
         case tok::kw_int:
-            Type = SemaBuilder::CreateIntType(ConsumeToken());
-            break;
+            return SemaBuilder::CreateIntType(ConsumeToken());
         case tok::kw_ulong:
-            Type = SemaBuilder::CreateULongType(ConsumeToken());
-            break;
+            return SemaBuilder::CreateULongType(ConsumeToken());
         case tok::kw_long:
-            Type = SemaBuilder::CreateLongType(ConsumeToken());
-            break;
+            return SemaBuilder::CreateLongType(ConsumeToken());
         case tok::kw_float:
-            Type = SemaBuilder::CreateFloatType(ConsumeToken());
-            break;
+            return SemaBuilder::CreateFloatType(ConsumeToken());
         case tok::kw_double:
-            Type = SemaBuilder::CreateDoubleType(ConsumeToken());
-            break;
+            return SemaBuilder::CreateDoubleType(ConsumeToken());
         case tok::kw_void:
-            Type = SemaBuilder::CreateVoidType(ConsumeToken());
-            break;
-        default: {
-            if (Tok.isAnyIdentifier()) {
-                SourceLocation Loc = Tok.getLocation();
-                llvm::StringRef Name;
-                llvm::StringRef NameSpace;
-                ParseIdentifier(Loc, Name, NameSpace);
-                Type = Builder.CreateClassType(Loc, Name, NameSpace);
-            }
-        }
+            return SemaBuilder::CreateVoidType(ConsumeToken());
     }
+    return nullptr;
+}
 
-    while (Tok.is(tok::l_square)) {
+ASTArrayType *Parser::ParseArrayType(ASTType *Type) {
+    ASTArrayType *ArrayType;
+    do {
         const SourceLocation &Loc = ConsumeBracket();
 
         ASTExpr *Expr;
@@ -879,18 +853,51 @@ ASTType *Parser::ParseType() {
         if (Tok.is(tok::r_square)) {
             ConsumeBracket();
             Expr = Builder.CreateExpr(nullptr, SemaBuilder::CreateIntegerValue(Loc, 0));
-            Type = SemaBuilder::CreateArrayType(Loc, Type, Expr);
+            ArrayType = SemaBuilder::CreateArrayType(Loc, Type, Expr);
         } else {
             Expr = ParseExpr();
             if (Tok.is(tok::r_square)) {
                 ConsumeBracket();
-                Type = SemaBuilder::CreateArrayType(Loc, Type, Expr);
+                ArrayType = SemaBuilder::CreateArrayType(Loc, Type, Expr);
             } else {
                 Diag(Loc, diag::err_parser_unclosed_bracket);
                 return nullptr;
             }
         }
+    } while (Tok.is(tok::l_square));
+
+    return ArrayType;
+}
+
+ASTClassType *Parser::ParseClassType() {
+    ASTClassType *ClassType = nullptr;
+    SourceLocation Loc = Tok.getLocation();
+    llvm::StringRef Name;
+    llvm::StringRef NameSpace;
+    ParseIdentifier(Loc, Name, NameSpace);
+    ClassType = SemaBuilder::CreateClassType(Loc, Name, NameSpace);
+    return ClassType;
+}
+
+
+/**
+ * Parse a data Type
+ * @return true on Success or false on Error
+ */
+ASTType *Parser::ParseType() {
+    FLY_DEBUG("Parser", "ParseType");
+
+    ASTType *Type = nullptr;
+    if (isBuiltinType(Tok)) {
+        Type = ParseBuiltinType();
+    } else if (isClassType(Tok)) {
+        Type = ParseClassType();
     }
+
+    if (Type && isArrayType(Tok)) {
+        return ParseArrayType(Type);
+    }
+
     return Type;
 }
 
@@ -1148,23 +1155,8 @@ ASTExpr *Parser::ParseExpr(ASTStmt *Stmt) {
 
 bool Parser::isType(Optional<Token> &Tok1) {
 
-    // Check if is Builtin Type
-    if (isBuiltinType(Tok1.getValue())) {
-        return true;
-    }
-
-    // Check if is Class Type
-    if (Tok1->isAnyIdentifier()) {
-        const Optional<Token> &Tok2 = Lex.findNextToken(Tok1->getLocation(), SourceMgr);
-        const Optional<Token> &Tok3 = Lex.findNextToken(Tok2->getLocation(), SourceMgr);
-        if (Tok2->is(tok::colon) && Tok3->isAnyIdentifier()) {
-            Tok1 = Tok3;
-            return true;
-        }
-        return true;
-    }
-
-    return false;
+    // Check if is Builtin Type or Class Type
+    return isBuiltinType(Tok1.getValue()) || isClassType(Tok1.getValue());
 }
 
 /**
@@ -1172,7 +1164,8 @@ bool Parser::isType(Optional<Token> &Tok1) {
  * @return true on Success or false on Error
  */
 bool Parser::isBuiltinType(Token &Tok) {
-    return Tok.isOneOf(tok::kw_bool,
+    return Tok.isOneOf(tok::kw_void,
+                       tok::kw_bool,
                        tok::kw_byte,
                        tok::kw_short,
                        tok::kw_ushort,
@@ -1182,6 +1175,29 @@ bool Parser::isBuiltinType(Token &Tok) {
                        tok::kw_ulong,
                        tok::kw_float,
                        tok::kw_double);
+}
+
+bool Parser::isArrayType(Token &Tok) {
+    return Tok.is(tok::l_square);
+}
+
+bool Parser::isClassType(Token &Tok1) {
+    if (Tok1.isAnyIdentifier()) {
+        const Optional<Token> &Tok2 = Lex.findNextToken(Tok1.getLocation(), SourceMgr);
+        if (Tok2->is(tok::colon)) {
+            const Optional<Token> &Tok3 = Lex.findNextToken(Tok2->getLocation(), SourceMgr);
+            if (Tok3->isAnyIdentifier()) {
+                // Ex. NameSpace1:func()
+                return true;
+            }
+            // TODO Error:invalid type
+            // Ex. NameSpace1:()
+            return false;
+        }
+
+        // Ex. ClassType1
+        return true;
+    }
 }
 
 bool Parser::isIdentifier() {

@@ -11,8 +11,8 @@
 
 using namespace fly;
 
-ASTVar::ASTVar(ASTVarKind VarKind, ASTType *Type, const std::string Name, bool Constant) :
-        VarKind(VarKind), Type(Type), Name(Name), Constant(Constant) {
+ASTVar::ASTVar(ASTVarKind VarKind, ASTType *Type, const std::string Name) :
+        VarKind(VarKind), Type(Type), Name(Name) {
 
 }
 
@@ -32,14 +32,9 @@ ASTVar::~ASTVar() {
     delete Type;
 }
 
-bool ASTVar::isConstant() const {
-    return Constant;
-}
-
 std::string ASTVar::str() const {
     return "Type=" + Type->str() + ", " +
            "Name=" + Name + ", " +
-            "Constant=" + (Constant ? "true" : "false") + ", " +
             "VarKind=" + std::to_string(VarKind);
 }
 

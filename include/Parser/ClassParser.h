@@ -16,6 +16,9 @@
 namespace fly {
 
     class ASTClass;
+    class ASTClassScopes;
+    class ASTClassField;
+    class ASTClassMethod;
 
     class ClassParser {
 
@@ -25,11 +28,23 @@ namespace fly {
 
         ASTClass *Class = nullptr;
 
-        ClassParser(Parser *P, VisibilityKind &Visibility, bool &Constant);
+        bool Success = true;
+
+        ClassParser(Parser *P, ASTTopScopes *Scopes);
 
     public:
 
-        static ASTClass *Parse(Parser *P, VisibilityKind &Visibility, bool &Constant);
+        static ASTClass *Parse(Parser *P, ASTTopScopes *Scopes);
+
+        ASTClassScopes *ParseScopes();
+
+        bool isField();
+
+        ASTClassField *ParseField();
+
+        bool isMethod();
+
+        ASTClassMethod *ParseMethod();
     };
 }
 

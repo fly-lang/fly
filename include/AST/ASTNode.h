@@ -47,7 +47,7 @@ namespace fly {
         llvm::StringMap<ASTGlobalVar *> ExternalGlobalVars;
         
         // All invoked Calls
-        std::unordered_set<ASTFunction *> ExternalFunctions;
+        llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> ExternalFunctions;
 
         ASTNode() = delete;
 
@@ -67,7 +67,7 @@ namespace fly {
 
         const llvm::StringMap<ASTGlobalVar *> &getExternalGlobalVars() const;
 
-        const std::unordered_set<ASTFunction *> &getExternalFunctions() const;
+        const llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> &getExternalFunctions() const;
     };
 }
 

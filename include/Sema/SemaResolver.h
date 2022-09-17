@@ -11,6 +11,8 @@
 #define FLY_SEMA_RESOLVER_H
 
 #include "Sema/Sema.h"
+#include "AST/ASTClassField.h"
+
 
 namespace fly {
 

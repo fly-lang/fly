@@ -15,9 +15,9 @@
 using namespace fly;
 
 ASTGlobalVar::ASTGlobalVar(const SourceLocation &Loc, ASTNode *Node, ASTType *Type, const std::string Name,
-                           VisibilityKind Visibility, bool Constant) :
-        ASTTopDef(Loc, Node, TopDeclKind::DECL_GLOBALVAR, Visibility),
-        ASTVar(VAR_GLOBAL, Type, Name, Constant) {
+                           ASTTopScopes *Scopes) :
+        ASTTopDef(Loc, Node, DEF_GLOBALVAR, Scopes),
+        ASTVar(VAR_GLOBAL, Type, Name) {
 
 }
 

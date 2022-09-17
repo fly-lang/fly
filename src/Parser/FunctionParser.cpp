@@ -24,7 +24,7 @@ using namespace fly;
  * @param FuncName
  * @param FuncNameLoc
  */
-FunctionParser::FunctionParser(Parser *P, VisibilityKind &Visibility, ASTType *Type, bool isHeader) : P(P) {
+FunctionParser::FunctionParser(Parser *P, ASTTopScopes *Scopes, ASTType *Type, bool isHeader) : P(P) {
     assert(P->Tok.isAnyIdentifier() && "Tok must be an Identifier");
 
     IdentifierInfo *Id = P->Tok.getIdentifierInfo();
@@ -32,8 +32,8 @@ FunctionParser::FunctionParser(Parser *P, VisibilityKind &Visibility, ASTType *T
     const SourceLocation Loc = P->Tok.getLocation();
     P->ConsumeToken();
 
-    Function = P->Builder.CreateFunction(P->Node, Loc, Type, Name.str(), Visibility);
-    ParseParams() && !isHeader && ParseBody();
+    Function = P->Builder.CreateFunction(P->Node, Loc, Type, Name.str(), Scopes);
+    Success = ParseParams() && !isHeader && ParseBody();
 }
 
 /**
@@ -121,7 +121,7 @@ bool FunctionParser::ParseBody() {
     return false;
 }
 
-ASTFunction *FunctionParser::Parse(Parser *P, VisibilityKind &Visibility, ASTType *Type, bool isHeader) {
-    FunctionParser *FP = new FunctionParser(P, Visibility, Type, isHeader);
+ASTFunction *FunctionParser::Parse(Parser *P, ASTTopScopes *Scopes, ASTType *Type, bool isHeader) {
+    FunctionParser *FP = new FunctionParser(P, Scopes, Type, isHeader);
     return FP->Function;
 }

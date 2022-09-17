@@ -309,6 +309,7 @@ DIAG(err_namespace_invalid, CLASS_ERROR, (unsigned)diag::Severity::Error, "inval
 DIAG(err_import_undefined, CLASS_ERROR, (unsigned)diag::Severity::Error, "import undefined", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_import_invalid, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid import", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_scope_visibility_duplicate, CLASS_ERROR, (unsigned)diag::Severity::Error, "visibility scope '%0' already defined", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_scope_visibility_conflict, CLASS_ERROR, (unsigned)diag::Severity::Error, "visibility scopes are in conflict '%0' and '%1'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_scope_const_duplicate, CLASS_ERROR, (unsigned)diag::Severity::Error, "constant scope already defined", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_invalid_id, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid identifier '%0'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_func_param, CLASS_ERROR, (unsigned)diag::Severity::Error, "function parameter not well format", 0, SFINAE_Suppress, false, true, 0)
@@ -334,7 +335,7 @@ DIAG(err_parse_empty_while_expr, CLASS_ERROR, (unsigned)diag::Severity::Error, "
 DIAG(err_parse_number, CLASS_ERROR, (unsigned)diag::Severity::Error, "'%0' is not a number ", 0, SFINAE_Suppress, false, true, 0)
 
 // Parser Warnings
-DIAG(warn_empty_code, CLASS_WARNING, (unsigned)diag::Severity::Warning, "code empty", 0, SFINAE_Suppress, false, true, 0)
+DIAG(warn_empty_code, CLASS_WARNING, (unsigned)diag::Severity::Warning, "code empty", 0, SFINAE_Suppress, false, false, 1)
 
 // AST
 DIAG(err_unresolved_import, CLASS_ERROR, (unsigned)diag::Severity::Error, "unresolved import", 0, SFINAE_Suppress, false, true, 0)

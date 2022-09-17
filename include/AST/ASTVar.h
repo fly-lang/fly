@@ -22,7 +22,7 @@ namespace fly {
     enum ASTVarKind {
         VAR_LOCAL,
         VAR_GLOBAL,
-        VAR_CLASS
+        VAR_FIELD
     };
 
     /**
@@ -43,17 +43,13 @@ namespace fly {
 
         const std::string Name;
 
-        bool Constant = false;
-
-        ASTVar(ASTVarKind VarKind, ASTType *Type, const std::string Name, bool Constant);
+        ASTVar(ASTVarKind VarKind, ASTType *Type, const std::string Name);
 
         virtual ~ASTVar();
 
     public:
 
         ASTVarKind getVarKind();
-
-        bool isConstant() const;
 
         ASTType *getType() const;
 

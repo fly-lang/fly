@@ -89,11 +89,10 @@ namespace fly {
 
         // Parse Top Definitions
         bool ParseTopDef();
-        bool ParseTopScopes(VisibilityKind &Visibility, bool &isConst, bool isParsedVisibility = false,
-                            bool isParsedConstant = false);
-        bool ParseGlobalVar(VisibilityKind &Visibility, bool &Constant, ASTType *Type);
-        bool ParseFunction(VisibilityKind &Visibility, bool Constant, ASTType *Type);
-        bool ParseClass(VisibilityKind &Visibility, bool &Constant);
+        ASTTopScopes *ParseTopScopes();
+        bool ParseGlobalVar(ASTTopScopes *Scopes, ASTType *Type);
+        bool ParseFunction(ASTTopScopes *Scopes, ASTType *Type);
+        bool ParseClass(ASTTopScopes *Scopes);
 
         // Parse Block Statement
         bool ParseBlock(ASTBlock *Block);
@@ -107,6 +106,9 @@ namespace fly {
         bool ParseForCommaStmt(ASTBlock *Block);
 
         // Parse Identifiers
+        ASTType *ParseBuiltinType();
+        ASTArrayType *ParseArrayType(ASTType *);
+        ASTClassType *ParseClassType();
         ASTType *ParseType();
         ASTVarRef *ParseVarRef();
         bool ParseIdentifier(SourceLocation &Loc, llvm::StringRef &Name, llvm::StringRef &NameSpace);
@@ -127,6 +129,8 @@ namespace fly {
         // Check Keywords
         bool isType(Optional<Token> &Tok1);
         bool isBuiltinType(Token &Tok);
+        bool isArrayType(Token &Tok);
+        bool isClassType(Token &Tok);
         bool isIdentifier();
         bool isIdentifier(Optional<Token> &Tok1);
         bool isValue();

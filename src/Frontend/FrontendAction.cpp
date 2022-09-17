@@ -78,11 +78,16 @@ void FrontendAction::GenerateTopDef() {
     }
 
     // Manage External Function
-    for (const auto &EF : Node->getExternalFunctions()) {
-        FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode",
-                          "ExternalFunction=" << EF->str());
-        CGM->GenFunction(EF, true);
+    for (auto &StrMapEntry : Node->getExternalFunctions()) {
+        for (auto &IntMap : StrMapEntry.getValue()) {
+            for (auto &Function : IntMap.second) {
+                FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode",
+                                  "ExternalFunction=" << Function->str());
+                CGM->GenFunction(Function, true);
+            }
+        }
     }
+
 
     // Manage GlobalVars
     for (const auto &Entry : Node->getGlobalVars()) {

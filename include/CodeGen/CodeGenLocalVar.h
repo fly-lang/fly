@@ -24,7 +24,7 @@ namespace fly {
     class CodeGenLocalVar : public CodeGenVar {
 
         CodeGenModule *CGM = nullptr;
-        ASTVar *Var = nullptr;
+        ASTLocalVar *Var = nullptr;
         llvm::AllocaInst *AllocaI = nullptr;
         llvm::LoadInst *LoadI = nullptr;
         bool Reload = false;
@@ -32,7 +32,7 @@ namespace fly {
         llvm::StringRef BlockID;
 
     public:
-        CodeGenLocalVar(CodeGenModule *CGM, ASTVar *Var);
+        CodeGenLocalVar(CodeGenModule *CGM, ASTLocalVar *Var);
 
         llvm::Value *getPointer() override;
 

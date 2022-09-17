@@ -32,7 +32,7 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, ASTFunction *AST, bool isEx
     if (isExternal) {
         Fn = llvm::Function::Create(FnTy, Linkage, Id, CGM->getModule());
     } else {
-        if (AST->getVisibility() == V_PRIVATE) {
+        if (AST->getScopes()->getVisibility() == V_PRIVATE) {
             Linkage = GlobalValue::LinkageTypes::InternalLinkage;
         }
         Fn = llvm::Function::Create(FnTy, Linkage, Id, CGM->getModule());
