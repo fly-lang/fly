@@ -71,7 +71,7 @@ namespace fly {
         ASTTopDefKind Kind;
 
         // The TopDef Scopes
-        ASTTopScopes *Scopes;
+        ASTTopScopes *Scopes = nullptr;
 
         std::string Comment;
 

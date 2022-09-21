@@ -68,6 +68,8 @@ namespace fly {
 
         bool ResolveExpr(ASTExpr *Expr);
 
+        bool ResolveValueExpr(ASTValueExpr *pExpr);
+
         ASTBlock *getBlock(ASTStmt *Stmt);
 
         ASTType *getType(ASTStmt *Stmt);
@@ -77,8 +79,6 @@ namespace fly {
         DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID) const;
 
         DiagnosticBuilder Diag(unsigned DiagID) const;
-
-        bool ResolveValueExpr(ASTValueExpr *pExpr);
     };
 
 }  // end namespace fly

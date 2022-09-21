@@ -564,7 +564,7 @@ void CodeGenModule::GenForBlock(llvm::Function *Fn, ASTForBlock *For) {
 
     // Create Post Block
     llvm::BasicBlock *PostBB = nullptr;
-    if (!For->getPost()->isEmpty()) {
+    if (For->getPost() && !For->getPost()->isEmpty()) {
         PostBB = llvm::BasicBlock::Create(LLVMCtx, "forpost", Fn);
     }
 

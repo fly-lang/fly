@@ -14,6 +14,8 @@
 
 namespace fly {
 
+    class ASTFunctionBase;
+
     /**
      * Function Parameter
      */
@@ -21,7 +23,9 @@ namespace fly {
 
         friend class SemaBuilder;
 
-        ASTParam(ASTBlock *Parent, const SourceLocation &Loc, ASTType *Type, const std::string Name, bool Constant);
+        ASTFunctionBase *Function;
+
+        ASTParam(ASTFunctionBase *Function, const SourceLocation &Loc, ASTType *Type, const std::string Name, bool Constant);
 
     public:
 

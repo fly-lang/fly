@@ -170,7 +170,7 @@ namespace fly {
         bool AddFunction(ASTNode *Node, ASTFunction *Function);
         bool InsertFunction(llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> &Functions,
                             ASTFunction *Function);
-        bool AddFunctionParam(ASTFunction *Function, ASTParam *Param);
+        bool AddParam(ASTParam *Param);
         void AddFunctionVarParams(ASTFunction *Function, ASTParam *Param); // TODO
         bool AddClass(ASTNode *Node, ASTClass *Class);
         bool AddComment(ASTTopDef *Top, std::string &Comment);
@@ -184,8 +184,6 @@ namespace fly {
         // Add Stmt
         bool AddStmt(ASTStmt *Stmt);
         bool AddBlock(ASTBlock *Block);
-
-
 
     private:
         bool AddExpr(ASTStmt *Stmt, ASTExpr *Expr);

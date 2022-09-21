@@ -41,6 +41,22 @@ const bool ASTType::isInteger() const {
     return MacroKind == MACRO_TYPE_INTEGER;
 }
 
+const bool ASTType::isSignedInteger() const {
+    return isInteger() && isSigned();
+}
+
+const bool ASTType::isUnsignedInteger() const {
+    return isInteger() && isUnsigned();
+}
+
+const bool ASTType::isUnsigned() const {
+    return Kind % 2 == 0;
+}
+
+const bool ASTType::isSigned() const {
+    return isUnsigned();
+}
+
 const bool ASTType::isNumber() const {
     return MacroKind == MACRO_TYPE_INTEGER || MacroKind == MACRO_TYPE_FLOATING_POINT;
 }

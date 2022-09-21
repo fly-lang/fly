@@ -314,7 +314,7 @@ ASTArg *SemaBuilder::CreateArg(ASTFunctionCall *Call, const SourceLocation &Loc)
 ASTParam *SemaBuilder::CreateParam(ASTFunction *Function, const SourceLocation &Loc, ASTType *Type, const std::string &Name, bool Constant) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateParam",
                       "Type=" << Type->str() << ", Name=" << Name << ", Constant=" << Constant);
-    ASTParam *Param = new ASTParam(Function->Body, Loc, Type, Name, Constant);
+    ASTParam *Param = new ASTParam(Function, Loc, Type, Name, Constant);
     return Param;
 }
 
@@ -691,15 +691,15 @@ bool SemaBuilder::InsertFunction(llvm::StringMap<std::map <uint64_t,llvm::SmallV
     }
 }
 
-bool SemaBuilder::AddFunctionParam(ASTFunction *Function, ASTParam *Param) {
+bool SemaBuilder::AddParam(ASTParam *Param) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddExternalFunction",
-                      "Function=" << Function->str() << ", Param=" << Param->str());
+                      "Param=" << Param->str());
     // TODO Check duplicate
-    Function->Params->List.push_back(Param);
-    Param->Parent = Function->Body;
+    Param->Function->Params->List.push_back(Param);
+    Param->Parent = Param->Function->Body;
 
-    Function->LocalVars.push_back(Param); //Useful for Alloca into CodeGen
-    return Function->Body->LocalVars
+    Param->Function->LocalVars.push_back(Param); //Useful for Alloca into CodeGen
+    return Param->Function->Body->LocalVars
         .insert(std::pair<std::string, ASTLocalVar *>(Param->getName(), Param)).second;
 }
 
@@ -870,7 +870,6 @@ bool SemaBuilder::AddBlock(ASTBlock *Block) {
 
         case BLOCK_IF:
             Block->UndefVars = ((ASTIfBlock *) Block->getParent())->UndefVars;
-            ((ASTBlock *) Block->Parent)->Content.push_back(Block);
             return true;
 
         case BLOCK_ELSIF: {
@@ -903,19 +902,19 @@ bool SemaBuilder::AddBlock(ASTBlock *Block) {
 
         case BLOCK_SWITCH: {
             ASTSwitchBlock *SwitchBlock = (ASTSwitchBlock *) Block;
-            ((ASTBlock *) SwitchBlock->Parent)->Content.push_back(SwitchBlock);
+
             return true;
         }
 
         case BLOCK_WHILE: {
             ASTWhileBlock *While = (ASTWhileBlock *) Block;
-            ((ASTBlock *) While->Parent)->Content.push_back(Block);
+
             return true;
         }
 
         case BLOCK_FOR: {
             ASTForBlock *For = (ASTForBlock *) Block;
-            ((ASTBlock *) For->Parent)->Content.push_back(Block);
+
             return true;
         }
     }

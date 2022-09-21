@@ -360,7 +360,8 @@ DIAG(err_var_assign_empty, CLASS_ERROR, (unsigned)diag::Severity::Error, "var as
 // Sema
 DIAG(err_sema_generic, CLASS_ERROR, (unsigned)diag::Severity::Error, "semantic error", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_macro_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid macro type '%0'", 0, SFINAE_Suppress, false, true, 0)
-DIAG(err_sema_types_incompatible, CLASS_ERROR, (unsigned)diag::Severity::Error, "incompatible types, cannot convert from '%0' to '%1'", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_types_convert, CLASS_ERROR, (unsigned)diag::Severity::Error, "incompatible types, cannot convert from '%0' to '%1'", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_types_different, CLASS_ERROR, (unsigned)diag::Severity::Error, "incompatible types, cannot compare '%0' with '%1'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_types_arithmetics, CLASS_ERROR, (unsigned)diag::Severity::Error, "types '%0' and '%1' cannot be used in arithmetics operations", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_types_logical, CLASS_ERROR, (unsigned)diag::Severity::Error, "types '%0' and '%1' cannot be used in logical operations", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_types_comparable, CLASS_ERROR, (unsigned)diag::Severity::Error, "types '%0' and '%1' cannot be used in comparable operations", 0, SFINAE_Suppress, false, true, 0)

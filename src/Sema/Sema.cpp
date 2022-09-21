@@ -125,7 +125,7 @@ bool Sema::CheckMacroType(ASTType *Type, MacroTypeKind Kind) {
     return true;
 }
 
-bool Sema::CheckType(ASTType *FromType, ASTType *ToType) {
+bool Sema::CheckConvertibleTypes(ASTType *FromType, ASTType *ToType) {
     assert(FromType && "FromType cannot be null");
     assert(FromType && "ToType cannot be null");
 
@@ -173,7 +173,7 @@ bool Sema::CheckType(ASTType *FromType, ASTType *ToType) {
         // Check Inheritance
     }
 
-    Diag(FromType->getLocation(), diag::err_sema_types_incompatible)
+    Diag(FromType->getLocation(), diag::err_sema_types_convert)
         << FromType->print()
         << ToType->print();
     return false;
@@ -197,17 +197,6 @@ bool Sema::CheckLogicalTypes(const SourceLocation &Loc, ASTType *Type1, ASTType 
     }
 
     Diag(Loc, diag::err_sema_types_logical)
-            << Type1->print()
-            << Type2->print();
-    return false;
-}
-
-bool Sema::CheckComparableTypes(const SourceLocation &Loc,ASTType *Type1, ASTType *Type2) {
-    if (Type1->getMacroKind() == Type2->getMacroKind()) {
-        return true;
-    }
-
-    Diag(Loc, diag::err_sema_types_comparable)
             << Type1->print()
             << Type2->print();
     return false;

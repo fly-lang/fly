@@ -34,26 +34,26 @@ namespace fly {
         TYPE_VOID = 0,
 
         // Boolean
-        TYPE_BOOL = 1,
-
-        // Signed Integer
-        TYPE_BYTE = 2,
-        TYPE_SHORT = 3,
-        TYPE_INT = 4,
-        TYPE_LONG = 5,
+        TYPE_BOOL = 2,
 
         // Unsigned Integer
-        TYPE_USHORT = 6,
-        TYPE_UINT = 7,
-        TYPE_ULONG = 8,
+        TYPE_BYTE = 8,
+        TYPE_USHORT = 16,
+        TYPE_UINT = 32,
+        TYPE_ULONG = 64,
+
+        // Signed Integer
+        TYPE_SHORT = 15,
+        TYPE_INT = 31,
+        TYPE_LONG = 63,
 
         // Floating Point
-        TYPE_FLOAT = 9,
-        TYPE_DOUBLE = 10,
+        TYPE_FLOAT = 33,
+        TYPE_DOUBLE = 65,
 
         // Aggregates
-        TYPE_ARRAY = 11,
-        TYPE_CLASS = 12
+        TYPE_ARRAY = 100,
+        TYPE_CLASS = 1000
     };
 
     enum MacroTypeKind {
@@ -102,6 +102,14 @@ namespace fly {
         const bool isFloatingPoint() const;
 
         const bool isInteger() const;
+
+        const bool isUnsignedInteger() const;
+
+        const bool isSignedInteger() const;
+
+        const bool isUnsigned() const;
+
+        const bool isSigned() const;
 
         const bool isNumber() const;
 

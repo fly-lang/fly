@@ -68,13 +68,11 @@ namespace fly {
 
         bool CheckMacroType(ASTType *Type, MacroTypeKind Kind);
 
-        bool CheckType(ASTType *FromType, ASTType *ToType);
+        bool CheckConvertibleTypes(ASTType *FromType, ASTType *ToType);
 
-        bool CheckArithTypes(const SourceLocation &Loc,ASTType *Type1, ASTType *Type2);
+        bool CheckArithTypes(const SourceLocation &Loc, ASTType *Type1, ASTType *Type2);
 
-        bool CheckLogicalTypes(const SourceLocation &Loc,ASTType *Type1, ASTType *Type2);
-
-        bool CheckComparableTypes(const SourceLocation &Loc,ASTType *Type1, ASTType *Type2);
+        bool CheckLogicalTypes(const SourceLocation &Loc, ASTType *Type1, ASTType *Type2);
     };
 
 }  // end namespace fly
