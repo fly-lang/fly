@@ -12,6 +12,7 @@
 #define FLY_EXPRPARSER_H
 
 #include "Parser.h"
+#include "AST/ASTExpr.h"
 
 namespace fly {
 
@@ -39,7 +40,7 @@ namespace fly {
         }
 
         std::string str() const override {
-            return std::to_string(Op);
+            return std::to_string((int) Op);
         }
     };
 

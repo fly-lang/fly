@@ -15,7 +15,7 @@
 
 using namespace fly;
 
-ASTIfBlock::ASTIfBlock(ASTBlock *Parent, const SourceLocation &Loc) : ASTBlock(Parent, Loc, BLOCK_IF) {
+ASTIfBlock::ASTIfBlock(ASTBlock *Parent, const SourceLocation &Loc) : ASTBlock(Parent, Loc, ASTBlockKind::BLOCK_IF) {
 
 }
 
@@ -36,7 +36,7 @@ ASTElseBlock *ASTIfBlock::getElseBlock() {
 }
 
 ASTElsifBlock::ASTElsifBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc) :
-    ASTBlock(IfBlock->getParent(), Loc, BLOCK_ELSIF), IfBlock(IfBlock) {
+    ASTBlock(IfBlock->getParent(), Loc, ASTBlockKind::BLOCK_ELSIF), IfBlock(IfBlock) {
     IfBlock->ElsifBlocks.push_back(this);
 }
 
@@ -45,6 +45,6 @@ ASTExpr *ASTElsifBlock::getCondition() {
 }
 
 ASTElseBlock::ASTElseBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc) :
-    ASTBlock(IfBlock->getParent(), Loc, BLOCK_ELSE), IfBlock(IfBlock) {
+    ASTBlock(IfBlock->getParent(), Loc, ASTBlockKind::BLOCK_ELSE), IfBlock(IfBlock) {
     IfBlock->ElseBlock = this;
 }

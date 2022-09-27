@@ -12,12 +12,14 @@
 #define FLY_ASTEXPR_H
 
 #include "Basic/SourceLocation.h"
-#include <vector>
-#include <utility>
+
+#include <string>
 
 namespace fly {
 
-    enum ASTExprKind {
+    class SourceLocation;
+
+    enum class ASTExprKind : char {
         EXPR_EMPTY,
         EXPR_VALUE,
         EXPR_REF_VAR,
@@ -25,30 +27,30 @@ namespace fly {
         EXPR_GROUP
     };
 
-    enum ASTExprGroupKind {
+    enum class ASTExprGroupKind : char {
         GROUP_UNARY,
         GROUP_BINARY,
         GROUP_TERNARY
     };
 
-    enum UnaryOptionKind {
+    enum class UnaryOptionKind {
         UNARY_PRE,
         UNARY_POST
     };
 
-    enum UnaryOpKind {
+    enum class UnaryOpKind {
         ARITH_INCR,
         ARITH_DECR,
         LOGIC_NOT
     };
 
-    enum BinaryOptionKind {
+    enum class BinaryOptionKind {
         BINARY_ARITH,
         BINARY_LOGIC,
         BINARY_COMPARISON
     };
 
-    enum BinaryOpKind {
+    enum class BinaryOpKind : int {
 
         // Arithmetic
         ARITH_ADD = 101,

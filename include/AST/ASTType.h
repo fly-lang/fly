@@ -15,6 +15,8 @@
 
 namespace fly {
 
+    class SourceLocation;
+
     const uint8_t   MIN_BYTE     = 0x0;
     const uint8_t   MAX_BYTE     = 0xFF;
     const uint16_t  MIN_USHORT   = 0x0;
@@ -30,7 +32,7 @@ namespace fly {
     const uint64_t  MIN_LONG     = 0x8000000000000000;
     const uint64_t  MAX_LONG     = 0x7FFFFFFFFFFFFFFF;
 
-    enum TypeKind {
+    enum class TypeKind {
         TYPE_VOID = 0,
 
         // Boolean
@@ -56,7 +58,7 @@ namespace fly {
         TYPE_CLASS = 1000
     };
 
-    enum MacroTypeKind {
+    enum  class MacroTypeKind {
         MACRO_TYPE_VOID,
         MACRO_TYPE_BOOL,
         MACRO_TYPE_INTEGER,

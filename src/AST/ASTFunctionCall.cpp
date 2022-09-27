@@ -15,7 +15,7 @@
 using namespace fly;
 
 ASTArg::ASTArg(ASTStmt *Parent, const SourceLocation &Loc) :
-        ASTExprStmt(Parent, Loc, STMT_ARG) {
+        ASTExprStmt(Parent, Loc, StmtKind::STMT_ARG) {
 
 }
 

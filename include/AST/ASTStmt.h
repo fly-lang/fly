@@ -13,9 +13,11 @@
 
 #include "Basic/SourceLocation.h"
 
+#include <string>
+
 namespace fly {
 
-    enum StmtKind {
+    enum class StmtKind {
         STMT_BLOCK,
         STMT_EXPR,
         STMT_ARG,

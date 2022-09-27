@@ -10,8 +10,8 @@
 #ifndef FLY_FUNCTIONBASE_H
 #define FLY_FUNCTIONBASE_H
 
-#include "ASTLocalVar.h"
 #include "ASTExprStmt.h"
+
 #include <vector>
 
 namespace fly {
@@ -21,6 +21,7 @@ namespace fly {
     class ASTExpr;
     class ASTType;
     class ASTVarRef;
+    class ASTLocalVar;
     class ASTBlock;
     class ASTFunctionCall;
     class ASTGlobalVar;

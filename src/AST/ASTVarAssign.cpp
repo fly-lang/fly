@@ -14,7 +14,7 @@
 using namespace fly;
 
 ASTVarAssign::ASTVarAssign(ASTBlock *Parent, const SourceLocation &Loc, ASTVarRef *VarRef) :
-        ASTExprStmt(Parent, Loc, STMT_VAR_ASSIGN), VarRef(VarRef) {
+        ASTExprStmt(Parent, Loc, StmtKind::STMT_VAR_ASSIGN), VarRef(VarRef) {
 
 }
 

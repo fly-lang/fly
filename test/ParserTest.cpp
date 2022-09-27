@@ -14,6 +14,7 @@
 #include "Frontend/CompilerInstance.h"
 #include "AST/ASTContext.h"
 #include "AST/ASTNameSpace.h"
+#include "AST/ASTNode.h"
 #include "AST/ASTImport.h"
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTFunction.h"
@@ -21,8 +22,17 @@
 #include "AST/ASTValue.h"
 #include "AST/ASTVarAssign.h"
 #include "AST/ASTParams.h"
-#include <AST/ASTWhileBlock.h>
-#include <unordered_set>
+#include "AST/ASTWhileBlock.h"
+#include "AST/ASTClass.h"
+#include "AST/ASTIfBlock.h"
+#include "AST/ASTSwitchBlock.h"
+#include "AST/ASTWhileBlock.h"
+#include "AST/ASTForBlock.h"
+#include "Sema/Sema.h"
+#include "Sema/SemaBuilder.h"
+
+#include "llvm/ADT/StringMap.h"
+
 #include <gtest/gtest.h>
 
 namespace {
@@ -39,7 +49,7 @@ namespace {
 
         ParserTest() : CI(*TestUtils::CreateCompilerInstance()),
                       Diags(CI.getDiagnostics()),
-                      Builder(Sema::Builder(CI.getDiagnostics())) {
+                      Builder(Sema::Build(CI.getDiagnostics())) {
             Diags.getClient()->BeginSourceFile();
         }
 
@@ -915,7 +925,7 @@ namespace {
 
         // a = ++a + 1
         const ASTVarAssign *a5Var = (ASTVarAssign *) Body->getContent()[4];
-        EXPECT_EQ(a5Var->getExpr()->getExprKind(), EXPR_GROUP);
+        EXPECT_EQ(a5Var->getExpr()->getExprKind(), ASTExprKind::EXPR_GROUP);
         ASTBinaryGroupExpr *Group = (ASTBinaryGroupExpr *) a5Var->getExpr();
         EXPECT_EQ(Group->getOperatorKind(), BinaryOpKind::ARITH_ADD);
         EXPECT_EQ(Group->getOptionKind(), BinaryOptionKind::BINARY_ARITH);
@@ -923,7 +933,7 @@ namespace {
         EXPECT_EQ(E1->getOperatorKind(), UnaryOpKind::ARITH_INCR);
         EXPECT_EQ(E1->getOptionKind(), UnaryOptionKind::UNARY_PRE);
         ASTValueExpr *ValueExpr = (ASTValueExpr *) Group->getSecond();
-        EXPECT_EQ(ValueExpr->getExprKind(), EXPR_VALUE);
+        EXPECT_EQ(ValueExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
         EXPECT_EQ(ValueExpr->getValue().print(), "1");
     }
 
@@ -953,7 +963,7 @@ namespace {
         EXPECT_EQ(((ASTVarRefExpr *) IfCond->getFirst())->getVarRef()->getName(), "a");
         EXPECT_EQ(IfCond->getOperatorKind(),BinaryOpKind::COMP_EQ);
         EXPECT_EQ(((ASTValueExpr *) IfCond->getSecond())->getValue().print(), "1");
-        EXPECT_TRUE(((ASTEmptyExpr *)((ASTReturn *) IfBlock->getContent()[0])->getExpr())->getExprKind() == EXPR_EMPTY);
+        EXPECT_TRUE(((ASTEmptyExpr *)((ASTReturn *) IfBlock->getContent()[0])->getExpr())->getExprKind() == ASTExprKind::EXPR_EMPTY);
         EXPECT_FALSE(IfBlock->getElsifBlocks().empty());
         EXPECT_TRUE(IfBlock->getElseBlock());
 
@@ -994,7 +1004,7 @@ namespace {
         EXPECT_EQ(((ASTVarRefExpr *) IfCond->getFirst())->getVarRef()->getName(), "a");
         EXPECT_EQ(IfCond->getOperatorKind(), BinaryOpKind::COMP_EQ);
         EXPECT_EQ(((ASTValueExpr *) IfCond->getSecond())->getValue().print(), "1");
-        EXPECT_TRUE(((ASTEmptyExpr *)((ASTReturn *) IfBlock->getContent()[0])->getExpr())->getExprKind() == EXPR_EMPTY);
+        EXPECT_TRUE(((ASTEmptyExpr *)((ASTReturn *) IfBlock->getContent()[0])->getExpr())->getExprKind() == ASTExprKind::EXPR_EMPTY);
 
         EXPECT_FALSE(IfBlock->getElsifBlocks().empty());
         EXPECT_TRUE(IfBlock->getElseBlock());
@@ -1065,7 +1075,7 @@ namespace {
 
         const ASTBinaryGroupExpr *Cond = (ASTBinaryGroupExpr *) WhileBlock->getCondition();
         EXPECT_EQ(((ASTVarRefExpr *) Cond->getFirst())->getVarRef()->getName(), "a");
-        EXPECT_EQ(Cond->getOperatorKind(), COMP_EQ);
+        EXPECT_EQ(Cond->getOperatorKind(), BinaryOpKind::COMP_EQ);
         EXPECT_EQ(((ASTValueExpr *) Cond->getSecond())->getValue().print(), "1");
 
     }
@@ -1125,6 +1135,31 @@ namespace {
         EXPECT_EQ(((ASTUnaryGroupExpr *) ExprStmt2->getExpr())->getOperatorKind(), UnaryOpKind::ARITH_DECR);
 
         EXPECT_TRUE(ForBlock->getLoop()->isEmpty());
+    }
 
+    TEST_F(ParserTest, ClassEmpty) {
+        llvm::StringRef str = ("public Test {}\n");
+        ASTNode *Node = Parse("ClassEmpty", str);
+        ASSERT_TRUE(isSuccess());
+
+        EXPECT_FALSE(Node->getClass() == nullptr);
+        EXPECT_TRUE(Node->getNameSpace()->getClasses().size() == 1);
+        ASTClass &Class = *Node->getNameSpace()->getClasses().begin()->second;
+        EXPECT_EQ(Class.getScopes()->getVisibility(), ASTVisibilityKind::V_PUBLIC);
+        const auto &NSClassess = Node->getContext().getDefaultNameSpace()->getClasses();
+        const auto &ClassTest = NSClassess.find("Test");
+        ASSERT_TRUE(ClassTest != NSClassess.end());
+    }
+
+    TEST_F(ParserTest, DISABLED_ClassFields) {
+        llvm::StringRef str = ("public Test {\n"
+                               "  int a = 1\n"
+                               "  public int b = 2\n"
+                               "  public const int c\n"
+                               "}\n");
+        ASTNode *Node = Parse("ClassEmpty", str);
+        ASSERT_TRUE(isSuccess());
+
+        EXPECT_FALSE(Node->getClass()->getFields().empty());
     }
 }

@@ -13,9 +13,27 @@
 
 using namespace fly;
 
+ASTClassScopes::ASTClassScopes(ASTClassVisibilityKind Visibility, bool Constant) :
+        Visibility(Visibility), Constant(Constant){
+
+}
+
+ASTClassVisibilityKind ASTClassScopes::getVisibility() const {
+    return Visibility;
+}
+
+bool ASTClassScopes::isConstant() const {
+    return Constant;
+}
+
+std::string ASTClassScopes::str() const {
+    return "ASTClassScopes {Visibility=" + std::to_string((int) Visibility) +
+            ", Constant=" + std::to_string(Constant) + "}";
+}
+
 ASTClass::ASTClass(const SourceLocation &Loc, ASTNode *Node, const std::string &Name,
                    ASTTopScopes *Scopes) :
-        ASTTopDef(Loc, Node, ASTTopDefKind::DEF_CLASS, Scopes) {
+        ASTTopDef(Loc, Node, ASTTopDefKind::DEF_CLASS, Scopes), Name(Name) {
 
 }
 
@@ -59,7 +77,7 @@ std::string ASTClass::str() const {
     // Class to string
     return "ASTClass { Name=" + Name +
             ", Scopes=" + Scopes->str() +
-            ", ClassKind=" + std::to_string(ClassKind) +
+            ", ClassKind=" + std::to_string((int) ClassKind) +
             ", Fields={ " + StrFields + " }" +
             ", Methods={" + StrMethods + " }" +
             " }";

@@ -43,7 +43,7 @@ std::string CodeGenHeader::GenerateFile() {
 
     // generate global var declarations
     for (auto &GlobalVar : GlobalVars) {
-        if (GlobalVar->getScopes()->getVisibility() == V_PUBLIC) {
+        if (GlobalVar->getScopes()->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
             Header += "\npublic " + Convert(GlobalVar->getType()) + "." +
                       GlobalVar->getName() + "\n";
         }
@@ -51,7 +51,7 @@ std::string CodeGenHeader::GenerateFile() {
 
     // generate function declarations
     for (auto &Function : Functions) {
-        if (Function->getScopes()->getVisibility() == V_PUBLIC) {
+        if (Function->getScopes()->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
             Header += "\npublic " + Convert(Function->getType()) + " " + Function->getName() +
                       "(";
             int i = 0;
@@ -98,13 +98,13 @@ void CodeGenHeader::AddFunction(ASTFunction *Func) {
 
 const std::string CodeGenHeader::Convert(ASTType *Type) {
     switch (Type->getKind()) {
-        case TYPE_INT:
+        case TypeKind::TYPE_INT:
             return "int";
-        case TYPE_FLOAT:
+        case TypeKind::TYPE_FLOAT:
             return "float";
-        case TYPE_BOOL:
+        case TypeKind::TYPE_BOOL:
             return "bool";
-        case TYPE_CLASS:
+        case TypeKind::TYPE_CLASS:
             return "class";
     }
     return "";

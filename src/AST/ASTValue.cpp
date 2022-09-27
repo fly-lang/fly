@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTValue.h"
+#include "AST/ASTType.h"
 
 using namespace fly;
 
@@ -27,7 +28,7 @@ const std::string ASTValue::printMacroType() const {
     return ASTType::printMacroType(MacroKind);
 }
 
-ASTBoolValue::ASTBoolValue(const SourceLocation &Loc, bool Value) : ASTValue(MACRO_TYPE_BOOL, Loc), Value(Value) {
+ASTBoolValue::ASTBoolValue(const SourceLocation &Loc, bool Value) : ASTValue(MacroTypeKind::MACRO_TYPE_BOOL, Loc), Value(Value) {
 
 }
 
@@ -44,7 +45,7 @@ std::string ASTBoolValue::str() const {
 }
 
 ASTIntegerValue::ASTIntegerValue(const SourceLocation &Loc, uint64_t Value, bool Negative) :
-        ASTValue(MACRO_TYPE_INTEGER, Loc), Value(Value), Negative(Negative) {
+        ASTValue(MacroTypeKind::MACRO_TYPE_INTEGER, Loc), Value(Value), Negative(Negative) {
 
 }
 
@@ -70,7 +71,7 @@ std::string ASTIntegerValue::str() const {
 }
 
 ASTFloatingValue::ASTFloatingValue(const SourceLocation &Loc, std::string Value)
-    : ASTValue(MACRO_TYPE_FLOATING_POINT, Loc), Value(Value) {
+    : ASTValue(MacroTypeKind::MACRO_TYPE_FLOATING_POINT, Loc), Value(Value) {
 
 }
 
@@ -86,7 +87,7 @@ std::string ASTFloatingValue::str() const {
     return "ASTIntegerValue{Value=" + Value + "}";
 }
 
-ASTArrayValue::ASTArrayValue(const SourceLocation &Loc) : ASTValue(MACRO_TYPE_ARRAY, Loc) {
+ASTArrayValue::ASTArrayValue(const SourceLocation &Loc) : ASTValue(MacroTypeKind::MACRO_TYPE_ARRAY, Loc) {
 
 }
 
@@ -115,7 +116,7 @@ const std::vector<ASTValue *> &ASTArrayValue::getValues() const {
     return Values;
 }
 
-ASTNullValue::ASTNullValue(const SourceLocation &Loc) : ASTValue(MACRO_TYPE_CLASS, Loc) {
+ASTNullValue::ASTNullValue(const SourceLocation &Loc) : ASTValue(MacroTypeKind::MACRO_TYPE_CLASS, Loc) {
 
 }
 

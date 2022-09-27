@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTVar.h"
+#include "AST/ASTType.h"
 
 using namespace fly;
 
@@ -35,7 +36,7 @@ ASTVar::~ASTVar() {
 std::string ASTVar::str() const {
     return "Type=" + Type->str() + ", " +
            "Name=" + Name + ", " +
-            "VarKind=" + std::to_string(VarKind);
+           "VarKind=" + std::to_string((int) VarKind);
 }
 
 ASTVarRef::ASTVarRef(const SourceLocation &Loc, const std::string Name, const std::string NameSpace) :

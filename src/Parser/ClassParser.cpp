@@ -21,7 +21,7 @@ using namespace fly;
  * @param Visibility
  * @param Constant
  */
-ClassParser::ClassParser(Parser *P, ASTTopScopes *Scopes) : P(P) {
+ClassParser::ClassParser(Parser *P, ASTTopScopes *TopScopes) : P(P) {
     assert(P->Tok.isAnyIdentifier() && "Tok must be an Identifier");
 
     IdentifierInfo *Id = P->Tok.getIdentifierInfo();
@@ -29,16 +29,31 @@ ClassParser::ClassParser(Parser *P, ASTTopScopes *Scopes) : P(P) {
     const SourceLocation Loc = P->Tok.getLocation();
     P->ConsumeToken();
 
-    Class = P->Builder.CreateClass(P->Node, Loc, Name.str(), Scopes);
+    if (P->isBlockStart()) {
+        Class = P->Builder.CreateClass(P->Node, Loc, Name.str(), TopScopes);
+        P->ConsumeBrace();
+        bool Closed = false;
+        do {
+            ASTClassScopes *Scopes = ParseScopes();
+            if (isField()) {
+                Success = ParseField(Scopes);
+            } else if (isMethod()) {
+                Success = ParseMethod(Scopes);
+            }
 
-    do {
-        ASTClassScopes *ClassScopes = ParseScopes();
-        if (isField()) {
-            Success =  ParseField();
-        } else if (isMethod()) {
-            Success = ParseMethod();
-        }
-    } while (Success || P->Tok.isNot(tok::eof));
+            // End of the Class
+            if (P->isBlockEnd() ) {
+                P->ConsumeBrace();
+                break;
+            }
+
+            // Error: Class block not correctly closed
+            if (P->Tok.is(tok::eof)) {
+                Success = false;
+                P->Diag(P->Tok, diag::err_class_block_unclosed);
+            }
+        } while (Success);
+    }
 }
 
 /**
@@ -51,14 +66,56 @@ ASTClass *ClassParser::Parse(Parser *P, ASTTopScopes *Scopes) {
 }
 
 ASTClassScopes *ClassParser::ParseScopes() {
-    return nullptr;
+    bool isPrivate = false;
+    bool isPublic = false;
+    bool isConst = false;
+    bool Found;
+    do {
+        if (P->Tok.is(tok::kw_private)) {
+            if (isPrivate) {
+                P->Diag(P->Tok, diag::err_scope_visibility_duplicate << (int) ASTClassVisibilityKind::CLASS_V_PRIVATE);
+            }
+            if (isPublic) {
+                P->Diag(P->Tok, diag::err_scope_visibility_conflict
+                    << (int) ASTClassVisibilityKind::CLASS_V_PRIVATE << (int) ASTClassVisibilityKind::CLASS_V_PUBLIC);
+            }
+            isPrivate = true;
+            Found = true;
+            P->ConsumeToken();
+        } else if (P->Tok.is(tok::kw_public)) {
+            if (isPublic) {
+                P->Diag(P->Tok, diag::err_scope_visibility_conflict
+                    << (int) ASTClassVisibilityKind::CLASS_V_PUBLIC << (int) ASTClassVisibilityKind::CLASS_V_PUBLIC);
+            }
+            if (isPrivate) {
+                P->Diag(P->Tok, diag::err_scope_visibility_duplicate
+                    << (int) ASTClassVisibilityKind::CLASS_V_PRIVATE);
+            }
+            isPublic = true;
+            Found = true;
+            P->ConsumeToken();
+        } else if (P->Tok.is(tok::kw_const)) {
+            if (isConst) {
+                P->Diag(P->Tok, diag::err_scope_const_duplicate);
+            }
+            isConst = true;
+            Found = true;
+            P->ConsumeToken();
+        } else {
+            Found = false;
+        }
+    } while (Found);
+
+    ASTClassVisibilityKind Visibility = isPrivate ? ASTClassVisibilityKind::CLASS_V_PRIVATE :
+            (isPublic ? ASTClassVisibilityKind::CLASS_V_PUBLIC : ASTClassVisibilityKind::CLASS_V_DEFAULT);
+    return SemaBuilder::CreateClassScopes(Visibility, isConst);
 }
 
 bool ClassParser::isField() {
-    return true;
+    return P->Tok.isAnyIdentifier();
 }
 
-ASTClassField *ClassParser::ParseField() {
+ASTClassField *ClassParser::ParseField(ASTClassScopes *Scopes) {
     FLY_DEBUG("Parser", "ParseGlobalVar");
 
     assert(P->Tok.isAnyIdentifier() && "Tok must be an Identifier");
@@ -74,7 +131,7 @@ ASTClassField *ClassParser::ParseField() {
     llvm::StringRef Name = Id->getName();
     SourceLocation Loc = P->ConsumeToken();
 
-//    ASTGlobalVar *GlobalVar = P->Builder.CreateGlobalVar(Node, Loc, Type, Name.str(), Visibility, Constant);
+    //ASTClassField *Field = P->Builder.CreateClassField(Class, Loc, Type, Name.str(), Scopes);
 
     // Parsing =
     ASTExpr *Expr = nullptr;
@@ -88,9 +145,9 @@ ASTClassField *ClassParser::ParseField() {
 }
 
 bool ClassParser::isMethod() {
-    return true;
+    return false;
 }
 
-ASTClassMethod *ClassParser::ParseMethod() {
+ASTClassMethod *ClassParser::ParseMethod(ASTClassScopes *Scopes) {
     return nullptr;
 }

@@ -33,6 +33,9 @@ namespace fly {
 
         bool ExternalLib;
 
+        // Classes
+        llvm::StringMap<ASTClass *> Classes;
+
         ASTNameSpace(std::string NameSpace, ASTContext *Context, bool ExternalLib = false);
 
         ~ASTNameSpace();
@@ -44,6 +47,10 @@ namespace fly {
         const llvm::StringMap<ASTNode *> &getNodes() const;
 
         bool isExternalLib() const;
+
+        const llvm::StringMap<ASTClass *> &getClasses() const;
+
+        virtual std::string str() const;
     };
 }
 

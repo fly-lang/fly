@@ -10,14 +10,13 @@
 #ifndef FLY_GLOBALVAR_H
 #define FLY_GLOBALVAR_H
 
-#include <ostream>
 #include "ASTTopDef.h"
 #include "ASTVar.h"
 #include "CodeGen/CodeGenGlobalVar.h"
 
-namespace fly {
+#include <ostream>
 
-    class CodeGenGlobalVar;
+namespace fly {
 
     class ASTGlobalVar : public ASTVar, public ASTTopDef {
 

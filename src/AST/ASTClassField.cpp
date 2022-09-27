@@ -13,7 +13,7 @@ using namespace fly;
 
 ASTClassField::ASTClassField(const SourceLocation &Loc, ASTClass *Class, ASTClassScopes *Scopes, ASTType *Type,
                              std::string &Name) :
-                             ASTVar(VAR_FIELD, Type, Name),
+                             ASTVar(ASTVarKind::VAR_FIELD, Type, Name),
                              Loc(Loc), Class(Class), Scopes(Scopes) {
 
 }

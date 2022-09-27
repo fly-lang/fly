@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Parser/ExprParser.h"
+#include "AST/ASTVar.h"
 #include "Sema/SemaBuilder.h"
 #include "Basic/Debug.h"
 
@@ -95,8 +96,8 @@ ASTExpr *ExprParser::ParseAssignExpr(ASTVarRef *VarRef) {
     UpdateBinaryGroup(false);
     UpdateBinaryGroup(true);
     assert(Group.size() == 1 && "Only one Group entry at the end");
-    assert(Group[0]->getExprKind() == EXPR_GROUP && "Only one Group entry at the end");
-    assert(((ASTGroupExpr *) Group[0])->getGroupKind() == GROUP_BINARY && "Only one Group entry at the end");
+    assert(Group[0]->getExprKind() == ASTExprKind::EXPR_GROUP && "Only one Group entry at the end");
+    assert(((ASTGroupExpr *) Group[0])->getGroupKind() == ASTExprGroupKind::GROUP_BINARY && "Only one Group entry at the end");
     return (ASTBinaryGroupExpr *) Group[0];
 }
 
@@ -171,8 +172,8 @@ ASTExpr *ExprParser::ParseExpr(bool IsFirst) {
             UpdateBinaryGroup(false);
             UpdateBinaryGroup(true);
             assert(Group.size() == 1 && "Only one Group entry at the end");
-            assert(Group[0]->getExprKind() == EXPR_GROUP && "Only one Group entry at the end");
-            assert(((ASTGroupExpr *) Group[0])->getGroupKind() == GROUP_BINARY && "Only one Group entry at the end");
+            assert(Group[0]->getExprKind() == ASTExprKind::EXPR_GROUP && "Only one Group entry at the end");
+            assert(((ASTGroupExpr *) Group[0])->getGroupKind() == ASTExprGroupKind::GROUP_BINARY && "Only one Group entry at the end");
             Expr = Group[0];
         }
     }
@@ -233,19 +234,19 @@ ASTUnaryGroupExpr* ExprParser::ParseUnaryPostExpr(ASTVarRef *VarRef) {
         UnaryOpKind Op;
         switch (P->Tok.getKind()) {
             case tok::exclaim:
-                Op = LOGIC_NOT;
+                Op = UnaryOpKind::LOGIC_NOT;
                 break;
             case tok::plusplus:
-                Op = ARITH_INCR;
+                Op = UnaryOpKind::ARITH_INCR;
                 break;
             case tok::minusminus:
-                Op = ARITH_DECR;
+                Op = UnaryOpKind::ARITH_DECR;
                 break;
             default:
                 assert(0 && "Unary Operator not accepted");
         }
         P->ConsumeToken();
-        return P->Builder.CreateUnaryExpr(Stmt, VarRef->getLocation(), Op, UNARY_POST, VarRefExpr);
+        return P->Builder.CreateUnaryExpr(Stmt, VarRef->getLocation(), Op, UnaryOptionKind::UNARY_POST, VarRefExpr);
 }
 
 /**
@@ -259,13 +260,13 @@ ASTUnaryGroupExpr* ExprParser::ParseUnaryPreExpr(Parser *P) {
     UnaryOpKind Op;
     switch (P->Tok.getKind()) {
         case tok::exclaim:
-            Op = LOGIC_NOT;
+            Op = UnaryOpKind::LOGIC_NOT;
             break;
         case tok::plusplus:
-            Op = ARITH_INCR;
+            Op = UnaryOpKind::ARITH_INCR;
             break;
         case tok::minusminus:
-            Op = ARITH_DECR;
+            Op = UnaryOpKind::ARITH_DECR;
             break;
         default:
             assert(0 && "Unary Pre Operator not accepted");
@@ -282,7 +283,7 @@ ASTUnaryGroupExpr* ExprParser::ParseUnaryPreExpr(Parser *P) {
         if (P->ParseIdentifier(Loc, Name, NameSpace)) {
             ASTVarRef *VarRef = P->Builder.CreateVarRef(Loc, Name.str(), NameSpace.str());
             ASTVarRefExpr *VarRefExpr = P->Builder.CreateExpr(Stmt, VarRef);
-            return P->Builder.CreateUnaryExpr(Stmt, Loc, Op, UNARY_PRE, VarRefExpr);
+            return P->Builder.CreateUnaryExpr(Stmt, Loc, Op, UnaryOptionKind::UNARY_PRE, VarRefExpr);
         }
     }
 

@@ -14,6 +14,9 @@
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTNode.h"
 #include "AST/ASTContext.h"
+#include "AST/ASTFunctionBase.h"
+#include "AST/ASTExpr.h"
+
 #include <string>
 
 using namespace fly;

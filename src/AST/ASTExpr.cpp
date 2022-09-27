@@ -14,6 +14,7 @@
 #include "AST/ASTFunction.h"
 #include "AST/ASTFunctionCall.h"
 #include "AST/ASTStmt.h"
+#include "AST/ASTType.h"
 #include "Sema/SemaBuilder.h"
 
 using namespace fly;
@@ -38,7 +39,7 @@ ASTStmt *ASTExpr::getStmt() {
     return Stmt;
 }
 
-ASTEmptyExpr::ASTEmptyExpr(const SourceLocation &Loc) : ASTExpr(Loc, EXPR_EMPTY) {
+ASTEmptyExpr::ASTEmptyExpr(const SourceLocation &Loc) : ASTExpr(Loc, ASTExprKind::EXPR_EMPTY) {
 
 }
 
@@ -46,7 +47,7 @@ std::string ASTEmptyExpr::str() const {
     return "";
 }
 
-ASTValueExpr::ASTValueExpr(ASTValue *Val) : ASTExpr(Val->getLocation(), EXPR_VALUE), Value(Val) {
+ASTValueExpr::ASTValueExpr(ASTValue *Val) : ASTExpr(Val->getLocation(), ASTExprKind::EXPR_VALUE), Value(Val) {
 
 }
 
@@ -56,12 +57,12 @@ ASTValue &ASTValueExpr::getValue() const {
 
 std::string ASTValueExpr::str() const {
     return "{ Type=" + (getType() ? getType()->str() : "") +
-           ", Kind=" + std::to_string(getExprKind()) +
+           ", Kind=" + std::to_string((int) getExprKind()) +
            ", Value=" + Value->str() +
            " }";
 }
 
-ASTVarRefExpr::ASTVarRefExpr(ASTVarRef *VarRef) : ASTExpr(VarRef->getLocation(), EXPR_REF_VAR), VarRef(VarRef) {
+ASTVarRefExpr::ASTVarRefExpr(ASTVarRef *VarRef) : ASTExpr(VarRef->getLocation(), ASTExprKind::EXPR_REF_VAR), VarRef(VarRef) {
 
 }
 
@@ -75,13 +76,13 @@ ASTType *ASTVarRefExpr::getType() const {
 
 std::string ASTVarRefExpr::str() const {
     return "{ Type=" + (getType() ? getType()->str() : "") +
-           ", Kind=" + std::to_string(getExprKind()) +
+           ", Kind=" + std::to_string((int) getExprKind()) +
            ", VarRef=" + VarRef->str() +
            " }";
 }
 
 ASTFunctionCallExpr::ASTFunctionCallExpr(ASTFunctionCall *Call) :
-    ASTExpr(Call->getLocation(), EXPR_REF_FUNC), Call(Call) {
+    ASTExpr(Call->getLocation(), ASTExprKind::EXPR_REF_FUNC), Call(Call) {
 
 }
 
@@ -95,13 +96,13 @@ ASTType *ASTFunctionCallExpr::getType() const {
 
 std::string ASTFunctionCallExpr::str() const {
     return "{ Type=" + (getType() ? getType()->str() : "") +
-           ", Kind=" + std::to_string(getExprKind()) +
+           ", Kind=" + std::to_string((int) getExprKind()) +
            ", Call=" + Call->str() +
            " }";
 }
 
 ASTGroupExpr::ASTGroupExpr(const SourceLocation &Loc, ASTExprGroupKind GroupKind) :
-                           ASTExpr(Loc, EXPR_GROUP), GroupKind(GroupKind) {
+                           ASTExpr(Loc, ASTExprKind::EXPR_GROUP), GroupKind(GroupKind) {
 
 }
 
@@ -111,7 +112,7 @@ ASTExprGroupKind ASTGroupExpr::getGroupKind() {
 
 ASTUnaryGroupExpr::ASTUnaryGroupExpr(const SourceLocation &Loc, UnaryOpKind Operator,
                                      UnaryOptionKind Option, ASTVarRefExpr *First) :
-        ASTGroupExpr(Loc, GROUP_UNARY), OperatorKind(Operator), OptionKind(Option), First(First) {
+        ASTGroupExpr(Loc, ASTExprGroupKind::GROUP_UNARY), OperatorKind(Operator), OptionKind(Option), First(First) {
 
 }
 
@@ -133,18 +134,18 @@ ASTType *ASTUnaryGroupExpr::getType() const {
 
 std::string ASTUnaryGroupExpr::str() const {
     return "{ First=" + First->str() +
-           ", Operator=" + std::to_string(OperatorKind) +
-           ", Option=" + std::to_string(OptionKind) +
+           ", Operator=" + std::to_string((int) OperatorKind) +
+           ", Option=" + std::to_string((int) OptionKind) +
            ", Type=" + (getType() ? getType()->str() : "") +
-           ", Kind=" + std::to_string(getExprKind());
+           ", Kind=" + std::to_string((int) getExprKind());
 }
 
 ASTBinaryGroupExpr::ASTBinaryGroupExpr(const SourceLocation &OpLoc,
                                        BinaryOpKind Operator, ASTExpr *First, ASTExpr *Second) :
-        ASTGroupExpr(First->getLocation(), GROUP_BINARY),
+        ASTGroupExpr(First->getLocation(), ASTExprGroupKind::GROUP_BINARY),
         OpLoc(OpLoc),
         OperatorKind(Operator),
-        OptionKind(Operator < 300 ? (Operator < 200 ?  BINARY_ARITH : BINARY_LOGIC) : BINARY_COMPARISON),
+        OptionKind((int) Operator < 300 ? ((int) Operator < 200 ?  BinaryOptionKind::BINARY_ARITH : BinaryOptionKind::BINARY_LOGIC) : BinaryOptionKind::BINARY_COMPARISON),
         First(First),
         Second(Second) {
 
@@ -173,25 +174,25 @@ ASTType *ASTBinaryGroupExpr::getType() const {
 
     switch (OptionKind) {
 
-        case BINARY_ARITH:
+        case BinaryOptionKind::BINARY_ARITH:
             return First->getType();
-        case BINARY_LOGIC:
-        case BINARY_COMPARISON:
+        case BinaryOptionKind::BINARY_LOGIC:
+        case BinaryOptionKind::BINARY_COMPARISON:
             return SemaBuilder::CreateBoolType(SourceLocation());
     }
 }
 
 std::string ASTBinaryGroupExpr::str() const {
     return "{ First=" + First->str() +
-           ", Operator=" + std::to_string(OperatorKind) +
+           ", Operator=" + std::to_string((int) OperatorKind) +
            ", Second=" + Second->str() +
            ", Type=" + (getType() ? getType()->str() : "") +
-           ", Kind=" + std::to_string(getExprKind());
+           ", Kind=" + std::to_string((int) getExprKind());
 }
 
 ASTTernaryGroupExpr::ASTTernaryGroupExpr(ASTExpr *First, const SourceLocation &IfLoc, ASTExpr *Second,
                                          const SourceLocation &ElseLoc, ASTExpr *Third) :
-                                         ASTGroupExpr(First->getLocation(), GROUP_TERNARY),
+                                         ASTGroupExpr(First->getLocation(), ASTExprGroupKind::GROUP_TERNARY),
                                          First(First), IfLoc(IfLoc), Second(Second), ElseLoc(ElseLoc), Third(Third) {
 
 }
@@ -221,5 +222,5 @@ std::string ASTTernaryGroupExpr::str() const {
            ", Second=" + Second->str() +
            ", Third=" + Third->str() +
            ", Type=" + (getType() ? getType()->str() : "") +
-           ", Kind=" + std::to_string(getExprKind());
+           ", Kind=" + std::to_string((int) getExprKind());
 }

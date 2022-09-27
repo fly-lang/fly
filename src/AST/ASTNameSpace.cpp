@@ -38,3 +38,11 @@ const llvm::StringMap<ASTNode*> &ASTNameSpace::getNodes() const {
 bool ASTNameSpace::isExternalLib() const {
     return ExternalLib;
 }
+
+const llvm::StringMap<ASTClass *> &ASTNameSpace::getClasses() const {
+    return Classes;
+}
+
+std::string ASTNameSpace::str() const {
+    return "ASTNameSpace { Name=" + Name + " }";
+}

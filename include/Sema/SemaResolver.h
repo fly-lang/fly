@@ -10,35 +10,41 @@
 #ifndef FLY_SEMA_RESOLVER_H
 #define FLY_SEMA_RESOLVER_H
 
-#include "Sema/Sema.h"
-#include "AST/ASTClassField.h"
-
-
 namespace fly {
 
     class Sema;
+    class SemaBuilder;
     class DiagnosticsEngine;
     class DiagnosticBuilder;
     class SourceLocation;
     class ASTContext;
     class ASTNameSpace;
     class ASTNode;
+    class ASTStmt;
     class ASTBlock;
     class ASTLocalVar;
+    class ASTArg;
+    class ASTParam;
+    class ASTFunctionCall;
     class ASTVarRef;
     class ASTExpr;
+    class ASTValueExpr;
     class ASTType;
     class CodeGen;
+    class ASTIfBlock;
+    class ASTSwitchBlock;
+    class ASTWhileBlock;
+    class ASTForBlock;
 
     class SemaResolver {
 
+        friend class Sema;
+
         Sema &S;
 
-        SemaBuilder &Builder;
+        SemaResolver(Sema &S);
 
     public:
-
-        SemaResolver(Sema &S, SemaBuilder &Builder);
 
         bool Resolve();
 

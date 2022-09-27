@@ -168,72 +168,72 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
         }
 
             // Var Assignment
-        case STMT_VAR_ASSIGN: {
+        case StmtKind::STMT_VAR_ASSIGN: {
             ASTVarAssign *VarAssign = (ASTVarAssign *) Stmt;
             assert(VarAssign->getExpr() && "Expr Mandatory in assignment");
             llvm::Value *V = GenExpr(Fn, VarAssign->getVarRef()->getDef()->getType(), VarAssign->getExpr());
             switch (VarAssign->getVarRef()->getDef()->getVarKind()) {
 
-                case VAR_LOCAL: {
+                case ASTVarKind::VAR_LOCAL: {
                     ASTLocalVar *LocalVar = (ASTLocalVar *) VarAssign->getVarRef()->getDef();
                     LocalVar->getCodeGen()->Store(V);
                     break;
                 }
-                case VAR_GLOBAL: {
+                case ASTVarKind::VAR_GLOBAL: {
                     ASTGlobalVar *GlobalVar = (ASTGlobalVar *) VarAssign->getVarRef()->getDef();
                     GlobalVar->getCodeGen()->Store(V);
                     break;
                 }
-                case VAR_FIELD:
+                case ASTVarKind::VAR_FIELD:
                     //TODO
                     break;
             }
             break;
         }
-        case STMT_EXPR: {
+        case StmtKind::STMT_EXPR: {
             ASTExprStmt *ExprStmt = (ASTExprStmt *) Stmt;
             GenExpr(Fn, ExprStmt->getExpr()->getType(), ExprStmt->getExpr());
             break;
         }
-        case STMT_BLOCK: {
+        case StmtKind::STMT_BLOCK: {
             ASTBlock *Block = (ASTBlock *) Stmt;
             switch (Block->getBlockKind()) {
-                case BLOCK:
+                case ASTBlockKind::BLOCK:
                     GenBlock(Fn, Block->getContent());
                     break;
-                case BLOCK_IF:
+                case ASTBlockKind::BLOCK_IF:
                     GenIfBlock(Fn, (ASTIfBlock *)Block);
                     break;
-                case BLOCK_ELSIF:
-                case BLOCK_ELSE:
+                case ASTBlockKind::BLOCK_ELSIF:
+                case ASTBlockKind::BLOCK_ELSE:
                     // All done into BLOCK_STMT_IF
                     break;
-                case BLOCK_SWITCH:
+                case ASTBlockKind::BLOCK_SWITCH:
                     GenSwitchBlock(Fn, (ASTSwitchBlock *)Block);
                     break;
-                case BLOCK_SWITCH_CASE:
-                case BLOCK_SWITCH_DEFAULT:
+                case ASTBlockKind::BLOCK_SWITCH_CASE:
+                case ASTBlockKind::BLOCK_SWITCH_DEFAULT:
                     // All done into BLOCK_STMT_SWITCH
                     break;
-                case BLOCK_FOR:
+                case ASTBlockKind::BLOCK_FOR:
                     GenForBlock(Fn, (ASTForBlock *)Block);
                     break;
-                case BLOCK_WHILE:
+                case ASTBlockKind::BLOCK_WHILE:
                     GenWhileBlock(Fn, (ASTWhileBlock *)Block);
                     break;
             }
             break;
         }
-        case STMT_BREAK:
+        case StmtKind::STMT_BREAK:
             // TODO
             break;
-        case STMT_CONTINUE:
+        case StmtKind::STMT_CONTINUE:
             // TODO
             break;
-        case STMT_RETURN:
+        case StmtKind::STMT_RETURN:
             ASTReturn *Return = (ASTReturn *) Stmt;
-            if (Return->getParent()->getKind() == STMT_BLOCK) {
-                if (((ASTBlock *) Return->getParent())->getTop()->getType()->getKind() == TYPE_VOID) {
+            if (Return->getParent()->getKind() == StmtKind::STMT_BLOCK) {
+                if (((ASTBlock *) Return->getParent())->getTop()->getType()->getKind() == TypeKind::TYPE_VOID) {
                     if (Return->getExpr() == nullptr) {
                         Builder->CreateRetVoid();
                     } else {
@@ -253,26 +253,26 @@ llvm::Type *CodeGenModule::GenType(const ASTType *Type) {
     // Check Type
     switch (Type->getKind()) {
 
-        case TYPE_VOID:
+        case TypeKind::TYPE_VOID:
             return VoidTy;
-        case TYPE_BOOL:
+        case TypeKind::TYPE_BOOL:
             return BoolTy;
-        case TYPE_BYTE:
+        case TypeKind::TYPE_BYTE:
             return Int8Ty;
-        case TYPE_USHORT:
-        case TYPE_SHORT:
+        case TypeKind::TYPE_USHORT:
+        case TypeKind::TYPE_SHORT:
             return Int16Ty;
-        case TYPE_UINT:
-        case TYPE_INT:
+        case TypeKind::TYPE_UINT:
+        case TypeKind::TYPE_INT:
             return Int32Ty;
-        case TYPE_ULONG:
-        case TYPE_LONG:
+        case TypeKind::TYPE_ULONG:
+        case TypeKind::TYPE_LONG:
             return Int64Ty;
-        case TYPE_FLOAT:
+        case TypeKind::TYPE_FLOAT:
             return FloatTy;
-        case TYPE_DOUBLE:
+        case TypeKind::TYPE_DOUBLE:
             return DoubleTy;
-        case TYPE_ARRAY: {
+        case TypeKind::TYPE_ARRAY: {
             return GenArrayType((ASTArrayType *) Type);
         }
 
@@ -282,40 +282,42 @@ llvm::Type *CodeGenModule::GenType(const ASTType *Type) {
 
 llvm::ArrayType *CodeGenModule::GenArrayType(const ASTArrayType *ArrayType) {
     llvm::Type *SubType = GenType(ArrayType->getType());
-    if (ArrayType->getSize()->getExprKind() == EXPR_VALUE) {
+    if (ArrayType->getSize()->getExprKind() == ASTExprKind::EXPR_VALUE) {
         ASTValueExpr *SizeExpr = (ASTValueExpr *) ArrayType->getSize();
         ASTIntegerValue &SizeValue = (ASTIntegerValue &) SizeExpr->getValue();
         return llvm::ArrayType::get(SubType, SizeValue.getValue());
     }
+
+    assert("Array Size error");
 }
 
 llvm::Constant *CodeGenModule::GenDefaultValue(const ASTType *Type, llvm::Type *Ty) {
     FLY_DEBUG("CodeGenModule", "GenDefaultValue");
-    assert(Type->getKind() != TYPE_VOID && "No default value for Void Type");
+    assert(Type->getKind() != TypeKind::TYPE_VOID && "No default value for Void Type");
     switch (Type->getKind()) {
-        case TYPE_BOOL:
+        case TypeKind::TYPE_BOOL:
             return llvm::ConstantInt::get(BoolTy, 0, false);
-        case TYPE_BYTE:
+        case TypeKind::TYPE_BYTE:
             return llvm::ConstantInt::get(Int8Ty, 0, false);
-        case TYPE_USHORT:
+        case TypeKind::TYPE_USHORT:
             return llvm::ConstantInt::get(Int32Ty, 0, false);
-        case TYPE_SHORT:
+        case TypeKind::TYPE_SHORT:
             return llvm::ConstantInt::get(Int32Ty, 0, true);
-        case TYPE_UINT:
+        case TypeKind::TYPE_UINT:
             return llvm::ConstantInt::get(Int32Ty, 0, false);
-        case TYPE_INT:
+        case TypeKind::TYPE_INT:
             return llvm::ConstantInt::get(Int32Ty, 0, true);
-        case TYPE_ULONG:
+        case TypeKind::TYPE_ULONG:
             return llvm::ConstantInt::get(Int64Ty, 0, false);
-        case TYPE_LONG:
+        case TypeKind::TYPE_LONG:
             return llvm::ConstantInt::get(Int64Ty, 0, true);
-        case TYPE_FLOAT:
+        case TypeKind::TYPE_FLOAT:
             return llvm::ConstantFP::get(FloatTy, 0.0);
-        case TYPE_DOUBLE:
+        case TypeKind::TYPE_DOUBLE:
             return llvm::ConstantFP::get(DoubleTy, 0.0);
-        case TYPE_ARRAY:
+        case TypeKind::TYPE_ARRAY:
             return ConstantAggregateZero::get(Ty);
-        case TYPE_CLASS:
+        case TypeKind::TYPE_CLASS:
             return nullptr; // TODO
     }
     assert(0 && "Unknown Type");
@@ -335,27 +337,27 @@ llvm::Constant *CodeGenModule::GenValue(const ASTType *Type, const ASTValue *Val
     //TODO value conversion from Val->getType() to TypeBase (if are different)
     
     switch (Type->getKind()) {
-        case TYPE_BOOL:
+        case TypeKind::TYPE_BOOL:
             return llvm::ConstantInt::get(BoolTy, ((ASTBoolValue *)Val)->getValue(), false);
-        case TYPE_BYTE:
+        case TypeKind::TYPE_BYTE:
             return llvm::ConstantInt::get(Int8Ty, ((ASTIntegerValue *) Val)->getValue(), false);
-        case TYPE_USHORT:
+        case TypeKind::TYPE_USHORT:
             return llvm::ConstantInt::get(Int16Ty, ((ASTIntegerValue *) Val)->getValue(), false);
-        case TYPE_SHORT:
+        case TypeKind::TYPE_SHORT:
             return llvm::ConstantInt::get(Int16Ty, ((ASTIntegerValue *) Val)->getValue(), true);
-        case TYPE_UINT:
+        case TypeKind::TYPE_UINT:
             return llvm::ConstantInt::get(Int32Ty, ((ASTIntegerValue *) Val)->getValue(), false);
-        case TYPE_INT:
+        case TypeKind::TYPE_INT:
             return llvm::ConstantInt::get(Int32Ty, ((ASTIntegerValue *) Val)->getValue(), true);
-        case TYPE_ULONG:
+        case TypeKind::TYPE_ULONG:
             return llvm::ConstantInt::get(Int64Ty, ((ASTIntegerValue *) Val)->getValue(), false);
-        case TYPE_LONG:
+        case TypeKind::TYPE_LONG:
             return llvm::ConstantInt::get(Int64Ty, ((ASTIntegerValue *) Val)->getValue(), true);
-        case TYPE_FLOAT:
+        case TypeKind::TYPE_FLOAT:
             return llvm::ConstantFP::get(FloatTy, ((ASTFloatingValue *) Val)->getValue());
-        case TYPE_DOUBLE:
+        case TypeKind::TYPE_DOUBLE:
             return llvm::ConstantFP::get(DoubleTy, ((ASTFloatingValue *) Val)->getValue());
-        case TYPE_ARRAY: {
+        case TypeKind::TYPE_ARRAY: {
             llvm::ArrayType *ArrType = GenArrayType((ASTArrayType *) Type);
             std::vector<llvm::Constant *> Values;
             for (ASTValue *Value : ((ASTArrayValue *) Val)->getValues()) {
@@ -364,9 +366,9 @@ llvm::Constant *CodeGenModule::GenValue(const ASTType *Type, const ASTValue *Val
             }
             return llvm::ConstantArray::get(ArrType, makeArrayRef(Values));
         }
-        case TYPE_CLASS:
+        case TypeKind::TYPE_CLASS:
             break;
-        case TYPE_VOID:
+        case TypeKind::TYPE_VOID:
             // FIXME
             break;
     }

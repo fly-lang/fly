@@ -11,7 +11,7 @@
 
 using namespace fly;
 
-ASTWhileBlock::ASTWhileBlock(ASTBlock *Parent, const SourceLocation &Loc) : ASTBlock(Parent, Loc, BLOCK_WHILE) {
+ASTWhileBlock::ASTWhileBlock(ASTBlock *Parent, const SourceLocation &Loc) : ASTBlock(Parent, Loc, ASTBlockKind::BLOCK_WHILE) {
 
 }
 

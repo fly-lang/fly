@@ -8,18 +8,29 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Parser/Parser.h"
+#include "Parser/FunctionParser.h"
 #include "Parser/ExprParser.h"
+#include "Parser/ClassParser.h"
+#include "AST/ASTNode.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTGlobalVar.h"
+#include "AST/ASTFunction.h"
 #include "AST/ASTFunctionCall.h"
 #include "AST/ASTExpr.h"
+#include "AST/ASTStmt.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTVarAssign.h"
+#include "AST/ASTIfBlock.h"
+#include "AST/ASTSwitchBlock.h"
 #include "AST/ASTWhileBlock.h"
+#include "AST/ASTForBlock.h"
 #include "AST/ASTImport.h"
 #include "AST/ASTNameSpace.h"
+#include "AST/ASTLocalVar.h"
 #include "Sema/SemaBuilder.h"
+#include "Frontend/InputFile.h"
 #include "Basic/Debug.h"
+
 #include <regex>
 
 using namespace fly;
@@ -231,20 +242,23 @@ ASTTopScopes *Parser::ParseTopScopes() {
     do {
         if (Tok.is(tok::kw_private)) {
             if (isPrivate) {
-                Diag(Tok, diag::err_scope_visibility_duplicate << V_PRIVATE);
+                Diag(Tok, diag::err_scope_visibility_duplicate << (int) ASTVisibilityKind::V_PRIVATE);
             }
             if (isPublic) {
-                Diag(Tok, diag::err_scope_visibility_conflict << V_PRIVATE << V_PUBLIC);
+                Diag(Tok, diag::err_scope_visibility_conflict
+                    << (int) ASTVisibilityKind::V_PRIVATE << (int) ASTVisibilityKind::V_PUBLIC);
             }
             isPrivate = true;
             Found = true;
             ConsumeToken();
         } else if (Tok.is(tok::kw_public)) {
             if (isPublic) {
-                Diag(Tok, diag::err_scope_visibility_conflict << V_PUBLIC << V_PUBLIC);
+                Diag(Tok, diag::err_scope_visibility_conflict
+                    << (int) ASTVisibilityKind::V_PUBLIC << (int) ASTVisibilityKind::V_PUBLIC);
             }
             if (isPrivate) {
-                Diag(Tok, diag::err_scope_visibility_duplicate << V_PRIVATE);
+                Diag(Tok, diag::err_scope_visibility_duplicate
+                    << (int) ASTVisibilityKind::V_PRIVATE);
             }
             isPublic = true;
             Found = true;
@@ -261,7 +275,8 @@ ASTTopScopes *Parser::ParseTopScopes() {
         }
     } while (Found);
 
-    ASTVisibilityKind Visibility = isPrivate ? V_PRIVATE : (isPublic ? V_PUBLIC : V_DEFAULT);
+    ASTVisibilityKind Visibility = isPrivate ? ASTVisibilityKind::V_PRIVATE :
+                (isPublic ? ASTVisibilityKind::V_PUBLIC : ASTVisibilityKind::V_DEFAULT);
     return SemaBuilder::CreateTopScopes(Visibility, isConst);
 }
 

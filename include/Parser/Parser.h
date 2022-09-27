@@ -10,36 +10,32 @@
 #ifndef FLY_PARSER_H
 #define FLY_PARSER_H
 
-#include <AST/ASTBlock.h>
-#include <AST/ASTIfBlock.h>
-#include <AST/ASTSwitchBlock.h>
-#include <AST/ASTForBlock.h>
-#include <AST/ASTLocalVar.h>
-#include <AST/ASTStmt.h>
-#include <AST/ASTVar.h>
-#include <AST/ASTExpr.h>
-#include <AST/ASTFunction.h>
-#include "Frontend/InputFile.h"
-#include "FunctionParser.h"
-#include "ClassParser.h"
 #include "Lex/Token.h"
 #include "Lex/Lexer.h"
-#include "AST/ASTNode.h"
 
 namespace fly {
 
     class DiagnosticsEngine;
     class SemaBuilder;
-    class Lexer;
+    class ASTNode;
     class ASTValue;
-    class ASTSingleValue;
     class ASTArrayValue;
+    class ASTArrayType;
+    class ASTClassType;
+    class ASTTopScopes;
+    class ASTType;
+    class ASTBlock;
+    class ASTFunctionCall;
+    class ASTStmt;
+    class ASTExpr;
+    class ASTVarRef;
+    class InputFile;
+    enum class BinaryOpKind;
 
     /// Parse the main file known to the preprocessor, producing an
     /// abstract syntax tree.
     class Parser {
 
-        friend class GlobalVarParser;
         friend class FunctionParser;
         friend class ClassParser;
         friend class ExprParser;

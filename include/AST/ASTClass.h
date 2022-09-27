@@ -12,6 +12,7 @@
 #define FLY_ASTCLASS_H
 
 #include "ASTTopDef.h"
+
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/SmallVector.h"
 
@@ -22,14 +23,14 @@ namespace fly {
     class ASTClassField;
     class ASTClassMethod;
 
-    enum ASTClassKind {
+    enum class ASTClassKind {
         CLASS_STRUCT,
         CLASS_STANDARD,
         CLASS_INTERFACE,
         CLASS_ABSTRACT
     };
 
-    enum ASTClassVisibilityKind {
+    enum class ASTClassVisibilityKind {
         CLASS_V_DEFAULT,
         CLASS_V_PUBLIC,
         CLASS_V_PRIVATE,
@@ -38,11 +39,22 @@ namespace fly {
 
     class ASTClassScopes {
 
+        friend class SemaBuilder;
+
         // Visibility of the Fields or Methods
-        ASTClassVisibilityKind Visibility = CLASS_V_DEFAULT;
+        ASTClassVisibilityKind Visibility = ASTClassVisibilityKind::CLASS_V_DEFAULT;
 
         // Constant of Fields or Methods
         bool Constant = false;
+
+        ASTClassScopes(ASTClassVisibilityKind Visibility, bool Constant);
+
+    public:
+        ASTClassVisibilityKind getVisibility() const;
+
+        bool isConstant() const;
+
+        std::string str() const;
     };
 
     class ASTClass : public ASTTopDef {

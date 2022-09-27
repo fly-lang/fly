@@ -57,3 +57,11 @@ const llvm::StringMap<ASTGlobalVar *> &ASTNode::getExternalGlobalVars() const {
 const llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> &ASTNode::getExternalFunctions() const {
     return ExternalFunctions;
 }
+
+const ASTClass *ASTNode::getClass() const {
+    return Class;
+}
+
+std::string ASTNode::str() const {
+    return "ASTNode { Name=" + Name + " }";
+}

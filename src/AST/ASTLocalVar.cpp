@@ -14,7 +14,7 @@
 using namespace fly;
 
 ASTLocalVar::ASTLocalVar(ASTBlock *Parent, const SourceLocation &Loc, ASTType *Type, const std::string Name, bool Constant) :
-                        ASTExprStmt(Parent, Loc, STMT_VAR_DEFINE), ASTVar(VAR_LOCAL, Type, Name),
+                        ASTExprStmt(Parent, Loc, StmtKind::STMT_VAR_DEFINE), ASTVar(ASTVarKind::VAR_LOCAL, Type, Name),
                         Constant(Constant) {
 
 }
@@ -39,6 +39,6 @@ std::string ASTLocalVar::str() const {
     return "{ " +
            ASTVar::str() +
            ", Constant=" + (Constant ? "true" : "false") + ", " +
-           ", Kind: " + std::to_string(Kind) +
+           ", Kind: " + std::to_string((int) Kind) +
            " }";
 }

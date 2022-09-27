@@ -11,15 +11,18 @@
 #ifndef FLY_ASTVAR_H
 #define FLY_ASTVAR_H
 
-#include "ASTType.h"
-#include "ASTExpr.h"
-#include "ASTStmt.h"
+#include "Basic/SourceLocation.h"
+
+#include <string>
 
 namespace fly {
 
+    class SourceLocation;
     class CodeGenVar;
+    class ASTType;
+    class ASTExpr;
 
-    enum ASTVarKind {
+    enum class ASTVarKind {
         VAR_LOCAL,
         VAR_GLOBAL,
         VAR_FIELD

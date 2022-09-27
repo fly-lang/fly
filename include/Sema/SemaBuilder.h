@@ -10,12 +10,11 @@
 #ifndef FLY_SEMA_BUILDER_H
 #define FLY_SEMA_BUILDER_H
 
-#include "Sema/Sema.h"
-#include "AST/ASTType.h"
-
+#include "AST/ASTClass.h"
 
 namespace fly {
 
+    class Sema;
     class DiagnosticsEngine;
     class DiagnosticBuilder;
     class SourceLocation;
@@ -23,11 +22,17 @@ namespace fly {
     class ASTContext;
     class ASTNameSpace;
     class ASTNode;
-    class ASTNodeBase;
+    class ASTTopDef;
     class ASTImport;
+    class ASTTopScopes;
     class ASTClass;
+    class ASTClassScopes;
+    class ASTClassField;
+    class ASTClassMethod;
+    class ASTGlobalVar;
     class ASTFunction;
     class ASTFunctionCall;
+    class ASTStmt;
     class ASTBlock;
     class ASTIfBlock;
     class ASTElsifBlock;
@@ -41,11 +46,25 @@ namespace fly {
     class ASTForPostBlock;
     class ASTExprStmt;
     class ASTVarAssign;
+    class ASTParam;
     class ASTLocalVar;
     class ASTVarRef;
-    class ASTExpr;
-    class ASTEmptyExpr;
+    class ASTArg;
     class ASTType;
+    class ASTBoolType;
+    class ASTByteType;
+    class ASTUShortType;
+    class ASTShortType;
+    class ASTUIntType;
+    class ASTIntType;
+    class ASTULongType;
+    class ASTLongType;
+    class ASTFloatType;
+    class ASTDoubleType;
+    class ASTArrayType;
+    class ASTClassType;
+    class ASTVoidType;
+    class ASTValue;
     class ASTBoolValue;
     class ASTIntegerValue;
     class ASTFloatingValue;
@@ -55,11 +74,27 @@ namespace fly {
     class ASTIntegerValue;
     class ASTFloatingValue;
     class ASTBreak;
+    class ASTReturn;
     class ASTContinue;
+    class ASTExpr;
+    class ASTEmptyExpr;
+    class ASTValueExpr;
+    class ASTVarRefExpr;
+    class ASTFunctionCallExpr;
+    class ASTUnaryGroupExpr;
+    class ASTBinaryGroupExpr;
+    class ASTTernaryGroupExpr;
+    enum class UnaryOpKind;
+    enum class UnaryOptionKind;
+    enum class BinaryOpKind;
 
     class SemaBuilder {
 
+        friend class SemaResolver;
+
         Sema &S;
+
+        ASTContext *Context;
 
     public:
 
@@ -67,12 +102,6 @@ namespace fly {
 
         bool Build();
         void Destroy();
-
-        // Diagnostics Functions
-        DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID) const;
-        DiagnosticBuilder Diag(unsigned DiagID) const;
-
-        Sema &getSema();
 
         // Create Node
         ASTNode *CreateNode(const std::string &Name, std::string &NameSpace);
@@ -89,6 +118,7 @@ namespace fly {
                                     ASTTopScopes *Scopes);
         ASTClass *CreateClass(ASTNode *Node, const SourceLocation &Loc, const std::string &Name,
                               ASTTopScopes *Scopes);
+        static ASTClassScopes *CreateClassScopes(ASTClassVisibilityKind Visibility, bool Constant);
 
         // Create Types
         static ASTBoolType *CreateBoolType(const SourceLocation &Loc);
@@ -165,6 +195,7 @@ namespace fly {
 
         // Add Top definitions
         bool AddImport(ASTNode *Node, ASTImport *Import);
+        bool AddClass(ASTNode *Node, ASTClass *Class);
         bool AddGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar, ASTValue *Value = nullptr);
         bool AddGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar, ASTExpr *Expr);
         bool AddFunction(ASTNode *Node, ASTFunction *Function);
@@ -172,7 +203,6 @@ namespace fly {
                             ASTFunction *Function);
         bool AddParam(ASTParam *Param);
         void AddFunctionVarParams(ASTFunction *Function, ASTParam *Param); // TODO
-        bool AddClass(ASTNode *Node, ASTClass *Class);
         bool AddComment(ASTTopDef *Top, std::string &Comment);
         bool AddExternalGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar);
         bool AddExternalFunction(ASTNode *Node, ASTFunction *Function);

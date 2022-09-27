@@ -11,12 +11,14 @@
 #ifndef FLY_ASTNODEBASE_H
 #define FLY_ASTNODEBASE_H
 
-#include "ASTFunction.h"
-#include "Basic/SourceLocation.h"
 #include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/SmallVector.h"
+
+#include <map>
 
 namespace fly {
 
+    class SourceLocation;
     class ASTContext;
     class ASTGlobalVar;
     class ASTClass;
@@ -44,9 +46,6 @@ namespace fly {
         // Functions
         llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> Functions;
 
-        // Classes
-        llvm::StringMap<ASTClass *> Classes;
-
         ASTNodeBase() = delete;
 
         ASTNodeBase(const std::string Name, ASTContext* Context);
@@ -60,11 +59,6 @@ namespace fly {
         const llvm::StringMap<ASTGlobalVar *> &getGlobalVars() const;
 
         const llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> &getFunctions() const;
-
-        const llvm::StringMap<ASTClass *> &getClasses() const;
-
-        virtual std::string str() const;
-
     };
 }
 

@@ -33,11 +33,3 @@ const llvm::StringMap<ASTGlobalVar *> &ASTNodeBase::getGlobalVars() const {
 const llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> &ASTNodeBase::getFunctions() const {
     return Functions;
 }
-
-const llvm::StringMap<ASTClass *> &ASTNodeBase::getClasses() const {
-    return Classes;
-}
-
-std::string ASTNodeBase::str() const {
-    return "{ Name=" + Name + " }";
-}

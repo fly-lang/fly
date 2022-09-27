@@ -27,12 +27,12 @@ using namespace fly;
  * @param Top
  * @param Parent
  */
-ASTBlock::ASTBlock(ASTBlock *Parent, const SourceLocation &Loc) : ASTBlock(Parent, Loc, BLOCK) {
+ASTBlock::ASTBlock(ASTBlock *Parent, const SourceLocation &Loc) : ASTBlock(Parent, Loc, ASTBlockKind::BLOCK) {
 
 }
 
 ASTBlock::ASTBlock(ASTBlock *Parent, const SourceLocation &Loc, ASTBlockKind Kind) :
-    ASTStmt(Parent, Loc, STMT_BLOCK), BlockKind(Kind) {
+    ASTStmt(Parent, Loc, StmtKind::STMT_BLOCK), BlockKind(Kind) {
     if (Parent) {
         Top = Parent->Top;
     }
@@ -78,12 +78,16 @@ const llvm::StringMap<ASTLocalVar *> &ASTBlock::getLocalVars() const {
     return LocalVars;
 }
 
+const llvm::StringMap<ASTLocalVar *> &ASTBlock::getUndefVars() const {
+    return UndefVars;
+}
+
 /**
  * Convert to String
  * @return string info for debugging
  */
 std::string ASTBlock::str() const {
-    return "{ Kind=" + std::to_string(Kind) +
+    return "{ Kind=" + std::to_string((int) Kind) +
             + " }";
 }
 
@@ -92,7 +96,7 @@ std::string ASTBlock::str() const {
  * @param Loc
  * @param Parent
  */
-ASTBreak::ASTBreak(ASTBlock *Parent, const SourceLocation &Loc) : ASTStmt(Parent, Loc, STMT_BREAK) {
+ASTBreak::ASTBreak(ASTBlock *Parent, const SourceLocation &Loc) : ASTStmt(Parent, Loc, StmtKind::STMT_BREAK) {
 
 }
 /**
@@ -100,7 +104,7 @@ ASTBreak::ASTBreak(ASTBlock *Parent, const SourceLocation &Loc) : ASTStmt(Parent
  * @return string info for debugging
  */
 std::string ASTBreak::str() const {
-    return "{ Kind=" + std::to_string(Kind) + " }";
+    return "{ Kind=" + std::to_string((int) Kind) + " }";
 }
 
 /**
@@ -108,7 +112,7 @@ std::string ASTBreak::str() const {
  * @param Loc
  * @param Parent
  */
-ASTContinue::ASTContinue(ASTBlock *Parent, const SourceLocation &Loc) : ASTStmt(Parent, Loc, STMT_CONTINUE) {
+ASTContinue::ASTContinue(ASTBlock *Parent, const SourceLocation &Loc) : ASTStmt(Parent, Loc, StmtKind::STMT_CONTINUE) {
 
 }
 
@@ -117,5 +121,5 @@ ASTContinue::ASTContinue(ASTBlock *Parent, const SourceLocation &Loc) : ASTStmt(
  * @return string info for debugging
  */
 std::string ASTContinue::str() const {
-    return "{ Kind=" + std::to_string(Kind) + " }";
+    return "{ Kind=" + std::to_string((int) Kind) + " }";
 }

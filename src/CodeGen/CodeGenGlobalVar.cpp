@@ -24,12 +24,12 @@ CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, ASTGlobalVar* AST, bool i
     GlobalValue::LinkageTypes Linkage = GlobalValue::LinkageTypes::ExternalLinkage;
     llvm::Type *Ty = CGM->GenType(AST->getType());
     if (!isExternal) {
-        if (AST->getScopes()->getVisibility() == V_PRIVATE) {
+        if (AST->getScopes()->getVisibility() == ASTVisibilityKind::V_PRIVATE) {
             Linkage = GlobalValue::LinkageTypes::InternalLinkage;
         }
         if (AST->getExpr() == nullptr) {
             Const = CGM->GenDefaultValue(AST->getType(), Ty);
-        } else if (AST->getExpr()->getExprKind() == EXPR_VALUE) {
+        } else if (AST->getExpr()->getExprKind() == ASTExprKind::EXPR_VALUE) {
             const ASTValue &Value = ((ASTValueExpr *) AST->getExpr())->getValue();
             Const = CGM->GenValue(AST->getType(), &Value);
         } else {

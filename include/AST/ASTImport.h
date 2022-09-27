@@ -11,14 +11,13 @@
 #define FLY_ASTIMPORT_H
 
 #include "Basic/SourceLocation.h"
-#include "AST/ASTUnref.h"
-
-#include <vector>
 
 namespace fly {
 
     class ASTNameSpace;
     class ASTNode;
+    class ASTUnref;
+    class SourceLocation;
 
     class ASTImport {
 

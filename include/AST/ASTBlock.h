@@ -33,7 +33,7 @@ namespace fly {
     class ASTForBlock;
     class ASTWhileBlock;
 
-    enum ASTBlockKind {
+    enum class ASTBlockKind {
         BLOCK,
         BLOCK_IF,
         BLOCK_ELSIF,
@@ -88,6 +88,8 @@ namespace fly {
         void Clear();
 
         const llvm::StringMap<ASTLocalVar *> &getLocalVars() const;
+
+        const llvm::StringMap<ASTLocalVar *> &getUndefVars() const;
 
         std::string str() const override;
     };

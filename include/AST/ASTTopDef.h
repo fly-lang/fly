@@ -12,13 +12,16 @@
 #define FLY_ASTTOPDEF_H
 
 #include "Basic/SourceLocation.h"
+
 #include "llvm/ADT/SmallVector.h"
 
 namespace fly {
 
+    class SourceLocation;
     class ASTNode;
+    class ASTNameSpace;
 
-    enum ASTTopDefKind {
+    enum class ASTTopDefKind {
         DEF_NONE,
         DEF_NAMESPACE,
         DEF_IMPORT,
@@ -27,9 +30,7 @@ namespace fly {
         DEF_CLASS
     };
 
-    class ASTNameSpace;
-
-    enum ASTVisibilityKind {
+    enum class ASTVisibilityKind {
         V_DEFAULT,
         V_PUBLIC,
         V_PRIVATE
@@ -40,7 +41,7 @@ namespace fly {
         friend class SemaBuilder;
 
         // Visibility of the declaration
-        ASTVisibilityKind Visibility = V_DEFAULT;
+        ASTVisibilityKind Visibility;
 
         bool Constant = false;
 

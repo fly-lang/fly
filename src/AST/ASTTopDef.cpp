@@ -25,7 +25,7 @@ bool ASTTopScopes::isConstant() const {
 }
 
 std::string ASTTopScopes::str() const {
-    return "Visibility=" + std::to_string(Visibility) +
+    return "Visibility=" + std::to_string((int) Visibility) +
            ", Constant=" + std::to_string(Constant);
 }
 
@@ -35,7 +35,7 @@ ASTTopDef::ASTTopDef(const SourceLocation &Loc, ASTNode *Node, ASTTopDefKind Kin
 }
 
 ASTTopDefKind ASTTopDef::getKind() const {
-    assert(Kind != DEF_NONE && "Invalid Kind");
+    assert(Kind != ASTTopDefKind::DEF_NONE && "Invalid Kind");
     return Kind;
 }
 
@@ -61,7 +61,7 @@ const std::string ASTTopDef::getComment() const {
 
 std::string ASTTopDef::str() const {
     return "ASTTopDef { Scopes=" + Scopes->str() +
-            ", Kind=" + std::to_string(Kind) +
+            ", Kind=" + std::to_string((int) Kind) +
             ", Comment=" + Comment +
             " }";
 }

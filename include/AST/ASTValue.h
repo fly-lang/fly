@@ -10,7 +10,6 @@
 #ifndef FLY_ASTVALUE_H
 #define FLY_ASTVALUE_H
 
-#include "AST/ASTType.h"
 #include <string>
 #include <vector>
 
@@ -18,7 +17,8 @@ namespace fly {
 
     class ASTType;
     class SourceLocation;
-    enum MacroTypeKind;
+
+    enum class MacroTypeKind;
 
     class ASTValue {
 

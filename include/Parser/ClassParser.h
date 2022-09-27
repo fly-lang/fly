@@ -11,14 +11,13 @@
 #ifndef FLY_CLASSPARSER_H
 #define FLY_CLASSPARSER_H
 
-#include "Parser.h"
-
 namespace fly {
 
     class ASTClass;
     class ASTClassScopes;
     class ASTClassField;
     class ASTClassMethod;
+    class Parser;
 
     class ClassParser {
 
@@ -30,7 +29,7 @@ namespace fly {
 
         bool Success = true;
 
-        ClassParser(Parser *P, ASTTopScopes *Scopes);
+        ClassParser(Parser *P, ASTTopScopes *TopScopes);
 
     public:
 
@@ -40,11 +39,11 @@ namespace fly {
 
         bool isField();
 
-        ASTClassField *ParseField();
+        ASTClassField *ParseField(ASTClassScopes *Scopes);
 
         bool isMethod();
 
-        ASTClassMethod *ParseMethod();
+        ASTClassMethod *ParseMethod(ASTClassScopes *Scopes);
     };
 }
 

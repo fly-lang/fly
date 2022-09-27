@@ -11,7 +11,6 @@
 #ifndef FLY_ASTCLASSFIELD_H
 #define FLY_ASTCLASSFIELD_H
 
-#include "ASTTopDef.h"
 #include "ASTVar.h"
 
 namespace fly {

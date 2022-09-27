@@ -49,6 +49,8 @@ namespace fly {
         // All invoked Calls
         llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> ExternalFunctions;
 
+        ASTClass *Class = nullptr;
+
         ASTNode() = delete;
 
         ~ASTNode();
@@ -68,6 +70,10 @@ namespace fly {
         const llvm::StringMap<ASTGlobalVar *> &getExternalGlobalVars() const;
 
         const llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> &getExternalFunctions() const;
+
+        const ASTClass *getClass() const;
+
+        virtual std::string str() const;
     };
 }
 

@@ -10,6 +10,8 @@
 #include "AST/ASTFunctionBase.h"
 #include "AST/ASTBlock.h"
 #include "AST/ASTParams.h"
+#include "AST/ASTType.h"
+
 #include <string>
 
 using namespace fly;
@@ -64,11 +66,11 @@ std::string ASTFunctionBase::str() const {
     return Str;
 }
 
-ASTReturn::ASTReturn(ASTBlock *Parent, const SourceLocation &Loc) : ASTExprStmt(Parent, Loc, STMT_RETURN) {
+ASTReturn::ASTReturn(ASTBlock *Parent, const SourceLocation &Loc) : ASTExprStmt(Parent, Loc, StmtKind::STMT_RETURN) {
 
 }
 
 std::string ASTReturn::str() const {
-    return "ASTReturn { Kind=" + std::to_string(Kind) +
+    return "ASTReturn { Kind=" + std::to_string((int) Kind) +
            " }";
 }

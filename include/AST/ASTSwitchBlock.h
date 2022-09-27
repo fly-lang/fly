@@ -10,7 +10,6 @@
 #ifndef FLY_ASTSWITCHBLOCK_H
 #define FLY_ASTSWITCHBLOCK_H
 
-
 #include "ASTBlock.h"
 
 namespace fly {
