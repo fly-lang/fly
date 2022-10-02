@@ -10,6 +10,10 @@
 #ifndef FLY_SEMA_H
 #define FLY_SEMA_H
 
+namespace llvm {
+    class StringRef;
+}
+
 namespace fly {
 
     class SemaBuilder;
@@ -18,6 +22,13 @@ namespace fly {
     class DiagnosticsEngine;
     class DiagnosticBuilder;
     class SourceLocation;
+    class ASTNameSpace;
+    class ASTNode;
+    class ASTClass;
+    class ASTFunctionBase;
+    class ASTLocalVar;
+    class ASTVarRef;
+    class ASTBlock;
 
     class Sema {
 
@@ -36,11 +47,24 @@ namespace fly {
 
     public:
 
-        static SemaBuilder* Build(DiagnosticsEngine &Diags);
+        static SemaBuilder* CreateBuilder(DiagnosticsEngine &Diags);
+
+        ASTNameSpace *FindNameSpace(llvm::StringRef Name) const;
+
+        ASTNameSpace *FindNameSpace(ASTFunctionBase *Base) const;
+
+        ASTNode *FindNode(ASTFunctionBase *Base) const;
+
+        ASTNode *FindNode(llvm::StringRef Name, ASTNameSpace *NameSpace) const;
+
+        ASTClass *FindClass(llvm::StringRef Name, ASTNameSpace *NameSpace) const;
+
+        ASTLocalVar *FindVarDef(ASTBlock *Block, ASTVarRef *VarRef) const;
 
         DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID) const;
 
         DiagnosticBuilder Diag(unsigned DiagID) const;
+
     };
 
 }  // end namespace fly

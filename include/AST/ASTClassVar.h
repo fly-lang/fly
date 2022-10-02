@@ -8,8 +8,8 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#ifndef FLY_ASTCLASSFIELD_H
-#define FLY_ASTCLASSFIELD_H
+#ifndef FLY_ASTCLASSVAR_H
+#define FLY_ASTCLASSVAR_H
 
 #include "ASTVar.h"
 
@@ -21,7 +21,7 @@ namespace fly {
     class ASTValue;
     class ASTVar;
 
-    class ASTClassField : public ASTVar {
+    class ASTClassVar : public ASTVar {
 
         friend class SemaBuilder;
         friend class SemaResolver;
@@ -30,12 +30,16 @@ namespace fly {
 
         const ASTClass *Class = nullptr;
 
+        std::string Comment;
+
         ASTClassScopes *Scopes = nullptr;
 
-        const ASTValue *Value = nullptr;
+        ASTExpr *Expr = nullptr;
 
-        ASTClassField(const SourceLocation &Loc, ASTClass *Class, ASTClassScopes *Scopes, ASTType *Type,
-                      std::string &Name);
+        CodeGenVar *CodeGen = nullptr;
+
+        ASTClassVar(const SourceLocation &Loc, ASTClass *Class, ASTClassScopes *Scopes, ASTType *Type,
+                    std::string &Name);
 
     public:
 
@@ -43,10 +47,16 @@ namespace fly {
 
         const ASTClass *getClass() const;
 
-        const ASTValue *getValue() const;
+        const std::string &getComment() const;
+
+        ASTClassScopes *getScopes() const;
+
+        ASTExpr *getExpr() const override;
+
+        CodeGenVar *getCodeGen() const override;
 
         virtual std::string str() const;
     };
 }
 
-#endif //FLY_ASTCLASSFIELD_H
+#endif //FLY_ASTCLASSVAR_H

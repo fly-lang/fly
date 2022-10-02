@@ -1,12 +1,12 @@
 add_library(FlyAST
         ASTBlock.cpp
         ASTClass.cpp
-        ASTClassField.cpp
+        ASTClassVar.cpp
         ASTClassMethod.cpp
         ASTContext.cpp
         ASTExpr.cpp
         ASTExprStmt.cpp
-        ASTClassField.cpp
+        ASTClassVar.cpp
         ASTForBlock.cpp
         ASTFunction.cpp
         ASTFunctionBase.cpp
@@ -27,6 +27,7 @@ add_library(FlyAST
         ASTValue.cpp
         ASTVar.cpp
         ASTVarAssign.cpp
+        ASTVarRef.cpp
         ASTWhileBlock.cpp
 )
 

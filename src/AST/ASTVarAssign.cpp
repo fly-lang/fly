@@ -10,6 +10,7 @@
 #include "AST/ASTVarAssign.h"
 #include "AST/ASTBlock.h"
 #include "AST/ASTVar.h"
+#include "AST/ASTVarRef.h"
 
 using namespace fly;
 

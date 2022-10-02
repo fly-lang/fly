@@ -14,8 +14,7 @@
 using namespace fly;
 
 ASTStmt::ASTStmt(ASTStmt *Parent, const SourceLocation &Loc, StmtKind Kind) :
-    Parent(Parent), Location(Loc), Kind(Kind) {
-
+        Top(Parent ? Parent->Top : nullptr), Parent(Parent), Location(Loc), Kind(Kind) {
 }
 
 ASTStmt *ASTStmt::getParent() const {

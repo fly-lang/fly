@@ -48,11 +48,14 @@ namespace fly {
     class CodeGenGlobalVar;
     class CodeGenFunction;
     class CodeGenCall;
+    class CodeGenClass;
+    class ASTClass;
 
     class CodeGenModule : public CodeGenTypeCache {
 
         friend class CodeGenGlobalVar;
         friend class CodeGenFunction;
+        friend class CodeGenClass;
         friend class CodeGenCall;
         friend class CodeGenLocalVar;
         friend class CodeGenExpr;
@@ -91,7 +94,9 @@ namespace fly {
 
         CodeGenGlobalVar *GenGlobalVar(ASTGlobalVar *GlobalVar, bool isExternal = false);
 
-        CodeGenFunction *GenFunction(ASTFunction *Func, bool isExternal = false);
+        CodeGenFunction *GenFunction(ASTFunction *Function, bool isExternal = false);
+
+        CodeGenClass *GenClass(ASTClass *Class, bool isExternal = false);
 
         CallInst *GenCall(llvm::Function *Fn, ASTFunctionCall *Call);
 

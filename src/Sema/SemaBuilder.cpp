@@ -27,7 +27,11 @@
 #include "AST/ASTSwitchBlock.h"
 #include "AST/ASTVar.h"
 #include "AST/ASTVarAssign.h"
+#include "AST/ASTVarRef.h"
 #include "AST/ASTValue.h"
+#include "AST/ASTClass.h"
+#include "AST/ASTClassVar.h"
+#include "AST/ASTClassFunction.h"
 #include "Basic/SourceLocation.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/Debug.h"
@@ -157,6 +161,17 @@ ASTClass *SemaBuilder::CreateClass(ASTNode *Node, const SourceLocation &Loc, con
 
 ASTClassScopes *SemaBuilder::CreateClassScopes(ASTClassVisibilityKind Visibility, bool Constant) {
     return new ASTClassScopes(Visibility, Constant);
+}
+
+ASTClassVar *SemaBuilder::CreateClassVar(ASTClass *Class, SourceLocation &Loc, ASTType *Type, std::string Name,
+                                         ASTClassScopes *Scopes) {
+    ASTClassVar *ClassVar = new ASTClassVar(Loc, Class, Scopes, Type, Name);
+    if (Class->Vars.insert(std::pair<std::string, ASTClassVar *>(Name, ClassVar)).second) {
+        return ClassVar;
+    }
+
+    S.Diag(Loc, diag::err_sema_class_field_redeclare);
+    return nullptr;
 }
 
 ASTBoolType *SemaBuilder::CreateBoolType(const SourceLocation &Loc) {
@@ -340,8 +355,21 @@ ASTVarRef *SemaBuilder::CreateVarRef(const SourceLocation &Loc, StringRef Name, 
     return VarRef;
 }
 
+ASTVarRef *SemaBuilder::CreateVarRef(const SourceLocation &Loc, StringRef Name, StringRef Class, StringRef NameSpace) {
+    ASTVarRef *VarRef = new ASTVarRef(Loc, std::string(Name), std::string(Class), std::string(NameSpace));
+    return VarRef;
+}
+
 ASTVarRef *SemaBuilder::CreateVarRef(ASTLocalVar *LocalVar) {
-    ASTVarRef *VarRef = new ASTVarRef(LocalVar->Location, LocalVar->Name);
+    assert(LocalVar->Top && "Var without a Top declaration");
+
+    ASTNameSpace *NameSpace = S.FindNameSpace(LocalVar->Top);
+    std::string Class = "";
+    if (LocalVar->Top->Kind == ASTFunctionKind::CLASS_FUNCTION) {
+        Class = ((ASTClassFunction *) LocalVar->Top)->getClass()->Name;
+    }
+    ASTVarRef *VarRef = new ASTVarRef(LocalVar->Location, LocalVar->Name, Class, NameSpace->getName());
+
     VarRef->Def = LocalVar;
     return VarRef;
 }
@@ -349,6 +377,12 @@ ASTVarRef *SemaBuilder::CreateVarRef(ASTLocalVar *LocalVar) {
 ASTVarRef *SemaBuilder::CreateVarRef(ASTGlobalVar *GlobalVar) {
     ASTVarRef *VarRef = new ASTVarRef(GlobalVar->Location, GlobalVar->Name, GlobalVar->NameSpace->getName());
     VarRef->Def = GlobalVar;
+    return VarRef;
+}
+
+ASTVarRef *SemaBuilder::CreateVarRef(ASTClassVar *ClassVar) {
+    ASTVarRef *VarRef = new ASTVarRef(ClassVar->getLocation(), ClassVar->Name, ClassVar->Class->NameSpace->getName());
+    VarRef->Def = ClassVar;
     return VarRef;
 }
 
@@ -707,11 +741,11 @@ bool SemaBuilder::AddParam(ASTParam *Param) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddExternalFunction",
                       "Param=" << Param->str());
     // TODO Check duplicate
-    Param->Function->Params->List.push_back(Param);
-    Param->Parent = Param->Function->Body;
+    Param->Top->Params->List.push_back(Param);
+    Param->Parent = Param->Top->Body;
 
-    Param->Function->LocalVars.push_back(Param); //Useful for Alloca into CodeGen
-    return Param->Function->Body->LocalVars
+    Param->Top->LocalVars.push_back(Param); //Useful for Alloca into CodeGen
+    return Param->Top->Body->LocalVars
         .insert(std::pair<std::string, ASTLocalVar *>(Param->getName(), Param)).second;
 }
 
@@ -719,15 +753,29 @@ void SemaBuilder::AddFunctionVarParams(ASTFunction *Function, ASTParam *Param) {
     Function->Params->Ellipsis = Param;
 }
 
-bool SemaBuilder::AddComment(ASTTopDef *Top, std::string &C) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "AddComment", "Top=" << Top->str() << ", Comment=" << C);
-    if (!C.empty()) {
-        const char *t = " \t\n\r\f\v";
-        C = C.substr(2, C.size() - 4);
-        C = C.erase(0, C.find_first_not_of(t)); // TODO Check
-        Top->Comment = C.erase(C.find_last_not_of(t) + 1);
-        return true;
+std::string getComment(std::string &C) {
+    if (C.empty()) {
+        return C;
     }
+    const char *t = " \t\n\r\f\v";
+    C = C.substr(2, C.size() - 4);
+    C = C.erase(0, C.find_first_not_of(t)); // TODO Check
+    return C.erase(C.find_last_not_of(t) + 1);
+}
+
+bool SemaBuilder::AddComment(ASTTopDef *Top, std::string &Comment) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "AddComment", "Top=" << Top->str() << ", Comment=" << Comment);
+    Top->Comment = getComment(Comment);
+    return true;
+}
+
+bool SemaBuilder::AddComment(ASTClassVar *Field, std::string &Comment) {
+    Field->Comment = getComment(Comment);
+    return true;
+}
+
+bool SemaBuilder::AddComment(ASTClassFunction *Method, std::string &Comment) {
+    Method->Comment = getComment(Comment);
     return true;
 }
 
@@ -907,4 +955,14 @@ bool SemaBuilder::AddBlock(ASTBlock *Block) {
             return true;
         }
     }
+}
+
+ASTClassVar *SemaBuilder::Access(ASTVar *Var, std::string Name) {
+    if (Var->Type->Kind == TypeKind::TYPE_CLASS) {
+        ASTClassVar *ClassVar = ((ASTClassType *) Var->Type)->getDef()->Vars.lookup(Name);
+        // TODO check error
+        return ClassVar;
+    }
+
+    return nullptr;
 }

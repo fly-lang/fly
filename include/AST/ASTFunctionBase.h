@@ -30,12 +30,19 @@ namespace fly {
     class CodeGenLocalVar;
     class CodeGenCall;
 
+    enum class ASTFunctionKind {
+        FUNCTION,
+        CLASS_FUNCTION
+    };
+
     class ASTFunctionBase {
 
         friend class SemaBuilder;
         friend class SemaResolver;
         friend class FunctionParser;
         friend class ASTParam;
+
+        ASTFunctionKind Kind;
 
         // Function return type
         ASTType *Type = nullptr;
@@ -57,9 +64,11 @@ namespace fly {
 
     protected:
 
-        ASTFunctionBase(ASTType *ReturnType, const std::string Name);
+        ASTFunctionBase(ASTFunctionKind Kind, ASTType *ReturnType, const std::string Name);
 
     public:
+
+        ASTFunctionKind getKind();
 
         ASTType *getType() const;
 

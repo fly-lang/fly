@@ -20,8 +20,9 @@
 
 namespace fly {
 
-    class ASTClassField;
-    class ASTClassMethod;
+    class ASTClassVar;
+    class ASTClassFunction;
+    class CodeGenClass;
 
     enum class ASTClassKind {
         CLASS_STRUCT,
@@ -67,10 +68,12 @@ namespace fly {
         ASTClassKind ClassKind;
 
         // Class Fields
-        llvm::StringMap<ASTClassField *> Fields;
+        llvm::StringMap<ASTClassVar *> Vars;
 
         // Class Methods
-        llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTClassMethod *, 4>>> Methods;
+        llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTClassFunction *, 4>>> Methods;
+
+        CodeGenClass *CodeGen = nullptr;
 
         ASTClass(const SourceLocation &Loc, ASTNode *Node, const std::string &Name, ASTTopScopes *Scopes);
 
@@ -80,9 +83,13 @@ namespace fly {
 
         ASTClassKind getClassKind() const;
 
-        llvm::StringMap<ASTClassField *> getFields() const;
+        llvm::StringMap<ASTClassVar *> getVars() const;
 
-        llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTClassMethod *, 4>>> getMethods() const;
+        llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTClassFunction *, 4>>> getMethods() const;
+
+        CodeGenClass *getCodeGen() const;
+
+        void setCodeGen(CodeGenClass *CGC);
 
         virtual std::string str() const;
 

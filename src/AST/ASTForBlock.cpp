@@ -13,7 +13,8 @@
 
 using namespace fly;
 
-ASTForBlock::ASTForBlock(ASTBlock *Parent, const SourceLocation &Loc) : ASTBlock(Parent, Loc, ASTBlockKind::BLOCK_FOR) {
+ASTForBlock::ASTForBlock(ASTBlock *Parent, const SourceLocation &Loc) :
+    ASTBlock(Parent, Loc, ASTBlockKind::BLOCK_FOR) {
 
 }
 

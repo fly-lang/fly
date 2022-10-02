@@ -7,29 +7,41 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "AST/ASTClassField.h"
+#include "AST/ASTClassVar.h"
 
 using namespace fly;
 
-ASTClassField::ASTClassField(const SourceLocation &Loc, ASTClass *Class, ASTClassScopes *Scopes, ASTType *Type,
-                             std::string &Name) :
+ASTClassVar::ASTClassVar(const SourceLocation &Loc, ASTClass *Class, ASTClassScopes *Scopes, ASTType *Type,
+                         std::string &Name) :
                              ASTVar(ASTVarKind::VAR_FIELD, Type, Name),
                              Loc(Loc), Class(Class), Scopes(Scopes) {
 
 }
 
-const SourceLocation &ASTClassField::getLocation() const {
+const SourceLocation &ASTClassVar::getLocation() const {
     return Loc;
 }
 
-const ASTClass *ASTClassField::getClass() const {
+const ASTClass *ASTClassVar::getClass() const {
     return Class;
 }
 
-const ASTValue *ASTClassField::getValue() const {
-    return Value;
+const std::string &ASTClassVar::getComment() const {
+    return Comment;
 }
 
-std::string ASTClassField::str() const {
+ASTClassScopes *ASTClassVar::getScopes() const {
+    return Scopes;
+}
+
+ASTExpr *ASTClassVar::getExpr() const {
+    return Expr;
+}
+
+CodeGenVar *ASTClassVar::getCodeGen() const {
+    return CodeGen;
+}
+
+std::string ASTClassVar::str() const {
     return ASTVar::str();
 }

@@ -8,8 +8,9 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTClass.h"
-#include "AST/ASTClassField.h"
-#include "AST/ASTClassMethod.h"
+#include "AST/ASTClassVar.h"
+#include "AST/ASTClassFunction.h"
+#include "CodeGen/CodeGenClass.h"
 
 using namespace fly;
 
@@ -45,18 +46,26 @@ ASTClassKind ASTClass::getClassKind() const {
     return ClassKind;
 }
 
-llvm::StringMap<ASTClassField *> ASTClass::getFields() const {
-    return Fields;
+llvm::StringMap<ASTClassVar *> ASTClass::getVars() const {
+    return Vars;
 }
 
-llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTClassMethod *, 4>>> ASTClass::getMethods() const {
+llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTClassFunction *, 4>>> ASTClass::getMethods() const {
     return Methods;
+}
+
+CodeGenClass *ASTClass::getCodeGen() const {
+    return CodeGen;
+}
+
+void ASTClass::setCodeGen(CodeGenClass *CGC) {
+    CodeGen = CGC;
 }
 
 std::string ASTClass::str() const {
     // Fields to string
     std::string StrFields;
-    for (auto &Field : Fields) {
+    for (auto &Field : Vars) {
         StrFields += Field.second->str() + ", ";
     }
     if (!StrFields.empty())

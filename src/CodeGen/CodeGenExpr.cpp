@@ -14,6 +14,7 @@
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTLocalVar.h"
 #include "AST/ASTExpr.h"
+#include "AST/ASTVarRef.h"
 #include "Basic/Debug.h"
 #include "llvm/IR/Value.h"
 

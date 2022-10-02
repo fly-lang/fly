@@ -10,6 +10,7 @@
 
 #include "AST/ASTExpr.h"
 #include "AST/ASTVar.h"
+#include "AST/ASTVarRef.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTFunctionCall.h"

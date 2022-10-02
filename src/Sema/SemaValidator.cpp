@@ -17,8 +17,8 @@
 #include "AST/ASTParams.h"
 #include "AST/ASTBlock.h"
 #include "AST/ASTValue.h"
-#include "AST/ASTVar.h"
 #include "AST/ASTVarAssign.h"
+#include "AST/ASTVarRef.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/Debug.h"
 
@@ -35,18 +35,21 @@ SemaValidator::SemaValidator(Sema &S) : S(S) {
  * @return
  */
 bool SemaValidator::CheckDuplicatedLocalVars(ASTStmt *Stmt, ASTLocalVar *LocalVar) {
-    if (Stmt->getKind() == StmtKind::STMT_BLOCK) {
-        ASTBlock *Block = (ASTBlock *) Stmt;
-        if (Block->getLocalVars().find(LocalVar->getName()) != Block->getLocalVars().end()) {
-            S.Diag(LocalVar->getLocation(), diag::err_conflict_vardecl) << LocalVar->getName();
-            return true;
-        }
-        return Block->getParent() && CheckDuplicatedLocalVars(Stmt->getParent(), LocalVar);
+    if (Stmt->getKind() != StmtKind::STMT_BLOCK) {
+        // Error: need stmt block, cannot search duplicate var
+        return false;
     }
+
+    ASTBlock *Block = (ASTBlock *) Stmt;
+    if (Block->getLocalVars().find(LocalVar->getName()) != Block->getLocalVars().end()) {
+        S.Diag(LocalVar->getLocation(), diag::err_conflict_vardecl) << LocalVar->getName();
+        return true;
+    }
+    return Block->getParent() && CheckDuplicatedLocalVars(Stmt->getParent(), LocalVar);
 }
 
 bool SemaValidator::CheckUndef(ASTBlock *Block, ASTVarRef *VarRef) {
-    if (Block->getUndefVars().find(VarRef->getName()) != Block->getUndefVars().end()) {
+    if (!VarRef->getDef() && Block->getUndefVars().find(VarRef->getName()) != Block->getUndefVars().end()) {
         S.Diag(VarRef->getLocation(), diag::err_undef_var) << VarRef->getName();
         return false;
     }

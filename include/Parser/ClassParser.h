@@ -15,8 +15,8 @@ namespace fly {
 
     class ASTClass;
     class ASTClassScopes;
-    class ASTClassField;
-    class ASTClassMethod;
+    class ASTClassVar;
+    class ASTClassFunction;
     class Parser;
 
     class ClassParser {
@@ -39,11 +39,11 @@ namespace fly {
 
         bool isField();
 
-        ASTClassField *ParseField(ASTClassScopes *Scopes);
+        bool ParseField(ASTClassScopes *Scopes, ASTType *Type);
 
         bool isMethod();
 
-        ASTClassMethod *ParseMethod(ASTClassScopes *Scopes);
+        bool ParseMethod(ASTClassScopes *Scopes, ASTType *Type);
     };
 }
 

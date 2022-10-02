@@ -38,29 +38,3 @@ std::string ASTVar::str() const {
            "Name=" + Name + ", " +
            "VarKind=" + std::to_string((int) VarKind);
 }
-
-ASTVarRef::ASTVarRef(const SourceLocation &Loc, const std::string Name, const std::string NameSpace) :
-        Loc(Loc), NameSpace(NameSpace), Name(Name) {
-
-}
-
-const std::string ASTVarRef::getName() const {
-    return Name;
-}
-
-ASTVar *ASTVarRef::getDef() const {
-    return Def;
-}
-
-const std::string ASTVarRef::getNameSpace() const {
-    return NameSpace;
-}
-
-const SourceLocation &ASTVarRef::getLocation() const {
-    return Loc;
-}
-
-std::string ASTVarRef::str() const {
-    return "{ Name=" + Name + ", " +
-           "NameSpace=" + NameSpace + " }";
-}

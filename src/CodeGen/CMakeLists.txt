@@ -1,6 +1,7 @@
 add_library(FlyCodeGen
         BackendUtil.cpp
         CodeGen.cpp
+        CodeGenClass.cpp
         CodeGenExpr.cpp
         CodeGenFunction.cpp
         CodeGenGlobalVar.cpp

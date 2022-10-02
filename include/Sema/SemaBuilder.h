@@ -11,6 +11,7 @@
 #define FLY_SEMA_BUILDER_H
 
 #include "AST/ASTClass.h"
+#include "AST/ASTVar.h"
 
 namespace fly {
 
@@ -27,8 +28,8 @@ namespace fly {
     class ASTTopScopes;
     class ASTClass;
     class ASTClassScopes;
-    class ASTClassField;
-    class ASTClassMethod;
+    class ASTClassVar;
+    class ASTClassFunction;
     class ASTGlobalVar;
     class ASTFunction;
     class ASTFunctionCall;
@@ -90,6 +91,7 @@ namespace fly {
 
     class SemaBuilder {
 
+        friend class Sema;
         friend class SemaResolver;
 
         Sema &S;
@@ -119,6 +121,9 @@ namespace fly {
         ASTClass *CreateClass(ASTNode *Node, const SourceLocation &Loc, const std::string &Name,
                               ASTTopScopes *Scopes);
         static ASTClassScopes *CreateClassScopes(ASTClassVisibilityKind Visibility, bool Constant);
+        ASTClassVar *CreateClassVar(ASTClass *Class, SourceLocation &Loc, ASTType *Type, std::string Name,
+                                    ASTClassScopes *Scopes);
+        ASTClassVar *CreateClassMethods();
 
         // Create Types
         static ASTBoolType *CreateBoolType(const SourceLocation &Loc);
@@ -160,8 +165,10 @@ namespace fly {
 
         // Create Var References
         ASTVarRef *CreateVarRef(const SourceLocation &Loc, StringRef Name, StringRef NameSpace);
+        ASTVarRef *CreateVarRef(const SourceLocation &Loc, StringRef Name, StringRef Class, StringRef NameSpace);
         ASTVarRef *CreateVarRef(ASTLocalVar *LocalVar);
         ASTVarRef *CreateVarRef(ASTGlobalVar *GlobalVar);
+        ASTVarRef *CreateVarRef(ASTClassVar *ClassVar);
 
         // Create Expressions
         ASTEmptyExpr *CreateExpr(ASTStmt *Stmt);
@@ -204,6 +211,8 @@ namespace fly {
         bool AddParam(ASTParam *Param);
         void AddFunctionVarParams(ASTFunction *Function, ASTParam *Param); // TODO
         bool AddComment(ASTTopDef *Top, std::string &Comment);
+        bool AddComment(ASTClassVar *Field, std::string &Comment);
+        bool AddComment(ASTClassFunction *Method, std::string &Comment);
         bool AddExternalGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar);
         bool AddExternalFunction(ASTNode *Node, ASTFunction *Function);
 
@@ -214,6 +223,9 @@ namespace fly {
         // Add Stmt
         bool AddStmt(ASTStmt *Stmt);
         bool AddBlock(ASTBlock *Block);
+
+        // Object operators
+        ASTClassVar *Access(ASTVar *Var, std::string Name);
 
     private:
         bool AddExpr(ASTStmt *Stmt, ASTExpr *Expr);

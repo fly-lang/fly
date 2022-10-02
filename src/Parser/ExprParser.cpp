@@ -9,6 +9,7 @@
 
 #include "Parser/ExprParser.h"
 #include "AST/ASTVar.h"
+#include "AST/ASTVarRef.h"
 #include "Sema/SemaBuilder.h"
 #include "Basic/Debug.h"
 

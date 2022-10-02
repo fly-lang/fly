@@ -16,8 +16,8 @@
 
 using namespace fly;
 
-ASTFunctionBase::ASTFunctionBase(ASTType *ReturnType, const std::string Name) :
-        Type(ReturnType), Name(Name) {
+ASTFunctionBase::ASTFunctionBase(ASTFunctionKind Kind, ASTType *ReturnType, const std::string Name) :
+        Kind(Kind), Type(ReturnType), Name(Name) {
 
 }
 
@@ -31,6 +31,10 @@ const ASTBlock *ASTFunctionBase::getBody() const {
 
 const ASTParams *ASTFunctionBase::getParams() const {
     return Params;
+}
+
+ASTFunctionKind ASTFunctionBase::getKind() {
+    return Kind;
 }
 
 ASTType *ASTFunctionBase::getType() const {
@@ -66,7 +70,8 @@ std::string ASTFunctionBase::str() const {
     return Str;
 }
 
-ASTReturn::ASTReturn(ASTBlock *Parent, const SourceLocation &Loc) : ASTExprStmt(Parent, Loc, StmtKind::STMT_RETURN) {
+ASTReturn::ASTReturn(ASTBlock *Parent, const SourceLocation &Loc) :
+        ASTExprStmt(Parent, Loc, StmtKind::STMT_RETURN) {
 
 }
 

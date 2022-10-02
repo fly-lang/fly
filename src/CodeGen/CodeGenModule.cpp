@@ -15,6 +15,7 @@
 #include "CodeGen/CodeGenModule.h"
 #include "CodeGen/CharUnits.h"
 #include "CodeGen/CodeGenFunction.h"
+#include "CodeGen/CodeGenClass.h"
 #include "CodeGen/CodeGenGlobalVar.h"
 #include "CodeGen/CodeGenLocalVar.h"
 #include "CodeGen/CodeGenExpr.h"
@@ -33,6 +34,7 @@
 #include "AST/ASTForBlock.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTVarAssign.h"
+#include "AST/ASTVarRef.h"
 #include "Basic/Debug.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/IR/GlobalVariable.h"
@@ -125,12 +127,20 @@ CodeGenGlobalVar *CodeGenModule::GenGlobalVar(ASTGlobalVar* GlobalVar, bool isEx
     return nullptr; // Error occurs
 }
 
-CodeGenFunction *CodeGenModule::GenFunction(ASTFunction *Func, bool isExternal) {
+CodeGenFunction *CodeGenModule::GenFunction(ASTFunction *Function, bool isExternal) {
     FLY_DEBUG_MESSAGE("CodeGenModule", "AddFunction",
-                      "Func=" << Func->str() << ", isExternal=" << isExternal);
-    CodeGenFunction *CGF = new CodeGenFunction(this, Func, isExternal);
-    Func->setCodeGen(CGF);
+                      "Function=" << Function->str() << ", isExternal=" << isExternal);
+    CodeGenFunction *CGF = new CodeGenFunction(this, Function, isExternal);
+    Function->setCodeGen(CGF);
     return CGF;
+}
+
+CodeGenClass *CodeGenModule::GenClass(ASTClass *Class, bool isExternal) {
+    FLY_DEBUG_MESSAGE("CodeGenModule", "AddFunction",
+                      "Class=" << Class->str() << ", isExternal=" << isExternal);
+    CodeGenClass *CGC = new CodeGenClass(this, Class, isExternal);
+    Class->setCodeGen(CGC);
+    return CGC;
 }
 
 CallInst *CodeGenModule::GenCall(llvm::Function *Fn, ASTFunctionCall *Call) {

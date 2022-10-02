@@ -7,24 +7,32 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "AST/ASTClassMethod.h"
+#include "AST/ASTClassFunction.h"
 
 using namespace fly;
 
-ASTClassMethod::ASTClassMethod(const SourceLocation &Loc, ASTClass *Class, ASTClassScopes *Scopes, ASTType *Type,
-                               std::string &Name) :
-                               ASTFunctionBase(Type, Name), Loc(Loc), Class(Class), Scopes(Scopes)  {
+ASTClassFunction::ASTClassFunction(const SourceLocation &Loc, ASTClass *Class, ASTClassScopes *Scopes, ASTType *Type,
+                                   std::string &Name) :
+        ASTFunctionBase(ASTFunctionKind::CLASS_FUNCTION, Type, Name), Loc(Loc), Class(Class), Scopes(Scopes)  {
 
 }
 
-const SourceLocation &ASTClassMethod::getLocation() const {
+const SourceLocation &ASTClassFunction::getLocation() const {
     return Loc;
 }
 
-const ASTClass *ASTClassMethod::getClass() const {
+ASTClass *ASTClassFunction::getClass() const {
     return Class;
 }
 
-std::string ASTClassMethod::str() const {
+const std::string &ASTClassFunction::getComment() const {
+    return Comment;
+}
+
+ASTClassScopes *ASTClassFunction::getScopes() const {
+    return Scopes;
+}
+
+std::string ASTClassFunction::str() const {
     return ASTFunctionBase::str();
 }

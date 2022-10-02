@@ -17,7 +17,14 @@
 
 namespace fly {
 
-    class SourceLocation;
+    class ASTType;
+    class ASTValue;
+    class ASTVarRef;
+    class ASTFunctionCall;
+    class ASTVarRefExpr;
+    class ASTFunctionCallExpr;
+    class ASTValueExpr;
+    class ASTStmt;
 
     enum class ASTExprKind : char {
         EXPR_EMPTY,
@@ -80,15 +87,6 @@ namespace fly {
     enum TernaryOpKind {
         CONDITION
     };
-
-    class ASTType;
-    class ASTValue;
-    class ASTVarRef;
-    class ASTFunctionCall;
-    class ASTVarRefExpr;
-    class ASTFunctionCallExpr;
-    class ASTValueExpr;
-    class ASTStmt;
 
     /**
      * Expression Abstract Class

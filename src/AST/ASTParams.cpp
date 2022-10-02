@@ -22,7 +22,7 @@
 using namespace fly;
 
 ASTParam::ASTParam(ASTFunctionBase *Function, const SourceLocation &Loc, ASTType *Type, const std::string Name, bool Constant) :
-        ASTLocalVar(Function->Body, Loc, Type, Name, Constant), Function(Function) {
+        ASTLocalVar(Function->Body, Loc, Type, Name, Constant) {
 
 }
 

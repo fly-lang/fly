@@ -51,7 +51,7 @@ bool Frontend::Execute() {
                CI.getFrontendOptions().ShowTimers);
 
     // Parse files, create AST, build Semantics checker
-    SemaBuilder *Builder = Sema::Build(Diags);
+    SemaBuilder *Builder = Sema::CreateBuilder(Diags);
     std::vector<FrontendAction *> Actions = ParseActions(CG, *Builder);
     if (!Actions.empty() && Builder->Build()) {
 

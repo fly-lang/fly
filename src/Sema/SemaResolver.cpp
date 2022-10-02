@@ -12,7 +12,7 @@
 #include "Sema/SemaBuilder.h"
 #include "Sema/SemaValidator.h"
 #include "AST/ASTContext.h"
-#include "AST/ASTClassMethod.h"
+#include "AST/ASTClassFunction.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTNode.h"
 #include "AST/ASTIfBlock.h"
@@ -28,10 +28,14 @@
 #include "AST/ASTValue.h"
 #include "AST/ASTVar.h"
 #include "AST/ASTVarAssign.h"
+#include "AST/ASTVarRef.h"
 #include "CodeGen/CodeGen.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/Debug.h"
+
 #include "llvm/ADT/StringMap.h"
+
+#include <string>
 
 using namespace fly;
 
@@ -58,7 +62,7 @@ bool SemaResolver::Resolve() {
     // Now all Imports must be read
     for(auto &Import : S.Builder->Context->ExternalImports) {
         if (!Import.getValue()->getNameSpace()) {
-            Diag(Import.getValue()->getNameLocation(), diag::err_unresolved_import);
+            S.Diag(Import.getValue()->getNameLocation(), diag::err_unresolved_import);
             return false;
         }
     }
@@ -90,7 +94,7 @@ bool SemaResolver::ResolveImports(ASTNode *Node) {
         } else {
             // Error: NameSpace not found
             Success = false;
-            Diag(Import->NameLocation, diag::err_namespace_notfound) << Import->getName();
+            S.Diag(Import->NameLocation, diag::err_namespace_notfound) << Import->getName();
         }
     }
 
@@ -159,6 +163,7 @@ bool SemaResolver::ResolveBlock(ASTBlock *Block) {
                 break;
             case StmtKind::STMT_VAR_DEFINE: {
                 ASTLocalVar *LocalVar = ((ASTLocalVar *) Stmt);
+                Success &= ResolveType(LocalVar->getType());
                 if (LocalVar->getExpr())
                     Success &= ResolveExpr(LocalVar->getExpr());
                 break;
@@ -168,7 +173,7 @@ bool SemaResolver::ResolveBlock(ASTBlock *Block) {
 
                 // Error: Expr cannot be null
                 if (!VarAssign->getExpr()) {
-                    Diag(VarAssign->getLocation(), diag::err_var_assign_empty) << VarAssign->getVarRef()->getName();
+                    S.Diag(VarAssign->getLocation(), diag::err_var_assign_empty) << VarAssign->getVarRef()->getName();
                     return false;
                 }
 
@@ -236,11 +241,30 @@ bool SemaResolver::ResolveForBlock(ASTForBlock *ForBlock) {
     return Success;
 }
 
+bool SemaResolver::ResolveType(ASTType * Type) {
+    ASTClassType * ClassType;
+    if (Type->isClass())
+        ClassType = (ASTClassType *) Type;
+    if (Type->isArray() && ((ASTArrayType *) Type)->getType()->isArray())
+        ClassType = ((ASTClassType *) ((ASTArrayType *) Type)->getType());
+    else
+        return true;
+
+    ASTNameSpace *NameSpace = S.FindNameSpace(ClassType->getNameSpace());
+    ASTClass *Class = S.FindClass(ClassType->getName(), NameSpace);
+    if (!Class) {
+        S.Diag(ClassType->getLocation(), diag::err_unref_type);
+        return false;
+    }
+
+    return true;
+}
+
 bool SemaResolver::ResolveFunctionCall(ASTFunctionCall *Call) {
     if (!Call->Def) {
         ASTBlock *Block = getBlock(Call->Stmt);
 
-        const auto &Node = Block->getTop()->getNode();
+        const auto &Node = S.FindNode(Block->getTop());
         ASTImport *Import;
         llvm::StringMapIterator<std::map<uint64_t, llvm::SmallVector<ASTFunction *, 4>>> StrMapIt;
         llvm::StringMapIterator<std::map<uint64_t, llvm::SmallVector<ASTFunction *, 4>>> NotExists;
@@ -282,7 +306,7 @@ bool SemaResolver::ResolveFunctionCall(ASTFunctionCall *Call) {
             }
         }
 
-        Diag(Call->getLocation(), diag::err_unref_call);
+        S.Diag(Call->getLocation(), diag::err_unref_call);
         return false;
     }
     
@@ -305,7 +329,7 @@ bool SemaResolver::ResolveArg(ASTArg *Arg, ASTParam *Param) {
  */
 bool SemaResolver::ResolveVarRef(ASTBlock *Block, ASTVarRef *VarRef) {
     FLY_DEBUG_MESSAGE("Sema", "ResolveVarRef", "VarRef=" << VarRef->str());
-    // Search into parameters
+    // Search into parameters // FIXME ?? Already present into Block->LocalVars
     for (auto &Param : Block->getTop()->getParams()->getList()) {
         if (VarRef->getName() == Param->getName()) {
             // Resolve with Param
@@ -317,12 +341,12 @@ bool SemaResolver::ResolveVarRef(ASTBlock *Block, ASTVarRef *VarRef) {
     // If VarRef is not resolved with parameters, search into Block declarations
     if (!VarRef->getDef()) {
         // Search recursively into current Block or in one of Parents
-        ASTLocalVar *LocalVar = FindVarDef(Block, VarRef);
+        ASTLocalVar *LocalVar = S.FindVarDef(Block, VarRef);
         // Check if var declaration var is resolved
         if (LocalVar) {
             VarRef->Def = LocalVar; // Resolved
         } else {
-            const auto &Node = Block->getTop()->getNode();
+            const auto &Node = S.FindNode(Block->getTop());
             ASTImport *Import;
             if (VarRef->getNameSpace().empty()) {
                 // Find in current Node
@@ -338,10 +362,11 @@ bool SemaResolver::ResolveVarRef(ASTBlock *Block, ASTVarRef *VarRef) {
             // Error: check unreferenced var
             // VarRef not found in node, namespace and node imports
             if (!VarRef->Def) {
-                Diag(VarRef->getLocation(), diag::err_unref_var);
+                S.Diag(VarRef->getLocation(), diag::err_unref_var);
                 return false;
             }
 
+            Block->UndefVars.erase(VarRef->getName());
             return true;
         }
     }
@@ -356,7 +381,7 @@ bool SemaResolver::ResolveVarRef(ASTBlock *Block, ASTVarRef *VarRef) {
         return true;
     }
 
-    Diag(VarRef->getLocation(), diag::err_undef_var);
+    S.Diag(VarRef->getLocation(), diag::err_undef_var);
     return false;
 }
 
@@ -377,8 +402,7 @@ bool SemaResolver::ResolveExpr(ASTExpr *Expr) {
         case ASTExprKind::EXPR_REF_VAR: {
             ASTBlock *Block = getBlock(Expr->getStmt());
             ASTVarRef *VarRef = ((ASTVarRefExpr *)Expr)->getVarRef();
-            if (S.Validator->CheckUndef(Block, VarRef) &&
-                   (VarRef->getDef() || ResolveVarRef(Block, VarRef))) {
+            if (S.Validator->CheckUndef(Block, VarRef) && (VarRef->getDef() || ResolveVarRef(Block, VarRef))) {
                 Expr->Type = VarRef->Def->Type;
                 Success = true;
                 break;
@@ -409,13 +433,13 @@ bool SemaResolver::ResolveExpr(ASTExpr *Expr) {
 
                     if (Binary->First->Kind == ASTExprKind::EXPR_EMPTY) {
                         // Error: Binary cannot contain ASTEmptyExpr
-                        Diag(Binary->First->Loc, diag::err_sema_empty_expr);
+                        S.Diag(Binary->First->Loc, diag::err_sema_empty_expr);
                         return false;
                     }
 
                     if (Binary->First->Kind == ASTExprKind::EXPR_EMPTY) {
                         // Error: Binary cannot contain ASTEmptyExpr
-                        Diag(Binary->First->Loc, diag::err_sema_empty_expr);
+                        S.Diag(Binary->First->Loc, diag::err_sema_empty_expr);
                         return false;
                     }
 
@@ -484,7 +508,7 @@ bool SemaResolver::ResolveExpr(ASTExpr *Expr) {
                                     }
                                 }
 
-                                Diag(Binary->OpLoc, diag::err_sema_types_comparable)
+                                S.Diag(Binary->OpLoc, diag::err_sema_types_comparable)
                                         << Binary->First->Type->print()
                                         << Binary->Second->Type->print();
                                 return false;
@@ -531,7 +555,7 @@ bool SemaResolver::ResolveValueExpr(ASTValueExpr *Expr) {
             if (Integer->Negative) { // Integer is negative (Ex. -2)
 
                 if (Integer->Value > MIN_LONG) { // Negative Integer overflow min value
-                    Diag(Expr->getLocation(), diag::err_sema_int_min_overflow);
+                    S.Diag(Expr->getLocation(), diag::err_sema_int_min_overflow);
                     return false;
                 }
 
@@ -545,7 +569,7 @@ bool SemaResolver::ResolveValueExpr(ASTValueExpr *Expr) {
             } else { // Positive Integer
 
                 if (Integer->Value > MAX_LONG) { // Positive Integer overflow max value
-                    Diag(Expr->getLocation(), diag::err_sema_int_max_overflow);
+                    S.Diag(Expr->getLocation(), diag::err_sema_int_max_overflow);
                     return false;
                 }
 
@@ -568,8 +592,10 @@ bool SemaResolver::ResolveValueExpr(ASTValueExpr *Expr) {
             break;
         
         case MacroTypeKind::MACRO_TYPE_ARRAY:
+            // TODO
             break;
         case MacroTypeKind::MACRO_TYPE_CLASS:
+            // TODO
             break;
     }
     
@@ -637,45 +663,4 @@ ASTType *SemaResolver::getType(ASTStmt *Stmt) {
 
     assert("This Stmt not contains an ASTType");
     return nullptr;
-}
-
-/**
- * Search a VarRef into declared Block's vars
- * If found set LocalVar
- * @param Block
- * @param LocalVar
- * @param VarRef
- * @return the found LocalVar
- */
-ASTLocalVar *SemaResolver::FindVarDef(ASTBlock *Block, ASTVarRef *VarRef) {
-    FLY_DEBUG_MESSAGE("SemaResolver", "FindVarDef", "VarRef=" << VarRef->str());
-    const auto &It = Block->getLocalVars().find(VarRef->getName());
-    if (It != Block->getLocalVars().end()) { // Search into this Block
-        FLY_DEBUG_MESSAGE("Sema", "FindVarDef", "Found=" << It->getValue()->str());
-        return It->getValue();
-    } else if (Block->getParent()) { // Traverse Parent Block to find the right VarDeclStmt
-        if (Block->Parent->Kind == StmtKind::STMT_BLOCK)
-            return FindVarDef((ASTBlock *) Block->getParent(), VarRef);
-    }
-    return nullptr;
-}
-
-/**
- * Write Diagnostics
- * @param Loc
- * @param DiagID
- * @return
- */
-DiagnosticBuilder SemaResolver::Diag(SourceLocation Loc, unsigned DiagID) const {
-    return S.Diag(Loc, DiagID);
-}
-
-/**
- * Write Diagnostics
- * @param Loc
- * @param DiagID
- * @return
- */
-DiagnosticBuilder SemaResolver::Diag(unsigned DiagID) const {
-    return S.Diag(DiagID);
 }

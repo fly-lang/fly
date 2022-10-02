@@ -11,6 +11,7 @@
 #include "AST/ASTUnref.h"
 #include "AST/ASTNode.h"
 #include "AST/ASTVar.h"
+#include "AST/ASTVarRef.h"
 #include "AST/ASTFunctionCall.h"
 
 using namespace fly;

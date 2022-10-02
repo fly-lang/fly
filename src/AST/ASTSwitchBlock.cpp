@@ -12,12 +12,13 @@
 
 using namespace fly;
 
-ASTExpr *ASTSwitchBlock::getExpr() const {
-    return Expr;
+ASTSwitchBlock::ASTSwitchBlock(ASTBlock *Parent, const SourceLocation &Loc) :
+        ASTBlock(Parent, Loc, ASTBlockKind::BLOCK_SWITCH) {
+
 }
 
-ASTSwitchBlock::ASTSwitchBlock(ASTBlock *Parent, const SourceLocation &Loc) : ASTBlock(Parent, Loc, ASTBlockKind::BLOCK_SWITCH) {
-
+ASTExpr *ASTSwitchBlock::getExpr() const {
+    return Expr;
 }
 
 ASTBlock *ASTSwitchBlock::getParent() const {

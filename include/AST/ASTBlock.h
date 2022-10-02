@@ -12,13 +12,16 @@
 #define FLY_ASTBLOCK_H
 
 #include "ASTExprStmt.h"
+
 #include "llvm/ADT/StringMap.h"
+
 #include <vector>
 
 namespace fly {
 
     class DiagnosticBuilder;
     class ASTReturn;
+    class ASTFunctionBase;
     class ASTFunctionCall;
     class ASTLocalVar;
     class ASTVarAssign;
@@ -69,15 +72,13 @@ namespace fly {
 
     protected:
 
-        ASTFunction *Top = nullptr;
-
         ASTBlock(ASTBlock *Parent, const SourceLocation &Loc);
 
         ASTBlock(ASTBlock *Parent, const SourceLocation &Loc, ASTBlockKind Kind);
 
     public:
 
-        ASTFunction *getTop() const;
+        ASTFunctionBase *getTop() const;
 
         ASTBlockKind getBlockKind() const;
 

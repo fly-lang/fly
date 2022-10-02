@@ -30,7 +30,7 @@ namespace fly {
 
     class ASTExpr;
     class ASTBlock;
-    class ASTFunction;
+    class ASTFunctionBase;
 
     class ASTStmt {
 
@@ -42,6 +42,8 @@ namespace fly {
         const SourceLocation Location;
 
         ASTStmt *Parent = nullptr;
+
+        ASTFunctionBase *Top = nullptr;
 
         StmtKind Kind;
 

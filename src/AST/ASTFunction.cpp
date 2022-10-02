@@ -15,7 +15,7 @@ using namespace fly;
 ASTFunction::ASTFunction(const SourceLocation &Loc, ASTNode *Node, ASTType *ReturnType, const std::string Name,
                          ASTTopScopes *Scopes) :
         ASTTopDef(Loc, Node, ASTTopDefKind::DEF_FUNCTION, Scopes),
-        ASTFunctionBase(ReturnType, Name) {
+        ASTFunctionBase(ASTFunctionKind::FUNCTION, ReturnType, Name) {
 
 }
 

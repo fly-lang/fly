@@ -20,7 +20,7 @@ namespace fly {
 
     class ASTType;
     class CodeGenCall;
-    class ASTFunctionCall;
+    class ASTFunction;
     class ASTParam;
     class ASTArg;
 

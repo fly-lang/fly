@@ -10,6 +10,10 @@
 #ifndef FLY_SEMA_RESOLVER_H
 #define FLY_SEMA_RESOLVER_H
 
+namespace llvm {
+    class StringRef;
+}
+
 namespace fly {
 
     class Sema;
@@ -35,6 +39,7 @@ namespace fly {
     class ASTSwitchBlock;
     class ASTWhileBlock;
     class ASTForBlock;
+    class ASTClassType;
 
     class SemaResolver {
 
@@ -66,6 +71,8 @@ namespace fly {
 
         bool ResolveForBlock(ASTForBlock *ForBlock);
 
+        bool ResolveType(ASTType * Type);
+
         bool ResolveFunctionCall(ASTFunctionCall *Call);
 
         bool ResolveArg(ASTArg *Arg, ASTParam *Param);
@@ -80,11 +87,6 @@ namespace fly {
 
         ASTType *getType(ASTStmt *Stmt);
 
-        ASTLocalVar *FindVarDef(ASTBlock *Block, ASTVarRef *VarRef);
-
-        DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID) const;
-
-        DiagnosticBuilder Diag(unsigned DiagID) const;
     };
 
 }  // end namespace fly

@@ -12,6 +12,7 @@
 #include "CodeGen/CodeGenModule.h"
 #include "CodeGen/CodeGenGlobalVar.h"
 #include "CodeGen/CodeGenFunction.h"
+#include "CodeGen/CodeGenClass.h"
 #include "Sema/Sema.h"
 #include "Sema/SemaBuilder.h"
 #include "AST/ASTNode.h"
@@ -27,6 +28,9 @@
 #include "AST/ASTSwitchBlock.h"
 #include "AST/ASTWhileBlock.h"
 #include "AST/ASTForBlock.h"
+#include "AST/ASTClass.h"
+#include "AST/ASTClassVar.h"
+#include "AST/ASTClassFunction.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/SourceLocation.h"
 #include "Basic/TargetOptions.h"
@@ -67,7 +71,7 @@ namespace {
                 CG(TestUtils::CreateCodeGen(CI)),
                 CGM(CG->CreateModule("CodeGenTest")),
                 Diags(CI.getDiagnostics()),
-                Builder(Sema::Build(CI.getDiagnostics())),
+                Builder(Sema::CreateBuilder(CI.getDiagnostics())),
                 BoolType(SemaBuilder::CreateBoolType(SourceLoc)),
                 ByteType(SemaBuilder::CreateByteType(SourceLoc)),
                 ShortType(SemaBuilder::CreateShortType(SourceLoc)),
@@ -1839,6 +1843,75 @@ namespace {
                           "  %6 = load i32, i32* %1, align 4\n"
                           "  ret i32 %6\n"
                           "}\n");
+    }
+
+    TEST_F(CodeGenTest, CGClassStruct) {
+        ASTNode *Node = CreateNode();
+
+        // TestClass {
+        //   int a
+        //   public int b
+        //   private const int c
+        // }
+        ASTClass *TestClass = Builder->CreateClass(Node, SourceLoc, "TestClass",
+                                                   SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false));
+        Builder->CreateClassVar(TestClass, SourceLoc, SemaBuilder::CreateIntType(SourceLoc),
+                                "a",
+                                SemaBuilder::CreateClassScopes(
+                                        ASTClassVisibilityKind::CLASS_V_DEFAULT, false));
+        Builder->CreateClassVar(TestClass, SourceLoc, SemaBuilder::CreateIntType(SourceLoc),
+                                "b",
+                                SemaBuilder::CreateClassScopes(
+                                        ASTClassVisibilityKind::CLASS_V_PUBLIC, false));
+        Builder->CreateClassVar(TestClass, SourceLoc, SemaBuilder::CreateIntType(SourceLoc),
+                                "c",
+                                SemaBuilder::CreateClassScopes(
+                                        ASTClassVisibilityKind::CLASS_V_PRIVATE, true));
+
+        // main()
+        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",
+                                                      SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlock *Body = Builder->getBlock(MainFn);
+
+        // TestClass test;
+        ASTType *TestClassType = SemaBuilder::CreateClassType(TestClass);
+        ASTLocalVar *TestVar = Builder->CreateLocalVar(Body, SourceLoc, TestClassType, "test");
+
+        // int a = test.a
+        ASTClassVar *aField = Builder->Access(TestVar, "a");
+        ASTType *aType = aField->getType();
+        ASTLocalVar *aVar = Builder->CreateLocalVar(Body, SourceLoc, aType, "a");
+        ASTVarRefExpr *aRefExpr = Builder->CreateExpr(aVar, Builder->CreateVarRef(aField));
+
+        // int b = test.b
+        ASTClassVar *bField = Builder->Access(TestVar, "b");
+        ASTType *bType = SemaBuilder::CreateIntType(SourceLoc);
+        ASTLocalVar *bVar = Builder->CreateLocalVar(Body, SourceLoc, bType, "b");
+        ASTVarRefExpr *bRefExpr = Builder->CreateExpr(aVar, Builder->CreateVarRef(aField));
+
+        // int c = test.c
+        ASTClassVar *cField = Builder->Access(TestVar, "c");
+        ASTType *cType = SemaBuilder::CreateIntType(SourceLoc);
+        ASTLocalVar *cVar = Builder->CreateLocalVar(Body, SourceLoc, cType, "c");
+        ASTVarRefExpr *cRefExpr = Builder->CreateExpr(aVar, Builder->CreateVarRef(aField));
+
+        // Add to Node
+        EXPECT_TRUE(Builder->AddFunction(Node, MainFn));
+        EXPECT_TRUE(Builder->AddNode(Node));
+        EXPECT_TRUE(Builder->Build());
+
+        // Generate Code
+        CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+        CGF->GenBody();
+        Function *F = CGF->getFunction();
+
+        EXPECT_FALSE(Diags.hasErrorOccurred());
+        testing::internal::CaptureStdout();
+        CGM->Module->print(llvm::outs(), nullptr);
+        std::string output = testing::internal::GetCapturedStdout();
+
+        EXPECT_EQ(output, "%default_TestClass = type { i32, i32, i32 }\n"
+                          );
     }
 
 } // anonymous namespace

@@ -9,9 +9,9 @@
 
 #include "TestUtils.h"
 #include "Frontend/FrontendAction.h"
+#include "Frontend/CompilerInstance.h"
 #include "Parser/Parser.h"
 #include "Sema/SemaBuilder.h"
-#include "Frontend/CompilerInstance.h"
 #include "AST/ASTContext.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTNode.h"
@@ -21,6 +21,7 @@
 #include "AST/ASTFunctionCall.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTVarAssign.h"
+#include "AST/ASTVarRef.h"
 #include "AST/ASTParams.h"
 #include "AST/ASTWhileBlock.h"
 #include "AST/ASTClass.h"
@@ -28,6 +29,9 @@
 #include "AST/ASTSwitchBlock.h"
 #include "AST/ASTWhileBlock.h"
 #include "AST/ASTForBlock.h"
+#include "AST/ASTClass.h"
+#include "AST/ASTClassVar.h"
+#include "AST/ASTClassFunction.h"
 #include "Sema/Sema.h"
 #include "Sema/SemaBuilder.h"
 
@@ -49,7 +53,7 @@ namespace {
 
         ParserTest() : CI(*TestUtils::CreateCompilerInstance()),
                       Diags(CI.getDiagnostics()),
-                      Builder(Sema::Build(CI.getDiagnostics())) {
+                      Builder(Sema::CreateBuilder(CI.getDiagnostics())) {
             Diags.getClient()->BeginSourceFile();
         }
 
@@ -1151,15 +1155,25 @@ namespace {
         ASSERT_TRUE(ClassTest != NSClassess.end());
     }
 
-    TEST_F(ParserTest, DISABLED_ClassFields) {
+    TEST_F(ParserTest, ClassFields) {
         llvm::StringRef str = ("public Test {\n"
                                "  int a = 1\n"
                                "  public int b = 2\n"
-                               "  public const int c\n"
+                               "  private const int c\n"
                                "}\n");
-        ASTNode *Node = Parse("ClassEmpty", str);
+        ASTNode *Node = Parse("ClassFields", str);
         ASSERT_TRUE(isSuccess());
 
-        EXPECT_FALSE(Node->getClass()->getFields().empty());
+        EXPECT_FALSE(Node->getClass()->getVars().empty());
+        EXPECT_EQ(Node->getClass()->getVars().size(), 3);
+        ASTClassVar *aVar = Node->getClass()->getVars().find("a")->getValue();
+        EXPECT_EQ(aVar->getScopes()->getVisibility(), ASTClassVisibilityKind::CLASS_V_DEFAULT);
+        EXPECT_FALSE(aVar->getScopes()->isConstant());
+        ASTClassVar *bVar = Node->getClass()->getVars().find("b")->getValue();
+        EXPECT_EQ(bVar->getScopes()->getVisibility(), ASTClassVisibilityKind::CLASS_V_PUBLIC);
+        EXPECT_FALSE(bVar->getScopes()->isConstant());
+        ASTClassVar *cVar = Node->getClass()->getVars().find("c")->getValue();
+        EXPECT_EQ(cVar->getScopes()->getVisibility(), ASTClassVisibilityKind::CLASS_V_PRIVATE);
+        EXPECT_TRUE(cVar->getScopes()->isConstant());
     }
 }

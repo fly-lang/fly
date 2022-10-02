@@ -20,25 +20,31 @@ namespace fly {
     class ASTType;
     class ASTFunction;
 
-    class ASTClassMethod : public ASTFunctionBase {
+    class ASTClassFunction : public ASTFunctionBase {
 
         friend class SemaBuilder;
         friend class SemaResolver;
 
         const SourceLocation &Loc;
 
-        const ASTClass *Class = nullptr;
+        ASTClass *Class = nullptr;
+
+        std::string Comment;
 
         ASTClassScopes *Scopes = nullptr;
 
-        ASTClassMethod(const SourceLocation &Loc, ASTClass *Class, ASTClassScopes *Scopes, ASTType *Type,
-                       std::string &Name);
+        ASTClassFunction(const SourceLocation &Loc, ASTClass *Class, ASTClassScopes *Scopes, ASTType *Type,
+                         std::string &Name);
 
     public:
 
         const SourceLocation &getLocation() const;
 
-        const ASTClass *getClass() const;
+        ASTClass *getClass() const;
+
+        const std::string &getComment() const;
+
+        ASTClassScopes *getScopes() const;
 
         virtual std::string str() const;
 

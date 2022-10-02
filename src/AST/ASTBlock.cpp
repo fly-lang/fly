@@ -27,22 +27,20 @@ using namespace fly;
  * @param Top
  * @param Parent
  */
-ASTBlock::ASTBlock(ASTBlock *Parent, const SourceLocation &Loc) : ASTBlock(Parent, Loc, ASTBlockKind::BLOCK) {
+ASTBlock::ASTBlock(ASTBlock *Parent, const SourceLocation &Loc) :
+        ASTBlock(Parent, Loc, ASTBlockKind::BLOCK) {
 
 }
 
 ASTBlock::ASTBlock(ASTBlock *Parent, const SourceLocation &Loc, ASTBlockKind Kind) :
-    ASTStmt(Parent, Loc, StmtKind::STMT_BLOCK), BlockKind(Kind) {
-    if (Parent) {
-        Top = Parent->Top;
-    }
+        ASTStmt(Parent, Loc, StmtKind::STMT_BLOCK), BlockKind(Kind) {
 }
 
 /**
  * Get the ASTTopDef
  * @return
  */
-ASTFunction *ASTBlock::getTop() const {
+ASTFunctionBase *ASTBlock::getTop() const {
     return Top;
 }
 
@@ -96,7 +94,8 @@ std::string ASTBlock::str() const {
  * @param Loc
  * @param Parent
  */
-ASTBreak::ASTBreak(ASTBlock *Parent, const SourceLocation &Loc) : ASTStmt(Parent, Loc, StmtKind::STMT_BREAK) {
+ASTBreak::ASTBreak(ASTBlock *Parent, const SourceLocation &Loc) :
+        ASTStmt(Parent, Loc, StmtKind::STMT_BREAK) {
 
 }
 /**
@@ -112,7 +111,8 @@ std::string ASTBreak::str() const {
  * @param Loc
  * @param Parent
  */
-ASTContinue::ASTContinue(ASTBlock *Parent, const SourceLocation &Loc) : ASTStmt(Parent, Loc, StmtKind::STMT_CONTINUE) {
+ASTContinue::ASTContinue(ASTBlock *Parent, const SourceLocation &Loc) :
+        ASTStmt(Parent, Loc, StmtKind::STMT_CONTINUE) {
 
 }
 

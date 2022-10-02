@@ -30,15 +30,28 @@ ClassParser::ClassParser(Parser *P, ASTTopScopes *TopScopes) : P(P) {
     P->ConsumeToken();
 
     if (P->isBlockStart()) {
-        Class = P->Builder.CreateClass(P->Node, Loc, Name.str(), TopScopes);
         P->ConsumeBrace();
-        bool Closed = false;
+
+        Class = P->Builder.CreateClass(P->Node, Loc, Name.str(), TopScopes);
+        bool Continue;
         do {
+            // Parse Scopes
             ASTClassScopes *Scopes = ParseScopes();
+
+            // Parse Type
+            ASTType *Type = P->ParseType();
+            if (!Type) {
+                P->Diag(diag::err_parser_invalid_type);
+                Success = false;
+            }
+
+            Continue = false; // Continue loop if there is a field or a method
             if (isField()) {
-                Success = ParseField(Scopes);
+                Success &= ParseField(Scopes, Type);
+                Continue = true;
             } else if (isMethod()) {
-                Success = ParseMethod(Scopes);
+                Success &= ParseMethod(Scopes, Type);
+                Continue = true;
             }
 
             // End of the Class
@@ -51,8 +64,9 @@ ClassParser::ClassParser(Parser *P, ASTTopScopes *TopScopes) : P(P) {
             if (P->Tok.is(tok::eof)) {
                 Success = false;
                 P->Diag(P->Tok, diag::err_class_block_unclosed);
+                break;
             }
-        } while (Success);
+        } while (Continue);
     }
 }
 
@@ -115,7 +129,7 @@ bool ClassParser::isField() {
     return P->Tok.isAnyIdentifier();
 }
 
-ASTClassField *ClassParser::ParseField(ASTClassScopes *Scopes) {
+bool ClassParser::ParseField(ASTClassScopes *Scopes, ASTType *Type) {
     FLY_DEBUG("Parser", "ParseGlobalVar");
 
     assert(P->Tok.isAnyIdentifier() && "Tok must be an Identifier");
@@ -131,23 +145,25 @@ ASTClassField *ClassParser::ParseField(ASTClassScopes *Scopes) {
     llvm::StringRef Name = Id->getName();
     SourceLocation Loc = P->ConsumeToken();
 
-    //ASTClassField *Field = P->Builder.CreateClassField(Class, Loc, Type, Name.str(), Scopes);
+    ASTClassVar *Field = P->Builder.CreateClassVar(Class, Loc, Type, Name.str(), Scopes);
+    if (Field) {
+        // Parsing =
+        ASTExpr *Expr = nullptr;
+        if (P->isTokenAssign()) {
+            P->ConsumeToken();
+            Expr = P->ParseExpr();
+        }
 
-    // Parsing =
-    ASTExpr *Expr = nullptr;
-    if (P->isTokenAssign()) {
-        P->ConsumeToken();
-        Expr = P->ParseExpr();
+        return P->Builder.AddComment(Field, Comment);
     }
 
-//    return P->Builder.AddClassField(Node, GlobalVar, Expr) &&
-//            P->Builder.AddComment(GlobalVar, Comment);
+    return false;
 }
 
 bool ClassParser::isMethod() {
     return false;
 }
 
-ASTClassMethod *ClassParser::ParseMethod(ASTClassScopes *Scopes) {
-    return nullptr;
+bool ClassParser::ParseMethod(ASTClassScopes *Scopes, ASTType *Type) {
+    return false;
 }
