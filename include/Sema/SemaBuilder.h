@@ -224,9 +224,6 @@ namespace fly {
         bool AddStmt(ASTStmt *Stmt);
         bool AddBlock(ASTBlock *Block);
 
-        // Object operators
-        ASTClassVar *Access(ASTVar *Var, std::string Name);
-
     private:
         bool AddExpr(ASTStmt *Stmt, ASTExpr *Expr);
 

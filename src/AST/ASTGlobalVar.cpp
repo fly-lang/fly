@@ -41,6 +41,6 @@ std::string ASTGlobalVar::str() const {
     return "{ " + ASTVar::str() +
            ASTTopDef::str() +
            ", " + ASTVar::str() +
-        ", Expr= " + (Expr ? Expr->str() : "{}") +
-        " }";
+           ", Expr= " + (Expr ? Expr->str() : "{}") +
+           " }";
 }

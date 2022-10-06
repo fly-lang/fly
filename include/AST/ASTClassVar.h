@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTField.h - Field of a Struct
+// include/AST/ASTClass.h - The Attribute in a Class
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -20,6 +20,7 @@ namespace fly {
     class ASTType;
     class ASTValue;
     class ASTVar;
+    class CodeGenClassVar;
 
     class ASTClassVar : public ASTVar {
 
@@ -36,7 +37,7 @@ namespace fly {
 
         ASTExpr *Expr = nullptr;
 
-        CodeGenVar *CodeGen = nullptr;
+        CodeGenClassVar *CodeGen = nullptr;
 
         ASTClassVar(const SourceLocation &Loc, ASTClass *Class, ASTClassScopes *Scopes, ASTType *Type,
                     std::string &Name);
@@ -53,9 +54,11 @@ namespace fly {
 
         ASTExpr *getExpr() const override;
 
-        CodeGenVar *getCodeGen() const override;
+        CodeGenVarBase *getCodeGen() const override;
 
-        virtual std::string str() const;
+        void setCodeGen(CodeGenClassVar *CGV);
+
+        std::string str() const;
     };
 }
 

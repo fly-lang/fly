@@ -9,13 +9,20 @@ $_ZN4testC2Ev = comdat any
 
 ; Function Attrs: noinline norecurse nounwind optnone uwtable
 define dso_local i32 @main() #0 {
-  %1 = alloca %struct.test, align 4
-  call void @_ZN4testC2Ev(%struct.test* %1) #2
-  %2 = getelementptr inbounds %struct.test, %struct.test* %1, i32 0, i32 0
-  store i32 1, i32* %2, align 4
-  %3 = getelementptr inbounds %struct.test, %struct.test* %1, i32 0, i32 1
-  store i32 4, i32* %3, align 4
-  ret i32 0
+  %1 = alloca i32, align 4
+  %2 = alloca %struct.test, align 4
+  %3 = alloca i32, align 4
+  store i32 0, i32* %1, align 4
+  call void @_ZN4testC2Ev(%struct.test* %2) #2
+  store i32 1, i32* %3, align 4
+  %4 = load i32, i32* %3, align 4
+  %5 = getelementptr inbounds %struct.test, %struct.test* %2, i32 0, i32 0
+  store i32 %4, i32* %5, align 4
+  %6 = getelementptr inbounds %struct.test, %struct.test* %2, i32 0, i32 0
+  store i32 2, i32* %6, align 4
+  %7 = getelementptr inbounds %struct.test, %struct.test* %2, i32 0, i32 0
+  %8 = load i32, i32* %7, align 4
+  ret i32 %8
 }
 
 ; Function Attrs: noinline nounwind optnone uwtable

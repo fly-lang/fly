@@ -13,6 +13,8 @@
 #include "CodeGen/CodeGenGlobalVar.h"
 #include "CodeGen/CodeGenFunction.h"
 #include "CodeGen/CodeGenClass.h"
+#include "CodeGen/CodeGenClassFunction.h"
+#include "CodeGen/CodeGenClassVar.h"
 #include "Sema/Sema.h"
 #include "Sema/SemaBuilder.h"
 #include "AST/ASTNode.h"
@@ -169,76 +171,76 @@ namespace {
         std::string output;
 
         // a
-        GlobalVariable *aGVar = (GlobalVariable *)CGM->GenGlobalVar(aVar)->getPointer();
+        GlobalVariable *aGVar = (GlobalVariable *) CGM->GenGlobalVar(aVar)->getPointer();
         testing::internal::CaptureStdout();
         aGVar->print(llvm::outs());
         output = testing::internal::GetCapturedStdout();
         EXPECT_EQ(output, "@a = global i1 false");
 
         // b
-        GlobalVariable *bGVar = (GlobalVariable *)CGM->GenGlobalVar(bVar)->getPointer();
+        GlobalVariable *bGVar = (GlobalVariable *) CGM->GenGlobalVar(bVar)->getPointer();
         testing::internal::CaptureStdout();
         bGVar->print(llvm::outs());
         output = testing::internal::GetCapturedStdout();
         EXPECT_EQ(output, "@b = global i8 0");
 
         // c
-        GlobalVariable *cGVar = (GlobalVariable *)CGM->GenGlobalVar(cVar)->getPointer();
+        GlobalVariable *cGVar = (GlobalVariable *) CGM->GenGlobalVar(cVar)->getPointer();
         testing::internal::CaptureStdout();
         cGVar->print(llvm::outs());
         output = testing::internal::GetCapturedStdout();
         EXPECT_EQ(output, "@c = global i16 0");
 
         // d
-        GlobalVariable *dGVar = (GlobalVariable *)CGM->GenGlobalVar(dVar)->getPointer();
+        GlobalVariable *dGVar = (GlobalVariable *) CGM->GenGlobalVar(dVar)->getPointer();
         testing::internal::CaptureStdout();
         dGVar->print(llvm::outs());
         output = testing::internal::GetCapturedStdout();
         EXPECT_EQ(output, "@d = global i16 0");
 
         // e
-        GlobalVariable *eGVar = (GlobalVariable *)CGM->GenGlobalVar(eVar)->getPointer();
+        GlobalVariable *eGVar = (GlobalVariable *) CGM->GenGlobalVar(eVar)->getPointer();
         testing::internal::CaptureStdout();
         eGVar->print(llvm::outs());
         output = testing::internal::GetCapturedStdout();
         EXPECT_EQ(output, "@e = global i32 0");
 
         // f
-        GlobalVariable *fGVar = (GlobalVariable *)CGM->GenGlobalVar(fVar)->getPointer();
+        GlobalVariable *fGVar = (GlobalVariable *) CGM->GenGlobalVar(fVar)->getPointer();
         testing::internal::CaptureStdout();
         fGVar->print(llvm::outs());
         output = testing::internal::GetCapturedStdout();
         EXPECT_EQ(output, "@f = global i32 0");
 
         // g
-        GlobalVariable *gGVar = (GlobalVariable *)CGM->GenGlobalVar(gVar)->getPointer();
+        GlobalVariable *gGVar = (GlobalVariable *) CGM->GenGlobalVar(gVar)->getPointer();
         testing::internal::CaptureStdout();
         gGVar->print(llvm::outs());
         output = testing::internal::GetCapturedStdout();
         EXPECT_EQ(output, "@g = global i64 0");
 
         // h
-        GlobalVariable *hGVar = (GlobalVariable *)CGM->GenGlobalVar(hVar)->getPointer();
+        GlobalVariable *hGVar = (GlobalVariable *) CGM->GenGlobalVar(hVar)->getPointer();
         testing::internal::CaptureStdout();
         hGVar->print(llvm::outs());
         output = testing::internal::GetCapturedStdout();
         EXPECT_EQ(output, "@h = global i64 0");
 
         // i
-        GlobalVariable *iGVar = (GlobalVariable *)CGM->GenGlobalVar(iVar)->getPointer();
+        GlobalVariable *iGVar = (GlobalVariable *) CGM->GenGlobalVar(iVar)->getPointer();
         testing::internal::CaptureStdout();
         iGVar->print(llvm::outs());
         output = testing::internal::GetCapturedStdout();
         EXPECT_EQ(output, "@i = global float 0.000000e+00");
 
         // l
-        GlobalVariable *jGVar = (GlobalVariable *)CGM->GenGlobalVar(jVar)->getPointer();
+        GlobalVariable *jGVar = (GlobalVariable *) CGM->GenGlobalVar(jVar)->getPointer();
         testing::internal::CaptureStdout();
         jGVar->print(llvm::outs());
         output = testing::internal::GetCapturedStdout();
         EXPECT_EQ(output, "@j = global double 0.000000e+00");
 
-        GlobalVariable *kGVar = (GlobalVariable *)CGM->GenGlobalVar(kVar)->getPointer();
+        GlobalVariable *kGVar = (GlobalVariable *) CGM->GenGlobalVar(kVar)->getPointer();
         testing::internal::CaptureStdout();
         kGVar->print(llvm::outs());
         output = testing::internal::GetCapturedStdout();
@@ -319,82 +321,82 @@ namespace {
         std::string output;
 
         // a
-        GlobalVariable *aGVar = (GlobalVariable *)CGM->GenGlobalVar(aVar)->getPointer();
+        GlobalVariable *aGVar = (GlobalVariable *) CGM->GenGlobalVar(aVar)->getPointer();
         testing::internal::CaptureStdout();
         aGVar->print(llvm::outs());
         output = testing::internal::GetCapturedStdout();
         EXPECT_EQ(output, "@a = global i1 true");
 
         // b
-        GlobalVariable *bGVar = (GlobalVariable *)CGM->GenGlobalVar(bVar)->getPointer();
+        GlobalVariable *bGVar = (GlobalVariable *) CGM->GenGlobalVar(bVar)->getPointer();
         testing::internal::CaptureStdout();
         bGVar->print(llvm::outs());
         output = testing::internal::GetCapturedStdout();
         EXPECT_EQ(output, "@b = global i8 1");
 
         // c
-        GlobalVariable *cGVar = (GlobalVariable *)CGM->GenGlobalVar(cVar)->getPointer();
+        GlobalVariable *cGVar = (GlobalVariable *) CGM->GenGlobalVar(cVar)->getPointer();
         testing::internal::CaptureStdout();
         cGVar->print(llvm::outs());
         output = testing::internal::GetCapturedStdout();
         EXPECT_EQ(output, "@c = global i16 -2");
 
         // d
-        GlobalVariable *dGVar = (GlobalVariable *)CGM->GenGlobalVar(dVar)->getPointer();
+        GlobalVariable *dGVar = (GlobalVariable *) CGM->GenGlobalVar(dVar)->getPointer();
         testing::internal::CaptureStdout();
         dGVar->print(llvm::outs());
         output = testing::internal::GetCapturedStdout();
         EXPECT_EQ(output, "@d = global i16 2");
 
         // e
-        GlobalVariable *eGVar = (GlobalVariable *)CGM->GenGlobalVar(eVar)->getPointer();
+        GlobalVariable *eGVar = (GlobalVariable *) CGM->GenGlobalVar(eVar)->getPointer();
         testing::internal::CaptureStdout();
         eGVar->print(llvm::outs());
         output = testing::internal::GetCapturedStdout();
         EXPECT_EQ(output, "@e = global i32 -3");
 
         // f
-        GlobalVariable *fGVar = (GlobalVariable *)CGM->GenGlobalVar(fVar)->getPointer();
+        GlobalVariable *fGVar = (GlobalVariable *) CGM->GenGlobalVar(fVar)->getPointer();
         testing::internal::CaptureStdout();
         fGVar->print(llvm::outs());
         output = testing::internal::GetCapturedStdout();
         EXPECT_EQ(output, "@f = global i32 3");
 
         // g
-        GlobalVariable *gGVar = (GlobalVariable *)CGM->GenGlobalVar(gVar)->getPointer();
+        GlobalVariable *gGVar = (GlobalVariable *) CGM->GenGlobalVar(gVar)->getPointer();
         testing::internal::CaptureStdout();
         gGVar->print(llvm::outs());
         output = testing::internal::GetCapturedStdout();
         EXPECT_EQ(output, "@g = global i64 -4");
 
         // h
-        GlobalVariable *hGVar = (GlobalVariable *)CGM->GenGlobalVar(hVar)->getPointer();
+        GlobalVariable *hGVar = (GlobalVariable *) CGM->GenGlobalVar(hVar)->getPointer();
         testing::internal::CaptureStdout();
         hGVar->print(llvm::outs());
         output = testing::internal::GetCapturedStdout();
         EXPECT_EQ(output, "@h = global i64 4");
 
         // i
-        GlobalVariable *iGVar = (GlobalVariable *)CGM->GenGlobalVar(iVar)->getPointer();
+        GlobalVariable *iGVar = (GlobalVariable *) CGM->GenGlobalVar(iVar)->getPointer();
         testing::internal::CaptureStdout();
         iGVar->print(llvm::outs());
         output = testing::internal::GetCapturedStdout();
         EXPECT_EQ(output, "@i = global float 1.500000e+00");
 
         // j
-        GlobalVariable *jGVar = (GlobalVariable *)CGM->GenGlobalVar(jVar)->getPointer();
+        GlobalVariable *jGVar = (GlobalVariable *) CGM->GenGlobalVar(jVar)->getPointer();
         testing::internal::CaptureStdout();
         jGVar->print(llvm::outs());
         output = testing::internal::GetCapturedStdout();
         EXPECT_EQ(output, "@j = global double 2.500000e+00");
 
-        GlobalVariable *kGVar = (GlobalVariable *)CGM->GenGlobalVar(kVar)->getPointer();
+        GlobalVariable *kGVar = (GlobalVariable *) CGM->GenGlobalVar(kVar)->getPointer();
         testing::internal::CaptureStdout();
         kGVar->print(llvm::outs());
         output = testing::internal::GetCapturedStdout();
         EXPECT_EQ(output, "@k = global [0 x i32] zeroinitializer");
 
-        GlobalVariable *lGVar = (GlobalVariable *)CGM->GenGlobalVar(lVar)->getPointer();
+        GlobalVariable *lGVar = (GlobalVariable *) CGM->GenGlobalVar(lVar)->getPointer();
         testing::internal::CaptureStdout();
         lGVar->print(llvm::outs());
         output = testing::internal::GetCapturedStdout();
@@ -1855,15 +1857,15 @@ namespace {
         // }
         ASTClass *TestClass = Builder->CreateClass(Node, SourceLoc, "TestClass",
                                                    SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false));
-        Builder->CreateClassVar(TestClass, SourceLoc, SemaBuilder::CreateIntType(SourceLoc),
+        ASTClassVar *aField = Builder->CreateClassVar(TestClass, SourceLoc, SemaBuilder::CreateIntType(SourceLoc),
                                 "a",
                                 SemaBuilder::CreateClassScopes(
                                         ASTClassVisibilityKind::CLASS_V_DEFAULT, false));
-        Builder->CreateClassVar(TestClass, SourceLoc, SemaBuilder::CreateIntType(SourceLoc),
+        ASTClassVar *bField = Builder->CreateClassVar(TestClass, SourceLoc, SemaBuilder::CreateIntType(SourceLoc),
                                 "b",
                                 SemaBuilder::CreateClassScopes(
                                         ASTClassVisibilityKind::CLASS_V_PUBLIC, false));
-        Builder->CreateClassVar(TestClass, SourceLoc, SemaBuilder::CreateIntType(SourceLoc),
+        ASTClassVar *cField = Builder->CreateClassVar(TestClass, SourceLoc, SemaBuilder::CreateIntType(SourceLoc),
                                 "c",
                                 SemaBuilder::CreateClassScopes(
                                         ASTClassVisibilityKind::CLASS_V_PRIVATE, true));
@@ -1876,24 +1878,25 @@ namespace {
         // TestClass test;
         ASTType *TestClassType = SemaBuilder::CreateClassType(TestClass);
         ASTLocalVar *TestVar = Builder->CreateLocalVar(Body, SourceLoc, TestClassType, "test");
+        Builder->AddStmt(TestVar);
 
         // int a = test.a
-        ASTClassVar *aField = Builder->Access(TestVar, "a");
         ASTType *aType = aField->getType();
         ASTLocalVar *aVar = Builder->CreateLocalVar(Body, SourceLoc, aType, "a");
         ASTVarRefExpr *aRefExpr = Builder->CreateExpr(aVar, Builder->CreateVarRef(aField));
+        Builder->AddStmt(aVar);
 
         // int b = test.b
-        ASTClassVar *bField = Builder->Access(TestVar, "b");
         ASTType *bType = SemaBuilder::CreateIntType(SourceLoc);
         ASTLocalVar *bVar = Builder->CreateLocalVar(Body, SourceLoc, bType, "b");
-        ASTVarRefExpr *bRefExpr = Builder->CreateExpr(aVar, Builder->CreateVarRef(aField));
+        ASTVarRefExpr *bRefExpr = Builder->CreateExpr(bVar, Builder->CreateVarRef(bField));
+        Builder->AddStmt(bVar);
 
         // int c = test.c
-        ASTClassVar *cField = Builder->Access(TestVar, "c");
         ASTType *cType = SemaBuilder::CreateIntType(SourceLoc);
         ASTLocalVar *cVar = Builder->CreateLocalVar(Body, SourceLoc, cType, "c");
-        ASTVarRefExpr *cRefExpr = Builder->CreateExpr(aVar, Builder->CreateVarRef(aField));
+        ASTVarRefExpr *cRefExpr = Builder->CreateExpr(cVar, Builder->CreateVarRef(cField));
+        Builder->AddStmt(cVar);
 
         // Add to Node
         EXPECT_TRUE(Builder->AddFunction(Node, MainFn));
@@ -1901,17 +1904,33 @@ namespace {
         EXPECT_TRUE(Builder->Build());
 
         // Generate Code
+        CodeGenClass *CGC = CGM->GenClass(TestClass);
         CodeGenFunction *CGF = CGM->GenFunction(MainFn);
         CGF->GenBody();
         Function *F = CGF->getFunction();
 
         EXPECT_FALSE(Diags.hasErrorOccurred());
         testing::internal::CaptureStdout();
-        CGM->Module->print(llvm::outs(), nullptr);
+        F->print(llvm::outs());
+//        CGM->Module->print(llvm::outs(), nullptr);
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "%default_TestClass = type { i32, i32, i32 }\n"
-                          );
+        EXPECT_EQ(output, "define i32 @main() {\n"
+                            "entry:\n"
+                            "  %0 = alloca %TestClass, align 8\n"
+                            "  %1 = alloca i32, align 4\n"
+                            "  %2 = alloca i32, align 4\n"
+                            "  %3 = alloca i32, align 4\n"
+                            "  %4 = getelementptr inbounds %TestClass, %TestClass* %0, i32 0, i32 0\n"
+                            "  %5 = load i32, i32* %4, align 4\n"
+                            "  store i32 %5, i32* %1, align 4\n"
+                            "  %6 = getelementptr inbounds %TestClass, %TestClass* %0, i32 0, i32 1\n"
+                            "  %7 = load i32, i32* %6, align 4\n"
+                            "  store i32 %7, i32* %2, align 4\n"
+                            "  %8 = getelementptr inbounds %TestClass, %TestClass* %0, i32 0, i32 2\n"
+                            "  %9 = load i32, i32* %8, align 4\n"
+                            "  store i32 %9, i32* %3, align 4\n"
+                            "}\n");
     }
 
 } // anonymous namespace

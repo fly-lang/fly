@@ -8,14 +8,13 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "CodeGen/CodeGenFunction.h"
-#include "CodeGen/CodeGenLocalVar.h"
+#include "CodeGen/CodeGenVar.h"
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTParams.h"
 #include "AST/ASTLocalVar.h"
-#include "AST/ASTBlock.h"
 #include "Basic/Debug.h"
 #include "llvm/IR/DerivedTypes.h"
 
@@ -72,14 +71,14 @@ void CodeGenFunction::GenBody() {
 
     // Allocation of declared local vars
     for (auto &LocalVar: AST->getLocalVars()) {
-        LocalVar->setCodeGen(new CodeGenLocalVar(CGM, LocalVar));
-        LocalVar->getCodeGen()->Alloca();
+        LocalVar->setCodeGen(new CodeGenVar(CGM, LocalVar));
+        LocalVar->getCodeGen()->Init();
     }
 
     // Store Param Values
     int n = 0;
     for (auto &P: AST->getParams()->getList()) {
-        CodeGenLocalVar *CGV = P->getCodeGen();
+        CodeGenVar *CGV = P->getCodeGen();
         CGV->Store(Fn->getArg(n));
         if (P->getExpr()) {
             CGM->GenExpr(Fn, P->getType(), P->getExpr());

@@ -11,8 +11,12 @@
 #ifndef FLY_CODEGEN_CLASS_H
 #define FLY_CODEGEN_CLASS_H
 
+#include "CodeGenClassVar.h"
+#include "CodeGenClassFunction.h"
+
 namespace llvm {
-    class StringRef;
+    class StructType;
+    class AllocaInst;
 }
 
 namespace fly {
@@ -23,13 +27,17 @@ namespace fly {
     class CodeGenClass {
 
         CodeGenModule * CGM = nullptr;
+
         ASTClass *AST = nullptr;
 
+        llvm::StructType *Type = nullptr;
+
     public:
-        CodeGenClass(CodeGenModule *CGM, ASTClass *AST, bool isExternal = false);
+        CodeGenClass(CodeGenModule *CGM, ASTClass *Class, bool isExternal = false);
 
-//        const llvm::StringRef getName() const;
+        llvm::StructType *getType();
 
+        void InvokeDefaultConstructor(llvm::Value *Instance);
     };
 }
 

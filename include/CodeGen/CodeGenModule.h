@@ -56,8 +56,11 @@ namespace fly {
         friend class CodeGenGlobalVar;
         friend class CodeGenFunction;
         friend class CodeGenClass;
+        friend class CodeGenClassVar;
+        friend class CodeGenClassFunction;
         friend class CodeGenCall;
-        friend class CodeGenLocalVar;
+        friend class CodeGenStackVar;
+        friend class CodeGenVar;
         friend class CodeGenExpr;
 
         // Diagnostics
@@ -98,8 +101,6 @@ namespace fly {
 
         CodeGenClass *GenClass(ASTClass *Class, bool isExternal = false);
 
-        CallInst *GenCall(llvm::Function *Fn, ASTFunctionCall *Call);
-
         llvm::Type *GenType(const ASTType *Type);
 
         llvm::ArrayType *GenArrayType(const ASTArrayType *Type);
@@ -109,6 +110,8 @@ namespace fly {
         llvm::Constant *GenValue(const ASTType *Type, const ASTValue *Val);
 
         void GenStmt(llvm::Function *Fn, ASTStmt * Stmt);
+
+        CallInst *GenCall(llvm::Function *Fn, ASTFunctionCall *Call);
 
         llvm::Value *GenExpr(llvm::Function *Fn, const ASTType *Type, ASTExpr *Expr);
 

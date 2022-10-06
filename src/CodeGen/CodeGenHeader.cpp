@@ -96,6 +96,10 @@ void CodeGenHeader::AddFunction(ASTFunction *Func) {
     Functions.push_back(Func);
 }
 
+void CodeGenHeader::setClass(ASTClass *Class) {
+    this->Class = Class;
+}
+
 const std::string CodeGenHeader::Convert(ASTType *Type) {
     switch (Type->getKind()) {
         case TypeKind::TYPE_INT:

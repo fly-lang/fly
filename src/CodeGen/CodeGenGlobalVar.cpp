@@ -42,15 +42,17 @@ CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, ASTGlobalVar* AST, bool i
         std::string Id = CodeGen::toIdentifier(AST->getName(), AST->getNameSpace()->getName());
         GVar = new llvm::GlobalVariable(*CGM->Module, Ty, AST->getScopes()->isConstant(), Linkage, Const, Id);
     }
+}
+
+/**
+ * Need to be called on function body complete
+ */
+void CodeGenGlobalVar::Init() {
     needLoad = true;
 }
 
 llvm::Value *CodeGenGlobalVar::getPointer() {
     return GVar;
-}
-
-llvm::Value *CodeGenGlobalVar::getValue() {
-    return needLoad ? Load() : LoadI;
 }
 
 llvm::StoreInst *CodeGenGlobalVar::Store(llvm::Value *Val) {
@@ -60,15 +62,12 @@ llvm::StoreInst *CodeGenGlobalVar::Store(llvm::Value *Val) {
     return S;
 }
 
-llvm::LoadInst *CodeGenGlobalVar::Load() {
+llvm::Value *CodeGenGlobalVar::Load() {
     LoadI = CGM->Builder->CreateLoad(GVar);
     needLoad = false;
     return LoadI;
 }
 
-/**
- * Need to be called on function body complete
- */
-void CodeGenGlobalVar::Init() {
-    needLoad = true;
+llvm::Value *CodeGenGlobalVar::getValue() {
+    return needLoad ? Load() : LoadI;
 }

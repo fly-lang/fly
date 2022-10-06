@@ -8,13 +8,14 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTClassVar.h"
+#include "CodeGen/CodeGenClass.h"
 
 using namespace fly;
 
 ASTClassVar::ASTClassVar(const SourceLocation &Loc, ASTClass *Class, ASTClassScopes *Scopes, ASTType *Type,
                          std::string &Name) :
-                             ASTVar(ASTVarKind::VAR_FIELD, Type, Name),
-                             Loc(Loc), Class(Class), Scopes(Scopes) {
+        ASTVar(ASTVarKind::VAR_FIELD, Type, Name),
+        Loc(Loc), Class(Class), Scopes(Scopes) {
 
 }
 
@@ -38,8 +39,12 @@ ASTExpr *ASTClassVar::getExpr() const {
     return Expr;
 }
 
-CodeGenVar *ASTClassVar::getCodeGen() const {
+CodeGenVarBase *ASTClassVar::getCodeGen() const {
     return CodeGen;
+}
+
+void ASTClassVar::setCodeGen(CodeGenClassVar *CGCV) {
+    CodeGen = CGCV;
 }
 
 std::string ASTClassVar::str() const {

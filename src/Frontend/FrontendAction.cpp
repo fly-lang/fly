@@ -106,9 +106,6 @@ void FrontendAction::GenerateTopDef() {
     for (auto &FuncStrMap : Node->getFunctions()) {
         for (auto &FuncList : FuncStrMap.getValue()) {
             for (auto &Func : FuncList.second) {
-
-                FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode",
-                                  "Function=" << Func->str());
                 CodeGenFunction *CGF = CGM->GenFunction(Func);
                 CGFunctions.push_back(CGF);
                 if (FrontendOpts.CreateHeader) {
@@ -116,6 +113,11 @@ void FrontendAction::GenerateTopDef() {
                 }
             }
         }
+    }
+
+    CGClass = CGM->GenClass(Node->getClass());
+    if (FrontendOpts.CreateHeader) {
+        CGH->setClass(Node->getClass());
     }
 
     Diags.getClient()->EndSourceFile();

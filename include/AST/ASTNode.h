@@ -71,7 +71,7 @@ namespace fly {
 
         const llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> &getExternalFunctions() const;
 
-        const ASTClass *getClass() const;
+        ASTClass *getClass() const;
 
         virtual std::string str() const;
     };

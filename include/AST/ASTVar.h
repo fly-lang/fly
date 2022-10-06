@@ -18,7 +18,7 @@
 namespace fly {
 
     class SourceLocation;
-    class CodeGenVar;
+    class CodeGenVarBase;
     class ASTType;
     class ASTExpr;
 
@@ -60,7 +60,7 @@ namespace fly {
 
         virtual ASTExpr *getExpr() const = 0;
 
-        virtual CodeGenVar *getCodeGen() const = 0;
+        virtual CodeGenVarBase *getCodeGen() const = 0;
 
         virtual std::string str() const;
 

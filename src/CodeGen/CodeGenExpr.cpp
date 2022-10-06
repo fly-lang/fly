@@ -316,7 +316,7 @@ llvm::Value *CodeGenExpr::GenUnary(ASTUnaryGroupExpr *Expr) {
     assert(Expr->getGroupKind() == ASTExprGroupKind::GROUP_UNARY  && "Expected Unary Group Expr");
     assert(Expr->getFirst() && "Unary Expr empty");
 
-    CodeGenVar *CGVal = Expr->getFirst()->getVarRef()->getDef()->getCodeGen();
+    CodeGenVarBase *CGVal = Expr->getFirst()->getVarRef()->getDef()->getCodeGen();
     llvm::Value *OldVal = CGVal->getValue();
 
     // PRE or POST INCREMENT/DECREMENT

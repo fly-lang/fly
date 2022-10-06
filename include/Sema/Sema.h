@@ -25,9 +25,12 @@ namespace fly {
     class ASTNameSpace;
     class ASTNode;
     class ASTClass;
+    class ASTClassVar;
+    class ASTClassFunction;
     class ASTFunctionBase;
     class ASTLocalVar;
     class ASTVarRef;
+    class ASTVar;
     class ASTBlock;
 
     class Sema {
@@ -60,6 +63,8 @@ namespace fly {
         ASTClass *FindClass(llvm::StringRef Name, ASTNameSpace *NameSpace) const;
 
         ASTLocalVar *FindVarDef(ASTBlock *Block, ASTVarRef *VarRef) const;
+
+        ASTClassVar *FindClassVar(ASTVar *Var, llvm::StringRef Name);
 
         DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID) const;
 

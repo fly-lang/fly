@@ -8,8 +8,8 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#ifndef FLY_CODEGENEXPR_H
-#define FLY_CODEGENEXPR_H
+#ifndef FLY_CODEGEN_EXPR_H
+#define FLY_CODEGEN_EXPR_H
 
 #include "AST/ASTExpr.h"
 #include "CodeGenModule.h"
@@ -24,8 +24,6 @@ namespace fly {
         CodeGenModule * CGM = nullptr;
 
         llvm::Value *Val = nullptr;
-
-//        std::vector<llvm::Value *> PostValues;
 
         llvm::Function *Fn = nullptr;
 
@@ -57,4 +55,4 @@ namespace fly {
 }
 
 
-#endif //FLY_CODEGENEXPR_H
+#endif //FLY_CODEGEN_EXPR_H

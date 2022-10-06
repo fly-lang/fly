@@ -19,6 +19,7 @@ namespace fly {
     class ASTNameSpace;
     class ASTGlobalVar;
     class ASTFunction;
+    class ASTClass;
     class ASTType;
     class CodeGenOptions;
 
@@ -36,6 +37,8 @@ namespace fly {
 
         std::vector<ASTFunction *> Functions;
 
+        ASTClass *Class;
+
     public:
         CodeGenHeader(DiagnosticsEngine &Diags, CodeGenOptions &CodeGenOpts, std::string Name);
 
@@ -44,6 +47,8 @@ namespace fly {
         void AddGlobalVar(ASTGlobalVar *GlobalVar);
 
         void AddFunction(ASTFunction *Func);
+
+        void setClass(ASTClass *Class);
 
         const std::string Convert(ASTType *Type);
 

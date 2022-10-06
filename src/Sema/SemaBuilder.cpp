@@ -351,7 +351,7 @@ ASTExprStmt *SemaBuilder::CreateExprStmt(ASTBlock *Parent, const SourceLocation 
 }
 
 ASTVarRef *SemaBuilder::CreateVarRef(const SourceLocation &Loc, StringRef Name, StringRef NameSpace) {
-    ASTVarRef *VarRef = new ASTVarRef(Loc, std::string(Name), std::string(NameSpace));
+    ASTVarRef *VarRef = CreateVarRef(Loc, Name, "", NameSpace);
     return VarRef;
 }
 
@@ -368,20 +368,20 @@ ASTVarRef *SemaBuilder::CreateVarRef(ASTLocalVar *LocalVar) {
     if (LocalVar->Top->Kind == ASTFunctionKind::CLASS_FUNCTION) {
         Class = ((ASTClassFunction *) LocalVar->Top)->getClass()->Name;
     }
-    ASTVarRef *VarRef = new ASTVarRef(LocalVar->Location, LocalVar->Name, Class, NameSpace->getName());
+    ASTVarRef *VarRef = CreateVarRef(LocalVar->Location, LocalVar->Name, Class, NameSpace->getName());
 
     VarRef->Def = LocalVar;
     return VarRef;
 }
 
 ASTVarRef *SemaBuilder::CreateVarRef(ASTGlobalVar *GlobalVar) {
-    ASTVarRef *VarRef = new ASTVarRef(GlobalVar->Location, GlobalVar->Name, GlobalVar->NameSpace->getName());
+    ASTVarRef *VarRef = CreateVarRef(GlobalVar->Location, GlobalVar->Name, GlobalVar->NameSpace->getName());
     VarRef->Def = GlobalVar;
     return VarRef;
 }
 
 ASTVarRef *SemaBuilder::CreateVarRef(ASTClassVar *ClassVar) {
-    ASTVarRef *VarRef = new ASTVarRef(ClassVar->getLocation(), ClassVar->Name, ClassVar->Class->NameSpace->getName());
+    ASTVarRef *VarRef = CreateVarRef(ClassVar->getLocation(), ClassVar->Name, ClassVar->Class->Name, ClassVar->Class->NameSpace->getName());
     VarRef->Def = ClassVar;
     return VarRef;
 }
@@ -957,12 +957,4 @@ bool SemaBuilder::AddBlock(ASTBlock *Block) {
     }
 }
 
-ASTClassVar *SemaBuilder::Access(ASTVar *Var, std::string Name) {
-    if (Var->Type->Kind == TypeKind::TYPE_CLASS) {
-        ASTClassVar *ClassVar = ((ASTClassType *) Var->Type)->getDef()->Vars.lookup(Name);
-        // TODO check error
-        return ClassVar;
-    }
 
-    return nullptr;
-}

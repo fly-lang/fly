@@ -12,7 +12,7 @@
 
 #include "ASTExprStmt.h"
 #include "ASTVar.h"
-#include "CodeGen/CodeGenLocalVar.h"
+#include "CodeGen/CodeGenVar.h"
 
 namespace fly {
 
@@ -27,7 +27,7 @@ namespace fly {
         friend class SemaResolver;
 
         // LocalVar Code Generator
-        CodeGenLocalVar *CodeGen = nullptr;
+        CodeGenVar *CodeGen = nullptr;
 
         bool Constant = false;
 
@@ -41,9 +41,9 @@ namespace fly {
 
         ASTExpr *getExpr() const override;
 
-        CodeGenLocalVar *getCodeGen() const;
+        CodeGenVar *getCodeGen() const;
 
-        void setCodeGen(CodeGenLocalVar *CG);
+        void setCodeGen(CodeGenVar *CG);
 
         std::string str() const;
     };

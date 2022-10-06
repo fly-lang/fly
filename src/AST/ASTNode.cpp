@@ -58,7 +58,7 @@ const llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> 
     return ExternalFunctions;
 }
 
-const ASTClass *ASTNode::getClass() const {
+ASTClass *ASTNode::getClass() const {
     return Class;
 }
 

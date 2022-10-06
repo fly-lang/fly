@@ -17,7 +17,7 @@
 #include "CodeGen/CodeGenFunction.h"
 #include "CodeGen/CodeGenClass.h"
 #include "CodeGen/CodeGenGlobalVar.h"
-#include "CodeGen/CodeGenLocalVar.h"
+#include "CodeGen/CodeGenVar.h"
 #include "CodeGen/CodeGenExpr.h"
 #include "Sema/SemaBuilder.h"
 #include "AST/ASTImport.h"
@@ -143,23 +143,138 @@ CodeGenClass *CodeGenModule::GenClass(ASTClass *Class, bool isExternal) {
     return CGC;
 }
 
-CallInst *CodeGenModule::GenCall(llvm::Function *Fn, ASTFunctionCall *Call) {
-    FLY_DEBUG_MESSAGE("CodeGenModule", "GenCall",
-                      "Call=" << Call->str());
-    // Check if Func is declared
-    if (Call->getDef() == nullptr) {
-        Diag(Call->getLocation(), diag::err_unref_call) << Call->getName();
-        return nullptr;
+
+llvm::Type *CodeGenModule::GenType(const ASTType *Type) {
+    FLY_DEBUG("CodeGenModule", "GenType");
+    // Check Type
+    switch (Type->getKind()) {
+
+        case TypeKind::TYPE_VOID:
+            return VoidTy;
+        case TypeKind::TYPE_BOOL:
+            return BoolTy;
+        case TypeKind::TYPE_BYTE:
+            return Int8Ty;
+        case TypeKind::TYPE_USHORT:
+        case TypeKind::TYPE_SHORT:
+            return Int16Ty;
+        case TypeKind::TYPE_UINT:
+        case TypeKind::TYPE_INT:
+            return Int32Ty;
+        case TypeKind::TYPE_ULONG:
+        case TypeKind::TYPE_LONG:
+            return Int64Ty;
+        case TypeKind::TYPE_FLOAT:
+            return FloatTy;
+        case TypeKind::TYPE_DOUBLE:
+            return DoubleTy;
+        case TypeKind::TYPE_ARRAY: {
+            return GenArrayType((ASTArrayType *) Type);
+        }
+        case TypeKind::TYPE_CLASS: {
+            ASTClass *Class = ((ASTClassType *) Type)->getDef();
+            assert(Class && "Unreferenced Class Type");
+            assert(Class->getCodeGen() && "Empty Class CodeGen");
+            return Class->getCodeGen()->getType();
+        }
+
+    }
+    assert(0 && "Unknown Var Type Kind");
+}
+
+llvm::ArrayType *CodeGenModule::GenArrayType(const ASTArrayType *ArrayType) {
+    llvm::Type *SubType = GenType(ArrayType->getType());
+    if (ArrayType->getSize()->getExprKind() == ASTExprKind::EXPR_VALUE) {
+        ASTValueExpr *SizeExpr = (ASTValueExpr *) ArrayType->getSize();
+        ASTIntegerValue &SizeValue = (ASTIntegerValue &) SizeExpr->getValue();
+        return llvm::ArrayType::get(SubType, SizeValue.getValue());
     }
 
-    const std::vector<ASTParam *> &Params = Call->getDef()->getParams()->getList();
-    llvm::SmallVector<llvm::Value *, 8> Args;
-    for (ASTArg *Arg : Call->getArgs()) {
-        Value *V = GenExpr(Fn, Arg->getDef()->getType(), Arg->getExpr());
-        Args.push_back(V);
+    assert("Array Size error");
+}
+
+llvm::Constant *CodeGenModule::GenDefaultValue(const ASTType *Type, llvm::Type *Ty) {
+    FLY_DEBUG("CodeGenModule", "GenDefaultValue");
+    assert(Type->getKind() != TypeKind::TYPE_VOID && "No default value for Void Type");
+    switch (Type->getKind()) {
+        case TypeKind::TYPE_BOOL:
+            return llvm::ConstantInt::get(BoolTy, 0, false);
+        case TypeKind::TYPE_BYTE:
+            return llvm::ConstantInt::get(Int8Ty, 0, false);
+        case TypeKind::TYPE_USHORT:
+            return llvm::ConstantInt::get(Int32Ty, 0, false);
+        case TypeKind::TYPE_SHORT:
+            return llvm::ConstantInt::get(Int32Ty, 0, true);
+        case TypeKind::TYPE_UINT:
+            return llvm::ConstantInt::get(Int32Ty, 0, false);
+        case TypeKind::TYPE_INT:
+            return llvm::ConstantInt::get(Int32Ty, 0, true);
+        case TypeKind::TYPE_ULONG:
+            return llvm::ConstantInt::get(Int64Ty, 0, false);
+        case TypeKind::TYPE_LONG:
+            return llvm::ConstantInt::get(Int64Ty, 0, true);
+        case TypeKind::TYPE_FLOAT:
+            return llvm::ConstantFP::get(FloatTy, 0.0);
+        case TypeKind::TYPE_DOUBLE:
+            return llvm::ConstantFP::get(DoubleTy, 0.0);
+        case TypeKind::TYPE_ARRAY:
+            return ConstantAggregateZero::get(Ty);
+        case TypeKind::TYPE_CLASS:
+            return nullptr; // TODO
     }
-    CodeGenFunction *CGF = Call->getDef()->getCodeGen();
-    return Builder->CreateCall(CGF->getFunction(), Args);
+    assert(0 && "Unknown Type");
+}
+
+/**
+ * Generate a LLVM Constant Value
+ * @param Type is the parsed ASTType
+ * @param Val need to be correctly configured or you need to call GenDefaultValue()
+ * @return
+ */
+llvm::Constant *CodeGenModule::GenValue(const ASTType *Type, const ASTValue *Val) {
+    FLY_DEBUG("CodeGenModule", "GenValue");
+    assert(Type && "Type has to be not empty");
+    assert(Val && "Value has to be not empty");
+
+    //TODO value conversion from Val->getType() to TypeBase (if are different)
+
+    switch (Type->getKind()) {
+        case TypeKind::TYPE_BOOL:
+            return llvm::ConstantInt::get(BoolTy, ((ASTBoolValue *)Val)->getValue(), false);
+        case TypeKind::TYPE_BYTE:
+            return llvm::ConstantInt::get(Int8Ty, ((ASTIntegerValue *) Val)->getValue(), false);
+        case TypeKind::TYPE_USHORT:
+            return llvm::ConstantInt::get(Int16Ty, ((ASTIntegerValue *) Val)->getValue(), false);
+        case TypeKind::TYPE_SHORT:
+            return llvm::ConstantInt::get(Int16Ty, ((ASTIntegerValue *) Val)->getValue(), true);
+        case TypeKind::TYPE_UINT:
+            return llvm::ConstantInt::get(Int32Ty, ((ASTIntegerValue *) Val)->getValue(), false);
+        case TypeKind::TYPE_INT:
+            return llvm::ConstantInt::get(Int32Ty, ((ASTIntegerValue *) Val)->getValue(), true);
+        case TypeKind::TYPE_ULONG:
+            return llvm::ConstantInt::get(Int64Ty, ((ASTIntegerValue *) Val)->getValue(), false);
+        case TypeKind::TYPE_LONG:
+            return llvm::ConstantInt::get(Int64Ty, ((ASTIntegerValue *) Val)->getValue(), true);
+        case TypeKind::TYPE_FLOAT:
+            return llvm::ConstantFP::get(FloatTy, ((ASTFloatingValue *) Val)->getValue());
+        case TypeKind::TYPE_DOUBLE:
+            return llvm::ConstantFP::get(DoubleTy, ((ASTFloatingValue *) Val)->getValue());
+        case TypeKind::TYPE_ARRAY: {
+            llvm::ArrayType *ArrType = GenArrayType((ASTArrayType *) Type);
+            std::vector<llvm::Constant *> Values;
+            for (ASTValue *Value : ((ASTArrayValue *) Val)->getValues()) {
+                llvm::Constant * V = GenValue(((ASTArrayType *) Type)->getType(), Value);
+                Values.push_back(V);
+            }
+            return llvm::ConstantArray::get(ArrType, makeArrayRef(Values));
+        }
+        case TypeKind::TYPE_CLASS:
+            break;
+        case TypeKind::TYPE_VOID:
+            // FIXME
+            break;
+    }
+    assert(0 && "Unknown Type");
 }
 
 void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
@@ -258,131 +373,23 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
     }
 }
 
-llvm::Type *CodeGenModule::GenType(const ASTType *Type) {
-    FLY_DEBUG("CodeGenModule", "GenType");
-    // Check Type
-    switch (Type->getKind()) {
-
-        case TypeKind::TYPE_VOID:
-            return VoidTy;
-        case TypeKind::TYPE_BOOL:
-            return BoolTy;
-        case TypeKind::TYPE_BYTE:
-            return Int8Ty;
-        case TypeKind::TYPE_USHORT:
-        case TypeKind::TYPE_SHORT:
-            return Int16Ty;
-        case TypeKind::TYPE_UINT:
-        case TypeKind::TYPE_INT:
-            return Int32Ty;
-        case TypeKind::TYPE_ULONG:
-        case TypeKind::TYPE_LONG:
-            return Int64Ty;
-        case TypeKind::TYPE_FLOAT:
-            return FloatTy;
-        case TypeKind::TYPE_DOUBLE:
-            return DoubleTy;
-        case TypeKind::TYPE_ARRAY: {
-            return GenArrayType((ASTArrayType *) Type);
-        }
-
-    }
-    assert(0 && "Unknown Var Type Kind");
-}
-
-llvm::ArrayType *CodeGenModule::GenArrayType(const ASTArrayType *ArrayType) {
-    llvm::Type *SubType = GenType(ArrayType->getType());
-    if (ArrayType->getSize()->getExprKind() == ASTExprKind::EXPR_VALUE) {
-        ASTValueExpr *SizeExpr = (ASTValueExpr *) ArrayType->getSize();
-        ASTIntegerValue &SizeValue = (ASTIntegerValue &) SizeExpr->getValue();
-        return llvm::ArrayType::get(SubType, SizeValue.getValue());
+CallInst *CodeGenModule::GenCall(llvm::Function *Fn, ASTFunctionCall *Call) {
+    FLY_DEBUG_MESSAGE("CodeGenModule", "GenCall",
+                      "Call=" << Call->str());
+    // Check if Func is declared
+    if (Call->getDef() == nullptr) {
+        Diag(Call->getLocation(), diag::err_unref_call) << Call->getName();
+        return nullptr;
     }
 
-    assert("Array Size error");
-}
-
-llvm::Constant *CodeGenModule::GenDefaultValue(const ASTType *Type, llvm::Type *Ty) {
-    FLY_DEBUG("CodeGenModule", "GenDefaultValue");
-    assert(Type->getKind() != TypeKind::TYPE_VOID && "No default value for Void Type");
-    switch (Type->getKind()) {
-        case TypeKind::TYPE_BOOL:
-            return llvm::ConstantInt::get(BoolTy, 0, false);
-        case TypeKind::TYPE_BYTE:
-            return llvm::ConstantInt::get(Int8Ty, 0, false);
-        case TypeKind::TYPE_USHORT:
-            return llvm::ConstantInt::get(Int32Ty, 0, false);
-        case TypeKind::TYPE_SHORT:
-            return llvm::ConstantInt::get(Int32Ty, 0, true);
-        case TypeKind::TYPE_UINT:
-            return llvm::ConstantInt::get(Int32Ty, 0, false);
-        case TypeKind::TYPE_INT:
-            return llvm::ConstantInt::get(Int32Ty, 0, true);
-        case TypeKind::TYPE_ULONG:
-            return llvm::ConstantInt::get(Int64Ty, 0, false);
-        case TypeKind::TYPE_LONG:
-            return llvm::ConstantInt::get(Int64Ty, 0, true);
-        case TypeKind::TYPE_FLOAT:
-            return llvm::ConstantFP::get(FloatTy, 0.0);
-        case TypeKind::TYPE_DOUBLE:
-            return llvm::ConstantFP::get(DoubleTy, 0.0);
-        case TypeKind::TYPE_ARRAY:
-            return ConstantAggregateZero::get(Ty);
-        case TypeKind::TYPE_CLASS:
-            return nullptr; // TODO
+    const std::vector<ASTParam *> &Params = Call->getDef()->getParams()->getList();
+    llvm::SmallVector<llvm::Value *, 8> Args;
+    for (ASTArg *Arg : Call->getArgs()) {
+        Value *V = GenExpr(Fn, Arg->getDef()->getType(), Arg->getExpr());
+        Args.push_back(V);
     }
-    assert(0 && "Unknown Type");
-}
-
-/**
- * Generate a LLVM Constant Value
- * @param Type is the parsed ASTType
- * @param Val need to be correctly configured or you need to call GenDefaultValue()
- * @return
- */
-llvm::Constant *CodeGenModule::GenValue(const ASTType *Type, const ASTValue *Val) {
-    FLY_DEBUG("CodeGenModule", "GenValue");
-    assert(Type && "Type has to be not empty");
-    assert(Val && "Value has to be not empty");
-
-    //TODO value conversion from Val->getType() to TypeBase (if are different)
-    
-    switch (Type->getKind()) {
-        case TypeKind::TYPE_BOOL:
-            return llvm::ConstantInt::get(BoolTy, ((ASTBoolValue *)Val)->getValue(), false);
-        case TypeKind::TYPE_BYTE:
-            return llvm::ConstantInt::get(Int8Ty, ((ASTIntegerValue *) Val)->getValue(), false);
-        case TypeKind::TYPE_USHORT:
-            return llvm::ConstantInt::get(Int16Ty, ((ASTIntegerValue *) Val)->getValue(), false);
-        case TypeKind::TYPE_SHORT:
-            return llvm::ConstantInt::get(Int16Ty, ((ASTIntegerValue *) Val)->getValue(), true);
-        case TypeKind::TYPE_UINT:
-            return llvm::ConstantInt::get(Int32Ty, ((ASTIntegerValue *) Val)->getValue(), false);
-        case TypeKind::TYPE_INT:
-            return llvm::ConstantInt::get(Int32Ty, ((ASTIntegerValue *) Val)->getValue(), true);
-        case TypeKind::TYPE_ULONG:
-            return llvm::ConstantInt::get(Int64Ty, ((ASTIntegerValue *) Val)->getValue(), false);
-        case TypeKind::TYPE_LONG:
-            return llvm::ConstantInt::get(Int64Ty, ((ASTIntegerValue *) Val)->getValue(), true);
-        case TypeKind::TYPE_FLOAT:
-            return llvm::ConstantFP::get(FloatTy, ((ASTFloatingValue *) Val)->getValue());
-        case TypeKind::TYPE_DOUBLE:
-            return llvm::ConstantFP::get(DoubleTy, ((ASTFloatingValue *) Val)->getValue());
-        case TypeKind::TYPE_ARRAY: {
-            llvm::ArrayType *ArrType = GenArrayType((ASTArrayType *) Type);
-            std::vector<llvm::Constant *> Values;
-            for (ASTValue *Value : ((ASTArrayValue *) Val)->getValues()) {
-                llvm::Constant * V = GenValue(((ASTArrayType *) Type)->getType(), Value);
-                Values.push_back(V);
-            }
-            return llvm::ConstantArray::get(ArrType, makeArrayRef(Values));
-        }
-        case TypeKind::TYPE_CLASS:
-            break;
-        case TypeKind::TYPE_VOID:
-            // FIXME
-            break;
-    }
-    assert(0 && "Unknown Type");
+    CodeGenFunction *CGF = Call->getDef()->getCodeGen();
+    return Builder->CreateCall(CGF->getFunction(), Args);
 }
 
 llvm::Value *CodeGenModule::GenExpr(llvm::Function *Fn, const ASTType *Type, ASTExpr *Expr) {

@@ -30,6 +30,7 @@ namespace fly {
     class FrontendOptions;
     class CodeGenGlobalVar;
     class CodeGenFunction;
+    class CodeGenClass;
 
     class FrontendAction {
 
@@ -60,6 +61,8 @@ namespace fly {
         std::vector<CodeGenGlobalVar *> CGGlobalVars;
 
         std::vector<CodeGenFunction *> CGFunctions;
+
+        CodeGenClass *CGClass;
 
         bool CGDone = false;
 

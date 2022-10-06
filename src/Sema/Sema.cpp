@@ -17,6 +17,7 @@
 #include "AST/ASTLocalVar.h"
 #include "AST/ASTFunctionBase.h"
 #include "AST/ASTFunction.h"
+#include "AST/ASTClassVar.h"
 #include "AST/ASTClassFunction.h"
 #include "AST/ASTVarRef.h"
 #include "Basic/Diagnostic.h"
@@ -105,6 +106,16 @@ ASTLocalVar *Sema::FindVarDef(ASTBlock *Block, ASTVarRef *VarRef) const {
         if (Block->Parent->getKind() == StmtKind::STMT_BLOCK)
             return FindVarDef((ASTBlock *) Block->getParent(), VarRef);
     }
+    return nullptr;
+}
+
+ASTClassVar *Sema::FindClassVar(ASTVar *Var, llvm::StringRef Name) {
+    if (Var->getType()->getKind() == TypeKind::TYPE_CLASS) {
+        ASTClassVar *ClassVar = ((ASTClassType *) Var->getType())->getDef()->getVars().lookup(Name);
+        // TODO check error
+        return ClassVar;
+    }
+
     return nullptr;
 }
 
