@@ -59,7 +59,7 @@ namespace fly {
         friend class CodeGenClassVar;
         friend class CodeGenClassFunction;
         friend class CodeGenCall;
-        friend class CodeGenStackVar;
+        friend class CodeGenVarBase;
         friend class CodeGenVar;
         friend class CodeGenExpr;
 

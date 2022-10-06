@@ -10,6 +10,7 @@ add_library(FlyCodeGen
         CodeGenHeader.cpp
         CodeGenModule.cpp
         CodeGenVar.cpp
+        CodeGenVarBase.cpp
         )
 
 target_link_libraries(FlyCodeGen

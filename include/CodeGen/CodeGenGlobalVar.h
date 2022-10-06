@@ -11,7 +11,7 @@
 #ifndef FLY_CODEGENGLOBALVAR_H
 #define FLY_CODEGENGLOBALVAR_H
 
-#include "CodeGenVarBase.h"
+#include "CodeGenVar.h"
 #include "AST/ASTType.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/ADT/StringRef.h"
@@ -25,26 +25,18 @@ namespace fly {
 
     class CodeGenGlobalVar : public CodeGenVarBase {
 
-        CodeGenModule *CGM = nullptr;
-
-        llvm::GlobalVariable *GVar = nullptr;
-
-        llvm::LoadInst *LoadI = nullptr;
-
-        bool needLoad;
-
     public:
         CodeGenGlobalVar(CodeGenModule *CGM, ASTGlobalVar* AST, bool isExternal = false);
 
         void Init() override;
 
-        llvm::Value *getPointer() override;
-
         llvm::StoreInst *Store(llvm::Value *Val) override;
 
-        llvm::Value *Load() override;
+        llvm::LoadInst *Load() override;
 
         llvm::Value *getValue() override;
+
+        llvm::Value *getPointer() override;
     };
 }
 

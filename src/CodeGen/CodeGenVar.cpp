@@ -20,9 +20,7 @@
 
 using namespace fly;
 
-CodeGenVar::CodeGenVar(CodeGenModule *CGM, ASTVar *Var) : CGM(CGM), Var(Var),
-        // Fix Architecture Compatibility of bool i1 to i8
-        T(Var->getType()->getKind() == TypeKind::TYPE_BOOL ? CGM->Int8Ty : CGM->GenType(Var->getType())) {
+CodeGenVar::CodeGenVar(CodeGenModule *CGM, ASTVar *Var) : CodeGenVarBase(CGM, Var) {
 
 }
 
@@ -35,37 +33,16 @@ void CodeGenVar::Init() {
 }
 
 llvm::StoreInst *CodeGenVar::Store(llvm::Value *Val) {
-    assert(getPointer() && "Cannot store into unallocated stack");
-
-    // Fix Architecture Compatibility of bool i1 to i8
-    if (Var->getType()->getKind() == TypeKind::TYPE_BOOL) {
-        Val = CGM->Builder->CreateZExt(Val, CGM->Int8Ty);
-    }
-
-    llvm::StoreInst *S = CGM->Builder->CreateStore(Val, getPointer());
-    isStored = true;
-    needLoad = true;
     BlockID = CGM->Builder->GetInsertBlock()->getName();
-    return S;
+    return CodeGenVarBase::Store(Val);
 }
 
-llvm::Value *CodeGenVar::Load() {
-    assert(getPointer() && "Cannot load from unallocated stack");
-    LoadI = CGM->Builder->CreateLoad(T, Pointer);
-    needLoad = false;
+llvm::LoadInst *CodeGenVar::Load() {
     BlockID = CGM->Builder->GetInsertBlock()->getName();
-    return LoadI;
-}
-
-bool CodeGenVar::needReload() {
-    return needLoad || BlockID != CGM->Builder->GetInsertBlock()->getName();
+    return CodeGenVarBase::Load();
 }
 
 llvm::Value *CodeGenVar::getValue() {
-    assert(getPointer() && "Var not allocated yet");
-    return isStored ? (needReload() ? Load() : LoadI) : Load(); //getPointer();
-}
-
-llvm::Value *CodeGenVar::getPointer() {
-    return Pointer;
+    doLoad = doLoad || BlockID != CGM->Builder->GetInsertBlock()->getName();
+    return CodeGenVarBase::getValue();
 }

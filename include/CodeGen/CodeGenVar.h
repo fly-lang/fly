@@ -13,37 +13,12 @@
 
 #include "CodeGenVarBase.h"
 
-namespace llvm {
-    class Type;
-    class Value;
-    class LoadInst;
-    class StringRef;
-}
-
 namespace fly {
 
     class CodeGenModule;
-    class ASTLocalVar;
-    class ASTParam;
     class ASTVar;
 
     class CodeGenVar : public CodeGenVarBase {
-
-    protected:
-
-        CodeGenModule *CGM = nullptr;
-
-        ASTVar *Var = nullptr;
-
-        llvm::Type *T = nullptr;
-
-        llvm::Value *Pointer = nullptr;
-
-        llvm::LoadInst *LoadI = nullptr;
-
-        bool needLoad = false;
-
-        bool isStored = false;
 
         llvm::StringRef BlockID;
 
@@ -54,13 +29,9 @@ namespace fly {
 
         llvm::StoreInst *Store(llvm::Value *Val) override;
 
-        llvm::Value *Load() override;
-
-        bool needReload();
+        llvm::LoadInst *Load() override;
 
         llvm::Value *getValue() override;
-
-        llvm::Value *getPointer() override;
     };
 }
 

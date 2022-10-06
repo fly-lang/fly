@@ -39,8 +39,6 @@
 #include "llvm/ADT/StringMap.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Value.h"
-#include<iostream>
-#include <regex>
 
 using namespace llvm;
 using namespace fly;

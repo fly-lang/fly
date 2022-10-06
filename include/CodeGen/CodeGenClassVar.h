@@ -45,9 +45,9 @@ namespace fly {
 
         void Init() override;
 
-        llvm::Value *Load() override;
+        llvm::StoreInst *Store(llvm::Value *Val) override;
 
-//        llvm::Value *getValue() override;
+        llvm::LoadInst *Load() override;
 
         llvm::Value *getPointer() override;
 
