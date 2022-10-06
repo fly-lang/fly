@@ -115,9 +115,11 @@ void FrontendAction::GenerateTopDef() {
         }
     }
 
-    CGClass = CGM->GenClass(Node->getClass());
-    if (FrontendOpts.CreateHeader) {
-        CGH->setClass(Node->getClass());
+    if (Node->getClass()) {
+        CGClass = CGM->GenClass(Node->getClass());
+        if (FrontendOpts.CreateHeader) {
+            CGH->setClass(Node->getClass());
+        }
     }
 
     Diags.getClient()->EndSourceFile();

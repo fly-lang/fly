@@ -35,6 +35,20 @@ ClassParser::ClassParser(Parser *P, ASTTopScopes *TopScopes) : P(P) {
         Class = P->Builder.CreateClass(P->Node, Loc, Name.str(), TopScopes);
         bool Continue;
         do {
+
+            // End of the Class
+            if (P->isBlockEnd() ) {
+                P->ConsumeBrace();
+                break;
+            }
+
+            // Error: Class block not correctly closed
+            if (P->Tok.is(tok::eof)) {
+                Success = false;
+                P->Diag(P->Tok, diag::err_class_block_unclosed);
+                break;
+            }
+
             // Parse Scopes
             ASTClassScopes *Scopes = ParseScopes();
 
@@ -54,18 +68,6 @@ ClassParser::ClassParser(Parser *P, ASTTopScopes *TopScopes) : P(P) {
                 Continue = true;
             }
 
-            // End of the Class
-            if (P->isBlockEnd() ) {
-                P->ConsumeBrace();
-                break;
-            }
-
-            // Error: Class block not correctly closed
-            if (P->Tok.is(tok::eof)) {
-                Success = false;
-                P->Diag(P->Tok, diag::err_class_block_unclosed);
-                break;
-            }
         } while (Continue);
     }
 }
