@@ -19,10 +19,16 @@ ASTFunction::ASTFunction(const SourceLocation &Loc, ASTNode *Node, ASTType *Retu
 
 }
 
-const std::string ASTFunction::getName() const {
+const SourceLocation &ASTFunction::getLocation() const {
+    return ASTTopDef::getLocation();
+}
+
+std::string ASTFunction::getName() const {
     return ASTFunctionBase::getName();
 }
 
 std::string ASTFunction::str() const {
-    return "ASTFunction { " + ASTFunctionBase::str() + " }";
+    return Logger("ASTFunction").
+            Super(ASTFunctionBase::str()).
+            End();
 }

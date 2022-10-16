@@ -27,9 +27,9 @@ ASTParam::ASTParam(ASTFunctionBase *Function, const SourceLocation &Loc, ASTType
 }
 
 std::string ASTParam::str() const {
-    return "{ " + ASTLocalVar::str() +
-            ", Expr=" + (getExpr() ? getExpr()->str() : "{}") +
-            " }";
+    return Logger("ASTParam").
+           Super(ASTLocalVar::str()).
+           End();
 }
 
 uint64_t ASTParams::getSize() const {
@@ -46,4 +46,10 @@ const std::vector<ASTParam *> &ASTParams::getList() const {
 
 const ASTParam *ASTParams::getEllipsis() const {
     return Ellipsis;
+}
+
+std::string ASTParams::str() const {
+    return Logger("ASTParams").
+            AttrList("List", List).
+            End();
 }

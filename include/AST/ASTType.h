@@ -11,6 +11,7 @@
 #ifndef FLY_ASTTYPE_H
 #define FLY_ASTTYPE_H
 
+#include "Basic/Debuggable.h"
 #include "Basic/SourceLocation.h"
 
 namespace fly {
@@ -32,7 +33,7 @@ namespace fly {
     const uint64_t  MIN_LONG     = 0x8000000000000000;
     const uint64_t  MAX_LONG     = 0x7FFFFFFFFFFFFFFF;
 
-    enum class TypeKind {
+    enum class ASTTypeKind {
         TYPE_VOID = 0,
 
         // Boolean
@@ -58,7 +59,7 @@ namespace fly {
         TYPE_CLASS = 1000
     };
 
-    enum  class MacroTypeKind {
+    enum  class ASTMacroTypeKind {
         MACRO_TYPE_VOID,
         MACRO_TYPE_BOOL,
         MACRO_TYPE_INTEGER,
@@ -75,19 +76,19 @@ namespace fly {
     /**
      * Abstract Base Type
      */
-    class ASTType {
+    class ASTType : public Debuggable {
 
         friend class SemaBuilder;
         friend class SemaResolver;
 
-        const TypeKind Kind;
+        const ASTTypeKind Kind;
 
-        const MacroTypeKind MacroKind;
+        const ASTMacroTypeKind MacroKind;
 
         const SourceLocation Loc;
 
     protected:
-        ASTType(const SourceLocation &Loc, TypeKind Kind, MacroTypeKind MacroKind);
+        ASTType(const SourceLocation &Loc, ASTTypeKind Kind, ASTMacroTypeKind MacroKind);
 
     public:
 
@@ -95,9 +96,9 @@ namespace fly {
 
         const SourceLocation &getLocation() const;
 
-        const TypeKind &getKind() const;
+        const ASTTypeKind &getKind() const;
 
-        const MacroTypeKind &getMacroKind() const;
+        const ASTMacroTypeKind &getMacroKind() const;
 
         const bool isBool() const;
 
@@ -121,11 +122,11 @@ namespace fly {
 
         const std::string printMacroType();
 
-        static const std::string printMacroType(const MacroTypeKind Kind);
+        static const std::string printMacroType(const ASTMacroTypeKind Kind);
 
         virtual const std::string print() const = 0;
 
-        virtual const std::string str() const = 0;
+        std::string str() const;
     };
 
     /**
@@ -141,7 +142,7 @@ namespace fly {
 
         const std::string print() const override;
 
-        const std::string str() const override;
+        std::string str() const override;
     };
 
     /**
@@ -157,7 +158,7 @@ namespace fly {
 
         const std::string print() const override;
 
-        const std::string str() const override;
+        std::string str() const override;
     };
 
     /**
@@ -173,7 +174,7 @@ namespace fly {
 
         const std::string print() const override;
 
-        const std::string str() const override;
+        std::string str() const override;
     };
 
     /**
@@ -189,7 +190,7 @@ namespace fly {
 
         const std::string print() const override;
 
-        const std::string str() const override;
+        std::string str() const override;
     };
 
     /**
@@ -205,7 +206,7 @@ namespace fly {
 
         const std::string print() const override;
 
-        const std::string str() const override;
+        std::string str() const override;
     };
 
     /**
@@ -221,7 +222,7 @@ namespace fly {
 
         const std::string print() const override;
 
-        const std::string str() const override;
+        std::string str() const override;
     };
 
     /**
@@ -237,7 +238,7 @@ namespace fly {
 
         const std::string print() const override;
 
-        const std::string str() const override;
+        std::string str() const override;
     };
 
     /**
@@ -253,7 +254,7 @@ namespace fly {
 
         const std::string print() const override;
 
-        const std::string str() const override;
+        std::string str() const override;
     };
 
     /**
@@ -269,7 +270,7 @@ namespace fly {
 
         const std::string print() const override;
 
-        const std::string str() const override;
+        std::string str() const override;
     };
 
     /**
@@ -285,7 +286,7 @@ namespace fly {
 
         const std::string print() const override;
 
-        const std::string str() const override;
+        std::string str() const override;
     };
 
     /**
@@ -301,7 +302,7 @@ namespace fly {
 
         const std::string print() const override;
 
-        const std::string str() const override;
+        std::string str() const override;
     };
 
     /**
@@ -325,7 +326,7 @@ namespace fly {
 
         const std::string print() const override;
 
-        const std::string str() const override;
+        std::string str() const override;
     };
 
     /**
@@ -334,8 +335,6 @@ namespace fly {
     class ASTClassType : public ASTType {
 
         friend class SemaBuilder;
-
-        const TypeKind Kind = TypeKind::TYPE_CLASS;
 
         std::string Name;
 
@@ -357,7 +356,7 @@ namespace fly {
 
         const std::string print() const override;
 
-        const std::string str() const override;
+        std::string str() const override;
     };
 }
 

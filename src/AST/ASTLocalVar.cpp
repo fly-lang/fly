@@ -8,15 +8,27 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTLocalVar.h"
+#include "AST/ASTType.h"
 #include "AST/ASTBlock.h"
-#include "AST/ASTValue.h"
 
 using namespace fly;
 
 ASTLocalVar::ASTLocalVar(ASTBlock *Parent, const SourceLocation &Loc, ASTType *Type, const std::string Name, bool Constant) :
-        ASTExprStmt(Parent, Loc, StmtKind::STMT_VAR_DEFINE),
-        ASTVar(ASTVarKind::VAR_LOCAL, Type, Name), Constant(Constant) {
+        ASTExprStmt(Parent, Loc, ASTStmtKind::STMT_VAR_DEFINE), VarKind(ASTVarKind::VAR_LOCAL),
+        Type(Type), Name(Name), Constant(Constant) {
 
+}
+
+ASTVarKind ASTLocalVar::getVarKind() {
+    return VarKind;
+}
+
+ASTType *ASTLocalVar::getType() const {
+    return Type;
+}
+
+std::string ASTLocalVar::getName() const {
+    return Name;
 }
 
 bool ASTLocalVar::isConstant() const {
@@ -36,9 +48,11 @@ void ASTLocalVar::setCodeGen(CodeGenVar *CG) {
 }
 
 std::string ASTLocalVar::str() const {
-    return "{ " +
-           ASTVar::str() +
-           ", Constant=" + (Constant ? "true" : "false") + ", " +
-           ", Kind: " + std::to_string((int) Kind) +
-           " }";
+    return Logger("ASTLocalVar").
+            Super(ASTExprStmt::str()).
+            Attr("Type", Type).
+            Attr("Name", Name).
+            Attr("VarKind", (int) VarKind).
+            Attr("Constant", Constant).
+            End();
 }

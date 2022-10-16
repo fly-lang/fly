@@ -46,7 +46,7 @@ namespace fly {
 
         bool isEquals(ASTParam *Param1, ASTParam *Param2);
 
-        bool CheckMacroType(ASTType *Type, MacroTypeKind Kind);
+        bool CheckMacroType(ASTType *Type, ASTMacroTypeKind Kind);
 
         bool CheckConvertibleTypes(ASTType *FromType, ASTType *ToType);
 

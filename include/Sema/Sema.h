@@ -54,9 +54,9 @@ namespace fly {
 
         ASTNameSpace *FindNameSpace(llvm::StringRef Name) const;
 
-        ASTNameSpace *FindNameSpace(ASTFunctionBase *Base) const;
+        ASTNameSpace *FindNameSpace(ASTFunctionBase *FunctionBase) const;
 
-        ASTNode *FindNode(ASTFunctionBase *Base) const;
+        ASTNode *FindNode(ASTFunctionBase *FunctionBase) const;
 
         ASTNode *FindNode(llvm::StringRef Name, ASTNameSpace *NameSpace) const;
 

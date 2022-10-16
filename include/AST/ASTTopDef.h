@@ -8,9 +8,10 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#ifndef FLY_ASTTOPDEF_H
-#define FLY_ASTTOPDEF_H
+#ifndef FLY_AST_TOPDEF_H
+#define FLY_AST_TOPDEF_H
 
+#include "Basic/Debuggable.h"
 #include "Basic/SourceLocation.h"
 
 #include "llvm/ADT/SmallVector.h"
@@ -36,7 +37,7 @@ namespace fly {
         V_PRIVATE
     };
 
-    class ASTTopScopes {
+    class ASTTopScopes : public Debuggable {
 
         friend class SemaBuilder;
 
@@ -55,7 +56,7 @@ namespace fly {
         std::string str() const;
     };
 
-    class ASTTopDef {
+    class ASTTopDef : public virtual Debuggable {
 
         friend class SemaBuilder;
 
@@ -84,11 +85,11 @@ namespace fly {
 
         ASTNode *getNode();
 
-        virtual const std::string getName() const = 0;
+        const SourceLocation &getLocation() const;
+
+        virtual std::string getName() const = 0;
 
         ASTNameSpace *getNameSpace() const;
-
-        const SourceLocation &getLocation() const;
 
         ASTTopScopes *getScopes() const;
 
@@ -96,8 +97,9 @@ namespace fly {
 
         const std::string getComment() const;
 
-        virtual std::string str() const;
+        std::string str() const;
+
     };
 }
 
-#endif //FLY_ASTTOPDEF_H
+#endif //FLY_AST_TOPDEF_H

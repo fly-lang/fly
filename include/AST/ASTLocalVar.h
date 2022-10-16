@@ -21,7 +21,7 @@ namespace fly {
      * Ex.
      *  int a = 1
      */
-    class ASTLocalVar : public ASTVar, public ASTExprStmt {
+    class ASTLocalVar : public ASTExprStmt, public ASTVar {
 
         friend class SemaBuilder;
         friend class SemaResolver;
@@ -31,11 +31,23 @@ namespace fly {
 
         bool Constant = false;
 
+        ASTVarKind VarKind;
+
+        ASTType *Type = nullptr;
+
+        const std::string Name;
+
     protected:
 
          ASTLocalVar(ASTBlock *Parent, const SourceLocation &Loc, ASTType *Type, const std::string Name, bool Constant);
 
     public:
+
+        ASTVarKind getVarKind() override;
+
+        ASTType *getType() const override;
+
+        std::string getName() const override;
 
         bool isConstant() const;
 

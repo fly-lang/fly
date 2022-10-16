@@ -46,6 +46,8 @@ namespace fly {
         std::vector<ASTElsifBlock *> getElsifBlocks();
 
         ASTElseBlock *getElseBlock();
+
+        std::string str() const;
     };
 
     class ASTElsifBlock : public ASTBlock {
@@ -64,6 +66,8 @@ namespace fly {
     public:
 
         ASTExpr *getCondition();
+
+        std::string str() const;
     };
 
     class ASTElseBlock : public ASTBlock {
@@ -75,6 +79,8 @@ namespace fly {
         ASTIfBlock *IfBlock = nullptr;
 
         ASTElseBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc);
+
+        std::string str() const;
     };
 }
 

@@ -35,7 +35,7 @@ namespace fly {
      * Ex.
      *   func(int param1, float param2, bool param3, ...)
      */
-    class ASTParams {
+    class ASTParams : public Debuggable {
 
         friend class SemaBuilder;
 
@@ -50,6 +50,8 @@ namespace fly {
         const std::vector<ASTParam *> &getList() const;
 
         const ASTParam* getEllipsis() const;
+
+        std::string str() const override;
     };
 }
 

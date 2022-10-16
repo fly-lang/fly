@@ -15,13 +15,16 @@
 using namespace fly;
 
 ASTVarAssign::ASTVarAssign(ASTBlock *Parent, const SourceLocation &Loc, ASTVarRef *VarRef) :
-        ASTExprStmt(Parent, Loc, StmtKind::STMT_VAR_ASSIGN), VarRef(VarRef) {
+        ASTExprStmt(Parent, Loc, ASTStmtKind::STMT_VAR_ASSIGN), VarRef(VarRef) {
 
 }
 
 std::string ASTVarAssign::str() const {
-    return "VarRef=" + VarRef->str() +
-        ", ExprStmt=" + ASTExprStmt::str();
+    return Logger("ASTVarAssign").
+            Super(ASTExprStmt::str()).
+            Attr("VarRef", VarRef).
+            Attr("ExprStmt", ASTExprStmt::str()).
+            End();
 }
 
 ASTVarRef *ASTVarAssign::getVarRef() const {

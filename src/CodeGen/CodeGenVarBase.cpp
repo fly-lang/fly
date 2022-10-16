@@ -20,7 +20,7 @@ using namespace fly;
 
 CodeGenVarBase::CodeGenVarBase(CodeGenModule *CGM, ASTVar *Var) : CGM(CGM), Var(Var),
         // Fix Architecture Compatibility of bool i1 to i8
-        T(Var->getType()->getKind() == TypeKind::TYPE_BOOL ? CGM->Int8Ty : CGM->GenType(Var->getType())) {
+        T(Var->getType()->getKind() == ASTTypeKind::TYPE_BOOL ? CGM->Int8Ty : CGM->GenType(Var->getType())) {
 
 }
 
@@ -28,7 +28,7 @@ llvm::StoreInst *CodeGenVarBase::Store(llvm::Value *Val) {
     assert(getPointer() && "Cannot store into unallocated stack");
 
     // Fix Architecture Compatibility of bool i1 to i8
-    if (Var->getType()->getKind() == TypeKind::TYPE_BOOL) {
+    if (Var->getType()->getKind() == ASTTypeKind::TYPE_BOOL) {
         Val = CGM->Builder->CreateZExt(Val, CGM->Int8Ty);
     }
 

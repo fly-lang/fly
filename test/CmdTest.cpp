@@ -8,13 +8,15 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "TestConfig.h"
-#include <Driver/Driver.h>
-#include <Driver/DriverOptions.h>
-#include "llvm/Support/TargetSelect.h"
 #include "Basic/Debug.h"
+#include "Driver/Driver.h"
+#include "Driver/DriverOptions.h"
+
+#include "llvm/Support/TargetSelect.h"
+#include "llvm/Support/InitLLVM.h"
 #include "gtest/gtest.h"
+
 #include <fstream>
-#include <llvm/Support/InitLLVM.h>
 
 namespace {
     using namespace fly;

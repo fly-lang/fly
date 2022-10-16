@@ -147,29 +147,29 @@ llvm::Type *CodeGenModule::GenType(const ASTType *Type) {
     // Check Type
     switch (Type->getKind()) {
 
-        case TypeKind::TYPE_VOID:
+        case ASTTypeKind::TYPE_VOID:
             return VoidTy;
-        case TypeKind::TYPE_BOOL:
+        case ASTTypeKind::TYPE_BOOL:
             return BoolTy;
-        case TypeKind::TYPE_BYTE:
+        case ASTTypeKind::TYPE_BYTE:
             return Int8Ty;
-        case TypeKind::TYPE_USHORT:
-        case TypeKind::TYPE_SHORT:
+        case ASTTypeKind::TYPE_USHORT:
+        case ASTTypeKind::TYPE_SHORT:
             return Int16Ty;
-        case TypeKind::TYPE_UINT:
-        case TypeKind::TYPE_INT:
+        case ASTTypeKind::TYPE_UINT:
+        case ASTTypeKind::TYPE_INT:
             return Int32Ty;
-        case TypeKind::TYPE_ULONG:
-        case TypeKind::TYPE_LONG:
+        case ASTTypeKind::TYPE_ULONG:
+        case ASTTypeKind::TYPE_LONG:
             return Int64Ty;
-        case TypeKind::TYPE_FLOAT:
+        case ASTTypeKind::TYPE_FLOAT:
             return FloatTy;
-        case TypeKind::TYPE_DOUBLE:
+        case ASTTypeKind::TYPE_DOUBLE:
             return DoubleTy;
-        case TypeKind::TYPE_ARRAY: {
+        case ASTTypeKind::TYPE_ARRAY: {
             return GenArrayType((ASTArrayType *) Type);
         }
-        case TypeKind::TYPE_CLASS: {
+        case ASTTypeKind::TYPE_CLASS: {
             ASTClass *Class = ((ASTClassType *) Type)->getDef();
             assert(Class && "Unreferenced Class Type");
             assert(Class->getCodeGen() && "Empty Class CodeGen");
@@ -193,31 +193,31 @@ llvm::ArrayType *CodeGenModule::GenArrayType(const ASTArrayType *ArrayType) {
 
 llvm::Constant *CodeGenModule::GenDefaultValue(const ASTType *Type, llvm::Type *Ty) {
     FLY_DEBUG("CodeGenModule", "GenDefaultValue");
-    assert(Type->getKind() != TypeKind::TYPE_VOID && "No default value for Void Type");
+    assert(Type->getKind() != ASTTypeKind::TYPE_VOID && "No default value for Void Type");
     switch (Type->getKind()) {
-        case TypeKind::TYPE_BOOL:
+        case ASTTypeKind::TYPE_BOOL:
             return llvm::ConstantInt::get(BoolTy, 0, false);
-        case TypeKind::TYPE_BYTE:
+        case ASTTypeKind::TYPE_BYTE:
             return llvm::ConstantInt::get(Int8Ty, 0, false);
-        case TypeKind::TYPE_USHORT:
+        case ASTTypeKind::TYPE_USHORT:
             return llvm::ConstantInt::get(Int32Ty, 0, false);
-        case TypeKind::TYPE_SHORT:
+        case ASTTypeKind::TYPE_SHORT:
             return llvm::ConstantInt::get(Int32Ty, 0, true);
-        case TypeKind::TYPE_UINT:
+        case ASTTypeKind::TYPE_UINT:
             return llvm::ConstantInt::get(Int32Ty, 0, false);
-        case TypeKind::TYPE_INT:
+        case ASTTypeKind::TYPE_INT:
             return llvm::ConstantInt::get(Int32Ty, 0, true);
-        case TypeKind::TYPE_ULONG:
+        case ASTTypeKind::TYPE_ULONG:
             return llvm::ConstantInt::get(Int64Ty, 0, false);
-        case TypeKind::TYPE_LONG:
+        case ASTTypeKind::TYPE_LONG:
             return llvm::ConstantInt::get(Int64Ty, 0, true);
-        case TypeKind::TYPE_FLOAT:
+        case ASTTypeKind::TYPE_FLOAT:
             return llvm::ConstantFP::get(FloatTy, 0.0);
-        case TypeKind::TYPE_DOUBLE:
+        case ASTTypeKind::TYPE_DOUBLE:
             return llvm::ConstantFP::get(DoubleTy, 0.0);
-        case TypeKind::TYPE_ARRAY:
+        case ASTTypeKind::TYPE_ARRAY:
             return ConstantAggregateZero::get(Ty);
-        case TypeKind::TYPE_CLASS:
+        case ASTTypeKind::TYPE_CLASS:
             return nullptr; // TODO
     }
     assert(0 && "Unknown Type");
@@ -237,27 +237,27 @@ llvm::Constant *CodeGenModule::GenValue(const ASTType *Type, const ASTValue *Val
     //TODO value conversion from Val->getType() to TypeBase (if are different)
 
     switch (Type->getKind()) {
-        case TypeKind::TYPE_BOOL:
+        case ASTTypeKind::TYPE_BOOL:
             return llvm::ConstantInt::get(BoolTy, ((ASTBoolValue *)Val)->getValue(), false);
-        case TypeKind::TYPE_BYTE:
+        case ASTTypeKind::TYPE_BYTE:
             return llvm::ConstantInt::get(Int8Ty, ((ASTIntegerValue *) Val)->getValue(), false);
-        case TypeKind::TYPE_USHORT:
+        case ASTTypeKind::TYPE_USHORT:
             return llvm::ConstantInt::get(Int16Ty, ((ASTIntegerValue *) Val)->getValue(), false);
-        case TypeKind::TYPE_SHORT:
+        case ASTTypeKind::TYPE_SHORT:
             return llvm::ConstantInt::get(Int16Ty, ((ASTIntegerValue *) Val)->getValue(), true);
-        case TypeKind::TYPE_UINT:
+        case ASTTypeKind::TYPE_UINT:
             return llvm::ConstantInt::get(Int32Ty, ((ASTIntegerValue *) Val)->getValue(), false);
-        case TypeKind::TYPE_INT:
+        case ASTTypeKind::TYPE_INT:
             return llvm::ConstantInt::get(Int32Ty, ((ASTIntegerValue *) Val)->getValue(), true);
-        case TypeKind::TYPE_ULONG:
+        case ASTTypeKind::TYPE_ULONG:
             return llvm::ConstantInt::get(Int64Ty, ((ASTIntegerValue *) Val)->getValue(), false);
-        case TypeKind::TYPE_LONG:
+        case ASTTypeKind::TYPE_LONG:
             return llvm::ConstantInt::get(Int64Ty, ((ASTIntegerValue *) Val)->getValue(), true);
-        case TypeKind::TYPE_FLOAT:
+        case ASTTypeKind::TYPE_FLOAT:
             return llvm::ConstantFP::get(FloatTy, ((ASTFloatingValue *) Val)->getValue());
-        case TypeKind::TYPE_DOUBLE:
+        case ASTTypeKind::TYPE_DOUBLE:
             return llvm::ConstantFP::get(DoubleTy, ((ASTFloatingValue *) Val)->getValue());
-        case TypeKind::TYPE_ARRAY: {
+        case ASTTypeKind::TYPE_ARRAY: {
             llvm::ArrayType *ArrType = GenArrayType((ASTArrayType *) Type);
             std::vector<llvm::Constant *> Values;
             for (ASTValue *Value : ((ASTArrayValue *) Val)->getValues()) {
@@ -266,9 +266,9 @@ llvm::Constant *CodeGenModule::GenValue(const ASTType *Type, const ASTValue *Val
             }
             return llvm::ConstantArray::get(ArrType, makeArrayRef(Values));
         }
-        case TypeKind::TYPE_CLASS:
+        case ASTTypeKind::TYPE_CLASS:
             break;
-        case TypeKind::TYPE_VOID:
+        case ASTTypeKind::TYPE_VOID:
             // FIXME
             break;
     }
@@ -280,7 +280,7 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
     switch (Stmt->getKind()) {
 
         // Var Declaration
-        case StmtKind::STMT_VAR_DEFINE: {
+        case ASTStmtKind::STMT_VAR_DEFINE: {
             ASTLocalVar *LocalVar = (ASTLocalVar *) Stmt;
             assert(LocalVar->getCodeGen() && "LocalVar is not CodeGen initialized");
             if (LocalVar->getExpr()) {
@@ -291,7 +291,7 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
         }
 
             // Var Assignment
-        case StmtKind::STMT_VAR_ASSIGN: {
+        case ASTStmtKind::STMT_VAR_ASSIGN: {
             ASTVarAssign *VarAssign = (ASTVarAssign *) Stmt;
             assert(VarAssign->getExpr() && "Expr Mandatory in assignment");
             llvm::Value *V = GenExpr(Fn, VarAssign->getVarRef()->getDef()->getType(), VarAssign->getExpr());
@@ -313,12 +313,12 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
             }
             break;
         }
-        case StmtKind::STMT_EXPR: {
+        case ASTStmtKind::STMT_EXPR: {
             ASTExprStmt *ExprStmt = (ASTExprStmt *) Stmt;
             GenExpr(Fn, ExprStmt->getExpr()->getType(), ExprStmt->getExpr());
             break;
         }
-        case StmtKind::STMT_BLOCK: {
+        case ASTStmtKind::STMT_BLOCK: {
             ASTBlock *Block = (ASTBlock *) Stmt;
             switch (Block->getBlockKind()) {
                 case ASTBlockKind::BLOCK:
@@ -347,16 +347,16 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
             }
             break;
         }
-        case StmtKind::STMT_BREAK:
+        case ASTStmtKind::STMT_BREAK:
             // TODO
             break;
-        case StmtKind::STMT_CONTINUE:
+        case ASTStmtKind::STMT_CONTINUE:
             // TODO
             break;
-        case StmtKind::STMT_RETURN:
+        case ASTStmtKind::STMT_RETURN:
             ASTReturn *Return = (ASTReturn *) Stmt;
-            if (Return->getParent()->getKind() == StmtKind::STMT_BLOCK) {
-                if (((ASTBlock *) Return->getParent())->getTop()->getType()->getKind() == TypeKind::TYPE_VOID) {
+            if (Return->getParent()->getKind() == ASTStmtKind::STMT_BLOCK) {
+                if (((ASTBlock *) Return->getParent())->getTop()->getType()->getKind() == ASTTypeKind::TYPE_VOID) {
                     if (Return->getExpr() == nullptr) {
                         Builder->CreateRetVoid();
                     } else {

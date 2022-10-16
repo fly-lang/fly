@@ -11,6 +11,8 @@
 #ifndef FLY_ASTNODEBASE_H
 #define FLY_ASTNODEBASE_H
 
+#include "Basic/Debuggable.h"
+
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/SmallVector.h"
 
@@ -27,7 +29,7 @@ namespace fly {
     class ASTUnrefGlobalVar;
     class ASTUnrefFunctionCall;
 
-    class ASTNodeBase {
+    class ASTNodeBase : public Debuggable {
 
         friend class Sema;
         friend class SemaBuilder;

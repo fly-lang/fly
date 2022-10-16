@@ -44,6 +44,8 @@ namespace fly {
         std::vector<ASTSwitchCaseBlock *> &getCases();
 
         ASTSwitchDefaultBlock *getDefault();
+
+        std::string str() const;
     };
 
     class ASTSwitchCaseBlock : public ASTBlock{
@@ -60,6 +62,8 @@ namespace fly {
     public:
 
         ASTExpr *getExpr();
+
+        std::string str() const;
     };
 
     class ASTSwitchDefaultBlock : public ASTBlock {
@@ -72,6 +76,8 @@ namespace fly {
         ASTSwitchDefaultBlock(ASTSwitchBlock *SwitchBlock, const SourceLocation &Loc);
 
     public:
+
+        std::string str() const;
 
     };
 }

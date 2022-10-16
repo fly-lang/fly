@@ -62,7 +62,7 @@ bool SemaResolver::Resolve() {
     // Now all Imports must be read
     for(auto &Import : S.Builder->Context->ExternalImports) {
         if (!Import.getValue()->getNameSpace()) {
-            S.Diag(Import.getValue()->getNameLocation(), diag::err_unresolved_import);
+            S.Diag(Import.getValue()->getLocation(), diag::err_unresolved_import);
             return false;
         }
     }
@@ -132,7 +132,7 @@ bool SemaResolver::ResolveBlock(ASTBlock *Block) {
     for (ASTStmt *Stmt : Block->Content) {
         switch (Stmt->getKind()) {
 
-            case StmtKind::STMT_BLOCK:
+            case ASTStmtKind::STMT_BLOCK:
                 switch (((ASTBlock *) Stmt)->getBlockKind()) {
 
                     case ASTBlockKind::BLOCK_IF:
@@ -158,17 +158,17 @@ bool SemaResolver::ResolveBlock(ASTBlock *Block) {
                         break;
                 }
                 break;
-            case StmtKind::STMT_EXPR:
+            case ASTStmtKind::STMT_EXPR:
                 Success &= ResolveExpr(((ASTExprStmt *) Stmt)->getExpr());
                 break;
-            case StmtKind::STMT_VAR_DEFINE: {
+            case ASTStmtKind::STMT_VAR_DEFINE: {
                 ASTLocalVar *LocalVar = ((ASTLocalVar *) Stmt);
                 Success &= ResolveType(LocalVar->getType());
                 if (LocalVar->getExpr())
                     Success &= ResolveExpr(LocalVar->getExpr());
                 break;
             }
-            case StmtKind::STMT_VAR_ASSIGN: {
+            case ASTStmtKind::STMT_VAR_ASSIGN: {
                 ASTVarAssign *VarAssign = ((ASTVarAssign *) Stmt);
 
                 // Error: Expr cannot be null
@@ -181,13 +181,13 @@ bool SemaResolver::ResolveBlock(ASTBlock *Block) {
                            ResolveExpr(VarAssign->getExpr());
                 break;
             }
-            case StmtKind::STMT_RETURN:
+            case ASTStmtKind::STMT_RETURN:
                 Success &= ResolveExpr(((ASTReturn *) Stmt)->getExpr());
                 break;
-            case StmtKind::STMT_BREAK:
-            case StmtKind::STMT_CONTINUE:
+            case ASTStmtKind::STMT_BREAK:
+            case ASTStmtKind::STMT_CONTINUE:
                 break;
-            case StmtKind::STMT_ARG:
+            case ASTStmtKind::STMT_ARG:
                 assert("Block Stmt cannot have an ASTArg");
         }
     }
@@ -213,10 +213,10 @@ bool SemaResolver::ResolveIfBlock(ASTIfBlock *IfBlock) {
 
 bool SemaResolver::ResolveSwitchBlock(ASTSwitchBlock *SwitchBlock) {
     assert(SwitchBlock && "Switch Block cannot be null");
-    bool Success = ResolveExpr(SwitchBlock->Expr) && S.Validator->CheckMacroType(SwitchBlock->Expr->Type, MacroTypeKind::MACRO_TYPE_INTEGER);
+    bool Success = ResolveExpr(SwitchBlock->Expr) && S.Validator->CheckMacroType(SwitchBlock->Expr->Type, ASTMacroTypeKind::MACRO_TYPE_INTEGER);
     for (ASTSwitchCaseBlock *Case : SwitchBlock->Cases) {
         Success &= ResolveExpr(Case->Expr) &&
-                S.Validator->CheckMacroType(SwitchBlock->Expr->Type, MacroTypeKind::MACRO_TYPE_INTEGER) && ResolveBlock(Case);
+                   S.Validator->CheckMacroType(SwitchBlock->Expr->Type, ASTMacroTypeKind::MACRO_TYPE_INTEGER) && ResolveBlock(Case);
     }
     return Success && ResolveBlock(SwitchBlock->Default);
 }
@@ -328,7 +328,7 @@ bool SemaResolver::ResolveArg(ASTArg *Arg, ASTParam *Param) {
  * @return true if no error occurs, otherwise false
  */
 bool SemaResolver::ResolveVarRef(ASTBlock *Block, ASTVarRef *VarRef) {
-    FLY_DEBUG_MESSAGE("Sema", "ResolveVarRef", "VarRef=" << VarRef->str());
+    FLY_DEBUG_MESSAGE("Sema", "ResolveVarRef", Logger().Attr("VarRef", VarRef).End());
     // Search into parameters // FIXME ?? Already present into Block->LocalVars
     for (auto &Param : Block->getTop()->getParams()->getList()) {
         if (VarRef->getName() == Param->getName()) {
@@ -391,7 +391,7 @@ bool SemaResolver::ResolveVarRef(ASTBlock *Block, ASTVarRef *VarRef) {
  * @return true if no error occurs, otherwise false
  */
 bool SemaResolver::ResolveExpr(ASTExpr *Expr) {
-    FLY_DEBUG_MESSAGE("Sema", "ResolveExpr", "Expr=" << Expr->str());
+    FLY_DEBUG_MESSAGE("Sema", "ResolveExpr", Logger().Attr("Expr", Expr).End());
 
     bool Success = false;
     switch (Expr->getExprKind()) {
@@ -403,7 +403,7 @@ bool SemaResolver::ResolveExpr(ASTExpr *Expr) {
             ASTBlock *Block = getBlock(Expr->getStmt());
             ASTVarRef *VarRef = ((ASTVarRefExpr *)Expr)->getVarRef();
             if (S.Validator->CheckUndef(Block, VarRef) && (VarRef->getDef() || ResolveVarRef(Block, VarRef))) {
-                Expr->Type = VarRef->Def->Type;
+                Expr->Type = VarRef->getDef()->getType();
                 Success = true;
                 break;
             } else {
@@ -447,7 +447,7 @@ bool SemaResolver::ResolveExpr(ASTExpr *Expr) {
                     if (Success) {
                         switch(Binary->getOptionKind()) {
 
-                            case BinaryOptionKind::BINARY_ARITH: {
+                            case ASTBinaryOptionKind::BINARY_ARITH: {
                                 Success = S.Validator->CheckArithTypes(Binary->OpLoc, Binary->First->Type, Binary->Second->Type);
 
                                 // Selects the largest data Type
@@ -461,14 +461,14 @@ bool SemaResolver::ResolveExpr(ASTExpr *Expr) {
                                 break;
                             }
 
-                            case BinaryOptionKind::BINARY_LOGIC: {
+                            case ASTBinaryOptionKind::BINARY_LOGIC: {
                                 Success = S.Validator->CheckLogicalTypes(Binary->OpLoc,
                                                               Binary->First->Type, Binary->Second->Type);
                                 Binary->Type = SemaBuilder::CreateBoolType(Expr->Loc);
                                 break;
                             }
 
-                            case BinaryOptionKind::BINARY_COMPARISON: {
+                            case ASTBinaryOptionKind::BINARY_COMPARISON: {
                                 Binary->Type = SemaBuilder::CreateBoolType(Expr->Loc);
 
                                 // Better Case
@@ -533,7 +533,7 @@ bool SemaResolver::ResolveExpr(ASTExpr *Expr) {
     }
 
     // The last Expr before Stmt need a Check Type
-    if (Success && !Expr->Parent && Expr->Stmt && Expr->Stmt->Kind != StmtKind::STMT_EXPR && Expr->Type) {
+    if (Success && !Expr->Parent && Expr->Stmt && Expr->Stmt->Kind != ASTStmtKind::STMT_EXPR && Expr->Type) {
         return S.Validator->CheckConvertibleTypes(Expr->Type, getType(Expr->Stmt));
     }
 
@@ -545,11 +545,11 @@ bool SemaResolver::ResolveValueExpr(ASTValueExpr *Expr) {
     
     switch (Expr->Value->getMacroKind()) {
         
-        case MacroTypeKind::MACRO_TYPE_BOOL:
+        case ASTMacroTypeKind::MACRO_TYPE_BOOL:
             Expr->Type = SemaBuilder::CreateBoolType(Loc);
             break;
             
-        case MacroTypeKind::MACRO_TYPE_INTEGER: {
+        case ASTMacroTypeKind::MACRO_TYPE_INTEGER: {
             ASTIntegerValue *Integer = ((ASTIntegerValue *) Expr->Value);
 
             if (Integer->Negative) { // Integer is negative (Ex. -2)
@@ -586,15 +586,15 @@ bool SemaResolver::ResolveValueExpr(ASTValueExpr *Expr) {
             break;
         }
         
-        case MacroTypeKind::MACRO_TYPE_FLOATING_POINT:
+        case ASTMacroTypeKind::MACRO_TYPE_FLOATING_POINT:
             // Creating as Float on first but transform in Double if is contained into a Binary Expr with a Double Type
             Expr->Type = SemaBuilder::CreateDoubleType(Loc);
             break;
         
-        case MacroTypeKind::MACRO_TYPE_ARRAY:
+        case ASTMacroTypeKind::MACRO_TYPE_ARRAY:
             // TODO
             break;
-        case MacroTypeKind::MACRO_TYPE_CLASS:
+        case ASTMacroTypeKind::MACRO_TYPE_CLASS:
             // TODO
             break;
     }
@@ -610,17 +610,17 @@ bool SemaResolver::ResolveValueExpr(ASTValueExpr *Expr) {
 ASTBlock *SemaResolver::getBlock(ASTStmt *Stmt) {
     switch (Stmt->getKind()) {
 
-        case StmtKind::STMT_BLOCK:
+        case ASTStmtKind::STMT_BLOCK:
             return (ASTBlock *) Stmt;
-        case StmtKind::STMT_ARG:
+        case ASTStmtKind::STMT_ARG:
             return (ASTBlock *) ((ASTArg *)Stmt)->Call->Stmt->Parent;
-        case StmtKind::STMT_RETURN:
-        case StmtKind::STMT_EXPR:
-        case StmtKind::STMT_VAR_DEFINE:
-        case StmtKind::STMT_VAR_ASSIGN:
+        case ASTStmtKind::STMT_RETURN:
+        case ASTStmtKind::STMT_EXPR:
+        case ASTStmtKind::STMT_VAR_DEFINE:
+        case ASTStmtKind::STMT_VAR_ASSIGN:
             return (ASTBlock *) Stmt->getParent();
-        case StmtKind::STMT_BREAK:
-        case StmtKind::STMT_CONTINUE:
+        case ASTStmtKind::STMT_BREAK:
+        case ASTStmtKind::STMT_CONTINUE:
             assert("Unexpected parent for ASTExpr");
     }
 
@@ -634,17 +634,17 @@ ASTBlock *SemaResolver::getBlock(ASTStmt *Stmt) {
  */
 ASTType *SemaResolver::getType(ASTStmt *Stmt) {
     switch (Stmt->getKind()) {
-        case StmtKind::STMT_VAR_DEFINE: // int a = 1
+        case ASTStmtKind::STMT_VAR_DEFINE: // int a = 1
             return ((ASTLocalVar *) Stmt)->getType();
-        case StmtKind::STMT_VAR_ASSIGN: // a = 1
+        case ASTStmtKind::STMT_VAR_ASSIGN: // a = 1
             return ((ASTVarAssign *) Stmt)->getVarRef()->getDef()->getType();
-        case StmtKind::STMT_ARG: // func(a, 1)
+        case ASTStmtKind::STMT_ARG: // func(a, 1)
             return ((ASTArg *) Stmt)->getDef()->getType();
-        case StmtKind::STMT_RETURN:
+        case ASTStmtKind::STMT_RETURN:
             return getBlock(Stmt)->Top->Type;
-        case StmtKind::STMT_EXPR:
+        case ASTStmtKind::STMT_EXPR:
             return ((ASTExprStmt *) Stmt)->Expr->Type;
-        case StmtKind::STMT_BLOCK:
+        case ASTStmtKind::STMT_BLOCK:
             switch (((ASTBlock *) Stmt)->getBlockKind()) {
                 case ASTBlockKind::BLOCK_IF:
                     return ((ASTIfBlock *) Stmt)->Condition->Type;

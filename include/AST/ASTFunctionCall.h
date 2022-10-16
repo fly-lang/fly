@@ -11,6 +11,7 @@
 #define FLY_FUNCTION_CALL_H
 
 #include "ASTExprStmt.h"
+#include "Basic/Debuggable.h"
 
 #include "llvm/ADT/SmallVector.h"
 
@@ -20,7 +21,7 @@ namespace fly {
 
     class ASTType;
     class CodeGenCall;
-    class ASTFunction;
+    class ASTFunctionBase;
     class ASTParam;
     class ASTArg;
 
@@ -29,7 +30,7 @@ namespace fly {
      * Ex.
      *  int a = sqrt(4)
      */
-    class ASTFunctionCall {
+    class ASTFunctionCall : public Debuggable {
 
         friend class SemaBuilder;
         friend class SemaResolver;
@@ -44,7 +45,7 @@ namespace fly {
 
         std::vector<ASTArg *> Args;
 
-        ASTFunction *Def = nullptr;
+        ASTFunctionBase *Def = nullptr;
 
         CodeGenCall *CGC = nullptr;
 
@@ -60,7 +61,7 @@ namespace fly {
 
         const std::vector<ASTArg *> getArgs() const;
 
-        ASTFunction *getDef() const;
+        ASTFunctionBase *getDef() const;
 
         CodeGenCall *getCodeGen() const;
 

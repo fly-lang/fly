@@ -36,6 +36,12 @@ ASTElseBlock *ASTIfBlock::getElseBlock() {
     return ElseBlock;
 }
 
+std::string ASTIfBlock::str() const {
+    return Logger("ASTIfBlock").
+           Super(ASTBlock::str()).
+           End();
+}
+
 ASTElsifBlock::ASTElsifBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc) :
     ASTBlock(IfBlock->getParent(), Loc, ASTBlockKind::BLOCK_ELSIF), IfBlock(IfBlock) {
     IfBlock->ElsifBlocks.push_back(this);
@@ -45,7 +51,19 @@ ASTExpr *ASTElsifBlock::getCondition() {
     return Condition;
 }
 
+std::string ASTElsifBlock::str() const {
+    return Logger("ASTElsifBlock").
+           Super(ASTBlock::str()).
+           End();
+}
+
 ASTElseBlock::ASTElseBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc) :
     ASTBlock(IfBlock->getParent(), Loc, ASTBlockKind::BLOCK_ELSE), IfBlock(IfBlock) {
     IfBlock->ElseBlock = this;
+}
+
+std::string ASTElseBlock::str() const {
+    return Logger("ASTElseBlock").
+           Super(ASTBlock::str()).
+           End();
 }

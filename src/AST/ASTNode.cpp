@@ -63,5 +63,7 @@ ASTClass *ASTNode::getClass() const {
 }
 
 std::string ASTNode::str() const {
-    return "ASTNode { Name=" + Name + " }";
+    return Logger("ASTNode").
+           Attr("Name", Name).
+           End();
 }

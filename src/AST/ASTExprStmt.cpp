@@ -13,11 +13,11 @@
 using namespace fly;
 
 ASTExprStmt::ASTExprStmt(ASTStmt *Parent, const SourceLocation &Loc) :
-            ASTStmt(Parent, Loc, StmtKind::STMT_EXPR) {
+            ASTStmt(Parent, Loc, ASTStmtKind::STMT_EXPR) {
 
 }
 
-ASTExprStmt::ASTExprStmt(ASTStmt *Parent, const SourceLocation &Loc, StmtKind Kind) :
+ASTExprStmt::ASTExprStmt(ASTStmt *Parent, const SourceLocation &Loc, ASTStmtKind Kind) :
             ASTStmt(Parent, Loc, Kind) {
 
 }
@@ -27,5 +27,8 @@ ASTExpr *ASTExprStmt::getExpr() const {
 }
 
 std::string ASTExprStmt::str() const {
-    return "{ Expr=" + (Expr ? Expr->str() : "") + " }";
+    return Logger("ASTExprStmt").
+           Super(ASTStmt::str()).
+           Attr("Expr", Expr).
+           End();
 }

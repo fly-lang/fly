@@ -11,6 +11,7 @@
 #ifndef FLY_ASTEXPR_H
 #define FLY_ASTEXPR_H
 
+#include "Basic/Debuggable.h"
 #include "Basic/SourceLocation.h"
 
 #include <string>
@@ -40,24 +41,24 @@ namespace fly {
         GROUP_TERNARY
     };
 
-    enum class UnaryOptionKind {
+    enum class ASTUnaryOptionKind {
         UNARY_PRE,
         UNARY_POST
     };
 
-    enum class UnaryOpKind {
+    enum class ASTUnaryOperatorKind {
         ARITH_INCR,
         ARITH_DECR,
         LOGIC_NOT
     };
 
-    enum class BinaryOptionKind {
+    enum class ASTBinaryOptionKind {
         BINARY_ARITH,
         BINARY_LOGIC,
         BINARY_COMPARISON
     };
 
-    enum class BinaryOpKind : int {
+    enum class ASTBinaryOperatorKind : int {
 
         // Arithmetic
         ARITH_ADD = 101,
@@ -84,27 +85,27 @@ namespace fly {
         COMP_LTE = 306
     };
 
-    enum TernaryOpKind {
+    enum ASTTernaryOperatorKind {
         CONDITION
     };
 
     /**
      * Expression Abstract Class
      */
-    class ASTExpr {
+    class ASTExpr : public Debuggable {
 
         friend class SemaBuilder;
         friend class SemaResolver;
 
         const SourceLocation &Loc;
 
-        const ASTExprKind Kind;
-
         ASTStmt *Stmt = nullptr;
 
         ASTExpr *Parent = nullptr;
 
     protected:
+
+        const ASTExprKind Kind;
 
         ASTType *Type = nullptr;
 
@@ -120,7 +121,7 @@ namespace fly {
 
         ASTExprKind getExprKind() const;
 
-        virtual std::string str() const = 0;
+        std::string str() const;
     };
 
     class ASTEmptyExpr : public ASTExpr {
@@ -216,7 +217,7 @@ namespace fly {
 
         virtual ASTType *getType() const override = 0;
 
-        virtual std::string str() const override = 0;
+        std::string str() const;
     };
 
     /**
@@ -227,19 +228,19 @@ namespace fly {
         friend class SemaBuilder;
         friend class SemaResolver;
 
-        const UnaryOpKind OperatorKind;
+        const ASTUnaryOperatorKind OperatorKind;
 
-        const UnaryOptionKind OptionKind;
+        const ASTUnaryOptionKind OptionKind;
 
         const ASTVarRefExpr *First = nullptr;
 
-        ASTUnaryGroupExpr(const SourceLocation &Loc, UnaryOpKind Operator, UnaryOptionKind Option, ASTVarRefExpr *First);
+        ASTUnaryGroupExpr(const SourceLocation &Loc, ASTUnaryOperatorKind Operator, ASTUnaryOptionKind Option, ASTVarRefExpr *First);
 
     public:
 
-        UnaryOpKind getOperatorKind() const;
+        ASTUnaryOperatorKind getOperatorKind() const;
 
-        UnaryOptionKind getOptionKind() const;
+        ASTUnaryOptionKind getOptionKind() const;
 
         const ASTVarRefExpr *getFirst() const;
 
@@ -258,21 +259,21 @@ namespace fly {
 
         const SourceLocation OpLoc;
 
-        const BinaryOpKind OperatorKind;
+        const ASTBinaryOperatorKind OperatorKind;
 
-        const BinaryOptionKind OptionKind;
+        const ASTBinaryOptionKind OptionKind;
 
         ASTExpr *First = nullptr;
 
         ASTExpr *Second = nullptr;
 
-        ASTBinaryGroupExpr(const SourceLocation &OpLoc, BinaryOpKind Operator, ASTExpr *First, ASTExpr *Second);
+        ASTBinaryGroupExpr(const SourceLocation &OpLoc, ASTBinaryOperatorKind Operator, ASTExpr *First, ASTExpr *Second);
 
     public:
 
-        BinaryOpKind getOperatorKind() const;
+        ASTBinaryOperatorKind getOperatorKind() const;
 
-        BinaryOptionKind getOptionKind() const;
+        ASTBinaryOptionKind getOptionKind() const;
 
         const ASTExpr *getFirst() const;
 
@@ -292,7 +293,7 @@ namespace fly {
         friend class SemaResolver;
 
         // Only Ternary Condition (if ? than : else)
-        const TernaryOpKind OperatorKind = CONDITION;
+        const ASTTernaryOperatorKind OperatorKind = CONDITION;
 
         const SourceLocation IfLoc;
 
@@ -309,7 +310,7 @@ namespace fly {
 
     public:
 
-        TernaryOpKind getOperatorKind() const;
+        ASTTernaryOperatorKind getOperatorKind() const;
 
         ASTType *getType() const override;
 

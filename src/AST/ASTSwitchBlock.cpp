@@ -33,9 +33,21 @@ ASTSwitchDefaultBlock *ASTSwitchBlock::getDefault() {
     return Default;
 }
 
+std::string ASTSwitchBlock::str() const {
+    return Logger("ASTSwitchBlock").
+           Super(ASTBlock::str()).
+           End();
+}
+
 ASTSwitchCaseBlock::ASTSwitchCaseBlock(ASTSwitchBlock *SwitchBlock, const SourceLocation &Loc) :
     ASTBlock(SwitchBlock->getParent(), Loc, ASTBlockKind::BLOCK_SWITCH_CASE), SwitchBlock(SwitchBlock) {
     SwitchBlock->Cases.push_back(this);
+}
+
+std::string ASTSwitchCaseBlock::str() const {
+    return Logger("ASTSwitchCaseBlock").
+           Super(ASTBlock::str()).
+           End();
 }
 
 ASTExpr *ASTSwitchCaseBlock::getExpr() {
@@ -45,4 +57,10 @@ ASTExpr *ASTSwitchCaseBlock::getExpr() {
 ASTSwitchDefaultBlock::ASTSwitchDefaultBlock(ASTSwitchBlock *SwitchBlock, const SourceLocation &Loc) :
     ASTBlock(SwitchBlock->getParent(), Loc, ASTBlockKind::BLOCK_SWITCH_DEFAULT), SwitchBlock(SwitchBlock) {
     SwitchBlock->Default = this;
+}
+
+std::string ASTSwitchDefaultBlock::str() const {
+    return Logger("ASTSwitchDefaultBlock").
+           Super(ASTBlock::str()).
+           End();
 }

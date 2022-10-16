@@ -11,6 +11,7 @@
 #define FLY_FUNCTIONBASE_H
 
 #include "ASTExprStmt.h"
+#include "Basic/Debuggable.h"
 
 #include <vector>
 
@@ -27,7 +28,6 @@ namespace fly {
     class ASTGlobalVar;
     class CodeGenFunction;
     class CodeGenVarBase;
-    class CodeGenStackVar;
     class CodeGenCall;
 
     enum class ASTFunctionKind {
@@ -35,7 +35,7 @@ namespace fly {
         CLASS_FUNCTION
     };
 
-    class ASTFunctionBase {
+    class ASTFunctionBase : public virtual Debuggable {
 
         friend class SemaBuilder;
         friend class SemaResolver;

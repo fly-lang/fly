@@ -30,6 +30,8 @@ namespace fly {
 
         ASTExpr *getCondition();
 
+        std::string str() const;
+
     };
 }
 

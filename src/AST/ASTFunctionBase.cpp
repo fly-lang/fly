@@ -16,8 +16,8 @@
 
 using namespace fly;
 
-ASTFunctionBase::ASTFunctionBase(ASTFunctionKind Kind, ASTType *ReturnType, const std::string Name) :
-        Kind(Kind), Type(ReturnType), Name(Name) {
+ASTFunctionBase::ASTFunctionBase(ASTFunctionKind Kind, ASTType *ReturnType, const std::string Name)
+        : Kind(Kind), Type(ReturnType), Name(Name) {
 
 }
 
@@ -58,24 +58,20 @@ bool ASTFunctionBase::isVarArg() {
 }
 
 std::string ASTFunctionBase::str() const {
-    std::string Str = "{ Name=" + Name +
-            ", Params=[";
-    if(!Params->getList().empty()) {
-        for (ASTParam *Param: Params->getList()) {
-            Str += Param->str() + ", ";
-        }
-        Str = Str.substr(0, Str.length()-2);
-    }
-    Str += "], ReturnType=" + Type->str();
-    return Str;
+    return Logger("ASTFunctionBase").
+           Attr("Name", Name).
+           Attr("Params", Params).
+           Attr("ReturnType", Type).
+           End();
 }
 
 ASTReturn::ASTReturn(ASTBlock *Parent, const SourceLocation &Loc) :
-        ASTExprStmt(Parent, Loc, StmtKind::STMT_RETURN) {
+        ASTExprStmt(Parent, Loc, ASTStmtKind::STMT_RETURN) {
 
 }
 
 std::string ASTReturn::str() const {
-    return "ASTReturn { Kind=" + std::to_string((int) Kind) +
-           " }";
+    return Logger("ASTReturn").
+            Attr("Kind", (int) Kind).
+            End();
 }

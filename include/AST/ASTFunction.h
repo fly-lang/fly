@@ -40,9 +40,11 @@ namespace fly {
 
     public:
 
-        const std::string getName() const override;
+        const SourceLocation &getLocation() const;
 
-        std::string str() const;
+        std::string getName() const override;
+
+        std::string str() const override;
     };
 }
 

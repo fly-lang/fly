@@ -7,6 +7,7 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
+// fly
 #include "TestUtils.h"
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
@@ -37,9 +38,13 @@
 #include "Basic/SourceLocation.h"
 #include "Basic/TargetOptions.h"
 #include "Basic/Builtins.h"
+
+// third party
 #include "llvm/Support/Host.h"
 #include "llvm/Support/TargetSelect.h"
 #include "gtest/gtest.h"
+
+// standard
 #include <vector>
 
 
@@ -607,10 +612,10 @@ namespace {
         ASTVarRefExpr *E4 = Builder->CreateExpr(Return, Builder->CreateVarRef(cParam));
         ASTValueExpr *E5 = Builder->CreateExpr(Return, SemaBuilder::CreateIntegerValue(SourceLoc, 2));
 
-        ASTBinaryGroupExpr *G2 = Builder->CreateBinaryExpr(Return, SourceLoc, BinaryOpKind::ARITH_MUL, E2, E3);
-        ASTBinaryGroupExpr *G3 = Builder->CreateBinaryExpr(Return, SourceLoc, BinaryOpKind::ARITH_SUB, E4, E5);
-        ASTBinaryGroupExpr *G1 = Builder->CreateBinaryExpr(Return, SourceLoc, BinaryOpKind::ARITH_DIV, G2, G3);
-        ASTBinaryGroupExpr *Group = Builder->CreateBinaryExpr(Return, SourceLoc, BinaryOpKind::ARITH_ADD, E1, G1);
+        ASTBinaryGroupExpr *G2 = Builder->CreateBinaryExpr(Return, SourceLoc, ASTBinaryOperatorKind::ARITH_MUL, E2, E3);
+        ASTBinaryGroupExpr *G3 = Builder->CreateBinaryExpr(Return, SourceLoc, ASTBinaryOperatorKind::ARITH_SUB, E4, E5);
+        ASTBinaryGroupExpr *G1 = Builder->CreateBinaryExpr(Return, SourceLoc, ASTBinaryOperatorKind::ARITH_DIV, G2, G3);
+        ASTBinaryGroupExpr *Group = Builder->CreateBinaryExpr(Return, SourceLoc, ASTBinaryOperatorKind::ARITH_ADD, E1, G1);
 
         EXPECT_TRUE(Builder->AddStmt(Return));
 
@@ -674,96 +679,96 @@ namespace {
 
         // c = a + b
         ASTVarAssign * cAddVarAssign = Builder->CreateVarAssign(Body, Builder->CreateVarRef(cParam));
-        Builder->CreateBinaryExpr(cAddVarAssign, SourceLoc,BinaryOpKind::ARITH_ADD,
-                                             Builder->CreateExpr(cAddVarAssign, Builder->CreateVarRef(aParam)),
-                                             Builder->CreateExpr(cAddVarAssign, Builder->CreateVarRef(bParam)));
+        Builder->CreateBinaryExpr(cAddVarAssign, SourceLoc, ASTBinaryOperatorKind::ARITH_ADD,
+                                  Builder->CreateExpr(cAddVarAssign, Builder->CreateVarRef(aParam)),
+                                  Builder->CreateExpr(cAddVarAssign, Builder->CreateVarRef(bParam)));
         EXPECT_TRUE(Builder->AddStmt(cAddVarAssign));
 
         // c = a - b
         ASTVarAssign * cSubVarAssign = Builder->CreateVarAssign(Body, Builder->CreateVarRef(cParam));
-        Builder->CreateBinaryExpr(cSubVarAssign, SourceLoc,BinaryOpKind::ARITH_SUB,
-                                                               Builder->CreateExpr(cSubVarAssign, Builder->CreateVarRef(aParam)),
-                                                               Builder->CreateExpr(cSubVarAssign, Builder->CreateVarRef(bParam)));
+        Builder->CreateBinaryExpr(cSubVarAssign, SourceLoc, ASTBinaryOperatorKind::ARITH_SUB,
+                                  Builder->CreateExpr(cSubVarAssign, Builder->CreateVarRef(aParam)),
+                                  Builder->CreateExpr(cSubVarAssign, Builder->CreateVarRef(bParam)));
         EXPECT_TRUE(Builder->AddStmt(cSubVarAssign));
 
         // c = a * b
         ASTVarAssign * cMulVarAssign = Builder->CreateVarAssign(Body, Builder->CreateVarRef(cParam));
-        Builder->CreateBinaryExpr(cMulVarAssign, SourceLoc,BinaryOpKind::ARITH_MUL,
-                                                               Builder->CreateExpr(cMulVarAssign, Builder->CreateVarRef(aParam)),
-                                                               Builder->CreateExpr(cMulVarAssign, Builder->CreateVarRef(bParam)));
+        Builder->CreateBinaryExpr(cMulVarAssign, SourceLoc, ASTBinaryOperatorKind::ARITH_MUL,
+                                  Builder->CreateExpr(cMulVarAssign, Builder->CreateVarRef(aParam)),
+                                  Builder->CreateExpr(cMulVarAssign, Builder->CreateVarRef(bParam)));
         EXPECT_TRUE(Builder->AddStmt(cMulVarAssign));
 
         // c = a / b
         ASTVarAssign * cDivVarAssign = Builder->CreateVarAssign(Body, Builder->CreateVarRef(cParam));
-        Builder->CreateBinaryExpr(cDivVarAssign, SourceLoc,BinaryOpKind::ARITH_DIV,
-                                                               Builder->CreateExpr(cDivVarAssign, Builder->CreateVarRef(aParam)),
-                                                               Builder->CreateExpr(cDivVarAssign, Builder->CreateVarRef(bParam)));
+        Builder->CreateBinaryExpr(cDivVarAssign, SourceLoc, ASTBinaryOperatorKind::ARITH_DIV,
+                                  Builder->CreateExpr(cDivVarAssign, Builder->CreateVarRef(aParam)),
+                                  Builder->CreateExpr(cDivVarAssign, Builder->CreateVarRef(bParam)));
         EXPECT_TRUE(Builder->AddStmt(cDivVarAssign));
 
         // c = a % b
         ASTVarAssign * cModVarAssign = Builder->CreateVarAssign(Body, Builder->CreateVarRef(cParam));
-        Builder->CreateBinaryExpr(cModVarAssign, SourceLoc,BinaryOpKind::ARITH_MOD,
-                                                               Builder->CreateExpr(cModVarAssign, Builder->CreateVarRef(aParam)),
-                                                               Builder->CreateExpr(cModVarAssign, Builder->CreateVarRef(bParam)));
+        Builder->CreateBinaryExpr(cModVarAssign, SourceLoc, ASTBinaryOperatorKind::ARITH_MOD,
+                                  Builder->CreateExpr(cModVarAssign, Builder->CreateVarRef(aParam)),
+                                  Builder->CreateExpr(cModVarAssign, Builder->CreateVarRef(bParam)));
         EXPECT_TRUE(Builder->AddStmt(cModVarAssign));
 
         // c = a & b
         ASTVarAssign * cAndVarAssign = Builder->CreateVarAssign(Body, Builder->CreateVarRef(cParam));
-        Builder->CreateBinaryExpr(cAndVarAssign, SourceLoc,BinaryOpKind::ARITH_AND,
-                                                               Builder->CreateExpr(cAndVarAssign, Builder->CreateVarRef(aParam)),
-                                                               Builder->CreateExpr(cAndVarAssign, Builder->CreateVarRef(bParam)));
+        Builder->CreateBinaryExpr(cAndVarAssign, SourceLoc, ASTBinaryOperatorKind::ARITH_AND,
+                                  Builder->CreateExpr(cAndVarAssign, Builder->CreateVarRef(aParam)),
+                                  Builder->CreateExpr(cAndVarAssign, Builder->CreateVarRef(bParam)));
         EXPECT_TRUE(Builder->AddStmt(cAndVarAssign));
 
         // c = a | b
         ASTVarAssign * cOrVarAssign = Builder->CreateVarAssign(Body, Builder->CreateVarRef(cParam));
-        Builder->CreateBinaryExpr(cOrVarAssign, SourceLoc,BinaryOpKind::ARITH_OR,
-                                                               Builder->CreateExpr(cOrVarAssign, Builder->CreateVarRef(aParam)),
-                                                               Builder->CreateExpr(cOrVarAssign, Builder->CreateVarRef(bParam)));
+        Builder->CreateBinaryExpr(cOrVarAssign, SourceLoc, ASTBinaryOperatorKind::ARITH_OR,
+                                  Builder->CreateExpr(cOrVarAssign, Builder->CreateVarRef(aParam)),
+                                  Builder->CreateExpr(cOrVarAssign, Builder->CreateVarRef(bParam)));
         EXPECT_TRUE(Builder->AddStmt(cOrVarAssign));
 
         // c = a xor b
         ASTVarAssign * cXorVarAssign = Builder->CreateVarAssign(Body, Builder->CreateVarRef(cParam));
-        Builder->CreateBinaryExpr(cXorVarAssign, SourceLoc,BinaryOpKind::ARITH_XOR,
-                                                               Builder->CreateExpr(cXorVarAssign, Builder->CreateVarRef(aParam)),
-                                                               Builder->CreateExpr(cXorVarAssign, Builder->CreateVarRef(bParam)));
+        Builder->CreateBinaryExpr(cXorVarAssign, SourceLoc, ASTBinaryOperatorKind::ARITH_XOR,
+                                  Builder->CreateExpr(cXorVarAssign, Builder->CreateVarRef(aParam)),
+                                  Builder->CreateExpr(cXorVarAssign, Builder->CreateVarRef(bParam)));
         EXPECT_TRUE(Builder->AddStmt(cXorVarAssign));
 
         // c = a << b
         ASTVarAssign * cShlVarAssign = Builder->CreateVarAssign(Body, Builder->CreateVarRef(cParam));
-        Builder->CreateBinaryExpr(cShlVarAssign, SourceLoc,BinaryOpKind::ARITH_SHIFT_L,
-                                                               Builder->CreateExpr(cShlVarAssign, Builder->CreateVarRef(aParam)),
-                                                               Builder->CreateExpr(cShlVarAssign, Builder->CreateVarRef(bParam)));
+        Builder->CreateBinaryExpr(cShlVarAssign, SourceLoc, ASTBinaryOperatorKind::ARITH_SHIFT_L,
+                                  Builder->CreateExpr(cShlVarAssign, Builder->CreateVarRef(aParam)),
+                                  Builder->CreateExpr(cShlVarAssign, Builder->CreateVarRef(bParam)));
         EXPECT_TRUE(Builder->AddStmt(cShlVarAssign));
 
         // c = a >> b
         ASTVarAssign * cShrVarAssign = Builder->CreateVarAssign(Body, Builder->CreateVarRef(cParam));
-        Builder->CreateBinaryExpr(cShrVarAssign, SourceLoc,BinaryOpKind::ARITH_SHIFT_R,
-                                                               Builder->CreateExpr(cShrVarAssign, Builder->CreateVarRef(aParam)),
-                                                               Builder->CreateExpr(cShrVarAssign, Builder->CreateVarRef(bParam)));
+        Builder->CreateBinaryExpr(cShrVarAssign, SourceLoc, ASTBinaryOperatorKind::ARITH_SHIFT_R,
+                                  Builder->CreateExpr(cShrVarAssign, Builder->CreateVarRef(aParam)),
+                                  Builder->CreateExpr(cShrVarAssign, Builder->CreateVarRef(bParam)));
         EXPECT_TRUE(Builder->AddStmt(cShrVarAssign));
 
         // ++c
         ASTExprStmt *cPreIncVarAssign = Builder->CreateExprStmt(Body, SourceLoc);
-        Builder->CreateUnaryExpr(cPreIncVarAssign, SourceLoc,UnaryOpKind::ARITH_INCR, UnaryOptionKind::UNARY_PRE,
-                                                               Builder->CreateExpr(cPreIncVarAssign, Builder->CreateVarRef(cParam)));
+        Builder->CreateUnaryExpr(cPreIncVarAssign, SourceLoc, ASTUnaryOperatorKind::ARITH_INCR, ASTUnaryOptionKind::UNARY_PRE,
+                                 Builder->CreateExpr(cPreIncVarAssign, Builder->CreateVarRef(cParam)));
         EXPECT_TRUE(Builder->AddStmt(cPreIncVarAssign));
 
         // c++
         ASTExprStmt *cPostIncVarAssign = Builder->CreateExprStmt(Body, SourceLoc);
-        Builder->CreateUnaryExpr(cPostIncVarAssign, SourceLoc,UnaryOpKind::ARITH_INCR, UnaryOptionKind::UNARY_POST,
-                                                              Builder->CreateExpr(cPostIncVarAssign, Builder->CreateVarRef(cParam)));
+        Builder->CreateUnaryExpr(cPostIncVarAssign, SourceLoc, ASTUnaryOperatorKind::ARITH_INCR, ASTUnaryOptionKind::UNARY_POST,
+                                 Builder->CreateExpr(cPostIncVarAssign, Builder->CreateVarRef(cParam)));
         EXPECT_TRUE(Builder->AddStmt(cPostIncVarAssign));
 
         // ++c
         ASTExprStmt *cPreDecVarAssign = Builder->CreateExprStmt(Body, SourceLoc);
-        Builder->CreateUnaryExpr(cPreDecVarAssign, SourceLoc, UnaryOpKind::ARITH_DECR, UnaryOptionKind::UNARY_PRE,
-                                                              Builder->CreateExpr(cPreDecVarAssign, Builder->CreateVarRef(cParam)));
+        Builder->CreateUnaryExpr(cPreDecVarAssign, SourceLoc, ASTUnaryOperatorKind::ARITH_DECR, ASTUnaryOptionKind::UNARY_PRE,
+                                 Builder->CreateExpr(cPreDecVarAssign, Builder->CreateVarRef(cParam)));
         EXPECT_TRUE(Builder->AddStmt(cPreDecVarAssign));
 
         // c++
         ASTExprStmt *cPostDecVarAssign = Builder->CreateExprStmt(Body, SourceLoc);
-        Builder->CreateUnaryExpr(cPostDecVarAssign, SourceLoc, UnaryOpKind::ARITH_DECR, UnaryOptionKind::UNARY_POST,
-                                                              Builder->CreateExpr(cPostDecVarAssign, Builder->CreateVarRef(cParam)));
+        Builder->CreateUnaryExpr(cPostDecVarAssign, SourceLoc, ASTUnaryOperatorKind::ARITH_DECR, ASTUnaryOptionKind::UNARY_POST,
+                                 Builder->CreateExpr(cPostDecVarAssign, Builder->CreateVarRef(cParam)));
         EXPECT_TRUE(Builder->AddStmt(cPostDecVarAssign));
 
         //return c
@@ -862,44 +867,44 @@ namespace {
 
         // Operation Equal
         ASTVarAssign * cEqVarAssign = Builder->CreateVarAssign(Body, Builder->CreateVarRef(cVar));
-        Builder->CreateBinaryExpr(cEqVarAssign, SourceLoc, BinaryOpKind::COMP_EQ,
-                                                               Builder->CreateExpr(cEqVarAssign, Builder->CreateVarRef(aVar)),
-                                                               Builder->CreateExpr(cEqVarAssign, Builder->CreateVarRef(bVar)));
+        Builder->CreateBinaryExpr(cEqVarAssign, SourceLoc, ASTBinaryOperatorKind::COMP_EQ,
+                                  Builder->CreateExpr(cEqVarAssign, Builder->CreateVarRef(aVar)),
+                                  Builder->CreateExpr(cEqVarAssign, Builder->CreateVarRef(bVar)));
         EXPECT_TRUE(Builder->AddStmt(cEqVarAssign));
 
         // Operation Not Equal
         ASTVarAssign * cNeqVarAssign = Builder->CreateVarAssign(Body, Builder->CreateVarRef(cVar));
-        Builder->CreateBinaryExpr(cNeqVarAssign, SourceLoc, BinaryOpKind::COMP_NE,
-                                                               Builder->CreateExpr(cNeqVarAssign, Builder->CreateVarRef(aVar)),
-                                                               Builder->CreateExpr(cNeqVarAssign, Builder->CreateVarRef(bVar)));
+        Builder->CreateBinaryExpr(cNeqVarAssign, SourceLoc, ASTBinaryOperatorKind::COMP_NE,
+                                  Builder->CreateExpr(cNeqVarAssign, Builder->CreateVarRef(aVar)),
+                                  Builder->CreateExpr(cNeqVarAssign, Builder->CreateVarRef(bVar)));
         EXPECT_TRUE(Builder->AddStmt(cNeqVarAssign));
 
         // Operation Greater Than
         ASTVarAssign * cGtVarAssign = Builder->CreateVarAssign(Body, Builder->CreateVarRef(cVar));
-        Builder->CreateBinaryExpr(cGtVarAssign, SourceLoc, BinaryOpKind::COMP_GT,
-                                                               Builder->CreateExpr(cGtVarAssign, Builder->CreateVarRef(aVar)),
-                                                               Builder->CreateExpr(cGtVarAssign, Builder->CreateVarRef(bVar)));
+        Builder->CreateBinaryExpr(cGtVarAssign, SourceLoc, ASTBinaryOperatorKind::COMP_GT,
+                                  Builder->CreateExpr(cGtVarAssign, Builder->CreateVarRef(aVar)),
+                                  Builder->CreateExpr(cGtVarAssign, Builder->CreateVarRef(bVar)));
         EXPECT_TRUE(Builder->AddStmt(cGtVarAssign));
 
         // Operation Greater Than or Equal
         ASTVarAssign * cGteVarAssign = Builder->CreateVarAssign(Body, Builder->CreateVarRef(cVar));
-        Builder->CreateBinaryExpr(cGteVarAssign, SourceLoc, BinaryOpKind::COMP_GTE,
-                                                               Builder->CreateExpr(cGteVarAssign, Builder->CreateVarRef(aVar)),
-                                                               Builder->CreateExpr(cGteVarAssign, Builder->CreateVarRef(bVar)));
+        Builder->CreateBinaryExpr(cGteVarAssign, SourceLoc, ASTBinaryOperatorKind::COMP_GTE,
+                                  Builder->CreateExpr(cGteVarAssign, Builder->CreateVarRef(aVar)),
+                                  Builder->CreateExpr(cGteVarAssign, Builder->CreateVarRef(bVar)));
         EXPECT_TRUE(Builder->AddStmt(cGteVarAssign));
 
         // Operation Less Than
         ASTVarAssign * cLtVarAssign = Builder->CreateVarAssign(Body, Builder->CreateVarRef(cVar));
-        Builder->CreateBinaryExpr(cLtVarAssign, SourceLoc, BinaryOpKind::COMP_LT,
-                                                               Builder->CreateExpr(cLtVarAssign, Builder->CreateVarRef(aVar)),
-                                                               Builder->CreateExpr(cLtVarAssign, Builder->CreateVarRef(bVar)));
+        Builder->CreateBinaryExpr(cLtVarAssign, SourceLoc, ASTBinaryOperatorKind::COMP_LT,
+                                  Builder->CreateExpr(cLtVarAssign, Builder->CreateVarRef(aVar)),
+                                  Builder->CreateExpr(cLtVarAssign, Builder->CreateVarRef(bVar)));
         EXPECT_TRUE(Builder->AddStmt(cLtVarAssign));
 
         // Operation Less Than or Equal
         ASTVarAssign * cLteVarAssign = Builder->CreateVarAssign(Body, Builder->CreateVarRef(cVar));
-        Builder->CreateBinaryExpr(cLteVarAssign, SourceLoc, BinaryOpKind::COMP_LTE,
-                                                               Builder->CreateExpr(cLteVarAssign, Builder->CreateVarRef(aVar)),
-                                                               Builder->CreateExpr(cLteVarAssign, Builder->CreateVarRef(bVar)));
+        Builder->CreateBinaryExpr(cLteVarAssign, SourceLoc, ASTBinaryOperatorKind::COMP_LTE,
+                                  Builder->CreateExpr(cLteVarAssign, Builder->CreateVarRef(aVar)),
+                                  Builder->CreateExpr(cLteVarAssign, Builder->CreateVarRef(bVar)));
         EXPECT_TRUE(Builder->AddStmt(cLteVarAssign));
 
         //return c
@@ -981,16 +986,16 @@ namespace {
 
         // Operation And Logic
         ASTVarAssign * cAndVarAssign = Builder->CreateVarAssign(Body, Builder->CreateVarRef(cVar));
-        Builder->CreateBinaryExpr(cAndVarAssign, SourceLoc, BinaryOpKind::LOGIC_AND,
-                                                               Builder->CreateExpr(cAndVarAssign, Builder->CreateVarRef(aVar)),
-                                                               Builder->CreateExpr(cAndVarAssign, Builder->CreateVarRef(bVar)));
+        Builder->CreateBinaryExpr(cAndVarAssign, SourceLoc, ASTBinaryOperatorKind::LOGIC_AND,
+                                  Builder->CreateExpr(cAndVarAssign, Builder->CreateVarRef(aVar)),
+                                  Builder->CreateExpr(cAndVarAssign, Builder->CreateVarRef(bVar)));
         EXPECT_TRUE(Builder->AddStmt(cAndVarAssign));
 
         // Operation Or Logic
         ASTVarAssign * cOrVarAssign = Builder->CreateVarAssign(Body, Builder->CreateVarRef(cVar));
-        Builder->CreateBinaryExpr(cOrVarAssign, SourceLoc, BinaryOpKind::LOGIC_OR,
-                                                               Builder->CreateExpr(cOrVarAssign, Builder->CreateVarRef(aVar)),
-                                                               Builder->CreateExpr(cOrVarAssign, Builder->CreateVarRef(bVar)));
+        Builder->CreateBinaryExpr(cOrVarAssign, SourceLoc, ASTBinaryOperatorKind::LOGIC_OR,
+                                  Builder->CreateExpr(cOrVarAssign, Builder->CreateVarRef(aVar)),
+                                  Builder->CreateExpr(cOrVarAssign, Builder->CreateVarRef(bVar)));
         EXPECT_TRUE(Builder->AddStmt(cOrVarAssign));
 
         //return c
@@ -1078,7 +1083,7 @@ namespace {
 
         // return
         ASTVarAssign * cOrVarAssign = Builder->CreateVarAssign(Body, Builder->CreateVarRef(cVar));
-        ASTBinaryGroupExpr *Cond = Builder->CreateBinaryExpr(cOrVarAssign, SourceLoc, BinaryOpKind::COMP_EQ,
+        ASTBinaryGroupExpr *Cond = Builder->CreateBinaryExpr(cOrVarAssign, SourceLoc, ASTBinaryOperatorKind::COMP_EQ,
                                                              Builder->CreateExpr(cOrVarAssign,
                                                                                  Builder->CreateVarRef(aVar)),
                                                              Builder->CreateExpr(cOrVarAssign,
@@ -1157,7 +1162,7 @@ namespace {
         // if (a == 1)
         ASTVarRefExpr *aVarRef = Builder->CreateExpr(IfBlock, Builder->CreateVarRef(aVar));
         ASTValueExpr *Value1 = Builder->CreateExpr(IfBlock, SemaBuilder::CreateIntegerValue(SourceLoc, 1));
-        ASTBinaryGroupExpr *IfCond = Builder->CreateBinaryExpr(IfBlock, SourceLoc, BinaryOpKind::COMP_EQ, aVarRef, Value1);
+        ASTBinaryGroupExpr *IfCond = Builder->CreateBinaryExpr(IfBlock, SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value1);
 
         // { a = 2 }
         ASTVarAssign *aVarAssign = Builder->CreateVarAssign(IfBlock, Builder->CreateVarRef(aVar));
@@ -1219,7 +1224,7 @@ namespace {
         // if (a == 1)
         ASTValueExpr *Value1 = Builder->CreateExpr(aParam, SemaBuilder::CreateIntegerValue(SourceLoc, 1));
         ASTVarRefExpr *aVarRef = Builder->CreateExpr(IfBlock, Builder->CreateVarRef(aParam));
-        ASTBinaryGroupExpr *IfCond = Builder->CreateBinaryExpr(IfBlock, SourceLoc, BinaryOpKind::COMP_EQ, aVarRef, Value1);
+        ASTBinaryGroupExpr *IfCond = Builder->CreateBinaryExpr(IfBlock, SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value1);
 
         // { a = 1 }
         ASTVarAssign *aVarAssign = Builder->CreateVarAssign(IfBlock, Builder->CreateVarRef(aParam));
@@ -1291,7 +1296,7 @@ namespace {
         // if (a == 1) { a = 11 }
         ASTValueExpr *Value1 = Builder->CreateExpr(aParam, SemaBuilder::CreateIntegerValue(SourceLoc, 1));
         ASTVarRefExpr *aVarRef = Builder->CreateExpr(IfBlock, Builder->CreateVarRef(aParam));
-        ASTBinaryGroupExpr *IfCond = Builder->CreateBinaryExpr(IfBlock, SourceLoc, BinaryOpKind::COMP_EQ, aVarRef, Value1);
+        ASTBinaryGroupExpr *IfCond = Builder->CreateBinaryExpr(IfBlock, SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value1);
         ASTVarAssign *aVarAssign = Builder->CreateVarAssign(IfBlock, Builder->CreateVarRef(aParam));
         Builder->CreateExpr(aVarAssign, SemaBuilder::CreateIntegerValue(SourceLoc, 11));
         EXPECT_TRUE(Builder->AddStmt(aVarAssign));
@@ -1299,7 +1304,7 @@ namespace {
         // elsif (a == 2) { a = 22 }
         ASTElsifBlock *ElsifBlock = Builder->CreateElsifBlock(IfBlock, SourceLoc);
         ASTValueExpr *Value2 = Builder->CreateExpr(aParam, SemaBuilder::CreateIntegerValue(SourceLoc, 2));
-        ASTBinaryGroupExpr *ElsifCond = Builder->CreateBinaryExpr(ElsifBlock, SourceLoc, BinaryOpKind::COMP_EQ, aVarRef, Value2);
+        ASTBinaryGroupExpr *ElsifCond = Builder->CreateBinaryExpr(ElsifBlock, SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value2);
         ASTVarAssign *aVarAssign2 = Builder->CreateVarAssign(ElsifBlock, Builder->CreateVarRef(aParam));
         Builder->CreateExpr(aVarAssign2, SemaBuilder::CreateIntegerValue(SourceLoc, 22));
         EXPECT_TRUE(Builder->AddStmt(aVarAssign2));
@@ -1307,7 +1312,7 @@ namespace {
         // elsif (a == 3) { a = 33 }
         ASTElsifBlock *ElsifBlock2 = Builder->CreateElsifBlock(IfBlock, SourceLoc);
         ASTValueExpr *Value3 = Builder->CreateExpr(aParam, SemaBuilder::CreateIntegerValue(SourceLoc, 3));
-        ASTBinaryGroupExpr *ElsifCond2 = Builder->CreateBinaryExpr(ElsifBlock2, SourceLoc, BinaryOpKind::COMP_EQ, aVarRef, Value3);
+        ASTBinaryGroupExpr *ElsifCond2 = Builder->CreateBinaryExpr(ElsifBlock2, SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value3);
         ASTVarAssign *aVarAssign3 = Builder->CreateVarAssign(ElsifBlock2, Builder->CreateVarRef(aParam));
         Builder->CreateExpr(aVarAssign3, SemaBuilder::CreateIntegerValue(SourceLoc, 33));
         EXPECT_TRUE(Builder->AddStmt(aVarAssign3));
@@ -1396,7 +1401,7 @@ namespace {
         // if a == 1 { a = 11 }
         ASTValueExpr *Value1 = Builder->CreateExpr(aParam, SemaBuilder::CreateIntegerValue(SourceLoc, 1));
         ASTVarRefExpr *aVarRef = Builder->CreateExpr(IfBlock, Builder->CreateVarRef(aParam));
-        ASTBinaryGroupExpr *IfCond = Builder->CreateBinaryExpr(IfBlock, SourceLoc, BinaryOpKind::COMP_EQ, aVarRef, Value1);
+        ASTBinaryGroupExpr *IfCond = Builder->CreateBinaryExpr(IfBlock, SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value1);
         ASTVarAssign *aVarAssign = Builder->CreateVarAssign(IfBlock, Builder->CreateVarRef(aParam));
         Builder->CreateExpr(aVarAssign, SemaBuilder::CreateIntegerValue(SourceLoc, 11));
         EXPECT_TRUE(Builder->AddStmt(aVarAssign));
@@ -1404,7 +1409,7 @@ namespace {
         // elsif a == 2 { a = 22 }
         ASTElsifBlock *ElsifBlock = Builder->CreateElsifBlock(IfBlock, SourceLoc);
         ASTValueExpr *Value2 = Builder->CreateExpr(aParam, SemaBuilder::CreateIntegerValue(SourceLoc, 2));
-        ASTBinaryGroupExpr *ElsifCond = Builder->CreateBinaryExpr(ElsifBlock, SourceLoc, BinaryOpKind::COMP_EQ, aVarRef, Value2);
+        ASTBinaryGroupExpr *ElsifCond = Builder->CreateBinaryExpr(ElsifBlock, SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value2);
         ASTVarAssign *aVarAssign2 = Builder->CreateVarAssign(ElsifBlock, Builder->CreateVarRef(aParam));
         Builder->CreateExpr(aVarAssign2, SemaBuilder::CreateIntegerValue(SourceLoc, 22));
         EXPECT_TRUE(Builder->AddStmt(aVarAssign2));
@@ -1412,7 +1417,7 @@ namespace {
         // elsif a == 3 { a = 33 }
         ASTElsifBlock *ElsifBlock2 = Builder->CreateElsifBlock(IfBlock, SourceLoc);
         ASTValueExpr *Value3 = Builder->CreateExpr(aParam, SemaBuilder::CreateIntegerValue(SourceLoc, 3));
-        ASTBinaryGroupExpr *ElsifCond2 = Builder->CreateBinaryExpr(ElsifBlock2, SourceLoc, BinaryOpKind::COMP_EQ, aVarRef, Value3);
+        ASTBinaryGroupExpr *ElsifCond2 = Builder->CreateBinaryExpr(ElsifBlock2, SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value3);
         ASTVarAssign *aVarAssign3 = Builder->CreateVarAssign(ElsifBlock2, Builder->CreateVarRef(aParam));
         Builder->CreateExpr(aVarAssign3, SemaBuilder::CreateIntegerValue(SourceLoc, 33));
         EXPECT_TRUE(Builder->AddStmt(aVarAssign3));
@@ -1572,7 +1577,7 @@ namespace {
         // while a == 1
         ASTValueExpr *Value1 = Builder->CreateExpr(aParam, SemaBuilder::CreateIntegerValue(SourceLoc, 1));
         ASTVarRefExpr *aVarRef = Builder->CreateExpr(WhileBlock, Builder->CreateVarRef(aParam));
-        ASTBinaryGroupExpr *WhileCond = Builder->CreateBinaryExpr(WhileBlock, SourceLoc, BinaryOpKind::COMP_EQ, aVarRef, Value1);
+        ASTBinaryGroupExpr *WhileCond = Builder->CreateBinaryExpr(WhileBlock, SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value1);
 
         // { a = 1 }
         ASTVarAssign *aVarAssign = Builder->CreateVarAssign(WhileBlock, Builder->CreateVarRef(aParam));
@@ -1642,10 +1647,10 @@ namespace {
         ASTVarRefExpr *iVarRef = Builder->CreateExpr(ForBlock, Builder->CreateVarRef(iVar));
         EXPECT_TRUE(Builder->AddStmt(iVar));
         
-        ASTBinaryGroupExpr *ForCond = Builder->CreateBinaryExpr(ForBlock, SourceLoc, BinaryOpKind::COMP_LTE, iVarRef, Value1);
+        ASTBinaryGroupExpr *ForCond = Builder->CreateBinaryExpr(ForBlock, SourceLoc, ASTBinaryOperatorKind::COMP_LTE, iVarRef, Value1);
         
         ASTExprStmt *iPreInc = Builder->CreateExprStmt(PostBlock, SourceLoc);
-        Builder->CreateUnaryExpr(iPreInc, SourceLoc, UnaryOpKind::ARITH_INCR, UnaryOptionKind::UNARY_PRE,
+        Builder->CreateUnaryExpr(iPreInc, SourceLoc, ASTUnaryOperatorKind::ARITH_INCR, ASTUnaryOptionKind::UNARY_PRE,
                                  Builder->CreateExpr(iPreInc, Builder->CreateVarRef(iVar)));
         EXPECT_TRUE(Builder->AddStmt(iPreInc));
 
@@ -1721,7 +1726,7 @@ namespace {
         // for a < 1
         ASTVarRefExpr *aVarRef = Builder->CreateExpr(ForBlock, Builder->CreateVarRef(aParam));
         ASTValueExpr *Value1 = Builder->CreateExpr(ForBlock, SemaBuilder::CreateIntegerValue(SourceLoc, 1));
-        ASTBinaryGroupExpr *ForCond = Builder->CreateBinaryExpr(ForBlock, SourceLoc, BinaryOpKind::COMP_LTE, aVarRef, Value1);
+        ASTBinaryGroupExpr *ForCond = Builder->CreateBinaryExpr(ForBlock, SourceLoc, ASTBinaryOperatorKind::COMP_LTE, aVarRef, Value1);
 
         // { a = 1}
         ASTVarAssign *aVarAssign = Builder->CreateVarAssign(LoopBlock, Builder->CreateVarRef(aParam));
@@ -1788,10 +1793,10 @@ namespace {
         // for a < 1; ++a
         ASTVarRefExpr *aVarRef = Builder->CreateExpr(ForBlock, Builder->CreateVarRef(aParam));
         ASTValueExpr *Value1 = Builder->CreateExpr(aParam, SemaBuilder::CreateIntegerValue(SourceLoc, 1));
-        ASTBinaryGroupExpr *ForCond = Builder->CreateBinaryExpr(ForBlock, SourceLoc, BinaryOpKind::COMP_LTE, aVarRef, Value1);
+        ASTBinaryGroupExpr *ForCond = Builder->CreateBinaryExpr(ForBlock, SourceLoc, ASTBinaryOperatorKind::COMP_LTE, aVarRef, Value1);
 
         ASTExprStmt *aPreInc = Builder->CreateExprStmt(PostBlock, SourceLoc);
-        Builder->CreateUnaryExpr(aPreInc, SourceLoc, UnaryOpKind::ARITH_INCR, UnaryOptionKind::UNARY_PRE,
+        Builder->CreateUnaryExpr(aPreInc, SourceLoc, ASTUnaryOperatorKind::ARITH_INCR, ASTUnaryOptionKind::UNARY_PRE,
                                  aVarRef);
         EXPECT_TRUE(Builder->AddStmt(aPreInc));
 

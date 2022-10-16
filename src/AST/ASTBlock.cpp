@@ -12,11 +12,11 @@
 #include "AST/ASTContext.h"
 #include "AST/ASTNode.h"
 #include "AST/ASTFunction.h"
-#include "AST/ASTFunctionCall.h"
 #include "AST/ASTStmt.h"
 #include "AST/ASTExpr.h"
 #include "AST/ASTLocalVar.h"
 #include "Sema/Sema.h"
+
 #include <llvm/ADT/StringMap.h>
 
 using namespace fly;
@@ -33,7 +33,7 @@ ASTBlock::ASTBlock(ASTBlock *Parent, const SourceLocation &Loc) :
 }
 
 ASTBlock::ASTBlock(ASTBlock *Parent, const SourceLocation &Loc, ASTBlockKind Kind) :
-        ASTStmt(Parent, Loc, StmtKind::STMT_BLOCK), BlockKind(Kind) {
+        ASTStmt(Parent, Loc, ASTStmtKind::STMT_BLOCK), BlockKind(Kind) {
 }
 
 /**
@@ -85,8 +85,7 @@ const llvm::StringMap<ASTLocalVar *> &ASTBlock::getUndefVars() const {
  * @return string info for debugging
  */
 std::string ASTBlock::str() const {
-    return "{ Kind=" + std::to_string((int) Kind) +
-            + " }";
+    return Logger("ASTBlock").Super(ASTStmt::str()).Attr("Kind", (int) BlockKind).End();
 }
 
 /**
@@ -95,7 +94,7 @@ std::string ASTBlock::str() const {
  * @param Parent
  */
 ASTBreak::ASTBreak(ASTBlock *Parent, const SourceLocation &Loc) :
-        ASTStmt(Parent, Loc, StmtKind::STMT_BREAK) {
+        ASTStmt(Parent, Loc, ASTStmtKind::STMT_BREAK) {
 
 }
 /**
@@ -103,7 +102,7 @@ ASTBreak::ASTBreak(ASTBlock *Parent, const SourceLocation &Loc) :
  * @return string info for debugging
  */
 std::string ASTBreak::str() const {
-    return "{ Kind=" + std::to_string((int) Kind) + " }";
+    return Logger("ASTBreak").Super(ASTStmt::str()).End();
 }
 
 /**
@@ -112,7 +111,7 @@ std::string ASTBreak::str() const {
  * @param Parent
  */
 ASTContinue::ASTContinue(ASTBlock *Parent, const SourceLocation &Loc) :
-        ASTStmt(Parent, Loc, StmtKind::STMT_CONTINUE) {
+        ASTStmt(Parent, Loc, ASTStmtKind::STMT_CONTINUE) {
 
 }
 
@@ -121,5 +120,5 @@ ASTContinue::ASTContinue(ASTBlock *Parent, const SourceLocation &Loc) :
  * @return string info for debugging
  */
 std::string ASTContinue::str() const {
-    return "{ Kind=" + std::to_string((int) Kind) + " }";
+    return Logger("ASTContinue").Super(ASTStmt::str()).End();
 }

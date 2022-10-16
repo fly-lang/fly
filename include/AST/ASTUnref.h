@@ -10,6 +10,7 @@
 #ifndef FLY_ASTUNREF_H
 #define FLY_ASTUNREF_H
 
+#include "Basic/Debuggable.h"
 #include <string>
 
 namespace fly {
@@ -19,7 +20,7 @@ namespace fly {
     class ASTFunctionCall;
     class ASTType;
 
-    class ASTUnref {
+    class ASTUnref : public Debuggable {
 
     protected:
         ASTNode *Node = nullptr;
@@ -29,7 +30,7 @@ namespace fly {
     public:
         ASTNode *getNode();
 
-        virtual std::string str() const = 0;
+        std::string str() const;
     };
 
     class ASTUnrefGlobalVar : public ASTUnref {

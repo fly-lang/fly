@@ -35,7 +35,7 @@ SemaValidator::SemaValidator(Sema &S) : S(S) {
  * @return
  */
 bool SemaValidator::CheckDuplicatedLocalVars(ASTStmt *Stmt, ASTLocalVar *LocalVar) {
-    if (Stmt->getKind() != StmtKind::STMT_BLOCK) {
+    if (Stmt->getKind() != ASTStmtKind::STMT_BLOCK) {
         // Error: need stmt block, cannot search duplicate var
         return false;
     }
@@ -59,12 +59,12 @@ bool SemaValidator::CheckUndef(ASTBlock *Block, ASTVarRef *VarRef) {
 bool SemaValidator::CheckImport(ASTNode *Node, ASTImport *Import) {
     // Syntax Error Quote
     if (Import->getName().empty()) {
-        S.Diag(Import->getNameLocation(), diag::err_import_undefined);
+        S.Diag(Import->getLocation(), diag::err_import_undefined);
         return false;
     }
 
     if (Import->getName() == Node->getNameSpace()->getName()) {
-        S.Diag(Import->getNameLocation(), diag::err_import_conflict_namespace) << Import->getName();
+        S.Diag(Import->getLocation(), diag::err_import_conflict_namespace) << Import->getName();
         return false;
     }
 
@@ -90,7 +90,7 @@ bool SemaValidator::isEquals(ASTParam *Param1, ASTParam *Param2) {
            Param1->getType()->getKind() == Param2->getType()->getKind();
 }
 
-bool SemaValidator::CheckMacroType(ASTType *Type, MacroTypeKind Kind) {
+bool SemaValidator::CheckMacroType(ASTType *Type, ASTMacroTypeKind Kind) {
     if (Type->getMacroKind() != Kind) {
         S.Diag(Type->getLocation(), diag::err_sema_macro_type) << Type->printMacroType();
         return false;
@@ -112,36 +112,36 @@ bool SemaValidator::CheckConvertibleTypes(ASTType *FromType, ASTType *ToType) {
         switch (FromType->getKind()) { // You can always convert from low integer to high int
             // Signed Integer
 
-            case TypeKind::TYPE_SHORT:
-                return ToType->getKind() != TypeKind::TYPE_BYTE && ToType->getKind() != TypeKind::TYPE_USHORT;
-            case TypeKind::TYPE_INT:
-                return ToType->getKind() != TypeKind::TYPE_BYTE
-                       && ToType->getKind() != TypeKind::TYPE_SHORT && ToType->getKind() != TypeKind::TYPE_USHORT
-                       && ToType->getKind() != TypeKind::TYPE_UINT;
-            case TypeKind::TYPE_LONG:
-                return ToType->getKind() != TypeKind::TYPE_BYTE
-                       && ToType->getKind() != TypeKind::TYPE_SHORT && ToType->getKind() != TypeKind::TYPE_USHORT
-                       && ToType->getKind() != TypeKind::TYPE_INT && ToType->getKind() != TypeKind::TYPE_UINT
-                       && ToType->getKind() != TypeKind::TYPE_ULONG;
+            case ASTTypeKind::TYPE_SHORT:
+                return ToType->getKind() != ASTTypeKind::TYPE_BYTE && ToType->getKind() != ASTTypeKind::TYPE_USHORT;
+            case ASTTypeKind::TYPE_INT:
+                return ToType->getKind() != ASTTypeKind::TYPE_BYTE
+                       && ToType->getKind() != ASTTypeKind::TYPE_SHORT && ToType->getKind() != ASTTypeKind::TYPE_USHORT
+                       && ToType->getKind() != ASTTypeKind::TYPE_UINT;
+            case ASTTypeKind::TYPE_LONG:
+                return ToType->getKind() != ASTTypeKind::TYPE_BYTE
+                       && ToType->getKind() != ASTTypeKind::TYPE_SHORT && ToType->getKind() != ASTTypeKind::TYPE_USHORT
+                       && ToType->getKind() != ASTTypeKind::TYPE_INT && ToType->getKind() != ASTTypeKind::TYPE_UINT
+                       && ToType->getKind() != ASTTypeKind::TYPE_ULONG;
 
                 // Unsigned Integer
 
-            case TypeKind::TYPE_BYTE:
+            case ASTTypeKind::TYPE_BYTE:
                 return true;
-            case TypeKind::TYPE_USHORT:
-                return ToType->getKind() != TypeKind::TYPE_BYTE && ToType->getKind() != TypeKind::TYPE_SHORT;
-            case TypeKind::TYPE_UINT:
-                return ToType->getKind() == TypeKind::TYPE_UINT || ToType->getKind() == TypeKind::TYPE_LONG
-                       || ToType->getKind() == TypeKind::TYPE_ULONG;
-            case TypeKind::TYPE_ULONG:
-                return ToType->getKind() == TypeKind::TYPE_ULONG;
+            case ASTTypeKind::TYPE_USHORT:
+                return ToType->getKind() != ASTTypeKind::TYPE_BYTE && ToType->getKind() != ASTTypeKind::TYPE_SHORT;
+            case ASTTypeKind::TYPE_UINT:
+                return ToType->getKind() == ASTTypeKind::TYPE_UINT || ToType->getKind() == ASTTypeKind::TYPE_LONG
+                       || ToType->getKind() == ASTTypeKind::TYPE_ULONG;
+            case ASTTypeKind::TYPE_ULONG:
+                return ToType->getKind() == ASTTypeKind::TYPE_ULONG;
         }
     } else if (FromType->isFloatingPoint() && ToType->isFloatingPoint()) {
         switch (FromType->getKind()) {
-            case TypeKind::TYPE_FLOAT:
+            case ASTTypeKind::TYPE_FLOAT:
                 return true;
-            case TypeKind::TYPE_DOUBLE:
-                return ToType->getKind() == TypeKind::TYPE_DOUBLE;
+            case ASTTypeKind::TYPE_DOUBLE:
+                return ToType->getKind() == ASTTypeKind::TYPE_DOUBLE;
         }
     } else if (FromType->isClass()) {
         // Check Inheritance
@@ -154,8 +154,8 @@ bool SemaValidator::CheckConvertibleTypes(ASTType *FromType, ASTType *ToType) {
 }
 
 bool SemaValidator::CheckArithTypes(const SourceLocation &Loc, ASTType *Type1, ASTType *Type2) {
-    if ((Type1->getMacroKind() == MacroTypeKind::MACRO_TYPE_INTEGER || Type1->getMacroKind() == MacroTypeKind::MACRO_TYPE_FLOATING_POINT) &&
-        (Type2->getMacroKind() == MacroTypeKind::MACRO_TYPE_INTEGER || Type2->getMacroKind() == MacroTypeKind::MACRO_TYPE_FLOATING_POINT)) {
+    if ((Type1->getMacroKind() == ASTMacroTypeKind::MACRO_TYPE_INTEGER || Type1->getMacroKind() == ASTMacroTypeKind::MACRO_TYPE_FLOATING_POINT) &&
+        (Type2->getMacroKind() == ASTMacroTypeKind::MACRO_TYPE_INTEGER || Type2->getMacroKind() == ASTMacroTypeKind::MACRO_TYPE_FLOATING_POINT)) {
         return true;
     }
 
@@ -166,7 +166,7 @@ bool SemaValidator::CheckArithTypes(const SourceLocation &Loc, ASTType *Type1, A
 }
 
 bool SemaValidator::CheckLogicalTypes(const SourceLocation &Loc, ASTType *Type1, ASTType *Type2) {
-    if (Type1->getKind() == TypeKind::TYPE_BOOL && Type2->getKind() == TypeKind::TYPE_BOOL) {
+    if (Type1->getKind() == ASTTypeKind::TYPE_BOOL && Type2->getKind() == ASTTypeKind::TYPE_BOOL) {
         return true;
     }
 

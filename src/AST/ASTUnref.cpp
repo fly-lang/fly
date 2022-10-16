@@ -24,6 +24,10 @@ ASTNode *ASTUnref::getNode() {
     return Node;
 }
 
+std::string ASTUnref::str() const {
+    return Logger("ASTUnref").End();
+}
+
 ASTUnrefGlobalVar::ASTUnrefGlobalVar(ASTNode *Node, ASTVarRef &VarRef) : ASTUnref(Node), VarRef(VarRef) {
 
 }
@@ -33,8 +37,10 @@ ASTVarRef &ASTUnrefGlobalVar::getVarRef() {
 }
 
 std::string ASTUnrefGlobalVar::str() const {
-    return "Node=" + Node->str() + ", " +
-           "VarRef=" + VarRef.str();
+    return Logger("ASTUnrefGlobalVar").
+            Super(ASTUnref::str()).
+            Attr("VarRef", &VarRef).
+            End();
 }
 
 ASTUnrefFunctionCall::ASTUnrefFunctionCall(ASTNode *Node, ASTFunctionCall *Call) : ASTUnref(Node), Call(Call) {
@@ -46,5 +52,7 @@ ASTFunctionCall *ASTUnrefFunctionCall::getCall() {
 }
 
 std::string ASTUnrefFunctionCall::str() const {
-    return "Node=" + Node->str() + ", Call=" + Call->str();
+    return Logger("ASTUnrefFunctionCall").
+            Attr("Call", Call).
+            End();
 }

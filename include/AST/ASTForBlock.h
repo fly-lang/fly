@@ -64,6 +64,8 @@ namespace fly {
         ASTForBlock *ForBlock = nullptr;
 
         ASTForPostBlock(ASTForBlock *ForBlock, const SourceLocation &Loc);
+
+        std::string str() const;
     };
 }
 

@@ -12,6 +12,7 @@
 #define FLY_ASTCLASS_H
 
 #include "ASTTopDef.h"
+#include "Basic/Debuggable.h"
 
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/SmallVector.h"
@@ -38,7 +39,7 @@ namespace fly {
         CLASS_V_PROTECTED
     };
 
-    class ASTClassScopes {
+    class ASTClassScopes : public Debuggable {
 
         friend class SemaBuilder;
 
@@ -79,7 +80,7 @@ namespace fly {
 
     public:
 
-        const std::string getName() const;
+        std::string getName() const;
 
         ASTClassKind getClassKind() const;
 
@@ -91,7 +92,7 @@ namespace fly {
 
         void setCodeGen(CodeGenClass *CGC);
 
-        virtual std::string str() const;
+        std::string str() const;
 
     };
 }

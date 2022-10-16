@@ -30,7 +30,7 @@ namespace fly {
     class ASTExpr;
     class ASTVarRef;
     class InputFile;
-    enum class BinaryOpKind;
+    enum class ASTBinaryOperatorKind;
 
     /// Parse the main file known to the preprocessor, producing an
     /// abstract syntax tree.

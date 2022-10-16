@@ -10,6 +10,8 @@
 #ifndef FLY_ASTVALUE_H
 #define FLY_ASTVALUE_H
 
+#include "Basic/Debuggable.h"
+
 #include <string>
 #include <vector>
 
@@ -18,32 +20,32 @@ namespace fly {
     class ASTType;
     class SourceLocation;
 
-    enum class MacroTypeKind;
+    enum class ASTMacroTypeKind;
 
-    class ASTValue {
+    class ASTValue : public Debuggable {
 
         friend class SemaBuilder;
         friend class SemaResolver;
 
         const SourceLocation &Location;
 
-        const MacroTypeKind MacroKind;
+        const ASTMacroTypeKind MacroKind;
 
     protected:
 
-        ASTValue(const MacroTypeKind Kind, const SourceLocation &Location);
+        ASTValue(const ASTMacroTypeKind Kind, const SourceLocation &Location);
 
     public:
 
         const SourceLocation &getLocation() const;
 
-        const MacroTypeKind &getMacroKind() const;
+        const ASTMacroTypeKind &getMacroKind() const;
 
         const std::string printMacroType() const;
 
         virtual const std::string print() const = 0;
 
-        virtual std::string str() const = 0;
+        std::string str() const;
     };
 
     /**

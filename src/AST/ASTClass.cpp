@@ -11,6 +11,7 @@
 #include "AST/ASTClassVar.h"
 #include "AST/ASTClassFunction.h"
 #include "CodeGen/CodeGenClass.h"
+#include "Basic/Debuggable.h"
 
 using namespace fly;
 
@@ -28,8 +29,10 @@ bool ASTClassScopes::isConstant() const {
 }
 
 std::string ASTClassScopes::str() const {
-    return "ASTClassScopes {Visibility=" + std::to_string((int) Visibility) +
-            ", Constant=" + std::to_string(Constant) + "}";
+    return Logger("ASTClassScopes").
+            Attr("Visibility", (int) Visibility).
+            Attr("Constant", Constant).
+            End();
 }
 
 ASTClass::ASTClass(const SourceLocation &Loc, ASTNode *Node, const std::string &Name,
@@ -38,7 +41,7 @@ ASTClass::ASTClass(const SourceLocation &Loc, ASTNode *Node, const std::string &
 
 }
 
-const std::string ASTClass::getName() const {
+std::string ASTClass::getName() const {
     return Name;
 }
 
@@ -63,31 +66,30 @@ void ASTClass::setCodeGen(CodeGenClass *CGC) {
 }
 
 std::string ASTClass::str() const {
+
     // Fields to string
-    std::string StrFields;
+    std::vector<ASTClassVar *> VarList;
     for (auto &Field : Vars) {
-        StrFields += Field.second->str() + ", ";
+        VarList.push_back(Field.second);
     }
-    if (!StrFields.empty())
-        StrFields.substr(StrFields.length(),StrFields.length()-1);
 
     // Methods to string
-    std::string StrMethods;
+    std::vector<ASTClassFunction *> MethodList;
     for (auto &MapEntry : Methods) {
         for (auto &Vector : MapEntry.second) {
             for (auto &Method :  Vector.second) {
-                StrMethods += Method->str() + ", ";
+                MethodList.push_back(Method);
             }
         }
     }
-    if (!StrMethods.empty())
-        StrMethods.substr(StrMethods.length(),StrMethods.length()-1);
 
     // Class to string
-    return "ASTClass { Name=" + Name +
-            ", Scopes=" + Scopes->str() +
-            ", ClassKind=" + std::to_string((int) ClassKind) +
-            ", Fields={ " + StrFields + " }" +
-            ", Methods={" + StrMethods + " }" +
-            " }";
+    return Logger("ASTClass").
+           Super(ASTTopDef::str()).
+           Attr("Name", Name).
+           Attr("Scopes", Scopes).
+           Attr("ClassKind", (int) ClassKind).
+           AttrList("Vars", VarList).
+           AttrList("Methods", MethodList).
+           End();
 }

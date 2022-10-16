@@ -22,6 +22,7 @@
 #include "AST/ASTVarRef.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/SourceLocation.h"
+#include "Basic/Debuggable.h"
 #include "Basic/Debug.h"
 
 #include "llvm/ADT/StringRef.h"
@@ -49,21 +50,23 @@ ASTNameSpace *Sema::FindNameSpace(llvm::StringRef Name) const {
     return NameSpace;
 }
 
-ASTNameSpace *Sema::FindNameSpace(ASTFunctionBase *Base) const {
-    if (Base->getKind() == ASTFunctionKind::FUNCTION) {
-        return ((ASTFunction *) Base)->getNameSpace();
-    } else if (Base->getKind() == ASTFunctionKind::CLASS_FUNCTION) {
-        return ((ASTClassFunction *) Base)->getClass()->getNameSpace();
+ASTNameSpace *Sema::FindNameSpace(ASTFunctionBase *FunctionBase) const {
+    FLY_DEBUG_MESSAGE("Sema", "FindNameSpace", Logger().Attr("FunctionBase", FunctionBase).End());
+    if (FunctionBase->getKind() == ASTFunctionKind::FUNCTION) {
+        return ((ASTFunction *) FunctionBase)->getNameSpace();
+    } else if (FunctionBase->getKind() == ASTFunctionKind::CLASS_FUNCTION) {
+        return ((ASTClassFunction *) FunctionBase)->getClass()->getNameSpace();
     } else {
         assert("Unknown Function Kind");
     }
 }
 
-ASTNode *Sema::FindNode(ASTFunctionBase *Base) const {
-    if (Base->getKind() == ASTFunctionKind::FUNCTION) {
-        return ((ASTFunction *) Base)->getNode();
-    } else if (Base->getKind() == ASTFunctionKind::CLASS_FUNCTION) {
-        return ((ASTClassFunction *) Base)->getClass()->getNode();
+ASTNode *Sema::FindNode(ASTFunctionBase *FunctionBase) const {
+    FLY_DEBUG_MESSAGE("Sema", "FindNode", Logger().Attr("FunctionBase", FunctionBase).End());
+    if (FunctionBase->getKind() == ASTFunctionKind::FUNCTION) {
+        return ((ASTFunction *) FunctionBase)->getNode();
+    } else if (FunctionBase->getKind() == ASTFunctionKind::CLASS_FUNCTION) {
+        return ((ASTClassFunction *) FunctionBase)->getClass()->getNode();
     } else {
         assert("Unknown Function Kind");
     }
@@ -71,7 +74,7 @@ ASTNode *Sema::FindNode(ASTFunctionBase *Base) const {
 
 
 ASTNode *Sema::FindNode(llvm::StringRef Name, ASTNameSpace *NameSpace) const {
-    FLY_DEBUG_MESSAGE("Sema", "FindNode", "Name=" << Name);
+    FLY_DEBUG_MESSAGE("Sema", "FindNode", Logger().Attr("Name", Name).Attr("NameSpace", NameSpace).End());
     ASTNode *Node = NameSpace->Nodes.lookup(Name);
     if (!Node) {
         Diag(diag::err_unref_node) << Name;
@@ -80,7 +83,7 @@ ASTNode *Sema::FindNode(llvm::StringRef Name, ASTNameSpace *NameSpace) const {
 }
 
 ASTClass *Sema::FindClass(llvm::StringRef Name, ASTNameSpace *NameSpace) const {
-    FLY_DEBUG_MESSAGE("Sema", "FindClass", "Name=" << Name);
+    FLY_DEBUG_MESSAGE("Sema", "FindClass", Logger().Attr("Name", Name).Attr("NameSpace", NameSpace).End());
     ASTClass *Class = NameSpace->Classes.lookup(Name);
     if (!Class) {
         Diag(diag::err_unref_node) << Name;
@@ -97,20 +100,21 @@ ASTClass *Sema::FindClass(llvm::StringRef Name, ASTNameSpace *NameSpace) const {
  * @return the found LocalVar
  */
 ASTLocalVar *Sema::FindVarDef(ASTBlock *Block, ASTVarRef *VarRef) const {
-    FLY_DEBUG_MESSAGE("Sema", "FindVarDef", "VarRef=" << VarRef->str());
+    FLY_DEBUG_MESSAGE("Sema", "FindVarDef", Logger().Attr("Name", Block).Attr("VarRef", VarRef).End());
     const auto &It = Block->getLocalVars().find(VarRef->getName());
     if (It != Block->getLocalVars().end()) { // Search into this Block
-        FLY_DEBUG_MESSAGE("Sema", "FindVarDef", "Found=" << It->getValue()->str());
+        FLY_DEBUG_MESSAGE("Sema", "FindVarDef", Logger().Attr("Found", It->second).End());
         return It->getValue();
     } else if (Block->getParent()) { // Traverse Parent Block to find the right VarDeclStmt
-        if (Block->Parent->getKind() == StmtKind::STMT_BLOCK)
+        if (Block->Parent->getKind() == ASTStmtKind::STMT_BLOCK)
             return FindVarDef((ASTBlock *) Block->getParent(), VarRef);
     }
     return nullptr;
 }
 
 ASTClassVar *Sema::FindClassVar(ASTVar *Var, llvm::StringRef Name) {
-    if (Var->getType()->getKind() == TypeKind::TYPE_CLASS) {
+    FLY_DEBUG_MESSAGE("Sema", "FindClassVar", Logger().Attr("Var", Var).Attr("Name", Name).End());
+    if (Var->getType()->getKind() == ASTTypeKind::TYPE_CLASS) {
         ASTClassVar *ClassVar = ((ASTClassType *) Var->getType())->getDef()->getVars().lookup(Name);
         // TODO check error
         return ClassVar;

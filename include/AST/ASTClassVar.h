@@ -29,6 +29,12 @@ namespace fly {
 
         const SourceLocation &Loc;
 
+        ASTVarKind VarKind;
+
+        ASTType *Type = nullptr;
+
+        const std::string Name;
+
         const ASTClass *Class = nullptr;
 
         std::string Comment;
@@ -45,6 +51,12 @@ namespace fly {
     public:
 
         const SourceLocation &getLocation() const;
+
+        ASTVarKind getVarKind() override;
+
+        ASTType *getType() const override;
+
+        std::string getName() const override;
 
         const ASTClass *getClass() const;
 

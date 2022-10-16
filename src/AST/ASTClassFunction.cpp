@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTClassFunction.h"
+#include "AST/ASTClass.h"
 
 using namespace fly;
 
@@ -34,5 +35,10 @@ ASTClassScopes *ASTClassFunction::getScopes() const {
 }
 
 std::string ASTClassFunction::str() const {
-    return ASTFunctionBase::str();
+    return Logger("ASTClassFunction").
+           Super(ASTFunctionBase::str()).
+//          Attr("Class", Class).
+            Attr("Comment", Comment).
+            Attr("Scopes", Scopes).
+            End();
 }

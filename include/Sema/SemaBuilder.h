@@ -85,9 +85,9 @@ namespace fly {
     class ASTUnaryGroupExpr;
     class ASTBinaryGroupExpr;
     class ASTTernaryGroupExpr;
-    enum class UnaryOpKind;
-    enum class UnaryOptionKind;
-    enum class BinaryOpKind;
+    enum class ASTUnaryOperatorKind;
+    enum class ASTUnaryOptionKind;
+    enum class ASTBinaryOperatorKind;
 
     class SemaBuilder {
 
@@ -173,12 +173,12 @@ namespace fly {
         // Create Expressions
         ASTEmptyExpr *CreateExpr(ASTStmt *Stmt);
         ASTValueExpr *CreateExpr(ASTStmt *Stmt, ASTValue *Value);
-        ASTFunctionCallExpr *CreateExpr(ASTStmt *Stmt, ASTFunctionCall *Call);
+        ASTFunctionCallExpr *CreateExpr(ASTStmt *Stmt, ASTFunctionCall *FunctionCall);
         ASTVarRefExpr *CreateExpr(ASTStmt *Stmt, ASTVarRef *VarRef);
-        ASTUnaryGroupExpr *CreateUnaryExpr(ASTStmt *Stmt, const SourceLocation &Loc, UnaryOpKind Kind,
-                                           UnaryOptionKind OptionKind,ASTVarRefExpr *First);
+        ASTUnaryGroupExpr *CreateUnaryExpr(ASTStmt *Stmt, const SourceLocation &Loc, ASTUnaryOperatorKind Kind,
+                                           ASTUnaryOptionKind OptionKind, ASTVarRefExpr *First);
         ASTBinaryGroupExpr *CreateBinaryExpr(ASTStmt *Stmt, const SourceLocation &OpLoc,
-                                             BinaryOpKind Kind, ASTExpr *First, ASTExpr *Second);
+                                             ASTBinaryOperatorKind Kind, ASTExpr *First, ASTExpr *Second);
         ASTTernaryGroupExpr *CreateTernaryExpr(ASTStmt *Stmt, ASTExpr *First, const SourceLocation &IfLoc,
                                                ASTExpr *Second, const SourceLocation &ElseLoc, ASTExpr *Third);
 
@@ -211,14 +211,14 @@ namespace fly {
         bool AddParam(ASTParam *Param);
         void AddFunctionVarParams(ASTFunction *Function, ASTParam *Param); // TODO
         bool AddComment(ASTTopDef *Top, std::string &Comment);
-        bool AddComment(ASTClassVar *Field, std::string &Comment);
-        bool AddComment(ASTClassFunction *Method, std::string &Comment);
+        bool AddComment(ASTClassVar *ClassVar, std::string &Comment);
+        bool AddComment(ASTClassFunction *ClassFunction, std::string &Comment);
         bool AddExternalGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar);
         bool AddExternalFunction(ASTNode *Node, ASTFunction *Function);
 
         // Add Value to Array
-        bool AddArrayValue(ASTArrayValue *Array, ASTValue *Value);
-        bool AddFunctionCallArg(ASTFunctionCall *Call, ASTArg *Arg);
+        bool AddArrayValue(ASTArrayValue *ArrayValue, ASTValue *Value);
+        bool AddFunctionCallArg(ASTFunctionCall *FunctionCall, ASTArg *Arg);
 
         // Add Stmt
         bool AddStmt(ASTStmt *Stmt);

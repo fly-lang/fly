@@ -26,7 +26,7 @@ namespace fly {
 
         ASTExprStmt(ASTStmt *Parent, const SourceLocation &Loc);
 
-        ASTExprStmt(ASTStmt *Parent, const SourceLocation &Loc, StmtKind Kind);
+        ASTExprStmt(ASTStmt *Parent, const SourceLocation &Loc, ASTStmtKind Kind);
 
     public:
 

@@ -23,3 +23,9 @@ ASTBlock *ASTWhileBlock::getParent() const {
 ASTExpr *ASTWhileBlock::getCondition() {
     return Condition;
 }
+
+std::string ASTWhileBlock::str() const {
+    return Logger("ASTWhileBlock").
+            Super(ASTBlock::str()).
+            End();
+}

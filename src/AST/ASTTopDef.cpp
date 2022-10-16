@@ -25,13 +25,19 @@ bool ASTTopScopes::isConstant() const {
 }
 
 std::string ASTTopScopes::str() const {
-    return "Visibility=" + std::to_string((int) Visibility) +
-           ", Constant=" + std::to_string(Constant);
+    return Logger("ASTTopScopes").
+           Attr("Visibility", (int) Visibility).
+           Attr("Constant", Constant).
+           End();
 }
 
 ASTTopDef::ASTTopDef(const SourceLocation &Loc, ASTNode *Node, ASTTopDefKind Kind, ASTTopScopes *Scopes) :
     Location(Loc), Node(Node), Scopes(Scopes), NameSpace(Node->getNameSpace()), Kind(Kind) {
 
+}
+
+const SourceLocation &ASTTopDef::getLocation() const {
+    return Location;
 }
 
 ASTTopDefKind ASTTopDef::getKind() const {
@@ -47,10 +53,6 @@ ASTNameSpace *ASTTopDef::getNameSpace() const {
     return NameSpace;
 }
 
-const SourceLocation &ASTTopDef::getLocation() const {
-    return Location;
-}
-
 ASTTopScopes *ASTTopDef::getScopes() const {
     return Scopes;
 }
@@ -60,8 +62,10 @@ const std::string ASTTopDef::getComment() const {
 }
 
 std::string ASTTopDef::str() const {
-    return "ASTTopDef { Scopes=" + Scopes->str() +
-            ", Kind=" + std::to_string((int) Kind) +
-            ", Comment=" + Comment +
-            " }";
+    return Logger("ASTTopDef").
+           Attr("Location", Location).
+           Attr("Scopes", Scopes).
+           Attr("Kind", (int) Kind).
+           Attr("Comment", Comment).
+           End();
 }

@@ -31,8 +31,6 @@
 #include "Frontend/InputFile.h"
 #include "Basic/Debug.h"
 
-#include <regex>
-
 using namespace fly;
 
 /**

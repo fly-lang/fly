@@ -49,3 +49,9 @@ ASTForPostBlock::ASTForPostBlock(ASTForBlock *ForBlock, const SourceLocation &Lo
     ASTBlock(ForBlock, Loc, ASTBlockKind::BLOCK_FOR_POST) {
     ForBlock->Post = this;
 }
+
+std::string ASTForPostBlock::str() const {
+    return Logger("ASTForPostBlock").
+           Super(ASTBlock::str()).
+           End();
+}

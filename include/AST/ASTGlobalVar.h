@@ -18,9 +18,15 @@
 
 namespace fly {
 
-    class ASTGlobalVar : public ASTVar, public ASTTopDef {
+    class ASTGlobalVar : public ASTTopDef, public ASTVar {
 
         friend class SemaBuilder;
+
+        ASTVarKind VarKind;
+
+        ASTType *Type = nullptr;
+
+        const std::string Name;
 
         ASTExpr *Expr = nullptr;
 
@@ -34,7 +40,11 @@ namespace fly {
 
         ~ASTGlobalVar() = default;
 
-        const std::string getName() const override;
+        ASTVarKind getVarKind() override;
+
+        ASTType *getType() const override;
+
+        std::string getName() const override;
 
         ASTExpr *getExpr() const override;
 

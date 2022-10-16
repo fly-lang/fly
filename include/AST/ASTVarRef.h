@@ -11,6 +11,7 @@
 #ifndef FLY_AST_VARREF_H
 #define FLY_AST_VARREF_H
 
+#include "Basic/Debuggable.h"
 #include "Basic/SourceLocation.h"
 
 #include <string>
@@ -25,7 +26,7 @@ namespace fly {
      *  ... = a + ...
      *  b = ...
      */
-    class ASTVarRef {
+    class ASTVarRef : public Debuggable {
 
         friend class SemaBuilder;
         friend class SemaResolver;

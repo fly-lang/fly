@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTVarRef.h"
+#include "AST/ASTVar.h"
 
 using namespace fly;
 
@@ -41,6 +42,11 @@ const SourceLocation &ASTVarRef::getLocation() const {
 }
 
 std::string ASTVarRef::str() const {
-    return "{ Name=" + Name + ", " +
-           "NameSpace=" + NameSpace + " }";
+    return Logger("ASTVarRef").
+            Attr("Location", Loc).
+            Attr("NameSpace", NameSpace).
+            Attr("Class", Class).
+            Attr("Name", Name).
+            Attr("Def", Def).
+            End();
 }

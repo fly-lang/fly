@@ -100,8 +100,6 @@ namespace fly {
      */
     class ASTBreak : public ASTStmt {
 
-        StmtKind Kind = StmtKind::STMT_BREAK;
-
     public:
         ASTBreak(ASTBlock *Parent, const SourceLocation &Loc);
 
@@ -112,8 +110,6 @@ namespace fly {
      * Continue Stmt
      */
     class ASTContinue : public ASTStmt {
-
-        StmtKind Kind = StmtKind::STMT_CONTINUE;
 
     public:
         ASTContinue(ASTBlock *Parent, const SourceLocation &Loc);

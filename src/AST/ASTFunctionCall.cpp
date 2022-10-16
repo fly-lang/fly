@@ -10,12 +10,12 @@
 #include "AST/ASTFunctionCall.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTParams.h"
-#include "AST/ASTNameSpace.h"
+#include "Basic/Debuggable.h"
 
 using namespace fly;
 
 ASTArg::ASTArg(ASTStmt *Parent, const SourceLocation &Loc) :
-        ASTExprStmt(Parent, Loc, StmtKind::STMT_ARG) {
+        ASTExprStmt(Parent, Loc, ASTStmtKind::STMT_ARG) {
 
 }
 
@@ -28,7 +28,10 @@ ASTParam *ASTArg::getDef() const {
 }
 
 std::string ASTArg::str() const {
-    return "ASTArg{Index=" + std::to_string(Index) + ", StmtExpr=" + ASTExprStmt::str() + "}";
+    return Logger("ASTArg").
+            Super(ASTExprStmt::str()).
+            Attr("Index", Index).
+            End();
 }
 
 ASTFunctionCall *ASTArg::getCall() const {
@@ -48,7 +51,7 @@ const std::vector<ASTArg*> ASTFunctionCall::getArgs() const {
     return Args;
 }
 
-ASTFunction *ASTFunctionCall::getDef() const {
+ASTFunctionBase *ASTFunctionCall::getDef() const {
     return Def;
 }
 
@@ -65,15 +68,12 @@ const std::string ASTFunctionCall::getNameSpace() const {
 }
 
 std::string ASTFunctionCall::str() const {
-    std::string Str = "{ NameSpace=" + NameSpace +
-           ", Name=" + Name +
-           ", Args=[";
-    if (!Args.empty()) {
-        for (ASTArg *Arg : Args) {
-            Str += Arg->str() + ", ";
-        }
-        Str = Str.substr(0, Str.length()-2);
-    }
-    Str += "] }";
-    return Str;
+    return Logger("ASTFunctionCall").
+            Attr("Loc", Loc).
+            Attr("Stmt", Stmt).
+            Attr("Name", Name).
+            Attr("NameSpace", NameSpace).
+            AttrList("Args", Args).
+            Attr("Def", Def).
+            End();
 }

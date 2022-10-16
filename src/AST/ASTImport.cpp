@@ -48,7 +48,7 @@ void ASTImport::setNameSpace(ASTNameSpace *NS) {
     NameSpace = NS;
 }
 
-const SourceLocation &ASTImport::getNameLocation() const {
+const SourceLocation &ASTImport::getLocation() const {
     return NameLocation;
 }
 
@@ -57,8 +57,9 @@ const SourceLocation &ASTImport::getAliasLocation() const {
 }
 
 std::string ASTImport::str() const {
-    return "{ Name=" + Name +
-            ", NameSpace=" + (NameSpace ? NameSpace->str() : "{}") +
-            ", Alias=" + Alias +
-            " }";
+    return Logger("ASTImport").
+            Attr("Name", Name).
+            Attr("NameSpace", NameSpace).
+            Attr("Alias",Alias).
+            End();
 }

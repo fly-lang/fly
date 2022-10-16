@@ -8,12 +8,10 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTStmt.h"
-#include "AST/ASTExpr.h"
-#include "AST/ASTBlock.h"
 
 using namespace fly;
 
-ASTStmt::ASTStmt(ASTStmt *Parent, const SourceLocation &Loc, StmtKind Kind) :
+ASTStmt::ASTStmt(ASTStmt *Parent, const SourceLocation &Loc, ASTStmtKind Kind) :
         Top(Parent ? Parent->Top : nullptr), Parent(Parent), Location(Loc), Kind(Kind) {
 }
 
@@ -25,8 +23,15 @@ const SourceLocation &ASTStmt::getLocation() const {
     return Location;
 }
 
-StmtKind ASTStmt::getKind() const {
+ASTStmtKind ASTStmt::getKind() const {
     return Kind;
+}
+
+std::string ASTStmt::str() const {
+    return Logger("ASTStmt").
+           Attr("Location", Location).
+           Attr("Kind", (int) Kind).
+           End();
 }
 
 

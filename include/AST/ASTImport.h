@@ -10,6 +10,7 @@
 #ifndef FLY_ASTIMPORT_H
 #define FLY_ASTIMPORT_H
 
+#include "Basic/Debuggable.h"
 #include "Basic/SourceLocation.h"
 
 namespace fly {
@@ -19,7 +20,7 @@ namespace fly {
     class ASTUnref;
     class SourceLocation;
 
-    class ASTImport {
+    class ASTImport : public Debuggable {
 
         friend class Sema;
         friend class SemaBuilder;
@@ -44,7 +45,7 @@ namespace fly {
 
         ~ASTImport();
 
-        const SourceLocation &getNameLocation() const;
+        const SourceLocation &getLocation() const;
 
         const SourceLocation &getAliasLocation() const;
 

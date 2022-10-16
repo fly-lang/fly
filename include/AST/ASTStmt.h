@@ -11,13 +11,12 @@
 #ifndef FLY_ASTSTMT_H
 #define FLY_ASTSTMT_H
 
+#include "Basic/Debuggable.h"
 #include "Basic/SourceLocation.h"
-
-#include <string>
 
 namespace fly {
 
-    enum class StmtKind {
+    enum class ASTStmtKind {
         STMT_BLOCK,
         STMT_EXPR,
         STMT_ARG,
@@ -32,7 +31,7 @@ namespace fly {
     class ASTBlock;
     class ASTFunctionBase;
 
-    class ASTStmt {
+    class ASTStmt : public virtual Debuggable {
 
         friend class SemaBuilder;
         friend class SemaResolver;
@@ -45,9 +44,9 @@ namespace fly {
 
         ASTFunctionBase *Top = nullptr;
 
-        StmtKind Kind;
+        ASTStmtKind Kind;
 
-        ASTStmt(ASTStmt *Parent, const SourceLocation &Loc, StmtKind Kind);
+        ASTStmt(ASTStmt *Parent, const SourceLocation &Loc, ASTStmtKind Kind);
 
     public:
 
@@ -55,9 +54,9 @@ namespace fly {
 
         const SourceLocation &getLocation() const;
 
-        StmtKind getKind() const;
+        ASTStmtKind getKind() const;
 
-        virtual std::string str() const = 0;
+        std::string str() const;
     };
 }
 

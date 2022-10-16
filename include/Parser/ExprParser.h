@@ -21,17 +21,17 @@ namespace fly {
      */
     class RawBinaryOperator : public ASTEmptyExpr {
 
-        BinaryOpKind Op;
+        ASTBinaryOperatorKind Op;
         bool Precedence;
 
     public:
-        RawBinaryOperator(const SourceLocation &Loc, BinaryOpKind Op) : ASTEmptyExpr(Loc), Op(Op) {
-            Precedence = Op == BinaryOpKind::ARITH_MUL ||
-                         Op == BinaryOpKind::ARITH_DIV ||
-                         Op == BinaryOpKind::ARITH_MOD;
+        RawBinaryOperator(const SourceLocation &Loc, ASTBinaryOperatorKind Op) : ASTEmptyExpr(Loc), Op(Op) {
+            Precedence = Op == ASTBinaryOperatorKind::ARITH_MUL ||
+                         Op == ASTBinaryOperatorKind::ARITH_DIV ||
+                         Op == ASTBinaryOperatorKind::ARITH_MOD;
         }
 
-        BinaryOpKind getOp() const {
+        ASTBinaryOperatorKind getOp() const {
             return Op;
         }
 
@@ -68,7 +68,7 @@ namespace fly {
     private:
         ASTUnaryGroupExpr *ParseUnaryPostExpr(ASTVarRef *VarRef);
 
-        BinaryOpKind ParseBinaryOperator();
+        ASTBinaryOperatorKind ParseBinaryOperator();
 
         void UpdateBinaryGroup(bool NoPrecedence);
     };

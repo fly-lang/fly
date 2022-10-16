@@ -11,6 +11,7 @@
 #ifndef FLY_ASTVAR_H
 #define FLY_ASTVAR_H
 
+#include "Basic/Debuggable.h"
 #include "Basic/SourceLocation.h"
 
 #include <string>
@@ -33,37 +34,19 @@ namespace fly {
      *  - LocalVar
      *  - GlobalVar
      */
-    class ASTVar {
-
-        friend class SemaBuilder;
-        friend class SemaResolver;
-
-        ASTVarKind VarKind;
-
-    protected:
-
-        ASTType *Type = nullptr;
-
-        const std::string Name;
-
-        ASTVar(ASTVarKind VarKind, ASTType *Type, const std::string Name);
-
-        virtual ~ASTVar();
+    class ASTVar : public virtual Debuggable {
 
     public:
 
-        ASTVarKind getVarKind();
+        virtual ASTVarKind getVarKind() = 0;
 
-        ASTType *getType() const;
+        virtual ASTType *getType() const = 0;
 
-        const std::string getName() const;
+        virtual std::string getName() const = 0;
 
         virtual ASTExpr *getExpr() const = 0;
 
         virtual CodeGenVarBase *getCodeGen() const = 0;
-
-        virtual std::string str() const;
-
     };
 }
 
