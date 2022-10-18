@@ -16,7 +16,8 @@
 using namespace fly;
 
 ExprParser::ExprParser(Parser *P, ASTStmt *Stmt) : P(P), Stmt(Stmt) {
-
+    FLY_DEBUG_MESSAGE("ExprParser", "ExprParser", Logger()
+            .Attr("Stmt", Stmt).End());
 }
 
 /**
@@ -27,6 +28,8 @@ ExprParser::ExprParser(Parser *P, ASTStmt *Stmt) : P(P), Stmt(Stmt) {
  * @return the ASTExpr
  */
 ASTExpr *ExprParser::ParseAssignExpr(ASTVarRef *VarRef) {
+    FLY_DEBUG_MESSAGE("ExprParser", "ParseAssignExpr", Logger()
+            .Attr("VarRef", VarRef).End());
 
     // Parsing =
     if (P->Tok.is(tok::equal)) {
@@ -109,7 +112,8 @@ ASTExpr *ExprParser::ParseAssignExpr(ASTVarRef *VarRef) {
   * @return the ASTExpr
   */
 ASTExpr *ExprParser::ParseExpr(bool IsFirst) {
-    FLY_DEBUG_MESSAGE("Parser", "ParseExpr", "IsFirst=" + std::to_string(IsFirst));
+     FLY_DEBUG_MESSAGE("ExprParser", "ParseExpr", Logger()
+             .Attr("IsFirst", IsFirst).End());
 
     // The parsed ASTExpr
     ASTExpr *Expr = nullptr;
@@ -205,6 +209,8 @@ ASTExpr *ExprParser::ParseExpr(bool IsFirst) {
 }
 
 ASTExpr *ExprParser::ParseExpr(SourceLocation &Loc, llvm::StringRef Name, llvm::StringRef NameSpace) {
+    FLY_DEBUG_MESSAGE("ExprParser", "ParseExpr", Logger()
+            .Attr("Loc", Loc).Attr("Name", Name).Attr("NameSpace", NameSpace).End());
     if (P->Tok.is(tok::l_paren)) { // Ex. a()
         ASTFunctionCall *Call = P->ParseFunctionCall(Stmt, Loc, Name, NameSpace);
         if (Call) {
@@ -231,6 +237,8 @@ ASTExpr *ExprParser::ParseExpr(SourceLocation &Loc, llvm::StringRef Name, llvm::
  * @return
  */
 ASTUnaryGroupExpr* ExprParser::ParseUnaryPostExpr(ASTVarRef *VarRef) {
+    FLY_DEBUG_MESSAGE("ExprParser", "ParseUnaryPostExpr", Logger()
+            .Attr("VarRef", VarRef).End());
     ASTVarRefExpr *VarRefExpr = P->Builder.CreateExpr(Stmt, VarRef);
         ASTUnaryOperatorKind Op;
         switch (P->Tok.getKind()) {
@@ -257,6 +265,7 @@ ASTUnaryGroupExpr* ExprParser::ParseUnaryPostExpr(ASTVarRef *VarRef) {
  * @return
  */
 ASTUnaryGroupExpr* ExprParser::ParseUnaryPreExpr(Parser *P) {
+    FLY_DEBUG("ExprParser", "ParseUnaryPreExpr");
 
     ASTUnaryOperatorKind Op;
     switch (P->Tok.getKind()) {
@@ -301,7 +310,7 @@ ASTUnaryGroupExpr* ExprParser::ParseUnaryPreExpr(Parser *P) {
  * @return
  */
 ASTBinaryOperatorKind ExprParser::ParseBinaryOperator() {
-    FLY_DEBUG("Parser", "ParseBinaryOperator");
+    FLY_DEBUG("ExprParser", "ParseBinaryOperator");
 
     ASTBinaryOperatorKind Op;
     switch (P->Tok.getKind()) {
@@ -353,6 +362,8 @@ ASTBinaryOperatorKind ExprParser::ParseBinaryOperator() {
 }
 
 void ExprParser::UpdateBinaryGroup(bool NoPrecedence) {
+    FLY_DEBUG_MESSAGE("ClassParser", "ParseMethod", Logger()
+            .Attr("NoPrecedence", NoPrecedence).End());
     std::vector<ASTExpr *> Result;
     RawBinaryOperator *Op;
     ASTExpr *Second;

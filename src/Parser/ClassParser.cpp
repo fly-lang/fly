@@ -21,8 +21,11 @@ using namespace fly;
  * @param Visibility
  * @param Constant
  */
-ClassParser::ClassParser(Parser *P, ASTTopScopes *TopScopes) : P(P) {
+ClassParser::ClassParser(Parser *P, ASTTopScopes *Scopes) : P(P) {
     assert(P->Tok.isAnyIdentifier() && "Tok must be an Identifier");
+
+    FLY_DEBUG_MESSAGE("ClassParser", "ClassParser", Logger()
+            .Attr("Scopes", Scopes).End());
 
     IdentifierInfo *Id = P->Tok.getIdentifierInfo();
     llvm::StringRef Name = Id->getName();
@@ -32,7 +35,7 @@ ClassParser::ClassParser(Parser *P, ASTTopScopes *TopScopes) : P(P) {
     if (P->isBlockStart()) {
         P->ConsumeBrace();
 
-        Class = P->Builder.CreateClass(P->Node, Loc, Name.str(), TopScopes);
+        Class = P->Builder.CreateClass(P->Node, Loc, Name.str(), Scopes);
         bool Continue;
         do {
 
@@ -50,7 +53,7 @@ ClassParser::ClassParser(Parser *P, ASTTopScopes *TopScopes) : P(P) {
             }
 
             // Parse Scopes
-            ASTClassScopes *Scopes = ParseScopes();
+            ASTClassScopes *ClassScopes = ParseScopes();
 
             // Parse Type
             ASTType *Type = P->ParseType();
@@ -61,10 +64,10 @@ ClassParser::ClassParser(Parser *P, ASTTopScopes *TopScopes) : P(P) {
 
             Continue = false; // Continue loop if there is a field or a method
             if (isField()) {
-                Success &= ParseField(Scopes, Type);
+                Success &= ParseField(ClassScopes, Type);
                 Continue = true;
             } else if (isMethod()) {
-                Success &= ParseMethod(Scopes, Type);
+                Success &= ParseMethod(ClassScopes, Type);
                 Continue = true;
             }
 
@@ -77,11 +80,15 @@ ClassParser::ClassParser(Parser *P, ASTTopScopes *TopScopes) : P(P) {
  * @return
  */
 ASTClass *ClassParser::Parse(Parser *P, ASTTopScopes *Scopes) {
+    FLY_DEBUG_MESSAGE("ClassParser", "Parse", Logger()
+            .Attr("Scopes", Scopes).End());
     ClassParser *CP = new ClassParser(P, Scopes);
     return CP->Class;
 }
 
 ASTClassScopes *ClassParser::ParseScopes() {
+    FLY_DEBUG("ClassParser", "ParseScopes");
+
     bool isPrivate = false;
     bool isPublic = false;
     bool isConst = false;
@@ -128,11 +135,14 @@ ASTClassScopes *ClassParser::ParseScopes() {
 }
 
 bool ClassParser::isField() {
+    FLY_DEBUG("ClassParser", "isField");
     return P->Tok.isAnyIdentifier();
 }
 
 bool ClassParser::ParseField(ASTClassScopes *Scopes, ASTType *Type) {
-    FLY_DEBUG("Parser", "ParseGlobalVar");
+    FLY_DEBUG_MESSAGE("ClassParser", "ParseMethod", Logger()
+            .Attr("Scopes", Scopes)
+            .Attr("Type", Type).End());
 
     assert(P->Tok.isAnyIdentifier() && "Tok must be an Identifier");
 
@@ -163,9 +173,13 @@ bool ClassParser::ParseField(ASTClassScopes *Scopes, ASTType *Type) {
 }
 
 bool ClassParser::isMethod() {
+    FLY_DEBUG("ClassParser", "isField");
     return false;
 }
 
 bool ClassParser::ParseMethod(ASTClassScopes *Scopes, ASTType *Type) {
+    FLY_DEBUG_MESSAGE("ClassParser", "ParseMethod", Logger()
+            .Attr("Scopes", Scopes)
+            .Attr("Type", Type).End());
     return false;
 }

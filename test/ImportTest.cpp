@@ -10,10 +10,12 @@
 #include "TestConfig.h"
 #include "Driver/Driver.h"
 #include "Driver/DriverOptions.h"
-#include "llvm/Support/TargetSelect.h"
-#include "Basic/Debug.h"
 #include "Basic/Archiver.h"
+
 #include "gtest/gtest.h"
+#include "llvm/Support/TargetSelect.h"
+#include "llvm/Support/ManagedStatic.h"
+
 #include <fstream>
 
 namespace {
@@ -56,6 +58,9 @@ namespace {
         Driver TheDriver(ArgList);
         CompilerInstance &CI = TheDriver.BuildCompilerInstance();
         ASSERT_TRUE(TheDriver.Execute());
+
+        // Shutdown after execution
+        llvm::llvm_shutdown();
 
         std::ifstream main("mylib.fly.o");
         ASSERT_TRUE(main && "Error opening mylib.fly.o");
@@ -157,7 +162,6 @@ namespace {
             std::ifstream F(FileStr);
             ASSERT_TRUE(F && "Error opening File");
         }
-
     }
 
 } // anonymous namespace

@@ -30,7 +30,6 @@ namespace fly {
 
     class Logger {
 
-        bool DebugFlag;
         std::string Str;
         bool isEmpty = true;
         bool isClass = false;

@@ -29,7 +29,7 @@ namespace fly {
 
         bool Success = true;
 
-        ClassParser(Parser *P, ASTTopScopes *TopScopes);
+        ClassParser(Parser *P, ASTTopScopes *Scopes);
 
     public:
 

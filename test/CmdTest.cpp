@@ -64,7 +64,7 @@ namespace {
         TheDriver.Execute();
     }
 
-    TEST_F(CmdTest, DISABLED_EmitLL) {
+    TEST_F(CmdTest, EmitLL) {
         deleteFile("main.fly.ll");
         deleteFile("utils.fly.ll");
 
@@ -83,7 +83,7 @@ namespace {
         ASSERT_TRUE(utils && "Error opening utils.fly.ll");
     }
 
-    TEST_F(CmdTest, DISABLED_EmitBC) {
+    TEST_F(CmdTest, EmitBC) {
         deleteFile("main.fly.bc");
         deleteFile("utils.fly.bc");
 
@@ -102,7 +102,7 @@ namespace {
         ASSERT_TRUE(utils && "Error opening utils.fly.bc");
     }
 
-    TEST_F(CmdTest, DISABLED_EmitAS) {
+    TEST_F(CmdTest, EmitAS) {
         deleteFile("main.fly.s");
         deleteFile("utils.fly.s");
 
@@ -121,7 +121,7 @@ namespace {
         ASSERT_TRUE(utils && "Error opening utils.fly.s");
     }
 
-    TEST_F(CmdTest, DISABLED_EmitObj) {
+    TEST_F(CmdTest, EmitObj) {
         deleteFile("main.fly.o");
         deleteFile("utils.fly.o");
 
@@ -140,7 +140,7 @@ namespace {
         ASSERT_TRUE(utils && "Error opening utils.fly.o");
     }
 
-    TEST_F(CmdTest, DISABLED_EmitOut) {
+    TEST_F(CmdTest, EmitOut) {
         deleteFile("out");
         deleteFile("main.fly.o");
         deleteFile("utils.fly.o");

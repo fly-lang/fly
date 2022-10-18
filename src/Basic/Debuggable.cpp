@@ -11,7 +11,6 @@
 #include "Basic/SourceLocation.h"
 
 #include "llvm/ADT/StringRef.h"
-#include "llvm/Support/Debug.h"
 
 using namespace fly;
 
@@ -22,11 +21,13 @@ const char *Logger::CLOSE = "}";
 const char *Logger::OPEN_LIST = "[";
 const char *Logger::CLOSE_LIST = "]";
 
-Logger::Logger() : DebugFlag(::llvm::DebugFlag) {
+bool DebugEnabled = false;
+
+Logger::Logger() {
 
 }
 
-Logger::Logger(const char *str) : DebugFlag(::llvm::DebugFlag), Str(std::string(str).append(OPEN)), isClass(true) {
+Logger::Logger(const char *str) : Str(std::string(str).append(OPEN)), isClass(true) {
 
 }
 
@@ -58,25 +59,25 @@ Logger &Logger::Attr(const char *key, const llvm::StringRef val) {
 }
 
 Logger &Logger::Attr(const char *key, const SourceLocation &val) {
-    return Attr(key, std::to_string(val.getRawEncoding()).c_str());
+    return Attr(key, std::to_string(val.getRawEncoding()));
 }
 
 Logger &Logger::Attr(const char *key, bool val) {
-    return Attr(key, std::to_string(val).c_str());;
+    return Attr(key, std::to_string(val));
 }
 
 Logger &Logger::Attr(const char *key, unsigned long val) {
-    return Attr(key, std::to_string(val).c_str());;
+    return Attr(key, std::to_string(val));
 }
 
 Logger &Logger::Attr(const char *key, unsigned int val) {
-    return Attr(key, std::to_string(val).c_str());;
+    return Attr(key, std::to_string(val));
 }
 
 Logger &Logger::Attr(const char *key, int val) {
-    return Attr(key, std::to_string(val).c_str());;
+    return Attr(key, std::to_string(val));
 }
 
 Logger &Logger::Attr(const char *key, Debuggable *val) {
-    return Attr(key, val ? val->str().c_str() : "");
+    return Attr(key, val ? val->str() : "");
 }
