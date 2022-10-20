@@ -84,7 +84,7 @@ if (DEFINED LLVM_BUILD AND LLVM_BUILD)
             ${CMAKE_SOURCE_DIR}/${FLY_LLVM_PROJECT}/llvm/utils/unittest/googlemock/include)
 
     #GTest
-    set(ENABLE_LLVM_GTEST true)
+    set(ENABLE_LLVM_GTEST ON)
 
 else()
     # Add LLVM Precompiled version
@@ -92,6 +92,8 @@ else()
 
     # Configure google-test as a downloadable library.
     include(cmake/GTest.cmake)
+
+    include(cmake/Abseil.cmake)
 
 endif()
 

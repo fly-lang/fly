@@ -36,10 +36,10 @@
 #include "Sema/SemaBuilder.h"
 
 #include "llvm/ADT/StringMap.h"
-
 #include <gtest/gtest.h>
 
 namespace {
+
     using namespace fly;
 
     class ParserTest : public ::testing::Test {
@@ -129,8 +129,8 @@ namespace {
                                "// Func comment\n"
                                "void func() {}\n"
         );
-        ASTNode *Node = Parse("LineComments", str);
 
+        ASTNode *Node = Parse("LineComments", str);
         ASSERT_TRUE(isSuccess());
 
         ASTGlobalVar *GlobalB = Node->getGlobalVars().find("b")->getValue();

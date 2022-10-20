@@ -6,15 +6,22 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Support/Signals.h"
-#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/ManagedStatic.h"
+
+#include "absl/debugging/symbolize.h"
+#include "absl/debugging/failure_signal_handler.h"
+
 #include "gtest/gtest.h"
 
 int main(int Argc, char **Argv) {
-  llvm::sys::PrintStackTraceOnErrorSignal(Argv[0], false /* Disable crash reporting */);
+    absl::InitializeSymbolizer(Argv[0]);
 
-  // Initialize both gmock and gtest.
-  ::testing::InitGoogleTest(&Argc, Argv);
+    // Now you may install the failure signal handler
+    absl::FailureSignalHandlerOptions options;
+    absl::InstallFailureSignalHandler(options);
 
-  return RUN_ALL_TESTS();
+    // Initialize both gmock and gtest.
+    ::testing::InitGoogleTest(&Argc, Argv);
+
+    return RUN_ALL_TESTS();
 }
