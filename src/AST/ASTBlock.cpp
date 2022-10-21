@@ -85,7 +85,7 @@ const llvm::StringMap<ASTLocalVar *> &ASTBlock::getUndefVars() const {
  * @return string info for debugging
  */
 std::string ASTBlock::str() const {
-    return Logger("ASTBlock").Super(ASTStmt::str()).Attr("Kind", (int) BlockKind).End();
+    return Logger("ASTBlock").Super(ASTStmt::str()).Attr("Kind", (uint64_t) BlockKind).End();
 }
 
 /**

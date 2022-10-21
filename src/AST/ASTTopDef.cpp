@@ -26,7 +26,7 @@ bool ASTTopScopes::isConstant() const {
 
 std::string ASTTopScopes::str() const {
     return Logger("ASTTopScopes").
-           Attr("Visibility", (int) Visibility).
+           Attr("Visibility", (uint64_t) Visibility).
            Attr("Constant", Constant).
            End();
 }
@@ -65,7 +65,7 @@ std::string ASTTopDef::str() const {
     return Logger("ASTTopDef").
            Attr("Location", Location).
            Attr("Scopes", Scopes).
-           Attr("Kind", (int) Kind).
+           Attr("Kind", (uint64_t) Kind).
            Attr("Comment", Comment).
            End();
 }

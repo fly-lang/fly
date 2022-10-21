@@ -94,8 +94,8 @@ const std::string ASTType::printMacroType(const ASTMacroTypeKind Kind) {
 std::string ASTType::str() const {
     return Logger("ASTType").
            Attr("Location", Loc).
-           Attr("Kind", (int) Kind).
-           Attr("MacroKind", (int) MacroKind).
+           Attr("Kind", (uint64_t) Kind).
+           Attr("MacroKind", (uint64_t) MacroKind).
            End();
 }
 

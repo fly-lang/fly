@@ -30,7 +30,7 @@ bool ASTClassScopes::isConstant() const {
 
 std::string ASTClassScopes::str() const {
     return Logger("ASTClassScopes").
-            Attr("Visibility", (int) Visibility).
+            Attr("Visibility", (uint64_t) Visibility).
             Attr("Constant", Constant).
             End();
 }
@@ -88,7 +88,7 @@ std::string ASTClass::str() const {
            Super(ASTTopDef::str()).
            Attr("Name", Name).
            Attr("Scopes", Scopes).
-           Attr("ClassKind", (int) ClassKind).
+           Attr("ClassKind", (uint64_t) ClassKind).
            AttrList("Vars", VarList).
            AttrList("Methods", MethodList).
            End();

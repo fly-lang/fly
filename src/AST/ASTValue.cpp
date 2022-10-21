@@ -31,7 +31,7 @@ const std::string ASTValue::printMacroType() const {
 std::string ASTValue::str() const {
     return Logger("ASTValue").
             Attr("Location", Location).
-            Attr("MacroKind", (int) MacroKind).
+            Attr("MacroKind", (uint64_t) MacroKind).
             End();
 }
 

@@ -62,15 +62,7 @@ Logger &Logger::Attr(const char *key, bool val) {
     return Attr(key, std::to_string(val));
 }
 
-Logger &Logger::Attr(const char *key, unsigned long val) {
-    return Attr(key, std::to_string(val));
-}
-
-Logger &Logger::Attr(const char *key, unsigned int val) {
-    return Attr(key, std::to_string(val));
-}
-
-Logger &Logger::Attr(const char *key, int val) {
+Logger &Logger::Attr(const char *key, uint64_t val) {
     return Attr(key, std::to_string(val));
 }
 

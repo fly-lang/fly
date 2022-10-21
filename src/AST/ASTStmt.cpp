@@ -30,7 +30,7 @@ ASTStmtKind ASTStmt::getKind() const {
 std::string ASTStmt::str() const {
     return Logger("ASTStmt").
            Attr("Location", Location).
-           Attr("Kind", (int) Kind).
+           Attr("Kind", (uint64_t) Kind).
            End();
 }
 

@@ -72,6 +72,6 @@ ASTReturn::ASTReturn(ASTBlock *Parent, const SourceLocation &Loc) :
 
 std::string ASTReturn::str() const {
     return Logger("ASTReturn").
-            Attr("Kind", (int) Kind).
+            Attr("Kind", (uint64_t) Kind).
             End();
 }

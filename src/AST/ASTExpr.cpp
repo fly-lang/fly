@@ -42,7 +42,7 @@ ASTStmt *ASTExpr::getStmt() {
 std::string ASTExpr::str() const {
     return Logger("ASTExpr").
            Attr("Loc", Loc).
-           Attr("Kind", (int) Kind).
+           Attr("Kind", (uint64_t) Kind).
            Attr("Type", Type).
            End();
 }
@@ -121,7 +121,7 @@ ASTExprGroupKind ASTGroupExpr::getGroupKind() {
 
 std::string ASTGroupExpr::str() const {
     return Logger("ASTGroupExpr").
-            Attr("GroupKind", (int) GroupKind).
+            Attr("GroupKind", (uint64_t) GroupKind).
             End();
 }
 
@@ -151,8 +151,8 @@ std::string ASTUnaryGroupExpr::str() const {
     return Logger("ASTUnaryGroupExpr").
            Super(ASTGroupExpr::str()).
            Attr("First", (Debuggable *) First).
-           Attr("Operator", (int) OperatorKind).
-           Attr("Option", (int) OptionKind).
+           Attr("Operator", (uint64_t) OperatorKind).
+           Attr("Option", (uint64_t) OptionKind).
            End();
 }
 
@@ -202,7 +202,7 @@ std::string ASTBinaryGroupExpr::str() const {
     return Logger("ASTBinaryGroupExpr").
            Super(ASTGroupExpr::str()).
            Attr("First", First).
-           Attr("Operator", (int) OperatorKind).
+           Attr("Operator", (uint64_t) OperatorKind).
            Attr("Second=", Second).
            End();
 }

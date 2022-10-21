@@ -50,7 +50,7 @@ std::string ASTGlobalVar::str() const {
             Super(ASTTopDef::str()).
             Attr("Type", Type).
             Attr("Name", Name).
-            Attr("VarKind", (int) VarKind).
+            Attr("VarKind", (uint64_t) VarKind).
             Attr("Expr", Expr).
             End();
 }

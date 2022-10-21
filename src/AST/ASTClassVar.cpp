@@ -66,7 +66,7 @@ std::string ASTClassVar::str() const {
     return Logger("ASTClassVar").
             Attr("Type", Type).
             Attr("Name", Name).
-            Attr("VarKind", (int) VarKind).
+            Attr("VarKind", (uint64_t) VarKind).
             Attr("Comment", Comment).
             Attr("Scopes", Scopes).
             Attr("Expr", Expr).

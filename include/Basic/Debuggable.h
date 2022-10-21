@@ -59,11 +59,7 @@ namespace fly {
 
         Logger &Attr(const char *key, bool val);
 
-        Logger &Attr(const char *key, unsigned long val);
-
-        Logger &Attr(const char *key, unsigned int val);
-
-        Logger &Attr(const char *key, int val);
+        Logger &Attr(const char *key, uint64_t val);
 
         Logger &Attr(const char *key, Debuggable *val);
 
