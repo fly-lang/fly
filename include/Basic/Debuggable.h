@@ -45,15 +45,13 @@ namespace fly {
 
         Logger();
 
-        Logger(const char *str);
+        Logger(const std::string str);
 
         std::string End();
 
-        Logger &Super(const std::string &val);
+        Logger &Super(const std::string val);
 
-        Logger &Attr(const char *key, const char *val);
-
-        Logger &Attr(const char *key, const std::string &val);
+        Logger &Attr(const char *key, const std::string val);
 
         Logger &Attr(const char *key, const llvm::StringRef val);
 

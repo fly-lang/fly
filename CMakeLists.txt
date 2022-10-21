@@ -93,11 +93,12 @@ else()
     # Configure google-test as a downloadable library.
     include(cmake/GTest.cmake)
 
-    include(cmake/Abseil.cmake)
+    # Backward is a beautiful stack trace pretty printer
+    include(cmake/Backward.cmake)
 
 endif()
 
-if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+if (UNIX)
     execute_process(COMMAND bash "-c" "gcc -print-search-dirs | grep install | sed 's/install: //' | tr -d '\n' | head -c -1"
             OUTPUT_VARIABLE GCC_LIB_PATH)
     MESSAGE(STATUS "GCC_LIB_PATH: " ${GCC_LIB_PATH})

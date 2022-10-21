@@ -27,7 +27,7 @@ Logger::Logger() {
 
 }
 
-Logger::Logger(const char *str) : Str(std::string(str).append(OPEN)), isClass(true) {
+Logger::Logger(const std::string str) : Str(std::string(str).append(OPEN)), isClass(true) {
 
 }
 
@@ -37,21 +37,17 @@ std::string Logger::End() {
     return Str;
 }
 
-Logger &Logger::Super(const std::string &val) {
+Logger &Logger::Super(const std::string val) {
     isEmpty ? Str.append(val) : Str.append(SEP).append(val);
     isEmpty = false;
     return *this;
 }
 
-Logger &Logger::Attr(const char *key, const char *val) {
+Logger &Logger::Attr(const char *key, const std::string val) {
     std::string Entry = Str.append(key).append(EQ).append(val);
     isEmpty ? Str.append(Entry) : Str.append(SEP).append(Entry);
     isEmpty = false;
     return *this;
-}
-
-Logger &Logger::Attr(const char *key, const std::string &val) {
-    return Attr(key, val.c_str());
 }
 
 Logger &Logger::Attr(const char *key, const llvm::StringRef val) {

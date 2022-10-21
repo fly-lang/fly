@@ -24,11 +24,11 @@ namespace {
     class ImportTest : public ::testing::Test {
 
     public:
-        std::string mylib = FLY_TEST_SRC_PATH + "/mylib.fly";
-        std::string import_mylib = FLY_TEST_SRC_PATH + "/import_mylib.fly";
-        std::string import_mylib_alias = FLY_TEST_SRC_PATH + "/import_mylib_alias.fly";
-        std::string import_mylib_external = FLY_TEST_SRC_PATH + "/import_mylib_external.fly";
-        std::string yourlib_h = FLY_TEST_SRC_PATH + "/yourlib.fly.h";
+        const char* mylib = FLY_TEST_SRC_PATH("/src/mylib.fly");
+        const char* import_mylib = FLY_TEST_SRC_PATH("/src/import_mylib.fly");
+        const char* import_mylib_alias = FLY_TEST_SRC_PATH("/src/import_mylib_alias.fly");
+        const char* import_mylib_external = FLY_TEST_SRC_PATH("/src/import_mylib_external.fly");
+        const char* yourlib_h = FLY_TEST_SRC_PATH("/src/yourlib.fly.h");
 
         ImportTest() {
             llvm::InitializeAllTargetInfos();
@@ -51,7 +51,7 @@ namespace {
         deleteFile("mylib.fly.o");
         deleteFile("import_mylib.fly.o");
 
-        const char* Argv[] = {"fly", "-debug", ImportTest::mylib.c_str(), ImportTest::import_mylib.c_str(), NULL};
+        const char* Argv[] = {"fly", "-debug", ImportTest::mylib, ImportTest::import_mylib, NULL};
         int Argc = sizeof(Argv) / sizeof(char*) - 1;
 
         SmallVector<const char *, 256> ArgList(Argv, Argv + Argc);
@@ -73,7 +73,7 @@ namespace {
         deleteFile("mylib.fly.o");
         deleteFile("import_mylib_alias.fly.o");
 
-        const char* Argv[] = {"fly",  ImportTest::mylib.c_str(), ImportTest::import_mylib_alias.c_str(), NULL};
+        const char* Argv[] = {"fly",  ImportTest::mylib, ImportTest::import_mylib_alias, NULL};
         int Argc = sizeof(Argv) / sizeof(char*) - 1;
 
         SmallVector<const char *, 256> ArgList(Argv, Argv + Argc);
@@ -92,7 +92,7 @@ namespace {
         deleteFile("mylib.fly.o");
         deleteFile("mylib.fly.h");
 
-        const char* Argv[] = {"fly", "-debug", "-H", ImportTest::mylib.c_str(), NULL};
+        const char* Argv[] = {"fly", "-debug", "-H", ImportTest::mylib, NULL};
         int Argc = sizeof(Argv) / sizeof(char*) - 1;
 
         SmallVector<const char *, 256> ArgList(Argv, Argv + Argc);
@@ -111,7 +111,7 @@ namespace {
         //Create mylib.lib
         deleteFile("mylib.lib");
 
-        const char* Argv[] = {"fly", "-debug", ImportTest::mylib.c_str(), "-lib", "mylib", NULL};
+        const char* Argv[] = {"fly", "-debug", ImportTest::mylib, "-lib", "mylib", NULL};
         int Argc = sizeof(Argv) / sizeof(char*) - 1;
         SmallVector<const char *, 256> ArgList(Argv, Argv + Argc);
         Driver TheDriver(ArgList);
@@ -125,7 +125,7 @@ namespace {
 
         deleteFile("import_mylib_external.fly.o");
 
-        const char* Argv2[] = { "fly", "-debug", "mylib.lib", ImportTest::import_mylib_external.c_str(), NULL };
+        const char* Argv2[] = { "fly", "-debug", "mylib.lib", ImportTest::import_mylib_external, NULL };
         int Argc2 = sizeof(Argv2) / sizeof(char*) - 1;
         SmallVector<const char*, 256> ArgList2(Argv2, Argv2 + Argc2);
         Driver TheDriver2(ArgList2);

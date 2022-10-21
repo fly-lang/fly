@@ -12,13 +12,13 @@ add_executable(fly_test
         ImportTest.cpp
         ParserTest.cpp
         TestMain.cpp
+        ${BACKWARD_ENABLE}
         )
+
+add_backward(fly_test)
 
 target_link_libraries(fly_test PRIVATE
         gtest_main
-        absl_debugging
-        absl_symbolize
-        absl_failure_signal_handler
         flyLib
         )
 

@@ -6,19 +6,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Support/ManagedStatic.h"
-
-#include "absl/debugging/symbolize.h"
-#include "absl/debugging/failure_signal_handler.h"
+#define BACKWARD_HAS_BFD 1
 
 #include "gtest/gtest.h"
+//#include "backward.hpp"
 
 int main(int Argc, char **Argv) {
-    absl::InitializeSymbolizer(Argv[0]);
-
-    // Now you may install the failure signal handler
-    absl::FailureSignalHandlerOptions options;
-    absl::InstallFailureSignalHandler(options);
 
     // Initialize both gmock and gtest.
     ::testing::InitGoogleTest(&Argc, Argv);
