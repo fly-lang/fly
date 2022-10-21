@@ -17,8 +17,13 @@ add_executable(fly_test
 
 add_backward(fly_test)
 
+if (UNIX)
+    set(SYSTEM_LIB "bfd" "dl")
+endif()
+
 target_link_libraries(fly_test PRIVATE
         gtest_main
+        ${SYSTEM_LIB}
         flyLib
         )
 
