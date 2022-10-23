@@ -98,7 +98,7 @@ else()
 
 endif()
 
-if (UNIX)
+if (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
     execute_process(COMMAND bash "-c" "gcc -print-search-dirs | grep install | sed 's/install: //' | tr -d '\n' | head -c -1"
             OUTPUT_VARIABLE GCC_LIB_PATH)
     MESSAGE(STATUS "GCC_LIB_PATH: " ${GCC_LIB_PATH})

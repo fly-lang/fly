@@ -907,8 +907,8 @@ ASTClassType *Parser::ParseClassType() {
 
     ASTClassType *ClassType = nullptr;
     SourceLocation Loc = Tok.getLocation();
-    llvm::StringRef Name;
-    llvm::StringRef NameSpace;
+    std::string Name;
+    std::string NameSpace;
     ParseIdentifier(Loc, Name, NameSpace);
     ClassType = SemaBuilder::CreateClassType(Loc, Name, NameSpace);
     return ClassType;
@@ -939,14 +939,14 @@ ASTType *Parser::ParseType() {
 ASTVarRef *Parser::ParseVarRef() {
     FLY_DEBUG("Parser", "ParseVarRef");
 
-    const StringRef &N1 = Tok.getIdentifierInfo()->getName();
+    StringRef N1 = Tok.getIdentifierInfo()->getName();
     const SourceLocation &Loc = ConsumeToken();
 
     if (Tok.is(tok::colon)) {
         ConsumeToken();
 
         if (Tok.isAnyIdentifier()) {
-            const StringRef &N2 = Tok.getIdentifierInfo()->getName();
+            StringRef N2 = Tok.getIdentifierInfo()->getName();
             ConsumeToken();
             return Builder.CreateVarRef(Loc, N2, N1);
         }
@@ -964,20 +964,20 @@ ASTVarRef *Parser::ParseVarRef() {
  * @param NameSpace
  * @return
  */
-bool Parser::ParseIdentifier(SourceLocation &Loc, llvm::StringRef &Name, llvm::StringRef &NameSpace) {
+bool Parser::ParseIdentifier(SourceLocation &Loc, std::string &Name, std::string &NameSpace) {
     FLY_DEBUG_MESSAGE("Parser", "ParseIdentifier", Logger()
                                                     .Attr("Loc", Loc)
                                                     .Attr("Name", Name)
                                                     .Attr("NameSpace", NameSpace).End());
 
-    Name = Tok.getIdentifierInfo()->getName();
+    Name = Tok.getIdentifierInfo()->getName().str();
     Loc = Tok.getLocation();
     ConsumeToken();
     if (Tok.is(tok::colon)) {
         ConsumeToken();
         if (Tok.isAnyIdentifier()) {
             NameSpace = Name;
-            Name = Tok.getIdentifierInfo()->getName();
+            Name = Tok.getIdentifierInfo()->getName().str();
             ConsumeToken();
             return true;
         }
@@ -1086,7 +1086,7 @@ ASTValue *Parser::ParseValue() {
             return SemaBuilder::CreateIntegerValue(Loc, 0);
         }
 
-        const StringRef Val = StringRef(Tok.getLiteralData(), Tok.getLength());
+        StringRef Val = StringRef(Tok.getLiteralData(), Tok.getLength());
         char Ch = *Val.begin();
 
         const SourceLocation &Loc = ConsumeToken();

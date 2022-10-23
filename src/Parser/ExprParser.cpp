@@ -138,8 +138,8 @@ ASTExpr *ExprParser::ParseExpr(bool IsFirst) {
             Expr = P->Builder.CreateExpr(Stmt,Val);
     } else if (P->isIdentifier()) { // Ex. a or a++ or func()
         SourceLocation Loc;
-        llvm::StringRef Name;
-        llvm::StringRef NameSpace;
+        std::string Name;
+        std::string NameSpace;
         if (P->ParseIdentifier(Loc, Name, NameSpace)) {
             Expr = ParseExpr(Loc, Name, NameSpace);
         }
@@ -286,12 +286,12 @@ ASTUnaryGroupExpr* ExprParser::ParseUnaryPreExpr(Parser *P) {
     // Check var identifier
     if (P->Tok.isAnyIdentifier()) {
 
-        llvm::StringRef Name;
-        llvm::StringRef NameSpace;
+        std::string Name;
+        std::string NameSpace;
         SourceLocation Loc;
 
         if (P->ParseIdentifier(Loc, Name, NameSpace)) {
-            ASTVarRef *VarRef = P->Builder.CreateVarRef(Loc, Name.str(), NameSpace.str());
+            ASTVarRef *VarRef = P->Builder.CreateVarRef(Loc, Name, NameSpace);
             ASTVarRefExpr *VarRefExpr = P->Builder.CreateExpr(Stmt, VarRef);
             return P->Builder.CreateUnaryExpr(Stmt, Loc, Op, ASTUnaryOptionKind::UNARY_PRE, VarRefExpr);
         }
