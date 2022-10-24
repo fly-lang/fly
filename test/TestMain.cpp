@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define BACKWARD_HAS_BFD 1
+//#define BACKWARD_HAS_BFD 1
 
 #include "gtest/gtest.h"
 //#include "backward.hpp"

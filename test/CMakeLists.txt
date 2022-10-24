@@ -17,14 +17,8 @@ add_executable(fly_test
 
 add_backward(fly_test)
 
-if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
-    set(SYSTEM_LIB "bfd" "dl")
-    MESSAGE(STATUS "Adding system library: ${SYSTEM_LIB}")
-endif()
-
 target_link_libraries(fly_test PRIVATE
         gtest_main
-        ${SYSTEM_LIB}
         flyLib
         )
 

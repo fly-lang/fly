@@ -1,7 +1,7 @@
 #!/bin/bash
 
 cd ..
-sudo docker build -t ubuntu-fly-build .
+sudo docker build -rm -t ubuntu-fly-build .
 if [ $? -eq 0 ]; then
   echo "Build Success"
 else

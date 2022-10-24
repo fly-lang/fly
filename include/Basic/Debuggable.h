@@ -74,8 +74,9 @@ namespace fly {
                 Entry = Entry.substr(0, end);
             }
             Entry += CLOSE_LIST;
+            Attr(key, Entry);
             isEmpty = false;
-            return Attr(key, Entry);
+            return *this;
         }
 
     };

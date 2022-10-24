@@ -3,7 +3,7 @@ MAINTAINER <dev@flylang.org>
 
 # Configure System
 RUN ln -fs /usr/share/zoneinfo/America/New_York /etc/localtime
-RUN apt-get update && apt-get install -y build-essential libxml2-dev libtinfo-dev git pip
+RUN apt-get update && apt-get install -y build-essential libxml2-dev libtinfo-dev git pip binutils-dev libdw-dev libdwarf-dev
 RUN pip install cmake --upgrade
 
 # Get Sources

@@ -44,8 +44,8 @@ Logger &Logger::Super(const std::string val) {
 }
 
 Logger &Logger::Attr(const char *key, const std::string val) {
-    std::string Entry = Str.append(key).append(EQ).append(val);
-    isEmpty ? Str.append(Entry) : Str.append(SEP).append(Entry);
+    std::string entry = std::string(key).append(EQ).append(val);
+    isEmpty ? Str.append(entry) : Str.append(SEP).append(" ").append(entry);
     isEmpty = false;
     return *this;
 }
