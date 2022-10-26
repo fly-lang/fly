@@ -388,7 +388,7 @@ SemaBuilder::CreateArrayType(const SourceLocation &Loc, ASTType *Type, ASTExpr *
  * @return
  */
 ASTClassType *
-SemaBuilder::CreateClassType(const SourceLocation &Loc, StringRef Name, StringRef NameSpace) {
+SemaBuilder::CreateClassType(const SourceLocation &Loc, llvm::StringRef Name, llvm::StringRef NameSpace) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateClassType",
                       "Loc=" << Loc.getRawEncoding() <<
                       ", Name=" << Name <<

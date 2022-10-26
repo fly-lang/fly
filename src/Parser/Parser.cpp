@@ -907,8 +907,8 @@ ASTClassType *Parser::ParseClassType() {
 
     ASTClassType *ClassType = nullptr;
     SourceLocation Loc = Tok.getLocation();
-    std::string Name;
-    std::string NameSpace;
+    llvm::StringRef Name;
+    llvm::StringRef NameSpace;
     ParseIdentifier(Loc, Name, NameSpace);
     ClassType = SemaBuilder::CreateClassType(Loc, Name, NameSpace);
     return ClassType;
@@ -964,28 +964,26 @@ ASTVarRef *Parser::ParseVarRef() {
  * @param NameSpace
  * @return
  */
-bool Parser::ParseIdentifier(SourceLocation &Loc, std::string &Name, std::string &NameSpace) {
+bool Parser::ParseIdentifier(SourceLocation &Loc, llvm::StringRef &Name, llvm::StringRef &NameSpace) {
     FLY_DEBUG_MESSAGE("Parser", "ParseIdentifier", Logger()
                                                     .Attr("Loc", Loc)
                                                     .Attr("Name", Name)
                                                     .Attr("NameSpace", NameSpace).End());
 
-    llvm::StringRef NameStrRef = Tok.getIdentifierInfo()->getName();
+    Name = Tok.getIdentifierInfo()->getName();
     Loc = Tok.getLocation();
     ConsumeToken();
     if (Tok.is(tok::colon)) {
         ConsumeToken();
         if (Tok.isAnyIdentifier()) {
-            NameSpace = NameStrRef.str();
-            Name = Tok.getIdentifierInfo()->getName().str();
+            NameSpace = Name;
+            Name = Tok.getIdentifierInfo()->getName();
             ConsumeToken();
             return true;
         }
 
         Diag(Loc, diag::err_invalid_namespace_id);
         return false;
-    } else {
-        Name = NameStrRef.str();
     }
     return true;
 }

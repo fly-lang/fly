@@ -107,7 +107,7 @@ namespace fly {
         ASTClassType *ParseClassType();
         ASTType *ParseType();
         ASTVarRef *ParseVarRef();
-        bool ParseIdentifier(SourceLocation &Loc, std::string &Name, std::string &NameSpace);
+        bool ParseIdentifier(SourceLocation &Loc, llvm::StringRef &Name, llvm::StringRef &NameSpace);
 
         // Parse Function Calls
         ASTFunctionCall *ParseFunctionCall(ASTStmt *Stmt, SourceLocation &Loc, llvm::StringRef Name, llvm::StringRef NameSpace);
