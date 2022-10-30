@@ -71,7 +71,7 @@ void CodeGenFunction::GenBody() {
 
     // Allocation of declared local vars
     for (auto &LocalVar: AST->getLocalVars()) {
-        LocalVar->setCodeGen(new CodeGenVar(CGM, LocalVar));
+        LocalVar->setCodeGen(new CodeGenVar(CGM, LocalVar)); // FIXME Class
         LocalVar->getCodeGen()->Init();
     }
 

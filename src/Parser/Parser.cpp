@@ -1257,6 +1257,8 @@ bool Parser::isClassType(Token &Tok1) {
         // Ex. ClassType1
         return true;
     }
+
+    return false;
 }
 
 bool Parser::isIdentifier() {
