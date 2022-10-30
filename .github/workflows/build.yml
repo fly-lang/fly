@@ -33,11 +33,13 @@ env:
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
 
-  # This workflow contains multiple "build" jobs
-  build:
+  set_default_build_type:
     if: ${{ inputs.BUILD_TYPE }}
     env:
       BUILD_TYPE: ${{ inputs.BUILD_TYPE }}
+
+  # This workflow contains multiple "build" jobs
+  build:
     strategy:
       fail-fast: false
       matrix:
