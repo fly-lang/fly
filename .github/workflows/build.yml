@@ -45,14 +45,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - name: Set BUILD_TYPE
-        run: |
-          if [ -z "${{ github.event.inputs.BUILD_TYPE }}"]; then
-            echo "BUILD_TYPE=${{ github.event.inputs.BUILD_TYPE }}" >> $GITHUB_ENV
-          else
-            echo "BUILD_TYPE=Release" >> $GITHUB_ENV
-          fi
-          echo ${{ env.ENVIRONMENT }}
 
       - name: Dependencies
         if: matrix.os == 'ubuntu-latest'
@@ -62,6 +54,14 @@ jobs:
         # Some projects don't allow in-source building, so create a separate build directory
         # We'll use this as our working directory for all subsequent commands
         run: cmake -E make_directory ${{env.BUILD_DIR}}
+
+      - name: Set Build Type
+        run: |
+          if [ -z "${{ github.event.inputs.BUILD_TYPE }}"]; then
+            echo "BUILD_TYPE=Release" >> $GITHUB_ENV
+          else
+            echo "BUILD_TYPE=${{ github.event.inputs.BUILD_TYPE }}" >> $GITHUB_ENV
+          fi  
 
       - name: Build
         working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}
