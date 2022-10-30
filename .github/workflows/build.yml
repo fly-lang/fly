@@ -23,6 +23,7 @@ on:
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
+  BUILD_TYPE: Release
   BUILD_DIR: build
   LLVM_VERSION: 11.1.0
   WIN_FILE: win-x64.zip
@@ -34,6 +35,9 @@ jobs:
 
   # This workflow contains multiple "build" jobs
   build:
+    if: ${{ inputs.BUILD_TYPE }}
+    env:
+      BUILD_TYPE: ${{ inputs.BUILD_TYPE }}
     strategy:
       fail-fast: false
       matrix:
@@ -61,14 +65,14 @@ jobs:
         # Some projects don't allow in-source building, so create a separate build directory
         # We'll use this as our working directory for all subsequent commands
         run: |
-          cmake .. -DCMAKE_BUILD_TYPE=${{inputs.BUILD_TYPE}} -DCMAKE_VERBOSE_MAKEFILE=ON
-          cmake --build . --config ${{inputs.BUILD_TYPE}}
+          cmake .. -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_VERBOSE_MAKEFILE=ON
+          cmake --build . --config ${{env.BUILD_TYPE}}
 
       - name: Test
         working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}
         # Execute tests defined by the CMake configuration.
         # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
-        run: ctest -C ${{inputs.BUILD_TYPE}} --rerun-failed --output-on-failure
+        run: ctest -C ${{env.BUILD_TYPE}} --rerun-failed --output-on-failure
 
       - name: Read Version (Unix)
         id: version
@@ -78,7 +82,7 @@ jobs:
       - name: Read Version (Windows)
         id: version-win
         if: github.ref == 'refs/heads/main' && matrix.os == 'windows-latest'
-        working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}\src\${{inputs.BUILD_TYPE}}
+        working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}\src\${{env.BUILD_TYPE}}
         run: |
           echo "::set-output name=version::$(.\fly.exe --version-short)"
 
@@ -89,7 +93,7 @@ jobs:
 
       - name: Windows Packaging
         if: github.ref == 'refs/heads/main' && matrix.os == 'windows-latest'
-        working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}\src\${{inputs.BUILD_TYPE}}
+        working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}\src\${{env.BUILD_TYPE}}
         run: 7z a ..\..\fly-${{ steps.version-win.outputs.version }}-${{env.WIN_FILE}} fly.exe
 
       - name: macOS Packaging
