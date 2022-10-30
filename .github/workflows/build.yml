@@ -38,9 +38,9 @@ jobs:
     env:
       BUILD_TYPE: ${{ inputs.BUILD_TYPE }}
     runs-on: ubuntu-latest
-      steps:
-        - name: BUILD_TYPE
-          run: echo ${{ env.BUILD_TYPE }}
+    steps:
+      - name: Set default BUILD_TYPE
+        run: echo ${{ env.BUILD_TYPE }}
 
   # This workflow contains multiple "build" jobs
   build:
