@@ -15,7 +15,7 @@ on:
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
-  BUILD_TYPE: Release
+  BUILD_TYPE: RelWithDebInfo
   BUILD_DIR: build
   LLVM_VERSION: 11.1.0
   WIN_FILE: win-x64.zip
