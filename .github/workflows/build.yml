@@ -47,8 +47,10 @@ jobs:
       - uses: actions/checkout@v2
       - name: Set BUILD_TYPE
         run: |
-          if ${{ github.event.inputs.BUILD_TYPE }}; then
+          if [-z "${{ github.event.inputs.BUILD_TYPE }}"]; then
             echo "BUILD_TYPE=${{ github.event.inputs.BUILD_TYPE }}" >> $GITHUB_ENV
+          else
+            echo "BUILD_TYPE=Release" >> $GITHUB_ENV
           fi
       - name: Read BUILD_TYPE
         run: echo ${{ env.ENVIRONMENT }}
