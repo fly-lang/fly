@@ -22,8 +22,6 @@ on:
           - 'Release'
 
 env:
-  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
-  BUILD_TYPE: Release
   BUILD_DIR: build
   LLVM_VERSION: 11.1.0
   WIN_FILE: win-x64.zip
@@ -32,15 +30,6 @@ env:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-
-  set_default_build_type:
-    if: ${{ inputs.BUILD_TYPE }}
-    env:
-      BUILD_TYPE: ${{ inputs.BUILD_TYPE }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Set default BUILD_TYPE
-        run: echo ${{ env.BUILD_TYPE }}
 
   # This workflow contains multiple "build" jobs
   build:
@@ -56,6 +45,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+      - name: Set BUILD_TYPE
+        run: |
+          if ${{ github.event.inputs.BUILD_TYPE }}; then
+            echo "BUILD_TYPE=${{ github.event.inputs.BUILD_TYPE }}" >> $GITHUB_ENV
+          fi
+      - name: Read BUILD_TYPE
+        run: echo ${{ env.ENVIRONMENT }}
 
       - name: Dependencies
         if: matrix.os == 'ubuntu-latest'
