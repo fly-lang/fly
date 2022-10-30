@@ -56,6 +56,7 @@ jobs:
         run: cmake -E make_directory ${{env.BUILD_DIR}}
 
       - name: Set Build Type
+        shell: bash
         run: |
           if [ -z "${{ github.event.inputs.BUILD_TYPE }}"]; then
             echo "BUILD_TYPE=Release" >> $GITHUB_ENV
