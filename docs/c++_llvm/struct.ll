@@ -12,17 +12,22 @@ define dso_local i32 @main() #0 {
   %1 = alloca i32, align 4
   %2 = alloca %struct.test, align 4
   %3 = alloca i32, align 4
+  %4 = alloca i32, align 4
+  %5 = alloca i32, align 4
   store i32 0, i32* %1, align 4
   call void @_ZN4testC2Ev(%struct.test* %2) #2
-  store i32 1, i32* %3, align 4
-  %4 = load i32, i32* %3, align 4
-  %5 = getelementptr inbounds %struct.test, %struct.test* %2, i32 0, i32 0
-  store i32 %4, i32* %5, align 4
   %6 = getelementptr inbounds %struct.test, %struct.test* %2, i32 0, i32 0
-  store i32 2, i32* %6, align 4
-  %7 = getelementptr inbounds %struct.test, %struct.test* %2, i32 0, i32 0
-  %8 = load i32, i32* %7, align 4
-  ret i32 %8
+  %7 = load i32, i32* %6, align 4
+  store i32 %7, i32* %3, align 4
+  %8 = getelementptr inbounds %struct.test, %struct.test* %2, i32 0, i32 0
+  %9 = load i32, i32* %8, align 4
+  store i32 %9, i32* %4, align 4
+  %10 = getelementptr inbounds %struct.test, %struct.test* %2, i32 0, i32 0
+  %11 = load i32, i32* %10, align 4
+  store i32 %11, i32* %5, align 4
+  %12 = getelementptr inbounds %struct.test, %struct.test* %2, i32 0, i32 0
+  %13 = load i32, i32* %12, align 4
+  ret i32 %13
 }
 
 ; Function Attrs: noinline nounwind optnone uwtable

@@ -41,8 +41,8 @@ CodeGenGlobalVar *ASTGlobalVar::getCodeGen() const {
     return CodeGen;
 }
 
-void ASTGlobalVar::setCodeGen(CodeGenGlobalVar *codeGen) {
-    CodeGen = codeGen;
+void ASTGlobalVar::setCodeGen(CodeGenGlobalVar *CG) {
+    CodeGen = CG;
 }
 
 std::string ASTGlobalVar::str() const {

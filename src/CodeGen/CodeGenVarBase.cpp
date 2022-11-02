@@ -25,7 +25,6 @@ CodeGenVarBase::CodeGenVarBase(CodeGenModule *CGM, ASTVar *Var) : CGM(CGM), Var(
 }
 
 llvm::StoreInst *CodeGenVarBase::Store(llvm::Value *Val) {
-    assert(getPointer() && "Cannot store into unallocated stack");
 
     // Fix Architecture Compatibility of bool i1 to i8
     if (Var->getType()->getKind() == ASTTypeKind::TYPE_BOOL) {
@@ -39,7 +38,6 @@ llvm::StoreInst *CodeGenVarBase::Store(llvm::Value *Val) {
 }
 
 llvm::LoadInst *CodeGenVarBase::Load() {
-    assert(getPointer() && "Cannot load from unallocated stack");
     LoadI = CGM->Builder->CreateLoad(T, Pointer);
     doLoad = false;
 
@@ -47,7 +45,6 @@ llvm::LoadInst *CodeGenVarBase::Load() {
 }
 
 llvm::Value *CodeGenVarBase::getValue() {
-    assert(getPointer() && "Var not allocated yet");
     return doLoad ? Load() : LoadI;
 }
 

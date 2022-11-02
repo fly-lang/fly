@@ -12,6 +12,7 @@
 #define FLY_ASTCLASSVAR_H
 
 #include "ASTVar.h"
+#include "CodeGen/CodeGenClassVar.h"
 
 namespace fly {
 
@@ -66,7 +67,7 @@ namespace fly {
 
         ASTExpr *getExpr() const override;
 
-        CodeGenVarBase *getCodeGen() const override;
+        CodeGenClassVar *getCodeGen() const;
 
         void setCodeGen(CodeGenClassVar *CGV);
 

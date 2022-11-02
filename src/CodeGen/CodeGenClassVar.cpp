@@ -18,7 +18,6 @@ using namespace fly;
 CodeGenClassVar::CodeGenClassVar(CodeGenModule *CGM, ASTClassVar *Var, llvm::Type *ClassType, uint32_t Index) :
         CodeGenVar(CGM, Var), ClassType(ClassType), Index(llvm::ConstantInt::get(CGM->Int32Ty, Index)),
         Zero(llvm::ConstantInt::get(CGM->Int32Ty, 0)) {
-
 }
 
 void CodeGenClassVar::setClassInstance(llvm::Value *Instance) {
@@ -27,8 +26,7 @@ void CodeGenClassVar::setClassInstance(llvm::Value *Instance) {
 
 void CodeGenClassVar::Init() {
     assert(ClassInstance && "Cannot init from unallocated stack");
-    llvm::ArrayRef<llvm::Value *> IdxList = {Zero, Index};
-    Pointer = CGM->Builder->CreateInBoundsGEP(ClassType, ClassInstance, IdxList);
+    doLoad = true;
 }
 
 llvm::StoreInst *CodeGenClassVar::Store(llvm::Value *Val) {
@@ -38,12 +36,13 @@ llvm::StoreInst *CodeGenClassVar::Store(llvm::Value *Val) {
 
 llvm::LoadInst *CodeGenClassVar::Load() {
     assert(ClassInstance && "Cannot load from unallocated stack");
+    Pointer = CGM->Builder->CreateInBoundsGEP(ClassType, ClassInstance, { Zero, Index });
     return CodeGenVar::Load();
 }
 
 llvm::Value *CodeGenClassVar::getPointer() {
     if (!Pointer)
-        Init();
+        CodeGenClassVar::Init();
     assert(Pointer && "Null pointer not managed");
     return Pointer;
 }

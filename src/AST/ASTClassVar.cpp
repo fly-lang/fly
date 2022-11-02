@@ -54,7 +54,7 @@ ASTExpr *ASTClassVar::getExpr() const {
     return Expr;
 }
 
-CodeGenVarBase *ASTClassVar::getCodeGen() const {
+CodeGenClassVar *ASTClassVar::getCodeGen() const {
     return CodeGen;
 }
 

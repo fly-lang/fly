@@ -53,7 +53,7 @@ namespace fly {
 
         ASTExpr *getExpr() const override;
 
-        CodeGenVar *getCodeGen() const;
+        CodeGenVar *getCodeGen() const override;
 
         void setCodeGen(CodeGenVar *CG);
 

@@ -135,7 +135,7 @@ bool FrontendAction::GenerateBodies() {
     for (auto &CGF : CGFunctions) {
         FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode",
                           "FunctionBody=" << CGF->getName());
-        for (auto &CGV : CGGlobalVars) {
+        for (auto &CGV : CGGlobalVars) { // All global vars need to be Loaded from Init()
             CGV->Init();
         }
         CGF->GenBody();

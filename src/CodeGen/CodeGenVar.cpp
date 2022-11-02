@@ -26,6 +26,7 @@ CodeGenVar::CodeGenVar(CodeGenModule *CGM, ASTVar *Var) : CodeGenVarBase(CGM, Va
 
 void CodeGenVar::Init() {
     Pointer = CGM->Builder->CreateAlloca(T);
+    doLoad = true;
 
     if (Var->getType()->isClass()) {
         ((ASTClassType *) Var->getType())->getDef()->getCodeGen()->InvokeDefaultConstructor(Pointer);
@@ -33,11 +34,13 @@ void CodeGenVar::Init() {
 }
 
 llvm::StoreInst *CodeGenVar::Store(llvm::Value *Val) {
+    assert(Pointer && "Cannot store into unallocated stack");
     BlockID = CGM->Builder->GetInsertBlock()->getName();
     return CodeGenVarBase::Store(Val);
 }
 
 llvm::LoadInst *CodeGenVar::Load() {
+    assert(Pointer && "Cannot load from unallocated stack");
     BlockID = CGM->Builder->GetInsertBlock()->getName();
     return CodeGenVarBase::Load();
 }
