@@ -503,17 +503,17 @@ bool ToolChain::LinkWindows(const llvm::SmallVector<std::string, 4> &InFiles, co
     llvm::SmallString<256> VCToolChainLibPath(VCToolChainPath);
     llvm::sys::path::append(VCToolChainLibPath, "lib", SubdirName);
     const std::string VCToolChainLibPathStr = VCToolChainLibPath.str().str();
-    CmdArgs.push_back("/libpath:\"" + VCToolChainLibPathStr + "\"");
+    CmdArgs.push_back("\"/libpath:" + VCToolChainLibPathStr + "\"");
 
     // Ex. -libpath:C:\\Program Files (x86)\\Windows Kits\\10\\Lib\\10.0.19041.0\\ucrt\\x64"
     std::string UniversalCRTLibPath;
     if (getUniversalCRTLibraryPath(UniversalCRTLibPath))
-        CmdArgs.push_back("/libpath:\"" + UniversalCRTLibPath + "\"");
+        CmdArgs.push_back("\"/libpath:" + UniversalCRTLibPath + "\"");
 
     // Ex. -libpath:C:\\Program Files (x86)\\Windows Kits\\10\\Lib\\10.0.19041.0\\um\\x64
     std::string WindowsSdkLibPath;
     if (getWindowsSDKLibraryPath(WindowsSdkLibPath))
-        CmdArgs.push_back("/libpath:\"" + WindowsSdkLibPath + "\"");
+        CmdArgs.push_back("\"/libpath:" + WindowsSdkLibPath + "\"");
 
     // Add Inputs
     for (const std::string& ObjFile : InFiles) {

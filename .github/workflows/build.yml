@@ -76,7 +76,9 @@ jobs:
         working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}
         # Execute tests defined by the CMake configuration.
         # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
-        run: ctest -C ${{env.BUILD_TYPE}} --rerun-failed --output-on-failure
+        run: |
+          ls "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC\14.33.31629\lib\x64"
+          ctest -C ${{env.BUILD_TYPE}} --rerun-failed --output-on-failure
 
       - name: Read Version (Unix)
         id: version
