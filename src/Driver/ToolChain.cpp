@@ -515,6 +515,10 @@ bool ToolChain::LinkWindows(const llvm::SmallVector<std::string, 4> &InFiles, co
     if (getWindowsSDKLibraryPath(WindowsSdkLibPath))
         CmdArgs.push_back("/libpath:" + WindowsSdkLibPath);
 
+    // Add debug
+    CmdArgs.push_back("/debug");
+    CmdArgs.push_back("/verbose");
+
     // Add Inputs
     for (const std::string& ObjFile : InFiles) {
         FLY_DEBUG_MESSAGE("ToolChain", "LinkWindows", "Input=" << ObjFile);
