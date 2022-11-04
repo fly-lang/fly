@@ -519,6 +519,8 @@ bool ToolChain::LinkWindows(const llvm::SmallVector<std::string, 4> &InFiles, co
     CmdArgs.push_back("/debug");
     CmdArgs.push_back("/verbose");
 
+    CmdArgs.push_back("/nodefaultlib");
+
     // Add Inputs
     for (const std::string& ObjFile : InFiles) {
         FLY_DEBUG_MESSAGE("ToolChain", "LinkWindows", "Input=" << ObjFile);
