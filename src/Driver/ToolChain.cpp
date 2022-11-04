@@ -484,7 +484,7 @@ bool ToolChain::LinkWindows(const llvm::SmallVector<std::string, 4> &InFiles, co
     CmdArgs.push_back(Out.c_str());
 
     // https://docs.microsoft.com/en-us/cpp/c-runtime-library/crt-library-features?view=msvc-170
-    CmdArgs.push_back("/defaultlib:libcmt"); // DLL import library for the UCRT.
+    CmdArgs.push_back("/defaultlib:libc"); // DLL import library for the UCRT.
 
     // Check the environment first, since that's probably the user telling us
     // what they want to use.
@@ -518,8 +518,6 @@ bool ToolChain::LinkWindows(const llvm::SmallVector<std::string, 4> &InFiles, co
     // Add debug
     CmdArgs.push_back("/debug");
     CmdArgs.push_back("/verbose");
-
-    CmdArgs.push_back("/nodefaultlib");
 
     // Add Inputs
     for (const std::string& ObjFile : InFiles) {
