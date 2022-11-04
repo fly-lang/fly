@@ -52,8 +52,7 @@ jobs:
 
       - name: Windows Build Tools
         if: matrix.os == 'windows-2019'
-        run: |
-          ls env:
+        run: echo $env:path
 
       - name: Configure
         # Some projects don't allow in-source building, so create a separate build directory
