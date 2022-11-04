@@ -53,8 +53,8 @@ jobs:
       - name: Windows Build Tools
         if: matrix.os == 'windows-2019'
         run: |
-          mkdir 
-          Copy-Item -Path 'C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\DIA SDK' -Destination 'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\DIA SDK' -Recurse
+          New-Item -ItemType Directory -Path 'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\DIA SDK' -Force
+          Copy-Item -Path 'C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\DIA SDK\*' -Destination 'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\DIA SDK\' -Recurse
 
       - name: Configure
         # Some projects don't allow in-source building, so create a separate build directory
