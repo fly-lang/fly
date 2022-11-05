@@ -76,7 +76,9 @@ jobs:
       - name: Test
         if: matrix.os == 'windows-latest'
         working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}\test\${{env.BUILD_TYPE}}
-        run: fly_test.exe --gtest_filter='-CmdTest.EmitOut'
+        run: |
+          ls
+          .\fly_test.exe --gtest_filter='-CmdTest.EmitOut'
 
       - name: Read Version (Unix)
         id: version
