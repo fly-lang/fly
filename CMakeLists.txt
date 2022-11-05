@@ -113,5 +113,5 @@ include_directories(include)
 # Add Fly Sources
 add_subdirectory(src)
 
-#enable_testing()
-#add_subdirectory(test)
+enable_testing()
+add_subdirectory(test)

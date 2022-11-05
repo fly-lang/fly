@@ -36,7 +36,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-latest, macos-latest, windows-2019 ]
+        os: [ ubuntu-latest, macos-latest, windows-latest ]
     runs-on: ${{ matrix.os }}
 
     outputs:
@@ -49,12 +49,6 @@ jobs:
       - name: Dependencies
         if: matrix.os == 'ubuntu-latest'
         run: sudo sudo apt-get -y install binutils-dev libdw-dev libdwarf-dev
-
-      - name: Windows Build Tools
-        if: matrix.os == 'windows-2019'
-        run: |
-          New-Item -ItemType Directory -Path 'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\DIA SDK' -Force
-          Copy-Item -Path 'C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\DIA SDK\*' -Destination 'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\DIA SDK\' -Recurse
 
       - name: Configure
         run: cmake -E make_directory ${{env.BUILD_DIR}}
@@ -74,9 +68,15 @@ jobs:
           cmake .. -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_VERBOSE_MAKEFILE=ON
           cmake --build . --config ${{env.BUILD_TYPE}}
 
-#      - name: Test
-#        working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}
-#        run: ctest -C ${{env.BUILD_TYPE}} --rerun-failed --output-on-failure
+      - name: Test
+        if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
+        working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/test
+        run: ./fly_test
+
+      - name: Test
+        if: matrix.os == 'windows-latest'
+        working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/test
+        run: ./fly_test.exe --gtest_filter='-CmdTest.EmitOut'
 
       - name: Read Version (Unix)
         id: version
