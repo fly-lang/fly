@@ -10,50 +10,53 @@
 #ifndef FLY_ASTUNREF_H
 #define FLY_ASTUNREF_H
 
+#include "Basic/Debuggable.h"
 #include <string>
 
 namespace fly {
 
     class ASTNode;
     class ASTVarRef;
-    class ASTFuncCall;
+    class ASTFunctionCall;
     class ASTType;
 
-    class ASTUnref {
+    class ASTUnref : public Debuggable {
 
     protected:
-        ASTNode *Node;
+        ASTNode *Node = nullptr;
 
         ASTUnref(ASTNode *Node);
 
     public:
         ASTNode *getNode();
 
-        virtual std::string str() const = 0;
+        std::string str() const;
     };
 
     class ASTUnrefGlobalVar : public ASTUnref {
 
         ASTVarRef &VarRef;
 
-    public:
         ASTUnrefGlobalVar(ASTNode *Node, ASTVarRef &VarRef);
+
+    public:
 
         ASTVarRef &getVarRef();
 
-        std::string str() const;
+        std::string str() const override;
     };
 
-    class ASTUnrefCall : public ASTUnref {
+    class ASTUnrefFunctionCall : public ASTUnref {
 
-        ASTFuncCall *Call;
+        ASTFunctionCall *Call = nullptr;
+
+        ASTUnrefFunctionCall(ASTNode *Node, ASTFunctionCall *Call);
 
     public:
-        ASTUnrefCall(ASTNode *Node, ASTFuncCall *Call);
 
-        ASTFuncCall *getCall();
+        ASTFunctionCall *getCall();
 
-        std::string str() const;
+        std::string str() const override;
     };
 }
 

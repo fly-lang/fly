@@ -10,47 +10,60 @@
 #ifndef FLY_ASTVALUE_H
 #define FLY_ASTVALUE_H
 
-#include "ASTType.h"
+#include "Basic/Debuggable.h"
+
+#include <string>
 #include <vector>
 
 namespace fly {
 
-    class ASTValue {
+    class ASTType;
+    class SourceLocation;
 
-        const SourceLocation &Loc;
+    enum class ASTMacroTypeKind;
 
-        ASTType *Type;
+    class ASTValue : public Debuggable {
+
+        friend class SemaBuilder;
+        friend class SemaResolver;
+
+        const SourceLocation &Location;
+
+        const ASTMacroTypeKind MacroKind;
+
+    protected:
+
+        ASTValue(const ASTMacroTypeKind Kind, const SourceLocation &Location);
 
     public:
-        ASTValue(const SourceLocation &Loc, ASTType *Type);
 
         const SourceLocation &getLocation() const;
 
-        ASTType *getType() const;
+        const ASTMacroTypeKind &getMacroKind() const;
 
-        virtual std::string str() const = 0;
-    };
+        const std::string printMacroType() const;
 
-    /**
-     * Abstract Value for Integer, Floating Point and Boolean
-     */
-    class ASTSingleValue : public ASTValue {
+        virtual const std::string print() const = 0;
 
-    public:
-        ASTSingleValue(const SourceLocation &Loc, ASTType *Ty);
+        std::string str() const;
     };
 
     /**
      * Used for Integer Numbers
      */
-    class ASTBoolValue : public ASTSingleValue {
+    class ASTBoolValue : public ASTValue {
+
+        friend class SemaBuilder;
 
         bool Value;
 
-    public:
         ASTBoolValue(const SourceLocation &Loc, bool Value = false);
 
+    public:
+
         bool getValue() const;
+
+        const std::string print() const;
 
         std::string str() const override;
     };
@@ -58,13 +71,18 @@ namespace fly {
     /**
      * Used for Integer Numbers
      */
-    class ASTIntegerValue : public ASTSingleValue {
+    class ASTIntegerValue : public ASTValue {
+
+        friend class SemaBuilder;
+        friend class SemaResolver;
+
+        uint64_t Value; // the integer value
 
         bool Negative; // true is positive, false is negative
-        uint64_t Value;
+
+        ASTIntegerValue(const SourceLocation &Loc, uint64_t Value, bool Negative = false);
 
     public:
-        ASTIntegerValue(const SourceLocation &Loc, ASTType *Ty, uint64_t Value = 0, bool Negative = false);
 
         bool isNegative() const;
 
@@ -72,20 +90,28 @@ namespace fly {
 
         uint64_t getValue() const;
 
+        const std::string print() const;
+
         std::string str() const override;
     };
 
     /**
      * Used for Floating Point Numbers
      */
-    class ASTFloatingValue : public ASTSingleValue {
+    class ASTFloatingValue : public ASTValue {
+
+        friend class SemaBuilder;
+        friend class SemaResolver;
 
         std::string Value;
 
+        ASTFloatingValue(const SourceLocation &Loc, std::string Val);
+
     public:
-        ASTFloatingValue(const SourceLocation &Loc, ASTType *Type, std::string &Val);
 
         std::string getValue() const;
+
+        const std::string print() const;
 
         std::string str() const override;
     };
@@ -95,18 +121,34 @@ namespace fly {
      */
     class ASTArrayValue : public ASTValue {
 
+        friend class SemaBuilder;
+
         std::vector<ASTValue *> Values;
 
-    public:
-        ASTArrayValue(const SourceLocation &Loc, ASTType *Type);
+        ASTArrayValue(const SourceLocation &Loc);
 
-        void addValue(ASTValue * Value);
+    public:
 
         const std::vector<ASTValue *> &getValues() const;
 
         uint64_t size() const;
 
         bool empty() const;
+
+        const std::string print() const;
+
+        std::string str() const override;
+    };
+
+    class ASTNullValue : public ASTValue {
+
+        friend class SemaBuilder;
+
+        ASTNullValue(const SourceLocation &Loc);
+
+    public:
+
+        const std::string print() const;
 
         std::string str() const override;
     };

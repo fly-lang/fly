@@ -4,6 +4,7 @@ add_library(FlyBasic
         CharInfo.cpp
         CodeGenOptions.cpp
         Cuda.cpp
+        Debuggable.cpp
         Diagnostic.cpp
         DiagnosticIDs.cpp
         DiagnosticOptions.cpp

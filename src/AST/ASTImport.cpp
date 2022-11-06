@@ -17,8 +17,14 @@
 
 using namespace fly;
 
-ASTImport::ASTImport(const SourceLocation &Loc, const std::string Name, const std::string Alias) :
-    Location(Loc), Name(Name), Alias(Alias) {
+ASTImport::ASTImport(const SourceLocation &NameLoc, std::string Name) :
+        NameLocation(NameLoc), Name(Name) {
+
+}
+
+ASTImport::ASTImport(const SourceLocation &NameLoc, std::string Name,
+                     const SourceLocation &AliasLoc, std::string Alias) :
+        NameLocation(NameLoc), Name(Name), AliasLocation(AliasLoc), Alias(Alias) {
 
 }
 
@@ -26,11 +32,11 @@ ASTImport::~ASTImport() {
     NameSpace = nullptr;
 }
 
-const std::string &ASTImport::getName() const {
+const std::string ASTImport::getName() const {
     return Name;
 }
 
-const std::string &ASTImport::getAlias() const {
+const std::string ASTImport::getAlias() const {
     return Alias;
 }
 
@@ -43,12 +49,17 @@ void ASTImport::setNameSpace(ASTNameSpace *NS) {
 }
 
 const SourceLocation &ASTImport::getLocation() const {
-    return Location;
+    return NameLocation;
+}
+
+const SourceLocation &ASTImport::getAliasLocation() const {
+    return AliasLocation;
 }
 
 std::string ASTImport::str() const {
-    return "{ Name=" + Name +
-            ", NameSpace=" + (NameSpace ? NameSpace->str() : "{}") +
-            ", Alias=" + Alias +
-            " }";
+    return Logger("ASTImport").
+            Attr("Name", Name).
+            Attr("NameSpace", NameSpace).
+            Attr("Alias",Alias).
+            End();
 }

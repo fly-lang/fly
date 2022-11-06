@@ -20,23 +20,20 @@ namespace fly {
     class ASTNameSpace;
     class ASTImport;
     class ASTGlobalVar;
-    class ASTFunc;
+    class ASTFunction;
     class ASTClass;
     class FileID;
     class ASTUnrefGlobalVar;
-    class ASTUnrefCall;
+    class ASTUnrefFunctionCall;
     class ASTType;
     class ASTExpr;
     class ASTVarRef;
 
     class ASTNode : public ASTNodeBase {
 
-        friend class ASTResolver;
-        friend class ASTContext;
-        friend class ASTNameSpace;
-
-        // CodeGen Module
-        CodeGenModule *CGM;
+        friend class Sema;
+        friend class SemaResolver;
+        friend class SemaBuilder;
 
         // Namespace declaration
         ASTNameSpace *NameSpace = nullptr;
@@ -50,52 +47,33 @@ namespace fly {
         llvm::StringMap<ASTGlobalVar *> ExternalGlobalVars;
         
         // All invoked Calls
-        std::unordered_set<ASTFunc *> ExternalFunctions;
+        llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> ExternalFunctions;
 
-    public:
+        ASTClass *Class = nullptr;
+
         ASTNode() = delete;
 
         ~ASTNode();
 
-        ASTNode(const std::string FileName, ASTContext *Context);
+        ASTNode(const std::string FileName, ASTContext *Context, bool isHeader);
 
-        ASTNode(const std::string FileName, ASTContext *Context, CodeGenModule * CGM);
-
-        CodeGenModule *getCodeGen() const;
+    public:
 
         const bool isHeader() const;
 
-        void setNameSpace(std::string Name);
-
         ASTNameSpace* getNameSpace();
 
-        void setDefaultNameSpace();
-
-        ASTImport *FindImport(const std::string &string);
-
-        bool AddImport(ASTImport *Import);
+        ASTImport *FindImport(const std::string string);
 
         const llvm::StringMap<ASTImport*> &getImports();
 
-        bool AddGlobalVar(ASTGlobalVar *GVar);
-
-        bool AddFunction(ASTFunc *Func);
-
-        bool AddClass(ASTClass *Class);
-
-        bool AddExternalGlobalVar(ASTGlobalVar *Var);
-
         const llvm::StringMap<ASTGlobalVar *> &getExternalGlobalVars() const;
 
-        bool AddExternalFunction(ASTFunc *Call);
+        const llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> &getExternalFunctions() const;
 
-        const std::unordered_set<ASTFunc *> &getExternalFunctions() const;
+        ASTClass *getClass() const;
 
-        bool AddUnrefCall(ASTFuncCall *Call);
-
-        bool AddUnrefGlobalVar(ASTVarRef *VarRef);
-
-        bool Resolve();
+        virtual std::string str() const;
     };
 }
 

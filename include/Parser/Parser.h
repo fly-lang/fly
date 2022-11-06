@@ -10,37 +10,34 @@
 #ifndef FLY_PARSER_H
 #define FLY_PARSER_H
 
-#include <AST/ASTBlock.h>
-#include <AST/ASTIfBlock.h>
-#include <AST/ASTSwitchBlock.h>
-#include <AST/ASTForBlock.h>
-#include <AST/ASTLocalVar.h>
-#include <AST/ASTStmt.h>
-#include <AST/ASTVar.h>
-#include <AST/ASTExpr.h>
-#include <AST/ASTFunc.h>
-#include "Frontend/InputFile.h"
-#include "GlobalVarParser.h"
-#include "FunctionParser.h"
-#include "ClassParser.h"
 #include "Lex/Token.h"
 #include "Lex/Lexer.h"
-#include "AST/ASTNode.h"
 
 namespace fly {
 
     class DiagnosticsEngine;
-    class Lexer;
+    class SemaBuilder;
+    class ASTNode;
     class ASTValue;
-    class ASTSingleValue;
     class ASTArrayValue;
+    class ASTArrayType;
+    class ASTClassType;
+    class ASTTopScopes;
+    class ASTType;
+    class ASTBlock;
+    class ASTFunctionCall;
+    class ASTStmt;
+    class ASTExpr;
+    class ASTVarRef;
+    class InputFile;
+    enum class ASTBinaryOperatorKind;
 
     /// Parse the main file known to the preprocessor, producing an
     /// abstract syntax tree.
     class Parser {
 
-        friend class GlobalVarParser;
         friend class FunctionParser;
+        friend class ClassParser;
         friend class ExprParser;
 
         const InputFile &Input;
@@ -49,13 +46,17 @@ namespace fly {
 
         SourceManager &SourceMgr;
 
-        Lexer Lex;
+        SemaBuilder &Builder;
 
-        ASTNode *AST;
+        Lexer Lex;
 
         /// Tok - The current token we are peeking ahead.  All parsing methods assume
         /// that this is valid.
         Token Tok;
+
+        ASTNode *Node;
+
+        std::string NameSpace;
 
         // PrevTokLocation - The location of the token we previously
         // consumed. This token is used for diagnostics where we expected to
@@ -69,59 +70,28 @@ namespace fly {
 
     public:
 
-        Parser(const InputFile &Input, SourceManager &SourceMgr, DiagnosticsEngine &Diags);
+        Parser(const InputFile &Input, SourceManager &SourceMgr, DiagnosticsEngine &Diags, SemaBuilder &Builder);
 
-        bool Parse(ASTNode* Unit);
-        bool ParseHeader(ASTNode *Node);
-
-        DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID);
-        DiagnosticBuilder Diag(const Token &Tok, unsigned DiagID);
-        DiagnosticBuilder Diag(unsigned DiagID);
-        void DiagInvalidId(SourceLocation Loc);
+        ASTNode *Parse();
+        ASTNode *ParseHeader();
 
     private:
 
-        // Parse Tokens
-        SourceLocation ConsumeToken();
-        bool isTokenParen() const;
-        bool isTokenBracket() const;
-        bool isTokenBrace() const;
-        bool isTokenStringLiteral() const;
-        bool isTokenSpecial() const;
-        SourceLocation ConsumeParen();
-        SourceLocation ConsumeBracket();
-        SourceLocation ConsumeBrace();
-        bool isBraceBalanced() const;
-        SourceLocation ConsumeStringToken();
-        SourceLocation ConsumeNext();
-        llvm::StringRef getLiteralString();
-        void ClearBlockComment();
-
+        // Parse NameSpace
         bool ParseNameSpace();
 
+        // Parse Imports
         bool ParseImports();
 
-        bool ParseTopDecl();
-
-        bool ParseTopScopes(VisibilityKind &Visibility, bool &isConst,
-                            bool isParsedVisibility = false, bool isParsedConstant = false);
-
-        bool ParseConst(bool &Constant);
-
-        bool ParseGlobalVarDecl(VisibilityKind &VisKind, bool &Constant, ASTType *Type);
-
-        bool ParseFunction(VisibilityKind &VisKind, bool Constant, ASTType *Type);
-
-        bool ParseClassDecl(VisibilityKind &VisKind, bool &Constant);
-
-        bool ParseType(ASTType *&Type, bool OnlyBuiltin = false);
-
-        bool ParseArrayType(ASTType *&Type, ASTBlock * Block = nullptr);
+        // Parse Top Definitions
+        bool ParseTopDef();
+        ASTTopScopes *ParseTopScopes();
+        bool ParseGlobalVar(ASTTopScopes *Scopes, ASTType *Type);
+        bool ParseFunction(ASTTopScopes *Scopes, ASTType *Type);
+        bool ParseClass(ASTTopScopes *Scopes);
 
         // Parse Block Statement
-
         bool ParseBlock(ASTBlock *Block);
-        bool ParseInnerBlock(ASTBlock *Block);
         bool ParseStmt(ASTBlock *Block);
         bool ParseStartParen();
         bool ParseEndParen(bool HasParen);
@@ -131,31 +101,69 @@ namespace fly {
         bool ParseForStmt(ASTBlock *Block);
         bool ParseForCommaStmt(ASTBlock *Block);
 
-        // Parse Identifier
-        bool ParseIdentifier(llvm::StringRef &Name, llvm::StringRef &NameSpace, SourceLocation &Loc);
+        // Parse Identifiers
+        ASTType *ParseBuiltinType();
+        ASTArrayType *ParseArrayType(ASTType *);
+        ASTClassType *ParseClassType();
+        ASTType *ParseType();
+        ASTVarRef *ParseVarRef();
+        bool ParseIdentifier(SourceLocation &Loc, llvm::StringRef &Name, llvm::StringRef &NameSpace);
 
-        // Parse Calls
-        ASTFuncCall * ParseFunctionCall(ASTBlock *Block, llvm::StringRef Name, llvm::StringRef NameSpace,
-                                        SourceLocation &Loc);
+        // Parse Function Calls
+        ASTFunctionCall *ParseFunctionCall(ASTStmt *Stmt, SourceLocation &Loc, llvm::StringRef Name, llvm::StringRef NameSpace);
+        bool ParseCallArgs(ASTFunctionCall *Call);
+        bool ParseCallArg(ASTFunctionCall *Call);
+
         // Parse a Value
         ASTValue *ParseValue();
-        ASTValue *ParseValue(ASTType *Type);
-        ASTArrayValue *ParseValues(ASTArrayValue *ArrayValues);
-
-        // Parse a Local Var
-        ASTLocalVar *ParseLocalVar(ASTBlock *Block, bool Constant, ASTType *Type);
+        ASTValue *ParseValueNumber(std::string &Str);
+        bool ParseValues(ASTArrayValue &ArrayValues);
 
         // Parse Expressions
-
-        ASTExpr *ParseAssignmentExpr(ASTBlock *Block, ASTVarRef *VarRef);
-        ASTExpr *ParseExprEmpty(ASTBlock *Block);
-        ASTExpr *ParseExpr(ASTBlock *Block);
-        ASTExpr *ParseExpr(ASTBlock *Block, llvm::StringRef Name, llvm::StringRef NameSpace, SourceLocation Loc);
+        ASTExpr *ParseExpr(ASTStmt *Stmt = nullptr);
 
         // Check Keywords
-
-        bool isBuiltinType();
+        bool isType(Optional<Token> &Tok1);
+        bool isBuiltinType(Token &Tok);
+        bool isArrayType(Token &Tok);
+        bool isClassType(Token &Tok);
+        bool isIdentifier();
+        bool isIdentifier(Optional<Token> &Tok1);
         bool isValue();
+        bool isConst();
+        bool isBlockStart();
+        bool isBlockEnd();
+
+        // Parse Tokens
+        SourceLocation ConsumeToken();
+        bool isTokenParen() const;
+        bool isTokenBracket() const;
+        bool isTokenBrace() const;
+        bool isTokenStringLiteral() const;
+        bool isTokenSpecial() const;
+        bool isTokenOperator() const;
+        bool isTokenAssign() const;
+        bool isTokenAssignOperator() const;
+        bool isTokenAssign(Optional<Token> OptTok) const;
+        bool isTokenAssignOperator(Optional<Token> OptTok) const;
+        bool isUnaryPreOperator(Token &Tok);
+        bool isUnaryPostOperator();
+        bool isBinaryOperator();
+        bool isTernaryOperator();
+        SourceLocation ConsumeParen();
+        SourceLocation ConsumeBracket();
+        SourceLocation ConsumeBrace();
+        bool isBraceBalanced() const;
+        SourceLocation ConsumeStringToken();
+        SourceLocation ConsumeNext();
+        llvm::StringRef getLiteralString();
+        void ClearBlockComment();
+
+        // Diagnostics
+        DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID);
+        DiagnosticBuilder Diag(const Token &Tok, unsigned DiagID);
+        DiagnosticBuilder Diag(unsigned DiagID);
+        void DiagInvalidId(SourceLocation Loc);
     };
 
 }  // end namespace fly

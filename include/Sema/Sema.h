@@ -7,26 +7,69 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_SEMA_SEMA_H
-#define FLY_SEMA_SEMA_H
+#ifndef FLY_SEMA_H
+#define FLY_SEMA_H
+
+namespace llvm {
+    class StringRef;
+}
 
 namespace fly {
 
+    class SemaBuilder;
+    class SemaResolver;
+    class SemaValidator;
+    class DiagnosticsEngine;
+    class DiagnosticBuilder;
+    class SourceLocation;
+    class ASTNameSpace;
     class ASTNode;
+    class ASTClass;
+    class ASTClassVar;
+    class ASTClassFunction;
+    class ASTFunctionBase;
+    class ASTLocalVar;
     class ASTVarRef;
-    class ASTExpr;
+    class ASTVar;
     class ASTBlock;
 
     class Sema {
 
-        const ASTNode *AST;
+        friend class SemaBuilder;
+        friend class SemaResolver;
+
+        DiagnosticsEngine &Diags;
+
+        SemaBuilder *Builder = nullptr;
+
+        SemaResolver *Resolver = nullptr;
+
+        SemaValidator *Validator = nullptr;
+
+        Sema(DiagnosticsEngine &Diags);
 
     public:
-        Sema(ASTNode *AST);
 
-        static bool CheckUndefVar(ASTBlock *Block, ASTVarRef *VarRef);
+        static SemaBuilder* CreateBuilder(DiagnosticsEngine &Diags);
 
-        static bool CheckOnCloseBlock(ASTBlock *Block);
+        ASTNameSpace *FindNameSpace(llvm::StringRef Name) const;
+
+        ASTNameSpace *FindNameSpace(ASTFunctionBase *FunctionBase) const;
+
+        ASTNode *FindNode(ASTFunctionBase *FunctionBase) const;
+
+        ASTNode *FindNode(llvm::StringRef Name, ASTNameSpace *NameSpace) const;
+
+        ASTClass *FindClass(llvm::StringRef Name, ASTNameSpace *NameSpace) const;
+
+        ASTLocalVar *FindVarDef(ASTBlock *Block, ASTVarRef *VarRef) const;
+
+        ASTClassVar *FindClassVar(ASTVar *Var, llvm::StringRef Name);
+
+        DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID) const;
+
+        DiagnosticBuilder Diag(unsigned DiagID) const;
+
     };
 
 }  // end namespace fly

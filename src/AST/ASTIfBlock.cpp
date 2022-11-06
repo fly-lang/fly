@@ -9,70 +9,61 @@
 
 
 #include "AST/ASTIfBlock.h"
-#include "AST/ASTFunc.h"
+#include "AST/ASTFunction.h"
 #include "AST/ASTNode.h"
 #include "AST/ASTContext.h"
-#include "Basic/Diagnostic.h"
 
 using namespace fly;
 
-ASTIfBlock::ASTIfBlock(const SourceLocation &Loc, ASTBlock *Parent) : ASTBlock(Loc, Parent) {
-    // The UndefVars are copied from Parent to this if block
-    UndefVars = Parent->UndefVars;
+ASTIfBlock::ASTIfBlock(ASTBlock *Parent, const SourceLocation &Loc) :
+        ASTBlock(Parent, Loc, ASTBlockKind::BLOCK_IF) {
+
 }
 
-ASTIfBlock::ASTIfBlock(const SourceLocation &Loc, ASTBlock *Parent, ASTExpr *Condition) : Condition(Condition),
-    ASTBlock(Loc, Parent) {
-    // The UndefVars are copied from Parent to this if block
-    UndefVars = Parent->UndefVars;
-}
-
-ASTElsifBlock *ASTIfBlock::AddElsifBlock(const SourceLocation &Loc, ASTExpr *Expr) {
-    if (ElseBlock) {
-        Parent->Top->getNode()->getContext().Diag(Loc, diag::err_elseif_after_else);
-    }
-    ASTElsifBlock *Elsif = new ASTElsifBlock(Loc, this, Expr); // TODO continue here!
-    ElsifBlocks.push_back(Elsif);
-    return Elsif;
-}
-
-std::vector<ASTElsifBlock *> ASTIfBlock::getElsifBlocks() {
-    return ElsifBlocks;
-}
-
-ASTElseBlock *ASTIfBlock::AddElseBlock(const SourceLocation &Loc) {
-    if (ElseBlock) {
-        Parent->Top->getNode()->getContext().Diag(Loc, diag::err_else_after_else);
-    }
-    ElseBlock = new ASTElseBlock(Loc, this);
-    return ElseBlock;
-}
-
-ASTElseBlock *ASTIfBlock::getElseBlock() {
-    return ElseBlock;
+ASTBlock *ASTIfBlock::getParent() const {
+    return (ASTBlock *) Parent;
 }
 
 ASTExpr *ASTIfBlock::getCondition() {
     return Condition;
 }
 
-enum ASTBlockKind ASTIfBlock::getBlockKind() const {
-    return StmtKind;
+std::vector<ASTElsifBlock *> ASTIfBlock::getElsifBlocks() {
+    return ElsifBlocks;
 }
 
-ASTElsifBlock::ASTElsifBlock(const SourceLocation &Loc, ASTBlock *Parent, ASTExpr *Condition) :
-    ASTIfBlock(Loc, Parent, Condition) {
-    
+ASTElseBlock *ASTIfBlock::getElseBlock() {
+    return ElseBlock;
 }
 
-enum ASTBlockKind ASTElsifBlock::getBlockKind() const {
-    return StmtKind;
+std::string ASTIfBlock::str() const {
+    return Logger("ASTIfBlock").
+           Super(ASTBlock::str()).
+           End();
 }
 
-ASTElseBlock::ASTElseBlock(const SourceLocation &Loc, ASTBlock *Parent) : ASTIfBlock(Loc, Parent) {
-    
+ASTElsifBlock::ASTElsifBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc) :
+    ASTBlock(IfBlock->getParent(), Loc, ASTBlockKind::BLOCK_ELSIF), IfBlock(IfBlock) {
+    IfBlock->ElsifBlocks.push_back(this);
 }
 
-enum ASTBlockKind ASTElseBlock::getBlockKind() const {
-    return StmtKind;
+ASTExpr *ASTElsifBlock::getCondition() {
+    return Condition;
+}
+
+std::string ASTElsifBlock::str() const {
+    return Logger("ASTElsifBlock").
+           Super(ASTBlock::str()).
+           End();
+}
+
+ASTElseBlock::ASTElseBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc) :
+    ASTBlock(IfBlock->getParent(), Loc, ASTBlockKind::BLOCK_ELSE), IfBlock(IfBlock) {
+    IfBlock->ElseBlock = this;
+}
+
+std::string ASTElseBlock::str() const {
+    return Logger("ASTElseBlock").
+           Super(ASTBlock::str()).
+           End();
 }

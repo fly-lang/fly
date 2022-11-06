@@ -11,67 +11,56 @@
 #ifndef FLY_ASTNODEBASE_H
 #define FLY_ASTNODEBASE_H
 
-#include "ASTFunc.h"
-#include "Basic/SourceLocation.h"
+#include "Basic/Debuggable.h"
+
 #include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/SmallVector.h"
+
+#include <map>
 
 namespace fly {
 
+    class SourceLocation;
     class ASTContext;
     class ASTGlobalVar;
     class ASTClass;
-    class ASTFunc;
-    class ASTFuncCall;
+    class ASTFunction;
+    class ASTFunctionCall;
     class ASTUnrefGlobalVar;
-    class ASTUnrefCall;
+    class ASTUnrefFunctionCall;
 
-    class ASTNodeBase {
+    class ASTNodeBase : public Debuggable {
+
+        friend class Sema;
+        friend class SemaBuilder;
+        friend class SemaResolver;
 
     protected:
 
-        ASTContext* Context;
+        ASTContext* Context = nullptr;
 
         // Node FileName
         const std::string Name;
 
-        // Private Global Vars
+        // Global Vars
         llvm::StringMap<ASTGlobalVar *> GlobalVars;
 
-        // Public Functions
-        std::unordered_set<ASTFunc*> Functions;
-
-        // Calls created on Functions creations, each Function have a Call defined here
-        llvm::StringMap<std::vector<ASTFuncCall *>> FunctionCalls;
-
-        // Public Classes
-        llvm::StringMap<ASTClass *> Classes;
-
-        // Contains all unresolved VarRef to a GlobalVar
-        std::vector<ASTUnrefGlobalVar *>  UnrefGlobalVars;
-
-        // Contains all unresolved Function Calls
-        std::vector<ASTUnrefCall *> UnrefFunctionCalls;
-
-    public:
+        // Functions
+        llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> Functions;
 
         ASTNodeBase() = delete;
 
-        ASTNodeBase(const std::string &Name, ASTContext* Context);
+        ASTNodeBase(const std::string Name, ASTContext* Context);
 
-        const std::string& getName();
+    public:
+
+        const std::string getName();
 
         ASTContext &getContext() const;
 
         const llvm::StringMap<ASTGlobalVar *> &getGlobalVars() const;
 
-        const std::unordered_set<ASTFunc*> &getFunctions() const;
-
-        const llvm::StringMap<ASTClass *> &getClasses() const;
-
-        bool AddFunctionCall(ASTFuncCall *Call);
-
-        virtual std::string str() const;
-
+        const llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> &getFunctions() const;
     };
 }
 

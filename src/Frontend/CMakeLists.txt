@@ -15,6 +15,7 @@ add_library(FlyFrontend
 target_link_libraries(FlyFrontend
         LLVMSupport
         FlyBasic
+        FlyLex
         FlyParser
         FlyAST
         FlyCodeGen

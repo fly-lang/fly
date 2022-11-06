@@ -7,14 +7,16 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-
 #include "Frontend/Frontend.h"
+#include "Sema/Sema.h"
+#include "Sema/SemaBuilder.h"
 #include "AST/ASTNameSpace.h"
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
 #include "Basic/Archiver.h"
 #include "Basic/Debug.h"
 #include "Basic/Stack.h"
+
 #include <llvm/ADT/Statistic.h>
 #include <llvm/Support/Timer.h>
 
@@ -22,12 +24,12 @@
 
 using namespace fly;
 
-Frontend::Frontend(CompilerInstance &CI) : CI(CI), Diags(CI.getDiagnostics()), Context(new ASTContext(Diags)) {
+Frontend::Frontend(CompilerInstance &CI) : CI(CI), Diags(CI.getDiagnostics()) {
 
 }
 
 Frontend::~Frontend() {
-    delete Context;
+
 }
 
 bool Frontend::Execute() {
@@ -49,52 +51,19 @@ bool Frontend::Execute() {
                CI.getFrontendOptions().BackendAction,
                CI.getFrontendOptions().ShowTimers);
 
-    // Read Input Files from options and add to actions if parsing is true.
-    bool FileLoadError = false;
-    for (auto &InputFileName : CI.getFrontendOptions().getInputFiles()) {
-        FLY_DEBUG_MESSAGE("Frontend", "Execute",
-                          "Loading input file " + InputFileName);
-        InputFile *Input = new InputFile(Diags, CI.getSourceManager(), InputFileName);
-        if (Input->getExt() == FileExt::FLY) {
-            if (Input->Load()) {
-                FrontendAction *Action = new FrontendAction(CI, Context, CG, Input);
-                // Parse Action & add to Actions for next
-                if (Action->Parse()) {
-                    Actions.emplace_back(Action);
-                } else {
-                    FileLoadError = true;
-                }
-            } else {
-                FileLoadError = true;
-            }
-        } else if (Input->getExt() == FileExt::LIB) {
-            // Read Header Files from library by extracting them
-            const std::vector<StringRef> Files = ExtractFiles(InputFileName);
-            for (StringRef File : Files) {
-                if (llvm::sys::path::extension(File) == ".h") {
-                    InputFile *InputHeader = new InputFile(Diags, CI.getSourceManager(), File.str());
-                    if (InputHeader->Load()) {
-                        FrontendAction *Action = new FrontendAction(CI, Context, CG, InputHeader);
-                        if (!Action->ParseHeader()) {
-                            FileLoadError = true;
-                        }
-                    } else {
-                        FileLoadError = true;
-                    }
+    // Parse files, create AST, build Semantics checker
+    SemaBuilder *Builder = Sema::CreateBuilder(Diags);
+    std::vector<FrontendAction *> Actions = ParseActions(CG, *Builder);
+    if (!Actions.empty() && Builder->Build()) {
 
-                    // Remove Header File after extraction and parsing
-                    llvm::sys::fs::remove(File, false);
-                }
-            }
+        // Generate Code for Top Definitions
+        for (auto Action: Actions) {
+            Action->GenerateTopDef();
         }
-    }
 
-    // Compile and Emit Output
-    if (Actions.empty()) {
-        Diags.Report(SourceLocation(), diag::note_no_input_process);
-    } else if (!FileLoadError && Context->Resolve()) {
-        for (auto Action : Actions) {
-            if (!Action->GenerateCode()) {
+        // Generate Code for Bodies
+        for (auto Action: Actions) {
+            if (!Action->GenerateBodies()) {
                 break;
             }
             if (!Action->HandleTranslationUnit()) {
@@ -148,6 +117,55 @@ bool Frontend::Execute() {
     }
 
     return !CI.getDiagnostics().getClient()->getNumErrors();
+}
+
+/**
+ * Read Input Files from options and add to Actions if parsing is true.
+ * @param CG
+ * @return
+ */
+std::vector<FrontendAction *> Frontend::ParseActions(CodeGen &CG, SemaBuilder &Builder) {
+    std::vector<FrontendAction *> Actions;
+
+    if (CI.getFrontendOptions().getInputFiles().empty()) {
+        Diags.Report(SourceLocation(), diag::note_no_input_process);
+        return Actions;
+    }
+
+    for (auto &InputFileName : CI.getFrontendOptions().getInputFiles()) {
+        FLY_DEBUG_MESSAGE("Frontend", "Execute", "Loading input file " + InputFileName);
+        InputFile *Input = new InputFile(Diags, CI.getSourceManager(), InputFileName);
+        if (Input->getExt() == FileExt::FLY) {
+            if (Input->Load()) {
+                FrontendAction *Action = new FrontendAction(CI, CG, Builder, Input);
+                // Parse Action & add to Actions for next
+                if (Action->Parse()) {
+                    Actions.emplace_back(Action);
+                }
+            }
+        } else if (Input->getExt() == FileExt::LIB) {
+            // Read Header Files from library by extracting them
+            const std::vector<StringRef> Files = ExtractFiles(InputFileName);
+            for (StringRef File : Files) {
+                if (llvm::sys::path::extension(File) == ".h") {
+                    InputFile *InputHeader = new InputFile(Diags, CI.getSourceManager(), File.str());
+                    if (InputHeader->Load()) {
+                        FrontendAction *Action = new FrontendAction(CI, CG, Builder, InputHeader);
+                        Action->ParseHeader();
+                    }
+
+                    // Remove Header File after extraction and parsing
+                    const std::error_code EC = llvm::sys::fs::remove(File, false);
+                    if (EC) {
+                        Diags.Report(diag::err_fe_unable_remove_header) << EC.message();
+                    }
+                }
+            }
+        } else {
+            CI.getDiagnostics().Report(diag::err_fe_input_file_ext) << InputFileName;
+        }
+    }
+    return Actions;
 }
 
 void Frontend::CreateFrontendTimer() {

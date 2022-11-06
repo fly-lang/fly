@@ -1,5 +1,7 @@
 namespace default
 
+import utils
+
 int a = 0
 
 int main() {
@@ -7,8 +9,9 @@ int main() {
 }
 
 int add() {
-    a = getA() + getB()
-    return a + b
+    //a = getA() + utils:getB()
+    //return a + utils:b
+    return 1
 }
 
 int getA() {

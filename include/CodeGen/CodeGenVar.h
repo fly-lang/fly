@@ -8,29 +8,31 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#ifndef FLY_CGVAR_H
-#define FLY_CGVAR_H
+#ifndef FLY_CG_VAR_H
+#define FLY_CG_VAR_H
 
-#include "llvm/IR/Instructions.h"
+#include "CodeGenVarBase.h"
 
 namespace fly {
 
     class CodeGenModule;
-    class ASTLocalVar;
-    class ASTFuncParam;
+    class ASTVar;
 
-    class CodeGenVar {
+    class CodeGenVar : public CodeGenVarBase {
+
+        llvm::StringRef BlockID;
 
     public:
+        CodeGenVar(CodeGenModule *CGM, ASTVar *Var);
 
-        virtual llvm::Value *getPointer() = 0;
+        void Init() override;
 
-        virtual llvm::Value *getValue() = 0;
+        llvm::StoreInst *Store(llvm::Value *Val) override;
 
-        virtual llvm::StoreInst *Store(llvm::Value *Val) = 0;
+        llvm::LoadInst *Load() override;
 
-        virtual llvm::LoadInst *Load() = 0;
+        llvm::Value *getValue() override;
     };
 }
 
-#endif //FLY_CGVAR_H
+#endif //FLY_CG_VAR_H

@@ -10,9 +10,9 @@
 #ifndef FLY_ASTLOCALVAR_H
 #define FLY_ASTLOCALVAR_H
 
-#include "ASTStmt.h"
+#include "ASTExprStmt.h"
 #include "ASTVar.h"
-#include "CodeGen/CodeGenLocalVar.h"
+#include "CodeGen/CodeGenVar.h"
 
 namespace fly {
 
@@ -21,49 +21,43 @@ namespace fly {
      * Ex.
      *  int a = 1
      */
-    class ASTLocalVar : public ASTVar, public ASTExprStmt {
+    class ASTLocalVar : public ASTExprStmt, public ASTVar {
 
-        friend class Parser;
-        friend class GlobalVarParser;
-
-        // Statement Kind
-        const StmtKind Kind = StmtKind::STMT_VAR;
+        friend class SemaBuilder;
+        friend class SemaResolver;
 
         // LocalVar Code Generator
-        CodeGenLocalVar *CodeGen = nullptr;
+        CodeGenVar *CodeGen = nullptr;
+
+        bool Constant = false;
+
+        ASTVarKind VarKind;
+
+        ASTType *Type = nullptr;
+
+        const std::string Name;
+
+    protected:
+
+         ASTLocalVar(ASTBlock *Parent, const SourceLocation &Loc, ASTType *Type, const std::string Name, bool Constant);
 
     public:
-        ASTLocalVar(const SourceLocation &Loc, ASTBlock *Block, ASTType *Type, const std::string &Name);
 
-        StmtKind getKind() const;
+        ASTVarKind getVarKind() override;
 
-        ASTExpr *getExpr() const;
+        ASTType *getType() const override;
 
-        void setExpr(ASTExpr *E);
+        std::string getName() const override;
 
-        CodeGenLocalVar *getCodeGen() const;
+        bool isConstant() const;
 
-        void setCodeGen(CodeGenLocalVar *CG);
+        ASTExpr *getExpr() const override;
+
+        CodeGenVar *getCodeGen() const override;
+
+        void setCodeGen(CodeGenVar *CG);
 
         std::string str() const;
-    };
-
-    /**
-     * Assign somethings to a Local Var
-     * Ex.
-     *  a = 1
-     */
-    class ASTLocalVarRef : public ASTVarRef, public ASTExprStmt {
-
-    public:
-        ASTLocalVarRef(const SourceLocation &Loc, ASTBlock *Block, const std::string &Name,
-                       const std::string &NameSpace = "");
-
-        ASTLocalVarRef(const SourceLocation &Loc, ASTBlock *Block, ASTVarRef Var);
-
-        StmtKind getKind() const override;
-
-        std::string str() const override;
     };
 }
 

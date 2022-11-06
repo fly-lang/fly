@@ -7,47 +7,54 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_PACKAGEVAR_H
-#define FLY_PACKAGEVAR_H
+#ifndef FLY_GLOBALVAR_H
+#define FLY_GLOBALVAR_H
 
-#include <ostream>
-#include "ASTTopDecl.h"
+#include "ASTTopDef.h"
 #include "ASTVar.h"
 #include "CodeGen/CodeGenGlobalVar.h"
 
+#include <ostream>
+
 namespace fly {
 
-    class CodeGenGlobalVar;
+    class ASTGlobalVar : public ASTTopDef, public ASTVar {
 
-    class ASTGlobalVar : public ASTVar, public ASTTopDecl {
+        friend class SemaBuilder;
 
-        friend class ASTNode;
+        ASTVarKind VarKind;
+
+        ASTType *Type = nullptr;
+
+        const std::string Name;
+
+        ASTExpr *Expr = nullptr;
 
         // Code Generator
         CodeGenGlobalVar *CodeGen;
 
-        // Value Expression
-        ASTValueExpr *Expr = nullptr;
+        ASTGlobalVar(const SourceLocation &Loc, ASTNode *Node, ASTType *Type, const std::string Name,
+                     ASTTopScopes *Scopes);
 
     public:
 
-        ASTGlobalVar(SourceLocation &Loc, ASTNode *Node, ASTType *Type, const std::string Name);
-
         ~ASTGlobalVar() = default;
 
-        const std::string &getName() const override;
+        ASTVarKind getVarKind() override;
+
+        ASTType *getType() const override;
+
+        std::string getName() const override;
 
         ASTExpr *getExpr() const override;
 
-        void setExpr(ASTExpr *E) override;
-
         CodeGenGlobalVar *getCodeGen() const override;
 
-        void setCodeGen(CodeGenGlobalVar *codeGen);
+        void setCodeGen(CodeGenGlobalVar *CG);
 
         std::string str() const override;
 
     };
 }
 
-#endif //FLY_PACKAGEVAR_H
+#endif //FLY_GLOBALVAR_H

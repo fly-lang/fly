@@ -8,13 +8,15 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "TestConfig.h"
-#include <Driver/Driver.h>
-#include <Driver/DriverOptions.h>
-#include "llvm/Support/TargetSelect.h"
 #include "Basic/Debug.h"
+#include "Driver/Driver.h"
+#include "Driver/DriverOptions.h"
+
+#include "llvm/Support/TargetSelect.h"
+#include "llvm/Support/InitLLVM.h"
 #include "gtest/gtest.h"
+
 #include <fstream>
-#include <llvm/Support/InitLLVM.h>
 
 namespace {
     using namespace fly;
@@ -22,8 +24,8 @@ namespace {
     class CmdTest : public ::testing::Test {
 
     public:
-        std::string mainfly = FLY_TEST_SRC_PATH + "/main.fly";
-        std::string utilsfly = FLY_TEST_SRC_PATH + "/utils.fly";
+        const char* mainfly = FLY_TEST_SRC_PATH("/src/main.fly");
+        const char* utilsfly = FLY_TEST_SRC_PATH("/src/utils.fly");
 
         CmdTest() {
             llvm::InitializeAllTargetInfos();
@@ -66,7 +68,7 @@ namespace {
         deleteFile("main.fly.ll");
         deleteFile("utils.fly.ll");
 
-        const char* Argv[] = {"fly", "-debug", "-ll", CmdTest::mainfly.c_str(), CmdTest::utilsfly.c_str(), NULL};
+        const char* Argv[] = {"fly", "-debug", "-ll", CmdTest::mainfly, CmdTest::utilsfly, NULL};
         int Argc = sizeof(Argv) / sizeof(char*) - 1;
 
         SmallVector<const char *, 256> ArgList(Argv, Argv + Argc);
@@ -85,7 +87,7 @@ namespace {
         deleteFile("main.fly.bc");
         deleteFile("utils.fly.bc");
 
-        const char* Argv[] = {"fly", "-bc", CmdTest::mainfly.c_str(), CmdTest::utilsfly.c_str(), NULL};
+        const char* Argv[] = {"fly", "-bc", CmdTest::mainfly, CmdTest::utilsfly, NULL};
         int Argc = sizeof(Argv) / sizeof(char*) - 1;
 
         SmallVector<const char *, 256> ArgList(Argv, Argv + Argc);
@@ -104,7 +106,7 @@ namespace {
         deleteFile("main.fly.s");
         deleteFile("utils.fly.s");
 
-        const char* Argv[] = {"fly", "-as", CmdTest::mainfly.c_str(), CmdTest::utilsfly.c_str(), NULL};
+        const char* Argv[] = {"fly", "-as", CmdTest::mainfly, CmdTest::utilsfly, NULL};
         int Argc = sizeof(Argv) / sizeof(char*) - 1;
 
         SmallVector<const char *, 256> ArgList(Argv, Argv + Argc);
@@ -123,7 +125,7 @@ namespace {
         deleteFile("main.fly.o");
         deleteFile("utils.fly.o");
 
-        const char* Argv[] = {"fly", CmdTest::mainfly.c_str(), CmdTest::utilsfly.c_str(), NULL};
+        const char* Argv[] = {"fly", CmdTest::mainfly, CmdTest::utilsfly, NULL};
         int Argc = sizeof(Argv) / sizeof(char*) - 1;
 
         SmallVector<const char *, 256> ArgList(Argv, Argv + Argc);
@@ -143,7 +145,7 @@ namespace {
         deleteFile("main.fly.o");
         deleteFile("utils.fly.o");
 
-        const char* Argv[] = {"fly", "-debug", CmdTest::mainfly.c_str(), CmdTest::utilsfly.c_str(), "-o", "out", NULL};
+        const char* Argv[] = {"fly", "-debug", CmdTest::mainfly, CmdTest::utilsfly, "-o", "out", NULL};
         int Argc = sizeof(Argv) / sizeof(char*) - 1;
 
         SmallVector<const char *, 256> ArgList(Argv, Argv + Argc);

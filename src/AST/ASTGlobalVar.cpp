@@ -14,36 +14,43 @@
 
 using namespace fly;
 
-ASTGlobalVar::ASTGlobalVar(SourceLocation &Loc, ASTNode *Node, ASTType *Type, const std::string Name) :
-    ASTTopDecl(Loc, Node, TopDeclKind::DECL_GLOBALVAR),
-    ASTVar(Type, Name, Node->getNameSpace()->getName(), true) {
+ASTGlobalVar::ASTGlobalVar(const SourceLocation &Loc, ASTNode *Node, ASTType *Type, const std::string Name,
+                           ASTTopScopes *Scopes) :
+        ASTTopDef(Loc, Node, ASTTopDefKind::DEF_GLOBALVAR, Scopes),
+        VarKind(ASTVarKind::VAR_GLOBAL), Type(Type), Name(Name) {
 
 }
 
-const std::string &ASTGlobalVar::getName() const {
-    return ASTVar::getName();
+std::string ASTGlobalVar::getName() const {
+    return Name;
+}
+
+ASTVarKind ASTGlobalVar::getVarKind() {
+    return VarKind;
+}
+
+ASTType *ASTGlobalVar::getType() const {
+    return Type;
 }
 
 ASTExpr *ASTGlobalVar::getExpr() const {
     return Expr;
 }
 
-void ASTGlobalVar::setExpr(ASTExpr *E) {
-    Expr = (ASTValueExpr *)E;
-}
-
 CodeGenGlobalVar *ASTGlobalVar::getCodeGen() const {
     return CodeGen;
 }
 
-void ASTGlobalVar::setCodeGen(CodeGenGlobalVar *codeGen) {
-    CodeGen = codeGen;
+void ASTGlobalVar::setCodeGen(CodeGenGlobalVar *CG) {
+    CodeGen = CG;
 }
 
 std::string ASTGlobalVar::str() const {
-    return "{ " +
-        ASTTopDecl::str() +
-        ", " + ASTVar::str() +
-        ", Expr= " + (Expr ? Expr->str() : "{}") +
-        " }";
+    return Logger("ASTGlobalVar").
+            Super(ASTTopDef::str()).
+            Attr("Type", Type).
+            Attr("Name", Name).
+            Attr("VarKind", (uint64_t) VarKind).
+            Attr("Expr", Expr).
+            End();
 }

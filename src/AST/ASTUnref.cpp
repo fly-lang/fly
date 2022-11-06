@@ -11,7 +11,8 @@
 #include "AST/ASTUnref.h"
 #include "AST/ASTNode.h"
 #include "AST/ASTVar.h"
-#include "AST/ASTFunc.h"
+#include "AST/ASTVarRef.h"
+#include "AST/ASTFunctionCall.h"
 
 using namespace fly;
 
@@ -23,6 +24,10 @@ ASTNode *ASTUnref::getNode() {
     return Node;
 }
 
+std::string ASTUnref::str() const {
+    return Logger("ASTUnref").End();
+}
+
 ASTUnrefGlobalVar::ASTUnrefGlobalVar(ASTNode *Node, ASTVarRef &VarRef) : ASTUnref(Node), VarRef(VarRef) {
 
 }
@@ -32,19 +37,22 @@ ASTVarRef &ASTUnrefGlobalVar::getVarRef() {
 }
 
 std::string ASTUnrefGlobalVar::str() const {
-    return "Node=" + Node->str() + ", " +
-           "VarRef=" + VarRef.str();
+    return Logger("ASTUnrefGlobalVar").
+            Super(ASTUnref::str()).
+            Attr("VarRef", &VarRef).
+            End();
 }
 
-ASTUnrefCall::ASTUnrefCall(ASTNode *Node, ASTFuncCall *Call) : ASTUnref(Node), Call(Call) {
+ASTUnrefFunctionCall::ASTUnrefFunctionCall(ASTNode *Node, ASTFunctionCall *Call) : ASTUnref(Node), Call(Call) {
 
 }
 
-ASTFuncCall *ASTUnrefCall::getCall() {
+ASTFunctionCall *ASTUnrefFunctionCall::getCall() {
     return Call;
 }
 
-std::string ASTUnrefCall::str() const {
-    return "Node=" + Node->str() + ", " +
-           "Call=" + Call->str();
+std::string ASTUnrefFunctionCall::str() const {
+    return Logger("ASTUnrefFunctionCall").
+            Attr("Call", Call).
+            End();
 }

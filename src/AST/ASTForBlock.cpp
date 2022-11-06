@@ -13,37 +13,45 @@
 
 using namespace fly;
 
-ASTForBlock::ASTForBlock(const SourceLocation &Loc, ASTBlock *Parent) : ASTBlock(Loc, Parent),
-    Cond(new ASTBlock(Loc, this)),
-    Post(new ASTBlock(Loc, this)),
-    Loop(new ASTBlock(Loc, Post)) {
+ASTForBlock::ASTForBlock(ASTBlock *Parent, const SourceLocation &Loc) :
+    ASTBlock(Parent, Loc, ASTBlockKind::BLOCK_FOR) {
+
 }
 
 ASTForBlock::~ASTForBlock() {
-    delete Cond;
+    delete Condition;
     delete Post;
     delete Loop;
 }
 
-enum ASTBlockKind ASTForBlock::getBlockKind() const {
-    return StmtKind;
+ASTBlock *ASTForBlock::getParent() const {
+    return (ASTBlock *) Parent;
 }
 
-ASTBlock *ASTForBlock::getCondition() {
-    return Cond;
+ASTExpr *ASTForBlock::getCondition() {
+    return Condition;
 }
 
-void ASTForBlock::setCondition(ASTExpr *Expr) {
-    ASTExprStmt *ExprStmt = new ASTExprStmt(Expr->getLocation(), Cond);
-    ExprStmt->setExpr(Expr);
-    Cond->Clear();
-    Cond->AddExprStmt(ExprStmt);
-}
-
-ASTBlock *ASTForBlock::getPost() {
+ASTForPostBlock *ASTForBlock::getPost() {
     return Post;
 }
 
-ASTBlock *ASTForBlock::getLoop() {
+ASTForLoopBlock *ASTForBlock::getLoop() {
     return Loop;
+}
+
+ASTForLoopBlock::ASTForLoopBlock(ASTForBlock *ForBlock, const SourceLocation &Loc) :
+    ASTBlock(ForBlock, Loc, ASTBlockKind::BLOCK_FOR_LOOP) {
+    ForBlock->Loop = this;
+}
+
+ASTForPostBlock::ASTForPostBlock(ASTForBlock *ForBlock, const SourceLocation &Loc) :
+    ASTBlock(ForBlock, Loc, ASTBlockKind::BLOCK_FOR_POST) {
+    ForBlock->Post = this;
+}
+
+std::string ASTForPostBlock::str() const {
+    return Logger("ASTForPostBlock").
+           Super(ASTBlock::str()).
+           End();
 }

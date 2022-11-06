@@ -10,7 +10,6 @@
 #ifndef FLY_ASTSWITCHBLOCK_H
 #define FLY_ASTSWITCHBLOCK_H
 
-
 #include "ASTBlock.h"
 
 namespace fly {
@@ -20,11 +19,13 @@ namespace fly {
 
     class ASTSwitchBlock : public ASTBlock {
 
-        // The Stmt Block Kind
-        enum ASTBlockKind StmtKind = ASTBlockKind::BLOCK_STMT_SWITCH;
+        friend class SemaBuilder;
+        friend class SemaResolver;
+        friend class ASTSwitchCaseBlock;
+        friend class ASTSwitchDefaultBlock;
 
         // The Switch Expression
-        ASTExpr *Expr;
+        ASTExpr *Expr = nullptr;
 
         // The Case Blocks
         std::vector<ASTSwitchCaseBlock *> Cases;
@@ -32,43 +33,52 @@ namespace fly {
         // The Default Block
         ASTSwitchDefaultBlock *Default = nullptr;
 
+        ASTSwitchBlock(ASTBlock *Parent, const SourceLocation &Loc);
+
     public:
-        ASTSwitchBlock(const SourceLocation &Loc, ASTBlock *Parent, ASTExpr *Expr);
+
+        ASTBlock *getParent() const override;
 
         ASTExpr *getExpr() const;
-
-        ASTSwitchCaseBlock * AddCase(const SourceLocation &Loc, ASTExpr *Value);
-
-        ASTSwitchDefaultBlock * setDefault(const SourceLocation &Loc);
-
-        enum ASTBlockKind getBlockKind() const override;
 
         std::vector<ASTSwitchCaseBlock *> &getCases();
 
         ASTSwitchDefaultBlock *getDefault();
+
+        std::string str() const;
     };
 
     class ASTSwitchCaseBlock : public ASTBlock{
 
-        enum ASTBlockKind StmtKind = ASTBlockKind::BLOCK_STMT_CASE;
-        ASTExpr *Expr;
+        friend class SemaBuilder;
+        friend class SemaResolver;
+
+        ASTSwitchBlock *SwitchBlock;
+
+        ASTExpr *Expr = nullptr;
+
+        ASTSwitchCaseBlock(ASTSwitchBlock *SwitchBlock, const SourceLocation &Loc);
 
     public:
-        ASTSwitchCaseBlock(const SourceLocation &Loc, ASTSwitchBlock *Switch, ASTExpr *Value);
 
         ASTExpr *getExpr();
 
-        enum ASTBlockKind getBlockKind() const override;
+        std::string str() const;
     };
 
-    class ASTSwitchDefaultBlock : public ASTBlock{
+    class ASTSwitchDefaultBlock : public ASTBlock {
 
-        enum ASTBlockKind StmtKind = ASTBlockKind::BLOCK_STMT_DEFAULT;
+        friend class SemaBuilder;
+        friend class SemaResolver;
+
+        ASTSwitchBlock *SwitchBlock;
+
+        ASTSwitchDefaultBlock(ASTSwitchBlock *SwitchBlock, const SourceLocation &Loc);
 
     public:
-        ASTSwitchDefaultBlock(const SourceLocation &Loc, ASTSwitchBlock *Switch);
 
-        enum ASTBlockKind getBlockKind() const override;
+        std::string str() const;
+
     };
 }
 

@@ -20,29 +20,37 @@ namespace fly {
     class ASTGlobalVar;
     class ASTClass;
     class ASTUnrefGlobalVar;
-    class ASTUnrefCall;
+    class ASTUnrefFunctionCall;
 
     class ASTNameSpace : public ASTNodeBase {
 
-        friend class ASTResolver;
-        friend class ASTContext;
-        friend class ASTNode;
+        friend class Sema;
+        friend class SemaResolver;
+        friend class SemaBuilder;
 
         // AST by FileID
         llvm::StringMap<ASTNode *> Nodes;
 
         bool ExternalLib;
 
-    public:
+        // Classes
+        llvm::StringMap<ASTClass *> Classes;
+
         ASTNameSpace(std::string NameSpace, ASTContext *Context, bool ExternalLib = false);
 
         ~ASTNameSpace();
+
+    public:
 
         static const std::string DEFAULT;
 
         const llvm::StringMap<ASTNode *> &getNodes() const;
 
         bool isExternalLib() const;
+
+        const llvm::StringMap<ASTClass *> &getClasses() const;
+
+        virtual std::string str() const;
     };
 }
 

@@ -10,10 +10,12 @@
 #include "TestConfig.h"
 #include "Driver/Driver.h"
 #include "Driver/DriverOptions.h"
-#include "llvm/Support/TargetSelect.h"
-#include "Basic/Debug.h"
 #include "Basic/Archiver.h"
+
 #include "gtest/gtest.h"
+#include "llvm/Support/TargetSelect.h"
+#include "llvm/Support/ManagedStatic.h"
+
 #include <fstream>
 
 namespace {
@@ -22,11 +24,11 @@ namespace {
     class ImportTest : public ::testing::Test {
 
     public:
-        std::string mylib = FLY_TEST_SRC_PATH + "/mylib.fly";
-        std::string import_mylib = FLY_TEST_SRC_PATH + "/import_mylib.fly";
-        std::string import_mylib_alias = FLY_TEST_SRC_PATH + "/import_mylib_alias.fly";
-        std::string import_mylib_external = FLY_TEST_SRC_PATH + "/import_mylib_external.fly";
-        std::string yourlib_h = FLY_TEST_SRC_PATH + "/yourlib.fly.h";
+        const char* mylib = FLY_TEST_SRC_PATH("/src/mylib.fly");
+        const char* import_mylib = FLY_TEST_SRC_PATH("/src/import_mylib.fly");
+        const char* import_mylib_alias = FLY_TEST_SRC_PATH("/src/import_mylib_alias.fly");
+        const char* import_mylib_external = FLY_TEST_SRC_PATH("/src/import_mylib_external.fly");
+        const char* yourlib_h = FLY_TEST_SRC_PATH("/src/yourlib.fly.h");
 
         ImportTest() {
             llvm::InitializeAllTargetInfos();
@@ -45,17 +47,20 @@ namespace {
         }
     };
 
-    TEST_F(ImportTest, MyLib) {
+    TEST_F(ImportTest, DISABLED_MyLib) {
         deleteFile("mylib.fly.o");
         deleteFile("import_mylib.fly.o");
 
-        const char* Argv[] = {"fly", "-debug", ImportTest::mylib.c_str(), ImportTest::import_mylib.c_str(), NULL};
+        const char* Argv[] = {"fly", "-debug", ImportTest::mylib, ImportTest::import_mylib, NULL};
         int Argc = sizeof(Argv) / sizeof(char*) - 1;
 
         SmallVector<const char *, 256> ArgList(Argv, Argv + Argc);
         Driver TheDriver(ArgList);
         CompilerInstance &CI = TheDriver.BuildCompilerInstance();
         ASSERT_TRUE(TheDriver.Execute());
+
+        // Shutdown after execution
+        llvm::llvm_shutdown();
 
         std::ifstream main("mylib.fly.o");
         ASSERT_TRUE(main && "Error opening mylib.fly.o");
@@ -64,11 +69,11 @@ namespace {
         ASSERT_TRUE(utils && "Error opening import_mylib.fly.o");
     }
 
-    TEST_F(ImportTest, MyLibAlias) {
+    TEST_F(ImportTest, DISABLED_MyLibAlias) {
         deleteFile("mylib.fly.o");
         deleteFile("import_mylib_alias.fly.o");
 
-        const char* Argv[] = {"fly",  ImportTest::mylib.c_str(), ImportTest::import_mylib_alias.c_str(), NULL};
+        const char* Argv[] = {"fly",  ImportTest::mylib, ImportTest::import_mylib_alias, NULL};
         int Argc = sizeof(Argv) / sizeof(char*) - 1;
 
         SmallVector<const char *, 256> ArgList(Argv, Argv + Argc);
@@ -87,7 +92,7 @@ namespace {
         deleteFile("mylib.fly.o");
         deleteFile("mylib.fly.h");
 
-        const char* Argv[] = {"fly", "-debug", "-H", ImportTest::mylib.c_str(), NULL};
+        const char* Argv[] = {"fly", "-debug", "-H", ImportTest::mylib, NULL};
         int Argc = sizeof(Argv) / sizeof(char*) - 1;
 
         SmallVector<const char *, 256> ArgList(Argv, Argv + Argc);
@@ -102,11 +107,11 @@ namespace {
         ASSERT_TRUE(utils && "Error opening mylib.fly.h");
     }
 
-    TEST_F(ImportTest, MyLibExternal) {
+    TEST_F(ImportTest, DISABLED_MyLibExternal) {
         //Create mylib.lib
         deleteFile("mylib.lib");
 
-        const char* Argv[] = {"fly", "-debug", ImportTest::mylib.c_str(), "-lib", "mylib", NULL};
+        const char* Argv[] = {"fly", "-debug", ImportTest::mylib, "-lib", "mylib", NULL};
         int Argc = sizeof(Argv) / sizeof(char*) - 1;
         SmallVector<const char *, 256> ArgList(Argv, Argv + Argc);
         Driver TheDriver(ArgList);
@@ -120,7 +125,7 @@ namespace {
 
         deleteFile("import_mylib_external.fly.o");
 
-        const char* Argv2[] = { "fly", "-debug", "mylib.lib", ImportTest::import_mylib_external.c_str(), NULL };
+        const char* Argv2[] = { "fly", "-debug", "mylib.lib", ImportTest::import_mylib_external, NULL };
         int Argc2 = sizeof(Argv2) / sizeof(char*) - 1;
         SmallVector<const char*, 256> ArgList2(Argv2, Argv2 + Argc2);
         Driver TheDriver2(ArgList2);
@@ -157,7 +162,6 @@ namespace {
             std::ifstream F(FileStr);
             ASSERT_TRUE(F && "Error opening File");
         }
-
     }
 
 } // anonymous namespace

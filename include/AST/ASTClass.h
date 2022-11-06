@@ -11,32 +11,88 @@
 #ifndef FLY_ASTCLASS_H
 #define FLY_ASTCLASS_H
 
-#include "ASTTopDecl.h"
+#include "ASTTopDef.h"
+#include "Basic/Debuggable.h"
+
+#include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/SmallVector.h"
+
+#include <map>
 
 namespace fly {
 
-    class ASTClass : public ASTTopDecl {
+    class ASTClassVar;
+    class ASTClassFunction;
+    class CodeGenClass;
 
-        friend class ASTNode;
-        friend class Parser;
-        friend class ClassParser;
-    public:
-        VisibilityKind Visibility;
-        bool Constant;
-        std::string Name;
-        SourceLocation Location;
-
-        const std::string &getName() const;
-
+    enum class ASTClassKind {
+        CLASS_STRUCT,
+        CLASS_STANDARD,
+        CLASS_INTERFACE,
+        CLASS_ABSTRACT
     };
 
-    class ClassRef {
+    enum class ASTClassVisibilityKind {
+        CLASS_V_DEFAULT,
+        CLASS_V_PUBLIC,
+        CLASS_V_PRIVATE,
+        CLASS_V_PROTECTED
+    };
 
-        const std::string Name;
-        const ASTClass *D;
+    class ASTClassScopes : public Debuggable {
+
+        friend class SemaBuilder;
+
+        // Visibility of the Fields or Methods
+        ASTClassVisibilityKind Visibility = ASTClassVisibilityKind::CLASS_V_DEFAULT;
+
+        // Constant of Fields or Methods
+        bool Constant = false;
+
+        ASTClassScopes(ASTClassVisibilityKind Visibility, bool Constant);
 
     public:
-        ClassRef(const std::string &Name);
+        ASTClassVisibilityKind getVisibility() const;
+
+        bool isConstant() const;
+
+        std::string str() const;
+    };
+
+    class ASTClass : public ASTTopDef {
+
+        friend class SemaBuilder;
+        friend class SemaResolver;
+
+        std::string Name;
+
+        ASTClassKind ClassKind;
+
+        // Class Fields
+        llvm::StringMap<ASTClassVar *> Vars;
+
+        // Class Methods
+        llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTClassFunction *, 4>>> Methods;
+
+        CodeGenClass *CodeGen = nullptr;
+
+        ASTClass(const SourceLocation &Loc, ASTNode *Node, const std::string &Name, ASTTopScopes *Scopes);
+
+    public:
+
+        std::string getName() const;
+
+        ASTClassKind getClassKind() const;
+
+        llvm::StringMap<ASTClassVar *> getVars() const;
+
+        llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTClassFunction *, 4>>> getMethods() const;
+
+        CodeGenClass *getCodeGen() const;
+
+        void setCodeGen(CodeGenClass *CGC);
+
+        std::string str() const;
 
     };
 }

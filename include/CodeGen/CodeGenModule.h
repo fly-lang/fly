@@ -33,9 +33,10 @@ namespace fly {
     class ASTNode;
     class ASTImport;
     class ASTGlobalVar;
-    class ASTFunc;
-    class ASTFuncCall;
+    class ASTFunction;
+    class ASTFunctionCall;
     class ASTType;
+    class ASTArrayType;
     class ASTValue;
     class ASTStmt;
     class ASTExpr;
@@ -47,13 +48,19 @@ namespace fly {
     class CodeGenGlobalVar;
     class CodeGenFunction;
     class CodeGenCall;
+    class CodeGenClass;
+    class ASTClass;
 
     class CodeGenModule : public CodeGenTypeCache {
 
         friend class CodeGenGlobalVar;
         friend class CodeGenFunction;
+        friend class CodeGenClass;
+        friend class CodeGenClassVar;
+        friend class CodeGenClassFunction;
         friend class CodeGenCall;
-        friend class CodeGenLocalVar;
+        friend class CodeGenVarBase;
+        friend class CodeGenVar;
         friend class CodeGenExpr;
 
         // Diagnostics
@@ -90,17 +97,21 @@ namespace fly {
 
         CodeGenGlobalVar *GenGlobalVar(ASTGlobalVar *GlobalVar, bool isExternal = false);
 
-        CodeGenFunction *GenFunction(ASTFunc *Func, bool isExternal = false);
+        CodeGenFunction *GenFunction(ASTFunction *Function, bool isExternal = false);
 
-        CallInst *GenCall(llvm::Function *Fn, ASTFuncCall *Call);
+        CodeGenClass *GenClass(ASTClass *Class, bool isExternal = false);
 
-        Type *GenType(const ASTType *Type);
+        llvm::Type *GenType(const ASTType *Type);
+
+        llvm::ArrayType *GenArrayType(const ASTArrayType *Type);
 
         llvm::Constant *GenDefaultValue(const ASTType *Type, llvm::Type *Ty = nullptr);
 
         llvm::Constant *GenValue(const ASTType *Type, const ASTValue *Val);
 
         void GenStmt(llvm::Function *Fn, ASTStmt * Stmt);
+
+        CallInst *GenCall(llvm::Function *Fn, ASTFunctionCall *Call);
 
         llvm::Value *GenExpr(llvm::Function *Fn, const ASTType *Type, ASTExpr *Expr);
 
@@ -117,8 +128,6 @@ namespace fly {
         void GenForBlock(llvm::Function *Fn, ASTForBlock *For);
 
         void GenWhileBlock(llvm::Function *Fn, ASTWhileBlock *While);
-
-        void CheckMinMax(const ASTValue &Val, const char *Type, uint64_t Min, uint64_t Max);
     };
 }
 

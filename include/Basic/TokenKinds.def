@@ -102,14 +102,13 @@ PUNCTUATOR(semi,                ";")
 PUNCTUATOR(equal,               "=")
 PUNCTUATOR(equalequal,          "==")
 PUNCTUATOR(comma,               ",")
-PUNCTUATOR(at,               "@")
+PUNCTUATOR(at,                  "@")
 
 KEYWORD(namespace)
 KEYWORD(import)
 KEYWORD(public)
 KEYWORD(private)
 KEYWORD(const)
-KEYWORD(class)
 KEYWORD(return)
 KEYWORD(if)
 KEYWORD(elsif)
@@ -134,6 +133,7 @@ KEYWORD(double)
 KEYWORD(true)
 KEYWORD(false)
 KEYWORD(void)
+KEYWORD(null)
 
 #undef KEYWORD
 #undef PUNCTUATOR

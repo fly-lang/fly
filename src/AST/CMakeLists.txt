@@ -1,10 +1,16 @@
 add_library(FlyAST
         ASTBlock.cpp
         ASTClass.cpp
+        ASTClassVar.cpp
+        ASTClassFunction.cpp
         ASTContext.cpp
         ASTExpr.cpp
+        ASTExprStmt.cpp
+        ASTClassVar.cpp
         ASTForBlock.cpp
-        ASTFunc.cpp
+        ASTFunction.cpp
+        ASTFunctionBase.cpp
+        ASTFunctionCall.cpp
         ASTGlobalVar.cpp
         ASTIfBlock.cpp
         ASTImport.cpp
@@ -12,20 +18,18 @@ add_library(FlyAST
         ASTNameSpace.cpp
         ASTNode.cpp
         ASTNodeBase.cpp
-        ASTResolver.cpp
+        ASTParams.cpp
         ASTStmt.cpp
         ASTSwitchBlock.cpp
-        ASTTopDecl.cpp
+        ASTTopDef.cpp
         ASTType.cpp
         ASTUnref.cpp
         ASTValue.cpp
-        ASTVar.cpp
+        ASTVarAssign.cpp
+        ASTVarRef.cpp
         ASTWhileBlock.cpp
 )
 
 target_link_libraries(FlyAST
-        FlyBasic
-        FlyLex
         FlyCodeGen
-        FlySema
         )

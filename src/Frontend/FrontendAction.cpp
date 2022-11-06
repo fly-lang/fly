@@ -10,9 +10,10 @@
 #include "Frontend/FrontendAction.h"
 #include "Frontend/CompilerInstance.h"
 #include "Frontend/InputFile.h"
-#include "AST/ASTContext.h"
-#include "AST/ASTNode.h"
+#include "Sema/SemaBuilder.h"
 #include "AST/ASTImport.h"
+#include "AST/ASTGlobalVar.h"
+#include "AST/ASTNode.h"
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
 #include "CodeGen/CodeGenFunction.h"
@@ -22,76 +23,55 @@
 
 using namespace fly;
 
-FrontendAction::FrontendAction(const CompilerInstance & CI, ASTContext *Context, CodeGen &CG, InputFile *Input) :
-        Context(Context), Diags(CI.getDiagnostics()), SourceMgr(CI.getSourceManager()),
-        FrontendOpts(CI.getFrontendOptions()), CG(CG), Input(Input) {
+FrontendAction::FrontendAction(const CompilerInstance & CI, CodeGen &CG, SemaBuilder &Builder, InputFile *Input) :
+        Diags(CI.getDiagnostics()), SourceMgr(CI.getSourceManager()),
+        FrontendOpts(CI.getFrontendOptions()), CG(CG), Builder(Builder), Input(Input) {
     FLY_DEBUG_MESSAGE("FrontendAction", "FrontendAction", "Input=" << Input->getFileName());
+    Diags.getClient()->BeginSourceFile();
 }
 
 FrontendAction::~FrontendAction() {
     FLY_DEBUG("FrontendAction", "~FrontendAction");
+    Diags.getClient()->EndSourceFile();
     delete P;
-    delete AST;
-}
-
-ASTNode *FrontendAction::getAST() {
-    assert(AST && "AST not built, need a Parse()");
-    return AST;
+    delete CGM;
+    delete CGH;
 }
 
 bool FrontendAction::Parse() {
+    assert(!P && "One time parse");
     FLY_DEBUG_MESSAGE("FrontendAction", "Parse", "Input=" << Input->getFileName());
-    bool Success = true;
-    Diags.getClient()->BeginSourceFile();
 
-    if (P == nullptr) {
-        // Create CodeGen
-        CGM = CG.CreateModule(Input->getFileName());
-        if (FrontendOpts.CreateHeader) {
-            CGH = CG.CreateHeader(Input->getFileName());
-        }
-
-        // Create AST
-        AST = new ASTNode(Input->getFileName(), Context, CGM);
-
-        // Create Parser and start to parse
-        P = new Parser(*Input, SourceMgr, Diags);
-        Success = P->Parse(AST) && Context->AddNode(AST);
-        if (FrontendOpts.CreateHeader) {
-            CGH->AddNameSpace(AST->getNameSpace());
-        }
+    // Create CodeGen
+    CGM = CG.CreateModule(Input->getFileName());
+    if (FrontendOpts.CreateHeader) {
+        CGH = CG.CreateHeader(Input->getFileName());
     }
 
-    Diags.getClient()->EndSourceFile();
-    return Success;
+    // Create Parser and start to parse
+    P = new Parser(*Input, SourceMgr, Diags, Builder);
+    Node = P->Parse();
+    if (Node && FrontendOpts.CreateHeader) {
+        CGH->AddNameSpace(Node->getNameSpace());
+    }
+
+    return Node;
 }
 
 bool FrontendAction::ParseHeader() {
+    assert(!P && "One time parse");
     FLY_DEBUG_MESSAGE("FrontendAction", "ParseHeader", "Input=" << Input->getFileName());
-    bool Success = true;
-    Diags.getClient()->BeginSourceFile();
 
-    if (P == nullptr) {
-        // Create AST
-        ASTNode *Node = new ASTNode(Input->getFileName(), Context);
-
-        // Create Parser and start to parse
-        P = new Parser(*Input, SourceMgr, Diags);
-        Success &= P->ParseHeader(Node) && Context->AddNode(Node);
-    }
-
-    Diags.getClient()->EndSourceFile();
-    return Success;
+    // Create Parser and start to parse
+    P = new Parser(*Input, SourceMgr, Diags, Builder);
+    Node = P->ParseHeader();
+    return Node && Builder.AddNode(Node);
 }
 
-bool FrontendAction::GenerateCode() {
-    assert(AST && "AST not built, need a Parse()");
-    assert(!AST->isHeader() && "Cannot generate code from Header");
-    FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode", "Input=" << Input->getFileName());
+void FrontendAction::GenerateTopDef() {
     Diags.getClient()->BeginSourceFile();
-
     // Manage External GlobalVars
-    for (const auto &Entry : AST->getExternalGlobalVars()) {
+    for (const auto &Entry : Node->getExternalGlobalVars()) {
         ASTGlobalVar *GlobalVar = Entry.getValue();
         FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode",
                           "ExternalGlobalVar=" << GlobalVar->str());
@@ -99,15 +79,19 @@ bool FrontendAction::GenerateCode() {
     }
 
     // Manage External Function
-    for (const auto &EF : AST->getExternalFunctions()) {
-        FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode",
-                          "ExternalFunction=" << EF->str());
-        CGM->GenFunction(EF, true);
+    for (auto &StrMapEntry : Node->getExternalFunctions()) {
+        for (auto &IntMap : StrMapEntry.getValue()) {
+            for (auto &Function : IntMap.second) {
+                FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode",
+                                  "ExternalFunction=" << Function->str());
+                CGM->GenFunction(Function, true);
+            }
+        }
     }
 
+
     // Manage GlobalVars
-    std::vector<CodeGenGlobalVar *> CGGlobalVars;
-    for (const auto &Entry : AST->getGlobalVars()) {
+    for (const auto &Entry : Node->getGlobalVars()) {
         ASTGlobalVar *GlobalVar = Entry.getValue();
         FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode",
                           "GlobalVar=" << GlobalVar->str());
@@ -119,22 +103,39 @@ bool FrontendAction::GenerateCode() {
     }
 
     // Instantiates all Function CodeGen in order to be set in all Call references
-    std::vector<CodeGenFunction *> CGFunctions;
-    for (ASTFunc *Func : AST->getFunctions()) {
-        FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode",
-                          "Function=" << Func->str());
-        CodeGenFunction *CGF = CGM->GenFunction(Func);
-        CGFunctions.push_back(CGF);
-        if (FrontendOpts.CreateHeader) {
-            CGH->AddFunction(Func);
+    for (auto &FuncStrMap : Node->getFunctions()) {
+        for (auto &FuncList : FuncStrMap.getValue()) {
+            for (auto &Func : FuncList.second) {
+                CodeGenFunction *CGF = CGM->GenFunction(Func);
+                CGFunctions.push_back(CGF);
+                if (FrontendOpts.CreateHeader) {
+                    CGH->AddFunction(Func);
+                }
+            }
         }
     }
+
+    if (Node->getClass()) {
+        CGClass = CGM->GenClass(Node->getClass());
+        if (FrontendOpts.CreateHeader) {
+            CGH->setClass(Node->getClass());
+        }
+    }
+
+    Diags.getClient()->EndSourceFile();
+}
+
+bool FrontendAction::GenerateBodies() {
+    assert(Node && "Node not built, need a Parse()");
+    assert(!Node->isHeader() && "Cannot generate code from Header");
+    FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode", "Input=" << Input->getFileName());
+    Diags.getClient()->BeginSourceFile();
 
     // Body must be generated after all CodeGen has been set for each TopDecl
     for (auto &CGF : CGFunctions) {
         FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode",
                           "FunctionBody=" << CGF->getName());
-        for (auto &CGV : CGGlobalVars) {
+        for (auto &CGV : CGGlobalVars) { // All global vars need to be Loaded from Init()
             CGV->Init();
         }
         CGF->GenBody();

@@ -10,10 +10,11 @@
 #include "CodeGen/CodeGenHeader.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTType.h"
+#include "AST/ASTGlobalVar.h"
+#include "AST/ASTFunction.h"
+#include "AST/ASTParams.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/CodeGenOptions.h"
-#include "AST/ASTGlobalVar.h"
-#include "AST/ASTFunc.h"
 #include "Basic/Debug.h"
 
 #include "llvm/Support/raw_ostream.h"
@@ -42,7 +43,7 @@ std::string CodeGenHeader::GenerateFile() {
 
     // generate global var declarations
     for (auto &GlobalVar : GlobalVars) {
-        if (GlobalVar->getVisibility() == V_PUBLIC) {
+        if (GlobalVar->getScopes()->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
             Header += "\npublic " + Convert(GlobalVar->getType()) + "." +
                       GlobalVar->getName() + "\n";
         }
@@ -50,13 +51,13 @@ std::string CodeGenHeader::GenerateFile() {
 
     // generate function declarations
     for (auto &Function : Functions) {
-        if (Function->getVisibility() == V_PUBLIC) {
+        if (Function->getScopes()->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
             Header += "\npublic " + Convert(Function->getType()) + " " + Function->getName() +
                       "(";
             int i = 0;
-            for (auto &Param : Function->getHeader()->getParams()) {
+            for (auto &Param : Function->getParams()->getList()) {
                 Header += Convert(Param->getType()) + " " + Param->getName();
-                if (i < Function->getHeader()->getParams().size()) {
+                if (i < Function->getParams()->getList().size()) {
                     Header += ",";
                 }
             }
@@ -91,19 +92,23 @@ void CodeGenHeader::AddGlobalVar(ASTGlobalVar *GlobalVar) {
     GlobalVars.push_back(GlobalVar);
 }
 
-void CodeGenHeader::AddFunction(ASTFunc *Func) {
+void CodeGenHeader::AddFunction(ASTFunction *Func) {
     Functions.push_back(Func);
+}
+
+void CodeGenHeader::setClass(ASTClass *Class) {
+    this->Class = Class;
 }
 
 const std::string CodeGenHeader::Convert(ASTType *Type) {
     switch (Type->getKind()) {
-        case TYPE_INT:
+        case ASTTypeKind::TYPE_INT:
             return "int";
-        case TYPE_FLOAT:
+        case ASTTypeKind::TYPE_FLOAT:
             return "float";
-        case TYPE_BOOL:
+        case ASTTypeKind::TYPE_BOOL:
             return "bool";
-        case TYPE_CLASS:
+        case ASTTypeKind::TYPE_CLASS:
             return "class";
     }
     return "";

@@ -7,61 +7,52 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "AST/ASTValue.h"
 #include "AST/ASTLocalVar.h"
+#include "AST/ASTType.h"
+#include "AST/ASTBlock.h"
 
 using namespace fly;
 
-ASTLocalVar::ASTLocalVar(const SourceLocation &Loc, ASTBlock *Block, ASTType *Type, const std::string &Name) :
-        ASTExprStmt(Loc, Block), ASTVar(Type, Name) {
-    if (Type->getKind() == TYPE_ARRAY) {
-        setExpr(new ASTValueExpr(new ASTArrayValue(Loc, ((ASTArrayType *)Type)->getType())));
-    }
+ASTLocalVar::ASTLocalVar(ASTBlock *Parent, const SourceLocation &Loc, ASTType *Type, const std::string Name, bool Constant) :
+        ASTExprStmt(Parent, Loc, ASTStmtKind::STMT_VAR_DEFINE), VarKind(ASTVarKind::VAR_LOCAL),
+        Type(Type), Name(Name), Constant(Constant) {
+
 }
 
-StmtKind ASTLocalVar::getKind() const {
-    return Kind;
+ASTVarKind ASTLocalVar::getVarKind() {
+    return VarKind;
+}
+
+ASTType *ASTLocalVar::getType() const {
+    return Type;
+}
+
+std::string ASTLocalVar::getName() const {
+    return Name;
+}
+
+bool ASTLocalVar::isConstant() const {
+    return Constant;
 }
 
 ASTExpr *ASTLocalVar::getExpr() const {
-    return ASTExprStmt::getExpr();
+    return Expr;
 }
 
-void ASTLocalVar::setExpr(ASTExpr *E) {
-    ASTExprStmt::setExpr(E);
-}
-
-CodeGenLocalVar *ASTLocalVar::getCodeGen() const {
+CodeGenVar *ASTLocalVar::getCodeGen() const {
     return CodeGen;
 }
 
-void ASTLocalVar::setCodeGen(CodeGenLocalVar *CG) {
+void ASTLocalVar::setCodeGen(CodeGenVar *CG) {
     CodeGen = CG;
 }
 
 std::string ASTLocalVar::str() const {
-    return "{ " +
-           ASTVar::str() +
-           ", Kind: " + std::to_string(Kind) +
-           " }";
-}
-
-
-ASTLocalVarRef::ASTLocalVarRef(const SourceLocation &Loc, ASTBlock *Block, const std::string &Name,
-                               const std::string &NameSpace) :
-        ASTExprStmt(Loc, Block), ASTVarRef(Loc, Name, NameSpace) {
-
-}
-
-ASTLocalVarRef::ASTLocalVarRef(const SourceLocation &Loc, ASTBlock *Block, ASTVarRef Var) :
-        ASTExprStmt(Loc, Block), ASTVarRef(Var) {
-
-}
-
-StmtKind ASTLocalVarRef::getKind() const {
-    return STMT_VAR_REF;
-}
-
-std::string ASTLocalVarRef::str() const {
-    return ASTVarRef::str();
+    return Logger("ASTLocalVar").
+            Super(ASTExprStmt::str()).
+            Attr("Type", Type).
+            Attr("Name", Name).
+            Attr("VarKind", (uint64_t) VarKind).
+            Attr("Constant", Constant).
+            End();
 }

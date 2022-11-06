@@ -11,91 +11,42 @@
 #ifndef FLY_ASTVAR_H
 #define FLY_ASTVAR_H
 
-#include "ASTType.h"
-#include "ASTExpr.h"
-#include "ASTStmt.h"
+#include "Basic/Debuggable.h"
+#include "Basic/SourceLocation.h"
+
+#include <string>
 
 namespace fly {
 
-    class CodeGenVar;
+    class SourceLocation;
+    class CodeGenVarBase;
+    class ASTType;
+    class ASTExpr;
+
+    enum class ASTVarKind {
+        VAR_LOCAL,
+        VAR_GLOBAL,
+        VAR_FIELD
+    };
 
     /**
      * Base Var used in:
      *  - LocalVar
      *  - GlobalVar
      */
-    class ASTVar {
-
-        friend class ASTNode;
-        friend class Parser;
-        friend class GlobalVarParser;
-        friend class FunctionParser;
-        friend class ASTLocalVar;
-
-    protected:
-        ASTType *Type;
-        const std::string NameSpaceStr;
-        const std::string Name;
-        bool Constant = false;
-        bool Global = false;
+    class ASTVar : public virtual Debuggable {
 
     public:
-        ASTVar(ASTType *Type, const std::string &Name, const std::string &NameSpaceStr = "", bool Global = false);
 
-        virtual ~ASTVar();
+        virtual ASTVarKind getVarKind() = 0;
 
-        virtual CodeGenVar *getCodeGen() const = 0;
+        virtual ASTType *getType() const = 0;
 
-        bool isGlobal() const;
-
-        virtual bool isConstant() const;
-
-        virtual ASTType *getType() const;
-
-        virtual const std::string &getName() const;
-
-        const std::string &getPrefix() const;
-
-        virtual void setExpr(ASTExpr *Exp) = 0;
+        virtual std::string getName() const = 0;
 
         virtual ASTExpr *getExpr() const = 0;
 
-        virtual std::string str() const;
-
-    };
-
-    /**
-     * Reference to ASTVar declaration
-     * Ex.
-     *  ... = a + ...
-     *  b = ...
-     */
-    class ASTVarRef {
-
-        friend class Parser;
-
-        const SourceLocation Loc;
-        const std::string NameSpace;
-        const std::string Name;
-
-        ASTVar *Decl = nullptr;
-
-    public:
-        ASTVarRef(const SourceLocation &Loc, const std::string &Name, const std::string &NameSpace = "");
-
-        ASTVarRef(ASTVar *Var);
-
-        const SourceLocation &getLocation() const;
-
-        const std::string &getNameSpace() const;
-
-        const std::string &getName() const;
-
-        ASTVar *getDecl() const;
-
-        void setDecl(ASTVar *Var);
-
-        std::string str() const;
+        virtual CodeGenVarBase *getCodeGen() const = 0;
     };
 }
 

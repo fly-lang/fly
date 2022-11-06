@@ -9,12 +9,12 @@
 
 
 #include "AST/ASTNodeBase.h"
-#include "AST/ASTFunc.h"
-#include "Basic/Debug.h"
+#include "AST/ASTFunction.h"
+#include "AST/ASTFunctionCall.h"
 
 using namespace fly;
 
-ASTNodeBase::ASTNodeBase(const std::string &Name, ASTContext *Context) :
+ASTNodeBase::ASTNodeBase(const std::string Name, ASTContext *Context) :
         Name(Name), Context(Context) {
 }
 
@@ -22,7 +22,7 @@ ASTContext &ASTNodeBase::getContext() const {
     return *Context;
 }
 
-const std::string &ASTNodeBase::getName() {
+const std::string ASTNodeBase::getName() {
     return Name;
 }
 
@@ -30,26 +30,6 @@ const llvm::StringMap<ASTGlobalVar *> &ASTNodeBase::getGlobalVars() const {
     return GlobalVars;
 }
 
-const std::unordered_set<ASTFunc*> &ASTNodeBase::getFunctions() const {
+const llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> &ASTNodeBase::getFunctions() const {
     return Functions;
-}
-
-const llvm::StringMap<ASTClass *> &ASTNodeBase::getClasses() const {
-    return Classes;
-}
-
-bool ASTNodeBase::AddFunctionCall(ASTFuncCall *Call) {
-    const auto &It = FunctionCalls.find(Call->getName());
-    FLY_DEBUG_MESSAGE("ASTNodeBase", "AddFunctionCall", "Call=" << Call->str());
-    if (It == FunctionCalls.end()) {
-        std::vector<ASTFuncCall *> TmpFunctionCalls;
-        TmpFunctionCalls.push_back(Call);
-        return FunctionCalls.insert(std::make_pair(Call->getName(), TmpFunctionCalls)).second;
-    }
-    It->getValue().push_back(Call);
-    return true;
-}
-
-std::string ASTNodeBase::str() const {
-    return "{ Name=" + Name + " }";
 }

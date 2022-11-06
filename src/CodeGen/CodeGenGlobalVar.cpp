@@ -17,19 +17,19 @@
 
 using namespace fly;
 
-CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, ASTGlobalVar* AST, bool isExternal) : CGM(CGM) {
+CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, ASTGlobalVar* AST, bool isExternal) : CodeGenVarBase(CGM, AST) {
     // Check Value
     bool Success = true;
     llvm::Constant *Const = nullptr;
     GlobalValue::LinkageTypes Linkage = GlobalValue::LinkageTypes::ExternalLinkage;
     llvm::Type *Ty = CGM->GenType(AST->getType());
     if (!isExternal) {
-        if (AST->getVisibility() == V_PRIVATE) {
+        if (AST->getScopes()->getVisibility() == ASTVisibilityKind::V_PRIVATE) {
             Linkage = GlobalValue::LinkageTypes::InternalLinkage;
         }
         if (AST->getExpr() == nullptr) {
             Const = CGM->GenDefaultValue(AST->getType(), Ty);
-        } else if (AST->getExpr()->getKind() == EXPR_VALUE) {
+        } else if (AST->getExpr()->getExprKind() == ASTExprKind::EXPR_VALUE) {
             const ASTValue &Value = ((ASTValueExpr *) AST->getExpr())->getValue();
             Const = CGM->GenValue(AST->getType(), &Value);
         } else {
@@ -40,35 +40,30 @@ CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, ASTGlobalVar* AST, bool i
 
     if (Success) {
         std::string Id = CodeGen::toIdentifier(AST->getName(), AST->getNameSpace()->getName());
-        GVar = new llvm::GlobalVariable(*CGM->Module, Ty, AST->isConstant(), Linkage, Const, Id);
+        Pointer = new llvm::GlobalVariable(*CGM->Module, Ty, AST->getScopes()->isConstant(), Linkage, Const, Id);
     }
-    needLoad = true;
-}
-
-llvm::Value *CodeGenGlobalVar::getPointer() {
-    return GVar;
-}
-
-llvm::Value *CodeGenGlobalVar::getValue() {
-    return needLoad ? Load() : LoadI;
-}
-
-llvm::StoreInst *CodeGenGlobalVar::Store(llvm::Value *Val) {
-    assert(!GVar->isConstant() && "Cannot store into constant var");
-    llvm::StoreInst *S = CGM->Builder->CreateStore(Val, GVar);
-    needLoad = true;
-    return S;
-}
-
-llvm::LoadInst *CodeGenGlobalVar::Load() {
-    LoadI = CGM->Builder->CreateLoad(GVar);
-    needLoad = false;
-    return LoadI;
 }
 
 /**
  * Need to be called on function body complete
  */
 void CodeGenGlobalVar::Init() {
-    needLoad = true;
+    doLoad = true;
+}
+
+llvm::StoreInst *CodeGenGlobalVar::Store(llvm::Value *Val) {
+    assert(!((GlobalVariable *) Pointer)->isConstant() && "Cannot store into constant var");
+    return CodeGenVarBase::Store(Val);
+}
+
+llvm::LoadInst *CodeGenGlobalVar::Load() {
+    return CodeGenVarBase::Load();
+}
+
+llvm::Value *CodeGenGlobalVar::getValue() {
+    return doLoad ? Load() : LoadI;
+}
+
+llvm::Value *CodeGenGlobalVar::getPointer() {
+    return Pointer;
 }

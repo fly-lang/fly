@@ -11,37 +11,38 @@
 #ifndef FLY_FUNCTIONPARSER_H
 #define FLY_FUNCTIONPARSER_H
 
-#include "Parser.h"
-#include "Lex/Token.h"
-#include "AST/ASTFunc.h"
+#include "llvm/ADT/StringRef.h"
 
 namespace fly {
 
     class Parser;
+    class ASTFunction;
+    class ASTFunctionCall;
+    class ASTType;
+    class ASTBlock;
+    class SourceLocation;
 
     class FunctionParser {
 
         friend class Parser;
 
         Parser *P;
-        ASTFunc *AST = nullptr;
-        ASTFuncCall *Call = nullptr;
 
-        FunctionParser(Parser *P);
+        ASTFunction *Function = nullptr;
 
-        bool ParseFunction(ASTType *Type);
+        bool Success = true;
 
-        bool ParseFunctionBody();
+        FunctionParser(Parser *P, ASTTopScopes *Scopes, ASTType *Type, bool isHeader);
 
-        bool ParseFunctionParams();
+        bool ParseParams();
 
-        bool ParseFunctionParam();
+        bool ParseParam();
 
-        bool ParseCall(ASTBlock *Block, SourceLocation &Loc, llvm::StringRef Name, llvm::StringRef NameSpace = "");
+        bool ParseBody();
 
-        bool ParseCallArgs(ASTBlock *Block);
+    public:
 
-        bool ParseCallArg(ASTBlock *Block);
+        static ASTFunction *Parse(Parser *P, ASTTopScopes *Scopes, ASTType *Type, bool isHeader);
     };
 }
 

@@ -25,20 +25,17 @@ namespace fly {
 
     class FrontendAction;
     class CompilerInstance;
+    class SemaBuilder;
 
     class Frontend {
 
-        /// The diagnostics engine instance.
+        // The diagnostics engine instance.
         DiagnosticsEngine &Diags;
 
         // Compiler Invocation contains all a CompilerInstance needs
         CompilerInstance &CI;
 
-        ASTContext* Context;
-
         llvm::SmallVector<std::string, 4> OutputFiles;
-
-        std::vector<FrontendAction *> Actions;
 
         /// The frontend timer group.
         std::unique_ptr<llvm::TimerGroup> FrontendTimerGroup;
@@ -53,6 +50,8 @@ namespace fly {
         ~Frontend();
 
         bool Execute();
+
+        std::vector<FrontendAction *> ParseActions(CodeGen &CG, SemaBuilder &Builder);
 
         void CreateFrontendTimer();
 

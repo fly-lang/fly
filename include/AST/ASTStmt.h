@@ -11,15 +11,17 @@
 #ifndef FLY_ASTSTMT_H
 #define FLY_ASTSTMT_H
 
+#include "Basic/Debuggable.h"
 #include "Basic/SourceLocation.h"
 
 namespace fly {
 
-    enum StmtKind {
+    enum class ASTStmtKind {
         STMT_BLOCK,
         STMT_EXPR,
-        STMT_VAR,
-        STMT_VAR_REF,
+        STMT_ARG,
+        STMT_VAR_DEFINE,
+        STMT_VAR_ASSIGN,
         STMT_BREAK,
         STMT_CONTINUE,
         STMT_RETURN
@@ -27,47 +29,34 @@ namespace fly {
 
     class ASTExpr;
     class ASTBlock;
-    class ASTFunc;
+    class ASTFunctionBase;
 
-    class ASTStmt {
+    class ASTStmt : public virtual Debuggable {
+
+        friend class SemaBuilder;
+        friend class SemaResolver;
+
+    protected:
 
         const SourceLocation Location;
 
-    protected:
-        ASTFunc *Top;
+        ASTStmt *Parent = nullptr;
 
-        ASTBlock *Parent;
+        ASTFunctionBase *Top = nullptr;
+
+        ASTStmtKind Kind;
+
+        ASTStmt(ASTStmt *Parent, const SourceLocation &Loc, ASTStmtKind Kind);
 
     public:
-        ASTStmt(const SourceLocation &Loc, ASTBlock *Parent);
 
-        ASTStmt(const SourceLocation &Loc, ASTFunc *Top, ASTBlock *Parent);
+        virtual ASTStmt *getParent() const;
 
         const SourceLocation &getLocation() const;
 
-        virtual StmtKind getKind() const = 0;
+        ASTStmtKind getKind() const;
 
-        ASTFunc *getTop() const;
-
-        ASTBlock *getParent() const;
-
-        virtual std::string str() const = 0;
-    };
-
-    class ASTExprStmt : public ASTStmt {
-
-        ASTExpr *Expr = nullptr;
-
-    public:
-        ASTExprStmt(const SourceLocation &Loc, ASTBlock *Block);
-
-        StmtKind getKind() const override;
-
-        ASTExpr *getExpr() const;
-
-        void setExpr(ASTExpr *E);
-
-        std::string str() const override;
+        std::string str() const;
     };
 }
 

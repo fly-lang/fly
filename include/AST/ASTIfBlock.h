@@ -21,14 +21,13 @@ namespace fly {
 
     class ASTIfBlock : public ASTBlock {
 
-        friend class Parser;
         friend class ASTElsifBlock;
         friend class ASTElseBlock;
-
-        enum ASTBlockKind StmtKind = ASTBlockKind::BLOCK_STMT_IF;
+        friend class SemaBuilder;
+        friend class SemaResolver;
 
         // The If expression condition
-        ASTExpr *Condition;
+        ASTExpr *Condition = nullptr;
 
         // The list of Elseif Blocks
         std::vector<ASTElsifBlock *> ElsifBlocks;
@@ -36,49 +35,52 @@ namespace fly {
         // The Else Block
         ASTElseBlock *ElseBlock = nullptr;
 
-    protected:
-        ASTIfBlock(const SourceLocation &Loc, ASTBlock *Parent);
+        ASTIfBlock(ASTBlock *Parent, const SourceLocation &Loc);
 
     public:
-        ASTIfBlock(const SourceLocation &Loc, ASTBlock *Parent, ASTExpr *Condition);
 
-        ASTElsifBlock *AddElsifBlock(const SourceLocation &Loc, ASTExpr *Expr);
+        ASTBlock *getParent() const override;
+
+        ASTExpr *getCondition();
 
         std::vector<ASTElsifBlock *> getElsifBlocks();
 
-        ASTElseBlock *AddElseBlock(const SourceLocation &Loc);
-
         ASTElseBlock *getElseBlock();
 
-        enum ASTBlockKind getBlockKind() const override;
+        std::string str() const;
+    };
+
+    class ASTElsifBlock : public ASTBlock {
+
+        friend class SemaBuilder;
+        friend class SemaResolver;
+
+        // The If Block
+        ASTIfBlock *IfBlock = nullptr;
+
+        // The Else If expression condition
+        ASTExpr *Condition = nullptr;
+
+        ASTElsifBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc);
+
+    public:
 
         ASTExpr *getCondition();
+
+        std::string str() const;
     };
 
-    class ASTElsifBlock : public ASTIfBlock {
+    class ASTElseBlock : public ASTBlock {
 
-        friend class Parser;
-        friend class ASTIfBlock;
+        friend class SemaBuilder;
+        friend class SemaResolver;
 
-        enum ASTBlockKind StmtKind = ASTBlockKind::BLOCK_STMT_ELSIF;
+        // The If Block
+        ASTIfBlock *IfBlock = nullptr;
 
-    public:
-        ASTElsifBlock(const SourceLocation &Loc, ASTBlock *Parent, ASTExpr *Condition);
+        ASTElseBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc);
 
-        enum ASTBlockKind getBlockKind() const override;
-    };
-
-    class ASTElseBlock : public ASTIfBlock {
-
-        friend class Parser;
-        friend class ASTIfBlock;
-
-        enum ASTBlockKind StmtKind = ASTBlockKind::BLOCK_STMT_ELSE;
-
-    public:
-        ASTElseBlock(const SourceLocation &Loc, ASTBlock *Parent);
-
-        enum ASTBlockKind getBlockKind() const override;
+        std::string str() const;
     };
 }
 

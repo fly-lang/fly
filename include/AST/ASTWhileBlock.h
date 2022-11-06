@@ -17,21 +17,22 @@ namespace fly {
 
     class ASTWhileBlock : public ASTBlock {
 
-        friend class Parser;
+        friend class SemaBuilder;
+        friend class SemaResolver;
 
-        enum ASTBlockKind StmtKind = ASTBlockKind::BLOCK_STMT_WHILE;
+        ASTExpr *Condition = nullptr;
 
-        ASTExpr *Cond;
+        ASTWhileBlock(ASTBlock *Parent, const SourceLocation &Loc);
 
     public:
-        ASTWhileBlock(const SourceLocation &Loc, ASTBlock *Parent, ASTExpr *Cond);
 
-        enum ASTBlockKind getBlockKind() const override;
+        ASTBlock *getParent() const;
 
         ASTExpr *getCondition();
+
+        std::string str() const;
 
     };
 }
 
-
-#endif //FLY_ASTFORBLOCK_H
+#endif //FLY_ASTWHILEBLOCK_H

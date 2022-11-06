@@ -11,7 +11,6 @@
 #ifndef FLY_ASTCONTEXT_H
 #define FLY_ASTCONTEXT_H
 
-#include "AST/ASTResolver.h"
 #include "llvm/ADT/StringMap.h"
 
 #include <vector>
@@ -24,50 +23,42 @@ namespace fly {
     class ASTNode;
     class ASTNameSpace;
     class ASTVarRef;
-    class ASTFunc;
+    class ASTFunction;
     class ASTImport;
     class ASTUnrefGlobalVar;
-    class ASTUnrefCall;
+    class ASTUnrefFunctionCall;
 
     /**
      * AST Context
      */
     class ASTContext {
 
-        friend class ASTResolver;
-        friend class ASTNameSpace;
-        friend class ASTNode;
+        friend class Sema;
+        friend class SemaResolver;
+        friend class SemaBuilder;
 
-        DiagnosticsEngine &Diags;
-
-        ASTNameSpace * DefaultNS;
+        ASTNameSpace * DefaultNameSpace;
 
         // All Context Namespaces
         llvm::StringMap<ASTNameSpace *> NameSpaces;
 
+        // All Context Namespaces
+        llvm::StringMap<ASTNode *> Nodes;
+
         // All Files: <Name, ASTImport>
         llvm::StringMap<ASTImport *> ExternalImports; // TODO
 
-    public:
-        ASTContext(DiagnosticsEngine &Diags);
+        ASTContext();
 
         ~ASTContext();
+
+    public:
 
         ASTNameSpace *getDefaultNameSpace() const;
 
         const llvm::StringMap<ASTNameSpace *> &getNameSpaces() const;
 
-        DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID) const;
-
-        DiagnosticBuilder Diag(unsigned DiagID) const;
-
-        ASTNameSpace *AddNameSpace(std::string Name, bool ExternLib = false);
-
-        bool AddNode(ASTNode *Node);
-
-        bool DelNode(ASTNode *Node);
-
-        bool Resolve();
+        const llvm::StringMap<ASTNode *> &getNodes() const;
     };
 }
 

@@ -8,8 +8,8 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#ifndef FLY_CODEGENEXPR_H
-#define FLY_CODEGENEXPR_H
+#ifndef FLY_CODEGEN_EXPR_H
+#define FLY_CODEGEN_EXPR_H
 
 #include "AST/ASTExpr.h"
 #include "CodeGenModule.h"
@@ -18,17 +18,14 @@
 namespace fly {
 
     class CodeGenModule;
-    class ASTArithOpExpr;
 
     class CodeGenExpr {
 
-        CodeGenModule * CGM;
+        CodeGenModule * CGM = nullptr;
 
-        llvm::Value *Val;
+        llvm::Value *Val = nullptr;
 
-//        std::vector<llvm::Value *> PostValues;
-
-        llvm::Function *Fn;
+        llvm::Function *Fn = nullptr;
 
     public:
         CodeGenExpr(CodeGenModule *CGM, llvm::Function *Fn, ASTExpr *Expr, const ASTType *ToType);
@@ -47,15 +44,15 @@ namespace fly {
 
         llvm::Value *GenTernary(ASTTernaryGroupExpr *Expr);
 
-        Value *GenBinaryArith(const ASTExpr *E1, BinaryOpKind Op, const ASTExpr *E2);
+        Value *GenBinaryArith(const ASTExpr *E1, ASTBinaryOperatorKind Op, const ASTExpr *E2);
 
         bool isSigned(const ASTType * T1);
 
-        Value *GenBinaryComparison(const ASTExpr *E1, BinaryOpKind Op, const ASTExpr *E2);
+        Value *GenBinaryComparison(const ASTExpr *E1, ASTBinaryOperatorKind Op, const ASTExpr *E2);
 
-        Value *GenBinaryLogic(const ASTExpr *E1, BinaryOpKind Op, const ASTExpr *E2);
+        Value *GenBinaryLogic(const ASTExpr *E1, ASTBinaryOperatorKind Op, const ASTExpr *E2);
     };
 }
 
 
-#endif //FLY_CODEGENEXPR_H
+#endif //FLY_CODEGEN_EXPR_H

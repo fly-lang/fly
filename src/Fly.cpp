@@ -36,8 +36,7 @@ static void LLVMErrorHandler(void *UserData, const std::string &Message, bool Ge
     llvm::sys::Process::Exit(GenCrashDiag ? 70 : 1);
 }
 
-int main(int Argc, const char **Argv)
-{
+int main(int Argc, const char **Argv) {
     noteBottomOfStack();
     llvm::InitLLVM X(Argc, Argv);
     llvm::setBugReportMsg("PLEASE submit a bug report to " FLY_BUG_REPORT_URL
@@ -51,7 +50,7 @@ int main(int Argc, const char **Argv)
     llvm::InitializeAllTargetInfos();
     llvm::InitializeAllTargets();
     llvm::InitializeAllTargetMCs();
-    InitializeAllAsmParsers();
+    llvm::InitializeAllAsmParsers();
     llvm::InitializeAllAsmPrinters();
 
     Driver TheDriver(Args);

@@ -10,11 +10,14 @@
 #ifndef FLY_FRONTENDACTION_H
 #define FLY_FRONTENDACTION_H
 
-#include <CodeGen/CodeGen.h>
+#include <string>
+#include <vector>
 
 namespace fly {
 
     class CodeGen;
+    class CodeGenHeader;
+    class SemaBuilder;
     class CodeGenModule;
     class CompilerInstance;
     class ASTNode;
@@ -25,20 +28,23 @@ namespace fly {
     class FileManager;
     class SourceManager;
     class FrontendOptions;
+    class CodeGenGlobalVar;
+    class CodeGenFunction;
+    class CodeGenClass;
 
     class FrontendAction {
 
         CodeGen &CG;
 
+        SemaBuilder &Builder;
+
         Parser *P = nullptr;
 
-        ASTNode *AST = nullptr;
+        ASTNode *Node = nullptr;
 
         CodeGenModule *CGM = nullptr;
 
         CodeGenHeader *CGH = nullptr;
-
-        ASTContext *Context;
 
         InputFile *Input;
 
@@ -52,21 +58,28 @@ namespace fly {
 
         std::string HeaderFile;
 
+        std::vector<CodeGenGlobalVar *> CGGlobalVars;
+
+        std::vector<CodeGenFunction *> CGFunctions;
+
+        CodeGenClass *CGClass;
+
         bool CGDone = false;
 
     public:
 
-        FrontendAction(const CompilerInstance &CI, ASTContext *Context, CodeGen &CG, InputFile *Input);
+        FrontendAction(const CompilerInstance &CI, CodeGen &CG, SemaBuilder &Builder,
+                       InputFile *Input);
 
         ~FrontendAction();
-
-        ASTNode *getAST();
 
         bool Parse();
 
         bool ParseHeader();
 
-        bool GenerateCode();
+        void GenerateTopDef();
+
+        bool GenerateBodies();
 
         bool HandleTranslationUnit();
 

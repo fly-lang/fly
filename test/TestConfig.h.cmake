@@ -1,10 +1,7 @@
-#ifdef FLY_CONFIGTEST_H
-#error ConfigTest.h can only be included once
-#else
-#define FLY_CONFIGTEST_H
-#include <string>
+#ifndef FLY_TEST_CONFIG_H
+#define FLY_TEST_CONFIG_H
 
-const std::string FLY_TEST_BUILD_PATH = "${CMAKE_CURRENT_BINARY_DIR}";
-const std::string FLY_TEST_SRC_PATH = "${CMAKE_CURRENT_SOURCE_DIR}/src";
+#define FLY_TEST_BUILD_PATH(X) "${CMAKE_CURRENT_BINARY_DIR}" X
+#define FLY_TEST_SRC_PATH(X) "${CMAKE_CURRENT_SOURCE_DIR}" X
 
 #endif

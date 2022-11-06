@@ -11,43 +11,54 @@
 #ifndef FLY_ASTEXPR_H
 #define FLY_ASTEXPR_H
 
+#include "Basic/Debuggable.h"
 #include "Basic/SourceLocation.h"
-#include <vector>
-#include <utility>
+
+#include <string>
 
 namespace fly {
 
-    enum ASTExprKind {
+    class ASTType;
+    class ASTValue;
+    class ASTVarRef;
+    class ASTFunctionCall;
+    class ASTVarRefExpr;
+    class ASTFunctionCallExpr;
+    class ASTValueExpr;
+    class ASTStmt;
+
+    enum class ASTExprKind : char {
+        EXPR_EMPTY,
         EXPR_VALUE,
         EXPR_REF_VAR,
         EXPR_REF_FUNC,
         EXPR_GROUP
     };
 
-    enum ASTExprGroupKind {
+    enum class ASTExprGroupKind : char {
         GROUP_UNARY,
         GROUP_BINARY,
         GROUP_TERNARY
     };
 
-    enum UnaryOptionKind {
+    enum class ASTUnaryOptionKind {
         UNARY_PRE,
         UNARY_POST
     };
 
-    enum UnaryOpKind {
+    enum class ASTUnaryOperatorKind {
         ARITH_INCR,
         ARITH_DECR,
         LOGIC_NOT
     };
 
-    enum BinaryOptionKind {
+    enum class ASTBinaryOptionKind {
         BINARY_ARITH,
         BINARY_LOGIC,
         BINARY_COMPARISON
     };
 
-    enum BinaryOpKind {
+    enum class ASTBinaryOperatorKind : int {
 
         // Arithmetic
         ARITH_ADD = 101,
@@ -74,36 +85,55 @@ namespace fly {
         COMP_LTE = 306
     };
 
-    enum TernaryOpKind {
+    enum ASTTernaryOperatorKind {
         CONDITION
     };
-
-    class ASTType;
-    class ASTValue;
-    class ASTVarRef;
-    class ASTFuncCall;
-    class ASTVarRefExpr;
-    class ASTFuncCallExpr;
-    class ASTValueExpr;
 
     /**
      * Expression Abstract Class
      */
-    class ASTExpr {
+    class ASTExpr : public Debuggable {
+
+        friend class SemaBuilder;
+        friend class SemaResolver;
 
         const SourceLocation &Loc;
 
-    public:
+        ASTStmt *Stmt = nullptr;
 
-        ASTExpr(const SourceLocation &Loc);
+        ASTExpr *Parent = nullptr;
+
+    protected:
+
+        const ASTExprKind Kind;
+
+        ASTType *Type = nullptr;
+
+        ASTExpr(const SourceLocation &Loc, ASTExprKind Kind);
+
+    public:
 
         const SourceLocation &getLocation() const;
 
-        virtual ASTType *getType() const = 0;
+        virtual ASTType *getType() const;
 
-        virtual ASTExprKind getKind() const = 0;
+        ASTStmt *getStmt();
 
-        virtual std::string str() const = 0;
+        ASTExprKind getExprKind() const;
+
+        std::string str() const;
+    };
+
+    class ASTEmptyExpr : public ASTExpr {
+
+        friend class SemaBuilder;
+        friend class SemaResolver;
+
+    public:
+
+        ASTEmptyExpr(const SourceLocation &Loc);
+
+        virtual std::string str() const override;
     };
 
     /**
@@ -111,17 +141,16 @@ namespace fly {
      */
     class ASTValueExpr : public ASTExpr {
 
-        const ASTExprKind Kind = ASTExprKind::EXPR_VALUE;
-        ASTValue *Val;
+        friend class SemaBuilder;
+        friend class SemaResolver;
 
-    public:
+        ASTValue *Value = nullptr;
+
         explicit ASTValueExpr(ASTValue *Val);
 
-        ASTExprKind getKind() const override;
+    public:
 
         ASTValue &getValue() const;
-
-        ASTType *getType() const override;
 
         std::string str() const override;
     };
@@ -131,13 +160,14 @@ namespace fly {
      */
     class ASTVarRefExpr : public ASTExpr {
 
-        const ASTExprKind Kind = ASTExprKind::EXPR_REF_VAR;
-        ASTVarRef *Ref;
+        friend class SemaBuilder;
+        friend class SemaResolver;
+
+        ASTVarRef *VarRef = nullptr;
+
+        ASTVarRefExpr(ASTVarRef *VarRef);
 
     public:
-        ASTVarRefExpr(ASTVarRef *Ref);
-
-        ASTExprKind getKind() const override;
 
         ASTVarRef *getVarRef() const;
 
@@ -149,17 +179,18 @@ namespace fly {
     /**
      * Function Call Expression
      */
-    class ASTFuncCallExpr : public ASTExpr {
+    class ASTFunctionCallExpr : public ASTExpr {
 
-        const ASTExprKind Kind = ASTExprKind::EXPR_REF_FUNC;
-        ASTFuncCall * Call;
+        friend class SemaBuilder;
+        friend class SemaResolver;
+
+        ASTFunctionCall *Call = nullptr;
+
+        ASTFunctionCallExpr(ASTFunctionCall *Call);
 
     public:
-        ASTFuncCallExpr(ASTFuncCall *Ref);
 
-        ASTExprKind getKind() const override;
-
-        ASTFuncCall *getCall() const;
+        ASTFunctionCall *getCall() const;
 
         ASTType *getType() const override;
 
@@ -171,21 +202,22 @@ namespace fly {
      */
     class ASTGroupExpr : public ASTExpr {
 
-        const ASTExprKind Kind = ASTExprKind::EXPR_GROUP;
+        friend class SemaBuilder;
+        friend class SemaResolver;
 
         const ASTExprGroupKind GroupKind;
 
-    public:
+    protected:
 
         ASTGroupExpr(const SourceLocation &Loc, ASTExprGroupKind GroupKind);
 
-        ASTExprKind getKind() const override;
+    public:
 
         virtual ASTExprGroupKind getGroupKind();
 
         virtual ASTType *getType() const override = 0;
 
-        virtual std::string str() const override = 0;
+        std::string str() const;
     };
 
     /**
@@ -193,20 +225,22 @@ namespace fly {
      */
     class ASTUnaryGroupExpr : public ASTGroupExpr {
 
-        const UnaryOpKind OperatorKind;
+        friend class SemaBuilder;
+        friend class SemaResolver;
 
-        const UnaryOptionKind OptionKind;
+        const ASTUnaryOperatorKind OperatorKind;
 
-        const ASTVarRefExpr *First;
+        const ASTUnaryOptionKind OptionKind;
+
+        const ASTVarRefExpr *First = nullptr;
+
+        ASTUnaryGroupExpr(const SourceLocation &Loc, ASTUnaryOperatorKind Operator, ASTUnaryOptionKind Option, ASTVarRefExpr *First);
 
     public:
 
-        ASTUnaryGroupExpr(const SourceLocation &Loc, UnaryOpKind Operator, UnaryOptionKind Option,
-                          ASTVarRefExpr *First);
+        ASTUnaryOperatorKind getOperatorKind() const;
 
-        UnaryOpKind getOperatorKind() const;
-
-        UnaryOptionKind getOptionKind() const;
+        ASTUnaryOptionKind getOptionKind() const;
 
         const ASTVarRefExpr *getFirst() const;
 
@@ -220,21 +254,26 @@ namespace fly {
      */
     class ASTBinaryGroupExpr : public ASTGroupExpr {
 
-        const BinaryOpKind OperatorKind;
+        friend class SemaBuilder;
+        friend class SemaResolver;
 
-        const BinaryOptionKind OptionKind;
+        const SourceLocation OpLoc;
 
-        const ASTExpr *First;
+        const ASTBinaryOperatorKind OperatorKind;
 
-        const ASTExpr *Second;
+        const ASTBinaryOptionKind OptionKind;
+
+        ASTExpr *First = nullptr;
+
+        ASTExpr *Second = nullptr;
+
+        ASTBinaryGroupExpr(const SourceLocation &OpLoc, ASTBinaryOperatorKind Operator, ASTExpr *First, ASTExpr *Second);
 
     public:
 
-        ASTBinaryGroupExpr(const SourceLocation &Loc, BinaryOpKind Operator, ASTExpr *First, ASTExpr *Second);
+        ASTBinaryOperatorKind getOperatorKind() const;
 
-        BinaryOpKind getOperatorKind() const;
-
-        BinaryOptionKind getOptionKind() const;
+        ASTBinaryOptionKind getOptionKind() const;
 
         const ASTExpr *getFirst() const;
 
@@ -250,17 +289,28 @@ namespace fly {
      */
     class ASTTernaryGroupExpr : public ASTGroupExpr {
 
+        friend class SemaBuilder;
+        friend class SemaResolver;
+
         // Only Ternary Condition (if ? than : else)
-        const TernaryOpKind OperatorKind = CONDITION;
-        const ASTExpr *First;
-        const ASTExpr *Second;
-        const ASTExpr *Third;
+        const ASTTernaryOperatorKind OperatorKind = CONDITION;
+
+        const SourceLocation IfLoc;
+
+        const SourceLocation ElseLoc;
+
+        ASTExpr *First = nullptr;
+
+        ASTExpr *Second = nullptr;
+
+        ASTExpr *Third = nullptr;
+
+        ASTTernaryGroupExpr(ASTExpr *First, const SourceLocation &IfLoc, ASTExpr *Second,
+                            const SourceLocation &ElseLoc, ASTExpr *Third);
 
     public:
 
-        ASTTernaryGroupExpr(const SourceLocation &Loc, ASTExpr *First, ASTExpr *Second, ASTExpr *Third);
-
-        TernaryOpKind getOperatorKind() const;
+        ASTTernaryOperatorKind getOperatorKind() const;
 
         ASTType *getType() const override;
 

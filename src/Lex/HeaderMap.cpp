@@ -21,7 +21,7 @@
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/SwapByteOrder.h"
-#include "llvm/Support/Debug.h"
+//#include "llvm/Support/Debug.h"
 #include <cstring>
 #include <memory>
 using namespace fly;
@@ -116,7 +116,7 @@ unsigned HeaderMapImpl::getEndianAdjustedWord(unsigned X) const {
   return llvm::ByteSwap_32(X);
 }
 
-/// getHeader - Return a reference to the file header, in unbyte-swapped form.
+/// getList - Return a reference to the file header, in unbyte-swapped form.
 /// This method cannot fail.
 const HMapHeader &HeaderMapImpl::getHeader() const {
   // We know the file is at least as big as the header.  Return it.

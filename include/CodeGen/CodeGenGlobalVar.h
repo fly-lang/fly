@@ -23,25 +23,20 @@ namespace fly {
     class CodeGenModule;
     class ASTGlobalVar;
 
-    class CodeGenGlobalVar : public CodeGenVar {
-
-        CodeGenModule *CGM;
-        llvm::GlobalVariable *GVar;
-        llvm::LoadInst *LoadI = nullptr;
-        bool needLoad;
+    class CodeGenGlobalVar : public CodeGenVarBase {
 
     public:
         CodeGenGlobalVar(CodeGenModule *CGM, ASTGlobalVar* AST, bool isExternal = false);
 
-        llvm::Value *getPointer() override;
-
-        llvm::Value *getValue() override;
+        void Init() override;
 
         llvm::StoreInst *Store(llvm::Value *Val) override;
 
         llvm::LoadInst *Load() override;
 
-        void Init();
+        llvm::Value *getValue() override;
+
+        llvm::Value *getPointer() override;
     };
 }
 

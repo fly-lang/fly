@@ -6,15 +6,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Support/Signals.h"
-#include "llvm/ADT/StringRef.h"
 #include "gtest/gtest.h"
 
 int main(int Argc, char **Argv) {
-  llvm::sys::PrintStackTraceOnErrorSignal(Argv[0], false /* Disable crash reporting */);
 
-  // Initialize both gmock and gtest.
-  ::testing::InitGoogleTest(&Argc, Argv);
+    // Initialize both gmock and gtest.
+    ::testing::InitGoogleTest(&Argc, Argv);
 
-  return RUN_ALL_TESTS();
+    return RUN_ALL_TESTS();
 }

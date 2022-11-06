@@ -25,9 +25,8 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Process.h"
 #include "llvm/Support/Program.h"
-#include "llvm/Support/Debug.h"
-#include <utility>
 
+#include <utility>
 
 using namespace fly;
 using namespace fly::driver;
@@ -62,13 +61,13 @@ Driver::Driver(llvm::ArrayRef<const char *> ArrArgs) :
     ArgList = optTable.ParseArgs(Args, MissingArgIndex, MissingArgCount);
 
     if (ArgList.hasArg(options::OPT_DEBUG)) {
-        llvm::DebugFlag = true;
+        DebugEnabled = true;
         FLY_DEBUG_MESSAGE("Driver", "Driver", "Set OPT_DEBUG");
     }
 }
 
 Driver::~Driver() {
-
+    DebugEnabled = false;
 }
 
 CompilerInstance &Driver::BuildCompilerInstance() {

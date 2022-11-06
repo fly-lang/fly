@@ -2,20 +2,15 @@ name: Build
 
 # Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request
+  # Triggers the workflow on push
   push:
     paths-ignore:
-      - "**.md"
-  pull_request:
-    paths-ignore:
-      - "**.md"
-
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
+      - "docs/**"
+      - "ci/**"
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
-  BUILD_TYPE: RelWithDebInfo
+  BUILD_TYPE: Release
   BUILD_DIR: build
   LLVM_VERSION: 11.1.0
   WIN_FILE: win-x64.zip
@@ -30,7 +25,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-latest, macos-latest, windows-2019 ]
+        os: [ ubuntu-latest, macos-latest, windows-latest ]
     runs-on: ${{ matrix.os }}
 
     outputs:
@@ -40,24 +35,35 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      - name: Dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo sudo apt-get -y install binutils-dev libdw-dev libdwarf-dev
+
       - name: Configure
-        # Some projects don't allow in-source building, so create a separate build directory
-        # We'll use this as our working directory for all subsequent commands
         run: cmake -E make_directory ${{env.BUILD_DIR}}
+
+      - name: Set Build Type
+        shell: bash
+        if: github.ref == 'refs/heads/develop'
+        run: echo "BUILD_TYPE=RelWithDebInfo" >> $GITHUB_ENV
 
       - name: Build
         working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}
-        # Some projects don't allow in-source building, so create a separate build directory
-        # We'll use this as our working directory for all subsequent commands
         run: |
           cmake .. -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_VERBOSE_MAKEFILE=ON
           cmake --build . --config ${{env.BUILD_TYPE}}
 
       - name: Test
-        working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}
-        # Execute tests defined by the CMake configuration.
-        # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
-        run: ctest -C ${{env.BUILD_TYPE}} --rerun-failed --output-on-failure
+        if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
+        working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/test
+        run: ./fly_test
+
+      - name: Test
+        if: matrix.os == 'windows-latest'
+        working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}\test\${{env.BUILD_TYPE}}
+        run: |
+          ls
+          .\fly_test.exe --gtest_filter='-CmdTest.EmitOut'
 
       - name: Read Version (Unix)
         id: version
@@ -66,7 +72,7 @@ jobs:
 
       - name: Read Version (Windows)
         id: version-win
-        if: github.ref == 'refs/heads/main' && matrix.os == 'windows-2019'
+        if: github.ref == 'refs/heads/main' && matrix.os == 'windows-latest'
         working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}\src\${{env.BUILD_TYPE}}
         run: |
           echo "::set-output name=version::$(.\fly.exe --version-short)"
@@ -77,7 +83,7 @@ jobs:
         run: tar -czvf ../fly-${{ steps.version.outputs.version }}-${{env.LINUX_FILE}} fly
 
       - name: Windows Packaging
-        if: github.ref == 'refs/heads/main' && matrix.os == 'windows-2019'
+        if: github.ref == 'refs/heads/main' && matrix.os == 'windows-latest'
         working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}\src\${{env.BUILD_TYPE}}
         run: 7z a ..\..\fly-${{ steps.version-win.outputs.version }}-${{env.WIN_FILE}} fly.exe
 
@@ -93,7 +99,7 @@ jobs:
           path: ${{github.workspace}}/${{env.BUILD_DIR}}/fly-${{ steps.version.outputs.version }}-${{env.LINUX_FILE}}
 
       - uses: actions/upload-artifact@v2
-        if: github.ref == 'refs/heads/main' && matrix.os == 'windows-2019'
+        if: github.ref == 'refs/heads/main' && matrix.os == 'windows-latest'
         with:
           name: windows-artifact
           path: ${{github.workspace}}/${{env.BUILD_DIR}}/fly-${{ steps.version-win.outputs.version }}-${{env.WIN_FILE}}

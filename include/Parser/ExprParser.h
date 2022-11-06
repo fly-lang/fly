@@ -12,25 +12,26 @@
 #define FLY_EXPRPARSER_H
 
 #include "Parser.h"
+#include "AST/ASTExpr.h"
 
 namespace fly {
 
     /**
      * Raw Binary Operator
      */
-    class RawBinaryOperator : public ASTExpr {
+    class RawBinaryOperator : public ASTEmptyExpr {
 
-        BinaryOpKind Op;
+        ASTBinaryOperatorKind Op;
         bool Precedence;
 
     public:
-        RawBinaryOperator(const SourceLocation &Loc, BinaryOpKind Op) : ASTExpr(Loc), Op(Op) {
-            Precedence = Op == BinaryOpKind::ARITH_MUL ||
-                         Op == BinaryOpKind::ARITH_DIV ||
-                         Op == BinaryOpKind::ARITH_MOD;
+        RawBinaryOperator(const SourceLocation &Loc, ASTBinaryOperatorKind Op) : ASTEmptyExpr(Loc), Op(Op) {
+            Precedence = Op == ASTBinaryOperatorKind::ARITH_MUL ||
+                         Op == ASTBinaryOperatorKind::ARITH_DIV ||
+                         Op == ASTBinaryOperatorKind::ARITH_MOD;
         }
 
-        BinaryOpKind getOp() const {
+        ASTBinaryOperatorKind getOp() const {
             return Op;
         }
 
@@ -38,44 +39,38 @@ namespace fly {
             return Precedence;
         }
 
-        ASTType *getType() const override {
-            return nullptr;
-        }
-
-        ASTExprKind getKind() const override {
-            return ASTExprKind::EXPR_GROUP;
-        }
-
         std::string str() const override {
-            return std::string();
+            return std::to_string((int) Op);
         }
     };
 
     class ExprParser {
 
+        friend class ASTExpr;
+
         Parser *P;
-        const bool CanBeEmpty;
+
+        ASTStmt *Stmt;
+
         std::vector<ASTExpr *> Group;
 
     public:
-        ExprParser(Parser *P, bool CanBeEmpty = false);
+        ExprParser(Parser *P, ASTStmt *Stmt);
 
-        ASTExpr *ParseAssignmentExpr(ASTBlock *Block, ASTVarRef *VarRef);
-        ASTExpr *ParseExpr(ASTBlock *Block, bool Start = true);
-        ASTExpr *ParseExpr(ASTBlock *Block, llvm::StringRef Name, llvm::StringRef NameSpace, SourceLocation IdLoc);
-        static bool isAssignOperator(Token &Tok);
-        static bool isUnaryPreOperator(Token &Tok);
-        static ASTUnaryGroupExpr *ParseUnaryPreExpr(Parser *P, ASTBlock *Block);
+        ASTExpr *ParseAssignExpr(ASTVarRef *VarRef = nullptr);
+
+        ASTExpr *ParseExpr(bool IsFirst = true);
+
+        ASTExpr *ParseExpr(SourceLocation &Loc, llvm::StringRef Name, llvm::StringRef NameSpace);
+
+        ASTUnaryGroupExpr *ParseUnaryPreExpr(Parser *P);
 
     private:
-        ASTUnaryGroupExpr *ParseUnaryPostExpr(ASTBlock *Block, ASTVarRef *VarRef);
+        ASTUnaryGroupExpr *ParseUnaryPostExpr(ASTVarRef *VarRef);
 
-        BinaryOpKind ParseBinaryOperator();
+        ASTBinaryOperatorKind ParseBinaryOperator();
+
         void UpdateBinaryGroup(bool NoPrecedence);
-        ASTTernaryGroupExpr * ParseTernaryExpr(ASTBlock *Block, ASTExpr *First);
-        bool isUnaryPostOperator();
-        bool isBinaryOperator();
-        bool isTernaryOperator();
     };
 
 }

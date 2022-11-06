@@ -1,4 +1,4 @@
-char arr[size()];
+char arr[1];
 
 int main() {
     arr[0] = 1;

@@ -7,30 +7,35 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-
 #include "AST/ASTValue.h"
-#include <string>
+#include "AST/ASTType.h"
 
 using namespace fly;
 
-ASTValue::ASTValue(const SourceLocation &Loc, ASTType *Type) : Loc(Loc), Type(Type) {
+ASTValue::ASTValue(const ASTMacroTypeKind MacroKind, const SourceLocation &Location) : MacroKind(MacroKind), Location(Location) {
 
 }
 
 const SourceLocation &ASTValue::getLocation() const {
-    return Loc;
+    return Location;
 }
 
-ASTType *ASTValue::getType() const {
-    return Type;
+const ASTMacroTypeKind &ASTValue::getMacroKind() const {
+    return MacroKind;
 }
 
-ASTSingleValue::ASTSingleValue(const SourceLocation &Loc, ASTType *Type) : ASTValue(Loc, Type) {
-
+const std::string ASTValue::printMacroType() const {
+    return ASTType::printMacroType(MacroKind);
 }
 
-ASTBoolValue::ASTBoolValue(const SourceLocation &Loc, bool Value) :
-        ASTSingleValue(Loc, new ASTBoolType(Loc)), Value(Value) {
+std::string ASTValue::str() const {
+    return Logger("ASTValue").
+            Attr("Location", Location).
+            Attr("MacroKind", (uint64_t) MacroKind).
+            End();
+}
+
+ASTBoolValue::ASTBoolValue(const SourceLocation &Loc, bool Value) : ASTValue(ASTMacroTypeKind::MACRO_TYPE_BOOL, Loc), Value(Value) {
 
 }
 
@@ -38,12 +43,19 @@ bool ASTBoolValue::getValue() const {
     return Value;
 }
 
-std::string ASTBoolValue::str() const {
+const std::string ASTBoolValue::print() const {
     return Value ? "true" : "false";
 }
 
-ASTIntegerValue::ASTIntegerValue(const SourceLocation &Loc, ASTType *Type, uint64_t Value, bool Negative) :
-        ASTSingleValue(Loc, Type), Value(Value), Negative(Negative) {
+std::string ASTBoolValue::str() const {
+    return Logger("ASTBoolValue").
+            Super(ASTValue::str()).
+            Attr("Value", Value).
+            End();
+}
+
+ASTIntegerValue::ASTIntegerValue(const SourceLocation &Loc, uint64_t Value, bool Negative) :
+        ASTValue(ASTMacroTypeKind::MACRO_TYPE_INTEGER, Loc), Value(Value), Negative(Negative) {
 
 }
 
@@ -59,12 +71,21 @@ uint64_t ASTIntegerValue::getValue() const {
     return Value;
 }
 
-std::string ASTIntegerValue::str() const {
+const std::string ASTIntegerValue::print() const {
     return (Negative ? "-" : "") + std::to_string(Value);
 }
 
-ASTFloatingValue::ASTFloatingValue(const SourceLocation &Loc, ASTType *Type, std::string &Value)
-    : ASTSingleValue(Loc, Type), Value(Value) {
+
+std::string ASTIntegerValue::str() const {
+    return Logger("ASTIntegerValue").
+            Super(ASTValue::str()).
+            Attr("Value", Value).
+            Attr("Negative", Negative).
+            End();
+}
+
+ASTFloatingValue::ASTFloatingValue(const SourceLocation &Loc, std::string Value)
+    : ASTValue(ASTMacroTypeKind::MACRO_TYPE_FLOATING_POINT, Loc), Value(Value) {
 
 }
 
@@ -72,31 +93,39 @@ std::string ASTFloatingValue::getValue() const {
     return Value;
 }
 
-std::string ASTFloatingValue::str() const {
+const std::string ASTFloatingValue::print() const {
     return Value;
 }
 
-ASTArrayValue::ASTArrayValue(const SourceLocation &Loc, ASTType *Type) :
-    ASTValue(Loc, new ASTArrayType(Type->getLocation(), Type,new ASTIntegerValue(Loc, Type, 0))) {
-
+std::string ASTFloatingValue::str() const {
+    return Logger("ASTFloatingValue").
+            Super(ASTValue::str()).
+            Attr("Value", Value).
+            End();
 }
 
-void ASTArrayValue::addValue(ASTValue * Value) {
-    Values.push_back(Value);
+ASTArrayValue::ASTArrayValue(const SourceLocation &Loc) : ASTValue(ASTMacroTypeKind::MACRO_TYPE_ARRAY, Loc) {
+
 }
 
 uint64_t ASTArrayValue::size() const {
     return Values.size();
 }
 
-std::string ASTArrayValue::str() const {
-    std::string Str = "{";
+const std::string ASTArrayValue::print() const {
+    std::string Str;
     for (auto Value : Values) {
         Str += Value->str() + ", ";
     }
     Str = Str.substr(0, Str.size()-1); // remove final comma
-    Str += "}";
     return Str;
+}
+
+std::string ASTArrayValue::str() const {
+    return Logger("ASTArrayValue").
+            Super(ASTValue::str()).
+            AttrList("Values", Values).
+            End();
 }
 
 bool ASTArrayValue::empty() const {
@@ -105,4 +134,18 @@ bool ASTArrayValue::empty() const {
 
 const std::vector<ASTValue *> &ASTArrayValue::getValues() const {
     return Values;
+}
+
+ASTNullValue::ASTNullValue(const SourceLocation &Loc) : ASTValue(ASTMacroTypeKind::MACRO_TYPE_CLASS, Loc) {
+
+}
+
+const std::string ASTNullValue::print() const {
+    return "null";
+}
+
+std::string ASTNullValue::str() const {
+    return Logger("ASTNullValue").
+            Super(ASTValue::str()).
+            End();
 }

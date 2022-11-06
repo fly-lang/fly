@@ -7,20 +7,25 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-
 #include "AST/ASTWhileBlock.h"
 
 using namespace fly;
 
-ASTWhileBlock::ASTWhileBlock(const SourceLocation &Loc, ASTBlock *Parent, ASTExpr *Cond) :
-    ASTBlock(Loc, Parent), Cond(Cond) {
+ASTWhileBlock::ASTWhileBlock(ASTBlock *Parent, const SourceLocation &Loc) :
+        ASTBlock(Parent, Loc, ASTBlockKind::BLOCK_WHILE) {
 
 }
 
-enum ASTBlockKind ASTWhileBlock::getBlockKind() const {
-    return StmtKind;
+ASTBlock *ASTWhileBlock::getParent() const {
+    return (ASTBlock *) Parent;
 }
 
 ASTExpr *ASTWhileBlock::getCondition() {
-    return Cond;
+    return Condition;
+}
+
+std::string ASTWhileBlock::str() const {
+    return Logger("ASTWhileBlock").
+            Super(ASTBlock::str()).
+            End();
 }
