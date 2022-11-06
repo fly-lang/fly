@@ -2,26 +2,15 @@ name: Build
 
 # Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request
+  # Triggers the workflow on push
   push:
     paths-ignore:
       - "docs/**"
       - "ci/**"
 
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
-    inputs:
-      BUILD_TYPE:
-        description: 'Build Type'
-        required: true
-        default: 'Release'
-        type: choice
-        options:
-          - 'Debug'
-          - 'RelWithDebInfo'
-          - 'Release'
-
 env:
+  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
+  BUILD_TYPE: Release
   BUILD_DIR: build
   LLVM_VERSION: 11.1.0
   WIN_FILE: win-x64.zip
@@ -55,12 +44,8 @@ jobs:
 
       - name: Set Build Type
         shell: bash
-        run: |
-          if [ -z "${{ github.event.inputs.BUILD_TYPE }}" ]; then
-            echo "BUILD_TYPE=Release" >> $GITHUB_ENV
-          else
-            echo "BUILD_TYPE=${{ github.event.inputs.BUILD_TYPE }}" >> $GITHUB_ENV
-          fi  
+        if: github.ref == 'refs/heads/develop'
+        run: echo "BUILD_TYPE=RelWithDebInfo" >> $GITHUB_ENV
 
       - name: Build
         working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}
