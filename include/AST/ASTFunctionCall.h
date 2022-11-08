@@ -24,6 +24,7 @@ namespace fly {
     class ASTFunctionBase;
     class ASTParam;
     class ASTArg;
+    class ASTFunctionCallExpr;
 
     /**
      * A Reference to a Function in a Declaration
@@ -37,7 +38,7 @@ namespace fly {
 
         const SourceLocation Loc;
 
-        ASTStmt *Stmt = nullptr;
+        ASTFunctionCallExpr *Expr = nullptr;
 
         const std::string Name;
 
@@ -79,7 +80,7 @@ namespace fly {
 
         ASTFunctionCall *Call = nullptr;
 
-        ASTArg(ASTStmt *Parent, const SourceLocation &Loc);
+        ASTArg(ASTFunctionCall *Call, const SourceLocation &Loc);
 
     public:
 

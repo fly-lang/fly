@@ -152,9 +152,6 @@ namespace fly {
         static ASTValue *CreateDefaultValue(ASTType *Type);
 
         // Create Statements
-        ASTFunctionCall *CreateFunctionCall(ASTStmt *Parent, const SourceLocation &Loc, std::string &Name, std::string &NameSpace);
-        ASTFunctionCall *CreateFunctionCall(ASTStmt *Parent, ASTFunction *Function);
-        ASTArg *CreateArg(ASTFunctionCall *Call, const SourceLocation &Loc);
         ASTParam *CreateParam(ASTFunction *Function, const SourceLocation &Loc, ASTType *Type, const std::string &Name, bool Constant = false);
         ASTLocalVar *CreateLocalVar(ASTBlock *Parent, const SourceLocation &Loc, ASTType *Type, const std::string &Name, bool Constant = false);
         ASTVarAssign *CreateVarAssign(ASTBlock *Parent, ASTVarRef *VarRef);
@@ -162,6 +159,11 @@ namespace fly {
         ASTBreak *CreateBreak(ASTBlock *Parent, const SourceLocation &Loc);
         ASTContinue *CreateContinue(ASTBlock *Parent, const SourceLocation &Loc);
         ASTExprStmt *CreateExprStmt(ASTBlock *Parent, const SourceLocation &Loc);
+
+        // Create Function Call
+        ASTFunctionCall *CreateFunctionCall(const SourceLocation &Loc, std::string &Name, std::string &NameSpace);
+        ASTFunctionCall *CreateFunctionCall(ASTFunction *Function);
+        ASTArg *CreateArg(ASTFunctionCall *Call, const SourceLocation &Loc);
 
         // Create Var References
         ASTVarRef *CreateVarRef(const SourceLocation &Loc, StringRef Name, StringRef NameSpace);

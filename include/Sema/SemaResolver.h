@@ -73,13 +73,13 @@ namespace fly {
 
         bool ResolveType(ASTType * Type);
 
-        bool ResolveFunctionCall(ASTFunctionCall *Call);
+        bool ResolveFunctionCall(ASTBlock *Block, ASTFunctionCall *Call);
 
-        bool ResolveArg(ASTArg *Arg, ASTParam *Param);
+        bool ResolveArg(ASTBlock *Block, ASTArg *Arg, ASTParam *Param);
 
         bool ResolveVarRef(ASTBlock *Block, ASTVarRef *VarRef);
 
-        bool ResolveExpr(ASTExpr *Expr);
+        bool ResolveExpr(ASTBlock *Block, ASTExpr *Expr);
 
         bool ResolveValueExpr(ASTValueExpr *pExpr);
 

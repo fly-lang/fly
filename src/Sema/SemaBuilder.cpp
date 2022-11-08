@@ -532,56 +532,6 @@ SemaBuilder::CreateDefaultValue(ASTType *Type) {
 }
 
 /**
- * Create an ASTFunctionCall without definition
- * @param Location
- * @param Name
- * @param NameSpace
- * @return
- */
-ASTFunctionCall *
-SemaBuilder::CreateFunctionCall(ASTStmt *Stmt, const SourceLocation &Loc, std::string &Name, std::string &NameSpace) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateDefFunctionCall",
-                      Logger().Attr("Stmt", Stmt)
-                      .Attr("Loc", (uint64_t) Loc.getRawEncoding())
-                      .Attr("Name", Name)
-                      .Attr("NameSpace=", NameSpace).End());
-    ASTFunctionCall *Call = new ASTFunctionCall(Loc, NameSpace, Name);
-    Call->Stmt = Stmt;
-    return Call;
-}
-
-/**
- * Creates an ASTFunctionCall with definition
- * @param Stmt
- * @param Function
- * @return
- */
-ASTFunctionCall *
-SemaBuilder::CreateFunctionCall(ASTStmt *Stmt, ASTFunction *Function) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateDefFunctionCall",
-                      Logger().Attr("Stmt", Stmt)
-                      .Attr("Function=", Function).End());
-    ASTFunctionCall *Call = new ASTFunctionCall(Stmt->Location, Function->NameSpace->Name, Function->Name);
-    Call->Stmt = Stmt;
-    Call->Def = Function;
-    return Call;
-}
-
-/**
- * Creates an ASTArg
- * @param Call
- * @param Loc
- * @return
- */
-ASTArg *
-SemaBuilder::CreateArg(ASTFunctionCall *Call, const SourceLocation &Loc) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateArg",
-                      Logger().Attr("Call", Call).Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
-    ASTArg *Arg = new ASTArg(Call->Stmt, Loc);
-    return Arg;
-}
-
-/**
  * Creates an ASTParam
  * @param Function
  * @param Loc
@@ -681,6 +631,53 @@ SemaBuilder::CreateExprStmt(ASTBlock *Parent, const SourceLocation &Loc) {
     return ExprStmt;
 }
 
+
+/**
+ * Create an ASTFunctionCall without definition
+ * @param Location
+ * @param Name
+ * @param NameSpace
+ * @return
+ */
+ASTFunctionCall *
+SemaBuilder::CreateFunctionCall(const SourceLocation &Loc, std::string &Name, std::string &NameSpace) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateDefFunctionCall",
+                      Logger().Attr("Loc", (uint64_t) Loc.getRawEncoding())
+                              .Attr("Name", Name)
+                              .Attr("NameSpace=", NameSpace).End());
+    ASTFunctionCall *Call = new ASTFunctionCall(Loc, NameSpace, Name);
+    return Call;
+}
+
+/**
+ * Creates an ASTFunctionCall with definition
+ * @param Stmt
+ * @param Function
+ * @return
+ */
+ASTFunctionCall *
+SemaBuilder::CreateFunctionCall(ASTFunction *Function) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateDefFunctionCall",
+                      Logger().Attr("Function=", Function).End());
+    ASTFunctionCall *Call = new ASTFunctionCall(Function->Location, Function->NameSpace->Name, Function->Name);
+    Call->Def = Function;
+    return Call;
+}
+
+/**
+ * Creates an ASTArg
+ * @param Call
+ * @param Loc
+ * @return
+ */
+ASTArg *
+SemaBuilder::CreateArg(ASTFunctionCall *Call, const SourceLocation &Loc) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateArg",
+                      Logger().Attr("Call", Call).Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
+    ASTArg *Arg = new ASTArg(Call, Loc);
+    return Arg;
+}
+
 ASTVarRef *
 SemaBuilder::CreateVarRef(const SourceLocation &Loc, StringRef Name, StringRef NameSpace) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateLocalVar", Logger()
@@ -763,6 +760,7 @@ SemaBuilder::CreateExpr(ASTStmt *Stmt, ASTFunctionCall *FunctionCall) {
                       Logger().Attr("Stmt", Stmt).Attr("FunctionCall", FunctionCall).End());
 
     ASTFunctionCallExpr *FunctionCallExpr = new ASTFunctionCallExpr(FunctionCall);
+    FunctionCall->Expr = FunctionCallExpr;
     FunctionCallExpr->Stmt = Stmt;
     AddExpr(Stmt, FunctionCallExpr);
     return FunctionCallExpr;

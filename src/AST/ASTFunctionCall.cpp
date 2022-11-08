@@ -14,8 +14,8 @@
 
 using namespace fly;
 
-ASTArg::ASTArg(ASTStmt *Parent, const SourceLocation &Loc) :
-        ASTExprStmt(Parent, Loc, ASTStmtKind::STMT_ARG) {
+ASTArg::ASTArg(ASTFunctionCall *Call, const SourceLocation &Loc) :
+        ASTExprStmt(nullptr, Loc, ASTStmtKind::STMT_ARG), Call(Call) {
 
 }
 
@@ -70,7 +70,7 @@ const std::string ASTFunctionCall::getNameSpace() const {
 std::string ASTFunctionCall::str() const {
     return Logger("ASTFunctionCall").
             Attr("Loc", Loc).
-            Attr("Stmt", Stmt).
+            Attr("Expr", Expr).
             Attr("Name", Name).
             Attr("NameSpace", NameSpace).
             AttrList("Args", Args).

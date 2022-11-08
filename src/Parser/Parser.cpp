@@ -1002,7 +1002,7 @@ ASTFunctionCall *Parser::ParseFunctionCall(ASTStmt *Stmt, SourceLocation &Loc, l
             .Attr("NameSpace", NameSpace).End());
     std::string NameStr = Name.str();
     std::string NameSpaceStr = NameSpace.str();
-    ASTFunctionCall *Call = Builder.CreateFunctionCall(Stmt, Loc, NameStr, NameSpaceStr);
+    ASTFunctionCall *Call = Builder.CreateFunctionCall(Loc, NameStr, NameSpaceStr);
     // Parse Call args
     if (ParseCallArgs(Call)) {
         return Call;

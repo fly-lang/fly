@@ -44,7 +44,7 @@ jobs:
 
       - name: Set Build Type
         shell: bash
-        if: github.ref == 'refs/heads/develop'
+        if: startsWith(github.ref, 'refs/heads/release/')
         run: echo "BUILD_TYPE=RelWithDebInfo" >> $GITHUB_ENV
 
       - name: Build
@@ -53,17 +53,15 @@ jobs:
           cmake .. -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_VERBOSE_MAKEFILE=ON
           cmake --build . --config ${{env.BUILD_TYPE}}
 
-      - name: Test
+      - name: Test (Unix)
         if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
         working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/test
         run: ./fly_test
 
-      - name: Test
+      - name: Test (Windows)
         if: matrix.os == 'windows-latest'
         working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}\test\${{env.BUILD_TYPE}}
-        run: |
-          ls
-          .\fly_test.exe --gtest_filter='-CmdTest.EmitOut'
+        run: .\fly_test.exe --gtest_filter='-CmdTest.EmitOut'
 
       - name: Read Version (Unix)
         id: version

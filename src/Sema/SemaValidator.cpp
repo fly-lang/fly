@@ -49,7 +49,8 @@ bool SemaValidator::CheckDuplicatedLocalVars(ASTStmt *Stmt, ASTLocalVar *LocalVa
 }
 
 bool SemaValidator::CheckUndef(ASTBlock *Block, ASTVarRef *VarRef) {
-    if (!VarRef->getDef() && Block->getUndefVars().find(VarRef->getName()) != Block->getUndefVars().end()) {
+    llvm::StringRef Name = VarRef->getName();
+    if (!VarRef->getDef() && Block->getUndefVars().lookup(Name)) {
         S.Diag(VarRef->getLocation(), diag::err_undef_var) << VarRef->getName();
         return false;
     }
