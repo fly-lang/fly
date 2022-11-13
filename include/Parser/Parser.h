@@ -19,13 +19,14 @@ namespace fly {
     class SemaBuilder;
     class ASTNode;
     class ASTValue;
+    class ASTIdentifier;
     class ASTArrayValue;
     class ASTArrayType;
     class ASTClassType;
     class ASTTopScopes;
     class ASTType;
     class ASTBlock;
-    class ASTFunctionCall;
+    class ASTCall;
     class ASTStmt;
     class ASTExpr;
     class ASTVarRef;
@@ -86,9 +87,9 @@ namespace fly {
         // Parse Top Definitions
         bool ParseTopDef();
         ASTTopScopes *ParseTopScopes();
-        bool ParseGlobalVar(ASTTopScopes *Scopes, ASTType *Type);
-        bool ParseFunction(ASTTopScopes *Scopes, ASTType *Type);
-        bool ParseClass(ASTTopScopes *Scopes);
+        bool ParseGlobalVarDef(ASTTopScopes *Scopes, ASTType *Type);
+        bool ParseFunctionDef(ASTTopScopes *Scopes, ASTType *Type);
+        bool ParseClassDef(ASTTopScopes *Scopes);
 
         // Parse Block Statement
         bool ParseBlock(ASTBlock *Block);
@@ -104,15 +105,11 @@ namespace fly {
         // Parse Identifiers
         ASTType *ParseBuiltinType();
         ASTArrayType *ParseArrayType(ASTType *);
-        ASTClassType *ParseClassType();
+        ASTClassType *ParseClassType(ASTClassType *Parent = nullptr);
         ASTType *ParseType();
-        ASTVarRef *ParseVarRef();
-        bool ParseIdentifier(SourceLocation &Loc, llvm::StringRef &Name, llvm::StringRef &NameSpace);
-
-        // Parse Function Calls
-        ASTFunctionCall *ParseFunctionCall(ASTStmt *Stmt, SourceLocation &Loc, llvm::StringRef Name, llvm::StringRef NameSpace);
-        bool ParseCallArgs(ASTFunctionCall *Call);
-        bool ParseCallArg(ASTFunctionCall *Call);
+        ASTCall *ParseCall(ASTStmt *Stmt, ASTIdentifier *Identifier);
+        bool ParseCallArg(ASTCall *Call);
+        ASTIdentifier *ParseIdentifier();
 
         // Parse a Value
         ASTValue *ParseValue();
@@ -120,15 +117,14 @@ namespace fly {
         bool ParseValues(ASTArrayValue &ArrayValues);
 
         // Parse Expressions
-        ASTExpr *ParseExpr(ASTStmt *Stmt = nullptr);
+        ASTExpr *ParseExpr(ASTStmt *Stmt = nullptr, ASTIdentifier *Identifier = nullptr);
 
         // Check Keywords
         bool isType(Optional<Token> &Tok1);
         bool isBuiltinType(Token &Tok);
         bool isArrayType(Token &Tok);
         bool isClassType(Token &Tok);
-        bool isIdentifier();
-        bool isIdentifier(Optional<Token> &Tok1);
+        bool isVarRef(Optional<Token> &Tok1);
         bool isValue();
         bool isConst();
         bool isBlockStart();

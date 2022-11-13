@@ -23,7 +23,7 @@ namespace fly {
 
         friend class SemaBuilder;
 
-        ASTParam(ASTFunctionBase *Function, const SourceLocation &Loc, ASTType *Type, const std::string Name, bool Constant);
+        ASTParam(ASTFunctionBase *Function, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, bool Constant);
 
     public:
 

@@ -547,7 +547,7 @@ namespace {
 
         // call test()
         ASTExprStmt *ExprStmt = Builder->CreateExprStmt(Body, SourceLoc);
-        ASTFunctionCall *TestCall = Builder->CreateFunctionCall(TestFn);
+        ASTCall *TestCall = Builder->CreateCall(TestFn);
         Builder->CreateExpr(ExprStmt, TestCall);
         EXPECT_TRUE(Builder->AddStmt(ExprStmt));
 

@@ -133,16 +133,9 @@ ASTExpr *ExprParser::ParseExpr(bool IsFirst) {
             }
         }
     } else if (P->isValue()) { // Ex. 1
-        ASTValue *Val = P->ParseValue();
-        if (Val) // Parse a value
-            Expr = P->Builder.CreateExpr(Stmt,Val);
-    } else if (P->isIdentifier()) { // Ex. a or a++ or func()
-        SourceLocation Loc;
-        llvm::StringRef Name;
-        llvm::StringRef NameSpace;
-        if (P->ParseIdentifier(Loc, Name, NameSpace)) {
-            Expr = ParseExpr(Loc, Name, NameSpace);
-        }
+        Expr = P->Builder.CreateExpr(Stmt,P->ParseValue());
+    } else if (P->Tok.isAnyIdentifier()) { // Ex. a or a++ or func()
+        Expr = P->Builder.CreateExpr(Stmt, P->ParseIdentifier());
     } else if (P->isUnaryPreOperator(P->Tok)) { // Ex. ++a or --a or !a
         Expr = ParseUnaryPreExpr(P); // Parse Unary Post Expression
     } else {
@@ -208,17 +201,13 @@ ASTExpr *ExprParser::ParseExpr(bool IsFirst) {
     return Expr;
 }
 
-ASTExpr *ExprParser::ParseExpr(SourceLocation &Loc, llvm::StringRef Name, llvm::StringRef NameSpace) {
-    FLY_DEBUG_MESSAGE("ExprParser", "ParseExpr", Logger()
-            .Attr("Loc", Loc).Attr("Name", Name).Attr("NameSpace", NameSpace).End());
+ASTExpr *ExprParser::ParseExpr(ASTIdentifier *Identifier) {
+    FLY_DEBUG_MESSAGE("ExprParser", "ParseExpr",
+                      Logger().Attr("Identifier", Identifier).End());
     if (P->Tok.is(tok::l_paren)) { // Ex. a()
-        ASTFunctionCall *Call = P->ParseFunctionCall(Stmt, Loc, Name, NameSpace);
-        if (Call) {
-            return P->Builder.CreateExpr(Stmt, Call);
-        }
-        //TODO add Error on Call parsing
+        return P->Builder.CreateExpr(Stmt, P->ParseCall(Stmt, Identifier));
     } else { // parse variable post increment/decrement or simple var
-        ASTVarRef *VarRef = P->Builder.CreateVarRef(Loc, Name.str(), NameSpace.str());
+        ASTVarRef *VarRef = P->Builder.CreateVarRef(Identifier);
         if (P->isUnaryPostOperator()) { // Ex. a++ or a--
             return ParseUnaryPostExpr(VarRef); // Parse Unary Pre Expression
         } else {
@@ -226,7 +215,6 @@ ASTExpr *ExprParser::ParseExpr(SourceLocation &Loc, llvm::StringRef Name, llvm::
             return P->Builder.CreateExpr(Stmt, VarRef);
         }
     }
-    return nullptr;
 }
 
 /**
@@ -285,16 +273,10 @@ ASTUnaryGroupExpr* ExprParser::ParseUnaryPreExpr(Parser *P) {
 
     // Check var identifier
     if (P->Tok.isAnyIdentifier()) {
-
-        llvm::StringRef Name;
-        llvm::StringRef NameSpace;
-        SourceLocation Loc;
-
-        if (P->ParseIdentifier(Loc, Name, NameSpace)) {
-            ASTVarRef *VarRef = P->Builder.CreateVarRef(Loc, Name, NameSpace);
-            ASTVarRefExpr *VarRefExpr = P->Builder.CreateExpr(Stmt, VarRef);
-            return P->Builder.CreateUnaryExpr(Stmt, Loc, Op, ASTUnaryOptionKind::UNARY_PRE, VarRefExpr);
-        }
+        ASTIdentifier *Identifier = P->ParseIdentifier();
+        ASTVarRef *VarRef = P->Builder.CreateVarRef(Identifier);
+        ASTVarRefExpr *VarRefExpr = P->Builder.CreateExpr(Stmt, VarRef);
+        return P->Builder.CreateUnaryExpr(Stmt, VarRef->getLocation(), Op, ASTUnaryOptionKind::UNARY_PRE, VarRefExpr);
     }
 
     // Error: unary operator

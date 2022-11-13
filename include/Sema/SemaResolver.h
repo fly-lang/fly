@@ -29,7 +29,7 @@ namespace fly {
     class ASTLocalVar;
     class ASTArg;
     class ASTParam;
-    class ASTFunctionCall;
+    class ASTCall;
     class ASTVarRef;
     class ASTExpr;
     class ASTValueExpr;
@@ -73,7 +73,7 @@ namespace fly {
 
         bool ResolveType(ASTType * Type);
 
-        bool ResolveFunctionCall(ASTBlock *Block, ASTFunctionCall *Call);
+        bool ResolveFunctionCall(ASTBlock *Block, ASTCall *Call);
 
         bool ResolveArg(ASTBlock *Block, ASTArg *Arg, ASTParam *Param);
 

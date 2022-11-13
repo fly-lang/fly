@@ -12,7 +12,7 @@
 #include "AST/ASTNode.h"
 #include "AST/ASTVar.h"
 #include "AST/ASTVarRef.h"
-#include "AST/ASTFunctionCall.h"
+#include "AST/ASTCall.h"
 
 using namespace fly;
 
@@ -43,11 +43,11 @@ std::string ASTUnrefGlobalVar::str() const {
             End();
 }
 
-ASTUnrefFunctionCall::ASTUnrefFunctionCall(ASTNode *Node, ASTFunctionCall *Call) : ASTUnref(Node), Call(Call) {
+ASTUnrefFunctionCall::ASTUnrefFunctionCall(ASTNode *Node, ASTCall *Call) : ASTUnref(Node), Call(Call) {
 
 }
 
-ASTFunctionCall *ASTUnrefFunctionCall::getCall() {
+ASTCall *ASTUnrefFunctionCall::getCall() {
     return Call;
 }
 

@@ -22,7 +22,7 @@ namespace fly {
     class DiagnosticBuilder;
     class ASTReturn;
     class ASTFunctionBase;
-    class ASTFunctionCall;
+    class ASTCall;
     class ASTLocalVar;
     class ASTVarAssign;
     class ASTGroupExpr;

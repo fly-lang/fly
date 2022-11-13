@@ -17,7 +17,7 @@ namespace fly {
 
     class ASTNode;
     class ASTVarRef;
-    class ASTFunctionCall;
+    class ASTCall;
     class ASTType;
 
     class ASTUnref : public Debuggable {
@@ -48,13 +48,13 @@ namespace fly {
 
     class ASTUnrefFunctionCall : public ASTUnref {
 
-        ASTFunctionCall *Call = nullptr;
+        ASTCall *Call = nullptr;
 
-        ASTUnrefFunctionCall(ASTNode *Node, ASTFunctionCall *Call);
+        ASTUnrefFunctionCall(ASTNode *Node, ASTCall *Call);
 
     public:
 
-        ASTFunctionCall *getCall();
+        ASTCall *getCall();
 
         std::string str() const override;
     };

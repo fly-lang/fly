@@ -16,7 +16,7 @@
 using namespace fly;
 
 ASTClassVar::ASTClassVar(const SourceLocation &Loc, ASTClass *Class, ASTClassScopes *Scopes, ASTType *Type,
-                         std::string &Name) :
+                         llvm::StringRef Name) :
         VarKind(ASTVarKind::VAR_FIELD), Type(Type), Name(Name),
         Loc(Loc), Class(Class), Scopes(Scopes) {
 
@@ -26,7 +26,7 @@ const SourceLocation &ASTClassVar::getLocation() const {
     return Loc;
 }
 
-std::string ASTClassVar::getName() const {
+llvm::StringRef ASTClassVar::getName() const {
     return Name;
 }
 

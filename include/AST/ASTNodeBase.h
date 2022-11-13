@@ -25,7 +25,7 @@ namespace fly {
     class ASTGlobalVar;
     class ASTClass;
     class ASTFunction;
-    class ASTFunctionCall;
+    class ASTCall;
     class ASTUnrefGlobalVar;
     class ASTUnrefFunctionCall;
 

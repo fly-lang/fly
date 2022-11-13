@@ -87,7 +87,7 @@ namespace fly {
 
         const SourceLocation &getLocation() const;
 
-        virtual std::string getName() const = 0;
+        virtual llvm::StringRef getName() const = 0;
 
         ASTNameSpace *getNameSpace() const;
 

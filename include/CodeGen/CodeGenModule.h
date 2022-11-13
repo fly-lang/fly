@@ -34,7 +34,7 @@ namespace fly {
     class ASTImport;
     class ASTGlobalVar;
     class ASTFunction;
-    class ASTFunctionCall;
+    class ASTCall;
     class ASTType;
     class ASTArrayType;
     class ASTValue;
@@ -111,7 +111,7 @@ namespace fly {
 
         void GenStmt(llvm::Function *Fn, ASTStmt * Stmt);
 
-        CallInst *GenCall(llvm::Function *Fn, ASTFunctionCall *Call);
+        CallInst *GenCall(llvm::Function *Fn, ASTCall *Call);
 
         llvm::Value *GenExpr(llvm::Function *Fn, const ASTType *Type, ASTExpr *Expr);
 

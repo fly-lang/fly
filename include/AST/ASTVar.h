@@ -42,7 +42,7 @@ namespace fly {
 
         virtual ASTType *getType() const = 0;
 
-        virtual std::string getName() const = 0;
+        virtual llvm::StringRef getName() const = 0;
 
         virtual ASTExpr *getExpr() const = 0;
 

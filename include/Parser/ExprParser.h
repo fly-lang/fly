@@ -61,7 +61,7 @@ namespace fly {
 
         ASTExpr *ParseExpr(bool IsFirst = true);
 
-        ASTExpr *ParseExpr(SourceLocation &Loc, llvm::StringRef Name, llvm::StringRef NameSpace);
+        ASTExpr *ParseExpr(ASTIdentifier *Identifier);
 
         ASTUnaryGroupExpr *ParseUnaryPreExpr(Parser *P);
 

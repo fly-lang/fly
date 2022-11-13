@@ -15,8 +15,9 @@ add_library(flyLib
         AST/ASTForBlock.cpp
         AST/ASTFunction.cpp
         AST/ASTFunctionBase.cpp
-        AST/ASTFunctionCall.cpp
+        AST/ASTCall.cpp
         AST/ASTGlobalVar.cpp
+        AST/ASTIdentifier.cpp
         AST/ASTIfBlock.cpp
         AST/ASTImport.cpp
         AST/ASTLocalVar.cpp
@@ -132,26 +133,6 @@ add_library(flyLib
         Sema/SemaBuilder.cpp
         Sema/SemaResolver.cpp
         Sema/SemaValidator.cpp)
-
-#add_subdirectory(Basic)
-#add_subdirectory(Lex)
-#add_subdirectory(Parser)
-#add_subdirectory(AST)
-#add_subdirectory(CodeGen)
-#add_subdirectory(Sema)
-#add_subdirectory(Driver)
-#add_subdirectory(Frontend)
-
-#target_link_libraries(fly
-#        FlyBasic
-#        FlyLex
-#        FlyParser
-#        FlyAST
-#        FlyCodeGen
-#        FlySema
-#        FlyDriver
-#        FlyFrontend
-#)
 
 configure_file(
         ${CMAKE_SOURCE_DIR}/include/Config/Config.h.cmake

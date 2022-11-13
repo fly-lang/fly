@@ -26,14 +26,14 @@ namespace fly {
 
         ASTType *Type = nullptr;
 
-        const std::string Name;
+        llvm::StringRef Name;
 
         ASTExpr *Expr = nullptr;
 
         // Code Generator
         CodeGenGlobalVar *CodeGen;
 
-        ASTGlobalVar(const SourceLocation &Loc, ASTNode *Node, ASTType *Type, const std::string Name,
+        ASTGlobalVar(const SourceLocation &Loc, ASTNode *Node, ASTType *Type, llvm::StringRef Name,
                      ASTTopScopes *Scopes);
 
     public:
@@ -44,7 +44,7 @@ namespace fly {
 
         ASTType *getType() const override;
 
-        std::string getName() const override;
+        llvm::StringRef getName() const override;
 
         ASTExpr *getExpr() const override;
 

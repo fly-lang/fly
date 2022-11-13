@@ -35,14 +35,14 @@ namespace fly {
         friend class SemaResolver;
         friend class FunctionParser;
 
-        ASTFunction(const SourceLocation &Loc, ASTNode *Node, ASTType *ReturnType, const std::string Name,
+        ASTFunction(const SourceLocation &Loc, ASTNode *Node, ASTType *ReturnType, llvm::StringRef Name,
                     ASTTopScopes *Scopes);
 
     public:
 
         const SourceLocation &getLocation() const;
 
-        std::string getName() const override;
+        llvm::StringRef getName() const override;
 
         std::string str() const override;
     };

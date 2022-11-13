@@ -17,7 +17,7 @@
 #include "AST/ASTImport.h"
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTFunction.h"
-#include "AST/ASTFunctionCall.h"
+#include "AST/ASTCall.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTLocalVar.h"
 #include "AST/ASTUnref.h"

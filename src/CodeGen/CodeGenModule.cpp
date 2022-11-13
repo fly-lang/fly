@@ -24,7 +24,7 @@
 #include "AST/ASTNode.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTLocalVar.h"
-#include "AST/ASTFunctionCall.h"
+#include "AST/ASTCall.h"
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTParams.h"
 #include "AST/ASTBlock.h"
@@ -371,7 +371,7 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
     }
 }
 
-CallInst *CodeGenModule::GenCall(llvm::Function *Fn, ASTFunctionCall *Call) {
+CallInst *CodeGenModule::GenCall(llvm::Function *Fn, ASTCall *Call) {
     FLY_DEBUG_MESSAGE("CodeGenModule", "GenCall",
                       "Call=" << Call->str());
     // Check if Func is declared

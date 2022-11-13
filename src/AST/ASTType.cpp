@@ -9,6 +9,7 @@
 
 #include "AST/ASTType.h"
 #include "AST/ASTExpr.h"
+#include "AST/ASTIdentifier.h"
 
 using namespace fly;
 
@@ -278,12 +279,17 @@ const std::string ASTArrayType::print() const {
     return Type->print() + "[]";
 }
 
-ASTClassType::ASTClassType(const SourceLocation &Loc, std::string Name, std::string NameSpace) :
-        ASTType(Loc, ASTTypeKind::TYPE_CLASS, ASTMacroTypeKind::MACRO_TYPE_CLASS), Name(Name) {
+ASTClassType::ASTClassType(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef Name, ASTClassType *Parent) :
+        ASTType(Loc, ASTTypeKind::TYPE_CLASS, ASTMacroTypeKind::MACRO_TYPE_CLASS),
+        Name(Name), NameSpace(NameSpace), Parent(Parent) {
 
 }
 
-const std::string ASTClassType::getName() const {
+ASTClassType *ASTClassType::getParent() const {
+    return Parent;
+}
+
+llvm::StringRef ASTClassType::getName() const {
     return Name;
 }
 
@@ -291,7 +297,7 @@ bool ASTClassType::operator==(const ASTClassType &Ty) const {
     return getKind() == Ty.getKind() && Name == Ty.Name;
 }
 
-const std::string ASTClassType::getNameSpace() const {
+llvm::StringRef ASTClassType::getNameSpace() const {
     return NameSpace;
 }
 
@@ -300,7 +306,7 @@ ASTClass *ASTClassType::getDef() const {
 }
 
 const std::string ASTClassType::print() const {
-    return NameSpace + "." + Name;
+    return std::string(NameSpace) + "." + std::string(Name);
 }
 
 std::string ASTClassType::str() const {

@@ -11,7 +11,7 @@
 #define FLY_FUNCTION_CALL_H
 
 #include "ASTExprStmt.h"
-#include "Basic/Debuggable.h"
+#include "AST/ASTIdentifier.h"
 
 #include "llvm/ADT/SmallVector.h"
 
@@ -31,7 +31,7 @@ namespace fly {
      * Ex.
      *  int a = sqrt(4)
      */
-    class ASTFunctionCall : public Debuggable {
+    class ASTCall : public ASTIdentifier {
 
         friend class SemaBuilder;
         friend class SemaResolver;
@@ -40,25 +40,17 @@ namespace fly {
 
         ASTFunctionCallExpr *Expr = nullptr;
 
-        const std::string Name;
-
-        std::string NameSpace;
-
         std::vector<ASTArg *> Args;
 
         ASTFunctionBase *Def = nullptr;
 
         CodeGenCall *CGC = nullptr;
 
-        ASTFunctionCall(const SourceLocation &Loc, const std::string NameSpace, const std::string Name);
+        ASTCall(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef Name);
+
+        ASTCall(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef ClassName, llvm::StringRef Name);
 
     public:
-
-        const SourceLocation &getLocation() const;
-
-        const std::string getNameSpace() const;
-
-        const std::string getName() const;
 
         const std::vector<ASTArg *> getArgs() const;
 
@@ -78,9 +70,9 @@ namespace fly {
 
         ASTParam *Def = nullptr;
 
-        ASTFunctionCall *Call = nullptr;
+        ASTCall *Call = nullptr;
 
-        ASTArg(ASTFunctionCall *Call, const SourceLocation &Loc);
+        ASTArg(ASTCall *Call, const SourceLocation &Loc);
 
     public:
 
@@ -88,7 +80,7 @@ namespace fly {
 
         ASTParam *getDef() const;
 
-        ASTFunctionCall *getCall() const;
+        ASTCall *getCall() const;
 
         std::string str() const override;
 

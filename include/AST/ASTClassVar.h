@@ -34,7 +34,7 @@ namespace fly {
 
         ASTType *Type = nullptr;
 
-        const std::string Name;
+        llvm::StringRef Name;
 
         const ASTClass *Class = nullptr;
 
@@ -47,7 +47,7 @@ namespace fly {
         CodeGenClassVar *CodeGen = nullptr;
 
         ASTClassVar(const SourceLocation &Loc, ASTClass *Class, ASTClassScopes *Scopes, ASTType *Type,
-                    std::string &Name);
+                    llvm::StringRef Name);
 
     public:
 
@@ -57,7 +57,7 @@ namespace fly {
 
         ASTType *getType() const override;
 
-        std::string getName() const override;
+        llvm::StringRef getName() const override;
 
         const ASTClass *getClass() const;
 

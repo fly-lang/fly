@@ -17,7 +17,7 @@ namespace fly {
 
     class Parser;
     class ASTFunction;
-    class ASTFunctionCall;
+    class ASTCall;
     class ASTType;
     class ASTBlock;
     class SourceLocation;

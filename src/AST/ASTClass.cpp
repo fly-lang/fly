@@ -35,13 +35,12 @@ std::string ASTClassScopes::str() const {
             End();
 }
 
-ASTClass::ASTClass(const SourceLocation &Loc, ASTNode *Node, const std::string &Name,
-                   ASTTopScopes *Scopes) :
+ASTClass::ASTClass(const SourceLocation &Loc, ASTNode *Node, llvm::StringRef Name, ASTTopScopes *Scopes) :
         ASTTopDef(Loc, Node, ASTTopDefKind::DEF_CLASS, Scopes), Name(Name) {
 
 }
 
-std::string ASTClass::getName() const {
+llvm::StringRef ASTClass::getName() const {
     return Name;
 }
 

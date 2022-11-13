@@ -35,11 +35,11 @@ namespace fly {
 
         ASTType *Type = nullptr;
 
-        const std::string Name;
+        llvm::StringRef Name;
 
     protected:
 
-         ASTLocalVar(ASTBlock *Parent, const SourceLocation &Loc, ASTType *Type, const std::string Name, bool Constant);
+         ASTLocalVar(ASTBlock *Parent, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, bool Constant);
 
     public:
 
@@ -47,7 +47,7 @@ namespace fly {
 
         ASTType *getType() const override;
 
-        std::string getName() const override;
+        llvm::StringRef getName() const override;
 
         bool isConstant() const;
 

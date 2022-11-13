@@ -21,7 +21,7 @@ namespace fly {
     class ASTType;
     class ASTValue;
     class ASTVarRef;
-    class ASTFunctionCall;
+    class ASTCall;
     class ASTVarRefExpr;
     class ASTFunctionCallExpr;
     class ASTValueExpr;
@@ -184,13 +184,13 @@ namespace fly {
         friend class SemaBuilder;
         friend class SemaResolver;
 
-        ASTFunctionCall *Call = nullptr;
+        ASTCall *Call = nullptr;
 
-        ASTFunctionCallExpr(ASTFunctionCall *Call);
+        ASTFunctionCallExpr(ASTCall *Call);
 
     public:
 
-        ASTFunctionCall *getCall() const;
+        ASTCall *getCall() const;
 
         ASTType *getType() const override;
 

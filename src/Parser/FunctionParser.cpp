@@ -11,7 +11,7 @@
 #include "Parser/FunctionParser.h"
 #include "AST/ASTParams.h"
 #include "AST/ASTFunction.h"
-#include "AST/ASTFunctionCall.h"
+#include "AST/ASTCall.h"
 #include "AST/ASTExpr.h"
 #include "Sema/SemaBuilder.h"
 #include "Basic/Debug.h"

@@ -108,11 +108,11 @@ LLVMContext &CodeGen::getLLVMCtx() {
     return LLVMCtx;
 }
 
-const std::string CodeGen::toIdentifier(std::string Name, std::string NameSpace) {
+const std::string CodeGen::toIdentifier(llvm::StringRef Name, llvm::StringRef NameSpace) {
     if (NameSpace == "default") {
-        return Name;
+        return std::string(Name);
     }
-    return NameSpace + "_" + Name;
+    return std::string(NameSpace).append("_").append(std::string(Name));
 }
 
 CodeGenHeader *CodeGen::CreateHeader(std::string FileName){

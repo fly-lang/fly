@@ -32,7 +32,8 @@ namespace fly {
     class ASTClassFunction;
     class ASTGlobalVar;
     class ASTFunction;
-    class ASTFunctionCall;
+    class ASTIdentifier;
+    class ASTCall;
     class ASTStmt;
     class ASTBlock;
     class ASTIfBlock;
@@ -114,14 +115,14 @@ namespace fly {
         ASTImport *CreateImport(const SourceLocation &NameLoc, StringRef Name,
                                 const SourceLocation &AliasLoc, StringRef Alias);
         static ASTTopScopes *CreateTopScopes(ASTVisibilityKind Visibility, bool Constant);
-        ASTGlobalVar *CreateGlobalVar(ASTNode *Node, const SourceLocation &Loc, ASTType *Type, const std::string &Name,
+        ASTGlobalVar *CreateGlobalVar(ASTNode *Node, const SourceLocation &Loc, ASTType *Type, const llvm::StringRef Name,
                                       ASTTopScopes *Scopes);
-        ASTFunction *CreateFunction(ASTNode *Node, const SourceLocation &Loc, ASTType *Type, const std::string &Name,
+        ASTFunction *CreateFunction(ASTNode *Node, const SourceLocation &Loc, ASTType *Type, const llvm::StringRef Name,
                                     ASTTopScopes *Scopes);
-        ASTClass *CreateClass(ASTNode *Node, const SourceLocation &Loc, const std::string &Name,
+        ASTClass *CreateClass(ASTNode *Node, const SourceLocation &Loc, const llvm::StringRef Name,
                               ASTTopScopes *Scopes);
         static ASTClassScopes *CreateClassScopes(ASTClassVisibilityKind Visibility, bool Constant);
-        ASTClassVar *CreateClassVar(ASTClass *Class, SourceLocation &Loc, ASTType *Type, std::string Name,
+        ASTClassVar *CreateClassVar(ASTClass *Class, SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
                                     ASTClassScopes *Scopes);
         ASTClassVar *CreateClassMethods();
 
@@ -138,8 +139,9 @@ namespace fly {
         static ASTDoubleType *CreateDoubleType(const SourceLocation &Loc);
         static ASTVoidType *CreateVoidType(const SourceLocation &Loc);
         static ASTArrayType *CreateArrayType(const SourceLocation &Loc, ASTType *Type, ASTExpr *Size);
-        static ASTClassType *CreateClassType(const SourceLocation &Loc, StringRef Name, StringRef NameSpace);
+        static ASTClassType *CreateClassType(const SourceLocation &Loc, StringRef NameSpace, StringRef Name, ASTClassType *Parent = nullptr);
         static ASTClassType *CreateClassType(ASTClass *Class);
+        static ASTClassType *CreateClassType(ASTIdentifier *Class);
 
         // Create Values
         static ASTNullValue *CreateNullValue(const SourceLocation &Loc);
@@ -152,30 +154,30 @@ namespace fly {
         static ASTValue *CreateDefaultValue(ASTType *Type);
 
         // Create Statements
-        ASTParam *CreateParam(ASTFunction *Function, const SourceLocation &Loc, ASTType *Type, const std::string &Name, bool Constant = false);
-        ASTLocalVar *CreateLocalVar(ASTBlock *Parent, const SourceLocation &Loc, ASTType *Type, const std::string &Name, bool Constant = false);
+        ASTParam *CreateParam(ASTFunction *Function, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, bool Constant = false);
+        ASTLocalVar *CreateLocalVar(ASTBlock *Parent, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, bool Constant = false);
         ASTVarAssign *CreateVarAssign(ASTBlock *Parent, ASTVarRef *VarRef);
         ASTReturn *CreateReturn(ASTBlock *Parent, const SourceLocation &Loc);
         ASTBreak *CreateBreak(ASTBlock *Parent, const SourceLocation &Loc);
         ASTContinue *CreateContinue(ASTBlock *Parent, const SourceLocation &Loc);
         ASTExprStmt *CreateExprStmt(ASTBlock *Parent, const SourceLocation &Loc);
 
-        // Create Function Call
-        ASTFunctionCall *CreateFunctionCall(const SourceLocation &Loc, std::string &Name, std::string &NameSpace);
-        ASTFunctionCall *CreateFunctionCall(ASTFunction *Function);
-        ASTArg *CreateArg(ASTFunctionCall *Call, const SourceLocation &Loc);
+        // Create Call
+        ASTCall *CreateCall(ASTIdentifier *Identifier);
+        ASTCall *CreateCall(ASTFunction *Function);
+        ASTArg *CreateCallArg(ASTCall *Call, const SourceLocation &Loc);
 
-        // Create Var References
-        ASTVarRef *CreateVarRef(const SourceLocation &Loc, StringRef Name, StringRef NameSpace);
-        ASTVarRef *CreateVarRef(const SourceLocation &Loc, StringRef Name, StringRef Class, StringRef NameSpace);
+        // Create VarRef
         ASTVarRef *CreateVarRef(ASTLocalVar *LocalVar);
         ASTVarRef *CreateVarRef(ASTGlobalVar *GlobalVar);
         ASTVarRef *CreateVarRef(ASTClassVar *ClassVar);
+        ASTVarRef *CreateVarRef(ASTIdentifier *Identifier);
 
         // Create Expressions
         ASTEmptyExpr *CreateExpr(ASTStmt *Stmt);
         ASTValueExpr *CreateExpr(ASTStmt *Stmt, ASTValue *Value);
-        ASTFunctionCallExpr *CreateExpr(ASTStmt *Stmt, ASTFunctionCall *FunctionCall);
+        ASTExpr *CreateExpr(ASTStmt *Stmt, ASTIdentifier *Identifier);
+        ASTFunctionCallExpr *CreateExpr(ASTStmt *Stmt, ASTCall *Call);
         ASTVarRefExpr *CreateExpr(ASTStmt *Stmt, ASTVarRef *VarRef);
         ASTUnaryGroupExpr *CreateUnaryExpr(ASTStmt *Stmt, const SourceLocation &Loc, ASTUnaryOperatorKind Kind,
                                            ASTUnaryOptionKind OptionKind, ASTVarRefExpr *First);
@@ -220,7 +222,7 @@ namespace fly {
 
         // Add Value to Array
         bool AddArrayValue(ASTArrayValue *ArrayValue, ASTValue *Value);
-        bool AddFunctionCallArg(ASTFunctionCall *FunctionCall, ASTArg *Arg);
+        bool AddFunctionCallArg(ASTCall *FunctionCall, ASTArg *Arg);
 
         // Add Stmt
         bool AddStmt(ASTStmt *Stmt);

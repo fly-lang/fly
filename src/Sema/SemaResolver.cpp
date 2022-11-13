@@ -19,7 +19,7 @@
 #include "AST/ASTImport.h"
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTFunction.h"
-#include "AST/ASTFunctionCall.h"
+#include "AST/ASTCall.h"
 #include "AST/ASTParams.h"
 #include "AST/ASTSwitchBlock.h"
 #include "AST/ASTForBlock.h"
@@ -260,7 +260,7 @@ bool SemaResolver::ResolveType(ASTType * Type) {
     return true;
 }
 
-bool SemaResolver::ResolveFunctionCall(ASTBlock *Block, ASTFunctionCall *Call) {
+bool SemaResolver::ResolveFunctionCall(ASTBlock *Block, ASTCall *Call) {
     if (!Call->Def) {
 
         const auto &Node = S.FindNode(Block->getTop());
@@ -411,7 +411,7 @@ bool SemaResolver::ResolveExpr(ASTBlock *Block, ASTExpr *Expr) {
         }
         case ASTExprKind::EXPR_REF_FUNC: {
             ASTBlock *Block = getBlock(Expr->getStmt());
-            ASTFunctionCall *Call = ((ASTFunctionCallExpr *)Expr)->getCall();
+            ASTCall *Call = ((ASTFunctionCallExpr *)Expr)->getCall();
             if (Call->getDef() || ResolveFunctionCall(Block, Call)) {
                 Expr->Type = Call->Def->Type;
                 Success = true;

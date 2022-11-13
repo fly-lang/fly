@@ -24,7 +24,7 @@ namespace fly {
     class ASTVarRef;
     class ASTLocalVar;
     class ASTBlock;
-    class ASTFunctionCall;
+    class ASTCall;
     class ASTGlobalVar;
     class CodeGenFunction;
     class CodeGenVarBase;
@@ -48,7 +48,7 @@ namespace fly {
         ASTType *Type = nullptr;
 
         // Function Name
-        const std::string Name;
+        llvm::StringRef Name;
 
         // Header contains parameters
         ASTParams *Params = nullptr;
@@ -64,7 +64,7 @@ namespace fly {
 
     protected:
 
-        ASTFunctionBase(ASTFunctionKind Kind, ASTType *ReturnType, const std::string Name);
+        ASTFunctionBase(ASTFunctionKind Kind, ASTType *ReturnType, llvm::StringRef Name);
 
     public:
 
@@ -72,7 +72,7 @@ namespace fly {
 
         ASTType *getType() const;
 
-        const std::string getName() const;
+        llvm::StringRef getName() const;
 
         const ASTParams *getParams() const;
 

@@ -64,7 +64,7 @@ namespace fly {
         friend class SemaBuilder;
         friend class SemaResolver;
 
-        std::string Name;
+        llvm::StringRef Name;
 
         ASTClassKind ClassKind;
 
@@ -76,11 +76,11 @@ namespace fly {
 
         CodeGenClass *CodeGen = nullptr;
 
-        ASTClass(const SourceLocation &Loc, ASTNode *Node, const std::string &Name, ASTTopScopes *Scopes);
+        ASTClass(const SourceLocation &Loc, ASTNode *Node, llvm::StringRef Name, ASTTopScopes *Scopes);
 
     public:
 
-        std::string getName() const;
+        llvm::StringRef getName() const;
 
         ASTClassKind getClassKind() const;
 

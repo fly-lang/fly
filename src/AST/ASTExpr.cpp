@@ -12,7 +12,7 @@
 #include "AST/ASTVarRef.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTFunction.h"
-#include "AST/ASTFunctionCall.h"
+#include "AST/ASTCall.h"
 #include "AST/ASTStmt.h"
 #include "AST/ASTType.h"
 #include "Sema/SemaBuilder.h"
@@ -90,12 +90,12 @@ std::string ASTVarRefExpr::str() const {
             End();
 }
 
-ASTFunctionCallExpr::ASTFunctionCallExpr(ASTFunctionCall *Call) :
+ASTFunctionCallExpr::ASTFunctionCallExpr(ASTCall *Call) :
     ASTExpr(Call->getLocation(), ASTExprKind::EXPR_REF_FUNC), Call(Call) {
 
 }
 
-ASTFunctionCall *ASTFunctionCallExpr::getCall() const {
+ASTCall *ASTFunctionCallExpr::getCall() const {
     return Call;
 }
 
