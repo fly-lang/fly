@@ -57,7 +57,7 @@ ASTTopScopes *ASTTopDef::getScopes() const {
     return Scopes;
 }
 
-const std::string ASTTopDef::getComment() const {
+llvm::StringRef ASTTopDef::getComment() const {
     return Comment;
 }
 

@@ -71,7 +71,7 @@ std::string ASTValueExpr::str() const {
             End();
 }
 
-ASTVarRefExpr::ASTVarRefExpr(ASTVarRef *VarRef) : ASTExpr(VarRef->getLocation(), ASTExprKind::EXPR_REF_VAR), VarRef(VarRef) {
+ASTVarRefExpr::ASTVarRefExpr(ASTVarRef *VarRef) : ASTExpr(VarRef->getLocation(), ASTExprKind::EXPR_VAR_REF), VarRef(VarRef) {
 
 }
 
@@ -90,21 +90,21 @@ std::string ASTVarRefExpr::str() const {
             End();
 }
 
-ASTFunctionCallExpr::ASTFunctionCallExpr(ASTCall *Call) :
-    ASTExpr(Call->getLocation(), ASTExprKind::EXPR_REF_FUNC), Call(Call) {
+ASTCallExpr::ASTCallExpr(ASTCall *Call) :
+        ASTExpr(Call->getLocation(), ASTExprKind::EXPR_CALL), Call(Call) {
 
 }
 
-ASTCall *ASTFunctionCallExpr::getCall() const {
+ASTCall *ASTCallExpr::getCall() const {
     return Call;
 }
 
-ASTType *ASTFunctionCallExpr::getType() const {
+ASTType *ASTCallExpr::getType() const {
     return Type ? Type : Call->getDef() ? Call->getDef()->getType() : nullptr;
 }
 
-std::string ASTFunctionCallExpr::str() const {
-    return Logger("ASTFunctionCallExpr").
+std::string ASTCallExpr::str() const {
+    return Logger("ASTCallExpr").
            Super(ASTExpr::str()).
            Attr("Call", Call->str()).
            End();

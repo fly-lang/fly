@@ -55,7 +55,7 @@ Logger &Logger::Attr(const char *key, const llvm::StringRef val) {
 }
 
 Logger &Logger::Attr(const char *key, const SourceLocation &val) {
-    return Attr(key, std::to_string(val.getRawEncoding()));
+    return Attr(key, (uint64_t) val.getRawEncoding());
 }
 
 Logger &Logger::Attr(const char *key, bool val) {

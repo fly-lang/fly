@@ -187,8 +187,6 @@ bool SemaResolver::ResolveBlock(ASTBlock *Block) {
             case ASTStmtKind::STMT_BREAK:
             case ASTStmtKind::STMT_CONTINUE:
                 break;
-            case ASTStmtKind::STMT_ARG:
-                assert("Block Stmt cannot have an ASTArg");
         }
     }
     return Success;
@@ -260,53 +258,71 @@ bool SemaResolver::ResolveType(ASTType * Type) {
     return true;
 }
 
-bool SemaResolver::ResolveFunctionCall(ASTBlock *Block, ASTCall *Call) {
-    if (!Call->Def) {
-
-        const auto &Node = S.FindNode(Block->getTop());
-        ASTImport *Import;
-        llvm::StringMapIterator<std::map<uint64_t, llvm::SmallVector<ASTFunction *, 4>>> StrMapIt;
-        llvm::StringMapIterator<std::map<uint64_t, llvm::SmallVector<ASTFunction *, 4>>> NotExists;
-        if (Call->getNameSpace().empty()) {
-            // Find in current Node
-            StrMapIt = Node->Functions.find(Call->getName());
-            NotExists = Node->Functions.end();
-        } else if (Call->getNameSpace() == Node->NameSpace->getName()) {
-            // Find in current NameSpace
-            StrMapIt = Node->NameSpace->Functions.find(Call->getName());
-            NotExists = Node->NameSpace->Functions.end();
-        } else if ((Import = Node->FindImport(Call->getNameSpace()))) {
-            // Find in current Import
-            StrMapIt = Import->NameSpace->Functions.find(Call->getName());
-            NotExists = Import->NameSpace->Functions.end();
-        }
-
-        if (StrMapIt != NotExists) {
-            std::map<uint64_t, llvm::SmallVector<ASTFunction *, 4>> &IntMap = StrMapIt->getValue();
-            const auto &IntMapIt = IntMap.find(Call->getArgs().size());
-            if (IntMapIt != IntMap.end()) { // Node contains Function with this size of args
-                bool Success = true;
-                for (ASTFunction *Function : IntMapIt->second) {
-                    Success = true;
-                    if (Function->getParams()->getSize() == Call->getArgs().size()) {
-                        for (unsigned long i = 0; i < Function->getParams()->getSize(); i++) {
-                            // Resolve Arg Expr on first
-                            ASTArg *Arg = Call->getArgs().at(i);
-                            ASTParam *Param = Function->getParams()->at(i);
-                            Success = ResolveArg(Block, Arg, Param);
-                            if (!Success) break;
-                        }
-                        // Set Function definition for Call
-                        if (Success)
-                            Call->Def = Function;
-                    }
+bool SemaResolver::FindFunction(ASTBlock *Block, ASTCall *Call,
+                                llvm::StringMapIterator<std::map<uint64_t, llvm::SmallVector<ASTFunction *, 4>>> StrMapIt) {
+    std::map<uint64_t, llvm::SmallVector<ASTFunction *, 4>> &IntMap = StrMapIt->getValue();
+    const auto &IntMapIt = IntMap.find(Call->getArgs().size());
+    bool Success = false;
+    if (IntMapIt != IntMap.end()) { // Node contains Function with this size of args
+        for (ASTFunction *Function : IntMapIt->second) {
+            Success = true;
+            if (Function->getParams()->getSize() == Call->getArgs().size()) {
+                for (unsigned long i = 0; i < Function->getParams()->getSize(); i++) {
+                    // Resolve Arg Expr on first
+                    ASTArg *Arg = Call->getArgs().at(i);
+                    ASTParam *Param = Function->getParams()->at(i);
+                    Success = ResolveArg(Block, Arg, Param);
+                    if (!Success) continue; // try with next
                 }
-                return Success;
+                // Set Function definition for Call
+                if (Success) {
+                    Call->Def = Function;
+                    return true;
+                }
             }
         }
+    }
+    return false;
+}
 
-        S.Diag(Call->getLocation(), diag::err_unref_call);
-        return false;
+bool SemaResolver::ResolveCall(ASTBlock *Block, ASTCall *Call) {
+    if (!Call->Def) {
+        assert(!Call->getNameSpace().empty() && "Call without NameSpace");
+        const auto &Node = S.FindNode(Block->getTop());
+
+        // Search into functions
+        if (Call->getClassName().empty()) {
+            
+            // Find in current Node
+            auto StrMapIt = Node->Functions.find(Call->getName());
+            bool Success = FindFunction(Block, Call, StrMapIt);
+
+            if (!Success && Call->getNameSpace() == Node->NameSpace->getName()) {
+                // Find in current NameSpace
+                StrMapIt = Node->NameSpace->Functions.find(Call->getName());
+
+                if (FindFunction(Block, Call, StrMapIt)) {
+                    ASTVisibilityKind Visibility = ((ASTFunction *) Call->getDef())->getScopes()->getVisibility();
+                    Success = Visibility == ASTVisibilityKind::V_DEFAULT || Visibility == ASTVisibilityKind::V_PUBLIC;
+                }
+            }
+
+            ASTImport *Import;
+            if (!Success && (Import = Node->FindImport(Call->getNameSpace()))) {
+                // Find in current Import
+                StrMapIt = Import->NameSpace->Functions.find(Call->getName());
+
+                if (FindFunction(Block, Call, StrMapIt)) {
+                    ASTVisibilityKind Visibility = ((ASTFunction *) Call->getDef())->getScopes()->getVisibility();
+                    Success = Visibility == ASTVisibilityKind::V_PUBLIC;
+                }
+            }
+
+            if (!Success)
+                S.Diag(Call->getLocation(), diag::err_unref_call);
+
+            return Success;
+        }
     }
     
     return true;
@@ -398,7 +414,7 @@ bool SemaResolver::ResolveExpr(ASTBlock *Block, ASTExpr *Expr) {
             return true;
         case ASTExprKind::EXPR_VALUE: // Select the best option for this Value
             return ResolveValueExpr((ASTValueExpr *) Expr);
-        case ASTExprKind::EXPR_REF_VAR: {
+        case ASTExprKind::EXPR_VAR_REF: {
             ASTBlock *Block = getBlock(Expr->getStmt());
             ASTVarRef *VarRef = ((ASTVarRefExpr *)Expr)->getVarRef();
             if (S.Validator->CheckUndef(Block, VarRef) && (VarRef->getDef() || ResolveVarRef(Block, VarRef))) {
@@ -409,10 +425,10 @@ bool SemaResolver::ResolveExpr(ASTBlock *Block, ASTExpr *Expr) {
                 return false;
             }
         }
-        case ASTExprKind::EXPR_REF_FUNC: {
+        case ASTExprKind::EXPR_CALL: {
             ASTBlock *Block = getBlock(Expr->getStmt());
-            ASTCall *Call = ((ASTFunctionCallExpr *)Expr)->getCall();
-            if (Call->getDef() || ResolveFunctionCall(Block, Call)) {
+            ASTCall *Call = ((ASTCallExpr *)Expr)->getCall();
+            if (Call->getDef() || ResolveCall(Block, Call)) {
                 Expr->Type = Call->Def->Type;
                 Success = true;
                 break;
@@ -612,8 +628,6 @@ ASTBlock *SemaResolver::getBlock(ASTStmt *Stmt) {
 
         case ASTStmtKind::STMT_BLOCK:
             return (ASTBlock *) Stmt;
-        case ASTStmtKind::STMT_ARG:
-            return (ASTBlock *) ((ASTArg *)Stmt)->Call->Expr->Stmt->Parent;
         case ASTStmtKind::STMT_RETURN:
         case ASTStmtKind::STMT_EXPR:
         case ASTStmtKind::STMT_VAR_DEFINE:
@@ -638,8 +652,6 @@ ASTType *SemaResolver::getType(ASTStmt *Stmt) {
             return ((ASTLocalVar *) Stmt)->getType();
         case ASTStmtKind::STMT_VAR_ASSIGN: // a = 1
             return ((ASTVarAssign *) Stmt)->getVarRef()->getDef()->getType();
-        case ASTStmtKind::STMT_ARG: // func(a, 1)
-            return ((ASTArg *) Stmt)->getDef()->getType();
         case ASTStmtKind::STMT_RETURN:
             return getBlock(Stmt)->Top->Type;
         case ASTStmtKind::STMT_EXPR:

@@ -30,11 +30,6 @@ namespace fly {
         friend class SemaBuilder;
         friend class SemaResolver;
 
-        const SourceLocation Loc;
-        const llvm::StringRef NameSpace;
-        const llvm::StringRef Class;
-        const llvm::StringRef Name;
-
         ASTVar *Def = nullptr;
 
     public:

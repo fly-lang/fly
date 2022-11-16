@@ -116,7 +116,7 @@ ASTExpr *ExprParser::ParseExpr(bool IsFirst) {
              .Attr("IsFirst", IsFirst).End());
 
     // The parsed ASTExpr
-    ASTExpr *Expr = nullptr;
+    ASTExpr *Expr;
 
     // Location of the starting expression
     if (P->Tok.is(tok::l_paren)) { // Start a new Group of Expressions
@@ -135,7 +135,7 @@ ASTExpr *ExprParser::ParseExpr(bool IsFirst) {
     } else if (P->isValue()) { // Ex. 1
         Expr = P->Builder.CreateExpr(Stmt,P->ParseValue());
     } else if (P->Tok.isAnyIdentifier()) { // Ex. a or a++ or func()
-        Expr = P->Builder.CreateExpr(Stmt, P->ParseIdentifier());
+        Expr = ParseExpr(P->ParseIdentifier());
     } else if (P->isUnaryPreOperator(P->Tok)) { // Ex. ++a or --a or !a
         Expr = ParseUnaryPreExpr(P); // Parse Unary Post Expression
     } else {

@@ -13,12 +13,12 @@
 using namespace fly;
 
 ASTVarRef::ASTVarRef(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef Name) :
-        ASTIdentifier(ASTIdentifier::ASTIdKind::VAR_REF, Loc, NameSpace, Name) {
+        ASTIdentifier(Loc, NameSpace, Name) {
 
 }
 
 ASTVarRef::ASTVarRef(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef ClassName, llvm::StringRef Name) :
-        ASTIdentifier(ASTIdentifier::ASTIdKind::VAR_REF, Loc, NameSpace, ClassName, Name) {
+        ASTIdentifier(Loc, NameSpace, ClassName, Name) {
 }
 
 ASTVar *ASTVarRef::getDef() const {
@@ -29,7 +29,7 @@ std::string ASTVarRef::str() const {
     return Logger("ASTVarRef").
             Attr("Location", Loc).
             Attr("NameSpace", NameSpace).
-            Attr("Class", Class).
+            Attr("Class", ClassName).
             Attr("Name", Name).
             Attr("Def", Def).
             End();

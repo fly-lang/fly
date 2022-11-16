@@ -67,7 +67,7 @@ namespace fly {
 
         unsigned short ParenCount = 0, BracketCount = 0, BraceCount = 0;
 
-        std::string BlockComment;
+        llvm::StringRef BlockComment;
 
     public:
 
@@ -108,7 +108,7 @@ namespace fly {
         ASTClassType *ParseClassType(ASTClassType *Parent = nullptr);
         ASTType *ParseType();
         ASTCall *ParseCall(ASTStmt *Stmt, ASTIdentifier *Identifier);
-        bool ParseCallArg(ASTCall *Call);
+        bool ParseCallArg(ASTStmt *Stmt, ASTCall *Call);
         ASTIdentifier *ParseIdentifier();
 
         // Parse a Value
@@ -120,11 +120,9 @@ namespace fly {
         ASTExpr *ParseExpr(ASTStmt *Stmt = nullptr, ASTIdentifier *Identifier = nullptr);
 
         // Check Keywords
-        bool isType(Optional<Token> &Tok1);
         bool isBuiltinType(Token &Tok);
         bool isArrayType(Token &Tok);
         bool isClassType(Token &Tok);
-        bool isVarRef(Optional<Token> &Tok1);
         bool isValue();
         bool isConst();
         bool isBlockStart();
@@ -137,11 +135,7 @@ namespace fly {
         bool isTokenBrace() const;
         bool isTokenStringLiteral() const;
         bool isTokenSpecial() const;
-        bool isTokenOperator() const;
-        bool isTokenAssign() const;
         bool isTokenAssignOperator() const;
-        bool isTokenAssign(Optional<Token> OptTok) const;
-        bool isTokenAssignOperator(Optional<Token> OptTok) const;
         bool isUnaryPreOperator(Token &Tok);
         bool isUnaryPostOperator();
         bool isBinaryOperator();
@@ -153,7 +147,6 @@ namespace fly {
         SourceLocation ConsumeStringToken();
         SourceLocation ConsumeNext();
         llvm::StringRef getLiteralString();
-        void ClearBlockComment();
 
         // Diagnostics
         DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID);

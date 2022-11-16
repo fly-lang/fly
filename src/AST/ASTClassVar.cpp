@@ -42,7 +42,7 @@ const ASTClass *ASTClassVar::getClass() const {
     return Class;
 }
 
-const std::string &ASTClassVar::getComment() const {
+llvm::StringRef ASTClassVar::getComment() const {
     return Comment;
 }
 

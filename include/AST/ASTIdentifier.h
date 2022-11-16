@@ -24,26 +24,17 @@ namespace fly {
         friend class SemaResolver;
 
     protected:
-        enum class ASTIdKind {
-            UNDEFINED, VAR_REF, CALL
-        };
 
-        const ASTIdKind Kind;
         const SourceLocation Loc;
         const llvm::StringRef NameSpace;
         const llvm::StringRef ClassName;
         const llvm::StringRef Name;
 
     public:
-        ASTIdentifier(ASTIdKind Kind, const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef Name);
-
-        ASTIdentifier(ASTIdKind Kind, const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef ClassName, llvm::StringRef Name);
 
         ASTIdentifier(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef Name);
 
         ASTIdentifier(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef ClassName, llvm::StringRef Name);
-
-        const ASTIdKind getKind() const;
 
         const SourceLocation &getLocation() const;
 

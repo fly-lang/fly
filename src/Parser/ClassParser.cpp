@@ -27,15 +27,14 @@ ClassParser::ClassParser(Parser *P, ASTTopScopes *Scopes) : P(P) {
     FLY_DEBUG_MESSAGE("ClassParser", "ClassParser", Logger()
             .Attr("Scopes", Scopes).End());
 
-    IdentifierInfo *Id = P->Tok.getIdentifierInfo();
-    llvm::StringRef Name = Id->getName();
+    llvm::StringRef Name = P->Tok.getIdentifierInfo()->getName();
     const SourceLocation Loc = P->Tok.getLocation();
     P->ConsumeToken();
 
     if (P->isBlockStart()) {
         P->ConsumeBrace();
 
-        Class = P->Builder.CreateClass(P->Node, Loc, Name.str(), Scopes);
+        Class = P->Builder.CreateClass(P->Node, Loc, Name, Scopes);
         bool Continue;
         do {
 
@@ -147,21 +146,19 @@ bool ClassParser::ParseField(ASTClassScopes *Scopes, ASTType *Type) {
     assert(P->Tok.isAnyIdentifier() && "Tok must be an Identifier");
 
     // Add Comment to AST
-    std::string Comment;
+    llvm::StringRef Comment;
     if (!P->BlockComment.empty()) {
         Comment = P->BlockComment;
-        P->ClearBlockComment(); // Clear for next use
     }
 
-    IdentifierInfo *Id = P->Tok.getIdentifierInfo();
-    llvm::StringRef Name = Id->getName();
+    llvm::StringRef Name = P->Tok.getIdentifierInfo()->getName();
     SourceLocation Loc = P->ConsumeToken();
 
     ASTClassVar *Field = P->Builder.CreateClassVar(Class, Loc, Type, Name.str(), Scopes);
     if (Field) {
         // Parsing =
         ASTExpr *Expr = nullptr;
-        if (P->isTokenAssign()) {
+        if (P->Tok.is(tok::equal)) {
             P->ConsumeToken();
             Expr = P->ParseExpr();
         }

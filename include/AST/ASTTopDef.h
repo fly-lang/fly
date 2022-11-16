@@ -75,7 +75,7 @@ namespace fly {
         // The TopDef Scopes
         ASTTopScopes *Scopes = nullptr;
 
-        std::string Comment;
+        llvm::StringRef Comment;
 
     protected:
 
@@ -95,7 +95,7 @@ namespace fly {
 
         ASTTopDefKind getKind() const;
 
-        const std::string getComment() const;
+        llvm::StringRef getComment() const;
 
         std::string str() const;
 

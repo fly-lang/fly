@@ -38,7 +38,7 @@ namespace fly {
 
         const ASTClass *Class = nullptr;
 
-        std::string Comment;
+        llvm::StringRef Comment;
 
         ASTClassScopes *Scopes = nullptr;
 
@@ -61,7 +61,7 @@ namespace fly {
 
         const ASTClass *getClass() const;
 
-        const std::string &getComment() const;
+        llvm::StringRef getComment() const;
 
         ASTClassScopes *getScopes() const;
 

@@ -14,8 +14,7 @@
 
 using namespace fly;
 
-ASTArg::ASTArg(ASTCall *Call, const SourceLocation &Loc) :
-        ASTExprStmt(nullptr, Loc, ASTStmtKind::STMT_ARG), Call(Call) {
+ASTArg::ASTArg(ASTCall *Call, ASTExpr *Expr) : Expr(Expr), Call(Call) {
 
 }
 
@@ -29,7 +28,7 @@ ASTParam *ASTArg::getDef() const {
 
 std::string ASTArg::str() const {
     return Logger("ASTArg").
-            Super(ASTExprStmt::str()).
+            Attr("Expr", Expr).
             Attr("Index", Index).
             End();
 }
@@ -38,12 +37,16 @@ ASTCall *ASTArg::getCall() const {
     return Call;
 }
 
+ASTExpr *ASTArg::getExpr() const {
+    return Expr;
+}
+
 ASTCall::ASTCall(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef Name) :
-        ASTIdentifier(ASTIdentifier::ASTIdKind::CALL, Loc, NameSpace, Name){
+        ASTIdentifier(Loc, NameSpace, Name){
 }
 
 ASTCall::ASTCall(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef ClassName, llvm::StringRef Name) :
-        ASTIdentifier(ASTIdentifier::ASTIdKind::CALL, Loc, NameSpace, ClassName, Name){
+        ASTIdentifier(Loc, NameSpace, ClassName, Name){
 }
 
 const std::vector<ASTArg*> ASTCall::getArgs() const {
@@ -61,7 +64,6 @@ CodeGenCall *ASTCall::getCodeGen() const {
 std::string ASTCall::str() const {
     return Logger("ASTFunctionCall").
             Attr("Loc", Loc).
-            Attr("Expr", Expr).
             Attr("Name", Name).
             Attr("NameSpace", NameSpace).
             AttrList("Args", Args).

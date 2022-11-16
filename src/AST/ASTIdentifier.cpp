@@ -11,24 +11,12 @@
 
 using namespace fly;
 
-ASTIdentifier::ASTIdentifier(ASTIdKind Kind, const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef Name) :
-    Kind(Kind), Loc(Loc), NameSpace(NameSpace), Name(Name) {
-}
-
-ASTIdentifier::ASTIdentifier(ASTIdKind Kind, const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef ClassName, llvm::StringRef Name) :
-        Kind(Kind), Loc(Loc), NameSpace(NameSpace), ClassName(ClassName), Name(Name) {
-}
-
 ASTIdentifier::ASTIdentifier(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef Name) :
-        Kind(ASTIdKind::UNDEFINED), Loc(Loc), NameSpace(NameSpace), Name(Name) {
+        Loc(Loc), NameSpace(NameSpace), Name(Name) {
 }
 
 ASTIdentifier::ASTIdentifier(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef ClassName, llvm::StringRef Name) :
-        Kind(ASTIdKind::UNDEFINED), Loc(Loc), NameSpace(NameSpace), ClassName(ClassName), Name(Name) {
-}
-
-const ASTIdentifier::ASTIdKind ASTIdentifier::getKind() const {
-    return Kind;
+        Loc(Loc), NameSpace(NameSpace), ClassName(ClassName), Name(Name) {
 }
 
 const SourceLocation &ASTIdentifier::getLocation() const {

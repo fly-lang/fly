@@ -34,12 +34,11 @@ FunctionParser::FunctionParser(Parser *P, ASTTopScopes *Scopes, ASTType *Type, b
                                                     .Attr("Type", Type)
                                                     .Attr("isHeader", isHeader).End());
 
-    IdentifierInfo *Id = P->Tok.getIdentifierInfo();
-    llvm::StringRef Name = Id->getName();
+    llvm::StringRef Name = P->Tok.getIdentifierInfo()->getName();
     const SourceLocation Loc = P->Tok.getLocation();
     P->ConsumeToken();
 
-    Function = P->Builder.CreateFunction(P->Node, Loc, Type, Name.str(), Scopes);
+    Function = P->Builder.CreateFunction(P->Node, Loc, Type, Name, Scopes);
     Success = ParseParams() && !isHeader && ParseBody();
 }
 
@@ -84,7 +83,7 @@ bool FunctionParser::ParseParam() {
         const SourceLocation IdLoc = P->Tok.getLocation();
         P->ConsumeToken();
 
-        ASTParam *Param = P->Builder.CreateParam(Function, IdLoc, Type, Name.str(), Const);
+        ASTParam *Param = P->Builder.CreateParam(Function, IdLoc, Type, Name, Const);
 
         ASTExpr *Expr;
         // Parse assignment =
@@ -127,7 +126,6 @@ bool FunctionParser::ParseBody() {
 
     if (P->isBlockStart()) {
         bool Success = P->ParseBlock(Function->Body) && P->isBraceBalanced();
-        P->ClearBlockComment(); // Clean Block comments for not using them for top definition
         return Success;
     }
 

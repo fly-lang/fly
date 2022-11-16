@@ -10,6 +10,11 @@
 #ifndef FLY_SEMA_RESOLVER_H
 #define FLY_SEMA_RESOLVER_H
 
+#include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/SmallVector.h"
+
+#include <map>
+
 namespace llvm {
     class StringRef;
 }
@@ -40,6 +45,7 @@ namespace fly {
     class ASTWhileBlock;
     class ASTForBlock;
     class ASTClassType;
+    class ASTFunction;
 
     class SemaResolver {
 
@@ -73,7 +79,9 @@ namespace fly {
 
         bool ResolveType(ASTType * Type);
 
-        bool ResolveFunctionCall(ASTBlock *Block, ASTCall *Call);
+        bool FindFunction(ASTBlock *Block, ASTCall *Call, llvm::StringMapIterator<std::map<uint64_t, llvm::SmallVector<ASTFunction *, 4>>> StrMapIt);
+
+        bool ResolveCall(ASTBlock *Block, ASTCall *Call);
 
         bool ResolveArg(ASTBlock *Block, ASTArg *Arg, ASTParam *Param);
 

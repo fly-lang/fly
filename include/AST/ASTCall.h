@@ -10,7 +10,7 @@
 #ifndef FLY_FUNCTION_CALL_H
 #define FLY_FUNCTION_CALL_H
 
-#include "ASTExprStmt.h"
+#include "ASTExpr.h"
 #include "AST/ASTIdentifier.h"
 
 #include "llvm/ADT/SmallVector.h"
@@ -24,7 +24,7 @@ namespace fly {
     class ASTFunctionBase;
     class ASTParam;
     class ASTArg;
-    class ASTFunctionCallExpr;
+    class ASTCallExpr;
 
     /**
      * A Reference to a Function in a Declaration
@@ -37,8 +37,6 @@ namespace fly {
         friend class SemaResolver;
 
         const SourceLocation Loc;
-
-        ASTFunctionCallExpr *Expr = nullptr;
 
         std::vector<ASTArg *> Args;
 
@@ -61,10 +59,12 @@ namespace fly {
         std::string str() const;
     };
 
-    class ASTArg : public ASTExprStmt {
+    class ASTArg : public Debuggable {
 
         friend class SemaResolver;
         friend class SemaBuilder;
+
+        ASTExpr *Expr;
 
         uint64_t Index;
 
@@ -72,9 +72,11 @@ namespace fly {
 
         ASTCall *Call = nullptr;
 
-        ASTArg(ASTCall *Call, const SourceLocation &Loc);
+        ASTArg(ASTCall *Call, ASTExpr *Expr);
 
     public:
+
+        ASTExpr *getExpr() const;
 
         uint64_t getIndex() const;
 
@@ -82,7 +84,7 @@ namespace fly {
 
         ASTCall *getCall() const;
 
-        std::string str() const override;
+        std::string str() const;
 
     };
 }

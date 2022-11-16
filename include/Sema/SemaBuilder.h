@@ -82,7 +82,7 @@ namespace fly {
     class ASTEmptyExpr;
     class ASTValueExpr;
     class ASTVarRefExpr;
-    class ASTFunctionCallExpr;
+    class ASTCallExpr;
     class ASTUnaryGroupExpr;
     class ASTBinaryGroupExpr;
     class ASTTernaryGroupExpr;
@@ -165,7 +165,6 @@ namespace fly {
         // Create Call
         ASTCall *CreateCall(ASTIdentifier *Identifier);
         ASTCall *CreateCall(ASTFunction *Function);
-        ASTArg *CreateCallArg(ASTCall *Call, const SourceLocation &Loc);
 
         // Create VarRef
         ASTVarRef *CreateVarRef(ASTLocalVar *LocalVar);
@@ -176,8 +175,7 @@ namespace fly {
         // Create Expressions
         ASTEmptyExpr *CreateExpr(ASTStmt *Stmt);
         ASTValueExpr *CreateExpr(ASTStmt *Stmt, ASTValue *Value);
-        ASTExpr *CreateExpr(ASTStmt *Stmt, ASTIdentifier *Identifier);
-        ASTFunctionCallExpr *CreateExpr(ASTStmt *Stmt, ASTCall *Call);
+        ASTCallExpr *CreateExpr(ASTStmt *Stmt, ASTCall *Call);
         ASTVarRefExpr *CreateExpr(ASTStmt *Stmt, ASTVarRef *VarRef);
         ASTUnaryGroupExpr *CreateUnaryExpr(ASTStmt *Stmt, const SourceLocation &Loc, ASTUnaryOperatorKind Kind,
                                            ASTUnaryOptionKind OptionKind, ASTVarRefExpr *First);
@@ -214,15 +212,15 @@ namespace fly {
                             ASTFunction *Function);
         bool AddParam(ASTParam *Param);
         void AddFunctionVarParams(ASTFunction *Function, ASTParam *Param); // TODO
-        bool AddComment(ASTTopDef *Top, std::string &Comment);
-        bool AddComment(ASTClassVar *ClassVar, std::string &Comment);
-        bool AddComment(ASTClassFunction *ClassFunction, std::string &Comment);
+        bool AddComment(ASTTopDef *Top, llvm::StringRef Comment);
+        bool AddComment(ASTClassVar *ClassVar, llvm::StringRef Comment);
+        bool AddComment(ASTClassFunction *ClassFunction, llvm::StringRef Comment);
         bool AddExternalGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar);
         bool AddExternalFunction(ASTNode *Node, ASTFunction *Function);
 
         // Add Value to Array
         bool AddArrayValue(ASTArrayValue *ArrayValue, ASTValue *Value);
-        bool AddFunctionCallArg(ASTCall *FunctionCall, ASTArg *Arg);
+        bool AddCallArg(ASTCall *Call, ASTExpr *Expr);
 
         // Add Stmt
         bool AddStmt(ASTStmt *Stmt);
@@ -230,7 +228,6 @@ namespace fly {
 
     private:
         bool AddExpr(ASTStmt *Stmt, ASTExpr *Expr);
-
     };
 
 }  // end namespace fly

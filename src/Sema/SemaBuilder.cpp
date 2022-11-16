@@ -407,7 +407,9 @@ ASTClassType *
 SemaBuilder::CreateClassType(ASTIdentifier *Identifier) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateClassType",
                       Logger().Attr("Identifier", Identifier).End());
-    return new ASTClassType(Identifier->getLocation(), Identifier->getNameSpace(), Identifier->getName());
+    ASTClassType *ClassType = new ASTClassType(Identifier->getLocation(), Identifier->getNameSpace(), Identifier->getName());
+    delete Identifier;
+    return ClassType;
 }
 
 /**
@@ -657,6 +659,7 @@ SemaBuilder::CreateCall(ASTIdentifier *Identifier) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateDefFunctionCall",
                       Logger().Attr("Identifier", Identifier).End());
     ASTCall *Call = new ASTCall(Identifier->getLocation(), Identifier->getNameSpace(), Identifier->getClassName(), Identifier->getName());
+    delete Identifier;
     return Call;
 }
 
@@ -673,20 +676,6 @@ SemaBuilder::CreateCall(ASTFunction *Function) {
     ASTCall *Call = new ASTCall(Function->Location, Function->NameSpace->Name, Function->Name);
     Call->Def = Function;
     return Call;
-}
-
-/**
- * Creates an ASTArg
- * @param Call
- * @param Loc
- * @return
- */
-ASTArg *
-SemaBuilder::CreateCallArg(ASTCall *Call, const SourceLocation &Loc) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateCallArg",
-                      Logger().Attr("Call", Call).Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
-    ASTArg *Arg = new ASTArg(Call, Loc);
-    return Arg;
 }
 
 ASTVarRef *
@@ -757,31 +746,15 @@ SemaBuilder::CreateExpr(ASTStmt *Stmt, ASTValue *Value) {
     return ValueExpr;
 }
 
-ASTExpr *
-SemaBuilder::CreateExpr(ASTStmt *Stmt, ASTIdentifier *Identifier) {
-    assert(Identifier && "Choose by Identifier");
-    switch (Identifier->getKind()) {
-
-        case ASTIdentifier::ASTIdKind::VAR_REF:
-            return CreateExpr(Stmt, (ASTVarRef *) Identifier);
-        case ASTIdentifier::ASTIdKind::CALL:
-            return CreateExpr(Stmt, (ASTCall *) Identifier);
-        case ASTIdentifier::ASTIdKind::UNDEFINED:
-            assert("Cannot create Expr fromUndefined Identifier");
-            return nullptr;
-    }
-}
-
-ASTFunctionCallExpr *
+ASTCallExpr *
 SemaBuilder::CreateExpr(ASTStmt *Stmt, ASTCall *Call) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateExpr",
                       Logger().Attr("Stmt", Stmt).Attr("Call", Call).End());
 
-    ASTFunctionCallExpr *FunctionCallExpr = new ASTFunctionCallExpr(Call);
-    Call->Expr = FunctionCallExpr;
-    FunctionCallExpr->Stmt = Stmt;
-    AddExpr(Stmt, FunctionCallExpr);
-    return FunctionCallExpr;
+    ASTCallExpr *CallExpr = new ASTCallExpr(Call);
+    CallExpr->Stmt = Stmt;
+    AddExpr(Stmt, CallExpr);
+    return CallExpr;
 }
 
 ASTVarRefExpr *
@@ -1162,7 +1135,7 @@ SemaBuilder::InsertFunction(llvm::StringMap<std::map <uint64_t,llvm::SmallVector
 
         // add to std::map
         std::map<uint64_t, llvm::SmallVector<ASTFunction *, 4>> IntMap;
-        IntMap.insert(std::make_pair(Function->Params->getSize(),Vect));
+        IntMap.insert(std::make_pair(Function->Params->getSize(), Vect));
 
         // add to llvm::StringMap
         return Functions.insert(std::make_pair(Function->getName(), IntMap)).second;
@@ -1224,41 +1197,41 @@ void SemaBuilder::AddFunctionVarParams(ASTFunction *Function, ASTParam *Param) {
     Function->Params->Ellipsis = Param;
 }
 
-std::string
-getComment(std::string &C) {
-    if (C.empty()) {
-        return C;
-    }
-    const char *t = " \t\n\r\f\v";
-    C = C.substr(2, C.size() - 4);
-    C = C.erase(0, C.find_first_not_of(t)); // TODO Check
-    return C.erase(C.find_last_not_of(t) + 1);
-}
+//llvm::StringRef
+//getComment(llvm::StringRef C) {
+//    if (C.empty()) {
+//        return C;
+//    }
+//    const char *t = " \t\n\r\f\v";
+//    C = C.substr(2, C.size() - 4);
+//    C = C.erase(0, C.find_first_not_of(t)); // TODO Check
+//    return C.erase(C.find_last_not_of(t) + 1);
+//}
 
 bool
-SemaBuilder::AddComment(ASTTopDef *Top, std::string &Comment) {
+SemaBuilder::AddComment(ASTTopDef *Top, llvm::StringRef Comment) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddComment", Logger()
                         .Attr("Top", Top)
                         .Attr("Comment", Comment).End());
-    Top->Comment = getComment(Comment);
+    Top->Comment = Comment;
     return true;
 }
 
 bool
-SemaBuilder::AddComment(ASTClassVar *ClassVar, std::string &Comment) {
+SemaBuilder::AddComment(ASTClassVar *ClassVar, llvm::StringRef Comment) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddComment", Logger()
                       .Attr("ClassVar", ClassVar)
                       .Attr("Comment", Comment).End());
-    ClassVar->Comment = getComment(Comment);
+    ClassVar->Comment = Comment;
     return true;
 }
 
 bool
-SemaBuilder::AddComment(ASTClassFunction *ClassFunction, std::string &Comment) {
+SemaBuilder::AddComment(ASTClassFunction *ClassFunction, llvm::StringRef Comment) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddComment", Logger()
                       .Attr("ClassFunction", ClassFunction)
                       .Attr("Comment", Comment).End());
-    ClassFunction->Comment = getComment(Comment);
+    ClassFunction->Comment = Comment;
     return true;
 }
 
@@ -1290,13 +1263,15 @@ SemaBuilder::AddArrayValue(ASTArrayValue *ArrayValue, ASTValue *Value) {
 }
 
 bool
-SemaBuilder::AddFunctionCallArg(ASTCall *FunctionCall, ASTArg *Arg) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "AddFunctionCallArg", Logger()
-                      .Attr("FunctionCall", FunctionCall)
-                      .Attr("Arg", Arg).End());
-    Arg->Index = FunctionCall->getArgs().empty() ? 0 : FunctionCall->getArgs().size();
-    Arg->Call = FunctionCall;
-    FunctionCall->Args.push_back(Arg);
+SemaBuilder::AddCallArg(ASTCall *Call, ASTExpr *Expr) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "AddCallArg", Logger()
+                      .Attr("FunctionCall", Call)
+                      .Attr("Expr", Expr).End());
+    if (Expr->getExprKind() != ASTExprKind::EXPR_EMPTY) {
+        ASTArg *Arg = new ASTArg(Call, Expr);
+        Arg->Index = Call->getArgs().empty() ? 0 : Call->getArgs().size();
+        Call->Args.push_back(Arg);
+    }
     return true;
 }
 
@@ -1307,10 +1282,9 @@ SemaBuilder::AddExpr(ASTStmt *Stmt, ASTExpr *Expr) {
     if (!Expr) {
         return S.Diag(Expr->getLocation(), diag::err_sema_generic) && false;
     }
-    if (Stmt)
+    if (Stmt) {
         switch (Stmt->getKind()) {
             case ASTStmtKind::STMT_EXPR:
-            case ASTStmtKind::STMT_ARG:
             case ASTStmtKind::STMT_VAR_DEFINE:
             case ASTStmtKind::STMT_VAR_ASSIGN:
             case ASTStmtKind::STMT_RETURN:
@@ -1346,7 +1320,7 @@ SemaBuilder::AddExpr(ASTStmt *Stmt, ASTExpr *Expr) {
             case ASTStmtKind::STMT_CONTINUE:
                 assert("Cannot contain an Expr");
         }
-
+    }
     return true;
 }
 

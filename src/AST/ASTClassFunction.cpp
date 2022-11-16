@@ -26,7 +26,7 @@ ASTClass *ASTClassFunction::getClass() const {
     return Class;
 }
 
-const std::string &ASTClassFunction::getComment() const {
+llvm::StringRef ASTClassFunction::getComment() const {
     return Comment;
 }
 
@@ -37,7 +37,7 @@ ASTClassScopes *ASTClassFunction::getScopes() const {
 std::string ASTClassFunction::str() const {
     return Logger("ASTClassFunction").
            Super(ASTFunctionBase::str()).
-//          Attr("Class", Class).
+            Attr("Class", Class).
             Attr("Comment", Comment).
             Attr("Scopes", Scopes).
             End();
