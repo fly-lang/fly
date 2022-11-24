@@ -11,12 +11,12 @@
 
 using namespace fly;
 
-ASTIdentifier::ASTIdentifier(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef Name) :
-        Loc(Loc), NameSpace(NameSpace), Name(Name) {
+ASTIdentifier::ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name) :
+        Loc(Loc), Name(Name) {
 }
 
-ASTIdentifier::ASTIdentifier(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef ClassName, llvm::StringRef Name) :
-        Loc(Loc), NameSpace(NameSpace), ClassName(ClassName), Name(Name) {
+ASTIdentifier::ASTIdentifier(const SourceLocation &Loc, llvm::StringRef ClassName, llvm::StringRef Name) :
+        Loc(Loc), ClassName(ClassName), Name(Name) {
 }
 
 const SourceLocation &ASTIdentifier::getLocation() const {
@@ -25,6 +25,10 @@ const SourceLocation &ASTIdentifier::getLocation() const {
 
 llvm::StringRef ASTIdentifier::getNameSpace() const {
     return NameSpace;
+}
+
+void ASTIdentifier::setNameSpace(llvm::StringRef NS) {
+    NameSpace = NS;
 }
 
 llvm::StringRef ASTIdentifier::getClassName() const {

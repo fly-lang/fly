@@ -42,11 +42,12 @@ ASTExpr *ASTArg::getExpr() const {
 }
 
 ASTCall::ASTCall(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef Name) :
-        ASTIdentifier(Loc, NameSpace, Name){
+        ASTIdentifier(Loc, NameSpace, Name) {
 }
 
 ASTCall::ASTCall(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef ClassName, llvm::StringRef Name) :
-        ASTIdentifier(Loc, NameSpace, ClassName, Name){
+        ASTIdentifier(Loc, ClassName, Name) {
+    setNameSpace(NameSpace);
 }
 
 const std::vector<ASTArg*> ASTCall::getArgs() const {

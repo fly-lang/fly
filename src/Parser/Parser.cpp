@@ -489,6 +489,8 @@ bool Parser::ParseStmt(ASTBlock *Block) {
         if (Tok.isAnyIdentifier()) {
             const StringRef &Name = Tok.getIdentifierInfo()->getName();
             ConsumeToken();
+            if (Identifier->getNameSpace().empty()) // ClassType NameSpace must be populated always
+                Identifier->setNameSpace(NameSpace);
             Type = SemaBuilder::CreateClassType(Identifier);
             ASTLocalVar *LocalVar = Builder.CreateLocalVar(Block, Tok.getLocation(), Type, Name, Const);
 
@@ -992,6 +994,8 @@ ASTCall *Parser::ParseCall(ASTStmt *Stmt, ASTIdentifier *Identifier) {
     assert(Tok.is(tok::l_paren) && "Call start with parenthesis");
 
     // Parse Call args
+    if (Identifier->getNameSpace().empty()) // NameSpace must be always populated in ASTCall
+        Identifier->setNameSpace(NameSpace);
     ASTCall *Call = Builder.CreateCall(Identifier);
     ConsumeParen(); // consume l_paren
 
@@ -1061,7 +1065,8 @@ ASTIdentifier *Parser::ParseIdentifier() {
                 ConsumeToken();
 
                 if (Tok.isAnyIdentifier()) {
-                    Identifier = new ASTIdentifier(Loc, N1, N2, Tok.getIdentifierInfo()->getName());
+                    Identifier = new ASTIdentifier(Loc, N2, Tok.getIdentifierInfo()->getName());
+                    Identifier->setNameSpace(N1);
                     ConsumeToken();
                 }
                 // FIXME nested var/call
@@ -1084,13 +1089,14 @@ ASTIdentifier *Parser::ParseIdentifier() {
                 ConsumeToken();
 
                 if (Tok.isAnyIdentifier()) {
-                    Identifier = new ASTIdentifier(Loc, NameSpace, N1, Tok.getIdentifierInfo()->getName());
+                    Identifier = new ASTIdentifier(Loc, N1, Tok.getIdentifierInfo()->getName());
+                    Identifier->setNameSpace(NameSpace);
                     ConsumeToken();
                 }
                 // FIXME nested var/call
             }
         } else {
-            Identifier = new ASTIdentifier(Loc, NameSpace, N1);
+            Identifier = new ASTIdentifier(Loc,N1);
         }
     }
 

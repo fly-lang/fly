@@ -393,6 +393,7 @@ SemaBuilder::CreateClassType(const SourceLocation &Loc, llvm::StringRef NameSpac
                       "Loc=" << Loc.getRawEncoding() <<
                       ", Name=" << Name <<
                       ", NameSPace=" << NameSpace);
+    assert(!NameSpace.empty() && !Name.empty() && "Mandatory");
     return new ASTClassType(Loc, NameSpace, Name);
 }
 
@@ -407,6 +408,7 @@ ASTClassType *
 SemaBuilder::CreateClassType(ASTIdentifier *Identifier) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateClassType",
                       Logger().Attr("Identifier", Identifier).End());
+    assert(!Identifier->getNameSpace().empty() && !Identifier->getName().empty() && "Mandatory");
     ASTClassType *ClassType = new ASTClassType(Identifier->getLocation(), Identifier->getNameSpace(), Identifier->getName());
     delete Identifier;
     return ClassType;
@@ -658,6 +660,7 @@ ASTCall *
 SemaBuilder::CreateCall(ASTIdentifier *Identifier) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateDefFunctionCall",
                       Logger().Attr("Identifier", Identifier).End());
+    assert(!Identifier->getNameSpace().empty() && !Identifier->getName().empty() && "Mandatory");
     ASTCall *Call = new ASTCall(Identifier->getLocation(), Identifier->getNameSpace(), Identifier->getClassName(), Identifier->getName());
     delete Identifier;
     return Call;
@@ -684,15 +687,7 @@ SemaBuilder::CreateVarRef(ASTLocalVar *LocalVar) {
                       Logger().Attr("LocalVar", LocalVar).End());
     assert(LocalVar->Top && "Var without a Top declaration");
 
-    ASTNameSpace *NameSpace = S.FindNameSpace(LocalVar->Top);
-    ASTVarRef *VarRef;
-    if (LocalVar->Top->Kind == ASTFunctionKind::CLASS_FUNCTION) {
-        StringRef &Class = ((ASTClassFunction *) LocalVar->Top)->getClass()->Name;
-        VarRef = new ASTVarRef(LocalVar->Location, NameSpace->getName(), Class, LocalVar->Name);
-    } else {
-        VarRef = new ASTVarRef(LocalVar->Location, NameSpace->getName(), LocalVar->Name);
-    }
-
+    ASTVarRef *VarRef = new ASTVarRef(LocalVar->Location, LocalVar->Name);
     VarRef->Def = LocalVar;
     return VarRef;
 }
@@ -701,7 +696,8 @@ ASTVarRef *
 SemaBuilder::CreateVarRef(ASTGlobalVar *GlobalVar) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateVarRef",
                       Logger().Attr("GlobalVar", GlobalVar).End());
-    ASTVarRef *VarRef = new ASTVarRef(GlobalVar->Location, GlobalVar->NameSpace->getName(), GlobalVar->Name);
+    ASTVarRef *VarRef = new ASTVarRef(GlobalVar->Location, GlobalVar->Name);
+    VarRef->setNameSpace(GlobalVar->getNameSpace()->getName());
     VarRef->Def = GlobalVar;
     return VarRef;
 }
@@ -710,8 +706,8 @@ ASTVarRef *
 SemaBuilder::CreateVarRef(ASTClassVar *ClassVar) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateVarRef",
                       Logger().Attr("ClassVar", ClassVar).End());
-    ASTVarRef *VarRef = new ASTVarRef(ClassVar->getLocation(), ClassVar->Name,
-                                      ClassVar->Class->Name, ClassVar->Class->NameSpace->getName());
+    ASTVarRef *VarRef = new ASTVarRef(ClassVar->getLocation(), ClassVar->Class->Name, ClassVar->Name);
+    VarRef->setNameSpace(ClassVar->getClass()->getNameSpace()->getName());
     VarRef->Def = ClassVar;
     return VarRef;
 }
@@ -720,8 +716,8 @@ ASTVarRef *
 SemaBuilder::CreateVarRef(ASTIdentifier *Identifier) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateVarRef",
                       Logger().Attr("Identifier", Identifier).End());
-    ASTVarRef *VarRef = new ASTVarRef(Identifier->getLocation(), Identifier->getNameSpace(),
-                        Identifier->getClassName(), Identifier->getName());
+    ASTVarRef *VarRef = new ASTVarRef(Identifier->getLocation(), Identifier->getClassName(), Identifier->getName());
+    VarRef->setNameSpace(VarRef->getNameSpace());
     delete Identifier;
     return VarRef;
 }

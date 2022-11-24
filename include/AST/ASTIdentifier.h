@@ -26,19 +26,21 @@ namespace fly {
     protected:
 
         const SourceLocation Loc;
-        const llvm::StringRef NameSpace;
         const llvm::StringRef ClassName;
         const llvm::StringRef Name;
+        llvm::StringRef NameSpace;
 
     public:
 
-        ASTIdentifier(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef Name);
+        ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name);
 
-        ASTIdentifier(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef ClassName, llvm::StringRef Name);
+        ASTIdentifier(const SourceLocation &Loc, llvm::StringRef ClassName, llvm::StringRef Name);
 
         const SourceLocation &getLocation() const;
 
         llvm::StringRef getNameSpace() const;
+
+        void setNameSpace(llvm::StringRef NameSpace);
 
         llvm::StringRef getClassName() const;
 

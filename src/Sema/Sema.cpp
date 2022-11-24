@@ -18,7 +18,9 @@
 #include "AST/ASTFunctionBase.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTClassVar.h"
+#include "AST/ASTImport.h"
 #include "AST/ASTClassFunction.h"
+#include "AST/ASTNode.h"
 #include "AST/ASTVarRef.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/SourceLocation.h"
@@ -50,17 +52,6 @@ ASTNameSpace *Sema::FindNameSpace(llvm::StringRef Name) const {
     return NameSpace;
 }
 
-ASTNameSpace *Sema::FindNameSpace(ASTFunctionBase *FunctionBase) const {
-    FLY_DEBUG_MESSAGE("Sema", "FindNameSpace", Logger().Attr("FunctionBase", FunctionBase).End());
-    if (FunctionBase->getKind() == ASTFunctionKind::FUNCTION) {
-        return ((ASTFunction *) FunctionBase)->getNameSpace();
-    } else if (FunctionBase->getKind() == ASTFunctionKind::CLASS_FUNCTION) {
-        return ((ASTClassFunction *) FunctionBase)->getClass()->getNameSpace();
-    } else {
-        assert("Unknown Function Kind");
-    }
-}
-
 ASTNode *Sema::FindNode(ASTFunctionBase *FunctionBase) const {
     FLY_DEBUG_MESSAGE("Sema", "FindNode", Logger().Attr("FunctionBase", FunctionBase).End());
     if (FunctionBase->getKind() == ASTFunctionKind::FUNCTION) {
@@ -69,6 +60,7 @@ ASTNode *Sema::FindNode(ASTFunctionBase *FunctionBase) const {
         return ((ASTClassFunction *) FunctionBase)->getClass()->getNode();
     } else {
         assert("Unknown Function Kind");
+        return nullptr;
     }
 }
 
@@ -82,11 +74,11 @@ ASTNode *Sema::FindNode(llvm::StringRef Name, ASTNameSpace *NameSpace) const {
     return Node;
 }
 
-ASTClass *Sema::FindClass(llvm::StringRef Name, ASTNameSpace *NameSpace) const {
-    FLY_DEBUG_MESSAGE("Sema", "FindClass", Logger().Attr("Name", Name).Attr("NameSpace", NameSpace).End());
-    ASTClass *Class = NameSpace->Classes.lookup(Name);
+ASTClass *Sema::FindClass(llvm::StringRef ClassName, ASTNameSpace *NameSpace) const {
+    FLY_DEBUG_MESSAGE("Sema", "FindClass", Logger().Attr("ClassName", ClassName).Attr("NameSpace", NameSpace).End());
+    ASTClass *Class = NameSpace->Classes.lookup(ClassName);
     if (!Class) {
-        Diag(diag::err_unref_node) << Name;
+        Diag(diag::err_unref_node) << ClassName;
     }
     return Class;
 }
@@ -99,28 +91,22 @@ ASTClass *Sema::FindClass(llvm::StringRef Name, ASTNameSpace *NameSpace) const {
  * @param VarRef
  * @return the found LocalVar
  */
-ASTLocalVar *Sema::FindVarDef(ASTBlock *Block, ASTVarRef *VarRef) const {
-    FLY_DEBUG_MESSAGE("Sema", "FindVarDef", Logger().Attr("Name", Block).Attr("VarRef", VarRef).End());
-    const auto &It = Block->getLocalVars().find(VarRef->getName());
+ASTLocalVar *Sema::FindVarDef(ASTBlock *Block, llvm::StringRef VarName) const {
+    FLY_DEBUG_MESSAGE("Sema", "FindVarDef", Logger().Attr("Name", Block).Attr("VarName", VarName).End());
+    const auto &It = Block->getLocalVars().find(VarName);
     if (It != Block->getLocalVars().end()) { // Search into this Block
         FLY_DEBUG_MESSAGE("Sema", "FindVarDef", Logger().Attr("Found", It->second).End());
         return It->getValue();
     } else if (Block->getParent()) { // Traverse Parent Block to find the right VarDeclStmt
         if (Block->Parent->getKind() == ASTStmtKind::STMT_BLOCK)
-            return FindVarDef((ASTBlock *) Block->getParent(), VarRef);
+            return FindVarDef((ASTBlock *) Block->getParent(), VarName);
     }
     return nullptr;
 }
 
-ASTClassVar *Sema::FindClassVar(ASTVar *Var, llvm::StringRef Name) {
-    FLY_DEBUG_MESSAGE("Sema", "FindClassVar", Logger().Attr("Var", Var).Attr("Name", Name).End());
-    if (Var->getType()->getKind() == ASTTypeKind::TYPE_CLASS) {
-        ASTClassVar *ClassVar = ((ASTClassType *) Var->getType())->getDef()->getVars().lookup(Name);
-        // TODO check error
-        return ClassVar;
-    }
-
-    return nullptr;
+ASTImport *Sema:: FindImport(ASTNode *Node, llvm::StringRef Name) {
+    // Search into Node imports
+    return Node->Imports.lookup(Name);
 }
 
 /**
@@ -142,4 +128,3 @@ DiagnosticBuilder Sema::Diag(SourceLocation Loc, unsigned DiagID) const {
 DiagnosticBuilder Sema::Diag(unsigned DiagID) const {
     return Diags.Report(DiagID);
 }
-

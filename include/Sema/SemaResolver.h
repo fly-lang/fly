@@ -46,6 +46,7 @@ namespace fly {
     class ASTForBlock;
     class ASTClassType;
     class ASTFunction;
+    class ASTFunctionBase;
 
     class SemaResolver {
 
@@ -77,7 +78,7 @@ namespace fly {
 
         bool ResolveForBlock(ASTForBlock *ForBlock);
 
-        bool ResolveType(ASTType * Type);
+        bool ResolveType(ASTFunctionBase *FunctionBase, ASTType * Type);
 
         bool FindFunction(ASTBlock *Block, ASTCall *Call, llvm::StringMapIterator<std::map<uint64_t, llvm::SmallVector<ASTFunction *, 4>>> StrMapIt);
 

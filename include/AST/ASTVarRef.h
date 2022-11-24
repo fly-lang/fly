@@ -33,9 +33,10 @@ namespace fly {
         ASTVar *Def = nullptr;
 
     public:
-        ASTVarRef(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef Name);
 
-        ASTVarRef(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef ClassName, llvm::StringRef Name);
+        ASTVarRef(const SourceLocation &Loc, llvm::StringRef Name);
+
+        ASTVarRef(const SourceLocation &Loc, llvm::StringRef ClassName, llvm::StringRef Name);
 
         ASTVar *getDef() const;
 

@@ -67,9 +67,9 @@ namespace {
             Input.Load(Source);
             Parser *P = new Parser(Input, CI.getSourceManager(), Diags, *Builder);
             ASTNode *Node = P->Parse();
+            Success = !Diags.hasErrorOccurred() && Node;
             if (DoBuild)
-                Success = Node && Builder->Build();
-
+                Success &= Builder->Build();
             return Node;
         }
 
@@ -505,7 +505,7 @@ namespace {
                                "  Type t = null"
                                "  return t\n"
                                "}\n");
-        ASTNode *Node = Parse("TypeDefaultVarReturn", str);
+        ASTNode *Node = Parse("TypeDefaultVarReturn", str, false);
 
         ASSERT_TRUE(isSuccess());
 
@@ -542,7 +542,7 @@ namespace {
                                "double j\n"
                                "Type t\n"
                                "}\n");
-        ASTNode *Node = Parse("UndefLocalVar", str);
+        ASTNode *Node = Parse("UndefLocalVar", str, false);
 
         ASSERT_TRUE(isSuccess());
 
@@ -1161,8 +1161,7 @@ namespace {
                                "  public int b = 2\n"
                                "  private const int c\n"
                                "}\n");
-        ASTNode *Node = Parse("ClassVars", str);
-        ASSERT_TRUE(isSuccess());
+        ASTNode *Node = Parse("ClassVars", str, false);
 
         EXPECT_FALSE(Node->getClass()->getVars().empty());
         EXPECT_EQ(Node->getClass()->getVars().size(), 3);
@@ -1176,12 +1175,12 @@ namespace {
         EXPECT_EQ(cVar->getScopes()->getVisibility(), ASTClassVisibilityKind::CLASS_V_PRIVATE);
         EXPECT_TRUE(cVar->getScopes()->isConstant());
 
-//        llvm::StringRef str2 = (
-//                "void func() {\n"
-//                "  Test t"
-//                "  t.a = 1"
-//                "}\n");
-//        ASTNode *Node2 = Parse("Identifier", str2);
-//        ASSERT_TRUE(isSuccess());
+        llvm::StringRef str2 = (
+                "void func() {\n"
+                "  Test t"
+                "  t.a = 1"
+                "}\n");
+        ASTNode *Node2 = Parse("Identifier", str2);
+        ASSERT_TRUE(isSuccess());
     }
 }

@@ -336,6 +336,7 @@ namespace fly {
     class ASTClassType : public ASTType {
 
         friend class SemaBuilder;
+        friend class SemaResolver;
 
         ASTClassType *Parent;
 

@@ -1874,6 +1874,7 @@ namespace {
                                 "c",
                                 SemaBuilder::CreateClassScopes(
                                         ASTClassVisibilityKind::CLASS_V_PRIVATE, true));
+        Builder->AddClass(Node, TestClass);
 
         // main()
         ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",

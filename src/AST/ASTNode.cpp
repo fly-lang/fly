@@ -41,11 +41,6 @@ ASTNameSpace* ASTNode::getNameSpace() {
     return NameSpace;
 }
 
-ASTImport *ASTNode:: FindImport(const llvm::StringRef Name) {
-    // Search into Node imports
-    return Imports.lookup(Name);
-}
-
 const llvm::StringMap<ASTImport*> &ASTNode::getImports() {
     return Imports;
 }

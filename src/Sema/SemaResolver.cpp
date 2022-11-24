@@ -14,6 +14,7 @@
 #include "AST/ASTContext.h"
 #include "AST/ASTClassFunction.h"
 #include "AST/ASTNameSpace.h"
+#include "AST/ASTType.h"
 #include "AST/ASTNode.h"
 #include "AST/ASTIfBlock.h"
 #include "AST/ASTImport.h"
@@ -163,7 +164,8 @@ bool SemaResolver::ResolveBlock(ASTBlock *Block) {
                 break;
             case ASTStmtKind::STMT_VAR_DEFINE: {
                 ASTLocalVar *LocalVar = ((ASTLocalVar *) Stmt);
-                Success &= ResolveType(LocalVar->getType());
+                Success &= ResolveType(Block->getTop(), LocalVar->getType());
+
                 if (LocalVar->getExpr())
                     Success &= ResolveExpr(Block, LocalVar->getExpr());
                 break;
@@ -227,7 +229,7 @@ bool SemaResolver::ResolveWhileBlock(ASTWhileBlock *WhileBlock) {
 }
 
 bool SemaResolver::ResolveForBlock(ASTForBlock *ForBlock) {
-    bool Success = ResolveBlock(ForBlock) && ResolveExpr(ForBlock->getParent(), ForBlock->Condition) &&
+    bool Success = ResolveBlock(ForBlock) && ResolveExpr(ForBlock, ForBlock->Condition) &&
             S.Validator->CheckConvertibleTypes(ForBlock->Condition->Type, SemaBuilder::CreateBoolType(ForBlock->Condition->Loc));
     if (ForBlock->Post) {
         Success &= ResolveBlock(ForBlock->Post);
@@ -239,18 +241,27 @@ bool SemaResolver::ResolveForBlock(ASTForBlock *ForBlock) {
     return Success;
 }
 
-bool SemaResolver::ResolveType(ASTType * Type) {
+bool SemaResolver::ResolveType(ASTFunctionBase *FunctionBase, ASTType * Type) {
     ASTClassType * ClassType;
     if (Type->isClass())
         ClassType = (ASTClassType *) Type;
-    if (Type->isArray() && ((ASTArrayType *) Type)->getType()->isArray())
+    else if (Type->isArray() && ((ASTArrayType *) Type)->getType()->isArray()) // FIXME nested array
         ClassType = ((ASTClassType *) ((ASTArrayType *) Type)->getType());
-    else
+    else // is primitive type
         return true;
 
-    ASTNameSpace *NameSpace = S.FindNameSpace(ClassType->getNameSpace());
-    ASTClass *Class = S.FindClass(ClassType->getName(), NameSpace);
-    if (!Class) {
+    // Search Class Type definition
+//    if (ClassType->getNameSpace().empty()) {
+//        ASTNode *Node = S.FindNode(FunctionBase);
+//        if (Node->getClass() && Node->getClass()->getName() == ClassType->getName()) {
+//            ClassType->Def = Node->getClass();
+//        }
+//    } else {
+        ASTNameSpace *NameSpace = S.FindNameSpace(ClassType->getNameSpace());
+        ClassType->Def = S.FindClass(ClassType->getName(), NameSpace);
+//    }
+
+    if (!ClassType->Def) {
         S.Diag(ClassType->getLocation(), diag::err_unref_type);
         return false;
     }
@@ -287,7 +298,6 @@ bool SemaResolver::FindFunction(ASTBlock *Block, ASTCall *Call,
 
 bool SemaResolver::ResolveCall(ASTBlock *Block, ASTCall *Call) {
     if (!Call->Def) {
-        assert(!Call->getNameSpace().empty() && "Call without NameSpace");
         const auto &Node = S.FindNode(Block->getTop());
 
         // Search into functions
@@ -308,7 +318,7 @@ bool SemaResolver::ResolveCall(ASTBlock *Block, ASTCall *Call) {
             }
 
             ASTImport *Import;
-            if (!Success && (Import = Node->FindImport(Call->getNameSpace()))) {
+            if (!Success && (Import = S.FindImport(Node, Call->getNameSpace()))) {
                 // Find in current Import
                 StrMapIt = Import->NameSpace->Functions.find(Call->getName());
 
@@ -344,60 +354,83 @@ bool SemaResolver::ResolveArg(ASTBlock *Block, ASTArg *Arg, ASTParam *Param) {
  */
 bool SemaResolver::ResolveVarRef(ASTBlock *Block, ASTVarRef *VarRef) {
     FLY_DEBUG_MESSAGE("Sema", "ResolveVarRef", Logger().Attr("VarRef", VarRef).End());
-    // Search into parameters // FIXME ?? Already present into Block->LocalVars
-    for (auto &Param : Block->getTop()->getParams()->getList()) {
-        if (VarRef->getName() == Param->getName()) {
-            // Resolve with Param
-            VarRef->Def = Param;
-            break;
-        }
-    }
 
-    // If VarRef is not resolved with parameters, search into Block declarations
-    if (!VarRef->getDef()) {
-        // Search recursively into current Block or in one of Parents
-        ASTLocalVar *LocalVar = S.FindVarDef(Block, VarRef);
-        // Check if var declaration var is resolved
-        if (LocalVar) {
-            VarRef->Def = LocalVar; // Resolved
-        } else {
-            const auto &Node = S.FindNode(Block->getTop());
-            ASTImport *Import;
+    const auto &Node = S.FindNode(Block->getTop());
+    if (!VarRef->Def) {
+        
+        if (VarRef->getClassName().empty()) { // Search a LocalVar or GlobalVar
+            
+            // Search into LocalVars of the Block or into GlobalVars of current Node
             if (VarRef->getNameSpace().empty()) {
-                // Find in current Node
-                VarRef->Def = Node->GlobalVars.lookup(VarRef->getName());
-            } else if (VarRef->getNameSpace() == Node->NameSpace->getName()) {
-                // Find in current NameSpace
-                VarRef->Def = Node->NameSpace->GlobalVars.lookup(VarRef->getName());
-            } else if ((Import = Node->FindImport(VarRef->getNameSpace()))) {
-                // Find in current Import
-                VarRef->Def = Import->getNameSpace()->getGlobalVars().lookup(VarRef->getName());
-            }
 
-            // Error: check unreferenced var
-            // VarRef not found in node, namespace and node imports
-            if (!VarRef->Def) {
-                S.Diag(VarRef->getLocation(), diag::err_unref_var);
-                return false;
-            }
+                // Search recursively into current Block or in one of Parents
+                VarRef->Def = S.FindVarDef(Block, VarRef->getName());
 
-            Block->UndefVars.erase(VarRef->getName());
-            return true;
+                // Search into Node GlobalVars
+                if (!VarRef->Def)
+                    VarRef->Def = Node->GlobalVars.lookup(VarRef->getName());
+            } else {
+
+                // Search GlobalVars into NameSpaces
+                if (VarRef->getNameSpace().equals(Node->getNameSpace()->getName())) { // Current NameSpace
+                    VarRef->Def = Node->NameSpace->GlobalVars.lookup(VarRef->getName());
+                } else { // Imported NameSpace
+                    ASTImport *Import = S.FindImport(Node, VarRef->getNameSpace());
+                    VarRef->Def = Import->getNameSpace()->getGlobalVars().lookup(VarRef->getName());
+                }
+            }
+        } else { // Search a Class Var
+
+            // Search into ClassVars of current Node or in Imported NameSpace
+            if (VarRef->getNameSpace().empty()) {
+
+                // Search into Node Class Vars
+                // Class.var
+                if (Node->Class && Node->Class->getName().equals(VarRef->getClassName())) {
+                    VarRef->Def = (ASTVar *) Node->Class->Vars.lookup(VarRef->getName());
+                } else { // Search for ClassName instance
+                    // Class i
+                    // i.var
+                    ASTLocalVar *LocalVar = S.FindVarDef(Block, VarRef->getClassName());
+                    if (LocalVar && LocalVar->getType()->isClass()) { // FIXME getType()->getDef()->getVars()
+                        VarRef->Def = (ASTVar *) ((ASTClassType *) LocalVar->getType())->getDef()->getVars()
+                                .lookup(VarRef->getName());
+                    }
+                }
+            } else {
+
+                // Search ClassVars into NameSpaces
+                // NS1:Class.var
+                ASTLocalVar *Instance;
+                if ((Instance = S.FindVarDef(Block, VarRef->getClassName()))) {
+                    if (Instance->getType()->isClass()) {
+                        VarRef->Def = (ASTVar *) ((ASTClassType *) Instance->getType())->getDef()->getVars().lookup(VarRef->getName());
+                    }
+                } else {
+                    ASTClass *Class;
+                    if (VarRef->getNameSpace().equals(Node->getNameSpace()->getName())) { // Current NameSpace
+                        Class = S.FindClass(VarRef->ClassName, Node->NameSpace);
+
+                    } else { // Imported NameSpace
+                        ASTImport *Import = S.FindImport(Node, VarRef->getNameSpace());
+                        Class = Import ? S.FindClass(VarRef->ClassName, Import->NameSpace) : nullptr;
+                    }
+                    if (Class) {
+                        VarRef->Def = (ASTVar *) Class->Vars.lookup(VarRef->getName());
+                    }
+                }
+            }
         }
     }
 
-    if (VarRef->getDef()) {
-
-        // The Var is now well-defined: you can remove it from UndefVars
-        if (Block->UndefVars.lookup(VarRef->getName())) {
-            return Block->UndefVars.erase(VarRef->getName());
-        }
-
-        return true;
+    // VarRef not found in node, namespace and node imports
+    if (!VarRef->Def) {
+        S.Diag(VarRef->getLocation(), diag::err_undef_var);
+        return false;
     }
 
-    S.Diag(VarRef->getLocation(), diag::err_undef_var);
-    return false;
+    Block->UndefVars.erase(VarRef->getName());
+    return true;
 }
 
 /**
@@ -415,7 +448,7 @@ bool SemaResolver::ResolveExpr(ASTBlock *Block, ASTExpr *Expr) {
         case ASTExprKind::EXPR_VALUE: // Select the best option for this Value
             return ResolveValueExpr((ASTValueExpr *) Expr);
         case ASTExprKind::EXPR_VAR_REF: {
-            ASTBlock *Block = getBlock(Expr->getStmt());
+//            ASTBlock *Block = getBlock(Expr->getStmt());
             ASTVarRef *VarRef = ((ASTVarRefExpr *)Expr)->getVarRef();
             if (S.Validator->CheckUndef(Block, VarRef) && (VarRef->getDef() || ResolveVarRef(Block, VarRef))) {
                 Expr->Type = VarRef->getDef()->getType();
@@ -426,7 +459,7 @@ bool SemaResolver::ResolveExpr(ASTBlock *Block, ASTExpr *Expr) {
             }
         }
         case ASTExprKind::EXPR_CALL: {
-            ASTBlock *Block = getBlock(Expr->getStmt());
+//            ASTBlock *Block = getBlock(Expr->getStmt());
             ASTCall *Call = ((ASTCallExpr *)Expr)->getCall();
             if (Call->getDef() || ResolveCall(Block, Call)) {
                 Expr->Type = Call->Def->Type;

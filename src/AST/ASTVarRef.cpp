@@ -12,13 +12,14 @@
 
 using namespace fly;
 
-ASTVarRef::ASTVarRef(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef Name) :
-        ASTIdentifier(Loc, NameSpace, Name) {
+ASTVarRef::ASTVarRef(const SourceLocation &Loc, llvm::StringRef Name) :
+        ASTIdentifier(Loc, Name) {
 
 }
 
-ASTVarRef::ASTVarRef(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef ClassName, llvm::StringRef Name) :
-        ASTIdentifier(Loc, NameSpace, ClassName, Name) {
+ASTVarRef::ASTVarRef(const SourceLocation &Loc, llvm::StringRef ClassName, llvm::StringRef Name) :
+        ASTIdentifier(Loc, ClassName, Name) {
+
 }
 
 ASTVar *ASTVarRef::getDef() const {
