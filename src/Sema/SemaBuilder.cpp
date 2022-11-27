@@ -18,6 +18,7 @@
 #include "AST/ASTImport.h"
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTFunction.h"
+#include "AST/ASTFunctionBase.h"
 #include "AST/ASTCall.h"
 #include "AST/ASTParams.h"
 #include "AST/ASTBlock.h"
@@ -227,7 +228,7 @@ SemaBuilder::CreateClassScopes(ASTClassVisibilityKind Visibility, bool Constant)
  * @return
  */
 ASTClassVar *
-SemaBuilder::CreateClassVar(ASTClass *Class, SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
+SemaBuilder::CreateClassVar(ASTClass *Class, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
                                          ASTClassScopes *Scopes) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateClassVar",
                       Logger().Attr("Class", Class)
@@ -240,8 +241,18 @@ SemaBuilder::CreateClassVar(ASTClass *Class, SourceLocation &Loc, ASTType *Type,
         return ClassVar;
     }
 
-    S.Diag(Loc, diag::err_sema_class_field_redeclare);
+    S.Diag(Loc, diag::err_sema_class_field_redeclare) << Name;
     return nullptr;
+}
+
+ASTClassFunction *
+SemaBuilder::CreateClassFunction(ASTClass *Class, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
+                                 ASTClassScopes *Scopes) {
+    ASTClassFunction *F = new ASTClassFunction(Loc, Class, Scopes, Type, Name);
+    F->Params = new ASTParams();
+    F->Body = CreateBlock(nullptr, SourceLocation());
+    F->Body->Top = F;
+    return F;
 }
 
 /**
@@ -681,6 +692,15 @@ SemaBuilder::CreateCall(ASTFunction *Function) {
     return Call;
 }
 
+ASTCall *
+SemaBuilder::CreateCall(ASTClassFunction *Function) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateDefFunctionCall",
+                      Logger().Attr("Function=", Function).End());
+    ASTCall *Call = new ASTCall(Function->Location, Function->Class->NameSpace->Name, Function->Class->Name, Function->Name);
+    Call->Def = Function;
+    return Call;
+}
+
 ASTVarRef *
 SemaBuilder::CreateVarRef(ASTLocalVar *LocalVar) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateVarRef",
@@ -1113,10 +1133,19 @@ SemaBuilder::AddFunction(ASTNode *Node, ASTFunction *Function) {
     assert(0 && "Unknown Function Visibility");
 }
 
-
 bool
-SemaBuilder::InsertFunction(llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> &Functions,
-                                 ASTFunction *Function) {
+SemaBuilder::AddFunction(ASTClass *Class, ASTClassFunction *ClassFunction) {
+    FLY_DEBUG_MESSAGE("ASTNode", "AddFunction",
+                      Logger().Attr("Class", Class).Attr("ClassFunction", ClassFunction).End());
+
+    // Add into Node for local resolution
+    return InsertFunction(Class->Methods, ClassFunction);
+}
+
+template <class T>
+bool
+SemaBuilder::InsertFunction(llvm::StringMap<std::map <uint64_t,llvm::SmallVector <T *, 4>>> &Functions,
+                                 T *Function) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "InsertFunction",
                       Logger().Attr("Function", Function).End());
     // Functions is llvm::StringMap<std::map <uint64_t, llvm::SmallVector <ASTFunction *, 4>>>
@@ -1126,11 +1155,11 @@ SemaBuilder::InsertFunction(llvm::StringMap<std::map <uint64_t,llvm::SmallVector
     if (StrMapIt == Functions.end()) {
 
         // add to llvm::SmallVector
-        llvm::SmallVector<ASTFunction *, 4> Vect;
+        llvm::SmallVector<T *, 4> Vect;
         Vect.push_back(Function);
 
         // add to std::map
-        std::map<uint64_t, llvm::SmallVector<ASTFunction *, 4>> IntMap;
+        std::map<uint64_t, llvm::SmallVector<T *, 4>> IntMap;
         IntMap.insert(std::make_pair(Function->Params->getSize(), Vect));
 
         // add to llvm::StringMap
@@ -1140,14 +1169,14 @@ SemaBuilder::InsertFunction(llvm::StringMap<std::map <uint64_t,llvm::SmallVector
         if (IntMapIt == StrMapIt->getValue().end()) { // but not have the same number of Params
 
             // add to llvm::SmallVector
-            llvm::SmallVector<ASTFunction *, 4> Vect;
+            llvm::SmallVector<T *, 4> Vect;
             Vect.push_back(Function);
 
             // add to std::map
-            std::pair<uint64_t, SmallVector<ASTFunction *, 4>> IntMapPair = std::make_pair(
+            std::pair<uint64_t, SmallVector<T *, 4>> IntMapPair = std::make_pair(
                     Function->Params->getSize(), Vect);
 
-            std::map<uint64_t, llvm::SmallVector<ASTFunction *, 4>> IntMap = StrMapIt->getValue();
+            std::map<uint64_t, llvm::SmallVector<T *, 4>> IntMap = StrMapIt->getValue();
             return IntMap.insert(std::make_pair(Function->Params->getSize(),Vect)).second;
         } else { // This Node contains a Function with this Function->Name and same number of Params
 
@@ -1165,12 +1194,12 @@ SemaBuilder::InsertFunction(llvm::StringMap<std::map <uint64_t,llvm::SmallVector
 
             // Check Parameter Types
             if (DifferentParamTypes) { // Add the new Function
-                SmallVector<ASTFunction *, 4> Vect = IntMapIt->second;
+                SmallVector<T *, 4> Vect = IntMapIt->second;
                 Vect.push_back(Function);
                 return true;
             } else { // Function is duplicated
-                // This Node already contains this Function
-                S.Diag(Function->getLocation(), diag::err_duplicate_func) << Function->getName();
+                // already contains this Function
+                S.Diag((Function->getLocation()), diag::err_duplicate_func) << Function->getName();
                 return false;
             }
         }

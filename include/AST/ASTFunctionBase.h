@@ -50,6 +50,9 @@ namespace fly {
         // Function Name
         llvm::StringRef Name;
 
+        // Source Location
+        const SourceLocation Location;
+
         // Header contains parameters
         ASTParams *Params = nullptr;
 
@@ -64,7 +67,7 @@ namespace fly {
 
     protected:
 
-        ASTFunctionBase(ASTFunctionKind Kind, ASTType *ReturnType, llvm::StringRef Name);
+        ASTFunctionBase(const SourceLocation &Loc, ASTFunctionKind Kind, ASTType *ReturnType, llvm::StringRef Name);
 
     public:
 
@@ -73,6 +76,8 @@ namespace fly {
         ASTType *getType() const;
 
         llvm::StringRef getName() const;
+
+        const SourceLocation &getLocation() const;
 
         const ASTParams *getParams() const;
 

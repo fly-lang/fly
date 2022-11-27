@@ -66,6 +66,9 @@ namespace fly {
 
         llvm::StringRef Name;
 
+        // Source Location
+        const SourceLocation Location;
+
         ASTClassKind ClassKind;
 
         // Class Fields
@@ -81,6 +84,8 @@ namespace fly {
     public:
 
         llvm::StringRef getName() const;
+
+        const SourceLocation &getLocation() const;
 
         ASTClassKind getClassKind() const;
 

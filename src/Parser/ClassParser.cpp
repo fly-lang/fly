@@ -27,14 +27,14 @@ ClassParser::ClassParser(Parser *P, ASTTopScopes *Scopes) : P(P) {
     FLY_DEBUG_MESSAGE("ClassParser", "ClassParser", Logger()
             .Attr("Scopes", Scopes).End());
 
-    llvm::StringRef Name = P->Tok.getIdentifierInfo()->getName();
-    const SourceLocation Loc = P->Tok.getLocation();
+    llvm::StringRef ClassName = P->Tok.getIdentifierInfo()->getName();
+    const SourceLocation ClassLoc = P->Tok.getLocation();
     P->ConsumeToken();
 
     if (P->isBlockStart()) {
         P->ConsumeBrace();
 
-        Class = P->Builder.CreateClass(P->Node, Loc, Name, Scopes);
+        Class = P->Builder.CreateClass(P->Node, ClassLoc, ClassName, Scopes);
         bool Continue;
         do {
 
@@ -62,11 +62,15 @@ ClassParser::ClassParser(Parser *P, ASTTopScopes *Scopes) : P(P) {
             }
 
             Continue = false; // Continue loop if there is a field or a method
-            if (isField()) {
-                Success &= ParseField(ClassScopes, Type);
-                Continue = true;
-            } else if (isMethod()) {
-                Success &= ParseMethod(ClassScopes, Type);
+            if (P->Tok.isAnyIdentifier()) {
+                const StringRef &Name = P->Tok.getIdentifierInfo()->getName();
+                const SourceLocation &Loc = P->ConsumeToken();
+
+                if (P->Tok.is(tok::l_paren)) {
+                    Success &= ParseMethod(ClassScopes, Type, Loc, Name);
+                } else {
+                    Success &= ParseField(ClassScopes, Type, Loc, Name);
+                }
                 Continue = true;
             }
 
@@ -133,17 +137,10 @@ ASTClassScopes *ClassParser::ParseScopes() {
     return SemaBuilder::CreateClassScopes(Visibility, isConst);
 }
 
-bool ClassParser::isField() {
-    FLY_DEBUG("ClassParser", "isField");
-    return P->Tok.isAnyIdentifier();
-}
-
-bool ClassParser::ParseField(ASTClassScopes *Scopes, ASTType *Type) {
+bool ClassParser::ParseField(ASTClassScopes *Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name) {
     FLY_DEBUG_MESSAGE("ClassParser", "ParseMethod", Logger()
             .Attr("Scopes", Scopes)
             .Attr("Type", Type).End());
-
-    assert(P->Tok.isAnyIdentifier() && "Tok must be an Identifier");
 
     // Add Comment to AST
     llvm::StringRef Comment;
@@ -151,10 +148,7 @@ bool ClassParser::ParseField(ASTClassScopes *Scopes, ASTType *Type) {
         Comment = P->BlockComment;
     }
 
-    llvm::StringRef Name = P->Tok.getIdentifierInfo()->getName();
-    SourceLocation Loc = P->ConsumeToken();
-
-    ASTClassVar *Field = P->Builder.CreateClassVar(Class, Loc, Type, Name.str(), Scopes);
+    ASTClassVar *Field = P->Builder.CreateClassVar(Class, Loc, Type, Name, Scopes);
     if (Field) {
         // Parsing =
         ASTExpr *Expr = nullptr;
@@ -169,14 +163,17 @@ bool ClassParser::ParseField(ASTClassScopes *Scopes, ASTType *Type) {
     return false;
 }
 
-bool ClassParser::isMethod() {
-    FLY_DEBUG("ClassParser", "isField");
-    return false;
-}
-
-bool ClassParser::ParseMethod(ASTClassScopes *Scopes, ASTType *Type) {
+bool ClassParser::ParseMethod(ASTClassScopes *Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name) {
     FLY_DEBUG_MESSAGE("ClassParser", "ParseMethod", Logger()
             .Attr("Scopes", Scopes)
             .Attr("Type", Type).End());
-    return false;
+
+    // Add Comment to AST
+    llvm::StringRef Comment;
+    if (!P->BlockComment.empty()) {
+        Comment = P->BlockComment;
+    }
+
+    ASTClassFunction *Method = P->Builder.CreateClassFunction(Class, Loc, Type, Name, Scopes);
+    return true;
 }

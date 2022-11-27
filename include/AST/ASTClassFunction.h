@@ -25,8 +25,6 @@ namespace fly {
         friend class SemaBuilder;
         friend class SemaResolver;
 
-        const SourceLocation &Loc;
-
         ASTClass *Class = nullptr;
 
         llvm::StringRef Comment;
@@ -34,11 +32,9 @@ namespace fly {
         ASTClassScopes *Scopes = nullptr;
 
         ASTClassFunction(const SourceLocation &Loc, ASTClass *Class, ASTClassScopes *Scopes, ASTType *Type,
-                         std::string &Name);
+                         llvm::StringRef Name);
 
     public:
-
-        const SourceLocation &getLocation() const;
 
         ASTClass *getClass() const;
 

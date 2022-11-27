@@ -28,6 +28,9 @@ namespace fly {
 
         llvm::StringRef Name;
 
+        // Source Location
+        const SourceLocation Location;
+
         ASTExpr *Expr = nullptr;
 
         // Code Generator
@@ -45,6 +48,8 @@ namespace fly {
         ASTType *getType() const override;
 
         llvm::StringRef getName() const override;
+
+        const SourceLocation &getLocation() const;
 
         ASTExpr *getExpr() const override;
 

@@ -32,6 +32,7 @@ namespace fly {
     class ASTClassFunction;
     class ASTGlobalVar;
     class ASTFunction;
+    class ASTFunctionBase;
     class ASTIdentifier;
     class ASTCall;
     class ASTStmt;
@@ -122,9 +123,10 @@ namespace fly {
         ASTClass *CreateClass(ASTNode *Node, const SourceLocation &Loc, const llvm::StringRef Name,
                               ASTTopScopes *Scopes);
         static ASTClassScopes *CreateClassScopes(ASTClassVisibilityKind Visibility, bool Constant);
-        ASTClassVar *CreateClassVar(ASTClass *Class, SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
+        ASTClassVar *CreateClassVar(ASTClass *Class, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
                                     ASTClassScopes *Scopes);
-        ASTClassVar *CreateClassMethods();
+        ASTClassFunction *CreateClassFunction(ASTClass *Class, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
+                                              ASTClassScopes *Scopes);
 
         // Create Types
         static ASTBoolType *CreateBoolType(const SourceLocation &Loc);
@@ -165,6 +167,7 @@ namespace fly {
         // Create Call
         ASTCall *CreateCall(ASTIdentifier *Identifier);
         ASTCall *CreateCall(ASTFunction *Function);
+        ASTCall *CreateCall(ASTClassFunction *Function);
 
         // Create VarRef
         ASTVarRef *CreateVarRef(ASTLocalVar *LocalVar);
@@ -208,8 +211,10 @@ namespace fly {
         bool AddGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar, ASTValue *Value = nullptr);
         bool AddGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar, ASTExpr *Expr);
         bool AddFunction(ASTNode *Node, ASTFunction *Function);
-        bool InsertFunction(llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> &Functions,
-                            ASTFunction *Function);
+        bool AddFunction(ASTClass *Class, ASTClassFunction *ClassFunction);
+        template <typename T>
+        bool InsertFunction(llvm::StringMap<std::map <uint64_t,llvm::SmallVector <T *, 4>>> &Functions,
+                            T *Function);
         bool AddParam(ASTParam *Param);
         void AddFunctionVarParams(ASTFunction *Function, ASTParam *Param); // TODO
         bool AddComment(ASTTopDef *Top, llvm::StringRef Comment);

@@ -37,13 +37,9 @@ namespace fly {
 
         ASTClassScopes *ParseScopes();
 
-        bool isField();
+        bool ParseField(ASTClassScopes *Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name);
 
-        bool ParseField(ASTClassScopes *Scopes, ASTType *Type);
-
-        bool isMethod();
-
-        bool ParseMethod(ASTClassScopes *Scopes, ASTType *Type);
+        bool ParseMethod(ASTClassScopes *Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name);
     };
 }
 

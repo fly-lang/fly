@@ -16,13 +16,17 @@
 
 using namespace fly;
 
-ASTFunctionBase::ASTFunctionBase(ASTFunctionKind Kind, ASTType *ReturnType, llvm::StringRef Name)
-        : Kind(Kind), Type(ReturnType), Name(Name) {
+ASTFunctionBase::ASTFunctionBase(const SourceLocation &Loc, ASTFunctionKind Kind, ASTType *ReturnType, llvm::StringRef Name)
+        : Kind(Kind), Type(ReturnType), Name(Name), Location(Loc) {
 
 }
 
 llvm::StringRef ASTFunctionBase::getName() const {
     return Name;
+}
+
+const SourceLocation &ASTFunctionBase::getLocation() const {
+    return Location;
 }
 
 const ASTBlock *ASTFunctionBase::getBody() const {

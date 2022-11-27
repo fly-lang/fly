@@ -66,9 +66,6 @@ namespace fly {
 
         ASTNameSpace *NameSpace = nullptr;
 
-        // File Source Location
-        const SourceLocation Location;
-
         // Kind of TopDecl identified by enum
         ASTTopDefKind Kind;
 
@@ -79,13 +76,11 @@ namespace fly {
 
     protected:
 
-        ASTTopDef(const SourceLocation &Loc, ASTNode *Node, ASTTopDefKind Kind, ASTTopScopes *Scopes);
+        ASTTopDef(ASTNode *Node, ASTTopDefKind Kind, ASTTopScopes *Scopes);
 
     public:
 
         ASTNode *getNode();
-
-        const SourceLocation &getLocation() const;
 
         virtual llvm::StringRef getName() const = 0;
 

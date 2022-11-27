@@ -40,8 +40,6 @@ namespace fly {
 
     public:
 
-        const SourceLocation &getLocation() const;
-
         llvm::StringRef getName() const override;
 
         std::string str() const override;

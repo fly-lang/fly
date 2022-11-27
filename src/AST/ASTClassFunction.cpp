@@ -13,13 +13,9 @@
 using namespace fly;
 
 ASTClassFunction::ASTClassFunction(const SourceLocation &Loc, ASTClass *Class, ASTClassScopes *Scopes, ASTType *Type,
-                                   std::string &Name) :
-        ASTFunctionBase(ASTFunctionKind::CLASS_FUNCTION, Type, Name), Loc(Loc), Class(Class), Scopes(Scopes)  {
+                                   llvm::StringRef Name) :
+        ASTFunctionBase(Loc, ASTFunctionKind::CLASS_FUNCTION, Type, Name), Class(Class), Scopes(Scopes)  {
 
-}
-
-const SourceLocation &ASTClassFunction::getLocation() const {
-    return Loc;
 }
 
 ASTClass *ASTClassFunction::getClass() const {

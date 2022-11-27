@@ -31,13 +31,9 @@ std::string ASTTopScopes::str() const {
            End();
 }
 
-ASTTopDef::ASTTopDef(const SourceLocation &Loc, ASTNode *Node, ASTTopDefKind Kind, ASTTopScopes *Scopes) :
-    Location(Loc), Node(Node), Scopes(Scopes), NameSpace(Node->getNameSpace()), Kind(Kind) {
+ASTTopDef::ASTTopDef(ASTNode *Node, ASTTopDefKind Kind, ASTTopScopes *Scopes) :
+    Node(Node), Scopes(Scopes), NameSpace(Node->getNameSpace()), Kind(Kind) {
 
-}
-
-const SourceLocation &ASTTopDef::getLocation() const {
-    return Location;
 }
 
 ASTTopDefKind ASTTopDef::getKind() const {
@@ -63,7 +59,6 @@ llvm::StringRef ASTTopDef::getComment() const {
 
 std::string ASTTopDef::str() const {
     return Logger("ASTTopDef").
-           Attr("Location", Location).
            Attr("Scopes", Scopes).
            Attr("Kind", (uint64_t) Kind).
            Attr("Comment", Comment).
