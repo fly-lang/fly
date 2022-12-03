@@ -24,12 +24,15 @@ namespace fly {
 
         friend class SemaBuilder;
         friend class SemaResolver;
+        friend class ClassParser;
 
         ASTClass *Class = nullptr;
 
         llvm::StringRef Comment;
 
         ASTClassScopes *Scopes = nullptr;
+
+        bool Abstract = false;
 
         ASTClassFunction(const SourceLocation &Loc, ASTClass *Class, ASTClassScopes *Scopes, ASTType *Type,
                          llvm::StringRef Name);
@@ -41,6 +44,8 @@ namespace fly {
         llvm::StringRef getComment() const;
 
         ASTClassScopes *getScopes() const;
+
+        bool isAbstract() const;
 
         virtual std::string str() const;
 

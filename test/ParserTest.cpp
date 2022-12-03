@@ -1190,18 +1190,18 @@ namespace {
                                "}\n");
         ASTNode *Node = Parse("ClassVars", str, false);
 
-//        EXPECT_FALSE(Node->getClass()->getMethods().empty());
-//        EXPECT_EQ(Node->getClass()->getMethods().size(), 1);
-//        ASTClassFunction *aMethod = Node->getClass()->getMethods().find("a")->getValue();
-//        EXPECT_EQ(aMethod->getScopes()->getVisibility(), ASTClassVisibilityKind::CLASS_V_DEFAULT);
-//        EXPECT_FALSE(aMethod->getScopes()->isConstant());
-
         llvm::StringRef str2 = (
                 "void func() {\n"
                 "  Test t"
                 "  t.a()"
                 "}\n");
         ASTNode *Node2 = Parse("Identifier", str2);
-//        ASSERT_TRUE(isSuccess());
+
+        ASSERT_TRUE(isSuccess());
+
+        EXPECT_EQ(Node->getClass()->getMethods().size(), 1);
+        ASTClassFunction *aMethod = *Node->getClass()->getMethods().find("a")->getValue().begin()->second.begin();
+        EXPECT_EQ(aMethod->getScopes()->getVisibility(), ASTClassVisibilityKind::CLASS_V_DEFAULT);
+        EXPECT_FALSE(aMethod->getScopes()->isConstant());
     }
 }

@@ -26,20 +26,13 @@ using namespace fly;
  * @param FuncName
  * @param FuncNameLoc
  */
-FunctionParser::FunctionParser(Parser *P, ASTTopScopes *Scopes, ASTType *Type, bool isHeader) : P(P) {
-    assert(P->Tok.isAnyIdentifier() && "Tok must be an Identifier");
+FunctionParser::FunctionParser(Parser *P, ASTFunctionBase *Function) : P(P), Function(Function) {
+    assert(Function && "Function must be initialized");
 
     FLY_DEBUG_MESSAGE("FunctionParser", "FunctionParser", Logger()
-                                                    .Attr("Scopes", Scopes)
-                                                    .Attr("Type", Type)
-                                                    .Attr("isHeader", isHeader).End());
+                        .Attr("Function", Function).End());
 
-    llvm::StringRef Name = P->Tok.getIdentifierInfo()->getName();
-    const SourceLocation Loc = P->Tok.getLocation();
-    P->ConsumeToken();
-
-    Function = P->Builder.CreateFunction(P->Node, Loc, Type, Name, Scopes);
-    Success = ParseParams() && !isHeader && ParseBody();
+    Success = ParseParams() && ParseBody();
 }
 
 /**
@@ -125,18 +118,15 @@ bool FunctionParser::ParseBody() {
     FLY_DEBUG("FunctionParser", "ParseBody");
 
     if (P->isBlockStart()) {
-        bool Success = P->ParseBlock(Function->Body) && P->isBraceBalanced();
-        return Success;
+        return P->ParseBlock(Function->Body) && P->isBraceBalanced();
     }
 
     return false;
 }
 
-ASTFunction *FunctionParser::Parse(Parser *P, ASTTopScopes *Scopes, ASTType *Type, bool isHeader) {
+bool FunctionParser::Parse(Parser *P, ASTFunctionBase *Function) {
     FLY_DEBUG_MESSAGE("FunctionParser", "Parse", Logger()
-            .Attr("Scopes", Scopes)
-            .Attr("Type", Type)
-            .Attr("isHeader", isHeader).End());
-    FunctionParser *FP = new FunctionParser(P, Scopes, Type, isHeader);
-    return FP->Function;
+            .Attr("Function", Function).End());
+    FunctionParser *FP = new FunctionParser(P, Function);
+    return FP->Success;
 }

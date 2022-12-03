@@ -17,6 +17,7 @@ namespace fly {
 
     class Parser;
     class ASTFunction;
+    class ASTFunctionBase;
     class ASTCall;
     class ASTType;
     class ASTBlock;
@@ -28,11 +29,11 @@ namespace fly {
 
         Parser *P;
 
-        ASTFunction *Function = nullptr;
+        ASTFunctionBase *Function;
 
         bool Success = true;
 
-        FunctionParser(Parser *P, ASTTopScopes *Scopes, ASTType *Type, bool isHeader);
+        FunctionParser(Parser *P, ASTFunctionBase *Function);
 
         bool ParseParams();
 
@@ -42,7 +43,7 @@ namespace fly {
 
     public:
 
-        static ASTFunction *Parse(Parser *P, ASTTopScopes *Scopes, ASTType *Type, bool isHeader);
+        static bool Parse(Parser *P, ASTFunctionBase *Function);
     };
 }
 

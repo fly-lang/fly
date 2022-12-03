@@ -156,7 +156,7 @@ namespace fly {
         static ASTValue *CreateDefaultValue(ASTType *Type);
 
         // Create Statements
-        ASTParam *CreateParam(ASTFunction *Function, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, bool Constant = false);
+        ASTParam *CreateParam(ASTFunctionBase *Function, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, bool Constant = false);
         ASTLocalVar *CreateLocalVar(ASTBlock *Parent, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, bool Constant = false);
         ASTVarAssign *CreateVarAssign(ASTBlock *Parent, ASTVarRef *VarRef);
         ASTReturn *CreateReturn(ASTBlock *Parent, const SourceLocation &Loc);

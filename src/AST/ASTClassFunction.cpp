@@ -30,6 +30,10 @@ ASTClassScopes *ASTClassFunction::getScopes() const {
     return Scopes;
 }
 
+bool ASTClassFunction::isAbstract() const {
+    return Abstract;
+}
+
 std::string ASTClassFunction::str() const {
     return Logger("ASTClassFunction").
            Super(ASTFunctionBase::str()).

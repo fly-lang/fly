@@ -345,8 +345,15 @@ bool Parser::ParseFunctionDef(ASTTopScopes *Scopes, ASTType *Type) {
         Comment = BlockComment;
     }
 
-    ASTFunction *Function = FunctionParser::Parse(this, Scopes, Type, Node->isHeader());
-    if (Function) {
+    const StringRef &Name = Tok.getIdentifierInfo()->getName();
+    ASTFunction *Function = Builder.CreateFunction(Node, ConsumeToken(), Type, Name, Scopes);
+    if (FunctionParser::Parse(this, Function)) {
+
+        // Error: body must be empty in header declaration
+        if (Node->isHeader() && !Function->getBody()->isEmpty()) {
+            // TODO
+        }
+
         BlockComment = StringRef();
         return Builder.AddComment(Function, Comment) &&
             Builder.AddFunction(Node, Function);

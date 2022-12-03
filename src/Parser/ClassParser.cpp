@@ -8,8 +8,11 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Parser/Parser.h"
+#include "Parser/FunctionParser.h"
 #include "Parser/ClassParser.h"
+#include "AST/ASTBlock.h"
 #include "AST/ASTClass.h"
+#include "AST/ASTClassFunction.h"
 #include "Sema/SemaBuilder.h"
 #include "Basic/Debug.h"
 
@@ -175,5 +178,11 @@ bool ClassParser::ParseMethod(ASTClassScopes *Scopes, ASTType *Type, const Sourc
     }
 
     ASTClassFunction *Method = P->Builder.CreateClassFunction(Class, Loc, Type, Name, Scopes);
-    return true;
+    Success = FunctionParser::Parse(P, Method);
+
+    if (Method->getBody()->isEmpty()) {
+        Method->Abstract = true;
+    }
+
+    return Success;
 }

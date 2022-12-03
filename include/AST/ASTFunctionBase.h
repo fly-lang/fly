@@ -40,6 +40,7 @@ namespace fly {
         friend class SemaBuilder;
         friend class SemaResolver;
         friend class FunctionParser;
+        friend class ClassParser;
         friend class ASTParam;
 
         ASTFunctionKind Kind;

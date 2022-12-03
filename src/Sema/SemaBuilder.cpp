@@ -252,7 +252,12 @@ SemaBuilder::CreateClassFunction(ASTClass *Class, const SourceLocation &Loc, AST
     F->Params = new ASTParams();
     F->Body = CreateBlock(nullptr, SourceLocation());
     F->Body->Top = F;
-    return F;
+    if (InsertFunction(Class->Methods, F)) {
+        return F;
+    }
+
+    S.Diag(Loc, diag::err_sema_class_method_redeclare) << Name;
+    return nullptr;
 }
 
 /**
@@ -570,7 +575,7 @@ SemaBuilder::CreateDefaultValue(ASTType *Type) {
  * @return
  */
 ASTParam *
-SemaBuilder::CreateParam(ASTFunction *Function, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, bool Constant) {
+SemaBuilder::CreateParam(ASTFunctionBase *Function, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, bool Constant) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateParam",
                       Logger().Attr("Function", Function)
                       .Attr("Loc", (uint64_t) Loc.getRawEncoding())
