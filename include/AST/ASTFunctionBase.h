@@ -27,6 +27,7 @@ namespace fly {
     class ASTCall;
     class ASTGlobalVar;
     class CodeGenFunction;
+    class CodeGenFunctionBase;
     class CodeGenVarBase;
     class CodeGenCall;
 
@@ -63,9 +64,6 @@ namespace fly {
         // Contains all vars declared in this Block
         std::vector<ASTLocalVar *> LocalVars;
 
-        // Populated during codegen phase
-        CodeGenFunction *CodeGen = nullptr;
-
     protected:
 
         ASTFunctionBase(const SourceLocation &Loc, ASTFunctionKind Kind, ASTType *ReturnType, llvm::StringRef Name);
@@ -86,9 +84,7 @@ namespace fly {
 
         const std::vector<ASTLocalVar *> &getLocalVars() const;
 
-        CodeGenFunction *getCodeGen() const;
-
-        void setCodeGen(CodeGenFunction *CGF);
+        virtual CodeGenFunctionBase *getCodeGen() const = 0;
 
         bool isVarArg();
 

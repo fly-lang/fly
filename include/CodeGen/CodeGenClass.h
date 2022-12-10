@@ -32,10 +32,18 @@ namespace fly {
 
         llvm::StructType *Type = nullptr;
 
+        llvm::SmallVector<CodeGenClassVar *, 4> Vars;
+
+        llvm::SmallVector<CodeGenClassFunction *, 4> Functions;
+
     public:
         CodeGenClass(CodeGenModule *CGM, ASTClass *Class, bool isExternal = false);
 
         llvm::StructType *getType();
+
+        const llvm::SmallVector<CodeGenClassVar *, 4> &getVars() const;
+
+        const llvm::SmallVector<CodeGenClassFunction *, 4> &getFunctions() const;
 
         void InvokeDefaultConstructor(llvm::Value *Instance);
     };

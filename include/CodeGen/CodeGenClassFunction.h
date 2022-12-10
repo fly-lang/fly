@@ -11,6 +11,8 @@
 #ifndef FLY_CODEGEN_CLASSFUNCTION_H
 #define FLY_CODEGEN_CLASSFUNCTION_H
 
+#include "CodeGenFunctionBase.h"
+
 namespace llvm {
 
 }
@@ -21,13 +23,13 @@ namespace fly {
     class CodeGenClass;
     class ASTClassFunction;
 
-    class CodeGenClassFunction {
+    class CodeGenClassFunction : public CodeGenFunctionBase {
 
         friend class CodeGenClass;
 
-        CodeGenModule * CGM = nullptr;
-
         ASTClassFunction *AST = nullptr;
+
+        CodeGenClassFunction(CodeGenModule *CGM, ASTClassFunction *AST);
     };
 }
 

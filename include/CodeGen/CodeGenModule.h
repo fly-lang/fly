@@ -47,6 +47,7 @@ namespace fly {
     class ASTWhileBlock;
     class CodeGenGlobalVar;
     class CodeGenFunction;
+    class CodeGenFunctionBase;
     class CodeGenCall;
     class CodeGenClass;
     class ASTClass;
@@ -55,6 +56,7 @@ namespace fly {
 
         friend class CodeGenGlobalVar;
         friend class CodeGenFunction;
+        friend class CodeGenFunctionBase;
         friend class CodeGenClass;
         friend class CodeGenClassVar;
         friend class CodeGenClassFunction;

@@ -189,7 +189,7 @@ namespace fly {
 
         // Create Blocks structures
         ASTBlock* CreateBlock(ASTBlock *Parent, const SourceLocation &Loc);
-        ASTBlock* getBlock(ASTFunction *Function);
+        ASTBlock* getBlock(ASTFunctionBase *Function);
         ASTIfBlock *CreateIfBlock(ASTBlock *Parent, const SourceLocation &Loc);
         ASTElsifBlock *CreateElsifBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc);
         ASTElseBlock *CreateElseBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc);

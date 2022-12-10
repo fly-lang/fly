@@ -35,9 +35,9 @@ namespace fly {
 
         llvm::Type *ClassType = nullptr;
 
-        llvm::Value *Zero = nullptr;
-
         llvm::Value *Index = nullptr;
+
+        llvm::Value *Zero = nullptr;
 
         CodeGenClassVar(CodeGenModule *CGM, ASTClassVar *Var, llvm::Type *ClassType, uint32_t Index);
 

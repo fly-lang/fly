@@ -48,10 +48,10 @@ bool SemaValidator::CheckDuplicatedLocalVars(ASTStmt *Stmt, ASTLocalVar *LocalVa
     return Block->getParent() && CheckDuplicatedLocalVars(Stmt->getParent(), LocalVar);
 }
 
-bool SemaValidator::CheckUndef(ASTBlock *Block, ASTVarRef *VarRef) {
+bool SemaValidator::CheckUninitialized(ASTBlock *Block, ASTVarRef *VarRef) {
     llvm::StringRef Name = VarRef->getName();
-    if (!VarRef->getDef() && Block->getUndefVars().lookup(Name)) {
-        S.Diag(VarRef->getLocation(), diag::err_undef_var) << VarRef->getName();
+    if (!VarRef->getDef() && Block->getUnInitVars().lookup(Name)) {
+        S.Diag(VarRef->getLocation(), diag::err_uninit_var) << VarRef->getName();
         return false;
     }
     return true;

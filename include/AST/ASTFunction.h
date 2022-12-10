@@ -12,6 +12,7 @@
 
 #include "ASTTopDef.h"
 #include "ASTFunctionBase.h"
+#include "CodeGen/CodeGenFunction.h"
 
 #include <vector>
 
@@ -21,6 +22,7 @@ namespace fly {
     class ASTParams;
     class ASTType;
     class ASTBlock;
+    class CodeGenFunction;
 
     /**
      * The Function Declaration and definition
@@ -35,12 +37,19 @@ namespace fly {
         friend class SemaResolver;
         friend class FunctionParser;
 
+        // Populated during codegen phase
+        CodeGenFunction *CodeGen = nullptr;
+
         ASTFunction(const SourceLocation &Loc, ASTNode *Node, ASTType *ReturnType, llvm::StringRef Name,
                     ASTTopScopes *Scopes);
 
     public:
 
         llvm::StringRef getName() const override;
+
+        CodeGenFunction *getCodeGen() const override;
+
+        void setCodeGen(CodeGenFunction *CGF);
 
         std::string str() const override;
     };

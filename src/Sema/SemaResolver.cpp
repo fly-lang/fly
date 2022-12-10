@@ -493,11 +493,11 @@ bool SemaResolver::ResolveVarRef(ASTBlock *Block, ASTVarRef *VarRef) {
 
     // VarRef not found in node, namespace and node imports
     if (!VarRef->Def) {
-        S.Diag(VarRef->getLocation(), diag::err_undef_var);
+        S.Diag(VarRef->getLocation(), diag::err_unref_var);
         return false;
     }
 
-    Block->UndefVars.erase(VarRef->getName());
+    Block->UnInitVars.erase(VarRef->getName());
     return true;
 }
 
@@ -517,7 +517,7 @@ bool SemaResolver::ResolveExpr(ASTBlock *Block, ASTExpr *Expr) {
             return ResolveValueExpr((ASTValueExpr *) Expr);
         case ASTExprKind::EXPR_VAR_REF: {
             ASTVarRef *VarRef = ((ASTVarRefExpr *)Expr)->getVarRef();
-            if (S.Validator->CheckUndef(Block, VarRef) && (VarRef->getDef() || ResolveVarRef(Block, VarRef))) {
+            if (S.Validator->CheckUninitialized(Block, VarRef) && (VarRef->getDef() || ResolveVarRef(Block, VarRef))) {
                 Expr->Type = VarRef->getDef()->getType();
                 Success = true;
                 break;

@@ -384,7 +384,7 @@ DIAG(err_unref_class, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unreference
 DIAG(err_unref_call, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unreferenced call", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_unref_var, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unreferenced var", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_unref_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unreferenced type", 0, SFINAE_Suppress, false, true, 0)
-DIAG(err_undef_var, CLASS_ERROR, (unsigned)diag::Severity::Error, "Undefined var", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_uninit_var, CLASS_ERROR, (unsigned)diag::Severity::Error, "Uninitialized var", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_invalid_gvar_value, CLASS_ERROR, (unsigned)diag::Severity::Error, "Invalid global var value", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_generate_header, CLASS_ERROR, (unsigned)diag::Severity::Error, "Error on header file generation %0", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_cg_expr_operator, CLASS_ERROR, (unsigned)diag::Severity::Error, "Invalid code generator for operator expression", 0, SFINAE_Suppress, false, true, 0)

@@ -95,7 +95,6 @@ ASTLocalVar *Sema::FindVarDef(ASTBlock *Block, llvm::StringRef VarName) const {
     FLY_DEBUG_MESSAGE("Sema", "FindVarDef", Logger().Attr("Name", Block).Attr("VarName", VarName).End());
     const auto &It = Block->getLocalVars().find(VarName);
     if (It != Block->getLocalVars().end()) { // Search into this Block
-        FLY_DEBUG_MESSAGE("Sema", "FindVarDef", Logger().Attr("Found", It->second).End());
         return It->getValue();
     } else if (Block->getParent()) { // Traverse Parent Block to find the right VarDeclStmt
         if (Block->Parent->getKind() == ASTStmtKind::STMT_BLOCK)

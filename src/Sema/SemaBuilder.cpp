@@ -863,7 +863,7 @@ SemaBuilder::CreateBlock(ASTBlock *Parent, const SourceLocation &Loc) {
 }
 
 ASTBlock *
-SemaBuilder::getBlock(ASTFunction *Function) {
+SemaBuilder::getBlock(ASTFunctionBase *Function) {
     return Function->Body;
 }
 
@@ -1372,7 +1372,7 @@ SemaBuilder::AddStmt(ASTStmt *Stmt) {
 
         // Check Undefined Var: if LocalVar have an Expression assigned
         if (!LocalVar->Expr) {  // No Expression: add to Undefined Vars, will be removed on SemaResolver::ResolveVarRef()
-            Parent->UndefVars.insert(std::pair<std::string, ASTLocalVar *>(LocalVar->getName(), LocalVar));
+            Parent->UnInitVars.insert(std::pair<std::string, ASTLocalVar *>(LocalVar->getName(), LocalVar));
         }
 
         // Collects all LocalVars in the hierarchy Block
@@ -1387,9 +1387,9 @@ SemaBuilder::AddStmt(ASTStmt *Stmt) {
 
         // Remove from Undefined Var because now have an Expr assigned
         if (VarAssign->getVarRef()->getNameSpace().empty()) { // only for VarRef with empty NameSpace
-            auto It = Parent->UndefVars.find(VarAssign->getVarRef()->getName());
-            if (It != Parent->UndefVars.end())
-                Parent->UndefVars.erase(It);
+            auto It = Parent->UnInitVars.find(VarAssign->getVarRef()->getName());
+            if (It != Parent->UnInitVars.end())
+                Parent->UnInitVars.erase(It);
         }
     } else if (Stmt->getKind() == ASTStmtKind::STMT_BLOCK) {
         return AddBlock((ASTBlock *) Stmt);
@@ -1409,7 +1409,7 @@ SemaBuilder::AddBlock(ASTBlock *Block) {
             return true;
 
         case ASTBlockKind::BLOCK_IF:
-            Block->UndefVars = ((ASTIfBlock *) Block->getParent())->UndefVars;
+            Block->UnInitVars = ((ASTIfBlock *) Block->getParent())->UnInitVars;
             return true;
 
         case ASTBlockKind::BLOCK_ELSIF: {

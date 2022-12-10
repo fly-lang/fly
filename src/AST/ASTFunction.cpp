@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTFunction.h"
+#include "CodeGen/CodeGenFunction.h"
 #include <string>
 
 using namespace fly;
@@ -21,6 +22,14 @@ ASTFunction::ASTFunction(const SourceLocation &Loc, ASTNode *Node, ASTType *Retu
 
 llvm::StringRef ASTFunction::getName() const {
     return ASTFunctionBase::getName();
+}
+
+CodeGenFunction *ASTFunction::getCodeGen() const {
+    return CodeGen;
+}
+
+void ASTFunction::setCodeGen(CodeGenFunction *CGF) {
+    CodeGen = CGF;
 }
 
 std::string ASTFunction::str() const {

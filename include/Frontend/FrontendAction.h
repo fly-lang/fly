@@ -62,7 +62,7 @@ namespace fly {
 
         std::vector<CodeGenFunction *> CGFunctions;
 
-        CodeGenClass *CGClass;
+        CodeGenClass *CGClass  = nullptr;
 
         bool CGDone = false;
 

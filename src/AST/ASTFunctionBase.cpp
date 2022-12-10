@@ -49,14 +49,6 @@ const std::vector<ASTLocalVar *> &ASTFunctionBase::getLocalVars() const {
     return LocalVars;
 }
 
-CodeGenFunction *ASTFunctionBase::getCodeGen() const {
-    return CodeGen;
-}
-
-void ASTFunctionBase::setCodeGen(CodeGenFunction *CGF) {
-    CodeGen = CGF;
-}
-
 bool ASTFunctionBase::isVarArg() {
     return Params->getEllipsis();
 }

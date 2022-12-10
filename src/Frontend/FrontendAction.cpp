@@ -13,11 +13,13 @@
 #include "Sema/SemaBuilder.h"
 #include "AST/ASTImport.h"
 #include "AST/ASTGlobalVar.h"
+#include "AST/ASTFunction.h"
 #include "AST/ASTNode.h"
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
 #include "CodeGen/CodeGenFunction.h"
 #include "CodeGen/CodeGenGlobalVar.h"
+#include "CodeGen/CodeGenClass.h"
 #include "Parser/Parser.h"
 #include "Basic/Debug.h"
 
@@ -70,6 +72,7 @@ bool FrontendAction::ParseHeader() {
 
 void FrontendAction::GenerateTopDef() {
     Diags.getClient()->BeginSourceFile();
+
     // Manage External GlobalVars
     for (const auto &Entry : Node->getExternalGlobalVars()) {
         ASTGlobalVar *GlobalVar = Entry.getValue();
@@ -88,7 +91,6 @@ void FrontendAction::GenerateTopDef() {
             }
         }
     }
-
 
     // Manage GlobalVars
     for (const auto &Entry : Node->getGlobalVars()) {
@@ -132,13 +134,20 @@ bool FrontendAction::GenerateBodies() {
     Diags.getClient()->BeginSourceFile();
 
     // Body must be generated after all CodeGen has been set for each TopDecl
-    for (auto &CGF : CGFunctions) {
+    for (auto CGF : CGFunctions) {
         FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode",
                           "FunctionBody=" << CGF->getName());
-        for (auto &CGV : CGGlobalVars) { // All global vars need to be Loaded from Init()
-            CGV->Init();
+        for (auto CGV : CGGlobalVars) { // All global vars need to be Loaded from Init()
+            CGV->Init(); // FIXME only if used
         }
         CGF->GenBody();
+    }
+
+    // Generate Class Body
+    if (CGClass) {
+        for (auto CGCF: CGClass->getFunctions()) {
+            CGCF->GenBody();
+        }
     }
 
     Diags.getClient()->EndSourceFile();

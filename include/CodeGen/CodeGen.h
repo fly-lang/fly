@@ -67,7 +67,7 @@ namespace fly {
 
         llvm::LLVMContext &getLLVMCtx();
 
-        static const std::string toIdentifier(llvm::StringRef Name, llvm::StringRef NameSpace);
+        static const std::string toIdentifier(llvm::StringRef Name, llvm::StringRef NameSpace, llvm::StringRef ClassName = "");
 
         CodeGenHeader *CreateHeader(std::string FileName);
     };

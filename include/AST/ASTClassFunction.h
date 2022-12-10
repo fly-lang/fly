@@ -12,6 +12,7 @@
 #define FLY_ASTCLASSMETHODD_H
 
 #include "ASTFunctionBase.h"
+#include "CodeGen/CodeGenClassFunction.h"
 
 namespace fly {
 
@@ -34,6 +35,9 @@ namespace fly {
 
         bool Abstract = false;
 
+        // Populated during codegen phase
+        CodeGenClassFunction *CodeGen = nullptr;
+
         ASTClassFunction(const SourceLocation &Loc, ASTClass *Class, ASTClassScopes *Scopes, ASTType *Type,
                          llvm::StringRef Name);
 
@@ -46,6 +50,10 @@ namespace fly {
         ASTClassScopes *getScopes() const;
 
         bool isAbstract() const;
+
+        CodeGenClassFunction *getCodeGen() const override;
+
+        void setCodeGen(CodeGenClassFunction *CGCF);
 
         virtual std::string str() const;
 

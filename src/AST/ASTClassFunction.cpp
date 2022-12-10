@@ -34,6 +34,14 @@ bool ASTClassFunction::isAbstract() const {
     return Abstract;
 }
 
+CodeGenClassFunction *ASTClassFunction::getCodeGen() const {
+    return CodeGen;
+}
+
+void ASTClassFunction::setCodeGen(CodeGenClassFunction *CGF) {
+    CodeGen = CGF;
+}
+
 std::string ASTClassFunction::str() const {
     return Logger("ASTClassFunction").
            Super(ASTFunctionBase::str()).

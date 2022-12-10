@@ -26,6 +26,7 @@
 #include "AST/ASTLocalVar.h"
 #include "AST/ASTCall.h"
 #include "AST/ASTGlobalVar.h"
+#include "AST/ASTFunction.h"
 #include "AST/ASTParams.h"
 #include "AST/ASTBlock.h"
 #include "AST/ASTIfBlock.h"
@@ -140,7 +141,6 @@ CodeGenClass *CodeGenModule::GenClass(ASTClass *Class, bool isExternal) {
     Class->setCodeGen(CGC);
     return CGC;
 }
-
 
 llvm::Type *CodeGenModule::GenType(const ASTType *Type) {
     FLY_DEBUG("CodeGenModule", "GenType");
@@ -386,7 +386,7 @@ CallInst *CodeGenModule::GenCall(llvm::Function *Fn, ASTCall *Call) {
         Value *V = GenExpr(Fn, Arg->getDef()->getType(), Arg->getExpr());
         Args.push_back(V);
     }
-    CodeGenFunction *CGF = Call->getDef()->getCodeGen();
+    CodeGenFunctionBase *CGF = Call->getDef()->getCodeGen();
     return Builder->CreateCall(CGF->getFunction(), Args);
 }
 
