@@ -59,11 +59,6 @@ ClassParser::ClassParser(Parser *P, ASTTopScopes *Scopes) : P(P) {
 
             // Parse Type
             ASTType *Type = P->ParseType();
-            if (!Type) {
-                P->Diag(diag::err_parser_invalid_type);
-                Success = false;
-            }
-
             Continue = false; // Continue loop if there is a field or a method
             if (P->Tok.isAnyIdentifier()) {
                 const StringRef &Name = P->Tok.getIdentifierInfo()->getName();
@@ -145,6 +140,11 @@ bool ClassParser::ParseField(ASTClassScopes *Scopes, ASTType *Type, const Source
             .Attr("Scopes", Scopes)
             .Attr("Type", Type).End());
 
+    if (!Type) {
+        P->Diag(diag::err_parser_invalid_type);
+        return false;
+    }
+
     // Add Comment to AST
     llvm::StringRef Comment;
     if (!P->BlockComment.empty()) {
@@ -177,10 +177,21 @@ bool ClassParser::ParseMethod(ASTClassScopes *Scopes, ASTType *Type, const Sourc
         Comment = P->BlockComment;
     }
 
-    ASTClassFunction *Method = P->Builder.CreateClassFunction(Class, Loc, Type, Name, Scopes);
-    Success = FunctionParser::Parse(P, Method);
+    ASTClassFunction *Method;
+    if (Name == Class->getName()) {
+        if (!Type) {
+            Method = P->Builder.CreateClassConstructor(Class, Loc, Scopes);
+            Success = FunctionParser::Parse(P, Method) && P->Builder.AddClassConstructor(Class, Method);
+        } else {
+            P->Diag(diag::err_parser_invalid_type);
+            return false;
+        }
+    } else {
+        Method = P->Builder.CreateClassMethod(Class, Loc, Type, Name, Scopes);
+        Success = FunctionParser::Parse(P, Method) && P->Builder.AddClassMethod(Class, Method);
+    }
 
-    if (Method->getBody()->isEmpty()) {
+    if (Method && Method->getBody()->isEmpty()) {
         Method->Abstract = true;
     }
 

@@ -34,18 +34,22 @@ namespace fly {
 
         llvm::SmallVector<CodeGenClassVar *, 4> Vars;
 
+        llvm::SmallVector<CodeGenClassFunction *, 4> Constructors;
+
         llvm::SmallVector<CodeGenClassFunction *, 4> Functions;
 
     public:
         CodeGenClass(CodeGenModule *CGM, ASTClass *Class, bool isExternal = false);
 
+        void Generate();
+
         llvm::StructType *getType();
 
         const llvm::SmallVector<CodeGenClassVar *, 4> &getVars() const;
 
-        const llvm::SmallVector<CodeGenClassFunction *, 4> &getFunctions() const;
+        const llvm::SmallVector<CodeGenClassFunction *, 4> &getConstructors() const;
 
-        void InvokeDefaultConstructor(llvm::Value *Instance);
+        const llvm::SmallVector<CodeGenClassFunction *, 4> &getFunctions() const;
     };
 }
 

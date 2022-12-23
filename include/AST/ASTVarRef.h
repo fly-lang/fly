@@ -31,6 +31,7 @@ namespace fly {
         friend class SemaResolver;
 
         ASTVar *Def = nullptr;
+        ASTVar *Instance = nullptr;
 
     public:
 
@@ -39,6 +40,8 @@ namespace fly {
         ASTVarRef(const SourceLocation &Loc, llvm::StringRef ClassName, llvm::StringRef Name);
 
         ASTVar *getDef() const;
+
+        ASTVar *getInstance() const;
 
         std::string str() const;
     };

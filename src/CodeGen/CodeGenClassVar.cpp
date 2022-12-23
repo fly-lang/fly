@@ -20,6 +20,10 @@ CodeGenClassVar::CodeGenClassVar(CodeGenModule *CGM, ASTClassVar *Var, llvm::Typ
         Zero(llvm::ConstantInt::get(CGM->Int32Ty, 0)) {
 }
 
+/**
+ * Set when var is referenced
+ * @param Instance
+ */
 void CodeGenClassVar::setClassInstance(llvm::Value *Instance) {
     this->ClassInstance = Instance;
 }

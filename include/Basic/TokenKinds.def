@@ -134,6 +134,7 @@ KEYWORD(true)
 KEYWORD(false)
 KEYWORD(void)
 KEYWORD(null)
+KEYWORD(new)
 
 #undef KEYWORD
 #undef PUNCTUATOR

@@ -138,6 +138,8 @@ ASTExpr *ExprParser::ParseExpr(bool IsFirst) {
         Expr = ParseExpr(P->ParseIdentifier());
     } else if (P->isUnaryPreOperator(P->Tok)) { // Ex. ++a or --a or !a
         Expr = ParseUnaryPreExpr(P); // Parse Unary Post Expression
+    } else if (P->isNewOperator(P->Tok)) {
+        Expr = ParseNewExpr(P);
     } else {
         return P->Builder.CreateExpr(Stmt); // return an ASTEmptyExpr
     }
@@ -217,6 +219,22 @@ ASTExpr *ExprParser::ParseExpr(ASTIdentifier *Identifier) {
     }
 }
 
+ASTExpr *ExprParser::ParseNewExpr(Parser *P) {
+    FLY_DEBUG("ExprParser", "ParseNewExpr");
+    P->ConsumeToken();
+    if (P->Tok.isAnyIdentifier()) {
+        ASTIdentifier *Identifier = P->ParseIdentifier();
+
+        if (P->Tok.is(tok::l_paren)) { // Ex. a()
+            return P->Builder.CreateNewExpr(Stmt, P->ParseCall(Stmt, Identifier));
+        }
+    }
+
+    // Error:
+    P->Diag(P->Tok.getLocation(), diag::err_parse_new_instance);
+    return nullptr;
+}
+
 /**
  * Parse unary pre operators ++a, --a, !a
  * @param Block
@@ -224,7 +242,7 @@ ASTExpr *ExprParser::ParseExpr(ASTIdentifier *Identifier) {
  * @param Success
  * @return
  */
-ASTUnaryGroupExpr* ExprParser::ParseUnaryPostExpr(ASTVarRef *VarRef) {
+ASTUnaryGroupExpr *ExprParser::ParseUnaryPostExpr(ASTVarRef *VarRef) {
     FLY_DEBUG_MESSAGE("ExprParser", "ParseUnaryPostExpr", Logger()
             .Attr("VarRef", VarRef).End());
     ASTVarRefExpr *VarRefExpr = P->Builder.CreateExpr(Stmt, VarRef);

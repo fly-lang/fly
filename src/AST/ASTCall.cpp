@@ -62,6 +62,10 @@ CodeGenCall *ASTCall::getCodeGen() const {
     return CGC;
 }
 
+ASTVar *ASTCall::getInstance() const {
+    return Instance;
+}
+
 std::string ASTCall::str() const {
     return Logger("ASTFunctionCall").
             Attr("Loc", Loc).

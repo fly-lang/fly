@@ -51,7 +51,7 @@ bool SemaValidator::CheckDuplicatedLocalVars(ASTStmt *Stmt, ASTLocalVar *LocalVa
 bool SemaValidator::CheckUninitialized(ASTBlock *Block, ASTVarRef *VarRef) {
     llvm::StringRef Name = VarRef->getName();
     if (!VarRef->getDef() && Block->getUnInitVars().lookup(Name)) {
-        S.Diag(VarRef->getLocation(), diag::err_uninit_var) << VarRef->getName();
+        S.Diag(VarRef->getLocation(), diag::err_sema_uninit_var) << VarRef->getName();
         return false;
     }
     return true;

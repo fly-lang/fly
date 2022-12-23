@@ -29,6 +29,10 @@ namespace fly {
 
         ASTClass *Class = nullptr;
 
+        bool Constructor = false;
+
+        bool Static = false;
+
         llvm::StringRef Comment;
 
         ASTClassScopes *Scopes = nullptr;
@@ -44,6 +48,10 @@ namespace fly {
     public:
 
         ASTClass *getClass() const;
+
+        bool isConstructor();
+
+        bool isStatic();
 
         llvm::StringRef getComment() const;
 

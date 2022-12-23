@@ -29,7 +29,6 @@ add_library(flyLib
         AST/ASTSwitchBlock.cpp
         AST/ASTTopDef.cpp
         AST/ASTType.cpp
-        AST/ASTUnref.cpp
         AST/ASTValue.cpp
         AST/ASTVarAssign.cpp
         AST/ASTVarRef.cpp
@@ -96,6 +95,7 @@ add_library(flyLib
         CodeGen/CodeGenFunctionBase.cpp
         CodeGen/CodeGenGlobalVar.cpp
         CodeGen/CodeGenHeader.cpp
+        CodeGen/CodeGenInstance.cpp
         CodeGen/CodeGenModule.cpp
         CodeGen/CodeGenVar.cpp
         CodeGen/CodeGenVarBase.cpp

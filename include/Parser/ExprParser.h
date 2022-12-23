@@ -63,6 +63,8 @@ namespace fly {
 
         ASTExpr *ParseExpr(ASTIdentifier *Identifier);
 
+        ASTExpr *ParseNewExpr(Parser *P);
+
         ASTUnaryGroupExpr *ParseUnaryPreExpr(Parser *P);
 
     private:

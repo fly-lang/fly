@@ -22,6 +22,14 @@ ASTClass *ASTClassFunction::getClass() const {
     return Class;
 }
 
+bool ASTClassFunction::isConstructor() {
+    return Constructor;
+}
+
+bool ASTClassFunction::isStatic() {
+    return Static;
+}
+
 llvm::StringRef ASTClassFunction::getComment() const {
     return Comment;
 }

@@ -20,30 +20,43 @@
 using namespace fly;
 
 CodeGenClass::CodeGenClass(CodeGenModule *CGM, ASTClass *Class, bool isExternal) : CGM(CGM), AST(Class) {
-    std::string Id = CodeGen::toIdentifier(Class->getName(), Class->getNameSpace()->getName());
+
+    // Create Struct Type
+    uint32_t n = 0;
     llvm::SmallVector<llvm::Type *, 4> StructTypes;
     for (auto &Var : Class->getVars()) {
         llvm::Type *FieldType = CGM->GenType(Var.second->getType());
         StructTypes.push_back(FieldType);
+        CodeGenClassVar *CGV = new CodeGenClassVar(CGM, Var.second, Type, n++);
+        Var.second->setCodeGen(CGV);
     }
-
-    // Create Struct Type
+    // TODO if Type == Class->Type cannot be resolved from GenType()
+    std::string Id = CodeGen::toIdentifier(Class->getName(), Class->getNameSpace()->getName());
     Type = llvm::StructType::create(CGM->LLVMCtx, StructTypes, Id);
+}
 
-    // Create CodeGen fo Class Vars
-    uint32_t Index = 0;
-    for (auto &Var : AST->getVars()) {
-        // Create ClassVar CodeGen
-        CodeGenClassVar *CG = new CodeGenClassVar(CGM, Var.second, Type, Index++);
-        Var.second->setCodeGen(CG);
-        Vars.push_back(CG);
+void CodeGenClass::Generate() {
+
+    // Create Constructors
+    for (auto &Vect : AST->getConstructors()) {
+        for (auto ClassFunction : Vect.second) {
+            // Create ClassFunction CodeGen for Constructor
+            CodeGenClassFunction *CG = new CodeGenClassFunction(CGM, ClassFunction);
+            CG->PreParams.push_back(Type);
+            CG->Create();
+            ClassFunction->setCodeGen(CG);
+            Constructors.push_back(CG);
+        }
     }
 
+    // Create Functions
     for (auto &Map : AST->getMethods()) {
-        for (auto Vect : Map.second) {
+        for (auto &Vect : Map.second) {
             for (auto ClassFunction : Vect.second) {
                 // Create ClassFunction CodeGen
                 CodeGenClassFunction *CG = new CodeGenClassFunction(CGM, ClassFunction);
+                CG->PreParams.push_back(Type);
+                CG->Create();
                 ClassFunction->setCodeGen(CG);
                 Functions.push_back(CG);
             }
@@ -59,12 +72,10 @@ const SmallVector<CodeGenClassVar *, 4> &CodeGenClass::getVars() const {
     return Vars;
 }
 
-const SmallVector<CodeGenClassFunction *, 4> &CodeGenClass::getFunctions() const {
-    return Functions;
+const SmallVector<CodeGenClassFunction *, 4> &CodeGenClass::getConstructors() const {
+    return Constructors;
 }
 
-void CodeGenClass::InvokeDefaultConstructor(llvm::Value *Instance) {
-    for (auto &Var : AST->getVars()) {
-        ((CodeGenClassVar *) Var.second->getCodeGen())->setClassInstance(Instance);
-    }
+const SmallVector<CodeGenClassFunction *, 4> &CodeGenClass::getFunctions() const {
+    return Functions;
 }

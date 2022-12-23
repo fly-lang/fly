@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/CodeGen/CGFunction.h - Code Generator of Function
+// include/CodeGen/CodeGenInstance.h - CodeGen Instance
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,27 +8,30 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#ifndef FLY_CODEGENFUNCTION_H
-#define FLY_CODEGENFUNCTION_H
+#ifndef FLY_CODEGEN_INSTANCE_H
+#define FLY_CODEGEN_INSTANCE_H
 
-#include "CodeGenFunctionBase.h"
+namespace llvm {
+    class Value;
+}
 
 namespace fly {
 
-    class ASTFunction;
     class CodeGenModule;
+    class ASTClass;
 
-    class CodeGenFunction : public CodeGenFunctionBase {
+    class CodeGenInstance {
 
-        ASTFunction *AST = nullptr;
+        CodeGenModule *CGM;
 
-        bool isExternal = false;
+        ASTClass *Class;
 
     public:
-        CodeGenFunction(CodeGenModule *CGM, ASTFunction *AST, bool isExternal = false);
+        CodeGenInstance(CodeGenModule *CGM, ASTClass *Class);
 
-        llvm::Function *Create() override;
+        void InvokeDefaultConstructor(llvm::Value *Instance);
+
     };
 }
 
-#endif //FLY_CODEGENFUNCTION_H
+#endif //FLY_CODEGEN_INSTANCE_H

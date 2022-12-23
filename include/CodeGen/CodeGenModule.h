@@ -51,6 +51,7 @@ namespace fly {
     class CodeGenCall;
     class CodeGenClass;
     class ASTClass;
+    class ASTVar;
 
     class CodeGenModule : public CodeGenTypeCache {
 
@@ -112,6 +113,8 @@ namespace fly {
         llvm::Constant *GenValue(const ASTType *Type, const ASTValue *Val);
 
         void GenStmt(llvm::Function *Fn, ASTStmt * Stmt);
+
+        ASTVar *GenVarRef(ASTVarRef *VarRef);
 
         CallInst *GenCall(llvm::Function *Fn, ASTCall *Call);
 

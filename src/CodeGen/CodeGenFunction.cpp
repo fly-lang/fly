@@ -19,7 +19,14 @@
 
 using namespace fly;
 
-CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, ASTFunction *AST, bool isExternal) : CodeGenFunctionBase(CGM, AST), AST(AST) {
+CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, ASTFunction *AST, bool isExternal) :
+    CodeGenFunctionBase(CGM, AST), AST(AST), isExternal(isExternal) {
+
+}
+
+Function *CodeGenFunction::Create() {
+    Fn = CodeGenFunctionBase::Create();
+
     // Set Name
     std::string Id = CodeGen::toIdentifier(AST->getName(), AST->getNameSpace()->getName());
     Fn->setName(Id);
@@ -28,4 +35,6 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, ASTFunction *AST, bool isEx
     if (isExternal && AST->getScopes()->getVisibility() == ASTVisibilityKind::V_PRIVATE) {
         Fn->setLinkage(GlobalValue::LinkageTypes::InternalLinkage);
     }
+
+    return Fn;
 }

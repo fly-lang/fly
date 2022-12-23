@@ -14,16 +14,23 @@
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTParams.h"
+#include "AST/ASTExpr.h"
+#include "AST/ASTCall.h"
 #include "Basic/Debug.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"
 #include "llvm/ADT/StringRef.h"
+#include "AST/ASTClassFunction.h"
 
 using namespace fly;
 
 CodeGenFunctionBase::CodeGenFunctionBase(CodeGenModule *CGM, ASTFunctionBase *AST) : CGM(CGM), AST(AST) {
-    llvm::FunctionType *FnTy = GenFuncType(AST->getType(), AST->getParams());
+    FnTy = GenFuncType(AST->getType(), AST->getParams());
+}
+
+llvm::Function *CodeGenFunctionBase::Create() {
     Fn = llvm::Function::Create(FnTy, llvm::GlobalValue::ExternalLinkage, "", CGM->getModule());
+    return Fn;
 }
 
 llvm::FunctionType *CodeGenFunctionBase::GenFuncType(const ASTType *RetTyData, const ASTParams *Params) {
@@ -33,12 +40,20 @@ llvm::FunctionType *CodeGenFunctionBase::GenFuncType(const ASTType *RetTyData, c
     } else {
         // Create Function Type with parameters
         SmallVector<llvm::Type *, 8> ArrayParams;
+        // Add the PreParams on first
+        for (auto &PreTy : PreParams) {
+            ArrayParams.push_back(PreTy);
+        }
         for (auto Param : Params->getList()) {
             llvm::Type *ParamTy = CGM->GenType(Param->getType());
             ArrayParams.push_back(ParamTy);
         }
         return llvm::FunctionType::get(CGM->GenType(RetTyData), ArrayParams, Params->getEllipsis() != nullptr);
     }
+}
+
+ASTFunctionBase *CodeGenFunctionBase::getAST() {
+    return AST;
 }
 
 llvm::StringRef CodeGenFunctionBase::getName() const {
@@ -49,16 +64,20 @@ llvm::Function *CodeGenFunctionBase::getFunction() {
     return Fn;
 }
 
+llvm::FunctionType *CodeGenFunctionBase::getFunctionType() {
+    return FnTy;
+}
+
+
 void CodeGenFunctionBase::GenBody() {
     FLY_DEBUG("CodeGenFunction", "GenBody");
     Entry = BasicBlock::Create(CGM->LLVMCtx, "entry", Fn);
     CGM->Builder->SetInsertPoint(Entry);
 
     // CodeGen of Params are contained into LocalVars
-
     // Allocation of declared local vars
     for (auto &LocalVar: AST->getLocalVars()) {
-        LocalVar->setCodeGen(new CodeGenVar(CGM, LocalVar)); // FIXME Class
+        LocalVar->setCodeGen(new CodeGenVar(CGM, LocalVar));
         LocalVar->getCodeGen()->Init();
     }
 

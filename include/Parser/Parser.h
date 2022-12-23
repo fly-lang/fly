@@ -136,6 +136,7 @@ namespace fly {
         bool isTokenStringLiteral() const;
         bool isTokenSpecial() const;
         bool isTokenAssignOperator() const;
+        bool isNewOperator(Token &Tok);
         bool isUnaryPreOperator(Token &Tok);
         bool isUnaryPostOperator();
         bool isBinaryOperator();

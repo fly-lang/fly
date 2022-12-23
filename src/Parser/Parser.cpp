@@ -496,8 +496,11 @@ bool Parser::ParseStmt(ASTBlock *Block) {
         if (Tok.isAnyIdentifier()) {
             const StringRef &Name = Tok.getIdentifierInfo()->getName();
             ConsumeToken();
-            if (Identifier->getNameSpace().empty()) // ClassType NameSpace must be populated always
+
+            // ClassType NameSpace must be populated always
+            if (Identifier->getNameSpace().empty())
                 Identifier->setNameSpace(NameSpace);
+
             Type = SemaBuilder::CreateClassType(Identifier);
             ASTLocalVar *LocalVar = Builder.CreateLocalVar(Block, Tok.getLocation(), Type, Name, Const);
 
@@ -1529,6 +1532,15 @@ bool Parser::isTokenAssignOperator() const {
     return Tok.isOneOf(tok::equal, tok::plusequal, tok::minusequal, tok::starequal, tok::slashequal,
                    tok::percentequal, tok::ampequal, tok::pipeequal, tok::caretequal, tok::lesslessequal,
                    tok::greatergreaterequal);
+}
+
+/**
+ * Check if Token is one of the Unary Pre Operators
+ * @return true on Success or false on Error
+ */
+bool Parser::isNewOperator(Token &Tok) {
+    FLY_DEBUG("Parser", "isNewOperator");
+    return Tok.is(tok::kw_new);
 }
 
 /**

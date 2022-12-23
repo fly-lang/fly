@@ -19,6 +19,7 @@
 #include "CodeGen/CodeGenGlobalVar.h"
 #include "CodeGen/CodeGenVar.h"
 #include "CodeGen/CodeGenExpr.h"
+#include "CodeGen/CodeGenInstance.h"
 #include "Sema/SemaBuilder.h"
 #include "AST/ASTImport.h"
 #include "AST/ASTNode.h"
@@ -26,6 +27,8 @@
 #include "AST/ASTLocalVar.h"
 #include "AST/ASTCall.h"
 #include "AST/ASTGlobalVar.h"
+#include "AST/ASTClassVar.h"
+#include "AST/ASTClassFunction.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTParams.h"
 #include "AST/ASTBlock.h"
@@ -130,6 +133,7 @@ CodeGenFunction *CodeGenModule::GenFunction(ASTFunction *Function, bool isExtern
     FLY_DEBUG_MESSAGE("CodeGenModule", "AddFunction",
                       "Function=" << Function->str() << ", isExternal=" << isExternal);
     CodeGenFunction *CGF = new CodeGenFunction(this, Function, isExternal);
+    CGF->Create();
     Function->setCodeGen(CGF);
     return CGF;
 }
@@ -139,6 +143,7 @@ CodeGenClass *CodeGenModule::GenClass(ASTClass *Class, bool isExternal) {
                       "Class=" << Class->str() << ", isExternal=" << isExternal);
     CodeGenClass *CGC = new CodeGenClass(this, Class, isExternal);
     Class->setCodeGen(CGC);
+    CGC->Generate();
     return CGC;
 }
 
@@ -284,7 +289,7 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
             ASTLocalVar *LocalVar = (ASTLocalVar *) Stmt;
             assert(LocalVar->getCodeGen() && "LocalVar is not CodeGen initialized");
             if (LocalVar->getExpr()) {
-                llvm::Value *V = GenExpr(Fn, LocalVar->getType(), LocalVar->getExpr());
+               llvm::Value *V = GenExpr(Fn, LocalVar->getType(), LocalVar->getExpr());
                 LocalVar->getCodeGen()->Store(V);
             }
             break;
@@ -294,23 +299,10 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
         case ASTStmtKind::STMT_VAR_ASSIGN: {
             ASTVarAssign *VarAssign = (ASTVarAssign *) Stmt;
             assert(VarAssign->getExpr() && "Expr Mandatory in assignment");
-            llvm::Value *V = GenExpr(Fn, VarAssign->getVarRef()->getDef()->getType(), VarAssign->getExpr());
-            switch (VarAssign->getVarRef()->getDef()->getVarKind()) {
-
-                case ASTVarKind::VAR_LOCAL: {
-                    ASTLocalVar *LocalVar = (ASTLocalVar *) VarAssign->getVarRef()->getDef();
-                    LocalVar->getCodeGen()->Store(V);
-                    break;
-                }
-                case ASTVarKind::VAR_GLOBAL: {
-                    ASTGlobalVar *GlobalVar = (ASTGlobalVar *) VarAssign->getVarRef()->getDef();
-                    GlobalVar->getCodeGen()->Store(V);
-                    break;
-                }
-                case ASTVarKind::VAR_FIELD:
-                    //TODO
-                    break;
-            }
+            ASTVarRef *VarRef = VarAssign->getVarRef();
+            llvm::Value *V = GenExpr(Fn, VarRef->getDef()->getType(), VarAssign->getExpr());
+            ASTVar *Var = GenVarRef(VarRef);
+            Var->getCodeGen()->Store(V);
             break;
         }
         case ASTStmtKind::STMT_EXPR: {
@@ -371,6 +363,15 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
     }
 }
 
+ASTVar *CodeGenModule::GenVarRef(ASTVarRef *VarRef) {
+    if (VarRef->getDef()->getVarKind() == ASTVarKind::VAR_CLASS) {
+        llvm::Value *V = VarRef->getInstance()->getCodeGen()->getValue(); // Set Instance into CodeGen
+        ((ASTClassVar *) VarRef->getDef())->getCodeGen()->setClassInstance(V);
+        return VarRef->getInstance();
+    }
+    return VarRef->getDef();
+}
+
 CallInst *CodeGenModule::GenCall(llvm::Function *Fn, ASTCall *Call) {
     FLY_DEBUG_MESSAGE("CodeGenModule", "GenCall",
                       "Call=" << Call->str());
@@ -380,12 +381,29 @@ CallInst *CodeGenModule::GenCall(llvm::Function *Fn, ASTCall *Call) {
         return nullptr;
     }
 
-    const std::vector<ASTParam *> &Params = Call->getDef()->getParams()->getList();
+    // The function arguments
     llvm::SmallVector<llvm::Value *, 8> Args;
+
+    // Add Instance to Function Args
+    if (Call->getDef()->getKind() == ASTFunctionKind::CLASS_FUNCTION) {
+        ASTClassFunction *Def = (ASTClassFunction *) Call->getDef();
+        
+        // Add Instance as Argument
+        if (Def->isConstructor() || !Def->isStatic()) {
+            ASTVar *Var = Call->getInstance();
+            CodeGenVarBase *CGV = Var->getCodeGen();
+            Args.push_back(CGV->getValue());
+        }
+    }
+
+    // Add Call arguments to Function args
+    const std::vector<ASTParam *> &Params = Call->getDef()->getParams()->getList();
     for (ASTArg *Arg : Call->getArgs()) {
         Value *V = GenExpr(Fn, Arg->getDef()->getType(), Arg->getExpr());
         Args.push_back(V);
     }
+
+    // Add Function to llvm context
     CodeGenFunctionBase *CGF = Call->getDef()->getCodeGen();
     return Builder->CreateCall(CGF->getFunction(), Args);
 }

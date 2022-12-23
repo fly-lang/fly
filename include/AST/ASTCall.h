@@ -25,6 +25,7 @@ namespace fly {
     class ASTParam;
     class ASTArg;
     class ASTCallExpr;
+    class ASTVar;
 
     /**
      * A Reference to a Function in a Declaration
@@ -44,6 +45,8 @@ namespace fly {
 
         CodeGenCall *CGC = nullptr;
 
+        ASTVar *Instance = nullptr;
+
         ASTCall(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef Name);
 
         ASTCall(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef ClassName, llvm::StringRef Name);
@@ -55,6 +58,8 @@ namespace fly {
         ASTFunctionBase *getDef() const;
 
         CodeGenCall *getCodeGen() const;
+
+        ASTVar *getInstance() const;
 
         std::string str() const;
     };

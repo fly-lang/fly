@@ -17,6 +17,17 @@
 using namespace fly;
 
 CodeGenClassFunction::CodeGenClassFunction(CodeGenModule *CGM, ASTClassFunction *AST) : CodeGenFunctionBase(CGM, AST) {
-    std::string Id = CodeGen::toIdentifier(AST->getName(), AST->getClass()->getNameSpace()->getName(), AST->getClass()->getName());
+
+}
+
+Function *CodeGenClassFunction::Create() {
+    Fn = CodeGenFunctionBase::Create();
+
+    ASTClass *Class = ((ASTClassFunction *) getAST())->getClass();
+    std::string Id = CodeGen::toIdentifier(getAST()->getName(), Class->getNameSpace()->getName(), Class->getName());
     Fn->setName(Id);
+
+    GenBody();
+
+    return Fn;
 }

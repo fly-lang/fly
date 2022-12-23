@@ -22,6 +22,7 @@
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTFunction.h"
+#include "AST/ASTIdentifier.h"
 #include "AST/ASTVar.h"
 #include "AST/ASTVarAssign.h"
 #include "AST/ASTValue.h"
@@ -1863,7 +1864,7 @@ namespace {
                           "}\n");
     }
 
-    TEST_F(CodeGenTest, CGClassVars) {
+    TEST_F(CodeGenTest, DISABLED_CGClassVars) {
         ASTNode *Node = CreateNode();
 
         // TestClass {
@@ -1885,10 +1886,9 @@ namespace {
                                 "c",
                                 SemaBuilder::CreateClassScopes(
                                         ASTClassVisibilityKind::CLASS_V_PRIVATE, true));
-        Builder->AddClass(Node, TestClass);
 
         // int main() {
-        //  TestClass test
+        //  TestClass test = new TestClass();
         //  int a = test.a
         //  int b = test.b
         //  int c = test.c
@@ -1897,64 +1897,70 @@ namespace {
                                                       SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false));
         ASTBlock *Body = Builder->getBlock(MainFn);
 
-        // TestClass test
+        // TestClass test = new TestClass()
         ASTType *TestClassType = SemaBuilder::CreateClassType(TestClass);
         ASTLocalVar *TestVar = Builder->CreateLocalVar(Body, SourceLoc, TestClassType, "test");
+        ASTClassFunction *DefaultConstructor = TestClass->getConstructors().find(0)->second.front();
+        Builder->CreateExpr(TestVar, Builder->CreateCall(TestVar, DefaultConstructor));
         Builder->AddStmt(TestVar);
 
         // int a = test.a
-        ASTType *aType = aField->getType();
-        ASTLocalVar *aVar = Builder->CreateLocalVar(Body, SourceLoc, aType, "a");
-        ASTVarRefExpr *aRefExpr = Builder->CreateExpr(aVar, Builder->CreateVarRef(aField));
+        ASTLocalVar *aVar = Builder->CreateLocalVar(Body, SourceLoc, IntType, "a");
+        ASTVarRefExpr *aRefExpr = Builder->CreateExpr(aVar, Builder->CreateVarRef(TestVar, aField));
         Builder->AddStmt(aVar);
 
         // int b = test.b
-        ASTType *bType = SemaBuilder::CreateIntType(SourceLoc);
-        ASTLocalVar *bVar = Builder->CreateLocalVar(Body, SourceLoc, bType, "b");
-        ASTVarRefExpr *bRefExpr = Builder->CreateExpr(bVar, Builder->CreateVarRef(bField));
+        ASTLocalVar *bVar = Builder->CreateLocalVar(Body, SourceLoc, IntType, "b");
+        ASTVarRefExpr *bRefExpr = Builder->CreateExpr(bVar, Builder->CreateVarRef(TestVar, bField));
         Builder->AddStmt(bVar);
 
         // int c = test.c
-        ASTType *cType = SemaBuilder::CreateIntType(SourceLoc);
-        ASTLocalVar *cVar = Builder->CreateLocalVar(Body, SourceLoc, cType, "c");
-        ASTVarRefExpr *cRefExpr = Builder->CreateExpr(cVar, Builder->CreateVarRef(cField));
+        ASTLocalVar *cVar = Builder->CreateLocalVar(Body, SourceLoc, IntType, "c");
+        ASTVarRefExpr *cRefExpr = Builder->CreateExpr(cVar, Builder->CreateVarRef(TestVar, cField));
         Builder->AddStmt(cVar);
 
         // Add to Node
+        EXPECT_TRUE(Builder->AddClass(Node, TestClass));
         EXPECT_TRUE(Builder->AddFunction(Node, MainFn));
         EXPECT_TRUE(Builder->AddNode(Node));
-        EXPECT_TRUE(Builder->Build());
+        bool Success = Builder->Build();
+        EXPECT_TRUE(Success);
 
-        // Generate Code
-        CodeGenClass *CGC = CGM->GenClass(TestClass);
-        CodeGenFunction *CGF = CGM->GenFunction(MainFn);
-        CGF->GenBody();
-        Function *F = CGF->getFunction();
+        if (Success) {
+            // Generate Code
+            CodeGenClass *CGC = CGM->GenClass(TestClass);
+            CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+            CGF->GenBody();
 
-        EXPECT_FALSE(Diags.hasErrorOccurred());
-        std::string output = getOutput();
+            EXPECT_FALSE(Diags.hasErrorOccurred());
+            std::string output = getOutput();
 
-        EXPECT_EQ(output, "%TestClass = type { i32, i32, i32 }\n"
-                          "\n"
-                          "define i32 @main() {\n"
-                            "entry:\n"
-                            "  %0 = alloca %TestClass, align 8\n"
-                            "  %1 = alloca i32, align 4\n"
-                            "  %2 = alloca i32, align 4\n"
-                            "  %3 = alloca i32, align 4\n"
-                            "  %4 = getelementptr inbounds %TestClass, %TestClass* %0, i32 0, i32 0\n"
-                            "  %5 = load i32, i32* %4, align 4\n"
-                            "  store i32 %5, i32* %1, align 4\n"
-                            "  %6 = getelementptr inbounds %TestClass, %TestClass* %0, i32 0, i32 1\n"
-                            "  %7 = load i32, i32* %6, align 4\n"
-                            "  store i32 %7, i32* %2, align 4\n"
-                            "  %8 = getelementptr inbounds %TestClass, %TestClass* %0, i32 0, i32 2\n"
-                            "  %9 = load i32, i32* %8, align 4\n"
-                            "  store i32 %9, i32* %3, align 4\n"
-                            "}\n");
+            EXPECT_EQ(output, "%TestClass = type { i32, i32, i32 }\n"
+                              "\n"
+                              "define i32 @TestClass_TestClass() {\n"
+                              "entry:\n"
+                              "}\n"
+                              "\n"
+                              "define i32 @main() {\n"
+                              "entry:\n"
+                              "  %0 = alloca %TestClass, align 8\n"
+                              "  %1 = alloca i32, align 4\n"
+                              "  %2 = alloca i32, align 4\n"
+                              "  %3 = alloca i32, align 4\n"
+                              "  %4 = getelementptr inbounds %TestClass, %TestClass* %0, i32 0, i32 0\n"
+                              "  %5 = load i32, i32* %4, align 4\n"
+                              "  store i32 %5, i32* %1, align 4\n"
+                              "  %6 = getelementptr inbounds %TestClass, %TestClass* %0, i32 0, i32 1\n"
+                              "  %7 = load i32, i32* %6, align 4\n"
+                              "  store i32 %7, i32* %2, align 4\n"
+                              "  %8 = getelementptr inbounds %TestClass, %TestClass* %0, i32 0, i32 2\n"
+                              "  %9 = load i32, i32* %8, align 4\n"
+                              "  store i32 %9, i32* %3, align 4\n"
+                              "}\n");
+        }
     }
 
-    TEST_F(CodeGenTest, CGClassFunctions) {
+    TEST_F(CodeGenTest, DISABLED_CGClassFunctions) {
         ASTNode *Node = CreateNode();
 
         // TestClass {
@@ -1966,30 +1972,30 @@ namespace {
                                                    SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false));
 
         // int a() { return 1 }
-        ASTClassFunction *aFunc = Builder->CreateClassFunction(TestClass, SourceLoc, SemaBuilder::CreateIntType(SourceLoc),
-                                                      "a",
-                                                      SemaBuilder::CreateClassScopes(
-                                                              ASTClassVisibilityKind::CLASS_V_DEFAULT, false));
+        ASTClassFunction *aFunc = Builder->CreateClassMethod(TestClass, SourceLoc, IntType,
+                                                             "a",
+                                                             SemaBuilder::CreateClassScopes(
+                                                                     ASTClassVisibilityKind::CLASS_V_DEFAULT, false));
         ASTBlock *aFuncBody = Builder->getBlock(aFunc);
         ASTReturn *aFuncReturn = Builder->CreateReturn(aFuncBody, SourceLoc);
         Builder->CreateExpr(aFuncReturn, Builder->CreateIntegerValue(SourceLocation(), 1));
         Builder->AddStmt(aFuncReturn);
 
         // public int b() { return 1 }
-        ASTClassFunction *bFunc = Builder->CreateClassFunction(TestClass, SourceLoc, SemaBuilder::CreateIntType(SourceLoc),
-                                                      "b",
-                                                      SemaBuilder::CreateClassScopes(
-                                                              ASTClassVisibilityKind::CLASS_V_PUBLIC, false));
+        ASTClassFunction *bFunc = Builder->CreateClassMethod(TestClass, SourceLoc, IntType,
+                                                             "b",
+                                                             SemaBuilder::CreateClassScopes(
+                                                                     ASTClassVisibilityKind::CLASS_V_PUBLIC, false));
         ASTBlock *bFuncBody = Builder->getBlock(bFunc);
         ASTReturn *bFuncReturn = Builder->CreateReturn(bFuncBody, SourceLoc);
         Builder->CreateExpr(bFuncReturn, Builder->CreateIntegerValue(SourceLocation(), 1));
         Builder->AddStmt(bFuncReturn);
 
         // private const int c { return 1 }
-        ASTClassFunction *cFunc = Builder->CreateClassFunction(TestClass, SourceLoc, SemaBuilder::CreateIntType(SourceLoc),
-                                                      "c",
-                                                      SemaBuilder::CreateClassScopes(
-                                                              ASTClassVisibilityKind::CLASS_V_PRIVATE, true));
+        ASTClassFunction *cFunc = Builder->CreateClassMethod(TestClass, SourceLoc, IntType,
+                                                             "c",
+                                                             SemaBuilder::CreateClassScopes(
+                                                                     ASTClassVisibilityKind::CLASS_V_PRIVATE, true));
         ASTBlock *cFuncBody = Builder->getBlock(cFunc);
         ASTReturn *cFuncReturn = Builder->CreateReturn(cFuncBody, SourceLoc);
         Builder->CreateExpr(cFuncReturn, Builder->CreateIntegerValue(SourceLocation(), 1));
@@ -1998,7 +2004,7 @@ namespace {
         Builder->AddClass(Node, TestClass);
 
         // int main() {
-        //  TestClass test
+        //  TestClass test = new TestClass()
         //  int a = test.a()
         //  int b = test.b()
         //  int c = test.c()
@@ -2007,75 +2013,85 @@ namespace {
                                                       SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false));
         ASTBlock *Body = Builder->getBlock(MainFn);
 
-        // TestClass test
+        // TestClass test = new TestClass()
         ASTType *TestClassType = SemaBuilder::CreateClassType(TestClass);
         ASTLocalVar *TestVar = Builder->CreateLocalVar(Body, SourceLoc, TestClassType, "test");
+        ASTClassFunction *DefaultConstructor = TestClass->getConstructors().find(0)->second.front();
+        ASTCall *ConstructorCall = Builder->CreateCall(TestVar, DefaultConstructor);
+        Builder->CreateExpr(TestVar, ConstructorCall);
         Builder->AddStmt(TestVar);
 
         // int a = test.a()
         ASTType *aType = aFunc->getType();
         ASTLocalVar *aVar = Builder->CreateLocalVar(Body, SourceLoc, aType, "a");
-        ASTCallExpr *aCallExpr = Builder->CreateExpr(aVar, Builder->CreateCall(aFunc));
+        ASTCallExpr *aCallExpr = Builder->CreateExpr(aVar, Builder->CreateCall(TestVar, aFunc));
         Builder->AddStmt(aVar);
 
         // int b = test.b
         ASTType *bType = bFunc->getType();
         ASTLocalVar *bVar = Builder->CreateLocalVar(Body, SourceLoc, bType, "b");
-        ASTCallExpr *bCallExpr = Builder->CreateExpr(bVar, Builder->CreateCall(bFunc));
+        ASTCallExpr *bCallExpr = Builder->CreateExpr(bVar, Builder->CreateCall(TestVar, bFunc));
         Builder->AddStmt(bVar);
 
         // int c = test.c
         ASTType *cType = cFunc->getType();
         ASTLocalVar *cVar = Builder->CreateLocalVar(Body, SourceLoc, cType, "c");
-        ASTCallExpr *cCallExpr = Builder->CreateExpr(cVar, Builder->CreateCall(cFunc));
+        ASTCallExpr *cCallExpr = Builder->CreateExpr(cVar, Builder->CreateCall(TestVar, cFunc));
         Builder->AddStmt(cVar);
 
         // Add to Node
         EXPECT_TRUE(Builder->AddFunction(Node, MainFn));
         EXPECT_TRUE(Builder->AddNode(Node));
-        EXPECT_TRUE(Builder->Build());
+        bool Success = Builder->Build();
+        EXPECT_TRUE(Success);
 
-        // Generate Code
-        CodeGenClass *CGC = CGM->GenClass(TestClass);
-        for (auto &F : CGC->getFunctions()) {
-            F->GenBody();
+        if (Success) {
+
+            // Generate Code
+            CodeGenClass *CGC = CGM->GenClass(TestClass);
+            for (auto &F: CGC->getFunctions()) {
+                F->GenBody();
+            }
+            CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+            CGF->GenBody();
+
+            EXPECT_FALSE(Diags.hasErrorOccurred());
+            std::string output = getOutput();
+
+            EXPECT_EQ(output, "%TestClass = type {}\n"
+                              "\n"
+                              "define i32 @TestClass_TestClass() {\n"
+                              "entry:\n"
+                              "}\n"
+                              "define i32 @TestClass_a() {\n"
+                              "entry:\n"
+                              "  ret i32 1\n"
+                              "}\n"
+                              "\n"
+                              "define i32 @TestClass_b() {\n"
+                              "entry:\n"
+                              "  ret i32 1\n"
+                              "}\n"
+                              "\n"
+                              "define i32 @TestClass_c() {\n"
+                              "entry:\n"
+                              "  ret i32 1\n"
+                              "}\n"
+                              "\n"
+                              "define i32 @main() {\n"
+                              "entry:\n"
+                              "  %0 = alloca %TestClass, align 8\n"
+                              "  %1 = alloca i32, align 4\n"
+                              "  %2 = alloca i32, align 4\n"
+                              "  %3 = alloca i32, align 4\n"
+                              "  %4 = call i32 @TestClass_a()\n"
+                              "  store i32 %4, i32* %1, align 4\n"
+                              "  %5 = call i32 @TestClass_b()\n"
+                              "  store i32 %5, i32* %2, align 4\n"
+                              "  %6 = call i32 @TestClass_c()\n"
+                              "  store i32 %6, i32* %3, align 4\n"
+                              "}\n");
         }
-        CodeGenFunction *CGF = CGM->GenFunction(MainFn);
-        CGF->GenBody();
-
-        EXPECT_FALSE(Diags.hasErrorOccurred());
-        std::string output = getOutput();
-
-        EXPECT_EQ(output, "%TestClass = type {}\n"
-                          "\n"
-                          "define i32 @TestClass_a() {\n"
-                          "entry:\n"
-                          "  ret i32 1\n"
-                          "}\n"
-                          "\n"
-                          "define i32 @TestClass_b() {\n"
-                          "entry:\n"
-                          "  ret i32 1\n"
-                          "}\n"
-                          "\n"
-                          "define i32 @TestClass_c() {\n"
-                          "entry:\n"
-                          "  ret i32 1\n"
-                          "}\n"
-                          "\n"
-                          "define i32 @main() {\n"
-                          "entry:\n"
-                          "  %0 = alloca %TestClass, align 8\n"
-                          "  %1 = alloca i32, align 4\n"
-                          "  %2 = alloca i32, align 4\n"
-                          "  %3 = alloca i32, align 4\n"
-                          "  %4 = call i32 @TestClass_a()\n"
-                          "  store i32 %4, i32* %1, align 4\n"
-                          "  %5 = call i32 @TestClass_b()\n"
-                          "  store i32 %5, i32* %2, align 4\n"
-                          "  %6 = call i32 @TestClass_c()\n"
-                          "  store i32 %6, i32* %3, align 4\n"
-                          "}\n");
     }
 
 } // anonymous namespace

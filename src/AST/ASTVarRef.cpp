@@ -26,6 +26,10 @@ ASTVar *ASTVarRef::getDef() const {
     return Def;
 }
 
+ASTVar *ASTVarRef::getInstance() const {
+    return Instance;
+}
+
 std::string ASTVarRef::str() const {
     return Logger("ASTVarRef").
             Attr("Location", Loc).

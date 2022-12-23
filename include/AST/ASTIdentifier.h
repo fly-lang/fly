@@ -26,9 +26,9 @@ namespace fly {
     protected:
 
         const SourceLocation Loc;
-        const llvm::StringRef ClassName;
-        const llvm::StringRef Name;
         llvm::StringRef NameSpace;
+        llvm::StringRef ClassName;
+        const llvm::StringRef Name;
 
     public:
 

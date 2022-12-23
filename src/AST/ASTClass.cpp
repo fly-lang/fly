@@ -56,6 +56,10 @@ llvm::StringMap<ASTClassVar *> ASTClass::getVars() const {
     return Vars;
 }
 
+std::map <uint64_t,llvm::SmallVector <ASTClassFunction *, 4>> ASTClass::getConstructors() const {
+    return Constructors;
+}
+
 llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTClassFunction *, 4>>> ASTClass::getMethods() const {
     return Methods;
 }

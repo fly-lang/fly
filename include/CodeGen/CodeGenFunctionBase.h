@@ -12,10 +12,12 @@
 #define FLY_CODEGEN_FUNCTIONBASE_H
 
 #include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/SmallVector.h"
 
 namespace llvm {
     class Function;
     class FunctionType;
+    class Type;
     class BasicBlock;
 }
 
@@ -33,14 +35,22 @@ namespace fly {
     protected:
         CodeGenModule * CGM = nullptr;
         llvm::Function *Fn = nullptr;
+        llvm::FunctionType *FnTy = nullptr;
+        llvm::SmallVector<llvm::Type *, 4> PreParams;
         llvm::BasicBlock *Entry = nullptr;
 
     public:
         CodeGenFunctionBase(CodeGenModule *CGM, ASTFunctionBase *AST);
 
+        virtual llvm::Function *Create();
+
+        ASTFunctionBase *getAST();
+
         llvm::StringRef getName() const;
 
         llvm::Function *getFunction();
+
+        llvm::FunctionType *getFunctionType();
 
         void GenBody();
 

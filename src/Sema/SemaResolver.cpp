@@ -169,6 +169,8 @@ bool SemaResolver::ResolveBlock(ASTBlock *Block) {
 
                 if (LocalVar->getExpr())
                     Success &= ResolveExpr(Block, LocalVar->getExpr());
+                else // Var not initialized
+                    Block->UnInitVars.insert(std::make_pair(LocalVar->getName(), LocalVar));
                 break;
             }
             case ASTStmtKind::STMT_VAR_ASSIGN: {
@@ -182,6 +184,13 @@ bool SemaResolver::ResolveBlock(ASTBlock *Block) {
 
                 Success &= (VarAssign->getVarRef()->getDef() || ResolveVarRef(Block, VarAssign->getVarRef())) &&
                            ResolveExpr(Block, VarAssign->getExpr());
+
+                // Remove from Un-Initialized Var
+                if (Success) {
+                    auto It = Block->UnInitVars.find(VarAssign->getVarRef()->getName());
+                    if (It != Block->UnInitVars.end())
+                        Block->UnInitVars.erase(It);
+                }
                 break;
             }
             case ASTStmtKind::STMT_RETURN:
@@ -192,6 +201,14 @@ bool SemaResolver::ResolveBlock(ASTBlock *Block) {
                 break;
         }
     }
+
+    if (!Block->UnInitVars.empty()) {
+        for (auto &UnInitVar : Block->UnInitVars) {
+            S.Diag(UnInitVar.second->getLocation(), diag::err_sema_uninit_var);
+        }
+        return false;
+    }
+
     return Success;
 }
 
@@ -265,16 +282,25 @@ bool SemaResolver::ResolveType(ASTFunctionBase *FunctionBase, ASTType * Type) {
 
 template <class T>
 bool SemaResolver::ResolveCallable(ASTBlock *Block, ASTCall *Call,
-                                 llvm::StringMap<std::map <uint64_t,llvm::SmallVector <T *, 4>>> Functions) {
+                                 llvm::StringMap<std::map <uint64_t,llvm::SmallVector <T *, 4>>> &Functions) {
 
     // Search by Call Name
     auto StrMapIt = Functions.find(Call->getName());
-    std::map<uint64_t, llvm::SmallVector<T *, 4>> &IntMap = StrMapIt->getValue();
+    if (StrMapIt != Functions.end()) {
+        std::map<uint64_t, llvm::SmallVector<T *, 4>> &IntMap = StrMapIt->getValue();
+        return ResolveCallable(Block, Call, IntMap);
+    }
 
+    return Call->Def;
+}
+
+template <class T>
+bool SemaResolver::ResolveCallable(ASTBlock *Block, ASTCall *Call,
+                                   std::map <uint64_t,llvm::SmallVector <T *, 4>> &Functions) {
     // Search by number of arguments
-    const auto &IntMapIt = IntMap.find(Call->getArgs().size());
-    if (IntMapIt != IntMap.end()) { // Map contains Function with this size of args
-        for (T *Function : IntMapIt->second) {
+    const auto &IntMapIt = Functions.find(Call->getArgs().size());
+    if (IntMapIt != Functions.end()) { // Map contains Function with this size of args
+        for (T *Function: IntMapIt->second) {
 
             if (Function->getParams()->getSize() == Call->getArgs().size()) {
                 bool Success = true; // if Params = Args = 0 skip for cycle
@@ -355,21 +381,22 @@ bool SemaResolver::ResolveCall(ASTBlock *Block, ASTCall *Call) {
             // class from instance
             ASTLocalVar *Instance = S.FindVarDef(Block, Call->getClassName());
             if (Instance && Instance->getType()->isClass()) {
+                Call->Instance = Instance;
+
                 // Class i
                 // i.func()
-                if (ResolveCallable(Block, Call, ((ASTClassType *) Instance->getType())->getDef()->getMethods())) {
+                if (ResolveCallable(Block, Call, ((ASTClassType *) Instance->getType())->getDef()->Methods)) {
                     ASTClassVisibilityKind Visibility = ((ASTClassFunction *) Call->Def)->getScopes()->getVisibility();
                     if (Visibility == ASTClassVisibilityKind::CLASS_V_PUBLIC ||
                         Visibility == ASTClassVisibilityKind::CLASS_V_DEFAULT) {
                         return true;
                     }
                 }
-
             }
 
             // class from static call
             // NS1:Class.func()
-            ASTClass *Class = nullptr;
+            ASTClass *Class;
             if (Call->getNameSpace() == Node->NameSpace->getName()) {
                 Class = S.FindClass(Call->getClassName(), Node->NameSpace);
             } else {
@@ -382,7 +409,11 @@ bool SemaResolver::ResolveCall(ASTBlock *Block, ASTCall *Call) {
                 return false;
             }
 
-            if (ResolveCallable(Block, Call, Class->Methods)) {
+            bool Resolved = Call->getName() == Call->getClassName() ?
+                            ResolveCallable(Block, Call, Class->Constructors) : // Call Constructor
+                            ResolveCallable(Block, Call, Class->Methods);
+
+            if (Resolved) {
                 ASTClassVisibilityKind Visibility = ((ASTClassFunction *) Call->Def)->getScopes()->getVisibility();
                 if (Visibility == ASTClassVisibilityKind::CLASS_V_PUBLIC ||
                     Visibility == ASTClassVisibilityKind::CLASS_V_DEFAULT) {
@@ -434,7 +465,7 @@ bool SemaResolver::ResolveVarRef(ASTBlock *Block, ASTVarRef *VarRef) {
             }
         } else { // Search a Class Var
 
-            // Search into ClassVars of current Node or in Imported NameSpace
+            // Search into ClassVars of current Node
             if (VarRef->getNameSpace().empty()) {
 
                 // class from instance
@@ -442,24 +473,25 @@ bool SemaResolver::ResolveVarRef(ASTBlock *Block, ASTVarRef *VarRef) {
                 if (Instance && Instance->getType()->isClass()) {
                     // Class i
                     // i.var
-                    VarRef->Def = (ASTVar *) ((ASTClassType *) Instance->getType())->getDef()->getVars()
-                                .lookup(VarRef->getName());
+                    VarRef->Def = (ASTVar *) ((ASTClassType *) Instance->getType())->getDef()->
+                            getVars().lookup(VarRef->getName());
+                    VarRef->Instance = Instance;
                 }
 
-                // Search into Node Class Vars
+                // Search from static class vars
                 if (!VarRef->Def && Node->Class && Node->Class->getName() == VarRef->getClassName()) {
                     VarRef->Def = (ASTVar *) Node->Class->Vars.lookup(VarRef->getName());
+                }
 
-                    // read visibility
-                    if (VarRef->Def) {
-                        ASTClassVisibilityKind Visibility = ((ASTClassVar *) VarRef->Def)->getScopes()->getVisibility();
-                        if (Visibility == ASTClassVisibilityKind::CLASS_V_PUBLIC ||
-                                Visibility == ASTClassVisibilityKind::CLASS_V_DEFAULT) {
-                            return true;
-                        }
-
-                        // TODO: visibility error
+                // read visibility
+                if (VarRef->Def) {
+                    ASTClassVisibilityKind Visibility = ((ASTClassVar *) VarRef->Def)->getScopes()->getVisibility();
+                    if (Visibility == ASTClassVisibilityKind::CLASS_V_PUBLIC ||
+                        Visibility == ASTClassVisibilityKind::CLASS_V_DEFAULT) {
+                        return true;
                     }
+
+                    // TODO: visibility error
                 }
             } else {
                 // Search static ClassVars into NameSpaces

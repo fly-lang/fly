@@ -29,7 +29,6 @@ namespace fly {
     class ASTClass;
     class ASTClassScopes;
     class ASTClassVar;
-    class ASTClassFunction;
     class ASTGlobalVar;
     class ASTFunction;
     class ASTFunctionBase;
@@ -125,8 +124,9 @@ namespace fly {
         static ASTClassScopes *CreateClassScopes(ASTClassVisibilityKind Visibility, bool Constant);
         ASTClassVar *CreateClassVar(ASTClass *Class, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
                                     ASTClassScopes *Scopes);
-        ASTClassFunction *CreateClassFunction(ASTClass *Class, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
-                                              ASTClassScopes *Scopes);
+        ASTClassFunction *CreateClassConstructor(ASTClass *Class, const SourceLocation &Loc, ASTClassScopes *Scopes);
+        ASTClassFunction *CreateClassMethod(ASTClass *Class, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
+                                            ASTClassScopes *Scopes);
 
         // Create Types
         static ASTBoolType *CreateBoolType(const SourceLocation &Loc);
@@ -167,18 +167,19 @@ namespace fly {
         // Create Call
         ASTCall *CreateCall(ASTIdentifier *Identifier);
         ASTCall *CreateCall(ASTFunction *Function);
-        ASTCall *CreateCall(ASTClassFunction *Function);
+        ASTCall *CreateCall(ASTVar *Instance, ASTClassFunction *Function);
 
         // Create VarRef
         ASTVarRef *CreateVarRef(ASTLocalVar *LocalVar);
         ASTVarRef *CreateVarRef(ASTGlobalVar *GlobalVar);
-        ASTVarRef *CreateVarRef(ASTClassVar *ClassVar);
+        ASTVarRef *CreateVarRef(ASTVar *Instance, ASTClassVar *ClassVar);
         ASTVarRef *CreateVarRef(ASTIdentifier *Identifier);
 
         // Create Expressions
         ASTEmptyExpr *CreateExpr(ASTStmt *Stmt);
         ASTValueExpr *CreateExpr(ASTStmt *Stmt, ASTValue *Value);
         ASTCallExpr *CreateExpr(ASTStmt *Stmt, ASTCall *Call);
+        ASTCallExpr *CreateNewExpr(ASTStmt *Stmt, ASTCall *Call);
         ASTVarRefExpr *CreateExpr(ASTStmt *Stmt, ASTVarRef *VarRef);
         ASTUnaryGroupExpr *CreateUnaryExpr(ASTStmt *Stmt, const SourceLocation &Loc, ASTUnaryOperatorKind Kind,
                                            ASTUnaryOptionKind OptionKind, ASTVarRefExpr *First);
@@ -211,10 +212,12 @@ namespace fly {
         bool AddGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar, ASTValue *Value = nullptr);
         bool AddGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar, ASTExpr *Expr);
         bool AddFunction(ASTNode *Node, ASTFunction *Function);
-        bool AddFunction(ASTClass *Class, ASTClassFunction *ClassFunction);
         template <typename T>
-        bool InsertFunction(llvm::StringMap<std::map <uint64_t,llvm::SmallVector <T *, 4>>> &Functions,
-                            T *Function);
+        bool InsertFunction(llvm::StringMap<std::map <uint64_t,llvm::SmallVector <T *, 4>>> &Functions, T *Function);
+        template <typename T>
+        bool InsertFunction(std::map <uint64_t,llvm::SmallVector <T *, 4>> &Functions, T *Function);
+        bool AddClassMethod(ASTClass *Class, ASTClassFunction *Method);
+        bool AddClassConstructor(ASTClass *Class, ASTClassFunction *Method);
         bool AddParam(ASTParam *Param);
         void AddFunctionVarParams(ASTFunction *Function, ASTParam *Param); // TODO
         bool AddComment(ASTTopDef *Top, llvm::StringRef Comment);

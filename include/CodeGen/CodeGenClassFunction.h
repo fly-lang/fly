@@ -27,9 +27,10 @@ namespace fly {
 
         friend class CodeGenClass;
 
-        ASTClassFunction *AST = nullptr;
-
         CodeGenClassFunction(CodeGenModule *CGM, ASTClassFunction *AST);
+
+    public:
+        llvm::Function *Create() override;
     };
 }
 

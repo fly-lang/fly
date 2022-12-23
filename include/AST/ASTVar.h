@@ -26,7 +26,7 @@ namespace fly {
     enum class ASTVarKind {
         VAR_LOCAL,
         VAR_GLOBAL,
-        VAR_FIELD
+        VAR_CLASS
     };
 
     /**

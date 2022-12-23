@@ -81,7 +81,10 @@ namespace fly {
         bool ResolveType(ASTFunctionBase *FunctionBase, ASTType * Type);
 
         template <class T>
-        bool ResolveCallable(ASTBlock *Block, ASTCall *Call, llvm::StringMap<std::map <uint64_t,llvm::SmallVector <T *, 4>>> Functions);
+        bool ResolveCallable(ASTBlock *Block, ASTCall *Call, llvm::StringMap<std::map <uint64_t,llvm::SmallVector <T *, 4>>> &Functions);
+
+        template <class T>
+        bool ResolveCallable(ASTBlock *Block, ASTCall *Call, std::map <uint64_t,llvm::SmallVector <T *, 4>> &Functions);
 
         bool ResolveArg(ASTBlock *Block, ASTArg *Arg, ASTParam *Param);
 
