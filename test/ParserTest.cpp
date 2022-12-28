@@ -1184,7 +1184,7 @@ namespace {
         ASSERT_TRUE(isSuccess());
     }
 
-    TEST_F(ParserTest, DISABLED_ClassFunctions) {
+    TEST_F(ParserTest, ClassFunctions) {
         llvm::StringRef str = ("public Test {\n"
                                "  int a() { return 1 }\n"
                                "}\n");

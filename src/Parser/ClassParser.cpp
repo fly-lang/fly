@@ -35,7 +35,7 @@ ClassParser::ClassParser(Parser *P, ASTTopScopes *Scopes) : P(P) {
     P->ConsumeToken();
 
     if (P->isBlockStart()) {
-        P->ConsumeBrace();
+        ConsumeBrace();
 
         Class = P->Builder.CreateClass(P->Node, ClassLoc, ClassName, Scopes);
         bool Continue;
@@ -43,7 +43,7 @@ ClassParser::ClassParser(Parser *P, ASTTopScopes *Scopes) : P(P) {
 
             // End of the Class
             if (P->isBlockEnd() ) {
-                P->ConsumeBrace();
+                ConsumeBrace();
                 break;
             }
 
@@ -196,4 +196,26 @@ bool ClassParser::ParseMethod(ASTClassScopes *Scopes, ASTType *Type, const Sourc
     }
 
     return Success;
+}
+
+/**
+ * ConsumeBrace - This consume method keeps the brace count up-to-date.
+ * @return
+ */
+SourceLocation ClassParser::ConsumeBrace() {
+    FLY_DEBUG("Parser", "ConsumeBrace");
+    assert(P->isTokenBrace() && "wrong consume method");
+    if (P->Tok.getKind() == tok::l_brace)
+        ++BraceCount;
+    else if (BraceCount) {
+        //AngleBrackets.clear(*this);
+        --BraceCount;     // Don't let unbalanced }'s drive the count negative.
+    }
+
+    return P->ConsumeNext();
+}
+
+bool ClassParser::isBraceBalanced() const {
+    FLY_DEBUG("Parser", "isBraceBalanced");
+    return BraceCount == 0;
 }

@@ -31,7 +31,7 @@ namespace fly {
 
         ASTFunctionBase *Function;
 
-        bool Success = true;
+        unsigned short BraceCount = 0;
 
         FunctionParser(Parser *P, ASTFunctionBase *Function);
 

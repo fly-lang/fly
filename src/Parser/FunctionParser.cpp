@@ -31,8 +31,6 @@ FunctionParser::FunctionParser(Parser *P, ASTFunctionBase *Function) : P(P), Fun
 
     FLY_DEBUG_MESSAGE("FunctionParser", "FunctionParser", Logger()
                         .Attr("Function", Function).End());
-
-    Success = ParseParams() && ParseBody();
 }
 
 /**
@@ -62,8 +60,6 @@ bool FunctionParser::ParseParams() {
 bool FunctionParser::ParseParam() {
     FLY_DEBUG("FunctionParser", "ParseParams");
 
-    bool Success = true;
-
     // Var Constant
     bool Const = P->isConst();
 
@@ -92,7 +88,7 @@ bool FunctionParser::ParseParam() {
             Expr = P->Builder.CreateExpr(Param); // ASTEmptyExpr
         }
 
-        if (Success && P->Builder.AddParam(Param)) {
+        if (P->Builder.AddParam(Param)) {
 
             if (P->Tok.is(tok::comma)) {
                 P->ConsumeToken();
@@ -128,5 +124,6 @@ bool FunctionParser::Parse(Parser *P, ASTFunctionBase *Function) {
     FLY_DEBUG_MESSAGE("FunctionParser", "Parse", Logger()
             .Attr("Function", Function).End());
     FunctionParser *FP = new FunctionParser(P, Function);
-    return FP->Success;
+    bool Success = FP->ParseParams() && FP->ParseBody();
+    return Success;
 }

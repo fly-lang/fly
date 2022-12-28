@@ -29,6 +29,8 @@ namespace fly {
 
         bool Success = true;
 
+        unsigned short BraceCount = 0;
+
         ClassParser(Parser *P, ASTTopScopes *Scopes);
 
     public:
@@ -40,6 +42,10 @@ namespace fly {
         bool ParseField(ASTClassScopes *Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name);
 
         bool ParseMethod(ASTClassScopes *Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name);
+
+        SourceLocation ConsumeBrace();
+
+        bool isBraceBalanced() const;
     };
 }
 
