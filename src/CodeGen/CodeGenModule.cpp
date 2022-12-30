@@ -289,8 +289,10 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
             assert(LocalVar->getCodeGen() && "LocalVar is not CodeGen initialized");
             if (LocalVar->getExpr()) {
                 bool NoStore = false;
-               llvm::Value *V = GenExpr(Fn, LocalVar->getType(), LocalVar->getExpr(), NoStore);
-//               LocalVar->getCodeGen()->Store(V); TODO need store?
+                llvm::Value *V = GenExpr(Fn, LocalVar->getType(), LocalVar->getExpr(), NoStore);
+                if (!NoStore) {
+                    LocalVar->getCodeGen()->Store(V);
+                }
             }
             break;
         }
@@ -374,7 +376,7 @@ ASTVar *CodeGenModule::GenVarRef(ASTVarRef *VarRef) {
     return VarRef->getDef();
 }
 
-llvm::Value *CodeGenModule::GenCall(llvm::Function *Fn, ASTCall *Call, bool &noStore) {
+llvm::Value *CodeGenModule::GenCall(llvm::Function *Fn, ASTCall *Call, bool &NoStore) {
     FLY_DEBUG_MESSAGE("CodeGenModule", "GenCall",
                       "Call=" << Call->str());
     // Check if Func is declared
@@ -389,10 +391,13 @@ llvm::Value *CodeGenModule::GenCall(llvm::Function *Fn, ASTCall *Call, bool &noS
     // Add Instance to Function Args
     if (Call->getDef()->getKind() == ASTFunctionKind::CLASS_FUNCTION) {
         ASTClassFunction *Def = (ASTClassFunction *) Call->getDef();
-        
+
+        // Do not store Call return to the Instance
+        if (Def->isConstructor())
+            NoStore = true;
+
         // Set Instance
         if (Def->isConstructor() || !Def->isStatic()) {
-            noStore = true;
             // add Class Instance to the args
             Args.push_back(Call->getInstance()->getCodeGen()->getPointer());
         }
@@ -405,7 +410,7 @@ llvm::Value *CodeGenModule::GenCall(llvm::Function *Fn, ASTCall *Call, bool &noS
         Args.push_back(V);
     }
 
-    // Add Function to llvm context
+    // Add Function
     CodeGenFunctionBase *CGF = Call->getDef()->getCodeGen();
     if (Call->getDef()->getKind() == ASTFunctionKind::CLASS_FUNCTION) {
         Builder->CreateCall(CGF->getFunction(), Args);

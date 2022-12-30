@@ -8,10 +8,12 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "CodeGen/CodeGenClassFunction.h"
+#include "CodeGen/CodeGenClassVar.h"
 #include "CodeGen/CodeGenClass.h"
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
 #include "AST/ASTClassFunction.h"
+#include "AST/ASTClassVar.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTClass.h"
 
@@ -41,6 +43,8 @@ Function *CodeGenClassFunction::Create() {
     
     // if is Constructor Add return a pointer to memory struct
     if (ClassFunction->isConstructor()) {
+
+        //Alloca first param, the instance
         llvm::StructType *T = Class->getCodeGen()->getType();
         llvm::Type *Param = T->getPointerTo(CGM->Module->getDataLayout().getAllocaAddrSpace());
         AllocaInst *I = CGM->Builder->CreateAlloca(Param);
@@ -48,6 +52,12 @@ Function *CodeGenClassFunction::Create() {
         LoadInst *Load = CGM->Builder->CreateLoad(I);
 
         // TODO Save all default var values
+        // Set CodeGen Class Instance
+        for (auto &Entry : Class->getVars()) {
+            ASTClassVar *Var = Entry.second;
+            CodeGenClassVar *CGVar = Var->getCodeGen();
+            CGVar->setClassInstance(I);
+        }
 
         AllocaVars();
         CGM->GenBlock(Fn, ClassFunction->getBody()->getContent());

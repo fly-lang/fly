@@ -6,5 +6,6 @@ struct Test {
 
 int main() {
     Test t;
+    int a = t.a;
     return 0;
 }

@@ -11,8 +11,12 @@ $_ZN4TestC2Ev = comdat any
 define dso_local i32 @main() #0 {
   %1 = alloca i32, align 4
   %2 = alloca %struct.Test, align 4
+  %3 = alloca i32, align 4
   store i32 0, i32* %1, align 4
   call void @_ZN4TestC2Ev(%struct.Test* %2) #2
+  %4 = getelementptr inbounds %struct.Test, %struct.Test* %2, i32 0, i32 0
+  %5 = load i32, i32* %4, align 4
+  store i32 %5, i32* %3, align 4
   ret i32 0
 }
 
