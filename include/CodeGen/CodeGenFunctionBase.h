@@ -52,10 +52,16 @@ namespace fly {
 
         llvm::FunctionType *getFunctionType();
 
+        void setInsertPoint();
+
+        void AllocaVars();
+
         void GenBody();
 
-    private:
-        llvm::FunctionType *GenFuncType(const ASTType *RetTyData, const ASTParams *Params);
+    protected:
+        llvm::FunctionType *GenFuncType(const ASTType *RetType, const ASTParams *Params);
+
+        llvm::FunctionType *GenFuncType(llvm::Type *RetType, const ASTParams *Params);
 
     };
 }

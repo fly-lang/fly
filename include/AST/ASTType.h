@@ -121,6 +121,8 @@ namespace fly {
 
         const bool isClass() const;
 
+        const bool isVoid() const;
+
         const std::string printMacroType();
 
         static const std::string printMacroType(const ASTMacroTypeKind Kind);

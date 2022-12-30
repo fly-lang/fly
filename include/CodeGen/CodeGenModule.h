@@ -116,9 +116,11 @@ namespace fly {
 
         ASTVar *GenVarRef(ASTVarRef *VarRef);
 
-        CallInst *GenCall(llvm::Function *Fn, ASTCall *Call);
+        llvm::Value *GenCall(llvm::Function *Fn, ASTCall *Call, bool &noStore);
 
         llvm::Value *GenExpr(llvm::Function *Fn, const ASTType *Type, ASTExpr *Expr);
+
+        llvm::Value *GenExpr(llvm::Function *Fn, const ASTType *Type, ASTExpr *Expr, bool &NoStore);
 
         void GenBlock(llvm::Function *Fn, const std::vector<ASTStmt *> &Content, llvm::BasicBlock *BB = nullptr);
 

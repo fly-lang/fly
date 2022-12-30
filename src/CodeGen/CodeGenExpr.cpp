@@ -28,6 +28,10 @@ CodeGenExpr::CodeGenExpr(CodeGenModule *CGM, llvm::Function *Fn, ASTExpr *Expr, 
     Val = Convert(TheVal, FromType, ToType);
 }
 
+bool CodeGenExpr::isNoStore() const {
+    return NoStore;
+}
+
 llvm::Value *CodeGenExpr::getValue() const {
     return Val;
 }
@@ -277,7 +281,7 @@ llvm::Value *CodeGenExpr::GenValue(const ASTExpr *Expr, llvm::Value *Pointer) {
         case ASTExprKind::EXPR_CALL: {
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_REF_FUNC");
             ASTCallExpr *CallExpr = (ASTCallExpr *)Expr;
-            return CGM->GenCall(Fn, CallExpr->getCall());
+            return CGM->GenCall(Fn, CallExpr->getCall(), NoStore);
         }
         case ASTExprKind::EXPR_GROUP:
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_GROUP");
@@ -285,6 +289,7 @@ llvm::Value *CodeGenExpr::GenValue(const ASTExpr *Expr, llvm::Value *Pointer) {
     }
 
     assert("Unknown Expr Kind");
+    return nullptr;
 }
 
 /**

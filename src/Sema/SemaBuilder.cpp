@@ -799,7 +799,8 @@ SemaBuilder::CreateNewExpr(ASTStmt *Stmt, ASTCall *Call) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateNewExpr",
                       Logger().Attr("Stmt", Stmt).Attr("Call", Call).End());
     Call->ClassName = Call->Name;
-    return CreateExpr(Stmt, Call);;
+    Call->New = true;
+    return CreateExpr(Stmt, Call);
 }
 
 ASTVarRefExpr *

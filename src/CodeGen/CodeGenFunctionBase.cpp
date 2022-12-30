@@ -25,31 +25,36 @@
 using namespace fly;
 
 CodeGenFunctionBase::CodeGenFunctionBase(CodeGenModule *CGM, ASTFunctionBase *AST) : CGM(CGM), AST(AST) {
-    FnTy = GenFuncType(AST->getType(), AST->getParams());
+
 }
 
 llvm::Function *CodeGenFunctionBase::Create() {
+    FnTy = GenFuncType(AST->getType(), AST->getParams());
     Fn = llvm::Function::Create(FnTy, llvm::GlobalValue::ExternalLinkage, "", CGM->getModule());
     return Fn;
 }
 
-llvm::FunctionType *CodeGenFunctionBase::GenFuncType(const ASTType *RetTyData, const ASTParams *Params) {
-    if (Params->getList().empty()) {
-        // Create empty Function Type
-        return llvm::FunctionType::get(CGM->GenType(RetTyData), Params->getEllipsis() != nullptr);
-    } else {
-        // Create Function Type with parameters
-        SmallVector<llvm::Type *, 8> ArrayParams;
-        // Add the PreParams on first
-        for (auto &PreTy : PreParams) {
-            ArrayParams.push_back(PreTy);
-        }
+llvm::FunctionType *CodeGenFunctionBase::GenFuncType(const ASTType *RetType, const ASTParams *Params) {
+    return GenFuncType(CGM->GenType(RetType), Params);
+}
+
+llvm::FunctionType *CodeGenFunctionBase::GenFuncType(llvm::Type *RetType, const ASTParams *Params) {
+    // Create Function Type with parameters
+    SmallVector<llvm::Type *, 8> ArrayParams;
+
+    // Add the PreParams on first
+    for (auto &PreTy : PreParams) {
+        ArrayParams.push_back(PreTy);
+    }
+
+    if (!Params->getList().empty()) {
         for (auto Param : Params->getList()) {
             llvm::Type *ParamTy = CGM->GenType(Param->getType());
             ArrayParams.push_back(ParamTy);
         }
-        return llvm::FunctionType::get(CGM->GenType(RetTyData), ArrayParams, Params->getEllipsis() != nullptr);
     }
+
+    return llvm::FunctionType::get(RetType, ArrayParams, Params->getEllipsis() != nullptr);
 }
 
 ASTFunctionBase *CodeGenFunctionBase::getAST() {
@@ -68,12 +73,13 @@ llvm::FunctionType *CodeGenFunctionBase::getFunctionType() {
     return FnTy;
 }
 
-
-void CodeGenFunctionBase::GenBody() {
-    FLY_DEBUG("CodeGenFunction", "GenBody");
+void CodeGenFunctionBase::setInsertPoint() {
+    FLY_DEBUG("CodeGenFunctionBase", "setInsertPoint");
     Entry = BasicBlock::Create(CGM->LLVMCtx, "entry", Fn);
     CGM->Builder->SetInsertPoint(Entry);
+}
 
+void CodeGenFunctionBase::AllocaVars() {
     // CodeGen of Params are contained into LocalVars
     // Allocation of declared local vars
     for (auto &LocalVar: AST->getLocalVars()) {
@@ -91,5 +97,11 @@ void CodeGenFunctionBase::GenBody() {
         }
         ++n;
     }
+}
+
+void CodeGenFunctionBase::GenBody() {
+    FLY_DEBUG("CodeGenFunctionBase", "GenBody");
+    setInsertPoint();
+    AllocaVars();
     CGM->GenBlock(Fn, AST->getBody()->getContent());
 }

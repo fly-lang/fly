@@ -42,7 +42,7 @@ void CodeGenClass::Generate() {
         for (auto ClassFunction : Vect.second) {
             // Create ClassFunction CodeGen for Constructor
             CodeGenClassFunction *CG = new CodeGenClassFunction(CGM, ClassFunction);
-            CG->PreParams.push_back(Type);
+            CG->PreParams.push_back(Type->getPointerTo(CGM->Module->getDataLayout().getAllocaAddrSpace()));
             CG->Create();
             ClassFunction->setCodeGen(CG);
             Constructors.push_back(CG);

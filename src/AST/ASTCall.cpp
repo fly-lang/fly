@@ -75,3 +75,7 @@ std::string ASTCall::str() const {
             Attr("Def", Def).
             End();
 }
+
+bool ASTCall::isNew() const {
+    return New;
+}

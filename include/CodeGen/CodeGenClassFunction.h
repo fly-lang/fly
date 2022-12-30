@@ -14,7 +14,7 @@
 #include "CodeGenFunctionBase.h"
 
 namespace llvm {
-
+    class Value;
 }
 
 namespace fly {

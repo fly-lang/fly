@@ -1864,7 +1864,7 @@ namespace {
                           "}\n");
     }
 
-    TEST_F(CodeGenTest, DISABLED_CGClassVars) {
+    TEST_F(CodeGenTest, CGClassVars) {
         ASTNode *Node = CreateNode();
 
         // TestClass {
@@ -1901,7 +1901,7 @@ namespace {
         ASTType *TestClassType = SemaBuilder::CreateClassType(TestClass);
         ASTLocalVar *TestVar = Builder->CreateLocalVar(Body, SourceLoc, TestClassType, "test");
         ASTClassFunction *DefaultConstructor = TestClass->getConstructors().find(0)->second.front();
-        Builder->CreateExpr(TestVar, Builder->CreateCall(TestVar, DefaultConstructor));
+        Builder->CreateNewExpr(TestVar, Builder->CreateCall(TestVar, DefaultConstructor));
         Builder->AddStmt(TestVar);
 
         // int a = test.a

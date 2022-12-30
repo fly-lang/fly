@@ -106,10 +106,19 @@ bool SemaResolver::ResolveImports(ASTNode *Node) {
 bool SemaResolver::ResolveClass(ASTNode *Node) {
     bool Success = true;
     if (Node->Class) {
+
+        // Constructors
+        for (auto &IntMap: Node->Class->Constructors) {
+            for (auto &F: IntMap.second) {
+                Success &= ResolveBlock(F->Body);
+            }
+        }
+
+        // Methods
         for (auto &StrMapEntry: Node->Class->Methods) {
             for (auto &IntMap: StrMapEntry.getValue()) {
-                for (auto &Method: IntMap.second) {
-                    Success &= ResolveBlock(Method->Body);
+                for (auto &F: IntMap.second) {
+                    Success &= ResolveBlock(F->Body);
                 }
             }
         }

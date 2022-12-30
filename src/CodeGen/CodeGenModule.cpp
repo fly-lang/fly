@@ -19,7 +19,6 @@
 #include "CodeGen/CodeGenGlobalVar.h"
 #include "CodeGen/CodeGenVar.h"
 #include "CodeGen/CodeGenExpr.h"
-#include "CodeGen/CodeGenInstance.h"
 #include "Sema/SemaBuilder.h"
 #include "AST/ASTImport.h"
 #include "AST/ASTNode.h"
@@ -289,8 +288,9 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
             ASTLocalVar *LocalVar = (ASTLocalVar *) Stmt;
             assert(LocalVar->getCodeGen() && "LocalVar is not CodeGen initialized");
             if (LocalVar->getExpr()) {
-               llvm::Value *V = GenExpr(Fn, LocalVar->getType(), LocalVar->getExpr());
-                LocalVar->getCodeGen()->Store(V);
+                bool NoStore = false;
+               llvm::Value *V = GenExpr(Fn, LocalVar->getType(), LocalVar->getExpr(), NoStore);
+//               LocalVar->getCodeGen()->Store(V); TODO need store?
             }
             break;
         }
@@ -300,9 +300,12 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
             ASTVarAssign *VarAssign = (ASTVarAssign *) Stmt;
             assert(VarAssign->getExpr() && "Expr Mandatory in assignment");
             ASTVarRef *VarRef = VarAssign->getVarRef();
-            llvm::Value *V = GenExpr(Fn, VarRef->getDef()->getType(), VarAssign->getExpr());
+            bool NoStore = false;
+            llvm::Value *V = GenExpr(Fn, VarRef->getDef()->getType(), VarAssign->getExpr(), NoStore);
             ASTVar *Var = GenVarRef(VarRef);
-            Var->getCodeGen()->Store(V);
+            if (!NoStore) {
+                Var->getCodeGen()->Store(V);
+            }
             break;
         }
         case ASTStmtKind::STMT_EXPR: {
@@ -365,14 +368,13 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
 
 ASTVar *CodeGenModule::GenVarRef(ASTVarRef *VarRef) {
     if (VarRef->getDef()->getVarKind() == ASTVarKind::VAR_CLASS) {
-        llvm::Value *V = VarRef->getInstance()->getCodeGen()->getValue(); // Set Instance into CodeGen
+        llvm::Value *V = VarRef->getInstance()->getCodeGen()->getPointer(); // Set Instance into CodeGen
         ((ASTClassVar *) VarRef->getDef())->getCodeGen()->setClassInstance(V);
-        return VarRef->getInstance();
     }
     return VarRef->getDef();
 }
 
-CallInst *CodeGenModule::GenCall(llvm::Function *Fn, ASTCall *Call) {
+llvm::Value *CodeGenModule::GenCall(llvm::Function *Fn, ASTCall *Call, bool &noStore) {
     FLY_DEBUG_MESSAGE("CodeGenModule", "GenCall",
                       "Call=" << Call->str());
     // Check if Func is declared
@@ -388,11 +390,11 @@ CallInst *CodeGenModule::GenCall(llvm::Function *Fn, ASTCall *Call) {
     if (Call->getDef()->getKind() == ASTFunctionKind::CLASS_FUNCTION) {
         ASTClassFunction *Def = (ASTClassFunction *) Call->getDef();
         
-        // Add Instance as Argument
+        // Set Instance
         if (Def->isConstructor() || !Def->isStatic()) {
-            ASTVar *Var = Call->getInstance();
-            CodeGenVarBase *CGV = Var->getCodeGen();
-            Args.push_back(CGV->getValue());
+            noStore = true;
+            // add Class Instance to the args
+            Args.push_back(Call->getInstance()->getCodeGen()->getPointer());
         }
     }
 
@@ -405,12 +407,22 @@ CallInst *CodeGenModule::GenCall(llvm::Function *Fn, ASTCall *Call) {
 
     // Add Function to llvm context
     CodeGenFunctionBase *CGF = Call->getDef()->getCodeGen();
+    if (Call->getDef()->getKind() == ASTFunctionKind::CLASS_FUNCTION) {
+        Builder->CreateCall(CGF->getFunction(), Args);
+        return Call->getInstance()->getCodeGen()->Load();
+    }
     return Builder->CreateCall(CGF->getFunction(), Args);
 }
 
 llvm::Value *CodeGenModule::GenExpr(llvm::Function *Fn, const ASTType *Type, ASTExpr *Expr) {
+    bool NoStore = false;
+    return GenExpr(Fn, Type, Expr, NoStore);
+}
+
+llvm::Value *CodeGenModule::GenExpr(llvm::Function *Fn, const ASTType *Type, ASTExpr *Expr, bool &NoStore) {
     FLY_DEBUG("CodeGenModule", "GenExpr");
     CodeGenExpr *CGExpr = new CodeGenExpr(this, Fn, Expr, Type);
+    NoStore = CGExpr->isNoStore();
     return CGExpr->getValue();
 }
 

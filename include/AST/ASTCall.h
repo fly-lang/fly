@@ -47,6 +47,8 @@ namespace fly {
 
         ASTVar *Instance = nullptr;
 
+        bool New = false;
+
         ASTCall(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef Name);
 
         ASTCall(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef ClassName, llvm::StringRef Name);
@@ -60,6 +62,8 @@ namespace fly {
         CodeGenCall *getCodeGen() const;
 
         ASTVar *getInstance() const;
+
+        bool isNew() const;
 
         std::string str() const;
     };

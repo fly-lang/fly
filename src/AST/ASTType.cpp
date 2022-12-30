@@ -70,6 +70,10 @@ const bool ASTType::isClass() const {
     return MacroKind == ASTMacroTypeKind::MACRO_TYPE_CLASS;
 }
 
+const bool ASTType::isVoid() const {
+    return MacroKind == ASTMacroTypeKind::MACRO_TYPE_VOID;
+}
+
 const std::string ASTType::printMacroType() {
     return printMacroType(MacroKind);
 }
