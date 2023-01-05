@@ -22,20 +22,24 @@ using namespace fly;
 CodeGenClass::CodeGenClass(CodeGenModule *CGM, ASTClass *Class, bool isExternal) : CGM(CGM), AST(Class) {
 
     // Create Struct Type
-    uint32_t n = 0;
     llvm::SmallVector<llvm::Type *, 4> StructTypes;
     for (auto &Var : Class->getVars()) {
         llvm::Type *FieldType = CGM->GenType(Var.second->getType());
         StructTypes.push_back(FieldType);
-        CodeGenClassVar *CGV = new CodeGenClassVar(CGM, Var.second, Type, n++);
-        Var.second->setCodeGen(CGV);
     }
     // TODO if Type == Class->Type cannot be resolved from GenType()
-    std::string Id = CodeGen::toIdentifier(Class->getName(), Class->getNameSpace()->getName());
-    Type = llvm::StructType::create(CGM->LLVMCtx, StructTypes, Id);
+    std::string Name = CodeGen::toIdentifier(Class->getName(), Class->getNameSpace()->getName());
+    Type = llvm::StructType::create(CGM->LLVMCtx, StructTypes, Name);
 }
 
 void CodeGenClass::Generate() {
+
+    // Set CodeGen ClassVar
+    uint32_t n = 0;
+    for (auto &Var : AST->getVars()) {
+        CodeGenClassVar *CGV = new CodeGenClassVar(CGM, Var.second, Type, n++);
+        Var.second->setCodeGen(CGV);
+    }
 
     // Create Constructors
     for (auto &Vect : AST->getConstructors()) {

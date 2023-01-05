@@ -1866,7 +1866,7 @@ namespace {
                           "}\n");
     }
 
-    TEST_F(CodeGenTest, DISABLED_CGClassVars) {
+    TEST_F(CodeGenTest, CGClassVars) {
         ASTNode *Node = CreateNode();
 
         // TestClass {
@@ -1880,14 +1880,19 @@ namespace {
                                 "a",
                                 SemaBuilder::CreateClassScopes(
                                         ASTClassVisibilityKind::CLASS_V_DEFAULT, false));
+        Builder->AddClassVar(TestClass, aField);
+
         ASTClassVar *bField = Builder->CreateClassVar(TestClass, SourceLoc, SemaBuilder::CreateIntType(SourceLoc),
                                 "b",
                                 SemaBuilder::CreateClassScopes(
                                         ASTClassVisibilityKind::CLASS_V_PUBLIC, false));
+        Builder->AddClassVar(TestClass, bField);
+
         ASTClassVar *cField = Builder->CreateClassVar(TestClass, SourceLoc, SemaBuilder::CreateIntType(SourceLoc),
                                 "c",
                                 SemaBuilder::CreateClassScopes(
                                         ASTClassVisibilityKind::CLASS_V_PRIVATE, true));
+        Builder->AddClassVar(TestClass, cField);
 
         // int main() {
         //  TestClass test = new TestClass();
@@ -1944,6 +1949,12 @@ namespace {
                               "  %1 = alloca %TestClass*, align 8\n"
                               "  store %TestClass* %0, %TestClass** %1, align 8\n"
                               "  %2 = load %TestClass*, %TestClass** %1, align 8\n"
+                              "  %3 = getelementptr inbounds %TestClass, %TestClass* %2, i32 0, i32 0\n"
+                              "  store i32 0, i32* %3, align 4\n"
+                              "  %4 = getelementptr inbounds %TestClass, %TestClass* %2, i32 0, i32 1\n"
+                              "  store i32 0, i32* %4, align 4\n"
+                              "  %5 = getelementptr inbounds %TestClass, %TestClass* %2, i32 0, i32 2\n"
+                              "  store i32 0, i32* %5, align 4\n"
                               "  ret void\n"
                               "}\n"
                               "\n"
@@ -1954,20 +1965,20 @@ namespace {
                               "  %2 = alloca i32, align 4\n"
                               "  %3 = alloca i32, align 4\n"
                               "  call void @TestClass_TestClass(%TestClass* %0)\n"
-                              "  %5 = getelementptr inbounds %TestClass, %TestClass* %0, i32 0, i32 0\n"
-                              "  %6 = load i32, i32* %5, align 4\n"
-                              "  store i32 %6, i32* %1, align 4\n"
-                              "  %7 = getelementptr inbounds %TestClass, %TestClass* %0, i32 0, i32 1\n"
-                              "  %8 = load i32, i32* %7, align 4\n"
-                              "  store i32 %8, i32* %2, align 4\n"
-                              "  %9 = getelementptr inbounds %TestClass, %TestClass* %0, i32 0, i32 2\n"
-                              "  %10 = load i32, i32* %9, align 4\n"
-                              "  store i32 %10, i32* %3, align 4\n"
+                              "  %4 = getelementptr inbounds %TestClass, %TestClass* %0, i32 0, i32 0\n"
+                              "  %5 = load i32, i32* %4, align 4\n"
+                              "  store i32 %5, i32* %1, align 4\n"
+                              "  %6 = getelementptr inbounds %TestClass, %TestClass* %0, i32 0, i32 1\n"
+                              "  %7 = load i32, i32* %6, align 4\n"
+                              "  store i32 %7, i32* %2, align 4\n"
+                              "  %8 = getelementptr inbounds %TestClass, %TestClass* %0, i32 0, i32 2\n"
+                              "  %9 = load i32, i32* %8, align 4\n"
+                              "  store i32 %9, i32* %3, align 4\n"
                               "}\n");
         }
     }
 
-    TEST_F(CodeGenTest, DISABLED_CGClassFunctions) {
+    TEST_F(CodeGenTest, CGClassFunctions) {
         ASTNode *Node = CreateNode();
 
         // TestClass {
@@ -2077,16 +2088,25 @@ namespace {
                               "\n"
                               "define i32 @TestClass_a(%TestClass* %0) {\n"
                               "entry:\n"
+                              "  %1 = alloca %TestClass*, align 8\n"
+                              "  store %TestClass* %0, %TestClass** %1, align 8\n"
+                              "  %2 = load %TestClass*, %TestClass** %1, align 8\n"
                               "  ret i32 1\n"
                               "}\n"
                               "\n"
                               "define i32 @TestClass_b(%TestClass* %0) {\n"
                               "entry:\n"
+                              "  %1 = alloca %TestClass*, align 8\n"
+                              "  store %TestClass* %0, %TestClass** %1, align 8\n"
+                              "  %2 = load %TestClass*, %TestClass** %1, align 8\n"
                               "  ret i32 1\n"
                               "}\n"
                               "\n"
                               "define i32 @TestClass_c(%TestClass* %0) {\n"
                               "entry:\n"
+                              "  %1 = alloca %TestClass*, align 8\n"
+                              "  store %TestClass* %0, %TestClass** %1, align 8\n"
+                              "  %2 = load %TestClass*, %TestClass** %1, align 8\n"
                               "  ret i32 1\n"
                               "}\n"
                               "\n"
@@ -2097,12 +2117,12 @@ namespace {
                               "  %2 = alloca i32, align 4\n"
                               "  %3 = alloca i32, align 4\n"
                               "  call void @TestClass_TestClass(%TestClass* %0)\n"
-                              "  %5 = call i32 @TestClass_a(%TestClass* %0)\n"
-                              "  store i32 %5, i32* %1, align 4\n"
-                              "  %6 = call i32 @TestClass_b(%TestClass* %0)\n"
-                              "  store i32 %6, i32* %2, align 4\n"
-                              "  %7 = call i32 @TestClass_c(%TestClass* %0)\n"
-                              "  store i32 %7, i32* %3, align 4\n"
+                              "  %4 = call i32 @TestClass_a(%TestClass* %0)\n"
+                              "  store i32 %4, i32* %1, align 4\n"
+                              "  %5 = call i32 @TestClass_b(%TestClass* %0)\n"
+                              "  store i32 %5, i32* %2, align 4\n"
+                              "  %6 = call i32 @TestClass_c(%TestClass* %0)\n"
+                              "  store i32 %6, i32* %3, align 4\n"
                               "}\n");
         }
     }

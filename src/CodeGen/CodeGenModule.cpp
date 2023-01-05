@@ -371,7 +371,7 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
 ASTVar *CodeGenModule::GenVarRef(ASTVarRef *VarRef) {
     if (VarRef->getDef()->getVarKind() == ASTVarKind::VAR_CLASS) {
         llvm::Value *V = VarRef->getInstance()->getCodeGen()->getPointer(); // Set Instance into CodeGen
-        ((ASTClassVar *) VarRef->getDef())->getCodeGen()->setClassInstance(V);
+        ((ASTClassVar *) VarRef->getDef())->getCodeGen()->Init(V);
     }
     return VarRef->getDef();
 }
@@ -397,7 +397,7 @@ llvm::Value *CodeGenModule::GenCall(llvm::Function *Fn, ASTCall *Call, bool &NoS
             NoStore = true;
 
         // Set Instance
-        if (Def->isConstructor() || !Def->isStatic()) {
+        if (!Def->isStatic()) {
             // add Class Instance to the args
             Args.push_back(Call->getInstance()->getCodeGen()->getPointer());
         }
@@ -406,15 +406,18 @@ llvm::Value *CodeGenModule::GenCall(llvm::Function *Fn, ASTCall *Call, bool &NoS
     // Add Call arguments to Function args
     const std::vector<ASTParam *> &Params = Call->getDef()->getParams()->getList();
     for (ASTArg *Arg : Call->getArgs()) {
-        Value *V = GenExpr(Fn, Arg->getDef()->getType(), Arg->getExpr());
+        llvm::Value *V = GenExpr(Fn, Arg->getDef()->getType(), Arg->getExpr());
         Args.push_back(V);
     }
 
     // Add Function
     CodeGenFunctionBase *CGF = Call->getDef()->getCodeGen();
     if (Call->getDef()->getKind() == ASTFunctionKind::CLASS_FUNCTION) {
-        Builder->CreateCall(CGF->getFunction(), Args);
-        return Call->getInstance()->getCodeGen()->Load();
+        ASTClassFunction *Def = (ASTClassFunction *) Call->getDef();
+
+        // Return Instance Pointer only on Constructor
+        if (Def->isConstructor())
+            Call->getInstance()->getCodeGen()->getPointer();
     }
     return Builder->CreateCall(CGF->getFunction(), Args);
 }

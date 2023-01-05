@@ -245,13 +245,7 @@ SemaBuilder::CreateClassVar(ASTClass *Class, const SourceLocation &Loc, ASTType 
                                             .Attr("Type=", Type)
                                             .Attr("Name", Name)
                                             .Attr("Scopes", Scopes).End());
-    ASTClassVar *ClassVar = new ASTClassVar(Loc, Class, Scopes, Type, Name);
-    if (Class->Vars.insert(std::pair<llvm::StringRef, ASTClassVar *>(Name, ClassVar)).second) {
-        return ClassVar;
-    }
-
-    S.Diag(Loc, diag::err_sema_class_field_redeclare) << Name;
-    return nullptr;
+    return new ASTClassVar(Loc, Class, Scopes, Type, Name);
 }
 
 ASTClassFunction *
@@ -573,6 +567,7 @@ SemaBuilder::CreateDefaultValue(ASTType *Type) {
         Value = CreateNullValue(Type->getLocation());
     } else {
         assert("Unknown type");
+        Value = nullptr;
     }
     return Value;
 }
@@ -778,7 +773,7 @@ SemaBuilder::CreateExpr(ASTStmt *Stmt, ASTValue *Value) {
                       Logger().Attr("Stmt", Stmt).Attr("Value", Value).End());
     assert(Value && "Create ASTValueExpr by ASTValue");
     ASTValueExpr *ValueExpr = new ASTValueExpr(Value);
-    ValueExpr->Stmt = Stmt; // TODO add ASTExpr() constructor
+    ValueExpr->Stmt = Stmt;
     AddExpr(Stmt, ValueExpr);
     return ValueExpr;
 }
@@ -1161,6 +1156,24 @@ SemaBuilder::AddFunction(ASTNode *Node, ASTFunction *Function) {
     }
 
     assert(0 && "Unknown Function Visibility");
+}
+
+bool
+SemaBuilder::AddClassVar(ASTClass *Class, ASTClassVar *Var) {
+    if (Class->Vars.insert(std::pair<llvm::StringRef, ASTClassVar *>(Var->getName(), Var)).second) {
+
+        // Set default value if not set
+        if (!Var->getExpr()) {
+            ASTValueExpr *Expr = S.Builder->CreateExpr(nullptr, SemaBuilder::CreateDefaultValue(Var->getType()));
+            Expr->Type = Var->getType();
+            Var->setExpr(Expr);
+        }
+
+        return Var;
+    }
+
+    S.Diag(Var->getLocation(), diag::err_sema_class_field_redeclare) << Var->getName();
+    return false;
 }
 
 bool

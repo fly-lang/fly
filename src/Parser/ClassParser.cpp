@@ -12,6 +12,7 @@
 #include "Parser/ClassParser.h"
 #include "AST/ASTBlock.h"
 #include "AST/ASTClass.h"
+#include "AST/ASTClassVar.h"
 #include "AST/ASTClassFunction.h"
 #include "Sema/SemaBuilder.h"
 #include "Basic/Debug.h"
@@ -151,16 +152,16 @@ bool ClassParser::ParseField(ASTClassScopes *Scopes, ASTType *Type, const Source
         Comment = P->BlockComment;
     }
 
-    ASTClassVar *Field = P->Builder.CreateClassVar(Class, Loc, Type, Name, Scopes);
-    if (Field) {
+    ASTClassVar *ClassVar = P->Builder.CreateClassVar(Class, Loc, Type, Name, Scopes);
+    if (ClassVar) {
         // Parsing =
-        ASTExpr *Expr = nullptr;
         if (P->Tok.is(tok::equal)) {
             P->ConsumeToken();
-            Expr = P->ParseExpr();
+            ASTExpr *Expr = P->ParseExpr();
+            ClassVar->setExpr(Expr);
         }
 
-        return P->Builder.AddComment(Field, Comment);
+        return P->Builder.AddClassVar(Class, ClassVar) && P->Builder.AddComment(ClassVar, Comment);
     }
 
     return false;

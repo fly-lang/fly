@@ -9,9 +9,11 @@
 
 #include "CodeGen/CodeGenClassVar.h"
 #include "CodeGen/CodeGenVar.h"
+#include "CodeGen/CodeGenClass.h"
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
 #include "AST/ASTClassVar.h"
+#include "AST/ASTClass.h"
 
 using namespace fly;
 
@@ -24,29 +26,35 @@ CodeGenClassVar::CodeGenClassVar(CodeGenModule *CGM, ASTClassVar *Var, llvm::Typ
  * Set when var is referenced
  * @param Instance
  */
-void CodeGenClassVar::setClassInstance(llvm::Value *Instance) {
+void CodeGenClassVar::Init(llvm::Value *Instance) {
+    assert(Instance && "Cannot init from unallocated stack");
     this->ClassInstance = Instance;
-}
-
-void CodeGenClassVar::Init() {
-    assert(ClassInstance && "Cannot init from unallocated stack");
     doLoad = true;
 }
 
 llvm::StoreInst *CodeGenClassVar::Store(llvm::Value *Val) {
     assert(ClassInstance && "Cannot store into unallocated stack");
-    return CodeGenVar::Store(Val);
+    assert(ClassType && "Class Type not defined");
+    BlockID = CGM->Builder->GetInsertBlock()->getName();
+    return CodeGenVarBase::Store(Val);
 }
 
 llvm::LoadInst *CodeGenClassVar::Load() {
     assert(ClassInstance && "Cannot load from unallocated stack");
-    Pointer = CGM->Builder->CreateInBoundsGEP(ClassType, ClassInstance, { Zero, Index });
-    return CodeGenVar::Load();
+    assert(ClassType && "Class Type not defined");
+    BlockID = CGM->Builder->GetInsertBlock()->getName();
+    if (doLoad)
+        Pointer = CGM->Builder->CreateInBoundsGEP(ClassType, ClassInstance, {Zero, Index});
+    return CodeGenVarBase::Load();
+}
+
+llvm::Value *CodeGenClassVar::getValue() {
+    doLoad = doLoad || BlockID != CGM->Builder->GetInsertBlock()->getName();
+    return CodeGenVarBase::getValue();
 }
 
 llvm::Value *CodeGenClassVar::getPointer() {
     if (!Pointer)
-        CodeGenClassVar::Init();
-    assert(Pointer && "Null pointer not managed");
+        Pointer = CGM->Builder->CreateInBoundsGEP(ClassType, ClassInstance, {Zero, Index});
     return Pointer;
 }

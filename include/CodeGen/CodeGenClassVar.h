@@ -40,15 +40,15 @@ namespace fly {
         llvm::Value *Zero = nullptr;
 
     public:
-        CodeGenClassVar(CodeGenModule *CGM, ASTClassVar *Var, llvm::Type *ClassType, uint32_t Index);
+        CodeGenClassVar(CodeGenModule *CGM, ASTClassVar *Var, llvm::Type *ClassType,  uint32_t Index);
 
-        void setClassInstance(llvm::Value *Instance);
-
-        void Init() override;
+        void Init(llvm::Value *Instance);
 
         llvm::StoreInst *Store(llvm::Value *Val) override;
 
         llvm::LoadInst *Load() override;
+
+        llvm::Value *getValue() override;
 
         llvm::Value *getPointer() override;
 

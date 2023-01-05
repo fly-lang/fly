@@ -216,6 +216,7 @@ namespace fly {
         bool InsertFunction(llvm::StringMap<std::map <uint64_t,llvm::SmallVector <T *, 4>>> &Functions, T *Function);
         template <typename T>
         bool InsertFunction(std::map <uint64_t,llvm::SmallVector <T *, 4>> &Functions, T *Function);
+        bool AddClassVar(ASTClass *Class, ASTClassVar *Var);
         bool AddClassMethod(ASTClass *Class, ASTClassFunction *Method);
         bool AddClassConstructor(ASTClass *Class, ASTClassFunction *Method);
         bool AddParam(ASTParam *Param);

@@ -54,6 +54,10 @@ ASTExpr *ASTClassVar::getExpr() const {
     return Expr;
 }
 
+void ASTClassVar::setExpr(ASTExpr *Expr) {
+    this->Expr = Expr;
+}
+
 CodeGenClassVar *ASTClassVar::getCodeGen() const {
     return CodeGen;
 }
