@@ -65,7 +65,7 @@ jobs:
 
       - name: Read Version (Unix)
         id: version
-        if: github.ref == 'refs/heads/main' && (matrix.os == 'ubuntu-20.04' || matrix.os == 'macos-latest')
+        if: github.ref == 'refs/heads/main' && (matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest')
         run: echo "::set-output name=version::$(${{github.workspace}}/${{env.BUILD_DIR}}/src/fly --version-short)"
 
       - name: Read Version (Windows)
@@ -76,7 +76,7 @@ jobs:
           echo "::set-output name=version::$(.\fly.exe --version-short)"
 
       - name: Linux Packaging
-        if: github.ref == 'refs/heads/main' && matrix.os == 'ubuntu-20.04'
+        if: github.ref == 'refs/heads/main' && matrix.os == 'ubuntu-latest'
         working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/src
         run: tar -czvf ../fly-${{ steps.version.outputs.version }}-${{env.LINUX_FILE}} fly
 
