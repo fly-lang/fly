@@ -16,13 +16,17 @@
 
 using namespace fly;
 
-ASTFunctionBase::ASTFunctionBase(ASTFunctionKind Kind, ASTType *ReturnType, const std::string Name)
-        : Kind(Kind), Type(ReturnType), Name(Name) {
+ASTFunctionBase::ASTFunctionBase(const SourceLocation &Loc, ASTFunctionKind Kind, ASTType *ReturnType, llvm::StringRef Name)
+        : Kind(Kind), Type(ReturnType), Name(Name), Location(Loc) {
 
 }
 
-const std::string ASTFunctionBase::getName() const {
+llvm::StringRef ASTFunctionBase::getName() const {
     return Name;
+}
+
+const SourceLocation &ASTFunctionBase::getLocation() const {
+    return Location;
 }
 
 const ASTBlock *ASTFunctionBase::getBody() const {
@@ -43,14 +47,6 @@ ASTType *ASTFunctionBase::getType() const {
 
 const std::vector<ASTLocalVar *> &ASTFunctionBase::getLocalVars() const {
     return LocalVars;
-}
-
-CodeGenFunction *ASTFunctionBase::getCodeGen() const {
-    return CodeGen;
-}
-
-void ASTFunctionBase::setCodeGen(CodeGenFunction *CGF) {
-    CodeGen = CGF;
 }
 
 bool ASTFunctionBase::isVarArg() {

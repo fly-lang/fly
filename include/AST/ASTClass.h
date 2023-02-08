@@ -64,27 +64,39 @@ namespace fly {
         friend class SemaBuilder;
         friend class SemaResolver;
 
-        std::string Name;
+        llvm::StringRef Name;
+
+        // Source Location
+        const SourceLocation Location;
 
         ASTClassKind ClassKind;
 
         // Class Fields
         llvm::StringMap<ASTClassVar *> Vars;
 
+        // Class Constructors
+        std::map <uint64_t, llvm::SmallVector <ASTClassFunction *, 4>> Constructors;
+
+        bool autoDefaultConstructor = false;
+
         // Class Methods
-        llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTClassFunction *, 4>>> Methods;
+        llvm::StringMap<std::map <uint64_t, llvm::SmallVector <ASTClassFunction *, 4>>> Methods;
 
         CodeGenClass *CodeGen = nullptr;
 
-        ASTClass(const SourceLocation &Loc, ASTNode *Node, const std::string &Name, ASTTopScopes *Scopes);
+        ASTClass(const SourceLocation &Loc, ASTNode *Node, llvm::StringRef Name, ASTTopScopes *Scopes);
 
     public:
 
-        std::string getName() const;
+        llvm::StringRef getName() const;
+
+        const SourceLocation &getLocation() const;
 
         ASTClassKind getClassKind() const;
 
         llvm::StringMap<ASTClassVar *> getVars() const;
+
+        std::map <uint64_t,llvm::SmallVector <ASTClassFunction *, 4>> getConstructors() const;
 
         llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTClassFunction *, 4>>> getMethods() const;
 

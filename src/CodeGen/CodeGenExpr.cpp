@@ -28,6 +28,10 @@ CodeGenExpr::CodeGenExpr(CodeGenModule *CGM, llvm::Function *Fn, ASTExpr *Expr, 
     Val = Convert(TheVal, FromType, ToType);
 }
 
+bool CodeGenExpr::isNoStore() const {
+    return NoStore;
+}
+
 llvm::Value *CodeGenExpr::getValue() const {
     return Val;
 }
@@ -250,7 +254,7 @@ llvm::Value *CodeGenExpr::Convert(llvm::Value *FromVal, const ASTType *FromType,
 
             // to Class
         case ASTTypeKind::TYPE_CLASS:
-            return nullptr;
+            return FromVal;
     }
     assert(0 && "Conversion failed");
 }
@@ -263,21 +267,21 @@ llvm::Value *CodeGenExpr::GenValue(const ASTExpr *Expr, llvm::Value *Pointer) {
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_VALUE");
             return CGM->GenValue(Expr->getType(), &((ASTValueExpr *)Expr)->getValue());
         }
-        case ASTExprKind::EXPR_REF_VAR: {
+        case ASTExprKind::EXPR_VAR_REF: {
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_REF_VAR");
             ASTVarRefExpr *VarRefExpr = (ASTVarRefExpr *)Expr;
             assert(VarRefExpr->getVarRef() && "Missing Ref");
-            ASTVar *Var = VarRefExpr->getVarRef()->getDef();
+            ASTVar *Var = CGM->GenVarRef(VarRefExpr->getVarRef());
             if (Var == nullptr) {
                 CGM->Diag(VarRefExpr->getLocation(), diag::err_unref_var);
                 return nullptr;
             }
             return Var->getCodeGen()->getValue();
         }
-        case ASTExprKind::EXPR_REF_FUNC: {
+        case ASTExprKind::EXPR_CALL: {
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_REF_FUNC");
-            ASTFunctionCallExpr *CallExpr = (ASTFunctionCallExpr *)Expr;
-            return CGM->GenCall(Fn, CallExpr->getCall());
+            ASTCallExpr *CallExpr = (ASTCallExpr *)Expr;
+            return CGM->GenCall(Fn, CallExpr->getCall(), NoStore);
         }
         case ASTExprKind::EXPR_GROUP:
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_GROUP");
@@ -285,6 +289,7 @@ llvm::Value *CodeGenExpr::GenValue(const ASTExpr *Expr, llvm::Value *Pointer) {
     }
 
     assert("Unknown Expr Kind");
+    return nullptr;
 }
 
 /**

@@ -8,23 +8,28 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTFunction.h"
+#include "CodeGen/CodeGenFunction.h"
 #include <string>
 
 using namespace fly;
 
-ASTFunction::ASTFunction(const SourceLocation &Loc, ASTNode *Node, ASTType *ReturnType, const std::string Name,
+ASTFunction::ASTFunction(const SourceLocation &Loc, ASTNode *Node, ASTType *ReturnType, llvm::StringRef Name,
                          ASTTopScopes *Scopes) :
-        ASTTopDef(Loc, Node, ASTTopDefKind::DEF_FUNCTION, Scopes),
-        ASTFunctionBase(ASTFunctionKind::FUNCTION, ReturnType, Name) {
+        ASTTopDef(Node, ASTTopDefKind::DEF_FUNCTION, Scopes),
+        ASTFunctionBase(Loc, ASTFunctionKind::FUNCTION, ReturnType, Name) {
 
 }
 
-const SourceLocation &ASTFunction::getLocation() const {
-    return ASTTopDef::getLocation();
-}
-
-std::string ASTFunction::getName() const {
+llvm::StringRef ASTFunction::getName() const {
     return ASTFunctionBase::getName();
+}
+
+CodeGenFunction *ASTFunction::getCodeGen() const {
+    return CodeGen;
+}
+
+void ASTFunction::setCodeGen(CodeGenFunction *CGF) {
+    CodeGen = CGF;
 }
 
 std::string ASTFunction::str() const {

@@ -20,6 +20,7 @@ namespace fly {
 
     class CodeGenVar : public CodeGenVarBase {
 
+    protected:
         llvm::StringRef BlockID;
 
     public:

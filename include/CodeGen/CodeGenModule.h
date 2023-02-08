@@ -34,7 +34,7 @@ namespace fly {
     class ASTImport;
     class ASTGlobalVar;
     class ASTFunction;
-    class ASTFunctionCall;
+    class ASTCall;
     class ASTType;
     class ASTArrayType;
     class ASTValue;
@@ -47,14 +47,17 @@ namespace fly {
     class ASTWhileBlock;
     class CodeGenGlobalVar;
     class CodeGenFunction;
+    class CodeGenFunctionBase;
     class CodeGenCall;
     class CodeGenClass;
     class ASTClass;
+    class ASTVar;
 
     class CodeGenModule : public CodeGenTypeCache {
 
         friend class CodeGenGlobalVar;
         friend class CodeGenFunction;
+        friend class CodeGenFunctionBase;
         friend class CodeGenClass;
         friend class CodeGenClassVar;
         friend class CodeGenClassFunction;
@@ -111,9 +114,13 @@ namespace fly {
 
         void GenStmt(llvm::Function *Fn, ASTStmt * Stmt);
 
-        CallInst *GenCall(llvm::Function *Fn, ASTFunctionCall *Call);
+        ASTVar *GenVarRef(ASTVarRef *VarRef);
+
+        llvm::Value *GenCall(llvm::Function *Fn, ASTCall *Call, bool &noStore);
 
         llvm::Value *GenExpr(llvm::Function *Fn, const ASTType *Type, ASTExpr *Expr);
+
+        llvm::Value *GenExpr(llvm::Function *Fn, const ASTType *Type, ASTExpr *Expr, bool &NoStore);
 
         void GenBlock(llvm::Function *Fn, const std::vector<ASTStmt *> &Content, llvm::BasicBlock *BB = nullptr);
 

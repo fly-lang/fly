@@ -13,20 +13,24 @@
 using namespace fly;
 
 ASTClassFunction::ASTClassFunction(const SourceLocation &Loc, ASTClass *Class, ASTClassScopes *Scopes, ASTType *Type,
-                                   std::string &Name) :
-        ASTFunctionBase(ASTFunctionKind::CLASS_FUNCTION, Type, Name), Loc(Loc), Class(Class), Scopes(Scopes)  {
+                                   llvm::StringRef Name) :
+        ASTFunctionBase(Loc, ASTFunctionKind::CLASS_FUNCTION, Type, Name), Class(Class), Scopes(Scopes)  {
 
-}
-
-const SourceLocation &ASTClassFunction::getLocation() const {
-    return Loc;
 }
 
 ASTClass *ASTClassFunction::getClass() const {
     return Class;
 }
 
-const std::string &ASTClassFunction::getComment() const {
+bool ASTClassFunction::isConstructor() {
+    return Constructor;
+}
+
+bool ASTClassFunction::isStatic() {
+    return Static;
+}
+
+llvm::StringRef ASTClassFunction::getComment() const {
     return Comment;
 }
 
@@ -34,10 +38,22 @@ ASTClassScopes *ASTClassFunction::getScopes() const {
     return Scopes;
 }
 
+bool ASTClassFunction::isAbstract() const {
+    return Abstract;
+}
+
+CodeGenClassFunction *ASTClassFunction::getCodeGen() const {
+    return CodeGen;
+}
+
+void ASTClassFunction::setCodeGen(CodeGenClassFunction *CGF) {
+    CodeGen = CGF;
+}
+
 std::string ASTClassFunction::str() const {
     return Logger("ASTClassFunction").
            Super(ASTFunctionBase::str()).
-//          Attr("Class", Class).
+            Attr("Class", Class).
             Attr("Comment", Comment).
             Attr("Scopes", Scopes).
             End();

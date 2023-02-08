@@ -26,7 +26,7 @@ namespace fly {
     enum class ASTVarKind {
         VAR_LOCAL,
         VAR_GLOBAL,
-        VAR_FIELD
+        VAR_CLASS
     };
 
     /**
@@ -42,7 +42,7 @@ namespace fly {
 
         virtual ASTType *getType() const = 0;
 
-        virtual std::string getName() const = 0;
+        virtual llvm::StringRef getName() const = 0;
 
         virtual ASTExpr *getExpr() const = 0;
 

@@ -38,7 +38,7 @@ namespace fly {
 
         bool CheckDuplicatedLocalVars(ASTStmt *Stmt, ASTLocalVar *LocalVar);
 
-        bool CheckUndef(ASTBlock *Block, ASTVarRef *VarRef);
+        bool CheckUninitialized(ASTBlock *Block, ASTVarRef *VarRef);
 
         bool CheckImport(ASTNode *Node, ASTImport *Import);
 

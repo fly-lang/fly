@@ -27,8 +27,12 @@ namespace fly {
 
         llvm::Function *Fn = nullptr;
 
+        bool NoStore = false;
+
     public:
         CodeGenExpr(CodeGenModule *CGM, llvm::Function *Fn, ASTExpr *Expr, const ASTType *ToType);
+
+        bool isNoStore() const;
 
         llvm::Value *getValue() const;
 

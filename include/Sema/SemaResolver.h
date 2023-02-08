@@ -10,6 +10,11 @@
 #ifndef FLY_SEMA_RESOLVER_H
 #define FLY_SEMA_RESOLVER_H
 
+#include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/SmallVector.h"
+
+#include <map>
+
 namespace llvm {
     class StringRef;
 }
@@ -29,7 +34,7 @@ namespace fly {
     class ASTLocalVar;
     class ASTArg;
     class ASTParam;
-    class ASTFunctionCall;
+    class ASTCall;
     class ASTVarRef;
     class ASTExpr;
     class ASTValueExpr;
@@ -40,6 +45,8 @@ namespace fly {
     class ASTWhileBlock;
     class ASTForBlock;
     class ASTClassType;
+    class ASTFunction;
+    class ASTFunctionBase;
 
     class SemaResolver {
 
@@ -71,15 +78,21 @@ namespace fly {
 
         bool ResolveForBlock(ASTForBlock *ForBlock);
 
-        bool ResolveType(ASTType * Type);
+        bool ResolveType(ASTFunctionBase *FunctionBase, ASTType * Type);
 
-        bool ResolveFunctionCall(ASTFunctionCall *Call);
+        template <class T>
+        bool ResolveCallable(ASTBlock *Block, ASTCall *Call, llvm::StringMap<std::map <uint64_t,llvm::SmallVector <T *, 4>>> &Functions);
 
-        bool ResolveArg(ASTArg *Arg, ASTParam *Param);
+        template <class T>
+        bool ResolveCallable(ASTBlock *Block, ASTCall *Call, std::map <uint64_t,llvm::SmallVector <T *, 4>> &Functions);
+
+        bool ResolveArg(ASTBlock *Block, ASTArg *Arg, ASTParam *Param);
+
+        bool ResolveCall(ASTBlock *Block, ASTCall *Call);
 
         bool ResolveVarRef(ASTBlock *Block, ASTVarRef *VarRef);
 
-        bool ResolveExpr(ASTExpr *Expr);
+        bool ResolveExpr(ASTBlock *Block, ASTExpr *Expr);
 
         bool ResolveValueExpr(ASTValueExpr *pExpr);
 

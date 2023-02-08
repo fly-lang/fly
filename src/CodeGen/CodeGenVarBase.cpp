@@ -25,6 +25,7 @@ CodeGenVarBase::CodeGenVarBase(CodeGenModule *CGM, ASTVar *Var) : CGM(CGM), Var(
 }
 
 llvm::StoreInst *CodeGenVarBase::Store(llvm::Value *Val) {
+    assert(Val && "Cannot store null value");
 
     // Fix Architecture Compatibility of bool i1 to i8
     if (Var->getType()->getKind() == ASTTypeKind::TYPE_BOOL) {

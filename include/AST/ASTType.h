@@ -72,6 +72,7 @@ namespace fly {
     class ASTValueExpr;
     class ASTExpr;
     class ASTClass;
+    class ASTIdentifier;
 
     /**
      * Abstract Base Type
@@ -119,6 +120,8 @@ namespace fly {
         const bool isArray() const;
 
         const bool isClass() const;
+
+        const bool isVoid() const;
 
         const std::string printMacroType();
 
@@ -335,20 +338,26 @@ namespace fly {
     class ASTClassType : public ASTType {
 
         friend class SemaBuilder;
+        friend class SemaResolver;
 
-        std::string Name;
+        ASTClassType *Parent;
 
-        std::string NameSpace;
+        llvm::StringRef Name;
+
+        llvm::StringRef NameSpace;
 
         ASTClass *Def = nullptr;
 
-        ASTClassType(const SourceLocation &Loc, std::string Name, std::string NameSpace = "");
+        ASTClassType(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef Name,
+                     ASTClassType *Parent = nullptr);
 
     public:
 
-        const std::string getName() const;
+        ASTClassType *getParent() const;
 
-        const std::string getNameSpace() const;
+        llvm::StringRef getName() const;
+
+        llvm::StringRef getNameSpace() const;
 
         ASTClass *getDef() const;
 

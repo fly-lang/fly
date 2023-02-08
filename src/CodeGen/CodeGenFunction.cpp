@@ -14,76 +14,27 @@
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTParams.h"
-#include "AST/ASTLocalVar.h"
-#include "Basic/Debug.h"
-#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Function.h"
+#include "llvm/ADT/StringRef.h"
 
 using namespace fly;
 
-CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, ASTFunction *AST, bool isExternal) : CGM(CGM), AST(AST) {
-    llvm::FunctionType *FnTy = GenFuncType(AST->getType(), AST->getParams());
+CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, ASTFunction *AST, bool isExternal) :
+    CodeGenFunctionBase(CGM, AST), AST(AST), isExternal(isExternal) {
 
-    // Create Function
-    llvm::GlobalValue::LinkageTypes Linkage = llvm::GlobalValue::ExternalLinkage;
+}
 
-    // Generate Body
+Function *CodeGenFunction::Create() {
+    Fn = CodeGenFunctionBase::Create();
+
+    // Set Name
     std::string Id = CodeGen::toIdentifier(AST->getName(), AST->getNameSpace()->getName());
-    if (isExternal) {
-        Fn = llvm::Function::Create(FnTy, Linkage, Id, CGM->getModule());
-    } else {
-        if (AST->getScopes()->getVisibility() == ASTVisibilityKind::V_PRIVATE) {
-            Linkage = GlobalValue::LinkageTypes::InternalLinkage;
-        }
-        Fn = llvm::Function::Create(FnTy, Linkage, Id, CGM->getModule());
+    Fn->setName(Id);
+
+    // Set Linkage
+    if (isExternal && AST->getScopes()->getVisibility() == ASTVisibilityKind::V_PRIVATE) {
+        Fn->setLinkage(GlobalValue::LinkageTypes::InternalLinkage);
     }
-    Name = Fn->getName();
-}
 
-llvm::FunctionType *CodeGenFunction::GenFuncType(const ASTType *RetTyData, const ASTParams *Params) {
-    if (Params->getList().empty()) {
-        // Create empty Function Type
-        return llvm::FunctionType::get(CGM->GenType(RetTyData), Params->getEllipsis() != nullptr);
-    } else {
-        // Create Function Type with parameters
-        SmallVector<llvm::Type *, 8> ArrayParams;
-        for (auto Param : Params->getList()) {
-            llvm::Type *ParamTy = CGM->GenType(Param->getType());
-            ArrayParams.push_back(ParamTy);
-        }
-        return llvm::FunctionType::get(CGM->GenType(RetTyData), ArrayParams, Params->getEllipsis() != nullptr);
-    }
-}
-
-const llvm::StringRef &CodeGenFunction::getName() const {
-    return Name;
-}
-
-llvm::Function *CodeGenFunction::getFunction() {
     return Fn;
-}
-
-void CodeGenFunction::GenBody() {
-    FLY_DEBUG("CodeGenFunction", "GenBody");
-    Entry = BasicBlock::Create(CGM->LLVMCtx, "entry", Fn);
-    CGM->Builder->SetInsertPoint(Entry);
-
-    // CodeGen of Params are contained into LocalVars
-
-    // Allocation of declared local vars
-    for (auto &LocalVar: AST->getLocalVars()) {
-        LocalVar->setCodeGen(new CodeGenVar(CGM, LocalVar)); // FIXME Class
-        LocalVar->getCodeGen()->Init();
-    }
-
-    // Store Param Values
-    int n = 0;
-    for (auto &P: AST->getParams()->getList()) {
-        CodeGenVar *CGV = P->getCodeGen();
-        CGV->Store(Fn->getArg(n));
-        if (P->getExpr()) {
-            CGM->GenExpr(Fn, P->getType(), P->getExpr());
-        }
-        ++n;
-    }
-    CGM->GenBlock(Fn, AST->getBody()->getContent());
 }

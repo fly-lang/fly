@@ -334,6 +334,7 @@ DIAG(err_invalid_namespace_id, CLASS_ERROR, (unsigned)diag::Severity::Error, "in
 DIAG(err_parse_empty_while_expr, CLASS_ERROR, (unsigned)diag::Severity::Error, "while condition cannot be empty", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_parse_number, CLASS_ERROR, (unsigned)diag::Severity::Error, "'%0' is not a number ", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_class_block_unclosed, CLASS_ERROR, (unsigned)diag::Severity::Error, "class block not correctly closed", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_parse_new_instance, CLASS_ERROR, (unsigned)diag::Severity::Error, "new instance parsing error", 0, SFINAE_Suppress, false, true, 0)
 
 // Parser Warnings
 DIAG(warn_empty_code, CLASS_WARNING, (unsigned)diag::Severity::Warning, "code empty", 0, SFINAE_Suppress, false, false, 1)
@@ -370,6 +371,8 @@ DIAG(err_sema_int_min_overflow, CLASS_ERROR, (unsigned)diag::Severity::Error, "v
 DIAG(err_sema_int_max_overflow, CLASS_ERROR, (unsigned)diag::Severity::Error, "value overflow integer max limit '%0'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_empty_expr, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot assign an empty expression", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_class_field_redeclare, CLASS_ERROR, (unsigned)diag::Severity::Error, "Class field '%0' already declared", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_class_method_redeclare, CLASS_ERROR, (unsigned)diag::Severity::Error, "Class method '%0' already declared", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_uninit_var, CLASS_ERROR, (unsigned)diag::Severity::Error, "Uninitialized var", 0, SFINAE_Suppress, false, true, 0)
 
 // CodeGen
 DIAG(err_void_value, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot assign void value", 0, SFINAE_Suppress, false, true, 0)
@@ -377,13 +380,12 @@ DIAG(err_expr_operator_unexpected, CLASS_ERROR, (unsigned)diag::Severity::Error,
 DIAG(err_expr_operator_expected, CLASS_ERROR, (unsigned)diag::Severity::Error, "operator expected", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_type_expect, CLASS_ERROR, (unsigned)diag::Severity::Error, "expected type '%0'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_invalid_return_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "Invalid return type", 0, SFINAE_Suppress, false, true, 0)
-DIAG(err_unref_namespace, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unreferenced call '%0'", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_unref_namespace, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unreferenced namespace '%0'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_unref_node, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unreferenced node '%0'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_unref_class, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unreferenced class '%0'", 0, SFINAE_Suppress, false, true, 0)
-DIAG(err_unref_call, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unreferenced namespace '%0'", 0, SFINAE_Suppress, false, true, 0)
-DIAG(err_unref_var, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unreferenced var '%0'", 0, SFINAE_Suppress, false, true, 0)
-DIAG(err_unref_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unreferenced type '%0'", 0, SFINAE_Suppress, false, true, 0)
-DIAG(err_undef_var, CLASS_ERROR, (unsigned)diag::Severity::Error, "Undefined var '%0'", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_unref_call, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unreferenced call", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_unref_var, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unreferenced var", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_unref_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unreferenced type", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_invalid_gvar_value, CLASS_ERROR, (unsigned)diag::Severity::Error, "Invalid global var value", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_generate_header, CLASS_ERROR, (unsigned)diag::Severity::Error, "Error on header file generation %0", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_cg_expr_operator, CLASS_ERROR, (unsigned)diag::Severity::Error, "Invalid code generator for operator expression", 0, SFINAE_Suppress, false, true, 0)

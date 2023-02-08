@@ -10,8 +10,8 @@
 #ifndef FLY_FUNCTION_CALL_H
 #define FLY_FUNCTION_CALL_H
 
-#include "ASTExprStmt.h"
-#include "Basic/Debuggable.h"
+#include "ASTExpr.h"
+#include "AST/ASTIdentifier.h"
 
 #include "llvm/ADT/SmallVector.h"
 
@@ -24,24 +24,20 @@ namespace fly {
     class ASTFunctionBase;
     class ASTParam;
     class ASTArg;
+    class ASTCallExpr;
+    class ASTVar;
 
     /**
      * A Reference to a Function in a Declaration
      * Ex.
      *  int a = sqrt(4)
      */
-    class ASTFunctionCall : public Debuggable {
+    class ASTCall : public ASTIdentifier {
 
         friend class SemaBuilder;
         friend class SemaResolver;
 
         const SourceLocation Loc;
-
-        ASTStmt *Stmt = nullptr;
-
-        const std::string Name;
-
-        std::string NameSpace;
 
         std::vector<ASTArg *> Args;
 
@@ -49,15 +45,15 @@ namespace fly {
 
         CodeGenCall *CGC = nullptr;
 
-        ASTFunctionCall(const SourceLocation &Loc, const std::string NameSpace, const std::string Name);
+        ASTVar *Instance = nullptr;
+
+        bool New = false;
+
+        ASTCall(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef Name);
+
+        ASTCall(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef ClassName, llvm::StringRef Name);
 
     public:
-
-        const SourceLocation &getLocation() const;
-
-        const std::string getNameSpace() const;
-
-        const std::string getName() const;
 
         const std::vector<ASTArg *> getArgs() const;
 
@@ -65,31 +61,39 @@ namespace fly {
 
         CodeGenCall *getCodeGen() const;
 
+        ASTVar *getInstance() const;
+
+        bool isNew() const;
+
         std::string str() const;
     };
 
-    class ASTArg : public ASTExprStmt {
+    class ASTArg : public Debuggable {
 
         friend class SemaResolver;
         friend class SemaBuilder;
+
+        ASTExpr *Expr;
 
         uint64_t Index;
 
         ASTParam *Def = nullptr;
 
-        ASTFunctionCall *Call = nullptr;
+        ASTCall *Call = nullptr;
 
-        ASTArg(ASTStmt *Parent, const SourceLocation &Loc);
+        ASTArg(ASTCall *Call, ASTExpr *Expr);
 
     public:
+
+        ASTExpr *getExpr() const;
 
         uint64_t getIndex() const;
 
         ASTParam *getDef() const;
 
-        ASTFunctionCall *getCall() const;
+        ASTCall *getCall() const;
 
-        std::string str() const override;
+        std::string str() const;
 
     };
 }

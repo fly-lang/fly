@@ -14,15 +14,19 @@
 
 using namespace fly;
 
-ASTGlobalVar::ASTGlobalVar(const SourceLocation &Loc, ASTNode *Node, ASTType *Type, const std::string Name,
+ASTGlobalVar::ASTGlobalVar(const SourceLocation &Loc, ASTNode *Node, ASTType *Type, llvm::StringRef Name,
                            ASTTopScopes *Scopes) :
-        ASTTopDef(Loc, Node, ASTTopDefKind::DEF_GLOBALVAR, Scopes),
-        VarKind(ASTVarKind::VAR_GLOBAL), Type(Type), Name(Name) {
+        ASTTopDef(Node, ASTTopDefKind::DEF_GLOBALVAR, Scopes),
+        VarKind(ASTVarKind::VAR_GLOBAL), Type(Type), Name(Name), Location(Loc) {
 
 }
 
-std::string ASTGlobalVar::getName() const {
+llvm::StringRef ASTGlobalVar::getName() const {
     return Name;
+}
+
+const SourceLocation &ASTGlobalVar::getLocation() const {
+    return Location;
 }
 
 ASTVarKind ASTGlobalVar::getVarKind() {

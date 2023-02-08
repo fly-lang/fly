@@ -27,10 +27,6 @@ CodeGenVar::CodeGenVar(CodeGenModule *CGM, ASTVar *Var) : CodeGenVarBase(CGM, Va
 void CodeGenVar::Init() {
     Pointer = CGM->Builder->CreateAlloca(T);
     doLoad = true;
-
-    if (Var->getType()->isClass()) {
-        ((ASTClassType *) Var->getType())->getDef()->getCodeGen()->InvokeDefaultConstructor(Pointer);
-    }
 }
 
 llvm::StoreInst *CodeGenVar::Store(llvm::Value *Val) {

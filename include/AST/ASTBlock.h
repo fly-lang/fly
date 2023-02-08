@@ -22,7 +22,7 @@ namespace fly {
     class DiagnosticBuilder;
     class ASTReturn;
     class ASTFunctionBase;
-    class ASTFunctionCall;
+    class ASTCall;
     class ASTLocalVar;
     class ASTVarAssign;
     class ASTGroupExpr;
@@ -67,8 +67,8 @@ namespace fly {
         // Contains all vars declared in this Block
         llvm::StringMap<ASTLocalVar *> LocalVars;
 
-        // Contains all declared vars not yet defined with value;
-        llvm::StringMap<ASTLocalVar *> UndefVars;
+        // Contains all declared vars not yet initialized;
+        llvm::StringMap<ASTLocalVar *> UnInitVars;
 
     protected:
 
@@ -90,7 +90,7 @@ namespace fly {
 
         const llvm::StringMap<ASTLocalVar *> &getLocalVars() const;
 
-        const llvm::StringMap<ASTLocalVar *> &getUndefVars() const;
+        const llvm::StringMap<ASTLocalVar *> &getUnInitVars() const;
 
         std::string str() const override;
     };

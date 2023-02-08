@@ -16,8 +16,8 @@
 using namespace fly;
 
 ASTClassVar::ASTClassVar(const SourceLocation &Loc, ASTClass *Class, ASTClassScopes *Scopes, ASTType *Type,
-                         std::string &Name) :
-        VarKind(ASTVarKind::VAR_FIELD), Type(Type), Name(Name),
+                         llvm::StringRef Name) :
+        VarKind(ASTVarKind::VAR_CLASS), Type(Type), Name(Name),
         Loc(Loc), Class(Class), Scopes(Scopes) {
 
 }
@@ -26,7 +26,7 @@ const SourceLocation &ASTClassVar::getLocation() const {
     return Loc;
 }
 
-std::string ASTClassVar::getName() const {
+llvm::StringRef ASTClassVar::getName() const {
     return Name;
 }
 
@@ -42,7 +42,7 @@ const ASTClass *ASTClassVar::getClass() const {
     return Class;
 }
 
-const std::string &ASTClassVar::getComment() const {
+llvm::StringRef ASTClassVar::getComment() const {
     return Comment;
 }
 
@@ -52,6 +52,10 @@ ASTClassScopes *ASTClassVar::getScopes() const {
 
 ASTExpr *ASTClassVar::getExpr() const {
     return Expr;
+}
+
+void ASTClassVar::setExpr(ASTExpr *Expr) {
+    this->Expr = Expr;
 }
 
 CodeGenClassVar *ASTClassVar::getCodeGen() const {

@@ -35,14 +35,17 @@ std::string ASTClassScopes::str() const {
             End();
 }
 
-ASTClass::ASTClass(const SourceLocation &Loc, ASTNode *Node, const std::string &Name,
-                   ASTTopScopes *Scopes) :
-        ASTTopDef(Loc, Node, ASTTopDefKind::DEF_CLASS, Scopes), Name(Name) {
+ASTClass::ASTClass(const SourceLocation &Loc, ASTNode *Node, llvm::StringRef Name, ASTTopScopes *Scopes) :
+        ASTTopDef(Node, ASTTopDefKind::DEF_CLASS, Scopes), Name(Name), Location(Loc) {
 
 }
 
-std::string ASTClass::getName() const {
+llvm::StringRef ASTClass::getName() const {
     return Name;
+}
+
+const SourceLocation &ASTClass::getLocation() const {
+    return Location;
 }
 
 ASTClassKind ASTClass::getClassKind() const {
@@ -51,6 +54,10 @@ ASTClassKind ASTClass::getClassKind() const {
 
 llvm::StringMap<ASTClassVar *> ASTClass::getVars() const {
     return Vars;
+}
+
+std::map <uint64_t,llvm::SmallVector <ASTClassFunction *, 4>> ASTClass::getConstructors() const {
+    return Constructors;
 }
 
 llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTClassFunction *, 4>>> ASTClass::getMethods() const {

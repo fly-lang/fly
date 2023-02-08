@@ -12,7 +12,7 @@
 #include "AST/ASTVarRef.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTFunction.h"
-#include "AST/ASTFunctionCall.h"
+#include "AST/ASTCall.h"
 #include "AST/ASTStmt.h"
 #include "AST/ASTType.h"
 #include "Sema/SemaBuilder.h"
@@ -71,7 +71,7 @@ std::string ASTValueExpr::str() const {
             End();
 }
 
-ASTVarRefExpr::ASTVarRefExpr(ASTVarRef *VarRef) : ASTExpr(VarRef->getLocation(), ASTExprKind::EXPR_REF_VAR), VarRef(VarRef) {
+ASTVarRefExpr::ASTVarRefExpr(ASTVarRef *VarRef) : ASTExpr(VarRef->getLocation(), ASTExprKind::EXPR_VAR_REF), VarRef(VarRef) {
 
 }
 
@@ -90,21 +90,21 @@ std::string ASTVarRefExpr::str() const {
             End();
 }
 
-ASTFunctionCallExpr::ASTFunctionCallExpr(ASTFunctionCall *Call) :
-    ASTExpr(Call->getLocation(), ASTExprKind::EXPR_REF_FUNC), Call(Call) {
+ASTCallExpr::ASTCallExpr(ASTCall *Call) :
+        ASTExpr(Call->getLocation(), ASTExprKind::EXPR_CALL), Call(Call) {
 
 }
 
-ASTFunctionCall *ASTFunctionCallExpr::getCall() const {
+ASTCall *ASTCallExpr::getCall() const {
     return Call;
 }
 
-ASTType *ASTFunctionCallExpr::getType() const {
+ASTType *ASTCallExpr::getType() const {
     return Type ? Type : Call->getDef() ? Call->getDef()->getType() : nullptr;
 }
 
-std::string ASTFunctionCallExpr::str() const {
-    return Logger("ASTFunctionCallExpr").
+std::string ASTCallExpr::str() const {
+    return Logger("ASTCallExpr").
            Super(ASTExpr::str()).
            Attr("Call", Call->str()).
            End();

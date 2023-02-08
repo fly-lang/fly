@@ -7,15 +7,14 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "AST/ASTFunctionCall.h"
+#include "AST/ASTCall.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTParams.h"
 #include "Basic/Debuggable.h"
 
 using namespace fly;
 
-ASTArg::ASTArg(ASTStmt *Parent, const SourceLocation &Loc) :
-        ASTExprStmt(Parent, Loc, ASTStmtKind::STMT_ARG) {
+ASTArg::ASTArg(ASTCall *Call, ASTExpr *Expr) : Expr(Expr), Call(Call) {
 
 }
 
@@ -29,51 +28,54 @@ ASTParam *ASTArg::getDef() const {
 
 std::string ASTArg::str() const {
     return Logger("ASTArg").
-            Super(ASTExprStmt::str()).
+            Attr("Expr", Expr).
             Attr("Index", Index).
             End();
 }
 
-ASTFunctionCall *ASTArg::getCall() const {
+ASTCall *ASTArg::getCall() const {
     return Call;
 }
 
-ASTFunctionCall::ASTFunctionCall(const SourceLocation &Loc, const std::string NameSpace, const std::string Name) :
-    Loc(Loc), NameSpace(NameSpace), Name(Name) {
-
+ASTExpr *ASTArg::getExpr() const {
+    return Expr;
 }
 
-const std::string ASTFunctionCall::getName() const {
-    return Name;
+ASTCall::ASTCall(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef Name) :
+        ASTIdentifier(Loc, NameSpace, Name) {
 }
 
-const std::vector<ASTArg*> ASTFunctionCall::getArgs() const {
+ASTCall::ASTCall(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef ClassName, llvm::StringRef Name) :
+        ASTIdentifier(Loc, ClassName, Name) {
+    setNameSpace(NameSpace);
+}
+
+const std::vector<ASTArg*> ASTCall::getArgs() const {
     return Args;
 }
 
-ASTFunctionBase *ASTFunctionCall::getDef() const {
+ASTFunctionBase *ASTCall::getDef() const {
     return Def;
 }
 
-CodeGenCall *ASTFunctionCall::getCodeGen() const {
+CodeGenCall *ASTCall::getCodeGen() const {
     return CGC;
 }
 
-const SourceLocation &ASTFunctionCall::getLocation() const {
-    return Loc;
+ASTVar *ASTCall::getInstance() const {
+    return Instance;
 }
 
-const std::string ASTFunctionCall::getNameSpace() const {
-    return NameSpace;
-}
-
-std::string ASTFunctionCall::str() const {
+std::string ASTCall::str() const {
     return Logger("ASTFunctionCall").
             Attr("Loc", Loc).
-            Attr("Stmt", Stmt).
             Attr("Name", Name).
             Attr("NameSpace", NameSpace).
             AttrList("Args", Args).
             Attr("Def", Def).
             End();
+}
+
+bool ASTCall::isNew() const {
+    return New;
 }

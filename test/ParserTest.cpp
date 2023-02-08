@@ -18,7 +18,7 @@
 #include "AST/ASTImport.h"
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTFunction.h"
-#include "AST/ASTFunctionCall.h"
+#include "AST/ASTCall.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTVarAssign.h"
 #include "AST/ASTVarRef.h"
@@ -67,9 +67,9 @@ namespace {
             Input.Load(Source);
             Parser *P = new Parser(Input, CI.getSourceManager(), Diags, *Builder);
             ASTNode *Node = P->Parse();
+            Success = !Diags.hasErrorOccurred() && Node;
             if (DoBuild)
-                Success = Node && Builder->Build();
-
+                Success &= Builder->Build();
             return Node;
         }
 
@@ -159,15 +159,15 @@ namespace {
 
         ASTGlobalVar *GlobalB = Node->getGlobalVars().find("b")->getValue();
         EXPECT_EQ(GlobalB->getName(), "b");
-        EXPECT_EQ(GlobalB->getComment(), "Global var block comment");
+        EXPECT_EQ(GlobalB->getComment(), "/* Global var block comment */");
 
         ASTFunction *Func = *Node->getFunctions().find("func")->getValue().begin()->second.begin();
         EXPECT_EQ(Func->getName(), "func");
-        EXPECT_EQ(Func->getComment(), "Func block comment");
+        EXPECT_EQ(Func->getComment(), "/*   Func block comment \n*/");
 
         ASTFunction *Func2 = *Node->getFunctions().find("func2")->getValue().begin()->second.begin();
         EXPECT_EQ(Func2->getName(), "func2");
-        EXPECT_EQ(Func2->getComment(), "");
+        EXPECT_EQ(Func2->getComment(), StringRef());
     }
 
     TEST_F(ParserTest, GlobalVars) {
@@ -505,7 +505,7 @@ namespace {
                                "  Type t = null"
                                "  return t\n"
                                "}\n");
-        ASTNode *Node = Parse("TypeDefaultVarReturn", str);
+        ASTNode *Node = Parse("TypeDefaultVarReturn", str, false);
 
         ASSERT_TRUE(isSuccess());
 
@@ -542,7 +542,7 @@ namespace {
                                "double j\n"
                                "Type t\n"
                                "}\n");
-        ASTNode *Node = Parse("UndefLocalVar", str);
+        ASTNode *Node = Parse("UndefLocalVar", str, false);
 
         ASSERT_TRUE(isSuccess());
 
@@ -617,6 +617,65 @@ namespace {
         EXPECT_EQ(tVar->getType()->getKind(), ASTTypeKind::TYPE_CLASS);
         ASSERT_EQ(tVar->getExpr(), nullptr);
 
+    }
+
+    TEST_F(ParserTest, UnaryExpr) {
+        llvm::StringRef str = (
+                "void func(int a) {\n"
+                "  ++a"
+                "  a++"
+                "  --a"
+                "  a--"
+                "  a = ++a + 1"
+                "}\n");
+        ASTNode *Node = Parse("UnaryExpr", str);
+
+        ASSERT_TRUE(isSuccess());
+
+        // Get Body
+        ASTFunction *F = *Node->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
+        const ASTBlock *Body = F->getBody();
+
+        // ++a
+        ASTExprStmt *a1Stmt = (ASTExprStmt *) Body->getContent()[0];
+        ASTUnaryGroupExpr *a1Unary = (ASTUnaryGroupExpr *) a1Stmt->getExpr();
+        EXPECT_EQ(a1Unary->getOperatorKind(), ASTUnaryOperatorKind::ARITH_INCR);
+        EXPECT_EQ(a1Unary->getOptionKind(), ASTUnaryOptionKind::UNARY_PRE);
+        EXPECT_EQ(((ASTVarRefExpr *) a1Unary->getFirst())->getVarRef()->getName(), "a");
+
+        // a++
+        ASTExprStmt *a2Stmt = (ASTExprStmt *) Body->getContent()[1];
+        ASTUnaryGroupExpr *a2Unary = (ASTUnaryGroupExpr *) a2Stmt->getExpr();
+        EXPECT_EQ(a2Unary->getOperatorKind(), ASTUnaryOperatorKind::ARITH_INCR);
+        EXPECT_EQ(a2Unary->getOptionKind(), ASTUnaryOptionKind::UNARY_POST);
+        EXPECT_EQ(((ASTVarRefExpr *) a2Unary->getFirst())->getVarRef()->getName(), "a");
+
+        // --a
+        ASTExprStmt *a3Stmt = (ASTExprStmt *) Body->getContent()[2];
+        ASTUnaryGroupExpr *a3Unary = (ASTUnaryGroupExpr *) a3Stmt->getExpr();
+        EXPECT_EQ(a3Unary->getOperatorKind(), ASTUnaryOperatorKind::ARITH_DECR);
+        EXPECT_EQ(a3Unary->getOptionKind(), ASTUnaryOptionKind::UNARY_PRE);
+        EXPECT_EQ(((ASTVarRefExpr *) a3Unary->getFirst())->getVarRef()->getName(), "a");
+
+        // a--
+        ASTExprStmt *a4Stmt = (ASTExprStmt *) Body->getContent()[3];
+        ASTUnaryGroupExpr *a4Unary = (ASTUnaryGroupExpr *) a4Stmt->getExpr();
+        EXPECT_EQ(a4Unary->getOperatorKind(), ASTUnaryOperatorKind::ARITH_DECR);
+        EXPECT_EQ(a4Unary->getOptionKind(), ASTUnaryOptionKind::UNARY_POST);
+        EXPECT_EQ(((ASTVarRefExpr *) a4Unary->getFirst())->getVarRef()->getName(), "a");
+
+        // a = ++a + 1
+        const ASTVarAssign *a5Var = (ASTVarAssign *) Body->getContent()[4];
+        EXPECT_EQ(a5Var->getExpr()->getExprKind(), ASTExprKind::EXPR_GROUP);
+        ASTBinaryGroupExpr *Group = (ASTBinaryGroupExpr *) a5Var->getExpr();
+        EXPECT_EQ(Group->getOperatorKind(), ASTBinaryOperatorKind::ARITH_ADD);
+        EXPECT_EQ(Group->getOptionKind(), ASTBinaryOptionKind::BINARY_ARITH);
+        const ASTUnaryGroupExpr *E1 = (ASTUnaryGroupExpr *) Group->getFirst();
+        EXPECT_EQ(E1->getOperatorKind(), ASTUnaryOperatorKind::ARITH_INCR);
+        EXPECT_EQ(E1->getOptionKind(), ASTUnaryOptionKind::UNARY_PRE);
+        ASTValueExpr *ValueExpr = (ASTValueExpr *) Group->getSecond();
+        EXPECT_EQ(ValueExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
+        EXPECT_EQ(ValueExpr->getValue().print(), "1");
     }
 
     TEST_F(ParserTest, IntBinaryArithOperation) {
@@ -852,22 +911,22 @@ namespace {
 
         // Test: doSome()
         ASTLocalVar *VarB = ((ASTLocalVar *) Body->getContent()[0]);
-        ASTFunctionCallExpr *doSomeCall = (ASTFunctionCallExpr *) VarB->getExpr();
+        ASTCallExpr *doSomeCall = (ASTCallExpr *) VarB->getExpr();
         EXPECT_EQ(doSomeCall->getCall()->getName(), "doSome");
-        EXPECT_EQ(doSomeCall->getExprKind(), ASTExprKind::EXPR_REF_FUNC);
+        EXPECT_EQ(doSomeCall->getExprKind(), ASTExprKind::EXPR_CALL);
         ASSERT_FALSE(doSomeCall->getCall()->getDef() == nullptr);
 
         // Test: doNow()
         ASTVarAssign *B = ((ASTVarAssign *) Body->getContent()[1]);
-        ASTFunctionCallExpr *doNowCall = (ASTFunctionCallExpr *) B->getExpr();
+        ASTCallExpr *doNowCall = (ASTCallExpr *) B->getExpr();
         EXPECT_EQ(doNowCall->getCall()->getName(), "doNow");
-        EXPECT_EQ(doNowCall->getExprKind(), ASTExprKind::EXPR_REF_FUNC);
+        EXPECT_EQ(doNowCall->getExprKind(), ASTExprKind::EXPR_CALL);
         ASSERT_FALSE(doNowCall->getCall()->getDef() == nullptr);
 
         // Test: doOther(a, b)
         ASTExprStmt *doOtherStmt = (ASTExprStmt *) Body->getContent()[2];
         EXPECT_EQ(doOtherStmt->getKind(), ASTStmtKind::STMT_EXPR);
-        ASTFunctionCallExpr *doOtherCall = (ASTFunctionCallExpr *) doOtherStmt->getExpr();
+        ASTCallExpr *doOtherCall = (ASTCallExpr *) doOtherStmt->getExpr();
         EXPECT_EQ(doOtherCall->getCall()->getName(), "doOther");
         ASTArg *Arg0 = doOtherCall->getCall()->getArgs()[0];
         EXPECT_EQ(((ASTVarRefExpr *) Arg0->getExpr())->getVarRef()->getName(), "a");
@@ -880,65 +939,6 @@ namespace {
         EXPECT_EQ(RetExpr->getVarRef()->getName(), "b");
         EXPECT_FALSE(RetExpr->getVarRef()->getDef() == nullptr);
 
-    }
-
-    TEST_F(ParserTest, UnaryExpr) {
-        llvm::StringRef str = (
-                         "void func(int a) {\n"
-                         "  ++a"
-                         "  a++"
-                         "  --a"
-                         "  a--"
-                         "  a = ++a + 1"
-                         "}\n");
-        ASTNode *Node = Parse("UnaryExpr", str);
-
-        ASSERT_TRUE(isSuccess());
-
-        // Get Body
-        ASTFunction *F = *Node->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
-        const ASTBlock *Body = F->getBody();
-
-        // ++a
-        ASTExprStmt *a1Stmt = (ASTExprStmt *) Body->getContent()[0];
-        ASTUnaryGroupExpr *a1Unary = (ASTUnaryGroupExpr *) a1Stmt->getExpr();
-        EXPECT_EQ(a1Unary->getOperatorKind(), ASTUnaryOperatorKind::ARITH_INCR);
-        EXPECT_EQ(a1Unary->getOptionKind(), ASTUnaryOptionKind::UNARY_PRE);
-        EXPECT_EQ(((ASTVarRefExpr *) a1Unary->getFirst())->getVarRef()->getName(), "a");
-
-        // a++
-        ASTExprStmt *a2Stmt = (ASTExprStmt *) Body->getContent()[1];
-        ASTUnaryGroupExpr *a2Unary = (ASTUnaryGroupExpr *) a2Stmt->getExpr();
-        EXPECT_EQ(a2Unary->getOperatorKind(), ASTUnaryOperatorKind::ARITH_INCR);
-        EXPECT_EQ(a2Unary->getOptionKind(), ASTUnaryOptionKind::UNARY_POST);
-        EXPECT_EQ(((ASTVarRefExpr *) a2Unary->getFirst())->getVarRef()->getName(), "a");
-
-        // --a
-        ASTExprStmt *a3Stmt = (ASTExprStmt *) Body->getContent()[2];
-        ASTUnaryGroupExpr *a3Unary = (ASTUnaryGroupExpr *) a3Stmt->getExpr();
-        EXPECT_EQ(a3Unary->getOperatorKind(), ASTUnaryOperatorKind::ARITH_DECR);
-        EXPECT_EQ(a3Unary->getOptionKind(), ASTUnaryOptionKind::UNARY_PRE);
-        EXPECT_EQ(((ASTVarRefExpr *) a3Unary->getFirst())->getVarRef()->getName(), "a");
-
-        // a--
-        ASTExprStmt *a4Stmt = (ASTExprStmt *) Body->getContent()[3];
-        ASTUnaryGroupExpr *a4Unary = (ASTUnaryGroupExpr *) a4Stmt->getExpr();
-        EXPECT_EQ(a4Unary->getOperatorKind(), ASTUnaryOperatorKind::ARITH_DECR);
-        EXPECT_EQ(a4Unary->getOptionKind(), ASTUnaryOptionKind::UNARY_POST);
-        EXPECT_EQ(((ASTVarRefExpr *) a4Unary->getFirst())->getVarRef()->getName(), "a");
-
-        // a = ++a + 1
-        const ASTVarAssign *a5Var = (ASTVarAssign *) Body->getContent()[4];
-        EXPECT_EQ(a5Var->getExpr()->getExprKind(), ASTExprKind::EXPR_GROUP);
-        ASTBinaryGroupExpr *Group = (ASTBinaryGroupExpr *) a5Var->getExpr();
-        EXPECT_EQ(Group->getOperatorKind(), ASTBinaryOperatorKind::ARITH_ADD);
-        EXPECT_EQ(Group->getOptionKind(), ASTBinaryOptionKind::BINARY_ARITH);
-        const ASTUnaryGroupExpr *E1 = (ASTUnaryGroupExpr *) Group->getFirst();
-        EXPECT_EQ(E1->getOperatorKind(), ASTUnaryOperatorKind::ARITH_INCR);
-        EXPECT_EQ(E1->getOptionKind(), ASTUnaryOptionKind::UNARY_PRE);
-        ASTValueExpr *ValueExpr = (ASTValueExpr *) Group->getSecond();
-        EXPECT_EQ(ValueExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(ValueExpr->getValue().print(), "1");
     }
 
     TEST_F(ParserTest, IfElsifElseStmt) {
@@ -1155,14 +1155,13 @@ namespace {
         ASSERT_TRUE(ClassTest != NSClassess.end());
     }
 
-    TEST_F(ParserTest, ClassFields) {
+    TEST_F(ParserTest, ClassVars) {
         llvm::StringRef str = ("public Test {\n"
                                "  int a = 1\n"
                                "  public int b = 2\n"
                                "  private const int c\n"
                                "}\n");
-        ASTNode *Node = Parse("ClassFields", str);
-        ASSERT_TRUE(isSuccess());
+        ASTNode *Node = Parse("ClassVars", str, false);
 
         EXPECT_FALSE(Node->getClass()->getVars().empty());
         EXPECT_EQ(Node->getClass()->getVars().size(), 3);
@@ -1175,5 +1174,34 @@ namespace {
         ASTClassVar *cVar = Node->getClass()->getVars().find("c")->getValue();
         EXPECT_EQ(cVar->getScopes()->getVisibility(), ASTClassVisibilityKind::CLASS_V_PRIVATE);
         EXPECT_TRUE(cVar->getScopes()->isConstant());
+
+        llvm::StringRef str2 = (
+                "void func() {\n"
+                "  Test t = new Test()"
+                "  t.a = 1"
+                "}\n");
+        ASTNode *Node2 = Parse("Identifier", str2);
+        ASSERT_TRUE(isSuccess());
+    }
+
+    TEST_F(ParserTest, ClassFunctions) {
+        llvm::StringRef str = ("public Test {\n"
+                               "  int a() { return 1 }\n"
+                               "}\n");
+        ASTNode *Node = Parse("ClassVars", str, false);
+
+        llvm::StringRef str2 = (
+                "void func() {\n"
+                "  Test t = new Test()"
+                "  t.a()"
+                "}\n");
+        ASTNode *Node2 = Parse("Identifier", str2);
+
+        ASSERT_TRUE(isSuccess());
+
+        EXPECT_EQ(Node->getClass()->getMethods().size(), 1);
+        ASTClassFunction *aMethod = *Node->getClass()->getMethods().find("a")->getValue().begin()->second.begin();
+        EXPECT_EQ(aMethod->getScopes()->getVisibility(), ASTClassVisibilityKind::CLASS_V_DEFAULT);
+        EXPECT_FALSE(aMethod->getScopes()->isConstant());
     }
 }

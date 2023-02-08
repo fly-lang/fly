@@ -63,8 +63,6 @@ namespace fly {
 
         ASTNameSpace* getNameSpace();
 
-        ASTImport *FindImport(const std::string string);
-
         const llvm::StringMap<ASTImport*> &getImports();
 
         const llvm::StringMap<ASTGlobalVar *> &getExternalGlobalVars() const;

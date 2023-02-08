@@ -8,8 +8,12 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Parser/Parser.h"
+#include "Parser/FunctionParser.h"
 #include "Parser/ClassParser.h"
+#include "AST/ASTBlock.h"
 #include "AST/ASTClass.h"
+#include "AST/ASTClassVar.h"
+#include "AST/ASTClassFunction.h"
 #include "Sema/SemaBuilder.h"
 #include "Basic/Debug.h"
 
@@ -27,21 +31,20 @@ ClassParser::ClassParser(Parser *P, ASTTopScopes *Scopes) : P(P) {
     FLY_DEBUG_MESSAGE("ClassParser", "ClassParser", Logger()
             .Attr("Scopes", Scopes).End());
 
-    IdentifierInfo *Id = P->Tok.getIdentifierInfo();
-    llvm::StringRef Name = Id->getName();
-    const SourceLocation Loc = P->Tok.getLocation();
+    llvm::StringRef ClassName = P->Tok.getIdentifierInfo()->getName();
+    const SourceLocation ClassLoc = P->Tok.getLocation();
     P->ConsumeToken();
 
     if (P->isBlockStart()) {
-        P->ConsumeBrace();
+        ConsumeBrace();
 
-        Class = P->Builder.CreateClass(P->Node, Loc, Name.str(), Scopes);
+        Class = P->Builder.CreateClass(P->Node, ClassLoc, ClassName, Scopes);
         bool Continue;
         do {
 
             // End of the Class
             if (P->isBlockEnd() ) {
-                P->ConsumeBrace();
+                ConsumeBrace();
                 break;
             }
 
@@ -57,17 +60,16 @@ ClassParser::ClassParser(Parser *P, ASTTopScopes *Scopes) : P(P) {
 
             // Parse Type
             ASTType *Type = P->ParseType();
-            if (!Type) {
-                P->Diag(diag::err_parser_invalid_type);
-                Success = false;
-            }
-
             Continue = false; // Continue loop if there is a field or a method
-            if (isField()) {
-                Success &= ParseField(ClassScopes, Type);
-                Continue = true;
-            } else if (isMethod()) {
-                Success &= ParseMethod(ClassScopes, Type);
+            if (P->Tok.isAnyIdentifier()) {
+                const StringRef &Name = P->Tok.getIdentifierInfo()->getName();
+                const SourceLocation &Loc = P->ConsumeToken();
+
+                if (P->Tok.is(tok::l_paren)) {
+                    Success &= ParseMethod(ClassScopes, Type, Loc, Name);
+                } else {
+                    Success &= ParseField(ClassScopes, Type, Loc, Name);
+                }
                 Continue = true;
             }
 
@@ -134,52 +136,87 @@ ASTClassScopes *ClassParser::ParseScopes() {
     return SemaBuilder::CreateClassScopes(Visibility, isConst);
 }
 
-bool ClassParser::isField() {
-    FLY_DEBUG("ClassParser", "isField");
-    return P->Tok.isAnyIdentifier();
-}
-
-bool ClassParser::ParseField(ASTClassScopes *Scopes, ASTType *Type) {
+bool ClassParser::ParseField(ASTClassScopes *Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name) {
     FLY_DEBUG_MESSAGE("ClassParser", "ParseMethod", Logger()
             .Attr("Scopes", Scopes)
             .Attr("Type", Type).End());
 
-    assert(P->Tok.isAnyIdentifier() && "Tok must be an Identifier");
+    if (!Type) {
+        P->Diag(diag::err_parser_invalid_type);
+        return false;
+    }
 
     // Add Comment to AST
-    std::string Comment;
+    llvm::StringRef Comment;
     if (!P->BlockComment.empty()) {
         Comment = P->BlockComment;
-        P->ClearBlockComment(); // Clear for next use
     }
 
-    IdentifierInfo *Id = P->Tok.getIdentifierInfo();
-    llvm::StringRef Name = Id->getName();
-    SourceLocation Loc = P->ConsumeToken();
-
-    ASTClassVar *Field = P->Builder.CreateClassVar(Class, Loc, Type, Name.str(), Scopes);
-    if (Field) {
+    ASTClassVar *ClassVar = P->Builder.CreateClassVar(Class, Loc, Type, Name, Scopes);
+    if (ClassVar) {
         // Parsing =
-        ASTExpr *Expr = nullptr;
-        if (P->isTokenAssign()) {
+        if (P->Tok.is(tok::equal)) {
             P->ConsumeToken();
-            Expr = P->ParseExpr();
+            ASTExpr *Expr = P->ParseExpr();
+            ClassVar->setExpr(Expr);
         }
 
-        return P->Builder.AddComment(Field, Comment);
+        return P->Builder.AddClassVar(Class, ClassVar) && P->Builder.AddComment(ClassVar, Comment);
     }
 
     return false;
 }
 
-bool ClassParser::isMethod() {
-    FLY_DEBUG("ClassParser", "isField");
-    return false;
-}
-
-bool ClassParser::ParseMethod(ASTClassScopes *Scopes, ASTType *Type) {
+bool ClassParser::ParseMethod(ASTClassScopes *Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name) {
     FLY_DEBUG_MESSAGE("ClassParser", "ParseMethod", Logger()
             .Attr("Scopes", Scopes)
             .Attr("Type", Type).End());
-    return false;
+
+    // Add Comment to AST
+    llvm::StringRef Comment;
+    if (!P->BlockComment.empty()) {
+        Comment = P->BlockComment;
+    }
+
+    ASTClassFunction *Method;
+    if (Name == Class->getName()) {
+        if (!Type) {
+            Method = P->Builder.CreateClassConstructor(Class, Loc, Scopes);
+            Success = FunctionParser::Parse(P, Method) && P->Builder.AddClassConstructor(Class, Method);
+        } else {
+            P->Diag(diag::err_parser_invalid_type);
+            return false;
+        }
+    } else {
+        Method = P->Builder.CreateClassMethod(Class, Loc, Type, Name, Scopes);
+        Success = FunctionParser::Parse(P, Method) && P->Builder.AddClassMethod(Class, Method);
+    }
+
+    if (Method && Method->getBody()->isEmpty()) {
+        Method->Abstract = true;
+    }
+
+    return Success;
+}
+
+/**
+ * ConsumeBrace - This consume method keeps the brace count up-to-date.
+ * @return
+ */
+SourceLocation ClassParser::ConsumeBrace() {
+    FLY_DEBUG("Parser", "ConsumeBrace");
+    assert(P->isTokenBrace() && "wrong consume method");
+    if (P->Tok.getKind() == tok::l_brace)
+        ++BraceCount;
+    else if (BraceCount) {
+        //AngleBrackets.clear(*this);
+        --BraceCount;     // Don't let unbalanced }'s drive the count negative.
+    }
+
+    return P->ConsumeNext();
+}
+
+bool ClassParser::isBraceBalanced() const {
+    FLY_DEBUG("Parser", "isBraceBalanced");
+    return BraceCount == 0;
 }

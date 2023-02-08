@@ -12,40 +12,29 @@
 
 using namespace fly;
 
-ASTVarRef::ASTVarRef(const SourceLocation &Loc, const std::string Name, const std::string NameSpace) :
-        ASTVarRef(Loc, Name, "", NameSpace) {
+ASTVarRef::ASTVarRef(const SourceLocation &Loc, llvm::StringRef Name) :
+        ASTIdentifier(Loc, Name) {
 
 }
 
-ASTVarRef::ASTVarRef(const SourceLocation &Loc, const std::string Name, const std::string Class, const std::string NameSpace) :
-    Loc(Loc), Name(Name), Class(Class), NameSpace(NameSpace) {
-}
+ASTVarRef::ASTVarRef(const SourceLocation &Loc, llvm::StringRef ClassName, llvm::StringRef Name) :
+        ASTIdentifier(Loc, ClassName, Name) {
 
-const std::string ASTVarRef::getName() const {
-    return Name;
 }
 
 ASTVar *ASTVarRef::getDef() const {
     return Def;
 }
 
-const std::string ASTVarRef::getNameSpace() const {
-    return NameSpace;
-}
-
-const std::string ASTVarRef::getClass() const {
-    return Class;
-}
-
-const SourceLocation &ASTVarRef::getLocation() const {
-    return Loc;
+ASTVar *ASTVarRef::getInstance() const {
+    return Instance;
 }
 
 std::string ASTVarRef::str() const {
     return Logger("ASTVarRef").
             Attr("Location", Loc).
             Attr("NameSpace", NameSpace).
-            Attr("Class", Class).
+            Attr("Class", ClassName).
             Attr("Name", Name).
             Attr("Def", Def).
             End();

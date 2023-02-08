@@ -28,6 +28,7 @@ namespace fly {
     class ASTClassVar;
     class ASTClassFunction;
     class ASTFunctionBase;
+    class ASTImport;
     class ASTLocalVar;
     class ASTVarRef;
     class ASTVar;
@@ -60,16 +61,15 @@ namespace fly {
 
         ASTNode *FindNode(llvm::StringRef Name, ASTNameSpace *NameSpace) const;
 
-        ASTClass *FindClass(llvm::StringRef Name, ASTNameSpace *NameSpace) const;
+        ASTClass *FindClass(llvm::StringRef ClassName, ASTNameSpace *NameSpace) const;
 
-        ASTLocalVar *FindVarDef(ASTBlock *Block, ASTVarRef *VarRef) const;
+        ASTLocalVar *FindVarDef(ASTBlock *Block, llvm::StringRef VarName) const;
 
-        ASTClassVar *FindClassVar(ASTVar *Var, llvm::StringRef Name);
+        ASTImport *FindImport(ASTNode *Node, llvm::StringRef Name);
 
         DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID) const;
 
         DiagnosticBuilder Diag(unsigned DiagID) const;
-
     };
 
 }  // end namespace fly

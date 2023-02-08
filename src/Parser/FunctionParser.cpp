@@ -11,7 +11,7 @@
 #include "Parser/FunctionParser.h"
 #include "AST/ASTParams.h"
 #include "AST/ASTFunction.h"
-#include "AST/ASTFunctionCall.h"
+#include "AST/ASTCall.h"
 #include "AST/ASTExpr.h"
 #include "Sema/SemaBuilder.h"
 #include "Basic/Debug.h"
@@ -26,21 +26,11 @@ using namespace fly;
  * @param FuncName
  * @param FuncNameLoc
  */
-FunctionParser::FunctionParser(Parser *P, ASTTopScopes *Scopes, ASTType *Type, bool isHeader) : P(P) {
-    assert(P->Tok.isAnyIdentifier() && "Tok must be an Identifier");
+FunctionParser::FunctionParser(Parser *P, ASTFunctionBase *Function) : P(P), Function(Function) {
+    assert(Function && "Function must be initialized");
 
     FLY_DEBUG_MESSAGE("FunctionParser", "FunctionParser", Logger()
-                                                    .Attr("Scopes", Scopes)
-                                                    .Attr("Type", Type)
-                                                    .Attr("isHeader", isHeader).End());
-
-    IdentifierInfo *Id = P->Tok.getIdentifierInfo();
-    llvm::StringRef Name = Id->getName();
-    const SourceLocation Loc = P->Tok.getLocation();
-    P->ConsumeToken();
-
-    Function = P->Builder.CreateFunction(P->Node, Loc, Type, Name.str(), Scopes);
-    Success = ParseParams() && !isHeader && ParseBody();
+                        .Attr("Function", Function).End());
 }
 
 /**
@@ -70,8 +60,6 @@ bool FunctionParser::ParseParams() {
 bool FunctionParser::ParseParam() {
     FLY_DEBUG("FunctionParser", "ParseParams");
 
-    bool Success = true;
-
     // Var Constant
     bool Const = P->isConst();
 
@@ -84,7 +72,7 @@ bool FunctionParser::ParseParam() {
         const SourceLocation IdLoc = P->Tok.getLocation();
         P->ConsumeToken();
 
-        ASTParam *Param = P->Builder.CreateParam(Function, IdLoc, Type, Name.str(), Const);
+        ASTParam *Param = P->Builder.CreateParam(Function, IdLoc, Type, Name, Const);
 
         ASTExpr *Expr;
         // Parse assignment =
@@ -100,7 +88,7 @@ bool FunctionParser::ParseParam() {
             Expr = P->Builder.CreateExpr(Param); // ASTEmptyExpr
         }
 
-        if (Success && P->Builder.AddParam(Param)) {
+        if (P->Builder.AddParam(Param)) {
 
             if (P->Tok.is(tok::comma)) {
                 P->ConsumeToken();
@@ -126,19 +114,16 @@ bool FunctionParser::ParseBody() {
     FLY_DEBUG("FunctionParser", "ParseBody");
 
     if (P->isBlockStart()) {
-        bool Success = P->ParseBlock(Function->Body) && P->isBraceBalanced();
-        P->ClearBlockComment(); // Clean Block comments for not using them for top definition
-        return Success;
+        return P->ParseBlock(Function->Body) && P->isBraceBalanced();
     }
 
     return false;
 }
 
-ASTFunction *FunctionParser::Parse(Parser *P, ASTTopScopes *Scopes, ASTType *Type, bool isHeader) {
+bool FunctionParser::Parse(Parser *P, ASTFunctionBase *Function) {
     FLY_DEBUG_MESSAGE("FunctionParser", "Parse", Logger()
-            .Attr("Scopes", Scopes)
-            .Attr("Type", Type)
-            .Attr("isHeader", isHeader).End());
-    FunctionParser *FP = new FunctionParser(P, Scopes, Type, isHeader);
-    return FP->Function;
+            .Attr("Function", Function).End());
+    FunctionParser *FP = new FunctionParser(P, Function);
+    bool Success = FP->ParseParams() && FP->ParseBody();
+    return Success;
 }

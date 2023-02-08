@@ -37,14 +37,14 @@ jobs:
 
       - name: Dependencies
         if: matrix.os == 'ubuntu-latest'
-        run: sudo sudo apt-get -y install binutils-dev libdw-dev libdwarf-dev
+        run: sudo apt update && sudo apt-get -y install binutils-dev libdw-dev libdwarf-dev
 
       - name: Configure
         run: cmake -E make_directory ${{env.BUILD_DIR}}
 
       - name: Set Build Type
         shell: bash
-        if: github.ref == 'refs/heads/develop'
+        if: startsWith(github.ref, 'refs/heads/release/')
         run: echo "BUILD_TYPE=RelWithDebInfo" >> $GITHUB_ENV
 
       - name: Build
@@ -53,21 +53,19 @@ jobs:
           cmake .. -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_VERBOSE_MAKEFILE=ON
           cmake --build . --config ${{env.BUILD_TYPE}}
 
-      - name: Test
+      - name: Test (Unix)
         if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
         working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/test
         run: ./fly_test
 
-      - name: Test
+      - name: Test (Windows)
         if: matrix.os == 'windows-latest'
         working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}\test\${{env.BUILD_TYPE}}
-        run: |
-          ls
-          .\fly_test.exe --gtest_filter='-CmdTest.EmitOut'
+        run: .\fly_test.exe --gtest_filter='-CmdTest.EmitOut'
 
       - name: Read Version (Unix)
         id: version
-        if: github.ref == 'refs/heads/main' && (matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest')
+        if: github.ref == 'refs/heads/main' && (matrix.os == 'ubuntu-20.04' || matrix.os == 'macos-latest')
         run: echo "::set-output name=version::$(${{github.workspace}}/${{env.BUILD_DIR}}/src/fly --version-short)"
 
       - name: Read Version (Windows)
@@ -78,7 +76,7 @@ jobs:
           echo "::set-output name=version::$(.\fly.exe --version-short)"
 
       - name: Linux Packaging
-        if: github.ref == 'refs/heads/main' && matrix.os == 'ubuntu-latest'
+        if: github.ref == 'refs/heads/main' && matrix.os == 'ubuntu-20.04'
         working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/src
         run: tar -czvf ../fly-${{ steps.version.outputs.version }}-${{env.LINUX_FILE}} fly
 

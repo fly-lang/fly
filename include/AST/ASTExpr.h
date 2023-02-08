@@ -21,17 +21,17 @@ namespace fly {
     class ASTType;
     class ASTValue;
     class ASTVarRef;
-    class ASTFunctionCall;
+    class ASTCall;
     class ASTVarRefExpr;
-    class ASTFunctionCallExpr;
+    class ASTCallExpr;
     class ASTValueExpr;
     class ASTStmt;
 
     enum class ASTExprKind : char {
         EXPR_EMPTY,
         EXPR_VALUE,
-        EXPR_REF_VAR,
-        EXPR_REF_FUNC,
+        EXPR_VAR_REF,
+        EXPR_CALL,
         EXPR_GROUP
     };
 
@@ -179,18 +179,18 @@ namespace fly {
     /**
      * Function Call Expression
      */
-    class ASTFunctionCallExpr : public ASTExpr {
+    class ASTCallExpr : public ASTExpr {
 
         friend class SemaBuilder;
         friend class SemaResolver;
 
-        ASTFunctionCall *Call = nullptr;
+        ASTCall *Call = nullptr;
 
-        ASTFunctionCallExpr(ASTFunctionCall *Call);
+        ASTCallExpr(ASTCall *Call);
 
     public:
 
-        ASTFunctionCall *getCall() const;
+        ASTCall *getCall() const;
 
         ASTType *getType() const override;
 

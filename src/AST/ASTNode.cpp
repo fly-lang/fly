@@ -17,10 +17,9 @@
 #include "AST/ASTImport.h"
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTFunction.h"
-#include "AST/ASTFunctionCall.h"
+#include "AST/ASTCall.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTLocalVar.h"
-#include "AST/ASTUnref.h"
 #include "llvm/ADT/StringMap.h"
 
 using namespace fly;
@@ -39,11 +38,6 @@ const bool ASTNode::isHeader() const {
 
 ASTNameSpace* ASTNode::getNameSpace() {
     return NameSpace;
-}
-
-ASTImport *ASTNode:: FindImport(const std::string Name) {
-    // Search into Node imports
-    return Imports.lookup(Name);
 }
 
 const llvm::StringMap<ASTImport*> &ASTNode::getImports() {

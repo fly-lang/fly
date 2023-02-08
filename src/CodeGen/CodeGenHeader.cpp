@@ -45,18 +45,18 @@ std::string CodeGenHeader::GenerateFile() {
     for (auto &GlobalVar : GlobalVars) {
         if (GlobalVar->getScopes()->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
             Header += "\npublic " + Convert(GlobalVar->getType()) + "." +
-                      GlobalVar->getName() + "\n";
+                    std::string(GlobalVar->getName()) + "\n";
         }
     }
 
     // generate function declarations
     for (auto &Function : Functions) {
         if (Function->getScopes()->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
-            Header += "\npublic " + Convert(Function->getType()) + " " + Function->getName() +
+            Header += "\npublic " + Convert(Function->getType()) + " " + std::string(Function->getName()) +
                       "(";
             int i = 0;
             for (auto &Param : Function->getParams()->getList()) {
-                Header += Convert(Param->getType()) + " " + Param->getName();
+                Header += Convert(Param->getType()) + " " + std::string(Param->getName());
                 if (i < Function->getParams()->getList().size()) {
                     Header += ",";
                 }

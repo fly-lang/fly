@@ -13,7 +13,7 @@
 
 using namespace fly;
 
-ASTLocalVar::ASTLocalVar(ASTBlock *Parent, const SourceLocation &Loc, ASTType *Type, const std::string Name, bool Constant) :
+ASTLocalVar::ASTLocalVar(ASTBlock *Parent, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, bool Constant) :
         ASTExprStmt(Parent, Loc, ASTStmtKind::STMT_VAR_DEFINE), VarKind(ASTVarKind::VAR_LOCAL),
         Type(Type), Name(Name), Constant(Constant) {
 
@@ -27,7 +27,7 @@ ASTType *ASTLocalVar::getType() const {
     return Type;
 }
 
-std::string ASTLocalVar::getName() const {
+llvm::StringRef ASTLocalVar::getName() const {
     return Name;
 }
 
