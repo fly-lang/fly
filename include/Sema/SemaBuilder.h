@@ -119,11 +119,15 @@ namespace fly {
                                       ASTTopScopes *Scopes);
         ASTFunction *CreateFunction(ASTNode *Node, const SourceLocation &Loc, ASTType *Type, const llvm::StringRef Name,
                                     ASTTopScopes *Scopes);
-        ASTClass *CreateClass(ASTNode *Node, const SourceLocation &Loc, const llvm::StringRef Name,
-                              ASTTopScopes *Scopes);
-        static ASTClassScopes *CreateClassScopes(ASTClassVisibilityKind Visibility, bool Constant);
+        ASTClass *CreateClass(ASTNode *Node, ASTClassKind ClassKind, ASTTopScopes *Scopes,
+                              const SourceLocation &Loc, const llvm::StringRef Name,
+                              llvm::SmallVector<llvm::StringRef, 4> &ExtClasses);
+        ASTClass *CreateClass(ASTNode *Node, ASTClassKind ClassKind, ASTTopScopes *Scopes,
+                              const SourceLocation &Loc, const llvm::StringRef Name);
+        static ASTClassScopes *CreateClassScopes(ASTClassVisibilityKind Visibility, bool Constant, bool Static);
         ASTClassVar *CreateClassVar(ASTClass *Class, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
                                     ASTClassScopes *Scopes);
+        ASTClassVar *CreateEnumClassVar(ASTClass *Class, const SourceLocation &Loc, llvm::StringRef Nam);
         ASTClassFunction *CreateClassConstructor(ASTClass *Class, const SourceLocation &Loc, ASTClassScopes *Scopes);
         ASTClassFunction *CreateClassMethod(ASTClass *Class, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
                                             ASTClassScopes *Scopes);
@@ -141,7 +145,6 @@ namespace fly {
         static ASTDoubleType *CreateDoubleType(const SourceLocation &Loc);
         static ASTVoidType *CreateVoidType(const SourceLocation &Loc);
         static ASTArrayType *CreateArrayType(const SourceLocation &Loc, ASTType *Type, ASTExpr *Size);
-        static ASTClassType *CreateClassType(const SourceLocation &Loc, StringRef NameSpace, StringRef Name, ASTClassType *Parent = nullptr);
         static ASTClassType *CreateClassType(ASTClass *Class);
         static ASTClassType *CreateClassType(ASTIdentifier *Class);
 
@@ -166,13 +169,12 @@ namespace fly {
 
         // Create Call
         ASTCall *CreateCall(ASTIdentifier *Identifier);
-        ASTCall *CreateCall(ASTFunction *Function);
-        ASTCall *CreateCall(ASTVar *Instance, ASTClassFunction *Function);
+        ASTCall *CreateCall(ASTFunctionBase *Function);
+        ASTCall *CreateCall(ASTVar *Instance, ASTFunctionBase *Function);
 
         // Create VarRef
-        ASTVarRef *CreateVarRef(ASTLocalVar *LocalVar);
-        ASTVarRef *CreateVarRef(ASTGlobalVar *GlobalVar);
-        ASTVarRef *CreateVarRef(ASTVar *Instance, ASTClassVar *ClassVar);
+        ASTVarRef *CreateVarRef(ASTVar *Var);
+        ASTVarRef *CreateVarRef(ASTVar *Instance, ASTVar *Var);
         ASTVarRef *CreateVarRef(ASTIdentifier *Identifier);
 
         // Create Expressions
@@ -208,17 +210,16 @@ namespace fly {
 
         // Add Top definitions
         bool AddImport(ASTNode *Node, ASTImport *Import);
-        bool AddClass(ASTNode *Node, ASTClass *Class);
-        bool AddGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar, ASTValue *Value = nullptr);
-        bool AddGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar, ASTExpr *Expr);
-        bool AddFunction(ASTNode *Node, ASTFunction *Function);
-        template <typename T>
-        bool InsertFunction(llvm::StringMap<std::map <uint64_t,llvm::SmallVector <T *, 4>>> &Functions, T *Function);
-        template <typename T>
-        bool InsertFunction(std::map <uint64_t,llvm::SmallVector <T *, 4>> &Functions, T *Function);
-        bool AddClassVar(ASTClass *Class, ASTClassVar *Var);
-        bool AddClassMethod(ASTClass *Class, ASTClassFunction *Method);
-        bool AddClassConstructor(ASTClass *Class, ASTClassFunction *Method);
+        bool AddClass(ASTClass *Class);
+        bool AddGlobalVar(ASTGlobalVar *GlobalVar, ASTValue *Value = nullptr);
+        bool AddGlobalVar(ASTGlobalVar *GlobalVar, ASTExpr *Expr);
+        bool AddFunction(ASTFunction *Function);
+
+        // Add details
+        bool AddClassVar(ASTClassVar *Var);
+        bool AddEnumClassVar(ASTClassVar *Var);
+        bool AddClassMethod(ASTClassFunction *Method);
+        bool AddClassConstructor(ASTClassFunction *Method);
         bool AddParam(ASTParam *Param);
         void AddFunctionVarParams(ASTFunction *Function, ASTParam *Param); // TODO
         bool AddComment(ASTTopDef *Top, llvm::StringRef Comment);
@@ -236,6 +237,10 @@ namespace fly {
         bool AddBlock(ASTBlock *Block);
 
     private:
+        template <typename T>
+        bool InsertFunction(llvm::StringMap<std::map <uint64_t,llvm::SmallVector <T *, 4>>> &Functions, T *Function);
+        template <typename T>
+        bool InsertFunction(std::map <uint64_t,llvm::SmallVector <T *, 4>> &Functions, T *Function);
         bool AddExpr(ASTStmt *Stmt, ASTExpr *Expr);
     };
 

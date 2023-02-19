@@ -11,40 +11,78 @@
 
 using namespace fly;
 
-ASTIdentifier::ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name) :
-        Loc(Loc), Name(Name) {
+ASTIdentifier::ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name) : Loc(Loc), Name(Name) {
+    PrintName = Name.data();
 }
 
-ASTIdentifier::ASTIdentifier(const SourceLocation &Loc, llvm::StringRef ClassName, llvm::StringRef Name) :
-        Loc(Loc), ClassName(ClassName), Name(Name) {
+ASTIdentifier::~ASTIdentifier() {
+    delete Parent;
 }
 
 const SourceLocation &ASTIdentifier::getLocation() const {
     return Loc;
 }
 
-llvm::StringRef ASTIdentifier::getNameSpace() const {
-    return NameSpace;
-}
-
-void ASTIdentifier::setNameSpace(llvm::StringRef NS) {
-    NameSpace = NS;
-}
-
-llvm::StringRef ASTIdentifier::getClassName() const {
-    return ClassName;
-}
-
 llvm::StringRef ASTIdentifier::getName() const {
     return Name;
+}
+
+ASTIdentifier *ASTIdentifier::AddChild(const SourceLocation &Loc, const llvm::StringRef Name) {
+    Child = new ASTIdentifier(Loc, Name);
+    Child->Parent = this;
+    Child->Index = Index + 1;
+    if (!Parent) {
+        this->asRoot = true;
+        Child->Root = this;
+    }
+    PrintName.append(".").append(Name.data());
+    return Child;
+}
+
+uint32_t ASTIdentifier::getIndex() const {
+    return Index;
+}
+
+ASTIdentifier *ASTIdentifier::getRoot() const {
+    return Root;
+}
+
+bool ASTIdentifier::isRoot() const {
+    return asRoot;
+}
+
+ASTIdentifier *ASTIdentifier::getParent() const {
+    return Parent;
+}
+
+ASTIdentifier *ASTIdentifier::getChild() const {
+    return Child;
+}
+
+bool ASTIdentifier::isCall() const {
+    return Call != nullptr;
+}
+
+ASTCall *ASTIdentifier::getCall() const {
+    return Call;
+}
+
+void ASTIdentifier::setCall(ASTCall *Call) {
+    this->Call = Call;
+}
+
+std::string ASTIdentifier::print() const {
+    return PrintName;
 }
 
 std::string ASTIdentifier::str() const {
     std::string StrName;
     return Logger("ASTIdentifier").
-            Attr("Location", Loc).
-            Attr("NameSpace", NameSpace).
-            Attr("ClassName", ClassName).
+//            Attr("Kind", (uint64_t) Kind).
+            Attr("Call", Call).
             Attr("Name", Name).
+            Attr("Root", Root).
+            Attr("Parent", Parent).
+            Attr("Child", Child).
             End();
 }

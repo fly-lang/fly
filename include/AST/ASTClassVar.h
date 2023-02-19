@@ -36,7 +36,7 @@ namespace fly {
 
         llvm::StringRef Name;
 
-        const ASTClass *Class = nullptr;
+        ASTClass *Class = nullptr;
 
         llvm::StringRef Comment;
 
@@ -59,7 +59,7 @@ namespace fly {
 
         llvm::StringRef getName() const override;
 
-        const ASTClass *getClass() const;
+        ASTClass *getClass() const;
 
         llvm::StringRef getComment() const;
 
@@ -72,6 +72,8 @@ namespace fly {
         CodeGenClassVar *getCodeGen() const;
 
         void setCodeGen(CodeGenClassVar *CGV);
+
+        std::string print() const;
 
         std::string str() const;
     };

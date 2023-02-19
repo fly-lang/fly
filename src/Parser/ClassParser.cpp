@@ -13,6 +13,7 @@
 #include "AST/ASTBlock.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTClassVar.h"
+#include "AST/ASTType.h"
 #include "AST/ASTClassFunction.h"
 #include "Sema/SemaBuilder.h"
 #include "Basic/Debug.h"
@@ -25,20 +26,45 @@ using namespace fly;
  * @param Visibility
  * @param Constant
  */
-ClassParser::ClassParser(Parser *P, ASTTopScopes *Scopes) : P(P) {
-    assert(P->Tok.isAnyIdentifier() && "Tok must be an Identifier");
-
+ClassParser::ClassParser(Parser *P, ASTTopScopes *ClassScopes) : P(P) {
     FLY_DEBUG_MESSAGE("ClassParser", "ClassParser", Logger()
-            .Attr("Scopes", Scopes).End());
+            .Attr("Scopes", ClassScopes).End());
 
+    ASTClassKind ClassKind;
+    if (P->Tok.is(tok::kw_struct)) {
+        ClassKind = ASTClassKind::STRUCT;
+    } else if (P->Tok.is(tok::kw_class)) {
+        ClassKind = ASTClassKind::CLASS;
+    } else if (P->Tok.is(tok::kw_interface)) {
+        ClassKind = ASTClassKind::INTERFACE;
+    } else if (P->Tok.is(tok::kw_enum)) {
+        ClassKind = ASTClassKind::ENUM;
+    } else {
+        assert("No ClassKind defined");
+    }
+    P->ConsumeToken();
+
+    // Parse class name
     llvm::StringRef ClassName = P->Tok.getIdentifierInfo()->getName();
     const SourceLocation ClassLoc = P->Tok.getLocation();
     P->ConsumeToken();
 
+    // Parse classes after colon
+    // class Example : SuperClass Interface Struct { ... }
+    llvm::SmallVector<llvm::StringRef, 4> ExtClasses;
+    if (P->Tok.is(tok::colon)) {
+        P->ConsumeToken();
+        while (P->Tok.isAnyIdentifier()) {
+            ExtClasses.push_back(P->Tok.getIdentifierInfo()->getName());
+            P->ConsumeToken();
+        }
+    }
+
+    // Parse block in the braces
     if (P->isBlockStart()) {
         ConsumeBrace();
 
-        Class = P->Builder.CreateClass(P->Node, ClassLoc, ClassName, Scopes);
+        Class = P->Builder.CreateClass(P->Node, ClassKind, ClassScopes, ClassLoc, ClassName, ExtClasses);
         bool Continue;
         do {
 
@@ -55,22 +81,33 @@ ClassParser::ClassParser(Parser *P, ASTTopScopes *Scopes) : P(P) {
                 break;
             }
 
-            // Parse Scopes
-            ASTClassScopes *ClassScopes = ParseScopes();
-
-            // Parse Type
-            ASTType *Type = P->ParseType();
-            Continue = false; // Continue loop if there is a field or a method
-            if (P->Tok.isAnyIdentifier()) {
-                const StringRef &Name = P->Tok.getIdentifierInfo()->getName();
-                const SourceLocation &Loc = P->ConsumeToken();
-
-                if (P->Tok.is(tok::l_paren)) {
-                    Success &= ParseMethod(ClassScopes, Type, Loc, Name);
-                } else {
-                    Success &= ParseField(ClassScopes, Type, Loc, Name);
+            if (Class->getClassKind() == ASTClassKind::ENUM) {
+                if (P->Tok.isAnyIdentifier()) {
+                    const StringRef &Name = P->Tok.getIdentifierInfo()->getName();
+                    const SourceLocation &Loc = P->ConsumeToken();
+                    ASTClassVar *ClassVar = P->Builder.CreateEnumClassVar(Class, Loc, Name);
+                    llvm::StringRef Comment;
+                    P->Builder.AddClassVar(ClassVar) && P->Builder.AddComment(ClassVar, Comment);
+                    Continue = true;
                 }
-                Continue = true;
+            } else {
+                // Parse Scopes
+                ASTClassScopes *Scopes = ParseScopes();
+
+                // Parse Type
+                ASTType *Type = P->ParseType();
+                Continue = false; // Continue loop if there is a field or a method
+                if (P->Tok.isAnyIdentifier()) {
+                    const StringRef &Name = P->Tok.getIdentifierInfo()->getName();
+                    const SourceLocation &Loc = P->ConsumeToken();
+
+                    if (P->Tok.is(tok::l_paren)) {
+                        Success &= ParseMethod(Scopes, Type, Loc, Name);
+                    } else {
+                        Success &= ParseField(Scopes, Type, Loc, Name);
+                    }
+                    Continue = true;
+                }
             }
 
         } while (Continue);
@@ -81,10 +118,10 @@ ClassParser::ClassParser(Parser *P, ASTTopScopes *Scopes) : P(P) {
  * Parse Class Declaration
  * @return
  */
-ASTClass *ClassParser::Parse(Parser *P, ASTTopScopes *Scopes) {
+ASTClass *ClassParser::Parse(Parser *P, ASTTopScopes *ClassScopes) {
     FLY_DEBUG_MESSAGE("ClassParser", "Parse", Logger()
-            .Attr("Scopes", Scopes).End());
-    ClassParser *CP = new ClassParser(P, Scopes);
+            .Attr("Scopes", ClassScopes).End());
+    ClassParser *CP = new ClassParser(P, ClassScopes);
     return CP->Class;
 }
 
@@ -94,6 +131,7 @@ ASTClassScopes *ClassParser::ParseScopes() {
     bool isPrivate = false;
     bool isPublic = false;
     bool isConst = false;
+    bool isStatic = false;
     bool Found;
     do {
         if (P->Tok.is(tok::kw_private)) {
@@ -126,6 +164,13 @@ ASTClassScopes *ClassParser::ParseScopes() {
             isConst = true;
             Found = true;
             P->ConsumeToken();
+        } else if (P->Tok.is(tok::kw_static)) {
+            if (isConst) {
+                P->Diag(P->Tok, diag::err_scope_static_duplicate);
+            }
+            isStatic = true;
+            Found = true;
+            P->ConsumeToken();
         } else {
             Found = false;
         }
@@ -133,7 +178,7 @@ ASTClassScopes *ClassParser::ParseScopes() {
 
     ASTClassVisibilityKind Visibility = isPrivate ? ASTClassVisibilityKind::CLASS_V_PRIVATE :
             (isPublic ? ASTClassVisibilityKind::CLASS_V_PUBLIC : ASTClassVisibilityKind::CLASS_V_DEFAULT);
-    return SemaBuilder::CreateClassScopes(Visibility, isConst);
+    return SemaBuilder::CreateClassScopes(Visibility, isConst, isStatic);
 }
 
 bool ClassParser::ParseField(ASTClassScopes *Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name) {
@@ -161,7 +206,7 @@ bool ClassParser::ParseField(ASTClassScopes *Scopes, ASTType *Type, const Source
             ClassVar->setExpr(Expr);
         }
 
-        return P->Builder.AddClassVar(Class, ClassVar) && P->Builder.AddComment(ClassVar, Comment);
+        return P->Builder.AddClassVar(ClassVar) && P->Builder.AddComment(ClassVar, Comment);
     }
 
     return false;
@@ -182,17 +227,17 @@ bool ClassParser::ParseMethod(ASTClassScopes *Scopes, ASTType *Type, const Sourc
     if (Name == Class->getName()) {
         if (!Type) {
             Method = P->Builder.CreateClassConstructor(Class, Loc, Scopes);
-            Success = FunctionParser::Parse(P, Method) && P->Builder.AddClassConstructor(Class, Method);
+            Success = FunctionParser::Parse(P, Method) && P->Builder.AddClassConstructor(Method);
         } else {
             P->Diag(diag::err_parser_invalid_type);
             return false;
         }
     } else {
         Method = P->Builder.CreateClassMethod(Class, Loc, Type, Name, Scopes);
-        Success = FunctionParser::Parse(P, Method) && P->Builder.AddClassMethod(Class, Method);
+        Success = FunctionParser::Parse(P, Method) && P->Builder.AddClassMethod(Method);
     }
 
-    if (Method && Method->getBody()->isEmpty()) {
+    if (Method && !Method->getBody()) {
         Method->Abstract = true;
     }
 

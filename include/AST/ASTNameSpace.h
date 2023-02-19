@@ -50,6 +50,8 @@ namespace fly {
 
         const llvm::StringMap<ASTClass *> &getClasses() const;
 
+        std::string print() const;
+
         virtual std::string str() const;
     };
 }

@@ -38,7 +38,7 @@ ASTType *ASTClassVar::getType() const {
     return Type;
 }
 
-const ASTClass *ASTClassVar::getClass() const {
+ASTClass *ASTClassVar::getClass() const {
     return Class;
 }
 
@@ -64,6 +64,10 @@ CodeGenClassVar *ASTClassVar::getCodeGen() const {
 
 void ASTClassVar::setCodeGen(CodeGenClassVar *CGCV) {
     CodeGen = CGCV;
+}
+
+std::string ASTClassVar::print() const {
+    return Class->print() + "." + Name.data();
 }
 
 std::string ASTClassVar::str() const {

@@ -47,6 +47,10 @@ void ASTLocalVar::setCodeGen(CodeGenVar *CG) {
     CodeGen = CG;
 }
 
+std::string ASTLocalVar::print() const {
+    return Name.data();
+}
+
 std::string ASTLocalVar::str() const {
     return Logger("ASTLocalVar").
             Super(ASTExprStmt::str()).

@@ -16,6 +16,7 @@
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTNode.h"
 #include "AST/ASTImport.h"
+#include "AST/ASTIdentifier.h"
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTFunctionBase.h"
@@ -194,23 +195,61 @@ SemaBuilder::CreateFunction(ASTNode *Node, const SourceLocation &Loc, ASTType *T
  * @return
  */
 ASTClass *
-SemaBuilder::CreateClass(ASTNode *Node, const SourceLocation &Loc, const llvm::StringRef Name,
-                                   ASTTopScopes *Scopes) {
+SemaBuilder::CreateClass(ASTNode *Node, ASTClassKind ClassKind, ASTTopScopes *Scopes,
+                         const SourceLocation &Loc, const llvm::StringRef Name,
+                         llvm::SmallVector<llvm::StringRef, 4> &ExtClasses) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateClass",
                       Logger().Attr("Node", Node)
-                      .Attr("Loc", (uint64_t) Loc.getRawEncoding())
-                      .Attr("Name", Name)
                       .Attr("Scopes", Scopes).End());
-    ASTClass *Class = new ASTClass(Loc, Node, Name, Scopes);
+    ASTClass *Class = new ASTClass(Node, ClassKind, Scopes, Loc, Name, ExtClasses);
+    Class->Type = CreateClassType(Class);
 
     // Create a default constructor
-    ASTClassFunction *Constructor = CreateClassConstructor(Class, SourceLocation(),
-                                                           new ASTClassScopes(ASTClassVisibilityKind::CLASS_V_PUBLIC,
-                                                                              false));
-    AddClassConstructor(Class, Constructor);
-    Class->autoDefaultConstructor = true;
+    if (ClassKind == ASTClassKind::CLASS || ClassKind == ASTClassKind::STRUCT) {
+        ASTClassFunction *Constructor = CreateClassConstructor(Class, SourceLocation(),
+                                                               new ASTClassScopes(
+                                                                       ASTClassVisibilityKind::CLASS_V_PUBLIC, false));
+        AddClassConstructor(Constructor);
+        Class->autoDefaultConstructor = true;
+    } else if (ClassKind == ASTClassKind::ENUM) {
+        
+        // Create EnumVar which contains the selection value
+        ASTUIntType *UIntType = SemaBuilder::CreateUIntType(SourceLocation());
+        ASTClassScopes *Scopes = CreateClassScopes(ASTClassVisibilityKind::CLASS_V_PRIVATE, true, false);
+        ASTClassVar *EnumVar = new ASTClassVar(SourceLocation(), Class, Scopes, UIntType, "enum");
+
+        // Create Constructor
+        ASTClassFunction *Constructor = CreateClassConstructor(Class, SourceLocation(),
+                                                               new ASTClassScopes(
+                                                                       ASTClassVisibilityKind::CLASS_V_PRIVATE, false));
+        ASTParam *Param = CreateParam(Constructor, SourceLocation(), UIntType, "enum");
+        AddParam(Param);
+        ASTBlock *Block = getBlock(Constructor);
+        ASTVarAssign *EnumVarAssign = CreateVarAssign(Block, CreateVarRef(EnumVar));
+        CreateExpr(EnumVarAssign, SemaBuilder::CreateIntegerValue(SourceLocation(), 0));
+        AddStmt(EnumVarAssign);
+        AddClassConstructor(Constructor);
+
+        // Add EnumVar
+        AddEnumClassVar(EnumVar);
+    }
     
     return Class;
+}
+
+/**
+ * Creates an ASTClass
+ * @param Node
+ * @param Loc
+ * @param Name
+ * @param Scopes
+ * @return
+ */
+ASTClass *
+SemaBuilder::CreateClass(ASTNode *Node, ASTClassKind ClassKind, ASTTopScopes *Scopes,
+                         const SourceLocation &Loc, const llvm::StringRef Name) {
+    llvm::SmallVector<llvm::StringRef, 4> Classes;
+    return CreateClass(Node, ClassKind, Scopes, Loc, Name, Classes);
 }
 
 /**
@@ -220,7 +259,7 @@ SemaBuilder::CreateClass(ASTNode *Node, const SourceLocation &Loc, const llvm::S
  * @return
  */
 ASTClassScopes *
-SemaBuilder::CreateClassScopes(ASTClassVisibilityKind Visibility, bool Constant) {
+SemaBuilder::CreateClassScopes(ASTClassVisibilityKind Visibility, bool Constant, bool Static) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateClassScopes",
                       "Visibility=" << (int) Visibility <<
                               ", Constant=" << Constant);
@@ -246,6 +285,17 @@ SemaBuilder::CreateClassVar(ASTClass *Class, const SourceLocation &Loc, ASTType 
                                             .Attr("Name", Name)
                                             .Attr("Scopes", Scopes).End());
     return new ASTClassVar(Loc, Class, Scopes, Type, Name);
+}
+
+ASTClassVar *
+SemaBuilder::CreateEnumClassVar(ASTClass *Class, const SourceLocation &Loc, llvm::StringRef Name) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateClassVar",
+                      Logger().Attr("Class", Class)
+                              .Attr("Loc", (uint64_t) Loc.getRawEncoding())
+                              .Attr("Name", Name).End());
+    ASTClassScopes *Scopes = CreateClassScopes(ASTClassVisibilityKind::CLASS_V_DEFAULT, true, true);
+    ASTClassVar *ClassVar = CreateClassVar(Class, Loc, Class->getType(), Name, Scopes);
+    return ClassVar;
 }
 
 ASTClassFunction *
@@ -410,29 +460,10 @@ SemaBuilder::CreateArrayType(const SourceLocation &Loc, ASTType *Type, ASTExpr *
  * @return
  */
 ASTClassType *
-SemaBuilder::CreateClassType(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef Name, ASTClassType *Parent) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateClassType",
-                      "Loc=" << Loc.getRawEncoding() <<
-                      ", Name=" << Name <<
-                      ", NameSPace=" << NameSpace);
-    assert(!NameSpace.empty() && !Name.empty() && "Mandatory");
-    return new ASTClassType(Loc, NameSpace, Name);
-}
-
-/**
- * Creates a class type without definition
- * @param Loc
- * @param Name
- * @param NameSpace
- * @return
- */
-ASTClassType *
 SemaBuilder::CreateClassType(ASTIdentifier *Identifier) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateClassType",
                       Logger().Attr("Identifier", Identifier).End());
-    assert(!Identifier->getNameSpace().empty() && !Identifier->getName().empty() && "Mandatory");
-    ASTClassType *ClassType = new ASTClassType(Identifier->getLocation(), Identifier->getNameSpace(), Identifier->getName());
-    delete Identifier;
+    ASTClassType *ClassType = new ASTClassType(Identifier);
     return ClassType;
 }
 
@@ -444,7 +475,7 @@ SemaBuilder::CreateClassType(ASTIdentifier *Identifier) {
 ASTClassType *
 SemaBuilder::CreateClassType(ASTClass *Class) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateClassType", Logger().Attr("Class", Class).End());
-    ASTClassType *ClassType = new ASTClassType(Class->Location, Class->NameSpace->Name, Class->Name);
+    ASTClassType *ClassType = new ASTClassType(Class);
     ClassType->Def = Class;
     return ClassType;
 }
@@ -656,7 +687,7 @@ SemaBuilder::CreateBreak(ASTBlock *Parent, const SourceLocation &Loc) {
 
 ASTContinue *
 SemaBuilder::CreateContinue(ASTBlock *Parent, const SourceLocation &Loc) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateLocalVar", Logger()
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateContinue", Logger()
                       .Attr("Parent", Parent)
                       .Attr("Loc", (uint64_t)Loc.getRawEncoding()).End());
     ASTContinue *Continue = new ASTContinue(Parent, Loc);
@@ -665,7 +696,7 @@ SemaBuilder::CreateContinue(ASTBlock *Parent, const SourceLocation &Loc) {
 
 ASTExprStmt *
 SemaBuilder::CreateExprStmt(ASTBlock *Parent, const SourceLocation &Loc) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateLocalVar", Logger()
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateExprStmt", Logger()
                       .Attr("Parent", Parent)
                       .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
     ASTExprStmt *ExprStmt = new ASTExprStmt(Parent, Loc);
@@ -681,11 +712,9 @@ SemaBuilder::CreateExprStmt(ASTBlock *Parent, const SourceLocation &Loc) {
  */
 ASTCall *
 SemaBuilder::CreateCall(ASTIdentifier *Identifier) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateDefFunctionCall",
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateCall",
                       Logger().Attr("Identifier", Identifier).End());
-    assert(!Identifier->getNameSpace().empty() && !Identifier->getName().empty() && "Mandatory");
-    ASTCall *Call = new ASTCall(Identifier->getLocation(), Identifier->getNameSpace(), Identifier->getClassName(), Identifier->getName());
-    delete Identifier;
+    ASTCall *Call = new ASTCall(Identifier);
     return Call;
 }
 
@@ -696,54 +725,35 @@ SemaBuilder::CreateCall(ASTIdentifier *Identifier) {
  * @return
  */
 ASTCall *
-SemaBuilder::CreateCall(ASTFunction *Function) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateDefFunctionCall",
+SemaBuilder::CreateCall(ASTFunctionBase *Function) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateCall",
                       Logger().Attr("Function=", Function).End());
-    ASTCall *Call = new ASTCall(Function->Location, Function->NameSpace->Name, Function->Name);
-    Call->Def = Function;
+    ASTCall *Call = new ASTCall(Function);
     return Call;
 }
 
 ASTCall *
-SemaBuilder::CreateCall(ASTVar *Instance, ASTClassFunction *Function) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateDefFunctionCall",
+SemaBuilder::CreateCall(ASTVar *Instance, ASTFunctionBase *Function) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateCall",
                       Logger().Attr("Function=", Function).End());
-    ASTCall *Call = new ASTCall(Function->Location, Function->Class->NameSpace->Name, Function->Class->Name, Function->Name);
-    Call->Def = Function;
+    ASTCall *Call = new ASTCall(Function);
     Call->Instance = Instance;
     return Call;
 }
 
 ASTVarRef *
-SemaBuilder::CreateVarRef(ASTLocalVar *LocalVar) {
+SemaBuilder::CreateVarRef(ASTVar *Var) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateVarRef",
-                      Logger().Attr("LocalVar", LocalVar).End());
-    assert(LocalVar->Top && "Var without a Top declaration");
-
-    ASTVarRef *VarRef = new ASTVarRef(LocalVar->Location, LocalVar->Name);
-    VarRef->Def = LocalVar;
-    VarRef->Instance = LocalVar;
+                      Logger().Attr("Var", Var).End());
+    ASTVarRef *VarRef = new ASTVarRef(Var);
     return VarRef;
 }
 
 ASTVarRef *
-SemaBuilder::CreateVarRef(ASTGlobalVar *GlobalVar) {
+SemaBuilder::CreateVarRef(ASTVar *Instance, ASTVar *Var) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateVarRef",
-                      Logger().Attr("GlobalVar", GlobalVar).End());
-    ASTVarRef *VarRef = new ASTVarRef(GlobalVar->Location, GlobalVar->Name);
-    VarRef->setNameSpace(GlobalVar->getNameSpace()->getName());
-    VarRef->Def = GlobalVar;
-    VarRef->Instance = GlobalVar;
-    return VarRef;
-}
-
-ASTVarRef *
-SemaBuilder::CreateVarRef(ASTVar *Instance, ASTClassVar *ClassVar) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateVarRef",
-                      Logger().Attr("ClassVar", ClassVar).End());
-    ASTVarRef *VarRef = new ASTVarRef(ClassVar->getLocation(), ClassVar->Class->Name, ClassVar->Name);
-    VarRef->setNameSpace(ClassVar->getClass()->getNameSpace()->getName());
-    VarRef->Def = ClassVar;
+                      Logger().Attr("Instance", Instance).Attr("Var", Var).End());
+    ASTVarRef *VarRef = new ASTVarRef(Var);
     VarRef->Instance = Instance;
     return VarRef;
 }
@@ -752,9 +762,7 @@ ASTVarRef *
 SemaBuilder::CreateVarRef(ASTIdentifier *Identifier) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateVarRef",
                       Logger().Attr("Identifier", Identifier).End());
-    ASTVarRef *VarRef = new ASTVarRef(Identifier->getLocation(), Identifier->getClassName(), Identifier->getName());
-    VarRef->setNameSpace(VarRef->getNameSpace());
-    delete Identifier;
+    ASTVarRef *VarRef = new ASTVarRef(Identifier);
     return VarRef;
 }
 
@@ -793,7 +801,6 @@ ASTCallExpr *
 SemaBuilder::CreateNewExpr(ASTStmt *Stmt, ASTCall *Call) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateNewExpr",
                       Logger().Attr("Stmt", Stmt).Attr("Call", Call).End());
-    Call->ClassName = Call->Name;
     Call->New = true;
     return CreateExpr(Stmt, Call);
 }
@@ -1044,22 +1051,12 @@ SemaBuilder::AddImport(ASTNode *Node, ASTImport * Import) {
 }
 
 bool
-SemaBuilder::AddClass(ASTNode *Node, ASTClass *Class) {
+SemaBuilder::AddClass(ASTClass *Class) {
     FLY_DEBUG_MESSAGE("ASTNode", "AddFunction", Logger()
-                      .Attr("Node", Node)
                       .Attr("Class", Class).End());
 
-    /**
-    * CLASS_STRUCT has only Fields
-    * CLASS_INTERFACE has only prototype Methods
-    * CLASS_ABSTRACT has at least one prototype Method
-    * CLASS_STANDARD has no prototype Methods
-    */
-    if (Class->Methods.empty()) {
-     Class->ClassKind = ASTClassKind::CLASS_STRUCT;
-    }
-
     // Lookup into namespace
+    ASTNode *Node = Class->Node;
     Node->Class = Class;
 
     bool Success = true;
@@ -1076,20 +1073,20 @@ SemaBuilder::AddClass(ASTNode *Node, ASTClass *Class) {
 }
 
 bool
-SemaBuilder::AddGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar, ASTValue *Value) {
+SemaBuilder::AddGlobalVar(ASTGlobalVar *GlobalVar, ASTValue *Value) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddGlobalVar",
-                      Logger().Attr("Node", Node).Attr("GlobalVar", GlobalVar).Attr("Value=", Value).End());
+                      Logger().Attr("GlobalVar", GlobalVar).Attr("Value=", Value).End());
 
     // Set the Expr with ASTValueExpr
-    return AddGlobalVar(Node, GlobalVar, CreateExpr(nullptr, Value));
+    return AddGlobalVar(GlobalVar, CreateExpr(nullptr, Value));
 }
 
 bool
-SemaBuilder::AddGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar, ASTExpr *Expr) {
+SemaBuilder::AddGlobalVar(ASTGlobalVar *GlobalVar, ASTExpr *Expr) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddGlobalVar", Logger()
-                      .Attr("Node", Node)
                       .Attr("GlobalVar", GlobalVar)
                       .Attr("Expr", Expr).End());
+    ASTNode *Node = GlobalVar->Node;
 
     // Only ASTExprValue
     if (Expr && Expr->getExprKind() != ASTExprKind::EXPR_VALUE) {
@@ -1135,9 +1132,10 @@ SemaBuilder::AddGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar, ASTExpr *Expr)
 }
 
 bool
-SemaBuilder::AddFunction(ASTNode *Node, ASTFunction *Function) {
+SemaBuilder::AddFunction(ASTFunction *Function) {
     FLY_DEBUG_MESSAGE("ASTNode", "AddFunction",
-                      Logger().Attr("Node", Node).Attr("Function", Function).End());
+                      Logger().Attr("Function", Function).End());
+    ASTNode *Node = Function->Node;
 
     // Lookup into namespace for public var
     if(Function->Scopes->Visibility == ASTVisibilityKind::V_PUBLIC ||
@@ -1159,7 +1157,8 @@ SemaBuilder::AddFunction(ASTNode *Node, ASTFunction *Function) {
 }
 
 bool
-SemaBuilder::AddClassVar(ASTClass *Class, ASTClassVar *Var) {
+SemaBuilder::AddClassVar(ASTClassVar *Var) {
+    ASTClass *Class = Var->Class;
     if (Class->Vars.insert(std::pair<llvm::StringRef, ASTClassVar *>(Var->getName(), Var)).second) {
 
         // Set default value if not set
@@ -1177,8 +1176,48 @@ SemaBuilder::AddClassVar(ASTClass *Class, ASTClassVar *Var) {
 }
 
 bool
-SemaBuilder::AddClassMethod(ASTClass *Class, ASTClassFunction *Method) {
-    if (!InsertFunction(Class->Methods, Method)) {
+SemaBuilder::AddEnumClassVar(ASTClassVar *Var) {
+    ASTClass *Class = Var->Class;
+    if (Class->Vars.insert(std::pair<llvm::StringRef, ASTClassVar *>(Var->getName(), Var)).second) {
+
+        // Enum expr is not permitted
+        if (Var->getExpr()) {
+            S.Diag(Var->getLocation(), diag::err_sema_class_enum_expr) << Var->getName();
+            return false;
+        }
+
+        // Check if is Enum
+        if (Class->getClassKind() != ASTClassKind::ENUM) {
+            S.Diag(Var->getLocation(), diag::err_sema_class_enum_var) << Var->getName();
+            return false;
+        }
+
+        // enum Test {
+        //     A = Test(1)
+        //     B = Test(2)
+        //     ...
+        // }
+
+        // Create a call to constructor with the sequential number
+        ASTClassFunction *Constructor = Class->getConstructors().find(1)->second.front();
+        ASTCall *Call = CreateCall(Constructor);
+        uint32_t i = Class->getVars().size() + 1; // sequential
+        ASTValueExpr *ValueExpr = CreateExpr(nullptr, SemaBuilder::CreateIntegerValue(SourceLocation(), i));
+        AddCallArg(Call, ValueExpr);
+        ASTCallExpr *Expr = S.Builder->CreateExpr(nullptr, Call);
+        Expr->Type = Var->getType();
+        Var->setExpr(Expr);
+
+        return Var;
+    }
+
+    S.Diag(Var->getLocation(), diag::err_sema_class_field_redeclare) << Var->getName();
+    return false;
+}
+
+bool
+SemaBuilder::AddClassMethod(ASTClassFunction *Method) {
+    if (!InsertFunction(Method->Class->Methods, Method)) {
         S.Diag(Method->getLocation(), diag::err_sema_class_method_redeclare) << Method->getName();
         return false;
     }
@@ -1186,7 +1225,8 @@ SemaBuilder::AddClassMethod(ASTClass *Class, ASTClassFunction *Method) {
 }
 
 bool
-SemaBuilder::AddClassConstructor(ASTClass *Class, ASTClassFunction *Method) {
+SemaBuilder::AddClassConstructor(ASTClassFunction *Method) {
+    ASTClass *Class = Method->Class;
     if (Class->autoDefaultConstructor) {
         Class->Constructors.erase(0); // Remove default constructor if a new Constructor is defined
         Class->autoDefaultConstructor = false;
@@ -1196,75 +1236,6 @@ SemaBuilder::AddClassConstructor(ASTClass *Class, ASTClassFunction *Method) {
         return false;
     }
     return true;
-}
-
-template <class T>
-bool
-SemaBuilder::InsertFunction(llvm::StringMap<std::map <uint64_t,llvm::SmallVector <T *, 4>>> &Functions, T *Function) {
-
-    // Functions is llvm::StringMap<std::map <uint64_t, llvm::SmallVector <ASTFunction *, 4>>>
-    const auto &StrMapIt = Functions.find(Function->getName());
-    if (StrMapIt == Functions.end()) { // This Node not contains a Function with this Function->Name
-
-        // add to llvm::SmallVector
-        llvm::SmallVector<T *, 4> Vect;
-        Vect.push_back(Function);
-
-        // add to std::map
-        std::map<uint64_t, llvm::SmallVector<T *, 4>> IntMap;
-        IntMap.insert(std::make_pair(Function->Params->getSize(), Vect));
-
-        // add to llvm::StringMap
-        return Functions.insert(std::make_pair(Function->getName(), IntMap)).second;
-    } else {
-        return InsertFunction(StrMapIt->second, Function);
-    }
-}
-
-template <class T>
-bool
-SemaBuilder::InsertFunction(std::map <uint64_t,llvm::SmallVector <T *, 4>> &Functions, T *Function) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "AddClassMethod",
-                      Logger().Attr("Function", Function).End());
-
-    // This Node contains a Function with this Function->Name
-    const auto &IntMapIt = Functions.find(Function->Params->getSize());
-    if (IntMapIt == Functions.end()) { // but not have the same number of Params
-
-        // add to llvm::SmallVector
-        llvm::SmallVector<T *, 4> Vect;
-        Vect.push_back(Function);
-
-        // add to std::map
-        std::pair<uint64_t, SmallVector<T *, 4>> IntMapPair = std::make_pair(
-                Function->Params->getSize(), Vect);
-
-        return Functions.insert(std::make_pair(Function->Params->getSize(),Vect)).second;
-    } else { // This Node contains a Function with this Function->Name and same number of Params
-
-        bool DifferentParamTypes = true;
-        for (auto &NodeFunc : IntMapIt->second) {
-            for (auto &NodeFuncParam : NodeFunc->getParams()->List) {
-                for (auto &Param : Function->getParams()->getList()) {
-                    if (!S.Validator->isEquals(NodeFuncParam, Param)) {
-                        DifferentParamTypes = false;
-                        break;
-                    }
-                }
-            }
-        }
-
-        // Check Parameter Types
-        if (DifferentParamTypes) { // Add the new Function
-            SmallVector<T *, 4> Vect = IntMapIt->second;
-            Vect.push_back(Function);
-            return true;
-        } else { // Function is duplicated
-            // already contains this Function
-            S.Diag((Function->getLocation()), diag::err_duplicate_func) << Function->getName();
-            return false;
-        }
-    }
 }
 
 bool
@@ -1442,8 +1413,8 @@ SemaBuilder::AddStmt(ASTStmt *Stmt) {
         ASTVarAssign *VarAssign = (ASTVarAssign *) Stmt;
 
         // Remove from Undefined Var because now have an Expr assigned
-        if (VarAssign->getVarRef()->getNameSpace().empty()) { // only for VarRef with empty NameSpace
-            auto It = Parent->UnInitVars.find(VarAssign->getVarRef()->getName());
+        if (VarAssign->getVarRef()->isLocalVar()) { // only for LocalVar
+            auto It = Parent->UnInitVars.find(VarAssign->getVarRef()->getDef()->getName());
             if (It != Parent->UnInitVars.end())
                 Parent->UnInitVars.erase(It);
         }
@@ -1452,6 +1423,75 @@ SemaBuilder::AddStmt(ASTStmt *Stmt) {
     }
 
     return true;
+}
+
+template <class T>
+bool
+SemaBuilder::InsertFunction(llvm::StringMap<std::map <uint64_t,llvm::SmallVector <T *, 4>>> &Functions, T *Function) {
+
+    // Functions is llvm::StringMap<std::map <uint64_t, llvm::SmallVector <ASTFunction *, 4>>>
+    const auto &StrMapIt = Functions.find(Function->getName());
+    if (StrMapIt == Functions.end()) { // This Node not contains a Function with this Function->Name
+
+        // add to llvm::SmallVector
+        llvm::SmallVector<T *, 4> Vect;
+        Vect.push_back(Function);
+
+        // add to std::map
+        std::map<uint64_t, llvm::SmallVector<T *, 4>> IntMap;
+        IntMap.insert(std::make_pair(Function->Params->getSize(), Vect));
+
+        // add to llvm::StringMap
+        return Functions.insert(std::make_pair(Function->getName(), IntMap)).second;
+    } else {
+        return InsertFunction(StrMapIt->second, Function);
+    }
+}
+
+template <class T>
+bool
+SemaBuilder::InsertFunction(std::map <uint64_t,llvm::SmallVector <T *, 4>> &Functions, T *Function) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "AddClassMethod",
+                      Logger().Attr("Function", Function).End());
+
+    // This Node contains a Function with this Function->Name
+    const auto &IntMapIt = Functions.find(Function->Params->getSize());
+    if (IntMapIt == Functions.end()) { // but not have the same number of Params
+
+        // add to llvm::SmallVector
+        llvm::SmallVector<T *, 4> Vect;
+        Vect.push_back(Function);
+
+        // add to std::map
+        std::pair<uint64_t, SmallVector<T *, 4>> IntMapPair = std::make_pair(
+                Function->Params->getSize(), Vect);
+
+        return Functions.insert(std::make_pair(Function->Params->getSize(),Vect)).second;
+    } else { // This Node contains a Function with this Function->Name and same number of Params
+
+        bool DifferentParamTypes = true;
+        for (auto &NodeFunc : IntMapIt->second) {
+            for (auto &NodeFuncParam : NodeFunc->getParams()->List) {
+                for (auto &Param : Function->getParams()->getList()) {
+                    if (!S.Validator->isEquals(NodeFuncParam, Param)) {
+                        DifferentParamTypes = false;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Check Parameter Types
+        if (DifferentParamTypes) { // Add the new Function
+            SmallVector<T *, 4> Vect = IntMapIt->second;
+            Vect.push_back(Function);
+            return true;
+        } else { // Function is duplicated
+            // already contains this Function
+            S.Diag((Function->getLocation()), diag::err_duplicate_func) << Function->getName();
+            return false;
+        }
+    }
 }
 
 bool
@@ -1518,5 +1558,3 @@ SemaBuilder::AddBlock(ASTBlock *Block) {
     assert("Invalid block type");
     return false;
 }
-
-

@@ -1142,7 +1142,7 @@ namespace {
     }
 
     TEST_F(ParserTest, ClassEmpty) {
-        llvm::StringRef str = ("public Test {}\n");
+        llvm::StringRef str = ("public class Test {}\n");
         ASTNode *Node = Parse("ClassEmpty", str);
         ASSERT_TRUE(isSuccess());
 
@@ -1155,47 +1155,203 @@ namespace {
         ASSERT_TRUE(ClassTest != NSClassess.end());
     }
 
-    TEST_F(ParserTest, ClassVars) {
-        llvm::StringRef str = ("public Test {\n"
-                               "  int a = 1\n"
-                               "  public int b = 2\n"
-                               "  private const int c\n"
+    TEST_F(ParserTest, Enum) {
+        llvm::StringRef str = ("public enum Test {\n"
+                               "  A B C\n"
                                "}\n");
-        ASTNode *Node = Parse("ClassVars", str, false);
+        ASTNode *Node = Parse("TestStruct", str, false);
 
         EXPECT_FALSE(Node->getClass()->getVars().empty());
-        EXPECT_EQ(Node->getClass()->getVars().size(), 3);
-        ASTClassVar *aVar = Node->getClass()->getVars().find("a")->getValue();
+        EXPECT_EQ(Node->getClass()->getVars().size(), 4); // A B C enum
+        ASTClassVar *aVar = Node->getClass()->getVars().find("A")->getValue();
+        ASTClassVar *bVar = Node->getClass()->getVars().find("B")->getValue();
+        ASTClassVar *cVar = Node->getClass()->getVars().find("C")->getValue();
         EXPECT_EQ(aVar->getScopes()->getVisibility(), ASTClassVisibilityKind::CLASS_V_DEFAULT);
-        EXPECT_FALSE(aVar->getScopes()->isConstant());
-        ASTClassVar *bVar = Node->getClass()->getVars().find("b")->getValue();
-        EXPECT_EQ(bVar->getScopes()->getVisibility(), ASTClassVisibilityKind::CLASS_V_PUBLIC);
-        EXPECT_FALSE(bVar->getScopes()->isConstant());
-        ASTClassVar *cVar = Node->getClass()->getVars().find("c")->getValue();
-        EXPECT_EQ(cVar->getScopes()->getVisibility(), ASTClassVisibilityKind::CLASS_V_PRIVATE);
+        EXPECT_TRUE(aVar->getScopes()->isConstant());
+        EXPECT_EQ(bVar->getScopes()->getVisibility(), ASTClassVisibilityKind::CLASS_V_DEFAULT);
+        EXPECT_TRUE(bVar->getScopes()->isConstant());
+        EXPECT_EQ(cVar->getScopes()->getVisibility(), ASTClassVisibilityKind::CLASS_V_DEFAULT);
         EXPECT_TRUE(cVar->getScopes()->isConstant());
 
         llvm::StringRef str2 = (
                 "void func() {\n"
-                "  Test t = new Test()"
-                "  t.a = 1"
+                "  Test a = Test.A\n"
+                "  a = Test.B"
+                "  Test c = a"
                 "}\n");
-        ASTNode *Node2 = Parse("Identifier", str2);
+        ASTNode *Node2 = Parse("func", str2);
         ASSERT_TRUE(isSuccess());
     }
 
-    TEST_F(ParserTest, ClassFunctions) {
-        llvm::StringRef str = ("public Test {\n"
-                               "  int a() { return 1 }\n"
+    TEST_F(ParserTest, Struct) {
+        llvm::StringRef str = ("public struct Test {\n"
+                               "  int a = 1\n"
+                               "  public int b = 2\n"
+                               "  const int c = 0\n"
                                "}\n");
-        ASTNode *Node = Parse("ClassVars", str, false);
+        ASTNode *Node = Parse("TestStruct", str, false);
+
+        EXPECT_FALSE(Node->getClass()->getVars().empty());
+        EXPECT_EQ(Node->getClass()->getVars().size(), 3);
+        ASTClassVar *aVar = Node->getClass()->getVars().find("a")->getValue();
+        ASTClassVar *bVar = Node->getClass()->getVars().find("b")->getValue();
+        ASTClassVar *cVar = Node->getClass()->getVars().find("c")->getValue();
+        EXPECT_EQ(aVar->getScopes()->getVisibility(), ASTClassVisibilityKind::CLASS_V_DEFAULT);
+        EXPECT_FALSE(aVar->getScopes()->isConstant());
+        EXPECT_EQ(bVar->getScopes()->getVisibility(), ASTClassVisibilityKind::CLASS_V_PUBLIC);
+        EXPECT_FALSE(bVar->getScopes()->isConstant());
+        EXPECT_EQ(cVar->getScopes()->getVisibility(), ASTClassVisibilityKind::CLASS_V_DEFAULT);
+        EXPECT_TRUE(cVar->getScopes()->isConstant());
 
         llvm::StringRef str2 = (
                 "void func() {\n"
-                "  Test t = new Test()"
+                "  Test t = { a = 3, b = 1}"
+                "}\n");
+//        llvm::StringRef str2 = (
+//                "void func() {\n"
+//                "  Test t = new Test()"
+//                "  t.a = 3"
+//                "  t.b = t.c"
+//                "}\n");
+        ASTNode *Node2 = Parse("func", str2);
+        ASSERT_TRUE(isSuccess());
+    }
+
+    TEST_F(ParserTest, Class) {
+        llvm::StringRef str = ("public class Test {\n"
+                               "  int a = 1\n"
+                               "  private int b = 1\n"
+                               "  public int a() { return a }\n"
+                               "  protected int b() { return 2 }\n"
+                               "  private int c() { return 3 }\n"
+                               "  const int d() { return 0 }\n"
+                               "}\n");
+        ASTNode *Node = Parse("TestClass", str, false);
+
+        EXPECT_EQ(Node->getClass()->getVars().size(), 1);
+        EXPECT_EQ(Node->getClass()->getMethods().size(), 4);
+        ASTClassVar *aVar = Node->getClass()->getVars().find("a")->getValue();
+        ASTClassVar *bVar = Node->getClass()->getVars().find("b")->getValue();
+        ASTClassFunction *aMethod = *Node->getClass()->getMethods().find("a")->getValue().begin()->second.begin();
+        ASTClassFunction *bMethod = *Node->getClass()->getMethods().find("b")->getValue().begin()->second.begin();
+        ASTClassFunction *cMethod = *Node->getClass()->getMethods().find("c")->getValue().begin()->second.begin();
+        ASTClassFunction *dMethod = *Node->getClass()->getMethods().find("d")->getValue().begin()->second.begin();
+        EXPECT_EQ(aVar->getScopes()->getVisibility(), ASTClassVisibilityKind::CLASS_V_PRIVATE);
+        EXPECT_EQ(bVar->getScopes()->getVisibility(), ASTClassVisibilityKind::CLASS_V_PRIVATE);
+        EXPECT_EQ(aMethod->getScopes()->getVisibility(), ASTClassVisibilityKind::CLASS_V_PUBLIC);
+        EXPECT_EQ(bMethod->getScopes()->getVisibility(), ASTClassVisibilityKind::CLASS_V_PROTECTED);
+        EXPECT_EQ(cMethod->getScopes()->getVisibility(), ASTClassVisibilityKind::CLASS_V_PRIVATE);
+        EXPECT_EQ(dMethod->getScopes()->getVisibility(), ASTClassVisibilityKind::CLASS_V_DEFAULT);
+        EXPECT_TRUE(dMethod->getScopes()->isConstant());
+
+        llvm::StringRef str2 = (
+                "void func() {\n"
+                "  Test t = new Test()\n"
+                "  t.a()\n"
+                "  t.d()\n"
+                "}\n");
+        ASTNode *Node2 = Parse("Identifier", str2);
+
+        ASSERT_TRUE(isSuccess());
+
+    }
+
+    TEST_F(ParserTest, StructExtendStruct) {
+        llvm::StringRef str = ("public struct Case : Test {}\n");
+        ASTNode *Node = Parse("CaseStruct", str, false);
+
+        llvm::StringRef str2 = (
+                "struct Test {\n"
+                "  a = 1"
+                "}\n");
+        ASTNode *Node2 = Parse("TestStruct", str2);
+
+        ASSERT_TRUE(isSuccess());
+
+        EXPECT_EQ(Node->getClass()->getMethods().size(), 1);
+        ASTClassFunction *aMethod = *Node->getClass()->getMethods().find("a")->getValue().begin()->second.begin();
+        EXPECT_EQ(aMethod->getScopes()->getVisibility(), ASTClassVisibilityKind::CLASS_V_DEFAULT);
+        EXPECT_FALSE(aMethod->getScopes()->isConstant());
+    }
+
+    TEST_F(ParserTest, ClassExtendClass) {
+        llvm::StringRef str = ("public class Case : Test {}\n");
+        ASTNode *Node = Parse("ClassExtendClass", str, false);
+
+        llvm::StringRef str2 = (
+                "void func() {\n"
+                "  Test t = new Case()"
                 "  t.a()"
                 "}\n");
         ASTNode *Node2 = Parse("Identifier", str2);
+
+        ASSERT_TRUE(isSuccess());
+
+        EXPECT_EQ(Node->getClass()->getMethods().size(), 1);
+        ASTClassFunction *aMethod = *Node->getClass()->getMethods().find("a")->getValue().begin()->second.begin();
+        EXPECT_EQ(aMethod->getScopes()->getVisibility(), ASTClassVisibilityKind::CLASS_V_DEFAULT);
+        EXPECT_FALSE(aMethod->getScopes()->isConstant());
+    }
+
+    TEST_F(ParserTest, ClassExtendStruct) {
+        llvm::StringRef str = ("public class Case : Test {}\n");
+        ASTNode *Node = Parse("ClassCase", str, false);
+
+        llvm::StringRef str2 = (
+                "struct Test {\n"
+                "  int a"
+                "}\n");
+        ASTNode *Node2 = Parse("StructTest", str2);
+
+        ASSERT_TRUE(isSuccess());
+
+        EXPECT_EQ(Node->getClass()->getMethods().size(), 1);
+        ASTClassFunction *aMethod = *Node->getClass()->getMethods().find("a")->getValue().begin()->second.begin();
+        EXPECT_EQ(aMethod->getScopes()->getVisibility(), ASTClassVisibilityKind::CLASS_V_DEFAULT);
+        EXPECT_FALSE(aMethod->getScopes()->isConstant());
+    }
+
+    TEST_F(ParserTest, ClassExtendInterface) {
+        llvm::StringRef str = ("public class Class : Interface {\n"
+                               "  int a() { return 1 }\n"
+                               "}\n");
+        ASTNode *Node = Parse("Class", str, false);
+
+        llvm::StringRef str2 = (
+                "interface Interface {\n"
+                "  int a()\n"
+                "}\n");
+        ASTNode *Node2 = Parse("Interface", str2);
+
+        ASSERT_TRUE(isSuccess());
+
+        EXPECT_EQ(Node->getClass()->getMethods().size(), 1);
+        ASTClassFunction *aMethod = *Node->getClass()->getMethods().find("a")->getValue().begin()->second.begin();
+        EXPECT_EQ(aMethod->getScopes()->getVisibility(), ASTClassVisibilityKind::CLASS_V_DEFAULT);
+        EXPECT_FALSE(aMethod->getScopes()->isConstant());
+    }
+
+    TEST_F(ParserTest, ClassExtendClasses) {
+        llvm::StringRef str = ("public class Case : Class Struct Interface {}\n");
+        ASTNode *Node = Parse("ClassExtendStruct", str, false);
+
+        llvm::StringRef str2 = (
+                "class Class {\n"
+                "  void a() { return a }"
+                "}\n");
+        ASTNode *Node2 = Parse("Class", str2);
+
+        llvm::StringRef str3 = (
+                "struct Struct {\n"
+                "  int a"
+                "}\n");
+        ASTNode *Node3 = Parse("Struct", str2);
+
+        llvm::StringRef str4 = (
+                "interface Interface {\n"
+                "  int a()"
+                "}\n");
+        ASTNode *Node4 = Parse("Interface", str2);
 
         ASSERT_TRUE(isSuccess());
 

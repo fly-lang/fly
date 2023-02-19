@@ -22,6 +22,7 @@
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTCall.h"
+#include "AST/ASTIdentifier.h"
 #include "AST/ASTParams.h"
 #include "AST/ASTSwitchBlock.h"
 #include "AST/ASTForBlock.h"
@@ -268,6 +269,113 @@ bool SemaResolver::ResolveForBlock(ASTForBlock *ForBlock) {
     return Success;
 }
 
+bool SemaResolver::ResolveIdentifier(ASTNode *Node, ASTIdentifier *Identifier, ASTNameSpace *&NameSpace) {
+    const llvm::StringRef &Name = Identifier->getName();
+    // Search Identifier in Namespaces
+    if (NameSpace == nullptr) {
+        NameSpace = Node->getNameSpace();
+        if (Name != Node->getNameSpace()->getName()) {
+            ASTImport *Import = S.FindImport(Node, Name);
+            if (Import) {
+                NameSpace = Import->getNameSpace();
+            }
+        }
+        return true;
+    }
+    return false;
+}
+
+bool SemaResolver::ResolveIdentifier(ASTNode *Node, ASTIdentifier *Identifier, ASTNameSpace *NameSpace,
+                                     ASTClassType *&ClassType) {
+    const llvm::StringRef &Name = Identifier->getName();
+    // Search Identifier in ClasTypes
+    if (ClassType == nullptr) {
+        ASTClass *Class = S.FindClass(Name, NameSpace ? NameSpace : Node->getNameSpace());
+        if (Class) {
+            ClassType = S.Builder->CreateClassType(Class);
+            return true;
+        }
+    }
+    return false;
+}
+
+bool SemaResolver::ResolveIdentifiers(ASTBlock *Block, ASTVarRef *VarRef, ASTCall *Call) {
+    const auto &Node = S.FindNode(Block->getTop());
+    ASTIdentifier *Identifier = VarRef ? VarRef->getIdentifier()->getRoot() : Call->getIdentifier()->getRoot();
+
+    ASTNameSpace *NameSpace = nullptr;
+    while (Identifier->getIndex() >= 0) {
+
+        ASTClassType *ClassType = nullptr;
+        ASTVar *Var = nullptr;
+        ASTFunctionBase *Function = nullptr;
+        while (Var == nullptr && Function == nullptr) {
+
+            if (Identifier->isCall()) {
+                if (ClassType == nullptr && NameSpace == nullptr &&
+                    ResolveCall(Block, Identifier->getCall(), Node->getNameSpace()->Functions)) {
+                    Function = Identifier->getCall()->getDef();
+                } else if (ResolveIdentifier(Node, Identifier, NameSpace, ClassType) &&
+                           ResolveCall(Block, Identifier->getCall(), ClassType->getDef()->Methods)) {
+                    Function = Identifier->getCall()->getDef();
+                } else if (ResolveIdentifier(Node, Identifier, NameSpace) &&
+                           ResolveCall(Block, Identifier->getCall(), NameSpace->Functions)) {
+                    Function = Identifier->getCall()->getDef();
+                } else {
+                    S.Diag(Identifier->getLocation(), diag::err_sema_invalid_identifier);
+                    return false;
+                }
+            } else {
+                if (ClassType == nullptr && NameSpace == nullptr) {
+                    Var = Node->getNameSpace()->GlobalVars.lookup(Identifier->getName());
+                } else if (ResolveIdentifier(Node, Identifier, NameSpace, ClassType)) {
+                    Var = ClassType->getDef()->Vars.lookup(Identifier->getName());
+                } else if (ResolveIdentifier(Node, Identifier, NameSpace)) {
+                    Var = NameSpace->GlobalVars.lookup(Identifier->getChild()->getName());
+                } else {
+                    S.Diag(Identifier->getLocation(), diag::err_sema_invalid_identifier);
+                    return false;
+                }
+            }
+
+            // Go next Identifier or break
+            Identifier = Identifier->getChild();
+            if (Identifier == nullptr)
+                break;
+        }
+
+        if (Identifier) {
+            if (Var) {
+                if (Var->getType()->isClass()) {
+                    ClassType = (ASTClassType *) Var->getType();
+                } else {
+                    S.Diag(Identifier->getLocation(), diag::err_sema_invalid_identifier);
+                    return false;
+                }
+            } else if (Function) {
+                if (Function->getType()->isClass()) {
+                    ClassType = (ASTClassType *) Function->getType();
+                } else {
+                    S.Diag(Identifier->getLocation(), diag::err_sema_invalid_identifier);
+                    return false;
+                }
+            } else {
+                S.Diag(Identifier->getLocation(), diag::err_sema_invalid_identifier);
+                return false;
+            }
+        } else if (Call && Function) {
+            Call->Def = Function;
+        } else if (VarRef && Var) {
+            VarRef->Def = Var;
+        } else {
+            S.Diag(Identifier->getLocation(), diag::err_sema_invalid_identifier);
+            return false;
+        }
+    }
+
+    return false;
+}
+
 bool SemaResolver::ResolveType(ASTFunctionBase *FunctionBase, ASTType * Type) {
     ASTClassType * ClassType;
     if (Type->isClass())
@@ -277,9 +385,32 @@ bool SemaResolver::ResolveType(ASTFunctionBase *FunctionBase, ASTType * Type) {
     else // is primitive type
         return true;
 
-    // Search Class Type definition
-    ASTNameSpace *NameSpace = S.FindNameSpace(ClassType->getNameSpace());
-    ClassType->Def = S.FindClass(ClassType->getName(), NameSpace);
+    // Take Node
+    const auto &Node = S.FindNode(FunctionBase);
+
+    // Resolve Identifier
+    if (ClassType->getIdentifier()) {
+
+        if (ClassType->getIdentifier()->isCall()) {
+            S.Diag(ClassType->getLocation(), diag::err_sema_invalid_identifier);
+            return false;
+        }
+
+        // Check only ClassType with only 1 Parent: NameSpace.ClassName
+        if (ClassType->getIdentifier()->getIndex() > 1) {
+            S.Diag(ClassType->getLocation(), diag::err_sema_invalid_identifier);
+            return false;
+        }
+
+        llvm::StringRef ClassName = ClassType->getIdentifier()->getName();
+        ASTNameSpace *NameSpace = Node->NameSpace; // No namespace defined
+        if (ClassType->getIdentifier()->getRoot()) { // with namespace
+            llvm::StringRef NS = ClassType->getIdentifier()->getRoot()->getName(); // NameSpace.ClassName
+            NameSpace = S.FindNameSpace(NS);
+        }
+        ClassType->Def = S.FindClass(ClassName, NameSpace);
+        delete ClassType->Identifier;
+    }
 
     if (!ClassType->Def) {
         S.Diag(ClassType->getLocation(), diag::err_unref_type);
@@ -289,23 +420,117 @@ bool SemaResolver::ResolveType(ASTFunctionBase *FunctionBase, ASTType * Type) {
     return true;
 }
 
+/**
+ * Resolve a VarRef with its declaration
+ * @param VarRef
+ * @return true if no error occurs, otherwise false
+ */
+bool SemaResolver::ResolveVarRef(ASTBlock *Block, ASTVarRef *VarRef) {
+    FLY_DEBUG_MESSAGE("Sema", "ResolveVarRef", Logger().Attr("VarRef", VarRef).End());
+    
+    if (VarRef->getIdentifier()) {
+
+        if (VarRef->getIdentifier()->isCall()) {
+            S.Diag(VarRef->getLocation(), diag::err_sema_invalid_identifier);
+            return false;
+        }
+
+        const auto &Node = S.FindNode(Block->getTop());
+
+        if (VarRef->getIdentifier()->getIndex() == 0) { // LocalVar or GlobalVar (current NameSpace)
+            const StringRef &Name = VarRef->getIdentifier()->getName();
+
+            // Search for LocalVar
+            VarRef->Def = S.FindVarDef(Block, Name);
+
+            // Search for GlobalVars
+            if (!VarRef->Def)
+                VarRef->Def = Node->GlobalVars.lookup(Name);
+
+            delete VarRef->Identifier;
+        } else {
+            return ResolveIdentifiers(Block, VarRef, nullptr);
+        }
+    }
+
+    // VarRef not found in node, namespace and node imports
+    if (VarRef->Def == nullptr) {
+        S.Diag(VarRef->getLocation(), diag::err_unref_var);
+        return false;
+    }
+
+    if (VarRef->isLocalVar())
+        Block->UnInitVars.erase(VarRef->getName());
+
+    return true;
+}
+
+bool SemaResolver::ResolveCall(ASTBlock *Block, ASTCall *Call) {
+    if (Call->getIdentifier()) {
+
+        if (!Call->getIdentifier()->isCall()) {
+            S.Diag(Call->getLocation(), diag::err_sema_invalid_identifier);
+            return false;
+        }
+
+        const auto &Node = S.FindNode(Block->getTop());
+
+        if (Call->getIdentifier()->getIndex() == 0) { // LocalVar or GlobalVar (current NameSpace)
+            ResolveCall(Block, Call, Node->Functions);
+            delete Call->Identifier;
+        } else {
+            ResolveIdentifiers(Block, nullptr, Call);
+
+            // visibility error
+            ASTVisibilityKind Visibility = ((ASTFunction *) Call->getDef())->getScopes()->getVisibility();
+            if (Visibility == ASTVisibilityKind::V_PRIVATE) {
+                S.Diag(Call->getLocation(), diag::err_sema_invalid_identifier);
+                return false;
+            }
+        }
+
+        // class from instance TODO
+//        ASTLocalVar *Instance = S.FindVarDef(Block, Call->getClassName());
+//        if (Instance && Instance->getType()->isClass()) {
+//            Call->Instance = Instance;
+//
+//            // Class i
+//            // i.func()
+//            if (ResolveCall(Block, Call, ((ASTClassType *) Instance->getType())->getDef()->Methods)) {
+//                ASTClassVisibilityKind Visibility = ((ASTClassFunction *) Call->Def)->getScopes()->getVisibility();
+//                if (Visibility == ASTClassVisibilityKind::CLASS_V_PUBLIC ||
+//                    Visibility == ASTClassVisibilityKind::CLASS_V_DEFAULT) {
+//                    return true;
+//                }
+//            }
+//        }
+    }
+
+    if (!Call->Def) {
+        S.Diag(Call->getLocation(), diag::err_unref_call);
+        return false;
+    }
+
+    return true;
+}
+
 template <class T>
-bool SemaResolver::ResolveCallable(ASTBlock *Block, ASTCall *Call,
-                                 llvm::StringMap<std::map <uint64_t,llvm::SmallVector <T *, 4>>> &Functions) {
+bool SemaResolver::ResolveCall(ASTBlock *Block, ASTCall *Call,
+                               llvm::StringMap<std::map <uint64_t,llvm::SmallVector <T *, 4>>> &Functions) {
 
     // Search by Call Name
     auto StrMapIt = Functions.find(Call->getName());
     if (StrMapIt != Functions.end()) {
         std::map<uint64_t, llvm::SmallVector<T *, 4>> &IntMap = StrMapIt->getValue();
-        return ResolveCallable(Block, Call, IntMap);
+        return ResolveCall(Block, Call, IntMap);
     }
 
     return Call->Def;
 }
 
 template <class T>
-bool SemaResolver::ResolveCallable(ASTBlock *Block, ASTCall *Call,
-                                   std::map <uint64_t,llvm::SmallVector <T *, 4>> &Functions) {
+bool SemaResolver::ResolveCall(ASTBlock *Block, ASTCall *Call,
+                               std::map <uint64_t,llvm::SmallVector <T *, 4>> &Functions) {
     // Search by number of arguments
     const auto &IntMapIt = Functions.find(Call->getArgs().size());
     if (IntMapIt != Functions.end()) { // Map contains Function with this size of args
@@ -344,204 +569,6 @@ bool SemaResolver::ResolveArg(ASTBlock *Block, ASTArg *Arg, ASTParam *Param) {
     return false;
 }
 
-bool SemaResolver::ResolveCall(ASTBlock *Block, ASTCall *Call) {
-    if (!Call->Def) {
-        const auto &Node = S.FindNode(Block->getTop());
-
-        // Search into functions
-        if (Call->getClassName().empty()) {
-            
-            // Find in current Node
-            if (ResolveCallable(Block, Call, Node->Functions)) {
-                return true;
-            }
-
-            // Find in current NameSpace
-            if (Call->getNameSpace() == Node->NameSpace->getName()) {
-
-                // read function visibility
-                if (ResolveCallable(Block, Call, Node->NameSpace->Functions)) {
-                    ASTVisibilityKind Visibility = ((ASTFunction *) Call->getDef())->getScopes()->getVisibility();
-                    if (Visibility == ASTVisibilityKind::V_DEFAULT || Visibility == ASTVisibilityKind::V_PUBLIC) {
-                        return true;
-                    }
-
-                    // TODO: visibility error
-                }
-            } else {
-
-                // Find in current Import
-                ASTImport *Import;
-                if ((Import = S.FindImport(Node, Call->getNameSpace()))) {
-
-                    // read function visibility
-                    if (ResolveCallable(Block, Call, Import->NameSpace->Functions)) {
-                        ASTVisibilityKind Visibility = ((ASTFunction *) Call->getDef())->getScopes()->getVisibility();
-                        if (Visibility == ASTVisibilityKind::V_PUBLIC) {
-                            return true;
-                        }
-
-                        // TODO: visibility error
-                    }
-                }
-            }
-        } else {
-
-            // class from instance
-            ASTLocalVar *Instance = S.FindVarDef(Block, Call->getClassName());
-            if (Instance && Instance->getType()->isClass()) {
-                Call->Instance = Instance;
-
-                // Class i
-                // i.func()
-                if (ResolveCallable(Block, Call, ((ASTClassType *) Instance->getType())->getDef()->Methods)) {
-                    ASTClassVisibilityKind Visibility = ((ASTClassFunction *) Call->Def)->getScopes()->getVisibility();
-                    if (Visibility == ASTClassVisibilityKind::CLASS_V_PUBLIC ||
-                        Visibility == ASTClassVisibilityKind::CLASS_V_DEFAULT) {
-                        return true;
-                    }
-                }
-            }
-
-            // class from static call
-            // NS1:Class.func()
-            ASTClass *Class;
-            if (Call->getNameSpace() == Node->NameSpace->getName()) {
-                Class = S.FindClass(Call->getClassName(), Node->NameSpace);
-            } else {
-                ASTImport *Import = S.FindImport(Node, Call->getNameSpace());
-                Class = S.FindClass(Call->getClassName(), Import->NameSpace);
-            }
-
-            if (!Class) {
-                S.Diag(Call->getLocation(), diag::err_unref_type);
-                return false;
-            }
-
-            bool Resolved = Call->getName() == Call->getClassName() ?
-                            ResolveCallable(Block, Call, Class->Constructors) : // Call Constructor
-                            ResolveCallable(Block, Call, Class->Methods);
-
-            if (Resolved) {
-                ASTClassVisibilityKind Visibility = ((ASTClassFunction *) Call->Def)->getScopes()->getVisibility();
-                if (Visibility == ASTClassVisibilityKind::CLASS_V_PUBLIC ||
-                    Visibility == ASTClassVisibilityKind::CLASS_V_DEFAULT) {
-                    return true;
-                }
-
-                // TODO: visibility error
-            }
-        }
-
-        S.Diag(Call->getLocation(), diag::err_unref_call);
-        return false;
-    }
-    
-    return true;
-}
-
-/**
- * Resolve a VarRef with its declaration
- * @param VarRef
- * @return true if no error occurs, otherwise false
- */
-bool SemaResolver::ResolveVarRef(ASTBlock *Block, ASTVarRef *VarRef) {
-    FLY_DEBUG_MESSAGE("Sema", "ResolveVarRef", Logger().Attr("VarRef", VarRef).End());
-
-    if (!VarRef->Def) {
-        const auto &Node = S.FindNode(Block->getTop());
-        
-        if (VarRef->getClassName().empty()) { // Search a LocalVar or GlobalVar
-            
-            // Search into LocalVars of the Block or into GlobalVars of current Node
-            if (VarRef->getNameSpace().empty()) {
-
-                // Search for LocalVar
-                VarRef->Def = S.FindVarDef(Block, VarRef->getName());
-
-                // Search for GlobalVars
-                if (!VarRef->Def)
-                    VarRef->Def = Node->GlobalVars.lookup(VarRef->getName());
-            } else {
-
-                // Search GlobalVars into NameSpaces
-                if (VarRef->getNameSpace() == Node->getNameSpace()->getName()) { // Current NameSpace
-                    VarRef->Def = Node->NameSpace->GlobalVars.lookup(VarRef->getName());
-                } else { // Imported NameSpace
-                    ASTImport *Import = S.FindImport(Node, VarRef->getNameSpace());
-                    VarRef->Def = Import->getNameSpace()->getGlobalVars().lookup(VarRef->getName());
-                }
-            }
-        } else { // Search a Class Var
-
-            // Search into ClassVars of current Node
-            if (VarRef->getNameSpace().empty()) {
-
-                // class from instance
-                ASTLocalVar *Instance = S.FindVarDef(Block, VarRef->getClassName());
-                if (Instance && Instance->getType()->isClass()) {
-                    // Class i
-                    // i.var
-                    VarRef->Def = (ASTVar *) ((ASTClassType *) Instance->getType())->getDef()->
-                            getVars().lookup(VarRef->getName());
-                    VarRef->Instance = Instance;
-                }
-
-                // Search from static class vars
-                if (!VarRef->Def && Node->Class && Node->Class->getName() == VarRef->getClassName()) {
-                    VarRef->Def = (ASTVar *) Node->Class->Vars.lookup(VarRef->getName());
-                }
-
-                // read visibility
-                if (VarRef->Def) {
-                    ASTClassVisibilityKind Visibility = ((ASTClassVar *) VarRef->Def)->getScopes()->getVisibility();
-                    if (Visibility == ASTClassVisibilityKind::CLASS_V_PUBLIC ||
-                        Visibility == ASTClassVisibilityKind::CLASS_V_DEFAULT) {
-                        return true;
-                    }
-
-                    // TODO: visibility error
-                }
-            } else {
-                // Search static ClassVars into NameSpaces
-                // NS1:Class.var
-                ASTClass *Class;
-                if (VarRef->getNameSpace() == Node->getNameSpace()->getName()) { // Current NameSpace
-                    Class = S.FindClass(VarRef->ClassName, Node->NameSpace);
-                } else { // Imported NameSpace
-                    ASTImport *Import = S.FindImport(Node, VarRef->getNameSpace());
-                    Class = Import ? S.FindClass(VarRef->ClassName, Import->NameSpace) : nullptr;
-                }
-
-                if (!Class) {
-                    S.Diag(VarRef->getLocation(), diag::err_unref_type);
-                    return false;
-                }
-
-                VarRef->Def = (ASTVar *) Class->Vars.lookup(VarRef->getName());
-                if (VarRef->Def) { // Read visibility
-                    ASTClassVisibilityKind Visibility = ((ASTClassFunction *) VarRef->Def)->getScopes()->getVisibility();
-                    if (Visibility == ASTClassVisibilityKind::CLASS_V_PUBLIC ||
-                        Visibility == ASTClassVisibilityKind::CLASS_V_DEFAULT) {
-                        return true;
-                    }
-
-                    // TODO: visibility error
-                }
-            }
-        }
-    }
-
-    // VarRef not found in node, namespace and node imports
-    if (!VarRef->Def) {
-        S.Diag(VarRef->getLocation(), diag::err_unref_var);
-        return false;
-    }
-
-    Block->UnInitVars.erase(VarRef->getName());
-    return true;
-}
-
 /**
  * Resolve Expr contents
  * @param Expr
@@ -558,7 +585,7 @@ bool SemaResolver::ResolveExpr(ASTBlock *Block, ASTExpr *Expr) {
             return ResolveValueExpr((ASTValueExpr *) Expr);
         case ASTExprKind::EXPR_VAR_REF: {
             ASTVarRef *VarRef = ((ASTVarRefExpr *)Expr)->getVarRef();
-            if (S.Validator->CheckUninitialized(Block, VarRef) && (VarRef->getDef() || ResolveVarRef(Block, VarRef))) {
+            if ((VarRef->getDef() || ResolveVarRef(Block, VarRef)) && S.Validator->CheckUninitialized(Block, VarRef)) {
                 Expr->Type = VarRef->getDef()->getType();
                 Success = true;
                 break;

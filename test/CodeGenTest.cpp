@@ -131,57 +131,57 @@ namespace {
         // default Bool value
         ASTValue *DefaultBoolVal = SemaBuilder::CreateDefaultValue(BoolType);
         ASTGlobalVar *aVar = Builder->CreateGlobalVar(Node, SourceLoc, BoolType, "a", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(Node, aVar, DefaultBoolVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(aVar, DefaultBoolVal));
 
         // default Byte value
         ASTValue *DefaultByteVal = SemaBuilder::CreateDefaultValue(ByteType);
         ASTGlobalVar *bVar = Builder->CreateGlobalVar(Node, SourceLoc, ByteType, "b", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(Node, bVar, DefaultByteVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(bVar, DefaultByteVal));
 
         // default Short value
         ASTValue *DefaultShortVal = SemaBuilder::CreateDefaultValue(ShortType);
         ASTGlobalVar *cVar = Builder->CreateGlobalVar(Node, SourceLoc, ShortType, "c", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(Node, cVar, DefaultShortVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(cVar, DefaultShortVal));
 
         // default UShort value
         ASTValue *DefaultUShortVal = SemaBuilder::CreateDefaultValue(UShortType);
         ASTGlobalVar *dVar = Builder->CreateGlobalVar(Node, SourceLoc, UShortType, "d", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(Node, dVar, DefaultUShortVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(dVar, DefaultUShortVal));
 
         // default Int value
         ASTValue *DefaultIntVal = SemaBuilder::CreateDefaultValue(IntType);
         ASTGlobalVar *eVar = Builder->CreateGlobalVar(Node, SourceLoc, IntType, "e", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(Node, eVar, DefaultIntVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(eVar, DefaultIntVal));
 
         // default UInt value
         ASTValue *DefaultUintVal = SemaBuilder::CreateDefaultValue(UIntType);
         ASTGlobalVar *fVar = Builder->CreateGlobalVar(Node, SourceLoc, UIntType, "f", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(Node, fVar, DefaultUintVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(fVar, DefaultUintVal));
 
         // default Long value
         ASTValue *DefaultLongVal = SemaBuilder::CreateDefaultValue(LongType);
         ASTGlobalVar *gVar = Builder->CreateGlobalVar(Node, SourceLoc, LongType, "g", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(Node, gVar, DefaultLongVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(gVar, DefaultLongVal));
 
         // default ULong value
         ASTValue *DefaultULongVal = SemaBuilder::CreateDefaultValue(ULongType);
         ASTGlobalVar *hVar = Builder->CreateGlobalVar(Node, SourceLoc, ULongType, "h", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(Node, hVar, DefaultULongVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(hVar, DefaultULongVal));
 
         // default Float value
         ASTValue *DefaultFloatVal = SemaBuilder::CreateDefaultValue(FloatType);
         ASTGlobalVar *iVar = Builder->CreateGlobalVar(Node, SourceLoc, FloatType, "i", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(Node, iVar, DefaultFloatVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(iVar, DefaultFloatVal));
 
         // default Double value
         ASTValue *DefaultDoubleVal = SemaBuilder::CreateDefaultValue(DoubleType);
         ASTGlobalVar *jVar = Builder->CreateGlobalVar(Node, SourceLoc, DoubleType, "j", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(Node,jVar, DefaultDoubleVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(jVar, DefaultDoubleVal));
 
         // default Array value
         ASTValue *DefaultArrayVal = SemaBuilder::CreateDefaultValue(ArrayInt0Type);
         ASTGlobalVar *kVar = Builder->CreateGlobalVar(Node, SourceLoc, ArrayInt0Type, "k", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(Node, kVar, DefaultArrayVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(kVar, DefaultArrayVal));
 
         // Generate Code
         EXPECT_FALSE(Diags.hasErrorOccurred());
@@ -272,57 +272,57 @@ namespace {
         // a
         ASTBoolValue *BoolVal = SemaBuilder::CreateBoolValue(SourceLoc, true);
         ASTGlobalVar *aVar = Builder->CreateGlobalVar(Node, SourceLoc, BoolType, "a", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(Node, aVar, BoolVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(aVar, BoolVal));
 
         // b
         ASTIntegerValue *ByteVal = SemaBuilder::CreateIntegerValue(SourceLoc, 1);
         ASTGlobalVar *bVar = Builder->CreateGlobalVar(Node, SourceLoc, ByteType, "b", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(Node, bVar, ByteVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(bVar, ByteVal));
 
         // c
         ASTIntegerValue *ShortVal = SemaBuilder::CreateIntegerValue(SourceLoc, -2);
         ASTGlobalVar *cVar = Builder->CreateGlobalVar(Node, SourceLoc, ShortType, "c", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(Node, cVar, ShortVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(cVar, ShortVal));
 
         // d
         ASTIntegerValue *UShortVal = SemaBuilder::CreateIntegerValue(SourceLoc, 2);
         ASTGlobalVar *dVar = Builder->CreateGlobalVar(Node, SourceLoc, UShortType, "d", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(Node, dVar, UShortVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(dVar, UShortVal));
 
         // e
         ASTIntegerValue *IntVal = SemaBuilder::CreateIntegerValue(SourceLoc, -3);
         ASTGlobalVar *eVar = Builder->CreateGlobalVar(Node, SourceLoc, IntType, "e", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(Node, eVar, IntVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(eVar, IntVal));
 
         // f
         ASTIntegerValue *UIntVal = SemaBuilder::CreateIntegerValue(SourceLoc, 3);
         ASTGlobalVar *fVar = Builder->CreateGlobalVar(Node, SourceLoc, UIntType, "f", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(Node, fVar, UIntVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(fVar, UIntVal));
 
         // g
         ASTIntegerValue *LongVal = SemaBuilder::CreateIntegerValue(SourceLoc, -4);
         ASTGlobalVar *gVar = Builder->CreateGlobalVar(Node, SourceLoc, LongType, "g", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(Node, gVar, LongVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(gVar, LongVal));
 
         // h
         ASTIntegerValue *ULongVal = SemaBuilder::CreateIntegerValue(SourceLoc, 4);
         ASTGlobalVar *hVar = Builder->CreateGlobalVar(Node, SourceLoc, ULongType, "h", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(Node, hVar, ULongVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(hVar, ULongVal));
 
         // i
         ASTFloatingValue *FloatVal = SemaBuilder::CreateFloatingValue(SourceLoc, 1.5);
         ASTGlobalVar *iVar = Builder->CreateGlobalVar(Node, SourceLoc, FloatType, "i", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(Node, iVar, FloatVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(iVar, FloatVal));
 
         // j
         ASTFloatingValue *DoubleVal = SemaBuilder::CreateFloatingValue(SourceLoc, 2.5);
         ASTGlobalVar *jVar = Builder->CreateGlobalVar(Node, SourceLoc, DoubleType, "j", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(Node,jVar, DoubleVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(jVar, DoubleVal));
 
         // k (empty array)
         ASTArrayValue *ArrayValEmpty = SemaBuilder::CreateArrayValue(SourceLoc);
         ASTGlobalVar *kVar = Builder->CreateGlobalVar(Node, SourceLoc, ArrayInt0Type, "k", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(Node, kVar, ArrayValEmpty));
+        EXPECT_TRUE(Builder->AddGlobalVar(kVar, ArrayValEmpty));
 
         // l (2 val)
         ASTArrayValue *ArrayVal = SemaBuilder::CreateArrayValue(SourceLoc);
@@ -331,7 +331,7 @@ namespace {
         Builder->AddArrayValue(ArrayVal, SemaBuilder::CreateIntegerValue(SourceLoc, 1)); // ArrayVal = {1}
         Builder->AddArrayValue(ArrayVal, SemaBuilder::CreateIntegerValue(SourceLoc, 2)); // ArrayVal = {1, 1}
         ASTGlobalVar *lVar = Builder->CreateGlobalVar(Node, SourceLoc, ArrayInt2Type, "l", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(Node, lVar, ArrayVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(lVar, ArrayVal));
 
         // Generate Code
         EXPECT_FALSE(Diags.hasErrorOccurred());
@@ -443,7 +443,7 @@ namespace {
         Builder->CreateExpr(Return, IntVal);
         EXPECT_TRUE(Builder->AddStmt(Return));
 
-        EXPECT_TRUE(Builder->AddFunction(Node, MainFn));
+        EXPECT_TRUE(Builder->AddFunction(MainFn));
         EXPECT_TRUE(Builder->AddNode(Node));
         EXPECT_TRUE(Builder->Build());
 
@@ -491,7 +491,7 @@ namespace {
         ASTFloatingValue *FloatingVal = SemaBuilder::CreateFloatingValue(SourceLoc, 2.0);
         ASTGlobalVar *GVar = Builder->CreateGlobalVar(Node, SourceLoc, FloatType, "G",
                                                       SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_PRIVATE, false));
-        EXPECT_TRUE(Builder->AddGlobalVar(Node, GVar, FloatingVal));
+        EXPECT_TRUE(Builder->AddGlobalVar(GVar, FloatingVal));
 
         // main()
         ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",
@@ -520,7 +520,7 @@ namespace {
         EXPECT_TRUE(Builder->AddStmt(Return));
         
         // add to Node
-        EXPECT_TRUE(Builder->AddFunction(Node, MainFn));
+        EXPECT_TRUE(Builder->AddFunction(MainFn));
         EXPECT_TRUE(Builder->AddNode(Node));
         EXPECT_TRUE(Builder->Build());
 
@@ -569,8 +569,8 @@ namespace {
         EXPECT_TRUE(Builder->AddStmt(Return));
 
         // add to Node
-        EXPECT_TRUE(Builder->AddFunction(Node, MainFn));
-        EXPECT_TRUE(Builder->AddFunction(Node, TestFn));
+        EXPECT_TRUE(Builder->AddFunction(MainFn));
+        EXPECT_TRUE(Builder->AddFunction(TestFn));
         EXPECT_TRUE(Builder->AddNode(Node));
         EXPECT_TRUE(Builder->Build());
 
@@ -632,7 +632,7 @@ namespace {
         EXPECT_TRUE(Builder->AddStmt(Return));
 
         // Add to Node
-        EXPECT_TRUE(Builder->AddFunction(Node, MainFn));
+        EXPECT_TRUE(Builder->AddFunction(MainFn));
         EXPECT_TRUE(Builder->AddNode(Node));
         EXPECT_TRUE(Builder->Build());
 
@@ -789,7 +789,7 @@ namespace {
         EXPECT_TRUE(Builder->AddStmt(Return));
 
         // Add to Node
-        EXPECT_TRUE(Builder->AddFunction(Node, MainFn));
+        EXPECT_TRUE(Builder->AddFunction(MainFn));
         EXPECT_TRUE(Builder->AddNode(Node));
         EXPECT_TRUE(Builder->Build());
 
@@ -925,7 +925,7 @@ namespace {
         EXPECT_TRUE(Builder->AddStmt(Return));
 
         // Add to Node
-        EXPECT_TRUE(Builder->AddFunction(Node, MainFn));
+        EXPECT_TRUE(Builder->AddFunction(MainFn));
         EXPECT_TRUE(Builder->AddNode(Node));
         EXPECT_TRUE(Builder->Build());
 
@@ -1016,7 +1016,7 @@ namespace {
         EXPECT_TRUE(Builder->AddStmt(Return));
 
         // Add to Node
-        EXPECT_TRUE(Builder->AddFunction(Node, MainFn));
+        EXPECT_TRUE(Builder->AddFunction(MainFn));
         EXPECT_TRUE(Builder->AddNode(Node));
         EXPECT_TRUE(Builder->Build());
 
@@ -1112,7 +1112,7 @@ namespace {
         EXPECT_TRUE(Builder->AddStmt(Return));
 
         // Add to Node
-        EXPECT_TRUE(Builder->AddFunction(Node, MainFn));
+        EXPECT_TRUE(Builder->AddFunction(MainFn));
         EXPECT_TRUE(Builder->AddNode(Node));
         EXPECT_TRUE(Builder->Build());
 
@@ -1190,7 +1190,7 @@ namespace {
         EXPECT_TRUE(Builder->AddStmt(Return));
 
         // Add to Node
-        EXPECT_TRUE(Builder->AddFunction(Node, MainFn));
+        EXPECT_TRUE(Builder->AddFunction(MainFn));
         EXPECT_TRUE(Builder->AddNode(Node));
         EXPECT_TRUE(Builder->Build());
 
@@ -1258,7 +1258,7 @@ namespace {
         EXPECT_TRUE(Builder->AddStmt(Return));
 
         // Add to Node
-        EXPECT_TRUE(Builder->AddFunction(Node, MainFn));
+        EXPECT_TRUE(Builder->AddFunction(MainFn));
         EXPECT_TRUE(Builder->AddNode(Node));
         EXPECT_TRUE(Builder->Build());
 
@@ -1344,7 +1344,7 @@ namespace {
         EXPECT_TRUE(Builder->AddStmt(Return));
 
         // Add to Node
-        EXPECT_TRUE(Builder->AddFunction(Node, MainFn));
+        EXPECT_TRUE(Builder->AddFunction(MainFn));
         EXPECT_TRUE(Builder->AddNode(Node));
         EXPECT_TRUE(Builder->Build());
 
@@ -1442,7 +1442,7 @@ namespace {
         EXPECT_TRUE(Builder->AddStmt(Return));
 
         // Add to Node
-        EXPECT_TRUE(Builder->AddFunction(Node, MainFn));
+        EXPECT_TRUE(Builder->AddFunction(MainFn));
         EXPECT_TRUE(Builder->AddNode(Node));
         EXPECT_TRUE(Builder->Build());
 
@@ -1532,7 +1532,7 @@ namespace {
         EXPECT_TRUE(Builder->AddStmt(Return));
 
         // Add to Node
-        EXPECT_TRUE(Builder->AddFunction(Node, MainFn));
+        EXPECT_TRUE(Builder->AddFunction(MainFn));
         EXPECT_TRUE(Builder->AddNode(Node));
         EXPECT_TRUE(Builder->Build());
 
@@ -1604,7 +1604,7 @@ namespace {
         EXPECT_TRUE(Builder->AddStmt(Return));
 
         // Add to Node
-        EXPECT_TRUE(Builder->AddFunction(Node, MainFn));
+        EXPECT_TRUE(Builder->AddFunction(MainFn));
         EXPECT_TRUE(Builder->AddNode(Node));
         EXPECT_TRUE(Builder->Build());
 
@@ -1679,7 +1679,7 @@ namespace {
         EXPECT_TRUE(Builder->AddStmt(Return));
 
         // Add to Node
-        EXPECT_TRUE(Builder->AddFunction(Node, MainFn));
+        EXPECT_TRUE(Builder->AddFunction(MainFn));
         EXPECT_TRUE(Builder->AddNode(Node));
         EXPECT_TRUE(Builder->Build());
 
@@ -1753,7 +1753,7 @@ namespace {
         EXPECT_TRUE(Builder->AddStmt(Return));
 
         // Add to Node
-        EXPECT_TRUE(Builder->AddFunction(Node, MainFn));
+        EXPECT_TRUE(Builder->AddFunction(MainFn));
         EXPECT_TRUE(Builder->AddNode(Node));
         EXPECT_TRUE(Builder->Build());
 
@@ -1825,7 +1825,7 @@ namespace {
         EXPECT_TRUE(Builder->AddStmt(Return));
 
         // Add to Node
-        EXPECT_TRUE(Builder->AddFunction(Node, MainFn));
+        EXPECT_TRUE(Builder->AddFunction(MainFn));
         EXPECT_TRUE(Builder->AddNode(Node));
         EXPECT_TRUE(Builder->Build());
 
@@ -1874,25 +1874,26 @@ namespace {
         //   public int b
         //   private const int c
         // }
-        ASTClass *TestClass = Builder->CreateClass(Node, SourceLoc, "TestClass",
-                                                   SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTClass *TestClass = Builder->CreateClass(Node, ASTClassKind::CLASS,
+                                                   SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false),
+                                                   SourceLoc, "TestClass");
         ASTClassVar *aField = Builder->CreateClassVar(TestClass, SourceLoc, SemaBuilder::CreateIntType(SourceLoc),
                                 "a",
                                 SemaBuilder::CreateClassScopes(
-                                        ASTClassVisibilityKind::CLASS_V_DEFAULT, false));
-        Builder->AddClassVar(TestClass, aField);
+                                        ASTClassVisibilityKind::CLASS_V_DEFAULT, false, false));
+        Builder->AddClassVar(aField);
 
         ASTClassVar *bField = Builder->CreateClassVar(TestClass, SourceLoc, SemaBuilder::CreateIntType(SourceLoc),
                                 "b",
                                 SemaBuilder::CreateClassScopes(
-                                        ASTClassVisibilityKind::CLASS_V_PUBLIC, false));
-        Builder->AddClassVar(TestClass, bField);
+                                        ASTClassVisibilityKind::CLASS_V_PUBLIC, false, false));
+        Builder->AddClassVar(bField);
 
         ASTClassVar *cField = Builder->CreateClassVar(TestClass, SourceLoc, SemaBuilder::CreateIntType(SourceLoc),
                                 "c",
                                 SemaBuilder::CreateClassScopes(
-                                        ASTClassVisibilityKind::CLASS_V_PRIVATE, true));
-        Builder->AddClassVar(TestClass, cField);
+                                        ASTClassVisibilityKind::CLASS_V_PRIVATE, true, false));
+        Builder->AddClassVar(cField);
 
         // int main() {
         //  TestClass test = new TestClass();
@@ -1927,8 +1928,8 @@ namespace {
         Builder->AddStmt(cVar);
 
         // Add to Node
-        EXPECT_TRUE(Builder->AddClass(Node, TestClass));
-        EXPECT_TRUE(Builder->AddFunction(Node, MainFn));
+        EXPECT_TRUE(Builder->AddClass(TestClass));
+        EXPECT_TRUE(Builder->AddFunction(MainFn));
         EXPECT_TRUE(Builder->AddNode(Node));
         bool Success = Builder->Build();
         EXPECT_TRUE(Success);
@@ -1986,41 +1987,42 @@ namespace {
         //   public int b() { return 1 }
         //   private const int c { return 1 }
         // }
-        ASTClass *TestClass = Builder->CreateClass(Node, SourceLoc, "TestClass",
-                                                   SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTClass *TestClass = Builder->CreateClass(Node, ASTClassKind::CLASS,
+                                                   SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false),
+                                                   SourceLoc, "TestClass");
 
         // int a() { return 1 }
         ASTClassFunction *aFunc = Builder->CreateClassMethod(TestClass, SourceLoc, IntType,
                                                              "a",
                                                              SemaBuilder::CreateClassScopes(
-                                                                     ASTClassVisibilityKind::CLASS_V_DEFAULT, false));
+                                                                     ASTClassVisibilityKind::CLASS_V_DEFAULT, false, false));
         ASTBlock *aFuncBody = Builder->getBlock(aFunc);
         ASTReturn *aFuncReturn = Builder->CreateReturn(aFuncBody, SourceLoc);
         Builder->CreateExpr(aFuncReturn, Builder->CreateIntegerValue(SourceLocation(), 1));
         Builder->AddStmt(aFuncReturn);
-        Builder->AddClassMethod(TestClass, aFunc);
+        Builder->AddClassMethod(aFunc);
 
         // public int b() { return 1 }
         ASTClassFunction *bFunc = Builder->CreateClassMethod(TestClass, SourceLoc, IntType,
                                                              "b",
                                                              SemaBuilder::CreateClassScopes(
-                                                                     ASTClassVisibilityKind::CLASS_V_PUBLIC, false));
+                                                                     ASTClassVisibilityKind::CLASS_V_PUBLIC, false, false));
         ASTBlock *bFuncBody = Builder->getBlock(bFunc);
         ASTReturn *bFuncReturn = Builder->CreateReturn(bFuncBody, SourceLoc);
         Builder->CreateExpr(bFuncReturn, Builder->CreateIntegerValue(SourceLocation(), 1));
         Builder->AddStmt(bFuncReturn);
-        Builder->AddClassMethod(TestClass, bFunc);
+        Builder->AddClassMethod(bFunc);
 
         // private const int c { return 1 }
         ASTClassFunction *cFunc = Builder->CreateClassMethod(TestClass, SourceLoc, IntType,
                                                              "c",
                                                              SemaBuilder::CreateClassScopes(
-                                                                     ASTClassVisibilityKind::CLASS_V_PRIVATE, true));
+                                                                     ASTClassVisibilityKind::CLASS_V_PRIVATE, true, false));
         ASTBlock *cFuncBody = Builder->getBlock(cFunc);
         ASTReturn *cFuncReturn = Builder->CreateReturn(cFuncBody, SourceLoc);
         Builder->CreateExpr(cFuncReturn, Builder->CreateIntegerValue(SourceLocation(), 1));
         Builder->AddStmt(cFuncReturn);
-        Builder->AddClassMethod(TestClass, cFunc);
+        Builder->AddClassMethod(cFunc);
 
         // int main() {
         //  TestClass test = new TestClass()
@@ -2059,8 +2061,8 @@ namespace {
         Builder->AddStmt(cVar);
 
         // Add to Node
-        EXPECT_TRUE(Builder->AddClass(Node, TestClass));
-        EXPECT_TRUE(Builder->AddFunction(Node, MainFn));
+        EXPECT_TRUE(Builder->AddClass(TestClass));
+        EXPECT_TRUE(Builder->AddFunction(MainFn));
         EXPECT_TRUE(Builder->AddNode(Node));
         bool Success = Builder->Build();
         EXPECT_TRUE(Success);

@@ -8,15 +8,17 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTClass.h"
+#include "AST/ASTNameSpace.h"
 #include "AST/ASTClassVar.h"
 #include "AST/ASTClassFunction.h"
+#include "AST/ASTType.h"
 #include "CodeGen/CodeGenClass.h"
 #include "Basic/Debuggable.h"
 
 using namespace fly;
 
-ASTClassScopes::ASTClassScopes(ASTClassVisibilityKind Visibility, bool Constant) :
-        Visibility(Visibility), Constant(Constant){
+ASTClassScopes::ASTClassScopes(ASTClassVisibilityKind Visibility, bool Constant, bool Static) :
+        Visibility(Visibility), Constant(Constant), Static(Static) {
 
 }
 
@@ -28,16 +30,26 @@ bool ASTClassScopes::isConstant() const {
     return Constant;
 }
 
+bool ASTClassScopes::isStatic() const {
+    return Static;
+}
+
 std::string ASTClassScopes::str() const {
     return Logger("ASTClassScopes").
             Attr("Visibility", (uint64_t) Visibility).
             Attr("Constant", Constant).
+            Attr("Constant", Static).
             End();
 }
 
-ASTClass::ASTClass(const SourceLocation &Loc, ASTNode *Node, llvm::StringRef Name, ASTTopScopes *Scopes) :
-        ASTTopDef(Node, ASTTopDefKind::DEF_CLASS, Scopes), Name(Name), Location(Loc) {
-
+ASTClass::ASTClass(ASTNode *Node, ASTClassKind ClassKind, ASTTopScopes *Scopes,
+                   const SourceLocation &Loc, const llvm::StringRef Name,
+                   llvm::SmallVector<llvm::StringRef, 4> &ExtClasses) :
+        ASTTopDef(Node, ASTTopDefKind::DEF_CLASS, Scopes), ClassKind(ClassKind),
+        Location(Loc), Name(Name) {
+    for (llvm::StringRef ClassName : ExtClasses) {
+        SuperClasses.insert(std::make_pair(ClassName, nullptr));
+    }
 }
 
 llvm::StringRef ASTClass::getName() const {
@@ -46,6 +58,10 @@ llvm::StringRef ASTClass::getName() const {
 
 const SourceLocation &ASTClass::getLocation() const {
     return Location;
+}
+
+ASTClassType *ASTClass::getType() const {
+    return Type;
 }
 
 ASTClassKind ASTClass::getClassKind() const {
@@ -70,6 +86,11 @@ CodeGenClass *ASTClass::getCodeGen() const {
 
 void ASTClass::setCodeGen(CodeGenClass *CGC) {
     CodeGen = CGC;
+}
+
+std::string ASTClass::print() const {
+    std::string ClassName = Name.data();
+    return NameSpace->print() + "." + ClassName;
 }
 
 std::string ASTClass::str() const {

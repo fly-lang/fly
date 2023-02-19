@@ -11,7 +11,7 @@
 #define FLY_FUNCTION_CALL_H
 
 #include "ASTExpr.h"
-#include "AST/ASTIdentifier.h"
+#include "Basic/Debuggable.h"
 
 #include "llvm/ADT/SmallVector.h"
 
@@ -26,18 +26,20 @@ namespace fly {
     class ASTArg;
     class ASTCallExpr;
     class ASTVar;
+    class ASTIdentifier;
+    class ASTIdentifier;
 
     /**
      * A Reference to a Function in a Declaration
      * Ex.
      *  int a = sqrt(4)
      */
-    class ASTCall : public ASTIdentifier {
+    class ASTCall : public Debuggable {
 
         friend class SemaBuilder;
         friend class SemaResolver;
 
-        const SourceLocation Loc;
+        ASTIdentifier *Identifier = nullptr;
 
         std::vector<ASTArg *> Args;
 
@@ -49,11 +51,17 @@ namespace fly {
 
         bool New = false;
 
-        ASTCall(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef Name);
+        ASTCall(ASTIdentifier *Identifier);
 
-        ASTCall(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef ClassName, llvm::StringRef Name);
+        ASTCall(ASTFunctionBase *Function);
 
     public:
+
+        SourceLocation getLocation() const;
+
+        llvm::StringRef getName() const;
+
+        ASTIdentifier *getIdentifier() const;
 
         const std::vector<ASTArg *> getArgs() const;
 

@@ -47,6 +47,8 @@ namespace fly {
         virtual ASTExpr *getExpr() const = 0;
 
         virtual CodeGenVarBase *getCodeGen() const = 0;
+
+        virtual std::string print() const = 0;
     };
 }
 

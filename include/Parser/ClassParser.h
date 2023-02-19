@@ -31,11 +31,11 @@ namespace fly {
 
         unsigned short BraceCount = 0;
 
-        ClassParser(Parser *P, ASTTopScopes *Scopes);
+        ClassParser(Parser *P, ASTTopScopes *ClassScopes);
 
     public:
 
-        static ASTClass *Parse(Parser *P, ASTTopScopes *Scopes);
+        static ASTClass *Parse(Parser *P, ASTTopScopes *ClassScopes);
 
         ASTClassScopes *ParseScopes();
 

@@ -14,9 +14,10 @@
 #include "Basic/Debuggable.h"
 #include "Basic/SourceLocation.h"
 
-#include "llvm/ADT/SmallVector.h"
-
 namespace fly {
+
+    class ASTStmt;
+    class ASTCall;
 
     class ASTIdentifier : public Debuggable {
 
@@ -25,26 +26,53 @@ namespace fly {
 
     protected:
 
-        const SourceLocation Loc;
-        llvm::StringRef NameSpace;
-        llvm::StringRef ClassName;
+        const SourceLocation &Loc;
+
         const llvm::StringRef Name;
+
+        std::string PrintName;
+
+        bool asRoot = false;
+
+        uint32_t Index = 0;
+
+        ASTIdentifier *Root = nullptr;
+
+        ASTIdentifier *Parent = nullptr;
+
+        ASTIdentifier *Child = nullptr;
+
+        ASTCall *Call;
 
     public:
 
         ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name);
 
-        ASTIdentifier(const SourceLocation &Loc, llvm::StringRef ClassName, llvm::StringRef Name);
+        ~ASTIdentifier();
 
         const SourceLocation &getLocation() const;
 
-        llvm::StringRef getNameSpace() const;
-
-        void setNameSpace(llvm::StringRef NameSpace);
-
-        llvm::StringRef getClassName() const;
-
         llvm::StringRef getName() const;
+
+        bool isCall() const;
+
+        ASTCall *getCall() const;
+
+        void setCall(ASTCall *Call);
+
+        bool isRoot() const;
+
+        ASTIdentifier * AddChild(const SourceLocation &Loc, const StringRef Name);
+
+        uint32_t getIndex() const;
+
+        ASTIdentifier *getRoot() const;
+
+        ASTIdentifier *getParent() const;
+
+        ASTIdentifier *getChild() const;
+
+        std::string print() const;
 
         std::string str() const;
     };

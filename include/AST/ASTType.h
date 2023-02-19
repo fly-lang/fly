@@ -11,6 +11,7 @@
 #ifndef FLY_ASTTYPE_H
 #define FLY_ASTTYPE_H
 
+#include "AST/ASTIdentifier.h"
 #include "Basic/Debuggable.h"
 #include "Basic/SourceLocation.h"
 
@@ -59,7 +60,7 @@ namespace fly {
         TYPE_CLASS = 1000
     };
 
-    enum  class ASTMacroTypeKind {
+    enum class ASTMacroTypeKind {
         MACRO_TYPE_VOID,
         MACRO_TYPE_BOOL,
         MACRO_TYPE_INTEGER,
@@ -89,6 +90,7 @@ namespace fly {
         const SourceLocation Loc;
 
     protected:
+
         ASTType(const SourceLocation &Loc, ASTTypeKind Kind, ASTMacroTypeKind MacroKind);
 
     public:
@@ -332,6 +334,8 @@ namespace fly {
         std::string str() const override;
     };
 
+    class ASTIdentifier;
+
     /**
      * Class Type
      */
@@ -340,24 +344,21 @@ namespace fly {
         friend class SemaBuilder;
         friend class SemaResolver;
 
-        ASTClassType *Parent;
-
-        llvm::StringRef Name;
-
-        llvm::StringRef NameSpace;
+        ASTIdentifier *Identifier = nullptr;
 
         ASTClass *Def = nullptr;
 
-        ASTClassType(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef Name,
-                     ASTClassType *Parent = nullptr);
+        ASTClassType(ASTIdentifier *Identifier);
+
+        ASTClassType(ASTClass *Class);
 
     public:
 
-        ASTClassType *getParent() const;
+        SourceLocation getLocation() const;
 
         llvm::StringRef getName() const;
 
-        llvm::StringRef getNameSpace() const;
+        ASTIdentifier *getIdentifier() const;
 
         ASTClass *getDef() const;
 

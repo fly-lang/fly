@@ -10,6 +10,7 @@
 #include "AST/ASTType.h"
 #include "AST/ASTExpr.h"
 #include "AST/ASTIdentifier.h"
+#include "AST/ASTClass.h"
 
 using namespace fly;
 
@@ -283,26 +284,30 @@ const std::string ASTArrayType::print() const {
     return Type->print() + "[]";
 }
 
-ASTClassType::ASTClassType(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef Name, ASTClassType *Parent) :
-        ASTType(Loc, ASTTypeKind::TYPE_CLASS, ASTMacroTypeKind::MACRO_TYPE_CLASS),
-        Name(Name), NameSpace(NameSpace), Parent(Parent) {
+ASTClassType::ASTClassType(ASTIdentifier *Identifier) :
+    ASTType(Identifier->getLocation(), ASTTypeKind::TYPE_CLASS, ASTMacroTypeKind::MACRO_TYPE_CLASS) {
 
 }
 
-ASTClassType *ASTClassType::getParent() const {
-    return Parent;
+ASTClassType::ASTClassType(ASTClass *Class) :
+        ASTType(SourceLocation(), ASTTypeKind::TYPE_CLASS, ASTMacroTypeKind::MACRO_TYPE_CLASS) {
+
+}
+
+SourceLocation ASTClassType::getLocation() const {
+    return Identifier ? Identifier->getLocation() : SourceLocation();
 }
 
 llvm::StringRef ASTClassType::getName() const {
-    return Name;
+    return Identifier ? Identifier->getName() : llvm::StringRef();
+}
+
+ASTIdentifier *ASTClassType::getIdentifier() const {
+    return Identifier;
 }
 
 bool ASTClassType::operator==(const ASTClassType &Ty) const {
-    return getKind() == Ty.getKind() && Name == Ty.Name;
-}
-
-llvm::StringRef ASTClassType::getNameSpace() const {
-    return NameSpace;
+    return getKind() == Ty.getKind() && Ty.Def == Def;
 }
 
 ASTClass *ASTClassType::getDef() const {
@@ -310,14 +315,13 @@ ASTClass *ASTClassType::getDef() const {
 }
 
 const std::string ASTClassType::print() const {
-    return std::string(NameSpace) + "." + std::string(Name);
+    return Def ? Def->print() : Identifier->print();
 }
 
 std::string ASTClassType::str() const {
     return Logger("ASTClassType").
            Super(ASTType::str()).
-           Attr("Name", Name).
-           Attr("NameSpace", NameSpace).
+           Attr("Identifier", Identifier).
            Attr("Def", (Debuggable *) Def).
            End();
 }

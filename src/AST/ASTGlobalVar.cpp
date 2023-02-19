@@ -49,6 +49,10 @@ void ASTGlobalVar::setCodeGen(CodeGenGlobalVar *CG) {
     CodeGen = CG;
 }
 
+std::string ASTGlobalVar::print() const {
+    return NameSpace->print() + "." + Name.data();
+}
+
 std::string ASTGlobalVar::str() const {
     return Logger("ASTGlobalVar").
             Super(ASTTopDef::str()).

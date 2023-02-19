@@ -10,6 +10,7 @@
 #include "Parser/ExprParser.h"
 #include "AST/ASTVar.h"
 #include "AST/ASTVarRef.h"
+#include "AST/ASTIdentifier.h"
 #include "Sema/SemaBuilder.h"
 #include "Basic/Debug.h"
 
@@ -206,7 +207,7 @@ ASTExpr *ExprParser::ParseExpr(bool IsFirst) {
 ASTExpr *ExprParser::ParseExpr(ASTIdentifier *Identifier) {
     FLY_DEBUG_MESSAGE("ExprParser", "ParseExpr",
                       Logger().Attr("Identifier", Identifier).End());
-    if (P->Tok.is(tok::l_paren)) { // Ex. a()
+    if (Identifier->isCall()) { // Ex. a()
         return P->Builder.CreateExpr(Stmt, P->ParseCall(Stmt, Identifier));
     } else { // parse variable post increment/decrement or simple var
         ASTVarRef *VarRef = P->Builder.CreateVarRef(Identifier);

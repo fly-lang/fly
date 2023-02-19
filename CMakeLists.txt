@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.18.0)
-project(Fly VERSION 0.7.0 LANGUAGES C CXX ASM)
+project(Fly VERSION 0.8.0 LANGUAGES C CXX ASM)
 #set(FLY_VERSION_POSTFIX alpha) #remove this line for stable release
 if(DEFINED FLY_VERSION_POSTFIX)
     set(FLY_VERSION "${PROJECT_VERSION}-${FLY_VERSION_POSTFIX}")

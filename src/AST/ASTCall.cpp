@@ -10,7 +10,7 @@
 #include "AST/ASTCall.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTParams.h"
-#include "Basic/Debuggable.h"
+#include "AST/ASTIdentifier.h"
 
 using namespace fly;
 
@@ -41,13 +41,23 @@ ASTExpr *ASTArg::getExpr() const {
     return Expr;
 }
 
-ASTCall::ASTCall(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef Name) :
-        ASTIdentifier(Loc, NameSpace, Name) {
+ASTCall::ASTCall(ASTIdentifier *Identifier) : Identifier(Identifier) {
+
 }
 
-ASTCall::ASTCall(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef ClassName, llvm::StringRef Name) :
-        ASTIdentifier(Loc, ClassName, Name) {
-    setNameSpace(NameSpace);
+ASTCall::ASTCall(ASTFunctionBase *Function) : Def(Function) {
+}
+
+SourceLocation ASTCall::getLocation() const {
+    return Identifier ? Identifier->getLocation() : SourceLocation();
+}
+
+llvm::StringRef ASTCall::getName() const {
+    return Identifier ? Identifier->getName() : llvm::StringRef();
+}
+
+ASTIdentifier *ASTCall::getIdentifier() const {
+    return Identifier;
 }
 
 const std::vector<ASTArg*> ASTCall::getArgs() const {
@@ -68,9 +78,7 @@ ASTVar *ASTCall::getInstance() const {
 
 std::string ASTCall::str() const {
     return Logger("ASTFunctionCall").
-            Attr("Loc", Loc).
-            Attr("Name", Name).
-            Attr("NameSpace", NameSpace).
+            Attr("Instance", Instance).
             AttrList("Args", Args).
             Attr("Def", Def).
             End();

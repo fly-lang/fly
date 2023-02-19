@@ -43,6 +43,10 @@ const llvm::StringMap<ASTClass *> &ASTNameSpace::getClasses() const {
     return Classes;
 }
 
+std::string ASTNameSpace::print() const {
+    return Name.data();
+}
+
 std::string ASTNameSpace::str() const {
     return Logger("ASTNameSpace").
            Attr("Name", Name).

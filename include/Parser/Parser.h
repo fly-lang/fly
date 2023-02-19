@@ -105,11 +105,10 @@ namespace fly {
         // Parse Identifiers
         ASTType *ParseBuiltinType();
         ASTArrayType *ParseArrayType(ASTType *);
-        ASTClassType *ParseClassType(ASTClassType *Parent = nullptr);
         ASTType *ParseType();
         ASTCall *ParseCall(ASTStmt *Stmt, ASTIdentifier *Identifier);
         bool ParseCallArg(ASTStmt *Stmt, ASTCall *Call);
-        ASTIdentifier *ParseIdentifier();
+        ASTIdentifier *ParseIdentifier(ASTIdentifier *Parent = nullptr);
 
         // Parse a Value
         ASTValue *ParseValue();
@@ -122,7 +121,6 @@ namespace fly {
         // Check Keywords
         bool isBuiltinType(Token &Tok);
         bool isArrayType(Token &Tok);
-        bool isClassType(Token &Tok);
         bool isValue();
         bool isConst();
         bool isBlockStart();

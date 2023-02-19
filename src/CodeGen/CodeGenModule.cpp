@@ -381,7 +381,7 @@ llvm::Value *CodeGenModule::GenCall(llvm::Function *Fn, ASTCall *Call, bool &NoS
                       "Call=" << Call->str());
     // Check if Func is declared
     if (Call->getDef() == nullptr) {
-        Diag(Call->getLocation(), diag::err_unref_call) << Call->getName();
+        Diag(Call->getLocation(), diag::err_unref_call);
         return nullptr;
     }
 

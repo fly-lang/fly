@@ -9,17 +9,29 @@
 
 #include "AST/ASTVarRef.h"
 #include "AST/ASTVar.h"
+#include "AST/ASTIdentifier.h"
+#include "Basic/Debuggable.h"
 
 using namespace fly;
 
-ASTVarRef::ASTVarRef(const SourceLocation &Loc, llvm::StringRef Name) :
-        ASTIdentifier(Loc, Name) {
+ASTVarRef::ASTVarRef(ASTIdentifier *Identifier) : Identifier(Identifier) {
 
 }
 
-ASTVarRef::ASTVarRef(const SourceLocation &Loc, llvm::StringRef ClassName, llvm::StringRef Name) :
-        ASTIdentifier(Loc, ClassName, Name) {
+ASTVarRef::ASTVarRef(ASTVar *Var) : Def(Var), Instance(Var) {
 
+}
+
+SourceLocation ASTVarRef::getLocation() const {
+    return Identifier ? Identifier->getLocation() : SourceLocation();
+}
+
+llvm::StringRef ASTVarRef::getName() const {
+    return Identifier ? Identifier->getName() : llvm::StringRef();
+}
+
+ASTIdentifier *ASTVarRef::getIdentifier() const {
+    return Identifier;
 }
 
 ASTVar *ASTVarRef::getDef() const {
@@ -30,12 +42,18 @@ ASTVar *ASTVarRef::getInstance() const {
     return Instance;
 }
 
+bool ASTVarRef::isLocalVar() {
+    return Def != nullptr && Def->getVarKind() == ASTVarKind::VAR_LOCAL;
+}
+
+std::string ASTVarRef::print() const {
+    return Def ? Def->print() : Identifier->print();
+}
+
 std::string ASTVarRef::str() const {
     return Logger("ASTVarRef").
-            Attr("Location", Loc).
-            Attr("NameSpace", NameSpace).
-            Attr("Class", ClassName).
-            Attr("Name", Name).
+            Attr("Identifier", Identifier).
+            Attr("Instance", Instance).
             Attr("Def", Def).
             End();
 }
