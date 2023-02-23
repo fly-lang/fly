@@ -25,6 +25,7 @@ add_library(flyLib
         AST/ASTNode.cpp
         AST/ASTNodeBase.cpp
         AST/ASTParams.cpp
+        AST/ASTReference.cpp
         AST/ASTStmt.cpp
         AST/ASTSwitchBlock.cpp
         AST/ASTTopDef.cpp

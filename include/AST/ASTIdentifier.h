@@ -18,6 +18,8 @@ namespace fly {
 
     class ASTStmt;
     class ASTCall;
+    class ASTVarRef;
+    class ASTReference;
 
     class ASTIdentifier : public Debuggable {
 
@@ -42,7 +44,9 @@ namespace fly {
 
         ASTIdentifier *Child = nullptr;
 
-        ASTCall *Call;
+        ASTReference *Reference = nullptr;
+
+        bool RefIsCall;
 
     public:
 
@@ -55,6 +59,8 @@ namespace fly {
         llvm::StringRef getName() const;
 
         bool isCall() const;
+
+        ASTVarRef *getVarRef() const;
 
         ASTCall *getCall() const;
 

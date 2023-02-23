@@ -86,6 +86,7 @@ namespace fly {
     class ASTUnaryGroupExpr;
     class ASTBinaryGroupExpr;
     class ASTTernaryGroupExpr;
+    class ASTReference;
     enum class ASTUnaryOperatorKind;
     enum class ASTUnaryOptionKind;
     enum class ASTBinaryOperatorKind;
@@ -170,11 +171,11 @@ namespace fly {
         // Create Call
         ASTCall *CreateCall(ASTIdentifier *Identifier);
         ASTCall *CreateCall(ASTFunctionBase *Function);
-        ASTCall *CreateCall(ASTVar *Instance, ASTFunctionBase *Function);
+        ASTCall *CreateCall(ASTReference *Instance, ASTFunctionBase *Function);
 
         // Create VarRef
         ASTVarRef *CreateVarRef(ASTVar *Var);
-        ASTVarRef *CreateVarRef(ASTVar *Instance, ASTVar *Var);
+        ASTVarRef *CreateVarRef(ASTReference *Instance, ASTVar *Var);
         ASTVarRef *CreateVarRef(ASTIdentifier *Identifier);
 
         // Create Expressions

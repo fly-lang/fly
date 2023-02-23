@@ -7,12 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "TestUtils.h"
+#include "ParserTest.h"
 #include "Frontend/FrontendAction.h"
-#include "Frontend/CompilerInstance.h"
-#include "Parser/Parser.h"
-#include "Sema/SemaBuilder.h"
-#include "AST/ASTContext.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTNode.h"
 #include "AST/ASTImport.h"
@@ -24,7 +20,6 @@
 #include "AST/ASTVarRef.h"
 #include "AST/ASTParams.h"
 #include "AST/ASTWhileBlock.h"
-#include "AST/ASTClass.h"
 #include "AST/ASTIfBlock.h"
 #include "AST/ASTSwitchBlock.h"
 #include "AST/ASTWhileBlock.h"
@@ -32,52 +27,12 @@
 #include "AST/ASTClass.h"
 #include "AST/ASTClassVar.h"
 #include "AST/ASTClassFunction.h"
-#include "Sema/Sema.h"
-#include "Sema/SemaBuilder.h"
 
 #include "llvm/ADT/StringMap.h"
-#include <gtest/gtest.h>
 
 namespace {
 
     using namespace fly;
-
-    class ParserTest : public ::testing::Test {
-
-    public:
-        const CompilerInstance CI;
-        ASTContext *Context;
-        SemaBuilder *Builder;
-        DiagnosticsEngine &Diags;
-        bool Success = false;
-
-        ParserTest() : CI(*TestUtils::CreateCompilerInstance()),
-                      Diags(CI.getDiagnostics()),
-                      Builder(Sema::CreateBuilder(CI.getDiagnostics())) {
-            Diags.getClient()->BeginSourceFile();
-        }
-
-        virtual ~ParserTest() {
-            Diags.getClient()->EndSourceFile();
-            Builder->Destroy();
-        }
-
-        ASTNode *Parse(std::string FileName, llvm::StringRef Source, bool DoBuild = true) {
-            InputFile Input(Diags, CI.getSourceManager(), FileName);
-            Input.Load(Source);
-            Parser *P = new Parser(Input, CI.getSourceManager(), Diags, *Builder);
-            ASTNode *Node = P->Parse();
-            Success = !Diags.hasErrorOccurred() && Node;
-            if (DoBuild)
-                Success &= Builder->Build();
-            return Node;
-        }
-
-        bool isSuccess() const {
-            return Success;
-        }
-
-    };
 
     TEST_F(ParserTest, SingleNameSpace) {
         llvm::StringRef str = ("namespace std");

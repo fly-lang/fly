@@ -733,7 +733,7 @@ SemaBuilder::CreateCall(ASTFunctionBase *Function) {
 }
 
 ASTCall *
-SemaBuilder::CreateCall(ASTVar *Instance, ASTFunctionBase *Function) {
+SemaBuilder::CreateCall(ASTReference *Instance, ASTFunctionBase *Function) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateCall",
                       Logger().Attr("Function=", Function).End());
     ASTCall *Call = new ASTCall(Function);
@@ -750,7 +750,7 @@ SemaBuilder::CreateVarRef(ASTVar *Var) {
 }
 
 ASTVarRef *
-SemaBuilder::CreateVarRef(ASTVar *Instance, ASTVar *Var) {
+SemaBuilder::CreateVarRef(ASTReference *Instance, ASTVar *Var) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateVarRef",
                       Logger().Attr("Instance", Instance).Attr("Var", Var).End());
     ASTVarRef *VarRef = new ASTVarRef(Var);

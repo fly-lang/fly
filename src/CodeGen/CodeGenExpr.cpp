@@ -269,14 +269,9 @@ llvm::Value *CodeGenExpr::GenValue(const ASTExpr *Expr, llvm::Value *Pointer) {
         }
         case ASTExprKind::EXPR_VAR_REF: {
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_REF_VAR");
-            ASTVarRefExpr *VarRefExpr = (ASTVarRefExpr *)Expr;
+            ASTVarRefExpr *VarRefExpr = (ASTVarRefExpr *) Expr;
             assert(VarRefExpr->getVarRef() && "Missing Ref");
-            ASTVar *Var = CGM->GenVarRef(VarRefExpr->getVarRef());
-            if (Var == nullptr) {
-                CGM->Diag(VarRefExpr->getLocation(), diag::err_unref_var);
-                return nullptr;
-            }
-            return Var->getCodeGen()->getValue();
+            return CGM->GenVarRef(VarRefExpr->getVarRef());
         }
         case ASTExprKind::EXPR_CALL: {
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_REF_FUNC");

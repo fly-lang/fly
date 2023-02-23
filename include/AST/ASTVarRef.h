@@ -11,8 +11,7 @@
 #ifndef FLY_AST_VARREF_H
 #define FLY_AST_VARREF_H
 
-#include "Basic/Debuggable.h"
-#include "Basic/SourceLocation.h"
+#include "AST/ASTReference.h"
 
 #include <string>
 
@@ -27,16 +26,12 @@ namespace fly {
      *  ... = a + ...
      *  b = ...
      */
-    class ASTVarRef : public Debuggable {
+    class ASTVarRef : public ASTReference {
 
         friend class SemaBuilder;
         friend class SemaResolver;
 
-        ASTIdentifier *Identifier = nullptr;
-
         ASTVar *Def = nullptr;
-
-        ASTVar *Instance = nullptr;
 
         ASTVarRef(ASTIdentifier *Identifier);
 
@@ -44,15 +39,7 @@ namespace fly {
 
     public:
 
-        SourceLocation getLocation() const;
-
-        llvm::StringRef getName() const;
-
-        ASTIdentifier *getIdentifier() const;
-
         ASTVar *getDef() const;
-
-        ASTVar *getInstance() const;
 
         bool isLocalVar();
 

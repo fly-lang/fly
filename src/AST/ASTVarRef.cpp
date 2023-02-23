@@ -14,32 +14,16 @@
 
 using namespace fly;
 
-ASTVarRef::ASTVarRef(ASTIdentifier *Identifier) : Identifier(Identifier) {
+ASTVarRef::ASTVarRef(ASTIdentifier *Identifier) : ASTReference(Identifier, false) {
 
 }
 
-ASTVarRef::ASTVarRef(ASTVar *Var) : Def(Var), Instance(Var) {
+ASTVarRef::ASTVarRef(ASTVar *Var) : Def(Var), ASTReference(nullptr, false) {
 
-}
-
-SourceLocation ASTVarRef::getLocation() const {
-    return Identifier ? Identifier->getLocation() : SourceLocation();
-}
-
-llvm::StringRef ASTVarRef::getName() const {
-    return Identifier ? Identifier->getName() : llvm::StringRef();
-}
-
-ASTIdentifier *ASTVarRef::getIdentifier() const {
-    return Identifier;
 }
 
 ASTVar *ASTVarRef::getDef() const {
     return Def;
-}
-
-ASTVar *ASTVarRef::getInstance() const {
-    return Instance;
 }
 
 bool ASTVarRef::isLocalVar() {
@@ -47,13 +31,13 @@ bool ASTVarRef::isLocalVar() {
 }
 
 std::string ASTVarRef::print() const {
-    return Def ? Def->print() : Identifier->print();
+    return Def ? Def->print() : getIdentifier()->print();
 }
 
 std::string ASTVarRef::str() const {
     return Logger("ASTVarRef").
-            Attr("Identifier", Identifier).
-            Attr("Instance", Instance).
+            Attr("Identifier", getIdentifier()).
+            Attr("Instance", getInstance()).
             Attr("Def", Def).
             End();
 }

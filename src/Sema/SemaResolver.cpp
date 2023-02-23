@@ -299,81 +299,115 @@ bool SemaResolver::ResolveIdentifier(ASTNode *Node, ASTIdentifier *Identifier, A
     return false;
 }
 
-bool SemaResolver::ResolveIdentifiers(ASTBlock *Block, ASTVarRef *VarRef, ASTCall *Call) {
-    const auto &Node = S.FindNode(Block->getTop());
-    ASTIdentifier *Identifier = VarRef ? VarRef->getIdentifier()->getRoot() : Call->getIdentifier()->getRoot();
+bool SemaResolver::ResolveIdentifiers(ASTBlock *Block, ASTReference *Ref) {
+    ASTFunctionBase *Base = Block->getTop();
+    const auto &Node = S.FindNode(Base);
+
+    ASTIdentifier *Identifier = Ref->getIdentifier();
+    ASTIdentifier *Current = Identifier->getIndex() > 0 ? Identifier->getRoot() : Identifier;
+    ASTIdentifier *Previous = nullptr;
 
     ASTNameSpace *NameSpace = nullptr;
-    while (Identifier->getIndex() >= 0) {
+    ASTClassType *ClassType = nullptr;
 
-        ASTClassType *ClassType = nullptr;
-        ASTVar *Var = nullptr;
-        ASTFunctionBase *Function = nullptr;
-        while (Var == nullptr && Function == nullptr) {
+    ASTVar *Var = nullptr;
+    ASTFunctionBase *Function = nullptr;
 
-            if (Identifier->isCall()) {
-                if (ClassType == nullptr && NameSpace == nullptr &&
-                    ResolveCall(Block, Identifier->getCall(), Node->getNameSpace()->Functions)) {
-                    Function = Identifier->getCall()->getDef();
-                } else if (ResolveIdentifier(Node, Identifier, NameSpace, ClassType) &&
-                           ResolveCall(Block, Identifier->getCall(), ClassType->getDef()->Methods)) {
-                    Function = Identifier->getCall()->getDef();
-                } else if (ResolveIdentifier(Node, Identifier, NameSpace) &&
-                           ResolveCall(Block, Identifier->getCall(), NameSpace->Functions)) {
-                    Function = Identifier->getCall()->getDef();
-                } else {
-                    S.Diag(Identifier->getLocation(), diag::err_sema_invalid_identifier);
-                    return false;
+    uint32_t I = Current->getIndex();
+    uint32_t Size = Identifier->getIndex() + 1;
+    while (I < Size) {
+
+        if (Current->isCall()) {
+            if (Var == nullptr && Function == nullptr) {
+                if (Base->getKind() == ASTFunctionKind::FUNCTION &&
+                    ResolveCall(Block, Current->getCall(), Node->getNameSpace()->Functions)) {
+                    // func()
+                    Function = Current->getCall()->getDef();
+                } else if (Base->getKind() == ASTFunctionKind::CLASS_FUNCTION &&
+                        ResolveCall(Block, Current->getCall(), ((ASTClassFunction *) Base)->getClass()->Methods)) {
+                    // method()
+                    Function = Current->getCall()->getDef();
                 }
+            } else if (Var != nullptr && Var->getType()->isClass() &&
+                       ResolveCall(Block, Current->getCall(), ((ASTClassType *) Var->getType())->getDef()->Methods)) {
+                // var.method()
+                Current->getCall()->Instance = S.Builder->CreateVarRef(Var);
+                Function = Current->getCall()->getDef();
+            } else if (Function != nullptr && Function->getType()->isClass() &&
+                    ResolveCall(Block, Current->getCall(), ((ASTClassType *) Function->getType())->getDef()->Methods)) {
+                // method().method()
+                Current->getCall()->Instance = Previous->getCall();
+                Function = Current->getCall()->getDef();
+            } else if (ResolveIdentifier(Node, Current, NameSpace, ClassType) &&
+                       ResolveCall(Block, Current->getCall(), ClassType->getDef()->Methods)) {
+                // NameSpace.ClassType.func()
+                Function = Current->getCall()->getDef();
+            } else if (ResolveIdentifier(Node, Current, NameSpace) &&
+                       ResolveCall(Block, Current->getCall(), NameSpace->Functions)) {
+                // NameSpace.func()
+                Function = Current->getCall()->getDef();
             } else {
-                if (ClassType == nullptr && NameSpace == nullptr) {
-                    Var = Node->getNameSpace()->GlobalVars.lookup(Identifier->getName());
-                } else if (ResolveIdentifier(Node, Identifier, NameSpace, ClassType)) {
-                    Var = ClassType->getDef()->Vars.lookup(Identifier->getName());
-                } else if (ResolveIdentifier(Node, Identifier, NameSpace)) {
-                    Var = NameSpace->GlobalVars.lookup(Identifier->getChild()->getName());
-                } else {
-                    S.Diag(Identifier->getLocation(), diag::err_sema_invalid_identifier);
-                    return false;
-                }
-            }
-
-            // Go next Identifier or break
-            Identifier = Identifier->getChild();
-            if (Identifier == nullptr)
-                break;
-        }
-
-        if (Identifier) {
-            if (Var) {
-                if (Var->getType()->isClass()) {
-                    ClassType = (ASTClassType *) Var->getType();
-                } else {
-                    S.Diag(Identifier->getLocation(), diag::err_sema_invalid_identifier);
-                    return false;
-                }
-            } else if (Function) {
-                if (Function->getType()->isClass()) {
-                    ClassType = (ASTClassType *) Function->getType();
-                } else {
-                    S.Diag(Identifier->getLocation(), diag::err_sema_invalid_identifier);
-                    return false;
-                }
-            } else {
-                S.Diag(Identifier->getLocation(), diag::err_sema_invalid_identifier);
+                S.Diag(Current->getLocation(), diag::err_sema_invalid_identifier);
                 return false;
             }
-        } else if (Call && Function) {
-            Call->Def = Function;
-        } else if (VarRef && Var) {
-            VarRef->Def = Var;
+
+            if (Function == nullptr) {
+                S.Diag(Current->getLocation(), diag::err_sema_invalid_identifier);
+                return false;
+            }
+
         } else {
-            S.Diag(Identifier->getLocation(), diag::err_sema_invalid_identifier);
-            return false;
+            if (Var == nullptr && Function == nullptr) {
+                // Search for LocalVar
+                Var = S.FindVarDef(Block, Current->getName());
+
+                // Search for ClassVars
+                if (Var == nullptr && Base->getKind() == ASTFunctionKind::CLASS_FUNCTION) {
+                    Var = ((ASTClassFunction *) Base)->getClass()->Vars.lookup(Current->getName());
+                }
+
+                // Search for GlobalVars
+                if (Var == nullptr)
+                    Var = Node->getNameSpace()->GlobalVars.lookup(Current->getName());
+            } else if (Var != nullptr && Var->getType()->isClass()) {
+                // var.var
+                Current->getVarRef()->Instance = S.Builder->CreateVarRef(Var);
+                Var = ((ASTClassType *) Var->getType())->getDef()->Vars.lookup(Current->getName());
+            } else if (Function != nullptr && Function->getType()->isClass()) {
+                // method().var
+                Current->getVarRef()->Instance = Previous->getCall();
+                Var = ((ASTClassType *) Function->getType())->getDef()->Vars.lookup(Current->getName());
+            } else if (ResolveIdentifier(Node, Current, NameSpace, ClassType)) {
+                // NameSpace.ClassType.var
+                Var = ClassType->getDef()->Vars.lookup(Current->getName());
+            } else if (ResolveIdentifier(Node, Current, NameSpace)) {
+                // NameSpace.var
+                Var = NameSpace->GlobalVars.lookup(Current->getChild()->getName());
+            } else {
+                S.Diag(Current->getLocation(), diag::err_sema_invalid_identifier);
+                return false;
+            }
+
+            if (Var == nullptr) {
+                S.Diag(Current->getLocation(), diag::err_sema_invalid_identifier);
+                return false;
+            }
         }
+
+        // set ClassType from Var or Function return
+        if (Var && Var->getType()->isClass()) {
+            ClassType = (ASTClassType *) Var->getType();
+        } else if (Function && Function->getType()->isClass()) {
+            ClassType = (ASTClassType *) Function->getType();
+        }
+
+        // Go next Identifier or break
+        Previous = Current;
+        Current = Current->getChild();
+        I++;
     }
 
-    return false;
+    return true;
 }
 
 bool SemaResolver::ResolveType(ASTFunctionBase *FunctionBase, ASTType * Type) {
@@ -435,22 +469,7 @@ bool SemaResolver::ResolveVarRef(ASTBlock *Block, ASTVarRef *VarRef) {
             return false;
         }
 
-        const auto &Node = S.FindNode(Block->getTop());
-
-        if (VarRef->getIdentifier()->getIndex() == 0) { // LocalVar or GlobalVar (current NameSpace)
-            const StringRef &Name = VarRef->getIdentifier()->getName();
-
-            // Search for LocalVar
-            VarRef->Def = S.FindVarDef(Block, Name);
-
-            // Search for GlobalVars
-            if (!VarRef->Def)
-                VarRef->Def = Node->GlobalVars.lookup(Name);
-
-            delete VarRef->Identifier;
-        } else {
-            return ResolveIdentifiers(Block, VarRef, nullptr);
-        }
+        ResolveIdentifiers(Block, VarRef);
     }
 
     // VarRef not found in node, namespace and node imports
@@ -473,20 +492,13 @@ bool SemaResolver::ResolveCall(ASTBlock *Block, ASTCall *Call) {
             return false;
         }
 
-        const auto &Node = S.FindNode(Block->getTop());
+        ResolveIdentifiers(Block, Call);
 
-        if (Call->getIdentifier()->getIndex() == 0) { // LocalVar or GlobalVar (current NameSpace)
-            ResolveCall(Block, Call, Node->Functions);
-            delete Call->Identifier;
-        } else {
-            ResolveIdentifiers(Block, nullptr, Call);
-
-            // visibility error
-            ASTVisibilityKind Visibility = ((ASTFunction *) Call->getDef())->getScopes()->getVisibility();
-            if (Visibility == ASTVisibilityKind::V_PRIVATE) {
-                S.Diag(Call->getLocation(), diag::err_sema_invalid_identifier);
-                return false;
-            }
+        // visibility error
+        ASTVisibilityKind Visibility = ((ASTFunction *) Call->getDef())->getScopes()->getVisibility();
+        if (Visibility == ASTVisibilityKind::V_PRIVATE) {
+            S.Diag(Call->getLocation(), diag::err_sema_invalid_identifier);
+            return false;
         }
 
         // class from instance TODO

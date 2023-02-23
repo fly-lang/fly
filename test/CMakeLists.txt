@@ -9,6 +9,7 @@ add_executable(fly_test
         CodeGenTest.cpp
         DriverTest.cpp
         LexerTest.cpp
+        IdentifierParserTest.cpp
         ImportTest.cpp
         ParserTest.cpp
         TestMain.cpp

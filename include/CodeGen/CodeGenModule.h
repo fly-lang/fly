@@ -52,6 +52,7 @@ namespace fly {
     class CodeGenClass;
     class ASTClass;
     class ASTVar;
+    class ASTReference;
 
     class CodeGenModule : public CodeGenTypeCache {
 
@@ -114,7 +115,9 @@ namespace fly {
 
         void GenStmt(llvm::Function *Fn, ASTStmt * Stmt);
 
-        ASTVar *GenVarRef(ASTVarRef *VarRef);
+        llvm::Value *GenInstance(ASTReference *Reference);
+
+        llvm::Value *GenVarRef(ASTVarRef *VarRef);
 
         llvm::Value *GenCall(llvm::Function *Fn, ASTCall *Call, bool &noStore);
 

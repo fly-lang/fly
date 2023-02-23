@@ -1909,22 +1909,23 @@ namespace {
         ASTType *TestClassType = SemaBuilder::CreateClassType(TestClass);
         ASTLocalVar *TestVar = Builder->CreateLocalVar(Body, SourceLoc, TestClassType, "test");
         ASTClassFunction *DefaultConstructor = TestClass->getConstructors().find(0)->second.front();
-        Builder->CreateNewExpr(TestVar, Builder->CreateCall(TestVar, DefaultConstructor));
+        ASTReference *Instance = (ASTReference *) Builder->CreateVarRef(TestVar);
+        Builder->CreateNewExpr(TestVar, Builder->CreateCall(Instance, DefaultConstructor));
         Builder->AddStmt(TestVar);
 
         // int a = test.a
         ASTLocalVar *aVar = Builder->CreateLocalVar(Body, SourceLoc, IntType, "a");
-        ASTVarRefExpr *aRefExpr = Builder->CreateExpr(aVar, Builder->CreateVarRef(TestVar, aField));
+        ASTVarRefExpr *aRefExpr = Builder->CreateExpr(aVar, Builder->CreateVarRef(Instance, aField));
         Builder->AddStmt(aVar);
 
         // int b = test.b
         ASTLocalVar *bVar = Builder->CreateLocalVar(Body, SourceLoc, IntType, "b");
-        ASTVarRefExpr *bRefExpr = Builder->CreateExpr(bVar, Builder->CreateVarRef(TestVar, bField));
+        ASTVarRefExpr *bRefExpr = Builder->CreateExpr(bVar, Builder->CreateVarRef(Instance, bField));
         Builder->AddStmt(bVar);
 
         // int c = test.c
         ASTLocalVar *cVar = Builder->CreateLocalVar(Body, SourceLoc, IntType, "c");
-        ASTVarRefExpr *cRefExpr = Builder->CreateExpr(cVar, Builder->CreateVarRef(TestVar, cField));
+        ASTVarRefExpr *cRefExpr = Builder->CreateExpr(cVar, Builder->CreateVarRef(Instance, cField));
         Builder->AddStmt(cVar);
 
         // Add to Node
@@ -2038,26 +2039,27 @@ namespace {
         ASTType *TestClassType = SemaBuilder::CreateClassType(TestClass);
         ASTLocalVar *TestVar = Builder->CreateLocalVar(Body, SourceLoc, TestClassType, "test");
         ASTClassFunction *DefaultConstructor = TestClass->getConstructors().find(0)->second.front();
-        ASTCall *ConstructorCall = Builder->CreateCall(TestVar, DefaultConstructor);
+        ASTReference *Instance = (ASTReference *) Builder->CreateVarRef(TestVar);
+        ASTCall *ConstructorCall = Builder->CreateCall(Instance, DefaultConstructor);
         Builder->CreateNewExpr(TestVar, ConstructorCall);
         Builder->AddStmt(TestVar);
 
         // int a = test.a()
         ASTType *aType = aFunc->getType();
         ASTLocalVar *aVar = Builder->CreateLocalVar(Body, SourceLoc, aType, "a");
-        ASTCallExpr *aCallExpr = Builder->CreateExpr(aVar, Builder->CreateCall(TestVar, aFunc));
+        ASTCallExpr *aCallExpr = Builder->CreateExpr(aVar, Builder->CreateCall(Instance, aFunc));
         Builder->AddStmt(aVar);
 
         // int b = test.b
         ASTType *bType = bFunc->getType();
         ASTLocalVar *bVar = Builder->CreateLocalVar(Body, SourceLoc, bType, "b");
-        ASTCallExpr *bCallExpr = Builder->CreateExpr(bVar, Builder->CreateCall(TestVar, bFunc));
+        ASTCallExpr *bCallExpr = Builder->CreateExpr(bVar, Builder->CreateCall(Instance, bFunc));
         Builder->AddStmt(bVar);
 
         // int c = test.c
         ASTType *cType = cFunc->getType();
         ASTLocalVar *cVar = Builder->CreateLocalVar(Body, SourceLoc, cType, "c");
-        ASTCallExpr *cCallExpr = Builder->CreateExpr(cVar, Builder->CreateCall(TestVar, cFunc));
+        ASTCallExpr *cCallExpr = Builder->CreateExpr(cVar, Builder->CreateCall(Instance, cFunc));
         Builder->AddStmt(cVar);
 
         // Add to Node

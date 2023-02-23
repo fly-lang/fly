@@ -48,6 +48,7 @@ namespace fly {
     class ASTFunction;
     class ASTFunctionBase;
     class ASTIdentifier;
+    class ASTReference;
 
     class SemaResolver {
 
@@ -83,7 +84,7 @@ namespace fly {
 
         bool ResolveIdentifier(ASTNode *Node, ASTIdentifier *Identifier, ASTNameSpace *NameSpace, ASTClassType *&ClassType);
 
-        bool ResolveIdentifiers(ASTBlock *Block, ASTVarRef *VarRef, ASTCall *Call);
+        bool ResolveIdentifiers(ASTBlock *Block, ASTReference *Ref);
 
         bool ResolveType(ASTFunctionBase *FunctionBase, ASTType * Type);
 

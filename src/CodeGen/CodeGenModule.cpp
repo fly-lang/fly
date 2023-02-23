@@ -304,9 +304,9 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
             ASTVarRef *VarRef = VarAssign->getVarRef();
             bool NoStore = false;
             llvm::Value *V = GenExpr(Fn, VarRef->getDef()->getType(), VarAssign->getExpr(), NoStore);
-            ASTVar *Var = GenVarRef(VarRef);
+            GenVarRef(VarRef);
             if (!NoStore) {
-                Var->getCodeGen()->Store(V);
+                VarRef->getDef()->getCodeGen()->Store(V);
             }
             break;
         }
@@ -368,12 +368,30 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
     }
 }
 
-ASTVar *CodeGenModule::GenVarRef(ASTVarRef *VarRef) {
+llvm::Value *CodeGenModule::GenInstance(ASTReference *Reference) {
+    if (Reference == nullptr)
+        return nullptr;
+
+    if (Reference->isCall()) {
+        ASTFunctionBase* Instance = ((ASTCall *) Reference)->getDef();
+        bool noStore = false;
+        return GenCall(Instance->getCodeGen()->getFunction(), (ASTCall *) Reference, noStore);
+    } else {
+        ASTVar *Instance = ((ASTVarRef *) Reference)->getDef();
+        return GenVarRef((ASTVarRef *) Reference);
+    }
+}
+
+llvm::Value *CodeGenModule::GenVarRef(ASTVarRef *VarRef) {
+    if (VarRef->getDef() == nullptr) {
+        Diag(VarRef->getLocation(), diag::err_unref_var);
+        return nullptr;
+    }
     if (VarRef->getDef()->getVarKind() == ASTVarKind::VAR_CLASS) {
-        llvm::Value *V = VarRef->getInstance()->getCodeGen()->getPointer(); // Set Instance into CodeGen
+        llvm::Value *V = GenInstance(VarRef->getInstance()); // Set Instance into CodeGen
         ((ASTClassVar *) VarRef->getDef())->getCodeGen()->Init(V);
     }
-    return VarRef->getDef();
+    return VarRef->getDef()->getCodeGen()->getValue();
 }
 
 llvm::Value *CodeGenModule::GenCall(llvm::Function *Fn, ASTCall *Call, bool &NoStore) {
@@ -389,9 +407,9 @@ llvm::Value *CodeGenModule::GenCall(llvm::Function *Fn, ASTCall *Call, bool &NoS
     llvm::SmallVector<llvm::Value *, 8> Args;
 
     // Add Instance to Function Args
+    Value *Instance = GenInstance(Call->getInstance());
     if (Call->getDef()->getKind() == ASTFunctionKind::CLASS_FUNCTION) {
         ASTClassFunction *Def = (ASTClassFunction *) Call->getDef();
-
         // Do not store Call return to the Instance
         if (Def->isConstructor())
             NoStore = true;
@@ -399,7 +417,7 @@ llvm::Value *CodeGenModule::GenCall(llvm::Function *Fn, ASTCall *Call, bool &NoS
         // Set Instance
         if (!Def->isStatic()) {
             // add Class Instance to the args
-            Args.push_back(Call->getInstance()->getCodeGen()->getPointer());
+            Args.push_back(Instance);
         }
     }
 
@@ -411,14 +429,15 @@ llvm::Value *CodeGenModule::GenCall(llvm::Function *Fn, ASTCall *Call, bool &NoS
     }
 
     // Add Function
-    CodeGenFunctionBase *CGF = Call->getDef()->getCodeGen();
     if (Call->getDef()->getKind() == ASTFunctionKind::CLASS_FUNCTION) {
         ASTClassFunction *Def = (ASTClassFunction *) Call->getDef();
 
         // Return Instance Pointer only on Constructor
         if (Def->isConstructor())
-            Call->getInstance()->getCodeGen()->getPointer();
+            return Instance;
     }
+
+    CodeGenFunctionBase *CGF = Call->getDef()->getCodeGen();
     return Builder->CreateCall(CGF->getFunction(), Args);
 }
 

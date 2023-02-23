@@ -41,23 +41,11 @@ ASTExpr *ASTArg::getExpr() const {
     return Expr;
 }
 
-ASTCall::ASTCall(ASTIdentifier *Identifier) : Identifier(Identifier) {
+ASTCall::ASTCall(ASTIdentifier *Identifier) : ASTReference(Identifier, true) {
 
 }
 
-ASTCall::ASTCall(ASTFunctionBase *Function) : Def(Function) {
-}
-
-SourceLocation ASTCall::getLocation() const {
-    return Identifier ? Identifier->getLocation() : SourceLocation();
-}
-
-llvm::StringRef ASTCall::getName() const {
-    return Identifier ? Identifier->getName() : llvm::StringRef();
-}
-
-ASTIdentifier *ASTCall::getIdentifier() const {
-    return Identifier;
+ASTCall::ASTCall(ASTFunctionBase *Function) : Def(Function), ASTReference(nullptr, true) {
 }
 
 const std::vector<ASTArg*> ASTCall::getArgs() const {
@@ -72,13 +60,10 @@ CodeGenCall *ASTCall::getCodeGen() const {
     return CGC;
 }
 
-ASTVar *ASTCall::getInstance() const {
-    return Instance;
-}
-
 std::string ASTCall::str() const {
     return Logger("ASTFunctionCall").
-            Attr("Instance", Instance).
+            Attr("Identifier", getIdentifier()).
+            Attr("Instance", getInstance()).
             AttrList("Args", Args).
             Attr("Def", Def).
             End();
