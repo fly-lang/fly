@@ -208,7 +208,7 @@ ASTExpr *ExprParser::ParseExpr(ASTIdentifier *Identifier) {
     FLY_DEBUG_MESSAGE("ExprParser", "ParseExpr",
                       Logger().Attr("Identifier", Identifier).End());
     if (Identifier->isCall()) { // Ex. a()
-        return P->Builder.CreateExpr(Stmt, P->ParseCall(Stmt, Identifier));
+        return P->Builder.CreateExpr(Stmt, Identifier->getCall());
     } else { // parse variable post increment/decrement or simple var
         ASTVarRef *VarRef = P->Builder.CreateVarRef(Identifier);
         if (P->isUnaryPostOperator()) { // Ex. a++ or a--
@@ -226,8 +226,8 @@ ASTExpr *ExprParser::ParseNewExpr(Parser *P) {
     if (P->Tok.isAnyIdentifier()) {
         ASTIdentifier *Identifier = P->ParseIdentifier();
 
-        if (P->Tok.is(tok::l_paren)) { // Ex. a()
-            return P->Builder.CreateNewExpr(Stmt, P->ParseCall(Stmt, Identifier));
+        if (Identifier->isCall()) { // Ex. a()
+            return P->Builder.CreateNewExpr(Stmt, Identifier->getCall());
         }
     }
 

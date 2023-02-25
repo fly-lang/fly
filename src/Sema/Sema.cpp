@@ -87,18 +87,17 @@ ASTClass *Sema::FindClass(llvm::StringRef ClassName, ASTNameSpace *NameSpace) co
  * Search a VarRef into declared Block's vars
  * If found set LocalVar
  * @param Block
- * @param LocalVar
- * @param VarRef
+ * @param Identifier
  * @return the found LocalVar
  */
-ASTLocalVar *Sema::FindVarDef(ASTBlock *Block, llvm::StringRef VarName) const {
-    FLY_DEBUG_MESSAGE("Sema", "FindVarDef", Logger().Attr("Name", Block).Attr("VarName", VarName).End());
-    const auto &It = Block->getLocalVars().find(VarName);
+ASTLocalVar *Sema::FindLocalVar(ASTBlock *Block, ASTIdentifier *Identifier) const {
+    FLY_DEBUG_MESSAGE("Sema", "FindLocalVar", Logger().Attr("Name", Block).Attr("Identifier", Identifier).End());
+    const auto &It = Block->getLocalVars().find(Identifier->getName());
     if (It != Block->getLocalVars().end()) { // Search into this Block
         return It->getValue();
     } else if (Block->getParent()) { // Traverse Parent Block to find the right VarDeclStmt
         if (Block->Parent->getKind() == ASTStmtKind::STMT_BLOCK)
-            return FindVarDef((ASTBlock *) Block->getParent(), VarName);
+            return FindLocalVar((ASTBlock *) Block->getParent(), Identifier);
     }
     return nullptr;
 }

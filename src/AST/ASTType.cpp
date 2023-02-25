@@ -285,7 +285,8 @@ const std::string ASTArrayType::print() const {
 }
 
 ASTClassType::ASTClassType(ASTIdentifier *Identifier) :
-    ASTType(Identifier->getLocation(), ASTTypeKind::TYPE_CLASS, ASTMacroTypeKind::MACRO_TYPE_CLASS) {
+    ASTType(Identifier->getLocation(), ASTTypeKind::TYPE_CLASS, ASTMacroTypeKind::MACRO_TYPE_CLASS),
+    Identifier(Identifier) {
 
 }
 

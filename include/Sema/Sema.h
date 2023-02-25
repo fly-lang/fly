@@ -34,6 +34,7 @@ namespace fly {
     class ASTVarRef;
     class ASTVar;
     class ASTBlock;
+    class ASTIdentifier;
 
     class Sema {
 
@@ -62,7 +63,7 @@ namespace fly {
 
         ASTClass *FindClass(llvm::StringRef ClassName, ASTNameSpace *NameSpace) const;
 
-        ASTLocalVar *FindVarDef(ASTBlock *Block, llvm::StringRef VarName) const;
+        ASTLocalVar *FindLocalVar(ASTBlock *Block, ASTIdentifier *Identifier) const;
 
         ASTImport *FindImport(ASTNode *Node, llvm::StringRef Name);
 

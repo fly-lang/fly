@@ -703,6 +703,10 @@ SemaBuilder::CreateExprStmt(ASTBlock *Parent, const SourceLocation &Loc) {
     return ExprStmt;
 }
 
+ASTIdentifier *SemaBuilder::CreateIdentifier(const SourceLocation &Loc, llvm::StringRef Name) {
+    return new ASTIdentifier(Loc, Name);
+}
+
 /**
  * Create an ASTFunctionCall without definition
  * @param Location
@@ -715,6 +719,8 @@ SemaBuilder::CreateCall(ASTIdentifier *Identifier) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateCall",
                       Logger().Attr("Identifier", Identifier).End());
     ASTCall *Call = new ASTCall(Identifier);
+    Identifier->Reference = Call;
+    Identifier->RefIsCall = true;
     return Call;
 }
 
@@ -742,6 +748,15 @@ SemaBuilder::CreateCall(ASTReference *Instance, ASTFunctionBase *Function) {
 }
 
 ASTVarRef *
+SemaBuilder::CreateVarRef(ASTIdentifier *Identifier) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateVarRef",
+                      Logger().Attr("Identifier", Identifier).End());
+    ASTVarRef *VarRef = new ASTVarRef(Identifier);
+    Identifier->Reference = VarRef;
+    return VarRef;
+}
+
+ASTVarRef *
 SemaBuilder::CreateVarRef(ASTVar *Var) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateVarRef",
                       Logger().Attr("Var", Var).End());
@@ -755,14 +770,6 @@ SemaBuilder::CreateVarRef(ASTReference *Instance, ASTVar *Var) {
                       Logger().Attr("Instance", Instance).Attr("Var", Var).End());
     ASTVarRef *VarRef = new ASTVarRef(Var);
     VarRef->Instance = Instance;
-    return VarRef;
-}
-
-ASTVarRef *
-SemaBuilder::CreateVarRef(ASTIdentifier *Identifier) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateVarRef",
-                      Logger().Attr("Identifier", Identifier).End());
-    ASTVarRef *VarRef = new ASTVarRef(Identifier);
     return VarRef;
 }
 

@@ -28,7 +28,7 @@ namespace fly {
 
     protected:
 
-        const SourceLocation &Loc;
+        const SourceLocation Loc;
 
         const llvm::StringRef Name;
 
@@ -48,11 +48,11 @@ namespace fly {
 
         bool RefIsCall;
 
-    public:
-
         ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name);
 
         ~ASTIdentifier();
+
+    public:
 
         const SourceLocation &getLocation() const;
 

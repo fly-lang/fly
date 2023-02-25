@@ -1005,7 +1005,7 @@ ASTIdentifier *Parser::ParseIdentifier(ASTIdentifier *Parent) {
 
     ASTIdentifier *Child = nullptr;
     if (Parent == nullptr) {
-        Child = new ASTIdentifier(Tok.getLocation(), Tok.getIdentifierInfo()->getName());
+        Child = Builder.CreateIdentifier(Tok.getLocation(), Tok.getIdentifierInfo()->getName());
         ConsumeToken();
     } else {
         Child = Parent->AddChild(Tok.getLocation(), Tok.getIdentifierInfo()->getName());
@@ -1030,11 +1030,12 @@ ASTIdentifier *Parser::ParseIdentifier(ASTIdentifier *Parent) {
             return Child;
         }
     } else if (Tok.is(tok::l_paren)) {
-        ConsumeToken();
 
         ASTCall * Call = ParseCall(nullptr, Child);
         Child->setCall(Call);
         if (Tok.is(tok::period)) {
+            ConsumeToken();
+
             return ParseIdentifier(Child);
         }
     }

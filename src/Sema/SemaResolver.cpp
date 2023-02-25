@@ -320,7 +320,8 @@ bool SemaResolver::ResolveIdentifiers(ASTBlock *Block, ASTReference *Ref) {
         if (Current->isCall()) {
             if (Var == nullptr && Function == nullptr) {
                 if (Base->getKind() == ASTFunctionKind::FUNCTION &&
-                    ResolveCall(Block, Current->getCall(), Node->getNameSpace()->Functions)) {
+                    (ResolveCall(Block, Current->getCall(), Node->Functions) ||
+                        ResolveCall(Block, Current->getCall(), Node->getNameSpace()->Functions))) {
                     // func()
                     Function = Current->getCall()->getDef();
                 } else if (Base->getKind() == ASTFunctionKind::CLASS_FUNCTION &&
@@ -343,7 +344,8 @@ bool SemaResolver::ResolveIdentifiers(ASTBlock *Block, ASTReference *Ref) {
                 // NameSpace.ClassType.func()
                 Function = Current->getCall()->getDef();
             } else if (ResolveIdentifier(Node, Current, NameSpace) &&
-                       ResolveCall(Block, Current->getCall(), NameSpace->Functions)) {
+                    (ResolveCall(Block, Current->getCall(), Node->Functions) ||
+                        ResolveCall(Block, Current->getCall(), NameSpace->Functions))) {
                 // NameSpace.func()
                 Function = Current->getCall()->getDef();
             } else {
@@ -359,7 +361,7 @@ bool SemaResolver::ResolveIdentifiers(ASTBlock *Block, ASTReference *Ref) {
         } else {
             if (Var == nullptr && Function == nullptr) {
                 // Search for LocalVar
-                Var = S.FindVarDef(Block, Current->getName());
+                Var = S.FindLocalVar(Block, Current);
 
                 // Search for ClassVars
                 if (Var == nullptr && Base->getKind() == ASTFunctionKind::CLASS_FUNCTION) {
@@ -395,8 +397,10 @@ bool SemaResolver::ResolveIdentifiers(ASTBlock *Block, ASTReference *Ref) {
         }
 
         // set ClassType from Var or Function return
-        if (Var && Var->getType()->isClass()) {
-            ClassType = (ASTClassType *) Var->getType();
+        if (Var) {
+            Current->getVarRef()->Def = Var;
+            if (Var->getType()->isClass())
+                ClassType = (ASTClassType *) Var->getType();
         } else if (Function && Function->getType()->isClass()) {
             ClassType = (ASTClassType *) Function->getType();
         }
@@ -478,9 +482,6 @@ bool SemaResolver::ResolveVarRef(ASTBlock *Block, ASTVarRef *VarRef) {
         return false;
     }
 
-    if (VarRef->isLocalVar())
-        Block->UnInitVars.erase(VarRef->getName());
-
     return true;
 }
 
@@ -495,11 +496,11 @@ bool SemaResolver::ResolveCall(ASTBlock *Block, ASTCall *Call) {
         ResolveIdentifiers(Block, Call);
 
         // visibility error
-        ASTVisibilityKind Visibility = ((ASTFunction *) Call->getDef())->getScopes()->getVisibility();
-        if (Visibility == ASTVisibilityKind::V_PRIVATE) {
-            S.Diag(Call->getLocation(), diag::err_sema_invalid_identifier);
-            return false;
-        }
+//        ASTVisibilityKind Visibility = ((ASTFunction *) Call->getDef())->getScopes()->getVisibility();
+//        if (Visibility == ASTVisibilityKind::V_PRIVATE) {
+//            S.Diag(Call->getLocation(), diag::err_sema_invalid_identifier);
+//            return false;
+//        }
 
         // class from instance TODO
 //        ASTLocalVar *Instance = S.FindVarDef(Block, Call->getClassName());

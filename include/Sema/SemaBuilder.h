@@ -168,15 +168,18 @@ namespace fly {
         ASTContinue *CreateContinue(ASTBlock *Parent, const SourceLocation &Loc);
         ASTExprStmt *CreateExprStmt(ASTBlock *Parent, const SourceLocation &Loc);
 
+        // Create Identifier
+        ASTIdentifier *CreateIdentifier(const SourceLocation &Loc, llvm::StringRef Name);
+
         // Create Call
         ASTCall *CreateCall(ASTIdentifier *Identifier);
         ASTCall *CreateCall(ASTFunctionBase *Function);
         ASTCall *CreateCall(ASTReference *Instance, ASTFunctionBase *Function);
 
         // Create VarRef
+        ASTVarRef *CreateVarRef(ASTIdentifier *Identifier);
         ASTVarRef *CreateVarRef(ASTVar *Var);
         ASTVarRef *CreateVarRef(ASTReference *Instance, ASTVar *Var);
-        ASTVarRef *CreateVarRef(ASTIdentifier *Identifier);
 
         // Create Expressions
         ASTEmptyExpr *CreateExpr(ASTStmt *Stmt);
