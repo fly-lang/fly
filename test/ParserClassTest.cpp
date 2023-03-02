@@ -49,29 +49,38 @@ namespace {
 
         EXPECT_FALSE(Node->getClass()->getVars().empty());
         EXPECT_EQ(Node->getClass()->getVars().size(), 4); // A B C enum
-        ASTClassVar *aVar = Node->getClass()->getVars().find("A")->getValue();
-        ASTClassVar *bVar = Node->getClass()->getVars().find("B")->getValue();
-        ASTClassVar *cVar = Node->getClass()->getVars().find("C")->getValue();
-        EXPECT_EQ(aVar->getScopes()->getVisibility(), ASTClassVisibilityKind::CLASS_V_DEFAULT);
-        EXPECT_TRUE(aVar->getScopes()->isConstant());
-        EXPECT_EQ(bVar->getScopes()->getVisibility(), ASTClassVisibilityKind::CLASS_V_DEFAULT);
-        EXPECT_TRUE(bVar->getScopes()->isConstant());
-        EXPECT_EQ(cVar->getScopes()->getVisibility(), ASTClassVisibilityKind::CLASS_V_DEFAULT);
-        EXPECT_TRUE(cVar->getScopes()->isConstant());
+        ASTClassVar *VarA = Node->getClass()->getVars().find("A")->getValue();
+        ASTClassVar *VarB = Node->getClass()->getVars().find("B")->getValue();
+        ASTClassVar *VarC = Node->getClass()->getVars().find("C")->getValue();
+        ASTClassVar *VarEnum = Node->getClass()->getVars().find("enum")->getValue();
+        EXPECT_EQ(VarA->getScopes()->getVisibility(), ASTClassVisibilityKind::CLASS_V_DEFAULT);
+        EXPECT_TRUE(VarA->getScopes()->isConstant());
+        EXPECT_EQ(VarB->getScopes()->getVisibility(), ASTClassVisibilityKind::CLASS_V_DEFAULT);
+        EXPECT_TRUE(VarB->getScopes()->isConstant());
+        EXPECT_EQ(VarC->getScopes()->getVisibility(), ASTClassVisibilityKind::CLASS_V_DEFAULT);
+        EXPECT_TRUE(VarC->getScopes()->isConstant());
+        EXPECT_EQ(VarEnum->getScopes()->getVisibility(), ASTClassVisibilityKind::CLASS_V_PRIVATE);
+        EXPECT_TRUE(VarEnum->getScopes()->isConstant());
 
         llvm::StringRef str2 = (
-                "void func() {\n"
+                "void main() {\n"
                 "  Test a = Test.A\n"
                 "  a = Test.B"
                 "  Test c = a"
                 "}\n");
         ASTNode *Node2 = Parse("func", str2);
         ASSERT_TRUE(isSuccess());
+
+        ASTFunction *main = *Node2->getFunctions().find("main")->getValue().begin()->second.begin();
+        const ASTBlock *Body = main->getBody();
+        ASTLocalVar *aVar = ((ASTLocalVar *) Body->getContent()[0]);
+        ASTVarRefExpr *aExpr = (ASTVarRefExpr *) aVar->getExpr();
+        ASTClassVar *A = (ASTClassVar *) aExpr->getVarRef()->getDef();
     }
 
     TEST_F(ParserTest, Struct) {
         llvm::StringRef str = ("public struct Test {\n"
-                               "  int a = 1\n"
+                               "  int a\n"
                                "  public int b = 2\n"
                                "  const int c = 0\n"
                                "}\n");
@@ -90,16 +99,25 @@ namespace {
         EXPECT_TRUE(cVar->getScopes()->isConstant());
 
         llvm::StringRef str2 = (
-                "void func() {\n"
+                "void func1() {\n"
+                "  Test t = new Test()"
+                "  t.a = 3"
+                "  t.b = t.c"
+                "}\n");
+        ASTNode *Node1 = Parse("func1", str2, false);
+        ASTFunction *func1 = *Node1->getFunctions().find("func1")->getValue().begin()->second.begin();
+        const ASTBlock *Body1 = func1->getBody();
+        ASTLocalVar *tVar1 = ((ASTLocalVar *) Body1->getContent()[0]);
+
+        llvm::StringRef str3 = (
+                "void func2() {\n"
                 "  Test t = { a = 3, b = 1}"
                 "}\n");
-//        llvm::StringRef str2 = (
-//                "void func() {\n"
-//                "  Test t = new Test()"
-//                "  t.a = 3"
-//                "  t.b = t.c"
-//                "}\n");
-        ASTNode *Node2 = Parse("func", str2);
+        ASTNode *Node2 = Parse("func2", str3);
+        ASTFunction *func2 = *Node2->getFunctions().find("func2")->getValue().begin()->second.begin();
+        const ASTBlock *Body2 = func2->getBody();
+        ASTLocalVar *tVar2 = ((ASTLocalVar *) Body2->getContent()[0]);
+
         ASSERT_TRUE(isSuccess());
     }
 

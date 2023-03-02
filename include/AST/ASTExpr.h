@@ -97,7 +97,7 @@ namespace fly {
         friend class SemaBuilder;
         friend class SemaResolver;
 
-        const SourceLocation &Loc;
+        const SourceLocation Loc;
 
         ASTStmt *Stmt = nullptr;
 

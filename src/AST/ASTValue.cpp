@@ -136,6 +136,38 @@ const std::vector<ASTValue *> &ASTArrayValue::getValues() const {
     return Values;
 }
 
+ASTStructValue::ASTStructValue(const SourceLocation &Loc) : ASTValue(ASTMacroTypeKind::MACRO_TYPE_STRUCT, Loc) {
+
+}
+
+uint64_t ASTStructValue::size() const {
+    return Values.size();
+}
+
+const std::string ASTStructValue::print() const {
+    std::string Str;
+    for (auto &Value : Values) {
+        Str += std::string(Value.getKey().data()) + ": " + Value.getValue()->str() + ", ";
+    }
+    Str = Str.substr(0, Str.size()-1); // remove final comma
+    return Str;
+}
+
+std::string ASTStructValue::str() const {
+    return Logger("ASTStructValue").
+            Super(ASTValue::str()).
+            Attr("Values", print()).
+            End();
+}
+
+bool ASTStructValue::empty() const {
+    return Values.empty();
+}
+
+const llvm::StringMap<ASTValue *> &ASTStructValue::getValues() const {
+    return Values;
+}
+
 ASTNullValue::ASTNullValue(const SourceLocation &Loc) : ASTValue(ASTMacroTypeKind::MACRO_TYPE_CLASS, Loc) {
 
 }

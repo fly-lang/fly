@@ -576,6 +576,13 @@ SemaBuilder::CreateArrayValue(const SourceLocation &Loc) {
     return new ASTArrayValue(Loc);
 }
 
+ASTStructValue *
+SemaBuilder::CreateStructValue(const SourceLocation &Loc) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateArrayValue",
+                      "Loc=" << Loc.getRawEncoding());
+    return new ASTStructValue(Loc);
+}
+
 /**
  * Creates a default value by type
  * @param Type
@@ -1324,6 +1331,13 @@ SemaBuilder::AddArrayValue(ASTArrayValue *ArrayValue, ASTValue *Value) {
                       .Attr("Value", Value).End());
     ArrayValue->Values.push_back(Value);
     return true;
+}
+
+bool SemaBuilder::AddStructValue(ASTStructValue *StructValue, llvm::StringRef Key, ASTValue *Value) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "AddStructValue", Logger()
+            .Attr("StructValue", StructValue)
+            .Attr("Key", Key).Attr("Value", Value).End());
+    return StructValue->Values.insert(std::make_pair(Key, Value)).second;
 }
 
 bool

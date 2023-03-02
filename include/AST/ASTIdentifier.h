@@ -46,7 +46,7 @@ namespace fly {
 
         ASTReference *Reference = nullptr;
 
-        bool RefIsCall;
+        bool RefIsCall = false;
 
         ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name);
 

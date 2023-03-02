@@ -1097,14 +1097,11 @@ ASTValue *Parser::ParseValue() {
         return SemaBuilder::CreateBoolValue(ConsumeToken(), false);
     }
 
-    // Parse Array values
+    // Parse Array or Struct
     if (Tok.is(tok::l_brace)) {
         const SourceLocation &Loc = ConsumeBrace();
-        ASTArrayValue *ArrayValues = SemaBuilder::CreateArrayValue(Tok.getLocation());
-        if (!ParseValues(*ArrayValues)) {
-            return nullptr;
-        }
-        return ArrayValues;
+
+        return ParseValues();
     }
 
     Diag(diag::err_invalid_value) << Tok.getName();
@@ -1152,33 +1149,66 @@ ASTValue *Parser::ParseValueNumber(std::string &Str) {
  * Parse Array Value Expression
  * @return the ASTValueExpr
  */
-bool Parser::ParseValues(ASTArrayValue &ArrayValues) {
-    FLY_DEBUG_MESSAGE("Parser", "ParseValues", Logger().Attr("ArrayValues", &ArrayValues).End());
+ASTValue *Parser::ParseValues() {
+    FLY_DEBUG("Parser", "ParseValues");
 
+    ASTValue *Values = nullptr;
+    const SourceLocation &StartLoc = Tok.getLocation();
     // Parse array values Ex. {1, 2, 3}
     while (Tok.isNot(tok::r_brace) && Tok.isNot(tok::eof)) {
-        ASTValue *Value = ParseValue();
-        if (Value) {
-            Builder.AddArrayValue(&ArrayValues, Value);
-            if (Tok.is(tok::comma)) {
+
+        // if is Identifier -> struct
+        if (Tok.isAnyIdentifier()) {
+            const StringRef &Key = Tok.getIdentifierInfo()->getName();
+            ConsumeToken();
+            
+            if (Tok.is(tok::equal)) {
+                Values = Values == nullptr ? SemaBuilder::CreateStructValue(StartLoc) : Values;
                 ConsumeToken();
-            } else {
-                break;
+
+                ASTValue *Value = ParseValue();
+                if (Value) {
+                    Builder.AddStructValue((ASTStructValue *) Values, Key, Value);
+                    if (Tok.is(tok::comma)) {
+                        ConsumeToken();
+                    } else {
+                        break;
+                    }
+                } else {
+                    Diag(diag::err_invalid_value) << Tok.getName();
+                    return Values;
+                }
             }
-        } else {
-            Diag(diag::err_invalid_value) << Tok.getName();
-            return false;
+        } else { // if is Value -> array
+            Values = Values == nullptr ? SemaBuilder::CreateArrayValue(StartLoc) : Values;
+            ASTValue *Value = ParseValue();
+            if (Value) {
+                Builder.AddArrayValue((ASTArrayValue *) Values, Value);
+                if (Tok.is(tok::comma)) {
+                    ConsumeToken();
+                } else {
+                    break;
+                }
+            } else {
+                Diag(diag::err_invalid_value) << Tok.getName();
+                return Values;
+            }
         }
+
     }
 
     // End of Array
     if (Tok.is(tok::r_brace)) {
         ConsumeBrace();
-        return true;
+        return Values;
     }
 
     Diag(diag::err_invalid_value) << Tok.getName();
-    return false;
+    return Values;
+}
+
+ASTArrayValue *Parser::ParseArrayValues(ASTArrayValue *ArrayValues) {
+    
 }
 
 ASTExpr *Parser::ParseExpr(ASTStmt *Stmt, ASTIdentifier *Identifier) {

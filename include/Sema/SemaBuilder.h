@@ -73,6 +73,7 @@ namespace fly {
     class ASTNullValue;
     class ASTBoolValue;
     class ASTArrayValue;
+    class ASTStructValue;
     class ASTIntegerValue;
     class ASTFloatingValue;
     class ASTBreak;
@@ -157,6 +158,7 @@ namespace fly {
         static ASTFloatingValue *CreateFloatingValue(const SourceLocation &Loc, std::string Val);
         static ASTFloatingValue *CreateFloatingValue(const SourceLocation &Loc, double Val);
         static ASTArrayValue *CreateArrayValue(const SourceLocation &Loc);
+        static ASTStructValue *CreateStructValue(const SourceLocation &Loc);
         static ASTValue *CreateDefaultValue(ASTType *Type);
 
         // Create Statements
@@ -234,6 +236,7 @@ namespace fly {
 
         // Add Value to Array
         bool AddArrayValue(ASTArrayValue *ArrayValue, ASTValue *Value);
+        bool AddStructValue(ASTStructValue *ArrayValue, llvm::StringRef Key, ASTValue *Value);
         bool AddCallArg(ASTCall *Call, ASTExpr *Expr);
 
         // Add Stmt

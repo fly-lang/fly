@@ -12,6 +12,8 @@
 
 #include "Basic/Debuggable.h"
 
+#include "llvm/ADT/StringMap.h"
+
 #include <string>
 #include <vector>
 
@@ -130,6 +132,30 @@ namespace fly {
     public:
 
         const std::vector<ASTValue *> &getValues() const;
+
+        uint64_t size() const;
+
+        bool empty() const;
+
+        const std::string print() const;
+
+        std::string str() const override;
+    };
+
+    /**
+     * Used for Structs
+     */
+    class ASTStructValue : public ASTValue {
+
+        friend class SemaBuilder;
+
+        llvm::StringMap<ASTValue *> Values;
+
+        ASTStructValue(const SourceLocation &Loc);
+
+    public:
+
+        const llvm::StringMap<ASTValue *> &getValues() const;
 
         uint64_t size() const;
 

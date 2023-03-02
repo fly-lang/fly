@@ -66,6 +66,7 @@ namespace fly {
         MACRO_TYPE_INTEGER,
         MACRO_TYPE_FLOATING_POINT,
         MACRO_TYPE_ARRAY,
+        MACRO_TYPE_STRUCT,
         MACRO_TYPE_CLASS
     };
 

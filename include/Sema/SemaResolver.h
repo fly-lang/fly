@@ -110,10 +110,6 @@ namespace fly {
 
     };
 
-    class SemaIdentifierResolver {
-
-    };
-
 }  // end namespace fly
 
 #endif
