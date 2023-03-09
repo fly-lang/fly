@@ -25,9 +25,8 @@ namespace fly {
     class ASTNode;
     class ASTTopDef;
     class ASTImport;
-    class ASTTopScopes;
+    class ASTScopes;
     class ASTClass;
-    class ASTClassScopes;
     class ASTClassVar;
     class ASTGlobalVar;
     class ASTFunction;
@@ -88,6 +87,7 @@ namespace fly {
     class ASTBinaryGroupExpr;
     class ASTTernaryGroupExpr;
     class ASTReference;
+    class ASTScopes;
     enum class ASTUnaryOperatorKind;
     enum class ASTUnaryOptionKind;
     enum class ASTBinaryOperatorKind;
@@ -116,23 +116,22 @@ namespace fly {
         ASTImport *CreateImport(const SourceLocation &NameLoc, StringRef Name);
         ASTImport *CreateImport(const SourceLocation &NameLoc, StringRef Name,
                                 const SourceLocation &AliasLoc, StringRef Alias);
-        static ASTTopScopes *CreateTopScopes(ASTVisibilityKind Visibility, bool Constant);
+        static ASTScopes *CreateScopes(ASTVisibilityKind Visibility = ASTVisibilityKind::V_DEFAULT, bool Constant = false, bool Static = false);
         ASTGlobalVar *CreateGlobalVar(ASTNode *Node, const SourceLocation &Loc, ASTType *Type, const llvm::StringRef Name,
-                                      ASTTopScopes *Scopes);
+                                      ASTScopes *Scopes);
         ASTFunction *CreateFunction(ASTNode *Node, const SourceLocation &Loc, ASTType *Type, const llvm::StringRef Name,
-                                    ASTTopScopes *Scopes);
-        ASTClass *CreateClass(ASTNode *Node, ASTClassKind ClassKind, ASTTopScopes *Scopes,
+                                    ASTScopes *Scopes);
+        ASTClass *CreateClass(ASTNode *Node, ASTClassKind ClassKind, ASTScopes *Scopes,
                               const SourceLocation &Loc, const llvm::StringRef Name,
                               llvm::SmallVector<llvm::StringRef, 4> &ExtClasses);
-        ASTClass *CreateClass(ASTNode *Node, ASTClassKind ClassKind, ASTTopScopes *Scopes,
+        ASTClass *CreateClass(ASTNode *Node, ASTClassKind ClassKind, ASTScopes *Scopes,
                               const SourceLocation &Loc, const llvm::StringRef Name);
-        static ASTClassScopes *CreateClassScopes(ASTClassVisibilityKind Visibility, bool Constant, bool Static);
         ASTClassVar *CreateClassVar(ASTClass *Class, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
-                                    ASTClassScopes *Scopes);
+                                    ASTScopes *Scopes);
         ASTClassVar *CreateEnumClassVar(ASTClass *Class, const SourceLocation &Loc, llvm::StringRef Nam);
-        ASTClassFunction *CreateClassConstructor(ASTClass *Class, const SourceLocation &Loc, ASTClassScopes *Scopes);
+        ASTClassFunction *CreateClassConstructor(ASTClass *Class, const SourceLocation &Loc, ASTScopes *Scopes);
         ASTClassFunction *CreateClassMethod(ASTClass *Class, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
-                                            ASTClassScopes *Scopes);
+                                            ASTScopes *Scopes);
 
         // Create Types
         static ASTBoolType *CreateBoolType(const SourceLocation &Loc);

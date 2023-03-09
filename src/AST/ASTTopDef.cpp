@@ -12,27 +12,8 @@
 
 using namespace fly;
 
-ASTTopScopes::ASTTopScopes(ASTVisibilityKind visibility, bool constant) : Visibility(visibility), Constant(constant) {
-
-}
-
-ASTVisibilityKind ASTTopScopes::getVisibility() const {
-    return Visibility;
-}
-
-bool ASTTopScopes::isConstant() const {
-    return Constant;
-}
-
-std::string ASTTopScopes::str() const {
-    return Logger("ASTTopScopes").
-           Attr("Visibility", (uint64_t) Visibility).
-           Attr("Constant", Constant).
-           End();
-}
-
-ASTTopDef::ASTTopDef(ASTNode *Node, ASTTopDefKind Kind, ASTTopScopes *Scopes) :
-    Node(Node), Scopes(Scopes), NameSpace(Node->getNameSpace()), Kind(Kind) {
+ASTTopDef::ASTTopDef(ASTNode *Node, ASTTopDefKind Kind, ASTScopes *Scopes) :
+        Node(Node), Scopes(Scopes), NameSpace(Node->getNameSpace()), Kind(Kind) {
 
 }
 
@@ -49,7 +30,7 @@ ASTNameSpace *ASTTopDef::getNameSpace() const {
     return NameSpace;
 }
 
-ASTTopScopes *ASTTopDef::getScopes() const {
+ASTScopes *ASTTopDef::getScopes() const {
     return Scopes;
 }
 

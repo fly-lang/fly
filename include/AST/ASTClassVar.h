@@ -17,7 +17,7 @@
 namespace fly {
 
     class ASTClass;
-    class ASTClassScopes;
+    class ASTScopes;
     class ASTType;
     class ASTValue;
     class ASTVar;
@@ -40,13 +40,13 @@ namespace fly {
 
         llvm::StringRef Comment;
 
-        ASTClassScopes *Scopes = nullptr;
+        ASTScopes *Scopes = nullptr;
 
         ASTExpr *Expr = nullptr;
 
         CodeGenClassVar *CodeGen = nullptr;
 
-        ASTClassVar(const SourceLocation &Loc, ASTClass *Class, ASTClassScopes *Scopes, ASTType *Type,
+        ASTClassVar(const SourceLocation &Loc, ASTClass *Class, ASTScopes *Scopes, ASTType *Type,
                     llvm::StringRef Name);
 
     public:
@@ -63,7 +63,7 @@ namespace fly {
 
         llvm::StringRef getComment() const;
 
-        ASTClassScopes *getScopes() const;
+        ASTScopes *getScopes() const;
 
         ASTExpr *getExpr() const override;
 

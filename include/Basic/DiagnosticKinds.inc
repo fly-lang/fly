@@ -323,6 +323,7 @@ DIAG(err_parser_miss_expr, CLASS_ERROR, (unsigned)diag::Severity::Error, "missin
 DIAG(err_parser_miss_oper, CLASS_ERROR, (unsigned)diag::Severity::Error, "missing operator", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_parser_unexpect_oper, CLASS_ERROR, (unsigned)diag::Severity::Error, "unexpected operator", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_parser_invalid_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid type", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_parser_empty_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "empty type", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_parser_unclosed_bracket, CLASS_ERROR, (unsigned)diag::Severity::Error, "unclosed bracket", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_parser_invalid_null_value, CLASS_ERROR, (unsigned)diag::Severity::Error, "only class type can have a null value assigned", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_const_call, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot use const with function call", 0, SFINAE_Suppress, false, true, 0)
@@ -331,7 +332,6 @@ DIAG(err_multiple_unary_operator, CLASS_ERROR, (unsigned)diag::Severity::Error, 
 DIAG(err_invalid_value, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid value '%0'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_right_paren, CLASS_ERROR, (unsigned)diag::Severity::Error, "unclosed parenthesis", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_syntax_error, CLASS_ERROR, (unsigned)diag::Severity::Error, "syntax error", 0, SFINAE_Suppress, false, true, 0)
-DIAG(err_invalid_identifier, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid identifier", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_parse_empty_while_expr, CLASS_ERROR, (unsigned)diag::Severity::Error, "while condition cannot be empty", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_parse_number, CLASS_ERROR, (unsigned)diag::Severity::Error, "'%0' is not a number ", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_class_block_unclosed, CLASS_ERROR, (unsigned)diag::Severity::Error, "class block not correctly closed", 0, SFINAE_Suppress, false, true, 0)
@@ -376,8 +376,8 @@ DIAG(err_sema_class_enum_expr, CLASS_ERROR, (unsigned)diag::Severity::Error, "ca
 DIAG(err_sema_class_enum_var, CLASS_ERROR, (unsigned)diag::Severity::Error, "enum vars can be added only into enum classes", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_class_method_redeclare, CLASS_ERROR, (unsigned)diag::Severity::Error, "class method '%0' already declared", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_uninit_var, CLASS_ERROR, (unsigned)diag::Severity::Error, "uninitialized var", 0, SFINAE_Suppress, false, true, 0)
-DIAG(err_sema_invalid_identifier, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid identifier", 0, SFINAE_Suppress, false, true, 0)
-DIAG(err_sema_visbility_error, CLASS_ERROR, (unsigned)diag::Severity::Error, "visibility error", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_resolve_identifier, CLASS_ERROR, (unsigned)diag::Severity::Error, "resolving identifier failed", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_visibility_error, CLASS_ERROR, (unsigned)diag::Severity::Error, "visibility error", 0, SFINAE_Suppress, false, true, 0)
 
 // CodeGen
 DIAG(err_void_value, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot assign void value", 0, SFINAE_Suppress, false, true, 0)

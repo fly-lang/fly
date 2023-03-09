@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTClass.h"
+#include "AST/ASTScopes.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTClassVar.h"
 #include "AST/ASTClassFunction.h"
@@ -17,32 +18,7 @@
 
 using namespace fly;
 
-ASTClassScopes::ASTClassScopes(ASTClassVisibilityKind Visibility, bool Constant, bool Static) :
-        Visibility(Visibility), Constant(Constant), Static(Static) {
-
-}
-
-ASTClassVisibilityKind ASTClassScopes::getVisibility() const {
-    return Visibility;
-}
-
-bool ASTClassScopes::isConstant() const {
-    return Constant;
-}
-
-bool ASTClassScopes::isStatic() const {
-    return Static;
-}
-
-std::string ASTClassScopes::str() const {
-    return Logger("ASTClassScopes").
-            Attr("Visibility", (uint64_t) Visibility).
-            Attr("Constant", Constant).
-            Attr("Constant", Static).
-            End();
-}
-
-ASTClass::ASTClass(ASTNode *Node, ASTClassKind ClassKind, ASTTopScopes *Scopes,
+ASTClass::ASTClass(ASTNode *Node, ASTClassKind ClassKind, ASTScopes *Scopes,
                    const SourceLocation &Loc, const llvm::StringRef Name,
                    llvm::SmallVector<llvm::StringRef, 4> &ExtClasses) :
         ASTTopDef(Node, ASTTopDefKind::DEF_CLASS, Scopes), ClassKind(ClassKind),

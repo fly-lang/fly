@@ -9,13 +9,14 @@
 
 
 #include "AST/ASTGlobalVar.h"
+#include "AST/ASTScopes.h"
 #include "AST/ASTNode.h"
 #include "AST/ASTNameSpace.h"
 
 using namespace fly;
 
 ASTGlobalVar::ASTGlobalVar(const SourceLocation &Loc, ASTNode *Node, ASTType *Type, llvm::StringRef Name,
-                           ASTTopScopes *Scopes) :
+                           ASTScopes *Scopes) :
         ASTTopDef(Node, ASTTopDefKind::DEF_GLOBALVAR, Scopes),
         VarKind(ASTVarKind::VAR_GLOBAL), Type(Type), Name(Name), Location(Loc) {
 

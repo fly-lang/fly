@@ -37,7 +37,7 @@ namespace fly {
         CodeGenGlobalVar *CodeGen;
 
         ASTGlobalVar(const SourceLocation &Loc, ASTNode *Node, ASTType *Type, llvm::StringRef Name,
-                     ASTTopScopes *Scopes);
+                     ASTScopes *Scopes);
 
     public:
 

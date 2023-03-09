@@ -26,7 +26,7 @@ using namespace fly;
  * @param Visibility
  * @param Constant
  */
-ClassParser::ClassParser(Parser *P, ASTTopScopes *ClassScopes) : P(P) {
+ClassParser::ClassParser(Parser *P, ASTScopes *ClassScopes) : P(P) {
     FLY_DEBUG_MESSAGE("ClassParser", "ClassParser", Logger()
             .Attr("Scopes", ClassScopes).End());
 
@@ -51,11 +51,11 @@ ClassParser::ClassParser(Parser *P, ASTTopScopes *ClassScopes) : P(P) {
 
     // Parse classes after colon
     // class Example : SuperClass Interface Struct { ... }
-    llvm::SmallVector<llvm::StringRef, 4> ExtClasses;
+    llvm::SmallVector<llvm::StringRef, 4> SuperClasses;
     if (P->Tok.is(tok::colon)) {
         P->ConsumeToken();
         while (P->Tok.isAnyIdentifier()) {
-            ExtClasses.push_back(P->Tok.getIdentifierInfo()->getName());
+            SuperClasses.push_back(P->Tok.getIdentifierInfo()->getName());
             P->ConsumeToken();
         }
     }
@@ -64,7 +64,7 @@ ClassParser::ClassParser(Parser *P, ASTTopScopes *ClassScopes) : P(P) {
     if (P->isBlockStart()) {
         ConsumeBrace();
 
-        Class = P->Builder.CreateClass(P->Node, ClassKind, ClassScopes, ClassLoc, ClassName, ExtClasses);
+        Class = P->Builder.CreateClass(P->Node, ClassKind, ClassScopes, ClassLoc, ClassName, SuperClasses);
         bool Continue;
         do {
 
@@ -92,12 +92,13 @@ ClassParser::ClassParser(Parser *P, ASTTopScopes *ClassScopes) : P(P) {
                 }
             } else {
                 // Parse Scopes
-                ASTClassScopes *Scopes = ParseScopes();
+                ASTScopes *Scopes = SemaBuilder::CreateScopes();
 
                 // Parse Type
-                ASTType *Type = P->ParseType();
-                Continue = false; // Continue loop if there is a field or a method
-                if (P->Tok.isAnyIdentifier()) {
+                ASTType *Type = nullptr;
+
+                Continue = P->ParseScopes(Scopes) && P->ParseType(Type); // Continue loop if there is a field or a method
+                if (Continue && P->Tok.isAnyIdentifier()) {
                     const StringRef &Name = P->Tok.getIdentifierInfo()->getName();
                     const SourceLocation &Loc = P->ConsumeToken();
 
@@ -118,70 +119,14 @@ ClassParser::ClassParser(Parser *P, ASTTopScopes *ClassScopes) : P(P) {
  * Parse Class Declaration
  * @return
  */
-ASTClass *ClassParser::Parse(Parser *P, ASTTopScopes *ClassScopes) {
+ASTClass *ClassParser::Parse(Parser *P, ASTScopes *ClassScopes) {
     FLY_DEBUG_MESSAGE("ClassParser", "Parse", Logger()
             .Attr("Scopes", ClassScopes).End());
     ClassParser *CP = new ClassParser(P, ClassScopes);
     return CP->Class;
 }
 
-ASTClassScopes *ClassParser::ParseScopes() {
-    FLY_DEBUG("ClassParser", "ParseScopes");
-
-    bool isPrivate = false;
-    bool isPublic = false;
-    bool isConst = false;
-    bool isStatic = false;
-    bool Found;
-    do {
-        if (P->Tok.is(tok::kw_private)) {
-            if (isPrivate) {
-                P->Diag(P->Tok, diag::err_scope_visibility_duplicate << (int) ASTClassVisibilityKind::CLASS_V_PRIVATE);
-            }
-            if (isPublic) {
-                P->Diag(P->Tok, diag::err_scope_visibility_conflict
-                    << (int) ASTClassVisibilityKind::CLASS_V_PRIVATE << (int) ASTClassVisibilityKind::CLASS_V_PUBLIC);
-            }
-            isPrivate = true;
-            Found = true;
-            P->ConsumeToken();
-        } else if (P->Tok.is(tok::kw_public)) {
-            if (isPublic) {
-                P->Diag(P->Tok, diag::err_scope_visibility_conflict
-                    << (int) ASTClassVisibilityKind::CLASS_V_PUBLIC << (int) ASTClassVisibilityKind::CLASS_V_PUBLIC);
-            }
-            if (isPrivate) {
-                P->Diag(P->Tok, diag::err_scope_visibility_duplicate
-                    << (int) ASTClassVisibilityKind::CLASS_V_PRIVATE);
-            }
-            isPublic = true;
-            Found = true;
-            P->ConsumeToken();
-        } else if (P->Tok.is(tok::kw_const)) {
-            if (isConst) {
-                P->Diag(P->Tok, diag::err_scope_const_duplicate);
-            }
-            isConst = true;
-            Found = true;
-            P->ConsumeToken();
-        } else if (P->Tok.is(tok::kw_static)) {
-            if (isConst) {
-                P->Diag(P->Tok, diag::err_scope_static_duplicate);
-            }
-            isStatic = true;
-            Found = true;
-            P->ConsumeToken();
-        } else {
-            Found = false;
-        }
-    } while (Found);
-
-    ASTClassVisibilityKind Visibility = isPrivate ? ASTClassVisibilityKind::CLASS_V_PRIVATE :
-            (isPublic ? ASTClassVisibilityKind::CLASS_V_PUBLIC : ASTClassVisibilityKind::CLASS_V_DEFAULT);
-    return SemaBuilder::CreateClassScopes(Visibility, isConst, isStatic);
-}
-
-bool ClassParser::ParseField(ASTClassScopes *Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name) {
+bool ClassParser::ParseField(ASTScopes *Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name) {
     FLY_DEBUG_MESSAGE("ClassParser", "ParseMethod", Logger()
             .Attr("Scopes", Scopes)
             .Attr("Type", Type).End());
@@ -212,7 +157,7 @@ bool ClassParser::ParseField(ASTClassScopes *Scopes, ASTType *Type, const Source
     return false;
 }
 
-bool ClassParser::ParseMethod(ASTClassScopes *Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name) {
+bool ClassParser::ParseMethod(ASTScopes *Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name) {
     FLY_DEBUG_MESSAGE("ClassParser", "ParseMethod", Logger()
             .Attr("Scopes", Scopes)
             .Attr("Type", Type).End());
@@ -259,9 +204,4 @@ SourceLocation ClassParser::ConsumeBrace() {
     }
 
     return P->ConsumeNext();
-}
-
-bool ClassParser::isBraceBalanced() const {
-    FLY_DEBUG("Parser", "isBraceBalanced");
-    return BraceCount == 0;
 }

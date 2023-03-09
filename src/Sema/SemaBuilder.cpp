@@ -127,20 +127,6 @@ SemaBuilder::CreateImport(const SourceLocation &NameLoc, llvm::StringRef Name,
 }
 
 /**
- * Creates scopes used from ASTTopDef
- * @param Visibility
- * @param Constant
- * @return
- */
-ASTTopScopes *
-SemaBuilder::CreateTopScopes(ASTVisibilityKind Visibility, bool Constant) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateTopScopes",
-                      "Visibility=" << (int)Visibility <<
-                      ", Constant=" << (int)Constant);
-    return new ASTTopScopes(Visibility, Constant);
-}
-
-/**
  * Creates an ASTGlobalVar
  * @param Node
  * @param Loc
@@ -151,7 +137,7 @@ SemaBuilder::CreateTopScopes(ASTVisibilityKind Visibility, bool Constant) {
  */
 ASTGlobalVar *
 SemaBuilder::CreateGlobalVar(ASTNode *Node, const SourceLocation &Loc, ASTType *Type,
-                                           const llvm::StringRef Name, ASTTopScopes *Scopes) {
+                                           const llvm::StringRef Name, ASTScopes *Scopes) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateGlobalVar",
                       Logger().Attr("Node", Node)
                       .Attr("Loc", (uint64_t) Loc.getRawEncoding())
@@ -172,7 +158,7 @@ SemaBuilder::CreateGlobalVar(ASTNode *Node, const SourceLocation &Loc, ASTType *
  */
 ASTFunction *
 SemaBuilder::CreateFunction(ASTNode *Node, const SourceLocation &Loc, ASTType *Type,
-                                         const llvm::StringRef Name, ASTTopScopes *Scopes) {
+                                         const llvm::StringRef Name, ASTScopes *Scopes) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateFunction",
                       Logger().Attr("Node", Node)
                       .Attr("Loc", (uint64_t) Loc.getRawEncoding())
@@ -195,7 +181,7 @@ SemaBuilder::CreateFunction(ASTNode *Node, const SourceLocation &Loc, ASTType *T
  * @return
  */
 ASTClass *
-SemaBuilder::CreateClass(ASTNode *Node, ASTClassKind ClassKind, ASTTopScopes *Scopes,
+SemaBuilder::CreateClass(ASTNode *Node, ASTClassKind ClassKind, ASTScopes *Scopes,
                          const SourceLocation &Loc, const llvm::StringRef Name,
                          llvm::SmallVector<llvm::StringRef, 4> &ExtClasses) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateClass",
@@ -207,21 +193,21 @@ SemaBuilder::CreateClass(ASTNode *Node, ASTClassKind ClassKind, ASTTopScopes *Sc
     // Create a default constructor
     if (ClassKind == ASTClassKind::CLASS || ClassKind == ASTClassKind::STRUCT) {
         ASTClassFunction *Constructor = CreateClassConstructor(Class, SourceLocation(),
-                                                               new ASTClassScopes(
-                                                                       ASTClassVisibilityKind::CLASS_V_PUBLIC, false));
+                                                               new ASTScopes(
+                                                                       ASTVisibilityKind::V_PUBLIC, false));
         AddClassConstructor(Constructor);
         Class->autoDefaultConstructor = true;
     } else if (ClassKind == ASTClassKind::ENUM) {
         
         // Create EnumVar which contains the selection value
         ASTUIntType *UIntType = SemaBuilder::CreateUIntType(SourceLocation());
-        ASTClassScopes *Scopes = CreateClassScopes(ASTClassVisibilityKind::CLASS_V_PRIVATE, true, false);
+        ASTScopes *Scopes = CreateScopes(ASTVisibilityKind::V_PRIVATE, true, false);
         ASTClassVar *EnumVar = new ASTClassVar(SourceLocation(), Class, Scopes, UIntType, "enum");
 
         // Create Constructor
         ASTClassFunction *Constructor = CreateClassConstructor(Class, SourceLocation(),
-                                                               new ASTClassScopes(
-                                                                       ASTClassVisibilityKind::CLASS_V_PRIVATE, false));
+                                                               new ASTScopes(
+                                                                       ASTVisibilityKind::V_PRIVATE, false));
         ASTParam *Param = CreateParam(Constructor, SourceLocation(), UIntType, "enum");
         AddParam(Param);
         ASTBlock *Block = getBlock(Constructor);
@@ -246,7 +232,7 @@ SemaBuilder::CreateClass(ASTNode *Node, ASTClassKind ClassKind, ASTTopScopes *Sc
  * @return
  */
 ASTClass *
-SemaBuilder::CreateClass(ASTNode *Node, ASTClassKind ClassKind, ASTTopScopes *Scopes,
+SemaBuilder::CreateClass(ASTNode *Node, ASTClassKind ClassKind, ASTScopes *Scopes,
                          const SourceLocation &Loc, const llvm::StringRef Name) {
     llvm::SmallVector<llvm::StringRef, 4> Classes;
     return CreateClass(Node, ClassKind, Scopes, Loc, Name, Classes);
@@ -258,12 +244,12 @@ SemaBuilder::CreateClass(ASTNode *Node, ASTClassKind ClassKind, ASTTopScopes *Sc
  * @param Constant
  * @return
  */
-ASTClassScopes *
-SemaBuilder::CreateClassScopes(ASTClassVisibilityKind Visibility, bool Constant, bool Static) {
+ASTScopes *
+SemaBuilder::CreateScopes(ASTVisibilityKind Visibility, bool Constant, bool Static) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateClassScopes",
                       "Visibility=" << (int) Visibility <<
                               ", Constant=" << Constant);
-    return new ASTClassScopes(Visibility, Constant);
+    return new ASTScopes(Visibility, Constant);
 }
 
 /**
@@ -277,7 +263,7 @@ SemaBuilder::CreateClassScopes(ASTClassVisibilityKind Visibility, bool Constant,
  */
 ASTClassVar *
 SemaBuilder::CreateClassVar(ASTClass *Class, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
-                                         ASTClassScopes *Scopes) {
+                                         ASTScopes *Scopes) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateClassVar",
                       Logger().Attr("Class", Class)
                                             .Attr("Loc", (uint64_t) Loc.getRawEncoding())
@@ -293,14 +279,13 @@ SemaBuilder::CreateEnumClassVar(ASTClass *Class, const SourceLocation &Loc, llvm
                       Logger().Attr("Class", Class)
                               .Attr("Loc", (uint64_t) Loc.getRawEncoding())
                               .Attr("Name", Name).End());
-    ASTClassScopes *Scopes = CreateClassScopes(ASTClassVisibilityKind::CLASS_V_DEFAULT, true, true);
+    ASTScopes *Scopes = CreateScopes(ASTVisibilityKind::V_DEFAULT, true, true);
     ASTClassVar *ClassVar = CreateClassVar(Class, Loc, Class->getType(), Name, Scopes);
     return ClassVar;
 }
 
 ASTClassFunction *
-SemaBuilder::CreateClassConstructor(ASTClass *Class, const SourceLocation &Loc, ASTClassScopes *Scopes) {
-
+SemaBuilder::CreateClassConstructor(ASTClass *Class, const SourceLocation &Loc, ASTScopes *Scopes) {
     ASTClassFunction *F = CreateClassMethod(Class, Loc, CreateClassType(Class), Class->Name, Scopes);
     F->Constructor = true;
     return F;
@@ -308,7 +293,7 @@ SemaBuilder::CreateClassConstructor(ASTClass *Class, const SourceLocation &Loc, 
 
 ASTClassFunction *
 SemaBuilder::CreateClassMethod(ASTClass *Class, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
-                               ASTClassScopes *Scopes) {
+                               ASTScopes *Scopes) {
     ASTClassFunction *F = new ASTClassFunction(Loc, Class, Scopes, Type, Name);
     F->Params = new ASTParams();
     F->Body = CreateBlock(nullptr, SourceLocation());

@@ -15,7 +15,7 @@
 
 using namespace fly;
 
-ASTClassVar::ASTClassVar(const SourceLocation &Loc, ASTClass *Class, ASTClassScopes *Scopes, ASTType *Type,
+ASTClassVar::ASTClassVar(const SourceLocation &Loc, ASTClass *Class, ASTScopes *Scopes, ASTType *Type,
                          llvm::StringRef Name) :
         VarKind(ASTVarKind::VAR_CLASS), Type(Type), Name(Name),
         Loc(Loc), Class(Class), Scopes(Scopes) {
@@ -46,7 +46,7 @@ llvm::StringRef ASTClassVar::getComment() const {
     return Comment;
 }
 
-ASTClassScopes *ASTClassVar::getScopes() const {
+ASTScopes *ASTClassVar::getScopes() const {
     return Scopes;
 }
 

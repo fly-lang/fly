@@ -200,87 +200,73 @@ bool Parser::ParseTopDef() {
     bool Constant = false;
 
     // Parse Public/Private and Constant
-    ASTTopScopes *Scopes = ParseTopScopes();
-    bool Success = !Diags.hasErrorOccurred();
+    ASTScopes *Scopes = SemaBuilder::CreateScopes();
+    if (ParseScopes(Scopes)) {
 
-    // Define a Class
-    if (Tok.isOneOf(tok::kw_struct, tok::kw_class, tok::kw_interface, tok::kw_enum)) {
-        return Success & ParseClassDef(Scopes);
-    }
-
-    // Parse Type
-    ASTType *Type = ParseType();
-    Success = !Diags.hasErrorOccurred();
-    if (Type) {
-
-        // Define a Function
-        if (Tok.isAnyIdentifier() &&
-            Lex.findNextToken(Tok.getLocation(), SourceMgr)->is(tok::l_paren)) {
-            return Success & ParseFunctionDef(Scopes, Type);
+        // Define a Class
+        if (Tok.isOneOf(tok::kw_struct, tok::kw_class, tok::kw_interface, tok::kw_enum)) {
+            return ParseClassDef(Scopes);
         }
 
-        // Define a GlobalVar
-        return Success & ParseGlobalVarDef(Scopes, Type);
+        // Parse Type
+        ASTType *Type = nullptr;
+        if (ParseType(Type)) {
+
+            // Define a Function
+            if (Tok.isAnyIdentifier() &&
+                Lex.findNextToken(Tok.getLocation(), SourceMgr)->is(tok::l_paren)) {
+                return ParseFunctionDef(Scopes, Type);
+            }
+
+            // Define a GlobalVar
+            return ParseGlobalVarDef(Scopes, Type);
+        }
     }
 
     // Unknown Top Definition
     return false;
 }
 
-/**
- * Parse Top Scopes Visibility and isConst
- * @param Visibility
- * @param isConst
- * @param isParsedVisibility true when Visibility is already parsed
- * @param isParsedConstant true when isConst is already parsed
- * @return true on Success or false on Error
- */
-ASTTopScopes *Parser::ParseTopScopes() {
-    FLY_DEBUG("Parser", "ParseTopScopes");
+bool Parser::ParseScopes(ASTScopes *&Scopes) {
+    FLY_DEBUG("ClassParser", "ParseScopes");
 
-    bool isPrivate = false;
-    bool isPublic = false;
+    bool isVisibleAssigned = false;
     bool isConst = false;
-    bool Found = false;
-    do {
-        if (Tok.is(tok::kw_private)) {
-            if (isPrivate) {
-                Diag(Tok, diag::err_scope_visibility_duplicate << (int) ASTVisibilityKind::V_PRIVATE);
-            }
-            if (isPublic) {
+    bool isStatic = false;
+    while (true) {
+        if (Tok.isOneOf(tok::kw_private,tok::kw_protected, tok::kw_public)) {
+            if (isVisibleAssigned) {
                 Diag(Tok, diag::err_scope_visibility_conflict
-                    << (int) ASTVisibilityKind::V_PRIVATE << (int) ASTVisibilityKind::V_PUBLIC);
+                        << (int) ASTVisibilityKind::V_PRIVATE << (int) ASTVisibilityKind::V_PUBLIC);
+                return false;
             }
-            isPrivate = true;
-            Found = true;
-            ConsumeToken();
-        } else if (Tok.is(tok::kw_public)) {
-            if (isPublic) {
-                Diag(Tok, diag::err_scope_visibility_conflict
-                    << (int) ASTVisibilityKind::V_PUBLIC << (int) ASTVisibilityKind::V_PUBLIC);
-            }
-            if (isPrivate) {
-                Diag(Tok, diag::err_scope_visibility_duplicate
-                    << (int) ASTVisibilityKind::V_PRIVATE);
-            }
-            isPublic = true;
-            Found = true;
+            Scopes->setVisibility(Tok.is(tok::kw_private) ? ASTVisibilityKind::V_PRIVATE :
+                         Tok.is(tok::kw_protected) ? ASTVisibilityKind::V_PROTECTED :
+                         Tok.is(tok::kw_public) ? ASTVisibilityKind::V_PUBLIC :
+                         ASTVisibilityKind::V_DEFAULT);
+            isVisibleAssigned = true;
             ConsumeToken();
         } else if (Tok.is(tok::kw_const)) {
             if (isConst) {
                 Diag(Tok, diag::err_scope_const_duplicate);
+                return false;
             }
+            Scopes->setConstant(true);
             isConst = true;
-            Found = true;
+            ConsumeToken();
+        } else if (Tok.is(tok::kw_static)) {
+            if (isStatic) {
+                Diag(Tok, diag::err_scope_static_duplicate);
+                return false;
+            }
+            Scopes->setStatic(true);
+            isStatic = true;
             ConsumeToken();
         } else {
-            Found = false;
+            break;
         }
-    } while (Found);
-
-    ASTVisibilityKind Visibility = isPrivate ? ASTVisibilityKind::V_PRIVATE :
-                (isPublic ? ASTVisibilityKind::V_PUBLIC : ASTVisibilityKind::V_DEFAULT);
-    return SemaBuilder::CreateTopScopes(Visibility, isConst);
+    }
+    return true;
 }
 
 /**
@@ -292,7 +278,7 @@ ASTTopScopes *Parser::ParseTopScopes() {
  * @param NameLoc
  * @return
  */
-bool Parser::ParseGlobalVarDef(ASTTopScopes *Scopes, ASTType *Type) {
+bool Parser::ParseGlobalVarDef(ASTScopes *Scopes, ASTType *Type) {
     FLY_DEBUG_MESSAGE("Parser", "ParseGlobalVarDef", Logger()
                                                     .Attr("Scopes", Scopes)
                                                     .Attr("Type", Type).End());
@@ -332,7 +318,7 @@ bool Parser::ParseGlobalVarDef(ASTTopScopes *Scopes, ASTType *Type) {
  * @param NameLoc
  * @return
  */
-bool Parser::ParseFunctionDef(ASTTopScopes *Scopes, ASTType *Type) {
+bool Parser::ParseFunctionDef(ASTScopes *Scopes, ASTType *Type) {
     FLY_DEBUG_MESSAGE("Parser", "ParseFunctionDef",  Logger()
                                                     .Attr("Scopes", Scopes)
                                                     .Attr("Type", Type).End());
@@ -366,7 +352,7 @@ bool Parser::ParseFunctionDef(ASTTopScopes *Scopes, ASTType *Type) {
  * @param Constant
  * @return
  */
-bool Parser::ParseClassDef(ASTTopScopes *Scopes) {
+bool Parser::ParseClassDef(ASTScopes *Scopes) {
     FLY_DEBUG_MESSAGE("Parser", "ParseClassDef", Logger().Attr("Scopes", Scopes).End());
 
     // Add Comment to AST
@@ -458,9 +444,7 @@ bool Parser::ParseStmt(ASTBlock *Block) {
     // Define an ASTLocalVar
     // int a
     ASTType *Type = nullptr;
-    if (isBuiltinType(Tok)) {
-        Type = ParseBuiltinType();
-    }
+    isBuiltinType(Tok) && ParseBuiltinType(Type);
 
     // Type a
     // Type a = ...
@@ -470,10 +454,14 @@ bool Parser::ParseStmt(ASTBlock *Block) {
     ASTIdentifier *Identifier1 = nullptr;
     if (Tok.isAnyIdentifier()) {
 
-        // ASTClassType or ASTVarRef or ASTCall or ASTLocalVar
+        // ASTCall or ASTClassType, ASTVarRef, ASTLocalVar
         Identifier1 = ParseIdentifier(nullptr);
-
-        if (Type) { // int a
+        
+        if (Identifier1->isCall()) {
+            ASTExprStmt *ExprStmt = Builder.CreateExprStmt(Block, Tok.getLocation());
+            Builder.CreateExpr(ExprStmt, Identifier1->getCall());
+            return Builder.AddStmt(ExprStmt);
+        } else if (Type != nullptr) { // int a
             // FIXME check Identifier for LocalVar
             ASTLocalVar *LocalVar = Builder.CreateLocalVar(Block, Tok.getLocation(), Type, Identifier1->getName(), Const);
 
@@ -482,12 +470,9 @@ bool Parser::ParseStmt(ASTBlock *Block) {
                 ConsumeToken();
                 ASTExpr *Expr = ParseExpr(LocalVar);
             }
-
             return Builder.AddStmt(LocalVar);
-        }
-
-        // Type a: Identifier is ASTType
-        if (Tok.isAnyIdentifier()) {
+            
+        } else if (Tok.isAnyIdentifier()) { // Type a: Identifier is ASTType
             ASTIdentifier *Identifier2 = ParseIdentifier();
 
             // Type is a ClassType or an Array of ClassType
@@ -501,27 +486,26 @@ bool Parser::ParseStmt(ASTBlock *Block) {
                 ConsumeToken();
                 ASTExpr *Expr = ParseExpr(LocalVar);
             }
-
             return Builder.AddStmt(LocalVar);
-        }
-
-        // a = ...
-        if (isTokenAssignOperator()) {
+            
+        } if (isTokenAssignOperator()) { // a = ...
 
             ASTVarRef *VarRef = Builder.CreateVarRef(Identifier1);
             ASTVarAssign *VarAssign = Builder.CreateVarAssign(Block, VarRef);
             ExprParser Parser(this, VarAssign);
             ASTExpr *Expr = Parser.ParseAssignExpr();
-
             return Expr && Builder.AddStmt(VarAssign);
+        } else {
+            // a()
+            // a++
+            ASTExprStmt *ExprStmt = Builder.CreateExprStmt(Block, Tok.getLocation());
+            ASTExpr *Expr = ParseExpr(ExprStmt, Identifier1);
+            return Expr && Builder.AddStmt(ExprStmt);
         }
     }
 
-    // a()
-    // a++
-    ASTExprStmt *ExprStmt = Builder.CreateExprStmt(Block, Tok.getLocation());
-    ASTExpr *Expr = ParseExpr(ExprStmt, Identifier1);
-    return Expr && Builder.AddStmt(ExprStmt);
+    Diag(Tok.getLocation(), diag::err_parse_stmt);
+    return false;
 }
 
 /**
@@ -863,40 +847,52 @@ bool Parser::ParseForCommaStmt(ASTBlock *Block) {
     return false;
 }
 
-ASTType *Parser::ParseBuiltinType() {
+bool Parser::ParseBuiltinType(ASTType *&Type) {
     FLY_DEBUG("Parser", "ParseBuiltinType");
-
     switch (Tok.getKind()) {
         case tok::kw_bool:
-            return SemaBuilder::CreateBoolType(ConsumeToken());
+            Type = SemaBuilder::CreateBoolType(ConsumeToken());
+            break;
         case tok::kw_byte:
-            return SemaBuilder::CreateByteType(ConsumeToken());
+            Type = SemaBuilder::CreateByteType(ConsumeToken());
+            break;
         case tok::kw_ushort:
-            return SemaBuilder::CreateUShortType(ConsumeToken());
+            Type = SemaBuilder::CreateUShortType(ConsumeToken());
+            break;
         case tok::kw_short:
-            return SemaBuilder::CreateShortType(ConsumeToken());
+            Type = SemaBuilder::CreateShortType(ConsumeToken());
+            break;
         case tok::kw_uint:
-            return SemaBuilder::CreateUIntType(ConsumeToken());
+            Type = SemaBuilder::CreateUIntType(ConsumeToken());
+            break;
         case tok::kw_int:
-            return SemaBuilder::CreateIntType(ConsumeToken());
+            Type = SemaBuilder::CreateIntType(ConsumeToken());
+            break;
         case tok::kw_ulong:
-            return SemaBuilder::CreateULongType(ConsumeToken());
+            Type = SemaBuilder::CreateULongType(ConsumeToken());
+            break;
         case tok::kw_long:
-            return SemaBuilder::CreateLongType(ConsumeToken());
+            Type = SemaBuilder::CreateLongType(ConsumeToken());
+            break;
         case tok::kw_float:
-            return SemaBuilder::CreateFloatType(ConsumeToken());
+            Type = SemaBuilder::CreateFloatType(ConsumeToken());
+            break;
         case tok::kw_double:
-            return SemaBuilder::CreateDoubleType(ConsumeToken());
+            Type = SemaBuilder::CreateDoubleType(ConsumeToken());
+            break;
         case tok::kw_void:
-            return SemaBuilder::CreateVoidType(ConsumeToken());
+            Type = SemaBuilder::CreateVoidType(ConsumeToken());
+            break;
+        default:
+            Diag(Tok.getLocation(), diag::err_parser_invalid_type);
+            return false;
     }
-    return nullptr;
+    return !isArrayType(Tok) || ParseArrayType(Type);
 }
 
-ASTArrayType *Parser::ParseArrayType(ASTType *Type) {
+bool Parser::ParseArrayType(ASTType *&Type) {
     FLY_DEBUG_MESSAGE("Parser", "ParseArrayType", Logger().Attr("Type", Type).End());
 
-    ASTArrayType *ArrayType;
     do {
         const SourceLocation &Loc = ConsumeBracket();
 
@@ -905,35 +901,41 @@ ASTArrayType *Parser::ParseArrayType(ASTType *Type) {
         if (Tok.is(tok::r_square)) {
             ConsumeBracket();
             Expr = Builder.CreateExpr(nullptr, SemaBuilder::CreateIntegerValue(Loc, 0));
-            ArrayType = SemaBuilder::CreateArrayType(Loc, Type, Expr);
+            Type = SemaBuilder::CreateArrayType(Loc, Type, Expr);
         } else {
             Expr = ParseExpr();
             if (Tok.is(tok::r_square)) {
                 ConsumeBracket();
-                ArrayType = SemaBuilder::CreateArrayType(Loc, Type, Expr);
+                Type = SemaBuilder::CreateArrayType(Loc, Type, Expr);
             } else {
                 Diag(Loc, diag::err_parser_unclosed_bracket);
-                return nullptr;
+                return false;
             }
         }
     } while (Tok.is(tok::l_square));
 
-    return ArrayType;
+    return true;
 }
 
 /**
  * Parse a data Type
  * @return true on Success or false on Error
  */
-ASTType *Parser::ParseType() {
+bool Parser::ParseType(ASTType *&Type) {
     FLY_DEBUG("Parser", "ParseType");
 
-    ASTType *Type = nullptr;
-    if (isBuiltinType(Tok)) {
-        Type = ParseBuiltinType();
+    if (isBuiltinType(Tok) && ParseBuiltinType(Type)) {
+        // nothing
     } else if (Tok.isAnyIdentifier()) {
         ASTIdentifier *Identifier = ParseIdentifier();
+        if (Identifier->isCall()) {
+            Diag(Identifier->getLocation(), diag::err_parser_invalid_type);
+            return false;
+        }
         Type = Builder.CreateClassType(Identifier);
+    } else {
+        Diag(Tok.getLocation(), diag::err_parser_empty_type);
+        return false;
     }
 
     if (Type && isArrayType(Tok)) {
@@ -1026,7 +1028,7 @@ ASTIdentifier *Parser::ParseIdentifier(ASTIdentifier *Parent) {
         if (Tok.isAnyIdentifier()) {
             return ParseIdentifier(Child);
         } else {
-            Diag(Tok.getLocation(), diag::err_invalid_identifier);
+            Diag(Tok.getLocation(), diag::err_invalid_id) << Tok.getKind();
             return Child;
         }
     } else if (Tok.is(tok::l_paren)) {

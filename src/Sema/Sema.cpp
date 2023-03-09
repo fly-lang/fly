@@ -77,9 +77,6 @@ ASTNode *Sema::FindNode(llvm::StringRef Name, ASTNameSpace *NameSpace) const {
 ASTClass *Sema::FindClass(llvm::StringRef ClassName, ASTNameSpace *NameSpace) const {
     FLY_DEBUG_MESSAGE("Sema", "FindClass", Logger().Attr("ClassName", ClassName).Attr("NameSpace", NameSpace).End());
     ASTClass *Class = NameSpace->Classes.lookup(ClassName);
-    if (!Class) {
-        Diag(diag::err_unref_class) << ClassName;
-    }
     return Class;
 }
 

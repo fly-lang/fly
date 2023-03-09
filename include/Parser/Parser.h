@@ -23,7 +23,7 @@ namespace fly {
     class ASTArrayValue;
     class ASTArrayType;
     class ASTClassType;
-    class ASTTopScopes;
+    class ASTScopes;
     class ASTType;
     class ASTBlock;
     class ASTCall;
@@ -86,10 +86,10 @@ namespace fly {
 
         // Parse Top Definitions
         bool ParseTopDef();
-        ASTTopScopes *ParseTopScopes();
-        bool ParseGlobalVarDef(ASTTopScopes *Scopes, ASTType *Type);
-        bool ParseFunctionDef(ASTTopScopes *Scopes, ASTType *Type);
-        bool ParseClassDef(ASTTopScopes *Scopes);
+        bool ParseScopes(ASTScopes *&Scopes);
+        bool ParseGlobalVarDef(ASTScopes *Scopes, ASTType *Type);
+        bool ParseFunctionDef(ASTScopes *Scopes, ASTType *Type);
+        bool ParseClassDef(ASTScopes *Scopes);
 
         // Parse Block Statement
         bool ParseBlock(ASTBlock *Block);
@@ -103,9 +103,9 @@ namespace fly {
         bool ParseForCommaStmt(ASTBlock *Block);
 
         // Parse Identifiers
-        ASTType *ParseBuiltinType();
-        ASTArrayType *ParseArrayType(ASTType *);
-        ASTType *ParseType();
+        bool ParseBuiltinType(ASTType *&);
+        bool ParseArrayType(ASTType *&);
+        bool ParseType(ASTType *&);
         ASTCall *ParseCall(ASTStmt *Stmt, ASTIdentifier *Identifier);
         bool ParseCallArg(ASTStmt *Stmt, ASTCall *Call);
         ASTIdentifier *ParseIdentifier(ASTIdentifier *Parent = nullptr);

@@ -8,13 +8,14 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTFunction.h"
+#include "AST/ASTScopes.h"
 #include "CodeGen/CodeGenFunction.h"
 #include <string>
 
 using namespace fly;
 
 ASTFunction::ASTFunction(const SourceLocation &Loc, ASTNode *Node, ASTType *ReturnType, llvm::StringRef Name,
-                         ASTTopScopes *Scopes) :
+                         ASTScopes *Scopes) :
         ASTTopDef(Node, ASTTopDefKind::DEF_FUNCTION, Scopes),
         ASTFunctionBase(Loc, ASTFunctionKind::FUNCTION, ReturnType, Name) {
 

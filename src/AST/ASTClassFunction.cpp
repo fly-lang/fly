@@ -12,7 +12,7 @@
 
 using namespace fly;
 
-ASTClassFunction::ASTClassFunction(const SourceLocation &Loc, ASTClass *Class, ASTClassScopes *Scopes, ASTType *Type,
+ASTClassFunction::ASTClassFunction(const SourceLocation &Loc, ASTClass *Class, ASTScopes *Scopes, ASTType *Type,
                                    llvm::StringRef Name) :
         ASTFunctionBase(Loc, ASTFunctionKind::CLASS_FUNCTION, Type, Name), Class(Class), Scopes(Scopes)  {
 
@@ -34,7 +34,7 @@ llvm::StringRef ASTClassFunction::getComment() const {
     return Comment;
 }
 
-ASTClassScopes *ASTClassFunction::getScopes() const {
+ASTScopes *ASTClassFunction::getScopes() const {
     return Scopes;
 }
 

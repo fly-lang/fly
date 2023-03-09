@@ -33,38 +33,6 @@ namespace fly {
         ENUM // has only Constants
     };
 
-    enum class ASTClassVisibilityKind {
-        CLASS_V_DEFAULT,
-        CLASS_V_PUBLIC,
-        CLASS_V_PRIVATE,
-        CLASS_V_PROTECTED
-    };
-
-    class ASTClassScopes : public Debuggable {
-
-        friend class SemaBuilder;
-
-        // Visibility of the Fields or Methods
-        ASTClassVisibilityKind Visibility = ASTClassVisibilityKind::CLASS_V_DEFAULT;
-
-        // Constant Fields or Methods
-        bool Constant = false;
-
-        // Static Fields or Methods
-        bool Static = false;
-
-        ASTClassScopes(ASTClassVisibilityKind Visibility, bool Constant, bool Static = false);
-
-    public:
-        ASTClassVisibilityKind getVisibility() const;
-
-        bool isConstant() const;
-
-        bool isStatic() const;
-
-        std::string str() const;
-    };
-
     class ASTClass : public ASTTopDef {
 
         friend class SemaBuilder;
@@ -94,7 +62,7 @@ namespace fly {
 
         CodeGenClass *CodeGen = nullptr;
 
-        ASTClass(ASTNode *Node, ASTClassKind ClassKind, ASTTopScopes *Scopes,
+        ASTClass(ASTNode *Node, ASTClassKind ClassKind, ASTScopes *Scopes,
                  const SourceLocation &Loc, const llvm::StringRef Name,
                  llvm::SmallVector<llvm::StringRef, 4> &ExtClasses);
 

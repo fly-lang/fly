@@ -350,12 +350,12 @@ bool SemaResolver::ResolveIdentifiers(ASTBlock *Block, ASTReference *Ref) {
                 // NameSpace.func()
                 Function = Current->getCall()->getDef();
             } else {
-                S.Diag(Current->getLocation(), diag::err_sema_invalid_identifier);
+                S.Diag(Current->getLocation(), diag::err_sema_resolve_identifier);
                 return false;
             }
 
             if (Function == nullptr) {
-                S.Diag(Current->getLocation(), diag::err_sema_invalid_identifier);
+                S.Diag(Current->getLocation(), diag::err_sema_resolve_identifier);
                 return false;
             }
 
@@ -410,7 +410,7 @@ bool SemaResolver::ResolveIdentifiers(ASTBlock *Block, ASTReference *Ref) {
 //            Var = ((ASTClassType *) Function->getType())->getDef()->Vars.lookup(Current->getName());
 
             if (Var == nullptr) {
-                S.Diag(Current->getLocation(), diag::err_sema_invalid_identifier);
+                S.Diag(Current->getLocation(), diag::err_sema_resolve_identifier);
                 return false;
             }
         }
@@ -420,7 +420,7 @@ bool SemaResolver::ResolveIdentifiers(ASTBlock *Block, ASTReference *Ref) {
             Function = nullptr;
             if (Current->getVarRef() != nullptr)
                 Current->getVarRef()->Def = Var;
-        } else if (Function && Function->getType()->isClass()) {
+        } else if (Function) {
             Var = nullptr;
             // already resolved in ResolveCall()
         }
@@ -450,13 +450,13 @@ bool SemaResolver::ResolveType(ASTFunctionBase *FunctionBase, ASTType * Type) {
     if (ClassType->getIdentifier()) {
 
         if (ClassType->getIdentifier()->isCall()) {
-            S.Diag(ClassType->getLocation(), diag::err_sema_invalid_identifier);
+            S.Diag(ClassType->getLocation(), diag::err_sema_resolve_identifier);
             return false;
         }
 
         // Check only ClassType with only 1 Parent: NameSpace.ClassName
         if (ClassType->getIdentifier()->getIndex() > 1) {
-            S.Diag(ClassType->getLocation(), diag::err_sema_invalid_identifier);
+            S.Diag(ClassType->getLocation(), diag::err_sema_resolve_identifier);
             return false;
         }
 
@@ -467,6 +467,9 @@ bool SemaResolver::ResolveType(ASTFunctionBase *FunctionBase, ASTType * Type) {
             NameSpace = S.FindNameSpace(NS);
         }
         ClassType->Def = S.FindClass(ClassName, NameSpace);
+        if (ClassType->Def == nullptr) {
+            S.Diag(diag::err_unref_class) << ClassName;
+        }
         delete ClassType->Identifier;
     }
 
@@ -489,7 +492,7 @@ bool SemaResolver::ResolveVarRef(ASTBlock *Block, ASTVarRef *VarRef) {
     if (VarRef->getIdentifier()) {
 
         if (VarRef->getIdentifier()->isCall()) {
-            S.Diag(VarRef->getLocation(), diag::err_sema_invalid_identifier);
+            S.Diag(VarRef->getLocation(), diag::err_sema_resolve_identifier);
             return false;
         }
 
@@ -509,7 +512,7 @@ bool SemaResolver::ResolveCall(ASTBlock *Block, ASTCall *Call) {
     if (Call->getIdentifier()) {
 
         if (!Call->getIdentifier()->isCall()) {
-            S.Diag(Call->getLocation(), diag::err_sema_invalid_identifier);
+            S.Diag(Call->getLocation(), diag::err_sema_resolve_identifier);
             return false;
         }
 

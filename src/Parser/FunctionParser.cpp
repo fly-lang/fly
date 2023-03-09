@@ -64,8 +64,8 @@ bool FunctionParser::ParseParam() {
     bool Const = P->isConst();
 
     // Var Type
-    ASTType *Type = P->ParseType();
-    if (Type) {
+    ASTType *Type = nullptr;
+    if (P->ParseType(Type)) {
 
         // Var Name
         const StringRef Name = P->Tok.getIdentifierInfo()->getName();

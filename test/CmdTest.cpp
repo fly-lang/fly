@@ -8,7 +8,6 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "TestConfig.h"
-#include "Basic/Debug.h"
 #include "Driver/Driver.h"
 #include "Driver/DriverOptions.h"
 

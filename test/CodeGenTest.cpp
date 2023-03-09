@@ -126,7 +126,7 @@ namespace {
     TEST_F(CodeGenTest, CGDefaultValueGlobalVar) {
         ASTNode *Node = CreateNode();
 
-        ASTTopScopes *TopScopes = SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false);
+        ASTScopes *TopScopes = SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false);
 
         // default Bool value
         ASTValue *DefaultBoolVal = SemaBuilder::CreateDefaultValue(BoolType);
@@ -267,7 +267,7 @@ namespace {
     TEST_F(CodeGenTest, CGValuedGlobalVar) {
         ASTNode *Node = CreateNode();
 
-        ASTTopScopes *TopScopes = SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false);
+        ASTScopes *TopScopes = SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false);
 
         // a
         ASTBoolValue *BoolVal = SemaBuilder::CreateBoolValue(SourceLoc, true);
@@ -423,7 +423,7 @@ namespace {
     TEST_F(CodeGenTest, CGFunc) {
         ASTNode *Node = CreateNode();
 
-        ASTTopScopes *TopScopes = SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false);
+        ASTScopes *TopScopes = SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false);
 
         ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main", TopScopes);
         EXPECT_TRUE(Builder->AddParam(Builder->CreateParam(MainFn, SourceLoc, IntType, "P1", false)));
@@ -490,12 +490,12 @@ namespace {
         // float G = 2.0
         ASTFloatingValue *FloatingVal = SemaBuilder::CreateFloatingValue(SourceLoc, 2.0);
         ASTGlobalVar *GVar = Builder->CreateGlobalVar(Node, SourceLoc, FloatType, "G",
-                                                      SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_PRIVATE, false));
+                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_PRIVATE, false));
         EXPECT_TRUE(Builder->AddGlobalVar(GVar, FloatingVal));
 
         // main()
         ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",
-                                                      SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false));
+                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
         ASTBlock *Body = Builder->getBlock(MainFn);
 
         // int A
@@ -550,12 +550,12 @@ namespace {
 
         // main()
         ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",
-                                                      SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false));
+                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
         ASTBlock *Body = Builder->getBlock(MainFn);
 
         // test()
         ASTFunction *TestFn = Builder->CreateFunction(Node, SourceLoc, IntType, "test",
-                                                      SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false));
+                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
 
         // call test()
         ASTExprStmt *ExprStmt = Builder->CreateExprStmt(Body, SourceLoc);
@@ -604,7 +604,7 @@ namespace {
 
         // main()
         ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",
-                                                      SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false));
+                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
         ASTBlock *Body = Builder->getBlock(MainFn);
         ASTParam *aParam = Builder->CreateParam(MainFn, SourceLoc, IntType, "a");
         EXPECT_TRUE(Builder->AddParam(aParam));
@@ -670,7 +670,7 @@ namespace {
 
         // main()
         ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",
-                                                      SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false));
+                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
         ASTBlock *Body = Builder->getBlock(MainFn);
         ASTParam *aParam = Builder->CreateParam(MainFn, SourceLoc, IntType, "a");
         EXPECT_TRUE(Builder->AddParam(aParam));
@@ -858,7 +858,7 @@ namespace {
 
         // main()
         ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, BoolType, "main",
-                                                      SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false));
+                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
         ASTBlock *Body = Builder->getBlock(MainFn);
         ASTLocalVar *aVar = Builder->CreateLocalVar(Body, SourceLoc, IntType, "a");
         EXPECT_TRUE(Builder->AddStmt(aVar));
@@ -977,7 +977,7 @@ namespace {
 
         // main()
         ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, BoolType, "main",
-                                                      SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false));
+                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
         ASTBlock *Body = Builder->getBlock(MainFn);
         ASTLocalVar *aVar = Builder->CreateLocalVar(Body, SourceLoc, BoolType, "a");
         EXPECT_TRUE(Builder->AddStmt(aVar));
@@ -1074,7 +1074,7 @@ namespace {
 
         // main()
         ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",
-                                                      SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false));
+                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
         ASTBlock *Body = Builder->getBlock(MainFn);
         ASTLocalVar *aVar = Builder->CreateLocalVar(Body, SourceLoc, BoolType, "a");
         EXPECT_TRUE(Builder->AddStmt(aVar));
@@ -1162,7 +1162,7 @@ namespace {
 
         // main()
         ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",
-                                                      SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false));
+                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
         ASTBlock *Body = Builder->getBlock(MainFn);
 
         // int a = 0
@@ -1227,7 +1227,7 @@ namespace {
 
         // main()
         ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main", 
-                                                      SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false));
+                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
         ASTBlock *Body = Builder->getBlock(MainFn);
         ASTParam *aParam = Builder->CreateParam(MainFn, SourceLoc, IntType, "a");
         EXPECT_TRUE(Builder->AddParam(aParam));
@@ -1299,7 +1299,7 @@ namespace {
 
         // main()
         ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",
-                                                      SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false));
+                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
         ASTBlock *Body = Builder->getBlock(MainFn);
         ASTParam *aParam = Builder->CreateParam(MainFn, SourceLoc, IntType, "a");
         EXPECT_TRUE(Builder->AddParam(aParam));
@@ -1403,7 +1403,7 @@ namespace {
 
         // main()
         ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",
-                                                      SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false));
+                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
         ASTBlock *Body = Builder->getBlock(MainFn);
         ASTParam *aParam = Builder->CreateParam(MainFn, SourceLoc, IntType, "a");
         EXPECT_TRUE(Builder->AddParam(aParam));
@@ -1495,7 +1495,7 @@ namespace {
 
         // main()
         ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",
-                                                      SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false));
+                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
         ASTBlock *Body = Builder->getBlock(MainFn);
         ASTParam *aParam = Builder->CreateParam(MainFn, SourceLoc, IntType, "a");
         EXPECT_TRUE(Builder->AddParam(aParam));
@@ -1579,7 +1579,7 @@ namespace {
 
         // main()
         ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",
-                                                      SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false));
+                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
         ASTBlock *Body = Builder->getBlock(MainFn);
         ASTParam *aParam = Builder->CreateParam(MainFn, SourceLoc, IntType, "a");
         EXPECT_TRUE(Builder->AddParam(aParam));
@@ -1644,7 +1644,7 @@ namespace {
 
         // main()
         ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",
-                                                      SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false));
+                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
         ASTBlock *Body = Builder->getBlock(MainFn);
         ASTParam *aParam = Builder->CreateParam(MainFn, SourceLoc, IntType, "a");
         EXPECT_TRUE(Builder->AddParam(aParam));
@@ -1727,7 +1727,7 @@ namespace {
 
         // main()
         ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",
-                                                      SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false));
+                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
         ASTBlock *Body = Builder->getBlock(MainFn);
         ASTParam *aParam = Builder->CreateParam(MainFn, SourceLoc, IntType, "a");
         EXPECT_TRUE(Builder->AddParam(aParam));
@@ -1793,7 +1793,7 @@ namespace {
 
         // main()
         ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",
-                                                      SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false));
+                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
         ASTBlock *Body = Builder->getBlock(MainFn);
         ASTParam *aParam = Builder->CreateParam(MainFn, SourceLoc, IntType, "a");
         EXPECT_TRUE(Builder->AddParam(aParam));
@@ -1875,24 +1875,24 @@ namespace {
         //   private const int c
         // }
         ASTClass *TestClass = Builder->CreateClass(Node, ASTClassKind::CLASS,
-                                                   SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false),
+                                                   SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false),
                                                    SourceLoc, "TestClass");
         ASTClassVar *aField = Builder->CreateClassVar(TestClass, SourceLoc, SemaBuilder::CreateIntType(SourceLoc),
                                 "a",
-                                SemaBuilder::CreateClassScopes(
-                                        ASTClassVisibilityKind::CLASS_V_DEFAULT, false, false));
+                                SemaBuilder::CreateScopes(
+                                        ASTVisibilityKind::V_DEFAULT, false, false));
         Builder->AddClassVar(aField);
 
         ASTClassVar *bField = Builder->CreateClassVar(TestClass, SourceLoc, SemaBuilder::CreateIntType(SourceLoc),
                                 "b",
-                                SemaBuilder::CreateClassScopes(
-                                        ASTClassVisibilityKind::CLASS_V_PUBLIC, false, false));
+                                SemaBuilder::CreateScopes(
+                                        ASTVisibilityKind::V_PUBLIC, false, false));
         Builder->AddClassVar(bField);
 
         ASTClassVar *cField = Builder->CreateClassVar(TestClass, SourceLoc, SemaBuilder::CreateIntType(SourceLoc),
                                 "c",
-                                SemaBuilder::CreateClassScopes(
-                                        ASTClassVisibilityKind::CLASS_V_PRIVATE, true, false));
+                                SemaBuilder::CreateScopes(
+                                        ASTVisibilityKind::V_PRIVATE, true, false));
         Builder->AddClassVar(cField);
 
         // int main() {
@@ -1902,7 +1902,7 @@ namespace {
         //  int c = test.c
         // }
         ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",
-                                                      SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false));
+                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
         ASTBlock *Body = Builder->getBlock(MainFn);
 
         // TestClass test = new TestClass()
@@ -1989,14 +1989,14 @@ namespace {
         //   private const int c { return 1 }
         // }
         ASTClass *TestClass = Builder->CreateClass(Node, ASTClassKind::CLASS,
-                                                   SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false),
+                                                   SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false),
                                                    SourceLoc, "TestClass");
 
         // int a() { return 1 }
         ASTClassFunction *aFunc = Builder->CreateClassMethod(TestClass, SourceLoc, IntType,
                                                              "a",
-                                                             SemaBuilder::CreateClassScopes(
-                                                                     ASTClassVisibilityKind::CLASS_V_DEFAULT, false, false));
+                                                             SemaBuilder::CreateScopes(
+                                                                     ASTVisibilityKind::V_DEFAULT, false, false));
         ASTBlock *aFuncBody = Builder->getBlock(aFunc);
         ASTReturn *aFuncReturn = Builder->CreateReturn(aFuncBody, SourceLoc);
         Builder->CreateExpr(aFuncReturn, Builder->CreateIntegerValue(SourceLocation(), 1));
@@ -2006,8 +2006,8 @@ namespace {
         // public int b() { return 1 }
         ASTClassFunction *bFunc = Builder->CreateClassMethod(TestClass, SourceLoc, IntType,
                                                              "b",
-                                                             SemaBuilder::CreateClassScopes(
-                                                                     ASTClassVisibilityKind::CLASS_V_PUBLIC, false, false));
+                                                             SemaBuilder::CreateScopes(
+                                                                     ASTVisibilityKind::V_PUBLIC, false, false));
         ASTBlock *bFuncBody = Builder->getBlock(bFunc);
         ASTReturn *bFuncReturn = Builder->CreateReturn(bFuncBody, SourceLoc);
         Builder->CreateExpr(bFuncReturn, Builder->CreateIntegerValue(SourceLocation(), 1));
@@ -2017,8 +2017,8 @@ namespace {
         // private const int c { return 1 }
         ASTClassFunction *cFunc = Builder->CreateClassMethod(TestClass, SourceLoc, IntType,
                                                              "c",
-                                                             SemaBuilder::CreateClassScopes(
-                                                                     ASTClassVisibilityKind::CLASS_V_PRIVATE, true, false));
+                                                             SemaBuilder::CreateScopes(
+                                                                     ASTVisibilityKind::V_PRIVATE, true, false));
         ASTBlock *cFuncBody = Builder->getBlock(cFunc);
         ASTReturn *cFuncReturn = Builder->CreateReturn(cFuncBody, SourceLoc);
         Builder->CreateExpr(cFuncReturn, Builder->CreateIntegerValue(SourceLocation(), 1));
@@ -2032,7 +2032,7 @@ namespace {
         //  int c = test.c()
         // }
         ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",
-                                                      SemaBuilder::CreateTopScopes(ASTVisibilityKind::V_DEFAULT, false));
+                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
         ASTBlock *Body = Builder->getBlock(MainFn);
 
         // TestClass test = new TestClass()

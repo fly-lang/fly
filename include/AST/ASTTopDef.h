@@ -11,6 +11,7 @@
 #ifndef FLY_AST_TOPDEF_H
 #define FLY_AST_TOPDEF_H
 
+#include "ASTScopes.h"
 #include "Basic/Debuggable.h"
 #include "Basic/SourceLocation.h"
 
@@ -21,6 +22,7 @@ namespace fly {
     class SourceLocation;
     class ASTNode;
     class ASTNameSpace;
+    class ASTScopes;
 
     enum class ASTTopDefKind {
         DEF_NONE,
@@ -29,31 +31,6 @@ namespace fly {
         DEF_GLOBALVAR,
         DEF_FUNCTION,
         DEF_CLASS
-    };
-
-    enum class ASTVisibilityKind {
-        V_DEFAULT,
-        V_PUBLIC,
-        V_PRIVATE
-    };
-
-    class ASTTopScopes : public Debuggable {
-
-        friend class SemaBuilder;
-
-        // Visibility of the declaration
-        ASTVisibilityKind Visibility;
-
-        bool Constant = false;
-
-        ASTTopScopes(ASTVisibilityKind visibility, bool constant);
-
-    public:
-        ASTVisibilityKind getVisibility() const;
-
-        bool isConstant() const;
-
-        std::string str() const;
     };
 
     class ASTTopDef : public virtual Debuggable {
@@ -70,13 +47,13 @@ namespace fly {
         ASTTopDefKind Kind;
 
         // The TopDef Scopes
-        ASTTopScopes *Scopes = nullptr;
+        ASTScopes *Scopes = nullptr;
 
         llvm::StringRef Comment;
 
     protected:
 
-        ASTTopDef(ASTNode *Node, ASTTopDefKind Kind, ASTTopScopes *Scopes);
+        ASTTopDef(ASTNode *Node, ASTTopDefKind Kind, ASTScopes *Scopes);
 
     public:
 
@@ -86,7 +63,7 @@ namespace fly {
 
         ASTNameSpace *getNameSpace() const;
 
-        ASTTopScopes *getScopes() const;
+        ASTScopes *getScopes() const;
 
         ASTTopDefKind getKind() const;
 
