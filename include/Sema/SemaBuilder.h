@@ -123,7 +123,7 @@ namespace fly {
                                     ASTScopes *Scopes);
         ASTClass *CreateClass(ASTNode *Node, ASTClassKind ClassKind, ASTScopes *Scopes,
                               const SourceLocation &Loc, const llvm::StringRef Name,
-                              llvm::SmallVector<llvm::StringRef, 4> &ExtClasses);
+                              llvm::SmallVector<ASTClassType *, 4> &ClassTypes);
         ASTClass *CreateClass(ASTNode *Node, ASTClassKind ClassKind, ASTScopes *Scopes,
                               const SourceLocation &Loc, const llvm::StringRef Name);
         ASTClassVar *CreateClassVar(ASTClass *Class, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,

@@ -378,6 +378,8 @@ DIAG(err_sema_class_method_redeclare, CLASS_ERROR, (unsigned)diag::Severity::Err
 DIAG(err_sema_uninit_var, CLASS_ERROR, (unsigned)diag::Severity::Error, "uninitialized var", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_resolve_identifier, CLASS_ERROR, (unsigned)diag::Severity::Error, "resolving identifier failed", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_visibility_error, CLASS_ERROR, (unsigned)diag::Severity::Error, "visibility error", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_super_class_method_conflict, CLASS_ERROR, (unsigned)diag::Severity::Error, "super class method conflicts", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_super_struct_var_conflict, CLASS_ERROR, (unsigned)diag::Severity::Error, "super class var type conflicts", 0, SFINAE_Suppress, false, true, 0)
 
 // CodeGen
 DIAG(err_void_value, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot assign void value", 0, SFINAE_Suppress, false, true, 0)

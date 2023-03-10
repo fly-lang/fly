@@ -47,7 +47,7 @@ namespace fly {
 
         ASTClassKind ClassKind;
 
-        llvm::StringMap<ASTClass *> SuperClasses;
+        llvm::SmallVector<ASTClassType *, 4> SuperClasses;
 
         // Class Fields
         llvm::StringMap<ASTClassVar *> Vars;
@@ -64,7 +64,7 @@ namespace fly {
 
         ASTClass(ASTNode *Node, ASTClassKind ClassKind, ASTScopes *Scopes,
                  const SourceLocation &Loc, const llvm::StringRef Name,
-                 llvm::SmallVector<llvm::StringRef, 4> &ExtClasses);
+                 llvm::SmallVector<ASTClassType *, 4> &ExtClasses);
 
     public:
 

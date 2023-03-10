@@ -20,12 +20,10 @@ using namespace fly;
 
 ASTClass::ASTClass(ASTNode *Node, ASTClassKind ClassKind, ASTScopes *Scopes,
                    const SourceLocation &Loc, const llvm::StringRef Name,
-                   llvm::SmallVector<llvm::StringRef, 4> &ExtClasses) :
+                   llvm::SmallVector<ASTClassType *, 4> &ExtClasses) :
         ASTTopDef(Node, ASTTopDefKind::DEF_CLASS, Scopes), ClassKind(ClassKind),
-        Location(Loc), Name(Name) {
-    for (llvm::StringRef ClassName : ExtClasses) {
-        SuperClasses.insert(std::make_pair(ClassName, nullptr));
-    }
+        Location(Loc), Name(Name), SuperClasses(ExtClasses) {
+
 }
 
 llvm::StringRef ASTClass::getName() const {

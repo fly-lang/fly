@@ -86,7 +86,7 @@ namespace fly {
 
         bool ResolveIdentifiers(ASTBlock *Block, ASTReference *Ref);
 
-        bool ResolveType(ASTFunctionBase *FunctionBase, ASTType * Type);
+        bool ResolveClassType(ASTNode *Node, ASTType * Type);
 
         bool ResolveVarRef(ASTBlock *Block, ASTVarRef *VarRef);
 

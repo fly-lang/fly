@@ -51,12 +51,12 @@ ClassParser::ClassParser(Parser *P, ASTScopes *ClassScopes) : P(P) {
 
     // Parse classes after colon
     // class Example : SuperClass Interface Struct { ... }
-    llvm::SmallVector<llvm::StringRef, 4> SuperClasses;
+    llvm::SmallVector<ASTClassType *, 4> SuperClasses;
     if (P->Tok.is(tok::colon)) {
         P->ConsumeToken();
         while (P->Tok.isAnyIdentifier()) {
-            SuperClasses.push_back(P->Tok.getIdentifierInfo()->getName());
-            P->ConsumeToken();
+            ASTClassType *ClassType = P->Builder.CreateClassType(P->ParseIdentifier());
+            SuperClasses.push_back(ClassType);
         }
     }
 

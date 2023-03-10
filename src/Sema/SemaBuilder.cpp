@@ -181,13 +181,13 @@ SemaBuilder::CreateFunction(ASTNode *Node, const SourceLocation &Loc, ASTType *T
  * @return
  */
 ASTClass *
-SemaBuilder::CreateClass(ASTNode *Node, ASTClassKind ClassKind, ASTScopes *Scopes,
+SemaBuilder::CreateClass(ASTNode *Node, ASTClassKind ClassKind, ASTScopes *ClassScopes,
                          const SourceLocation &Loc, const llvm::StringRef Name,
-                         llvm::SmallVector<llvm::StringRef, 4> &ExtClasses) {
+                         llvm::SmallVector<ASTClassType *, 4> &ClassTypes) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateClass",
                       Logger().Attr("Node", Node)
-                      .Attr("Scopes", Scopes).End());
-    ASTClass *Class = new ASTClass(Node, ClassKind, Scopes, Loc, Name, ExtClasses);
+                      .Attr("Scopes", ClassScopes).End());
+    ASTClass *Class = new ASTClass(Node, ClassKind, ClassScopes, Loc, Name, ClassTypes);
     Class->Type = CreateClassType(Class);
 
     // Create a default constructor
@@ -234,7 +234,7 @@ SemaBuilder::CreateClass(ASTNode *Node, ASTClassKind ClassKind, ASTScopes *Scope
 ASTClass *
 SemaBuilder::CreateClass(ASTNode *Node, ASTClassKind ClassKind, ASTScopes *Scopes,
                          const SourceLocation &Loc, const llvm::StringRef Name) {
-    llvm::SmallVector<llvm::StringRef, 4> Classes;
+    llvm::SmallVector<ASTClassType *, 4> Classes;
     return CreateClass(Node, ClassKind, Scopes, Loc, Name, Classes);
 }
 

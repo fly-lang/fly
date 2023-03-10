@@ -166,16 +166,16 @@ namespace {
 
         llvm::StringRef str2 = (
                 "struct Test {\n"
-                "  public int a() { return 0 }"
+                "  int a"
                 "}\n");
         ASTNode *Node2 = Parse("TestStruct", str2);
 
         ASSERT_TRUE(isSuccess());
 
-        EXPECT_EQ(Node->getClass()->getMethods().size(), 1);
-        ASTClassFunction *aMethod = *Node->getClass()->getMethods().find("a")->getValue().begin()->second.begin();
-        EXPECT_EQ(aMethod->getScopes()->getVisibility(), ASTVisibilityKind::V_PUBLIC);
-        EXPECT_FALSE(aMethod->getScopes()->isConstant());
+        EXPECT_EQ(Node->getClass()->getVars().size(), 1);
+        ASTClassVar &aVar = *Node->getClass()->getVars().find("a")->getValue();
+        EXPECT_EQ(aVar.getScopes()->getVisibility(), ASTVisibilityKind::V_DEFAULT);
+        EXPECT_FALSE(aVar.getScopes()->isConstant());
     }
 
     TEST_F(ParserTest, ClassExtendClass) {

@@ -107,6 +107,54 @@ bool SemaResolver::ResolveImports(ASTNode *Node) {
 bool SemaResolver::ResolveClass(ASTNode *Node) {
     bool Success = true;
     if (Node->Class) {
+        
+        // Resolve Super Classes
+        if (!Node->Class->SuperClasses.empty()) {
+            llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTClassFunction *, 4>>> SuperMethods;
+            for (auto &SuperClassType : Node->Class->SuperClasses) {
+                if (ResolveClassType(Node, SuperClassType)) {
+                    ASTClass *SuperClass = SuperClassType->getDef();
+
+                    // Struct
+                    // Resolve Var in Super Classes
+                    if (SuperClass->getClassKind() == ASTClassKind::STRUCT) {
+                        for (auto &EntryVar: SuperClass->getVars()) {
+                            ASTClassVar *&Var = EntryVar.getValue();
+
+                            // Check Var already exists and type conflicts in Super Vars
+                            ASTClassVar *ClassVar = Node->Class->Vars.lookup(EntryVar.getKey());
+                            if (ClassVar == nullptr) {
+                                Node->Class->Vars.insert(std::make_pair(Var->getName(), Var));
+                            } else if (Var->getType() != ClassVar->getType()) {
+                                S.Diag(ClassVar->getLocation(), diag::err_sema_super_struct_var_conflict);
+                                return false;
+                            }
+                        }
+                    }
+
+                    // Resolve Methods in Super Classes
+                    if (SuperClass->getClassKind() == ASTClassKind::CLASS ||
+                        SuperClass->getClassKind() == ASTClassKind::INTERFACE) {
+                        for (auto &EntryMap: SuperClass->getMethods()) {
+
+                            // Add to ToBeDefined if SuperMethods already contains this method
+                            const auto &Map = EntryMap.getValue();
+                            auto MapIt = Map.begin();
+                            while (MapIt != Map.end()) {
+                                uint64_t NumOfParams = MapIt->first; // Contains the number of function parameters
+                                for (ASTClassFunction *SuperMethod: MapIt->second) {
+                                    if (!S.Builder->InsertFunction(SuperMethods, SuperMethod)) {
+                                        S.Diag(SuperMethod->getLocation(), diag::err_sema_super_class_method_conflict);
+                                        return false;
+                                    }
+                                }
+                                MapIt++;
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         // Constructors
         for (auto &IntMap: Node->Class->Constructors) {
@@ -175,7 +223,9 @@ bool SemaResolver::ResolveBlock(ASTBlock *Block) {
                 break;
             case ASTStmtKind::STMT_VAR_DEFINE: {
                 ASTLocalVar *LocalVar = ((ASTLocalVar *) Stmt);
-                Success &= ResolveType(Block->getTop(), LocalVar->getType());
+                // Take Node
+                const auto &Node = S.FindNode(Block->getTop());
+                Success &= !LocalVar->getType()->isClass() || ResolveClassType(Node, LocalVar->getType());
 
                 if (LocalVar->getExpr())
                     Success &= ResolveExpr(Block, LocalVar->getExpr());
@@ -434,7 +484,7 @@ bool SemaResolver::ResolveIdentifiers(ASTBlock *Block, ASTReference *Ref) {
     return true;
 }
 
-bool SemaResolver::ResolveType(ASTFunctionBase *FunctionBase, ASTType * Type) {
+bool SemaResolver::ResolveClassType(ASTNode *Node, ASTType * Type) {
     ASTClassType * ClassType;
     if (Type->isClass())
         ClassType = (ASTClassType *) Type;
@@ -442,9 +492,6 @@ bool SemaResolver::ResolveType(ASTFunctionBase *FunctionBase, ASTType * Type) {
         ClassType = ((ASTClassType *) ((ASTArrayType *) Type)->getType());
     else // is primitive type
         return true;
-
-    // Take Node
-    const auto &Node = S.FindNode(FunctionBase);
 
     // Resolve Identifier
     if (ClassType->getIdentifier()) {
