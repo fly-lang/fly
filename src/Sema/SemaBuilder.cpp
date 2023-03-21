@@ -167,8 +167,6 @@ SemaBuilder::CreateFunction(ASTNode *Node, const SourceLocation &Loc, ASTType *T
                       .Attr("Scopes", Scopes).End());
     ASTFunction *F = new ASTFunction(Loc, Node, Type, Name, Scopes);
     F->Params = new ASTParams();
-    F->Body = CreateBlock(nullptr, SourceLocation());
-    F->Body->Top = F;
     return F;
 }
 
@@ -288,6 +286,7 @@ ASTClassFunction *
 SemaBuilder::CreateClassConstructor(ASTClass *Class, const SourceLocation &Loc, ASTScopes *Scopes) {
     ASTClassFunction *F = CreateClassMethod(Class, Loc, CreateClassType(Class), Class->Name, Scopes);
     F->Constructor = true;
+    CreateBody(F);
     return F;
 }
 
@@ -296,8 +295,6 @@ SemaBuilder::CreateClassMethod(ASTClass *Class, const SourceLocation &Loc, ASTTy
                                ASTScopes *Scopes) {
     ASTClassFunction *F = new ASTClassFunction(Loc, Class, Scopes, Type, Name);
     F->Params = new ASTParams();
-    F->Body = CreateBlock(nullptr, SourceLocation());
-    F->Body->Top = F;
     return F;
 }
 
@@ -877,6 +874,14 @@ SemaBuilder::CreateTernaryExpr(ASTStmt *Stmt, ASTExpr *First, const SourceLocati
 
     AddExpr(Stmt, TernaryExpr);
     return TernaryExpr;
+}
+
+ASTBlock*
+SemaBuilder::CreateBody(ASTFunctionBase *FunctionBase) {
+    FLY_DEBUG("SemaBuilder", "CreateBody");
+    FunctionBase->Body = CreateBlock(nullptr, SourceLocation());
+    FunctionBase->Body->Top = FunctionBase;
+    return FunctionBase->Body;
 }
 
 ASTBlock *
@@ -1474,29 +1479,26 @@ SemaBuilder::InsertFunction(std::map <uint64_t,llvm::SmallVector <T *, 4>> &Func
 
         return Functions.insert(std::make_pair(Function->Params->getSize(),Vect)).second;
     } else { // This Node contains a Function with this Function->Name and same number of Params
+        for (auto &F: IntMapIt->second) {
 
-        bool DifferentParamTypes = true;
-        for (auto &NodeFunc : IntMapIt->second) {
-            for (auto &NodeFuncParam : NodeFunc->getParams()->List) {
-                for (auto &Param : Function->getParams()->getList()) {
-                    if (!S.Validator->isEquals(NodeFuncParam, Param)) {
-                        DifferentParamTypes = false;
-                        break;
+            // check no params
+            if (!Function->getParams()->List.empty() && !F->getParams()->List.empty()) {
+                return false;
+            }
+
+            // che types
+            for (auto &FParam: F->getParams()->List) {
+                for (auto &Param: Function->getParams()->getList()) {
+                    if (S.Validator->isEquals(FParam, Param)) {
+                        return false;
                     }
                 }
             }
         }
 
-        // Check Parameter Types
-        if (DifferentParamTypes) { // Add the new Function
-            SmallVector<T *, 4> Vect = IntMapIt->second;
-            Vect.push_back(Function);
-            return true;
-        } else { // Function is duplicated
-            // already contains this Function
-            S.Diag((Function->getLocation()), diag::err_duplicate_func) << Function->getName();
-            return false;
-        }
+        SmallVector<T *, 4> Vect = IntMapIt->second;
+        Vect.push_back(Function);
+        return true;
     }
 }
 

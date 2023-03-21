@@ -39,7 +39,7 @@ ASTScopes *ASTClassFunction::getScopes() const {
 }
 
 bool ASTClassFunction::isAbstract() const {
-    return Abstract;
+    return getBody() == nullptr;
 }
 
 CodeGenClassFunction *ASTClassFunction::getCodeGen() const {

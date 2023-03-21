@@ -175,15 +175,11 @@ bool ClassParser::ParseMethod(ASTScopes *Scopes, ASTType *Type, const SourceLoca
             Success = FunctionParser::Parse(P, Method) && P->Builder.AddClassConstructor(Method);
         } else {
             P->Diag(diag::err_parser_invalid_type);
-            return false;
+            Success = false;
         }
     } else {
         Method = P->Builder.CreateClassMethod(Class, Loc, Type, Name, Scopes);
         Success = FunctionParser::Parse(P, Method) && P->Builder.AddClassMethod(Method);
-    }
-
-    if (Method && !Method->getBody()) {
-        Method->Abstract = true;
     }
 
     return Success;

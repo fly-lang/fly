@@ -111,13 +111,31 @@ bool SemaResolver::ResolveClass(ASTNode *Node) {
         // Resolve Super Classes
         if (!Node->Class->SuperClasses.empty()) {
             llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTClassFunction *, 4>>> SuperMethods;
+            llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTClassFunction *, 4>>> ISuperMethods;
             for (auto &SuperClassType : Node->Class->SuperClasses) {
                 if (ResolveClassType(Node, SuperClassType)) {
                     ASTClass *SuperClass = SuperClassType->getDef();
 
+                    if (SuperClass->getClassKind() == ASTClassKind::ENUM) {
+                        if (Node->Class->getClassKind() == ASTClassKind::ENUM) {
+
+                        } else {
+                            // Enum can extend only another Enum
+                            S.Diag(SuperClassType->getLocation(), diag::err_sema_enum_ext);
+                            return false;
+                        }
+                    }
+
                     // Struct
                     // Resolve Var in Super Classes
                     if (SuperClass->getClassKind() == ASTClassKind::STRUCT) {
+
+                        if (Node->Class->getClassKind() == ASTClassKind::INTERFACE) {
+                            // Interface cannot extend a Struct
+                            S.Diag(SuperClassType->getLocation(), diag::err_sema_interface_ext_struct);
+                            return false;
+                        }
+
                         for (auto &EntryVar: SuperClass->getVars()) {
                             ASTClassVar *&Var = EntryVar.getValue();
 
@@ -132,23 +150,68 @@ bool SemaResolver::ResolveClass(ASTNode *Node) {
                         }
                     }
 
+                    // Check error
+                    if (Node->Class->getClassKind() == ASTClassKind::INTERFACE &&
+                        SuperClass->getClassKind() == ASTClassKind::CLASS) {
+                        // Interface cannot extend a Class
+                        S.Diag(SuperClassType->getLocation(), diag::err_sema_interface_ext_class);
+                        return false;
+                    }
+
                     // Resolve Methods in Super Classes
                     if (SuperClass->getClassKind() == ASTClassKind::CLASS ||
                         SuperClass->getClassKind() == ASTClassKind::INTERFACE) {
                         for (auto &EntryMap: SuperClass->getMethods()) {
-
-                            // Add to ToBeDefined if SuperMethods already contains this method
                             const auto &Map = EntryMap.getValue();
                             auto MapIt = Map.begin();
                             while (MapIt != Map.end()) {
-                                uint64_t NumOfParams = MapIt->first; // Contains the number of function parameters
                                 for (ASTClassFunction *SuperMethod: MapIt->second) {
-                                    if (!S.Builder->InsertFunction(SuperMethods, SuperMethod)) {
-                                        S.Diag(SuperMethod->getLocation(), diag::err_sema_super_class_method_conflict);
-                                        return false;
+                                    if (SuperClass->getClassKind() == ASTClassKind::INTERFACE) {
+                                        S.Builder->InsertFunction(ISuperMethods, SuperMethod);
+                                    } else {
+                                        // Check for multiple same method declarations
+                                        if (!S.Builder->InsertFunction(SuperMethods, SuperMethod)) {
+                                            S.Diag(SuperMethod->getLocation(),
+                                                   diag::err_sema_super_class_method_conflict);
+                                            return false;
+                                        }
                                     }
                                 }
                                 MapIt++;
+                            }
+                        }
+
+                        // Add Super Methods to the current Class
+                        if (!SuperMethods.empty()) {
+                            for (const auto &EntryMap: SuperMethods) {
+                                const auto &Map = EntryMap.getValue();
+                                auto MapIt = Map.begin();
+                                while (MapIt != Map.end()) {
+                                    for (ASTClassFunction *SuperMethod : MapIt->second) {
+                                        if (SuperMethod->Scopes->getVisibility() != ASTVisibilityKind::V_PRIVATE) {
+                                            S.Builder->InsertFunction(Node->Class->Methods, SuperMethod);
+                                        }
+                                    }
+                                    MapIt++;
+                                }
+                            }
+                        }
+
+                        // Check if all interface methods are implemented
+                        if (!ISuperMethods.empty()) {
+                            for (const auto &EntryMap: ISuperMethods) {
+                                const auto &Map = EntryMap.getValue();
+                                auto MapIt = Map.begin();
+                                while (MapIt != Map.end()) {
+                                    for (ASTClassFunction *ISuperMethod : MapIt->second) {
+                                        if (!S.Builder->ContainsFunction(Node->Class->Methods, ISuperMethod)) {
+                                            S.Diag(ISuperMethod->getLocation(),
+                                                   diag::err_sema_method_not_implemented);
+                                            return false;
+                                        }
+                                    }
+                                    MapIt++;
+                                }
                             }
                         }
                     }
@@ -167,7 +230,9 @@ bool SemaResolver::ResolveClass(ASTNode *Node) {
         for (auto &StrMapEntry: Node->Class->Methods) {
             for (auto &IntMap: StrMapEntry.getValue()) {
                 for (auto &F: IntMap.second) {
-                    Success &= ResolveBlock(F->Body);
+                    if (!F->isAbstract()) {
+                        Success &= ResolveBlock(F->Body); // FIXME check if already resolved
+                    }
                 }
             }
         }

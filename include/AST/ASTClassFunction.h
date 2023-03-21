@@ -37,8 +37,6 @@ namespace fly {
 
         ASTScopes *Scopes = nullptr;
 
-        bool Abstract = false;
-
         // Populated during codegen phase
         CodeGenClassFunction *CodeGen = nullptr;
 

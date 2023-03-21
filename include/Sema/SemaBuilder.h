@@ -12,6 +12,7 @@
 
 #include "AST/ASTClass.h"
 #include "AST/ASTVar.h"
+#include "Sema/SemaValidator.h"
 
 namespace fly {
 
@@ -196,6 +197,7 @@ namespace fly {
                                                ASTExpr *Second, const SourceLocation &ElseLoc, ASTExpr *Third);
 
         // Create Blocks structures
+        ASTBlock* CreateBody(ASTFunctionBase *FunctionBase);
         ASTBlock* CreateBlock(ASTBlock *Parent, const SourceLocation &Loc);
         ASTBlock* getBlock(ASTFunctionBase *Function);
         ASTIfBlock *CreateIfBlock(ASTBlock *Parent, const SourceLocation &Loc);
@@ -218,13 +220,13 @@ namespace fly {
         bool AddClass(ASTClass *Class);
         bool AddGlobalVar(ASTGlobalVar *GlobalVar, ASTValue *Value = nullptr);
         bool AddGlobalVar(ASTGlobalVar *GlobalVar, ASTExpr *Expr);
-        bool AddFunction(ASTFunction *Function);
+        bool AddFunction(ASTFunction *Function); // FIXME Method Parameter Types are resolved only on second time
 
         // Add details
         bool AddClassVar(ASTClassVar *Var);
         bool AddEnumClassVar(ASTClassVar *Var);
-        bool AddClassMethod(ASTClassFunction *Method);
-        bool AddClassConstructor(ASTClassFunction *Method);
+        bool AddClassMethod(ASTClassFunction *Method); // FIXME Method Parameter Types are resolved only on second time
+        bool AddClassConstructor(ASTClassFunction *Method); // FIXME Method Parameter Types are resolved only on second time
         bool AddParam(ASTParam *Param);
         void AddFunctionVarParams(ASTFunction *Function, ASTParam *Param); // TODO
         bool AddComment(ASTTopDef *Top, llvm::StringRef Comment);
@@ -243,9 +245,38 @@ namespace fly {
         bool AddBlock(ASTBlock *Block);
 
     private:
-        template <typename T>
+        template <class T>
+        bool ContainsFunction(llvm::StringMap<std::map <uint64_t,llvm::SmallVector <T *, 4>>> &Functions, T *Function) {
+            // Search by Name
+            const auto &StrMapIt = Functions.find(Function->getName());
+            if (StrMapIt != Functions.end()) {
+
+                // Search by Number of Parameters
+                const auto IntMapIt = StrMapIt->second.find(Function->Params->getSize());
+
+                // Search by Type of Parameters
+                for (auto &F: IntMapIt->second) {
+
+                    // Check if Function have no params
+                    if (Function->getParams()->List.empty() && F->getParams()->List.empty()) {
+                        return true;
+                    }
+
+                    // Check types
+                    for (auto &FParam: F->getParams()->List) {
+                        for (auto &Param: Function->getParams()->getList()) {
+                            if (S.Validator->isEquals(FParam, Param)) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+        template <class T>
         bool InsertFunction(llvm::StringMap<std::map <uint64_t,llvm::SmallVector <T *, 4>>> &Functions, T *Function);
-        template <typename T>
+        template <class T>
         bool InsertFunction(std::map <uint64_t,llvm::SmallVector <T *, 4>> &Functions, T *Function);
         bool AddExpr(ASTStmt *Stmt, ASTExpr *Expr);
     };

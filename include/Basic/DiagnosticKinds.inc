@@ -379,7 +379,11 @@ DIAG(err_sema_uninit_var, CLASS_ERROR, (unsigned)diag::Severity::Error, "uniniti
 DIAG(err_sema_resolve_identifier, CLASS_ERROR, (unsigned)diag::Severity::Error, "resolving identifier failed", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_visibility_error, CLASS_ERROR, (unsigned)diag::Severity::Error, "visibility error", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_super_class_method_conflict, CLASS_ERROR, (unsigned)diag::Severity::Error, "super class method conflicts", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_method_not_implemented, CLASS_ERROR, (unsigned)diag::Severity::Error, "method not implemented", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_super_struct_var_conflict, CLASS_ERROR, (unsigned)diag::Severity::Error, "super class var type conflicts", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_enum_ext, CLASS_ERROR, (unsigned)diag::Severity::Error, "enum can extend only another enum", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_interface_ext_struct, CLASS_ERROR, (unsigned)diag::Severity::Error, "interface cannot extend a struct", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_interface_ext_class, CLASS_ERROR, (unsigned)diag::Severity::Error, "interface cannot extend a class", 0, SFINAE_Suppress, false, true, 0)
 
 // CodeGen
 DIAG(err_void_value, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot assign void value", 0, SFINAE_Suppress, false, true, 0)

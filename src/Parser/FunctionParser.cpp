@@ -114,10 +114,11 @@ bool FunctionParser::ParseBody() {
     FLY_DEBUG("FunctionParser", "ParseBody");
 
     if (P->isBlockStart()) {
+        Function->Body = P->Builder.CreateBody(Function);
         return P->ParseBlock(Function->Body) && P->isBraceBalanced();
     }
 
-    return false;
+    return true;
 }
 
 bool FunctionParser::Parse(Parser *P, ASTFunctionBase *Function) {
