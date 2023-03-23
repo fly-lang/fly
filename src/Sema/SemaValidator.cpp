@@ -14,6 +14,7 @@
 #include "AST/ASTNode.h"
 #include "AST/ASTImport.h"
 #include "AST/ASTGlobalVar.h"
+#include "AST/ASTFunctionBase.h"
 #include "AST/ASTParams.h"
 #include "AST/ASTBlock.h"
 #include "AST/ASTValue.h"
@@ -34,18 +35,25 @@ SemaValidator::SemaValidator(Sema &S) : S(S) {
  * @param Var
  * @return
  */
-bool SemaValidator::CheckDuplicatedLocalVars(ASTStmt *Stmt, ASTLocalVar *LocalVar) {
+bool SemaValidator::CheckDuplicateLocalVars(ASTStmt *Stmt, llvm::StringRef VarName) {
     if (Stmt->getKind() != ASTStmtKind::STMT_BLOCK) {
         // Error: need stmt block, cannot search duplicate var
-        return false;
+        return true;
     }
 
     ASTBlock *Block = (ASTBlock *) Stmt;
-    if (Block->getLocalVars().find(LocalVar->getName()) != Block->getLocalVars().end()) {
-        S.Diag(LocalVar->getLocation(), diag::err_conflict_vardecl) << LocalVar->getName();
-        return true;
+    ASTLocalVar *DuplicateVar = Block->getLocalVars().lookup(VarName);
+    if (DuplicateVar != nullptr) {
+        S.Diag(DuplicateVar->getLocation(), diag::err_conflict_vardecl) << DuplicateVar->getName();
+        return false;
     }
-    return Block->getParent() && CheckDuplicatedLocalVars(Stmt->getParent(), LocalVar);
+
+    // Check with parents
+    if (Block->getParent() != nullptr) {
+        return CheckDuplicateLocalVars(Block->getParent(), VarName);
+    }
+
+    return true;
 }
 
 bool SemaValidator::CheckUninitialized(ASTBlock *Block, ASTVarRef *VarRef) {

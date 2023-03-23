@@ -45,10 +45,6 @@ ASTType *ASTFunctionBase::getType() const {
     return Type;
 }
 
-const std::vector<ASTLocalVar *> &ASTFunctionBase::getLocalVars() const {
-    return LocalVars;
-}
-
 bool ASTFunctionBase::isVarArg() {
     return Params->getEllipsis();
 }

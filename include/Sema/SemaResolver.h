@@ -29,6 +29,8 @@ namespace fly {
     class ASTContext;
     class ASTNameSpace;
     class ASTNode;
+    class ASTClass;
+    class ASTClassFunction;
     class ASTStmt;
     class ASTBlock;
     class ASTLocalVar;

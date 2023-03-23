@@ -264,27 +264,49 @@ namespace {
         EXPECT_FALSE(aMethod->getScopes()->isConstant());
     }
 
-    TEST_F(ParserTest, ClassExtendClasses) {
-        llvm::StringRef str = ("public class Case : Class Struct Interface {}\n");
-        ASTNode *Node = Parse("ClassExtendStruct", str, false);
+    TEST_F(ParserTest, EnumExtendEnum) {
+        llvm::StringRef str = ("public enum Option : Enum {\n"
+                               "  B C\n"
+                               "}\n");
+        ASTNode *Node = Parse("Option", str, false);
+
+        llvm::StringRef str2 = (
+                "enum Enum {\n"
+                "  A\n"
+                "}\n");
+        ASTNode *Node2 = Parse("Enum", str2);
+
+        ASSERT_TRUE(isSuccess());
+
+        EXPECT_EQ(Node2->getClass()->getVars().size(), 2); // A enum
+        ASTClassVar *Var_A = Node2->getClass()->getVars().find("A")->getValue();
+        EXPECT_EQ(Node->getClass()->getVars().size(), 4); // A B C enum
+        ASTClassVar *VarA = Node->getClass()->getVars().find("A")->getValue();
+        ASTClassVar *VarB = Node->getClass()->getVars().find("B")->getValue();
+        ASTClassVar *VarC = Node->getClass()->getVars().find("C")->getValue();
+    }
+
+    TEST_F(ParserTest, ClassExtendAll) {
+        llvm::StringRef str = ("public class Test : Class Struct Interface {}\n");
+        ASTNode *Node = Parse("Test", str, false);
 
         llvm::StringRef str2 = (
                 "class Class {\n"
                 "  void a() { return a }"
                 "}\n");
-        ASTNode *Node2 = Parse("Class", str2);
+        ASTNode *Node2 = Parse("Class", str2, false);
 
         llvm::StringRef str3 = (
                 "struct Struct {\n"
                 "  int a"
                 "}\n");
-        ASTNode *Node3 = Parse("Struct", str2);
+        ASTNode *Node3 = Parse("Struct", str3, false);
 
         llvm::StringRef str4 = (
                 "interface Interface {\n"
                 "  int a()"
                 "}\n");
-        ASTNode *Node4 = Parse("Interface", str2);
+        ASTNode *Node4 = Parse("Interface", str4);
 
         ASSERT_TRUE(isSuccess());
 
@@ -292,6 +314,10 @@ namespace {
         ASTClassFunction *aMethod = *Node->getClass()->getMethods().find("a")->getValue().begin()->second.begin();
         EXPECT_EQ(aMethod->getScopes()->getVisibility(), ASTVisibilityKind::V_DEFAULT);
         EXPECT_FALSE(aMethod->getScopes()->isConstant());
+
+        EXPECT_EQ(Node->getClass()->getVars().size(), 1); // A enum
+        ASTClassVar *VarA = Node2->getClass()->getVars().find("a")->getValue();
+        EXPECT_EQ(VarA->getScopes()->getVisibility(), ASTVisibilityKind::V_DEFAULT);
     }
 
     TEST_F(ParserTest, Identifiers1) {

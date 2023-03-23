@@ -226,7 +226,7 @@ namespace fly {
         bool AddClassVar(ASTClassVar *Var);
         bool AddEnumClassVar(ASTClassVar *Var);
         bool AddClassMethod(ASTClassFunction *Method); // FIXME Method Parameter Types are resolved only on second time
-        bool AddClassConstructor(ASTClassFunction *Method); // FIXME Method Parameter Types are resolved only on second time
+        bool AddClassConstructor(ASTClassFunction *Constructor); // FIXME Method Parameter Types are resolved only on second time
         bool AddParam(ASTParam *Param);
         void AddFunctionVarParams(ASTFunction *Function, ASTParam *Param); // TODO
         bool AddComment(ASTTopDef *Top, llvm::StringRef Comment);
@@ -255,7 +255,8 @@ namespace fly {
                 const auto IntMapIt = StrMapIt->second.find(Function->Params->getSize());
 
                 // Search by Type of Parameters
-                for (auto &F: IntMapIt->second) {
+                llvm::SmallVector <T *, 4> Vector = IntMapIt->second;
+                for (auto &F: Vector) {
 
                     // Check if Function have no params
                     if (Function->getParams()->List.empty() && F->getParams()->List.empty()) {
@@ -263,21 +264,20 @@ namespace fly {
                     }
 
                     // Check types
-                    for (auto &FParam: F->getParams()->List) {
-                        for (auto &Param: Function->getParams()->getList()) {
-                            if (S.Validator->isEquals(FParam, Param)) {
-                                return true;
-                            }
-                        }
+                    if (!S.Validator->template CheckDuplicateFunctions(Vector, Function)) {
+                        return true;
                     }
                 }
             }
             return false;
         }
+
         template <class T>
-        bool InsertFunction(llvm::StringMap<std::map <uint64_t,llvm::SmallVector <T *, 4>>> &Functions, T *Function);
+        bool InsertFunction(llvm::StringMap<std::map <uint64_t,llvm::SmallVector <T *, 4>>> &Functions, T *NewFunction,
+                            bool CheckDuplicate = false);
         template <class T>
-        bool InsertFunction(std::map <uint64_t,llvm::SmallVector <T *, 4>> &Functions, T *Function);
+        bool InsertFunction(std::map <uint64_t,llvm::SmallVector <T *, 4>> &Functions, T *NewFunction,
+                            bool CheckDuplicate = false);
         bool AddExpr(ASTStmt *Stmt, ASTExpr *Expr);
     };
 

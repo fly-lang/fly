@@ -82,7 +82,8 @@ void CodeGenFunctionBase::setInsertPoint() {
 void CodeGenFunctionBase::AllocaVars() {
     // CodeGen of Params are contained into LocalVars
     // Allocation of declared local vars
-    for (auto &LocalVar: AST->getLocalVars()) {
+    for (auto &EntryLocalVar: AST->getBody()->getLocalVars()) {
+        ASTLocalVar *LocalVar = EntryLocalVar.getValue();
         LocalVar->setCodeGen(new CodeGenVar(CGM, LocalVar));
         LocalVar->getCodeGen()->Init();
     }

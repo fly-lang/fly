@@ -36,7 +36,21 @@ namespace fly {
 
     public:
 
-        bool CheckDuplicatedLocalVars(ASTStmt *Stmt, ASTLocalVar *LocalVar);
+        bool CheckDuplicateLocalVars(ASTStmt *Stmt, llvm::StringRef VarName);
+
+        template<class T>
+        bool CheckDuplicateFunctions(llvm::SmallVector<T *, 4> Functions, T *Check) {
+            // Types will be checked on Resolve()
+            for (T *Function : Functions) {
+                for (auto &Param: Function->getParams()->getList()) {
+                    for (auto &CheckParam: Check->getParams()->getList()) {
+                        if (isEquals(Param, CheckParam)) {
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
 
         bool CheckUninitialized(ASTBlock *Block, ASTVarRef *VarRef);
 

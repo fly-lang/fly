@@ -1221,24 +1221,31 @@ SemaBuilder::AddEnumClassVar(ASTClassVar *Var) {
 
 bool
 SemaBuilder::AddClassMethod(ASTClassFunction *Method) {
+    // Check duplicates
     if (!InsertFunction(Method->Class->Methods, Method)) {
         S.Diag(Method->getLocation(), diag::err_sema_class_method_redeclare) << Method->getName();
         return false;
     }
+
     return true;
 }
 
 bool
-SemaBuilder::AddClassConstructor(ASTClassFunction *Method) {
-    ASTClass *Class = Method->Class;
+SemaBuilder::AddClassConstructor(ASTClassFunction *Constructor) {
+    ASTClass *Class = Constructor->Class;
+
+    // Check default constructor
     if (Class->autoDefaultConstructor) {
         Class->Constructors.erase(0); // Remove default constructor if a new Constructor is defined
         Class->autoDefaultConstructor = false;
     }
-    if (!InsertFunction(Class->Constructors, Method)) {
-        S.Diag(Method->getLocation(), diag::err_sema_class_method_redeclare) << Method->getName();
+
+    // Check duplicates
+    if (!InsertFunction(Class->Constructors, Constructor)) {
+        S.Diag(Constructor->getLocation(), diag::err_sema_class_method_redeclare) << Constructor->getName();
         return false;
     }
+
     return true;
 }
 
@@ -1249,9 +1256,14 @@ SemaBuilder::AddParam(ASTParam *Param) {
     Param->Top->Params->List.push_back(Param);
     Param->Parent = Param->Top->Body;
 
-    Param->Top->LocalVars.push_back(Param); //Useful for Alloca into CodeGen
-    return Param->Top->Body->LocalVars
-        .insert(std::pair<std::string, ASTLocalVar *>(Param->getName(), Param)).second;
+    // Check var duplicates
+    if (S.Validator->CheckDuplicateLocalVars(Param->Top->Body, Param->getName())) {
+        //Useful for Alloca into CodeGen
+        return Param->Top->Body->LocalVars
+                .insert(std::pair<std::string, ASTLocalVar *>(Param->getName(), Param)).second;
+    }
+
+    return false;
 }
 
 void SemaBuilder::AddFunctionVarParams(ASTFunction *Function, ASTParam *Param) {
@@ -1414,10 +1426,11 @@ SemaBuilder::AddStmt(ASTStmt *Stmt) {
         }
 
         // Collects all LocalVars in the hierarchy Block
-        if (Parent->LocalVars.insert(std::pair<std::string, ASTLocalVar *>(LocalVar->getName(), LocalVar)).second) {
+        const auto &Pair = std::pair<std::string, ASTLocalVar *>(LocalVar->getName(),LocalVar);
+        if (Parent->LocalVars.insert(Pair).second) {
 
             //Useful for Alloca into CodeGen
-            Parent->Top->LocalVars.push_back(LocalVar);
+            Parent->Top->Body->LocalVars.insert(Pair);
             return true;
         }
     } else if (Stmt->getKind() == ASTStmtKind::STMT_VAR_ASSIGN) {
@@ -1438,66 +1451,64 @@ SemaBuilder::AddStmt(ASTStmt *Stmt) {
 
 template <class T>
 bool
-SemaBuilder::InsertFunction(llvm::StringMap<std::map <uint64_t,llvm::SmallVector <T *, 4>>> &Functions, T *Function) {
+SemaBuilder::InsertFunction(llvm::StringMap<std::map <uint64_t,llvm::SmallVector <T *, 4>>> &Functions, T *NewFunction,
+                            bool CheckDuplicate) {
 
     // Functions is llvm::StringMap<std::map <uint64_t, llvm::SmallVector <ASTFunction *, 4>>>
-    const auto &StrMapIt = Functions.find(Function->getName());
+    const auto &StrMapIt = Functions.find(NewFunction->getName());
     if (StrMapIt == Functions.end()) { // This Node not contains a Function with this Function->Name
 
         // add to llvm::SmallVector
         llvm::SmallVector<T *, 4> Vect;
-        Vect.push_back(Function);
+        Vect.push_back(NewFunction);
 
         // add to std::map
         std::map<uint64_t, llvm::SmallVector<T *, 4>> IntMap;
-        IntMap.insert(std::make_pair(Function->Params->getSize(), Vect));
+        IntMap.insert(std::make_pair(NewFunction->Params->getSize(), Vect));
 
         // add to llvm::StringMap
-        return Functions.insert(std::make_pair(Function->getName(), IntMap)).second;
+        return Functions.insert(std::make_pair(NewFunction->getName(), IntMap)).second;
     } else {
-        return InsertFunction(StrMapIt->second, Function);
+        return InsertFunction(StrMapIt->second, NewFunction, CheckDuplicate);
     }
 }
 
 template <class T>
 bool
-SemaBuilder::InsertFunction(std::map <uint64_t,llvm::SmallVector <T *, 4>> &Functions, T *Function) {
+SemaBuilder::InsertFunction(std::map <uint64_t,llvm::SmallVector <T *, 4>> &Functions, T *NewFunction,
+                            bool CheckDuplicate) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddClassMethod",
-                      Logger().Attr("Function", Function).End());
+                      Logger().Attr("Function", NewFunction).End());
 
     // This Node contains a Function with this Function->Name
-    const auto &IntMapIt = Functions.find(Function->Params->getSize());
+    const auto &IntMapIt = Functions.find(NewFunction->Params->getSize());
     if (IntMapIt == Functions.end()) { // but not have the same number of Params
 
         // add to llvm::SmallVector
-        llvm::SmallVector<T *, 4> Vect;
-        Vect.push_back(Function);
+        llvm::SmallVector<T *, 4> Vector;
+        Vector.push_back(NewFunction);
 
         // add to std::map
         std::pair<uint64_t, SmallVector<T *, 4>> IntMapPair = std::make_pair(
-                Function->Params->getSize(), Vect);
+                NewFunction->Params->getSize(), Vector);
 
-        return Functions.insert(std::make_pair(Function->Params->getSize(),Vect)).second;
+        return Functions.insert(std::make_pair(NewFunction->Params->getSize(), Vector)).second;
     } else { // This Node contains a Function with this Function->Name and same number of Params
-        for (auto &F: IntMapIt->second) {
+        llvm::SmallVector<T *, 4> Vector = IntMapIt->second;
+        for (auto &F: Vector) {
 
-            // check no params
-            if (!Function->getParams()->List.empty() && !F->getParams()->List.empty()) {
+            // check no params duplicates
+            if (!NewFunction->getParams()->List.empty() && !F->getParams()->List.empty()) {
                 return false;
             }
 
-            // che types
-            for (auto &FParam: F->getParams()->List) {
-                for (auto &Param: Function->getParams()->getList()) {
-                    if (S.Validator->isEquals(FParam, Param)) {
-                        return false;
-                    }
-                }
+            if (CheckDuplicate && !S.Validator->CheckDuplicateFunctions(Vector, NewFunction)) {
+                return false;
             }
         }
 
-        SmallVector<T *, 4> Vect = IntMapIt->second;
-        Vect.push_back(Function);
+        // Add to function list
+        IntMapIt->second.push_back(NewFunction);
         return true;
     }
 }

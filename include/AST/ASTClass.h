@@ -52,10 +52,10 @@ namespace fly {
         // Class Fields
         llvm::StringMap<ASTClassVar *> Vars;
 
+        bool autoDefaultConstructor = false;
+
         // Class Constructors
         std::map <uint64_t, llvm::SmallVector <ASTClassFunction *, 4>> Constructors;
-
-        bool autoDefaultConstructor = false;
 
         // Class Methods
         llvm::StringMap<std::map <uint64_t, llvm::SmallVector <ASTClassFunction *, 4>>> Methods;
@@ -63,7 +63,7 @@ namespace fly {
         CodeGenClass *CodeGen = nullptr;
 
         ASTClass(ASTNode *Node, ASTClassKind ClassKind, ASTScopes *Scopes,
-                 const SourceLocation &Loc, const llvm::StringRef Name,
+                 const SourceLocation &Loc, llvm::StringRef Name,
                  llvm::SmallVector<ASTClassType *, 4> &ExtClasses);
 
     public:

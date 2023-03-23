@@ -61,9 +61,6 @@ namespace fly {
         // Body is the main BlockStmt
         ASTBlock *Body = nullptr;
 
-        // Contains all vars declared in this Block
-        std::vector<ASTLocalVar *> LocalVars;
-
     protected:
 
         ASTFunctionBase(const SourceLocation &Loc, ASTFunctionKind Kind, ASTType *ReturnType, llvm::StringRef Name);
@@ -81,8 +78,6 @@ namespace fly {
         const ASTParams *getParams() const;
 
         const ASTBlock *getBody() const;
-
-        const std::vector<ASTLocalVar *> &getLocalVars() const;
 
         virtual CodeGenFunctionBase *getCodeGen() const = 0;
 

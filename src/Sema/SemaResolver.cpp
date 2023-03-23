@@ -116,9 +116,13 @@ bool SemaResolver::ResolveClass(ASTNode *Node) {
                 if (ResolveClassType(Node, SuperClassType)) {
                     ASTClass *SuperClass = SuperClassType->getDef();
 
+                    // Enum extend Enum
                     if (SuperClass->getClassKind() == ASTClassKind::ENUM) {
                         if (Node->Class->getClassKind() == ASTClassKind::ENUM) {
-
+                            for (auto &EntryVar: SuperClass->getVars()) {
+                                auto &Var = EntryVar.getValue();
+                                Node->Class->Vars.insert(std::make_pair(Var->getName(), Var));
+                            }
                         } else {
                             // Enum can extend only another Enum
                             S.Diag(SuperClassType->getLocation(), diag::err_sema_enum_ext);
@@ -126,112 +130,122 @@ bool SemaResolver::ResolveClass(ASTNode *Node) {
                         }
                     }
 
-                    // Struct
-                    // Resolve Var in Super Classes
+                    // Struct: Resolve Var in Super Classes
                     if (SuperClass->getClassKind() == ASTClassKind::STRUCT) {
 
+                        // Interface cannot extend a Struct
                         if (Node->Class->getClassKind() == ASTClassKind::INTERFACE) {
-                            // Interface cannot extend a Struct
                             S.Diag(SuperClassType->getLocation(), diag::err_sema_interface_ext_struct);
                             return false;
                         }
 
+                        // Add Vars to the Struct
                         for (auto &EntryVar: SuperClass->getVars()) {
-                            ASTClassVar *&Var = EntryVar.getValue();
+                            ASTClassVar *&SuperVar = EntryVar.getValue();
 
                             // Check Var already exists and type conflicts in Super Vars
                             ASTClassVar *ClassVar = Node->Class->Vars.lookup(EntryVar.getKey());
                             if (ClassVar == nullptr) {
-                                Node->Class->Vars.insert(std::make_pair(Var->getName(), Var));
-                            } else if (Var->getType() != ClassVar->getType()) {
+                                Node->Class->Vars.insert(std::make_pair(SuperVar->getName(), SuperVar));
+                            } else if (SuperVar->getType() != ClassVar->getType()) {
                                 S.Diag(ClassVar->getLocation(), diag::err_sema_super_struct_var_conflict);
                                 return false;
                             }
                         }
                     }
 
-                    // Check error
+                    // Interface cannot extend a Class
                     if (Node->Class->getClassKind() == ASTClassKind::INTERFACE &&
                         SuperClass->getClassKind() == ASTClassKind::CLASS) {
-                        // Interface cannot extend a Class
                         S.Diag(SuperClassType->getLocation(), diag::err_sema_interface_ext_class);
                         return false;
                     }
 
-                    // Resolve Methods in Super Classes
+                    // Class/Interface: take all Super Classes methods
                     if (SuperClass->getClassKind() == ASTClassKind::CLASS ||
                         SuperClass->getClassKind() == ASTClassKind::INTERFACE) {
+
+                        // Collects Super Methods of the Super Classes
                         for (auto &EntryMap: SuperClass->getMethods()) {
                             const auto &Map = EntryMap.getValue();
                             auto MapIt = Map.begin();
                             while (MapIt != Map.end()) {
                                 for (ASTClassFunction *SuperMethod: MapIt->second) {
                                     if (SuperClass->getClassKind() == ASTClassKind::INTERFACE) {
-                                        S.Builder->InsertFunction(ISuperMethods, SuperMethod);
+                                        S.Builder->InsertFunction(ISuperMethods, SuperMethod, true);
                                     } else {
-                                        // Check for multiple same method declarations
-                                        if (!S.Builder->InsertFunction(SuperMethods, SuperMethod)) {
-                                            S.Diag(SuperMethod->getLocation(),
-                                                   diag::err_sema_super_class_method_conflict);
-                                            return false;
+                                        // Insert methods in the Super and if is ok also in the base Class
+                                        if (S.Builder->InsertFunction(SuperMethods, SuperMethod, true)) {
+                                            S.Builder->InsertFunction(Node->Class->Methods, SuperMethod, true);
+                                            SuperMethod->Class = Node->Class;  // FIXME ???
+                                        } else {
+                                            // Multiple Methods Implementations in Super Class need to be re-defined in base class
+                                            // Search if this method is re-defined in the base class
+                                            if (SuperMethod->Scopes->getVisibility() != ASTVisibilityKind::V_PRIVATE &&
+                                                !S.Builder->ContainsFunction(Node->Class->Methods, SuperMethod)) {
+                                                S.Diag(SuperMethod->getLocation(),diag::err_sema_super_class_method_conflict);
+                                                return false;
+                                            }
                                         }
                                     }
                                 }
                                 MapIt++;
                             }
                         }
+                    }
+                }
+            }
 
-                        // Add Super Methods to the current Class
-                        if (!SuperMethods.empty()) {
-                            for (const auto &EntryMap: SuperMethods) {
-                                const auto &Map = EntryMap.getValue();
-                                auto MapIt = Map.begin();
-                                while (MapIt != Map.end()) {
-                                    for (ASTClassFunction *SuperMethod : MapIt->second) {
-                                        if (SuperMethod->Scopes->getVisibility() != ASTVisibilityKind::V_PRIVATE) {
-                                            S.Builder->InsertFunction(Node->Class->Methods, SuperMethod);
-                                        }
-                                    }
-                                    MapIt++;
-                                }
-                            }
-                        }
-
-                        // Check if all interface methods are implemented
-                        if (!ISuperMethods.empty()) {
-                            for (const auto &EntryMap: ISuperMethods) {
-                                const auto &Map = EntryMap.getValue();
-                                auto MapIt = Map.begin();
-                                while (MapIt != Map.end()) {
-                                    for (ASTClassFunction *ISuperMethod : MapIt->second) {
-                                        if (!S.Builder->ContainsFunction(Node->Class->Methods, ISuperMethod)) {
-                                            S.Diag(ISuperMethod->getLocation(),
-                                                   diag::err_sema_method_not_implemented);
-                                            return false;
-                                        }
-                                    }
-                                    MapIt++;
-                                }
-                            }
+            // Check if all abstract methods are implemented
+            for (const auto &EntryMap: ISuperMethods) {
+                const auto &Map = EntryMap.getValue();
+                auto MapIt = Map.begin();
+                while (MapIt != Map.end()) {
+                    for (ASTClassFunction *ISuperMethod : MapIt->second) {
+                        if (!S.Builder->ContainsFunction(Node->Class->Methods, ISuperMethod)) {
+                            S.Diag(ISuperMethod->getLocation(),
+                                   diag::err_sema_method_not_implemented);
+                            return false;
                         }
                     }
+                    MapIt++;
                 }
             }
         }
 
         // Constructors
         for (auto &IntMap: Node->Class->Constructors) {
-            for (auto &F: IntMap.second) {
-                Success &= ResolveBlock(F->Body);
+            for (auto &Function: IntMap.second) {
+
+                // Check Class vars for each Constructor
+                for (auto &EntryVar : Node->Class->Vars) {
+
+                    // Check if Method already contains this var name as LocalVar
+                    if (!S.Validator->CheckDuplicateLocalVars(Function->Body, EntryVar.getKey())) {
+                        return false; // FIXME it is a warning not an error
+                    }
+                }
+
+                Success &= ResolveBlock(Function->Body);
             }
         }
 
         // Methods
         for (auto &StrMapEntry: Node->Class->Methods) {
             for (auto &IntMap: StrMapEntry.getValue()) {
-                for (auto &F: IntMap.second) {
-                    if (!F->isAbstract()) {
-                        Success &= ResolveBlock(F->Body); // FIXME check if already resolved
+                for (auto &Method: IntMap.second) {
+
+                    // Add Class vars for each Method
+                    for (auto &EntryVar : Node->Class->Vars) {
+
+                        // Check if Method already contains this var name as LocalVar
+                        if (!S.Validator->CheckDuplicateLocalVars(Method->Body, EntryVar.getKey())) {
+                            return false;
+                        }
+                    }
+
+                    if (!Method->isAbstract()) {
+                        Success &= ResolveBlock(Method->Body); // FIXME check if already resolved
                     }
                 }
             }
@@ -579,10 +593,11 @@ bool SemaResolver::ResolveClassType(ASTNode *Node, ASTType * Type) {
             NameSpace = S.FindNameSpace(NS);
         }
         ClassType->Def = S.FindClass(ClassName, NameSpace);
+        delete ClassType->Identifier;
         if (ClassType->Def == nullptr) {
             S.Diag(diag::err_unref_class) << ClassName;
+            return false;
         }
-        delete ClassType->Identifier;
     }
 
     if (!ClassType->Def) {
