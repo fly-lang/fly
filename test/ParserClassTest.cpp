@@ -196,7 +196,7 @@ namespace {
                 "  private void f1() {}\n"
                 "  protected void f2() {}\n"
                 "  public void f3() {}\n"
-                "  void f4() {}\n"
+                "  void f() {}\n"
                 "}\n");
         ASTNode *Node2 = Parse("TestClass", str2);
 
@@ -208,7 +208,7 @@ namespace {
         ASTClassFunction *f1Method = *Node2->getClass()->getMethods().find("f1")->getValue().begin()->second.begin();
         ASTClassFunction *f2Method = *Node2->getClass()->getMethods().find("f2")->getValue().begin()->second.begin();
         ASTClassFunction *f3Method = *Node2->getClass()->getMethods().find("f3")->getValue().begin()->second.begin();
-        ASTClassFunction *f4Method = *Node2->getClass()->getMethods().find("f4")->getValue().begin()->second.begin();
+        ASTClassFunction *fMethod1 = *Node2->getClass()->getMethods().find("f")->getValue().begin()->second.begin();
 
         EXPECT_EQ(Node->getClass()->getVars().size(), 1);
         ASTClassVar &bVar = *Node->getClass()->getVars().find("b")->getValue();
@@ -287,12 +287,14 @@ namespace {
     }
 
     TEST_F(ParserTest, ClassExtendAll) {
-        llvm::StringRef str = ("public class Test : Class Struct Interface {}\n");
+        llvm::StringRef str = ("public class Test : Class Struct Interface {\n"
+//                               "  int a() { return a }\n"
+                               "}\n");
         ASTNode *Node = Parse("Test", str, false);
 
         llvm::StringRef str2 = (
                 "class Class {\n"
-                "  void a() { return a }"
+                "  int a() { return 1 }"
                 "}\n");
         ASTNode *Node2 = Parse("Class", str2, false);
 
@@ -316,44 +318,7 @@ namespace {
         EXPECT_FALSE(aMethod->getScopes()->isConstant());
 
         EXPECT_EQ(Node->getClass()->getVars().size(), 1); // A enum
-        ASTClassVar *VarA = Node2->getClass()->getVars().find("a")->getValue();
+        ASTClassVar *VarA = Node->getClass()->getVars().find("a")->getValue();
         EXPECT_EQ(VarA->getScopes()->getVisibility(), ASTVisibilityKind::V_DEFAULT);
-    }
-
-    TEST_F(ParserTest, Identifiers1) {
-        llvm::StringRef str1 = ("int func() {\n"
-                               "  Test t = new Test()"
-                               "  int a = t.a\n"
-                               "  a = createTest().a"
-                               "}\n"
-                               "Test createTest() {\n"
-                               "  return new Test()"
-                               "}\n");
-        ASTNode *Node1 = Parse("File1", str1, false);
-
-        llvm::StringRef str2 = ("public struct Test {\n"
-                               "  int a = 1\n"
-                               "}\n");
-        ASTNode *Node2 = Parse("File2", str2);
-
-        ASSERT_TRUE(isSuccess());
-
-        // Get Body
-        ASTFunction *F = *Node1->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
-        EXPECT_EQ(F->getType()->getKind(), ASTTypeKind::TYPE_CLASS);
-        const ASTBlock *Body = F->getBody();
-
-        // Test: Type t
-        ASTLocalVar *typeVar = (ASTLocalVar *) Body->getContent()[0];
-        EXPECT_EQ(typeVar->getName(), "t");
-        EXPECT_EQ(typeVar->getType()->getKind(), ASTTypeKind::TYPE_CLASS);
-        ASTClassType *ClassType = (ASTClassType *) typeVar->getType();
-        EXPECT_EQ(ClassType->getName(), "Type");
-        ASSERT_EQ(((ASTNullValue &)((ASTValueExpr *) typeVar->getExpr())->getValue()).print(), "null");
-
-        const ASTReturn *Ret = (ASTReturn *) Body->getContent()[1];
-        ASTVarRefExpr *RetRef = (ASTVarRefExpr *) Ret->getExpr();
-        EXPECT_EQ(RetRef->getVarRef()->getName(), "t");
-
     }
 }

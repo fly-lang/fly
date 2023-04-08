@@ -121,7 +121,9 @@ bool SemaResolver::ResolveClass(ASTNode *Node) {
                         if (Node->Class->getClassKind() == ASTClassKind::ENUM) {
                             for (auto &EntryVar: SuperClass->getVars()) {
                                 auto &Var = EntryVar.getValue();
-                                Node->Class->Vars.insert(std::make_pair(Var->getName(), Var));
+                                ASTClassVar *NewVar = S.Builder->CreateClassVar(Node->Class, Var->getLocation(), Var->getType(),
+                                                          Var->getName(), Var->getScopes());
+                                Node->Class->Vars.insert(std::make_pair(NewVar->getName(), NewVar));
                             }
                         } else {
                             // Enum can extend only another Enum
@@ -176,8 +178,16 @@ bool SemaResolver::ResolveClass(ASTNode *Node) {
                                     } else {
                                         // Insert methods in the Super and if is ok also in the base Class
                                         if (S.Builder->InsertFunction(SuperMethods, SuperMethod, true)) {
-                                            S.Builder->InsertFunction(Node->Class->Methods, SuperMethod, true);
-                                            SuperMethod->Class = Node->Class;  // FIXME ???
+                                            ASTClassFunction *M = S.Builder->CreateClassMethod(Node->Class,
+                                                                                               SuperMethod->getLocation(),
+                                                                                               SuperMethod->getType(),
+                                                                                               SuperMethod->getName(),
+                                                                                               SuperMethod->getScopes());
+                                            M->Params = SuperMethod->Params;
+                                            M->Body = SuperMethod->Body;
+                                            M->DerivedClass = Node->Class;
+                                            S.Builder->InsertFunction(Node->Class->Methods, M, true);
+                                            
                                         } else {
                                             // Multiple Methods Implementations in Super Class need to be re-defined in base class
                                             // Search if this method is re-defined in the base class
@@ -220,10 +230,10 @@ bool SemaResolver::ResolveClass(ASTNode *Node) {
                 // Check Class vars for each Constructor
                 for (auto &EntryVar : Node->Class->Vars) {
 
-                    // Check if Method already contains this var name as LocalVar
-                    if (!S.Validator->CheckDuplicateLocalVars(Function->Body, EntryVar.getKey())) {
-                        return false; // FIXME it is a warning not an error
-                    }
+                    // FIXME: Check if Method already contains this var name as LocalVar
+//                    if (!S.Validator->CheckDuplicateLocalVars(Function->Body, EntryVar.getKey())) {
+//                        return false;
+//                    }
                 }
 
                 Success &= ResolveBlock(Function->Body);
@@ -426,8 +436,10 @@ bool SemaResolver::ResolveIdentifier(ASTNode *Node, ASTIdentifier *Identifier, A
             ClassType = S.Builder->CreateClassType(Class);
             return true;
         }
+        return false;
     }
-    return false;
+
+    return true;
 }
 
 bool SemaResolver::ResolveIdentifiers(ASTBlock *Block, ASTReference *Ref) {

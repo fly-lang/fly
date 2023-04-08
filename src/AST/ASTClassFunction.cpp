@@ -14,12 +14,17 @@ using namespace fly;
 
 ASTClassFunction::ASTClassFunction(const SourceLocation &Loc, ASTClass *Class, ASTScopes *Scopes, ASTType *Type,
                                    llvm::StringRef Name) :
-        ASTFunctionBase(Loc, ASTFunctionKind::CLASS_FUNCTION, Type, Name), Class(Class), Scopes(Scopes)  {
+        ASTFunctionBase(Loc, ASTFunctionKind::CLASS_FUNCTION, Type, Name),
+        Class(Class), Scopes(Scopes)  {
 
 }
 
 ASTClass *ASTClassFunction::getClass() const {
     return Class;
+}
+
+ASTClass *ASTClassFunction::getDerivedClass() const {
+    return DerivedClass;
 }
 
 bool ASTClassFunction::isConstructor() {

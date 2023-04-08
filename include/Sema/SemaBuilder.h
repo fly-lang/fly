@@ -220,13 +220,13 @@ namespace fly {
         bool AddClass(ASTClass *Class);
         bool AddGlobalVar(ASTGlobalVar *GlobalVar, ASTValue *Value = nullptr);
         bool AddGlobalVar(ASTGlobalVar *GlobalVar, ASTExpr *Expr);
-        bool AddFunction(ASTFunction *Function); // FIXME Method Parameter Types are resolved only on second time
+        bool AddFunction(ASTFunction *Function);
 
         // Add details
         bool AddClassVar(ASTClassVar *Var);
         bool AddEnumClassVar(ASTClassVar *Var);
-        bool AddClassMethod(ASTClassFunction *Method); // FIXME Method Parameter Types are resolved only on second time
-        bool AddClassConstructor(ASTClassFunction *Constructor); // FIXME Method Parameter Types are resolved only on second time
+        bool AddClassMethod(ASTClassFunction *Method);
+        bool AddClassConstructor(ASTClassFunction *Constructor);
         bool AddParam(ASTParam *Param);
         void AddFunctionVarParams(ASTFunction *Function, ASTParam *Param); // TODO
         bool AddComment(ASTTopDef *Top, llvm::StringRef Comment);

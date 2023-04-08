@@ -29,6 +29,8 @@ namespace fly {
 
         ASTClass *Class = nullptr;
 
+        ASTClass *DerivedClass = nullptr;
+
         bool Constructor = false;
 
         bool Static = false;
@@ -46,6 +48,8 @@ namespace fly {
     public:
 
         ASTClass *getClass() const;
+
+        ASTClass *getDerivedClass() const;
 
         bool isConstructor();
 
