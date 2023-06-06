@@ -22,6 +22,7 @@ namespace fly {
     class ASTNode;
     class ASTImport;
     class ASTExpr;
+    class ASTParams;
     class ASTParam;
     class ASTType;
     class SourceLocation;
@@ -35,6 +36,8 @@ namespace fly {
         SemaValidator(Sema &S);
 
     public:
+
+        bool CheckDuplicateParams(ASTParams *Params, ASTParam *Param);
 
         bool CheckDuplicateLocalVars(ASTStmt *Stmt, llvm::StringRef VarName);
 

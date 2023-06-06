@@ -22,7 +22,8 @@ FetchContent_Declare(
         ${FLY_LLVM_PROJECT}
         URL ${LLVM_RELEASES_URL}
         URL_HASH SHA1=${LLVM_HASH}
-        SOURCE_DIR llvm)
+        SOURCE_DIR llvm
+        DOWNLOAD_EXTRACT_TIMESTAMP true)
 FetchContent_MakeAvailable(${FLY_LLVM_PROJECT})
 
 message(STATUS "Downloaded LLVM precompiled files")

@@ -28,6 +28,7 @@ namespace fly {
     class ASTBlock;
     class ASTCall;
     class ASTStmt;
+    class ASTSwitchBlock;
     class ASTExpr;
     class ASTVarRef;
     class InputFile;
@@ -98,6 +99,8 @@ namespace fly {
         bool ParseEndParen(bool HasParen);
         bool ParseIfStmt(ASTBlock *Block);
         bool ParseSwitchStmt(ASTBlock *Block);
+        bool ParseSwitchCase(ASTSwitchBlock *SwitchBlock);
+        bool ParseSwitchDefault(ASTSwitchBlock *SwitchBlock);
         bool ParseWhileStmt(ASTBlock *Block);
         bool ParseForStmt(ASTBlock *Block);
         bool ParseForCommaStmt(ASTBlock *Block);

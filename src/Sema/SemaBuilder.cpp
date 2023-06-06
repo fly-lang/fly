@@ -474,6 +474,17 @@ SemaBuilder::CreateNullValue(const SourceLocation &Loc) {
 }
 
 /**
+ * Creates a zero value
+ * @param Loc
+ * @return
+ */
+ASTZeroValue *
+SemaBuilder::CreateZeroValue(const SourceLocation &Loc) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateNullValue", "Loc=" << Loc.getRawEncoding());
+    return new ASTZeroValue(Loc);
+}
+
+/**
  * Creates a bool value
  * @param Loc
  * @param Val
@@ -1252,15 +1263,11 @@ SemaBuilder::AddClassConstructor(ASTClassFunction *Constructor) {
 bool
 SemaBuilder::AddParam(ASTParam *Param) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddParam", Logger().Attr("Param", Param).End());
-    // TODO Check duplicate
-    Param->Top->Params->List.push_back(Param);
-    Param->Parent = Param->Top->Body;
 
     // Check var duplicates
-    if (S.Validator->CheckDuplicateLocalVars(Param->Top->Body, Param->getName())) {
-        //Useful for Alloca into CodeGen
-        return Param->Top->Body->LocalVars
-                .insert(std::pair<std::string, ASTLocalVar *>(Param->getName(), Param)).second;
+    if (S.Validator->CheckDuplicateParams(Param->Function->Params, Param)) {
+        Param->Function->Params->List.push_back(Param);
+        return true;
     }
 
     return false;

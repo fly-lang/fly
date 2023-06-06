@@ -178,6 +178,19 @@ namespace fly {
 
         std::string str() const override;
     };
+
+    class ASTZeroValue : public ASTValue {
+
+        friend class SemaBuilder;
+
+        ASTZeroValue(const SourceLocation &Loc);
+
+    public:
+
+        const std::string print() const;
+
+        std::string str() const override;
+    };
 }
 
 #endif //FLY_ASTVALUE_H

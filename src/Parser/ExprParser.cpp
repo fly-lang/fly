@@ -221,7 +221,7 @@ ASTExpr *ExprParser::ParseExpr(ASTIdentifier *Identifier) {
 }
 
 ASTExpr *ExprParser::ParseNewExpr(Parser *P) {
-    FLY_DEBUG("ExprParser", "ParseNewExpr");
+    FLY_DEBUG("ExprParser", "ParseNewExpr"); // TODO add assert(keyword is new)
     P->ConsumeToken();
     if (P->Tok.isAnyIdentifier()) {
         ASTIdentifier *Identifier = P->ParseIdentifier();

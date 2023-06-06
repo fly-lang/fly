@@ -22,6 +22,7 @@
 #include "AST/ASTClassFunction.h"
 #include "AST/ASTNode.h"
 #include "AST/ASTVarRef.h"
+#include "AST/ASTParams.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/SourceLocation.h"
 #include "Basic/Debuggable.h"
@@ -87,7 +88,7 @@ ASTClass *Sema::FindClass(llvm::StringRef ClassName, ASTNameSpace *NameSpace) co
  * @param Identifier
  * @return the found LocalVar
  */
-ASTLocalVar *Sema::FindLocalVar(ASTBlock *Block, ASTIdentifier *Identifier) const {
+ASTVar *Sema::FindLocalVar(ASTBlock *Block, ASTIdentifier *Identifier) const {
     FLY_DEBUG_MESSAGE("Sema", "FindLocalVar", Logger().Attr("Name", Block).Attr("Identifier", Identifier).End());
     const auto &It = Block->getLocalVars().find(Identifier->getName());
     if (It != Block->getLocalVars().end()) { // Search into this Block
@@ -95,6 +96,13 @@ ASTLocalVar *Sema::FindLocalVar(ASTBlock *Block, ASTIdentifier *Identifier) cons
     } else if (Block->getParent()) { // Traverse Parent Block to find the right VarDeclStmt
         if (Block->Parent->getKind() == ASTStmtKind::STMT_BLOCK)
             return FindLocalVar((ASTBlock *) Block->getParent(), Identifier);
+    } else {
+        const ASTParams *Params = Block->getTop()->getParams();
+        for (auto &Param : Params->getList()) {
+            if (Param->getName() == Identifier->getName()) { // Search into ASTParams
+                return Param;
+            }
+        }
     }
     return nullptr;
 }

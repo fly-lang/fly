@@ -19,13 +19,45 @@ namespace fly {
     /**
      * Function Parameter
      */
-    class ASTParam : public ASTLocalVar {
+    class ASTParam : public ASTExprStmt, public ASTVar {
 
         friend class SemaBuilder;
+        friend class SemaResolver;
+
+        ASTFunctionBase *Function; // Need this property to access directly to ASTFunction because Parent is always null
+
+        // LocalVar Code Generator
+        CodeGenVar *CodeGen = nullptr;
+
+        bool Constant = false;
+
+        ASTVarKind VarKind;
+
+        ASTType *Type = nullptr;
+
+        llvm::StringRef Name;
 
         ASTParam(ASTFunctionBase *Function, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, bool Constant);
 
     public:
+
+        ASTFunctionBase *getFunction();
+
+        ASTVarKind getVarKind() override;
+
+        ASTType *getType() const override;
+
+        llvm::StringRef getName() const override;
+
+        bool isConstant() const;
+
+        ASTExpr *getExpr() const override;
+
+        CodeGenVar *getCodeGen() const override;
+
+        void setCodeGen(CodeGenVar *CG);
+
+        std::string print() const override;
 
         std::string str() const override;
     };

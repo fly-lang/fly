@@ -71,6 +71,7 @@ namespace fly {
     class ASTIntegerValue;
     class ASTFloatingValue;
     class ASTNullValue;
+    class ASTZeroValue;
     class ASTBoolValue;
     class ASTArrayValue;
     class ASTStructValue;
@@ -152,6 +153,7 @@ namespace fly {
 
         // Create Values
         static ASTNullValue *CreateNullValue(const SourceLocation &Loc);
+        static ASTZeroValue *CreateZeroValue(const SourceLocation &Loc);
         static ASTBoolValue *CreateBoolValue(const SourceLocation &Loc, bool Val);
         static ASTIntegerValue *CreateIntegerValue(const SourceLocation &Loc, uint64_t Val, bool Negative = false);
         static ASTIntegerValue *CreateCharValue(const SourceLocation &Loc, char Val);

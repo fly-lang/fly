@@ -65,7 +65,8 @@ if (DEFINED LLVM_BUILD AND LLVM_BUILD)
             GIT_REPOSITORY ${LLVM_GIT_REPO}
             GIT_TAG fly-llvm-${FLY_LLVM_VERSION}
             GIT_PROGRESS true
-            GIT_REMOTE_UPDATE_STRATEGY CHECKOUT)
+            GIT_REMOTE_UPDATE_STRATEGY CHECKOUT
+            DOWNLOAD_EXTRACT_TIMESTAMP true)
 
     message(STATUS "Building LLVM from sources")
     set(LLVM_DIR ${FLY_LLVM_BINARY_DIR}/llvm/lib/cmake/llvm)

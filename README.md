@@ -36,6 +36,7 @@ Fly is written in C++ and it is a fork of Clang.
 ### Prerequisites
 In order to build this project you need:
 - [CMake (min version 3.4.3)](https://cmake.org)
+- C++ 14
 
 ## Usage
 This is an example of how to configure and build the Fly source.
@@ -44,8 +45,12 @@ This is an example of how to configure and build the Fly source.
     * ``git clone https://github.com/fly-lang/fly.git``
    
     * Or, on windows, ``git clone --config core.autocrlf=false``
+2. Linux (Ubuntu 22.04) building packages:
+    
+   * Build dependencies: ``sudo apt install build-essential libxml2-dev zlib1g-dev libtinfo-dev``
+   * Add stacktrace (debug purpose): ``sudo apt install binutils-dev libdw-dev libdwarf-dev``
 
-2. Configure and build:
+3. Configure and build:
    
    * ``cd fly``
 
@@ -57,7 +62,7 @@ This is an example of how to configure and build the Fly source.
      
    * ``cmake --build . ``
    
-3. Launch Fly tests:
+4. Launch Fly tests:
    
    * ``ctest``
 

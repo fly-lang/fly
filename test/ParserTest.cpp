@@ -240,7 +240,7 @@ namespace {
 
     TEST_F(ParserTest, GlobalArray) {
         llvm::StringRef str = (
-                               "byte[] a\n" // array of zero bytes
+                               "byte[] a = null\n" // array of zero bytes
                                "byte[] b = {}\n"
                                "byte[] c = {1, 2, 3}\n"
                                "byte[3] d\n" // array of 4 bytes without values
@@ -259,7 +259,7 @@ namespace {
         EXPECT_EQ(a->getType()->getKind(), ASTTypeKind::TYPE_ARRAY);
         EXPECT_EQ(((ASTArrayType *) a->getType())->getType()->getKind(), ASTTypeKind::TYPE_BYTE);
         EXPECT_EQ(((ASTIntegerValue &) ((ASTValueExpr *)((ASTArrayType *) a->getType())->getSize())->getValue()).getValue(), 0);
-        EXPECT_EQ(a->getExpr(), nullptr);
+        EXPECT_EQ(((ASTValueExpr *) a->getExpr())->getValue().print(), "null");
 
         // b
         EXPECT_EQ(b->getType()->getKind(), ASTTypeKind::TYPE_ARRAY);
@@ -269,8 +269,7 @@ namespace {
         ASTValueExpr *bExpr = (ASTValueExpr *) b->getExpr();
 //        EXPECT_EQ(((const ASTArrayValue &) bExpr->getValue()).getType()->getKind(), TypeKind::TYPE_ARRAY); // FIXME?
 //        EXPECT_EQ(((ASTArrayType *) ((const ASTArrayValue &) bExpr->getValue()).getType())->getType()->getKind(), TypeKind::TYPE_BYTE); // FIXME?
-        EXPECT_EQ(((const ASTArrayValue &) bExpr->getValue()).size(), 0);
-        EXPECT_TRUE(((const ASTArrayValue &) bExpr->getValue()).empty());
+        EXPECT_EQ(((const ASTArrayValue &) bExpr->getValue()).print(), "zero");
 
         // c
         EXPECT_EQ(c->getType()->getKind(), ASTTypeKind::TYPE_ARRAY);

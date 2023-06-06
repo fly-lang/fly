@@ -695,7 +695,7 @@ bool ToolChain::LinkDarwin(const llvm::SmallVector<std::string, 4> &InFiles, con
 bool ToolChain::LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, const std::string &OutFile) {
     FLY_DEBUG_MESSAGE("ToolChain", "LinkLinux", "Out: " + OutFile);
     llvm::SmallVector<std::string, 16> CmdArgs;
-    CmdArgs.push_back("ld.lld");
+    CmdArgs.push_back("ld");
 
 //    switch (T.getArch()) {
 //        default:

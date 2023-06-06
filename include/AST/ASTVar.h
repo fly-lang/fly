@@ -24,6 +24,7 @@ namespace fly {
     class ASTExpr;
 
     enum class ASTVarKind {
+        VAR_PARAM,
         VAR_LOCAL,
         VAR_GLOBAL,
         VAR_CLASS

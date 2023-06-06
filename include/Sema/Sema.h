@@ -63,7 +63,7 @@ namespace fly {
 
         ASTClass *FindClass(llvm::StringRef ClassName, ASTNameSpace *NameSpace) const;
 
-        ASTLocalVar *FindLocalVar(ASTBlock *Block, ASTIdentifier *Identifier) const;
+        ASTVar *FindLocalVar(ASTBlock *Block, ASTIdentifier *Identifier) const;
 
         ASTImport *FindImport(ASTNode *Node, llvm::StringRef Name);
 

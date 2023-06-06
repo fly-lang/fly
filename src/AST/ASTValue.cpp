@@ -181,3 +181,17 @@ std::string ASTNullValue::str() const {
             Super(ASTValue::str()).
             End();
 }
+
+ASTZeroValue::ASTZeroValue(const SourceLocation &Loc) : ASTValue(ASTMacroTypeKind::MACRO_TYPE_CLASS, Loc) {
+
+}
+
+const std::string ASTZeroValue::print() const {
+    return "zero";
+}
+
+std::string ASTZeroValue::str() const {
+    return Logger("ASTZeroValue").
+            Super(ASTValue::str()).
+            End();
+}

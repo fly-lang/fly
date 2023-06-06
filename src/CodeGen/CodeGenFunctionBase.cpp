@@ -80,8 +80,13 @@ void CodeGenFunctionBase::setInsertPoint() {
 }
 
 void CodeGenFunctionBase::AllocaVars() {
-    // CodeGen of Params are contained into LocalVars
-    // Allocation of declared local vars
+    // Allocation of declared ASTParams
+    for (auto &Param: AST->getParams()->getList()) {
+        Param->setCodeGen(new CodeGenVar(CGM, Param));
+        Param->getCodeGen()->Init();
+    }
+
+    // Allocation of all declared ASTLocalVar
     for (auto &EntryLocalVar: AST->getBody()->getLocalVars()) {
         ASTLocalVar *LocalVar = EntryLocalVar.getValue();
         LocalVar->setCodeGen(new CodeGenVar(CGM, LocalVar));
@@ -90,11 +95,11 @@ void CodeGenFunctionBase::AllocaVars() {
 
     // Store Param Values
     int n = 0;
-    for (auto &P: AST->getParams()->getList()) {
-        CodeGenVar *CGV = P->getCodeGen();
+    for (auto &Param: AST->getParams()->getList()) {
+        CodeGenVar *CGV = Param->getCodeGen();
         CGV->Store(Fn->getArg(n));
-        if (P->getExpr()) {
-            CGM->GenExpr(Fn, P->getType(), P->getExpr());
+        if (Param->getExpr()) {
+            CGM->GenExpr(Fn, Param->getType(), Param->getExpr());
         }
         ++n;
     }

@@ -30,7 +30,23 @@ SemaValidator::SemaValidator(Sema &S) : S(S) {
 }
 
 /**
- * Check if this var is already declared
+ * Check if this param name is already declared
+ * @param Params
+ * @param Param
+ * @return
+ */
+bool SemaValidator::CheckDuplicateParams(ASTParams *Params, ASTParam *Param) {
+    for (ASTParam *P : Params->getList()) {
+        if (P->getName() == Param->getName()) {
+            S.Diag(Param->getLocation(), diag::err_conflict_params) << Param->getName();
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
+ * Check if this var name is already declared
  * @param Block
  * @param Var
  * @return
