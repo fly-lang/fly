@@ -136,7 +136,7 @@ const std::vector<ASTValue *> &ASTArrayValue::getValues() const {
     return Values;
 }
 
-ASTStructValue::ASTStructValue(const SourceLocation &Loc) : ASTValue(ASTMacroTypeKind::MACRO_TYPE_STRUCT, Loc) {
+ASTStructValue::ASTStructValue(const SourceLocation &Loc) : ASTValue(ASTMacroTypeKind::MACRO_TYPE_CLASS, Loc) {
 
 }
 

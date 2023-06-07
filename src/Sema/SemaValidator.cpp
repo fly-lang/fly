@@ -108,10 +108,17 @@ bool SemaValidator::CheckExpr(ASTExpr *Expr) {
     return true;
 }
 
-bool SemaValidator::isEquals(ASTParam *Param1, ASTParam *Param2) {
-    return Param1 && Param2 &&
-           Param1->getType() && Param2->getType() &&
-           Param1->getType()->getKind() == Param2->getType()->getKind();
+bool SemaValidator::isEquals(ASTType *Type1, ASTType *Type2) {
+    if (Type1->getMacroKind() == Type2->getMacroKind()) {
+        if (Type1->getMacroKind() == ASTMacroTypeKind::MACRO_TYPE_ARRAY) {
+            return isEquals(((ASTArrayType *) Type1)->getType(), ((ASTArrayType *) Type2)->getType());
+        } else if (Type1->getMacroKind() == ASTMacroTypeKind::MACRO_TYPE_CLASS) {
+            return ((ASTClassType *) Type1)->getName() == ((ASTClassType *) Type2)->getName();
+        }
+        return true;
+    }
+
+    return false;
 }
 
 bool SemaValidator::CheckMacroType(ASTType *Type, ASTMacroTypeKind Kind) {

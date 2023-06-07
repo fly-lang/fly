@@ -246,27 +246,26 @@ namespace fly {
         bool AddStmt(ASTStmt *Stmt);
         bool AddBlock(ASTBlock *Block);
 
-    private:
         template <class T>
-        bool ContainsFunction(llvm::StringMap<std::map <uint64_t,llvm::SmallVector <T *, 4>>> &Functions, T *Function) {
+        bool ContainsFunction(llvm::StringMap<std::map <uint64_t,llvm::SmallVector <T *, 4>>> &Functions, T *NewFunction) {
             // Search by Name
-            const auto &StrMapIt = Functions.find(Function->getName());
+            const auto &StrMapIt = Functions.find(NewFunction->getName());
             if (StrMapIt != Functions.end()) {
 
                 // Search by Number of Parameters
-                const auto IntMapIt = StrMapIt->second.find(Function->Params->getSize());
+                const auto IntMapIt = StrMapIt->second.find(NewFunction->Params->getSize());
 
                 // Search by Type of Parameters
-                llvm::SmallVector <T *, 4> Vector = IntMapIt->second;
-                for (auto &F: Vector) {
+                llvm::SmallVector <T *, 4> VectorFunctions = IntMapIt->second;
+                for (auto &F: VectorFunctions) {
 
-                    // Check if Function have no params
-                    if (Function->getParams()->List.empty() && F->getParams()->List.empty()) {
+                    // Check if NewFunction have no params
+                    if (NewFunction->getParams()->List.empty() && F->getParams()->List.empty()) {
                         return true;
                     }
 
                     // Check types
-                    if (!S.Validator->template CheckDuplicateFunctions(Vector, Function)) {
+                    if (!S.Validator->CheckDuplicateFunctions(VectorFunctions, NewFunction)) {
                         return true;
                     }
                 }
@@ -276,10 +275,64 @@ namespace fly {
 
         template <class T>
         bool InsertFunction(llvm::StringMap<std::map <uint64_t,llvm::SmallVector <T *, 4>>> &Functions, T *NewFunction,
-                            bool CheckDuplicate = false);
+                            bool CheckDuplicate) {
+
+            // Functions is llvm::StringMap<std::map <uint64_t, llvm::SmallVector <ASTFunction *, 4>>>
+            const auto &StrMapIt = Functions.find(NewFunction->getName());
+            if (StrMapIt == Functions.end()) { // This Node not contains a Function with this Function->Name
+
+                // add to llvm::SmallVector
+                llvm::SmallVector<T *, 4> Vect;
+                Vect.push_back(NewFunction);
+
+                // add to std::map
+                std::map<uint64_t, llvm::SmallVector<T *, 4>> IntMap;
+                IntMap.insert(std::make_pair(NewFunction->Params->getSize(), Vect));
+
+                // add to llvm::StringMap
+                return Functions.insert(std::make_pair(NewFunction->getName(), IntMap)).second;
+            } else {
+                return InsertFunction(StrMapIt->second, NewFunction, CheckDuplicate);
+            }
+        }
+
         template <class T>
         bool InsertFunction(std::map <uint64_t,llvm::SmallVector <T *, 4>> &Functions, T *NewFunction,
-                            bool CheckDuplicate = false);
+                            bool CheckDuplicate) {
+
+            // This Node contains a Function with this Function->Name
+            const auto &IntMapIt = Functions.find(NewFunction->Params->getSize());
+            if (IntMapIt == Functions.end()) { // but not have the same number of Params
+
+                // add to llvm::SmallVector
+                llvm::SmallVector<T *, 4> VectorFunctions;
+                VectorFunctions.push_back(NewFunction);
+
+                // add to std::map
+                std::pair<uint64_t, SmallVector<T *, 4>> IntMapPair = std::make_pair(
+                        NewFunction->Params->getSize(), VectorFunctions);
+
+                return Functions.insert(std::make_pair(NewFunction->Params->getSize(), VectorFunctions)).second;
+            } else { // This Node contains a Function with this Function->Name and same number of Params
+                llvm::SmallVector<T *, 4> VectorFunctions = IntMapIt->second;
+                for (auto &F: VectorFunctions) {
+
+                    // check no params duplicates
+                    if (!NewFunction->getParams()->List.empty() && !F->getParams()->List.empty()) {
+                        return false;
+                    }
+
+                    if (CheckDuplicate && !S.Validator->CheckDuplicateFunctions(VectorFunctions, NewFunction)) {
+                        return false;
+                    }
+                }
+
+                // Add to function list
+                IntMapIt->second.push_back(NewFunction);
+                return true;
+            }
+        }
+
         bool AddExpr(ASTStmt *Stmt, ASTExpr *Expr);
     };
 

@@ -11,6 +11,7 @@
 #define FLY_SEMA_VALIDATOR_H
 
 #include "AST/ASTType.h"
+#include "AST/ASTParams.h"
 
 namespace fly {
 
@@ -45,14 +46,15 @@ namespace fly {
         bool CheckDuplicateFunctions(llvm::SmallVector<T *, 4> Functions, T *Check) {
             // Types will be checked on Resolve()
             for (T *Function : Functions) {
-                for (auto &Param: Function->getParams()->getList()) {
-                    for (auto &CheckParam: Check->getParams()->getList()) {
-                        if (isEquals(Param, CheckParam)) {
+                for (ASTParam *Param : Function->getParams()->getList()) {
+                    for (ASTParam *CheckParam: Check->getParams()->getList()) {
+                        if (isEquals(Param->getType(), CheckParam->getType())) {
                             return false;
                         }
                     }
                 }
             }
+            return true;
         }
 
         bool CheckUninitialized(ASTBlock *Block, ASTVarRef *VarRef);
@@ -61,7 +63,7 @@ namespace fly {
 
         bool CheckExpr(ASTExpr *Expr);
 
-        bool isEquals(ASTParam *Param1, ASTParam *Param2);
+        bool isEquals(ASTType *Type1, ASTType *Type2);
 
         bool CheckMacroType(ASTType *Type, ASTMacroTypeKind Kind);
 

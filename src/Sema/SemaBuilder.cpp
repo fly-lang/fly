@@ -1158,14 +1158,15 @@ SemaBuilder::AddFunction(ASTFunction *Function) {
 
         // Add into NameSpace for global resolution
         // Add into Node for local resolution
-        return InsertFunction(Node->NameSpace->Functions, Function) && InsertFunction(Node->Functions, Function);
+        return InsertFunction(Node->NameSpace->Functions, Function, false) &&
+            InsertFunction(Node->Functions, Function, false);
     }
 
     // Lookup into node for private var
     if (Function->Scopes->Visibility == ASTVisibilityKind::V_PRIVATE) {
 
         // Add into Node for local resolution
-        return InsertFunction(Node->Functions, Function);
+        return InsertFunction(Node->Functions, Function, false);
     }
 
     assert(0 && "Unknown Function Visibility");
@@ -1233,7 +1234,7 @@ SemaBuilder::AddEnumClassVar(ASTClassVar *Var) {
 bool
 SemaBuilder::AddClassMethod(ASTClassFunction *Method) {
     // Check duplicates
-    if (!InsertFunction(Method->Class->Methods, Method)) {
+    if (!InsertFunction(Method->Class->Methods, Method, false)) {
         S.Diag(Method->getLocation(), diag::err_sema_class_method_redeclare) << Method->getName();
         return false;
     }
@@ -1252,7 +1253,7 @@ SemaBuilder::AddClassConstructor(ASTClassFunction *Constructor) {
     }
 
     // Check duplicates
-    if (!InsertFunction(Class->Constructors, Constructor)) {
+    if (!InsertFunction(Class->Constructors, Constructor, false)) {
         S.Diag(Constructor->getLocation(), diag::err_sema_class_method_redeclare) << Constructor->getName();
         return false;
     }
@@ -1330,7 +1331,7 @@ SemaBuilder::AddExternalFunction(ASTNode *Node, ASTFunction *Function) {
                         .Attr("Node", Node)
                         .Attr("Function", Function).End());
     // TODO Check duplicate
-    return InsertFunction(Node->ExternalFunctions, Function);
+    return InsertFunction(Node->ExternalFunctions, Function, false);
 }
 
 bool
@@ -1454,70 +1455,6 @@ SemaBuilder::AddStmt(ASTStmt *Stmt) {
     }
 
     return true;
-}
-
-template <class T>
-bool
-SemaBuilder::InsertFunction(llvm::StringMap<std::map <uint64_t,llvm::SmallVector <T *, 4>>> &Functions, T *NewFunction,
-                            bool CheckDuplicate) {
-
-    // Functions is llvm::StringMap<std::map <uint64_t, llvm::SmallVector <ASTFunction *, 4>>>
-    const auto &StrMapIt = Functions.find(NewFunction->getName());
-    if (StrMapIt == Functions.end()) { // This Node not contains a Function with this Function->Name
-
-        // add to llvm::SmallVector
-        llvm::SmallVector<T *, 4> Vect;
-        Vect.push_back(NewFunction);
-
-        // add to std::map
-        std::map<uint64_t, llvm::SmallVector<T *, 4>> IntMap;
-        IntMap.insert(std::make_pair(NewFunction->Params->getSize(), Vect));
-
-        // add to llvm::StringMap
-        return Functions.insert(std::make_pair(NewFunction->getName(), IntMap)).second;
-    } else {
-        return InsertFunction(StrMapIt->second, NewFunction, CheckDuplicate);
-    }
-}
-
-template <class T>
-bool
-SemaBuilder::InsertFunction(std::map <uint64_t,llvm::SmallVector <T *, 4>> &Functions, T *NewFunction,
-                            bool CheckDuplicate) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "AddClassMethod",
-                      Logger().Attr("Function", NewFunction).End());
-
-    // This Node contains a Function with this Function->Name
-    const auto &IntMapIt = Functions.find(NewFunction->Params->getSize());
-    if (IntMapIt == Functions.end()) { // but not have the same number of Params
-
-        // add to llvm::SmallVector
-        llvm::SmallVector<T *, 4> Vector;
-        Vector.push_back(NewFunction);
-
-        // add to std::map
-        std::pair<uint64_t, SmallVector<T *, 4>> IntMapPair = std::make_pair(
-                NewFunction->Params->getSize(), Vector);
-
-        return Functions.insert(std::make_pair(NewFunction->Params->getSize(), Vector)).second;
-    } else { // This Node contains a Function with this Function->Name and same number of Params
-        llvm::SmallVector<T *, 4> Vector = IntMapIt->second;
-        for (auto &F: Vector) {
-
-            // check no params duplicates
-            if (!NewFunction->getParams()->List.empty() && !F->getParams()->List.empty()) {
-                return false;
-            }
-
-            if (CheckDuplicate && !S.Validator->CheckDuplicateFunctions(Vector, NewFunction)) {
-                return false;
-            }
-        }
-
-        // Add to function list
-        IntMapIt->second.push_back(NewFunction);
-        return true;
-    }
 }
 
 bool
