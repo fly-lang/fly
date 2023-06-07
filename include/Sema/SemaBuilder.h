@@ -12,6 +12,7 @@
 
 #include "AST/ASTClass.h"
 #include "AST/ASTVar.h"
+#include "Sema/Sema.h"
 #include "Sema/SemaValidator.h"
 
 namespace fly {

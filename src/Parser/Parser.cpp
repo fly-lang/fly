@@ -1257,10 +1257,6 @@ ASTValue *Parser::ParseValues() {
     return Values;
 }
 
-ASTArrayValue *Parser::ParseArrayValues(ASTArrayValue *ArrayValues) {
-    
-}
-
 ASTExpr *Parser::ParseExpr(ASTStmt *Stmt, ASTIdentifier *Identifier) {
     FLY_DEBUG_MESSAGE("Parser", "ParseExpr", Logger().Attr("Stmt", Stmt).End());
     ExprParser Parser(this, Stmt);
