@@ -51,6 +51,7 @@ namespace fly {
     class ASTFunctionBase;
     class ASTIdentifier;
     class ASTReference;
+    class ASTImport;
 
     class SemaResolver {
 
@@ -99,6 +100,8 @@ namespace fly {
 
         template <class T>
         bool ResolveCall(ASTBlock *Block, ASTCall *Call, std::map <uint64_t,llvm::SmallVector <T *, 4>> &Functions);
+
+//        bool ResolveCall(ASTBlock *Block, ASTCall *Call, llvm::StringMap<ASTImport *> Imports);
 
         bool ResolveArg(ASTBlock *Block, ASTArg *Arg, ASTParam *Param);
 

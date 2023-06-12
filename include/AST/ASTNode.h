@@ -42,6 +42,9 @@ namespace fly {
 
         // Contains all Imports, the key is Alias or Name
         llvm::StringMap<ASTImport *> Imports;
+
+        // Contains all Imports, the key is Alias or Name
+        llvm::StringMap<ASTImport *> AliasImports;
         
         // All used GlobalVars
         llvm::StringMap<ASTGlobalVar *> ExternalGlobalVars;
@@ -64,6 +67,8 @@ namespace fly {
         ASTNameSpace* getNameSpace();
 
         const llvm::StringMap<ASTImport*> &getImports();
+
+        const llvm::StringMap<ASTImport*> &getAliasImports();
 
         const llvm::StringMap<ASTGlobalVar *> &getExternalGlobalVars() const;
 

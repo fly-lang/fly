@@ -109,7 +109,8 @@ ASTVar *Sema::FindLocalVar(ASTBlock *Block, ASTIdentifier *Identifier) const {
 
 ASTImport *Sema:: FindImport(ASTNode *Node, llvm::StringRef Name) {
     // Search into Node imports
-    return Node->Imports.lookup(Name);
+    ASTImport *Import = Node->Imports.lookup(Name);
+    return Import == nullptr ? Node->AliasImports.lookup(Name) : Import;
 }
 
 /**

@@ -67,15 +67,20 @@ namespace {
 
     TEST_F(ParserTest, SingleImportAlias) {
         llvm::StringRef str1 = ("namespace standard");
-        llvm::StringRef str2 = ("import standard std");
         ASTNode *Node1 = Parse("standard.fly", str1, false);
+
+        llvm::StringRef str2 = ("import standard std");
         ASTNode *Node2 = Parse("default.fly", str2);
+
         ASSERT_TRUE(isSuccess());
 
         EXPECT_EQ(Node2->getNameSpace()->getName(), "default");
-        ASTImport *Import = Node2->getImports().lookup("std");
+        ASTImport *Import = Node2->getImports().lookup("standard");
         EXPECT_EQ(Import->getName(), "standard");
         EXPECT_EQ(Import->getAlias(), "std");
+        ASTImport *ImportAlias = Node2->getAliasImports().lookup("std");
+        EXPECT_EQ(ImportAlias->getName(), "standard");
+        EXPECT_EQ(ImportAlias->getAlias(), "std");
     }
 
     TEST_F(ParserTest,  LineComments) {

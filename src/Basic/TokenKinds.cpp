@@ -57,3 +57,13 @@ bool tok::isKeyword(TokenKind Kind) {
     }
     return false;
 }
+
+bool tok::isPunctuator(TokenKind Kind) {
+    switch (Kind) {
+#define PUNCTUATOR(X,Y) case X: return Y;
+#include "Basic/TokenKinds.def"
+        default:
+            break;
+    }
+    return false;
+}

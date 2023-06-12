@@ -1049,17 +1049,23 @@ SemaBuilder::AddImport(ASTNode *Node, ASTImport * Import) {
                         .Attr("Import", Import).End());
 
     if (S.Validator->CheckImport(Node, Import)) {
-        std::string Name = Import->getAlias().empty() ? Import->getName() : Import->getAlias();
 
-        // Check if this Node already own this Import
-        if (Node->Imports.lookup(Name)) {
-            S.Diag(Import->getLocation(), diag::err_conflict_import) << Name;
+        // Check if this ASTNode already contains the imports
+        if (Node->Imports.find(Import->getName()) != Node->Imports.end()) {
+            S.Diag(Import->getLocation(), diag::err_conflict_import) << Import->getName();
+            return false;
+        }
+
+        // Check if this ASTNode already contains the name or alias
+        std::string Id = Import->getAlias().empty() ? Import->getName() : Import->getAlias();
+        if (Node->AliasImports.find(Id) != Node->Imports.end()) {
+            S.Diag(Import->getLocation(), diag::err_conflict_import) << Id;
             return false;
         }
 
         // Add Import to Node
-        auto Pair = std::make_pair(Name, Import);
-        return Node->Imports.insert(Pair).second;
+        return Node->Imports.insert(std::make_pair(Import->getName(), Import)).second &&
+            Node->AliasImports.insert(std::make_pair(Id, Import)).second;
     }
 
     return false;

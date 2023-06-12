@@ -94,13 +94,12 @@ namespace fly {
 
         // Parse Block Statement
         bool ParseBlock(ASTBlock *Block);
-        bool ParseStmt(ASTBlock *Block);
+        bool ParseStmt(ASTBlock *Block, bool StopParse = false);
         bool ParseStartParen();
         bool ParseEndParen(bool HasParen);
         bool ParseIfStmt(ASTBlock *Block);
         bool ParseSwitchStmt(ASTBlock *Block);
-        bool ParseSwitchCase(ASTSwitchBlock *SwitchBlock);
-        bool ParseSwitchDefault(ASTSwitchBlock *SwitchBlock);
+        bool ParseSwitchCases(ASTSwitchBlock *SwitchBlock);
         bool ParseWhileStmt(ASTBlock *Block);
         bool ParseForStmt(ASTBlock *Block);
         bool ParseForCommaStmt(ASTBlock *Block);

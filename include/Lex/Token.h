@@ -99,6 +99,16 @@ public:
     return is(K1) || isOneOf(K2, Ks...);
   }
 
+  /// Return true if this is a keyword.
+  bool isKeyword() const {
+      return tok::isKeyword(getKind());
+  }
+
+    /// Return true if this is a punctuator.
+    bool isPunctuator() const {
+        return tok::isPunctuator(getKind());
+    }
+
   /// Return true if this is a raw identifier (when lexing
   /// in raw mode) or a non-keyword identifier (when lexing in non-raw mode).
   bool isAnyIdentifier() const {

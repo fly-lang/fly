@@ -117,7 +117,7 @@ ASTExpr *ExprParser::ParseExpr(bool IsFirst) {
              .Attr("IsFirst", IsFirst).End());
 
     // The parsed ASTExpr
-    ASTExpr *Expr;
+    ASTExpr *Expr = nullptr;
 
     // Location of the starting expression
     if (P->Tok.is(tok::l_paren)) { // Start a new Group of Expressions
@@ -142,6 +142,14 @@ ASTExpr *ExprParser::ParseExpr(bool IsFirst) {
     } else if (P->isNewOperator(P->Tok)) {
         Expr = ParseNewExpr(P);
     } else {
+//        if (P->Tok.isKeyword() || P->Tok.is(tok::colon)) { // TODO add other token exceptions
+//            P->Diag(P->Tok.getLocation(), diag::err_syntax_error);
+//            P->ConsumeToken();
+//            return nullptr;
+//        }
+
+        // FIXME? remove or change logic?
+        // Used with: return
         return P->Builder.CreateExpr(Stmt); // return an ASTEmptyExpr
     }
 

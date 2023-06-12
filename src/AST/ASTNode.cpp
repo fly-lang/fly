@@ -44,6 +44,10 @@ const llvm::StringMap<ASTImport*> &ASTNode::getImports() {
     return Imports;
 }
 
+const llvm::StringMap<ASTImport*> &ASTNode::getAliasImports() {
+    return AliasImports;
+}
+
 const llvm::StringMap<ASTGlobalVar *> &ASTNode::getExternalGlobalVars() const {
     return ExternalGlobalVars;
 }

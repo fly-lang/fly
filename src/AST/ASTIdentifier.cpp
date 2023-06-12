@@ -70,9 +70,9 @@ ASTVarRef *ASTIdentifier::getVarRef() const {
 }
 
 ASTCall *ASTIdentifier::getCall() const {
-    if (!RefIsCall)
-        return nullptr;
-    return (ASTCall *) Reference;
+    if (RefIsCall)
+        return (ASTCall *) Reference;
+    return nullptr;
 }
 
 void ASTIdentifier::setCall(ASTCall *Call) {
@@ -85,12 +85,9 @@ std::string ASTIdentifier::print() const {
 }
 
 std::string ASTIdentifier::str() const {
-    std::string StrName;
     return Logger("ASTIdentifier").
             Attr("Reference", Reference).
             Attr("Name", Name).
-            Attr("Root", Root).
-            Attr("Parent", Parent).
             Attr("Child", Child).
             End();
 }

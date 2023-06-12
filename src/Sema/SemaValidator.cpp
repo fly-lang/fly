@@ -80,18 +80,26 @@ bool SemaValidator::CheckUninitialized(ASTBlock *Block, ASTVarRef *VarRef) {
     return true;
 }
 
+/**
+ * Check Name and Alias on ASTImport
+ * @param Node
+ * @param Import
+ * @return
+ */
 bool SemaValidator::CheckImport(ASTNode *Node, ASTImport *Import) {
-    // Syntax Error Quote
+    // Error: Empty Import
     if (Import->getName().empty()) {
         S.Diag(Import->getLocation(), diag::err_import_undefined);
         return false;
     }
 
+    // Error: name is equals to the current ASTNode namespace
     if (Import->getName() == Node->getNameSpace()->getName()) {
         S.Diag(Import->getLocation(), diag::err_import_conflict_namespace) << Import->getName();
         return false;
     }
 
+    // Error: alias is equals to the current ASTNode namespace
     if (Import->getAlias() == Node->getNameSpace()->getName()) {
         S.Diag(Import->getAliasLocation(), diag::err_alias_conflict_namespace) << Import->getAlias();
         return false;
