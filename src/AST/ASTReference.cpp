@@ -21,7 +21,7 @@ SourceLocation ASTReference::getLocation() const {
 }
 
 llvm::StringRef ASTReference::getName() const {
-    return Identifier ? Identifier->getName() : llvm::StringRef();
+    return Identifier ? Identifier->getName() : llvm::StringRef(); // TODO move into VAR and CALL
 }
 
 ASTIdentifier *ASTReference::getIdentifier() const {

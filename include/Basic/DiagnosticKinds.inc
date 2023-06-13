@@ -378,7 +378,7 @@ DIAG(err_sema_class_field_redeclare, CLASS_ERROR, (unsigned)diag::Severity::Erro
 DIAG(err_sema_class_enum_expr, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot define expression into enums", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_class_enum_var, CLASS_ERROR, (unsigned)diag::Severity::Error, "enum vars can be added only into enum classes", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_class_method_redeclare, CLASS_ERROR, (unsigned)diag::Severity::Error, "class method '%0' already declared", 0, SFINAE_Suppress, false, true, 0)
-DIAG(err_sema_uninit_var, CLASS_ERROR, (unsigned)diag::Severity::Error, "uninitialized var", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_uninit_var, CLASS_ERROR, (unsigned)diag::Severity::Error, "uninitialized var '%0'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_resolve_identifier, CLASS_ERROR, (unsigned)diag::Severity::Error, "resolving identifier failed", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_visibility_error, CLASS_ERROR, (unsigned)diag::Severity::Error, "visibility error", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_super_class_method_conflict, CLASS_ERROR, (unsigned)diag::Severity::Error, "super class method conflicts, need to be define a new method in the base class", 0, SFINAE_Suppress, false, true, 0)

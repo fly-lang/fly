@@ -334,7 +334,7 @@ bool SemaResolver::ResolveBlock(ASTBlock *Block) {
 
                 // Remove from Un-Initialized Var
                 if (Success) {
-                    auto It = Block->UnInitVars.find(VarAssign->getVarRef()->getName());
+                    auto It = Block->UnInitVars.find(VarAssign->getVarRef()->getDef()->getName());
                     if (It != Block->UnInitVars.end())
                         Block->UnInitVars.erase(It);
                 }
@@ -351,7 +351,7 @@ bool SemaResolver::ResolveBlock(ASTBlock *Block) {
 
     if (!Block->UnInitVars.empty()) {
         for (auto &UnInitVar : Block->UnInitVars) {
-            S.Diag(UnInitVar.second->getLocation(), diag::err_sema_uninit_var);
+            S.Diag(UnInitVar.getValue()->getLocation(), diag::err_sema_uninit_var) << UnInitVar.getValue()->getName();
         }
         return false;
     }

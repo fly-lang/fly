@@ -378,20 +378,20 @@ llvm::Value *CodeGenModule::GenInstance(ASTReference *Reference) {
         return GenCall(Instance->getCodeGen()->getFunction(), (ASTCall *) Reference, noStore);
     } else {
         ASTVar *Instance = ((ASTVarRef *) Reference)->getDef();
-        return GenVarRef((ASTVarRef *) Reference);
+        GenVarRef((ASTVarRef *) Reference);
+        return Instance->getCodeGen()->getValue();
     }
 }
 
-llvm::Value *CodeGenModule::GenVarRef(ASTVarRef *VarRef) {
+void CodeGenModule::GenVarRef(ASTVarRef *VarRef) {
     if (VarRef->getDef() == nullptr) {
         Diag(VarRef->getLocation(), diag::err_unref_var);
-        return nullptr;
+        return;
     }
     if (VarRef->getDef()->getVarKind() == ASTVarKind::VAR_CLASS) {
         llvm::Value *V = GenInstance(VarRef->getInstance()); // Set Instance into CodeGen
         ((ASTClassVar *) VarRef->getDef())->getCodeGen()->Init(V);
     }
-    return VarRef->getDef()->getCodeGen()->getValue();
 }
 
 llvm::Value *CodeGenModule::GenCall(llvm::Function *Fn, ASTCall *Call, bool &NoStore) {

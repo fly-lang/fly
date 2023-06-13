@@ -117,7 +117,7 @@ namespace fly {
 
         llvm::Value *GenInstance(ASTReference *Reference);
 
-        llvm::Value *GenVarRef(ASTVarRef *VarRef);
+        void GenVarRef(ASTVarRef *VarRef);
 
         llvm::Value *GenCall(llvm::Function *Fn, ASTCall *Call, bool &noStore);
 
