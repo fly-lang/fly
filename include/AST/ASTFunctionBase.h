@@ -29,7 +29,6 @@ namespace fly {
     class CodeGenFunction;
     class CodeGenFunctionBase;
     class CodeGenVarBase;
-    class CodeGenCall;
 
     enum class ASTFunctionKind {
         FUNCTION,

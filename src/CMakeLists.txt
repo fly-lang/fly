@@ -96,6 +96,7 @@ add_library(flyLib
         CodeGen/CodeGenFunction.cpp
         CodeGen/CodeGenFunctionBase.cpp
         CodeGen/CodeGenGlobalVar.cpp
+        CodeGen/CodeGenInstance.cpp
         CodeGen/CodeGenHeader.cpp
         CodeGen/CodeGenModule.cpp
         CodeGen/CodeGenVar.cpp

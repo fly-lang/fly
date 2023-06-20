@@ -21,17 +21,24 @@
 using namespace fly;
 
 CodeGenVar::CodeGenVar(CodeGenModule *CGM, ASTVar *Var) : CodeGenVarBase(CGM, Var) {
-
+    // Fix Architecture Compatibility of bool i1 to i8
+    this->T = Var->getType()->getKind() == ASTTypeKind::TYPE_BOOL ? CGM->Int8Ty : CGM->GenType(Var->getType());
 }
 
 void CodeGenVar::Init() {
     Pointer = CGM->Builder->CreateAlloca(T);
-    doLoad = true;
+    CodeGenVarBase::Init();
 }
 
 llvm::StoreInst *CodeGenVar::Store(llvm::Value *Val) {
     assert(Pointer && "Cannot store into unallocated stack");
     BlockID = CGM->Builder->GetInsertBlock()->getName();
+
+    // Fix Architecture Compatibility of bool i1 to i8
+    if (Var->getType()->getKind() == ASTTypeKind::TYPE_BOOL) {
+        Val = CGM->Builder->CreateZExt(Val, CGM->Int8Ty);
+    }
+
     return CodeGenVarBase::Store(Val);
 }
 

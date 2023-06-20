@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/CodeGen/CGClass.h - Code Generator of Class
+// include/CodeGen/Class.h - Code Generator of Class
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -11,7 +11,8 @@
 #ifndef FLY_CODEGEN_CLASSVAR_H
 #define FLY_CODEGEN_CLASSVAR_H
 
-#include "CodeGenVar.h"
+#include "CodeGenVarBase.h"
+#include "AST/ASTClassVar.h"
 
 namespace llvm {
     class StringRef;
@@ -27,11 +28,9 @@ namespace fly {
     class ASTClassVar;
     class ASTClassFunction;
 
-    class CodeGenClassVar : public CodeGenVar {
+    class CodeGenClassVar : public CodeGenVarBase {
 
         friend class CodeGenClass;
-
-        llvm::Value *ClassInstance = nullptr;
 
         llvm::Type *ClassType = nullptr;
 
@@ -39,19 +38,25 @@ namespace fly {
 
         llvm::Value *Zero = nullptr;
 
+        llvm::Value *Instance = nullptr;
+
+    protected:
+        llvm::StringRef BlockID;
+
     public:
         CodeGenClassVar(CodeGenModule *CGM, ASTClassVar *Var, llvm::Type *ClassType,  uint32_t Index);
 
-        void Init(llvm::Value *Instance);
+        void Init();
 
-        llvm::StoreInst *Store(llvm::Value *Val) override;
+        llvm::StoreInst *Store(llvm::Value *Val);
 
-        llvm::LoadInst *Load() override;
+        llvm::LoadInst *Load();
 
-        llvm::Value *getValue() override;
+        llvm::Value *getValue();
 
-        llvm::Value *getPointer() override;
+        llvm::Value *getPointer();
 
+        void setInstance(llvm::Value *Inst);
     };
 }
 

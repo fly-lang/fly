@@ -51,11 +51,11 @@ ASTExpr *ASTParam::getExpr() const {
     return Expr;
 }
 
-CodeGenVar *ASTParam::getCodeGen() const {
+CodeGenVarBase *ASTParam::getCodeGen() const {
     return CodeGen;
 }
 
-void ASTParam::setCodeGen(CodeGenVar *CG) {
+void ASTParam::setCodeGen(CodeGenVarBase *CG) {
     CodeGen = CG;
 }
 

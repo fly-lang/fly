@@ -48,8 +48,8 @@ namespace fly {
     class CodeGenGlobalVar;
     class CodeGenFunction;
     class CodeGenFunctionBase;
-    class CodeGenCall;
     class CodeGenClass;
+    class CodeGenVarBase;
     class ASTClass;
     class ASTVar;
     class ASTReference;
@@ -62,8 +62,8 @@ namespace fly {
         friend class CodeGenClass;
         friend class CodeGenClassVar;
         friend class CodeGenClassFunction;
-        friend class CodeGenCall;
         friend class CodeGenVarBase;
+        friend class CodeGenInstance;
         friend class CodeGenVar;
         friend class CodeGenExpr;
 
@@ -115,15 +115,11 @@ namespace fly {
 
         void GenStmt(llvm::Function *Fn, ASTStmt * Stmt);
 
-        llvm::Value *GenInstance(ASTReference *Reference);
+        llvm::Value *GenVarRef(ASTVarRef *VarRef);
 
-        void GenVarRef(ASTVarRef *VarRef);
-
-        llvm::Value *GenCall(llvm::Function *Fn, ASTCall *Call, bool &noStore);
+        llvm::Value *GenCall(llvm::Function *Fn, ASTCall *Call);
 
         llvm::Value *GenExpr(llvm::Function *Fn, const ASTType *Type, ASTExpr *Expr);
-
-        llvm::Value *GenExpr(llvm::Function *Fn, const ASTType *Type, ASTExpr *Expr, bool &NoStore);
 
         void GenBlock(llvm::Function *Fn, const std::vector<ASTStmt *> &Content, llvm::BasicBlock *BB = nullptr);
 
@@ -138,6 +134,8 @@ namespace fly {
         void GenForBlock(llvm::Function *Fn, ASTForBlock *For);
 
         void GenWhileBlock(llvm::Function *Fn, ASTWhileBlock *While);
+
+        void pushArgs(llvm::Function *Fn, ASTCall *pCall, llvm::SmallVector<llvm::Value *, 8> &Args);
     };
 }
 

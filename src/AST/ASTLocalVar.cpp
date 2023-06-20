@@ -39,11 +39,11 @@ ASTExpr *ASTLocalVar::getExpr() const {
     return Expr;
 }
 
-CodeGenVar *ASTLocalVar::getCodeGen() const {
+CodeGenVarBase *ASTLocalVar::getCodeGen() const {
     return CodeGen;
 }
 
-void ASTLocalVar::setCodeGen(CodeGenVar *CG) {
+void ASTLocalVar::setCodeGen(CodeGenVarBase *CG) {
     CodeGen = CG;
 }
 

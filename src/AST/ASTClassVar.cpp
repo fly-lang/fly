@@ -58,12 +58,12 @@ void ASTClassVar::setExpr(ASTExpr *Expr) {
     this->Expr = Expr;
 }
 
-CodeGenClassVar *ASTClassVar::getCodeGen() const {
+CodeGenVarBase *ASTClassVar::getCodeGen() const {
     return CodeGen;
 }
 
-void ASTClassVar::setCodeGen(CodeGenClassVar *CGCV) {
-    CodeGen = CGCV;
+void ASTClassVar::setCodeGen(CodeGenVarBase *CodeGen) {
+    this->CodeGen = CodeGen;
 }
 
 std::string ASTClassVar::print() const {

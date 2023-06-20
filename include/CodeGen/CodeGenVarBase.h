@@ -40,7 +40,7 @@ namespace fly {
 
     public:
 
-        virtual void Init() = 0;
+        virtual void Init();
 
         virtual llvm::StoreInst *Store(llvm::Value *Val);
 
@@ -49,6 +49,8 @@ namespace fly {
         virtual llvm::Value *getValue();
 
         virtual llvm::Value *getPointer();
+
+        virtual ASTVar *getVar();
     };
 }
 

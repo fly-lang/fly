@@ -38,6 +38,7 @@ void CodeGenClass::Generate() {
     uint32_t n = 0;
     for (auto &Var : AST->getVars()) {
         CodeGenClassVar *CGV = new CodeGenClassVar(CGM, Var.second, Type, n++);
+        Vars.push_back(CGV);
         Var.second->setCodeGen(CGV);
     }
 
@@ -45,11 +46,10 @@ void CodeGenClass::Generate() {
     for (auto &Vect : AST->getConstructors()) {
         for (auto ClassFunction : Vect.second) {
             // Create ClassFunction CodeGen for Constructor
-            CodeGenClassFunction *CG = new CodeGenClassFunction(CGM, ClassFunction);
-            CG->PreParams.push_back(Type->getPointerTo(CGM->Module->getDataLayout().getAllocaAddrSpace()));
-            CG->Create();
-            ClassFunction->setCodeGen(CG);
-            Constructors.push_back(CG);
+            CodeGenClassFunction *CGCF = new CodeGenClassFunction(CGM, ClassFunction);
+            CGCF->Create();
+            ClassFunction->setCodeGen(CGCF);
+            Constructors.push_back(CGCF);
         }
     }
 
@@ -58,11 +58,10 @@ void CodeGenClass::Generate() {
         for (auto &Vect : Map.second) {
             for (auto ClassFunction : Vect.second) {
                 // Create ClassFunction CodeGen
-                CodeGenClassFunction *CG = new CodeGenClassFunction(CGM, ClassFunction);
-                CG->PreParams.push_back(Type->getPointerTo(CGM->Module->getDataLayout().getAllocaAddrSpace()));
-                CG->Create();
-                ClassFunction->setCodeGen(CG);
-                Functions.push_back(CG);
+                CodeGenClassFunction *CGCF = new CodeGenClassFunction(CGM, ClassFunction);
+                CGCF->Create();
+                ClassFunction->setCodeGen(CGCF);
+                Functions.push_back(CGCF);
             }
         }
     }
@@ -70,6 +69,10 @@ void CodeGenClass::Generate() {
 
 llvm::StructType *CodeGenClass::getType() {
     return Type;
+}
+
+llvm::PointerType *CodeGenClass::getTypePtr() {
+    return Type->getPointerTo(CGM->Module->getDataLayout().getAllocaAddrSpace());
 }
 
 const SmallVector<CodeGenClassVar *, 4> &CodeGenClass::getVars() const {

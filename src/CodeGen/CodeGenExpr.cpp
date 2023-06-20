@@ -23,13 +23,45 @@ using namespace fly;
 CodeGenExpr::CodeGenExpr(CodeGenModule *CGM, llvm::Function *Fn, ASTExpr *Expr, const ASTType *ToType) :
         CGM(CGM), Fn(Fn) {
     FLY_DEBUG("CodeGenExpr", "CodeGenExpr");
-    ASTType *FromType = Expr->getType();
     llvm::Value *TheVal = GenValue(Expr);
+    ASTType *FromType = Expr->getType();
     Val = Convert(TheVal, FromType, ToType);
 }
 
-bool CodeGenExpr::isNoStore() const {
-    return NoStore;
+CodeGenExpr::CodeGenExpr(CodeGenModule *CGM, llvm::Function *Fn, ASTVar *Var) :
+        CGM(CGM), Fn(Fn), Var(Var) {
+    FLY_DEBUG("CodeGenExpr", "CodeGenExpr");
+    llvm::Value *TheVal = GenValue(Var->getExpr());
+    ASTType *FromType = Var->getExpr()->getType();
+    Val = Convert(TheVal, FromType, Var->getType());
+}
+
+llvm::Value *CodeGenExpr::GenValue(const ASTExpr *Expr, llvm::Value *Pointer) { // FIXME Pointer ???
+    FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "Expr=" << Expr->str());
+    switch (Expr->getExprKind()) {
+
+        case ASTExprKind::EXPR_VALUE: {
+            FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_VALUE");
+            return CGM->GenValue(Expr->getType(), &((ASTValueExpr *)Expr)->getValue());
+        }
+        case ASTExprKind::EXPR_VAR_REF: {
+            FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_REF_VAR");
+            ASTVarRef *VarRef = ((ASTVarRefExpr *) Expr)->getVarRef();
+            assert(VarRef && "Missing Ref");
+            return CGM->GenVarRef(VarRef);
+        }
+        case ASTExprKind::EXPR_CALL: {
+            FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_REF_FUNC");
+            ASTCallExpr *CallExpr = (ASTCallExpr *)Expr;
+            return CGM->GenCall(Fn, CallExpr->getCall());
+        }
+        case ASTExprKind::EXPR_GROUP:
+            FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_GROUP");
+            return GenGroup((ASTGroupExpr *) Expr);
+    }
+
+    assert("Unknown Expr Kind");
+    return nullptr;
 }
 
 llvm::Value *CodeGenExpr::getValue() const {
@@ -257,35 +289,6 @@ llvm::Value *CodeGenExpr::Convert(llvm::Value *FromVal, const ASTType *FromType,
             return FromVal;
     }
     assert(0 && "Conversion failed");
-}
-
-llvm::Value *CodeGenExpr::GenValue(const ASTExpr *Expr, llvm::Value *Pointer) {
-    FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "Expr=" << Expr->str());
-    switch (Expr->getExprKind()) {
-
-        case ASTExprKind::EXPR_VALUE: {
-            FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_VALUE");
-            return CGM->GenValue(Expr->getType(), &((ASTValueExpr *)Expr)->getValue());
-        }
-        case ASTExprKind::EXPR_VAR_REF: {
-            FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_REF_VAR");
-            ASTVarRefExpr *VarRefExpr = (ASTVarRefExpr *) Expr;
-            assert(VarRefExpr->getVarRef() && "Missing Ref");
-            CGM->GenVarRef(VarRefExpr->getVarRef());
-            return VarRefExpr->getVarRef()->getDef()->getCodeGen()->getValue();
-        }
-        case ASTExprKind::EXPR_CALL: {
-            FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_REF_FUNC");
-            ASTCallExpr *CallExpr = (ASTCallExpr *)Expr;
-            return CGM->GenCall(Fn, CallExpr->getCall(), NoStore);
-        }
-        case ASTExprKind::EXPR_GROUP:
-            FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_GROUP");
-            return GenGroup((ASTGroupExpr *) Expr);
-    }
-
-    assert("Unknown Expr Kind");
-    return nullptr;
 }
 
 /**

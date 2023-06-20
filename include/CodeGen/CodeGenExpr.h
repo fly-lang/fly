@@ -27,18 +27,18 @@ namespace fly {
 
         llvm::Function *Fn = nullptr;
 
-        bool NoStore = false;
+        ASTVar *Var = nullptr;
 
     public:
         CodeGenExpr(CodeGenModule *CGM, llvm::Function *Fn, ASTExpr *Expr, const ASTType *ToType);
 
-        bool isNoStore() const;
+        CodeGenExpr(CodeGenModule *CGM, llvm::Function *Fn, ASTVar *Var);
+
+        llvm::Value *GenValue(const ASTExpr *Origin, llvm::Value *Pointer = nullptr);
 
         llvm::Value *getValue() const;
 
         llvm::Value *Convert(llvm::Value *FromVal, const ASTType *FromType, const ASTType *ToType);
-
-        llvm::Value *GenValue(const ASTExpr *Origin, llvm::Value *Pointer = nullptr);
 
         llvm::Value *GenGroup(ASTGroupExpr *Group);
 

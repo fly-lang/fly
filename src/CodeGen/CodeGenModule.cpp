@@ -19,6 +19,7 @@
 #include "CodeGen/CodeGenGlobalVar.h"
 #include "CodeGen/CodeGenVar.h"
 #include "CodeGen/CodeGenExpr.h"
+#include "CodeGen/CodeGenInstance.h"
 #include "Sema/SemaBuilder.h"
 #include "AST/ASTImport.h"
 #include "AST/ASTNode.h"
@@ -285,15 +286,18 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
 
         // Var Declaration
         case ASTStmtKind::STMT_VAR_DEFINE: {
-            ASTLocalVar *LocalVar = (ASTLocalVar *) Stmt;
-            assert(LocalVar->getCodeGen() && "LocalVar is not CodeGen initialized");
-            if (LocalVar->getExpr()) {
-                bool NoStore = false;
-                llvm::Value *V = GenExpr(Fn, LocalVar->getType(), LocalVar->getExpr(), NoStore);
-                if (!NoStore) {
-                    LocalVar->getCodeGen()->Store(V);
+            ASTLocalVar *Var = (ASTLocalVar *) Stmt;
+            assert(Var->getCodeGen() && "Var is not CodeGen initialized");
+            if (Var->getExpr()) {
+                llvm::Value *V = GenExpr(Fn, Var->getType(), Var->getExpr());
+                if (Var->getType()->isClass()) {
+                    // set Value from CodeGen Instance
+                    ((CodeGenInstance *) Var->getCodeGen())->Init(V);
+                } else {
+                    Var->getCodeGen()->Store(V);
                 }
             }
+
             break;
         }
 
@@ -302,10 +306,10 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
             ASTVarAssign *VarAssign = (ASTVarAssign *) Stmt;
             assert(VarAssign->getExpr() && "Expr Mandatory in assignment");
             ASTVarRef *VarRef = VarAssign->getVarRef();
-            bool NoStore = false;
-            llvm::Value *V = GenExpr(Fn, VarRef->getDef()->getType(), VarAssign->getExpr(), NoStore);
-            GenVarRef(VarRef);
-            if (!NoStore) {
+            llvm::Value *V = GenExpr(Fn, VarRef->getDef()->getType(), VarAssign->getExpr());
+            if (VarRef->getDef()->getType()->isClass()) {
+                ((CodeGenInstance *) VarRef->getDef()->getCodeGen())->Init(V);
+            } else {
                 VarRef->getDef()->getCodeGen()->Store(V);
             }
             break;
@@ -368,33 +372,35 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
     }
 }
 
-llvm::Value *CodeGenModule::GenInstance(ASTReference *Reference) {
-    if (Reference == nullptr)
-        return nullptr;
-
-    if (Reference->isCall()) {
-        ASTFunctionBase* Instance = ((ASTCall *) Reference)->getDef();
-        bool noStore = false;
-        return GenCall(Instance->getCodeGen()->getFunction(), (ASTCall *) Reference, noStore);
-    } else {
-        ASTVar *Instance = ((ASTVarRef *) Reference)->getDef();
-        GenVarRef((ASTVarRef *) Reference);
-        return Instance->getCodeGen()->getValue();
-    }
-}
-
-void CodeGenModule::GenVarRef(ASTVarRef *VarRef) {
+llvm::Value *CodeGenModule::GenVarRef(ASTVarRef *VarRef) {
     if (VarRef->getDef() == nullptr) {
         Diag(VarRef->getLocation(), diag::err_unref_var);
-        return;
+        return nullptr;
     }
+
+    // Class Var
     if (VarRef->getDef()->getVarKind() == ASTVarKind::VAR_CLASS) {
-        llvm::Value *V = GenInstance(VarRef->getInstance()); // Set Instance into CodeGen
-        ((ASTClassVar *) VarRef->getDef())->getCodeGen()->Init(V);
+        // Return the instance value
+        if (VarRef->getInstance()) {
+            if (VarRef->getInstance()->isCall()) {
+
+            } else {
+                // get Value from CodeGen Instance (set in GenStmt())
+                CodeGenInstance *CGI = (CodeGenInstance *) ((ASTVarRef *) VarRef->getInstance())->getDef()->getCodeGen();
+                CodeGenClassVar *CGV = CGI->getVar(VarRef->getDef()->getName());
+                return CGV->getValue();
+            }
+        } else { // Return static value
+            return VarRef->getDef()->getCodeGen()->getValue();
+        }
     }
+
+    // Local Var
+    // Return the Value
+    return VarRef->getDef()->getCodeGen()->getValue();
 }
 
-llvm::Value *CodeGenModule::GenCall(llvm::Function *Fn, ASTCall *Call, bool &NoStore) {
+llvm::Value *CodeGenModule::GenCall(llvm::Function *Fn, ASTCall *Call) {
     FLY_DEBUG_MESSAGE("CodeGenModule", "GenCall",
                       "Call=" << Call->str());
     // Check if Func is declared
@@ -406,50 +412,30 @@ llvm::Value *CodeGenModule::GenCall(llvm::Function *Fn, ASTCall *Call, bool &NoS
     // The function arguments
     llvm::SmallVector<llvm::Value *, 8> Args;
 
-    // Add Instance to Function Args
-    Value *Instance = GenInstance(Call->getInstance());
+    // Take the CGI Value and pass to Call as first argument
+    llvm::AllocaInst *Instance = nullptr;
     if (Call->getDef()->getKind() == ASTFunctionKind::CLASS_FUNCTION) {
         ASTClassFunction *Def = (ASTClassFunction *) Call->getDef();
-        // Do not store Call return to the Instance
-        if (Def->isConstructor())
-            NoStore = true;
-
-        // Set Instance
-        if (!Def->isStatic()) {
-            // add Class Instance to the args
+        if (Def->isConstructor()) { // Call class constructor
+            Instance = Builder->CreateAlloca(Def->getClass()->getCodeGen()->getType());
             Args.push_back(Instance);
+        } else if (Call->getInstance()) { // Call class Instance method
+            Args.push_back(Call->getInstance()->getCodeGen()->getValue());
         }
+        // else { // call static method }
     }
 
-    // Add Call arguments to Function args
-    const std::vector<ASTParam *> &Params = Call->getDef()->getParams()->getList();
-    for (ASTArg *Arg : Call->getArgs()) {
-        llvm::Value *V = GenExpr(Fn, Arg->getDef()->getType(), Arg->getExpr());
-        Args.push_back(V);
-    }
-
-    // Add Function
-    if (Call->getDef()->getKind() == ASTFunctionKind::CLASS_FUNCTION) {
-        ASTClassFunction *Def = (ASTClassFunction *) Call->getDef();
-
-        // Return Instance Pointer only on Constructor
-        if (Def->isConstructor())
-            return Instance;
-    }
-
+    // Return Call Value
+    pushArgs(Fn, Call, Args);
     CodeGenFunctionBase *CGF = Call->getDef()->getCodeGen();
-    return Builder->CreateCall(CGF->getFunction(), Args);
+    llvm::Value *RetVal = Builder->CreateCall(CGF->getFunction(), Args);
+
+    return Instance == nullptr ? RetVal : Instance;
 }
 
 llvm::Value *CodeGenModule::GenExpr(llvm::Function *Fn, const ASTType *Type, ASTExpr *Expr) {
-    bool NoStore = false;
-    return GenExpr(Fn, Type, Expr, NoStore);
-}
-
-llvm::Value *CodeGenModule::GenExpr(llvm::Function *Fn, const ASTType *Type, ASTExpr *Expr, bool &NoStore) {
     FLY_DEBUG("CodeGenModule", "GenExpr");
     CodeGenExpr *CGExpr = new CodeGenExpr(this, Fn, Expr, Type);
-    NoStore = CGExpr->isNoStore();
     return CGExpr->getValue();
 }
 
@@ -709,4 +695,12 @@ void CodeGenModule::GenWhileBlock(llvm::Function *Fn, ASTWhileBlock *While) {
 
     // Continue insertions into End Branch
     Builder->SetInsertPoint(EndBR);
+}
+
+void CodeGenModule::pushArgs(llvm::Function *Fn, ASTCall *Call, llvm::SmallVector<llvm::Value *, 8> &Args) {
+    // Add Call arguments to Function args
+    for (ASTArg *Arg : Call->getArgs()) {
+        llvm::Value *V = GenExpr(Fn, Arg->getDef()->getType(), Arg->getExpr());
+        Args.push_back(V);
+    }
 }

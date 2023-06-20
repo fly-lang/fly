@@ -17,6 +17,7 @@ namespace fly {
 
     class ASTVar;
     class ASTIdentifier;
+    class CodeGenInstance;
 
     class ASTReference : public Debuggable {
 
@@ -26,6 +27,8 @@ namespace fly {
         ASTIdentifier *Identifier = nullptr;
 
         ASTReference *Instance = nullptr;
+
+        CodeGenInstance *CodeGen = nullptr;
 
         bool Call = false;
 
@@ -42,6 +45,10 @@ namespace fly {
         ASTIdentifier *getIdentifier() const;
 
         ASTReference *getInstance() const;
+
+        CodeGenInstance *getCodeGen() const;
+
+        void setCodeGen(CodeGenInstance *CGI);
 
         bool isCall() const;
     };

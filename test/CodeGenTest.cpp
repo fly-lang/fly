@@ -1874,7 +1874,7 @@ namespace {
                           "}\n");
     }
 
-    TEST_F(CodeGenTest, DISABLED_CGClassVars) {
+    TEST_F(CodeGenTest, CGClassVars) {
         ASTNode *Node = CreateNode();
 
         // TestClass {
@@ -1908,6 +1908,7 @@ namespace {
         //  int a = test.a
         //  int b = test.b
         //  int c = test.c
+        //  return 1
         // }
         ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",
                                                       SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
@@ -1935,6 +1936,10 @@ namespace {
         ASTLocalVar *cVar = Builder->CreateLocalVar(Body, SourceLoc, IntType, "c");
         ASTVarRefExpr *cRefExpr = Builder->CreateExpr(cVar, Builder->CreateVarRef(Instance, cField));
         Builder->AddStmt(cVar);
+
+        ASTReturn *Return = Builder->CreateReturn(Body, SourceLoc);
+        Builder->CreateExpr(Return, SemaBuilder::CreateIntegerValue(SourceLoc, 1));
+        EXPECT_TRUE(Builder->AddStmt(Return));
 
         // Add to Node
         EXPECT_TRUE(Builder->AddClass(TestClass));
@@ -1970,20 +1975,21 @@ namespace {
                               "\n"
                               "define i32 @main() {\n"
                               "entry:\n"
-                              "  %0 = alloca %TestClass, align 8\n"
+                              "  %0 = alloca i32, align 4\n"
                               "  %1 = alloca i32, align 4\n"
                               "  %2 = alloca i32, align 4\n"
-                              "  %3 = alloca i32, align 4\n"
-                              "  call void @TestClass_TestClass(%TestClass* %0)\n"
-                              "  %4 = getelementptr inbounds %TestClass, %TestClass* %0, i32 0, i32 0\n"
+                              "  %3 = alloca %TestClass, align 8\n"
+                              "  call void @TestClass_TestClass(%TestClass* %3)\n"
+                              "  %4 = getelementptr inbounds %TestClass, %TestClass* %3, i32 0, i32 0\n"
                               "  %5 = load i32, i32* %4, align 4\n"
-                              "  store i32 %5, i32* %1, align 4\n"
-                              "  %6 = getelementptr inbounds %TestClass, %TestClass* %0, i32 0, i32 1\n"
+                              "  store i32 %5, i32* %0, align 4\n"
+                              "  %6 = getelementptr inbounds %TestClass, %TestClass* %3, i32 0, i32 1\n"
                               "  %7 = load i32, i32* %6, align 4\n"
-                              "  store i32 %7, i32* %2, align 4\n"
-                              "  %8 = getelementptr inbounds %TestClass, %TestClass* %0, i32 0, i32 2\n"
+                              "  store i32 %7, i32* %1, align 4\n"
+                              "  %8 = getelementptr inbounds %TestClass, %TestClass* %3, i32 0, i32 2\n"
                               "  %9 = load i32, i32* %8, align 4\n"
-                              "  store i32 %9, i32* %3, align 4\n"
+                              "  store i32 %9, i32* %2, align 4\n"
+                              "  ret i32 1\n"
                               "}\n");
         }
     }

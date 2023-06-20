@@ -1,10 +1,11 @@
 class Test {
 
 public:
-    int a;
+    int a = 0;
 };
 
 int main() {
     Test *t = new Test();
-    return t->a;
+    int a = t->a;
+    return a;
 }

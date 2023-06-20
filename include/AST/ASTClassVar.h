@@ -13,6 +13,7 @@
 
 #include "ASTVar.h"
 #include "CodeGen/CodeGenClassVar.h"
+#include "CodeGen/CodeGenVar.h"
 
 namespace fly {
 
@@ -21,7 +22,6 @@ namespace fly {
     class ASTType;
     class ASTValue;
     class ASTVar;
-    class CodeGenClassVar;
 
     class ASTClassVar : public ASTVar {
 
@@ -44,7 +44,7 @@ namespace fly {
 
         ASTExpr *Expr = nullptr;
 
-        CodeGenClassVar *CodeGen = nullptr;
+        CodeGenVarBase *CodeGen = nullptr;
 
         ASTClassVar(const SourceLocation &Loc, ASTClass *Class, ASTScopes *Scopes, ASTType *Type,
                     llvm::StringRef Name);
@@ -69,9 +69,9 @@ namespace fly {
 
         void setExpr(ASTExpr *expr);
 
-        CodeGenClassVar *getCodeGen() const;
+        CodeGenVarBase *getCodeGen() const;
 
-        void setCodeGen(CodeGenClassVar *CGV);
+        void setCodeGen(CodeGenVarBase *CGV);
 
         std::string print() const;
 

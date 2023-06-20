@@ -56,8 +56,8 @@ ASTFunctionBase *ASTCall::getDef() const {
     return Def;
 }
 
-CodeGenCall *ASTCall::getCodeGen() const {
-    return CGC;
+bool ASTCall::isNew() const {
+    return New;
 }
 
 std::string ASTCall::str() const {
@@ -67,8 +67,4 @@ std::string ASTCall::str() const {
             AttrList("Args", Args).
             Attr("Def", Def).
             End();
-}
-
-bool ASTCall::isNew() const {
-    return New;
 }

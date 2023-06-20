@@ -28,7 +28,7 @@ namespace fly {
     public:
         CodeGenGlobalVar(CodeGenModule *CGM, ASTGlobalVar* AST, bool isExternal = false);
 
-        void Init() override;
+        void Init();
 
         llvm::StoreInst *Store(llvm::Value *Val) override;
 

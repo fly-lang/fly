@@ -27,7 +27,7 @@ namespace fly {
         ASTFunctionBase *Function; // Need this property to access directly to ASTFunction because Parent is always null
 
         // LocalVar Code Generator
-        CodeGenVar *CodeGen = nullptr;
+        CodeGenVarBase *CodeGen = nullptr;
 
         bool Constant = false;
 
@@ -53,9 +53,9 @@ namespace fly {
 
         ASTExpr *getExpr() const override;
 
-        CodeGenVar *getCodeGen() const override;
+        CodeGenVarBase *getCodeGen() const override;
 
-        void setCodeGen(CodeGenVar *CG);
+        void setCodeGen(CodeGenVarBase *CG);
 
         std::string print() const override;
 

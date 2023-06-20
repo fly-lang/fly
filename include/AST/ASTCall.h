@@ -20,7 +20,6 @@
 namespace fly {
 
     class ASTType;
-    class CodeGenCall;
     class ASTFunctionBase;
     class ASTParam;
     class ASTArg;
@@ -43,8 +42,6 @@ namespace fly {
 
         ASTFunctionBase *Def = nullptr;
 
-        CodeGenCall *CGC = nullptr;
-
         bool New = false;
 
         ASTCall(ASTIdentifier *Identifier);
@@ -56,8 +53,6 @@ namespace fly {
         const std::vector<ASTArg *> getArgs() const;
 
         ASTFunctionBase *getDef() const;
-
-        CodeGenCall *getCodeGen() const;
 
         bool isNew() const;
 

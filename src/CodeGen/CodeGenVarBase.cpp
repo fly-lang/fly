@@ -18,19 +18,20 @@
 
 using namespace fly;
 
-CodeGenVarBase::CodeGenVarBase(CodeGenModule *CGM, ASTVar *Var) : CGM(CGM), Var(Var),
-        // Fix Architecture Compatibility of bool i1 to i8
-        T(Var->getType()->getKind() == ASTTypeKind::TYPE_BOOL ? CGM->Int8Ty : CGM->GenType(Var->getType())) {
+CodeGenVarBase::CodeGenVarBase(CodeGenModule *CGM, ASTVar *Var) : CGM(CGM), Var(Var), T(CGM->GenType(Var->getType())) {
 
+}
+
+ASTVar *CodeGenVarBase::getVar() {
+    return Var;
+}
+
+void CodeGenVarBase::Init() {
+    doLoad = true;
 }
 
 llvm::StoreInst *CodeGenVarBase::Store(llvm::Value *Val) {
     assert(Val && "Cannot store null value");
-
-    // Fix Architecture Compatibility of bool i1 to i8
-    if (Var->getType()->getKind() == ASTTypeKind::TYPE_BOOL) {
-        Val = CGM->Builder->CreateZExt(Val, CGM->Int8Ty);
-    }
 
     llvm::StoreInst *S = CGM->Builder->CreateStore(Val, getPointer());
     doLoad = true;

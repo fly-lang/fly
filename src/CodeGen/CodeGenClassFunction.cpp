@@ -26,14 +26,24 @@ CodeGenClassFunction::CodeGenClassFunction(CodeGenModule *CGM, ASTClassFunction 
 Function *CodeGenClassFunction::Create() {
     ASTClassFunction *ClassFunction = ((ASTClassFunction *) getAST());
     ASTClass *Class = ClassFunction->getClass();
+    PointerType *ClassType = Class->getCodeGen()->getTypePtr();
 
+    llvm::Type *RetType;
+    llvm::SmallVector<llvm::Type *, 8> ParamTypes;
     if (ClassFunction->isConstructor()) { // only for constructors
-        FnTy = GenFuncType(CGM->VoidTy, ClassFunction->getParams());
+        RetType = CGM->VoidTy;
+        ParamTypes.push_back(ClassType);
+    } else if (ClassFunction->isStatic()) {
+        RetType = CGM->GenType(ClassFunction->getType());
     } else {
-        FnTy = GenFuncType(ClassFunction->getType(), ClassFunction->getParams());
+        RetType = CGM->GenType(ClassFunction->getType());
+        ParamTypes.push_back(ClassType);
     }
+    GenTypes(ParamTypes, ClassFunction->getParams());
+
     // Set LLVM Function Name %MODULE_CLASS_METHOD (if MODULE == default is empty)
     std::string Name = CodeGen::toIdentifier(getAST()->getName(), Class->getNameSpace()->getName(), Class->getName());
+    FnTy = llvm::FunctionType::get(RetType, ParamTypes, ClassFunction->getParams()->getEllipsis() != nullptr);
     Fn = llvm::Function::Create(FnTy, llvm::GlobalValue::ExternalLinkage, Name, CGM->getModule());
 
     setInsertPoint();
@@ -42,19 +52,19 @@ Function *CodeGenClassFunction::Create() {
     if (!ClassFunction->isStatic()) {
 
         //Alloca, Store, Load first arg which is the instance
-        Argument *ClassTypePtr = Fn->getArg(0);
-        Type *ClassType = ClassTypePtr->getType();
+        llvm::Argument *ClassTypePtr = Fn->getArg(0);
         AllocaInst *Instance = CGM->Builder->CreateAlloca(ClassType);
         CGM->Builder->CreateStore(ClassTypePtr, Instance);
-        LoadInst *Load = CGM->Builder->CreateLoad(Instance);
+        llvm::LoadInst *Load = CGM->Builder->CreateLoad(Instance);
 
         // All Class Vars
         for (auto &Entry : Class->getVars()) {
             ASTClassVar *Var = Entry.second;
 
             // Set CodeGen Class Instance
-            CodeGenClassVar *CGVar = Var->getCodeGen();
-            CGVar->Init(Load);
+            CodeGenClassVar *CGVar = (CodeGenClassVar *) Var->getCodeGen();
+            CGVar->setInstance(Load);
+            CGVar->Init();
 
             // Save all default var values
             if (ClassFunction->isConstructor()) {
