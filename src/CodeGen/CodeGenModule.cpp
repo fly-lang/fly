@@ -420,7 +420,7 @@ llvm::Value *CodeGenModule::GenCall(llvm::Function *Fn, ASTCall *Call) {
             Instance = Builder->CreateAlloca(Def->getClass()->getCodeGen()->getType());
             Args.push_back(Instance);
         } else if (Call->getInstance()) { // Call class Instance method
-            Args.push_back(Call->getInstance()->getCodeGen()->getValue());
+            Args.push_back(((ASTVarRef *) Call->getInstance())->getDef()->getCodeGen()->getPointer());
         }
         // else { // call static method }
     }

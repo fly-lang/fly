@@ -32,14 +32,6 @@ ASTReference *ASTReference::getInstance() const {
     return Instance;
 }
 
-CodeGenInstance *ASTReference::getCodeGen() const {
-    return CodeGen;
-}
-
 bool ASTReference::isCall() const {
     return Call;
-}
-
-void ASTReference::setCodeGen(CodeGenInstance *CGI) {
-    this->CodeGen = CGI;
 }

@@ -28,8 +28,6 @@ namespace fly {
 
         ASTReference *Instance = nullptr;
 
-        CodeGenInstance *CodeGen = nullptr;
-
         bool Call = false;
 
     protected:
@@ -45,10 +43,6 @@ namespace fly {
         ASTIdentifier *getIdentifier() const;
 
         ASTReference *getInstance() const;
-
-        CodeGenInstance *getCodeGen() const;
-
-        void setCodeGen(CodeGenInstance *CGI);
 
         bool isCall() const;
     };
