@@ -31,6 +31,8 @@ namespace fly {
 
     public:
         llvm::Function *Create() override;
+
+        void GenBody() override;
     };
 }
 

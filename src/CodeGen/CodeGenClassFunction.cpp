@@ -16,6 +16,7 @@
 #include "AST/ASTClassVar.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTClass.h"
+#include "Basic/Debug.h"
 
 using namespace fly;
 
@@ -46,10 +47,17 @@ Function *CodeGenClassFunction::Create() {
     FnTy = llvm::FunctionType::get(RetType, ParamTypes, ClassFunction->getParams()->getEllipsis() != nullptr);
     Fn = llvm::Function::Create(FnTy, llvm::GlobalValue::ExternalLinkage, Name, CGM->getModule());
 
+    return Fn;
+}
+
+void CodeGenClassFunction::GenBody() {
+    FLY_DEBUG("CodeGenFunctionBase", "GenBody");
+    ASTClass *Class = ((ASTClassFunction *) AST)->getClass();
+    PointerType *ClassType = Class->getCodeGen()->getTypePtr();
     setInsertPoint();
-    
+
     // if is Constructor Add return a pointer to memory struct
-    if (!ClassFunction->isStatic()) {
+    if (!((ASTClassFunction *) AST)->isStatic()) {
 
         //Alloca, Store, Load first arg which is the instance
         llvm::Argument *ClassTypePtr = Fn->getArg(0);
@@ -67,22 +75,20 @@ Function *CodeGenClassFunction::Create() {
             CGVar->Init();
 
             // Save all default var values
-            if (ClassFunction->isConstructor()) {
+            if (((ASTClassFunction *) AST)->isConstructor()) {
                 llvm::Value *V = CGM->GenExpr(Fn, Var->getType(), Var->getExpr());
                 CGVar->Store(V);
             }
         }
-
-        AllocaVars();
-        CGM->GenBlock(Fn, ClassFunction->getBody()->getContent());
-
-        if (ClassFunction->isConstructor()) {
-            CGM->Builder->CreateRetVoid();
-        }
-    } else {
-        AllocaVars();
-        CGM->GenBlock(Fn, ClassFunction->getBody()->getContent());
     }
 
-    return Fn;
+    AllocaVars();
+    CGM->GenBlock(Fn, AST->getBody()->getContent());
+
+    // Add return Void
+    BasicBlock &BB = *Fn->getBasicBlockList().end();
+    Instruction &I = *BB.end();
+    if (FnTy->getReturnType()->isVoidTy()) {
+        CGM->Builder->CreateRetVoid();
+    }
 }

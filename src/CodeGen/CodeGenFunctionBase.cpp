@@ -102,6 +102,13 @@ void CodeGenFunctionBase::GenBody() {
     setInsertPoint();
     AllocaVars();
     CGM->GenBlock(Fn, AST->getBody()->getContent());
+    
+    // Add return Void
+    BasicBlock &BB = *Fn->getBasicBlockList().end();
+    Instruction &I = *BB.end();
+    if (FnTy->getReturnType()->isVoidTy()) {
+        CGM->Builder->CreateRetVoid();
+    }
 }
 
 CodeGenVarBase *CodeGenFunctionBase::newCodeGen(ASTVar *Var) {

@@ -145,6 +145,9 @@ bool FrontendAction::GenerateBodies() {
 
     // Generate Class Body
     if (CGClass) {
+        for (auto CGCF: CGClass->getConstructors()) {
+            CGCF->GenBody();
+        }
         for (auto CGCF: CGClass->getFunctions()) {
             CGCF->GenBody();
         }

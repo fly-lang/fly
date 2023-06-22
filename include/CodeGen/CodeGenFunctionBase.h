@@ -31,9 +31,8 @@ namespace fly {
 
     class CodeGenFunctionBase {
 
-        ASTFunctionBase *AST = nullptr;
-
     protected:
+        ASTFunctionBase *AST = nullptr;
         CodeGenModule * CGM = nullptr;
         llvm::Function *Fn = nullptr;
         llvm::FunctionType *FnTy = nullptr;
@@ -56,7 +55,7 @@ namespace fly {
 
         void AllocaVars();
 
-        void GenBody();
+        virtual void GenBody();
 
     protected:
 

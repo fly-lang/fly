@@ -1972,7 +1972,12 @@ namespace {
 
             // Generate Code
             CodeGenClass *CGC = CGM->GenClass(TestClass);
-
+            for (auto &F : CGC->getConstructors()) {
+                F->GenBody();
+            }
+            for (auto &F : CGC->getFunctions()) {
+                F->GenBody();
+            }
             CodeGenFunction *CGF = CGM->GenFunction(MainFn);
             CGF->GenBody();
 
@@ -2109,6 +2114,12 @@ namespace {
         if (Success) {
             // Generate Code
             CodeGenClass *CGC = CGM->GenClass(TestStruct);
+            for (auto &F : CGC->getConstructors()) {
+                F->GenBody();
+            }
+            for (auto &F : CGC->getFunctions()) {
+                F->GenBody();
+            }
             CodeGenFunction *CGF = CGM->GenFunction(MainFn);
             CGF->GenBody();
 
