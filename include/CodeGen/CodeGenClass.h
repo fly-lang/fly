@@ -32,6 +32,12 @@ namespace fly {
 
         llvm::StructType *Type = nullptr;
 
+        llvm::PointerType *TypePtr = nullptr;
+
+        llvm::StructType *VTableType = nullptr;
+
+        llvm::SmallVector<llvm::Type *, 4> TypeVector;
+
         llvm::SmallVector<CodeGenClassVar *, 4> Vars;
 
         llvm::SmallVector<CodeGenClassFunction *, 4> Constructors;
@@ -46,6 +52,8 @@ namespace fly {
         llvm::StructType *getType();
 
         llvm::PointerType *getTypePtr();
+
+        llvm::StructType *getVTableType();
 
         const llvm::SmallVector<CodeGenClassVar *, 4> &getVars() const;
 

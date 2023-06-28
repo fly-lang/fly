@@ -37,6 +37,7 @@ namespace fly {
     class ASTCall;
     class ASTStmt;
     class ASTBlock;
+    class ASTDelete;
     class ASTIfBlock;
     class ASTElsifBlock;
     class ASTElseBlock;
@@ -131,7 +132,6 @@ namespace fly {
                               const SourceLocation &Loc, const llvm::StringRef Name);
         ASTClassVar *CreateClassVar(ASTClass *Class, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
                                     ASTScopes *Scopes);
-        ASTClassVar *CreateEnumClassVar(ASTClass *Class, const SourceLocation &Loc, llvm::StringRef Nam);
         ASTClassFunction *CreateClassConstructor(ASTClass *Class, const SourceLocation &Loc, ASTScopes *Scopes);
         ASTClassFunction *CreateClassMethod(ASTClass *Class, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
                                             ASTScopes *Scopes);
@@ -191,6 +191,7 @@ namespace fly {
         ASTValueExpr *CreateExpr(ASTStmt *Stmt, ASTValue *Value);
         ASTCallExpr *CreateExpr(ASTStmt *Stmt, ASTCall *Call);
         ASTCallExpr *CreateNewExpr(ASTStmt *Stmt, ASTCall *Call);
+        ASTDelete *CreateDelete(ASTBlock *Parent, const SourceLocation &Loc, ASTVarRef *VarRef);
         ASTVarRefExpr *CreateExpr(ASTStmt *Stmt, ASTVarRef *VarRef);
         ASTUnaryGroupExpr *CreateUnaryExpr(ASTStmt *Stmt, const SourceLocation &Loc, ASTUnaryOperatorKind Kind,
                                            ASTUnaryOptionKind OptionKind, ASTVarRefExpr *First);
@@ -202,7 +203,6 @@ namespace fly {
         // Create Blocks structures
         ASTBlock* CreateBody(ASTFunctionBase *FunctionBase);
         ASTBlock* CreateBlock(ASTBlock *Parent, const SourceLocation &Loc);
-        ASTBlock* getBlock(ASTFunctionBase *Function);
         ASTIfBlock *CreateIfBlock(ASTBlock *Parent, const SourceLocation &Loc);
         ASTElsifBlock *CreateElsifBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc);
         ASTElseBlock *CreateElseBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc);
@@ -227,7 +227,6 @@ namespace fly {
 
         // Add details
         bool AddClassVar(ASTClassVar *Var);
-        bool AddEnumClassVar(ASTClassVar *Var);
         bool AddClassMethod(ASTClassFunction *Method);
         bool AddClassConstructor(ASTClassFunction *Constructor);
         bool AddParam(ASTParam *Param);

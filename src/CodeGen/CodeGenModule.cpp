@@ -19,12 +19,14 @@
 #include "CodeGen/CodeGenGlobalVar.h"
 #include "CodeGen/CodeGenVar.h"
 #include "CodeGen/CodeGenExpr.h"
+#include "CodeGen/CodeGenEnum.h"
 #include "CodeGen/CodeGenInstance.h"
 #include "Sema/SemaBuilder.h"
 #include "AST/ASTImport.h"
 #include "AST/ASTNode.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTLocalVar.h"
+#include "AST/ASTDelete.h"
 #include "AST/ASTCall.h"
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTClassVar.h"
@@ -133,7 +135,6 @@ CodeGenFunction *CodeGenModule::GenFunction(ASTFunction *Function, bool isExtern
     FLY_DEBUG_MESSAGE("CodeGenModule", "AddFunction",
                       "Function=" << Function->str() << ", isExternal=" << isExternal);
     CodeGenFunction *CGF = new CodeGenFunction(this, Function, isExternal);
-    CGF->Create();
     Function->setCodeGen(CGF);
     return CGF;
 }
@@ -145,6 +146,14 @@ CodeGenClass *CodeGenModule::GenClass(ASTClass *Class, bool isExternal) {
     Class->setCodeGen(CGC);
     CGC->Generate();
     return CGC;
+}
+
+CodeGenEnum *CodeGenModule::GenEnum(ASTClass *Class, bool isExternal) {
+    FLY_DEBUG_MESSAGE("CodeGenModule", "AddFunction",
+                      "Class=" << Class->str() << ", isExternal=" << isExternal);
+    CodeGenEnum *CGE = new CodeGenEnum(this, Class, isExternal);
+    Class->setCodeGen(CGE);
+    return CGE;
 }
 
 llvm::Type *CodeGenModule::GenType(const ASTType *Type) {
@@ -301,7 +310,7 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
             break;
         }
 
-            // Var Assignment
+        // Var Assignment
         case ASTStmtKind::STMT_VAR_ASSIGN: {
             ASTVarAssign *VarAssign = (ASTVarAssign *) Stmt;
             assert(VarAssign->getExpr() && "Expr Mandatory in assignment");
@@ -314,11 +323,15 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
             }
             break;
         }
+
+        // Stmt with Expr
         case ASTStmtKind::STMT_EXPR: {
             ASTExprStmt *ExprStmt = (ASTExprStmt *) Stmt;
             GenExpr(Fn, ExprStmt->getExpr()->getType(), ExprStmt->getExpr());
             break;
         }
+
+        // Block of Stmt
         case ASTStmtKind::STMT_BLOCK: {
             ASTBlock *Block = (ASTBlock *) Stmt;
             switch (Block->getBlockKind()) {
@@ -348,13 +361,32 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
             }
             break;
         }
+
+        // Delete Stmt
+        case ASTStmtKind::STMT_DELETE: {
+            ASTDelete *Delete = (ASTDelete *) Stmt;
+            ASTVar * Var = Delete->getVarRef()->getDef();
+            if (Var->getType()->getKind() == ASTTypeKind::TYPE_CLASS) {
+                if (!((ASTClassType *) Var->getType())->getDef()->getCodeGen()->getVars().empty()) {
+                    Instruction *I = CallInst::CreateFree(Var->getCodeGen()->getPointer(), Builder->GetInsertBlock());
+                    Builder->Insert(I);
+                }
+            }
+            break;
+        }
+
+        // Break Stmt
         case ASTStmtKind::STMT_BREAK:
             // TODO
             break;
+
+        // Continue Stmt
         case ASTStmtKind::STMT_CONTINUE:
             // TODO
             break;
-        case ASTStmtKind::STMT_RETURN:
+
+        // Return Stmt
+        case ASTStmtKind::STMT_RETURN: {
             ASTReturn *Return = (ASTReturn *) Stmt;
             if (Return->getParent()->getKind() == ASTStmtKind::STMT_BLOCK) {
                 if (((ASTBlock *) Return->getParent())->getTop()->getType()->getKind() == ASTTypeKind::TYPE_VOID) {
@@ -364,11 +396,13 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
                         Diag(Return->getExpr()->getLocation(), diag::err_invalid_return_type);
                     }
                 } else {
-                    llvm::Value *V = GenExpr(Fn, ((ASTBlock *) Return->getParent())->getTop()->getType(), Return->getExpr());
+                    llvm::Value *V = GenExpr(Fn, ((ASTBlock *) Return->getParent())->getTop()->getType(),
+                                             Return->getExpr());
                     Builder->CreateRet(V);
                 }
             }
             break;
+        }
     }
 }
 
@@ -380,10 +414,11 @@ llvm::Value *CodeGenModule::GenVarRef(ASTVarRef *VarRef) {
 
     // Class Var
     if (VarRef->getDef()->getVarKind() == ASTVarKind::VAR_CLASS) {
+
         // Return the instance value
         if (VarRef->getInstance()) {
             if (VarRef->getInstance()->isCall()) {
-
+                // TODO
             } else {
                 // get Value from CodeGen Instance (set in GenStmt())
                 CodeGenInstance *CGI = (CodeGenInstance *) ((ASTVarRef *) VarRef->getInstance())->getDef()->getCodeGen();
@@ -413,11 +448,20 @@ llvm::Value *CodeGenModule::GenCall(llvm::Function *Fn, ASTCall *Call) {
     llvm::SmallVector<llvm::Value *, 8> Args;
 
     // Take the CGI Value and pass to Call as first argument
-    llvm::AllocaInst *Instance = nullptr;
+    llvm::Value *Instance = nullptr;
     if (Call->getDef()->getKind() == ASTFunctionKind::CLASS_FUNCTION) {
         ASTClassFunction *Def = (ASTClassFunction *) Call->getDef();
         if (Def->isConstructor()) { // Call class constructor
-            Instance = Builder->CreateAlloca(Def->getClass()->getCodeGen()->getType());
+            llvm::StructType *Ty = Def->getClass()->getCodeGen()->getType();
+            Constant* AllocSize = ConstantExpr::getSizeOf(Ty);
+            if (Def->getClass()->getVars().empty()) { // size is zero
+                Instance = Builder->CreateAlloca(Def->getClass()->getCodeGen()->getType()); // alloca into the Stack
+            } else { // size is greater than zero
+                AllocSize = ConstantExpr::getTruncOrBitCast(AllocSize, Int32Ty);
+                // @malloc data type struct
+                Instruction *I = CallInst::CreateMalloc(Builder->GetInsertBlock(), Int32Ty, Ty, AllocSize, nullptr, nullptr);
+                Instance = Builder->Insert(I, Call->getDef()->getName() + "Inst");
+            }
             Args.push_back(Instance);
         } else if (Call->getInstance()) { // Call class Instance method
             Args.push_back(((ASTVarRef *) Call->getInstance())->getDef()->getCodeGen()->getPointer());

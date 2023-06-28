@@ -56,8 +56,8 @@ ASTFunctionBase *ASTCall::getDef() const {
     return Def;
 }
 
-bool ASTCall::isNew() const {
-    return New;
+ASTCallKind ASTCall::getCallKind() const {
+    return CallKind;
 }
 
 std::string ASTCall::str() const {

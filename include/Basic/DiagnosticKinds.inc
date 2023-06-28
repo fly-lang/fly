@@ -375,6 +375,7 @@ DIAG(err_sema_int_min_overflow, CLASS_ERROR, (unsigned)diag::Severity::Error, "v
 DIAG(err_sema_int_max_overflow, CLASS_ERROR, (unsigned)diag::Severity::Error, "value overflow integer max limit '%0'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_empty_expr, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot assign an empty expression", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_class_field_redeclare, CLASS_ERROR, (unsigned)diag::Severity::Error, "Class field '%0' already declared", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_class_enum_visibility, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot define visibility into enums", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_class_enum_expr, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot define expression into enums", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_class_enum_var, CLASS_ERROR, (unsigned)diag::Severity::Error, "enum vars can be added only into enum classes", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_class_method_redeclare, CLASS_ERROR, (unsigned)diag::Severity::Error, "class method '%0' already declared", 0, SFINAE_Suppress, false, true, 0)

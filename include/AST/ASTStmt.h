@@ -23,6 +23,7 @@ namespace fly {
         STMT_VAR_ASSIGN,
         STMT_BREAK,
         STMT_CONTINUE,
+        STMT_DELETE,
         STMT_RETURN
     };
 

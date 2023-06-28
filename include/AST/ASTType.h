@@ -12,6 +12,7 @@
 #define FLY_ASTTYPE_H
 
 #include "AST/ASTIdentifier.h"
+#include "AST/ASTEnum.h"
 #include "Basic/Debuggable.h"
 #include "Basic/SourceLocation.h"
 
@@ -57,6 +58,7 @@ namespace fly {
 
         // Aggregates
         TYPE_ARRAY = 100,
+        TYPE_ENUM  = 200,
         TYPE_CLASS = 1000
     };
 
@@ -66,6 +68,7 @@ namespace fly {
         MACRO_TYPE_INTEGER,
         MACRO_TYPE_FLOATING_POINT,
         MACRO_TYPE_ARRAY,
+        MACRO_TYPE_ENUM,
         MACRO_TYPE_CLASS
     };
 
@@ -368,6 +371,40 @@ namespace fly {
 
         std::string str() const override;
     };
+
+    /**
+     * Enum Type
+     */
+    class ASTEnumType : public ASTType {
+
+        friend class SemaBuilder;
+        friend class SemaResolver;
+
+        ASTIdentifier *Identifier = nullptr;
+
+        ASTEnum *Def = nullptr;
+
+        ASTEnumType(ASTIdentifier *Identifier);
+
+        ASTEnumType(ASTEnum *Enum);
+
+    public:
+
+        SourceLocation getLocation() const;
+
+        llvm::StringRef getName() const;
+
+        ASTIdentifier *getIdentifier() const;
+
+        ASTEnum *getDef() const;
+
+        bool operator ==(const ASTEnumType &Ty) const;
+
+        const std::string print() const override;
+
+        std::string str() const override;
+    };
+
 }
 
 #endif //FLY_ASTTYPE_H

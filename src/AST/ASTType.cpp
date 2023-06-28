@@ -326,3 +326,46 @@ std::string ASTClassType::str() const {
            Attr("Def", (Debuggable *) Def).
            End();
 }
+
+ASTEnumType::ASTEnumType(ASTIdentifier *Identifier) :
+        ASTType(Identifier->getLocation(), ASTTypeKind::TYPE_ENUM, ASTMacroTypeKind::MACRO_TYPE_ENUM),
+        Identifier(Identifier) {
+
+}
+
+ASTEnumType::ASTEnumType(ASTEnum *Enum) :
+        ASTType(SourceLocation(), ASTTypeKind::TYPE_ENUM, ASTMacroTypeKind::MACRO_TYPE_ENUM) {
+
+}
+
+SourceLocation ASTEnumType::getLocation() const {
+    return Identifier ? Identifier->getLocation() : SourceLocation();
+}
+
+llvm::StringRef ASTEnumType::getName() const {
+    return Identifier ? Identifier->getName() : llvm::StringRef();
+}
+
+ASTIdentifier *ASTEnumType::getIdentifier() const {
+    return Identifier;
+}
+
+bool ASTEnumType::operator==(const ASTEnumType &Ty) const {
+    return getKind() == Ty.getKind() && Ty.Def == Def;
+}
+
+ASTEnum *ASTEnumType::getDef() const {
+    return Def;
+}
+
+const std::string ASTEnumType::print() const {
+    return Def ? Def->print() : Identifier->print();
+}
+
+std::string ASTEnumType::str() const {
+    return Logger("ASTEnumType").
+            Super(ASTType::str()).
+            Attr("Identifier", Identifier).
+            Attr("Def", (Debuggable *) Def).
+            End();
+}

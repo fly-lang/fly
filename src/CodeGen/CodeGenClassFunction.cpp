@@ -20,47 +20,33 @@
 
 using namespace fly;
 
-CodeGenClassFunction::CodeGenClassFunction(CodeGenModule *CGM, ASTClassFunction *AST) : CodeGenFunctionBase(CGM, AST) {
-
-}
-
-Function *CodeGenClassFunction::Create() {
-    ASTClassFunction *ClassFunction = ((ASTClassFunction *) getAST());
-    ASTClass *Class = ClassFunction->getClass();
-    PointerType *ClassType = Class->getCodeGen()->getTypePtr();
-
-    llvm::Type *RetType;
+CodeGenClassFunction::CodeGenClassFunction(CodeGenModule *CGM, ASTClassFunction *AST, llvm::PointerType *TypePtr) : CodeGenFunctionBase(CGM, AST) {
     llvm::SmallVector<llvm::Type *, 8> ParamTypes;
-    if (ClassFunction->isConstructor()) { // only for constructors
-        RetType = CGM->VoidTy;
-        ParamTypes.push_back(ClassType);
-    } else if (ClassFunction->isStatic()) {
-        RetType = CGM->GenType(ClassFunction->getType());
-    } else {
-        RetType = CGM->GenType(ClassFunction->getType());
-        ParamTypes.push_back(ClassType);
-    }
-    GenTypes(ParamTypes, ClassFunction->getParams());
+    llvm::Type *RetType = CGM->GenType(AST->getType());
+    if (TypePtr) // Instance method
+        ParamTypes.push_back(TypePtr);
+    CodeGenFunctionBase::GenTypes(CGM, ParamTypes, AST->getParams());
 
     // Set LLVM Function Name %MODULE_CLASS_METHOD (if MODULE == default is empty)
-    std::string Name = CodeGen::toIdentifier(getAST()->getName(), Class->getNameSpace()->getName(), Class->getName());
-    FnTy = llvm::FunctionType::get(RetType, ParamTypes, ClassFunction->getParams()->getEllipsis() != nullptr);
-    Fn = llvm::Function::Create(FnTy, llvm::GlobalValue::ExternalLinkage, Name, CGM->getModule());
+    FnTy = llvm::FunctionType::get(RetType, ParamTypes, AST->getParams()->getEllipsis() != nullptr);
 
-    return Fn;
+    ASTClass *Class = AST->getClass();
+    std::string Name = CodeGen::toIdentifier(getAST()->getName(), Class->getNameSpace()->getName(), Class->getName());
+    Fn = llvm::Function::Create(FnTy, llvm::GlobalValue::ExternalLinkage, Name, CGM->getModule());
 }
 
 void CodeGenClassFunction::GenBody() {
     FLY_DEBUG("CodeGenFunctionBase", "GenBody");
     ASTClass *Class = ((ASTClassFunction *) AST)->getClass();
-    PointerType *ClassType = Class->getCodeGen()->getTypePtr();
+    Type *ClassType = Class->getCodeGen()->getTypePtr();
     setInsertPoint();
 
-    // if is Constructor Add return a pointer to memory struct
+    // Class Method (not static)
     if (!((ASTClassFunction *) AST)->isStatic()) {
 
         //Alloca, Store, Load first arg which is the instance
-        llvm::Argument *ClassTypePtr = Fn->getArg(0);
+        llvm::Argument *ClassTypePtr = Fn->getArg(0); // FIXME remove?
+
         AllocaInst *Instance = CGM->Builder->CreateAlloca(ClassType);
         CGM->Builder->CreateStore(ClassTypePtr, Instance);
         llvm::LoadInst *Load = CGM->Builder->CreateLoad(Instance);
@@ -82,6 +68,7 @@ void CodeGenClassFunction::GenBody() {
         }
     }
 
+    // Alloca Function Local Vars and generate body
     AllocaVars();
     CGM->GenBlock(Fn, AST->getBody()->getContent());
 

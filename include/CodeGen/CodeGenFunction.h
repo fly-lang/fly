@@ -26,8 +26,6 @@ namespace fly {
 
     public:
         CodeGenFunction(CodeGenModule *CGM, ASTFunction *AST, bool isExternal = false);
-
-        llvm::Function *Create() override;
     };
 }
 

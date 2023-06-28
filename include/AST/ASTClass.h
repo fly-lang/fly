@@ -30,7 +30,6 @@ namespace fly {
         STRUCT, // has only Fields
         CLASS, // has only Fields and Methods defined
         INTERFACE, // has only Methods declarations
-        ENUM // has only Constants
     };
 
     class ASTClass : public ASTTopDef {

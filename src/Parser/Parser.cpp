@@ -378,7 +378,7 @@ bool Parser::ParseClassDef(ASTScopes *Scopes) {
 bool Parser::ParseBlock(ASTBlock *Block) {
     assert(isBlockStart() && "Block Start");
     FLY_DEBUG_MESSAGE("Parser", "ParseBlock", Logger().Attr("Block", Block).End());
-    ConsumeBrace();
+    ConsumeBrace(BracketCount);
 
     // Parse until find a }
 //    while (Tok.isNot(tok::r_brace) && Tok.isNot(tok::eof)) {
@@ -390,7 +390,7 @@ bool Parser::ParseBlock(ASTBlock *Block) {
 //    }
 
     if (ParseStmt(Block) && isBlockEnd()) {
-        ConsumeBrace();
+        ConsumeBrace(BracketCount);
         return true;
     }
 
@@ -671,13 +671,13 @@ bool Parser::ParseSwitchStmt(ASTBlock *Block) {
 
         // Init Switch Statement and start parse from brace
         if (isBlockStart()) {
-            ConsumeBrace();
+            ConsumeBrace(BracketCount);
 
             if (ParseSwitchCases(SwitchBlock)) {
 
                 // Switch statement is at end of it's time add current Switch to parent statement
                 if (isBlockEnd()) {
-                    ConsumeBrace();
+                    ConsumeBrace(BracketCount);
                     return Builder.AddStmt(SwitchBlock);
                 }
             }
@@ -709,7 +709,7 @@ bool Parser::ParseSwitchCases(ASTSwitchBlock *SwitchBlock) {
         ConsumeToken();
         return ParseStmt(CaseBlock) && ParseSwitchCases(SwitchBlock);
     } else if (isBlockStart()) { // Parse a single Stmt without braces
-        ConsumeBrace();
+        ConsumeBrace(BracketCount);
         return ParseBlock(CaseBlock) && ParseSwitchCases(SwitchBlock);
     }
 
@@ -1144,7 +1144,7 @@ ASTValue *Parser::ParseValueNumber(std::string &Str) {
  */
 ASTValue *Parser::ParseValues() {
     FLY_DEBUG("Parser", "ParseValues");
-    const SourceLocation &StartLoc = ConsumeBrace();
+    const SourceLocation &StartLoc = ConsumeBrace(BracketCount);
     
     // Init with a zero value
     ASTValue *Values = nullptr;
@@ -1195,7 +1195,7 @@ ASTValue *Parser::ParseValues() {
 
     // End of Array
     if (Tok.is(tok::r_brace)) {
-        ConsumeBrace();
+        ConsumeBrace(BracketCount);
         if (Values == nullptr)
             Values = SemaBuilder::CreateZeroValue(StartLoc);
         return Values;
@@ -1368,7 +1368,7 @@ SourceLocation Parser::ConsumeBracket() {
  * ConsumeBrace - This consume method keeps the brace count up-to-date.
  * @return
  */
-SourceLocation Parser::ConsumeBrace() {
+SourceLocation Parser::ConsumeBrace(unsigned short &BraceCount) {
     FLY_DEBUG("Parser", "ConsumeBrace");
     assert(isTokenBrace() && "wrong consume method");
     if (Tok.getKind() == tok::l_brace)

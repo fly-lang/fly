@@ -41,8 +41,6 @@ namespace fly {
     public:
         CodeGenFunctionBase(CodeGenModule *CGM, ASTFunctionBase *AST);
 
-        virtual llvm::Function *Create();
-
         ASTFunctionBase *getAST();
 
         llvm::StringRef getName() const;
@@ -57,9 +55,9 @@ namespace fly {
 
         virtual void GenBody();
 
-    protected:
+        static void GenTypes(CodeGenModule * CGM, SmallVector<llvm::Type *, 8> &Types, const ASTParams *Params);
 
-        void GenTypes(SmallVector<llvm::Type *, 8> &Types, const ASTParams *Params);
+    protected:
 
         CodeGenVarBase *newCodeGen(ASTVar* Var);
     };

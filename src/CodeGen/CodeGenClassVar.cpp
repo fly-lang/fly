@@ -55,6 +55,10 @@ llvm::Value *CodeGenClassVar::getPointer() {
     return Pointer;
 }
 
+llvm::Value *CodeGenClassVar::getIndex() {
+    return Index;
+}
+
 void CodeGenClassVar::setInstance(llvm::Value *Instance) {
     this->Instance = Instance;
 }

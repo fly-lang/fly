@@ -9,9 +9,11 @@ add_library(flyLib
         AST/ASTClassVar.cpp
         AST/ASTClassFunction.cpp
         AST/ASTContext.cpp
+        AST/ASTDelete.cpp
         AST/ASTExpr.cpp
         AST/ASTExprStmt.cpp
         AST/ASTClassVar.cpp
+        AST/ASTEnum.cpp
         AST/ASTForBlock.cpp
         AST/ASTFunction.cpp
         AST/ASTFunctionBase.cpp
@@ -92,6 +94,7 @@ add_library(flyLib
         CodeGen/CodeGenClass.cpp
         CodeGen/CodeGenClassFunction.cpp
         CodeGen/CodeGenClassVar.cpp
+        CodeGen/CodeGenEnum.cpp
         CodeGen/CodeGenExpr.cpp
         CodeGen/CodeGenFunction.cpp
         CodeGen/CodeGenFunctionBase.cpp
@@ -127,6 +130,7 @@ add_library(flyLib
 
         # Parser
         Parser/ClassParser.cpp
+        Parser/EnumParser.cpp
         Parser/ExprParser.cpp
         Parser/FunctionParser.cpp
         Parser/Parser.cpp

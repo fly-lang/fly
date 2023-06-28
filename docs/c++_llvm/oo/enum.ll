@@ -10,7 +10,7 @@ define dso_local i32 @main() #0 {
   store i32 0, i32* %1, align 4
   store i32 0, i32* %2, align 4
   %3 = load i32, i32* %2, align 4
-  %4 = icmp eq i32 %3, 0
+  %4 = icmp eq i32 %3, 1
   br i1 %4, label %5, label %6
 
 5:                                                ; preds = %0
@@ -32,4 +32,4 @@ attributes #0 = { noinline norecurse nounwind optnone uwtable "correctly-rounded
 !llvm.ident = !{!1}
 
 !0 = !{i32 1, !"wchar_size", i32 4}
-!1 = !{!"Debian clang version 11.1.0-++20211011094159+1fdec59bffc1-1~exp1~20211011214627.7"}
+!1 = !{!"Ubuntu clang version 11.1.0-6"}

@@ -29,17 +29,7 @@ CodeGenFunctionBase::CodeGenFunctionBase(CodeGenModule *CGM, ASTFunctionBase *AS
 
 }
 
-llvm::Function *CodeGenFunctionBase::Create() {
-    llvm::Type *RetType = CGM->GenType(AST->getType());
-    llvm::SmallVector<llvm::Type *, 8> ParamTypes;
-    GenTypes(ParamTypes, AST->getParams());
-    FnTy = llvm::FunctionType::get(RetType, ParamTypes, AST->getParams()->getEllipsis() != nullptr);
-    Fn = llvm::Function::Create(FnTy, llvm::GlobalValue::ExternalLinkage, "", CGM->getModule());
-    return Fn;
-}
-
-
-void CodeGenFunctionBase::GenTypes(SmallVector<llvm::Type *, 8> &Types, const ASTParams *Params) {
+void CodeGenFunctionBase::GenTypes(CodeGenModule * CGM, SmallVector<llvm::Type *, 8> &Types, const ASTParams *Params) {
     // Populate Types by reference
     if (!Params->getList().empty()) {
         for (auto Param : Params->getList()) {

@@ -40,6 +40,7 @@ namespace fly {
 
         friend class FunctionParser;
         friend class ClassParser;
+        friend class EnumParser;
         friend class ExprParser;
 
         const InputFile &Input;
@@ -143,7 +144,7 @@ namespace fly {
         bool isTernaryOperator();
         SourceLocation ConsumeParen();
         SourceLocation ConsumeBracket();
-        SourceLocation ConsumeBrace();
+        SourceLocation ConsumeBrace(unsigned short &BraceCount);
         bool isBraceBalanced() const;
         SourceLocation ConsumeStringToken();
         SourceLocation ConsumeNext();

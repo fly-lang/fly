@@ -56,6 +56,8 @@ namespace fly {
 
         llvm::Value *getPointer();
 
+        llvm::Value *getIndex();
+
         void setInstance(llvm::Value *Inst);
     };
 }

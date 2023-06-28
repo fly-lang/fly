@@ -37,8 +37,6 @@ ClassParser::ClassParser(Parser *P, ASTScopes *ClassScopes) : P(P) {
         ClassKind = ASTClassKind::CLASS;
     } else if (P->Tok.is(tok::kw_interface)) {
         ClassKind = ASTClassKind::INTERFACE;
-    } else if (P->Tok.is(tok::kw_enum)) {
-        ClassKind = ASTClassKind::ENUM;
     } else {
         assert("No ClassKind defined");
     }
@@ -62,7 +60,7 @@ ClassParser::ClassParser(Parser *P, ASTScopes *ClassScopes) : P(P) {
 
     // Parse block in the braces
     if (P->isBlockStart()) {
-        ConsumeBrace();
+        P->ConsumeBrace(BraceCount);
 
         Class = P->Builder.CreateClass(P->Node, ClassKind, ClassScopes, ClassLoc, ClassName, SuperClasses);
         bool Continue;
@@ -70,7 +68,7 @@ ClassParser::ClassParser(Parser *P, ASTScopes *ClassScopes) : P(P) {
 
             // End of the Class
             if (P->isBlockEnd() ) {
-                ConsumeBrace();
+                P->ConsumeBrace(BraceCount);
                 break;
             }
 
@@ -81,34 +79,23 @@ ClassParser::ClassParser(Parser *P, ASTScopes *ClassScopes) : P(P) {
                 break;
             }
 
-            if (Class->getClassKind() == ASTClassKind::ENUM) {
-                if (P->Tok.isAnyIdentifier()) {
-                    const StringRef &Name = P->Tok.getIdentifierInfo()->getName();
-                    const SourceLocation &Loc = P->ConsumeToken();
-                    ASTClassVar *ClassVar = P->Builder.CreateEnumClassVar(Class, Loc, Name);
-                    llvm::StringRef Comment;
-                    P->Builder.AddClassVar(ClassVar) && P->Builder.AddComment(ClassVar, Comment);
-                    Continue = true;
+            // Parse Scopes
+            ASTScopes *Scopes = SemaBuilder::CreateScopes();
+
+            // Parse Type
+            ASTType *Type = nullptr;
+
+            Continue = P->ParseScopes(Scopes) && P->ParseType(Type); // Continue loop if there is a field or a method
+            if (Continue && P->Tok.isAnyIdentifier()) {
+                const StringRef &Name = P->Tok.getIdentifierInfo()->getName();
+                const SourceLocation &Loc = P->ConsumeToken();
+
+                if (P->Tok.is(tok::l_paren)) {
+                    Success &= ParseMethod(Scopes, Type, Loc, Name);
+                } else {
+                    Success &= ParseField(Scopes, Type, Loc, Name);
                 }
-            } else {
-                // Parse Scopes
-                ASTScopes *Scopes = SemaBuilder::CreateScopes();
-
-                // Parse Type
-                ASTType *Type = nullptr;
-
-                Continue = P->ParseScopes(Scopes) && P->ParseType(Type); // Continue loop if there is a field or a method
-                if (Continue && P->Tok.isAnyIdentifier()) {
-                    const StringRef &Name = P->Tok.getIdentifierInfo()->getName();
-                    const SourceLocation &Loc = P->ConsumeToken();
-
-                    if (P->Tok.is(tok::l_paren)) {
-                        Success &= ParseMethod(Scopes, Type, Loc, Name);
-                    } else {
-                        Success &= ParseField(Scopes, Type, Loc, Name);
-                    }
-                    Continue = true;
-                }
+                Continue = true;
             }
 
         } while (Continue);
@@ -183,21 +170,4 @@ bool ClassParser::ParseMethod(ASTScopes *Scopes, ASTType *Type, const SourceLoca
     }
 
     return Success;
-}
-
-/**
- * ConsumeBrace - This consume method keeps the brace count up-to-date.
- * @return
- */
-SourceLocation ClassParser::ConsumeBrace() {
-    FLY_DEBUG("Parser", "ConsumeBrace");
-    assert(P->isTokenBrace() && "wrong consume method");
-    if (P->Tok.getKind() == tok::l_brace)
-        ++BraceCount;
-    else if (BraceCount) {
-        //AngleBrackets.clear(*this);
-        --BraceCount;     // Don't let unbalanced }'s drive the count negative.
-    }
-
-    return P->ConsumeNext();
 }

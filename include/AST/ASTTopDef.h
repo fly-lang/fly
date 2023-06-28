@@ -30,7 +30,8 @@ namespace fly {
         DEF_IMPORT,
         DEF_GLOBALVAR,
         DEF_FUNCTION,
-        DEF_CLASS
+        DEF_CLASS,
+        DEF_ENUM
     };
 
     class ASTTopDef : public virtual Debuggable {

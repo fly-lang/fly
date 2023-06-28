@@ -118,5 +118,4 @@ namespace fly {
     };
 }
 
-
 #endif //FLY_ASTBLOCK_H

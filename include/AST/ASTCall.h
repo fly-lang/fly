@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTFunc.h - Function declaration
+// include/AST/ASTCall.h - Call declaration
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -28,6 +28,14 @@ namespace fly {
     class ASTIdentifier;
     class ASTIdentifier;
 
+    enum class ASTCallKind {
+        CALL_NORMAL,
+        CALL_NEW,
+        CALL_UNIQUE,
+        CALL_SHARED,
+        CALL_WEAK
+    };
+
     /**
      * A Reference to a Function in a Declaration
      * Ex.
@@ -42,7 +50,7 @@ namespace fly {
 
         ASTFunctionBase *Def = nullptr;
 
-        bool New = false;
+        ASTCallKind CallKind = ASTCallKind::CALL_NORMAL;
 
         ASTCall(ASTIdentifier *Identifier);
 
@@ -54,7 +62,7 @@ namespace fly {
 
         ASTFunctionBase *getDef() const;
 
-        bool isNew() const;
+        ASTCallKind getCallKind() const;
 
         std::string str() const;
     };

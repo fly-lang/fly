@@ -21,6 +21,7 @@
 #include "AST/ASTFunction.h"
 #include "AST/ASTFunctionBase.h"
 #include "AST/ASTCall.h"
+#include "AST/ASTDelete.h"
 #include "AST/ASTParams.h"
 #include "AST/ASTBlock.h"
 #include "AST/ASTIfBlock.h"
@@ -195,27 +196,6 @@ SemaBuilder::CreateClass(ASTNode *Node, ASTClassKind ClassKind, ASTScopes *Class
                                                                        ASTVisibilityKind::V_PUBLIC, false));
         AddClassConstructor(Constructor);
         Class->autoDefaultConstructor = true;
-    } else if (ClassKind == ASTClassKind::ENUM) {
-        
-        // Create EnumVar which contains the selection value
-        ASTUIntType *UIntType = SemaBuilder::CreateUIntType(SourceLocation());
-        ASTScopes *Scopes = CreateScopes(ASTVisibilityKind::V_PRIVATE, true, false);
-        ASTClassVar *EnumVar = new ASTClassVar(SourceLocation(), Class, Scopes, UIntType, "enum");
-
-        // Create Constructor
-        ASTClassFunction *Constructor = CreateClassConstructor(Class, SourceLocation(),
-                                                               new ASTScopes(
-                                                                       ASTVisibilityKind::V_PRIVATE, false));
-        ASTParam *Param = CreateParam(Constructor, SourceLocation(), UIntType, "enum");
-        AddParam(Param);
-        ASTBlock *Block = getBlock(Constructor);
-        ASTVarAssign *EnumVarAssign = CreateVarAssign(Block, CreateVarRef(EnumVar));
-        CreateExpr(EnumVarAssign, SemaBuilder::CreateIntegerValue(SourceLocation(), 0));
-        AddStmt(EnumVarAssign);
-        AddClassConstructor(Constructor);
-
-        // Add EnumVar
-        AddEnumClassVar(EnumVar);
     }
     
     return Class;
@@ -269,17 +249,6 @@ SemaBuilder::CreateClassVar(ASTClass *Class, const SourceLocation &Loc, ASTType 
                                             .Attr("Name", Name)
                                             .Attr("Scopes", Scopes).End());
     return new ASTClassVar(Loc, Class, Scopes, Type, Name);
-}
-
-ASTClassVar *
-SemaBuilder::CreateEnumClassVar(ASTClass *Class, const SourceLocation &Loc, llvm::StringRef Name) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateClassVar",
-                      Logger().Attr("Class", Class)
-                              .Attr("Loc", (uint64_t) Loc.getRawEncoding())
-                              .Attr("Name", Name).End());
-    ASTScopes *Scopes = CreateScopes(ASTVisibilityKind::V_DEFAULT, true, true);
-    ASTClassVar *ClassVar = CreateClassVar(Class, Loc, Class->getType(), Name, Scopes);
-    return ClassVar;
 }
 
 ASTClassFunction *
@@ -808,8 +777,17 @@ ASTCallExpr *
 SemaBuilder::CreateNewExpr(ASTStmt *Stmt, ASTCall *Call) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateNewExpr",
                       Logger().Attr("Stmt", Stmt).Attr("Call", Call).End());
-    Call->New = true;
+    Call->CallKind = ASTCallKind::CALL_NEW;
     return CreateExpr(Stmt, Call);
+}
+
+ASTDelete *
+SemaBuilder::CreateDelete(ASTBlock *Parent, const SourceLocation &Loc, ASTVarRef *VarRef) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateNewExpr",
+                      Logger().Attr("Stmt", Parent)
+                              .Attr("Loc", (uint64_t) Loc.getRawEncoding())
+                              .Attr("VarRef", VarRef).End());
+    return new ASTDelete(Parent, Loc, VarRef);
 }
 
 ASTVarRefExpr *
@@ -902,11 +880,6 @@ SemaBuilder::CreateBlock(ASTBlock *Parent, const SourceLocation &Loc) {
                       .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
     ASTBlock *Block = new ASTBlock(Parent, Loc);
     return Block;
-}
-
-ASTBlock *
-SemaBuilder::getBlock(ASTFunctionBase *Function) {
-    return Function->Body;
 }
 
 ASTIfBlock *
@@ -1183,52 +1156,28 @@ SemaBuilder::AddClassVar(ASTClassVar *Var) {
     ASTClass *Class = Var->Class;
     if (Class->Vars.insert(std::pair<llvm::StringRef, ASTClassVar *>(Var->getName(), Var)).second) {
 
+        // Only for Enums
+        if (Class->getClassKind() == ASTClassKind::ENUM) {
+
+            // Enum visibility can only be default
+            if (Var->getScopes()->getVisibility() != ASTVisibilityKind::V_DEFAULT) {
+                S.Diag(Var->getLocation(), diag::err_sema_class_enum_visibility) << Var->getName();
+                return false;
+            }
+
+            // Enum expr is not permitted
+            if (Var->getExpr()) {
+                S.Diag(Var->getLocation(), diag::err_sema_class_enum_expr) << Var->getName();
+                return false;
+            }
+        }
+
         // Set default value if not set
         if (!Var->getExpr()) {
             ASTValueExpr *Expr = S.Builder->CreateExpr(nullptr, SemaBuilder::CreateDefaultValue(Var->getType()));
             Expr->Type = Var->getType();
             Var->setExpr(Expr);
         }
-
-        return Var;
-    }
-
-    S.Diag(Var->getLocation(), diag::err_sema_class_field_redeclare) << Var->getName();
-    return false;
-}
-
-bool
-SemaBuilder::AddEnumClassVar(ASTClassVar *Var) {
-    ASTClass *Class = Var->Class;
-    if (Class->Vars.insert(std::pair<llvm::StringRef, ASTClassVar *>(Var->getName(), Var)).second) {
-
-        // Enum expr is not permitted
-        if (Var->getExpr()) {
-            S.Diag(Var->getLocation(), diag::err_sema_class_enum_expr) << Var->getName();
-            return false;
-        }
-
-        // Check if is Enum
-        if (Class->getClassKind() != ASTClassKind::ENUM) {
-            S.Diag(Var->getLocation(), diag::err_sema_class_enum_var) << Var->getName();
-            return false;
-        }
-
-        // enum Test {
-        //     A = Test(1)
-        //     B = Test(2)
-        //     ...
-        // }
-
-        // Create a call to constructor with the sequential number
-        ASTClassFunction *Constructor = Class->getConstructors().find(1)->second.front();
-        ASTCall *Call = CreateCall(Constructor);
-        uint32_t i = Class->getVars().size() + 1; // sequential
-        ASTValueExpr *ValueExpr = CreateExpr(nullptr, SemaBuilder::CreateIntegerValue(SourceLocation(), i));
-        AddCallArg(Call, ValueExpr);
-        ASTCallExpr *Expr = S.Builder->CreateExpr(nullptr, Call);
-        Expr->Type = Var->getType();
-        Var->setExpr(Expr);
 
         return Var;
     }
