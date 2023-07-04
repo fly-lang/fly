@@ -22,6 +22,7 @@ namespace fly {
 
     class CodeGenEnum;
     class ASTEnumType;
+    class ASTEnumVar;
 
     class ASTEnum : public ASTTopDef {
 
@@ -38,7 +39,7 @@ namespace fly {
         llvm::SmallVector<ASTEnumType *, 4> SuperClasses;
 
         // Class Fields
-        llvm::StringMap<uint64_t> Vars;
+        llvm::StringMap<ASTEnumVar *> Vars;
 
         CodeGenEnum *CodeGen = nullptr;
 
@@ -54,7 +55,7 @@ namespace fly {
 
         ASTEnumType *getType() const;
 
-        llvm::StringMap<uint64_t> getVars() const;
+        llvm::StringMap<ASTEnumVar *> getVars() const;
 
         CodeGenEnum *getCodeGen() const;
 

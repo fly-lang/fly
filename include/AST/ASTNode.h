@@ -23,11 +23,10 @@ namespace fly {
     class ASTFunction;
     class ASTClass;
     class FileID;
-    class ASTUnrefGlobalVar;
-    class ASTUnrefFunctionCall;
     class ASTType;
     class ASTExpr;
     class ASTVarRef;
+    class ASTEnum;
 
     class ASTNode : public ASTNodeBase {
 
@@ -54,6 +53,8 @@ namespace fly {
 
         ASTClass *Class = nullptr;
 
+        ASTEnum *Enum = nullptr;
+
         ASTNode() = delete;
 
         ~ASTNode();
@@ -75,6 +76,8 @@ namespace fly {
         const llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> &getExternalFunctions() const;
 
         ASTClass *getClass() const;
+
+        ASTEnum *getEnum() const;
 
         virtual std::string str() const;
     };

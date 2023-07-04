@@ -11,13 +11,7 @@
 #define FLY_CODEGEN_INSTANCE_H
 
 #include "CodeGenVar.h"
-#include "AST/ASTCall.h"
-
-namespace llvm {
-    class StringRef;
-    class StructType;
-    class AllocaInst;
-}
+#include "llvm/ADT/StringMap.h"
 
 namespace fly {
 
@@ -29,7 +23,7 @@ namespace fly {
     class CodeGenClassVar;
     class CodeGenClassFunction;
 
-    class CodeGenInstance : public CodeGenVarBase {
+    class CodeGenInstance : public CodeGenVar {
 
         ASTClass *Class;
 

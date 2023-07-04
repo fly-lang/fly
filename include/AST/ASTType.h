@@ -126,6 +126,8 @@ namespace fly {
 
         const bool isClass() const;
 
+        const bool isEnum() const;
+
         const bool isVoid() const;
 
         const std::string printMacroType();

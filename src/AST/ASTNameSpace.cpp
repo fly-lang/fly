@@ -43,6 +43,10 @@ const llvm::StringMap<ASTClass *> &ASTNameSpace::getClasses() const {
     return Classes;
 }
 
+const llvm::StringMap<ASTEnum *> &ASTNameSpace::getEnums() const {
+    return Enums;
+}
+
 std::string ASTNameSpace::print() const {
     return Name.data();
 }

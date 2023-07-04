@@ -41,6 +41,7 @@
 #include "AST/ASTValue.h"
 #include "AST/ASTVarAssign.h"
 #include "AST/ASTVarRef.h"
+#include "AST/ASTEnum.h"
 #include "Basic/Debug.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/IR/GlobalVariable.h"
@@ -148,11 +149,12 @@ CodeGenClass *CodeGenModule::GenClass(ASTClass *Class, bool isExternal) {
     return CGC;
 }
 
-CodeGenEnum *CodeGenModule::GenEnum(ASTClass *Class, bool isExternal) {
+CodeGenEnum *CodeGenModule::GenEnum(ASTEnum *Enum, bool isExternal) {
     FLY_DEBUG_MESSAGE("CodeGenModule", "AddFunction",
-                      "Class=" << Class->str() << ", isExternal=" << isExternal);
-    CodeGenEnum *CGE = new CodeGenEnum(this, Class, isExternal);
-    Class->setCodeGen(CGE);
+                      "Class=" << Enum->str() << ", isExternal=" << isExternal);
+    CodeGenEnum *CGE = new CodeGenEnum(this, Enum, isExternal);
+    Enum->setCodeGen(CGE);
+    CGE->Generate();
     return CGE;
 }
 
@@ -189,7 +191,10 @@ llvm::Type *CodeGenModule::GenType(const ASTType *Type) {
             assert(Class->getCodeGen() && "Empty Class CodeGen");
             return Class->getCodeGen()->getType();
         }
-
+        case ASTTypeKind::TYPE_ENUM: {
+            ASTEnum *Enum = ((ASTEnumType *) Type)->getDef();
+            return Enum->getCodeGen()->getType();
+        }
     }
     assert(0 && "Unknown Var Type Kind");
 }
@@ -318,6 +323,9 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
             llvm::Value *V = GenExpr(Fn, VarRef->getDef()->getType(), VarAssign->getExpr());
             if (VarRef->getDef()->getType()->isClass()) {
                 ((CodeGenInstance *) VarRef->getDef()->getCodeGen())->Init(V);
+            } else if (VarRef->getInstance() && VarRef->getDef()->getVarKind() == ASTVarKind::VAR_CLASS) {
+                CodeGenInstance *CGI = ((CodeGenInstance *) ((ASTVarRef *) VarRef->getInstance())->getDef()->getCodeGen());
+                CGI->getVar(VarRef->getDef()->getName())->Store(V);
             } else {
                 VarRef->getDef()->getCodeGen()->Store(V);
             }

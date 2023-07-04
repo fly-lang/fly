@@ -71,6 +71,10 @@ const bool ASTType::isClass() const {
     return MacroKind == ASTMacroTypeKind::MACRO_TYPE_CLASS;
 }
 
+const bool ASTType::isEnum() const {
+    return MacroKind == ASTMacroTypeKind::MACRO_TYPE_ENUM;
+}
+
 const bool ASTType::isVoid() const {
     return MacroKind == ASTMacroTypeKind::MACRO_TYPE_VOID;
 }

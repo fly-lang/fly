@@ -8,16 +8,25 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "CodeGen/CodeGenEnum.h"
+#include "CodeGen/CodeGenEnumEntry.h"
 #include "CodeGen/CodeGenModule.h"
-#include "AST/ASTClass.h"
-#include "AST/ASTClassVar.h"
+#include "AST/ASTEnum.h"
+#include "AST/ASTEnumVar.h"
 
 using namespace fly;
 
-CodeGenEnum::CodeGenEnum(CodeGenModule *CGM, ASTClass *Class, bool isExternal) : CGM(CGM), AST(Class) {
-    uint64_t Index = 0;
-    for (auto &Entry : Class->getVars()) {
-        ASTClassVar *Var = Entry.getValue();
-        Vars.insert(std::make_pair(Var->getName(), llvm::ConstantInt::get(CGM->Int32Ty, Index)));
+CodeGenEnum::CodeGenEnum(CodeGenModule *CGM, ASTEnum *Enum, bool isExternal) : CGM(CGM), AST(Enum), Type(CGM->Int64Ty) {
+
+}
+
+void CodeGenEnum::Generate() {
+    for (auto &Entry : AST->getVars()) {
+        CodeGenEnumEntry *CGE = new CodeGenEnumEntry(CGM, Entry.getValue());
+        Entry.getValue()->setCodeGen(CGE);
+        Vars.insert(std::make_pair(Entry.getKey(), CGE));
     }
+}
+
+Type *CodeGenEnum::getType() const {
+    return Type;
 }

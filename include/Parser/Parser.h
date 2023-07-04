@@ -92,6 +92,7 @@ namespace fly {
         bool ParseGlobalVarDef(ASTScopes *Scopes, ASTType *Type);
         bool ParseFunctionDef(ASTScopes *Scopes, ASTType *Type);
         bool ParseClassDef(ASTScopes *Scopes);
+        bool ParseEnumDef(ASTScopes *Scopes);
 
         // Parse Block Statement
         bool ParseBlock(ASTBlock *Block);

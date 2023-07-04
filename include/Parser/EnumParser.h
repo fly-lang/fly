@@ -43,7 +43,7 @@ namespace fly {
 
         static ASTEnum *Parse(Parser *P, ASTScopes *EnumScopes);
 
-        bool ParseField(ASTScopes *Scopes, std::uint64_t Index, const SourceLocation &Loc, llvm::StringRef Name);
+        bool ParseField(const SourceLocation &Loc, llvm::StringRef Name, std::uint64_t Index);
     };
 }
 

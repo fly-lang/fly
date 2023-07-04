@@ -71,6 +71,8 @@ namespace fly {
 
         bool ResolveClass(ASTNode *Node);
 
+        bool ResolveEnum(ASTNode *Node);
+
         bool ResolveFunctions(ASTNode *Node);
 
         bool ResolveBlock(ASTBlock *Block);

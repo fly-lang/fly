@@ -25,8 +25,18 @@ namespace fly {
 
     class CodeGenGlobalVar : public CodeGenVarBase {
 
+        CodeGenModule *CGM = nullptr;
+
+        ASTVar *Var = nullptr;
+
+        llvm::Type *T = nullptr;
+
+        llvm::Value *Pointer = nullptr;
+
+        llvm::LoadInst *LoadI = nullptr;
+
     public:
-        CodeGenGlobalVar(CodeGenModule *CGM, ASTGlobalVar* AST, bool isExternal = false);
+        CodeGenGlobalVar(CodeGenModule *CGM, ASTGlobalVar* Var, bool isExternal = false);
 
         void Init();
 
@@ -37,6 +47,8 @@ namespace fly {
         llvm::Value *getValue() override;
 
         llvm::Value *getPointer() override;
+
+        ASTVar *getVar() override;
     };
 }
 

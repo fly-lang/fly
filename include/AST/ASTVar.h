@@ -27,7 +27,8 @@ namespace fly {
         VAR_PARAM,
         VAR_LOCAL,
         VAR_GLOBAL,
-        VAR_CLASS
+        VAR_CLASS,
+        VAR_ENUM
     };
 
     /**

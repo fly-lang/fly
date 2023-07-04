@@ -287,6 +287,10 @@ llvm::Value *CodeGenExpr::Convert(llvm::Value *FromVal, const ASTType *FromType,
             // to Class
         case ASTTypeKind::TYPE_CLASS:
             return FromVal;
+
+            // to Enum
+        case ASTTypeKind::TYPE_ENUM:
+            return FromVal;
     }
     assert(0 && "Conversion failed");
 }

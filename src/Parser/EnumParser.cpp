@@ -71,7 +71,7 @@ EnumParser::EnumParser(Parser *P, ASTScopes *EnumScopes) : P(P) {
             if (P->Tok.isAnyIdentifier()) {
                 const StringRef &Name = P->Tok.getIdentifierInfo()->getName();
                 const SourceLocation &Loc = P->ConsumeToken();
-                ParseField(EnumScopes, Index++, Loc, Name);
+                ParseField(Loc, Name, Index++);
             }
         } while (Continue);
     }
@@ -81,18 +81,18 @@ EnumParser::EnumParser(Parser *P, ASTScopes *EnumScopes) : P(P) {
  * Parse Class Declaration
  * @return
  */
-ASTEnum *EnumParser::Parse(Parser *P, ASTScopes *ClassScopes) {
+ASTEnum *EnumParser::Parse(Parser *P, ASTScopes *EnumScopes) {
     FLY_DEBUG_MESSAGE("EnumParser", "Parse", Logger()
-            .Attr("Scopes", ClassScopes).End());
-    EnumParser *CP = new EnumParser(P, ClassScopes);
+            .Attr("Scopes", EnumScopes).End());
+    EnumParser *CP = new EnumParser(P, EnumScopes);
     return CP->Enum;
 }
 
-bool EnumParser::ParseField(ASTScopes *Scopes, std::uint64_t Index, const SourceLocation &Loc, llvm::StringRef Name) {
+bool EnumParser::ParseField(const SourceLocation &Loc, llvm::StringRef Name, std::uint64_t Index) {
     FLY_DEBUG_MESSAGE("ClassParser", "ParseMethod", Logger()
-            .Attr("Scopes", Scopes).Attr("Index", Index).Attr("Type", Name).End());
+            .Attr("Index", Index).Attr("Type", Name).End());
 
-    P->Builder.AddEnumVar(Loc, Name, Index, Scopes);
+    ASTEnumVar *EnumVar = P->Builder.CreateEnumVar(Enum, Loc, Name, Index);
 
     // Add Comment to AST
     llvm::StringRef Comment;
@@ -100,5 +100,5 @@ bool EnumParser::ParseField(ASTScopes *Scopes, std::uint64_t Index, const Source
         Comment = P->BlockComment;
     }
 
-    return true;
+    return P->Builder.AddEnumVar(EnumVar);
 }

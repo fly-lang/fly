@@ -31,6 +31,19 @@ CodeGenClass::CodeGenClass(CodeGenModule *CGM, ASTClass *Class, bool isExternal)
 }
 
 void CodeGenClass::Generate() {
+
+    // Generate Constructors
+    if (AST->getClassKind() == ASTClassKind::CLASS || AST->getClassKind() == ASTClassKind::STRUCT) {
+        for (auto &Entry: AST->getConstructors()) {
+            for (auto Constructor: Entry.second) {
+                // Create Constructor CodeGen for Constructor
+                CodeGenClassFunction *CGCF = new CodeGenClassFunction(CGM, Constructor, TypePtr);
+                Constructor->setCodeGen(CGCF);
+                Constructors.push_back(Constructor->getCodeGen());
+            }
+        }
+    }
+
     // Create the Main StructType
     llvm::SmallVector<llvm::Type *, 4> TypeVector;
 
@@ -59,8 +72,7 @@ void CodeGenClass::Generate() {
 
     // Set CodeGen ClassVar
     if (!AST->getVars().empty()) {
-        if (AST->getClassKind() == ASTClassKind::CLASS || AST->getClassKind() == ASTClassKind::STRUCT ||
-            AST->getClassKind() == ASTClassKind::ENUM) {
+        if (AST->getClassKind() == ASTClassKind::CLASS || AST->getClassKind() == ASTClassKind::STRUCT) {
 
             // Set var Index offset in the struct type
             uint32_t Index = AST->getClassKind() == ASTClassKind::CLASS ? 1 : 0;
@@ -78,18 +90,6 @@ void CodeGenClass::Generate() {
 
     // %type = type { %fields_type, %vtable_type }
     Type->setBody(TypeVector);
-
-    // Generate Constructors
-    if (AST->getClassKind() == ASTClassKind::CLASS || AST->getClassKind() == ASTClassKind::STRUCT) {
-        for (auto &Entry: AST->getConstructors()) {
-            for (auto Constructor: Entry.second) {
-                // Create Constructor CodeGen for Constructor
-                CodeGenClassFunction *CGCF = new CodeGenClassFunction(CGM, Constructor, TypePtr);
-                Constructor->setCodeGen(CGCF);
-                Constructors.push_back(Constructor->getCodeGen());
-            }
-        }
-    }
 }
 
 llvm::StructType *CodeGenClass::getType() {

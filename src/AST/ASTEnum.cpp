@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTEnum.h"
+#include "AST/ASTEnumVar.h"
 #include "AST/ASTScopes.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTType.h"
@@ -35,7 +36,7 @@ ASTEnumType *ASTEnum::getType() const {
     return Type;
 }
 
-llvm::StringMap<uint64_t> ASTEnum::getVars() const {
+llvm::StringMap<ASTEnumVar *> ASTEnum::getVars() const {
     return Vars;
 }
 
@@ -58,7 +59,7 @@ std::string ASTEnum::str() const {
     std::string EnumList;
     for (auto &Enum : Vars) {
         std::string EQ = "=";
-        EnumList += Enum.getKey().data() + EQ + std::to_string(Enum.getValue()) + ",";
+        EnumList += Enum.getKey().data() + EQ + Enum.getValue()->str() + ",";
     }
     EnumList.substr(0, EnumList.length()-1);
 

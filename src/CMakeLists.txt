@@ -14,6 +14,7 @@ add_library(flyLib
         AST/ASTExprStmt.cpp
         AST/ASTClassVar.cpp
         AST/ASTEnum.cpp
+        AST/ASTEnumVar.cpp
         AST/ASTForBlock.cpp
         AST/ASTFunction.cpp
         AST/ASTFunctionBase.cpp
@@ -95,6 +96,7 @@ add_library(flyLib
         CodeGen/CodeGenClassFunction.cpp
         CodeGen/CodeGenClassVar.cpp
         CodeGen/CodeGenEnum.cpp
+        CodeGen/CodeGenEnumEntry.cpp
         CodeGen/CodeGenExpr.cpp
         CodeGen/CodeGenFunction.cpp
         CodeGen/CodeGenFunctionBase.cpp
@@ -103,7 +105,6 @@ add_library(flyLib
         CodeGen/CodeGenHeader.cpp
         CodeGen/CodeGenModule.cpp
         CodeGen/CodeGenVar.cpp
-        CodeGen/CodeGenVarBase.cpp
 
         # Driver
         Driver/Driver.cpp

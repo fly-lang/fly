@@ -60,6 +60,10 @@ ASTClass *ASTNode::getClass() const {
     return Class;
 }
 
+ASTEnum *ASTNode::getEnum() const {
+    return Enum;
+}
+
 std::string ASTNode::str() const {
     return Logger("ASTNode").
            Attr("Name", Name).

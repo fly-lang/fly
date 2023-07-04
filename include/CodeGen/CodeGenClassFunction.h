@@ -15,6 +15,7 @@
 
 namespace llvm {
     class Value;
+    class PointerType;
 }
 
 namespace fly {

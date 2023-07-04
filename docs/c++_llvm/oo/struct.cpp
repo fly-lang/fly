@@ -4,7 +4,8 @@ struct Test {
 };
 
 int main() {
-    Test t;
-    int a = t.a;
+    Test *t = new Test();
+    int a = t->a;
+    t->b = 2;
     return 0;
 }

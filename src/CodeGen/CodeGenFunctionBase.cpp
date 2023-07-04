@@ -10,6 +10,7 @@
 #include "CodeGen/CodeGenFunctionBase.h"
 #include "CodeGen/CodeGenVar.h"
 #include "CodeGen/CodeGenInstance.h"
+#include "CodeGen/CodeGenEnumEntry.h"
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
 #include "AST/ASTNameSpace.h"
@@ -17,11 +18,12 @@
 #include "AST/ASTParams.h"
 #include "AST/ASTCall.h"
 #include "AST/ASTType.h"
+#include "AST/ASTEnumVar.h"
+#include "AST/ASTClassFunction.h"
 #include "Basic/Debug.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"
 #include "llvm/ADT/StringRef.h"
-#include "AST/ASTClassFunction.h"
 
 using namespace fly;
 

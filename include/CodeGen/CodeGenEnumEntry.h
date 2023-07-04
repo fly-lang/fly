@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/CodeGen/CodeGenVar.h - Code Generator of Statements
+// include/CodeGen/Class.h - Code Generator of Class
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,39 +8,31 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#ifndef FLY_CG_VAR_H
-#define FLY_CG_VAR_H
+#ifndef FLY_CODEGEN_ENUMENTRY_H
+#define FLY_CODEGEN_ENUMENTRY_H
 
 #include "CodeGenVarBase.h"
-#include "llvm/ADT/StringRef.h"
 
 namespace llvm {
-    class Type;
+    class Value;
 }
 
 namespace fly {
 
     class CodeGenModule;
-    class ASTVar;
+    class CodeGenEnum;
+    class ASTEnumVar;
 
-    class CodeGenVar : public CodeGenVarBase {
+    class CodeGenEnumEntry : public CodeGenVarBase {
 
-    protected:
+        friend class CodeGenEnum;
 
-        CodeGenModule *CGM = nullptr;
-
-        ASTVar *Var = nullptr;
-
-        llvm::Type *T = nullptr;
-
-        llvm::Value *Pointer = nullptr;
-
-        llvm::LoadInst *LoadI = nullptr;
-
-        llvm::StringRef BlockID;
+        llvm::Value *Value;
 
     public:
-        CodeGenVar(CodeGenModule *CGM, ASTVar *Var);
+        CodeGenEnumEntry(CodeGenModule *CGM, ASTEnumVar *EnumVar);
+
+        llvm::Value *getValue() override;
 
         void Init() override;
 
@@ -48,12 +40,10 @@ namespace fly {
 
         llvm::LoadInst *Load() override;
 
-        llvm::Value *getValue() override;
-
         llvm::Value *getPointer() override;
 
         ASTVar *getVar() override;
     };
 }
 
-#endif //FLY_CG_VAR_H
+#endif //FLY_CODEGEN_ENUMENTRY_H

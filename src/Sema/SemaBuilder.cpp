@@ -33,6 +33,8 @@
 #include "AST/ASTValue.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTClassVar.h"
+#include "AST/ASTEnum.h"
+#include "AST/ASTEnumVar.h"
 #include "AST/ASTClassFunction.h"
 #include "Basic/SourceLocation.h"
 #include "Basic/Diagnostic.h"
@@ -253,7 +255,7 @@ SemaBuilder::CreateClassVar(ASTClass *Class, const SourceLocation &Loc, ASTType 
 
 ASTClassFunction *
 SemaBuilder::CreateClassConstructor(ASTClass *Class, const SourceLocation &Loc, ASTScopes *Scopes) {
-    ASTClassFunction *F = CreateClassMethod(Class, Loc, CreateClassType(Class), Class->Name, Scopes);
+    ASTClassFunction *F = CreateClassMethod(Class, Loc, CreateVoidType(Loc), Class->Name, Scopes);
     F->Constructor = true;
     CreateBody(F);
     return F;
@@ -265,6 +267,31 @@ SemaBuilder::CreateClassMethod(ASTClass *Class, const SourceLocation &Loc, ASTTy
     ASTClassFunction *F = new ASTClassFunction(Loc, Class, Scopes, Type, Name);
     F->Params = new ASTParams();
     return F;
+}
+
+ASTEnum *
+SemaBuilder::CreateEnum(ASTNode *Node, ASTScopes *Scopes, const SourceLocation &Loc, const llvm::StringRef Name,
+                        llvm::SmallVector<ASTEnumType *, 4> EnumTypes) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateClass",
+                      Logger().Attr("Node", Node)
+                              .Attr("Scopes", Scopes).Attr("Name", Name).End());
+    ASTEnum *Enum = new ASTEnum(Node, Scopes, Loc, Name, EnumTypes);
+    Enum->Type = CreateEnumType(Enum);
+    return Enum;
+}
+
+ASTEnum *
+SemaBuilder::CreateEnum(ASTNode *Node, ASTScopes *Scopes, const SourceLocation &Loc, const llvm::StringRef Name) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateClassVar",
+                      Logger().Attr("Loc", (uint64_t) Loc.getRawEncoding())
+                              .Attr("Name", Name)
+                              .Attr("Scopes", Scopes).End());
+    llvm::SmallVector<ASTEnumType *, 4> EnumTypes;
+    return new ASTEnum(Node, Scopes, Loc, Name, EnumTypes);
+}
+
+ASTEnumVar *SemaBuilder::CreateEnumVar(ASTEnum *Enum, const SourceLocation &Loc, llvm::StringRef Name, uint64_t Index) {
+    return new ASTEnumVar(Enum, Loc, Name, Index);
 }
 
 /**
@@ -429,6 +456,32 @@ SemaBuilder::CreateClassType(ASTClass *Class) {
     ASTClassType *ClassType = new ASTClassType(Class);
     ClassType->Def = Class;
     return ClassType;
+}
+
+/**
+ * Creates an enum type without definition
+ * @param Identifier
+ * @return
+ */
+ASTEnumType *
+SemaBuilder::CreateEnumType(ASTIdentifier *Identifier) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateEnumType",
+                      Logger().Attr("Identifier", Identifier).End());
+    ASTEnumType *EnumType = new ASTEnumType(Identifier);
+    return EnumType;
+}
+
+/**
+ * Creates an enum type with definition
+ * @param Enum
+ * @return
+ */
+ASTEnumType *
+SemaBuilder::CreateEnumType(ASTEnum *Enum) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateEnumType", Logger().Attr("Enum", Enum).End());
+    ASTEnumType *EnumType = new ASTEnumType(Enum);
+    EnumType->Def = Enum;
+    return EnumType;
 }
 
 /**
@@ -1067,6 +1120,28 @@ SemaBuilder::AddClass(ASTClass *Class) {
 }
 
 bool
+SemaBuilder::AddEnum(ASTEnum *Enum) {
+    FLY_DEBUG_MESSAGE("ASTNode", "AddFunction", Logger()
+            .Attr("Enum", Enum).End());
+
+    // Lookup into namespace
+    ASTNode *Node = Enum->Node;
+    Node->Enum = Enum;
+
+    bool Success = true;
+    if (Enum->Scopes->Visibility == ASTVisibilityKind::V_PUBLIC || Enum->Scopes->Visibility == ASTVisibilityKind::V_DEFAULT) {
+        ASTEnum *LookupEnum = Node->NameSpace->getEnums().lookup(Enum->getName());
+        if (LookupEnum) { // This NameSpace already contains this Function
+            S.Diag(LookupEnum->Location, diag::err_duplicate_class) << LookupEnum->getName();
+            return false;
+        }
+        Success = Node->NameSpace->Enums.insert(std::make_pair(Enum->getName(), Enum)).second;
+    }
+
+    return Success;
+}
+
+bool
 SemaBuilder::AddGlobalVar(ASTGlobalVar *GlobalVar, ASTValue *Value) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddGlobalVar",
                       Logger().Attr("GlobalVar", GlobalVar).Attr("Value=", Value).End());
@@ -1156,22 +1231,6 @@ SemaBuilder::AddClassVar(ASTClassVar *Var) {
     ASTClass *Class = Var->Class;
     if (Class->Vars.insert(std::pair<llvm::StringRef, ASTClassVar *>(Var->getName(), Var)).second) {
 
-        // Only for Enums
-        if (Class->getClassKind() == ASTClassKind::ENUM) {
-
-            // Enum visibility can only be default
-            if (Var->getScopes()->getVisibility() != ASTVisibilityKind::V_DEFAULT) {
-                S.Diag(Var->getLocation(), diag::err_sema_class_enum_visibility) << Var->getName();
-                return false;
-            }
-
-            // Enum expr is not permitted
-            if (Var->getExpr()) {
-                S.Diag(Var->getLocation(), diag::err_sema_class_enum_expr) << Var->getName();
-                return false;
-            }
-        }
-
         // Set default value if not set
         if (!Var->getExpr()) {
             ASTValueExpr *Expr = S.Builder->CreateExpr(nullptr, SemaBuilder::CreateDefaultValue(Var->getType()));
@@ -1214,6 +1273,10 @@ SemaBuilder::AddClassConstructor(ASTClassFunction *Constructor) {
     }
 
     return true;
+}
+
+bool SemaBuilder::AddEnumVar(ASTEnumVar *EnumVar) {
+    return EnumVar->getEnum()->Vars.insert(std::make_pair(EnumVar->getName(), EnumVar)).second;
 }
 
 bool

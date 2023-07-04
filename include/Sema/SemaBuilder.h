@@ -135,6 +135,10 @@ namespace fly {
         ASTClassFunction *CreateClassConstructor(ASTClass *Class, const SourceLocation &Loc, ASTScopes *Scopes);
         ASTClassFunction *CreateClassMethod(ASTClass *Class, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
                                             ASTScopes *Scopes);
+        ASTEnum *CreateEnum(ASTNode *Node, ASTScopes *Scopes, const SourceLocation &Loc, const llvm::StringRef Name,
+                            llvm::SmallVector<ASTEnumType *, 4> EnumTypes);
+        ASTEnum *CreateEnum(ASTNode *Node, ASTScopes *Scopes, const SourceLocation &Loc, const llvm::StringRef Name);
+        ASTEnumVar *CreateEnumVar(ASTEnum *Enum, const SourceLocation &Loc, llvm::StringRef Name, uint64_t Index);
 
         // Create Types
         static ASTBoolType *CreateBoolType(const SourceLocation &Loc);
@@ -151,6 +155,8 @@ namespace fly {
         static ASTArrayType *CreateArrayType(const SourceLocation &Loc, ASTType *Type, ASTExpr *Size);
         static ASTClassType *CreateClassType(ASTClass *Class);
         static ASTClassType *CreateClassType(ASTIdentifier *Class);
+        static ASTEnumType *CreateEnumType(ASTEnum *Enum);
+        static ASTEnumType *CreateEnumType(ASTIdentifier *Enum);
 
         // Create Values
         static ASTNullValue *CreateNullValue(const SourceLocation &Loc);
@@ -221,6 +227,7 @@ namespace fly {
         // Add Top definitions
         bool AddImport(ASTNode *Node, ASTImport *Import);
         bool AddClass(ASTClass *Class);
+        bool AddEnum(ASTEnum *Enum);
         bool AddGlobalVar(ASTGlobalVar *GlobalVar, ASTValue *Value = nullptr);
         bool AddGlobalVar(ASTGlobalVar *GlobalVar, ASTExpr *Expr);
         bool AddFunction(ASTFunction *Function);
@@ -229,6 +236,7 @@ namespace fly {
         bool AddClassVar(ASTClassVar *Var);
         bool AddClassMethod(ASTClassFunction *Method);
         bool AddClassConstructor(ASTClassFunction *Constructor);
+        bool AddEnumVar(ASTEnumVar *EnumVar);
         bool AddParam(ASTParam *Param);
         void AddFunctionVarParams(ASTFunction *Function, ASTParam *Param); // TODO
         bool AddComment(ASTTopDef *Top, llvm::StringRef Comment);

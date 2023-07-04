@@ -15,11 +15,9 @@
 #include "AST/ASTType.h"
 #include "AST/ASTClassVar.h"
 
-#include "llvm/ADT/StringMap.h"
-
 using namespace fly;
 
-CodeGenInstance::CodeGenInstance(CodeGenModule *CGM, ASTVar *Var) : CodeGenVarBase(CGM, Var) {
+CodeGenInstance::CodeGenInstance(CodeGenModule *CGM, ASTVar *Var) : CodeGenVar(CGM, Var) {
     this->Class = ((ASTClassType *)Var->getType())->getDef();
     this->T = Class->getCodeGen()->getType();
 }
@@ -33,23 +31,23 @@ void CodeGenInstance::Init(llvm::Value *Pointer) {
 
         this->Vars.insert(std::make_pair(Var->getVar()->getName(), CGV));
     }
-    CodeGenVarBase::Init();
+//    CodeGenVar::Init();
 }
 
 llvm::StoreInst *CodeGenInstance::Store(llvm::Value *Val) {
-    return CodeGenVarBase::Store(Val);
+    return CodeGenVar::Store(Val);
 }
 
 llvm::LoadInst *CodeGenInstance::Load() {
-    return CodeGenVarBase::Load();
+    return CodeGenVar::Load();
 }
 
 llvm::Value *CodeGenInstance::getValue() {
-    return CodeGenVarBase::getValue();
+    return CodeGenVar::getValue();
 }
 
 llvm::Value *CodeGenInstance::getPointer() {
-    return CodeGenVarBase::getPointer();
+    return CodeGenVar::getPointer();
 }
 
 CodeGenClassVar *CodeGenInstance::getVar(llvm::StringRef Name) {

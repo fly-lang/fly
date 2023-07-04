@@ -50,9 +50,11 @@ namespace fly {
     class CodeGenFunctionBase;
     class CodeGenClass;
     class CodeGenVarBase;
+    class CodeGenEnum;
     class ASTClass;
     class ASTVar;
     class ASTReference;
+    class ASTEnum;
 
     class CodeGenModule : public CodeGenTypeCache {
 
@@ -104,6 +106,8 @@ namespace fly {
         CodeGenFunction *GenFunction(ASTFunction *Function, bool isExternal = false);
 
         CodeGenClass *GenClass(ASTClass *Class, bool isExternal = false);
+
+        CodeGenEnum *GenEnum(ASTEnum *Enum, bool isExternal = false);
 
         llvm::Type *GenType(const ASTType *Type);
 

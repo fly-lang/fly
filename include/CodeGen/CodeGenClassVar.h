@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/CodeGen/Class.h - Code Generator of Class
+// include/CodeGen/CodeGenClassVar.h - Code Generator of Class Var
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -13,11 +13,16 @@
 
 #include "CodeGenVarBase.h"
 #include "AST/ASTClassVar.h"
+#include "AST/ASTVar.h"
+#include "llvm/ADT/StringRef.h"
+
+#include <cstdint>
 
 namespace llvm {
-    class StringRef;
     class StructType;
     class AllocaInst;
+    class Type;
+    class StringRef;
 }
 
 namespace fly {
@@ -32,29 +37,40 @@ namespace fly {
 
         friend class CodeGenClass;
 
+        CodeGenModule *CGM = nullptr;
+
+        ASTClassVar *Var = nullptr;
+
+        llvm::Type *T = nullptr;
+
+        llvm::Value *Pointer = nullptr;
+
+        llvm::StringRef BlockID;
+
         llvm::Type *ClassType = nullptr;
 
         llvm::Value *Index = nullptr;
 
         llvm::Value *Zero = nullptr;
 
+        llvm::LoadInst *LoadI = nullptr;
+
         llvm::Value *Instance = nullptr;
 
-    protected:
-        llvm::StringRef BlockID;
-
     public:
-        CodeGenClassVar(CodeGenModule *CGM, ASTClassVar *Var, llvm::Type *ClassType,  uint32_t Index);
+        CodeGenClassVar(CodeGenModule *CGM, ASTClassVar *Var, llvm::Type *ClassType, uint32_t Index);
 
-        void Init();
+        void Init() override;
 
-        llvm::StoreInst *Store(llvm::Value *Val);
+        llvm::StoreInst *Store(llvm::Value *Val) override;
 
-        llvm::LoadInst *Load();
+        llvm::LoadInst *Load() override;
 
-        llvm::Value *getValue();
+        llvm::Value *getValue() override;
 
-        llvm::Value *getPointer();
+        llvm::Value *getPointer() override;
+
+        ASTVar *getVar() override;
 
         llvm::Value *getIndex();
 

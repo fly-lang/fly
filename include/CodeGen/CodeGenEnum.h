@@ -14,24 +14,31 @@
 
 namespace llvm {
     class Value;
+    class Type;
 }
 
 namespace fly {
 
     class CodeGenModule;
-    class ASTClass;
-    class CodeGenVar;
+    class ASTEnum;
+    class CodeGenEnumEntry;
 
     class CodeGenEnum {
 
         CodeGenModule * CGM = nullptr;
 
-        ASTClass *AST = nullptr;
+        llvm::Type *Type = nullptr;
 
-        llvm::StringMap<llvm::Value *> Vars;
+        ASTEnum *AST = nullptr;
+
+        llvm::StringMap<CodeGenEnumEntry *> Vars;
 
     public:
-        CodeGenEnum(CodeGenModule *CGM, ASTClass *Class, bool isExternal = false);
+        CodeGenEnum(CodeGenModule *CGM, ASTEnum *Enum, bool isExternal = false);
+
+        void Generate();
+
+        llvm::Type *getType() const;
     };
 }
 

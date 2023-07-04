@@ -11,6 +11,7 @@
 #include "Parser/FunctionParser.h"
 #include "Parser/ExprParser.h"
 #include "Parser/ClassParser.h"
+#include "Parser/EnumParser.h"
 #include "AST/ASTNode.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTGlobalVar.h"
@@ -204,8 +205,12 @@ bool Parser::ParseTopDef() {
     if (ParseScopes(Scopes)) {
 
         // Define a Class
-        if (Tok.isOneOf(tok::kw_struct, tok::kw_class, tok::kw_interface, tok::kw_enum)) {
+        if (Tok.isOneOf(tok::kw_struct, tok::kw_class, tok::kw_interface)) {
             return ParseClassDef(Scopes);
+        }
+
+        if (Tok.is(tok::kw_enum)) {
+            return ParseEnumDef(Scopes);
         }
 
         // Parse Type
@@ -365,6 +370,31 @@ bool Parser::ParseClassDef(ASTScopes *Scopes) {
     ASTClass *Class = ClassParser::Parse(this, Scopes);
     if (Class) {
         return Builder.AddComment(Class, Comment) && Builder.AddClass(Class);
+    }
+
+    return false;
+}
+
+
+/**
+ * Parse Enum declaration
+ * @param Visibility
+ * @param Constant
+ * @return
+ */
+bool Parser::ParseEnumDef(ASTScopes *Scopes) {
+    FLY_DEBUG_MESSAGE("Parser", "ParseClassDef", Logger().Attr("Scopes", Scopes).End());
+
+    // Add Comment to AST
+    llvm::StringRef Comment;
+    if (!BlockComment.empty()) {
+        Comment = BlockComment;
+        BlockComment = StringRef();
+    }
+
+    ASTEnum *Enum = EnumParser::Parse(this, Scopes);
+    if (Enum) {
+        return Builder.AddComment(Enum, Comment) && Builder.AddEnum(Enum);
     }
 
     return false;

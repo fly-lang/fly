@@ -102,6 +102,32 @@ bool SemaResolver::ResolveImports(ASTNode *Node) {
     return Success;
 }
 
+bool SemaResolver::ResolveEnum(ASTNode *Node) {
+    bool Success = true;
+    if (Node->Enum) {
+        if (!Node->Enum->SuperClasses.empty()) {
+            for (auto &SuperEnumType: Node->Enum->SuperClasses) {
+                // TODO
+//                if (ResolveEnumType(Node, SuperEnumType)) {
+//                    ASTEnum *SuperEnum = SuperEnumType->getDef();
+//                    if (Node->Class->getClassKind() == ASTClassKind::ENUM) {
+//                        for (auto &EntryVar: SuperClass->getVars()) {
+//                            auto &Var = EntryVar.getValue();
+//                            ASTClassVar *NewVar = S.Builder->CreateClassVar(Node->Class, Var->getLocation(), Var->getType(),
+//                                                                            Var->getName(), Var->getScopes());
+//                            Node->Class->Vars.insert(std::make_pair(NewVar->getName(), NewVar));
+//                        }
+//                    } else {
+//                        // Enum can extend only another Enum
+//                        S.Diag(SuperClassType->getLocation(), diag::err_sema_enum_ext);
+//                        return false;
+//                    }
+//                }
+            }
+        }
+    }
+}
+
 bool SemaResolver::ResolveClass(ASTNode *Node) {
     bool Success = true;
     if (Node->Class) {
@@ -113,22 +139,6 @@ bool SemaResolver::ResolveClass(ASTNode *Node) {
             for (auto &SuperClassType : Node->Class->SuperClasses) {
                 if (ResolveClassType(Node, SuperClassType)) {
                     ASTClass *SuperClass = SuperClassType->getDef();
-
-                    // Enum extend Enum
-                    if (SuperClass->getClassKind() == ASTClassKind::ENUM) {
-                        if (Node->Class->getClassKind() == ASTClassKind::ENUM) {
-                            for (auto &EntryVar: SuperClass->getVars()) {
-                                auto &Var = EntryVar.getValue();
-                                ASTClassVar *NewVar = S.Builder->CreateClassVar(Node->Class, Var->getLocation(), Var->getType(),
-                                                          Var->getName(), Var->getScopes());
-                                Node->Class->Vars.insert(std::make_pair(NewVar->getName(), NewVar));
-                            }
-                        } else {
-                            // Enum can extend only another Enum
-                            S.Diag(SuperClassType->getLocation(), diag::err_sema_enum_ext);
-                            return false;
-                        }
-                    }
 
                     // Struct: Resolve Var in Super Classes
                     if (SuperClass->getClassKind() == ASTClassKind::STRUCT) {
@@ -764,7 +774,9 @@ bool SemaResolver::ResolveExpr(ASTBlock *Block, ASTExpr *Expr) {
         case ASTExprKind::EXPR_CALL: {
             ASTCall *Call = ((ASTCallExpr *)Expr)->getCall();
             if (Call->getDef() || ResolveCall(Block, Call)) {
-                Expr->Type = Call->Def->Type;
+                Expr->Type = Call->getCallKind() == ASTCallKind::CALL_NORMAL ?
+                        Call->Def->Type :
+                        ((ASTClassFunction *) Call->Def)->getClass()->getType();
                 Success = true;
                 break;
             } else {

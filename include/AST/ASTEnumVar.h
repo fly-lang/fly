@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTClassVar.h - The Attribute in a Class
+// include/AST/ASTEnumVar.h - The Attribute in a Class
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,70 +8,58 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#ifndef FLY_ASTCLASSVAR_H
-#define FLY_ASTCLASSVAR_H
+#ifndef FLY_ASTENUMVAR_H
+#define FLY_ASTENUMVAR_H
 
 #include "ASTVar.h"
-#include "CodeGen/CodeGenClassVar.h"
-#include "CodeGen/CodeGenVar.h"
+#include "CodeGen/CodeGenEnumEntry.h"
 
 namespace fly {
 
-    class ASTClass;
-    class ASTScopes;
-    class ASTType;
-    class ASTValue;
-    class ASTVar;
+    class ASTEnum;
 
-    class ASTClassVar : public ASTVar {
+    class ASTEnumVar : public ASTVar {
 
         friend class SemaBuilder;
         friend class SemaResolver;
+
+        ASTEnum *Enum = nullptr;
 
         const SourceLocation &Loc;
 
         ASTVarKind VarKind;
 
-        ASTType *Type = nullptr;
-
         llvm::StringRef Name;
 
-        ASTClass *Class = nullptr;
+        uint64_t Index;
 
         llvm::StringRef Comment;
 
-        ASTScopes *Scopes = nullptr;
+        CodeGenEnumEntry *CodeGen = nullptr;
 
-        ASTExpr *Expr = nullptr;
-
-        CodeGenVarBase *CodeGen = nullptr;
-
-        ASTClassVar(const SourceLocation &Loc, ASTClass *Class, ASTScopes *Scopes, ASTType *Type,
-                    llvm::StringRef Name);
+        ASTEnumVar(ASTEnum *Enum, const SourceLocation &Loc, llvm::StringRef Name, uint64_t Index);
 
     public:
+
+        ASTEnum *getEnum() const;
 
         const SourceLocation &getLocation() const;
 
         ASTVarKind getVarKind() override;
 
-        ASTType *getType() const override;
-
         llvm::StringRef getName() const override;
 
-        ASTClass *getClass() const;
+        uint64_t getIndex() const;
 
-        llvm::StringRef getComment() const;
-
-        ASTScopes *getScopes() const;
+        ASTType *getType() const override;
 
         ASTExpr *getExpr() const override;
 
-        void setExpr(ASTExpr *expr);
+        llvm::StringRef getComment() const;
 
-        CodeGenVarBase *getCodeGen() const;
+        CodeGenEnumEntry *getCodeGen() const;
 
-        void setCodeGen(CodeGenVarBase *CGV);
+        void setCodeGen(CodeGenEnumEntry *CGE);
 
         std::string print() const;
 

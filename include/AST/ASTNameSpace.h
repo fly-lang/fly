@@ -19,8 +19,7 @@ namespace fly {
     class ASTContext;
     class ASTGlobalVar;
     class ASTClass;
-    class ASTUnrefGlobalVar;
-    class ASTUnrefFunctionCall;
+    class ASTEnum;
 
     class ASTNameSpace : public ASTNodeBase {
 
@@ -36,6 +35,9 @@ namespace fly {
         // Classes
         llvm::StringMap<ASTClass *> Classes;
 
+        // Classes
+        llvm::StringMap<ASTEnum *> Enums;
+
         ASTNameSpace(std::string NameSpace, ASTContext *Context, bool ExternalLib = false);
 
         ~ASTNameSpace();
@@ -49,6 +51,8 @@ namespace fly {
         bool isExternalLib() const;
 
         const llvm::StringMap<ASTClass *> &getClasses() const;
+
+        const llvm::StringMap<ASTEnum *> &getEnums() const;
 
         std::string print() const;
 

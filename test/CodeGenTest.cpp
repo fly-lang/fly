@@ -36,6 +36,8 @@
 #include "AST/ASTClass.h"
 #include "AST/ASTClassVar.h"
 #include "AST/ASTClassFunction.h"
+#include "AST/ASTEnum.h"
+#include "AST/ASTEnumVar.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/SourceLocation.h"
 #include "Basic/TargetOptions.h"
@@ -1990,9 +1992,8 @@ namespace {
             EXPECT_FALSE(Diags.hasErrorOccurred());
             std::string output = getOutput();
 
-            EXPECT_EQ(output, "%TestClass_data = type {}\n"
+            EXPECT_EQ(output, "%TestClass = type { %TestClass_vtable* }\n"
                               "%TestClass_vtable = type { i32 (%TestClass*), i32 (%TestClass*), i32 (%TestClass*) }\n"
-                              "%TestClass = type { %TestClass_data, %TestClass_vtable }\n"
                               "\n"
                               "define void @TestClass_TestClass(%TestClass* %0) {\n"
                               "entry:\n"
@@ -2028,17 +2029,18 @@ namespace {
                               "\n"
                               "define i32 @main() {\n"
                               "entry:\n"
-                              "  %0 = alloca i32, align 4\n"
+                              "  %0 = alloca %TestClass, align 8\n"
                               "  %1 = alloca i32, align 4\n"
                               "  %2 = alloca i32, align 4\n"
-                              "  %3 = alloca %TestClass, align 8\n"
-                              "  call void @TestClass_TestClass(%TestClass* %3)\n"
-                              "  %4 = call i32 @TestClass_a(%TestClass* %3)\n"
-                              "  store i32 %4, i32* %0, align 4\n"
-                              "  %5 = call i32 @TestClass_b(%TestClass* %3)\n"
+                              "  %3 = alloca i32, align 4\n"
+                              "  %4 = alloca %TestClass, align 8\n"
+                              "  call void @TestClass_TestClass(%TestClass* %4)\n"
+                              "  %5 = call i32 @TestClass_a(%TestClass* %4)\n"
                               "  store i32 %5, i32* %1, align 4\n"
-                              "  %6 = call i32 @TestClass_c(%TestClass* %3)\n"
+                              "  %6 = call i32 @TestClass_b(%TestClass* %4)\n"
                               "  store i32 %6, i32* %2, align 4\n"
+                              "  %7 = call i32 @TestClass_c(%TestClass* %4)\n"
+                              "  store i32 %7, i32* %3, align 4\n"
                               "  ret i32 1\n"
                               "}\n");
         }
@@ -2061,7 +2063,7 @@ namespace {
         Builder->AddClassVar(aField);
 
 
-        // int getAa() { return a }
+        // int getA() { return a }
         ASTClassFunction *getA = Builder->CreateClassMethod(TestClass, SourceLoc, IntType,
                                                             "getA",
                                                             SemaBuilder::CreateScopes(
@@ -2128,57 +2130,47 @@ namespace {
             EXPECT_FALSE(Diags.hasErrorOccurred());
             std::string output = getOutput();
 
-            EXPECT_EQ(output, "%TestClass_data = type {}\n"
-                              "%TestClass_vtable = type { i32 (%TestClass*), i32 (%TestClass*), i32 (%TestClass*) }\n"
-                              "%TestClass = type { %TestClass_data, %TestClass_vtable }\n"
+            EXPECT_EQ(output, "%TestClass = type { %TestClass_vtable*, i32 }\n"
+                              "%TestClass_vtable = type { i32 (%TestClass*) }\n"
                               "\n"
                               "define void @TestClass_TestClass(%TestClass* %0) {\n"
                               "entry:\n"
                               "  %1 = alloca %TestClass*, align 8\n"
                               "  store %TestClass* %0, %TestClass** %1, align 8\n"
                               "  %2 = load %TestClass*, %TestClass** %1, align 8\n"
+                              "  %3 = getelementptr inbounds %TestClass, %TestClass* %2, i32 0, i32 1\n"
+                              "  %4 = load i32, i32* %3, align 4\n"
+                              "  store i32 0, i32 %4, align 4\n"
                               "  ret void\n"
                               "}\n"
                               "\n"
-                              "define i32 @TestClass_a(%TestClass* %0) {\n"
+                              "define i32 @TestClass_getA(%TestClass* %0) {\n"
                               "entry:\n"
                               "  %1 = alloca %TestClass*, align 8\n"
                               "  store %TestClass* %0, %TestClass** %1, align 8\n"
                               "  %2 = load %TestClass*, %TestClass** %1, align 8\n"
-                              "  ret i32 1\n"
-                              "}\n"
-                              "\n"
-                              "define i32 @TestClass_b(%TestClass* %0) {\n"
-                              "entry:\n"
-                              "  %1 = alloca %TestClass*, align 8\n"
-                              "  store %TestClass* %0, %TestClass** %1, align 8\n"
-                              "  %2 = load %TestClass*, %TestClass** %1, align 8\n"
-                              "  ret i32 1\n"
-                              "}\n"
-                              "\n"
-                              "define i32 @TestClass_c(%TestClass* %0) {\n"
-                              "entry:\n"
-                              "  %1 = alloca %TestClass*, align 8\n"
-                              "  store %TestClass* %0, %TestClass** %1, align 8\n"
-                              "  %2 = load %TestClass*, %TestClass** %1, align 8\n"
-                              "  ret i32 1\n"
+                              "  %3 = getelementptr inbounds %TestClass, %TestClass* %2, i32 0, i32 1\n"
+                              "  %4 = load i32, i32* %3, align 4\n"
+                              "  ret i32 %4\n"
                               "}\n"
                               "\n"
                               "define i32 @main() {\n"
                               "entry:\n"
-                              "  %0 = alloca i32, align 4\n"
+                              "  %0 = alloca %TestClass, align 8\n"
                               "  %1 = alloca i32, align 4\n"
-                              "  %2 = alloca i32, align 4\n"
-                              "  %3 = alloca %TestClass, align 8\n"
-                              "  call void @TestClass_TestClass(%TestClass* %3)\n"
-                              "  %4 = call i32 @TestClass_a(%TestClass* %3)\n"
-                              "  store i32 %4, i32* %0, align 4\n"
-                              "  %5 = call i32 @TestClass_b(%TestClass* %3)\n"
-                              "  store i32 %5, i32* %1, align 4\n"
-                              "  %6 = call i32 @TestClass_c(%TestClass* %3)\n"
-                              "  store i32 %6, i32* %2, align 4\n"
+                              "  %malloccall = tail call i8* @malloc(i32 ptrtoint (%TestClass* getelementptr (%TestClass, %TestClass* null, i32 1) to i32))\n"
+                              "  %TestClassInst = bitcast i8* %malloccall to %TestClass*\n"
+                              "  call void @TestClass_TestClass(%TestClass* %TestClassInst)\n"
+                              "  %2 = call i32 @TestClass_getA(%TestClass* %TestClassInst)\n"
+                              "  store i32 %2, i32* %1, align 4\n"
+                              "  %3 = bitcast %TestClass* %TestClassInst to i8*\n"
+                              "  tail call void @free(i8* %3)\n"
                               "  ret i32 1\n"
-                              "}\n");
+                              "}\n"
+                              "\n"
+                              "declare noalias i8* @malloc(i32)\n"
+                              "\n"
+                              "declare void @free(i8*)\n");
         }
     }
 
@@ -2214,7 +2206,7 @@ namespace {
         // int main() {
         //  TestStruct test = new TestStruct();
         //  int a = test.a
-        //  int b = test.b
+        //  test.b = 2
         //  int c = test.c
         //  return 1
         // }
@@ -2235,10 +2227,10 @@ namespace {
         ASTVarRefExpr *aRefExpr = Builder->CreateExpr(aVar, Builder->CreateVarRef(Instance, aField));
         Builder->AddStmt(aVar);
 
-        // int b = test.b
-        ASTLocalVar *bVar = Builder->CreateLocalVar(Body, SourceLoc, IntType, "b");
-        ASTVarRefExpr *bRefExpr = Builder->CreateExpr(bVar, Builder->CreateVarRef(Instance, bField));
-        Builder->AddStmt(bVar);
+        // test.b = 2
+        ASTVarAssign *bFieldAssign = Builder->CreateVarAssign(Body, Builder->CreateVarRef(Instance, bField));
+        Builder->CreateExpr(bFieldAssign, SemaBuilder::CreateIntegerValue(SourceLoc, 2));
+        Builder->AddStmt(bFieldAssign);
 
         // int c = test.c
         ASTLocalVar *cVar = Builder->CreateLocalVar(Body, SourceLoc, IntType, "c");
@@ -2284,32 +2276,42 @@ namespace {
                               "  store %TestStruct* %0, %TestStruct** %1, align 8\n"
                               "  %2 = load %TestStruct*, %TestStruct** %1, align 8\n"
                               "  %3 = getelementptr inbounds %TestStruct, %TestStruct* %2, i32 0, i32 0\n"
-                              "  store i32 0, i32* %3, align 4\n"
-                              "  %4 = getelementptr inbounds %TestStruct, %TestStruct* %2, i32 0, i32 1\n"
-                              "  store i32 0, i32* %4, align 4\n"
-                              "  %5 = getelementptr inbounds %TestStruct, %TestStruct* %2, i32 0, i32 2\n"
-                              "  store i32 0, i32* %5, align 4\n"
+                              "  %4 = load i32, i32* %3, align 4\n"
+                              "  store i32 0, i32 %4, align 4\n"
+                              "  %5 = getelementptr inbounds %TestStruct, %TestStruct* %2, i32 0, i32 1\n"
+                              "  %6 = load i32, i32* %5, align 4\n"
+                              "  store i32 0, i32 %6, align 4\n"
+                              "  %7 = getelementptr inbounds %TestStruct, %TestStruct* %2, i32 0, i32 2\n"
+                              "  %8 = load i32, i32* %7, align 4\n"
+                              "  store i32 0, i32 %8, align 4\n"
                               "  ret void\n"
                               "}\n"
                               "\n"
                               "define i32 @main() {\n"
                               "entry:\n"
-                              "  %0 = alloca i32, align 4\n"
+                              "  %0 = alloca %TestStruct, align 8\n"
                               "  %1 = alloca i32, align 4\n"
                               "  %2 = alloca i32, align 4\n"
-                              "  %3 = alloca %TestStruct, align 8\n"
-                              "  call void @TestStruct_TestStruct(%TestStruct* %3)\n"
-                              "  %4 = getelementptr inbounds %TestStruct, %TestStruct* %3, i32 0, i32 0\n"
-                              "  %5 = load i32, i32* %4, align 4\n"
-                              "  store i32 %5, i32* %0, align 4\n"
-                              "  %6 = getelementptr inbounds %TestStruct, %TestStruct* %3, i32 0, i32 1\n"
-                              "  %7 = load i32, i32* %6, align 4\n"
-                              "  store i32 %7, i32* %1, align 4\n"
-                              "  %8 = getelementptr inbounds %TestStruct, %TestStruct* %3, i32 0, i32 2\n"
-                              "  %9 = load i32, i32* %8, align 4\n"
-                              "  store i32 %9, i32* %2, align 4\n"
+                              "  %malloccall = tail call i8* @malloc(i32 trunc (i64 mul nuw (i64 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i64), i64 3) to i32))\n"
+                              "  %TestStructInst = bitcast i8* %malloccall to %TestStruct*\n"
+                              "  call void @TestStruct_TestStruct(%TestStruct* %TestStructInst)\n"
+                              "  %3 = getelementptr inbounds %TestStruct, %TestStruct* %TestStructInst, i32 0, i32 0\n"
+                              "  %4 = load i32, i32* %3, align 4\n"
+                              "  store i32 %4, i32* %1, align 4\n"
+                              "  %5 = getelementptr inbounds %TestStruct, %TestStruct* %TestStructInst, i32 0, i32 1\n"
+                              "  %6 = load i32, i32* %5, align 4\n"
+                              "  store i32 2, i32 %6, align 4\n"
+                              "  %7 = getelementptr inbounds %TestStruct, %TestStruct* %TestStructInst, i32 0, i32 2\n"
+                              "  %8 = load i32, i32* %7, align 4\n"
+                              "  store i32 %8, i32* %2, align 4\n"
+                              "  %9 = bitcast %TestStruct* %TestStructInst to i8*\n"
+                              "  tail call void @free(i8* %9)\n"
                               "  ret i32 1\n"
-                              "}\n");
+                              "}\n"
+                              "\n"
+                              "declare noalias i8* @malloc(i32)\n"
+                              "\n"
+                              "declare void @free(i8*)\n");
         }
     }
 
@@ -2321,17 +2323,14 @@ namespace {
         //   B
         //   C
         // }
-        ASTClass *TestEnum = Builder->CreateClass(Node, ASTClassKind::ENUM,
-                                                  SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false),
+        ASTEnum *TestEnum = Builder->CreateEnum(Node, SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false),
                                                   SourceLoc, "TestEnum");
-        ASTClassVar *A = Builder->CreateEnumVar(TestEnum, SourceLoc, "A");
-        Builder->AddClassVar(A);
-
-        ASTClassVar *B = Builder->CreateEnumVar(TestEnum, SourceLoc, "B");
-        Builder->AddClassVar(B);
-
-        ASTClassVar *C = Builder->CreateEnumVar(TestEnum, SourceLoc, "C");
-        Builder->AddClassVar(C);
+        ASTEnumVar *A = Builder->CreateEnumVar(TestEnum, SourceLoc, "A", 1);
+        Builder->AddEnumVar(A);
+        ASTEnumVar *B = Builder->CreateEnumVar(TestEnum, SourceLoc, "B", 2);
+        Builder->AddEnumVar(B);
+        ASTEnumVar *C = Builder->CreateEnumVar(TestEnum, SourceLoc, "C", 3);
+        Builder->AddEnumVar(C);
 
         // int main() {
         //  TestEnum a = TestEnum.A;
@@ -2342,7 +2341,7 @@ namespace {
                                                       SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
         ASTBlock *Body = Builder->CreateBody(MainFn);
 
-        ASTType *TestEnumType = SemaBuilder::CreateClassType(TestEnum);
+        ASTType *TestEnumType = SemaBuilder::CreateEnumType(TestEnum);
 
         //  TestEnum a = TestEnum.A;
         ASTLocalVar *aVar = Builder->CreateLocalVar(Body, SourceLoc, TestEnumType, "a");
@@ -2360,7 +2359,7 @@ namespace {
         EXPECT_TRUE(Builder->AddStmt(Return));
 
         // Add to Node
-        EXPECT_TRUE(Builder->AddClass(TestEnum));
+        EXPECT_TRUE(Builder->AddEnum(TestEnum));
         EXPECT_TRUE(Builder->AddFunction(MainFn));
         EXPECT_TRUE(Builder->AddNode(Node));
         bool Success = Builder->Build();
@@ -2377,11 +2376,11 @@ namespace {
 
             EXPECT_EQ(output, "define i32 @main() {\n"
                               "entry:\n"
-                              "  %0 = alloca i32, align 4\n"
-                              "  %1 = alloca i32, align 4\n"
-                              "  store i32 0, i32* %0 align 4\n"
-                              "  %2 = load i32, i32* %0, align 4\n"
-                              "  store i32 %2, i32* %1 align 4\n"
+                              "  %0 = alloca i64, align 8\n"
+                              "  %1 = alloca i64, align 8\n"
+                              "  store i64 1, i64* %0, align 8\n"
+                              "  %2 = load i64, i64* %0, align 8\n"
+                              "  store i64 %2, i64* %1, align 8\n"
                               "  ret i32 1\n"
                               "}\n");
         }
