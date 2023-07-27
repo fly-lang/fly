@@ -24,7 +24,7 @@ namespace fly {
     class SourceLocation;
     class ASTNameSpace;
     class ASTNode;
-    class ASTClass;
+    class ASTIdentity;
     class ASTClassVar;
     class ASTClassFunction;
     class ASTFunctionBase;
@@ -61,7 +61,7 @@ namespace fly {
 
         ASTNode *FindNode(llvm::StringRef Name, ASTNameSpace *NameSpace) const;
 
-        ASTClass *FindClass(llvm::StringRef ClassName, ASTNameSpace *NameSpace) const;
+        ASTIdentity *FindIdentity(llvm::StringRef TypeName, ASTNameSpace *NameSpace) const;
 
         ASTVar *FindLocalVar(ASTBlock *Block, ASTIdentifier *Identifier) const;
 

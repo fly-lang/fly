@@ -17,7 +17,9 @@
 #include "AST/ASTLocalVar.h"
 #include "AST/ASTFunctionBase.h"
 #include "AST/ASTFunction.h"
+#include "AST/ASTClass.h"
 #include "AST/ASTClassVar.h"
+#include "AST/ASTIdentifier.h"
 #include "AST/ASTImport.h"
 #include "AST/ASTClassFunction.h"
 #include "AST/ASTNode.h"
@@ -75,10 +77,10 @@ ASTNode *Sema::FindNode(llvm::StringRef Name, ASTNameSpace *NameSpace) const {
     return Node;
 }
 
-ASTClass *Sema::FindClass(llvm::StringRef ClassName, ASTNameSpace *NameSpace) const {
-    FLY_DEBUG_MESSAGE("Sema", "FindClass", Logger().Attr("ClassName", ClassName).Attr("NameSpace", NameSpace).End());
-    ASTClass *Class = NameSpace->Classes.lookup(ClassName);
-    return Class;
+ASTIdentity *Sema::FindIdentity(llvm::StringRef TypeName, ASTNameSpace *NameSpace) const {
+    FLY_DEBUG_MESSAGE("Sema", "FindClass", Logger().Attr("ClassName", TypeName).Attr("NameSpace", NameSpace).End());
+    ASTIdentity *Identity = NameSpace->Identities.lookup(TypeName);
+    return Identity;
 }
 
 /**

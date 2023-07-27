@@ -39,12 +39,8 @@ bool ASTNameSpace::isExternalLib() const {
     return ExternalLib;
 }
 
-const llvm::StringMap<ASTClass *> &ASTNameSpace::getClasses() const {
-    return Classes;
-}
-
-const llvm::StringMap<ASTEnum *> &ASTNameSpace::getEnums() const {
-    return Enums;
+const llvm::StringMap<ASTIdentity *> &ASTNameSpace::getIdentities() const {
+    return Identities;
 }
 
 std::string ASTNameSpace::print() const {

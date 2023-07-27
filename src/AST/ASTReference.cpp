@@ -12,7 +12,7 @@
 
 using namespace fly;
 
-ASTReference::ASTReference(ASTIdentifier *Identifier, bool Call) : Identifier(Identifier), Call(Call) {
+ASTReference::ASTReference(ASTIdentifier *Identifier, ASTReferenceKind RefKind) : Identifier(Identifier), RefKind(RefKind) {
 
 }
 
@@ -21,7 +21,7 @@ SourceLocation ASTReference::getLocation() const {
 }
 
 llvm::StringRef ASTReference::getName() const {
-    return Identifier ? Identifier->getName() : llvm::StringRef(); // TODO move into VAR and CALL
+    return Identifier ? Identifier->getName() : llvm::StringRef(); // TODO use VIRTUAL and move into VAR and CALL
 }
 
 ASTIdentifier *ASTReference::getIdentifier() const {
@@ -32,6 +32,10 @@ ASTReference *ASTReference::getInstance() const {
     return Instance;
 }
 
+ASTReferenceKind ASTReference::getRefKind() const {
+    return RefKind;
+}
+
 bool ASTReference::isCall() const {
-    return Call;
+    RefKind == ASTReferenceKind::REF_CALL;
 }

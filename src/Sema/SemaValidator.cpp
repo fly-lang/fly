@@ -13,6 +13,7 @@
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTNode.h"
 #include "AST/ASTImport.h"
+#include "AST/ASTClass.h"
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTFunctionBase.h"
 #include "AST/ASTParams.h"
@@ -117,10 +118,10 @@ bool SemaValidator::CheckExpr(ASTExpr *Expr) {
 }
 
 bool SemaValidator::isEquals(ASTType *Type1, ASTType *Type2) {
-    if (Type1->getMacroKind() == Type2->getMacroKind()) {
-        if (Type1->getMacroKind() == ASTMacroTypeKind::MACRO_TYPE_ARRAY) {
+    if (Type1->getKind() == Type2->getKind()) {
+        if (Type1->getKind() == ASTTypeKind::TYPE_ARRAY) {
             return isEquals(((ASTArrayType *) Type1)->getType(), ((ASTArrayType *) Type2)->getType());
-        } else if (Type1->getMacroKind() == ASTMacroTypeKind::MACRO_TYPE_CLASS) {
+        } else if (Type1->getKind() == ASTTypeKind::TYPE_IDENTITY) {
             return ((ASTClassType *) Type1)->getName() == ((ASTClassType *) Type2)->getName();
         }
         return true;
@@ -129,9 +130,9 @@ bool SemaValidator::isEquals(ASTType *Type1, ASTType *Type2) {
     return false;
 }
 
-bool SemaValidator::CheckMacroType(ASTType *Type, ASTMacroTypeKind Kind) {
-    if (Type->getMacroKind() != Kind) {
-        S.Diag(Type->getLocation(), diag::err_sema_macro_type) << Type->printMacroType();
+bool SemaValidator::CheckMacroType(ASTType *Type, ASTTypeKind Kind) {
+    if (Type->getKind() != Kind) {
+        S.Diag(Type->getLocation(), diag::err_sema_macro_type) << Type->printType();
         return false;
     }
 
@@ -142,47 +143,29 @@ bool SemaValidator::CheckConvertibleTypes(ASTType *FromType, ASTType *ToType) {
     assert(FromType && "FromType cannot be null");
     assert(FromType && "ToType cannot be null");
 
-    // Simplest Case: Types are equals
-    if (FromType->getKind() == ToType->getKind()) {
+    if (FromType->isBool() && ToType->isBool()) {
         return true;
     }
 
-    if (FromType->isInteger() && ToType->isInteger()) {
-        switch (FromType->getKind()) { // You can always convert from low integer to high int
-            // Signed Integer
+    else if (FromType->isInteger() && ToType->isInteger()) {
+        ASTIntegerType *FromIntegerType = ((ASTIntegerType *) FromType);
+        ASTIntegerType *ToIntegerType = ((ASTIntegerType *) ToType);
+        return FromIntegerType->getSize() <= ToIntegerType->getSize() ||
+            FromIntegerType->isSigned() == ToIntegerType->isSigned();
+    }
 
-            case ASTTypeKind::TYPE_SHORT:
-                return ToType->getKind() != ASTTypeKind::TYPE_BYTE && ToType->getKind() != ASTTypeKind::TYPE_USHORT;
-            case ASTTypeKind::TYPE_INT:
-                return ToType->getKind() != ASTTypeKind::TYPE_BYTE
-                       && ToType->getKind() != ASTTypeKind::TYPE_SHORT && ToType->getKind() != ASTTypeKind::TYPE_USHORT
-                       && ToType->getKind() != ASTTypeKind::TYPE_UINT;
-            case ASTTypeKind::TYPE_LONG:
-                return ToType->getKind() != ASTTypeKind::TYPE_BYTE
-                       && ToType->getKind() != ASTTypeKind::TYPE_SHORT && ToType->getKind() != ASTTypeKind::TYPE_USHORT
-                       && ToType->getKind() != ASTTypeKind::TYPE_INT && ToType->getKind() != ASTTypeKind::TYPE_UINT
-                       && ToType->getKind() != ASTTypeKind::TYPE_ULONG;
+    else if (FromType->isFloatingPoint() && ToType->isFloatingPoint()) {
+        ASTFloatingPointType *FromFloatingType = ((ASTFloatingPointType *) FromType);
+        ASTFloatingPointType *ToFloatingType = ((ASTFloatingPointType *) ToType);
+        return FromFloatingType->getSize() <= ToFloatingType->getSize();
+    }
 
-                // Unsigned Integer
+    else if (FromType->isArray() && ToType->isArray()) {
+        // FIXME
+        return ((ASTArrayType *) FromType)->getType()->getKind() == ((ASTArrayType *) ToType)->getType()->getKind();
+    }
 
-            case ASTTypeKind::TYPE_BYTE:
-                return true;
-            case ASTTypeKind::TYPE_USHORT:
-                return ToType->getKind() != ASTTypeKind::TYPE_BYTE && ToType->getKind() != ASTTypeKind::TYPE_SHORT;
-            case ASTTypeKind::TYPE_UINT:
-                return ToType->getKind() == ASTTypeKind::TYPE_UINT || ToType->getKind() == ASTTypeKind::TYPE_LONG
-                       || ToType->getKind() == ASTTypeKind::TYPE_ULONG;
-            case ASTTypeKind::TYPE_ULONG:
-                return ToType->getKind() == ASTTypeKind::TYPE_ULONG;
-        }
-    } else if (FromType->isFloatingPoint() && ToType->isFloatingPoint()) {
-        switch (FromType->getKind()) {
-            case ASTTypeKind::TYPE_FLOAT:
-                return true;
-            case ASTTypeKind::TYPE_DOUBLE:
-                return ToType->getKind() == ASTTypeKind::TYPE_DOUBLE;
-        }
-    } else if (FromType->isClass()) {
+    else if (FromType->isIdentity()) {
         // Check Inheritance
     }
 
@@ -193,8 +176,8 @@ bool SemaValidator::CheckConvertibleTypes(ASTType *FromType, ASTType *ToType) {
 }
 
 bool SemaValidator::CheckArithTypes(const SourceLocation &Loc, ASTType *Type1, ASTType *Type2) {
-    if ((Type1->getMacroKind() == ASTMacroTypeKind::MACRO_TYPE_INTEGER || Type1->getMacroKind() == ASTMacroTypeKind::MACRO_TYPE_FLOATING_POINT) &&
-        (Type2->getMacroKind() == ASTMacroTypeKind::MACRO_TYPE_INTEGER || Type2->getMacroKind() == ASTMacroTypeKind::MACRO_TYPE_FLOATING_POINT)) {
+    if ((Type1->getKind() == ASTTypeKind::TYPE_INTEGER || Type1->getKind() == ASTTypeKind::TYPE_FLOATING_POINT) &&
+        (Type2->getKind() == ASTTypeKind::TYPE_INTEGER || Type2->getKind() == ASTTypeKind::TYPE_FLOATING_POINT)) {
         return true;
     }
 

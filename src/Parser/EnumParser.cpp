@@ -24,14 +24,12 @@ using namespace fly;
 EnumParser::EnumParser(Parser *P, ASTScopes *EnumScopes) : P(P) {
     FLY_DEBUG_MESSAGE("ClassParser", "ClassParser", Logger()
             .Attr("Scopes", EnumScopes).End());
+    assert(P->Tok.is(tok::kw_enum) && "No ClassKind defined");
 
-    if (P->Tok.is(tok::kw_enum)) {
-        assert("No ClassKind defined");
-    }
     P->ConsumeToken();
 
     // Parse class name
-    llvm::StringRef ClassName = P->Tok.getIdentifierInfo()->getName();
+    llvm::StringRef EnumName = P->Tok.getIdentifierInfo()->getName();
     const SourceLocation ClassLoc = P->Tok.getLocation();
     P->ConsumeToken();
 
@@ -50,8 +48,7 @@ EnumParser::EnumParser(Parser *P, ASTScopes *EnumScopes) : P(P) {
     if (P->isBlockStart()) {
         P->ConsumeBrace(BraceCount);
 
-        Enum = P->Builder.CreateEnum(P->Node, EnumScopes, ClassLoc, ClassName, SuperClasses);
-        bool Continue;
+        Enum = P->Builder.CreateEnum(P->Node, EnumScopes, ClassLoc, EnumName, SuperClasses);
         uint64_t Index = 0;
         do {
 
@@ -71,9 +68,9 @@ EnumParser::EnumParser(Parser *P, ASTScopes *EnumScopes) : P(P) {
             if (P->Tok.isAnyIdentifier()) {
                 const StringRef &Name = P->Tok.getIdentifierInfo()->getName();
                 const SourceLocation &Loc = P->ConsumeToken();
-                ParseField(Loc, Name, Index++);
+                Success = ParseField(Loc, Name);
             }
-        } while (Continue);
+        } while (Success);
     }
 }
 
@@ -88,11 +85,10 @@ ASTEnum *EnumParser::Parse(Parser *P, ASTScopes *EnumScopes) {
     return CP->Enum;
 }
 
-bool EnumParser::ParseField(const SourceLocation &Loc, llvm::StringRef Name, std::uint64_t Index) {
-    FLY_DEBUG_MESSAGE("ClassParser", "ParseMethod", Logger()
-            .Attr("Index", Index).Attr("Type", Name).End());
+bool EnumParser::ParseField(const SourceLocation &Loc, llvm::StringRef Name) {
+    FLY_DEBUG_MESSAGE("ClassParser", "ParseMethod", Logger().Attr("Type", Name).End());
 
-    ASTEnumVar *EnumVar = P->Builder.CreateEnumVar(Enum, Loc, Name, Index);
+    ASTEnumVar *EnumVar = P->Builder.CreateEnumVar(Enum, Loc, Name);
 
     // Add Comment to AST
     llvm::StringRef Comment;

@@ -12,26 +12,16 @@
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTClassVar.h"
 #include "AST/ASTClassFunction.h"
-#include "AST/ASTType.h"
 #include "CodeGen/CodeGenClass.h"
-#include "Basic/Debuggable.h"
 
 using namespace fly;
 
 ASTClass::ASTClass(ASTNode *Node, ASTClassKind ClassKind, ASTScopes *Scopes,
                    const SourceLocation &Loc, llvm::StringRef Name,
                    llvm::SmallVector<ASTClassType *, 4> &ExtClasses) :
-        ASTTopDef(Node, ASTTopDefKind::DEF_CLASS, Scopes), ClassKind(ClassKind),
-        Location(Loc), Name(Name), SuperClasses(ExtClasses) {
+        ASTIdentity(Node, ASTTopDefKind::DEF_CLASS, Scopes, Loc, Name), ClassKind(ClassKind),
+        SuperClasses(ExtClasses) {
 
-}
-
-llvm::StringRef ASTClass::getName() const {
-    return Name;
-}
-
-const SourceLocation &ASTClass::getLocation() const {
-    return Location;
 }
 
 ASTClassType *ASTClass::getType() const {

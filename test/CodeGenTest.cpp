@@ -1970,7 +1970,7 @@ namespace {
         EXPECT_TRUE(Builder->AddStmt(Return));
 
         // Add to Node
-        EXPECT_TRUE(Builder->AddClass(TestClass));
+        EXPECT_TRUE(Builder->AddIdentity(TestClass));
         EXPECT_TRUE(Builder->AddFunction(MainFn));
         EXPECT_TRUE(Builder->AddNode(Node));
         bool Success = Builder->Build();
@@ -2108,7 +2108,7 @@ namespace {
         EXPECT_TRUE(Builder->AddStmt(Return));
 
         // Add to Node
-        EXPECT_TRUE(Builder->AddClass(TestClass));
+        EXPECT_TRUE(Builder->AddIdentity(TestClass));
         EXPECT_TRUE(Builder->AddFunction(MainFn));
         EXPECT_TRUE(Builder->AddNode(Node));
         bool Success = Builder->Build();
@@ -2247,7 +2247,7 @@ namespace {
         EXPECT_TRUE(Builder->AddStmt(Return));
 
         // Add to Node
-        EXPECT_TRUE(Builder->AddClass(TestStruct));
+        EXPECT_TRUE(Builder->AddIdentity(TestStruct));
         EXPECT_TRUE(Builder->AddFunction(MainFn));
         EXPECT_TRUE(Builder->AddNode(Node));
         bool Success = Builder->Build();
@@ -2325,11 +2325,11 @@ namespace {
         // }
         ASTEnum *TestEnum = Builder->CreateEnum(Node, SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false),
                                                   SourceLoc, "TestEnum");
-        ASTEnumVar *A = Builder->CreateEnumVar(TestEnum, SourceLoc, "A", 1);
+        ASTEnumVar *A = Builder->CreateEnumVar(TestEnum, SourceLoc, "A");
         Builder->AddEnumVar(A);
-        ASTEnumVar *B = Builder->CreateEnumVar(TestEnum, SourceLoc, "B", 2);
+        ASTEnumVar *B = Builder->CreateEnumVar(TestEnum, SourceLoc, "B");
         Builder->AddEnumVar(B);
-        ASTEnumVar *C = Builder->CreateEnumVar(TestEnum, SourceLoc, "C", 3);
+        ASTEnumVar *C = Builder->CreateEnumVar(TestEnum, SourceLoc, "C");
         Builder->AddEnumVar(C);
 
         // int main() {
@@ -2359,7 +2359,7 @@ namespace {
         EXPECT_TRUE(Builder->AddStmt(Return));
 
         // Add to Node
-        EXPECT_TRUE(Builder->AddEnum(TestEnum));
+        EXPECT_TRUE(Builder->AddIdentity(TestEnum));
         EXPECT_TRUE(Builder->AddFunction(MainFn));
         EXPECT_TRUE(Builder->AddNode(Node));
         bool Success = Builder->Build();

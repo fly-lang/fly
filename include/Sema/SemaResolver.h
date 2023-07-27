@@ -52,6 +52,7 @@ namespace fly {
     class ASTIdentifier;
     class ASTReference;
     class ASTImport;
+    class ASTIdentityType;
 
     class SemaResolver {
 
@@ -69,9 +70,7 @@ namespace fly {
 
         bool ResolveImports(ASTNode *Node);
 
-        bool ResolveClass(ASTNode *Node);
-
-        bool ResolveEnum(ASTNode *Node);
+        bool ResolveIdentities(ASTNode *Node);
 
         bool ResolveFunctions(ASTNode *Node);
 
@@ -87,11 +86,11 @@ namespace fly {
 
         bool ResolveIdentifier(ASTNode *Node, ASTIdentifier *Identifier, ASTNameSpace *&NameSpace);
 
-        bool ResolveIdentifier(ASTNode *Node, ASTIdentifier *Identifier, ASTNameSpace *NameSpace, ASTClassType *&ClassType);
+        bool ResolveIdentifier(ASTNode *Node, ASTIdentifier *Identifier, ASTNameSpace *NameSpace, ASTIdentityType *&IdentityType);
 
-        bool ResolveIdentifiers(ASTBlock *Block, ASTReference *Ref);
+        bool ResolveIdentifier(ASTBlock *Block, ASTIdentifier *Identifier);
 
-        bool ResolveClassType(ASTNode *Node, ASTType * Type);
+        bool ResolveIdentityType(ASTNode *Node, ASTIdentityType * IdentityType);
 
         bool ResolveVarRef(ASTBlock *Block, ASTVarRef *VarRef);
 

@@ -10,10 +10,12 @@
 #include "Sema/SemaResolver.h"
 #include "Sema/Sema.h"
 #include "Sema/SemaBuilder.h"
-#include "Sema/SemaValidator.h"
 #include "AST/ASTContext.h"
 #include "AST/ASTClassFunction.h"
+#include "AST/ASTClass.h"
 #include "AST/ASTClassVar.h"
+#include "AST/ASTEnum.h"
+#include "AST/ASTEnumVar.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTType.h"
 #include "AST/ASTNode.h"
@@ -59,7 +61,7 @@ bool SemaResolver::Resolve() {
         auto &Node = NEntry.getValue();
         Success &= ResolveImports(Node) & // resolve Imports with NameSpaces
                 ResolveFunctions(Node) &  // resolve ASTBlock of Body Functions
-                ResolveClass(Node);       // resolve Class attributes and methods
+                ResolveIdentities(Node);  // resolve Class attributes and methods
     }
 
     // Now all Imports must be read
@@ -102,171 +104,153 @@ bool SemaResolver::ResolveImports(ASTNode *Node) {
     return Success;
 }
 
-bool SemaResolver::ResolveEnum(ASTNode *Node) {
+bool SemaResolver::ResolveIdentities(ASTNode *Node) {
     bool Success = true;
-    if (Node->Enum) {
-        if (!Node->Enum->SuperClasses.empty()) {
-            for (auto &SuperEnumType: Node->Enum->SuperClasses) {
-                // TODO
-//                if (ResolveEnumType(Node, SuperEnumType)) {
-//                    ASTEnum *SuperEnum = SuperEnumType->getDef();
-//                    if (Node->Class->getClassKind() == ASTClassKind::ENUM) {
-//                        for (auto &EntryVar: SuperClass->getVars()) {
-//                            auto &Var = EntryVar.getValue();
-//                            ASTClassVar *NewVar = S.Builder->CreateClassVar(Node->Class, Var->getLocation(), Var->getType(),
-//                                                                            Var->getName(), Var->getScopes());
-//                            Node->Class->Vars.insert(std::make_pair(NewVar->getName(), NewVar));
-//                        }
-//                    } else {
-//                        // Enum can extend only another Enum
-//                        S.Diag(SuperClassType->getLocation(), diag::err_sema_enum_ext);
-//                        return false;
-//                    }
-//                }
-            }
-        }
-    }
-}
+    if (Node->Identity) {
 
-bool SemaResolver::ResolveClass(ASTNode *Node) {
-    bool Success = true;
-    if (Node->Class) {
-        
-        // Resolve Super Classes
-        if (!Node->Class->SuperClasses.empty()) {
-            llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTClassFunction *, 4>>> SuperMethods;
-            llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTClassFunction *, 4>>> ISuperMethods;
-            for (auto &SuperClassType : Node->Class->SuperClasses) {
-                if (ResolveClassType(Node, SuperClassType)) {
-                    ASTClass *SuperClass = SuperClassType->getDef();
+        if (Node->Identity->getKind() == ASTTopDefKind::DEF_CLASS) {
+            ASTClass *Class = (ASTClass *) Node->Identity;
 
-                    // Struct: Resolve Var in Super Classes
-                    if (SuperClass->getClassKind() == ASTClassKind::STRUCT) {
+            // Resolve Super Classes
+            if (!Class->SuperClasses.empty()) {
+                llvm::StringMap<std::map<uint64_t, llvm::SmallVector<ASTClassFunction *, 4>>> SuperMethods;
+                llvm::StringMap<std::map<uint64_t, llvm::SmallVector<ASTClassFunction *, 4>>> ISuperMethods;
+                for (auto &SuperClassType: Class->SuperClasses) {
+                    if (ResolveIdentityType(Node, SuperClassType)) {
+                        ASTClass *SuperClass = (ASTClass *) SuperClassType->getDef();
 
-                        // Interface cannot extend a Struct
-                        if (Node->Class->getClassKind() == ASTClassKind::INTERFACE) {
-                            S.Diag(SuperClassType->getLocation(), diag::err_sema_interface_ext_struct);
+                        // Struct: Resolve Var in Super Classes
+                        if (SuperClass->getClassKind() == ASTClassKind::STRUCT) {
+
+                            // Interface cannot extend a Struct
+                            if (Class->getClassKind() == ASTClassKind::INTERFACE) {
+                                S.Diag(SuperClassType->getLocation(), diag::err_sema_interface_ext_struct);
+                                return false;
+                            }
+
+                            // Add Vars to the Struct
+                            for (auto &EntryVar: SuperClass->getVars()) {
+                                ASTClassVar *&SuperVar = EntryVar.getValue();
+
+                                // Check Var already exists and type conflicts in Super Vars
+                                ASTClassVar *ClassVar = Class->Vars.lookup(EntryVar.getKey());
+                                if (ClassVar == nullptr) {
+                                    Class->Vars.insert(std::make_pair(SuperVar->getName(), SuperVar));
+                                } else if (SuperVar->getType() != ClassVar->getType()) {
+                                    S.Diag(ClassVar->getLocation(), diag::err_sema_super_struct_var_conflict);
+                                    return false;
+                                }
+                            }
+                        }
+
+                        // Interface cannot extend a Class
+                        if (Class->getClassKind() == ASTClassKind::INTERFACE &&
+                            SuperClass->getClassKind() == ASTClassKind::CLASS) {
+                            S.Diag(SuperClassType->getLocation(), diag::err_sema_interface_ext_class);
                             return false;
                         }
 
-                        // Add Vars to the Struct
-                        for (auto &EntryVar: SuperClass->getVars()) {
-                            ASTClassVar *&SuperVar = EntryVar.getValue();
+                        // Class/Interface: take all Super Classes methods
+                        if (SuperClass->getClassKind() == ASTClassKind::CLASS ||
+                            SuperClass->getClassKind() == ASTClassKind::INTERFACE) {
 
-                            // Check Var already exists and type conflicts in Super Vars
-                            ASTClassVar *ClassVar = Node->Class->Vars.lookup(EntryVar.getKey());
-                            if (ClassVar == nullptr) {
-                                Node->Class->Vars.insert(std::make_pair(SuperVar->getName(), SuperVar));
-                            } else if (SuperVar->getType() != ClassVar->getType()) {
-                                S.Diag(ClassVar->getLocation(), diag::err_sema_super_struct_var_conflict);
-                                return false;
-                            }
-                        }
-                    }
-
-                    // Interface cannot extend a Class
-                    if (Node->Class->getClassKind() == ASTClassKind::INTERFACE &&
-                        SuperClass->getClassKind() == ASTClassKind::CLASS) {
-                        S.Diag(SuperClassType->getLocation(), diag::err_sema_interface_ext_class);
-                        return false;
-                    }
-
-                    // Class/Interface: take all Super Classes methods
-                    if (SuperClass->getClassKind() == ASTClassKind::CLASS ||
-                        SuperClass->getClassKind() == ASTClassKind::INTERFACE) {
-
-                        // Collects Super Methods of the Super Classes
-                        for (auto &EntryMap: SuperClass->getMethods()) {
-                            const auto &Map = EntryMap.getValue();
-                            auto MapIt = Map.begin();
-                            while (MapIt != Map.end()) {
-                                for (ASTClassFunction *SuperMethod: MapIt->second) {
-                                    if (SuperClass->getClassKind() == ASTClassKind::INTERFACE) {
-                                        S.Builder->InsertFunction(ISuperMethods, SuperMethod, true);
-                                    } else {
-                                        // Insert methods in the Super and if is ok also in the base Class
-                                        if (S.Builder->InsertFunction(SuperMethods, SuperMethod, true)) {
-                                            ASTClassFunction *M = S.Builder->CreateClassMethod(Node->Class,
-                                                                                               SuperMethod->getLocation(),
-                                                                                               SuperMethod->getType(),
-                                                                                               SuperMethod->getName(),
-                                                                                               SuperMethod->getScopes());
-                                            M->Params = SuperMethod->Params;
-                                            M->Body = SuperMethod->Body;
-                                            M->DerivedClass = Node->Class;
-                                            S.Builder->InsertFunction(Node->Class->Methods, M, true);
-                                            
+                            // Collects Super Methods of the Super Classes
+                            for (auto &EntryMap: SuperClass->getMethods()) {
+                                const auto &Map = EntryMap.getValue();
+                                auto MapIt = Map.begin();
+                                while (MapIt != Map.end()) {
+                                    for (ASTClassFunction *SuperMethod: MapIt->second) {
+                                        if (SuperClass->getClassKind() == ASTClassKind::INTERFACE) {
+                                            S.Builder->InsertFunction(ISuperMethods, SuperMethod, true);
                                         } else {
-                                            // Multiple Methods Implementations in Super Class need to be re-defined in base class
-                                            // Search if this method is re-defined in the base class
-                                            if (SuperMethod->Scopes->getVisibility() != ASTVisibilityKind::V_PRIVATE &&
-                                                !S.Builder->ContainsFunction(Node->Class->Methods, SuperMethod)) {
-                                                S.Diag(SuperMethod->getLocation(),diag::err_sema_super_class_method_conflict);
-                                                return false;
+                                            // Insert methods in the Super and if is ok also in the base Class
+                                            if (S.Builder->InsertFunction(SuperMethods, SuperMethod, true)) {
+                                                ASTClassFunction *M = S.Builder->CreateClassMethod(Class,
+                                                                                                   SuperMethod->getLocation(),
+                                                                                                   SuperMethod->getType(),
+                                                                                                   SuperMethod->getName(),
+                                                                                                   SuperMethod->getScopes());
+                                                M->Params = SuperMethod->Params;
+                                                M->Body = SuperMethod->Body;
+                                                M->DerivedClass = Class;
+                                                S.Builder->InsertFunction(Class->Methods, M, true);
+
+                                            } else {
+                                                // Multiple Methods Implementations in Super Class need to be re-defined in base class
+                                                // Search if this method is re-defined in the base class
+                                                if (SuperMethod->Scopes->getVisibility() !=
+                                                    ASTVisibilityKind::V_PRIVATE &&
+                                                    !S.Builder->ContainsFunction(Class->Methods, SuperMethod)) {
+                                                    S.Diag(SuperMethod->getLocation(),
+                                                           diag::err_sema_super_class_method_conflict);
+                                                    return false;
+                                                }
                                             }
                                         }
                                     }
+                                    MapIt++;
                                 }
-                                MapIt++;
                             }
                         }
                     }
                 }
-            }
 
-            // Check if all abstract methods are implemented
-            for (const auto &EntryMap: ISuperMethods) {
-                const auto &Map = EntryMap.getValue();
-                auto MapIt = Map.begin();
-                while (MapIt != Map.end()) {
-                    for (ASTClassFunction *ISuperMethod : MapIt->second) {
-                        if (!S.Builder->ContainsFunction(Node->Class->Methods, ISuperMethod)) {
-                            S.Diag(ISuperMethod->getLocation(),
-                                   diag::err_sema_method_not_implemented);
-                            return false;
+                // Check if all abstract methods are implemented
+                for (const auto &EntryMap: ISuperMethods) {
+                    const auto &Map = EntryMap.getValue();
+                    auto MapIt = Map.begin();
+                    while (MapIt != Map.end()) {
+                        for (ASTClassFunction *ISuperMethod: MapIt->second) {
+                            if (!S.Builder->ContainsFunction(Class->Methods, ISuperMethod)) {
+                                S.Diag(ISuperMethod->getLocation(),
+                                       diag::err_sema_method_not_implemented);
+                                return false;
+                            }
                         }
+                        MapIt++;
                     }
-                    MapIt++;
                 }
             }
-        }
 
-        // Constructors
-        for (auto &IntMap: Node->Class->Constructors) {
-            for (auto &Function: IntMap.second) {
+            // Constructors
+            for (auto &IntMap: Class->Constructors) {
+                for (auto &Function: IntMap.second) {
 
-                // Check Class vars for each Constructor
-                for (auto &EntryVar : Node->Class->Vars) {
+                    // Check Class vars for each Constructor
+                    for (auto &EntryVar: Class->Vars) {
 
-                    // FIXME: Check if Method already contains this var name as LocalVar
+                        // FIXME: Check if Method already contains this var name as LocalVar
 //                    if (!S.Validator->CheckDuplicateLocalVars(Function->Body, EntryVar.getKey())) {
 //                        return false;
 //                    }
+                    }
+
+                    Success &= ResolveBlock(Function->Body);
                 }
-
-                Success &= ResolveBlock(Function->Body);
             }
-        }
 
-        // Methods
-        for (auto &StrMapEntry: Node->Class->Methods) {
-            for (auto &IntMap: StrMapEntry.getValue()) {
-                for (auto &Method: IntMap.second) {
+            // Methods
+            for (auto &StrMapEntry: Class->Methods) {
+                for (auto &IntMap: StrMapEntry.getValue()) {
+                    for (auto &Method: IntMap.second) {
 
-                    // Add Class vars for each Method
-                    for (auto &EntryVar : Node->Class->Vars) {
+                        // Add Class vars for each Method
+                        for (auto &EntryVar: Class->Vars) {
 
-                        // Check if Method already contains this var name as LocalVar
-                        if (!S.Validator->CheckDuplicateLocalVars(Method->Body, EntryVar.getKey())) {
-                            return false;
+                            // Check if Method already contains this var name as LocalVar
+                            if (!S.Validator->CheckDuplicateLocalVars(Method->Body, EntryVar.getKey())) {
+                                return false;
+                            }
+                        }
+
+                        if (!Method->isAbstract()) {
+                            Success &= ResolveBlock(Method->Body); // FIXME check if already resolved
                         }
                     }
-
-                    if (!Method->isAbstract()) {
-                        Success &= ResolveBlock(Method->Body); // FIXME check if already resolved
-                    }
                 }
             }
+        } else if (Node->Identity->getKind() == ASTTopDefKind::DEF_ENUM) {
+            // TODO
         }
     }
     return Success;
@@ -322,7 +306,7 @@ bool SemaResolver::ResolveBlock(ASTBlock *Block) {
                 ASTLocalVar *LocalVar = ((ASTLocalVar *) Stmt);
                 // Take Node
                 const auto &Node = S.FindNode(Block->getTop());
-                Success &= !LocalVar->getType()->isClass() || ResolveClassType(Node, LocalVar->getType());
+                Success &= !LocalVar->getType()->isIdentity() || ResolveIdentityType(Node, (ASTIdentityType *) LocalVar->getType());
 
                 if (LocalVar->getExpr())
                     Success &= ResolveExpr(Block, LocalVar->getExpr());
@@ -388,10 +372,10 @@ bool SemaResolver::ResolveIfBlock(ASTIfBlock *IfBlock) {
 
 bool SemaResolver::ResolveSwitchBlock(ASTSwitchBlock *SwitchBlock) {
     assert(SwitchBlock && "Switch Block cannot be null");
-    bool Success = ResolveExpr(SwitchBlock->getParent(), SwitchBlock->Expr) && S.Validator->CheckMacroType(SwitchBlock->Expr->Type, ASTMacroTypeKind::MACRO_TYPE_INTEGER);
+    bool Success = ResolveExpr(SwitchBlock->getParent(), SwitchBlock->Expr) && S.Validator->CheckMacroType(SwitchBlock->Expr->Type, ASTTypeKind::TYPE_INTEGER);
     for (ASTSwitchCaseBlock *Case : SwitchBlock->Cases) {
         Success &= ResolveExpr(SwitchBlock, Case->Expr) &&
-                   S.Validator->CheckMacroType(SwitchBlock->Expr->Type, ASTMacroTypeKind::MACRO_TYPE_INTEGER) && ResolveBlock(Case);
+                   S.Validator->CheckMacroType(SwitchBlock->Expr->Type, ASTTypeKind::TYPE_INTEGER) && ResolveBlock(Case);
     }
     return Success && ResolveBlock(SwitchBlock->Default);
 }
@@ -435,14 +419,20 @@ bool SemaResolver::ResolveIdentifier(ASTNode *Node, ASTIdentifier *Identifier, A
 }
 
 bool SemaResolver::ResolveIdentifier(ASTNode *Node, ASTIdentifier *Identifier, ASTNameSpace *NameSpace,
-                                     ASTClassType *&ClassType) {
+                                     ASTIdentityType *&IdentityType) {
     // Search Identifier in ClasTypes
-    if (ClassType == nullptr) {
+    if (IdentityType == nullptr) {
         const llvm::StringRef &Name = Identifier->getName();
-        ASTClass *Class = S.FindClass(Name, NameSpace ? NameSpace : Node->getNameSpace());
-        if (Class) {
-            ClassType = S.Builder->CreateClassType(Class);
-            return true;
+        ASTIdentity *Identity = S.FindIdentity(Name, NameSpace ? NameSpace : Node->getNameSpace());
+        if (Identity) {
+            if (Identity->getKind() == ASTTopDefKind::DEF_CLASS) {
+                IdentityType = S.Builder->CreateClassType((ASTClass *) Identity);
+                return true;
+            }
+            if (Identity->getKind() == ASTTopDefKind::DEF_ENUM) {
+                IdentityType = S.Builder->CreateEnumType((ASTEnum *) Identity);
+                return true;
+            }
         }
         return false;
     }
@@ -450,16 +440,15 @@ bool SemaResolver::ResolveIdentifier(ASTNode *Node, ASTIdentifier *Identifier, A
     return true;
 }
 
-bool SemaResolver::ResolveIdentifiers(ASTBlock *Block, ASTReference *Ref) {
+bool SemaResolver::ResolveIdentifier(ASTBlock *Block, ASTIdentifier *Identifier) {
     ASTFunctionBase *Base = Block->getTop();
     const auto &Node = S.FindNode(Base);
 
-    ASTIdentifier *Identifier = Ref->getIdentifier();
     ASTIdentifier *Current = Identifier->getIndex() > 0 ? Identifier->getRoot() : Identifier;
     ASTIdentifier *Previous = nullptr;
 
     ASTNameSpace *NameSpace = nullptr;
-    ASTClassType *ClassType = nullptr;
+    ASTIdentityType *IdentityType = nullptr;
 
     ASTVar *Var = nullptr;
     ASTFunctionBase *Function = nullptr;
@@ -469,9 +458,10 @@ bool SemaResolver::ResolveIdentifiers(ASTBlock *Block, ASTReference *Ref) {
     while (I < Size) {
 
         if (Current->isCall()) {
-            if (Var == nullptr && Function == nullptr && ClassType == nullptr && NameSpace == nullptr) { // only the first time
-                ASTClass *Class = S.FindClass(Current->getName(), Node->getNameSpace());
-                if (Class != nullptr && ResolveCall(Block, Current->getCall(), Class->Constructors)) {
+            if (Var == nullptr && Function == nullptr && IdentityType == nullptr && NameSpace == nullptr) { // only the first time
+                ASTIdentity *Identity = S.FindIdentity(Current->getName(), Node->getNameSpace());
+                if (Identity != nullptr && Identity->getKind() == ASTTopDefKind::DEF_CLASS &&
+                    ResolveCall(Block, Current->getCall(), ((ASTClass *) Identity)->Constructors)) {
                     // constructor()
                     Function = Current->getCall()->getDef();
                 } else if (ResolveCall(Block, Current->getCall(), Node->Functions) ||
@@ -479,13 +469,13 @@ bool SemaResolver::ResolveIdentifiers(ASTBlock *Block, ASTReference *Ref) {
                     // func()
                     Function = Current->getCall()->getDef();
                 }
-            } else if (Var != nullptr && Var->getType()->isClass() &&
-                       ResolveCall(Block, Current->getCall(), ((ASTClassType *) Var->getType())->getDef()->Methods)) {
+            } else if (Var != nullptr && Var->getType()->isIdentity() && ((ASTIdentityType *) Function->getType())->isClass() &&
+                ResolveCall(Block, Current->getCall(), ((ASTClass *) ((ASTClassType *) Var->getType())->getDef())->Methods)) {
                 // var.method()
                 Current->getCall()->Instance = S.Builder->CreateVarRef(Var);
                 Function = Current->getCall()->getDef();
-            } else if (Function != nullptr && Function->getType()->isClass() &&
-                    ResolveCall(Block, Current->getCall(), ((ASTClassType *) Function->getType())->getDef()->Methods)) {
+            } else if (Function != nullptr && Function->getType()->isIdentity() && ((ASTIdentityType *) Function->getType())->isClass() &&
+                    ResolveCall(Block, Current->getCall(), ((ASTClass *) ((ASTClassType *) Function->getType())->getDef())->Methods)) {
                 // method().method()
                 Current->getCall()->Instance = Previous->getCall();
                 Function = Current->getCall()->getDef();
@@ -493,9 +483,9 @@ bool SemaResolver::ResolveIdentifiers(ASTBlock *Block, ASTReference *Ref) {
                 // namespace.function().function()
                 // TODO
             }
-//            else if (ResolveIdentifier(Node, Current, NameSpace, ClassType) &&
-//                       ResolveCall(Block, Current->getCall(), ClassType->getDef()->Methods)) {
-//                // NameSpace.ClassType.func()
+//            else if (ResolveIdentifier(Node, Current, NameSpace, IdentityType) &&
+//                       ResolveCall(Block, Current->getCall(), IdentityType->getDef()->Methods)) {
+//                // NameSpace.IdentityType.func()
 //                Function = Current->getCall()->getDef();
 //            }
             else {
@@ -516,7 +506,7 @@ bool SemaResolver::ResolveIdentifiers(ASTBlock *Block, ASTReference *Ref) {
 
         } else {
             // only the first time
-            if (Var == nullptr && Function == nullptr && ClassType == nullptr && NameSpace == nullptr) {
+            if (Var == nullptr && Function == nullptr && IdentityType == nullptr && NameSpace == nullptr) {
                 // Search for LocalVar
                 Var = S.FindLocalVar(Block, Current);
 
@@ -526,10 +516,10 @@ bool SemaResolver::ResolveIdentifiers(ASTBlock *Block, ASTReference *Ref) {
                 }
 
                 if (Var == nullptr) {
-                    // Search static var ClassType.VAR
-                    ASTClass *Class = S.FindClass(Current->getName(), Node->getNameSpace());
-                    if (Class != nullptr) {
-                        ClassType = Class->getType();
+                    // Search static var IdentityType.VAR
+                    ASTIdentity *Identity = S.FindIdentity(Current->getName(), Node->getNameSpace());
+                    if (Identity != nullptr) {
+                        IdentityType = (ASTIdentityType *) Identity->getType();
                     } else { // Search for GlobalVars
                         Var = Node->getNameSpace()->GlobalVars.lookup(Current->getName());
 
@@ -541,26 +531,32 @@ bool SemaResolver::ResolveIdentifiers(ASTBlock *Block, ASTReference *Ref) {
                         }
                     }
                 }
-            } else if (Var != nullptr && Var->getType()->isClass()) {
+            } else if (Var != nullptr && Var->getType()->isIdentity() && ((ASTIdentityType *) Var->getType())->isClass() &&
+                ((ASTIdentityType *) Var->getType())->isClass()) {
                 // classInstance.var
                 Current->getVarRef()->Instance = S.Builder->CreateVarRef(Var);
-                Var = ((ASTClassType *) Var->getType())->getDef()->Vars.lookup(Current->getName());
-            } else if (Function != nullptr && Function->getType()->isClass()) {
+                Var = ((ASTClass *) ((ASTClassType *) Var->getType())->getDef())->Vars.lookup(Current->getName());
+            } else if (Function != nullptr && Function->getType()->isIdentity() && ((ASTIdentityType *) Function->getType())->isClass() &&
+                ((ASTIdentityType *) Function->getType())->isClass()) {
                 // function().var
                 Current->getVarRef()->Instance = Previous->getCall();
-                Var = ((ASTClassType *) Function->getType())->getDef()->Vars.lookup(Current->getName());
-            } else if (ClassType != nullptr) {
-                // ClassType.STATIC_VAR
+                Var = ((ASTClass *) ((ASTClassType *) Function->getType())->getDef())->Vars.lookup(Current->getName());
+            } else if (IdentityType != nullptr) {
+                // IdentityType.STATIC_VAR
                 Current->getVarRef()->Instance = nullptr;
-                Var = ClassType->getDef()->Vars.lookup(Current->getName());
-                ClassType = nullptr;
+                if (IdentityType->isClass()) {
+                    Var = ((ASTClass *) ((ASTClassType *) IdentityType)->getDef())->Vars.lookup(Current->getName());
+                } else if (IdentityType->isEnum()) {
+                    Var = ((ASTEnum *) ((ASTEnumType *) IdentityType)->getDef())->Vars.lookup(Current->getName());
+                }
+                IdentityType = nullptr;
             } else {
                 // NameSpace.var
                 Var = NameSpace->GlobalVars.lookup(Current->getChild()->getName());
             }
 
-            // Resolve Var as ClassType
-            if (Var == nullptr && (ResolveIdentifier(Node, Current, NameSpace, ClassType))) {
+            // Resolve Var as IdentityType
+            if (Var == nullptr && ResolveIdentifier(Node, Current, NameSpace, IdentityType)) {
                 Previous = Current;
                 Current = Current->getChild();
                 I++;
@@ -573,7 +569,7 @@ bool SemaResolver::ResolveIdentifiers(ASTBlock *Block, ASTReference *Ref) {
             }
         }
 
-        // set ClassType from Var or Function return
+        // set IdentityType from Var or Function return
         if (Var) {
             Function = nullptr;
             if (Current->getVarRef() != nullptr)
@@ -592,45 +588,39 @@ bool SemaResolver::ResolveIdentifiers(ASTBlock *Block, ASTReference *Ref) {
     return true;
 }
 
-bool SemaResolver::ResolveClassType(ASTNode *Node, ASTType * Type) {
-    ASTClassType * ClassType;
-    if (Type->isClass())
-        ClassType = (ASTClassType *) Type;
-    else if (Type->isArray() && ((ASTArrayType *) Type)->getType()->isArray()) // FIXME nested array
-        ClassType = ((ASTClassType *) ((ASTArrayType *) Type)->getType());
-    else // is primitive type
-        return true;
-
+bool SemaResolver::ResolveIdentityType(ASTNode *Node, ASTIdentityType * IdentityType) {
     // Resolve Identifier
-    if (ClassType->getIdentifier()) {
+    if (IdentityType->getIdentifier()) {
 
-        if (ClassType->getIdentifier()->isCall()) {
-            S.Diag(ClassType->getLocation(), diag::err_sema_resolve_identifier);
+        if (IdentityType->getIdentifier()->isCall()) {
+            S.Diag(IdentityType->getLocation(), diag::err_sema_resolve_identifier);
             return false;
         }
 
-        // Check only ClassType with only 1 Parent: NameSpace.ClassName
-        if (ClassType->getIdentifier()->getIndex() > 1) {
-            S.Diag(ClassType->getLocation(), diag::err_sema_resolve_identifier);
+        // Check only ClassType with only 1 Parent: NameSpace.IdentityName
+        if (IdentityType->getIdentifier()->getIndex() > 1) {
+            S.Diag(IdentityType->getLocation(), diag::err_sema_resolve_identifier);
             return false;
         }
 
-        llvm::StringRef ClassName = ClassType->getIdentifier()->getName();
+        llvm::StringRef IdentityName = IdentityType->getIdentifier()->getName();
         ASTNameSpace *NameSpace = Node->NameSpace; // No namespace defined
-        if (ClassType->getIdentifier()->getRoot()) { // with namespace
-            llvm::StringRef NS = ClassType->getIdentifier()->getRoot()->getName(); // NameSpace.ClassName
+        if (IdentityType->getIdentifier()->getRoot()) { // with namespace
+            llvm::StringRef NS = IdentityType->getIdentifier()->getRoot()->getName(); // NameSpace.IdentityName
             NameSpace = S.FindNameSpace(NS);
         }
-        ClassType->Def = S.FindClass(ClassName, NameSpace);
-        delete ClassType->Identifier;
-        if (ClassType->Def == nullptr) {
-            S.Diag(diag::err_unref_class) << ClassName;
+        IdentityType->Def = S.FindIdentity(IdentityName, NameSpace);
+        delete IdentityType->Identifier;
+
+        // Error: unreferenced class
+        if (IdentityType->Def == nullptr) {
+            S.Diag(diag::err_unref_class) << IdentityName;
             return false;
         }
     }
 
-    if (!ClassType->Def) {
-        S.Diag(ClassType->getLocation(), diag::err_unref_type);
+    if (!IdentityType->Def) {
+        S.Diag(IdentityType->getLocation(), diag::err_unref_type);
         return false;
     }
 
@@ -652,7 +642,7 @@ bool SemaResolver::ResolveVarRef(ASTBlock *Block, ASTVarRef *VarRef) {
             return false;
         }
 
-        ResolveIdentifiers(Block, VarRef);
+        ResolveIdentifier(Block, VarRef->getIdentifier());
     }
 
     // VarRef not found in node, namespace and node imports
@@ -672,7 +662,7 @@ bool SemaResolver::ResolveCall(ASTBlock *Block, ASTCall *Call) {
             return false;
         }
 
-        ResolveIdentifiers(Block, Call);
+        ResolveIdentifier(Block, Call->getIdentifier());
     }
 
     if (!Call->Def) {
@@ -840,7 +830,7 @@ bool SemaResolver::ResolveExpr(ASTBlock *Block, ASTExpr *Expr) {
                                     break;
                                 }
 
-                                if (Binary->First->Type->MacroKind == Binary->Second->Type->MacroKind) {
+                                if (Binary->First->Type->Kind == Binary->Second->Type->Kind) {
                                     // 1 == 20 (unsigned, unsigned)
                                     // -1 == 20 (signed, unsigned)
                                     // 1 == -20 (unsigned, signed)
@@ -908,11 +898,11 @@ bool SemaResolver::ResolveValueExpr(ASTValueExpr *Expr) {
     
     switch (Expr->Value->getMacroKind()) {
         
-        case ASTMacroTypeKind::MACRO_TYPE_BOOL:
+        case ASTTypeKind::TYPE_BOOL:
             Expr->Type = SemaBuilder::CreateBoolType(Loc);
             break;
             
-        case ASTMacroTypeKind::MACRO_TYPE_INTEGER: {
+        case ASTTypeKind::TYPE_INTEGER: {
             ASTIntegerValue *Integer = ((ASTIntegerValue *) Expr->Value);
 
             if (Integer->Negative) { // Integer is negative (Ex. -2)
@@ -949,15 +939,15 @@ bool SemaResolver::ResolveValueExpr(ASTValueExpr *Expr) {
             break;
         }
         
-        case ASTMacroTypeKind::MACRO_TYPE_FLOATING_POINT:
+        case ASTTypeKind::TYPE_FLOATING_POINT:
             // Creating as Float on first but transform in Double if is contained into a Binary Expr with a Double Type
             Expr->Type = SemaBuilder::CreateDoubleType(Loc);
             break;
         
-        case ASTMacroTypeKind::MACRO_TYPE_ARRAY:
+        case ASTTypeKind::TYPE_ARRAY:
             // TODO
             break;
-        case ASTMacroTypeKind::MACRO_TYPE_CLASS:
+        case ASTTypeKind::TYPE_IDENTITY:
             // TODO
             break;
     }

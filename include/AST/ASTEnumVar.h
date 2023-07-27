@@ -37,7 +37,7 @@ namespace fly {
 
         CodeGenEnumEntry *CodeGen = nullptr;
 
-        ASTEnumVar(ASTEnum *Enum, const SourceLocation &Loc, llvm::StringRef Name, uint64_t Index);
+        ASTEnumVar(ASTEnum *Enum, const SourceLocation &Loc, llvm::StringRef Name);
 
     public:
 

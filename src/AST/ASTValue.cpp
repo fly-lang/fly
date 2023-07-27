@@ -12,7 +12,7 @@
 
 using namespace fly;
 
-ASTValue::ASTValue(const ASTMacroTypeKind MacroKind, const SourceLocation &Location) : MacroKind(MacroKind), Location(Location) {
+ASTValue::ASTValue(const ASTTypeKind MacroKind, const SourceLocation &Location) : MacroKind(MacroKind), Location(Location) {
 
 }
 
@@ -20,22 +20,22 @@ const SourceLocation &ASTValue::getLocation() const {
     return Location;
 }
 
-const ASTMacroTypeKind &ASTValue::getMacroKind() const {
+const ASTTypeKind &ASTValue::getMacroKind() const {
     return MacroKind;
 }
 
 const std::string ASTValue::printMacroType() const {
-    return ASTType::printMacroType(MacroKind);
+    return ASTType::printType(MacroKind);
 }
 
 std::string ASTValue::str() const {
     return Logger("ASTValue").
             Attr("Location", Location).
-            Attr("MacroKind", (uint64_t) MacroKind).
+            Attr("Kind", (uint64_t) MacroKind).
             End();
 }
 
-ASTBoolValue::ASTBoolValue(const SourceLocation &Loc, bool Value) : ASTValue(ASTMacroTypeKind::MACRO_TYPE_BOOL, Loc), Value(Value) {
+ASTBoolValue::ASTBoolValue(const SourceLocation &Loc, bool Value) : ASTValue(ASTTypeKind::TYPE_BOOL, Loc), Value(Value) {
 
 }
 
@@ -55,7 +55,7 @@ std::string ASTBoolValue::str() const {
 }
 
 ASTIntegerValue::ASTIntegerValue(const SourceLocation &Loc, uint64_t Value, bool Negative) :
-        ASTValue(ASTMacroTypeKind::MACRO_TYPE_INTEGER, Loc), Value(Value), Negative(Negative) {
+        ASTValue(ASTTypeKind::TYPE_INTEGER, Loc), Value(Value), Negative(Negative) {
 
 }
 
@@ -85,7 +85,7 @@ std::string ASTIntegerValue::str() const {
 }
 
 ASTFloatingValue::ASTFloatingValue(const SourceLocation &Loc, std::string Value)
-    : ASTValue(ASTMacroTypeKind::MACRO_TYPE_FLOATING_POINT, Loc), Value(Value) {
+    : ASTValue(ASTTypeKind::TYPE_FLOATING_POINT, Loc), Value(Value) {
 
 }
 
@@ -104,7 +104,7 @@ std::string ASTFloatingValue::str() const {
             End();
 }
 
-ASTArrayValue::ASTArrayValue(const SourceLocation &Loc) : ASTValue(ASTMacroTypeKind::MACRO_TYPE_ARRAY, Loc) {
+ASTArrayValue::ASTArrayValue(const SourceLocation &Loc) : ASTValue(ASTTypeKind::TYPE_ARRAY, Loc) {
 
 }
 
@@ -136,7 +136,7 @@ const std::vector<ASTValue *> &ASTArrayValue::getValues() const {
     return Values;
 }
 
-ASTStructValue::ASTStructValue(const SourceLocation &Loc) : ASTValue(ASTMacroTypeKind::MACRO_TYPE_CLASS, Loc) {
+ASTStructValue::ASTStructValue(const SourceLocation &Loc) : ASTValue(ASTTypeKind::TYPE_IDENTITY, Loc) {
 
 }
 
@@ -168,7 +168,7 @@ const llvm::StringMap<ASTValue *> &ASTStructValue::getValues() const {
     return Values;
 }
 
-ASTNullValue::ASTNullValue(const SourceLocation &Loc) : ASTValue(ASTMacroTypeKind::MACRO_TYPE_CLASS, Loc) {
+ASTNullValue::ASTNullValue(const SourceLocation &Loc) : ASTValue(ASTTypeKind::TYPE_IDENTITY, Loc) {
 
 }
 
@@ -182,7 +182,7 @@ std::string ASTNullValue::str() const {
             End();
 }
 
-ASTZeroValue::ASTZeroValue(const SourceLocation &Loc) : ASTValue(ASTMacroTypeKind::MACRO_TYPE_CLASS, Loc) {
+ASTZeroValue::ASTZeroValue(const SourceLocation &Loc) : ASTValue(ASTTypeKind::TYPE_IDENTITY, Loc) {
 
 }
 

@@ -6,6 +6,7 @@ add_library(flyLib
         # AST
         AST/ASTBlock.cpp
         AST/ASTClass.cpp
+        AST/ASTClassType.cpp
         AST/ASTClassVar.cpp
         AST/ASTClassFunction.cpp
         AST/ASTContext.cpp
@@ -14,12 +15,15 @@ add_library(flyLib
         AST/ASTExprStmt.cpp
         AST/ASTClassVar.cpp
         AST/ASTEnum.cpp
+        AST/ASTEnumType.cpp
         AST/ASTEnumVar.cpp
         AST/ASTForBlock.cpp
         AST/ASTFunction.cpp
         AST/ASTFunctionBase.cpp
         AST/ASTCall.cpp
         AST/ASTGlobalVar.cpp
+        AST/ASTIdentity.cpp
+        AST/ASTIdentityType.cpp
         AST/ASTIdentifier.cpp
         AST/ASTIfBlock.cpp
         AST/ASTImport.cpp

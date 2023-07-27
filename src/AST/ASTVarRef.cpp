@@ -14,11 +14,11 @@
 
 using namespace fly;
 
-ASTVarRef::ASTVarRef(ASTIdentifier *Identifier) : ASTReference(Identifier, false) {
+ASTVarRef::ASTVarRef(ASTIdentifier *Identifier) : ASTReference(Identifier, ASTReferenceKind::REF_VAR) {
 
 }
 
-ASTVarRef::ASTVarRef(ASTVar *Var) : Def(Var), ASTReference(nullptr, false) {
+ASTVarRef::ASTVarRef(ASTVar *Var) : Def(Var), ASTReference(nullptr, ASTReferenceKind::REF_VAR) {
 
 }
 

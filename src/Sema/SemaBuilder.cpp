@@ -40,8 +40,6 @@
 #include "Basic/Diagnostic.h"
 #include "Basic/Debug.h"
 
-#include "llvm/ADT/StringMap.h"
-
 using namespace fly;
 
 /**
@@ -290,8 +288,8 @@ SemaBuilder::CreateEnum(ASTNode *Node, ASTScopes *Scopes, const SourceLocation &
     return new ASTEnum(Node, Scopes, Loc, Name, EnumTypes);
 }
 
-ASTEnumVar *SemaBuilder::CreateEnumVar(ASTEnum *Enum, const SourceLocation &Loc, llvm::StringRef Name, uint64_t Index) {
-    return new ASTEnumVar(Enum, Loc, Name, Index);
+ASTEnumVar *SemaBuilder::CreateEnumVar(ASTEnum *Enum, const SourceLocation &Loc, llvm::StringRef Name) {
+    return new ASTEnumVar(Enum, Loc, Name);
 }
 
 /**
@@ -432,9 +430,7 @@ SemaBuilder::CreateArrayType(const SourceLocation &Loc, ASTType *Type, ASTExpr *
 
 /**
  * Creates a class type without definition
- * @param Loc
- * @param Name
- * @param NameSpace
+ * @param Identifier
  * @return
  */
 ASTClassType *
@@ -469,6 +465,13 @@ SemaBuilder::CreateEnumType(ASTIdentifier *Identifier) {
                       Logger().Attr("Identifier", Identifier).End());
     ASTEnumType *EnumType = new ASTEnumType(Identifier);
     return EnumType;
+}
+
+ASTIdentityType *
+SemaBuilder::CreateIdentityType(ASTIdentifier *Identifier) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateIdentityType",
+                      Logger().Attr("Identifier", Identifier).End());
+    return new ASTIdentityType(Identifier);
 }
 
 /**
@@ -616,7 +619,7 @@ SemaBuilder::CreateDefaultValue(ASTType *Type) {
         Value = CreateFloatingValue(Type->getLocation(), 0.0);
     }else if (Type->isArray()) {
         Value = CreateArrayValue(Type->getLocation());
-    } else if (Type->isClass()) {
+    } else if (Type->isIdentity()) {
         Value = CreateNullValue(Type->getLocation());
     } else {
         assert("Unknown type");
@@ -1098,44 +1101,22 @@ SemaBuilder::AddImport(ASTNode *Node, ASTImport * Import) {
 }
 
 bool
-SemaBuilder::AddClass(ASTClass *Class) {
-    FLY_DEBUG_MESSAGE("ASTNode", "AddFunction", Logger()
-                      .Attr("Class", Class).End());
+SemaBuilder::AddIdentity(ASTIdentity *Identity) {
+    FLY_DEBUG_MESSAGE("ASTNode", "AddIdentity", Logger()
+                      .Attr("Identity", Identity).End());
 
     // Lookup into namespace
-    ASTNode *Node = Class->Node;
-    Node->Class = Class;
+    ASTNode *Node = Identity->Node;
+    Node->Identity = Identity;
 
     bool Success = true;
-    if (Class->Scopes->Visibility == ASTVisibilityKind::V_PUBLIC || Class->Scopes->Visibility == ASTVisibilityKind::V_DEFAULT) {
-        ASTClass *LookupClass = Node->NameSpace->getClasses().lookup(Class->getName());
+    if (Identity->Scopes->Visibility == ASTVisibilityKind::V_PUBLIC || Identity->Scopes->Visibility == ASTVisibilityKind::V_DEFAULT) {
+        ASTIdentity *LookupClass = Node->NameSpace->getIdentities().lookup(Identity->getName());
         if (LookupClass) { // This NameSpace already contains this Function
             S.Diag(LookupClass->Location, diag::err_duplicate_class) << LookupClass->getName();
             return false;
         }
-        Success = Node->NameSpace->Classes.insert(std::make_pair(Class->getName(), Class)).second;
-    }
-
-    return Success;
-}
-
-bool
-SemaBuilder::AddEnum(ASTEnum *Enum) {
-    FLY_DEBUG_MESSAGE("ASTNode", "AddFunction", Logger()
-            .Attr("Enum", Enum).End());
-
-    // Lookup into namespace
-    ASTNode *Node = Enum->Node;
-    Node->Enum = Enum;
-
-    bool Success = true;
-    if (Enum->Scopes->Visibility == ASTVisibilityKind::V_PUBLIC || Enum->Scopes->Visibility == ASTVisibilityKind::V_DEFAULT) {
-        ASTEnum *LookupEnum = Node->NameSpace->getEnums().lookup(Enum->getName());
-        if (LookupEnum) { // This NameSpace already contains this Function
-            S.Diag(LookupEnum->Location, diag::err_duplicate_class) << LookupEnum->getName();
-            return false;
-        }
-        Success = Node->NameSpace->Enums.insert(std::make_pair(Enum->getName(), Enum)).second;
+        Success = Node->NameSpace->Identities.insert(std::make_pair(Identity->getName(), Identity)).second;
     }
 
     return Success;
@@ -1276,6 +1257,7 @@ SemaBuilder::AddClassConstructor(ASTClassFunction *Constructor) {
 }
 
 bool SemaBuilder::AddEnumVar(ASTEnumVar *EnumVar) {
+    EnumVar->Index = EnumVar->getEnum()->Vars.size() + 1;
     return EnumVar->getEnum()->Vars.insert(std::make_pair(EnumVar->getName(), EnumVar)).second;
 }
 

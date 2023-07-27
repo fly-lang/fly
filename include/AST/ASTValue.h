@@ -22,7 +22,7 @@ namespace fly {
     class ASTType;
     class SourceLocation;
 
-    enum class ASTMacroTypeKind;
+    enum class ASTTypeKind;
 
     class ASTValue : public Debuggable {
 
@@ -31,17 +31,17 @@ namespace fly {
 
         const SourceLocation &Location;
 
-        const ASTMacroTypeKind MacroKind;
+        const ASTTypeKind MacroKind;
 
     protected:
 
-        ASTValue(const ASTMacroTypeKind Kind, const SourceLocation &Location);
+        ASTValue(const ASTTypeKind Kind, const SourceLocation &Location);
 
     public:
 
         const SourceLocation &getLocation() const;
 
-        const ASTMacroTypeKind &getMacroKind() const;
+        const ASTTypeKind &getMacroKind() const;
 
         const std::string printMacroType() const;
 

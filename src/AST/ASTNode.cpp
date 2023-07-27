@@ -56,12 +56,8 @@ const llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> 
     return ExternalFunctions;
 }
 
-ASTClass *ASTNode::getClass() const {
-    return Class;
-}
-
-ASTEnum *ASTNode::getEnum() const {
-    return Enum;
+ASTIdentity *ASTNode::getIdentity() const {
+    return Identity;
 }
 
 std::string ASTNode::str() const {

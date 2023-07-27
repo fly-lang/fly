@@ -14,6 +14,7 @@
 #include "AST/ASTImport.h"
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTFunction.h"
+#include "AST/ASTIdentity.h"
 #include "AST/ASTNode.h"
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
@@ -117,10 +118,12 @@ void FrontendAction::GenerateTopDef() {
         }
     }
 
-    if (Node->getClass()) {
-        CGClass = CGM->GenClass(Node->getClass());
-        if (FrontendOpts.CreateHeader) {
-            CGH->setClass(Node->getClass());
+    if (Node->getIdentity()) {
+        if (Node->getIdentity()->getKind() == ASTTopDefKind::DEF_CLASS) {
+            CGClass = CGM->GenClass((ASTClass *) Node->getIdentity());
+            if (FrontendOpts.CreateHeader) {
+                CGH->setClass((ASTClass *) Node->getIdentity());
+            }
         }
     }
 

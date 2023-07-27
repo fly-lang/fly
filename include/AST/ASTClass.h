@@ -11,7 +11,8 @@
 #ifndef FLY_ASTCLASS_H
 #define FLY_ASTCLASS_H
 
-#include "ASTTopDef.h"
+#include "ASTIdentity.h"
+#include "ASTClassType.h"
 #include "Basic/Debuggable.h"
 
 #include "llvm/ADT/StringMap.h"
@@ -24,7 +25,6 @@ namespace fly {
     class ASTClassVar;
     class ASTClassFunction;
     class CodeGenClass;
-    class ASTClassType;
 
     enum class ASTClassKind {
         STRUCT, // has only Fields
@@ -32,15 +32,10 @@ namespace fly {
         INTERFACE, // has only Methods declarations
     };
 
-    class ASTClass : public ASTTopDef {
+    class ASTClass : public ASTIdentity {
 
         friend class SemaBuilder;
         friend class SemaResolver;
-
-        llvm::StringRef Name;
-
-        // Source Location
-        SourceLocation Location;
 
         ASTClassType *Type = nullptr;
 
@@ -67,11 +62,7 @@ namespace fly {
 
     public:
 
-        llvm::StringRef getName() const;
-
-        const SourceLocation &getLocation() const;
-
-        ASTClassType *getType() const;
+        ASTClassType *getType() const override;
 
         ASTClassKind getClassKind() const;
 

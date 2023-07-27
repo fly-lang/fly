@@ -44,7 +44,7 @@ std::string CodeGenHeader::GenerateFile() {
     // generate global var declarations
     for (auto &GlobalVar : GlobalVars) {
         if (GlobalVar->getScopes()->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
-            Header += "\npublic " + Convert(GlobalVar->getType()) + "." +
+            Header += "\npublic " + GlobalVar->getType()->print() + "." +
                     std::string(GlobalVar->getName()) + "\n";
         }
     }
@@ -102,13 +102,13 @@ void CodeGenHeader::setClass(ASTClass *Class) {
 
 const std::string CodeGenHeader::Convert(ASTType *Type) {
     switch (Type->getKind()) {
-        case ASTTypeKind::TYPE_INT:
-            return "int";
-        case ASTTypeKind::TYPE_FLOAT:
-            return "float";
         case ASTTypeKind::TYPE_BOOL:
             return "bool";
-        case ASTTypeKind::TYPE_CLASS:
+        case ASTTypeKind::TYPE_INTEGER:
+            return "int";
+        case ASTTypeKind::TYPE_FLOATING_POINT:
+            return "float";
+        case ASTTypeKind::TYPE_IDENTITY:
             return "class";
     }
     return "";

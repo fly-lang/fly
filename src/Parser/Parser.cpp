@@ -14,6 +14,7 @@
 #include "Parser/EnumParser.h"
 #include "AST/ASTNode.h"
 #include "AST/ASTClass.h"
+#include "AST/ASTEnum.h"
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTCall.h"
@@ -369,7 +370,7 @@ bool Parser::ParseClassDef(ASTScopes *Scopes) {
 
     ASTClass *Class = ClassParser::Parse(this, Scopes);
     if (Class) {
-        return Builder.AddComment(Class, Comment) && Builder.AddClass(Class);
+        return Builder.AddComment(Class, Comment) && Builder.AddIdentity(Class);
     }
 
     return false;
@@ -394,7 +395,7 @@ bool Parser::ParseEnumDef(ASTScopes *Scopes) {
 
     ASTEnum *Enum = EnumParser::Parse(this, Scopes);
     if (Enum) {
-        return Builder.AddComment(Enum, Comment) && Builder.AddEnum(Enum);
+        return Builder.AddComment(Enum, Comment) && Builder.AddIdentity(Enum);
     }
 
     return false;
@@ -409,15 +410,6 @@ bool Parser::ParseBlock(ASTBlock *Block) {
     assert(isBlockStart() && "Block Start");
     FLY_DEBUG_MESSAGE("Parser", "ParseBlock", Logger().Attr("Block", Block).End());
     ConsumeBrace(BracketCount);
-
-    // Parse until find a }
-//    while (Tok.isNot(tok::r_brace) && Tok.isNot(tok::eof)) {
-//        if (!ParseStmt(Block)) {
-            // removed in favor of keyword or punctuator check in ParseExpr()
-            // Diag(Tok.getLocation(), diag::err_parse_stmt);
-//            return false;
-//        }
-//    }
 
     if (ParseStmt(Block) && isBlockEnd()) {
         ConsumeBrace(BracketCount);
@@ -506,7 +498,7 @@ bool Parser::ParseStmt(ASTBlock *Block, bool StopParse) {
                 ASTIdentifier *Identifier2 = ParseIdentifier();
 
                 // Type is a ClassType or an Array of ClassType
-                Type = SemaBuilder::CreateClassType(Identifier1);
+                Type = SemaBuilder::CreateIdentityType(Identifier1);
 
                 // FIXME check Identifier for LocalVar
                 ASTLocalVar *LocalVar = Builder.CreateLocalVar(Block, Tok.getLocation(), Type,

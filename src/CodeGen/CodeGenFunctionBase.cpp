@@ -18,6 +18,7 @@
 #include "AST/ASTParams.h"
 #include "AST/ASTCall.h"
 #include "AST/ASTType.h"
+#include "AST/ASTIdentityType.h"
 #include "AST/ASTEnumVar.h"
 #include "AST/ASTClassFunction.h"
 #include "Basic/Debug.h"
@@ -104,7 +105,7 @@ void CodeGenFunctionBase::GenBody() {
 }
 
 CodeGenVarBase *CodeGenFunctionBase::newCodeGen(ASTVar *Var) {
-    if (Var->getType()->isClass()) {
+    if (Var->getType()->isIdentity() && ((ASTIdentityType *) Var->getType())->isClass()) {
         return new CodeGenInstance(CGM, Var);
     }
     return new CodeGenVar(CGM, Var);

@@ -21,12 +21,11 @@ namespace fly {
     class ASTImport;
     class ASTGlobalVar;
     class ASTFunction;
-    class ASTClass;
     class FileID;
     class ASTType;
+    class ASTIdentity;
     class ASTExpr;
     class ASTVarRef;
-    class ASTEnum;
 
     class ASTNode : public ASTNodeBase {
 
@@ -51,9 +50,7 @@ namespace fly {
         // All invoked Calls
         llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> ExternalFunctions;
 
-        ASTClass *Class = nullptr;
-
-        ASTEnum *Enum = nullptr;
+        ASTIdentity *Identity = nullptr;
 
         ASTNode() = delete;
 
@@ -75,9 +72,7 @@ namespace fly {
 
         const llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> &getExternalFunctions() const;
 
-        ASTClass *getClass() const;
-
-        ASTEnum *getEnum() const;
+        ASTIdentity *getIdentity() const;
 
         virtual std::string str() const;
     };

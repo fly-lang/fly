@@ -10,7 +10,8 @@
 #ifndef FLY_ASTENUM_H
 #define FLY_ASTENUM_H
 
-#include "ASTTopDef.h"
+#include "ASTIdentity.h"
+#include "ASTEnumType.h"
 #include "Basic/Debuggable.h"
 
 #include "llvm/ADT/StringMap.h"
@@ -21,18 +22,12 @@
 namespace fly {
 
     class CodeGenEnum;
-    class ASTEnumType;
     class ASTEnumVar;
 
-    class ASTEnum : public ASTTopDef {
+    class ASTEnum : public ASTIdentity {
 
         friend class SemaBuilder;
         friend class SemaResolver;
-
-        llvm::StringRef Name;
-
-        // Source Location
-        SourceLocation Location;
 
         ASTEnumType *Type = nullptr;
 
@@ -49,11 +44,7 @@ namespace fly {
 
     public:
 
-        llvm::StringRef getName() const;
-
-        const SourceLocation &getLocation() const;
-
-        ASTEnumType *getType() const;
+        ASTEnumType *getType() const override;
 
         llvm::StringMap<ASTEnumVar *> getVars() const;
 

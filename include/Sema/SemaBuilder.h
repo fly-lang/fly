@@ -10,10 +10,13 @@
 #ifndef FLY_SEMA_BUILDER_H
 #define FLY_SEMA_BUILDER_H
 
-#include "AST/ASTClass.h"
-#include "AST/ASTVar.h"
 #include "Sema/Sema.h"
 #include "Sema/SemaValidator.h"
+#include "AST/ASTScopes.h"
+
+#include "llvm/ADT/StringMap.h"
+
+#include <map>
 
 namespace fly {
 
@@ -67,6 +70,7 @@ namespace fly {
     class ASTDoubleType;
     class ASTArrayType;
     class ASTClassType;
+    class ASTEnumType;
     class ASTVoidType;
     class ASTValue;
     class ASTBoolValue;
@@ -92,6 +96,10 @@ namespace fly {
     class ASTTernaryGroupExpr;
     class ASTReference;
     class ASTScopes;
+    class ASTEnum;
+    class ASTEnumVar;
+    class ASTIdentityType;
+    enum class ASTClassKind;
     enum class ASTUnaryOperatorKind;
     enum class ASTUnaryOptionKind;
     enum class ASTBinaryOperatorKind;
@@ -138,7 +146,7 @@ namespace fly {
         ASTEnum *CreateEnum(ASTNode *Node, ASTScopes *Scopes, const SourceLocation &Loc, const llvm::StringRef Name,
                             llvm::SmallVector<ASTEnumType *, 4> EnumTypes);
         ASTEnum *CreateEnum(ASTNode *Node, ASTScopes *Scopes, const SourceLocation &Loc, const llvm::StringRef Name);
-        ASTEnumVar *CreateEnumVar(ASTEnum *Enum, const SourceLocation &Loc, llvm::StringRef Name, uint64_t Index);
+        ASTEnumVar *CreateEnumVar(ASTEnum *Enum, const SourceLocation &Loc, llvm::StringRef Name);
 
         // Create Types
         static ASTBoolType *CreateBoolType(const SourceLocation &Loc);
@@ -157,6 +165,7 @@ namespace fly {
         static ASTClassType *CreateClassType(ASTIdentifier *Class);
         static ASTEnumType *CreateEnumType(ASTEnum *Enum);
         static ASTEnumType *CreateEnumType(ASTIdentifier *Enum);
+        static ASTIdentityType *CreateIdentityType(ASTIdentifier *Identifier);
 
         // Create Values
         static ASTNullValue *CreateNullValue(const SourceLocation &Loc);
@@ -226,8 +235,7 @@ namespace fly {
 
         // Add Top definitions
         bool AddImport(ASTNode *Node, ASTImport *Import);
-        bool AddClass(ASTClass *Class);
-        bool AddEnum(ASTEnum *Enum);
+        bool AddIdentity(ASTIdentity *Identity);
         bool AddGlobalVar(ASTGlobalVar *GlobalVar, ASTValue *Value = nullptr);
         bool AddGlobalVar(ASTGlobalVar *GlobalVar, ASTExpr *Expr);
         bool AddFunction(ASTFunction *Function);

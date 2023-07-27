@@ -11,25 +11,15 @@
 #include "AST/ASTEnumVar.h"
 #include "AST/ASTScopes.h"
 #include "AST/ASTNameSpace.h"
-#include "AST/ASTType.h"
 #include "CodeGen/CodeGenEnum.h"
-#include "Basic/Debuggable.h"
 
 using namespace fly;
 
 ASTEnum::ASTEnum(ASTNode *Node, ASTScopes *Scopes, const SourceLocation &Loc, llvm::StringRef Name,
                    llvm::SmallVector<ASTEnumType *, 4> &ExtClasses) :
-                   ASTTopDef(Node, ASTTopDefKind::DEF_ENUM, Scopes), Location(Loc), Name(Name),
-                   SuperClasses(ExtClasses) {
+        ASTIdentity(Node, ASTTopDefKind::DEF_ENUM, Scopes, Loc, Name),
+        SuperClasses(ExtClasses) {
 
-}
-
-llvm::StringRef ASTEnum::getName() const {
-    return Name;
-}
-
-const SourceLocation &ASTEnum::getLocation() const {
-    return Location;
 }
 
 ASTEnumType *ASTEnum::getType() const {

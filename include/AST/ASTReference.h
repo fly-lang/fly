@@ -19,6 +19,10 @@ namespace fly {
     class ASTIdentifier;
     class CodeGenInstance;
 
+    enum class ASTReferenceKind {
+        REF_CALL, REF_VAR
+    };
+
     class ASTReference : public Debuggable {
 
         friend class SemaBuilder;
@@ -28,11 +32,11 @@ namespace fly {
 
         ASTReference *Instance = nullptr;
 
-        bool Call = false;
+        ASTReferenceKind RefKind;
 
     protected:
 
-        ASTReference(ASTIdentifier *Identifier, bool Call);
+        ASTReference(ASTIdentifier *Identifier, ASTReferenceKind RefKind);
 
     public:
 
@@ -43,6 +47,8 @@ namespace fly {
         ASTIdentifier *getIdentifier() const;
 
         ASTReference *getInstance() const;
+
+        ASTReferenceKind getRefKind() const;
 
         bool isCall() const;
     };

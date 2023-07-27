@@ -12,8 +12,8 @@
 
 using namespace fly;
 
-ASTEnumVar::ASTEnumVar(ASTEnum *Enum, const SourceLocation &Loc, llvm::StringRef Name, uint64_t Index) :
-        VarKind(ASTVarKind::VAR_ENUM), Name(Name), Loc(Loc), Enum(Enum), Index(Index) {
+ASTEnumVar::ASTEnumVar(ASTEnum *Enum, const SourceLocation &Loc, llvm::StringRef Name) :
+        VarKind(ASTVarKind::VAR_ENUM), Name(Name), Loc(Loc), Enum(Enum) {
 
 }
 
