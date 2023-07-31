@@ -12,6 +12,7 @@
 
 #include "AST/ASTType.h"
 #include "AST/ASTParams.h"
+#include "AST/ASTClassType.h"
 
 namespace fly {
 
@@ -69,9 +70,11 @@ namespace fly {
 
         bool CheckConvertibleTypes(ASTType *FromType, ASTType *ToType);
 
-        bool CheckArithTypes(const SourceLocation &Loc, ASTType *Type1, ASTType *Type2);
+        bool CheckSameTypes(const SourceLocation &Loc, ASTType *Type1, ASTType *Type2);
 
         bool CheckLogicalTypes(const SourceLocation &Loc, ASTType *Type1, ASTType *Type2);
+
+        bool CheckClassInheritance(fly::ASTClassType *FromType, fly::ASTClassType *ToType);
     };
 
 }  // end namespace fly

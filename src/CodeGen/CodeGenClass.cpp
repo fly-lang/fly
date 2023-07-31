@@ -75,7 +75,7 @@ void CodeGenClass::Generate() {
         if (AST->getClassKind() == ASTClassKind::CLASS || AST->getClassKind() == ASTClassKind::STRUCT) {
 
             // Set var Index offset in the struct type
-            uint32_t Index = AST->getClassKind() == ASTClassKind::CLASS ? 1 : 0;
+            uint32_t Index = AST->getClassKind() == ASTClassKind::STRUCT ? 0 : 1;
 
             // add var to the type
             for (auto &Var: AST->getVars()) {

@@ -32,6 +32,10 @@ ASTClassKind ASTClass::getClassKind() const {
     return ClassKind;
 }
 
+llvm::SmallVector<ASTClassType *, 4> ASTClass::getSuperClasses() const {
+    return SuperClasses;
+}
+
 llvm::StringMap<ASTClassVar *> ASTClass::getVars() const {
     return Vars;
 }

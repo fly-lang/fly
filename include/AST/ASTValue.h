@@ -31,19 +31,19 @@ namespace fly {
 
         const SourceLocation &Location;
 
-        const ASTTypeKind MacroKind;
+        const ASTTypeKind TypeKind;
 
     protected:
 
-        ASTValue(const ASTTypeKind Kind, const SourceLocation &Location);
+        ASTValue(const ASTTypeKind TypeKind, const SourceLocation &Location);
 
     public:
 
         const SourceLocation &getLocation() const;
 
-        const ASTTypeKind &getMacroKind() const;
+        const ASTTypeKind &getTypeKind() const;
 
-        const std::string printMacroType() const;
+        const std::string printType() const;
 
         virtual const std::string print() const = 0;
 

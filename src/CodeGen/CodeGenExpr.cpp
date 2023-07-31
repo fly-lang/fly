@@ -78,16 +78,15 @@ llvm::Value *CodeGenExpr::Convert(llvm::Value *FromVal, const ASTType *FromType,
 
         // to BOOL
         case ASTTypeKind::TYPE_BOOL: {
-//            unsigned int BitWidth = FromLLVMType->getIntegerBitWidth();
 
             // from BOOL
-            if (FromLLVMType == CGM->BoolTy) {
+            if (FromType->isBool()) {
                 return CGM->Builder->CreateTrunc(FromVal, CGM->BoolTy);
             }
 
             // from Integer
-            if (FromLLVMType->isIntegerTy()) {
-                llvm::Value *ZERO = llvm::ConstantInt::get(FromLLVMType, 0, false);
+            if (FromType->isInteger()) {
+                llvm::Value *ZERO = llvm::ConstantInt::get(FromLLVMType, 0, ((ASTIntegerType *) FromType)->isSigned());
                 return CGM->Builder->CreateICmpNE(FromVal, ZERO);
             }
 
@@ -98,7 +97,7 @@ llvm::Value *CodeGenExpr::Convert(llvm::Value *FromVal, const ASTType *FromType,
             }
 
             // default 0
-            return llvm::ConstantInt::get(FromLLVMType, 0, false);
+            return llvm::ConstantInt::get(CGM->BoolTy, 0, false);
         }
 
         // to INTEGER
@@ -110,13 +109,13 @@ llvm::Value *CodeGenExpr::Convert(llvm::Value *FromVal, const ASTType *FromType,
                 case ASTIntegerTypeKind::TYPE_BYTE: {
 
                     // from BOOL
-                    if (FromLLVMType == CGM->BoolTy) {
+                    if (FromType->isBool()) {
                         llvm::Value *ToVal = CGM->Builder->CreateTrunc(FromVal, CGM->BoolTy);
                         return CGM->Builder->CreateZExt(ToVal, CGM->Int8Ty);
                     }
 
                     // from INTEGER
-                    if (FromLLVMType->isIntegerTy()) {
+                    if (FromType->isInteger()) {
                         if (FromLLVMType == CGM->Int8Ty) {
                             return FromVal;
                         } else {
@@ -135,13 +134,13 @@ llvm::Value *CodeGenExpr::Convert(llvm::Value *FromVal, const ASTType *FromType,
                 case ASTIntegerTypeKind::TYPE_USHORT: {
 
                     // from BOOL
-                    if (FromLLVMType == CGM->BoolTy) {
+                    if (FromType->isBool()) {
                         llvm::Value *ToVal = CGM->Builder->CreateTrunc(FromVal, CGM->BoolTy);
                         return CGM->Builder->CreateZExt(ToVal, CGM->Int16Ty);
                     }
 
                     // from INTEGER
-                    if (FromLLVMType->isIntegerTy()) {
+                    if (FromType->isInteger()) {
                         if (FromLLVMType == CGM->Int8Ty) {
                             return CGM->Builder->CreateZExt(FromVal, CGM->Int16Ty);
                         } else if (FromLLVMType == CGM->Int16Ty) {
@@ -163,13 +162,13 @@ llvm::Value *CodeGenExpr::Convert(llvm::Value *FromVal, const ASTType *FromType,
                 case ASTIntegerTypeKind::TYPE_UINT: {
 
                     // from BOOL
-                    if (FromLLVMType == CGM->BoolTy) {
+                    if (FromType->isBool()) {
                         llvm::Value *ToVal = CGM->Builder->CreateTrunc(FromVal, CGM->BoolTy);
                         return CGM->Builder->CreateZExt(ToVal, CGM->Int32Ty);
                     }
 
                     // from INTEGER
-                    if (FromLLVMType->isIntegerTy()) {
+                    if (FromType->isInteger()) {
                         if (FromLLVMType == CGM->Int8Ty || FromLLVMType == CGM->Int16Ty) {
                             return IntegerType->isSigned() ? CGM->Builder->CreateSExt(FromVal, CGM->Int32Ty) :
                                 CGM->Builder->CreateZExt(FromVal, CGM->Int32Ty);
@@ -192,13 +191,13 @@ llvm::Value *CodeGenExpr::Convert(llvm::Value *FromVal, const ASTType *FromType,
                 case ASTIntegerTypeKind::TYPE_ULONG: {
 
                     // from BOOL
-                    if (FromLLVMType == CGM->BoolTy) {
+                    if (FromType->isBool()) {
                         llvm::Value *ToVal = CGM->Builder->CreateTrunc(FromVal, CGM->BoolTy);
                         return CGM->Builder->CreateZExt(ToVal, CGM->Int64Ty);
                     }
 
                     // from INTEGER
-                    if (FromLLVMType->isIntegerTy()) {
+                    if (FromType->isInteger()) {
                         if (FromLLVMType == CGM->Int8Ty || FromLLVMType == CGM->Int16Ty || FromLLVMType == CGM->Int32Ty) {
                             return IntegerType->isSigned() ? CGM->Builder->CreateSExt(FromVal, CGM->Int64Ty) :
                                    CGM->Builder->CreateZExt(FromVal, CGM->Int64Ty);
@@ -208,7 +207,7 @@ llvm::Value *CodeGenExpr::Convert(llvm::Value *FromVal, const ASTType *FromType,
                     }
 
                     // from FLOATING POINT
-                    if (FromLLVMType->isFloatingPointTy()) {
+                    if (FromType->isFloatingPoint()) {
                         return IntegerType->isSigned() ? CGM->Builder->CreateFPToSI(FromVal, CGM->Int64Ty) :
                                CGM->Builder->CreateFPToUI(FromVal, CGM->Int64Ty);
                     }
@@ -224,25 +223,26 @@ llvm::Value *CodeGenExpr::Convert(llvm::Value *FromVal, const ASTType *FromType,
                 case ASTFloatingPointTypeKind::TYPE_FLOAT: {
 
                     // from BOOL
-                    if (FromLLVMType == CGM->BoolTy) {
+                    if (FromType->isBool()) {
                         return CGM->Builder->CreateTrunc(FromVal, CGM->BoolTy);
                     }
 
                     // from INT
-                    if (FromLLVMType->isIntegerTy()) {
+                    if (FromType->isInteger()) {
                         return ((ASTIntegerType *) FromType)->isSigned() ?
                                CGM->Builder->CreateSIToFP(FromVal, CGM->FloatTy) :
                                CGM->Builder->CreateUIToFP(FromVal, CGM->FloatTy);
                     }
 
                     // from FLOAT
-                    if (FromLLVMType->isFloatTy()) {
-                        return FromVal;
-                    }
+                    if (FromType->isFloatingPoint()) {
+                        switch (((ASTFloatingPointType *) FromType)->getFloatingPointKind()) {
 
-                    // from DOUBLE
-                    if (FromLLVMType->isDoubleTy()) {
-                        return CGM->Builder->CreateFPTrunc(FromVal, CGM->FloatTy);
+                            case ASTFloatingPointTypeKind::TYPE_FLOAT:
+                                return FromVal;
+                            case ASTFloatingPointTypeKind::TYPE_DOUBLE:
+                                return CGM->Builder->CreateFPTrunc(FromVal, CGM->FloatTy);
+                        }
                     }
                 }
 
@@ -250,25 +250,26 @@ llvm::Value *CodeGenExpr::Convert(llvm::Value *FromVal, const ASTType *FromType,
                 case ASTFloatingPointTypeKind::TYPE_DOUBLE: {
 
                     // from BOOL
-                    if (FromLLVMType == CGM->BoolTy) {
+                    if (FromType->isBool()) {
                         return CGM->Builder->CreateTrunc(FromVal, CGM->BoolTy);
                     }
 
                     // from INT
-                    if (FromLLVMType->isIntegerTy()) {
+                    if (FromType->isInteger()) {
                         return ((ASTIntegerType *) FromType)->isSigned() ?
                                CGM->Builder->CreateSIToFP(FromVal, CGM->DoubleTy) :
                                CGM->Builder->CreateUIToFP(FromVal, CGM->DoubleTy);
                     }
 
                     // from FLOAT
-                    if (FromLLVMType->isFloatTy()) {
-                        return CGM->Builder->CreateFPExt(FromVal, CGM->DoubleTy);
-                    }
+                    if (FromType->isFloatingPoint()) {
+                        switch (((ASTFloatingPointType *) FromType)->getFloatingPointKind()) {
 
-                    // from DOUBLE
-                    if (FromLLVMType->isDoubleTy()) {
-                        return FromVal;
+                            case ASTFloatingPointTypeKind::TYPE_FLOAT:
+                                return CGM->Builder->CreateFPExt(FromVal, CGM->DoubleTy);
+                            case ASTFloatingPointTypeKind::TYPE_DOUBLE:
+                                return FromVal;
+                        }
                     }
                 }
             }
@@ -276,7 +277,7 @@ llvm::Value *CodeGenExpr::Convert(llvm::Value *FromVal, const ASTType *FromType,
 
         // to Identity
         case ASTTypeKind::TYPE_IDENTITY:
-            return FromVal;
+            return FromVal; // TODO implement class cast
     }
     assert(0 && "Conversion failed");
 }
@@ -405,7 +406,14 @@ Value *CodeGenExpr::GenBinaryComparison(const ASTExpr *E1, ASTBinaryOperatorKind
     llvm::Value *V2 = GenValue(E2);
     ASTType *V2Type = E2->getType();
 
-    if (E1->getType()->isInteger() && E2->getType()->isInteger()) {
+    if (E1->getType()->isBool() && E2->getType()->isBool()) {
+        switch (Op) {
+            case ASTBinaryOperatorKind::COMP_EQ:
+                return CGM->Builder->CreateICmpEQ(V1, V2);
+            case ASTBinaryOperatorKind::COMP_NE:
+                return CGM->Builder->CreateICmpNE(V1, V2);
+        }
+    } else if (E1->getType()->isInteger() && E2->getType()->isInteger()) {
         bool Signed = ((ASTIntegerType *) E1->getType())->isSigned() || ((ASTIntegerType *) E2->getType())->isSigned();
         switch (Op) {
 

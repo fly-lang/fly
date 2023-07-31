@@ -37,5 +37,5 @@ ASTReferenceKind ASTReference::getRefKind() const {
 }
 
 bool ASTReference::isCall() const {
-    RefKind == ASTReferenceKind::REF_CALL;
+    return RefKind == ASTReferenceKind::REF_CALL;
 }

@@ -285,7 +285,7 @@ SemaBuilder::CreateEnum(ASTNode *Node, ASTScopes *Scopes, const SourceLocation &
                               .Attr("Name", Name)
                               .Attr("Scopes", Scopes).End());
     llvm::SmallVector<ASTEnumType *, 4> EnumTypes;
-    return new ASTEnum(Node, Scopes, Loc, Name, EnumTypes);
+    return CreateEnum(Node, Scopes, Loc, Name, EnumTypes);
 }
 
 ASTEnumVar *SemaBuilder::CreateEnumVar(ASTEnum *Enum, const SourceLocation &Loc, llvm::StringRef Name) {

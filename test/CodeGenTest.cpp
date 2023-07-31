@@ -1007,14 +1007,14 @@ namespace {
         Builder->CreateExpr(bVarAssign, SemaBuilder::CreateBoolValue(SourceLoc, false));
         EXPECT_TRUE(Builder->AddStmt(bVarAssign));
 
-        // Operation And Logic
+        // c = a and b
         ASTVarAssign * cAndVarAssign = Builder->CreateVarAssign(Body, Builder->CreateVarRef(cVar));
         Builder->CreateBinaryExpr(cAndVarAssign, SourceLoc, ASTBinaryOperatorKind::LOGIC_AND,
                                   Builder->CreateExpr(cAndVarAssign, Builder->CreateVarRef(aVar)),
                                   Builder->CreateExpr(cAndVarAssign, Builder->CreateVarRef(bVar)));
         EXPECT_TRUE(Builder->AddStmt(cAndVarAssign));
 
-        // Operation Or Logic
+        // c = a or b
         ASTVarAssign * cOrVarAssign = Builder->CreateVarAssign(Body, Builder->CreateVarRef(cVar));
         Builder->CreateBinaryExpr(cOrVarAssign, SourceLoc, ASTBinaryOperatorKind::LOGIC_OR,
                                   Builder->CreateExpr(cOrVarAssign, Builder->CreateVarRef(aVar)),
@@ -1084,14 +1084,14 @@ namespace {
         ASTNode *Node = CreateNode();
 
         // main()
-        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",
+        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, BoolType, "main",
                                                       SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
         ASTBlock *Body = Builder->CreateBody(MainFn);
         ASTLocalVar *aVar = Builder->CreateLocalVar(Body, SourceLoc, BoolType, "a");
         EXPECT_TRUE(Builder->AddStmt(aVar));
         ASTLocalVar *bVar = Builder->CreateLocalVar(Body, SourceLoc, BoolType, "b");
         EXPECT_TRUE(Builder->AddStmt(bVar));
-        ASTLocalVar *cVar = Builder->CreateLocalVar(Body, SourceLoc, IntType, "c");
+        ASTLocalVar *cVar = Builder->CreateLocalVar(Body, SourceLoc, BoolType, "c");
         EXPECT_TRUE(Builder->AddStmt(cVar));
 
         // a = false
@@ -1104,18 +1104,22 @@ namespace {
         Builder->CreateExpr(bVarAssign, SemaBuilder::CreateBoolValue(SourceLoc, false));
         EXPECT_TRUE(Builder->AddStmt(bVarAssign));
 
-        // return
-        ASTVarAssign * cOrVarAssign = Builder->CreateVarAssign(Body, Builder->CreateVarRef(cVar));
-        ASTBinaryGroupExpr *Cond = Builder->CreateBinaryExpr(cOrVarAssign, SourceLoc, ASTBinaryOperatorKind::COMP_EQ,
-                                                             Builder->CreateExpr(cOrVarAssign,
+        // c = a == b ? a : b
+        ASTVarAssign * cVarAssign = Builder->CreateVarAssign(Body, Builder->CreateVarRef(cVar));
+        ASTBinaryGroupExpr *Cond = Builder->CreateBinaryExpr(cVarAssign, SourceLoc, ASTBinaryOperatorKind::COMP_EQ,
+                                                             Builder->CreateExpr(cVarAssign,
                                                                                  Builder->CreateVarRef(aVar)),
-                                                             Builder->CreateExpr(cOrVarAssign,
+                                                             Builder->CreateExpr(cVarAssign,
                                                                                  Builder->CreateVarRef(bVar)));
-        Builder->CreateTernaryExpr(cOrVarAssign, Cond, SourceLoc,
-                                   Builder->CreateExpr(cOrVarAssign,Builder->CreateVarRef(aVar)),
-                                   SourceLoc,
-                                   Builder->CreateExpr(cOrVarAssign,Builder->CreateVarRef(bVar)));
-        EXPECT_TRUE(Builder->AddStmt(cOrVarAssign));
+
+        ASTTernaryGroupExpr *TernaryExpr = Builder->CreateTernaryExpr(cVarAssign, Cond, SourceLoc,
+                                                                      Builder->CreateExpr(cVarAssign,
+                                                                                          Builder->CreateVarRef(aVar)),
+                                                                      SourceLoc,
+                                                                      Builder->CreateExpr(cVarAssign,
+                                                                                          Builder->CreateVarRef(bVar)));
+
+        EXPECT_TRUE(Builder->AddStmt(cVarAssign));
 
         //return c
         ASTReturn *Return = Builder->CreateReturn(Body, SourceLoc);
@@ -1137,11 +1141,11 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define i32 @main() {\n"
+        EXPECT_EQ(output, "define i1 @main() {\n"
                           "entry:\n"
                           "  %0 = alloca i8, align 1\n"
                           "  %1 = alloca i8, align 1\n"
-                          "  %2 = alloca i32, align 4\n"
+                          "  %2 = alloca i8, align 1\n"
                           "  store i8 0, i8* %0, align 1\n"
                           "  store i8 0, i8* %1, align 1\n"
                           "  %3 = load i8, i8* %0, align 1\n"
@@ -1161,10 +1165,11 @@ namespace {
                           "\n"
                           "ternend:                                          ; preds = %ternfalse, %terntrue\n"
                           "  %10 = phi i1 [ %7, %terntrue ], [ %9, %ternfalse ]\n"
-                          "  %11 = zext i1 %10 to i32\n"
-                          "  store i32 %11, i32* %2, align 4\n"
-                          "  %12 = load i32, i32* %2, align 4\n"
-                          "  ret i32 %12\n"
+                          "  %11 = zext i1 %10 to i8\n"
+                          "  store i8 %11, i8* %2, align 1\n"
+                          "  %12 = load i8, i8* %2, align 1\n"
+                          "  %13 = trunc i8 %12 to i1\n"
+                          "  ret i1 %13\n"
                           "}\n");
     }
 
@@ -2194,13 +2199,13 @@ namespace {
         ASTClassVar *bField = Builder->CreateClassVar(TestStruct, SourceLoc, SemaBuilder::CreateIntType(SourceLoc),
                                                       "b",
                                                       SemaBuilder::CreateScopes(
-                                                              ASTVisibilityKind::V_PUBLIC, false, false));
+                                                              ASTVisibilityKind::V_DEFAULT, false, false));
         Builder->AddClassVar(bField);
 
         ASTClassVar *cField = Builder->CreateClassVar(TestStruct, SourceLoc, SemaBuilder::CreateIntType(SourceLoc),
                                                       "c",
                                                       SemaBuilder::CreateScopes(
-                                                              ASTVisibilityKind::V_PRIVATE, true, false));
+                                                              ASTVisibilityKind::V_DEFAULT, true, false));
         Builder->AddClassVar(cField);
 
         // int main() {

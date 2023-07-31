@@ -18,11 +18,8 @@
 #include "AST/ASTFunctionBase.h"
 #include "AST/ASTParams.h"
 #include "AST/ASTBlock.h"
-#include "AST/ASTValue.h"
-#include "AST/ASTVarAssign.h"
 #include "AST/ASTVarRef.h"
 #include "Basic/Diagnostic.h"
-#include "Basic/Debug.h"
 
 using namespace fly;
 
@@ -141,7 +138,7 @@ bool SemaValidator::CheckMacroType(ASTType *Type, ASTTypeKind Kind) {
 
 bool SemaValidator::CheckConvertibleTypes(ASTType *FromType, ASTType *ToType) {
     assert(FromType && "FromType cannot be null");
-    assert(FromType && "ToType cannot be null");
+    assert(ToType && "ToType cannot be null");
 
     if (FromType->isBool() && ToType->isBool()) {
         return true;
@@ -165,8 +162,21 @@ bool SemaValidator::CheckConvertibleTypes(ASTType *FromType, ASTType *ToType) {
         return ((ASTArrayType *) FromType)->getType()->getKind() == ((ASTArrayType *) ToType)->getType()->getKind();
     }
 
-    else if (FromType->isIdentity()) {
-        // Check Inheritance
+    else if (FromType->isIdentity() && ToType->isIdentity()) {
+        ASTIdentityType *FromIdentityType = (ASTIdentityType *) FromType;
+        ASTIdentityType *ToIdentityType = (ASTIdentityType *) ToType;
+
+        // Check Enum name is equals
+        if (FromIdentityType->isEnum() && ToIdentityType->isEnum()) {
+            if (FromIdentityType->getDef()->getName() == ToIdentityType->getDef()->getName()) {
+                return true;
+            }
+        }
+
+        // Check Class Inheritance
+        else if (FromIdentityType->isClass() && FromIdentityType->isClass()) {
+            return CheckClassInheritance((ASTClassType *) FromIdentityType, (ASTClassType *) ToIdentityType);
+        }
     }
 
     S.Diag(FromType->getLocation(), diag::err_sema_types_convert)
@@ -175,13 +185,12 @@ bool SemaValidator::CheckConvertibleTypes(ASTType *FromType, ASTType *ToType) {
     return false;
 }
 
-bool SemaValidator::CheckArithTypes(const SourceLocation &Loc, ASTType *Type1, ASTType *Type2) {
-    if ((Type1->getKind() == ASTTypeKind::TYPE_INTEGER || Type1->getKind() == ASTTypeKind::TYPE_FLOATING_POINT) &&
-        (Type2->getKind() == ASTTypeKind::TYPE_INTEGER || Type2->getKind() == ASTTypeKind::TYPE_FLOATING_POINT)) {
+bool SemaValidator::CheckSameTypes(const SourceLocation &Loc, ASTType *Type1, ASTType *Type2) {
+    if (Type1->getKind() == Type2->getKind()) {
         return true;
     }
 
-    S.Diag(Loc, diag::err_sema_types_arithmetics)
+    S.Diag(Loc, diag::err_sema_types_operation)
             << Type1->print()
             << Type2->print();
     return false;
@@ -195,5 +204,21 @@ bool SemaValidator::CheckLogicalTypes(const SourceLocation &Loc, ASTType *Type1,
     S.Diag(Loc, diag::err_sema_types_logical)
             << Type1->print()
             << Type2->print();
+    return false;
+}
+
+bool SemaValidator::CheckClassInheritance(fly::ASTClassType *FromType, fly::ASTClassType *ToType) {
+    const StringRef &FromName = FromType->getDef()->getName();
+    const StringRef &ToName = ToType->getDef()->getName();
+    if (FromName == ToName) {
+        return true;
+    } else {
+        const SmallVector<ASTClassType *, 4> &SuperClasses = ((ASTClass *) FromType->getDef())->getSuperClasses();
+        for (ASTClassType *SuperClass : SuperClasses) {
+            if (CheckClassInheritance(SuperClass, ToType)) {
+                return true;
+            }
+        }
+    }
     return false;
 }

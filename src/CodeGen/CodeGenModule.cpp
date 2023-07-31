@@ -372,14 +372,13 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
             assert(Var->getCodeGen() && "Var is not CodeGen initialized");
             if (Var->getExpr()) {
                 llvm::Value *V = GenExpr(Fn, Var->getType(), Var->getExpr());
-                if (Var->getType()->isIdentity()) {
+                if (Var->getType()->isIdentity() && ((ASTIdentityType *) Var->getType())->isClass()) {
                     // set Value from CodeGen Instance
                     ((CodeGenInstance *) Var->getCodeGen())->Init(V);
                 } else {
                     Var->getCodeGen()->Store(V);
                 }
             }
-
             break;
         }
 

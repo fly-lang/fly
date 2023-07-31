@@ -106,7 +106,7 @@ std::string ASTBoolType::str() const {
 }
 
 ASTIntegerType::ASTIntegerType(const SourceLocation &Loc, ASTIntegerTypeKind Kind) :
-    ASTType(Loc, ASTTypeKind::TYPE_INTEGER){
+    ASTType(Loc, ASTTypeKind::TYPE_INTEGER), Kind(Kind) {
 
 }
 
@@ -119,7 +119,7 @@ const bool ASTIntegerType::isUnsigned() const {
 }
 
 const bool ASTIntegerType::isSigned() const {
-    return isUnsigned();
+    return !isUnsigned();
 }
 
 const uint32_t ASTIntegerType::getSize() {
@@ -140,7 +140,7 @@ const uint32_t ASTIntegerType::getSize() {
 }
 
 ASTFloatingPointType::ASTFloatingPointType(const SourceLocation &Loc, ASTFloatingPointTypeKind Kind) :
-        ASTType(Loc, ASTTypeKind::TYPE_FLOATING_POINT) {
+        ASTType(Loc, ASTTypeKind::TYPE_FLOATING_POINT), Kind(Kind) {
 
 }
 

@@ -59,9 +59,9 @@ bool SemaResolver::Resolve() {
     // Resolve Nodes
     for (auto &NEntry : S.Builder->Context->getNodes()) {
         auto &Node = NEntry.getValue();
-        Success &= ResolveImports(Node) & // resolve Imports with NameSpaces
-                ResolveFunctions(Node) &  // resolve ASTBlock of Body Functions
-                ResolveIdentities(Node);  // resolve Class attributes and methods
+        Success &= ResolveImports(Node); // resolve Imports with NameSpaces
+        Success &= ResolveFunctions(Node);  // resolve ASTBlock of Body Functions
+        Success &= ResolveIdentities(Node);  // resolve Class attributes and methods
     }
 
     // Now all Imports must be read
@@ -753,7 +753,7 @@ bool SemaResolver::ResolveExpr(ASTBlock *Block, ASTExpr *Expr) {
             return ResolveValueExpr((ASTValueExpr *) Expr);
         case ASTExprKind::EXPR_VAR_REF: {
             ASTVarRef *VarRef = ((ASTVarRefExpr *)Expr)->getVarRef();
-            if ((VarRef->getDef() || ResolveVarRef(Block, VarRef)) && S.Validator->CheckUninitialized(Block, VarRef)) {
+            if ((VarRef->getDef() || ResolveVarRef(Block, VarRef))) {
                 Expr->Type = VarRef->getDef()->getType();
                 Success = true;
                 break;
@@ -790,82 +790,41 @@ bool SemaResolver::ResolveExpr(ASTBlock *Block, ASTExpr *Expr) {
                         return false;
                     }
 
-                    if (Binary->First->Kind == ASTExprKind::EXPR_EMPTY) {
+                    if (Binary->Second->Kind == ASTExprKind::EXPR_EMPTY) {
                         // Error: Binary cannot contain ASTEmptyExpr
-                        S.Diag(Binary->First->Loc, diag::err_sema_empty_expr);
+                        S.Diag(Binary->Second->Loc, diag::err_sema_empty_expr);
                         return false;
                     }
 
                     Success = ResolveExpr(Block, Binary->First) && ResolveExpr(Block, Binary->Second);
                     if (Success) {
-                        switch(Binary->getOptionKind()) {
+                        if (Binary->getOptionKind() == ASTBinaryOptionKind::BINARY_ARITH ||
+                                Binary->getOptionKind() == ASTBinaryOptionKind::BINARY_COMPARISON) {
+                            Success = S.Validator->CheckSameTypes(Binary->OpLoc, Binary->First->Type,
+                                                                  Binary->Second->Type);
 
-                            case ASTBinaryOptionKind::BINARY_ARITH: {
-                                Success = S.Validator->CheckArithTypes(Binary->OpLoc, Binary->First->Type, Binary->Second->Type);
-
+                            if (Success) {
                                 // Selects the largest data Type
-                                Expr->Type = Binary->First->Type->Kind > Binary->Second->Type->Kind ?
-                                             Binary->First->Type :
-                                             Binary->Second->Type;
-
                                 // Promotes First or Second Expr Types in order to be equal
-                                Binary->First->Type = Expr->Type;
-                                Binary->Second->Type = Expr->Type;
-                                break;
-                            }
-
-                            case ASTBinaryOptionKind::BINARY_LOGIC: {
-                                Success = S.Validator->CheckLogicalTypes(Binary->OpLoc,
-                                                              Binary->First->Type, Binary->Second->Type);
-                                Binary->Type = SemaBuilder::CreateBoolType(Expr->Loc);
-                                break;
-                            }
-
-                            case ASTBinaryOptionKind::BINARY_COMPARISON: {
-                                Binary->Type = SemaBuilder::CreateBoolType(Expr->Loc);
-
-                                // Better Case
-                                if (Binary->First->Type->Kind == Binary->Second->Type->Kind) {
-                                    Success = true;
-                                    break;
-                                }
-
-                                if (Binary->First->Type->Kind == Binary->Second->Type->Kind) {
-                                    // 1 == 20 (unsigned, unsigned)
-                                    // -1 == 20 (signed, unsigned)
-                                    // 1 == -20 (unsigned, signed)
-                                    // -1 == -20 (signed, signed)
-                                    if (Binary->First->Kind == ASTExprKind::EXPR_VALUE && Binary->Second->Kind == ASTExprKind::EXPR_VALUE) {
-                                        // chose between the biggest type
-                                        Binary->First->Type = Binary->Second->Type =
-                                                Binary->First->Type->Kind > Binary->Second->Type->Kind ?
-                                                Binary->First->Type : Binary->Second->Type;
-                                        Success = true;
-                                        break;
-                                    }
-
-                                    // 1 == a
-                                    else if (Binary->First->Kind == ASTExprKind::EXPR_VALUE && Binary->Second->Kind != ASTExprKind::EXPR_VALUE &&
-                                            Binary->First->Type->Kind < Binary->Second->Type->Kind) {
-                                        Binary->First->Type = Binary->Second->Type;
-                                        Success = true;
-                                        break;
-                                    }
-
-                                    // a == 1
-                                    else if (Binary->First->Kind != ASTExprKind::EXPR_VALUE && Binary->Second->Kind == ASTExprKind::EXPR_VALUE &&
-                                            Binary->First->Type->Kind > Binary->Second->Type->Kind) {
+                                if (Binary->First->Type->isInteger()) {
+                                    if (((ASTIntegerType *)Binary->First->Type)->getSize() > ((ASTIntegerType *)Binary->Second->Type)->getSize())
                                         Binary->Second->Type = Binary->First->Type;
-                                        Success = true;
-                                        break;
-                                    }
+                                    else
+                                        Binary->First->Type = Binary->Second->Type;
+                                } else if (Binary->First->Type->isFloatingPoint()) {
+                                    if (((ASTFloatingPointType *)Binary->First->Type)->getSize() > ((ASTFloatingPointType *)Binary->Second->Type)->getSize())
+                                        Binary->Second->Type = Binary->First->Type;
+                                    else
+                                        Binary->First->Type = Binary->Second->Type;
                                 }
 
-                                S.Diag(Binary->OpLoc, diag::err_sema_types_comparable)
-                                        << Binary->First->Type->print()
-                                        << Binary->Second->Type->print();
-                                return false;
+                                Binary->Type = Binary->getOptionKind() == ASTBinaryOptionKind::BINARY_ARITH ?
+                                        Binary->First->Type : SemaBuilder::CreateBoolType(Expr->Loc);
                             }
+                        } else if (Binary->getOptionKind() ==  ASTBinaryOptionKind::BINARY_LOGIC) {
+                            Success = S.Validator->CheckLogicalTypes(Binary->OpLoc,
+                                                                     Binary->First->Type, Binary->Second->Type);
+                            Binary->Type = SemaBuilder::CreateBoolType(Expr->Loc);
                         }
                     }
                     break;
@@ -875,7 +834,8 @@ bool SemaResolver::ResolveExpr(ASTBlock *Block, ASTExpr *Expr) {
                     Success = ResolveExpr(Block, Ternary->First) &&
                             S.Validator->CheckConvertibleTypes(Ternary->First->Type, SemaBuilder::CreateBoolType(SourceLocation())) &&
                               ResolveExpr(Block, Ternary->Second) &&
-                           ResolveExpr(Block, Ternary->Third);
+                              ResolveExpr(Block, Ternary->Third);
+                    Ternary->Type = Ternary->Second->Type; // The group type is equals to the second type
                     break;
                 }
             }
@@ -885,9 +845,10 @@ bool SemaResolver::ResolveExpr(ASTBlock *Block, ASTExpr *Expr) {
             assert(0 && "Invalid ASTExprKind");
     }
 
-    // The last Expr before Stmt need a Check Type
-    if (Success && !Expr->Parent && Expr->Stmt && Expr->Stmt->Kind != ASTStmtKind::STMT_EXPR && Expr->Type) {
-        return S.Validator->CheckConvertibleTypes(Expr->Type, getType(Expr->Stmt));
+    // Check Expr Type if it needs to be converted to Stmt Type
+    if (!Expr->Parent &&Expr->Stmt && Expr->Stmt->Kind != ASTStmtKind::STMT_EXPR) {
+        ASTType *ToType = getType(Expr->Stmt);
+        Success &= S.Validator->CheckConvertibleTypes(Expr->Type, ToType);
     }
 
     return Success;
@@ -896,7 +857,7 @@ bool SemaResolver::ResolveExpr(ASTBlock *Block, ASTExpr *Expr) {
 bool SemaResolver::ResolveValueExpr(ASTValueExpr *Expr) {
     const SourceLocation &Loc = Expr->Value->getLocation();
     
-    switch (Expr->Value->getMacroKind()) {
+    switch (Expr->Value->getTypeKind()) {
         
         case ASTTypeKind::TYPE_BOOL:
             Expr->Type = SemaBuilder::CreateBoolType(Loc);

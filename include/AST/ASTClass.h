@@ -66,6 +66,8 @@ namespace fly {
 
         ASTClassKind getClassKind() const;
 
+        llvm::SmallVector<ASTClassType *, 4> getSuperClasses() const;
+
         llvm::StringMap<ASTClassVar *> getVars() const;
 
         std::map <uint64_t,llvm::SmallVector <ASTClassFunction *, 4>> getConstructors() const;

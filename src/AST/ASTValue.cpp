@@ -12,7 +12,7 @@
 
 using namespace fly;
 
-ASTValue::ASTValue(const ASTTypeKind MacroKind, const SourceLocation &Location) : MacroKind(MacroKind), Location(Location) {
+ASTValue::ASTValue(const ASTTypeKind TypeKind, const SourceLocation &Location) : TypeKind(TypeKind), Location(Location) {
 
 }
 
@@ -20,18 +20,18 @@ const SourceLocation &ASTValue::getLocation() const {
     return Location;
 }
 
-const ASTTypeKind &ASTValue::getMacroKind() const {
-    return MacroKind;
+const ASTTypeKind &ASTValue::getTypeKind() const {
+    return TypeKind;
 }
 
-const std::string ASTValue::printMacroType() const {
-    return ASTType::printType(MacroKind);
+const std::string ASTValue::printType() const {
+    return ASTType::printType(TypeKind);
 }
 
 std::string ASTValue::str() const {
     return Logger("ASTValue").
             Attr("Location", Location).
-            Attr("Kind", (uint64_t) MacroKind).
+            Attr("Kind", (uint64_t) TypeKind).
             End();
 }
 
