@@ -43,7 +43,7 @@ namespace {
         ASSERT_TRUE(ClassTest != NSClassess.end());
     }
 
-    TEST_F(ParserTest, DISABLED_Enum) {
+    TEST_F(ParserTest, Enum) {
         llvm::StringRef str = ("public enum Test {\n"
                                "  A B C\n"
                                "}\n");
@@ -75,7 +75,7 @@ namespace {
         ASTEnumVar *A = (ASTEnumVar *) aExpr->getVarRef()->getDef();
     }
 
-    TEST_F(ParserTest, DISABLED_Struct) {
+    TEST_F(ParserTest, Struct) {
         llvm::StringRef str = ("public struct Test {\n"
                                "  int a\n"
                                "  public int b = 2\n"
@@ -119,7 +119,7 @@ namespace {
         ASSERT_TRUE(isSuccess());
     }
 
-    TEST_F(ParserTest, DISABLED_Class) {
+    TEST_F(ParserTest, Class) {
         llvm::StringRef str = ("public class Test {\n"
                                "  int a = 1\n"
                                "  private int b = 1\n"

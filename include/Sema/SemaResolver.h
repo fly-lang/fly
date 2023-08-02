@@ -84,13 +84,9 @@ namespace fly {
 
         bool ResolveForBlock(ASTForBlock *ForBlock);
 
-        bool ResolveIdentifier(ASTNode *Node, ASTIdentifier *Identifier, ASTNameSpace *&NameSpace);
-
-        bool ResolveIdentifier(ASTNode *Node, ASTIdentifier *Identifier, ASTNameSpace *NameSpace, ASTIdentityType *&IdentityType);
-
         bool ResolveIdentifier(ASTBlock *Block, ASTIdentifier *Identifier);
 
-        bool ResolveIdentityType(ASTNode *Node, ASTIdentityType * IdentityType);
+        bool ResolveIdentityType(ASTNode *Node, ASTIdentityType *&IdentityType);
 
         bool ResolveVarRef(ASTBlock *Block, ASTVarRef *VarRef);
 

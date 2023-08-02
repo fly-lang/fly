@@ -60,6 +60,8 @@ namespace fly {
 
         bool operator ==(const ASTIdentityType &IdentityType) const;
 
+        const bool isNone() const;
+
         const bool isClass() const;
 
         const bool isEnum() const;

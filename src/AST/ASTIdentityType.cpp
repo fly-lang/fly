@@ -66,6 +66,10 @@ bool ASTIdentityType::operator ==(const ASTIdentityType &IdentityType) const {
         IdentityType.getKind() == getKind() && IdentityType.getName() == getName();
 }
 
+const bool ASTIdentityType::isNone() const {
+    return Kind == ASTIdentityTypeKind::TYPE_NONE;
+}
+
 const bool ASTIdentityType::isClass() const {
     return Kind == ASTIdentityTypeKind::TYPE_CLASS;
 }

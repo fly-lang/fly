@@ -32,7 +32,6 @@ ASTIdentifier *ASTIdentifier::AddChild(const SourceLocation &Loc, const llvm::St
     Child->Parent = this;
     Child->Index = Index + 1;
     if (!Parent) {
-        this->asRoot = true;
         Child->Root = this;
     }
     PrintName.append(".").append(Name.data());
@@ -45,10 +44,6 @@ uint32_t ASTIdentifier::getIndex() const {
 
 ASTIdentifier *ASTIdentifier::getRoot() const {
     return Root;
-}
-
-bool ASTIdentifier::isRoot() const {
-    return asRoot;
 }
 
 ASTIdentifier *ASTIdentifier::getParent() const {

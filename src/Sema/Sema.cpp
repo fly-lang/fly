@@ -95,7 +95,7 @@ ASTVar *Sema::FindLocalVar(ASTBlock *Block, ASTIdentifier *Identifier) const {
     const auto &It = Block->getLocalVars().find(Identifier->getName());
     if (It != Block->getLocalVars().end()) { // Search into this Block
         return It->getValue();
-    } else if (Block->getParent()) { // Traverse Parent Block to find the right VarDeclStmt
+    } else if (Block->getParent()) { // search recursively into Parent Blocks to find the right Var definition
         if (Block->Parent->getKind() == ASTStmtKind::STMT_BLOCK)
             return FindLocalVar((ASTBlock *) Block->getParent(), Identifier);
     } else {

@@ -34,25 +34,13 @@ namespace {
 
     using namespace fly;
 
-    TEST_F(ParserTest, DISABLED_BadColon) {
+    TEST_F(ParserTest, BadColon) {
         llvm::StringRef str = (
                 "void func() {\n"
                 "  a:"
                 "  return"
                 "}\n");
-        ASTNode *Node = Parse("BadColon", str);
-
-        ASSERT_TRUE(isSuccess());
-
-        // Get Body
-        ASTFunction *F = *Node->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
-        const ASTBlock *Body = F->getBody();
-
-        // ++a
-        ASTExprStmt *a1Stmt = (ASTExprStmt *) Body->getContent()[0];
-        ASTUnaryGroupExpr *a1Unary = (ASTUnaryGroupExpr *) a1Stmt->getExpr();
-        EXPECT_EQ(a1Unary->getOperatorKind(), ASTUnaryOperatorKind::ARITH_INCR);
-        EXPECT_EQ(a1Unary->getOptionKind(), ASTUnaryOptionKind::UNARY_PRE);
-        EXPECT_EQ(((ASTVarRefExpr *) a1Unary->getFirst())->getVarRef()->getName(), "a");
+        Parse("BadColon", str);
+        ASSERT_FALSE(isSuccess());
     }
 }

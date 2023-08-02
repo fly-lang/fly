@@ -34,8 +34,6 @@ namespace fly {
 
         std::string PrintName;
 
-        bool asRoot = false;
-
         uint32_t Index = 0;
 
         ASTIdentifier *Root = nullptr;
@@ -65,8 +63,6 @@ namespace fly {
         ASTCall *getCall() const;
 
         void setCall(ASTCall *Call);
-
-        bool isRoot() const;
 
         ASTIdentifier * AddChild(const SourceLocation &Loc, const StringRef Name);
 

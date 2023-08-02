@@ -436,7 +436,7 @@ namespace {
         ASTParam *Par2 = VerifyFunc->getParams()->getList()[2];
 
         EXPECT_EQ(Par0->getName(), "a");
-        EXPECT_EQ(Par0->getType()->getKind(), ASTTypeKind::TYPE_BOOL);
+        EXPECT_EQ(Par0->getType()->getKind(), ASTTypeKind::TYPE_INTEGER);
         EXPECT_EQ(Par0->isConstant(), false);
 
         EXPECT_EQ(Par1->getName(), "b");
@@ -444,7 +444,7 @@ namespace {
         EXPECT_EQ(Par1->isConstant(), true);
 
         EXPECT_EQ(Par2->getName(), "c");
-        EXPECT_EQ(Par2->getType()->getKind(), ASTTypeKind::TYPE_INTEGER);
+        EXPECT_EQ(Par2->getType()->getKind(), ASTTypeKind::TYPE_BOOL);
         EXPECT_EQ(Par2->isConstant(), false);
         EXPECT_EQ(Par2->getExpr()->getExprKind(), ASTExprKind::EXPR_VALUE);
         ASTValueExpr *DefArg2 = (ASTValueExpr *)Par2->getExpr();
@@ -571,7 +571,7 @@ namespace {
         // Test: Type t
         ASTLocalVar *tVar = (ASTLocalVar *) Body->getContent()[10];
         EXPECT_EQ(tVar->getName(), "t");
-        EXPECT_EQ(((ASTClassType *) tVar->getType())->getKind(), ASTIdentityTypeKind::TYPE_CLASS);
+        EXPECT_EQ(((ASTIdentityType *) tVar->getType())->getKind(), ASTIdentityTypeKind::TYPE_NONE);
         ASSERT_EQ(tVar->getExpr(), nullptr);
 
     }

@@ -497,7 +497,7 @@ bool Parser::ParseStmt(ASTBlock *Block, bool StopParse) {
             } else if (Tok.isAnyIdentifier()) { // Type a: Identifier is ASTType
                 ASTIdentifier *Identifier2 = ParseIdentifier();
 
-                // Type is a ClassType or an Array of ClassType
+                // Type is a IdentityType or an Array of IdentityType
                 Type = SemaBuilder::CreateIdentityType(Identifier1);
 
                 // FIXME check Identifier for LocalVar
