@@ -12,7 +12,6 @@
 #define FLY_AST_VARREF_H
 
 #include "AST/ASTIdentifier.h"
-#include "AST/ASTInstance.h"
 
 #include <string>
 
@@ -32,8 +31,6 @@ namespace fly {
         friend class SemaResolver;
 
         ASTVar *Def = nullptr;
-
-        ASTInstance *Instance = nullptr;
 
         ASTVarRef(const SourceLocation &Loc, llvm::StringRef Name);
 

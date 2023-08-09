@@ -1086,7 +1086,8 @@ SemaBuilder::AddNameSpace(ASTNameSpace *NewNameSpace, ASTNode *Node, bool Extern
 
 bool SemaBuilder::AddDefaultNameSpace() {
     Context->DefaultNameSpace = CreateNameSpace();
-    Context->NameSpaces.insert(std::make_pair(Context->DefaultNameSpace->getName(), Context->DefaultNameSpace));
+    auto Pair = std::make_pair(Context->DefaultNameSpace->getName(), Context->DefaultNameSpace);
+    return Context->NameSpaces.insert(Pair).second;
 }
 
 /**

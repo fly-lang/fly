@@ -12,7 +12,6 @@
 
 #include "ASTExpr.h"
 #include "AST/ASTIdentifier.h"
-#include "AST/ASTInstance.h"
 
 #include "llvm/ADT/SmallVector.h"
 
@@ -48,8 +47,6 @@ namespace fly {
         std::vector<ASTArg *> Args;
 
         ASTFunctionBase *Def = nullptr;
-
-        ASTInstance *Instance = nullptr;
 
         ASTCallKind CallKind = ASTCallKind::CALL_NORMAL;
 
