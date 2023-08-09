@@ -20,7 +20,7 @@ const SourceLocation &ASTType::getLocation() const  {
     return Loc;
 }
 
-const ASTTypeKind &ASTType::getKind() const  {
+const ASTTypeKind &ASTType::getIdentityKind() const  {
     return Kind;
 }
 

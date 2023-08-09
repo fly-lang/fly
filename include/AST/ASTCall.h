@@ -11,7 +11,8 @@
 #define FLY_FUNCTION_CALL_H
 
 #include "ASTExpr.h"
-#include "AST/ASTReference.h"
+#include "AST/ASTIdentifier.h"
+#include "AST/ASTInstance.h"
 
 #include "llvm/ADT/SmallVector.h"
 
@@ -25,8 +26,6 @@ namespace fly {
     class ASTArg;
     class ASTCallExpr;
     class ASTVar;
-    class ASTIdentifier;
-    class ASTIdentifier;
 
     enum class ASTCallKind {
         CALL_NORMAL,
@@ -41,7 +40,7 @@ namespace fly {
      * Ex.
      *  int a = sqrt(4)
      */
-    class ASTCall : public ASTReference {
+    class ASTCall : public ASTIdentifier {
 
         friend class SemaBuilder;
         friend class SemaResolver;
@@ -50,9 +49,11 @@ namespace fly {
 
         ASTFunctionBase *Def = nullptr;
 
+        ASTInstance *Instance = nullptr;
+
         ASTCallKind CallKind = ASTCallKind::CALL_NORMAL;
 
-        ASTCall(ASTIdentifier *Identifier);
+        ASTCall(const SourceLocation &Loc, llvm::StringRef Name);
 
         ASTCall(ASTFunctionBase *Function);
 

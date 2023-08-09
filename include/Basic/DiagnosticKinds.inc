@@ -306,6 +306,7 @@ DIAG(warn_utf8_symbol_zero_width, CLASS_WARNING, (unsigned)diag::Severity::Warni
 // Parser Errors
 DIAG(err_namespace_multi_defined, CLASS_ERROR, (unsigned)diag::Severity::Error, "namespace defined more than one time", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_namespace_invalid, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid namespace defined '%0'", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_parse_identifier_invalid, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid identifier", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_import_undefined, CLASS_ERROR, (unsigned)diag::Severity::Error, "import undefined", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_import_invalid, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid import", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_scope_visibility_duplicate, CLASS_ERROR, (unsigned)diag::Severity::Error, "visibility scope '%0' already defined", 0, SFINAE_Suppress, false, true, 0)
@@ -397,6 +398,7 @@ DIAG(err_unref_node, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unreferenced
 DIAG(err_unref_class, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unreferenced class '%0'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_unref_call, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unreferenced call", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_unref_var, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unreferenced var", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_call_enum, CLASS_ERROR, (unsigned)diag::Severity::Error, "call in enum not permitted", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_unref_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unreferenced type", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_invalid_gvar_value, CLASS_ERROR, (unsigned)diag::Severity::Error, "Invalid global var value", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_generate_header, CLASS_ERROR, (unsigned)diag::Severity::Error, "Error on header file generation %0", 0, SFINAE_Suppress, false, true, 0)

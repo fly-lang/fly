@@ -67,14 +67,14 @@ void CodeGenFunctionBase::setInsertPoint() {
 void CodeGenFunctionBase::AllocaVars() {
     // Allocation of declared ASTParams
     for (auto &Param: AST->getParams()->getList()) {
-        Param->setCodeGen(newCodeGen(Param));
+        Param->setCodeGen(CGM->GenVar(Param));
         Param->getCodeGen()->Init();
     }
 
     // Allocation of all declared ASTLocalVar
     for (auto &EntryLocalVar: AST->getBody()->getLocalVars()) {
         ASTLocalVar *LocalVar = EntryLocalVar.getValue();
-        LocalVar->setCodeGen(newCodeGen(LocalVar));
+        LocalVar->setCodeGen(CGM->GenVar(LocalVar));
         LocalVar->getCodeGen()->Init();
     }
 
@@ -102,11 +102,4 @@ void CodeGenFunctionBase::GenBody() {
     if (FnTy->getReturnType()->isVoidTy()) {
         CGM->Builder->CreateRetVoid();
     }
-}
-
-CodeGenVarBase *CodeGenFunctionBase::newCodeGen(ASTVar *Var) {
-    if (Var->getType()->isIdentity() && ((ASTIdentityType *) Var->getType())->isClass()) {
-        return new CodeGenInstance(CGM, Var);
-    }
-    return new CodeGenVar(CGM, Var);
 }

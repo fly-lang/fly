@@ -74,7 +74,7 @@ llvm::Value *CodeGenExpr::Convert(llvm::Value *FromVal, const ASTType *FromType,
     assert(ToType && "Invalid conversion type");
 
     llvm::Type *FromLLVMType = FromVal->getType();
-    switch (ToType->getKind()) {
+    switch (ToType->getIdentityKind()) {
 
         // to BOOL
         case ASTTypeKind::TYPE_BOOL: {

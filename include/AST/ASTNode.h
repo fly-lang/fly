@@ -11,12 +11,14 @@
 #ifndef FLY_ASTNODE_H
 #define FLY_ASTNODE_H
 
-#include "ASTNodeBase.h"
+#include "llvm/ADT/StringMap.h"
+
+#include <map>
 
 namespace fly {
 
     class CodeGenModule;
-    class ASTNodeBase;
+    class ASTContext;
     class ASTNameSpace;
     class ASTImport;
     class ASTGlobalVar;
@@ -27,14 +29,26 @@ namespace fly {
     class ASTExpr;
     class ASTVarRef;
 
-    class ASTNode : public ASTNodeBase {
+    class ASTNode {
 
         friend class Sema;
         friend class SemaResolver;
         friend class SemaBuilder;
 
+        // The Context
+        ASTContext* Context = nullptr;
+
         // Namespace declaration
         ASTNameSpace *NameSpace = nullptr;
+
+        // Node FileName
+        const std::string Name;
+
+        // Global Vars
+        llvm::StringMap<ASTGlobalVar *> GlobalVars;
+
+        // Functions
+        llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> Functions;
 
         const bool Header;
 
@@ -62,6 +76,10 @@ namespace fly {
 
         const bool isHeader() const;
 
+        ASTContext &getContext() const;
+
+        const std::string getName();
+
         ASTNameSpace* getNameSpace();
 
         const llvm::StringMap<ASTImport*> &getImports();
@@ -73,6 +91,10 @@ namespace fly {
         const llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> &getExternalFunctions() const;
 
         ASTIdentity *getIdentity() const;
+
+        const llvm::StringMap<ASTGlobalVar *> &getGlobalVars() const;
+
+        const llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> &getFunctions() const;
 
         virtual std::string str() const;
     };

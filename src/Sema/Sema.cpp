@@ -90,18 +90,18 @@ ASTIdentity *Sema::FindIdentity(llvm::StringRef TypeName, ASTNameSpace *NameSpac
  * @param Identifier
  * @return the found LocalVar
  */
-ASTVar *Sema::FindLocalVar(ASTBlock *Block, ASTIdentifier *Identifier) const {
-    FLY_DEBUG_MESSAGE("Sema", "FindLocalVar", Logger().Attr("Name", Block).Attr("Identifier", Identifier).End());
-    const auto &It = Block->getLocalVars().find(Identifier->getName());
+ASTVar *Sema::FindLocalVar(ASTBlock *Block, llvm::StringRef Name) const {
+    FLY_DEBUG_MESSAGE("Sema", "FindLocalVar", Logger().Attr("Name", Block).Attr("Identifier", Name).End());
+    const auto &It = Block->getLocalVars().find(Name);
     if (It != Block->getLocalVars().end()) { // Search into this Block
         return It->getValue();
     } else if (Block->getParent()) { // search recursively into Parent Blocks to find the right Var definition
         if (Block->Parent->getKind() == ASTStmtKind::STMT_BLOCK)
-            return FindLocalVar((ASTBlock *) Block->getParent(), Identifier);
+            return FindLocalVar((ASTBlock *) Block->getParent(), Name);
     } else {
         const ASTParams *Params = Block->getTop()->getParams();
         for (auto &Param : Params->getList()) {
-            if (Param->getName() == Identifier->getName()) { // Search into ASTParams
+            if (Param->getName() == Name) { // Search into ASTParams
                 return Param;
             }
         }

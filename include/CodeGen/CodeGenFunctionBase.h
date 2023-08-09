@@ -56,10 +56,6 @@ namespace fly {
         virtual void GenBody();
 
         static void GenTypes(CodeGenModule * CGM, SmallVector<llvm::Type *, 8> &Types, const ASTParams *Params);
-
-    protected:
-
-        CodeGenVarBase *newCodeGen(ASTVar* Var);
     };
 }
 

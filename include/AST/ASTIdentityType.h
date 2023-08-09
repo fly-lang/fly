@@ -13,6 +13,7 @@
 
 #include "AST/ASTType.h"
 #include "AST/ASTIdentity.h"
+#include "ASTIdentifier.h"
 
 namespace fly {
 
@@ -27,18 +28,16 @@ namespace fly {
     /**
      * Identity Type
      */
-    class ASTIdentityType : public ASTType {
+    class ASTIdentityType : public ASTIdentifier, public ASTType {
 
         friend class SemaBuilder;
         friend class SemaResolver;
 
     protected:
 
-        ASTIdentifier *Identifier = nullptr;
-
         ASTIdentity *Def = nullptr;
 
-        ASTIdentityTypeKind Kind;
+        ASTIdentityTypeKind IdentityKind;
 
         ASTIdentityType(ASTIdentifier *Identifier);
 
@@ -50,13 +49,9 @@ namespace fly {
 
         SourceLocation getLocation() const;
 
-        llvm::StringRef getName() const;
-
-        ASTIdentifier *getIdentifier() const;
-
         virtual ASTIdentity *getDef() const;
 
-        ASTIdentityTypeKind getKind() const;
+        ASTIdentityTypeKind getIdentityKind() const;
 
         bool operator ==(const ASTIdentityType &IdentityType) const;
 

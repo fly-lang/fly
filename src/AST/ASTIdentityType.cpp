@@ -24,68 +24,60 @@ ASTIdentityTypeKind toIdentityKind(ASTTopDefKind Kind) {
 }
 
 ASTIdentityType::ASTIdentityType(ASTIdentifier *Identifier) :
-    ASTType(Identifier->getLocation(), ASTTypeKind::TYPE_IDENTITY),
-    Identifier(Identifier), Kind(ASTIdentityTypeKind::TYPE_NONE) {
+        ASTType(Identifier->getLocation(), ASTTypeKind::TYPE_IDENTITY),
+        ASTIdentifier(Identifier->getLocation(), Identifier->getName(), ASTIdentifierKind::REF_TYPE), IdentityKind(ASTIdentityTypeKind::TYPE_NONE) {
 
 }
 
 ASTIdentityType::ASTIdentityType(ASTIdentifier *Identifier, ASTIdentityTypeKind IdentityKind) :
-    ASTType(Identifier->getLocation(), ASTTypeKind::TYPE_IDENTITY),
-    Identifier(Identifier), Kind(IdentityKind) {
+        ASTType(Identifier->getLocation(), ASTTypeKind::TYPE_IDENTITY),
+        ASTIdentifier(Identifier->getLocation(), Identifier->getName(), ASTIdentifierKind::REF_TYPE), IdentityKind(IdentityKind) {
 
 }
 
 ASTIdentityType::ASTIdentityType(ASTIdentity *Def) :
-    ASTType(SourceLocation(), ASTTypeKind::TYPE_IDENTITY),
-    Def(Def), Kind(toIdentityKind(Def->getKind())) {
+        ASTType(SourceLocation(), ASTTypeKind::TYPE_IDENTITY),
+        ASTIdentifier(SourceLocation(), Def->getName(), ASTIdentifierKind::REF_TYPE),
+        Def(Def), IdentityKind(toIdentityKind(Def->getKind())) {
 
 }
 
 SourceLocation ASTIdentityType::getLocation() const {
-    return Identifier ? Identifier->getLocation() : SourceLocation();
-}
-
-llvm::StringRef ASTIdentityType::getName() const {
-    return Identifier ? Identifier->getName() : llvm::StringRef();
-}
-
-ASTIdentifier *ASTIdentityType::getIdentifier() const {
-    return Identifier;
+    return ASTIdentifier::getLocation();
 }
 
 ASTIdentity *ASTIdentityType::getDef() const {
     return Def;
 }
 
-ASTIdentityTypeKind ASTIdentityType::getKind() const {
-    return Kind;
+ASTIdentityTypeKind ASTIdentityType::getIdentityKind() const {
+    return IdentityKind;
 }
 
 bool ASTIdentityType::operator ==(const ASTIdentityType &IdentityType) const {
-    return IdentityType.getKind() != ASTIdentityTypeKind::TYPE_NONE &&
-        IdentityType.getKind() == getKind() && IdentityType.getName() == getName();
+    return IdentityType.getIdentityKind() != ASTIdentityTypeKind::TYPE_NONE &&
+            IdentityType.getIdentityKind() == getIdentityKind() && IdentityType.getName() == getName();
 }
 
 const bool ASTIdentityType::isNone() const {
-    return Kind == ASTIdentityTypeKind::TYPE_NONE;
+    return IdentityKind == ASTIdentityTypeKind::TYPE_NONE;
 }
 
 const bool ASTIdentityType::isClass() const {
-    return Kind == ASTIdentityTypeKind::TYPE_CLASS;
+    return IdentityKind == ASTIdentityTypeKind::TYPE_CLASS;
 }
 
 const bool ASTIdentityType::isEnum() const {
-    return Kind == ASTIdentityTypeKind::TYPE_ENUM;
+    return IdentityKind == ASTIdentityTypeKind::TYPE_ENUM;
 }
 
 const std::string ASTIdentityType::print() const {
-    return Def ? Def->print() : Identifier->print();
+    return Name.data();
 }
 
 std::string ASTIdentityType::str() const {
     return Logger("ASTClassType").
     Super(ASTType::str()).
-    Attr("Identifier", Identifier).
     Attr("Def", (Debuggable *) Def).
     End();
 }

@@ -94,7 +94,6 @@ namespace fly {
     class ASTUnaryGroupExpr;
     class ASTBinaryGroupExpr;
     class ASTTernaryGroupExpr;
-    class ASTReference;
     class ASTScopes;
     class ASTEnum;
     class ASTEnumVar;
@@ -121,8 +120,11 @@ namespace fly {
         void Destroy();
 
         // Create Node
-        ASTNode *CreateNode(const std::string &Name, std::string &NameSpace);
-        ASTNode *CreateHeaderNode(const std::string &Name, std::string &NameSpace);
+        ASTNode *CreateNode(const std::string &Name);
+        ASTNode *CreateHeaderNode(const std::string &Name);
+
+        // Create NameSpace
+        ASTNameSpace *CreateNameSpace(ASTIdentifier *Identifier = nullptr);
 
         // Create Top Definitions
         ASTImport *CreateImport(const SourceLocation &NameLoc, StringRef Name);
@@ -194,12 +196,12 @@ namespace fly {
         // Create Call
         ASTCall *CreateCall(ASTIdentifier *Identifier);
         ASTCall *CreateCall(ASTFunctionBase *Function);
-        ASTCall *CreateCall(ASTReference *Instance, ASTFunctionBase *Function);
+        ASTCall *CreateCall(ASTIdentifier *Instance, ASTFunctionBase *Function);
 
         // Create VarRef
         ASTVarRef *CreateVarRef(ASTIdentifier *Identifier);
         ASTVarRef *CreateVarRef(ASTVar *Var);
-        ASTVarRef *CreateVarRef(ASTReference *Instance, ASTVar *Var);
+        ASTVarRef *CreateVarRef(ASTIdentifier *Instance, ASTVar *Var);
 
         // Create Expressions
         ASTEmptyExpr *CreateExpr(ASTStmt *Stmt);
@@ -230,7 +232,8 @@ namespace fly {
         ASTForPostBlock *CreateForPostBlock(ASTForBlock *Parent, const SourceLocation &Loc);
 
         // Add Node & NameSpace
-        ASTNameSpace *AddNameSpace(const std::string &Name, bool ExternLib = false);
+        bool AddNameSpace(ASTNameSpace *NewNameSpace, ASTNode *Node = nullptr, bool ExternLib = false);
+        bool AddDefaultNameSpace();
         bool AddNode(ASTNode *Node);
 
         // Add Top definitions

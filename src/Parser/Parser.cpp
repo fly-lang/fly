@@ -61,12 +61,13 @@ ASTNode *Parser::Parse() {
     ConsumeToken();
     bool Success = true;
 
+    Node = Builder.CreateNode(Input.getFileName());
+
     // Parse NameSpace on first
-    if (ParseNameSpace()) {
-        Node = Builder.CreateNode(Input.getFileName(), NameSpace);
+    if (ParseNameSpace() && Builder.AddNode(Node)) {
 
         // Parse Imports
-        if (Node && ParseImports()) {
+        if (ParseImports()) {
 
             // Node empty
             if (Tok.is(tok::eof)) {
@@ -81,7 +82,7 @@ ASTNode *Parser::Parse() {
         }
     }
 
-    return !Diags.hasErrorOccurred() && Success && Node && Builder.AddNode(Node) ? Node : nullptr;
+    return !Diags.hasErrorOccurred() && Success ? Node : nullptr;
 }
 
 ASTNode *Parser::ParseHeader() {
@@ -94,7 +95,7 @@ ASTNode *Parser::ParseHeader() {
 
     // Parse NameSpace on first
     if (ParseNameSpace()) {
-        Node = Builder.CreateHeaderNode(Input.getFileName(), NameSpace);
+        Node = Builder.CreateHeaderNode(Input.getFileName());
 
         // Parse Top declarations
         while (Tok.isNot(tok::eof)) {
@@ -113,45 +114,29 @@ ASTNode *Parser::ParseHeader() {
  */
 bool Parser::ParseNameSpace() {
     FLY_DEBUG("Parser", "ParseNameSpace");
+    ASTNameSpace *NameSpace;
 
     // Check namespace declaration
     if (Tok.is(tok::kw_namespace)) {
         ConsumeToken();
 
-        llvm::StringRef Name;
-        // Check if default namespace specified
-        if (Tok.is(tok::kw_default)) {
-            ConsumeToken();
-            Name = ASTNameSpace::DEFAULT;
-        } else if (Tok.isAnyIdentifier()) { // Check if a different namespace identifier has been defined
-            Name = Tok.getIdentifierInfo()->getName();
-            ConsumeToken();
-        } else {
-            // Invalid NameSpace defined with error
+        // Parse NameSpace identifier
+        ASTIdentifier *Identifier = ParseIdentifier();
+
+        // Check identifier Error
+        if (Identifier == nullptr) {
             Diag(Tok, diag::err_namespace_invalid) << Tok.getName();
             return false;
         }
+        NameSpace = Builder.CreateNameSpace(Identifier);
+    } else {
 
-        // Push Names into namespace
-        NameSpace = Name.str();
-        while (Tok.is(tok::period)) {
-            NameSpace += ".";
-            ConsumeToken();
-            if (Tok.isAnyIdentifier()) {
-                NameSpace += Tok.getIdentifierInfo()->getName();
-                ConsumeToken();
-            } else {
-                Diag(Tok, diag::err_namespace_invalid) << Tok.getName();
-                return false;
-            }
-        }
-        FLY_DEBUG_MESSAGE("Parser", "ParseNameSpace", "NameSpace=" << NameSpace);
-        return true;
+        // Define Default NameSpace also if it has not been defined
+        NameSpace = Builder.CreateNameSpace();
     }
+    FLY_DEBUG_MESSAGE("Parser", "ParseNameSpace", "NameSpace=" << NameSpace);
 
-    // Define Default NameSpace also if it has not been defined
-    FLY_DEBUG_MESSAGE("Parser", "ParseNameSpace", "No namespace defined");
-    return true;
+    return Builder.AddNameSpace(NameSpace, Node);
 }
 
 /**
@@ -479,7 +464,7 @@ bool Parser::ParseStmt(ASTBlock *Block, bool StopParse) {
     if (Tok.isAnyIdentifier()) {
 
         // ASTCall or ASTClassType, ASTVarRef, ASTLocalVar
-        Identifier1 = ParseIdentifier(nullptr);
+        Identifier1 = ParseIdentifier();
 
         if (!Identifier1->isCall()) { // a() t.a()
             if (Type != nullptr) { // int a
@@ -967,7 +952,7 @@ bool Parser::ParseType(ASTType *&Type) {
  * @param Loc
  * @return true on Success or false on Error
  */
-ASTCall *Parser::ParseCall(ASTStmt *Stmt, ASTIdentifier *Identifier) {
+bool Parser::ParseCall(ASTIdentifier *&Identifier) {
     FLY_DEBUG_MESSAGE("Parser", "ParseCall", Logger()
             .Attr("Loc", Identifier).End());
     assert(Tok.is(tok::l_paren) && "Call start with parenthesis");
@@ -976,16 +961,17 @@ ASTCall *Parser::ParseCall(ASTStmt *Stmt, ASTIdentifier *Identifier) {
     ASTCall *Call = Builder.CreateCall(Identifier);
     ConsumeParen(); // consume l_paren
 
-    if (ParseCallArg(Stmt, Call)) {
+    if (ParseCallArg(Call)) {
 
         if (Tok.is(tok::r_paren)) {
             ConsumeParen();
 
-            return Call; // end
+            Identifier = Call;
+            return true; // end
         }
     }
 
-    return nullptr;
+    return false;
 }
 
 /**
@@ -993,17 +979,17 @@ ASTCall *Parser::ParseCall(ASTStmt *Stmt, ASTIdentifier *Identifier) {
  * @param Block
  * @return true on Success or false on Error
  */
-bool Parser::ParseCallArg(ASTStmt *Stmt, ASTCall *Call) {
+bool Parser::ParseCallArg(ASTCall *Call) {
     FLY_DEBUG_MESSAGE("Parser", "ParseCallArg",
                       Logger().Attr("Call", Call).End());
 
     // Parse Args in a Function Call
-    if (Builder.AddCallArg(Call, ParseExpr(Stmt))) {
+    if (Builder.AddCallArg(Call, ParseExpr(nullptr))) {
 
         if (Tok.is(tok::comma)) {
             ConsumeToken();
 
-            return ParseCallArg(Stmt, Call);
+            return ParseCallArg(Call);
         }
 
         return true;
@@ -1020,7 +1006,13 @@ bool Parser::ParseCallArg(ASTStmt *Stmt, ASTCall *Call) {
 ASTIdentifier *Parser::ParseIdentifier(ASTIdentifier *Parent) {
     FLY_DEBUG("Parser", "ParseIdentifier");
 
-    ASTIdentifier *Child = nullptr;
+    if (!Tok.isAnyIdentifier()) { // FIXME check keywords ?
+        Diag(Tok, diag::err_parse_identifier_invalid) << Tok.getName();
+        return nullptr;
+    }
+
+    // Create the Child and work on it
+    ASTIdentifier *Child;
     if (Parent == nullptr) {
         Child = Builder.CreateIdentifier(Tok.getLocation(), Tok.getIdentifierInfo()->getName());
         ConsumeToken();
@@ -1036,7 +1028,7 @@ ASTIdentifier *Parser::ParseIdentifier(ASTIdentifier *Parent) {
     // Case 4: ns1.func() -> FunctionCall
     // Case 5: ns1.Enum.CONST -> ClassVar
     // Case 6: ns1.Class.method() -> ClassFunction
-    // Case 7: ns1.Class.method().var -> Method return Object
+    // Case 7: ns1.Class.var -> Method return Object
     if (Tok.is(tok::period)) {
         ConsumeToken();
 
@@ -1048,9 +1040,7 @@ ASTIdentifier *Parser::ParseIdentifier(ASTIdentifier *Parent) {
         }
     } else if (Tok.is(tok::l_paren)) {
 
-        ASTCall * Call = ParseCall(nullptr, Child);
-        Child->setCall(Call);
-        if (Tok.is(tok::period)) {
+        if (ParseCall(Child) && Tok.is(tok::period)) {
             ConsumeToken();
 
             return ParseIdentifier(Child);

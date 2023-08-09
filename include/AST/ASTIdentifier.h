@@ -19,7 +19,14 @@ namespace fly {
     class ASTStmt;
     class ASTCall;
     class ASTVarRef;
-    class ASTReference;
+
+    enum class ASTIdentifierKind {
+        REF_UNDEF,
+        REF_NAMESPACE,
+        REF_TYPE,
+        REF_CALL,
+        REF_VAR
+    };
 
     class ASTIdentifier : public Debuggable {
 
@@ -32,21 +39,17 @@ namespace fly {
 
         const llvm::StringRef Name;
 
-        std::string PrintName;
-
-        uint32_t Index = 0;
-
-        ASTIdentifier *Root = nullptr;
+        std::string FullName;
 
         ASTIdentifier *Parent = nullptr;
 
         ASTIdentifier *Child = nullptr;
 
-        ASTReference *Reference = nullptr;
-
-        bool RefIsCall = false;
+        ASTIdentifierKind Kind = ASTIdentifierKind::REF_UNDEF;
 
         ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name);
+
+        ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name, ASTIdentifierKind Kind);
 
         ~ASTIdentifier();
 
@@ -56,19 +59,21 @@ namespace fly {
 
         llvm::StringRef getName() const;
 
+        std::string getFullName() const;
+
+        bool isUndef() const;
+
+        bool isNameSpace() const;
+
+        bool isType() const;
+
         bool isCall() const;
 
-        ASTVarRef *getVarRef() const;
+        bool isVarRef() const;
 
-        ASTCall *getCall() const;
-
-        void setCall(ASTCall *Call);
+        ASTIdentifierKind getKind() const;
 
         ASTIdentifier * AddChild(const SourceLocation &Loc, const StringRef Name);
-
-        uint32_t getIndex() const;
-
-        ASTIdentifier *getRoot() const;
 
         ASTIdentifier *getParent() const;
 

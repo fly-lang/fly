@@ -22,8 +22,8 @@ using namespace fly;
 
 const std::string ASTNameSpace::DEFAULT = "default";
 
-ASTNameSpace::ASTNameSpace(std::string NameSpace, ASTContext *Context, bool ExternalLib) :
-        ASTNodeBase(NameSpace, Context), ExternalLib(ExternalLib) {
+ASTNameSpace::ASTNameSpace(const SourceLocation &Loc, llvm::StringRef Name, ASTContext *Context, bool ExternalLib) :
+    ASTIdentifier(Loc, Name), Context(Context), ExternalLib(ExternalLib) {
 }
 
 ASTNameSpace::~ASTNameSpace() {
@@ -43,8 +43,16 @@ const llvm::StringMap<ASTIdentity *> &ASTNameSpace::getIdentities() const {
     return Identities;
 }
 
+const llvm::StringMap<ASTGlobalVar *> &ASTNameSpace::getGlobalVars() const {
+    return GlobalVars;
+}
+
+const llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> &ASTNameSpace::getFunctions() const {
+    return Functions;
+}
+
 std::string ASTNameSpace::print() const {
-    return Name.data();
+    return FullName;
 }
 
 std::string ASTNameSpace::str() const {

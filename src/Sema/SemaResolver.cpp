@@ -11,12 +11,12 @@
 #include "Sema/Sema.h"
 #include "Sema/SemaBuilder.h"
 #include "AST/ASTContext.h"
+#include "AST/ASTNameSpace.h"
 #include "AST/ASTClassFunction.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTClassVar.h"
 #include "AST/ASTEnum.h"
 #include "AST/ASTEnumVar.h"
-#include "AST/ASTNameSpace.h"
 #include "AST/ASTType.h"
 #include "AST/ASTNode.h"
 #include "AST/ASTIfBlock.h"
@@ -73,6 +73,16 @@ bool SemaResolver::Resolve() {
     }
 
     return Success;
+}
+
+bool SemaResolver::ResolveNameSpace(ASTNode *Node, ASTIdentifier *&Identifier) {
+    ASTImport *Import = S.FindImport(Node, Identifier->FullName);
+    if (Import) {
+        Identifier = Import->getNameSpace();
+        return true;
+    }
+
+    return false;
 }
 
 /**
@@ -306,7 +316,7 @@ bool SemaResolver::ResolveBlock(ASTBlock *Block) {
                 ASTLocalVar *LocalVar = ((ASTLocalVar *) Stmt);
                 // Take Node
                 const auto &Node = S.FindNode(Block->getTop());
-                Success &= !LocalVar->getType()->isIdentity() || ResolveIdentityType(Node, (ASTIdentityType *&) LocalVar->Type);
+                Success &= !LocalVar->getType()->isIdentity() || ResolveIdentityType(Node, (ASTIdentityType *) LocalVar->Type);
 
                 if (LocalVar->getExpr())
                     Success &= ResolveExpr(Block, LocalVar->getExpr());
@@ -400,208 +410,94 @@ bool SemaResolver::ResolveForBlock(ASTForBlock *ForBlock) {
     return Success;
 }
 
-bool SemaResolver::ResolveIdentifier(ASTBlock *Block, ASTIdentifier *Identifier) {
-    ASTFunctionBase *Top = Block->getTop();
-    const auto &Node = S.FindNode(Top);
+bool SemaResolver::ResolveParentIdentifier(ASTBlock *Block, ASTIdentifier *&Identifier) {
+    const auto &Node = S.FindNode(Block->getTop());
 
-    ASTIdentifier *Current = Identifier->getIndex() > 0 ? Identifier->getRoot() : Identifier;
-    ASTIdentifier *Previous = nullptr;
+    if (Identifier->getParent()) {
+        if (ResolveParentIdentifier(Block, Identifier->Parent)) {
 
-    ASTNameSpace *NameSpace = nullptr;
-    ASTIdentityType *IdentityType = nullptr;
+            // Do these in the parents different from first
+            switch (Identifier->getKind()) {
 
-    ASTVar *Var = nullptr;
-    ASTFunctionBase *Function = nullptr;
-
-    uint32_t I = Current->getIndex();
-    uint32_t Size = Identifier->getIndex() + 1;
-    while (I < Size) {
-
-        // Call
-        if (Current->isCall()) {
-
-            // only the first time
-            if (Var == nullptr && Function == nullptr && IdentityType == nullptr && NameSpace == nullptr) { // only the first time
-                ASTIdentity *Identity = S.FindIdentity(Current->getName(), Node->getNameSpace());
-                if (Identity != nullptr && Identity->getKind() == ASTTopDefKind::DEF_CLASS &&
-                    ResolveCall(Block, Current->getCall(), ((ASTClass *) Identity)->Constructors)) {
-
-                    // constructor()
-                    Function = Current->getCall()->getDef();
-                } else if (ResolveCall(Block, Current->getCall(), Node->Functions) ||
-                    ResolveCall(Block, Current->getCall(), Node->getNameSpace()->Functions)) {
-
-                    // func()
-                    Function = Current->getCall()->getDef();
-                }
-            } else if (Var != nullptr && Var->getType()->isIdentity() && ((ASTIdentityType *) Var->getType())->isClass() &&
-                ResolveCall(Block, Current->getCall(), ((ASTClass *) ((ASTClassType *) Var->getType())->getDef())->Methods)) {
-
-                // classInstance.method()
-                // namespace.globalVar.method()
-                Current->getCall()->Instance = S.Builder->CreateVarRef(Var);
-                Function = Current->getCall()->getDef();
-            } else if (Function != nullptr && Function->getType()->isIdentity() && ((ASTIdentityType *) Function->getType())->isClass() &&
-                    ResolveCall(Block, Current->getCall(), ((ASTClass *) ((ASTClassType *) Function->getType())->getDef())->Methods)) {
-
-                // method().method()
-                Current->getCall()->Instance = Previous->getCall();
-                Function = Current->getCall()->getDef();
-
-                // namespace.function().function()
-                // TODO
-            } else if (IdentityType != nullptr && IdentityType->isClass()) {
-
-                // ClassType.staticMethod() or NameSpace.ClassType.func()
-                Var = ((ASTClass *) ((ASTClassType *) IdentityType)->getDef())->Vars.lookup(Current->getName());
-                auto &Methods = ((ASTClass *) ((ASTClassType *) IdentityType)->getDef())->Methods;
-                ResolveCall(Block, Current->getCall(), Methods);
-                Function = Current->getCall()->getDef();
-            } else {
-
-                // NameSpace.func()
-                ResolveCall(Block, Current->getCall(), Node->Functions) ||
-                    ResolveCall(Block, Current->getCall(), NameSpace->Functions);
-                Function = Current->getCall()->getDef();
-            }
-
-            if (Function == nullptr) {
-                S.Diag(Current->getLocation(), diag::err_sema_resolve_identifier);
-                return false;
-            }
-
-            Var = nullptr;
-            // already resolved in ResolveCall()
-
-        } else { // VarRef or IdentityType
-
-            // only the first time
-            if (Var == nullptr && Function == nullptr && IdentityType == nullptr && NameSpace == nullptr) {
-
-                // Search for LocalVar
-                Var = S.FindLocalVar(Block, Current);
-
-                // Search for Class Vars if Var is Class Method
-                if (Var == nullptr && Top->getKind() == ASTFunctionKind::CLASS_FUNCTION)
-                    Var = ((ASTClassFunction *) Top)->getClass()->Vars.lookup(Current->getName());
-
-                // Search for GlobalVars
-                if (Var == nullptr)
-                    Var = Node->getNameSpace()->GlobalVars.lookup(Current->getName());
-
-                if (Var != nullptr) {
-                    Current->Reference = S.Builder->CreateVarRef(Var);
-
-                } else { // Current is IdentityType or GlobalVar
-
-                    // Search for IdentityType
-                    ASTIdentity *Identity = S.FindIdentity(Current->getName(), Node->getNameSpace());
-                    if (Identity != nullptr) {
-                        IdentityType = (ASTIdentityType *) Identity->getType();
-                    } else {
-
-                        // Search for NameSpace
-                        ASTImport *Import = S.FindImport(Node, Identifier->getName());
-                        if (Import) {
-                            NameSpace = Import->getNameSpace();
-                            Previous = Current;
-                            Current = Current->getChild();
-                            I++;
-                            continue;
-                        }
+                case ASTIdentifierKind::REF_NAMESPACE: {
+                    if (Identifier->getParent()->getKind() != ASTIdentifierKind::REF_NAMESPACE) {
+                        // Error:
+                        S.Diag(Identifier->getLocation(), diag::err_sema_resolve_identifier);
+                        return false;
                     }
+                    break;
                 }
-            } else if (Var != nullptr && Var->getType()->isIdentity() && ((ASTIdentityType *) Var->getType())->isClass() &&
-                ((ASTIdentityType *) Var->getType())->isClass()) {
 
-                // classInstance.var
-                Current->getVarRef()->Instance = S.Builder->CreateVarRef(Var);
-                Var = ((ASTClass *) ((ASTClassType *) Var->getType())->getDef())->Vars.lookup(Current->getName());
-                Current->getVarRef()->Def = Var;
-            } else if (Function != nullptr && Function->getType()->isIdentity() &&
-                ((ASTIdentityType *) Function->getType())->isClass() &&
-                ((ASTIdentityType *) Function->getType())->isClass()) {
-
-                // function().var
-                Current->getVarRef()->Instance = Previous->getCall();
-                Var = ((ASTClass *) ((ASTClassType *) Function->getType())->getDef())->Vars.lookup(Current->getName());
-                Current->getVarRef()->Def = Var;
-            } else if (IdentityType != nullptr) {
-
-                // ClassType.STATIC_VAR
-                // EnumType.ENUM_VAR
-                // StructType.fieldVar
-                Current->getVarRef()->Instance = nullptr;
-                if (IdentityType->isClass()) {
-                    Var = ((ASTClass *) ((ASTClassType *) IdentityType)->getDef())->Vars.lookup(Current->getName());
-                } else if (IdentityType->isEnum()) {
-                    Var = ((ASTEnum *) ((ASTEnumType *) IdentityType)->getDef())->Vars.lookup(Current->getName());
+                case ASTIdentifierKind::REF_TYPE: {
+                    ASTIdentityType *IdentityType = (ASTIdentityType *) Identifier;
+                    if (Identifier->getParent()->getKind() == ASTIdentifierKind::REF_NAMESPACE) {
+                        ResolveIdentityType(Node, IdentityType);
+                    } else {
+                        // Error:
+                        S.Diag(Identifier->getLocation(), diag::err_sema_resolve_identifier);
+                        return false;
+                    }
+                    break;
                 }
-                Current->getVarRef()->Def = Var;
-                IdentityType = nullptr;
-            } else {
 
-                // NameSpace.GlobalVar
-                Var = NameSpace->GlobalVars.lookup(Current->getChild()->getName());
-                Current->getVarRef()->Def = Var;
+                    // Instance
+                case ASTIdentifierKind::REF_CALL: // NameSpace.call().call() or call().call()
+                    return ResolveCallWithParent(Block, (ASTCall *) Identifier);
+
+                case ASTIdentifierKind::REF_VAR: // NameSpace.call().var or call().var
+                    return ResolveVarRefWithParent((ASTVarRef *) Identifier);
+
+                case ASTIdentifierKind::REF_UNDEF: // Error: identifier not resolved
+                    assert(false && "Unexpected Identifier Kind");
             }
+        }
+    } else { // Do these only on first Parent identifier
 
-            // Resolve Var as IdentityType
-//            if (Var == nullptr && ResolveIdentifier(Node, Current, NameSpace, IdentityType)) {
-//                Previous = Current;
-//                Current = Current->getChild();
-//                I++;
-//                continue;
-//            }
-
-            if (Var == nullptr && IdentityType == nullptr) {
-                S.Diag(Current->getLocation(), diag::err_sema_resolve_identifier);
-                return false;
-            }
-
-            Function = nullptr;
+        // Check if Identifier is a Call
+        if (Identifier->isCall()) {
+            return ResolveCallNoParent(Block, (ASTCall *) Identifier);
         }
 
-        // Go next Identifier or break
-        Previous = Current;
-        Current = Current->getChild();
-        I++;
+        // Check if Identifier is a Var
+        ASTVar *Var = ResolveVarRefNoParent(Block, Identifier->getName());
+        if (Var) {
+            Identifier = S.Builder->CreateVarRef(Identifier);
+            ((ASTVarRef *) Identifier)->Def = Var;
+            return true;
+        }
+
+        // Check if Identifier is an IdentityType
+        ASTIdentity *Identity = S.FindIdentity(Identifier->getName(), Node->getNameSpace());
+        if (Identity) {
+            Identifier = Identity->getType();
+            return true;
+        }
+
+        // Check if Identifier is a NameSpace
+        if (ResolveNameSpace(Node, Identifier)) {
+            return true;
+        }
     }
 
-    return true;
+    S.Diag(Identifier->getLocation(), diag::err_sema_resolve_identifier);
+    return false;
 }
 
-bool SemaResolver::ResolveIdentityType(ASTNode *Node, ASTIdentityType *&IdentityType) {
+bool SemaResolver::ResolveIdentityType(ASTNode *Node, ASTIdentityType *IdentityType) {
     // Resolve Identifier
-    if (IdentityType->getIdentifier()) {
+    if (IdentityType->Def == nullptr) {
 
-        if (IdentityType->getIdentifier()->isCall()) {
+        if (IdentityType->getParent() == nullptr) {
+            IdentityType->Def = S.FindIdentity(IdentityType->getName(), Node->getNameSpace());
+            IdentityType->IdentityKind = IdentityType->Def->getType()->getIdentityKind();
+        } else if (ResolveNameSpace(Node,IdentityType->Parent)) {
+            ASTNameSpace *NameSpace = (ASTNameSpace *) IdentityType->getParent();
+            IdentityType->Def = S.FindIdentity(IdentityType->getName(), NameSpace);
+            IdentityType->IdentityKind = IdentityType->Def->getType()->getIdentityKind();
+        } else {
             S.Diag(IdentityType->getLocation(), diag::err_sema_resolve_identifier);
             return false;
         }
-
-        // Check only ClassType with only 1 Parent: NameSpace.IdentityName
-        if (IdentityType->getIdentifier()->getIndex() > 1) {
-            S.Diag(IdentityType->getLocation(), diag::err_sema_resolve_identifier);
-            return false;
-        }
-
-        llvm::StringRef IdentityName = IdentityType->getIdentifier()->getName();
-        ASTNameSpace *NameSpace = Node->NameSpace; // No namespace defined
-        if (IdentityType->getIdentifier()->getRoot()) { // with namespace
-            llvm::StringRef NS = IdentityType->getIdentifier()->getRoot()->getName(); // NameSpace.IdentityName
-            NameSpace = S.FindNameSpace(NS);
-        }
-        ASTIdentity *Def = S.FindIdentity(IdentityName, NameSpace);
-        delete IdentityType->Identifier;
-
-        // Error: unreferenced class
-        if (Def == nullptr) {
-            S.Diag(diag::err_unref_class) << IdentityName;
-            return false;
-        }
-
-        IdentityType = Def->getType();
     }
 
     if (!IdentityType->Def) {
@@ -618,18 +514,13 @@ bool SemaResolver::ResolveIdentityType(ASTNode *Node, ASTIdentityType *&Identity
  * @return true if no error occurs, otherwise false
  */
 bool SemaResolver::ResolveVarRef(ASTBlock *Block, ASTVarRef *VarRef) {
-    FLY_DEBUG_MESSAGE("Sema", "ResolveVarRef", Logger().Attr("VarRef", VarRef).End());
+    FLY_DEBUG_MESSAGE("Sema", "ResolveVarRefWithParent", Logger().Attr("VarRef", VarRef).End());
     
-    if (VarRef->getIdentifier()) {
-
-        if (VarRef->getIdentifier()->isCall()) {
-            S.Diag(VarRef->getLocation(), diag::err_sema_resolve_identifier);
-            return false;
-        }
-
-        // TODO simplify logic
-        if (ResolveIdentifier(Block, VarRef->getIdentifier())) {
-            VarRef->Def = VarRef->getIdentifier()->getVarRef()->Def;
+    if (VarRef->Def == nullptr) {
+        if (VarRef->getParent() == nullptr) {
+            VarRef->Def = ResolveVarRefNoParent(Block, VarRef->getName());
+        } else {
+            ResolveParentIdentifier(Block, VarRef->Parent) && ResolveVarRefWithParent((ASTVarRef *) VarRef);;
         }
     }
 
@@ -642,23 +533,202 @@ bool SemaResolver::ResolveVarRef(ASTBlock *Block, ASTVarRef *VarRef) {
     return true;
 }
 
-bool SemaResolver::ResolveCall(ASTBlock *Block, ASTCall *Call) {
-    if (Call->getIdentifier()) {
 
-        if (!Call->getIdentifier()->isCall()) {
-            S.Diag(Call->getLocation(), diag::err_sema_resolve_identifier);
-            return false;
-        }
+ASTVar *SemaResolver::ResolveVarRefNoParent(ASTBlock *Block, llvm::StringRef Name) {
 
-        ResolveIdentifier(Block, Call->getIdentifier());
+    // Search for LocalVar
+    ASTVar *Var = S.FindLocalVar(Block, Name);
+
+    if (Var == nullptr) {
+        ASTFunctionBase *Top = Block->getTop();
+        const auto &Node = S.FindNode(Top);
+
+        // Search for Class Vars if Var is Class Method
+        if (Top->getKind() == ASTFunctionKind::CLASS_FUNCTION)
+            Var = ((ASTClassFunction *) Top)->getClass()->Vars.lookup(Name);
+
+        // Search for GlobalVars
+        if (Var == nullptr)
+            Var = Node->getNameSpace()->GlobalVars.lookup(Name);
     }
 
-    if (!Call->Def) {
-        S.Diag(Call->getLocation(), diag::err_unref_call);
+    return Var;
+}
+
+ASTVar *SemaResolver::ResolveVarRef(llvm::StringRef Name, ASTIdentityType *IdentityType) {
+    if (IdentityType->isClass()) {
+        return ((ASTClass *) ((ASTClassType *) IdentityType)->getDef())->Vars.lookup(Name);
+    } else if (IdentityType->isEnum()) {
+        return ((ASTEnum *) ((ASTEnumType *) IdentityType)->getDef())->Vars.lookup(Name);
+    } else {
+        assert(false && "IdentityType unknown");
+    }
+}
+
+bool SemaResolver::ResolveVarRefWithParent(ASTVarRef *VarRef) {
+    switch (VarRef->getParent()->getKind()) {
+
+        case ASTIdentifierKind::REF_NAMESPACE: { // Namespace.globalVar
+            ASTNameSpace *NameSpace = (ASTNameSpace *) VarRef->getParent();
+            VarRef->Def = NameSpace->GlobalVars.lookup(VarRef->getName());
+            break;
+        }
+
+        case ASTIdentifierKind::REF_TYPE: {
+            ASTIdentityType *IdentityType = (ASTIdentityType *) VarRef->getParent();
+            // ClassType.STATIC_VAR
+            // EnumType.ENUM_VAR
+            // StructType.fieldVar
+            VarRef->Def = ResolveVarRef(VarRef->getName(), IdentityType);
+            break;
+        }
+
+            // Instance
+        case ASTIdentifierKind::REF_CALL: // NameSpace.call().var or call().var
+        {
+            ASTCall *ParentCall = (ASTCall*) VarRef->getParent();
+            ASTType * ParentType = ParentCall->getDef()->getType();
+
+            // Parent is an Identity instance
+            if (ParentType->isIdentity())
+                VarRef->Def = ResolveVarRef(VarRef->getName(), (ASTIdentityType *) ParentType);
+            break;
+        }
+
+        case ASTIdentifierKind::REF_VAR: // NameSpace.globalVarInstance.var or instanceVar.var
+        {
+            ASTVarRef *ParentVarRef = (ASTVarRef *) VarRef->getParent();
+            ASTType * ParentType = ParentVarRef->getDef()->getType();
+
+            // Parent is an Identity instance
+            if (ParentType->isIdentity())
+                VarRef->Def = ResolveVarRef(VarRef->getName(), (ASTIdentityType *) ParentType);
+            break;
+        }
+
+            // Error: identifier not resolved
+        case ASTIdentifierKind::REF_UNDEF:
+            assert(false && "Unexpected Identifier Kind");
+    }
+
+    return VarRef->Def;
+}
+
+bool SemaResolver::ResolveCall(ASTBlock *Block, ASTCall *Call) {
+    FLY_DEBUG_MESSAGE("Sema", "ResolveCall", Logger().Attr("Call", Call).End());
+
+    if (Call->Def == nullptr) {
+        if (Call->getParent() == nullptr) {
+            ResolveCallNoParent(Block, Call);
+        } else {
+            ResolveParentIdentifier(Block, Call->Parent) && ResolveCallWithParent(Block, Call);
+        }
+    }
+
+    // VarRef not found in node, namespace and node imports
+    if (Call->Def == nullptr) {
+        S.Diag(Call->getLocation(), diag::err_unref_var);
         return false;
     }
 
     return true;
+}
+
+bool SemaResolver::ResolveCall(ASTBlock *Block, ASTCall *Call, ASTIdentityType *IdentityType) {
+
+    if (IdentityType->isClass()) {
+        auto &ClassMethods = ((ASTClass *) ((ASTClassType *) IdentityType)->getDef())->Methods;
+        return ResolveCall(Block, Call, ClassMethods);
+    } else if (IdentityType->isEnum()) {
+        S.Diag(Call->getLocation(), diag::err_sema_call_enum);
+    } else {
+        assert(false && "IdentityType unknown");
+    }
+
+    return false;
+}
+
+bool SemaResolver::ResolveCall(ASTBlock *Block, ASTCall *Call, ASTNameSpace *NameSpace) {
+
+    // NameSpace.func()
+    bool Success = ResolveCall(Block, Call, NameSpace->Functions);
+
+    // NameSpace.constructor()
+    if (!Success) {
+        ASTIdentity *Identity = S.FindIdentity(Call->getName(), NameSpace);
+        Identity != nullptr && Identity->getKind() == ASTTopDefKind::DEF_CLASS &&
+        ResolveCall(Block, Call, ((ASTClass *) Identity)->Constructors);
+    }
+
+    return Call->Def;
+}
+
+bool SemaResolver::ResolveCallNoParent(ASTBlock *Block, ASTCall *Call) {
+    const auto &Node = S.FindNode(Block->getTop());
+
+    // func()
+    bool Success = ResolveCall(Block, Call, Node->Functions) ||
+                   ResolveCall(Block, Call, Node->getNameSpace()->Functions);
+
+    // constructor()
+    if (!Success) {
+        ASTIdentity *Identity = S.FindIdentity(Call->getName(), Node->getNameSpace());
+        Identity != nullptr && Identity->getKind() == ASTTopDefKind::DEF_CLASS &&
+        ResolveCall(Block, Call, ((ASTClass *) Identity)->Constructors);
+    }
+
+    return Call->Def;
+}
+
+bool SemaResolver::ResolveCallWithParent(ASTBlock *Block, ASTCall *Call) {
+    FLY_DEBUG_MESSAGE("Sema", "ResolveCall", Logger().Attr("Call", Call).End());
+        
+    ASTFunctionBase *Top = Block->getTop();
+    const auto &Node = S.FindNode(Top);
+
+    switch (Call->getParent()->getKind()) {
+
+        case ASTIdentifierKind::REF_NAMESPACE: {
+            ASTNameSpace *NameSpace = (ASTNameSpace *) Call->getParent();
+            return ResolveCall(Block, Call, NameSpace);
+        }
+
+        case ASTIdentifierKind::REF_TYPE: {
+            ASTIdentityType *IdentityType = (ASTIdentityType *) Call->getParent();
+            // NameSpace.IdentityType.call() or IdentityType.call()
+            ResolveCall(Block, Call, IdentityType);
+            break;
+        }
+
+        // Instance
+        case ASTIdentifierKind::REF_CALL: // NameSpace.call().call() call().call()
+        {
+            ASTCall *ParentCall = (ASTCall*) Call->getParent();
+
+            // Parent is an Identity instance
+            ASTType * ParentType = ParentCall->getDef()->getType();
+            return ParentType->isIdentity() && ResolveCall(Block, Call, (ASTIdentityType *) ParentType);
+        }
+        case ASTIdentifierKind::REF_VAR: // NameSpace.globalVarInstance.call() or instance.call()
+        {
+            ASTVarRef *ParentVarRef = (ASTVarRef *) Call->getParent();
+
+            // Parent is an Identity instance
+            ASTType * ParentType = ParentVarRef->getDef()->getType();
+            return ParentType->isIdentity() && ResolveCall(Block, Call, (ASTIdentityType *) ParentType);
+        }
+
+            // Error: identifier not resolved
+        case ASTIdentifierKind::REF_UNDEF:
+            assert(false && "Unexpected Identifier Kind");
+    }
+
+    if (Call->Def == nullptr) {
+        S.Diag(Call->getLocation(), diag::err_unref_call);
+        return false;
+    }
+
+    return Call->Def;
 }
 
 template <class T>

@@ -11,14 +11,14 @@
 #ifndef FLY_AST_VARREF_H
 #define FLY_AST_VARREF_H
 
-#include "AST/ASTReference.h"
+#include "AST/ASTIdentifier.h"
+#include "AST/ASTInstance.h"
 
 #include <string>
 
 namespace fly {
 
     class ASTVar;
-    class ASTIdentifier;
 
     /**
      * Reference to ASTVar definition
@@ -26,14 +26,16 @@ namespace fly {
      *  ... = a + ...
      *  b = ...
      */
-    class ASTVarRef : public ASTReference {
+    class ASTVarRef : public ASTIdentifier {
 
         friend class SemaBuilder;
         friend class SemaResolver;
 
         ASTVar *Def = nullptr;
 
-        ASTVarRef(ASTIdentifier *Identifier);
+        ASTInstance *Instance = nullptr;
+
+        ASTVarRef(const SourceLocation &Loc, llvm::StringRef Name);
 
         ASTVarRef(ASTVar *Var);
 

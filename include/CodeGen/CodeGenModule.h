@@ -53,8 +53,8 @@ namespace fly {
     class CodeGenEnum;
     class ASTClass;
     class ASTVar;
-    class ASTReference;
     class ASTEnum;
+    class ASTIdentifier;
 
     class CodeGenModule : public CodeGenTypeCache {
 
@@ -118,6 +118,8 @@ namespace fly {
         llvm::Constant *GenValue(const ASTType *Type, const ASTValue *Val);
 
         void GenStmt(llvm::Function *Fn, ASTStmt * Stmt);
+
+        CodeGenVarBase *GenVar(ASTVar* Var);
 
         llvm::Value *GenVarRef(ASTVarRef *VarRef);
 

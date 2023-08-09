@@ -39,7 +39,8 @@ std::string CodeGenHeader::GenerateFile() {
     FLY_DEBUG_MESSAGE("CodeGenHeader", "GenerateFile","FileName=" << FileName);
 
     // generate namespace
-    Header = "namespace " + NameSpace->getName() + "\n";
+    std::string NS = NameSpace->getName().data();
+    Header = "namespace " + NS + "\n";
 
     // generate global var declarations
     for (auto &GlobalVar : GlobalVars) {
@@ -101,7 +102,7 @@ void CodeGenHeader::setClass(ASTClass *Class) {
 }
 
 const std::string CodeGenHeader::Convert(ASTType *Type) {
-    switch (Type->getKind()) {
+    switch (Type->getIdentityKind()) {
         case ASTTypeKind::TYPE_BOOL:
             return "bool";
         case ASTTypeKind::TYPE_INTEGER:

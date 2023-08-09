@@ -25,6 +25,7 @@
 #include "AST/ASTIdentifier.h"
 #include "AST/ASTDelete.h"
 #include "AST/ASTVar.h"
+#include "AST/ASTVarRef.h"
 #include "AST/ASTVarAssign.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTLocalVar.h"
@@ -104,8 +105,10 @@ namespace {
         ASTNode *CreateNode() {
             Diags.getClient()->BeginSourceFile();
             const std::string Name = "CodeGenTest";
-            std::string NameSpace = "default";
-            auto *Node = Builder->CreateNode(Name, NameSpace);
+            auto *Node = Builder->CreateNode(Name);
+            ASTNameSpace *NameSpace = Builder->CreateNameSpace();
+            Builder->AddNameSpace(NameSpace, Node);
+            Builder->AddNode(Node);
             Diags.getClient()->EndSourceFile();
             return Node;
         }
@@ -447,7 +450,7 @@ namespace {
         EXPECT_TRUE(Builder->AddStmt(Return));
 
         EXPECT_TRUE(Builder->AddFunction(MainFn));
-        EXPECT_TRUE(Builder->AddNode(Node));
+        
         EXPECT_TRUE(Builder->Build());
 
         // Generate Code
@@ -524,7 +527,7 @@ namespace {
         
         // add to Node
         EXPECT_TRUE(Builder->AddFunction(MainFn));
-        EXPECT_TRUE(Builder->AddNode(Node));
+        
         EXPECT_TRUE(Builder->Build());
 
         // Generate Code
@@ -582,7 +585,7 @@ namespace {
         // add to Node
         EXPECT_TRUE(Builder->AddFunction(MainFn));
         EXPECT_TRUE(Builder->AddFunction(TestFn));
-        EXPECT_TRUE(Builder->AddNode(Node));
+        
         EXPECT_TRUE(Builder->Build());
 
 
@@ -644,7 +647,7 @@ namespace {
 
         // Add to Node
         EXPECT_TRUE(Builder->AddFunction(MainFn));
-        EXPECT_TRUE(Builder->AddNode(Node));
+        
         EXPECT_TRUE(Builder->Build());
 
         // Generate Code
@@ -801,7 +804,7 @@ namespace {
 
         // Add to Node
         EXPECT_TRUE(Builder->AddFunction(MainFn));
-        EXPECT_TRUE(Builder->AddNode(Node));
+        
         EXPECT_TRUE(Builder->Build());
 
         // Generate Code
@@ -937,7 +940,7 @@ namespace {
 
         // Add to Node
         EXPECT_TRUE(Builder->AddFunction(MainFn));
-        EXPECT_TRUE(Builder->AddNode(Node));
+        
         EXPECT_TRUE(Builder->Build());
 
         // Generate Code
@@ -1028,7 +1031,7 @@ namespace {
 
         // Add to Node
         EXPECT_TRUE(Builder->AddFunction(MainFn));
-        EXPECT_TRUE(Builder->AddNode(Node));
+        
         EXPECT_TRUE(Builder->Build());
 
         // Generate Code
@@ -1128,7 +1131,7 @@ namespace {
 
         // Add to Node
         EXPECT_TRUE(Builder->AddFunction(MainFn));
-        EXPECT_TRUE(Builder->AddNode(Node));
+        
         EXPECT_TRUE(Builder->Build());
 
         // Generate Code
@@ -1207,7 +1210,7 @@ namespace {
 
         // Add to Node
         EXPECT_TRUE(Builder->AddFunction(MainFn));
-        EXPECT_TRUE(Builder->AddNode(Node));
+        
         EXPECT_TRUE(Builder->Build());
 
         // Generate Code
@@ -1275,7 +1278,7 @@ namespace {
 
         // Add to Node
         EXPECT_TRUE(Builder->AddFunction(MainFn));
-        EXPECT_TRUE(Builder->AddNode(Node));
+        
         EXPECT_TRUE(Builder->Build());
 
         // Generate Code
@@ -1361,7 +1364,7 @@ namespace {
 
         // Add to Node
         EXPECT_TRUE(Builder->AddFunction(MainFn));
-        EXPECT_TRUE(Builder->AddNode(Node));
+        
         EXPECT_TRUE(Builder->Build());
 
         // Generate Code
@@ -1459,7 +1462,7 @@ namespace {
 
         // Add to Node
         EXPECT_TRUE(Builder->AddFunction(MainFn));
-        EXPECT_TRUE(Builder->AddNode(Node));
+        
         EXPECT_TRUE(Builder->Build());
 
         // Generate Code
@@ -1549,7 +1552,7 @@ namespace {
 
         // Add to Node
         EXPECT_TRUE(Builder->AddFunction(MainFn));
-        EXPECT_TRUE(Builder->AddNode(Node));
+        
         EXPECT_TRUE(Builder->Build());
 
         // Generate Code
@@ -1621,7 +1624,7 @@ namespace {
 
         // Add to Node
         EXPECT_TRUE(Builder->AddFunction(MainFn));
-        EXPECT_TRUE(Builder->AddNode(Node));
+        
         EXPECT_TRUE(Builder->Build());
 
         // Generate Code
@@ -1696,7 +1699,7 @@ namespace {
 
         // Add to Node
         EXPECT_TRUE(Builder->AddFunction(MainFn));
-        EXPECT_TRUE(Builder->AddNode(Node));
+        
         EXPECT_TRUE(Builder->Build());
 
         // Generate Code
@@ -1770,7 +1773,7 @@ namespace {
 
         // Add to Node
         EXPECT_TRUE(Builder->AddFunction(MainFn));
-        EXPECT_TRUE(Builder->AddNode(Node));
+        
         EXPECT_TRUE(Builder->Build());
 
         // Generate Code
@@ -1842,7 +1845,7 @@ namespace {
 
         // Add to Node
         EXPECT_TRUE(Builder->AddFunction(MainFn));
-        EXPECT_TRUE(Builder->AddNode(Node));
+        
         EXPECT_TRUE(Builder->Build());
 
         // Generate Code
@@ -1942,7 +1945,7 @@ namespace {
         ASTType *TestClassType = SemaBuilder::CreateClassType(TestClass);
         ASTLocalVar *TestVar = Builder->CreateLocalVar(Body, SourceLoc, TestClassType, "test");
         ASTClassFunction *DefaultConstructor = TestClass->getConstructors().find(0)->second.front();
-        ASTReference *Instance = (ASTReference *) Builder->CreateVarRef(TestVar);
+        ASTVarRef *Instance = Builder->CreateVarRef(TestVar);
         ASTCall *ConstructorCall = Builder->CreateCall(Instance, DefaultConstructor);
         Builder->CreateNewExpr(TestVar, ConstructorCall);
         Builder->AddStmt(TestVar);
@@ -1953,13 +1956,13 @@ namespace {
         ASTCallExpr *aCallExpr = Builder->CreateExpr(aVar, Builder->CreateCall(Instance, aFunc));
         Builder->AddStmt(aVar);
 
-        // int b = test.b
+        // int b = test.b()
         ASTType *bType = bFunc->getType();
         ASTLocalVar *bVar = Builder->CreateLocalVar(Body, SourceLoc, bType, "b");
         ASTCallExpr *bCallExpr = Builder->CreateExpr(bVar, Builder->CreateCall(Instance, bFunc));
         Builder->AddStmt(bVar);
 
-        // int c = test.c
+        // int c = test.c()
         ASTType *cType = cFunc->getType();
         ASTLocalVar *cVar = Builder->CreateLocalVar(Body, SourceLoc, cType, "c");
         ASTCallExpr *cCallExpr = Builder->CreateExpr(cVar, Builder->CreateCall(Instance, cFunc));
@@ -1977,7 +1980,7 @@ namespace {
         // Add to Node
         EXPECT_TRUE(Builder->AddIdentity(TestClass));
         EXPECT_TRUE(Builder->AddFunction(MainFn));
-        EXPECT_TRUE(Builder->AddNode(Node));
+        
         bool Success = Builder->Build();
         EXPECT_TRUE(Success);
 
@@ -2092,7 +2095,7 @@ namespace {
         ASTType *TestClassType = SemaBuilder::CreateClassType(TestClass);
         ASTLocalVar *TestVar = Builder->CreateLocalVar(Body, SourceLoc, TestClassType, "test");
         ASTClassFunction *DefaultConstructor = TestClass->getConstructors().find(0)->second.front();
-        ASTReference *Instance = (ASTReference *) Builder->CreateVarRef(TestVar);
+        ASTVarRef *Instance = Builder->CreateVarRef(TestVar);
         ASTCall *ConstructorCall = Builder->CreateCall(Instance, DefaultConstructor);
         Builder->CreateNewExpr(TestVar, ConstructorCall);
         Builder->AddStmt(TestVar);
@@ -2115,7 +2118,7 @@ namespace {
         // Add to Node
         EXPECT_TRUE(Builder->AddIdentity(TestClass));
         EXPECT_TRUE(Builder->AddFunction(MainFn));
-        EXPECT_TRUE(Builder->AddNode(Node));
+        
         bool Success = Builder->Build();
         EXPECT_TRUE(Success);
 
@@ -2223,7 +2226,7 @@ namespace {
         ASTType *TestClassType = SemaBuilder::CreateClassType(TestStruct);
         ASTLocalVar *TestVar = Builder->CreateLocalVar(Body, SourceLoc, TestClassType, "test");
         ASTClassFunction *DefaultConstructor = TestStruct->getConstructors().find(0)->second.front();
-        ASTReference *Instance = (ASTReference *) Builder->CreateVarRef(TestVar);
+        ASTVarRef *Instance = (ASTVarRef *) Builder->CreateVarRef(TestVar);
         Builder->CreateNewExpr(TestVar, Builder->CreateCall(Instance, DefaultConstructor));
         Builder->AddStmt(TestVar);
 
@@ -2254,7 +2257,7 @@ namespace {
         // Add to Node
         EXPECT_TRUE(Builder->AddIdentity(TestStruct));
         EXPECT_TRUE(Builder->AddFunction(MainFn));
-        EXPECT_TRUE(Builder->AddNode(Node));
+        
         bool Success = Builder->Build();
         EXPECT_TRUE(Success);
 
@@ -2366,7 +2369,7 @@ namespace {
         // Add to Node
         EXPECT_TRUE(Builder->AddIdentity(TestEnum));
         EXPECT_TRUE(Builder->AddFunction(MainFn));
-        EXPECT_TRUE(Builder->AddNode(Node));
+        
         bool Success = Builder->Build();
         EXPECT_TRUE(Success);
 

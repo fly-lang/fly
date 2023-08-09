@@ -85,7 +85,7 @@ namespace fly {
 
         const SourceLocation &getLocation() const;
 
-        const ASTTypeKind &getKind() const;
+        const ASTTypeKind &getIdentityKind() const;
 
         const bool isBool() const;
 

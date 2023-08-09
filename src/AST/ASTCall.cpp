@@ -41,11 +41,11 @@ ASTExpr *ASTArg::getExpr() const {
     return Expr;
 }
 
-ASTCall::ASTCall(ASTIdentifier *Identifier) : ASTReference(Identifier, ASTReferenceKind::REF_CALL) {
+ASTCall::ASTCall(const SourceLocation &Loc, llvm::StringRef Name) : ASTIdentifier(Loc, Name, ASTIdentifierKind::REF_CALL) {
 
 }
 
-ASTCall::ASTCall(ASTFunctionBase *Function) : Def(Function), ASTReference(nullptr, ASTReferenceKind::REF_CALL) {
+ASTCall::ASTCall(ASTFunctionBase *Function) : Def(Function), ASTIdentifier(SourceLocation(), Function->getName(), ASTIdentifierKind::REF_CALL) {
 }
 
 const std::vector<ASTArg*> ASTCall::getArgs() const {
@@ -62,8 +62,6 @@ ASTCallKind ASTCall::getCallKind() const {
 
 std::string ASTCall::str() const {
     return Logger("ASTFunctionCall").
-            Attr("Identifier", getIdentifier()).
-            Attr("Instance", getInstance()).
             AttrList("Args", Args).
             Attr("Def", Def).
             End();

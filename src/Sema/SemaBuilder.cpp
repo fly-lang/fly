@@ -48,7 +48,7 @@ using namespace fly;
  */
 SemaBuilder::SemaBuilder(Sema &S) : S(S), Context(new ASTContext()) {
     FLY_DEBUG("SemaBuilder", "SemaBuilder");
-    Context->DefaultNameSpace = AddNameSpace(ASTNameSpace::DEFAULT);
+    AddDefaultNameSpace();
 }
 
 /**
@@ -78,17 +78,9 @@ SemaBuilder::Destroy() {
  * @return the ASTNode
  */
 ASTNode *
-SemaBuilder::CreateNode(const std::string &Name, std::string &NameSpace) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateNode", "Name=" << Name << ", NameSpace=" << NameSpace);
+SemaBuilder::CreateNode(const std::string &Name) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateNode", "Name=" << Name);
     ASTNode *Node = new ASTNode(Name, Context, false);
-
-    // Fix empty namespace with Default
-    if (NameSpace.empty()) {
-        FLY_DEBUG_MESSAGE("SemaBuilder", "CreateNode", "set NameSpace to Default");
-        NameSpace = ASTNameSpace::DEFAULT;
-    }
-
-    Node->NameSpace = AddNameSpace(NameSpace);
     return Node;
 }
 
@@ -100,9 +92,35 @@ SemaBuilder::CreateNode(const std::string &Name, std::string &NameSpace) {
  * @return thee ASTHeaderNode
  */
 ASTNode *
-SemaBuilder::CreateHeaderNode(const std::string &Name, std::string &NameSpace) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateHeaderNode", "Name=" << Name << ", NameSpace=" << NameSpace);
+SemaBuilder::CreateHeaderNode(const std::string &Name) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateHeaderNode", "Name=" << Name);
     return new ASTNode(Name, Context, true);
+}
+
+/**
+ * Create a NameSpace for each parent
+ * NS3.NS2.NS1 -> Identifier->Parent
+ * NS2.NS1 -> Identifier->Parent->Parent
+ * NS3 -> Identifier->Parent->Parent->Parent ... until to Root
+ * @param Identifier
+ * @return
+ */
+ASTNameSpace *SemaBuilder::CreateNameSpace(ASTIdentifier *Identifier) {
+    ASTNameSpace *NameSpace;
+
+    // Assign Default NameSpace or not
+    if (Identifier == nullptr) {
+        NameSpace = new ASTNameSpace(SourceLocation(), ASTNameSpace::DEFAULT, Context);
+    } else {
+        NameSpace = new ASTNameSpace(Identifier->getLocation(), Identifier->getName(), Context);
+
+        // Iterate over parents
+        if (Identifier->getParent() != nullptr) {
+            NameSpace->Parent = CreateNameSpace(Identifier->getParent());
+        }
+    }
+
+    return NameSpace;
 }
 
 ASTImport *
@@ -665,7 +683,7 @@ SemaBuilder::CreateLocalVar(ASTBlock *Parent, const SourceLocation &Loc, ASTType
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateLocalVar",
                       Logger().Attr("Parent", Parent).End());
     ASTLocalVar *LocalVar = new ASTLocalVar(Parent, Loc, Type, Name, Constant);
-    if (Type->getKind() == ASTTypeKind::TYPE_ARRAY) {
+    if (Type->getIdentityKind() == ASTTypeKind::TYPE_ARRAY) {
         LocalVar->Expr = CreateExpr(LocalVar, CreateArrayValue(Loc));
     }
 
@@ -743,9 +761,10 @@ ASTCall *
 SemaBuilder::CreateCall(ASTIdentifier *Identifier) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateCall",
                       Logger().Attr("Identifier", Identifier).End());
-    ASTCall *Call = new ASTCall(Identifier);
-    Identifier->Reference = Call;
-    Identifier->RefIsCall = true;
+    ASTCall *Call = new ASTCall(Identifier->getLocation(), Identifier->getName());
+    Call->Parent = Identifier->Parent;
+    Call->Child = Identifier->Child;
+    Call->FullName = Identifier->FullName;
     return Call;
 }
 
@@ -764,11 +783,11 @@ SemaBuilder::CreateCall(ASTFunctionBase *Function) {
 }
 
 ASTCall *
-SemaBuilder::CreateCall(ASTReference *Instance, ASTFunctionBase *Function) {
+SemaBuilder::CreateCall(ASTIdentifier *Instance, ASTFunctionBase *Function) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateCall",
                       Logger().Attr("Function=", Function).End());
     ASTCall *Call = new ASTCall(Function);
-    Call->Instance = Instance;
+    Call->Parent = Instance;
     return Call;
 }
 
@@ -776,8 +795,11 @@ ASTVarRef *
 SemaBuilder::CreateVarRef(ASTIdentifier *Identifier) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateVarRef",
                       Logger().Attr("Identifier", Identifier).End());
-    ASTVarRef *VarRef = new ASTVarRef(Identifier);
-    Identifier->Reference = VarRef;
+    ASTVarRef *VarRef = new ASTVarRef(Identifier->getLocation(), Identifier->getName());
+    VarRef->Parent = Identifier->Parent;
+    VarRef->Child = Identifier->Child;
+    VarRef->FullName = Identifier->FullName;
+    // delete Identifier; TODO
     return VarRef;
 }
 
@@ -790,11 +812,11 @@ SemaBuilder::CreateVarRef(ASTVar *Var) {
 }
 
 ASTVarRef *
-SemaBuilder::CreateVarRef(ASTReference *Instance, ASTVar *Var) {
+SemaBuilder::CreateVarRef(ASTIdentifier *Instance, ASTVar *Var) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateVarRef",
                       Logger().Attr("Instance", Instance).Attr("Var", Var).End());
     ASTVarRef *VarRef = new ASTVarRef(Var);
-    VarRef->Instance = Instance;
+    VarRef->Parent = Instance;
     return VarRef;
 }
 
@@ -1040,20 +1062,31 @@ SemaBuilder::CreateForPostBlock(ASTForBlock *ForBlock, const SourceLocation &Loc
  * Add an ASTNameSpace to the ASTContext if not exists yet
  * @param Name
  * @param ExternLib
- * @return the created or retrieved ASTNameSpace
+ * @return the result of add
  */
-ASTNameSpace *
-SemaBuilder::AddNameSpace(const std::string &Name, bool ExternLib) {
+bool
+SemaBuilder::AddNameSpace(ASTNameSpace *NewNameSpace, ASTNode *Node, bool ExternLib) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddNameSpace",
-                      "Name=" << Name <<
-                      ", ExternLib=" << ExternLib);
+                      "NameSpace=" << NewNameSpace << ", ExternLib=" << ExternLib);
     // Check if Name exist or add it
-    ASTNameSpace *NameSpace = Context->NameSpaces.lookup(Name);
+    ASTNameSpace *NameSpace = Context->NameSpaces.lookup(NewNameSpace->getName());
     if (NameSpace == nullptr) {
-        NameSpace = new ASTNameSpace(Name, Context, ExternLib);
-        Context->NameSpaces.insert(std::make_pair(Name, NameSpace));
+        Context->NameSpaces.insert(std::make_pair(NewNameSpace->getFullName(), NewNameSpace));
+        NameSpace = NewNameSpace;
+        if (NewNameSpace->getParent()) {
+            return AddNameSpace((ASTNameSpace *) NewNameSpace->getParent());
+        }
     }
-    return NameSpace;
+
+    if (Node)
+        Node->NameSpace = NameSpace;
+
+    return true;
+}
+
+bool SemaBuilder::AddDefaultNameSpace() {
+    Context->DefaultNameSpace = CreateNameSpace();
+    Context->NameSpaces.insert(std::make_pair(Context->DefaultNameSpace->getName(), Context->DefaultNameSpace));
 }
 
 /**

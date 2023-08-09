@@ -50,9 +50,9 @@ namespace fly {
     class ASTFunction;
     class ASTFunctionBase;
     class ASTIdentifier;
-    class ASTReference;
     class ASTImport;
     class ASTIdentityType;
+    class ASTVar;
 
     class SemaResolver {
 
@@ -67,6 +67,8 @@ namespace fly {
         bool Resolve();
 
     private:
+
+        bool ResolveNameSpace(ASTNode *Node, ASTIdentifier *&Identifier);
 
         bool ResolveImports(ASTNode *Node);
 
@@ -84,21 +86,33 @@ namespace fly {
 
         bool ResolveForBlock(ASTForBlock *ForBlock);
 
-        bool ResolveIdentifier(ASTBlock *Block, ASTIdentifier *Identifier);
+        bool ResolveParentIdentifier(ASTBlock *Block, ASTIdentifier *&Identifier);
 
-        bool ResolveIdentityType(ASTNode *Node, ASTIdentityType *&IdentityType);
+        bool ResolveIdentityType(ASTNode *Node, ASTIdentityType *IdentityType);
 
         bool ResolveVarRef(ASTBlock *Block, ASTVarRef *VarRef);
 
+        ASTVar *ResolveVarRefNoParent(ASTBlock *Block, llvm::StringRef Name);
+
+        ASTVar *ResolveVarRef(llvm::StringRef Name, ASTIdentityType *IdentityType);
+
+        bool ResolveVarRefWithParent(ASTVarRef *VarRef);
+
         bool ResolveCall(ASTBlock *Block, ASTCall *Call);
+
+        bool ResolveCallNoParent(ASTBlock *Block, ASTCall *Call);
+
+        bool ResolveCall(ASTBlock *Block, ASTCall *Call, ASTIdentityType *IdentityType);
+
+        bool ResolveCall(ASTBlock *Block, ASTCall *Call, ASTNameSpace *NameSpace);
+
+        bool ResolveCallWithParent(ASTBlock *Block, ASTCall *Call);
 
         template <class T>
         bool ResolveCall(ASTBlock *Block, ASTCall *Call, llvm::StringMap<std::map <uint64_t,llvm::SmallVector <T *, 4>>> &Functions);
 
         template <class T>
         bool ResolveCall(ASTBlock *Block, ASTCall *Call, std::map <uint64_t,llvm::SmallVector <T *, 4>> &Functions);
-
-//        bool ResolveCall(ASTBlock *Block, ASTCall *Call, llvm::StringMap<ASTImport *> Imports);
 
         bool ResolveArg(ASTBlock *Block, ASTArg *Arg, ASTParam *Param);
 

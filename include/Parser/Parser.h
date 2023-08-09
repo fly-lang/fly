@@ -30,7 +30,6 @@ namespace fly {
     class ASTStmt;
     class ASTSwitchBlock;
     class ASTExpr;
-    class ASTVarRef;
     class InputFile;
     enum class ASTBinaryOperatorKind;
 
@@ -58,8 +57,6 @@ namespace fly {
         Token Tok;
 
         ASTNode *Node;
-
-        std::string NameSpace;
 
         // PrevTokLocation - The location of the token we previously
         // consumed. This token is used for diagnostics where we expected to
@@ -110,8 +107,8 @@ namespace fly {
         bool ParseBuiltinType(ASTType *&);
         bool ParseArrayType(ASTType *&);
         bool ParseType(ASTType *&);
-        ASTCall *ParseCall(ASTStmt *Stmt, ASTIdentifier *Identifier);
-        bool ParseCallArg(ASTStmt *Stmt, ASTCall *Call);
+        bool ParseCall(ASTIdentifier *&Identifier);
+        bool ParseCallArg(ASTCall *Call);
         ASTIdentifier *ParseIdentifier(ASTIdentifier *Parent = nullptr);
 
         // Parse a Value

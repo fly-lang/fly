@@ -11,9 +11,14 @@
 
 using namespace fly;
 
-ASTIdentifier::ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name) : Loc(Loc), Name(Name) {
-    PrintName = Name.data();
+ASTIdentifier::ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name) : Loc(Loc), Name(Name), Kind(ASTIdentifierKind::REF_UNDEF) {
+    FullName = Name.data();
 }
+
+ASTIdentifier::ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name, ASTIdentifierKind Kind) : Loc(Loc), Name(Name), Kind(Kind) {
+    FullName = Name.data();
+}
+
 
 ASTIdentifier::~ASTIdentifier() {
     delete Parent;
@@ -27,23 +32,39 @@ llvm::StringRef ASTIdentifier::getName() const {
     return Name;
 }
 
+std::string ASTIdentifier::getFullName() const {
+    return FullName;
+}
+
+bool ASTIdentifier::isUndef() const {
+    return Kind == ASTIdentifierKind::REF_UNDEF;
+}
+
+bool ASTIdentifier::isNameSpace() const {
+    return Kind == ASTIdentifierKind::REF_NAMESPACE;
+}
+
+bool ASTIdentifier::isType() const {
+    return Kind == ASTIdentifierKind::REF_TYPE;
+}
+
+bool ASTIdentifier::isCall() const {
+    return Kind == ASTIdentifierKind::REF_CALL;
+}
+
+bool ASTIdentifier::isVarRef() const {
+    return Kind == ASTIdentifierKind::REF_VAR;
+}
+
+ASTIdentifierKind ASTIdentifier::getKind() const {
+    return Kind;
+}
+
 ASTIdentifier *ASTIdentifier::AddChild(const SourceLocation &Loc, const llvm::StringRef Name) {
     Child = new ASTIdentifier(Loc, Name);
     Child->Parent = this;
-    Child->Index = Index + 1;
-    if (!Parent) {
-        Child->Root = this;
-    }
-    PrintName.append(".").append(Name.data());
+    FullName.append(".").append(Name.data());
     return Child;
-}
-
-uint32_t ASTIdentifier::getIndex() const {
-    return Index;
-}
-
-ASTIdentifier *ASTIdentifier::getRoot() const {
-    return Root;
 }
 
 ASTIdentifier *ASTIdentifier::getParent() const {
@@ -54,34 +75,12 @@ ASTIdentifier *ASTIdentifier::getChild() const {
     return Child;
 }
 
-bool ASTIdentifier::isCall() const {
-    return RefIsCall;
-}
-
-ASTVarRef *ASTIdentifier::getVarRef() const {
-    if (RefIsCall)
-        return nullptr;
-    return (ASTVarRef *) Reference;
-}
-
-ASTCall *ASTIdentifier::getCall() const {
-    if (RefIsCall)
-        return (ASTCall *) Reference;
-    return nullptr;
-}
-
-void ASTIdentifier::setCall(ASTCall *Call) {
-    RefIsCall = true;
-    this->Reference = (ASTReference *) Call;
-}
-
 std::string ASTIdentifier::print() const {
-    return PrintName;
+    return FullName;
 }
 
 std::string ASTIdentifier::str() const {
     return Logger("ASTIdentifier").
-            Attr("Reference", Reference).
             Attr("Name", Name).
             Attr("Child", Child).
             End();
