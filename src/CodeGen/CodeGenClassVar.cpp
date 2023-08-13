@@ -35,7 +35,7 @@ llvm::StoreInst *CodeGenClassVar::Store(llvm::Value *Val) {
     assert(ClassType && "Class Type not defined");
 
     // Fix Architecture Compatibility of bool i1 to i8
-    if (Var->getType()->getIdentityKind() == ASTTypeKind::TYPE_BOOL) {
+    if (Var->getType()->getKind() == ASTTypeKind::TYPE_BOOL) {
         Val = CGM->Builder->CreateZExt(Val, CGM->Int8Ty);
     }
 

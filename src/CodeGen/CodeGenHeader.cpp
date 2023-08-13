@@ -102,7 +102,7 @@ void CodeGenHeader::setClass(ASTClass *Class) {
 }
 
 const std::string CodeGenHeader::Convert(ASTType *Type) {
-    switch (Type->getIdentityKind()) {
+    switch (Type->getKind()) {
         case ASTTypeKind::TYPE_BOOL:
             return "bool";
         case ASTTypeKind::TYPE_INTEGER:

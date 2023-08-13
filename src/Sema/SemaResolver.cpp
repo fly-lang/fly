@@ -823,7 +823,7 @@ bool SemaResolver::ResolveExpr(ASTBlock *Block, ASTExpr *Expr) {
             ASTCall *Call = ((ASTCallExpr *)Expr)->getCall();
             if (Call->getDef() || ResolveCall(Block, Call)) {
                 Expr->Type = Call->getCallKind() == ASTCallKind::CALL_NORMAL ?
-                        Call->Def->Type :
+                        Call->Def->ReturnType :
                         ((ASTClassFunction *) Call->Def)->getClass()->getType();
                 Success = true;
                 break;
@@ -1009,7 +1009,7 @@ ASTType *SemaResolver::getType(ASTStmt *Stmt) {
         case ASTStmtKind::STMT_VAR_ASSIGN: // a = 1
             return ((ASTVarAssign *) Stmt)->getVarRef()->getDef()->getType();
         case ASTStmtKind::STMT_RETURN:
-            return ((ASTBlock *) Stmt->getParent())->Top->Type;
+            return ((ASTBlock *) Stmt->getParent())->Top->ReturnType;
         case ASTStmtKind::STMT_EXPR:
             return ((ASTExprStmt *) Stmt)->Expr->Type;
         case ASTStmtKind::STMT_BLOCK:

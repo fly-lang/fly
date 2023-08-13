@@ -43,6 +43,7 @@
 #include "AST/ASTVarRef.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTEnum.h"
+#include "AST/ASTFail.h"
 #include "Basic/Debug.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/IR/GlobalVariable.h"
@@ -97,6 +98,13 @@ CodeGenModule::CodeGenModule(DiagnosticsEngine &Diags, llvm::StringRef Name, LLV
     const auto &SDKVersion = Target.getSDKVersion();
     if (!SDKVersion.empty())
         Module->setSDKVersion(SDKVersion);
+
+    // Create Error Struct Type
+    llvm::SmallVector<llvm::Type *, 4> ErrorStructVector;
+    ErrorStructVector.push_back(Int16Ty); // Error Num
+    ErrorStructVector.push_back(Int8PtrPtrTy); // Error Description
+    ErrorType = llvm::StructType::create(LLVMCtx, ErrorStructVector, "error");    
+    
     // TODO Add dependencies, Linker Options
 }
 
@@ -162,7 +170,7 @@ CodeGenEnum *CodeGenModule::GenEnum(ASTEnum *Enum, bool isExternal) {
 llvm::Type *CodeGenModule::GenType(const ASTType *Type) {
     FLY_DEBUG("CodeGenModule", "GenType");
     // Check Type
-    switch (Type->getIdentityKind()) {
+    switch (Type->getKind()) {
 
         case ASTTypeKind::TYPE_VOID:
             return VoidTy;
@@ -240,8 +248,8 @@ llvm::ArrayType *CodeGenModule::GenArrayType(const ASTArrayType *ArrayType) {
 
 llvm::Constant *CodeGenModule::GenDefaultValue(const ASTType *Type, llvm::Type *Ty) {
     FLY_DEBUG("CodeGenModule", "GenDefaultValue");
-    assert(Type->getIdentityKind() != ASTTypeKind::TYPE_VOID && "No default value for Void Type");
-    switch (Type->getIdentityKind()) {
+    assert(Type->getKind() != ASTTypeKind::TYPE_VOID && "No default value for Void Type");
+    switch (Type->getKind()) {
 
         // Bool
         case ASTTypeKind::TYPE_BOOL:
@@ -301,7 +309,7 @@ llvm::Constant *CodeGenModule::GenValue(const ASTType *Type, const ASTValue *Val
 
     //TODO value conversion from Val->getType() to TypeBase (if are different)
 
-    switch (Type->getIdentityKind()) {
+    switch (Type->getKind()) {
 
         // Bool
         case ASTTypeKind::TYPE_BOOL:
@@ -445,7 +453,7 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
         case ASTStmtKind::STMT_DELETE: {
             ASTDelete *Delete = (ASTDelete *) Stmt;
             ASTVar * Var = Delete->getVarRef()->getDef();
-            if (Var->getType()->getIdentityKind() == ASTTypeKind::TYPE_IDENTITY) {
+            if (Var->getType()->getKind() == ASTTypeKind::TYPE_IDENTITY) {
                 if (!((ASTClass *) ((ASTClassType *) Var->getType())->getDef())->getCodeGen()->getVars().empty()) {
                     Instruction *I = CallInst::CreateFree(Var->getCodeGen()->getPointer(), Builder->GetInsertBlock());
                     Builder->Insert(I);
@@ -468,17 +476,9 @@ void CodeGenModule::GenStmt(llvm::Function *Fn, ASTStmt * Stmt) {
         case ASTStmtKind::STMT_RETURN: {
             ASTReturn *Return = (ASTReturn *) Stmt;
             if (Return->getParent()->getKind() == ASTStmtKind::STMT_BLOCK) {
-                if (((ASTBlock *) Return->getParent())->getTop()->getType()->getIdentityKind() == ASTTypeKind::TYPE_VOID) {
-                    if (Return->getExpr() == nullptr) {
-                        Builder->CreateRetVoid();
-                    } else {
-                        Diag(Return->getExpr()->getLocation(), diag::err_invalid_return_type);
-                    }
-                } else {
-                    llvm::Value *V = GenExpr(Fn, ((ASTBlock *) Return->getParent())->getTop()->getType(),
-                                             Return->getExpr());
-                    Builder->CreateRet(V);
-                }
+                llvm::Value *V = Return->getExpr() ? GenExpr(Fn, ((ASTBlock *) Return->getParent())->getTop()->getType(),
+                                         Return->getExpr()) : nullptr;
+                GenReturn(((ASTBlock *) Return->getParent())->getTop(), V);
             }
             break;
         }
@@ -833,4 +833,19 @@ void CodeGenModule::pushArgs(llvm::Function *Fn, ASTCall *Call, llvm::SmallVecto
         llvm::Value *V = GenExpr(Fn, Arg->getDef()->getType(), Arg->getExpr());
         Args.push_back(V);
     }
+}
+
+void CodeGenModule::GenReturn(ASTFunctionBase *F, llvm::Value *V) {
+    // Create the Value for return
+    if (F->getType()->isVoid()) {
+        Builder->CreateRetVoid();
+    } else {
+        Builder->CreateRet(V);
+    }
+}
+
+void CodeGenModule::GenFail(ASTFunctionBase *F, ASTFail * Fail) {
+    // Take Error Var: set number and message
+
+    GenReturn(F, nullptr);
 }

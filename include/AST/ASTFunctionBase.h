@@ -46,7 +46,7 @@ namespace fly {
         ASTFunctionKind Kind;
 
         // Function return type
-        ASTType *Type = nullptr;
+        ASTType *ReturnType = nullptr;
 
         // Function Name
         llvm::StringRef Name;

@@ -18,6 +18,7 @@ add_library(flyLib
         AST/ASTEnumType.cpp
         AST/ASTEnumVar.cpp
         AST/ASTForBlock.cpp
+        AST/ASTFail.cpp
         AST/ASTFunction.cpp
         AST/ASTFunctionBase.cpp
         AST/ASTCall.cpp

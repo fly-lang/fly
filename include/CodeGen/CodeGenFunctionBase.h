@@ -20,6 +20,7 @@ namespace llvm {
     class FunctionType;
     class Type;
     class BasicBlock;
+    class StructType;
 }
 
 namespace fly {
@@ -35,11 +36,16 @@ namespace fly {
         ASTFunctionBase *AST = nullptr;
         CodeGenModule * CGM = nullptr;
         llvm::Function *Fn = nullptr;
-        llvm::FunctionType *FnTy = nullptr;
+        llvm::Type *RetType = nullptr;
+        llvm::FunctionType *FnType = nullptr;
         llvm::BasicBlock *Entry = nullptr;
 
     public:
         CodeGenFunctionBase(CodeGenModule *CGM, ASTFunctionBase *AST);
+
+        llvm::Type *GenReturnType();
+
+        static void GenTypes(CodeGenModule * CGM, SmallVector<llvm::Type *, 8> &Types, const ASTParams *Params);
 
         ASTFunctionBase *getAST();
 
@@ -54,8 +60,6 @@ namespace fly {
         void AllocaVars();
 
         virtual void GenBody();
-
-        static void GenTypes(CodeGenModule * CGM, SmallVector<llvm::Type *, 8> &Types, const ASTParams *Params);
     };
 }
 

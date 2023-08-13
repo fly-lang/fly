@@ -3,9 +3,14 @@ struct Test {
     int b;
 };
 
+Test getTest() {
+    Test t;
+    return t;
+}
+
 int main() {
     Test *t = new Test();
     int a = t->a;
     t->b = 2;
-    return 0;
+    return getTest().a;
 }

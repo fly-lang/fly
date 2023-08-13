@@ -22,17 +22,16 @@ using namespace fly;
 
 CodeGenClassFunction::CodeGenClassFunction(CodeGenModule *CGM, ASTClassFunction *AST, llvm::PointerType *TypePtr) : CodeGenFunctionBase(CGM, AST) {
     llvm::SmallVector<llvm::Type *, 8> ParamTypes;
-    llvm::Type *RetType = CGM->GenType(AST->getType());
     if (TypePtr) // Instance method
         ParamTypes.push_back(TypePtr);
-    CodeGenFunctionBase::GenTypes(CGM, ParamTypes, AST->getParams());
+    GenTypes(CGM, ParamTypes, AST->getParams());
 
     // Set LLVM Function Name %MODULE_CLASS_METHOD (if MODULE == default is empty)
-    FnTy = llvm::FunctionType::get(RetType, ParamTypes, AST->getParams()->getEllipsis() != nullptr);
+    FnType = llvm::FunctionType::get(RetType, ParamTypes, AST->getParams()->getEllipsis() != nullptr);
 
     ASTClass *Class = AST->getClass();
     std::string Name = CodeGen::toIdentifier(getAST()->getName(), Class->getNameSpace()->getName(), Class->getName());
-    Fn = llvm::Function::Create(FnTy, llvm::GlobalValue::ExternalLinkage, Name, CGM->getModule());
+    Fn = llvm::Function::Create(FnType, llvm::GlobalValue::ExternalLinkage, Name, CGM->getModule());
 }
 
 void CodeGenClassFunction::GenBody() {
@@ -73,9 +72,7 @@ void CodeGenClassFunction::GenBody() {
     CGM->GenBlock(Fn, AST->getBody()->getContent());
 
     // Add return Void
-    BasicBlock &BB = *Fn->getBasicBlockList().end();
-    Instruction &I = *BB.end();
-    if (FnTy->getReturnType()->isVoidTy()) {
+    if (FnType->getReturnType()->isVoidTy()) {
         CGM->Builder->CreateRetVoid();
     }
 }

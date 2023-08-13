@@ -29,7 +29,11 @@
 using namespace fly;
 
 CodeGenFunctionBase::CodeGenFunctionBase(CodeGenModule *CGM, ASTFunctionBase *AST) : CGM(CGM), AST(AST) {
+    RetType = GenReturnType();
+}
 
+llvm::Type *CodeGenFunctionBase::GenReturnType() {
+    return CGM->GenType(AST->getType());
 }
 
 void CodeGenFunctionBase::GenTypes(CodeGenModule * CGM, SmallVector<llvm::Type *, 8> &Types, const ASTParams *Params) {
@@ -55,7 +59,7 @@ llvm::Function *CodeGenFunctionBase::getFunction() {
 }
 
 llvm::FunctionType *CodeGenFunctionBase::getFunctionType() {
-    return FnTy;
+    return FnType;
 }
 
 void CodeGenFunctionBase::setInsertPoint() {
@@ -95,11 +99,8 @@ void CodeGenFunctionBase::GenBody() {
     setInsertPoint();
     AllocaVars();
     CGM->GenBlock(Fn, AST->getBody()->getContent());
-    
-    // Add return Void
-    BasicBlock &BB = *Fn->getBasicBlockList().end();
-    Instruction &I = *BB.end();
-    if (FnTy->getReturnType()->isVoidTy()) {
-        CGM->Builder->CreateRetVoid();
+
+    if (AST->getType()->isVoid()) {
+        CGM->GenReturn(AST);
     }
 }

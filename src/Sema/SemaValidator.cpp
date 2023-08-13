@@ -115,10 +115,10 @@ bool SemaValidator::CheckExpr(ASTExpr *Expr) {
 }
 
 bool SemaValidator::isEquals(ASTType *Type1, ASTType *Type2) {
-    if (Type1->getIdentityKind() == Type2->getIdentityKind()) {
-        if (Type1->getIdentityKind() == ASTTypeKind::TYPE_ARRAY) {
+    if (Type1->getKind() == Type2->getKind()) {
+        if (Type1->getKind() == ASTTypeKind::TYPE_ARRAY) {
             return isEquals(((ASTArrayType *) Type1)->getType(), ((ASTArrayType *) Type2)->getType());
-        } else if (Type1->getIdentityKind() == ASTTypeKind::TYPE_IDENTITY) {
+        } else if (Type1->getKind() == ASTTypeKind::TYPE_IDENTITY) {
             return ((ASTClassType *) Type1)->getName() == ((ASTClassType *) Type2)->getName();
         }
         return true;
@@ -128,7 +128,7 @@ bool SemaValidator::isEquals(ASTType *Type1, ASTType *Type2) {
 }
 
 bool SemaValidator::CheckMacroType(ASTType *Type, ASTTypeKind Kind) {
-    if (Type->getIdentityKind() != Kind) {
+    if (Type->getKind() != Kind) {
         S.Diag(Type->getLocation(), diag::err_sema_macro_type) << Type->printType();
         return false;
     }
@@ -159,8 +159,8 @@ bool SemaValidator::CheckConvertibleTypes(ASTType *FromType, ASTType *ToType) {
 
     else if (FromType->isArray() && ToType->isArray()) {
         // FIXME
-        return ((ASTArrayType *) FromType)->getType()->getIdentityKind() ==
-               ((ASTArrayType *) ToType)->getType()->getIdentityKind();
+        return ((ASTArrayType *) FromType)->getType()->getKind() ==
+               ((ASTArrayType *) ToType)->getType()->getKind();
     }
 
     else if (FromType->isIdentity() && ToType->isIdentity()) {
@@ -187,7 +187,7 @@ bool SemaValidator::CheckConvertibleTypes(ASTType *FromType, ASTType *ToType) {
 }
 
 bool SemaValidator::CheckSameTypes(const SourceLocation &Loc, ASTType *Type1, ASTType *Type2) {
-    if (Type1->getIdentityKind() == Type2->getIdentityKind()) {
+    if (Type1->getKind() == Type2->getKind()) {
         return true;
     }
 
@@ -198,7 +198,7 @@ bool SemaValidator::CheckSameTypes(const SourceLocation &Loc, ASTType *Type1, AS
 }
 
 bool SemaValidator::CheckLogicalTypes(const SourceLocation &Loc, ASTType *Type1, ASTType *Type2) {
-    if (Type1->getIdentityKind() == ASTTypeKind::TYPE_BOOL && Type2->getIdentityKind() == ASTTypeKind::TYPE_BOOL) {
+    if (Type1->getKind() == ASTTypeKind::TYPE_BOOL && Type2->getKind() == ASTTypeKind::TYPE_BOOL) {
         return true;
     }
 

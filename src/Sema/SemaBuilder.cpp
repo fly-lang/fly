@@ -683,7 +683,7 @@ SemaBuilder::CreateLocalVar(ASTBlock *Parent, const SourceLocation &Loc, ASTType
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateLocalVar",
                       Logger().Attr("Parent", Parent).End());
     ASTLocalVar *LocalVar = new ASTLocalVar(Parent, Loc, Type, Name, Constant);
-    if (Type->getIdentityKind() == ASTTypeKind::TYPE_ARRAY) {
+    if (Type->getKind() == ASTTypeKind::TYPE_ARRAY) {
         LocalVar->Expr = CreateExpr(LocalVar, CreateArrayValue(Loc));
     }
 

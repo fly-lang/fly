@@ -17,7 +17,7 @@
 using namespace fly;
 
 ASTFunctionBase::ASTFunctionBase(const SourceLocation &Loc, ASTFunctionKind Kind, ASTType *ReturnType, llvm::StringRef Name)
-        : Kind(Kind), Type(ReturnType), Name(Name), Location(Loc) {
+        : Kind(Kind), ReturnType(ReturnType), Name(Name), Location(Loc) {
 
 }
 
@@ -42,7 +42,7 @@ ASTFunctionKind ASTFunctionBase::getKind() {
 }
 
 ASTType *ASTFunctionBase::getType() const {
-    return Type;
+    return ReturnType;
 }
 
 bool ASTFunctionBase::isVarArg() {
@@ -53,7 +53,7 @@ std::string ASTFunctionBase::str() const {
     return Logger("ASTFunctionBase").
            Attr("Name", Name).
            Attr("Params", Params).
-           Attr("ReturnType", Type).
+           Attr("ReturnType", ReturnType).
            End();
 }
 
