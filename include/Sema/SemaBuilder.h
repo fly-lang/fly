@@ -98,6 +98,8 @@ namespace fly {
     class ASTEnum;
     class ASTEnumVar;
     class ASTIdentityType;
+    class ASTFail;
+    class ASTStringValue;
     enum class ASTClassKind;
     enum class ASTUnaryOperatorKind;
     enum class ASTUnaryOptionKind;
@@ -163,6 +165,7 @@ namespace fly {
         static ASTDoubleType *CreateDoubleType(const SourceLocation &Loc);
         static ASTVoidType *CreateVoidType(const SourceLocation &Loc);
         static ASTArrayType *CreateArrayType(const SourceLocation &Loc, ASTType *Type, ASTExpr *Size);
+        static ASTStringType *CreateStringType(const SourceLocation &Loc);
         static ASTClassType *CreateClassType(ASTClass *Class);
         static ASTClassType *CreateClassType(ASTIdentifier *Class);
         static ASTEnumType *CreateEnumType(ASTEnum *Enum);
@@ -178,6 +181,8 @@ namespace fly {
         static ASTFloatingValue *CreateFloatingValue(const SourceLocation &Loc, std::string Val);
         static ASTFloatingValue *CreateFloatingValue(const SourceLocation &Loc, double Val);
         static ASTArrayValue *CreateArrayValue(const SourceLocation &Loc);
+        static ASTStringValue *CreateStringValue(const SourceLocation &Loc, const char *Chars);
+        static ASTArrayValue *CreateStringValue(const SourceLocation &Loc, const char *Chars, unsigned int Length);
         static ASTStructValue *CreateStructValue(const SourceLocation &Loc);
         static ASTValue *CreateDefaultValue(ASTType *Type);
 
@@ -188,6 +193,8 @@ namespace fly {
         ASTReturn *CreateReturn(ASTBlock *Parent, const SourceLocation &Loc);
         ASTBreak *CreateBreak(ASTBlock *Parent, const SourceLocation &Loc);
         ASTContinue *CreateContinue(ASTBlock *Parent, const SourceLocation &Loc);
+        static ASTFail *CreateFail(ASTBlock *Parent, const SourceLocation &Loc, uint32_t Number);
+        static ASTFail *CreateFail(ASTBlock *Parent, const SourceLocation &Loc, StringRef Message);
         ASTExprStmt *CreateExprStmt(ASTBlock *Parent, const SourceLocation &Loc);
 
         // Create Identifier
@@ -257,9 +264,9 @@ namespace fly {
         bool AddExternalFunction(ASTNode *Node, ASTFunction *Function);
 
         // Add Value to Array
-        bool AddArrayValue(ASTArrayValue *ArrayValue, ASTValue *Value);
-        bool AddStructValue(ASTStructValue *ArrayValue, llvm::StringRef Key, ASTValue *Value);
-        bool AddCallArg(ASTCall *Call, ASTExpr *Expr);
+        static bool AddArrayValue(ASTArrayValue *ArrayValue, ASTValue *Value);
+        static bool AddStructValue(ASTStructValue *ArrayValue, llvm::StringRef Key, ASTValue *Value);
+        static bool AddCallArg(ASTCall *Call, ASTExpr *Expr);
 
         // Add Stmt
         bool AddStmt(ASTStmt *Stmt);

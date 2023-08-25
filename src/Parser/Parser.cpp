@@ -30,6 +30,7 @@
 #include "AST/ASTImport.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTLocalVar.h"
+#include "AST/ASTFail.h"
 #include "Sema/SemaBuilder.h"
 #include "Frontend/InputFile.h"
 #include "Basic/Debug.h"
@@ -182,9 +183,6 @@ bool Parser::ParseImports() {
  */
 bool Parser::ParseTopDef() {
     FLY_DEBUG("Parser", "ParseTopDef");
-
-    ASTVisibilityKind Visibility = ASTVisibilityKind::V_DEFAULT;
-    bool Constant = false;
 
     // Parse Public/Private and Constant
     ASTScopes *Scopes = SemaBuilder::CreateScopes();
@@ -447,6 +445,9 @@ bool Parser::ParseStmt(ASTBlock *Block, bool StopParse) {
     if (Tok.is(tok::kw_continue)) { // Parse continue
         ASTContinue *Continue = Builder.CreateContinue(Block, ConsumeToken());
         return Builder.AddStmt(Continue) && (StopParse || ParseStmt(Block));
+    }
+    if (Tok.is(tok::kw_fail)) { // Parse Fail
+        return ParseFail(Block) && (StopParse || ParseStmt(Block));
     }
 
     // define a const LocalVar
@@ -883,6 +884,9 @@ bool Parser::ParseBuiltinType(ASTType *&Type) {
         case tok::kw_void:
             Type = SemaBuilder::CreateVoidType(ConsumeToken());
             break;
+        case tok::kw_string:
+            Type = SemaBuilder::CreateStringType(ConsumeToken());
+            break;
         default:
             Diag(Tok.getLocation(), diag::err_parser_invalid_type);
             return false;
@@ -1084,16 +1088,7 @@ ASTValue *Parser::ParseValue() {
 
     if (Tok.isStringLiteral()) {
         const char *Chars = Tok.getLiteralData();
-        unsigned int StringLength = Tok.getLength();
-        const SourceLocation &Loc = ConsumeStringToken();
-        // TODO check Val type if need more than 1 byte of memory
-        ASTArrayValue *String = SemaBuilder::CreateArrayValue(Loc);
-        for (unsigned int i = 0; i < StringLength ; i++) {
-            ASTIntegerValue *StringChar = Builder.CreateIntegerValue(Loc, Chars[i]);
-            Builder.AddArrayValue(String, StringChar);
-        }
-        // set size to ASTArrayType on var declaration
-        return String;
+        return SemaBuilder::CreateStringValue(ConsumeStringToken(), Chars);
     }
 
     // Parse true or false boolean values
@@ -1221,6 +1216,35 @@ ASTExpr *Parser::ParseExpr(ASTStmt *Stmt, ASTIdentifier *Identifier) {
     FLY_DEBUG_MESSAGE("Parser", "ParseExpr", Logger().Attr("Stmt", Stmt).End());
     ExprParser Parser(this, Stmt);
     return Identifier ? Parser.ParseExpr(Identifier) : Parser.ParseExpr();
+}
+
+bool Parser::ParseFail(ASTBlock *Block) {
+    FLY_DEBUG("Parser", "ParseFail");
+    assert(Tok.is(tok::kw_fail) && "Tok is not fail keyword");
+    SourceLocation Loc = ConsumeToken();
+
+    // Fail of Integer type
+    if (Tok.is(tok::numeric_constant)) {
+        std::string Val = std::string(Tok.getLiteralData(), Tok.getLength());
+        ASTValue *Number = ParseValueNumber(Val);
+        if (Number->getTypeKind() == ASTTypeKind::TYPE_INTEGER) {
+            uint32_t Value = ((ASTIntegerValue *) Number)->getValue();
+            ASTFail *Fail = SemaBuilder::CreateFail(Block, Loc, Value);
+            return Builder.AddStmt(Fail);
+        }
+    }
+
+    // Fail of String type
+    else if (Tok.isStringLiteral()) {
+        const char *Chars = Tok.getLiteralData();
+        unsigned int Length = Tok.getLength();
+        ASTFail *Fail = SemaBuilder::CreateFail(Block, Loc, StringRef(Chars, Length));
+        return Builder.AddStmt(Fail);
+    }
+
+    // Error: Fail number must be integer
+    Diag(diag::err_invalid_value) << Tok.getName();
+    return false;
 }
 
 /**

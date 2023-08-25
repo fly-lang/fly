@@ -59,7 +59,7 @@ namespace {
         ASTBinaryGroupExpr *IfCond = (ASTBinaryGroupExpr *) IfBlock->getCondition();
         EXPECT_EQ(((ASTVarRefExpr *) IfCond->getFirst())->getVarRef()->getName(), "a");
         EXPECT_EQ(IfCond->getOperatorKind(), ASTBinaryOperatorKind::COMP_EQ);
-        EXPECT_EQ(((ASTValueExpr *) IfCond->getSecond())->getValue().print(), "1");
+        EXPECT_EQ(((ASTValueExpr *) IfCond->getSecond())->getValue()->print(), "1");
         EXPECT_TRUE(((ASTEmptyExpr *)((ASTReturn *) IfBlock->getContent()[0])->getExpr())->getExprKind() == ASTExprKind::EXPR_EMPTY);
         EXPECT_FALSE(IfBlock->getElsifBlocks().empty());
         EXPECT_TRUE(IfBlock->getElseBlock());
@@ -69,7 +69,7 @@ namespace {
         ASTBinaryGroupExpr *ElsifCond = (ASTBinaryGroupExpr *) ElsifBlock->getCondition();
         EXPECT_EQ(((ASTVarRefExpr *) ElsifCond->getFirst())->getVarRef()->getName(), "a");
         EXPECT_EQ(ElsifCond->getOperatorKind(), ASTBinaryOperatorKind::COMP_EQ);
-        EXPECT_EQ(((ASTValueExpr *) ElsifCond->getSecond())->getValue().print(), "2");
+        EXPECT_EQ(((ASTValueExpr *) ElsifCond->getSecond())->getValue()->print(), "2");
         EXPECT_EQ(((ASTVarAssign *) ElsifBlock->getContent()[0])->getVarRef()->getName(), "b");
 
         // Else
@@ -100,7 +100,7 @@ namespace {
         ASTBinaryGroupExpr *IfCond = (ASTBinaryGroupExpr *) IfBlock->getCondition();
         EXPECT_EQ(((ASTVarRefExpr *) IfCond->getFirst())->getVarRef()->getName(), "a");
         EXPECT_EQ(IfCond->getOperatorKind(), ASTBinaryOperatorKind::COMP_EQ);
-        EXPECT_EQ(((ASTValueExpr *) IfCond->getSecond())->getValue().print(), "1");
+        EXPECT_EQ(((ASTValueExpr *) IfCond->getSecond())->getValue()->print(), "1");
         EXPECT_TRUE(((ASTEmptyExpr *)((ASTReturn *) IfBlock->getContent()[0])->getExpr())->getExprKind() == ASTExprKind::EXPR_EMPTY);
 
         EXPECT_FALSE(IfBlock->getElsifBlocks().empty());
@@ -112,7 +112,7 @@ namespace {
         ASTBinaryGroupExpr *ElsifCond = (ASTBinaryGroupExpr *) ElsifBlock->getCondition();
         EXPECT_EQ(((ASTVarRefExpr *) ElsifCond->getFirst())->getVarRef()->getName(), "a");
         EXPECT_EQ(ElsifCond->getOperatorKind(), ASTBinaryOperatorKind::COMP_EQ);
-        EXPECT_EQ(((ASTValueExpr *) ElsifCond->getSecond())->getValue().print(), "2");
+        EXPECT_EQ(((ASTValueExpr *) ElsifCond->getSecond())->getValue()->print(), "2");
 
         // Else
         ASTElseBlock *ElseBlock = IfBlock->getElseBlock();
@@ -142,9 +142,9 @@ namespace {
 
         ASTSwitchBlock *SwitchBlock = (ASTSwitchBlock *) Body->getContent()[0];
         EXPECT_EQ(SwitchBlock->getBlockKind(), ASTBlockKind::BLOCK_SWITCH);
-        EXPECT_EQ(((ASTValueExpr *) SwitchBlock->getCases()[0]->getExpr())->getValue().print(), "1");
+        EXPECT_EQ(((ASTValueExpr *) SwitchBlock->getCases()[0]->getExpr())->getValue()->print(), "1");
         EXPECT_EQ(SwitchBlock->getCases()[0]->getContent()[0]->getKind(), ASTStmtKind::STMT_BREAK);
-        EXPECT_EQ(((ASTValueExpr *) SwitchBlock->getCases()[1]->getExpr())->getValue().print(), "2");
+        EXPECT_EQ(((ASTValueExpr *) SwitchBlock->getCases()[1]->getExpr())->getValue()->print(), "2");
         EXPECT_TRUE((ASTExprStmt *) SwitchBlock->getCases()[1]->getContent().empty());
         EXPECT_EQ(SwitchBlock->getDefault()->getBlockKind(), ASTBlockKind::BLOCK_SWITCH_DEFAULT);
         EXPECT_EQ((SwitchBlock->getDefault()->getContent()[0])->getKind(), ASTStmtKind::STMT_RETURN);
@@ -173,7 +173,7 @@ namespace {
         const ASTBinaryGroupExpr *Cond = (ASTBinaryGroupExpr *) WhileBlock->getCondition();
         EXPECT_EQ(((ASTVarRefExpr *) Cond->getFirst())->getVarRef()->getName(), "a");
         EXPECT_EQ(Cond->getOperatorKind(), ASTBinaryOperatorKind::COMP_EQ);
-        EXPECT_EQ(((ASTValueExpr *) Cond->getSecond())->getValue().print(), "1");
+        EXPECT_EQ(((ASTValueExpr *) Cond->getSecond())->getValue()->print(), "1");
 
     }
 
@@ -190,7 +190,7 @@ namespace {
         const ASTBlock *Body = F->getBody();
         ASTWhileBlock *WhileBlock = (ASTWhileBlock *) Body->getContent()[0];
         EXPECT_EQ(WhileBlock->getBlockKind(), ASTBlockKind::BLOCK_WHILE);
-        EXPECT_EQ(((ASTValueExpr *) WhileBlock->getCondition())->getValue().print(), "true");
+        EXPECT_EQ(((ASTValueExpr *) WhileBlock->getCondition())->getValue()->print(), "true");
         EXPECT_FALSE(WhileBlock->isEmpty());
     }
 
@@ -219,7 +219,7 @@ namespace {
         ASTBinaryGroupExpr *Cond = (ASTBinaryGroupExpr *) ForBlock->getCondition();
         EXPECT_EQ(((ASTVarRefExpr *) Cond->getFirst())->getVarRef()->getName(), "b");
         EXPECT_EQ(Cond->getOperatorKind(), ASTBinaryOperatorKind::COMP_LT);
-        EXPECT_EQ(((ASTValueExpr *) Cond->getSecond())->getValue().print(), "10");
+        EXPECT_EQ(((ASTValueExpr *) Cond->getSecond())->getValue()->print(), "10");
 
         // b++
         ASTExprStmt * ExprStmt1 = (ASTExprStmt *) ForBlock->getPost()->getContent()[0];

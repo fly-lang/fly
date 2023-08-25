@@ -59,8 +59,8 @@ ASTValueExpr::ASTValueExpr(ASTValue *Val) : ASTExpr(Val->getLocation(), ASTExprK
 
 }
 
-ASTValue &ASTValueExpr::getValue() const {
-    return *Value;
+ASTValue *ASTValueExpr::getValue() const {
+    return Value;
 }
 
 std::string ASTValueExpr::str() const {

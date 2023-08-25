@@ -69,6 +69,7 @@ namespace fly {
         friend class CodeGenInstance;
         friend class CodeGenVar;
         friend class CodeGenExpr;
+        friend class CodeGenFail;
 
         // Diagnostics
         DiagnosticsEngine &Diags;
@@ -120,35 +121,35 @@ namespace fly {
 
         llvm::Constant *GenValue(const ASTType *Type, const ASTValue *Val);
 
-        void GenStmt(llvm::Function *Fn, ASTStmt * Stmt);
+        void GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt);
 
         CodeGenVarBase *GenVar(ASTVar* Var);
 
         llvm::Value *GenVarRef(ASTVarRef *VarRef);
 
-        llvm::Value *GenCall(llvm::Function *Fn, ASTCall *Call);
+        llvm::Value *GenCall(CodeGenFunctionBase *CGF, ASTCall *Call);
 
-        llvm::Value *GenExpr(llvm::Function *Fn, const ASTType *Type, ASTExpr *Expr);
+        llvm::Value *GenExpr(CodeGenFunctionBase *CGF, const ASTType *Type, ASTExpr *Expr);
 
-        void GenBlock(llvm::Function *Fn, const std::vector<ASTStmt *> &Content, llvm::BasicBlock *BB = nullptr);
+        void GenBlock(CodeGenFunctionBase *CGF, const std::vector<ASTStmt *> &Content, llvm::BasicBlock *BB = nullptr);
 
-        void GenIfBlock(llvm::Function *Fn, ASTIfBlock *If);
+        void GenIfBlock(CodeGenFunctionBase *CGF, ASTIfBlock *If);
 
-        llvm::BasicBlock *GenElsifBlock(llvm::Function *Fn,
+        llvm::BasicBlock *GenElsifBlock(CodeGenFunctionBase *CGF,
                                         llvm::BasicBlock *ElsifBB,
                                         std::vector<ASTElsifBlock *>::iterator &It);
 
-        void GenSwitchBlock(llvm::Function *Fn, ASTSwitchBlock *Switch);
+        void GenSwitchBlock(CodeGenFunctionBase *CGF, ASTSwitchBlock *Switch);
 
-        void GenForBlock(llvm::Function *Fn, ASTForBlock *For);
+        void GenForBlock(CodeGenFunctionBase *CGF, ASTForBlock *For);
 
-        void GenWhileBlock(llvm::Function *Fn, ASTWhileBlock *While);
+        void GenWhileBlock(CodeGenFunctionBase *CGF, ASTWhileBlock *While);
 
-        void pushArgs(llvm::Function *Fn, ASTCall *pCall, llvm::SmallVector<llvm::Value *, 8> &Args);
+        void pushArgs(CodeGenFunctionBase *CGF, ASTCall *pCall, llvm::SmallVector<llvm::Value *, 8> &Args);
 
-        void GenReturn(ASTFunctionBase *F, llvm::Value *V = nullptr);
+        void GenReturn(ASTFunctionBase *CGF, llvm::Value *V = nullptr);
 
-        void GenFail(ASTFunctionBase *F, ASTFail * Fail);
+        void GenFail(ASTFunctionBase *CGF, ASTFail * Fail);
     };
 }
 

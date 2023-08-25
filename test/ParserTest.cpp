@@ -26,6 +26,7 @@
 #include "AST/ASTClass.h"
 #include "AST/ASTClassVar.h"
 #include "AST/ASTClassFunction.h"
+#include "AST/ASTFail.h"
 
 #include "llvm/ADT/StringMap.h"
 
@@ -225,19 +226,19 @@ namespace {
         EXPECT_EQ(VerifyA->getScopes()->isConstant(), true);
         EXPECT_EQ(VerifyA->getType()->getKind(), ASTTypeKind::TYPE_INTEGER);
         EXPECT_EQ(VerifyA->getName(), "a");
-        EXPECT_EQ(((ASTIntegerValue &) ((ASTValueExpr *)VerifyA->getExpr())->getValue()).getValue(), 1);
+        EXPECT_EQ(((ASTIntegerValue *) ((ASTValueExpr *)VerifyA->getExpr())->getValue())->getValue(), 1);
 
         EXPECT_EQ(VerifyB->getScopes()->getVisibility(), ASTVisibilityKind::V_PUBLIC);
         EXPECT_EQ(VerifyB->getScopes()->isConstant(), true);
         EXPECT_EQ(VerifyB->getType()->getKind(), ASTTypeKind::TYPE_FLOATING_POINT);
         EXPECT_EQ(VerifyB->getName(), "b");
-        EXPECT_EQ(((ASTFloatingValue &) ((ASTValueExpr *) VerifyB->getExpr())->getValue()).getValue(), "2.0");
+        EXPECT_EQ(((ASTFloatingValue *) ((ASTValueExpr *) VerifyB->getExpr())->getValue())->getValue(), "2.0");
 
         EXPECT_EQ(VerifyC->getScopes()->getVisibility(), ASTVisibilityKind::V_DEFAULT);
         EXPECT_EQ(VerifyC->getScopes()->isConstant(), true);
         EXPECT_EQ(VerifyC->getType()->getKind(), ASTTypeKind::TYPE_BOOL);
         EXPECT_EQ(VerifyC->getName(), "c");
-        EXPECT_EQ(((ASTBoolValue &) ((ASTValueExpr *)VerifyC->getExpr())->getValue()).getValue(), false);
+        EXPECT_EQ(((ASTBoolValue *) ((ASTValueExpr *)VerifyC->getExpr())->getValue())->getValue(), false);
 
     }
 
@@ -261,18 +262,18 @@ namespace {
         // a
         EXPECT_EQ(a->getType()->getKind(), ASTTypeKind::TYPE_ARRAY);
         EXPECT_EQ(((ASTIntegerType *) ((ASTArrayType *) a->getType())->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_BYTE);
-        EXPECT_EQ(((ASTIntegerValue &) ((ASTValueExpr *)((ASTArrayType *) a->getType())->getSize())->getValue()).getValue(), 0);
-        EXPECT_EQ(((ASTValueExpr *) a->getExpr())->getValue().print(), "null");
+        EXPECT_EQ(((ASTIntegerValue *) ((ASTValueExpr *)((ASTArrayType *) a->getType())->getSize())->getValue())->getValue(), 0);
+        EXPECT_EQ(((ASTValueExpr *) a->getExpr())->getValue()->print(), "null");
 
         // b
         EXPECT_EQ(b->getType()->getKind(), ASTTypeKind::TYPE_ARRAY);
         EXPECT_EQ(((ASTIntegerType *) ((ASTArrayType *) b->getType())->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_BYTE);
-        EXPECT_EQ(((ASTIntegerValue &) ((ASTValueExpr *)((ASTArrayType *) b->getType())->getSize())->getValue()).getValue(), 0);
+        EXPECT_EQ(((ASTIntegerValue *) ((ASTValueExpr *)((ASTArrayType *) b->getType())->getSize())->getValue())->getValue(), 0);
         EXPECT_NE(b->getExpr(), nullptr);
         ASTValueExpr *bExpr = (ASTValueExpr *) b->getExpr();
 //        EXPECT_EQ(((const ASTArrayValue &) bExpr->getValue()).getType()->getKind(), TypeKind::TYPE_ARRAY); // FIXME?
 //        EXPECT_EQ(((ASTArrayType *) ((const ASTArrayValue &) bExpr->getValue()).getType())->getType()->getKind(), TypeKind::TYPE_BYTE); // FIXME?
-        EXPECT_EQ(((const ASTArrayValue &) bExpr->getValue()).print(), "zero");
+        EXPECT_EQ(((const ASTArrayValue *) bExpr->getValue())->print(), "zero");
 
         // c
         EXPECT_EQ(c->getType()->getKind(), ASTTypeKind::TYPE_ARRAY);
@@ -282,31 +283,31 @@ namespace {
         ASTValueExpr *cExpr = (ASTValueExpr *) c->getExpr();
 //        EXPECT_EQ(((const ASTArrayValue &) cExpr->getValue()).getType()->getKind(), TypeKind::TYPE_ARRAY); // FIXME?
 //        EXPECT_EQ(((ASTArrayType *) ((const ASTArrayValue &) cExpr->getValue()).getType())->getType()->getKind(), TypeKind::TYPE_BYTE); // FIXME?
-        EXPECT_EQ(((const ASTArrayValue &) cExpr->getValue()).size(), 3);
-        EXPECT_FALSE(((const ASTArrayValue &) cExpr->getValue()).empty());
-        EXPECT_EQ(((const ASTArrayValue &) cExpr->getValue()).getValues()[0]->print(), "1");
-        EXPECT_EQ(((const ASTArrayValue &) cExpr->getValue()).getValues()[1]->print(), "2");
-        EXPECT_EQ(((const ASTArrayValue &) cExpr->getValue()).getValues()[2]->print(), "3");
+        EXPECT_EQ(((const ASTArrayValue *) cExpr->getValue())->size(), 3);
+        EXPECT_FALSE(((const ASTArrayValue *) cExpr->getValue())->empty());
+        EXPECT_EQ(((const ASTArrayValue *) cExpr->getValue())->getValues()[0]->print(), "1");
+        EXPECT_EQ(((const ASTArrayValue *) cExpr->getValue())->getValues()[1]->print(), "2");
+        EXPECT_EQ(((const ASTArrayValue *) cExpr->getValue())->getValues()[2]->print(), "3");
 
         // d
         EXPECT_EQ(d->getType()->getKind(), ASTTypeKind::TYPE_ARRAY);
         EXPECT_EQ(((ASTIntegerType *) ((ASTArrayType *) d->getType())->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_BYTE);
-        EXPECT_EQ(((ASTIntegerValue &) ((ASTValueExpr *)((ASTArrayType *) d->getType())->getSize())->getValue()).getValue(), 3);
+        EXPECT_EQ(((ASTIntegerValue *) ((ASTValueExpr *)((ASTArrayType *) d->getType())->getSize())->getValue())->getValue(), 3);
         EXPECT_EQ(d->getExpr(), nullptr);
 
         // e
         EXPECT_EQ(e->getType()->getKind(), ASTTypeKind::TYPE_ARRAY);
         EXPECT_EQ(((ASTIntegerType *) ((ASTArrayType *) e->getType())->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_BYTE);
-        EXPECT_EQ(((ASTIntegerValue &) ((ASTValueExpr *)((ASTArrayType *) e->getType())->getSize())->getValue()).getValue(), 3);
+        EXPECT_EQ(((ASTIntegerValue *) ((ASTValueExpr *)((ASTArrayType *) e->getType())->getSize())->getValue())->getValue(), 3);
         EXPECT_NE(e->getExpr(), nullptr);
         ASTValueExpr *eExpr = (ASTValueExpr *) c->getExpr();
 //        EXPECT_EQ(((const ASTArrayValue &) eExpr->getValue()).getType()->getKind(), TypeKind::TYPE_ARRAY); // FIXME?
 //        EXPECT_EQ(((ASTArrayType *) ((const ASTArrayValue &) eExpr->getValue()).getType())->getType()->getKind(), TypeKind::TYPE_BYTE); // FIXME?
-        EXPECT_EQ(((const ASTArrayValue &) eExpr->getValue()).size(), 3);
-        EXPECT_FALSE(((const ASTArrayValue &) eExpr->getValue()).empty());
-        EXPECT_EQ(((const ASTArrayValue &) eExpr->getValue()).getValues()[0]->print(), "1");
-        EXPECT_EQ(((const ASTArrayValue &) eExpr->getValue()).getValues()[1]->print(), "2");
-        EXPECT_EQ(((const ASTArrayValue &) eExpr->getValue()).getValues()[2]->print(), "3");
+        EXPECT_EQ(((const ASTArrayValue *) eExpr->getValue())->size(), 3);
+        EXPECT_FALSE(((const ASTArrayValue *) eExpr->getValue())->empty());
+        EXPECT_EQ(((const ASTArrayValue *) eExpr->getValue())->getValues()[0]->print(), "1");
+        EXPECT_EQ(((const ASTArrayValue *) eExpr->getValue())->getValues()[1]->print(), "2");
+        EXPECT_EQ(((const ASTArrayValue *) eExpr->getValue())->getValues()[2]->print(), "3");
 
     }
 
@@ -329,12 +330,12 @@ namespace {
         // a
         EXPECT_EQ(((ASTIntegerType *) a->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_BYTE);
         EXPECT_NE(a->getExpr(), nullptr);
-        EXPECT_EQ(((ASTIntegerValue &) ((ASTValueExpr *)a->getExpr())->getValue()).getValue(), 0);
+        EXPECT_EQ(((ASTIntegerValue *) ((ASTValueExpr *)a->getExpr())->getValue())->getValue(), 0);
 
         // b
         EXPECT_EQ(((ASTIntegerType *) b->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_BYTE);
         EXPECT_NE(b->getExpr(), nullptr);
-        EXPECT_EQ(((ASTIntegerValue &) ((ASTValueExpr *)b->getExpr())->getValue()).getValue(), 'b');
+        EXPECT_EQ(((ASTIntegerValue *) ((ASTValueExpr *)b->getExpr())->getValue())->getValue(), 'b');
 
         // c
         EXPECT_EQ(c->getType()->getKind(), ASTTypeKind::TYPE_ARRAY);
@@ -344,25 +345,25 @@ namespace {
         ASTValueExpr *cExpr = (ASTValueExpr *) c->getExpr();
 //        EXPECT_EQ(((const ASTArrayValue &) cExpr->getValue()).getType()->getKind(), TypeKind::TYPE_ARRAY); FIXME?
 //        EXPECT_EQ(((ASTArrayType *) ((const ASTArrayValue &) cExpr->getValue()).getType())->getType()->getKind(), TypeKind::TYPE_BYTE); FIXME?
-        EXPECT_EQ(((const ASTArrayValue &) cExpr->getValue()).size(), 4);
-        EXPECT_FALSE(((const ASTArrayValue &) cExpr->getValue()).empty());
-        EXPECT_EQ(((ASTIntegerValue *) ((const ASTArrayValue &) cExpr->getValue()).getValues()[0])->getValue(), (uint64_t)'a');
-        EXPECT_EQ(((ASTIntegerValue *) ((const ASTArrayValue &) cExpr->getValue()).getValues()[1])->getValue(), 'b');
-        EXPECT_EQ(((ASTIntegerValue *) ((const ASTArrayValue &) cExpr->getValue()).getValues()[2])->getValue(), 'c');
-        EXPECT_EQ(((ASTIntegerValue *) ((const ASTArrayValue &) cExpr->getValue()).getValues()[3])->getValue(), 0);
+        EXPECT_EQ(((const ASTArrayValue *) cExpr->getValue())->size(), 4);
+        EXPECT_FALSE(((const ASTArrayValue *) cExpr->getValue())->empty());
+        EXPECT_EQ(((ASTIntegerValue *) ((const ASTArrayValue *) cExpr->getValue())->getValues()[0])->getValue(), (uint64_t)'a');
+        EXPECT_EQ(((ASTIntegerValue *) ((const ASTArrayValue *) cExpr->getValue())->getValues()[1])->getValue(), 'b');
+        EXPECT_EQ(((ASTIntegerValue *) ((const ASTArrayValue *) cExpr->getValue())->getValues()[2])->getValue(), 'c');
+        EXPECT_EQ(((ASTIntegerValue *) ((const ASTArrayValue *) cExpr->getValue())->getValues()[3])->getValue(), 0);
 
         // d
         EXPECT_EQ(d->getType()->getKind(), ASTTypeKind::TYPE_ARRAY);
         EXPECT_EQ(((ASTIntegerType *) ((ASTArrayType *) c->getType())->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_BYTE);
-        EXPECT_EQ(((ASTIntegerValue &) ((ASTValueExpr *)((ASTArrayType *) d->getType())->getSize())->getValue()).getValue(), 2);
+        EXPECT_EQ(((ASTIntegerValue *) ((ASTValueExpr *)((ASTArrayType *) d->getType())->getSize())->getValue())->getValue(), 2);
         EXPECT_NE(d->getExpr(), nullptr);
         ASTValueExpr *dExpr = (ASTValueExpr *) d->getExpr();
-//        EXPECT_EQ(((const ASTArrayValue &) dExpr->getValue()).getType()->getKind(), TypeKind::TYPE_ARRAY); FIXME?
-//        EXPECT_EQ(((ASTArrayType *) ((const ASTArrayValue &) dExpr->getValue()).getType())->getType()->getKind(), TypeKind::TYPE_BYTE); FIXME?
-        EXPECT_EQ(((const ASTArrayValue &) dExpr->getValue()).size(), 2);
-        EXPECT_FALSE(((const ASTArrayValue &) dExpr->getValue()).empty());
-        EXPECT_EQ(((const ASTArrayValue &) dExpr->getValue()).getValues()[0]->print(), "0");
-        EXPECT_EQ(((const ASTArrayValue &) dExpr->getValue()).getValues()[1]->print(), "0");
+//        EXPECT_EQ(((const ASTArrayValue *) dExpr->getValue()).getType()->getKind(), TypeKind::TYPE_ARRAY); FIXME?
+//        EXPECT_EQ(((ASTArrayType *) ((const ASTArrayValue *) dExpr->getValue()).getType())->getType()->getKind(), TypeKind::TYPE_BYTE); FIXME?
+        EXPECT_EQ(((const ASTArrayValue *) dExpr->getValue())->size(), 2);
+        EXPECT_FALSE(((const ASTArrayValue *) dExpr->getValue())->empty());
+        EXPECT_EQ(((const ASTArrayValue *) dExpr->getValue())->getValues()[0]->print(), "0");
+        EXPECT_EQ(((const ASTArrayValue *) dExpr->getValue())->getValues()[1]->print(), "0");
 
     }
 
@@ -380,24 +381,24 @@ namespace {
         // a
         EXPECT_EQ(a->getType()->getKind(), ASTTypeKind::TYPE_ARRAY);
         EXPECT_EQ(((ASTIntegerType *) ((ASTArrayType *) a->getType())->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_BYTE);
-        EXPECT_EQ(((ASTIntegerValue &) ((ASTValueExpr *)((ASTArrayType *) a->getType())->getSize())->getValue()).getValue(), 0);
+        EXPECT_EQ(((ASTIntegerValue *) ((ASTValueExpr *)((ASTArrayType *) a->getType())->getSize())->getValue())->getValue(), 0);
         EXPECT_NE(a->getExpr(), nullptr);
-        const ASTValue &Val = ((ASTValueExpr *) a->getExpr())->getValue();
-        EXPECT_EQ(((ASTArrayValue &) Val).getValues().size(), 0);
+        const ASTValue *Val = ((ASTValueExpr *) a->getExpr())->getValue();
+        EXPECT_EQ(((ASTArrayValue *) Val)->getValues().size(), 0);
 
         // b
         EXPECT_EQ(b->getType()->getKind(), ASTTypeKind::TYPE_ARRAY);
         EXPECT_EQ(((ASTIntegerType *) ((ASTArrayType *) b->getType())->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_BYTE);
-        EXPECT_EQ(((ASTArrayValue &) ((ASTValueExpr *) b->getExpr())->getValue()).getValues().size(), 3);
+        EXPECT_EQ(((ASTArrayValue *) ((ASTValueExpr *) b->getExpr())->getValue())->getValues().size(), 3);
         EXPECT_NE(b->getExpr(), nullptr);
         ASTValueExpr *bExpr = (ASTValueExpr *) b->getExpr();
-//        EXPECT_EQ(((const ASTArrayValue &) bExpr->getValue()).getType()->getKind(), TypeKind::TYPE_ARRAY); FIXme/
-//        EXPECT_EQ(((ASTArrayType *) ((const ASTArrayValue &) bExpr->getValue()).getType())->getType()->getKind(), TypeKind::TYPE_BYTE); FIXME?
-        EXPECT_EQ(((const ASTArrayValue &) bExpr->getValue()).size(), 3);
-        EXPECT_FALSE(((const ASTArrayValue &) bExpr->getValue()).empty());
-        EXPECT_EQ(((const ASTArrayValue &) bExpr->getValue()).getValues()[0]->print(), "97");
-        EXPECT_EQ(((const ASTArrayValue &) bExpr->getValue()).getValues()[1]->print(), "98");
-        EXPECT_EQ(((const ASTArrayValue &) bExpr->getValue()).getValues()[2]->print(), "99");
+//        EXPECT_EQ(((const ASTArrayValue *) bExpr->getValue()).getType()->getKind(), TypeKind::TYPE_ARRAY); FIXme/
+//        EXPECT_EQ(((ASTArrayType *) ((const ASTArrayValue *) bExpr->getValue()).getType())->getType()->getKind(), TypeKind::TYPE_BYTE); FIXME?
+        EXPECT_EQ(((const ASTArrayValue *) bExpr->getValue())->size(), 3);
+        EXPECT_FALSE(((const ASTArrayValue *) bExpr->getValue())->empty());
+        EXPECT_EQ(((const ASTArrayValue *) bExpr->getValue())->getValues()[0]->print(), "97");
+        EXPECT_EQ(((const ASTArrayValue *) bExpr->getValue())->getValues()[1]->print(), "98");
+        EXPECT_EQ(((const ASTArrayValue *) bExpr->getValue())->getValues()[2]->print(), "99");
 
     }
 
@@ -447,12 +448,12 @@ namespace {
         EXPECT_EQ(Par2->isConstant(), false);
         EXPECT_EQ(Par2->getExpr()->getExprKind(), ASTExprKind::EXPR_VALUE);
         ASTValueExpr *DefArg2 = (ASTValueExpr *)Par2->getExpr();
-        EXPECT_EQ(((ASTBoolValue &) DefArg2->getValue()).getValue(), false);
-        EXPECT_EQ(DefArg2->getValue().print(), "false");
+        EXPECT_EQ(((ASTBoolValue *) DefArg2->getValue())->getValue(), false);
+        EXPECT_EQ(DefArg2->getValue()->print(), "false");
 
         ASTReturn *Return = (ASTReturn *) VerifyFunc->getBody()->getContent()[0];
         EXPECT_EQ(((ASTValueExpr *) Return->getExpr())->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(((ASTValueExpr*) Return->getExpr())->getValue().print(), "1");
+        EXPECT_EQ(((ASTValueExpr*) Return->getExpr())->getValue()->print(), "1");
         EXPECT_EQ(Return->getKind(), ASTStmtKind::STMT_RETURN);
     }
 
@@ -476,7 +477,7 @@ namespace {
         EXPECT_EQ(typeVar->getType()->getKind(), ASTTypeKind::TYPE_IDENTITY);
         ASTClassType *ClassType = (ASTClassType *) typeVar->getType();
         EXPECT_EQ(ClassType->getName(), "Type");
-        ASSERT_EQ(((ASTNullValue &)((ASTValueExpr *) typeVar->getExpr())->getValue()).print(), "null");
+        ASSERT_EQ(((ASTNullValue *)((ASTValueExpr *) typeVar->getExpr())->getValue())->print(), "null");
 
         const ASTReturn *Ret = (ASTReturn *) Body->getContent()[1];
         ASTVarRefExpr *RetRef = (ASTVarRefExpr *) Ret->getExpr();
@@ -624,12 +625,45 @@ namespace {
         ASTArg *Arg0 = doOtherCall->getCall()->getArgs()[0];
         EXPECT_EQ(((ASTVarRefExpr *) Arg0->getExpr())->getVarRef()->getName(), "a");
         ASTArg *Arg1 = doOtherCall->getCall()->getArgs()[1];
-        EXPECT_EQ(((ASTValueExpr *) Arg1->getExpr())->getValue().print(), "1");
+        EXPECT_EQ(((ASTValueExpr *) Arg1->getExpr())->getValue()->print(), "1");
 
         // return do()
         ASTReturn *Ret = (ASTReturn *) Body->getContent()[3];
         ASTVarRefExpr *RetExpr = (ASTVarRefExpr *) Ret->getExpr();
         EXPECT_EQ(RetExpr->getVarRef()->getName(), "b");
         EXPECT_FALSE(RetExpr->getVarRef()->getDef() == nullptr);
+    }
+
+    TEST_F(ParserTest, FunctionFail) {
+        llvm::StringRef str = ("void err1() {\n"
+                               "  fail 404"
+                               "}\n"
+                               "void err2() {\n"
+                               "  fail \"Error\""
+                               "}\n"
+                               "int main() {\n"
+                               "  err1()\n"
+                               "  err2()\n"
+                               "}\n");
+        ASTNode *Node = Parse("FunctionFail", str);
+        ASSERT_TRUE(isSuccess());
+
+        // Get all functions
+        ASTFunction *err1 = *Node->getFunctions().find("err1")->getValue().begin()->second.begin();
+        ASTFunction *err2 = *Node->getFunctions().find("err2")->getValue().begin()->second.begin();
+        ASTFunction *main = *Node->getFunctions().find("main")->getValue().begin()->second.begin();
+
+        ASSERT_TRUE(err1 != nullptr);
+        ASSERT_TRUE(err2 != nullptr);
+        ASSERT_TRUE(main != nullptr);
+
+        ASTFail *err1Fail = (ASTFail *) err1->getBody()->getContent()[0];
+        ASSERT_EQ(err1Fail->getCode(), 404);
+
+        ASTFail *err2Fail = (ASTFail *) err2->getBody()->getContent()[0];
+        ASSERT_EQ(err2Fail->getMessage(), "Error");
+
+        // Get main() Body
+        const ASTBlock *Body = main->getBody();
     }
 }

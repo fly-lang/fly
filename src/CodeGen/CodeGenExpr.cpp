@@ -10,6 +10,7 @@
 
 #include "CodeGen/CodeGenModule.h"
 #include "CodeGen/CodeGenExpr.h"
+#include "CodeGen/CodeGenFunctionBase.h"
 #include "Sema/SemaBuilder.h"
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTLocalVar.h"
@@ -20,29 +21,29 @@
 
 using namespace fly;
 
-CodeGenExpr::CodeGenExpr(CodeGenModule *CGM, llvm::Function *Fn, ASTExpr *Expr, const ASTType *ToType) :
-        CGM(CGM), Fn(Fn) {
+CodeGenExpr::CodeGenExpr(CodeGenModule *CGM, CodeGenFunctionBase *CGF, ASTExpr *Expr, const ASTType *ToType) :
+        CGM(CGM), CGF(CGF) {
     FLY_DEBUG("CodeGenExpr", "CodeGenExpr");
     llvm::Value *TheVal = GenValue(Expr);
     ASTType *FromType = Expr->getType();
     Val = Convert(TheVal, FromType, ToType);
 }
 
-CodeGenExpr::CodeGenExpr(CodeGenModule *CGM, llvm::Function *Fn, ASTVar *Var) :
-        CGM(CGM), Fn(Fn), Var(Var) {
+CodeGenExpr::CodeGenExpr(CodeGenModule *CGM, CodeGenFunctionBase *CGF, ASTVar *Var) :
+        CGM(CGM), CGF(CGF), Var(Var) {
     FLY_DEBUG("CodeGenExpr", "CodeGenExpr");
     llvm::Value *TheVal = GenValue(Var->getExpr());
     ASTType *FromType = Var->getExpr()->getType();
     Val = Convert(TheVal, FromType, Var->getType());
 }
 
-llvm::Value *CodeGenExpr::GenValue(const ASTExpr *Expr, llvm::Value *Pointer) { // FIXME Pointer ???
+llvm::Value *CodeGenExpr::GenValue(const ASTExpr *Expr) {
     FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "Expr=" << Expr->str());
     switch (Expr->getExprKind()) {
 
         case ASTExprKind::EXPR_VALUE: {
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_VALUE");
-            return CGM->GenValue(Expr->getType(), &((ASTValueExpr *)Expr)->getValue());
+            return CGM->GenValue(Expr->getType(), ((ASTValueExpr *)Expr)->getValue());
         }
         case ASTExprKind::EXPR_VAR_REF: {
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_REF_VAR");
@@ -53,7 +54,7 @@ llvm::Value *CodeGenExpr::GenValue(const ASTExpr *Expr, llvm::Value *Pointer) { 
         case ASTExprKind::EXPR_CALL: {
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_REF_FUNC");
             ASTCallExpr *CallExpr = (ASTCallExpr *)Expr;
-            return CGM->GenCall(Fn, CallExpr->getCall());
+            return CGM->GenCall(CGF, CallExpr->getCall());
         }
         case ASTExprKind::EXPR_GROUP:
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_GROUP");
@@ -469,16 +470,15 @@ Value *CodeGenExpr::GenBinaryLogic(const ASTExpr *E1, ASTBinaryOperatorKind Op, 
     switch (Op) {
 
         case ASTBinaryOperatorKind::LOGIC_AND: {
-            llvm::BasicBlock *LeftBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "and", Fn);
-            llvm::BasicBlock *RightBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "and", Fn);
+            llvm::BasicBlock *LeftBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "and", CGF->getFunction());
+            llvm::BasicBlock *RightBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "and", CGF->getFunction());
 
             // From Branch
             CGM->Builder->CreateCondBr(V1, LeftBB, RightBB);
 
             // Left Branch
             CGM->Builder->SetInsertPoint(LeftBB);
-            llvm::Value *PtrV2 = nullptr;
-            llvm::Value *V2 = GenValue(E2, PtrV2);
+            llvm::Value *V2 = GenValue(E2);
             llvm::Value *V2Trunc = CGM->Builder->CreateTrunc(V2, CGM->BoolTy);
             CGM->Builder->CreateBr(RightBB);
 
@@ -490,16 +490,15 @@ Value *CodeGenExpr::GenBinaryLogic(const ASTExpr *E1, ASTBinaryOperatorKind Op, 
             return Phi;
         }
         case ASTBinaryOperatorKind::LOGIC_OR: {
-            llvm::BasicBlock *LeftBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "or", Fn);
-            llvm::BasicBlock *RightBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "or", Fn);
+            llvm::BasicBlock *LeftBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "or", CGF->getFunction());
+            llvm::BasicBlock *RightBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "or", CGF->getFunction());
 
             // From Branch
             CGM->Builder->CreateCondBr(V1, RightBB, LeftBB);
 
             // Left Branch
             CGM->Builder->SetInsertPoint(LeftBB);
-            llvm::Value *PtrV2 = nullptr;
-            llvm::Value *V2 = GenValue(E2, PtrV2);
+            llvm::Value *V2 = GenValue(E2);
             llvm::Value *V2Trunc = CGM->Builder->CreateTrunc(V2, CGM->BoolTy);
             CGM->Builder->CreateBr(RightBB);
 
@@ -524,9 +523,9 @@ llvm::Value *CodeGenExpr::GenTernary(ASTTernaryGroupExpr *Expr) {
     llvm::Value *Cond = GenValue(Expr->getFirst());
 
     // Create Blocks
-    llvm::BasicBlock *TrueBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "terntrue", Fn);
-    llvm::BasicBlock *FalseBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "ternfalse", Fn);
-    llvm::BasicBlock *EndBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "ternend", Fn);
+    llvm::BasicBlock *TrueBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "terntrue", CGF->getFunction());
+    llvm::BasicBlock *FalseBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "ternfalse", CGF->getFunction());
+    llvm::BasicBlock *EndBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "ternend", CGF->getFunction());
 
     // Create Condition
     CGM->Builder->CreateCondBr(Cond, TrueBB, FalseBB);

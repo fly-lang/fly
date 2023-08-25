@@ -26,6 +26,10 @@ namespace fly {
 
     public:
         CodeGenFunction(CodeGenModule *CGM, ASTFunction *AST, bool isExternal = false);
+
+        void GenBody() override;
+
+        static bool isMainFunction(ASTFunctionBase *FunctionBase);
     };
 }
 

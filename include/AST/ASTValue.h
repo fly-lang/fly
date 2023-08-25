@@ -119,6 +119,26 @@ namespace fly {
     };
 
     /**
+     * Used for String
+     */
+    class ASTStringValue : public ASTValue {
+
+        friend class SemaBuilder;
+
+        const char *Value;
+
+        ASTStringValue(const SourceLocation &Loc, const char *Value);
+
+    public:
+
+        const char *getValue() const;
+
+        const std::string print() const;
+
+        std::string str() const override;
+    };
+
+    /**
      * Used for Arrays
      */
     class ASTArrayValue : public ASTValue {

@@ -8,7 +8,6 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "CodeGen/CodeGenFunctionBase.h"
-#include "CodeGen/CodeGenVar.h"
 #include "CodeGen/CodeGenInstance.h"
 #include "CodeGen/CodeGenEnumEntry.h"
 #include "CodeGen/CodeGen.h"
@@ -19,7 +18,6 @@
 #include "AST/ASTCall.h"
 #include "AST/ASTType.h"
 #include "AST/ASTIdentityType.h"
-#include "AST/ASTEnumVar.h"
 #include "AST/ASTClassFunction.h"
 #include "Basic/Debug.h"
 #include "llvm/IR/DerivedTypes.h"
@@ -29,14 +27,14 @@
 using namespace fly;
 
 CodeGenFunctionBase::CodeGenFunctionBase(CodeGenModule *CGM, ASTFunctionBase *AST) : CGM(CGM), AST(AST) {
-    RetType = GenReturnType();
+
 }
 
-llvm::Type *CodeGenFunctionBase::GenReturnType() {
-    return CGM->GenType(AST->getType());
+void CodeGenFunctionBase::GenReturnType() {
+    RetType = CGM->GenType(AST->getType());
 }
 
-void CodeGenFunctionBase::GenTypes(CodeGenModule * CGM, SmallVector<llvm::Type *, 8> &Types, const ASTParams *Params) {
+void CodeGenFunctionBase::GenParamTypes(CodeGenModule * CGM, SmallVector<llvm::Type *, 8> &Types, const ASTParams *Params) {
     // Populate Types by reference
     if (!Params->getList().empty()) {
         for (auto Param : Params->getList()) {
@@ -69,6 +67,7 @@ void CodeGenFunctionBase::setInsertPoint() {
 }
 
 void CodeGenFunctionBase::AllocaVars() {
+
     // Allocation of declared ASTParams
     for (auto &Param: AST->getParams()->getList()) {
         Param->setCodeGen(CGM->GenVar(Param));
@@ -81,26 +80,21 @@ void CodeGenFunctionBase::AllocaVars() {
         LocalVar->setCodeGen(CGM->GenVar(LocalVar));
         LocalVar->getCodeGen()->Init();
     }
+}
 
-    // Store Param Values
-    int n = 0;
+llvm::Value *CodeGenFunctionBase::getErrorVar() {
+    return CodeGenFunction::isMainFunction(AST) ? ErrorVar : Fn->getArg(0);
+}
+
+void CodeGenFunctionBase::StoreParams(bool isMain) {
+    // Store Param Values (n = 0 is the Error param)
+    int n = isMain ? 0 : 1; // FIXME only for params passed by value
     for (auto &Param: AST->getParams()->getList()) {
         CodeGenVarBase *CGV = Param->getCodeGen();
         CGV->Store(Fn->getArg(n));
         if (Param->getExpr()) {
-            CGM->GenExpr(Fn, Param->getType(), Param->getExpr());
+            CGM->GenExpr(this, Param->getType(), Param->getExpr());
         }
         ++n;
-    }
-}
-
-void CodeGenFunctionBase::GenBody() {
-    FLY_DEBUG("CodeGenFunctionBase", "GenBody");
-    setInsertPoint();
-    AllocaVars();
-    CGM->GenBlock(Fn, AST->getBody()->getContent());
-
-    if (AST->getType()->isVoid()) {
-        CGM->GenReturn(AST);
     }
 }

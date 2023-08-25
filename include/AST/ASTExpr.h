@@ -150,7 +150,7 @@ namespace fly {
 
     public:
 
-        ASTValue &getValue() const;
+        ASTValue *getValue() const;
 
         std::string str() const override;
     };

@@ -40,6 +40,10 @@ const bool ASTType::isArray() const {
     return Kind == ASTTypeKind::TYPE_ARRAY;
 }
 
+const bool ASTType::isString() const {
+    return Kind == ASTTypeKind::TYPE_STRING;
+}
+
 const bool ASTType::isIdentity() const {
     return Kind == ASTTypeKind::TYPE_IDENTITY;
 }
@@ -307,4 +311,19 @@ std::string ASTArrayType::str() const {
 
 const std::string ASTArrayType::print() const {
     return Type->print() + "[]";
+}
+
+ASTStringType::ASTStringType(const SourceLocation &Loc) :
+        ASTType(Loc, ASTTypeKind::TYPE_STRING) {
+
+}
+
+const std::string ASTStringType::print() const {
+    return "string";
+}
+
+std::string ASTStringType::str() const {
+    return Logger("ASTStringType").
+            Super(ASTType::str()).
+            End();
 }

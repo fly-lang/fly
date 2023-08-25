@@ -57,6 +57,7 @@ namespace fly {
         TYPE_BOOL,
         TYPE_INTEGER,
         TYPE_FLOATING_POINT,
+        TYPE_STRING,
         TYPE_ARRAY,
         TYPE_IDENTITY
     };
@@ -94,6 +95,8 @@ namespace fly {
         const bool isInteger() const;
 
         const bool isArray() const;
+
+        const bool isString() const;
 
         const bool isIdentity() const;
 
@@ -319,7 +322,7 @@ namespace fly {
     };
 
     /**
-     * String Type
+     * Array Type
      */
     class ASTArrayType : public ASTType {
 
@@ -336,6 +339,22 @@ namespace fly {
         ASTExpr *getSize() const;
 
         ASTType *getType() const;
+
+        const std::string print() const override;
+
+        std::string str() const override;
+    };
+
+    /**
+     * String Type
+     */
+    class ASTStringType : public ASTType {
+
+        friend class SemaBuilder;
+
+        ASTStringType(const SourceLocation &Loc);
+
+    public:
 
         const std::string print() const override;
 

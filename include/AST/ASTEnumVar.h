@@ -31,7 +31,7 @@ namespace fly {
 
         llvm::StringRef Name;
 
-        uint64_t Index;
+        uint32_t Index;
 
         llvm::StringRef Comment;
 
@@ -49,7 +49,7 @@ namespace fly {
 
         llvm::StringRef getName() const override;
 
-        uint64_t getIndex() const;
+        uint32_t getIndex() const;
 
         ASTType *getType() const override;
 

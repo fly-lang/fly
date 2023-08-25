@@ -18,9 +18,12 @@
 using namespace fly;
 
 CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, ASTGlobalVar* Var, bool isExternal) : CGM(CGM), Var(Var) {
+    std::string Id = CodeGen::toIdentifier(Var->getName(), Var->getNameSpace()->getName());
+
     // Check Value
     bool Success = true;
     llvm::Constant *Const = nullptr;
+    bool IsConstant = Var->getScopes()->isConstant();
     GlobalValue::LinkageTypes Linkage = GlobalValue::LinkageTypes::ExternalLinkage;
     llvm::Type *Ty = CGM->GenType(Var->getType());
     if (!isExternal) {
@@ -30,8 +33,15 @@ CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, ASTGlobalVar* Var, bool i
         if (Var->getExpr() == nullptr) {
             Const = CGM->GenDefaultValue(Var->getType(), Ty);
         } else if (Var->getExpr()->getExprKind() == ASTExprKind::EXPR_VALUE) {
-            const ASTValue &Value = ((ASTValueExpr *) Var->getExpr())->getValue();
-            Const = CGM->GenValue(Var->getType(), &Value);
+            ASTValue *Value = ((ASTValueExpr *) Var->getExpr())->getValue();
+            if (Var->getType()->isString()) {
+                Var->getExpr();
+                const char *String = ((ASTStringValue *) Value)->getValue();
+                Const = llvm::ConstantDataArray::getString(CGM->LLVMCtx, String);
+                Ty = Const->getType();
+            } else {
+                Const = CGM->GenValue(Var->getType(), Value);
+            }
         } else {
             CGM->Diag(Var->getExpr()->getLocation(), diag::err_invalid_gvar_value);
             Success = false;
@@ -39,8 +49,7 @@ CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, ASTGlobalVar* Var, bool i
     }
 
     if (Success) {
-        std::string Id = CodeGen::toIdentifier(Var->getName(), Var->getNameSpace()->getName());
-        Pointer = new llvm::GlobalVariable(*CGM->Module, Ty, Var->getScopes()->isConstant(), Linkage, Const, Id);
+        Pointer = new llvm::GlobalVariable(*CGM->Module, Ty, IsConstant, Linkage, Const, Id);
     }
 }
 

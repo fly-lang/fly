@@ -39,6 +39,7 @@
 #include "AST/ASTClassFunction.h"
 #include "AST/ASTEnum.h"
 #include "AST/ASTEnumVar.h"
+#include "AST/ASTFail.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/SourceLocation.h"
 #include "Basic/TargetOptions.h"
@@ -67,6 +68,7 @@ namespace {
         SourceLocation SourceLoc;
         SemaBuilder *Builder;
 
+        ASTType *VoidType;
         ASTType *BoolType;
         ASTType *ByteType;
         ASTType *ShortType;
@@ -84,6 +86,7 @@ namespace {
                 CGM(CG->CreateModule("CodeGenTest")),
                 Diags(CI.getDiagnostics()),
                 Builder(Sema::CreateBuilder(CI.getDiagnostics())),
+                VoidType(SemaBuilder::CreateVoidType(SourceLoc)),
                 BoolType(SemaBuilder::CreateBoolType(SourceLoc)),
                 ByteType(SemaBuilder::CreateByteType(SourceLoc)),
                 ShortType(SemaBuilder::CreateShortType(SourceLoc)),
@@ -330,14 +333,20 @@ namespace {
         ASTGlobalVar *kVar = Builder->CreateGlobalVar(Node, SourceLoc, ArrayInt0Type, "k", TopScopes);
         EXPECT_TRUE(Builder->AddGlobalVar(kVar, ArrayValEmpty));
 
-        // l (2 val)
+        // l (array with 2 val)
         ASTArrayValue *ArrayVal = SemaBuilder::CreateArrayValue(SourceLoc);
-        ASTArrayType *ArrayInt2Type = SemaBuilder::CreateArrayType(SourceLoc, IntType,
-          Builder->CreateExpr(nullptr, SemaBuilder::CreateIntegerValue(SourceLoc, 2)));
-        Builder->AddArrayValue(ArrayVal, SemaBuilder::CreateIntegerValue(SourceLoc, 1)); // ArrayVal = {1}
-        Builder->AddArrayValue(ArrayVal, SemaBuilder::CreateIntegerValue(SourceLoc, 2)); // ArrayVal = {1, 1}
+        SemaBuilder::AddArrayValue(ArrayVal, SemaBuilder::CreateIntegerValue(SourceLoc, 1)); // ArrayVal = {1}
+        SemaBuilder::AddArrayValue(ArrayVal, SemaBuilder::CreateIntegerValue(SourceLoc, 2)); // ArrayVal = {1, 1}
+        ASTValueExpr *SizeExpr = Builder->CreateExpr(nullptr, SemaBuilder::CreateIntegerValue(SourceLoc, ArrayVal->size()));
+        ASTArrayType *ArrayInt2Type = SemaBuilder::CreateArrayType(SourceLoc, IntType, SizeExpr);
         ASTGlobalVar *lVar = Builder->CreateGlobalVar(Node, SourceLoc, ArrayInt2Type, "l", TopScopes);
         EXPECT_TRUE(Builder->AddGlobalVar(lVar, ArrayVal));
+
+        // m (string)
+        ASTStringType *StringType = SemaBuilder::CreateStringType(SourceLoc);
+        ASTGlobalVar *mVar = Builder->CreateGlobalVar(Node, SourceLoc, StringType, "m", TopScopes);
+        ASTStringValue *StringVal = SemaBuilder::CreateStringValue(SourceLoc, "hello");
+        EXPECT_TRUE(Builder->AddGlobalVar(mVar, StringVal));
 
         // Generate Code
         EXPECT_FALSE(Diags.hasErrorOccurred());
@@ -424,6 +433,12 @@ namespace {
         lGVar->print(llvm::outs());
         output = testing::internal::GetCapturedStdout();
         EXPECT_EQ(output, "@l = global [2 x i32] [i32 1, i32 2]");
+
+        GlobalVariable *mGVar = (GlobalVariable *) CGM->GenGlobalVar(mVar)->getPointer();
+        testing::internal::CaptureStdout();
+        mGVar->print(llvm::outs());
+        output = testing::internal::GetCapturedStdout();
+        EXPECT_EQ(output, "@m = global [6 x i8] c\"hello\\00\"");
     }
 
     TEST_F(CodeGenTest, CGFunc) {
@@ -431,30 +446,25 @@ namespace {
 
         ASTScopes *TopScopes = SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false);
 
-        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main", TopScopes);
-        EXPECT_TRUE(Builder->AddParam(Builder->CreateParam(MainFn, SourceLoc, IntType, "P1", false)));
-        EXPECT_TRUE(Builder->AddParam(Builder->CreateParam(MainFn, SourceLoc, FloatType, "P2", false)));
-        EXPECT_TRUE(Builder->AddParam(Builder->CreateParam(MainFn, SourceLoc, BoolType, "P3", false)));
-        EXPECT_TRUE(Builder->AddParam(Builder->CreateParam(MainFn, SourceLoc, LongType, "P4", false)));
-        EXPECT_TRUE(Builder->AddParam(Builder->CreateParam(MainFn, SourceLoc, DoubleType, "P5", false)));
-        EXPECT_TRUE(Builder->AddParam(Builder->CreateParam(MainFn, SourceLoc, ByteType, "P6", false)));
-        EXPECT_TRUE(Builder->AddParam(Builder->CreateParam(MainFn, SourceLoc, ShortType, "P7", false)));
-        EXPECT_TRUE(Builder->AddParam(Builder->CreateParam(MainFn, SourceLoc, UShortType, "P8", false)));
-        EXPECT_TRUE(Builder->AddParam(Builder->CreateParam(MainFn, SourceLoc, UIntType, "P9", false)));
-        EXPECT_TRUE(Builder->AddParam(Builder->CreateParam(MainFn, SourceLoc, ULongType, "P10", false)));
-        ASTBlock *Body = Builder->CreateBody(MainFn);
-        
-        ASTIntegerValue *IntVal = SemaBuilder::CreateIntegerValue(SourceLoc, 1);
-        ASTReturn *Return = Builder->CreateReturn(Body, SourceLoc);
-        Builder->CreateExpr(Return, IntVal);
-        EXPECT_TRUE(Builder->AddStmt(Return));
+        ASTFunction *Func = Builder->CreateFunction(Node, SourceLoc, VoidType, "func", TopScopes);
+        EXPECT_TRUE(Builder->AddParam(Builder->CreateParam(Func, SourceLoc, IntType, "P1", false)));
+        EXPECT_TRUE(Builder->AddParam(Builder->CreateParam(Func, SourceLoc, FloatType, "P2", false)));
+        EXPECT_TRUE(Builder->AddParam(Builder->CreateParam(Func, SourceLoc, BoolType, "P3", false)));
+        EXPECT_TRUE(Builder->AddParam(Builder->CreateParam(Func, SourceLoc, LongType, "P4", false)));
+        EXPECT_TRUE(Builder->AddParam(Builder->CreateParam(Func, SourceLoc, DoubleType, "P5", false)));
+        EXPECT_TRUE(Builder->AddParam(Builder->CreateParam(Func, SourceLoc, ByteType, "P6", false)));
+        EXPECT_TRUE(Builder->AddParam(Builder->CreateParam(Func, SourceLoc, ShortType, "P7", false)));
+        EXPECT_TRUE(Builder->AddParam(Builder->CreateParam(Func, SourceLoc, UShortType, "P8", false)));
+        EXPECT_TRUE(Builder->AddParam(Builder->CreateParam(Func, SourceLoc, UIntType, "P9", false)));
+        EXPECT_TRUE(Builder->AddParam(Builder->CreateParam(Func, SourceLoc, ULongType, "P10", false)));
+        ASTBlock *Body = Builder->CreateBody(Func);
 
-        EXPECT_TRUE(Builder->AddFunction(MainFn));
+        EXPECT_TRUE(Builder->AddFunction(Func));
         
         EXPECT_TRUE(Builder->Build());
 
         // Generate Code
-        CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+        CodeGenFunction *CGF = CGM->GenFunction(Func);
         CGF->GenBody();
         Function *F = CGF->getFunction();
 
@@ -463,30 +473,30 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define i32 @main(i32 %0, float %1, i1 %2, i64 %3, double %4, i8 %5, i16 %6, i16 %7, i32 %8, i64 %9) {\n"
+        EXPECT_EQ(output, "define void @func(%error* %0, i32 %1, float %2, i1 %3, i64 %4, double %5, i8 %6, i16 %7, i16 %8, i32 %9, i64 %10) {\n"
                           "entry:\n"
-                          "  %10 = alloca i32, align 4\n"
-                          "  %11 = alloca float, align 4\n"
-                          "  %12 = alloca i8, align 1\n"
-                          "  %13 = alloca i64, align 8\n"
-                          "  %14 = alloca double, align 8\n"
-                          "  %15 = alloca i8, align 1\n"
-                          "  %16 = alloca i16, align 2\n"
+                          "  %11 = alloca i32, align 4\n"
+                          "  %12 = alloca float, align 4\n"
+                          "  %13 = alloca i8, align 1\n"
+                          "  %14 = alloca i64, align 8\n"
+                          "  %15 = alloca double, align 8\n"
+                          "  %16 = alloca i8, align 1\n"
                           "  %17 = alloca i16, align 2\n"
-                          "  %18 = alloca i32, align 4\n"
-                          "  %19 = alloca i64, align 8\n"
-                          "  store i32 %0, i32* %10, align 4\n"
-                          "  store float %1, float* %11, align 4\n"
-                          "  %20 = zext i1 %2 to i8\n"
-                          "  store i8 %20, i8* %12, align 1\n"
-                          "  store i64 %3, i64* %13, align 8\n"
-                          "  store double %4, double* %14, align 8\n"
-                          "  store i8 %5, i8* %15, align 1\n"
-                          "  store i16 %6, i16* %16, align 2\n"
+                          "  %18 = alloca i16, align 2\n"
+                          "  %19 = alloca i32, align 4\n"
+                          "  %20 = alloca i64, align 8\n"
+                          "  store i32 %1, i32* %11, align 4\n"
+                          "  store float %2, float* %12, align 4\n"
+                          "  %21 = zext i1 %3 to i8\n"
+                          "  store i8 %21, i8* %13, align 1\n"
+                          "  store i64 %4, i64* %14, align 8\n"
+                          "  store double %5, double* %15, align 8\n"
+                          "  store i8 %6, i8* %16, align 1\n"
                           "  store i16 %7, i16* %17, align 2\n"
-                          "  store i32 %8, i32* %18, align 4\n"
-                          "  store i64 %9, i64* %19, align 8\n"
-                          "  ret i32 1\n"
+                          "  store i16 %8, i16* %18, align 2\n"
+                          "  store i32 %9, i32* %19, align 4\n"
+                          "  store i64 %10, i64* %20, align 8\n"
+                          "  ret void\n"
                           "}\n");
     }
 
@@ -499,10 +509,10 @@ namespace {
                                                       SemaBuilder::CreateScopes(ASTVisibilityKind::V_PRIVATE, false));
         EXPECT_TRUE(Builder->AddGlobalVar(GVar, FloatingVal));
 
-        // main()
-        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",
-                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlock *Body = Builder->CreateBody(MainFn);
+        // func()
+        ASTFunction *Func = Builder->CreateFunction(Node, SourceLoc, IntType, "func",
+                                                    SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlock *Body = Builder->CreateBody(Func);
 
         // int A
         ASTLocalVar *VarA = Builder->CreateLocalVar(Body, SourceLoc, IntType, "A", false);
@@ -524,9 +534,9 @@ namespace {
         ASTReturn *Return = Builder->CreateReturn(Body, SourceLoc);
         Builder->CreateExpr(Return, Builder->CreateVarRef(VarA));
         EXPECT_TRUE(Builder->AddStmt(Return));
-        
+
         // add to Node
-        EXPECT_TRUE(Builder->AddFunction(MainFn));
+        EXPECT_TRUE(Builder->AddFunction(Func));
         
         EXPECT_TRUE(Builder->Build());
 
@@ -534,7 +544,7 @@ namespace {
         CodeGenGlobalVar *CGGV = CGM->GenGlobalVar(GVar);
         Value *G = CGGV->getPointer();
 
-        CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+        CodeGenFunction *CGF = CGM->GenFunction(Func);
         CGF->GenBody();
         Function *F = CGF->getFunction();
         
@@ -548,32 +558,32 @@ namespace {
         testing::internal::CaptureStdout();
         F->print(llvm::outs());
         std::string output2 = testing::internal::GetCapturedStdout();
-        EXPECT_EQ(output2, "define i32 @main() {\n"
+        EXPECT_EQ(output2, "define i32 @func(%error* %0) {\n"
                           "entry:\n"
-                          "  %0 = alloca i32, align 4\n"
-                          "  store i32 1, i32* %0, align 4\n"
+                          "  %1 = alloca i32, align 4\n"
+                          "  store i32 1, i32* %1, align 4\n"
                           "  store float 1.000000e+00, float* @G, align 4\n"
-                          "  %1 = load i32, i32* %0, align 4\n"
-                          "  ret i32 %1\n"
+                          "  %2 = load i32, i32* %1, align 4\n"
+                          "  ret i32 %2\n"
                           "}\n");
     }
 
-    TEST_F(CodeGenTest, CGFuncRetFn) {
+    TEST_F(CodeGenTest, CGFuncCall) {
         ASTNode *Node = CreateNode();
 
-        // main()
-        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",
-                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlock *Body = Builder->CreateBody(MainFn);
+        // func()
+        ASTFunction *Func = Builder->CreateFunction(Node, SourceLoc, IntType, "func",
+                                                    SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlock *Body = Builder->CreateBody(Func);
 
         // test()
-        ASTFunction *TestFn = Builder->CreateFunction(Node, SourceLoc, IntType, "test",
-                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        Builder->CreateBody(TestFn);
+        ASTFunction *Test = Builder->CreateFunction(Node, SourceLoc, IntType, "test",
+                                                    SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        Builder->CreateBody(Test);
 
         // call test()
         ASTExprStmt *ExprStmt = Builder->CreateExprStmt(Body, SourceLoc);
-        ASTCall *TestCall = Builder->CreateCall(TestFn);
+        ASTCall *TestCall = Builder->CreateCall(Test);
         Builder->CreateExpr(ExprStmt, TestCall);
         EXPECT_TRUE(Builder->AddStmt(ExprStmt));
 
@@ -583,15 +593,15 @@ namespace {
         EXPECT_TRUE(Builder->AddStmt(Return));
 
         // add to Node
-        EXPECT_TRUE(Builder->AddFunction(MainFn));
-        EXPECT_TRUE(Builder->AddFunction(TestFn));
+        EXPECT_TRUE(Builder->AddFunction(Func));
+        EXPECT_TRUE(Builder->AddFunction(Test));
         
         EXPECT_TRUE(Builder->Build());
 
 
         // Generate Code
-        CGM->GenFunction(TestFn);
-        CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+        CGM->GenFunction(Test);
+        CodeGenFunction *CGF = CGM->GenFunction(Func);
         CGF->GenBody();
         Function *F = CGF->getFunction();
 
@@ -600,31 +610,31 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define i32 @main() {\n"
+        EXPECT_EQ(output, "define i32 @func(%error* %0) {\n"
                           "entry:\n"
-                          "  %0 = call i32 @test()\n"
-                          "  %1 = call i32 @test()\n"
-                          "  ret i32 %1\n"
+                          "  %1 = call i32 @test(%error* %0)\n"
+                          "  %2 = call i32 @test(%error* %0)\n"
+                          "  ret i32 %2\n"
                           "}\n");
     }
 
     /**
-     * main(int a, int b, int c) {
+     * func(int a, int b, int c) {
      *  return 1 + a * b / (c - 2)
      * }
      */
     TEST_F(CodeGenTest, CGGroupExpr) {
         ASTNode *Node = CreateNode();
 
-        // main()
-        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",
-                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlock *Body = Builder->CreateBody(MainFn);
-        ASTParam *aParam = Builder->CreateParam(MainFn, SourceLoc, IntType, "a");
+        // func()
+        ASTFunction *Func = Builder->CreateFunction(Node, SourceLoc, IntType, "func",
+                                                    SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlock *Body = Builder->CreateBody(Func);
+        ASTParam *aParam = Builder->CreateParam(Func, SourceLoc, IntType, "a");
         EXPECT_TRUE(Builder->AddParam(aParam));
-        ASTParam *bParam = Builder->CreateParam(MainFn, SourceLoc, IntType, "b");
+        ASTParam *bParam = Builder->CreateParam(Func, SourceLoc, IntType, "b");
         EXPECT_TRUE(Builder->AddParam(bParam));
-        ASTParam *cParam = Builder->CreateParam(MainFn, SourceLoc, IntType, "c");
+        ASTParam *cParam = Builder->CreateParam(Func, SourceLoc, IntType, "c");
         EXPECT_TRUE(Builder->AddParam(cParam));
 
         ASTReturn *Return = Builder->CreateReturn(Body, SourceLoc);
@@ -646,12 +656,12 @@ namespace {
         EXPECT_TRUE(Builder->AddStmt(Return));
 
         // Add to Node
-        EXPECT_TRUE(Builder->AddFunction(MainFn));
+        EXPECT_TRUE(Builder->AddFunction(Func));
         
         EXPECT_TRUE(Builder->Build());
 
         // Generate Code
-        CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+        CodeGenFunction *CGF = CGM->GenFunction(Func);
         CGF->GenBody();
         Function *F = CGF->getFunction();
 
@@ -660,37 +670,37 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define i32 @main(i32 %0, i32 %1, i32 %2) {\n"
+        EXPECT_EQ(output, "define i32 @func(%error* %0, i32 %1, i32 %2, i32 %3) {\n"
                           "entry:\n"
-                          "  %3 = alloca i32, align 4\n"
                           "  %4 = alloca i32, align 4\n"
                           "  %5 = alloca i32, align 4\n"
-                          "  store i32 %0, i32* %3, align 4\n"
+                          "  %6 = alloca i32, align 4\n"
                           "  store i32 %1, i32* %4, align 4\n"
                           "  store i32 %2, i32* %5, align 4\n"
-                          "  %6 = load i32, i32* %3, align 4\n"
+                          "  store i32 %3, i32* %6, align 4\n"
                           "  %7 = load i32, i32* %4, align 4\n"
-                          "  %8 = mul i32 %6, %7\n"
-                          "  %9 = load i32, i32* %5, align 4\n"
-                          "  %10 = sub i32 %9, 2\n"
-                          "  %11 = sdiv i32 %8, %10\n"
-                          "  %12 = add i32 1, %11\n"
-                          "  ret i32 %12\n"
+                          "  %8 = load i32, i32* %5, align 4\n"
+                          "  %9 = mul i32 %7, %8\n"
+                          "  %10 = load i32, i32* %6, align 4\n"
+                          "  %11 = sub i32 %10, 2\n"
+                          "  %12 = sdiv i32 %9, %11\n"
+                          "  %13 = add i32 1, %12\n"
+                          "  ret i32 %13\n"
                           "}\n");
     }
 
     TEST_F(CodeGenTest, CGArithOp) {
         ASTNode *Node = CreateNode();
 
-        // main()
-        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",
-                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlock *Body = Builder->CreateBody(MainFn);
-        ASTParam *aParam = Builder->CreateParam(MainFn, SourceLoc, IntType, "a");
+        // func()
+        ASTFunction *Func = Builder->CreateFunction(Node, SourceLoc, VoidType, "func",
+                                                    SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlock *Body = Builder->CreateBody(Func);
+        ASTParam *aParam = Builder->CreateParam(Func, SourceLoc, IntType, "a");
         EXPECT_TRUE(Builder->AddParam(aParam));
-        ASTParam *bParam = Builder->CreateParam(MainFn, SourceLoc, IntType, "b");
+        ASTParam *bParam = Builder->CreateParam(Func, SourceLoc, IntType, "b");
         EXPECT_TRUE(Builder->AddParam(bParam));
-        ASTParam *cParam = Builder->CreateParam(MainFn, SourceLoc, IntType, "c");
+        ASTParam *cParam = Builder->CreateParam(Func, SourceLoc, IntType, "c");
         EXPECT_TRUE(Builder->AddParam(cParam));
 
         // a = 0
@@ -797,18 +807,13 @@ namespace {
                                  Builder->CreateExpr(cPostDecVarAssign, Builder->CreateVarRef(cParam)));
         EXPECT_TRUE(Builder->AddStmt(cPostDecVarAssign));
 
-        //return c
-        ASTReturn *Return = Builder->CreateReturn(Body, SourceLoc);
-        Builder->CreateExpr(Return, Builder->CreateVarRef(cParam));
-        EXPECT_TRUE(Builder->AddStmt(Return));
-
         // Add to Node
-        EXPECT_TRUE(Builder->AddFunction(MainFn));
+        EXPECT_TRUE(Builder->AddFunction(Func));
         
         EXPECT_TRUE(Builder->Build());
 
         // Generate Code
-        CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+        CodeGenFunction *CGF = CGM->GenFunction(Func);
         CGF->GenBody();
         Function *F = CGF->getFunction();
 
@@ -817,63 +822,62 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define i32 @main(i32 %0, i32 %1, i32 %2) {\n"
+        EXPECT_EQ(output, "define void @func(%error* %0, i32 %1, i32 %2, i32 %3) {\n"
                           "entry:\n"
-                          "  %3 = alloca i32, align 4\n"
                           "  %4 = alloca i32, align 4\n"
                           "  %5 = alloca i32, align 4\n"
-                          "  store i32 %0, i32* %3, align 4\n"
+                          "  %6 = alloca i32, align 4\n"
                           "  store i32 %1, i32* %4, align 4\n"
                           "  store i32 %2, i32* %5, align 4\n"
-                          "  store i32 0, i32* %3, align 4\n"
+                          "  store i32 %3, i32* %6, align 4\n"
                           "  store i32 0, i32* %4, align 4\n"
-                          "  %6 = load i32, i32* %3, align 4\n"
+                          "  store i32 0, i32* %5, align 4\n"
                           "  %7 = load i32, i32* %4, align 4\n"
-                          "  %8 = add i32 %6, %7\n"
-                          "  store i32 %8, i32* %5, align 4\n"
-                          "  %9 = sub i32 %6, %7\n"
-                          "  store i32 %9, i32* %5, align 4\n"
-                          "  %10 = mul i32 %6, %7\n"
-                          "  store i32 %10, i32* %5, align 4\n"
-                          "  %11 = sdiv i32 %6, %7\n"
-                          "  store i32 %11, i32* %5, align 4\n"
-                          "  %12 = srem i32 %6, %7\n"
-                          "  store i32 %12, i32* %5, align 4\n"
-                          "  %13 = and i32 %6, %7\n"
-                          "  store i32 %13, i32* %5, align 4\n"
-                          "  %14 = or i32 %6, %7\n"
-                          "  store i32 %14, i32* %5, align 4\n"
-                          "  %15 = xor i32 %6, %7\n"
-                          "  store i32 %15, i32* %5, align 4\n"
-                          "  %16 = shl i32 %6, %7\n"
-                          "  store i32 %16, i32* %5, align 4\n"
-                          "  %17 = ashr i32 %6, %7\n"
-                          "  store i32 %17, i32* %5, align 4\n"
+                          "  %8 = load i32, i32* %5, align 4\n"
+                          "  %9 = add i32 %7, %8\n"
+                          "  store i32 %9, i32* %6, align 4\n"
+                          "  %10 = sub i32 %7, %8\n"
+                          "  store i32 %10, i32* %6, align 4\n"
+                          "  %11 = mul i32 %7, %8\n"
+                          "  store i32 %11, i32* %6, align 4\n"
+                          "  %12 = sdiv i32 %7, %8\n"
+                          "  store i32 %12, i32* %6, align 4\n"
+                          "  %13 = srem i32 %7, %8\n"
+                          "  store i32 %13, i32* %6, align 4\n"
+                          "  %14 = and i32 %7, %8\n"
+                          "  store i32 %14, i32* %6, align 4\n"
+                          "  %15 = or i32 %7, %8\n"
+                          "  store i32 %15, i32* %6, align 4\n"
+                          "  %16 = xor i32 %7, %8\n"
+                          "  store i32 %16, i32* %6, align 4\n"
+                          "  %17 = shl i32 %7, %8\n"
+                          "  store i32 %17, i32* %6, align 4\n"
+                          "  %18 = ashr i32 %7, %8\n"
+                          "  store i32 %18, i32* %6, align 4\n"
                           // Unary Operations
-                          "  %18 = load i32, i32* %5, align 4\n"
-                          "  %19 = add nsw i32 %18, 1\n"
-                          "  store i32 %19, i32* %5, align 4\n"
-                          "  %20 = load i32, i32* %5, align 4\n"
-                          "  %21 = add nsw i32 %20, 1\n"
-                          "  store i32 %21, i32* %5, align 4\n"
-                          "  %22 = load i32, i32* %5, align 4\n"
-                          "  %23 = add nsw i32 %22, -1\n"
-                          "  store i32 %23, i32* %5, align 4\n"
-                          "  %24 = load i32, i32* %5, align 4\n"
-                          "  %25 = add nsw i32 %24, -1\n"
-                          "  store i32 %25, i32* %5, align 4\n"
-                          "  %26 = load i32, i32* %5, align 4\n"
-                          "  ret i32 %26\n"
+                          "  %19 = load i32, i32* %6, align 4\n"
+                          "  %20 = add nsw i32 %19, 1\n"
+                          "  store i32 %20, i32* %6, align 4\n"
+                          "  %21 = load i32, i32* %6, align 4\n"
+                          "  %22 = add nsw i32 %21, 1\n"
+                          "  store i32 %22, i32* %6, align 4\n"
+                          "  %23 = load i32, i32* %6, align 4\n"
+                          "  %24 = add nsw i32 %23, -1\n"
+                          "  store i32 %24, i32* %6, align 4\n"
+                          "  %25 = load i32, i32* %6, align 4\n"
+                          "  %26 = add nsw i32 %25, -1\n"
+                          "  store i32 %26, i32* %6, align 4\n"
+                          "  ret void\n"
                           "}\n");
     }
 
     TEST_F(CodeGenTest, CGComparatorOp) {
         ASTNode *Node = CreateNode();
 
-        // main()
-        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, BoolType, "main",
-                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlock *Body = Builder->CreateBody(MainFn);
+        // func()
+        ASTFunction *Func = Builder->CreateFunction(Node, SourceLoc, VoidType, "func",
+                                                    SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlock *Body = Builder->CreateBody(Func);
         ASTLocalVar *aVar = Builder->CreateLocalVar(Body, SourceLoc, IntType, "a");
         EXPECT_TRUE(Builder->AddStmt(aVar));
         ASTLocalVar *bVar = Builder->CreateLocalVar(Body, SourceLoc, IntType, "b");
@@ -933,18 +937,13 @@ namespace {
                                   Builder->CreateExpr(cLteVarAssign, Builder->CreateVarRef(bVar)));
         EXPECT_TRUE(Builder->AddStmt(cLteVarAssign));
 
-        //return c
-        ASTReturn *Return = Builder->CreateReturn(Body, SourceLoc);
-        Builder->CreateExpr(Return, Builder->CreateVarRef(cVar));
-        EXPECT_TRUE(Builder->AddStmt(Return));
-
         // Add to Node
-        EXPECT_TRUE(Builder->AddFunction(MainFn));
+        EXPECT_TRUE(Builder->AddFunction(Func));
         
         EXPECT_TRUE(Builder->Build());
 
         // Generate Code
-        CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+        CodeGenFunction *CGF = CGM->GenFunction(Func);
         CGF->GenBody();
         Function *F = CGF->getFunction();
 
@@ -953,46 +952,44 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define i1 @main() {\n"
+        EXPECT_EQ(output, "define void @func(%error* %0) {\n"
                           "entry:\n"
-                          "  %0 = alloca i32, align 4\n"
                           "  %1 = alloca i32, align 4\n"
-                          "  %2 = alloca i8, align 1\n"
-                          "  store i32 0, i32* %0, align 4\n"
+                          "  %2 = alloca i32, align 4\n"
+                          "  %3 = alloca i8, align 1\n"
                           "  store i32 0, i32* %1, align 4\n"
-                          "  %3 = load i32, i32* %0, align 4\n"
+                          "  store i32 0, i32* %2, align 4\n"
                           "  %4 = load i32, i32* %1, align 4\n"
-                          "  %5 = icmp eq i32 %3, %4\n"
-                          "  %6 = zext i1 %5 to i8\n"
-                          "  store i8 %6, i8* %2, align 1\n"
-                          "  %7 = icmp ne i32 %3, %4\n"
-                          "  %8 = zext i1 %7 to i8\n"
-                          "  store i8 %8, i8* %2, align 1\n"
-                          "  %9 = icmp sgt i32 %3, %4\n"
-                          "  %10 = zext i1 %9 to i8\n"
-                          "  store i8 %10, i8* %2, align 1\n"
-                          "  %11 = icmp sge i32 %3, %4\n"
-                          "  %12 = zext i1 %11 to i8\n"
-                          "  store i8 %12, i8* %2, align 1\n"
-                          "  %13 = icmp slt i32 %3, %4\n"
-                          "  %14 = zext i1 %13 to i8\n"
-                          "  store i8 %14, i8* %2, align 1\n"
-                          "  %15 = icmp sle i32 %3, %4\n"
-                          "  %16 = zext i1 %15 to i8\n"
-                          "  store i8 %16, i8* %2, align 1\n"
-                          "  %17 = load i8, i8* %2, align 1\n"
-                          "  %18 = trunc i8 %17 to i1\n"
-                          "  ret i1 %18\n"
+                          "  %5 = load i32, i32* %2, align 4\n"
+                          "  %6 = icmp eq i32 %4, %5\n"
+                          "  %7 = zext i1 %6 to i8\n"
+                          "  store i8 %7, i8* %3, align 1\n"
+                          "  %8 = icmp ne i32 %4, %5\n"
+                          "  %9 = zext i1 %8 to i8\n"
+                          "  store i8 %9, i8* %3, align 1\n"
+                          "  %10 = icmp sgt i32 %4, %5\n"
+                          "  %11 = zext i1 %10 to i8\n"
+                          "  store i8 %11, i8* %3, align 1\n"
+                          "  %12 = icmp sge i32 %4, %5\n"
+                          "  %13 = zext i1 %12 to i8\n"
+                          "  store i8 %13, i8* %3, align 1\n"
+                          "  %14 = icmp slt i32 %4, %5\n"
+                          "  %15 = zext i1 %14 to i8\n"
+                          "  store i8 %15, i8* %3, align 1\n"
+                          "  %16 = icmp sle i32 %4, %5\n"
+                          "  %17 = zext i1 %16 to i8\n"
+                          "  store i8 %17, i8* %3, align 1\n"
+                          "  ret void\n"
                           "}\n");
     }
 
     TEST_F(CodeGenTest, CGLogicOp) {
         ASTNode *Node = CreateNode();
 
-        // main()
-        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, BoolType, "main",
-                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlock *Body = Builder->CreateBody(MainFn);
+        // func()
+        ASTFunction *Func = Builder->CreateFunction(Node, SourceLoc, VoidType, "func",
+                                                    SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlock *Body = Builder->CreateBody(Func);
         ASTLocalVar *aVar = Builder->CreateLocalVar(Body, SourceLoc, BoolType, "a");
         EXPECT_TRUE(Builder->AddStmt(aVar));
         ASTLocalVar *bVar = Builder->CreateLocalVar(Body, SourceLoc, BoolType, "b");
@@ -1024,18 +1021,13 @@ namespace {
                                   Builder->CreateExpr(cOrVarAssign, Builder->CreateVarRef(bVar)));
         EXPECT_TRUE(Builder->AddStmt(cOrVarAssign));
 
-        //return c
-        ASTReturn *Return = Builder->CreateReturn(Body, SourceLoc);
-        Builder->CreateExpr(Return, Builder->CreateVarRef(cVar));
-        EXPECT_TRUE(Builder->AddStmt(Return));
-
         // Add to Node
-        EXPECT_TRUE(Builder->AddFunction(MainFn));
+        EXPECT_TRUE(Builder->AddFunction(Func));
         
         EXPECT_TRUE(Builder->Build());
 
         // Generate Code
-        CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+        CodeGenFunction *CGF = CGM->GenFunction(Func);
         CGF->GenBody();
         Function *F = CGF->getFunction();
 
@@ -1044,52 +1036,50 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define i1 @main() {\n"
+        EXPECT_EQ(output, "define void @func(%error* %0) {\n"
                           "entry:\n"
-                          "  %0 = alloca i8, align 1\n"
                           "  %1 = alloca i8, align 1\n"
                           "  %2 = alloca i8, align 1\n"
-                          "  store i8 0, i8* %0, align 1\n"
+                          "  %3 = alloca i8, align 1\n"
                           "  store i8 0, i8* %1, align 1\n"
-                          "  %3 = load i8, i8* %0, align 1\n"
-                          "  %4 = trunc i8 %3 to i1\n"
-                          "  br i1 %4, label %and, label %and1\n"
+                          "  store i8 0, i8* %2, align 1\n"
+                          "  %4 = load i8, i8* %1, align 1\n"
+                          "  %5 = trunc i8 %4 to i1\n"
+                          "  br i1 %5, label %and, label %and1\n"
                           "\n"
                           "and:                                              ; preds = %entry\n"
-                          "  %5 = load i8, i8* %1, align 1\n"
-                          "  %6 = trunc i8 %5 to i1\n"
+                          "  %6 = load i8, i8* %2, align 1\n"
+                          "  %7 = trunc i8 %6 to i1\n"
                           "  br label %and1\n"
                           "\n"
                           "and1:                                             ; preds = %and, %entry\n"
-                          "  %7 = phi i1 [ false, %entry ], [ %6, %and ]\n"
-                          "  %8 = zext i1 %7 to i8\n"
-                          "  store i8 %8, i8* %2, align 1\n"
-                          "  %9 = load i8, i8* %0, align 1\n"
-                          "  %10 = trunc i8 %9 to i1\n"
-                          "  br i1 %10, label %or2, label %or\n"
+                          "  %8 = phi i1 [ false, %entry ], [ %7, %and ]\n"
+                          "  %9 = zext i1 %8 to i8\n"
+                          "  store i8 %9, i8* %3, align 1\n"
+                          "  %10 = load i8, i8* %1, align 1\n"
+                          "  %11 = trunc i8 %10 to i1\n"
+                          "  br i1 %11, label %or2, label %or\n"
                           "\n"
                           "or:                                               ; preds = %and1\n"
-                          "  %11 = load i8, i8* %1, align 1\n"
-                          "  %12 = trunc i8 %11 to i1\n"
+                          "  %12 = load i8, i8* %2, align 1\n"
+                          "  %13 = trunc i8 %12 to i1\n"
                           "  br label %or2\n"
                           "\n"
                           "or2:                                              ; preds = %or, %and1\n"
-                          "  %13 = phi i1 [ true, %and1 ], [ %12, %or ]\n"
-                          "  %14 = zext i1 %13 to i8\n"
-                          "  store i8 %14, i8* %2, align 1\n"
-                          "  %15 = load i8, i8* %2, align 1\n"
-                          "  %16 = trunc i8 %15 to i1\n"
-                          "  ret i1 %16\n"
+                          "  %14 = phi i1 [ true, %and1 ], [ %13, %or ]\n"
+                          "  %15 = zext i1 %14 to i8\n"
+                          "  store i8 %15, i8* %3, align 1\n"
+                          "  ret void\n"
                           "}\n");
     }
 
     TEST_F(CodeGenTest, CGTernaryOp) {
         ASTNode *Node = CreateNode();
 
-        // main()
-        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, BoolType, "main",
-                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlock *Body = Builder->CreateBody(MainFn);
+        // func()
+        ASTFunction *Func = Builder->CreateFunction(Node, SourceLoc, VoidType, "func",
+                                                    SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlock *Body = Builder->CreateBody(Func);
         ASTLocalVar *aVar = Builder->CreateLocalVar(Body, SourceLoc, BoolType, "a");
         EXPECT_TRUE(Builder->AddStmt(aVar));
         ASTLocalVar *bVar = Builder->CreateLocalVar(Body, SourceLoc, BoolType, "b");
@@ -1124,18 +1114,13 @@ namespace {
 
         EXPECT_TRUE(Builder->AddStmt(cVarAssign));
 
-        //return c
-        ASTReturn *Return = Builder->CreateReturn(Body, SourceLoc);
-        Builder->CreateExpr(Return, Builder->CreateVarRef(cVar));
-        EXPECT_TRUE(Builder->AddStmt(Return));
-
         // Add to Node
-        EXPECT_TRUE(Builder->AddFunction(MainFn));
+        EXPECT_TRUE(Builder->AddFunction(Func));
         
         EXPECT_TRUE(Builder->Build());
 
         // Generate Code
-        CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+        CodeGenFunction *CGF = CGM->GenFunction(Func);
         CGF->GenBody();
         Function *F = CGF->getFunction();
 
@@ -1144,45 +1129,43 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define i1 @main() {\n"
+        EXPECT_EQ(output, "define void @func(%error* %0) {\n"
                           "entry:\n"
-                          "  %0 = alloca i8, align 1\n"
                           "  %1 = alloca i8, align 1\n"
                           "  %2 = alloca i8, align 1\n"
-                          "  store i8 0, i8* %0, align 1\n"
+                          "  %3 = alloca i8, align 1\n"
                           "  store i8 0, i8* %1, align 1\n"
-                          "  %3 = load i8, i8* %0, align 1\n"
+                          "  store i8 0, i8* %2, align 1\n"
                           "  %4 = load i8, i8* %1, align 1\n"
-                          "  %5 = icmp eq i8 %3, %4\n"
-                          "  br i1 %5, label %terntrue, label %ternfalse\n"
+                          "  %5 = load i8, i8* %2, align 1\n"
+                          "  %6 = icmp eq i8 %4, %5\n"
+                          "  br i1 %6, label %terntrue, label %ternfalse\n"
                           "\n"
                           "terntrue:                                         ; preds = %entry\n"
-                          "  %6 = load i8, i8* %0, align 1\n"
-                          "  %7 = trunc i8 %6 to i1\n"
+                          "  %7 = load i8, i8* %1, align 1\n"
+                          "  %8 = trunc i8 %7 to i1\n"
                           "  br label %ternend\n"
                           "\n"
                           "ternfalse:                                        ; preds = %entry\n"
-                          "  %8 = load i8, i8* %1, align 1\n"
-                          "  %9 = trunc i8 %8 to i1\n"
+                          "  %9 = load i8, i8* %2, align 1\n"
+                          "  %10 = trunc i8 %9 to i1\n"
                           "  br label %ternend\n"
                           "\n"
                           "ternend:                                          ; preds = %ternfalse, %terntrue\n"
-                          "  %10 = phi i1 [ %7, %terntrue ], [ %9, %ternfalse ]\n"
-                          "  %11 = zext i1 %10 to i8\n"
-                          "  store i8 %11, i8* %2, align 1\n"
-                          "  %12 = load i8, i8* %2, align 1\n"
-                          "  %13 = trunc i8 %12 to i1\n"
-                          "  ret i1 %13\n"
+                          "  %11 = phi i1 [ %8, %terntrue ], [ %10, %ternfalse ]\n"
+                          "  %12 = zext i1 %11 to i8\n"
+                          "  store i8 %12, i8* %3, align 1\n"
+                          "  ret void\n"
                           "}\n");
     }
 
     TEST_F(CodeGenTest, CGIfBlock) {
         ASTNode *Node = CreateNode();
 
-        // main()
-        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",
-                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlock *Body = Builder->CreateBody(MainFn);
+        // func()
+        ASTFunction *Func = Builder->CreateFunction(Node, SourceLoc, VoidType, "func",
+                                                    SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlock *Body = Builder->CreateBody(Func);
 
         // int a = 0
         ASTLocalVar *aVar = Builder->CreateLocalVar(Body, SourceLoc, IntType, "a");
@@ -1203,18 +1186,13 @@ namespace {
         EXPECT_TRUE(Builder->AddStmt(aVarAssign));
         EXPECT_TRUE(Builder->AddStmt(IfBlock));
 
-        // return a
-        ASTReturn *Return = Builder->CreateReturn(Body, SourceLoc);
-        Builder->CreateExpr(Return, Builder->CreateVarRef(aVar));
-        EXPECT_TRUE(Builder->AddStmt(Return));
-
         // Add to Node
-        EXPECT_TRUE(Builder->AddFunction(MainFn));
+        EXPECT_TRUE(Builder->AddFunction(Func));
         
         EXPECT_TRUE(Builder->Build());
 
         // Generate Code
-        CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+        CodeGenFunction *CGF = CGM->GenFunction(Func);
         CGF->GenBody();
         Function *F = CGF->getFunction();
 
@@ -1223,32 +1201,31 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define i32 @main() {\n"
+        EXPECT_EQ(output, "define void @func(%error* %0) {\n"
                           "entry:\n"
-                          "  %0 = alloca i32, align 4\n"
-                          "  store i32 0, i32* %0, align 4\n"
-                          "  %1 = load i32, i32* %0, align 4\n"
-                          "  %2 = icmp eq i32 %1, 1\n"
-                          "  br i1 %2, label %ifthen, label %endif\n"
+                          "  %1 = alloca i32, align 4\n"
+                          "  store i32 0, i32* %1, align 4\n"
+                          "  %2 = load i32, i32* %1, align 4\n"
+                          "  %3 = icmp eq i32 %2, 1\n"
+                          "  br i1 %3, label %ifthen, label %endif\n"
                           "\n"
                           "ifthen:                                           ; preds = %entry\n"
-                          "  store i32 2, i32* %0, align 4\n"
+                          "  store i32 2, i32* %1, align 4\n"
                           "  br label %endif\n"
                           "\n"
                           "endif:                                            ; preds = %ifthen, %entry\n"
-                          "  %3 = load i32, i32* %0, align 4\n"
-                          "  ret i32 %3\n"
+                          "  ret void\n"
                           "}\n");
     }
 
     TEST_F(CodeGenTest, CGIfElseBlock) {
         ASTNode *Node = CreateNode();
 
-        // main()
-        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main", 
-                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlock *Body = Builder->CreateBody(MainFn);
-        ASTParam *aParam = Builder->CreateParam(MainFn, SourceLoc, IntType, "a");
+        // func()
+        ASTFunction *Func = Builder->CreateFunction(Node, SourceLoc, VoidType, "func",
+                                                    SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlock *Body = Builder->CreateBody(Func);
+        ASTParam *aParam = Builder->CreateParam(Func, SourceLoc, IntType, "a");
         EXPECT_TRUE(Builder->AddParam(aParam));
 
         // Create if block
@@ -1271,18 +1248,13 @@ namespace {
         EXPECT_TRUE(Builder->AddStmt(aVarAssign2));
         EXPECT_TRUE(Builder->AddStmt(IfBlock));
 
-        // return a
-        ASTReturn *Return = Builder->CreateReturn(Body, SourceLoc);
-        Builder->CreateExpr(Return, Builder->CreateVarRef(aParam));
-        EXPECT_TRUE(Builder->AddStmt(Return));
-
         // Add to Node
-        EXPECT_TRUE(Builder->AddFunction(MainFn));
+        EXPECT_TRUE(Builder->AddFunction(Func));
         
         EXPECT_TRUE(Builder->Build());
 
         // Generate Code
-        CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+        CodeGenFunction *CGF = CGM->GenFunction(Func);
         CGF->GenBody();
         Function *F = CGF->getFunction();
 
@@ -1291,36 +1263,35 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define i32 @main(i32 %0) {\n"
+        EXPECT_EQ(output, "define void @func(%error* %0, i32 %1) {\n"
                           "entry:\n"
-                          "  %1 = alloca i32, align 4\n"
-                          "  store i32 %0, i32* %1, align 4\n"
-                          "  %2 = load i32, i32* %1, align 4\n"
-                          "  %3 = icmp eq i32 %2, 1\n"
-                          "  br i1 %3, label %ifthen, label %else\n"
+                          "  %2 = alloca i32, align 4\n"
+                          "  store i32 %1, i32* %2, align 4\n"
+                          "  %3 = load i32, i32* %2, align 4\n"
+                          "  %4 = icmp eq i32 %3, 1\n"
+                          "  br i1 %4, label %ifthen, label %else\n"
                           "\n"
                           "ifthen:                                           ; preds = %entry\n"
-                          "  store i32 1, i32* %1, align 4\n"
+                          "  store i32 1, i32* %2, align 4\n"
                           "  br label %endif\n"
                           "\n"
                           "else:                                             ; preds = %entry\n"
-                          "  store i32 2, i32* %1, align 4\n"
+                          "  store i32 2, i32* %2, align 4\n"
                           "  br label %endif\n"
                           "\n"
                           "endif:                                            ; preds = %else, %ifthen\n"
-                          "  %4 = load i32, i32* %1, align 4\n"
-                          "  ret i32 %4\n"
+                          "  ret void\n"
                           "}\n");
     }
 
     TEST_F(CodeGenTest, CGIfElsifElseBlock) {
         ASTNode *Node = CreateNode();
 
-        // main()
-        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",
-                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlock *Body = Builder->CreateBody(MainFn);
-        ASTParam *aParam = Builder->CreateParam(MainFn, SourceLoc, IntType, "a");
+        // func()
+        ASTFunction *Func = Builder->CreateFunction(Node, SourceLoc, VoidType, "func",
+                                                    SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlock *Body = Builder->CreateBody(Func);
+        ASTParam *aParam = Builder->CreateParam(Func, SourceLoc, IntType, "a");
         EXPECT_TRUE(Builder->AddParam(aParam));
 
         // Create if block
@@ -1357,18 +1328,13 @@ namespace {
         EXPECT_TRUE(Builder->AddStmt(aVarAssign4));
         EXPECT_TRUE(Builder->AddStmt(IfBlock));
 
-        // return a
-        ASTReturn *Return = Builder->CreateReturn(Body, SourceLoc);
-        Builder->CreateExpr(Return, Builder->CreateVarRef(aParam));
-        EXPECT_TRUE(Builder->AddStmt(Return));
-
         // Add to Node
-        EXPECT_TRUE(Builder->AddFunction(MainFn));
+        EXPECT_TRUE(Builder->AddFunction(Func));
         
         EXPECT_TRUE(Builder->Build());
 
         // Generate Code
-        CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+        CodeGenFunction *CGF = CGM->GenFunction(Func);
         CGF->GenBody();
         Function *F = CGF->getFunction();
 
@@ -1377,43 +1343,42 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define i32 @main(i32 %0) {\n"
+        EXPECT_EQ(output, "define void @func(%error* %0, i32 %1) {\n"
                           "entry:\n"
-                          "  %1 = alloca i32, align 4\n"
-                          "  store i32 %0, i32* %1, align 4\n"
-                          "  %2 = load i32, i32* %1, align 4\n"
-                          "  %3 = icmp eq i32 %2, 1\n"
-                          "  br i1 %3, label %ifthen, label %elsif\n"
+                          "  %2 = alloca i32, align 4\n"
+                          "  store i32 %1, i32* %2, align 4\n"
+                          "  %3 = load i32, i32* %2, align 4\n"
+                          "  %4 = icmp eq i32 %3, 1\n"
+                          "  br i1 %4, label %ifthen, label %elsif\n"
                           "\n"
                           "ifthen:                                           ; preds = %entry\n"
-                          "  store i32 11, i32* %1, align 4\n"
+                          "  store i32 11, i32* %2, align 4\n"
                           "  br label %endif\n"
                           "\n"
                           "elsif:                                            ; preds = %entry\n"
-                          "  %4 = load i32, i32* %1, align 4\n"
-                          "  %5 = icmp eq i32 %4, 2\n"
-                          "  br i1 %5, label %elsifthen, label %elsif1\n"
+                          "  %5 = load i32, i32* %2, align 4\n"
+                          "  %6 = icmp eq i32 %5, 2\n"
+                          "  br i1 %6, label %elsifthen, label %elsif1\n"
                           "\n"
                           "elsifthen:                                        ; preds = %elsif\n"
-                          "  store i32 22, i32* %1, align 4\n"
+                          "  store i32 22, i32* %2, align 4\n"
                           "  br label %endif\n"
                           "\n"
                           "elsif1:                                           ; preds = %elsif\n"
-                          "  %6 = load i32, i32* %1, align 4\n"
-                          "  %7 = icmp eq i32 %6, 3\n"
-                          "  br i1 %7, label %elsifthen2, label %else\n"
+                          "  %7 = load i32, i32* %2, align 4\n"
+                          "  %8 = icmp eq i32 %7, 3\n"
+                          "  br i1 %8, label %elsifthen2, label %else\n"
                           "\n"
                           "elsifthen2:                                       ; preds = %elsif1\n"
-                          "  store i32 33, i32* %1, align 4\n"
+                          "  store i32 33, i32* %2, align 4\n"
                           "  br label %endif\n"
                           "\n"
                           "else:                                             ; preds = %elsif1\n"
-                          "  store i32 44, i32* %1, align 4\n"
+                          "  store i32 44, i32* %2, align 4\n"
                           "  br label %endif\n"
                           "\n"
                           "endif:                                            ; preds = %else, %elsifthen2, %elsifthen, %ifthen\n"
-                          "  %8 = load i32, i32* %1, align 4\n"
-                          "  ret i32 %8\n"
+                          "  ret void\n"
                           "}\n");
     }
 
@@ -1421,7 +1386,7 @@ namespace {
         ASTNode *Node = CreateNode();
 
         // main()
-        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",
+        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, VoidType, "func",
                                                       SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
         ASTBlock *Body = Builder->CreateBody(MainFn);
         ASTParam *aParam = Builder->CreateParam(MainFn, SourceLoc, IntType, "a");
@@ -1455,11 +1420,6 @@ namespace {
         Builder->CreateExpr(aVarAssign3, SemaBuilder::CreateIntegerValue(SourceLoc, 33));
         EXPECT_TRUE(Builder->AddStmt(aVarAssign3));
 
-        // return a
-        ASTReturn *Return = Builder->CreateReturn(Body, SourceLoc);
-        Builder->CreateExpr(Return, Builder->CreateVarRef(aParam));
-        EXPECT_TRUE(Builder->AddStmt(Return));
-
         // Add to Node
         EXPECT_TRUE(Builder->AddFunction(MainFn));
         
@@ -1475,37 +1435,37 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define i32 @main(i32 %0) {\n"
-                          "entry:\n  %1 = alloca i32, align 4\n"
-                          "  store i32 %0, i32* %1, align 4\n"
-                          "  %2 = load i32, i32* %1, align 4\n"
-                          "  %3 = icmp eq i32 %2, 1\n"
-                          "  br i1 %3, label %ifthen, label %elsif\n"
+        EXPECT_EQ(output, "define void @func(%error* %0, i32 %1) {\n"
+                          "entry:\n"
+                          "  %2 = alloca i32, align 4\n"
+                          "  store i32 %1, i32* %2, align 4\n"
+                          "  %3 = load i32, i32* %2, align 4\n"
+                          "  %4 = icmp eq i32 %3, 1\n"
+                          "  br i1 %4, label %ifthen, label %elsif\n"
                           "\n"
                           "ifthen:                                           ; preds = %entry\n"
-                          "  store i32 11, i32* %1, align 4\n"
+                          "  store i32 11, i32* %2, align 4\n"
                           "  br label %endif\n"
                           "\nelsif:                                            ; preds = %entry\n"
-                          "  %4 = load i32, i32* %1, align 4\n"
-                          "  %5 = icmp eq i32 %4, 2\n"
-                          "  br i1 %5, label %elsifthen, label %elsif1\n"
+                          "  %5 = load i32, i32* %2, align 4\n"
+                          "  %6 = icmp eq i32 %5, 2\n"
+                          "  br i1 %6, label %elsifthen, label %elsif1\n"
                           "\n"
                           "elsifthen:                                        ; preds = %elsif\n"
-                          "  store i32 22, i32* %1, align 4\n"
+                          "  store i32 22, i32* %2, align 4\n"
                           "  br label %endif\n"
                           "\n"
                           "elsif1:                                           ; preds = %elsif\n"
-                          "  %6 = load i32, i32* %1, align 4\n"
-                          "  %7 = icmp eq i32 %6, 3\n"
-                          "  br i1 %7, label %elsifthen2, label %endif\n"
+                          "  %7 = load i32, i32* %2, align 4\n"
+                          "  %8 = icmp eq i32 %7, 3\n"
+                          "  br i1 %8, label %elsifthen2, label %endif\n"
                           "\n"
                           "elsifthen2:                                       ; preds = %elsif1\n"
-                          "  store i32 33, i32* %1, align 4\n"
+                          "  store i32 33, i32* %2, align 4\n"
                           "  br label %endif\n"
                           "\n"
                           "endif:                                            ; preds = %elsifthen2, %elsif1, %elsifthen, %ifthen\n"
-                          "  %8 = load i32, i32* %1, align 4\n"
-                          "  ret i32 %8\n"
+                          "  ret void\n"
                           "}\n");
     }
 
@@ -1513,10 +1473,10 @@ namespace {
         ASTNode *Node = CreateNode();
 
         // main()
-        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",
-                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlock *Body = Builder->CreateBody(MainFn);
-        ASTParam *aParam = Builder->CreateParam(MainFn, SourceLoc, IntType, "a");
+        ASTFunction *Func = Builder->CreateFunction(Node, SourceLoc, VoidType, "func",
+                                                    SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlock *Body = Builder->CreateBody(Func);
+        ASTParam *aParam = Builder->CreateParam(Func, SourceLoc, IntType, "a");
         EXPECT_TRUE(Builder->AddParam(aParam));
 
         ASTSwitchBlock *SwitchBlock = Builder->CreateSwitchBlock(Body, SourceLoc);
@@ -1545,18 +1505,13 @@ namespace {
         Builder->CreateExpr(aVarAssign3, SemaBuilder::CreateIntegerValue(SourceLoc, 3));
         EXPECT_TRUE(Builder->AddStmt(aVarAssign3));
 
-        // return a
-        ASTReturn *Return = Builder->CreateReturn(Body, SourceLoc);
-        Builder->CreateExpr(Return, Builder->CreateVarRef(aParam));
-        EXPECT_TRUE(Builder->AddStmt(Return));
-
         // Add to Node
-        EXPECT_TRUE(Builder->AddFunction(MainFn));
+        EXPECT_TRUE(Builder->AddFunction(Func));
         
         EXPECT_TRUE(Builder->Build());
 
         // Generate Code
-        CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+        CodeGenFunction *CGF = CGM->GenFunction(Func);
         CGF->GenBody();
         Function *F = CGF->getFunction();
 
@@ -1565,31 +1520,30 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define i32 @main(i32 %0) {\n"
+        EXPECT_EQ(output, "define void @func(%error* %0, i32 %1) {\n"
                           "entry:\n"
-                          "  %1 = alloca i32, align 4\n"
-                          "  store i32 %0, i32* %1, align 4\n"
-                          "  %2 = load i32, i32* %1, align 4\n"
-                          "  switch i32 %2, label %default [\n"
+                          "  %2 = alloca i32, align 4\n"
+                          "  store i32 %1, i32* %2, align 4\n"
+                          "  %3 = load i32, i32* %2, align 4\n"
+                          "  switch i32 %3, label %default [\n"
                           "    i32 1, label %case\n"
                           "    i32 2, label %case1\n"
                           "  ]\n"
                           "\n"
                           "case:                                             ; preds = %entry\n"
-                          "  store i32 1, i32* %1, align 4\n"
+                          "  store i32 1, i32* %2, align 4\n"
                           "  br label %case1\n"
                           "\n"
                           "case1:                                            ; preds = %entry, %case\n"
-                          "  store i32 2, i32* %1, align 4\n"
+                          "  store i32 2, i32* %2, align 4\n"
                           "  br label %endswitch\n"
                           "\n"
                           "default:                                          ; preds = %entry\n"
-                          "  store i32 3, i32* %1, align 4\n"
+                          "  store i32 3, i32* %2, align 4\n"
                           "  br label %endswitch\n"
                           "\n"
                           "endswitch:                                        ; preds = %default, %case1\n"
-                          "  %3 = load i32, i32* %1, align 4\n"
-                          "  ret i32 %3\n"
+                          "  ret void\n"
                           "}\n");
     }
 
@@ -1597,10 +1551,10 @@ namespace {
         ASTNode *Node = CreateNode();
 
         // main()
-        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",
-                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlock *Body = Builder->CreateBody(MainFn);
-        ASTParam *aParam = Builder->CreateParam(MainFn, SourceLoc, IntType, "a");
+        ASTFunction *Func = Builder->CreateFunction(Node, SourceLoc, VoidType, "func",
+                                                    SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlock *Body = Builder->CreateBody(Func);
+        ASTParam *aParam = Builder->CreateParam(Func, SourceLoc, IntType, "a");
         EXPECT_TRUE(Builder->AddParam(aParam));
 
         // Create while block
@@ -1617,18 +1571,13 @@ namespace {
         Builder->CreateExpr(aVarAssign, SemaBuilder::CreateIntegerValue(SourceLoc, 1));
         EXPECT_TRUE(Builder->AddStmt(aVarAssign));
 
-        // return a
-        ASTReturn *Return = Builder->CreateReturn(Body, SourceLoc);
-        Builder->CreateExpr(Return, Builder->CreateVarRef(aParam));
-        EXPECT_TRUE(Builder->AddStmt(Return));
-
         // Add to Node
-        EXPECT_TRUE(Builder->AddFunction(MainFn));
+        EXPECT_TRUE(Builder->AddFunction(Func));
         
         EXPECT_TRUE(Builder->Build());
 
         // Generate Code
-        CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+        CodeGenFunction *CGF = CGM->GenFunction(Func);
         CGF->GenBody();
         Function *F = CGF->getFunction();
 
@@ -1637,24 +1586,23 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define i32 @main(i32 %0) {\n"
+        EXPECT_EQ(output, "define void @func(%error* %0, i32 %1) {\n"
                           "entry:\n"
-                          "  %1 = alloca i32, align 4\n"
-                          "  store i32 %0, i32* %1, align 4\n"
+                          "  %2 = alloca i32, align 4\n"
+                          "  store i32 %1, i32* %2, align 4\n"
                           "  br label %whilecond\n"
                           "\n"
                           "whilecond:                                        ; preds = %whileloop, %entry\n"
-                          "  %2 = load i32, i32* %1, align 4\n"
-                          "  %3 = icmp eq i32 %2, 1\n"
-                          "  br i1 %3, label %whileloop, label %whileend\n"
+                          "  %3 = load i32, i32* %2, align 4\n"
+                          "  %4 = icmp eq i32 %3, 1\n"
+                          "  br i1 %4, label %whileloop, label %whileend\n"
                           "\n"
                           "whileloop:                                        ; preds = %whilecond\n"
-                          "  store i32 1, i32* %1, align 4\n"
+                          "  store i32 1, i32* %2, align 4\n"
                           "  br label %whilecond\n"
                           "\n"
                           "whileend:                                         ; preds = %whilecond\n"
-                          "  %4 = load i32, i32* %1, align 4\n"
-                          "  ret i32 %4\n"
+                          "  ret void\n"
                           "}\n");
     }
 
@@ -1662,10 +1610,10 @@ namespace {
         ASTNode *Node = CreateNode();
 
         // main()
-        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",
-                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlock *Body = Builder->CreateBody(MainFn);
-        ASTParam *aParam = Builder->CreateParam(MainFn, SourceLoc, IntType, "a");
+        ASTFunction *Func = Builder->CreateFunction(Node, SourceLoc, VoidType, "func",
+                                                    SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlock *Body = Builder->CreateBody(Func);
+        ASTParam *aParam = Builder->CreateParam(Func, SourceLoc, IntType, "a");
         EXPECT_TRUE(Builder->AddParam(aParam));
 
         // Create for block
@@ -1691,19 +1639,14 @@ namespace {
         ASTVarAssign *aVarAssign = Builder->CreateVarAssign(LoopBlock, Builder->CreateVarRef(aParam));
         Builder->CreateExpr(aVarAssign, SemaBuilder::CreateIntegerValue(SourceLoc, 1));
         EXPECT_TRUE(Builder->AddStmt(aVarAssign));
-        
-        // return a
-        ASTReturn *Return = Builder->CreateReturn(Body, SourceLoc);
-        Builder->CreateExpr(Return, Builder->CreateVarRef(aParam));
-        EXPECT_TRUE(Builder->AddStmt(Return));
 
         // Add to Node
-        EXPECT_TRUE(Builder->AddFunction(MainFn));
+        EXPECT_TRUE(Builder->AddFunction(Func));
         
         EXPECT_TRUE(Builder->Build());
 
         // Generate Code
-        CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+        CodeGenFunction *CGF = CGM->GenFunction(Func);
         CGF->GenBody();
         Function *F = CGF->getFunction();
 
@@ -1712,32 +1655,31 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define i32 @main(i32 %0) {\n"
+        EXPECT_EQ(output, "define void @func(%error* %0, i32 %1) {\n"
                           "entry:\n"
-                          "  %1 = alloca i32, align 4\n"
                           "  %2 = alloca i32, align 4\n"
-                          "  store i32 %0, i32* %1, align 4\n"
-                          "  store i32 1, i32* %2, align 4\n"
+                          "  %3 = alloca i32, align 4\n"
+                          "  store i32 %1, i32* %2, align 4\n"
+                          "  store i32 1, i32* %3, align 4\n"
                           "  br label %forcond\n"
                           "\n"
                           "forcond:                                          ; preds = %forpost, %entry\n"
-                          "  %3 = load i32, i32* %2, align 4\n"
-                          "  %4 = icmp sle i32 %3, 1\n"
-                          "  br i1 %4, label %forloop, label %endfor\n"
+                          "  %4 = load i32, i32* %3, align 4\n"
+                          "  %5 = icmp sle i32 %4, 1\n"
+                          "  br i1 %5, label %forloop, label %endfor\n"
                           "\n"
                           "forloop:                                          ; preds = %forcond\n"
-                          "  store i32 1, i32* %1, align 4\n"
+                          "  store i32 1, i32* %2, align 4\n"
                           "  br label %forpost\n"
                           "\n"
                           "forpost:                                          ; preds = %forloop\n"
-                          "  %5 = load i32, i32* %2, align 4\n"
-                          "  %6 = add nsw i32 %5, 1\n"
-                          "  store i32 %6, i32* %2, align 4\n"
+                          "  %6 = load i32, i32* %3, align 4\n"
+                          "  %7 = add nsw i32 %6, 1\n"
+                          "  store i32 %7, i32* %3, align 4\n"
                           "  br label %forcond\n"
                           "\n"
                           "endfor:                                           ; preds = %forcond\n"
-                          "  %7 = load i32, i32* %1, align 4\n"
-                          "  ret i32 %7\n"
+                          "  ret void\n"
                           "}\n");
     }
 
@@ -1745,10 +1687,10 @@ namespace {
         ASTNode *Node = CreateNode();
 
         // main()
-        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",
-                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlock *Body = Builder->CreateBody(MainFn);
-        ASTParam *aParam = Builder->CreateParam(MainFn, SourceLoc, IntType, "a");
+        ASTFunction *Func = Builder->CreateFunction(Node, SourceLoc, VoidType, "func",
+                                                    SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlock *Body = Builder->CreateBody(Func);
+        ASTParam *aParam = Builder->CreateParam(Func, SourceLoc, IntType, "a");
         EXPECT_TRUE(Builder->AddParam(aParam));
 
         // Create for block
@@ -1766,18 +1708,13 @@ namespace {
         Builder->CreateExpr(aVarAssign, SemaBuilder::CreateIntegerValue(SourceLoc, 1));
         EXPECT_TRUE(Builder->AddStmt(aVarAssign));
 
-        // return a
-        ASTReturn *Return = Builder->CreateReturn(Body, SourceLoc);
-        Builder->CreateExpr(Return, Builder->CreateVarRef(aParam));
-        EXPECT_TRUE(Builder->AddStmt(Return));
-
         // Add to Node
-        EXPECT_TRUE(Builder->AddFunction(MainFn));
+        EXPECT_TRUE(Builder->AddFunction(Func));
         
         EXPECT_TRUE(Builder->Build());
 
         // Generate Code
-        CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+        CodeGenFunction *CGF = CGM->GenFunction(Func);
         CGF->GenBody();
         Function *F = CGF->getFunction();
 
@@ -1786,24 +1723,23 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define i32 @main(i32 %0) {\n"
+        EXPECT_EQ(output, "define void @func(%error* %0, i32 %1) {\n"
                           "entry:\n"
-                          "  %1 = alloca i32, align 4\n"
-                          "  store i32 %0, i32* %1, align 4\n"
+                          "  %2 = alloca i32, align 4\n"
+                          "  store i32 %1, i32* %2, align 4\n"
                           "  br label %forcond\n"
                           "\n"
                           "forcond:                                          ; preds = %forloop, %entry\n"
-                          "  %2 = load i32, i32* %1, align 4\n"
-                          "  %3 = icmp sle i32 %2, 1\n"
-                          "  br i1 %3, label %forloop, label %endfor\n"
+                          "  %3 = load i32, i32* %2, align 4\n"
+                          "  %4 = icmp sle i32 %3, 1\n"
+                          "  br i1 %4, label %forloop, label %endfor\n"
                           "\n"
                           "forloop:                                          ; preds = %forcond\n"
-                          "  store i32 1, i32* %1, align 4\n"
+                          "  store i32 1, i32* %2, align 4\n"
                           "  br label %forcond\n"
                           "\n"
                           "endfor:                                           ; preds = %forcond\n"
-                          "  %4 = load i32, i32* %1, align 4\n"
-                          "  ret i32 %4\n"
+                          "  ret void\n"
                           "}\n");
     }
 
@@ -1811,10 +1747,10 @@ namespace {
         ASTNode *Node = CreateNode();
 
         // main()
-        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",
-                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlock *Body = Builder->CreateBody(MainFn);
-        ASTParam *aParam = Builder->CreateParam(MainFn, SourceLoc, IntType, "a");
+        ASTFunction *Func = Builder->CreateFunction(Node, SourceLoc, VoidType, "func",
+                                                    SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlock *Body = Builder->CreateBody(Func);
+        ASTParam *aParam = Builder->CreateParam(Func, SourceLoc, IntType, "a");
         EXPECT_TRUE(Builder->AddParam(aParam));
 
         // Create for block
@@ -1838,18 +1774,13 @@ namespace {
         Builder->CreateExpr(aVarAssign, SemaBuilder::CreateIntegerValue(SourceLoc, 1));
         EXPECT_TRUE(Builder->AddStmt(aVarAssign));
 
-        // return a
-        ASTReturn *Return = Builder->CreateReturn(Body, SourceLoc);
-        Builder->CreateExpr(Return, Builder->CreateVarRef(aParam));
-        EXPECT_TRUE(Builder->AddStmt(Return));
-
         // Add to Node
-        EXPECT_TRUE(Builder->AddFunction(MainFn));
+        EXPECT_TRUE(Builder->AddFunction(Func));
         
         EXPECT_TRUE(Builder->Build());
 
         // Generate Code
-        CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+        CodeGenFunction *CGF = CGM->GenFunction(Func);
         CGF->GenBody();
         Function *F = CGF->getFunction();
 
@@ -1858,30 +1789,29 @@ namespace {
         F->print(llvm::outs());
         std::string output = testing::internal::GetCapturedStdout();
 
-        EXPECT_EQ(output, "define i32 @main(i32 %0) {\n"
+        EXPECT_EQ(output, "define void @func(%error* %0, i32 %1) {\n"
                           "entry:\n"
-                          "  %1 = alloca i32, align 4\n"
-                          "  store i32 %0, i32* %1, align 4\n"
+                          "  %2 = alloca i32, align 4\n"
+                          "  store i32 %1, i32* %2, align 4\n"
                           "  br label %forcond\n"
                           "\n"
                           "forcond:                                          ; preds = %forpost, %entry\n"
-                          "  %2 = load i32, i32* %1, align 4\n"
-                          "  %3 = icmp sle i32 %2, 1\n"
-                          "  br i1 %3, label %forloop, label %endfor\n"
+                          "  %3 = load i32, i32* %2, align 4\n"
+                          "  %4 = icmp sle i32 %3, 1\n"
+                          "  br i1 %4, label %forloop, label %endfor\n"
                           "\n"
                           "forloop:                                          ; preds = %forcond\n"
-                          "  store i32 1, i32* %1, align 4\n"
+                          "  store i32 1, i32* %2, align 4\n"
                           "  br label %forpost\n"
                           "\n"
                           "forpost:                                          ; preds = %forloop\n"
-                          "  %4 = load i32, i32* %1, align 4\n"
-                          "  %5 = add nsw i32 %4, 1\n"
-                          "  store i32 %5, i32* %1, align 4\n"
+                          "  %5 = load i32, i32* %2, align 4\n"
+                          "  %6 = add nsw i32 %5, 1\n"
+                          "  store i32 %6, i32* %2, align 4\n"
                           "  br label %forcond\n"
                           "\n"
                           "endfor:                                           ; preds = %forcond\n"
-                          "  %6 = load i32, i32* %1, align 4\n"
-                          "  ret i32 %6\n"
+                          "  ret void\n"
                           "}\n");
     }
 
@@ -1937,9 +1867,9 @@ namespace {
         //  int c = test.c()
         //  delete test
         // }
-        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",
-                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlock *Body = Builder->CreateBody(MainFn);
+        ASTFunction *Func = Builder->CreateFunction(Node, SourceLoc, VoidType, "func",
+                                                    SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlock *Body = Builder->CreateBody(Func);
 
         // TestClass test = new TestClass()
         ASTType *TestClassType = SemaBuilder::CreateClassType(TestClass);
@@ -1972,14 +1902,9 @@ namespace {
         ASTDelete *Delete = Builder->CreateDelete(Body, SourceLoc, (ASTVarRef *) Instance);
         Builder->AddStmt(Delete);
 
-        // return 1
-        ASTReturn *Return = Builder->CreateReturn(Body, SourceLoc);
-        Builder->CreateExpr(Return, SemaBuilder::CreateIntegerValue(SourceLoc, 1));
-        EXPECT_TRUE(Builder->AddStmt(Return));
-
         // Add to Node
         EXPECT_TRUE(Builder->AddIdentity(TestClass));
-        EXPECT_TRUE(Builder->AddFunction(MainFn));
+        EXPECT_TRUE(Builder->AddFunction(Func));
         
         bool Success = Builder->Build();
         EXPECT_TRUE(Success);
@@ -1994,62 +1919,63 @@ namespace {
             for (auto &F : CGC->getFunctions()) {
                 F->GenBody();
             }
-            CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+            CodeGenFunction *CGF = CGM->GenFunction(Func);
             CGF->GenBody();
 
             EXPECT_FALSE(Diags.hasErrorOccurred());
             std::string output = getOutput();
 
-            EXPECT_EQ(output, "%TestClass = type { %TestClass_vtable* }\n"
-                              "%TestClass_vtable = type { i32 (%TestClass*), i32 (%TestClass*), i32 (%TestClass*) }\n"
+            EXPECT_EQ(output, "%error = type { i8, i32, i8* }\n"
+                              "%TestClass = type { %TestClass_vtable* }\n"
+                              "%TestClass_vtable = type { i32 (%error*, %TestClass*), i32 (%error*, %TestClass*), i32 (%error*, %TestClass*) }\n"
                               "\n"
-                              "define void @TestClass_TestClass(%TestClass* %0) {\n"
+                              "define void @TestClass_TestClass(%error* %0, %TestClass* %1) {\n"
                               "entry:\n"
-                              "  %1 = alloca %TestClass*, align 8\n"
-                              "  store %TestClass* %0, %TestClass** %1, align 8\n"
-                              "  %2 = load %TestClass*, %TestClass** %1, align 8\n"
+                              "  %2 = alloca %TestClass*, align 8\n"
+                              "  store %TestClass* %1, %TestClass** %2, align 8\n"
+                              "  %3 = load %TestClass*, %TestClass** %2, align 8\n"
                               "  ret void\n"
                               "}\n"
                               "\n"
-                              "define i32 @TestClass_a(%TestClass* %0) {\n"
+                              "define i32 @TestClass_a(%error* %0, %TestClass* %1) {\n"
                               "entry:\n"
-                              "  %1 = alloca %TestClass*, align 8\n"
-                              "  store %TestClass* %0, %TestClass** %1, align 8\n"
-                              "  %2 = load %TestClass*, %TestClass** %1, align 8\n"
+                              "  %2 = alloca %TestClass*, align 8\n"
+                              "  store %TestClass* %1, %TestClass** %2, align 8\n"
+                              "  %3 = load %TestClass*, %TestClass** %2, align 8\n"
                               "  ret i32 1\n"
                               "}\n"
                               "\n"
-                              "define i32 @TestClass_b(%TestClass* %0) {\n"
+                              "define i32 @TestClass_b(%error* %0, %TestClass* %1) {\n"
                               "entry:\n"
-                              "  %1 = alloca %TestClass*, align 8\n"
-                              "  store %TestClass* %0, %TestClass** %1, align 8\n"
-                              "  %2 = load %TestClass*, %TestClass** %1, align 8\n"
+                              "  %2 = alloca %TestClass*, align 8\n"
+                              "  store %TestClass* %1, %TestClass** %2, align 8\n"
+                              "  %3 = load %TestClass*, %TestClass** %2, align 8\n"
                               "  ret i32 1\n"
                               "}\n"
                               "\n"
-                              "define i32 @TestClass_c(%TestClass* %0) {\n"
+                              "define i32 @TestClass_c(%error* %0, %TestClass* %1) {\n"
                               "entry:\n"
-                              "  %1 = alloca %TestClass*, align 8\n"
-                              "  store %TestClass* %0, %TestClass** %1, align 8\n"
-                              "  %2 = load %TestClass*, %TestClass** %1, align 8\n"
+                              "  %2 = alloca %TestClass*, align 8\n"
+                              "  store %TestClass* %1, %TestClass** %2, align 8\n"
+                              "  %3 = load %TestClass*, %TestClass** %2, align 8\n"
                               "  ret i32 1\n"
                               "}\n"
                               "\n"
-                              "define i32 @main() {\n"
+                              "define void @func(%error* %0) {\n"
                               "entry:\n"
-                              "  %0 = alloca %TestClass, align 8\n"
-                              "  %1 = alloca i32, align 4\n"
+                              "  %1 = alloca %TestClass, align 8\n"
                               "  %2 = alloca i32, align 4\n"
                               "  %3 = alloca i32, align 4\n"
-                              "  %4 = alloca %TestClass, align 8\n"
-                              "  call void @TestClass_TestClass(%TestClass* %4)\n"
-                              "  %5 = call i32 @TestClass_a(%TestClass* %4)\n"
-                              "  store i32 %5, i32* %1, align 4\n"
-                              "  %6 = call i32 @TestClass_b(%TestClass* %4)\n"
+                              "  %4 = alloca i32, align 4\n"
+                              "  %5 = alloca %TestClass, align 8\n"
+                              "  call void @TestClass_TestClass(%error* %0, %TestClass* %5)\n"
+                              "  %6 = call i32 @TestClass_a(%error* %0, %TestClass* %5)\n"
                               "  store i32 %6, i32* %2, align 4\n"
-                              "  %7 = call i32 @TestClass_c(%TestClass* %4)\n"
+                              "  %7 = call i32 @TestClass_b(%error* %0, %TestClass* %5)\n"
                               "  store i32 %7, i32* %3, align 4\n"
-                              "  ret i32 1\n"
+                              "  %8 = call i32 @TestClass_c(%error* %0, %TestClass* %5)\n"
+                              "  store i32 %8, i32* %4, align 4\n"
+                              "  ret void\n"
                               "}\n");
         }
     }
@@ -2087,9 +2013,9 @@ namespace {
         //  int a = test.getA()
         //  delete test
         // }
-        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",
-                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlock *Body = Builder->CreateBody(MainFn);
+        ASTFunction *Func = Builder->CreateFunction(Node, SourceLoc, VoidType, "func",
+                                                    SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlock *Body = Builder->CreateBody(Func);
 
         // TestClass test = new TestClass()
         ASTType *TestClassType = SemaBuilder::CreateClassType(TestClass);
@@ -2110,14 +2036,9 @@ namespace {
         ASTDelete *Delete = Builder->CreateDelete(Body, SourceLoc, (ASTVarRef *) Instance);
         Builder->AddStmt(Delete);
 
-        // return 1
-        ASTReturn *Return = Builder->CreateReturn(Body, SourceLoc);
-        Builder->CreateExpr(Return, SemaBuilder::CreateIntegerValue(SourceLoc, 1));
-        EXPECT_TRUE(Builder->AddStmt(Return));
-
         // Add to Node
         EXPECT_TRUE(Builder->AddIdentity(TestClass));
-        EXPECT_TRUE(Builder->AddFunction(MainFn));
+        EXPECT_TRUE(Builder->AddFunction(Func));
         
         bool Success = Builder->Build();
         EXPECT_TRUE(Success);
@@ -2132,48 +2053,49 @@ namespace {
             for (auto &F : CGC->getFunctions()) {
                 F->GenBody();
             }
-            CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+            CodeGenFunction *CGF = CGM->GenFunction(Func);
             CGF->GenBody();
 
             EXPECT_FALSE(Diags.hasErrorOccurred());
             std::string output = getOutput();
 
-            EXPECT_EQ(output, "%TestClass = type { %TestClass_vtable*, i32 }\n"
-                              "%TestClass_vtable = type { i32 (%TestClass*) }\n"
+            EXPECT_EQ(output, "%error = type { i8, i32, i8* }\n"
+                              "%TestClass = type { %TestClass_vtable*, i32 }\n"
+                              "%TestClass_vtable = type { i32 (%error*, %TestClass*) }\n"
                               "\n"
-                              "define void @TestClass_TestClass(%TestClass* %0) {\n"
+                              "define void @TestClass_TestClass(%error* %0, %TestClass* %1) {\n"
                               "entry:\n"
-                              "  %1 = alloca %TestClass*, align 8\n"
-                              "  store %TestClass* %0, %TestClass** %1, align 8\n"
-                              "  %2 = load %TestClass*, %TestClass** %1, align 8\n"
-                              "  %3 = getelementptr inbounds %TestClass, %TestClass* %2, i32 0, i32 1\n"
-                              "  %4 = load i32, i32* %3, align 4\n"
-                              "  store i32 0, i32 %4, align 4\n"
+                              "  %2 = alloca %TestClass*, align 8\n"
+                              "  store %TestClass* %1, %TestClass** %2, align 8\n"
+                              "  %3 = load %TestClass*, %TestClass** %2, align 8\n"
+                              "  %4 = getelementptr inbounds %TestClass, %TestClass* %3, i32 0, i32 1\n"
+                              "  %5 = load i32, i32* %4, align 4\n"
+                              "  store i32 0, i32 %5, align 4\n"
                               "  ret void\n"
                               "}\n"
                               "\n"
-                              "define i32 @TestClass_getA(%TestClass* %0) {\n"
+                              "define i32 @TestClass_getA(%error* %0, %TestClass* %1) {\n"
                               "entry:\n"
-                              "  %1 = alloca %TestClass*, align 8\n"
-                              "  store %TestClass* %0, %TestClass** %1, align 8\n"
-                              "  %2 = load %TestClass*, %TestClass** %1, align 8\n"
-                              "  %3 = getelementptr inbounds %TestClass, %TestClass* %2, i32 0, i32 1\n"
-                              "  %4 = load i32, i32* %3, align 4\n"
-                              "  ret i32 %4\n"
+                              "  %2 = alloca %TestClass*, align 8\n"
+                              "  store %TestClass* %1, %TestClass** %2, align 8\n"
+                              "  %3 = load %TestClass*, %TestClass** %2, align 8\n"
+                              "  %4 = getelementptr inbounds %TestClass, %TestClass* %3, i32 0, i32 1\n"
+                              "  %5 = load i32, i32* %4, align 4\n"
+                              "  ret i32 %5\n"
                               "}\n"
                               "\n"
-                              "define i32 @main() {\n"
+                              "define void @func(%error* %0) {\n"
                               "entry:\n"
-                              "  %0 = alloca %TestClass, align 8\n"
-                              "  %1 = alloca i32, align 4\n"
+                              "  %1 = alloca %TestClass, align 8\n"
+                              "  %2 = alloca i32, align 4\n"
                               "  %malloccall = tail call i8* @malloc(i32 ptrtoint (%TestClass* getelementptr (%TestClass, %TestClass* null, i32 1) to i32))\n"
                               "  %TestClassInst = bitcast i8* %malloccall to %TestClass*\n"
-                              "  call void @TestClass_TestClass(%TestClass* %TestClassInst)\n"
-                              "  %2 = call i32 @TestClass_getA(%TestClass* %TestClassInst)\n"
-                              "  store i32 %2, i32* %1, align 4\n"
-                              "  %3 = bitcast %TestClass* %TestClassInst to i8*\n"
-                              "  tail call void @free(i8* %3)\n"
-                              "  ret i32 1\n"
+                              "  call void @TestClass_TestClass(%error* %0, %TestClass* %TestClassInst)\n"
+                              "  %3 = call i32 @TestClass_getA(%error* %0, %TestClass* %TestClassInst)\n"
+                              "  store i32 %3, i32* %2, align 4\n"
+                              "  %4 = bitcast %TestClass* %TestClassInst to i8*\n"
+                              "  tail call void @free(i8* %4)\n"
+                              "  ret void\n"
                               "}\n"
                               "\n"
                               "declare noalias i8* @malloc(i32)\n"
@@ -2218,9 +2140,9 @@ namespace {
         //  int c = test.c
         //  return 1
         // }
-        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",
-                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlock *Body = Builder->CreateBody(MainFn);
+        ASTFunction *Func = Builder->CreateFunction(Node, SourceLoc, VoidType, "func",
+                                                    SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlock *Body = Builder->CreateBody(Func);
 
         // TestStruct test = new TestStruct()
         ASTType *TestClassType = SemaBuilder::CreateClassType(TestStruct);
@@ -2249,14 +2171,9 @@ namespace {
         ASTDelete *Delete = Builder->CreateDelete(Body, SourceLoc, (ASTVarRef *) Instance);
         Builder->AddStmt(Delete);
 
-        // return 1
-        ASTReturn *Return = Builder->CreateReturn(Body, SourceLoc);
-        Builder->CreateExpr(Return, SemaBuilder::CreateIntegerValue(SourceLoc, 1));
-        EXPECT_TRUE(Builder->AddStmt(Return));
-
         // Add to Node
         EXPECT_TRUE(Builder->AddIdentity(TestStruct));
-        EXPECT_TRUE(Builder->AddFunction(MainFn));
+        EXPECT_TRUE(Builder->AddFunction(Func));
         
         bool Success = Builder->Build();
         EXPECT_TRUE(Success);
@@ -2270,13 +2187,14 @@ namespace {
             for (auto &F : CGC->getFunctions()) {
                 F->GenBody();
             }
-            CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+            CodeGenFunction *CGF = CGM->GenFunction(Func);
             CGF->GenBody();
 
             EXPECT_FALSE(Diags.hasErrorOccurred());
             std::string output = getOutput();
 
             EXPECT_EQ(output, "%TestStruct = type { i32, i32, i32 }\n"
+                              "%error = type { i8, i32, i8* }\n"
                               "\n"
                               "define void @TestStruct_TestStruct(%TestStruct* %0) {\n"
                               "entry:\n"
@@ -2295,26 +2213,26 @@ namespace {
                               "  ret void\n"
                               "}\n"
                               "\n"
-                              "define i32 @main() {\n"
+                              "define void @func(%error* %0) {\n"
                               "entry:\n"
-                              "  %0 = alloca %TestStruct, align 8\n"
-                              "  %1 = alloca i32, align 4\n"
+                              "  %1 = alloca %TestStruct, align 8\n"
                               "  %2 = alloca i32, align 4\n"
+                              "  %3 = alloca i32, align 4\n"
                               "  %malloccall = tail call i8* @malloc(i32 trunc (i64 mul nuw (i64 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i64), i64 3) to i32))\n"
                               "  %TestStructInst = bitcast i8* %malloccall to %TestStruct*\n"
                               "  call void @TestStruct_TestStruct(%TestStruct* %TestStructInst)\n"
-                              "  %3 = getelementptr inbounds %TestStruct, %TestStruct* %TestStructInst, i32 0, i32 0\n"
-                              "  %4 = load i32, i32* %3, align 4\n"
-                              "  store i32 %4, i32* %1, align 4\n"
-                              "  %5 = getelementptr inbounds %TestStruct, %TestStruct* %TestStructInst, i32 0, i32 1\n"
-                              "  %6 = load i32, i32* %5, align 4\n"
-                              "  store i32 2, i32 %6, align 4\n"
-                              "  %7 = getelementptr inbounds %TestStruct, %TestStruct* %TestStructInst, i32 0, i32 2\n"
-                              "  %8 = load i32, i32* %7, align 4\n"
-                              "  store i32 %8, i32* %2, align 4\n"
-                              "  %9 = bitcast %TestStruct* %TestStructInst to i8*\n"
-                              "  tail call void @free(i8* %9)\n"
-                              "  ret i32 1\n"
+                              "  %4 = getelementptr inbounds %TestStruct, %TestStruct* %TestStructInst, i32 0, i32 0\n"
+                              "  %5 = load i32, i32* %4, align 4\n"
+                              "  store i32 %5, i32* %2, align 4\n"
+                              "  %6 = getelementptr inbounds %TestStruct, %TestStruct* %TestStructInst, i32 0, i32 1\n"
+                              "  %7 = load i32, i32* %6, align 4\n"
+                              "  store i32 2, i32 %7, align 4\n"
+                              "  %8 = getelementptr inbounds %TestStruct, %TestStruct* %TestStructInst, i32 0, i32 2\n"
+                              "  %9 = load i32, i32* %8, align 4\n"
+                              "  store i32 %9, i32* %3, align 4\n"
+                              "  %10 = bitcast %TestStruct* %TestStructInst to i8*\n"
+                              "  tail call void @free(i8* %10)\n"
+                              "  ret void\n"
                               "}\n"
                               "\n"
                               "declare noalias i8* @malloc(i32)\n"
@@ -2345,9 +2263,9 @@ namespace {
         //  TestEnum b = a
         //  return 1
         // }
-        ASTFunction *MainFn = Builder->CreateFunction(Node, SourceLoc, IntType, "main",
-                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlock *Body = Builder->CreateBody(MainFn);
+        ASTFunction *Func = Builder->CreateFunction(Node, SourceLoc, VoidType, "func",
+                                                    SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlock *Body = Builder->CreateBody(Func);
 
         ASTType *TestEnumType = SemaBuilder::CreateEnumType(TestEnum);
 
@@ -2361,14 +2279,9 @@ namespace {
         ASTVarRefExpr *bRefExpr = Builder->CreateExpr(bVar, Builder->CreateVarRef(aVar));
         Builder->AddStmt(bVar);
 
-        // return 1
-        ASTReturn *Return = Builder->CreateReturn(Body, SourceLoc);
-        Builder->CreateExpr(Return, SemaBuilder::CreateIntegerValue(SourceLoc, 1));
-        EXPECT_TRUE(Builder->AddStmt(Return));
-
         // Add to Node
         EXPECT_TRUE(Builder->AddIdentity(TestEnum));
-        EXPECT_TRUE(Builder->AddFunction(MainFn));
+        EXPECT_TRUE(Builder->AddFunction(Func));
         
         bool Success = Builder->Build();
         EXPECT_TRUE(Success);
@@ -2376,21 +2289,105 @@ namespace {
         if (Success) {
             // Generate Code
             CodeGenEnum *CGC = CGM->GenEnum(TestEnum);
-            CodeGenFunction *CGF = CGM->GenFunction(MainFn);
+            CodeGenFunction *CGF = CGM->GenFunction(Func);
             CGF->GenBody();
 
             EXPECT_FALSE(Diags.hasErrorOccurred());
             std::string output = getOutput();
 
-            EXPECT_EQ(output, "define i32 @main() {\n"
+            EXPECT_EQ(output, "%error = type { i8, i32, i8* }\n"
+                              "\n"
+                              "define void @func(%error* %0) {\n"
                               "entry:\n"
-                              "  %0 = alloca i64, align 8\n"
-                              "  %1 = alloca i64, align 8\n"
-                              "  store i64 1, i64* %0, align 8\n"
-                              "  %2 = load i64, i64* %0, align 8\n"
-                              "  store i64 %2, i64* %1, align 8\n"
-                              "  ret i32 1\n"
+                              "  %1 = alloca i32, align 4\n"
+                              "  %2 = alloca i32, align 4\n"
+                              "  store i32 1, i32* %1, align 4\n"
+                              "  %3 = load i32, i32* %1, align 4\n"
+                              "  store i32 %3, i32* %2, align 4\n"
+                              "  ret void\n"
                               "}\n");
         }
+    }
+
+    TEST_F(CodeGenTest, CGError) {
+        ASTNode *Node = CreateNode();
+        ASTScopes *TopScopes = SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false);
+
+        // test1()
+        ASTFunction *Test1 = Builder->CreateFunction(Node, SourceLoc, IntType, "test1", TopScopes);
+        ASTBlock *Test1Body = Builder->CreateBody(Test1);
+        ASTFail *Fail1 = SemaBuilder::CreateFail(Test1Body, SourceLoc, 1);
+        EXPECT_TRUE(Builder->AddStmt(Fail1));
+
+        // test2()
+        ASTFunction *Test2 = Builder->CreateFunction(Node, SourceLoc, IntType, "test2", TopScopes);
+        ASTBlock *Test2Body = Builder->CreateBody(Test2);
+        ASTFail *Fail2 = SemaBuilder::CreateFail(Test2Body, SourceLoc, "Error Message");
+        EXPECT_TRUE(Builder->AddStmt(Fail2));
+
+        // main()
+        ASTFunction *Main = Builder->CreateFunction(Node, SourceLoc, VoidType, "main", TopScopes);
+        ASTBlock *MainBody = Builder->CreateBody(Main);
+        // call test1()
+        ASTExprStmt *Call1ExprStmt = Builder->CreateExprStmt(MainBody, SourceLoc);
+        Builder->CreateExpr(Call1ExprStmt, Builder->CreateCall(Test1));
+        EXPECT_TRUE(Builder->AddStmt(Call1ExprStmt));
+        // call test2()
+        ASTExprStmt *Call2ExprStmt = Builder->CreateExprStmt(MainBody, SourceLoc);
+        Builder->CreateExpr(Call2ExprStmt, Builder->CreateCall(Test2));
+        EXPECT_TRUE(Builder->AddStmt(Call2ExprStmt));
+
+        EXPECT_TRUE(Builder->AddFunction(Test1));
+        EXPECT_TRUE(Builder->AddFunction(Test2));
+        EXPECT_TRUE(Builder->AddFunction(Main));
+        EXPECT_TRUE(Builder->Build());
+
+        // Generate Code
+        CodeGenFunction *CGF_Test1 = CGM->GenFunction(Test1);
+        CGF_Test1->GenBody();
+        llvm::Function *F_Test1 = CGF_Test1->getFunction();
+
+        CodeGenFunction *CGF_Test2 = CGM->GenFunction(Test2);
+        CGF_Test2->GenBody();
+        llvm::Function *F_Test2 = CGF_Test2->getFunction();
+
+        CodeGenFunction *CGF_Main = CGM->GenFunction(Main);
+        CGF_Main->GenBody();
+        llvm::Function *F_Main = CGF_Main->getFunction();
+
+        EXPECT_FALSE(Diags.hasErrorOccurred());
+        testing::internal::CaptureStdout();
+        F_Test1->print(llvm::outs());
+        F_Test2->print(llvm::outs());
+        F_Main->print(llvm::outs());
+        std::string output = testing::internal::GetCapturedStdout();
+
+        EXPECT_EQ(output, "define i32 @test1(%error* %0) {\n"
+                          "entry:\n"
+                          "  %1 = getelementptr inbounds %error, %error* %0, i32 0, i32 0\n"
+                          "  store i8 1, i8* %1, align 1\n"
+                          "  %2 = getelementptr inbounds %error, %error* %0, i32 0, i32 1\n"
+                          "  store i32 1, i32* %2, align 4\n"
+                          "  ret i32 0\n"
+                          "}\n"
+                          "define i32 @test2(%error* %0) {\n"
+                          "entry:\n"
+                          "  %1 = getelementptr inbounds %error, %error* %0, i32 0, i32 0\n"
+                          "  store i8 2, i8* %1, align 1\n"
+                          "  %2 = getelementptr inbounds %error, %error* %0, i32 0, i32 2\n"
+                          "  store i8* getelementptr inbounds ([14 x i8], [14 x i8]* @0, i32 0, i32 0), i8** %2, align 8\n"
+                          "  ret i32 0\n"
+                          "}\n"
+                          "define i32 @main() {\n"
+                          "entry:\n"
+                          "  %0 = alloca %error, align 8\n"
+                          "  %1 = call i32 @test1(%error* %0)\n"
+                          "  %2 = call i32 @test2(%error* %0)\n"
+                          "  %3 = getelementptr inbounds %error, %error* %0, i32 0, i32 0\n"
+                          "  %4 = load i8, i8* %3, align 1\n"
+                          "  %5 = icmp ne i8 %4, 0\n"
+                          "  %6 = zext i1 %5 to i32\n"
+                          "  ret i32 %6\n"
+                          "}\n");
     }
 } // anonymous namespace

@@ -21,15 +21,23 @@
 using namespace fly;
 
 CodeGenClassFunction::CodeGenClassFunction(CodeGenModule *CGM, ASTClassFunction *AST, llvm::PointerType *TypePtr) : CodeGenFunctionBase(CGM, AST) {
+    ASTClass *Class = AST->getClass();
+
+    // Generate return type
+    GenReturnType();
+
+    // Generate Params Types
     llvm::SmallVector<llvm::Type *, 8> ParamTypes;
+    if (Class->getClassKind() != ASTClassKind::STRUCT) { // Add error argument only for class and interface
+        ParamTypes.push_back(CGM->ErrorType->getPointerTo(0));
+    }
     if (TypePtr) // Instance method
         ParamTypes.push_back(TypePtr);
-    GenTypes(CGM, ParamTypes, AST->getParams());
+    GenParamTypes(CGM, ParamTypes, AST->getParams());
 
     // Set LLVM Function Name %MODULE_CLASS_METHOD (if MODULE == default is empty)
     FnType = llvm::FunctionType::get(RetType, ParamTypes, AST->getParams()->getEllipsis() != nullptr);
 
-    ASTClass *Class = AST->getClass();
     std::string Name = CodeGen::toIdentifier(getAST()->getName(), Class->getNameSpace()->getName(), Class->getName());
     Fn = llvm::Function::Create(FnType, llvm::GlobalValue::ExternalLinkage, Name, CGM->getModule());
 }
@@ -40,11 +48,15 @@ void CodeGenClassFunction::GenBody() {
     Type *ClassType = Class->getCodeGen()->getTypePtr();
     setInsertPoint();
 
+    // the first is the error
+    if (Class->getClassKind() != ASTClassKind::STRUCT)
+        ErrorVar = Fn->getArg(0);
+
     // Class Method (not static)
     if (!((ASTClassFunction *) AST)->isStatic()) {
 
-        //Alloca, Store, Load first arg which is the instance
-        llvm::Argument *ClassTypePtr = Fn->getArg(0); // FIXME remove?
+        //Alloca, Store, Load the second arg which is the instance
+        llvm::Argument *ClassTypePtr = Class->getClassKind() == ASTClassKind::STRUCT ? Fn->getArg(0) : Fn->getArg(1);
 
         AllocaInst *Instance = CGM->Builder->CreateAlloca(ClassType);
         CGM->Builder->CreateStore(ClassTypePtr, Instance);
@@ -61,7 +73,7 @@ void CodeGenClassFunction::GenBody() {
 
             // Save all default var values
             if (((ASTClassFunction *) AST)->isConstructor()) {
-                llvm::Value *V = CGM->GenExpr(Fn, Var->getType(), Var->getExpr());
+                llvm::Value *V = CGM->GenExpr(this, Var->getType(), Var->getExpr());
                 CGVar->Store(V);
             }
         }
@@ -69,7 +81,8 @@ void CodeGenClassFunction::GenBody() {
 
     // Alloca Function Local Vars and generate body
     AllocaVars();
-    CGM->GenBlock(Fn, AST->getBody()->getContent());
+    StoreParams(false);
+    CGM->GenBlock(this, AST->getBody()->getContent());
 
     // Add return Void
     if (FnType->getReturnType()->isVoidTy()) {

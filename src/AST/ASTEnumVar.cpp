@@ -33,7 +33,7 @@ ASTEnum *ASTEnumVar::getEnum() const {
     return Enum;
 }
 
-uint64_t ASTEnumVar::getIndex() const {
+uint32_t ASTEnumVar::getIndex() const {
     return Index;
 }
 
@@ -62,9 +62,9 @@ std::string ASTEnumVar::print() const {
 }
 
 std::string ASTEnumVar::str() const {
-    return Logger("ASTClassVar").
+    return Logger("ASTEnumVar").
             Attr("Name", Name).
-            Attr("Index", Index).
+            Attr("Index", (uint64_t) Index).
             Attr("VarKind", (uint64_t) VarKind).
             Attr("Comment", Comment).
             End();

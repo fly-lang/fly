@@ -25,16 +25,16 @@ namespace fly {
 
         llvm::Value *Val = nullptr;
 
-        llvm::Function *Fn = nullptr;
+        CodeGenFunctionBase *CGF = nullptr;
 
         ASTVar *Var = nullptr;
 
     public:
-        CodeGenExpr(CodeGenModule *CGM, llvm::Function *Fn, ASTExpr *Expr, const ASTType *ToType);
+        CodeGenExpr(CodeGenModule *CGM, CodeGenFunctionBase *CGF, ASTExpr *Expr, const ASTType *ToType);
 
-        CodeGenExpr(CodeGenModule *CGM, llvm::Function *Fn, ASTVar *Var);
+        CodeGenExpr(CodeGenModule *CGM, CodeGenFunctionBase *CGF, ASTVar *Var);
 
-        llvm::Value *GenValue(const ASTExpr *Origin, llvm::Value *Pointer = nullptr);
+        llvm::Value *GenValue(const ASTExpr *Expr);
 
         llvm::Value *getValue() const;
 

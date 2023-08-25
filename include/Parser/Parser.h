@@ -119,6 +119,9 @@ namespace fly {
         // Parse Expressions
         ASTExpr *ParseExpr(ASTStmt *Stmt = nullptr, ASTIdentifier *Identifier = nullptr);
 
+        // Parse Fail
+        bool ParseFail(ASTBlock *Block);
+
         // Check Keywords
         bool isBuiltinType(Token &Tok);
         bool isArrayType(Token &Tok);

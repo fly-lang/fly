@@ -11,29 +11,38 @@
 
 using namespace fly;
 
-ASTFail::ASTFail(const SourceLocation &Loc, ASTErrorKind Kind) : Loc(Loc), Kind(Kind) {
+ASTFail::ASTFail(ASTStmt *Parent, const SourceLocation &Loc, uint32_t Code) :
+        ASTStmt(Parent, Loc, ASTStmtKind::STMT_FAIL),
+        FailKind(ASTFailKind::ERR_NUMBER), Code(Code), Class(nullptr) {
 
 }
 
-ASTFail::ASTFail(const SourceLocation &Loc, ASTErrorKind Kind, llvm::StringRef Message) : Loc(Loc), Kind(Kind), Message(Message) {
+ASTFail::ASTFail(ASTStmt *Parent, const SourceLocation &Loc, llvm::StringRef Message) :
+        ASTStmt(Parent, Loc, ASTStmtKind::STMT_FAIL),
+        FailKind(ASTFailKind::ERR_MESSAGE), Code(0), Message(Message), Class(nullptr) {
 
 }
 
+ASTFail::ASTFail(ASTStmt *Parent, const SourceLocation &Loc, ASTClassType *Class) :
+        ASTStmt(Parent, Loc, ASTStmtKind::STMT_FAIL),
+        FailKind(ASTFailKind::ERR_CLASS), Code(0), Class(Class) {
+
+}
 
 ASTFail::~ASTFail() {
 
 }
 
-const SourceLocation &ASTFail::getLocation() const {
-    return Loc;
+uint32_t ASTFail::getCode() const {
+    return Code;
 }
 
 llvm::StringRef ASTFail::getMessage() const {
     return Message;
 }
 
-ASTErrorKind ASTFail::getKind() const {
-    return Kind;
+ASTFailKind ASTFail::getFailKind() const {
+    return FailKind;
 }
 
 std::string ASTFail::print() const {
@@ -42,7 +51,8 @@ std::string ASTFail::print() const {
 
 std::string ASTFail::str() const {
     return Logger("ASTFail").
+            Attr("Code", (uint64_t) Code).
             Attr("Message", Message).
-            Attr("ErrorKind", (uint64_t) Kind).
+            Attr("FailKind", (uint64_t) FailKind).
             End();
 }

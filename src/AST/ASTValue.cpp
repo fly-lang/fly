@@ -104,6 +104,26 @@ std::string ASTFloatingValue::str() const {
             End();
 }
 
+ASTStringValue::ASTStringValue(const SourceLocation &Loc, const char *Value)
+        : ASTValue(ASTTypeKind::TYPE_STRING, Loc), Value(Value) {
+
+}
+
+const char * ASTStringValue::getValue() const {
+    return Value;
+}
+
+const std::string ASTStringValue::print() const {
+    return Value;
+}
+
+std::string ASTStringValue::str() const {
+    return Logger("ASTFloatingValue").
+            Super(ASTValue::str()).
+            Attr("Value", Value).
+            End();
+}
+
 ASTArrayValue::ASTArrayValue(const SourceLocation &Loc) : ASTValue(ASTTypeKind::TYPE_ARRAY, Loc) {
 
 }

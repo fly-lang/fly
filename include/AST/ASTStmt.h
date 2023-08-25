@@ -24,6 +24,7 @@ namespace fly {
         STMT_BREAK,
         STMT_CONTINUE,
         STMT_DELETE,
+        STMT_FAIL,
         STMT_RETURN
     };
 

@@ -11,42 +11,49 @@
 #ifndef FLY_AST_FAIL_H
 #define FLY_AST_FAIL_H
 
-#include "Basic/Debuggable.h"
+#include "ASTExprStmt.h"
 #include "Basic/SourceLocation.h"
 
 namespace fly {
 
-    enum class ASTErrorKind {
-        ERR_NONE = 0,
-        ERR_UNKNOWN = 1
+    class ASTClassType;
+
+    enum class ASTFailKind {
+        ERR_NUMBER = 1,
+        ERR_MESSAGE = 2,
+        ERR_CLASS = 3
     };
 
-    class ASTFail : public Debuggable {
+    class ASTFail : public ASTStmt  {
 
         friend class SemaBuilder;
         friend class SemaResolver;
 
     protected:
 
-        const SourceLocation Loc;
-
         const llvm::StringRef Message;
 
-        ASTErrorKind Kind = ASTErrorKind::ERR_NONE;
+        const uint32_t Code;
 
-        ASTFail(const SourceLocation &Loc, ASTErrorKind ErrorKind);
+        const ASTClassType *Class;
 
-        ASTFail(const SourceLocation &Loc, ASTErrorKind ErrorKind, llvm::StringRef Description);
+        const ASTFailKind FailKind;
+
+        ASTFail(ASTStmt *Parent, const SourceLocation &Loc, uint32_t Code);
+
+        ASTFail(ASTStmt *Parent, const SourceLocation &Loc, llvm::StringRef Message);
+
+        ASTFail(ASTStmt *Parent, const SourceLocation &Loc, ASTClassType *Class);
 
         ~ASTFail();
 
     public:
 
-        const SourceLocation &getLocation() const;
+        uint32_t getCode() const;
 
         llvm::StringRef getMessage() const;
 
-        ASTErrorKind getKind() const;
+        ASTFailKind getFailKind() const;
 
         std::string print() const;
 

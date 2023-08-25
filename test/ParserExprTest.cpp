@@ -90,7 +90,7 @@ namespace {
         EXPECT_EQ(E1->getOptionKind(), ASTUnaryOptionKind::UNARY_PRE);
         ASTValueExpr *ValueExpr = (ASTValueExpr *) Group->getSecond();
         EXPECT_EQ(ValueExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(ValueExpr->getValue().print(), "1");
+        EXPECT_EQ(ValueExpr->getValue()->print(), "1");
     }
 
     TEST_F(ParserTest, IntBinaryArithOperation) {
@@ -112,7 +112,7 @@ namespace {
         const ASTLocalVar *aVar = (ASTLocalVar *) Body->getContent()[0];
         EXPECT_EQ(aVar->getName(), "a");
         EXPECT_EQ(aVar->getExpr()->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(((ASTValueExpr *) aVar->getExpr())->getValue().print(), "2");
+        EXPECT_EQ(((ASTValueExpr *) aVar->getExpr())->getValue()->print(), "2");
 
         // Test: int b = a + b / a - b
 
@@ -157,7 +157,7 @@ namespace {
         const ASTLocalVar *aVar = (ASTLocalVar *) Body->getContent()[0];
         EXPECT_EQ(aVar->getName(), "a");
         EXPECT_EQ(aVar->getExpr()->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(((ASTValueExpr *) aVar->getExpr())->getValue().print(), "1.0");
+        EXPECT_EQ(((ASTValueExpr *) aVar->getExpr())->getValue()->print(), "1.0");
 
         // Test: int b = a * b - a / b
         const ASTLocalVar *bVar = (ASTLocalVar *) Body->getContent()[1];
@@ -201,7 +201,7 @@ namespace {
         const ASTLocalVar *aVar = (ASTLocalVar *) Body->getContent()[0];
         EXPECT_EQ(aVar->getName(), "a");
         EXPECT_EQ(aVar->getExpr()->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(((ASTValueExpr *) aVar->getExpr())->getValue().print(), "true");
+        EXPECT_EQ(((ASTValueExpr *) aVar->getExpr())->getValue()->print(), "true");
 
         // Test: bool b = a || false && a == true
         const ASTLocalVar *bVar = (ASTLocalVar *) Body->getContent()[1];
@@ -213,17 +213,17 @@ namespace {
         // int b = G1 == true
         const ASTBinaryGroupExpr *G1 = (ASTBinaryGroupExpr *) bGroup->getFirst();
         EXPECT_EQ(bGroup->getOperatorKind(), ASTBinaryOperatorKind::COMP_EQ);
-        EXPECT_EQ(((ASTValueExpr *) bGroup->getSecond())->getValue().print(), "true");
+        EXPECT_EQ(((ASTValueExpr *) bGroup->getSecond())->getValue()->print(), "true");
 
         // G1 = G2 && a
         const ASTBinaryGroupExpr *G2 = (ASTBinaryGroupExpr *) G1->getFirst();
         EXPECT_EQ(G1->getOperatorKind(), ASTBinaryOperatorKind::LOGIC_AND);
-        EXPECT_EQ(((ASTValueExpr *) G2->getSecond())->getValue().print(), "false");
+        EXPECT_EQ(((ASTValueExpr *) G2->getSecond())->getValue()->print(), "false");
 
         // G2 = a || false
         EXPECT_EQ(((ASTVarRefExpr *) G2->getFirst())->getVarRef()->getName(), "a");
         EXPECT_EQ(G2->getOperatorKind(), ASTBinaryOperatorKind::LOGIC_OR);
-        EXPECT_EQ(((ASTValueExpr *) G2->getSecond())->getValue().print(), "false");
+        EXPECT_EQ(((ASTValueExpr *) G2->getSecond())->getValue()->print(), "false");
 
     }
 
@@ -246,7 +246,7 @@ namespace {
         const ASTLocalVar *aVar = (ASTLocalVar *) Body->getContent()[0];
         EXPECT_EQ(aVar->getName(), "a");
         EXPECT_EQ(aVar->getExpr()->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(((ASTValueExpr *) aVar->getExpr())->getValue().print(), "1");
+        EXPECT_EQ(((ASTValueExpr *) aVar->getExpr())->getValue()->print(), "1");
 
         // Test: long b = (a + b) / (a - b)
 
@@ -291,8 +291,8 @@ namespace {
         ASTBinaryGroupExpr *Comp = ((ASTBinaryGroupExpr *) Expr->getFirst());
         EXPECT_EQ(Comp->getOperatorKind(), ASTBinaryOperatorKind::COMP_EQ);
         EXPECT_EQ(((ASTVarRefExpr *) Comp->getFirst())->getVarRef()->getName(), "a");
-        EXPECT_EQ(((ASTValueExpr *) Comp->getSecond())->getValue().print(), "1");
-        EXPECT_EQ(((ASTValueExpr *) Expr->getSecond())->getValue().print(), "1");
+        EXPECT_EQ(((ASTValueExpr *) Comp->getSecond())->getValue()->print(), "1");
+        EXPECT_EQ(((ASTValueExpr *) Expr->getSecond())->getValue()->print(), "1");
         EXPECT_EQ(((ASTVarRefExpr *) Expr->getThird())->getVarRef()->getName(), "a");
 
     }

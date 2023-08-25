@@ -36,6 +36,7 @@
 #include "AST/ASTEnum.h"
 #include "AST/ASTEnumVar.h"
 #include "AST/ASTClassFunction.h"
+#include "AST/ASTFail.h"
 #include "Basic/SourceLocation.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/Debug.h"
@@ -446,6 +447,12 @@ SemaBuilder::CreateArrayType(const SourceLocation &Loc, ASTType *Type, ASTExpr *
     return new ASTArrayType(Loc, Type, Size);
 }
 
+ASTStringType *
+SemaBuilder::CreateStringType(const SourceLocation &Loc) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateStringType", "Loc=" << Loc.getRawEncoding());
+    return new ASTStringType(Loc);
+}
+
 /**
  * Creates a class type without definition
  * @param Identifier
@@ -612,6 +619,26 @@ SemaBuilder::CreateArrayValue(const SourceLocation &Loc) {
     return new ASTArrayValue(Loc);
 }
 
+ASTStringValue *
+SemaBuilder::CreateStringValue(const SourceLocation &Loc, const char *Chars) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateStringValue",
+                      "Loc=" << Loc.getRawEncoding());
+    return new ASTStringValue(Loc, Chars);
+}
+
+ASTArrayValue *
+SemaBuilder::CreateStringValue(const SourceLocation &Loc, const char *Chars, unsigned int Length) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateStringValue",
+                      "Loc=" << Loc.getRawEncoding());
+    ASTArrayValue *ArrayValue = SemaBuilder::CreateArrayValue(Loc);
+    for (unsigned int i = 0; i < Length ; i++) {
+        ASTIntegerValue *Char = CreateIntegerValue(Loc, Chars[i]);
+        AddArrayValue(ArrayValue, Char);
+    }
+    AddArrayValue(ArrayValue, CreateNullValue(Loc));
+    return ArrayValue;
+}
+
 ASTStructValue *
 SemaBuilder::CreateStructValue(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateArrayValue",
@@ -735,6 +762,24 @@ SemaBuilder::CreateContinue(ASTBlock *Parent, const SourceLocation &Loc) {
                       .Attr("Loc", (uint64_t)Loc.getRawEncoding()).End());
     ASTContinue *Continue = new ASTContinue(Parent, Loc);
     return Continue;
+}
+
+ASTFail *
+SemaBuilder::CreateFail(ASTBlock *Parent, const SourceLocation &Loc, uint32_t Number) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateContinue", Logger()
+            .Attr("Parent", Parent)
+            .Attr("Loc", (uint64_t)Loc.getRawEncoding()).End());
+    ASTFail *Fail = new ASTFail(Parent, Loc, Number);
+    return Fail;
+}
+
+ASTFail *
+SemaBuilder::CreateFail(ASTBlock *Parent, const SourceLocation &Loc, StringRef Message) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateContinue", Logger()
+            .Attr("Parent", Parent)
+            .Attr("Loc", (uint64_t)Loc.getRawEncoding()).End());
+    ASTFail *Fail = new ASTFail(Parent, Loc, Message);
+    return Fail;
 }
 
 ASTExprStmt *
