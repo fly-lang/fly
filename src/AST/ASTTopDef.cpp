@@ -13,7 +13,7 @@
 using namespace fly;
 
 ASTTopDef::ASTTopDef(ASTNode *Node, ASTTopDefKind Kind, ASTScopes *Scopes) :
-        Node(Node), Scopes(Scopes), NameSpace(Node->getNameSpace()), Kind(Kind) {
+        Node(Node), Scopes(Scopes), Kind(Kind) {
 
 }
 
@@ -27,7 +27,7 @@ ASTNode *ASTTopDef::getNode() {
 }
 
 ASTNameSpace *ASTTopDef::getNameSpace() const {
-    return NameSpace;
+    return Node->getNameSpace();
 }
 
 ASTScopes *ASTTopDef::getScopes() const {

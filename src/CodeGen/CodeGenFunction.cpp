@@ -11,6 +11,7 @@
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
 #include "AST/ASTNameSpace.h"
+#include "AST/ASTNode.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTType.h"
 #include "Basic/Debug.h"

@@ -17,7 +17,7 @@
 using namespace fly;
 
 ASTFunctionBase::ASTFunctionBase(const SourceLocation &Loc, ASTFunctionKind Kind, ASTType *ReturnType, llvm::StringRef Name)
-        : Kind(Kind), ReturnType(ReturnType), Name(Name), Location(Loc) {
+        : Kind(Kind), ReturnType(ReturnType), Params(new ASTParams()), Name(Name), Location(Loc) {
 
 }
 
@@ -27,6 +27,14 @@ llvm::StringRef ASTFunctionBase::getName() const {
 
 const SourceLocation &ASTFunctionBase::getLocation() const {
     return Location;
+}
+
+void ASTFunctionBase::addParam(ASTParam *Param) {
+    Params->List.push_back(Param);
+}
+
+void ASTFunctionBase::setEllipsis(ASTParam *Param) {
+    Params->Ellipsis = Param;
 }
 
 const ASTBlock *ASTFunctionBase::getBody() const {

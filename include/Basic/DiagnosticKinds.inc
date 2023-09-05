@@ -365,6 +365,7 @@ DIAG(err_expr_type_miss, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot r
 DIAG(err_var_assign_empty, CLASS_ERROR, (unsigned)diag::Severity::Error, "var assignment '%0' is empty", 0, SFINAE_Suppress, false, true, 0)
 
 // Sema
+DIAG(err_sema_invalid_globalvar_value, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid global var value", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_generic, CLASS_ERROR, (unsigned)diag::Severity::Error, "semantic error", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_macro_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid macro type '%0'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_types_convert, CLASS_ERROR, (unsigned)diag::Severity::Error, "incompatible types, cannot convert from '%0' to '%1'", 0, SFINAE_Suppress, false, true, 0)

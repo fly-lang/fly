@@ -11,7 +11,9 @@
 #include "CodeGen/CodeGenModule.h"
 #include "CodeGen/CodeGenFunction.h"
 #include "AST/ASTFunctionBase.h"
-#include "AST/ASTFail.h"
+#include "AST/ASTCall.h"
+#include "AST/ASTType.h"
+#include "AST/ASTError.h"
 
 using namespace fly;
 
@@ -23,36 +25,36 @@ llvm::StructType *CodeGenFail::GenErrorType(CodeGenModule *CGM) {
     return llvm::StructType::create(CGM->LLVMCtx, ErrorStructVector, "error");
 }
 
-void CodeGenFail::GenSTMT(CodeGenModule *CGM, ASTFail *Fail) {
-    CodeGenFunctionBase *CGF = ((ASTBlock *) Fail->getParent())->getTop()->getCodeGen();
+void CodeGenFail::GenSTMT(CodeGenModule *CGM, ASTCall *Call) {
+    CodeGenFunctionBase *CGF = ((ASTBlock *) Call->getParent())->getTop()->getCodeGen();
 
     // set error param
     llvm::Value *ErrorVar = CGF->getErrorVar();
     llvm::Value *Zero = llvm::ConstantInt::get(CGM->Int32Ty, 0);
     llvm::Value *ErrorKind = CGM->Builder->CreateInBoundsGEP(CGM->ErrorType, ErrorVar, {Zero, Zero});
-    switch (Fail->getFailKind()) {
 
-        case ASTFailKind::ERR_NUMBER: {
-            CGM->Builder->CreateStore(llvm::ConstantInt::get(CGM->Int8Ty, 1), ErrorKind);
-            llvm::Value *NumberPtr = CGM->Builder->CreateInBoundsGEP(CGM->ErrorType, ErrorVar,
-                                                                {Zero, llvm::ConstantInt::get(CGM->Int32Ty, 1)});
-            CGM->Builder->CreateStore(llvm::ConstantInt::get(CGM->Int32Ty, Fail->getCode()), NumberPtr);
-            break;
-        }
-        case ASTFailKind::ERR_MESSAGE: {
-            CGM->Builder->CreateStore(llvm::ConstantInt::get(CGM->Int8Ty, 2), ErrorKind);
-            llvm::Value *StringPtr = CGM->Builder->CreateInBoundsGEP(CGM->ErrorType, ErrorVar,
-                                                                {Zero, llvm::ConstantInt::get(CGM->Int32Ty, 2)});
-            Constant *GlobalVarPtr = CGM->Builder->CreateGlobalStringPtr(Fail->getMessage());
-            CGM->Builder->CreateStore(GlobalVarPtr, StringPtr);
-            break;
-        }
-        case ASTFailKind::ERR_CLASS: {
-            CGM->Builder->CreateStore(llvm::ConstantInt::get(CGM->Int8Ty, 3), ErrorKind);
-            llvm::Value *ClassPtr = CGM->Builder->CreateInBoundsGEP(CGM->ErrorType, ErrorVar,
-                                                               {Zero, llvm::ConstantInt::get(CGM->Int32Ty, 2)});
-            break;
-        }
+    const std::vector<ASTArg *> &Args = Call->getArgs();    
+    if (Args.empty()) {
+        
+    } else if (Args[0]->getExpr()->getType()->isInteger()) {
+        llvm::Value *Val = CGM->GenExpr(CGF, Args[0]->getExpr()->getType(), Args[0]->getExpr());
+        CGM->Builder->CreateStore(llvm::ConstantInt::get(CGM->Int8Ty, 1), ErrorKind);
+        llvm::Value *NumberPtr = CGM->Builder->CreateInBoundsGEP(CGM->ErrorType, ErrorVar,
+                                                                 {Zero, llvm::ConstantInt::get(CGM->Int32Ty, 1)});
+        CGM->Builder->CreateStore(Val, NumberPtr);
+    } else if (Args[0]->getExpr()->getType()->isString()) {
+        llvm::Value *Val = CGM->GenExpr(CGF, Args[0]->getExpr()->getType(), Args[0]->getExpr());
+        CGM->Builder->CreateStore(llvm::ConstantInt::get(CGM->Int8Ty, 2), ErrorKind);
+        llvm::Value *StringPtr = CGM->Builder->CreateInBoundsGEP(CGM->ErrorType, ErrorVar,
+                                                                 {Zero, llvm::ConstantInt::get(CGM->Int32Ty, 2)});
+        CGM->Builder->CreateStore(Val, StringPtr);
+    }
+    // else if () {
+    // CGM->Builder->CreateStore(llvm::ConstantInt::get(CGM->Int8Ty, 3), ErrorKind);
+    // llvm::Value *ClassPtr = CGM->Builder->CreateInBoundsGEP(CGM->ErrorType, ErrorVar, {Zero, llvm::ConstantInt::get(CGM->Int32Ty, 2)});
+    // }
+    else {
+        // Error:
     }
 
     // Return null value

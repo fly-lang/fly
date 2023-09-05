@@ -98,7 +98,7 @@ namespace fly {
     class ASTEnum;
     class ASTEnumVar;
     class ASTIdentityType;
-    class ASTFail;
+    class ASTError;
     class ASTStringValue;
     enum class ASTClassKind;
     enum class ASTUnaryOperatorKind;
@@ -126,31 +126,32 @@ namespace fly {
         ASTNode *CreateHeaderNode(const std::string &Name);
 
         // Create NameSpace
+        ASTNameSpace *CreateDefaultNameSpace();
         ASTNameSpace *CreateNameSpace(ASTIdentifier *Identifier = nullptr);
 
         // Create Top Definitions
-        ASTImport *CreateImport(const SourceLocation &NameLoc, StringRef Name);
-        ASTImport *CreateImport(const SourceLocation &NameLoc, StringRef Name,
+        static ASTImport *CreateImport(const SourceLocation &NameLoc, StringRef Name);
+        static ASTImport *CreateImport(const SourceLocation &NameLoc, StringRef Name,
                                 const SourceLocation &AliasLoc, StringRef Alias);
         static ASTScopes *CreateScopes(ASTVisibilityKind Visibility = ASTVisibilityKind::V_DEFAULT, bool Constant = false, bool Static = false);
-        ASTGlobalVar *CreateGlobalVar(ASTNode *Node, const SourceLocation &Loc, ASTType *Type, const llvm::StringRef Name,
+        static ASTGlobalVar *CreateGlobalVar(ASTNode *Node, const SourceLocation &Loc, ASTType *Type, const llvm::StringRef Name,
                                       ASTScopes *Scopes);
-        ASTFunction *CreateFunction(ASTNode *Node, const SourceLocation &Loc, ASTType *Type, const llvm::StringRef Name,
+        static ASTFunction *CreateFunction(ASTNode *Node, const SourceLocation &Loc, ASTType *Type, const llvm::StringRef Name,
                                     ASTScopes *Scopes);
         ASTClass *CreateClass(ASTNode *Node, ASTClassKind ClassKind, ASTScopes *Scopes,
                               const SourceLocation &Loc, const llvm::StringRef Name,
                               llvm::SmallVector<ASTClassType *, 4> &ClassTypes);
         ASTClass *CreateClass(ASTNode *Node, ASTClassKind ClassKind, ASTScopes *Scopes,
                               const SourceLocation &Loc, const llvm::StringRef Name);
-        ASTClassVar *CreateClassVar(ASTClass *Class, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
+        static ASTClassVar *CreateClassVar(ASTClass *Class, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
                                     ASTScopes *Scopes);
-        ASTClassFunction *CreateClassConstructor(ASTClass *Class, const SourceLocation &Loc, ASTScopes *Scopes);
-        ASTClassFunction *CreateClassMethod(ASTClass *Class, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
+        static ASTClassFunction *CreateClassConstructor(ASTClass *Class, const SourceLocation &Loc, ASTScopes *Scopes);
+        static ASTClassFunction *CreateClassMethod(ASTClass *Class, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
                                             ASTScopes *Scopes);
-        ASTEnum *CreateEnum(ASTNode *Node, ASTScopes *Scopes, const SourceLocation &Loc, const llvm::StringRef Name,
+        static ASTEnum *CreateEnum(ASTNode *Node, ASTScopes *Scopes, const SourceLocation &Loc, const llvm::StringRef Name,
                             llvm::SmallVector<ASTEnumType *, 4> EnumTypes);
-        ASTEnum *CreateEnum(ASTNode *Node, ASTScopes *Scopes, const SourceLocation &Loc, const llvm::StringRef Name);
-        ASTEnumVar *CreateEnumVar(ASTEnum *Enum, const SourceLocation &Loc, llvm::StringRef Name);
+        static ASTEnum *CreateEnum(ASTNode *Node, ASTScopes *Scopes, const SourceLocation &Loc, const llvm::StringRef Name);
+        static ASTEnumVar *CreateEnumVar(ASTEnum *Enum, const SourceLocation &Loc, llvm::StringRef Name);
 
         // Create Types
         static ASTBoolType *CreateBoolType(const SourceLocation &Loc);
@@ -171,6 +172,7 @@ namespace fly {
         static ASTEnumType *CreateEnumType(ASTEnum *Enum);
         static ASTEnumType *CreateEnumType(ASTIdentifier *Enum);
         static ASTIdentityType *CreateIdentityType(ASTIdentifier *Identifier);
+        static ASTErrorType *CreateErrorType();
 
         // Create Values
         static ASTNullValue *CreateNullValue(const SourceLocation &Loc);
@@ -181,29 +183,27 @@ namespace fly {
         static ASTFloatingValue *CreateFloatingValue(const SourceLocation &Loc, std::string Val);
         static ASTFloatingValue *CreateFloatingValue(const SourceLocation &Loc, double Val);
         static ASTArrayValue *CreateArrayValue(const SourceLocation &Loc);
-        static ASTStringValue *CreateStringValue(const SourceLocation &Loc, const char *Chars);
-        static ASTArrayValue *CreateStringValue(const SourceLocation &Loc, const char *Chars, unsigned int Length);
+        static ASTStringValue *CreateStringValue(const SourceLocation &Loc, StringRef Str);
         static ASTStructValue *CreateStructValue(const SourceLocation &Loc);
         static ASTValue *CreateDefaultValue(ASTType *Type);
 
         // Create Statements
-        ASTParam *CreateParam(ASTFunctionBase *Function, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, bool Constant = false);
-        ASTLocalVar *CreateLocalVar(ASTBlock *Parent, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, bool Constant = false);
+        static ASTParam *CreateParam(ASTFunctionBase *Function, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, bool Constant = false);
+        static ASTLocalVar *CreateLocalVar(ASTBlock *Parent, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, bool Constant = false);
         ASTVarAssign *CreateVarAssign(ASTBlock *Parent, ASTVarRef *VarRef);
         ASTReturn *CreateReturn(ASTBlock *Parent, const SourceLocation &Loc);
         ASTBreak *CreateBreak(ASTBlock *Parent, const SourceLocation &Loc);
         ASTContinue *CreateContinue(ASTBlock *Parent, const SourceLocation &Loc);
-        static ASTFail *CreateFail(ASTBlock *Parent, const SourceLocation &Loc, uint32_t Number);
-        static ASTFail *CreateFail(ASTBlock *Parent, const SourceLocation &Loc, StringRef Message);
-        ASTExprStmt *CreateExprStmt(ASTBlock *Parent, const SourceLocation &Loc);
+        static ASTStmt *CreateFail(ASTExprStmt *Stmt, const SourceLocation &Loc, ASTExpr *Expr);
+        static ASTExprStmt *CreateExprStmt(ASTBlock *Parent, const SourceLocation &Loc);
 
         // Create Identifier
         ASTIdentifier *CreateIdentifier(const SourceLocation &Loc, llvm::StringRef Name);
 
         // Create Call
-        ASTCall *CreateCall(ASTIdentifier *Identifier);
-        ASTCall *CreateCall(ASTFunctionBase *Function);
-        ASTCall *CreateCall(ASTIdentifier *Instance, ASTFunctionBase *Function);
+        static ASTCall *CreateCall(ASTIdentifier *Identifier);
+        static ASTCall *CreateCall(ASTFunctionBase *Function);
+        static ASTCall *CreateCall(ASTIdentifier *Instance, ASTFunctionBase *Function);
 
         // Create VarRef
         ASTVarRef *CreateVarRef(ASTIdentifier *Identifier);
@@ -211,9 +211,9 @@ namespace fly {
         ASTVarRef *CreateVarRef(ASTIdentifier *Instance, ASTVar *Var);
 
         // Create Expressions
-        ASTEmptyExpr *CreateExpr(ASTStmt *Stmt);
-        ASTValueExpr *CreateExpr(ASTStmt *Stmt, ASTValue *Value);
-        ASTCallExpr *CreateExpr(ASTStmt *Stmt, ASTCall *Call);
+        static ASTEmptyExpr *CreateExpr();
+        static ASTValueExpr *CreateExpr(ASTStmt *Stmt, ASTValue *Value);
+        static ASTCallExpr *CreateExpr(ASTStmt *Stmt, ASTCall *Call);
         ASTCallExpr *CreateNewExpr(ASTStmt *Stmt, ASTCall *Call);
         ASTDelete *CreateDelete(ASTBlock *Parent, const SourceLocation &Loc, ASTVarRef *VarRef);
         ASTVarRefExpr *CreateExpr(ASTStmt *Stmt, ASTVarRef *VarRef);
@@ -225,8 +225,8 @@ namespace fly {
                                                ASTExpr *Second, const SourceLocation &ElseLoc, ASTExpr *Third);
 
         // Create Blocks structures
-        ASTBlock* CreateBody(ASTFunctionBase *FunctionBase);
-        ASTBlock* CreateBlock(ASTBlock *Parent, const SourceLocation &Loc);
+        static ASTBlock* CreateBody(ASTFunctionBase *FunctionBase);
+        static ASTBlock* CreateBlock(ASTBlock *Parent, const SourceLocation &Loc);
         ASTIfBlock *CreateIfBlock(ASTBlock *Parent, const SourceLocation &Loc);
         ASTElsifBlock *CreateElsifBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc);
         ASTElseBlock *CreateElseBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc);
@@ -240,7 +240,6 @@ namespace fly {
 
         // Add Node & NameSpace
         bool AddNameSpace(ASTNameSpace *NewNameSpace, ASTNode *Node = nullptr, bool ExternLib = false);
-        bool AddDefaultNameSpace();
         bool AddNode(ASTNode *Node);
 
         // Add Top definitions
@@ -248,7 +247,7 @@ namespace fly {
         bool AddIdentity(ASTIdentity *Identity);
         bool AddGlobalVar(ASTGlobalVar *GlobalVar, ASTValue *Value = nullptr);
         bool AddGlobalVar(ASTGlobalVar *GlobalVar, ASTExpr *Expr);
-        bool AddFunction(ASTFunction *Function);
+        static bool AddFunction(ASTFunction *Function);
 
         // Add details
         bool AddClassVar(ASTClassVar *Var);
@@ -273,7 +272,8 @@ namespace fly {
         bool AddBlock(ASTBlock *Block);
 
         template <class T>
-        bool ContainsFunction(llvm::StringMap<std::map <uint64_t,llvm::SmallVector <T *, 4>>> &Functions, T *NewFunction) {
+        bool ContainsFunction(llvm::StringMap<std::map <uint64_t,llvm::SmallVector <T *, 4>>> &Functions,
+                              T *NewFunction) {
             // Search by Name
             const auto &StrMapIt = Functions.find(NewFunction->getName());
             if (StrMapIt != Functions.end()) {
@@ -283,15 +283,15 @@ namespace fly {
 
                 // Search by Type of Parameters
                 llvm::SmallVector <T *, 4> VectorFunctions = IntMapIt->second;
-                for (auto &F: VectorFunctions) {
+                for (auto &Function: VectorFunctions) {
 
                     // Check if NewFunction have no params
-                    if (NewFunction->getParams()->List.empty() && F->getParams()->List.empty()) {
+                    if (NewFunction->getParams()->isEmpty() && Function->getParams()->isEmpty()) {
                         return true;
                     }
 
                     // Check types
-                    if (!S.Validator->CheckDuplicateFunctions(VectorFunctions, NewFunction)) {
+                    if (!S.Validator->CheckParams(Function->getParams(), NewFunction->getParams())) {
                         return true;
                     }
                 }
@@ -300,8 +300,8 @@ namespace fly {
         }
 
         template <class T>
-        bool InsertFunction(llvm::StringMap<std::map <uint64_t,llvm::SmallVector <T *, 4>>> &Functions, T *NewFunction,
-                            bool CheckDuplicate) {
+        static bool InsertFunction(llvm::StringMap<std::map <uint64_t,llvm::SmallVector <T *, 4>>> &Functions,
+                                   T *NewFunction) {
 
             // Functions is llvm::StringMap<std::map <uint64_t, llvm::SmallVector <ASTFunction *, 4>>>
             const auto &StrMapIt = Functions.find(NewFunction->getName());
@@ -318,13 +318,12 @@ namespace fly {
                 // add to llvm::StringMap
                 return Functions.insert(std::make_pair(NewFunction->getName(), IntMap)).second;
             } else {
-                return InsertFunction(StrMapIt->second, NewFunction, CheckDuplicate);
+                return InsertFunction(StrMapIt->second, NewFunction);
             }
         }
 
         template <class T>
-        bool InsertFunction(std::map <uint64_t,llvm::SmallVector <T *, 4>> &Functions, T *NewFunction,
-                            bool CheckDuplicate) {
+        static bool InsertFunction(std::map <uint64_t,llvm::SmallVector <T *, 4>> &Functions, T *NewFunction) {
 
             // This Node contains a Function with this Function->Name
             const auto &IntMapIt = Functions.find(NewFunction->Params->getSize());
@@ -341,14 +340,15 @@ namespace fly {
                 return Functions.insert(std::make_pair(NewFunction->Params->getSize(), VectorFunctions)).second;
             } else { // This Node contains a Function with this Function->Name and same number of Params
                 llvm::SmallVector<T *, 4> VectorFunctions = IntMapIt->second;
-                for (auto &F: VectorFunctions) {
+                for (auto &Function: VectorFunctions) {
 
                     // check no params duplicates
-                    if (!NewFunction->getParams()->List.empty() && !F->getParams()->List.empty()) {
+                    if (NewFunction->getParams()->isEmpty() && Function->getParams()->isEmpty()) {
+                        // Error:
                         return false;
                     }
 
-                    if (CheckDuplicate && !S.Validator->CheckDuplicateFunctions(VectorFunctions, NewFunction)) {
+                    if (!SemaValidator::CheckParams(Function->getParams(), NewFunction->getParams())) {
                         return false;
                     }
                 }

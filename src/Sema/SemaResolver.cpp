@@ -34,6 +34,7 @@
 #include "AST/ASTVar.h"
 #include "AST/ASTVarAssign.h"
 #include "AST/ASTVarRef.h"
+#include "Sys/Sys.h"
 #include "CodeGen/CodeGen.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/Debug.h"
@@ -57,9 +58,10 @@ bool SemaResolver::Resolve() {
     bool Success = true;
 
     // Resolve Nodes
-    for (auto &NEntry : S.Builder->Context->getNodes()) {
-        auto &Node = NEntry.getValue();
+    for (auto &NodeEntry : S.Builder->Context->getNodes()) {
+        auto &Node = NodeEntry.getValue();
         Success &= ResolveImports(Node); // resolve Imports with NameSpaces
+        Success &= ResolveGlobalVars(Node); // resolve Global Vars
         Success &= ResolveIdentities(Node);  // resolve Identity attributes and methods
         Success &= ResolveFunctions(Node);  // resolve ASTBlock of Body Functions
     }
@@ -109,6 +111,18 @@ bool SemaResolver::ResolveImports(ASTNode *Node) {
             Success = false;
             S.Diag(Import->NameLocation, diag::err_namespace_notfound) << Import->getName();
         }
+    }
+
+    return Success;
+}
+
+bool SemaResolver::ResolveGlobalVars(ASTNode *Node) {
+    bool Success = true;
+
+    for (auto &GlobalVarEntry : Node->getGlobalVars()) {
+        ASTGlobalVar *GlobalVar = GlobalVarEntry.getValue();
+        Success = !GlobalVar->getType()->isIdentity() || ResolveIdentityType(Node, (ASTIdentityType *) GlobalVar->getType());
+        Success &= S.Validator->CheckGlobalVar(GlobalVar);
     }
 
     return Success;
@@ -171,10 +185,10 @@ bool SemaResolver::ResolveIdentities(ASTNode *Node) {
                                 while (MapIt != Map.end()) {
                                     for (ASTClassFunction *SuperMethod: MapIt->second) {
                                         if (SuperClass->getClassKind() == ASTClassKind::INTERFACE) {
-                                            S.Builder->InsertFunction(ISuperMethods, SuperMethod, true);
+                                            S.Builder->InsertFunction(ISuperMethods, SuperMethod);
                                         } else {
                                             // Insert methods in the Super and if is ok also in the base Class
-                                            if (S.Builder->InsertFunction(SuperMethods, SuperMethod, true)) {
+                                            if (S.Builder->InsertFunction(SuperMethods, SuperMethod)) {
                                                 ASTClassFunction *M = S.Builder->CreateClassMethod(Class,
                                                                                                    SuperMethod->getLocation(),
                                                                                                    SuperMethod->getType(),
@@ -183,7 +197,7 @@ bool SemaResolver::ResolveIdentities(ASTNode *Node) {
                                                 M->Params = SuperMethod->Params;
                                                 M->Body = SuperMethod->Body;
                                                 M->DerivedClass = Class;
-                                                S.Builder->InsertFunction(Class->Methods, M, true);
+                                                S.Builder->InsertFunction(Class->Methods, M);
 
                                             } else {
                                                 // Multiple Methods Implementations in Super Class need to be re-defined in base class
@@ -382,10 +396,11 @@ bool SemaResolver::ResolveIfBlock(ASTIfBlock *IfBlock) {
 
 bool SemaResolver::ResolveSwitchBlock(ASTSwitchBlock *SwitchBlock) {
     assert(SwitchBlock && "Switch Block cannot be null");
-    bool Success = ResolveExpr(SwitchBlock->getParent(), SwitchBlock->Expr) && S.Validator->CheckMacroType(SwitchBlock->Expr->Type, ASTTypeKind::TYPE_INTEGER);
+    bool Success = ResolveExpr(SwitchBlock->getParent(), SwitchBlock->Expr) &&
+            S.Validator->CheckEqualTypes(SwitchBlock->Expr->Type, ASTTypeKind::TYPE_INTEGER);
     for (ASTSwitchCaseBlock *Case : SwitchBlock->Cases) {
         Success &= ResolveExpr(SwitchBlock, Case->Expr) &&
-                   S.Validator->CheckMacroType(SwitchBlock->Expr->Type, ASTTypeKind::TYPE_INTEGER) && ResolveBlock(Case);
+                S.Validator->CheckEqualTypes(SwitchBlock->Expr->Type, ASTTypeKind::TYPE_INTEGER) && ResolveBlock(Case);
     }
     return Success && ResolveBlock(SwitchBlock->Default);
 }
@@ -517,10 +532,22 @@ bool SemaResolver::ResolveVarRef(ASTBlock *Block, ASTVarRef *VarRef) {
     FLY_DEBUG_MESSAGE("Sema", "ResolveVarRefWithParent", Logger().Attr("VarRef", VarRef).End());
     
     if (VarRef->Def == nullptr) {
-        if (VarRef->getParent() == nullptr) {
-            VarRef->Def = ResolveVarRefNoParent(Block, VarRef->getName());
+
+        // error type
+        if (VarRef->getName() == "error") {
+
+            // this is the current function error var
+            if (VarRef->Parent == nullptr ||
+                    (ResolveParentIdentifier(Block, VarRef->Parent) && VarRef->Parent->isCall()) // check if parent is a call()
+                    ) {
+                VarRef->Def = Sys::getError();
+            }
         } else {
-            ResolveParentIdentifier(Block, VarRef->Parent) && ResolveVarRefWithParent((ASTVarRef *) VarRef);;
+            if (VarRef->getParent() == nullptr) {
+                VarRef->Def = ResolveVarRefNoParent(Block, VarRef->getName());
+            } else {
+                ResolveParentIdentifier(Block, VarRef->Parent) && ResolveVarRefWithParent((ASTVarRef *) VarRef);
+            }
         }
     }
 
@@ -532,7 +559,6 @@ bool SemaResolver::ResolveVarRef(ASTBlock *Block, ASTVarRef *VarRef) {
 
     return true;
 }
-
 
 ASTVar *SemaResolver::ResolveVarRefNoParent(ASTBlock *Block, llvm::StringRef Name) {
 
@@ -618,6 +644,7 @@ bool SemaResolver::ResolveCall(ASTBlock *Block, ASTCall *Call) {
     FLY_DEBUG_MESSAGE("Sema", "ResolveCall", Logger().Attr("Call", Call).End());
 
     if (Call->Def == nullptr) {
+
         if (Call->getParent() == nullptr) {
             ResolveCallNoParent(Block, Call);
         } else {
@@ -627,7 +654,7 @@ bool SemaResolver::ResolveCall(ASTBlock *Block, ASTCall *Call) {
 
     // VarRef not found in node, namespace and node imports
     if (Call->Def == nullptr) {
-        S.Diag(Call->getLocation(), diag::err_unref_var);
+        S.Diag(Call->getLocation(), diag::err_unref_call);
         return false;
     }
 
@@ -668,7 +695,8 @@ bool SemaResolver::ResolveCallNoParent(ASTBlock *Block, ASTCall *Call) {
 
     // func()
     bool Success = ResolveCall(Block, Call, Node->Functions) ||
-                   ResolveCall(Block, Call, Node->getNameSpace()->Functions);
+            ResolveCall(Block, Call, Node->Context->DefaultNameSpace->Functions) ||
+            ResolveCall(Block, Call, Node->getNameSpace()->Functions);
 
     // constructor()
     if (!Success) {
@@ -751,27 +779,28 @@ bool SemaResolver::ResolveCall(ASTBlock *Block, ASTCall *Call,
     // Search by number of arguments
     const auto &IntMapIt = Functions.find(Call->getArgs().size());
     if (IntMapIt != Functions.end()) { // Map contains Function with this size of args
-        for (T *Function: IntMapIt->second) {
-
+        S.Validator->DiagEnabled = false;
+        for (T *Function : IntMapIt->second) {
             if (Function->getParams()->getSize() == Call->getArgs().size()) {
                 bool Success = true; // if Params = Args = 0 skip for cycle
-                for (unsigned long i = 0; i < Function->getParams()->getSize(); i++) {
-                    // Resolve Arg Expr on first
-                    ASTArg *Arg = Call->getArgs().at(i);
-                    ASTParam *Param = Function->getParams()->at(i);
-                    Success &= ResolveArg(Block, Arg, Param);
+                if (Call->getArgs().size() == 0) { // call function with no parameters
+                    Success = true;
+                } else {
+                    for (unsigned long i = 0; i < Function->getParams()->getSize(); i++) {
+                        // Resolve Arg Expr on first
+                        ASTArg *Arg = Call->getArgs().at(i);
+                        ASTParam *Param = Function->getParams()->at(i);
+                        Success &= ResolveArg(Block, Arg, Param);
+                    }
                 }
 
                 if (Success) {
-                    if (Call->Def) { // Error: function defined more times
-                        // TODO
-                        return false;
-                    }
-
                     Call->Def = Function;
+                    break;
                 }
             }
         }
+        S.Validator->DiagEnabled = true;
     }
 
     return Call->Def;
@@ -811,7 +840,7 @@ bool SemaResolver::ResolveExpr(ASTBlock *Block, ASTExpr *Expr) {
             return ResolveValueExpr((ASTValueExpr *) Expr);
         case ASTExprKind::EXPR_VAR_REF: {
             ASTVarRef *VarRef = ((ASTVarRefExpr *)Expr)->getVarRef();
-            if ((VarRef->getDef() || ResolveVarRef(Block, VarRef))) {
+            if (VarRef->getDef() || ResolveVarRef(Block, VarRef)) {
                 Expr->Type = VarRef->getDef()->getType();
                 Success = true;
                 break;
@@ -858,7 +887,7 @@ bool SemaResolver::ResolveExpr(ASTBlock *Block, ASTExpr *Expr) {
                     if (Success) {
                         if (Binary->getOptionKind() == ASTBinaryOptionKind::BINARY_ARITH ||
                                 Binary->getOptionKind() == ASTBinaryOptionKind::BINARY_COMPARISON) {
-                            Success = S.Validator->CheckSameTypes(Binary->OpLoc, Binary->First->Type,
+                            Success = S.Validator->CheckArithTypes(Binary->OpLoc, Binary->First->Type,
                                                                   Binary->Second->Type);
 
                             if (Success) {
@@ -962,7 +991,11 @@ bool SemaResolver::ResolveValueExpr(ASTValueExpr *Expr) {
             // Creating as Float on first but transform in Double if is contained into a Binary Expr with a Double Type
             Expr->Type = SemaBuilder::CreateDoubleType(Loc);
             break;
-        
+
+        case ASTTypeKind::TYPE_STRING:
+            Expr->Type = SemaBuilder::CreateStringType(Loc);
+            break;
+
         case ASTTypeKind::TYPE_ARRAY:
             // TODO
             break;
@@ -972,29 +1005,6 @@ bool SemaResolver::ResolveValueExpr(ASTValueExpr *Expr) {
     }
     
     return true;
-}
-
-/**
- * Get the Parent Block
- * @param Stmt
- * @return
- */
-ASTBlock *SemaResolver::getBlock(ASTStmt *Stmt) {
-    switch (Stmt->getKind()) {
-
-        case ASTStmtKind::STMT_BLOCK:
-            return (ASTBlock *) Stmt;
-        case ASTStmtKind::STMT_RETURN:
-        case ASTStmtKind::STMT_EXPR:
-        case ASTStmtKind::STMT_VAR_DEFINE:
-        case ASTStmtKind::STMT_VAR_ASSIGN:
-            return (ASTBlock *) Stmt->getParent();
-        case ASTStmtKind::STMT_BREAK:
-        case ASTStmtKind::STMT_CONTINUE:
-            assert("Unexpected parent for ASTExpr");
-    }
-
-    return nullptr;
 }
 
 /**

@@ -73,7 +73,7 @@ namespace fly {
 
         ASTIdentifierKind getKind() const;
 
-        ASTIdentifier * AddChild(const SourceLocation &Loc, const StringRef Name);
+        ASTIdentifier * AddChild(ASTIdentifier *Identifier);
 
         ASTIdentifier *getParent() const;
 

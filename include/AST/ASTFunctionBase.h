@@ -26,6 +26,8 @@ namespace fly {
     class ASTBlock;
     class ASTCall;
     class ASTGlobalVar;
+    class ASTVar;
+    class ASTParam;
     class CodeGenFunction;
     class CodeGenFunctionBase;
     class CodeGenVarBase;
@@ -73,6 +75,10 @@ namespace fly {
         llvm::StringRef getName() const;
 
         const SourceLocation &getLocation() const;
+
+        void addParam(ASTParam *Param);
+
+        void setEllipsis(ASTParam *Param);
 
         const ASTParams *getParams() const;
 

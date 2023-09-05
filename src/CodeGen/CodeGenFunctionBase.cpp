@@ -36,11 +36,17 @@ void CodeGenFunctionBase::GenReturnType() {
 
 void CodeGenFunctionBase::GenParamTypes(CodeGenModule * CGM, SmallVector<llvm::Type *, 8> &Types, const ASTParams *Params) {
     // Populate Types by reference
+    if (Params->isEmpty()) {
+        return;
+    }
     if (!Params->getList().empty()) {
         for (auto Param : Params->getList()) {
             llvm::Type *ParamTy = CGM->GenType(Param->getType());
             Types.push_back(ParamTy);
         }
+    }
+    if (Params->getEllipsis() != nullptr) {
+        // TODO
     }
 }
 

@@ -72,6 +72,8 @@ namespace fly {
 
         bool ResolveImports(ASTNode *Node);
 
+        bool ResolveGlobalVars(ASTNode *Node);
+
         bool ResolveIdentities(ASTNode *Node);
 
         bool ResolveFunctions(ASTNode *Node);
@@ -119,8 +121,6 @@ namespace fly {
         bool ResolveExpr(ASTBlock *Block, ASTExpr *Expr);
 
         bool ResolveValueExpr(ASTValueExpr *pExpr);
-
-        ASTBlock *getBlock(ASTStmt *Stmt);
 
         ASTType *getType(ASTStmt *Stmt);
 

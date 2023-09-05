@@ -30,7 +30,9 @@ ASTContext::ASTContext() {
  * ASTContext destructor
  */
 ASTContext::~ASTContext() {
+    delete DefaultNameSpace;
     NameSpaces.clear();
+    Nodes.clear();
     ExternalImports.clear();
 }
 

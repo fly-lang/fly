@@ -135,6 +135,7 @@ ASTExpr *ExprParser::ParseExpr(bool IsFirst) {
         }
     } else if (P->isValue()) { // Ex. 1
         Expr = P->Builder.CreateExpr(Stmt,P->ParseValue());
+        P->Builder.AddExpr(Stmt, Expr);
     } else if (P->Tok.isAnyIdentifier()) { // Ex. a or a++ or func()
         Expr = ParseExpr(P->ParseIdentifier());
     } else if (P->isUnaryPreOperator(P->Tok)) { // Ex. ++a or --a or !a
@@ -144,7 +145,9 @@ ASTExpr *ExprParser::ParseExpr(bool IsFirst) {
     } else {
         // FIXME? remove or change logic?
         // Used with: return
-        return P->Builder.CreateExpr(Stmt); // return an ASTEmptyExpr
+        Expr =  SemaBuilder::CreateExpr(); // return an ASTEmptyExpr
+        P->Builder.AddExpr(Stmt, Expr);
+        return Expr;
     }
 
      // Error: missing expression
@@ -210,7 +213,9 @@ ASTExpr *ExprParser::ParseExpr(ASTIdentifier *Identifier) {
     FLY_DEBUG_MESSAGE("ExprParser", "ParseExpr",
                       Logger().Attr("Identifier", Identifier).End());
     if (Identifier->isCall()) { // Ex. a()
-        return P->Builder.CreateExpr(Stmt, (ASTCall *) Identifier);
+        ASTCallExpr *CallExpr = P->Builder.CreateExpr(Stmt, (ASTCall *) Identifier);
+        P->Builder.AddExpr(Stmt, CallExpr);
+        return CallExpr;
     } else { // parse variable post increment/decrement or simple var
         ASTVarRef *VarRef = P->Builder.CreateVarRef(Identifier);
         if (P->isUnaryPostOperator()) { // Ex. a++ or a--
@@ -229,7 +234,9 @@ ASTExpr *ExprParser::ParseNewExpr(Parser *P) {
         ASTIdentifier *Identifier = P->ParseIdentifier();
 
         if (Identifier->isCall()) { // Ex. a()
-            return P->Builder.CreateNewExpr(Stmt, (ASTCall *) Identifier);
+            ASTCallExpr *CallExpr = P->Builder.CreateNewExpr(Stmt, (ASTCall *) Identifier);
+            P->Builder.AddExpr(Stmt, CallExpr);
+            return CallExpr;
         }
     }
 

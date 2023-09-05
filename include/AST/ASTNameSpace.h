@@ -31,6 +31,7 @@ namespace fly {
         friend class Sema;
         friend class SemaResolver;
         friend class SemaBuilder;
+        friend class Sys;
 
         // The Context
         ASTContext* Context = nullptr;
@@ -57,9 +58,9 @@ namespace fly {
 
         ASTNameSpace(const SourceLocation &Loc, llvm::StringRef Name, ASTContext *Context, bool ExternalLib = false);
 
-        ~ASTNameSpace();
-
     public:
+
+        ~ASTNameSpace();
 
         static const std::string DEFAULT;
 

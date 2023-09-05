@@ -42,8 +42,6 @@ namespace fly {
 
         ASTNode *Node = nullptr;
 
-        ASTNameSpace *NameSpace = nullptr;
-
         // Kind of TopDecl identified by enum
         ASTTopDefKind Kind;
 

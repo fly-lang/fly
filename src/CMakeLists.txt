@@ -18,7 +18,7 @@ add_library(flyLib
         AST/ASTEnumType.cpp
         AST/ASTEnumVar.cpp
         AST/ASTForBlock.cpp
-        AST/ASTFail.cpp
+        AST/ASTError.cpp
         AST/ASTFunction.cpp
         AST/ASTFunctionBase.cpp
         AST/ASTCall.cpp
@@ -144,7 +144,11 @@ add_library(flyLib
         Sema/Sema.cpp
         Sema/SemaBuilder.cpp
         Sema/SemaResolver.cpp
-        Sema/SemaValidator.cpp)
+        Sema/SemaValidator.cpp
+
+        # Sys
+        Sys/Sys.cpp
+)
 
 configure_file(
         ${CMAKE_SOURCE_DIR}/include/Config/Config.h.cmake

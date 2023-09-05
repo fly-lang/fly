@@ -17,6 +17,7 @@
 namespace fly {
 
     class Sema;
+    class ASTGlobalVar;
     class ASTBlock;
     class ASTStmt;
     class ASTLocalVar;
@@ -39,19 +40,20 @@ namespace fly {
 
     public:
 
+        bool DiagEnabled = true;
+
+        bool CheckGlobalVar(ASTGlobalVar *GlobalVar);
+
         bool CheckDuplicateParams(ASTParams *Params, ASTParam *Param);
 
         bool CheckDuplicateLocalVars(ASTStmt *Stmt, llvm::StringRef VarName);
 
-        template<class T>
-        bool CheckDuplicateFunctions(llvm::SmallVector<T *, 4> Functions, T *Check) {
+        static bool CheckParams(const ASTParams *Params, const ASTParams *CheckParams) {
             // Types will be checked on Resolve()
-            for (T *Function : Functions) {
-                for (ASTParam *Param : Function->getParams()->getList()) {
-                    for (ASTParam *CheckParam: Check->getParams()->getList()) {
-                        if (isEquals(Param->getType(), CheckParam->getType())) {
-                            return false;
-                        }
+            for (ASTParam *Param : Params->getList()) {
+                for (ASTParam *CheckParam: CheckParams->getList()) {
+                    if (CheckEqualTypes(Param->getType(), CheckParam->getType())) {
+                        return false;
                     }
                 }
             }
@@ -64,17 +66,17 @@ namespace fly {
 
         bool CheckExpr(ASTExpr *Expr);
 
-        bool isEquals(ASTType *Type1, ASTType *Type2);
+        static bool CheckEqualTypes(ASTType *Type1, ASTType *Type2);
 
-        bool CheckMacroType(ASTType *Type, ASTTypeKind Kind);
+        bool CheckEqualTypes(ASTType *Type, ASTTypeKind Kind);
 
         bool CheckConvertibleTypes(ASTType *FromType, ASTType *ToType);
 
-        bool CheckSameTypes(const SourceLocation &Loc, ASTType *Type1, ASTType *Type2);
+        bool CheckArithTypes(const SourceLocation &Loc, ASTType *Type1, ASTType *Type2);
 
         bool CheckLogicalTypes(const SourceLocation &Loc, ASTType *Type1, ASTType *Type2);
 
-        bool CheckClassInheritance(fly::ASTClassType *FromType, fly::ASTClassType *ToType);
+        static bool CheckClassInheritance(fly::ASTClassType *FromType, fly::ASTClassType *ToType);
     };
 
 }  // end namespace fly

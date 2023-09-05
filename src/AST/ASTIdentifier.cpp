@@ -60,8 +60,8 @@ ASTIdentifierKind ASTIdentifier::getKind() const {
     return Kind;
 }
 
-ASTIdentifier *ASTIdentifier::AddChild(const SourceLocation &Loc, const llvm::StringRef Name) {
-    Child = new ASTIdentifier(Loc, Name);
+ASTIdentifier *ASTIdentifier::AddChild(ASTIdentifier *Identifier) {
+    Child = Identifier;
     Child->Parent = this;
     FullName.append(".").append(Name.data());
     return Child;

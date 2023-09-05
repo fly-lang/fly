@@ -39,11 +39,12 @@
 #include "AST/ASTClassFunction.h"
 #include "AST/ASTEnum.h"
 #include "AST/ASTEnumVar.h"
-#include "AST/ASTFail.h"
+#include "AST/ASTError.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/SourceLocation.h"
 #include "Basic/TargetOptions.h"
 #include "Basic/Builtins.h"
+#include "Sys/Sys.h"
 
 // third party
 #include "llvm/Support/Host.h"
@@ -109,7 +110,7 @@ namespace {
             Diags.getClient()->BeginSourceFile();
             const std::string Name = "CodeGenTest";
             auto *Node = Builder->CreateNode(Name);
-            ASTNameSpace *NameSpace = Builder->CreateNameSpace();
+            ASTNameSpace *NameSpace = Builder->CreateDefaultNameSpace();
             Builder->AddNameSpace(NameSpace, Node);
             Builder->AddNode(Node);
             Diags.getClient()->EndSourceFile();
@@ -584,12 +585,14 @@ namespace {
         // call test()
         ASTExprStmt *ExprStmt = Builder->CreateExprStmt(Body, SourceLoc);
         ASTCall *TestCall = Builder->CreateCall(Test);
-        Builder->CreateExpr(ExprStmt, TestCall);
+        ASTCallExpr *Expr = Builder->CreateExpr(ExprStmt, TestCall);
+        Builder->AddExpr(ExprStmt, Expr);
         EXPECT_TRUE(Builder->AddStmt(ExprStmt));
 
         //return test()
         ASTReturn *Return = Builder->CreateReturn(Body, SourceLoc);
-        Builder->CreateExpr(Return, TestCall);
+        ASTCallExpr *ReturnExpr = Builder->CreateExpr(Return, TestCall);
+        Builder->AddExpr(Return, ReturnExpr);
         EXPECT_TRUE(Builder->AddStmt(Return));
 
         // add to Node
@@ -1877,25 +1880,29 @@ namespace {
         ASTClassFunction *DefaultConstructor = TestClass->getConstructors().find(0)->second.front();
         ASTVarRef *Instance = Builder->CreateVarRef(TestVar);
         ASTCall *ConstructorCall = Builder->CreateCall(Instance, DefaultConstructor);
-        Builder->CreateNewExpr(TestVar, ConstructorCall);
+        ASTCallExpr *NewExpr = Builder->CreateNewExpr(TestVar, ConstructorCall);
+        Builder->AddExpr(TestVar, NewExpr);
         Builder->AddStmt(TestVar);
 
         // int a = test.a()
         ASTType *aType = aFunc->getType();
         ASTLocalVar *aVar = Builder->CreateLocalVar(Body, SourceLoc, aType, "a");
         ASTCallExpr *aCallExpr = Builder->CreateExpr(aVar, Builder->CreateCall(Instance, aFunc));
+        Builder->AddExpr(aVar, aCallExpr);
         Builder->AddStmt(aVar);
 
         // int b = test.b()
         ASTType *bType = bFunc->getType();
         ASTLocalVar *bVar = Builder->CreateLocalVar(Body, SourceLoc, bType, "b");
         ASTCallExpr *bCallExpr = Builder->CreateExpr(bVar, Builder->CreateCall(Instance, bFunc));
+        Builder->AddExpr(bVar, bCallExpr);
         Builder->AddStmt(bVar);
 
         // int c = test.c()
         ASTType *cType = cFunc->getType();
         ASTLocalVar *cVar = Builder->CreateLocalVar(Body, SourceLoc, cType, "c");
         ASTCallExpr *cCallExpr = Builder->CreateExpr(cVar, Builder->CreateCall(Instance, cFunc));
+        Builder->AddExpr(cVar, cCallExpr);
         Builder->AddStmt(cVar);
 
         // delete test
@@ -2023,13 +2030,15 @@ namespace {
         ASTClassFunction *DefaultConstructor = TestClass->getConstructors().find(0)->second.front();
         ASTVarRef *Instance = Builder->CreateVarRef(TestVar);
         ASTCall *ConstructorCall = Builder->CreateCall(Instance, DefaultConstructor);
-        Builder->CreateNewExpr(TestVar, ConstructorCall);
+        ASTCallExpr *NewExpr = Builder->CreateNewExpr(TestVar, ConstructorCall);
+        Builder->AddExpr(TestVar, NewExpr);
         Builder->AddStmt(TestVar);
 
         // int a = test.a()
         ASTType *aType = getA->getType();
         ASTLocalVar *aVar = Builder->CreateLocalVar(Body, SourceLoc, aType, "a");
         ASTCallExpr *aCallExpr = Builder->CreateExpr(aVar, Builder->CreateCall(Instance, getA));
+        Builder->AddExpr(aVar, aCallExpr);
         Builder->AddStmt(aVar);
 
         // delete test
@@ -2149,7 +2158,8 @@ namespace {
         ASTLocalVar *TestVar = Builder->CreateLocalVar(Body, SourceLoc, TestClassType, "test");
         ASTClassFunction *DefaultConstructor = TestStruct->getConstructors().find(0)->second.front();
         ASTVarRef *Instance = (ASTVarRef *) Builder->CreateVarRef(TestVar);
-        Builder->CreateNewExpr(TestVar, Builder->CreateCall(Instance, DefaultConstructor));
+        ASTCallExpr *NewExpr = Builder->CreateNewExpr(TestVar, Builder->CreateCall(Instance, DefaultConstructor));
+        Builder->AddExpr(TestVar, NewExpr);
         Builder->AddStmt(TestVar);
 
         // int a = test.a
@@ -2314,27 +2324,35 @@ namespace {
         ASTScopes *TopScopes = SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false);
 
         // test1()
-        ASTFunction *Test1 = Builder->CreateFunction(Node, SourceLoc, IntType, "test1", TopScopes);
-        ASTBlock *Test1Body = Builder->CreateBody(Test1);
-        ASTFail *Fail1 = SemaBuilder::CreateFail(Test1Body, SourceLoc, 1);
+        ASTFunction *Test1 = SemaBuilder::CreateFunction(Node, SourceLoc, IntType, "test1", TopScopes);
+        ASTBlock *Test1Body = SemaBuilder::CreateBody(Test1);
+        ASTExprStmt *Fail1 = SemaBuilder::CreateExprStmt(Test1Body, SourceLoc);
+        ASTIntegerValue *Val = SemaBuilder::CreateIntegerValue(SourceLoc, 1);
+        ASTValueExpr *ValueExpr = SemaBuilder::CreateExpr(Fail1, Val);
+        SemaBuilder::CreateFail(Fail1, SourceLoc, ValueExpr);
         EXPECT_TRUE(Builder->AddStmt(Fail1));
 
         // test2()
-        ASTFunction *Test2 = Builder->CreateFunction(Node, SourceLoc, IntType, "test2", TopScopes);
-        ASTBlock *Test2Body = Builder->CreateBody(Test2);
-        ASTFail *Fail2 = SemaBuilder::CreateFail(Test2Body, SourceLoc, "Error Message");
-        EXPECT_TRUE(Builder->AddStmt(Fail2));
+        ASTFunction *Test2 = SemaBuilder::CreateFunction(Node, SourceLoc, IntType, "test2", TopScopes);
+        ASTBlock *Test2Body = SemaBuilder::CreateBody(Test2);
+        ASTExprStmt *Fail2 = SemaBuilder::CreateExprStmt(Test2Body, SourceLoc);
+        ASTStringValue *Str = SemaBuilder::CreateStringValue(SourceLoc, "Error");
+        ASTValueExpr *StrExpr = SemaBuilder::CreateExpr(Fail1, Str);
+        SemaBuilder::CreateFail(Fail2, SourceLoc, StrExpr);
+        EXPECT_TRUE(Builder->AddStmt(Fail1));
 
         // main()
-        ASTFunction *Main = Builder->CreateFunction(Node, SourceLoc, VoidType, "main", TopScopes);
-        ASTBlock *MainBody = Builder->CreateBody(Main);
+        ASTFunction *Main = SemaBuilder::CreateFunction(Node, SourceLoc, VoidType, "main", TopScopes);
+        ASTBlock *MainBody = SemaBuilder::CreateBody(Main);
         // call test1()
-        ASTExprStmt *Call1ExprStmt = Builder->CreateExprStmt(MainBody, SourceLoc);
-        Builder->CreateExpr(Call1ExprStmt, Builder->CreateCall(Test1));
+        ASTExprStmt *Call1ExprStmt = SemaBuilder::CreateExprStmt(MainBody, SourceLoc);
+        ASTCallExpr *Expr1 = Builder->CreateExpr(Call1ExprStmt, SemaBuilder::CreateCall(Test1));
+        Builder->AddExpr(Call1ExprStmt, Expr1);
         EXPECT_TRUE(Builder->AddStmt(Call1ExprStmt));
         // call test2()
-        ASTExprStmt *Call2ExprStmt = Builder->CreateExprStmt(MainBody, SourceLoc);
-        Builder->CreateExpr(Call2ExprStmt, Builder->CreateCall(Test2));
+        ASTExprStmt *Call2ExprStmt = SemaBuilder::CreateExprStmt(MainBody, SourceLoc);
+        ASTCallExpr *Expr2 = Builder->CreateExpr(Call2ExprStmt, SemaBuilder::CreateCall(Test2));
+        Builder->AddExpr(Call2ExprStmt, Expr2);
         EXPECT_TRUE(Builder->AddStmt(Call2ExprStmt));
 
         EXPECT_TRUE(Builder->AddFunction(Test1));

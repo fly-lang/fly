@@ -48,6 +48,10 @@ const bool ASTType::isIdentity() const {
     return Kind == ASTTypeKind::TYPE_IDENTITY;
 }
 
+const bool ASTType::isError() const {
+    return Kind == ASTTypeKind::TYPE_ERROR;
+}
+
 const bool ASTType::isVoid() const {
     return Kind == ASTTypeKind::TYPE_VOID;
 }
@@ -324,6 +328,21 @@ const std::string ASTStringType::print() const {
 
 std::string ASTStringType::str() const {
     return Logger("ASTStringType").
+            Super(ASTType::str()).
+            End();
+}
+
+ASTErrorType::ASTErrorType() :
+        ASTType(SourceLocation(), ASTTypeKind::TYPE_ERROR) {
+
+}
+
+const std::string ASTErrorType::print() const {
+    return "error";
+}
+
+std::string ASTErrorType::str() const {
+    return Logger("ASTErrorType").
             Super(ASTType::str()).
             End();
 }

@@ -59,7 +59,8 @@ namespace fly {
         TYPE_FLOATING_POINT,
         TYPE_STRING,
         TYPE_ARRAY,
-        TYPE_IDENTITY
+        TYPE_IDENTITY,
+        TYPE_ERROR
     };
 
     class ASTExpr;
@@ -99,6 +100,8 @@ namespace fly {
         const bool isString() const;
 
         const bool isIdentity() const;
+
+        const bool isError() const;
 
         const bool isVoid() const;
 
@@ -353,6 +356,22 @@ namespace fly {
         friend class SemaBuilder;
 
         ASTStringType(const SourceLocation &Loc);
+
+    public:
+
+        const std::string print() const override;
+
+        std::string str() const override;
+    };
+
+    /**
+     * Error Type
+     */
+    class ASTErrorType : public ASTType {
+
+        friend class SemaBuilder;
+
+        ASTErrorType();
 
     public:
 

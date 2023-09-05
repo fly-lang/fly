@@ -69,7 +69,7 @@ namespace fly {
      */
     class ASTParams : public Debuggable {
 
-        friend class SemaBuilder;
+        friend class ASTFunctionBase;
 
         std::vector<ASTParam *> List;
         ASTParam* Ellipsis = nullptr;
@@ -78,6 +78,8 @@ namespace fly {
         uint64_t getSize() const;
 
         ASTParam *at(unsigned long Index) const;
+
+        const bool isEmpty() const;
 
         const std::vector<ASTParam *> &getList() const;
 

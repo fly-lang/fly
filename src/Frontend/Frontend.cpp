@@ -116,6 +116,8 @@ bool Frontend::Execute() {
         }
     }
 
+    delete Builder;
+
     return !CI.getDiagnostics().getClient()->getNumErrors();
 }
 

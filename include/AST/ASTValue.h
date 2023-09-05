@@ -12,6 +12,7 @@
 
 #include "Basic/Debuggable.h"
 
+#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringMap.h"
 
 #include <string>
@@ -125,13 +126,13 @@ namespace fly {
 
         friend class SemaBuilder;
 
-        const char *Value;
+        llvm::StringRef Value;
 
-        ASTStringValue(const SourceLocation &Loc, const char *Value);
+        ASTStringValue(const SourceLocation &Loc, llvm::StringRef Value);
 
     public:
 
-        const char *getValue() const;
+        llvm::StringRef getValue() const;
 
         const std::string print() const;
 

@@ -44,7 +44,7 @@
 #include "AST/ASTVarRef.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTEnum.h"
-#include "AST/ASTFail.h"
+#include "AST/ASTError.h"
 #include "Basic/Debug.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/IR/GlobalVariable.h"
@@ -478,12 +478,6 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
             // TODO
             break;
 
-            // Continue Stmt
-        case ASTStmtKind::STMT_FAIL: {
-            CodeGenFail::GenSTMT(this, (ASTFail *) Stmt);
-            break;
-        }
-
         // Return Stmt
         case ASTStmtKind::STMT_RETURN: {
             ASTReturn *Return = (ASTReturn *) Stmt;
@@ -543,11 +537,14 @@ llvm::Value *CodeGenModule::GenCall(CodeGenFunctionBase *CGF, ASTCall *Call) {
     // The function arguments
     llvm::SmallVector<llvm::Value *, 8> Args;
 
-
-
     // Take the CGI Value and pass to Call as first argument
     llvm::Value *Instance = nullptr;
     if (Call->getDef()->getKind() == ASTFunctionKind::FUNCTION) {
+        ASTFunction *Def = (ASTFunction *) Call->getDef();
+        if (Def->getName() == "fail") {
+            CodeGenFail::GenSTMT(this, Call);
+        }
+
         // Add error as first param
         Args.push_back(CGF->getErrorVar());
     }

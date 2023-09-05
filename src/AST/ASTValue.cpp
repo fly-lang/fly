@@ -104,17 +104,17 @@ std::string ASTFloatingValue::str() const {
             End();
 }
 
-ASTStringValue::ASTStringValue(const SourceLocation &Loc, const char *Value)
+ASTStringValue::ASTStringValue(const SourceLocation &Loc, llvm::StringRef Value)
         : ASTValue(ASTTypeKind::TYPE_STRING, Loc), Value(Value) {
 
 }
 
-const char * ASTStringValue::getValue() const {
+llvm::StringRef ASTStringValue::getValue() const {
     return Value;
 }
 
 const std::string ASTStringValue::print() const {
-    return Value;
+    return Value.data();
 }
 
 std::string ASTStringValue::str() const {

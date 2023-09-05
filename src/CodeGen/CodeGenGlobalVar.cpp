@@ -11,6 +11,7 @@
 #include "CodeGen/CodeGenGlobalVar.h"
 #include "CodeGen/CodeGenModule.h"
 #include "CodeGen/CodeGen.h"
+#include "AST/ASTNode.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTGlobalVar.h"
@@ -36,8 +37,8 @@ CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, ASTGlobalVar* Var, bool i
             ASTValue *Value = ((ASTValueExpr *) Var->getExpr())->getValue();
             if (Var->getType()->isString()) {
                 Var->getExpr();
-                const char *String = ((ASTStringValue *) Value)->getValue();
-                Const = llvm::ConstantDataArray::getString(CGM->LLVMCtx, String);
+                llvm::StringRef Str = ((ASTStringValue *) Value)->getValue();
+                Const = llvm::ConstantDataArray::getString(CGM->LLVMCtx, Str);
                 Ty = Const->getType();
             } else {
                 Const = CGM->GenValue(Var->getType(), Value);

@@ -27,6 +27,16 @@ SemaValidator::SemaValidator(Sema &S) : S(S) {
 
 }
 
+bool SemaValidator::CheckGlobalVar(ASTGlobalVar *GlobalVar) {
+    if (GlobalVar->getExpr() && GlobalVar->getExpr()->getExprKind() != fly::ASTExprKind::EXPR_VALUE) {
+        if (DiagEnabled)
+            S.Diag(GlobalVar->getLocation(), diag::err_sema_invalid_globalvar_value);
+        return false;
+    }
+
+    return true;
+}
+
 /**
  * Check if this param name is already declared
  * @param Params
@@ -36,7 +46,8 @@ SemaValidator::SemaValidator(Sema &S) : S(S) {
 bool SemaValidator::CheckDuplicateParams(ASTParams *Params, ASTParam *Param) {
     for (ASTParam *P : Params->getList()) {
         if (P->getName() == Param->getName()) {
-            S.Diag(Param->getLocation(), diag::err_conflict_params) << Param->getName();
+            if (DiagEnabled)
+                S.Diag(Param->getLocation(), diag::err_conflict_params) << Param->getName();
             return false;
         }
     }
@@ -58,7 +69,8 @@ bool SemaValidator::CheckDuplicateLocalVars(ASTStmt *Stmt, llvm::StringRef VarNa
     ASTBlock *Block = (ASTBlock *) Stmt;
     ASTLocalVar *DuplicateVar = Block->getLocalVars().lookup(VarName);
     if (DuplicateVar != nullptr) {
-        S.Diag(DuplicateVar->getLocation(), diag::err_conflict_vardecl) << DuplicateVar->getName();
+        if (DiagEnabled)
+            S.Diag(DuplicateVar->getLocation(), diag::err_conflict_vardecl) << DuplicateVar->getName();
         return false;
     }
 
@@ -72,7 +84,8 @@ bool SemaValidator::CheckDuplicateLocalVars(ASTStmt *Stmt, llvm::StringRef VarNa
 
 bool SemaValidator::CheckUninitialized(ASTBlock *Block, ASTVarRef *VarRef) {
     if (VarRef->isLocalVar() && Block->getUnInitVars().lookup(VarRef->getDef()->getName())) {
-        S.Diag(VarRef->getLocation(), diag::err_sema_uninit_var) << VarRef->print();
+        if (DiagEnabled)
+            S.Diag(VarRef->getLocation(), diag::err_sema_uninit_var) << VarRef->print();
         return false;
     }
     return true;
@@ -87,19 +100,22 @@ bool SemaValidator::CheckUninitialized(ASTBlock *Block, ASTVarRef *VarRef) {
 bool SemaValidator::CheckImport(ASTNode *Node, ASTImport *Import) {
     // Error: Empty Import
     if (Import->getName().empty()) {
-        S.Diag(Import->getLocation(), diag::err_import_undefined);
+        if (DiagEnabled)
+            S.Diag(Import->getLocation(), diag::err_import_undefined);
         return false;
     }
 
     // Error: name is equals to the current ASTNode namespace
     if (Import->getName() == Node->getNameSpace()->getName()) {
-        S.Diag(Import->getLocation(), diag::err_import_conflict_namespace) << Import->getName();
+        if (DiagEnabled)
+            S.Diag(Import->getLocation(), diag::err_import_conflict_namespace) << Import->getName();
         return false;
     }
 
     // Error: alias is equals to the current ASTNode namespace
     if (Import->getAlias() == Node->getNameSpace()->getName()) {
-        S.Diag(Import->getAliasLocation(), diag::err_alias_conflict_namespace) << Import->getAlias();
+        if (DiagEnabled)
+            S.Diag(Import->getAliasLocation(), diag::err_alias_conflict_namespace) << Import->getAlias();
         return false;
     }
 
@@ -108,18 +124,24 @@ bool SemaValidator::CheckImport(ASTNode *Node, ASTImport *Import) {
 
 bool SemaValidator::CheckExpr(ASTExpr *Expr) {
     if (!Expr->getType()) {
-        S.Diag(Expr->getLocation(), diag::err_expr_type_miss);
+        if (DiagEnabled)
+            S.Diag(Expr->getLocation(), diag::err_expr_type_miss);
         return false;
     }
     return true;
 }
 
-bool SemaValidator::isEquals(ASTType *Type1, ASTType *Type2) {
+bool SemaValidator::CheckEqualTypes(ASTType *Type1, ASTType *Type2) {
     if (Type1->getKind() == Type2->getKind()) {
-        if (Type1->getKind() == ASTTypeKind::TYPE_ARRAY) {
-            return isEquals(((ASTArrayType *) Type1)->getType(), ((ASTArrayType *) Type2)->getType());
-        } else if (Type1->getKind() == ASTTypeKind::TYPE_IDENTITY) {
-            return ((ASTClassType *) Type1)->getName() == ((ASTClassType *) Type2)->getName();
+        if (Type1->isArray()) {
+            return CheckEqualTypes(((ASTArrayType *) Type1)->getType(), ((ASTArrayType *) Type2)->getType());
+        } else if (Type1->isIdentity()) {
+            if (((ASTIdentityType *) Type1)->isClass()) {
+                return CheckClassInheritance((ASTClassType *) Type1, (ASTClassType *) Type2) ||
+                        CheckClassInheritance((ASTClassType *) Type2, (ASTClassType *) Type1);
+            } else {
+                return ((ASTIdentityType *) Type1)->getFullName() == ((ASTIdentityType *) Type2)->getFullName();
+            }
         }
         return true;
     }
@@ -127,9 +149,10 @@ bool SemaValidator::isEquals(ASTType *Type1, ASTType *Type2) {
     return false;
 }
 
-bool SemaValidator::CheckMacroType(ASTType *Type, ASTTypeKind Kind) {
+bool SemaValidator::CheckEqualTypes(ASTType *Type, ASTTypeKind Kind) {
     if (Type->getKind() != Kind) {
-        S.Diag(Type->getLocation(), diag::err_sema_macro_type) << Type->printType();
+        if (DiagEnabled)
+            S.Diag(Type->getLocation(), diag::err_sema_macro_type) << Type->printType();
         return false;
     }
 
@@ -180,20 +203,34 @@ bool SemaValidator::CheckConvertibleTypes(ASTType *FromType, ASTType *ToType) {
         }
     }
 
-    S.Diag(FromType->getLocation(), diag::err_sema_types_convert)
-            << FromType->print()
-            << ToType->print();
+    else if (FromType->isString() && ToType->isString()) {
+        return true;
+    }
+
+    else if (FromType->isError()) {
+        if (ToType->isBool() || ToType->isInteger() || ToType->isString()) {
+            return true;
+        }
+    }
+
+    if (DiagEnabled)
+        S.Diag(FromType->getLocation(), diag::err_sema_types_convert)
+                << FromType->print()
+                << ToType->print();
+
     return false;
 }
 
-bool SemaValidator::CheckSameTypes(const SourceLocation &Loc, ASTType *Type1, ASTType *Type2) {
+bool SemaValidator::CheckArithTypes(const SourceLocation &Loc, ASTType *Type1, ASTType *Type2) {
     if (Type1->getKind() == Type2->getKind()) {
         return true;
     }
 
-    S.Diag(Loc, diag::err_sema_types_operation)
-            << Type1->print()
-            << Type2->print();
+    if (DiagEnabled)
+        S.Diag(Loc, diag::err_sema_types_operation)
+                << Type1->print()
+                << Type2->print();
+
     return false;
 }
 
@@ -202,13 +239,15 @@ bool SemaValidator::CheckLogicalTypes(const SourceLocation &Loc, ASTType *Type1,
         return true;
     }
 
-    S.Diag(Loc, diag::err_sema_types_logical)
-            << Type1->print()
-            << Type2->print();
+    if (DiagEnabled)
+        S.Diag(Loc, diag::err_sema_types_logical)
+                << Type1->print()
+                << Type2->print();
+
     return false;
 }
 
-bool SemaValidator::CheckClassInheritance(fly::ASTClassType *FromType, fly::ASTClassType *ToType) {
+bool SemaValidator::CheckClassInheritance(ASTClassType *FromType, ASTClassType *ToType) {
     const StringRef &FromName = FromType->getDef()->getName();
     const StringRef &ToName = ToType->getDef()->getName();
     if (FromName == ToName) {

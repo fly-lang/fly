@@ -30,7 +30,7 @@
 #include "AST/ASTImport.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTLocalVar.h"
-#include "AST/ASTFail.h"
+#include "AST/ASTError.h"
 #include "Sema/SemaBuilder.h"
 #include "Frontend/InputFile.h"
 #include "Basic/Debug.h"
@@ -133,7 +133,7 @@ bool Parser::ParseNameSpace() {
     } else {
 
         // Define Default NameSpace also if it has not been defined
-        NameSpace = Builder.CreateNameSpace();
+        NameSpace = Builder.CreateDefaultNameSpace();
     }
     FLY_DEBUG_MESSAGE("Parser", "ParseNameSpace", "NameSpace=" << NameSpace);
 
@@ -161,10 +161,10 @@ bool Parser::ParseImports() {
                 llvm::StringRef Alias = AliasId->getName();
                 const SourceLocation &AliasLoc = ConsumeToken();
                 FLY_DEBUG_MESSAGE("Parser", "ParseImports", "Name=" << Name << ", Alias=" << Alias);
-                Import = Builder.CreateImport(NameLoc, Name, AliasLoc, Alias);
+                Import = SemaBuilder::CreateImport(NameLoc, Name, AliasLoc, Alias);
             } else {
                 FLY_DEBUG_MESSAGE("Parser", "ParseImports", "Name=" << Name << ", Alias=");
-                Import = Builder.CreateImport(Loc, Name.str());
+                Import = SemaBuilder::CreateImport(Loc, Name.str());
             }
             return Builder.AddImport(Node, Import) && ParseImports();
         } else {
@@ -284,7 +284,7 @@ bool Parser::ParseGlobalVarDef(ASTScopes *Scopes, ASTType *Type) {
     llvm::StringRef Name = Tok.getIdentifierInfo()->getName();
     SourceLocation Loc = ConsumeToken();
 
-    ASTGlobalVar *GlobalVar = Builder.CreateGlobalVar(Node, Loc, Type, Name, Scopes);
+    ASTGlobalVar *GlobalVar = SemaBuilder::CreateGlobalVar(Node, Loc, Type, Name, Scopes);
 
     // Parsing =
     ASTExpr *Expr = nullptr;
@@ -319,7 +319,7 @@ bool Parser::ParseFunctionDef(ASTScopes *Scopes, ASTType *Type) {
     }
 
     const StringRef &Name = Tok.getIdentifierInfo()->getName();
-    ASTFunction *Function = Builder.CreateFunction(Node, ConsumeToken(), Type, Name, Scopes);
+    ASTFunction *Function = SemaBuilder::CreateFunction(Node, ConsumeToken(), Type, Name, Scopes);
     if (FunctionParser::Parse(this, Function)) {
 
         // Error: body must be empty in header declaration
@@ -445,9 +445,6 @@ bool Parser::ParseStmt(ASTBlock *Block, bool StopParse) {
     if (Tok.is(tok::kw_continue)) { // Parse continue
         ASTContinue *Continue = Builder.CreateContinue(Block, ConsumeToken());
         return Builder.AddStmt(Continue) && (StopParse || ParseStmt(Block));
-    }
-    if (Tok.is(tok::kw_fail)) { // Parse Fail
-        return ParseFail(Block) && (StopParse || ParseStmt(Block));
     }
 
     // define a const LocalVar
@@ -904,7 +901,7 @@ bool Parser::ParseArrayType(ASTType *&Type) {
 
         if (Tok.is(tok::r_square)) {
             ConsumeBracket();
-            Expr = Builder.CreateExpr(nullptr, SemaBuilder::CreateIntegerValue(Loc, 0));
+            Expr = SemaBuilder::CreateExpr(nullptr, SemaBuilder::CreateIntegerValue(Loc, 0));
             Type = SemaBuilder::CreateArrayType(Loc, Type, Expr);
         } else {
             Expr = ParseExpr();
@@ -1010,19 +1007,18 @@ bool Parser::ParseCallArg(ASTCall *Call) {
 ASTIdentifier *Parser::ParseIdentifier(ASTIdentifier *Parent) {
     FLY_DEBUG("Parser", "ParseIdentifier");
 
-    if (!Tok.isAnyIdentifier()) { // FIXME check keywords ?
+    if (!Tok.isAnyIdentifier()) {
         Diag(Tok, diag::err_parse_identifier_invalid) << Tok.getName();
         return nullptr;
     }
 
     // Create the Child and work on it
     ASTIdentifier *Child;
+    llvm::StringRef Name = Tok.getIdentifierInfo()->getName();
     if (Parent == nullptr) {
-        Child = Builder.CreateIdentifier(Tok.getLocation(), Tok.getIdentifierInfo()->getName());
-        ConsumeToken();
+        Child = Builder.CreateIdentifier(ConsumeToken(), Name);
     } else {
-        Child = Parent->AddChild(Tok.getLocation(), Tok.getIdentifierInfo()->getName());
-        ConsumeToken();
+        Child = Parent->AddChild(Builder.CreateIdentifier(ConsumeToken(), Name));
     }
 
     // case 0: Class
@@ -1087,8 +1083,9 @@ ASTValue *Parser::ParseValue() {
     }
 
     if (Tok.isStringLiteral()) {
-        const char *Chars = Tok.getLiteralData();
-        return SemaBuilder::CreateStringValue(ConsumeStringToken(), Chars);
+        const char *Data = Tok.getLiteralData();
+        size_t Length = Tok.getLength();
+        return SemaBuilder::CreateStringValue(ConsumeStringToken(), StringRef(Data, Length));
     }
 
     // Parse true or false boolean values
@@ -1170,7 +1167,7 @@ ASTValue *Parser::ParseValues() {
 
                 ASTValue *Value = ParseValue();
                 if (Value) {
-                    Builder.AddStructValue((ASTStructValue *) Values, Key, Value);
+                    SemaBuilder::AddStructValue((ASTStructValue *) Values, Key, Value);
                     if (Tok.is(tok::comma)) {
                         ConsumeToken();
                     } else {
@@ -1186,7 +1183,7 @@ ASTValue *Parser::ParseValues() {
                 Values = SemaBuilder::CreateArrayValue(StartLoc);
             ASTValue *Value = ParseValue();
             if (Value) {
-                Builder.AddArrayValue((ASTArrayValue *) Values, Value);
+                SemaBuilder::AddArrayValue((ASTArrayValue *) Values, Value);
                 if (Tok.is(tok::comma)) {
                     ConsumeToken();
                 } else {
@@ -1218,35 +1215,6 @@ ASTExpr *Parser::ParseExpr(ASTStmt *Stmt, ASTIdentifier *Identifier) {
     return Identifier ? Parser.ParseExpr(Identifier) : Parser.ParseExpr();
 }
 
-bool Parser::ParseFail(ASTBlock *Block) {
-    FLY_DEBUG("Parser", "ParseFail");
-    assert(Tok.is(tok::kw_fail) && "Tok is not fail keyword");
-    SourceLocation Loc = ConsumeToken();
-
-    // Fail of Integer type
-    if (Tok.is(tok::numeric_constant)) {
-        std::string Val = std::string(Tok.getLiteralData(), Tok.getLength());
-        ASTValue *Number = ParseValueNumber(Val);
-        if (Number->getTypeKind() == ASTTypeKind::TYPE_INTEGER) {
-            uint32_t Value = ((ASTIntegerValue *) Number)->getValue();
-            ASTFail *Fail = SemaBuilder::CreateFail(Block, Loc, Value);
-            return Builder.AddStmt(Fail);
-        }
-    }
-
-    // Fail of String type
-    else if (Tok.isStringLiteral()) {
-        const char *Chars = Tok.getLiteralData();
-        unsigned int Length = Tok.getLength();
-        ASTFail *Fail = SemaBuilder::CreateFail(Block, Loc, StringRef(Chars, Length));
-        return Builder.AddStmt(Fail);
-    }
-
-    // Error: Fail number must be integer
-    Diag(diag::err_invalid_value) << Tok.getName();
-    return false;
-}
-
 /**
  * Check if Token is one of the Builtin Types
  * @return true on Success or false on Error
@@ -1264,7 +1232,8 @@ bool Parser::isBuiltinType(Token &Tok) {
                        tok::kw_long,
                        tok::kw_ulong,
                        tok::kw_float,
-                       tok::kw_double);
+                       tok::kw_double,
+                       tok::kw_string);
 }
 
 bool Parser::isArrayType(Token &Tok) {

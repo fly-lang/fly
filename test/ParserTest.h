@@ -6,6 +6,7 @@
 #include "Parser/Parser.h"
 #include "Sema/Sema.h"
 #include "Sema/SemaBuilder.h"
+#include "Sys/Sys.h"
 
 #include <gtest/gtest.h>
 
@@ -24,8 +25,8 @@ public:
     bool Success = false;
 
     ParserTest() : CI(*TestUtils::CreateCompilerInstance()),
-                   Diags(CI.getDiagnostics()),
-                   Builder(Sema::CreateBuilder(CI.getDiagnostics())) {
+                   Diags(CI.getDiagnostics()) {
+        Builder = Sema::CreateBuilder(CI.getDiagnostics());
         Diags.getClient()->BeginSourceFile();
     }
 
