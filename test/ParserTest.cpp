@@ -16,7 +16,7 @@
 #include "AST/ASTFunction.h"
 #include "AST/ASTCall.h"
 #include "AST/ASTValue.h"
-#include "AST/ASTVarAssign.h"
+#include "AST/ASTVarDefine.h"
 #include "AST/ASTVarRef.h"
 #include "AST/ASTParams.h"
 #include "AST/ASTWhileBlock.h"
@@ -399,8 +399,8 @@ namespace {
         ASTNode *AST = Parse("FunctionDefaultVoidEmpty", str);
         ASSERT_TRUE(isSuccess());
 
-        EXPECT_TRUE(AST->getFunctions().size() == 1); // Fun has DEFAULT Visibility
-        EXPECT_TRUE(AST->getNameSpace()->getFunctions().size() == 1);
+        EXPECT_TRUE(AST->getFunctions().size() == 1); // Func has DEFAULT Visibility
+        EXPECT_TRUE(AST->getNameSpace()->getFunctions().size() == 2); // Default contains also fail() function
         ASTFunction *VerifyFunc = *AST->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
         EXPECT_EQ(VerifyFunc->getScopes()->getVisibility(), ASTVisibilityKind::V_DEFAULT);
         const auto &NSFuncs = AST->getContext().getDefaultNameSpace()->getFunctions();
@@ -459,7 +459,7 @@ namespace {
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *Node->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
+        ASTFunction *F = *Node->getFunctions().begin()->getValue().begin()->second.begin();
         EXPECT_EQ(F->getType()->getKind(), ASTTypeKind::TYPE_IDENTITY);
         const ASTBlock *Body = F->getBody();
 
@@ -496,7 +496,7 @@ namespace {
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *Node->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
+        ASTFunction *F = *Node->getFunctions().begin()->getValue().begin()->second.begin();
         EXPECT_EQ(F->getType()->getKind(), ASTTypeKind::TYPE_VOID);
         const ASTBlock *Body = F->getBody();
 
@@ -603,7 +603,7 @@ namespace {
         ASSERT_FALSE(doSomeCall->getCall()->getDef() == nullptr);
 
         // Test: doNow()
-        ASTVarAssign *B = ((ASTVarAssign *) Body->getContent()[1]);
+        ASTVarDefine *B = ((ASTVarDefine *) Body->getContent()[1]);
         ASTCallExpr *doNowCall = (ASTCallExpr *) B->getExpr();
         EXPECT_EQ(doNowCall->getCall()->getName(), "doNow");
         EXPECT_EQ(doNowCall->getExprKind(), ASTExprKind::EXPR_CALL);
@@ -626,25 +626,25 @@ namespace {
         EXPECT_FALSE(RetExpr->getVarRef()->getDef() == nullptr);
     }
 
-    TEST_F(ParserTest, FunctionFail) {
+    TEST_F(ParserTest, FunctionHandleFail) {
         llvm::StringRef str = (
                                "void err0() {\n"
                                "  fail()\n"
                                "}\n"
-                               "bool err1() {\n"
-                               "  fail(false)"
-                               "}\n"
-                               "int err2() {\n"
+                               "int err1() {\n"
                                "  fail(404)"
                                "}\n"
-                               "void err3() {\n"
+                               "int err2() {\n"
                                "  fail(\"Error\")"
                                "}\n"
                                "void main() {\n"
-                               "  bool err0 = err0().error\n"
-                               "  bool err1 = err1().error\n"
-                               "  int err2 = err2().error\n"
-                               "  string err3 = err3().error\n"
+                               "  handle err0()\n"
+                               "  bool err0 = handle err0()\n"
+                               "  error err0 = handle err0()\n"
+                               "  int err1 = handle { err1() }\n"
+                               "  error err1 = handle err1()\n"
+                               "  string err2 = handle err2()\n"
+                               "  error err2 = handle { err2() }\n"
                                "}\n");
         ASTNode *Node = Parse("FunctionFail", str);
         ASSERT_TRUE(isSuccess());
@@ -653,77 +653,44 @@ namespace {
         ASTFunction *err0 = *Node->getFunctions().find("err0")->getValue().begin()->second.begin();
         ASTFunction *err1 = *Node->getFunctions().find("err1")->getValue().begin()->second.begin();
         ASTFunction *err2 = *Node->getFunctions().find("err2")->getValue().begin()->second.begin();
-        ASTFunction *err3 = *Node->getFunctions().find("err3")->getValue().begin()->second.begin();
         ASTFunction *main = *Node->getFunctions().find("main")->getValue().begin()->second.begin();
 
         ASSERT_TRUE(err0 != nullptr);
         ASSERT_TRUE(err1 != nullptr);
         ASSERT_TRUE(err2 != nullptr);
-        ASSERT_TRUE(err3 != nullptr);
         ASSERT_TRUE(main != nullptr);
 
-        ASTExprStmt *Stmt0 = (ASTExprStmt *) err0->getBody()->getContent()[0];
-        ASSERT_TRUE(((ASTCallExpr *) Stmt0->getExpr())->getCall()->getArgs().empty());
+        ASTExprStmt *Stmt1 = (ASTExprStmt *) err0->getBody()->getContent()[0];
+        ASSERT_TRUE(((ASTCallExpr *) Stmt1->getExpr())->getCall()->getArgs().empty());
 
-        ASTExprStmt *Stmt1 = (ASTExprStmt *) err1->getBody()->getContent()[0];
-        ASTArg *Arg1 = ((ASTCallExpr *) Stmt1->getExpr())->getCall()->getArgs()[0];
-        ASTValue *Val1 = ((ASTValueExpr *) Arg1->getExpr())->getValue();
-        ASSERT_EQ(Val1->getTypeKind(), ASTTypeKind::TYPE_BOOL);
-        ASSERT_EQ(((ASTBoolValue *) Val1)->getValue(), false);
-
-        ASTExprStmt *Stmt2 = (ASTExprStmt *) err2->getBody()->getContent()[0];
+        ASTExprStmt *Stmt2 = (ASTExprStmt *) err1->getBody()->getContent()[0];
         ASTArg *Arg2 = ((ASTCallExpr *) Stmt2->getExpr())->getCall()->getArgs()[0];
         ASTValue *Val2 = ((ASTValueExpr *) Arg2->getExpr())->getValue();
         ASSERT_EQ(Val2->getTypeKind(), ASTTypeKind::TYPE_INTEGER);
         ASSERT_EQ(((ASTIntegerValue *) Val2)->getValue(), 404);
 
-        ASTExprStmt *Stmt3 = (ASTExprStmt *) err3->getBody()->getContent()[0];
+        ASTExprStmt *Stmt3 = (ASTExprStmt *) err2->getBody()->getContent()[0];
         ASTArg *Arg3 = ((ASTCallExpr *) Stmt3->getExpr())->getCall()->getArgs()[0];
         ASTValue *Val3 = ((ASTValueExpr *) Arg3->getExpr())->getValue();
         ASSERT_EQ(Val3->getTypeKind(), ASTTypeKind::TYPE_STRING);
         ASSERT_EQ(((ASTStringValue *) Val3)->getValue(), "Error");
 
         // Get main() Body
-        ASTLocalVar *err0Var = (ASTLocalVar *) main->getBody()->getContent()[0];
-        ASSERT_TRUE(((ASTVarRefExpr *) err0Var->getExpr())->getVarRef()->getDef()->getType()->isError());
-        ASTLocalVar *err1Var = (ASTLocalVar *) main->getBody()->getContent()[1];
-        ASSERT_TRUE(((ASTVarRefExpr *) err1Var->getExpr())->getVarRef()->getDef()->getType()->isError());
-        ASTLocalVar *err2Var = (ASTLocalVar *) main->getBody()->getContent()[2];
-        ASSERT_TRUE(((ASTVarRefExpr *) err2Var->getExpr())->getVarRef()->getDef()->getType()->isError());
-        ASTLocalVar *err3Var = (ASTLocalVar *) main->getBody()->getContent()[3];
-        ASSERT_TRUE(((ASTVarRefExpr *) err3Var->getExpr())->getVarRef()->getDef()->getType()->isError());
-    }
+        ASTHandleBlock *HandleStmt = (ASTHandleBlock *) main->getBody()->getContent()[0];
 
-    TEST_F(ParserTest, FunctionError) {
-        llvm::StringRef str = ("bool err0() {\n"
-                               "  fail true\n"
-                               "}\n"
-                               "int err1() {\n"
-                               "  fail error"
-                               "}\n"
-                               "void main() {\n"
-                               // error is not managed
-                               "  bool err0 = err0()\n" // err0 = false
-                               // error maintain its last value
-                               "  bool err1 = err1().error\n" // err1 = true
-                               "  fail error\n"
-                               "}\n");
-        ASTNode *Node = Parse("FunctionFail", str);
-        ASSERT_TRUE(isSuccess());
+        ASTLocalVar *bool_err0 = (ASTLocalVar *) main->getBody()->getContent()[1];
+        ASSERT_TRUE(((ASTVarRefExpr *) bool_err0->getExpr())->getVarRef()->getDef()->getType()->isBool());
+        ASTLocalVar *error_err0 = (ASTLocalVar *) main->getBody()->getContent()[2];
+        ASSERT_TRUE(((ASTVarRefExpr *) error_err0->getExpr())->getVarRef()->getDef()->getType()->isError());
 
-        // Get all functions
-        ASTFunction *err0 = *Node->getFunctions().find("err0")->getValue().begin()->second.begin();
-        ASTFunction *err1 = *Node->getFunctions().find("err1")->getValue().begin()->second.begin();
-        ASTFunction *main = *Node->getFunctions().find("main")->getValue().begin()->second.begin();
+        ASTLocalVar *int_err1 = (ASTLocalVar *) main->getBody()->getContent()[3];
+        ASSERT_TRUE(((ASTVarRefExpr *) int_err1->getExpr())->getVarRef()->getDef()->getType()->isInteger());
+        ASTLocalVar *error_err1 = (ASTLocalVar *) main->getBody()->getContent()[4];
+        ASSERT_TRUE(((ASTVarRefExpr *) error_err1->getExpr())->getVarRef()->getDef()->getType()->isError());
 
-        ASSERT_TRUE(err0 != nullptr);
-        ASSERT_TRUE(err1 != nullptr);
-
-        ASTCall *err0Fail = (ASTCall *) err0->getBody()->getContent()[0];
-
-        ASTCall *err1Fail = (ASTCall *) err1->getBody()->getContent()[0];
-
-        // Get main() Body
-        const ASTBlock *Body = main->getBody();
+        ASTLocalVar *string_err2 = (ASTLocalVar *) main->getBody()->getContent()[5];
+        ASSERT_TRUE(((ASTVarRefExpr *) string_err2->getExpr())->getVarRef()->getDef()->getType()->isString());
+        ASTLocalVar *error_err2 = (ASTLocalVar *) main->getBody()->getContent()[6];
+        ASSERT_TRUE(((ASTVarRefExpr *) error_err2->getExpr())->getVarRef()->getDef()->getType()->isError());
     }
 }

@@ -40,7 +40,7 @@
 #include "AST/ASTWhileBlock.h"
 #include "AST/ASTForBlock.h"
 #include "AST/ASTValue.h"
-#include "AST/ASTVarAssign.h"
+#include "AST/ASTVarDefine.h"
 #include "AST/ASTVarRef.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTEnum.h"
@@ -66,6 +66,7 @@ CodeGenModule::CodeGenModule(DiagnosticsEngine &Diags, llvm::StringRef Name, LLV
         LLVMCtx(LLVMCtx),
         Builder(new IRBuilder<>(LLVMCtx)),
         CGOpts(CGOpts) {
+
     // Configure Types
     VoidTy = llvm::Type::getVoidTy(LLVMCtx);
     BoolTy = llvm::Type::getInt1Ty(LLVMCtx);
@@ -382,23 +383,23 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
 
         // Var Declaration
         case ASTStmtKind::STMT_VAR_DEFINE: {
-            ASTLocalVar *Var = (ASTLocalVar *) Stmt;
-            assert(Var->getCodeGen() && "Var is not CodeGen initialized");
-            if (Var->getExpr()) {
-                llvm::Value *V = GenExpr(CGF, Var->getType(), Var->getExpr());
-                if (Var->getType()->isIdentity() && ((ASTIdentityType *) Var->getType())->isClass()) {
+            ASTVarDefine *VarDefine = (ASTVarDefine *) Stmt;
+            assert(VarDefine->getVarRef()->getDef()->getCodeGen() && "Var is not CodeGen initialized");
+            if (VarDefine->getExpr()) {
+                llvm::Value *V = GenExpr(CGF, VarDefine->getVarRef()->getDef()->getType(), VarDefine->getExpr());
+                if (VarDefine->getVarRef()->getDef()->getType()->isIdentity() && ((ASTIdentityType *) VarDefine->getVarRef()->getDef()->getType())->isClass()) {
                     // set Value from CodeGen Instance
-                    ((CodeGenInstance *) Var->getCodeGen())->Init(V);
+                    ((CodeGenInstance *) VarDefine->getVarRef()->getDef()->getCodeGen())->Init(V);
                 } else {
-                    Var->getCodeGen()->Store(V);
+                    VarDefine->getVarRef()->getDef()->getCodeGen()->Store(V);
                 }
             }
             break;
         }
 
         // Var Assignment
-        case ASTStmtKind::STMT_VAR_ASSIGN: {
-            ASTVarAssign *VarAssign = (ASTVarAssign *) Stmt;
+        case ASTStmtKind::STMT_VAR_DEFINE: {
+            ASTVarDefine *VarAssign = (ASTVarDefine *) Stmt;
             assert(VarAssign->getExpr() && "Expr Mandatory in assignment");
             ASTVarRef *VarRef = VarAssign->getVarRef();
             llvm::Value *V = GenExpr(CGF, VarRef->getDef()->getType(), VarAssign->getExpr());
@@ -420,7 +421,7 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
         // Stmt with Expr
         case ASTStmtKind::STMT_EXPR: {
             ASTExprStmt *ExprStmt = (ASTExprStmt *) Stmt;
-            GenExpr(CGF, ExprStmt->getExpr()->getType(), ExprStmt->getExpr());
+            GenExpr(CGF, ExprStmt->getExpr());
             break;
         }
 
@@ -540,9 +541,10 @@ llvm::Value *CodeGenModule::GenCall(CodeGenFunctionBase *CGF, ASTCall *Call) {
     // Take the CGI Value and pass to Call as first argument
     llvm::Value *Instance = nullptr;
     if (Call->getDef()->getKind() == ASTFunctionKind::FUNCTION) {
-        ASTFunction *Def = (ASTFunction *) Call->getDef();
+        ASTFunction *Def = (ASTFunction *) Call->getDef(); // is resolved
         if (Def->getName() == "fail") {
-            CodeGenFail::GenSTMT(this, Call);
+            CodeGenFail::GenSTMT(CGF, Call);
+            return nullptr;
         }
 
         // Add error as first param
@@ -582,6 +584,13 @@ llvm::Value *CodeGenModule::GenCall(CodeGenFunctionBase *CGF, ASTCall *Call) {
     return Instance == nullptr ? RetVal : Instance;
 }
 
+llvm::Value *CodeGenModule::GenExpr(CodeGenFunctionBase *CGF, ASTExpr *Expr) {
+    FLY_DEBUG("CodeGenModule", "GenExpr");
+    CodeGenExpr *CGExpr = new CodeGenExpr(this, CGF, Expr);
+    return CGExpr->getValue();
+}
+
+// FIXME to remove ASTType parameter the expr need to have the type specified
 llvm::Value *CodeGenModule::GenExpr(CodeGenFunctionBase *CGF, const ASTType *Type, ASTExpr *Expr) {
     FLY_DEBUG("CodeGenModule", "GenExpr");
     CodeGenExpr *CGExpr = new CodeGenExpr(this, CGF, Expr, Type);
@@ -866,10 +875,4 @@ void CodeGenModule::GenReturn(ASTFunctionBase *F, llvm::Value *V) {
     } else {
         Builder->CreateRet(V);
     }
-}
-
-void CodeGenModule::GenFail(ASTFunctionBase *F, ASTFail * Fail) {
-    // Take Error Var: set number and message
-
-    GenReturn(F, nullptr);
 }

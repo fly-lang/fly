@@ -82,8 +82,7 @@ bool FunctionParser::ParseParam() {
             // Start Parsing
             if (P->isValue()) {
                 ASTValue *Val = P->ParseValue();
-                Expr = SemaBuilder::CreateExpr(Param, Val);
-                P->Builder.AddExpr(Param, Expr);
+                Param->setDefaultValue(Val);
             }
         } else {
             Expr = SemaBuilder::CreateExpr(); // ASTEmptyExpr

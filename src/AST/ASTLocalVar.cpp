@@ -13,9 +13,8 @@
 
 using namespace fly;
 
-ASTLocalVar::ASTLocalVar(ASTBlock *Parent, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, bool Constant) :
-        ASTExprStmt(Parent, Loc, ASTStmtKind::STMT_VAR_DEFINE), VarKind(ASTVarKind::VAR_LOCAL),
-        Type(Type), Name(Name), Constant(Constant) {
+ASTLocalVar::ASTLocalVar(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, bool Constant) :
+        Location(Loc), VarKind(ASTVarKind::VAR_LOCAL), Type(Type), Name(Name), Constant(Constant) {
 
 }
 
@@ -35,8 +34,8 @@ bool ASTLocalVar::isConstant() const {
     return Constant;
 }
 
-ASTExpr *ASTLocalVar::getExpr() const {
-    return Expr;
+const SourceLocation &ASTLocalVar::getLocation() const {
+    return Location;
 }
 
 CodeGenVarBase *ASTLocalVar::getCodeGen() const {
@@ -53,7 +52,7 @@ std::string ASTLocalVar::print() const {
 
 std::string ASTLocalVar::str() const {
     return Logger("ASTLocalVar").
-            Super(ASTExprStmt::str()).
+            Super(ASTVar::str()).
             Attr("Type", Type).
             Attr("Name", Name).
             Attr("VarKind", (uint64_t) VarKind).

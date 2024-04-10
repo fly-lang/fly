@@ -16,13 +16,18 @@
 
 namespace fly {
 
+    class ASTEnumType;
     class ASTClassType;
+    class ASTIdentity;
+    class ASTEnum;
+    class ASTClass;
 
     enum class ASTErrorKind {
-        ERR_ENABLED = 0,
-        ERR_CODE = 1,
-        ERR_MESSAGE = 2,
-        ERR_CLASS = 3
+        ERR_NONE = 0,
+        ERR_INT = 1,
+        ERR_STRING = 2,
+        ERR_ENUM = 3,
+        ERR_CLASS = 4
     };
 
     class ASTError {
@@ -34,13 +39,11 @@ namespace fly {
 
         const SourceLocation Loc;
 
-        const bool Enabled;
-
         const uint32_t Code;
 
         const llvm::StringRef Message;
 
-        const ASTClassType *Class;
+        const ASTIdentity *Identity;
 
     protected:
 
@@ -48,7 +51,9 @@ namespace fly {
 
         ASTError(const SourceLocation &Loc, llvm::StringRef Message);
 
-        ASTError(const SourceLocation &Loc, ASTClassType *Class);
+        ASTError(const SourceLocation &Loc, ASTEnum *Enum);
+
+        ASTError(const SourceLocation &Loc, ASTClass *Class);
 
     public:
 
@@ -56,11 +61,13 @@ namespace fly {
 
         const SourceLocation &getLocation() const;
 
-        bool isEnabled() const;
-
         uint32_t getCode() const;
 
         llvm::StringRef getMessage() const;
+
+        ASTEnum* getEnum() const;
+
+        ASTClass* getClass() const;
 
         std::string print() const;
 

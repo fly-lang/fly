@@ -23,6 +23,7 @@ add_library(flyLib
         AST/ASTFunctionBase.cpp
         AST/ASTCall.cpp
         AST/ASTGlobalVar.cpp
+        AST/ASTHandleBlock.cpp
         AST/ASTIdentity.cpp
         AST/ASTIdentityType.cpp
         AST/ASTIdentifier.cpp
@@ -38,7 +39,7 @@ add_library(flyLib
         AST/ASTTopDef.cpp
         AST/ASTType.cpp
         AST/ASTValue.cpp
-        AST/ASTVarAssign.cpp
+        AST/ASTVarDefine.cpp
         AST/ASTVarRef.cpp
         AST/ASTWhileBlock.cpp
 

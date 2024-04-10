@@ -53,8 +53,6 @@ namespace fly {
 
         ASTType *getType() const override;
 
-        ASTExpr *getExpr() const override;
-
         llvm::StringRef getComment() const;
 
         CodeGenEnumEntry *getCodeGen() const;

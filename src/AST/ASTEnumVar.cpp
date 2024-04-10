@@ -41,10 +41,6 @@ ASTType *ASTEnumVar::getType() const {
     return (ASTType *) Enum->getType();
 }
 
-ASTExpr *ASTEnumVar::getExpr() const {
-    return nullptr;
-}
-
 llvm::StringRef ASTEnumVar::getComment() const {
     return Comment;
 }

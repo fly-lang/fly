@@ -10,7 +10,7 @@
 #ifndef FLY_FUNCTIONBASE_H
 #define FLY_FUNCTIONBASE_H
 
-#include "ASTExprStmt.h"
+#include "ASTStmt.h"
 #include "Basic/Debuggable.h"
 
 #include <vector>
@@ -96,15 +96,23 @@ namespace fly {
      * Ex.
      *   return true
      */
-    class ASTReturn : public ASTExprStmt {
+    class ASTReturn : public ASTStmt {
 
         friend class SemaBuilder;
+
+        ASTExpr *Expr = nullptr;
+
+        ASTBlock *Block = nullptr;
 
         ASTReturn(ASTBlock *Parent, const SourceLocation &Loc);
 
     public:
 
-        std::string str() const override;
+        ASTExpr *getExpr() const;
+
+        ASTBlock *getBlock() const;
+
+        std::string str() const;
     };
 }
 

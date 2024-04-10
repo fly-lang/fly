@@ -20,7 +20,6 @@ namespace fly {
         STMT_BLOCK,
         STMT_EXPR,
         STMT_VAR_DEFINE,
-        STMT_VAR_ASSIGN,
         STMT_BREAK,
         STMT_CONTINUE,
         STMT_DELETE,
@@ -46,6 +45,8 @@ namespace fly {
 
         ASTStmtKind Kind;
 
+        bool HandleError = false;
+
         ASTStmt(ASTStmt *Parent, const SourceLocation &Loc, ASTStmtKind Kind);
 
     public:
@@ -55,6 +56,10 @@ namespace fly {
         const SourceLocation &getLocation() const;
 
         ASTStmtKind getKind() const;
+
+        void setHandleError(bool HandleError);
+
+        bool isHandlerError();
 
         std::string str() const;
     };

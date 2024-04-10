@@ -24,7 +24,7 @@ namespace fly {
     class ASTFunctionBase;
     class ASTCall;
     class ASTLocalVar;
-    class ASTVarAssign;
+    class ASTVarDefine;
     class ASTGroupExpr;
     class ASTVarRef;
     class ASTExpr;
@@ -47,7 +47,8 @@ namespace fly {
         BLOCK_WHILE,
         BLOCK_FOR,
         BLOCK_FOR_LOOP,
-        BLOCK_FOR_POST
+        BLOCK_FOR_POST,
+        BLOCK_HANDLE
     };
 
     /**

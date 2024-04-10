@@ -34,7 +34,7 @@ namespace fly {
 
     protected:
         ASTFunctionBase *AST = nullptr;
-        CodeGenModule * CGM = nullptr;
+        CodeGenModule *CGM = nullptr;
         llvm::Function *Fn = nullptr;
         llvm::Type *RetType = nullptr;
         llvm::FunctionType *FnType = nullptr;
@@ -43,6 +43,8 @@ namespace fly {
 
     public:
         CodeGenFunctionBase(CodeGenModule *CGM, ASTFunctionBase *AST);
+
+        CodeGenModule *getCodeGenModule();
 
         void GenReturnType();
 

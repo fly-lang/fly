@@ -7,10 +7,10 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_ASTVARASSIGN_H
-#define FLY_ASTVARASSIGN_H
+#ifndef FLY_ASTVARDEFINE_H
+#define FLY_ASTVARDEFINE_H
 
-#include "ASTExprStmt.h"
+#include "ASTStmt.h"
 
 namespace fly {
 
@@ -21,20 +21,32 @@ namespace fly {
      * Ex.
      *  a = 1
      */
-    class ASTVarAssign : public ASTExprStmt {
+    class ASTVarDefine : public ASTStmt {
 
         friend class SemaBuilder;
 
         ASTVarRef *VarRef = nullptr;
 
-        ASTVarAssign(ASTBlock *Parent, const SourceLocation &Loc, ASTVarRef *VarRef);
+        ASTExpr *Expr = nullptr;
+
+        ASTBlock *Block = nullptr;
+
+        bool FirstDefined = false;
+
+        ASTVarDefine(ASTBlock *Parent, const SourceLocation &Loc, ASTVarRef *VarRef, bool Init = false);
 
     public:
 
         ASTVarRef *getVarRef() const;
 
-        std::string str() const override;
+        ASTExpr *getExpr() const;
+
+        ASTBlock *getBlock() const;
+
+        bool isFirstDefined() const;
+
+        std::string str() const;
     };
 }
 
-#endif //FLY_ASTVARASSIGN_H
+#endif //FLY_ASTVARDEFINE_H

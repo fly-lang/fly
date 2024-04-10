@@ -31,6 +31,8 @@ namespace fly {
     class ASTSwitchBlock;
     class ASTExpr;
     class InputFile;
+    class ASTHandleBlock;
+    class ASTVarRef;
     enum class ASTBinaryOperatorKind;
 
     /// Parse the main file known to the preprocessor, producing an
@@ -102,6 +104,7 @@ namespace fly {
         bool ParseWhileStmt(ASTBlock *Block);
         bool ParseForStmt(ASTBlock *Block);
         bool ParseForCommaStmt(ASTBlock *Block);
+        bool ParseHandleStmt(ASTBlock *Block, ASTVarRef *Error);
 
         // Parse Identifiers
         bool ParseBuiltinType(ASTType *&);

@@ -55,7 +55,6 @@ namespace fly {
     class ASTVar;
     class ASTEnum;
     class ASTIdentifier;
-    class ASTFail;
 
     class CodeGenModule : public CodeGenTypeCache {
 
@@ -129,6 +128,8 @@ namespace fly {
 
         llvm::Value *GenCall(CodeGenFunctionBase *CGF, ASTCall *Call);
 
+        llvm::Value *GenExpr(CodeGenFunctionBase *CGF, ASTExpr *Expr);
+
         llvm::Value *GenExpr(CodeGenFunctionBase *CGF, const ASTType *Type, ASTExpr *Expr);
 
         void GenBlock(CodeGenFunctionBase *CGF, const std::vector<ASTStmt *> &Content, llvm::BasicBlock *BB = nullptr);
@@ -148,8 +149,6 @@ namespace fly {
         void pushArgs(CodeGenFunctionBase *CGF, ASTCall *pCall, llvm::SmallVector<llvm::Value *, 8> &Args);
 
         void GenReturn(ASTFunctionBase *CGF, llvm::Value *V = nullptr);
-
-        void GenFail(ASTFunctionBase *CGF, ASTFail * Fail);
     };
 }
 

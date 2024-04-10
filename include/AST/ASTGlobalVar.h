@@ -51,8 +51,6 @@ namespace fly {
 
         const SourceLocation &getLocation() const;
 
-        ASTExpr *getExpr() const override;
-
         CodeGenGlobalVar *getCodeGen() const override;
 
         void setCodeGen(CodeGenGlobalVar *CG);

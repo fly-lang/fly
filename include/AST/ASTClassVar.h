@@ -65,8 +65,6 @@ namespace fly {
 
         ASTScopes *getScopes() const;
 
-        ASTExpr *getExpr() const override;
-
         void setExpr(ASTExpr *expr);
 
         CodeGenVarBase *getCodeGen() const;

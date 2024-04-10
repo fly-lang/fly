@@ -22,8 +22,8 @@
 using namespace fly;
 
 ASTParam::ASTParam(ASTFunctionBase *Function, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, bool Constant) :
-        ASTExprStmt(nullptr, Loc, ASTStmtKind::STMT_VAR_DEFINE), VarKind(ASTVarKind::VAR_PARAM),
-        Function(Function), Type(Type), Name(Name), Constant(Constant) {
+        ASTLocalVar(Loc, Type, Name, Constant), VarKind(ASTVarKind::VAR_PARAM),
+        Function(Function) {
 
 }
 
@@ -43,12 +43,12 @@ llvm::StringRef ASTParam::getName() const {
     return Name;
 }
 
-bool ASTParam::isConstant() const {
-    return Constant;
+ASTValue *ASTParam::getDefaultValue() const {
+    return DefaultValue;
 }
 
-ASTExpr *ASTParam::getExpr() const {
-    return Expr;
+void ASTParam::setDefaultValue(ASTValue *Value) {
+    DefaultValue = Value;
 }
 
 CodeGenVarBase *ASTParam::getCodeGen() const {
@@ -65,7 +65,7 @@ std::string ASTParam::print() const {
 
 std::string ASTParam::str() const {
     return Logger("ASTParam").
-            Super(ASTExprStmt::str()).
+            Super(ASTLocalVar::str()).
             Attr("Type", Type).
             Attr("Name", Name).
             Attr("VarKind", (uint64_t) VarKind).

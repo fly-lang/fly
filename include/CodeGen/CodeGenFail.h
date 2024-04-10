@@ -15,6 +15,7 @@
 namespace fly {
 
     class CodeGenModule;
+    class CodeGenFunctionBase;
     class ASTCall;
 
     class CodeGenFail {
@@ -23,7 +24,7 @@ namespace fly {
 
         static llvm::StructType *GenErrorType(CodeGenModule *CGM);
 
-        static void GenSTMT(CodeGenModule *CGM, ASTCall *Call);
+        static void GenSTMT(CodeGenFunctionBase *CGF, ASTCall *Call);
     };
 }
 

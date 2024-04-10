@@ -38,10 +38,6 @@ ASTType *ASTGlobalVar::getType() const {
     return Type;
 }
 
-ASTExpr *ASTGlobalVar::getExpr() const {
-    return Expr;
-}
-
 CodeGenGlobalVar *ASTGlobalVar::getCodeGen() const {
     return CodeGen;
 }

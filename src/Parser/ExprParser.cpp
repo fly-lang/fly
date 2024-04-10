@@ -142,6 +142,10 @@ ASTExpr *ExprParser::ParseExpr(bool IsFirst) {
         Expr = ParseUnaryPreExpr(P); // Parse Unary Post Expression
     } else if (P->isNewOperator(P->Tok)) {
         Expr = ParseNewExpr(P);
+    } else if (IsFirst && P->Tok.is(tok::kw_handle)) {
+        P->ConsumeParen();
+        Expr = ParseExpr(true);
+        Stmt->setHandleError(true);
     } else {
         // FIXME? remove or change logic?
         // Used with: return

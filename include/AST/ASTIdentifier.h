@@ -39,6 +39,8 @@ namespace fly {
 
         const llvm::StringRef Name;
 
+        bool Resolved = false;
+
         std::string FullName;
 
         ASTIdentifier *Parent = nullptr;

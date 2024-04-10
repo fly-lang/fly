@@ -21,20 +21,18 @@
 
 using namespace fly;
 
+CodeGenExpr::CodeGenExpr(CodeGenModule *CGM, CodeGenFunctionBase *CGF, ASTExpr *Expr) :
+        CGM(CGM), CGF(CGF) {
+    FLY_DEBUG("CodeGenExpr", "CodeGenExpr");
+    Val = GenValue(Expr);
+}
+
 CodeGenExpr::CodeGenExpr(CodeGenModule *CGM, CodeGenFunctionBase *CGF, ASTExpr *Expr, const ASTType *ToType) :
         CGM(CGM), CGF(CGF) {
     FLY_DEBUG("CodeGenExpr", "CodeGenExpr");
     llvm::Value *TheVal = GenValue(Expr);
     ASTType *FromType = Expr->getType();
     Val = Convert(TheVal, FromType, ToType);
-}
-
-CodeGenExpr::CodeGenExpr(CodeGenModule *CGM, CodeGenFunctionBase *CGF, ASTVar *Var) :
-        CGM(CGM), CGF(CGF), Var(Var) {
-    FLY_DEBUG("CodeGenExpr", "CodeGenExpr");
-    llvm::Value *TheVal = GenValue(Var->getExpr());
-    ASTType *FromType = Var->getExpr()->getType();
-    Val = Convert(TheVal, FromType, Var->getType());
 }
 
 llvm::Value *CodeGenExpr::GenValue(const ASTExpr *Expr) {

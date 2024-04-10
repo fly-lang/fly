@@ -16,7 +16,7 @@
 #include "AST/ASTFunction.h"
 #include "AST/ASTCall.h"
 #include "AST/ASTValue.h"
-#include "AST/ASTVarAssign.h"
+#include "AST/ASTVarDefine.h"
 #include "AST/ASTVarRef.h"
 #include "AST/ASTParams.h"
 #include "AST/ASTWhileBlock.h"
@@ -80,7 +80,7 @@ namespace {
         EXPECT_EQ(((ASTVarRefExpr *) a4Unary->getFirst())->getVarRef()->getName(), "a");
 
         // a = ++a + 1
-        const ASTVarAssign *a5Var = (ASTVarAssign *) Body->getContent()[4];
+        const ASTVarDefine *a5Var = (ASTVarDefine *) Body->getContent()[4];
         EXPECT_EQ(a5Var->getExpr()->getExprKind(), ASTExprKind::EXPR_GROUP);
         ASTBinaryGroupExpr *Group = (ASTBinaryGroupExpr *) a5Var->getExpr();
         EXPECT_EQ(Group->getOperatorKind(), ASTBinaryOperatorKind::ARITH_ADD);

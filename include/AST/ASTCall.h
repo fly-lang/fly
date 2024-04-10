@@ -50,8 +50,6 @@ namespace fly {
 
         ASTCallKind CallKind = ASTCallKind::CALL_NORMAL;
 
-        bool Error;
-
         ASTCall(const SourceLocation &Loc, llvm::StringRef Name);
 
         ASTCall(ASTFunctionBase *Function);

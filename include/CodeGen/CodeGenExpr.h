@@ -30,9 +30,10 @@ namespace fly {
         ASTVar *Var = nullptr;
 
     public:
-        CodeGenExpr(CodeGenModule *CGM, CodeGenFunctionBase *CGF, ASTExpr *Expr, const ASTType *ToType);
 
-        CodeGenExpr(CodeGenModule *CGM, CodeGenFunctionBase *CGF, ASTVar *Var);
+        CodeGenExpr(CodeGenModule *CGM, CodeGenFunctionBase *CGF, ASTExpr *Expr);
+
+        CodeGenExpr(CodeGenModule *CGM, CodeGenFunctionBase *CGF, ASTExpr *Expr, const ASTType *ToType);
 
         llvm::Value *GenValue(const ASTExpr *Expr);
 

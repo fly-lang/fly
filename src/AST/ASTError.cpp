@@ -8,26 +8,29 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTError.h"
+#include "AST/ASTEnum.h"
+#include "AST/ASTClass.h"
 
 using namespace fly;
 
 ASTError::ASTError(const SourceLocation &Loc, uint32_t Code) :
-        Loc(Loc), ErrorKind(ASTErrorKind::ERR_CODE), Enabled(Code != 0), Code(Code), Class(nullptr) {
+        Loc(Loc), ErrorKind(ASTErrorKind::ERR_INT), Code(Code), Identity(nullptr) {
 
 }
 
 ASTError::ASTError(const SourceLocation &Loc, llvm::StringRef Message) :
-        Loc(Loc), ErrorKind(ASTErrorKind::ERR_MESSAGE), Enabled(!Message.empty()), Code(0), Message(Message), Class(nullptr) {
+        Loc(Loc), ErrorKind(ASTErrorKind::ERR_STRING), Code(0), Message(Message), Identity(nullptr) {
 
 }
 
-ASTError::ASTError(const SourceLocation &Loc, ASTClassType *Class) :
-        Loc(Loc), ErrorKind(ASTErrorKind::ERR_CLASS), Enabled(Class != nullptr), Code(0), Class(Class) {
+ASTError::ASTError(const SourceLocation &Loc, ASTEnum *Enum) :
+        Loc(Loc), ErrorKind(ASTErrorKind::ERR_ENUM), Code(0), Identity(Enum) {
 
 }
 
-bool ASTError::isEnabled() const {
-    return Enabled;
+ASTError::ASTError(const SourceLocation &Loc, ASTClass *Class) :
+        Loc(Loc), ErrorKind(ASTErrorKind::ERR_CLASS), Code(0), Identity(Class) {
+
 }
 
 uint32_t ASTError::getCode() const {
@@ -36,6 +39,14 @@ uint32_t ASTError::getCode() const {
 
 llvm::StringRef ASTError::getMessage() const {
     return Message;
+}
+
+ASTEnum* ASTError::getEnum() const {
+    return (ASTEnum *) Identity;
+}
+
+ASTClass* ASTError::getClass() const {
+    return (ASTClass *) Identity;
 }
 
 ASTErrorKind ASTError::getErrorKind() const {

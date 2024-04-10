@@ -27,6 +27,14 @@ ASTStmtKind ASTStmt::getKind() const {
     return Kind;
 }
 
+void ASTStmt::setHandleError(bool HE) {
+    HandleError = HE;
+}
+
+bool ASTStmt::isHandlerError() {
+    return HandleError;
+}
+
 std::string ASTStmt::str() const {
     return Logger("ASTStmt").
            Attr("Location", Location).

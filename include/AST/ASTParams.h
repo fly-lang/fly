@@ -15,11 +15,12 @@
 namespace fly {
 
     class ASTFunctionBase;
+    class ASTValue;
 
     /**
      * Function Parameter
      */
-    class ASTParam : public ASTExprStmt, public ASTVar {
+    class ASTParam : public ASTLocalVar {
 
         friend class SemaBuilder;
         friend class SemaResolver;
@@ -37,6 +38,8 @@ namespace fly {
 
         llvm::StringRef Name;
 
+        ASTValue *DefaultValue;
+
         ASTParam(ASTFunctionBase *Function, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, bool Constant);
 
     public:
@@ -49,9 +52,9 @@ namespace fly {
 
         llvm::StringRef getName() const override;
 
-        bool isConstant() const;
+        ASTValue *getDefaultValue() const;
 
-        ASTExpr *getExpr() const override;
+        void setDefaultValue(ASTValue *Value);
 
         CodeGenVarBase *getCodeGen() const override;
 

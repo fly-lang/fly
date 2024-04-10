@@ -46,7 +46,7 @@ namespace fly {
 
         virtual llvm::StringRef getName() const = 0;
 
-        virtual ASTExpr *getExpr() const = 0;
+        virtual const SourceLocation &getLocation() const = 0;
 
         virtual CodeGenVarBase *getCodeGen() const = 0;
 

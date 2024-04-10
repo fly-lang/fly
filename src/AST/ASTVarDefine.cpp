@@ -7,26 +7,38 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "AST/ASTVarAssign.h"
+#include "AST/ASTVarDefine.h"
 #include "AST/ASTBlock.h"
 #include "AST/ASTVar.h"
 #include "AST/ASTVarRef.h"
 
 using namespace fly;
 
-ASTVarAssign::ASTVarAssign(ASTBlock *Parent, const SourceLocation &Loc, ASTVarRef *VarRef) :
-        ASTExprStmt(Parent, Loc, ASTStmtKind::STMT_VAR_ASSIGN), VarRef(VarRef) {
+ASTVarDefine::ASTVarDefine(ASTBlock *Parent, const SourceLocation &Loc, ASTVarRef *VarRef, bool Init) :
+        ASTStmt(Parent, Loc, ASTStmtKind::STMT_VAR_DEFINE), VarRef(VarRef), FirstDefined(Init) {
 
 }
 
-std::string ASTVarAssign::str() const {
+std::string ASTVarDefine::str() const {
     return Logger("ASTVarAssign").
-            Super(ASTExprStmt::str()).
+            Super(ASTStmt::str()).
             Attr("VarRef", VarRef).
-            Attr("ExprStmt", ASTExprStmt::str()).
+            Attr("ExprStmt", ASTStmt::str()).
             End();
 }
 
-ASTVarRef *ASTVarAssign::getVarRef() const {
+ASTVarRef *ASTVarDefine::getVarRef() const {
     return VarRef;
+}
+
+ASTExpr *ASTVarDefine::getExpr() const {
+    return Expr;
+}
+
+ASTBlock *ASTVarDefine::getBlock() const {
+    return Block;
+}
+
+bool ASTVarDefine::isFirstDefined() const {
+    return FirstDefined;
 }

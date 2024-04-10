@@ -30,6 +30,10 @@ CodeGenFunctionBase::CodeGenFunctionBase(CodeGenModule *CGM, ASTFunctionBase *AS
 
 }
 
+CodeGenModule *CodeGenFunctionBase::getCodeGenModule() {
+    return CGM;
+}
+
 void CodeGenFunctionBase::GenReturnType() {
     RetType = CGM->GenType(AST->getType());
 }

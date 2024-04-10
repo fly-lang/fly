@@ -66,8 +66,16 @@ std::string ASTFunctionBase::str() const {
 }
 
 ASTReturn::ASTReturn(ASTBlock *Parent, const SourceLocation &Loc) :
-        ASTExprStmt(Parent, Loc, ASTStmtKind::STMT_RETURN) {
+        ASTStmt(Parent, Loc, ASTStmtKind::STMT_RETURN) {
 
+}
+
+ASTExpr *ASTReturn::getExpr() const {
+    return Expr;
+}
+
+ASTBlock *ASTReturn::getBlock() const {
+    return Block;
 }
 
 std::string ASTReturn::str() const {
