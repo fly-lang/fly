@@ -28,9 +28,11 @@ namespace fly {
     class ASTGlobalVar;
     class ASTVar;
     class ASTParam;
+    class ASTScopes;
     class CodeGenFunction;
     class CodeGenFunctionBase;
     class CodeGenVarBase;
+
 
     enum class ASTFunctionKind {
         FUNCTION,
@@ -56,15 +58,20 @@ namespace fly {
         // Source Location
         const SourceLocation Location;
 
+        ASTScopes * Scopes;
+
         // Header contains parameters
         ASTParams *Params = nullptr;
 
         // Body is the main BlockStmt
         ASTBlock *Body = nullptr;
 
+        llvm::StringRef Comment;
+
     protected:
 
-        ASTFunctionBase(const SourceLocation &Loc, ASTFunctionKind Kind, ASTType *ReturnType, llvm::StringRef Name);
+        ASTFunctionBase(const SourceLocation &Loc, ASTFunctionKind Kind, ASTType *ReturnType, llvm::StringRef Name,
+                        ASTScopes *Scopes);
 
     public:
 
@@ -73,6 +80,10 @@ namespace fly {
         ASTType *getType() const;
 
         llvm::StringRef getName() const;
+
+        ASTScopes *getScopes() const;
+
+        llvm::StringRef getComment() const;
 
         const SourceLocation &getLocation() const;
 

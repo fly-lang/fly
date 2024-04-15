@@ -22,7 +22,7 @@
 #include "AST/ASTClass.h"
 #include "AST/ASTEnum.h"
 #include "AST/ASTClassVar.h"
-#include "AST/ASTEnumVar.h"
+#include "AST/ASTEnumEntry.h"
 #include "AST/ASTClassFunction.h"
 
 namespace {
@@ -52,9 +52,9 @@ namespace {
         ASTEnum *Enum = (ASTEnum *) Node->getIdentity();
         EXPECT_FALSE(Enum->getVars().empty());
         EXPECT_EQ(Enum->getVars().size(), 3); // A B C enum
-        ASTEnumVar *VarA = Enum->getVars().find("A")->getValue();
-        ASTEnumVar *VarB = Enum->getVars().find("B")->getValue();
-        ASTEnumVar *VarC = Enum->getVars().find("C")->getValue();
+        ASTEnumEntry *VarA = Enum->getVars().find("A")->getValue();
+        ASTEnumEntry *VarB = Enum->getVars().find("B")->getValue();
+        ASTEnumEntry *VarC = Enum->getVars().find("C")->getValue();
         EXPECT_EQ(VarA->getIndex(), 1);
         EXPECT_EQ(VarB->getIndex(), 2);
         EXPECT_EQ(VarC->getIndex(), 3);
@@ -72,7 +72,7 @@ namespace {
         const ASTBlock *Body = main->getBody();
         ASTLocalVar *aVar = ((ASTLocalVar *) Body->getContent()[0]);
         ASTVarRefExpr *aExpr = (ASTVarRefExpr *) aVar->getExpr();
-        ASTEnumVar *A = (ASTEnumVar *) aExpr->getVarRef()->getDef();
+        ASTEnumEntry *A = (ASTEnumEntry *) aExpr->getVarRef()->getDef();
     }
 
     TEST_F(ParserTest, Struct) {

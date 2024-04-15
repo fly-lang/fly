@@ -52,9 +52,9 @@ bool Frontend::Execute() {
                CI.getFrontendOptions().ShowTimers);
 
     // Parse files, create AST, build Semantics checker
-    SemaBuilder *Builder = Sema::CreateBuilder(Diags);
-    std::vector<FrontendAction *> Actions = ParseActions(CG, *Builder);
-    if (!Actions.empty() && Builder->Build()) {
+    Sema *S = Sema::CreateSema(Diags);
+    std::vector<FrontendAction *> Actions = ParseActions(CG, *S);
+    if (!Actions.empty() && S->Resolve()) {
 
         // Generate Code for Top Definitions
         for (auto Action: Actions) {
@@ -116,7 +116,7 @@ bool Frontend::Execute() {
         }
     }
 
-    delete Builder;
+    delete S;
 
     return !CI.getDiagnostics().getClient()->getNumErrors();
 }
@@ -126,7 +126,7 @@ bool Frontend::Execute() {
  * @param CG
  * @return
  */
-std::vector<FrontendAction *> Frontend::ParseActions(CodeGen &CG, SemaBuilder &Builder) {
+std::vector<FrontendAction *> Frontend::ParseActions(CodeGen &CG, Sema &S) {
     std::vector<FrontendAction *> Actions;
 
     if (CI.getFrontendOptions().getInputFiles().empty()) {
@@ -139,7 +139,7 @@ std::vector<FrontendAction *> Frontend::ParseActions(CodeGen &CG, SemaBuilder &B
         InputFile *Input = new InputFile(Diags, CI.getSourceManager(), InputFileName);
         if (Input->getExt() == FileExt::FLY) {
             if (Input->Load()) {
-                FrontendAction *Action = new FrontendAction(CI, CG, Builder, Input);
+                FrontendAction *Action = new FrontendAction(CI, CG, S, Input);
                 // Parse Action & add to Actions for next
                 if (Action->Parse()) {
                     Actions.emplace_back(Action);
@@ -152,7 +152,7 @@ std::vector<FrontendAction *> Frontend::ParseActions(CodeGen &CG, SemaBuilder &B
                 if (llvm::sys::path::extension(File) == ".h") {
                     InputFile *InputHeader = new InputFile(Diags, CI.getSourceManager(), File.str());
                     if (InputHeader->Load()) {
-                        FrontendAction *Action = new FrontendAction(CI, CG, Builder, InputHeader);
+                        FrontendAction *Action = new FrontendAction(CI, CG, S, InputHeader);
                         Action->ParseHeader();
                     }
 

@@ -11,7 +11,7 @@
 #include "CodeGen/CodeGenEnumEntry.h"
 #include "CodeGen/CodeGenModule.h"
 #include "AST/ASTEnum.h"
-#include "AST/ASTEnumVar.h"
+#include "AST/ASTEnumEntry.h"
 
 using namespace fly;
 

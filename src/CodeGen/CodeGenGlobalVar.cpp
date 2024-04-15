@@ -15,6 +15,7 @@
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTGlobalVar.h"
+#include "AST/ASTScopes.h"
 
 using namespace fly;
 
@@ -22,7 +23,6 @@ CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, ASTGlobalVar* Var, bool i
     std::string Id = CodeGen::toIdentifier(Var->getName(), Var->getNameSpace()->getName());
 
     // Check Value
-    bool Success = true;
     llvm::Constant *Const = nullptr;
     bool IsConstant = Var->getScopes()->isConstant();
     GlobalValue::LinkageTypes Linkage = GlobalValue::LinkageTypes::ExternalLinkage;
@@ -31,27 +31,21 @@ CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, ASTGlobalVar* Var, bool i
         if (Var->getScopes()->getVisibility() == ASTVisibilityKind::V_PRIVATE) {
             Linkage = GlobalValue::LinkageTypes::InternalLinkage;
         }
-        if (Var->getExpr() == nullptr) {
+        if (Var->getValue() == nullptr) {
             Const = CGM->GenDefaultValue(Var->getType(), Ty);
-        } else if (Var->getExpr()->getExprKind() == ASTExprKind::EXPR_VALUE) {
-            ASTValue *Value = ((ASTValueExpr *) Var->getExpr())->getValue();
+        } else {
+            ASTValue *Value = Var->getValue();
             if (Var->getType()->isString()) {
-                Var->getExpr();
                 llvm::StringRef Str = ((ASTStringValue *) Value)->getValue();
                 Const = llvm::ConstantDataArray::getString(CGM->LLVMCtx, Str);
                 Ty = Const->getType();
             } else {
                 Const = CGM->GenValue(Var->getType(), Value);
             }
-        } else {
-            CGM->Diag(Var->getExpr()->getLocation(), diag::err_invalid_gvar_value);
-            Success = false;
         }
     }
 
-    if (Success) {
-        Pointer = new llvm::GlobalVariable(*CGM->Module, Ty, IsConstant, Linkage, Const, Id);
-    }
+    Pointer = new llvm::GlobalVariable(*CGM->Module, Ty, IsConstant, Linkage, Const, Id);
 }
 
 /**

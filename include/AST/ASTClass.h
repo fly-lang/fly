@@ -25,6 +25,7 @@ namespace fly {
     class ASTClassVar;
     class ASTClassFunction;
     class CodeGenClass;
+    class ASTBlock;
 
     enum class ASTClassKind {
         STRUCT, // has only Fields
@@ -48,6 +49,8 @@ namespace fly {
 
         bool autoDefaultConstructor = false;
 
+        ASTBlock *PreConstructor = nullptr;
+
         // Class Constructors
         std::map <uint64_t, llvm::SmallVector <ASTClassFunction *, 4>> Constructors;
 
@@ -69,6 +72,8 @@ namespace fly {
         llvm::SmallVector<ASTClassType *, 4> getSuperClasses() const;
 
         llvm::StringMap<ASTClassVar *> getVars() const;
+
+        ASTBlock *getPreConstructor();
 
         std::map <uint64_t,llvm::SmallVector <ASTClassFunction *, 4>> getConstructors() const;
 

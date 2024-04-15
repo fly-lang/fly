@@ -31,9 +31,7 @@ namespace fly {
 
         ASTBlock *Block = nullptr;
 
-        bool FirstDefined = false;
-
-        ASTVarDefine(ASTBlock *Parent, const SourceLocation &Loc, ASTVarRef *VarRef, bool Init = false);
+        ASTVarDefine(ASTBlock *Parent, const SourceLocation &Loc, ASTVarRef *VarRef);
 
     public:
 
@@ -41,9 +39,9 @@ namespace fly {
 
         ASTExpr *getExpr() const;
 
-        ASTBlock *getBlock() const;
+        void setExpr(ASTExpr *);
 
-        bool isFirstDefined() const;
+        ASTBlock *getBlock() const;
 
         std::string str() const;
     };

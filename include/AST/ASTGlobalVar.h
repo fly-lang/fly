@@ -18,20 +18,15 @@
 
 namespace fly {
 
-    class ASTGlobalVar : public ASTTopDef, public ASTVar {
+    class ASTGlobalVar : public ASTVar, public virtual ASTTopDef {
 
         friend class SemaBuilder;
 
-        ASTVarKind VarKind;
+        ASTTopDefKind TopDefKind = ASTTopDefKind::DEF_GLOBALVAR;
 
-        ASTType *Type = nullptr;
+        ASTNode *Node;
 
-        llvm::StringRef Name;
-
-        // Source Location
-        const SourceLocation Location;
-
-        ASTExpr *Expr = nullptr;
+        ASTValue *Value;
 
         // Code Generator
         CodeGenGlobalVar *CodeGen;
@@ -43,19 +38,21 @@ namespace fly {
 
         ~ASTGlobalVar() = default;
 
-        ASTVarKind getVarKind() override;
+        ASTTopDefKind getTopDefKind() const override;
 
-        ASTType *getType() const override;
+        ASTNode *getNode() const override;
+
+        ASTNameSpace *getNameSpace() const override;
 
         llvm::StringRef getName() const override;
 
-        const SourceLocation &getLocation() const;
+        ASTValue *getValue();
 
         CodeGenGlobalVar *getCodeGen() const override;
 
         void setCodeGen(CodeGenGlobalVar *CG);
 
-        std::string print() const;
+        std::string print() const override;
 
         std::string str() const override;
 

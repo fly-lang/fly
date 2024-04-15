@@ -294,7 +294,14 @@ bool Parser::ParseGlobalVarDef(ASTScopes *Scopes, ASTType *Type) {
         Expr = ParseExpr();
     }
 
-    return Builder.AddGlobalVar(GlobalVar, Expr) &&
+    ASTValue *Value = nullptr;
+    if (Expr->getExprKind() == ASTExprKind::EXPR_VALUE) {
+        Value = ((ASTValueExpr *) Expr)->getValue();
+    } else {
+        Diag(Tok.getLocation(), diag::err_invalid_gvar_value);
+    }
+
+    return Builder.AddGlobalVar(GlobalVar, Value) &&
         Builder.AddComment(GlobalVar, Comment);
 }
 
@@ -452,7 +459,8 @@ bool Parser::ParseStmt(ASTBlock *Block, bool StopParse) {
     }
 
     // define a const LocalVar
-    bool Const = isConst();
+    ASTScopes *Scopes = SemaBuilder::CreateScopes();
+    ParseScopes(Scopes);
     
     // Define an ASTLocalVar
     // int a
@@ -472,7 +480,7 @@ bool Parser::ParseStmt(ASTBlock *Block, bool StopParse) {
             if (Type != nullptr) { // int a
                 // FIXME check Identifier for LocalVar
                 ASTLocalVar *LocalVar = SemaBuilder::CreateLocalVar(Tok.getLocation(), Type,
-                                                               Identifier1->getName(), Const);
+                                                               Identifier1->getName(), Scopes);
                 ASTVarDefine *VarDefine = SemaBuilder::CreateVarDefine(Block, LocalVar);
 
                 // int a = ...
@@ -490,7 +498,7 @@ bool Parser::ParseStmt(ASTBlock *Block, bool StopParse) {
 
                 // FIXME check Identifier for LocalVar
                 ASTLocalVar *LocalVar = SemaBuilder::CreateLocalVar(Tok.getLocation(), Type,
-                                                               Identifier2->getName(), Const);
+                                                               Identifier2->getName(), Scopes);
                 ASTVarDefine *VarDefine = SemaBuilder::CreateVarDefine(Block, LocalVar);
 
                 // Type a = ...
@@ -501,6 +509,7 @@ bool Parser::ParseStmt(ASTBlock *Block, bool StopParse) {
                 return Builder.AddStmt(VarDefine) && (StopParse || ParseStmt(Block));
 
             }
+
             if (isTokenAssignOperator()) { // a = ...
 
                 ASTVarRef *VarRef = Builder.CreateVarRef(Identifier1);

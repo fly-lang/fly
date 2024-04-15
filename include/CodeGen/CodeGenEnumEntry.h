@@ -21,7 +21,7 @@ namespace fly {
 
     class CodeGenModule;
     class CodeGenEnum;
-    class ASTEnumVar;
+    class ASTEnumEntry;
 
     class CodeGenEnumEntry : public CodeGenVarBase {
 
@@ -30,7 +30,7 @@ namespace fly {
         llvm::Value *Value;
 
     public:
-        CodeGenEnumEntry(CodeGenModule *CGM, ASTEnumVar *EnumVar);
+        CodeGenEnumEntry(CodeGenModule *CGM, ASTEnumEntry *EnumEntry);
 
         llvm::Value *getValue() override;
 

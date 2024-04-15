@@ -10,11 +10,12 @@
 #ifndef FLY_ASTLOCALVAR_H
 #define FLY_ASTLOCALVAR_H
 
-#include "ASTStmt.h"
 #include "ASTVar.h"
 #include "CodeGen/CodeGenVar.h"
 
 namespace fly {
+
+    class ASTScopes;
 
     /**
      * Local Var Declaration
@@ -28,32 +29,13 @@ namespace fly {
 
         CodeGenVarBase *CodeGen = nullptr;
 
-        bool Constant = false;
-
-        // Source Location
-        const SourceLocation Location;
-
-        ASTVarKind VarKind;
-
-        ASTType *Type = nullptr;
-
-        llvm::StringRef Name;
-
     protected:
 
-         ASTLocalVar(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, bool Constant);
+        ASTLocalVar(ASTVarKind VarKind, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes);
+
+        ASTLocalVar(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes);
 
     public:
-
-        ASTVarKind getVarKind() override;
-
-        ASTType *getType() const override;
-
-        llvm::StringRef getName() const override;
-
-        bool isConstant() const;
-
-        const SourceLocation &getLocation() const;
 
         CodeGenVarBase *getCodeGen() const override;
 

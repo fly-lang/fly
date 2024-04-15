@@ -11,6 +11,7 @@
 #include "AST/ASTVar.h"
 #include "AST/ASTVarRef.h"
 #include "AST/ASTIdentifier.h"
+#include "AST/ASTStmt.h"
 #include "Sema/SemaBuilder.h"
 #include "Basic/Debug.h"
 

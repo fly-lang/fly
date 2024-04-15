@@ -381,39 +381,32 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
     FLY_DEBUG("CodeGenModule", "GenStmt");
     switch (Stmt->getKind()) {
 
-        // Var Declaration
-        case ASTStmtKind::STMT_VAR_DEFINE: {
-            ASTVarDefine *VarDefine = (ASTVarDefine *) Stmt;
-            assert(VarDefine->getVarRef()->getDef()->getCodeGen() && "Var is not CodeGen initialized");
-            if (VarDefine->getExpr()) {
-                llvm::Value *V = GenExpr(CGF, VarDefine->getVarRef()->getDef()->getType(), VarDefine->getExpr());
-                if (VarDefine->getVarRef()->getDef()->getType()->isIdentity() && ((ASTIdentityType *) VarDefine->getVarRef()->getDef()->getType())->isClass()) {
-                    // set Value from CodeGen Instance
-                    ((CodeGenInstance *) VarDefine->getVarRef()->getDef()->getCodeGen())->Init(V);
-                } else {
-                    VarDefine->getVarRef()->getDef()->getCodeGen()->Store(V);
-                }
-            }
-            break;
-        }
-
         // Var Assignment
         case ASTStmtKind::STMT_VAR_DEFINE: {
-            ASTVarDefine *VarAssign = (ASTVarDefine *) Stmt;
-            assert(VarAssign->getExpr() && "Expr Mandatory in assignment");
-            ASTVarRef *VarRef = VarAssign->getVarRef();
-            llvm::Value *V = GenExpr(CGF, VarRef->getDef()->getType(), VarAssign->getExpr());
-            if (VarRef->getDef()->getType()->isIdentity()) {
-                ((CodeGenInstance *) VarRef->getDef()->getCodeGen())->Init(V);
-            } else if (VarRef->getDef()->getVarKind() == ASTVarKind::VAR_CLASS) {
-                if (VarRef->getParent()->isCall()) { // TODO iterative parents
-                    // TODO
-                } else if (VarRef->getParent()->isVarRef()) {
-                    CodeGenInstance *CGI = ((CodeGenInstance *) ((ASTVarRef *) VarRef->getParent())->getDef()->getCodeGen());
-                    CGI->getVar(VarRef->getDef()->getName())->Store(V);
+            ASTVarDefine *VarDefine = (ASTVarDefine *) Stmt;
+
+            ASTVarRef *VarRef = VarDefine->getVarRef();
+
+            if (VarDefine->getExpr()) {
+                llvm::Value *V = GenExpr(CGF, VarRef->getDef()->getType(), VarDefine->getExpr());
+                if (VarRef->getDef()->getType()->isIdentity() &&
+                    ((ASTIdentityType *) VarDefine->getVarRef()->getDef()->getType())->isClass()) {
+
+                    // set Value from CodeGen Instance
+                    ((CodeGenInstance *) VarRef->getDef()->getCodeGen())->Init(V);
+
                 }
-            } else {
-                VarRef->getDef()->getCodeGen()->Store(V);
+
+                if (VarRef->getParent()) {
+                    if (VarRef->getParent()->isCall()) { // TODO iterative parents
+                        // TODO
+                    } else if (VarRef->getParent()->isVarRef()) {
+                        CodeGenInstance *CGI = ((CodeGenInstance *) ((ASTVarRef *) VarRef->getParent())->getDef()->getCodeGen());
+                        CGI->getVar(VarRef->getDef()->getName())->Store(V);
+                    }
+                } else {
+                    VarRef->getDef()->getCodeGen()->Store(V);
+                }
             }
             break;
         }

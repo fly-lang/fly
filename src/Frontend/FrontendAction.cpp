@@ -26,9 +26,9 @@
 
 using namespace fly;
 
-FrontendAction::FrontendAction(const CompilerInstance & CI, CodeGen &CG, SemaBuilder &Builder, InputFile *Input) :
+FrontendAction::FrontendAction(const CompilerInstance & CI, CodeGen &CG, Sema &S, InputFile *Input) :
         Diags(CI.getDiagnostics()), SourceMgr(CI.getSourceManager()),
-        FrontendOpts(CI.getFrontendOptions()), CG(CG), Builder(Builder), Input(Input) {
+        FrontendOpts(CI.getFrontendOptions()), CG(CG), S(S), Input(Input) {
     FLY_DEBUG_MESSAGE("FrontendAction", "FrontendAction", "Input=" << Input->getFileName());
     Diags.getClient()->BeginSourceFile();
 }
@@ -52,7 +52,7 @@ bool FrontendAction::Parse() {
     }
 
     // Create Parser and start to parse
-    P = new Parser(*Input, SourceMgr, Diags, Builder);
+    P = new Parser(*Input, SourceMgr, Diags, *S.getBuilder());
     Node = P->Parse();
     if (Node && FrontendOpts.CreateHeader) {
         CGH->AddNameSpace(Node->getNameSpace());
@@ -66,9 +66,9 @@ bool FrontendAction::ParseHeader() {
     FLY_DEBUG_MESSAGE("FrontendAction", "ParseHeader", "Input=" << Input->getFileName());
 
     // Create Parser and start to parse
-    P = new Parser(*Input, SourceMgr, Diags, Builder);
+    P = new Parser(*Input, SourceMgr, Diags, *S.getBuilder());
     Node = P->ParseHeader();
-    return Node && Builder.AddNode(Node);
+    return Node && S.getBuilder()->AddNode(Node);
 }
 
 void FrontendAction::GenerateTopDef() {
@@ -119,7 +119,7 @@ void FrontendAction::GenerateTopDef() {
     }
 
     if (Node->getIdentity()) {
-        if (Node->getIdentity()->getKind() == ASTTopDefKind::DEF_CLASS) {
+        if (Node->getIdentity()->getTopDefKind() == ASTTopDefKind::DEF_CLASS) {
             CGClass = CGM->GenClass((ASTClass *) Node->getIdentity());
             if (FrontendOpts.CreateHeader) {
                 CGH->setClass((ASTClass *) Node->getIdentity());

@@ -35,7 +35,7 @@
 #include "AST/ASTClass.h"
 #include "AST/ASTClassVar.h"
 #include "AST/ASTEnum.h"
-#include "AST/ASTEnumVar.h"
+#include "AST/ASTEnumEntry.h"
 #include "AST/ASTClassFunction.h"
 #include "AST/ASTError.h"
 #include "Sys/Sys.h"
@@ -52,30 +52,17 @@ using namespace fly;
  * Private constructor used only from Sema constructor
  * @param S
  */
-SemaBuilder::SemaBuilder(Sema &S) : S(S), Context(new ASTContext()) {
+SemaBuilder::SemaBuilder(Sema &S) : S(S) {
     FLY_DEBUG("SemaBuilder", "SemaBuilder");
+}
+
+ASTContext *
+SemaBuilder::CreateContext() {
+    ASTContext *Context = new ASTContext();
     Context->DefaultNameSpace = CreateDefaultNameSpace();
     Sys::Build(Context->DefaultNameSpace); // add fail() functions in default namespace
     AddNameSpace(Context->DefaultNameSpace);
-}
-
-/**
- * Builds the SemaBuilder Instance
- * @return
- */
-bool
-SemaBuilder::Build() {
-    FLY_DEBUG("SemaBuilder", "Build");
-    return S.Resolver->Resolve();
-}
-
-/**
- * Destroys SemaBuilder Instance
- */
-void
-SemaBuilder::Destroy() {
-    FLY_DEBUG("SemaBuilder", "Destroy");
-    delete Context;
+    return Context;
 }
 
 /**
@@ -88,7 +75,7 @@ SemaBuilder::Destroy() {
 ASTNode *
 SemaBuilder::CreateNode(const std::string &Name) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateNode", "Name=" << Name);
-    ASTNode *Node = new ASTNode(Name, Context, false);
+    ASTNode *Node = new ASTNode(Name, S.Context, false);
     return Node;
 }
 
@@ -102,11 +89,11 @@ SemaBuilder::CreateNode(const std::string &Name) {
 ASTNode *
 SemaBuilder::CreateHeaderNode(const std::string &Name) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateHeaderNode", "Name=" << Name);
-    return new ASTNode(Name, Context, true);
+    return new ASTNode(Name, S.Context, true);
 }
 
 ASTNameSpace *SemaBuilder::CreateDefaultNameSpace() {
-    return new ASTNameSpace(SourceLocation(), ASTNameSpace::DEFAULT, Context);
+    return new ASTNameSpace(SourceLocation(), ASTNameSpace::DEFAULT, S.Context);
 }
 
 /**
@@ -125,7 +112,7 @@ ASTNameSpace *SemaBuilder::CreateNameSpace(ASTIdentifier *Identifier) {
         S.Diag(Identifier->getLocation(), diag::err_namespace_invalid);
     }
 
-    NameSpace = new ASTNameSpace(Identifier->getLocation(), Identifier->getName(), Context);
+    NameSpace = new ASTNameSpace(Identifier->getLocation(), Identifier->getName(), S.Context);
 
     // Iterate over parents
     if (Identifier->getParent() != nullptr) {
@@ -316,8 +303,8 @@ SemaBuilder::CreateEnum(ASTNode *Node, ASTScopes *Scopes, const SourceLocation &
     return CreateEnum(Node, Scopes, Loc, Name, EnumTypes);
 }
 
-ASTEnumVar *SemaBuilder::CreateEnumVar(ASTEnum *Enum, const SourceLocation &Loc, llvm::StringRef Name) {
-    return new ASTEnumVar(Enum, Loc, Name);
+ASTEnumEntry *SemaBuilder::CreateEnumEntry(ASTEnum *Enum, const SourceLocation &Loc, llvm::StringRef Name) {
+    return new ASTEnumEntry(Enum, Loc, Name);
 }
 
 /**
@@ -685,15 +672,15 @@ SemaBuilder::CreateDefaultValue(ASTType *Type) {
  * @return
  */
 ASTParam *
-SemaBuilder::CreateParam(ASTFunctionBase *Function, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, bool Constant) {
+SemaBuilder::CreateParam(ASTFunctionBase *Function, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateParam",
                       Logger().Attr("Function", Function)
                       .Attr("Loc", (uint64_t) Loc.getRawEncoding())
                       .Attr("Type", Type)
                       .Attr("Name", Name)
-                      .Attr("Constant", Constant)
+                      .Attr("Scopes", Scopes)
                       .End());
-    ASTParam *Param = new ASTParam(Function, Loc, Type, Name, Constant);
+    ASTParam *Param = new ASTParam(Function, Loc, Type, Name, Scopes);
     return Param;
 }
 
@@ -707,10 +694,10 @@ SemaBuilder::CreateParam(ASTFunctionBase *Function, const SourceLocation &Loc, A
  * @return
  */
 ASTLocalVar *
-SemaBuilder::CreateLocalVar(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, bool Constant) {
+SemaBuilder::CreateLocalVar(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateLocalVar",
                       Logger().Attr("Name", Name).End());
-    ASTLocalVar *LocalVar = new ASTLocalVar(Loc, Type, Name, Constant);
+    ASTLocalVar *LocalVar = new ASTLocalVar(Loc, Type, Name, Scopes);
     return LocalVar;
 }
 
@@ -721,7 +708,7 @@ SemaBuilder::CreateLocalVar(const SourceLocation &Loc, ASTType *Type, llvm::Stri
  * @return
  */
 ASTVarDefine *
-SemaBuilder::CreateVarAssign(ASTBlock *Parent, ASTVarRef *VarRef) {
+SemaBuilder::CreateVarDefine(ASTBlock *Parent, ASTVarRef *VarRef) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateVarDefine",
                       Logger().Attr("Parent", Parent).End());
     ASTVarDefine *VarDefine = new ASTVarDefine(Parent, VarRef->getLocation(), VarRef);
@@ -739,7 +726,7 @@ SemaBuilder::CreateVarDefine(ASTBlock *Parent, ASTVar *Var) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateVarDefine",
                       Logger().Attr("Parent", Parent).End());
     ASTVarRef *VarRef = CreateVarRef(Var);
-    ASTVarDefine *VarDefine = new ASTVarDefine(Parent, Var->getLocation(), VarRef, true);
+    ASTVarDefine *VarDefine = new ASTVarDefine(Parent, Var->getLocation(), VarRef);
     return VarDefine;
 }
 
@@ -1141,9 +1128,9 @@ SemaBuilder::AddNameSpace(ASTNameSpace *NewNameSpace, ASTNode *Node, bool Extern
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddNameSpace",
                       "NameSpace=" << NewNameSpace << ", ExternLib=" << ExternLib);
     // Check if Name exist or add it
-    ASTNameSpace *NameSpace = Context->NameSpaces.lookup(NewNameSpace->getName());
+    ASTNameSpace *NameSpace = S.Context->NameSpaces.lookup(NewNameSpace->getName());
     if (NameSpace == nullptr) {
-        Context->NameSpaces.insert(std::make_pair(NewNameSpace->getFullName(), NewNameSpace));
+        S.Context->NameSpaces.insert(std::make_pair(NewNameSpace->getFullName(), NewNameSpace));
         NameSpace = NewNameSpace;
         if (NewNameSpace->getParent()) {
             return AddNameSpace((ASTNameSpace *) NewNameSpace->getParent());
@@ -1168,7 +1155,7 @@ SemaBuilder::AddNode(ASTNode *Node) {
     // Add to Nodes
     auto Pair = std::make_pair(Node->getName(), Node);
     // TODO check duplicated in namespace and context
-    return Node->NameSpace->Nodes.insert(Pair).second && Context->Nodes.insert(Pair).second;
+    return Node->NameSpace->Nodes.insert(Pair).second && S.Context->Nodes.insert(Pair).second;
 }
 
 bool
@@ -1224,31 +1211,16 @@ SemaBuilder::AddIdentity(ASTIdentity *Identity) {
 
 bool
 SemaBuilder::AddGlobalVar(ASTGlobalVar *GlobalVar, ASTValue *Value) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "AddGlobalVar",
-                      Logger().Attr("GlobalVar", GlobalVar).Attr("Value=", Value).End());
-
-    // Set the Expr with ASTValueExpr
-    return AddGlobalVar(GlobalVar, CreateExpr(nullptr, Value));
-}
-
-bool
-SemaBuilder::AddGlobalVar(ASTGlobalVar *GlobalVar, ASTExpr *Expr) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddGlobalVar", Logger()
                       .Attr("GlobalVar", GlobalVar)
-                      .Attr("Expr", Expr).End());
+                      .Attr("Value", Value).End());
     ASTNode *Node = GlobalVar->Node;
 
-    // Only ASTExprValue
-    if (Expr && Expr->getExprKind() != ASTExprKind::EXPR_VALUE) {
-        S.Diag(Expr->getLocation(),diag::err_sema_generic);
-        return false;
-    }
-
-    GlobalVar->Expr = Expr;
+    GlobalVar->Value = Value;
 
     // Lookup into namespace for public var
-    if(GlobalVar->Scopes->Visibility == ASTVisibilityKind::V_PUBLIC ||
-        GlobalVar->Scopes->Visibility == ASTVisibilityKind::V_DEFAULT) {
+    if(GlobalVar->getScopes()->Visibility == ASTVisibilityKind::V_PUBLIC ||
+        GlobalVar->getScopes()->Visibility == ASTVisibilityKind::V_DEFAULT) {
         ASTGlobalVar *LookupVar = Node->NameSpace->getGlobalVars().lookup(GlobalVar->getName());
 
         if (LookupVar) { // This NameSpace already contains this GlobalVar
@@ -1264,7 +1236,7 @@ SemaBuilder::AddGlobalVar(ASTGlobalVar *GlobalVar, ASTExpr *Expr) {
     }
 
     // Lookup into node for private var
-    if(GlobalVar->Scopes->Visibility == ASTVisibilityKind::V_PRIVATE) {
+    if(GlobalVar->getScopes()->Visibility == ASTVisibilityKind::V_PRIVATE) {
         ASTGlobalVar *LookupVar = Node->GlobalVars.lookup(GlobalVar->getName());
 
         if (LookupVar) { // This Node already contains this Function
@@ -1311,14 +1283,6 @@ bool
 SemaBuilder::AddClassVar(ASTClassVar *Var) {
     ASTClass *Class = Var->Class;
     if (Class->Vars.insert(std::pair<llvm::StringRef, ASTClassVar *>(Var->getName(), Var)).second) {
-
-        // Set default value if not set
-        if (!Var->getExpr()) {
-            ASTValueExpr *Expr = S.Builder->CreateExpr(nullptr, SemaBuilder::CreateDefaultValue(Var->getType()));
-            Expr->Type = Var->getType();
-            Var->setExpr(Expr);
-        }
-
         return Var;
     }
 
@@ -1356,7 +1320,7 @@ SemaBuilder::AddClassConstructor(ASTClassFunction *Constructor) {
     return true;
 }
 
-bool SemaBuilder::AddEnumVar(ASTEnumVar *EnumVar) {
+bool SemaBuilder::AddEnumEntry(ASTEnumEntry *EnumVar) {
     EnumVar->Index = EnumVar->getEnum()->Vars.size() + 1;
     return EnumVar->getEnum()->Vars.insert(std::make_pair(EnumVar->getName(), EnumVar)).second;
 }
@@ -1472,11 +1436,17 @@ SemaBuilder::AddExpr(ASTStmt *Stmt, ASTExpr *Expr) {
     }
     if (Stmt) {
         switch (Stmt->getKind()) {
+            case ASTStmtKind::STMT_VAR_DEFINE: {
+                ASTVarDefine *VarDefine = (ASTVarDefine *) Stmt;
+                VarDefine->Expr = Expr;
+                VarDefine->getVarRef()->getDef()->setInitialization(VarDefine);
+            }
+                break;
             case ASTStmtKind::STMT_EXPR:
-            case ASTStmtKind::STMT_VAR_DEFINE:
-            case ASTStmtKind::STMT_VAR_DEFINE:
-            case ASTStmtKind::STMT_RETURN:
                 ((ASTExprStmt *) Stmt)->Expr = Expr;
+                break;
+            case ASTStmtKind::STMT_RETURN:
+                ((ASTReturn *) Stmt)->Expr = Expr;
                 break;
             case ASTStmtKind::STMT_BLOCK:
                 switch (((ASTBlock *) Stmt)->getBlockKind()) {
@@ -1524,37 +1494,43 @@ SemaBuilder::AddStmt(ASTStmt *Stmt) {
     ASTBlock *Parent = (ASTBlock *) Stmt->Parent;
     Parent->Content.push_back(Stmt);
 
-    if (Stmt->getKind() == ASTStmtKind::STMT_VAR_DEFINE) { // Stmt is ASTLocalVar
+    switch (Stmt->getKind()) {
 
-        ASTLocalVar *LocalVar = (ASTLocalVar *) Stmt;
+        case ASTStmtKind::STMT_VAR_DEFINE: {
+            ASTVarDefine *VarDefine = (ASTVarDefine *) Stmt;
 
-        // Check Undefined Var: if LocalVar have an Expression assigned
-        if (!LocalVar->Expr) {  // No Expression: add to Undefined Vars, will be removed on SemaResolver::ResolveVarRef()
-            Parent->UnInitVars.insert(std::pair<std::string, ASTLocalVar *>(LocalVar->getName(), LocalVar));
+            ASTVar *Var = VarDefine->getVarRef()->getDef();
+
+            // Collects all LocalVars in the hierarchy Block
+            if (Var->getVarKind() == ASTVarKind::VAR_LOCAL) {
+                ASTLocalVar *LocalVar = (ASTLocalVar *) Var;
+
+                // Statements have an assignment so is initialized
+                if (VarDefine->getExpr() != nullptr)
+                    LocalVar->setInitialization(VarDefine);
+
+                // Add to the Parent Block
+                const auto &Pair = std::pair<std::string, ASTLocalVar *>(LocalVar->getName(), LocalVar);
+                if (Parent->LocalVars.insert(Pair).second) {
+
+                    // Useful for Alloca into CodeGen
+                    Parent->Top->Body->LocalVars.insert(Pair);
+                    return true;
+                }
+            }
         }
+            break;
 
-        // Collects all LocalVars in the hierarchy Block
-        const auto &Pair = std::pair<std::string, ASTLocalVar *>(LocalVar->getName(),LocalVar);
-        if (Parent->LocalVars.insert(Pair).second) {
+        case ASTStmtKind::STMT_BLOCK:
+            return AddBlock((ASTBlock *) Stmt);
 
-            //Useful for Alloca into CodeGen
-            Parent->Top->Body->LocalVars.insert(Pair);
+        case ASTStmtKind::STMT_EXPR:
+        case ASTStmtKind::STMT_BREAK:
+        case ASTStmtKind::STMT_CONTINUE:
+        case ASTStmtKind::STMT_DELETE:
+        case ASTStmtKind::STMT_RETURN:
             return true;
-        }
-    } else if (Stmt->getKind() == ASTStmtKind::STMT_VAR_DEFINE) {
-        ASTVarDefine *VarDefine = (ASTVarDefine *) Stmt;
-
-        // Remove from Undefined Var because now have an Expr assigned
-        if (VarDefine->getVarRef()->isLocalVar()) { // only for LocalVar
-            auto It = Parent->UnInitVars.find(VarDefine->getVarRef()->getDef()->getName());
-            if (It != Parent->UnInitVars.end())
-                Parent->UnInitVars.erase(It);
-        }
-    } else if (Stmt->getKind() == ASTStmtKind::STMT_BLOCK) {
-        return AddBlock((ASTBlock *) Stmt);
     }
-
-    return true;
 }
 
 bool
@@ -1568,7 +1544,6 @@ SemaBuilder::AddBlock(ASTBlock *Block) {
             return true;
 
         case ASTBlockKind::BLOCK_IF:
-            Block->UnInitVars = ((ASTIfBlock *) Block->getParent())->UnInitVars;
             return true;
 
         case ASTBlockKind::BLOCK_ELSIF: {

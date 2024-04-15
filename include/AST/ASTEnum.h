@@ -22,7 +22,7 @@
 namespace fly {
 
     class CodeGenEnum;
-    class ASTEnumVar;
+    class ASTEnumEntry;
 
     class ASTEnum : public ASTIdentity {
 
@@ -34,7 +34,7 @@ namespace fly {
         llvm::SmallVector<ASTEnumType *, 4> SuperClasses;
 
         // Class Fields
-        llvm::StringMap<ASTEnumVar *> Vars;
+        llvm::StringMap<ASTEnumEntry *> Vars;
 
         CodeGenEnum *CodeGen = nullptr;
 
@@ -46,7 +46,7 @@ namespace fly {
 
         ASTEnumType *getType() const override;
 
-        llvm::StringMap<ASTEnumVar *> getVars() const;
+        llvm::StringMap<ASTEnumEntry *> getVars() const;
 
         CodeGenEnum *getCodeGen() const;
 

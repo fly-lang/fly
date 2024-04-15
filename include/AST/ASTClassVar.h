@@ -28,21 +28,11 @@ namespace fly {
         friend class SemaBuilder;
         friend class SemaResolver;
 
-        const SourceLocation &Loc;
-
-        ASTVarKind VarKind;
-
-        ASTType *Type = nullptr;
-
-        llvm::StringRef Name;
-
         ASTClass *Class = nullptr;
 
         llvm::StringRef Comment;
 
         ASTScopes *Scopes = nullptr;
-
-        ASTExpr *Expr = nullptr;
 
         CodeGenVarBase *CodeGen = nullptr;
 
@@ -51,21 +41,9 @@ namespace fly {
 
     public:
 
-        const SourceLocation &getLocation() const;
-
-        ASTVarKind getVarKind() override;
-
-        ASTType *getType() const override;
-
-        llvm::StringRef getName() const override;
-
         ASTClass *getClass() const;
 
         llvm::StringRef getComment() const;
-
-        ASTScopes *getScopes() const;
-
-        void setExpr(ASTExpr *expr);
 
         CodeGenVarBase *getCodeGen() const;
 

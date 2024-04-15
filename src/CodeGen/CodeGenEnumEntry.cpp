@@ -9,12 +9,12 @@
 
 #include "CodeGen/CodeGenEnumEntry.h"
 #include "CodeGen/CodeGenModule.h"
-#include "AST/ASTEnumVar.h"
+#include "AST/ASTEnumEntry.h"
 
 using namespace fly;
 
-CodeGenEnumEntry::CodeGenEnumEntry(CodeGenModule *CGM, ASTEnumVar *EnumVar) :
-        Value(llvm::ConstantInt::get(CGM->Int32Ty, EnumVar->getIndex())) {
+CodeGenEnumEntry::CodeGenEnumEntry(CodeGenModule *CGM, ASTEnumEntry *EnumEntry) :
+        Value(llvm::ConstantInt::get(CGM->Int32Ty, EnumEntry->getIndex())) {
 }
 
 llvm::Value *CodeGenEnumEntry::getValue() {

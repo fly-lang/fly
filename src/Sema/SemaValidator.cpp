@@ -27,16 +27,6 @@ SemaValidator::SemaValidator(Sema &S) : S(S) {
 
 }
 
-bool SemaValidator::CheckGlobalVar(ASTGlobalVar *GlobalVar) {
-    if (GlobalVar->getExpr() && GlobalVar->getExpr()->getExprKind() != fly::ASTExprKind::EXPR_VALUE) {
-        if (DiagEnabled)
-            S.Diag(GlobalVar->getLocation(), diag::err_sema_invalid_globalvar_value);
-        return false;
-    }
-
-    return true;
-}
-
 /**
  * Check if this param name is already declared
  * @param Params
@@ -79,15 +69,6 @@ bool SemaValidator::CheckDuplicateLocalVars(ASTStmt *Stmt, llvm::StringRef VarNa
         return CheckDuplicateLocalVars(Block->getParent(), VarName);
     }
 
-    return true;
-}
-
-bool SemaValidator::CheckUninitialized(ASTBlock *Block, ASTVarRef *VarRef) {
-    if (VarRef->isLocalVar() && Block->getUnInitVars().lookup(VarRef->getDef()->getName())) {
-        if (DiagEnabled)
-            S.Diag(VarRef->getLocation(), diag::err_sema_uninit_var) << VarRef->print();
-        return false;
-    }
     return true;
 }
 

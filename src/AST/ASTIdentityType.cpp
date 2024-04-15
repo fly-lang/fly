@@ -38,7 +38,7 @@ ASTIdentityType::ASTIdentityType(ASTIdentifier *Identifier, ASTIdentityTypeKind 
 ASTIdentityType::ASTIdentityType(ASTIdentity *Def) :
         ASTType(SourceLocation(), ASTTypeKind::TYPE_IDENTITY),
         ASTIdentifier(SourceLocation(), Def->getName(), ASTIdentifierKind::REF_TYPE),
-        Def(Def), IdentityKind(toIdentityKind(Def->getKind())) {
+        Def(Def), IdentityKind(toIdentityKind(Def->getTopDefKind())) {
 
 }
 

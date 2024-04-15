@@ -76,10 +76,6 @@ const llvm::StringMap<ASTLocalVar *> &ASTBlock::getLocalVars() const {
     return LocalVars;
 }
 
-const llvm::StringMap<ASTLocalVar *> &ASTBlock::getUnInitVars() const {
-    return UnInitVars;
-}
-
 /**
  * Convert to String
  * @return string info for debugging

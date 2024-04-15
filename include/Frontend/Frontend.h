@@ -26,6 +26,7 @@ namespace fly {
     class FrontendAction;
     class CompilerInstance;
     class SemaBuilder;
+    class Sema;
 
     class Frontend {
 
@@ -51,7 +52,7 @@ namespace fly {
 
         bool Execute();
 
-        std::vector<FrontendAction *> ParseActions(CodeGen &CG, SemaBuilder &Builder);
+        std::vector<FrontendAction *> ParseActions(CodeGen &CG, Sema &S);
 
         void CreateFrontendTimer();
 

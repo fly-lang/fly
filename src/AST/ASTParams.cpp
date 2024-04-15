@@ -21,26 +21,14 @@
 
 using namespace fly;
 
-ASTParam::ASTParam(ASTFunctionBase *Function, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, bool Constant) :
-        ASTLocalVar(Loc, Type, Name, Constant), VarKind(ASTVarKind::VAR_PARAM),
-        Function(Function) {
+ASTParam::ASTParam(ASTFunctionBase *Function, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
+                   ASTScopes *Scopes) :
+        ASTLocalVar(ASTVarKind::VAR_PARAM, Loc, Type, Name, Scopes), Function(Function) {
 
 }
 
 ASTFunctionBase *ASTParam::getFunction() {
     return Function;
-}
-
-ASTVarKind ASTParam::getVarKind() {
-    return VarKind;
-}
-
-ASTType *ASTParam::getType() const {
-    return Type;
-}
-
-llvm::StringRef ASTParam::getName() const {
-    return Name;
 }
 
 ASTValue *ASTParam::getDefaultValue() const {
@@ -51,25 +39,13 @@ void ASTParam::setDefaultValue(ASTValue *Value) {
     DefaultValue = Value;
 }
 
-CodeGenVarBase *ASTParam::getCodeGen() const {
-    return CodeGen;
-}
-
-void ASTParam::setCodeGen(CodeGenVarBase *CG) {
-    CodeGen = CG;
-}
-
 std::string ASTParam::print() const {
-    return Name.data();
+    return getName().data();
 }
 
 std::string ASTParam::str() const {
     return Logger("ASTParam").
             Super(ASTLocalVar::str()).
-            Attr("Type", Type).
-            Attr("Name", Name).
-            Attr("VarKind", (uint64_t) VarKind).
-            Attr("Constant", Constant).
             End();
 }
 

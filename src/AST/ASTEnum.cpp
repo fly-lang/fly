@@ -8,7 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTEnum.h"
-#include "AST/ASTEnumVar.h"
+#include "AST/ASTEnumEntry.h"
 #include "AST/ASTScopes.h"
 #include "AST/ASTNameSpace.h"
 #include "CodeGen/CodeGenEnum.h"
@@ -26,7 +26,7 @@ ASTEnumType *ASTEnum::getType() const {
     return Type;
 }
 
-llvm::StringMap<ASTEnumVar *> ASTEnum::getVars() const {
+llvm::StringMap<ASTEnumEntry *> ASTEnum::getVars() const {
     return Vars;
 }
 
@@ -55,7 +55,7 @@ std::string ASTEnum::str() const {
 
     // Class to string
     return Logger("ASTClass").
-           Super(ASTTopDef::str()).
+           Super(ASTIdentity::str()).
            Attr("Name", Name).
            Attr("Scopes", Scopes).
            Attr("Vars", EnumList).

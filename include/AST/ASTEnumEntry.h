@@ -8,52 +8,43 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#ifndef FLY_ASTENUMVAR_H
-#define FLY_ASTENUMVAR_H
+#ifndef FLY_ASTENUMENTRY_H
+#define FLY_ASTENUMENTRY_H
 
-#include "ASTVar.h"
+#include "AST/ASTVar.h"
 #include "CodeGen/CodeGenEnumEntry.h"
 
 namespace fly {
 
     class ASTEnum;
+    class SourceLocation;
 
-    class ASTEnumVar : public ASTVar {
+    class ASTEnumEntry : public ASTVar {
 
         friend class SemaBuilder;
         friend class SemaResolver;
 
-        ASTEnum *Enum = nullptr;
+        ASTEnum *Enum;
 
-        const SourceLocation &Loc;
-
-        ASTVarKind VarKind;
-
-        llvm::StringRef Name;
-
-        uint32_t Index;
+        uint32_t Index = 0;
 
         llvm::StringRef Comment;
 
         CodeGenEnumEntry *CodeGen = nullptr;
 
-        ASTEnumVar(ASTEnum *Enum, const SourceLocation &Loc, llvm::StringRef Name);
+        ASTEnumEntry(ASTEnum *Enum, const SourceLocation &Loc, llvm::StringRef Name);
 
     public:
 
-        ASTEnum *getEnum() const;
-
         const SourceLocation &getLocation() const;
 
-        ASTVarKind getVarKind() override;
-
-        llvm::StringRef getName() const override;
-
-        uint32_t getIndex() const;
-
-        ASTType *getType() const override;
+        llvm::StringRef getName() const;
 
         llvm::StringRef getComment() const;
+
+        ASTEnum *getEnum() const;
+
+        uint32_t getIndex() const;
 
         CodeGenEnumEntry *getCodeGen() const;
 

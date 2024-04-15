@@ -16,7 +16,7 @@
 #include "AST/ASTClass.h"
 #include "AST/ASTClassVar.h"
 #include "AST/ASTEnum.h"
-#include "AST/ASTEnumVar.h"
+#include "AST/ASTEnumEntry.h"
 #include "AST/ASTType.h"
 #include "AST/ASTNode.h"
 #include "AST/ASTIfBlock.h"
@@ -58,7 +58,7 @@ bool SemaResolver::Resolve() {
     bool Success = true;
 
     // Resolve Nodes
-    for (auto &NodeEntry : S.Builder->Context->getNodes()) {
+    for (auto &NodeEntry : S.Context->getNodes()) {
         auto &Node = NodeEntry.getValue();
         Success &= ResolveImports(Node); // resolve Imports with NameSpaces
         Success &= ResolveGlobalVars(Node); // resolve Global Vars
@@ -67,7 +67,7 @@ bool SemaResolver::Resolve() {
     }
 
     // Now all Imports must be read
-    for(auto &Import : S.Builder->Context->ExternalImports) {
+    for(auto &Import : S.Context->ExternalImports) {
         if (!Import.getValue()->getNameSpace()) {
             S.Diag(Import.getValue()->getLocation(), diag::err_unresolved_import);
             return false;
@@ -122,7 +122,6 @@ bool SemaResolver::ResolveGlobalVars(ASTNode *Node) {
     for (auto &GlobalVarEntry : Node->getGlobalVars()) {
         ASTGlobalVar *GlobalVar = GlobalVarEntry.getValue();
         Success = !GlobalVar->getType()->isIdentity() || ResolveIdentityType(Node, (ASTIdentityType *) GlobalVar->getType());
-        Success &= S.Validator->CheckGlobalVar(GlobalVar);
     }
 
     return Success;
@@ -132,7 +131,7 @@ bool SemaResolver::ResolveIdentities(ASTNode *Node) {
     bool Success = true;
     if (Node->Identity) {
 
-        if (Node->Identity->getKind() == ASTTopDefKind::DEF_CLASS) {
+        if (Node->Identity->getTopDefKind() == ASTTopDefKind::DEF_CLASS) {
             ASTClass *Class = (ASTClass *) Node->Identity;
 
             // Resolve Super Classes
@@ -273,7 +272,7 @@ bool SemaResolver::ResolveIdentities(ASTNode *Node) {
                     }
                 }
             }
-        } else if (Node->Identity->getKind() == ASTTopDefKind::DEF_ENUM) {
+        } else if (Node->Identity->getTopDefKind() == ASTTopDefKind::DEF_ENUM) {
             // TODO
         }
     }
@@ -329,40 +328,33 @@ bool SemaResolver::ResolveBlock(ASTBlock *Block) {
             case ASTStmtKind::STMT_VAR_DEFINE: {
                 ASTVarDefine *VarDefine = ((ASTVarDefine *) Stmt);
 
-                // Take Node
-                if (VarDefine->isFirstDefined()) {
-                    ASTVar *Var = VarDefine->getVarRef()->getDef();
-                    if (Var) {
-
-                        if (Var->getVarKind() == ASTVarKind::VAR_LOCAL) {
-                            ASTLocalVar *LocalVar = (ASTLocalVar *) Var;
-                            const auto &Node = S.FindNode(Block->getTop());
-                            Success &= VarDefine && !LocalVar->getType()->isIdentity() ||
-                                       ResolveIdentityType(Node,(ASTIdentityType *) VarDefine->getVarRef()->getDef()->getType());
-
-                            if (VarDefine->getExpr())
-                                Success &= ResolveExpr(Block, VarDefine->getExpr());
-                            else // Var not initialized
-                                Block->UnInitVars.insert(std::make_pair(VarDefine->getVarRef()->getName(), LocalVar));
-                        }
-                    }
+                // Error: Expr cannot be null
+                if (!VarDefine->getVarRef()->getDef()) {
+                    S.Diag(VarDefine->getLocation(), diag::err_var_undefined) << VarDefine->getVarRef()->getName();
+                    return false;
                 }
 
-                // Error: Expr cannot be null
-                if (!VarDefine->getExpr()) {
-                    S.Diag(VarDefine->getLocation(), diag::err_var_assign_empty) << VarDefine->getVarRef()->getName();
-                    return false;
+                // Take Node
+                ASTVar *Var = VarDefine->getVarRef()->getDef();
+                if (Var->getVarKind() == ASTVarKind::VAR_LOCAL) {
+                    ASTLocalVar *LocalVar = (ASTLocalVar *) Var;
+
+                    if (!LocalVar->isInitialized()) {
+                        S.Diag(VarDefine->getLocation(), diag::err_sema_uninit_var) << VarDefine->getVarRef()->getName();
+                        return false;
+                    }
+
+                    const auto &Node = S.FindNode(Block->getTop());
+                    Success &= VarDefine && !LocalVar->getType()->isIdentity() ||
+                               ResolveIdentityType(Node,(ASTIdentityType *) VarDefine->getVarRef()->getDef()->getType());
+
+                    if (VarDefine->getExpr())
+                        Success &= ResolveExpr(Block, VarDefine->getExpr());
                 }
 
                 Success &= ResolveVarRef(Block, VarDefine->getVarRef()) &&
                            ResolveExpr(Block, VarDefine->getExpr());
 
-                // Remove from Un-Initialized Var
-                if (Success) {
-                    auto It = Block->UnInitVars.find(VarDefine->getVarRef()->getDef()->getName());
-                    if (It != Block->UnInitVars.end())
-                        Block->UnInitVars.erase(It);
-                }
                 break;
             }
             case ASTStmtKind::STMT_RETURN:
@@ -374,12 +366,11 @@ bool SemaResolver::ResolveBlock(ASTBlock *Block) {
         }
     }
 
-    if (!Block->UnInitVars.empty()) {
-        for (auto &UnInitVar : Block->UnInitVars) {
-            S.Diag(UnInitVar.getValue()->getLocation(), diag::err_sema_uninit_var) << UnInitVar.getValue()->getName();
-        }
-        return false;
+    for (auto &LocalVar : Block->LocalVars) {
+        if (!LocalVar.second->isInitialized())
+            S.Diag(LocalVar.getValue()->getLocation(), diag::err_sema_uninit_var) << LocalVar.getValue()->getName();
     }
+    return false;
 
     return Success;
 }
@@ -685,7 +676,7 @@ bool SemaResolver::ResolveCall(ASTBlock *Block, ASTCall *Call, ASTNameSpace *Nam
     // NameSpace.constructor()
     if (!Success) {
         ASTIdentity *Identity = S.FindIdentity(Call->getName(), NameSpace);
-        Identity != nullptr && Identity->getKind() == ASTTopDefKind::DEF_CLASS &&
+        Identity != nullptr && Identity->getTopDefKind() == ASTTopDefKind::DEF_CLASS &&
         ResolveCall(Block, Call, ((ASTClass *) Identity)->Constructors);
     }
 
@@ -703,7 +694,7 @@ bool SemaResolver::ResolveCallNoParent(ASTBlock *Block, ASTCall *Call) {
     // constructor()
     if (!Success) {
         ASTIdentity *Identity = S.FindIdentity(Call->getName(), Node->getNameSpace());
-        Identity != nullptr && Identity->getKind() == ASTTopDefKind::DEF_CLASS &&
+        Identity != nullptr && Identity->getTopDefKind() == ASTTopDefKind::DEF_CLASS &&
         ResolveCall(Block, Call, ((ASTClass *) Identity)->Constructors);
     }
 
@@ -813,7 +804,7 @@ bool SemaResolver::ResolveCall(ASTBlock *Block, ASTCall *Call,
 bool SemaResolver::ResolveArg(ASTBlock *Block, ASTArg *Arg, ASTParam *Param) {
     Arg->Def = Param;
     if (ResolveExpr(Block, Arg->Expr)) {
-        return S.Validator->CheckConvertibleTypes(Arg->Expr->Type, Param->Type);
+        return S.Validator->CheckConvertibleTypes(Arg->Expr->Type, Param->getType());
     }
 
     return false;
@@ -1009,9 +1000,7 @@ bool SemaResolver::ResolveValueExpr(ASTValueExpr *Expr) {
  */
 ASTType *SemaResolver::getType(ASTStmt *Stmt) {
     switch (Stmt->getKind()) {
-        case ASTStmtKind::STMT_VAR_DEFINE: // int a = 1
-            return ((ASTLocalVar *) Stmt)->getType();
-        case ASTStmtKind::STMT_VAR_DEFINE: // a = 1
+        case ASTStmtKind::STMT_VAR_DEFINE: // int a = 1 or a = 1
             return ((ASTVarDefine *) Stmt)->getVarRef()->getDef()->getType();
         case ASTStmtKind::STMT_RETURN:
             return ((ASTBlock *) Stmt->getParent())->Top->ReturnType;

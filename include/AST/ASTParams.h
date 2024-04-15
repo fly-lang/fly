@@ -25,40 +25,20 @@ namespace fly {
         friend class SemaBuilder;
         friend class SemaResolver;
 
-        ASTFunctionBase *Function; // Need this property to access directly to ASTFunction because Parent is always null
-
-        // LocalVar Code Generator
-        CodeGenVarBase *CodeGen = nullptr;
-
-        bool Constant = false;
-
-        ASTVarKind VarKind;
-
-        ASTType *Type = nullptr;
-
-        llvm::StringRef Name;
+        // Need this property to access directly to ASTFunction because Parent is always null
+        ASTFunctionBase *Function;
 
         ASTValue *DefaultValue;
 
-        ASTParam(ASTFunctionBase *Function, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, bool Constant);
+        ASTParam(ASTFunctionBase *Function, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes);
 
     public:
 
         ASTFunctionBase *getFunction();
 
-        ASTVarKind getVarKind() override;
-
-        ASTType *getType() const override;
-
-        llvm::StringRef getName() const override;
-
         ASTValue *getDefaultValue() const;
 
         void setDefaultValue(ASTValue *Value);
-
-        CodeGenVarBase *getCodeGen() const override;
-
-        void setCodeGen(CodeGenVarBase *CG);
 
         std::string print() const override;
 

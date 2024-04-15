@@ -22,6 +22,7 @@ namespace fly {
     class DiagnosticsEngine;
     class DiagnosticBuilder;
     class SourceLocation;
+    class ASTContext;
     class ASTNameSpace;
     class ASTNode;
     class ASTIdentity;
@@ -43,6 +44,8 @@ namespace fly {
 
         DiagnosticsEngine &Diags;
 
+        ASTContext *Context = nullptr;
+
         SemaBuilder *Builder = nullptr;
 
         SemaResolver *Resolver = nullptr;
@@ -53,7 +56,11 @@ namespace fly {
 
     public:
 
-        static SemaBuilder* CreateBuilder(DiagnosticsEngine &Diags);
+        static Sema* CreateSema(DiagnosticsEngine &Diags);
+
+        bool Resolve();
+
+        SemaBuilder *getBuilder();
 
         ASTNameSpace *FindNameSpace(llvm::StringRef Name) const;
 

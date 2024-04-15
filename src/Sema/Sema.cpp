@@ -38,17 +38,26 @@ Sema::Sema(DiagnosticsEngine &Diags) : Diags(Diags) {
 
 }
 
-SemaBuilder* Sema::CreateBuilder(DiagnosticsEngine &Diags) {
+Sema* Sema::CreateSema(DiagnosticsEngine &Diags) {
     Sema *S = new Sema(Diags);
     S->Builder = new SemaBuilder(*S);
+    S->Context = S->Builder->CreateContext();
     S->Resolver = new SemaResolver(*S);
     S->Validator = new SemaValidator(*S);
-    return S->Builder;
+    return S;
+}
+
+bool Sema::Resolve() {
+    return Resolver->Resolve();
+}
+
+SemaBuilder *Sema::getBuilder() {
+    return Builder;
 }
 
 ASTNameSpace *Sema::FindNameSpace(llvm::StringRef Name) const {
     FLY_DEBUG_MESSAGE("Sema", "FindNameSpace", "Name=" << Name);
-    ASTNameSpace *NameSpace = Builder->Context->NameSpaces.lookup(Name);
+    ASTNameSpace *NameSpace = Context->NameSpaces.lookup(Name);
     if (!NameSpace) {
         Diag(diag::err_unref_namespace) << Name;
     }

@@ -32,7 +32,7 @@ ASTFunction *Sys::getFail1() {
     const SourceLocation &Loc = SourceLocation();
     ASTVoidType *VoidType = SemaBuilder::CreateVoidType(Loc);
     ASTFunction *Fail = SemaBuilder::CreateFunction(nullptr, Loc, VoidType, "fail", SemaBuilder::CreateScopes());
-    ASTParam *Param = SemaBuilder::CreateParam(Fail, Loc, SemaBuilder::CreateUIntType(Loc), "code", false);
+    ASTParam *Param = SemaBuilder::CreateParam(Fail, Loc, SemaBuilder::CreateUIntType(Loc), "code");
     Fail->addParam(Param);
     return Fail;
 }
@@ -41,7 +41,7 @@ ASTFunction *Sys::getFail2() {
     const SourceLocation &Loc = SourceLocation();
     ASTVoidType *VoidType = SemaBuilder::CreateVoidType(Loc);
     ASTFunction *Fail = SemaBuilder::CreateFunction(nullptr, Loc, VoidType, "fail", SemaBuilder::CreateScopes());
-    ASTParam *Param = SemaBuilder::CreateParam(Fail, Loc, SemaBuilder::CreateStringType(Loc), "message", false);
+    ASTParam *Param = SemaBuilder::CreateParam(Fail, Loc, SemaBuilder::CreateStringType(Loc), "message");
     Fail->addParam(Param);
     return Fail;
 }
@@ -57,5 +57,5 @@ ASTFunction *Sys::getFail3() {
 }
 
 ASTVar *Sys::getError() {
-    return SemaBuilder::CreateLocalVar(nullptr, SourceLocation(), SemaBuilder::CreateErrorType(), "error");
+    return SemaBuilder::CreateLocalVar(SourceLocation(), SemaBuilder::CreateErrorType(), "error");
 }

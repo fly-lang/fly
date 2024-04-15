@@ -74,8 +74,10 @@ void CodeGenClassFunction::GenBody() {
 
             // Save all default var values
             if (((ASTClassFunction *) AST)->isConstructor()) {
-                llvm::Value *V = CGM->GenExpr(this, Var->getType(), Var->getExpr());
-                CGVar->Store(V);
+
+                // TODO execute PreConstructor
+//                llvm::Value *V = CGM->GenExpr(this, Var->getType(), Var->getExpr());
+//                CGVar->Store(V);
             }
         }
     }

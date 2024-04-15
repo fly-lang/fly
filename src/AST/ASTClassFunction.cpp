@@ -14,8 +14,7 @@ using namespace fly;
 
 ASTClassFunction::ASTClassFunction(const SourceLocation &Loc, ASTClass *Class, ASTScopes *Scopes, ASTType *Type,
                                    llvm::StringRef Name) :
-        ASTFunctionBase(Loc, ASTFunctionKind::CLASS_FUNCTION, Type, Name),
-        Class(Class), Scopes(Scopes)  {
+        ASTFunctionBase(Loc, ASTFunctionKind::CLASS_FUNCTION, Type, Name, Scopes), Class(Class) {
 
 }
 
@@ -39,10 +38,6 @@ llvm::StringRef ASTClassFunction::getComment() const {
     return Comment;
 }
 
-ASTScopes *ASTClassFunction::getScopes() const {
-    return Scopes;
-}
-
 bool ASTClassFunction::isAbstract() const {
     return getBody() == nullptr;
 }
@@ -60,6 +55,5 @@ std::string ASTClassFunction::str() const {
            Super(ASTFunctionBase::str()).
             Attr("Class", Class).
             Attr("Comment", Comment).
-            Attr("Scopes", Scopes).
             End();
 }

@@ -7,61 +7,44 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "AST/ASTEnumVar.h"
+#include "AST/ASTEnumEntry.h"
 #include "AST/ASTEnum.h"
 
 using namespace fly;
 
-ASTEnumVar::ASTEnumVar(ASTEnum *Enum, const SourceLocation &Loc, llvm::StringRef Name) :
-        VarKind(ASTVarKind::VAR_ENUM), Name(Name), Loc(Loc), Enum(Enum) {
+ASTEnumEntry::ASTEnumEntry(ASTEnum *Enum, const SourceLocation &Loc, llvm::StringRef Name) :
+        ASTVar(ASTVarKind::VAR_ENUM, Loc, Enum->getType(), Name, nullptr), Enum(Enum) {
 
 }
 
-const SourceLocation &ASTEnumVar::getLocation() const {
-    return Loc;
-}
-
-llvm::StringRef ASTEnumVar::getName() const {
-    return Name;
-}
-
-ASTVarKind ASTEnumVar::getVarKind() {
-    return VarKind;
-}
-
-ASTEnum *ASTEnumVar::getEnum() const {
+ASTEnum *ASTEnumEntry::getEnum() const {
     return Enum;
 }
 
-uint32_t ASTEnumVar::getIndex() const {
+uint32_t ASTEnumEntry::getIndex() const {
     return Index;
 }
 
-ASTType *ASTEnumVar::getType() const {
-    return (ASTType *) Enum->getType();
-}
-
-llvm::StringRef ASTEnumVar::getComment() const {
+llvm::StringRef ASTEnumEntry::getComment() const {
     return Comment;
 }
 
-CodeGenEnumEntry *ASTEnumVar::getCodeGen() const {
+CodeGenEnumEntry *ASTEnumEntry::getCodeGen() const {
     return CodeGen;
 }
 
-void ASTEnumVar::setCodeGen(CodeGenEnumEntry *CGE) {
+void ASTEnumEntry::setCodeGen(CodeGenEnumEntry *CGE) {
     this->CodeGen = CGE;
 }
 
-std::string ASTEnumVar::print() const {
-    return Enum->print() + "." + Name.data();
+std::string ASTEnumEntry::print() const {
+    return Enum->print() + "." + getName().data();
 }
 
-std::string ASTEnumVar::str() const {
-    return Logger("ASTEnumVar").
-            Attr("Name", Name).
+std::string ASTEnumEntry::str() const {
+    return Logger("ASTEnumEntry").
+            Super(ASTVar::str()).
             Attr("Index", (uint64_t) Index).
-            Attr("VarKind", (uint64_t) VarKind).
             Attr("Comment", Comment).
             End();
 }

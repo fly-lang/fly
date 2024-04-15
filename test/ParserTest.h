@@ -20,29 +20,29 @@ class ParserTest : public ::testing::Test {
 public:
     const CompilerInstance CI;
     ASTContext *Context;
-    SemaBuilder *Builder;
+    Sema *S;
     DiagnosticsEngine &Diags;
     bool Success = false;
 
     ParserTest() : CI(*TestUtils::CreateCompilerInstance()),
                    Diags(CI.getDiagnostics()) {
-        Builder = Sema::CreateBuilder(CI.getDiagnostics());
+        S = Sema::CreateSema(CI.getDiagnostics());
         Diags.getClient()->BeginSourceFile();
     }
 
     virtual ~ParserTest() {
         Diags.getClient()->EndSourceFile();
-        Builder->Destroy();
+        delete S;
     }
 
     ASTNode *Parse(std::string FileName, llvm::StringRef Source, bool DoBuild = true) {
         InputFile Input(Diags, CI.getSourceManager(), FileName);
         Input.Load(Source);
-        Parser *P = new Parser(Input, CI.getSourceManager(), Diags, *Builder);
+        Parser *P = new Parser(Input, CI.getSourceManager(), Diags, *S->getBuilder());
         ASTNode *Node = P->Parse();
         Success = !Diags.hasErrorOccurred() && Node;
         if (DoBuild)
-            Success &= Builder->Build();
+            Success &= S->Resolve();
         return Node;
     }
 

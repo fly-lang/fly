@@ -8,11 +8,13 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTIdentity.h"
+#include "AST/ASTNode.h"
 
 using namespace fly;
 
 ASTIdentity::ASTIdentity(ASTNode *Node, ASTTopDefKind TopDefKind, ASTScopes *Scopes,const SourceLocation &Loc,
-                         llvm::StringRef Name) : ASTTopDef(Node, TopDefKind, Scopes), Location(Loc), Name(Name) {
+                         llvm::StringRef Name) :
+                         Node(Node), TopDefKind(TopDefKind), Scopes(Scopes), Location(Loc), Name(Name) {
 
 }
 
@@ -22,4 +24,24 @@ llvm::StringRef ASTIdentity::getName() const {
 
 const SourceLocation &ASTIdentity::getLocation() const {
     return Location;
+}
+
+ASTTopDefKind ASTIdentity::getTopDefKind() const {
+    return TopDefKind;
+}
+
+ASTNode *ASTIdentity::getNode() const {
+    return Node;
+}
+
+ASTNameSpace *ASTIdentity::getNameSpace() const {
+    return Node->getNameSpace();
+}
+
+llvm::StringRef ASTIdentity::getComment() const {
+    return Comment;
+}
+
+ASTScopes *ASTIdentity::getScopes() const {
+    return Scopes;
 }

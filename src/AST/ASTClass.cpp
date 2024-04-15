@@ -12,6 +12,8 @@
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTClassVar.h"
 #include "AST/ASTClassFunction.h"
+#include "AST/ASTBlock.h"
+#include "Sema/SemaBuilder.h"
 #include "CodeGen/CodeGenClass.h"
 
 using namespace fly;
@@ -20,7 +22,7 @@ ASTClass::ASTClass(ASTNode *Node, ASTClassKind ClassKind, ASTScopes *Scopes,
                    const SourceLocation &Loc, llvm::StringRef Name,
                    llvm::SmallVector<ASTClassType *, 4> &ExtClasses) :
         ASTIdentity(Node, ASTTopDefKind::DEF_CLASS, Scopes, Loc, Name), ClassKind(ClassKind),
-        SuperClasses(ExtClasses) {
+        SuperClasses(ExtClasses), PreConstructor(SemaBuilder::CreateBlock(nullptr, SourceLocation())) {
 
 }
 
@@ -38,6 +40,10 @@ llvm::SmallVector<ASTClassType *, 4> ASTClass::getSuperClasses() const {
 
 llvm::StringMap<ASTClassVar *> ASTClass::getVars() const {
     return Vars;
+}
+
+ASTBlock *ASTClass::getPreConstructor() {
+    return PreConstructor;
 }
 
 std::map <uint64_t,llvm::SmallVector <ASTClassFunction *, 4>> ASTClass::getConstructors() const {
@@ -81,9 +87,7 @@ std::string ASTClass::str() const {
 
     // Class to string
     return Logger("ASTClass").
-           Super(ASTTopDef::str()).
-           Attr("Name", Name).
-           Attr("Scopes", Scopes).
+           Super(ASTIdentity::str()).
            Attr("ClassKind", (uint64_t) ClassKind).
            AttrList("Vars", VarList).
            AttrList("Methods", MethodList).

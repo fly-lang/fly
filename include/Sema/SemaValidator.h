@@ -42,8 +42,6 @@ namespace fly {
 
         bool DiagEnabled = true;
 
-        bool CheckGlobalVar(ASTGlobalVar *GlobalVar);
-
         bool CheckDuplicateParams(ASTParams *Params, ASTParam *Param);
 
         bool CheckDuplicateLocalVars(ASTStmt *Stmt, llvm::StringRef VarName);
@@ -59,8 +57,6 @@ namespace fly {
             }
             return true;
         }
-
-        bool CheckUninitialized(ASTBlock *Block, ASTVarRef *VarRef);
 
         bool CheckImport(ASTNode *Node, ASTImport *Import);
 

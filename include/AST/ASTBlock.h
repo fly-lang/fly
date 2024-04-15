@@ -68,9 +68,6 @@ namespace fly {
         // Contains all vars declared in this Block
         llvm::StringMap<ASTLocalVar *> LocalVars;
 
-        // Contains all declared vars not yet initialized;
-        llvm::StringMap<ASTLocalVar *> UnInitVars;
-
     protected:
 
         ASTBlock(ASTBlock *Parent, const SourceLocation &Loc);
@@ -90,8 +87,6 @@ namespace fly {
         void Clear();
 
         const llvm::StringMap<ASTLocalVar *> &getLocalVars() const;
-
-        const llvm::StringMap<ASTLocalVar *> &getUnInitVars() const;
 
         std::string str() const override;
     };

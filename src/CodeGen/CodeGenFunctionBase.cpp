@@ -98,13 +98,18 @@ llvm::Value *CodeGenFunctionBase::getErrorVar() {
 
 void CodeGenFunctionBase::StoreParams(bool isMain) {
     // Store Param Values (n = 0 is the Error param)
-    int n = isMain ? 0 : 1; // FIXME only for params passed by value
+    int n = isMain ? 0 : 1;
+
     for (auto &Param: AST->getParams()->getList()) {
+
+        // Store Arg value into Param
         CodeGenVarBase *CGV = Param->getCodeGen();
-        CGV->Store(Fn->getArg(n));
-        if (Param->getExpr()) {
-            CGM->GenExpr(this, Param->getType(), Param->getExpr());
-        }
+        CGV->Store(Fn->getArg(n)); // FIXME only for params passed by value
+
+        // TODO if Arg is not present store the Param default value
+//        if (Param->getExpr()) {
+//            CGM->GenExpr(this, Param->getType(), Param->getExpr());
+//        }
         ++n;
     }
 }

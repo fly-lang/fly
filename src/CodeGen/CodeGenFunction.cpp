@@ -13,6 +13,7 @@
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTNode.h"
 #include "AST/ASTFunction.h"
+#include "AST/ASTScopes.h"
 #include "AST/ASTType.h"
 #include "Basic/Debug.h"
 #include "llvm/IR/Function.h"

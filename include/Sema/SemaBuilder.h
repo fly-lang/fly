@@ -174,7 +174,7 @@ namespace fly {
 
     class ASTEnum;
 
-    class ASTEnumVar;
+    class ASTEnumEntry;
 
     class ASTIdentityType;
 
@@ -195,15 +195,11 @@ namespace fly {
 
         Sema &S;
 
-        ASTContext *Context;
-
     public:
 
         SemaBuilder(Sema &S);
 
-        bool Build();
-
-        void Destroy();
+        ASTContext *CreateContext();
 
         // Create Node
         ASTNode *CreateNode(const std::string &Name);
@@ -257,7 +253,7 @@ namespace fly {
         static ASTEnum *
         CreateEnum(ASTNode *Node, ASTScopes *Scopes, const SourceLocation &Loc, const llvm::StringRef Name);
 
-        static ASTEnumVar *CreateEnumVar(ASTEnum *Enum, const SourceLocation &Loc, llvm::StringRef Name);
+        static ASTEnumEntry *CreateEnumEntry(ASTEnum *Enum, const SourceLocation &Loc, llvm::StringRef Name);
 
         // Create Types
         static ASTBoolType *CreateBoolType(const SourceLocation &Loc);
@@ -324,21 +320,20 @@ namespace fly {
         // Create Statements
         static ASTParam *
         CreateParam(ASTFunctionBase *Function, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
-                    bool Constant = false);
+                    ASTScopes *Scopes = nullptr);
 
         static ASTLocalVar *
-        CreateLocalVar(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
-                       bool Constant = false);
+        CreateLocalVar(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,  ASTScopes *Scopes = nullptr);
 
-        static ASTVarDefine *CreateVarAssign(ASTBlock *Parent, ASTVarRef *VarRef);
+        static ASTVarDefine *CreateVarDefine(ASTBlock *Parent, ASTVarRef *VarRef);
 
         static ASTVarDefine *CreateVarDefine(ASTBlock *Parent, ASTVar *Var);
 
-        ASTReturn *CreateReturn(ASTBlock *Parent, const SourceLocation &Loc);
+        static ASTReturn *CreateReturn(ASTBlock *Parent, const SourceLocation &Loc);
 
-        ASTBreak *CreateBreak(ASTBlock *Parent, const SourceLocation &Loc);
+        static ASTBreak *CreateBreak(ASTBlock *Parent, const SourceLocation &Loc);
 
-        ASTContinue *CreateContinue(ASTBlock *Parent, const SourceLocation &Loc);
+        static ASTContinue *CreateContinue(ASTBlock *Parent, const SourceLocation &Loc);
 
         static ASTStmt *
         CreateFail(ASTExprStmt *Stmt, const SourceLocation &Loc, const ASTTypeKind &T, ASTExpr *Expr = nullptr);
@@ -346,7 +341,7 @@ namespace fly {
         static ASTExprStmt *CreateExprStmt(ASTBlock *Parent, const SourceLocation &Loc);
 
         // Create Identifier
-        ASTIdentifier *CreateIdentifier(const SourceLocation &Loc, llvm::StringRef Name);
+        static ASTIdentifier *CreateIdentifier(const SourceLocation &Loc, llvm::StringRef Name);
 
         // Create Call
         static ASTCall *CreateCall(ASTIdentifier *Identifier);
@@ -356,11 +351,11 @@ namespace fly {
         static ASTCall *CreateCall(ASTIdentifier *Instance, ASTFunctionBase *Function);
 
         // Create VarRef
-        ASTVarRef *CreateVarRef(ASTIdentifier *Identifier);
+        static ASTVarRef *CreateVarRef(ASTIdentifier *Identifier);
 
         static ASTVarRef *CreateVarRef(ASTVar *Var);
 
-        ASTVarRef *CreateVarRef(ASTIdentifier *Instance, ASTVar *Var);
+        static ASTVarRef *CreateVarRef(ASTIdentifier *Instance, ASTVar *Var);
 
         // Create Expressions
         static ASTEmptyExpr *CreateExpr();
@@ -373,7 +368,7 @@ namespace fly {
 
         ASTCallExpr *CreateNewExpr(ASTStmt *Stmt, ASTCall *Call);
 
-        ASTDelete *CreateDelete(ASTBlock *Parent, const SourceLocation &Loc, ASTVarRef *VarRef);
+        static ASTDelete *CreateDelete(ASTBlock *Parent, const SourceLocation &Loc, ASTVarRef *VarRef);
 
         ASTUnaryGroupExpr *CreateUnaryExpr(ASTStmt *Stmt, const SourceLocation &Loc, ASTUnaryOperatorKind Kind,
                                            ASTUnaryOptionKind OptionKind, ASTVarRefExpr *First);
@@ -389,27 +384,29 @@ namespace fly {
 
         static ASTBlock *CreateBlock(ASTBlock *Parent, const SourceLocation &Loc);
 
-        ASTIfBlock *CreateIfBlock(ASTBlock *Parent, const SourceLocation &Loc);
+        static ASTIfBlock *CreateIfBlock(ASTBlock *Parent, const SourceLocation &Loc);
 
-        ASTElsifBlock *CreateElsifBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc);
+        static ASTElsifBlock *CreateElsifBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc);
 
-        ASTElseBlock *CreateElseBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc);
+        static ASTElseBlock *CreateElseBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc);
 
-        ASTSwitchBlock *CreateSwitchBlock(ASTBlock *Parent, const SourceLocation &Loc);
+        static ASTSwitchBlock *CreateSwitchBlock(ASTBlock *Parent, const SourceLocation &Loc);
 
-        ASTSwitchCaseBlock *CreateSwitchCaseBlock(ASTSwitchBlock *SwitchBlock, const SourceLocation &Loc);
+        static ASTSwitchCaseBlock *CreateSwitchCaseBlock(ASTSwitchBlock *SwitchBlock, const SourceLocation &Loc);
 
-        ASTSwitchDefaultBlock *CreateSwitchDefaultBlock(ASTSwitchBlock *SwitchBlock, const SourceLocation &Loc);
+        static ASTSwitchDefaultBlock *CreateSwitchDefaultBlock(ASTSwitchBlock *SwitchBlock, const SourceLocation &Loc);
 
-        ASTWhileBlock *CreateWhileBlock(ASTBlock *Parent, const SourceLocation &Loc);
+        static ASTWhileBlock *CreateWhileBlock(ASTBlock *Parent, const SourceLocation &Loc);
 
-        ASTForBlock *CreateForBlock(ASTBlock *Parent, const SourceLocation &Loc);
+        static ASTForBlock *CreateForBlock(ASTBlock *Parent, const SourceLocation &Loc);
 
-        ASTForLoopBlock *CreateForLoopBlock(ASTForBlock *Parent, const SourceLocation &Loc);
+        static ASTForLoopBlock *CreateForLoopBlock(ASTForBlock *Parent, const SourceLocation &Loc);
 
-        ASTForPostBlock *CreateForPostBlock(ASTForBlock *Parent, const SourceLocation &Loc);
+        static ASTForPostBlock *CreateForPostBlock(ASTForBlock *Parent, const SourceLocation &Loc);
 
-        ASTHandleBlock *CreateHandleBlock(ASTBlock *Parent, const SourceLocation &Loc, ASTVarRef *ErrorRef);
+        static ASTHandleBlock *CreateHandleBlock(ASTBlock *Parent, const SourceLocation &Loc, ASTVarRef *ErrorRef);
+
+        /** Add AST **/
 
         // Add Node & NameSpace
         bool AddNameSpace(ASTNameSpace *NewNameSpace, ASTNode *Node = nullptr, bool ExternLib = false);
@@ -423,8 +420,6 @@ namespace fly {
 
         bool AddGlobalVar(ASTGlobalVar *GlobalVar, ASTValue *Value = nullptr);
 
-        bool AddGlobalVar(ASTGlobalVar *GlobalVar, ASTExpr *Expr);
-
         static bool AddFunction(ASTFunction *Function);
 
         // Add details
@@ -434,7 +429,7 @@ namespace fly {
 
         bool AddClassConstructor(ASTClassFunction *Constructor);
 
-        bool AddEnumVar(ASTEnumVar *EnumVar);
+        bool AddEnumEntry(ASTEnumEntry *EnumVar);
 
         bool AddParam(ASTParam *Param);
 

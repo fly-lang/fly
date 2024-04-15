@@ -11,11 +11,9 @@
 #ifndef FLY_AST_TOPDEF_H
 #define FLY_AST_TOPDEF_H
 
-#include "ASTScopes.h"
-#include "Basic/Debuggable.h"
-#include "Basic/SourceLocation.h"
-
-#include "llvm/ADT/SmallVector.h"
+namespace llvm {
+    class StringRef;
+}
 
 namespace fly {
 
@@ -25,7 +23,6 @@ namespace fly {
     class ASTScopes;
 
     enum class ASTTopDefKind {
-        DEF_NONE,
         DEF_NAMESPACE,
         DEF_IMPORT,
         DEF_GLOBALVAR,
@@ -34,41 +31,17 @@ namespace fly {
         DEF_ENUM
     };
 
-    class ASTTopDef : public virtual Debuggable {
-
-        friend class SemaBuilder;
-
-    protected:
-
-        ASTNode *Node = nullptr;
-
-        // Kind of TopDecl identified by enum
-        ASTTopDefKind Kind;
-
-        // The TopDef Scopes
-        ASTScopes *Scopes = nullptr;
-
-        llvm::StringRef Comment;
-
-    protected:
-
-        ASTTopDef(ASTNode *Node, ASTTopDefKind Kind, ASTScopes *Scopes);
+    class ASTTopDef {
 
     public:
 
-        ASTNode *getNode();
+        virtual ASTNode *getNode() const = 0;
 
         virtual llvm::StringRef getName() const = 0;
 
-        ASTNameSpace *getNameSpace() const;
+        virtual ASTNameSpace *getNameSpace() const = 0;
 
-        ASTScopes *getScopes() const;
-
-        ASTTopDefKind getKind() const;
-
-        llvm::StringRef getComment() const;
-
-        std::string str() const;
+        virtual ASTTopDefKind getTopDefKind() const = 0;
 
     };
 }

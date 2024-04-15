@@ -20,6 +20,7 @@ namespace fly {
     class ASTScopes;
     class ASTType;
     class ASTFunction;
+    class ASTScopes;
 
     class ASTClassFunction : public ASTFunctionBase {
 
@@ -36,8 +37,6 @@ namespace fly {
         bool Static = false;
 
         llvm::StringRef Comment;
-
-        ASTScopes *Scopes = nullptr;
 
         // Populated during codegen phase
         CodeGenClassFunction *CodeGen = nullptr;
@@ -56,8 +55,6 @@ namespace fly {
         bool isStatic();
 
         llvm::StringRef getComment() const;
-
-        ASTScopes *getScopes() const;
 
         bool isAbstract() const;
 

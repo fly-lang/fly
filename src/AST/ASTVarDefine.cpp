@@ -14,8 +14,8 @@
 
 using namespace fly;
 
-ASTVarDefine::ASTVarDefine(ASTBlock *Parent, const SourceLocation &Loc, ASTVarRef *VarRef, bool Init) :
-        ASTStmt(Parent, Loc, ASTStmtKind::STMT_VAR_DEFINE), VarRef(VarRef), FirstDefined(Init) {
+ASTVarDefine::ASTVarDefine(ASTBlock *Parent, const SourceLocation &Loc, ASTVarRef *VarRef) :
+        ASTStmt(Parent, Loc, ASTStmtKind::STMT_VAR_DEFINE), VarRef(VarRef) {
 
 }
 
@@ -35,10 +35,10 @@ ASTExpr *ASTVarDefine::getExpr() const {
     return Expr;
 }
 
-ASTBlock *ASTVarDefine::getBlock() const {
-    return Block;
+void ASTVarDefine::setExpr(fly::ASTExpr *E) {
+    Expr = E;
 }
 
-bool ASTVarDefine::isFirstDefined() const {
-    return FirstDefined;
+ASTBlock *ASTVarDefine::getBlock() const {
+    return Block;
 }

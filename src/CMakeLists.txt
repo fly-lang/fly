@@ -36,9 +36,9 @@ add_library(flyLib
         AST/ASTScopes.cpp
         AST/ASTStmt.cpp
         AST/ASTSwitchBlock.cpp
-        AST/ASTTopDef.cpp
         AST/ASTType.cpp
         AST/ASTValue.cpp
+        AST/ASTVar.cpp
         AST/ASTVarDefine.cpp
         AST/ASTVarRef.cpp
         AST/ASTWhileBlock.cpp

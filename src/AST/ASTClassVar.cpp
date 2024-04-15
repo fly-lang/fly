@@ -17,25 +17,8 @@ using namespace fly;
 
 ASTClassVar::ASTClassVar(const SourceLocation &Loc, ASTClass *Class, ASTScopes *Scopes, ASTType *Type,
                          llvm::StringRef Name) :
-        VarKind(ASTVarKind::VAR_CLASS), Type(Type), Name(Name),
-        Loc(Loc), Class(Class), Scopes(Scopes) {
+        ASTVar(ASTVarKind::VAR_CLASS, Loc, Type, Name, Scopes), Class(Class) {
 
-}
-
-const SourceLocation &ASTClassVar::getLocation() const {
-    return Loc;
-}
-
-llvm::StringRef ASTClassVar::getName() const {
-    return Name;
-}
-
-ASTVarKind ASTClassVar::getVarKind() {
-    return VarKind;
-}
-
-ASTType *ASTClassVar::getType() const {
-    return Type;
 }
 
 ASTClass *ASTClassVar::getClass() const {
@@ -44,14 +27,6 @@ ASTClass *ASTClassVar::getClass() const {
 
 llvm::StringRef ASTClassVar::getComment() const {
     return Comment;
-}
-
-ASTScopes *ASTClassVar::getScopes() const {
-    return Scopes;
-}
-
-void ASTClassVar::setExpr(ASTExpr *Expr) {
-    this->Expr = Expr;
 }
 
 CodeGenVarBase *ASTClassVar::getCodeGen() const {
@@ -63,16 +38,11 @@ void ASTClassVar::setCodeGen(CodeGenVarBase *CodeGen) {
 }
 
 std::string ASTClassVar::print() const {
-    return Class->print() + "." + Name.data();
+    return Class->print() + "." + getName().data();
 }
 
 std::string ASTClassVar::str() const {
     return Logger("ASTClassVar").
-            Attr("Type", Type).
-            Attr("Name", Name).
-            Attr("VarKind", (uint64_t) VarKind).
-            Attr("Comment", Comment).
-            Attr("Scopes", Scopes).
-            Attr("Expr", Expr).
+            Super(ASTVar::str()).
             End();
 }

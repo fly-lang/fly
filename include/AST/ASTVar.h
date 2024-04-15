@@ -21,7 +21,8 @@ namespace fly {
     class SourceLocation;
     class CodeGenVarBase;
     class ASTType;
-    class ASTExpr;
+    class ASTScopes;
+    class ASTVarDefine;
 
     enum class ASTVarKind {
         VAR_PARAM,
@@ -38,19 +39,51 @@ namespace fly {
      */
     class ASTVar : public virtual Debuggable {
 
+        ASTVarKind VarKind;
+
+        const SourceLocation Loc;
+
+        ASTType *Type;
+
+        llvm::StringRef Name;
+
+        ASTScopes *Scopes;
+
+        ASTVarDefine *Initialization = nullptr;
+
+        llvm::StringRef Comment;
+
+    protected:
+
+        ASTVar(ASTVarKind VarKind, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes);
+
     public:
 
-        virtual ASTVarKind getVarKind() = 0;
+        ASTVarKind getVarKind();
 
-        virtual ASTType *getType() const = 0;
+        ASTType *getType() const;
 
-        virtual llvm::StringRef getName() const = 0;
+        llvm::StringRef getName() const;
 
-        virtual const SourceLocation &getLocation() const = 0;
+        const SourceLocation &getLocation() const;
+
+        llvm::StringRef getComment() const;
+
+        bool isConstant() const;
+
+        bool isInitialized();
+
+        ASTVarDefine *getInitialization();
+
+        void setInitialization(ASTVarDefine *VarDefine);
+
+        ASTScopes *getScopes() const;
 
         virtual CodeGenVarBase *getCodeGen() const = 0;
 
         virtual std::string print() const = 0;
+
+        std::string str() const;
     };
 }
 

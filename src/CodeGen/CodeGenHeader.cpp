@@ -13,6 +13,7 @@
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTParams.h"
+#include "AST/ASTScopes.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/CodeGenOptions.h"
 #include "Basic/Debug.h"
