@@ -11,21 +11,19 @@
 
 using namespace fly;
 
-ASTIdentifier::ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name) : Loc(Loc), Name(Name), Kind(ASTIdentifierKind::REF_UNDEF) {
+ASTIdentifier::ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name) :
+        ASTBase(Loc), Name(Name), Kind(ASTIdentifierKind::REF_UNDEF) {
     FullName = Name.data();
 }
 
-ASTIdentifier::ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name, ASTIdentifierKind Kind) : Loc(Loc), Name(Name), Kind(Kind) {
+ASTIdentifier::ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name, ASTIdentifierKind Kind) :
+        ASTBase(Loc), Name(Name), Kind(Kind) {
     FullName = Name.data();
 }
 
 
 ASTIdentifier::~ASTIdentifier() {
     delete Parent;
-}
-
-const SourceLocation &ASTIdentifier::getLocation() const {
-    return Loc;
 }
 
 llvm::StringRef ASTIdentifier::getName() const {
@@ -56,7 +54,7 @@ bool ASTIdentifier::isVarRef() const {
     return Kind == ASTIdentifierKind::REF_VAR;
 }
 
-ASTIdentifierKind ASTIdentifier::getKind() const {
+ASTIdentifierKind ASTIdentifier::getIdKind() const {
     return Kind;
 }
 
@@ -81,6 +79,7 @@ std::string ASTIdentifier::print() const {
 
 std::string ASTIdentifier::str() const {
     return Logger("ASTIdentifier").
+            Super(ASTBase::str()).
             Attr("Name", Name).
             Attr("Child", Child).
             End();

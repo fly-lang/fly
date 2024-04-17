@@ -4,29 +4,29 @@ add_executable(fly
 add_library(flyLib
 
         # AST
+        AST/ASTBase.cpp
         AST/ASTBlock.cpp
+        AST/ASTCall.cpp
         AST/ASTClass.cpp
+        AST/ASTClassFunction.cpp
         AST/ASTClassType.cpp
         AST/ASTClassVar.cpp
-        AST/ASTClassFunction.cpp
         AST/ASTContext.cpp
-        AST/ASTDelete.cpp
+        AST/ASTDeleteStmt.cpp
+        AST/ASTEnum.cpp
+        AST/ASTEnumEntry.cpp
+        AST/ASTEnumType.cpp
+        AST/ASTError.cpp
         AST/ASTExpr.cpp
         AST/ASTExprStmt.cpp
-        AST/ASTClassVar.cpp
-        AST/ASTEnum.cpp
-        AST/ASTEnumType.cpp
-        AST/ASTEnumVar.cpp
         AST/ASTForBlock.cpp
-        AST/ASTError.cpp
         AST/ASTFunction.cpp
         AST/ASTFunctionBase.cpp
-        AST/ASTCall.cpp
         AST/ASTGlobalVar.cpp
         AST/ASTHandleBlock.cpp
+        AST/ASTIdentifier.cpp
         AST/ASTIdentity.cpp
         AST/ASTIdentityType.cpp
-        AST/ASTIdentifier.cpp
         AST/ASTIfBlock.cpp
         AST/ASTImport.cpp
         AST/ASTLocalVar.cpp
@@ -39,8 +39,8 @@ add_library(flyLib
         AST/ASTType.cpp
         AST/ASTValue.cpp
         AST/ASTVar.cpp
-        AST/ASTVarDefine.cpp
         AST/ASTVarRef.cpp
+        AST/ASTVarStmt.cpp
         AST/ASTWhileBlock.cpp
 
         # Basic
@@ -49,7 +49,6 @@ add_library(flyLib
         Basic/CharInfo.cpp
         Basic/CodeGenOptions.cpp
         Basic/Cuda.cpp
-        Basic/Debuggable.cpp
         Basic/Diagnostic.cpp
         Basic/DiagnosticIDs.cpp
         Basic/DiagnosticOptions.cpp

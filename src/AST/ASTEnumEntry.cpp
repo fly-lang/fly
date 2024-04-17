@@ -25,10 +25,6 @@ uint32_t ASTEnumEntry::getIndex() const {
     return Index;
 }
 
-llvm::StringRef ASTEnumEntry::getComment() const {
-    return Comment;
-}
-
 CodeGenEnumEntry *ASTEnumEntry::getCodeGen() const {
     return CodeGen;
 }

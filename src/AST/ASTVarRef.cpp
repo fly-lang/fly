@@ -10,7 +10,7 @@
 #include "AST/ASTVarRef.h"
 #include "AST/ASTVar.h"
 #include "AST/ASTIdentifier.h"
-#include "Basic/Debuggable.h"
+#include "AST/ASTBase.h"
 
 using namespace fly;
 

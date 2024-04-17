@@ -17,8 +17,9 @@
 using namespace fly;
 
 ASTFunctionBase::ASTFunctionBase(const SourceLocation &Loc, ASTFunctionKind Kind, ASTType *ReturnType,
-                                 llvm::StringRef Name, ASTScopes * Scopes)
-        : Kind(Kind), ReturnType(ReturnType), Params(new ASTParams()), Name(Name), Location(Loc), Scopes(Scopes) {
+                                 llvm::StringRef Name, ASTScopes * Scopes) :
+        ASTBase(Loc), Kind(Kind), ReturnType(ReturnType),
+        Params(new ASTParams()), Name(Name), Scopes(Scopes) {
 
 }
 
@@ -28,14 +29,6 @@ llvm::StringRef ASTFunctionBase::getName() const {
 
 ASTScopes *ASTFunctionBase::getScopes() const {
     return Scopes;
-}
-
-llvm::StringRef ASTFunctionBase::getComment() const {
-    return Comment;
-}
-
-const SourceLocation &ASTFunctionBase::getLocation() const {
-    return Location;
 }
 
 void ASTFunctionBase::addParam(ASTParam *Param) {
@@ -68,26 +61,27 @@ bool ASTFunctionBase::isVarArg() {
 
 std::string ASTFunctionBase::str() const {
     return Logger("ASTFunctionBase").
+           Super(ASTBase::str()).
            Attr("Name", Name).
            Attr("Params", Params).
            Attr("ReturnType", ReturnType).
            End();
 }
 
-ASTReturn::ASTReturn(ASTBlock *Parent, const SourceLocation &Loc) :
+ASTReturnStmt::ASTReturnStmt(ASTBlock *Parent, const SourceLocation &Loc) :
         ASTStmt(Parent, Loc, ASTStmtKind::STMT_RETURN) {
 
 }
 
-ASTExpr *ASTReturn::getExpr() const {
+ASTExpr *ASTReturnStmt::getExpr() const {
     return Expr;
 }
 
-ASTBlock *ASTReturn::getBlock() const {
+ASTBlock *ASTReturnStmt::getBlock() const {
     return Block;
 }
 
-std::string ASTReturn::str() const {
+std::string ASTReturnStmt::str() const {
     return Logger("ASTReturn").
             Attr("Kind", (uint64_t) Kind).
             End();

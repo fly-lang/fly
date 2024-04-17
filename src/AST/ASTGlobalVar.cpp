@@ -37,8 +37,12 @@ llvm::StringRef ASTGlobalVar::getName() const {
     return ASTVar::getName();
 }
 
-ASTValue *ASTGlobalVar::getValue() {
-    return Value;
+ASTVarStmt *ASTGlobalVar::getInit() const {
+    return Init;
+}
+
+void ASTGlobalVar::setInit(ASTVarStmt *varDefine) {
+    Init = varDefine;
 }
 
 CodeGenGlobalVar *ASTGlobalVar::getCodeGen() const {

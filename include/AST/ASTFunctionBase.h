@@ -11,7 +11,7 @@
 #define FLY_FUNCTIONBASE_H
 
 #include "ASTStmt.h"
-#include "Basic/Debuggable.h"
+#include "ASTBase.h"
 
 #include <vector>
 
@@ -39,7 +39,7 @@ namespace fly {
         CLASS_FUNCTION
     };
 
-    class ASTFunctionBase : public virtual Debuggable {
+    class ASTFunctionBase : public ASTBase {
 
         friend class SemaBuilder;
         friend class SemaResolver;
@@ -55,9 +55,6 @@ namespace fly {
         // Function Name
         llvm::StringRef Name;
 
-        // Source Location
-        const SourceLocation Location;
-
         ASTScopes * Scopes;
 
         // Header contains parameters
@@ -65,8 +62,6 @@ namespace fly {
 
         // Body is the main BlockStmt
         ASTBlock *Body = nullptr;
-
-        llvm::StringRef Comment;
 
     protected:
 
@@ -83,10 +78,6 @@ namespace fly {
 
         ASTScopes *getScopes() const;
 
-        llvm::StringRef getComment() const;
-
-        const SourceLocation &getLocation() const;
-
         void addParam(ASTParam *Param);
 
         void setEllipsis(ASTParam *Param);
@@ -99,7 +90,7 @@ namespace fly {
 
         bool isVarArg();
 
-        virtual std::string str() const;
+        std::string str() const override;
     };
 
     /**
@@ -107,7 +98,7 @@ namespace fly {
      * Ex.
      *   return true
      */
-    class ASTReturn : public ASTStmt {
+    class ASTReturnStmt : public ASTStmt {
 
         friend class SemaBuilder;
 
@@ -115,7 +106,7 @@ namespace fly {
 
         ASTBlock *Block = nullptr;
 
-        ASTReturn(ASTBlock *Parent, const SourceLocation &Loc);
+        ASTReturnStmt(ASTBlock *Parent, const SourceLocation &Loc);
 
     public:
 

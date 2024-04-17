@@ -11,8 +11,7 @@
 #ifndef FLY_AST_ERROR_H
 #define FLY_AST_ERROR_H
 
-#include "ASTExprStmt.h"
-#include "Basic/SourceLocation.h"
+#include "ASTBase.h"
 
 namespace fly {
 
@@ -30,14 +29,12 @@ namespace fly {
         ERR_CLASS = 4
     };
 
-    class ASTError {
+    class ASTError : public ASTBase {
 
         friend class SemaBuilder;
         friend class SemaResolver;
 
         const ASTErrorKind ErrorKind;
-
-        const SourceLocation Loc;
 
         const uint32_t Code;
 
@@ -58,8 +55,6 @@ namespace fly {
     public:
 
         ASTErrorKind getErrorKind() const;
-
-        const SourceLocation &getLocation() const;
 
         uint32_t getCode() const;
 

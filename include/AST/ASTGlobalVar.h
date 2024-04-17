@@ -26,10 +26,10 @@ namespace fly {
 
         ASTNode *Node;
 
-        ASTValue *Value;
+        ASTVarStmt *Init = nullptr;
 
         // Code Generator
-        CodeGenGlobalVar *CodeGen;
+        CodeGenGlobalVar *CodeGen = nullptr;
 
         ASTGlobalVar(const SourceLocation &Loc, ASTNode *Node, ASTType *Type, llvm::StringRef Name,
                      ASTScopes *Scopes);
@@ -46,7 +46,9 @@ namespace fly {
 
         llvm::StringRef getName() const override;
 
-        ASTValue *getValue();
+        ASTVarStmt *getInit() const;
+
+        void setInit(ASTVarStmt *varDefine);
 
         CodeGenGlobalVar *getCodeGen() const override;
 

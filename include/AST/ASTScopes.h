@@ -5,9 +5,10 @@
 #ifndef FLY_ASTSCOPES_H
 #define FLY_ASTSCOPES_H
 
-#include "Basic/Debuggable.h"
+#include "ASTBase.h"
 
 namespace fly {
+
     enum class ASTVisibilityKind {
         V_DEFAULT,
         V_PUBLIC,
@@ -15,7 +16,7 @@ namespace fly {
         V_PROTECTED
     };
 
-    class ASTScopes : public Debuggable {
+    class ASTScopes : public ASTBase {
 
         friend class SemaBuilder;
 
@@ -28,7 +29,7 @@ namespace fly {
         // Static Fields or Methods
         bool Static = false;
 
-        ASTScopes(ASTVisibilityKind Visibility, bool Constant, bool Static = false);
+        ASTScopes(const SourceLocation &Loc);
 
     public:
         ASTVisibilityKind getVisibility() const;

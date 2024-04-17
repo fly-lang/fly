@@ -11,8 +11,7 @@
 #ifndef FLY_ASTVAR_H
 #define FLY_ASTVAR_H
 
-#include "Basic/Debuggable.h"
-#include "Basic/SourceLocation.h"
+#include "ASTBase.h"
 
 #include <string>
 
@@ -22,7 +21,7 @@ namespace fly {
     class CodeGenVarBase;
     class ASTType;
     class ASTScopes;
-    class ASTVarDefine;
+    class ASTVarStmt;
 
     enum class ASTVarKind {
         VAR_PARAM,
@@ -37,11 +36,9 @@ namespace fly {
      *  - LocalVar
      *  - GlobalVar
      */
-    class ASTVar : public virtual Debuggable {
+    class ASTVar : public ASTBase {
 
         ASTVarKind VarKind;
-
-        const SourceLocation Loc;
 
         ASTType *Type;
 
@@ -49,9 +46,7 @@ namespace fly {
 
         ASTScopes *Scopes;
 
-        ASTVarDefine *Initialization = nullptr;
-
-        llvm::StringRef Comment;
+        ASTVarStmt *Initialization = nullptr;
 
     protected:
 
@@ -65,17 +60,13 @@ namespace fly {
 
         llvm::StringRef getName() const;
 
-        const SourceLocation &getLocation() const;
-
-        llvm::StringRef getComment() const;
-
         bool isConstant() const;
 
         bool isInitialized();
 
-        ASTVarDefine *getInitialization();
+        ASTVarStmt *getInitialization();
 
-        void setInitialization(ASTVarDefine *VarDefine);
+        void setInitialization(ASTVarStmt *VarDefine);
 
         ASTScopes *getScopes() const;
 

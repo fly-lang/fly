@@ -11,10 +11,7 @@
 #ifndef FLY_ASTEXPR_H
 #define FLY_ASTEXPR_H
 
-#include "Basic/Debuggable.h"
-#include "Basic/SourceLocation.h"
-
-#include <string>
+#include "ASTBase.h"
 
 namespace fly {
 
@@ -92,12 +89,10 @@ namespace fly {
     /**
      * Expression Abstract Class
      */
-    class ASTExpr : public Debuggable {
+    class ASTExpr : public ASTBase {
 
         friend class SemaBuilder;
         friend class SemaResolver;
-
-        const SourceLocation Loc;
 
         ASTStmt *Stmt = nullptr;
 
@@ -112,8 +107,6 @@ namespace fly {
         ASTExpr(const SourceLocation &Loc, ASTExprKind Kind);
 
     public:
-
-        const SourceLocation &getLocation() const;
 
         virtual ASTType *getType() const;
 

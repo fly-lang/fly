@@ -27,7 +27,7 @@
 #include "AST/ASTParams.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/SourceLocation.h"
-#include "Basic/Debuggable.h"
+#include "AST/ASTBase.h"
 #include "Basic/Debug.h"
 
 #include "llvm/ADT/StringRef.h"

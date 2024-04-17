@@ -11,8 +11,8 @@
 
 using namespace fly;
 
-ASTScopes::ASTScopes(ASTVisibilityKind Visibility, bool Constant, bool Static) :
-        Visibility(Visibility), Constant(Constant), Static(Static) {
+ASTScopes::ASTScopes(const SourceLocation &Loc) :
+        ASTBase(Loc), Visibility(ASTVisibilityKind::V_DEFAULT), Constant(false), Static(false) {
 
 }
 

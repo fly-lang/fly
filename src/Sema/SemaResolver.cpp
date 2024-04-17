@@ -32,7 +32,7 @@
 #include "AST/ASTBlock.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTVar.h"
-#include "AST/ASTVarDefine.h"
+#include "AST/ASTVarStmt.h"
 #include "AST/ASTVarRef.h"
 #include "Sys/Sys.h"
 #include "CodeGen/CodeGen.h"
@@ -109,7 +109,7 @@ bool SemaResolver::ResolveImports(ASTNode *Node) {
         } else {
             // Error: NameSpace not found
             Success = false;
-            S.Diag(Import->NameLocation, diag::err_namespace_notfound) << Import->getName();
+            S.Diag(Import->getLocation(), diag::err_namespace_notfound) << Import->getName();
         }
     }
 
@@ -326,7 +326,7 @@ bool SemaResolver::ResolveBlock(ASTBlock *Block) {
                 Success &= ResolveExpr(Block, ((ASTExprStmt *) Stmt)->getExpr());
                 break;
             case ASTStmtKind::STMT_VAR_DEFINE: {
-                ASTVarDefine *VarDefine = ((ASTVarDefine *) Stmt);
+                ASTVarStmt *VarDefine = ((ASTVarStmt *) Stmt);
 
                 // Error: Expr cannot be null
                 if (!VarDefine->getVarRef()->getDef()) {
@@ -358,7 +358,7 @@ bool SemaResolver::ResolveBlock(ASTBlock *Block) {
                 break;
             }
             case ASTStmtKind::STMT_RETURN:
-                Success &= ResolveExpr(Block, ((ASTReturn *) Stmt)->getExpr());
+                Success &= ResolveExpr(Block, ((ASTReturnStmt *) Stmt)->getExpr());
                 break;
             case ASTStmtKind::STMT_BREAK:
             case ASTStmtKind::STMT_CONTINUE:
@@ -406,13 +406,13 @@ bool SemaResolver::ResolveSwitchBlock(ASTSwitchBlock *SwitchBlock) {
 bool SemaResolver::ResolveWhileBlock(ASTWhileBlock *WhileBlock) {
     return ResolveExpr(WhileBlock->getParent(), WhileBlock->Condition) &&
             S.Validator->CheckConvertibleTypes(WhileBlock->Condition->Type,
-                                    SemaBuilder::CreateBoolType(WhileBlock->Condition->Loc)) &&
+                                    SemaBuilder::CreateBoolType(WhileBlock->Condition->getLocation())) &&
             ResolveBlock(WhileBlock);
 }
 
 bool SemaResolver::ResolveForBlock(ASTForBlock *ForBlock) {
     bool Success = ResolveBlock(ForBlock) && ResolveExpr(ForBlock, ForBlock->Condition) &&
-            S.Validator->CheckConvertibleTypes(ForBlock->Condition->Type, SemaBuilder::CreateBoolType(ForBlock->Condition->Loc));
+            S.Validator->CheckConvertibleTypes(ForBlock->Condition->Type, SemaBuilder::CreateBoolType(ForBlock->Condition->getLocation()));
     if (ForBlock->Post) {
         Success &= ResolveBlock(ForBlock->Post);
     }
@@ -430,10 +430,10 @@ bool SemaResolver::ResolveParentIdentifier(ASTBlock *Block, ASTIdentifier *&Iden
         if (ResolveParentIdentifier(Block, Identifier->Parent)) {
 
             // Do these in the parents different from first
-            switch (Identifier->getKind()) {
+            switch (Identifier->getIdKind()) {
 
                 case ASTIdentifierKind::REF_NAMESPACE: {
-                    if (Identifier->getParent()->getKind() != ASTIdentifierKind::REF_NAMESPACE) {
+                    if (Identifier->getParent()->getIdKind() != ASTIdentifierKind::REF_NAMESPACE) {
                         // Error:
                         S.Diag(Identifier->getLocation(), diag::err_sema_resolve_identifier);
                         return false;
@@ -443,7 +443,7 @@ bool SemaResolver::ResolveParentIdentifier(ASTBlock *Block, ASTIdentifier *&Iden
 
                 case ASTIdentifierKind::REF_TYPE: {
                     ASTIdentityType *IdentityType = (ASTIdentityType *) Identifier;
-                    if (Identifier->getParent()->getKind() == ASTIdentifierKind::REF_NAMESPACE) {
+                    if (Identifier->getParent()->getIdKind() == ASTIdentifierKind::REF_NAMESPACE) {
                         ResolveIdentityType(Node, IdentityType);
                     } else {
                         // Error:
@@ -581,7 +581,7 @@ ASTVar *SemaResolver::ResolveVarRef(llvm::StringRef Name, ASTIdentityType *Ident
 }
 
 bool SemaResolver::ResolveVarRefWithParent(ASTVarRef *VarRef) {
-    switch (VarRef->getParent()->getKind()) {
+    switch (VarRef->getParent()->getIdKind()) {
 
         case ASTIdentifierKind::REF_NAMESPACE: { // Namespace.globalVar
             ASTNameSpace *NameSpace = (ASTNameSpace *) VarRef->getParent();
@@ -707,7 +707,7 @@ bool SemaResolver::ResolveCallWithParent(ASTBlock *Block, ASTCall *Call) {
     ASTFunctionBase *Top = Block->getTop();
     const auto &Node = S.FindNode(Top);
 
-    switch (Call->getParent()->getKind()) {
+    switch (Call->getParent()->getIdKind()) {
 
         case ASTIdentifierKind::REF_NAMESPACE: {
             ASTNameSpace *NameSpace = (ASTNameSpace *) Call->getParent();
@@ -859,13 +859,13 @@ bool SemaResolver::ResolveExpr(ASTBlock *Block, ASTExpr *Expr) {
 
                     if (Binary->First->Kind == ASTExprKind::EXPR_EMPTY) {
                         // Error: Binary cannot contain ASTEmptyExpr
-                        S.Diag(Binary->First->Loc, diag::err_sema_empty_expr);
+                        S.Diag(Binary->First->getLocation(), diag::err_sema_empty_expr);
                         return false;
                     }
 
                     if (Binary->Second->Kind == ASTExprKind::EXPR_EMPTY) {
                         // Error: Binary cannot contain ASTEmptyExpr
-                        S.Diag(Binary->Second->Loc, diag::err_sema_empty_expr);
+                        S.Diag(Binary->Second->getLocation(), diag::err_sema_empty_expr);
                         return false;
                     }
 
@@ -892,12 +892,12 @@ bool SemaResolver::ResolveExpr(ASTBlock *Block, ASTExpr *Expr) {
                                 }
 
                                 Binary->Type = Binary->getOptionKind() == ASTBinaryOptionKind::BINARY_ARITH ?
-                                        Binary->First->Type : SemaBuilder::CreateBoolType(Expr->Loc);
+                                        Binary->First->Type : SemaBuilder::CreateBoolType(Expr->getLocation());
                             }
                         } else if (Binary->getOptionKind() ==  ASTBinaryOptionKind::BINARY_LOGIC) {
                             Success = S.Validator->CheckLogicalTypes(Binary->OpLoc,
                                                                      Binary->First->Type, Binary->Second->Type);
-                            Binary->Type = SemaBuilder::CreateBoolType(Expr->Loc);
+                            Binary->Type = SemaBuilder::CreateBoolType(Expr->getLocation());
                         }
                     }
                     break;
@@ -1001,7 +1001,7 @@ bool SemaResolver::ResolveValueExpr(ASTValueExpr *Expr) {
 ASTType *SemaResolver::getType(ASTStmt *Stmt) {
     switch (Stmt->getKind()) {
         case ASTStmtKind::STMT_VAR_DEFINE: // int a = 1 or a = 1
-            return ((ASTVarDefine *) Stmt)->getVarRef()->getDef()->getType();
+            return ((ASTVarStmt *) Stmt)->getVarRef()->getDef()->getType();
         case ASTStmtKind::STMT_RETURN:
             return ((ASTBlock *) Stmt->getParent())->Top->ReturnType;
         case ASTStmtKind::STMT_EXPR:

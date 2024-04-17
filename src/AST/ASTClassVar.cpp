@@ -10,7 +10,7 @@
 #include "AST/ASTClassVar.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTType.h"
-#include "AST/ASTExpr.h"
+#include "AST/ASTVar.h"
 #include "CodeGen/CodeGenClass.h"
 
 using namespace fly;
@@ -25,8 +25,12 @@ ASTClass *ASTClassVar::getClass() const {
     return Class;
 }
 
-llvm::StringRef ASTClassVar::getComment() const {
-    return Comment;
+ASTVarStmt *ASTClassVar::getInit() const {
+    return Init;
+}
+
+void ASTClassVar::setInit(ASTVarStmt *VarDefine) {
+    Init = VarDefine;
 }
 
 CodeGenVarBase *ASTClassVar::getCodeGen() const {

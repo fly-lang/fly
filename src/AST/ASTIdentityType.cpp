@@ -42,12 +42,12 @@ ASTIdentityType::ASTIdentityType(ASTIdentity *Def) :
 
 }
 
-SourceLocation ASTIdentityType::getLocation() const {
-    return ASTIdentifier::getLocation();
-}
-
 ASTIdentity *ASTIdentityType::getDef() const {
     return Def;
+}
+
+const SourceLocation &ASTIdentityType::getLocation() const {
+    return ASTIdentifier::getLocation();
 }
 
 ASTIdentityTypeKind ASTIdentityType::getIdentityKind() const {
@@ -78,6 +78,6 @@ const std::string ASTIdentityType::print() const {
 std::string ASTIdentityType::str() const {
     return Logger("ASTClassType").
     Super(ASTType::str()).
-    Attr("Def", (Debuggable *) Def).
+    Attr("Def", (ASTBase *) Def).
     End();
 }

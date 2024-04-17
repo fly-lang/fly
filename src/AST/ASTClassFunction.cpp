@@ -34,10 +34,6 @@ bool ASTClassFunction::isStatic() {
     return Static;
 }
 
-llvm::StringRef ASTClassFunction::getComment() const {
-    return Comment;
-}
-
 bool ASTClassFunction::isAbstract() const {
     return getBody() == nullptr;
 }

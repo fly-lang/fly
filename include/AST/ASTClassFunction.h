@@ -54,8 +54,6 @@ namespace fly {
 
         bool isStatic();
 
-        llvm::StringRef getComment() const;
-
         bool isAbstract() const;
 
         CodeGenClassFunction *getCodeGen() const override;

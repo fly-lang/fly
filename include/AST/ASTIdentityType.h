@@ -47,9 +47,9 @@ namespace fly {
 
     public:
 
-        SourceLocation getLocation() const;
-
         virtual ASTIdentity *getDef() const;
+
+        const SourceLocation &getLocation() const ;
 
         ASTIdentityTypeKind getIdentityKind() const;
 

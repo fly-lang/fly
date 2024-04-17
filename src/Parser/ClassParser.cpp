@@ -15,7 +15,7 @@
 #include "AST/ASTClassVar.h"
 #include "AST/ASTType.h"
 #include "AST/ASTClassFunction.h"
-#include "AST/ASTVarDefine.h"
+#include "AST/ASTVarStmt.h"
 #include "Sema/SemaBuilder.h"
 #include "Basic/Debug.h"
 
@@ -136,10 +136,10 @@ bool ClassParser::ParseField(ASTScopes *Scopes, ASTType *Type, const SourceLocat
         if (P->Tok.is(tok::equal)) {
             P->ConsumeToken();
 
-            ASTBlock *PreConstructor = PreConstructor = ClassVar->getClass()->getPreConstructor();
-            ASTVarDefine *VarDefine = SemaBuilder::CreateVarDefine(PreConstructor, ClassVar);
+            ASTVarStmt *VarDefine = SemaBuilder::CreateVarStmt(nullptr, ClassVar);
             ASTExpr *Expr = P->ParseExpr();
             VarDefine->setExpr(Expr);
+            ClassVar->setInit(VarDefine);
         }
 
         return P->Builder.AddClassVar(ClassVar) && P->Builder.AddComment(ClassVar, Comment);

@@ -7,12 +7,28 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "Basic/Debuggable.h"
-#include "Basic/SourceLocation.h"
-
-#include "llvm/ADT/StringRef.h"
+#include "AST/ASTBase.h"
 
 using namespace fly;
+
+ASTBase::ASTBase(const SourceLocation &Loc) : Location(Loc) {
+
+}
+
+const SourceLocation &ASTBase::getLocation() const {
+    return Location;
+}
+
+llvm::StringRef ASTBase::getComment() const {
+    return Comment;
+}
+
+std::string ASTBase::str() const {
+    return Logger("ASTBase").
+            Attr("Location", Location).
+            Attr("Comment", Comment).
+            End();
+}
 
 const char *Logger::OPEN = "{";
 const char *Logger::EQ = "=";
@@ -66,6 +82,6 @@ Logger &Logger::Attr(const char *key, uint64_t val) {
     return Attr(key, std::to_string(val));
 }
 
-Logger &Logger::Attr(const char *key, Debuggable *val) {
+Logger &Logger::Attr(const char *key, ASTBase *val) {
     return Attr(key, val ? val->str() : "");
 }

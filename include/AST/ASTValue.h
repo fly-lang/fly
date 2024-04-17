@@ -10,7 +10,7 @@
 #ifndef FLY_ASTVALUE_H
 #define FLY_ASTVALUE_H
 
-#include "Basic/Debuggable.h"
+#include "ASTBase.h"
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringMap.h"
@@ -25,12 +25,10 @@ namespace fly {
 
     enum class ASTTypeKind;
 
-    class ASTValue : public Debuggable {
+    class ASTValue : public ASTBase {
 
         friend class SemaBuilder;
         friend class SemaResolver;
-
-        const SourceLocation &Location;
 
         const ASTTypeKind TypeKind;
 
@@ -39,8 +37,6 @@ namespace fly {
         ASTValue(const ASTTypeKind TypeKind, const SourceLocation &Location);
 
     public:
-
-        const SourceLocation &getLocation() const;
 
         const ASTTypeKind &getTypeKind() const;
 

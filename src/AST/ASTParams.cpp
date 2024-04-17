@@ -58,7 +58,7 @@ ASTParam *ASTParams::at(unsigned long Index) const {
 }
 
 const bool ASTParams::isEmpty() const {
-    List.empty() && Ellipsis == nullptr;
+    return List.empty() && Ellipsis == nullptr;
 }
 
 const std::vector<ASTParam *> &ASTParams::getList() const {

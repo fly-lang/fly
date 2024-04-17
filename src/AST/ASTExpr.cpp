@@ -19,12 +19,9 @@
 
 using namespace fly;
 
-ASTExpr::ASTExpr(const SourceLocation &Loc, ASTExprKind Kind) : Loc(Loc), Kind(Kind) {
+ASTExpr::ASTExpr(const SourceLocation &Loc, ASTExprKind Kind) :
+        ASTBase(Loc), Kind(Kind) {
 
-}
-
-const SourceLocation &ASTExpr::getLocation() const {
-    return Loc;
 }
 
 ASTExprKind ASTExpr::getExprKind() const {
@@ -41,7 +38,7 @@ ASTStmt *ASTExpr::getStmt() {
 
 std::string ASTExpr::str() const {
     return Logger("ASTExpr").
-           Attr("Loc", Loc).
+           Super(ASTBase::str()).
            Attr("Kind", (uint64_t) Kind).
            Attr("Type", Type).
            End();
@@ -150,7 +147,7 @@ ASTType *ASTUnaryGroupExpr::getType() const {
 std::string ASTUnaryGroupExpr::str() const {
     return Logger("ASTUnaryGroupExpr").
            Super(ASTGroupExpr::str()).
-           Attr("First", (Debuggable *) First).
+           Attr("First", (ASTBase *) First).
            Attr("Operator", (uint64_t) OperatorKind).
            Attr("Option", (uint64_t) OptionKind).
            End();
@@ -188,14 +185,17 @@ ASTType *ASTBinaryGroupExpr::getType() const {
         return Type;
     }
 
+    ASTType *T = nullptr;
     switch (OptionKind) {
-
         case ASTBinaryOptionKind::BINARY_ARITH:
-            return First->getType();
+            T = First->getType();
+            break;
         case ASTBinaryOptionKind::BINARY_LOGIC:
         case ASTBinaryOptionKind::BINARY_COMPARISON:
-            return SemaBuilder::CreateBoolType(SourceLocation());
+            T = SemaBuilder::CreateBoolType(SourceLocation());
+            break;
     }
+    return T;
 }
 
 std::string ASTBinaryGroupExpr::str() const {

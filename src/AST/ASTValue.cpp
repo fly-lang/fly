@@ -12,12 +12,9 @@
 
 using namespace fly;
 
-ASTValue::ASTValue(const ASTTypeKind TypeKind, const SourceLocation &Location) : TypeKind(TypeKind), Location(Location) {
+ASTValue::ASTValue(const ASTTypeKind TypeKind, const SourceLocation &Location) :
+        ASTBase(Location), TypeKind(TypeKind) {
 
-}
-
-const SourceLocation &ASTValue::getLocation() const {
-    return Location;
 }
 
 const ASTTypeKind &ASTValue::getTypeKind() const {
@@ -30,7 +27,7 @@ const std::string ASTValue::printType() const {
 
 std::string ASTValue::str() const {
     return Logger("ASTValue").
-            Attr("Location", Location).
+            Super(ASTBase::str()).
             Attr("Kind", (uint64_t) TypeKind).
             End();
 }

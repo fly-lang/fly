@@ -20,16 +20,16 @@
 namespace fly {
 
     class DiagnosticBuilder;
-    class ASTReturn;
+    class ASTReturnStmt;
     class ASTFunctionBase;
     class ASTCall;
     class ASTLocalVar;
-    class ASTVarDefine;
+    class ASTVarStmt;
     class ASTGroupExpr;
     class ASTVarRef;
     class ASTExpr;
-    class ASTBreak;
-    class ASTContinue;
+    class ASTBreakStmt;
+    class ASTContinueStmt;
     class ASTIfBlock;
     class ASTIfBlock;
     class ASTSwitchBlock;
@@ -94,10 +94,10 @@ namespace fly {
     /**
      * Break Stmt
      */
-    class ASTBreak : public ASTStmt {
+    class ASTBreakStmt : public ASTStmt {
 
     public:
-        ASTBreak(ASTBlock *Parent, const SourceLocation &Loc);
+        ASTBreakStmt(ASTBlock *Parent, const SourceLocation &Loc);
 
         std::string str() const override;
     };
@@ -105,10 +105,10 @@ namespace fly {
     /**
      * Continue Stmt
      */
-    class ASTContinue : public ASTStmt {
+    class ASTContinueStmt : public ASTStmt {
 
     public:
-        ASTContinue(ASTBlock *Parent, const SourceLocation &Loc);
+        ASTContinueStmt(ASTBlock *Parent, const SourceLocation &Loc);
 
         std::string str() const override;
     };

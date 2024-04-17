@@ -16,7 +16,7 @@
 #include "AST/ASTFunction.h"
 #include "AST/ASTCall.h"
 #include "AST/ASTValue.h"
-#include "AST/ASTVarDefine.h"
+#include "AST/ASTVarStmt.h"
 #include "AST/ASTVarRef.h"
 #include "AST/ASTParams.h"
 #include "AST/ASTWhileBlock.h"
@@ -80,7 +80,7 @@ namespace {
         EXPECT_EQ(((ASTVarRefExpr *) a4Unary->getFirst())->getVarRef()->getName(), "a");
 
         // a = ++a + 1
-        const ASTVarDefine *a5Var = (ASTVarDefine *) Body->getContent()[4];
+        const ASTVarStmt *a5Var = (ASTVarStmt *) Body->getContent()[4];
         EXPECT_EQ(a5Var->getExpr()->getExprKind(), ASTExprKind::EXPR_GROUP);
         ASTBinaryGroupExpr *Group = (ASTBinaryGroupExpr *) a5Var->getExpr();
         EXPECT_EQ(Group->getOperatorKind(), ASTBinaryOperatorKind::ARITH_ADD);
@@ -109,15 +109,15 @@ namespace {
 
         // Test: int a = 2
 
-        const ASTLocalVar *aVar = (ASTLocalVar *) Body->getContent()[0];
-        EXPECT_EQ(aVar->getName(), "a");
+        const ASTVarStmt *aVar = (ASTVarStmt *) Body->getContent()[0];
+        EXPECT_EQ(aVar->getVarRef()->getDef()->getName(), "a");
         EXPECT_EQ(aVar->getExpr()->getExprKind(), ASTExprKind::EXPR_VALUE);
         EXPECT_EQ(((ASTValueExpr *) aVar->getExpr())->getValue()->print(), "2");
 
         // Test: int b = a + b / a - b
 
-        const ASTLocalVar *bVar = (ASTLocalVar *) Body->getContent()[1];
-        EXPECT_EQ(bVar->getName(), "b");
+        const ASTVarStmt *bVar = (ASTVarStmt *) Body->getContent()[1];
+        EXPECT_EQ(bVar->getVarRef()->getDef()->getName(), "b");
         EXPECT_EQ(bVar->getExpr()->getExprKind(), ASTExprKind::EXPR_GROUP);
         EXPECT_EQ(((ASTGroupExpr *) bVar->getExpr())->getGroupKind(), ASTExprGroupKind::GROUP_BINARY);
         ASTBinaryGroupExpr *bGroup = (ASTBinaryGroupExpr *) bVar->getExpr();
@@ -154,14 +154,14 @@ namespace {
         const ASTBlock *Body = F->getBody();
 
         // Test: float a -= 1.0
-        const ASTLocalVar *aVar = (ASTLocalVar *) Body->getContent()[0];
-        EXPECT_EQ(aVar->getName(), "a");
+        const ASTVarStmt *aVar = (ASTVarStmt *) Body->getContent()[0];
+        EXPECT_EQ(aVar->getVarRef()->getDef()->getName(), "a");
         EXPECT_EQ(aVar->getExpr()->getExprKind(), ASTExprKind::EXPR_VALUE);
         EXPECT_EQ(((ASTValueExpr *) aVar->getExpr())->getValue()->print(), "1.0");
 
         // Test: int b = a * b - a / b
-        const ASTLocalVar *bVar = (ASTLocalVar *) Body->getContent()[1];
-        EXPECT_EQ(bVar->getName(), "b");
+        const ASTVarStmt *bVar = (ASTVarStmt *) Body->getContent()[1];
+        EXPECT_EQ(bVar->getVarRef()->getDef()->getName(), "b");
         EXPECT_EQ(bVar->getExpr()->getExprKind(), ASTExprKind::EXPR_GROUP);
         EXPECT_EQ(((ASTGroupExpr *) bVar->getExpr())->getGroupKind(), ASTExprGroupKind::GROUP_BINARY);
         ASTBinaryGroupExpr *bGroup = (ASTBinaryGroupExpr *) bVar->getExpr();
@@ -198,14 +198,14 @@ namespace {
         const ASTBlock *Body = F->getBody();
 
         // Test: bool a = true
-        const ASTLocalVar *aVar = (ASTLocalVar *) Body->getContent()[0];
-        EXPECT_EQ(aVar->getName(), "a");
+        const ASTVarStmt *aVar = (ASTVarStmt *) Body->getContent()[0];
+        EXPECT_EQ(aVar->getVarRef()->getDef()->getName(), "a");
         EXPECT_EQ(aVar->getExpr()->getExprKind(), ASTExprKind::EXPR_VALUE);
         EXPECT_EQ(((ASTValueExpr *) aVar->getExpr())->getValue()->print(), "true");
 
         // Test: bool b = a || false && a == true
-        const ASTLocalVar *bVar = (ASTLocalVar *) Body->getContent()[1];
-        EXPECT_EQ(bVar->getName(), "b");
+        const ASTVarStmt *bVar = (ASTVarStmt *) Body->getContent()[1];
+        EXPECT_EQ(bVar->getVarRef()->getDef()->getName(), "b");
         EXPECT_EQ(bVar->getExpr()->getExprKind(), ASTExprKind::EXPR_GROUP);
         EXPECT_EQ(((ASTGroupExpr *) bVar->getExpr())->getGroupKind(), ASTExprGroupKind::GROUP_BINARY);
         ASTBinaryGroupExpr *bGroup = (ASTBinaryGroupExpr *) bVar->getExpr();
@@ -243,15 +243,15 @@ namespace {
 
         // Test: long a = 1
 
-        const ASTLocalVar *aVar = (ASTLocalVar *) Body->getContent()[0];
-        EXPECT_EQ(aVar->getName(), "a");
+        const ASTVarStmt *aVar = (ASTVarStmt *) Body->getContent()[0];
+        EXPECT_EQ(aVar->getVarRef()->getDef()->getName(), "a");
         EXPECT_EQ(aVar->getExpr()->getExprKind(), ASTExprKind::EXPR_VALUE);
         EXPECT_EQ(((ASTValueExpr *) aVar->getExpr())->getValue()->print(), "1");
 
         // Test: long b = (a + b) / (a - b)
 
-        const ASTLocalVar *bVar = (ASTLocalVar *) Body->getContent()[1];
-        EXPECT_EQ(bVar->getName(), "b");
+        const ASTVarStmt *bVar = (ASTVarStmt *) Body->getContent()[1];
+        EXPECT_EQ(bVar->getVarRef()->getDef()->getName(), "b");
         EXPECT_EQ(bVar->getExpr()->getExprKind(), ASTExprKind::EXPR_GROUP);
         EXPECT_EQ(((ASTGroupExpr *) bVar->getExpr())->getGroupKind(), ASTExprGroupKind::GROUP_BINARY);
         ASTBinaryGroupExpr *bGroup = (ASTBinaryGroupExpr *) bVar->getExpr();
@@ -286,7 +286,7 @@ namespace {
         ASTParam *a = F->getParams()->getList()[0];
         const ASTBlock *Body = F->getBody();
 
-        ASTReturn *Ret = (ASTReturn *) Body->getContent()[0];
+        ASTReturnStmt *Ret = (ASTReturnStmt *) Body->getContent()[0];
         ASTTernaryGroupExpr *Expr = (ASTTernaryGroupExpr *) Ret->getExpr();
         ASTBinaryGroupExpr *Comp = ((ASTBinaryGroupExpr *) Expr->getFirst());
         EXPECT_EQ(Comp->getOperatorKind(), ASTBinaryOperatorKind::COMP_EQ);

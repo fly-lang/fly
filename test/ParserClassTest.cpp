@@ -8,7 +8,6 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "ParserTest.h"
-#include "AST/ASTNameSpace.h"
 #include "AST/ASTNode.h"
 #include "AST/ASTImport.h"
 #include "AST/ASTGlobalVar.h"
@@ -16,9 +15,8 @@
 #include "AST/ASTBlock.h"
 #include "AST/ASTCall.h"
 #include "AST/ASTValue.h"
-#include "AST/ASTVarDefine.h"
+#include "AST/ASTVarStmt.h"
 #include "AST/ASTVarRef.h"
-#include "AST/ASTParams.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTEnum.h"
 #include "AST/ASTClassVar.h"
@@ -70,7 +68,7 @@ namespace {
 
         ASTFunction *main = *Node2->getFunctions().find("main")->getValue().begin()->second.begin();
         const ASTBlock *Body = main->getBody();
-        ASTLocalVar *aVar = ((ASTLocalVar *) Body->getContent()[0]);
+        ASTVarStmt *aVar = ((ASTVarStmt *) Body->getContent()[0]);
         ASTVarRefExpr *aExpr = (ASTVarRefExpr *) aVar->getExpr();
         ASTEnumEntry *A = (ASTEnumEntry *) aExpr->getVarRef()->getDef();
     }
@@ -105,7 +103,7 @@ namespace {
         ASTNode *Node1 = Parse("func1", str2, false);
         ASTFunction *func1 = *Node1->getFunctions().find("func1")->getValue().begin()->second.begin();
         const ASTBlock *Body1 = func1->getBody();
-        ASTLocalVar *tVar1 = ((ASTLocalVar *) Body1->getContent()[0]);
+        ASTVarStmt *tVar1 = ((ASTVarStmt *) Body1->getContent()[0]);
 
         llvm::StringRef str3 = (
                 "void func2() {\n"
@@ -114,7 +112,7 @@ namespace {
         ASTNode *Node2 = Parse("func2", str3);
         ASTFunction *func2 = *Node2->getFunctions().find("func2")->getValue().begin()->second.begin();
         const ASTBlock *Body2 = func2->getBody();
-        ASTLocalVar *tVar2 = ((ASTLocalVar *) Body2->getContent()[0]);
+        ASTVarStmt *tVar2 = ((ASTVarStmt *) Body2->getContent()[0]);
 
         ASSERT_TRUE(isSuccess());
     }

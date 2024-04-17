@@ -27,7 +27,7 @@
 #include "AST/ASTNode.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTLocalVar.h"
-#include "AST/ASTDelete.h"
+#include "AST/ASTDeleteStmt.h"
 #include "AST/ASTCall.h"
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTClassVar.h"
@@ -40,7 +40,7 @@
 #include "AST/ASTWhileBlock.h"
 #include "AST/ASTForBlock.h"
 #include "AST/ASTValue.h"
-#include "AST/ASTVarDefine.h"
+#include "AST/ASTVarStmt.h"
 #include "AST/ASTVarRef.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTEnum.h"
@@ -383,7 +383,7 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
 
         // Var Assignment
         case ASTStmtKind::STMT_VAR_DEFINE: {
-            ASTVarDefine *VarDefine = (ASTVarDefine *) Stmt;
+            ASTVarStmt *VarDefine = (ASTVarStmt *) Stmt;
 
             ASTVarRef *VarRef = VarDefine->getVarRef();
 
@@ -451,7 +451,7 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
 
         // Delete Stmt
         case ASTStmtKind::STMT_DELETE: {
-            ASTDelete *Delete = (ASTDelete *) Stmt;
+            ASTDeleteStmt *Delete = (ASTDeleteStmt *) Stmt;
             ASTVar * Var = Delete->getVarRef()->getDef();
             if (Var->getType()->getKind() == ASTTypeKind::TYPE_IDENTITY) {
                 if (!((ASTClass *) ((ASTClassType *) Var->getType())->getDef())->getCodeGen()->getVars().empty()) {
@@ -474,7 +474,7 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
 
         // Return Stmt
         case ASTStmtKind::STMT_RETURN: {
-            ASTReturn *Return = (ASTReturn *) Stmt;
+            ASTReturnStmt *Return = (ASTReturnStmt *) Stmt;
             if (Return->getParent()->getKind() == ASTStmtKind::STMT_BLOCK) {
                 llvm::Value *V = Return->getExpr() ? GenExpr(CGF, ((ASTBlock *) Return->getParent())->getTop()->getType(),
                                          Return->getExpr()) : nullptr;

@@ -8,13 +8,13 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTVar.h"
-#include "AST/ASTVarDefine.h"
+#include "AST/ASTVarStmt.h"
 #include "AST/ASTScopes.h"
 
 using namespace fly;
 
 ASTVar::ASTVar(ASTVarKind VarKind, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes) :
-    VarKind(VarKind), Loc(Loc), Type(Type), Name(Name), Scopes(Scopes) {
+        ASTBase(Loc), VarKind(VarKind), Type(Type), Name(Name), Scopes(Scopes) {
 
 }
 
@@ -30,14 +30,6 @@ llvm::StringRef ASTVar::getName() const {
     return Name;
 }
 
-const SourceLocation &ASTVar::getLocation() const {
-    return Loc;
-}
-
-llvm::StringRef ASTVar::getComment() const {
-    return Comment;
-}
-
 bool ASTVar::isConstant() const {
     return Scopes->isConstant();
 }
@@ -46,11 +38,11 @@ bool ASTVar::isInitialized() {
     return Initialization != nullptr;
 }
 
-ASTVarDefine *ASTVar::getInitialization() {
+ASTVarStmt *ASTVar::getInitialization() {
     return Initialization;
 }
 
-void ASTVar::setInitialization(ASTVarDefine *VarDefine) {
+void ASTVar::setInitialization(ASTVarStmt *VarDefine) {
     Initialization = VarDefine;
 }
 
@@ -60,6 +52,7 @@ ASTScopes *ASTVar::getScopes() const {
 
 std::string ASTVar::str() const {
     return Logger("ASTVar").
+            Super(ASTBase::str()).
             Attr("Type", Type).
             Attr("Name", Name).
             Attr("VarKind", (uint64_t) VarKind).

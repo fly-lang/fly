@@ -30,9 +30,7 @@ namespace fly {
 
         ASTClass *Class = nullptr;
 
-        llvm::StringRef Comment;
-
-        ASTScopes *Scopes = nullptr;
+        ASTVarStmt *Init = nullptr;
 
         CodeGenVarBase *CodeGen = nullptr;
 
@@ -43,7 +41,9 @@ namespace fly {
 
         ASTClass *getClass() const;
 
-        llvm::StringRef getComment() const;
+        ASTVarStmt *getInit() const;
+
+        void setInit(ASTVarStmt *varDefine);
 
         CodeGenVarBase *getCodeGen() const;
 

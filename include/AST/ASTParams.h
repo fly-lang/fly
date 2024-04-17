@@ -50,7 +50,7 @@ namespace fly {
      * Ex.
      *   func(int param1, float param2, bool param3, ...)
      */
-    class ASTParams : public Debuggable {
+    class ASTParams {
 
         friend class ASTFunctionBase;
 
@@ -68,7 +68,7 @@ namespace fly {
 
         const ASTParam* getEllipsis() const;
 
-        std::string str() const override;
+        std::string str() const;
     };
 }
 

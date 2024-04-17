@@ -11,8 +11,7 @@
 #ifndef FLY_ASTSTMT_H
 #define FLY_ASTSTMT_H
 
-#include "Basic/Debuggable.h"
-#include "Basic/SourceLocation.h"
+#include "ASTBase.h"
 
 namespace fly {
 
@@ -30,14 +29,12 @@ namespace fly {
     class ASTBlock;
     class ASTFunctionBase;
 
-    class ASTStmt : public virtual Debuggable {
+    class ASTStmt : public ASTBase {
 
         friend class SemaBuilder;
         friend class SemaResolver;
 
     protected:
-
-        const SourceLocation Location;
 
         ASTStmt *Parent = nullptr;
 
@@ -52,8 +49,6 @@ namespace fly {
     public:
 
         virtual ASTStmt *getParent() const;
-
-        const SourceLocation &getLocation() const;
 
         ASTStmtKind getKind() const;
 

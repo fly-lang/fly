@@ -13,7 +13,6 @@
 
 #include "ASTIdentity.h"
 #include "ASTClassType.h"
-#include "Basic/Debuggable.h"
 
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/SmallVector.h"
@@ -49,8 +48,6 @@ namespace fly {
 
         bool autoDefaultConstructor = false;
 
-        ASTBlock *PreConstructor = nullptr;
-
         // Class Constructors
         std::map <uint64_t, llvm::SmallVector <ASTClassFunction *, 4>> Constructors;
 
@@ -65,15 +62,13 @@ namespace fly {
 
     public:
 
-        ASTClassType *getType() const override;
+        ASTClassType *getType() override;
 
         ASTClassKind getClassKind() const;
 
         llvm::SmallVector<ASTClassType *, 4> getSuperClasses() const;
 
         llvm::StringMap<ASTClassVar *> getVars() const;
-
-        ASTBlock *getPreConstructor();
 
         std::map <uint64_t,llvm::SmallVector <ASTClassFunction *, 4>> getConstructors() const;
 

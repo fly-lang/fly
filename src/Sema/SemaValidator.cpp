@@ -94,9 +94,9 @@ bool SemaValidator::CheckImport(ASTNode *Node, ASTImport *Import) {
     }
 
     // Error: alias is equals to the current ASTNode namespace
-    if (Import->getAlias() == Node->getNameSpace()->getName()) {
+    if (Import->getAlias() && Import->getAlias()->getName() == Node->getNameSpace()->getName()) {
         if (DiagEnabled)
-            S.Diag(Import->getAliasLocation(), diag::err_alias_conflict_namespace) << Import->getAlias();
+            S.Diag(Import->getAlias()->getLocation(), diag::err_alias_conflict_namespace) << Import->getAlias()->getName();
         return false;
     }
 

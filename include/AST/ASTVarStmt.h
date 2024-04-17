@@ -7,8 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_ASTVARDEFINE_H
-#define FLY_ASTVARDEFINE_H
+#ifndef FLY_ASTVARSTMT_H
+#define FLY_ASTVARSTMT_H
 
 #include "ASTStmt.h"
 
@@ -21,7 +21,7 @@ namespace fly {
      * Ex.
      *  a = 1
      */
-    class ASTVarDefine : public ASTStmt {
+    class ASTVarStmt : public ASTStmt {
 
         friend class SemaBuilder;
 
@@ -31,7 +31,7 @@ namespace fly {
 
         ASTBlock *Block = nullptr;
 
-        ASTVarDefine(ASTBlock *Parent, const SourceLocation &Loc, ASTVarRef *VarRef);
+        ASTVarStmt(ASTBlock *Parent, const SourceLocation &Loc, ASTVarRef *VarRef);
 
     public:
 
@@ -47,4 +47,4 @@ namespace fly {
     };
 }
 
-#endif //FLY_ASTVARDEFINE_H
+#endif //FLY_ASTVARSTMT_H

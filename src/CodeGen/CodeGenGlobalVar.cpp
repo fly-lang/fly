@@ -16,6 +16,7 @@
 #include "AST/ASTValue.h"
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTScopes.h"
+#include "AST/ASTVarStmt.h"
 
 using namespace fly;
 
@@ -31,10 +32,11 @@ CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, ASTGlobalVar* Var, bool i
         if (Var->getScopes()->getVisibility() == ASTVisibilityKind::V_PRIVATE) {
             Linkage = GlobalValue::LinkageTypes::InternalLinkage;
         }
-        if (Var->getValue() == nullptr) {
+        if (Var->getInit() == nullptr) {
             Const = CGM->GenDefaultValue(Var->getType(), Ty);
         } else {
-            ASTValue *Value = Var->getValue();
+            ASTValueExpr *ValueExpr = (ASTValueExpr *) Var->getInit()->getExpr();
+            ASTValue *Value = ValueExpr->getValue();
             if (Var->getType()->isString()) {
                 llvm::StringRef Str = ((ASTStringValue *) Value)->getValue();
                 Const = llvm::ConstantDataArray::getString(CGM->LLVMCtx, Str);

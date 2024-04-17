@@ -22,7 +22,7 @@
 #include "AST/ASTIdentifier.h"
 #include "AST/ASTStmt.h"
 #include "AST/ASTValue.h"
-#include "AST/ASTVarDefine.h"
+#include "AST/ASTVarStmt.h"
 #include "AST/ASTIfBlock.h"
 #include "AST/ASTSwitchBlock.h"
 #include "AST/ASTWhileBlock.h"
@@ -156,16 +156,15 @@ bool Parser::ParseImports() {
             llvm::StringRef Name = ImportId->getName();
             SourceLocation NameLoc = ConsumeToken();
 
-            ASTImport *Import;
+            FLY_DEBUG_MESSAGE("Parser", "ParseImports", "Name=" << Name);
+            ASTImport *Import = SemaBuilder::CreateImport(Loc, Name);
             if (Tok.isAnyIdentifier()) {
                 IdentifierInfo *AliasId = Tok.getIdentifierInfo();
-                llvm::StringRef Alias = AliasId->getName();
+                llvm::StringRef AliasName = AliasId->getName();
                 const SourceLocation &AliasLoc = ConsumeToken();
-                FLY_DEBUG_MESSAGE("Parser", "ParseImports", "Name=" << Name << ", Alias=" << Alias);
-                Import = SemaBuilder::CreateImport(NameLoc, Name, AliasLoc, Alias);
-            } else {
-                FLY_DEBUG_MESSAGE("Parser", "ParseImports", "Name=" << Name << ", Alias=");
-                Import = SemaBuilder::CreateImport(Loc, Name.str());
+                ASTAlias *Alias = SemaBuilder::CreateAlias(AliasLoc, AliasName);
+                FLY_DEBUG_MESSAGE("Parser", "ParseImports", "Name=" << Import->getName() << ", Alias=" << Alias->getName());
+                Import->setAlias(Alias);
             }
             return Builder.AddImport(Node, Import) && ParseImports();
         } else {
@@ -445,16 +444,16 @@ bool Parser::ParseStmt(ASTBlock *Block, bool StopParse) {
 
     if (Tok.is(tok::kw_return)) { // Parse return
         SourceLocation Loc = ConsumeToken();
-        ASTReturn *Return = Builder.CreateReturn(Block, Loc);
+        ASTReturnStmt *Return = Builder.CreateReturn(Block, Loc);
         ASTExpr *Expr = ParseExpr(Return);
         return Builder.AddStmt(Return) && (StopParse || ParseStmt(Block));
     }
     if (Tok.is(tok::kw_break)) { // Parse break
-        ASTBreak *Break = Builder.CreateBreak(Block, ConsumeToken());
+        ASTBreakStmt *Break = Builder.CreateBreak(Block, ConsumeToken());
         return Builder.AddStmt(Break) && (StopParse || ParseStmt(Block));
     }
     if (Tok.is(tok::kw_continue)) { // Parse continue
-        ASTContinue *Continue = Builder.CreateContinue(Block, ConsumeToken());
+        ASTContinueStmt *Continue = Builder.CreateContinue(Block, ConsumeToken());
         return Builder.AddStmt(Continue) && (StopParse || ParseStmt(Block));
     }
 
@@ -481,7 +480,7 @@ bool Parser::ParseStmt(ASTBlock *Block, bool StopParse) {
                 // FIXME check Identifier for LocalVar
                 ASTLocalVar *LocalVar = SemaBuilder::CreateLocalVar(Tok.getLocation(), Type,
                                                                Identifier1->getName(), Scopes);
-                ASTVarDefine *VarDefine = SemaBuilder::CreateVarDefine(Block, LocalVar);
+                ASTVarStmt *VarDefine = SemaBuilder::CreateVarStmt(Block, LocalVar);
 
                 // int a = ...
                 if (Tok.is(tok::equal)) {
@@ -499,7 +498,7 @@ bool Parser::ParseStmt(ASTBlock *Block, bool StopParse) {
                 // FIXME check Identifier for LocalVar
                 ASTLocalVar *LocalVar = SemaBuilder::CreateLocalVar(Tok.getLocation(), Type,
                                                                Identifier2->getName(), Scopes);
-                ASTVarDefine *VarDefine = SemaBuilder::CreateVarDefine(Block, LocalVar);
+                ASTVarStmt *VarDefine = SemaBuilder::CreateVarStmt(Block, LocalVar);
 
                 // Type a = ...
                 if (Tok.is(tok::equal)) {
@@ -513,7 +512,7 @@ bool Parser::ParseStmt(ASTBlock *Block, bool StopParse) {
             if (isTokenAssignOperator()) { // a = ...
 
                 ASTVarRef *VarRef = Builder.CreateVarRef(Identifier1);
-                ASTVarDefine *VarDefine = SemaBuilder::CreateVarDefine(Block, VarRef);
+                ASTVarStmt *VarDefine = SemaBuilder::CreateVarStmt(Block, VarRef);
 
                 ExprParser Parser(this, VarDefine);
                 ASTExpr *Expr = Parser.ParseAssignExpr();
@@ -934,7 +933,7 @@ bool Parser::ParseArrayType(ASTType *&Type) {
 
         if (Tok.is(tok::r_square)) {
             ConsumeBracket();
-            Expr = SemaBuilder::CreateExpr(nullptr, SemaBuilder::CreateIntegerValue(Loc, 0));
+            Expr = Builder.CreateExpr(nullptr, SemaBuilder::CreateIntegerValue(Loc, 0));
             Type = SemaBuilder::CreateArrayType(Loc, Type, Expr);
         } else {
             Expr = ParseExpr();

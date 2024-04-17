@@ -289,16 +289,17 @@ llvm::Value *CodeGenExpr::Convert(llvm::Value *FromVal, const ASTType *FromType,
 llvm::Value *CodeGenExpr::GenGroup(ASTGroupExpr *Group) {
     FLY_DEBUG_MESSAGE("CodeGenExpr", "GenGroup", "GroupKind=" + std::to_string((int) Group->getGroupKind()));
 
+    llvm::Value *V = nullptr;
     switch (Group->getGroupKind()) {
         case ASTExprGroupKind::GROUP_UNARY:
-            return GenUnary((ASTUnaryGroupExpr *) Group);
+            V = GenUnary((ASTUnaryGroupExpr *) Group);
         case ASTExprGroupKind::GROUP_BINARY:
-            return GenBinary((ASTBinaryGroupExpr *) Group);
+            V = GenBinary((ASTBinaryGroupExpr *) Group);
         case ASTExprGroupKind::GROUP_TERNARY:
-            return GenTernary((ASTTernaryGroupExpr *) Group);
+            V = GenTernary((ASTTernaryGroupExpr *) Group);
     }
 
-    assert("Unknown Group Kind");
+    return V;
 }
 
 llvm::Value *CodeGenExpr::GenUnary(ASTUnaryGroupExpr *Expr) {

@@ -14,7 +14,8 @@
 
 using namespace fly;
 
-ASTArg::ASTArg(ASTCall *Call, ASTExpr *Expr) : Expr(Expr), Call(Call) {
+ASTArg::ASTArg(ASTCall *Call, ASTExpr *Expr) :
+        ASTBase(Expr->getLocation()), Expr(Expr), Call(Call) {
 
 }
 
@@ -28,6 +29,7 @@ ASTParam *ASTArg::getDef() const {
 
 std::string ASTArg::str() const {
     return Logger("ASTArg").
+            Super(ASTBase::str()).
             Attr("Expr", Expr).
             Attr("Index", Index).
             End();

@@ -12,12 +12,8 @@
 using namespace fly;
 
 ASTType::ASTType(const SourceLocation &Loc, ASTTypeKind MacroKind) :
-        Loc(Loc), Kind(MacroKind) {
+        ASTBase(Loc), Kind(MacroKind) {
 
-}
-
-const SourceLocation &ASTType::getLocation() const  {
-    return Loc;
 }
 
 const ASTTypeKind &ASTType::getKind() const  {
@@ -80,9 +76,9 @@ const std::string ASTType::printType(const ASTTypeKind Kind) {
 
 std::string ASTType::str() const {
     return Logger("ASTType").
-           Attr("Location", Loc).
-           Attr("Kind", (uint64_t) Kind).
-           End();
+            Super(ASTBase::str()).
+            Attr("Kind", (uint64_t) Kind).
+            End();
 }
 
 ASTVoidType::ASTVoidType(const SourceLocation &Loc) : ASTType(Loc, ASTTypeKind::TYPE_VOID) {

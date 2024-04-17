@@ -11,14 +11,9 @@
 #ifndef FLY_AST_IDENTIFIER_H
 #define FLY_AST_IDENTIFIER_H
 
-#include "Basic/Debuggable.h"
-#include "Basic/SourceLocation.h"
+#include "ASTBase.h"
 
 namespace fly {
-
-    class ASTStmt;
-    class ASTCall;
-    class ASTVarRef;
 
     enum class ASTIdentifierKind {
         REF_UNDEF,
@@ -28,14 +23,12 @@ namespace fly {
         REF_VAR
     };
 
-    class ASTIdentifier : public Debuggable {
+    class ASTIdentifier : public ASTBase {
 
         friend class SemaBuilder;
         friend class SemaResolver;
 
     protected:
-
-        const SourceLocation Loc;
 
         const llvm::StringRef Name;
 
@@ -57,8 +50,6 @@ namespace fly {
 
     public:
 
-        const SourceLocation &getLocation() const;
-
         llvm::StringRef getName() const;
 
         std::string getFullName() const;
@@ -73,7 +64,7 @@ namespace fly {
 
         bool isVarRef() const;
 
-        ASTIdentifierKind getKind() const;
+        ASTIdentifierKind getIdKind() const;
 
         ASTIdentifier * AddChild(ASTIdentifier *Identifier);
 

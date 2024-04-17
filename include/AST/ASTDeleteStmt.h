@@ -7,8 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_ASTDELETE_H
-#define FLY_ASTDELETE_H
+#ifndef FLY_ASTDELETESTMT_H
+#define FLY_ASTDELETESTMT_H
 
 #include "ASTStmt.h"
 
@@ -20,16 +20,16 @@ namespace fly {
 /**
  * Delete Stmt
  */
-    class ASTDelete : public ASTStmt {
+    class ASTDeleteStmt : public ASTStmt {
 
         ASTVarRef *VarRef = nullptr;
 
     public:
-        ASTDelete(ASTBlock *Parent, const SourceLocation &Loc, ASTVarRef *VarRef);
+        ASTDeleteStmt(ASTBlock *Parent, const SourceLocation &Loc, ASTVarRef *VarRef);
 
         ASTVarRef *getVarRef();
 
         std::string str() const override;
     };
 }
-#endif //FLY_ASTDELETE_H
+#endif //FLY_ASTDELETESTMT_H

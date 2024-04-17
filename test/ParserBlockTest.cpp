@@ -16,7 +16,7 @@
 #include "AST/ASTFunction.h"
 #include "AST/ASTCall.h"
 #include "AST/ASTValue.h"
-#include "AST/ASTVarDefine.h"
+#include "AST/ASTVarStmt.h"
 #include "AST/ASTVarRef.h"
 #include "AST/ASTParams.h"
 #include "AST/ASTWhileBlock.h"
@@ -60,7 +60,7 @@ namespace {
         EXPECT_EQ(((ASTVarRefExpr *) IfCond->getFirst())->getVarRef()->getName(), "a");
         EXPECT_EQ(IfCond->getOperatorKind(), ASTBinaryOperatorKind::COMP_EQ);
         EXPECT_EQ(((ASTValueExpr *) IfCond->getSecond())->getValue()->print(), "1");
-        EXPECT_TRUE(((ASTEmptyExpr *)((ASTReturn *) IfBlock->getContent()[0])->getExpr())->getExprKind() == ASTExprKind::EXPR_EMPTY);
+        EXPECT_TRUE(((ASTEmptyExpr *)((ASTReturnStmt *) IfBlock->getContent()[0])->getExpr())->getExprKind() == ASTExprKind::EXPR_EMPTY);
         EXPECT_FALSE(IfBlock->getElsifBlocks().empty());
         EXPECT_TRUE(IfBlock->getElseBlock());
 
@@ -70,12 +70,12 @@ namespace {
         EXPECT_EQ(((ASTVarRefExpr *) ElsifCond->getFirst())->getVarRef()->getName(), "a");
         EXPECT_EQ(ElsifCond->getOperatorKind(), ASTBinaryOperatorKind::COMP_EQ);
         EXPECT_EQ(((ASTValueExpr *) ElsifCond->getSecond())->getValue()->print(), "2");
-        EXPECT_EQ(((ASTVarDefine *) ElsifBlock->getContent()[0])->getVarRef()->getName(), "b");
+        EXPECT_EQ(((ASTVarStmt *) ElsifBlock->getContent()[0])->getVarRef()->getName(), "b");
 
         // Else
         ASTElseBlock *ElseBlock = IfBlock->getElseBlock();
         EXPECT_EQ(ElseBlock->getBlockKind(), ASTBlockKind::BLOCK_ELSE);
-        EXPECT_EQ(((ASTVarDefine *)ElseBlock->getContent()[0])->getVarRef()->getName(), "b");
+        EXPECT_EQ(((ASTVarStmt *)ElseBlock->getContent()[0])->getVarRef()->getName(), "b");
 
     }
 
@@ -101,7 +101,7 @@ namespace {
         EXPECT_EQ(((ASTVarRefExpr *) IfCond->getFirst())->getVarRef()->getName(), "a");
         EXPECT_EQ(IfCond->getOperatorKind(), ASTBinaryOperatorKind::COMP_EQ);
         EXPECT_EQ(((ASTValueExpr *) IfCond->getSecond())->getValue()->print(), "1");
-        EXPECT_TRUE(((ASTEmptyExpr *)((ASTReturn *) IfBlock->getContent()[0])->getExpr())->getExprKind() == ASTExprKind::EXPR_EMPTY);
+        EXPECT_TRUE(((ASTEmptyExpr *)((ASTReturnStmt *) IfBlock->getContent()[0])->getExpr())->getExprKind() == ASTExprKind::EXPR_EMPTY);
 
         EXPECT_FALSE(IfBlock->getElsifBlocks().empty());
         EXPECT_TRUE(IfBlock->getElseBlock());
@@ -117,7 +117,7 @@ namespace {
         // Else
         ASTElseBlock *ElseBlock = IfBlock->getElseBlock();
         EXPECT_EQ(ElseBlock->getBlockKind(), ASTBlockKind::BLOCK_ELSE);
-        EXPECT_EQ(((ASTVarDefine *) ElseBlock->getContent()[0])->getVarRef()->getName(), "a");
+        EXPECT_EQ(((ASTVarStmt *) ElseBlock->getContent()[0])->getVarRef()->getName(), "a");
 
     }
 
@@ -143,11 +143,11 @@ namespace {
         ASTSwitchBlock *SwitchBlock = (ASTSwitchBlock *) Body->getContent()[0];
         EXPECT_EQ(SwitchBlock->getBlockKind(), ASTBlockKind::BLOCK_SWITCH);
         EXPECT_EQ(((ASTValueExpr *) SwitchBlock->getCases()[0]->getExpr())->getValue()->print(), "1");
-        EXPECT_EQ(SwitchBlock->getCases()[0]->getContent()[0]->getTopDefKind(), ASTStmtKind::STMT_BREAK);
+        EXPECT_EQ(SwitchBlock->getCases()[0]->getContent()[0]->getKind(), ASTStmtKind::STMT_BREAK);
         EXPECT_EQ(((ASTValueExpr *) SwitchBlock->getCases()[1]->getExpr())->getValue()->print(), "2");
         EXPECT_TRUE((ASTExprStmt *) SwitchBlock->getCases()[1]->getContent().empty());
         EXPECT_EQ(SwitchBlock->getDefault()->getBlockKind(), ASTBlockKind::BLOCK_SWITCH_DEFAULT);
-        EXPECT_EQ((SwitchBlock->getDefault()->getContent()[0])->getTopDefKind(), ASTStmtKind::STMT_RETURN);
+        EXPECT_EQ((SwitchBlock->getDefault()->getContent()[0])->getKind(), ASTStmtKind::STMT_RETURN);
 
     }
 

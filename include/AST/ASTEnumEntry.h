@@ -17,7 +17,6 @@
 namespace fly {
 
     class ASTEnum;
-    class SourceLocation;
 
     class ASTEnumEntry : public ASTVar {
 
@@ -35,12 +34,6 @@ namespace fly {
         ASTEnumEntry(ASTEnum *Enum, const SourceLocation &Loc, llvm::StringRef Name);
 
     public:
-
-        const SourceLocation &getLocation() const;
-
-        llvm::StringRef getName() const;
-
-        llvm::StringRef getComment() const;
 
         ASTEnum *getEnum() const;
 

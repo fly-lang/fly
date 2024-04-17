@@ -150,7 +150,7 @@ ASTExpr *ExprParser::ParseExpr(bool IsFirst) {
     } else {
         // FIXME? remove or change logic?
         // Used with: return
-        Expr =  SemaBuilder::CreateExpr(); // return an ASTEmptyExpr
+        Expr =  P->Builder.CreateExpr(); // return an ASTEmptyExpr
         P->Builder.AddExpr(Stmt, Expr);
         return Expr;
     }

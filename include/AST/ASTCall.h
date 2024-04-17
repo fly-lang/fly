@@ -65,7 +65,7 @@ namespace fly {
         std::string str() const;
     };
 
-    class ASTArg : public Debuggable {
+    class ASTArg : public ASTBase {
 
         friend class SemaResolver;
         friend class SemaBuilder;

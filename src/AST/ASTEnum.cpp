@@ -22,7 +22,7 @@ ASTEnum::ASTEnum(ASTNode *Node, ASTScopes *Scopes, const SourceLocation &Loc, ll
 
 }
 
-ASTEnumType *ASTEnum::getType() const {
+ASTEnumType *ASTEnum::getType() {
     return Type;
 }
 

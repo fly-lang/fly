@@ -11,15 +11,14 @@
 #ifndef FLY_ASTIDENTITY_H
 #define FLY_ASTIDENTITY_H
 
+#include "AST/ASTBase.h"
 #include "ASTTopDef.h"
-#include "Basic/SourceLocation.h"
-#include "llvm/ADT/StringRef.h"
 
 namespace fly {
 
     class ASTIdentityType;
 
-    class ASTIdentity : public virtual ASTTopDef {
+    class ASTIdentity : public ASTBase, public virtual ASTTopDef {
 
         friend class SemaBuilder;
         friend class SemaResolver;
@@ -34,11 +33,6 @@ namespace fly {
 
         llvm::StringRef Name;
 
-        llvm::StringRef Comment;
-
-        // Source Location
-        SourceLocation Location;
-
         ASTIdentity(ASTNode *Node, ASTTopDefKind TopDefKind, ASTScopes *Scopes,
                     const SourceLocation &Loc, llvm::StringRef Name);
 
@@ -52,17 +46,13 @@ namespace fly {
 
         llvm::StringRef getName() const override;
 
-        llvm::StringRef getComment() const;
-
         ASTScopes *getScopes() const;
 
-        const SourceLocation &getLocation() const;
-
-        virtual ASTIdentityType *getType() const = 0;
+        virtual ASTIdentityType *getType() = 0;
 
         virtual std::string print() const = 0;
 
-        virtual std::string str() const = 0;
+        virtual std::string str() const;
 
     };
 }

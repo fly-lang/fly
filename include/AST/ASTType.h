@@ -11,8 +11,7 @@
 #ifndef FLY_ASTTYPE_H
 #define FLY_ASTTYPE_H
 
-#include "Basic/Debuggable.h"
-#include "Basic/SourceLocation.h"
+#include "ASTBase.h"
 
 namespace fly {
 
@@ -68,14 +67,12 @@ namespace fly {
     /**
      * Abstract Base Type
      */
-    class ASTType : public Debuggable {
+    class ASTType : public ASTBase {
 
         friend class SemaBuilder;
         friend class SemaResolver;
 
         const ASTTypeKind Kind;
-
-        const SourceLocation Loc;
 
     protected:
 
@@ -84,8 +81,6 @@ namespace fly {
     public:
 
         virtual ~ASTType() = default;
-
-        const SourceLocation &getLocation() const;
 
         const ASTTypeKind &getKind() const;
 

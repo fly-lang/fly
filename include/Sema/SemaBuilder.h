@@ -40,6 +40,8 @@ namespace fly {
 
     class ASTImport;
 
+    class ASTAlias;
+
     class ASTScopes;
 
     class ASTClass;
@@ -62,7 +64,7 @@ namespace fly {
 
     class ASTBlock;
 
-    class ASTDelete;
+    class ASTDeleteStmt;
 
     class ASTIfBlock;
 
@@ -86,7 +88,7 @@ namespace fly {
 
     class ASTExprStmt;
 
-    class ASTVarDefine;
+    class ASTVarStmt;
 
     class ASTParam;
 
@@ -148,11 +150,11 @@ namespace fly {
 
     class ASTFloatingValue;
 
-    class ASTBreak;
+    class ASTBreakStmt;
 
-    class ASTReturn;
+    class ASTReturnStmt;
 
-    class ASTContinue;
+    class ASTContinueStmt;
 
     class ASTExpr;
 
@@ -212,10 +214,9 @@ namespace fly {
         ASTNameSpace *CreateNameSpace(ASTIdentifier *Identifier = nullptr);
 
         // Create Top Definitions
-        static ASTImport *CreateImport(const SourceLocation &NameLoc, StringRef Name);
+        static ASTImport *CreateImport(const SourceLocation &Loc, StringRef Name);
 
-        static ASTImport *CreateImport(const SourceLocation &NameLoc, StringRef Name,
-                                       const SourceLocation &AliasLoc, StringRef Alias);
+        static ASTAlias *CreateAlias(const SourceLocation &Loc, StringRef Name);
 
         static ASTScopes *
         CreateScopes(ASTVisibilityKind Visibility = ASTVisibilityKind::V_DEFAULT, bool Constant = false,
@@ -325,17 +326,17 @@ namespace fly {
         static ASTLocalVar *
         CreateLocalVar(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,  ASTScopes *Scopes = nullptr);
 
-        static ASTVarDefine *CreateVarDefine(ASTBlock *Parent, ASTVarRef *VarRef);
+        static ASTVarStmt *CreateVarStmt(ASTBlock *Parent, ASTVarRef *VarRef);
 
-        static ASTVarDefine *CreateVarDefine(ASTBlock *Parent, ASTVar *Var);
+        static ASTVarStmt *CreateVarStmt(ASTBlock *Parent, ASTVar *Var);
 
-        static ASTReturn *CreateReturn(ASTBlock *Parent, const SourceLocation &Loc);
+        static ASTReturnStmt *CreateReturn(ASTBlock *Parent, const SourceLocation &Loc);
 
-        static ASTBreak *CreateBreak(ASTBlock *Parent, const SourceLocation &Loc);
+        static ASTBreakStmt *CreateBreak(ASTBlock *Parent, const SourceLocation &Loc);
 
-        static ASTContinue *CreateContinue(ASTBlock *Parent, const SourceLocation &Loc);
+        static ASTContinueStmt *CreateContinue(ASTBlock *Parent, const SourceLocation &Loc);
 
-        static ASTStmt *
+        ASTStmt *
         CreateFail(ASTExprStmt *Stmt, const SourceLocation &Loc, const ASTTypeKind &T, ASTExpr *Expr = nullptr);
 
         static ASTExprStmt *CreateExprStmt(ASTBlock *Parent, const SourceLocation &Loc);
@@ -358,17 +359,17 @@ namespace fly {
         static ASTVarRef *CreateVarRef(ASTIdentifier *Instance, ASTVar *Var);
 
         // Create Expressions
-        static ASTEmptyExpr *CreateExpr();
+        ASTEmptyExpr *CreateExpr();
 
-        static ASTValueExpr *CreateExpr(ASTStmt *Stmt, ASTValue *Value);
+        ASTValueExpr *CreateExpr(ASTStmt *Stmt, ASTValue *Value);
 
-        static ASTCallExpr *CreateExpr(ASTStmt *Stmt, ASTCall *Call);
+        ASTCallExpr *CreateExpr(ASTStmt *Stmt, ASTCall *Call);
 
         ASTVarRefExpr *CreateExpr(ASTStmt *Stmt, ASTVarRef *VarRef);
 
         ASTCallExpr *CreateNewExpr(ASTStmt *Stmt, ASTCall *Call);
 
-        static ASTDelete *CreateDelete(ASTBlock *Parent, const SourceLocation &Loc, ASTVarRef *VarRef);
+        static ASTDeleteStmt *CreateDelete(ASTBlock *Parent, const SourceLocation &Loc, ASTVarRef *VarRef);
 
         ASTUnaryGroupExpr *CreateUnaryExpr(ASTStmt *Stmt, const SourceLocation &Loc, ASTUnaryOperatorKind Kind,
                                            ASTUnaryOptionKind OptionKind, ASTVarRefExpr *First);
@@ -434,9 +435,8 @@ namespace fly {
         bool AddParam(ASTParam *Param);
 
         void AddFunctionVarParams(ASTFunction *Function, ASTParam *Param); // TODO
-        bool AddComment(ASTTopDef *Top, llvm::StringRef Comment);
 
-        bool AddComment(ASTClassVar *ClassVar, llvm::StringRef Comment);
+        bool AddComment(ASTBase *Base, llvm::StringRef Comment);
 
         bool AddComment(ASTClassFunction *ClassFunction, llvm::StringRef Comment);
 

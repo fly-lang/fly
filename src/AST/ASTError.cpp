@@ -14,22 +14,22 @@
 using namespace fly;
 
 ASTError::ASTError(const SourceLocation &Loc, uint32_t Code) :
-        Loc(Loc), ErrorKind(ASTErrorKind::ERR_INT), Code(Code), Identity(nullptr) {
+        ASTBase(Loc), ErrorKind(ASTErrorKind::ERR_INT), Code(Code), Identity(nullptr) {
 
 }
 
 ASTError::ASTError(const SourceLocation &Loc, llvm::StringRef Message) :
-        Loc(Loc), ErrorKind(ASTErrorKind::ERR_STRING), Code(0), Message(Message), Identity(nullptr) {
+        ASTBase(Loc), ErrorKind(ASTErrorKind::ERR_STRING), Code(0), Message(Message), Identity(nullptr) {
 
 }
 
 ASTError::ASTError(const SourceLocation &Loc, ASTEnum *Enum) :
-        Loc(Loc), ErrorKind(ASTErrorKind::ERR_ENUM), Code(0), Identity(Enum) {
+        ASTBase(Loc), ErrorKind(ASTErrorKind::ERR_ENUM), Code(0), Identity(Enum) {
 
 }
 
 ASTError::ASTError(const SourceLocation &Loc, ASTClass *Class) :
-        Loc(Loc), ErrorKind(ASTErrorKind::ERR_CLASS), Code(0), Identity(Class) {
+        ASTBase(Loc), ErrorKind(ASTErrorKind::ERR_CLASS), Code(0), Identity(Class) {
 
 }
 
@@ -53,16 +53,13 @@ ASTErrorKind ASTError::getErrorKind() const {
     return ErrorKind;
 }
 
-const SourceLocation &ASTError::getLocation() const {
-    return Loc;
-}
-
 std::string ASTError::print() const {
     return "error";
 }
 
 std::string ASTError::str() const {
     return Logger("ASTError").
+            Super(ASTBase::str()).
             Attr("Code", (uint64_t) Code).
             Attr("Message", Message).
             Attr("FailKind", (uint64_t) ErrorKind).
