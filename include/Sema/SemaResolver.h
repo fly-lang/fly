@@ -78,6 +78,8 @@ namespace fly {
 
         bool ResolveFunctions(ASTNode *Node);
 
+        bool ResolveStmt(ASTStmt *Stmt);
+
         bool ResolveBlock(ASTBlock *Block);
 
         bool ResolveIfBlock(ASTIfBlock *IfBlock);

@@ -884,7 +884,6 @@ SemaBuilder::CreateExpr(ASTStmt *Stmt, ASTValue *Value) {
                       Logger().Attr("Stmt", Stmt).Attr("Value", Value).End());
     assert(Value && "Create ASTValueExpr by ASTValue");
     ASTValueExpr *ValueExpr = new ASTValueExpr(Value);
-    ValueExpr->Stmt = Stmt;
     return ValueExpr;
 }
 
@@ -894,7 +893,6 @@ SemaBuilder::CreateExpr(ASTStmt *Stmt, ASTCall *Call) {
                       Logger().Attr("Stmt", Stmt).Attr("Call", Call).End());
 
     ASTCallExpr *CallExpr = new ASTCallExpr(Call);
-    CallExpr->Stmt = Stmt;
     return CallExpr;
 }
 
@@ -904,7 +902,6 @@ SemaBuilder::CreateExpr(ASTStmt *Stmt, ASTVarRef *VarRef) {
                       Logger().Attr("Stmt", Stmt).Attr("VarRef", Stmt).End());
 
     ASTVarRefExpr *VarRefExpr = new ASTVarRefExpr(VarRef);
-    VarRefExpr->Stmt = Stmt;
     AddExpr(Stmt, VarRefExpr);
     return VarRefExpr;
 }
@@ -937,7 +934,6 @@ SemaBuilder::CreateUnaryExpr(ASTStmt *Stmt, const SourceLocation &Loc, ASTUnaryO
                       .Attr("First", First).End());
 
     ASTUnaryGroupExpr *UnaryExpr = new ASTUnaryGroupExpr(Loc, Kind, OptionKind, First);
-    UnaryExpr->Stmt = Stmt;
 
     // Set Parent Expression
     First->Parent = UnaryExpr;
@@ -957,7 +953,6 @@ SemaBuilder::CreateBinaryExpr(ASTStmt *Stmt, const SourceLocation &OpLoc, ASTBin
                         .Attr("Second", Second).End());
 
     ASTBinaryGroupExpr *BinaryExpr = new ASTBinaryGroupExpr(OpLoc, Kind, First, Second);
-    BinaryExpr->Stmt = Stmt;
 
     // Set Parent Expression
     First->Parent = BinaryExpr;
@@ -979,7 +974,6 @@ SemaBuilder::CreateTernaryExpr(ASTStmt *Stmt, ASTExpr *First, const SourceLocati
                       .Attr("Third", Third).End());
 
     ASTTernaryGroupExpr *TernaryExpr = new ASTTernaryGroupExpr(First, IfLoc, Second, ElseLoc, Third);
-    TernaryExpr->Stmt = Stmt;
 
     // Set Parent Expression
     First->Parent = TernaryExpr;
@@ -1426,7 +1420,7 @@ SemaBuilder::AddExpr(ASTStmt *Stmt, ASTExpr *Expr) {
     }
     if (Stmt) {
         switch (Stmt->getKind()) {
-            case ASTStmtKind::STMT_VAR_DEFINE: {
+            case ASTStmtKind::STMT_VAR: {
                 ASTVarStmt *VarDefine = (ASTVarStmt *) Stmt;
                 VarDefine->Expr = Expr;
                 VarDefine->getVarRef()->getDef()->setInitialization(VarDefine);
@@ -1487,7 +1481,7 @@ SemaBuilder::AddStmt(ASTStmt *Stmt) {
 
     switch (Stmt->getKind()) {
 
-        case ASTStmtKind::STMT_VAR_DEFINE: {
+        case ASTStmtKind::STMT_VAR: {
             ASTVarStmt *VarDefine = (ASTVarStmt *) Stmt;
 
             ASTVar *Var = VarDefine->getVarRef()->getDef();

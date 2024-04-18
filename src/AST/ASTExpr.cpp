@@ -32,10 +32,6 @@ ASTType *ASTExpr::getType() const {
     return Type;
 }
 
-ASTStmt *ASTExpr::getStmt() {
-    return Stmt;
-}
-
 std::string ASTExpr::str() const {
     return Logger("ASTExpr").
            Super(ASTBase::str()).

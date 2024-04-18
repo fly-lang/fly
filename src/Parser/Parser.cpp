@@ -480,14 +480,14 @@ bool Parser::ParseStmt(ASTBlock *Block, bool StopParse) {
                 // FIXME check Identifier for LocalVar
                 ASTLocalVar *LocalVar = SemaBuilder::CreateLocalVar(Tok.getLocation(), Type,
                                                                Identifier1->getName(), Scopes);
-                ASTVarStmt *VarDefine = SemaBuilder::CreateVarStmt(Block, LocalVar);
+                ASTVarStmt *VarStmt = SemaBuilder::CreateVarStmt(Block, LocalVar);
 
                 // int a = ...
                 if (Tok.is(tok::equal)) {
                     ConsumeToken();
-                    ASTExpr *Expr = ParseExpr(VarDefine);
+                    ASTExpr *Expr = ParseExpr(VarStmt);
                 }
-                return Builder.AddStmt(VarDefine) && (StopParse || ParseStmt(Block));
+                return Builder.AddStmt(VarStmt) && (StopParse || ParseStmt(Block));
 
             } else if (Tok.isAnyIdentifier()) { // Type a: Identifier is ASTType
                 ASTIdentifier *Identifier2 = ParseIdentifier();
@@ -498,14 +498,20 @@ bool Parser::ParseStmt(ASTBlock *Block, bool StopParse) {
                 // FIXME check Identifier for LocalVar
                 ASTLocalVar *LocalVar = SemaBuilder::CreateLocalVar(Tok.getLocation(), Type,
                                                                Identifier2->getName(), Scopes);
-                ASTVarStmt *VarDefine = SemaBuilder::CreateVarStmt(Block, LocalVar);
 
+                ASTStmt *Stmt = nullptr;
                 // Type a = ...
                 if (Tok.is(tok::equal)) {
                     ConsumeToken();
-                    ASTExpr *Expr = ParseExpr(VarDefine);
+
+                    if (Tok.is(tok::kw_handle)) {
+                        return ParseHandleStmt(Block, nullptr) && (StopParse || ParseStmt(Block));
+                    } else {
+                        Stmt = SemaBuilder::CreateVarStmt(Block, LocalVar);
+                        ASTExpr *Expr = ParseExpr(Stmt);
+                        return Builder.AddStmt(Stmt) && (StopParse || ParseStmt(Block));
+                    }
                 }
-                return Builder.AddStmt(VarDefine) && (StopParse || ParseStmt(Block));
 
             }
 

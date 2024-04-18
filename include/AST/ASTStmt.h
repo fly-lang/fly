@@ -18,7 +18,7 @@ namespace fly {
     enum class ASTStmtKind {
         STMT_BLOCK,
         STMT_EXPR,
-        STMT_VAR_DEFINE,
+        STMT_VAR,
         STMT_BREAK,
         STMT_CONTINUE,
         STMT_DELETE,

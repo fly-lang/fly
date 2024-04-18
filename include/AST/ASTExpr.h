@@ -94,8 +94,6 @@ namespace fly {
         friend class SemaBuilder;
         friend class SemaResolver;
 
-        ASTStmt *Stmt = nullptr;
-
         ASTExpr *Parent = nullptr;
 
     protected:
@@ -109,8 +107,6 @@ namespace fly {
     public:
 
         virtual ASTType *getType() const;
-
-        ASTStmt *getStmt();
 
         ASTExprKind getExprKind() const;
 

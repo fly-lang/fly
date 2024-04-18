@@ -25,7 +25,7 @@ llvm::StringRef ASTBase::getComment() const {
 
 std::string ASTBase::str() const {
     return Logger("ASTBase").
-            Attr("Location", Location).
+            Attr("Location", (uint64_t) Location.getRawEncoding()).
             Attr("Comment", Comment).
             End();
 }

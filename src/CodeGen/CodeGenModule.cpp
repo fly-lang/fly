@@ -382,7 +382,7 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
     switch (Stmt->getKind()) {
 
         // Var Assignment
-        case ASTStmtKind::STMT_VAR_DEFINE: {
+        case ASTStmtKind::STMT_VAR: {
             ASTVarStmt *VarDefine = (ASTVarStmt *) Stmt;
 
             ASTVarRef *VarRef = VarDefine->getVarRef();
