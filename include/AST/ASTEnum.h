@@ -30,7 +30,7 @@ namespace fly {
 
         ASTEnumType *Type = nullptr;
 
-        llvm::SmallVector<ASTEnumType *, 4> SuperClasses;
+        llvm::SmallVector<ASTEnumType *, 4> SuperClasses; // FIXME ?
 
         // Class Fields
         llvm::StringMap<ASTEnumEntry *> Vars;

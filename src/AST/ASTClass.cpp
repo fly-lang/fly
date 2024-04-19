@@ -19,10 +19,8 @@
 using namespace fly;
 
 ASTClass::ASTClass(ASTNode *Node, ASTClassKind ClassKind, ASTScopes *Scopes,
-                   const SourceLocation &Loc, llvm::StringRef Name,
-                   llvm::SmallVector<ASTClassType *, 4> &ExtClasses) :
-        ASTIdentity(Node, ASTTopDefKind::DEF_CLASS, Scopes, Loc, Name), ClassKind(ClassKind),
-        SuperClasses(ExtClasses) {
+                   const SourceLocation &Loc, llvm::StringRef Name) :
+        ASTIdentity(Node, ASTTopDefKind::DEF_CLASS, Scopes, Loc, Name), ClassKind(ClassKind) {
 
 }
 

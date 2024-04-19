@@ -89,6 +89,22 @@ namespace fly {
             return *this;
         }
 
+        template <typename T>
+        Logger &AttrList(const char *key, llvm::SmallVector<T *, 4> Vect) {
+            std::string Entry = OPEN_LIST;
+            if(!Vect.empty()) {
+                for (ASTBase *V : Vect) {
+                    Entry += V->str() + SEP;
+                }
+                unsigned long end = Entry.length()-std::string(SEP).length()-1;
+                Entry = Entry.substr(0, end);
+            }
+            Entry += CLOSE_LIST;
+            Attr(key, Entry);
+            isEmpty = false;
+            return *this;
+        }
+
     };
 }
 

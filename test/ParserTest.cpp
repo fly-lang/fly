@@ -639,13 +639,13 @@ namespace {
     TEST_F(ParserTest, FunctionHandleFail) {
         llvm::StringRef str = (
                                "void err0() {\n"
-                               "  fail()\n"
+                               "  fail\n"
                                "}\n"
                                "int err1() {\n"
-                               "  fail(404)"
+                               "  fail 404\n"
                                "}\n"
                                "int err2() {\n"
-                               "  fail(\"Error\")"
+                               "  fail \"Error\"\n"
                                "}\n"
                                "void main() {\n"
                                "  handle err0()\n"

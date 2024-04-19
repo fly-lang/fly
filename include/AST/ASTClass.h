@@ -57,8 +57,7 @@ namespace fly {
         CodeGenClass *CodeGen = nullptr;
 
         ASTClass(ASTNode *Node, ASTClassKind ClassKind, ASTScopes *Scopes,
-                 const SourceLocation &Loc, llvm::StringRef Name,
-                 llvm::SmallVector<ASTClassType *, 4> &ExtClasses);
+                 const SourceLocation &Loc, llvm::StringRef Name);
 
     public:
 

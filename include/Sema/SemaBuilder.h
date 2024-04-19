@@ -56,7 +56,7 @@ namespace fly {
 
     class ASTIdentifier;
 
-    class ASTHandleBlock;
+    class ASTHandleStmt;
 
     class ASTCall;
 
@@ -182,6 +182,8 @@ namespace fly {
 
     class ASTError;
 
+    class ASTFailStmt;
+
     class ASTStringValue;
 
     enum class ASTClassKind;
@@ -233,9 +235,6 @@ namespace fly {
         ASTClass *CreateClass(ASTNode *Node, ASTClassKind ClassKind, ASTScopes *Scopes,
                               const SourceLocation &Loc, const llvm::StringRef Name,
                               llvm::SmallVector<ASTClassType *, 4> &ClassTypes);
-
-        ASTClass *CreateClass(ASTNode *Node, ASTClassKind ClassKind, ASTScopes *Scopes,
-                              const SourceLocation &Loc, const llvm::StringRef Name);
 
         static ASTClassVar *
         CreateClassVar(ASTClass *Class, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
@@ -320,7 +319,7 @@ namespace fly {
 
         // Create Statements
         static ASTParam *
-        CreateParam(ASTFunctionBase *Function, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
+        CreateParam(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
                     ASTScopes *Scopes = nullptr);
 
         static ASTLocalVar *
@@ -336,8 +335,7 @@ namespace fly {
 
         static ASTContinueStmt *CreateContinue(ASTBlock *Parent, const SourceLocation &Loc);
 
-        ASTStmt *
-        CreateFail(ASTExprStmt *Stmt, const SourceLocation &Loc, const ASTTypeKind &T, ASTExpr *Expr = nullptr);
+        static ASTFailStmt *CreateFail(ASTBlock *Block, const SourceLocation &Loc);
 
         static ASTExprStmt *CreateExprStmt(ASTBlock *Parent, const SourceLocation &Loc);
 
@@ -361,23 +359,23 @@ namespace fly {
         // Create Expressions
         ASTEmptyExpr *CreateExpr();
 
-        ASTValueExpr *CreateExpr(ASTStmt *Stmt, ASTValue *Value);
+        ASTValueExpr *CreateExpr(ASTValue *Value);
 
-        ASTCallExpr *CreateExpr(ASTStmt *Stmt, ASTCall *Call);
+        ASTCallExpr *CreateExpr(ASTCall *Call);
 
-        ASTVarRefExpr *CreateExpr(ASTStmt *Stmt, ASTVarRef *VarRef);
+        ASTVarRefExpr *CreateExpr(ASTVarRef *VarRef);
 
-        ASTCallExpr *CreateNewExpr(ASTStmt *Stmt, ASTCall *Call);
+        ASTCallExpr *CreateNewExpr(ASTCall *Call);
 
         static ASTDeleteStmt *CreateDelete(ASTBlock *Parent, const SourceLocation &Loc, ASTVarRef *VarRef);
 
-        ASTUnaryGroupExpr *CreateUnaryExpr(ASTStmt *Stmt, const SourceLocation &Loc, ASTUnaryOperatorKind Kind,
+        ASTUnaryGroupExpr *CreateUnaryExpr(const SourceLocation &Loc, ASTUnaryOperatorKind Kind,
                                            ASTUnaryOptionKind OptionKind, ASTVarRefExpr *First);
 
-        ASTBinaryGroupExpr *CreateBinaryExpr(ASTStmt *Stmt, const SourceLocation &OpLoc,
+        ASTBinaryGroupExpr *CreateBinaryExpr(const SourceLocation &OpLoc,
                                              ASTBinaryOperatorKind Kind, ASTExpr *First, ASTExpr *Second);
 
-        ASTTernaryGroupExpr *CreateTernaryExpr(ASTStmt *Stmt, ASTExpr *First, const SourceLocation &IfLoc,
+        ASTTernaryGroupExpr *CreateTernaryExpr(ASTExpr *First, const SourceLocation &IfLoc,
                                                ASTExpr *Second, const SourceLocation &ElseLoc, ASTExpr *Third);
 
         // Create Blocks structures
@@ -405,7 +403,7 @@ namespace fly {
 
         static ASTForPostBlock *CreateForPostBlock(ASTForBlock *Parent, const SourceLocation &Loc);
 
-        static ASTHandleBlock *CreateHandleBlock(ASTBlock *Parent, const SourceLocation &Loc, ASTVarRef *ErrorRef);
+        static ASTHandleStmt *CreateHandleStmt(ASTBlock *Parent, const SourceLocation &Loc, ASTVarRef *ErrorRef);
 
         /** Add AST **/
 
@@ -432,7 +430,7 @@ namespace fly {
 
         bool AddEnumEntry(ASTEnumEntry *EnumVar);
 
-        bool AddParam(ASTParam *Param);
+        bool AddParam(ASTFunctionBase *FunctionBase, ASTParam *Param);
 
         void AddFunctionVarParams(ASTFunction *Function, ASTParam *Param); // TODO
 

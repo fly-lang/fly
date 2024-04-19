@@ -13,6 +13,7 @@
 #include "AST/ASTFunction.h"
 #include "AST/ASTCall.h"
 #include "AST/ASTExpr.h"
+#include "AST/ASTBlock.h"
 #include "Sema/SemaBuilder.h"
 #include "Basic/Debug.h"
 
@@ -75,7 +76,7 @@ bool FunctionParser::ParseParam() {
         ASTScopes *Scopes = SemaBuilder::CreateScopes();
         P->ParseScopes(Scopes);
 
-        ASTParam *Param = SemaBuilder::CreateParam(Function, IdLoc, Type, Name, Scopes);
+        ASTParam *Param = SemaBuilder::CreateParam(IdLoc, Type, Name, Scopes);
 
         // Parse assignment =
         if (P->Tok.is(tok::equal)) {
@@ -88,7 +89,7 @@ bool FunctionParser::ParseParam() {
             }
         }
 
-        if (P->Builder.AddParam(Param)) {
+        if (P->Builder.AddParam(Function, Param)) {
 
             if (P->Tok.is(tok::comma)) {
                 P->ConsumeToken();

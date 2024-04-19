@@ -55,6 +55,10 @@ SemaBuilder *Sema::getBuilder() {
     return Builder;
 }
 
+ASTContext *Sema::getContext() const {
+    return Context;
+}
+
 ASTNameSpace *Sema::FindNameSpace(llvm::StringRef Name) const {
     FLY_DEBUG_MESSAGE("Sema", "FindNameSpace", "Name=" << Name);
     ASTNameSpace *NameSpace = Context->NameSpaces.lookup(Name);

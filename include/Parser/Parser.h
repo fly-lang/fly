@@ -31,7 +31,7 @@ namespace fly {
     class ASTSwitchBlock;
     class ASTExpr;
     class InputFile;
-    class ASTHandleBlock;
+    class ASTHandleStmt;
     class ASTVarRef;
     enum class ASTBinaryOperatorKind;
 
@@ -94,8 +94,8 @@ namespace fly {
         bool ParseEnumDef(ASTScopes *Scopes);
 
         // Parse Block Statement
-        bool ParseBlock(ASTBlock *Block);
-        bool ParseStmt(ASTBlock *Block, bool StopParse = false);
+        bool ParseBlock(ASTBlock *Parent);
+        bool ParseStmt(ASTBlock *Parent, bool StopParse = false);
         bool ParseStartParen();
         bool ParseEndParen(bool HasParen);
         bool ParseIfStmt(ASTBlock *Block);
@@ -105,6 +105,7 @@ namespace fly {
         bool ParseForStmt(ASTBlock *Block);
         bool ParseForCommaStmt(ASTBlock *Block);
         bool ParseHandleStmt(ASTBlock *Block, ASTVarRef *Error);
+        bool ParseFailStmt(ASTBlock *Block);
 
         // Parse Identifiers
         bool ParseBuiltinType(ASTType *&);

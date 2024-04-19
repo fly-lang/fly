@@ -8,54 +8,47 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sys/Sys.h"
+#include "AST/ASTContext.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTCall.h"
+#include "Sema/Sema.h"
 #include "Sema/SemaBuilder.h"
 
 using namespace fly;
 
-void Sys::Build(ASTNameSpace *NameSpace) {
-    SemaBuilder::InsertFunction(NameSpace->Functions, getFail0());
-    SemaBuilder::InsertFunction(NameSpace->Functions, getFail1());
-    SemaBuilder::InsertFunction(NameSpace->Functions, getFail2());
-    SemaBuilder::InsertFunction(NameSpace->Functions, getFail3());
+void Sys::Build(Sema &Se) {
+    Sys *S = new Sys(Se);
+    S->AddFailFunctions();
+    delete S;
 }
 
-ASTFunction *Sys::getFail0() {
-    const SourceLocation &Loc = SourceLocation();
-    ASTVoidType *VoidType = SemaBuilder::CreateVoidType(Loc);
-    ASTFunction *Fail = SemaBuilder::CreateFunction(nullptr, Loc, VoidType, "fail", SemaBuilder::CreateScopes());
-    return Fail;
+Sys::Sys(Sema &S) : S(S) {
+
 }
 
-ASTFunction *Sys::getFail1() {
-    const SourceLocation &Loc = SourceLocation();
-    ASTVoidType *VoidType = SemaBuilder::CreateVoidType(Loc);
-    ASTFunction *Fail = SemaBuilder::CreateFunction(nullptr, Loc, VoidType, "fail", SemaBuilder::CreateScopes());
-    ASTParam *Param = SemaBuilder::CreateParam(Fail, Loc, SemaBuilder::CreateUIntType(Loc), "code");
-    Fail->addParam(Param);
-    return Fail;
-}
+void Sys::AddFailFunctions() {
+    ASTNameSpace *NameSpace = S.getContext()->getDefaultNameSpace();
 
-ASTFunction *Sys::getFail2() {
     const SourceLocation &Loc = SourceLocation();
     ASTVoidType *VoidType = SemaBuilder::CreateVoidType(Loc);
-    ASTFunction *Fail = SemaBuilder::CreateFunction(nullptr, Loc, VoidType, "fail", SemaBuilder::CreateScopes());
-    ASTParam *Param = SemaBuilder::CreateParam(Fail, Loc, SemaBuilder::CreateStringType(Loc), "message");
-    Fail->addParam(Param);
-    return Fail;
-}
 
-ASTFunction *Sys::getFail3() {
-    const SourceLocation &Loc = SourceLocation();
-    ASTVoidType *VoidType = SemaBuilder::CreateVoidType(Loc);
-    ASTFunction *Fail = SemaBuilder::CreateFunction(nullptr, Loc, VoidType, "fail", SemaBuilder::CreateScopes());
+    ASTFunction *Fail0 = SemaBuilder::CreateFunction(nullptr, Loc, VoidType, "fail", SemaBuilder::CreateScopes());
+    S.getBuilder()->AddFunction(Fail0);
+
+    ASTFunction *Fail1 = SemaBuilder::CreateFunction(nullptr, Loc, VoidType, "fail", SemaBuilder::CreateScopes());
+    ASTParam *ParamFail1 = SemaBuilder::CreateParam(Loc, SemaBuilder::CreateUIntType(Loc), "code");
+    S.getBuilder()->AddParam(Fail1, ParamFail1);
+    S.getBuilder()->AddFunction(Fail1);
+
+    ASTFunction *Fail2 = SemaBuilder::CreateFunction(nullptr, Loc, VoidType, "fail", SemaBuilder::CreateScopes());
+    ASTParam *ParamFail2 = SemaBuilder::CreateParam(Loc, SemaBuilder::CreateStringType(Loc), "message");
+    S.getBuilder()->AddParam(Fail2, ParamFail2);
+    S.getBuilder()->AddFunction(Fail2);
+
+    ASTFunction *Fail3 = SemaBuilder::CreateFunction(nullptr, Loc, VoidType, "fail", SemaBuilder::CreateScopes());
     // TODO
 //    ASTParam *Param = SemaBuilder::CreateParam(Fail, Loc, SemaBuilder::CreateIdentityType("Error"), "enabled", false);
-//    Fail->addParam(Param);
-    return Fail;
+//    S.getBuilder()->AddParam(Fail3, ParamFail3);
+//    S.getBuilder()->AddFunction(Fail3);
 }
 
-ASTVar *Sys::getError() {
-    return SemaBuilder::CreateLocalVar(SourceLocation(), SemaBuilder::CreateErrorType(), "error");
-}

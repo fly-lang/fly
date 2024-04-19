@@ -40,7 +40,8 @@ ASTExpr *ExprParser::ParseAssignExpr(ASTVarRef *VarRef) {
     }
 
     // Create First Expr
-    ASTVarRefExpr *First = P->Builder.CreateExpr(Stmt, VarRef);
+    ASTVarRefExpr *First = P->Builder.CreateExpr(VarRef);
+    P->Builder.AddExpr(Stmt, First);
     Group.push_back(First);
 
     // Parse binary assignment operator
@@ -135,7 +136,7 @@ ASTExpr *ExprParser::ParseExpr(bool IsFirst) {
             }
         }
     } else if (P->isValue()) { // Ex. 1
-        Expr = P->Builder.CreateExpr(Stmt,P->ParseValue());
+        Expr = P->Builder.CreateExpr(P->ParseValue());
         P->Builder.AddExpr(Stmt, Expr);
     } else if (P->Tok.isAnyIdentifier()) { // Ex. a or a++ or func()
         Expr = ParseExpr(P->ParseIdentifier());
@@ -203,7 +204,7 @@ ASTExpr *ExprParser::ParseExpr(bool IsFirst) {
             ExprParser SubThird(P, Stmt);
             ASTExpr *False = SubThird.ParseExpr();
             if (False != nullptr)
-                return P->Builder.CreateTernaryExpr(Stmt, Expr, QuestionLoc, True, ColonLoc, False);
+                return P->Builder.CreateTernaryExpr(Expr, QuestionLoc, True, ColonLoc, False);
         }
 
         // Error: Invalid operator in Ternary condition
@@ -218,7 +219,7 @@ ASTExpr *ExprParser::ParseExpr(ASTIdentifier *Identifier) {
     FLY_DEBUG_MESSAGE("ExprParser", "ParseExpr",
                       Logger().Attr("Identifier", Identifier).End());
     if (Identifier->isCall()) { // Ex. a()
-        ASTCallExpr *CallExpr = P->Builder.CreateExpr(Stmt, (ASTCall *) Identifier);
+        ASTCallExpr *CallExpr = P->Builder.CreateExpr((ASTCall *) Identifier);
         P->Builder.AddExpr(Stmt, CallExpr);
         return CallExpr;
     } else { // parse variable post increment/decrement or simple var
@@ -227,7 +228,9 @@ ASTExpr *ExprParser::ParseExpr(ASTIdentifier *Identifier) {
             return ParseUnaryPostExpr(VarRef); // Parse Unary Pre Expression
         } else {
             // Simple Var
-            return P->Builder.CreateExpr(Stmt, VarRef);
+            ASTVarRefExpr *VarRefExpr = P->Builder.CreateExpr(VarRef);
+            P->Builder.AddExpr(Stmt, VarRefExpr);
+            return VarRefExpr;
         }
     }
 }
@@ -239,7 +242,7 @@ ASTExpr *ExprParser::ParseNewExpr(Parser *P) {
         ASTIdentifier *Identifier = P->ParseIdentifier();
 
         if (Identifier->isCall()) { // Ex. a()
-            ASTCallExpr *CallExpr = P->Builder.CreateNewExpr(Stmt, (ASTCall *) Identifier);
+            ASTCallExpr *CallExpr = P->Builder.CreateNewExpr((ASTCall *) Identifier);
             P->Builder.AddExpr(Stmt, CallExpr);
             return CallExpr;
         }
@@ -260,23 +263,24 @@ ASTExpr *ExprParser::ParseNewExpr(Parser *P) {
 ASTUnaryGroupExpr *ExprParser::ParseUnaryPostExpr(ASTVarRef *VarRef) {
     FLY_DEBUG_MESSAGE("ExprParser", "ParseUnaryPostExpr", Logger()
             .Attr("VarRef", VarRef).End());
-    ASTVarRefExpr *VarRefExpr = P->Builder.CreateExpr(Stmt, VarRef);
-        ASTUnaryOperatorKind Op;
-        switch (P->Tok.getKind()) {
-            case tok::exclaim:
-                Op = ASTUnaryOperatorKind::LOGIC_NOT;
-                break;
-            case tok::plusplus:
-                Op = ASTUnaryOperatorKind::ARITH_INCR;
-                break;
-            case tok::minusminus:
-                Op = ASTUnaryOperatorKind::ARITH_DECR;
-                break;
-            default:
-                assert(0 && "Unary Operator not accepted");
-        }
-        P->ConsumeToken();
-        return P->Builder.CreateUnaryExpr(Stmt, VarRef->getLocation(), Op, ASTUnaryOptionKind::UNARY_POST, VarRefExpr);
+    ASTVarRefExpr *VarRefExpr = P->Builder.CreateExpr(VarRef);
+    P->Builder.AddExpr(Stmt, VarRefExpr);
+    ASTUnaryOperatorKind Op;
+    switch (P->Tok.getKind()) {
+        case tok::exclaim:
+            Op = ASTUnaryOperatorKind::LOGIC_NOT;
+            break;
+        case tok::plusplus:
+            Op = ASTUnaryOperatorKind::ARITH_INCR;
+            break;
+        case tok::minusminus:
+            Op = ASTUnaryOperatorKind::ARITH_DECR;
+            break;
+        default:
+            assert(0 && "Unary Operator not accepted");
+    }
+    P->ConsumeToken();
+    return P->Builder.CreateUnaryExpr(VarRef->getLocation(), Op, ASTUnaryOptionKind::UNARY_POST, VarRefExpr);
 }
 
 /**
@@ -308,8 +312,9 @@ ASTUnaryGroupExpr* ExprParser::ParseUnaryPreExpr(Parser *P) {
     if (P->Tok.isAnyIdentifier()) {
         ASTIdentifier *Identifier = P->ParseIdentifier();
         ASTVarRef *VarRef = P->Builder.CreateVarRef(Identifier);
-        ASTVarRefExpr *VarRefExpr = P->Builder.CreateExpr(Stmt, VarRef);
-        return P->Builder.CreateUnaryExpr(Stmt, VarRef->getLocation(), Op, ASTUnaryOptionKind::UNARY_PRE, VarRefExpr);
+        ASTVarRefExpr *VarRefExpr = P->Builder.CreateExpr(VarRef);
+        P->Builder.AddExpr(Stmt, VarRefExpr);
+        return P->Builder.CreateUnaryExpr(VarRef->getLocation(), Op, ASTUnaryOptionKind::UNARY_PRE, VarRefExpr);
     }
 
     // Error: unary operator
@@ -401,7 +406,7 @@ void ExprParser::UpdateBinaryGroup(bool NoPrecedence) {
                 if (NoPrecedence || Op->isPrecedence()) {
                     First = Result.back();
                     Result.pop_back();
-                    Result.push_back(P->Builder.CreateBinaryExpr(Stmt, Op->getLocation(), Op->getOp(), First, Second));
+                    Result.push_back(P->Builder.CreateBinaryExpr(Op->getLocation(), Op->getOp(), First, Second));
                 } else {
                     Result.push_back(Op);
                     Result.push_back(Second);

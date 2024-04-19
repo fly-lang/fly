@@ -77,6 +77,8 @@ namespace fly {
         DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID) const;
 
         DiagnosticBuilder Diag(unsigned DiagID) const;
+
+        ASTContext *getContext() const;
     };
 
 }  // end namespace fly

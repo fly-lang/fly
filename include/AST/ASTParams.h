@@ -25,16 +25,11 @@ namespace fly {
         friend class SemaBuilder;
         friend class SemaResolver;
 
-        // Need this property to access directly to ASTFunction because Parent is always null
-        ASTFunctionBase *Function;
-
         ASTValue *DefaultValue;
 
-        ASTParam(ASTFunctionBase *Function, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes);
+        ASTParam(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes);
 
     public:
-
-        ASTFunctionBase *getFunction();
 
         ASTValue *getDefaultValue() const;
 

@@ -19,11 +19,12 @@ add_library(flyLib
         AST/ASTError.cpp
         AST/ASTExpr.cpp
         AST/ASTExprStmt.cpp
+        AST/ASTFailStmt.cpp
         AST/ASTForBlock.cpp
         AST/ASTFunction.cpp
         AST/ASTFunctionBase.cpp
         AST/ASTGlobalVar.cpp
-        AST/ASTHandleBlock.cpp
+        AST/ASTHandleStmt.cpp
         AST/ASTIdentifier.cpp
         AST/ASTIdentity.cpp
         AST/ASTIdentityType.cpp

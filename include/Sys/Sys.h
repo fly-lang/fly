@@ -20,27 +20,32 @@
 namespace fly {
 
     class DiagnosticsEngine;
+    class Sema;
     class ASTCall;
     class ASTVar;
     class ASTFunction;
 
     class Sys {
 
-        DiagnosticsEngine &Diags;
+        Sema &S;
 
     public:
 
-        static void Build(ASTNameSpace *NameSpace);
+        static void Build(Sema &S);
 
-        static ASTVar *getError();
+        Sys(Sema &S);
 
-        static ASTFunction *getFail0();
+        void AddFailFunctions();
 
-        static ASTFunction *getFail1();
+        ASTVar *getError();
 
-        static ASTFunction *getFail2();
+        ASTFunction *getFail0();
 
-        static ASTFunction *getFail3();
+        ASTFunction *getFail1();
+
+        ASTFunction *getFail2();
+
+        ASTFunction *getFail3();
 
 
 

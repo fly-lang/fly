@@ -8,33 +8,39 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#ifndef FLY_ASTHANDLEBLOCK_H
-#define FLY_ASTHANDLEBLOCK_H
+#ifndef FLY_ASTHANDLESTMT_H
+#define FLY_ASTHANDLESTMT_H
 
-#include "ASTBlock.h"
+#include "ASTStmt.h"
 
 namespace fly {
 
-    class ASTVar;
+    class ASTVarRef;
 
-    class ASTHandleBlock : public ASTBlock {
+    class ASTHandleStmt : public ASTStmt {
 
         friend class SemaBuilder;
         friend class SemaResolver;
 
         ASTVarRef *ErrorRef = nullptr;
 
-        ASTHandleBlock(ASTBlock *Parent, const SourceLocation &Loc, ASTVarRef *Error);
+        ASTStmt *Handle = nullptr;
+
+        ASTHandleStmt(ASTStmt *Parent, const SourceLocation &Loc);
 
     public:
 
-        ASTBlock *getParent() const override;
-
         ASTVarRef *getErrorRef() const;
+
+        void setErrorRef(ASTVarRef *errorRef);
+
+        ASTStmt *getHandle() const;
+
+        void setHandle(ASTStmt *H);
 
         std::string str() const;
     };
 }
 
 
-#endif //FLY_ASTHANDLEBLOCK_H
+#endif //FLY_ASTHANDLESTMT_H

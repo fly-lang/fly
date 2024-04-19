@@ -21,14 +21,9 @@
 
 using namespace fly;
 
-ASTParam::ASTParam(ASTFunctionBase *Function, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
-                   ASTScopes *Scopes) :
-        ASTLocalVar(ASTVarKind::VAR_PARAM, Loc, Type, Name, Scopes), Function(Function) {
+ASTParam::ASTParam(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes) :
+        ASTLocalVar(ASTVarKind::VAR_PARAM, Loc, Type, Name, Scopes) {
 
-}
-
-ASTFunctionBase *ASTParam::getFunction() {
-    return Function;
 }
 
 ASTValue *ASTParam::getDefaultValue() const {

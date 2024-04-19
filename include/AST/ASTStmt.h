@@ -19,6 +19,8 @@ namespace fly {
         STMT_BLOCK,
         STMT_EXPR,
         STMT_VAR,
+        STMT_FAIL,
+        STMT_HANDLE,
         STMT_BREAK,
         STMT_CONTINUE,
         STMT_DELETE,
@@ -56,7 +58,7 @@ namespace fly {
 
         bool isHandlerError();
 
-        std::string str() const;
+        virtual std::string str() const;
     };
 }
 
