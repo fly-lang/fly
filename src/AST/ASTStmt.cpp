@@ -12,26 +12,30 @@
 using namespace fly;
 
 ASTStmt::ASTStmt(ASTStmt *Parent, const SourceLocation &Loc, ASTStmtKind Kind) :
-        Top(Parent ? Parent->Top : nullptr), Parent(Parent), Location(Loc), Kind(Kind) {
+        ASTBase(Loc), Top(Parent ? Parent->Top : nullptr), Parent(Parent),  Kind(Kind) {
 }
 
 ASTStmt *ASTStmt::getParent() const {
     return Parent;
 }
 
-const SourceLocation &ASTStmt::getLocation() const {
-    return Location;
-}
-
 ASTStmtKind ASTStmt::getKind() const {
     return Kind;
 }
 
+void ASTStmt::setHandleError(bool HE) {
+    HandleError = HE;
+}
+
+bool ASTStmt::isHandlerError() {
+    return HandleError;
+}
+
 std::string ASTStmt::str() const {
     return Logger("ASTStmt").
-           Attr("Location", Location).
-           Attr("Kind", (uint64_t) Kind).
-           End();
+            Super(ASTBase::str()).
+            Attr("Kind", (uint64_t) Kind).
+            End();
 }
 
 

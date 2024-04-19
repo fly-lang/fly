@@ -7,34 +7,31 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_ASTVARASSIGN_H
-#define FLY_ASTVARASSIGN_H
+#ifndef FLY_ASTFAILSTMT_H
+#define FLY_ASTFAILSTMT_H
 
-#include "ASTExprStmt.h"
+#include "ASTStmt.h"
 
 namespace fly {
 
     class ASTVarRef;
 
-    /**
-     * Assign somethings to a Local Var
-     * Ex.
-     *  a = 1
-     */
-    class ASTVarAssign : public ASTExprStmt {
+    class ASTFailStmt : public ASTStmt {
 
         friend class SemaBuilder;
 
-        ASTVarRef *VarRef = nullptr;
+        ASTExpr *Expr = nullptr;
 
-        ASTVarAssign(ASTBlock *Parent, const SourceLocation &Loc, ASTVarRef *VarRef);
+        ASTFailStmt(ASTStmt *Parent, const SourceLocation &Loc);
 
     public:
 
-        ASTVarRef *getVarRef() const;
+        ASTExpr *getExpr() const;
+
+        void setExpr(ASTExpr *);
 
         std::string str() const override;
     };
 }
 
-#endif //FLY_ASTVARASSIGN_H
+#endif //FLY_ASTFAILSTMT_H

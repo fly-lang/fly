@@ -7,25 +7,35 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_BASIC_DEBUGGABLE_H
-#define FLY_BASIC_DEBUGGABLE_H
+#ifndef FLY_ASTBASE_H
+#define FLY_ASTBASE_H
+
+#include "Basic/SourceLocation.h"
+#include "llvm/ADT/Twine.h"
+#include "llvm/ADT/StringRef.h"
 
 #include <vector>
 #include <string>
 
-namespace llvm {
-    class StringRef;
-}
-
 namespace fly {
 
-    class SourceLocation;
+    class ASTBase {
 
-    class Debuggable {
+        friend class SemaBuilder;
+
+        const SourceLocation Location;
+
+        llvm::StringRef Comment;
 
     public:
 
-        virtual std::string str() const = 0;
+        ASTBase(const SourceLocation &Loc);
+
+        const SourceLocation &getLocation() const;
+
+        llvm::StringRef getComment() const;
+
+        virtual std::string str() const;
     };
 
     class Logger {
@@ -61,13 +71,29 @@ namespace fly {
 
         Logger &Attr(const char *key, uint64_t val);
 
-        Logger &Attr(const char *key, Debuggable *val);
+        Logger &Attr(const char *key, ASTBase *val);
 
         template <typename T>
         Logger &AttrList(const char *key, std::vector<T *> Vect) {
             std::string Entry = OPEN_LIST;
             if(!Vect.empty()) {
-                for (Debuggable *V : Vect) {
+                for (ASTBase *V : Vect) {
+                    Entry += V->str() + SEP;
+                }
+                unsigned long end = Entry.length()-std::string(SEP).length()-1;
+                Entry = Entry.substr(0, end);
+            }
+            Entry += CLOSE_LIST;
+            Attr(key, Entry);
+            isEmpty = false;
+            return *this;
+        }
+
+        template <typename T>
+        Logger &AttrList(const char *key, llvm::SmallVector<T *, 4> Vect) {
+            std::string Entry = OPEN_LIST;
+            if(!Vect.empty()) {
+                for (ASTBase *V : Vect) {
                     Entry += V->str() + SEP;
                 }
                 unsigned long end = Entry.length()-std::string(SEP).length()-1;
@@ -82,4 +108,4 @@ namespace fly {
     };
 }
 
-#endif //FLY_BASIC_DEBUGGABLE_H
+#endif //FLY_ASTBASE_H

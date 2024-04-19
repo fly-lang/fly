@@ -22,6 +22,7 @@ namespace fly {
     class ASTParams;
     class ASTType;
     class ASTBlock;
+    class ASTScopes;
     class CodeGenFunction;
 
     /**
@@ -31,19 +32,29 @@ namespace fly {
      *     return 1
      *   }
      */
-    class ASTFunction : public ASTFunctionBase, public ASTTopDef {
+    class ASTFunction : public ASTFunctionBase, public virtual ASTTopDef {
 
         friend class SemaBuilder;
         friend class SemaResolver;
         friend class FunctionParser;
 
+        ASTTopDefKind TopDefKind = ASTTopDefKind::DEF_FUNCTION;
+
+        ASTNode *Node;
+
         // Populated during codegen phase
         CodeGenFunction *CodeGen = nullptr;
 
         ASTFunction(const SourceLocation &Loc, ASTNode *Node, ASTType *ReturnType, llvm::StringRef Name,
-                    ASTTopScopes *Scopes);
+                    ASTScopes *Scopes);
 
     public:
+
+        ASTTopDefKind getTopDefKind() const override;
+
+        ASTNode *getNode() const override;
+
+        ASTNameSpace *getNameSpace() const override;
 
         llvm::StringRef getName() const override;
 

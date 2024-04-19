@@ -11,8 +11,7 @@
 #ifndef FLY_ASTVAR_H
 #define FLY_ASTVAR_H
 
-#include "Basic/Debuggable.h"
-#include "Basic/SourceLocation.h"
+#include "ASTBase.h"
 
 #include <string>
 
@@ -21,12 +20,15 @@ namespace fly {
     class SourceLocation;
     class CodeGenVarBase;
     class ASTType;
-    class ASTExpr;
+    class ASTScopes;
+    class ASTVarStmt;
 
     enum class ASTVarKind {
+        VAR_PARAM,
         VAR_LOCAL,
         VAR_GLOBAL,
-        VAR_CLASS
+        VAR_CLASS,
+        VAR_ENUM
     };
 
     /**
@@ -34,19 +36,45 @@ namespace fly {
      *  - LocalVar
      *  - GlobalVar
      */
-    class ASTVar : public virtual Debuggable {
+    class ASTVar : public ASTBase {
+
+        ASTVarKind VarKind;
+
+        ASTType *Type;
+
+        llvm::StringRef Name;
+
+        ASTScopes *Scopes;
+
+        ASTVarStmt *Initialization = nullptr;
+
+    protected:
+
+        ASTVar(ASTVarKind VarKind, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes);
 
     public:
 
-        virtual ASTVarKind getVarKind() = 0;
+        ASTVarKind getVarKind();
 
-        virtual ASTType *getType() const = 0;
+        ASTType *getType() const;
 
-        virtual llvm::StringRef getName() const = 0;
+        llvm::StringRef getName() const;
 
-        virtual ASTExpr *getExpr() const = 0;
+        bool isConstant() const;
+
+        bool isInitialized();
+
+        ASTVarStmt *getInitialization();
+
+        void setInitialization(ASTVarStmt *VarDefine);
+
+        ASTScopes *getScopes() const;
 
         virtual CodeGenVarBase *getCodeGen() const = 0;
+
+        virtual std::string print() const = 0;
+
+        std::string str() const;
     };
 }
 

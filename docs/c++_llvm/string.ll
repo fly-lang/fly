@@ -10,7 +10,9 @@ target triple = "x86_64-pc-linux-gnu"
 ; Function Attrs: noinline norecurse nounwind optnone uwtable
 define dso_local i32 @main() #0 {
   %1 = alloca i8*, align 8
+  %2 = alloca i8**, align 8
   store i8* getelementptr inbounds ([6 x i8], [6 x i8]* @.str.1, i64 0, i64 0), i8** %1, align 8
+  store i8** %1, i8*** %2, align 8
   ret i32 0
 }
 
@@ -20,4 +22,4 @@ attributes #0 = { noinline norecurse nounwind optnone uwtable "correctly-rounded
 !llvm.ident = !{!1}
 
 !0 = !{i32 1, !"wchar_size", i32 4}
-!1 = !{!"Debian clang version 11.1.0-++20211011094159+1fdec59bffc1-1~exp1~20211011214627.7"}
+!1 = !{!"Ubuntu clang version 11.1.0-6"}

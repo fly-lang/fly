@@ -22,17 +22,20 @@ namespace fly {
     class DiagnosticsEngine;
     class DiagnosticBuilder;
     class SourceLocation;
+    class ASTContext;
     class ASTNameSpace;
     class ASTNode;
-    class ASTClass;
+    class ASTIdentity;
     class ASTClassVar;
     class ASTClassFunction;
     class ASTFunctionBase;
+    class ASTFunction;
     class ASTImport;
     class ASTLocalVar;
     class ASTVarRef;
     class ASTVar;
     class ASTBlock;
+    class ASTIdentifier;
 
     class Sema {
 
@@ -40,6 +43,8 @@ namespace fly {
         friend class SemaResolver;
 
         DiagnosticsEngine &Diags;
+
+        ASTContext *Context = nullptr;
 
         SemaBuilder *Builder = nullptr;
 
@@ -51,25 +56,29 @@ namespace fly {
 
     public:
 
-        static SemaBuilder* CreateBuilder(DiagnosticsEngine &Diags);
+        static Sema* CreateSema(DiagnosticsEngine &Diags);
+
+        bool Resolve();
+
+        SemaBuilder *getBuilder();
 
         ASTNameSpace *FindNameSpace(llvm::StringRef Name) const;
-
-        ASTNameSpace *FindNameSpace(ASTFunctionBase *FunctionBase) const;
 
         ASTNode *FindNode(ASTFunctionBase *FunctionBase) const;
 
         ASTNode *FindNode(llvm::StringRef Name, ASTNameSpace *NameSpace) const;
 
-        ASTClass *FindClass(llvm::StringRef ClassName, ASTNameSpace *NameSpace) const;
+        ASTIdentity *FindIdentity(llvm::StringRef TypeName, ASTNameSpace *NameSpace) const;
 
-        ASTLocalVar *FindVarDef(ASTBlock *Block, llvm::StringRef VarName) const;
+        ASTVar *FindLocalVar(ASTBlock *Block, llvm::StringRef Name) const;
 
         ASTImport *FindImport(ASTNode *Node, llvm::StringRef Name);
 
         DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID) const;
 
         DiagnosticBuilder Diag(unsigned DiagID) const;
+
+        ASTContext *getContext() const;
     };
 
 }  // end namespace fly

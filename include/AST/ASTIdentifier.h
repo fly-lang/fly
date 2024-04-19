@@ -11,40 +11,68 @@
 #ifndef FLY_AST_IDENTIFIER_H
 #define FLY_AST_IDENTIFIER_H
 
-#include "Basic/Debuggable.h"
-#include "Basic/SourceLocation.h"
-
-#include "llvm/ADT/SmallVector.h"
+#include "ASTBase.h"
 
 namespace fly {
 
-    class ASTIdentifier : public Debuggable {
+    enum class ASTIdentifierKind {
+        REF_UNDEF,
+        REF_NAMESPACE,
+        REF_TYPE,
+        REF_CALL,
+        REF_VAR
+    };
+
+    class ASTIdentifier : public ASTBase {
 
         friend class SemaBuilder;
         friend class SemaResolver;
 
     protected:
 
-        const SourceLocation Loc;
-        llvm::StringRef NameSpace;
-        llvm::StringRef ClassName;
         const llvm::StringRef Name;
 
-    public:
+        bool Resolved = false;
+
+        std::string FullName;
+
+        ASTIdentifier *Parent = nullptr;
+
+        ASTIdentifier *Child = nullptr;
+
+        ASTIdentifierKind Kind = ASTIdentifierKind::REF_UNDEF;
 
         ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name);
 
-        ASTIdentifier(const SourceLocation &Loc, llvm::StringRef ClassName, llvm::StringRef Name);
+        ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name, ASTIdentifierKind Kind);
 
-        const SourceLocation &getLocation() const;
+        ~ASTIdentifier();
 
-        llvm::StringRef getNameSpace() const;
-
-        void setNameSpace(llvm::StringRef NameSpace);
-
-        llvm::StringRef getClassName() const;
+    public:
 
         llvm::StringRef getName() const;
+
+        std::string getFullName() const;
+
+        bool isUndef() const;
+
+        bool isNameSpace() const;
+
+        bool isType() const;
+
+        bool isCall() const;
+
+        bool isVarRef() const;
+
+        ASTIdentifierKind getIdKind() const;
+
+        ASTIdentifier * AddChild(ASTIdentifier *Identifier);
+
+        ASTIdentifier *getParent() const;
+
+        ASTIdentifier *getChild() const;
+
+        std::string print() const;
 
         std::string str() const;
     };

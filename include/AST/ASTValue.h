@@ -10,7 +10,10 @@
 #ifndef FLY_ASTVALUE_H
 #define FLY_ASTVALUE_H
 
-#include "Basic/Debuggable.h"
+#include "ASTBase.h"
+
+#include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/StringMap.h"
 
 #include <string>
 #include <vector>
@@ -20,28 +23,24 @@ namespace fly {
     class ASTType;
     class SourceLocation;
 
-    enum class ASTMacroTypeKind;
+    enum class ASTTypeKind;
 
-    class ASTValue : public Debuggable {
+    class ASTValue : public ASTBase {
 
         friend class SemaBuilder;
         friend class SemaResolver;
 
-        const SourceLocation &Location;
-
-        const ASTMacroTypeKind MacroKind;
+        const ASTTypeKind TypeKind;
 
     protected:
 
-        ASTValue(const ASTMacroTypeKind Kind, const SourceLocation &Location);
+        ASTValue(const ASTTypeKind TypeKind, const SourceLocation &Location);
 
     public:
 
-        const SourceLocation &getLocation() const;
+        const ASTTypeKind &getTypeKind() const;
 
-        const ASTMacroTypeKind &getMacroKind() const;
-
-        const std::string printMacroType() const;
+        const std::string printType() const;
 
         virtual const std::string print() const = 0;
 
@@ -117,6 +116,26 @@ namespace fly {
     };
 
     /**
+     * Used for String
+     */
+    class ASTStringValue : public ASTValue {
+
+        friend class SemaBuilder;
+
+        llvm::StringRef Value;
+
+        ASTStringValue(const SourceLocation &Loc, llvm::StringRef Value);
+
+    public:
+
+        llvm::StringRef getValue() const;
+
+        const std::string print() const;
+
+        std::string str() const override;
+    };
+
+    /**
      * Used for Arrays
      */
     class ASTArrayValue : public ASTValue {
@@ -140,11 +159,48 @@ namespace fly {
         std::string str() const override;
     };
 
+    /**
+     * Used for Structs
+     */
+    class ASTStructValue : public ASTValue {
+
+        friend class SemaBuilder;
+
+        llvm::StringMap<ASTValue *> Values;
+
+        ASTStructValue(const SourceLocation &Loc);
+
+    public:
+
+        const llvm::StringMap<ASTValue *> &getValues() const;
+
+        uint64_t size() const;
+
+        bool empty() const;
+
+        const std::string print() const;
+
+        std::string str() const override;
+    };
+
     class ASTNullValue : public ASTValue {
 
         friend class SemaBuilder;
 
         ASTNullValue(const SourceLocation &Loc);
+
+    public:
+
+        const std::string print() const;
+
+        std::string str() const override;
+    };
+
+    class ASTZeroValue : public ASTValue {
+
+        friend class SemaBuilder;
+
+        ASTZeroValue(const SourceLocation &Loc);
 
     public:
 

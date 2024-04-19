@@ -21,15 +21,27 @@
 
 using namespace fly;
 
-ASTParam::ASTParam(ASTFunctionBase *Function, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, bool Constant) :
-        ASTLocalVar(Function->Body, Loc, Type, Name, Constant) {
+ASTParam::ASTParam(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes) :
+        ASTLocalVar(ASTVarKind::VAR_PARAM, Loc, Type, Name, Scopes) {
 
+}
+
+ASTValue *ASTParam::getDefaultValue() const {
+    return DefaultValue;
+}
+
+void ASTParam::setDefaultValue(ASTValue *Value) {
+    DefaultValue = Value;
+}
+
+std::string ASTParam::print() const {
+    return getName().data();
 }
 
 std::string ASTParam::str() const {
     return Logger("ASTParam").
-           Super(ASTLocalVar::str()).
-           End();
+            Super(ASTLocalVar::str()).
+            End();
 }
 
 uint64_t ASTParams::getSize() const {
@@ -38,6 +50,10 @@ uint64_t ASTParams::getSize() const {
 
 ASTParam *ASTParams::at(unsigned long Index) const {
     return List.at(Index);
+}
+
+const bool ASTParams::isEmpty() const {
+    return List.empty() && Ellipsis == nullptr;
 }
 
 const std::vector<ASTParam *> &ASTParams::getList() const {

@@ -31,17 +31,18 @@ namespace fly {
         friend class SemaResolver;
 
         ASTVar *Def = nullptr;
-        ASTVar *Instance = nullptr;
-
-    public:
 
         ASTVarRef(const SourceLocation &Loc, llvm::StringRef Name);
 
-        ASTVarRef(const SourceLocation &Loc, llvm::StringRef ClassName, llvm::StringRef Name);
+        ASTVarRef(ASTVar *Var);
+
+    public:
 
         ASTVar *getDef() const;
 
-        ASTVar *getInstance() const;
+        bool isLocalVar();
+
+        std::string print() const;
 
         std::string str() const;
     };

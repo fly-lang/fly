@@ -10,48 +10,53 @@
 #ifndef FLY_ASTIMPORT_H
 #define FLY_ASTIMPORT_H
 
-#include "Basic/Debuggable.h"
-#include "Basic/SourceLocation.h"
+#include "ASTBase.h"
 
 namespace fly {
 
     class ASTNameSpace;
     class ASTNode;
-    class ASTUnref;
-    class SourceLocation;
 
-    class ASTImport : public Debuggable {
+    class ASTAlias : public ASTBase {
 
         friend class Sema;
         friend class SemaBuilder;
         friend class SemaResolver;
 
-        const SourceLocation NameLocation;
+        llvm::StringRef Name;
 
-        const SourceLocation AliasLocation;
+        ASTAlias(const SourceLocation &Loc, llvm::StringRef Name);
 
-        std::string Name;
+    public:
 
-        std::string Alias;
+        llvm::StringRef getName() const;
+
+        std::string str() const;
+    };
+
+    class ASTImport : public ASTBase {
+
+        friend class Sema;
+        friend class SemaBuilder;
+        friend class SemaResolver;
+
+        llvm::StringRef Name;
 
         ASTNameSpace *NameSpace = nullptr;
 
-        ASTImport(const SourceLocation &NameLoc, std::string Name);
+        ASTAlias *Alias = nullptr;
 
-        ASTImport(const SourceLocation &NameLoc, std::string Name,
-                  const SourceLocation &AliasLoc, std::string Alias);
+        ASTImport(const SourceLocation &Loc, llvm::StringRef Name);
 
     public:
 
         ~ASTImport();
 
-        const SourceLocation &getLocation() const;
+        llvm::StringRef getName() const;
 
-        const SourceLocation &getAliasLocation() const;
+        const ASTAlias *getAlias() const;
 
-        const std::string getName() const;
-
-        const std::string getAlias() const;
+        void setAlias(ASTAlias *Alias);
 
         ASTNameSpace *getNameSpace() const;
 

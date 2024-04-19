@@ -13,6 +13,7 @@
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTParams.h"
+#include "AST/ASTScopes.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/CodeGenOptions.h"
 #include "Basic/Debug.h"
@@ -39,12 +40,13 @@ std::string CodeGenHeader::GenerateFile() {
     FLY_DEBUG_MESSAGE("CodeGenHeader", "GenerateFile","FileName=" << FileName);
 
     // generate namespace
-    Header = "namespace " + NameSpace->getName() + "\n";
+    std::string NS = NameSpace->getName().data();
+    Header = "namespace " + NS + "\n";
 
     // generate global var declarations
     for (auto &GlobalVar : GlobalVars) {
         if (GlobalVar->getScopes()->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
-            Header += "\npublic " + Convert(GlobalVar->getType()) + "." +
+            Header += "\npublic " + GlobalVar->getType()->print() + "." +
                     std::string(GlobalVar->getName()) + "\n";
         }
     }
@@ -102,13 +104,13 @@ void CodeGenHeader::setClass(ASTClass *Class) {
 
 const std::string CodeGenHeader::Convert(ASTType *Type) {
     switch (Type->getKind()) {
-        case ASTTypeKind::TYPE_INT:
-            return "int";
-        case ASTTypeKind::TYPE_FLOAT:
-            return "float";
         case ASTTypeKind::TYPE_BOOL:
             return "bool";
-        case ASTTypeKind::TYPE_CLASS:
+        case ASTTypeKind::TYPE_INTEGER:
+            return "int";
+        case ASTTypeKind::TYPE_FLOATING_POINT:
+            return "float";
+        case ASTTypeKind::TYPE_IDENTITY:
             return "class";
     }
     return "";

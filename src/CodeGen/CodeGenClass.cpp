@@ -12,6 +12,7 @@
 #include "CodeGen/CodeGenVar.h"
 #include "CodeGen/CodeGenModule.h"
 #include "AST/ASTClass.h"
+#include "AST/ASTNode.h"
 #include "AST/ASTClassVar.h"
 #include "AST/ASTClassFunction.h"
 #include "AST/ASTNameSpace.h"
@@ -20,56 +21,88 @@
 using namespace fly;
 
 CodeGenClass::CodeGenClass(CodeGenModule *CGM, ASTClass *Class, bool isExternal) : CGM(CGM), AST(Class) {
+    std::string TypeName = CodeGen::toIdentifier(Class->getName(), Class->getNameSpace()->getName());
+    Type = llvm::StructType::create(CGM->LLVMCtx, TypeName);
+    TypePtr = Type->getPointerTo(CGM->Module->getDataLayout().getAllocaAddrSpace());
 
-    // Create Struct Type
-    llvm::SmallVector<llvm::Type *, 4> StructTypes;
-    for (auto &Var : Class->getVars()) {
-        llvm::Type *FieldType = CGM->GenType(Var.second->getType());
-        StructTypes.push_back(FieldType);
+    // Generate VTable from Class and Interface
+    if (Class->getClassKind() == ASTClassKind::CLASS || Class->getClassKind() == ASTClassKind::INTERFACE) {
+        VTableType = llvm::StructType::create(CGM->LLVMCtx, TypeName + "_vtable");
     }
-    // TODO if Type == Class->Type cannot be resolved from GenType()
-    std::string Name = CodeGen::toIdentifier(Class->getName(), Class->getNameSpace()->getName());
-    Type = llvm::StructType::create(CGM->LLVMCtx, StructTypes, Name);
 }
 
 void CodeGenClass::Generate() {
 
-    // Set CodeGen ClassVar
-    uint32_t n = 0;
-    for (auto &Var : AST->getVars()) {
-        CodeGenClassVar *CGV = new CodeGenClassVar(CGM, Var.second, Type, n++);
-        Var.second->setCodeGen(CGV);
-    }
-
-    // Create Constructors
-    for (auto &Vect : AST->getConstructors()) {
-        for (auto ClassFunction : Vect.second) {
-            // Create ClassFunction CodeGen for Constructor
-            CodeGenClassFunction *CG = new CodeGenClassFunction(CGM, ClassFunction);
-            CG->PreParams.push_back(Type->getPointerTo(CGM->Module->getDataLayout().getAllocaAddrSpace()));
-            CG->Create();
-            ClassFunction->setCodeGen(CG);
-            Constructors.push_back(CG);
-        }
-    }
-
-    // Create Functions
-    for (auto &Map : AST->getMethods()) {
-        for (auto &Vect : Map.second) {
-            for (auto ClassFunction : Vect.second) {
-                // Create ClassFunction CodeGen
-                CodeGenClassFunction *CG = new CodeGenClassFunction(CGM, ClassFunction);
-                CG->PreParams.push_back(Type->getPointerTo(CGM->Module->getDataLayout().getAllocaAddrSpace()));
-                CG->Create();
-                ClassFunction->setCodeGen(CG);
-                Functions.push_back(CG);
+    // Generate Constructors
+    if (AST->getClassKind() == ASTClassKind::CLASS || AST->getClassKind() == ASTClassKind::STRUCT) {
+        for (auto &Entry: AST->getConstructors()) {
+            for (auto Constructor: Entry.second) {
+                // Create Constructor CodeGen for Constructor
+                CodeGenClassFunction *CGCF = new CodeGenClassFunction(CGM, Constructor, TypePtr);
+                Constructor->setCodeGen(CGCF);
+                Constructors.push_back(Constructor->getCodeGen());
             }
         }
     }
+
+    // Create the Main StructType
+    llvm::SmallVector<llvm::Type *, 4> TypeVector;
+
+    // Generate Methods
+    if (AST->getClassKind() == ASTClassKind::CLASS || AST->getClassKind() == ASTClassKind::INTERFACE) {
+        llvm::SmallVector<llvm::Type *, 4> VTableVector;
+        for (auto &Map: AST->getMethods()) {
+            for (auto &Entry: Map.second) {
+                for (auto Method: Entry.second) {
+                    CodeGenClassFunction *CGCF = new CodeGenClassFunction(CGM, Method, TypePtr);
+                    if (!Method->isStatic()) { // only instance methods
+                        // Create the VTable Struct Type
+                        // %vtable_type = type { i32(%Foo*)* }
+                        VTableVector.push_back(CGCF->getFunctionType());
+                    }
+                    Method->setCodeGen(CGCF);
+                    Functions.push_back(CGCF);
+                }
+            }
+        }
+        VTableType->setBody(VTableVector);
+
+        // Add VTable as First element
+        TypeVector.push_back(VTableType->getPointerTo(CGM->Module->getDataLayout().getAllocaAddrSpace()));
+    }
+
+    // Set CodeGen ClassVar
+    if (!AST->getVars().empty()) {
+        if (AST->getClassKind() == ASTClassKind::CLASS || AST->getClassKind() == ASTClassKind::STRUCT) {
+
+            // Set var Index offset in the struct type
+            uint32_t Index = AST->getClassKind() == ASTClassKind::STRUCT ? 0 : 1;
+
+            // add var to the type
+            for (auto &Var: AST->getVars()) {
+                llvm::Type *FieldType = CGM->GenType(Var.second->getType());
+                TypeVector.push_back(FieldType);
+                CodeGenClassVar *CGV = new CodeGenClassVar(CGM, Var.second, Type, Index++);
+                Var.second->setCodeGen(CGV);
+                Vars.push_back(CGV);
+            }
+        }
+    }
+
+    // %type = type { %fields_type, %vtable_type }
+    Type->setBody(TypeVector);
 }
 
 llvm::StructType *CodeGenClass::getType() {
     return Type;
+}
+
+llvm::PointerType *CodeGenClass::getTypePtr() {
+    return TypePtr;
+}
+
+llvm::StructType *CodeGenClass::getVTableType() {
+    return VTableType;
 }
 
 const SmallVector<CodeGenClassVar *, 4> &CodeGenClass::getVars() const {

@@ -20,28 +20,46 @@
 
 using namespace fly;
 
-CodeGenVar::CodeGenVar(CodeGenModule *CGM, ASTVar *Var) : CodeGenVarBase(CGM, Var) {
-
+CodeGenVar::CodeGenVar(CodeGenModule *CGM, ASTVar *Var) : CGM(CGM), Var(Var) {
+    // Fix Architecture Compatibility of bool i1 to i8
+    this->T = Var->getType()->getKind() == ASTTypeKind::TYPE_BOOL ? CGM->Int8Ty : CGM->GenType(Var->getType());
 }
 
 void CodeGenVar::Init() {
     Pointer = CGM->Builder->CreateAlloca(T);
-    doLoad = true;
 }
 
 llvm::StoreInst *CodeGenVar::Store(llvm::Value *Val) {
     assert(Pointer && "Cannot store into unallocated stack");
-    BlockID = CGM->Builder->GetInsertBlock()->getName();
-    return CodeGenVarBase::Store(Val);
+    this->BlockID = CGM->Builder->GetInsertBlock()->getName();
+    this->LoadI = nullptr;
+
+    // Fix Architecture Compatibility of bool i1 to i8
+    if (Var->getType()->getKind() == ASTTypeKind::TYPE_BOOL) {
+        Val = CGM->Builder->CreateZExt(Val, CGM->Int8Ty);
+    }
+
+    return CGM->Builder->CreateStore(Val, this->Pointer);
 }
 
 llvm::LoadInst *CodeGenVar::Load() {
     assert(Pointer && "Cannot load from unallocated stack");
-    BlockID = CGM->Builder->GetInsertBlock()->getName();
-    return CodeGenVarBase::Load();
+    this->BlockID = CGM->Builder->GetInsertBlock()->getName();
+    this->LoadI = CGM->Builder->CreateLoad(Pointer);
+    return this->LoadI;
 }
 
 llvm::Value *CodeGenVar::getValue() {
-    doLoad = doLoad || BlockID != CGM->Builder->GetInsertBlock()->getName();
-    return CodeGenVarBase::getValue();
+    if (!this->LoadI || this->BlockID != CGM->Builder->GetInsertBlock()->getName()) {
+        return Load();
+    }
+    return this->LoadI;
+}
+
+Value *CodeGenVar::getPointer() {
+    return this->Pointer;
+}
+
+ASTVar *CodeGenVar::getVar() {
+    return Var;
 }

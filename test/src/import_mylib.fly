@@ -1,7 +1,6 @@
-namespace default
 import mylib
 
 int main() {
-    int a = mylib:myfunc()
+    int a = mylib.myfunc()
     return a
 }

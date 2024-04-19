@@ -13,18 +13,11 @@
 
 
 #include "AST/ASTImport.h"
-#include "AST/ASTNameSpace.h"
 
 using namespace fly;
 
-ASTImport::ASTImport(const SourceLocation &NameLoc, std::string Name) :
-        NameLocation(NameLoc), Name(Name) {
-
-}
-
-ASTImport::ASTImport(const SourceLocation &NameLoc, std::string Name,
-                     const SourceLocation &AliasLoc, std::string Alias) :
-        NameLocation(NameLoc), Name(Name), AliasLocation(AliasLoc), Alias(Alias) {
+ASTImport::ASTImport(const SourceLocation &Loc, llvm::StringRef Name) :
+        ASTBase(Loc), Name(Name) {
 
 }
 
@@ -32,12 +25,16 @@ ASTImport::~ASTImport() {
     NameSpace = nullptr;
 }
 
-const std::string ASTImport::getName() const {
+llvm::StringRef ASTImport::getName() const {
     return Name;
 }
 
-const std::string ASTImport::getAlias() const {
+const ASTAlias *ASTImport::getAlias() const {
     return Alias;
+}
+
+void ASTImport::setAlias(ASTAlias *A) {
+    Alias = A;
 }
 
 ASTNameSpace *ASTImport::getNameSpace() const {
@@ -48,18 +45,27 @@ void ASTImport::setNameSpace(ASTNameSpace *NS) {
     NameSpace = NS;
 }
 
-const SourceLocation &ASTImport::getLocation() const {
-    return NameLocation;
-}
-
-const SourceLocation &ASTImport::getAliasLocation() const {
-    return AliasLocation;
-}
-
 std::string ASTImport::str() const {
     return Logger("ASTImport").
+            Super(ASTBase::str()).
             Attr("Name", Name).
             Attr("NameSpace", NameSpace).
             Attr("Alias",Alias).
+            End();
+}
+
+ASTAlias::ASTAlias(const SourceLocation &Loc, llvm::StringRef Name) :
+        ASTBase(Loc), Name(Name) {
+
+}
+
+llvm::StringRef ASTAlias::getName() const {
+    return Name;
+}
+
+std::string ASTAlias::str() const {
+    return Logger("ASTImport").
+            Super(ASTBase::str()).
+            Attr("Name", Name).
             End();
 }

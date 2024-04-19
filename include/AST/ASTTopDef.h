@@ -11,88 +11,37 @@
 #ifndef FLY_AST_TOPDEF_H
 #define FLY_AST_TOPDEF_H
 
-#include "Basic/Debuggable.h"
-#include "Basic/SourceLocation.h"
-
-#include "llvm/ADT/SmallVector.h"
+namespace llvm {
+    class StringRef;
+}
 
 namespace fly {
 
     class SourceLocation;
     class ASTNode;
     class ASTNameSpace;
+    class ASTScopes;
 
     enum class ASTTopDefKind {
-        DEF_NONE,
         DEF_NAMESPACE,
         DEF_IMPORT,
         DEF_GLOBALVAR,
         DEF_FUNCTION,
-        DEF_CLASS
+        DEF_CLASS,
+        DEF_ENUM
     };
 
-    enum class ASTVisibilityKind {
-        V_DEFAULT,
-        V_PUBLIC,
-        V_PRIVATE
-    };
-
-    class ASTTopScopes : public Debuggable {
-
-        friend class SemaBuilder;
-
-        // Visibility of the declaration
-        ASTVisibilityKind Visibility;
-
-        bool Constant = false;
-
-        ASTTopScopes(ASTVisibilityKind visibility, bool constant);
-
-    public:
-        ASTVisibilityKind getVisibility() const;
-
-        bool isConstant() const;
-
-        std::string str() const;
-    };
-
-    class ASTTopDef : public virtual Debuggable {
-
-        friend class SemaBuilder;
-
-    protected:
-
-        ASTNode *Node = nullptr;
-
-        ASTNameSpace *NameSpace = nullptr;
-
-        // Kind of TopDecl identified by enum
-        ASTTopDefKind Kind;
-
-        // The TopDef Scopes
-        ASTTopScopes *Scopes = nullptr;
-
-        llvm::StringRef Comment;
-
-    protected:
-
-        ASTTopDef(ASTNode *Node, ASTTopDefKind Kind, ASTTopScopes *Scopes);
+    class ASTTopDef {
 
     public:
 
-        ASTNode *getNode();
+        virtual ASTNode *getNode() const = 0;
 
         virtual llvm::StringRef getName() const = 0;
 
-        ASTNameSpace *getNameSpace() const;
+        virtual ASTNameSpace *getNameSpace() const = 0;
 
-        ASTTopScopes *getScopes() const;
-
-        ASTTopDefKind getKind() const;
-
-        llvm::StringRef getComment() const;
-
-        std::string str() const;
+        virtual ASTTopDefKind getTopDefKind() const = 0;
 
     };
 }

@@ -29,6 +29,8 @@ namespace fly {
     class ASTContext;
     class ASTNameSpace;
     class ASTNode;
+    class ASTClass;
+    class ASTClassFunction;
     class ASTStmt;
     class ASTBlock;
     class ASTLocalVar;
@@ -47,6 +49,10 @@ namespace fly {
     class ASTClassType;
     class ASTFunction;
     class ASTFunctionBase;
+    class ASTIdentifier;
+    class ASTImport;
+    class ASTIdentityType;
+    class ASTVar;
 
     class SemaResolver {
 
@@ -62,11 +68,17 @@ namespace fly {
 
     private:
 
+        bool ResolveNameSpace(ASTNode *Node, ASTIdentifier *&Identifier);
+
         bool ResolveImports(ASTNode *Node);
 
-        bool ResolveClass(ASTNode *Node);
+        bool ResolveGlobalVars(ASTNode *Node);
+
+        bool ResolveIdentities(ASTNode *Node);
 
         bool ResolveFunctions(ASTNode *Node);
+
+        bool ResolveStmt(ASTStmt *Stmt);
 
         bool ResolveBlock(ASTBlock *Block);
 
@@ -78,25 +90,39 @@ namespace fly {
 
         bool ResolveForBlock(ASTForBlock *ForBlock);
 
-        bool ResolveType(ASTFunctionBase *FunctionBase, ASTType * Type);
+        bool ResolveParentIdentifier(ASTBlock *Block, ASTIdentifier *&Identifier);
 
-        template <class T>
-        bool ResolveCallable(ASTBlock *Block, ASTCall *Call, llvm::StringMap<std::map <uint64_t,llvm::SmallVector <T *, 4>>> &Functions);
+        bool ResolveIdentityType(ASTNode *Node, ASTIdentityType *IdentityType);
 
-        template <class T>
-        bool ResolveCallable(ASTBlock *Block, ASTCall *Call, std::map <uint64_t,llvm::SmallVector <T *, 4>> &Functions);
+        bool ResolveVarRef(ASTBlock *Block, ASTVarRef *VarRef);
 
-        bool ResolveArg(ASTBlock *Block, ASTArg *Arg, ASTParam *Param);
+        ASTVar *ResolveVarRefNoParent(ASTBlock *Block, llvm::StringRef Name);
+
+        ASTVar *ResolveVarRef(llvm::StringRef Name, ASTIdentityType *IdentityType);
+
+        bool ResolveVarRefWithParent(ASTVarRef *VarRef);
 
         bool ResolveCall(ASTBlock *Block, ASTCall *Call);
 
-        bool ResolveVarRef(ASTBlock *Block, ASTVarRef *VarRef);
+        bool ResolveCallNoParent(ASTBlock *Block, ASTCall *Call);
+
+        bool ResolveCall(ASTBlock *Block, ASTCall *Call, ASTIdentityType *IdentityType);
+
+        bool ResolveCall(ASTBlock *Block, ASTCall *Call, ASTNameSpace *NameSpace);
+
+        bool ResolveCallWithParent(ASTBlock *Block, ASTCall *Call);
+
+        template <class T>
+        bool ResolveCall(ASTBlock *Block, ASTCall *Call, llvm::StringMap<std::map <uint64_t,llvm::SmallVector <T *, 4>>> &Functions);
+
+        template <class T>
+        bool ResolveCall(ASTBlock *Block, ASTCall *Call, std::map <uint64_t,llvm::SmallVector <T *, 4>> &Functions);
+
+        bool ResolveArg(ASTBlock *Block, ASTArg *Arg, ASTParam *Param);
 
         bool ResolveExpr(ASTBlock *Block, ASTExpr *Expr);
 
         bool ResolveValueExpr(ASTValueExpr *pExpr);
-
-        ASTBlock *getBlock(ASTStmt *Stmt);
 
         ASTType *getType(ASTStmt *Stmt);
 

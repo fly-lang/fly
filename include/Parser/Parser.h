@@ -23,14 +23,16 @@ namespace fly {
     class ASTArrayValue;
     class ASTArrayType;
     class ASTClassType;
-    class ASTTopScopes;
+    class ASTScopes;
     class ASTType;
     class ASTBlock;
     class ASTCall;
     class ASTStmt;
+    class ASTSwitchBlock;
     class ASTExpr;
-    class ASTVarRef;
     class InputFile;
+    class ASTHandleStmt;
+    class ASTVarRef;
     enum class ASTBinaryOperatorKind;
 
     /// Parse the main file known to the preprocessor, producing an
@@ -39,6 +41,7 @@ namespace fly {
 
         friend class FunctionParser;
         friend class ClassParser;
+        friend class EnumParser;
         friend class ExprParser;
 
         const InputFile &Input;
@@ -56,8 +59,6 @@ namespace fly {
         Token Tok;
 
         ASTNode *Node;
-
-        std::string NameSpace;
 
         // PrevTokLocation - The location of the token we previously
         // consumed. This token is used for diagnostics where we expected to
@@ -86,35 +87,38 @@ namespace fly {
 
         // Parse Top Definitions
         bool ParseTopDef();
-        ASTTopScopes *ParseTopScopes();
-        bool ParseGlobalVarDef(ASTTopScopes *Scopes, ASTType *Type);
-        bool ParseFunctionDef(ASTTopScopes *Scopes, ASTType *Type);
-        bool ParseClassDef(ASTTopScopes *Scopes);
+        bool ParseScopes(ASTScopes *&Scopes);
+        bool ParseGlobalVarDef(ASTScopes *Scopes, ASTType *Type);
+        bool ParseFunctionDef(ASTScopes *Scopes, ASTType *Type);
+        bool ParseClassDef(ASTScopes *Scopes);
+        bool ParseEnumDef(ASTScopes *Scopes);
 
         // Parse Block Statement
-        bool ParseBlock(ASTBlock *Block);
-        bool ParseStmt(ASTBlock *Block);
+        bool ParseBlock(ASTBlock *Parent);
+        bool ParseStmt(ASTBlock *Parent, bool StopParse = false);
         bool ParseStartParen();
         bool ParseEndParen(bool HasParen);
         bool ParseIfStmt(ASTBlock *Block);
         bool ParseSwitchStmt(ASTBlock *Block);
+        bool ParseSwitchCases(ASTSwitchBlock *SwitchBlock);
         bool ParseWhileStmt(ASTBlock *Block);
         bool ParseForStmt(ASTBlock *Block);
         bool ParseForCommaStmt(ASTBlock *Block);
+        bool ParseHandleStmt(ASTBlock *Block, ASTVarRef *Error);
+        bool ParseFailStmt(ASTBlock *Block);
 
         // Parse Identifiers
-        ASTType *ParseBuiltinType();
-        ASTArrayType *ParseArrayType(ASTType *);
-        ASTClassType *ParseClassType(ASTClassType *Parent = nullptr);
-        ASTType *ParseType();
-        ASTCall *ParseCall(ASTStmt *Stmt, ASTIdentifier *Identifier);
-        bool ParseCallArg(ASTStmt *Stmt, ASTCall *Call);
-        ASTIdentifier *ParseIdentifier();
+        bool ParseBuiltinType(ASTType *&);
+        bool ParseArrayType(ASTType *&);
+        bool ParseType(ASTType *&);
+        bool ParseCall(ASTIdentifier *&Identifier);
+        bool ParseCallArg(ASTCall *Call);
+        ASTIdentifier *ParseIdentifier(ASTIdentifier *Parent = nullptr);
 
         // Parse a Value
         ASTValue *ParseValue();
         ASTValue *ParseValueNumber(std::string &Str);
-        bool ParseValues(ASTArrayValue &ArrayValues);
+        ASTValue *ParseValues();
 
         // Parse Expressions
         ASTExpr *ParseExpr(ASTStmt *Stmt = nullptr, ASTIdentifier *Identifier = nullptr);
@@ -122,7 +126,6 @@ namespace fly {
         // Check Keywords
         bool isBuiltinType(Token &Tok);
         bool isArrayType(Token &Tok);
-        bool isClassType(Token &Tok);
         bool isValue();
         bool isConst();
         bool isBlockStart();
@@ -143,7 +146,7 @@ namespace fly {
         bool isTernaryOperator();
         SourceLocation ConsumeParen();
         SourceLocation ConsumeBracket();
-        SourceLocation ConsumeBrace();
+        SourceLocation ConsumeBrace(unsigned short &BraceCount);
         bool isBraceBalanced() const;
         SourceLocation ConsumeStringToken();
         SourceLocation ConsumeNext();

@@ -9,36 +9,40 @@
 
 
 #include "AST/ASTGlobalVar.h"
+#include "AST/ASTScopes.h"
 #include "AST/ASTNode.h"
 #include "AST/ASTNameSpace.h"
 
 using namespace fly;
 
 ASTGlobalVar::ASTGlobalVar(const SourceLocation &Loc, ASTNode *Node, ASTType *Type, llvm::StringRef Name,
-                           ASTTopScopes *Scopes) :
-        ASTTopDef(Node, ASTTopDefKind::DEF_GLOBALVAR, Scopes),
-        VarKind(ASTVarKind::VAR_GLOBAL), Type(Type), Name(Name), Location(Loc) {
+                           ASTScopes *Scopes) :
+        ASTVar(ASTVarKind::VAR_GLOBAL, Loc, Type, Name, Scopes), Node(Node) {
 
+}
+
+ASTTopDefKind ASTGlobalVar::getTopDefKind() const {
+    return TopDefKind;
+}
+
+ASTNode *ASTGlobalVar::getNode() const {
+    return Node;
+}
+
+ASTNameSpace *ASTGlobalVar::getNameSpace() const {
+    return Node->getNameSpace();
 }
 
 llvm::StringRef ASTGlobalVar::getName() const {
-    return Name;
+    return ASTVar::getName();
 }
 
-const SourceLocation &ASTGlobalVar::getLocation() const {
-    return Location;
+ASTVarStmt *ASTGlobalVar::getInit() const {
+    return Init;
 }
 
-ASTVarKind ASTGlobalVar::getVarKind() {
-    return VarKind;
-}
-
-ASTType *ASTGlobalVar::getType() const {
-    return Type;
-}
-
-ASTExpr *ASTGlobalVar::getExpr() const {
-    return Expr;
+void ASTGlobalVar::setInit(ASTVarStmt *varDefine) {
+    Init = varDefine;
 }
 
 CodeGenGlobalVar *ASTGlobalVar::getCodeGen() const {
@@ -49,12 +53,12 @@ void ASTGlobalVar::setCodeGen(CodeGenGlobalVar *CG) {
     CodeGen = CG;
 }
 
+std::string ASTGlobalVar::print() const {
+    return getNameSpace()->print() + "." + getName().data();
+}
+
 std::string ASTGlobalVar::str() const {
     return Logger("ASTGlobalVar").
-            Super(ASTTopDef::str()).
-            Attr("Type", Type).
-            Attr("Name", Name).
-            Attr("VarKind", (uint64_t) VarKind).
-            Attr("Expr", Expr).
+            Super(ASTVar::str()).
             End();
 }

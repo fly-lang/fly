@@ -10,11 +10,12 @@
 #include "AST/ASTCall.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTParams.h"
-#include "Basic/Debuggable.h"
+#include "AST/ASTIdentifier.h"
 
 using namespace fly;
 
-ASTArg::ASTArg(ASTCall *Call, ASTExpr *Expr) : Expr(Expr), Call(Call) {
+ASTArg::ASTArg(ASTCall *Call, ASTExpr *Expr) :
+        ASTBase(Expr->getLocation()), Expr(Expr), Call(Call) {
 
 }
 
@@ -28,6 +29,7 @@ ASTParam *ASTArg::getDef() const {
 
 std::string ASTArg::str() const {
     return Logger("ASTArg").
+            Super(ASTBase::str()).
             Attr("Expr", Expr).
             Attr("Index", Index).
             End();
@@ -41,13 +43,11 @@ ASTExpr *ASTArg::getExpr() const {
     return Expr;
 }
 
-ASTCall::ASTCall(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef Name) :
-        ASTIdentifier(Loc, NameSpace, Name) {
+ASTCall::ASTCall(const SourceLocation &Loc, llvm::StringRef Name) : ASTIdentifier(Loc, Name, ASTIdentifierKind::REF_CALL) {
+
 }
 
-ASTCall::ASTCall(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef ClassName, llvm::StringRef Name) :
-        ASTIdentifier(Loc, ClassName, Name) {
-    setNameSpace(NameSpace);
+ASTCall::ASTCall(ASTFunctionBase *Function) : Def(Function), ASTIdentifier(SourceLocation(), Function->getName(), ASTIdentifierKind::REF_CALL) {
 }
 
 const std::vector<ASTArg*> ASTCall::getArgs() const {
@@ -58,24 +58,13 @@ ASTFunctionBase *ASTCall::getDef() const {
     return Def;
 }
 
-CodeGenCall *ASTCall::getCodeGen() const {
-    return CGC;
-}
-
-ASTVar *ASTCall::getInstance() const {
-    return Instance;
+ASTCallKind ASTCall::getCallKind() const {
+    return CallKind;
 }
 
 std::string ASTCall::str() const {
     return Logger("ASTFunctionCall").
-            Attr("Loc", Loc).
-            Attr("Name", Name).
-            Attr("NameSpace", NameSpace).
             AttrList("Args", Args).
             Attr("Def", Def).
             End();
-}
-
-bool ASTCall::isNew() const {
-    return New;
 }

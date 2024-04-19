@@ -20,16 +20,16 @@
 namespace fly {
 
     class DiagnosticBuilder;
-    class ASTReturn;
+    class ASTReturnStmt;
     class ASTFunctionBase;
     class ASTCall;
     class ASTLocalVar;
-    class ASTVarAssign;
+    class ASTVarStmt;
     class ASTGroupExpr;
     class ASTVarRef;
     class ASTExpr;
-    class ASTBreak;
-    class ASTContinue;
+    class ASTBreakStmt;
+    class ASTContinueStmt;
     class ASTIfBlock;
     class ASTIfBlock;
     class ASTSwitchBlock;
@@ -47,7 +47,8 @@ namespace fly {
         BLOCK_WHILE,
         BLOCK_FOR,
         BLOCK_FOR_LOOP,
-        BLOCK_FOR_POST
+        BLOCK_FOR_POST,
+        BLOCK_HANDLE
     };
 
     /**
@@ -66,9 +67,6 @@ namespace fly {
 
         // Contains all vars declared in this Block
         llvm::StringMap<ASTLocalVar *> LocalVars;
-
-        // Contains all declared vars not yet initialized;
-        llvm::StringMap<ASTLocalVar *> UnInitVars;
 
     protected:
 
@@ -90,18 +88,16 @@ namespace fly {
 
         const llvm::StringMap<ASTLocalVar *> &getLocalVars() const;
 
-        const llvm::StringMap<ASTLocalVar *> &getUnInitVars() const;
-
         std::string str() const override;
     };
 
     /**
      * Break Stmt
      */
-    class ASTBreak : public ASTStmt {
+    class ASTBreakStmt : public ASTStmt {
 
     public:
-        ASTBreak(ASTBlock *Parent, const SourceLocation &Loc);
+        ASTBreakStmt(ASTBlock *Parent, const SourceLocation &Loc);
 
         std::string str() const override;
     };
@@ -109,14 +105,13 @@ namespace fly {
     /**
      * Continue Stmt
      */
-    class ASTContinue : public ASTStmt {
+    class ASTContinueStmt : public ASTStmt {
 
     public:
-        ASTContinue(ASTBlock *Parent, const SourceLocation &Loc);
+        ASTContinueStmt(ASTBlock *Parent, const SourceLocation &Loc);
 
         std::string str() const override;
     };
 }
-
 
 #endif //FLY_ASTBLOCK_H

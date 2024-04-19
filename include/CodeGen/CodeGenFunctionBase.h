@@ -13,12 +13,14 @@
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/SmallVector.h"
+#include "AST/ASTParams.h"
 
 namespace llvm {
     class Function;
     class FunctionType;
     class Type;
     class BasicBlock;
+    class StructType;
 }
 
 namespace fly {
@@ -30,19 +32,23 @@ namespace fly {
 
     class CodeGenFunctionBase {
 
-        ASTFunctionBase *AST = nullptr;
-
     protected:
-        CodeGenModule * CGM = nullptr;
+        ASTFunctionBase *AST = nullptr;
+        CodeGenModule *CGM = nullptr;
         llvm::Function *Fn = nullptr;
-        llvm::FunctionType *FnTy = nullptr;
-        llvm::SmallVector<llvm::Type *, 4> PreParams;
+        llvm::Type *RetType = nullptr;
+        llvm::FunctionType *FnType = nullptr;
         llvm::BasicBlock *Entry = nullptr;
+        llvm::Value *ErrorVar = nullptr;
 
     public:
         CodeGenFunctionBase(CodeGenModule *CGM, ASTFunctionBase *AST);
 
-        virtual llvm::Function *Create();
+        CodeGenModule *getCodeGenModule();
+
+        void GenReturnType();
+
+        void GenParamTypes(CodeGenModule * CGM, SmallVector<llvm::Type *, 8> &Types, const ASTParams *Params);
 
         ASTFunctionBase *getAST();
 
@@ -56,13 +62,11 @@ namespace fly {
 
         void AllocaVars();
 
-        void GenBody();
+        void StoreParams(bool isMain);
 
-    protected:
-        llvm::FunctionType *GenFuncType(const ASTType *RetType, const ASTParams *Params);
+        llvm::Value *getErrorVar();
 
-        llvm::FunctionType *GenFuncType(llvm::Type *RetType, const ASTParams *Params);
-
+        virtual void GenBody() = 0;
     };
 }
 

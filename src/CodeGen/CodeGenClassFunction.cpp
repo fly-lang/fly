@@ -12,67 +12,83 @@
 #include "CodeGen/CodeGenClass.h"
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
+#include "AST/ASTNode.h"
 #include "AST/ASTClassFunction.h"
 #include "AST/ASTClassVar.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTClass.h"
+#include "Basic/Debug.h"
 
 using namespace fly;
 
-CodeGenClassFunction::CodeGenClassFunction(CodeGenModule *CGM, ASTClassFunction *AST) : CodeGenFunctionBase(CGM, AST) {
+CodeGenClassFunction::CodeGenClassFunction(CodeGenModule *CGM, ASTClassFunction *AST, llvm::PointerType *TypePtr) : CodeGenFunctionBase(CGM, AST) {
+    ASTClass *Class = AST->getClass();
 
+    // Generate return type
+    GenReturnType();
+
+    // Generate Params Types
+    llvm::SmallVector<llvm::Type *, 8> ParamTypes;
+    if (Class->getClassKind() != ASTClassKind::STRUCT) { // Add error argument only for class and interface
+        ParamTypes.push_back(CGM->ErrorType->getPointerTo(0));
+    }
+    if (TypePtr) // Instance method
+        ParamTypes.push_back(TypePtr);
+    GenParamTypes(CGM, ParamTypes, AST->getParams());
+
+    // Set LLVM Function Name %MODULE_CLASS_METHOD (if MODULE == default is empty)
+    FnType = llvm::FunctionType::get(RetType, ParamTypes, AST->getParams()->getEllipsis() != nullptr);
+
+    std::string Name = CodeGen::toIdentifier(getAST()->getName(), Class->getNameSpace()->getName(), Class->getName());
+    Fn = llvm::Function::Create(FnType, llvm::GlobalValue::ExternalLinkage, Name, CGM->getModule());
 }
 
-Function *CodeGenClassFunction::Create() {
-    ASTClassFunction *ClassFunction = ((ASTClassFunction *) getAST());
-    ASTClass *Class = ClassFunction->getClass();
-
-    if (ClassFunction->isConstructor()) { // only for constructors
-        FnTy = GenFuncType(CGM->VoidTy, ClassFunction->getParams());
-    } else {
-        FnTy = GenFuncType(ClassFunction->getType(), ClassFunction->getParams());
-    }
-    // Set LLVM Function Name %MODULE_CLASS_METHOD (if MODULE == default is empty)
-    std::string Name = CodeGen::toIdentifier(getAST()->getName(), Class->getNameSpace()->getName(), Class->getName());
-    Fn = llvm::Function::Create(FnTy, llvm::GlobalValue::ExternalLinkage, Name, CGM->getModule());
-
+void CodeGenClassFunction::GenBody() {
+    FLY_DEBUG("CodeGenFunctionBase", "GenBody");
+    ASTClass *Class = ((ASTClassFunction *) AST)->getClass();
+    Type *ClassType = Class->getCodeGen()->getTypePtr();
     setInsertPoint();
-    
-    // if is Constructor Add return a pointer to memory struct
-    if (!ClassFunction->isStatic()) {
 
-        //Alloca, Store, Load first arg which is the instance
-        Argument *ClassTypePtr = Fn->getArg(0);
-        Type *ClassType = ClassTypePtr->getType();
+    // the first is the error
+    if (Class->getClassKind() != ASTClassKind::STRUCT)
+        ErrorVar = Fn->getArg(0);
+
+    // Class Method (not static)
+    if (!((ASTClassFunction *) AST)->isStatic()) {
+
+        //Alloca, Store, Load the second arg which is the instance
+        llvm::Argument *ClassTypePtr = Class->getClassKind() == ASTClassKind::STRUCT ? Fn->getArg(0) : Fn->getArg(1);
+
         AllocaInst *Instance = CGM->Builder->CreateAlloca(ClassType);
         CGM->Builder->CreateStore(ClassTypePtr, Instance);
-        LoadInst *Load = CGM->Builder->CreateLoad(Instance);
+        llvm::LoadInst *Load = CGM->Builder->CreateLoad(Instance);
 
         // All Class Vars
         for (auto &Entry : Class->getVars()) {
             ASTClassVar *Var = Entry.second;
 
             // Set CodeGen Class Instance
-            CodeGenClassVar *CGVar = Var->getCodeGen();
-            CGVar->Init(Load);
+            CodeGenClassVar *CGVar = (CodeGenClassVar *) Var->getCodeGen();
+            CGVar->setInstance(Load);
+            CGVar->Init();
 
             // Save all default var values
-            if (ClassFunction->isConstructor()) {
-                llvm::Value *V = CGM->GenExpr(Fn, Var->getType(), Var->getExpr());
-                CGVar->Store(V);
+            if (((ASTClassFunction *) AST)->isConstructor()) {
+
+                // TODO execute PreConstructor
+//                llvm::Value *V = CGM->GenExpr(this, Var->getType(), Var->getExpr());
+//                CGVar->Store(V);
             }
         }
-
-        AllocaVars();
-        CGM->GenBlock(Fn, ClassFunction->getBody()->getContent());
-
-        if (ClassFunction->isConstructor()) {
-            CGM->Builder->CreateRetVoid();
-        }
-    } else {
-        AllocaVars();
-        CGM->GenBlock(Fn, ClassFunction->getBody()->getContent());
     }
 
-    return Fn;
+    // Alloca Function Local Vars and generate body
+    AllocaVars();
+    StoreParams(false);
+    CGM->GenBlock(this, AST->getBody()->getContent());
+
+    // Add return Void
+    if (FnType->getReturnType()->isVoidTy()) {
+        CGM->Builder->CreateRetVoid();
+    }
 }

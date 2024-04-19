@@ -11,10 +11,13 @@
 #define FLY_SEMA_VALIDATOR_H
 
 #include "AST/ASTType.h"
+#include "AST/ASTParams.h"
+#include "AST/ASTClassType.h"
 
 namespace fly {
 
     class Sema;
+    class ASTGlobalVar;
     class ASTBlock;
     class ASTStmt;
     class ASTLocalVar;
@@ -22,6 +25,7 @@ namespace fly {
     class ASTNode;
     class ASTImport;
     class ASTExpr;
+    class ASTParams;
     class ASTParam;
     class ASTType;
     class SourceLocation;
@@ -36,23 +40,39 @@ namespace fly {
 
     public:
 
-        bool CheckDuplicatedLocalVars(ASTStmt *Stmt, ASTLocalVar *LocalVar);
+        bool DiagEnabled = true;
 
-        bool CheckUninitialized(ASTBlock *Block, ASTVarRef *VarRef);
+        bool CheckDuplicateParams(ASTParams *Params, ASTParam *Param);
+
+        bool CheckDuplicateLocalVars(ASTStmt *Stmt, llvm::StringRef VarName);
+
+        static bool CheckParams(const ASTParams *Params, const ASTParams *CheckParams) {
+            // Types will be checked on Resolve()
+            for (ASTParam *Param : Params->getList()) {
+                for (ASTParam *CheckParam: CheckParams->getList()) {
+                    if (CheckEqualTypes(Param->getType(), CheckParam->getType())) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
 
         bool CheckImport(ASTNode *Node, ASTImport *Import);
 
         bool CheckExpr(ASTExpr *Expr);
 
-        bool isEquals(ASTParam *Param1, ASTParam *Param2);
+        static bool CheckEqualTypes(ASTType *Type1, ASTType *Type2);
 
-        bool CheckMacroType(ASTType *Type, ASTMacroTypeKind Kind);
+        bool CheckEqualTypes(ASTType *Type, ASTTypeKind Kind);
 
         bool CheckConvertibleTypes(ASTType *FromType, ASTType *ToType);
 
         bool CheckArithTypes(const SourceLocation &Loc, ASTType *Type1, ASTType *Type2);
 
         bool CheckLogicalTypes(const SourceLocation &Loc, ASTType *Type1, ASTType *Type2);
+
+        static bool CheckClassInheritance(fly::ASTClassType *FromType, fly::ASTClassType *ToType);
     };
 
 }  // end namespace fly

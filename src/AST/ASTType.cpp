@@ -8,103 +8,80 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTType.h"
-#include "AST/ASTExpr.h"
-#include "AST/ASTIdentifier.h"
 
 using namespace fly;
 
-ASTType::ASTType(const SourceLocation &Loc, ASTTypeKind Kind, ASTMacroTypeKind MacroKind) :
-    Loc(Loc), Kind(Kind), MacroKind(MacroKind) {
+ASTType::ASTType(const SourceLocation &Loc, ASTTypeKind MacroKind) :
+        ASTBase(Loc), Kind(MacroKind) {
 
-}
-
-const SourceLocation &ASTType::getLocation() const  {
-    return Loc;
 }
 
 const ASTTypeKind &ASTType::getKind() const  {
     return Kind;
 }
 
-const ASTMacroTypeKind &ASTType::getMacroKind() const  {
-    return MacroKind;
-}
-
 const bool ASTType::isBool() const {
-    return MacroKind == ASTMacroTypeKind::MACRO_TYPE_BOOL;
+    return Kind == ASTTypeKind::TYPE_BOOL;
 }
 
 const bool ASTType::isFloatingPoint() const {
-    return MacroKind == ASTMacroTypeKind::MACRO_TYPE_FLOATING_POINT;
+    return Kind == ASTTypeKind::TYPE_FLOATING_POINT;
 }
 
 const bool ASTType::isInteger() const {
-    return MacroKind == ASTMacroTypeKind::MACRO_TYPE_INTEGER;
-}
-
-const bool ASTType::isSignedInteger() const {
-    return isInteger() && isSigned();
-}
-
-const bool ASTType::isUnsignedInteger() const {
-    return isInteger() && isUnsigned();
-}
-
-const bool ASTType::isUnsigned() const {
-    return (int) Kind % 2 == 0;
-}
-
-const bool ASTType::isSigned() const {
-    return isUnsigned();
-}
-
-const bool ASTType::isNumber() const {
-    return MacroKind == ASTMacroTypeKind::MACRO_TYPE_INTEGER || MacroKind == ASTMacroTypeKind::MACRO_TYPE_FLOATING_POINT;
+    return Kind == ASTTypeKind::TYPE_INTEGER;
 }
 
 const bool ASTType::isArray() const {
-    return MacroKind == ASTMacroTypeKind::MACRO_TYPE_ARRAY;
+    return Kind == ASTTypeKind::TYPE_ARRAY;
 }
 
-const bool ASTType::isClass() const {
-    return MacroKind == ASTMacroTypeKind::MACRO_TYPE_CLASS;
+const bool ASTType::isString() const {
+    return Kind == ASTTypeKind::TYPE_STRING;
+}
+
+const bool ASTType::isIdentity() const {
+    return Kind == ASTTypeKind::TYPE_IDENTITY;
+}
+
+const bool ASTType::isError() const {
+    return Kind == ASTTypeKind::TYPE_ERROR;
 }
 
 const bool ASTType::isVoid() const {
-    return MacroKind == ASTMacroTypeKind::MACRO_TYPE_VOID;
+    return Kind == ASTTypeKind::TYPE_VOID;
 }
 
-const std::string ASTType::printMacroType() {
-    return printMacroType(MacroKind);
+const std::string ASTType::printType() {
+    return printType(Kind);
 }
 
-const std::string ASTType::printMacroType(const ASTMacroTypeKind Kind) {
+const std::string ASTType::printType(const ASTTypeKind Kind) {
     switch (Kind) {
 
-        case ASTMacroTypeKind::MACRO_TYPE_VOID:
+        case ASTTypeKind::TYPE_VOID:
             return "Void";
-        case ASTMacroTypeKind::MACRO_TYPE_BOOL:
+        case ASTTypeKind::TYPE_BOOL:
             return "Boolean";
-        case ASTMacroTypeKind::MACRO_TYPE_INTEGER:
+        case ASTTypeKind::TYPE_INTEGER:
             return "Integer";
-        case ASTMacroTypeKind::MACRO_TYPE_FLOATING_POINT:
+        case ASTTypeKind::TYPE_FLOATING_POINT:
             return "Floating Point";
-        case ASTMacroTypeKind::MACRO_TYPE_ARRAY:
+        case ASTTypeKind::TYPE_ARRAY:
             return "Array";
-        case ASTMacroTypeKind::MACRO_TYPE_CLASS:
-            return "Class";
+        case ASTTypeKind::TYPE_IDENTITY:
+            return "Identity";
     }
 }
 
 std::string ASTType::str() const {
     return Logger("ASTType").
-           Attr("Location", Loc).
-           Attr("Kind", (uint64_t) Kind).
-           Attr("MacroKind", (uint64_t) MacroKind).
-           End();
+            Super(ASTBase::str()).
+            Attr("Kind", (uint64_t) Kind).
+            End();
 }
 
-ASTVoidType::ASTVoidType(const SourceLocation &Loc) : ASTType(Loc, ASTTypeKind::TYPE_VOID, ASTMacroTypeKind::MACRO_TYPE_VOID) {
+ASTVoidType::ASTVoidType(const SourceLocation &Loc) : ASTType(Loc, ASTTypeKind::TYPE_VOID) {
 
 }
 
@@ -118,7 +95,7 @@ std::string ASTVoidType::str() const {
            End();
 }
 
-ASTBoolType::ASTBoolType(const SourceLocation &Loc) : ASTType(Loc, ASTTypeKind::TYPE_BOOL, ASTMacroTypeKind::MACRO_TYPE_BOOL) {
+ASTBoolType::ASTBoolType(const SourceLocation &Loc) : ASTType(Loc, ASTTypeKind::TYPE_BOOL) {
 
 }
 
@@ -132,7 +109,60 @@ std::string ASTBoolType::str() const {
            End();
 }
 
-ASTByteType::ASTByteType(const SourceLocation &Loc) : ASTType(Loc, ASTTypeKind::TYPE_BYTE, ASTMacroTypeKind::MACRO_TYPE_INTEGER) {
+ASTIntegerType::ASTIntegerType(const SourceLocation &Loc, ASTIntegerTypeKind Kind) :
+    ASTType(Loc, ASTTypeKind::TYPE_INTEGER), Kind(Kind) {
+
+}
+
+ASTIntegerTypeKind ASTIntegerType::getIntegerKind() const {
+    return Kind;
+}
+
+const bool ASTIntegerType::isUnsigned() const {
+    return (int) Kind % 2 == 0;
+}
+
+const bool ASTIntegerType::isSigned() const {
+    return !isUnsigned();
+}
+
+const uint32_t ASTIntegerType::getSize() {
+    switch (Kind) {
+
+        case ASTIntegerTypeKind::TYPE_BYTE:
+            return 8;
+        case ASTIntegerTypeKind::TYPE_SHORT:
+        case ASTIntegerTypeKind::TYPE_USHORT:
+            return 16;
+        case ASTIntegerTypeKind::TYPE_INT:
+        case ASTIntegerTypeKind::TYPE_UINT:
+            return 32;
+        case ASTIntegerTypeKind::TYPE_ULONG:
+        case ASTIntegerTypeKind::TYPE_LONG:
+            return 64;
+    }
+}
+
+ASTFloatingPointType::ASTFloatingPointType(const SourceLocation &Loc, ASTFloatingPointTypeKind Kind) :
+        ASTType(Loc, ASTTypeKind::TYPE_FLOATING_POINT), Kind(Kind) {
+
+}
+
+ASTFloatingPointTypeKind ASTFloatingPointType::getFloatingPointKind() const {
+    return Kind;
+}
+
+const uint32_t ASTFloatingPointType::getSize() {
+    switch (Kind) {
+
+        case ASTFloatingPointTypeKind::TYPE_FLOAT:
+            return 32;
+        case ASTFloatingPointTypeKind::TYPE_DOUBLE:
+            return 64;
+    }
+}
+
+ASTByteType::ASTByteType(const SourceLocation &Loc) : ASTIntegerType(Loc, ASTIntegerTypeKind::TYPE_BYTE) {
 
 }
 
@@ -146,7 +176,7 @@ std::string ASTByteType::str() const {
            End();
 }
 
-ASTUShortType::ASTUShortType(const SourceLocation &Loc) : ASTType(Loc, ASTTypeKind::TYPE_USHORT, ASTMacroTypeKind::MACRO_TYPE_INTEGER) {
+ASTUShortType::ASTUShortType(const SourceLocation &Loc) : ASTIntegerType(Loc, ASTIntegerTypeKind::TYPE_USHORT) {
 
 }
 
@@ -160,7 +190,7 @@ std::string ASTUShortType::str() const {
            End();
 }
 
-ASTShortType::ASTShortType(const SourceLocation &Loc) : ASTType(Loc, ASTTypeKind::TYPE_SHORT, ASTMacroTypeKind::MACRO_TYPE_INTEGER) {
+ASTShortType::ASTShortType(const SourceLocation &Loc) : ASTIntegerType(Loc, ASTIntegerTypeKind::TYPE_SHORT) {
 
 }
 
@@ -174,7 +204,7 @@ std::string ASTShortType::str() const {
            End();
 }
 
-ASTUIntType::ASTUIntType(const SourceLocation &Loc)  : ASTType(Loc, ASTTypeKind::TYPE_UINT, ASTMacroTypeKind::MACRO_TYPE_INTEGER) {
+ASTUIntType::ASTUIntType(const SourceLocation &Loc)  : ASTIntegerType(Loc, ASTIntegerTypeKind::TYPE_UINT) {
 
 }
 
@@ -188,7 +218,7 @@ std::string ASTUIntType::str() const {
            End();
 }
 
-ASTIntType::ASTIntType(const SourceLocation &Loc)  : ASTType(Loc, ASTTypeKind::TYPE_INT, ASTMacroTypeKind::MACRO_TYPE_INTEGER) {
+ASTIntType::ASTIntType(const SourceLocation &Loc)  : ASTIntegerType(Loc, ASTIntegerTypeKind::TYPE_INT) {
 
 }
 
@@ -202,7 +232,7 @@ std::string ASTIntType::str() const {
            End();
 }
 
-ASTULongType::ASTULongType(const SourceLocation &Loc)  : ASTType(Loc, ASTTypeKind::TYPE_ULONG, ASTMacroTypeKind::MACRO_TYPE_INTEGER) {
+ASTULongType::ASTULongType(const SourceLocation &Loc)  : ASTIntegerType(Loc, ASTIntegerTypeKind::TYPE_ULONG) {
 
 }
 
@@ -216,7 +246,7 @@ std::string ASTULongType::str() const {
            End();
 }
 
-ASTLongType::ASTLongType(const SourceLocation &Loc)  : ASTType(Loc, ASTTypeKind::TYPE_LONG, ASTMacroTypeKind::MACRO_TYPE_INTEGER) {
+ASTLongType::ASTLongType(const SourceLocation &Loc)  : ASTIntegerType(Loc, ASTIntegerTypeKind::TYPE_LONG) {
 
 }
 
@@ -230,7 +260,7 @@ std::string ASTLongType::str() const {
            End();
 }
 
-ASTFloatType::ASTFloatType(const SourceLocation &Loc) : ASTType(Loc, ASTTypeKind::TYPE_FLOAT, ASTMacroTypeKind::MACRO_TYPE_FLOATING_POINT) {
+ASTFloatType::ASTFloatType(const SourceLocation &Loc) : ASTFloatingPointType(Loc, ASTFloatingPointTypeKind::TYPE_FLOAT) {
 
 }
 
@@ -244,7 +274,7 @@ std::string ASTFloatType::str() const {
            End();
 }
 
-ASTDoubleType::ASTDoubleType(const SourceLocation &Loc) : ASTType(Loc, ASTTypeKind::TYPE_DOUBLE, ASTMacroTypeKind::MACRO_TYPE_FLOATING_POINT) {
+ASTDoubleType::ASTDoubleType(const SourceLocation &Loc) : ASTFloatingPointType(Loc, ASTFloatingPointTypeKind::TYPE_DOUBLE) {
 
 }
 
@@ -259,7 +289,7 @@ std::string ASTDoubleType::str() const {
 }
 
 ASTArrayType::ASTArrayType(const SourceLocation &Loc, ASTType *Type, ASTExpr *Size) :
-        ASTType(Loc, ASTTypeKind::TYPE_ARRAY, ASTMacroTypeKind::MACRO_TYPE_ARRAY), Type(Type), Size(Size) {
+        ASTType(Loc, ASTTypeKind::TYPE_ARRAY), Type(Type), Size(Size) {
 
 }
 
@@ -283,41 +313,32 @@ const std::string ASTArrayType::print() const {
     return Type->print() + "[]";
 }
 
-ASTClassType::ASTClassType(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef Name, ASTClassType *Parent) :
-        ASTType(Loc, ASTTypeKind::TYPE_CLASS, ASTMacroTypeKind::MACRO_TYPE_CLASS),
-        Name(Name), NameSpace(NameSpace), Parent(Parent) {
+ASTStringType::ASTStringType(const SourceLocation &Loc) :
+        ASTType(Loc, ASTTypeKind::TYPE_STRING) {
 
 }
 
-ASTClassType *ASTClassType::getParent() const {
-    return Parent;
+const std::string ASTStringType::print() const {
+    return "string";
 }
 
-llvm::StringRef ASTClassType::getName() const {
-    return Name;
+std::string ASTStringType::str() const {
+    return Logger("ASTStringType").
+            Super(ASTType::str()).
+            End();
 }
 
-bool ASTClassType::operator==(const ASTClassType &Ty) const {
-    return getKind() == Ty.getKind() && Name == Ty.Name;
+ASTErrorType::ASTErrorType() :
+        ASTType(SourceLocation(), ASTTypeKind::TYPE_ERROR) {
+
 }
 
-llvm::StringRef ASTClassType::getNameSpace() const {
-    return NameSpace;
+const std::string ASTErrorType::print() const {
+    return "error";
 }
 
-ASTClass *ASTClassType::getDef() const {
-    return Def;
-}
-
-const std::string ASTClassType::print() const {
-    return std::string(NameSpace) + "." + std::string(Name);
-}
-
-std::string ASTClassType::str() const {
-    return Logger("ASTClassType").
-           Super(ASTType::str()).
-           Attr("Name", Name).
-           Attr("NameSpace", NameSpace).
-           Attr("Def", (Debuggable *) Def).
-           End();
+std::string ASTErrorType::str() const {
+    return Logger("ASTErrorType").
+            Super(ASTType::str()).
+            End();
 }

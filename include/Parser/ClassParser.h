@@ -14,9 +14,10 @@
 namespace fly {
 
     class ASTClass;
-    class ASTClassScopes;
+    class ASTScopes;
     class ASTClassVar;
     class ASTClassFunction;
+    class ASTScopes;
     class Parser;
 
     class ClassParser {
@@ -31,21 +32,15 @@ namespace fly {
 
         unsigned short BraceCount = 0;
 
-        ClassParser(Parser *P, ASTTopScopes *Scopes);
+        ClassParser(Parser *P, ASTScopes *ClassScopes);
 
     public:
 
-        static ASTClass *Parse(Parser *P, ASTTopScopes *Scopes);
+        static ASTClass *Parse(Parser *P, ASTScopes *ClassScopes);
 
-        ASTClassScopes *ParseScopes();
+        bool ParseField(ASTScopes *Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name);
 
-        bool ParseField(ASTClassScopes *Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name);
-
-        bool ParseMethod(ASTClassScopes *Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name);
-
-        SourceLocation ConsumeBrace();
-
-        bool isBraceBalanced() const;
+        bool ParseMethod(ASTScopes *Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name);
     };
 }
 

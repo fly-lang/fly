@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/CodeGen/CGClass.h - Code Generator of Class
+// include/CodeGen/Class.h - Code Generator of Class
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -15,6 +15,7 @@
 
 namespace llvm {
     class Value;
+    class PointerType;
 }
 
 namespace fly {
@@ -27,10 +28,11 @@ namespace fly {
 
         friend class CodeGenClass;
 
-        CodeGenClassFunction(CodeGenModule *CGM, ASTClassFunction *AST);
+        CodeGenClassFunction(CodeGenModule *CGM, ASTClassFunction *AST, llvm::PointerType *TypePtr = nullptr);
 
     public:
-        llvm::Function *Create() override;
+
+        void GenBody() override;
     };
 }
 

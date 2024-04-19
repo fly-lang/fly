@@ -11,8 +11,8 @@
 #ifndef FLY_ASTCLASS_H
 #define FLY_ASTCLASS_H
 
-#include "ASTTopDef.h"
-#include "Basic/Debuggable.h"
+#include "ASTIdentity.h"
+#include "ASTClassType.h"
 
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/SmallVector.h"
@@ -24,75 +24,48 @@ namespace fly {
     class ASTClassVar;
     class ASTClassFunction;
     class CodeGenClass;
+    class ASTBlock;
 
     enum class ASTClassKind {
-        CLASS_STRUCT,
-        CLASS_STANDARD,
-        CLASS_INTERFACE,
-        CLASS_ABSTRACT
+        STRUCT, // has only Fields
+        CLASS, // has only Fields and Methods defined
+        INTERFACE, // has only Methods declarations
     };
 
-    enum class ASTClassVisibilityKind {
-        CLASS_V_DEFAULT,
-        CLASS_V_PUBLIC,
-        CLASS_V_PRIVATE,
-        CLASS_V_PROTECTED
-    };
-
-    class ASTClassScopes : public Debuggable {
-
-        friend class SemaBuilder;
-
-        // Visibility of the Fields or Methods
-        ASTClassVisibilityKind Visibility = ASTClassVisibilityKind::CLASS_V_DEFAULT;
-
-        // Constant of Fields or Methods
-        bool Constant = false;
-
-        ASTClassScopes(ASTClassVisibilityKind Visibility, bool Constant);
-
-    public:
-        ASTClassVisibilityKind getVisibility() const;
-
-        bool isConstant() const;
-
-        std::string str() const;
-    };
-
-    class ASTClass : public ASTTopDef {
+    class ASTClass : public ASTIdentity {
 
         friend class SemaBuilder;
         friend class SemaResolver;
 
-        llvm::StringRef Name;
-
-        // Source Location
-        const SourceLocation Location;
+        ASTClassType *Type = nullptr;
 
         ASTClassKind ClassKind;
+
+        llvm::SmallVector<ASTClassType *, 4> SuperClasses;
 
         // Class Fields
         llvm::StringMap<ASTClassVar *> Vars;
 
+        bool autoDefaultConstructor = false;
+
         // Class Constructors
         std::map <uint64_t, llvm::SmallVector <ASTClassFunction *, 4>> Constructors;
-
-        bool autoDefaultConstructor = false;
 
         // Class Methods
         llvm::StringMap<std::map <uint64_t, llvm::SmallVector <ASTClassFunction *, 4>>> Methods;
 
         CodeGenClass *CodeGen = nullptr;
 
-        ASTClass(const SourceLocation &Loc, ASTNode *Node, llvm::StringRef Name, ASTTopScopes *Scopes);
+        ASTClass(ASTNode *Node, ASTClassKind ClassKind, ASTScopes *Scopes,
+                 const SourceLocation &Loc, llvm::StringRef Name);
 
     public:
 
-        llvm::StringRef getName() const;
-
-        const SourceLocation &getLocation() const;
+        ASTClassType *getType() override;
 
         ASTClassKind getClassKind() const;
+
+        llvm::SmallVector<ASTClassType *, 4> getSuperClasses() const;
 
         llvm::StringMap<ASTClassVar *> getVars() const;
 
@@ -103,6 +76,8 @@ namespace fly {
         CodeGenClass *getCodeGen() const;
 
         void setCodeGen(CodeGenClass *CGC);
+
+        std::string print() const;
 
         std::string str() const;
 

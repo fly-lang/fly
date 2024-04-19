@@ -10,8 +10,8 @@
 #ifndef FLY_FUNCTIONBASE_H
 #define FLY_FUNCTIONBASE_H
 
-#include "ASTExprStmt.h"
-#include "Basic/Debuggable.h"
+#include "ASTStmt.h"
+#include "ASTBase.h"
 
 #include <vector>
 
@@ -26,17 +26,20 @@ namespace fly {
     class ASTBlock;
     class ASTCall;
     class ASTGlobalVar;
+    class ASTVar;
+    class ASTParam;
+    class ASTScopes;
     class CodeGenFunction;
     class CodeGenFunctionBase;
     class CodeGenVarBase;
-    class CodeGenCall;
+
 
     enum class ASTFunctionKind {
         FUNCTION,
         CLASS_FUNCTION
     };
 
-    class ASTFunctionBase : public virtual Debuggable {
+    class ASTFunctionBase : public ASTBase {
 
         friend class SemaBuilder;
         friend class SemaResolver;
@@ -47,13 +50,12 @@ namespace fly {
         ASTFunctionKind Kind;
 
         // Function return type
-        ASTType *Type = nullptr;
+        ASTType *ReturnType = nullptr;
 
         // Function Name
         llvm::StringRef Name;
 
-        // Source Location
-        const SourceLocation Location;
+        ASTScopes * Scopes;
 
         // Header contains parameters
         ASTParams *Params = nullptr;
@@ -61,12 +63,10 @@ namespace fly {
         // Body is the main BlockStmt
         ASTBlock *Body = nullptr;
 
-        // Contains all vars declared in this Block
-        std::vector<ASTLocalVar *> LocalVars;
-
     protected:
 
-        ASTFunctionBase(const SourceLocation &Loc, ASTFunctionKind Kind, ASTType *ReturnType, llvm::StringRef Name);
+        ASTFunctionBase(const SourceLocation &Loc, ASTFunctionKind Kind, ASTType *ReturnType, llvm::StringRef Name,
+                        ASTScopes *Scopes);
 
     public:
 
@@ -76,19 +76,21 @@ namespace fly {
 
         llvm::StringRef getName() const;
 
-        const SourceLocation &getLocation() const;
+        ASTScopes *getScopes() const;
+
+        void addParam(ASTParam *Param);
+
+        void setEllipsis(ASTParam *Param);
 
         const ASTParams *getParams() const;
 
         const ASTBlock *getBody() const;
 
-        const std::vector<ASTLocalVar *> &getLocalVars() const;
-
         virtual CodeGenFunctionBase *getCodeGen() const = 0;
 
         bool isVarArg();
 
-        virtual std::string str() const;
+        std::string str() const override;
     };
 
     /**
@@ -96,15 +98,23 @@ namespace fly {
      * Ex.
      *   return true
      */
-    class ASTReturn : public ASTExprStmt {
+    class ASTReturnStmt : public ASTStmt {
 
         friend class SemaBuilder;
 
-        ASTReturn(ASTBlock *Parent, const SourceLocation &Loc);
+        ASTExpr *Expr = nullptr;
+
+        ASTBlock *Block = nullptr;
+
+        ASTReturnStmt(ASTBlock *Parent, const SourceLocation &Loc);
 
     public:
 
-        std::string str() const override;
+        ASTExpr *getExpr() const;
+
+        ASTBlock *getBlock() const;
+
+        std::string str() const;
     };
 }
 

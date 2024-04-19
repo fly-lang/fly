@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/CodeGen/CGClass.h - Code Generator of Class
+// include/CodeGen/Class.h - Code Generator of Class
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -32,6 +32,12 @@ namespace fly {
 
         llvm::StructType *Type = nullptr;
 
+        llvm::PointerType *TypePtr = nullptr;
+
+        llvm::StructType *VTableType = nullptr;
+
+        llvm::SmallVector<llvm::Type *, 4> TypeVector;
+
         llvm::SmallVector<CodeGenClassVar *, 4> Vars;
 
         llvm::SmallVector<CodeGenClassFunction *, 4> Constructors;
@@ -44,6 +50,10 @@ namespace fly {
         void Generate();
 
         llvm::StructType *getType();
+
+        llvm::PointerType *getTypePtr();
+
+        llvm::StructType *getVTableType();
 
         const llvm::SmallVector<CodeGenClassVar *, 4> &getVars() const;
 

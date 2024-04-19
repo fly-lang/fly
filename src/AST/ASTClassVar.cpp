@@ -10,69 +10,43 @@
 #include "AST/ASTClassVar.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTType.h"
-#include "AST/ASTExpr.h"
+#include "AST/ASTVar.h"
 #include "CodeGen/CodeGenClass.h"
 
 using namespace fly;
 
-ASTClassVar::ASTClassVar(const SourceLocation &Loc, ASTClass *Class, ASTClassScopes *Scopes, ASTType *Type,
+ASTClassVar::ASTClassVar(const SourceLocation &Loc, ASTClass *Class, ASTScopes *Scopes, ASTType *Type,
                          llvm::StringRef Name) :
-        VarKind(ASTVarKind::VAR_CLASS), Type(Type), Name(Name),
-        Loc(Loc), Class(Class), Scopes(Scopes) {
+        ASTVar(ASTVarKind::VAR_CLASS, Loc, Type, Name, Scopes), Class(Class) {
 
 }
 
-const SourceLocation &ASTClassVar::getLocation() const {
-    return Loc;
-}
-
-llvm::StringRef ASTClassVar::getName() const {
-    return Name;
-}
-
-ASTVarKind ASTClassVar::getVarKind() {
-    return VarKind;
-}
-
-ASTType *ASTClassVar::getType() const {
-    return Type;
-}
-
-const ASTClass *ASTClassVar::getClass() const {
+ASTClass *ASTClassVar::getClass() const {
     return Class;
 }
 
-llvm::StringRef ASTClassVar::getComment() const {
-    return Comment;
+ASTVarStmt *ASTClassVar::getInit() const {
+    return Init;
 }
 
-ASTClassScopes *ASTClassVar::getScopes() const {
-    return Scopes;
+void ASTClassVar::setInit(ASTVarStmt *VarDefine) {
+    Init = VarDefine;
 }
 
-ASTExpr *ASTClassVar::getExpr() const {
-    return Expr;
-}
-
-void ASTClassVar::setExpr(ASTExpr *Expr) {
-    this->Expr = Expr;
-}
-
-CodeGenClassVar *ASTClassVar::getCodeGen() const {
+CodeGenVarBase *ASTClassVar::getCodeGen() const {
     return CodeGen;
 }
 
-void ASTClassVar::setCodeGen(CodeGenClassVar *CGCV) {
-    CodeGen = CGCV;
+void ASTClassVar::setCodeGen(CodeGenVarBase *CodeGen) {
+    this->CodeGen = CodeGen;
+}
+
+std::string ASTClassVar::print() const {
+    return Class->print() + "." + getName().data();
 }
 
 std::string ASTClassVar::str() const {
     return Logger("ASTClassVar").
-            Attr("Type", Type).
-            Attr("Name", Name).
-            Attr("VarKind", (uint64_t) VarKind).
-            Attr("Comment", Comment).
-            Attr("Scopes", Scopes).
-            Attr("Expr", Expr).
+            Super(ASTVar::str()).
             End();
 }

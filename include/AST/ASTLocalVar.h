@@ -10,52 +10,38 @@
 #ifndef FLY_ASTLOCALVAR_H
 #define FLY_ASTLOCALVAR_H
 
-#include "ASTExprStmt.h"
 #include "ASTVar.h"
 #include "CodeGen/CodeGenVar.h"
 
 namespace fly {
+
+    class ASTScopes;
 
     /**
      * Local Var Declaration
      * Ex.
      *  int a = 1
      */
-    class ASTLocalVar : public ASTExprStmt, public ASTVar {
+    class ASTLocalVar : public ASTVar {
 
         friend class SemaBuilder;
         friend class SemaResolver;
 
-        // LocalVar Code Generator
-        CodeGenVar *CodeGen = nullptr;
-
-        bool Constant = false;
-
-        ASTVarKind VarKind;
-
-        ASTType *Type = nullptr;
-
-        llvm::StringRef Name;
+        CodeGenVarBase *CodeGen = nullptr;
 
     protected:
 
-         ASTLocalVar(ASTBlock *Parent, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, bool Constant);
+        ASTLocalVar(ASTVarKind VarKind, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes);
+
+        ASTLocalVar(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes);
 
     public:
 
-        ASTVarKind getVarKind() override;
+        CodeGenVarBase *getCodeGen() const override;
 
-        ASTType *getType() const override;
+        void setCodeGen(CodeGenVarBase *CG);
 
-        llvm::StringRef getName() const override;
-
-        bool isConstant() const;
-
-        ASTExpr *getExpr() const override;
-
-        CodeGenVar *getCodeGen() const override;
-
-        void setCodeGen(CodeGenVar *CG);
+        std::string print() const override;
 
         std::string str() const;
     };

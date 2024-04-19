@@ -25,20 +25,21 @@ namespace fly {
 
         llvm::Value *Val = nullptr;
 
-        llvm::Function *Fn = nullptr;
+        CodeGenFunctionBase *CGF = nullptr;
 
-        bool NoStore = false;
+        ASTVar *Var = nullptr;
 
     public:
-        CodeGenExpr(CodeGenModule *CGM, llvm::Function *Fn, ASTExpr *Expr, const ASTType *ToType);
 
-        bool isNoStore() const;
+        CodeGenExpr(CodeGenModule *CGM, CodeGenFunctionBase *CGF, ASTExpr *Expr);
+
+        CodeGenExpr(CodeGenModule *CGM, CodeGenFunctionBase *CGF, ASTExpr *Expr, const ASTType *ToType);
+
+        llvm::Value *GenValue(const ASTExpr *Expr);
 
         llvm::Value *getValue() const;
 
         llvm::Value *Convert(llvm::Value *FromVal, const ASTType *FromType, const ASTType *ToType);
-
-        llvm::Value *GenValue(const ASTExpr *Origin, llvm::Value *Pointer = nullptr);
 
         llvm::Value *GenGroup(ASTGroupExpr *Group);
 
@@ -49,8 +50,6 @@ namespace fly {
         llvm::Value *GenTernary(ASTTernaryGroupExpr *Expr);
 
         Value *GenBinaryArith(const ASTExpr *E1, ASTBinaryOperatorKind Op, const ASTExpr *E2);
-
-        bool isSigned(const ASTType * T1);
 
         Value *GenBinaryComparison(const ASTExpr *E1, ASTBinaryOperatorKind Op, const ASTExpr *E2);
 

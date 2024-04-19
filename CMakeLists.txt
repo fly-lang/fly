@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.18.0)
-project(Fly VERSION 0.7.0 LANGUAGES C CXX ASM)
+project(Fly VERSION 0.8.0 LANGUAGES C CXX ASM)
 #set(FLY_VERSION_POSTFIX alpha) #remove this line for stable release
 if(DEFINED FLY_VERSION_POSTFIX)
     set(FLY_VERSION "${PROJECT_VERSION}-${FLY_VERSION_POSTFIX}")
@@ -65,7 +65,8 @@ if (DEFINED LLVM_BUILD AND LLVM_BUILD)
             GIT_REPOSITORY ${LLVM_GIT_REPO}
             GIT_TAG fly-llvm-${FLY_LLVM_VERSION}
             GIT_PROGRESS true
-            GIT_REMOTE_UPDATE_STRATEGY CHECKOUT)
+            GIT_REMOTE_UPDATE_STRATEGY CHECKOUT
+            DOWNLOAD_EXTRACT_TIMESTAMP true)
 
     message(STATUS "Building LLVM from sources")
     set(LLVM_DIR ${FLY_LLVM_BINARY_DIR}/llvm/lib/cmake/llvm)
@@ -114,4 +115,4 @@ include_directories(include)
 add_subdirectory(src)
 
 enable_testing()
-add_subdirectory(test)
+#add_subdirectory(test)

@@ -31,12 +31,13 @@ namespace fly {
     class CodeGenGlobalVar;
     class CodeGenFunction;
     class CodeGenClass;
+    class Sema;
 
     class FrontendAction {
 
         CodeGen &CG;
 
-        SemaBuilder &Builder;
+        Sema &S;
 
         Parser *P = nullptr;
 
@@ -68,8 +69,7 @@ namespace fly {
 
     public:
 
-        FrontendAction(const CompilerInstance &CI, CodeGen &CG, SemaBuilder &Builder,
-                       InputFile *Input);
+        FrontendAction(const CompilerInstance &CI, CodeGen &CG, Sema &S, InputFile *Input);
 
         ~FrontendAction();
 

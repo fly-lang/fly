@@ -15,6 +15,7 @@
 namespace fly {
 
     class ASTFunctionBase;
+    class ASTValue;
 
     /**
      * Function Parameter
@@ -22,10 +23,19 @@ namespace fly {
     class ASTParam : public ASTLocalVar {
 
         friend class SemaBuilder;
+        friend class SemaResolver;
 
-        ASTParam(ASTFunctionBase *Function, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, bool Constant);
+        ASTValue *DefaultValue;
+
+        ASTParam(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes);
 
     public:
+
+        ASTValue *getDefaultValue() const;
+
+        void setDefaultValue(ASTValue *Value);
+
+        std::string print() const override;
 
         std::string str() const override;
     };
@@ -35,9 +45,9 @@ namespace fly {
      * Ex.
      *   func(int param1, float param2, bool param3, ...)
      */
-    class ASTParams : public Debuggable {
+    class ASTParams {
 
-        friend class SemaBuilder;
+        friend class ASTFunctionBase;
 
         std::vector<ASTParam *> List;
         ASTParam* Ellipsis = nullptr;
@@ -47,11 +57,13 @@ namespace fly {
 
         ASTParam *at(unsigned long Index) const;
 
+        const bool isEmpty() const;
+
         const std::vector<ASTParam *> &getList() const;
 
         const ASTParam* getEllipsis() const;
 
-        std::string str() const override;
+        std::string str() const;
     };
 }
 

@@ -12,39 +12,75 @@
 using namespace fly;
 
 ASTIdentifier::ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name) :
-        Loc(Loc), Name(Name) {
+        ASTBase(Loc), Name(Name), Kind(ASTIdentifierKind::REF_UNDEF) {
+    FullName = Name.data();
 }
 
-ASTIdentifier::ASTIdentifier(const SourceLocation &Loc, llvm::StringRef ClassName, llvm::StringRef Name) :
-        Loc(Loc), ClassName(ClassName), Name(Name) {
+ASTIdentifier::ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name, ASTIdentifierKind Kind) :
+        ASTBase(Loc), Name(Name), Kind(Kind) {
+    FullName = Name.data();
 }
 
-const SourceLocation &ASTIdentifier::getLocation() const {
-    return Loc;
-}
 
-llvm::StringRef ASTIdentifier::getNameSpace() const {
-    return NameSpace;
-}
-
-void ASTIdentifier::setNameSpace(llvm::StringRef NS) {
-    NameSpace = NS;
-}
-
-llvm::StringRef ASTIdentifier::getClassName() const {
-    return ClassName;
+ASTIdentifier::~ASTIdentifier() {
+    delete Parent;
 }
 
 llvm::StringRef ASTIdentifier::getName() const {
     return Name;
 }
 
+std::string ASTIdentifier::getFullName() const {
+    return FullName;
+}
+
+bool ASTIdentifier::isUndef() const {
+    return Kind == ASTIdentifierKind::REF_UNDEF;
+}
+
+bool ASTIdentifier::isNameSpace() const {
+    return Kind == ASTIdentifierKind::REF_NAMESPACE;
+}
+
+bool ASTIdentifier::isType() const {
+    return Kind == ASTIdentifierKind::REF_TYPE;
+}
+
+bool ASTIdentifier::isCall() const {
+    return Kind == ASTIdentifierKind::REF_CALL;
+}
+
+bool ASTIdentifier::isVarRef() const {
+    return Kind == ASTIdentifierKind::REF_VAR;
+}
+
+ASTIdentifierKind ASTIdentifier::getIdKind() const {
+    return Kind;
+}
+
+ASTIdentifier *ASTIdentifier::AddChild(ASTIdentifier *Identifier) {
+    Child = Identifier;
+    Child->Parent = this;
+    FullName.append(".").append(Name.data());
+    return Child;
+}
+
+ASTIdentifier *ASTIdentifier::getParent() const {
+    return Parent;
+}
+
+ASTIdentifier *ASTIdentifier::getChild() const {
+    return Child;
+}
+
+std::string ASTIdentifier::print() const {
+    return FullName;
+}
+
 std::string ASTIdentifier::str() const {
-    std::string StrName;
     return Logger("ASTIdentifier").
-            Attr("Location", Loc).
-            Attr("NameSpace", NameSpace).
-            Attr("ClassName", ClassName).
+            Super(ASTBase::str()).
             Attr("Name", Name).
+            Attr("Child", Child).
             End();
 }

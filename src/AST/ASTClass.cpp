@@ -8,48 +8,32 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTClass.h"
+#include "AST/ASTScopes.h"
+#include "AST/ASTNameSpace.h"
 #include "AST/ASTClassVar.h"
 #include "AST/ASTClassFunction.h"
+#include "AST/ASTBlock.h"
+#include "Sema/SemaBuilder.h"
 #include "CodeGen/CodeGenClass.h"
-#include "Basic/Debuggable.h"
 
 using namespace fly;
 
-ASTClassScopes::ASTClassScopes(ASTClassVisibilityKind Visibility, bool Constant) :
-        Visibility(Visibility), Constant(Constant){
+ASTClass::ASTClass(ASTNode *Node, ASTClassKind ClassKind, ASTScopes *Scopes,
+                   const SourceLocation &Loc, llvm::StringRef Name) :
+        ASTIdentity(Node, ASTTopDefKind::DEF_CLASS, Scopes, Loc, Name), ClassKind(ClassKind) {
 
 }
 
-ASTClassVisibilityKind ASTClassScopes::getVisibility() const {
-    return Visibility;
-}
-
-bool ASTClassScopes::isConstant() const {
-    return Constant;
-}
-
-std::string ASTClassScopes::str() const {
-    return Logger("ASTClassScopes").
-            Attr("Visibility", (uint64_t) Visibility).
-            Attr("Constant", Constant).
-            End();
-}
-
-ASTClass::ASTClass(const SourceLocation &Loc, ASTNode *Node, llvm::StringRef Name, ASTTopScopes *Scopes) :
-        ASTTopDef(Node, ASTTopDefKind::DEF_CLASS, Scopes), Name(Name), Location(Loc) {
-
-}
-
-llvm::StringRef ASTClass::getName() const {
-    return Name;
-}
-
-const SourceLocation &ASTClass::getLocation() const {
-    return Location;
+ASTClassType *ASTClass::getType() {
+    return Type;
 }
 
 ASTClassKind ASTClass::getClassKind() const {
     return ClassKind;
+}
+
+llvm::SmallVector<ASTClassType *, 4> ASTClass::getSuperClasses() const {
+    return SuperClasses;
 }
 
 llvm::StringMap<ASTClassVar *> ASTClass::getVars() const {
@@ -72,6 +56,11 @@ void ASTClass::setCodeGen(CodeGenClass *CGC) {
     CodeGen = CGC;
 }
 
+std::string ASTClass::print() const {
+    std::string ClassName = Name.data();
+    return getNameSpace()->print() + "." + ClassName;
+}
+
 std::string ASTClass::str() const {
 
     // Fields to string
@@ -92,9 +81,7 @@ std::string ASTClass::str() const {
 
     // Class to string
     return Logger("ASTClass").
-           Super(ASTTopDef::str()).
-           Attr("Name", Name).
-           Attr("Scopes", Scopes).
+           Super(ASTIdentity::str()).
            Attr("ClassKind", (uint64_t) ClassKind).
            AttrList("Vars", VarList).
            AttrList("Methods", MethodList).

@@ -71,6 +71,9 @@ namespace tok {
         }
 
         bool isKeyword(TokenKind Kind);
+
+        bool isPunctuator(TokenKind Kind);
+
     }  // end namespace tok
 }  // end namespace fly
 

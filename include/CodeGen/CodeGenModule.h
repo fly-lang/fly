@@ -48,10 +48,13 @@ namespace fly {
     class CodeGenGlobalVar;
     class CodeGenFunction;
     class CodeGenFunctionBase;
-    class CodeGenCall;
     class CodeGenClass;
+    class CodeGenVarBase;
+    class CodeGenEnum;
     class ASTClass;
     class ASTVar;
+    class ASTEnum;
+    class ASTIdentifier;
 
     class CodeGenModule : public CodeGenTypeCache {
 
@@ -61,10 +64,11 @@ namespace fly {
         friend class CodeGenClass;
         friend class CodeGenClassVar;
         friend class CodeGenClassFunction;
-        friend class CodeGenCall;
         friend class CodeGenVarBase;
+        friend class CodeGenInstance;
         friend class CodeGenVar;
         friend class CodeGenExpr;
+        friend class CodeGenFail;
 
         // Diagnostics
         DiagnosticsEngine &Diags;
@@ -80,6 +84,8 @@ namespace fly {
 
         // LLVM Builder
         llvm::IRBuilder<> *Builder;
+
+        llvm::StructType *ErrorType;
 
         // CGDebugInfo *DebugInfo; // TODO
 
@@ -104,6 +110,8 @@ namespace fly {
 
         CodeGenClass *GenClass(ASTClass *Class, bool isExternal = false);
 
+        CodeGenEnum *GenEnum(ASTEnum *Enum, bool isExternal = false);
+
         llvm::Type *GenType(const ASTType *Type);
 
         llvm::ArrayType *GenArrayType(const ASTArrayType *Type);
@@ -112,29 +120,35 @@ namespace fly {
 
         llvm::Constant *GenValue(const ASTType *Type, const ASTValue *Val);
 
-        void GenStmt(llvm::Function *Fn, ASTStmt * Stmt);
+        void GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt);
 
-        ASTVar *GenVarRef(ASTVarRef *VarRef);
+        CodeGenVarBase *GenVar(ASTVar* Var);
 
-        llvm::Value *GenCall(llvm::Function *Fn, ASTCall *Call, bool &noStore);
+        llvm::Value *GenVarRef(ASTVarRef *VarRef);
 
-        llvm::Value *GenExpr(llvm::Function *Fn, const ASTType *Type, ASTExpr *Expr);
+        llvm::Value *GenCall(CodeGenFunctionBase *CGF, ASTCall *Call);
 
-        llvm::Value *GenExpr(llvm::Function *Fn, const ASTType *Type, ASTExpr *Expr, bool &NoStore);
+        llvm::Value *GenExpr(CodeGenFunctionBase *CGF, ASTExpr *Expr);
 
-        void GenBlock(llvm::Function *Fn, const std::vector<ASTStmt *> &Content, llvm::BasicBlock *BB = nullptr);
+        llvm::Value *GenExpr(CodeGenFunctionBase *CGF, const ASTType *Type, ASTExpr *Expr);
 
-        void GenIfBlock(llvm::Function *Fn, ASTIfBlock *If);
+        void GenBlock(CodeGenFunctionBase *CGF, const std::vector<ASTStmt *> &Content, llvm::BasicBlock *BB = nullptr);
 
-        llvm::BasicBlock *GenElsifBlock(llvm::Function *Fn,
+        void GenIfBlock(CodeGenFunctionBase *CGF, ASTIfBlock *If);
+
+        llvm::BasicBlock *GenElsifBlock(CodeGenFunctionBase *CGF,
                                         llvm::BasicBlock *ElsifBB,
                                         std::vector<ASTElsifBlock *>::iterator &It);
 
-        void GenSwitchBlock(llvm::Function *Fn, ASTSwitchBlock *Switch);
+        void GenSwitchBlock(CodeGenFunctionBase *CGF, ASTSwitchBlock *Switch);
 
-        void GenForBlock(llvm::Function *Fn, ASTForBlock *For);
+        void GenForBlock(CodeGenFunctionBase *CGF, ASTForBlock *For);
 
-        void GenWhileBlock(llvm::Function *Fn, ASTWhileBlock *While);
+        void GenWhileBlock(CodeGenFunctionBase *CGF, ASTWhileBlock *While);
+
+        void pushArgs(CodeGenFunctionBase *CGF, ASTCall *pCall, llvm::SmallVector<llvm::Value *, 8> &Args);
+
+        void GenReturn(ASTFunctionBase *CGF, llvm::Value *V = nullptr);
     };
 }
 

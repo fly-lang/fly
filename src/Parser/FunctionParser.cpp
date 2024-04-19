@@ -13,6 +13,7 @@
 #include "AST/ASTFunction.h"
 #include "AST/ASTCall.h"
 #include "AST/ASTExpr.h"
+#include "AST/ASTBlock.h"
 #include "Sema/SemaBuilder.h"
 #include "Basic/Debug.h"
 
@@ -64,17 +65,19 @@ bool FunctionParser::ParseParam() {
     bool Const = P->isConst();
 
     // Var Type
-    ASTType *Type = P->ParseType();
-    if (Type) {
+    ASTType *Type = nullptr;
+    if (P->ParseType(Type)) {
 
         // Var Name
         const StringRef Name = P->Tok.getIdentifierInfo()->getName();
         const SourceLocation IdLoc = P->Tok.getLocation();
         P->ConsumeToken();
 
-        ASTParam *Param = P->Builder.CreateParam(Function, IdLoc, Type, Name, Const);
+        ASTScopes *Scopes = SemaBuilder::CreateScopes();
+        P->ParseScopes(Scopes);
 
-        ASTExpr *Expr;
+        ASTParam *Param = SemaBuilder::CreateParam(IdLoc, Type, Name, Scopes);
+
         // Parse assignment =
         if (P->Tok.is(tok::equal)) {
             P->ConsumeToken();
@@ -82,13 +85,11 @@ bool FunctionParser::ParseParam() {
             // Start Parsing
             if (P->isValue()) {
                 ASTValue *Val = P->ParseValue();
-                Expr = P->Builder.CreateExpr(Param, Val);
+                Param->setDefaultValue(Val);
             }
-        } else {
-            Expr = P->Builder.CreateExpr(Param); // ASTEmptyExpr
         }
 
-        if (P->Builder.AddParam(Param)) {
+        if (P->Builder.AddParam(Function, Param)) {
 
             if (P->Tok.is(tok::comma)) {
                 P->ConsumeToken();
@@ -114,10 +115,11 @@ bool FunctionParser::ParseBody() {
     FLY_DEBUG("FunctionParser", "ParseBody");
 
     if (P->isBlockStart()) {
+        Function->Body = P->Builder.CreateBody(Function);
         return P->ParseBlock(Function->Body) && P->isBraceBalanced();
     }
 
-    return false;
+    return true;
 }
 
 bool FunctionParser::Parse(Parser *P, ASTFunctionBase *Function) {

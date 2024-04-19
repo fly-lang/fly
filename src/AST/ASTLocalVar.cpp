@@ -8,51 +8,34 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTLocalVar.h"
-#include "AST/ASTType.h"
-#include "AST/ASTBlock.h"
 
 using namespace fly;
 
-ASTLocalVar::ASTLocalVar(ASTBlock *Parent, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, bool Constant) :
-        ASTExprStmt(Parent, Loc, ASTStmtKind::STMT_VAR_DEFINE), VarKind(ASTVarKind::VAR_LOCAL),
-        Type(Type), Name(Name), Constant(Constant) {
+ASTLocalVar::ASTLocalVar(ASTVarKind VarKind, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
+                         ASTScopes *Scopes) :
+        ASTVar(VarKind, Loc, Type, Name, Scopes) {
 
 }
 
-ASTVarKind ASTLocalVar::getVarKind() {
-    return VarKind;
+ASTLocalVar::ASTLocalVar(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes) :
+        ASTVar(ASTVarKind::VAR_LOCAL, Loc, Type, Name, Scopes) {
+
 }
 
-ASTType *ASTLocalVar::getType() const {
-    return Type;
-}
-
-llvm::StringRef ASTLocalVar::getName() const {
-    return Name;
-}
-
-bool ASTLocalVar::isConstant() const {
-    return Constant;
-}
-
-ASTExpr *ASTLocalVar::getExpr() const {
-    return Expr;
-}
-
-CodeGenVar *ASTLocalVar::getCodeGen() const {
+CodeGenVarBase *ASTLocalVar::getCodeGen() const {
     return CodeGen;
 }
 
-void ASTLocalVar::setCodeGen(CodeGenVar *CG) {
+void ASTLocalVar::setCodeGen(CodeGenVarBase *CG) {
     CodeGen = CG;
+}
+
+std::string ASTLocalVar::print() const {
+    return getName().data();
 }
 
 std::string ASTLocalVar::str() const {
     return Logger("ASTLocalVar").
-            Super(ASTExprStmt::str()).
-            Attr("Type", Type).
-            Attr("Name", Name).
-            Attr("VarKind", (uint64_t) VarKind).
-            Attr("Constant", Constant).
+            Super(ASTVar::str()).
             End();
 }

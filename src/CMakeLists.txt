@@ -4,34 +4,44 @@ add_executable(fly
 add_library(flyLib
 
         # AST
+        AST/ASTBase.cpp
         AST/ASTBlock.cpp
+        AST/ASTCall.cpp
         AST/ASTClass.cpp
-        AST/ASTClassVar.cpp
         AST/ASTClassFunction.cpp
+        AST/ASTClassType.cpp
+        AST/ASTClassVar.cpp
         AST/ASTContext.cpp
+        AST/ASTDeleteStmt.cpp
+        AST/ASTEnum.cpp
+        AST/ASTEnumEntry.cpp
+        AST/ASTEnumType.cpp
+        AST/ASTError.cpp
         AST/ASTExpr.cpp
         AST/ASTExprStmt.cpp
-        AST/ASTClassVar.cpp
+        AST/ASTFailStmt.cpp
         AST/ASTForBlock.cpp
         AST/ASTFunction.cpp
         AST/ASTFunctionBase.cpp
-        AST/ASTCall.cpp
         AST/ASTGlobalVar.cpp
+        AST/ASTHandleStmt.cpp
         AST/ASTIdentifier.cpp
+        AST/ASTIdentity.cpp
+        AST/ASTIdentityType.cpp
         AST/ASTIfBlock.cpp
         AST/ASTImport.cpp
         AST/ASTLocalVar.cpp
         AST/ASTNameSpace.cpp
         AST/ASTNode.cpp
-        AST/ASTNodeBase.cpp
         AST/ASTParams.cpp
+        AST/ASTScopes.cpp
         AST/ASTStmt.cpp
         AST/ASTSwitchBlock.cpp
-        AST/ASTTopDef.cpp
         AST/ASTType.cpp
         AST/ASTValue.cpp
-        AST/ASTVarAssign.cpp
+        AST/ASTVar.cpp
         AST/ASTVarRef.cpp
+        AST/ASTVarStmt.cpp
         AST/ASTWhileBlock.cpp
 
         # Basic
@@ -40,7 +50,6 @@ add_library(flyLib
         Basic/CharInfo.cpp
         Basic/CodeGenOptions.cpp
         Basic/Cuda.cpp
-        Basic/Debuggable.cpp
         Basic/Diagnostic.cpp
         Basic/DiagnosticIDs.cpp
         Basic/DiagnosticOptions.cpp
@@ -90,14 +99,17 @@ add_library(flyLib
         CodeGen/CodeGenClass.cpp
         CodeGen/CodeGenClassFunction.cpp
         CodeGen/CodeGenClassVar.cpp
+        CodeGen/CodeGenEnum.cpp
+        CodeGen/CodeGenEnumEntry.cpp
         CodeGen/CodeGenExpr.cpp
+        CodeGen/CodeGenFail.cpp
         CodeGen/CodeGenFunction.cpp
         CodeGen/CodeGenFunctionBase.cpp
         CodeGen/CodeGenGlobalVar.cpp
+        CodeGen/CodeGenInstance.cpp
         CodeGen/CodeGenHeader.cpp
         CodeGen/CodeGenModule.cpp
         CodeGen/CodeGenVar.cpp
-        CodeGen/CodeGenVarBase.cpp
 
         # Driver
         Driver/Driver.cpp
@@ -124,6 +136,7 @@ add_library(flyLib
 
         # Parser
         Parser/ClassParser.cpp
+        Parser/EnumParser.cpp
         Parser/ExprParser.cpp
         Parser/FunctionParser.cpp
         Parser/Parser.cpp
@@ -132,7 +145,11 @@ add_library(flyLib
         Sema/Sema.cpp
         Sema/SemaBuilder.cpp
         Sema/SemaResolver.cpp
-        Sema/SemaValidator.cpp)
+        Sema/SemaValidator.cpp
+
+        # Sys
+        Sys/Sys.cpp
+)
 
 configure_file(
         ${CMAKE_SOURCE_DIR}/include/Config/Config.h.cmake

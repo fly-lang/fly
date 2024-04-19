@@ -11,36 +11,56 @@
 #ifndef FLY_ASTNAMESPACE_H
 #define FLY_ASTNAMESPACE_H
 
-#include "AST/ASTNodeBase.h"
+#include "ASTIdentifier.h"
+
+#include "llvm/ADT/StringMap.h"
+
+#include <map>
 
 namespace fly {
 
     class ASTNode;
     class ASTContext;
     class ASTGlobalVar;
-    class ASTClass;
-    class ASTUnrefGlobalVar;
-    class ASTUnrefFunctionCall;
+    class ASTIdentity;
+    class ASTFunction;
+    class ASTImport;
 
-    class ASTNameSpace : public ASTNodeBase {
+    class ASTNameSpace : public ASTIdentifier {
 
         friend class Sema;
         friend class SemaResolver;
         friend class SemaBuilder;
+        friend class Sys;
+
+        // The Context
+        ASTContext* Context = nullptr;
 
         // AST by FileID
         llvm::StringMap<ASTNode *> Nodes;
 
+        // Contains all Imports, the key is Alias or Name
+        llvm::StringMap<ASTImport *> AliasImports;
+
+        // All used GlobalVars
+        llvm::StringMap<ASTGlobalVar *> ExternalGlobalVars;
+
         bool ExternalLib;
 
-        // Classes
-        llvm::StringMap<ASTClass *> Classes;
+        // Global Vars
+        llvm::StringMap<ASTGlobalVar *> GlobalVars;
 
-        ASTNameSpace(std::string NameSpace, ASTContext *Context, bool ExternalLib = false);
+        // Functions
+        llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> Functions;
 
-        ~ASTNameSpace();
+        // Classes or Enums
+        llvm::StringMap<ASTIdentity *> Identities;
+
+        ASTNameSpace(const SourceLocation &Loc, llvm::StringRef Name, ASTContext *Context, bool ExternalLib = false);
 
     public:
+
+        ~ASTNameSpace();
 
         static const std::string DEFAULT;
 
@@ -48,7 +68,13 @@ namespace fly {
 
         bool isExternalLib() const;
 
-        const llvm::StringMap<ASTClass *> &getClasses() const;
+        const llvm::StringMap<ASTIdentity *> &getIdentities() const;
+
+        const llvm::StringMap<ASTGlobalVar *> &getGlobalVars() const;
+
+        const llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> &getFunctions() const;
+
+        std::string print() const;
 
         virtual std::string str() const;
     };

@@ -1,11 +1,9 @@
-namespace default
-
 import utils
 
 int a = 0
 
-int main() {
-    return add()
+void main() {
+    add()
 }
 
 int add() {

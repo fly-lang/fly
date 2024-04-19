@@ -12,14 +12,18 @@
 
 using namespace fly;
 
-ASTClassFunction::ASTClassFunction(const SourceLocation &Loc, ASTClass *Class, ASTClassScopes *Scopes, ASTType *Type,
+ASTClassFunction::ASTClassFunction(const SourceLocation &Loc, ASTClass *Class, ASTScopes *Scopes, ASTType *Type,
                                    llvm::StringRef Name) :
-        ASTFunctionBase(Loc, ASTFunctionKind::CLASS_FUNCTION, Type, Name), Class(Class), Scopes(Scopes)  {
+        ASTFunctionBase(Loc, ASTFunctionKind::CLASS_FUNCTION, Type, Name, Scopes), Class(Class) {
 
 }
 
 ASTClass *ASTClassFunction::getClass() const {
     return Class;
+}
+
+ASTClass *ASTClassFunction::getDerivedClass() const {
+    return DerivedClass;
 }
 
 bool ASTClassFunction::isConstructor() {
@@ -30,16 +34,8 @@ bool ASTClassFunction::isStatic() {
     return Static;
 }
 
-llvm::StringRef ASTClassFunction::getComment() const {
-    return Comment;
-}
-
-ASTClassScopes *ASTClassFunction::getScopes() const {
-    return Scopes;
-}
-
 bool ASTClassFunction::isAbstract() const {
-    return Abstract;
+    return getBody() == nullptr;
 }
 
 CodeGenClassFunction *ASTClassFunction::getCodeGen() const {
@@ -55,6 +51,5 @@ std::string ASTClassFunction::str() const {
            Super(ASTFunctionBase::str()).
             Attr("Class", Class).
             Attr("Comment", Comment).
-            Attr("Scopes", Scopes).
             End();
 }

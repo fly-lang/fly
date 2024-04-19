@@ -13,14 +13,13 @@
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTNode.h"
 #include "AST/ASTImport.h"
+#include "AST/ASTClass.h"
 #include "AST/ASTGlobalVar.h"
+#include "AST/ASTFunctionBase.h"
 #include "AST/ASTParams.h"
 #include "AST/ASTBlock.h"
-#include "AST/ASTValue.h"
-#include "AST/ASTVarAssign.h"
 #include "AST/ASTVarRef.h"
 #include "Basic/Diagnostic.h"
-#include "Basic/Debug.h"
 
 using namespace fly;
 
@@ -29,48 +28,75 @@ SemaValidator::SemaValidator(Sema &S) : S(S) {
 }
 
 /**
- * Check if this var is already declared
- * @param Block
- * @param Var
+ * Check if this param name is already declared
+ * @param Params
+ * @param Param
  * @return
  */
-bool SemaValidator::CheckDuplicatedLocalVars(ASTStmt *Stmt, ASTLocalVar *LocalVar) {
-    if (Stmt->getKind() != ASTStmtKind::STMT_BLOCK) {
-        // Error: need stmt block, cannot search duplicate var
-        return false;
-    }
-
-    ASTBlock *Block = (ASTBlock *) Stmt;
-    if (Block->getLocalVars().find(LocalVar->getName()) != Block->getLocalVars().end()) {
-        S.Diag(LocalVar->getLocation(), diag::err_conflict_vardecl) << LocalVar->getName();
-        return true;
-    }
-    return Block->getParent() && CheckDuplicatedLocalVars(Stmt->getParent(), LocalVar);
-}
-
-bool SemaValidator::CheckUninitialized(ASTBlock *Block, ASTVarRef *VarRef) {
-    llvm::StringRef Name = VarRef->getName();
-    if (!VarRef->getDef() && Block->getUnInitVars().lookup(Name)) {
-        S.Diag(VarRef->getLocation(), diag::err_sema_uninit_var) << VarRef->getName();
-        return false;
+bool SemaValidator::CheckDuplicateParams(ASTParams *Params, ASTParam *Param) {
+    for (ASTParam *P : Params->getList()) {
+        if (P->getName() == Param->getName()) {
+            if (DiagEnabled)
+                S.Diag(Param->getLocation(), diag::err_conflict_params) << Param->getName();
+            return false;
+        }
     }
     return true;
 }
 
+/**
+ * Check if this var name is already declared
+ * @param Block
+ * @param Var
+ * @return
+ */
+bool SemaValidator::CheckDuplicateLocalVars(ASTStmt *Stmt, llvm::StringRef VarName) {
+    if (Stmt->getKind() != ASTStmtKind::STMT_BLOCK) {
+        // Error: need stmt block, cannot search duplicate var
+        return true;
+    }
+
+    ASTBlock *Block = (ASTBlock *) Stmt;
+    ASTLocalVar *DuplicateVar = Block->getLocalVars().lookup(VarName);
+    if (DuplicateVar != nullptr) {
+        if (DiagEnabled)
+            S.Diag(DuplicateVar->getLocation(), diag::err_conflict_vardecl) << DuplicateVar->getName();
+        return false;
+    }
+
+    // Check with parents
+    if (Block->getParent() != nullptr) {
+        return CheckDuplicateLocalVars(Block->getParent(), VarName);
+    }
+
+    return true;
+}
+
+/**
+ * Check Name and Alias on ASTImport
+ * @param Node
+ * @param Import
+ * @return
+ */
 bool SemaValidator::CheckImport(ASTNode *Node, ASTImport *Import) {
-    // Syntax Error Quote
+    // Error: Empty Import
     if (Import->getName().empty()) {
-        S.Diag(Import->getLocation(), diag::err_import_undefined);
+        if (DiagEnabled)
+            S.Diag(Import->getLocation(), diag::err_import_undefined);
         return false;
     }
 
+    // Error: name is equals to the current ASTNode namespace
     if (Import->getName() == Node->getNameSpace()->getName()) {
-        S.Diag(Import->getLocation(), diag::err_import_conflict_namespace) << Import->getName();
+        if (DiagEnabled)
+            S.Diag(Import->getLocation(), diag::err_import_conflict_namespace) << Import->getName();
         return false;
     }
 
-    if (Import->getAlias() == Node->getNameSpace()->getName()) {
-        S.Diag(Import->getAliasLocation(), diag::err_alias_conflict_namespace) << Import->getAlias();
+    // Error: alias is equals to the current ASTNode namespace
+    if (Import->getAlias() && Import->getAlias()->getName() == Node->getNameSpace()->getName()) {
+        if (DiagEnabled)
+            S.Diag(Import->getAlias()->getLocation(), diag::err_alias_conflict_namespace) << Import->getAlias()->getName();
         return false;
     }
 
@@ -79,21 +105,35 @@ bool SemaValidator::CheckImport(ASTNode *Node, ASTImport *Import) {
 
 bool SemaValidator::CheckExpr(ASTExpr *Expr) {
     if (!Expr->getType()) {
-        S.Diag(Expr->getLocation(), diag::err_expr_type_miss);
+        if (DiagEnabled)
+            S.Diag(Expr->getLocation(), diag::err_expr_type_miss);
         return false;
     }
     return true;
 }
 
-bool SemaValidator::isEquals(ASTParam *Param1, ASTParam *Param2) {
-    return Param1 && Param2 &&
-           Param1->getType() && Param2->getType() &&
-           Param1->getType()->getKind() == Param2->getType()->getKind();
+bool SemaValidator::CheckEqualTypes(ASTType *Type1, ASTType *Type2) {
+    if (Type1->getKind() == Type2->getKind()) {
+        if (Type1->isArray()) {
+            return CheckEqualTypes(((ASTArrayType *) Type1)->getType(), ((ASTArrayType *) Type2)->getType());
+        } else if (Type1->isIdentity()) {
+            if (((ASTIdentityType *) Type1)->isClass()) {
+                return CheckClassInheritance((ASTClassType *) Type1, (ASTClassType *) Type2) ||
+                        CheckClassInheritance((ASTClassType *) Type2, (ASTClassType *) Type1);
+            } else {
+                return ((ASTIdentityType *) Type1)->getFullName() == ((ASTIdentityType *) Type2)->getFullName();
+            }
+        }
+        return true;
+    }
+
+    return false;
 }
 
-bool SemaValidator::CheckMacroType(ASTType *Type, ASTMacroTypeKind Kind) {
-    if (Type->getMacroKind() != Kind) {
-        S.Diag(Type->getLocation(), diag::err_sema_macro_type) << Type->printMacroType();
+bool SemaValidator::CheckEqualTypes(ASTType *Type, ASTTypeKind Kind) {
+    if (Type->getKind() != Kind) {
+        if (DiagEnabled)
+            S.Diag(Type->getLocation(), diag::err_sema_macro_type) << Type->printType();
         return false;
     }
 
@@ -102,67 +142,76 @@ bool SemaValidator::CheckMacroType(ASTType *Type, ASTMacroTypeKind Kind) {
 
 bool SemaValidator::CheckConvertibleTypes(ASTType *FromType, ASTType *ToType) {
     assert(FromType && "FromType cannot be null");
-    assert(FromType && "ToType cannot be null");
+    assert(ToType && "ToType cannot be null");
 
-    // Simplest Case: Types are equals
-    if (FromType->getKind() == ToType->getKind()) {
+    if (FromType->isBool() && ToType->isBool()) {
         return true;
     }
 
-    if (FromType->isInteger() && ToType->isInteger()) {
-        switch (FromType->getKind()) { // You can always convert from low integer to high int
-            // Signed Integer
-
-            case ASTTypeKind::TYPE_SHORT:
-                return ToType->getKind() != ASTTypeKind::TYPE_BYTE && ToType->getKind() != ASTTypeKind::TYPE_USHORT;
-            case ASTTypeKind::TYPE_INT:
-                return ToType->getKind() != ASTTypeKind::TYPE_BYTE
-                       && ToType->getKind() != ASTTypeKind::TYPE_SHORT && ToType->getKind() != ASTTypeKind::TYPE_USHORT
-                       && ToType->getKind() != ASTTypeKind::TYPE_UINT;
-            case ASTTypeKind::TYPE_LONG:
-                return ToType->getKind() != ASTTypeKind::TYPE_BYTE
-                       && ToType->getKind() != ASTTypeKind::TYPE_SHORT && ToType->getKind() != ASTTypeKind::TYPE_USHORT
-                       && ToType->getKind() != ASTTypeKind::TYPE_INT && ToType->getKind() != ASTTypeKind::TYPE_UINT
-                       && ToType->getKind() != ASTTypeKind::TYPE_ULONG;
-
-                // Unsigned Integer
-
-            case ASTTypeKind::TYPE_BYTE:
-                return true;
-            case ASTTypeKind::TYPE_USHORT:
-                return ToType->getKind() != ASTTypeKind::TYPE_BYTE && ToType->getKind() != ASTTypeKind::TYPE_SHORT;
-            case ASTTypeKind::TYPE_UINT:
-                return ToType->getKind() == ASTTypeKind::TYPE_UINT || ToType->getKind() == ASTTypeKind::TYPE_LONG
-                       || ToType->getKind() == ASTTypeKind::TYPE_ULONG;
-            case ASTTypeKind::TYPE_ULONG:
-                return ToType->getKind() == ASTTypeKind::TYPE_ULONG;
-        }
-    } else if (FromType->isFloatingPoint() && ToType->isFloatingPoint()) {
-        switch (FromType->getKind()) {
-            case ASTTypeKind::TYPE_FLOAT:
-                return true;
-            case ASTTypeKind::TYPE_DOUBLE:
-                return ToType->getKind() == ASTTypeKind::TYPE_DOUBLE;
-        }
-    } else if (FromType->isClass()) {
-        // Check Inheritance
+    else if (FromType->isInteger() && ToType->isInteger()) {
+        ASTIntegerType *FromIntegerType = ((ASTIntegerType *) FromType);
+        ASTIntegerType *ToIntegerType = ((ASTIntegerType *) ToType);
+        return FromIntegerType->getSize() <= ToIntegerType->getSize() ||
+            FromIntegerType->isSigned() == ToIntegerType->isSigned();
     }
 
-    S.Diag(FromType->getLocation(), diag::err_sema_types_convert)
-            << FromType->print()
-            << ToType->print();
+    else if (FromType->isFloatingPoint() && ToType->isFloatingPoint()) {
+        ASTFloatingPointType *FromFloatingType = ((ASTFloatingPointType *) FromType);
+        ASTFloatingPointType *ToFloatingType = ((ASTFloatingPointType *) ToType);
+        return FromFloatingType->getSize() <= ToFloatingType->getSize();
+    }
+
+    else if (FromType->isArray() && ToType->isArray()) {
+        // FIXME
+        return ((ASTArrayType *) FromType)->getType()->getKind() ==
+               ((ASTArrayType *) ToType)->getType()->getKind();
+    }
+
+    else if (FromType->isIdentity() && ToType->isIdentity()) {
+        ASTIdentityType *FromIdentityType = (ASTIdentityType *) FromType;
+        ASTIdentityType *ToIdentityType = (ASTIdentityType *) ToType;
+
+        // Check Enum name is equals
+        if (FromIdentityType->isEnum() && ToIdentityType->isEnum()) {
+            if (FromIdentityType->getDef()->getName() == ToIdentityType->getDef()->getName()) {
+                return true;
+            }
+        }
+
+        // Check Class Inheritance
+        else if (FromIdentityType->isClass() && FromIdentityType->isClass()) {
+            return CheckClassInheritance((ASTClassType *) FromIdentityType, (ASTClassType *) ToIdentityType);
+        }
+    }
+
+    else if (FromType->isString() && ToType->isString()) {
+        return true;
+    }
+
+    else if (FromType->isError()) {
+        if (ToType->isBool() || ToType->isInteger() || ToType->isString()) {
+            return true;
+        }
+    }
+
+    if (DiagEnabled)
+        S.Diag(FromType->getLocation(), diag::err_sema_types_convert)
+                << FromType->print()
+                << ToType->print();
+
     return false;
 }
 
 bool SemaValidator::CheckArithTypes(const SourceLocation &Loc, ASTType *Type1, ASTType *Type2) {
-    if ((Type1->getMacroKind() == ASTMacroTypeKind::MACRO_TYPE_INTEGER || Type1->getMacroKind() == ASTMacroTypeKind::MACRO_TYPE_FLOATING_POINT) &&
-        (Type2->getMacroKind() == ASTMacroTypeKind::MACRO_TYPE_INTEGER || Type2->getMacroKind() == ASTMacroTypeKind::MACRO_TYPE_FLOATING_POINT)) {
+    if (Type1->getKind() == Type2->getKind()) {
         return true;
     }
 
-    S.Diag(Loc, diag::err_sema_types_arithmetics)
-            << Type1->print()
-            << Type2->print();
+    if (DiagEnabled)
+        S.Diag(Loc, diag::err_sema_types_operation)
+                << Type1->print()
+                << Type2->print();
+
     return false;
 }
 
@@ -171,8 +220,26 @@ bool SemaValidator::CheckLogicalTypes(const SourceLocation &Loc, ASTType *Type1,
         return true;
     }
 
-    S.Diag(Loc, diag::err_sema_types_logical)
-            << Type1->print()
-            << Type2->print();
+    if (DiagEnabled)
+        S.Diag(Loc, diag::err_sema_types_logical)
+                << Type1->print()
+                << Type2->print();
+
+    return false;
+}
+
+bool SemaValidator::CheckClassInheritance(ASTClassType *FromType, ASTClassType *ToType) {
+    const StringRef &FromName = FromType->getDef()->getName();
+    const StringRef &ToName = ToType->getDef()->getName();
+    if (FromName == ToName) {
+        return true;
+    } else {
+        const SmallVector<ASTClassType *, 4> &SuperClasses = ((ASTClass *) FromType->getDef())->getSuperClasses();
+        for (ASTClassType *SuperClass : SuperClasses) {
+            if (CheckClassInheritance(SuperClass, ToType)) {
+                return true;
+            }
+        }
+    }
     return false;
 }

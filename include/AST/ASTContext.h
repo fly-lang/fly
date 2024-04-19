@@ -25,8 +25,6 @@ namespace fly {
     class ASTVarRef;
     class ASTFunction;
     class ASTImport;
-    class ASTUnrefGlobalVar;
-    class ASTUnrefFunctionCall;
 
     /**
      * AST Context
@@ -37,7 +35,7 @@ namespace fly {
         friend class SemaResolver;
         friend class SemaBuilder;
 
-        ASTNameSpace * DefaultNameSpace;
+        ASTNameSpace * DefaultNameSpace = nullptr;
 
         // All Context Namespaces
         llvm::StringMap<ASTNameSpace *> NameSpaces;
@@ -50,9 +48,9 @@ namespace fly {
 
         ASTContext();
 
-        ~ASTContext();
-
     public:
+
+        ~ASTContext();
 
         ASTNameSpace *getDefaultNameSpace() const;
 

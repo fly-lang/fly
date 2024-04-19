@@ -16,8 +16,10 @@
 
 using namespace fly;
 
-ASTFunctionBase::ASTFunctionBase(const SourceLocation &Loc, ASTFunctionKind Kind, ASTType *ReturnType, llvm::StringRef Name)
-        : Kind(Kind), Type(ReturnType), Name(Name), Location(Loc) {
+ASTFunctionBase::ASTFunctionBase(const SourceLocation &Loc, ASTFunctionKind Kind, ASTType *ReturnType,
+                                 llvm::StringRef Name, ASTScopes * Scopes) :
+        ASTBase(Loc), Kind(Kind), ReturnType(ReturnType),
+        Params(new ASTParams()), Name(Name), Scopes(Scopes) {
 
 }
 
@@ -25,8 +27,16 @@ llvm::StringRef ASTFunctionBase::getName() const {
     return Name;
 }
 
-const SourceLocation &ASTFunctionBase::getLocation() const {
-    return Location;
+ASTScopes *ASTFunctionBase::getScopes() const {
+    return Scopes;
+}
+
+void ASTFunctionBase::addParam(ASTParam *Param) {
+    Params->List.push_back(Param);
+}
+
+void ASTFunctionBase::setEllipsis(ASTParam *Param) {
+    Params->Ellipsis = Param;
 }
 
 const ASTBlock *ASTFunctionBase::getBody() const {
@@ -42,11 +52,7 @@ ASTFunctionKind ASTFunctionBase::getKind() {
 }
 
 ASTType *ASTFunctionBase::getType() const {
-    return Type;
-}
-
-const std::vector<ASTLocalVar *> &ASTFunctionBase::getLocalVars() const {
-    return LocalVars;
+    return ReturnType;
 }
 
 bool ASTFunctionBase::isVarArg() {
@@ -55,18 +61,27 @@ bool ASTFunctionBase::isVarArg() {
 
 std::string ASTFunctionBase::str() const {
     return Logger("ASTFunctionBase").
+           Super(ASTBase::str()).
            Attr("Name", Name).
            Attr("Params", Params).
-           Attr("ReturnType", Type).
+           Attr("ReturnType", ReturnType).
            End();
 }
 
-ASTReturn::ASTReturn(ASTBlock *Parent, const SourceLocation &Loc) :
-        ASTExprStmt(Parent, Loc, ASTStmtKind::STMT_RETURN) {
+ASTReturnStmt::ASTReturnStmt(ASTBlock *Parent, const SourceLocation &Loc) :
+        ASTStmt(Parent, Loc, ASTStmtKind::STMT_RETURN) {
 
 }
 
-std::string ASTReturn::str() const {
+ASTExpr *ASTReturnStmt::getExpr() const {
+    return Expr;
+}
+
+ASTBlock *ASTReturnStmt::getBlock() const {
+    return Block;
+}
+
+std::string ASTReturnStmt::str() const {
     return Logger("ASTReturn").
             Attr("Kind", (uint64_t) Kind).
             End();

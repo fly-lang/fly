@@ -17,9 +17,10 @@
 namespace fly {
 
     class ASTClass;
-    class ASTClassScopes;
+    class ASTScopes;
     class ASTType;
     class ASTFunction;
+    class ASTScopes;
 
     class ASTClassFunction : public ASTFunctionBase {
 
@@ -29,33 +30,29 @@ namespace fly {
 
         ASTClass *Class = nullptr;
 
+        ASTClass *DerivedClass = nullptr;
+
         bool Constructor = false;
 
         bool Static = false;
 
         llvm::StringRef Comment;
 
-        ASTClassScopes *Scopes = nullptr;
-
-        bool Abstract = false;
-
         // Populated during codegen phase
         CodeGenClassFunction *CodeGen = nullptr;
 
-        ASTClassFunction(const SourceLocation &Loc, ASTClass *Class, ASTClassScopes *Scopes, ASTType *Type,
+        ASTClassFunction(const SourceLocation &Loc, ASTClass *Class, ASTScopes *Scopes, ASTType *Type,
                          llvm::StringRef Name);
 
     public:
 
         ASTClass *getClass() const;
 
+        ASTClass *getDerivedClass() const;
+
         bool isConstructor();
 
         bool isStatic();
-
-        llvm::StringRef getComment() const;
-
-        ASTClassScopes *getScopes() const;
 
         bool isAbstract() const;
 

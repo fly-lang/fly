@@ -76,10 +76,6 @@ const llvm::StringMap<ASTLocalVar *> &ASTBlock::getLocalVars() const {
     return LocalVars;
 }
 
-const llvm::StringMap<ASTLocalVar *> &ASTBlock::getUnInitVars() const {
-    return UnInitVars;
-}
-
 /**
  * Convert to String
  * @return string info for debugging
@@ -93,7 +89,7 @@ std::string ASTBlock::str() const {
  * @param Loc
  * @param Parent
  */
-ASTBreak::ASTBreak(ASTBlock *Parent, const SourceLocation &Loc) :
+ASTBreakStmt::ASTBreakStmt(ASTBlock *Parent, const SourceLocation &Loc) :
         ASTStmt(Parent, Loc, ASTStmtKind::STMT_BREAK) {
 
 }
@@ -101,7 +97,7 @@ ASTBreak::ASTBreak(ASTBlock *Parent, const SourceLocation &Loc) :
  * Convert to String
  * @return string info for debugging
  */
-std::string ASTBreak::str() const {
+std::string ASTBreakStmt::str() const {
     return Logger("ASTBreak").Super(ASTStmt::str()).End();
 }
 
@@ -110,7 +106,7 @@ std::string ASTBreak::str() const {
  * @param Loc
  * @param Parent
  */
-ASTContinue::ASTContinue(ASTBlock *Parent, const SourceLocation &Loc) :
+ASTContinueStmt::ASTContinueStmt(ASTBlock *Parent, const SourceLocation &Loc) :
         ASTStmt(Parent, Loc, ASTStmtKind::STMT_CONTINUE) {
 
 }
@@ -119,6 +115,6 @@ ASTContinue::ASTContinue(ASTBlock *Parent, const SourceLocation &Loc) :
  * Convert to String
  * @return string info for debugging
  */
-std::string ASTContinue::str() const {
+std::string ASTContinueStmt::str() const {
     return Logger("ASTContinue").Super(ASTStmt::str()).End();
 }

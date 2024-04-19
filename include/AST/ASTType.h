@@ -11,12 +11,9 @@
 #ifndef FLY_ASTTYPE_H
 #define FLY_ASTTYPE_H
 
-#include "Basic/Debuggable.h"
-#include "Basic/SourceLocation.h"
+#include "ASTBase.h"
 
 namespace fly {
-
-    class SourceLocation;
 
     const uint8_t   MIN_BYTE     = 0x0;
     const uint8_t   MAX_BYTE     = 0xFF;
@@ -33,11 +30,7 @@ namespace fly {
     const uint64_t  MIN_LONG     = 0x8000000000000000;
     const uint64_t  MAX_LONG     = 0x7FFFFFFFFFFFFFFF;
 
-    enum class ASTTypeKind {
-        TYPE_VOID = 0,
-
-        // Boolean
-        TYPE_BOOL = 2,
+    enum class ASTIntegerTypeKind {
 
         // Unsigned Integer
         TYPE_BYTE = 8,
@@ -49,57 +42,47 @@ namespace fly {
         TYPE_SHORT = 15,
         TYPE_INT = 31,
         TYPE_LONG = 63,
+    };
+
+    enum class ASTFloatingPointTypeKind {
 
         // Floating Point
-        TYPE_FLOAT = 33,
-        TYPE_DOUBLE = 65,
-
-        // Aggregates
-        TYPE_ARRAY = 100,
-        TYPE_CLASS = 1000
+        TYPE_FLOAT = 32,
+        TYPE_DOUBLE = 64
     };
 
-    enum  class ASTMacroTypeKind {
-        MACRO_TYPE_VOID,
-        MACRO_TYPE_BOOL,
-        MACRO_TYPE_INTEGER,
-        MACRO_TYPE_FLOATING_POINT,
-        MACRO_TYPE_ARRAY,
-        MACRO_TYPE_CLASS
+    enum class ASTTypeKind {
+        TYPE_VOID,
+        TYPE_BOOL,
+        TYPE_INTEGER,
+        TYPE_FLOATING_POINT,
+        TYPE_STRING,
+        TYPE_ARRAY,
+        TYPE_IDENTITY,
+        TYPE_ERROR
     };
 
-    class ASTIntegerValue;
-    class ASTValueExpr;
     class ASTExpr;
-    class ASTClass;
-    class ASTIdentifier;
 
     /**
      * Abstract Base Type
      */
-    class ASTType : public Debuggable {
+    class ASTType : public ASTBase {
 
         friend class SemaBuilder;
         friend class SemaResolver;
 
         const ASTTypeKind Kind;
 
-        const ASTMacroTypeKind MacroKind;
-
-        const SourceLocation Loc;
-
     protected:
-        ASTType(const SourceLocation &Loc, ASTTypeKind Kind, ASTMacroTypeKind MacroKind);
+
+        ASTType(const SourceLocation &Loc, ASTTypeKind MacroKind);
 
     public:
 
         virtual ~ASTType() = default;
 
-        const SourceLocation &getLocation() const;
-
         const ASTTypeKind &getKind() const;
-
-        const ASTMacroTypeKind &getMacroKind() const;
 
         const bool isBool() const;
 
@@ -107,29 +90,23 @@ namespace fly {
 
         const bool isInteger() const;
 
-        const bool isUnsignedInteger() const;
-
-        const bool isSignedInteger() const;
-
-        const bool isUnsigned() const;
-
-        const bool isSigned() const;
-
-        const bool isNumber() const;
-
         const bool isArray() const;
 
-        const bool isClass() const;
+        const bool isString() const;
+
+        const bool isIdentity() const;
+
+        const bool isError() const;
 
         const bool isVoid() const;
 
-        const std::string printMacroType();
+        const std::string printType();
 
-        static const std::string printMacroType(const ASTMacroTypeKind Kind);
+        static const std::string printType(const ASTTypeKind Kind);
 
         virtual const std::string print() const = 0;
 
-        std::string str() const;
+        virtual std::string str() const;
     };
 
     /**
@@ -164,10 +141,44 @@ namespace fly {
         std::string str() const override;
     };
 
+    class ASTIntegerType : public ASTType {
+
+        ASTIntegerTypeKind Kind;
+
+    protected:
+
+        ASTIntegerType(const SourceLocation &Loc, ASTIntegerTypeKind Kind);
+
+    public:
+
+        ASTIntegerTypeKind getIntegerKind() const;
+
+        const bool isUnsigned() const;
+
+        const bool isSigned() const;
+
+        const uint32_t getSize();
+    };
+
+    class ASTFloatingPointType : public ASTType {
+
+        ASTFloatingPointTypeKind Kind;
+
+    protected:
+
+        ASTFloatingPointType(const SourceLocation &Loc, ASTFloatingPointTypeKind Kind);
+
+    public:
+
+        ASTFloatingPointTypeKind getFloatingPointKind() const;
+
+        const uint32_t getSize();
+    };
+
     /**
      * Byte Type
      */
-    class ASTByteType : public ASTType {
+    class ASTByteType : public ASTIntegerType {
 
         friend class SemaBuilder;
 
@@ -183,7 +194,7 @@ namespace fly {
     /**
      * Unsigned Short Type
      */
-    class ASTUShortType : public ASTType {
+    class ASTUShortType : public ASTIntegerType {
 
         friend class SemaBuilder;
 
@@ -199,7 +210,7 @@ namespace fly {
     /**
      * Short Type
      */
-    class ASTShortType : public ASTType {
+    class ASTShortType : public ASTIntegerType {
 
         friend class SemaBuilder;
 
@@ -215,7 +226,7 @@ namespace fly {
     /**
      * Unsigned Int Type
      */
-    class ASTUIntType : public ASTType {
+    class ASTUIntType : public ASTIntegerType {
 
         friend class SemaBuilder;
 
@@ -231,7 +242,7 @@ namespace fly {
     /**
      * Int Type
      */
-    class ASTIntType : public ASTType {
+    class ASTIntType : public ASTIntegerType {
 
         friend class SemaBuilder;
 
@@ -247,7 +258,7 @@ namespace fly {
     /**
      * Long Type
      */
-    class ASTULongType : public ASTType {
+    class ASTULongType : public ASTIntegerType {
 
         friend class SemaBuilder;
 
@@ -263,7 +274,7 @@ namespace fly {
     /**
      * Long Type
      */
-    class ASTLongType : public ASTType {
+    class ASTLongType : public ASTIntegerType {
 
         friend class SemaBuilder;
 
@@ -279,7 +290,7 @@ namespace fly {
     /**
      * Float Type
      */
-    class ASTFloatType : public ASTType {
+    class ASTFloatType : public ASTFloatingPointType {
 
         friend class SemaBuilder;
 
@@ -295,7 +306,7 @@ namespace fly {
     /**
      * Long Type
      */
-    class ASTDoubleType : public ASTType {
+    class ASTDoubleType : public ASTFloatingPointType {
 
         friend class SemaBuilder;
 
@@ -309,7 +320,7 @@ namespace fly {
     };
 
     /**
-     * String Type
+     * Array Type
      */
     class ASTArrayType : public ASTType {
 
@@ -333,35 +344,31 @@ namespace fly {
     };
 
     /**
-     * Class Type
+     * String Type
      */
-    class ASTClassType : public ASTType {
+    class ASTStringType : public ASTType {
 
         friend class SemaBuilder;
-        friend class SemaResolver;
 
-        ASTClassType *Parent;
-
-        llvm::StringRef Name;
-
-        llvm::StringRef NameSpace;
-
-        ASTClass *Def = nullptr;
-
-        ASTClassType(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef Name,
-                     ASTClassType *Parent = nullptr);
+        ASTStringType(const SourceLocation &Loc);
 
     public:
 
-        ASTClassType *getParent() const;
+        const std::string print() const override;
 
-        llvm::StringRef getName() const;
+        std::string str() const override;
+    };
 
-        llvm::StringRef getNameSpace() const;
+    /**
+     * Error Type
+     */
+    class ASTErrorType : public ASTType {
 
-        ASTClass *getDef() const;
+        friend class SemaBuilder;
 
-        bool operator ==(const ASTClassType &Ty) const;
+        ASTErrorType();
+
+    public:
 
         const std::string print() const override;
 

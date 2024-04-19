@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTClass.h - The Attribute in a Class
+// include/AST/ASTClassVar.h - The Attribute in a Class
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -13,65 +13,43 @@
 
 #include "ASTVar.h"
 #include "CodeGen/CodeGenClassVar.h"
+#include "CodeGen/CodeGenVar.h"
 
 namespace fly {
 
     class ASTClass;
-    class ASTClassScopes;
+    class ASTScopes;
     class ASTType;
     class ASTValue;
     class ASTVar;
-    class CodeGenClassVar;
 
     class ASTClassVar : public ASTVar {
 
         friend class SemaBuilder;
         friend class SemaResolver;
 
-        const SourceLocation &Loc;
+        ASTClass *Class = nullptr;
 
-        ASTVarKind VarKind;
+        ASTVarStmt *Init = nullptr;
 
-        ASTType *Type = nullptr;
+        CodeGenVarBase *CodeGen = nullptr;
 
-        llvm::StringRef Name;
-
-        const ASTClass *Class = nullptr;
-
-        llvm::StringRef Comment;
-
-        ASTClassScopes *Scopes = nullptr;
-
-        ASTExpr *Expr = nullptr;
-
-        CodeGenClassVar *CodeGen = nullptr;
-
-        ASTClassVar(const SourceLocation &Loc, ASTClass *Class, ASTClassScopes *Scopes, ASTType *Type,
+        ASTClassVar(const SourceLocation &Loc, ASTClass *Class, ASTScopes *Scopes, ASTType *Type,
                     llvm::StringRef Name);
 
     public:
 
-        const SourceLocation &getLocation() const;
+        ASTClass *getClass() const;
 
-        ASTVarKind getVarKind() override;
+        ASTVarStmt *getInit() const;
 
-        ASTType *getType() const override;
+        void setInit(ASTVarStmt *varDefine);
 
-        llvm::StringRef getName() const override;
+        CodeGenVarBase *getCodeGen() const;
 
-        const ASTClass *getClass() const;
+        void setCodeGen(CodeGenVarBase *CGV);
 
-        llvm::StringRef getComment() const;
-
-        ASTClassScopes *getScopes() const;
-
-        ASTExpr *getExpr() const override;
-
-        void setExpr(ASTExpr *expr);
-
-        CodeGenClassVar *getCodeGen() const;
-
-        void setCodeGen(CodeGenClassVar *CGV);
+        std::string print() const;
 
         std::string str() const;
     };

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTFunc.h - Function declaration
+// include/AST/ASTCall.h - Call declaration
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -20,12 +20,19 @@
 namespace fly {
 
     class ASTType;
-    class CodeGenCall;
     class ASTFunctionBase;
     class ASTParam;
     class ASTArg;
     class ASTCallExpr;
     class ASTVar;
+
+    enum class ASTCallKind {
+        CALL_NORMAL,
+        CALL_NEW,
+        CALL_UNIQUE,
+        CALL_SHARED,
+        CALL_WEAK
+    };
 
     /**
      * A Reference to a Function in a Declaration
@@ -37,21 +44,15 @@ namespace fly {
         friend class SemaBuilder;
         friend class SemaResolver;
 
-        const SourceLocation Loc;
-
         std::vector<ASTArg *> Args;
 
         ASTFunctionBase *Def = nullptr;
 
-        CodeGenCall *CGC = nullptr;
+        ASTCallKind CallKind = ASTCallKind::CALL_NORMAL;
 
-        ASTVar *Instance = nullptr;
+        ASTCall(const SourceLocation &Loc, llvm::StringRef Name);
 
-        bool New = false;
-
-        ASTCall(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef Name);
-
-        ASTCall(const SourceLocation &Loc, llvm::StringRef NameSpace, llvm::StringRef ClassName, llvm::StringRef Name);
+        ASTCall(ASTFunctionBase *Function);
 
     public:
 
@@ -59,16 +60,12 @@ namespace fly {
 
         ASTFunctionBase *getDef() const;
 
-        CodeGenCall *getCodeGen() const;
-
-        ASTVar *getInstance() const;
-
-        bool isNew() const;
+        ASTCallKind getCallKind() const;
 
         std::string str() const;
     };
 
-    class ASTArg : public Debuggable {
+    class ASTArg : public ASTBase {
 
         friend class SemaResolver;
         friend class SemaBuilder;
