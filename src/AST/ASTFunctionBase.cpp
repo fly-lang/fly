@@ -12,8 +12,6 @@
 #include "AST/ASTParams.h"
 #include "AST/ASTType.h"
 
-#include <string>
-
 using namespace fly;
 
 ASTFunctionBase::ASTFunctionBase(const SourceLocation &Loc, ASTFunctionKind Kind, ASTType *ReturnType,
@@ -41,6 +39,14 @@ void ASTFunctionBase::setEllipsis(ASTParam *Param) {
 
 const ASTBlock *ASTFunctionBase::getBody() const {
     return Body;
+}
+
+void ASTFunctionBase::setErrorHandler(ASTParam *EH) {
+    ErrorHandler = EH;
+}
+
+ASTParam *ASTFunctionBase::getErrorHandler() {
+    return ErrorHandler;
 }
 
 const ASTParams *ASTFunctionBase::getParams() const {

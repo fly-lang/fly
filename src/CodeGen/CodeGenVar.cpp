@@ -56,7 +56,7 @@ llvm::Value *CodeGenVar::getValue() {
     return this->LoadI;
 }
 
-Value *CodeGenVar::getPointer() {
+llvm::Value *CodeGenVar::getPointer() {
     return this->Pointer;
 }
 

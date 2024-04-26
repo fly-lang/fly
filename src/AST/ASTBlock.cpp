@@ -36,14 +36,6 @@ ASTBlock::ASTBlock(ASTBlock *Parent, const SourceLocation &Loc, ASTBlockKind Kin
         ASTStmt(Parent, Loc, ASTStmtKind::STMT_BLOCK), BlockKind(Kind) {
 }
 
-/**
- * Get the ASTTopDef
- * @return
- */
-ASTFunctionBase *ASTBlock::getTop() const {
-    return Top;
-}
-
 ASTBlockKind ASTBlock::getBlockKind() const {
     return BlockKind;
 }

@@ -11,7 +11,6 @@
 #include "CodeGen/CodeGenModule.h"
 #include "CodeGen/CodeGenExpr.h"
 #include "CodeGen/CodeGenFunctionBase.h"
-#include "Sema/SemaBuilder.h"
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTLocalVar.h"
 #include "AST/ASTExpr.h"
@@ -21,18 +20,10 @@
 
 using namespace fly;
 
-CodeGenExpr::CodeGenExpr(CodeGenModule *CGM, CodeGenFunctionBase *CGF, ASTExpr *Expr) :
-        CGM(CGM), CGF(CGF) {
+CodeGenExpr::CodeGenExpr(CodeGenModule *CGM, ASTExpr *Expr) :
+        CGM(CGM) {
     FLY_DEBUG("CodeGenExpr", "CodeGenExpr");
     Val = GenValue(Expr);
-}
-
-CodeGenExpr::CodeGenExpr(CodeGenModule *CGM, CodeGenFunctionBase *CGF, ASTExpr *Expr, const ASTType *ToType) :
-        CGM(CGM), CGF(CGF) {
-    FLY_DEBUG("CodeGenExpr", "CodeGenExpr");
-    llvm::Value *TheVal = GenValue(Expr);
-    ASTType *FromType = Expr->getType();
-    Val = Convert(TheVal, FromType, ToType);
 }
 
 llvm::Value *CodeGenExpr::GenValue(const ASTExpr *Expr) {
@@ -52,7 +43,7 @@ llvm::Value *CodeGenExpr::GenValue(const ASTExpr *Expr) {
         case ASTExprKind::EXPR_CALL: {
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_REF_FUNC");
             ASTCallExpr *CallExpr = (ASTCallExpr *)Expr;
-            return CGM->GenCall(CGF, CallExpr->getCall());
+            return CGM->GenCall(CallExpr->getCall());
         }
         case ASTExprKind::EXPR_GROUP:
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_GROUP");
@@ -462,15 +453,14 @@ Value *CodeGenExpr::GenBinaryComparison(const ASTExpr *E1, ASTBinaryOperatorKind
 Value *CodeGenExpr::GenBinaryLogic(const ASTExpr *E1, ASTBinaryOperatorKind Op, const ASTExpr *E2) {
     FLY_DEBUG("CodeGenExpr", "GenBinaryLogic");
     llvm::Value *V1 = GenValue(E1);
-    ASTBoolType *BoolType = SemaBuilder::CreateBoolType(SourceLocation());
-    V1 = Convert(V1, E1->getType(), BoolType);
+//    V1 = Convert(V1, E1->getType(), BoolType); //FIXME
     BasicBlock *FromBB = CGM->Builder->GetInsertBlock();
 
     switch (Op) {
 
         case ASTBinaryOperatorKind::LOGIC_AND: {
-            llvm::BasicBlock *LeftBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "and", CGF->getFunction());
-            llvm::BasicBlock *RightBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "and", CGF->getFunction());
+            llvm::BasicBlock *LeftBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "and");
+            llvm::BasicBlock *RightBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "and");
 
             // From Branch
             CGM->Builder->CreateCondBr(V1, LeftBB, RightBB);
@@ -489,8 +479,8 @@ Value *CodeGenExpr::GenBinaryLogic(const ASTExpr *E1, ASTBinaryOperatorKind Op, 
             return Phi;
         }
         case ASTBinaryOperatorKind::LOGIC_OR: {
-            llvm::BasicBlock *LeftBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "or", CGF->getFunction());
-            llvm::BasicBlock *RightBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "or", CGF->getFunction());
+            llvm::BasicBlock *LeftBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "or");
+            llvm::BasicBlock *RightBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "or");
 
             // From Branch
             CGM->Builder->CreateCondBr(V1, RightBB, LeftBB);
@@ -518,13 +508,12 @@ llvm::Value *CodeGenExpr::GenTernary(ASTTernaryGroupExpr *Expr) {
     assert(Expr->getSecond() && "Second Expr is empty");
     assert(Expr->getThird() && "Third Expr is empty");
 
-    ASTBoolType * BoolType = SemaBuilder::CreateBoolType(SourceLocation());
     llvm::Value *Cond = GenValue(Expr->getFirst());
 
     // Create Blocks
-    llvm::BasicBlock *TrueBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "terntrue", CGF->getFunction());
-    llvm::BasicBlock *FalseBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "ternfalse", CGF->getFunction());
-    llvm::BasicBlock *EndBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "ternend", CGF->getFunction());
+    llvm::BasicBlock *TrueBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "terntrue");
+    llvm::BasicBlock *FalseBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "ternfalse");
+    llvm::BasicBlock *EndBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "ternend");
 
     // Create Condition
     CGM->Builder->CreateCondBr(Cond, TrueBB, FalseBB);
@@ -532,19 +521,19 @@ llvm::Value *CodeGenExpr::GenTernary(ASTTernaryGroupExpr *Expr) {
     // True Label
     CGM->Builder->SetInsertPoint(TrueBB);
     llvm::Value *True = GenValue(Expr->getSecond());
-    llvm::Value *BoolTrue = Convert(True, Expr->getSecond()->getType(), BoolType);
+//    llvm::Value *BoolTrue = Convert(True, Expr->getSecond()->getType(), BoolType); FIXME
     CGM->Builder->CreateBr(EndBB);
 
     // False Label
     CGM->Builder->SetInsertPoint(FalseBB);
     llvm::Value *False = GenValue(Expr->getThird());
-    llvm::Value *BoolFalse = Convert(False, Expr->getThird()->getType(), BoolType);
+//    llvm::Value *BoolFalse = Convert(False, Expr->getThird()->getType(), BoolType); FIXME
     CGM->Builder->CreateBr(EndBB);
 
     // End Label
     CGM->Builder->SetInsertPoint(EndBB);
     PHINode *Phi = CGM->Builder->CreatePHI(CGM->BoolTy, 2);
-    Phi->addIncoming(BoolTrue, TrueBB);
-    Phi->addIncoming(BoolFalse, FalseBB);
+    Phi->addIncoming(True, TrueBB);
+    Phi->addIncoming(False, FalseBB);
     return Phi;
 }

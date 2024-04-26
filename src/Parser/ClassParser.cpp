@@ -81,7 +81,7 @@ ClassParser::ClassParser(Parser *P, ASTScopes *ClassScopes) : P(P) {
             }
 
             // Parse Scopes
-            ASTScopes *Scopes = SemaBuilder::CreateScopes();
+            ASTScopes *Scopes = P->Builder.CreateScopes();
 
             // Parse Type
             ASTType *Type = nullptr;
@@ -136,7 +136,7 @@ bool ClassParser::ParseField(ASTScopes *Scopes, ASTType *Type, const SourceLocat
         if (P->Tok.is(tok::equal)) {
             P->ConsumeToken();
 
-            ASTVarStmt *VarDefine = SemaBuilder::CreateVarStmt(nullptr, ClassVar);
+            ASTVarStmt *VarDefine = P->Builder.CreateVarStmt(nullptr, ClassVar);
             ASTExpr *Expr = P->ParseExpr();
             VarDefine->setExpr(Expr);
             ClassVar->setInit(VarDefine);

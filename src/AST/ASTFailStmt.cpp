@@ -24,6 +24,14 @@ void ASTFailStmt::setExpr(fly::ASTExpr *E) {
     Expr = E;
 }
 
+bool ASTFailStmt::hasHandle() {
+    return Handle != nullptr;
+}
+
+ASTHandleStmt *ASTFailStmt::getHandle() {
+    return Handle;
+}
+
 std::string ASTFailStmt::str() const {
     return Logger("ASTFailStmt").
             Super(ASTStmt::str()).

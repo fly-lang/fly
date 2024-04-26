@@ -16,7 +16,6 @@ add_library(flyLib
         AST/ASTEnum.cpp
         AST/ASTEnumEntry.cpp
         AST/ASTEnumType.cpp
-        AST/ASTError.cpp
         AST/ASTExpr.cpp
         AST/ASTExprStmt.cpp
         AST/ASTFailStmt.cpp
@@ -102,10 +101,11 @@ add_library(flyLib
         CodeGen/CodeGenEnum.cpp
         CodeGen/CodeGenEnumEntry.cpp
         CodeGen/CodeGenExpr.cpp
-        CodeGen/CodeGenFail.cpp
+        CodeGen/CodeGenError.cpp
         CodeGen/CodeGenFunction.cpp
         CodeGen/CodeGenFunctionBase.cpp
         CodeGen/CodeGenGlobalVar.cpp
+        CodeGen/CodeGenHandle.cpp
         CodeGen/CodeGenInstance.cpp
         CodeGen/CodeGenHeader.cpp
         CodeGen/CodeGenModule.cpp
@@ -146,9 +146,6 @@ add_library(flyLib
         Sema/SemaBuilder.cpp
         Sema/SemaResolver.cpp
         Sema/SemaValidator.cpp
-
-        # Sys
-        Sys/Sys.cpp
 )
 
 configure_file(

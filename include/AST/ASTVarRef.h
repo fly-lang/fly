@@ -13,8 +13,6 @@
 
 #include "AST/ASTIdentifier.h"
 
-#include <string>
-
 namespace fly {
 
     class ASTVar;

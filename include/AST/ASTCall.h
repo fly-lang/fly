@@ -25,10 +25,15 @@ namespace fly {
     class ASTArg;
     class ASTCallExpr;
     class ASTVar;
+    class ASTError;
 
     enum class ASTCallKind {
-        CALL_NORMAL,
-        CALL_NEW,
+        CALL_FUNCTION,
+        CALL_CONSTRUCTOR
+    };
+
+    enum class ASTMemoryKind {
+        CALL_MANAGED,
         CALL_UNIQUE,
         CALL_SHARED,
         CALL_WEAK
@@ -44,11 +49,15 @@ namespace fly {
         friend class SemaBuilder;
         friend class SemaResolver;
 
+        ASTError *ErrorHandler = nullptr;
+
         std::vector<ASTArg *> Args;
 
         ASTFunctionBase *Def = nullptr;
 
-        ASTCallKind CallKind = ASTCallKind::CALL_NORMAL;
+        ASTCallKind CallKind = ASTCallKind::CALL_FUNCTION;
+
+        ASTMemoryKind MemoryKind = ASTMemoryKind::CALL_MANAGED;
 
         ASTCall(const SourceLocation &Loc, llvm::StringRef Name);
 
@@ -56,11 +65,15 @@ namespace fly {
 
     public:
 
+        const ASTError *getErrorHandler() const;
+
         const std::vector<ASTArg *> getArgs() const;
 
         ASTFunctionBase *getDef() const;
 
         ASTCallKind getCallKind() const;
+
+        ASTMemoryKind getMemoryKind() const;
 
         std::string str() const;
     };

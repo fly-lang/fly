@@ -48,6 +48,11 @@ ASTCall::ASTCall(const SourceLocation &Loc, llvm::StringRef Name) : ASTIdentifie
 }
 
 ASTCall::ASTCall(ASTFunctionBase *Function) : Def(Function), ASTIdentifier(SourceLocation(), Function->getName(), ASTIdentifierKind::REF_CALL) {
+
+}
+
+const ASTError *ASTCall::getErrorHandler() const {
+    return ErrorHandler;
 }
 
 const std::vector<ASTArg*> ASTCall::getArgs() const {
@@ -60,6 +65,10 @@ ASTFunctionBase *ASTCall::getDef() const {
 
 ASTCallKind ASTCall::getCallKind() const {
     return CallKind;
+}
+
+ASTMemoryKind ASTCall::getMemoryKind() const {
+    return MemoryKind;
 }
 
 std::string ASTCall::str() const {

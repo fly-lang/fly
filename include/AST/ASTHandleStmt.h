@@ -16,27 +16,34 @@
 namespace fly {
 
     class ASTVarRef;
+    class CodeGenHandle;
 
     class ASTHandleStmt : public ASTStmt {
 
         friend class SemaBuilder;
         friend class SemaResolver;
 
-        ASTVarRef *ErrorRef = nullptr;
+        ASTVarRef *ErrorHandlerRef = nullptr;
 
         ASTStmt *Handle = nullptr;
+
+        CodeGenHandle * CodeGen = nullptr;
 
         ASTHandleStmt(ASTStmt *Parent, const SourceLocation &Loc);
 
     public:
 
-        ASTVarRef *getErrorRef() const;
+        ASTVarRef *getErrorHandlerRef() const;
 
-        void setErrorRef(ASTVarRef *errorRef);
+        void setErrorHandlerRef(ASTVarRef *errorRef);
 
         ASTStmt *getHandle() const;
 
         void setHandle(ASTStmt *H);
+
+        CodeGenHandle *getCodeGen() const;
+
+        void setCodeGen(CodeGenHandle *codeGen);
 
         std::string str() const;
     };

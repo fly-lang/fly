@@ -19,16 +19,20 @@ ASTStmt *ASTStmt::getParent() const {
     return Parent;
 }
 
+ASTFunctionBase *ASTStmt::getTop() const {
+    return Top;
+}
+
 ASTStmtKind ASTStmt::getKind() const {
     return Kind;
 }
 
-void ASTStmt::setHandleError(bool HE) {
-    HandleError = HE;
+void ASTStmt::setErrorHandler(ASTVar *EH) {
+    ErrorHandler = EH;
 }
 
-bool ASTStmt::isHandlerError() {
-    return HandleError;
+ASTVar *ASTStmt::getErrorHandler() {
+    return ErrorHandler;
 }
 
 std::string ASTStmt::str() const {

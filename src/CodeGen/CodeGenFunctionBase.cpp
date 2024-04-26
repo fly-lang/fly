@@ -12,6 +12,7 @@
 #include "CodeGen/CodeGenEnumEntry.h"
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
+#include "CodeGen/CodeGenError.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTParams.h"
@@ -27,7 +28,8 @@
 using namespace fly;
 
 CodeGenFunctionBase::CodeGenFunctionBase(CodeGenModule *CGM, ASTFunctionBase *AST) : CGM(CGM), AST(AST) {
-
+    CodeGenError *CGE = CGM->GenErrorHandler(AST->getErrorHandler());
+    AST->getErrorHandler()->setCodeGen(CGE);
 }
 
 CodeGenModule *CodeGenFunctionBase::getCodeGenModule() {
@@ -38,7 +40,7 @@ void CodeGenFunctionBase::GenReturnType() {
     RetType = CGM->GenType(AST->getType());
 }
 
-void CodeGenFunctionBase::GenParamTypes(CodeGenModule * CGM, SmallVector<llvm::Type *, 8> &Types, const ASTParams *Params) {
+void CodeGenFunctionBase::GenParamTypes(CodeGenModule * CGM, llvm::SmallVector<llvm::Type *, 8> &Types, const ASTParams *Params) {
     // Populate Types by reference
     if (Params->isEmpty()) {
         return;
@@ -90,10 +92,6 @@ void CodeGenFunctionBase::AllocaVars() {
         LocalVar->setCodeGen(CGM->GenVar(LocalVar));
         LocalVar->getCodeGen()->Init();
     }
-}
-
-llvm::Value *CodeGenFunctionBase::getErrorVar() {
-    return CodeGenFunction::isMainFunction(AST) ? ErrorVar : Fn->getArg(0);
 }
 
 void CodeGenFunctionBase::StoreParams(bool isMain) {

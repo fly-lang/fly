@@ -29,6 +29,7 @@ namespace fly {
 
     class ASTExpr;
     class ASTBlock;
+    class ASTVar;
     class ASTFunctionBase;
 
     class ASTStmt : public ASTBase {
@@ -44,7 +45,7 @@ namespace fly {
 
         ASTStmtKind Kind;
 
-        bool HandleError = false;
+        ASTVar *ErrorHandler = nullptr;
 
         ASTStmt(ASTStmt *Parent, const SourceLocation &Loc, ASTStmtKind Kind);
 
@@ -52,11 +53,13 @@ namespace fly {
 
         virtual ASTStmt *getParent() const;
 
+        ASTFunctionBase *getTop() const;
+
         ASTStmtKind getKind() const;
 
-        void setHandleError(bool HandleError);
+        void setErrorHandler(ASTVar *ErrorHandler);
 
-        bool isHandlerError();
+        ASTVar *getErrorHandler();
 
         virtual std::string str() const;
     };

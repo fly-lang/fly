@@ -10,6 +10,7 @@
 #include "CodeGen/CodeGenFunction.h"
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
+#include "CodeGen/CodeGenError.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTNode.h"
 #include "AST/ASTFunction.h"
@@ -25,12 +26,14 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, ASTFunction *AST, bool isEx
     CodeGenFunctionBase(CGM, AST), AST(AST), isExternal(isExternal) {
 
     // Generate Params Types
-    llvm::SmallVector<llvm::Type *, 8> ParamTypes;
     if (isMainFunction(AST)) {
         RetType = CGM->Int32Ty;
     } else {
         GenReturnType();
-        ParamTypes.push_back(CGM->ErrorType->getPointerTo(0));
+
+        // Add ErrorHandler as first param
+        CodeGenError *CGE = (CodeGenError *) AST->getErrorHandler()->getCodeGen();
+        ParamTypes.push_back(CGE->getType());
     }
     GenParamTypes(CGM, ParamTypes, AST->getParams());
 
@@ -55,9 +58,11 @@ void CodeGenFunction::GenBody() {
     // Allocate Error if is Main Function or take from params
     bool isMain = isMainFunction(AST);
     if (isMain) {
-        ErrorVar = CGM->Builder->CreateAlloca(CGM->ErrorType);
+        CodeGenError *CGE = (CodeGenError *) AST->getErrorHandler()->getCodeGen();
+        CGE->Init();
+        ErrorHandler = CGE->getPointer();
     } else {
-        ErrorVar = Fn->getArg(0);
+        ErrorHandler = Fn->getArg(0);
     }
 
     AllocaVars();
@@ -69,7 +74,9 @@ void CodeGenFunction::GenBody() {
         llvm::Value *Zero32 = llvm::ConstantInt::get(CGM->Int32Ty, 0);
         llvm::Value *Zero8 = llvm::ConstantInt::get(CGM->Int8Ty, 0);
         // take return value from error struct
-        llvm::Value *ErrorKind = CGM->Builder->CreateInBoundsGEP(CGM->ErrorType, ErrorVar, {Zero32, Zero32});
+        CodeGenError *CGE = (CodeGenError *) AST->getErrorHandler()->getCodeGen();
+        llvm::Value *ErrorKind = CGM->Builder->CreateInBoundsGEP(CGE->getType(),
+                                                                 ErrorHandler, {Zero32, Zero32});
         llvm::Value *Ret = CGM->Builder->CreateICmpNE(CGM->Builder->CreateLoad(ErrorKind), Zero8);
         // main() will return 0 if ok or 1 on error
         CGM->Builder->CreateRet(CGM->Builder->CreateZExt(Ret, Fn->getReturnType()));

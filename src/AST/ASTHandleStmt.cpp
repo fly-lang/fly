@@ -17,12 +17,12 @@ ASTHandleStmt::ASTHandleStmt(ASTStmt *Parent, const SourceLocation &Loc) :
 
 }
 
-void ASTHandleStmt::setErrorRef(ASTVarRef *errorRef) {
-    ErrorRef = errorRef;
+void ASTHandleStmt::setErrorHandlerRef(ASTVarRef *errorRef) {
+    ErrorHandlerRef = errorRef;
 }
 
-ASTVarRef *ASTHandleStmt::getErrorRef() const {
-    return ErrorRef;
+ASTVarRef *ASTHandleStmt::getErrorHandlerRef() const {
+    return ErrorHandlerRef;
 }
 
 ASTStmt *ASTHandleStmt::getHandle() const {
@@ -33,10 +33,18 @@ void ASTHandleStmt::setHandle(ASTStmt *H) {
     Handle = H;
 }
 
+CodeGenHandle *ASTHandleStmt::getCodeGen() const {
+    return CodeGen;
+}
+
+void ASTHandleStmt::setCodeGen(CodeGenHandle *codeGen) {
+    CodeGen = codeGen;
+}
+
 std::string ASTHandleStmt::str() const {
     return Logger("ASTHandleBlock").
             Super(ASTStmt::str()).
-            Attr("ErrorRef", ErrorRef).
+            Attr("ErrorRef", ErrorHandlerRef).
             Attr("Handle", Handle).
             End();
 }

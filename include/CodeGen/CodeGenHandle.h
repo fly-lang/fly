@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/CodeGen/CodeGenFail.h - Code Generator of Fail
+// include/CodeGen/CodeGenHandle.h - Code Generator of Handle Block
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,25 +7,33 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_CODEGEN_FAIL_H
-#define FLY_CODEGEN_FAIL_H
+#ifndef FLY_CODEGEN_HANDLE_H
+#define FLY_CODEGEN_HANDLE_H
 
-#include "llvm/IR/DerivedTypes.h"
+namespace llvm {
+    class BasicBlock;
+}
 
 namespace fly {
 
     class CodeGenModule;
-    class CodeGenFunctionBase;
-    class ASTCall;
+    class CodeGenClass;
 
-    class CodeGenFail {
+
+    class CodeGenHandle {
+
+        CodeGenModule *CGM = nullptr;
+
+        llvm::BasicBlock *HandleBB;
 
     public:
 
-        static llvm::StructType *GenErrorType(CodeGenModule *CGM);
+        CodeGenHandle(CodeGenModule *CGM);
 
-        static void GenSTMT(CodeGenFunctionBase *CGF, ASTCall *Call);
+        llvm::BasicBlock *GenBlock();
+
+        void GoToBlock();
     };
 }
 
-#endif //FLY_CODEGEN_FAIL_H
+#endif //FLY_CODEGEN_HANDLE_H

@@ -15,12 +15,15 @@
 namespace fly {
 
     class ASTVarRef;
+    class ASTHandleStmt;
 
     class ASTFailStmt : public ASTStmt {
 
         friend class SemaBuilder;
 
         ASTExpr *Expr = nullptr;
+
+        ASTHandleStmt *Handle = nullptr;
 
         ASTFailStmt(ASTStmt *Parent, const SourceLocation &Loc);
 
@@ -29,6 +32,10 @@ namespace fly {
         ASTExpr *getExpr() const;
 
         void setExpr(ASTExpr *);
+
+        bool hasHandle();
+
+        ASTHandleStmt *getHandle();
 
         std::string str() const override;
     };

@@ -72,9 +72,9 @@ ASTVarRef *ASTVarRefExpr::getVarRef() const {
     return VarRef;
 }
 
-ASTType *ASTVarRefExpr::getType() const {
-    return Type ? Type : VarRef->getDef() ? VarRef->getDef()->getType() : nullptr;
-}
+//ASTType *ASTVarRefExpr::getType() const {
+//    return Type ? Type : VarRef->getDef() ? VarRef->getDef()->getType() : nullptr;
+//}
 
 std::string ASTVarRefExpr::str() const {
     return Logger("ASTVarRefExpr").
@@ -92,9 +92,9 @@ ASTCall *ASTCallExpr::getCall() const {
     return Call;
 }
 
-ASTType *ASTCallExpr::getType() const {
-    return Type ? Type : Call->getDef() ? Call->getDef()->getType() : nullptr;
-}
+//ASTType *ASTCallExpr::getType() const {
+//    return Type ? Type : Call->getDef() ? Call->getDef()->getType() : nullptr;
+//}
 
 std::string ASTCallExpr::str() const {
     return Logger("ASTCallExpr").
@@ -136,9 +136,9 @@ const ASTVarRefExpr *ASTUnaryGroupExpr::getFirst() const {
     return First;
 }
 
-ASTType *ASTUnaryGroupExpr::getType() const {
-    return Type ? Type : First->getType();
-}
+//ASTType *ASTUnaryGroupExpr::getType() const {
+//    return Type ? Type : First->getType();
+//}
 
 std::string ASTUnaryGroupExpr::str() const {
     return Logger("ASTUnaryGroupExpr").
@@ -176,23 +176,23 @@ const ASTExpr *ASTBinaryGroupExpr::getSecond() const {
     return Second;
 }
 
-ASTType *ASTBinaryGroupExpr::getType() const {
-    if (Type) {
-        return Type;
-    }
-
-    ASTType *T = nullptr;
-    switch (OptionKind) {
-        case ASTBinaryOptionKind::BINARY_ARITH:
-            T = First->getType();
-            break;
-        case ASTBinaryOptionKind::BINARY_LOGIC:
-        case ASTBinaryOptionKind::BINARY_COMPARISON:
-            T = SemaBuilder::CreateBoolType(SourceLocation());
-            break;
-    }
-    return T;
-}
+//ASTType *ASTBinaryGroupExpr::getType() const {
+//    if (Type) {
+//        return Type;
+//    }
+//
+//    ASTType *T = nullptr;
+//    switch (OptionKind) {
+//        case ASTBinaryOptionKind::BINARY_ARITH:
+//            T = First->getType();
+//            break;
+//        case ASTBinaryOptionKind::BINARY_LOGIC:
+//        case ASTBinaryOptionKind::BINARY_COMPARISON:
+//            T = SemaBuilder::CreateBoolType(SourceLocation());
+//            break;
+//    }
+//    return T;
+//}
 
 std::string ASTBinaryGroupExpr::str() const {
     return Logger("ASTBinaryGroupExpr").
@@ -214,9 +214,9 @@ ASTTernaryOperatorKind ASTTernaryGroupExpr::getOperatorKind() const {
     return OperatorKind;
 }
 
-ASTType *ASTTernaryGroupExpr::getType() const {
-    return Type ? Type : Second->getType();
-}
+//ASTType *ASTTernaryGroupExpr::getType() const {
+//    return Type ? Type : Second->getType();
+//}
 
 const ASTExpr *ASTTernaryGroupExpr::getFirst() const {
     return First;

@@ -37,14 +37,11 @@
 #include "AST/ASTEnum.h"
 #include "AST/ASTEnumEntry.h"
 #include "AST/ASTClassFunction.h"
-#include "AST/ASTError.h"
 #include "AST/ASTFailStmt.h"
-#include "Sys/Sys.h"
 #include "Basic/SourceLocation.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/Debug.h"
 
-#include "llvm/ADT/StringMap.h"
 #include <map>
 
 using namespace fly;
@@ -62,7 +59,6 @@ SemaBuilder::CreateContext() {
     FLY_DEBUG("SemaBuilder", "CreateContext");
     ASTContext *Context = new ASTContext();
     Context->DefaultNameSpace = CreateDefaultNameSpace();
-    Sys::Build(S); // add fail() functions in default namespace
     AddNameSpace(Context->DefaultNameSpace);
     return Context;
 }
@@ -908,7 +904,7 @@ ASTCallExpr *
 SemaBuilder::CreateNewExpr(ASTCall *Call) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateNewExpr",
                       Logger().Attr("Call", Call).End());
-    Call->CallKind = ASTCallKind::CALL_NEW;
+    Call->CallKind = ASTCallKind::CALL_CONSTRUCTOR;
     return CreateExpr(Call);
 }
 
@@ -1095,7 +1091,7 @@ SemaBuilder::CreateHandleStmt(ASTBlock *Parent, const SourceLocation &Loc, ASTVa
             .Attr("Parent", Parent)
             .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
     ASTHandleStmt *Block = new ASTHandleStmt(Parent, Loc);
-    Block->setErrorRef(ErrorRef);
+    Block->setErrorHandlerRef(ErrorRef);
     return Block;
 }
 

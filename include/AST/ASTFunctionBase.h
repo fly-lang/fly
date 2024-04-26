@@ -63,6 +63,8 @@ namespace fly {
         // Body is the main BlockStmt
         ASTBlock *Body = nullptr;
 
+        ASTParam *ErrorHandler = nullptr;
+
     protected:
 
         ASTFunctionBase(const SourceLocation &Loc, ASTFunctionKind Kind, ASTType *ReturnType, llvm::StringRef Name,
@@ -85,6 +87,10 @@ namespace fly {
         const ASTParams *getParams() const;
 
         const ASTBlock *getBody() const;
+
+        void setErrorHandler(ASTParam *ErrorHandler);
+
+        ASTParam *getErrorHandler();
 
         virtual CodeGenFunctionBase *getCodeGen() const = 0;
 

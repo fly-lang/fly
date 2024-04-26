@@ -106,7 +106,7 @@ namespace fly {
 
     public:
 
-        virtual ASTType *getType() const;
+        ASTType *getType() const;
 
         ASTExprKind getExprKind() const;
 
@@ -160,8 +160,6 @@ namespace fly {
 
         ASTVarRef *getVarRef() const;
 
-        ASTType *getType() const override;
-
         std::string str() const override;
     };
 
@@ -180,8 +178,6 @@ namespace fly {
     public:
 
         ASTCall *getCall() const;
-
-        ASTType *getType() const override;
 
         std::string str() const override;
     };
@@ -203,8 +199,6 @@ namespace fly {
     public:
 
         virtual ASTExprGroupKind getGroupKind();
-
-        virtual ASTType *getType() const override = 0;
 
         std::string str() const;
     };
@@ -232,8 +226,6 @@ namespace fly {
         ASTUnaryOptionKind getOptionKind() const;
 
         const ASTVarRefExpr *getFirst() const;
-
-        ASTType *getType() const override;
 
         std::string str() const override;
     };
@@ -268,8 +260,6 @@ namespace fly {
 
         const ASTExpr *getSecond() const;
 
-        ASTType *getType() const override;
-
         std::string str() const override;
     };
 
@@ -300,8 +290,6 @@ namespace fly {
     public:
 
         ASTTernaryOperatorKind getOperatorKind() const;
-
-        ASTType *getType() const override;
 
         const ASTExpr *getFirst() const;
 

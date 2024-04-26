@@ -76,8 +76,6 @@ namespace fly {
 
     public:
 
-        ASTFunctionBase *getTop() const;
-
         ASTBlockKind getBlockKind() const;
 
         const std::vector<ASTStmt *> &getContent() const;

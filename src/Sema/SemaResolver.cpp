@@ -34,7 +34,6 @@
 #include "AST/ASTVar.h"
 #include "AST/ASTVarStmt.h"
 #include "AST/ASTVarRef.h"
-#include "Sys/Sys.h"
 #include "CodeGen/CodeGen.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/Debug.h"
@@ -383,14 +382,14 @@ bool SemaResolver::ResolveBlock(ASTBlock *Block) {
 }
 
 bool SemaResolver::ResolveIfBlock(ASTIfBlock *IfBlock) {
-    IfBlock->Condition->Type = SemaBuilder::CreateBoolType(IfBlock->Condition->getLocation());
+    IfBlock->Condition->Type = S.Builder->CreateBoolType(IfBlock->Condition->getLocation());
     bool Success = ResolveExpr(IfBlock->getParent(), IfBlock->Condition) &&
-                   S.Validator->CheckConvertibleTypes(IfBlock->Condition->Type, SemaBuilder::CreateBoolType(SourceLocation())) &&
+                   S.Validator->CheckConvertibleTypes(IfBlock->Condition->Type, S.Builder->CreateBoolType(SourceLocation())) &&
             ResolveBlock(IfBlock);
     for (ASTElsifBlock *ElsifBlock : IfBlock->ElsifBlocks) {
-        ElsifBlock->Condition->Type = SemaBuilder::CreateBoolType(ElsifBlock->Condition->getLocation());
+        ElsifBlock->Condition->Type = S.Builder->CreateBoolType(ElsifBlock->Condition->getLocation());
         Success &= ResolveExpr(IfBlock->getParent(), ElsifBlock->Condition) &&
-                   S.Validator->CheckConvertibleTypes(ElsifBlock->Condition->Type, SemaBuilder::CreateBoolType(SourceLocation())) &&
+                   S.Validator->CheckConvertibleTypes(ElsifBlock->Condition->Type, S.Builder->CreateBoolType(SourceLocation())) &&
                 ResolveBlock(ElsifBlock);
     }
     if (Success && IfBlock->ElseBlock) {
@@ -414,13 +413,13 @@ bool SemaResolver::ResolveSwitchBlock(ASTSwitchBlock *SwitchBlock) {
 bool SemaResolver::ResolveWhileBlock(ASTWhileBlock *WhileBlock) {
     return ResolveExpr(WhileBlock->getParent(), WhileBlock->Condition) &&
            S.Validator->CheckConvertibleTypes(WhileBlock->Condition->Type,
-                                    SemaBuilder::CreateBoolType(WhileBlock->Condition->getLocation())) &&
+                                    S.Builder->CreateBoolType(WhileBlock->Condition->getLocation())) &&
             ResolveBlock(WhileBlock);
 }
 
 bool SemaResolver::ResolveForBlock(ASTForBlock *ForBlock) {
     bool Success = ResolveBlock(ForBlock) && ResolveExpr(ForBlock, ForBlock->Condition) &&
-                   S.Validator->CheckConvertibleTypes(ForBlock->Condition->Type, SemaBuilder::CreateBoolType(ForBlock->Condition->getLocation()));
+                   S.Validator->CheckConvertibleTypes(ForBlock->Condition->Type, S.Builder->CreateBoolType(ForBlock->Condition->getLocation()));
     if (ForBlock->Post) {
         Success &= ResolveBlock(ForBlock->Post);
     }
@@ -845,7 +844,7 @@ bool SemaResolver::ResolveExpr(ASTBlock *Block, ASTExpr *Expr) {
         case ASTExprKind::EXPR_CALL: {
             ASTCall *Call = ((ASTCallExpr *)Expr)->getCall();
             if (ResolveCall(Block, Call)) {
-                Expr->Type = Call->getCallKind() == ASTCallKind::CALL_NORMAL ?
+                Expr->Type = Call->getCallKind() == ASTCallKind::CALL_FUNCTION ?
                         Call->Def->ReturnType :
                         ((ASTClassFunction *) Call->Def)->getClass()->getType();
                 Success = true;
@@ -900,12 +899,12 @@ bool SemaResolver::ResolveExpr(ASTBlock *Block, ASTExpr *Expr) {
                                 }
 
                                 Binary->Type = Binary->getOptionKind() == ASTBinaryOptionKind::BINARY_ARITH ?
-                                        Binary->First->Type : SemaBuilder::CreateBoolType(Expr->getLocation());
+                                        Binary->First->Type : S.Builder->CreateBoolType(Expr->getLocation());
                             }
                         } else if (Binary->getOptionKind() ==  ASTBinaryOptionKind::BINARY_LOGIC) {
                             Success = S.Validator->CheckLogicalTypes(Binary->OpLoc,
                                                                      Binary->First->Type, Binary->Second->Type);
-                            Binary->Type = SemaBuilder::CreateBoolType(Expr->getLocation());
+                            Binary->Type = S.Builder->CreateBoolType(Expr->getLocation());
                         }
                     }
                     break;
@@ -913,7 +912,7 @@ bool SemaResolver::ResolveExpr(ASTBlock *Block, ASTExpr *Expr) {
                 case ASTExprGroupKind::GROUP_TERNARY: {
                     ASTTernaryGroupExpr *Ternary = (ASTTernaryGroupExpr *) Expr;
                     Success = ResolveExpr(Block, Ternary->First) &&
-                            S.Validator->CheckConvertibleTypes(Ternary->First->Type, SemaBuilder::CreateBoolType(SourceLocation())) &&
+                            S.Validator->CheckConvertibleTypes(Ternary->First->Type, S.Builder->CreateBoolType(SourceLocation())) &&
                               ResolveExpr(Block, Ternary->Second) &&
                               ResolveExpr(Block, Ternary->Third);
                     Ternary->Type = Ternary->Second->Type; // The group type is equals to the second type
@@ -935,7 +934,7 @@ bool SemaResolver::ResolveValueExpr(ASTValueExpr *Expr) {
     switch (Expr->Value->getTypeKind()) {
         
         case ASTTypeKind::TYPE_BOOL:
-            Expr->Type = SemaBuilder::CreateBoolType(Loc);
+            Expr->Type = S.Builder->CreateBoolType(Loc);
             break;
             
         case ASTTypeKind::TYPE_INTEGER: {
@@ -949,11 +948,11 @@ bool SemaResolver::ResolveValueExpr(ASTValueExpr *Expr) {
                 }
 
                 if (Integer->Value > MIN_INT) {
-                    Expr->Type = SemaBuilder::CreateLongType(Loc);
+                    Expr->Type = S.Builder->CreateLongType(Loc);
                 } else if (Integer->Value > MIN_SHORT) {
-                    Expr->Type = SemaBuilder::CreateIntType(Loc);
+                    Expr->Type = S.Builder->CreateIntType(Loc);
                 } else {
-                    Expr->Type = SemaBuilder::CreateShortType(Loc);
+                    Expr->Type = S.Builder->CreateShortType(Loc);
                 }
             } else { // Positive Integer
 
@@ -963,13 +962,13 @@ bool SemaResolver::ResolveValueExpr(ASTValueExpr *Expr) {
                 }
 
                 if (Integer->Value > MAX_INT) {
-                    Expr->Type = SemaBuilder::CreateLongType(Loc);
+                    Expr->Type = S.Builder->CreateLongType(Loc);
                 } else if (Integer->Value > MAX_SHORT) {
-                    Expr->Type = SemaBuilder::CreateIntType(Loc);
+                    Expr->Type = S.Builder->CreateIntType(Loc);
                 } else if (Integer->Value > MAX_BYTE) {
-                    Expr->Type = SemaBuilder::CreateShortType(Loc);
+                    Expr->Type = S.Builder->CreateShortType(Loc);
                 } else {
-                    Expr->Type = SemaBuilder::CreateByteType(Loc);
+                    Expr->Type = S.Builder->CreateByteType(Loc);
                 }
             }
             break;
@@ -977,11 +976,11 @@ bool SemaResolver::ResolveValueExpr(ASTValueExpr *Expr) {
         
         case ASTTypeKind::TYPE_FLOATING_POINT:
             // Creating as Float on first but transform in Double if is contained into a Binary Expr with a Double Type
-            Expr->Type = SemaBuilder::CreateDoubleType(Loc);
+            Expr->Type = S.Builder->CreateDoubleType(Loc);
             break;
 
         case ASTTypeKind::TYPE_STRING:
-            Expr->Type = SemaBuilder::CreateStringType(Loc);
+            Expr->Type = S.Builder->CreateStringType(Loc);
             break;
 
         case ASTTypeKind::TYPE_ARRAY:

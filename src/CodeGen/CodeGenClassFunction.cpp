@@ -12,6 +12,7 @@
 #include "CodeGen/CodeGenClass.h"
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
+#include "CodeGen/CodeGenError.h"
 #include "AST/ASTNode.h"
 #include "AST/ASTClassFunction.h"
 #include "AST/ASTClassVar.h"
@@ -27,11 +28,10 @@ CodeGenClassFunction::CodeGenClassFunction(CodeGenModule *CGM, ASTClassFunction 
     // Generate return type
     GenReturnType();
 
-    // Generate Params Types
-    llvm::SmallVector<llvm::Type *, 8> ParamTypes;
-    if (Class->getClassKind() != ASTClassKind::STRUCT) { // Add error argument only for class and interface
-        ParamTypes.push_back(CGM->ErrorType->getPointerTo(0));
-    }
+    // Add ErrorHandler to params
+    CodeGenError *CGE = (CodeGenError *) AST->getErrorHandler()->getCodeGen();
+    ParamTypes.push_back(CGE->getType());
+
     if (TypePtr) // Instance method
         ParamTypes.push_back(TypePtr);
     GenParamTypes(CGM, ParamTypes, AST->getParams());
@@ -49,9 +49,9 @@ void CodeGenClassFunction::GenBody() {
     Type *ClassType = Class->getCodeGen()->getTypePtr();
     setInsertPoint();
 
-    // the first is the error
+    // the first argument is the error
     if (Class->getClassKind() != ASTClassKind::STRUCT)
-        ErrorVar = Fn->getArg(0);
+        ErrorHandler = Fn->getArg(0);
 
     // Class Method (not static)
     if (!((ASTClassFunction *) AST)->isStatic()) {

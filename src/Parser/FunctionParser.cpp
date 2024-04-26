@@ -73,10 +73,10 @@ bool FunctionParser::ParseParam() {
         const SourceLocation IdLoc = P->Tok.getLocation();
         P->ConsumeToken();
 
-        ASTScopes *Scopes = SemaBuilder::CreateScopes();
+        ASTScopes *Scopes = P->Builder.CreateScopes();
         P->ParseScopes(Scopes);
 
-        ASTParam *Param = SemaBuilder::CreateParam(IdLoc, Type, Name, Scopes);
+        ASTParam *Param = P->Builder.CreateParam(IdLoc, Type, Name, Scopes);
 
         // Parse assignment =
         if (P->Tok.is(tok::equal)) {

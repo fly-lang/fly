@@ -157,12 +157,12 @@ bool Parser::ParseImports() {
             SourceLocation NameLoc = ConsumeToken();
 
             FLY_DEBUG_MESSAGE("Parser", "ParseImports", "Name=" << Name);
-            ASTImport *Import = SemaBuilder::CreateImport(Loc, Name);
+            ASTImport *Import = Builder.CreateImport(Loc, Name);
             if (Tok.isAnyIdentifier()) {
                 IdentifierInfo *AliasId = Tok.getIdentifierInfo();
                 llvm::StringRef AliasName = AliasId->getName();
                 const SourceLocation &AliasLoc = ConsumeToken();
-                ASTAlias *Alias = SemaBuilder::CreateAlias(AliasLoc, AliasName);
+                ASTAlias *Alias = Builder.CreateAlias(AliasLoc, AliasName);
                 FLY_DEBUG_MESSAGE("Parser", "ParseImports", "Name=" << Import->getName() << ", Alias=" << Alias->getName());
                 Import->setAlias(Alias);
             }
@@ -185,7 +185,7 @@ bool Parser::ParseTopDef() {
     FLY_DEBUG("Parser", "ParseTopDef");
 
     // Parse Public/Private and Constant
-    ASTScopes *Scopes = SemaBuilder::CreateScopes();
+    ASTScopes *Scopes = Builder.CreateScopes();
     if (ParseScopes(Scopes)) {
 
         // Define a Class
@@ -284,7 +284,7 @@ bool Parser::ParseGlobalVarDef(ASTScopes *Scopes, ASTType *Type) {
     llvm::StringRef Name = Tok.getIdentifierInfo()->getName();
     SourceLocation Loc = ConsumeToken();
 
-    ASTGlobalVar *GlobalVar = SemaBuilder::CreateGlobalVar(Node, Loc, Type, Name, Scopes);
+    ASTGlobalVar *GlobalVar = Builder.CreateGlobalVar(Node, Loc, Type, Name, Scopes);
 
     // Parsing =
     ASTExpr *Expr = nullptr;
@@ -326,7 +326,7 @@ bool Parser::ParseFunctionDef(ASTScopes *Scopes, ASTType *Type) {
     }
 
     const StringRef &Name = Tok.getIdentifierInfo()->getName();
-    ASTFunction *Function = SemaBuilder::CreateFunction(Node, ConsumeToken(), Type, Name, Scopes);
+    ASTFunction *Function = Builder.CreateFunction(Node, ConsumeToken(), Type, Name, Scopes);
     if (FunctionParser::Parse(this, Function)) {
 
         // Error: body must be empty in header declaration
@@ -336,7 +336,7 @@ bool Parser::ParseFunctionDef(ASTScopes *Scopes, ASTType *Type) {
 
         BlockComment = StringRef();
         return Builder.AddComment(Function, Comment) &&
-            SemaBuilder::AddFunction(Function);
+            Builder.AddFunction(Function);
     }
 
     return false;
@@ -461,7 +461,7 @@ bool Parser::ParseStmt(ASTBlock *Parent, bool StopParse) {
     }
 
     // define a const LocalVar
-    ASTScopes *Scopes = SemaBuilder::CreateScopes();
+    ASTScopes *Scopes = Builder.CreateScopes();
     ParseScopes(Scopes);
     
     // Define an ASTLocalVar
@@ -481,9 +481,9 @@ bool Parser::ParseStmt(ASTBlock *Parent, bool StopParse) {
         if (!Identifier1->isCall()) { // a() t.a()
             if (Type != nullptr) { // int a
                 // FIXME check Identifier for LocalVar
-                ASTLocalVar *LocalVar = SemaBuilder::CreateLocalVar(Tok.getLocation(), Type,
+                ASTLocalVar *LocalVar = Builder.CreateLocalVar(Tok.getLocation(), Type,
                                                                Identifier1->getName(), Scopes);
-                ASTVarStmt *VarStmt = SemaBuilder::CreateVarStmt(Parent, LocalVar);
+                ASTVarStmt *VarStmt = Builder.CreateVarStmt(Parent, LocalVar);
 
                 // int a = ...
                 if (Tok.is(tok::equal)) {
@@ -496,10 +496,10 @@ bool Parser::ParseStmt(ASTBlock *Parent, bool StopParse) {
                 ASTIdentifier *Identifier2 = ParseIdentifier();
 
                 // Type is a IdentityType or an Array of IdentityType
-                Type = SemaBuilder::CreateIdentityType(Identifier1);
+                Type = Builder.CreateIdentityType(Identifier1);
 
                 // FIXME check Identifier for LocalVar
-                ASTLocalVar *LocalVar = SemaBuilder::CreateLocalVar(Tok.getLocation(), Type,
+                ASTLocalVar *LocalVar = Builder.CreateLocalVar(Tok.getLocation(), Type,
                                                                Identifier2->getName(), Scopes);
 
                 ASTStmt *Stmt = nullptr;
@@ -508,10 +508,10 @@ bool Parser::ParseStmt(ASTBlock *Parent, bool StopParse) {
                     ConsumeToken();
 
                     if (Tok.is(tok::kw_handle)) {
-                        ASTVarRef *VarRef = SemaBuilder::CreateVarRef(LocalVar);
+                        ASTVarRef *VarRef = Builder.CreateVarRef(LocalVar);
                         return ParseHandleStmt(Parent, VarRef) && (StopParse || ParseStmt(Parent));
                     } else {
-                        Stmt = SemaBuilder::CreateVarStmt(Parent, LocalVar);
+                        Stmt = Builder.CreateVarStmt(Parent, LocalVar);
                         ASTExpr *Expr = ParseExpr(Stmt);
                         return Builder.AddStmt(Stmt) && (StopParse || ParseStmt(Parent));
                     }
@@ -522,7 +522,7 @@ bool Parser::ParseStmt(ASTBlock *Parent, bool StopParse) {
             if (isTokenAssignOperator()) { // a = ...
 
                 ASTVarRef *VarRef = Builder.CreateVarRef(Identifier1);
-                ASTVarStmt *VarDefine = SemaBuilder::CreateVarStmt(Parent, VarRef);
+                ASTVarStmt *VarDefine = Builder.CreateVarStmt(Parent, VarRef);
 
                 ExprParser Parser(this, VarDefine);
                 ASTExpr *Expr = Parser.ParseAssignExpr();
@@ -535,7 +535,7 @@ bool Parser::ParseStmt(ASTBlock *Parent, bool StopParse) {
     // a++
     // ++a
     // new A()
-    ASTExprStmt *ExprStmt = SemaBuilder::CreateExprStmt(Parent, Tok.getLocation());
+    ASTExprStmt *ExprStmt = Builder.CreateExprStmt(Parent, Tok.getLocation());
     ASTExpr *Expr = ParseExpr(ExprStmt, Identifier1);
     if (Expr->getExprKind() != ASTExprKind::EXPR_EMPTY) {
         return Builder.AddStmt(ExprStmt) && (StopParse || ParseStmt(Parent));
@@ -902,40 +902,40 @@ bool Parser::ParseBuiltinType(ASTType *&Type) {
     FLY_DEBUG("Parser", "ParseBuiltinType");
     switch (Tok.getKind()) {
         case tok::kw_bool:
-            Type = SemaBuilder::CreateBoolType(ConsumeToken());
+            Type = Builder.CreateBoolType(ConsumeToken());
             break;
         case tok::kw_byte:
-            Type = SemaBuilder::CreateByteType(ConsumeToken());
+            Type = Builder.CreateByteType(ConsumeToken());
             break;
         case tok::kw_ushort:
-            Type = SemaBuilder::CreateUShortType(ConsumeToken());
+            Type = Builder.CreateUShortType(ConsumeToken());
             break;
         case tok::kw_short:
-            Type = SemaBuilder::CreateShortType(ConsumeToken());
+            Type = Builder.CreateShortType(ConsumeToken());
             break;
         case tok::kw_uint:
-            Type = SemaBuilder::CreateUIntType(ConsumeToken());
+            Type = Builder.CreateUIntType(ConsumeToken());
             break;
         case tok::kw_int:
-            Type = SemaBuilder::CreateIntType(ConsumeToken());
+            Type = Builder.CreateIntType(ConsumeToken());
             break;
         case tok::kw_ulong:
-            Type = SemaBuilder::CreateULongType(ConsumeToken());
+            Type = Builder.CreateULongType(ConsumeToken());
             break;
         case tok::kw_long:
-            Type = SemaBuilder::CreateLongType(ConsumeToken());
+            Type = Builder.CreateLongType(ConsumeToken());
             break;
         case tok::kw_float:
-            Type = SemaBuilder::CreateFloatType(ConsumeToken());
+            Type = Builder.CreateFloatType(ConsumeToken());
             break;
         case tok::kw_double:
-            Type = SemaBuilder::CreateDoubleType(ConsumeToken());
+            Type = Builder.CreateDoubleType(ConsumeToken());
             break;
         case tok::kw_void:
-            Type = SemaBuilder::CreateVoidType(ConsumeToken());
+            Type = Builder.CreateVoidType(ConsumeToken());
             break;
         case tok::kw_string:
-            Type = SemaBuilder::CreateStringType(ConsumeToken());
+            Type = Builder.CreateStringType(ConsumeToken());
             break;
         default:
             Diag(Tok.getLocation(), diag::err_parser_invalid_type);
@@ -954,13 +954,13 @@ bool Parser::ParseArrayType(ASTType *&Type) {
 
         if (Tok.is(tok::r_square)) {
             ConsumeBracket();
-            Expr = Builder.CreateExpr(SemaBuilder::CreateIntegerValue(Loc, 0));
-            Type = SemaBuilder::CreateArrayType(Loc, Type, Expr);
+            Expr = Builder.CreateExpr(Builder.CreateIntegerValue(Loc, 0));
+            Type = Builder.CreateArrayType(Loc, Type, Expr);
         } else {
             Expr = ParseExpr();
             if (Tok.is(tok::r_square)) {
                 ConsumeBracket();
-                Type = SemaBuilder::CreateArrayType(Loc, Type, Expr);
+                Type = Builder.CreateArrayType(Loc, Type, Expr);
             } else {
                 Diag(Loc, diag::err_parser_unclosed_bracket);
                 return false;
@@ -1112,7 +1112,7 @@ ASTValue *Parser::ParseValue() {
 
     if (Tok.is(tok::kw_null)) {
         const SourceLocation &Loc = ConsumeToken();
-        return SemaBuilder::CreateNullValue(Loc);
+        return Builder.CreateNullValue(Loc);
     }
 
     // Parse Numeric Constants
@@ -1125,28 +1125,28 @@ ASTValue *Parser::ParseValue() {
         // empty char is like a zero byte
         if (Tok.getLiteralData() == nullptr && Tok.getLength() == 0) {
             const SourceLocation &Loc = ConsumeToken();
-            return SemaBuilder::CreateIntegerValue(Loc, 0);
+            return Builder.CreateIntegerValue(Loc, 0);
         }
 
         StringRef Val = StringRef(Tok.getLiteralData(), Tok.getLength());
         char Ch = *Val.begin();
 
         const SourceLocation &Loc = ConsumeToken();
-        return SemaBuilder::CreateCharValue(Loc, Ch);
+        return Builder.CreateCharValue(Loc, Ch);
     }
 
     if (Tok.isStringLiteral()) {
         const char *Data = Tok.getLiteralData();
         size_t Length = Tok.getLength();
-        return SemaBuilder::CreateStringValue(ConsumeStringToken(), StringRef(Data, Length));
+        return Builder.CreateStringValue(ConsumeStringToken(), StringRef(Data, Length));
     }
 
     // Parse true or false boolean values
     if (Tok.is(tok::kw_true)) {
-        return SemaBuilder::CreateBoolValue(ConsumeToken(), true);
+        return Builder.CreateBoolValue(ConsumeToken(), true);
     }
     if (Tok.is(tok::kw_false)) {
-        return SemaBuilder::CreateBoolValue(ConsumeToken(), false);
+        return Builder.CreateBoolValue(ConsumeToken(), false);
     }
 
     // Parse Array or Struct
@@ -1190,9 +1190,9 @@ ASTValue *Parser::ParseValueNumber(std::string &Str) {
     }
 
     if (IsFloatingPoint) {
-        return SemaBuilder::CreateFloatingValue(Loc, Str);
+        return Builder.CreateFloatingValue(Loc, Str);
     }
-    return SemaBuilder::CreateIntegerValue(Loc, Integer, IsNegative);
+    return Builder.CreateIntegerValue(Loc, Integer, IsNegative);
 }
 
 /**
@@ -1215,12 +1215,12 @@ ASTValue *Parser::ParseValues() {
             ConsumeToken();
             
             if (Tok.is(tok::equal)) {
-                Values = SemaBuilder::CreateStructValue(StartLoc);
+                Values = Builder.CreateStructValue(StartLoc);
                 ConsumeToken();
 
                 ASTValue *Value = ParseValue();
                 if (Value) {
-                    SemaBuilder::AddStructValue((ASTStructValue *) Values, Key, Value);
+                    Builder.AddStructValue((ASTStructValue *) Values, Key, Value);
                     if (Tok.is(tok::comma)) {
                         ConsumeToken();
                     } else {
@@ -1233,10 +1233,10 @@ ASTValue *Parser::ParseValues() {
             }
         } else { // if is Value -> array
             if (Values == nullptr)
-                Values = SemaBuilder::CreateArrayValue(StartLoc);
+                Values = Builder.CreateArrayValue(StartLoc);
             ASTValue *Value = ParseValue();
             if (Value) {
-                SemaBuilder::AddArrayValue((ASTArrayValue *) Values, Value);
+                Builder.AddArrayValue((ASTArrayValue *) Values, Value);
                 if (Tok.is(tok::comma)) {
                     ConsumeToken();
                 } else {
@@ -1254,7 +1254,7 @@ ASTValue *Parser::ParseValues() {
     if (Tok.is(tok::r_brace)) {
         ConsumeBrace(BracketCount);
         if (Values == nullptr)
-            Values = SemaBuilder::CreateZeroValue(StartLoc);
+            Values = Builder.CreateZeroValue(StartLoc);
         return Values;
     }
 

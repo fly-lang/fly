@@ -51,6 +51,7 @@ namespace fly {
     class CodeGenClass;
     class CodeGenVarBase;
     class CodeGenEnum;
+    class CodeGenError;
     class ASTClass;
     class ASTVar;
     class ASTEnum;
@@ -68,7 +69,8 @@ namespace fly {
         friend class CodeGenInstance;
         friend class CodeGenVar;
         friend class CodeGenExpr;
-        friend class CodeGenFail;
+        friend class CodeGenError;
+        friend class CodeGenHandle;
 
         // Diagnostics
         DiagnosticsEngine &Diags;
@@ -84,8 +86,6 @@ namespace fly {
 
         // LLVM Builder
         llvm::IRBuilder<> *Builder;
-
-        llvm::StructType *ErrorType;
 
         // CGDebugInfo *DebugInfo; // TODO
 
@@ -122,15 +122,15 @@ namespace fly {
 
         void GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt);
 
+        CodeGenError *GenErrorHandler(ASTVar* Var);
+
         CodeGenVarBase *GenVar(ASTVar* Var);
 
         llvm::Value *GenVarRef(ASTVarRef *VarRef);
 
-        llvm::Value *GenCall(CodeGenFunctionBase *CGF, ASTCall *Call);
+        llvm::Value *GenCall(ASTCall *Call);
 
-        llvm::Value *GenExpr(CodeGenFunctionBase *CGF, ASTExpr *Expr);
-
-        llvm::Value *GenExpr(CodeGenFunctionBase *CGF, const ASTType *Type, ASTExpr *Expr);
+        llvm::Value *GenExpr(ASTExpr *Expr);
 
         void GenBlock(CodeGenFunctionBase *CGF, const std::vector<ASTStmt *> &Content, llvm::BasicBlock *BB = nullptr);
 
@@ -146,7 +146,7 @@ namespace fly {
 
         void GenWhileBlock(CodeGenFunctionBase *CGF, ASTWhileBlock *While);
 
-        void pushArgs(CodeGenFunctionBase *CGF, ASTCall *pCall, llvm::SmallVector<llvm::Value *, 8> &Args);
+        void pushArgs(ASTCall *pCall, llvm::SmallVector<llvm::Value *, 8> &Args);
 
         void GenReturn(ASTFunctionBase *CGF, llvm::Value *V = nullptr);
     };
