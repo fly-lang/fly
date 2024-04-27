@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTVarRef.cpp - Var declaration implementation
+// include/AST/ASTVarRef.cpp - AST Var Ref implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -9,7 +9,6 @@
 
 #include "AST/ASTVarRef.h"
 #include "AST/ASTVar.h"
-#include "AST/ASTIdentifier.h"
 
 using namespace fly;
 

@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTVar.cpp - Var declaration implementation
+// include/AST/ASTVar.cpp - AST Var implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,7 +8,6 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTVar.h"
-#include "AST/ASTVarStmt.h"
 #include "AST/ASTScopes.h"
 
 using namespace fly;

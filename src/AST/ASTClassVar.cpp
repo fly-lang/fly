@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTClassField.cpp - Class Field implementation
+// src/AST/ASTClassVar.cpp - Class Attribute implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -9,9 +9,6 @@
 
 #include "AST/ASTClassVar.h"
 #include "AST/ASTClass.h"
-#include "AST/ASTType.h"
-#include "AST/ASTVar.h"
-#include "CodeGen/CodeGenClass.h"
 
 using namespace fly;
 
@@ -37,8 +34,8 @@ CodeGenVarBase *ASTClassVar::getCodeGen() const {
     return CodeGen;
 }
 
-void ASTClassVar::setCodeGen(CodeGenVarBase *CodeGen) {
-    this->CodeGen = CodeGen;
+void ASTClassVar::setCodeGen(CodeGenVarBase *CG) {
+    this->CodeGen = CG;
 }
 
 std::string ASTClassVar::print() const {

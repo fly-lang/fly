@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTFunction.cpp - Function implementation
+// src/AST/ASTFunction.cpp - AST Function implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,10 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTFunction.h"
-#include "AST/ASTScopes.h"
 #include "AST/ASTNode.h"
-#include "CodeGen/CodeGenFunction.h"
-#include <string>
 
 using namespace fly;
 

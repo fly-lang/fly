@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTIdentity.cpp - Type implementation
+// include/AST/ASTIdentity.cpp - AST Identity implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

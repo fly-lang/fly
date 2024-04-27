@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTIdentityType.cpp - Type implementation
+// include/AST/ASTIdentityType.cpp - AST Identity Type implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,8 +8,6 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTIdentityType.h"
-#include "AST/ASTIdentity.h"
-#include "AST/ASTIdentifier.h"
 
 using namespace fly;
 
@@ -59,19 +57,19 @@ bool ASTIdentityType::operator ==(const ASTIdentityType &IdentityType) const {
             IdentityType.getIdentityKind() == getIdentityKind() && IdentityType.getName() == getName();
 }
 
-const bool ASTIdentityType::isNone() const {
+bool ASTIdentityType::isNone() const {
     return IdentityKind == ASTIdentityTypeKind::TYPE_NONE;
 }
 
-const bool ASTIdentityType::isClass() const {
+bool ASTIdentityType::isClass() const {
     return IdentityKind == ASTIdentityTypeKind::TYPE_CLASS;
 }
 
-const bool ASTIdentityType::isEnum() const {
+bool ASTIdentityType::isEnum() const {
     return IdentityKind == ASTIdentityTypeKind::TYPE_ENUM;
 }
 
-const std::string ASTIdentityType::print() const {
+std::string ASTIdentityType::print() const {
     return Name.data();
 }
 

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTClassMethod.cpp - Class Method implementation
+// src/AST/ASTClassFunction.cpp - Class Method implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

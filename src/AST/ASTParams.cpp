@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTFunc.cpp - AST Params implementation
+// src/AST/ASTParams.cpp - AST Params implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,16 +8,6 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTParams.h"
-#include "AST/ASTLocalVar.h"
-#include "AST/ASTStmt.h"
-#include "AST/ASTBlock.h"
-#include "AST/ASTNameSpace.h"
-#include "AST/ASTNode.h"
-#include "AST/ASTContext.h"
-#include "AST/ASTFunctionBase.h"
-#include "AST/ASTExpr.h"
-
-#include <string>
 
 using namespace fly;
 
@@ -49,14 +39,14 @@ uint64_t ASTParams::getSize() const {
 }
 
 ASTParam *ASTParams::at(unsigned long Index) const {
-    return List.at(Index);
+    return List[Index];
 }
 
-const bool ASTParams::isEmpty() const {
+bool ASTParams::isEmpty() const {
     return List.empty() && Ellipsis == nullptr;
 }
 
-const std::vector<ASTParam *> &ASTParams::getList() const {
+const llvm::SmallVector<ASTParam *, 8> &ASTParams::getList() const {
     return List;
 }
 

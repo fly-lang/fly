@@ -63,7 +63,7 @@ namespace fly {
         ASTBlockKind BlockKind;
 
         // List of Statements of the Block
-        std::vector<ASTStmt *> Content;
+        llvm::SmallVector<ASTStmt *, 8> Content;
 
         // Contains all vars declared in this Block
         llvm::StringMap<ASTLocalVar *> LocalVars;
@@ -78,7 +78,7 @@ namespace fly {
 
         ASTBlockKind getBlockKind() const;
 
-        const std::vector<ASTStmt *> &getContent() const;
+        const llvm::SmallVector<ASTStmt *, 8> &getContent() const;
 
         bool isEmpty() const;
 

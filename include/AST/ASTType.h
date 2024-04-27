@@ -84,29 +84,29 @@ namespace fly {
 
         const ASTTypeKind &getKind() const;
 
-        const bool isBool() const;
+        bool isBool() const;
 
-        const bool isFloatingPoint() const;
+        bool isFloatingPoint() const;
 
-        const bool isInteger() const;
+        bool isInteger() const;
 
-        const bool isArray() const;
+        bool isArray() const;
 
-        const bool isString() const;
+        bool isString() const;
 
-        const bool isIdentity() const;
+        bool isIdentity() const;
 
-        const bool isError() const;
+        bool isError() const;
 
-        const bool isVoid() const;
+        bool isVoid() const;
 
-        const std::string printType();
+        std::string printType();
 
-        static const std::string printType(const ASTTypeKind Kind);
+        static std::string printType(ASTTypeKind Kind);
 
-        virtual const std::string print() const = 0;
+        virtual std::string print() const = 0;
 
-        virtual std::string str() const;
+        std::string str() const override;
     };
 
     /**
@@ -120,7 +120,7 @@ namespace fly {
 
     public:
 
-        const std::string print() const override;
+        std::string print() const override;
 
         std::string str() const override;
     };
@@ -136,7 +136,7 @@ namespace fly {
 
     public:
 
-        const std::string print() const override;
+        std::string print() const override;
 
         std::string str() const override;
     };
@@ -153,11 +153,11 @@ namespace fly {
 
         ASTIntegerTypeKind getIntegerKind() const;
 
-        const bool isUnsigned() const;
+        bool isUnsigned() const;
 
-        const bool isSigned() const;
+        bool isSigned() const;
 
-        const uint32_t getSize();
+        uint32_t getSize();
     };
 
     class ASTFloatingPointType : public ASTType {
@@ -172,7 +172,7 @@ namespace fly {
 
         ASTFloatingPointTypeKind getFloatingPointKind() const;
 
-        const uint32_t getSize();
+        uint32_t getSize();
     };
 
     /**
@@ -186,7 +186,7 @@ namespace fly {
 
     public:
 
-        const std::string print() const override;
+        std::string print() const override;
 
         std::string str() const override;
     };
@@ -202,7 +202,7 @@ namespace fly {
 
     public:
 
-        const std::string print() const override;
+        std::string print() const override;
 
         std::string str() const override;
     };
@@ -218,7 +218,7 @@ namespace fly {
 
     public:
 
-        const std::string print() const override;
+        std::string print() const override;
 
         std::string str() const override;
     };
@@ -234,7 +234,7 @@ namespace fly {
 
     public:
 
-        const std::string print() const override;
+        std::string print() const override;
 
         std::string str() const override;
     };
@@ -250,7 +250,7 @@ namespace fly {
 
     public:
 
-        const std::string print() const override;
+        std::string print() const override;
 
         std::string str() const override;
     };
@@ -266,7 +266,7 @@ namespace fly {
 
     public:
 
-        const std::string print() const override;
+        std::string print() const override;
 
         std::string str() const override;
     };
@@ -282,7 +282,7 @@ namespace fly {
 
     public:
 
-        const std::string print() const override;
+        std::string print() const override;
 
         std::string str() const override;
     };
@@ -298,7 +298,7 @@ namespace fly {
 
     public:
 
-        const std::string print() const override;
+        std::string print() const override;
 
         std::string str() const override;
     };
@@ -314,7 +314,7 @@ namespace fly {
 
     public:
 
-        const std::string print() const override;
+        std::string print() const override;
 
         std::string str() const override;
     };
@@ -338,7 +338,7 @@ namespace fly {
 
         ASTType *getType() const;
 
-        const std::string print() const override;
+        std::string print() const override;
 
         std::string str() const override;
     };
@@ -350,11 +350,11 @@ namespace fly {
 
         friend class SemaBuilder;
 
-        ASTStringType(const SourceLocation &Loc);
+        explicit ASTStringType(const SourceLocation &Loc);
 
     public:
 
-        const std::string print() const override;
+        std::string print() const override;
 
         std::string str() const override;
     };
@@ -370,7 +370,7 @@ namespace fly {
 
     public:
 
-        const std::string print() const override;
+        std::string print() const override;
 
         std::string str() const override;
     };

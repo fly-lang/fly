@@ -25,7 +25,7 @@ namespace fly {
         friend class SemaBuilder;
         friend class SemaResolver;
 
-        ASTValue *DefaultValue;
+        ASTValue *DefaultValue = nullptr;
 
         ASTParam(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes);
 
@@ -49,7 +49,8 @@ namespace fly {
 
         friend class ASTFunctionBase;
 
-        std::vector<ASTParam *> List;
+        llvm::SmallVector<ASTParam *, 8> List;
+
         ASTParam* Ellipsis = nullptr;
 
     public:
@@ -57,9 +58,9 @@ namespace fly {
 
         ASTParam *at(unsigned long Index) const;
 
-        const bool isEmpty() const;
+        bool isEmpty() const;
 
-        const std::vector<ASTParam *> &getList() const;
+        const llvm::SmallVector<ASTParam *, 8> &getList() const;
 
         const ASTParam* getEllipsis() const;
 

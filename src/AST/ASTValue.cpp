@@ -21,7 +21,7 @@ const ASTTypeKind &ASTValue::getTypeKind() const {
     return TypeKind;
 }
 
-const std::string ASTValue::printType() const {
+std::string ASTValue::printType() const {
     return ASTType::printType(TypeKind);
 }
 
@@ -40,7 +40,7 @@ bool ASTBoolValue::getValue() const {
     return Value;
 }
 
-const std::string ASTBoolValue::print() const {
+std::string ASTBoolValue::print() const {
     return Value ? "true" : "false";
 }
 
@@ -68,7 +68,7 @@ uint64_t ASTIntegerValue::getValue() const {
     return Value;
 }
 
-const std::string ASTIntegerValue::print() const {
+std::string ASTIntegerValue::print() const {
     return (Negative ? "-" : "") + std::to_string(Value);
 }
 
@@ -82,7 +82,7 @@ std::string ASTIntegerValue::str() const {
 }
 
 ASTFloatingValue::ASTFloatingValue(const SourceLocation &Loc, std::string Value)
-    : ASTValue(ASTTypeKind::TYPE_FLOATING_POINT, Loc), Value(Value) {
+    : ASTValue(ASTTypeKind::TYPE_FLOATING_POINT, Loc), Value(std::move(Value)) {
 
 }
 
@@ -90,7 +90,7 @@ std::string ASTFloatingValue::getValue() const {
     return Value;
 }
 
-const std::string ASTFloatingValue::print() const {
+std::string ASTFloatingValue::print() const {
     return Value;
 }
 
@@ -110,7 +110,7 @@ llvm::StringRef ASTStringValue::getValue() const {
     return Value;
 }
 
-const std::string ASTStringValue::print() const {
+std::string ASTStringValue::print() const {
     return Value.data();
 }
 
@@ -129,7 +129,7 @@ uint64_t ASTArrayValue::size() const {
     return Values.size();
 }
 
-const std::string ASTArrayValue::print() const {
+std::string ASTArrayValue::print() const {
     std::string Str;
     for (auto Value : Values) {
         Str += Value->str() + ", ";
@@ -149,7 +149,7 @@ bool ASTArrayValue::empty() const {
     return Values.empty();
 }
 
-const std::vector<ASTValue *> &ASTArrayValue::getValues() const {
+const llvm::SmallVector<ASTValue *, 8> &ASTArrayValue::getValues() const {
     return Values;
 }
 
@@ -161,7 +161,7 @@ uint64_t ASTStructValue::size() const {
     return Values.size();
 }
 
-const std::string ASTStructValue::print() const {
+std::string ASTStructValue::print() const {
     std::string Str;
     for (auto &Value : Values) {
         Str += std::string(Value.getKey().data()) + ": " + Value.getValue()->str() + ", ";
@@ -189,7 +189,7 @@ ASTNullValue::ASTNullValue(const SourceLocation &Loc) : ASTValue(ASTTypeKind::TY
 
 }
 
-const std::string ASTNullValue::print() const {
+std::string ASTNullValue::print() const {
     return "null";
 }
 
@@ -203,7 +203,7 @@ ASTZeroValue::ASTZeroValue(const SourceLocation &Loc) : ASTValue(ASTTypeKind::TY
 
 }
 
-const std::string ASTZeroValue::print() const {
+std::string ASTZeroValue::print() const {
     return "zero";
 }
 

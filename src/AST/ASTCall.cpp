@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTFunc.cpp - AST Function Call implementation
+// src/AST/ASTCall.cpp - AST Function Call implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,14 +8,13 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTCall.h"
-#include "AST/ASTFunction.h"
-#include "AST/ASTParams.h"
+#include "AST/ASTFunctionBase.h"
 #include "AST/ASTIdentifier.h"
 
 using namespace fly;
 
 ASTArg::ASTArg(ASTCall *Call, ASTExpr *Expr) :
-        ASTBase(Expr->getLocation()), Expr(Expr), Call(Call) {
+        ASTBase(Expr->getLocation()), Expr(Expr), Call(Call), Index(0) {
 
 }
 
@@ -55,7 +54,7 @@ const ASTError *ASTCall::getErrorHandler() const {
     return ErrorHandler;
 }
 
-const std::vector<ASTArg*> ASTCall::getArgs() const {
+llvm::SmallVector<ASTArg *, 8> ASTCall::getArgs() const {
     return Args;
 }
 

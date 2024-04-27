@@ -27,7 +27,7 @@ namespace fly {
 
         ASTClassType(ASTIdentifier *Identifier);
 
-        ASTClassType(ASTClass *Class);
+        explicit ASTClassType(ASTClass *Class);
 
     public:
 

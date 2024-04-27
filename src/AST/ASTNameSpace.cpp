@@ -6,17 +6,8 @@
 // Thank you to LLVM Project https://llvm.org/
 //
 //===--------------------------------------------------------------------------------------------------------------===//
-//
-// This file implements the ASTNameSpace interface.
-//
-//===--------------------------------------------------------------------------------------------------------------===//
-
 
 #include "AST/ASTNameSpace.h"
-#include "AST/ASTContext.h"
-#include "AST/ASTNode.h"
-#include "AST/ASTGlobalVar.h"
-#include "AST/ASTClass.h"
 
 using namespace fly;
 

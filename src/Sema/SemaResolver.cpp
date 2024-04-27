@@ -789,7 +789,7 @@ bool SemaResolver::ResolveCall(ASTBlock *Block, ASTCall *Call,
                 } else {
                     for (unsigned long i = 0; i < Function->getParams()->getSize(); i++) {
                         // Resolve Arg Expr on first
-                        ASTArg *Arg = Call->getArgs().at(i);
+                        ASTArg *Arg = Call->getArgs()[i];
                         ASTParam *Param = Function->getParams()->at(i);
                         Success &= ResolveArg(Block, Arg, Param);
                     }

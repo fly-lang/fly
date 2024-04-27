@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTGlobalVar.cpp - Global Var declaration implementation
+// src/AST/ASTGlobalVar.cpp - AST Global Var implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,9 +7,7 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-
 #include "AST/ASTGlobalVar.h"
-#include "AST/ASTScopes.h"
 #include "AST/ASTNode.h"
 #include "AST/ASTNameSpace.h"
 

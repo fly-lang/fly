@@ -10,12 +10,11 @@
 #ifndef FLY_FUNCTION_CALL_H
 #define FLY_FUNCTION_CALL_H
 
+#include "AST/ASTBase.h"
 #include "ASTExpr.h"
 #include "AST/ASTIdentifier.h"
 
 #include "llvm/ADT/SmallVector.h"
-
-#include <vector>
 
 namespace fly {
 
@@ -51,7 +50,7 @@ namespace fly {
 
         ASTError *ErrorHandler = nullptr;
 
-        std::vector<ASTArg *> Args;
+        llvm::SmallVector<ASTArg *, 8> Args;
 
         ASTFunctionBase *Def = nullptr;
 
@@ -61,13 +60,13 @@ namespace fly {
 
         ASTCall(const SourceLocation &Loc, llvm::StringRef Name);
 
-        ASTCall(ASTFunctionBase *Function);
+        explicit ASTCall(ASTFunctionBase *Function);
 
     public:
 
         const ASTError *getErrorHandler() const;
 
-        const std::vector<ASTArg *> getArgs() const;
+        llvm::SmallVector<ASTArg *, 8> getArgs() const;
 
         ASTFunctionBase *getDef() const;
 
@@ -75,7 +74,7 @@ namespace fly {
 
         ASTMemoryKind getMemoryKind() const;
 
-        std::string str() const;
+        std::string str() const override;
     };
 
     class ASTArg : public ASTBase {
@@ -103,7 +102,7 @@ namespace fly {
 
         ASTCall *getCall() const;
 
-        std::string str() const;
+        std::string str() const override;
 
     };
 }

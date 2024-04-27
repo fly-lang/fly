@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTIdentifier.cpp - Identifier implementation
+// include/AST/ASTIdentifier.cpp - AST Identifier implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

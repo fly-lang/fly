@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTWhileBlock.cpp - While Block Statement implementation
+// src/AST/ASTWhileBlock.cpp - AST While Block Statement implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

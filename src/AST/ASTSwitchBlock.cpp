@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTSwitchBlock.cpp - Switch Block Statement implementation
+// src/AST/ASTSwitchBlock.cpp - AST Switch Block Statement implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,7 +8,6 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTSwitchBlock.h"
-#include "AST/ASTExpr.h"
 
 using namespace fly;
 
@@ -25,7 +24,7 @@ ASTBlock *ASTSwitchBlock::getParent() const {
     return (ASTBlock *) Parent;
 }
 
-std::vector<ASTSwitchCaseBlock *> &ASTSwitchBlock::getCases() {
+llvm::SmallVector<ASTSwitchCaseBlock *, 8> &ASTSwitchBlock::getCases() {
     return Cases;
 }
 

@@ -8,13 +8,9 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTClass.h"
-#include "AST/ASTScopes.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTClassVar.h"
 #include "AST/ASTClassFunction.h"
-#include "AST/ASTBlock.h"
-#include "Sema/SemaBuilder.h"
-#include "CodeGen/CodeGenClass.h"
 
 using namespace fly;
 
@@ -64,13 +60,13 @@ std::string ASTClass::print() const {
 std::string ASTClass::str() const {
 
     // Fields to string
-    std::vector<ASTClassVar *> VarList;
+    llvm::SmallVector<ASTClassVar *, 8> VarList;
     for (auto &Field : Vars) {
         VarList.push_back(Field.second);
     }
 
     // Methods to string
-    std::vector<ASTClassFunction *> MethodList;
+    llvm::SmallVector<ASTClassFunction *, 8> MethodList;
     for (auto &MapEntry : Methods) {
         for (auto &Vector : MapEntry.second) {
             for (auto &Method :  Vector.second) {

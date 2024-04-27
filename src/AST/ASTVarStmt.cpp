@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTLocalVar.cpp - AST Local Var Statement
+// src/AST/ASTVarStmt.cpp - AST Var Statement implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -9,8 +9,6 @@
 
 #include "AST/ASTVarStmt.h"
 #include "AST/ASTBlock.h"
-#include "AST/ASTVar.h"
-#include "AST/ASTVarRef.h"
 
 using namespace fly;
 

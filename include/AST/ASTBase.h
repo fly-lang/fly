@@ -23,17 +23,19 @@ namespace fly {
 
         friend class SemaBuilder;
 
-        const SourceLocation Location;
+        SourceLocation Location;
 
         llvm::StringRef Comment;
 
     public:
 
-        ASTBase(const SourceLocation &Loc);
+        explicit ASTBase(const SourceLocation &Loc);
 
-        const SourceLocation &getLocation() const;
+        virtual const SourceLocation &getLocation() const;
 
         llvm::StringRef getComment() const;
+
+        // TODO virtual std::string print() const = 0;
 
         virtual std::string str() const;
     };
@@ -55,17 +57,17 @@ namespace fly {
 
         Logger();
 
-        Logger(const std::string str);
+        explicit Logger(std::string str);
 
         std::string End();
 
-        Logger &Super(const std::string val);
+        Logger &Super(std::string val);
 
-        Logger &Attr(const char *key, const std::string val);
+        Logger &Attr(const char *key, std::string val);
 
-        Logger &Attr(const char *key, const llvm::StringRef val);
+        Logger &Attr(const char *key, llvm::StringRef val);
 
-        Logger &Attr(const char *key, const SourceLocation &val);
+        Logger &Attr(const char *key, SourceLocation &val);
 
         Logger &Attr(const char *key, bool val);
 
@@ -74,23 +76,7 @@ namespace fly {
         Logger &Attr(const char *key, ASTBase *val);
 
         template <typename T>
-        Logger &AttrList(const char *key, std::vector<T *> Vect) {
-            std::string Entry = OPEN_LIST;
-            if(!Vect.empty()) {
-                for (ASTBase *V : Vect) {
-                    Entry += V->str() + SEP;
-                }
-                unsigned long end = Entry.length()-std::string(SEP).length()-1;
-                Entry = Entry.substr(0, end);
-            }
-            Entry += CLOSE_LIST;
-            Attr(key, Entry);
-            isEmpty = false;
-            return *this;
-        }
-
-        template <typename T>
-        Logger &AttrList(const char *key, llvm::SmallVector<T *, 4> Vect) {
+        Logger &AttrList(const char *key, llvm::SmallVector<T *, 8> Vect) {
             std::string Entry = OPEN_LIST;
             if(!Vect.empty()) {
                 for (ASTBase *V : Vect) {

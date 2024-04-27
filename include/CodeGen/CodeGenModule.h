@@ -132,13 +132,13 @@ namespace fly {
 
         llvm::Value *GenExpr(ASTExpr *Expr);
 
-        void GenBlock(CodeGenFunctionBase *CGF, const std::vector<ASTStmt *> &Content, llvm::BasicBlock *BB = nullptr);
+        void GenBlock(CodeGenFunctionBase *CGF, const llvm::SmallVector<ASTStmt *, 8> &Content, llvm::BasicBlock *BB = nullptr);
 
         void GenIfBlock(CodeGenFunctionBase *CGF, ASTIfBlock *If);
 
         llvm::BasicBlock *GenElsifBlock(CodeGenFunctionBase *CGF,
                                         llvm::BasicBlock *ElsifBB,
-                                        std::vector<ASTElsifBlock *>::iterator &It);
+                                        llvm::SmallVector<ASTElsifBlock *, 8>::iterator &It);
 
         void GenSwitchBlock(CodeGenFunctionBase *CGF, ASTSwitchBlock *Switch);
 

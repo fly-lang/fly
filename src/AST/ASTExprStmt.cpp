@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTExprStmt.cpp - Expression Statement implementation
+// src/AST/ASTExprStmt.cpp - AST Expression Statement implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,7 +8,6 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTExprStmt.h"
-#include "AST/ASTExpr.h"
 
 using namespace fly;
 

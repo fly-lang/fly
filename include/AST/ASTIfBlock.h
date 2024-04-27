@@ -30,7 +30,7 @@ namespace fly {
         ASTExpr *Condition = nullptr;
 
         // The list of Elseif Blocks
-        std::vector<ASTElsifBlock *> ElsifBlocks;
+        llvm::SmallVector<ASTElsifBlock *, 8> ElsifBlocks;
 
         // The Else Block
         ASTElseBlock *ElseBlock = nullptr;
@@ -43,11 +43,11 @@ namespace fly {
 
         ASTExpr *getCondition();
 
-        std::vector<ASTElsifBlock *> getElsifBlocks();
+        llvm::SmallVector<ASTElsifBlock *, 8>  getElsifBlocks();
 
         ASTElseBlock *getElseBlock();
 
-        std::string str() const;
+        std::string str() const override;
     };
 
     class ASTElsifBlock : public ASTBlock {
@@ -67,7 +67,7 @@ namespace fly {
 
         ASTExpr *getCondition();
 
-        std::string str() const;
+        std::string str() const override;
     };
 
     class ASTElseBlock : public ASTBlock {
@@ -80,7 +80,7 @@ namespace fly {
 
         ASTElseBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc);
 
-        std::string str() const;
+        std::string str() const override;
     };
 }
 

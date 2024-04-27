@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTType.cpp - Type implementation
+// include/AST/ASTType.cpp - AST Type implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -20,43 +20,43 @@ const ASTTypeKind &ASTType::getKind() const  {
     return Kind;
 }
 
-const bool ASTType::isBool() const {
+bool ASTType::isBool() const {
     return Kind == ASTTypeKind::TYPE_BOOL;
 }
 
-const bool ASTType::isFloatingPoint() const {
+bool ASTType::isFloatingPoint() const {
     return Kind == ASTTypeKind::TYPE_FLOATING_POINT;
 }
 
-const bool ASTType::isInteger() const {
+bool ASTType::isInteger() const {
     return Kind == ASTTypeKind::TYPE_INTEGER;
 }
 
-const bool ASTType::isArray() const {
+bool ASTType::isArray() const {
     return Kind == ASTTypeKind::TYPE_ARRAY;
 }
 
-const bool ASTType::isString() const {
+bool ASTType::isString() const {
     return Kind == ASTTypeKind::TYPE_STRING;
 }
 
-const bool ASTType::isIdentity() const {
+bool ASTType::isIdentity() const {
     return Kind == ASTTypeKind::TYPE_IDENTITY;
 }
 
-const bool ASTType::isError() const {
+bool ASTType::isError() const {
     return Kind == ASTTypeKind::TYPE_ERROR;
 }
 
-const bool ASTType::isVoid() const {
+bool ASTType::isVoid() const {
     return Kind == ASTTypeKind::TYPE_VOID;
 }
 
-const std::string ASTType::printType() {
+std::string ASTType::printType() {
     return printType(Kind);
 }
 
-const std::string ASTType::printType(const ASTTypeKind Kind) {
+std::string ASTType::printType(const ASTTypeKind Kind) {
     switch (Kind) {
 
         case ASTTypeKind::TYPE_VOID:
@@ -71,7 +71,13 @@ const std::string ASTType::printType(const ASTTypeKind Kind) {
             return "Array";
         case ASTTypeKind::TYPE_IDENTITY:
             return "Identity";
+        case ASTTypeKind::TYPE_STRING:
+            return "String";
+        case ASTTypeKind::TYPE_ERROR:
+            return "Error";
     }
+
+    assert(false && "Unknown Type");
 }
 
 std::string ASTType::str() const {
@@ -85,7 +91,7 @@ ASTVoidType::ASTVoidType(const SourceLocation &Loc) : ASTType(Loc, ASTTypeKind::
 
 }
 
-const std::string ASTVoidType::print() const {
+std::string ASTVoidType::print() const {
     return "";
 }
 
@@ -99,7 +105,7 @@ ASTBoolType::ASTBoolType(const SourceLocation &Loc) : ASTType(Loc, ASTTypeKind::
 
 }
 
-const std::string ASTBoolType::print() const {
+std::string ASTBoolType::print() const {
     return "bool";
 }
 
@@ -118,15 +124,15 @@ ASTIntegerTypeKind ASTIntegerType::getIntegerKind() const {
     return Kind;
 }
 
-const bool ASTIntegerType::isUnsigned() const {
+bool ASTIntegerType::isUnsigned() const {
     return (int) Kind % 2 == 0;
 }
 
-const bool ASTIntegerType::isSigned() const {
+bool ASTIntegerType::isSigned() const {
     return !isUnsigned();
 }
 
-const uint32_t ASTIntegerType::getSize() {
+uint32_t ASTIntegerType::getSize() {
     switch (Kind) {
 
         case ASTIntegerTypeKind::TYPE_BYTE:
@@ -141,6 +147,8 @@ const uint32_t ASTIntegerType::getSize() {
         case ASTIntegerTypeKind::TYPE_LONG:
             return 64;
     }
+
+    assert(false && "Unknown Type Kind");
 }
 
 ASTFloatingPointType::ASTFloatingPointType(const SourceLocation &Loc, ASTFloatingPointTypeKind Kind) :
@@ -152,7 +160,7 @@ ASTFloatingPointTypeKind ASTFloatingPointType::getFloatingPointKind() const {
     return Kind;
 }
 
-const uint32_t ASTFloatingPointType::getSize() {
+uint32_t ASTFloatingPointType::getSize() {
     switch (Kind) {
 
         case ASTFloatingPointTypeKind::TYPE_FLOAT:
@@ -160,13 +168,15 @@ const uint32_t ASTFloatingPointType::getSize() {
         case ASTFloatingPointTypeKind::TYPE_DOUBLE:
             return 64;
     }
+
+    assert(false && "Unknown Type Kind");
 }
 
 ASTByteType::ASTByteType(const SourceLocation &Loc) : ASTIntegerType(Loc, ASTIntegerTypeKind::TYPE_BYTE) {
 
 }
 
-const std::string ASTByteType::print() const {
+std::string ASTByteType::print() const {
     return "byte";
 }
 
@@ -180,7 +190,7 @@ ASTUShortType::ASTUShortType(const SourceLocation &Loc) : ASTIntegerType(Loc, AS
 
 }
 
-const std::string ASTUShortType::print() const {
+std::string ASTUShortType::print() const {
     return "ushort";
 }
 
@@ -194,7 +204,7 @@ ASTShortType::ASTShortType(const SourceLocation &Loc) : ASTIntegerType(Loc, ASTI
 
 }
 
-const std::string ASTShortType::print() const {
+std::string ASTShortType::print() const {
     return "short";
 }
 
@@ -208,7 +218,7 @@ ASTUIntType::ASTUIntType(const SourceLocation &Loc)  : ASTIntegerType(Loc, ASTIn
 
 }
 
-const std::string ASTUIntType::print() const {
+std::string ASTUIntType::print() const {
     return "uint";
 }
 
@@ -222,7 +232,7 @@ ASTIntType::ASTIntType(const SourceLocation &Loc)  : ASTIntegerType(Loc, ASTInte
 
 }
 
-const std::string ASTIntType::print() const {
+std::string ASTIntType::print() const {
     return "int";
 }
 
@@ -236,7 +246,7 @@ ASTULongType::ASTULongType(const SourceLocation &Loc)  : ASTIntegerType(Loc, AST
 
 }
 
-const std::string ASTULongType::print() const {
+std::string ASTULongType::print() const {
     return "ulong";
 }
 
@@ -250,7 +260,7 @@ ASTLongType::ASTLongType(const SourceLocation &Loc)  : ASTIntegerType(Loc, ASTIn
 
 }
 
-const std::string ASTLongType::print() const {
+std::string ASTLongType::print() const {
     return "long";
 }
 
@@ -264,7 +274,7 @@ ASTFloatType::ASTFloatType(const SourceLocation &Loc) : ASTFloatingPointType(Loc
 
 }
 
-const std::string ASTFloatType::print() const {
+std::string ASTFloatType::print() const {
     return "float";
 }
 
@@ -278,7 +288,7 @@ ASTDoubleType::ASTDoubleType(const SourceLocation &Loc) : ASTFloatingPointType(L
 
 }
 
-const std::string ASTDoubleType::print() const {
+std::string ASTDoubleType::print() const {
     return "double";
 }
 
@@ -309,7 +319,7 @@ std::string ASTArrayType::str() const {
            End();
 }
 
-const std::string ASTArrayType::print() const {
+std::string ASTArrayType::print() const {
     return Type->print() + "[]";
 }
 
@@ -318,7 +328,7 @@ ASTStringType::ASTStringType(const SourceLocation &Loc) :
 
 }
 
-const std::string ASTStringType::print() const {
+std::string ASTStringType::print() const {
     return "string";
 }
 
@@ -333,7 +343,7 @@ ASTErrorType::ASTErrorType() :
 
 }
 
-const std::string ASTErrorType::print() const {
+std::string ASTErrorType::print() const {
     return "error";
 }
 

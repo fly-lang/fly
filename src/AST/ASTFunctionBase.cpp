@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTFunctionBase.cpp - Function Base
+// src/AST/ASTFunctionBase.cpp - AST Function Base
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -10,7 +10,6 @@
 #include "AST/ASTFunctionBase.h"
 #include "AST/ASTBlock.h"
 #include "AST/ASTParams.h"
-#include "AST/ASTType.h"
 
 using namespace fly;
 

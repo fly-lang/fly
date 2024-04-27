@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTLocalVar.cpp - AST Local Var Statement
+// src/AST/ASTLocalVar.cpp - AST Local Var
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

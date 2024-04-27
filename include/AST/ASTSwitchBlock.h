@@ -28,7 +28,7 @@ namespace fly {
         ASTExpr *Expr = nullptr;
 
         // The Case Blocks
-        std::vector<ASTSwitchCaseBlock *> Cases;
+        llvm::SmallVector<ASTSwitchCaseBlock *, 8> Cases;
 
         // The Default Block
         ASTSwitchDefaultBlock *Default = nullptr;
@@ -41,7 +41,7 @@ namespace fly {
 
         ASTExpr *getExpr() const;
 
-        std::vector<ASTSwitchCaseBlock *> &getCases();
+        llvm::SmallVector<ASTSwitchCaseBlock *, 8> &getCases();
 
         ASTSwitchDefaultBlock *getDefault();
 

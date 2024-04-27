@@ -16,7 +16,6 @@
 #include "llvm/ADT/StringMap.h"
 
 #include <string>
-#include <vector>
 
 namespace fly {
 
@@ -34,17 +33,17 @@ namespace fly {
 
     protected:
 
-        ASTValue(const ASTTypeKind TypeKind, const SourceLocation &Location);
+        ASTValue(ASTTypeKind TypeKind, const SourceLocation &Location);
 
     public:
 
         const ASTTypeKind &getTypeKind() const;
 
-        const std::string printType() const;
+        std::string printType() const;
 
-        virtual const std::string print() const = 0;
+        virtual std::string print() const = 0;
 
-        std::string str() const;
+        std::string str() const override;
     };
 
     /**
@@ -56,13 +55,13 @@ namespace fly {
 
         bool Value;
 
-        ASTBoolValue(const SourceLocation &Loc, bool Value = false);
+        explicit ASTBoolValue(const SourceLocation &Loc, bool Value = false);
 
     public:
 
         bool getValue() const;
 
-        const std::string print() const;
+        std::string print() const override;
 
         std::string str() const override;
     };
@@ -89,7 +88,7 @@ namespace fly {
 
         uint64_t getValue() const;
 
-        const std::string print() const;
+        std::string print() const override;
 
         std::string str() const override;
     };
@@ -110,7 +109,7 @@ namespace fly {
 
         std::string getValue() const;
 
-        const std::string print() const;
+        std::string print() const override;
 
         std::string str() const override;
     };
@@ -130,7 +129,7 @@ namespace fly {
 
         llvm::StringRef getValue() const;
 
-        const std::string print() const;
+        std::string print() const override;
 
         std::string str() const override;
     };
@@ -142,19 +141,19 @@ namespace fly {
 
         friend class SemaBuilder;
 
-        std::vector<ASTValue *> Values;
+        llvm::SmallVector<ASTValue *, 8> Values;
 
-        ASTArrayValue(const SourceLocation &Loc);
+        explicit ASTArrayValue(const SourceLocation &Loc);
 
     public:
 
-        const std::vector<ASTValue *> &getValues() const;
+        const llvm::SmallVector<ASTValue *, 8> &getValues() const;
 
         uint64_t size() const;
 
         bool empty() const;
 
-        const std::string print() const;
+        std::string print() const override;
 
         std::string str() const override;
     };
@@ -168,7 +167,7 @@ namespace fly {
 
         llvm::StringMap<ASTValue *> Values;
 
-        ASTStructValue(const SourceLocation &Loc);
+        explicit ASTStructValue(const SourceLocation &Loc);
 
     public:
 
@@ -178,7 +177,7 @@ namespace fly {
 
         bool empty() const;
 
-        const std::string print() const;
+        std::string print() const override;
 
         std::string str() const override;
     };
@@ -187,11 +186,11 @@ namespace fly {
 
         friend class SemaBuilder;
 
-        ASTNullValue(const SourceLocation &Loc);
+        explicit ASTNullValue(const SourceLocation &Loc);
 
     public:
 
-        const std::string print() const;
+        std::string print() const override;
 
         std::string str() const override;
     };
@@ -200,11 +199,11 @@ namespace fly {
 
         friend class SemaBuilder;
 
-        ASTZeroValue(const SourceLocation &Loc);
+        explicit ASTZeroValue(const SourceLocation &Loc);
 
     public:
 
-        const std::string print() const;
+        std::string print() const override;
 
         std::string str() const override;
     };

@@ -616,7 +616,7 @@ llvm::Value *CodeGenModule::GenExpr(ASTExpr *Expr) {
     return CGExpr->getValue();
 }
 
-void CodeGenModule::GenBlock(CodeGenFunctionBase *CGF, const std::vector<ASTStmt *> &Content, llvm::BasicBlock *BB) {
+void CodeGenModule::GenBlock(CodeGenFunctionBase *CGF, const llvm::SmallVector<ASTStmt *, 8> &Content, llvm::BasicBlock *BB) {
     FLY_DEBUG("CodeGenModule", "GenBlock");
     if (BB) Builder->SetInsertPoint(BB);
     for (ASTStmt *Stmt : Content) {
@@ -722,7 +722,7 @@ void CodeGenModule::GenIfBlock(CodeGenFunctionBase *CGF, ASTIfBlock *If) {
 
 llvm::BasicBlock *CodeGenModule::GenElsifBlock(CodeGenFunctionBase *CGF,
                                                llvm::BasicBlock *ElsifBB,
-                                               std::vector<ASTElsifBlock *>::iterator &It) {
+                                               llvm::SmallVector<ASTElsifBlock *, 8>::iterator &It) {
     FLY_DEBUG("CodeGenModule", "GenElsifBlock");
     llvm::Function *Fn = CGF->getFunction();
     ASTElsifBlock *&Elsif = *It;

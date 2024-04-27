@@ -39,29 +39,29 @@ namespace fly {
 
         ASTIdentityTypeKind IdentityKind;
 
-        ASTIdentityType(ASTIdentifier *Identifier);
+        explicit ASTIdentityType(ASTIdentifier *Identifier);
 
         ASTIdentityType(ASTIdentifier *Identifier, ASTIdentityTypeKind IdentityKind);
 
-        ASTIdentityType(ASTIdentity *Def);
+        explicit ASTIdentityType(ASTIdentity *Def);
 
     public:
 
         virtual ASTIdentity *getDef() const;
 
-        const SourceLocation &getLocation() const ;
+        const SourceLocation &getLocation() const;
 
         ASTIdentityTypeKind getIdentityKind() const;
 
         bool operator ==(const ASTIdentityType &IdentityType) const;
 
-        const bool isNone() const;
+        bool isNone() const;
 
-        const bool isClass() const;
+        bool isClass() const;
 
-        const bool isEnum() const;
+        bool isEnum() const;
 
-        const std::string print() const override;
+        std::string print() const override;
 
         std::string str() const override;
     };

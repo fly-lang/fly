@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTBlockStmt.cpp - Block Statement implementation
+// src/AST/ASTBlock.cpp - Block Statement implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,15 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-
 #include "AST/ASTBlock.h"
-#include "AST/ASTContext.h"
-#include "AST/ASTNode.h"
-#include "AST/ASTFunction.h"
 #include "AST/ASTStmt.h"
-#include "AST/ASTExpr.h"
-#include "AST/ASTLocalVar.h"
-#include "Sema/Sema.h"
 
 #include <llvm/ADT/StringMap.h>
 
@@ -44,7 +37,7 @@ ASTBlockKind ASTBlock::getBlockKind() const {
  * Get Content
  * @return the Block's content
  */
-const std::vector<ASTStmt *> &ASTBlock::getContent() const {
+const llvm::SmallVector<ASTStmt *, 8>  &ASTBlock::getContent() const {
     return Content;
 }
 

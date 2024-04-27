@@ -6,15 +6,9 @@
 // Thank you to LLVM Project https://llvm.org/
 //
 //===--------------------------------------------------------------------------------------------------------------===//
-//
-// This file implements the ASTContext interface.
-//
-//===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTContext.h"
 #include "AST/ASTNameSpace.h"
-#include "AST/ASTNode.h"
-#include "AST/ASTImport.h"
 
 using namespace fly;
 
@@ -22,9 +16,7 @@ using namespace fly;
  * ASTContext constructor
  * @param Diags
  */
-ASTContext::ASTContext() {
-
-}
+ASTContext::ASTContext() = default;
 
 /**
  * ASTContext destructor

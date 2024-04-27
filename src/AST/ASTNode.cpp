@@ -6,21 +6,10 @@
 // Thank you to LLVM Project https://llvm.org/
 //
 //===--------------------------------------------------------------------------------------------------------------===//
-//
-// This file implements the ASTNode interface.
-//
-//===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTContext.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTNode.h"
-#include "AST/ASTImport.h"
-#include "AST/ASTGlobalVar.h"
-#include "AST/ASTFunction.h"
-#include "AST/ASTCall.h"
-#include "AST/ASTClass.h"
-#include "AST/ASTLocalVar.h"
-#include "llvm/ADT/StringMap.h"
 
 using namespace fly;
 

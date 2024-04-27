@@ -1,16 +1,11 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTImport.cpp - AST Namespace implementation
+// src/AST/ASTImport.cpp - AST Import implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
 //
 //===--------------------------------------------------------------------------------------------------------------===//
-//
-// This file implements the ASTNameSpace interface.
-//
-//===--------------------------------------------------------------------------------------------------------------===//
-
 
 #include "AST/ASTImport.h"
 
