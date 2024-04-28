@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTStmt.h - AST Statement
+// include/AST/ASTStmt.h - AST Statement header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,9 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-
-#ifndef FLY_ASTSTMT_H
-#define FLY_ASTSTMT_H
+#ifndef FLY_AST_STMT_H
+#define FLY_AST_STMT_H
 
 #include "ASTBase.h"
 
@@ -61,9 +60,9 @@ namespace fly {
 
         ASTVar *getErrorHandler();
 
-        virtual std::string str() const;
+        std::string str() const override;
     };
 }
 
 
-#endif //FLY_ASTSTMT_H
+#endif //FLY_AST_STMT_H

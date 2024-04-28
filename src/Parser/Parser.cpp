@@ -32,6 +32,7 @@
 #include "AST/ASTLocalVar.h"
 #include "AST/ASTFailStmt.h"
 #include "AST/ASTHandleStmt.h"
+#include "AST/ASTExprStmt.h"
 #include "Sema/SemaBuilder.h"
 #include "Frontend/InputFile.h"
 #include "Basic/Debug.h"

@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTClassType.h - AST Type
+// include/AST/ASTClassType.h - AST Class Type header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,9 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-
-#ifndef FLY_ASTCLASSTYPE_H
-#define FLY_ASTCLASSTYPE_H
+#ifndef FLY_AST_CLASSTYPE_H
+#define FLY_AST_CLASSTYPE_H
 
 #include "AST/ASTIdentityType.h"
 
@@ -25,7 +24,7 @@ namespace fly {
         friend class SemaBuilder;
         friend class SemaResolver;
 
-        ASTClassType(ASTIdentifier *Identifier);
+        explicit ASTClassType(ASTIdentifier *Identifier);
 
         explicit ASTClassType(ASTClass *Class);
 
@@ -36,4 +35,4 @@ namespace fly {
 
 }
 
-#endif //FLY_ASTCLASSTYPE_H
+#endif //FLY_AST_CLASSTYPE_H

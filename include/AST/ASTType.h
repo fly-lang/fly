@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTType.h - AST Type
+// include/AST/ASTType.h - AST Type header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,9 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-
-#ifndef FLY_ASTTYPE_H
-#define FLY_ASTTYPE_H
+#ifndef FLY_AST_TYPE_H
+#define FLY_AST_TYPE_H
 
 #include "ASTBase.h"
 

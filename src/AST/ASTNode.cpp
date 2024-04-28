@@ -21,7 +21,7 @@ ASTNode::~ASTNode() {
     Imports.clear();
 }
 
-const bool ASTNode::isHeader() const {
+bool ASTNode::isHeader() const {
     return Header;
 }
 
@@ -29,7 +29,7 @@ ASTContext &ASTNode::getContext() const {
     return *Context;
 }
 
-const std::string ASTNode::getName() {
+std::string ASTNode::getName() {
     return Name;
 }
 

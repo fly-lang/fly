@@ -7,8 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_ASTVARSTMT_H
-#define FLY_ASTVARSTMT_H
+#ifndef FLY_AST_VARSTMT_H
+#define FLY_AST_VARSTMT_H
 
 #include "ASTStmt.h"
 
@@ -43,8 +43,8 @@ namespace fly {
 
         ASTBlock *getBlock() const;
 
-        std::string str() const;
+        std::string str() const override;
     };
 }
 
-#endif //FLY_ASTVARSTMT_H
+#endif //FLY_AST_VARSTMT_H

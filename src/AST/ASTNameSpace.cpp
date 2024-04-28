@@ -42,10 +42,6 @@ const llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> 
     return Functions;
 }
 
-std::string ASTNameSpace::print() const {
-    return FullName;
-}
-
 std::string ASTNameSpace::str() const {
     return Logger("ASTNameSpace").
            Attr("Name", Name).

@@ -9,6 +9,7 @@
 
 #include "AST/ASTClassVar.h"
 #include "AST/ASTClass.h"
+#include "CodeGen/CodeGenClassVar.h"
 
 using namespace fly;
 

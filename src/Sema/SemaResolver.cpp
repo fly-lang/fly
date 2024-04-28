@@ -34,6 +34,7 @@
 #include "AST/ASTVar.h"
 #include "AST/ASTVarStmt.h"
 #include "AST/ASTVarRef.h"
+#include "AST/ASTExprStmt.h"
 #include "CodeGen/CodeGen.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/Debug.h"

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTValue.h - AST Value
+// include/AST/ASTValue.h - AST Value header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,15 +7,12 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_ASTVALUE_H
-#define FLY_ASTVALUE_H
+#ifndef FLY_AST_VALUE_H
+#define FLY_AST_VALUE_H
 
 #include "ASTBase.h"
 
-#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringMap.h"
-
-#include <string>
 
 namespace fly {
 
@@ -209,4 +206,4 @@ namespace fly {
     };
 }
 
-#endif //FLY_ASTVALUE_H
+#endif //FLY_AST_VALUE_H

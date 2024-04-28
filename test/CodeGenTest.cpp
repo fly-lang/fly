@@ -39,7 +39,6 @@
 #include "AST/ASTClassFunction.h"
 #include "AST/ASTEnum.h"
 #include "AST/ASTEnumEntry.h"
-#include "AST/ASTError.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/SourceLocation.h"
 #include "Basic/TargetOptions.h"

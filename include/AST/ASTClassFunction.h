@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTClassMethod.h - The Method in a Class
+// include/AST/ASTClassFuntion.h - AST Class Method header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,8 +8,8 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#ifndef FLY_ASTCLASSMETHODD_H
-#define FLY_ASTCLASSMETHODD_H
+#ifndef FLY_AST_CLASSFUNCTION_H
+#define FLY_AST_CLASSFUNCTION_H
 
 #include "ASTFunctionBase.h"
 #include "CodeGen/CodeGenClassFunction.h"
@@ -60,9 +60,9 @@ namespace fly {
 
         void setCodeGen(CodeGenClassFunction *CGCF);
 
-        virtual std::string str() const;
+        std::string str() const override;
 
     };
 }
 
-#endif //FLY_ASTCLASSMETHODD_H
+#endif //FLY_AST_CLASSFUNCTION_H

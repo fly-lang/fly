@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTBlock.h - Block Statement
+// include/AST/ASTBlock.h - AST Block Statement header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,15 +7,12 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
+#ifndef FLY_AST_BLOCK_H
+#define FLY_AST_BLOCK_H
 
-#ifndef FLY_ASTBLOCK_H
-#define FLY_ASTBLOCK_H
-
-#include "ASTExprStmt.h"
+#include "ASTStmt.h"
 
 #include "llvm/ADT/StringMap.h"
-
-#include <vector>
 
 namespace fly {
 
@@ -112,4 +109,4 @@ namespace fly {
     };
 }
 
-#endif //FLY_ASTBLOCK_H
+#endif //FLY_AST_BLOCK_H

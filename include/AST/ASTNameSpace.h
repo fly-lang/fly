@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTNameSpace.h - AST Namespace
+// include/AST/ASTNameSpace.h - AST Namespace header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,9 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-
-#ifndef FLY_ASTNAMESPACE_H
-#define FLY_ASTNAMESPACE_H
+#ifndef FLY_AST_NAMESPACE_H
+#define FLY_AST_NAMESPACE_H
 
 #include "ASTIdentifier.h"
 
@@ -74,10 +73,8 @@ namespace fly {
 
         const llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> &getFunctions() const;
 
-        std::string print() const;
-
-        virtual std::string str() const;
+        std::string str() const override;
     };
 }
 
-#endif //FLY_ASTNAMESPACE_H
+#endif //FLY_AST_NAMESPACE_H

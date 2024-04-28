@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTLocalVar.h - AST Local Variable statement
+// include/AST/ASTLocalVar.h - AST Local Variable header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,8 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_ASTLOCALVAR_H
-#define FLY_ASTLOCALVAR_H
+#ifndef FLY_AST_LOCALVAR_H
+#define FLY_AST_LOCALVAR_H
 
 #include "ASTVar.h"
 #include "CodeGen/CodeGenVar.h"
@@ -43,8 +43,8 @@ namespace fly {
 
         std::string print() const override;
 
-        std::string str() const;
+        std::string str() const override;
     };
 }
 
-#endif //FLY_ASTLOCALVAR_H
+#endif //FLY_AST_LOCALVAR_H

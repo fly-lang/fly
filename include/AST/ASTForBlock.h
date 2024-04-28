@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTForBlock.h - AST For Block Statement
+// include/AST/ASTForBlock.h - AST For Block Statement header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,9 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-
-#ifndef FLY_ASTFORBLOCK_H
-#define FLY_ASTFORBLOCK_H
+#ifndef FLY_AST_FORBLOCK_H
+#define FLY_AST_FORBLOCK_H
 
 #include "ASTBlock.h"
 
@@ -65,9 +64,8 @@ namespace fly {
 
         ASTForPostBlock(ASTForBlock *ForBlock, const SourceLocation &Loc);
 
-        std::string str() const;
+        std::string str() const override;
     };
 }
 
-
-#endif //FLY_ASTFORBLOCK_H
+#endif //FLY_AST_FORBLOCK_H

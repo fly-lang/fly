@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTVarAssignStmt.h - AST Variable Assign statement
+// include/AST/ASTFailStmt.h - AST Fail Statement header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,8 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_ASTFAILSTMT_H
-#define FLY_ASTFAILSTMT_H
+#ifndef FLY_AST_FAILSTMT_H
+#define FLY_AST_FAILSTMT_H
 
 #include "ASTStmt.h"
 
@@ -41,4 +41,4 @@ namespace fly {
     };
 }
 
-#endif //FLY_ASTFAILSTMT_H
+#endif //FLY_AST_FAILSTMT_H

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTClass.h - Class declaration
+// include/AST/ASTClass.h - AST Class header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,15 +7,13 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-
-#ifndef FLY_ASTCLASS_H
-#define FLY_ASTCLASS_H
+#ifndef FLY_AST_CLASS_H
+#define FLY_AST_CLASS_H
 
 #include "ASTIdentity.h"
 #include "ASTClassType.h"
 
 #include "llvm/ADT/StringMap.h"
-#include "llvm/ADT/SmallVector.h"
 
 #include <map>
 
@@ -84,4 +82,4 @@ namespace fly {
     };
 }
 
-#endif //FLY_ASTCLASS_H
+#endif //FLY_AST_CLASS_H

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTFunction.h - Function declaration
+// include/AST/ASTFunction.h - AST Function header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,8 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_FUNCTION_H
-#define FLY_FUNCTION_H
+#ifndef FLY_AST_FUNCTION_H
+#define FLY_AST_FUNCTION_H
 
 #include "ASTTopDef.h"
 #include "ASTFunctionBase.h"
@@ -66,4 +66,4 @@ namespace fly {
     };
 }
 
-#endif //FLY_FUNCTION_H
+#endif //FLY_AST_FUNCTION_H

@@ -34,7 +34,6 @@
 #include "AST/ASTClassFunction.h"
 #include "AST/ASTFailStmt.h"
 #include "AST/ASTFunction.h"
-#include "AST/ASTParams.h"
 #include "AST/ASTHandleStmt.h"
 #include "AST/ASTBlock.h"
 #include "AST/ASTIfBlock.h"
@@ -46,8 +45,8 @@
 #include "AST/ASTVarRef.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTEnum.h"
+#include "AST/ASTExprStmt.h"
 #include "Basic/Debug.h"
-#include "llvm/ADT/StringMap.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Value.h"
 

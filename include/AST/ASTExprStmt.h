@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTStmt.h - AST Statement
+// include/AST/ASTExprStmt.h - AST Expression Statement header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,9 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-
-#ifndef FLY_ASTEXPRSTMT_H
-#define FLY_ASTEXPRSTMT_H
+#ifndef FLY_AST_EXPRSTMT_H
+#define FLY_AST_EXPRSTMT_H
 
 #include "ASTStmt.h"
 
@@ -37,4 +36,4 @@ namespace fly {
 }
 
 
-#endif //FLY_ASTEXPRSTMT_H
+#endif //FLY_AST_EXPRSTMT_H

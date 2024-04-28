@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTDelete.h - Delete an Instance
+// include/AST/ASTDelete.h - Delete an Instance header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,8 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_ASTDELETESTMT_H
-#define FLY_ASTDELETESTMT_H
+#ifndef FLY_AST_DELETESTMT_H
+#define FLY_AST_DELETESTMT_H
 
 #include "ASTStmt.h"
 
@@ -32,4 +32,4 @@ namespace fly {
         std::string str() const override;
     };
 }
-#endif //FLY_ASTDELETESTMT_H
+#endif //FLY_AST_DELETESTMT_H

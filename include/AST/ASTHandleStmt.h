@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTIfBlock.h - AST If Block Statement
+// include/AST/ASTHandleStmt.h - AST Handle Statement header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,9 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-
-#ifndef FLY_ASTHANDLESTMT_H
-#define FLY_ASTHANDLESTMT_H
+#ifndef FLY_AST_HANDLESTMT_H
+#define FLY_AST_HANDLESTMT_H
 
 #include "ASTStmt.h"
 
@@ -45,9 +44,9 @@ namespace fly {
 
         void setCodeGen(CodeGenHandle *codeGen);
 
-        std::string str() const;
+        std::string str() const override;
     };
 }
 
 
-#endif //FLY_ASTHANDLESTMT_H
+#endif //FLY_AST_HANDLESTMT_H

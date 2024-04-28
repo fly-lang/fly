@@ -35,6 +35,7 @@
 #include "AST/ASTClass.h"
 #include "AST/ASTClassVar.h"
 #include "AST/ASTEnum.h"
+#include "AST/ASTExprStmt.h"
 #include "AST/ASTEnumEntry.h"
 #include "AST/ASTClassFunction.h"
 #include "AST/ASTFailStmt.h"

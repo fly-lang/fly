@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTClass.h - Class declaration
+// include/AST/ASTIdentity.h - AST Identity header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,9 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-
-#ifndef FLY_ASTIDENTITY_H
-#define FLY_ASTIDENTITY_H
+#ifndef FLY_AST_IDENTITY_H
+#define FLY_AST_IDENTITY_H
 
 #include "AST/ASTBase.h"
 #include "ASTTopDef.h"
@@ -52,9 +51,9 @@ namespace fly {
 
         virtual std::string print() const = 0;
 
-        virtual std::string str() const;
+        virtual std::string str() const override;
 
     };
 }
 
-#endif //FLY_ASTIDENTITY_H
+#endif //FLY_AST_IDENTITY_H

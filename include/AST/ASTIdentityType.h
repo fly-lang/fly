@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTIdentityType.h - AST Type
+// include/AST/ASTIdentityType.h - AST Identity Type header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,9 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-
-#ifndef FLY_ASTIDENTITYTYPE_H
-#define FLY_ASTIDENTITYTYPE_H
+#ifndef FLY_AST_IDENTITYTYPE_H
+#define FLY_AST_IDENTITYTYPE_H
 
 #include "AST/ASTType.h"
 #include "AST/ASTIdentity.h"
@@ -67,4 +66,4 @@ namespace fly {
     };
 }
 
-#endif //FLY_ASTIDENTITYTYPE_H
+#endif //FLY_AST_IDENTITYTYPE_H

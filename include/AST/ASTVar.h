@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTVar.h - Var declaration
+// include/AST/ASTVar.h - AST Var header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,13 +7,10 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-
-#ifndef FLY_ASTVAR_H
-#define FLY_ASTVAR_H
+#ifndef FLY_AST_VAR_H
+#define FLY_AST_VAR_H
 
 #include "ASTBase.h"
-
-#include <string>
 
 namespace fly {
 
@@ -74,8 +71,8 @@ namespace fly {
 
         virtual std::string print() const = 0;
 
-        std::string str() const;
+        std::string str() const override;
     };
 }
 
-#endif //FLY_ASTVAR_H
+#endif //FLY_AST_VAR_H

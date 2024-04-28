@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTNode.h - AST Node
+// include/AST/ASTNode.h - AST Node header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,9 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-
-#ifndef FLY_ASTNODE_H
-#define FLY_ASTNODE_H
+#ifndef FLY_AST_NODE_H
+#define FLY_AST_NODE_H
 
 #include "llvm/ADT/StringMap.h"
 
@@ -70,15 +69,15 @@ namespace fly {
 
         ~ASTNode();
 
-        ASTNode(const std::string FileName, ASTContext *Context, bool isHeader);
+        ASTNode(std::string FileName, ASTContext *Context, bool isHeader);
 
     public:
 
-        const bool isHeader() const;
+        bool isHeader() const;
 
         ASTContext &getContext() const;
 
-        const std::string getName();
+        std::string getName();
 
         ASTNameSpace* getNameSpace();
 
@@ -96,8 +95,8 @@ namespace fly {
 
         const llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> &getFunctions() const;
 
-        virtual std::string str() const;
+        std::string str() const;
     };
 }
 
-#endif //FLY_ASTNODE_H
+#endif //FLY_AST_NODE_H

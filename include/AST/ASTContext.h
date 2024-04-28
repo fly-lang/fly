@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTContext.h - AST Context
+// include/AST/ASTContext.h - AST Context header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,9 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-
-#ifndef FLY_ASTCONTEXT_H
-#define FLY_ASTCONTEXT_H
+#ifndef FLY_AST_CONTEXT_H
+#define FLY_AST_CONTEXT_H
 
 #include "llvm/ADT/StringMap.h"
 

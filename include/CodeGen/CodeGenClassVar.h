@@ -12,11 +12,7 @@
 #define FLY_CODEGEN_CLASSVAR_H
 
 #include "CodeGenVarBase.h"
-#include "AST/ASTClassVar.h"
-#include "AST/ASTVar.h"
 #include "llvm/ADT/StringRef.h"
-
-#include <cstdint>
 
 namespace llvm {
     class StructType;
@@ -28,10 +24,7 @@ namespace llvm {
 namespace fly {
 
     class CodeGenModule;
-    class CodeGenClass;
-    class ASTClass;
     class ASTClassVar;
-    class ASTClassFunction;
 
     class CodeGenClassVar : public CodeGenVarBase {
 

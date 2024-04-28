@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTClassVar.h - The Attribute in a Class
+// include/AST/ASTClassVar.h - AST Class Attribute header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,13 +7,11 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-
-#ifndef FLY_ASTCLASSVAR_H
-#define FLY_ASTCLASSVAR_H
+#ifndef FLY_AST_CLASSVAR_H
+#define FLY_AST_CLASSVAR_H
 
 #include "ASTVar.h"
 #include "CodeGen/CodeGenClassVar.h"
-#include "CodeGen/CodeGenVar.h"
 
 namespace fly {
 
@@ -45,14 +43,14 @@ namespace fly {
 
         void setInit(ASTVarStmt *varDefine);
 
-        CodeGenVarBase *getCodeGen() const;
+        CodeGenVarBase * getCodeGen() const override;
 
         void setCodeGen(CodeGenVarBase *CGV);
 
-        std::string print() const;
+        std::string print() const override;
 
-        std::string str() const;
+        std::string str() const override;
     };
 }
 
-#endif //FLY_ASTCLASSVAR_H
+#endif //FLY_AST_CLASSVAR_H

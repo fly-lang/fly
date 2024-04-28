@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTImport.h - AST Import declaration
+// include/AST/ASTImport.h - AST Import header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,8 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_ASTIMPORT_H
-#define FLY_ASTIMPORT_H
+#ifndef FLY_AST_IMPORT_H
+#define FLY_AST_IMPORT_H
 
 #include "ASTBase.h"
 
@@ -31,7 +31,7 @@ namespace fly {
 
         llvm::StringRef getName() const;
 
-        std::string str() const;
+        std::string str() const override;
     };
 
     class ASTImport : public ASTBase {
@@ -62,8 +62,8 @@ namespace fly {
 
         void setNameSpace(ASTNameSpace *NS);
 
-        std::string str() const;
+        std::string str() const override;
     };
 }
 
-#endif //FLY_ASTIMPORT_H
+#endif //FLY_AST_IMPORT_H

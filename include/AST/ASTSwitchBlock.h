@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/SwitchBlock.h - For Block Statements
+// src/AST/SwitchBlock.h - AST Switch Block Statement header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,8 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_ASTSWITCHBLOCK_H
-#define FLY_ASTSWITCHBLOCK_H
+#ifndef FLY_AST_SWITCHBLOCK_H
+#define FLY_AST_SWITCHBLOCK_H
 
 #include "ASTBlock.h"
 
@@ -45,7 +45,7 @@ namespace fly {
 
         ASTSwitchDefaultBlock *getDefault();
 
-        std::string str() const;
+        std::string str() const override;
     };
 
     class ASTSwitchCaseBlock : public ASTBlock{
@@ -63,7 +63,7 @@ namespace fly {
 
         ASTExpr *getExpr();
 
-        std::string str() const;
+        std::string str() const override;
     };
 
     class ASTSwitchDefaultBlock : public ASTBlock {
@@ -77,10 +77,10 @@ namespace fly {
 
     public:
 
-        std::string str() const;
+        std::string str() const override;
 
     };
 }
 
 
-#endif //FLY_ASTSWITCHBLOCK_H
+#endif //FLY_AST_SWITCHBLOCK_H

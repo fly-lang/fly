@@ -34,12 +34,19 @@ namespace fly {
 
     protected:
         ASTFunctionBase *AST = nullptr;
+
         CodeGenModule *CGM = nullptr;
+
         llvm::Function *Fn = nullptr;
+
         llvm::Type *RetType = nullptr;
+
         llvm::SmallVector<llvm::Type *, 8> ParamTypes;
+
         llvm::FunctionType *FnType = nullptr;
+
         llvm::BasicBlock *Entry = nullptr;
+
         llvm::Value *ErrorHandler = nullptr;
 
     public:

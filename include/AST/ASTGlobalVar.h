@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTGlobalVar.h - Global Var declaration
+// include/AST/ASTGlobalVar.h - AST Global Var header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,14 +7,12 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_GLOBALVAR_H
-#define FLY_GLOBALVAR_H
+#ifndef FLY_AST_GLOBALVAR_H
+#define FLY_AST_GLOBALVAR_H
 
 #include "ASTTopDef.h"
 #include "ASTVar.h"
 #include "CodeGen/CodeGenGlobalVar.h"
-
-#include <ostream>
 
 namespace fly {
 
@@ -61,4 +59,4 @@ namespace fly {
     };
 }
 
-#endif //FLY_GLOBALVAR_H
+#endif //FLY_AST_GLOBALVAR_H

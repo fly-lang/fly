@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTEnumType.h - AST Type
+// include/AST/ASTEnumType.h - AST Enum Type header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,9 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-
-#ifndef FLY_ASTENUMTYPE_H
-#define FLY_ASTENUMTYPE_H
+#ifndef FLY_AST_ENUMTYPE_H
+#define FLY_AST_ENUMTYPE_H
 
 #include "AST/ASTIdentityType.h"
 
@@ -25,9 +24,9 @@ namespace fly {
         friend class SemaBuilder;
         friend class SemaResolver;
 
-        ASTEnumType(ASTIdentifier *Identifier);
+        explicit ASTEnumType(ASTIdentifier *Identifier);
 
-        ASTEnumType(ASTEnum *Def);
+        explicit ASTEnumType(ASTEnum *Def);
 
     public:
 
@@ -36,4 +35,4 @@ namespace fly {
 
 }
 
-#endif //FLY_ASTENUMTYPE_H
+#endif //FLY_AST_ENUMTYPE_H

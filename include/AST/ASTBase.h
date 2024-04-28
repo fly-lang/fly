@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Basic/Debuggable.h - AST Base Class
+// include/AST/ASTBase.h - AST Base header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,14 +7,13 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_ASTBASE_H
-#define FLY_ASTBASE_H
+#ifndef FLY_AST_BASE_H
+#define FLY_AST_BASE_H
 
 #include "Basic/SourceLocation.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/ADT/StringRef.h"
 
-#include <vector>
 #include <string>
 
 namespace fly {
@@ -94,4 +93,4 @@ namespace fly {
     };
 }
 
-#endif //FLY_ASTBASE_H
+#endif //FLY_AST_BASE_H

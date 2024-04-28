@@ -10,6 +10,7 @@
 #include "AST/ASTCall.h"
 #include "AST/ASTFunctionBase.h"
 #include "AST/ASTIdentifier.h"
+#include "AST/ASTExpr.h"
 
 using namespace fly;
 
@@ -50,7 +51,7 @@ ASTCall::ASTCall(ASTFunctionBase *Function) : Def(Function), ASTIdentifier(Sourc
 
 }
 
-const ASTError *ASTCall::getErrorHandler() const {
+const ASTVar *ASTCall::getErrorHandler() const {
     return ErrorHandler;
 }
 

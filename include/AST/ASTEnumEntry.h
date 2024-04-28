@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTEnumVar.h - The Attribute in a Class
+// include/AST/ASTEnumEntry.h - AST Enum Entry header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,9 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-
-#ifndef FLY_ASTENUMENTRY_H
-#define FLY_ASTENUMENTRY_H
+#ifndef FLY_AST_ENUMENTRY_H
+#define FLY_AST_ENUMENTRY_H
 
 #include "AST/ASTVar.h"
 #include "CodeGen/CodeGenEnumEntry.h"
@@ -39,14 +38,14 @@ namespace fly {
 
         uint32_t getIndex() const;
 
-        CodeGenEnumEntry *getCodeGen() const;
+        CodeGenEnumEntry *getCodeGen() const override;
 
         void setCodeGen(CodeGenEnumEntry *CGE);
 
-        std::string print() const;
+        std::string print() const override;
 
-        std::string str() const;
+        std::string str() const override;
     };
 }
 
-#endif //FLY_ASTCLASSVAR_H
+#endif //FLY_AST_ENUMENTRY_H

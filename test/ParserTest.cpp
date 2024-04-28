@@ -26,7 +26,6 @@
 #include "AST/ASTClass.h"
 #include "AST/ASTClassVar.h"
 #include "AST/ASTClassFunction.h"
-#include "AST/ASTError.h"
 
 #include "llvm/ADT/StringMap.h"
 

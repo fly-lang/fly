@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTCall.h - Call declaration
+// include/AST/ASTCall.h - AST Call header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,14 +7,11 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_FUNCTION_CALL_H
-#define FLY_FUNCTION_CALL_H
+#ifndef FLY_AST_CALL_H
+#define FLY_AST_CALL_H
 
 #include "AST/ASTBase.h"
-#include "ASTExpr.h"
 #include "AST/ASTIdentifier.h"
-
-#include "llvm/ADT/SmallVector.h"
 
 namespace fly {
 
@@ -24,7 +21,7 @@ namespace fly {
     class ASTArg;
     class ASTCallExpr;
     class ASTVar;
-    class ASTError;
+    class ASTExpr;
 
     enum class ASTCallKind {
         CALL_FUNCTION,
@@ -48,7 +45,7 @@ namespace fly {
         friend class SemaBuilder;
         friend class SemaResolver;
 
-        ASTError *ErrorHandler = nullptr;
+        ASTVar *ErrorHandler = nullptr;
 
         llvm::SmallVector<ASTArg *, 8> Args;
 
@@ -64,7 +61,7 @@ namespace fly {
 
     public:
 
-        const ASTError *getErrorHandler() const;
+        const ASTVar *getErrorHandler() const;
 
         llvm::SmallVector<ASTArg *, 8> getArgs() const;
 
@@ -107,4 +104,4 @@ namespace fly {
     };
 }
 
-#endif //FLY_FUNCTION_CALL_H
+#endif //FLY_AST_CALL_H

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTIfBlock.h - AST If Block Statement
+// include/AST/ASTIfBlock.h - AST If Block Statement header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,9 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-
-#ifndef FLY_ASTIFBLOCK_H
-#define FLY_ASTIFBLOCK_H
+#ifndef FLY_AST_IFBLOCK_H
+#define FLY_AST_IFBLOCK_H
 
 #include "ASTBlock.h"
 
@@ -85,4 +84,4 @@ namespace fly {
 }
 
 
-#endif //FLY_ASTIFBLOCK_H
+#endif //FLY_AST_IFBLOCK_H

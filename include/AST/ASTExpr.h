@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTExpr.h - Expression into a statement
+// include/AST/ASTExpr.h - AST Expression header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,9 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-
-#ifndef FLY_ASTEXPR_H
-#define FLY_ASTEXPR_H
+#ifndef FLY_AST_EXPR_H
+#define FLY_AST_EXPR_H
 
 #include "ASTBase.h"
 
@@ -110,7 +109,7 @@ namespace fly {
 
         ASTExprKind getExprKind() const;
 
-        std::string str() const;
+        std::string str() const override;
     };
 
     class ASTEmptyExpr : public ASTExpr {
@@ -120,9 +119,9 @@ namespace fly {
 
     public:
 
-        ASTEmptyExpr(const SourceLocation &Loc);
+        explicit ASTEmptyExpr(const SourceLocation &Loc);
 
-        virtual std::string str() const override;
+        std::string str() const override;
     };
 
     /**
@@ -154,7 +153,7 @@ namespace fly {
 
         ASTVarRef *VarRef = nullptr;
 
-        ASTVarRefExpr(ASTVarRef *VarRef);
+        explicit ASTVarRefExpr(ASTVarRef *VarRef);
 
     public:
 
@@ -173,7 +172,7 @@ namespace fly {
 
         ASTCall *Call = nullptr;
 
-        ASTCallExpr(ASTCall *Call);
+        explicit ASTCallExpr(ASTCall *Call);
 
     public:
 
@@ -200,7 +199,7 @@ namespace fly {
 
         virtual ASTExprGroupKind getGroupKind();
 
-        std::string str() const;
+        std::string str() const override;
     };
 
     /**
@@ -301,4 +300,4 @@ namespace fly {
     };
 }
 
-#endif //FLY_ASTEXPR_H
+#endif //FLY_AST_EXPR_H

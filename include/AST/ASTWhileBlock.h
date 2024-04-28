@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTWhileBlock.h - AST While Block Statement
+// include/AST/ASTWhileBlock.h - AST While Block Statement header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,9 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-
-#ifndef FLY_ASTWHILEBLOCK_H
-#define FLY_ASTWHILEBLOCK_H
+#ifndef FLY_AST_WHILEBLOCK_H
+#define FLY_AST_WHILEBLOCK_H
 
 #include "ASTBlock.h"
 
@@ -26,13 +25,13 @@ namespace fly {
 
     public:
 
-        ASTBlock *getParent() const;
+        ASTBlock *getParent() const override;
 
         ASTExpr *getCondition();
 
-        std::string str() const;
+        std::string str() const override;
 
     };
 }
 
-#endif //FLY_ASTWHILEBLOCK_H
+#endif //FLY_AST_WHILEBLOCK_H
