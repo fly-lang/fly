@@ -12,8 +12,6 @@
 
 #include "llvm/ADT/StringMap.h"
 
-#include <vector>
-
 namespace fly {
 
     class SourceLocation;

@@ -462,14 +462,14 @@ namespace fly {
             if (StrMapIt != Functions.end()) {
 
                 // Search by Number of Parameters
-                const auto IntMapIt = StrMapIt->second.find(NewFunction->Params->getSize());
+                const auto IntMapIt = StrMapIt->second.find(NewFunction->getParams().size());
 
                 // Search by Type of Parameters
                 llvm::SmallVector<T *, 4> VectorFunctions = IntMapIt->second;
                 for (auto &Function: VectorFunctions) {
 
                     // Check if NewFunction have no params
-                    if (NewFunction->getParams()->isEmpty() && Function->getParams()->isEmpty()) {
+                    if (NewFunction->getParams().empty() && Function->getParams().empty()) {
                         return true;
                     }
 
@@ -496,7 +496,7 @@ namespace fly {
 
                 // add to std::map
                 std::map<uint64_t, llvm::SmallVector<T *, 4>> IntMap;
-                IntMap.insert(std::make_pair(NewFunction->Params->getSize(), Vect));
+                IntMap.insert(std::make_pair(NewFunction->getParams().size(), Vect));
 
                 // add to llvm::StringMap
                 return Functions.insert(std::make_pair(NewFunction->getName(), IntMap)).second;
@@ -509,7 +509,7 @@ namespace fly {
         bool InsertFunction(std::map<uint64_t, llvm::SmallVector<T *, 4>> &Functions, T *NewFunction) {
 
             // This Node contains a Function with this Function->Name
-            const auto &IntMapIt = Functions.find(NewFunction->Params->getSize());
+            const auto &IntMapIt = Functions.find(NewFunction->getParams().size());
             if (IntMapIt == Functions.end()) { // but not have the same number of Params
 
                 // add to llvm::SmallVector
@@ -518,15 +518,15 @@ namespace fly {
 
                 // add to std::map
                 std::pair<uint64_t, SmallVector<T *, 4>> IntMapPair = std::make_pair(
-                        NewFunction->Params->getSize(), VectorFunctions);
+                        NewFunction->getParams().size(), VectorFunctions);
 
-                return Functions.insert(std::make_pair(NewFunction->Params->getSize(), VectorFunctions)).second;
+                return Functions.insert(std::make_pair(NewFunction->getParams().size(), VectorFunctions)).second;
             } else { // This Node contains a Function with this Function->Name and same number of Params
                 llvm::SmallVector<T *, 4> VectorFunctions = IntMapIt->second;
                 for (auto &Function: VectorFunctions) {
 
                     // check no params duplicates
-                    if (NewFunction->getParams()->isEmpty() && Function->getParams()->isEmpty()) {
+                    if (NewFunction->getParams().empty() && Function->getParams().empty()) {
                         // Error:
                         return false;
                     }

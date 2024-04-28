@@ -38,7 +38,7 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, ASTFunction *AST, bool isEx
     GenParamTypes(CGM, ParamTypes, AST->getParams());
 
     // Create LLVM Function
-    FnType = llvm::FunctionType::get(RetType, ParamTypes, AST->getParams()->getEllipsis() != nullptr);
+    FnType = llvm::FunctionType::get(RetType, ParamTypes, AST->getEllipsis() != nullptr);
     Fn = llvm::Function::Create(FnType, llvm::GlobalValue::ExternalLinkage, "", CGM->getModule());
 
     // Set Name

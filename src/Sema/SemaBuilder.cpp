@@ -22,7 +22,7 @@
 #include "AST/ASTFunctionBase.h"
 #include "AST/ASTCall.h"
 #include "AST/ASTDeleteStmt.h"
-#include "AST/ASTParams.h"
+#include "AST/ASTParam.h"
 #include "AST/ASTBlock.h"
 #include "AST/ASTIfBlock.h"
 #include "AST/ASTWhileBlock.h"

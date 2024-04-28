@@ -15,7 +15,7 @@
 #include "CodeGen/CodeGenError.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTFunction.h"
-#include "AST/ASTParams.h"
+#include "AST/ASTParam.h"
 #include "AST/ASTCall.h"
 #include "AST/ASTType.h"
 #include "AST/ASTIdentityType.h"
@@ -40,20 +40,20 @@ void CodeGenFunctionBase::GenReturnType() {
     RetType = CGM->GenType(AST->getType());
 }
 
-void CodeGenFunctionBase::GenParamTypes(CodeGenModule * CGM, llvm::SmallVector<llvm::Type *, 8> &Types, const ASTParams *Params) {
+void CodeGenFunctionBase::GenParamTypes(CodeGenModule * CGM, llvm::SmallVector<llvm::Type *, 8> &Types, llvm::SmallVector<ASTParam *, 8> Params) {
     // Populate Types by reference
-    if (Params->isEmpty()) {
+    if (Params.empty()) {
         return;
     }
-    if (!Params->getList().empty()) {
-        for (auto Param : Params->getList()) {
+    if (!Params.empty()) {
+        for (auto Param : Params) {
             llvm::Type *ParamTy = CGM->GenType(Param->getType());
             Types.push_back(ParamTy);
         }
     }
-    if (Params->getEllipsis() != nullptr) {
+//    if (Params->getEllipsis() != nullptr) {
         // TODO
-    }
+//    }
 }
 
 ASTFunctionBase *CodeGenFunctionBase::getAST() {
@@ -80,8 +80,8 @@ void CodeGenFunctionBase::setInsertPoint() {
 
 void CodeGenFunctionBase::AllocaVars() {
 
-    // Allocation of declared ASTParams
-    for (auto &Param: AST->getParams()->getList()) {
+    // Allocation of declared ASTParam
+    for (auto &Param: AST->getParams()) {
         Param->setCodeGen(CGM->GenVar(Param));
         Param->getCodeGen()->Init();
     }
@@ -98,7 +98,7 @@ void CodeGenFunctionBase::StoreParams(bool isMain) {
     // Store Param Values (n = 0 is the Error param)
     int n = isMain ? 0 : 1;
 
-    for (auto &Param: AST->getParams()->getList()) {
+    for (auto &Param: AST->getParams()) {
 
         // Store Arg value into Param
         CodeGenVarBase *CGV = Param->getCodeGen();

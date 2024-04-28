@@ -11,7 +11,7 @@
 #define FLY_SEMA_VALIDATOR_H
 
 #include "AST/ASTType.h"
-#include "AST/ASTParams.h"
+#include "AST/ASTParam.h"
 #include "AST/ASTClassType.h"
 
 namespace fly {
@@ -25,7 +25,6 @@ namespace fly {
     class ASTNode;
     class ASTImport;
     class ASTExpr;
-    class ASTParams;
     class ASTParam;
     class ASTType;
     class SourceLocation;
@@ -42,14 +41,14 @@ namespace fly {
 
         bool DiagEnabled = true;
 
-        bool CheckDuplicateParams(ASTParams *Params, ASTParam *Param);
+        bool CheckDuplicateParams(llvm::SmallVector<ASTParam *, 8> Params, ASTParam *Param);
 
         bool CheckDuplicateLocalVars(ASTStmt *Stmt, llvm::StringRef VarName);
 
-        static bool CheckParams(const ASTParams *Params, const ASTParams *CheckParams) {
+        static bool CheckParams(llvm::SmallVector<ASTParam *, 8> Params, llvm::SmallVector<ASTParam *, 8> CheckParams) {
             // Types will be checked on Resolve()
-            for (ASTParam *Param : Params->getList()) {
-                for (ASTParam *CheckParam: CheckParams->getList()) {
+            for (ASTParam *Param : Params) {
+                for (ASTParam *CheckParam : CheckParams) {
                     if (CheckEqualTypes(Param->getType(), CheckParam->getType())) {
                         return false;
                     }

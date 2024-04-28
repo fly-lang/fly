@@ -16,7 +16,7 @@
 #include "AST/ASTClass.h"
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTFunctionBase.h"
-#include "AST/ASTParams.h"
+#include "AST/ASTParam.h"
 #include "AST/ASTBlock.h"
 #include "AST/ASTVarRef.h"
 #include "Basic/Diagnostic.h"
@@ -33,8 +33,8 @@ SemaValidator::SemaValidator(Sema &S) : S(S) {
  * @param Param
  * @return
  */
-bool SemaValidator::CheckDuplicateParams(ASTParams *Params, ASTParam *Param) {
-    for (ASTParam *P : Params->getList()) {
+bool SemaValidator::CheckDuplicateParams(llvm::SmallVector<ASTParam *, 8> Params, ASTParam *Param) {
+    for (ASTParam *P : Params) {
         if (P->getName() == Param->getName()) {
             if (DiagEnabled)
                 S.Diag(Param->getLocation(), diag::err_conflict_params) << Param->getName();

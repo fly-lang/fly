@@ -24,7 +24,7 @@
 #include "AST/ASTClassFunction.h"
 #include "AST/ASTNode.h"
 #include "AST/ASTVarRef.h"
-#include "AST/ASTParams.h"
+#include "AST/ASTParam.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/SourceLocation.h"
 #include "AST/ASTBase.h"
@@ -112,9 +112,9 @@ ASTVar *Sema::FindLocalVar(ASTBlock *Block, llvm::StringRef Name) const {
         if (Block->Parent->getKind() == ASTStmtKind::STMT_BLOCK)
             return FindLocalVar((ASTBlock *) Block->getParent(), Name);
     } else {
-        const ASTParams *Params = Block->getTop()->getParams();
-        for (auto &Param : Params->getList()) {
-            if (Param->getName() == Name) { // Search into ASTParams
+        llvm::SmallVector<ASTParam *, 8> Params = Block->getTop()->getParams();
+        for (auto &Param : Params) {
+            if (Param->getName() == Name) { // Search into ASTParam list
                 return Param;
             }
         }

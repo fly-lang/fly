@@ -32,7 +32,7 @@ add_library(flyLib
         AST/ASTLocalVar.cpp
         AST/ASTNameSpace.cpp
         AST/ASTNode.cpp
-        AST/ASTParams.cpp
+        AST/ASTParam.cpp
         AST/ASTScopes.cpp
         AST/ASTStmt.cpp
         AST/ASTSwitchBlock.cpp

@@ -9,14 +9,13 @@
 
 #include "AST/ASTFunctionBase.h"
 #include "AST/ASTBlock.h"
-#include "AST/ASTParams.h"
+#include "AST/ASTParam.h"
 
 using namespace fly;
 
 ASTFunctionBase::ASTFunctionBase(const SourceLocation &Loc, ASTFunctionKind Kind, ASTType *ReturnType,
                                  llvm::StringRef Name, ASTScopes * Scopes) :
-        ASTBase(Loc), Kind(Kind), ReturnType(ReturnType),
-        Params(new ASTParams()), Name(Name), Scopes(Scopes) {
+        ASTBase(Loc), Kind(Kind), ReturnType(ReturnType), Name(Name), Scopes(Scopes) {
 
 }
 
@@ -29,11 +28,15 @@ ASTScopes *ASTFunctionBase::getScopes() const {
 }
 
 void ASTFunctionBase::addParam(ASTParam *Param) {
-    Params->List.push_back(Param);
+    Params.push_back(Param);
+}
+
+llvm::SmallVector<ASTParam *, 8> ASTFunctionBase::getParams() const {
+    return Params;
 }
 
 void ASTFunctionBase::setEllipsis(ASTParam *Param) {
-    Params->Ellipsis = Param;
+    Ellipsis = Param;
 }
 
 const ASTBlock *ASTFunctionBase::getBody() const {
@@ -48,10 +51,6 @@ ASTParam *ASTFunctionBase::getErrorHandler() {
     return ErrorHandler;
 }
 
-const ASTParams *ASTFunctionBase::getParams() const {
-    return Params;
-}
-
 ASTFunctionKind ASTFunctionBase::getKind() {
     return Kind;
 }
@@ -61,16 +60,20 @@ ASTType *ASTFunctionBase::getType() const {
 }
 
 bool ASTFunctionBase::isVarArg() {
-    return Params->getEllipsis();
+    return Ellipsis != nullptr;
 }
 
 std::string ASTFunctionBase::str() const {
     return Logger("ASTFunctionBase").
            Super(ASTBase::str()).
            Attr("Name", Name).
-           Attr("Params", Params).
+           AttrList("Params", Params).
            Attr("ReturnType", ReturnType).
            End();
+}
+
+ASTParam *ASTFunctionBase::getEllipsis() const {
+    return Ellipsis;
 }
 
 ASTReturnStmt::ASTReturnStmt(ASTBlock *Parent, const SourceLocation &Loc) :

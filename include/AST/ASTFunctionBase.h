@@ -13,12 +13,9 @@
 #include "ASTStmt.h"
 #include "ASTBase.h"
 
-#include <vector>
-
 namespace fly {
 
     class ASTGroupExpr;
-    class ASTParams;
     class ASTExpr;
     class ASTType;
     class ASTVarRef;
@@ -57,8 +54,9 @@ namespace fly {
 
         ASTScopes * Scopes;
 
-        // Header contains parameters
-        ASTParams *Params = nullptr;
+        llvm::SmallVector<ASTParam *, 8> Params;
+
+        ASTParam* Ellipsis = nullptr;
 
         // Body is the main BlockStmt
         ASTBlock *Body = nullptr;
@@ -82,9 +80,11 @@ namespace fly {
 
         void addParam(ASTParam *Param);
 
-        void setEllipsis(ASTParam *Param);
+        llvm::SmallVector<ASTParam *, 8> getParams() const;
 
-        const ASTParams *getParams() const;
+        ASTParam *getEllipsis() const;
+
+        void setEllipsis(ASTParam *Param);
 
         const ASTBlock *getBody() const;
 
@@ -120,7 +120,7 @@ namespace fly {
 
         ASTBlock *getBlock() const;
 
-        std::string str() const;
+        std::string str() const override;
     };
 }
 

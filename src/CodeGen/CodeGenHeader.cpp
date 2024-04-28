@@ -12,7 +12,7 @@
 #include "AST/ASTType.h"
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTFunction.h"
-#include "AST/ASTParams.h"
+#include "AST/ASTParam.h"
 #include "AST/ASTScopes.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/CodeGenOptions.h"
@@ -57,9 +57,9 @@ std::string CodeGenHeader::GenerateFile() {
             Header += "\npublic " + Convert(Function->getType()) + " " + std::string(Function->getName()) +
                       "(";
             int i = 0;
-            for (auto &Param : Function->getParams()->getList()) {
+            for (auto &Param : Function->getParams()) {
                 Header += Convert(Param->getType()) + " " + std::string(Param->getName());
-                if (i < Function->getParams()->getList().size()) {
+                if (i < Function->getParams().size()) {
                     Header += ",";
                 }
             }

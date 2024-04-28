@@ -25,7 +25,7 @@
 #include "AST/ASTFunction.h"
 #include "AST/ASTCall.h"
 #include "AST/ASTIdentifier.h"
-#include "AST/ASTParams.h"
+#include "AST/ASTParam.h"
 #include "AST/ASTSwitchBlock.h"
 #include "AST/ASTForBlock.h"
 #include "AST/ASTWhileBlock.h"
@@ -783,15 +783,15 @@ bool SemaResolver::ResolveCall(ASTBlock *Block, ASTCall *Call,
     if (IntMapIt != Functions.end()) { // Map contains Function with this size of args
         S.Validator->DiagEnabled = false;
         for (T *Function : IntMapIt->second) {
-            if (Function->getParams()->getSize() == Call->getArgs().size()) {
+            if (Function->getParams().size() == Call->getArgs().size()) {
                 bool Success = true; // if Params = Args = 0 skip for cycle
                 if (Call->getArgs().empty()) { // call function with no parameters
                     Success = true;
                 } else {
-                    for (unsigned long i = 0; i < Function->getParams()->getSize(); i++) {
+                    for (unsigned long i = 0; i < Function->getParams().size(); i++) {
                         // Resolve Arg Expr on first
                         ASTArg *Arg = Call->getArgs()[i];
-                        ASTParam *Param = Function->getParams()->at(i);
+                        ASTParam *Param = Function->getParams()[i];
                         Success &= ResolveArg(Block, Arg, Param);
                     }
                 }

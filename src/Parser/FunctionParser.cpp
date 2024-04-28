@@ -9,7 +9,7 @@
 
 #include "Parser/Parser.h"
 #include "Parser/FunctionParser.h"
-#include "AST/ASTParams.h"
+#include "AST/ASTParam.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTCall.h"
 #include "AST/ASTExpr.h"

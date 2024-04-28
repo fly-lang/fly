@@ -29,7 +29,7 @@
 #include "AST/ASTVarStmt.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTLocalVar.h"
-#include "AST/ASTParams.h"
+#include "AST/ASTParam.h"
 #include "AST/ASTIfBlock.h"
 #include "AST/ASTSwitchBlock.h"
 #include "AST/ASTWhileBlock.h"

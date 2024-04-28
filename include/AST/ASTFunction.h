@@ -14,12 +14,9 @@
 #include "ASTFunctionBase.h"
 #include "CodeGen/CodeGenFunction.h"
 
-#include <vector>
-
 namespace fly {
 
     class ASTNode;
-    class ASTParams;
     class ASTType;
     class ASTBlock;
     class ASTScopes;

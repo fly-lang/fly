@@ -7,8 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_ASTPARAMS_H
-#define FLY_ASTPARAMS_H
+#ifndef FLY_ASTPARAM_H
+#define FLY_ASTPARAM_H
 
 #include "ASTLocalVar.h"
 
@@ -39,33 +39,6 @@ namespace fly {
 
         std::string str() const override;
     };
-
-    /**
-     * All Parameters of a Function for Definition
-     * Ex.
-     *   func(int param1, float param2, bool param3, ...)
-     */
-    class ASTParams {
-
-        friend class ASTFunctionBase;
-
-        llvm::SmallVector<ASTParam *, 8> List;
-
-        ASTParam* Ellipsis = nullptr;
-
-    public:
-        uint64_t getSize() const;
-
-        ASTParam *at(unsigned long Index) const;
-
-        bool isEmpty() const;
-
-        const llvm::SmallVector<ASTParam *, 8> &getList() const;
-
-        const ASTParam* getEllipsis() const;
-
-        std::string str() const;
-    };
 }
 
-#endif //FLY_ASTPARAMS_H
+#endif //FLY_ASTPARAM_H
