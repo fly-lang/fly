@@ -36,21 +36,21 @@ namespace fly {
 
         ASTIdentity *Def = nullptr;
 
-        ASTIdentityTypeKind IdentityKind;
+        ASTIdentityTypeKind IdentityTypeKind;
 
         explicit ASTIdentityType(ASTIdentifier *Identifier);
 
-        ASTIdentityType(ASTIdentifier *Identifier, ASTIdentityTypeKind IdentityKind);
-
         explicit ASTIdentityType(ASTIdentity *Def);
+
+        ASTIdentityType(ASTIdentifier *Identifier, ASTIdentityTypeKind IdentityKind);
 
     public:
 
         virtual ASTIdentity *getDef() const;
 
-        const SourceLocation &getLocation() const;
+        const SourceLocation &getLocation() const override;
 
-        ASTIdentityTypeKind getIdentityKind() const;
+        ASTIdentityTypeKind getIdentityTypeKind() const;
 
         bool operator ==(const ASTIdentityType &IdentityType) const;
 

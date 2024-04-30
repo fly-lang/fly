@@ -25,7 +25,7 @@ namespace fly {
 
         ASTHandleStmt *Handle = nullptr;
 
-        ASTFailStmt(ASTStmt *Parent, const SourceLocation &Loc);
+        ASTFailStmt(const SourceLocation &Loc);
 
     public:
 

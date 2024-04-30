@@ -8,9 +8,9 @@ add_library(flyLib
         AST/ASTBlock.cpp
         AST/ASTCall.cpp
         AST/ASTClass.cpp
-        AST/ASTClassFunction.cpp
+        AST/ASTClassMethod.cpp
         AST/ASTClassType.cpp
-        AST/ASTClassVar.cpp
+        AST/ASTClassAttribute.cpp
         AST/ASTContext.cpp
         AST/ASTDeleteStmt.cpp
         AST/ASTEnum.cpp

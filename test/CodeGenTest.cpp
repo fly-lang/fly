@@ -35,15 +35,14 @@
 #include "AST/ASTWhileBlock.h"
 #include "AST/ASTForBlock.h"
 #include "AST/ASTClass.h"
-#include "AST/ASTClassVar.h"
-#include "AST/ASTClassFunction.h"
+#include "AST/ASTClassAttribute.h"
+#include "AST/ASTClassMethod.h"
 #include "AST/ASTEnum.h"
 #include "AST/ASTEnumEntry.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/SourceLocation.h"
 #include "Basic/TargetOptions.h"
 #include "Basic/Builtins.h"
-#include "Sys/Sys.h"
 
 // third party
 #include "llvm/Support/Host.h"

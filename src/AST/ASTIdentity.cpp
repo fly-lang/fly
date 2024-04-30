@@ -12,18 +12,22 @@
 
 using namespace fly;
 
-ASTIdentity::ASTIdentity(ASTNode *Node, ASTTopDefKind TopDefKind, ASTScopes *Scopes,const SourceLocation &Loc,
+ASTIdentity::ASTIdentity(ASTTopDefKind TopDefKind, ASTScopes *Scopes,const SourceLocation &Loc,
                          llvm::StringRef Name) :
-        ASTBase(Loc), Node(Node), TopDefKind(TopDefKind), Scopes(Scopes), Name(Name) {
+        ASTBase(Loc), TopDefKind(TopDefKind), Scopes(Scopes), Name(Name) {
 
+}
+
+ASTTopDefKind ASTIdentity::getTopDefKind() const {
+    return TopDefKind;
 }
 
 llvm::StringRef ASTIdentity::getName() const {
     return Name;
 }
 
-ASTTopDefKind ASTIdentity::getTopDefKind() const {
-    return TopDefKind;
+ASTScopes *ASTIdentity::getScopes() const {
+    return Scopes;
 }
 
 ASTNode *ASTIdentity::getNode() const {
@@ -32,10 +36,6 @@ ASTNode *ASTIdentity::getNode() const {
 
 ASTNameSpace *ASTIdentity::getNameSpace() const {
     return Node->getNameSpace();
-}
-
-ASTScopes *ASTIdentity::getScopes() const {
-    return Scopes;
 }
 
 std::string ASTIdentity::str() const {

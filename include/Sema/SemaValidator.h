@@ -28,6 +28,8 @@ namespace fly {
     class ASTParam;
     class ASTType;
     class SourceLocation;
+    class ASTEnumType;
+    enum class ASTClassKind;
 
     class SemaValidator {
 
@@ -72,6 +74,39 @@ namespace fly {
         bool CheckLogicalTypes(const SourceLocation &Loc, ASTType *Type1, ASTType *Type2);
 
         static bool CheckClassInheritance(fly::ASTClassType *FromType, fly::ASTClassType *ToType);
+
+        void CheckCreateNode(const std::string &Name);
+
+        void CheckCreateNameSpace(const SourceLocation &Loc, llvm::StringRef Name);
+
+        void CheckCreateIdentifier(const SourceLocation &Loc, llvm::StringRef Name);
+
+        void CheckCreateImport(const SourceLocation &Loc, StringRef Name);
+
+        void CheckCreateAlias(const SourceLocation &Loc, StringRef Name);
+
+        void CheckCreateGlobalVar(const SourceLocation &Loc, ASTType *Type, StringRef Name, ASTScopes *Scopes);
+
+        void CheckCreateFunction(const SourceLocation &Loc, ASTType *Type, StringRef Name, ASTScopes *Scopes);
+
+        void CheckCreateClass(const SourceLocation &Loc, StringRef Name, ASTClassKind ClassKind,
+                              ASTScopes *Scopes,
+                              SmallVector<ASTClassType *, 4> &ClassTypes);
+
+        void CheckCreateClassVar(const SourceLocation &Loc, StringRef Name, ASTType *Type, ASTScopes *Scopes);
+
+        void CheckCreateClassConstructor(const SourceLocation &Loc, ASTScopes *Scopes);
+
+        void CheckCreateClassMethod(const SourceLocation &Loc, ASTType *Type, StringRef Name, ASTScopes *Scopes);
+
+        void CheckCreateEnum(const SourceLocation &Loc, const StringRef Name, ASTScopes *Scopes,
+                             SmallVector<ASTEnumType *, 4> EnumTypes);
+
+        void CheckCreateEnumEntry(const SourceLocation &Loc, StringRef Name);
+
+        void CheckCreateParam(const SourceLocation &Loc, ASTType *Type, StringRef Name, ASTScopes *Scopes);
+
+        void CheckCreateLocalVar(const SourceLocation &Loc, ASTType *Type, StringRef Name, ASTScopes *Scopes);
     };
 
 }  // end namespace fly

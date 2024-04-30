@@ -18,10 +18,10 @@
 #include "AST/ASTFunctionBase.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTClass.h"
-#include "AST/ASTClassVar.h"
+#include "AST/ASTClassAttribute.h"
 #include "AST/ASTIdentifier.h"
 #include "AST/ASTImport.h"
-#include "AST/ASTClassFunction.h"
+#include "AST/ASTClassMethod.h"
 #include "AST/ASTNode.h"
 #include "AST/ASTVarRef.h"
 #include "AST/ASTParam.h"
@@ -47,16 +47,48 @@ Sema* Sema::CreateSema(DiagnosticsEngine &Diags) {
     return S;
 }
 
+DiagnosticsEngine &Sema::getDiags() const {
+    return Diags;
+}
+
+SemaBuilder &Sema::getBuilder() {
+    return *Builder;
+}
+
+SemaResolver &Sema::getResolver() const {
+    return *Resolver;
+}
+
+SemaValidator &Sema::getValidator() const {
+    return *Validator;
+}
+
+ASTContext &Sema::getContext() const {
+    return *Context;
+}
+
+/**
+ * Write Diagnostics
+ * @param Loc
+ * @param DiagID
+ * @return
+ */
+DiagnosticBuilder Sema::Diag(SourceLocation Loc, unsigned DiagID) const {
+    return Diags.Report(Loc, DiagID);
+}
+
+/**
+ * Write Diagnostics
+ * @param Loc
+ * @param DiagID
+ * @return
+ */
+DiagnosticBuilder Sema::Diag(unsigned DiagID) const {
+    return Diags.Report(DiagID);
+}
+
 bool Sema::Resolve() {
     return Resolver->Resolve();
-}
-
-SemaBuilder *Sema::getBuilder() {
-    return Builder;
-}
-
-ASTContext *Sema::getContext() const {
-    return Context;
 }
 
 ASTNameSpace *Sema::FindNameSpace(llvm::StringRef Name) const {
@@ -72,8 +104,8 @@ ASTNode *Sema::FindNode(ASTFunctionBase *FunctionBase) const {
     FLY_DEBUG_MESSAGE("Sema", "FindNode", Logger().Attr("FunctionBase", FunctionBase).End());
     if (FunctionBase->getKind() == ASTFunctionKind::FUNCTION) {
         return ((ASTFunction *) FunctionBase)->getNode();
-    } else if (FunctionBase->getKind() == ASTFunctionKind::CLASS_FUNCTION) {
-        return ((ASTClassFunction *) FunctionBase)->getClass()->getNode();
+    } else if (FunctionBase->getKind() == ASTFunctionKind::CLASS_METHOD) {
+        return ((ASTClassMethod *) FunctionBase)->getClass()->getNode();
     } else {
         assert("Unknown Function Kind");
         return nullptr;
@@ -90,9 +122,9 @@ ASTNode *Sema::FindNode(llvm::StringRef Name, ASTNameSpace *NameSpace) const {
     return Node;
 }
 
-ASTIdentity *Sema::FindIdentity(llvm::StringRef TypeName, ASTNameSpace *NameSpace) const {
-    FLY_DEBUG_MESSAGE("Sema", "FindClass", Logger().Attr("ClassName", TypeName).Attr("NameSpace", NameSpace).End());
-    ASTIdentity *Identity = NameSpace->Identities.lookup(TypeName);
+ASTIdentity *Sema::FindIdentity(llvm::StringRef Name, ASTNameSpace *NameSpace) const {
+    FLY_DEBUG_MESSAGE("Sema", "FindIdentity", Logger().Attr("Name", Name).Attr("NameSpace", NameSpace).End());
+    ASTIdentity *Identity = NameSpace->Identities.lookup(Name);
     return Identity;
 }
 
@@ -122,28 +154,14 @@ ASTVar *Sema::FindLocalVar(ASTBlock *Block, llvm::StringRef Name) const {
     return nullptr;
 }
 
+ASTIdentityType *Sema::FindIdentityType(llvm::StringRef Name, ASTNameSpace *NameSpace) const {
+    FLY_DEBUG_MESSAGE("Sema", "FindIdentityType", Logger().Attr("Name", Name).Attr("NameSpace", NameSpace).End());
+    ASTIdentityType *IdentityType = NameSpace->getIdentityTypes().lookup(Name);
+    return IdentityType;
+}
+
 ASTImport *Sema:: FindImport(ASTNode *Node, llvm::StringRef Name) {
     // Search into Node imports
     ASTImport *Import = Node->Imports.lookup(Name);
     return Import == nullptr ? Node->AliasImports.lookup(Name) : Import;
-}
-
-/**
- * Write Diagnostics
- * @param Loc
- * @param DiagID
- * @return
- */
-DiagnosticBuilder Sema::Diag(SourceLocation Loc, unsigned DiagID) const {
-    return Diags.Report(Loc, DiagID);
-}
-
-/**
- * Write Diagnostics
- * @param Loc
- * @param DiagID
- * @return
- */
-DiagnosticBuilder Sema::Diag(unsigned DiagID) const {
-    return Diags.Report(DiagID);
 }

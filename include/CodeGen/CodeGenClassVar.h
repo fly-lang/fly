@@ -24,7 +24,7 @@ namespace llvm {
 namespace fly {
 
     class CodeGenModule;
-    class ASTClassVar;
+    class ASTClassAttribute;
 
     class CodeGenClassVar : public CodeGenVarBase {
 
@@ -32,7 +32,7 @@ namespace fly {
 
         CodeGenModule *CGM = nullptr;
 
-        ASTClassVar *Var = nullptr;
+        ASTClassAttribute *Var = nullptr;
 
         llvm::Type *T = nullptr;
 
@@ -51,7 +51,7 @@ namespace fly {
         llvm::Value *Instance = nullptr;
 
     public:
-        CodeGenClassVar(CodeGenModule *CGM, ASTClassVar *Var, llvm::Type *ClassType, uint32_t Index);
+        CodeGenClassVar(CodeGenModule *CGM, ASTClassAttribute *Var, llvm::Type *ClassType, uint32_t Index);
 
         void Init() override;
 

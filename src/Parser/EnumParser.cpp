@@ -48,7 +48,7 @@ EnumParser::EnumParser(Parser *P, ASTScopes *EnumScopes) : P(P) {
     if (P->isBlockStart()) {
         P->ConsumeBrace(BraceCount);
 
-        Enum = P->Builder.CreateEnum(P->Node, EnumScopes, ClassLoc, EnumName, SuperClasses);
+        Enum = P->Builder.CreateEnum(ClassLoc, EnumName, EnumScopes, SuperClasses);
         uint64_t Index = 0;
         do {
 
@@ -68,6 +68,7 @@ EnumParser::EnumParser(Parser *P, ASTScopes *EnumScopes) : P(P) {
             if (P->Tok.isAnyIdentifier()) {
                 const StringRef &Name = P->Tok.getIdentifierInfo()->getName();
                 const SourceLocation &Loc = P->ConsumeToken();
+                
                 Success = ParseField(Loc, Name);
             }
         } while (Success);
@@ -88,7 +89,8 @@ ASTEnum *EnumParser::Parse(Parser *P, ASTScopes *EnumScopes) {
 bool EnumParser::ParseField(const SourceLocation &Loc, llvm::StringRef Name) {
     FLY_DEBUG_MESSAGE("ClassParser", "ParseMethod", Logger().Attr("Type", Name).End());
 
-    ASTEnumEntry *EnumVar = P->Builder.CreateEnumEntry(Enum, Loc, Name);
+    ASTEnumType *EnumType = P->Builder.CreateEnumType(Enum);
+    ASTEnumEntry *EnumEntry = P->Builder.CreateEnumEntry(Loc, EnumType, Name);
 
     // Add Comment to AST
     llvm::StringRef Comment;
@@ -96,5 +98,5 @@ bool EnumParser::ParseField(const SourceLocation &Loc, llvm::StringRef Name) {
         Comment = P->BlockComment;
     }
 
-    return P->Builder.AddEnumEntry(EnumVar);
+    return P->Builder.AddEnumEntry(EnumEntry);
 }

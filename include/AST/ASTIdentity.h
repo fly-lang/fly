@@ -26,28 +26,28 @@ namespace fly {
 
         ASTTopDefKind TopDefKind;
 
-        ASTNode *Node;
-
         ASTScopes *Scopes;
 
         llvm::StringRef Name;
 
-        ASTIdentity(ASTNode *Node, ASTTopDefKind TopDefKind, ASTScopes *Scopes,
+        ASTNode *Node = nullptr;
+
+        ASTIdentityType *Type = nullptr;
+
+        ASTIdentity(ASTTopDefKind TopDefKind, ASTScopes *Scopes,
                     const SourceLocation &Loc, llvm::StringRef Name);
 
     public:
 
         ASTTopDefKind getTopDefKind() const override;
 
-        ASTNode *getNode() const override;
-
-        ASTNameSpace *getNameSpace() const override;
-
         llvm::StringRef getName() const override;
 
         ASTScopes *getScopes() const;
 
-        virtual ASTIdentityType *getType() = 0;
+        ASTNode *getNode() const override;
+
+        ASTNameSpace *getNameSpace() const override;
 
         virtual std::string print() const = 0;
 

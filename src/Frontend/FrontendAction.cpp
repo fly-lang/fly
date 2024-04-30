@@ -52,7 +52,7 @@ bool FrontendAction::Parse() {
     }
 
     // Create Parser and start to parse
-    P = new Parser(*Input, SourceMgr, Diags, *S.getBuilder());
+    P = new Parser(*Input, SourceMgr, Diags, S.getBuilder());
     Node = P->Parse();
     if (Node && FrontendOpts.CreateHeader) {
         CGH->AddNameSpace(Node->getNameSpace());
@@ -66,9 +66,9 @@ bool FrontendAction::ParseHeader() {
     FLY_DEBUG_MESSAGE("FrontendAction", "ParseHeader", "Input=" << Input->getFileName());
 
     // Create Parser and start to parse
-    P = new Parser(*Input, SourceMgr, Diags, *S.getBuilder());
+    P = new Parser(*Input, SourceMgr, Diags, S.getBuilder());
     Node = P->ParseHeader();
-    return Node && S.getBuilder()->AddNode(Node);
+    return Node && S.getBuilder().AddNode(Node);
 }
 
 void FrontendAction::GenerateTopDef() {

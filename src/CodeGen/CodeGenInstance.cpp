@@ -12,7 +12,7 @@
 #include "CodeGen/CodeGenClassVar.h"
 #include "CodeGen/CodeGenModule.h"
 #include "AST/ASTClass.h"
-#include "AST/ASTClassVar.h"
+#include "AST/ASTClassAttribute.h"
 
 using namespace fly;
 
@@ -25,7 +25,7 @@ void CodeGenInstance::Init(llvm::Value *Pointer) {
     this->Pointer = Pointer;
     uint32_t n = 0;
     for (auto &Var : Class->getCodeGen()->getVars()) {
-        CodeGenClassVar *CGV = new CodeGenClassVar(CGM, (ASTClassVar *) Var->getVar(), Class->getCodeGen()->getType(), n++);
+        CodeGenClassVar *CGV = new CodeGenClassVar(CGM, (ASTClassAttribute *) Var->getVar(), Class->getCodeGen()->getType(), n++);
         CGV->setInstance(Pointer);
 
         this->Vars.insert(std::make_pair(Var->getVar()->getName(), CGV));

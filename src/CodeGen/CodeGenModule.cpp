@@ -30,8 +30,8 @@
 #include "AST/ASTDeleteStmt.h"
 #include "AST/ASTCall.h"
 #include "AST/ASTGlobalVar.h"
-#include "AST/ASTClassVar.h"
-#include "AST/ASTClassFunction.h"
+#include "AST/ASTClassAttribute.h"
+#include "AST/ASTClassMethod.h"
 #include "AST/ASTFailStmt.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTHandleStmt.h"
@@ -210,7 +210,7 @@ llvm::Type *CodeGenModule::GenType(const ASTType *Type) {
         }
 
         case ASTTypeKind::TYPE_IDENTITY: {
-            ASTIdentityTypeKind IdentityTypeKind = ((ASTIdentityType *) Type)->getIdentityKind();
+            ASTIdentityTypeKind IdentityTypeKind = ((ASTIdentityType *) Type)->getIdentityTypeKind();
 
             // Error: unreferenced
             if (IdentityTypeKind == ASTIdentityTypeKind::TYPE_NONE) {
@@ -218,7 +218,6 @@ llvm::Type *CodeGenModule::GenType(const ASTType *Type) {
                 return nullptr;
             }
 
-            ASTIdentityType *a = ((ASTIdentityType *) Type)->getDef()->getType();
             switch (IdentityTypeKind) {
                 case ASTIdentityTypeKind::TYPE_CLASS: {
                     ASTClass *Class = (ASTClass *) ((ASTClassType *) Type)->getDef();
@@ -579,8 +578,8 @@ llvm::Value *CodeGenModule::GenCall(ASTCall *Call) {
     if (Call->getDef()->getKind() == ASTFunctionKind::FUNCTION) {
         ASTFunction *Def = (ASTFunction *) Call->getDef(); // is resolved
     }
-    else if (Call->getDef()->getKind() == ASTFunctionKind::CLASS_FUNCTION) {
-        ASTClassFunction *Def = (ASTClassFunction *) Call->getDef();
+    else if (Call->getDef()->getKind() == ASTFunctionKind::CLASS_METHOD) {
+        ASTClassMethod *Def = (ASTClassMethod *) Call->getDef();
 
         if (Def->isConstructor()) { // Call class constructor
             llvm::StructType *Ty = Def->getClass()->getCodeGen()->getType();
@@ -591,7 +590,7 @@ llvm::Value *CodeGenModule::GenCall(ASTCall *Call) {
                 AllocSize = ConstantExpr::getTruncOrBitCast(AllocSize, Int32Ty);
                 // @malloc data type struct
                 Instruction *I = CallInst::CreateMalloc(Builder->GetInsertBlock(), Int32Ty, Ty, AllocSize, nullptr, nullptr);
-                Instance = Builder->Insert(I, Call->getDef()->getName() + "Inst");
+                Instance = Builder->Insert(I, ((ASTClassMethod *) Call->getDef())->getName() + "Inst");
             }
             Args.push_back(Instance);
         } else if (Call->getParent() && Call->getParent()->isCall()) { // TODO iterative parents

@@ -11,8 +11,8 @@
 
 using namespace fly;
 
-ASTFailStmt::ASTFailStmt(ASTStmt *Parent, const SourceLocation &Loc) :
-        ASTStmt(Parent, Loc, ASTStmtKind::STMT_FAIL) {
+ASTFailStmt::ASTFailStmt(const SourceLocation &Loc) :
+        ASTStmt(Loc, ASTStmtKind::STMT_FAIL) {
 
 }
 

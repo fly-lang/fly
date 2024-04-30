@@ -22,29 +22,38 @@ namespace fly {
     class ASTFunction;
     class ASTScopes;
 
-    class ASTClassFunction : public ASTFunctionBase {
+    enum class ASTClassMethodKind {
+        METHOD_CUSTOM,
+        METHOD_CONSTRUCTOR,
+        METHOD_STATIC,
+        METHOD_VIRTUAL
+    };
+
+    class ASTClassMethod : public ASTFunctionBase {
 
         friend class SemaBuilder;
         friend class SemaResolver;
         friend class ClassParser;
 
+        llvm::StringRef Name;
+
+        ASTClassMethodKind MethodKind;
+
         ASTClass *Class = nullptr;
 
         ASTClass *DerivedClass = nullptr;
-
-        bool Constructor = false;
-
-        bool Static = false;
 
         llvm::StringRef Comment;
 
         // Populated during codegen phase
         CodeGenClassFunction *CodeGen = nullptr;
 
-        ASTClassFunction(const SourceLocation &Loc, ASTClass *Class, ASTScopes *Scopes, ASTType *Type,
-                         llvm::StringRef Name);
+        ASTClassMethod(const SourceLocation &Loc, ASTClassMethodKind MethodKind, ASTType *Type,
+                       llvm::StringRef Name, ASTScopes *Scopes);
 
     public:
+
+        const StringRef &getName() const;
 
         ASTClass *getClass() const;
 

@@ -14,13 +14,9 @@
 using namespace fly;
 
 ASTFunctionBase::ASTFunctionBase(const SourceLocation &Loc, ASTFunctionKind Kind, ASTType *ReturnType,
-                                 llvm::StringRef Name, ASTScopes * Scopes) :
-        ASTBase(Loc), Kind(Kind), ReturnType(ReturnType), Name(Name), Scopes(Scopes) {
+                                 ASTScopes * Scopes) :
+        ASTBase(Loc), Kind(Kind), ReturnType(ReturnType), Scopes(Scopes) {
 
-}
-
-llvm::StringRef ASTFunctionBase::getName() const {
-    return Name;
 }
 
 ASTScopes *ASTFunctionBase::getScopes() const {
@@ -66,7 +62,6 @@ bool ASTFunctionBase::isVarArg() {
 std::string ASTFunctionBase::str() const {
     return Logger("ASTFunctionBase").
            Super(ASTBase::str()).
-           Attr("Name", Name).
            AttrList("Params", Params).
            Attr("ReturnType", ReturnType).
            End();
@@ -76,8 +71,8 @@ ASTParam *ASTFunctionBase::getEllipsis() const {
     return Ellipsis;
 }
 
-ASTReturnStmt::ASTReturnStmt(ASTBlock *Parent, const SourceLocation &Loc) :
-        ASTStmt(Parent, Loc, ASTStmtKind::STMT_RETURN) {
+ASTReturnStmt::ASTReturnStmt(const SourceLocation &Loc) :
+        ASTStmt(Loc, ASTStmtKind::STMT_RETURN) {
 
 }
 

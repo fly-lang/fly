@@ -19,8 +19,8 @@
 
 namespace fly {
 
-    class ASTClassVar;
-    class ASTClassFunction;
+    class ASTClassAttribute;
+    class ASTClassMethod;
     class CodeGenClass;
     class ASTBlock;
 
@@ -35,41 +35,36 @@ namespace fly {
         friend class SemaBuilder;
         friend class SemaResolver;
 
-        ASTClassType *Type = nullptr;
-
         ASTClassKind ClassKind;
 
         llvm::SmallVector<ASTClassType *, 4> SuperClasses;
 
         // Class Fields
-        llvm::StringMap<ASTClassVar *> Vars;
+        llvm::StringMap<ASTClassAttribute *> Vars;
 
         bool autoDefaultConstructor = false;
 
         // Class Constructors
-        std::map <uint64_t, llvm::SmallVector <ASTClassFunction *, 4>> Constructors;
+        std::map <uint64_t, llvm::SmallVector <ASTClassMethod *, 4>> Constructors;
 
         // Class Methods
-        llvm::StringMap<std::map <uint64_t, llvm::SmallVector <ASTClassFunction *, 4>>> Methods;
+        llvm::StringMap<std::map <uint64_t, llvm::SmallVector <ASTClassMethod *, 4>>> Methods;
 
         CodeGenClass *CodeGen = nullptr;
 
-        ASTClass(ASTNode *Node, ASTClassKind ClassKind, ASTScopes *Scopes,
-                 const SourceLocation &Loc, llvm::StringRef Name);
+        ASTClass(ASTClassKind ClassKind, ASTScopes *Scopes, const SourceLocation &Loc, llvm::StringRef Name);
 
     public:
-
-        ASTClassType *getType() override;
 
         ASTClassKind getClassKind() const;
 
         llvm::SmallVector<ASTClassType *, 4> getSuperClasses() const;
 
-        llvm::StringMap<ASTClassVar *> getVars() const;
+        llvm::StringMap<ASTClassAttribute *> getVars() const;
 
-        std::map <uint64_t,llvm::SmallVector <ASTClassFunction *, 4>> getConstructors() const;
+        std::map <uint64_t,llvm::SmallVector <ASTClassMethod *, 4>> getConstructors() const;
 
-        llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTClassFunction *, 4>>> getMethods() const;
+        llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTClassMethod *, 4>>> getMethods() const;
 
         CodeGenClass *getCodeGen() const;
 

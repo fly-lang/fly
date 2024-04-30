@@ -24,8 +24,8 @@
 #include "AST/ASTSwitchBlock.h"
 #include "AST/ASTForBlock.h"
 #include "AST/ASTClass.h"
-#include "AST/ASTClassVar.h"
-#include "AST/ASTClassFunction.h"
+#include "AST/ASTClassAttribute.h"
+#include "AST/ASTClassMethod.h"
 
 #include "llvm/ADT/StringMap.h"
 

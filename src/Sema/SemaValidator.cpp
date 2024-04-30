@@ -12,13 +12,13 @@
 #include "AST/ASTContext.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTNode.h"
-#include "AST/ASTImport.h"
 #include "AST/ASTClass.h"
+#include "AST/ASTEnum.h"
+#include "AST/ASTImport.h"
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTFunctionBase.h"
 #include "AST/ASTParam.h"
 #include "AST/ASTBlock.h"
-#include "AST/ASTVarRef.h"
 #include "Basic/Diagnostic.h"
 
 using namespace fly;
@@ -242,4 +242,75 @@ bool SemaValidator::CheckClassInheritance(ASTClassType *FromType, ASTClassType *
         }
     }
     return false;
+}
+
+void SemaValidator::CheckCreateNode(const std::string &Name) {
+    if (Name.empty()) {
+        S.Diag(diag::err_sema_node_name_empty);
+    }
+}
+
+void SemaValidator::CheckCreateNameSpace(const SourceLocation &Loc, llvm::StringRef Name) {
+    if (Name.empty()) {
+        S.Diag(Loc, diag::err_sema_namespace_empty);
+    }
+}
+
+void SemaValidator::CheckCreateIdentifier(const SourceLocation &Loc,llvm::StringRef Name) {
+    if (Name.empty()) {
+        S.Diag(Loc, diag::err_sema_identifier_empty);
+    }
+}
+
+void SemaValidator::CheckCreateImport(const SourceLocation &Loc, StringRef Name) {
+
+}
+
+void SemaValidator::CheckCreateAlias(const SourceLocation &Loc, StringRef Name) {
+
+}
+
+void
+SemaValidator::CheckCreateGlobalVar(const SourceLocation &Loc, ASTType *Type, const StringRef Name, ASTScopes *Scopes) {
+
+}
+
+void
+SemaValidator::CheckCreateFunction(const SourceLocation &Loc, ASTType *Type, const StringRef Name, ASTScopes *Scopes) {
+
+}
+
+void SemaValidator::CheckCreateClass(const SourceLocation &Loc, StringRef Name, ASTClassKind ClassKind,
+                                     ASTScopes *Scopes, SmallVector<ASTClassType *, 4> &ClassTypes) {
+
+}
+
+void SemaValidator::CheckCreateClassVar(const SourceLocation &Loc, StringRef Name, ASTType *Type, ASTScopes *Scopes) {
+
+}
+
+void SemaValidator::CheckCreateClassConstructor(const SourceLocation &Loc, ASTScopes *Scopes) {
+
+}
+
+void
+SemaValidator::CheckCreateClassMethod(const SourceLocation &Loc, ASTType *Type, StringRef Name, ASTScopes *Scopes) {
+
+}
+
+void SemaValidator::CheckCreateEnum(const SourceLocation &Loc, const StringRef Name, ASTScopes *Scopes,
+                                    SmallVector<ASTEnumType *, 4> EnumTypes) {
+
+}
+
+void SemaValidator::CheckCreateEnumEntry(const SourceLocation &Loc, StringRef Name) {
+
+}
+
+void SemaValidator::CheckCreateParam(const SourceLocation &Loc, ASTType *Type, StringRef Name, ASTScopes *Scopes) {
+
+}
+
+void SemaValidator::CheckCreateLocalVar(const SourceLocation &Loc, ASTType *Type, StringRef Name, ASTScopes *Scopes) {
+
 }

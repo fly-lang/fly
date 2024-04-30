@@ -22,15 +22,14 @@ namespace fly {
 
         ASTTopDefKind TopDefKind = ASTTopDefKind::DEF_GLOBALVAR;
 
-        ASTNode *Node;
+        ASTNode *Node = nullptr;
 
         ASTVarStmt *Init = nullptr;
 
         // Code Generator
         CodeGenGlobalVar *CodeGen = nullptr;
 
-        ASTGlobalVar(const SourceLocation &Loc, ASTNode *Node, ASTType *Type, llvm::StringRef Name,
-                     ASTScopes *Scopes);
+        ASTGlobalVar(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes);
 
     public:
 

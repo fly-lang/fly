@@ -24,13 +24,13 @@ namespace fly {
     class ASTIdentity;
     class ASTFunction;
     class ASTImport;
+    class ASTIdentityType;
 
     class ASTNameSpace : public ASTIdentifier {
 
         friend class Sema;
         friend class SemaResolver;
         friend class SemaBuilder;
-        friend class Sys;
 
         // The Context
         ASTContext* Context = nullptr;
@@ -55,6 +55,9 @@ namespace fly {
         // Classes or Enums
         llvm::StringMap<ASTIdentity *> Identities;
 
+        // Identity Types
+        llvm::StringMap<ASTIdentityType *> IdentityTypes;
+
         ASTNameSpace(const SourceLocation &Loc, llvm::StringRef Name, ASTContext *Context, bool ExternalLib = false);
 
     public:
@@ -72,6 +75,8 @@ namespace fly {
         const llvm::StringMap<ASTGlobalVar *> &getGlobalVars() const;
 
         const llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> &getFunctions() const;
+
+        const llvm::StringMap<ASTIdentityType *> &getIdentityTypes() const;
 
         std::string str() const override;
     };

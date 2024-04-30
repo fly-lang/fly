@@ -14,8 +14,8 @@
 
 using namespace fly;
 
-ASTArg::ASTArg(ASTCall *Call, ASTExpr *Expr) :
-        ASTBase(Expr->getLocation()), Expr(Expr), Call(Call), Index(0) {
+ASTArg::ASTArg(ASTExpr *Expr) :
+        ASTBase(Expr->getLocation()), Expr(Expr), Index(0) {
 
 }
 
@@ -47,7 +47,7 @@ ASTCall::ASTCall(const SourceLocation &Loc, llvm::StringRef Name) : ASTIdentifie
 
 }
 
-ASTCall::ASTCall(ASTFunctionBase *Function) : Def(Function), ASTIdentifier(SourceLocation(), Function->getName(), ASTIdentifierKind::REF_CALL) {
+ASTCall::ASTCall(ASTFunctionBase *Function) : Def(Function), ASTIdentifier(SourceLocation(), llvm::StringRef(), ASTIdentifierKind::REF_CALL) {
 
 }
 

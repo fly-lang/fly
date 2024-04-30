@@ -12,13 +12,13 @@
 #include "CodeGen/CodeGenClass.h"
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
-#include "AST/ASTClassVar.h"
+#include "AST/ASTClassAttribute.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTType.h"
 
 using namespace fly;
 
-CodeGenClassVar::CodeGenClassVar(CodeGenModule *CGM, ASTClassVar *Var, llvm::Type *ClassType, uint32_t Index) :
+CodeGenClassVar::CodeGenClassVar(CodeGenModule *CGM, ASTClassAttribute *Var, llvm::Type *ClassType, uint32_t Index) :
         CGM(CGM), Var(Var), ClassType(ClassType), Index(llvm::ConstantInt::get(CGM->Int32Ty, Index)),
         Zero(llvm::ConstantInt::get(CGM->Int32Ty, 0)) {
 }

@@ -22,13 +22,13 @@ namespace fly {
 
     class CodeGenModule;
     class CodeGenClass;
-    class ASTClassFunction;
+    class ASTClassMethod;
 
     class CodeGenClassFunction : public CodeGenFunctionBase {
 
         friend class CodeGenClass;
 
-        CodeGenClassFunction(CodeGenModule *CGM, ASTClassFunction *AST, llvm::PointerType *TypePtr = nullptr);
+        CodeGenClassFunction(CodeGenModule *CGM, ASTClassMethod *AST, llvm::PointerType *TypePtr = nullptr);
 
     public:
 

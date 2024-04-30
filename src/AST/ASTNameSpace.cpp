@@ -47,3 +47,7 @@ std::string ASTNameSpace::str() const {
            Attr("Name", Name).
            End();
 }
+
+const llvm::StringMap<ASTIdentityType *> &ASTNameSpace::getIdentityTypes() const {
+    return IdentityTypes;
+}

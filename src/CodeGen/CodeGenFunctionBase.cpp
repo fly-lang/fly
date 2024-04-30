@@ -19,7 +19,7 @@
 #include "AST/ASTCall.h"
 #include "AST/ASTType.h"
 #include "AST/ASTIdentityType.h"
-#include "AST/ASTClassFunction.h"
+#include "AST/ASTClassMethod.h"
 #include "Basic/Debug.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"

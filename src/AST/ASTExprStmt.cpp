@@ -11,13 +11,13 @@
 
 using namespace fly;
 
-ASTExprStmt::ASTExprStmt(ASTStmt *Parent, const SourceLocation &Loc) :
-            ASTStmt(Parent, Loc, ASTStmtKind::STMT_EXPR) {
+ASTExprStmt::ASTExprStmt(const SourceLocation &Loc) :
+            ASTStmt(Loc, ASTStmtKind::STMT_EXPR) {
 
 }
 
-ASTExprStmt::ASTExprStmt(ASTStmt *Parent, const SourceLocation &Loc, ASTStmtKind Kind) :
-            ASTStmt(Parent, Loc, Kind) {
+ASTExprStmt::ASTExprStmt(const SourceLocation &Loc, ASTStmtKind Kind) :
+            ASTStmt(Loc, Kind) {
 
 }
 

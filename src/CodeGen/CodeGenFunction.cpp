@@ -86,6 +86,6 @@ void CodeGenFunction::GenBody() {
 }
 
 bool CodeGenFunction::isMainFunction(ASTFunctionBase *FunctionBase) {
-    return FunctionBase->getKind() == ASTFunctionKind::FUNCTION && FunctionBase->getName() == StringRef("main")
+    return FunctionBase->getKind() == ASTFunctionKind::FUNCTION && ((ASTFunction *) FunctionBase)->getName() == StringRef("main")
         && FunctionBase->getType()->isVoid();
 }

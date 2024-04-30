@@ -12,14 +12,13 @@
 
 using namespace fly;
 
-ASTFunction::ASTFunction(const SourceLocation &Loc, ASTNode *Node, ASTType *ReturnType, llvm::StringRef Name,
-                         ASTScopes *Scopes) :
-        ASTFunctionBase(Loc, ASTFunctionKind::FUNCTION, ReturnType, Name, Scopes), Node(Node) {
+ASTFunction::ASTFunction(const SourceLocation &Loc, ASTType *ReturnType, llvm::StringRef Name, ASTScopes *Scopes) :
+        ASTFunctionBase(Loc, ASTFunctionKind::FUNCTION, ReturnType, Scopes), Name(Name) {
 
 }
 
 llvm::StringRef ASTFunction::getName() const {
-    return ASTFunctionBase::getName();
+    return Name;
 }
 
 ASTTopDefKind ASTFunction::getTopDefKind() const {

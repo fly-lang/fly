@@ -12,8 +12,8 @@
 
 using namespace fly;
 
-ASTVarStmt::ASTVarStmt(ASTBlock *Parent, const SourceLocation &Loc, ASTVarRef *VarRef) :
-        ASTStmt(Parent, Loc, ASTStmtKind::STMT_VAR), VarRef(VarRef) {
+ASTVarStmt::ASTVarStmt(const SourceLocation &Loc, ASTVarRef *VarRef) :
+        ASTStmt(Loc, ASTStmtKind::STMT_VAR), VarRef(VarRef) {
 
 }
 

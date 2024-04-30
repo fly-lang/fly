@@ -344,6 +344,7 @@ DIAG(err_parse_new_instance, CLASS_ERROR, (unsigned)diag::Severity::Error, "new 
 DIAG(warn_empty_code, CLASS_WARNING, (unsigned)diag::Severity::Warning, "code empty", 0, SFINAE_Suppress, false, false, 1)
 
 // AST
+DIAG(err_sema_identifier_empty, CLASS_ERROR, (unsigned)diag::Severity::Error, "identifier name is empty", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_unresolved_import, CLASS_ERROR, (unsigned)diag::Severity::Error, "unresolved import", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_import_conflict_namespace, CLASS_ERROR, (unsigned)diag::Severity::Error, "import name '%0' conflicts with namespace", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_alias_conflict_namespace, CLASS_ERROR, (unsigned)diag::Severity::Error, "import alias '%0' conflicts with namespace", 0, SFINAE_Suppress, false, true, 0)
@@ -365,6 +366,8 @@ DIAG(err_expr_type_miss, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot r
 DIAG(err_var_assign_empty, CLASS_ERROR, (unsigned)diag::Severity::Error, "var assignment '%0' is empty", 0, SFINAE_Suppress, false, true, 0)
 
 // Sema
+DIAG(err_sema_node_name_empty, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid global var value", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_namespace_empty, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid global var value", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_invalid_globalvar_value, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid global var value", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_generic, CLASS_ERROR, (unsigned)diag::Severity::Error, "semantic error", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_macro_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid macro type '%0'", 0, SFINAE_Suppress, false, true, 0)

@@ -15,15 +15,11 @@
 
 using namespace fly;
 
-ASTEnum::ASTEnum(ASTNode *Node, ASTScopes *Scopes, const SourceLocation &Loc, llvm::StringRef Name,
+ASTEnum::ASTEnum(const SourceLocation &Loc, llvm::StringRef Name, ASTScopes *Scopes,
                    llvm::SmallVector<ASTEnumType *, 4> &ExtClasses) :
-        ASTIdentity(Node, ASTTopDefKind::DEF_ENUM, Scopes, Loc, Name),
+        ASTIdentity(ASTTopDefKind::DEF_ENUM, Scopes, Loc, Name),
         SuperClasses(ExtClasses) {
 
-}
-
-ASTEnumType *ASTEnum::getType() {
-    return Type;
 }
 
 llvm::StringMap<ASTEnumEntry *> ASTEnum::getVars() const {

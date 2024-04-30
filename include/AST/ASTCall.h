@@ -87,7 +87,7 @@ namespace fly {
 
         ASTCall *Call = nullptr;
 
-        ASTArg(ASTCall *Call, ASTExpr *Expr);
+        ASTArg(ASTExpr *Expr);
 
     public:
 

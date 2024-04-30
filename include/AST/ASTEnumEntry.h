@@ -16,21 +16,24 @@
 namespace fly {
 
     class ASTEnum;
+    class ASTEnumType;
 
     class ASTEnumEntry : public ASTVar {
 
         friend class SemaBuilder;
         friend class SemaResolver;
 
-        ASTEnum *Enum;
+        llvm::StringRef Name;
 
-        uint32_t Index = 0;
+        uint32_t Index;
+
+        ASTEnum *Enum = nullptr;
 
         llvm::StringRef Comment;
 
         CodeGenEnumEntry *CodeGen = nullptr;
 
-        ASTEnumEntry(ASTEnum *Enum, const SourceLocation &Loc, llvm::StringRef Name);
+        ASTEnumEntry(const SourceLocation &Loc, ASTEnumType *Type, llvm::StringRef Name);
 
     public:
 
@@ -38,11 +41,11 @@ namespace fly {
 
         uint32_t getIndex() const;
 
-        CodeGenEnumEntry *getCodeGen() const override;
+        CodeGenEnumEntry *getCodeGen() const;
 
         void setCodeGen(CodeGenEnumEntry *CGE);
 
-        std::string print() const override;
+        std::string print() const;
 
         std::string str() const override;
     };

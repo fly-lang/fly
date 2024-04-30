@@ -15,8 +15,8 @@ namespace fly {
 
     class ASTClass;
     class ASTScopes;
-    class ASTClassVar;
-    class ASTClassFunction;
+    class ASTClassAttribute;
+    class ASTClassMethod;
     class ASTScopes;
     class Parser;
 

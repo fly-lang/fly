@@ -20,13 +20,13 @@ using namespace fly;
  * @param Top
  * @param Parent
  */
-ASTBlock::ASTBlock(ASTBlock *Parent, const SourceLocation &Loc) :
-        ASTBlock(Parent, Loc, ASTBlockKind::BLOCK) {
+ASTBlock::ASTBlock(const SourceLocation &Loc) :
+        ASTBlock(Loc, ASTBlockKind::BLOCK) {
 
 }
 
-ASTBlock::ASTBlock(ASTBlock *Parent, const SourceLocation &Loc, ASTBlockKind Kind) :
-        ASTStmt(Parent, Loc, ASTStmtKind::STMT_BLOCK), BlockKind(Kind) {
+ASTBlock::ASTBlock(const SourceLocation &Loc, ASTBlockKind Kind) :
+        ASTStmt(Loc, ASTStmtKind::STMT_BLOCK), BlockKind(Kind) {
 }
 
 ASTBlockKind ASTBlock::getBlockKind() const {
@@ -74,8 +74,8 @@ std::string ASTBlock::str() const {
  * @param Loc
  * @param Parent
  */
-ASTBreakStmt::ASTBreakStmt(ASTBlock *Parent, const SourceLocation &Loc) :
-        ASTStmt(Parent, Loc, ASTStmtKind::STMT_BREAK) {
+ASTBreakStmt::ASTBreakStmt(const SourceLocation &Loc) :
+        ASTStmt(Loc, ASTStmtKind::STMT_BREAK) {
 
 }
 /**
@@ -91,8 +91,8 @@ std::string ASTBreakStmt::str() const {
  * @param Loc
  * @param Parent
  */
-ASTContinueStmt::ASTContinueStmt(ASTBlock *Parent, const SourceLocation &Loc) :
-        ASTStmt(Parent, Loc, ASTStmtKind::STMT_CONTINUE) {
+ASTContinueStmt::ASTContinueStmt(const SourceLocation &Loc) :
+        ASTStmt(Loc, ASTStmtKind::STMT_CONTINUE) {
 
 }
 

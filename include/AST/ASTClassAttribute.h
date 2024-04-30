@@ -21,7 +21,7 @@ namespace fly {
     class ASTValue;
     class ASTVar;
 
-    class ASTClassVar : public ASTVar {
+    class ASTClassAttribute : public ASTVar {
 
         friend class SemaBuilder;
         friend class SemaResolver;
@@ -32,8 +32,7 @@ namespace fly {
 
         CodeGenVarBase *CodeGen = nullptr;
 
-        ASTClassVar(const SourceLocation &Loc, ASTClass *Class, ASTScopes *Scopes, ASTType *Type,
-                    llvm::StringRef Name);
+        ASTClassAttribute(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes);
 
     public:
 

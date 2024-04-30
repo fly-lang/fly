@@ -34,7 +34,7 @@ namespace fly {
         // The Else Block
         ASTElseBlock *ElseBlock = nullptr;
 
-        ASTIfBlock(ASTBlock *Parent, const SourceLocation &Loc);
+        explicit ASTIfBlock(const SourceLocation &Loc);
 
     public:
 

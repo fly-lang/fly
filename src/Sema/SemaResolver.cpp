@@ -12,9 +12,9 @@
 #include "Sema/SemaBuilder.h"
 #include "AST/ASTContext.h"
 #include "AST/ASTNameSpace.h"
-#include "AST/ASTClassFunction.h"
+#include "AST/ASTClassMethod.h"
 #include "AST/ASTClass.h"
-#include "AST/ASTClassVar.h"
+#include "AST/ASTClassAttribute.h"
 #include "AST/ASTEnum.h"
 #include "AST/ASTEnumEntry.h"
 #include "AST/ASTType.h"
@@ -136,8 +136,8 @@ bool SemaResolver::ResolveIdentities(ASTNode *Node) {
 
             // Resolve Super Classes
             if (!Class->SuperClasses.empty()) {
-                llvm::StringMap<std::map<uint64_t, llvm::SmallVector<ASTClassFunction *, 4>>> SuperMethods;
-                llvm::StringMap<std::map<uint64_t, llvm::SmallVector<ASTClassFunction *, 4>>> ISuperMethods;
+                llvm::StringMap<std::map<uint64_t, llvm::SmallVector<ASTClassMethod *, 4>>> SuperMethods;
+                llvm::StringMap<std::map<uint64_t, llvm::SmallVector<ASTClassMethod *, 4>>> ISuperMethods;
                 for (ASTIdentityType *SuperClassType: Class->SuperClasses) {
                     if (ResolveIdentityType(Node, SuperClassType)) {
                         ASTClass *SuperClass = (ASTClass *) SuperClassType->getDef();
@@ -153,10 +153,10 @@ bool SemaResolver::ResolveIdentities(ASTNode *Node) {
 
                             // Add Vars to the Struct
                             for (auto &EntryVar: SuperClass->getVars()) {
-                                ASTClassVar *&SuperVar = EntryVar.getValue();
+                                ASTClassAttribute *&SuperVar = EntryVar.getValue();
 
                                 // Check Var already exists and type conflicts in Super Vars
-                                ASTClassVar *ClassVar = Class->Vars.lookup(EntryVar.getKey());
+                                ASTClassAttribute *ClassVar = Class->Vars.lookup(EntryVar.getKey());
                                 if (ClassVar == nullptr) {
                                     Class->Vars.insert(std::make_pair(SuperVar->getName(), SuperVar));
                                 } else if (SuperVar->getType() != ClassVar->getType()) {
@@ -182,17 +182,16 @@ bool SemaResolver::ResolveIdentities(ASTNode *Node) {
                                 const auto &Map = EntryMap.getValue();
                                 auto MapIt = Map.begin();
                                 while (MapIt != Map.end()) {
-                                    for (ASTClassFunction *SuperMethod: MapIt->second) {
+                                    for (ASTClassMethod *SuperMethod: MapIt->second) {
                                         if (SuperClass->getClassKind() == ASTClassKind::INTERFACE) {
                                             S.Builder->InsertFunction(ISuperMethods, SuperMethod);
                                         } else {
                                             // Insert methods in the Super and if is ok also in the base Class
                                             if (S.Builder->InsertFunction(SuperMethods, SuperMethod)) {
-                                                ASTClassFunction *M = S.Builder->CreateClassMethod(Class,
-                                                                                                   SuperMethod->getLocation(),
-                                                                                                   SuperMethod->getType(),
-                                                                                                   SuperMethod->getName(),
-                                                                                                   SuperMethod->getScopes());
+                                                ASTClassMethod *M = S.Builder->CreateClassMethod(SuperMethod->getLocation(),
+                                                                                                 SuperMethod->getType(),
+                                                                                                 SuperMethod->getName(),
+                                                                                                 SuperMethod->getScopes());
                                                 M->Params = SuperMethod->Params;
                                                 M->Body = SuperMethod->Body;
                                                 M->DerivedClass = Class;
@@ -223,7 +222,7 @@ bool SemaResolver::ResolveIdentities(ASTNode *Node) {
                     const auto &Map = EntryMap.getValue();
                     auto MapIt = Map.begin();
                     while (MapIt != Map.end()) {
-                        for (ASTClassFunction *ISuperMethod: MapIt->second) {
+                        for (ASTClassMethod *ISuperMethod: MapIt->second) {
                             if (!S.Builder->ContainsFunction(Class->Methods, ISuperMethod)) {
                                 S.Diag(ISuperMethod->getLocation(),
                                        diag::err_sema_method_not_implemented);
@@ -489,9 +488,9 @@ bool SemaResolver::ResolveParentIdentifier(ASTBlock *Block, ASTIdentifier *&Iden
         }
 
         // Check if Identifier is an IdentityType
-        ASTIdentity *Identity = S.FindIdentity(Identifier->getName(), Node->getNameSpace());
-        if (Identity) {
-            Identifier = Identity->getType();
+        ASTIdentityType *IdentityType = S.FindIdentityType(Identifier->getName(), Node->getNameSpace());
+        if (IdentityType) {
+            Identifier = IdentityType; // Take From Types
             return true;
         }
 
@@ -510,12 +509,18 @@ bool SemaResolver::ResolveIdentityType(ASTNode *Node, ASTIdentityType *IdentityT
     if (IdentityType->getDef() == nullptr) {
 
         if (IdentityType->getParent() == nullptr) {
-            IdentityType->Def = S.FindIdentity(IdentityType->getName(), Node->getNameSpace());
-            IdentityType->IdentityKind = IdentityType->Def->getType()->getIdentityKind();
+            ASTIdentityType *Type = S.FindIdentityType(IdentityType->getName(), Node->getNameSpace());
+            if (Type) {
+                IdentityType->Def = Type->getDef();
+                IdentityType->IdentityTypeKind = Type->getIdentityTypeKind();
+            }
         } else if (ResolveNameSpace(Node,IdentityType->Parent)) {
             ASTNameSpace *NameSpace = (ASTNameSpace *) IdentityType->getParent();
-            IdentityType->Def = S.FindIdentity(IdentityType->getName(), NameSpace);
-            IdentityType->IdentityKind = IdentityType->Def->getType()->getIdentityKind();
+            ASTIdentityType *Type = S.FindIdentityType(IdentityType->getName(), NameSpace);
+            if (Type) {
+                IdentityType->Def = Type->getDef();
+                IdentityType->IdentityTypeKind = Type->getIdentityTypeKind();
+            }
         } else {
             S.Diag(IdentityType->getLocation(), diag::err_sema_resolve_identifier);
             return false;
@@ -567,8 +572,8 @@ ASTVar *SemaResolver::ResolveVarRefNoParent(ASTBlock *Block, llvm::StringRef Nam
         const auto &Node = S.FindNode(Top);
 
         // Search for Class Vars if Var is Class Method
-        if (Top->getKind() == ASTFunctionKind::CLASS_FUNCTION)
-            Var = ((ASTClassFunction *) Top)->getClass()->Vars.lookup(Name);
+        if (Top->getKind() == ASTFunctionKind::CLASS_METHOD)
+            Var = ((ASTClassMethod *) Top)->getClass()->Vars.lookup(Name);
 
         // Search for GlobalVars
         if (Var == nullptr)
@@ -845,9 +850,15 @@ bool SemaResolver::ResolveExpr(ASTBlock *Block, ASTExpr *Expr) {
         case ASTExprKind::EXPR_CALL: {
             ASTCall *Call = ((ASTCallExpr *)Expr)->getCall();
             if (ResolveCall(Block, Call)) {
-                Expr->Type = Call->getCallKind() == ASTCallKind::CALL_FUNCTION ?
-                        Call->Def->ReturnType :
-                        ((ASTClassFunction *) Call->Def)->getClass()->getType();
+                switch (Call->getCallKind()) {
+
+                    case ASTCallKind::CALL_FUNCTION:
+                        Expr->Type = Call->Def->ReturnType;
+                        break;
+                    case ASTCallKind::CALL_CONSTRUCTOR:
+                        Expr->Type = ((ASTClassMethod *) Call->Def)->getType();
+                        break;
+                }
                 Success = true;
                 break;
             } else {

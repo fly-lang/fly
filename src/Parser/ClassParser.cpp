@@ -12,9 +12,9 @@
 #include "Parser/ClassParser.h"
 #include "AST/ASTBlock.h"
 #include "AST/ASTClass.h"
-#include "AST/ASTClassVar.h"
+#include "AST/ASTClassAttribute.h"
 #include "AST/ASTType.h"
-#include "AST/ASTClassFunction.h"
+#include "AST/ASTClassMethod.h"
 #include "AST/ASTVarStmt.h"
 #include "Sema/SemaBuilder.h"
 #include "Basic/Debug.h"
@@ -63,7 +63,7 @@ ClassParser::ClassParser(Parser *P, ASTScopes *ClassScopes) : P(P) {
     if (P->isBlockStart()) {
         P->ConsumeBrace(BraceCount);
 
-        Class = P->Builder.CreateClass(P->Node, ClassKind, ClassScopes, ClassLoc, ClassName, SuperClasses);
+        Class = P->Builder.CreateClass(ClassLoc, ClassKind, ClassName, ClassScopes, SuperClasses);
         bool Continue;
         do {
 
@@ -130,7 +130,7 @@ bool ClassParser::ParseField(ASTScopes *Scopes, ASTType *Type, const SourceLocat
         Comment = P->BlockComment;
     }
 
-    ASTClassVar *ClassVar = P->Builder.CreateClassVar(Class, Loc, Type, Name, Scopes);
+    ASTClassAttribute *ClassVar = P->Builder.CreateClassAttribute(Loc, Type, Name, Scopes);
     if (ClassVar) {
         // Parsing =
         if (P->Tok.is(tok::equal)) {
@@ -159,17 +159,17 @@ bool ClassParser::ParseMethod(ASTScopes *Scopes, ASTType *Type, const SourceLoca
         Comment = P->BlockComment;
     }
 
-    ASTClassFunction *Method;
+    ASTClassMethod *Method;
     if (Name == Class->getName()) {
         if (!Type) {
-            Method = P->Builder.CreateClassConstructor(Class, Loc, Scopes);
+            Method = P->Builder.CreateClassConstructor(Loc, Scopes);
             Success = FunctionParser::Parse(P, Method) && P->Builder.AddClassConstructor(Method);
         } else {
             P->Diag(diag::err_parser_invalid_type);
             Success = false;
         }
     } else {
-        Method = P->Builder.CreateClassMethod(Class, Loc, Type, Name, Scopes);
+        Method = P->Builder.CreateClassMethod(Loc, Type, Name, Scopes);
         Success = FunctionParser::Parse(P, Method) && P->Builder.AddClassMethod(Method);
     }
 

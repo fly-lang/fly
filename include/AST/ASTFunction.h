@@ -37,23 +37,25 @@ namespace fly {
 
         ASTTopDefKind TopDefKind = ASTTopDefKind::DEF_FUNCTION;
 
-        ASTNode *Node;
+        // Function Name
+        llvm::StringRef Name;
+
+        ASTNode *Node = nullptr;
 
         // Populated during codegen phase
         CodeGenFunction *CodeGen = nullptr;
 
-        ASTFunction(const SourceLocation &Loc, ASTNode *Node, ASTType *ReturnType, llvm::StringRef Name,
-                    ASTScopes *Scopes);
+        ASTFunction(const SourceLocation &Loc, ASTType *ReturnType, llvm::StringRef Name, ASTScopes *Scopes);
 
     public:
+
+        llvm::StringRef getName() const override;
 
         ASTTopDefKind getTopDefKind() const override;
 
         ASTNode *getNode() const override;
 
         ASTNameSpace *getNameSpace() const override;
-
-        llvm::StringRef getName() const override;
 
         CodeGenFunction *getCodeGen() const override;
 

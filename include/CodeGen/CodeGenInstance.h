@@ -18,8 +18,8 @@ namespace fly {
     class CodeGenModule;
     class CodeGenClass;
     class ASTClass;
-    class ASTClassVar;
-    class ASTClassFunction;
+    class ASTClassAttribute;
+    class ASTClassMethod;
     class CodeGenClassVar;
     class CodeGenClassFunction;
 

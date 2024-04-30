@@ -25,7 +25,7 @@ namespace fly {
         ASTVarRef *VarRef = nullptr;
 
     public:
-        ASTDeleteStmt(ASTBlock *Parent, const SourceLocation &Loc, ASTVarRef *VarRef);
+        ASTDeleteStmt(const SourceLocation &Loc, ASTVarRef *VarRef);
 
         ASTVarRef *getVarRef();
 

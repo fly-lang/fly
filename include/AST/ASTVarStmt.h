@@ -31,7 +31,7 @@ namespace fly {
 
         ASTBlock *Block = nullptr;
 
-        ASTVarStmt(ASTBlock *Parent, const SourceLocation &Loc, ASTVarRef *VarRef);
+        ASTVarStmt(const SourceLocation &Loc, ASTVarRef *VarRef);
 
     public:
 

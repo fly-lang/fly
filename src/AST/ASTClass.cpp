@@ -9,19 +9,14 @@
 
 #include "AST/ASTClass.h"
 #include "AST/ASTNameSpace.h"
-#include "AST/ASTClassVar.h"
-#include "AST/ASTClassFunction.h"
+#include "AST/ASTClassAttribute.h"
+#include "AST/ASTClassMethod.h"
 
 using namespace fly;
 
-ASTClass::ASTClass(ASTNode *Node, ASTClassKind ClassKind, ASTScopes *Scopes,
-                   const SourceLocation &Loc, llvm::StringRef Name) :
-        ASTIdentity(Node, ASTTopDefKind::DEF_CLASS, Scopes, Loc, Name), ClassKind(ClassKind) {
+ASTClass::ASTClass(ASTClassKind ClassKind, ASTScopes *Scopes, const SourceLocation &Loc, llvm::StringRef Name) :
+        ASTIdentity(ASTTopDefKind::DEF_CLASS, Scopes, Loc, Name), ClassKind(ClassKind) {
 
-}
-
-ASTClassType *ASTClass::getType() {
-    return Type;
 }
 
 ASTClassKind ASTClass::getClassKind() const {
@@ -32,15 +27,15 @@ llvm::SmallVector<ASTClassType *, 4> ASTClass::getSuperClasses() const {
     return SuperClasses;
 }
 
-llvm::StringMap<ASTClassVar *> ASTClass::getVars() const {
+llvm::StringMap<ASTClassAttribute *> ASTClass::getVars() const {
     return Vars;
 }
 
-std::map <uint64_t,llvm::SmallVector <ASTClassFunction *, 4>> ASTClass::getConstructors() const {
+std::map <uint64_t,llvm::SmallVector <ASTClassMethod *, 4>> ASTClass::getConstructors() const {
     return Constructors;
 }
 
-llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTClassFunction *, 4>>> ASTClass::getMethods() const {
+llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTClassMethod *, 4>>> ASTClass::getMethods() const {
     return Methods;
 }
 
@@ -60,13 +55,13 @@ std::string ASTClass::print() const {
 std::string ASTClass::str() const {
 
     // Fields to string
-    llvm::SmallVector<ASTClassVar *, 8> VarList;
+    llvm::SmallVector<ASTClassAttribute *, 8> VarList;
     for (auto &Field : Vars) {
         VarList.push_back(Field.second);
     }
 
     // Methods to string
-    llvm::SmallVector<ASTClassFunction *, 8> MethodList;
+    llvm::SmallVector<ASTClassMethod *, 8> MethodList;
     for (auto &MapEntry : Methods) {
         for (auto &Vector : MapEntry.second) {
             for (auto &Method :  Vector.second) {

@@ -117,13 +117,13 @@ void CodeGenError::Store(ASTExpr *Expr) {
 
     } else if (Expr->getType()->isIdentity()) {
         ASTIdentity * Identity = (ASTIdentity *) Expr->getType();
-        if (Identity->getType()->getIdentityKind() == ASTIdentityTypeKind::TYPE_ENUM) {
+        if (Identity->getTopDefKind() == ASTTopDefKind::DEF_ENUM) {
             // Error Type: 3=enum
             TypeValue = llvm::ConstantInt::get(CGM->Int32Ty, 3);
 
             // Error Value: PtrVal
             PtrValue = CGM->GenExpr(Expr); // FIXME need to store enum type and enum value
-        } else if (Identity->getType()->getIdentityKind() == ASTIdentityTypeKind::TYPE_CLASS) {
+        } else if (Identity->getTopDefKind() == ASTTopDefKind::DEF_CLASS) {
             // Error Type: 4=class
             TypeValue = llvm::ConstantInt::get(CGM->Int32Ty, 4);
 

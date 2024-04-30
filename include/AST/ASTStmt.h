@@ -38,15 +38,15 @@ namespace fly {
 
     protected:
 
+        ASTStmtKind Kind;
+
         ASTStmt *Parent = nullptr;
 
         ASTFunctionBase *Top = nullptr;
 
-        ASTStmtKind Kind;
-
         ASTVar *ErrorHandler = nullptr;
 
-        ASTStmt(ASTStmt *Parent, const SourceLocation &Loc, ASTStmtKind Kind);
+        ASTStmt(const SourceLocation &Loc, ASTStmtKind Kind);
 
     public:
 

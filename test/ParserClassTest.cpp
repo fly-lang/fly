@@ -19,9 +19,9 @@
 #include "AST/ASTVarRef.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTEnum.h"
-#include "AST/ASTClassVar.h"
+#include "AST/ASTClassAttribute.h"
 #include "AST/ASTEnumEntry.h"
-#include "AST/ASTClassFunction.h"
+#include "AST/ASTClassMethod.h"
 
 namespace {
 

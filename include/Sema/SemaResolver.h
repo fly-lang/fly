@@ -30,7 +30,7 @@ namespace fly {
     class ASTNameSpace;
     class ASTNode;
     class ASTClass;
-    class ASTClassFunction;
+    class ASTClassMethod;
     class ASTStmt;
     class ASTBlock;
     class ASTLocalVar;

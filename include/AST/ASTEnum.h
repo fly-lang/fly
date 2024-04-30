@@ -37,13 +37,10 @@ namespace fly {
 
         CodeGenEnum *CodeGen = nullptr;
 
-        ASTEnum(ASTNode *Node, ASTScopes *Scopes,
-                 const SourceLocation &Loc, llvm::StringRef Name,
+        ASTEnum(const SourceLocation &Loc, llvm::StringRef Name, ASTScopes *Scopes,
                  llvm::SmallVector<ASTEnumType *, 4> &ExtClasses);
 
     public:
-
-        ASTEnumType *getType() override;
 
         llvm::StringMap<ASTEnumEntry *> getVars() const;
 

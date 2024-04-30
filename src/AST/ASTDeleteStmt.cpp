@@ -18,8 +18,8 @@ using namespace fly;
  * @param Loc
  * @param Parent
  */
-ASTDeleteStmt::ASTDeleteStmt(ASTBlock *Parent, const SourceLocation &Loc, ASTVarRef *VarRef) :
-        ASTStmt(Parent, Loc, ASTStmtKind::STMT_DELETE), VarRef(VarRef) {
+ASTDeleteStmt::ASTDeleteStmt(const SourceLocation &Loc, ASTVarRef *VarRef) :
+        ASTStmt(Loc, ASTStmtKind::STMT_DELETE), VarRef(VarRef) {
 
 }
 

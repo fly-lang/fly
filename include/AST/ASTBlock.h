@@ -67,9 +67,9 @@ namespace fly {
 
     protected:
 
-        ASTBlock(ASTBlock *Parent, const SourceLocation &Loc);
+        ASTBlock(const SourceLocation &Loc);
 
-        ASTBlock(ASTBlock *Parent, const SourceLocation &Loc, ASTBlockKind Kind);
+        ASTBlock(const SourceLocation &Loc, ASTBlockKind Kind);
 
     public:
 
@@ -92,7 +92,7 @@ namespace fly {
     class ASTBreakStmt : public ASTStmt {
 
     public:
-        ASTBreakStmt(ASTBlock *Parent, const SourceLocation &Loc);
+        explicit ASTBreakStmt(const SourceLocation &Loc);
 
         std::string str() const override;
     };
@@ -103,7 +103,7 @@ namespace fly {
     class ASTContinueStmt : public ASTStmt {
 
     public:
-        ASTContinueStmt(ASTBlock *Parent, const SourceLocation &Loc);
+        explicit ASTContinueStmt(const SourceLocation &Loc);
 
         std::string str() const override;
     };

@@ -11,8 +11,8 @@
 
 using namespace fly;
 
-ASTIfBlock::ASTIfBlock(ASTBlock *Parent, const SourceLocation &Loc) :
-        ASTBlock(Parent, Loc, ASTBlockKind::BLOCK_IF) {
+ASTIfBlock::ASTIfBlock(const SourceLocation &Loc) :
+        ASTBlock(Loc, ASTBlockKind::BLOCK_IF) {
 
 }
 

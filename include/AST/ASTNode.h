@@ -63,7 +63,9 @@ namespace fly {
         // All invoked Calls
         llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> ExternalFunctions;
 
-        ASTIdentity *Identity = nullptr;
+        llvm::StringMap<ASTIdentity *> ExternalIdentities;
+
+        ASTIdentity *Identity = nullptr; // TODO to Map
 
         ASTNode() = delete;
 

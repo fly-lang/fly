@@ -139,7 +139,7 @@ bool Parser::ParseNameSpace() {
     }
     FLY_DEBUG_MESSAGE("Parser", "ParseNameSpace", "NameSpace=" << NameSpace);
 
-    return Builder.AddNameSpace(NameSpace, Node);
+    return Builder.AddNameSpace(Node, NameSpace);
 }
 
 /**
@@ -285,7 +285,7 @@ bool Parser::ParseGlobalVarDef(ASTScopes *Scopes, ASTType *Type) {
     llvm::StringRef Name = Tok.getIdentifierInfo()->getName();
     SourceLocation Loc = ConsumeToken();
 
-    ASTGlobalVar *GlobalVar = Builder.CreateGlobalVar(Node, Loc, Type, Name, Scopes);
+    ASTGlobalVar *GlobalVar = Builder.CreateGlobalVar(Loc, Type, Name, Scopes);
 
     // Parsing =
     ASTExpr *Expr = nullptr;
@@ -301,7 +301,7 @@ bool Parser::ParseGlobalVarDef(ASTScopes *Scopes, ASTType *Type) {
         Diag(Tok.getLocation(), diag::err_invalid_gvar_value);
     }
 
-    return Builder.AddGlobalVar(GlobalVar, Value) &&
+    return Builder.AddGlobalVar(Node, GlobalVar, Value) &&
         Builder.AddComment(GlobalVar, Comment);
 }
 
@@ -327,7 +327,7 @@ bool Parser::ParseFunctionDef(ASTScopes *Scopes, ASTType *Type) {
     }
 
     const StringRef &Name = Tok.getIdentifierInfo()->getName();
-    ASTFunction *Function = Builder.CreateFunction(Node, ConsumeToken(), Type, Name, Scopes);
+    ASTFunction *Function = Builder.CreateFunction(ConsumeToken(), Type, Name, Scopes);
     if (FunctionParser::Parse(this, Function)) {
 
         // Error: body must be empty in header declaration
@@ -337,7 +337,7 @@ bool Parser::ParseFunctionDef(ASTScopes *Scopes, ASTType *Type) {
 
         BlockComment = StringRef();
         return Builder.AddComment(Function, Comment) &&
-            Builder.AddFunction(Function);
+            Builder.AddFunction(Node, Function);
     }
 
     return false;
@@ -361,7 +361,7 @@ bool Parser::ParseClassDef(ASTScopes *Scopes) {
 
     ASTClass *Class = ClassParser::Parse(this, Scopes);
     if (Class) {
-        return Builder.AddComment(Class, Comment) && Builder.AddIdentity(Class);
+        return Builder.AddComment(Class, Comment) && Builder.AddIdentity(Node, Class);
     }
 
     return false;
@@ -386,7 +386,7 @@ bool Parser::ParseEnumDef(ASTScopes *Scopes) {
 
     ASTEnum *Enum = EnumParser::Parse(this, Scopes);
     if (Enum) {
-        return Builder.AddComment(Enum, Comment) && Builder.AddIdentity(Enum);
+        return Builder.AddComment(Enum, Comment) && Builder.AddIdentity(Node, Enum);
     }
 
     return false;

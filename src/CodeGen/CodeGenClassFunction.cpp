@@ -14,15 +14,15 @@
 #include "CodeGen/CodeGenModule.h"
 #include "CodeGen/CodeGenError.h"
 #include "AST/ASTNode.h"
-#include "AST/ASTClassFunction.h"
-#include "AST/ASTClassVar.h"
+#include "AST/ASTClassMethod.h"
+#include "AST/ASTClassAttribute.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTClass.h"
 #include "Basic/Debug.h"
 
 using namespace fly;
 
-CodeGenClassFunction::CodeGenClassFunction(CodeGenModule *CGM, ASTClassFunction *AST, llvm::PointerType *TypePtr) : CodeGenFunctionBase(CGM, AST) {
+CodeGenClassFunction::CodeGenClassFunction(CodeGenModule *CGM, ASTClassMethod *AST, llvm::PointerType *TypePtr) : CodeGenFunctionBase(CGM, AST) {
     ASTClass *Class = AST->getClass();
 
     // Generate return type
@@ -39,13 +39,13 @@ CodeGenClassFunction::CodeGenClassFunction(CodeGenModule *CGM, ASTClassFunction 
     // Set LLVM Function Name %MODULE_CLASS_METHOD (if MODULE == default is empty)
     FnType = llvm::FunctionType::get(RetType, ParamTypes, AST->getEllipsis() != nullptr);
 
-    std::string Name = CodeGen::toIdentifier(getAST()->getName(), Class->getNameSpace()->getName(), Class->getName());
+    std::string Name = CodeGen::toIdentifier(AST->getName(), Class->getNameSpace()->getName(), Class->getName());
     Fn = llvm::Function::Create(FnType, llvm::GlobalValue::ExternalLinkage, Name, CGM->getModule());
 }
 
 void CodeGenClassFunction::GenBody() {
     FLY_DEBUG("CodeGenFunctionBase", "GenBody");
-    ASTClass *Class = ((ASTClassFunction *) AST)->getClass();
+    ASTClass *Class = ((ASTClassMethod *) AST)->getClass();
     Type *ClassType = Class->getCodeGen()->getTypePtr();
     setInsertPoint();
 
@@ -54,7 +54,7 @@ void CodeGenClassFunction::GenBody() {
         ErrorHandler = Fn->getArg(0);
 
     // Class Method (not static)
-    if (!((ASTClassFunction *) AST)->isStatic()) {
+    if (!((ASTClassMethod *) AST)->isStatic()) {
 
         //Alloca, Store, Load the second arg which is the instance
         llvm::Argument *ClassTypePtr = Class->getClassKind() == ASTClassKind::STRUCT ? Fn->getArg(0) : Fn->getArg(1);
@@ -65,7 +65,7 @@ void CodeGenClassFunction::GenBody() {
 
         // All Class Vars
         for (auto &Entry : Class->getVars()) {
-            ASTClassVar *Var = Entry.second;
+            ASTClassAttribute *Var = Entry.second;
 
             // Set CodeGen Class Instance
             CodeGenClassVar *CGVar = (CodeGenClassVar *) Var->getCodeGen();
@@ -73,7 +73,7 @@ void CodeGenClassFunction::GenBody() {
             CGVar->Init();
 
             // Save all default var values
-            if (((ASTClassFunction *) AST)->isConstructor()) {
+            if (((ASTClassMethod *) AST)->isConstructor()) {
 
                 // TODO execute PreConstructor
 //                llvm::Value *V = CGM->GenExpr(this, Var->getType(), Var->getExpr());

@@ -30,10 +30,9 @@ namespace fly {
     class CodeGenFunctionBase;
     class CodeGenVarBase;
 
-
     enum class ASTFunctionKind {
         FUNCTION,
-        CLASS_FUNCTION
+        CLASS_METHOD
     };
 
     class ASTFunctionBase : public ASTBase {
@@ -49,9 +48,6 @@ namespace fly {
         // Function return type
         ASTType *ReturnType = nullptr;
 
-        // Function Name
-        llvm::StringRef Name;
-
         ASTScopes * Scopes;
 
         llvm::SmallVector<ASTParam *, 8> Params;
@@ -65,16 +61,13 @@ namespace fly {
 
     protected:
 
-        ASTFunctionBase(const SourceLocation &Loc, ASTFunctionKind Kind, ASTType *ReturnType, llvm::StringRef Name,
-                        ASTScopes *Scopes);
+        ASTFunctionBase(const SourceLocation &Loc, ASTFunctionKind Kind, ASTType *ReturnType, ASTScopes *Scopes);
 
     public:
 
         ASTFunctionKind getKind();
 
         ASTType *getType() const;
-
-        llvm::StringRef getName() const;
 
         ASTScopes *getScopes() const;
 
@@ -112,7 +105,7 @@ namespace fly {
 
         ASTBlock *Block = nullptr;
 
-        ASTReturnStmt(ASTBlock *Parent, const SourceLocation &Loc);
+        ASTReturnStmt(const SourceLocation &Loc);
 
     public:
 

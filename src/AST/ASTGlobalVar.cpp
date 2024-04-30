@@ -13,9 +13,8 @@
 
 using namespace fly;
 
-ASTGlobalVar::ASTGlobalVar(const SourceLocation &Loc, ASTNode *Node, ASTType *Type, llvm::StringRef Name,
-                           ASTScopes *Scopes) :
-        ASTVar(ASTVarKind::VAR_GLOBAL, Loc, Type, Name, Scopes), Node(Node) {
+ASTGlobalVar::ASTGlobalVar(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes) :
+        ASTVar(ASTVarKind::VAR_GLOBAL, Loc, Type, Name, Scopes) {
 
 }
 

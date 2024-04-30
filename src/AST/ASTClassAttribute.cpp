@@ -7,43 +7,43 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "AST/ASTClassVar.h"
+#include "AST/ASTClassAttribute.h"
 #include "AST/ASTClass.h"
 #include "CodeGen/CodeGenClassVar.h"
 
 using namespace fly;
 
-ASTClassVar::ASTClassVar(const SourceLocation &Loc, ASTClass *Class, ASTScopes *Scopes, ASTType *Type,
-                         llvm::StringRef Name) :
-        ASTVar(ASTVarKind::VAR_CLASS, Loc, Type, Name, Scopes), Class(Class) {
+ASTClassAttribute::ASTClassAttribute(const SourceLocation &Loc, ASTType *Type,
+                                     llvm::StringRef Name, ASTScopes *Scopes) :
+        ASTVar(ASTVarKind::VAR_CLASS, Loc, Type, Name, Scopes) {
 
 }
 
-ASTClass *ASTClassVar::getClass() const {
+ASTClass *ASTClassAttribute::getClass() const {
     return Class;
 }
 
-ASTVarStmt *ASTClassVar::getInit() const {
+ASTVarStmt *ASTClassAttribute::getInit() const {
     return Init;
 }
 
-void ASTClassVar::setInit(ASTVarStmt *VarDefine) {
+void ASTClassAttribute::setInit(ASTVarStmt *VarDefine) {
     Init = VarDefine;
 }
 
-CodeGenVarBase *ASTClassVar::getCodeGen() const {
+CodeGenVarBase *ASTClassAttribute::getCodeGen() const {
     return CodeGen;
 }
 
-void ASTClassVar::setCodeGen(CodeGenVarBase *CG) {
+void ASTClassAttribute::setCodeGen(CodeGenVarBase *CG) {
     this->CodeGen = CG;
 }
 
-std::string ASTClassVar::print() const {
+std::string ASTClassAttribute::print() const {
     return Class->print() + "." + getName().data();
 }
 
-std::string ASTClassVar::str() const {
+std::string ASTClassAttribute::str() const {
     return Logger("ASTClassVar").
             Super(ASTVar::str()).
             End();

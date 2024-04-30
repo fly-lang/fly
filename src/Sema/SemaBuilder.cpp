@@ -33,17 +33,15 @@
 #include "AST/ASTVarRef.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTClass.h"
-#include "AST/ASTClassVar.h"
+#include "AST/ASTClassAttribute.h"
 #include "AST/ASTEnum.h"
 #include "AST/ASTExprStmt.h"
 #include "AST/ASTEnumEntry.h"
-#include "AST/ASTClassFunction.h"
+#include "AST/ASTClassMethod.h"
 #include "AST/ASTFailStmt.h"
 #include "Basic/SourceLocation.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/Debug.h"
-
-#include <map>
 
 using namespace fly;
 
@@ -55,12 +53,12 @@ SemaBuilder::SemaBuilder(Sema &S) : S(S) {
     FLY_DEBUG("SemaBuilder", "SemaBuilder");
 }
 
-ASTContext *
-SemaBuilder::CreateContext() {
+ASTContext *SemaBuilder::CreateContext() {
     FLY_DEBUG("SemaBuilder", "CreateContext");
     ASTContext *Context = new ASTContext();
     Context->DefaultNameSpace = CreateDefaultNameSpace();
-    AddNameSpace(Context->DefaultNameSpace);
+    S.Context->NameSpaces.insert(std::make_pair(Context->DefaultNameSpace->FullName, Context->DefaultNameSpace));
+    AddNameSpace(nullptr, Context->DefaultNameSpace);
     return Context;
 }
 
@@ -71,9 +69,9 @@ SemaBuilder::CreateContext() {
  * @param NameSpace
  * @return the ASTNode
  */
-ASTNode *
-SemaBuilder::CreateNode(const std::string &Name) {
+ASTNode *SemaBuilder::CreateNode(const std::string &Name) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateNode", "Name=" << Name);
+    S.getValidator().CheckCreateNode(Name);
     ASTNode *Node = new ASTNode(Name, S.Context, false);
     return Node;
 }
@@ -85,15 +83,16 @@ SemaBuilder::CreateNode(const std::string &Name) {
  * @param NameSpace
  * @return thee ASTHeaderNode
  */
-ASTNode *
-SemaBuilder::CreateHeaderNode(const std::string &Name) {
+ASTNode *SemaBuilder::CreateHeaderNode(const std::string &Name) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateHeaderNode", "Name=" << Name);
     return new ASTNode(Name, S.Context, true);
 }
 
 ASTNameSpace *SemaBuilder::CreateDefaultNameSpace() {
     FLY_DEBUG("SemaBuilder", "CreateDefaultNameSpace");
-    return new ASTNameSpace(SourceLocation(), ASTNameSpace::DEFAULT, S.Context);
+    std::string Name = ASTNameSpace::DEFAULT;
+    const SourceLocation &Loc = SourceLocation();
+    return new ASTNameSpace(SourceLocation(), Name, S.Context);
 }
 
 /**
@@ -108,11 +107,7 @@ ASTNameSpace *SemaBuilder::CreateNameSpace(ASTIdentifier *Identifier) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateNameSpace", "Identifier=" << Identifier->str());
     ASTNameSpace *NameSpace;
 
-    // Error: namespace empty
-    if (Identifier == nullptr) {
-        S.Diag(Identifier->getLocation(), diag::err_namespace_invalid);
-    }
-
+    S.getValidator().CheckCreateNameSpace(Identifier->getLocation(), Identifier->getName());
     NameSpace = new ASTNameSpace(Identifier->getLocation(), Identifier->getName(), S.Context);
 
     // Iterate over parents
@@ -123,19 +118,19 @@ ASTNameSpace *SemaBuilder::CreateNameSpace(ASTIdentifier *Identifier) {
     return NameSpace;
 }
 
-ASTImport *
-SemaBuilder::CreateImport(const SourceLocation &Loc, llvm::StringRef Name) {
+ASTImport *SemaBuilder::CreateImport(const SourceLocation &Loc, llvm::StringRef Name) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateImport",
                       Logger().Attr("Loc", (uint64_t) Loc.getRawEncoding())
                               .Attr("Name", Name).End());
+    S.getValidator().CheckCreateImport(Loc, Name);
     return new ASTImport(Loc, Name);
 }
 
-ASTAlias *
-SemaBuilder::CreateAlias(const SourceLocation &Loc, llvm::StringRef Name) {
+ASTAlias *SemaBuilder::CreateAlias(const SourceLocation &Loc, llvm::StringRef Name) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateImport",
                       Logger().Attr("Loc", (uint64_t) Loc.getRawEncoding())
                               .Attr("Name", Name).End());
+    S.getValidator().CheckCreateAlias(Loc, Name);
     return new ASTAlias(Loc, Name);
 }
 
@@ -148,16 +143,16 @@ SemaBuilder::CreateAlias(const SourceLocation &Loc, llvm::StringRef Name) {
  * @param Scopes
  * @return
  */
-ASTGlobalVar *
-SemaBuilder::CreateGlobalVar(ASTNode *Node, const SourceLocation &Loc, ASTType *Type,
+ASTGlobalVar *SemaBuilder::CreateGlobalVar(const SourceLocation &Loc, ASTType *Type,
                                            const llvm::StringRef Name, ASTScopes *Scopes) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateGlobalVar",
-                      Logger().Attr("Node", Node)
+                      Logger()
                       .Attr("Loc", (uint64_t) Loc.getRawEncoding())
                       .Attr("Type", Type)
                       .Attr("Name", Name)
                       .Attr("Scopes", Scopes).End());
-    return new ASTGlobalVar(Loc, Node, Type, Name, Scopes);
+    S.getValidator().CheckCreateGlobalVar(Loc, Type, Name, Scopes);
+    return new ASTGlobalVar(Loc, Type, Name, Scopes);
 }
 
 /**
@@ -169,16 +164,15 @@ SemaBuilder::CreateGlobalVar(ASTNode *Node, const SourceLocation &Loc, ASTType *
  * @param Scopes
  * @return
  */
-ASTFunction *
-SemaBuilder::CreateFunction(ASTNode *Node, const SourceLocation &Loc, ASTType *Type,
+ASTFunction *SemaBuilder::CreateFunction(const SourceLocation &Loc, ASTType *Type,
                                          const llvm::StringRef Name, ASTScopes *Scopes) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateFunction",
-                      Logger().Attr("Node", Node)
-                              .Attr("Loc", (uint64_t) Loc.getRawEncoding())
+                      Logger().Attr("Loc", (uint64_t) Loc.getRawEncoding())
                               .Attr("Type", Type)
                               .Attr("Name", Name)
                               .Attr("Scopes", Scopes).End());
-    ASTFunction *F = new ASTFunction(Loc, Node, Type, Name, Scopes);
+    S.getValidator().CheckCreateFunction(Loc, Type, Name, Scopes);
+    ASTFunction *F = new ASTFunction(Loc, Type, Name, Scopes);
     return F;
 }
 
@@ -190,25 +184,23 @@ SemaBuilder::CreateFunction(ASTNode *Node, const SourceLocation &Loc, ASTType *T
  * @param Scopes
  * @return
  */
-ASTClass *
-SemaBuilder::CreateClass(ASTNode *Node, ASTClassKind ClassKind, ASTScopes *ClassScopes,
-                         const SourceLocation &Loc, const llvm::StringRef Name,
-                         llvm::SmallVector<ASTClassType *, 4> &ClassTypes) {
+ASTClass *SemaBuilder::CreateClass(const SourceLocation &Loc, ASTClassKind ClassKind, const llvm::StringRef Name,
+                         ASTScopes *ClassScopes, llvm::SmallVector<ASTClassType *, 4> &ClassTypes) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateClass",
-                      Logger().Attr("Node", Node)
-                              .Attr("ClassKind", (uint64_t) ClassKind)
+                      Logger().Attr("ClassKind", (uint64_t) ClassKind)
                               .Attr("Loc", (uint64_t) Loc.getRawEncoding())
                               .Attr("Name", Name)
                               .Attr("Scopes", ClassScopes)
                               .End());
-    ASTClass *Class = new ASTClass(Node, ClassKind, ClassScopes, Loc, Name);
+    S.getValidator().CheckCreateClass(Loc, Name, ClassKind, ClassScopes, ClassTypes);
+    ASTClass *Class = new ASTClass(ClassKind, ClassScopes, Loc, Name);
     Class->SuperClasses = ClassTypes;
     Class->Type = CreateClassType(Class);
 
     // Create a default constructor
     if (ClassKind == ASTClassKind::CLASS || ClassKind == ASTClassKind::STRUCT) {
-        ASTClassFunction *Constructor = CreateClassConstructor(Class, SourceLocation(),
-                                                               new ASTScopes(SourceLocation()));
+        ASTScopes *Scopes = new ASTScopes(SourceLocation());
+        ASTClassMethod *Constructor = CreateClassConstructor(SourceLocation(), Scopes);
         AddClassConstructor(Constructor);
         Class->autoDefaultConstructor = true;
     }
@@ -223,8 +215,7 @@ SemaBuilder::CreateClass(ASTNode *Node, ASTClassKind ClassKind, ASTScopes *Class
  * @param Static
  * @return
  */
-ASTScopes *
-SemaBuilder::CreateScopes(ASTVisibilityKind Visibility, bool Constant, bool Static) {
+ASTScopes *SemaBuilder::CreateScopes(ASTVisibilityKind Visibility, bool Constant, bool Static) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateClassScopes",
                       Logger().Attr("Visibility", (uint64_t) Visibility)
                               .Attr("Constant", Constant)
@@ -245,73 +236,70 @@ SemaBuilder::CreateScopes(ASTVisibilityKind Visibility, bool Constant, bool Stat
  * @param Scopes
  * @return
  */
-ASTClassVar *
-SemaBuilder::CreateClassVar(ASTClass *Class, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
-                            ASTScopes *Scopes) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateClassVar",
-                      Logger().Attr("Class", Class)
-                                .Attr("Loc", (uint64_t) Loc.getRawEncoding())
+ASTClassAttribute *SemaBuilder::CreateClassAttribute(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateClassAttribute",
+                      Logger().Attr("Loc", (uint64_t) Loc.getRawEncoding())
                                 .Attr("Type", Type)
                                 .Attr("Name", Name)
                                 .Attr("Scopes", Scopes).End());
-    return new ASTClassVar(Loc, Class, Scopes, Type, Name);
+    S.getValidator().CheckCreateClassVar(Loc, Name, Type, Scopes);
+    return new ASTClassAttribute(Loc, Type, Name, Scopes);
 }
 
-ASTClassFunction *
-SemaBuilder::CreateClassConstructor(ASTClass *Class, const SourceLocation &Loc, ASTScopes *Scopes) {
+ASTClassMethod *SemaBuilder::CreateClassConstructor(const SourceLocation &Loc, ASTScopes *Scopes) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateClassConstructor",
-                      Logger().Attr("Class", Class)
-                              .Attr("Loc", (uint64_t) Loc.getRawEncoding())
+                      Logger().Attr("Loc", (uint64_t) Loc.getRawEncoding())
                               .Attr("Scopes", Scopes)
                               .End());
-    ASTClassFunction *F = CreateClassMethod(Class, Loc, CreateVoidType(Loc), Class->Name, Scopes);
-    F->Constructor = true;
-    CreateBody(F);
-    return F;
+    S.getValidator().CheckCreateClassConstructor(Loc, Scopes);
+    ASTClassMethod *M = new ASTClassMethod(Loc, ASTClassMethodKind::METHOD_CONSTRUCTOR, nullptr, llvm::StringRef(), Scopes);
+    CreateBody(M);
+    return M;
 }
 
-ASTClassFunction *
-SemaBuilder::CreateClassMethod(ASTClass *Class, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
-                               ASTScopes *Scopes) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateClassConstructor",
-                      Logger().Attr("Class", Class)
-                              .Attr("Loc", (uint64_t) Loc.getRawEncoding())
+ASTClassMethod *SemaBuilder::CreateClassMethod(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes,
+                               bool Static) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateClassMethod",
+                      Logger().Attr("Loc", (uint64_t) Loc.getRawEncoding())
                               .Attr("Type", Type)
                               .Attr("Name=", Name)
                               .Attr("Scopes", Scopes)
                               .End());
-    ASTClassFunction *F = new ASTClassFunction(Loc, Class, Scopes, Type, Name);
-    return F;
+    S.getValidator().CheckCreateClassMethod(Loc, Type, Name, Scopes);
+    ASTClassMethodKind Kind = Static ? ASTClassMethodKind::METHOD_STATIC : ASTClassMethodKind::METHOD_CUSTOM;
+    ASTClassMethod *M = new ASTClassMethod(Loc, Kind, Type, Name, Scopes);
+    return M;
 }
 
-ASTEnum *
-SemaBuilder::CreateEnum(ASTNode *Node, ASTScopes *Scopes, const SourceLocation &Loc, const llvm::StringRef Name,
+ASTClassMethod *SemaBuilder::CreateClassVirtualMethod(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
+                                      ASTScopes *Scopes) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateAbstractClassMethod",
+                      Logger().Attr("Loc", (uint64_t) Loc.getRawEncoding())
+                              .Attr("Type", Type)
+                              .Attr("Name=", Name)
+                              .Attr("Scopes", Scopes)
+                              .End());
+    S.getValidator().CheckCreateClassMethod(Loc, Type, Name, Scopes);
+    ASTClassMethod *M = new ASTClassMethod(Loc, ASTClassMethodKind::METHOD_VIRTUAL, Type, Name, Scopes);
+    return M;
+}
+
+ASTEnum *SemaBuilder::CreateEnum(const SourceLocation &Loc, const llvm::StringRef Name, ASTScopes *Scopes,
                         llvm::SmallVector<ASTEnumType *, 4> EnumTypes) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateEnum",
-                      Logger().Attr("Node", Node)
-                              .Attr("Scopes", Scopes).Attr("Name", Name).End());
-    ASTEnum *Enum = new ASTEnum(Node, Scopes, Loc, Name, EnumTypes);
+                      Logger().Attr("Scopes", Scopes).Attr("Name", Name).End());
+    S.getValidator().CheckCreateEnum(Loc, Name, Scopes, EnumTypes);
+    ASTEnum *Enum = new ASTEnum(Loc, Name, Scopes, EnumTypes);
     Enum->Type = CreateEnumType(Enum);
     return Enum;
 }
 
-ASTEnum *
-SemaBuilder::CreateEnum(ASTNode *Node, ASTScopes *Scopes, const SourceLocation &Loc, const llvm::StringRef Name) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateClassVar",
-                      Logger().Attr("Node", Node)
-                              .Attr("Loc", (uint64_t) Loc.getRawEncoding())
-                              .Attr("Name", Name)
-                              .Attr("Scopes", Scopes).End());
-    llvm::SmallVector<ASTEnumType *, 4> EnumTypes;
-    return CreateEnum(Node, Scopes, Loc, Name, EnumTypes);
-}
-
-ASTEnumEntry *SemaBuilder::CreateEnumEntry(ASTEnum *Enum, const SourceLocation &Loc, llvm::StringRef Name) {
+ASTEnumEntry *SemaBuilder::CreateEnumEntry(const SourceLocation &Loc, ASTEnumType *Type, llvm::StringRef Name) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateEnumEntry",
-                      Logger().Attr("Enum", Enum)
-                              .Attr("Loc", (uint64_t) Loc.getRawEncoding())
+                      Logger().Attr("Loc", (uint64_t) Loc.getRawEncoding())
                               .Attr("Name", Name).End());
-    return new ASTEnumEntry(Enum, Loc, Name);
+    S.getValidator().CheckCreateEnumEntry(Loc, Name);
+    return new ASTEnumEntry(Loc, Type, Name);
 }
 
 /**
@@ -319,8 +307,7 @@ ASTEnumEntry *SemaBuilder::CreateEnumEntry(ASTEnum *Enum, const SourceLocation &
  * @param Loc
  * @return
  */
-ASTBoolType *
-SemaBuilder::CreateBoolType(const SourceLocation &Loc) {
+ASTBoolType *SemaBuilder::CreateBoolType(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateBoolType", "Loc=" << Loc.getRawEncoding());
     return new ASTBoolType(Loc);
 }
@@ -330,8 +317,7 @@ SemaBuilder::CreateBoolType(const SourceLocation &Loc) {
  * @param Loc
  * @return
  */
-ASTByteType *
-SemaBuilder::CreateByteType(const SourceLocation &Loc) {
+ASTByteType *SemaBuilder::CreateByteType(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateByteType", "Loc=" << Loc.getRawEncoding());
     return new ASTByteType(Loc);
 }
@@ -341,8 +327,7 @@ SemaBuilder::CreateByteType(const SourceLocation &Loc) {
  * @param Loc
  * @return
  */
-ASTUShortType *
-SemaBuilder::CreateUShortType(const SourceLocation &Loc) {
+ASTUShortType *SemaBuilder::CreateUShortType(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateUShortType", "Loc=" << Loc.getRawEncoding());
     return new ASTUShortType(Loc);
 }
@@ -352,8 +337,7 @@ SemaBuilder::CreateUShortType(const SourceLocation &Loc) {
  * @param Loc
  * @return
  */
-ASTShortType *
-SemaBuilder::CreateShortType(const SourceLocation &Loc) {
+ASTShortType *SemaBuilder::CreateShortType(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateShortType", "Loc=" << Loc.getRawEncoding());
     return new ASTShortType(Loc);;
 }
@@ -363,8 +347,7 @@ SemaBuilder::CreateShortType(const SourceLocation &Loc) {
  * @param Loc
  * @return
  */
-ASTUIntType *
-SemaBuilder::CreateUIntType(const SourceLocation &Loc) {
+ASTUIntType *SemaBuilder::CreateUIntType(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateUIntType", "Loc=" << Loc.getRawEncoding());
     return new ASTUIntType(Loc);
 }
@@ -374,8 +357,7 @@ SemaBuilder::CreateUIntType(const SourceLocation &Loc) {
  * @param Loc
  * @return
  */
-ASTIntType *
-SemaBuilder::CreateIntType(const SourceLocation &Loc) {
+ASTIntType *SemaBuilder::CreateIntType(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateIntType", "Loc=" << Loc.getRawEncoding());
     return new ASTIntType(Loc);
 }
@@ -385,8 +367,7 @@ SemaBuilder::CreateIntType(const SourceLocation &Loc) {
  * @param Loc
  * @return
  */
-ASTULongType *
-SemaBuilder::CreateULongType(const SourceLocation &Loc) {
+ASTULongType *SemaBuilder::CreateULongType(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateULongType", "Loc=" << Loc.getRawEncoding());
     return new ASTULongType(Loc);
 }
@@ -396,8 +377,7 @@ SemaBuilder::CreateULongType(const SourceLocation &Loc) {
  * @param Loc
  * @return
  */
-ASTLongType *
-SemaBuilder::CreateLongType(const SourceLocation &Loc) {
+ASTLongType *SemaBuilder::CreateLongType(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateLongType", "Loc=" << Loc.getRawEncoding());
     return new ASTLongType(Loc);
 }
@@ -407,8 +387,7 @@ SemaBuilder::CreateLongType(const SourceLocation &Loc) {
  * @param Loc
  * @return
  */
-ASTFloatType *
-SemaBuilder::CreateFloatType(const SourceLocation &Loc) {
+ASTFloatType *SemaBuilder::CreateFloatType(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateFloatType", "Loc=" << Loc.getRawEncoding());
     return new ASTFloatType(Loc);
 }
@@ -418,8 +397,7 @@ SemaBuilder::CreateFloatType(const SourceLocation &Loc) {
  * @param Loc
  * @return
  */
-ASTDoubleType *
-SemaBuilder::CreateDoubleType(const SourceLocation &Loc) {
+ASTDoubleType *SemaBuilder::CreateDoubleType(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateDoubleType", "Loc=" << Loc.getRawEncoding());
     return new ASTDoubleType(Loc);
 }
@@ -429,8 +407,7 @@ SemaBuilder::CreateDoubleType(const SourceLocation &Loc) {
  * @param Loc
  * @return
  */
-ASTVoidType *
-SemaBuilder::CreateVoidType(const SourceLocation &Loc) {
+ASTVoidType *SemaBuilder::CreateVoidType(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateVoidType", "Loc=" << Loc.getRawEncoding());
     return new ASTVoidType(Loc);
 }
@@ -442,8 +419,7 @@ SemaBuilder::CreateVoidType(const SourceLocation &Loc) {
  * @param Size
  * @return
  */
-ASTArrayType *
-SemaBuilder::CreateArrayType(const SourceLocation &Loc, ASTType *Type, ASTExpr *Size) {
+ASTArrayType *SemaBuilder::CreateArrayType(const SourceLocation &Loc, ASTType *Type, ASTExpr *Size) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateArrayType",
                       Logger()
                         .Attr("Loc", (uint64_t) Loc.getRawEncoding())
@@ -452,8 +428,7 @@ SemaBuilder::CreateArrayType(const SourceLocation &Loc, ASTType *Type, ASTExpr *
     return new ASTArrayType(Loc, Type, Size);
 }
 
-ASTStringType *
-SemaBuilder::CreateStringType(const SourceLocation &Loc) {
+ASTStringType *SemaBuilder::CreateStringType(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateStringType", "Loc=" << Loc.getRawEncoding());
     return new ASTStringType(Loc);
 }
@@ -463,8 +438,7 @@ SemaBuilder::CreateStringType(const SourceLocation &Loc) {
  * @param Identifier
  * @return
  */
-ASTClassType *
-SemaBuilder::CreateClassType(ASTIdentifier *Identifier) {
+ASTClassType *SemaBuilder::CreateClassType(ASTIdentifier *Identifier) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateClassType",
                       Logger().Attr("Identifier", Identifier).End());
     ASTClassType *ClassType = new ASTClassType(Identifier);
@@ -476,8 +450,7 @@ SemaBuilder::CreateClassType(ASTIdentifier *Identifier) {
  * @param Class
  * @return
  */
-ASTClassType *
-SemaBuilder::CreateClassType(ASTClass *Class) {
+ASTClassType *SemaBuilder::CreateClassType(ASTClass *Class) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateClassType", Logger().Attr("Class", Class).End());
     ASTClassType *ClassType = new ASTClassType(Class);
     ClassType->Def = Class;
@@ -489,23 +462,20 @@ SemaBuilder::CreateClassType(ASTClass *Class) {
  * @param Identifier
  * @return
  */
-ASTEnumType *
-SemaBuilder::CreateEnumType(ASTIdentifier *Identifier) {
+ASTEnumType *SemaBuilder::CreateEnumType(ASTIdentifier *Identifier) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateEnumType",
                       Logger().Attr("Identifier", Identifier).End());
     ASTEnumType *EnumType = new ASTEnumType(Identifier);
     return EnumType;
 }
 
-ASTIdentityType *
-SemaBuilder::CreateIdentityType(ASTIdentifier *Identifier) {
+ASTIdentityType *SemaBuilder::CreateIdentityType(ASTIdentifier *Identifier) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateIdentityType",
                       Logger().Attr("Identifier", Identifier).End());
     return new ASTIdentityType(Identifier);
 }
 
-ASTErrorType *
-SemaBuilder::CreateErrorType() {
+ASTErrorType *SemaBuilder::CreateErrorType() {
     FLY_DEBUG("SemaBuilder", "CreateErrorType");
     return new ASTErrorType();
 }
@@ -515,8 +485,7 @@ SemaBuilder::CreateErrorType() {
  * @param Enum
  * @return
  */
-ASTEnumType *
-SemaBuilder::CreateEnumType(ASTEnum *Enum) {
+ASTEnumType *SemaBuilder::CreateEnumType(ASTEnum *Enum) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateEnumType", Logger().Attr("Enum", Enum).End());
     ASTEnumType *EnumType = new ASTEnumType(Enum);
     EnumType->Def = Enum;
@@ -528,8 +497,7 @@ SemaBuilder::CreateEnumType(ASTEnum *Enum) {
  * @param Loc
  * @return
  */
-ASTNullValue *
-SemaBuilder::CreateNullValue(const SourceLocation &Loc) {
+ASTNullValue *SemaBuilder::CreateNullValue(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateNullValue", "Loc=" << Loc.getRawEncoding());
     return new ASTNullValue(Loc);
 }
@@ -539,8 +507,7 @@ SemaBuilder::CreateNullValue(const SourceLocation &Loc) {
  * @param Loc
  * @return
  */
-ASTZeroValue *
-SemaBuilder::CreateZeroValue(const SourceLocation &Loc) {
+ASTZeroValue *SemaBuilder::CreateZeroValue(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateNullValue", "Loc=" << Loc.getRawEncoding());
     return new ASTZeroValue(Loc);
 }
@@ -551,8 +518,7 @@ SemaBuilder::CreateZeroValue(const SourceLocation &Loc) {
  * @param Val
  * @return
  */
-ASTBoolValue *
-SemaBuilder::CreateBoolValue(const SourceLocation &Loc, bool Val) {
+ASTBoolValue *SemaBuilder::CreateBoolValue(const SourceLocation &Loc, bool Val) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateBoolValue",
                       "Loc=" << Loc.getRawEncoding() <<
                       ", Val=" << Val);
@@ -566,8 +532,7 @@ SemaBuilder::CreateBoolValue(const SourceLocation &Loc, bool Val) {
  * @param Negative
  * @return
  */
-ASTIntegerValue *
-SemaBuilder::CreateIntegerValue(const SourceLocation &Loc, uint64_t Val, bool Negative) {
+ASTIntegerValue *SemaBuilder::CreateIntegerValue(const SourceLocation &Loc, uint64_t Val, bool Negative) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateIntegerValue",
                       "Loc=" << Loc.getRawEncoding() <<
                       ", Val=" << Val <<
@@ -595,8 +560,7 @@ SemaBuilder::CreateCharValue(const SourceLocation &Loc, char Val) {
  * @param Val
  * @return
  */
-ASTFloatingValue *
-SemaBuilder::CreateFloatingValue(const SourceLocation &Loc, std::string Val) {
+ASTFloatingValue *SemaBuilder::CreateFloatingValue(const SourceLocation &Loc, std::string Val) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateFloatingValue",
                       "Loc=" << Loc.getRawEncoding() <<
                       ", Val=" << Val);
@@ -609,8 +573,7 @@ SemaBuilder::CreateFloatingValue(const SourceLocation &Loc, std::string Val) {
  * @param Val
  * @return
  */
-ASTFloatingValue *
-SemaBuilder::CreateFloatingValue(const SourceLocation &Loc, double Val) {
+ASTFloatingValue *SemaBuilder::CreateFloatingValue(const SourceLocation &Loc, double Val) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateFloatingValue",
                       "Loc=" << Loc.getRawEncoding() <<
                       ", Val=" << Val);
@@ -623,22 +586,19 @@ SemaBuilder::CreateFloatingValue(const SourceLocation &Loc, double Val) {
  * @param Loc
  * @return
  */
-ASTArrayValue *
-SemaBuilder::CreateArrayValue(const SourceLocation &Loc) {
+ASTArrayValue *SemaBuilder::CreateArrayValue(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateArrayValue",
                       "Loc=" << Loc.getRawEncoding());
     return new ASTArrayValue(Loc);
 }
 
-ASTStringValue *
-SemaBuilder::CreateStringValue(const SourceLocation &Loc, StringRef Str) {
+ASTStringValue *SemaBuilder::CreateStringValue(const SourceLocation &Loc, llvm::StringRef Str) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateStringValue",
                       "Loc=" << Loc.getRawEncoding());
     return new ASTStringValue(Loc, Str);
 }
 
-ASTStructValue *
-SemaBuilder::CreateStructValue(const SourceLocation &Loc) {
+ASTStructValue *SemaBuilder::CreateStructValue(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateArrayValue",
                       "Loc=" << Loc.getRawEncoding());
     return new ASTStructValue(Loc);
@@ -649,8 +609,7 @@ SemaBuilder::CreateStructValue(const SourceLocation &Loc) {
  * @param Type
  * @return
  */
-ASTValue *
-SemaBuilder::CreateDefaultValue(ASTType *Type) {
+ASTValue *SemaBuilder::CreateDefaultValue(ASTType *Type) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateDefaultValue",
                       Logger().Attr("Type", Type).End());
     ASTValue *Value;
@@ -680,14 +639,14 @@ SemaBuilder::CreateDefaultValue(ASTType *Type) {
  * @param Constant
  * @return
  */
-ASTParam *
-SemaBuilder::CreateParam(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes) {
+ASTParam *SemaBuilder::CreateParam(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateParam",
                       Logger().Attr("Loc", (uint64_t) Loc.getRawEncoding())
                       .Attr("Type", Type)
                       .Attr("Name", Name)
                       .Attr("Scopes", Scopes)
                       .End());
+    S.getValidator().CheckCreateParam(Loc, Type, Name, Scopes);
     ASTParam *Param = new ASTParam(Loc, Type, Name, Scopes);
     return Param;
 }
@@ -701,92 +660,12 @@ SemaBuilder::CreateParam(const SourceLocation &Loc, ASTType *Type, llvm::StringR
  * @param Constant
  * @return
  */
-ASTLocalVar *
-SemaBuilder::CreateLocalVar(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes) {
+ASTLocalVar *SemaBuilder::CreateLocalVar(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateLocalVar",
                       Logger().Attr("Name", Name).End());
+    S.getValidator().CheckCreateLocalVar(Loc, Type, Name, Scopes);
     ASTLocalVar *LocalVar = new ASTLocalVar(Loc, Type, Name, Scopes);
     return LocalVar;
-}
-
-/**
- * Creates an ASTVarAssign from ASTVarRef
- * @param Parent
- * @param VarRef
- * @return
- */
-ASTVarStmt *
-SemaBuilder::CreateVarStmt(ASTBlock *Parent, ASTVarRef *VarRef) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateVarStmt",
-                      Logger().Attr("Parent", Parent).End());
-    ASTVarStmt *VarDefine = new ASTVarStmt(Parent, VarRef->getLocation(), VarRef);
-    return VarDefine;
-}
-
-/**
- * Creates an ASTVarAssign from ASTVar
- * @param Parent
- * @param VarRef
- * @return
- */
-ASTVarStmt *
-SemaBuilder::CreateVarStmt(ASTBlock *Parent, ASTVar *Var) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateVarStmt",
-                      Logger().Attr("Parent", Parent).End());
-    ASTVarRef *VarRef = CreateVarRef(Var);
-    ASTVarStmt *VarDefine = new ASTVarStmt(Parent, Var->getLocation(), VarRef);
-    return VarDefine;
-}
-
-/**
- * Creates an ASTReturn
- * @param Parent
- * @param Loc
- * @return
- */
-ASTReturnStmt *
-SemaBuilder::CreateReturn(ASTBlock *Parent, const SourceLocation &Loc) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateLocalVar", Logger()
-                      .Attr("Parent", Parent)
-                      .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
-    ASTReturnStmt *Return = new ASTReturnStmt(Parent, Loc);
-    return Return;
-}
-
-ASTBreakStmt *
-SemaBuilder::CreateBreak(ASTBlock *Parent, const SourceLocation &Loc) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateLocalVar", Logger()
-                        .Attr("Parent", Parent)
-                        .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
-    ASTBreakStmt *Break = new ASTBreakStmt(Parent, Loc);
-    return Break;
-}
-
-ASTContinueStmt *
-SemaBuilder::CreateContinue(ASTBlock *Parent, const SourceLocation &Loc) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateContinue", Logger()
-                      .Attr("Parent", Parent)
-                      .Attr("Loc", (uint64_t)Loc.getRawEncoding()).End());
-    ASTContinueStmt *Continue = new ASTContinueStmt(Parent, Loc);
-    return Continue;
-}
-
-ASTFailStmt *
-SemaBuilder::CreateFail(ASTBlock *Block, const SourceLocation &Loc) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateFail", Logger()
-            .Attr("Block", Block)
-            .Attr("Loc", (uint64_t)Loc.getRawEncoding()).End());
-    ASTFailStmt *FailStmt = new ASTFailStmt(Block, Loc);
-    return FailStmt;
-}
-
-ASTExprStmt *
-SemaBuilder::CreateExprStmt(ASTBlock *Parent, const SourceLocation &Loc) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateExprStmt", Logger()
-                      .Attr("Parent", Parent)
-                      .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
-    ASTExprStmt *ExprStmt = new ASTExprStmt(Parent, Loc);
-    return ExprStmt;
 }
 
 ASTIdentifier *SemaBuilder::CreateIdentifier(const SourceLocation &Loc, llvm::StringRef Name) {
@@ -794,6 +673,7 @@ ASTIdentifier *SemaBuilder::CreateIdentifier(const SourceLocation &Loc, llvm::St
             .Attr("Loc", (uint64_t) Loc.getRawEncoding())
             .Attr("Name", Name)
             .End());
+    S.getValidator().CheckCreateIdentifier(Loc, Name);
     return new ASTIdentifier(Loc, Name);
 }
 
@@ -804,8 +684,7 @@ ASTIdentifier *SemaBuilder::CreateIdentifier(const SourceLocation &Loc, llvm::St
  * @param NameSpace
  * @return
  */
-ASTCall *
-SemaBuilder::CreateCall(ASTIdentifier *Identifier) {
+ASTCall *SemaBuilder::CreateCall(ASTIdentifier *Identifier) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateCall",
                       Logger().Attr("Identifier", Identifier).End());
     ASTCall *Call = new ASTCall(Identifier->getLocation(), Identifier->getName());
@@ -821,16 +700,14 @@ SemaBuilder::CreateCall(ASTIdentifier *Identifier) {
  * @param Function
  * @return
  */
-ASTCall *
-SemaBuilder::CreateCall(ASTFunctionBase *Function) {
+ASTCall *SemaBuilder::CreateCall(ASTFunctionBase *Function) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateCall",
                       Logger().Attr("Function=", Function).End());
     ASTCall *Call = new ASTCall(Function);
     return Call;
 }
 
-ASTCall *
-SemaBuilder::CreateCall(ASTIdentifier *Instance, ASTFunctionBase *Function) {
+ASTCall *SemaBuilder::CreateCall(ASTIdentifier *Instance, ASTFunctionBase *Function) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateCall",
                       Logger().Attr("Function=", Function).End());
     ASTCall *Call = new ASTCall(Function);
@@ -838,8 +715,13 @@ SemaBuilder::CreateCall(ASTIdentifier *Instance, ASTFunctionBase *Function) {
     return Call;
 }
 
-ASTVarRef *
-SemaBuilder::CreateVarRef(ASTIdentifier *Identifier) {
+ASTArg *SemaBuilder::CreateArg(ASTExpr *Expr) {
+    FLY_DEBUG("SemaBuilder", "CreateArg");
+    ASTArg *Arg = new ASTArg(Expr);
+    return Arg;
+}
+
+ASTVarRef *SemaBuilder::CreateVarRef(ASTIdentifier *Identifier) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateVarRef",
                       Logger().Attr("Identifier", Identifier).End());
     ASTVarRef *VarRef = new ASTVarRef(Identifier->getLocation(), Identifier->getName());
@@ -850,8 +732,7 @@ SemaBuilder::CreateVarRef(ASTIdentifier *Identifier) {
     return VarRef;
 }
 
-ASTVarRef *
-SemaBuilder::CreateVarRef(ASTVar *Var) {
+ASTVarRef *SemaBuilder::CreateVarRef(ASTVar *Var) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateVarRef",
                       Logger().Attr("Var", Var).End());
     ASTVarRef *VarRef = new ASTVarRef(Var);
@@ -859,8 +740,7 @@ SemaBuilder::CreateVarRef(ASTVar *Var) {
     return VarRef;
 }
 
-ASTVarRef *
-SemaBuilder::CreateVarRef(ASTIdentifier *Instance, ASTVar *Var) {
+ASTVarRef *SemaBuilder::CreateVarRef(ASTIdentifier *Instance, ASTVar *Var) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateVarRef",
                       Logger().Attr("Instance", Instance).Attr("Var", Var).End());
     ASTVarRef *VarRef = new ASTVarRef(Var);
@@ -868,16 +748,14 @@ SemaBuilder::CreateVarRef(ASTIdentifier *Instance, ASTVar *Var) {
     return VarRef;
 }
 
-ASTEmptyExpr *
-SemaBuilder::CreateExpr() {
+ASTEmptyExpr *SemaBuilder::CreateExpr() {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateExpr",
                       Logger().End());
     ASTEmptyExpr *Expr = new ASTEmptyExpr(SourceLocation());
     return Expr;
 }
 
-ASTValueExpr *
-SemaBuilder::CreateExpr(ASTValue *Value) {
+ASTValueExpr *SemaBuilder::CreateExpr(ASTValue *Value) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateExpr",
                       Logger().Attr("Value", Value).End());
     assert(Value && "Create ASTValueExpr by ASTValue");
@@ -885,41 +763,28 @@ SemaBuilder::CreateExpr(ASTValue *Value) {
     return ValueExpr;
 }
 
-ASTCallExpr *
-SemaBuilder::CreateExpr(ASTCall *Call) {
+ASTCallExpr *SemaBuilder::CreateExpr(ASTCall *Call) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateExpr",
                       Logger().Attr("Call", Call).End());
     ASTCallExpr *CallExpr = new ASTCallExpr(Call);
     return CallExpr;
 }
 
-ASTVarRefExpr *
-SemaBuilder::CreateExpr(ASTVarRef *VarRef) {
+ASTVarRefExpr *SemaBuilder::CreateExpr(ASTVarRef *VarRef) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateExpr",
                       Logger().Attr("VarRef", VarRef).End());
     ASTVarRefExpr *VarRefExpr = new ASTVarRefExpr(VarRef);
     return VarRefExpr;
 }
 
-ASTCallExpr *
-SemaBuilder::CreateNewExpr(ASTCall *Call) {
+ASTCallExpr *SemaBuilder::CreateNewExpr(ASTCall *Call) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateNewExpr",
                       Logger().Attr("Call", Call).End());
     Call->CallKind = ASTCallKind::CALL_CONSTRUCTOR;
     return CreateExpr(Call);
 }
 
-ASTDeleteStmt *
-SemaBuilder::CreateDelete(ASTBlock *Parent, const SourceLocation &Loc, ASTVarRef *VarRef) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateDelete",
-                      Logger().Attr("Stmt", Parent)
-                              .Attr("Loc", (uint64_t) Loc.getRawEncoding())
-                              .Attr("VarRef", VarRef).End());
-    return new ASTDeleteStmt(Parent, Loc, VarRef);
-}
-
-ASTUnaryGroupExpr *
-SemaBuilder::CreateUnaryExpr(const SourceLocation &Loc, ASTUnaryOperatorKind Kind,
+ASTUnaryGroupExpr *SemaBuilder::CreateUnaryExpr(const SourceLocation &Loc, ASTUnaryOperatorKind Kind,
                              ASTUnaryOptionKind OptionKind, ASTVarRefExpr *First) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateUnaryExpr",
                       Logger()
@@ -935,8 +800,7 @@ SemaBuilder::CreateUnaryExpr(const SourceLocation &Loc, ASTUnaryOperatorKind Kin
     return UnaryExpr;
 }
 
-ASTBinaryGroupExpr *
-SemaBuilder::CreateBinaryExpr(const SourceLocation &OpLoc, ASTBinaryOperatorKind Kind,
+ASTBinaryGroupExpr *SemaBuilder::CreateBinaryExpr(const SourceLocation &OpLoc, ASTBinaryOperatorKind Kind,
                               ASTExpr *First, ASTExpr *Second) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateBinaryExpr", Logger()
                         .Attr("OpLoc", (uint64_t) OpLoc.getRawEncoding())
@@ -952,8 +816,7 @@ SemaBuilder::CreateBinaryExpr(const SourceLocation &OpLoc, ASTBinaryOperatorKind
     return BinaryExpr;
 }
 
-ASTTernaryGroupExpr *
-SemaBuilder::CreateTernaryExpr(ASTExpr *First, const SourceLocation &IfLoc,
+ASTTernaryGroupExpr *SemaBuilder::CreateTernaryExpr(ASTExpr *First, const SourceLocation &IfLoc,
                                ASTExpr *Second, const SourceLocation &ElseLoc, ASTExpr *Third) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateTernaryExpr", Logger()
                       .Attr("First", First)
@@ -971,34 +834,104 @@ SemaBuilder::CreateTernaryExpr(ASTExpr *First, const SourceLocation &IfLoc,
     return TernaryExpr;
 }
 
+/**
+ * Creates an ASTVarAssign from ASTVarRef
+ * @param Parent
+ * @param VarRef
+ * @return
+ */
+ASTVarStmt *SemaBuilder::CreateVarStmt(ASTVarRef *VarRef) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateVarStmt",
+                      Logger().Attr("VarRef", VarRef).End());
+    ASTVarStmt *VarDefine = new ASTVarStmt(VarRef->getLocation(), VarRef);
+    return VarDefine;
+}
+
+/**
+ * Creates an ASTVarAssign from ASTVar
+ * @param Parent
+ * @param VarRef
+ * @return
+ */
+ASTVarStmt *SemaBuilder::CreateVarStmt(ASTVar *Var) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateVarStmt",
+                      Logger().Attr("Var", Var).End());
+    ASTVarRef *VarRef = CreateVarRef(Var);
+    ASTVarStmt *VarDefine = new ASTVarStmt(Var->getLocation(), VarRef);
+    return VarDefine;
+}
+
+/**
+ * Creates an ASTReturn
+ * @param Parent
+ * @param Loc
+ * @return
+ */
+ASTReturnStmt *SemaBuilder::CreateReturn(const SourceLocation &Loc) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateLocalVar", Logger()
+            .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
+    ASTReturnStmt *Return = new ASTReturnStmt(Loc);
+    return Return;
+}
+
+ASTBreakStmt *SemaBuilder::CreateBreak(const SourceLocation &Loc) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateLocalVar", Logger()
+            .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
+    ASTBreakStmt *Break = new ASTBreakStmt(Loc);
+    return Break;
+}
+
+ASTContinueStmt *SemaBuilder::CreateContinue(const SourceLocation &Loc) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateContinue", Logger()
+            .Attr("Loc", (uint64_t)Loc.getRawEncoding()).End());
+    ASTContinueStmt *Continue = new ASTContinueStmt(Loc);
+    return Continue;
+}
+
+ASTFailStmt *SemaBuilder::CreateFail(const SourceLocation &Loc) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateFail", Logger()
+            .Attr("Loc", (uint64_t)Loc.getRawEncoding()).End());
+    ASTFailStmt *FailStmt = new ASTFailStmt(Loc);
+    return FailStmt;
+}
+
+ASTExprStmt *SemaBuilder::CreateExprStmt(const SourceLocation &Loc) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateExprStmt", Logger()
+            .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
+    ASTExprStmt *ExprStmt = new ASTExprStmt(Loc);
+    return ExprStmt;
+}
+
+ASTDeleteStmt *SemaBuilder::CreateDelete(const SourceLocation &Loc, ASTVarRef *VarRef) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateDelete",
+                      Logger().Attr("Loc", (uint64_t) Loc.getRawEncoding())
+                              .Attr("VarRef", VarRef).End());
+    return new ASTDeleteStmt(Loc, VarRef);
+}
+
 ASTBlock*
 SemaBuilder::CreateBody(ASTFunctionBase *FunctionBase) {
     FLY_DEBUG("SemaBuilder", "CreateBody");
-    FunctionBase->Body = CreateBlock(nullptr, SourceLocation());
+    FunctionBase->Body = CreateBlock(SourceLocation());
     FunctionBase->Body->Top = FunctionBase;
     return FunctionBase->Body;
 }
 
-ASTBlock *
-SemaBuilder::CreateBlock(ASTBlock *Parent, const SourceLocation &Loc) {
+ASTBlock *SemaBuilder::CreateBlock(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateBlock", Logger()
-                      .Attr("Parent", Parent)
                       .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
-    ASTBlock *Block = new ASTBlock(Parent, Loc);
+    ASTBlock *Block = new ASTBlock(Loc);
     return Block;
 }
 
-ASTIfBlock *
-SemaBuilder::CreateIfBlock(ASTBlock *Parent, const SourceLocation &Loc) {
+ASTIfBlock *SemaBuilder::CreateIfBlock(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateIfBlock", Logger()
-                      .Attr("Parent", Parent)
                       .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
-    ASTIfBlock *Block = new ASTIfBlock(Parent, Loc);
+    ASTIfBlock *Block = new ASTIfBlock(Loc);
     return Block;
 }
 
-ASTElsifBlock *
-SemaBuilder::CreateElsifBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc) {
+ASTElsifBlock *SemaBuilder::CreateElsifBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateElsifBlock", Logger()
                       .Attr("IfBlock", IfBlock)
                       .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
@@ -1006,26 +939,22 @@ SemaBuilder::CreateElsifBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc) {
     return Block;
 }
 
-ASTElseBlock *
-SemaBuilder::CreateElseBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc) {
+ASTElseBlock *SemaBuilder::CreateElseBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateElseBlock", Logger()
                         .Attr("IfBlock", IfBlock)
                         .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
-    ASTElseBlock *Block = new ASTElseBlock(IfBlock, Loc);
+    ASTElseBlock *Block = new ASTElseBlock(Loc);
     return Block;
 }
 
-ASTSwitchBlock *
-SemaBuilder::CreateSwitchBlock(ASTBlock *Parent, const SourceLocation &Loc) {
+ASTSwitchBlock *SemaBuilder::CreateSwitchBlock(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateSwitchBlock", Logger()
-                      .Attr("Parent", Parent)
                       .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
-    ASTSwitchBlock *Block = new ASTSwitchBlock(Parent, Loc);
+    ASTSwitchBlock *Block = new ASTSwitchBlock(Loc);
     return Block;
 }
 
-ASTSwitchCaseBlock *
-SemaBuilder::CreateSwitchCaseBlock(ASTSwitchBlock *SwitchBlock, const SourceLocation &Loc) {
+ASTSwitchCaseBlock *SemaBuilder::CreateSwitchCaseBlock(ASTSwitchBlock *SwitchBlock, const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateSwitchCaseBlock", Logger()
                       .Attr("SwitchBlock", SwitchBlock)
                       .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
@@ -1033,21 +962,18 @@ SemaBuilder::CreateSwitchCaseBlock(ASTSwitchBlock *SwitchBlock, const SourceLoca
     return Block;
 }
 
-ASTSwitchDefaultBlock *
-SemaBuilder::CreateSwitchDefaultBlock(ASTSwitchBlock *SwitchBlock, const SourceLocation &Loc) {
+ASTSwitchDefaultBlock *SemaBuilder::CreateSwitchDefaultBlock(ASTSwitchBlock *SwitchBlock, const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateSwitchDefaultBlock", Logger()
                       .Attr("SwitchBlock", SwitchBlock)
                       .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
-    ASTSwitchDefaultBlock *Block = new ASTSwitchDefaultBlock(SwitchBlock, Loc);
+    ASTSwitchDefaultBlock *Block = new ASTSwitchDefaultBlock(Loc);
     return Block;
 }
 
-ASTWhileBlock *
-SemaBuilder::CreateWhileBlock(ASTBlock *Parent, const SourceLocation &Loc) {
+ASTWhileBlock *SemaBuilder::CreateWhileBlock(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateWhileBlock", Logger()
-                      .Attr("Parent", Parent)
                       .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
-    ASTWhileBlock *Block = new ASTWhileBlock(Parent, Loc);
+    ASTWhileBlock *Block = new ASTWhileBlock(Loc);
     return Block;
 }
 
@@ -1059,17 +985,14 @@ SemaBuilder::CreateWhileBlock(ASTBlock *Parent, const SourceLocation &Loc) {
  * @param LoopBlock
  * @return
  */
-ASTForBlock *
-SemaBuilder::CreateForBlock(ASTBlock *Parent, const SourceLocation &Loc) {
+ASTForBlock *SemaBuilder::CreateForBlock(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateForBlock", Logger()
-                      .Attr("Parent", Parent)
                       .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
-    ASTForBlock *Block = new ASTForBlock(Parent, Loc);
+    ASTForBlock *Block = new ASTForBlock(Loc);
     return Block;
 }
 
-ASTForLoopBlock *
-SemaBuilder::CreateForLoopBlock(ASTForBlock *ForBlock, const SourceLocation &Loc) {
+ASTForLoopBlock *SemaBuilder::CreateForLoopBlock(ASTForBlock *ForBlock, const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateForLoopBlock", Logger()
                         .Attr("ForBlock", ForBlock)
                         .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
@@ -1077,8 +1000,7 @@ SemaBuilder::CreateForLoopBlock(ASTForBlock *ForBlock, const SourceLocation &Loc
     return Block;
 }
 
-ASTForPostBlock *
-SemaBuilder::CreateForPostBlock(ASTForBlock *ForBlock, const SourceLocation &Loc) {
+ASTForPostBlock *SemaBuilder::CreateForPostBlock(ASTForBlock *ForBlock, const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateForPostBlock", Logger()
                         .Attr("ForBlock", ForBlock)
                         .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
@@ -1086,12 +1008,10 @@ SemaBuilder::CreateForPostBlock(ASTForBlock *ForBlock, const SourceLocation &Loc
     return Block;
 }
 
-ASTHandleStmt *
-SemaBuilder::CreateHandleStmt(ASTBlock *Parent, const SourceLocation &Loc, ASTVarRef *ErrorRef) {
+ASTHandleStmt *SemaBuilder::CreateHandleStmt(const SourceLocation &Loc, ASTVarRef *ErrorRef) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateHandleStmt", Logger()
-            .Attr("Parent", Parent)
             .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
-    ASTHandleStmt *Block = new ASTHandleStmt(Parent, Loc);
+    ASTHandleStmt *Block = new ASTHandleStmt(Loc);
     Block->setErrorHandlerRef(ErrorRef);
     return Block;
 }
@@ -1105,7 +1025,7 @@ SemaBuilder::CreateHandleStmt(ASTBlock *Parent, const SourceLocation &Loc, ASTVa
  * @return the result of add
  */
 bool
-SemaBuilder::AddNameSpace(ASTNameSpace *NewNameSpace, ASTNode *Node, bool ExternLib) {
+SemaBuilder::AddNameSpace(ASTNode *Node, ASTNameSpace *NewNameSpace,  bool ExternLib) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddNameSpace",
                       "NameSpace=" << NewNameSpace << ", ExternLib=" << ExternLib);
     // Check if Name exist or add it
@@ -1114,7 +1034,7 @@ SemaBuilder::AddNameSpace(ASTNameSpace *NewNameSpace, ASTNode *Node, bool Extern
         S.Context->NameSpaces.insert(std::make_pair(NewNameSpace->getFullName(), NewNameSpace));
         NameSpace = NewNameSpace;
         if (NewNameSpace->getParent()) {
-            return AddNameSpace((ASTNameSpace *) NewNameSpace->getParent());
+            return AddNameSpace(nullptr, (ASTNameSpace *) NewNameSpace->getParent());
         }
     }
 
@@ -1169,12 +1089,11 @@ SemaBuilder::AddImport(ASTNode *Node, ASTImport * Import) {
 }
 
 bool
-SemaBuilder::AddIdentity(ASTIdentity *Identity) {
+SemaBuilder::AddIdentity(ASTNode *Node, ASTIdentity *Identity) {
     FLY_DEBUG_MESSAGE("ASTNode", "AddIdentity", Logger()
                       .Attr("Identity", Identity).End());
 
     // Lookup into namespace
-    ASTNode *Node = Identity->Node;
     Node->Identity = Identity;
 
     bool Success = true;
@@ -1191,13 +1110,12 @@ SemaBuilder::AddIdentity(ASTIdentity *Identity) {
 }
 
 bool
-SemaBuilder::AddGlobalVar(ASTGlobalVar *GlobalVar, ASTValue *Value) {
+SemaBuilder::AddGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar, ASTValue *Value) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddGlobalVar", Logger()
                       .Attr("GlobalVar", GlobalVar)
                       .Attr("Value", Value).End());
-    ASTNode *Node = GlobalVar->Node;
 
-    ASTVarStmt *VarStmt = SemaBuilder::CreateVarStmt(nullptr, GlobalVar);
+    ASTVarStmt *VarStmt = SemaBuilder::CreateVarStmt(GlobalVar);
     ASTValueExpr *ValueExpr = SemaBuilder::CreateExpr(Value);
     VarStmt->setExpr(ValueExpr);
     GlobalVar->setInit(VarStmt);
@@ -1238,10 +1156,9 @@ SemaBuilder::AddGlobalVar(ASTGlobalVar *GlobalVar, ASTValue *Value) {
 }
 
 bool
-SemaBuilder::AddFunction(ASTFunction *Function) {
+SemaBuilder::AddFunction(ASTNode *Node, ASTFunction *Function) {
     FLY_DEBUG_MESSAGE("ASTNode", "AddFunction",
                       Logger().Attr("Function", Function).End());
-    ASTNode *Node = Function->Node;
 
     // Lookup into namespace for public var
     if(Function->Scopes->Visibility == ASTVisibilityKind::V_PUBLIC ||
@@ -1264,9 +1181,9 @@ SemaBuilder::AddFunction(ASTFunction *Function) {
 }
 
 bool
-SemaBuilder::AddClassVar(ASTClassVar *Var) {
+SemaBuilder::AddClassVar(ASTClassAttribute *Var) {
     ASTClass *Class = Var->Class;
-    if (Class->Vars.insert(std::pair<llvm::StringRef, ASTClassVar *>(Var->getName(), Var)).second) {
+    if (Class->Vars.insert(std::pair<llvm::StringRef, ASTClassAttribute *>(Var->getName(), Var)).second) {
         return Var;
     }
 
@@ -1275,7 +1192,7 @@ SemaBuilder::AddClassVar(ASTClassVar *Var) {
 }
 
 bool
-SemaBuilder::AddClassMethod(ASTClassFunction *Method) {
+SemaBuilder::AddClassMethod(ASTClassMethod *Method) {
     // Check duplicates
     if (!InsertFunction(Method->Class->Methods, Method)) {
         S.Diag(Method->getLocation(), diag::err_sema_class_method_redeclare) << Method->getName();
@@ -1286,7 +1203,7 @@ SemaBuilder::AddClassMethod(ASTClassFunction *Method) {
 }
 
 bool
-SemaBuilder::AddClassConstructor(ASTClassFunction *Constructor) {
+SemaBuilder::AddClassConstructor(ASTClassMethod *Constructor) {
     ASTClass *Class = Constructor->Class;
 
     // Check default constructor
@@ -1322,7 +1239,7 @@ SemaBuilder::AddParam(ASTFunctionBase *FunctionBase, ASTParam *Param) {
     return false;
 }
 
-void SemaBuilder::AddFunctionVarParams(ASTFunction *Function, ASTParam *Param) {
+void SemaBuilder::AddFunctionVarParams(ASTFunctionBase *Function, ASTParam *Param) {
     Function->setEllipsis(Param);
 }
 
@@ -1346,15 +1263,6 @@ SemaBuilder::AddComment(ASTBase *Base, llvm::StringRef Comment) {
 }
 
 bool
-SemaBuilder::AddComment(ASTClassFunction *ClassFunction, llvm::StringRef Comment) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "AddComment", Logger()
-                      .Attr("ClassFunction", ClassFunction)
-                      .Attr("Comment", Comment).End());
-    ClassFunction->Comment = Comment;
-    return true;
-}
-
-bool
 SemaBuilder::AddExternalGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddExternalGlobalVar", Logger()
                         .Attr("Node", Node)
@@ -1370,6 +1278,10 @@ SemaBuilder::AddExternalFunction(ASTNode *Node, ASTFunction *Function) {
                         .Attr("Function", Function).End());
     // TODO Check duplicate
     return InsertFunction(Node->ExternalFunctions, Function);
+}
+
+bool SemaBuilder::AddExternalIdentities(ASTNode *Node, ASTIdentity *Identity) {
+    return Node->ExternalIdentities.insert(std::make_pair(Identity->getName(), Identity)).second;
 }
 
 bool
@@ -1394,7 +1306,7 @@ SemaBuilder::AddCallArg(ASTCall *Call, ASTExpr *Expr) {
                       .Attr("FunctionCall", Call)
                       .Attr("Expr", Expr).End());
     if (Expr->getExprKind() != ASTExprKind::EXPR_EMPTY) {
-        ASTArg *Arg = new ASTArg(Call, Expr);
+        ASTArg *Arg = new ASTArg(Expr);
         Arg->Index = Call->getArgs().empty() ? 0 : Call->getArgs().size();
         Call->Args.push_back(Arg);
     }

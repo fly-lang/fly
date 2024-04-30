@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTIdentityType.cpp - AST Identity Type implementation
+// include/AST/ASTTypeRef.cpp - AST Type Ref implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -23,20 +23,20 @@ ASTIdentityTypeKind toIdentityKind(ASTTopDefKind Kind) {
 
 ASTIdentityType::ASTIdentityType(ASTIdentifier *Identifier) :
         ASTType(Identifier->getLocation(), ASTTypeKind::TYPE_IDENTITY),
-        ASTIdentifier(Identifier->getLocation(), Identifier->getName(), ASTIdentifierKind::REF_TYPE), IdentityKind(ASTIdentityTypeKind::TYPE_NONE) {
+        ASTIdentifier(Identifier->getLocation(), Identifier->getName(), ASTIdentifierKind::REF_TYPE), IdentityTypeKind(ASTIdentityTypeKind::TYPE_NONE) {
 
 }
 
 ASTIdentityType::ASTIdentityType(ASTIdentifier *Identifier, ASTIdentityTypeKind IdentityKind) :
         ASTType(Identifier->getLocation(), ASTTypeKind::TYPE_IDENTITY),
-        ASTIdentifier(Identifier->getLocation(), Identifier->getName(), ASTIdentifierKind::REF_TYPE), IdentityKind(IdentityKind) {
+        ASTIdentifier(Identifier->getLocation(), Identifier->getName(), ASTIdentifierKind::REF_TYPE), IdentityTypeKind(IdentityKind) {
 
 }
 
 ASTIdentityType::ASTIdentityType(ASTIdentity *Def) :
         ASTType(SourceLocation(), ASTTypeKind::TYPE_IDENTITY),
         ASTIdentifier(SourceLocation(), Def->getName(), ASTIdentifierKind::REF_TYPE),
-        Def(Def), IdentityKind(toIdentityKind(Def->getTopDefKind())) {
+        Def(Def), IdentityTypeKind(toIdentityKind(Def->getTopDefKind())) {
 
 }
 
@@ -48,25 +48,25 @@ const SourceLocation &ASTIdentityType::getLocation() const {
     return ASTIdentifier::getLocation();
 }
 
-ASTIdentityTypeKind ASTIdentityType::getIdentityKind() const {
-    return IdentityKind;
+ASTIdentityTypeKind ASTIdentityType::getIdentityTypeKind() const {
+    return IdentityTypeKind;
 }
 
 bool ASTIdentityType::operator ==(const ASTIdentityType &IdentityType) const {
-    return IdentityType.getIdentityKind() != ASTIdentityTypeKind::TYPE_NONE &&
-            IdentityType.getIdentityKind() == getIdentityKind() && IdentityType.getName() == getName();
+    return IdentityType.getIdentityTypeKind() != ASTIdentityTypeKind::TYPE_NONE &&
+            IdentityType.getIdentityTypeKind() == getIdentityTypeKind() && IdentityType.getName() == getName();
 }
 
 bool ASTIdentityType::isNone() const {
-    return IdentityKind == ASTIdentityTypeKind::TYPE_NONE;
+    return IdentityTypeKind == ASTIdentityTypeKind::TYPE_NONE;
 }
 
 bool ASTIdentityType::isClass() const {
-    return IdentityKind == ASTIdentityTypeKind::TYPE_CLASS;
+    return IdentityTypeKind == ASTIdentityTypeKind::TYPE_CLASS;
 }
 
 bool ASTIdentityType::isEnum() const {
-    return IdentityKind == ASTIdentityTypeKind::TYPE_ENUM;
+    return IdentityTypeKind == ASTIdentityTypeKind::TYPE_ENUM;
 }
 
 std::string ASTIdentityType::print() const {
