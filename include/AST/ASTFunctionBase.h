@@ -71,8 +71,6 @@ namespace fly {
 
         ASTScopes *getScopes() const;
 
-        void addParam(ASTParam *Param);
-
         llvm::SmallVector<ASTParam *, 8> getParams() const;
 
         ASTParam *getEllipsis() const;

@@ -28,7 +28,7 @@ llvm::SmallVector<ASTElsifBlock *, 8> ASTIfBlock::getElsifBlocks() {
     return ElsifBlocks;
 }
 
-ASTElseBlock *ASTIfBlock::getElseBlock() {
+ASTBlock *ASTIfBlock::getElseBlock() {
     return ElseBlock;
 }
 
@@ -38,9 +38,8 @@ std::string ASTIfBlock::str() const {
            End();
 }
 
-ASTElsifBlock::ASTElsifBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc) :
-    ASTBlock(IfBlock->getParent(), Loc, ASTBlockKind::BLOCK_ELSIF), IfBlock(IfBlock) {
-    IfBlock->ElsifBlocks.push_back(this);
+ASTElsifBlock::ASTElsifBlock(const SourceLocation &Loc) :
+    ASTBlock(Loc, ASTBlockKind::BLOCK) {
 }
 
 ASTExpr *ASTElsifBlock::getCondition() {
@@ -49,17 +48,6 @@ ASTExpr *ASTElsifBlock::getCondition() {
 
 std::string ASTElsifBlock::str() const {
     return Logger("ASTElsifBlock").
-           Super(ASTBlock::str()).
-           End();
-}
-
-ASTElseBlock::ASTElseBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc) :
-    ASTBlock(IfBlock->getParent(), Loc, ASTBlockKind::BLOCK_ELSE), IfBlock(IfBlock) {
-    IfBlock->ElseBlock = this;
-}
-
-std::string ASTElseBlock::str() const {
-    return Logger("ASTElseBlock").
            Super(ASTBlock::str()).
            End();
 }

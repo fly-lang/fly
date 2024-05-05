@@ -55,6 +55,8 @@ namespace fly {
 
         const StringRef &getName() const;
 
+        ASTClassMethodKind getMethodKind() const;
+
         ASTClass *getClass() const;
 
         ASTClass *getDerivedClass() const;

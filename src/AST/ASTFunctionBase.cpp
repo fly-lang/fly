@@ -23,10 +23,6 @@ ASTScopes *ASTFunctionBase::getScopes() const {
     return Scopes;
 }
 
-void ASTFunctionBase::addParam(ASTParam *Param) {
-    Params.push_back(Param);
-}
-
 llvm::SmallVector<ASTParam *, 8> ASTFunctionBase::getParams() const {
     return Params;
 }

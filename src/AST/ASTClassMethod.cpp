@@ -23,6 +23,10 @@ const StringRef &ASTClassMethod::getName() const {
     return Name;
 }
 
+ASTClassMethodKind ASTClassMethod::getMethodKind() const {
+    return MethodKind;
+}
+
 ASTClass *ASTClassMethod::getClass() const {
     return Class;
 }

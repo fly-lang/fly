@@ -7,24 +7,36 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "AST/ASTWhileBlock.h"
+#include "AST/ASTLoopBlock.h"
 
 using namespace fly;
 
-ASTWhileBlock::ASTWhileBlock(ASTBlock *Parent, const SourceLocation &Loc) :
-        ASTBlock(Parent, Loc, ASTBlockKind::BLOCK_WHILE) {
+ASTLoopBlock::ASTLoopBlock(const SourceLocation &Loc) :
+        ASTBlock(Loc, ASTBlockKind::BLOCK_LOOP) {
 
 }
 
-ASTBlock *ASTWhileBlock::getParent() const {
+ASTBlock *ASTLoopBlock::getParent() const {
     return (ASTBlock *) Parent;
 }
 
-ASTExpr *ASTWhileBlock::getCondition() {
+ASTExpr *ASTLoopBlock::getCondition() {
     return Condition;
 }
 
-std::string ASTWhileBlock::str() const {
+bool ASTLoopBlock::isVerifyConditionOnEnd() const {
+    return VerifyConditionOnEnd;
+}
+
+ASTBlock *ASTLoopBlock::getInit() const {
+    return Init;
+}
+
+ASTBlock *ASTLoopBlock::getPost() const {
+    return Post;
+}
+
+std::string ASTLoopBlock::str() const {
     return Logger("ASTWhileBlock").
             Super(ASTBlock::str()).
             End();

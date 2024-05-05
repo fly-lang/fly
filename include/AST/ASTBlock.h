@@ -30,22 +30,13 @@ namespace fly {
     class ASTIfBlock;
     class ASTIfBlock;
     class ASTSwitchBlock;
-    class ASTForBlock;
-    class ASTWhileBlock;
+    class ASTLoopBlock;
 
     enum class ASTBlockKind {
         BLOCK,
         BLOCK_IF,
-        BLOCK_ELSIF,
-        BLOCK_ELSE,
         BLOCK_SWITCH,
-        BLOCK_SWITCH_CASE,
-        BLOCK_SWITCH_DEFAULT,
-        BLOCK_WHILE,
-        BLOCK_FOR,
-        BLOCK_FOR_LOOP,
-        BLOCK_FOR_POST,
-        BLOCK_HANDLE
+        BLOCK_LOOP
     };
 
     /**
@@ -67,7 +58,7 @@ namespace fly {
 
     protected:
 
-        ASTBlock(const SourceLocation &Loc);
+        explicit ASTBlock(const SourceLocation &Loc);
 
         ASTBlock(const SourceLocation &Loc, ASTBlockKind Kind);
 

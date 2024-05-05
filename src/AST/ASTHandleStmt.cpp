@@ -11,8 +11,8 @@
 
 using namespace fly;
 
-ASTHandleStmt::ASTHandleStmt(ASTStmt *Parent, const SourceLocation &Loc) :
-        ASTStmt(Parent, Loc, ASTStmtKind::STMT_HANDLE) {
+ASTHandleStmt::ASTHandleStmt(const SourceLocation &Loc) :
+        ASTStmt(Loc, ASTStmtKind::STMT_HANDLE) {
 
 }
 

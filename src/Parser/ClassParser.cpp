@@ -136,13 +136,13 @@ bool ClassParser::ParseField(ASTScopes *Scopes, ASTType *Type, const SourceLocat
         if (P->Tok.is(tok::equal)) {
             P->ConsumeToken();
 
-            ASTVarStmt *VarDefine = P->Builder.CreateVarStmt(nullptr, ClassVar);
+            ASTVarStmt *VarDefine = P->Builder.CreateVarStmt(ClassVar);
             ASTExpr *Expr = P->ParseExpr();
             VarDefine->setExpr(Expr);
             ClassVar->setInit(VarDefine);
         }
 
-        return P->Builder.AddClassVar(ClassVar) && P->Builder.AddComment(ClassVar, Comment);
+        return P->Builder.AddClassAttribute(Class, ClassVar) && P->Builder.AddComment(ClassVar, Comment);
     }
 
     return false;
@@ -163,14 +163,14 @@ bool ClassParser::ParseMethod(ASTScopes *Scopes, ASTType *Type, const SourceLoca
     if (Name == Class->getName()) {
         if (!Type) {
             Method = P->Builder.CreateClassConstructor(Loc, Scopes);
-            Success = FunctionParser::Parse(P, Method) && P->Builder.AddClassConstructor(Method);
+            Success = FunctionParser::Parse(P, Method) && P->Builder.AddClassMethod(Class, Method);
         } else {
             P->Diag(diag::err_parser_invalid_type);
             Success = false;
         }
     } else {
         Method = P->Builder.CreateClassMethod(Loc, Type, Name, Scopes);
-        Success = FunctionParser::Parse(P, Method) && P->Builder.AddClassMethod(Method);
+        Success = FunctionParser::Parse(P, Method) && P->Builder.AddClassMethod(Class, Method);
     }
 
     return Success;

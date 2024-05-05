@@ -14,20 +14,32 @@
 
 namespace fly {
 
-    class ASTWhileBlock : public ASTBlock {
+    class ASTLoopBlock : public ASTBlock {
 
         friend class SemaBuilder;
         friend class SemaResolver;
 
         ASTExpr *Condition = nullptr;
 
-        ASTWhileBlock(ASTBlock *Parent, const SourceLocation &Loc);
+        bool VerifyConditionOnEnd = false;
+
+        ASTBlock *Init = nullptr;
+
+        ASTBlock *Post = nullptr;
+
+        explicit ASTLoopBlock(const SourceLocation &Loc);
 
     public:
 
         ASTBlock *getParent() const override;
 
         ASTExpr *getCondition();
+
+        bool isVerifyConditionOnEnd() const;
+
+        ASTBlock *getInit() const;
+
+        ASTBlock *getPost() const;
 
         std::string str() const override;
 

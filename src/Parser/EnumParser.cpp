@@ -98,5 +98,5 @@ bool EnumParser::ParseField(const SourceLocation &Loc, llvm::StringRef Name) {
         Comment = P->BlockComment;
     }
 
-    return P->Builder.AddEnumEntry(EnumEntry);
+    return P->Builder.AddEnumEntry(Enum, EnumEntry);
 }

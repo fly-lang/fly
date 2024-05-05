@@ -19,7 +19,6 @@ add_library(flyLib
         AST/ASTExpr.cpp
         AST/ASTExprStmt.cpp
         AST/ASTFailStmt.cpp
-        AST/ASTForBlock.cpp
         AST/ASTFunction.cpp
         AST/ASTFunctionBase.cpp
         AST/ASTGlobalVar.cpp
@@ -30,6 +29,7 @@ add_library(flyLib
         AST/ASTIfBlock.cpp
         AST/ASTImport.cpp
         AST/ASTLocalVar.cpp
+        AST/ASTLoopBlock.cpp
         AST/ASTNameSpace.cpp
         AST/ASTNode.cpp
         AST/ASTParam.cpp
@@ -41,7 +41,6 @@ add_library(flyLib
         AST/ASTVar.cpp
         AST/ASTVarRef.cpp
         AST/ASTVarStmt.cpp
-        AST/ASTWhileBlock.cpp
 
         # Basic
         Basic/Archiver.cpp

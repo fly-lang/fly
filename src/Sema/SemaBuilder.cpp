@@ -25,8 +25,7 @@
 #include "AST/ASTParam.h"
 #include "AST/ASTBlock.h"
 #include "AST/ASTIfBlock.h"
-#include "AST/ASTWhileBlock.h"
-#include "AST/ASTForBlock.h"
+#include "AST/ASTLoopBlock.h"
 #include "AST/ASTSwitchBlock.h"
 #include "AST/ASTHandleStmt.h"
 #include "AST/ASTVarStmt.h"
@@ -201,7 +200,7 @@ ASTClass *SemaBuilder::CreateClass(const SourceLocation &Loc, ASTClassKind Class
     if (ClassKind == ASTClassKind::CLASS || ClassKind == ASTClassKind::STRUCT) {
         ASTScopes *Scopes = new ASTScopes(SourceLocation());
         ASTClassMethod *Constructor = CreateClassConstructor(SourceLocation(), Scopes);
-        AddClassConstructor(Constructor);
+        AddClassMethod(Class, Constructor);
         Class->autoDefaultConstructor = true;
     }
     
@@ -924,56 +923,28 @@ ASTBlock *SemaBuilder::CreateBlock(const SourceLocation &Loc) {
     return Block;
 }
 
-ASTIfBlock *SemaBuilder::CreateIfBlock(const SourceLocation &Loc) {
+ASTIfBlock *SemaBuilder::CreateIfBlock(const SourceLocation &Loc, ASTExpr *Expr) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateIfBlock", Logger()
                       .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
-    ASTIfBlock *Block = new ASTIfBlock(Loc);
-    return Block;
+    ASTIfBlock *IfBlock = new ASTIfBlock(Loc);
+    return IfBlock;
 }
 
-ASTElsifBlock *SemaBuilder::CreateElsifBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateElsifBlock", Logger()
-                      .Attr("IfBlock", IfBlock)
-                      .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
-    ASTElsifBlock *Block = new ASTElsifBlock(IfBlock, Loc);
-    return Block;
-}
-
-ASTElseBlock *SemaBuilder::CreateElseBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateElseBlock", Logger()
-                        .Attr("IfBlock", IfBlock)
-                        .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
-    ASTElseBlock *Block = new ASTElseBlock(Loc);
-    return Block;
-}
-
-ASTSwitchBlock *SemaBuilder::CreateSwitchBlock(const SourceLocation &Loc) {
+ASTSwitchBlock *SemaBuilder::CreateSwitchBlock(const SourceLocation &Loc, ASTExpr *Expr) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateSwitchBlock", Logger()
                       .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
-    ASTSwitchBlock *Block = new ASTSwitchBlock(Loc);
-    return Block;
+    ASTSwitchBlock *SwitchBlock = new ASTSwitchBlock(Loc);
+    if (S.Validator->CheckVarRefExpr(Expr)) {
+        ASTVarRefExpr *VarRefExpr = (ASTVarRefExpr *) Expr;
+        SwitchBlock->VarRef = VarRefExpr->VarRef;
+    }
+    return SwitchBlock;
 }
 
-ASTSwitchCaseBlock *SemaBuilder::CreateSwitchCaseBlock(ASTSwitchBlock *SwitchBlock, const SourceLocation &Loc) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateSwitchCaseBlock", Logger()
-                      .Attr("SwitchBlock", SwitchBlock)
+ASTLoopBlock *SemaBuilder::CreateLoopBlock(const SourceLocation &Loc) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateLoopBlock", Logger()
                       .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
-    ASTSwitchCaseBlock *Block = new ASTSwitchCaseBlock(SwitchBlock, Loc);
-    return Block;
-}
-
-ASTSwitchDefaultBlock *SemaBuilder::CreateSwitchDefaultBlock(ASTSwitchBlock *SwitchBlock, const SourceLocation &Loc) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateSwitchDefaultBlock", Logger()
-                      .Attr("SwitchBlock", SwitchBlock)
-                      .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
-    ASTSwitchDefaultBlock *Block = new ASTSwitchDefaultBlock(Loc);
-    return Block;
-}
-
-ASTWhileBlock *SemaBuilder::CreateWhileBlock(const SourceLocation &Loc) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateWhileBlock", Logger()
-                      .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
-    ASTWhileBlock *Block = new ASTWhileBlock(Loc);
+    ASTLoopBlock *Block = new ASTLoopBlock(Loc);
     return Block;
 }
 
@@ -985,26 +956,13 @@ ASTWhileBlock *SemaBuilder::CreateWhileBlock(const SourceLocation &Loc) {
  * @param LoopBlock
  * @return
  */
-ASTForBlock *SemaBuilder::CreateForBlock(const SourceLocation &Loc) {
+ASTLoopBlock *SemaBuilder::CreateForBlock(const SourceLocation &Loc, ASTExpr *Expr, ASTBlock *Init, ASTBlock *Post) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateForBlock", Logger()
                       .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
-    ASTForBlock *Block = new ASTForBlock(Loc);
-    return Block;
-}
-
-ASTForLoopBlock *SemaBuilder::CreateForLoopBlock(ASTForBlock *ForBlock, const SourceLocation &Loc) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateForLoopBlock", Logger()
-                        .Attr("ForBlock", ForBlock)
-                        .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
-    ASTForLoopBlock *Block = new ASTForLoopBlock(ForBlock, Loc);
-    return Block;
-}
-
-ASTForPostBlock *SemaBuilder::CreateForPostBlock(ASTForBlock *ForBlock, const SourceLocation &Loc) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateForPostBlock", Logger()
-                        .Attr("ForBlock", ForBlock)
-                        .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
-    ASTForPostBlock *Block = new ASTForPostBlock(ForBlock, Loc);
+    ASTLoopBlock *Block = new ASTLoopBlock(Loc);
+    Block->Condition = Expr;
+    Block->Init = Init;
+    Block->Post = Post;
     return Block;
 }
 
@@ -1017,6 +975,20 @@ ASTHandleStmt *SemaBuilder::CreateHandleStmt(const SourceLocation &Loc, ASTVarRe
 }
 
 /********************** Following Methods Adds AST objects to other AST object ****************************************/
+/**
+ * Add an ASTNode to the ASTContext and in its ASTNameSpace
+ * @param Node
+ * @return true if no error occurs, otherwise false
+ */
+bool
+SemaBuilder::AddNode(ASTNode *Node) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "AddNode", Logger().Attr("Node", Node).End());
+
+    // Add to Nodes
+    auto Pair = std::make_pair(Node->getName(), Node);
+    // TODO check duplicated in namespace and context
+    return Node->NameSpace->Nodes.insert(Pair).second && S.Context->Nodes.insert(Pair).second;
+}
 
 /**
  * Add an ASTNameSpace to the ASTContext if not exists yet
@@ -1042,21 +1014,6 @@ SemaBuilder::AddNameSpace(ASTNode *Node, ASTNameSpace *NewNameSpace,  bool Exter
         Node->NameSpace = NameSpace;
 
     return true;
-}
-
-/**
- * Add an ASTNode to the ASTContext and in its ASTNameSpace
- * @param Node
- * @return true if no error occurs, otherwise false
- */
-bool
-SemaBuilder::AddNode(ASTNode *Node) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "AddNode", Logger().Attr("Node", Node).End());
-
-    // Add to Nodes
-    auto Pair = std::make_pair(Node->getName(), Node);
-    // TODO check duplicated in namespace and context
-    return Node->NameSpace->Nodes.insert(Pair).second && S.Context->Nodes.insert(Pair).second;
 }
 
 bool
@@ -1089,24 +1046,27 @@ SemaBuilder::AddImport(ASTNode *Node, ASTImport * Import) {
 }
 
 bool
-SemaBuilder::AddIdentity(ASTNode *Node, ASTIdentity *Identity) {
-    FLY_DEBUG_MESSAGE("ASTNode", "AddIdentity", Logger()
-                      .Attr("Identity", Identity).End());
+SemaBuilder::AddExternalGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "AddExternalGlobalVar", Logger()
+            .Attr("Node", Node)
+            .Attr("GlobalVar", GlobalVar).End());
+    // TODO Check duplicate
+    GlobalVar->Node = Node;
+    return Node->ExternalGlobalVars.insert(std::make_pair(GlobalVar->getName(), GlobalVar)).second;
+}
 
-    // Lookup into namespace
-    Node->Identity = Identity;
+bool
+SemaBuilder::AddExternalFunction(ASTNode *Node, ASTFunction *Function) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "AddExternalFunction", Logger()
+            .Attr("Node", Node)
+            .Attr("Function", Function).End());
+    Function->Node = Node;
+    // TODO Check duplicate
+    return InsertFunction(Node->ExternalFunctions, Function);
+}
 
-    bool Success = true;
-    if (Identity->Scopes->Visibility == ASTVisibilityKind::V_PUBLIC || Identity->Scopes->Visibility == ASTVisibilityKind::V_DEFAULT) {
-        ASTIdentity *LookupClass = Node->NameSpace->getIdentities().lookup(Identity->getName());
-        if (LookupClass) { // This NameSpace already contains this Function
-            S.Diag(LookupClass->Location, diag::err_duplicate_class) << LookupClass->getName();
-            return false;
-        }
-        Success = Node->NameSpace->Identities.insert(std::make_pair(Identity->getName(), Identity)).second;
-    }
-
-    return Success;
+bool SemaBuilder::AddExternalIdentities(ASTNode *Node, ASTIdentity *Identity) {
+    return Node->ExternalIdentities.insert(std::make_pair(Identity->getName(), Identity)).second;
 }
 
 bool
@@ -1114,6 +1074,8 @@ SemaBuilder::AddGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar, ASTValue *Valu
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddGlobalVar", Logger()
                       .Attr("GlobalVar", GlobalVar)
                       .Attr("Value", Value).End());
+
+    GlobalVar->Node = Node;
 
     ASTVarStmt *VarStmt = SemaBuilder::CreateVarStmt(GlobalVar);
     ASTValueExpr *ValueExpr = SemaBuilder::CreateExpr(Value);
@@ -1160,6 +1122,8 @@ SemaBuilder::AddFunction(ASTNode *Node, ASTFunction *Function) {
     FLY_DEBUG_MESSAGE("ASTNode", "AddFunction",
                       Logger().Attr("Function", Function).End());
 
+    Function->Node = Node;
+
     // Lookup into namespace for public var
     if(Function->Scopes->Visibility == ASTVisibilityKind::V_PUBLIC ||
         Function->Scopes->Visibility == ASTVisibilityKind::V_DEFAULT) {
@@ -1181,9 +1145,32 @@ SemaBuilder::AddFunction(ASTNode *Node, ASTFunction *Function) {
 }
 
 bool
-SemaBuilder::AddClassVar(ASTClassAttribute *Var) {
-    ASTClass *Class = Var->Class;
+SemaBuilder::AddIdentity(ASTNode *Node, ASTIdentity *Identity) {
+    FLY_DEBUG_MESSAGE("ASTNode", "AddIdentity", Logger()
+            .Attr("Identity", Identity).End());
+
+    Identity->Node = Node;
+
+    // Lookup into namespace
+    Node->Identity = Identity;
+
+    bool Success = true;
+    if (Identity->Scopes->Visibility == ASTVisibilityKind::V_PUBLIC || Identity->Scopes->Visibility == ASTVisibilityKind::V_DEFAULT) {
+        ASTIdentity *LookupClass = Node->NameSpace->getIdentities().lookup(Identity->getName());
+        if (LookupClass) { // This NameSpace already contains this Function
+            S.Diag(LookupClass->Location, diag::err_duplicate_class) << LookupClass->getName();
+            return false;
+        }
+        Success = Node->NameSpace->Identities.insert(std::make_pair(Identity->getName(), Identity)).second;
+    }
+
+    return Success;
+}
+
+bool
+SemaBuilder::AddClassAttribute(ASTClass *Class, ASTClassAttribute *Var) {
     if (Class->Vars.insert(std::pair<llvm::StringRef, ASTClassAttribute *>(Var->getName(), Var)).second) {
+        Var->Class = Class;
         return Var;
     }
 
@@ -1192,38 +1179,36 @@ SemaBuilder::AddClassVar(ASTClassAttribute *Var) {
 }
 
 bool
-SemaBuilder::AddClassMethod(ASTClassMethod *Method) {
-    // Check duplicates
-    if (!InsertFunction(Method->Class->Methods, Method)) {
-        S.Diag(Method->getLocation(), diag::err_sema_class_method_redeclare) << Method->getName();
-        return false;
+SemaBuilder::AddClassMethod(ASTClass *Class, ASTClassMethod *Method) {
+    Method->Class = Class;
+    if (Method->isConstructor()) {
+
+        // Check default constructor
+        if (Class->autoDefaultConstructor) {
+            Class->Constructors.erase(0); // Remove default constructor if a new Constructor is defined
+            Class->autoDefaultConstructor = false;
+        }
+
+        // Check duplicates
+        if (!InsertFunction(Class->Constructors, Method)) {
+            S.Diag(Method->getLocation(), diag::err_sema_class_method_redeclare) << Method->getName();
+            return false;
+        }
+    } else {
+        // Check duplicates
+        if (!InsertFunction(Method->Class->Methods, Method)) {
+            S.Diag(Method->getLocation(), diag::err_sema_class_method_redeclare) << Method->getName();
+            return false;
+        }
     }
 
     return true;
 }
 
-bool
-SemaBuilder::AddClassConstructor(ASTClassMethod *Constructor) {
-    ASTClass *Class = Constructor->Class;
-
-    // Check default constructor
-    if (Class->autoDefaultConstructor) {
-        Class->Constructors.erase(0); // Remove default constructor if a new Constructor is defined
-        Class->autoDefaultConstructor = false;
-    }
-
-    // Check duplicates
-    if (!InsertFunction(Class->Constructors, Constructor)) {
-        S.Diag(Constructor->getLocation(), diag::err_sema_class_method_redeclare) << Constructor->getName();
-        return false;
-    }
-
-    return true;
-}
-
-bool SemaBuilder::AddEnumEntry(ASTEnumEntry *EnumVar) {
-    EnumVar->Index = EnumVar->getEnum()->Vars.size() + 1;
-    return EnumVar->getEnum()->Vars.insert(std::make_pair(EnumVar->getName(), EnumVar)).second;
+bool SemaBuilder::AddEnumEntry(ASTEnum *Enum, ASTEnumEntry *Entry) {
+    Entry->Enum = Enum;
+    Entry->Index = Entry->getEnum()->Vars.size() + 1;
+    return Entry->getEnum()->Vars.insert(std::make_pair(Entry->getName(), Entry)).second;
 }
 
 bool
@@ -1232,7 +1217,7 @@ SemaBuilder::AddParam(ASTFunctionBase *FunctionBase, ASTParam *Param) {
 
     // Check var duplicates
     if (S.Validator->CheckDuplicateParams(FunctionBase->Params, Param)) {
-        FunctionBase->addParam(Param);
+        FunctionBase->Params.push_back(Param);
         return true;
     }
 
@@ -1260,28 +1245,6 @@ SemaBuilder::AddComment(ASTBase *Base, llvm::StringRef Comment) {
                         .Attr("Comment", Comment).End());
     Base->Comment = Comment;
     return true;
-}
-
-bool
-SemaBuilder::AddExternalGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "AddExternalGlobalVar", Logger()
-                        .Attr("Node", Node)
-                        .Attr("GlobalVar", GlobalVar).End());
-    // TODO Check duplicate
-    return Node->ExternalGlobalVars.insert(std::make_pair(GlobalVar->getName(), GlobalVar)).second;
-}
-
-bool
-SemaBuilder::AddExternalFunction(ASTNode *Node, ASTFunction *Function) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "AddExternalFunction", Logger()
-                        .Attr("Node", Node)
-                        .Attr("Function", Function).End());
-    // TODO Check duplicate
-    return InsertFunction(Node->ExternalFunctions, Function);
-}
-
-bool SemaBuilder::AddExternalIdentities(ASTNode *Node, ASTIdentity *Identity) {
-    return Node->ExternalIdentities.insert(std::make_pair(Identity->getName(), Identity)).second;
 }
 
 bool
@@ -1313,8 +1276,114 @@ SemaBuilder::AddCallArg(ASTCall *Call, ASTExpr *Expr) {
     return true;
 }
 
+/**
+ * Add ExprStmt to Content
+ * @param ExprStmt
+ * @return true if no error occurs, otherwise false
+ */
 bool
-SemaBuilder::AddExpr(ASTStmt *Stmt, ASTExpr *Expr) {
+SemaBuilder::AddStmt(ASTStmt *Parent, ASTStmt *Stmt) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "AddStmt", Logger().Attr("Stmt", Stmt).End());
+
+    bool Success =  false;
+    switch (Stmt->getKind()) {
+
+        case ASTStmtKind::STMT_BLOCK: {
+            Stmt->Parent = Parent;
+            Success = true;
+            break;
+        }
+
+        case ASTStmtKind::STMT_VAR: {
+            ASTVarStmt *VarDefine = (ASTVarStmt *) Stmt;
+
+            ASTVar *Var = VarDefine->getVarRef()->getDef();
+
+            // Collects all LocalVars in the hierarchy Block
+            if (Var->getVarKind() == ASTVarKind::VAR_LOCAL) {
+                ASTLocalVar *LocalVar = (ASTLocalVar *) Var;
+
+                // Statements have an assignment so is initialized
+                if (VarDefine->getExpr() != nullptr)
+                    LocalVar->setInitialization(VarDefine);
+
+                // Add to the Parent Block
+                const auto &Pair = std::pair<std::string, ASTLocalVar *>(LocalVar->getName(), LocalVar);
+
+                // Useful for Alloca into CodeGen
+                Parent->Top->Body->LocalVars.insert(Pair);
+                Success = true;
+            }
+            break;
+        }
+
+        case ASTStmtKind::STMT_EXPR:
+        case ASTStmtKind::STMT_BREAK:
+        case ASTStmtKind::STMT_CONTINUE:
+        case ASTStmtKind::STMT_DELETE:
+        case ASTStmtKind::STMT_RETURN:
+            Success = true;
+            break;
+    }
+
+    return Success;
+}
+
+bool SemaBuilder::AddElsifBlock(ASTIfBlock *Parent, ASTExpr *Condition, ASTBlock *Block) {
+    Block->Parent = Parent;
+    ASTElsifBlock *ElsifBlock = new ASTElsifBlock(Block->getLocation());
+    ElsifBlock->Condition = Condition;
+    ElsifBlock->Content = Block->Content;
+    if (!Parent) {
+        S.Diag(ElsifBlock->getLocation(), diag::err_missing_if_first);
+        return false;
+    }
+    if (Parent->ElseBlock) {
+        S.Diag(ElsifBlock->getLocation(), diag::err_elseif_after_else);
+        return false;
+    }
+    Parent->ElsifBlocks.push_back(ElsifBlock);
+    return !ElsifBlock->IfBlock->ElsifBlocks.empty();
+}
+
+bool SemaBuilder::AddElseBlock(ASTIfBlock *Parent, ASTBlock *Block) {
+    Block->Parent = Parent;
+    Parent->ElseBlock = Block;
+    return true;
+}
+
+bool SemaBuilder::AddCaseBlock(ASTSwitchBlock *Parent, ASTValue *Value, ASTBlock *Block) {
+    Block->Parent = Parent;
+    ASTSwitchCaseBlock *Case = new ASTSwitchCaseBlock(Block->getLocation());
+    Case->Value = Value;
+    Parent->Cases.push_back(Case);
+    return true;
+}
+
+bool SemaBuilder::AddDefaultBlock(ASTSwitchBlock *Parent, ASTBlock *Block) {
+    Block->Parent = Parent;
+    Parent->Default = Block;
+    return true;
+}
+
+bool SemaBuilder::AddLoopConditionBlock(ASTLoopBlock *Parent, ASTExpr *Condition) {
+    Parent->Condition = Condition;
+    return false;
+}
+
+bool SemaBuilder::AddLoopInitBlock(ASTLoopBlock *Parent, ASTBlock *Block) {
+    Block->Parent = Parent;
+    Parent->Init = Block;
+    return false;
+}
+
+bool SemaBuilder::AddLoopPostBlock(ASTLoopBlock *Parent, ASTBlock *Block) {
+    Block->Parent = Parent;
+    Parent->Post = Block;
+    return false;
+}
+
+bool SemaBuilder::AddExpr(ASTStmt *Stmt, ASTExpr *Expr) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddExpr",
                       Logger().Attr("Stmt", Stmt).Attr("Expr", Expr).End());
     if (!Expr) {
@@ -1335,155 +1404,24 @@ SemaBuilder::AddExpr(ASTStmt *Stmt, ASTExpr *Expr) {
                 ((ASTReturnStmt *) Stmt)->Expr = Expr;
                 break;
             case ASTStmtKind::STMT_BLOCK:
-                switch (((ASTBlock *) Stmt)->getBlockKind()) {
-                    case ASTBlockKind::BLOCK_IF:
-                        ((ASTIfBlock *) Stmt)->Condition = Expr;
-                        break;
-                    case ASTBlockKind::BLOCK_ELSIF:
-                        ((ASTElsifBlock *) Stmt)->Condition = Expr;
-                        break;
-                    case ASTBlockKind::BLOCK_SWITCH:
-                        ((ASTSwitchBlock *) Stmt)->Expr = Expr;
-                        break;
-                    case ASTBlockKind::BLOCK_SWITCH_CASE:
-                        ((ASTSwitchCaseBlock *) Stmt)->Expr = Expr;
-                        break;
-                    case ASTBlockKind::BLOCK_WHILE:
-                        ((ASTWhileBlock *) Stmt)->Condition = Expr;
-                        break;
-                    case ASTBlockKind::BLOCK_FOR:
-                        ((ASTForBlock *) Stmt)->Condition = Expr;
-                        break;
-                    case ASTBlockKind::BLOCK:
-                    case ASTBlockKind::BLOCK_ELSE:
-                    case ASTBlockKind::BLOCK_SWITCH_DEFAULT:
-                        assert("Cannot contain an Expr");
-                        break;
-                }
+//                switch (((ASTBlock *) Stmt)->getBlockKind()) {
+//                    case ASTBlockKind::BLOCK_IF:
+//                        ((ASTIfBlock *) Stmt)->Condition = Expr;
+//                        break;
+//                    case ASTBlockKind::BLOCK_SWITCH:
+//                        ((ASTSwitchBlock *) Stmt)->Var = Expr;
+//                        break;
+//                    case ASTBlockKind::BLOCK_LOOP:
+//                        ((ASTLoopBlock *) Stmt)->Condition = Expr;
+//                        break;
+//                    case ASTBlockKind::BLOCK:
+//                        assert("Cannot contain an Expr");
+//                        break;
+//                }
             case ASTStmtKind::STMT_BREAK:
             case ASTStmtKind::STMT_CONTINUE:
                 assert("Cannot contain an Expr");
         }
     }
     return true;
-}
-
-/**
- * Add ExprStmt to Content
- * @param ExprStmt
- * @return true if no error occurs, otherwise false
- */
-bool
-SemaBuilder::AddStmt(ASTStmt *Stmt) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "AddStmt", Logger().Attr("Stmt", Stmt).End());
-
-    ASTBlock *Parent = (ASTBlock *) Stmt->Parent;
-    Parent->Content.push_back(Stmt);
-    bool Success =  false;
-
-    switch (Stmt->getKind()) {
-
-        case ASTStmtKind::STMT_VAR: {
-            ASTVarStmt *VarDefine = (ASTVarStmt *) Stmt;
-
-            ASTVar *Var = VarDefine->getVarRef()->getDef();
-
-            // Collects all LocalVars in the hierarchy Block
-            if (Var->getVarKind() == ASTVarKind::VAR_LOCAL) {
-                ASTLocalVar *LocalVar = (ASTLocalVar *) Var;
-
-                // Statements have an assignment so is initialized
-                if (VarDefine->getExpr() != nullptr)
-                    LocalVar->setInitialization(VarDefine);
-
-                // Add to the Parent Block
-                const auto &Pair = std::pair<std::string, ASTLocalVar *>(LocalVar->getName(), LocalVar);
-                if (Parent->LocalVars.insert(Pair).second) {
-
-                    // Useful for Alloca into CodeGen
-                    Parent->Top->Body->LocalVars.insert(Pair);
-                    Success = true;
-                }
-            }
-        }
-            break;
-
-        case ASTStmtKind::STMT_BLOCK:
-            Success = AddBlock((ASTBlock *) Stmt);
-            break;
-
-        case ASTStmtKind::STMT_EXPR:
-        case ASTStmtKind::STMT_BREAK:
-        case ASTStmtKind::STMT_CONTINUE:
-        case ASTStmtKind::STMT_DELETE:
-        case ASTStmtKind::STMT_RETURN:
-            Success = true;
-            break;
-    }
-
-    return Success;
-}
-
-bool
-SemaBuilder::AddBlock(ASTBlock *Block) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "AddBlock",
-                      Logger().Attr("Stmt", Block).End());
-
-    switch (Block->getBlockKind()) {
-
-        case ASTBlockKind::BLOCK:
-            return true;
-
-        case ASTBlockKind::BLOCK_IF:
-            return true;
-
-        case ASTBlockKind::BLOCK_ELSIF: {
-            ASTElsifBlock *ElsifBlock = (ASTElsifBlock *) Block;
-            if (!ElsifBlock->IfBlock) {
-                S.Diag(ElsifBlock->getLocation(), diag::err_missing_if_first);
-                return false;
-            }
-            if (ElsifBlock->IfBlock->ElseBlock) {
-                S.Diag(ElsifBlock->getLocation(), diag::err_elseif_after_else);
-                return false;
-            }
-            ElsifBlock->IfBlock->ElsifBlocks.push_back(ElsifBlock);
-            return !ElsifBlock->IfBlock->ElsifBlocks.empty();
-        }
-
-        case ASTBlockKind::BLOCK_ELSE: {
-            ASTElseBlock *ElseBlock = (ASTElseBlock *) Block;
-            if (!ElseBlock->IfBlock) {
-                S.Diag(ElseBlock->getLocation(), diag::err_missing_if_first);
-                return false;
-            }
-            if (ElseBlock->IfBlock->ElseBlock) {
-                S.Diag(ElseBlock->getLocation(), diag::err_else_after_else);
-                return false;
-            }
-            ElseBlock->IfBlock->ElseBlock = ElseBlock;
-            return true;
-        }
-
-        case ASTBlockKind::BLOCK_SWITCH: {
-            ASTSwitchBlock *SwitchBlock = (ASTSwitchBlock *) Block;
-
-            return true;
-        }
-
-        case ASTBlockKind::BLOCK_WHILE: {
-            ASTWhileBlock *While = (ASTWhileBlock *) Block;
-
-            return true;
-        }
-
-        case ASTBlockKind::BLOCK_FOR: {
-            ASTForBlock *For = (ASTForBlock *) Block;
-
-            return true;
-        }
-    }
-
-    assert("Invalid block type");
-    return false;
 }

@@ -43,8 +43,7 @@ namespace fly {
     class ASTGroupExpr;
     class ASTIfBlock;
     class ASTSwitchBlock;
-    class ASTForBlock;
-    class ASTWhileBlock;
+    class ASTLoopBlock;
     class CodeGenGlobalVar;
     class CodeGenFunction;
     class CodeGenFunctionBase;
@@ -142,9 +141,9 @@ namespace fly {
 
         void GenSwitchBlock(CodeGenFunctionBase *CGF, ASTSwitchBlock *Switch);
 
-        void GenForBlock(CodeGenFunctionBase *CGF, ASTForBlock *For);
+        void GenForBlock(CodeGenFunctionBase *CGF, ASTLoopBlock *Loop);
 
-        void GenWhileBlock(CodeGenFunctionBase *CGF, ASTWhileBlock *While);
+        void GenWhileBlock(CodeGenFunctionBase *CGF, ASTLoopBlock *While);
 
         void pushArgs(ASTCall *pCall, llvm::SmallVector<llvm::Value *, 8> &Args);
 

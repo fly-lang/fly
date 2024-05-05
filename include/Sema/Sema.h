@@ -74,20 +74,6 @@ namespace fly {
         DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID) const;
 
         DiagnosticBuilder Diag(unsigned DiagID) const;
-
-        ASTNameSpace *FindNameSpace(llvm::StringRef Name) const;
-
-        ASTNode *FindNode(ASTFunctionBase *FunctionBase) const;
-
-        ASTNode *FindNode(llvm::StringRef Name, ASTNameSpace *NameSpace) const;
-
-        ASTIdentity *FindIdentity(llvm::StringRef Name, ASTNameSpace *NameSpace) const;
-
-        ASTIdentityType *FindIdentityType(llvm::StringRef Name, ASTNameSpace *NameSpace) const;
-
-        ASTVar *FindLocalVar(ASTBlock *Block, llvm::StringRef Name) const;
-
-        ASTImport *FindImport(ASTNode *Node, llvm::StringRef Name);
     };
 
 }  // end namespace fly

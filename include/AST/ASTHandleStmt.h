@@ -28,7 +28,7 @@ namespace fly {
 
         CodeGenHandle * CodeGen = nullptr;
 
-        ASTHandleStmt(ASTStmt *Parent, const SourceLocation &Loc);
+        explicit ASTHandleStmt(const SourceLocation &Loc);
 
     public:
 

@@ -38,8 +38,7 @@
 #include "AST/ASTBlock.h"
 #include "AST/ASTIfBlock.h"
 #include "AST/ASTSwitchBlock.h"
-#include "AST/ASTWhileBlock.h"
-#include "AST/ASTForBlock.h"
+#include "AST/ASTLoopBlock.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTVarStmt.h"
 #include "AST/ASTVarRef.h"
@@ -424,23 +423,18 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
                 case ASTBlockKind::BLOCK_IF:
                     GenIfBlock(CGF, (ASTIfBlock *)Block);
                     break;
-                case ASTBlockKind::BLOCK_ELSIF:
-                case ASTBlockKind::BLOCK_ELSE:
-                    // All done into BLOCK_STMT_IF
-                    break;
                 case ASTBlockKind::BLOCK_SWITCH:
                     GenSwitchBlock(CGF, (ASTSwitchBlock *)Block);
                     break;
-                case ASTBlockKind::BLOCK_SWITCH_CASE:
-                case ASTBlockKind::BLOCK_SWITCH_DEFAULT:
-                    // All done into BLOCK_STMT_SWITCH
+                case ASTBlockKind::BLOCK_LOOP: {
+                    ASTLoopBlock *LoopBlock = (ASTLoopBlock *) Block;
+                    if (!LoopBlock->getPost()->isEmpty()) {
+                        GenForBlock(CGF, LoopBlock);
+                    } else {
+                        GenWhileBlock(CGF, LoopBlock);
+                    }
                     break;
-                case ASTBlockKind::BLOCK_FOR:
-                    GenForBlock(CGF, (ASTForBlock *)Block);
-                    break;
-                case ASTBlockKind::BLOCK_WHILE:
-                    GenWhileBlock(CGF, (ASTWhileBlock *)Block);
-                    break;
+                }
             }
             break;
         }
@@ -747,7 +741,7 @@ void CodeGenModule::GenSwitchBlock(CodeGenFunctionBase *CGF, ASTSwitchBlock *Swi
     llvm::BasicBlock *EndBR = llvm::BasicBlock::Create(LLVMCtx, "endswitch", Fn);
 
     // Create Expression evaluator for Switch
-    llvm::Value *SwitchVal = GenExpr(Switch->getExpr());
+    llvm::Value *SwitchVal = Switch->getVarRef()->getDef()->getCodeGen()->getValue();
     llvm::SwitchInst *Inst = Builder->CreateSwitch(SwitchVal, EndBR);
 
     // Create Cases
@@ -756,7 +750,7 @@ void CodeGenModule::GenSwitchBlock(CodeGenFunctionBase *CGF, ASTSwitchBlock *Swi
     llvm::BasicBlock *NextCaseBB = nullptr;
     for (int i=0; i < Size; i++) {
         ASTSwitchCaseBlock *Case = Switch->getCases()[i];
-        llvm::Value *CaseVal = GenExpr(Case->getExpr());
+        llvm::Value *CaseVal = GenValue(Case->getType(), Case->getValue());
         llvm::ConstantInt *CaseConst = llvm::cast<llvm::ConstantInt, llvm::Value>(CaseVal);
         llvm::BasicBlock *CaseBB = NextCaseBB == nullptr ?
                                    llvm::BasicBlock::Create(LLVMCtx, "case", Fn, EndBR) : NextCaseBB;
@@ -784,21 +778,16 @@ void CodeGenModule::GenSwitchBlock(CodeGenFunctionBase *CGF, ASTSwitchBlock *Swi
     Builder->SetInsertPoint(EndBR);
 }
 
-void CodeGenModule::GenForBlock(CodeGenFunctionBase *CGF, ASTForBlock *For) {
+void CodeGenModule::GenForBlock(CodeGenFunctionBase *CGF, ASTLoopBlock *Loop) {
     FLY_DEBUG("CodeGenModule", "GenForBlock");
     llvm::Function *Fn = CGF->getFunction();
-
-    // Add to Current Block
-    if (!For->isEmpty()) {
-        GenBlock(CGF, For->getContent());
-    }
 
     // Create Loop Block
     llvm::BasicBlock *LoopBB = LoopBB = llvm::BasicBlock::Create(LLVMCtx, "forloop", Fn);
 
     // Create Post Block
     llvm::BasicBlock *PostBB = nullptr;
-    if (For->getPost() && !For->getPost()->isEmpty()) {
+    if (Loop->getPost() && !Loop->getPost()->isEmpty()) {
         PostBB = llvm::BasicBlock::Create(LLVMCtx, "forpost", Fn);
     }
 
@@ -807,20 +796,20 @@ void CodeGenModule::GenForBlock(CodeGenFunctionBase *CGF, ASTForBlock *For) {
 
     // Add to Condition
     llvm::BasicBlock *CondBB = nullptr;
-    if (For->getCondition()) {
+    if (Loop->getCondition()) {
         CondBB = llvm::BasicBlock::Create(LLVMCtx, "forcond", Fn, LoopBB);
         Builder->CreateBr(CondBB);
 
         // Create Condition
         Builder->SetInsertPoint(CondBB);
-        Value *Cond = GenExpr(For->getCondition());
+        Value *Cond = GenExpr(Loop->getCondition());
         Builder->CreateCondBr(Cond, LoopBB, EndBB);
     } else {
         Builder->CreateBr(LoopBB);
     }
 
     // Add to Loop
-    GenBlock(CGF, For->getLoop()->getContent(), LoopBB);
+    GenBlock(CGF, Loop->getContent(), LoopBB);
     if (PostBB) {
         Builder->CreateBr(PostBB);
     } else if (CondBB) {
@@ -831,7 +820,7 @@ void CodeGenModule::GenForBlock(CodeGenFunctionBase *CGF, ASTForBlock *For) {
 
     // Add to Post
     if (PostBB) {
-        GenBlock(CGF, For->getPost()->getContent(), PostBB);
+        GenBlock(CGF, Loop->getPost()->getContent(), PostBB);
         if (CondBB) {
             Builder->CreateBr(CondBB);
         } else {
@@ -843,7 +832,7 @@ void CodeGenModule::GenForBlock(CodeGenFunctionBase *CGF, ASTForBlock *For) {
     Builder->SetInsertPoint(EndBB);
 }
 
-void CodeGenModule::GenWhileBlock(CodeGenFunctionBase *CGF, ASTWhileBlock *While) {
+void CodeGenModule::GenWhileBlock(CodeGenFunctionBase *CGF, ASTLoopBlock *While) {
     FLY_DEBUG("CodeGenModule", "GenWhileBlock");
     llvm::Function *Fn = CGF->getFunction();
 

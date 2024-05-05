@@ -314,3 +314,7 @@ void SemaValidator::CheckCreateParam(const SourceLocation &Loc, ASTType *Type, S
 void SemaValidator::CheckCreateLocalVar(const SourceLocation &Loc, ASTType *Type, StringRef Name, ASTScopes *Scopes) {
 
 }
+
+bool SemaValidator::CheckVarRefExpr(ASTExpr *Expr) {
+    return false;
+}

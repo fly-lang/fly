@@ -16,12 +16,10 @@ namespace fly {
 
     class ASTIfBlock;
     class ASTElsifBlock;
-    class ASTElseBlock;
 
     class ASTIfBlock : public ASTBlock {
 
         friend class ASTElsifBlock;
-        friend class ASTElseBlock;
         friend class SemaBuilder;
         friend class SemaResolver;
 
@@ -32,7 +30,7 @@ namespace fly {
         llvm::SmallVector<ASTElsifBlock *, 8> ElsifBlocks;
 
         // The Else Block
-        ASTElseBlock *ElseBlock = nullptr;
+        ASTBlock *ElseBlock = nullptr;
 
         explicit ASTIfBlock(const SourceLocation &Loc);
 
@@ -44,7 +42,7 @@ namespace fly {
 
         llvm::SmallVector<ASTElsifBlock *, 8>  getElsifBlocks();
 
-        ASTElseBlock *getElseBlock();
+        ASTBlock *getElseBlock();
 
         std::string str() const override;
     };
@@ -60,24 +58,11 @@ namespace fly {
         // The Else If expression condition
         ASTExpr *Condition = nullptr;
 
-        ASTElsifBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc);
+        explicit ASTElsifBlock(const SourceLocation &Loc);
 
     public:
 
         ASTExpr *getCondition();
-
-        std::string str() const override;
-    };
-
-    class ASTElseBlock : public ASTBlock {
-
-        friend class SemaBuilder;
-        friend class SemaResolver;
-
-        // The If Block
-        ASTIfBlock *IfBlock = nullptr;
-
-        ASTElseBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc);
 
         std::string str() const override;
     };

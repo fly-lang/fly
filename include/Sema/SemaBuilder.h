@@ -72,21 +72,13 @@ namespace fly {
 
     class ASTElsifBlock;
 
-    class ASTElseBlock;
-
     class ASTSwitchBlock;
 
     class ASTSwitchCaseBlock;
 
     class ASTSwitchDefaultBlock;
 
-    class ASTWhileBlock;
-
-    class ASTForBlock;
-
-    class ASTForLoopBlock;
-
-    class ASTForPostBlock;
+    class ASTLoopBlock;
 
     class ASTExprStmt;
 
@@ -378,64 +370,50 @@ namespace fly {
 
         ASTBlock *CreateBlock(const SourceLocation &Loc);
 
-        ASTIfBlock *CreateIfBlock(const SourceLocation &Loc);
+        ASTIfBlock *CreateIfBlock(const SourceLocation &Loc, ASTExpr *Expr);
 
-        ASTElsifBlock *CreateElsifBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc);
+        ASTSwitchBlock *CreateSwitchBlock(const SourceLocation &Loc, ASTExpr *Expr);
 
-        ASTElseBlock *CreateElseBlock(ASTIfBlock *IfBlock, const SourceLocation &Loc);
+        ASTLoopBlock *CreateLoopBlock(const SourceLocation &Loc);
 
-        ASTSwitchBlock *CreateSwitchBlock(const SourceLocation &Loc);
-
-        ASTSwitchCaseBlock *CreateSwitchCaseBlock(ASTSwitchBlock *SwitchBlock, const SourceLocation &Loc);
-
-        ASTSwitchDefaultBlock *CreateSwitchDefaultBlock(ASTSwitchBlock *SwitchBlock, const SourceLocation &Loc);
-
-        ASTWhileBlock *CreateWhileBlock(const SourceLocation &Loc);
-
-        ASTForBlock *CreateForBlock(const SourceLocation &Loc);
-
-        ASTForLoopBlock *CreateForLoopBlock(ASTForBlock *Parent, const SourceLocation &Loc);
-
-        ASTForPostBlock *CreateForPostBlock(ASTForBlock *Parent, const SourceLocation &Loc);
+        ASTLoopBlock *CreateForBlock(const SourceLocation &Loc, ASTExpr *Expr, ASTBlock *Init, ASTBlock *Post);
 
         ASTHandleStmt *CreateHandleStmt(const SourceLocation &Loc, ASTVarRef *ErrorRef);
 
         /** Add AST **/
 
+        bool AddNode(ASTNode *Node);
+
         // Add Node & NameSpace
         bool AddNameSpace(ASTNode *Node, ASTNameSpace *NewNameSpace, bool ExternLib = false);
 
-        bool AddNode(ASTNode *Node);
-
         // Add Top definitions
         bool AddImport(ASTNode *Node, ASTImport *Import);
-
-        bool AddIdentity(ASTNode *Node, ASTIdentity *Identity);
-
-        bool AddGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar, ASTValue *Value = nullptr);
-
-        bool AddFunction(ASTNode *Node, ASTFunction *Function);
-
-        // Add details
-        bool AddClassVar(ASTClassAttribute *Var);
-
-        bool AddClassMethod(ASTClassMethod *Method);
-
-        bool AddClassConstructor(ASTClassMethod *Constructor);
-
-        bool AddEnumEntry(ASTEnumEntry *EnumVar);
-
-        bool AddParam(ASTFunctionBase *FunctionBase, ASTParam *Param);
-
-        void AddFunctionVarParams(ASTFunctionBase *Function, ASTParam *Param); // TODO
-
-        bool AddComment(ASTBase *Base, llvm::StringRef Comment);
 
         bool AddExternalGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar);
 
         bool AddExternalFunction(ASTNode *Node, ASTFunction *Function);
 
         bool AddExternalIdentities(ASTNode *Node, ASTIdentity *Identity);
+
+        bool AddGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar, ASTValue *Value = nullptr);
+
+        bool AddFunction(ASTNode *Node, ASTFunction *Function);
+
+        bool AddIdentity(ASTNode *Node, ASTIdentity *Identity);
+
+        // Add details
+        bool AddClassAttribute(ASTClass *Class, ASTClassAttribute *Var);
+
+        bool AddClassMethod(ASTClass *Class, ASTClassMethod *Method);
+
+        bool AddEnumEntry(ASTEnum *Enum, ASTEnumEntry *Entry);
+
+        bool AddParam(ASTFunctionBase *FunctionBase, ASTParam *Param);
+
+        void AddFunctionVarParams(ASTFunctionBase *Function, ASTParam *Param); // TODO
+
+        bool AddComment(ASTBase *Base, llvm::StringRef Comment);
 
         // Add Value to Array
         bool AddArrayValue(ASTArrayValue *ArrayValue, ASTValue *Value);
@@ -445,9 +423,23 @@ namespace fly {
         bool AddCallArg(ASTCall *Call, ASTExpr *Expr);
 
         // Add Stmt
-        bool AddStmt(ASTStmt *Stmt);
+        bool AddStmt(ASTStmt *Parent, ASTStmt *Stmt);
 
-        bool AddBlock(ASTBlock *Block);
+        bool AddElsifBlock(ASTIfBlock *Parent, ASTExpr *Condition, ASTBlock *Block);
+
+        bool AddElseBlock(ASTIfBlock *Parent, ASTBlock *Block);
+
+        bool AddCaseBlock(ASTSwitchBlock *Parent, ASTValue *Value, ASTBlock *Block);
+
+        bool AddDefaultBlock(ASTSwitchBlock *Parent, ASTBlock *Block);
+
+        bool AddLoopConditionBlock(ASTLoopBlock *Parent, ASTExpr *Condition);
+
+        bool AddLoopInitBlock(ASTLoopBlock *Parent, ASTBlock *Block);
+
+        bool AddLoopPostBlock(ASTLoopBlock *Parent, ASTBlock *Block);
+
+        bool AddExpr(ASTStmt *Stmt, ASTExpr *Expr);
 
         template<class T>
         bool ContainsFunction(llvm::StringMap<std::map<uint64_t, llvm::SmallVector<T *, 4>>> &Functions,
@@ -536,8 +528,6 @@ namespace fly {
                 return true;
             }
         }
-
-        bool AddExpr(ASTStmt *Stmt, ASTExpr *Expr);
     };
 
 }  // end namespace fly
