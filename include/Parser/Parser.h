@@ -25,10 +25,10 @@ namespace fly {
     class ASTClassType;
     class ASTScopes;
     class ASTType;
-    class ASTBlock;
+    class ASTBlockStmt;
     class ASTCall;
     class ASTStmt;
-    class ASTSwitchBlock;
+    class ASTSwitchStmt;
     class ASTExpr;
     class InputFile;
     class ASTHandleStmt;
@@ -94,17 +94,17 @@ namespace fly {
         bool ParseEnumDef(ASTScopes *Scopes);
 
         // Parse Block Statement
-        bool ParseBlock(ASTBlock *Parent);
-        bool ParseStmt(ASTBlock *Parent, bool StopParse = false);
+        bool ParseBlock(ASTBlockStmt *Parent);
+        bool ParseStmt(ASTBlockStmt *Parent, bool StopParse = false);
         bool ParseStartParen();
         bool ParseEndParen(bool HasParen);
-        bool ParseIfStmt(ASTBlock *Parent);
-        bool ParseSwitchStmt(ASTBlock *Parent);
-        bool ParseSwitchCases(ASTSwitchBlock *SwitchBlock);
-        bool ParseWhileStmt(ASTBlock *Parent);
-        bool ParseForStmt(ASTBlock *Parent);
-        bool ParseHandleStmt(ASTBlock *Parent, ASTVarRef *Error);
-        bool ParseFailStmt(ASTBlock *Parent);
+        bool ParseIfStmt(ASTBlockStmt *Parent);
+        bool ParseSwitchStmt(ASTBlockStmt *Parent);
+        bool ParseSwitchCases(ASTSwitchStmt *SwitchStmt);
+        bool ParseWhileStmt(ASTBlockStmt *Parent);
+        bool ParseForStmt(ASTBlockStmt *Parent);
+        bool ParseHandleStmt(ASTBlockStmt *Parent, ASTVarRef *Error);
+        bool ParseFailStmt(ASTBlockStmt *Parent);
 
         // Parse Identifiers
         bool ParseBuiltinType(ASTType *&);

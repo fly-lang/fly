@@ -13,7 +13,7 @@
 #include "Sema/SemaValidator.h"
 #include "AST/ASTContext.h"
 #include "AST/ASTNameSpace.h"
-#include "AST/ASTBlock.h"
+#include "AST/ASTBlockStmt.h"
 #include "AST/ASTLocalVar.h"
 #include "AST/ASTFunctionBase.h"
 #include "AST/ASTFunction.h"

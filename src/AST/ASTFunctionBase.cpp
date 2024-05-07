@@ -8,7 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTFunctionBase.h"
-#include "AST/ASTBlock.h"
+#include "AST/ASTBlockStmt.h"
 #include "AST/ASTParam.h"
 
 using namespace fly;
@@ -31,7 +31,7 @@ void ASTFunctionBase::setEllipsis(ASTParam *Param) {
     Ellipsis = Param;
 }
 
-const ASTBlock *ASTFunctionBase::getBody() const {
+const ASTBlockStmt *ASTFunctionBase::getBody() const {
     return Body;
 }
 
@@ -76,7 +76,7 @@ ASTExpr *ASTReturnStmt::getExpr() const {
     return Expr;
 }
 
-ASTBlock *ASTReturnStmt::getBlock() const {
+ASTBlockStmt *ASTReturnStmt::getBlock() const {
     return Block;
 }
 

@@ -23,11 +23,15 @@ namespace fly {
         STMT_BREAK,
         STMT_CONTINUE,
         STMT_DELETE,
-        STMT_RETURN
+        STMT_RETURN,
+        STMT_IF,
+        STMT_SWITCH,
+        STMT_LOOP,
+        STMT_LOOP_IN
     };
 
     class ASTExpr;
-    class ASTBlock;
+    class ASTBlockStmt;
     class ASTVar;
     class ASTFunctionBase;
 

@@ -18,7 +18,7 @@ namespace fly {
 
     class ASTNode;
     class ASTType;
-    class ASTBlock;
+    class ASTBlockStmt;
     class ASTScopes;
     class CodeGenFunction;
 

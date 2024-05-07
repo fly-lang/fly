@@ -22,7 +22,7 @@ namespace fly {
     class ASTClassAttribute;
     class ASTClassMethod;
     class CodeGenClass;
-    class ASTBlock;
+    class ASTBlockStmt;
 
     enum class ASTClassKind {
         STRUCT, // has only Fields

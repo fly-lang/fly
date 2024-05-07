@@ -22,8 +22,8 @@
 #include <llvm/IR/Module.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/IRBuilder.h>
-#include <AST/ASTBlock.h>
-#include <AST/ASTIfBlock.h>
+#include <AST/ASTBlockStmt.h>
+#include <AST/ASTIfStmt.h>
 
 using namespace llvm;
 
@@ -41,9 +41,9 @@ namespace fly {
     class ASTStmt;
     class ASTExpr;
     class ASTGroupExpr;
-    class ASTIfBlock;
-    class ASTSwitchBlock;
-    class ASTLoopBlock;
+    class ASTIfStmt;
+    class ASTSwitchStmt;
+    class ASTLoopStmt;
     class CodeGenGlobalVar;
     class CodeGenFunction;
     class CodeGenFunctionBase;
@@ -55,6 +55,7 @@ namespace fly {
     class ASTVar;
     class ASTEnum;
     class ASTIdentifier;
+    class ASTVarRef;
 
     class CodeGenModule : public CodeGenTypeCache {
 
@@ -133,17 +134,17 @@ namespace fly {
 
         void GenBlock(CodeGenFunctionBase *CGF, const llvm::SmallVector<ASTStmt *, 8> &Content, llvm::BasicBlock *BB = nullptr);
 
-        void GenIfBlock(CodeGenFunctionBase *CGF, ASTIfBlock *If);
+        void GenIfBlock(CodeGenFunctionBase *CGF, ASTIfStmt *If);
 
         llvm::BasicBlock *GenElsifBlock(CodeGenFunctionBase *CGF,
                                         llvm::BasicBlock *ElsifBB,
-                                        llvm::SmallVector<ASTElsifBlock *, 8>::iterator &It);
+                                        llvm::SmallVector<ASTElsif *, 8>::iterator &It);
 
-        void GenSwitchBlock(CodeGenFunctionBase *CGF, ASTSwitchBlock *Switch);
+        void GenSwitchBlock(CodeGenFunctionBase *CGF, ASTSwitchStmt *Switch);
 
-        void GenForBlock(CodeGenFunctionBase *CGF, ASTLoopBlock *Loop);
+        void GenForBlock(CodeGenFunctionBase *CGF, ASTLoopStmt *Loop);
 
-        void GenWhileBlock(CodeGenFunctionBase *CGF, ASTLoopBlock *While);
+        void GenWhileBlock(CodeGenFunctionBase *CGF, ASTLoopStmt *While);
 
         void pushArgs(ASTCall *pCall, llvm::SmallVector<llvm::Value *, 8> &Args);
 

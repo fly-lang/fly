@@ -18,7 +18,7 @@ namespace fly {
 
     class Sema;
     class ASTGlobalVar;
-    class ASTBlock;
+    class ASTBlockStmt;
     class ASTStmt;
     class ASTLocalVar;
     class ASTVarRef;

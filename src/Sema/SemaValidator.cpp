@@ -18,7 +18,7 @@
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTFunctionBase.h"
 #include "AST/ASTParam.h"
-#include "AST/ASTBlock.h"
+#include "AST/ASTBlockStmt.h"
 #include "Basic/Diagnostic.h"
 
 using namespace fly;
@@ -56,7 +56,7 @@ bool SemaValidator::CheckDuplicateLocalVars(ASTStmt *Stmt, llvm::StringRef VarNa
         return true;
     }
 
-    ASTBlock *Block = (ASTBlock *) Stmt;
+    ASTBlockStmt *Block = (ASTBlockStmt *) Stmt;
     ASTLocalVar *DuplicateVar = Block->getLocalVars().lookup(VarName);
     if (DuplicateVar != nullptr) {
         if (DiagEnabled)

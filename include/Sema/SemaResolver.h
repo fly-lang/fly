@@ -32,7 +32,7 @@ namespace fly {
     class ASTClass;
     class ASTClassMethod;
     class ASTStmt;
-    class ASTBlock;
+    class ASTBlockStmt;
     class ASTLocalVar;
     class ASTArg;
     class ASTParam;
@@ -42,9 +42,9 @@ namespace fly {
     class ASTValueExpr;
     class ASTType;
     class CodeGen;
-    class ASTIfBlock;
-    class ASTSwitchBlock;
-    class ASTLoopBlock;
+    class ASTIfStmt;
+    class ASTSwitchStmt;
+    class ASTLoopStmt;
     class ASTClassType;
     class ASTFunction;
     class ASTFunctionBase;
@@ -80,13 +80,13 @@ namespace fly {
 
         bool ResolveStmt(ASTStmt *Stmt);
 
-        bool ResolveBlock(ASTBlock *Block);
+        bool ResolveBlock(ASTBlockStmt *Block);
 
-        bool ResolveIfBlock(ASTIfBlock *IfBlock);
+        bool ResolveIfBlock(ASTIfStmt *IfStmt);
 
-        bool ResolveSwitchBlock(ASTSwitchBlock *SwitchBlock);
+        bool ResolveSwitchBlock(ASTSwitchStmt *SwitchStmt);
 
-        bool ResolveLoopBlock(ASTLoopBlock *LoopBlock);
+        bool ResolveLoopBlock(ASTLoopStmt *LoopStmt);
 
         bool ResolveParentIdentifier(ASTStmt *Parent, ASTIdentifier *&Identifier);
 

@@ -7,66 +7,71 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_AST_IFBLOCK_H
-#define FLY_AST_IFBLOCK_H
+#ifndef FLY_AST_IFSTMT_H
+#define FLY_AST_IFSTMT_H
 
-#include "ASTBlock.h"
+#include "ASTStmt.h"
 
 namespace fly {
 
-    class ASTIfBlock;
-    class ASTElsifBlock;
+    class ASTIfStmt;
+    class ASTElsif;
 
-    class ASTIfBlock : public ASTBlock {
+    class ASTIfStmt : public ASTStmt {
 
-        friend class ASTElsifBlock;
+        friend class ASTElsif;
         friend class SemaBuilder;
         friend class SemaResolver;
 
         // The If expression condition
         ASTExpr *Condition = nullptr;
 
+        // The If Block statement
+        ASTBlockStmt *Block = nullptr;
+
         // The list of Elseif Blocks
-        llvm::SmallVector<ASTElsifBlock *, 8> ElsifBlocks;
+        llvm::SmallVector<ASTElsif *, 8> Elsif;
 
         // The Else Block
-        ASTBlock *ElseBlock = nullptr;
+        ASTBlockStmt *Else = nullptr;
 
-        explicit ASTIfBlock(const SourceLocation &Loc);
+        explicit ASTIfStmt(const SourceLocation &Loc);
 
     public:
 
-        ASTBlock *getParent() const override;
-
         ASTExpr *getCondition();
 
-        llvm::SmallVector<ASTElsifBlock *, 8>  getElsifBlocks();
+        ASTBlockStmt *getBlock() const;
 
-        ASTBlock *getElseBlock();
+        llvm::SmallVector<ASTElsif *, 8> getElsif();
+
+        ASTBlockStmt *getElse();
 
         std::string str() const override;
     };
 
-    class ASTElsifBlock : public ASTBlock {
+    class ASTElsif {
 
         friend class SemaBuilder;
         friend class SemaResolver;
 
-        // The If Block
-        ASTIfBlock *IfBlock = nullptr;
-
         // The Else If expression condition
         ASTExpr *Condition = nullptr;
 
-        explicit ASTElsifBlock(const SourceLocation &Loc);
+        // The Elsif Block statement
+        ASTBlockStmt *Block = nullptr;
+
+        explicit ASTElsif(const SourceLocation &Loc);
 
     public:
 
         ASTExpr *getCondition();
 
-        std::string str() const override;
+        ASTBlockStmt *getBlock() const;
+
+        std::string str() const;
     };
 }
 
 
-#endif //FLY_AST_IFBLOCK_H
+#endif //FLY_AST_IFSTMT_H

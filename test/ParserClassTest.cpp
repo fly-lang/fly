@@ -12,7 +12,7 @@
 #include "AST/ASTImport.h"
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTFunction.h"
-#include "AST/ASTBlock.h"
+#include "AST/ASTBlockStmt.h"
 #include "AST/ASTCall.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTVarStmt.h"

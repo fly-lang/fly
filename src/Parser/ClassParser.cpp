@@ -10,7 +10,7 @@
 #include "Parser/Parser.h"
 #include "Parser/FunctionParser.h"
 #include "Parser/ClassParser.h"
-#include "AST/ASTBlock.h"
+#include "AST/ASTBlockStmt.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTClassAttribute.h"
 #include "AST/ASTType.h"

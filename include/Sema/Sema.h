@@ -34,7 +34,7 @@ namespace fly {
     class ASTLocalVar;
     class ASTVarRef;
     class ASTVar;
-    class ASTBlock;
+    class ASTBlockStmt;
     class ASTIdentifier;
     class ASTIdentityType;
 

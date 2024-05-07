@@ -5,13 +5,15 @@ add_library(flyLib
 
         # AST
         AST/ASTBase.cpp
-        AST/ASTBlock.cpp
+        AST/ASTBlockStmt.cpp
+        AST/ASTBreakStmt.cpp
         AST/ASTCall.cpp
         AST/ASTClass.cpp
         AST/ASTClassMethod.cpp
         AST/ASTClassType.cpp
         AST/ASTClassAttribute.cpp
         AST/ASTContext.cpp
+        AST/ASTContinueStmt.cpp
         AST/ASTDeleteStmt.cpp
         AST/ASTEnum.cpp
         AST/ASTEnumEntry.cpp
@@ -26,16 +28,16 @@ add_library(flyLib
         AST/ASTIdentifier.cpp
         AST/ASTIdentity.cpp
         AST/ASTIdentityType.cpp
-        AST/ASTIfBlock.cpp
+        AST/ASTIfStmt.cpp
         AST/ASTImport.cpp
         AST/ASTLocalVar.cpp
-        AST/ASTLoopBlock.cpp
+        AST/ASTLoopStmt.cpp
         AST/ASTNameSpace.cpp
         AST/ASTNode.cpp
         AST/ASTParam.cpp
         AST/ASTScopes.cpp
         AST/ASTStmt.cpp
-        AST/ASTSwitchBlock.cpp
+        AST/ASTSwitchStmt.cpp
         AST/ASTType.cpp
         AST/ASTValue.cpp
         AST/ASTVar.cpp

@@ -13,7 +13,7 @@
 #include "AST/ASTFunction.h"
 #include "AST/ASTCall.h"
 #include "AST/ASTExpr.h"
-#include "AST/ASTBlock.h"
+#include "AST/ASTBlockStmt.h"
 #include "Sema/SemaBuilder.h"
 #include "Basic/Debug.h"
 

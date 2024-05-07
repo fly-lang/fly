@@ -10,54 +10,58 @@
 #ifndef FLY_AST_SWITCHBLOCK_H
 #define FLY_AST_SWITCHBLOCK_H
 
-#include "ASTBlock.h"
+#include "ASTStmt.h"
 
 namespace fly {
 
-    class ASTSwitchCaseBlock;
+    class ASTSwitchCase;
     class ASTValue;
     class ASTType;
+    class ASTVarRef;
 
-    class ASTSwitchBlock : public ASTBlock {
+    class ASTSwitchStmt : public ASTStmt {
 
         friend class SemaBuilder;
         friend class SemaResolver;
-        friend class ASTSwitchCaseBlock;
+        friend class ASTSwitchCase;
 
         // The Switch Expression
         ASTVarRef *VarRef = nullptr;
 
         // The Case Blocks
-        llvm::SmallVector<ASTSwitchCaseBlock *, 8> Cases;
+        llvm::SmallVector<ASTSwitchCase *, 8> Cases;
 
         // The Default Block
-        ASTBlock *Default = nullptr;
+        ASTBlockStmt *Default = nullptr;
 
-        explicit ASTSwitchBlock(const SourceLocation &Loc);
+        explicit ASTSwitchStmt(const SourceLocation &Loc);
 
     public:
 
         ASTVarRef *getVarRef() const;
 
-        llvm::SmallVector<ASTSwitchCaseBlock *, 8> &getCases();
+        llvm::SmallVector<ASTSwitchCase *, 8> &getCases();
 
-        ASTBlock *getDefault();
+        ASTBlockStmt *getDefault();
 
         std::string str() const override;
     };
 
-    class ASTSwitchCaseBlock : public ASTBlock{
+    class ASTSwitchCase {
 
         friend class SemaBuilder;
         friend class SemaResolver;
 
-        ASTSwitchBlock *SwitchBlock;
-
+        // The Value Type
         ASTType *Type = nullptr;
 
+        // The case value
         ASTValue *Value = nullptr;
 
-        explicit ASTSwitchCaseBlock(const SourceLocation &Loc);
+        // The Case Block
+        ASTBlockStmt *Block = nullptr;
+
+        explicit ASTSwitchCase(const SourceLocation &Loc);
 
     public:
 
@@ -65,7 +69,9 @@ namespace fly {
 
         ASTValue *getValue();
 
-        std::string str() const override;
+        ASTBlockStmt *getBlock() const;
+
+        std::string str() const;
     };
 }
 

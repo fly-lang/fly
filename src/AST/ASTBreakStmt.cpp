@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTDelete.cpp - AST Delete Statement implementation
+// src/AST/ASTBreakStmt.cpp - AST Break Statement implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,9 +7,7 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "AST/ASTDeleteStmt.h"
-#include "AST/ASTBlockStmt.h"
-#include "AST/ASTVarRef.h"
+#include "AST/ASTBreakStmt.h"
 
 using namespace fly;
 
@@ -18,19 +16,14 @@ using namespace fly;
  * @param Loc
  * @param Parent
  */
-ASTDeleteStmt::ASTDeleteStmt(const SourceLocation &Loc, ASTVarRef *VarRef) :
-        ASTStmt(Loc, ASTStmtKind::STMT_DELETE), VarRef(VarRef) {
+ASTBreakStmt::ASTBreakStmt(const SourceLocation &Loc) :
+        ASTStmt(Loc, ASTStmtKind::STMT_BREAK) {
 
 }
-
-ASTVarRef *ASTDeleteStmt::getVarRef() {
-    return VarRef;
-}
-
 /**
  * Convert to String
  * @return string info for debugging
  */
-std::string ASTDeleteStmt::str() const {
-    return Logger("ASTDelete").Super(ASTStmt::str()).Attr("VarRef", VarRef->str()).End();
+std::string ASTBreakStmt::str() const {
+    return Logger("ASTBreak").Super(ASTStmt::str()).End();
 }

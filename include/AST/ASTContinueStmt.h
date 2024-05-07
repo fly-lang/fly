@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTDelete.h - Delete an Instance header
+// include/AST/ASTContinueStmt.h - AST Block Statement header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,29 +7,23 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_AST_DELETESTMT_H
-#define FLY_AST_DELETESTMT_H
+#ifndef FLY_AST_CONTINUESTMT_H
+#define FLY_AST_CONTINUESTMT_H
 
 #include "ASTStmt.h"
 
 namespace fly {
 
-    class ASTBlockStmt;
-    class ASTVarRef;
-
-/**
- * Delete Stmt
- */
-    class ASTDeleteStmt : public ASTStmt {
-
-        ASTVarRef *VarRef = nullptr;
+    /**
+     * Continue Stmt
+     */
+    class ASTContinueStmt : public ASTStmt {
 
     public:
-        ASTDeleteStmt(const SourceLocation &Loc, ASTVarRef *VarRef);
-
-        ASTVarRef *getVarRef();
+        explicit ASTContinueStmt(const SourceLocation &Loc);
 
         std::string str() const override;
     };
 }
-#endif //FLY_AST_DELETESTMT_H
+
+#endif //FLY_AST_CONTINUESTMT_H

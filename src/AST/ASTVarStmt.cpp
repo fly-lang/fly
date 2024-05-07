@@ -8,7 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTVarStmt.h"
-#include "AST/ASTBlock.h"
+#include "AST/ASTBlockStmt.h"
 
 using namespace fly;
 
@@ -37,6 +37,6 @@ void ASTVarStmt::setExpr(fly::ASTExpr *E) {
     Expr = E;
 }
 
-ASTBlock *ASTVarStmt::getBlock() const {
+ASTBlockStmt *ASTVarStmt::getBlock() const {
     return Block;
 }

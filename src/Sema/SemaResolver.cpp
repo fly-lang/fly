@@ -19,16 +19,16 @@
 #include "AST/ASTEnumEntry.h"
 #include "AST/ASTType.h"
 #include "AST/ASTNode.h"
-#include "AST/ASTIfBlock.h"
+#include "AST/ASTIfStmt.h"
 #include "AST/ASTImport.h"
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTCall.h"
 #include "AST/ASTIdentifier.h"
 #include "AST/ASTParam.h"
-#include "AST/ASTSwitchBlock.h"
-#include "AST/ASTLoopBlock.h"
-#include "AST/ASTBlock.h"
+#include "AST/ASTSwitchStmt.h"
+#include "AST/ASTLoopStmt.h"
+#include "AST/ASTBlockStmt.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTVar.h"
 #include "AST/ASTVarStmt.h"
@@ -292,119 +292,116 @@ bool SemaResolver::ResolveFunctions(ASTNode *Node) {
 bool SemaResolver::ResolveStmt(ASTStmt *Stmt) {
     bool Success = false;
 
-    if (Stmt->getKind() == ASTStmtKind::STMT_BLOCK) {
-        Success = ResolveBlock((ASTBlock *) Stmt);
-    } else {
-        ASTBlock *Block = (ASTBlock *) Stmt->getParent(); // FIXME check if parent is not null
-        if (Stmt->getKind() == ASTStmtKind::STMT_EXPR) {
-            Success &= ResolveExpr(Block, ((ASTExprStmt *) Stmt)->getExpr());
-        } else if (Stmt->getKind() == ASTStmtKind::STMT_RETURN) {
-            Success &= ResolveExpr(Block, ((ASTReturnStmt *) Stmt)->getExpr());
-        } else if (Stmt->getKind() == ASTStmtKind::STMT_VAR) {
-            ASTVarStmt *VarStmt = ((ASTVarStmt *) Stmt);
+    switch (Stmt->getKind()) {
 
-            // Error: Expr cannot be null
-            if (!VarStmt->getVarRef()->getDef()) {
-                S.Diag(VarStmt->getLocation(), diag::err_var_undefined) << VarStmt->getVarRef()->getName();
-                return false;
-            }
+        case ASTStmtKind::STMT_BLOCK:
+            Success = ResolveBlock((ASTBlockStmt *) Stmt);
+            break;
+        case ASTStmtKind::STMT_IF:
+            Success &= ResolveIfBlock((ASTIfStmt *) Stmt);
+            break;
+        case ASTStmtKind::STMT_SWITCH:
+            Success &= ResolveSwitchBlock((ASTSwitchStmt *) Stmt);
+            break;
+        case ASTStmtKind::STMT_LOOP:
+            Success &= ResolveLoopBlock((ASTLoopStmt *) Stmt);
+            break;
+        case ASTStmtKind::STMT_LOOP_IN:
+            break;
+        case ASTStmtKind::STMT_EXPR:
+        case ASTStmtKind::STMT_VAR:
+        case ASTStmtKind::STMT_FAIL:
+        case ASTStmtKind::STMT_HANDLE:
+        case ASTStmtKind::STMT_BREAK:
+        case ASTStmtKind::STMT_CONTINUE:
+        case ASTStmtKind::STMT_DELETE:
+        case ASTStmtKind::STMT_RETURN: {
+            ASTBlockStmt *Block = (ASTBlockStmt *) Stmt->getParent(); // FIXME check if parent is not null
+            if (Stmt->getKind() == ASTStmtKind::STMT_EXPR) {
+                Success &= ResolveExpr(Block, ((ASTExprStmt *) Stmt)->getExpr());
+            } else if (Stmt->getKind() == ASTStmtKind::STMT_RETURN) {
+                Success &= ResolveExpr(Block, ((ASTReturnStmt *) Stmt)->getExpr());
+            } else if (Stmt->getKind() == ASTStmtKind::STMT_VAR) {
+                ASTVarStmt *VarStmt = ((ASTVarStmt *) Stmt);
 
-            // Take Node
-            ASTVar *Var = VarStmt->getVarRef()->getDef();
-            if (Var->getVarKind() == ASTVarKind::VAR_LOCAL) {
-                ASTLocalVar *LocalVar = (ASTLocalVar *) Var;
-
-                if (!LocalVar->isInitialized()) {
-                    S.Diag(VarStmt->getLocation(), diag::err_sema_uninit_var) << VarStmt->getVarRef()->getName();
+                // Error: Expr cannot be null
+                if (!VarStmt->getVarRef()->getDef()) {
+                    S.Diag(VarStmt->getLocation(), diag::err_var_undefined) << VarStmt->getVarRef()->getName();
                     return false;
                 }
 
-                const auto &Node = FindNode(Block->getTop());
-                Success &= VarStmt && !LocalVar->getType()->isIdentity() ||
-                           ResolveIdentityType(Node, (ASTIdentityType *) VarStmt->getVarRef()->getDef()->getType());
+                // Take Node
+                ASTVar *Var = VarStmt->getVarRef()->getDef();
+                if (Var->getVarKind() == ASTVarKind::VAR_LOCAL) {
+                    ASTLocalVar *LocalVar = (ASTLocalVar *) Var;
 
-                if (VarStmt->getExpr())
-                    Success &= ResolveExpr(Block, VarStmt->getExpr());
+                    if (!LocalVar->isInitialized()) {
+                        S.Diag(VarStmt->getLocation(), diag::err_sema_uninit_var) << VarStmt->getVarRef()->getName();
+                        return false;
+                    }
+
+                    const auto &Node = FindNode(Block->getTop());
+                    Success &= VarStmt && !LocalVar->getType()->isIdentity() ||
+                               ResolveIdentityType(Node, (ASTIdentityType *) VarStmt->getVarRef()->getDef()->getType());
+
+                    if (VarStmt->getExpr())
+                        Success &= ResolveExpr(Block, VarStmt->getExpr());
+                }
+
+                Success &= ResolveVarRef(Block, VarStmt->getVarRef()) &&
+                           ResolveExpr(Block, VarStmt->getExpr());
+
+                // Check Expr Type if it needs to be converted to Stmt Type
+                Success &= S.Validator->CheckConvertibleTypes(VarStmt->getExpr()->getType(), Var->getType());
+                break;
             }
-
-            Success &= ResolveVarRef(Block, VarStmt->getVarRef()) &&
-                       ResolveExpr(Block, VarStmt->getExpr());
-
-            // Check Expr Type if it needs to be converted to Stmt Type
-            Success &= S.Validator->CheckConvertibleTypes(VarStmt->getExpr()->getType(), Var->getType());
-        } else if (Stmt->getKind() == ASTStmtKind::STMT_DELETE) {
-            // TODO
-        } else {
-            // ASTStmtKind::STMT_BREAK
-            // ASTStmtKind::STMT_CONTINUE
         }
     }
     return Success;
 }
 
-bool SemaResolver::ResolveBlock(ASTBlock *Block) {
-    bool Success = false;
-    switch (Block->getBlockKind()) {
-
-        case ASTBlockKind::BLOCK_IF:
-            Success &= ResolveIfBlock((ASTIfBlock *) Block);
-            break;
-        case ASTBlockKind::BLOCK_SWITCH:
-            Success &= ResolveSwitchBlock((ASTSwitchBlock *) Block);
-            break;
-        case ASTBlockKind::BLOCK_LOOP:
-            Success &= ResolveLoopBlock((ASTLoopBlock *) Block);
-            break;
-        case ASTBlockKind::BLOCK:
-            for (ASTStmt *Stmt : Block->getContent()) {
-                Success &= ResolveStmt(Stmt);
-            }
-            break;
-    }
-
+bool SemaResolver::ResolveBlock(ASTBlockStmt *Block) {
     for (auto &LocalVar : Block->LocalVars) {
         if (!LocalVar.second->isInitialized())
             S.Diag(LocalVar.getValue()->getLocation(), diag::err_sema_uninit_var) << LocalVar.getValue()->getName();
     }
-    return false;
-
-    return Success;
+    return true;
 }
 
-bool SemaResolver::ResolveIfBlock(ASTIfBlock *IfBlock) {
-    IfBlock->Condition->Type = S.Builder->CreateBoolType(IfBlock->Condition->getLocation());
-    bool Success = ResolveExpr(IfBlock->getParent(), IfBlock->Condition) &&
-                   S.Validator->CheckConvertibleTypes(IfBlock->Condition->Type, S.Builder->CreateBoolType(SourceLocation())) &&
-            ResolveBlock(IfBlock);
-    for (ASTElsifBlock *ElsifBlock : IfBlock->ElsifBlocks) {
-        ElsifBlock->Condition->Type = S.Builder->CreateBoolType(ElsifBlock->Condition->getLocation());
-        Success &= ResolveExpr(IfBlock->getParent(), ElsifBlock->Condition) &&
-                   S.Validator->CheckConvertibleTypes(ElsifBlock->Condition->Type, S.Builder->CreateBoolType(SourceLocation())) &&
-                ResolveBlock(ElsifBlock);
+bool SemaResolver::ResolveIfBlock(ASTIfStmt *IfStmt) {
+    IfStmt->Condition->Type = S.Builder->CreateBoolType(IfStmt->Condition->getLocation());
+    bool Success = ResolveExpr(IfStmt->getParent(), IfStmt->Condition) &&
+                   S.Validator->CheckConvertibleTypes(IfStmt->Condition->Type, S.Builder->CreateBoolType(SourceLocation())) &&
+                   ResolveBlock(IfStmt->Block);
+    for (ASTElsif *Elsif : IfStmt->Elsif) {
+        Elsif->Condition->Type = S.Builder->CreateBoolType(Elsif->Condition->getLocation());
+        Success &= ResolveExpr(IfStmt->getParent(), Elsif->Condition) &&
+                   S.Validator->CheckConvertibleTypes(Elsif->Condition->Type, S.Builder->CreateBoolType(SourceLocation())) &&
+                   ResolveBlock(Elsif->Block);
     }
-    if (Success && IfBlock->ElseBlock) {
-        Success = ResolveBlock(IfBlock->ElseBlock);
+    if (Success && IfStmt->Else) {
+        Success = ResolveBlock(IfStmt->Else);
     }
     return Success;
 }
 
-bool SemaResolver::ResolveSwitchBlock(ASTSwitchBlock *SwitchBlock) {
-    assert(SwitchBlock && "Switch Block cannot be null");
-    bool Success = ResolveVarRef(SwitchBlock->getParent(), SwitchBlock->getVarRef()) &&
-            S.Validator->CheckEqualTypes(SwitchBlock->getVarRef()->getDef()->getType(), ASTTypeKind::TYPE_INTEGER);
-    for (ASTSwitchCaseBlock *Case : SwitchBlock->Cases) {
+bool SemaResolver::ResolveSwitchBlock(ASTSwitchStmt *SwitchStmt) {
+    assert(SwitchStmt && "Switch Block cannot be null");
+    bool Success = ResolveVarRef(SwitchStmt->getParent(), SwitchStmt->getVarRef()) &&
+                   S.Validator->CheckEqualTypes(SwitchStmt->getVarRef()->getDef()->getType(), ASTTypeKind::TYPE_INTEGER);
+    for (ASTSwitchCase *Case : SwitchStmt->Cases) {
         Success &= S.Validator->CheckEqualTypes(Case->getType(), ASTTypeKind::TYPE_INTEGER) &&
-                ResolveBlock(Case);
+                ResolveBlock(Case->Block);
     }
-    return Success && ResolveBlock(SwitchBlock->Default);
+    return Success && ResolveBlock(SwitchStmt->Default);
 }
 
-bool SemaResolver::ResolveLoopBlock(ASTLoopBlock *LoopBlock) {
-    bool Success = S.Validator->CheckConvertibleTypes(LoopBlock->Condition->Type, S.Builder->CreateBoolType(LoopBlock->Condition->getLocation()));
-    Success &= LoopBlock->Condition ? ResolveExpr(LoopBlock, LoopBlock->Condition) : true;
-    Success &= ResolveBlock(LoopBlock);
-    Success &= LoopBlock->Init ? ResolveBlock(LoopBlock->Post) : true;
-    Success &= LoopBlock->Post ? ResolveBlock(LoopBlock->Post) : true;
+bool SemaResolver::ResolveLoopBlock(ASTLoopStmt *LoopStmt) {
+    bool Success = S.Validator->CheckConvertibleTypes(LoopStmt->Condition->Type, S.Builder->CreateBoolType(LoopStmt->Condition->getLocation()));
+    Success &= LoopStmt->Condition ? ResolveExpr(LoopStmt, LoopStmt->Condition) : true;
+    Success &= ResolveBlock(LoopStmt->Block);
+    Success &= LoopStmt->Init ? ResolveBlock(LoopStmt->Post) : true;
+    Success &= LoopStmt->Post ? ResolveBlock(LoopStmt->Post) : true;
     return Success;
 }
 
@@ -1043,13 +1040,13 @@ ASTIdentity *SemaResolver::FindIdentity(llvm::StringRef Name, ASTNameSpace *Name
 ASTVar *SemaResolver::FindLocalVar(ASTStmt *Parent, llvm::StringRef Name) const {
     FLY_DEBUG_MESSAGE("Sema", "FindLocalVar", Logger().Attr("Parent", Parent).Attr("Name", Name).End());
     if (Parent->getKind() == ASTStmtKind::STMT_BLOCK) {
-        ASTBlock *Block = (ASTBlock *) Parent;
+        ASTBlockStmt *Block = (ASTBlockStmt *) Parent;
         const auto &It = Block->getLocalVars().find(Name);
         if (It != Block->getLocalVars().end()) { // Search into this Block
             return It->getValue();
         } else if (Parent->getParent()) { // search recursively into Parent Blocks to find the right Var definition
             if (Parent->Parent->getKind() == ASTStmtKind::STMT_BLOCK)
-                return FindLocalVar((ASTBlock *) Parent->getParent(), Name);
+                return FindLocalVar((ASTBlockStmt *) Parent->getParent(), Name);
         } else {
             llvm::SmallVector<ASTParam *, 8> Params = Parent->getTop()->getParams();
             for (auto &Param : Params) {

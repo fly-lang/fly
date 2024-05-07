@@ -20,7 +20,7 @@ namespace fly {
     class ASTFunctionBase;
     class ASTCall;
     class ASTType;
-    class ASTBlock;
+    class ASTBlockStmt;
     class SourceLocation;
 
     class FunctionParser {

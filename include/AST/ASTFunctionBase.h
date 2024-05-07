@@ -20,7 +20,7 @@ namespace fly {
     class ASTType;
     class ASTVarRef;
     class ASTLocalVar;
-    class ASTBlock;
+    class ASTBlockStmt;
     class ASTCall;
     class ASTGlobalVar;
     class ASTVar;
@@ -55,7 +55,7 @@ namespace fly {
         ASTParam* Ellipsis = nullptr;
 
         // Body is the main BlockStmt
-        ASTBlock *Body = nullptr;
+        ASTBlockStmt *Body = nullptr;
 
         ASTParam *ErrorHandler = nullptr;
 
@@ -77,7 +77,7 @@ namespace fly {
 
         void setEllipsis(ASTParam *Param);
 
-        const ASTBlock *getBody() const;
+        const ASTBlockStmt *getBody() const;
 
         void setErrorHandler(ASTParam *ErrorHandler);
 
@@ -101,7 +101,7 @@ namespace fly {
 
         ASTExpr *Expr = nullptr;
 
-        ASTBlock *Block = nullptr;
+        ASTBlockStmt *Block = nullptr;
 
         ASTReturnStmt(const SourceLocation &Loc);
 
@@ -109,7 +109,7 @@ namespace fly {
 
         ASTExpr *getExpr() const;
 
-        ASTBlock *getBlock() const;
+        ASTBlockStmt *getBlock() const;
 
         std::string str() const override;
     };

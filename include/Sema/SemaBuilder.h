@@ -64,21 +64,21 @@ namespace fly {
 
     class ASTStmt;
 
-    class ASTBlock;
+    class ASTBlockStmt;
 
     class ASTDeleteStmt;
 
-    class ASTIfBlock;
+    class ASTIfStmt;
 
-    class ASTElsifBlock;
+    class ASTElsif;
 
-    class ASTSwitchBlock;
+    class ASTSwitchStmt;
 
-    class ASTSwitchCaseBlock;
+    class ASTSwitchCase;
 
     class ASTSwitchDefaultBlock;
 
-    class ASTLoopBlock;
+    class ASTLoopStmt;
 
     class ASTExprStmt;
 
@@ -352,31 +352,29 @@ namespace fly {
 
         ASTVarStmt *CreateVarStmt(ASTVar *Var);
 
-        ASTReturnStmt *CreateReturn(const SourceLocation &Loc);
+        ASTReturnStmt *CreateReturnStmt(const SourceLocation &Loc);
 
-        ASTBreakStmt *CreateBreak(const SourceLocation &Loc);
+        ASTBreakStmt *CreateBreakStmt(const SourceLocation &Loc);
 
-        ASTContinueStmt *CreateContinue(const SourceLocation &Loc);
+        ASTContinueStmt *CreateContinueStmt(const SourceLocation &Loc);
 
-        ASTFailStmt *CreateFail(const SourceLocation &Loc);
+        ASTFailStmt *CreateFailStmt(const SourceLocation &Loc);
 
         ASTExprStmt *CreateExprStmt(const SourceLocation &Loc);
 
-        ASTDeleteStmt *CreateDelete(const SourceLocation &Loc, ASTVarRef *VarRef);
+        ASTDeleteStmt *CreateDeleteStmt(const SourceLocation &Loc, ASTVarRef *VarRef);
 
         // Create Blocks structures
 
-        ASTBlock *CreateBody(ASTFunctionBase *FunctionBase);
+        ASTBlockStmt *CreateBody(ASTFunctionBase *FunctionBase);
 
-        ASTBlock *CreateBlock(const SourceLocation &Loc);
+        ASTBlockStmt *CreateBlockStmt(const SourceLocation &Loc);
 
-        ASTIfBlock *CreateIfBlock(const SourceLocation &Loc, ASTExpr *Expr);
+        ASTIfStmt *CreateIfStmt(const SourceLocation &Loc, ASTExpr *Condition, ASTBlockStmt *Block);
 
-        ASTSwitchBlock *CreateSwitchBlock(const SourceLocation &Loc, ASTExpr *Expr);
+        ASTSwitchStmt *CreateSwitchStmt(const SourceLocation &Loc, ASTExpr *Expr);
 
-        ASTLoopBlock *CreateLoopBlock(const SourceLocation &Loc);
-
-        ASTLoopBlock *CreateForBlock(const SourceLocation &Loc, ASTExpr *Expr, ASTBlock *Init, ASTBlock *Post);
+        ASTLoopStmt *CreateLoopStmt(const SourceLocation &Loc, ASTExpr *Condition, ASTBlockStmt *Block);
 
         ASTHandleStmt *CreateHandleStmt(const SourceLocation &Loc, ASTVarRef *ErrorRef);
 
@@ -425,19 +423,19 @@ namespace fly {
         // Add Stmt
         bool AddStmt(ASTStmt *Parent, ASTStmt *Stmt);
 
-        bool AddElsifBlock(ASTIfBlock *Parent, ASTExpr *Condition, ASTBlock *Block);
+        bool AddElsif(ASTIfStmt *IfStmt, ASTExpr *Condition, ASTBlockStmt *Block);
 
-        bool AddElseBlock(ASTIfBlock *Parent, ASTBlock *Block);
+        bool AddElse(ASTIfStmt *IfStmt, ASTBlockStmt *Block);
 
-        bool AddCaseBlock(ASTSwitchBlock *Parent, ASTValue *Value, ASTBlock *Block);
+        bool AddSwitchCase(ASTSwitchStmt *SwitchStmt, ASTValue *Value, ASTBlockStmt *Block);
 
-        bool AddDefaultBlock(ASTSwitchBlock *Parent, ASTBlock *Block);
+        bool AddSwitchDefault(ASTSwitchStmt *SwitchStmt, ASTBlockStmt *Block);
 
-        bool AddLoopConditionBlock(ASTLoopBlock *Parent, ASTExpr *Condition);
+        bool AddLoopCondition(ASTLoopStmt *LoopStmt, ASTExpr *Condition);
 
-        bool AddLoopInitBlock(ASTLoopBlock *Parent, ASTBlock *Block);
+        bool AddLoopInit(ASTLoopStmt *LoopStmt, ASTBlockStmt *Block);
 
-        bool AddLoopPostBlock(ASTLoopBlock *Parent, ASTBlock *Block);
+        bool AddLoopPost(ASTLoopStmt *LoopStmt, ASTBlockStmt *Block);
 
         bool AddExpr(ASTStmt *Stmt, ASTExpr *Expr);
 

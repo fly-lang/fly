@@ -7,14 +7,14 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_AST_WHILEBLOCK_H
-#define FLY_AST_WHILEBLOCK_H
+#ifndef FLY_AST_LOOPSTMT_H
+#define FLY_AST_LOOPSTMT_H
 
-#include "ASTBlock.h"
+#include "ASTStmt.h"
 
 namespace fly {
 
-    class ASTLoopBlock : public ASTBlock {
+    class ASTLoopStmt : public ASTStmt {
 
         friend class SemaBuilder;
         friend class SemaResolver;
@@ -23,27 +23,29 @@ namespace fly {
 
         bool VerifyConditionOnEnd = false;
 
-        ASTBlock *Init = nullptr;
+        ASTBlockStmt *Block = nullptr;
 
-        ASTBlock *Post = nullptr;
+        ASTBlockStmt *Init = nullptr;
 
-        explicit ASTLoopBlock(const SourceLocation &Loc);
+        ASTBlockStmt *Post = nullptr;
+
+        explicit ASTLoopStmt(const SourceLocation &Loc);
 
     public:
-
-        ASTBlock *getParent() const override;
 
         ASTExpr *getCondition();
 
         bool isVerifyConditionOnEnd() const;
 
-        ASTBlock *getInit() const;
+        ASTBlockStmt *getBlock() const;
 
-        ASTBlock *getPost() const;
+        ASTBlockStmt *getInit() const;
+
+        ASTBlockStmt *getPost() const;
 
         std::string str() const override;
 
     };
 }
 
-#endif //FLY_AST_WHILEBLOCK_H
+#endif //FLY_AST_LOOPSTMT_H
