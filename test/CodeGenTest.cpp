@@ -37,6 +37,7 @@
 #include "AST/ASTClassAttribute.h"
 #include "AST/ASTClassMethod.h"
 #include "AST/ASTEnum.h"
+#include "AST/ASTExprStmt.h"
 #include "AST/ASTEnumEntry.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/SourceLocation.h"
@@ -65,7 +66,7 @@ namespace {
         DiagnosticsEngine &Diags;
         Sema *S;
         SourceLocation SourceLoc;
-        SemaBuilder *Builder;
+        SemaBuilder &Builder;
 
         ASTType *VoidType;
         ASTType *BoolType;
@@ -86,19 +87,19 @@ namespace {
                 Diags(CI.getDiagnostics()),
                 S(Sema::CreateSema(CI.getDiagnostics())),
                 Builder(S->getBuilder()),
-                VoidType(SemaBuilder::CreateVoidType(SourceLoc)),
-                BoolType(SemaBuilder::CreateBoolType(SourceLoc)),
-                ByteType(SemaBuilder::CreateByteType(SourceLoc)),
-                ShortType(SemaBuilder::CreateShortType(SourceLoc)),
-                UShortType(SemaBuilder::CreateUShortType(SourceLoc)),
-                IntType(SemaBuilder::CreateIntType(SourceLoc)),
-                UIntType(SemaBuilder::CreateUIntType(SourceLoc)),
-                LongType(SemaBuilder::CreateLongType(SourceLoc)),
-                ULongType(SemaBuilder::CreateULongType(SourceLoc)),
-                FloatType(SemaBuilder::CreateFloatType(SourceLoc)),
-                DoubleType(SemaBuilder::CreateDoubleType(SourceLoc)),
-                ArrayInt0Type(SemaBuilder::CreateArrayType(SourceLoc, IntType,
-                                                       Builder->CreateExpr(SemaBuilder::CreateIntegerValue(SourceLoc, 0))))
+                VoidType(Builder.CreateVoidType(SourceLoc)),
+                BoolType(Builder.CreateBoolType(SourceLoc)),
+                ByteType(Builder.CreateByteType(SourceLoc)),
+                ShortType(Builder.CreateShortType(SourceLoc)),
+                UShortType(Builder.CreateUShortType(SourceLoc)),
+                IntType(Builder.CreateIntType(SourceLoc)),
+                UIntType(Builder.CreateUIntType(SourceLoc)),
+                LongType(Builder.CreateLongType(SourceLoc)),
+                ULongType(Builder.CreateULongType(SourceLoc)),
+                FloatType(Builder.CreateFloatType(SourceLoc)),
+                DoubleType(Builder.CreateDoubleType(SourceLoc)),
+                ArrayInt0Type(Builder.CreateArrayType(SourceLoc, IntType,
+                                                       Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 0))))
                 {
             llvm::InitializeAllTargets();
             llvm::InitializeAllTargetMCs();
@@ -108,10 +109,10 @@ namespace {
         ASTModule *CreateModule() {
             Diags.getClient()->BeginSourceFile();
             const std::string Name = "CodeGenTest";
-            auto *Module = Builder->CreateModule(Name);
-            ASTNameSpace *NameSpace = Builder->CreateDefaultNameSpace();
-            Builder->AddNameSpace(NameSpace, Module);
-            Builder->AddModule(Module);
+            auto *Module = Builder.CreateModule(Name);
+            ASTNameSpace *NameSpace = Builder.CreateDefaultNameSpace();
+            Builder.AddNameSpace(Module, NameSpace);
+            Builder.AddModule(Module);
             Diags.getClient()->EndSourceFile();
             return Module;
         }
@@ -135,62 +136,62 @@ namespace {
     TEST_F(CodeGenTest, CGDefaultValueGlobalVar) {
         ASTModule *Module = CreateModule();
 
-        ASTScopes *TopScopes = SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false);
+        ASTScopes *TopScopes = Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false);
 
         // default Bool value
-        ASTValue *DefaultBoolVal = SemaBuilder::CreateDefaultValue(BoolType);
-        ASTGlobalVar *aVar = SemaBuilder::CreateGlobalVar(Module, SourceLoc, BoolType, "a", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(aVar, DefaultBoolVal));
+        ASTValue *DefaultBoolVal = Builder.CreateDefaultValue(BoolType);
+        ASTGlobalVar *aVar = Builder.CreateGlobalVar(SourceLoc, BoolType, "a", TopScopes);
+        EXPECT_TRUE(Builder.AddGlobalVar(Module, aVar, DefaultBoolVal));
 
         // default Byte value
-        ASTValue *DefaultByteVal = SemaBuilder::CreateDefaultValue(ByteType);
-        ASTGlobalVar *bVar = SemaBuilder::CreateGlobalVar(Module, SourceLoc, ByteType, "b", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(bVar, DefaultByteVal));
+        ASTValue *DefaultByteVal = Builder.CreateDefaultValue(ByteType);
+        ASTGlobalVar *bVar = Builder.CreateGlobalVar(SourceLoc, ByteType, "b", TopScopes);
+        EXPECT_TRUE(Builder.AddGlobalVar(Module, bVar, DefaultByteVal));
 
         // default Short value
-        ASTValue *DefaultShortVal = SemaBuilder::CreateDefaultValue(ShortType);
-        ASTGlobalVar *cVar = SemaBuilder::CreateGlobalVar(Module, SourceLoc, ShortType, "c", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(cVar, DefaultShortVal));
+        ASTValue *DefaultShortVal = Builder.CreateDefaultValue(ShortType);
+        ASTGlobalVar *cVar = Builder.CreateGlobalVar(SourceLoc, ShortType, "c", TopScopes);
+        EXPECT_TRUE(Builder.AddGlobalVar(Module, cVar, DefaultShortVal));
 
         // default UShort value
-        ASTValue *DefaultUShortVal = SemaBuilder::CreateDefaultValue(UShortType);
-        ASTGlobalVar *dVar = SemaBuilder::CreateGlobalVar(Module, SourceLoc, UShortType, "d", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(dVar, DefaultUShortVal));
+        ASTValue *DefaultUShortVal = Builder.CreateDefaultValue(UShortType);
+        ASTGlobalVar *dVar = Builder.CreateGlobalVar(SourceLoc, UShortType, "d", TopScopes);
+        EXPECT_TRUE(Builder.AddGlobalVar(Module, dVar, DefaultUShortVal));
 
         // default Int value
-        ASTValue *DefaultIntVal = SemaBuilder::CreateDefaultValue(IntType);
-        ASTGlobalVar *eVar = SemaBuilder::CreateGlobalVar(Module, SourceLoc, IntType, "e", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(eVar, DefaultIntVal));
+        ASTValue *DefaultIntVal = Builder.CreateDefaultValue(IntType);
+        ASTGlobalVar *eVar = Builder.CreateGlobalVar(SourceLoc, IntType, "e", TopScopes);
+        EXPECT_TRUE(Builder.AddGlobalVar(Module, eVar, DefaultIntVal));
 
         // default UInt value
-        ASTValue *DefaultUintVal = SemaBuilder::CreateDefaultValue(UIntType);
-        ASTGlobalVar *fVar = SemaBuilder::CreateGlobalVar(Module, SourceLoc, UIntType, "f", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(fVar, DefaultUintVal));
+        ASTValue *DefaultUintVal = Builder.CreateDefaultValue(UIntType);
+        ASTGlobalVar *fVar = Builder.CreateGlobalVar(SourceLoc, UIntType, "f", TopScopes);
+        EXPECT_TRUE(Builder.AddGlobalVar(Module, fVar, DefaultUintVal));
 
         // default Long value
-        ASTValue *DefaultLongVal = SemaBuilder::CreateDefaultValue(LongType);
-        ASTGlobalVar *gVar = SemaBuilder::CreateGlobalVar(Module, SourceLoc, LongType, "g", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(gVar, DefaultLongVal));
+        ASTValue *DefaultLongVal = Builder.CreateDefaultValue(LongType);
+        ASTGlobalVar *gVar = Builder.CreateGlobalVar(SourceLoc, LongType, "g", TopScopes);
+        EXPECT_TRUE(Builder.AddGlobalVar(Module, gVar, DefaultLongVal));
 
         // default ULong value
-        ASTValue *DefaultULongVal = SemaBuilder::CreateDefaultValue(ULongType);
-        ASTGlobalVar *hVar = SemaBuilder::CreateGlobalVar(Module, SourceLoc, ULongType, "h", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(hVar, DefaultULongVal));
+        ASTValue *DefaultULongVal = Builder.CreateDefaultValue(ULongType);
+        ASTGlobalVar *hVar = Builder.CreateGlobalVar(SourceLoc, ULongType, "h", TopScopes);
+        EXPECT_TRUE(Builder.AddGlobalVar(Module, hVar, DefaultULongVal));
 
         // default Float value
-        ASTValue *DefaultFloatVal = SemaBuilder::CreateDefaultValue(FloatType);
-        ASTGlobalVar *iVar = SemaBuilder::CreateGlobalVar(Module, SourceLoc, FloatType, "i", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(iVar, DefaultFloatVal));
+        ASTValue *DefaultFloatVal = Builder.CreateDefaultValue(FloatType);
+        ASTGlobalVar *iVar = Builder.CreateGlobalVar(SourceLoc, FloatType, "i", TopScopes);
+        EXPECT_TRUE(Builder.AddGlobalVar(Module, iVar, DefaultFloatVal));
 
         // default Double value
-        ASTValue *DefaultDoubleVal = SemaBuilder::CreateDefaultValue(DoubleType);
-        ASTGlobalVar *jVar = SemaBuilder::CreateGlobalVar(Module, SourceLoc, DoubleType, "j", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(jVar, DefaultDoubleVal));
+        ASTValue *DefaultDoubleVal = Builder.CreateDefaultValue(DoubleType);
+        ASTGlobalVar *jVar = Builder.CreateGlobalVar(SourceLoc, DoubleType, "j", TopScopes);
+        EXPECT_TRUE(Builder.AddGlobalVar(Module, jVar, DefaultDoubleVal));
 
         // default Array value
-        ASTValue *DefaultArrayVal = SemaBuilder::CreateDefaultValue(ArrayInt0Type);
-        ASTGlobalVar *kVar = SemaBuilder::CreateGlobalVar(Module, SourceLoc, ArrayInt0Type, "k", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(kVar, DefaultArrayVal));
+        ASTValue *DefaultArrayVal = Builder.CreateDefaultValue(ArrayInt0Type);
+        ASTGlobalVar *kVar = Builder.CreateGlobalVar(SourceLoc, ArrayInt0Type, "k", TopScopes);
+        EXPECT_TRUE(Builder.AddGlobalVar(Module, kVar, DefaultArrayVal));
 
         // Generate Code
         EXPECT_FALSE(Diags.hasErrorOccurred());
@@ -276,77 +277,77 @@ namespace {
     TEST_F(CodeGenTest, CGValuedGlobalVar) {
         ASTModule *Module = CreateModule();
 
-        ASTScopes *TopScopes = SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false);
+        ASTScopes *TopScopes = Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false);
 
         // a
-        ASTBoolValue *BoolVal = SemaBuilder::CreateBoolValue(SourceLoc, true);
-        ASTGlobalVar *aVar = SemaBuilder::CreateGlobalVar(Module, SourceLoc, BoolType, "a", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(aVar, BoolVal));
+        ASTBoolValue *BoolVal = Builder.CreateBoolValue(SourceLoc, true);
+        ASTGlobalVar *aVar = Builder.CreateGlobalVar(SourceLoc, BoolType, "a", TopScopes);
+        EXPECT_TRUE(Builder.AddGlobalVar(Module, aVar, BoolVal));
 
         // b
-        ASTIntegerValue *ByteVal = SemaBuilder::CreateIntegerValue(SourceLoc, 1);
-        ASTGlobalVar *bVar = SemaBuilder::CreateGlobalVar(Module, SourceLoc, ByteType, "b", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(bVar, ByteVal));
+        ASTIntegerValue *ByteVal = Builder.CreateIntegerValue(SourceLoc, 1);
+        ASTGlobalVar *bVar = Builder.CreateGlobalVar(SourceLoc, ByteType, "b", TopScopes);
+        EXPECT_TRUE(Builder.AddGlobalVar(Module, bVar, ByteVal));
 
         // c
-        ASTIntegerValue *ShortVal = SemaBuilder::CreateIntegerValue(SourceLoc, -2);
-        ASTGlobalVar *cVar = SemaBuilder::CreateGlobalVar(Module, SourceLoc, ShortType, "c", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(cVar, ShortVal));
+        ASTIntegerValue *ShortVal = Builder.CreateIntegerValue(SourceLoc, -2);
+        ASTGlobalVar *cVar = Builder.CreateGlobalVar(SourceLoc, ShortType, "c", TopScopes);
+        EXPECT_TRUE(Builder.AddGlobalVar(Module, cVar, ShortVal));
 
         // d
-        ASTIntegerValue *UShortVal = SemaBuilder::CreateIntegerValue(SourceLoc, 2);
-        ASTGlobalVar *dVar = SemaBuilder::CreateGlobalVar(Module, SourceLoc, UShortType, "d", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(dVar, UShortVal));
+        ASTIntegerValue *UShortVal = Builder.CreateIntegerValue(SourceLoc, 2);
+        ASTGlobalVar *dVar = Builder.CreateGlobalVar(SourceLoc, UShortType, "d", TopScopes);
+        EXPECT_TRUE(Builder.AddGlobalVar(Module, dVar, UShortVal));
 
         // e
-        ASTIntegerValue *IntVal = SemaBuilder::CreateIntegerValue(SourceLoc, -3);
-        ASTGlobalVar *eVar = SemaBuilder::CreateGlobalVar(Module, SourceLoc, IntType, "e", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(eVar, IntVal));
+        ASTIntegerValue *IntVal = Builder.CreateIntegerValue(SourceLoc, -3);
+        ASTGlobalVar *eVar = Builder.CreateGlobalVar(SourceLoc, IntType, "e", TopScopes);
+        EXPECT_TRUE(Builder.AddGlobalVar(Module, eVar, IntVal));
 
         // f
-        ASTIntegerValue *UIntVal = SemaBuilder::CreateIntegerValue(SourceLoc, 3);
-        ASTGlobalVar *fVar = SemaBuilder::CreateGlobalVar(Module, SourceLoc, UIntType, "f", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(fVar, UIntVal));
+        ASTIntegerValue *UIntVal = Builder.CreateIntegerValue(SourceLoc, 3);
+        ASTGlobalVar *fVar = Builder.CreateGlobalVar(SourceLoc, UIntType, "f", TopScopes);
+        EXPECT_TRUE(Builder.AddGlobalVar(Module, fVar, UIntVal));
 
         // g
-        ASTIntegerValue *LongVal = SemaBuilder::CreateIntegerValue(SourceLoc, -4);
-        ASTGlobalVar *gVar = SemaBuilder::CreateGlobalVar(Module, SourceLoc, LongType, "g", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(gVar, LongVal));
+        ASTIntegerValue *LongVal = Builder.CreateIntegerValue(SourceLoc, -4);
+        ASTGlobalVar *gVar = Builder.CreateGlobalVar(SourceLoc, LongType, "g", TopScopes);
+        EXPECT_TRUE(Builder.AddGlobalVar(Module, gVar, LongVal));
 
         // h
-        ASTIntegerValue *ULongVal = SemaBuilder::CreateIntegerValue(SourceLoc, 4);
-        ASTGlobalVar *hVar = SemaBuilder::CreateGlobalVar(Module, SourceLoc, ULongType, "h", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(hVar, ULongVal));
+        ASTIntegerValue *ULongVal = Builder.CreateIntegerValue(SourceLoc, 4);
+        ASTGlobalVar *hVar = Builder.CreateGlobalVar(SourceLoc, ULongType, "h", TopScopes);
+        EXPECT_TRUE(Builder.AddGlobalVar(Module, hVar, ULongVal));
 
         // i
-        ASTFloatingValue *FloatVal = SemaBuilder::CreateFloatingValue(SourceLoc, 1.5);
-        ASTGlobalVar *iVar = SemaBuilder::CreateGlobalVar(Module, SourceLoc, FloatType, "i", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(iVar, FloatVal));
+        ASTFloatingValue *FloatVal = Builder.CreateFloatingValue(SourceLoc, 1.5);
+        ASTGlobalVar *iVar = Builder.CreateGlobalVar(SourceLoc, FloatType, "i", TopScopes);
+        EXPECT_TRUE(Builder.AddGlobalVar(Module, iVar, FloatVal));
 
         // j
-        ASTFloatingValue *DoubleVal = SemaBuilder::CreateFloatingValue(SourceLoc, 2.5);
-        ASTGlobalVar *jVar = SemaBuilder::CreateGlobalVar(Module, SourceLoc, DoubleType, "j", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(jVar, DoubleVal));
+        ASTFloatingValue *DoubleVal = Builder.CreateFloatingValue(SourceLoc, 2.5);
+        ASTGlobalVar *jVar = Builder.CreateGlobalVar(SourceLoc, DoubleType, "j", TopScopes);
+        EXPECT_TRUE(Builder.AddGlobalVar(Module, jVar, DoubleVal));
 
         // k (empty array)
-        ASTArrayValue *ArrayValEmpty = SemaBuilder::CreateArrayValue(SourceLoc);
-        ASTGlobalVar *kVar = SemaBuilder::CreateGlobalVar(Module, SourceLoc, ArrayInt0Type, "k", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(kVar, ArrayValEmpty));
+        ASTArrayValue *ArrayValEmpty = Builder.CreateArrayValue(SourceLoc);
+        ASTGlobalVar *kVar = Builder.CreateGlobalVar(SourceLoc, ArrayInt0Type, "k", TopScopes);
+        EXPECT_TRUE(Builder.AddGlobalVar(Module, kVar, ArrayValEmpty));
 
         // l (array with 2 val)
-        ASTArrayValue *ArrayVal = SemaBuilder::CreateArrayValue(SourceLoc);
-        SemaBuilder::AddArrayValue(ArrayVal, SemaBuilder::CreateIntegerValue(SourceLoc, 1)); // ArrayVal = {1}
-        SemaBuilder::AddArrayValue(ArrayVal, SemaBuilder::CreateIntegerValue(SourceLoc, 2)); // ArrayVal = {1, 1}
-        ASTValueExpr *SizeExpr = Builder->CreateExpr(SemaBuilder::CreateIntegerValue(SourceLoc, ArrayVal->size()));
-        ASTArrayType *ArrayInt2Type = SemaBuilder::CreateArrayType(SourceLoc, IntType, SizeExpr);
-        ASTGlobalVar *lVar = SemaBuilder::CreateGlobalVar(Module, SourceLoc, ArrayInt2Type, "l", TopScopes);
-        EXPECT_TRUE(Builder->AddGlobalVar(lVar, ArrayVal));
+        ASTArrayValue *ArrayVal = Builder.CreateArrayValue(SourceLoc);
+        Builder.AddArrayValue(ArrayVal, Builder.CreateIntegerValue(SourceLoc, 1)); // ArrayVal = {1}
+        Builder.AddArrayValue(ArrayVal, Builder.CreateIntegerValue(SourceLoc, 2)); // ArrayVal = {1, 1}
+        ASTValueExpr *SizeExpr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, ArrayVal->size()));
+        ASTArrayType *ArrayInt2Type = Builder.CreateArrayType(SourceLoc, IntType, SizeExpr);
+        ASTGlobalVar *lVar = Builder.CreateGlobalVar(SourceLoc, ArrayInt2Type, "l", TopScopes);
+        EXPECT_TRUE(Builder.AddGlobalVar(Module, lVar, ArrayVal));
 
         // m (string)
-        ASTStringType *StringType = SemaBuilder::CreateStringType(SourceLoc);
-        ASTGlobalVar *mVar = SemaBuilder::CreateGlobalVar(Module, SourceLoc, StringType, "m", TopScopes);
-        ASTStringValue *StringVal = SemaBuilder::CreateStringValue(SourceLoc, "hello");
-        EXPECT_TRUE(Builder->AddGlobalVar(mVar, StringVal));
+        ASTStringType *StringType = Builder.CreateStringType(SourceLoc);
+        ASTGlobalVar *mVar = Builder.CreateGlobalVar(SourceLoc, StringType, "m", TopScopes);
+        ASTStringValue *StringVal = Builder.CreateStringValue(SourceLoc, "hello");
+        EXPECT_TRUE(Builder.AddGlobalVar(Module, mVar, StringVal));
 
         // Generate Code
         EXPECT_FALSE(Diags.hasErrorOccurred());
@@ -444,23 +445,23 @@ namespace {
     TEST_F(CodeGenTest, CGFunc) {
         ASTModule *Module = CreateModule();
 
-        ASTScopes *TopScopes = SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false);
-        ASTFunction *Func = SemaBuilder::CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes);
+        ASTScopes *TopScopes = Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false);
+        ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func", TopScopes);
 
-        ASTScopes *Scopes = SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false);
-        EXPECT_TRUE(Builder->AddParam(SemaBuilder::CreateParam(Func, SourceLoc, IntType, "P1", Scopes)));
-        EXPECT_TRUE(Builder->AddParam(SemaBuilder::CreateParam(Func, SourceLoc, FloatType, "P2", Scopes)));
-        EXPECT_TRUE(Builder->AddParam(SemaBuilder::CreateParam(Func, SourceLoc, BoolType, "P3", Scopes)));
-        EXPECT_TRUE(Builder->AddParam(SemaBuilder::CreateParam(Func, SourceLoc, LongType, "P4", Scopes)));
-        EXPECT_TRUE(Builder->AddParam(SemaBuilder::CreateParam(Func, SourceLoc, DoubleType, "P5", Scopes)));
-        EXPECT_TRUE(Builder->AddParam(SemaBuilder::CreateParam(Func, SourceLoc, ByteType, "P6", Scopes)));
-        EXPECT_TRUE(Builder->AddParam(SemaBuilder::CreateParam(Func, SourceLoc, ShortType, "P7", Scopes)));
-        EXPECT_TRUE(Builder->AddParam(SemaBuilder::CreateParam(Func, SourceLoc, UShortType, "P8", Scopes)));
-        EXPECT_TRUE(Builder->AddParam(SemaBuilder::CreateParam(Func, SourceLoc, UIntType, "P9", Scopes)));
-        EXPECT_TRUE(Builder->AddParam(SemaBuilder::CreateParam(Func, SourceLoc, ULongType, "P10", Scopes)));
-        ASTBlock *Body = SemaBuilder::CreateBody(Func);
+        ASTScopes *Scopes = Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false);
+        EXPECT_TRUE(Builder.AddParam(Func, Builder.CreateParam(SourceLoc, IntType, "P1", Scopes)));
+        EXPECT_TRUE(Builder.AddParam(Func, Builder.CreateParam(SourceLoc, FloatType, "P2", Scopes)));
+        EXPECT_TRUE(Builder.AddParam(Func, Builder.CreateParam(SourceLoc, BoolType, "P3", Scopes)));
+        EXPECT_TRUE(Builder.AddParam(Func, Builder.CreateParam(SourceLoc, LongType, "P4", Scopes)));
+        EXPECT_TRUE(Builder.AddParam(Func, Builder.CreateParam(SourceLoc, DoubleType, "P5", Scopes)));
+        EXPECT_TRUE(Builder.AddParam(Func, Builder.CreateParam(SourceLoc, ByteType, "P6", Scopes)));
+        EXPECT_TRUE(Builder.AddParam(Func, Builder.CreateParam(SourceLoc, ShortType, "P7", Scopes)));
+        EXPECT_TRUE(Builder.AddParam(Func, Builder.CreateParam(SourceLoc, UShortType, "P8", Scopes)));
+        EXPECT_TRUE(Builder.AddParam(Func, Builder.CreateParam(SourceLoc, UIntType, "P9", Scopes)));
+        EXPECT_TRUE(Builder.AddParam(Func, Builder.CreateParam(SourceLoc, ULongType, "P10", Scopes)));
+        ASTBlockStmt *Body = Builder.CreateBody(Func);
 
-        EXPECT_TRUE(Builder->AddFunction(Func));
+        EXPECT_TRUE(Builder.AddFunction(Module, Func));
         
         EXPECT_TRUE(S->Resolve());
 
@@ -505,43 +506,43 @@ namespace {
         ASTModule *Module = CreateModule();
 
         // float G = 2.0
-        ASTFloatingValue *FloatingVal = SemaBuilder::CreateFloatingValue(SourceLoc, 2.0);
-        ASTGlobalVar *GVar = SemaBuilder::CreateGlobalVar(Module, SourceLoc, FloatType, "G",
-                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_PRIVATE, false));
-        EXPECT_TRUE(Builder->AddGlobalVar(GVar, FloatingVal));
+        ASTFloatingValue *FloatingVal = Builder.CreateFloatingValue(SourceLoc, 2.0);
+        ASTGlobalVar *GVar = Builder.CreateGlobalVar(SourceLoc, FloatType, "G",
+                                                      Builder.CreateScopes(ASTVisibilityKind::V_PRIVATE, false));
+        EXPECT_TRUE(Builder.AddGlobalVar(Module, GVar, FloatingVal));
 
         // func()
-        ASTFunction *Func = SemaBuilder::CreateFunction(Module, SourceLoc, IntType, "func",
-                                                    SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlock *Body = SemaBuilder::CreateBody(Func);
+        ASTFunction *Func = Builder.CreateFunction(SourceLoc, IntType, "func",
+                                                    Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlockStmt *Body = Builder.CreateBody(Func);
 
         // int A
-        ASTLocalVar *VarA = SemaBuilder::CreateLocalVar(SourceLoc, IntType, "A");
-        ASTVarStmt *VarADecl = SemaBuilder::CreateVarStmt(Body, VarA);
-        EXPECT_TRUE(Builder->AddStmt(VarADecl));
+        ASTLocalVar *VarA = Builder.CreateLocalVar(SourceLoc, IntType, "A");
+        ASTVarStmt *VarADecl = Builder.CreateVarStmt(VarA);
+        EXPECT_TRUE(Builder.AddStmt(Body, VarADecl));
         
         // A = 1
-        ASTVarStmt * VarAAssign = Builder->CreateVarStmt(Body, Builder->CreateVarRef(VarA));
-        ASTExpr *AssignExpr = Builder->CreateExpr(SemaBuilder::CreateIntegerValue(SourceLoc, 1));
-        Builder->AddExpr(VarAAssign, AssignExpr);
-        EXPECT_TRUE(Builder->AddStmt(VarAAssign));
+        ASTVarStmt * VarAAssign = Builder.CreateVarStmt(Builder.CreateVarRef(VarA));
+        ASTExpr *AssignExpr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
+        Builder.AddExpr(VarAAssign, AssignExpr);
+        EXPECT_TRUE(Builder.AddStmt(Body, VarAAssign));
 
         // GlobalVar
         // G = 1
-        ASTVarRef *VarRefG = Builder->CreateVarRef(GVar);
-        ASTVarStmt * GVarStmt = Builder->CreateVarStmt(Body, VarRefG);
-        AssignExpr = Builder->CreateExpr(SemaBuilder::CreateFloatingValue(SourceLoc, 1));
-        Builder->AddExpr(GVarStmt, AssignExpr);
-        EXPECT_TRUE(Builder->AddStmt(GVarStmt));
+        ASTVarRef *VarRefG = Builder.CreateVarRef(GVar);
+        ASTVarStmt * GVarStmt = Builder.CreateVarStmt(VarRefG);
+        AssignExpr = Builder.CreateExpr(Builder.CreateFloatingValue(SourceLoc, 1));
+        Builder.AddExpr(GVarStmt, AssignExpr);
+        EXPECT_TRUE(Builder.AddStmt(Body, GVarStmt));
 
         // return A
-        ASTReturnStmt *Return = Builder->CreateReturn(Body, SourceLoc);
-        AssignExpr = Builder->CreateExpr(Builder->CreateVarRef(VarA));
-        Builder->AddExpr(Return, AssignExpr);
-        EXPECT_TRUE(Builder->AddStmt(Return));
+        ASTReturnStmt *Return = Builder.CreateReturnStmt(SourceLoc);
+        AssignExpr = Builder.CreateExpr(Builder.CreateVarRef(VarA));
+        Builder.AddExpr(Return, AssignExpr);
+        EXPECT_TRUE(Builder.AddStmt(Body, Return));
 
         // add to Module
-        EXPECT_TRUE(Builder->AddFunction(Func));
+        EXPECT_TRUE(Builder.AddFunction(Module, Func));
         
         EXPECT_TRUE(S->Resolve());
 
@@ -577,18 +578,18 @@ namespace {
         ASTModule *Module = CreateModule();
 
         // func()
-        ASTFunction *Func = SemaBuilder::CreateFunction(Module, SourceLoc, VoidType, "func",
-                                                        SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlock *Body = SemaBuilder::CreateBody(Func);
+        ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
+                                                        Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlockStmt *Body = Builder.CreateBody(Func);
         // int a = 1
-        ASTLocalVar *LocalVar = SemaBuilder::CreateLocalVar(SourceLoc, SemaBuilder::CreateIntType(SourceLoc), "a");
-        ASTVarStmt *VarStmt = Builder->CreateVarStmt(Body, LocalVar);
-        ASTValueExpr *ValueExpr = Builder->CreateExpr(SemaBuilder::CreateIntegerValue(SourceLoc, 1));
-        Builder->AddExpr(VarStmt, ValueExpr);
-        Builder->AddStmt(VarStmt);
+        ASTLocalVar *LocalVar = Builder.CreateLocalVar(SourceLoc, Builder.CreateIntType(SourceLoc), "a");
+        ASTVarStmt *VarStmt = Builder.CreateVarStmt(LocalVar);
+        ASTValueExpr *ValueExpr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
+        Builder.AddExpr(VarStmt, ValueExpr);
+        Builder.AddStmt(Body, VarStmt);
 
         // add to Module
-        EXPECT_TRUE(Builder->AddFunction(Func));
+        EXPECT_TRUE(Builder.AddFunction(Module, Func));
         EXPECT_TRUE(S->Resolve());
 
         // Generate Code
@@ -613,31 +614,31 @@ namespace {
         ASTModule *Module = CreateModule();
 
         // func()
-        ASTFunction *Func = SemaBuilder::CreateFunction(Module, SourceLoc, IntType, "func",
-                                                    SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlock *Body = SemaBuilder::CreateBody(Func);
+        ASTFunction *Func = Builder.CreateFunction(SourceLoc, IntType, "func",
+                                                    Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlockStmt *Body = Builder.CreateBody(Func);
 
         // test()
-        ASTFunction *Test = SemaBuilder::CreateFunction(Module, SourceLoc, IntType, "test",
-                                                    SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        SemaBuilder::CreateBody(Test);
+        ASTFunction *Test = Builder.CreateFunction(SourceLoc, IntType, "test",
+                                                    Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        Builder.CreateBody(Test);
 
         // call test()
-        ASTExprStmt *ExprStmt = Builder->CreateExprStmt(Body, SourceLoc);
-        ASTCall *TestCall = Builder->CreateCall(Test);
-        ASTCallExpr *Expr = Builder->CreateExpr(TestCall);
-        Builder->AddExpr(ExprStmt, Expr);
-        EXPECT_TRUE(Builder->AddStmt(ExprStmt));
+        ASTExprStmt *ExprStmt = Builder.CreateExprStmt(SourceLoc);
+        ASTCall *TestCall = Builder.CreateCall(Test);
+        ASTCallExpr *Expr = Builder.CreateExpr(TestCall);
+        Builder.AddExpr(ExprStmt, Expr);
+        EXPECT_TRUE(Builder.AddStmt(Body, ExprStmt));
 
         //return test()
-        ASTReturnStmt *Return = Builder->CreateReturn(Body, SourceLoc);
-        ASTCallExpr *ReturnExpr = Builder->CreateExpr(TestCall);
-        Builder->AddExpr(Return, ReturnExpr);
-        EXPECT_TRUE(Builder->AddStmt(Return));
+        ASTReturnStmt *Return = Builder.CreateReturnStmt(SourceLoc);
+        ASTCallExpr *ReturnExpr = Builder.CreateExpr(TestCall);
+        Builder.AddExpr(Return, ReturnExpr);
+        EXPECT_TRUE(Builder.AddStmt(Body, Return));
 
         // add to Module
-        EXPECT_TRUE(Builder->AddFunction(Func));
-        EXPECT_TRUE(Builder->AddFunction(Test));
+        EXPECT_TRUE(Builder.AddFunction(Module, Func));
+        EXPECT_TRUE(Builder.AddFunction(Module, Test));
         
         EXPECT_TRUE(S->Resolve());
 
@@ -670,37 +671,37 @@ namespace {
         ASTModule *Module = CreateModule();
 
         // func()
-        ASTFunction *Func = SemaBuilder::CreateFunction(Module, SourceLoc, IntType, "func",
-                                                    SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlock *Body = SemaBuilder::CreateBody(Func);
-        ASTParam *aParam = SemaBuilder::CreateParam(Func, SourceLoc, IntType, "a");
-        EXPECT_TRUE(Builder->AddParam(aParam));
-        ASTParam *bParam = SemaBuilder::CreateParam(Func, SourceLoc, IntType, "b");
-        EXPECT_TRUE(Builder->AddParam(bParam));
-        ASTParam *cParam = SemaBuilder::CreateParam(Func, SourceLoc, IntType, "c");
-        EXPECT_TRUE(Builder->AddParam(cParam));
+        ASTFunction *Func = Builder.CreateFunction(SourceLoc, IntType, "func",
+                                                    Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlockStmt *Body = Builder.CreateBody(Func);
+        ASTParam *aParam = Builder.CreateParam(SourceLoc, IntType, "a");
+        EXPECT_TRUE(Builder.AddParam(Func, aParam));
+        ASTParam *bParam = Builder.CreateParam(SourceLoc, IntType, "b");
+        EXPECT_TRUE(Builder.AddParam(Func, bParam));
+        ASTParam *cParam = Builder.CreateParam(SourceLoc, IntType, "c");
+        EXPECT_TRUE(Builder.AddParam(Func, cParam));
 
-        ASTReturnStmt *Return = Builder->CreateReturn(Body, SourceLoc);
+        ASTReturnStmt *Return = Builder.CreateReturnStmt(SourceLoc);
         // Create this expression: 1 + a * b / (c - 2)
         // E1 + (E2 * E3) / (E4 - E5)
         // E1 + (G2 / G3)
         // E1 + G1
-        ASTValueExpr *E1 = Builder->CreateExpr(SemaBuilder::CreateIntegerValue(SourceLoc, 1));
-        ASTVarRefExpr *E2 = Builder->CreateExpr(Builder->CreateVarRef(aParam));
-        ASTVarRefExpr *E3 = Builder->CreateExpr(Builder->CreateVarRef(bParam));
-        ASTVarRefExpr *E4 = Builder->CreateExpr(Builder->CreateVarRef(cParam));
-        ASTValueExpr *E5 = Builder->CreateExpr(SemaBuilder::CreateIntegerValue(SourceLoc, 2));
+        ASTValueExpr *E1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
+        ASTVarRefExpr *E2 = Builder.CreateExpr(Builder.CreateVarRef(aParam));
+        ASTVarRefExpr *E3 = Builder.CreateExpr(Builder.CreateVarRef(bParam));
+        ASTVarRefExpr *E4 = Builder.CreateExpr(Builder.CreateVarRef(cParam));
+        ASTValueExpr *E5 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 2));
 
-        ASTBinaryGroupExpr *G2 = Builder->CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::ARITH_MUL, E2, E3);
-        ASTBinaryGroupExpr *G3 = Builder->CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::ARITH_SUB, E4, E5);
-        ASTBinaryGroupExpr *G1 = Builder->CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::ARITH_DIV, G2, G3);
-        ASTBinaryGroupExpr *Group = Builder->CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::ARITH_ADD, E1, G1);
+        ASTBinaryGroupExpr *G2 = Builder.CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::ARITH_MUL, E2, E3);
+        ASTBinaryGroupExpr *G3 = Builder.CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::ARITH_SUB, E4, E5);
+        ASTBinaryGroupExpr *G1 = Builder.CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::ARITH_DIV, G2, G3);
+        ASTBinaryGroupExpr *Group = Builder.CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::ARITH_ADD, E1, G1);
 
-        Builder->AddExpr(Return, Group);
-        EXPECT_TRUE(Builder->AddStmt(Return));
+        Builder.AddExpr(Return, Group);
+        EXPECT_TRUE(Builder.AddStmt(Body, Return));
 
         // Add to Module
-        EXPECT_TRUE(Builder->AddFunction(Func));
+        EXPECT_TRUE(Builder.AddFunction(Module, Func));
         
         EXPECT_TRUE(S->Resolve());
 
@@ -737,142 +738,142 @@ namespace {
         ASTModule *Module = CreateModule();
 
         // func()
-        ASTFunction *Func = SemaBuilder::CreateFunction(Module, SourceLoc, VoidType, "func",
-                                                    SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlock *Body = SemaBuilder::CreateBody(Func);
-        ASTParam *aParam = SemaBuilder::CreateParam(Func, SourceLoc, IntType, "a");
-        EXPECT_TRUE(Builder->AddParam(aParam));
-        ASTParam *bParam = SemaBuilder::CreateParam(Func, SourceLoc, IntType, "b");
-        EXPECT_TRUE(Builder->AddParam(bParam));
-        ASTParam *cParam = SemaBuilder::CreateParam(Func, SourceLoc, IntType, "c");
-        EXPECT_TRUE(Builder->AddParam(cParam));
+        ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
+                                                    Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlockStmt *Body = Builder.CreateBody(Func);
+        ASTParam *aParam = Builder.CreateParam(SourceLoc, IntType, "a");
+        EXPECT_TRUE(Builder.AddParam(Func, aParam));
+        ASTParam *bParam = Builder.CreateParam(SourceLoc, IntType, "b");
+        EXPECT_TRUE(Builder.AddParam(Func, bParam));
+        ASTParam *cParam = Builder.CreateParam(SourceLoc, IntType, "c");
+        EXPECT_TRUE(Builder.AddParam(Func, cParam));
 
         // a = 0
-        ASTVarStmt *aVarStmt = Builder->CreateVarStmt(Body, Builder->CreateVarRef(aParam));
-        ASTExpr *AssignExpr = Builder->CreateExpr(SemaBuilder::CreateIntegerValue(SourceLoc, 0));
-        Builder->AddExpr(aVarStmt, AssignExpr);
-        EXPECT_TRUE(Builder->AddStmt(aVarStmt));
+        ASTVarStmt *aVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(aParam));
+        ASTExpr *AssignExpr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 0));
+        Builder.AddExpr(aVarStmt, AssignExpr);
+        EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt));
 
         // b = 0
-        ASTVarStmt *bVarStmt = Builder->CreateVarStmt(Body, Builder->CreateVarRef(bParam));
-        AssignExpr = Builder->CreateExpr(SemaBuilder::CreateIntegerValue(SourceLoc, 0));
-        Builder->AddExpr(bVarStmt, AssignExpr);
-        EXPECT_TRUE(Builder->AddStmt(bVarStmt));
+        ASTVarStmt *bVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(bParam));
+        AssignExpr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 0));
+        Builder.AddExpr(bVarStmt, AssignExpr);
+        EXPECT_TRUE(Builder.AddStmt(Body, bVarStmt));
 
         // c = a + b
-        ASTVarStmt * cAddVarStmt = Builder->CreateVarStmt(Body, Builder->CreateVarRef(cParam));
-        AssignExpr = Builder->CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::ARITH_ADD,
-                                               Builder->CreateExpr(Builder->CreateVarRef(aParam)),
-                                               Builder->CreateExpr(Builder->CreateVarRef(bParam)));
-        Builder->AddExpr(cAddVarStmt, AssignExpr);
-        EXPECT_TRUE(Builder->AddStmt(cAddVarStmt));
+        ASTVarStmt * cAddVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(cParam));
+        AssignExpr = Builder.CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::ARITH_ADD,
+                                               Builder.CreateExpr(Builder.CreateVarRef(aParam)),
+                                               Builder.CreateExpr(Builder.CreateVarRef(bParam)));
+        Builder.AddExpr(cAddVarStmt, AssignExpr);
+        EXPECT_TRUE(Builder.AddStmt(Body, cAddVarStmt));
 
         // c = a - b
-        ASTVarStmt * cSubVarStmt = Builder->CreateVarStmt(Body, Builder->CreateVarRef(cParam));
-        AssignExpr = Builder->CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::ARITH_SUB,
-                                               Builder->CreateExpr(Builder->CreateVarRef(aParam)),
-                                               Builder->CreateExpr(Builder->CreateVarRef(bParam)));
-        Builder->AddExpr(cSubVarStmt, AssignExpr);
-        EXPECT_TRUE(Builder->AddStmt(cSubVarStmt));
+        ASTVarStmt * cSubVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(cParam));
+        AssignExpr = Builder.CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::ARITH_SUB,
+                                               Builder.CreateExpr(Builder.CreateVarRef(aParam)),
+                                               Builder.CreateExpr(Builder.CreateVarRef(bParam)));
+        Builder.AddExpr(cSubVarStmt, AssignExpr);
+        EXPECT_TRUE(Builder.AddStmt(Body, cSubVarStmt));
 
         // c = a * b
-        ASTVarStmt * cMulVarStmt = Builder->CreateVarStmt(Body, Builder->CreateVarRef(cParam));
-        AssignExpr = Builder->CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::ARITH_MUL,
-                                               Builder->CreateExpr(Builder->CreateVarRef(aParam)),
-                                               Builder->CreateExpr(Builder->CreateVarRef(bParam)));
-        Builder->AddExpr(cMulVarStmt, AssignExpr);
-        EXPECT_TRUE(Builder->AddStmt(cMulVarStmt));
+        ASTVarStmt * cMulVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(cParam));
+        AssignExpr = Builder.CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::ARITH_MUL,
+                                               Builder.CreateExpr(Builder.CreateVarRef(aParam)),
+                                               Builder.CreateExpr(Builder.CreateVarRef(bParam)));
+        Builder.AddExpr(cMulVarStmt, AssignExpr);
+        EXPECT_TRUE(Builder.AddStmt(Body, cMulVarStmt));
 
         // c = a / b
-        ASTVarStmt * cDivVarStmt = Builder->CreateVarStmt(Body, Builder->CreateVarRef(cParam));
-        AssignExpr = Builder->CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::ARITH_DIV,
-                                               Builder->CreateExpr(Builder->CreateVarRef(aParam)),
-                                               Builder->CreateExpr(Builder->CreateVarRef(bParam)));
-        Builder->AddExpr(cDivVarStmt, AssignExpr);
-        EXPECT_TRUE(Builder->AddStmt(cDivVarStmt));
+        ASTVarStmt * cDivVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(cParam));
+        AssignExpr = Builder.CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::ARITH_DIV,
+                                               Builder.CreateExpr(Builder.CreateVarRef(aParam)),
+                                               Builder.CreateExpr(Builder.CreateVarRef(bParam)));
+        Builder.AddExpr(cDivVarStmt, AssignExpr);
+        EXPECT_TRUE(Builder.AddStmt(Body, cDivVarStmt));
 
         // c = a % b
-        ASTVarStmt * cModVarStmt = Builder->CreateVarStmt(Body, Builder->CreateVarRef(cParam));
-        AssignExpr = Builder->CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::ARITH_MOD,
-                                               Builder->CreateExpr(Builder->CreateVarRef(aParam)),
-                                               Builder->CreateExpr(Builder->CreateVarRef(bParam)));
-        Builder->AddExpr(cModVarStmt, AssignExpr);
-        EXPECT_TRUE(Builder->AddStmt(cModVarStmt));
+        ASTVarStmt * cModVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(cParam));
+        AssignExpr = Builder.CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::ARITH_MOD,
+                                               Builder.CreateExpr(Builder.CreateVarRef(aParam)),
+                                               Builder.CreateExpr(Builder.CreateVarRef(bParam)));
+        Builder.AddExpr(cModVarStmt, AssignExpr);
+        EXPECT_TRUE(Builder.AddStmt(Body, cModVarStmt));
 
         // c = a & b
-        ASTVarStmt * cAndVarStmt = Builder->CreateVarStmt(Body, Builder->CreateVarRef(cParam));
-        AssignExpr = Builder->CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::ARITH_AND,
-                                               Builder->CreateExpr(Builder->CreateVarRef(aParam)),
-                                               Builder->CreateExpr(Builder->CreateVarRef(bParam)));
-        Builder->AddExpr(cAndVarStmt, AssignExpr);
-        EXPECT_TRUE(Builder->AddStmt(cAndVarStmt));
+        ASTVarStmt * cAndVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(cParam));
+        AssignExpr = Builder.CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::ARITH_AND,
+                                               Builder.CreateExpr(Builder.CreateVarRef(aParam)),
+                                               Builder.CreateExpr(Builder.CreateVarRef(bParam)));
+        Builder.AddExpr(cAndVarStmt, AssignExpr);
+        EXPECT_TRUE(Builder.AddStmt(Body, cAndVarStmt));
 
         // c = a | b
-        ASTVarStmt * cOrVarStmt = Builder->CreateVarStmt(Body, Builder->CreateVarRef(cParam));
-        AssignExpr = Builder->CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::ARITH_OR,
-                                               Builder->CreateExpr(Builder->CreateVarRef(aParam)),
-                                               Builder->CreateExpr(Builder->CreateVarRef(bParam)));
-        Builder->AddExpr(cOrVarStmt, AssignExpr);
-        EXPECT_TRUE(Builder->AddStmt(cOrVarStmt));
+        ASTVarStmt * cOrVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(cParam));
+        AssignExpr = Builder.CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::ARITH_OR,
+                                               Builder.CreateExpr(Builder.CreateVarRef(aParam)),
+                                               Builder.CreateExpr(Builder.CreateVarRef(bParam)));
+        Builder.AddExpr(cOrVarStmt, AssignExpr);
+        EXPECT_TRUE(Builder.AddStmt(Body, cOrVarStmt));
 
         // c = a xor b
-        ASTVarStmt * cXorVarStmt = Builder->CreateVarStmt(Body, Builder->CreateVarRef(cParam));
-        AssignExpr = Builder->CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::ARITH_XOR,
-                                               Builder->CreateExpr(Builder->CreateVarRef(aParam)),
-                                               Builder->CreateExpr(Builder->CreateVarRef(bParam)));
-        Builder->AddExpr(cXorVarStmt, AssignExpr);
-        EXPECT_TRUE(Builder->AddStmt(cXorVarStmt));
+        ASTVarStmt * cXorVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(cParam));
+        AssignExpr = Builder.CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::ARITH_XOR,
+                                               Builder.CreateExpr(Builder.CreateVarRef(aParam)),
+                                               Builder.CreateExpr(Builder.CreateVarRef(bParam)));
+        Builder.AddExpr(cXorVarStmt, AssignExpr);
+        EXPECT_TRUE(Builder.AddStmt(Body, cXorVarStmt));
 
         // c = a << b
-        ASTVarStmt * cShlVarStmt = Builder->CreateVarStmt(Body, Builder->CreateVarRef(cParam));
-        AssignExpr = Builder->CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::ARITH_SHIFT_L,
-                                               Builder->CreateExpr(Builder->CreateVarRef(aParam)),
-                                               Builder->CreateExpr(Builder->CreateVarRef(bParam)));
-        Builder->AddExpr(cShlVarStmt, AssignExpr);
-        EXPECT_TRUE(Builder->AddStmt(cShlVarStmt));
+        ASTVarStmt * cShlVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(cParam));
+        AssignExpr = Builder.CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::ARITH_SHIFT_L,
+                                               Builder.CreateExpr(Builder.CreateVarRef(aParam)),
+                                               Builder.CreateExpr(Builder.CreateVarRef(bParam)));
+        Builder.AddExpr(cShlVarStmt, AssignExpr);
+        EXPECT_TRUE(Builder.AddStmt(Body, cShlVarStmt));
 
         // c = a >> b
-        ASTVarStmt * cShrVarStmt = Builder->CreateVarStmt(Body, Builder->CreateVarRef(cParam));
-        AssignExpr = Builder->CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::ARITH_SHIFT_R,
-                                               Builder->CreateExpr(Builder->CreateVarRef(aParam)),
-                                               Builder->CreateExpr(Builder->CreateVarRef(bParam)));
-        Builder->AddExpr(cShrVarStmt, AssignExpr);
-        EXPECT_TRUE(Builder->AddStmt(cShrVarStmt));
+        ASTVarStmt * cShrVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(cParam));
+        AssignExpr = Builder.CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::ARITH_SHIFT_R,
+                                               Builder.CreateExpr(Builder.CreateVarRef(aParam)),
+                                               Builder.CreateExpr(Builder.CreateVarRef(bParam)));
+        Builder.AddExpr(cShrVarStmt, AssignExpr);
+        EXPECT_TRUE(Builder.AddStmt(Body, cShrVarStmt));
 
         // ++c
-        ASTExprStmt *cPreIncVarStmt = Builder->CreateExprStmt(Body, SourceLoc);
-        AssignExpr = Builder->CreateUnaryExpr(SourceLoc, ASTUnaryOperatorKind::ARITH_INCR,
+        ASTExprStmt *cPreIncVarStmt = Builder.CreateExprStmt(SourceLoc);
+        AssignExpr = Builder.CreateUnaryExpr(SourceLoc, ASTUnaryOperatorKind::ARITH_INCR,
                                               ASTUnaryOptionKind::UNARY_PRE,
-                                              Builder->CreateExpr(Builder->CreateVarRef(cParam)));
-        Builder->AddExpr(cPreIncVarStmt, AssignExpr);
-        EXPECT_TRUE(Builder->AddStmt(cPreIncVarStmt));
+                                              Builder.CreateExpr(Builder.CreateVarRef(cParam)));
+        Builder.AddExpr(cPreIncVarStmt, AssignExpr);
+        EXPECT_TRUE(Builder.AddStmt(Body, cPreIncVarStmt));
 
         // c++
-        ASTExprStmt *cPostIncVarStmt = Builder->CreateExprStmt(Body, SourceLoc);
-        AssignExpr = Builder->CreateUnaryExpr(SourceLoc, ASTUnaryOperatorKind::ARITH_INCR,
+        ASTExprStmt *cPostIncVarStmt = Builder.CreateExprStmt(SourceLoc);
+        AssignExpr = Builder.CreateUnaryExpr(SourceLoc, ASTUnaryOperatorKind::ARITH_INCR,
                                               ASTUnaryOptionKind::UNARY_POST,
-                                              Builder->CreateExpr(Builder->CreateVarRef(cParam)));
-        Builder->AddExpr(cPostIncVarStmt, AssignExpr);
-        EXPECT_TRUE(Builder->AddStmt(cPostIncVarStmt));
+                                              Builder.CreateExpr(Builder.CreateVarRef(cParam)));
+        Builder.AddExpr(cPostIncVarStmt, AssignExpr);
+        EXPECT_TRUE(Builder.AddStmt(Body, cPostIncVarStmt));
 
         // ++c
-        ASTExprStmt *cPreDecVarStmt = Builder->CreateExprStmt(Body, SourceLoc);
-        AssignExpr = Builder->CreateUnaryExpr(SourceLoc, ASTUnaryOperatorKind::ARITH_DECR,
+        ASTExprStmt *cPreDecVarStmt = Builder.CreateExprStmt(SourceLoc);
+        AssignExpr = Builder.CreateUnaryExpr(SourceLoc, ASTUnaryOperatorKind::ARITH_DECR,
                                               ASTUnaryOptionKind::UNARY_PRE,
-                                              Builder->CreateExpr(Builder->CreateVarRef(cParam)));
-        Builder->AddExpr(cPreDecVarStmt, AssignExpr);
-        EXPECT_TRUE(Builder->AddStmt(cPreDecVarStmt));
+                                              Builder.CreateExpr(Builder.CreateVarRef(cParam)));
+        Builder.AddExpr(cPreDecVarStmt, AssignExpr);
+        EXPECT_TRUE(Builder.AddStmt(Body, cPreDecVarStmt));
 
         // c++
-        ASTExprStmt *cPostDecVarStmt = Builder->CreateExprStmt(Body, SourceLoc);
-        AssignExpr = Builder->CreateUnaryExpr(SourceLoc, ASTUnaryOperatorKind::ARITH_DECR,
+        ASTExprStmt *cPostDecVarStmt = Builder.CreateExprStmt(SourceLoc);
+        AssignExpr = Builder.CreateUnaryExpr(SourceLoc, ASTUnaryOperatorKind::ARITH_DECR,
                                               ASTUnaryOptionKind::UNARY_POST,
-                                              Builder->CreateExpr(Builder->CreateVarRef(cParam)));
-        Builder->AddExpr(cPostDecVarStmt, AssignExpr);
-        EXPECT_TRUE(Builder->AddStmt(cPostDecVarStmt));
+                                              Builder.CreateExpr(Builder.CreateVarRef(cParam)));
+        Builder.AddExpr(cPostDecVarStmt, AssignExpr);
+        EXPECT_TRUE(Builder.AddStmt(Body, cPostDecVarStmt));
 
         // Add to Module
-        EXPECT_TRUE(Builder->AddFunction(Func));
+        EXPECT_TRUE(Builder.AddFunction(Module, Func));
         
         EXPECT_TRUE(S->Resolve());
 
@@ -939,70 +940,70 @@ namespace {
         ASTModule *Module = CreateModule();
 
         // func()
-        ASTFunction *Func = SemaBuilder::CreateFunction(Module, SourceLoc, VoidType, "func",
-                                                    SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlock *Body = SemaBuilder::CreateBody(Func);
-        ASTLocalVar *aVar = SemaBuilder::CreateLocalVar(Body, SourceLoc, IntType, "a");
-        EXPECT_TRUE(Builder->AddStmt(aVar));
-        ASTLocalVar *bVar = SemaBuilder::CreateLocalVar(Body, SourceLoc, IntType, "b");
-        EXPECT_TRUE(Builder->AddStmt(bVar));
-        ASTLocalVar *cVar = SemaBuilder::CreateLocalVar(Body, SourceLoc, BoolType, "c");
-        EXPECT_TRUE(Builder->AddStmt(cVar));
+        ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
+                                                    Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlockStmt *Body = Builder.CreateBody(Func);
+        ASTLocalVar *aVar = Builder.CreateLocalVar(SourceLoc, IntType, "a");
+        EXPECT_TRUE(Builder.AddStmt(Body, aVar));
+        ASTLocalVar *bVar = Builder.CreateLocalVar(SourceLoc, IntType, "b");
+        EXPECT_TRUE(Builder.AddStmt(Body, bVar));
+        ASTLocalVar *cVar = Builder.CreateLocalVar(SourceLoc, BoolType, "c");
+        EXPECT_TRUE(Builder.AddStmt(Body, cVar));
 
         // a = 0
-        ASTVarStmt *aVarStmt = Builder->CreateVarStmt(Body, Builder->CreateVarRef(aVar));
-        Builder->CreateExpr(aVarStmt, SemaBuilder::CreateIntegerValue(SourceLoc, 0));
-        EXPECT_TRUE(Builder->AddStmt(aVarStmt));
+        ASTVarStmt *aVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(aVar));
+        Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 0));
+        EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt));
 
         // b = 0
-        ASTVarStmt *bVarStmt = Builder->CreateVarStmt(Body, Builder->CreateVarRef(bVar));
-        Builder->CreateExpr(bVarStmt, SemaBuilder::CreateIntegerValue(SourceLoc, 0));
-        EXPECT_TRUE(Builder->AddStmt(bVarStmt));
+        ASTVarStmt *bVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(bVar));
+        Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 0));
+        EXPECT_TRUE(Builder.AddStmt(Body, bVarStmt));
 
         // c = a == b
-        ASTVarStmt * cEqVarStmt = Builder->CreateVarStmt(Body, Builder->CreateVarRef(cVar));
-        Builder->CreateBinaryExpr(cEqVarStmt, SourceLoc, ASTBinaryOperatorKind::COMP_EQ,
-                                  Builder->CreateExpr(cEqVarStmt, Builder->CreateVarRef(aVar)),
-                                  Builder->CreateExpr(cEqVarStmt, Builder->CreateVarRef(bVar)));
-        EXPECT_TRUE(Builder->AddStmt(cEqVarStmt));
+        ASTVarStmt * cEqVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(cVar));
+        Builder.CreateBinaryExpr(cEqVarStmt, SourceLoc, ASTBinaryOperatorKind::COMP_EQ,
+                                  Builder.CreateExpr(cEqVarStmt, Builder.CreateVarRef(aVar)),
+                                  Builder.CreateExpr(cEqVarStmt, Builder.CreateVarRef(bVar)));
+        EXPECT_TRUE(Builder.AddStmt(Body, cEqVarStmt));
 
         // c = a != b
-        ASTVarStmt * cNeqVarStmt = Builder->CreateVarStmt(Body, Builder->CreateVarRef(cVar));
-        Builder->CreateBinaryExpr(cNeqVarStmt, SourceLoc, ASTBinaryOperatorKind::COMP_NE,
-                                  Builder->CreateExpr(cNeqVarStmt, Builder->CreateVarRef(aVar)),
-                                  Builder->CreateExpr(cNeqVarStmt, Builder->CreateVarRef(bVar)));
-        EXPECT_TRUE(Builder->AddStmt(cNeqVarStmt));
+        ASTVarStmt * cNeqVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(cVar));
+        Builder.CreateBinaryExpr(cNeqVarStmt, SourceLoc, ASTBinaryOperatorKind::COMP_NE,
+                                  Builder.CreateExpr(cNeqVarStmt, Builder.CreateVarRef(aVar)),
+                                  Builder.CreateExpr(cNeqVarStmt, Builder.CreateVarRef(bVar)));
+        EXPECT_TRUE(Builder.AddStmt(Body, cNeqVarStmt));
 
         // c = a > b
-        ASTVarStmt * cGtVarStmt = Builder->CreateVarStmt(Body, Builder->CreateVarRef(cVar));
-        Builder->CreateBinaryExpr(cGtVarStmt, SourceLoc, ASTBinaryOperatorKind::COMP_GT,
-                                  Builder->CreateExpr(cGtVarStmt, Builder->CreateVarRef(aVar)),
-                                  Builder->CreateExpr(cGtVarStmt, Builder->CreateVarRef(bVar)));
-        EXPECT_TRUE(Builder->AddStmt(cGtVarStmt));
+        ASTVarStmt * cGtVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(cVar));
+        Builder.CreateBinaryExpr(cGtVarStmt, SourceLoc, ASTBinaryOperatorKind::COMP_GT,
+                                  Builder.CreateExpr(cGtVarStmt, Builder.CreateVarRef(aVar)),
+                                  Builder.CreateExpr(cGtVarStmt, Builder.CreateVarRef(bVar)));
+        EXPECT_TRUE(Builder.AddStmt(Body, cGtVarStmt));
 
         // c = a >= b
-        ASTVarStmt * cGteVarStmt = Builder->CreateVarStmt(Body, Builder->CreateVarRef(cVar));
-        Builder->CreateBinaryExpr(cGteVarStmt, SourceLoc, ASTBinaryOperatorKind::COMP_GTE,
-                                  Builder->CreateExpr(cGteVarStmt, Builder->CreateVarRef(aVar)),
-                                  Builder->CreateExpr(cGteVarStmt, Builder->CreateVarRef(bVar)));
-        EXPECT_TRUE(Builder->AddStmt(cGteVarStmt));
+        ASTVarStmt * cGteVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(cVar));
+        Builder.CreateBinaryExpr(cGteVarStmt, SourceLoc, ASTBinaryOperatorKind::COMP_GTE,
+                                  Builder.CreateExpr(cGteVarStmt, Builder.CreateVarRef(aVar)),
+                                  Builder.CreateExpr(cGteVarStmt, Builder.CreateVarRef(bVar)));
+        EXPECT_TRUE(Builder.AddStmt(Body, cGteVarStmt));
 
         // c = a < b
-        ASTVarStmt * cLtVarStmt = Builder->CreateVarStmt(Body, Builder->CreateVarRef(cVar));
-        Builder->CreateBinaryExpr(cLtVarStmt, SourceLoc, ASTBinaryOperatorKind::COMP_LT,
-                                  Builder->CreateExpr(cLtVarStmt, Builder->CreateVarRef(aVar)),
-                                  Builder->CreateExpr(cLtVarStmt, Builder->CreateVarRef(bVar)));
-        EXPECT_TRUE(Builder->AddStmt(cLtVarStmt));
+        ASTVarStmt * cLtVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(cVar));
+        Builder.CreateBinaryExpr(cLtVarStmt, SourceLoc, ASTBinaryOperatorKind::COMP_LT,
+                                  Builder.CreateExpr(cLtVarStmt, Builder.CreateVarRef(aVar)),
+                                  Builder.CreateExpr(cLtVarStmt, Builder.CreateVarRef(bVar)));
+        EXPECT_TRUE(Builder.AddStmt(Body, cLtVarStmt));
 
         // c = a <= b
-        ASTVarStmt * cLteVarStmt = Builder->CreateVarStmt(Body, Builder->CreateVarRef(cVar));
-        Builder->CreateBinaryExpr(cLteVarStmt, SourceLoc, ASTBinaryOperatorKind::COMP_LTE,
-                                  Builder->CreateExpr(cLteVarStmt, Builder->CreateVarRef(aVar)),
-                                  Builder->CreateExpr(cLteVarStmt, Builder->CreateVarRef(bVar)));
-        EXPECT_TRUE(Builder->AddStmt(cLteVarStmt));
+        ASTVarStmt * cLteVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(cVar));
+        Builder.CreateBinaryExpr(cLteVarStmt, SourceLoc, ASTBinaryOperatorKind::COMP_LTE,
+                                  Builder.CreateExpr(cLteVarStmt, Builder.CreateVarRef(aVar)),
+                                  Builder.CreateExpr(cLteVarStmt, Builder.CreateVarRef(bVar)));
+        EXPECT_TRUE(Builder.AddStmt(Body, cLteVarStmt));
 
         // Add to Module
-        EXPECT_TRUE(Builder->AddFunction(Func));
+        EXPECT_TRUE(Builder.AddFunction(Func));
 
         EXPECT_TRUE(S->Resolve());
 
@@ -1051,42 +1052,42 @@ namespace {
         ASTModule *Module = CreateModule();
 
         // func()
-        ASTFunction *Func = SemaBuilder::CreateFunction(Module, SourceLoc, VoidType, "func",
-                                                    SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlock *Body = SemaBuilder::CreateBody(Func);
-        ASTLocalVar *aVar = SemaBuilder::CreateLocalVar(Body, SourceLoc, BoolType, "a");
-        EXPECT_TRUE(Builder->AddStmt(aVar));
-        ASTLocalVar *bVar = SemaBuilder::CreateLocalVar(Body, SourceLoc, BoolType, "b");
-        EXPECT_TRUE(Builder->AddStmt(bVar));
-        ASTLocalVar *cVar = SemaBuilder::CreateLocalVar(Body, SourceLoc, BoolType, "c");
-        EXPECT_TRUE(Builder->AddStmt(cVar));
+        ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
+                                                    Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlockStmt *Body = Builder.CreateBody(Func);
+        ASTLocalVar *aVar = Builder.CreateLocalVar(SourceLoc, BoolType, "a");
+        EXPECT_TRUE(Builder.AddStmt(Body, aVar));
+        ASTLocalVar *bVar = Builder.CreateLocalVar(SourceLoc, BoolType, "b");
+        EXPECT_TRUE(Builder.AddStmt(Body, bVar));
+        ASTLocalVar *cVar = Builder.CreateLocalVar(SourceLoc, BoolType, "c");
+        EXPECT_TRUE(Builder.AddStmt(Body, cVar));
 
         // a = false
-        ASTVarStmt *aVarStmt = Builder->CreateVarStmt(Body, Builder->CreateVarRef(aVar));
-        Builder->CreateExpr(aVarStmt, SemaBuilder::CreateBoolValue(SourceLoc, false));
-        EXPECT_TRUE(Builder->AddStmt(aVarStmt));
+        ASTVarStmt *aVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(aVar));
+        Builder.CreateExpr(Builder.CreateBoolValue(SourceLoc, false));
+        EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt));
 
         // b = false
-        ASTVarStmt *bVarStmt = Builder->CreateVarStmt(Body, Builder->CreateVarRef(bVar));
-        Builder->CreateExpr(bVarStmt, SemaBuilder::CreateBoolValue(SourceLoc, false));
-        EXPECT_TRUE(Builder->AddStmt(bVarStmt));
+        ASTVarStmt *bVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(bVar));
+        Builder.CreateExpr(Builder.CreateBoolValue(SourceLoc, false));
+        EXPECT_TRUE(Builder.AddStmt(Body, bVarStmt));
 
         // c = a and b
-        ASTVarStmt * cAndVarStmt = Builder->CreateVarStmt(Body, Builder->CreateVarRef(cVar));
-        Builder->CreateBinaryExpr(cAndVarStmt, SourceLoc, ASTBinaryOperatorKind::LOGIC_AND,
-                                  Builder->CreateExpr(cAndVarStmt, Builder->CreateVarRef(aVar)),
-                                  Builder->CreateExpr(cAndVarStmt, Builder->CreateVarRef(bVar)));
-        EXPECT_TRUE(Builder->AddStmt(cAndVarStmt));
+        ASTVarStmt * cAndVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(cVar));
+        Builder.CreateBinaryExpr(cAndVarStmt, SourceLoc, ASTBinaryOperatorKind::LOGIC_AND,
+                                  Builder.CreateExpr(cAndVarStmt, Builder.CreateVarRef(aVar)),
+                                  Builder.CreateExpr(cAndVarStmt, Builder.CreateVarRef(bVar)));
+        EXPECT_TRUE(Builder.AddStmt(Body, cAndVarStmt));
 
         // c = a or b
-        ASTVarStmt * cOrVarStmt = Builder->CreateVarStmt(Body, Builder->CreateVarRef(cVar));
-        Builder->CreateBinaryExpr(cOrVarStmt, SourceLoc, ASTBinaryOperatorKind::LOGIC_OR,
-                                  Builder->CreateExpr(cOrVarStmt, Builder->CreateVarRef(aVar)),
-                                  Builder->CreateExpr(cOrVarStmt, Builder->CreateVarRef(bVar)));
-        EXPECT_TRUE(Builder->AddStmt(cOrVarStmt));
+        ASTVarStmt * cOrVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(cVar));
+        Builder.CreateBinaryExpr(cOrVarStmt, SourceLoc, ASTBinaryOperatorKind::LOGIC_OR,
+                                  Builder.CreateExpr(cOrVarStmt, Builder.CreateVarRef(aVar)),
+                                  Builder.CreateExpr(cOrVarStmt, Builder.CreateVarRef(bVar)));
+        EXPECT_TRUE(Builder.AddStmt(Body, cOrVarStmt));
 
         // Add to Module
-        EXPECT_TRUE(Builder->AddFunction(Func));
+        EXPECT_TRUE(Builder.AddFunction(Func));
 
         EXPECT_TRUE(S->Resolve());
 
@@ -1141,45 +1142,45 @@ namespace {
         ASTModule *Module = CreateModule();
 
         // func()
-        ASTFunction *Func = SemaBuilder::CreateFunction(Module, SourceLoc, VoidType, "func",
-                                                    SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlock *Body = SemaBuilder::CreateBody(Func);
-        ASTLocalVar *aVar = SemaBuilder::CreateLocalVar(Body, SourceLoc, BoolType, "a");
-        EXPECT_TRUE(Builder->AddStmt(aVar));
-        ASTLocalVar *bVar = SemaBuilder::CreateLocalVar(Body, SourceLoc, BoolType, "b");
-        EXPECT_TRUE(Builder->AddStmt(bVar));
-        ASTLocalVar *cVar = SemaBuilder::CreateLocalVar(Body, SourceLoc, BoolType, "c");
-        EXPECT_TRUE(Builder->AddStmt(cVar));
+        ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
+                                                    Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlockStmt *Body = Builder.CreateBody(Func);
+        ASTLocalVar *aVar = Builder.CreateLocalVar(SourceLoc, BoolType, "a");
+        EXPECT_TRUE(Builder.AddStmt(Body, aVar));
+        ASTLocalVar *bVar = Builder.CreateLocalVar(SourceLoc, BoolType, "b");
+        EXPECT_TRUE(Builder.AddStmt(Body, bVar));
+        ASTLocalVar *cVar = Builder.CreateLocalVar(SourceLoc, BoolType, "c");
+        EXPECT_TRUE(Builder.AddStmt(Body, cVar));
 
         // a = false
-        ASTVarStmt *aVarStmt = Builder->CreateVarStmt(Body, Builder->CreateVarRef(aVar));
-        Builder->CreateExpr(aVarStmt, SemaBuilder::CreateBoolValue(SourceLoc, false));
-        EXPECT_TRUE(Builder->AddStmt(aVarStmt));
+        ASTVarStmt *aVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(aVar));
+        Builder.CreateExpr(Builder.CreateBoolValue(SourceLoc, false));
+        EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt));
 
         // b = false
-        ASTVarStmt *bVarStmt = Builder->CreateVarStmt(Body, Builder->CreateVarRef(bVar));
-        Builder->CreateExpr(bVarStmt, SemaBuilder::CreateBoolValue(SourceLoc, false));
-        EXPECT_TRUE(Builder->AddStmt(bVarStmt));
+        ASTVarStmt *bVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(bVar));
+        Builder.CreateExpr(Builder.CreateBoolValue(SourceLoc, false));
+        EXPECT_TRUE(Builder.AddStmt(Body, bVarStmt));
 
         // c = a == b ? a : b
-        ASTVarStmt * cVarStmt = Builder->CreateVarStmt(Body, Builder->CreateVarRef(cVar));
-        ASTBinaryGroupExpr *Cond = Builder->CreateBinaryExpr(cVarStmt, SourceLoc, ASTBinaryOperatorKind::COMP_EQ,
-                                                             Builder->CreateExpr(cVarStmt,
-                                                                                 Builder->CreateVarRef(aVar)),
-                                                             Builder->CreateExpr(cVarStmt,
-                                                                                 Builder->CreateVarRef(bVar)));
+        ASTVarStmt * cVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(cVar));
+        ASTBinaryGroupExpr *Cond = Builder.CreateBinaryExpr(cVarStmt, SourceLoc, ASTBinaryOperatorKind::COMP_EQ,
+                                                             Builder.CreateExpr(cVarStmt,
+                                                                                 Builder.CreateVarRef(aVar)),
+                                                             Builder.CreateExpr(cVarStmt,
+                                                                                 Builder.CreateVarRef(bVar)));
 
-        ASTTernaryGroupExpr *TernaryExpr = Builder->CreateTernaryExpr(cVarStmt, Cond, SourceLoc,
-                                                                      Builder->CreateExpr(cVarStmt,
-                                                                                          Builder->CreateVarRef(aVar)),
+        ASTTernaryGroupExpr *TernaryExpr = Builder.CreateTernaryExpr(cVarStmt, Cond, SourceLoc,
+                                                                      Builder.CreateExpr(cVarStmt,
+                                                                                          Builder.CreateVarRef(aVar)),
                                                                       SourceLoc,
-                                                                      Builder->CreateExpr(cVarStmt,
-                                                                                          Builder->CreateVarRef(bVar)));
+                                                                      Builder.CreateExpr(cVarStmt,
+                                                                                          Builder.CreateVarRef(bVar)));
 
-        EXPECT_TRUE(Builder->AddStmt(cVarStmt));
+        EXPECT_TRUE(Builder.AddStmt(Body, cVarStmt));
 
         // Add to Module
-        EXPECT_TRUE(Builder->AddFunction(Func));
+        EXPECT_TRUE(Builder.AddFunction(Func));
 
         EXPECT_TRUE(S->Resolve());
 
@@ -1227,31 +1228,31 @@ namespace {
         ASTModule *Module = CreateModule();
 
         // func()
-        ASTFunction *Func = SemaBuilder::CreateFunction(Module, SourceLoc, VoidType, "func",
-                                                    SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlock *Body = SemaBuilder::CreateBody(Func);
+        ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
+                                                    Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlockStmt *Body = Builder.CreateBody(Func);
 
         // int a = 0
-        ASTLocalVar *aVar = SemaBuilder::CreateLocalVar(SourceLoc, IntType, "a");
-        Builder->CreateExpr(aVar, SemaBuilder::CreateIntegerValue(SourceLoc, 0));
-        EXPECT_TRUE(Builder->AddStmt(aVar));
+        ASTLocalVar *aVar = Builder.CreateLocalVar(SourceLoc, IntType, "a");
+        Builder.CreateExpr(aVar, Builder.CreateIntegerValue(SourceLoc, 0));
+        EXPECT_TRUE(Builder.AddStmt(Body, aVar));
 
         // Create if block
-        ASTIfBlock *IfBlock = Builder->CreateIfBlock(Body, SourceLoc);
+        ASTIfStmt *IfBlock = Builder.CreateIfStmt(SourceLoc);
 
         // if (a == 1)
-        ASTVarRefExpr *aVarRef = Builder->CreateExpr(IfBlock, Builder->CreateVarRef(aVar));
-        ASTValueExpr *Value1 = Builder->CreateExpr(IfBlock, SemaBuilder::CreateIntegerValue(SourceLoc, 1));
-        ASTBinaryGroupExpr *IfCond = Builder->CreateBinaryExpr(IfBlock, SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value1);
+        ASTVarRefExpr *aVarRef = Builder.CreateExpr(IfBlock, Builder.CreateVarRef(aVar));
+        ASTValueExpr *Value1 = Builder.CreateExpr(IfBlock, Builder.CreateIntegerValue(SourceLoc, 1));
+        ASTBinaryGroupExpr *IfCond = Builder.CreateBinaryExpr(IfBlock, SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value1);
 
         // { a = 2 }
-        ASTVarStmt *aVarStmt = Builder->CreateVarStmt(IfBlock, Builder->CreateVarRef(aVar));
-        Builder->CreateExpr(aVarStmt, SemaBuilder::CreateIntegerValue(SourceLoc, 2));
-        EXPECT_TRUE(Builder->AddStmt(aVarStmt));
-        EXPECT_TRUE(Builder->AddStmt(IfBlock));
+        ASTVarStmt *aVarStmt = Builder.CreateVarStmt(IfBlock, Builder.CreateVarRef(aVar));
+        Builder.CreateExpr(aVarStmt, Builder.CreateIntegerValue(SourceLoc, 2));
+        EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt));
+        EXPECT_TRUE(Builder.AddStmt(Body, IfBlock));
 
         // Add to Module
-        EXPECT_TRUE(Builder->AddFunction(Func));
+        EXPECT_TRUE(Builder.AddFunction(Func));
 
         EXPECT_TRUE(S->Resolve());
 
@@ -1286,34 +1287,34 @@ namespace {
         ASTModule *Module = CreateModule();
 
         // func()
-        ASTFunction *Func = SemaBuilder::CreateFunction(Module, SourceLoc, VoidType, "func",
-                                                    SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlock *Body = SemaBuilder::CreateBody(Func);
-        ASTParam *aParam = SemaBuilder::CreateParam(Func, SourceLoc, IntType, "a");
-        EXPECT_TRUE(Builder->AddParam(aParam));
+        ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
+                                                    Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlockStmt *Body = Builder.CreateBody(Func);
+        ASTParam *aParam = Builder.CreateParam(SourceLoc, IntType, "a");
+        EXPECT_TRUE(Builder.AddParam(Func, aParam));
 
         // Create if block
-        ASTIfBlock *IfBlock = Builder->CreateIfBlock(Body, SourceLoc);
+        ASTIfStmt *IfBlock = Builder.CreateIfStmt(SourceLoc);
 
         // if (a == 1)
-        ASTValueExpr *Value1 = Builder->CreateExpr(aParam, SemaBuilder::CreateIntegerValue(SourceLoc, 1));
-        ASTVarRefExpr *aVarRef = Builder->CreateExpr(IfBlock, Builder->CreateVarRef(aParam));
-        ASTBinaryGroupExpr *IfCond = Builder->CreateBinaryExpr(IfBlock, SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value1);
+        ASTValueExpr *Value1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
+        ASTVarRefExpr *aVarRef = Builder.CreateExpr(Builder.CreateVarRef(aParam));
+        ASTBinaryGroupExpr *IfCond = Builder.CreateBinaryExpr(IfBlock, SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value1);
 
         // { a = 1 }
-        ASTVarStmt *aVarStmt = Builder->CreateVarStmt(IfBlock, Builder->CreateVarRef(aParam));
-        Builder->CreateExpr(aVarStmt, SemaBuilder::CreateIntegerValue(SourceLoc, 1));
-        EXPECT_TRUE(Builder->AddStmt(aVarStmt));
+        ASTVarStmt *aVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(aParam));
+        Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
+        EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt));
 
         // else {a == 2}
-        ASTElseBlock *ElseBlock = Builder->CreateElseBlock(IfBlock, SourceLoc);
-        ASTVarStmt *aVarStmt2 = Builder->CreateVarStmt(ElseBlock, Builder->CreateVarRef(aParam));
-        Builder->CreateExpr(aVarStmt2, SemaBuilder::CreateIntegerValue(SourceLoc, 2));
-        EXPECT_TRUE(Builder->AddStmt(aVarStmt2));
-        EXPECT_TRUE(Builder->AddStmt(IfBlock));
+        ASTBlockStmt *ElseBlock = Builder.CreateBlockStmt( SourceLoc);
+        ASTVarStmt *aVarStmt2 = Builder.CreateVarStmt(Builder.CreateVarRef(aParam));
+        Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 2));
+        EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt2));
+        EXPECT_TRUE(Builder.AddStmt(Body, IfBlock));
 
         // Add to Module
-        EXPECT_TRUE(Builder->AddFunction(Func));
+        EXPECT_TRUE(Builder.AddFunction(Func));
 
         EXPECT_TRUE(S->Resolve());
 
@@ -1352,48 +1353,48 @@ namespace {
         ASTModule *Module = CreateModule();
 
         // func()
-        ASTFunction *Func = SemaBuilder::CreateFunction(Module, SourceLoc, VoidType, "func",
-                                                    SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlock *Body = SemaBuilder::CreateBody(Func);
-        ASTParam *aParam = SemaBuilder::CreateParam(Func, SourceLoc, IntType, "a");
-        EXPECT_TRUE(Builder->AddParam(aParam));
+        ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
+                                                    Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlockStmt *Body = Builder.CreateBody(Func);
+        ASTParam *aParam = Builder.CreateParam(Func, SourceLoc, IntType, "a");
+        EXPECT_TRUE(Builder.AddParam(aParam));
 
         // Create if block
-        ASTIfBlock *IfBlock = Builder->CreateIfBlock(Body, SourceLoc);
+        ASTIfStmt *IfStmt = Builder.CreateIfStmt(Body, SourceLoc);
 
         // if (a == 1) { a = 11 }
-        ASTValueExpr *Value1 = Builder->CreateExpr(aParam, SemaBuilder::CreateIntegerValue(SourceLoc, 1));
-        ASTVarRefExpr *aVarRef = Builder->CreateExpr(IfBlock, Builder->CreateVarRef(aParam));
-        ASTBinaryGroupExpr *IfCond = Builder->CreateBinaryExpr(IfBlock, SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value1);
-        ASTVarStmt *aVarStmt = Builder->CreateVarStmt(IfBlock, Builder->CreateVarRef(aParam));
-        Builder->CreateExpr(aVarStmt, SemaBuilder::CreateIntegerValue(SourceLoc, 11));
-        EXPECT_TRUE(Builder->AddStmt(aVarStmt));
+        ASTValueExpr *Value1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
+        ASTVarRefExpr *aVarRef = Builder.CreateExpr(Builder.CreateVarRef(aParam));
+        ASTBinaryGroupExpr *IfCond = Builder.CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value1);
+        ASTVarStmt *aVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(aParam));
+        Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 11));
+        EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt));
 
         // elsif (a == 2) { a = 22 }
-        ASTElsifBlock *ElsifBlock = Builder->CreateElsifBlock(IfBlock, SourceLoc);
-        ASTValueExpr *Value2 = Builder->CreateExpr(aParam, SemaBuilder::CreateIntegerValue(SourceLoc, 2));
-        ASTBinaryGroupExpr *ElsifCond = Builder->CreateBinaryExpr(ElsifBlock, SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value2);
-        ASTVarStmt *aVarStmt2 = Builder->CreateVarStmt(ElsifBlock, Builder->CreateVarRef(aParam));
-        Builder->CreateExpr(aVarStmt2, SemaBuilder::CreateIntegerValue(SourceLoc, 22));
-        EXPECT_TRUE(Builder->AddStmt(aVarStmt2));
+        ASTBlockStmt *ElsifBlock = Builder.CreateBlockStmt(SourceLoc);
+        ASTValueExpr *Value2 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 2));
+        ASTBinaryGroupExpr *ElsifCond = Builder.CreateBinaryExpr(ElsifBlock, SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value2);
+        ASTVarStmt *aVarStmt2 = Builder.CreateVarStmt(Builder.CreateVarRef(aParam));
+        Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 22));
+        EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt2));
 
         // elsif (a == 3) { a = 33 }
-        ASTElsifBlock *ElsifBlock2 = Builder->CreateElsifBlock(IfBlock, SourceLoc);
-        ASTValueExpr *Value3 = Builder->CreateExpr(aParam, SemaBuilder::CreateIntegerValue(SourceLoc, 3));
-        ASTBinaryGroupExpr *ElsifCond2 = Builder->CreateBinaryExpr(ElsifBlock2, SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value3);
-        ASTVarStmt *aVarStmt3 = Builder->CreateVarStmt(ElsifBlock2, Builder->CreateVarRef(aParam));
-        Builder->CreateExpr(aVarStmt3, SemaBuilder::CreateIntegerValue(SourceLoc, 33));
-        EXPECT_TRUE(Builder->AddStmt(aVarStmt3));
+        ASTElsif *ElsifBlock2 = Builder.CreateElsifBlock(IfStmt, SourceLoc);
+        ASTValueExpr *Value3 = Builder.CreateExpr(aParam, Builder.CreateIntegerValue(SourceLoc, 3));
+        ASTBinaryGroupExpr *ElsifCond2 = Builder.CreateBinaryExpr(ElsifBlock2, SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value3);
+        ASTVarStmt *aVarStmt3 = Builder.CreateVarStmt(ElsifBlock2, Builder.CreateVarRef(aParam));
+        Builder.CreateExpr(aVarStmt3, Builder.CreateIntegerValue(SourceLoc, 33));
+        EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt3));
 
         // else {a == 44}
-        ASTElseBlock *ElseBlock = Builder->CreateElseBlock(IfBlock, SourceLoc);
-        ASTVarStmt *aVarStmt4 = Builder->CreateVarStmt(ElseBlock, Builder->CreateVarRef(aParam));
-        Builder->CreateExpr(aVarStmt4, SemaBuilder::CreateIntegerValue(SourceLoc, 44));
-        EXPECT_TRUE(Builder->AddStmt(aVarStmt4));
-        EXPECT_TRUE(Builder->AddStmt(IfBlock));
+        ASTElseBlock *ElseBlock = Builder.CreateElseBlock(IfStmt, SourceLoc);
+        ASTVarStmt *aVarStmt4 = Builder.CreateVarStmt(ElseBlock, Builder.CreateVarRef(aParam));
+        Builder.CreateExpr(aVarStmt4, Builder.CreateIntegerValue(SourceLoc, 44));
+        EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt4));
+        EXPECT_TRUE(Builder.AddStmt(Body, IfStmt));
 
         // Add to Module
-        EXPECT_TRUE(Builder->AddFunction(Func));
+        EXPECT_TRUE(Builder.AddFunction(Func));
 
         EXPECT_TRUE(S->Resolve());
 
@@ -1450,42 +1451,42 @@ namespace {
         ASTModule *Module = CreateModule();
 
         // main()
-        ASTFunction *MainFn = SemaBuilder::CreateFunction(Module, SourceLoc, VoidType, "func",
-                                                      SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlock *Body = SemaBuilder::CreateBody(MainFn);
-        ASTParam *aParam = SemaBuilder::CreateParam(MainFn, SourceLoc, IntType, "a");
-        EXPECT_TRUE(Builder->AddParam(aParam));
+        ASTFunction *MainFn = Builder.CreateFunction(SourceLoc, VoidType, "func",
+                                                      Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlockStmt *Body = Builder.CreateBody(MainFn);
+        ASTParam *aParam = Builder.CreateParam(MainFn, SourceLoc, IntType, "a");
+        EXPECT_TRUE(Builder.AddParam(aParam));
 
         // Create if block
-        ASTIfBlock *IfBlock = Builder->CreateIfBlock(Body, SourceLoc);
-        EXPECT_TRUE(Builder->AddStmt(IfBlock));
+        ASTIfStmt *IfStmt = Builder.CreateIfStmt(Body, SourceLoc);
+        EXPECT_TRUE(Builder.AddStmt(Body, IfStmt));
 
         // if a == 1 { a = 11 }
-        ASTValueExpr *Value1 = Builder->CreateExpr(aParam, SemaBuilder::CreateIntegerValue(SourceLoc, 1));
-        ASTVarRefExpr *aVarRef = Builder->CreateExpr(IfBlock, Builder->CreateVarRef(aParam));
-        ASTBinaryGroupExpr *IfCond = Builder->CreateBinaryExpr(IfBlock, SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value1);
-        ASTVarStmt *aVarStmt = Builder->CreateVarStmt(IfBlock, Builder->CreateVarRef(aParam));
-        Builder->CreateExpr(aVarStmt, SemaBuilder::CreateIntegerValue(SourceLoc, 11));
-        EXPECT_TRUE(Builder->AddStmt(aVarStmt));
+        ASTValueExpr *Value1 = Builder.CreateExpr(aParam, Builder.CreateIntegerValue(SourceLoc, 1));
+        ASTVarRefExpr *aVarRef = Builder.CreateExpr(IfStmt, Builder.CreateVarRef(aParam));
+        ASTBinaryGroupExpr *IfCond = Builder.CreateBinaryExpr(IfStmt, SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value1);
+        ASTVarStmt *aVarStmt = Builder.CreateVarStmt(IfStmt, Builder.CreateVarRef(aParam));
+        Builder.CreateExpr(aVarStmt, Builder.CreateIntegerValue(SourceLoc, 11));
+        EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt));
 
         // elsif a == 2 { a = 22 }
-        ASTElsifBlock *ElsifBlock = Builder->CreateElsifBlock(IfBlock, SourceLoc);
-        ASTValueExpr *Value2 = Builder->CreateExpr(aParam, SemaBuilder::CreateIntegerValue(SourceLoc, 2));
-        ASTBinaryGroupExpr *ElsifCond = Builder->CreateBinaryExpr(ElsifBlock, SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value2);
-        ASTVarStmt *aVarStmt2 = Builder->CreateVarStmt(ElsifBlock, Builder->CreateVarRef(aParam));
-        Builder->CreateExpr(aVarStmt2, SemaBuilder::CreateIntegerValue(SourceLoc, 22));
-        EXPECT_TRUE(Builder->AddStmt(aVarStmt2));
+        ASTElsif *Elsif = Builder.CreateBlockStmt(SourceLoc);
+        ASTValueExpr *Value2 = Builder.CreateExpr(aParam, Builder.CreateIntegerValue(SourceLoc, 2));
+        ASTBinaryGroupExpr *ElsifCond = Builder.CreateBinaryExpr(Elsif, SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value2);
+        ASTVarStmt *aVarStmt2 = Builder.CreateVarStmt(Elsif, Builder.CreateVarRef(aParam));
+        Builder.CreateExpr(aVarStmt2, Builder.CreateIntegerValue(SourceLoc, 22));
+        EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt2));
 
         // elsif a == 3 { a = 33 }
-        ASTElsifBlock *ElsifBlock2 = Builder->CreateElsifBlock(IfBlock, SourceLoc);
-        ASTValueExpr *Value3 = Builder->CreateExpr(aParam, SemaBuilder::CreateIntegerValue(SourceLoc, 3));
-        ASTBinaryGroupExpr *ElsifCond2 = Builder->CreateBinaryExpr(ElsifBlock2, SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value3);
-        ASTVarStmt *aVarStmt3 = Builder->CreateVarStmt(ElsifBlock2, Builder->CreateVarRef(aParam));
-        Builder->CreateExpr(aVarStmt3, SemaBuilder::CreateIntegerValue(SourceLoc, 33));
-        EXPECT_TRUE(Builder->AddStmt(aVarStmt3));
+        ASTElsif *ElsifBlock2 = Builder.CreateBlockStmt(IfStmt, SourceLoc);
+        ASTValueExpr *Value3 = Builder.CreateExpr(aParam, Builder.CreateIntegerValue(SourceLoc, 3));
+        ASTBinaryGroupExpr *ElsifCond2 = Builder.CreateBinaryExpr(ElsifBlock2, SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value3);
+        ASTVarStmt *aVarStmt3 = Builder.CreateVarStmt(ElsifBlock2, Builder.CreateVarRef(aParam));
+        Builder.CreateExpr(aVarStmt3, Builder.CreateIntegerValue(SourceLoc, 33));
+        EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt3));
 
         // Add to Module
-        EXPECT_TRUE(Builder->AddFunction(MainFn));
+        EXPECT_TRUE(Builder.AddFunction(MainFn));
 
         EXPECT_TRUE(S->Resolve());
 
@@ -1537,40 +1538,40 @@ namespace {
         ASTModule *Module = CreateModule();
 
         // main()
-        ASTFunction *Func = SemaBuilder::CreateFunction(Module, SourceLoc, VoidType, "func",
-                                                    SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlock *Body = SemaBuilder::CreateBody(Func);
-        ASTParam *aParam = SemaBuilder::CreateParam(Func, SourceLoc, IntType, "a");
-        EXPECT_TRUE(Builder->AddParam(aParam));
+        ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
+                                                    Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlockStmt *Body = Builder.CreateBody(Func);
+        ASTParam *aParam = Builder.CreateParam(Func, SourceLoc, IntType, "a");
+        EXPECT_TRUE(Builder.AddParam(aParam));
 
-        ASTSwitchBlock *SwitchBlock = Builder->CreateSwitchBlock(Body, SourceLoc);
-        EXPECT_TRUE(Builder->AddStmt(SwitchBlock));
+        ASTSwitchStmt *SwitchStmt = Builder.CreateSwitchStmt(Body, SourceLoc);
+        EXPECT_TRUE(Builder.AddStmt(Body, SwitchStmt));
 
         // switch a
-        ASTVarRefExpr *aVarRef = Builder->CreateExpr(SwitchBlock, Builder->CreateVarRef(aParam));
+        ASTVarRefExpr *aVarRef = Builder.CreateExpr(SwitchStmt, Builder.CreateVarRef(aParam));
 
         // case 1: a = 1 break
-        ASTSwitchCaseBlock *Case1Block = Builder->CreateSwitchCaseBlock(SwitchBlock, SourceLoc);
-        Builder->CreateExpr(Case1Block, SemaBuilder::CreateIntegerValue(SourceLoc, 1));
-        ASTVarStmt *aVarStmt1 = Builder->CreateVarStmt(Case1Block, Builder->CreateVarRef(aParam));
-        Builder->CreateExpr(aVarStmt1, SemaBuilder::CreateIntegerValue(SourceLoc, 1));
-        EXPECT_TRUE(Builder->AddStmt(aVarStmt1));
+        ASTBlockStmt *Case1Block = Builder.CreateBlockStmt(SourceLoc);
+        Builder.CreateExpr(Case1Block, Builder.CreateIntegerValue(SourceLoc, 1));
+        ASTVarStmt *aVarStmt1 = Builder.CreateVarStmt(Builder.CreateVarRef(aParam));
+        Builder.CreateExpr(aVarStmt1, Builder.CreateIntegerValue(SourceLoc, 1));
+        EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt1));
 
         // case 2: a = 2 break
-        ASTSwitchCaseBlock *Case2Block = Builder->CreateSwitchCaseBlock(SwitchBlock, SourceLoc);
-        Builder->CreateExpr(Case2Block, SemaBuilder::CreateIntegerValue(SourceLoc, 2));
-        ASTVarStmt *aVarStmt2 = Builder->CreateVarStmt(Case2Block, Builder->CreateVarRef(aParam));
-        Builder->CreateExpr(aVarStmt2, SemaBuilder::CreateIntegerValue(SourceLoc, 2));
-        EXPECT_TRUE(Builder->AddStmt(aVarStmt2));
+        ASTBlockStmt *Case2Block = Builder.CreateBlockStmt(SourceLoc);
+        Builder.CreateExpr(Case2Block, Builder.CreateIntegerValue(SourceLoc, 2));
+        ASTVarStmt *aVarStmt2 = Builder.CreateVarStmt(Builder.CreateVarRef(aParam));
+        Builder.CreateExpr(aVarStmt2, Builder.CreateIntegerValue(SourceLoc, 2));
+        EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt2));
 
         // default: a = 3
-        ASTSwitchDefaultBlock *DefaultBlock = Builder->CreateSwitchDefaultBlock(SwitchBlock, SourceLoc);
-        ASTVarStmt *aVarStmt3 = Builder->CreateVarStmt(DefaultBlock, Builder->CreateVarRef(aParam));
-        Builder->CreateExpr(aVarStmt3, SemaBuilder::CreateIntegerValue(SourceLoc, 3));
-        EXPECT_TRUE(Builder->AddStmt(aVarStmt3));
+        ASTBlockStmt *DefaultBlock = Builder.CreateBlockStmt(SourceLoc);
+        ASTVarStmt *aVarStmt3 = Builder.CreateVarStmt(Builder.CreateVarRef(aParam));
+        Builder.CreateExpr(aVarStmt3, Builder.CreateIntegerValue(SourceLoc, 3));
+        EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt3));
 
         // Add to Module
-        EXPECT_TRUE(Builder->AddFunction(Func));
+        EXPECT_TRUE(Builder.AddFunction(Func));
 
         EXPECT_TRUE(S->Resolve());
 
@@ -1615,28 +1616,28 @@ namespace {
         ASTModule *Module = CreateModule();
 
         // main()
-        ASTFunction *Func = SemaBuilder::CreateFunction(Module, SourceLoc, VoidType, "func",
-                                                    SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlock *Body = SemaBuilder::CreateBody(Func);
-        ASTParam *aParam = SemaBuilder::CreateParam(Func, SourceLoc, IntType, "a");
-        EXPECT_TRUE(Builder->AddParam(aParam));
+        ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
+                                                    Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlockStmt *Body = Builder.CreateBody(Func);
+        ASTParam *aParam = Builder.CreateParam(SourceLoc, IntType, "a");
+        EXPECT_TRUE(Builder.AddParam(Func, aParam));
 
         // Create while block
-        ASTWhileBlock *WhileBlock = Builder->CreateWhileBlock(Body, SourceLoc);
-        EXPECT_TRUE(Builder->AddStmt(WhileBlock));
+        ASTLoopStmt *LoopStmt = Builder.CreateLoopStmt(Body, SourceLoc);
+        EXPECT_TRUE(Builder.AddStmt(Body, LoopStmt));
 
         // while a == 1
-        ASTValueExpr *Value1 = Builder->CreateExpr(aParam, SemaBuilder::CreateIntegerValue(SourceLoc, 1));
-        ASTVarRefExpr *aVarRef = Builder->CreateExpr(WhileBlock, Builder->CreateVarRef(aParam));
-        ASTBinaryGroupExpr *WhileCond = Builder->CreateBinaryExpr(WhileBlock, SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value1);
+        ASTValueExpr *Value1 = Builder.CreateExpr(aParam, Builder.CreateIntegerValue(SourceLoc, 1));
+        ASTVarRefExpr *aVarRef = Builder.CreateExpr(LoopStmt, Builder.CreateVarRef(aParam));
+        ASTBinaryGroupExpr *WhileCond = Builder.CreateBinaryExpr(LoopStmt, SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value1);
 
         // { a = 1 }
-        ASTVarStmt *aVarStmt = Builder->CreateVarStmt(WhileBlock, Builder->CreateVarRef(aParam));
-        Builder->CreateExpr(aVarStmt, SemaBuilder::CreateIntegerValue(SourceLoc, 1));
-        EXPECT_TRUE(Builder->AddStmt(aVarStmt));
+        ASTVarStmt *aVarStmt = Builder.CreateVarStmt(LoopStmt, Builder.CreateVarRef(aParam));
+        Builder.CreateExpr(aVarStmt, Builder.CreateIntegerValue(SourceLoc, 1));
+        EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt));
 
         // Add to Module
-        EXPECT_TRUE(Builder->AddFunction(Func));
+        EXPECT_TRUE(Builder.AddFunction(Func));
 
         EXPECT_TRUE(S->Resolve());
 
@@ -1674,38 +1675,38 @@ namespace {
         ASTModule *Module = CreateModule();
 
         // main()
-        ASTFunction *Func = SemaBuilder::CreateFunction(Module, SourceLoc, VoidType, "func",
-                                                    SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlock *Body = SemaBuilder::CreateBody(Func);
-        ASTParam *aParam = SemaBuilder::CreateParam(Func, SourceLoc, IntType, "a");
-        EXPECT_TRUE(Builder->AddParam(aParam));
+        ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
+                                                    Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlockStmt *Body = Builder.CreateBody(Func);
+        ASTParam *aParam = Builder.CreateParam(Func, SourceLoc, IntType, "a");
+        EXPECT_TRUE(Builder.AddParam(aParam));
 
         // Create for block
-        ASTForBlock *ForBlock = Builder->CreateForBlock(Body, SourceLoc);
-        ASTForLoopBlock *LoopBlock = Builder->CreateForLoopBlock(ForBlock, SourceLoc);
-        ASTForPostBlock *PostBlock = Builder->CreateForPostBlock(ForBlock, SourceLoc);
-        EXPECT_TRUE(Builder->AddStmt(ForBlock));
+        ASTForBlock *ForBlock = Builder.CreateForBlock(Body, SourceLoc);
+        ASTForLoopBlock *LoopBlock = Builder.CreateForLoopBlock(ForBlock, SourceLoc);
+        ASTForPostBlock *PostBlock = Builder.CreateForPostBlock(ForBlock, SourceLoc);
+        EXPECT_TRUE(Builder.AddStmt(Body, ForBlock));
 
         // for int i = 1; i < 1; ++i
-        ASTLocalVar *iVar = SemaBuilder::CreateLocalVar(ForBlock, SourceLoc, IntType, "i");
-        ASTValueExpr *Value1 = Builder->CreateExpr(iVar, SemaBuilder::CreateIntegerValue(SourceLoc, 1));
-        ASTVarRefExpr *iVarRef = Builder->CreateExpr(ForBlock, Builder->CreateVarRef(iVar));
-        EXPECT_TRUE(Builder->AddStmt(iVar));
+        ASTLocalVar *iVar = Builder.CreateLocalVar(ForBlock, SourceLoc, IntType, "i");
+        ASTValueExpr *Value1 = Builder.CreateExpr(iVar, Builder.CreateIntegerValue(SourceLoc, 1));
+        ASTVarRefExpr *iVarRef = Builder.CreateExpr(ForBlock, Builder.CreateVarRef(iVar));
+        EXPECT_TRUE(Builder.AddStmt(Body, iVar));
 
-        ASTBinaryGroupExpr *ForCond = Builder->CreateBinaryExpr(ForBlock, SourceLoc, ASTBinaryOperatorKind::COMP_LTE, iVarRef, Value1);
+        ASTBinaryGroupExpr *ForCond = Builder.CreateBinaryExpr(ForBlock, SourceLoc, ASTBinaryOperatorKind::COMP_LTE, iVarRef, Value1);
 
-        ASTExprStmt *iPreInc = Builder->CreateExprStmt(PostBlock, SourceLoc);
-        Builder->CreateUnaryExpr(iPreInc, SourceLoc, ASTUnaryOperatorKind::ARITH_INCR, ASTUnaryOptionKind::UNARY_PRE,
-                                 Builder->CreateExpr(iPreInc, Builder->CreateVarRef(iVar)));
-        EXPECT_TRUE(Builder->AddStmt(iPreInc));
+        ASTExprStmt *iPreInc = Builder.CreateExprStmt(PostBlock, SourceLoc);
+        Builder.CreateUnaryExpr(iPreInc, SourceLoc, ASTUnaryOperatorKind::ARITH_INCR, ASTUnaryOptionKind::UNARY_PRE,
+                                 Builder.CreateExpr(iPreInc, Builder.CreateVarRef(iVar)));
+        EXPECT_TRUE(Builder.AddStmt(Body, iPreInc));
 
         // { a = 1}
-        ASTVarStmt *aVarStmt = Builder->CreateVarStmt(LoopBlock, Builder->CreateVarRef(aParam));
-        Builder->CreateExpr(aVarStmt, SemaBuilder::CreateIntegerValue(SourceLoc, 1));
-        EXPECT_TRUE(Builder->AddStmt(aVarStmt));
+        ASTVarStmt *aVarStmt = Builder.CreateVarStmt(LoopBlock, Builder.CreateVarRef(aParam));
+        Builder.CreateExpr(aVarStmt, Builder.CreateIntegerValue(SourceLoc, 1));
+        EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt));
 
         // Add to Module
-        EXPECT_TRUE(Builder->AddFunction(Func));
+        EXPECT_TRUE(Builder.AddFunction(Func));
 
         EXPECT_TRUE(S->Resolve());
 
@@ -1751,29 +1752,29 @@ namespace {
         ASTModule *Module = CreateModule();
 
         // main()
-        ASTFunction *Func = SemaBuilder::CreateFunction(Module, SourceLoc, VoidType, "func",
-                                                    SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlock *Body = SemaBuilder::CreateBody(Func);
-        ASTParam *aParam = SemaBuilder::CreateParam(Func, SourceLoc, IntType, "a");
-        EXPECT_TRUE(Builder->AddParam(aParam));
+        ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
+                                                    Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlockStmt *Body = Builder.CreateBody(Func);
+        ASTParam *aParam = Builder.CreateParam(Func, SourceLoc, IntType, "a");
+        EXPECT_TRUE(Builder.AddParam(aParam));
 
         // Create for block
-        ASTForBlock *ForBlock = Builder->CreateForBlock(Body, SourceLoc);
-        ASTForLoopBlock *LoopBlock = Builder->CreateForLoopBlock(ForBlock, SourceLoc);
-        EXPECT_TRUE(Builder->AddStmt(ForBlock));
+        ASTForBlock *ForBlock = Builder.CreateForBlock(Body, SourceLoc);
+        ASTForLoopBlock *LoopBlock = Builder.CreateForLoopBlock(ForBlock, SourceLoc);
+        EXPECT_TRUE(Builder.AddStmt(Body, ForBlock));
 
         // for a < 1
-        ASTVarRefExpr *aVarRef = Builder->CreateExpr(ForBlock, Builder->CreateVarRef(aParam));
-        ASTValueExpr *Value1 = Builder->CreateExpr(ForBlock, SemaBuilder::CreateIntegerValue(SourceLoc, 1));
-        ASTBinaryGroupExpr *ForCond = Builder->CreateBinaryExpr(ForBlock, SourceLoc, ASTBinaryOperatorKind::COMP_LTE, aVarRef, Value1);
+        ASTVarRefExpr *aVarRef = Builder.CreateExpr(ForBlock, Builder.CreateVarRef(aParam));
+        ASTValueExpr *Value1 = Builder.CreateExpr(ForBlock, Builder.CreateIntegerValue(SourceLoc, 1));
+        ASTBinaryGroupExpr *ForCond = Builder.CreateBinaryExpr(ForBlock, SourceLoc, ASTBinaryOperatorKind::COMP_LTE, aVarRef, Value1);
 
         // { a = 1}
-        ASTVarStmt *aVarStmt = Builder->CreateVarStmt(LoopBlock, Builder->CreateVarRef(aParam));
-        Builder->CreateExpr(aVarStmt, SemaBuilder::CreateIntegerValue(SourceLoc, 1));
-        EXPECT_TRUE(Builder->AddStmt(aVarStmt));
+        ASTVarStmt *aVarStmt = Builder.CreateVarStmt(LoopBlock, Builder.CreateVarRef(aParam));
+        Builder.CreateExpr(aVarStmt, Builder.CreateIntegerValue(SourceLoc, 1));
+        EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt));
 
         // Add to Module
-        EXPECT_TRUE(Builder->AddFunction(Func));
+        EXPECT_TRUE(Builder.AddFunction(Func));
 
         EXPECT_TRUE(S->Resolve());
 
@@ -1811,35 +1812,35 @@ namespace {
         ASTModule *Module = CreateModule();
 
         // main()
-        ASTFunction *Func = SemaBuilder::CreateFunction(Module, SourceLoc, VoidType, "func",
-                                                    SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlock *Body = SemaBuilder::CreateBody(Func);
-        ASTParam *aParam = SemaBuilder::CreateParam(Func, SourceLoc, IntType, "a");
-        EXPECT_TRUE(Builder->AddParam(aParam));
+        ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
+                                                    Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlockStmt *Body = Builder.CreateBody(Func);
+        ASTParam *aParam = Builder.CreateParam(Func, SourceLoc, IntType, "a");
+        EXPECT_TRUE(Builder.AddParam(aParam));
 
         // Create for block
-        ASTForBlock *ForBlock = Builder->CreateForBlock(Body, SourceLoc);
-        ASTForLoopBlock *LoopBlock = Builder->CreateForLoopBlock(ForBlock, SourceLoc);
-        ASTForPostBlock *PostBlock = Builder->CreateForPostBlock(ForBlock, SourceLoc);
-        EXPECT_TRUE(Builder->AddStmt(ForBlock));
+        ASTForBlock *ForBlock = Builder.CreateForBlock(Body, SourceLoc);
+        ASTForLoopBlock *LoopBlock = Builder.CreateForLoopBlock(ForBlock, SourceLoc);
+        ASTForPostBlock *PostBlock = Builder.CreateForPostBlock(ForBlock, SourceLoc);
+        EXPECT_TRUE(Builder.AddStmt(Body, ForBlock));
 
         // for a < 1; ++a
-        ASTVarRefExpr *aVarRef = Builder->CreateExpr(ForBlock, Builder->CreateVarRef(aParam));
-        ASTValueExpr *Value1 = Builder->CreateExpr(aParam, SemaBuilder::CreateIntegerValue(SourceLoc, 1));
-        ASTBinaryGroupExpr *ForCond = Builder->CreateBinaryExpr(ForBlock, SourceLoc, ASTBinaryOperatorKind::COMP_LTE, aVarRef, Value1);
+        ASTVarRefExpr *aVarRef = Builder.CreateExpr(ForBlock, Builder.CreateVarRef(aParam));
+        ASTValueExpr *Value1 = Builder.CreateExpr(aParam, Builder.CreateIntegerValue(SourceLoc, 1));
+        ASTBinaryGroupExpr *ForCond = Builder.CreateBinaryExpr(ForBlock, SourceLoc, ASTBinaryOperatorKind::COMP_LTE, aVarRef, Value1);
 
-        ASTExprStmt *aPreInc = Builder->CreateExprStmt(PostBlock, SourceLoc);
-        Builder->CreateUnaryExpr(aPreInc, SourceLoc, ASTUnaryOperatorKind::ARITH_INCR, ASTUnaryOptionKind::UNARY_PRE,
+        ASTExprStmt *aPreInc = Builder.CreateExprStmt(PostBlock, SourceLoc);
+        Builder.CreateUnaryExpr(aPreInc, SourceLoc, ASTUnaryOperatorKind::ARITH_INCR, ASTUnaryOptionKind::UNARY_PRE,
                                  aVarRef);
-        EXPECT_TRUE(Builder->AddStmt(aPreInc));
+        EXPECT_TRUE(Builder.AddStmt(Body, aPreInc));
 
         // { a = 1}
-        ASTVarStmt *aVarStmt = Builder->CreateVarStmt(LoopBlock, Builder->CreateVarRef(aParam));
-        Builder->CreateExpr(aVarStmt, SemaBuilder::CreateIntegerValue(SourceLoc, 1));
-        EXPECT_TRUE(Builder->AddStmt(aVarStmt));
+        ASTVarStmt *aVarStmt = Builder.CreateVarStmt(LoopBlock, Builder.CreateVarRef(aParam));
+        Builder.CreateExpr(aVarStmt, Builder.CreateIntegerValue(SourceLoc, 1));
+        EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt));
 
         // Add to Module
-        EXPECT_TRUE(Builder->AddFunction(Func));
+        EXPECT_TRUE(Builder.AddFunction(Func));
 
         EXPECT_TRUE(S->Resolve());
 
@@ -1887,42 +1888,42 @@ namespace {
         //   public int b() { return 1 }
         //   private const int c { return 1 }
         // }
-        ASTClass *TestClass = Builder->CreateClass(Module, ASTClassKind::CLASS,
-                                                   SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false),
+        ASTClass *TestClass = Builder.CreateClass(ASTClassKind::CLASS,
+                                                   Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false),
                                                    SourceLoc, "TestClass");
 
         // int a() { return 1 }
-        ASTClassFunction *aFunc = Builder->CreateClassMethod(TestClass, SourceLoc, IntType,
+        ASTClassMethod *aFunc = Builder.CreateClassMethod(TestClass, SourceLoc, IntType,
                                                              "a",
-                                                             SemaBuilder::CreateScopes(
+                                                             Builder.CreateScopes(
                                                                      ASTVisibilityKind::V_DEFAULT, false, false));
-        ASTBlock *aFuncBody = SemaBuilder::CreateBody(aFunc);
-        ASTReturnStmt *aFuncReturn = Builder->CreateReturn(aFuncBody, SourceLoc);
-        Builder->CreateExpr(aFuncReturn, Builder->CreateIntegerValue(SourceLocation(), 1));
-        Builder->AddStmt(aFuncReturn);
-        Builder->AddClassMethod(aFunc);
+        ASTBlockStmt *aFuncBody = Builder.CreateBody(aFunc);
+        ASTReturnStmt *aFuncReturn = Builder.CreateReturnStmt(aFuncBody, SourceLoc);
+        Builder.CreateExpr(aFuncReturn, Builder.CreateIntegerValue(SourceLocation(), 1));
+        Builder.AddStmt(Body, aFuncReturn);
+        Builder.AddClassMethod(aFunc);
 
         // public int b() { return 1 }
-        ASTClassFunction *bFunc = Builder->CreateClassMethod(TestClass, SourceLoc, IntType,
+        ASTClassMethod *bFunc = Builder.CreateClassMethod(TestClass, SourceLoc, IntType,
                                                              "b",
-                                                             SemaBuilder::CreateScopes(
+                                                             Builder.CreateScopes(
                                                                      ASTVisibilityKind::V_PUBLIC, false, false));
-        ASTBlock *bFuncBody = SemaBuilder::CreateBody(bFunc);
-        ASTReturnStmt *bFuncReturn = Builder->CreateReturn(bFuncBody, SourceLoc);
-        Builder->CreateExpr(bFuncReturn, Builder->CreateIntegerValue(SourceLocation(), 1));
-        Builder->AddStmt(bFuncReturn);
-        Builder->AddClassMethod(bFunc);
+        ASTBlockStmt *bFuncBody = Builder.CreateBody(bFunc);
+        ASTReturnStmt *bFuncReturn = Builder.CreateReturnStmt(bFuncBody, SourceLoc);
+        Builder.CreateExpr(bFuncReturn, Builder.CreateIntegerValue(SourceLocation(), 1));
+        Builder.AddStmt(Body, bFuncReturn);
+        Builder.AddClassMethod(bFunc);
 
         // private const int c { return 1 }
-        ASTClassFunction *cFunc = Builder->CreateClassMethod(TestClass, SourceLoc, IntType,
+        ASTClassMethod *cFunc = Builder.CreateClassMethod(TestClass, SourceLoc, IntType,
                                                              "c",
-                                                             SemaBuilder::CreateScopes(
+                                                             Builder.CreateScopes(
                                                                      ASTVisibilityKind::V_PRIVATE, true, false));
-        ASTBlock *cFuncBody = SemaBuilder::CreateBody(cFunc);
-        ASTReturnStmt *cFuncReturn = Builder->CreateReturn(cFuncBody, SourceLoc);
-        Builder->CreateExpr(cFuncReturn, Builder->CreateIntegerValue(SourceLocation(), 1));
-        Builder->AddStmt(cFuncReturn);
-        Builder->AddClassMethod(cFunc);
+        ASTBlockStmt *cFuncBody = Builder.CreateBody(cFunc);
+        ASTReturnStmt *cFuncReturn = Builder.CreateReturnStmt(cFuncBody, SourceLoc);
+        Builder.CreateExpr(cFuncReturn, Builder.CreateIntegerValue(SourceLocation(), 1));
+        Builder.AddStmt(Body, cFuncReturn);
+        Builder.AddClassMethod(cFunc);
 
         // int main() {
         //  TestClass test = new TestClass()
@@ -1931,50 +1932,50 @@ namespace {
         //  int c = test.c()
         //  delete test
         // }
-        ASTFunction *Func = SemaBuilder::CreateFunction(Module, SourceLoc, VoidType, "func",
-                                                    SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlock *Body = SemaBuilder::CreateBody(Func);
+        ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
+                                                    Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlockStmt *Body = Builder.CreateBody(Func);
 
         // TestClass test = new TestClass()
-        ASTType *TestClassType = SemaBuilder::CreateClassType(TestClass);
-        ASTLocalVar *TestVar = SemaBuilder::CreateLocalVar(Body, SourceLoc, TestClassType, "test");
-        ASTClassFunction *DefaultConstructor = TestClass->getConstructors().find(0)->second.front();
-        ASTVarRef *Instance = Builder->CreateVarRef(TestVar);
-        ASTCall *ConstructorCall = Builder->CreateCall(Instance, DefaultConstructor);
-        ASTCallExpr *NewExpr = Builder->CreateNewExpr(TestVar, ConstructorCall);
-        Builder->AddExpr(TestVar, NewExpr);
-        Builder->AddStmt(TestVar);
+        ASTType *TestClassType = Builder.CreateClassType(TestClass);
+        ASTLocalVar *TestVar = Builder.CreateLocalVar(SourceLoc, TestClassType, "test");
+        ASTClassMethod *DefaultConstructor = TestClass->getConstructors().find(0)->second.front();
+        ASTVarRef *Instance = Builder.CreateVarRef(TestVar);
+        ASTCall *ConstructorCall = Builder.CreateCall(Instance, DefaultConstructor);
+        ASTCallExpr *NewExpr = Builder.CreateNewExpr(TestVar, ConstructorCall);
+        Builder.AddExpr(TestVar, NewExpr);
+        Builder.AddStmt(Body, TestVar);
 
         // int a = test.a()
         ASTType *aType = aFunc->getType();
-        ASTLocalVar *aVar = SemaBuilder::CreateLocalVar(Body, SourceLoc, aType, "a");
-        ASTCallExpr *aCallExpr = Builder->CreateExpr(aVar, Builder->CreateCall(Instance, aFunc));
-        Builder->AddExpr(aVar, aCallExpr);
-        Builder->AddStmt(aVar);
+        ASTLocalVar *aVar = Builder.CreateLocalVar(SourceLoc, aType, "a");
+        ASTCallExpr *aCallExpr = Builder.CreateExpr(aVar, Builder.CreateCall(Instance, aFunc));
+        Builder.AddExpr(aVar, aCallExpr);
+        Builder.AddStmt(Body, aVar);
 
         // int b = test.b()
         ASTType *bType = bFunc->getType();
-        ASTLocalVar *bVar = SemaBuilder::CreateLocalVar(Body, SourceLoc, bType, "b");
-        ASTCallExpr *bCallExpr = Builder->CreateExpr(bVar, Builder->CreateCall(Instance, bFunc));
-        Builder->AddExpr(bVar, bCallExpr);
-        Builder->AddStmt(bVar);
+        ASTLocalVar *bVar = Builder.CreateLocalVar(SourceLoc, bType, "b");
+        ASTCallExpr *bCallExpr = Builder.CreateExpr(bVar, Builder.CreateCall(Instance, bFunc));
+        Builder.AddExpr(bVar, bCallExpr);
+        Builder.AddStmt(Body, bVar);
 
         // int c = test.c()
         ASTType *cType = cFunc->getType();
-        ASTLocalVar *cVar = SemaBuilder::CreateLocalVar(Body, SourceLoc, cType, "c");
-        ASTCallExpr *cCallExpr = Builder->CreateExpr(cVar, Builder->CreateCall(Instance, cFunc));
-        Builder->AddExpr(cVar, cCallExpr);
-        Builder->AddStmt(cVar);
+        ASTLocalVar *cVar = Builder.CreateLocalVar(SourceLoc, cType, "c");
+        ASTCallExpr *cCallExpr = Builder.CreateExpr(cVar, Builder.CreateCall(Instance, cFunc));
+        Builder.AddExpr(cVar, cCallExpr);
+        Builder.AddStmt(Body, cVar);
 
         // delete test
-        ASTDeleteStmt *Delete = Builder->CreateDelete(Body, SourceLoc, (ASTVarRef *) Instance);
-        Builder->AddStmt(Delete);
+        ASTDeleteStmt *Delete = Builder.CreateDeleteStmt(Body, SourceLoc, (ASTVarRef *) Instance);
+        Builder.AddStmt(Body, Delete);
 
         // Add to Module
-        EXPECT_TRUE(Builder->AddIdentity(TestClass));
-        EXPECT_TRUE(Builder->AddFunction(Func));
+        EXPECT_TRUE(Builder.AddIdentity(TestClass));
+        EXPECT_TRUE(Builder.AddFunction(Func));
 
-        bool Success = Builder->Build();
+        bool Success = S->Resolve();
         EXPECT_TRUE(Success);
 
         if (Success) {
@@ -2055,62 +2056,62 @@ namespace {
         //   int a
         //   int getA() { return a }
         // }
-        ASTClass *TestClass = Builder->CreateClass(Module, ASTClassKind::CLASS,
-                                                   SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false),
+        ASTClass *TestClass = Builder.CreateClass(ASTClassKind::CLASS,
+                                                   Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false),
                                                    SourceLoc, "TestClass");
-        ASTClassVar *aField = Builder->CreateClassVar(TestClass, SourceLoc, SemaBuilder::CreateIntType(SourceLoc),
+        ASTClassAttribute *aField = Builder.CreateClassAttribute(SourceLoc, Builder.CreateIntType(SourceLoc),
                                                       "a",
-                                                      SemaBuilder::CreateScopes(
+                                                      Builder.CreateScopes(
                                                               ASTVisibilityKind::V_DEFAULT, false, false));
-        Builder->AddClassVar(aField);
+        Builder.AddClassAttribute(TestClass, aField);
 
 
         // int getA() { return a }
-        ASTClassFunction *getA = Builder->CreateClassMethod(TestClass, SourceLoc, IntType,
+        ASTClassMethod *getA = Builder.CreateClassMethod(SourceLoc, IntType,
                                                             "getA",
-                                                            SemaBuilder::CreateScopes(
+                                                            Builder.CreateScopes(
                                                                      ASTVisibilityKind::V_DEFAULT, false, false));
-        ASTBlock *aFuncBody = SemaBuilder::CreateBody(getA);
-        ASTReturnStmt *aFuncReturn = Builder->CreateReturn(aFuncBody, SourceLoc);
-        Builder->CreateExpr(aFuncReturn, Builder->CreateVarRef(aField));
-        Builder->AddStmt(aFuncReturn);
-        Builder->AddClassMethod(getA);
+        ASTBlockStmt *aFuncBody = Builder.CreateBody(getA);
+        ASTReturnStmt *aFuncReturn = Builder.CreateReturnStmt(SourceLoc);
+        Builder.CreateExpr(aFuncReturn, Builder.CreateVarRef(aField));
+        Builder.AddStmt(Body, aFuncReturn);
+        Builder.AddClassMethod(getA);
 
         // int main() {
         //  TestClass test = new TestClass()
         //  int a = test.getA()
         //  delete test
         // }
-        ASTFunction *Func = SemaBuilder::CreateFunction(Module, SourceLoc, VoidType, "func",
-                                                    SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlock *Body = SemaBuilder::CreateBody(Func);
+        ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
+                                                    Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlockStmt *Body = Builder.CreateBody(Func);
 
         // TestClass test = new TestClass()
-        ASTType *TestClassType = SemaBuilder::CreateClassType(TestClass);
-        ASTLocalVar *TestVar = SemaBuilder::CreateLocalVar(Body, SourceLoc, TestClassType, "test");
-        ASTClassFunction *DefaultConstructor = TestClass->getConstructors().find(0)->second.front();
-        ASTVarRef *Instance = Builder->CreateVarRef(TestVar);
-        ASTCall *ConstructorCall = Builder->CreateCall(Instance, DefaultConstructor);
-        ASTCallExpr *NewExpr = Builder->CreateNewExpr(TestVar, ConstructorCall);
-        Builder->AddExpr(TestVar, NewExpr);
-        Builder->AddStmt(TestVar);
+        ASTType *TestClassType = Builder.CreateClassType(TestClass);
+        ASTLocalVar *TestVar = Builder.CreateLocalVar(SourceLoc, TestClassType, "test");
+        ASTClassMethod *DefaultConstructor = TestClass->getConstructors().find(0)->second.front();
+        ASTVarRef *Instance = Builder.CreateVarRef(TestVar);
+        ASTCall *ConstructorCall = Builder.CreateCall(Instance, DefaultConstructor);
+        ASTCallExpr *NewExpr = Builder.CreateNewExpr(TestVar, ConstructorCall);
+        Builder.AddExpr(TestVar, NewExpr);
+        Builder.AddStmt(Body, TestVar);
 
         // int a = test.a()
         ASTType *aType = getA->getType();
-        ASTLocalVar *aVar = SemaBuilder::CreateLocalVar(Body, SourceLoc, aType, "a");
-        ASTCallExpr *aCallExpr = Builder->CreateExpr(aVar, Builder->CreateCall(Instance, getA));
-        Builder->AddExpr(aVar, aCallExpr);
-        Builder->AddStmt(aVar);
+        ASTLocalVar *aVar = Builder.CreateLocalVar(SourceLoc, aType, "a");
+        ASTCallExpr *aCallExpr = Builder.CreateExpr(aVar, Builder.CreateCall(Instance, getA));
+        Builder.AddExpr(aVar, aCallExpr);
+        Builder.AddStmt(Body, aVar);
 
         // delete test
-        ASTDeleteStmt *Delete = Builder->CreateDelete(Body, SourceLoc, (ASTVarRef *) Instance);
-        Builder->AddStmt(Delete);
+        ASTDeleteStmt *Delete = Builder.CreateDeleteStmt(Body, SourceLoc, (ASTVarRef *) Instance);
+        Builder.AddStmt(Body, Delete);
 
         // Add to Module
-        EXPECT_TRUE(Builder->AddIdentity(TestClass));
-        EXPECT_TRUE(Builder->AddFunction(Func));
+        EXPECT_TRUE(Builder.AddIdentity(TestClass));
+        EXPECT_TRUE(Builder.AddFunction(Func));
 
-        bool Success = Builder->Build();
+        bool Success = S->Resolve();
         EXPECT_TRUE(Success);
 
         if (Success) {
@@ -2182,26 +2183,26 @@ namespace {
         //   int b
         //   const int c
         // }
-        ASTClass *TestStruct = Builder->CreateClass(Module, ASTClassKind::STRUCT,
-                                                    SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false),
+        ASTClass *TestStruct = Builder.CreateClass(ASTClassKind::STRUCT,
+                                                    Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false),
                                                     SourceLoc, "TestStruct");
-        ASTClassVar *aField = Builder->CreateClassVar(TestStruct, SourceLoc, SemaBuilder::CreateIntType(SourceLoc),
+        ASTClassAttribute *aField = Builder.CreateClassAttribute(SourceLoc, Builder.CreateIntType(SourceLoc),
                                                       "a",
-                                                      SemaBuilder::CreateScopes(
+                                                      Builder.CreateScopes(
                                                               ASTVisibilityKind::V_DEFAULT, false, false));
-        Builder->AddClassVar(aField);
+        Builder.AddClassAttribute(TestStruct, aField);
 
-        ASTClassVar *bField = Builder->CreateClassVar(TestStruct, SourceLoc, SemaBuilder::CreateIntType(SourceLoc),
+        ASTClassAttribute *bField = Builder.CreateClassAttribute(SourceLoc, Builder.CreateIntType(SourceLoc),
                                                       "b",
-                                                      SemaBuilder::CreateScopes(
+                                                      Builder.CreateScopes(
                                                               ASTVisibilityKind::V_DEFAULT, false, false));
-        Builder->AddClassVar(bField);
+        Builder.AddClassAttribute(TestStruct, bField);
 
-        ASTClassVar *cField = Builder->CreateClassVar(TestStruct, SourceLoc, SemaBuilder::CreateIntType(SourceLoc),
+        ASTClassAttribute *cField = Builder.CreateClassAttribute(SourceLoc, Builder.CreateIntType(SourceLoc),
                                                       "c",
-                                                      SemaBuilder::CreateScopes(
+                                                      Builder.CreateScopes(
                                                               ASTVisibilityKind::V_DEFAULT, true, false));
-        Builder->AddClassVar(cField);
+        Builder.AddClassAttribute(TestStruct, cField);
 
         // int main() {
         //  TestStruct test = new TestStruct();
@@ -2210,43 +2211,43 @@ namespace {
         //  int c = test.c
         //  return 1
         // }
-        ASTFunction *Func = SemaBuilder::CreateFunction(Module, SourceLoc, VoidType, "func",
-                                                    SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlock *Body = SemaBuilder::CreateBody(Func);
+        ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
+                                                    Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlockStmt *Body = Builder.CreateBody(Func);
 
         // TestStruct test = new TestStruct()
-        ASTType *TestClassType = SemaBuilder::CreateClassType(TestStruct);
-        ASTLocalVar *TestVar = SemaBuilder::CreateLocalVar(Body, SourceLoc, TestClassType, "test");
-        ASTClassFunction *DefaultConstructor = TestStruct->getConstructors().find(0)->second.front();
-        ASTVarRef *Instance = (ASTVarRef *) Builder->CreateVarRef(TestVar);
-        ASTCallExpr *NewExpr = Builder->CreateNewExpr(TestVar, Builder->CreateCall(Instance, DefaultConstructor));
-        Builder->AddExpr(TestVar, NewExpr);
-        Builder->AddStmt(TestVar);
+        ASTType *TestClassType = Builder.CreateClassType(TestStruct);
+        ASTLocalVar *TestVar = Builder.CreateLocalVar(SourceLoc, TestClassType, "test");
+        ASTClassMethod *DefaultConstructor = TestStruct->getConstructors().find(0)->second.front();
+        ASTVarRef *Instance = (ASTVarRef *) Builder.CreateVarRef(TestVar);
+        ASTCallExpr *NewExpr = Builder.CreateNewExpr(TestVar, Builder.CreateCall(Instance, DefaultConstructor));
+        Builder.AddExpr(TestVar, NewExpr);
+        Builder.AddStmt(Body, TestVar);
 
         // int a = test.a
-        ASTLocalVar *aVar = SemaBuilder::CreateLocalVar(Body, SourceLoc, IntType, "a");
-        ASTVarRefExpr *aRefExpr = Builder->CreateExpr(aVar, Builder->CreateVarRef(Instance, aField));
-        Builder->AddStmt(aVar);
+        ASTLocalVar *aVar = Builder.CreateLocalVar(SourceLoc, IntType, "a");
+        ASTVarRefExpr *aRefExpr = Builder.CreateExpr(aVar, Builder.CreateVarRef(Instance, aField));
+        Builder.AddStmt(Body, aVar);
 
         // test.b = 2
-        ASTVarStmt *bFieldAssign = Builder->CreateVarStmt(Body, Builder->CreateVarRef(Instance, bField));
-        Builder->CreateExpr(bFieldAssign, SemaBuilder::CreateIntegerValue(SourceLoc, 2));
-        Builder->AddStmt(bFieldAssign);
+        ASTVarStmt *bFieldAssign = Builder.CreateVarStmt(Builder.CreateVarRef(Instance, bField));
+        Builder.CreateExpr(bFieldAssign, Builder.CreateIntegerValue(SourceLoc, 2));
+        Builder.AddStmt(Body, bFieldAssign);
 
         // int c = test.c
-        ASTLocalVar *cVar = SemaBuilder::CreateLocalVar(Body, SourceLoc, IntType, "c");
-        ASTVarRefExpr *cRefExpr = Builder->CreateExpr(cVar, Builder->CreateVarRef(Instance, cField));
-        Builder->AddStmt(cVar);
+        ASTLocalVar *cVar = Builder.CreateLocalVar(SourceLoc, IntType, "c");
+        ASTVarRefExpr *cRefExpr = Builder.CreateExpr(cVar, Builder.CreateVarRef(Instance, cField));
+        Builder.AddStmt(Body, cVar);
 
         // delete test
-        ASTDeleteStmt *Delete = Builder->CreateDelete(Body, SourceLoc, (ASTVarRef *) Instance);
-        Builder->AddStmt(Delete);
+        ASTDeleteStmt *Delete = Builder.CreateDeleteStmt(SourceLoc, (ASTVarRef *) Instance);
+        Builder.AddStmt(Body, Delete);
 
         // Add to Module
-        EXPECT_TRUE(Builder->AddIdentity(TestStruct));
-        EXPECT_TRUE(Builder->AddFunction(Func));
+        EXPECT_TRUE(Builder.AddIdentity(TestStruct));
+        EXPECT_TRUE(Builder.AddFunction(Func));
 
-        bool Success = Builder->Build();
+        bool Success = S->Resolve();
         EXPECT_TRUE(Success);
 
         if (Success) {
@@ -2320,41 +2321,40 @@ namespace {
         //   B
         //   C
         // }
-        ASTEnum *TestEnum = Builder->CreateEnum(Module, SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false),
-                                                  SourceLoc, "TestEnum");
-        ASTEnumEntry *A = Builder->CreateEnumEntry(TestEnum, SourceLoc, "A");
-        Builder->AddEnumEntry(A);
-        ASTEnumEntry *B = Builder->CreateEnumEntry(TestEnum, SourceLoc, "B");
-        Builder->AddEnumEntry(B);
-        ASTEnumEntry *C = Builder->CreateEnumEntry(TestEnum, SourceLoc, "C");
-        Builder->AddEnumEntry(C);
+        ASTEnum *TestEnum = Builder.CreateEnum(SourceLoc, "TestEnum", Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTEnumEntry *A = Builder.CreateEnumEntry(SourceLoc, "A");
+        Builder.AddEnumEntry(TestEnum, A);
+        ASTEnumEntry *B = Builder.CreateEnumEntry(SourceLoc, "B");
+        Builder.AddEnumEntry(TestEnum, B);
+        ASTEnumEntry *C = Builder.CreateEnumEntry(SourceLoc, "C");
+        Builder.AddEnumEntry(TestEnum, C);
 
         // int main() {
         //  TestEnum a = TestEnum.A;
         //  TestEnum b = a
         //  return 1
         // }
-        ASTFunction *Func = SemaBuilder::CreateFunction(Module, SourceLoc, VoidType, "func",
-                                                    SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlock *Body = SemaBuilder::CreateBody(Func);
+        ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
+                                                    Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlockStmt *Body = Builder.CreateBody(Func);
 
-        ASTType *TestEnumType = SemaBuilder::CreateEnumType(TestEnum);
+        ASTType *TestEnumType = Builder.CreateEnumType(TestEnum);
 
         //  TestEnum a = TestEnum.A;
-        ASTLocalVar *aVar = SemaBuilder::CreateLocalVar(Body, SourceLoc, TestEnumType, "a");
-        ASTVarRefExpr *aRefExpr = Builder->CreateExpr(aVar, Builder->CreateVarRef(A));
-        Builder->AddStmt(aVar);
+        ASTLocalVar *aVar = Builder.CreateLocalVar(SourceLoc, TestEnumType, "a");
+        ASTVarRefExpr *aRefExpr = Builder.CreateExpr(aVar, Builder.CreateVarRef(A));
+        Builder.AddStmt(Body, aVar);
 
         //  TestEnum b = a
-        ASTLocalVar *bVar = SemaBuilder::CreateLocalVar(Body, SourceLoc, TestEnumType, "b");
-        ASTVarRefExpr *bRefExpr = Builder->CreateExpr(bVar, Builder->CreateVarRef(aVar));
-        Builder->AddStmt(bVar);
+        ASTLocalVar *bVar = Builder.CreateLocalVar(SourceLoc, TestEnumType, "b");
+        ASTVarRefExpr *bRefExpr = Builder.CreateExpr(bVar, Builder.CreateVarRef(aVar));
+        Builder.AddStmt(Body, bVar);
 
         // Add to Module
-        EXPECT_TRUE(Builder->AddIdentity(TestEnum));
-        EXPECT_TRUE(Builder->AddFunction(Func));
+        EXPECT_TRUE(Builder.AddIdentity(TestEnum));
+        EXPECT_TRUE(Builder.AddFunction(Func));
 
-        bool Success = Builder->Build();
+        bool Success = S->Resolve();
         EXPECT_TRUE(Success);
 
         if (Success) {
@@ -2382,56 +2382,56 @@ namespace {
 
     TEST_F(CodeGenTest, CGError) {
         ASTModule *Module = CreateModule();
-        ASTScopes *TopScopes = SemaBuilder::CreateScopes(ASTVisibilityKind::V_DEFAULT, false);
+        ASTScopes *TopScopes = Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false);
 
         // int testFail0() {
         //   fail()
         // }
-        ASTFunction *TestFail0 = SemaBuilder::CreateFunction(Module, SourceLoc, IntType, "testFail0", TopScopes);
-        ASTBlock *Body0 = SemaBuilder::CreateBody(TestFail0);
-        ASTExprStmt *Fail0 = SemaBuilder::CreateExprStmt(Body0, SourceLoc);
-        SemaBuilder::CreateFail(Fail0, SourceLoc, ASTTypeKind::TYPE_BOOL);
-        EXPECT_TRUE(Builder->AddStmt(Fail0));
-        EXPECT_TRUE(SemaBuilder::AddFunction(TestFail0));
+        ASTFunction *TestFail0 = Builder.CreateFunction(SourceLoc, IntType, "testFail0", TopScopes);
+        ASTBlockStmt *Body0 = Builder.CreateBody(TestFail0);
+        ASTExprStmt *Fail0 = Builder.CreateExprStmt(SourceLoc);
+        Builder.CreateFailStmt(SourceLoc);
+        EXPECT_TRUE(Builder.AddStmt(Body0, Fail0));
+        EXPECT_TRUE(Builder.AddFunction(Module, TestFail0));
 
         // int testFail1() {
         //   fail(true)
         // }
-        ASTFunction *TestFail1 = SemaBuilder::CreateFunction(Module, SourceLoc, IntType, "testFail1", TopScopes);
-        ASTBlock *Body1 = SemaBuilder::CreateBody(TestFail1);
-        ASTExprStmt *Fail1 = SemaBuilder::CreateExprStmt(Body1, SourceLoc);
-        ASTBoolValue *BoolVal = SemaBuilder::CreateBoolValue(SourceLoc, true);
-        ASTValueExpr *BoolValExpr = SemaBuilder::CreateExpr(Fail1, BoolVal);
-        SemaBuilder::CreateFail(Fail1, SourceLoc, BoolVal->getTypeKind(), BoolValExpr);
-        EXPECT_TRUE(Builder->AddStmt(Fail1));
-        EXPECT_TRUE(SemaBuilder::AddFunction(TestFail1));
+        ASTFunction *TestFail1 = Builder.CreateFunction(SourceLoc, IntType, "testFail1", TopScopes);
+        ASTBlockStmt *Body1 = Builder.CreateBody(TestFail1);
+        ASTExprStmt *Fail1 = Builder.CreateExprStmt(SourceLoc);
+        ASTBoolValue *BoolVal = Builder.CreateBoolValue(SourceLoc, true);
+        ASTValueExpr *BoolValExpr = Builder.CreateExpr(BoolVal);
+        Builder.CreateFailStmt(Fail1);
+        EXPECT_TRUE(Builder.AddStmt(Body1, Fail1));
+        EXPECT_TRUE(Builder.AddFunction(Module, TestFail1));
 
         // int testFail2() {
         //   fail(1)
         // }
-        ASTFunction *TestFail2 = SemaBuilder::CreateFunction(Module, SourceLoc, IntType, "testFail2", TopScopes);
-        ASTBlock *Body2 = SemaBuilder::CreateBody(TestFail2);
-        ASTExprStmt *Fail2 = SemaBuilder::CreateExprStmt(Body2, SourceLoc);
-        ASTIntegerValue *IntVal = SemaBuilder::CreateIntegerValue(SourceLoc, 1);
-        ASTValueExpr *IntValExpr = SemaBuilder::CreateExpr(Fail2, IntVal);
-        SemaBuilder::CreateFail(Fail2, SourceLoc, IntVal->getTypeKind(), IntValExpr);
-        EXPECT_TRUE(Builder->AddStmt(Fail2));
-        EXPECT_TRUE(SemaBuilder::AddFunction(TestFail2));
+        ASTFunction *TestFail2 = Builder.CreateFunction(SourceLoc, IntType, "testFail2", TopScopes);
+        ASTBlockStmt *Body2 = Builder.CreateBody(TestFail2);
+        ASTExprStmt *Fail2 = Builder.CreateExprStmt(SourceLoc);
+        ASTIntegerValue *IntVal = Builder.CreateIntegerValue(SourceLoc, 1);
+        ASTValueExpr *IntValExpr = Builder.CreateExpr(IntVal);
+        Builder.CreateFailStmt(SourceLoc);
+        EXPECT_TRUE(Builder.AddStmt(Body2, Fail2));
+        EXPECT_TRUE(Builder.AddFunction(Module, TestFail2));
 
         // int testFail3() {
         //  fail("Error")
         // }
-        ASTFunction *TestFail3 = SemaBuilder::CreateFunction(Module, SourceLoc, IntType, "testFail3", TopScopes);
-        ASTBlock *Body3 = SemaBuilder::CreateBody(TestFail3);
-        ASTExprStmt *Fail3 = SemaBuilder::CreateExprStmt(Body3, SourceLoc);
-        ASTStringValue *StrVal = SemaBuilder::CreateStringValue(SourceLoc, "Error");
-        ASTValueExpr *StrValExpr = SemaBuilder::CreateExpr(Fail3, StrVal);
-        SemaBuilder::CreateFail(Fail3, SourceLoc, StrVal->getTypeKind(), StrValExpr);
-        EXPECT_TRUE(Builder->AddStmt(Fail3));
-        EXPECT_TRUE(SemaBuilder::AddFunction(TestFail3));
+        ASTFunction *TestFail3 = Builder.CreateFunction(SourceLoc, IntType, "testFail3", TopScopes);
+        ASTBlockStmt *Body3 = Builder.CreateBody(TestFail3);
+        ASTExprStmt *Fail3 = Builder.CreateExprStmt(SourceLoc);
+        ASTStringValue *StrVal = Builder.CreateStringValue(SourceLoc, "Error");
+        ASTValueExpr *StrValExpr = Builder.CreateExpr(StrVal);
+        Builder.CreateFailStmt(SourceLoc);
+        EXPECT_TRUE(Builder.AddStmt(Body3, Fail3));
+        EXPECT_TRUE(Builder.AddFunction(Module, TestFail3));
 
-        ASTFunction *Main = SemaBuilder::CreateFunction(Module, SourceLoc, VoidType, "main", TopScopes);
-        ASTBlock *MainBody = SemaBuilder::CreateBody(Main);
+        ASTFunction *Main = Builder.CreateFunction(SourceLoc, VoidType, "main", TopScopes);
+        ASTBlockStmt *MainBody = Builder.CreateBody(Main);
 
         // main() {
         //   testFail0()
@@ -2441,30 +2441,30 @@ namespace {
         // }
 
         // call test1()
-        ASTExprStmt *CallTestFail0 = SemaBuilder::CreateExprStmt(MainBody, SourceLoc);
-        ASTCallExpr *CallExpr0 = SemaBuilder::CreateExpr(CallTestFail0, SemaBuilder::CreateCall(TestFail0));
-        Builder->AddExpr(CallTestFail0, CallExpr0);
-        EXPECT_TRUE(Builder->AddStmt(CallTestFail0));
+        ASTExprStmt *CallTestFail0 = Builder.CreateExprStmt(SourceLoc);
+        ASTCallExpr *CallExpr0 = Builder.CreateExpr(Builder.CreateCall(TestFail0));
+        Builder.AddExpr(CallTestFail0, CallExpr0);
+        EXPECT_TRUE(Builder.AddStmt(MainBody, CallTestFail0));
 
         // call test1()
-        ASTExprStmt *CallTestFail1 = SemaBuilder::CreateExprStmt(MainBody, SourceLoc);
-        ASTCallExpr *CallExpr1 = SemaBuilder::CreateExpr(CallTestFail1, SemaBuilder::CreateCall(TestFail1));
-        Builder->AddExpr(CallTestFail1, CallExpr1);
-        EXPECT_TRUE(Builder->AddStmt(CallTestFail1));
+        ASTExprStmt *CallTestFail1 = Builder.CreateExprStmt(SourceLoc);
+        ASTCallExpr *CallExpr1 = Builder.CreateExpr(Builder.CreateCall(TestFail1));
+        Builder.AddExpr(CallTestFail1, CallExpr1);
+        EXPECT_TRUE(Builder.AddStmt(MainBody, CallTestFail1));
 
         // call test2()
-        ASTExprStmt *CallTestFail2 = SemaBuilder::CreateExprStmt(MainBody, SourceLoc);
-        ASTCallExpr *CallExpr2 = SemaBuilder::CreateExpr(CallTestFail2, SemaBuilder::CreateCall(TestFail2));
-        Builder->AddExpr(CallTestFail2, CallExpr2);
-        EXPECT_TRUE(Builder->AddStmt(CallTestFail2));
+        ASTExprStmt *CallTestFail2 = Builder.CreateExprStmt(SourceLoc);
+        ASTCallExpr *CallExpr2 = Builder.CreateExpr(Builder.CreateCall(TestFail2));
+        Builder.AddExpr(CallTestFail2, CallExpr2);
+        EXPECT_TRUE(Builder.AddStmt(MainBody, CallTestFail2));
 
         // call test2()
-        ASTExprStmt *CallTestFail3 = SemaBuilder::CreateExprStmt(MainBody, SourceLoc);
-        ASTCallExpr *CallExpr3 = SemaBuilder::CreateExpr(CallTestFail3, SemaBuilder::CreateCall(TestFail3));
-        Builder->AddExpr(CallTestFail3, CallExpr3);
-        EXPECT_TRUE(Builder->AddStmt(CallTestFail3));
+        ASTExprStmt *CallTestFail3 = Builder.CreateExprStmt(SourceLoc);
+        ASTCallExpr *CallExpr3 = Builder.CreateExpr(Builder.CreateCall(TestFail3));
+        Builder.AddExpr(CallTestFail3, CallExpr3);
+        EXPECT_TRUE(Builder.AddStmt(MainBody, CallTestFail3));
 
-        EXPECT_TRUE(SemaBuilder::AddFunction(Main));
+        EXPECT_TRUE(Builder.AddFunction(Module, Main));
         EXPECT_TRUE(S->Resolve());
 
         // Generate Code
