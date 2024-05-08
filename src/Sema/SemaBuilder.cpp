@@ -1140,7 +1140,7 @@ SemaBuilder::AddIdentity(ASTModule *Module, ASTIdentity *Identity) {
     Identity->Module = Module;
 
     // Lookup into namespace
-    Module->Identity = Identity;
+    Module->Identities.insert(std::make_pair(Identity->getName(), Identity));
 
     bool Success = true;
     if (Identity->Scopes->Visibility == ASTVisibilityKind::V_PUBLIC || Identity->Scopes->Visibility == ASTVisibilityKind::V_DEFAULT) {

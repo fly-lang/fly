@@ -53,8 +53,8 @@ const llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> 
     return ExternalFunctions;
 }
 
-ASTIdentity *ASTModule::getIdentity() const {
-    return Identity;
+llvm::StringMap<ASTIdentity *> ASTModule::getIdentities() const {
+    return Identities;
 }
 
 const llvm::StringMap<ASTGlobalVar *> &ASTModule::getGlobalVars() const {

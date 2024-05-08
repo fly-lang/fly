@@ -65,7 +65,7 @@ namespace fly {
 
         llvm::StringMap<ASTIdentity *> ExternalIdentities;
 
-        ASTIdentity *Identity = nullptr; // TODO to Map
+        llvm::StringMap<ASTIdentity *> Identities; // TODO to Map
 
         CodeGenModule *CodeGen = nullptr;
 
@@ -93,7 +93,7 @@ namespace fly {
 
         const llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> &getExternalFunctions() const;
 
-        ASTIdentity *getIdentity() const;
+        llvm::StringMap<ASTIdentity *>getIdentities() const;
 
         const llvm::StringMap<ASTGlobalVar *> &getGlobalVars() const;
 

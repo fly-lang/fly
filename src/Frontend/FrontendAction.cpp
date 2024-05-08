@@ -118,11 +118,14 @@ void FrontendAction::GenerateTopDef() {
         }
     }
 
-    if (Module->getIdentity()) {
-        if (Module->getIdentity()->getTopDefKind() == ASTTopDefKind::DEF_CLASS) {
-            CGClass = CGM->GenClass((ASTClass *) Module->getIdentity());
-            if (FrontendOpts.CreateHeader) {
-                CGH->setClass((ASTClass *) Module->getIdentity());
+    if (!Module->getIdentities().empty()) {
+        for (auto &StrMapEntry : Module->getIdentities()) {
+            ASTIdentity *Identity = StrMapEntry.getValue();
+            if (Identity->getTopDefKind() == ASTTopDefKind::DEF_CLASS) {
+                CGClass = CGM->GenClass((ASTClass *) Identity);
+                if (FrontendOpts.CreateHeader) {
+                    CGH->setClass((ASTClass *) Identity);
+                }
             }
         }
     }

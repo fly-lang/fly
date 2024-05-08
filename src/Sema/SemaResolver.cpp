@@ -128,150 +128,153 @@ bool SemaResolver::ResolveGlobalVars(ASTModule *Module) {
 
 bool SemaResolver::ResolveIdentities(ASTModule *Module) {
     bool Success = true;
-    if (Module->Identity) {
+    if (!Module->Identities.empty()) {
+        for (auto &StrMapEntry : Module->Identities) {
 
-        if (Module->Identity->getTopDefKind() == ASTTopDefKind::DEF_CLASS) {
-            ASTClass *Class = (ASTClass *) Module->Identity;
+            ASTIdentity *Identity = StrMapEntry.getValue();
+            if (Identity->getTopDefKind() == ASTTopDefKind::DEF_CLASS) {
+                ASTClass *Class = (ASTClass *) Identity;
 
-            // Resolve Super Classes
-            if (!Class->SuperClasses.empty()) {
-                llvm::StringMap<std::map<uint64_t, llvm::SmallVector<ASTClassMethod *, 4>>> SuperMethods;
-                llvm::StringMap<std::map<uint64_t, llvm::SmallVector<ASTClassMethod *, 4>>> ISuperMethods;
-                for (ASTIdentityType *SuperClassType: Class->SuperClasses) {
-                    if (ResolveIdentityType(Module, SuperClassType)) {
-                        ASTClass *SuperClass = (ASTClass *) SuperClassType->getDef();
+                // Resolve Super Classes
+                if (!Class->SuperClasses.empty()) {
+                    llvm::StringMap<std::map<uint64_t, llvm::SmallVector<ASTClassMethod *, 4>>> SuperMethods;
+                    llvm::StringMap<std::map<uint64_t, llvm::SmallVector<ASTClassMethod *, 4>>> ISuperMethods;
+                    for (ASTIdentityType *SuperClassType: Class->SuperClasses) {
+                        if (ResolveIdentityType(Module, SuperClassType)) {
+                            ASTClass *SuperClass = (ASTClass *) SuperClassType->getDef();
 
-                        // Struct: Resolve Var in Super Classes
-                        if (SuperClass->getClassKind() == ASTClassKind::STRUCT) {
+                            // Struct: Resolve Var in Super Classes
+                            if (SuperClass->getClassKind() == ASTClassKind::STRUCT) {
 
-                            // Interface cannot extend a Struct
-                            if (Class->getClassKind() == ASTClassKind::INTERFACE) {
-                                S.Diag(SuperClassType->getLocation(), diag::err_sema_interface_ext_struct);
+                                // Interface cannot extend a Struct
+                                if (Class->getClassKind() == ASTClassKind::INTERFACE) {
+                                    S.Diag(SuperClassType->getLocation(), diag::err_sema_interface_ext_struct);
+                                    return false;
+                                }
+
+                                // Add Vars to the Struct
+                                for (auto &EntryVar: SuperClass->getVars()) {
+                                    ASTClassAttribute *&SuperVar = EntryVar.getValue();
+
+                                    // Check Var already exists and type conflicts in Super Vars
+                                    ASTClassAttribute *ClassVar = Class->Vars.lookup(EntryVar.getKey());
+                                    if (ClassVar == nullptr) {
+                                        Class->Vars.insert(std::make_pair(SuperVar->getName(), SuperVar));
+                                    } else if (SuperVar->getType() != ClassVar->getType()) {
+                                        S.Diag(ClassVar->getLocation(), diag::err_sema_super_struct_var_conflict);
+                                        return false;
+                                    }
+                                }
+                            }
+
+                            // Interface cannot extend a Class
+                            if (Class->getClassKind() == ASTClassKind::INTERFACE &&
+                                SuperClass->getClassKind() == ASTClassKind::CLASS) {
+                                S.Diag(SuperClassType->getLocation(), diag::err_sema_interface_ext_class);
                                 return false;
                             }
 
-                            // Add Vars to the Struct
-                            for (auto &EntryVar: SuperClass->getVars()) {
-                                ASTClassAttribute *&SuperVar = EntryVar.getValue();
+                            // Class/Interface: take all Super Classes methods
+                            if (SuperClass->getClassKind() == ASTClassKind::CLASS ||
+                                SuperClass->getClassKind() == ASTClassKind::INTERFACE) {
 
-                                // Check Var already exists and type conflicts in Super Vars
-                                ASTClassAttribute *ClassVar = Class->Vars.lookup(EntryVar.getKey());
-                                if (ClassVar == nullptr) {
-                                    Class->Vars.insert(std::make_pair(SuperVar->getName(), SuperVar));
-                                } else if (SuperVar->getType() != ClassVar->getType()) {
-                                    S.Diag(ClassVar->getLocation(), diag::err_sema_super_struct_var_conflict);
-                                    return false;
-                                }
-                            }
-                        }
-
-                        // Interface cannot extend a Class
-                        if (Class->getClassKind() == ASTClassKind::INTERFACE &&
-                            SuperClass->getClassKind() == ASTClassKind::CLASS) {
-                            S.Diag(SuperClassType->getLocation(), diag::err_sema_interface_ext_class);
-                            return false;
-                        }
-
-                        // Class/Interface: take all Super Classes methods
-                        if (SuperClass->getClassKind() == ASTClassKind::CLASS ||
-                            SuperClass->getClassKind() == ASTClassKind::INTERFACE) {
-
-                            // Collects Super Methods of the Super Classes
-                            for (auto &EntryMap: SuperClass->getMethods()) {
-                                const auto &Map = EntryMap.getValue();
-                                auto MapIt = Map.begin();
-                                while (MapIt != Map.end()) {
-                                    for (ASTClassMethod *SuperMethod: MapIt->second) {
-                                        if (SuperClass->getClassKind() == ASTClassKind::INTERFACE) {
-                                            S.Builder->InsertFunction(ISuperMethods, SuperMethod);
-                                        } else {
-                                            // Insert methods in the Super and if is ok also in the base Class
-                                            if (S.Builder->InsertFunction(SuperMethods, SuperMethod)) {
-                                                ASTClassMethod *M = S.Builder->CreateClassMethod(SuperMethod->getLocation(),
-                                                                                                 SuperMethod->getType(),
-                                                                                                 SuperMethod->getName(),
-                                                                                                 SuperMethod->getScopes());
-                                                M->Params = SuperMethod->Params;
-                                                M->Body = SuperMethod->Body;
-                                                M->DerivedClass = Class;
-                                                S.Builder->InsertFunction(Class->Methods, M);
-
+                                // Collects Super Methods of the Super Classes
+                                for (auto &EntryMap: SuperClass->getMethods()) {
+                                    const auto &Map = EntryMap.getValue();
+                                    auto MapIt = Map.begin();
+                                    while (MapIt != Map.end()) {
+                                        for (ASTClassMethod *SuperMethod: MapIt->second) {
+                                            if (SuperClass->getClassKind() == ASTClassKind::INTERFACE) {
+                                                S.Builder->InsertFunction(ISuperMethods, SuperMethod);
                                             } else {
-                                                // Multiple Methods Implementations in Super Class need to be re-defined in base class
-                                                // Search if this method is re-defined in the base class
-                                                if (SuperMethod->Scopes->getVisibility() !=
-                                                    ASTVisibilityKind::V_PRIVATE &&
-                                                    !S.Builder->ContainsFunction(Class->Methods, SuperMethod)) {
-                                                    S.Diag(SuperMethod->getLocation(),
-                                                           diag::err_sema_super_class_method_conflict);
-                                                    return false;
+                                                // Insert methods in the Super and if is ok also in the base Class
+                                                if (S.Builder->InsertFunction(SuperMethods, SuperMethod)) {
+                                                    ASTClassMethod *M = S.Builder->CreateClassMethod(SuperMethod->getLocation(),
+                                                                                                     SuperMethod->getType(),
+                                                                                                     SuperMethod->getName(),
+                                                                                                     SuperMethod->getScopes());
+                                                    M->Params = SuperMethod->Params;
+                                                    M->Body = SuperMethod->Body;
+                                                    M->DerivedClass = Class;
+                                                    S.Builder->InsertFunction(Class->Methods, M);
+
+                                                } else {
+                                                    // Multiple Methods Implementations in Super Class need to be re-defined in base class
+                                                    // Search if this method is re-defined in the base class
+                                                    if (SuperMethod->Scopes->getVisibility() !=
+                                                        ASTVisibilityKind::V_PRIVATE &&
+                                                        !S.Builder->ContainsFunction(Class->Methods, SuperMethod)) {
+                                                        S.Diag(SuperMethod->getLocation(),
+                                                               diag::err_sema_super_class_method_conflict);
+                                                        return false;
+                                                    }
                                                 }
                                             }
                                         }
+                                        MapIt++;
                                     }
-                                    MapIt++;
                                 }
                             }
                         }
                     }
-                }
 
-                // Check if all abstract methods are implemented
-                for (const auto &EntryMap: ISuperMethods) {
-                    const auto &Map = EntryMap.getValue();
-                    auto MapIt = Map.begin();
-                    while (MapIt != Map.end()) {
-                        for (ASTClassMethod *ISuperMethod: MapIt->second) {
-                            if (!S.Builder->ContainsFunction(Class->Methods, ISuperMethod)) {
-                                S.Diag(ISuperMethod->getLocation(),
-                                       diag::err_sema_method_not_implemented);
-                                return false;
+                    // Check if all abstract methods are implemented
+                    for (const auto &EntryMap: ISuperMethods) {
+                        const auto &Map = EntryMap.getValue();
+                        auto MapIt = Map.begin();
+                        while (MapIt != Map.end()) {
+                            for (ASTClassMethod *ISuperMethod: MapIt->second) {
+                                if (!S.Builder->ContainsFunction(Class->Methods, ISuperMethod)) {
+                                    S.Diag(ISuperMethod->getLocation(),
+                                           diag::err_sema_method_not_implemented);
+                                    return false;
+                                }
                             }
+                            MapIt++;
                         }
-                        MapIt++;
                     }
                 }
-            }
 
-            // Constructors
-            for (auto &IntMap: Class->Constructors) {
-                for (auto &Function: IntMap.second) {
+                // Constructors
+                for (auto &IntMap: Class->Constructors) {
+                    for (auto &Function: IntMap.second) {
 
-                    // Check Class vars for each Constructor
-                    for (auto &EntryVar: Class->Vars) {
+                        // Check Class vars for each Constructor
+                        for (auto &EntryVar: Class->Vars) {
 
-                        // FIXME: Check if Method already contains this var name as LocalVar
+                            // FIXME: Check if Method already contains this var name as LocalVar
 //                    if (!S.Validator->CheckDuplicateLocalVars(Function->Body, EntryVar.getKey())) {
 //                        return false;
 //                    }
+                        }
+
+                        Success &= ResolveBlock(Function->Body);
                     }
-
-                    Success &= ResolveBlock(Function->Body);
                 }
-            }
 
-            // Methods
-            for (auto &StrMapEntry: Class->Methods) {
-                for (auto &IntMap: StrMapEntry.getValue()) {
-                    for (auto &Method: IntMap.second) {
+                // Methods
+                for (auto &StrMapEntry: Class->Methods) {
+                    for (auto &IntMap: StrMapEntry.getValue()) {
+                        for (auto &Method: IntMap.second) {
 
-                        // Add Class vars for each Method
-                        for (auto &EntryVar: Class->Vars) {
+                            // Add Class vars for each Method
+                            for (auto &EntryVar: Class->Vars) {
 
-                            // Check if Method already contains this var name as LocalVar
-                            if (!S.Validator->CheckDuplicateLocalVars(Method->Body, EntryVar.getKey())) {
-                                return false;
+                                // Check if Method already contains this var name as LocalVar
+                                if (!S.Validator->CheckDuplicateLocalVars(Method->Body, EntryVar.getKey())) {
+                                    return false;
+                                }
+                            }
+
+                            if (!Method->isAbstract()) {
+                                Success &= ResolveBlock(Method->Body); // FIXME check if already resolved
                             }
                         }
-
-                        if (!Method->isAbstract()) {
-                            Success &= ResolveBlock(Method->Body); // FIXME check if already resolved
-                        }
                     }
                 }
+            } else if (Identity->getTopDefKind() == ASTTopDefKind::DEF_ENUM) {
+                // TODO
             }
-        } else if (Module->Identity->getTopDefKind() == ASTTopDefKind::DEF_ENUM) {
-            // TODO
         }
     }
     return Success;
