@@ -366,7 +366,7 @@ DIAG(err_expr_type_miss, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot r
 DIAG(err_var_assign_empty, CLASS_ERROR, (unsigned)diag::Severity::Error, "var assignment '%0' is empty", 0, SFINAE_Suppress, false, true, 0)
 
 // Sema
-DIAG(err_sema_node_name_empty, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid global var value", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_module_name_empty, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid global var value", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_namespace_empty, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid global var value", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_invalid_globalvar_value, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid global var value", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_generic, CLASS_ERROR, (unsigned)diag::Severity::Error, "semantic error", 0, SFINAE_Suppress, false, true, 0)
@@ -398,7 +398,7 @@ DIAG(err_type_expect, CLASS_ERROR, (unsigned)diag::Severity::Error, "expected ty
 DIAG(err_cg_unref_identity_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "unreferenced identity type '%0'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_invalid_return_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "Invalid return type", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_unref_namespace, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unreferenced namespace '%0'", 0, SFINAE_Suppress, false, true, 0)
-DIAG(err_unref_node, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unreferenced node '%0'", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_unref_module, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unreferenced module '%0'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_unref_class, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unreferenced class '%0'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_unref_call, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unreferenced call", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_unref_var, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unreferenced var", 0, SFINAE_Suppress, false, true, 0)

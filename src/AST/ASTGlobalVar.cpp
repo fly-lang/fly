@@ -8,7 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTGlobalVar.h"
-#include "AST/ASTNode.h"
+#include "AST/ASTModule.h"
 #include "AST/ASTNameSpace.h"
 
 using namespace fly;
@@ -22,12 +22,12 @@ ASTTopDefKind ASTGlobalVar::getTopDefKind() const {
     return TopDefKind;
 }
 
-ASTNode *ASTGlobalVar::getNode() const {
-    return Node;
+ASTModule *ASTGlobalVar::getModule() const {
+    return Module;
 }
 
 ASTNameSpace *ASTGlobalVar::getNameSpace() const {
-    return Node->getNameSpace();
+    return Module->getNameSpace();
 }
 
 llvm::StringRef ASTGlobalVar::getName() const {

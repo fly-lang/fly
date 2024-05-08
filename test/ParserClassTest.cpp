@@ -8,7 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "ParserTest.h"
-#include "AST/ASTNode.h"
+#include "AST/ASTModule.h"
 #include "AST/ASTImport.h"
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTFunction.h"
@@ -29,14 +29,14 @@ namespace {
 
     TEST_F(ParserTest, ClassEmpty) {
         llvm::StringRef str = ("public class Test {}\n");
-        ASTNode *Node = Parse("ClassEmpty", str);
+        ASTModule *Module = Parse("ClassEmpty", str);
         ASSERT_TRUE(isSuccess());
 
-        EXPECT_FALSE(Node->getIdentity() == nullptr);
-        EXPECT_TRUE(Node->getNameSpace()->getIdentities().size() == 1);
-        auto &Class = *Node->getNameSpace()->getIdentities().begin()->second;
+        EXPECT_FALSE(Module->getIdentity() == nullptr);
+        EXPECT_TRUE(Module->getNameSpace()->getIdentities().size() == 1);
+        auto &Class = *Module->getNameSpace()->getIdentities().begin()->second;
         EXPECT_EQ(Class.getScopes()->getVisibility(), ASTVisibilityKind::V_PUBLIC);
-        const auto &NSClassess = Node->getContext().getDefaultNameSpace()->getIdentities();
+        const auto &NSClassess = Module->getContext().getDefaultNameSpace()->getIdentities();
         const auto &ClassTest = NSClassess.find("Test");
         ASSERT_TRUE(ClassTest != NSClassess.end());
     }
@@ -45,9 +45,9 @@ namespace {
         llvm::StringRef str = ("public enum Test {\n"
                                "  A B C\n"
                                "}\n");
-        ASTNode *Node = Parse("TestEnum", str, false);
+        ASTModule *Module = Parse("TestEnum", str, false);
 
-        ASTEnum *Enum = (ASTEnum *) Node->getIdentity();
+        ASTEnum *Enum = (ASTEnum *) Module->getIdentity();
         EXPECT_FALSE(Enum->getVars().empty());
         EXPECT_EQ(Enum->getVars().size(), 3); // A B C enum
         ASTEnumEntry *VarA = Enum->getVars().find("A")->getValue();
@@ -63,10 +63,10 @@ namespace {
                 "  a = Test.B"
                 "  Test c = a"
                 "}\n");
-        ASTNode *Node2 = Parse("func", str2);
+        ASTModule *Module2 = Parse("func", str2);
         ASSERT_TRUE(isSuccess());
 
-        ASTFunction *main = *Node2->getFunctions().find("main")->getValue().begin()->second.begin();
+        ASTFunction *main = *Module2->getFunctions().find("main")->getValue().begin()->second.begin();
         const ASTBlock *Body = main->getBody();
         ASTVarStmt *aVar = ((ASTVarStmt *) Body->getContent()[0]);
         ASTVarRefExpr *aExpr = (ASTVarRefExpr *) aVar->getExpr();
@@ -79,9 +79,9 @@ namespace {
                                "  public int b = 2\n"
                                "  const int c = 0\n"
                                "}\n");
-        ASTNode *Node = Parse("TestStruct", str, false);
+        ASTModule *Module = Parse("TestStruct", str, false);
 
-        ASTClass *Class = (ASTClass *) Node->getIdentity();
+        ASTClass *Class = (ASTClass *) Module->getIdentity();
         EXPECT_FALSE(Class->getVars().empty());
         EXPECT_EQ(Class->getVars().size(), 3);
         ASTClassVar *aVar = Class->getVars().find("a")->getValue();
@@ -100,8 +100,8 @@ namespace {
                 "  t.a = 3"
                 "  t.b = t.c"
                 "}\n");
-        ASTNode *Node1 = Parse("func1", str2, false);
-        ASTFunction *func1 = *Node1->getFunctions().find("func1")->getValue().begin()->second.begin();
+        ASTModule *Module1 = Parse("func1", str2, false);
+        ASTFunction *func1 = *Module1->getFunctions().find("func1")->getValue().begin()->second.begin();
         const ASTBlock *Body1 = func1->getBody();
         ASTVarStmt *tVar1 = ((ASTVarStmt *) Body1->getContent()[0]);
 
@@ -109,8 +109,8 @@ namespace {
                 "void func2() {\n"
                 "  Test t = { a = 3, b = 1}"
                 "}\n");
-        ASTNode *Node2 = Parse("func2", str3);
-        ASTFunction *func2 = *Node2->getFunctions().find("func2")->getValue().begin()->second.begin();
+        ASTModule *Module2 = Parse("func2", str3);
+        ASTFunction *func2 = *Module2->getFunctions().find("func2")->getValue().begin()->second.begin();
         const ASTBlock *Body2 = func2->getBody();
         ASTVarStmt *tVar2 = ((ASTVarStmt *) Body2->getContent()[0]);
 
@@ -126,8 +126,8 @@ namespace {
                                "  private int c() { return 3 }\n"
                                "  const int d() { return 0 }\n"
                                "}\n");
-        ASTNode *Node = Parse("TestClass", str, false);
-        ASTClass *Class = (ASTClass *) Node->getIdentity();
+        ASTModule *Module = Parse("TestClass", str, false);
+        ASTClass *Class = (ASTClass *) Module->getIdentity();
 
         EXPECT_EQ(Class->getVars().size(), 2);
         EXPECT_EQ(Class->getMethods().size(), 4);
@@ -151,7 +151,7 @@ namespace {
                 "  t.a()\n"
                 "  t.d()\n"
                 "}\n");
-        ASTNode *Node2 = Parse("Identifier", str2);
+        ASTModule *Module2 = Parse("Identifier", str2);
 
         ASSERT_TRUE(isSuccess());
 
@@ -161,16 +161,16 @@ namespace {
         llvm::StringRef str = ("public struct Case : Test {\n"
                                "  int b\n"
                                "}\n");
-        ASTNode *Node = Parse("CaseStruct", str, false);
+        ASTModule *Module = Parse("CaseStruct", str, false);
 
         llvm::StringRef str2 = (
                 "struct Test {\n"
                 "  int a\n"
                 "}\n");
-        ASTNode *Node2 = Parse("TestStruct", str2);
+        ASTModule *Module2 = Parse("TestStruct", str2);
 
         ASSERT_TRUE(isSuccess());
-        ASTClass *Class = (ASTClass *) Node->getIdentity();
+        ASTClass *Class = (ASTClass *) Module->getIdentity();
 
         EXPECT_EQ(Class->getVars().size(), 2);
         ASTClassVar &aVar = *Class->getVars().find("a")->getValue();
@@ -186,7 +186,7 @@ namespace {
                                "  int b\n"
                                "  void f() {}\n"
                                "}\n");
-        ASTNode *Node = Parse("CaseClass", str, false);
+        ASTModule *Module = Parse("CaseClass", str, false);
 
         llvm::StringRef str2 = (
                 "class Test {\n"
@@ -196,11 +196,11 @@ namespace {
                 "  public void f3() {}\n"
                 "  void f() {}\n"
                 "}\n");
-        ASTNode *Node2 = Parse("TestClass", str2);
+        ASTModule *Module2 = Parse("TestClass", str2);
 
         ASSERT_TRUE(isSuccess());
-        ASTClass *Class = (ASTClass *) Node->getIdentity();
-        ASTClass *Class2 = (ASTClass *) Node2->getIdentity();
+        ASTClass *Class = (ASTClass *) Module->getIdentity();
+        ASTClass *Class2 = (ASTClass *) Module2->getIdentity();
 
         EXPECT_EQ(Class2->getVars().size(), 1);
         ASTClassVar &aVar = *Class2->getVars().find("a")->getValue();
@@ -222,17 +222,17 @@ namespace {
         llvm::StringRef str = ("public class Case : Test {\n"
                                "  int b\n"
                                "}\n");
-        ASTNode *Node = Parse("ClassCase", str, false);
+        ASTModule *Module = Parse("ClassCase", str, false);
 
         llvm::StringRef str2 = (
                 "struct Test {\n"
                 "  int a\n"
                 "}\n");
-        ASTNode *Node2 = Parse("StructTest", str2);
+        ASTModule *Module2 = Parse("StructTest", str2);
 
         ASSERT_TRUE(isSuccess());
-        ASTClass *Class = (ASTClass *) Node->getIdentity();
-        ASTClass *Class2 = (ASTClass *) Node2->getIdentity();
+        ASTClass *Class = (ASTClass *) Module->getIdentity();
+        ASTClass *Class2 = (ASTClass *) Module2->getIdentity();
 
         EXPECT_EQ(Class2->getVars().size(), 1);
         ASTClassVar &a_Var = *Class2->getVars().find("a")->getValue();
@@ -249,18 +249,18 @@ namespace {
         llvm::StringRef str = ("public class Class : Interface {\n"
                                "  int a() { return 1 }\n"
                                "}\n");
-        ASTNode *Node = Parse("Class", str, false);
+        ASTModule *Module = Parse("Class", str, false);
 
         llvm::StringRef str2 = (
                 "interface Interface {\n"
                 "  int a()\n"
                 "}\n");
-        ASTNode *Node2 = Parse("Interface", str2);
+        ASTModule *Module2 = Parse("Interface", str2);
 
         ASSERT_TRUE(isSuccess());
 
-        ASTClass *Class = (ASTClass *) Node->getIdentity();
-        ASTClass *Class2 = (ASTClass *) Node2->getIdentity();
+        ASTClass *Class = (ASTClass *) Module->getIdentity();
+        ASTClass *Class2 = (ASTClass *) Module2->getIdentity();
 
         EXPECT_EQ(Class2->getMethods().size(), 1);
         EXPECT_EQ(Class->getMethods().size(), 1);
@@ -273,17 +273,17 @@ namespace {
         llvm::StringRef str = ("public enum Option : Enum {\n"
                                "  B C\n"
                                "}\n");
-        ASTNode *Node = Parse("Option", str, false);
+        ASTModule *Module = Parse("Option", str, false);
 
         llvm::StringRef str2 = (
                 "enum Enum {\n"
                 "  A\n"
                 "}\n");
-        ASTNode *Node2 = Parse("Enum", str2);
+        ASTModule *Module2 = Parse("Enum", str2);
 
         ASSERT_TRUE(isSuccess());
-        ASTClass *Class = (ASTClass *) Node->getIdentity();
-        ASTClass *Class2 = (ASTClass *) Node2->getIdentity();
+        ASTClass *Class = (ASTClass *) Module->getIdentity();
+        ASTClass *Class2 = (ASTClass *) Module2->getIdentity();
 
         EXPECT_EQ(Class2->getVars().size(), 2); // A enum
         ASTClassVar *Var_A = Class2->getVars().find("A")->getValue();
@@ -297,28 +297,28 @@ namespace {
         llvm::StringRef str = ("public class Test : Class Struct Interface {\n"
 //                               "  int a() { return a }\n"
                                "}\n");
-        ASTNode *Node = Parse("Test", str, false);
+        ASTModule *Module = Parse("Test", str, false);
 
         llvm::StringRef str2 = (
                 "class Class {\n"
                 "  int a() { return 1 }"
                 "}\n");
-        ASTNode *Node2 = Parse("Class", str2, false);
+        ASTModule *Module2 = Parse("Class", str2, false);
 
         llvm::StringRef str3 = (
                 "struct Struct {\n"
                 "  int a"
                 "}\n");
-        ASTNode *Node3 = Parse("Struct", str3, false);
+        ASTModule *Module3 = Parse("Struct", str3, false);
 
         llvm::StringRef str4 = (
                 "interface Interface {\n"
                 "  int a()"
                 "}\n");
-        ASTNode *Node4 = Parse("Interface", str4);
+        ASTModule *Module4 = Parse("Interface", str4);
 
         ASSERT_TRUE(isSuccess());
-        ASTClass *Class = (ASTClass *) Node->getIdentity();
+        ASTClass *Class = (ASTClass *) Module->getIdentity();
         EXPECT_EQ(Class->getMethods().size(), 1);
         ASTClassFunction *aMethod = *Class->getMethods().find("a")->getValue().begin()->second.begin();
         EXPECT_EQ(aMethod->getScopes()->getVisibility(), ASTVisibilityKind::V_DEFAULT);

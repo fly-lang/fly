@@ -16,7 +16,7 @@
 
 namespace fly {
 
-    class ASTNode;
+    class ASTModule;
     class ASTType;
     class ASTBlockStmt;
     class ASTScopes;
@@ -40,7 +40,7 @@ namespace fly {
         // Function Name
         llvm::StringRef Name;
 
-        ASTNode *Node = nullptr;
+        ASTModule *Module = nullptr;
 
         // Populated during codegen phase
         CodeGenFunction *CodeGen = nullptr;
@@ -53,7 +53,7 @@ namespace fly {
 
         ASTTopDefKind getTopDefKind() const override;
 
-        ASTNode *getNode() const override;
+        ASTModule *getModule() const override;
 
         ASTNameSpace *getNameSpace() const override;
 

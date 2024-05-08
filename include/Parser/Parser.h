@@ -17,7 +17,7 @@ namespace fly {
 
     class DiagnosticsEngine;
     class SemaBuilder;
-    class ASTNode;
+    class ASTModule;
     class ASTValue;
     class ASTIdentifier;
     class ASTArrayValue;
@@ -58,7 +58,7 @@ namespace fly {
         /// that this is valid.
         Token Tok;
 
-        ASTNode *Node;
+        ASTModule *Module;
 
         // PrevTokLocation - The location of the token we previously
         // consumed. This token is used for diagnostics where we expected to
@@ -74,8 +74,8 @@ namespace fly {
 
         Parser(const InputFile &Input, SourceManager &SourceMgr, DiagnosticsEngine &Diags, SemaBuilder &Builder);
 
-        ASTNode *Parse();
-        ASTNode *ParseHeader();
+        ASTModule *Parse();
+        ASTModule *ParseHeader();
 
     private:
 

@@ -30,7 +30,7 @@ using namespace llvm;
 namespace fly {
 
     class ASTContext;
-    class ASTNode;
+    class ASTModule;
     class ASTImport;
     class ASTGlobalVar;
     class ASTFunction;

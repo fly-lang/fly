@@ -10,7 +10,7 @@
 #include "ParserTest.h"
 #include "Frontend/FrontendAction.h"
 #include "AST/ASTNameSpace.h"
-#include "AST/ASTNode.h"
+#include "AST/ASTModule.h"
 #include "AST/ASTImport.h"
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTFunction.h"
@@ -44,12 +44,12 @@ namespace {
                          "    b = 2"
                          "  }"
                          "}\n");
-        ASTNode *Node = Parse("IfElsifElseStmt", str);
+        ASTModule *Module = Parse("IfElsifElseStmt", str);
 
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *Node->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
+        ASTFunction *F = *Module->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
         const ASTBlock *Body = F->getBody();
 
         // If
@@ -85,12 +85,12 @@ namespace {
                          "  elsif a == 2 a = 1"
                          "  else a = 2"
                          "}\n");
-        ASTNode *Node = Parse("IfElsifElseInlineStmt", str);
+        ASTModule *Module = Parse("IfElsifElseInlineStmt", str);
 
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *Node->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
+        ASTFunction *F = *Module->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
         const ASTBlock *Body = F->getBody();
 
         // if
@@ -131,12 +131,12 @@ namespace {
                 "      return"
                 "  }"
                 "}\n");
-        ASTNode *Node = Parse("SwitchCaseDefaultStmt", str);
+        ASTModule *Module = Parse("SwitchCaseDefaultStmt", str);
 
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *Node->getFunctions().begin()->getValue().begin()->second.begin();
+        ASTFunction *F = *Module->getFunctions().begin()->getValue().begin()->second.begin();
         const ASTBlock *Body = F->getBody();
 
         ASTSwitchBlock *SwitchBlock = (ASTSwitchBlock *) Body->getContent()[0];
@@ -157,12 +157,12 @@ namespace {
                 "    a++"
                 "  }\n"
                 "}\n");
-        ASTNode *Node = Parse("WhileStmt", str);
+        ASTModule *Module = Parse("WhileStmt", str);
 
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *Node->getFunctions().begin()->getValue().begin()->second.begin();
+        ASTFunction *F = *Module->getFunctions().begin()->getValue().begin()->second.begin();
         const ASTBlock *Body = F->getBody();
         ASTWhileBlock *WhileBlock = (ASTWhileBlock *) Body->getContent()[0];
         EXPECT_EQ(WhileBlock->getBlockKind(), ASTBlockKind::BLOCK_WHILE);
@@ -180,12 +180,12 @@ namespace {
         llvm::StringRef str = ("void func(int a) {\n"
                                "  while true a++\n"
                                "}\n");
-        ASTNode *Node = Parse("WhileValueStmt", str);
+        ASTModule *Module = Parse("WhileValueStmt", str);
 
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *Node->getFunctions().begin()->getValue().begin()->second.begin();
+        ASTFunction *F = *Module->getFunctions().begin()->getValue().begin()->second.begin();
         const ASTBlock *Body = F->getBody();
         ASTWhileBlock *WhileBlock = (ASTWhileBlock *) Body->getContent()[0];
         EXPECT_EQ(WhileBlock->getBlockKind(), ASTBlockKind::BLOCK_WHILE);
@@ -199,12 +199,12 @@ namespace {
                 "  for int b = 1, int c = 2; b < 10; b++, --c {"
                 "  }"
                 "}\n");
-        ASTNode *Node = Parse("ForStmt", str);
+        ASTModule *Module = Parse("ForStmt", str);
 
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *Node->getFunctions().begin()->getValue().begin()->second.begin();
+        ASTFunction *F = *Module->getFunctions().begin()->getValue().begin()->second.begin();
         const ASTBlock *Body = F->getBody();
         ASTForBlock *ForBlock = (ASTForBlock *) Body->getContent()[0];
         EXPECT_EQ(ForBlock->getBlockKind(), ASTBlockKind::BLOCK_FOR);

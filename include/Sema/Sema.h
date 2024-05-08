@@ -24,7 +24,7 @@ namespace fly {
     class SourceLocation;
     class ASTContext;
     class ASTNameSpace;
-    class ASTNode;
+    class ASTModule;
     class ASTIdentity;
     class ASTClassAttribute;
     class ASTClassMethod;

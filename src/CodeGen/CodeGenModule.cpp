@@ -24,7 +24,7 @@
 #include "CodeGen/CodeGenHandle.h"
 #include "CodeGen/CodeGenError.h"
 #include "AST/ASTImport.h"
-#include "AST/ASTNode.h"
+#include "AST/ASTModule.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTLocalVar.h"
 #include "AST/ASTDeleteStmt.h"

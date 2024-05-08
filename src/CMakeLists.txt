@@ -32,8 +32,9 @@ add_library(flyLib
         AST/ASTImport.cpp
         AST/ASTLocalVar.cpp
         AST/ASTLoopStmt.cpp
+        AST/ASTLoopInStmt.cpp
         AST/ASTNameSpace.cpp
-        AST/ASTNode.cpp
+        AST/ASTModule.cpp
         AST/ASTParam.cpp
         AST/ASTScopes.cpp
         AST/ASTStmt.cpp

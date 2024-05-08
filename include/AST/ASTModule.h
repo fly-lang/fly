@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTNode.h - AST Node header
+// include/AST/ASTModule.h - AST Module header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,8 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_AST_NODE_H
-#define FLY_AST_NODE_H
+#ifndef FLY_AST_MODULE_H
+#define FLY_AST_MODULE_H
 
 #include "llvm/ADT/StringMap.h"
 
@@ -28,7 +28,7 @@ namespace fly {
     class ASTExpr;
     class ASTVarRef;
 
-    class ASTNode {
+    class ASTModule {
 
         friend class Sema;
         friend class SemaResolver;
@@ -40,7 +40,7 @@ namespace fly {
         // Namespace declaration
         ASTNameSpace *NameSpace = nullptr;
 
-        // Node FileName
+        // Module FileName
         const std::string Name;
 
         // Global Vars
@@ -67,11 +67,13 @@ namespace fly {
 
         ASTIdentity *Identity = nullptr; // TODO to Map
 
-        ASTNode() = delete;
+        CodeGenModule *CodeGen = nullptr;
 
-        ~ASTNode();
+        ASTModule() = delete;
 
-        ASTNode(std::string FileName, ASTContext *Context, bool isHeader);
+        ~ASTModule();
+
+        ASTModule(std::string FileName, ASTContext *Context, bool isHeader);
 
     public:
 
@@ -97,8 +99,10 @@ namespace fly {
 
         const llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> &getFunctions() const;
 
+        CodeGenModule *getCodeGen() const;
+
         std::string str() const;
     };
 }
 
-#endif //FLY_AST_NODE_H
+#endif //FLY_AST_MODULE_H

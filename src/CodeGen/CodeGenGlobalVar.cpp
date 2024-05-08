@@ -11,7 +11,7 @@
 #include "CodeGen/CodeGenGlobalVar.h"
 #include "CodeGen/CodeGenModule.h"
 #include "CodeGen/CodeGen.h"
-#include "AST/ASTNode.h"
+#include "AST/ASTModule.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTGlobalVar.h"

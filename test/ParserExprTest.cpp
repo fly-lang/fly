@@ -10,7 +10,7 @@
 #include "ParserTest.h"
 #include "Frontend/FrontendAction.h"
 #include "AST/ASTNameSpace.h"
-#include "AST/ASTNode.h"
+#include "AST/ASTModule.h"
 #include "AST/ASTImport.h"
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTFunction.h"
@@ -42,12 +42,12 @@ namespace {
                 "  a--"
                 "  a = ++a + 1"
                 "}\n");
-        ASTNode *Node = Parse("UnaryExpr", str);
+        ASTModule *Module = Parse("UnaryExpr", str);
 
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *Node->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
+        ASTFunction *F = *Module->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
         const ASTBlock *Body = F->getBody();
 
         // ++a
@@ -98,12 +98,12 @@ namespace {
                                "  int b = a + b / a - b\n"
                                "  return a\n"
                                "}\n");
-        ASTNode *Node = Parse("IntBinaryArithOperation", str);
+        ASTModule *Module = Parse("IntBinaryArithOperation", str);
 
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *(Node->getNameSpace()->getFunctions().begin())->getValue().begin()->second.begin();
+        ASTFunction *F = *(Module->getNameSpace()->getFunctions().begin())->getValue().begin()->second.begin();
         const ASTBlock *Body = F->getBody();
 
         // Test: int a = 2
@@ -144,12 +144,12 @@ namespace {
                                "  float b = a * b - a / b"
                                "  return b\n"
                                "}\n");
-        ASTNode *Node = Parse("FloatBinaryArithOperation", str);
+        ASTModule *Module = Parse("FloatBinaryArithOperation", str);
 
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *Node->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
+        ASTFunction *F = *Module->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
         const ASTBlock *Body = F->getBody();
 
         // Test: float a -= 1.0
@@ -188,12 +188,12 @@ namespace {
                                "  bool b = a || false && a == true\n"
                                "  return b\n"
                                "}\n");
-        ASTNode *Node = Parse("BoolBinaryLogicOperation", str);
+        ASTModule *Module = Parse("BoolBinaryLogicOperation", str);
 
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *Node->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
+        ASTFunction *F = *Module->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
         const ASTBlock *Body = F->getBody();
 
         // Test: bool a = true
@@ -232,12 +232,12 @@ namespace {
                                "  long b = (a + b) / (a - b)\n"
                                "  return b\n"
                                "}\n");
-        ASTNode *Node = Parse("LongBinaryArithOperation", str);
+        ASTModule *Module = Parse("LongBinaryArithOperation", str);
 
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *Node->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
+        ASTFunction *F = *Module->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
         const ASTBlock *Body = F->getBody();
 
         // Test: long a = 1
@@ -276,12 +276,12 @@ namespace {
         llvm::StringRef str = ("int func(int a) {\n"
                                "  return a==1 ? 1 : a\n"
                                "}\n");
-        ASTNode *Node = Parse("CondTernaryOperation", str);
+        ASTModule *Module = Parse("CondTernaryOperation", str);
 
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *Node->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
+        ASTFunction *F = *Module->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
         ASTParam *a = F->getParams()->getList()[0];
         const ASTBlock *Body = F->getBody();
 

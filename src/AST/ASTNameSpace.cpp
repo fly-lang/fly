@@ -18,12 +18,12 @@ ASTNameSpace::ASTNameSpace(const SourceLocation &Loc, llvm::StringRef Name, ASTC
 }
 
 ASTNameSpace::~ASTNameSpace() {
-    Nodes.clear();
+    Modules.clear();
     GlobalVars.clear();
 }
 
-const llvm::StringMap<ASTNode*> &ASTNameSpace::getNodes() const {
-    return Nodes;
+const llvm::StringMap<ASTModule*> &ASTNameSpace::getModules() const {
+    return Modules;
 }
 
 bool ASTNameSpace::isExternalLib() const {

@@ -15,7 +15,7 @@
 namespace fly {
 
     class ASTNameSpace;
-    class ASTNode;
+    class ASTModule;
 
     class ASTAlias : public ASTBase {
 

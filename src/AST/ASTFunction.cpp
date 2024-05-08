@@ -8,7 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTFunction.h"
-#include "AST/ASTNode.h"
+#include "AST/ASTModule.h"
 
 using namespace fly;
 
@@ -25,12 +25,12 @@ ASTTopDefKind ASTFunction::getTopDefKind() const {
     return TopDefKind;
 }
 
-ASTNode *ASTFunction::getNode() const {
-    return Node;
+ASTModule *ASTFunction::getModule() const {
+    return Module;
 }
 
 ASTNameSpace *ASTFunction::getNameSpace() const {
-    return Node->getNameSpace();
+    return Module->getNameSpace();
 }
 
 CodeGenFunction *ASTFunction::getCodeGen() const {

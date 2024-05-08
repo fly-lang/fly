@@ -22,7 +22,7 @@ namespace fly {
     class ASTStmt;
     class ASTLocalVar;
     class ASTVarRef;
-    class ASTNode;
+    class ASTModule;
     class ASTImport;
     class ASTExpr;
     class ASTParam;
@@ -59,7 +59,7 @@ namespace fly {
             return true;
         }
 
-        bool CheckImport(ASTNode *Node, ASTImport *Import);
+        bool CheckImport(ASTModule *Module, ASTImport *Import);
 
         bool CheckExpr(ASTExpr *Expr);
 
@@ -75,7 +75,7 @@ namespace fly {
 
         static bool CheckClassInheritance(fly::ASTClassType *FromType, fly::ASTClassType *ToType);
 
-        void CheckCreateNode(const std::string &Name);
+        void CheckCreateModule(const std::string &Name);
 
         void CheckCreateNameSpace(const SourceLocation &Loc, llvm::StringRef Name);
 

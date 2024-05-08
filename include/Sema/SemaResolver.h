@@ -28,7 +28,7 @@ namespace fly {
     class SourceLocation;
     class ASTContext;
     class ASTNameSpace;
-    class ASTNode;
+    class ASTModule;
     class ASTClass;
     class ASTClassMethod;
     class ASTStmt;
@@ -68,15 +68,15 @@ namespace fly {
 
     private:
 
-        bool ResolveNameSpace(ASTNode *Node, ASTIdentifier *&Identifier);
+        bool ResolveNameSpace(ASTModule *Module, ASTIdentifier *&Identifier);
 
-        bool ResolveImports(ASTNode *Node);
+        bool ResolveImports(ASTModule *Module);
 
-        bool ResolveGlobalVars(ASTNode *Node);
+        bool ResolveGlobalVars(ASTModule *Module);
 
-        bool ResolveIdentities(ASTNode *Node);
+        bool ResolveIdentities(ASTModule *Module);
 
-        bool ResolveFunctions(ASTNode *Node);
+        bool ResolveFunctions(ASTModule *Module);
 
         bool ResolveStmt(ASTStmt *Stmt);
 
@@ -90,7 +90,7 @@ namespace fly {
 
         bool ResolveParentIdentifier(ASTStmt *Parent, ASTIdentifier *&Identifier);
 
-        bool ResolveIdentityType(ASTNode *Node, ASTIdentityType *IdentityType);
+        bool ResolveIdentityType(ASTModule *Module, ASTIdentityType *IdentityType);
 
         bool ResolveVarRef(ASTStmt *Parent, ASTVarRef *VarRef);
 
@@ -124,9 +124,9 @@ namespace fly {
 
         ASTNameSpace *FindNameSpace(llvm::StringRef Name) const;
 
-        ASTNode *FindNode(ASTFunctionBase *FunctionBase) const;
+        ASTModule *FindModule(ASTFunctionBase *FunctionBase) const;
 
-        ASTNode *FindNode(llvm::StringRef Name, ASTNameSpace *NameSpace) const;
+        ASTModule *FindModule(llvm::StringRef Name, ASTNameSpace *NameSpace) const;
 
         ASTIdentity *FindIdentity(llvm::StringRef Name, ASTNameSpace *NameSpace) const;
 
@@ -134,7 +134,7 @@ namespace fly {
 
         ASTVar *FindLocalVar(ASTStmt *Parent, llvm::StringRef Name) const;
 
-        ASTImport *FindImport(ASTNode *Node, llvm::StringRef Name);
+        ASTImport *FindImport(ASTModule *Module, llvm::StringRef Name);
 
     };
 

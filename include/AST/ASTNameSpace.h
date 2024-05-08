@@ -18,7 +18,7 @@
 
 namespace fly {
 
-    class ASTNode;
+    class ASTModule;
     class ASTContext;
     class ASTGlobalVar;
     class ASTIdentity;
@@ -36,7 +36,7 @@ namespace fly {
         ASTContext* Context = nullptr;
 
         // AST by FileID
-        llvm::StringMap<ASTNode *> Nodes;
+        llvm::StringMap<ASTModule *> Modules;
 
         // Contains all Imports, the key is Alias or Name
         llvm::StringMap<ASTImport *> AliasImports;
@@ -66,7 +66,7 @@ namespace fly {
 
         static const std::string DEFAULT;
 
-        const llvm::StringMap<ASTNode *> &getNodes() const;
+        const llvm::StringMap<ASTModule *> &getModules() const;
 
         bool isExternalLib() const;
 

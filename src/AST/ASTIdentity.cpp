@@ -8,7 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTIdentity.h"
-#include "AST/ASTNode.h"
+#include "AST/ASTModule.h"
 
 using namespace fly;
 
@@ -30,12 +30,12 @@ ASTScopes *ASTIdentity::getScopes() const {
     return Scopes;
 }
 
-ASTNode *ASTIdentity::getNode() const {
-    return Node;
+ASTModule *ASTIdentity::getModule() const {
+    return Module;
 }
 
 ASTNameSpace *ASTIdentity::getNameSpace() const {
-    return Node->getNameSpace();
+    return Module->getNameSpace();
 }
 
 std::string ASTIdentity::str() const {

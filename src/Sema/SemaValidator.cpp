@@ -11,7 +11,7 @@
 #include "Sema/SemaValidator.h"
 #include "AST/ASTContext.h"
 #include "AST/ASTNameSpace.h"
-#include "AST/ASTNode.h"
+#include "AST/ASTModule.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTEnum.h"
 #include "AST/ASTImport.h"
@@ -74,11 +74,11 @@ bool SemaValidator::CheckDuplicateLocalVars(ASTStmt *Stmt, llvm::StringRef VarNa
 
 /**
  * Check Name and Alias on ASTImport
- * @param Node
+ * @param Module
  * @param Import
  * @return
  */
-bool SemaValidator::CheckImport(ASTNode *Node, ASTImport *Import) {
+bool SemaValidator::CheckImport(ASTModule *Module, ASTImport *Import) {
     // Error: Empty Import
     if (Import->getName().empty()) {
         if (DiagEnabled)
@@ -86,15 +86,15 @@ bool SemaValidator::CheckImport(ASTNode *Node, ASTImport *Import) {
         return false;
     }
 
-    // Error: name is equals to the current ASTNode namespace
-    if (Import->getName() == Node->getNameSpace()->getName()) {
+    // Error: name is equals to the current ASTModule namespace
+    if (Import->getName() == Module->getNameSpace()->getName()) {
         if (DiagEnabled)
             S.Diag(Import->getLocation(), diag::err_import_conflict_namespace) << Import->getName();
         return false;
     }
 
-    // Error: alias is equals to the current ASTNode namespace
-    if (Import->getAlias() && Import->getAlias()->getName() == Node->getNameSpace()->getName()) {
+    // Error: alias is equals to the current ASTModule namespace
+    if (Import->getAlias() && Import->getAlias()->getName() == Module->getNameSpace()->getName()) {
         if (DiagEnabled)
             S.Diag(Import->getAlias()->getLocation(), diag::err_alias_conflict_namespace) << Import->getAlias()->getName();
         return false;
@@ -244,9 +244,9 @@ bool SemaValidator::CheckClassInheritance(ASTClassType *FromType, ASTClassType *
     return false;
 }
 
-void SemaValidator::CheckCreateNode(const std::string &Name) {
+void SemaValidator::CheckCreateModule(const std::string &Name) {
     if (Name.empty()) {
-        S.Diag(diag::err_sema_node_name_empty);
+        S.Diag(diag::err_sema_module_name_empty);
     }
 }
 

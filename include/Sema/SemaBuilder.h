@@ -34,7 +34,7 @@ namespace fly {
 
     class ASTNameSpace;
 
-    class ASTNode;
+    class ASTModule;
 
     class ASTTopDef;
 
@@ -199,10 +199,10 @@ namespace fly {
 
         ASTContext *CreateContext();
 
-        // Create Node
-        ASTNode *CreateNode(const std::string &Name);
+        // Create Module
+        ASTModule *CreateModule(const std::string &Name);
 
-        ASTNode *CreateHeaderNode(const std::string &Name);
+        ASTModule *CreateHeaderModule(const std::string &Name);
 
         // Create NameSpace
         ASTNameSpace *CreateDefaultNameSpace();
@@ -380,25 +380,25 @@ namespace fly {
 
         /** Add AST **/
 
-        bool AddNode(ASTNode *Node);
+        bool AddModule(ASTModule *Module);
 
-        // Add Node & NameSpace
-        bool AddNameSpace(ASTNode *Node, ASTNameSpace *NewNameSpace, bool ExternLib = false);
+        // Add Module & NameSpace
+        bool AddNameSpace(ASTModule *Module, ASTNameSpace *NewNameSpace, bool ExternLib = false);
 
         // Add Top definitions
-        bool AddImport(ASTNode *Node, ASTImport *Import);
+        bool AddImport(ASTModule *Module, ASTImport *Import);
 
-        bool AddExternalGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar);
+        bool AddExternalGlobalVar(ASTModule *Module, ASTGlobalVar *GlobalVar);
 
-        bool AddExternalFunction(ASTNode *Node, ASTFunction *Function);
+        bool AddExternalFunction(ASTModule *Module, ASTFunction *Function);
 
-        bool AddExternalIdentities(ASTNode *Node, ASTIdentity *Identity);
+        bool AddExternalIdentities(ASTModule *Module, ASTIdentity *Identity);
 
-        bool AddGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar, ASTValue *Value = nullptr);
+        bool AddGlobalVar(ASTModule *Module, ASTGlobalVar *GlobalVar, ASTValue *Value = nullptr);
 
-        bool AddFunction(ASTNode *Node, ASTFunction *Function);
+        bool AddFunction(ASTModule *Module, ASTFunction *Function);
 
-        bool AddIdentity(ASTNode *Node, ASTIdentity *Identity);
+        bool AddIdentity(ASTModule *Module, ASTIdentity *Identity);
 
         // Add details
         bool AddClassAttribute(ASTClass *Class, ASTClassAttribute *Var);
@@ -473,7 +473,7 @@ namespace fly {
 
             // Functions is llvm::StringMap<std::map <uint64_t, llvm::SmallVector <ASTFunction *, 4>>>
             const auto &StrMapIt = Functions.find(NewFunction->getName());
-            if (StrMapIt == Functions.end()) { // This Node not contains a Function with this Function->Name
+            if (StrMapIt == Functions.end()) { // This Module not contains a Function with this Function->Name
 
                 // add to llvm::SmallVector
                 llvm::SmallVector<T *, 4> Vect;
@@ -493,7 +493,7 @@ namespace fly {
         template<class T>
         bool InsertFunction(std::map<uint64_t, llvm::SmallVector<T *, 4>> &Functions, T *NewFunction) {
 
-            // This Node contains a Function with this Function->Name
+            // This Module contains a Function with this Function->Name
             const auto &IntMapIt = Functions.find(NewFunction->getParams().size());
             if (IntMapIt == Functions.end()) { // but not have the same number of Params
 
@@ -506,7 +506,7 @@ namespace fly {
                         NewFunction->getParams().size(), VectorFunctions);
 
                 return Functions.insert(std::make_pair(NewFunction->getParams().size(), VectorFunctions)).second;
-            } else { // This Node contains a Function with this Function->Name and same number of Params
+            } else { // This Module contains a Function with this Function->Name and same number of Params
                 llvm::SmallVector<T *, 4> VectorFunctions = IntMapIt->second;
                 for (auto &Function: VectorFunctions) {
 

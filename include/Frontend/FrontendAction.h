@@ -20,7 +20,7 @@ namespace fly {
     class SemaBuilder;
     class CodeGenModule;
     class CompilerInstance;
-    class ASTNode;
+    class ASTModule;
     class ASTContext;
     class Parser;
     class DiagnosticsEngine;
@@ -41,7 +41,7 @@ namespace fly {
 
         Parser *P = nullptr;
 
-        ASTNode *Node = nullptr;
+        ASTModule *Module = nullptr;
 
         CodeGenModule *CGM = nullptr;
 

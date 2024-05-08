@@ -14,7 +14,7 @@
 #include "CodeGen/CodeGen.h"
 #include "AST/ASTContext.h"
 #include "AST/ASTNameSpace.h"
-#include "AST/ASTNode.h"
+#include "AST/ASTModule.h"
 #include "AST/ASTImport.h"
 #include "AST/ASTIdentifier.h"
 #include "AST/ASTBreakStmt.h"
@@ -64,29 +64,29 @@ ASTContext *SemaBuilder::CreateContext() {
 }
 
 /**
- * Creates an ASTNode
+ * Creates an ASTModule
  * If NameSpace doesn't exists it will be created
  * @param Name
  * @param NameSpace
- * @return the ASTNode
+ * @return the ASTModule
  */
-ASTNode *SemaBuilder::CreateNode(const std::string &Name) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateNode", "Name=" << Name);
-    S.getValidator().CheckCreateNode(Name);
-    ASTNode *Node = new ASTNode(Name, S.Context, false);
-    return Node;
+ASTModule *SemaBuilder::CreateModule(const std::string &Name) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateModule", "Name=" << Name);
+    S.getValidator().CheckCreateModule(Name);
+    ASTModule *Module = new ASTModule(Name, S.Context, false);
+    return Module;
 }
 
 /**
- * Creates an ASTHeaderNode: only prototype declarations without definitions
+ * Creates an ASTHeaderModule: only prototype declarations without definitions
  * For .fly.h file generation
  * @param Name
  * @param NameSpace
- * @return thee ASTHeaderNode
+ * @return thee ASTHeaderModule
  */
-ASTNode *SemaBuilder::CreateHeaderNode(const std::string &Name) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateHeaderNode", "Name=" << Name);
-    return new ASTNode(Name, S.Context, true);
+ASTModule *SemaBuilder::CreateHeaderModule(const std::string &Name) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateHeaderModule", "Name=" << Name);
+    return new ASTModule(Name, S.Context, true);
 }
 
 ASTNameSpace *SemaBuilder::CreateDefaultNameSpace() {
@@ -137,7 +137,7 @@ ASTAlias *SemaBuilder::CreateAlias(const SourceLocation &Loc, llvm::StringRef Na
 
 /**
  * Creates an ASTGlobalVar
- * @param Node
+ * @param Module
  * @param Loc
  * @param Type
  * @param Name
@@ -158,7 +158,7 @@ ASTGlobalVar *SemaBuilder::CreateGlobalVar(const SourceLocation &Loc, ASTType *T
 
 /**
  * Creates an ASTFunction
- * @param Node
+ * @param Module
  * @param Loc
  * @param Type
  * @param Name
@@ -179,7 +179,7 @@ ASTFunction *SemaBuilder::CreateFunction(const SourceLocation &Loc, ASTType *Typ
 
 /**
  * Creates an ASTClass
- * @param Node
+ * @param Module
  * @param Loc
  * @param Name
  * @param Scopes
@@ -964,18 +964,18 @@ ASTHandleStmt *SemaBuilder::CreateHandleStmt(const SourceLocation &Loc, ASTVarRe
 
 /********************** Following Methods Adds AST objects to other AST object ****************************************/
 /**
- * Add an ASTNode to the ASTContext and in its ASTNameSpace
- * @param Node
+ * Add an ASTModule to the ASTContext and in its ASTNameSpace
+ * @param Module
  * @return true if no error occurs, otherwise false
  */
 bool
-SemaBuilder::AddNode(ASTNode *Node) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "AddNode", Logger().Attr("Node", Node).End());
+SemaBuilder::AddModule(ASTModule *Module) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "AddModule", Logger().Attr("Module", Module).End());
 
-    // Add to Nodes
-    auto Pair = std::make_pair(Node->getName(), Node);
+    // Add to Modules
+    auto Pair = std::make_pair(Module->getName(), Module);
     // TODO check duplicated in namespace and context
-    return Node->NameSpace->Nodes.insert(Pair).second && S.Context->Nodes.insert(Pair).second;
+    return Module->NameSpace->Modules.insert(Pair).second && S.Context->Modules.insert(Pair).second;
 }
 
 /**
@@ -985,7 +985,7 @@ SemaBuilder::AddNode(ASTNode *Node) {
  * @return the result of add
  */
 bool
-SemaBuilder::AddNameSpace(ASTNode *Node, ASTNameSpace *NewNameSpace,  bool ExternLib) {
+SemaBuilder::AddNameSpace(ASTModule *Module, ASTNameSpace *NewNameSpace, bool ExternLib) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddNameSpace",
                       "NameSpace=" << NewNameSpace << ", ExternLib=" << ExternLib);
     // Check if Name exist or add it
@@ -998,72 +998,72 @@ SemaBuilder::AddNameSpace(ASTNode *Node, ASTNameSpace *NewNameSpace,  bool Exter
         }
     }
 
-    if (Node)
-        Node->NameSpace = NameSpace;
+    if (Module)
+        Module->NameSpace = NameSpace;
 
     return true;
 }
 
 bool
-SemaBuilder::AddImport(ASTNode *Node, ASTImport * Import) {
+SemaBuilder::AddImport(ASTModule *Module, ASTImport * Import) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddImport", Logger()
-                        .Attr("Node", Node)
+                        .Attr("Module", Module)
                         .Attr("Import", Import).End());
 
-    if (S.Validator->CheckImport(Node, Import)) {
+    if (S.Validator->CheckImport(Module, Import)) {
 
-        // Check if this ASTNode already contains the imports
-        if (Node->Imports.find(Import->getName()) != Node->Imports.end()) {
+        // Check if this ASTModule already contains the imports
+        if (Module->Imports.find(Import->getName()) != Module->Imports.end()) {
             S.Diag(Import->getLocation(), diag::err_conflict_import) << Import->getName();
             return false;
         }
 
-        // Check if this ASTNode already contains the name or alias
+        // Check if this ASTModule already contains the name or alias
         llvm::StringRef Id = (Import->getAlias() == nullptr) ? Import->getName() : Import->getAlias()->getName();
-        if (Node->AliasImports.find(Id) != Node->Imports.end()) {
+        if (Module->AliasImports.find(Id) != Module->Imports.end()) {
             S.Diag(Import->getLocation(), diag::err_conflict_import) << Id;
             return false;
         }
 
-        // Add Import to Node
-        return Node->Imports.insert(std::make_pair(Import->getName(), Import)).second &&
-            Node->AliasImports.insert(std::make_pair(Id, Import)).second;
+        // Add Import to Module
+        return Module->Imports.insert(std::make_pair(Import->getName(), Import)).second &&
+            Module->AliasImports.insert(std::make_pair(Id, Import)).second;
     }
 
     return false;
 }
 
 bool
-SemaBuilder::AddExternalGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar) {
+SemaBuilder::AddExternalGlobalVar(ASTModule *Module, ASTGlobalVar *GlobalVar) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddExternalGlobalVar", Logger()
-            .Attr("Node", Node)
+            .Attr("Module", Module)
             .Attr("GlobalVar", GlobalVar).End());
     // TODO Check duplicate
-    GlobalVar->Node = Node;
-    return Node->ExternalGlobalVars.insert(std::make_pair(GlobalVar->getName(), GlobalVar)).second;
+    GlobalVar->Module = Module;
+    return Module->ExternalGlobalVars.insert(std::make_pair(GlobalVar->getName(), GlobalVar)).second;
 }
 
 bool
-SemaBuilder::AddExternalFunction(ASTNode *Node, ASTFunction *Function) {
+SemaBuilder::AddExternalFunction(ASTModule *Module, ASTFunction *Function) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddExternalFunction", Logger()
-            .Attr("Node", Node)
+            .Attr("Module", Module)
             .Attr("Function", Function).End());
-    Function->Node = Node;
+    Function->Module = Module;
     // TODO Check duplicate
-    return InsertFunction(Node->ExternalFunctions, Function);
+    return InsertFunction(Module->ExternalFunctions, Function);
 }
 
-bool SemaBuilder::AddExternalIdentities(ASTNode *Node, ASTIdentity *Identity) {
-    return Node->ExternalIdentities.insert(std::make_pair(Identity->getName(), Identity)).second;
+bool SemaBuilder::AddExternalIdentities(ASTModule *Module, ASTIdentity *Identity) {
+    return Module->ExternalIdentities.insert(std::make_pair(Identity->getName(), Identity)).second;
 }
 
 bool
-SemaBuilder::AddGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar, ASTValue *Value) {
+SemaBuilder::AddGlobalVar(ASTModule *Module, ASTGlobalVar *GlobalVar, ASTValue *Value) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddGlobalVar", Logger()
                       .Attr("GlobalVar", GlobalVar)
                       .Attr("Value", Value).End());
 
-    GlobalVar->Node = Node;
+    GlobalVar->Module = Module;
 
     ASTVarStmt *VarStmt = SemaBuilder::CreateVarStmt(GlobalVar);
     ASTValueExpr *ValueExpr = SemaBuilder::CreateExpr(Value);
@@ -1073,7 +1073,7 @@ SemaBuilder::AddGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar, ASTValue *Valu
     // Lookup into namespace for public var
     if(GlobalVar->getScopes()->Visibility == ASTVisibilityKind::V_PUBLIC ||
         GlobalVar->getScopes()->Visibility == ASTVisibilityKind::V_DEFAULT) {
-        ASTGlobalVar *LookupVar = Node->NameSpace->getGlobalVars().lookup(GlobalVar->getName());
+        ASTGlobalVar *LookupVar = Module->NameSpace->getGlobalVars().lookup(GlobalVar->getName());
 
         if (LookupVar) { // This NameSpace already contains this GlobalVar
             S.Diag(LookupVar->getLocation(), diag::err_duplicate_gvar) << LookupVar->getName();
@@ -1081,75 +1081,75 @@ SemaBuilder::AddGlobalVar(ASTNode *Node, ASTGlobalVar *GlobalVar, ASTValue *Valu
         }
 
         // Add into NameSpace for global resolution
-        // Add into Node for local resolution
+        // Add into Module for local resolution
         auto Pair = std::make_pair(GlobalVar->getName(), GlobalVar);
-        // TODO check duplicate in namespace and node
-        return Node->GlobalVars.insert(Pair).second && Node->NameSpace->GlobalVars.insert(Pair).second;
+        // TODO check duplicate in namespace and Module
+        return Module->GlobalVars.insert(Pair).second && Module->NameSpace->GlobalVars.insert(Pair).second;
     }
 
-    // Lookup into node for private var
+    // Lookup into Module for private var
     if(GlobalVar->getScopes()->Visibility == ASTVisibilityKind::V_PRIVATE) {
-        ASTGlobalVar *LookupVar = Node->GlobalVars.lookup(GlobalVar->getName());
+        ASTGlobalVar *LookupVar = Module->GlobalVars.lookup(GlobalVar->getName());
 
-        if (LookupVar) { // This Node already contains this Function
+        if (LookupVar) { // This Module already contains this Function
             S.Diag(LookupVar->getLocation(), diag::err_duplicate_gvar) << LookupVar->getName();
             return false;
         }
 
-        // Add into Node for local resolution
+        // Add into Module for local resolution
         auto Pair = std::make_pair(GlobalVar->getName(), GlobalVar);
-        // TODO check duplicate in node
-        return Node->GlobalVars.insert(Pair).second;
+        // TODO check duplicate in Module
+        return Module->GlobalVars.insert(Pair).second;
     }
 
     assert(0 && "Unknown GlobalVar Visibility");
 }
 
 bool
-SemaBuilder::AddFunction(ASTNode *Node, ASTFunction *Function) {
-    FLY_DEBUG_MESSAGE("ASTNode", "AddFunction",
+SemaBuilder::AddFunction(ASTModule *Module, ASTFunction *Function) {
+    FLY_DEBUG_MESSAGE("ASTModule", "AddFunction",
                       Logger().Attr("Function", Function).End());
 
-    Function->Node = Node;
+    Function->Module = Module;
 
     // Lookup into namespace for public var
     if(Function->Scopes->Visibility == ASTVisibilityKind::V_PUBLIC ||
         Function->Scopes->Visibility == ASTVisibilityKind::V_DEFAULT) {
 
         // Add into NameSpace for global resolution
-        // Add into Node for local resolution
-        return InsertFunction(Node->NameSpace->Functions, Function) &&
-            InsertFunction(Node->Functions, Function);
+        // Add into Module for local resolution
+        return InsertFunction(Module->NameSpace->Functions, Function) &&
+            InsertFunction(Module->Functions, Function);
     }
 
-    // Lookup into node for private var
+    // Lookup into Module for private var
     if (Function->Scopes->Visibility == ASTVisibilityKind::V_PRIVATE) {
 
-        // Add into Node for local resolution
-        return InsertFunction(Node->Functions, Function);
+        // Add into Module for local resolution
+        return InsertFunction(Module->Functions, Function);
     }
 
     assert(0 && "Unknown Function Visibility");
 }
 
 bool
-SemaBuilder::AddIdentity(ASTNode *Node, ASTIdentity *Identity) {
-    FLY_DEBUG_MESSAGE("ASTNode", "AddIdentity", Logger()
+SemaBuilder::AddIdentity(ASTModule *Module, ASTIdentity *Identity) {
+    FLY_DEBUG_MESSAGE("ASTModule", "AddIdentity", Logger()
             .Attr("Identity", Identity).End());
 
-    Identity->Node = Node;
+    Identity->Module = Module;
 
     // Lookup into namespace
-    Node->Identity = Identity;
+    Module->Identity = Identity;
 
     bool Success = true;
     if (Identity->Scopes->Visibility == ASTVisibilityKind::V_PUBLIC || Identity->Scopes->Visibility == ASTVisibilityKind::V_DEFAULT) {
-        ASTIdentity *LookupClass = Node->NameSpace->getIdentities().lookup(Identity->getName());
+        ASTIdentity *LookupClass = Module->NameSpace->getIdentities().lookup(Identity->getName());
         if (LookupClass) { // This NameSpace already contains this Function
             S.Diag(LookupClass->Location, diag::err_duplicate_class) << LookupClass->getName();
             return false;
         }
-        Success = Node->NameSpace->Identities.insert(std::make_pair(Identity->getName(), Identity)).second;
+        Success = Module->NameSpace->Identities.insert(std::make_pair(Identity->getName(), Identity)).second;
     }
 
     return Success;

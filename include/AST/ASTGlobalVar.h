@@ -22,7 +22,7 @@ namespace fly {
 
         ASTTopDefKind TopDefKind = ASTTopDefKind::DEF_GLOBALVAR;
 
-        ASTNode *Node = nullptr;
+        ASTModule *Module = nullptr;
 
         ASTVarStmt *Init = nullptr;
 
@@ -37,7 +37,7 @@ namespace fly {
 
         ASTTopDefKind getTopDefKind() const override;
 
-        ASTNode *getNode() const override;
+        ASTModule *getModule() const override;
 
         ASTNameSpace *getNameSpace() const override;
 

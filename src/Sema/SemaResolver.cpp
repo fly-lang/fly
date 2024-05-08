@@ -18,7 +18,7 @@
 #include "AST/ASTEnum.h"
 #include "AST/ASTEnumEntry.h"
 #include "AST/ASTType.h"
-#include "AST/ASTNode.h"
+#include "AST/ASTModule.h"
 #include "AST/ASTIfStmt.h"
 #include "AST/ASTImport.h"
 #include "AST/ASTGlobalVar.h"
@@ -56,13 +56,13 @@ SemaResolver::SemaResolver(Sema &S) : S(S) {
 bool SemaResolver::Resolve() {
     bool Success = true;
 
-    // Resolve Nodes
-    for (auto &NodeEntry : S.Context->getNodes()) {
-        auto &Node = NodeEntry.getValue();
-        Success &= ResolveImports(Node); // resolve Imports with NameSpaces
-        Success &= ResolveGlobalVars(Node); // resolve Global Vars
-        Success &= ResolveIdentities(Node);  // resolve Identity attributes and methods
-        Success &= ResolveFunctions(Node);  // resolve ASTBlock of Body Functions
+    // Resolve Modules
+    for (auto &ModuleEntry : S.Context->getModules()) {
+        auto &Module = ModuleEntry.getValue();
+        Success &= ResolveImports(Module); // resolve Imports with NameSpaces
+        Success &= ResolveGlobalVars(Module); // resolve Global Vars
+        Success &= ResolveIdentities(Module);  // resolve Identity attributes and methods
+        Success &= ResolveFunctions(Module);  // resolve ASTBlock of Body Functions
     }
 
     // Now all Imports must be read
@@ -76,8 +76,8 @@ bool SemaResolver::Resolve() {
     return Success;
 }
 
-bool SemaResolver::ResolveNameSpace(ASTNode *Node, ASTIdentifier *&Identifier) {
-    ASTImport *Import = FindImport(Node, Identifier->FullName);
+bool SemaResolver::ResolveNameSpace(ASTModule *Module, ASTIdentifier *&Identifier) {
+    ASTImport *Import = FindImport(Module, Identifier->FullName);
     if (Import) {
         Identifier = Import->getNameSpace();
         return true;
@@ -89,17 +89,17 @@ bool SemaResolver::ResolveNameSpace(ASTNode *Node, ASTIdentifier *&Identifier) {
 /**
  * Resolve Imports with relative Namespace
  * Sync Un-references from Import to Namespace for next resolving
- * @param Node
+ * @param Module
  * @return
  */
-bool SemaResolver::ResolveImports(ASTNode *Node) {
+bool SemaResolver::ResolveImports(ASTModule *Module) {
     bool Success = true;
 
-    for (auto &ImportEntry : Node->getImports()) {
+    for (auto &ImportEntry : Module->getImports()) {
 
         // Search Namespace of the Import
         auto &Import = ImportEntry.getValue();
-        ASTNameSpace *NameSpaceFound = Node->Context->NameSpaces.lookup(Import->getName());
+        ASTNameSpace *NameSpaceFound = Module->Context->NameSpaces.lookup(Import->getName());
 
         if (NameSpaceFound) {
             FLY_DEBUG_MESSAGE("Sema", "ResolveImports",
@@ -115,30 +115,30 @@ bool SemaResolver::ResolveImports(ASTNode *Node) {
     return Success;
 }
 
-bool SemaResolver::ResolveGlobalVars(ASTNode *Node) {
+bool SemaResolver::ResolveGlobalVars(ASTModule *Module) {
     bool Success = true;
 
-    for (auto &GlobalVarEntry : Node->getGlobalVars()) {
+    for (auto &GlobalVarEntry : Module->getGlobalVars()) {
         ASTGlobalVar *GlobalVar = GlobalVarEntry.getValue();
-        Success = !GlobalVar->getType()->isIdentity() || ResolveIdentityType(Node, (ASTIdentityType *) GlobalVar->getType());
+        Success = !GlobalVar->getType()->isIdentity() || ResolveIdentityType(Module, (ASTIdentityType *) GlobalVar->getType());
     }
 
     return Success;
 }
 
-bool SemaResolver::ResolveIdentities(ASTNode *Node) {
+bool SemaResolver::ResolveIdentities(ASTModule *Module) {
     bool Success = true;
-    if (Node->Identity) {
+    if (Module->Identity) {
 
-        if (Node->Identity->getTopDefKind() == ASTTopDefKind::DEF_CLASS) {
-            ASTClass *Class = (ASTClass *) Node->Identity;
+        if (Module->Identity->getTopDefKind() == ASTTopDefKind::DEF_CLASS) {
+            ASTClass *Class = (ASTClass *) Module->Identity;
 
             // Resolve Super Classes
             if (!Class->SuperClasses.empty()) {
                 llvm::StringMap<std::map<uint64_t, llvm::SmallVector<ASTClassMethod *, 4>>> SuperMethods;
                 llvm::StringMap<std::map<uint64_t, llvm::SmallVector<ASTClassMethod *, 4>>> ISuperMethods;
                 for (ASTIdentityType *SuperClassType: Class->SuperClasses) {
-                    if (ResolveIdentityType(Node, SuperClassType)) {
+                    if (ResolveIdentityType(Module, SuperClassType)) {
                         ASTClass *SuperClass = (ASTClass *) SuperClassType->getDef();
 
                         // Struct: Resolve Var in Super Classes
@@ -270,16 +270,16 @@ bool SemaResolver::ResolveIdentities(ASTNode *Node) {
                     }
                 }
             }
-        } else if (Node->Identity->getTopDefKind() == ASTTopDefKind::DEF_ENUM) {
+        } else if (Module->Identity->getTopDefKind() == ASTTopDefKind::DEF_ENUM) {
             // TODO
         }
     }
     return Success;
 }
 
-bool SemaResolver::ResolveFunctions(ASTNode *Node) {
+bool SemaResolver::ResolveFunctions(ASTModule *Module) {
     bool Success = true;
-    for (auto &StrMapEntry : Node->Functions) {
+    for (auto &StrMapEntry : Module->Functions) {
         for (auto &IntMap : StrMapEntry.getValue()) {
             for (auto &Function : IntMap.second) {
                 Success &= ResolveBlock(Function->Body);
@@ -330,7 +330,7 @@ bool SemaResolver::ResolveStmt(ASTStmt *Stmt) {
                     return false;
                 }
 
-                // Take Node
+                // Take Module
                 ASTVar *Var = VarStmt->getVarRef()->getDef();
                 if (Var->getVarKind() == ASTVarKind::VAR_LOCAL) {
                     ASTLocalVar *LocalVar = (ASTLocalVar *) Var;
@@ -340,9 +340,9 @@ bool SemaResolver::ResolveStmt(ASTStmt *Stmt) {
                         return false;
                     }
 
-                    const auto &Node = FindNode(Block->getTop());
+                    const auto &Module = FindModule(Block->getTop());
                     Success &= VarStmt && !LocalVar->getType()->isIdentity() ||
-                               ResolveIdentityType(Node, (ASTIdentityType *) VarStmt->getVarRef()->getDef()->getType());
+                               ResolveIdentityType(Module, (ASTIdentityType *) VarStmt->getVarRef()->getDef()->getType());
 
                     if (VarStmt->getExpr())
                         Success &= ResolveExpr(Block, VarStmt->getExpr());
@@ -406,7 +406,7 @@ bool SemaResolver::ResolveLoopBlock(ASTLoopStmt *LoopStmt) {
 }
 
 bool SemaResolver::ResolveParentIdentifier(ASTStmt *Parent, ASTIdentifier *&Identifier) {
-    const auto &Node = FindNode(Parent->getTop());
+    const auto &Module = FindModule(Parent->getTop());
 
     if (Identifier->getParent()) {
         if (ResolveParentIdentifier(Parent, Identifier->Parent)) {
@@ -426,7 +426,7 @@ bool SemaResolver::ResolveParentIdentifier(ASTStmt *Parent, ASTIdentifier *&Iden
                 case ASTIdentifierKind::REF_TYPE: {
                     ASTIdentityType *IdentityType = (ASTIdentityType *) Identifier;
                     if (Identifier->getParent()->getIdKind() == ASTIdentifierKind::REF_NAMESPACE) {
-                        ResolveIdentityType(Node, IdentityType);
+                        ResolveIdentityType(Module, IdentityType);
                     } else {
                         // Error:
                         S.Diag(Identifier->getLocation(), diag::err_sema_resolve_identifier);
@@ -463,14 +463,14 @@ bool SemaResolver::ResolveParentIdentifier(ASTStmt *Parent, ASTIdentifier *&Iden
         }
 
         // Check if Identifier is an IdentityType
-        ASTIdentityType *IdentityType = FindIdentityType(Identifier->getName(), Node->getNameSpace());
+        ASTIdentityType *IdentityType = FindIdentityType(Identifier->getName(), Module->getNameSpace());
         if (IdentityType) {
             Identifier = IdentityType; // Take From Types
             return true;
         }
 
         // Check if Identifier is a NameSpace
-        if (ResolveNameSpace(Node, Identifier)) {
+        if (ResolveNameSpace(Module, Identifier)) {
             return true;
         }
     }
@@ -479,17 +479,17 @@ bool SemaResolver::ResolveParentIdentifier(ASTStmt *Parent, ASTIdentifier *&Iden
     return false;
 }
 
-bool SemaResolver::ResolveIdentityType(ASTNode *Node, ASTIdentityType *IdentityType) {
+bool SemaResolver::ResolveIdentityType(ASTModule *Module, ASTIdentityType *IdentityType) {
     // Resolve Identifier
     if (IdentityType->getDef() == nullptr) {
 
         if (IdentityType->getParent() == nullptr) {
-            ASTIdentityType *Type = FindIdentityType(IdentityType->getName(), Node->getNameSpace());
+            ASTIdentityType *Type = FindIdentityType(IdentityType->getName(), Module->getNameSpace());
             if (Type) {
                 IdentityType->Def = Type->getDef();
                 IdentityType->IdentityTypeKind = Type->getIdentityTypeKind();
             }
-        } else if (ResolveNameSpace(Node,IdentityType->Parent)) {
+        } else if (ResolveNameSpace(Module,IdentityType->Parent)) {
             ASTNameSpace *NameSpace = (ASTNameSpace *) IdentityType->getParent();
             ASTIdentityType *Type = FindIdentityType(IdentityType->getName(), NameSpace);
             if (Type) {
@@ -527,7 +527,7 @@ bool SemaResolver::ResolveVarRef(ASTStmt *Parent, ASTVarRef *VarRef) {
         }
     }
 
-    // VarRef not found in node, namespace and node imports
+    // VarRef not found in Module, namespace and Module imports
     if (VarRef->getDef() == nullptr) {
         S.Diag(VarRef->getLocation(), diag::err_unref_var);
         return false;
@@ -544,7 +544,7 @@ ASTVar *SemaResolver::ResolveVarRefNoParent(ASTStmt *Parent, llvm::StringRef Nam
 
     if (Var == nullptr) {
         ASTFunctionBase *Top = Parent->getTop();
-        const auto &Node = FindNode(Top);
+        const auto &Module = FindModule(Top);
 
         // Search for Class Vars if Var is Class Method
         if (Top->getKind() == ASTFunctionKind::CLASS_METHOD)
@@ -552,7 +552,7 @@ ASTVar *SemaResolver::ResolveVarRefNoParent(ASTStmt *Parent, llvm::StringRef Nam
 
         // Search for GlobalVars
         if (Var == nullptr)
-            Var = Node->getNameSpace()->GlobalVars.lookup(Name);
+            Var = Module->getNameSpace()->GlobalVars.lookup(Name);
     }
 
     return Var;
@@ -632,7 +632,7 @@ bool SemaResolver::ResolveCall(ASTStmt *Parent, ASTCall *Call) {
         }
     }
 
-    // VarRef not found in node, namespace and node imports
+    // VarRef not found in Module, namespace and Module imports
     if (Call->getDef() == nullptr) {
         S.Diag(Call->getLocation(), diag::err_unref_call);
         return false;
@@ -672,16 +672,16 @@ bool SemaResolver::ResolveCall(ASTStmt *Parent, ASTCall *Call, ASTNameSpace *Nam
 }
 
 bool SemaResolver::ResolveCallNoParent(ASTStmt *Parent, ASTCall *Call) {
-    const auto &Node = FindNode(Parent->getTop());
+    const auto &Module = FindModule(Parent->getTop());
 
     // func()
-    bool Success = ResolveCall(Parent, Call, Node->Functions) ||
-                   ResolveCall(Parent, Call, Node->Context->DefaultNameSpace->Functions) ||
-                   ResolveCall(Parent, Call, Node->getNameSpace()->Functions);
+    bool Success = ResolveCall(Parent, Call, Module->Functions) ||
+                   ResolveCall(Parent, Call, Module->Context->DefaultNameSpace->Functions) ||
+                   ResolveCall(Parent, Call, Module->getNameSpace()->Functions);
 
     // constructor()
     if (!Success) {
-        ASTIdentity *Identity = FindIdentity(Call->getName(), Node->getNameSpace());
+        ASTIdentity *Identity = FindIdentity(Call->getName(), Module->getNameSpace());
         Identity != nullptr && Identity->getTopDefKind() == ASTTopDefKind::DEF_CLASS &&
         ResolveCall(Parent, Call, ((ASTClass *) Identity)->Constructors);
     }
@@ -693,7 +693,7 @@ bool SemaResolver::ResolveCallWithParent(ASTStmt *Parent, ASTCall *Call) {
     FLY_DEBUG_MESSAGE("Sema", "ResolveCall", Logger().Attr("Call", Call).End());
         
     ASTFunctionBase *Top = Parent->getTop();
-    const auto &Node = FindNode(Top);
+    const auto &Module = FindModule(Top);
 
     switch (Call->getParent()->getIdKind()) {
 
@@ -991,31 +991,31 @@ ASTNameSpace *SemaResolver::FindNameSpace(llvm::StringRef Name) const {
     return NameSpace;
 }
 
-ASTNode *SemaResolver::FindNode(ASTFunctionBase *FunctionBase) const {
-    FLY_DEBUG_MESSAGE("Sema", "FindNode", Logger().Attr("FunctionBase", FunctionBase).End());
+ASTModule *SemaResolver::FindModule(ASTFunctionBase *FunctionBase) const {
+    FLY_DEBUG_MESSAGE("Sema", "FindModule", Logger().Attr("FunctionBase", FunctionBase).End());
     if (FunctionBase->getKind() == ASTFunctionKind::FUNCTION) {
-        return ((ASTFunction *) FunctionBase)->getNode();
+        return ((ASTFunction *) FunctionBase)->getModule();
     } else if (FunctionBase->getKind() == ASTFunctionKind::CLASS_METHOD) {
-        return ((ASTClassMethod *) FunctionBase)->getClass()->getNode();
+        return ((ASTClassMethod *) FunctionBase)->getClass()->getModule();
     } else {
         assert("Unknown Function Kind");
         return nullptr;
     }
 }
 
-ASTNode *SemaResolver::FindNode(llvm::StringRef Name, ASTNameSpace *NameSpace) const {
-    FLY_DEBUG_MESSAGE("Sema", "FindNode", Logger().Attr("Name", Name).Attr("NameSpace", NameSpace).End());
-    ASTNode *Node = NameSpace->Nodes.lookup(Name);
-    if (!Node) {
-        S.Diag(diag::err_unref_node) << Name;
+ASTModule *SemaResolver::FindModule(llvm::StringRef Name, ASTNameSpace *NameSpace) const {
+    FLY_DEBUG_MESSAGE("Sema", "FindModule", Logger().Attr("Name", Name).Attr("NameSpace", NameSpace).End());
+    ASTModule *Module = NameSpace->Modules.lookup(Name);
+    if (!Module) {
+        S.Diag(diag::err_unref_module) << Name;
     }
-    return Node;
+    return Module;
 }
 
-ASTImport *SemaResolver:: FindImport(ASTNode *Node, llvm::StringRef Name) {
-    // Search into Node imports
-    ASTImport *Import = Node->Imports.lookup(Name);
-    return Import == nullptr ? Node->AliasImports.lookup(Name) : Import;
+ASTImport *SemaResolver:: FindImport(ASTModule *Module, llvm::StringRef Name) {
+    // Search into Module imports
+    ASTImport *Import = Module->Imports.lookup(Name);
+    return Import == nullptr ? Module->AliasImports.lookup(Name) : Import;
 }
 
 ASTIdentityType *SemaResolver::FindIdentityType(llvm::StringRef Name, ASTNameSpace *NameSpace) const {

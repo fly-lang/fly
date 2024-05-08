@@ -10,7 +10,7 @@
 #include "ParserTest.h"
 #include "Frontend/FrontendAction.h"
 #include "AST/ASTNameSpace.h"
-#include "AST/ASTNode.h"
+#include "AST/ASTModule.h"
 #include "AST/ASTImport.h"
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTFunction.h"
@@ -34,19 +34,19 @@ namespace {
 
     TEST_F(ParserTest, SingleNameSpace) {
         llvm::StringRef str = ("namespace std");
-        ASTNode *Node = Parse("SingleNameSpace", str);
+        ASTModule *Module = Parse("SingleNameSpace", str);
         ASSERT_TRUE(isSuccess());
 
-        EXPECT_EQ(Node->getName(), "SingleNameSpace");
+        EXPECT_EQ(Module->getName(), "SingleNameSpace");
 
         // verify AST contains package
-        EXPECT_EQ(Node->getNameSpace()->getName(), "std");
+        EXPECT_EQ(Module->getNameSpace()->getName(), "std");
     }
 
     TEST_F(ParserTest, MultiNamespaceError) {
         llvm::StringRef str = ("namespace std\n"
                                 "namespace bad");
-        ASTNode *Node = Parse("MultiNamespaceError", str);
+        ASTModule *Module = Parse("MultiNamespaceError", str);
         EXPECT_FALSE(isSuccess());
     }
 
@@ -54,29 +54,29 @@ namespace {
         llvm::StringRef str1 = ("namespace packageA");
         llvm::StringRef str2 = ("namespace std\n"
                          "import packageA");
-        ASTNode *Node1 = Parse("packageA.fly", str1, false);
-        ASTNode *Node2 = Parse("std.fly", str2);
+        ASTModule *Module1 = Parse("packageA.fly", str1, false);
+        ASTModule *Module2 = Parse("std.fly", str2);
         ASSERT_TRUE(isSuccess());
 
-        ASTImport* Verify = Node2->getImports().lookup("packageA");
+        ASTImport* Verify = Module2->getImports().lookup("packageA");
         EXPECT_EQ(Verify->getName(), "packageA");
         EXPECT_EQ(Verify->getAlias(), nullptr);
     }
 
     TEST_F(ParserTest, SingleImportAlias) {
         llvm::StringRef str1 = ("namespace standard");
-        ASTNode *Node1 = Parse("standard.fly", str1, false);
+        ASTModule *Module1 = Parse("standard.fly", str1, false);
 
         llvm::StringRef str2 = ("import standard std");
-        ASTNode *Node2 = Parse("default.fly", str2);
+        ASTModule *Module2 = Parse("default.fly", str2);
 
         ASSERT_TRUE(isSuccess());
 
-        EXPECT_EQ(Node2->getNameSpace()->getName(), "default");
-        ASTImport *Import = Node2->getImports().lookup("standard");
+        EXPECT_EQ(Module2->getNameSpace()->getName(), "default");
+        ASTImport *Import = Module2->getImports().lookup("standard");
         EXPECT_EQ(Import->getName(), "standard");
         EXPECT_EQ(Import->getAlias()->getName(), "std");
-        ASTImport *ImportAlias = Node2->getAliasImports().lookup("std");
+        ASTImport *ImportAlias = Module2->getAliasImports().lookup("std");
         EXPECT_EQ(ImportAlias->getName(), "standard");
         EXPECT_EQ(ImportAlias->getAlias()->getName(), "std");
     }
@@ -88,14 +88,14 @@ namespace {
                                "void func() {}\n"
         );
 
-        ASTNode *Node = Parse("LineComments", str);
+        ASTModule *Module = Parse("LineComments", str);
         ASSERT_TRUE(isSuccess());
 
-        ASTGlobalVar *GlobalB = Node->getGlobalVars().find("b")->getValue();
+        ASTGlobalVar *GlobalB = Module->getGlobalVars().find("b")->getValue();
         EXPECT_EQ(GlobalB->getName(), "b");
         EXPECT_EQ(GlobalB->getComment(), "");
 
-        const ASTFunction *Func = *Node->getFunctions().begin()->getValue().begin()->second.begin();
+        const ASTFunction *Func = *Module->getFunctions().begin()->getValue().begin()->second.begin();
         EXPECT_EQ(Func->getName(), "func");
         EXPECT_EQ(Func->getComment(), "");
     }
@@ -112,18 +112,18 @@ namespace {
                                "//body comment\n"
                                "void func2() {}\n"
         );
-        ASTNode *Node = Parse("BlockComments", str);
+        ASTModule *Module = Parse("BlockComments", str);
         ASSERT_TRUE(isSuccess());
 
-        ASTGlobalVar *GlobalB = Node->getGlobalVars().find("b")->getValue();
+        ASTGlobalVar *GlobalB = Module->getGlobalVars().find("b")->getValue();
         EXPECT_EQ(GlobalB->getName(), "b");
         EXPECT_EQ(GlobalB->getComment(), "/* Global var block comment */");
 
-        ASTFunction *Func = *Node->getFunctions().find("func")->getValue().begin()->second.begin();
+        ASTFunction *Func = *Module->getFunctions().find("func")->getValue().begin()->second.begin();
         EXPECT_EQ(Func->getName(), "func");
         EXPECT_EQ(Func->getComment(), "/*   Func block comment \n*/");
 
-        ASTFunction *Func2 = *Node->getFunctions().find("func2")->getValue().begin()->second.begin();
+        ASTFunction *Func2 = *Module->getFunctions().find("func2")->getValue().begin()->second.begin();
         EXPECT_EQ(Func2->getName(), "func2");
         EXPECT_EQ(Func2->getComment(), StringRef());
     }
@@ -140,20 +140,20 @@ namespace {
                                 "uint i\n"
                                 "ulong j\n"
                                  );
-        ASTNode *Node = Parse("GlobalVars", str);
+        ASTModule *Module = Parse("GlobalVars", str);
 
         ASSERT_TRUE(isSuccess());
 
-        ASTGlobalVar *VerifyA = Node->getGlobalVars().find("a")->getValue();
-        ASTGlobalVar *VerifyB = Node->getNameSpace()->getGlobalVars().find("b")->getValue();
-        ASTGlobalVar *VerifyC = Node->getGlobalVars().find("c")->getValue();
-        ASTGlobalVar *VerifyD = Node->getGlobalVars().find("d")->getValue();
-        ASTGlobalVar *VerifyE = Node->getGlobalVars().find("e")->getValue();
-        ASTGlobalVar *VerifyF = Node->getGlobalVars().find("f")->getValue();
-        ASTGlobalVar *VerifyG = Node->getGlobalVars().find("g")->getValue();
-        ASTGlobalVar *VerifyH = Node->getGlobalVars().find("h")->getValue();
-        ASTGlobalVar *VerifyI = Node->getGlobalVars().find("i")->getValue();
-        ASTGlobalVar *VerifyJ = Node->getGlobalVars().find("j")->getValue();
+        ASTGlobalVar *VerifyA = Module->getGlobalVars().find("a")->getValue();
+        ASTGlobalVar *VerifyB = Module->getNameSpace()->getGlobalVars().find("b")->getValue();
+        ASTGlobalVar *VerifyC = Module->getGlobalVars().find("c")->getValue();
+        ASTGlobalVar *VerifyD = Module->getGlobalVars().find("d")->getValue();
+        ASTGlobalVar *VerifyE = Module->getGlobalVars().find("e")->getValue();
+        ASTGlobalVar *VerifyF = Module->getGlobalVars().find("f")->getValue();
+        ASTGlobalVar *VerifyG = Module->getGlobalVars().find("g")->getValue();
+        ASTGlobalVar *VerifyH = Module->getGlobalVars().find("h")->getValue();
+        ASTGlobalVar *VerifyI = Module->getGlobalVars().find("i")->getValue();
+        ASTGlobalVar *VerifyJ = Module->getGlobalVars().find("j")->getValue();
 
         EXPECT_EQ(VerifyA->getScopes()->getVisibility(), ASTVisibilityKind::V_PRIVATE);
         EXPECT_FALSE(VerifyA->getScopes()->isConstant());
@@ -212,13 +212,13 @@ namespace {
                 "const public float b = 2.0\n"
                 "const bool c = false\n"
                 );
-        ASTNode *Node = Parse("GlobalConstants", str);
+        ASTModule *Module = Parse("GlobalConstants", str);
 
         ASSERT_TRUE(isSuccess());
 
-        ASTGlobalVar *VerifyA = Node->getGlobalVars().find("a")->getValue();
-        ASTGlobalVar *VerifyB = Node->getGlobalVars().find("b")->getValue();
-        ASTGlobalVar *VerifyC = Node->getGlobalVars().find("c")->getValue();
+        ASTGlobalVar *VerifyA = Module->getGlobalVars().find("a")->getValue();
+        ASTGlobalVar *VerifyB = Module->getGlobalVars().find("b")->getValue();
+        ASTGlobalVar *VerifyC = Module->getGlobalVars().find("c")->getValue();
 
         EXPECT_EQ(VerifyA->getScopes()->getVisibility(), ASTVisibilityKind::V_PRIVATE);
         EXPECT_EQ(VerifyA->getScopes()->isConstant(), true);
@@ -248,14 +248,14 @@ namespace {
                                "byte[3] d\n" // array of 4 bytes without values
                                "byte[3] e = {1, 2, 3}\n"
                                );
-        ASTNode *Node = Parse("GlobalArray", str);
+        ASTModule *Module = Parse("GlobalArray", str);
         ASSERT_TRUE(isSuccess());
 
-        ASTGlobalVar *a = Node->getGlobalVars().find("a")->getValue();
-        ASTGlobalVar *b = Node->getGlobalVars().find("b")->getValue();
-        ASTGlobalVar *c = Node->getGlobalVars().find("c")->getValue();
-        ASTGlobalVar *d = Node->getGlobalVars().find("d")->getValue();
-        ASTGlobalVar *e = Node->getGlobalVars().find("e")->getValue();
+        ASTGlobalVar *a = Module->getGlobalVars().find("a")->getValue();
+        ASTGlobalVar *b = Module->getGlobalVars().find("b")->getValue();
+        ASTGlobalVar *c = Module->getGlobalVars().find("c")->getValue();
+        ASTGlobalVar *d = Module->getGlobalVars().find("d")->getValue();
+        ASTGlobalVar *e = Module->getGlobalVars().find("e")->getValue();
 
         // a
         EXPECT_EQ(a->getType()->getKind(), ASTTypeKind::TYPE_ARRAY);
@@ -317,13 +317,13 @@ namespace {
                "byte[] c = {'a', 'b', 'c', 0}\n"
                "byte[2] d = {'', ''}\n" // Empty string
         );
-        ASTNode *Node = Parse("GlobalChar", str);
+        ASTModule *Module = Parse("GlobalChar", str);
         ASSERT_TRUE(isSuccess());
 
-        ASTGlobalVar *a = Node->getGlobalVars().find("a")->getValue();
-        ASTGlobalVar *b = Node->getGlobalVars().find("b")->getValue();
-        ASTGlobalVar *c = Node->getGlobalVars().find("c")->getValue();
-        ASTGlobalVar *d = Node->getGlobalVars().find("d")->getValue();
+        ASTGlobalVar *a = Module->getGlobalVars().find("a")->getValue();
+        ASTGlobalVar *b = Module->getGlobalVars().find("b")->getValue();
+        ASTGlobalVar *c = Module->getGlobalVars().find("c")->getValue();
+        ASTGlobalVar *d = Module->getGlobalVars().find("d")->getValue();
 
         // a
         EXPECT_EQ(((ASTIntegerType *) a->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_BYTE);
@@ -370,11 +370,11 @@ namespace {
                "string a = \"\"\n" // array of zero bytes
                "string b = \"abc\"\n" // string abc/0 -> array of 4 bytes
         );
-        ASTNode *Node = Parse("GlobalString", str);
+        ASTModule *Module = Parse("GlobalString", str);
         ASSERT_TRUE(isSuccess());
 
-        ASTGlobalVar *a = Node->getGlobalVars().find("a")->getValue();
-        ASTGlobalVar *b = Node->getGlobalVars().find("b")->getValue();
+        ASTGlobalVar *a = Module->getGlobalVars().find("a")->getValue();
+        ASTGlobalVar *b = Module->getGlobalVars().find("b")->getValue();
 
         // a
         EXPECT_EQ(a->getType()->getKind(), ASTTypeKind::TYPE_STRING);
@@ -394,7 +394,7 @@ namespace {
 
     TEST_F(ParserTest, FunctionDefaultVoidEmpty) {
         llvm::StringRef str = ("void func() {}\n");
-        ASTNode *AST = Parse("FunctionDefaultVoidEmpty", str);
+        ASTModule *AST = Parse("FunctionDefaultVoidEmpty", str);
         ASSERT_TRUE(isSuccess());
 
         EXPECT_TRUE(AST->getFunctions().size() == 1); // Func has DEFAULT Visibility
@@ -410,16 +410,16 @@ namespace {
                 "private int func(int a, const float b, bool c=false) {\n"
                 "  return 1"
                 "}\n");
-        ASTNode *Node = Parse("FunctionPrivateReturnParams", str);
+        ASTModule *Module = Parse("FunctionPrivateReturnParams", str);
 
         ASSERT_TRUE(isSuccess());
 
-        EXPECT_TRUE(Node->getFunctions().size() == 1); // func() has PRIVATE Visibility
-        ASTFunction *VerifyFunc = *Node->getFunctions().begin()->getValue().begin()->second.begin();
+        EXPECT_TRUE(Module->getFunctions().size() == 1); // func() has PRIVATE Visibility
+        ASTFunction *VerifyFunc = *Module->getFunctions().begin()->getValue().begin()->second.begin();
         EXPECT_EQ(VerifyFunc->getScopes()->getVisibility(), ASTVisibilityKind::V_PRIVATE);
-        const auto &NSFuncs = Node->getContext().getDefaultNameSpace()->getFunctions();
+        const auto &NSFuncs = Module->getContext().getDefaultNameSpace()->getFunctions();
         ASSERT_TRUE(NSFuncs.find(VerifyFunc->getName()) == NSFuncs.end());
-        ASSERT_TRUE(Node->getFunctions().find(VerifyFunc->getName()) != NSFuncs.end());
+        ASSERT_TRUE(Module->getFunctions().find(VerifyFunc->getName()) != NSFuncs.end());
 
         ASTParam *Par0 = VerifyFunc->getParams()->getList()[0];
         ASTParam *Par1 = VerifyFunc->getParams()->getList()[1];
@@ -451,12 +451,12 @@ namespace {
                                "  Type t = null"
                                "  return t\n"
                                "}\n");
-        ASTNode *Node = Parse("TypeDefaultVarReturn", str, false);
+        ASTModule *Module = Parse("TypeDefaultVarReturn", str, false);
 
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *Node->getFunctions().begin()->getValue().begin()->second.begin();
+        ASTFunction *F = *Module->getFunctions().begin()->getValue().begin()->second.begin();
         EXPECT_EQ(F->getType()->getKind(), ASTTypeKind::TYPE_IDENTITY);
         const ASTBlock *Body = F->getBody();
 
@@ -488,12 +488,12 @@ namespace {
                                "double j\n"
                                "Type t\n"
                                "}\n");
-        ASTNode *Node = Parse("UndefLocalVar", str, false);
+        ASTModule *Module = Parse("UndefLocalVar", str, false);
 
         ASSERT_TRUE(isSuccess());
 
         // Get Body
-        ASTFunction *F = *Node->getFunctions().begin()->getValue().begin()->second.begin();
+        ASTFunction *F = *Module->getFunctions().begin()->getValue().begin()->second.begin();
         EXPECT_EQ(F->getType()->getKind(), ASTTypeKind::TYPE_VOID);
         const ASTBlock *Body = F->getBody();
 
@@ -586,15 +586,15 @@ namespace {
                                "  doOther(a, 1)\n"
                                "  return b\n"
                                "}\n");
-        ASTNode *Node = Parse("FunctionCall", str);
+        ASTModule *Module = Parse("FunctionCall", str);
 
         ASSERT_TRUE(isSuccess());
 
         // Get all functions
-        ASTFunction *doSome = *Node->getFunctions().find("doSome")->getValue().begin()->second.begin();
-        ASTFunction *doOther = *Node->getFunctions().find("doOther")->getValue().begin()->second.begin();
-        ASTFunction *doNow = *Node->getFunctions().find("doNow")->getValue().begin()->second.begin();
-        ASTFunction *main = *Node->getFunctions().find("main")->getValue().begin()->second.begin();
+        ASTFunction *doSome = *Module->getFunctions().find("doSome")->getValue().begin()->second.begin();
+        ASTFunction *doOther = *Module->getFunctions().find("doOther")->getValue().begin()->second.begin();
+        ASTFunction *doNow = *Module->getFunctions().find("doNow")->getValue().begin()->second.begin();
+        ASTFunction *main = *Module->getFunctions().find("main")->getValue().begin()->second.begin();
 
         ASSERT_TRUE(doSome != nullptr);
         ASSERT_TRUE(doOther != nullptr);
@@ -654,14 +654,14 @@ namespace {
                                "  string err2 = handle err2()\n"
                                "  error err2 = handle { err2() }\n"
                                "}\n");
-        ASTNode *Node = Parse("FunctionFail", str);
+        ASTModule *Module = Parse("FunctionFail", str);
         ASSERT_TRUE(isSuccess());
 
         // Get all functions
-        ASTFunction *err0 = *Node->getFunctions().find("err0")->getValue().begin()->second.begin();
-        ASTFunction *err1 = *Node->getFunctions().find("err1")->getValue().begin()->second.begin();
-        ASTFunction *err2 = *Node->getFunctions().find("err2")->getValue().begin()->second.begin();
-        ASTFunction *main = *Node->getFunctions().find("main")->getValue().begin()->second.begin();
+        ASTFunction *err0 = *Module->getFunctions().find("err0")->getValue().begin()->second.begin();
+        ASTFunction *err1 = *Module->getFunctions().find("err1")->getValue().begin()->second.begin();
+        ASTFunction *err2 = *Module->getFunctions().find("err2")->getValue().begin()->second.begin();
+        ASTFunction *main = *Module->getFunctions().find("main")->getValue().begin()->second.begin();
 
         ASSERT_TRUE(err0 != nullptr);
         ASSERT_TRUE(err1 != nullptr);

@@ -13,7 +13,7 @@
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
 #include "CodeGen/CodeGenError.h"
-#include "AST/ASTNode.h"
+#include "AST/ASTModule.h"
 #include "AST/ASTClassMethod.h"
 #include "AST/ASTClassAttribute.h"
 #include "AST/ASTNameSpace.h"

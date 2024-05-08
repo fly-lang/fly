@@ -35,15 +35,15 @@ public:
         delete S;
     }
 
-    ASTNode *Parse(std::string FileName, llvm::StringRef Source, bool DoBuild = true) {
+    ASTModule *Parse(std::string FileName, llvm::StringRef Source, bool DoBuild = true) {
         InputFile Input(Diags, CI.getSourceManager(), FileName);
         Input.Load(Source);
         Parser *P = new Parser(Input, CI.getSourceManager(), Diags, *S->getBuilder());
-        ASTNode *Node = P->Parse();
-        Success = !Diags.hasErrorOccurred() && Node;
+        ASTModule *Module = P->Parse();
+        Success = !Diags.hasErrorOccurred() && Module;
         if (DoBuild)
             Success &= S->Resolve();
-        return Node;
+        return Module;
     }
 
     bool isSuccess() const {

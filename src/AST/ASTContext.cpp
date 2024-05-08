@@ -24,7 +24,7 @@ ASTContext::ASTContext() = default;
 ASTContext::~ASTContext() {
     delete DefaultNameSpace;
     NameSpaces.clear();
-    Nodes.clear();
+    Modules.clear();
     ExternalImports.clear();
 }
 
@@ -45,9 +45,9 @@ const llvm::StringMap<ASTNameSpace *> &ASTContext::getNameSpaces() const {
 }
 
 /**
- * Get all Nodes from the Context
+ * Get all Modules from the Context
  * @return
  */
-const llvm::StringMap<ASTNode *> &ASTContext::getNodes() const {
-    return Nodes;
+const llvm::StringMap<ASTModule *> &ASTContext::getModules() const {
+    return Modules;
 }

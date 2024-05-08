@@ -9,7 +9,7 @@
 
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
-#include "AST/ASTNode.h"
+#include "AST/ASTModule.h"
 #include "AST/ASTNameSpace.h"
 #include "Frontend/FrontendOptions.h"
 #include "Basic/FileManager.h"

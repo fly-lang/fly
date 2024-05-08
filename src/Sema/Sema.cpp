@@ -22,7 +22,7 @@
 #include "AST/ASTIdentifier.h"
 #include "AST/ASTImport.h"
 #include "AST/ASTClassMethod.h"
-#include "AST/ASTNode.h"
+#include "AST/ASTModule.h"
 #include "AST/ASTVarRef.h"
 #include "AST/ASTParam.h"
 #include "Basic/Diagnostic.h"

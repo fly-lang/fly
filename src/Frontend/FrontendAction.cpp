@@ -15,7 +15,7 @@
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTIdentity.h"
-#include "AST/ASTNode.h"
+#include "AST/ASTModule.h"
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
 #include "CodeGen/CodeGenFunction.h"
@@ -53,12 +53,12 @@ bool FrontendAction::Parse() {
 
     // Create Parser and start to parse
     P = new Parser(*Input, SourceMgr, Diags, S.getBuilder());
-    Node = P->Parse();
-    if (Node && FrontendOpts.CreateHeader) {
-        CGH->AddNameSpace(Node->getNameSpace());
+    Module = P->Parse();
+    if (Module && FrontendOpts.CreateHeader) {
+        CGH->AddNameSpace(Module->getNameSpace());
     }
 
-    return Node;
+    return Module;
 }
 
 bool FrontendAction::ParseHeader() {
@@ -67,15 +67,15 @@ bool FrontendAction::ParseHeader() {
 
     // Create Parser and start to parse
     P = new Parser(*Input, SourceMgr, Diags, S.getBuilder());
-    Node = P->ParseHeader();
-    return Node && S.getBuilder().AddNode(Node);
+    Module = P->ParseHeader();
+    return Module && S.getBuilder().AddModule(Module);
 }
 
 void FrontendAction::GenerateTopDef() {
     Diags.getClient()->BeginSourceFile();
 
     // Manage External GlobalVars
-    for (const auto &Entry : Node->getExternalGlobalVars()) {
+    for (const auto &Entry : Module->getExternalGlobalVars()) {
         ASTGlobalVar *GlobalVar = Entry.getValue();
         FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode",
                           "ExternalGlobalVar=" << GlobalVar->str());
@@ -83,7 +83,7 @@ void FrontendAction::GenerateTopDef() {
     }
 
     // Manage External Function
-    for (auto &StrMapEntry : Node->getExternalFunctions()) {
+    for (auto &StrMapEntry : Module->getExternalFunctions()) {
         for (auto &IntMap : StrMapEntry.getValue()) {
             for (auto &Function : IntMap.second) {
                 FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode",
@@ -94,7 +94,7 @@ void FrontendAction::GenerateTopDef() {
     }
 
     // Manage GlobalVars
-    for (const auto &Entry : Node->getGlobalVars()) {
+    for (const auto &Entry : Module->getGlobalVars()) {
         ASTGlobalVar *GlobalVar = Entry.getValue();
         FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode",
                           "GlobalVar=" << GlobalVar->str());
@@ -106,7 +106,7 @@ void FrontendAction::GenerateTopDef() {
     }
 
     // Instantiates all Function CodeGen in order to be set in all Call references
-    for (auto &FuncStrMap : Node->getFunctions()) {
+    for (auto &FuncStrMap : Module->getFunctions()) {
         for (auto &FuncList : FuncStrMap.getValue()) {
             for (auto &Func : FuncList.second) {
                 CodeGenFunction *CGF = CGM->GenFunction(Func);
@@ -118,11 +118,11 @@ void FrontendAction::GenerateTopDef() {
         }
     }
 
-    if (Node->getIdentity()) {
-        if (Node->getIdentity()->getTopDefKind() == ASTTopDefKind::DEF_CLASS) {
-            CGClass = CGM->GenClass((ASTClass *) Node->getIdentity());
+    if (Module->getIdentity()) {
+        if (Module->getIdentity()->getTopDefKind() == ASTTopDefKind::DEF_CLASS) {
+            CGClass = CGM->GenClass((ASTClass *) Module->getIdentity());
             if (FrontendOpts.CreateHeader) {
-                CGH->setClass((ASTClass *) Node->getIdentity());
+                CGH->setClass((ASTClass *) Module->getIdentity());
             }
         }
     }
@@ -131,8 +131,8 @@ void FrontendAction::GenerateTopDef() {
 }
 
 bool FrontendAction::GenerateBodies() {
-    assert(Node && "Node not built, need a Parse()");
-    assert(!Node->isHeader() && "Cannot generate code from Header");
+    assert(Module && "Module not built, need a Parse()");
+    assert(!Module->isHeader() && "Cannot generate code from Header");
     FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode", "Input=" << Input->getFileName());
     Diags.getClient()->BeginSourceFile();
 

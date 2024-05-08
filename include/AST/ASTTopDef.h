@@ -17,7 +17,7 @@ namespace llvm {
 namespace fly {
 
     class SourceLocation;
-    class ASTNode;
+    class ASTModule;
     class ASTNameSpace;
     class ASTScopes;
 
@@ -34,7 +34,7 @@ namespace fly {
 
     public:
 
-        virtual ASTNode *getNode() const = 0;
+        virtual ASTModule *getModule() const = 0;
 
         virtual llvm::StringRef getName() const = 0;
 

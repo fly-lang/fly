@@ -30,7 +30,7 @@ namespace fly {
 
         llvm::StringRef Name;
 
-        ASTNode *Node = nullptr;
+        ASTModule *Module = nullptr;
 
         ASTIdentityType *Type = nullptr;
 
@@ -45,7 +45,7 @@ namespace fly {
 
         ASTScopes *getScopes() const;
 
-        ASTNode *getNode() const override;
+        ASTModule *getModule() const override;
 
         ASTNameSpace *getNameSpace() const override;
 

@@ -17,7 +17,7 @@ namespace fly {
     class SourceLocation;
     class DiagnosticsEngine;
     class DiagnosticBuilder;
-    class ASTNode;
+    class ASTModule;
     class ASTNameSpace;
     class ASTVarRef;
     class ASTFunction;
@@ -38,7 +38,7 @@ namespace fly {
         llvm::StringMap<ASTNameSpace *> NameSpaces;
 
         // All Context Namespaces
-        llvm::StringMap<ASTNode *> Nodes;
+        llvm::StringMap<ASTModule *> Modules;
 
         // All Files: <Name, ASTImport>
         llvm::StringMap<ASTImport *> ExternalImports; // TODO
@@ -53,7 +53,7 @@ namespace fly {
 
         const llvm::StringMap<ASTNameSpace *> &getNameSpaces() const;
 
-        const llvm::StringMap<ASTNode *> &getNodes() const;
+        const llvm::StringMap<ASTModule *> &getModules() const;
     };
 }
 

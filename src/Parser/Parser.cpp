@@ -12,7 +12,7 @@
 #include "Parser/ExprParser.h"
 #include "Parser/ClassParser.h"
 #include "Parser/EnumParser.h"
-#include "AST/ASTNode.h"
+#include "AST/ASTModule.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTEnum.h"
 #include "AST/ASTGlobalVar.h"
@@ -53,11 +53,11 @@ Parser::Parser(const InputFile &Input, SourceManager &SourceMgr, DiagnosticsEngi
 }
 
 /**
- * Start Parsing Input and compose ASTNode
- * @param Node 
+ * Start Parsing Input and compose ASTModule
+ * @param Module
  * @return true on Success or false on Error
  */
-ASTNode *Parser::Parse() {
+ASTModule *Parser::Parse() {
     FLY_DEBUG("Parser", "Parse");
     Tok.startToken();
     Tok.setKind(tok::eof);
@@ -66,10 +66,10 @@ ASTNode *Parser::Parse() {
     ConsumeToken();
     bool Success = true;
 
-    Node = Builder.CreateNode(Input.getFileName());
+    Module = Builder.CreateModule(Input.getFileName());
 
     // Parse NameSpace on first
-    if (ParseNameSpace() && Builder.AddNode(Node)) {
+    if (ParseNameSpace() && Builder.AddModule(Module)) {
 
         // Parse Imports
         if (ParseImports()) {
@@ -87,10 +87,10 @@ ASTNode *Parser::Parse() {
         }
     }
 
-    return !Diags.hasErrorOccurred() && Success ? Node : nullptr;
+    return !Diags.hasErrorOccurred() && Success ? Module : nullptr;
 }
 
-ASTNode *Parser::ParseHeader() {
+ASTModule *Parser::ParseHeader() {
     FLY_DEBUG("Parser", "ParseHeader");
     Tok.startToken();
     Tok.setKind(tok::eof);
@@ -100,7 +100,7 @@ ASTNode *Parser::ParseHeader() {
 
     // Parse NameSpace on first
     if (ParseNameSpace()) {
-        Node = Builder.CreateHeaderNode(Input.getFileName());
+        Module = Builder.CreateHeaderModule(Input.getFileName());
 
         // Parse Top declarations
         while (Tok.isNot(tok::eof)) {
@@ -110,7 +110,7 @@ ASTNode *Parser::ParseHeader() {
         }
     }
 
-    return Diags.hasErrorOccurred() ? nullptr : Node;
+    return Diags.hasErrorOccurred() ? nullptr : Module;
 }
 
 /**
@@ -141,7 +141,7 @@ bool Parser::ParseNameSpace() {
     }
     FLY_DEBUG_MESSAGE("Parser", "ParseNameSpace", "NameSpace=" << NameSpace);
 
-    return Builder.AddNameSpace(Node, NameSpace);
+    return Builder.AddNameSpace(Module, NameSpace);
 }
 
 /**
@@ -169,7 +169,7 @@ bool Parser::ParseImports() {
                 FLY_DEBUG_MESSAGE("Parser", "ParseImports", "Name=" << Import->getName() << ", Alias=" << Alias->getName());
                 Import->setAlias(Alias);
             }
-            return Builder.AddImport(Node, Import) && ParseImports();
+            return Builder.AddImport(Module, Import) && ParseImports();
         } else {
             Diag(Loc, diag::err_import_undefined);
             return false;
@@ -303,8 +303,8 @@ bool Parser::ParseGlobalVarDef(ASTScopes *Scopes, ASTType *Type) {
         Diag(Tok.getLocation(), diag::err_invalid_gvar_value);
     }
 
-    return Builder.AddGlobalVar(Node, GlobalVar, Value) &&
-        Builder.AddComment(GlobalVar, Comment);
+    return Builder.AddGlobalVar(Module, GlobalVar, Value) &&
+           Builder.AddComment(GlobalVar, Comment);
 }
 
 
@@ -333,13 +333,13 @@ bool Parser::ParseFunctionDef(ASTScopes *Scopes, ASTType *Type) {
     if (FunctionParser::Parse(this, Function)) {
 
         // Error: body must be empty in header declaration
-        if (Node->isHeader() && !Function->getBody()->isEmpty()) {
+        if (Module->isHeader() && !Function->getBody()->isEmpty()) {
             // TODO
         }
 
         BlockComment = StringRef();
         return Builder.AddComment(Function, Comment) &&
-            Builder.AddFunction(Node, Function);
+            Builder.AddFunction(Module, Function);
     }
 
     return false;
@@ -363,7 +363,7 @@ bool Parser::ParseClassDef(ASTScopes *Scopes) {
 
     ASTClass *Class = ClassParser::Parse(this, Scopes);
     if (Class) {
-        return Builder.AddComment(Class, Comment) && Builder.AddIdentity(Node, Class);
+        return Builder.AddComment(Class, Comment) && Builder.AddIdentity(Module, Class);
     }
 
     return false;
@@ -388,7 +388,7 @@ bool Parser::ParseEnumDef(ASTScopes *Scopes) {
 
     ASTEnum *Enum = EnumParser::Parse(this, Scopes);
     if (Enum) {
-        return Builder.AddComment(Enum, Comment) && Builder.AddIdentity(Node, Enum);
+        return Builder.AddComment(Enum, Comment) && Builder.AddIdentity(Module, Enum);
     }
 
     return false;
