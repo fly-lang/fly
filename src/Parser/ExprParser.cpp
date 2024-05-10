@@ -17,9 +17,8 @@
 
 using namespace fly;
 
-ExprParser::ExprParser(Parser *P, ASTStmt *Stmt) : P(P), Stmt(Stmt) {
-    FLY_DEBUG_MESSAGE("ExprParser", "ExprParser", Logger()
-            .Attr("Stmt", Stmt).End());
+ExprParser::ExprParser(Parser *P) : P(P) {
+    FLY_DEBUG_MESSAGE("ExprParser", "ExprParser", Logger().End());
 }
 
 /**
@@ -41,7 +40,6 @@ ASTExpr *ExprParser::ParseAssignExpr(ASTVarRef *VarRef) {
 
     // Create First Expr
     ASTVarRefExpr *First = P->Builder.CreateExpr(VarRef);
-    P->Builder.AddExpr(Stmt, First);
     Group.push_back(First);
 
     // Parse binary assignment operator
@@ -125,7 +123,7 @@ ASTExpr *ExprParser::ParseExpr(bool IsFirst) {
     if (P->Tok.is(tok::l_paren)) { // Start a new Group of Expressions
         P->ConsumeParen();
 
-        ExprParser SubP(P, Stmt);
+        ExprParser SubP(P);
         Expr = SubP.ParseExpr();
         if (Expr) {
             if (P->Tok.is(tok::r_paren)) {
@@ -137,7 +135,6 @@ ASTExpr *ExprParser::ParseExpr(bool IsFirst) {
         }
     } else if (P->isValue()) { // Ex. 1
         Expr = P->Builder.CreateExpr(P->ParseValue());
-        P->Builder.AddExpr(Stmt, Expr);
     } else if (P->Tok.isAnyIdentifier()) { // Ex. a or a++ or func()
         Expr = ParseExpr(P->ParseIdentifier());
     } else if (P->isUnaryPreOperator(P->Tok)) { // Ex. ++a or --a or !a
@@ -148,7 +145,6 @@ ASTExpr *ExprParser::ParseExpr(bool IsFirst) {
         // FIXME? remove or change logic?
         // Used with: return
         Expr =  P->Builder.CreateExpr(); // return an ASTEmptyExpr
-        P->Builder.AddExpr(Stmt, Expr);
         return Expr;
     }
 
@@ -191,13 +187,13 @@ ASTExpr *ExprParser::ParseExpr(bool IsFirst) {
         // Parse True Expr
         const SourceLocation &QuestionLoc = P->ConsumeToken();
 
-        ExprParser SubSecond(P, Stmt);
+        ExprParser SubSecond(P);
         ASTExpr *True = SubSecond.ParseExpr();
 
         if (P->Tok.getKind() == tok::colon) {
             const SourceLocation &ColonLoc = P->ConsumeToken();
 
-            ExprParser SubThird(P, Stmt);
+            ExprParser SubThird(P);
             ASTExpr *False = SubThird.ParseExpr();
             if (False != nullptr)
                 return P->Builder.CreateTernaryExpr(Expr, QuestionLoc, True, ColonLoc, False);
@@ -216,7 +212,6 @@ ASTExpr *ExprParser::ParseExpr(ASTIdentifier *Identifier) {
                       Logger().Attr("Identifier", Identifier).End());
     if (Identifier->isCall()) { // Ex. a()
         ASTCallExpr *CallExpr = P->Builder.CreateExpr((ASTCall *) Identifier);
-        P->Builder.AddExpr(Stmt, CallExpr);
         return CallExpr;
     } else { // parse variable post increment/decrement or simple var
         ASTVarRef *VarRef = P->Builder.CreateVarRef(Identifier);
@@ -225,7 +220,6 @@ ASTExpr *ExprParser::ParseExpr(ASTIdentifier *Identifier) {
         } else {
             // Simple Var
             ASTVarRefExpr *VarRefExpr = P->Builder.CreateExpr(VarRef);
-            P->Builder.AddExpr(Stmt, VarRefExpr);
             return VarRefExpr;
         }
     }
@@ -239,7 +233,6 @@ ASTExpr *ExprParser::ParseNewExpr(Parser *P) {
 
         if (Identifier->isCall()) { // Ex. a()
             ASTCallExpr *CallExpr = P->Builder.CreateNewExpr((ASTCall *) Identifier);
-            P->Builder.AddExpr(Stmt, CallExpr);
             return CallExpr;
         }
     }
@@ -260,7 +253,6 @@ ASTUnaryGroupExpr *ExprParser::ParseUnaryPostExpr(ASTVarRef *VarRef) {
     FLY_DEBUG_MESSAGE("ExprParser", "ParseUnaryPostExpr", Logger()
             .Attr("VarRef", VarRef).End());
     ASTVarRefExpr *VarRefExpr = P->Builder.CreateExpr(VarRef);
-    P->Builder.AddExpr(Stmt, VarRefExpr);
     ASTUnaryOperatorKind Op;
     switch (P->Tok.getKind()) {
         case tok::exclaim:
@@ -309,7 +301,6 @@ ASTUnaryGroupExpr* ExprParser::ParseUnaryPreExpr(Parser *P) {
         ASTIdentifier *Identifier = P->ParseIdentifier();
         ASTVarRef *VarRef = P->Builder.CreateVarRef(Identifier);
         ASTVarRefExpr *VarRefExpr = P->Builder.CreateExpr(VarRef);
-        P->Builder.AddExpr(Stmt, VarRefExpr);
         return P->Builder.CreateUnaryExpr(VarRef->getLocation(), Op, ASTUnaryOptionKind::UNARY_PRE, VarRefExpr);
     }
 

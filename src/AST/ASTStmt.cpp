@@ -19,8 +19,8 @@ ASTStmt *ASTStmt::getParent() const {
     return Parent;
 }
 
-ASTFunctionBase *ASTStmt::getTop() const {
-    return Top;
+ASTFunctionBase *ASTStmt::getFunction() const {
+    return Function;
 }
 
 ASTStmtKind ASTStmt::getKind() const {

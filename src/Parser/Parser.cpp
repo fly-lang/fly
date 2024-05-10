@@ -450,9 +450,9 @@ bool Parser::ParseStmt(ASTBlockStmt *Parent, bool StopParse) {
 
     if (Tok.is(tok::kw_return)) { // Parse return
         SourceLocation Loc = ConsumeToken();
-        ASTReturnStmt *Return = Builder.CreateReturnStmt(Loc);
-        ASTExpr *Expr = ParseExpr(Return);
-        return Builder.AddStmt(Parent, Return) && (StopParse || ParseStmt(Parent));
+        ASTReturnStmt *ReturnStmt = Builder.CreateReturnStmt(Loc);
+        ASTExpr *Expr = ParseExpr();
+        return Builder.AddExpr(ReturnStmt, Expr) && Builder.AddStmt(Parent, ReturnStmt) && (StopParse || ParseStmt(Parent));
     }
     if (Tok.is(tok::kw_break)) { // Parse break
         ASTBreakStmt *Break = Builder.CreateBreakStmt(ConsumeToken());
@@ -489,11 +489,12 @@ bool Parser::ParseStmt(ASTBlockStmt *Parent, bool StopParse) {
                 ASTVarStmt *VarStmt = Builder.CreateVarStmt(LocalVar);
 
                 // int a = ...
+                ASTExpr *Expr = nullptr;
                 if (Tok.is(tok::equal)) {
                     ConsumeToken();
-                    ASTExpr *Expr = ParseExpr(VarStmt);
+                    Expr = ParseExpr();
                 }
-                return Builder.AddStmt(Parent, VarStmt) && (StopParse || ParseStmt(Parent));
+                return Builder.AddExpr(VarStmt, Expr) && Builder.AddStmt(Parent, VarStmt) && (StopParse || ParseStmt(Parent));
 
             } else if (Tok.isAnyIdentifier()) { // Type a: Identifier is ASTType
                 ASTIdentifier *Identifier2 = ParseIdentifier();
@@ -505,7 +506,6 @@ bool Parser::ParseStmt(ASTBlockStmt *Parent, bool StopParse) {
                 ASTLocalVar *LocalVar = Builder.CreateLocalVar(Tok.getLocation(), Type,
                                                                Identifier2->getName(), Scopes);
 
-                ASTStmt *Stmt = nullptr;
                 // Type a = ...
                 if (Tok.is(tok::equal)) {
                     ConsumeToken();
@@ -514,9 +514,9 @@ bool Parser::ParseStmt(ASTBlockStmt *Parent, bool StopParse) {
                         ASTVarRef *VarRef = Builder.CreateVarRef(LocalVar);
                         return ParseHandleStmt(Parent, VarRef) && (StopParse || ParseStmt(Parent));
                     } else {
-                        Stmt = Builder.CreateVarStmt(LocalVar);
-                        ASTExpr *Expr = ParseExpr(Stmt);
-                        return Builder.AddStmt(Parent, Stmt) && (StopParse || ParseStmt(Parent));
+                        ASTVarStmt *Stmt = Builder.CreateVarStmt(LocalVar);
+                        ASTExpr *Expr = ParseExpr();
+                        return Builder.AddExpr(Stmt, Expr) && Builder.AddStmt(Parent, Stmt) && (StopParse || ParseStmt(Parent));
                     }
                 }
 
@@ -527,7 +527,7 @@ bool Parser::ParseStmt(ASTBlockStmt *Parent, bool StopParse) {
                 ASTVarRef *VarRef = Builder.CreateVarRef(Identifier1);
                 ASTVarStmt *VarDefine = Builder.CreateVarStmt(VarRef);
 
-                ExprParser Parser(this, VarDefine);
+                ExprParser Parser(this);
                 ASTExpr *Expr = Parser.ParseAssignExpr();
                 return Expr && Builder.AddStmt(Parent, VarDefine)  && (StopParse || ParseStmt(Parent));
             }
@@ -539,7 +539,7 @@ bool Parser::ParseStmt(ASTBlockStmt *Parent, bool StopParse) {
     // ++a
     // new A()
     ASTExprStmt *ExprStmt = Builder.CreateExprStmt(Tok.getLocation());
-    ASTExpr *Expr = ParseExpr(ExprStmt, Identifier1);
+    ASTExpr *Expr = ParseExpr(Identifier1);
     if (Expr->getExprKind() != ASTExprKind::EXPR_EMPTY) {
         return Builder.AddStmt(Parent, ExprStmt) && (StopParse || ParseStmt(Parent));
     }
@@ -850,7 +850,7 @@ bool Parser::ParseForStmt(ASTBlockStmt *Parent) {
     if (Tok.is(tok::semi)) {
             ConsumeToken();
 
-            Condition = ParseExpr(Parent);
+            Condition = ParseExpr();
 
             if (Tok.is(tok::semi)) {
                 ParseStmt(PostBlock);
@@ -894,8 +894,8 @@ bool Parser::ParseFailStmt(ASTBlockStmt *Parent) {
 
     const SourceLocation &Loc = ConsumeToken();
     ASTFailStmt *FailStmt = Builder.CreateFailStmt(Loc);
-    bool Success = ParseExpr(FailStmt);
-    return Success & Builder.AddStmt(Parent, FailStmt);
+    ASTExpr *Expr = ParseExpr();
+    return Builder.AddExpr(FailStmt, Expr) && Builder.AddStmt(Parent, FailStmt);
 }
 
 bool Parser::ParseBuiltinType(ASTType *&Type) {
@@ -1262,10 +1262,11 @@ ASTValue *Parser::ParseValues() {
     return Values;
 }
 
-ASTExpr *Parser::ParseExpr(ASTStmt *Stmt, ASTIdentifier *Identifier) {
-    FLY_DEBUG_MESSAGE("Parser", "ParseExpr", Logger().Attr("Stmt", Stmt).End());
-    ExprParser Parser(this, Stmt);
-    return Identifier ? Parser.ParseExpr(Identifier) : Parser.ParseExpr();
+ASTExpr *Parser::ParseExpr(ASTIdentifier *Identifier) {
+    FLY_DEBUG_MESSAGE("Parser", "ParseExpr", Logger().Attr("Identifier", Identifier).End());
+    ExprParser Parser(this);
+    ASTExpr *Expr = Identifier ? Parser.ParseExpr(Identifier) : Parser.ParseExpr();
+    return Expr;
 }
 
 /**

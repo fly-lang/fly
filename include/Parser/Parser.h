@@ -120,7 +120,7 @@ namespace fly {
         ASTValue *ParseValues();
 
         // Parse Expressions
-        ASTExpr *ParseExpr(ASTStmt *Stmt = nullptr, ASTIdentifier *Identifier = nullptr);
+        ASTExpr *ParseExpr(ASTIdentifier *Identifier = nullptr);
 
         // Check Keywords
         bool isBuiltinType(Token &Tok);

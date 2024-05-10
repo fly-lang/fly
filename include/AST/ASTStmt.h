@@ -46,7 +46,7 @@ namespace fly {
 
         ASTStmt *Parent = nullptr;
 
-        ASTFunctionBase *Top = nullptr;
+        ASTFunctionBase *Function = nullptr;
 
         ASTVar *ErrorHandler = nullptr;
 
@@ -56,7 +56,7 @@ namespace fly {
 
         virtual ASTStmt *getParent() const;
 
-        ASTFunctionBase *getTop() const;
+        ASTFunctionBase *getFunction() const;
 
         ASTStmtKind getKind() const;
 

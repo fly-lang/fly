@@ -470,7 +470,7 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
             ASTReturnStmt *Return = (ASTReturnStmt *) Stmt;
             if (Return->getParent()->getKind() == ASTStmtKind::STMT_BLOCK) {
                 llvm::Value *V = Return->getExpr() ? GenExpr(Return->getExpr()) : nullptr;
-                GenReturn(((ASTBlockStmt *) Return->getParent())->getTop(), V);
+                GenReturn(((ASTBlockStmt *) Return->getParent())->getFunction(), V);
             }
             break;
         }
@@ -503,7 +503,7 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
                 ASTHandleStmt *HandleStmt = FailStmt->getHandle();
                 HandleStmt->getCodeGen()->GoToBlock();
             } else {
-                ASTFunctionBase *F = FailStmt->getParent()->getTop();
+                ASTFunctionBase *F = FailStmt->getParent()->getFunction();
                 GenReturn(F);
             }
             break;

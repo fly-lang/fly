@@ -88,37 +88,37 @@ namespace fly {
 
         bool ResolveLoopBlock(ASTLoopStmt *LoopStmt);
 
-        bool ResolveParentIdentifier(ASTStmt *Parent, ASTIdentifier *&Identifier);
+        bool ResolveParentIdentifier(ASTStmt *Stmt, ASTIdentifier *&Identifier);
 
         bool ResolveIdentityType(ASTModule *Module, ASTIdentityType *IdentityType);
 
-        bool ResolveVarRef(ASTStmt *Parent, ASTVarRef *VarRef);
+        bool ResolveVarRef(ASTStmt *Stmt, ASTVarRef *VarRef);
 
-        ASTVar *ResolveVarRefNoParent(ASTStmt *Parent, llvm::StringRef Name);
+        ASTVar *ResolveVarRefNoParent(ASTStmt *Stmt, llvm::StringRef Name);
 
         ASTVar *ResolveVarRef(llvm::StringRef Name, ASTIdentityType *IdentityType);
 
         bool ResolveVarRefWithParent(ASTVarRef *VarRef);
 
-        bool ResolveCall(ASTStmt *Parent, ASTCall *Call);
+        bool ResolveCall(ASTStmt *Stmt, ASTCall *Call);
 
-        bool ResolveCallNoParent(ASTStmt *Parent, ASTCall *Call);
+        bool ResolveCallNoParent(ASTStmt *Stmt, ASTCall *Call);
 
-        bool ResolveCall(ASTStmt *Parent, ASTCall *Call, ASTIdentityType *IdentityType);
+        bool ResolveCall(ASTStmt *Stmt, ASTCall *Call, ASTIdentityType *IdentityType);
 
-        bool ResolveCall(ASTStmt *Parent, ASTCall *Call, ASTNameSpace *NameSpace);
+        bool ResolveCall(ASTStmt *Stmt, ASTCall *Call, ASTNameSpace *NameSpace);
 
-        bool ResolveCallWithParent(ASTStmt *Parent, ASTCall *Call);
-
-        template <class T>
-        bool ResolveCall(ASTStmt *Parent, ASTCall *Call, llvm::StringMap<std::map <uint64_t,llvm::SmallVector <T *, 4>>> &Functions);
+        bool ResolveCallWithParent(ASTStmt *Stmt, ASTCall *Call);
 
         template <class T>
-        bool ResolveCall(ASTStmt *Parent, ASTCall *Call, std::map <uint64_t,llvm::SmallVector <T *, 4>> &Functions);
+        bool ResolveCall(ASTStmt *Stmt, ASTCall *Call, llvm::StringMap<std::map <uint64_t,llvm::SmallVector <T *, 4>>> &Functions);
 
-        bool ResolveArg(ASTStmt *Parent, ASTArg *Arg, ASTParam *Param);
+        template <class T>
+        bool ResolveCall(ASTStmt *Stmt, ASTCall *Call, std::map <uint64_t,llvm::SmallVector <T *, 4>> &Functions);
 
-        bool ResolveExpr(ASTStmt *Parent, ASTExpr *Expr);
+        bool ResolveArg(ASTStmt *Stmt, ASTArg *Arg, ASTParam *Param);
+
+        bool ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr);
 
         bool ResolveValueExpr(ASTValueExpr *pExpr);
 
@@ -132,7 +132,7 @@ namespace fly {
 
         ASTIdentityType *FindIdentityType(llvm::StringRef Name, ASTNameSpace *NameSpace) const;
 
-        ASTVar *FindLocalVar(ASTStmt *Parent, llvm::StringRef Name) const;
+        ASTVar *FindLocalVar(ASTStmt *Stmt, llvm::StringRef Name) const;
 
         ASTImport *FindImport(ASTModule *Module, llvm::StringRef Name);
 

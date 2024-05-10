@@ -50,12 +50,10 @@ namespace fly {
 
         Parser *P;
 
-        ASTStmt *Stmt;
-
         std::vector<ASTExpr *> Group;
 
     public:
-        ExprParser(Parser *P, ASTStmt *Stmt);
+        ExprParser(Parser *P);
 
         ASTExpr *ParseAssignExpr(ASTVarRef *VarRef = nullptr);
 

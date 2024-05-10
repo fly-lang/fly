@@ -944,11 +944,8 @@ namespace {
                                                     Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
         ASTBlockStmt *Body = Builder.CreateBody(Func);
         ASTLocalVar *aVar = Builder.CreateLocalVar(SourceLoc, IntType, "a");
-        EXPECT_TRUE(Builder.AddStmt(Body, aVar));
         ASTLocalVar *bVar = Builder.CreateLocalVar(SourceLoc, IntType, "b");
-        EXPECT_TRUE(Builder.AddStmt(Body, bVar));
         ASTLocalVar *cVar = Builder.CreateLocalVar(SourceLoc, BoolType, "c");
-        EXPECT_TRUE(Builder.AddStmt(Body, cVar));
 
         // a = 0
         ASTVarStmt *aVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(aVar));
@@ -962,48 +959,48 @@ namespace {
 
         // c = a == b
         ASTVarStmt * cEqVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(cVar));
-        Builder.CreateBinaryExpr(cEqVarStmt, SourceLoc, ASTBinaryOperatorKind::COMP_EQ,
-                                  Builder.CreateExpr(cEqVarStmt, Builder.CreateVarRef(aVar)),
-                                  Builder.CreateExpr(cEqVarStmt, Builder.CreateVarRef(bVar)));
+        Builder.CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::COMP_EQ,
+                                  Builder.CreateExpr(Builder.CreateVarRef(aVar)),
+                                  Builder.CreateExpr(Builder.CreateVarRef(bVar)));
         EXPECT_TRUE(Builder.AddStmt(Body, cEqVarStmt));
 
         // c = a != b
         ASTVarStmt * cNeqVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(cVar));
-        Builder.CreateBinaryExpr(cNeqVarStmt, SourceLoc, ASTBinaryOperatorKind::COMP_NE,
-                                  Builder.CreateExpr(cNeqVarStmt, Builder.CreateVarRef(aVar)),
-                                  Builder.CreateExpr(cNeqVarStmt, Builder.CreateVarRef(bVar)));
+        Builder.CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::COMP_NE,
+                                  Builder.CreateExpr(Builder.CreateVarRef(aVar)),
+                                  Builder.CreateExpr(Builder.CreateVarRef(bVar)));
         EXPECT_TRUE(Builder.AddStmt(Body, cNeqVarStmt));
 
         // c = a > b
         ASTVarStmt * cGtVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(cVar));
-        Builder.CreateBinaryExpr(cGtVarStmt, SourceLoc, ASTBinaryOperatorKind::COMP_GT,
-                                  Builder.CreateExpr(cGtVarStmt, Builder.CreateVarRef(aVar)),
-                                  Builder.CreateExpr(cGtVarStmt, Builder.CreateVarRef(bVar)));
+        Builder.CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::COMP_GT,
+                                  Builder.CreateExpr(Builder.CreateVarRef(aVar)),
+                                  Builder.CreateExpr(Builder.CreateVarRef(bVar)));
         EXPECT_TRUE(Builder.AddStmt(Body, cGtVarStmt));
 
         // c = a >= b
         ASTVarStmt * cGteVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(cVar));
-        Builder.CreateBinaryExpr(cGteVarStmt, SourceLoc, ASTBinaryOperatorKind::COMP_GTE,
-                                  Builder.CreateExpr(cGteVarStmt, Builder.CreateVarRef(aVar)),
-                                  Builder.CreateExpr(cGteVarStmt, Builder.CreateVarRef(bVar)));
+        Builder.CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::COMP_GTE,
+                                  Builder.CreateExpr(Builder.CreateVarRef(aVar)),
+                                  Builder.CreateExpr(Builder.CreateVarRef(bVar)));
         EXPECT_TRUE(Builder.AddStmt(Body, cGteVarStmt));
 
         // c = a < b
         ASTVarStmt * cLtVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(cVar));
-        Builder.CreateBinaryExpr(cLtVarStmt, SourceLoc, ASTBinaryOperatorKind::COMP_LT,
-                                  Builder.CreateExpr(cLtVarStmt, Builder.CreateVarRef(aVar)),
-                                  Builder.CreateExpr(cLtVarStmt, Builder.CreateVarRef(bVar)));
+        Builder.CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::COMP_LT,
+                                  Builder.CreateExpr(Builder.CreateVarRef(aVar)),
+                                  Builder.CreateExpr(Builder.CreateVarRef(bVar)));
         EXPECT_TRUE(Builder.AddStmt(Body, cLtVarStmt));
 
         // c = a <= b
         ASTVarStmt * cLteVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(cVar));
-        Builder.CreateBinaryExpr(cLteVarStmt, SourceLoc, ASTBinaryOperatorKind::COMP_LTE,
-                                  Builder.CreateExpr(cLteVarStmt, Builder.CreateVarRef(aVar)),
-                                  Builder.CreateExpr(cLteVarStmt, Builder.CreateVarRef(bVar)));
+        Builder.CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::COMP_LTE,
+                                  Builder.CreateExpr(Builder.CreateVarRef(aVar)),
+                                  Builder.CreateExpr(Builder.CreateVarRef(bVar)));
         EXPECT_TRUE(Builder.AddStmt(Body, cLteVarStmt));
 
         // Add to Module
-        EXPECT_TRUE(Builder.AddFunction(Func));
+        EXPECT_TRUE(Builder.AddFunction(Module, Func));
 
         EXPECT_TRUE(S->Resolve());
 
@@ -1056,11 +1053,8 @@ namespace {
                                                     Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
         ASTBlockStmt *Body = Builder.CreateBody(Func);
         ASTLocalVar *aVar = Builder.CreateLocalVar(SourceLoc, BoolType, "a");
-        EXPECT_TRUE(Builder.AddStmt(Body, aVar));
         ASTLocalVar *bVar = Builder.CreateLocalVar(SourceLoc, BoolType, "b");
-        EXPECT_TRUE(Builder.AddStmt(Body, bVar));
         ASTLocalVar *cVar = Builder.CreateLocalVar(SourceLoc, BoolType, "c");
-        EXPECT_TRUE(Builder.AddStmt(Body, cVar));
 
         // a = false
         ASTVarStmt *aVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(aVar));
@@ -1074,20 +1068,20 @@ namespace {
 
         // c = a and b
         ASTVarStmt * cAndVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(cVar));
-        Builder.CreateBinaryExpr(cAndVarStmt, SourceLoc, ASTBinaryOperatorKind::LOGIC_AND,
-                                  Builder.CreateExpr(cAndVarStmt, Builder.CreateVarRef(aVar)),
-                                  Builder.CreateExpr(cAndVarStmt, Builder.CreateVarRef(bVar)));
+        Builder.CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::LOGIC_AND,
+                                  Builder.CreateExpr(Builder.CreateVarRef(aVar)),
+                                  Builder.CreateExpr(Builder.CreateVarRef(bVar)));
         EXPECT_TRUE(Builder.AddStmt(Body, cAndVarStmt));
 
         // c = a or b
         ASTVarStmt * cOrVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(cVar));
-        Builder.CreateBinaryExpr(cOrVarStmt, SourceLoc, ASTBinaryOperatorKind::LOGIC_OR,
-                                  Builder.CreateExpr(cOrVarStmt, Builder.CreateVarRef(aVar)),
-                                  Builder.CreateExpr(cOrVarStmt, Builder.CreateVarRef(bVar)));
+        Builder.CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::LOGIC_OR,
+                                  Builder.CreateExpr(Builder.CreateVarRef(aVar)),
+                                  Builder.CreateExpr(Builder.CreateVarRef(bVar)));
         EXPECT_TRUE(Builder.AddStmt(Body, cOrVarStmt));
 
         // Add to Module
-        EXPECT_TRUE(Builder.AddFunction(Func));
+        EXPECT_TRUE(Builder.AddFunction(Module, Func));
 
         EXPECT_TRUE(S->Resolve());
 
@@ -1146,11 +1140,8 @@ namespace {
                                                     Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
         ASTBlockStmt *Body = Builder.CreateBody(Func);
         ASTLocalVar *aVar = Builder.CreateLocalVar(SourceLoc, BoolType, "a");
-        EXPECT_TRUE(Builder.AddStmt(Body, aVar));
         ASTLocalVar *bVar = Builder.CreateLocalVar(SourceLoc, BoolType, "b");
-        EXPECT_TRUE(Builder.AddStmt(Body, bVar));
         ASTLocalVar *cVar = Builder.CreateLocalVar(SourceLoc, BoolType, "c");
-        EXPECT_TRUE(Builder.AddStmt(Body, cVar));
 
         // a = false
         ASTVarStmt *aVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(aVar));
@@ -1164,23 +1155,20 @@ namespace {
 
         // c = a == b ? a : b
         ASTVarStmt * cVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(cVar));
-        ASTBinaryGroupExpr *Cond = Builder.CreateBinaryExpr(cVarStmt, SourceLoc, ASTBinaryOperatorKind::COMP_EQ,
-                                                             Builder.CreateExpr(cVarStmt,
-                                                                                 Builder.CreateVarRef(aVar)),
-                                                             Builder.CreateExpr(cVarStmt,
-                                                                                 Builder.CreateVarRef(bVar)));
+        ASTBinaryGroupExpr *Cond = Builder.CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::COMP_EQ,
+                                                             Builder.CreateExpr(Builder.CreateVarRef(aVar)),
+                                                             Builder.CreateExpr(Builder.CreateVarRef(bVar)));
 
-        ASTTernaryGroupExpr *TernaryExpr = Builder.CreateTernaryExpr(cVarStmt, Cond, SourceLoc,
-                                                                      Builder.CreateExpr(cVarStmt,
-                                                                                          Builder.CreateVarRef(aVar)),
-                                                                      SourceLoc,
-                                                                      Builder.CreateExpr(cVarStmt,
-                                                                                          Builder.CreateVarRef(bVar)));
+        ASTTernaryGroupExpr *TernaryExpr = Builder.CreateTernaryExpr(Cond, 
+                                                                     SourceLoc,
+                                                                     Builder.CreateExpr(Builder.CreateVarRef(aVar)),
+                                                                     SourceLoc,
+                                                                      Builder.CreateExpr(Builder.CreateVarRef(bVar)));
 
         EXPECT_TRUE(Builder.AddStmt(Body, cVarStmt));
 
         // Add to Module
-        EXPECT_TRUE(Builder.AddFunction(Func));
+        EXPECT_TRUE(Builder.AddFunction(Module, Func));
 
         EXPECT_TRUE(S->Resolve());
 
@@ -1234,25 +1222,25 @@ namespace {
 
         // int a = 0
         ASTLocalVar *aVar = Builder.CreateLocalVar(SourceLoc, IntType, "a");
-        Builder.CreateExpr(aVar, Builder.CreateIntegerValue(SourceLoc, 0));
-        EXPECT_TRUE(Builder.AddStmt(Body, aVar));
-
-        // Create if block
-        ASTIfStmt *IfBlock = Builder.CreateIfStmt(SourceLoc);
+        Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 0));
 
         // if (a == 1)
-        ASTVarRefExpr *aVarRef = Builder.CreateExpr(IfBlock, Builder.CreateVarRef(aVar));
-        ASTValueExpr *Value1 = Builder.CreateExpr(IfBlock, Builder.CreateIntegerValue(SourceLoc, 1));
-        ASTBinaryGroupExpr *IfCond = Builder.CreateBinaryExpr(IfBlock, SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value1);
+        ASTVarRefExpr *aVarRef = Builder.CreateExpr(Builder.CreateVarRef(aVar));
+        ASTValueExpr *Value1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
+        ASTBinaryGroupExpr *IfCond = Builder.CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value1);
 
         // { a = 2 }
-        ASTVarStmt *aVarStmt = Builder.CreateVarStmt(IfBlock, Builder.CreateVarRef(aVar));
-        Builder.CreateExpr(aVarStmt, Builder.CreateIntegerValue(SourceLoc, 2));
-        EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt));
-        EXPECT_TRUE(Builder.AddStmt(Body, IfBlock));
+        ASTBlockStmt *IfBlock = Builder.CreateBlockStmt(SourceLoc);
+        ASTVarStmt *aVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(aVar));
+        Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 2));
+        EXPECT_TRUE(Builder.AddStmt(IfBlock, aVarStmt));
+
+        // Create if block
+        ASTIfStmt *IfStmt = Builder.CreateIfStmt(SourceLoc, IfCond, IfBlock);
+        EXPECT_TRUE(Builder.AddStmt(Body, IfStmt));
 
         // Add to Module
-        EXPECT_TRUE(Builder.AddFunction(Func));
+        EXPECT_TRUE(Builder.AddFunction(Module, Func));
 
         EXPECT_TRUE(S->Resolve());
 
@@ -1293,13 +1281,14 @@ namespace {
         ASTParam *aParam = Builder.CreateParam(SourceLoc, IntType, "a");
         EXPECT_TRUE(Builder.AddParam(Func, aParam));
 
-        // Create if block
-        ASTIfStmt *IfBlock = Builder.CreateIfStmt(SourceLoc);
-
         // if (a == 1)
         ASTValueExpr *Value1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
         ASTVarRefExpr *aVarRef = Builder.CreateExpr(Builder.CreateVarRef(aParam));
-        ASTBinaryGroupExpr *IfCond = Builder.CreateBinaryExpr(IfBlock, SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value1);
+        ASTBinaryGroupExpr *IfCond = Builder.CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value1);
+
+        // Create if block
+        ASTBlockStmt *IfBlock = Builder.CreateBlockStmt(SourceLoc);
+        ASTIfStmt *IfStmt = Builder.CreateIfStmt(SourceLoc, IfCond, IfBlock);
 
         // { a = 1 }
         ASTVarStmt *aVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(aParam));
@@ -1314,7 +1303,7 @@ namespace {
         EXPECT_TRUE(Builder.AddStmt(Body, IfBlock));
 
         // Add to Module
-        EXPECT_TRUE(Builder.AddFunction(Func));
+        EXPECT_TRUE(Builder.AddFunction(Module, Func));
 
         EXPECT_TRUE(S->Resolve());
 
@@ -1356,16 +1345,17 @@ namespace {
         ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
                                                     Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
         ASTBlockStmt *Body = Builder.CreateBody(Func);
-        ASTParam *aParam = Builder.CreateParam(Func, SourceLoc, IntType, "a");
-        EXPECT_TRUE(Builder.AddParam(aParam));
-
-        // Create if block
-        ASTIfStmt *IfStmt = Builder.CreateIfStmt(Body, SourceLoc);
+        ASTParam *aParam = Builder.CreateParam(SourceLoc, IntType, "a");
+        EXPECT_TRUE(Builder.AddParam(Func, aParam));
 
         // if (a == 1) { a = 11 }
         ASTValueExpr *Value1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
         ASTVarRefExpr *aVarRef = Builder.CreateExpr(Builder.CreateVarRef(aParam));
         ASTBinaryGroupExpr *IfCond = Builder.CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value1);
+        ASTBlockStmt *IfBlock = Builder.CreateBlockStmt(SourceLoc);
+        // Create if block
+        ASTIfStmt *IfStmt = Builder.CreateIfStmt(SourceLoc, IfCond, IfBlock);
+
         ASTVarStmt *aVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(aParam));
         Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 11));
         EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt));
@@ -1373,28 +1363,31 @@ namespace {
         // elsif (a == 2) { a = 22 }
         ASTBlockStmt *ElsifBlock = Builder.CreateBlockStmt(SourceLoc);
         ASTValueExpr *Value2 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 2));
-        ASTBinaryGroupExpr *ElsifCond = Builder.CreateBinaryExpr(ElsifBlock, SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value2);
+        ASTBinaryGroupExpr *ElsifCond = Builder.CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value2);
         ASTVarStmt *aVarStmt2 = Builder.CreateVarStmt(Builder.CreateVarRef(aParam));
         Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 22));
         EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt2));
 
         // elsif (a == 3) { a = 33 }
-        ASTElsif *ElsifBlock2 = Builder.CreateElsifBlock(IfStmt, SourceLoc);
-        ASTValueExpr *Value3 = Builder.CreateExpr(aParam, Builder.CreateIntegerValue(SourceLoc, 3));
-        ASTBinaryGroupExpr *ElsifCond2 = Builder.CreateBinaryExpr(ElsifBlock2, SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value3);
-        ASTVarStmt *aVarStmt3 = Builder.CreateVarStmt(ElsifBlock2, Builder.CreateVarRef(aParam));
-        Builder.CreateExpr(aVarStmt3, Builder.CreateIntegerValue(SourceLoc, 33));
-        EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt3));
+        ASTBlockStmt *ElsifBlock2 = Builder.CreateBlockStmt(SourceLoc);
+        ASTValueExpr *Value3 = Builder.CreateExpr( Builder.CreateIntegerValue(SourceLoc, 3));
+        ASTBinaryGroupExpr *ElsifCond2 = Builder.CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value3);
+        ASTVarStmt *aVarStmt3 = Builder.CreateVarStmt(Builder.CreateVarRef(aParam));
+        Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 33));
+        EXPECT_TRUE(Builder.AddElsif(IfStmt, ElsifCond2, ElsifBlock2));
+        Builder.AddStmt(Body, aVarStmt3);
 
         // else {a == 44}
-        ASTElseBlock *ElseBlock = Builder.CreateElseBlock(IfStmt, SourceLoc);
-        ASTVarStmt *aVarStmt4 = Builder.CreateVarStmt(ElseBlock, Builder.CreateVarRef(aParam));
-        Builder.CreateExpr(aVarStmt4, Builder.CreateIntegerValue(SourceLoc, 44));
-        EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt4));
+        ASTBlockStmt *ElseBlock = Builder.CreateBlockStmt(SourceLoc);
+        ASTVarStmt *aVarStmt4 = Builder.CreateVarStmt(Builder.CreateVarRef(aParam));
+        Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 44));
+        
+        EXPECT_TRUE(Builder.AddElse(IfStmt, ElseBlock));
+
         EXPECT_TRUE(Builder.AddStmt(Body, IfStmt));
 
         // Add to Module
-        EXPECT_TRUE(Builder.AddFunction(Func));
+        EXPECT_TRUE(Builder.AddFunction(Module, Func));
 
         EXPECT_TRUE(S->Resolve());
 
@@ -1454,39 +1447,39 @@ namespace {
         ASTFunction *MainFn = Builder.CreateFunction(SourceLoc, VoidType, "func",
                                                       Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
         ASTBlockStmt *Body = Builder.CreateBody(MainFn);
-        ASTParam *aParam = Builder.CreateParam(MainFn, SourceLoc, IntType, "a");
-        EXPECT_TRUE(Builder.AddParam(aParam));
+        ASTParam *aParam = Builder.CreateParam(SourceLoc, IntType, "a");
+        EXPECT_TRUE(Builder.AddParam(MainFn, aParam));
 
         // Create if block
         ASTIfStmt *IfStmt = Builder.CreateIfStmt(Body, SourceLoc);
         EXPECT_TRUE(Builder.AddStmt(Body, IfStmt));
 
         // if a == 1 { a = 11 }
-        ASTValueExpr *Value1 = Builder.CreateExpr(aParam, Builder.CreateIntegerValue(SourceLoc, 1));
-        ASTVarRefExpr *aVarRef = Builder.CreateExpr(IfStmt, Builder.CreateVarRef(aParam));
+        ASTValueExpr *Value1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
+        ASTVarRefExpr *aVarRef = Builder.CreateExpr(Builder.CreateVarRef(aParam));
         ASTBinaryGroupExpr *IfCond = Builder.CreateBinaryExpr(IfStmt, SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value1);
-        ASTVarStmt *aVarStmt = Builder.CreateVarStmt(IfStmt, Builder.CreateVarRef(aParam));
-        Builder.CreateExpr(aVarStmt, Builder.CreateIntegerValue(SourceLoc, 11));
+        ASTVarStmt *aVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(aParam));
+        Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 11));
         EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt));
 
         // elsif a == 2 { a = 22 }
         ASTElsif *Elsif = Builder.CreateBlockStmt(SourceLoc);
-        ASTValueExpr *Value2 = Builder.CreateExpr(aParam, Builder.CreateIntegerValue(SourceLoc, 2));
-        ASTBinaryGroupExpr *ElsifCond = Builder.CreateBinaryExpr(Elsif, SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value2);
-        ASTVarStmt *aVarStmt2 = Builder.CreateVarStmt(Elsif, Builder.CreateVarRef(aParam));
-        Builder.CreateExpr(aVarStmt2, Builder.CreateIntegerValue(SourceLoc, 22));
+        ASTValueExpr *Value2 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 2));
+        ASTBinaryGroupExpr *ElsifCond = Builder.CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value2);
+        ASTVarStmt *aVarStmt2 = Builder.CreateVarStmt(Builder.CreateVarRef(aParam));
+        Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 22));
         EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt2));
 
         // elsif a == 3 { a = 33 }
-        ASTElsif *ElsifBlock2 = Builder.CreateBlockStmt(IfStmt, SourceLoc);
-        ASTValueExpr *Value3 = Builder.CreateExpr(aParam, Builder.CreateIntegerValue(SourceLoc, 3));
-        ASTBinaryGroupExpr *ElsifCond2 = Builder.CreateBinaryExpr(ElsifBlock2, SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value3);
-        ASTVarStmt *aVarStmt3 = Builder.CreateVarStmt(ElsifBlock2, Builder.CreateVarRef(aParam));
-        Builder.CreateExpr(aVarStmt3, Builder.CreateIntegerValue(SourceLoc, 33));
+        ASTElsif *ElsifBlock2 = Builder.CreateBlockStmt(SourceLoc);
+        ASTValueExpr *Value3 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 3));
+        ASTBinaryGroupExpr *ElsifCond2 = Builder.CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value3);
+        ASTVarStmt *aVarStmt3 = Builder.CreateVarStmt(Builder.CreateVarRef(aParam));
+        Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 33));
         EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt3));
 
         // Add to Module
-        EXPECT_TRUE(Builder.AddFunction(MainFn));
+        EXPECT_TRUE(Builder.AddFunction(Module, MainFn));
 
         EXPECT_TRUE(S->Resolve());
 
@@ -1541,37 +1534,37 @@ namespace {
         ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
                                                     Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
         ASTBlockStmt *Body = Builder.CreateBody(Func);
-        ASTParam *aParam = Builder.CreateParam(Func, SourceLoc, IntType, "a");
-        EXPECT_TRUE(Builder.AddParam(aParam));
+        ASTParam *aParam = Builder.CreateParam(SourceLoc, IntType, "a");
+        EXPECT_TRUE(Builder.AddParam(Func, aParam));
 
-        ASTSwitchStmt *SwitchStmt = Builder.CreateSwitchStmt(Body, SourceLoc);
+        ASTSwitchStmt *SwitchStmt = Builder.CreateSwitchStmt(SourceLoc);
         EXPECT_TRUE(Builder.AddStmt(Body, SwitchStmt));
 
         // switch a
-        ASTVarRefExpr *aVarRef = Builder.CreateExpr(SwitchStmt, Builder.CreateVarRef(aParam));
+        ASTVarRefExpr *aVarRef = Builder.CreateExpr(Builder.CreateVarRef(aParam));
 
         // case 1: a = 1 break
         ASTBlockStmt *Case1Block = Builder.CreateBlockStmt(SourceLoc);
-        Builder.CreateExpr(Case1Block, Builder.CreateIntegerValue(SourceLoc, 1));
+        Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
         ASTVarStmt *aVarStmt1 = Builder.CreateVarStmt(Builder.CreateVarRef(aParam));
-        Builder.CreateExpr(aVarStmt1, Builder.CreateIntegerValue(SourceLoc, 1));
+        Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
         EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt1));
 
         // case 2: a = 2 break
         ASTBlockStmt *Case2Block = Builder.CreateBlockStmt(SourceLoc);
-        Builder.CreateExpr(Case2Block, Builder.CreateIntegerValue(SourceLoc, 2));
+        Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 2));
         ASTVarStmt *aVarStmt2 = Builder.CreateVarStmt(Builder.CreateVarRef(aParam));
-        Builder.CreateExpr(aVarStmt2, Builder.CreateIntegerValue(SourceLoc, 2));
+        Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 2));
         EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt2));
 
         // default: a = 3
         ASTBlockStmt *DefaultBlock = Builder.CreateBlockStmt(SourceLoc);
         ASTVarStmt *aVarStmt3 = Builder.CreateVarStmt(Builder.CreateVarRef(aParam));
-        Builder.CreateExpr(aVarStmt3, Builder.CreateIntegerValue(SourceLoc, 3));
+        Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 3));
         EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt3));
 
         // Add to Module
-        EXPECT_TRUE(Builder.AddFunction(Func));
+        EXPECT_TRUE(Builder.AddFunction(Module, Func));
 
         EXPECT_TRUE(S->Resolve());
 
@@ -1627,17 +1620,17 @@ namespace {
         EXPECT_TRUE(Builder.AddStmt(Body, LoopStmt));
 
         // while a == 1
-        ASTValueExpr *Value1 = Builder.CreateExpr(aParam, Builder.CreateIntegerValue(SourceLoc, 1));
-        ASTVarRefExpr *aVarRef = Builder.CreateExpr(LoopStmt, Builder.CreateVarRef(aParam));
-        ASTBinaryGroupExpr *WhileCond = Builder.CreateBinaryExpr(LoopStmt, SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value1);
+        ASTValueExpr *Value1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
+        ASTVarRefExpr *aVarRef = Builder.CreateExpr(Builder.CreateVarRef(aParam));
+        ASTBinaryGroupExpr *WhileCond = Builder.CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::COMP_EQ, aVarRef, Value1);
 
         // { a = 1 }
-        ASTVarStmt *aVarStmt = Builder.CreateVarStmt(LoopStmt, Builder.CreateVarRef(aParam));
-        Builder.CreateExpr(aVarStmt, Builder.CreateIntegerValue(SourceLoc, 1));
+        ASTVarStmt *aVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(aParam));
+        Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
         EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt));
 
         // Add to Module
-        EXPECT_TRUE(Builder.AddFunction(Func));
+        EXPECT_TRUE(Builder.AddFunction(Module, Func));
 
         EXPECT_TRUE(S->Resolve());
 
@@ -1682,27 +1675,27 @@ namespace {
         EXPECT_TRUE(Builder.AddParam(aParam));
 
         // Create for block
-        ASTForBlock *ForBlock = Builder.CreateForBlock(Body, SourceLoc);
+        ASTLoopStmt *ForBlock = Builder.CreateLoopStmt(Body, SourceLoc);
         ASTForLoopBlock *LoopBlock = Builder.CreateForLoopBlock(ForBlock, SourceLoc);
         ASTForPostBlock *PostBlock = Builder.CreateForPostBlock(ForBlock, SourceLoc);
         EXPECT_TRUE(Builder.AddStmt(Body, ForBlock));
 
         // for int i = 1; i < 1; ++i
-        ASTLocalVar *iVar = Builder.CreateLocalVar(ForBlock, SourceLoc, IntType, "i");
-        ASTValueExpr *Value1 = Builder.CreateExpr(iVar, Builder.CreateIntegerValue(SourceLoc, 1));
-        ASTVarRefExpr *iVarRef = Builder.CreateExpr(ForBlock, Builder.CreateVarRef(iVar));
+        ASTLocalVar *iVar = Builder.CreateLocalVar(SourceLoc, IntType, "i");
+        ASTValueExpr *Value1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
+        ASTVarRefExpr *iVarRef = Builder.CreateExpr(Builder.CreateVarRef(iVar));
         EXPECT_TRUE(Builder.AddStmt(Body, iVar));
 
-        ASTBinaryGroupExpr *ForCond = Builder.CreateBinaryExpr(ForBlock, SourceLoc, ASTBinaryOperatorKind::COMP_LTE, iVarRef, Value1);
+        ASTBinaryGroupExpr *ForCond = Builder.CreateBinaryExpr(SourceLoc, ASTBinaryOperatorKind::COMP_LTE, iVarRef, Value1);
 
         ASTExprStmt *iPreInc = Builder.CreateExprStmt(PostBlock, SourceLoc);
-        Builder.CreateUnaryExpr(iPreInc, SourceLoc, ASTUnaryOperatorKind::ARITH_INCR, ASTUnaryOptionKind::UNARY_PRE,
-                                 Builder.CreateExpr(iPreInc, Builder.CreateVarRef(iVar)));
+        Builder.CreateUnaryExpr(SourceLoc, ASTUnaryOperatorKind::ARITH_INCR, ASTUnaryOptionKind::UNARY_PRE,
+                                 Builder.CreateExpr(Builder.CreateVarRef(iVar)));
         EXPECT_TRUE(Builder.AddStmt(Body, iPreInc));
 
         // { a = 1}
         ASTVarStmt *aVarStmt = Builder.CreateVarStmt(LoopBlock, Builder.CreateVarRef(aParam));
-        Builder.CreateExpr(aVarStmt, Builder.CreateIntegerValue(SourceLoc, 1));
+        Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
         EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt));
 
         // Add to Module
@@ -1770,7 +1763,7 @@ namespace {
 
         // { a = 1}
         ASTVarStmt *aVarStmt = Builder.CreateVarStmt(LoopBlock, Builder.CreateVarRef(aParam));
-        Builder.CreateExpr(aVarStmt, Builder.CreateIntegerValue(SourceLoc, 1));
+        Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
         EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt));
 
         // Add to Module
@@ -1826,21 +1819,20 @@ namespace {
 
         // for a < 1; ++a
         ASTVarRefExpr *aVarRef = Builder.CreateExpr(ForBlock, Builder.CreateVarRef(aParam));
-        ASTValueExpr *Value1 = Builder.CreateExpr(aParam, Builder.CreateIntegerValue(SourceLoc, 1));
+        ASTValueExpr *Value1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
         ASTBinaryGroupExpr *ForCond = Builder.CreateBinaryExpr(ForBlock, SourceLoc, ASTBinaryOperatorKind::COMP_LTE, aVarRef, Value1);
 
         ASTExprStmt *aPreInc = Builder.CreateExprStmt(PostBlock, SourceLoc);
-        Builder.CreateUnaryExpr(aPreInc, SourceLoc, ASTUnaryOperatorKind::ARITH_INCR, ASTUnaryOptionKind::UNARY_PRE,
-                                 aVarRef);
+        Builder.CreateUnaryExpr(SourceLoc, ASTUnaryOperatorKind::ARITH_INCR, ASTUnaryOptionKind::UNARY_PRE, aVarRef);
         EXPECT_TRUE(Builder.AddStmt(Body, aPreInc));
 
         // { a = 1}
         ASTVarStmt *aVarStmt = Builder.CreateVarStmt(LoopBlock, Builder.CreateVarRef(aParam));
-        Builder.CreateExpr(aVarStmt, Builder.CreateIntegerValue(SourceLoc, 1));
+        Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
         EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt));
 
         // Add to Module
-        EXPECT_TRUE(Builder.AddFunction(Func));
+        EXPECT_TRUE(Builder.AddFunction(Module, Func));
 
         EXPECT_TRUE(S->Resolve());
 
@@ -1893,35 +1885,35 @@ namespace {
                                                    SourceLoc, "TestClass");
 
         // int a() { return 1 }
-        ASTClassMethod *aFunc = Builder.CreateClassMethod(TestClass, SourceLoc, IntType,
+        ASTClassMethod *aFunc = Builder.CreateClassMethod(SourceLoc, IntType,
                                                              "a",
                                                              Builder.CreateScopes(
                                                                      ASTVisibilityKind::V_DEFAULT, false, false));
         ASTBlockStmt *aFuncBody = Builder.CreateBody(aFunc);
-        ASTReturnStmt *aFuncReturn = Builder.CreateReturnStmt(aFuncBody, SourceLoc);
-        Builder.CreateExpr(aFuncReturn, Builder.CreateIntegerValue(SourceLocation(), 1));
+        ASTReturnStmt *aFuncReturn = Builder.CreateReturnStmt(SourceLoc);
+        Builder.CreateExpr(Builder.CreateIntegerValue(SourceLocation(), 1));
         Builder.AddStmt(Body, aFuncReturn);
         Builder.AddClassMethod(aFunc);
 
         // public int b() { return 1 }
-        ASTClassMethod *bFunc = Builder.CreateClassMethod(TestClass, SourceLoc, IntType,
+        ASTClassMethod *bFunc = Builder.CreateClassMethod(SourceLoc, IntType,
                                                              "b",
                                                              Builder.CreateScopes(
                                                                      ASTVisibilityKind::V_PUBLIC, false, false));
         ASTBlockStmt *bFuncBody = Builder.CreateBody(bFunc);
-        ASTReturnStmt *bFuncReturn = Builder.CreateReturnStmt(bFuncBody, SourceLoc);
-        Builder.CreateExpr(bFuncReturn, Builder.CreateIntegerValue(SourceLocation(), 1));
+        ASTReturnStmt *bFuncReturn = Builder.CreateReturnStmt(SourceLoc);
+        Builder.CreateExpr(Builder.CreateIntegerValue(SourceLocation(), 1));
         Builder.AddStmt(Body, bFuncReturn);
         Builder.AddClassMethod(bFunc);
 
         // private const int c { return 1 }
-        ASTClassMethod *cFunc = Builder.CreateClassMethod(TestClass, SourceLoc, IntType,
+        ASTClassMethod *cFunc = Builder.CreateClassMethod(SourceLoc, IntType,
                                                              "c",
                                                              Builder.CreateScopes(
                                                                      ASTVisibilityKind::V_PRIVATE, true, false));
         ASTBlockStmt *cFuncBody = Builder.CreateBody(cFunc);
-        ASTReturnStmt *cFuncReturn = Builder.CreateReturnStmt(cFuncBody, SourceLoc);
-        Builder.CreateExpr(cFuncReturn, Builder.CreateIntegerValue(SourceLocation(), 1));
+        ASTReturnStmt *cFuncReturn = Builder.CreateReturnStmt(SourceLoc);
+        Builder.CreateExpr(Builder.CreateIntegerValue(SourceLocation(), 1));
         Builder.AddStmt(Body, cFuncReturn);
         Builder.AddClassMethod(cFunc);
 
@@ -1942,22 +1934,22 @@ namespace {
         ASTClassMethod *DefaultConstructor = TestClass->getConstructors().find(0)->second.front();
         ASTVarRef *Instance = Builder.CreateVarRef(TestVar);
         ASTCall *ConstructorCall = Builder.CreateCall(Instance, DefaultConstructor);
-        ASTCallExpr *NewExpr = Builder.CreateNewExpr(TestVar, ConstructorCall);
-        Builder.AddExpr(TestVar, NewExpr);
+        ASTCallExpr *NewExpr = Builder.CreateNewExpr(ConstructorCall);
+        Builder.AddExpr(NewExpr);
         Builder.AddStmt(Body, TestVar);
 
         // int a = test.a()
         ASTType *aType = aFunc->getType();
         ASTLocalVar *aVar = Builder.CreateLocalVar(SourceLoc, aType, "a");
-        ASTCallExpr *aCallExpr = Builder.CreateExpr(aVar, Builder.CreateCall(Instance, aFunc));
+        ASTCallExpr *aCallExpr = Builder.CreateExpr(Builder.CreateCall(Instance, aFunc));
         Builder.AddExpr(aVar, aCallExpr);
         Builder.AddStmt(Body, aVar);
 
         // int b = test.b()
         ASTType *bType = bFunc->getType();
         ASTLocalVar *bVar = Builder.CreateLocalVar(SourceLoc, bType, "b");
-        ASTCallExpr *bCallExpr = Builder.CreateExpr(bVar, Builder.CreateCall(Instance, bFunc));
-        Builder.AddExpr(bVar, bCallExpr);
+        ASTCallExpr *bCallExpr = Builder.CreateExpr(Builder.CreateCall(Instance, bFunc));
+        Builder.AddExpr(bCallExpr);
         Builder.AddStmt(Body, bVar);
 
         // int c = test.c()

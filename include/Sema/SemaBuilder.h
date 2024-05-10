@@ -437,7 +437,13 @@ namespace fly {
 
         bool AddLoopPost(ASTLoopStmt *LoopStmt, ASTBlockStmt *Block);
 
-        bool AddExpr(ASTStmt *Stmt, ASTExpr *Expr);
+        bool AddExpr(ASTVarStmt *Stmt, ASTExpr *Expr);
+
+        bool AddExpr(ASTExprStmt *Stmt, ASTExpr *Expr);
+
+        bool AddExpr(ASTReturnStmt *Stmt, ASTExpr *Expr);
+
+        bool AddExpr(ASTFailStmt *Stmt, ASTExpr *Expr);
 
         template<class T>
         bool ContainsFunction(llvm::StringMap<std::map<uint64_t, llvm::SmallVector<T *, 4>>> &Functions,

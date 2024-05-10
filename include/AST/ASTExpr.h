@@ -93,8 +93,6 @@ namespace fly {
         friend class SemaBuilder;
         friend class SemaResolver;
 
-        ASTExpr *Parent = nullptr;
-
     protected:
 
         const ASTExprKind Kind;

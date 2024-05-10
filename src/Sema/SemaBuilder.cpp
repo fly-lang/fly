@@ -796,8 +796,6 @@ ASTUnaryGroupExpr *SemaBuilder::CreateUnaryExpr(const SourceLocation &Loc, ASTUn
 
     ASTUnaryGroupExpr *UnaryExpr = new ASTUnaryGroupExpr(Loc, Kind, OptionKind, First);
 
-    // Set Parent Expression
-    First->Parent = UnaryExpr;
     return UnaryExpr;
 }
 
@@ -811,9 +809,6 @@ ASTBinaryGroupExpr *SemaBuilder::CreateBinaryExpr(const SourceLocation &OpLoc, A
 
     ASTBinaryGroupExpr *BinaryExpr = new ASTBinaryGroupExpr(OpLoc, Kind, First, Second);
 
-    // Set Parent Expression
-    First->Parent = BinaryExpr;
-    Second->Parent = BinaryExpr;
     return BinaryExpr;
 }
 
@@ -828,10 +823,6 @@ ASTTernaryGroupExpr *SemaBuilder::CreateTernaryExpr(ASTExpr *First, const Source
 
     ASTTernaryGroupExpr *TernaryExpr = new ASTTernaryGroupExpr(First, IfLoc, Second, ElseLoc, Third);
 
-    // Set Parent Expression
-    First->Parent = TernaryExpr;
-    Second->Parent = TernaryExpr;
-    Third->Parent = TernaryExpr;
     return TernaryExpr;
 }
 
@@ -914,7 +905,7 @@ ASTBlockStmt*
 SemaBuilder::CreateBody(ASTFunctionBase *FunctionBase) {
     FLY_DEBUG("SemaBuilder", "CreateBody");
     FunctionBase->Body = CreateBlockStmt(SourceLocation());
-    FunctionBase->Body->Top = FunctionBase;
+    FunctionBase->Body->Function = FunctionBase;
     return FunctionBase->Body;
 }
 
@@ -1294,7 +1285,7 @@ SemaBuilder::AddStmt(ASTStmt *Parent, ASTStmt *Stmt) {
                 const auto &Pair = std::pair<std::string, ASTLocalVar *>(LocalVar->getName(), LocalVar);
 
                 // Useful for Alloca into CodeGen
-                Parent->Top->Body->LocalVars.insert(Pair);
+                Parent->Function->Body->LocalVars.insert(Pair);
                 Success = true;
             }
             break;
@@ -1364,45 +1355,28 @@ bool SemaBuilder::AddLoopPost(ASTLoopStmt *LoopStmt, ASTBlockStmt *Block) {
     return false;
 }
 
-bool SemaBuilder::AddExpr(ASTStmt *Stmt, ASTExpr *Expr) {
+bool SemaBuilder::AddExpr(ASTVarStmt *Stmt, ASTExpr *Expr) {
+    ASTVarStmt *VarStmt = (ASTVarStmt *) Stmt;
+    VarStmt->Expr = Expr;
+    VarStmt->getVarRef()->getDef()->setInitialization(VarStmt);
+    return true;
+}
+
+bool SemaBuilder::AddExpr(ASTExprStmt *Stmt, ASTExpr *Expr) {
+    Stmt->Expr = Expr;
+    return true;
+}
+
+bool SemaBuilder::AddExpr(ASTReturnStmt *Stmt, ASTExpr *Expr) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddExpr",
                       Logger().Attr("Stmt", Stmt).Attr("Expr", Expr).End());
-    if (!Expr) {
-        return S.Diag(Expr->getLocation(), diag::err_sema_generic) && false;
-    }
-    if (Stmt) {
-        switch (Stmt->getKind()) {
-            case ASTStmtKind::STMT_VAR: {
-                ASTVarStmt *VarStmt = (ASTVarStmt *) Stmt;
-                VarStmt->Expr = Expr;
-                VarStmt->getVarRef()->getDef()->setInitialization(VarStmt);
-            }
-                break;
-            case ASTStmtKind::STMT_EXPR:
-                ((ASTExprStmt *) Stmt)->Expr = Expr;
-                break;
-            case ASTStmtKind::STMT_RETURN:
-                ((ASTReturnStmt *) Stmt)->Expr = Expr;
-                break;
-            case ASTStmtKind::STMT_BLOCK:
-//                switch (((ASTBlock *) Stmt)->getBlockKind()) {
-//                    case ASTBlockKind::BLOCK_IF:
-//                        ((ASTIfBlock *) Stmt)->Condition = Expr;
-//                        break;
-//                    case ASTBlockKind::BLOCK_SWITCH:
-//                        ((ASTSwitchBlock *) Stmt)->Var = Expr;
-//                        break;
-//                    case ASTBlockKind::BLOCK_LOOP:
-//                        ((ASTLoopBlock *) Stmt)->Condition = Expr;
-//                        break;
-//                    case ASTBlockKind::BLOCK:
-//                        assert("Cannot contain an Expr");
-//                        break;
-//                }
-            case ASTStmtKind::STMT_BREAK:
-            case ASTStmtKind::STMT_CONTINUE:
-                assert("Cannot contain an Expr");
-        }
-    }
+    Stmt->Expr = Expr;
+    return true;
+}
+
+bool SemaBuilder::AddExpr(ASTFailStmt *Stmt, ASTExpr *Expr) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "AddExpr",
+                      Logger().Attr("Stmt", Stmt).Attr("Expr", Expr).End());
+    Stmt->Expr = Expr;
     return true;
 }
