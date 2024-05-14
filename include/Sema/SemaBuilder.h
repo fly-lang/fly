@@ -420,6 +420,8 @@ namespace fly {
 
         bool AddCallArg(ASTCall *Call, ASTExpr *Expr);
 
+        bool AddLocalVar(ASTBlockStmt *BlockStmt, ASTLocalVar *LocalVar);
+
         // Add Stmt
         bool AddStmt(ASTStmt *Parent, ASTStmt *Stmt);
 

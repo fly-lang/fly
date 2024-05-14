@@ -76,10 +76,6 @@ ASTExpr *ASTReturnStmt::getExpr() const {
     return Expr;
 }
 
-ASTBlockStmt *ASTReturnStmt::getBlock() const {
-    return Block;
-}
-
 std::string ASTReturnStmt::str() const {
     return Logger("ASTReturn").
             Attr("Kind", (uint64_t) Kind).

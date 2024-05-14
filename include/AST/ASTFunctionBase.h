@@ -98,18 +98,15 @@ namespace fly {
     class ASTReturnStmt : public ASTStmt {
 
         friend class SemaBuilder;
+        friend class SemaResolver;
 
         ASTExpr *Expr = nullptr;
-
-        ASTBlockStmt *Block = nullptr;
 
         ASTReturnStmt(const SourceLocation &Loc);
 
     public:
 
         ASTExpr *getExpr() const;
-
-        ASTBlockStmt *getBlock() const;
 
         std::string str() const override;
     };

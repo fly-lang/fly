@@ -22,6 +22,9 @@ namespace fly {
  */
     class ASTDeleteStmt : public ASTStmt {
 
+        friend class SemaBuilder;
+        friend class SemaResolver;
+
         ASTVarRef *VarRef = nullptr;
 
     public:

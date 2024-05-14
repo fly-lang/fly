@@ -53,6 +53,7 @@ namespace fly {
     class ASTIdentityType;
     class ASTVar;
     class ASTIdentity;
+    class ASTLoopInStmt;
 
     class SemaResolver {
 
@@ -88,6 +89,8 @@ namespace fly {
 
         bool ResolveLoopBlock(ASTLoopStmt *LoopStmt);
 
+        bool ResolveLoopInBlock(ASTLoopInStmt *LoopInStmt);
+
         bool ResolveParentIdentifier(ASTStmt *Stmt, ASTIdentifier *&Identifier);
 
         bool ResolveIdentityType(ASTModule *Module, ASTIdentityType *IdentityType);
@@ -119,8 +122,6 @@ namespace fly {
         bool ResolveArg(ASTStmt *Stmt, ASTArg *Arg, ASTParam *Param);
 
         bool ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr);
-
-        bool ResolveValueExpr(ASTValueExpr *pExpr);
 
         ASTNameSpace *FindNameSpace(llvm::StringRef Name) const;
 

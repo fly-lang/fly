@@ -760,8 +760,73 @@ ASTValueExpr *SemaBuilder::CreateExpr(ASTValue *Value) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateExpr",
                       Logger().Attr("Value", Value).End());
     assert(Value && "Create ASTValueExpr by ASTValue");
-    ASTValueExpr *ValueExpr = new ASTValueExpr(Value);
-    return ValueExpr;
+    ASTValueExpr *Expr = new ASTValueExpr(Value);
+    const SourceLocation &Loc = Value->getLocation();
+
+    switch (Value->getTypeKind()) {
+
+        case ASTTypeKind::TYPE_BOOL:
+            Expr->Type = CreateBoolType(Loc);
+            break;
+
+        case ASTTypeKind::TYPE_INTEGER: {
+            ASTIntegerValue *Integer = ((ASTIntegerValue *) Expr->Value);
+
+            if (Integer->Negative) { // Integer is negative (Ex. -2)
+
+                if (Integer->Value > MIN_LONG) { // Negative Integer overflow min value
+                    S.Diag(Expr->getLocation(), diag::err_sema_int_min_overflow);
+                    return Expr;
+                }
+
+                if (Integer->Value > MIN_INT) {
+                    Expr->Type = CreateLongType(Loc);
+                } else if (Integer->Value > MIN_SHORT) {
+                    Expr->Type = CreateIntType(Loc);
+                } else {
+                    Expr->Type = CreateShortType(Loc);
+                }
+            } else { // Positive Integer
+
+                if (Integer->Value > MAX_LONG) { // Positive Integer overflow max value
+                    S.Diag(Expr->getLocation(), diag::err_sema_int_max_overflow);
+                    return Expr;
+                }
+
+                if (Integer->Value > MAX_INT) {
+                    Expr->Type = CreateLongType(Loc);
+                } else if (Integer->Value > MAX_SHORT) {
+                    Expr->Type = CreateIntType(Loc);
+                } else if (Integer->Value > MAX_BYTE) {
+                    Expr->Type = CreateShortType(Loc);
+                } else {
+                    Expr->Type = CreateByteType(Loc);
+                }
+            }
+            break;
+        }
+
+        case ASTTypeKind::TYPE_FLOATING_POINT:
+            // Creating as Float on first but transform in Double if is contained into a Binary Expr with a Double Type
+            Expr->Type = CreateDoubleType(Loc);
+            break;
+
+        case ASTTypeKind::TYPE_STRING:
+            Expr->Type = CreateStringType(Loc);
+            break;
+
+        case ASTTypeKind::TYPE_ARRAY:
+            // TODO
+            break;
+        case ASTTypeKind::TYPE_IDENTITY:
+            // TODO
+            break;
+        case ASTTypeKind::TYPE_VOID:
+            break;
+        case ASTTypeKind::TYPE_ERROR:
+            break;
+    }
+    return Expr;
 }
 
 ASTCallExpr *SemaBuilder::CreateExpr(ASTCall *Call) {
@@ -1255,6 +1320,10 @@ SemaBuilder::AddCallArg(ASTCall *Call, ASTExpr *Expr) {
     return true;
 }
 
+bool SemaBuilder::AddLocalVar(ASTBlockStmt *BlockStmt, ASTLocalVar *LocalVar) {
+    return BlockStmt->LocalVars.insert(std::make_pair(LocalVar->getName(), LocalVar)).second;
+}
+
 /**
  * Add ExprStmt to Content
  * @param ExprStmt
@@ -1263,51 +1332,8 @@ SemaBuilder::AddCallArg(ASTCall *Call, ASTExpr *Expr) {
 bool
 SemaBuilder::AddStmt(ASTStmt *Parent, ASTStmt *Stmt) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddStmt", Logger().Attr("Stmt", Stmt).End());
-
-    bool Success =  false;
     Stmt->Parent = Parent;
-    switch (Stmt->getKind()) {
-
-        case ASTStmtKind::STMT_VAR: {
-            ASTVarStmt *VarDefine = (ASTVarStmt *) Stmt;
-
-            ASTVar *Var = VarDefine->getVarRef()->getDef();
-
-            // Collects all LocalVars in the hierarchy Block
-            if (Var->getVarKind() == ASTVarKind::VAR_LOCAL) {
-                ASTLocalVar *LocalVar = (ASTLocalVar *) Var;
-
-                // Statements have an assignment so is initialized
-                if (VarDefine->getExpr() != nullptr)
-                    LocalVar->setInitialization(VarDefine);
-
-                // Add to the Parent Block
-                const auto &Pair = std::pair<std::string, ASTLocalVar *>(LocalVar->getName(), LocalVar);
-
-                // Useful for Alloca into CodeGen
-                Parent->Function->Body->LocalVars.insert(Pair);
-                Success = true;
-            }
-            break;
-        }
-
-        case ASTStmtKind::STMT_BLOCK:
-        case ASTStmtKind::STMT_EXPR:
-        case ASTStmtKind::STMT_BREAK:
-        case ASTStmtKind::STMT_CONTINUE:
-        case ASTStmtKind::STMT_DELETE:
-        case ASTStmtKind::STMT_RETURN:
-        case ASTStmtKind::STMT_FAIL:
-        case ASTStmtKind::STMT_HANDLE:
-        case ASTStmtKind::STMT_IF:
-        case ASTStmtKind::STMT_SWITCH:
-        case ASTStmtKind::STMT_LOOP:
-        case ASTStmtKind::STMT_LOOP_IN:
-            Success = true;
-            break;
-    }
-
-    return Success;
+    return true;
 }
 
 bool SemaBuilder::AddElsif(ASTIfStmt *IfStmt, ASTExpr *Condition, ASTBlockStmt *Block) {

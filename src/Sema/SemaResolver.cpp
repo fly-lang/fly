@@ -28,10 +28,14 @@
 #include "AST/ASTParam.h"
 #include "AST/ASTSwitchStmt.h"
 #include "AST/ASTLoopStmt.h"
+#include "AST/ASTLoopInStmt.h"
 #include "AST/ASTBlockStmt.h"
 #include "AST/ASTValue.h"
+#include "AST/ASTHandleStmt.h"
+#include "AST/ASTDeleteStmt.h"
 #include "AST/ASTVar.h"
 #include "AST/ASTVarStmt.h"
+#include "AST/ASTFailStmt.h"
 #include "AST/ASTVarRef.h"
 #include "AST/ASTExprStmt.h"
 #include "CodeGen/CodeGen.h"
@@ -293,74 +297,51 @@ bool SemaResolver::ResolveFunctions(ASTModule *Module) {
 }
 
 bool SemaResolver::ResolveStmt(ASTStmt *Stmt) {
-    bool Success = false;
-
     switch (Stmt->getKind()) {
 
         case ASTStmtKind::STMT_BLOCK:
-            Success = ResolveBlock((ASTBlockStmt *) Stmt);
-            break;
+            return ResolveBlock((ASTBlockStmt *) Stmt);
         case ASTStmtKind::STMT_IF:
-            Success &= ResolveIfBlock((ASTIfStmt *) Stmt);
-            break;
+            return ResolveIfBlock((ASTIfStmt *) Stmt);
         case ASTStmtKind::STMT_SWITCH:
-            Success &= ResolveSwitchBlock((ASTSwitchStmt *) Stmt);
-            break;
+            return ResolveSwitchBlock((ASTSwitchStmt *) Stmt);
         case ASTStmtKind::STMT_LOOP:
-            Success &= ResolveLoopBlock((ASTLoopStmt *) Stmt);
-            break;
+            return ResolveLoopBlock((ASTLoopStmt *) Stmt);
         case ASTStmtKind::STMT_LOOP_IN:
+            return ResolveLoopInBlock((ASTLoopInStmt *) Stmt);
+        case ASTStmtKind::STMT_VAR: {
+            ASTVarStmt *VarStmt = (ASTVarStmt *) Stmt;
+            ResolveVarRef(Stmt->Parent, VarStmt->getVarRef());
+            if (VarStmt->getVarRef()->Resolved && VarStmt->getExpr() != nullptr)
+                VarStmt->getVarRef()->getDef()->setInitialization(VarStmt);
             break;
+        }
         case ASTStmtKind::STMT_EXPR:
-        case ASTStmtKind::STMT_VAR:
+            return ResolveExpr(Stmt->Parent, ((ASTExprStmt *) Stmt)->Expr);
         case ASTStmtKind::STMT_FAIL:
-        case ASTStmtKind::STMT_HANDLE:
+            return ResolveExpr(Stmt->Parent, ((ASTFailStmt *) Stmt)->Expr);
+        case ASTStmtKind::STMT_HANDLE: {
+            ASTHandleStmt *HandlStmt = (ASTHandleStmt *) Stmt;
+            bool Success = true;
+            if (HandlStmt->ErrorHandlerRef != nullptr)
+                Success = ResolveVarRef(Stmt->Parent, HandlStmt->ErrorHandlerRef);
+            return Success && ResolveStmt(HandlStmt->Handle);
+        }
+        case ASTStmtKind::STMT_DELETE: {
+            ASTDeleteStmt *DeleteStmt = (ASTDeleteStmt *) Stmt;
+            return ResolveVarRef(Stmt->Parent, DeleteStmt->VarRef);
+        }
+        case ASTStmtKind::STMT_RETURN: {
+            ASTReturnStmt *ReturnStmt = (ASTReturnStmt *) Stmt;
+            return ResolveExpr(Stmt->Parent, ReturnStmt->Expr) &&
+                   S.Validator->CheckConvertibleTypes(ReturnStmt->Expr->getType(), Stmt->getFunction()->getType());
+        }
         case ASTStmtKind::STMT_BREAK:
         case ASTStmtKind::STMT_CONTINUE:
-        case ASTStmtKind::STMT_DELETE:
-        case ASTStmtKind::STMT_RETURN: {
-            ASTBlockStmt *Block = (ASTBlockStmt *) Stmt->getParent(); // FIXME check if parent is not null
-            if (Stmt->getKind() == ASTStmtKind::STMT_EXPR) {
-                Success &= ResolveExpr(Block, ((ASTExprStmt *) Stmt)->getExpr());
-            } else if (Stmt->getKind() == ASTStmtKind::STMT_RETURN) {
-                Success &= ResolveExpr(Block, ((ASTReturnStmt *) Stmt)->getExpr());
-            } else if (Stmt->getKind() == ASTStmtKind::STMT_VAR) {
-                ASTVarStmt *VarStmt = ((ASTVarStmt *) Stmt);
-
-                // Error: Expr cannot be null
-                if (!VarStmt->getVarRef()->getDef()) {
-                    S.Diag(VarStmt->getLocation(), diag::err_var_undefined) << VarStmt->getVarRef()->getName();
-                    return false;
-                }
-
-                // Take Module
-                ASTVar *Var = VarStmt->getVarRef()->getDef();
-                if (Var->getVarKind() == ASTVarKind::VAR_LOCAL) {
-                    ASTLocalVar *LocalVar = (ASTLocalVar *) Var;
-
-                    if (!LocalVar->isInitialized()) {
-                        S.Diag(VarStmt->getLocation(), diag::err_sema_uninit_var) << VarStmt->getVarRef()->getName();
-                        return false;
-                    }
-
-                    const auto &Module = FindModule(Block->getFunction());
-                    Success &= VarStmt && !LocalVar->getType()->isIdentity() ||
-                               ResolveIdentityType(Module, (ASTIdentityType *) VarStmt->getVarRef()->getDef()->getType());
-
-                    if (VarStmt->getExpr())
-                        Success &= ResolveExpr(Block, VarStmt->getExpr());
-                }
-
-                Success &= ResolveVarRef(Block, VarStmt->getVarRef()) &&
-                           ResolveExpr(Block, VarStmt->getExpr());
-
-                // Check Expr Type if it needs to be converted to Stmt Type
-                Success &= S.Validator->CheckConvertibleTypes(VarStmt->getExpr()->getType(), Var->getType());
-                break;
-            }
-        }
+            return true;
     }
-    return Success;
+
+    assert(false && "Invalid ASTStmtKind");
 }
 
 bool SemaResolver::ResolveBlock(ASTBlockStmt *Block) {
@@ -406,6 +387,10 @@ bool SemaResolver::ResolveLoopBlock(ASTLoopStmt *LoopStmt) {
     Success &= LoopStmt->Init ? ResolveBlock(LoopStmt->Post) : true;
     Success &= LoopStmt->Post ? ResolveBlock(LoopStmt->Post) : true;
     return Success;
+}
+
+bool SemaResolver::ResolveLoopInBlock(ASTLoopInStmt *LoopInStmt) {
+    return ResolveVarRef(LoopInStmt->Parent, LoopInStmt->VarRef) && ResolveBlock(LoopInStmt->Block);
 }
 
 bool SemaResolver::ResolveParentIdentifier(ASTStmt *Stmt, ASTIdentifier *&Identifier) {
@@ -528,6 +513,9 @@ bool SemaResolver::ResolveVarRef(ASTStmt *Stmt, ASTVarRef *VarRef) {
         } else {
             ResolveParentIdentifier(Stmt, VarRef->Parent) && ResolveVarRefWithParent((ASTVarRef *) VarRef);
         }
+
+
+
     }
 
     // VarRef not found in Module, namespace and Module imports
@@ -814,7 +802,7 @@ bool SemaResolver::ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr) {
         case ASTExprKind::EXPR_EMPTY:
             return true;
         case ASTExprKind::EXPR_VALUE: // Select the best option for this Value
-            return ResolveValueExpr((ASTValueExpr *) Expr);
+            return true;
         case ASTExprKind::EXPR_VAR_REF: {
             ASTVarRef *VarRef = ((ASTVarRefExpr *)Expr)->getVarRef();
             if (ResolveVarRef(Stmt, VarRef)) {
@@ -917,73 +905,6 @@ bool SemaResolver::ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr) {
 
     return Success;
 }
-
-bool SemaResolver::ResolveValueExpr(ASTValueExpr *Expr) {
-    const SourceLocation &Loc = Expr->Value->getLocation();
-    
-    switch (Expr->Value->getTypeKind()) {
-        
-        case ASTTypeKind::TYPE_BOOL:
-            Expr->Type = S.Builder->CreateBoolType(Loc);
-            break;
-            
-        case ASTTypeKind::TYPE_INTEGER: {
-            ASTIntegerValue *Integer = ((ASTIntegerValue *) Expr->Value);
-
-            if (Integer->Negative) { // Integer is negative (Ex. -2)
-
-                if (Integer->Value > MIN_LONG) { // Negative Integer overflow min value
-                    S.Diag(Expr->getLocation(), diag::err_sema_int_min_overflow);
-                    return false;
-                }
-
-                if (Integer->Value > MIN_INT) {
-                    Expr->Type = S.Builder->CreateLongType(Loc);
-                } else if (Integer->Value > MIN_SHORT) {
-                    Expr->Type = S.Builder->CreateIntType(Loc);
-                } else {
-                    Expr->Type = S.Builder->CreateShortType(Loc);
-                }
-            } else { // Positive Integer
-
-                if (Integer->Value > MAX_LONG) { // Positive Integer overflow max value
-                    S.Diag(Expr->getLocation(), diag::err_sema_int_max_overflow);
-                    return false;
-                }
-
-                if (Integer->Value > MAX_INT) {
-                    Expr->Type = S.Builder->CreateLongType(Loc);
-                } else if (Integer->Value > MAX_SHORT) {
-                    Expr->Type = S.Builder->CreateIntType(Loc);
-                } else if (Integer->Value > MAX_BYTE) {
-                    Expr->Type = S.Builder->CreateShortType(Loc);
-                } else {
-                    Expr->Type = S.Builder->CreateByteType(Loc);
-                }
-            }
-            break;
-        }
-        
-        case ASTTypeKind::TYPE_FLOATING_POINT:
-            // Creating as Float on first but transform in Double if is contained into a Binary Expr with a Double Type
-            Expr->Type = S.Builder->CreateDoubleType(Loc);
-            break;
-
-        case ASTTypeKind::TYPE_STRING:
-            Expr->Type = S.Builder->CreateStringType(Loc);
-            break;
-
-        case ASTTypeKind::TYPE_ARRAY:
-            // TODO
-            break;
-        case ASTTypeKind::TYPE_IDENTITY:
-            // TODO
-            break;
-    }
-    
-    return true;
-}
-
 
 ASTNameSpace *SemaResolver::FindNameSpace(llvm::StringRef Name) const {
     FLY_DEBUG_MESSAGE("Sema", "FindNameSpace", "Name=" << Name);

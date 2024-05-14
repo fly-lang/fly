@@ -20,6 +20,7 @@ namespace fly {
     class ASTFailStmt : public ASTStmt {
 
         friend class SemaBuilder;
+        friend class SemaResolver;
 
         ASTExpr *Expr = nullptr;
 
