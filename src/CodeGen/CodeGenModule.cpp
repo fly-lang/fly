@@ -753,7 +753,7 @@ void CodeGenModule::GenSwitchBlock(CodeGenFunctionBase *CGF, ASTSwitchStmt *Swit
     llvm::BasicBlock *NextCaseBB = nullptr;
     for (int i=0; i < Size; i++) {
         ASTSwitchCase *Case = Switch->getCases()[i];
-        llvm::Value *CaseVal = GenValue(Case->getType(), Case->getValue());
+        llvm::Value *CaseVal = GenExpr(Case->getValueExpr());
         llvm::ConstantInt *CaseConst = llvm::cast<llvm::ConstantInt, llvm::Value>(CaseVal);
         llvm::BasicBlock *CaseBB = NextCaseBB == nullptr ?
                                    llvm::BasicBlock::Create(LLVMCtx, "case", Fn, EndBR) : NextCaseBB;

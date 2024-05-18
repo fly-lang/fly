@@ -15,7 +15,7 @@
 namespace fly {
 
     class ASTSwitchCase;
-    class ASTValue;
+    class ASTValueExpr;
     class ASTType;
     class ASTVarRef;
 
@@ -56,7 +56,7 @@ namespace fly {
         ASTType *Type = nullptr;
 
         // The case value
-        ASTValue *Value = nullptr;
+        ASTValueExpr *Value = nullptr;
 
         // The Case Block
         ASTBlockStmt *Block = nullptr;
@@ -67,7 +67,7 @@ namespace fly {
 
         ASTType *getType() const;
 
-        ASTValue *getValue();
+        ASTValueExpr *getValueExpr();
 
         ASTBlockStmt *getBlock() const;
 

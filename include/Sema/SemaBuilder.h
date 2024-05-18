@@ -429,11 +429,9 @@ namespace fly {
 
         bool AddElse(ASTIfStmt *IfStmt, ASTBlockStmt *Block);
 
-        bool AddSwitchCase(ASTSwitchStmt *SwitchStmt, ASTValue *Value, ASTBlockStmt *Block);
+        bool AddSwitchCase(ASTSwitchStmt *SwitchStmt, ASTValueExpr *ValueExpr, ASTBlockStmt *Block);
 
         bool AddSwitchDefault(ASTSwitchStmt *SwitchStmt, ASTBlockStmt *Block);
-
-        bool AddLoopCondition(ASTLoopStmt *LoopStmt, ASTExpr *Condition);
 
         bool AddLoopInit(ASTLoopStmt *LoopStmt, ASTBlockStmt *Block);
 

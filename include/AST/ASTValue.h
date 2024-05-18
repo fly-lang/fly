@@ -81,8 +81,6 @@ namespace fly {
 
         bool isNegative() const;
 
-        bool isPositive() const;
-
         uint64_t getValue() const;
 
         std::string print() const override;

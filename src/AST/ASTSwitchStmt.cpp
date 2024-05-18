@@ -38,7 +38,7 @@ std::string ASTSwitchStmt::str() const {
 ASTSwitchCase::ASTSwitchCase(const SourceLocation &Loc) {
 }
 
-ASTValue *ASTSwitchCase::getValue() {
+ASTValueExpr *ASTSwitchCase::getValueExpr() {
     return Value;
 }
 

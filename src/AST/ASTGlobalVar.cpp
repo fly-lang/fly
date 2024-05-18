@@ -38,8 +38,8 @@ ASTVarStmt *ASTGlobalVar::getInit() const {
     return Init;
 }
 
-void ASTGlobalVar::setInit(ASTVarStmt *varDefine) {
-    Init = varDefine;
+void ASTGlobalVar::setInit(ASTVarStmt *VarStmt) {
+    Init = VarStmt;
 }
 
 CodeGenGlobalVar *ASTGlobalVar::getCodeGen() const {

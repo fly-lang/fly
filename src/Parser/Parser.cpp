@@ -727,8 +727,15 @@ bool Parser::ParseSwitchCases(ASTSwitchStmt *SwitchStmt) {
         // for a Var -> case a:
         // for a default
         ASTBlockStmt *CaseBlock = Builder.CreateBlockStmt(ConsumeToken());
-        ASTValue *Value = ParseValue();
-        if (Value->getTypeKind() == ASTTypeKind::TYPE_INTEGER) {
+        ASTExpr *Expr = ParseExpr();
+
+        if (Expr->getExprKind() != ASTExprKind::EXPR_VALUE) {
+            // Error: unexpected value for case selection
+            Diag(diag::err_syntax_error);
+        }
+
+        ASTValueExpr *ValueExpr = (ASTValueExpr *) Expr;
+        if (ValueExpr->getValue()->getTypeKind() == ASTTypeKind::TYPE_INTEGER) {
             if (Tok.is(tok::colon)) { // Parse a Block of Stmt
                 ConsumeToken();
                 if (ParseStmt(CaseBlock)) {
@@ -736,7 +743,7 @@ bool Parser::ParseSwitchCases(ASTSwitchStmt *SwitchStmt) {
                     if (isBlockStart()) { // Parse a single Stmt without braces
                         ConsumeBrace(BracketCount);
                     }
-                    return Builder.AddSwitchCase(SwitchStmt, Value, CaseBlock) &&
+                    return Builder.AddSwitchCase(SwitchStmt, ValueExpr, CaseBlock) &&
                            ParseSwitchCases(SwitchStmt);
                 }
             }

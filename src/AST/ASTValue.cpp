@@ -60,10 +60,6 @@ bool ASTIntegerValue::isNegative() const {
     return Negative;
 }
 
-bool ASTIntegerValue::isPositive() const {
-    return !Negative;
-}
-
 uint64_t ASTIntegerValue::getValue() const {
     return Value;
 }

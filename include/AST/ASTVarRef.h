@@ -31,13 +31,9 @@ namespace fly {
 
         ASTVarRef(const SourceLocation &Loc, llvm::StringRef Name);
 
-        ASTVarRef(ASTVar *Var);
-
     public:
 
         ASTVar *getDef() const;
-
-        bool isLocalVar();
 
         std::string print() const;
 

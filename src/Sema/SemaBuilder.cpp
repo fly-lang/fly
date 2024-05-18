@@ -56,11 +56,11 @@ SemaBuilder::SemaBuilder(Sema &S) : S(S) {
 
 ASTContext *SemaBuilder::CreateContext() {
     FLY_DEBUG("SemaBuilder", "CreateContext");
-    ASTContext *Context = new ASTContext();
-    Context->DefaultNameSpace = CreateDefaultNameSpace();
-    S.Context->NameSpaces.insert(std::make_pair(Context->DefaultNameSpace->FullName, Context->DefaultNameSpace));
-    AddNameSpace(nullptr, Context->DefaultNameSpace);
-    return Context;
+    S.Context = new ASTContext();
+    S.Context->DefaultNameSpace = CreateDefaultNameSpace();
+    S.Context->NameSpaces.insert(std::make_pair(S.Context->DefaultNameSpace->FullName, S.Context->DefaultNameSpace));
+    AddNameSpace(nullptr, S.Context->DefaultNameSpace);
+    return S.Context;
 }
 
 /**
@@ -736,7 +736,7 @@ ASTVarRef *SemaBuilder::CreateVarRef(ASTIdentifier *Identifier) {
 ASTVarRef *SemaBuilder::CreateVarRef(ASTVar *Var) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateVarRef",
                       Logger().Attr("Var", Var).End());
-    ASTVarRef *VarRef = new ASTVarRef(Var);
+    ASTVarRef *VarRef = new ASTVarRef(Var->getLocation(), Var->getName());
     VarRef->Def = Var;
     return VarRef;
 }
@@ -744,7 +744,7 @@ ASTVarRef *SemaBuilder::CreateVarRef(ASTVar *Var) {
 ASTVarRef *SemaBuilder::CreateVarRef(ASTIdentifier *Instance, ASTVar *Var) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateVarRef",
                       Logger().Attr("Instance", Instance).Attr("Var", Var).End());
-    ASTVarRef *VarRef = new ASTVarRef(Var);
+    ASTVarRef *VarRef = CreateVarRef(Var);
     VarRef->Parent = Instance;
     return VarRef;
 }
@@ -1351,9 +1351,9 @@ bool SemaBuilder::AddElse(ASTIfStmt *IfStmt, ASTBlockStmt *Block) {
     return true;
 }
 
-bool SemaBuilder::AddSwitchCase(ASTSwitchStmt *SwitchStmt, ASTValue *Value, ASTBlockStmt *Block) {
+bool SemaBuilder::AddSwitchCase(ASTSwitchStmt *SwitchStmt, ASTValueExpr *ValueExpr, ASTBlockStmt *Block) {
     ASTSwitchCase *Case = new ASTSwitchCase(Block->getLocation());
-    Case->Value = Value;
+    Case->Value = ValueExpr;
     SwitchStmt->Cases.push_back(Case);
     return !SwitchStmt->Cases.empty();
 }
@@ -1362,11 +1362,6 @@ bool SemaBuilder::AddSwitchDefault(ASTSwitchStmt *SwitchStmt, ASTBlockStmt *Bloc
     SwitchStmt->Default = Block;
     SwitchStmt->Default->Parent = SwitchStmt;
     return true;
-}
-
-bool SemaBuilder::AddLoopCondition(ASTLoopStmt *LoopStmt, ASTExpr *Condition) {
-    LoopStmt->Condition = Condition;
-    return false;
 }
 
 bool SemaBuilder::AddLoopInit(ASTLoopStmt *LoopStmt, ASTBlockStmt *Block) {

@@ -16,16 +16,8 @@ ASTVarRef::ASTVarRef(const SourceLocation &Loc, llvm::StringRef Name) : ASTIdent
 
 }
 
-ASTVarRef::ASTVarRef(ASTVar *Var) : Def(Var), ASTIdentifier(SourceLocation(), Var->getName(), ASTIdentifierKind::REF_VAR) {
-
-}
-
 ASTVar *ASTVarRef::getDef() const {
     return Def;
-}
-
-bool ASTVarRef::isLocalVar() {
-    return Def != nullptr && Def->getVarKind() == ASTVarKind::VAR_LOCAL;
 }
 
 std::string ASTVarRef::print() const {

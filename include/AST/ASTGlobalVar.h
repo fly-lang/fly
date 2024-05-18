@@ -45,7 +45,7 @@ namespace fly {
 
         ASTVarStmt *getInit() const;
 
-        void setInit(ASTVarStmt *varDefine);
+        void setInit(ASTVarStmt *VarStmt);
 
         CodeGenGlobalVar *getCodeGen() const override;
 
