@@ -76,8 +76,6 @@ namespace fly {
 
     class ASTSwitchCase;
 
-    class ASTSwitchDefaultBlock;
-
     class ASTLoopStmt;
 
     class ASTExprStmt;
@@ -174,8 +172,6 @@ namespace fly {
 
     class ASTIdentityType;
 
-    class ASTError;
-
     class ASTFailStmt;
 
     class ASTStringValue;
@@ -193,11 +189,15 @@ namespace fly {
 
         Sema &S;
 
+        static std::string DEFAULT;
+
+        ASTContext *CreateContext();
+
+        ASTNameSpace *CreateDefaultNameSpace();
+
     public:
 
         explicit SemaBuilder(Sema &S);
-
-        ASTContext *CreateContext();
 
         // Create Module
         ASTModule *CreateModule(const std::string &Name);
@@ -205,9 +205,7 @@ namespace fly {
         ASTModule *CreateHeaderModule(const std::string &Name);
 
         // Create NameSpace
-        ASTNameSpace *CreateDefaultNameSpace();
-
-        ASTNameSpace *CreateNameSpace(ASTIdentifier *Identifier = nullptr);
+        ASTNameSpace *CreateNameSpace(ASTIdentifier *Identifier);
 
         // Create Top Definitions
         ASTImport *CreateImport(const SourceLocation &Loc, StringRef Name);
@@ -305,6 +303,8 @@ namespace fly {
 
         ASTParam *CreateParam(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes = nullptr);
 
+        ASTParam *CreateErrorHandlerParam();
+
         ASTLocalVar *CreateLocalVar(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,  ASTScopes *Scopes = nullptr);
 
         // Create Identifier
@@ -380,7 +380,7 @@ namespace fly {
 
         /** Add AST **/
 
-        bool AddModule(ASTModule *Module);
+        bool AddModule(ASTModule *Module, ASTNameSpace *NameSpace = nullptr);
 
         // Add Module & NameSpace
         bool AddNameSpace(ASTModule *Module, ASTNameSpace *NewNameSpace, bool ExternLib = false);

@@ -79,6 +79,8 @@ void CodeGenFunctionBase::setInsertPoint() {
 }
 
 void CodeGenFunctionBase::AllocaVars() {
+    // Alloca ErrorHandler
+    AST->getErrorHandler()->getCodeGen()->Init();
 
     // Allocation of declared ASTParam
     for (auto &Param: AST->getParams()) {
@@ -97,6 +99,9 @@ void CodeGenFunctionBase::AllocaVars() {
 void CodeGenFunctionBase::StoreParams(bool isMain) {
     // Store Param Values (n = 0 is the Error param)
     int n = isMain ? 0 : 1;
+
+    if (!isMain)
+        CGM->Builder->CreateStore(Fn->getArg(0), AST->getErrorHandler()->getCodeGen()->getPointer());
 
     for (auto &Param: AST->getParams()) {
 

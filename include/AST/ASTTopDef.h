@@ -22,8 +22,6 @@ namespace fly {
     class ASTScopes;
 
     enum class ASTTopDefKind {
-        DEF_NAMESPACE,
-        DEF_IMPORT,
         DEF_GLOBALVAR,
         DEF_FUNCTION,
         DEF_CLASS,

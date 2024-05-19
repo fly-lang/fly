@@ -18,7 +18,7 @@
 
 using namespace fly;
 
-CodeGenError::CodeGenError(CodeGenModule *CGM, ASTVar *Error) : CGM(CGM), Error(Error), T(GenErrorType(CGM)) {
+CodeGenError::CodeGenError(CodeGenModule *CGM, ASTVar *Error) : CGM(CGM), Error(Error), T(llvm::PointerType::get(GenErrorType(CGM), 0)) {
 
 }
 
@@ -31,7 +31,7 @@ llvm::StructType *CodeGenError::GenErrorType(CodeGenModule *CGM) {
 }
 
 void CodeGenError::Init() {
-    Pointer = CGM->Builder->CreateAlloca(CGM->Int8PtrTy);
+    Pointer = CGM->Builder->CreateAlloca(T);
 }
 
 llvm::Type *CodeGenError::getType() {

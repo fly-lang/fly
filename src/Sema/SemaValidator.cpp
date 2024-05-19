@@ -19,6 +19,7 @@
 #include "AST/ASTFunctionBase.h"
 #include "AST/ASTParam.h"
 #include "AST/ASTBlockStmt.h"
+#include "AST/ASTValue.h"
 #include "Basic/Diagnostic.h"
 
 using namespace fly;
@@ -316,5 +317,30 @@ void SemaValidator::CheckCreateLocalVar(const SourceLocation &Loc, ASTType *Type
 }
 
 bool SemaValidator::CheckVarRefExpr(ASTExpr *Expr) {
+    return false;
+}
+
+bool SemaValidator::CheckValue(ASTValue *Value) {
+    switch (Value->getTypeKind()) {
+
+        case ASTTypeKind::TYPE_VOID:
+            break;
+        case ASTTypeKind::TYPE_BOOL:
+            break;
+        case ASTTypeKind::TYPE_INTEGER: {
+            ASTIntegerValue *Integer = (ASTIntegerValue *) Value;
+            break;
+        }
+        case ASTTypeKind::TYPE_FLOATING_POINT:
+            break;
+        case ASTTypeKind::TYPE_STRING:
+            break;
+        case ASTTypeKind::TYPE_ARRAY:
+            break;
+        case ASTTypeKind::TYPE_IDENTITY:
+            break;
+        case ASTTypeKind::TYPE_ERROR:
+            break;
+    }
     return false;
 }

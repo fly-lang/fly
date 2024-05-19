@@ -63,6 +63,14 @@ ASTContext *SemaBuilder::CreateContext() {
     return S.Context;
 }
 
+std::string SemaBuilder::DEFAULT = "default";
+
+ASTNameSpace *SemaBuilder::CreateDefaultNameSpace() {
+    FLY_DEBUG("SemaBuilder", "CreateDefaultNameSpace");
+    const SourceLocation &Loc = SourceLocation();
+    return new ASTNameSpace(SourceLocation(), DEFAULT, S.Context);
+}
+
 /**
  * Creates an ASTModule
  * If NameSpace doesn't exists it will be created
@@ -87,13 +95,6 @@ ASTModule *SemaBuilder::CreateModule(const std::string &Name) {
 ASTModule *SemaBuilder::CreateHeaderModule(const std::string &Name) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateHeaderModule", "Name=" << Name);
     return new ASTModule(Name, S.Context, true);
-}
-
-ASTNameSpace *SemaBuilder::CreateDefaultNameSpace() {
-    FLY_DEBUG("SemaBuilder", "CreateDefaultNameSpace");
-    std::string Name = ASTNameSpace::DEFAULT;
-    const SourceLocation &Loc = SourceLocation();
-    return new ASTNameSpace(SourceLocation(), Name, S.Context);
 }
 
 /**
@@ -174,6 +175,7 @@ ASTFunction *SemaBuilder::CreateFunction(const SourceLocation &Loc, ASTType *Typ
                               .Attr("Scopes", Scopes).End());
     S.getValidator().CheckCreateFunction(Loc, Type, Name, Scopes);
     ASTFunction *F = new ASTFunction(Loc, Type, Name, Scopes);
+    F->ErrorHandler = CreateErrorHandlerParam();
     return F;
 }
 
@@ -652,6 +654,10 @@ ASTParam *SemaBuilder::CreateParam(const SourceLocation &Loc, ASTType *Type, llv
     return Param;
 }
 
+ASTParam *SemaBuilder::CreateErrorHandlerParam() {
+    return CreateParam(SourceLocation(), CreateErrorType(), "error");
+}
+
 /**
  * Creates an ASTLocalVar
  * @param Parent
@@ -1025,8 +1031,11 @@ ASTHandleStmt *SemaBuilder::CreateHandleStmt(const SourceLocation &Loc, ASTVarRe
  * @return true if no error occurs, otherwise false
  */
 bool
-SemaBuilder::AddModule(ASTModule *Module) {
+SemaBuilder::AddModule(ASTModule *Module, ASTNameSpace *NameSpace) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddModule", Logger().Attr("Module", Module).End());
+
+    // If no NameSpace is assign set Default NameSpace
+    Module->NameSpace = (NameSpace == nullptr) ? S.Context->DefaultNameSpace : NameSpace;
 
     // Add to Modules
     auto Pair = std::make_pair(Module->getName(), Module);
@@ -1120,11 +1129,7 @@ SemaBuilder::AddGlobalVar(ASTModule *Module, ASTGlobalVar *GlobalVar, ASTValue *
                       .Attr("Value", Value).End());
 
     GlobalVar->Module = Module;
-
-    ASTVarStmt *VarStmt = SemaBuilder::CreateVarStmt(GlobalVar);
-    ASTValueExpr *ValueExpr = SemaBuilder::CreateExpr(Value);
-    VarStmt->setExpr(ValueExpr);
-    GlobalVar->setInit(VarStmt);
+    GlobalVar->Expr = SemaBuilder::CreateExpr(Value);
 
     // Lookup into namespace for public var
     if(GlobalVar->getScopes()->Visibility == ASTVisibilityKind::V_PUBLIC ||

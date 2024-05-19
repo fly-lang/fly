@@ -119,7 +119,7 @@ ASTModule *Parser::ParseHeader() {
  */
 bool Parser::ParseNameSpace() {
     FLY_DEBUG("Parser", "ParseNameSpace");
-    ASTNameSpace *NameSpace;
+    ASTNameSpace *NameSpace = nullptr;
 
     // Check namespace declaration
     if (Tok.is(tok::kw_namespace)) {
@@ -134,14 +134,10 @@ bool Parser::ParseNameSpace() {
             return false;
         }
         NameSpace = Builder.CreateNameSpace(Identifier);
-    } else {
-
-        // Define Default NameSpace also if it has not been defined
-        NameSpace = Builder.CreateDefaultNameSpace();
     }
     FLY_DEBUG_MESSAGE("Parser", "ParseNameSpace", "NameSpace=" << NameSpace);
 
-    return Builder.AddNameSpace(Module, NameSpace);
+    return NameSpace;
 }
 
 /**

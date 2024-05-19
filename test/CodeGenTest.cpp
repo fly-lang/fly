@@ -106,12 +106,9 @@ namespace {
             llvm::InitializeAllAsmPrinters();
         }
 
-        ASTModule *CreateModule() {
+        ASTModule *CreateModule(std::string Name = "test") {
             Diags.getClient()->BeginSourceFile();
-            const std::string Name = "CodeGenTest";
             auto *Module = Builder.CreateModule(Name);
-            ASTNameSpace *NameSpace = Builder.CreateDefaultNameSpace();
-            Builder.AddNameSpace(Module, NameSpace);
             Builder.AddModule(Module);
             Diags.getClient()->EndSourceFile();
             return Module;
@@ -290,7 +287,7 @@ namespace {
         EXPECT_TRUE(Builder.AddGlobalVar(Module, bVar, ByteVal));
 
         // c
-        ASTIntegerValue *ShortVal = Builder.CreateIntegerValue(SourceLoc, -2);
+        ASTIntegerValue *ShortVal = Builder.CreateIntegerValue(SourceLoc, 2, true);
         ASTGlobalVar *cVar = Builder.CreateGlobalVar(SourceLoc, ShortType, "c", TopScopes);
         EXPECT_TRUE(Builder.AddGlobalVar(Module, cVar, ShortVal));
 
@@ -300,7 +297,7 @@ namespace {
         EXPECT_TRUE(Builder.AddGlobalVar(Module, dVar, UShortVal));
 
         // e
-        ASTIntegerValue *IntVal = Builder.CreateIntegerValue(SourceLoc, -3);
+        ASTIntegerValue *IntVal = Builder.CreateIntegerValue(SourceLoc, 3, true);
         ASTGlobalVar *eVar = Builder.CreateGlobalVar(SourceLoc, IntType, "e", TopScopes);
         EXPECT_TRUE(Builder.AddGlobalVar(Module, eVar, IntVal));
 
@@ -310,7 +307,7 @@ namespace {
         EXPECT_TRUE(Builder.AddGlobalVar(Module, fVar, UIntVal));
 
         // g
-        ASTIntegerValue *LongVal = Builder.CreateIntegerValue(SourceLoc, -4);
+        ASTIntegerValue *LongVal = Builder.CreateIntegerValue(SourceLoc, 4, true);
         ASTGlobalVar *gVar = Builder.CreateGlobalVar(SourceLoc, LongType, "g", TopScopes);
         EXPECT_TRUE(Builder.AddGlobalVar(Module, gVar, LongVal));
 
@@ -442,13 +439,16 @@ namespace {
         EXPECT_EQ(output, "@m = global [6 x i8] c\"hello\\00\"");
     }
 
-    TEST_F(CodeGenTest, CGFunc) {
+    TEST_F(CodeGenTest, CGFuncParamTypes) {
         ASTModule *Module = CreateModule();
 
         ASTScopes *TopScopes = Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false);
         ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func", TopScopes);
-
         ASTScopes *Scopes = Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false);
+
+        // func(int P1, float P2, bool P3, long P4, double P5, byte P6, short P7, ushort P8, uint P9, ulong P10) {
+        // }
+
         EXPECT_TRUE(Builder.AddParam(Func, Builder.CreateParam(SourceLoc, IntType, "P1", Scopes)));
         EXPECT_TRUE(Builder.AddParam(Func, Builder.CreateParam(SourceLoc, FloatType, "P2", Scopes)));
         EXPECT_TRUE(Builder.AddParam(Func, Builder.CreateParam(SourceLoc, BoolType, "P3", Scopes)));
@@ -477,27 +477,29 @@ namespace {
 
         EXPECT_EQ(output, "define void @func(%error* %0, i32 %1, float %2, i1 %3, i64 %4, double %5, i8 %6, i16 %7, i16 %8, i32 %9, i64 %10) {\n"
                           "entry:\n"
-                          "  %11 = alloca i32, align 4\n"
-                          "  %12 = alloca float, align 4\n"
-                          "  %13 = alloca i8, align 1\n"
-                          "  %14 = alloca i64, align 8\n"
-                          "  %15 = alloca double, align 8\n"
-                          "  %16 = alloca i8, align 1\n"
-                          "  %17 = alloca i16, align 2\n"
+                          "  %11 = alloca %error*, align 8\n"
+                          "  %12 = alloca i32, align 4\n"
+                          "  %13 = alloca float, align 4\n"
+                          "  %14 = alloca i8, align 1\n"
+                          "  %15 = alloca i64, align 8\n"
+                          "  %16 = alloca double, align 8\n"
+                          "  %17 = alloca i8, align 1\n"
                           "  %18 = alloca i16, align 2\n"
-                          "  %19 = alloca i32, align 4\n"
-                          "  %20 = alloca i64, align 8\n"
-                          "  store i32 %1, i32* %11, align 4\n"
-                          "  store float %2, float* %12, align 4\n"
-                          "  %21 = zext i1 %3 to i8\n"
-                          "  store i8 %21, i8* %13, align 1\n"
-                          "  store i64 %4, i64* %14, align 8\n"
-                          "  store double %5, double* %15, align 8\n"
-                          "  store i8 %6, i8* %16, align 1\n"
-                          "  store i16 %7, i16* %17, align 2\n"
-                          "  store i16 %8, i16* %18, align 2\n"
-                          "  store i32 %9, i32* %19, align 4\n"
-                          "  store i64 %10, i64* %20, align 8\n"
+                          "  %19 = alloca i16, align 2\n"
+                          "  %20 = alloca i32, align 4\n"
+                          "  %21 = alloca i64, align 8\n"
+                          "  store %error* %0, %error** %11, align 8\n"
+                          "  store i32 %1, i32* %12, align 4\n"
+                          "  store float %2, float* %13, align 4\n"
+                          "  %22 = zext i1 %3 to i8\n"
+                          "  store i8 %22, i8* %14, align 1\n"
+                          "  store i64 %4, i64* %15, align 8\n"
+                          "  store double %5, double* %16, align 8\n"
+                          "  store i8 %6, i8* %17, align 1\n"
+                          "  store i16 %7, i16* %18, align 2\n"
+                          "  store i16 %8, i16* %19, align 2\n"
+                          "  store i32 %9, i32* %20, align 4\n"
+                          "  store i64 %10, i64* %21, align 8\n"
                           "  ret void\n"
                           "}\n");
     }

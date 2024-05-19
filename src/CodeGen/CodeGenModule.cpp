@@ -316,32 +316,35 @@ llvm::Constant *CodeGenModule::GenValue(const ASTType *Type, const ASTValue *Val
         // Integer
         case ASTTypeKind::TYPE_INTEGER: {
             ASTIntegerType *IntegerType = (ASTIntegerType *) Type;
+            ASTIntegerValue *IntegerValue = (ASTIntegerValue *) Val;
+            uint64_t IntValue = IntegerValue->getValue();
             switch (IntegerType->getIntegerKind()) {
                 case ASTIntegerTypeKind::TYPE_BYTE:
-                    return llvm::ConstantInt::get(Int8Ty, ((ASTIntegerValue *) Val)->getValue(), false);
+                    return llvm::ConstantInt::get(Int8Ty, IntValue, false);
                 case ASTIntegerTypeKind::TYPE_USHORT:
-                    return llvm::ConstantInt::get(Int16Ty, ((ASTIntegerValue *) Val)->getValue(), false);
+                    return llvm::ConstantInt::get(Int16Ty, IntValue, false);
                 case ASTIntegerTypeKind::TYPE_SHORT:
-                    return llvm::ConstantInt::get(Int16Ty, ((ASTIntegerValue *) Val)->getValue(), true);
+                    return llvm::ConstantInt::get(Int16Ty, IntegerValue->isNegative() ? -IntValue: IntValue, true);
                 case ASTIntegerTypeKind::TYPE_UINT:
-                    return llvm::ConstantInt::get(Int32Ty, ((ASTIntegerValue *) Val)->getValue(), false);
+                    return llvm::ConstantInt::get(Int32Ty, IntValue, false);
                 case ASTIntegerTypeKind::TYPE_INT:
-                    return llvm::ConstantInt::get(Int32Ty, ((ASTIntegerValue *) Val)->getValue(), true);
+                    return llvm::ConstantInt::get(Int32Ty, IntegerValue->isNegative() ? -IntValue: IntValue, true);
                 case ASTIntegerTypeKind::TYPE_ULONG:
-                    return llvm::ConstantInt::get(Int64Ty, ((ASTIntegerValue *) Val)->getValue(), false);
+                    return llvm::ConstantInt::get(Int64Ty, IntValue, false);
                 case ASTIntegerTypeKind::TYPE_LONG:
-                    return llvm::ConstantInt::get(Int64Ty, ((ASTIntegerValue *) Val)->getValue(), true);
+                    return llvm::ConstantInt::get(Int64Ty, IntegerValue->isNegative() ? -IntValue: IntValue, true);
             }
         }
 
         // Floating Point
         case ASTTypeKind::TYPE_FLOATING_POINT: {
-            ASTFloatingPointType *FloatingPointType = (ASTFloatingPointType *) Type;
-            switch (FloatingPointType->getFloatingPointKind()) {
+            ASTFloatingPointType *FPType = (ASTFloatingPointType *) Type;
+            const std::string &FPValue = ((ASTFloatingValue *) Val)->getValue();
+            switch (FPType->getFloatingPointKind()) {
                 case ASTFloatingPointTypeKind::TYPE_FLOAT:
-                    return llvm::ConstantFP::get(FloatTy, ((ASTFloatingValue *) Val)->getValue());
+                    return llvm::ConstantFP::get(FloatTy, FPValue);
                 case ASTFloatingPointTypeKind::TYPE_DOUBLE:
-                    return llvm::ConstantFP::get(DoubleTy, ((ASTFloatingValue *) Val)->getValue());
+                    return llvm::ConstantFP::get(DoubleTy, FPValue);
             }
         }
 
@@ -513,7 +516,7 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
 
 CodeGenError *CodeGenModule::GenErrorHandler(ASTVar *Var) {
     if (!Var->getType()->isError()) {
-        // Error:
+        // Error: TODO
     }
     // Set CodeGenError
     return new CodeGenError(this, Var);

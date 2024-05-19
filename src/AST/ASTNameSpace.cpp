@@ -11,8 +11,6 @@
 
 using namespace fly;
 
-const std::string ASTNameSpace::DEFAULT = "default";
-
 ASTNameSpace::ASTNameSpace(const SourceLocation &Loc, llvm::StringRef Name, ASTContext *Context, bool ExternalLib) :
     ASTIdentifier(Loc, Name), Context(Context), ExternalLib(ExternalLib) {
 }

@@ -64,8 +64,6 @@ namespace fly {
 
         ~ASTNameSpace();
 
-        static const std::string DEFAULT;
-
         const llvm::StringMap<ASTModule *> &getModules() const;
 
         bool isExternalLib() const;

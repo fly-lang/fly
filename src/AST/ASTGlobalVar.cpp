@@ -1,4 +1,3 @@
-//===--------------------------------------------------------------------------------------------------------------===//
 // src/AST/ASTGlobalVar.cpp - AST Global Var implementation
 //
 // Part of the Fly Project https://flylang.org
@@ -34,12 +33,8 @@ llvm::StringRef ASTGlobalVar::getName() const {
     return ASTVar::getName();
 }
 
-ASTVarStmt *ASTGlobalVar::getInit() const {
-    return Init;
-}
-
-void ASTGlobalVar::setInit(ASTVarStmt *VarStmt) {
-    Init = VarStmt;
+ASTExpr *ASTGlobalVar::getExpr() const {
+    return Expr;
 }
 
 CodeGenGlobalVar *ASTGlobalVar::getCodeGen() const {

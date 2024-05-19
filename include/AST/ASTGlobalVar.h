@@ -24,7 +24,7 @@ namespace fly {
 
         ASTModule *Module = nullptr;
 
-        ASTVarStmt *Init = nullptr;
+        ASTExpr *Expr = nullptr;
 
         // Code Generator
         CodeGenGlobalVar *CodeGen = nullptr;
@@ -43,9 +43,7 @@ namespace fly {
 
         llvm::StringRef getName() const override;
 
-        ASTVarStmt *getInit() const;
-
-        void setInit(ASTVarStmt *VarStmt);
+        ASTExpr *getExpr() const;
 
         CodeGenGlobalVar *getCodeGen() const override;
 

@@ -801,8 +801,11 @@ bool SemaResolver::ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr) {
     switch (Expr->getExprKind()) {
         case ASTExprKind::EXPR_EMPTY:
             return true;
-        case ASTExprKind::EXPR_VALUE: // Select the best option for this Value
-            return true;
+        case ASTExprKind::EXPR_VALUE: {
+            // Select the best option for this Value
+            ASTValueExpr *ValueExpr = (ASTValueExpr *) Expr;
+            return S.getValidator().CheckValue(ValueExpr->getValue());
+        }
         case ASTExprKind::EXPR_VAR_REF: {
             ASTVarRef *VarRef = ((ASTVarRefExpr *)Expr)->getVarRef();
             if (ResolveVarRef(Stmt, VarRef)) {
