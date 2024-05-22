@@ -73,7 +73,7 @@ namespace fly {
 
         ~ASTModule();
 
-        ASTModule(std::string FileName, ASTContext *Context, bool isHeader);
+        ASTModule(std::string Name, ASTContext *Context, bool isHeader);
 
     public:
 
@@ -100,6 +100,8 @@ namespace fly {
         const llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> &getFunctions() const;
 
         CodeGenModule *getCodeGen() const;
+
+        void setCodeGen(CodeGenModule *CGM);
 
         std::string str() const;
     };

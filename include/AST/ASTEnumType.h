@@ -23,6 +23,7 @@ namespace fly {
 
         friend class SemaBuilder;
         friend class SemaResolver;
+        friend class SemaValidator;
 
         explicit ASTEnumType(ASTIdentifier *Identifier);
 

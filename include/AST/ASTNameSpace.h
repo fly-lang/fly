@@ -28,9 +28,9 @@ namespace fly {
 
     class ASTNameSpace : public ASTIdentifier {
 
-        friend class Sema;
-        friend class SemaResolver;
         friend class SemaBuilder;
+        friend class SemaResolver;
+        friend class SemaValidator;
 
         // The Context
         ASTContext* Context = nullptr;

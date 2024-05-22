@@ -47,10 +47,6 @@ ASTCall::ASTCall(const SourceLocation &Loc, llvm::StringRef Name) : ASTIdentifie
 
 }
 
-ASTCall::ASTCall(ASTFunctionBase *Function) : Def(Function), ASTIdentifier(SourceLocation(), llvm::StringRef(), ASTIdentifierKind::REF_CALL) {
-
-}
-
 const ASTVar *ASTCall::getErrorHandler() const {
     return ErrorHandler;
 }

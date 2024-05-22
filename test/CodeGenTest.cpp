@@ -62,12 +62,10 @@ namespace {
     public:
         const CompilerInstance CI;
         CodeGen *CG;
-        CodeGenModule *CGM;
         DiagnosticsEngine &Diags;
         Sema *S;
         SourceLocation SourceLoc;
         SemaBuilder &Builder;
-
         ASTType *VoidType;
         ASTType *BoolType;
         ASTType *ByteType;
@@ -83,7 +81,6 @@ namespace {
 
         CodeGenTest() : CI(*TestUtils::CreateCompilerInstance()),
                 CG(TestUtils::CreateCodeGen(CI)),
-                CGM(CG->CreateModule("CodeGenTest")),
                 Diags(CI.getDiagnostics()),
                 S(Sema::CreateSema(CI.getDiagnostics())),
                 Builder(S->getBuilder()),
@@ -118,9 +115,9 @@ namespace {
             llvm::outs().flush();
         }
 
-        std::string getOutput() {
+        std::string getOutput(llvm::Module *Module) {
             testing::internal::CaptureStdout();
-            CGM->Module->print(llvm::outs(), nullptr);
+            Module->print(llvm::outs(), nullptr);
             std::string output = testing::internal::GetCapturedStdout();
             output.erase(0, output.find("\n") + 1);
             output.erase(0, output.find("\n") + 1);
@@ -132,6 +129,7 @@ namespace {
 
     TEST_F(CodeGenTest, CGDefaultValueGlobalVar) {
         ASTModule *Module = CreateModule();
+        CodeGenModule *CGM = CG->GenerateModule(*Module);
 
         ASTScopes *TopScopes = Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false);
 
@@ -273,6 +271,7 @@ namespace {
 
     TEST_F(CodeGenTest, CGValuedGlobalVar) {
         ASTModule *Module = CreateModule();
+        CodeGenModule *CGM = CG->GenerateModule(*Module);
 
         ASTScopes *TopScopes = Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false);
 
@@ -441,6 +440,7 @@ namespace {
 
     TEST_F(CodeGenTest, CGFuncParamTypes) {
         ASTModule *Module = CreateModule();
+        CodeGenModule *CGM = CG->GenerateModule(*Module);
 
         ASTScopes *TopScopes = Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false);
         ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func", TopScopes);
@@ -506,6 +506,7 @@ namespace {
 
     TEST_F(CodeGenTest, CGFuncUseGlobalVar) {
         ASTModule *Module = CreateModule();
+        CodeGenModule *CGM = CG->GenerateModule(*Module);
 
         // float G = 2.0
         ASTFloatingValue *FloatingVal = Builder.CreateFloatingValue(SourceLoc, 2.0);
@@ -518,34 +519,31 @@ namespace {
                                                     Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
         ASTBlockStmt *Body = Builder.CreateBody(Func);
 
-        // int A
+        // int A = 1
         ASTLocalVar *VarA = Builder.CreateLocalVar(SourceLoc, IntType, "A");
-        ASTVarStmt *VarADecl = Builder.CreateVarStmt(VarA);
-        EXPECT_TRUE(Builder.AddStmt(Body, VarADecl));
-        
-        // A = 1
-        ASTVarStmt * VarAAssign = Builder.CreateVarStmt(Builder.CreateVarRef(VarA));
-        ASTExpr *AssignExpr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
-        Builder.AddExpr(VarAAssign, AssignExpr);
-        EXPECT_TRUE(Builder.AddStmt(Body, VarAAssign));
+        EXPECT_TRUE(Builder.AddLocalVar(Body, VarA));
+        ASTVarStmt *VarAStmt = Builder.CreateVarStmt(VarA);
+        ASTExpr *ExprA = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
+        EXPECT_TRUE(Builder.AddExpr(VarAStmt, ExprA));
+        EXPECT_TRUE(Builder.AddStmt(Body, VarAStmt));
 
         // GlobalVar
         // G = 1
         ASTVarRef *VarRefG = Builder.CreateVarRef(GVar);
         ASTVarStmt * GVarStmt = Builder.CreateVarStmt(VarRefG);
-        AssignExpr = Builder.CreateExpr(Builder.CreateFloatingValue(SourceLoc, 1));
-        Builder.AddExpr(GVarStmt, AssignExpr);
+        ASTExpr *ExprG = Builder.CreateExpr(Builder.CreateFloatingValue(SourceLoc, 1));
+        EXPECT_TRUE(Builder.AddExpr(GVarStmt, ExprG));
         EXPECT_TRUE(Builder.AddStmt(Body, GVarStmt));
 
         // return A
         ASTReturnStmt *Return = Builder.CreateReturnStmt(SourceLoc);
-        AssignExpr = Builder.CreateExpr(Builder.CreateVarRef(VarA));
-        Builder.AddExpr(Return, AssignExpr);
+        ASTExpr *ExprRA = Builder.CreateExpr(Builder.CreateVarRef(VarA));
+        EXPECT_TRUE(Builder.AddExpr(Return, ExprRA));
         EXPECT_TRUE(Builder.AddStmt(Body, Return));
 
         // add to Module
         EXPECT_TRUE(Builder.AddFunction(Module, Func));
-        
+
         EXPECT_TRUE(S->Resolve());
 
         // Generate Code
@@ -568,16 +566,19 @@ namespace {
         std::string output2 = testing::internal::GetCapturedStdout();
         EXPECT_EQ(output2, "define i32 @func(%error* %0) {\n"
                           "entry:\n"
-                          "  %1 = alloca i32, align 4\n"
-                          "  store i32 1, i32* %1, align 4\n"
+                          "  %1 = alloca %error*, align 8\n"
+                          "  %2 = alloca i32, align 4\n"
+                          "  store %error* %0, %error** %1, align 8\n"
+                          "  store i32 1, i32* %2, align 4\n"
                           "  store float 1.000000e+00, float* @G, align 4\n"
-                          "  %2 = load i32, i32* %1, align 4\n"
-                          "  ret i32 %2\n"
+                          "  %3 = load i32, i32* %2, align 4\n"
+                          "  ret i32 %3\n"
                           "}\n");
     }
 
     TEST_F(CodeGenTest, CGValue) {
         ASTModule *Module = CreateModule();
+        CodeGenModule *CGM = CG->GenerateModule(*Module);
 
         // func()
         ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
@@ -585,10 +586,11 @@ namespace {
         ASTBlockStmt *Body = Builder.CreateBody(Func);
         // int a = 1
         ASTLocalVar *LocalVar = Builder.CreateLocalVar(SourceLoc, Builder.CreateIntType(SourceLoc), "a");
+        EXPECT_TRUE(Builder.AddLocalVar(Body, LocalVar));
         ASTVarStmt *VarStmt = Builder.CreateVarStmt(LocalVar);
         ASTValueExpr *ValueExpr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
-        Builder.AddExpr(VarStmt, ValueExpr);
-        Builder.AddStmt(Body, VarStmt);
+        EXPECT_TRUE(Builder.AddExpr(VarStmt, ValueExpr));
+        EXPECT_TRUE(Builder.AddStmt(Body, VarStmt));
 
         // add to Module
         EXPECT_TRUE(Builder.AddFunction(Module, Func));
@@ -606,36 +608,39 @@ namespace {
 
         EXPECT_EQ(output, "define void @func(%error* %0) {\n"
                           "entry:\n"
-                          "  %1 = alloca i32, align 4\n"
-                          "  store i32 1, i32* %1, align 4\n"
+                          "  %1 = alloca %error*, align 8\n"
+                          "  %2 = alloca i32, align 4\n"
+                          "  store %error* %0, %error** %1, align 8\n"
+                          "  store i32 1, i32* %2, align 4\n"
                           "  ret void\n"
                           "}\n");
     }
 
     TEST_F(CodeGenTest, CGFuncCall) {
         ASTModule *Module = CreateModule();
-
-        // func()
-        ASTFunction *Func = Builder.CreateFunction(SourceLoc, IntType, "func",
-                                                    Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlockStmt *Body = Builder.CreateBody(Func);
+        CodeGenModule *CGM = CG->GenerateModule(*Module);
 
         // test()
         ASTFunction *Test = Builder.CreateFunction(SourceLoc, IntType, "test",
                                                     Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
         Builder.CreateBody(Test);
 
+        // func()
+        ASTFunction *Func = Builder.CreateFunction(SourceLoc, IntType, "func",
+                                                   Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        ASTBlockStmt *Body = Builder.CreateBody(Func);
+
         // call test()
         ASTExprStmt *ExprStmt = Builder.CreateExprStmt(SourceLoc);
         ASTCall *TestCall = Builder.CreateCall(Test);
         ASTCallExpr *Expr = Builder.CreateExpr(TestCall);
-        Builder.AddExpr(ExprStmt, Expr);
+        EXPECT_TRUE(Builder.AddExpr(ExprStmt, Expr));
         EXPECT_TRUE(Builder.AddStmt(Body, ExprStmt));
 
         //return test()
         ASTReturnStmt *Return = Builder.CreateReturnStmt(SourceLoc);
         ASTCallExpr *ReturnExpr = Builder.CreateExpr(TestCall);
-        Builder.AddExpr(Return, ReturnExpr);
+        EXPECT_TRUE(Builder.AddExpr(Return, ReturnExpr));
         EXPECT_TRUE(Builder.AddStmt(Body, Return));
 
         // add to Module
@@ -646,7 +651,8 @@ namespace {
 
 
         // Generate Code
-        CGM->GenFunction(Test);
+        CodeGenFunction *CGF_Test = CGM->GenFunction(Test);
+        CGF_Test->GenBody();
         CodeGenFunction *CGF = CGM->GenFunction(Func);
         CGF->GenBody();
         Function *F = CGF->getFunction();
@@ -658,6 +664,8 @@ namespace {
 
         EXPECT_EQ(output, "define i32 @func(%error* %0) {\n"
                           "entry:\n"
+                          "  %1 = alloca %error*, align 8\n"
+                          "  store %error* %0, %error** %1, align 8\n"
                           "  %1 = call i32 @test(%error* %0)\n"
                           "  %2 = call i32 @test(%error* %0)\n"
                           "  ret i32 %2\n"
@@ -671,6 +679,7 @@ namespace {
      */
     TEST_F(CodeGenTest, CGGroupExpr) {
         ASTModule *Module = CreateModule();
+        CodeGenModule *CGM = CG->GenerateModule(*Module);
 
         // func()
         ASTFunction *Func = Builder.CreateFunction(SourceLoc, IntType, "func",
@@ -738,6 +747,7 @@ namespace {
 
     TEST_F(CodeGenTest, CGArithOp) {
         ASTModule *Module = CreateModule();
+        CodeGenModule *CGM = CG->GenerateModule(*Module);
 
         // func()
         ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
@@ -940,6 +950,7 @@ namespace {
 
     TEST_F(CodeGenTest, CGComparatorOp) {
         ASTModule *Module = CreateModule();
+        CodeGenModule *CGM = CG->GenerateModule(*Module);
 
         // func()
         ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
@@ -1049,6 +1060,7 @@ namespace {
 
     TEST_F(CodeGenTest, CGLogicOp) {
         ASTModule *Module = CreateModule();
+        CodeGenModule *CGM = CG->GenerateModule(*Module);
 
         // func()
         ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
@@ -1136,6 +1148,7 @@ namespace {
 
     TEST_F(CodeGenTest, CGTernaryOp) {
         ASTModule *Module = CreateModule();
+        CodeGenModule *CGM = CG->GenerateModule(*Module);
 
         // func()
         ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
@@ -1216,6 +1229,7 @@ namespace {
 
     TEST_F(CodeGenTest, CGIfBlock) {
         ASTModule *Module = CreateModule();
+        CodeGenModule *CGM = CG->GenerateModule(*Module);
 
         // func()
         ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
@@ -1275,6 +1289,7 @@ namespace {
 
     TEST_F(CodeGenTest, CGIfElseBlock) {
         ASTModule *Module = CreateModule();
+        CodeGenModule *CGM = CG->GenerateModule(*Module);
 
         // func()
         ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
@@ -1342,6 +1357,7 @@ namespace {
 
     TEST_F(CodeGenTest, CGIfElsifElseBlock) {
         ASTModule *Module = CreateModule();
+        CodeGenModule *CGM = CG->GenerateModule(*Module);
 
         // func()
         ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
@@ -1444,6 +1460,7 @@ namespace {
 
     TEST_F(CodeGenTest, CGIfElsif) {
         ASTModule *Module = CreateModule();
+        CodeGenModule *CGM = CG->GenerateModule(*Module);
 
         // main()
         ASTFunction *MainFn = Builder.CreateFunction(SourceLoc, VoidType, "func",
@@ -1534,6 +1551,7 @@ namespace {
 
     TEST_F(CodeGenTest, CGSwitch) {
         ASTModule *Module = CreateModule();
+        CodeGenModule *CGM = CG->GenerateModule(*Module);
 
         // main()
         ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
@@ -1616,6 +1634,7 @@ namespace {
 
     TEST_F(CodeGenTest, CGWhile) {
         ASTModule *Module = CreateModule();
+        CodeGenModule *CGM = CG->GenerateModule(*Module);
 
         // main()
         ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
@@ -1676,6 +1695,7 @@ namespace {
 
     TEST_F(CodeGenTest, CGFor) {
         ASTModule *Module = CreateModule();
+        CodeGenModule *CGM = CG->GenerateModule(*Module);
 
         // main()
         ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
@@ -1763,6 +1783,7 @@ namespace {
 
     TEST_F(CodeGenTest, CGClassOnlyMethods) {
         ASTModule *Module = CreateModule();
+        CodeGenModule *CGM = CG->GenerateModule(*Module);
 
         // TestClass {
         //   int a() { return 1 }
@@ -1881,7 +1902,7 @@ namespace {
             CGF->GenBody();
 
             EXPECT_FALSE(Diags.hasErrorOccurred());
-            std::string output = getOutput();
+            std::string output = getOutput(CGM->getModule());
 
             EXPECT_EQ(output, "%error = type { i8, i32, i8* }\n"
                               "%TestClass = type { %TestClass_vtable* }\n"
@@ -1940,6 +1961,7 @@ namespace {
 
     TEST_F(CodeGenTest, CGClass) {
         ASTModule *Module = CreateModule();
+        CodeGenModule *CGM = CG->GenerateModule(*Module);
 
         // TestClass {
         //   int a
@@ -2023,7 +2045,7 @@ namespace {
             CGF->GenBody();
 
             EXPECT_FALSE(Diags.hasErrorOccurred());
-            std::string output = getOutput();
+            std::string output = getOutput(CGM->getModule());
 
             EXPECT_EQ(output, "%error = type { i8, i32, i8* }\n"
                               "%TestClass = type { %TestClass_vtable*, i32 }\n"
@@ -2072,6 +2094,7 @@ namespace {
 
 //    TEST_F(CodeGenTest, CGStruct) {
 //        ASTModule *Module = CreateModule();
+//        CodeGenModule *CGM = CG->GenerateModule(*Module);
 //
 //        // struct TestStruct {
 //        //   int a
@@ -2210,6 +2233,7 @@ namespace {
 //
 //    TEST_F(CodeGenTest, CGEnum) {
 //        ASTModule *Module = CreateModule();
+//        CodeGenModule *CGM = CG->GenerateModule(*Module);
 //
 //        // enum TestEnum {
 //        //   A

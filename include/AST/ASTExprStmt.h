@@ -16,8 +16,9 @@ namespace fly {
 
     class ASTExprStmt : public ASTStmt {
 
-        friend class SemaResolver;
         friend class SemaBuilder;
+        friend class SemaResolver;
+        friend class SemaValidator;
 
     protected:
 

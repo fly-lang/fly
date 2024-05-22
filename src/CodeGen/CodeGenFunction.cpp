@@ -27,7 +27,7 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, ASTFunction *AST, bool isEx
 
     // Generate Params Types
     if (isMainFunction(AST)) {
-        RetType = CGM->Int32Ty;
+        RetType = CGM->getCodeGen()->Int32Ty;
     } else {
         GenReturnType();
 
@@ -71,8 +71,8 @@ void CodeGenFunction::GenBody() {
 
     // if is Main check error and return right exit code
     if (isMain) {
-        llvm::Value *Zero32 = llvm::ConstantInt::get(CGM->Int32Ty, 0);
-        llvm::Value *Zero8 = llvm::ConstantInt::get(CGM->Int8Ty, 0);
+        llvm::Value *Zero32 = llvm::ConstantInt::get(CGM->getCodeGen()->Int32Ty, 0);
+        llvm::Value *Zero8 = llvm::ConstantInt::get(CGM->getCodeGen()->Int8Ty, 0);
         // take return value from error struct
         CodeGenError *CGE = (CodeGenError *) AST->getErrorHandler()->getCodeGen();
         llvm::Value *ErrorKind = CGM->Builder->CreateInBoundsGEP(CGE->getType(),

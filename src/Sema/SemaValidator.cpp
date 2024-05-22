@@ -321,6 +321,7 @@ bool SemaValidator::CheckVarRefExpr(ASTExpr *Expr) {
 }
 
 bool SemaValidator::CheckValue(ASTValue *Value) {
+    // TODO
     switch (Value->getTypeKind()) {
 
         case ASTTypeKind::TYPE_VOID:

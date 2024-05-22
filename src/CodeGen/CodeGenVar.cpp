@@ -22,7 +22,7 @@ using namespace fly;
 
 CodeGenVar::CodeGenVar(CodeGenModule *CGM, ASTVar *Var) : CGM(CGM), Var(Var) {
     // Fix Architecture Compatibility of bool i1 to i8
-    this->T = Var->getType()->getKind() == ASTTypeKind::TYPE_BOOL ? CGM->Int8Ty : CGM->GenType(Var->getType());
+    this->T = Var->getType()->getKind() == ASTTypeKind::TYPE_BOOL ? CGM->getCodeGen()->Int8Ty : CGM->GenType(Var->getType());
 }
 
 void CodeGenVar::Init() {
@@ -36,7 +36,7 @@ llvm::StoreInst *CodeGenVar::Store(llvm::Value *Val) {
 
     // Fix Architecture Compatibility of bool i1 to i8
     if (Var->getType()->getKind() == ASTTypeKind::TYPE_BOOL) {
-        Val = CGM->Builder->CreateZExt(Val, CGM->Int8Ty);
+        Val = CGM->Builder->CreateZExt(Val, CGM->getCodeGen()->Int8Ty);
     }
 
     return CGM->Builder->CreateStore(Val, this->Pointer);

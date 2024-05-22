@@ -92,6 +92,7 @@ namespace fly {
 
         friend class SemaBuilder;
         friend class SemaResolver;
+        friend class SemaValidator;
 
     protected:
 
@@ -129,6 +130,7 @@ namespace fly {
 
         friend class SemaBuilder;
         friend class SemaResolver;
+        friend class SemaValidator;
 
         ASTValue *Value = nullptr;
 
@@ -148,6 +150,7 @@ namespace fly {
 
         friend class SemaBuilder;
         friend class SemaResolver;
+        friend class SemaValidator;
 
         ASTVarRef *VarRef = nullptr;
 
@@ -167,6 +170,7 @@ namespace fly {
 
         friend class SemaBuilder;
         friend class SemaResolver;
+        friend class SemaValidator;
 
         ASTCall *Call = nullptr;
 
@@ -186,6 +190,7 @@ namespace fly {
 
         friend class SemaBuilder;
         friend class SemaResolver;
+        friend class SemaValidator;
 
         const ASTExprGroupKind GroupKind;
 
@@ -207,6 +212,7 @@ namespace fly {
 
         friend class SemaBuilder;
         friend class SemaResolver;
+        friend class SemaValidator;
 
         const ASTUnaryOperatorKind OperatorKind;
 
@@ -234,6 +240,7 @@ namespace fly {
 
         friend class SemaBuilder;
         friend class SemaResolver;
+        friend class SemaValidator;
 
         const SourceLocation OpLoc;
 
@@ -267,6 +274,7 @@ namespace fly {
 
         friend class SemaBuilder;
         friend class SemaResolver;
+        friend class SemaValidator;
 
         // Only Ternary Condition (if ? than : else)
         const ASTTernaryOperatorKind OperatorKind = CONDITION;

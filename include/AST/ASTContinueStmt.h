@@ -19,6 +19,10 @@ namespace fly {
      */
     class ASTContinueStmt : public ASTStmt {
 
+        friend class SemaBuilder;
+        friend class SemaResolver;
+        friend class SemaValidator;
+
     public:
         explicit ASTContinueStmt(const SourceLocation &Loc);
 

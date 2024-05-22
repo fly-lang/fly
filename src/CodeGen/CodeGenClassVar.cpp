@@ -19,8 +19,8 @@
 using namespace fly;
 
 CodeGenClassVar::CodeGenClassVar(CodeGenModule *CGM, ASTClassAttribute *Var, llvm::Type *ClassType, uint32_t Index) :
-        CGM(CGM), Var(Var), ClassType(ClassType), Index(llvm::ConstantInt::get(CGM->Int32Ty, Index)),
-        Zero(llvm::ConstantInt::get(CGM->Int32Ty, 0)) {
+        CGM(CGM), Var(Var), ClassType(ClassType), Index(llvm::ConstantInt::get(CGM->getCodeGen()->Int32Ty, Index)),
+        Zero(llvm::ConstantInt::get(CGM->getCodeGen()->Int32Ty, 0)) {
 }
 
 /**
@@ -36,7 +36,7 @@ llvm::StoreInst *CodeGenClassVar::Store(llvm::Value *Val) {
 
     // Fix Architecture Compatibility of bool i1 to i8
     if (Var->getType()->getKind() == ASTTypeKind::TYPE_BOOL) {
-        Val = CGM->Builder->CreateZExt(Val, CGM->Int8Ty);
+        Val = CGM->Builder->CreateZExt(Val, CGM->CG->Int8Ty);
     }
 
     StoreInst *S = CGM->Builder->CreateStore(Val, getValue());

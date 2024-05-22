@@ -25,7 +25,7 @@ namespace fly {
 
         friend class SemaBuilder;
         friend class SemaResolver;
-        friend class Sema;
+        friend class SemaValidator;
 
         // List of Statements of the Block
         llvm::SmallVector<ASTStmt *, 8> Content;

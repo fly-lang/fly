@@ -312,9 +312,9 @@ bool SemaResolver::ResolveStmt(ASTStmt *Stmt) {
         case ASTStmtKind::STMT_VAR: {
             ASTVarStmt *VarStmt = (ASTVarStmt *) Stmt;
             ResolveVarRef(Stmt->Parent, VarStmt->getVarRef());
-            if (VarStmt->getVarRef()->Resolved && VarStmt->getExpr() != nullptr)
-                VarStmt->getVarRef()->getDef()->setInitialization(VarStmt);
-            break;
+            if (VarStmt->getVarRef()->Resolved && VarStmt->getExpr() != nullptr && !VarStmt->getVarRef()->getDef()->isInitialized())
+                VarStmt->getVarRef()->getDef()->setInitialization(VarStmt); // FIXME ? with if - else
+            return VarStmt->getVarRef()->Resolved && ResolveExpr(VarStmt->Parent, VarStmt->Expr, VarStmt->getVarRef()->getDef()->getType());
         }
         case ASTStmtKind::STMT_EXPR:
             return ResolveExpr(Stmt->Parent, ((ASTExprStmt *) Stmt)->Expr);
@@ -348,6 +348,9 @@ bool SemaResolver::ResolveBlock(ASTBlockStmt *Block) {
     for (auto &LocalVar : Block->LocalVars) {
         if (!LocalVar.second->isInitialized())
             S.Diag(LocalVar.getValue()->getLocation(), diag::err_sema_uninit_var) << LocalVar.getValue()->getName();
+    }
+    for (ASTStmt *Stmt : Block->Content) {
+        ResolveStmt(Stmt);
     }
     return true;
 }
@@ -513,14 +516,11 @@ bool SemaResolver::ResolveVarRef(ASTStmt *Stmt, ASTVarRef *VarRef) {
         } else {
             ResolveParentIdentifier(Stmt, VarRef->Parent) && ResolveVarRefWithParent((ASTVarRef *) VarRef);
         }
-
-
-
     }
 
     // VarRef not found in Module, namespace and Module imports
     if (VarRef->getDef() == nullptr) {
-        S.Diag(VarRef->getLocation(), diag::err_unref_var);
+        S.Diag(VarRef->getLocation(), diag::err_unref_var) << VarRef->Name;
         return false;
     }
 
@@ -541,9 +541,13 @@ ASTVar *SemaResolver::ResolveVarRefNoParent(ASTStmt *Stmt, llvm::StringRef Name)
         if (Top->getKind() == ASTFunctionKind::CLASS_METHOD)
             Var = ((ASTClassMethod *) Top)->getClass()->Vars.lookup(Name);
 
-        // Search for GlobalVars
+        // Search for GlobalVars in Module
         if (Var == nullptr)
-            Var = Module->getNameSpace()->GlobalVars.lookup(Name);
+            Var = Module->GlobalVars.lookup(Name);
+
+        // Search for GlobalVars in NameSpace
+        if (Var == nullptr)
+            Var = Module->NameSpace->GlobalVars.lookup(Name);
     }
 
     return Var;
@@ -794,8 +798,10 @@ bool SemaResolver::ResolveArg(ASTStmt *Stmt, ASTArg *Arg, ASTParam *Param) {
  * @param Expr
  * @return true if no error occurs, otherwise false
  */
-bool SemaResolver::ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr) {
-    FLY_DEBUG_MESSAGE("Sema", "ResolveExpr", Logger().Attr("Expr", Expr).End());
+bool SemaResolver::ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr, ASTType *Type) {
+    FLY_DEBUG_MESSAGE("Sema", "ResolveExpr", Logger()
+            .Attr("Expr", Expr)
+            .Attr("Type", Expr).End());
 
     bool Success = false;
     switch (Expr->getExprKind()) {
@@ -804,6 +810,8 @@ bool SemaResolver::ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr) {
         case ASTExprKind::EXPR_VALUE: {
             // Select the best option for this Value
             ASTValueExpr *ValueExpr = (ASTValueExpr *) Expr;
+            if (Type != nullptr)
+                ValueExpr->Type = Type;
             return S.getValidator().CheckValue(ValueExpr->getValue());
         }
         case ASTExprKind::EXPR_VAR_REF: {

@@ -52,7 +52,7 @@ namespace fly {
 
         bool Execute();
 
-        std::vector<FrontendAction *> ParseActions(CodeGen &CG, Sema &S);
+        void ParseFile(SemaBuilder &Builder, const std::string &FileName);
 
         void CreateFrontendTimer();
 

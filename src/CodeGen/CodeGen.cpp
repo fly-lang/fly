@@ -9,6 +9,8 @@
 
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
+#include "CodeGen/CharUnits.h"
+#include "CodeGen/CodeGenHeader.h"
 #include "AST/ASTModule.h"
 #include "AST/ASTNameSpace.h"
 #include "Frontend/FrontendOptions.h"
@@ -20,15 +22,46 @@
 
 using namespace fly;
 
+/// toCharUnitsFromBits - Convert a size in bits to a size in characters.
+CharUnits toCharUnitsFromBits(int64_t BitSize) {
+    return CharUnits::fromQuantity(BitSize / 8);
+}
+
 CodeGen::CodeGen(DiagnosticsEngine &Diags, CodeGenOptions &CodeGenOpts,
                  const std::shared_ptr<TargetOptions> &TargetOpts,
                  BackendActionKind BackendAction, bool ShowTimers) :
         Diags(Diags), CodeGenOpts(CodeGenOpts), TargetOpts(*TargetOpts),
         Target(CreateTargetInfo(Diags, TargetOpts)), ActionKind(BackendAction),
         ShowTimers(ShowTimers) {
+
+    // Configure Types
+    VoidTy = llvm::Type::getVoidTy(LLVMCtx);
+    BoolTy = llvm::Type::getInt1Ty(LLVMCtx);
+    Int8Ty = llvm::Type::getInt8Ty(LLVMCtx);
+    Int16Ty = llvm::Type::getInt16Ty(LLVMCtx);
+    Int32Ty = llvm::Type::getInt32Ty(LLVMCtx);
+    Int64Ty = llvm::Type::getInt64Ty(LLVMCtx);
+    HalfTy = llvm::Type::getHalfTy(LLVMCtx);
+    BFloatTy = llvm::Type::getBFloatTy(LLVMCtx);
+    FloatTy = llvm::Type::getFloatTy(LLVMCtx);
+    DoubleTy = llvm::Type::getDoubleTy(LLVMCtx);
+
+    Int8PtrTy = Int8Ty->getPointerTo(0);
+    Int8PtrPtrTy = Int8PtrTy->getPointerTo(0);
+
+    PointerWidthInBits = Target->getPointerWidth(0);
+    PointerAlignInBytes = toCharUnitsFromBits(Target->getPointerAlign(0)).getQuantity();
+    SizeSizeInBytes = toCharUnitsFromBits(Target->getMaxPointerWidth()).getQuantity();
+    IntAlignInBytes = toCharUnitsFromBits(Target->getIntAlign()).getQuantity();
+    IntTy = llvm::IntegerType::get(LLVMCtx, Target->getIntWidth());
+    IntPtrTy = llvm::IntegerType::get(LLVMCtx, Target->getMaxPointerWidth());
+//    AllocaInt8PtrTy = Int8Ty->getPointerTo(Module->getDataLayout().getAllocaAddrSpace());
+//
+//    ErrorTy =
+
 }
 
-std::string CodeGen::getOutputFileName(StringRef BaseInput) {
+std::string CodeGen::getOutputFileName(llvm::StringRef BaseInput) {
     StringRef FileName = llvm::sys::path::filename(BaseInput);
     std::string Name = FileName.str();//.substr(0,FileName.size()-4/* sizeof('.fly') = 4 */).str();
     switch (ActionKind) {
@@ -63,6 +96,11 @@ void CodeGen::Emit(llvm::Module *M, llvm::StringRef OutName) {
     FLY_DEBUG_MESSAGE("CodeGen", "Emit",
                       "Module.Name=" << M->getName() << "\nModule.Output=" << str(M));
 
+    std::string OutputFileName = OutName.empty() ? getOutputFileName(M->getName()) : OutName.str();
+    // TODO link to libraries
+//    Link = new llvm::Linker(*OutModule);
+//    Linker::linkModules(*OutModule, std::move(M));
+
     // Skip CodeGenModule instance creation
     if (ActionKind == Backend_EmitNothing) {
         return;
@@ -75,18 +113,7 @@ void CodeGen::Emit(llvm::Module *M, llvm::StringRef OutName) {
     // Include Bitcode in module
     EmbedBitcode(M, CodeGenOpts, llvm::MemoryBufferRef());
 
-    EmitBackendOutput(Diags, CodeGenOpts, TargetOpts, ShowTimers, Target->getDataLayout(),
-                      M, ActionKind, std::move(OS));
-}
-
-std::string CodeGen::HandleTranslationUnit(std::unique_ptr<llvm::Module> &M, llvm::StringRef OutFile) {
-    FLY_DEBUG_MESSAGE("CodeGen", "HandleTranslationUnit","ActionKind=" << ActionKind);
-    std::string OutputFileName = OutFile.empty() ? getOutputFileName(M->getName()) : OutFile.str();
-    // TODO link to libraries
-//    Link = new llvm::Linker(*OutModule);
-//    Linker::linkModules(*OutModule, std::move(M));
-    Emit(M.get(), OutputFileName);
-    return OutputFileName;
+    EmitBackendOutput(Diags, CodeGenOpts, TargetOpts, ShowTimers, Target->getDataLayout(),M, ActionKind, std::move(OS));
 }
 
 TargetInfo* CodeGen::CreateTargetInfo(DiagnosticsEngine &Diags,
@@ -99,16 +126,31 @@ TargetInfo &CodeGen::getTargetInfo() const {
     return *Target;
 }
 
-CodeGenModule *CodeGen::CreateModule(llvm::StringRef Name) {
-    FLY_DEBUG("CodeGen", "CreateModule");
-    return new CodeGenModule(Diags, Name, LLVMCtx, *Target, CodeGenOpts);
-}
-
 LLVMContext &CodeGen::getLLVMCtx() {
     return LLVMCtx;
 }
 
-const std::string CodeGen::toIdentifier(llvm::StringRef Name, llvm::StringRef NameSpace, llvm::StringRef ClassName) {
+std::vector<llvm::Module *> CodeGen::GenerateModules(ASTContext &AST) {
+    FLY_DEBUG("CodeGen", "GenerateModules");
+    std::vector<llvm::Module *> Modules;
+    for (auto &Entry : AST.getModules()) {
+        Diags.getClient()->BeginSourceFile();
+        CodeGenModule *CGM = GenerateModule(*Entry.getValue());
+        CGM->GenAll();
+        Modules.push_back(CGM->Module);
+        Diags.getClient()->EndSourceFile();
+    }
+    return Modules;
+}
+
+CodeGenModule *CodeGen::GenerateModule(ASTModule &AST) {
+    FLY_DEBUG("CodeGen", "GenerateModule");
+    CodeGenModule *CGM = new CodeGenModule(Diags, this, AST, LLVMCtx, *Target, CodeGenOpts);
+    AST.setCodeGen(CGM);
+    return CGM;
+}
+
+std::string CodeGen::toIdentifier(llvm::StringRef Name, llvm::StringRef NameSpace, llvm::StringRef ClassName) {
     std::string Prefix = NameSpace == "default" ? "" : std::string(NameSpace).append("_");
     return Prefix.append(ClassName.empty() ?
                 std::string(Name) :

@@ -19,6 +19,10 @@ namespace fly {
      */
     class ASTBreakStmt : public ASTStmt {
 
+        friend class SemaBuilder;
+        friend class SemaResolver;
+        friend class SemaValidator;
+
     public:
         explicit ASTBreakStmt(const SourceLocation &Loc);
 

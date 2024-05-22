@@ -44,6 +44,7 @@ namespace fly {
 
         friend class SemaBuilder;
         friend class SemaResolver;
+        friend class SemaValidator;
 
         ASTVar *ErrorHandler = nullptr;
 
@@ -56,8 +57,6 @@ namespace fly {
         ASTMemoryKind MemoryKind = ASTMemoryKind::CALL_MANAGED;
 
         ASTCall(const SourceLocation &Loc, llvm::StringRef Name);
-
-        explicit ASTCall(ASTFunctionBase *Function);
 
     public:
 

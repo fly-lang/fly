@@ -70,6 +70,7 @@ namespace fly {
 
         friend class SemaBuilder;
         friend class SemaResolver;
+        friend class SemaValidator;
 
         const ASTTypeKind Kind;
 
@@ -114,6 +115,8 @@ namespace fly {
     class ASTVoidType : public ASTType {
 
         friend class SemaBuilder;
+        friend class SemaResolver;
+        friend class SemaValidator;
 
         explicit ASTVoidType(const SourceLocation &Loc);
 
@@ -130,6 +133,8 @@ namespace fly {
     class ASTBoolType : public ASTType {
 
         friend class SemaBuilder;
+        friend class SemaResolver;
+        friend class SemaValidator;
 
         explicit ASTBoolType(const SourceLocation &Loc);
 
@@ -141,6 +146,10 @@ namespace fly {
     };
 
     class ASTIntegerType : public ASTType {
+
+        friend class SemaBuilder;
+        friend class SemaResolver;
+        friend class SemaValidator;
 
         ASTIntegerTypeKind Kind;
 
@@ -161,6 +170,10 @@ namespace fly {
 
     class ASTFloatingPointType : public ASTType {
 
+        friend class SemaBuilder;
+        friend class SemaResolver;
+        friend class SemaValidator;
+
         ASTFloatingPointTypeKind Kind;
 
     protected:
@@ -180,6 +193,8 @@ namespace fly {
     class ASTByteType : public ASTIntegerType {
 
         friend class SemaBuilder;
+        friend class SemaResolver;
+        friend class SemaValidator;
 
         explicit ASTByteType(const SourceLocation &Loc);
 
@@ -196,6 +211,8 @@ namespace fly {
     class ASTUShortType : public ASTIntegerType {
 
         friend class SemaBuilder;
+        friend class SemaResolver;
+        friend class SemaValidator;
 
         explicit ASTUShortType(const SourceLocation &Loc);
 
@@ -212,6 +229,8 @@ namespace fly {
     class ASTShortType : public ASTIntegerType {
 
         friend class SemaBuilder;
+        friend class SemaResolver;
+        friend class SemaValidator;
 
         explicit ASTShortType(const SourceLocation &Loc);
 
@@ -228,6 +247,8 @@ namespace fly {
     class ASTUIntType : public ASTIntegerType {
 
         friend class SemaBuilder;
+        friend class SemaResolver;
+        friend class SemaValidator;
 
         explicit ASTUIntType(const SourceLocation &Loc);
 
@@ -244,6 +265,8 @@ namespace fly {
     class ASTIntType : public ASTIntegerType {
 
         friend class SemaBuilder;
+        friend class SemaResolver;
+        friend class SemaValidator;
 
         explicit ASTIntType(const SourceLocation &Loc);
 
@@ -260,6 +283,8 @@ namespace fly {
     class ASTULongType : public ASTIntegerType {
 
         friend class SemaBuilder;
+        friend class SemaResolver;
+        friend class SemaValidator;
 
         explicit ASTULongType(const SourceLocation &Loc);
 
@@ -276,6 +301,8 @@ namespace fly {
     class ASTLongType : public ASTIntegerType {
 
         friend class SemaBuilder;
+        friend class SemaResolver;
+        friend class SemaValidator;
 
         explicit ASTLongType(const SourceLocation &Loc);
 
@@ -292,6 +319,8 @@ namespace fly {
     class ASTFloatType : public ASTFloatingPointType {
 
         friend class SemaBuilder;
+        friend class SemaResolver;
+        friend class SemaValidator;
 
         explicit ASTFloatType(const SourceLocation &Loc);
 
@@ -308,6 +337,8 @@ namespace fly {
     class ASTDoubleType : public ASTFloatingPointType {
 
         friend class SemaBuilder;
+        friend class SemaResolver;
+        friend class SemaValidator;
 
         explicit ASTDoubleType(const SourceLocation &Loc);
 
@@ -324,6 +355,8 @@ namespace fly {
     class ASTArrayType : public ASTType {
 
         friend class SemaBuilder;
+        friend class SemaResolver;
+        friend class SemaValidator;
 
         ASTExpr *Size = nullptr;
 
@@ -348,6 +381,8 @@ namespace fly {
     class ASTStringType : public ASTType {
 
         friend class SemaBuilder;
+        friend class SemaResolver;
+        friend class SemaValidator;
 
         explicit ASTStringType(const SourceLocation &Loc);
 
@@ -364,6 +399,8 @@ namespace fly {
     class ASTErrorType : public ASTType {
 
         friend class SemaBuilder;
+        friend class SemaResolver;
+        friend class SemaValidator;
 
         ASTErrorType();
 

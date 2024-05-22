@@ -79,7 +79,7 @@ ASTNameSpace *SemaBuilder::CreateDefaultNameSpace() {
  * @return the ASTModule
  */
 ASTModule *SemaBuilder::CreateModule(const std::string &Name) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateModule", "Name=" << Name);
+    FLY_DEBUG_MESSAGE("SemaBuilder", "GenerateModule", "Name=" << Name);
     S.getValidator().CheckCreateModule(Name);
     ASTModule *Module = new ASTModule(Name, S.Context, false);
     return Module;
@@ -707,18 +707,28 @@ ASTCall *SemaBuilder::CreateCall(ASTIdentifier *Identifier) {
  * @param Function
  * @return
  */
-ASTCall *SemaBuilder::CreateCall(ASTFunctionBase *Function) {
+ASTCall *SemaBuilder::CreateCall(ASTFunction *Function) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateCall",
                       Logger().Attr("Function=", Function).End());
-    ASTCall *Call = new ASTCall(Function);
+    ASTCall *Call = new ASTCall(SourceLocation(), Function->Name);
+    Call->Def = Function;
     return Call;
 }
 
-ASTCall *SemaBuilder::CreateCall(ASTIdentifier *Instance, ASTFunctionBase *Function) {
+ASTCall *SemaBuilder::CreateCall(ASTClassMethod *Method) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateCall",
-                      Logger().Attr("Function=", Function).End());
-    ASTCall *Call = new ASTCall(Function);
+                      Logger().Attr("Method=", Method).End());
+    ASTCall *Call = new ASTCall(SourceLocation(), Method->Name);
+    Call->Def = Method;
+    return Call;
+}
+
+ASTCall *SemaBuilder::CreateCall(ASTIdentifier *Instance, ASTClassMethod *Method) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateCall",
+                      Logger().Attr("Function=", Method).End());
+    ASTCall *Call = new ASTCall(SourceLocation(), Method->getName());
     Call->Parent = Instance;
+    Call->Def = Method;
     return Call;
 }
 
@@ -1338,6 +1348,11 @@ bool
 SemaBuilder::AddStmt(ASTStmt *Parent, ASTStmt *Stmt) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddStmt", Logger().Attr("Stmt", Stmt).End());
     Stmt->Parent = Parent;
+    Stmt->Function = Parent->Function;
+    if (Parent->getKind() == ASTStmtKind::STMT_BLOCK) {
+        ASTBlockStmt *BlockStmt = (ASTBlockStmt *) Parent;
+        BlockStmt->Content.push_back(Stmt);
+    }
     return true;
 }
 
@@ -1383,8 +1398,8 @@ bool SemaBuilder::AddLoopPost(ASTLoopStmt *LoopStmt, ASTBlockStmt *Block) {
 
 bool SemaBuilder::AddExpr(ASTVarStmt *Stmt, ASTExpr *Expr) {
     ASTVarStmt *VarStmt = (ASTVarStmt *) Stmt;
-    VarStmt->Expr = Expr;
     VarStmt->getVarRef()->getDef()->setInitialization(VarStmt);
+    VarStmt->Expr = Expr;
     return true;
 }
 

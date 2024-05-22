@@ -15,8 +15,6 @@
 #define FLY_CODEGENMODULE_H
 
 #include "CharUnits.h"
-#include "CodeGenTypeCache.h"
-#include "CodeGenHeader.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/TargetInfo.h"
 #include <llvm/IR/Module.h>
@@ -44,6 +42,12 @@ namespace fly {
     class ASTIfStmt;
     class ASTSwitchStmt;
     class ASTLoopStmt;
+    class ASTClass;
+    class ASTVar;
+    class ASTEnum;
+    class ASTIdentifier;
+    class ASTVarRef;
+    class CodeGen;
     class CodeGenGlobalVar;
     class CodeGenFunction;
     class CodeGenFunctionBase;
@@ -51,14 +55,10 @@ namespace fly {
     class CodeGenVarBase;
     class CodeGenEnum;
     class CodeGenError;
-    class ASTClass;
-    class ASTVar;
-    class ASTEnum;
-    class ASTIdentifier;
-    class ASTVarRef;
 
-    class CodeGenModule : public CodeGenTypeCache {
+    class CodeGenModule {
 
+        friend class CodeGen;
         friend class CodeGenGlobalVar;
         friend class CodeGenFunction;
         friend class CodeGenFunctionBase;
@@ -78,6 +78,10 @@ namespace fly {
         // CodeGen Options
         CodeGenOptions &CGOpts;
 
+        ASTModule &AST;
+
+        CodeGen *CG;
+
         // Target Info
         TargetInfo &Target;
 
@@ -87,22 +91,27 @@ namespace fly {
         // LLVM Builder
         llvm::IRBuilder<> *Builder;
 
+        // LLVM Module
+        llvm::Module *Module;
+
         // CGDebugInfo *DebugInfo; // TODO
 
     public:
-        // LLVM Module
-        std::unique_ptr<llvm::Module> Module;
 
-        CodeGenModule(DiagnosticsEngine &Diags, llvm::StringRef Name, LLVMContext &LLVMCtx, TargetInfo &Target,
+        CodeGenModule(DiagnosticsEngine &Diags, CodeGen *CG, ASTModule &AST, LLVMContext &LLVMCtx, TargetInfo &Target,
                       CodeGenOptions &CGOpts);
 
         virtual ~CodeGenModule();
+
+        CodeGen *getCodeGen() const;
+
+        ASTModule &getAst() const;
 
         DiagnosticBuilder Diag(const SourceLocation &Loc, unsigned DiagID);
 
         llvm::Module *getModule() const;
 
-        llvm::Module *ReleaseModule();
+        void GenAll();
 
         CodeGenGlobalVar *GenGlobalVar(ASTGlobalVar *GlobalVar, bool isExternal = false);
 

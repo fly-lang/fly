@@ -19,6 +19,8 @@ namespace fly {
     class ASTGlobalVar : public ASTVar, public virtual ASTTopDef {
 
         friend class SemaBuilder;
+        friend class SemaResolver;
+        friend class SemaValidator;
 
         ASTTopDefKind TopDefKind = ASTTopDefKind::DEF_GLOBALVAR;
 

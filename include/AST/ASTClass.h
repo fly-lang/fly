@@ -34,6 +34,7 @@ namespace fly {
 
         friend class SemaBuilder;
         friend class SemaResolver;
+        friend class SemaValidator;
 
         ASTClassKind ClassKind;
 

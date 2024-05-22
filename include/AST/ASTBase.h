@@ -21,6 +21,8 @@ namespace fly {
     class ASTBase {
 
         friend class SemaBuilder;
+        friend class SemaResolver;
+        friend class SemaValidator;
 
         SourceLocation Location;
 

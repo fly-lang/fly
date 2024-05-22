@@ -24,6 +24,8 @@ namespace fly {
     class ASTVarStmt : public ASTStmt {
 
         friend class SemaBuilder;
+        friend class SemaResolver;
+        friend class SemaValidator;
 
         ASTVarRef *VarRef = nullptr;
 

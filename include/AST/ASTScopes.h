@@ -24,6 +24,8 @@ namespace fly {
     class ASTScopes : public ASTBase {
 
         friend class SemaBuilder;
+        friend class SemaResolver;
+        friend class SemaValidator;
 
         // Visibility of the Fields or Methods
         ASTVisibilityKind Visibility = ASTVisibilityKind::V_DEFAULT;

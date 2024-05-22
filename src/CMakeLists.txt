@@ -120,7 +120,6 @@ add_library(flyLib
 
         # Frontend
         Frontend/ChainedDiagnosticConsumer.cpp
-        Frontend/FrontendAction.cpp
         Frontend/CompilerInstance.cpp
         Frontend/DiagnosticRenderer.cpp
         Frontend/Frontend.cpp

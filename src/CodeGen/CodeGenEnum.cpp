@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "CodeGen/CodeGenEnum.h"
+#include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenEnumEntry.h"
 #include "CodeGen/CodeGenModule.h"
 #include "AST/ASTEnum.h"
@@ -15,7 +16,7 @@
 
 using namespace fly;
 
-CodeGenEnum::CodeGenEnum(CodeGenModule *CGM, ASTEnum *Enum, bool isExternal) : CGM(CGM), AST(Enum), Type(CGM->Int32Ty) {
+CodeGenEnum::CodeGenEnum(CodeGenModule *CGM, ASTEnum *Enum, bool isExternal) : CGM(CGM), AST(Enum), Type(CGM->getCodeGen()->Int32Ty) {
 
 }
 

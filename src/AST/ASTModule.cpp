@@ -13,8 +13,8 @@
 
 using namespace fly;
 
-ASTModule::ASTModule(const std::string FileName, ASTContext *Context, bool isHeader) :
-        Name(FileName), Context(Context), Header(isHeader) {
+ASTModule::ASTModule(const std::string Name, ASTContext *Context, bool isHeader) :
+        Name(Name), Context(Context), Header(isHeader) {
 }
 
 ASTModule::~ASTModule() {
@@ -67,6 +67,10 @@ const llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> 
 
 CodeGenModule *ASTModule::getCodeGen() const {
     return CodeGen;
+}
+
+void ASTModule::setCodeGen(CodeGenModule *CGM) {
+    CodeGen = CGM;
 }
 
 std::string ASTModule::str() const {

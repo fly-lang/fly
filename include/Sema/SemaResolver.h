@@ -121,7 +121,7 @@ namespace fly {
 
         bool ResolveArg(ASTStmt *Stmt, ASTArg *Arg, ASTParam *Param);
 
-        bool ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr);
+        bool ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr, ASTType *Type = nullptr);
 
         ASTNameSpace *FindNameSpace(llvm::StringRef Name) const;
 

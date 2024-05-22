@@ -46,14 +46,18 @@ bool FrontendAction::Parse() {
     FLY_DEBUG_MESSAGE("FrontendAction", "Parse", "Input=" << Input->getFileName());
 
     // Create CodeGen
-    CGM = CG.CreateModule(Input->getFileName());
+    CGM = CG.GenerateModule(Input->getFileName());
     if (FrontendOpts.CreateHeader) {
         CGH = CG.CreateHeader(Input->getFileName());
     }
 
     // Create Parser and start to parse
     P = new Parser(*Input, SourceMgr, Diags, S.getBuilder());
-    Module = P->Parse();
+    P->Parse();
+
+    // Set Module CodeGen
+    Module->setCodeGen(CGM);
+
     if (Module && FrontendOpts.CreateHeader) {
         CGH->AddNameSpace(Module->getNameSpace());
     }
@@ -69,68 +73,6 @@ bool FrontendAction::ParseHeader() {
     P = new Parser(*Input, SourceMgr, Diags, S.getBuilder());
     Module = P->ParseHeader();
     return Module && S.getBuilder().AddModule(Module);
-}
-
-void FrontendAction::GenerateTopDef() {
-    Diags.getClient()->BeginSourceFile();
-
-    // Manage External GlobalVars
-    for (const auto &Entry : Module->getExternalGlobalVars()) {
-        ASTGlobalVar *GlobalVar = Entry.getValue();
-        FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode",
-                          "ExternalGlobalVar=" << GlobalVar->str());
-        CGM->GenGlobalVar(GlobalVar, true);
-    }
-
-    // Manage External Function
-    for (auto &StrMapEntry : Module->getExternalFunctions()) {
-        for (auto &IntMap : StrMapEntry.getValue()) {
-            for (auto &Function : IntMap.second) {
-                FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode",
-                                  "ExternalFunction=" << Function->str());
-                CGM->GenFunction(Function, true);
-            }
-        }
-    }
-
-    // Manage GlobalVars
-    for (const auto &Entry : Module->getGlobalVars()) {
-        ASTGlobalVar *GlobalVar = Entry.getValue();
-        FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode",
-                          "GlobalVar=" << GlobalVar->str());
-        CodeGenGlobalVar *CGV = CGM->GenGlobalVar(GlobalVar);
-        CGGlobalVars.push_back(CGV);
-        if (FrontendOpts.CreateHeader) {
-            CGH->AddGlobalVar(GlobalVar);
-        }
-    }
-
-    // Instantiates all Function CodeGen in order to be set in all Call references
-    for (auto &FuncStrMap : Module->getFunctions()) {
-        for (auto &FuncList : FuncStrMap.getValue()) {
-            for (auto &Func : FuncList.second) {
-                CodeGenFunction *CGF = CGM->GenFunction(Func);
-                CGFunctions.push_back(CGF);
-                if (FrontendOpts.CreateHeader) {
-                    CGH->AddFunction(Func);
-                }
-            }
-        }
-    }
-
-    if (!Module->getIdentities().empty()) {
-        for (auto &StrMapEntry : Module->getIdentities()) {
-            ASTIdentity *Identity = StrMapEntry.getValue();
-            if (Identity->getTopDefKind() == ASTTopDefKind::DEF_CLASS) {
-                CGClass = CGM->GenClass((ASTClass *) Identity);
-                if (FrontendOpts.CreateHeader) {
-                    CGH->setClass((ASTClass *) Identity);
-                }
-            }
-        }
-    }
-
-    Diags.getClient()->EndSourceFile();
 }
 
 bool FrontendAction::GenerateBodies() {

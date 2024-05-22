@@ -74,8 +74,8 @@ namespace fly {
 
         Parser(const InputFile &Input, SourceManager &SourceMgr, DiagnosticsEngine &Diags, SemaBuilder &Builder);
 
-        ASTModule *Parse();
-        ASTModule *ParseHeader();
+        bool Parse();
+        bool ParseHeader();
 
     private:
 

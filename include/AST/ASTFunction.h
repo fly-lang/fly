@@ -33,7 +33,7 @@ namespace fly {
 
         friend class SemaBuilder;
         friend class SemaResolver;
-        friend class FunctionParser;
+        friend class SemaValidator;
 
         ASTTopDefKind TopDefKind = ASTTopDefKind::DEF_FUNCTION;
 

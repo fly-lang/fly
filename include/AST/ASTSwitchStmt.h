@@ -23,7 +23,7 @@ namespace fly {
 
         friend class SemaBuilder;
         friend class SemaResolver;
-        friend class ASTSwitchCase;
+        friend class SemaValidator;
 
         // The Switch Expression
         ASTVarRef *VarRef = nullptr;

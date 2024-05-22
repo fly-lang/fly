@@ -35,6 +35,10 @@ namespace fly {
      */
     class ASTVar : public ASTBase {
 
+        friend class SemaBuilder;
+        friend class SemaResolver;
+        friend class SemaValidator;
+
         ASTVarKind VarKind;
 
         ASTType *Type;

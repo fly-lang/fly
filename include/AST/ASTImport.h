@@ -19,9 +19,9 @@ namespace fly {
 
     class ASTAlias : public ASTBase {
 
-        friend class Sema;
         friend class SemaBuilder;
         friend class SemaResolver;
+        friend class SemaValidator;
 
         llvm::StringRef Name;
 

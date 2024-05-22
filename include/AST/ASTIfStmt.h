@@ -19,9 +19,9 @@ namespace fly {
 
     class ASTIfStmt : public ASTStmt {
 
-        friend class ASTElsif;
         friend class SemaBuilder;
         friend class SemaResolver;
+        friend class SemaValidator;
 
         // The If expression condition
         ASTExpr *Condition = nullptr;

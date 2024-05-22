@@ -24,6 +24,7 @@ namespace fly {
 
         friend class SemaBuilder;
         friend class SemaResolver;
+        friend class SemaValidator;
 
         ASTValue *DefaultValue = nullptr;
 

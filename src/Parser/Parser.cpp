@@ -57,7 +57,7 @@ Parser::Parser(const InputFile &Input, SourceManager &SourceMgr, DiagnosticsEngi
  * @param Module
  * @return true on Success or false on Error
  */
-ASTModule *Parser::Parse() {
+bool Parser::Parse() {
     FLY_DEBUG("Parser", "Parse");
     Tok.startToken();
     Tok.setKind(tok::eof);
@@ -69,7 +69,7 @@ ASTModule *Parser::Parse() {
     Module = Builder.CreateModule(Input.getFileName());
 
     // Parse NameSpace on first
-    if (ParseNameSpace() && Builder.AddModule(Module)) {
+    if (ParseNameSpace()) {
 
         // Parse Imports
         if (ParseImports()) {
@@ -87,10 +87,10 @@ ASTModule *Parser::Parse() {
         }
     }
 
-    return !Diags.hasErrorOccurred() && Success ? Module : nullptr;
+    return !Diags.hasErrorOccurred() && Success && Builder.AddModule(Module);
 }
 
-ASTModule *Parser::ParseHeader() {
+bool Parser::ParseHeader() {
     FLY_DEBUG("Parser", "ParseHeader");
     Tok.startToken();
     Tok.setKind(tok::eof);
@@ -105,12 +105,12 @@ ASTModule *Parser::ParseHeader() {
         // Parse Top declarations
         while (Tok.isNot(tok::eof)) {
             if (!ParseTopDef()) {
-                return nullptr;
+                return false;
             }
         }
     }
 
-    return Diags.hasErrorOccurred() ? nullptr : Module;
+    return Diags.hasErrorOccurred();
 }
 
 /**
