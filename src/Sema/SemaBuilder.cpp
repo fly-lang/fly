@@ -1228,7 +1228,7 @@ SemaBuilder::AddIdentity(ASTModule *Module, ASTIdentity *Identity) {
 
 bool
 SemaBuilder::AddClassAttribute(ASTClass *Class, ASTClassAttribute *Var) {
-    if (Class->Vars.insert(std::pair<llvm::StringRef, ASTClassAttribute *>(Var->getName(), Var)).second) {
+    if (Class->Attributes.insert(std::pair<llvm::StringRef, ASTClassAttribute *>(Var->getName(), Var)).second) {
         Var->Class = Class;
         return Var;
     }
@@ -1266,8 +1266,8 @@ SemaBuilder::AddClassMethod(ASTClass *Class, ASTClassMethod *Method) {
 
 bool SemaBuilder::AddEnumEntry(ASTEnum *Enum, ASTEnumEntry *Entry) {
     Entry->Enum = Enum;
-    Entry->Index = Entry->getEnum()->Vars.size() + 1;
-    return Entry->getEnum()->Vars.insert(std::make_pair(Entry->getName(), Entry)).second;
+    Entry->Index = Entry->getEnum()->Entries.size() + 1;
+    return Entry->getEnum()->Entries.insert(std::make_pair(Entry->getName(), Entry)).second;
 }
 
 bool

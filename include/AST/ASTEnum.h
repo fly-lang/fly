@@ -34,7 +34,7 @@ namespace fly {
         llvm::SmallVector<ASTEnumType *, 4> SuperClasses; // FIXME ?
 
         // Class Fields
-        llvm::StringMap<ASTEnumEntry *> Vars;
+        llvm::StringMap<ASTEnumEntry *> Entries;
 
         CodeGenEnum *CodeGen = nullptr;
 
@@ -43,7 +43,7 @@ namespace fly {
 
     public:
 
-        llvm::StringMap<ASTEnumEntry *> getVars() const;
+        llvm::StringMap<ASTEnumEntry *> getEntries() const;
 
         CodeGenEnum *getCodeGen() const;
 

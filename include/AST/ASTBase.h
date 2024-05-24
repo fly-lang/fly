@@ -36,9 +36,9 @@ namespace fly {
 
         llvm::StringRef getComment() const;
 
-        // TODO virtual std::string print() const = 0;
+        virtual std::string print() const = 0;
 
-        virtual std::string str() const;
+        virtual std::string str() const = 0;
     };
 
     class Logger {

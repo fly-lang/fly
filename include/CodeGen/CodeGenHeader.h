@@ -21,28 +21,15 @@ namespace fly {
     class ASTFunction;
     class ASTClass;
     class ASTType;
+    class ASTModule;
     class CodeGenOptions;
 
     class CodeGenHeader {
 
-        DiagnosticsEngine &Diags;
-
-        CodeGenOptions &CodeGenOpts;
-
-        std::string Name;
-
-        ASTNameSpace *NameSpace = nullptr;
-
-        std::vector<ASTGlobalVar *> GlobalVars;
-
-        std::vector<ASTFunction *> Functions;
-
-        ASTClass *Class;
-
     public:
-        CodeGenHeader(DiagnosticsEngine &Diags, CodeGenOptions &CodeGenOpts, std::string Name);
+        static void CreateFile(DiagnosticsEngine &Diags, CodeGenOptions &CodeGenOpts, ASTModule &Module);
 
-        std::string GenerateFile();
+        std::string SaveFile();
 
         void AddGlobalVar(ASTGlobalVar *GlobalVar);
 

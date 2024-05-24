@@ -72,14 +72,14 @@ void CodeGenClass::Generate() {
     }
 
     // Set CodeGen ClassVar
-    if (!AST->getVars().empty()) {
+    if (!AST->getAttributes().empty()) {
         if (AST->getClassKind() == ASTClassKind::CLASS || AST->getClassKind() == ASTClassKind::STRUCT) {
 
             // Set var Index offset in the struct type
             uint32_t Index = AST->getClassKind() == ASTClassKind::STRUCT ? 0 : 1;
 
             // add var to the type
-            for (auto &Var: AST->getVars()) {
+            for (auto &Var: AST->getAttributes()) {
                 llvm::Type *FieldType = CGM->GenType(Var.second->getType());
                 TypeVector.push_back(FieldType);
                 CodeGenClassVar *CGV = new CodeGenClassVar(CGM, Var.second, Type, Index++);

@@ -22,8 +22,8 @@ ASTEnum::ASTEnum(const SourceLocation &Loc, llvm::StringRef Name, ASTScopes *Sco
 
 }
 
-llvm::StringMap<ASTEnumEntry *> ASTEnum::getVars() const {
-    return Vars;
+llvm::StringMap<ASTEnumEntry *> ASTEnum::getEntries() const {
+    return Entries;
 }
 
 CodeGenEnum *ASTEnum::getCodeGen() const {
@@ -43,7 +43,7 @@ std::string ASTEnum::str() const {
 
     // Fields to string
     std::string EnumList;
-    for (auto &Enum : Vars) {
+    for (auto &Enum : Entries) {
         std::string EQ = "=";
         EnumList += Enum.getKey().data() + EQ + Enum.getValue()->str() + ",";
     }

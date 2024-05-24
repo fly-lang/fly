@@ -27,8 +27,8 @@ llvm::SmallVector<ASTClassType *, 4> ASTClass::getSuperClasses() const {
     return SuperClasses;
 }
 
-llvm::StringMap<ASTClassAttribute *> ASTClass::getVars() const {
-    return Vars;
+llvm::StringMap<ASTClassAttribute *> ASTClass::getAttributes() const {
+    return Attributes;
 }
 
 std::map <uint64_t,llvm::SmallVector <ASTClassMethod *, 4>> ASTClass::getConstructors() const {
@@ -56,7 +56,7 @@ std::string ASTClass::str() const {
 
     // Fields to string
     llvm::SmallVector<ASTClassAttribute *, 8> VarList;
-    for (auto &Field : Vars) {
+    for (auto &Field : Attributes) {
         VarList.push_back(Field.second);
     }
 

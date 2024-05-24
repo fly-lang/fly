@@ -9,11 +9,16 @@
 
 #include "CodeGen/CodeGenHeader.h"
 #include "AST/ASTNameSpace.h"
+#include "AST/ASTModule.h"
 #include "AST/ASTType.h"
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTFunction.h"
+#include "AST/ASTIdentity.h"
 #include "AST/ASTParam.h"
 #include "AST/ASTScopes.h"
+#include "AST/ASTEnum.h"
+#include "AST/ASTClass.h"
+#include "AST/ASTClassAttribute.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/CodeGenOptions.h"
 #include "Basic/Debug.h"
@@ -24,47 +29,61 @@
 
 #include <string>
 
-
 using namespace fly;
 
-CodeGenHeader::CodeGenHeader(DiagnosticsEngine &Diags, CodeGenOptions &CodeGenOpts, std::string Name) :
-    Diags(Diags), CodeGenOpts(CodeGenOpts), Name(Name) {
-
-}
-
-std::string CodeGenHeader::GenerateFile() {
-    std::string Header;
-    FLY_DEBUG_MESSAGE("CodeGenHeader", "GenerateFile","FileName=" << Name);
-    std::string FileHeader = Name + ".h";
+void CodeGenHeader::CreateFile(DiagnosticsEngine &Diags, CodeGenOptions &CodeGenOpts, ASTModule &AST) {
+    FLY_DEBUG("CodeGenHeader", "GenerateFile");
+    std::string FileHeader = AST.getName() + ".h";
     llvm::StringRef FileName = llvm::sys::path::filename(FileHeader);
     FLY_DEBUG_MESSAGE("CodeGenHeader", "GenerateFile","FileName=" << FileName);
 
     // generate namespace
-    std::string NS = NameSpace->getName().data();
-    Header = "namespace " + NS + "\n";
+    llvm::Twine Header = llvm::Twine("namespace ").concat(AST.getNameSpace()->getName()).concat("\n");
 
     // generate global var declarations
-    for (auto &GlobalVar : GlobalVars) {
+    for (auto &Entry : AST.getGlobalVars()) {
+        ASTGlobalVar *GlobalVar = Entry.getValue();
         if (GlobalVar->getScopes()->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
-            Header += "\npublic " + GlobalVar->getType()->print() + "." +
-                    std::string(GlobalVar->getName()) + "\n";
+            Header.concat(GlobalVar->getType()->print())
+            .concat(GlobalVar->getName())
+            .concat("\n");
         }
     }
 
     // generate function declarations
-    for (auto &Function : Functions) {
-        if (Function->getScopes()->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
-            Header += "\npublic " + Convert(Function->getType()) + " " + std::string(Function->getName()) +
-                      "(";
-            int i = 0;
-            for (auto &Param : Function->getParams()) {
-                Header += Convert(Param->getType()) + " " + std::string(Param->getName());
-                if (i < Function->getParams().size()) {
-                    Header += ",";
+    for (auto &StrMapEntry : AST.getFunctions()) {
+        for (auto &IntMap : StrMapEntry.getValue()) {
+            for (auto &Function: IntMap.second) {
+                if (Function->getScopes()->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
+                    llvm::Twine Params;
+                    Header.concat(Function->getType()->print())
+                            .concat(Function->getName())
+                            .concat("(");
+                    for (auto &Param : Function->getParams()) {
+                        Header.concat(Param->getType()->print()).concat(Param->getName());
+                    }
+                    Header.concat(")").concat("\n");
                 }
             }
-            Header += ")\n";
         }
+    }
+
+    // generate Identity Header: class, enum
+    for (auto &Entry : AST.getIdentities()) {
+        ASTIdentity *Identity = Entry.getValue();
+        Header.concat(Identity->getName()).concat("{\n");
+        if (Identity->getTopDefKind() == ASTTopDefKind::DEF_CLASS) {
+            ASTClass* Class = (ASTClass *) Identity;
+            for (auto &AttrEntry : Class->getAttributes()) {
+                Header.concat(AttrEntry.getValue()->getType()->print()).concat(AttrEntry.getValue()->getName());
+            }
+        } else if (Identity->getTopDefKind() == ASTTopDefKind::DEF_ENUM) {
+            ASTEnum* Enum = (ASTEnum *) Identity;
+            for (auto &EnumEntry : Enum->getEntries()) {
+                Header.concat(EnumEntry.getKey());
+            }
+        }
+        Header.concat("}\n\n");
     }
 
     int FD;
@@ -73,45 +92,13 @@ std::string CodeGenHeader::GenerateFile() {
                                                                 llvm::sys::fs::F_None);
     if (EC) {
         Diags.Report(diag::err_generate_header) << EC.message();
-        return "";
     }
 
     llvm::raw_fd_ostream file(FD, true);
 
     // Write the data.
-    StringRef StrRef(Header);
-    file.write(StrRef.data(), StrRef.size());
-
-    // write to file
-    return FileName.str();
+//    StringRef StrRef(Header);
+//    file.write(Header.data(), StrRef.size());
+    Header.print(file);
 }
 
-void CodeGenHeader::AddNameSpace(ASTNameSpace *NS) {
-    this->NameSpace = NS;
-}
-
-void CodeGenHeader::AddGlobalVar(ASTGlobalVar *GlobalVar) {
-    GlobalVars.push_back(GlobalVar);
-}
-
-void CodeGenHeader::AddFunction(ASTFunction *Func) {
-    Functions.push_back(Func);
-}
-
-void CodeGenHeader::setClass(ASTClass *Class) {
-    this->Class = Class;
-}
-
-const std::string CodeGenHeader::Convert(ASTType *Type) {
-    switch (Type->getKind()) {
-        case ASTTypeKind::TYPE_BOOL:
-            return "bool";
-        case ASTTypeKind::TYPE_INTEGER:
-            return "int";
-        case ASTTypeKind::TYPE_FLOATING_POINT:
-            return "float";
-        case ASTTypeKind::TYPE_IDENTITY:
-            return "class";
-    }
-    return "";
-}

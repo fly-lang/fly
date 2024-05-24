@@ -21,7 +21,7 @@ CodeGenEnum::CodeGenEnum(CodeGenModule *CGM, ASTEnum *Enum, bool isExternal) : C
 }
 
 void CodeGenEnum::Generate() {
-    for (auto &Entry : AST->getVars()) {
+    for (auto &Entry : AST->getEntries()) {
         CodeGenEnumEntry *CGE = new CodeGenEnumEntry(CGM, Entry.getValue());
         Entry.getValue()->setCodeGen(CGE);
         Vars.insert(std::make_pair(Entry.getKey(), CGE));

@@ -10,7 +10,6 @@
 #ifndef FLY_FRONTEND_H
 #define FLY_FRONTEND_H
 
-#include "FrontendAction.h"
 #include "CompilerInstance.h"
 #include "FrontendOptions.h"
 #include "Basic/Diagnostic.h"

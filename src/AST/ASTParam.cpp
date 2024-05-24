@@ -25,7 +25,7 @@ void ASTParam::setDefaultValue(ASTValue *Value) {
 }
 
 std::string ASTParam::print() const {
-    return getName().data();
+    return ASTLocalVar::print();
 }
 
 std::string ASTParam::str() const {

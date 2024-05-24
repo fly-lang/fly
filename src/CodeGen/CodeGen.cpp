@@ -150,15 +150,22 @@ CodeGenModule *CodeGen::GenerateModule(ASTModule &AST) {
     return CGM;
 }
 
+void CodeGen::GenerateHeaders(ASTContext &AST) {
+    for (auto &Entry : AST.getModules()) {
+        Diags.getClient()->BeginSourceFile();
+        GenerateHeader(*Entry.getValue());
+        Diags.getClient()->EndSourceFile();
+    }
+}
+
+CodeGenHeader *CodeGen::GenerateHeader(ASTModule &Module){
+    FLY_DEBUG("CodeGen", "GenerateHeader");
+    return CodeGenHeader::CreateFile(Diags, CodeGenOpts, Module);
+}
+
 std::string CodeGen::toIdentifier(llvm::StringRef Name, llvm::StringRef NameSpace, llvm::StringRef ClassName) {
     std::string Prefix = NameSpace == "default" ? "" : std::string(NameSpace).append("_");
     return Prefix.append(ClassName.empty() ?
                 std::string(Name) :
                 std::string(ClassName).append("_").append(std::string(Name)));
-}
-
-CodeGenHeader *CodeGen::CreateHeader(std::string FileName){
-    FLY_DEBUG_MESSAGE("CodeGen", "HandleHeader",
-                      "FileName=" << FileName);
-    return new CodeGenHeader(Diags, CodeGenOpts, FileName);
 }

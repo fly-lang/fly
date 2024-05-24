@@ -64,7 +64,7 @@ void CodeGenClassFunction::GenBody() {
         llvm::LoadInst *Load = CGM->Builder->CreateLoad(Instance);
 
         // All Class Vars
-        for (auto &Entry : Class->getVars()) {
+        for (auto &Entry : Class->getAttributes()) {
             ASTClassAttribute *Var = Entry.second;
 
             // Set CodeGen Class Instance

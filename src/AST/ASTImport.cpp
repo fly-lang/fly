@@ -40,6 +40,10 @@ void ASTImport::setNameSpace(ASTNameSpace *NS) {
     NameSpace = NS;
 }
 
+std::string ASTImport::print() const {
+    return Name.data();
+}
+
 std::string ASTImport::str() const {
     return Logger("ASTImport").
             Super(ASTBase::str()).
@@ -56,6 +60,10 @@ ASTAlias::ASTAlias(const SourceLocation &Loc, llvm::StringRef Name) :
 
 llvm::StringRef ASTAlias::getName() const {
     return Name;
+}
+
+std::string ASTAlias::print() const {
+    return Name.data();
 }
 
 std::string ASTAlias::str() const {

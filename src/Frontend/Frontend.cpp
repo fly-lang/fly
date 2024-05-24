@@ -71,14 +71,17 @@ bool Frontend::Execute() {
                    CI.getFrontendOptions().ShowTimers);
         std::vector<llvm::Module *> Modules = CG.GenerateModules(S->getContext());
 
+        // Emit code base on BackendActionKind
         for (auto M : Modules) {
+            Diags.getClient()->BeginSourceFile();
             CG.Emit(M, M->getName());
+            Diags.getClient()->EndSourceFile();
+        }
+
+        if (CI.getFrontendOptions().CreateHeader) {
+            CG.GenerateHeaders(S->getContext());
         }
     }
-//            if (!Action->getHeaderFile().empty()) { // Add Header File if exists to output files
-//                OutputFiles.push_back(Action->getHeaderFile());
-//            }
-//            OutputFiles.push_back(Action->getOutputFile());
 
     // Finish client diagnostics
     Diags.getClient()->finish();
@@ -145,7 +148,7 @@ void Frontend::ParseFile(SemaBuilder &Builder, const std::string &FileName) {
         // Read Header Files from library by extracting them
         const std::vector<StringRef> Files = ExtractFiles(FileName);
         for (StringRef File : Files) {
-            if (llvm::sys::path::extension(File) == ".h") {
+            if (llvm::sys::path::extension(File) == ".fly.h") {
                 InputFile *InputHeader = new InputFile(Diags, CI.getSourceManager(), File.str());
                 if (InputHeader->Load()) {
                     Parser *P = new Parser(*Input, CI.getSourceManager(), Diags, Builder);

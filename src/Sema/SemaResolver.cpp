@@ -157,13 +157,13 @@ bool SemaResolver::ResolveIdentities(ASTModule *Module) {
                                 }
 
                                 // Add Vars to the Struct
-                                for (auto &EntryVar: SuperClass->getVars()) {
+                                for (auto &EntryVar: SuperClass->getAttributes()) {
                                     ASTClassAttribute *&SuperVar = EntryVar.getValue();
 
                                     // Check Var already exists and type conflicts in Super Vars
-                                    ASTClassAttribute *ClassVar = Class->Vars.lookup(EntryVar.getKey());
+                                    ASTClassAttribute *ClassVar = Class->Attributes.lookup(EntryVar.getKey());
                                     if (ClassVar == nullptr) {
-                                        Class->Vars.insert(std::make_pair(SuperVar->getName(), SuperVar));
+                                        Class->Attributes.insert(std::make_pair(SuperVar->getName(), SuperVar));
                                     } else if (SuperVar->getType() != ClassVar->getType()) {
                                         S.Diag(ClassVar->getLocation(), diag::err_sema_super_struct_var_conflict);
                                         return false;
@@ -244,7 +244,7 @@ bool SemaResolver::ResolveIdentities(ASTModule *Module) {
                     for (auto &Function: IntMap.second) {
 
                         // Check Class vars for each Constructor
-                        for (auto &EntryVar: Class->Vars) {
+                        for (auto &EntryVar: Class->Attributes) {
 
                             // FIXME: Check if Method already contains this var name as LocalVar
 //                    if (!S.Validator->CheckDuplicateLocalVars(Function->Body, EntryVar.getKey())) {
@@ -262,7 +262,7 @@ bool SemaResolver::ResolveIdentities(ASTModule *Module) {
                         for (auto &Method: IntMap.second) {
 
                             // Add Class vars for each Method
-                            for (auto &EntryVar: Class->Vars) {
+                            for (auto &EntryVar: Class->Attributes) {
 
                                 // Check if Method already contains this var name as LocalVar
                                 if (!S.Validator->CheckDuplicateLocalVars(Method->Body, EntryVar.getKey())) {
@@ -539,7 +539,7 @@ ASTVar *SemaResolver::ResolveVarRefNoParent(ASTStmt *Stmt, llvm::StringRef Name)
 
         // Search for Class Vars if Var is Class Method
         if (Top->getKind() == ASTFunctionKind::CLASS_METHOD)
-            Var = ((ASTClassMethod *) Top)->getClass()->Vars.lookup(Name);
+            Var = ((ASTClassMethod *) Top)->getClass()->Attributes.lookup(Name);
 
         // Search for GlobalVars in Module
         if (Var == nullptr)
@@ -555,9 +555,9 @@ ASTVar *SemaResolver::ResolveVarRefNoParent(ASTStmt *Stmt, llvm::StringRef Name)
 
 ASTVar *SemaResolver::ResolveVarRef(llvm::StringRef Name, ASTIdentityType *IdentityType) {
     if (IdentityType->isClass()) {
-        return ((ASTClass *) ((ASTClassType *) IdentityType)->getDef())->Vars.lookup(Name);
+        return ((ASTClass *) ((ASTClassType *) IdentityType)->getDef())->Attributes.lookup(Name);
     } else if (IdentityType->isEnum()) {
-        return ((ASTEnum *) ((ASTEnumType *) IdentityType)->getDef())->Vars.lookup(Name);
+        return ((ASTEnum *) ((ASTEnumType *) IdentityType)->getDef())->Entries.lookup(Name);
     } else {
         assert(false && "IdentityType unknown");
     }

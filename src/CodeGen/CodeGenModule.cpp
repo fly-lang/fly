@@ -99,6 +99,10 @@ ASTModule &CodeGenModule::getAst() const {
     return AST;
 }
 
+void CodeGenModule::GenHeaders() {
+    GenAll(true);
+}
+
 void CodeGenModule::GenAll() {
 
     // Generate External GlobalVars
@@ -647,7 +651,7 @@ llvm::Value *CodeGenModule::GenCall(ASTCall *Call) {
         if (Def->isConstructor()) { // Call class constructor
             llvm::StructType *Ty = Def->getClass()->getCodeGen()->getType();
             Constant* AllocSize = ConstantExpr::getSizeOf(Ty);
-            if (Def->getClass()->getVars().empty()) { // size is zero
+            if (Def->getClass()->getAttributes().empty()) { // size is zero
                 Instance = Builder->CreateAlloca(Def->getClass()->getCodeGen()->getType()); // alloca into the Stack
             } else { // size is greater than zero
                 AllocSize = ConstantExpr::getTruncOrBitCast(AllocSize, CG->Int32Ty);
