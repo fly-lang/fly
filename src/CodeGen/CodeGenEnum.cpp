@@ -16,7 +16,7 @@
 
 using namespace fly;
 
-CodeGenEnum::CodeGenEnum(CodeGenModule *CGM, ASTEnum *Enum, bool isExternal) : CGM(CGM), AST(Enum), Type(CGM->getCodeGen()->Int32Ty) {
+CodeGenEnum::CodeGenEnum(CodeGenModule *CGM, ASTEnum *Enum, bool isExternal) : CGM(CGM), AST(Enum), Type(CGM->Int32Ty) {
 
 }
 

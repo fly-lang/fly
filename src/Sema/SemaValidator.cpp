@@ -343,5 +343,5 @@ bool SemaValidator::CheckValue(ASTValue *Value) {
         case ASTTypeKind::TYPE_ERROR:
             break;
     }
-    return false;
+    return true;
 }

@@ -15,7 +15,7 @@
 using namespace fly;
 
 CodeGenEnumEntry::CodeGenEnumEntry(CodeGenModule *CGM, ASTEnumEntry *EnumEntry) :
-        Value(llvm::ConstantInt::get(CGM->getCodeGen()->Int32Ty, EnumEntry->getIndex())) {
+        Value(llvm::ConstantInt::get(CGM->Int32Ty, EnumEntry->getIndex())) {
 }
 
 llvm::Value *CodeGenEnumEntry::getValue() {

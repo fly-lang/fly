@@ -18,7 +18,7 @@ namespace fly {
     class ASTBinaryOperatorExpr;
     class ASTTernaryOperatorExpr;
 
-    enum class ASTExprGroupKind : char {
+    enum class ASTExprGroupKind {
         GROUP_UNARY,
         GROUP_BINARY,
         GROUP_TERNARY

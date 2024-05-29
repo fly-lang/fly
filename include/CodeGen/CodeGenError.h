@@ -34,7 +34,7 @@ namespace fly {
 
         CodeGenError(CodeGenModule *CGM, ASTVar *Error);
 
-        static llvm::StructType *GenErrorType(CodeGenModule *CGM);
+        static llvm::StructType *GenErrorType(llvm::LLVMContext &LLVMCtx);
 
         void Init() override;
 

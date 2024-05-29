@@ -75,7 +75,8 @@ ASTTernaryGroupExpr::ASTTernaryGroupExpr(const SourceLocation &Loc, ASTExpr *Fir
                                          ASTTernaryOperatorExpr *FirstOperator, ASTExpr *Second,
                                          ASTTernaryOperatorExpr *SecondOperator, ASTExpr *Third) :
                                          ASTGroupExpr(Loc, ASTExprGroupKind::GROUP_TERNARY),
-                                         First(First), Second(Second), Third(Third) {
+                                         First(First), FirstOperator(FirstOperator),
+                                         Second(Second), SecondOperator(SecondOperator), Third(Third) {
 
 }
 

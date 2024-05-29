@@ -19,16 +19,17 @@
 
 using namespace fly;
 
-CodeGenError::CodeGenError(CodeGenModule *CGM, ASTVar *Error) : CGM(CGM), Error(Error), T(llvm::PointerType::get(GenErrorType(CGM), 0)) {
+CodeGenError::CodeGenError(CodeGenModule *CGM, ASTVar *Error) : CGM(CGM), Error(Error), T(CGM->ErrorPtrTy) {
 
 }
 
-llvm::StructType *CodeGenError::GenErrorType(CodeGenModule *CGM) { // TODO generate in the default module
+llvm::StructType *CodeGenError::GenErrorType(llvm::LLVMContext &LLVMCtx) {
     llvm::SmallVector<llvm::Type *, 4> ErrorStructVector;
-    ErrorStructVector.push_back(CGM->getCodeGen()->Int8Ty); // Error Type: 1=integer, 2=string, 3=enum, 4=class
-    ErrorStructVector.push_back(CGM->getCodeGen()->Int32Ty); // Error Integer
-    ErrorStructVector.push_back(CGM->getCodeGen()->Int8PtrTy); // Error String or Class Instance
-    return llvm::StructType::create(CGM->LLVMCtx, ErrorStructVector, "error");
+    llvm::IntegerType *Int8Ty = llvm::Type::getInt8Ty(LLVMCtx);
+    ErrorStructVector.push_back(Int8Ty); // Error Type: 1=integer, 2=string, 3=enum, 4=class
+    ErrorStructVector.push_back(llvm::Type::getInt32Ty(LLVMCtx)); // Error Integer
+    ErrorStructVector.push_back(Int8Ty->getPointerTo(0)); // Error String or Class Instance
+    return llvm::StructType::create(LLVMCtx, ErrorStructVector, "error");
 }
 
 void CodeGenError::Init() {
@@ -46,25 +47,25 @@ llvm::Value *CodeGenError::getPointer() {
 llvm::StoreInst *CodeGenError::Store(llvm::Value *Val) {
     // Add error param
     llvm::Value *ErrorVar = CGM->Builder->CreateLoad(Pointer);
-    llvm::Value *Zero = llvm::ConstantInt::get(CGM->getCodeGen()->Int32Ty, 0);
+    llvm::Value *Zero = llvm::ConstantInt::get(CGM->Int32Ty, 0);
     llvm::Value *TypeValue = nullptr;
 
     if (Val == nullptr) {
         // Error Type: 1=integer
-        TypeValue = llvm::ConstantInt::get(CGM->getCodeGen()->Int32Ty, 1);
+        TypeValue = llvm::ConstantInt::get(CGM->Int32Ty, 1);
 
         // Error Value: 1
-        Val = llvm::ConstantInt::get(CGM->getCodeGen()->Int32Ty, 1);
+        Val = llvm::ConstantInt::get(CGM->Int32Ty, 1);
     } else if (Val->getType()->isIntegerTy()) {
         // Error Type: 1=integer
-        TypeValue = llvm::ConstantInt::get(CGM->getCodeGen()->Int32Ty, 1);
+        TypeValue = llvm::ConstantInt::get(CGM->Int32Ty, 1);
 
         // Error Value: IntVal
-        llvm::ArrayRef<Value *> IdxList = {Zero, llvm::ConstantInt::get(CGM->getCodeGen()->Int32Ty, 1)};
+        llvm::ArrayRef<Value *> IdxList = {Zero, llvm::ConstantInt::get(CGM->Int32Ty, 1)};
         llvm::Value *Ptr = CGM->Builder->CreateInBoundsGEP(T, ErrorVar, IdxList);
         CGM->Builder->CreateStore(Val, Ptr);
     } else if (Val->getType()->isPointerTy()) {
-        llvm::ArrayRef<Value *> IdxList = {Zero, llvm::ConstantInt::get(CGM->getCodeGen()->Int8PtrTy, 2)};
+        llvm::ArrayRef<Value *> IdxList = {Zero, llvm::ConstantInt::get(CGM->Int8PtrTy, 2)};
         llvm::Value *Ptr = CGM->Builder->CreateInBoundsGEP(T, ErrorVar, IdxList);
         CGM->Builder->CreateStore(Val, Ptr);
     }
@@ -90,28 +91,28 @@ void CodeGenError::Store(ASTExpr *Expr) {
 
     // Add error param
     llvm::Value *ErrorVar = CGM->Builder->CreateLoad(Pointer);
-    llvm::Value *Zero = llvm::ConstantInt::get(CGM->getCodeGen()->Int32Ty, 0);
+    llvm::Value *Zero = llvm::ConstantInt::get(CGM->Int32Ty, 0);
     llvm::Value *TypeValue = nullptr;
     llvm::Value *IntValue = nullptr;
     llvm::Value *PtrValue = nullptr;
 
     if (Expr == nullptr || Expr->getType()->isBool()) {
         // Error Type: 1=integer
-        TypeValue = llvm::ConstantInt::get(CGM->getCodeGen()->Int32Ty, 1);
+        TypeValue = llvm::ConstantInt::get(CGM->Int32Ty, 1);
 
         // Error Value: 1
-        IntValue = llvm::ConstantInt::get(CGM->getCodeGen()->Int32Ty, 1);
+        IntValue = llvm::ConstantInt::get(CGM->Int32Ty, 1);
 
     } else if (Expr->getType()->isInteger()) {
         // Error Type: 1=integer
-        TypeValue = llvm::ConstantInt::get(CGM->getCodeGen()->Int32Ty, 1);
+        TypeValue = llvm::ConstantInt::get(CGM->Int32Ty, 1);
 
         // Error Value: IntVal
         IntValue = CGM->GenExpr(Expr);
 
     } else if (Expr->getType()->isString()) {
         // Error Type: 2=string
-        TypeValue = llvm::ConstantInt::get(CGM->getCodeGen()->Int32Ty, 2);
+        TypeValue = llvm::ConstantInt::get(CGM->Int32Ty, 2);
 
         // Error Value: PtrVal
         PtrValue = CGM->GenExpr(Expr);
@@ -120,13 +121,13 @@ void CodeGenError::Store(ASTExpr *Expr) {
         ASTIdentity * Identity = (ASTIdentity *) Expr->getType();
         if (Identity->getTopDefKind() == ASTTopDefKind::DEF_ENUM) {
             // Error Type: 3=enum
-            TypeValue = llvm::ConstantInt::get(CGM->getCodeGen()->Int32Ty, 3);
+            TypeValue = llvm::ConstantInt::get(CGM->Int32Ty, 3);
 
             // Error Value: PtrVal
             PtrValue = CGM->GenExpr(Expr); // FIXME need to store enum type and enum value
         } else if (Identity->getTopDefKind() == ASTTopDefKind::DEF_CLASS) {
             // Error Type: 4=class
-            TypeValue = llvm::ConstantInt::get(CGM->getCodeGen()->Int32Ty, 4);
+            TypeValue = llvm::ConstantInt::get(CGM->Int32Ty, 4);
 
             // Error Value: PtrVal
             PtrValue = CGM->GenExpr(Expr);
@@ -143,14 +144,14 @@ void CodeGenError::Store(ASTExpr *Expr) {
 
     // store error int value
     if (IntValue) {
-        llvm::ArrayRef<Value *> IdxList = {Zero, llvm::ConstantInt::get(CGM->getCodeGen()->Int32Ty, 1)};
+        llvm::ArrayRef<Value *> IdxList = {Zero, llvm::ConstantInt::get(CGM->Int32Ty, 1)};
         llvm::Value *Ptr = CGM->Builder->CreateInBoundsGEP(T, ErrorVar, IdxList);
         CGM->Builder->CreateStore(IntValue, Ptr);
     }
 
     // store error pointer value
     if (PtrValue) {
-        llvm::ArrayRef<Value *> IdxList = {Zero, llvm::ConstantInt::get(CGM->getCodeGen()->Int8PtrTy, 2)};
+        llvm::ArrayRef<Value *> IdxList = {Zero, llvm::ConstantInt::get(CGM->Int8PtrTy, 2)};
         llvm::Value *Ptr = CGM->Builder->CreateInBoundsGEP(T, ErrorVar, IdxList);
         CGM->Builder->CreateStore(PtrValue, Ptr);
     }

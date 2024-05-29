@@ -52,16 +52,46 @@
 using namespace llvm;
 using namespace fly;
 
-CodeGenModule::CodeGenModule(DiagnosticsEngine &Diags, CodeGen *CG, ASTModule &AST, LLVMContext &LLVMCtx,
+/// toCharUnitsFromBits - Convert a size in bits to a size in characters.
+CharUnits toCharUnitsFromBits(int64_t BitSize) {
+    return CharUnits::fromQuantity(BitSize / 8);
+}
+
+CodeGenModule::CodeGenModule(DiagnosticsEngine &Diags, ASTModule &AST, LLVMContext &LLVMCtx,
                              TargetInfo &Target, CodeGenOptions &CGOpts) :
         Diags(Diags),
-        CG(CG),
         AST(AST),
         Target(Target),
         Module(new llvm::Module(AST.getName(), LLVMCtx)),
         LLVMCtx(LLVMCtx),
         Builder(new IRBuilder<>(LLVMCtx)),
         CGOpts(CGOpts) {
+
+    // Configure Types
+    VoidTy = llvm::Type::getVoidTy(LLVMCtx);
+    BoolTy = llvm::Type::getInt1Ty(LLVMCtx);
+    Int8Ty = llvm::Type::getInt8Ty(LLVMCtx);
+    Int16Ty = llvm::Type::getInt16Ty(LLVMCtx);
+    Int32Ty = llvm::Type::getInt32Ty(LLVMCtx);
+    Int64Ty = llvm::Type::getInt64Ty(LLVMCtx);
+    HalfTy = llvm::Type::getHalfTy(LLVMCtx);
+    BFloatTy = llvm::Type::getBFloatTy(LLVMCtx);
+    FloatTy = llvm::Type::getFloatTy(LLVMCtx);
+    DoubleTy = llvm::Type::getDoubleTy(LLVMCtx);
+
+    Int8PtrTy = Int8Ty->getPointerTo(0);
+    Int8PtrPtrTy = Int8PtrTy->getPointerTo(0);
+
+    PointerWidthInBits = Target.getPointerWidth(0);
+    PointerAlignInBytes = toCharUnitsFromBits(Target.getPointerAlign(0)).getQuantity();
+    SizeSizeInBytes = toCharUnitsFromBits(Target.getMaxPointerWidth()).getQuantity();
+    IntAlignInBytes = toCharUnitsFromBits(Target.getIntAlign()).getQuantity();
+    IntTy = llvm::IntegerType::get(LLVMCtx, Target.getIntWidth());
+    IntPtrTy = llvm::IntegerType::get(LLVMCtx, Target.getMaxPointerWidth());
+    AllocaInt8PtrTy = Int8Ty->getPointerTo(Module->getDataLayout().getAllocaAddrSpace());
+
+    ErrorTy = CodeGenError::GenErrorType(LLVMCtx);
+    ErrorPtrTy = llvm::PointerType::get(ErrorTy, 0);
 
     // If debug info or coverage generation is enabled, create the CGDebugInfo
     // object.
@@ -81,10 +111,6 @@ CodeGenModule::CodeGenModule(DiagnosticsEngine &Diags, CodeGen *CG, ASTModule &A
 
 CodeGenModule::~CodeGenModule() {
     delete Module;
-}
-
-CodeGen *CodeGenModule::getCodeGen() const {
-    return CG;
 }
 
 DiagnosticBuilder CodeGenModule::Diag(const SourceLocation &Loc, unsigned DiagID) {
@@ -235,25 +261,25 @@ llvm::Type *CodeGenModule::GenType(const ASTType *Type) {
     switch (Type->getKind()) {
 
         case ASTTypeKind::TYPE_VOID:
-            return CG->VoidTy;
+            return VoidTy;
 
         case ASTTypeKind::TYPE_BOOL:
-            return CG->BoolTy;
+            return BoolTy;
 
         case ASTTypeKind::TYPE_INTEGER: {
             ASTIntegerTypeKind IntegerTypeKind = ((ASTIntegerType *) Type)->getIntegerKind();
             switch (IntegerTypeKind) {
                 case ASTIntegerTypeKind::TYPE_BYTE:
-                    return CG->Int8Ty;
+                    return Int8Ty;
                 case ASTIntegerTypeKind::TYPE_USHORT:
                 case ASTIntegerTypeKind::TYPE_SHORT:
-                    return CG->Int16Ty;
+                    return Int16Ty;
                 case ASTIntegerTypeKind::TYPE_UINT:
                 case ASTIntegerTypeKind::TYPE_INT:
-                    return CG->Int32Ty;
+                    return Int32Ty;
                 case ASTIntegerTypeKind::TYPE_ULONG:
                 case ASTIntegerTypeKind::TYPE_LONG:
-                    return CG->Int64Ty;
+                    return Int64Ty;
             }
         }
 
@@ -261,9 +287,9 @@ llvm::Type *CodeGenModule::GenType(const ASTType *Type) {
             ASTFloatingPointTypeKind FloatingPointTypeKind = ((ASTFloatingPointType *) Type)->getFloatingPointKind();
             switch (FloatingPointTypeKind) {
                 case ASTFloatingPointTypeKind::TYPE_FLOAT:
-                    return CG->FloatTy;
+                    return FloatTy;
                 case ASTFloatingPointTypeKind::TYPE_DOUBLE:
-                    return CG->DoubleTy;
+                    return DoubleTy;
             }
         }
 
@@ -272,7 +298,7 @@ llvm::Type *CodeGenModule::GenType(const ASTType *Type) {
         }
 
         case ASTTypeKind::TYPE_STRING: {
-            return llvm::ArrayType::get(CG->Int8Ty, 0);
+            return llvm::ArrayType::get(Int8Ty, 0);
         }
 
         case ASTTypeKind::TYPE_IDENTITY: {
@@ -318,26 +344,26 @@ llvm::Constant *CodeGenModule::GenDefaultValue(const ASTType *Type, llvm::Type *
 
         // Bool
         case ASTTypeKind::TYPE_BOOL:
-            return llvm::ConstantInt::get(CG->BoolTy, 0, false);
+            return llvm::ConstantInt::get(BoolTy, 0, false);
 
         // Integer
         case ASTTypeKind::TYPE_INTEGER: {
             ASTIntegerType *IntegerType = (ASTIntegerType *) Type;
             switch (IntegerType->getIntegerKind()) {
                 case ASTIntegerTypeKind::TYPE_BYTE:
-                    return llvm::ConstantInt::get(CG->Int8Ty, 0, false);
+                    return llvm::ConstantInt::get(Int8Ty, 0, false);
                 case ASTIntegerTypeKind::TYPE_USHORT:
-                    return llvm::ConstantInt::get(CG->Int32Ty, 0, false);
+                    return llvm::ConstantInt::get(Int32Ty, 0, false);
                 case ASTIntegerTypeKind::TYPE_SHORT:
-                    return llvm::ConstantInt::get(CG->Int32Ty, 0, true);
+                    return llvm::ConstantInt::get(Int32Ty, 0, true);
                 case ASTIntegerTypeKind::TYPE_UINT:
-                    return llvm::ConstantInt::get(CG->Int32Ty, 0, false);
+                    return llvm::ConstantInt::get(Int32Ty, 0, false);
                 case ASTIntegerTypeKind::TYPE_INT:
-                    return llvm::ConstantInt::get(CG->Int32Ty, 0, true);
+                    return llvm::ConstantInt::get(Int32Ty, 0, true);
                 case ASTIntegerTypeKind::TYPE_ULONG:
-                    return llvm::ConstantInt::get(CG->Int64Ty, 0, false);
+                    return llvm::ConstantInt::get(Int64Ty, 0, false);
                 case ASTIntegerTypeKind::TYPE_LONG:
-                    return llvm::ConstantInt::get(CG->Int64Ty, 0, true);
+                    return llvm::ConstantInt::get(Int64Ty, 0, true);
             }
         }
 
@@ -346,9 +372,9 @@ llvm::Constant *CodeGenModule::GenDefaultValue(const ASTType *Type, llvm::Type *
             ASTFloatingPointType *FloatingPointType = (ASTFloatingPointType *) Type;
             switch (FloatingPointType->getFloatingPointKind()) {
                 case ASTFloatingPointTypeKind::TYPE_FLOAT:
-                    return llvm::ConstantFP::get(CG->FloatTy, 0.0);
+                    return llvm::ConstantFP::get(FloatTy, 0.0);
                 case ASTFloatingPointTypeKind::TYPE_DOUBLE:
-                    return llvm::ConstantFP::get(CG->DoubleTy, 0.0);
+                    return llvm::ConstantFP::get(DoubleTy, 0.0);
             }
         }
 
@@ -378,7 +404,7 @@ llvm::Constant *CodeGenModule::GenValue(const ASTType *Type, const ASTValue *Val
 
         // Bool
         case ASTTypeKind::TYPE_BOOL:
-            return llvm::ConstantInt::get(CG->BoolTy, ((ASTBoolValue *)Val)->getValue(), false);
+            return llvm::ConstantInt::get(BoolTy, ((ASTBoolValue *)Val)->getValue(), false);
 
         // Integer
         case ASTTypeKind::TYPE_INTEGER: {
@@ -387,19 +413,19 @@ llvm::Constant *CodeGenModule::GenValue(const ASTType *Type, const ASTValue *Val
             uint64_t IntValue = IntegerValue->getValue();
             switch (IntegerType->getIntegerKind()) {
                 case ASTIntegerTypeKind::TYPE_BYTE:
-                    return llvm::ConstantInt::get(CG->Int8Ty, IntValue, false);
+                    return llvm::ConstantInt::get(Int8Ty, IntValue, false);
                 case ASTIntegerTypeKind::TYPE_USHORT:
-                    return llvm::ConstantInt::get(CG->Int16Ty, IntValue, false);
+                    return llvm::ConstantInt::get(Int16Ty, IntValue, false);
                 case ASTIntegerTypeKind::TYPE_SHORT:
-                    return llvm::ConstantInt::get(CG->Int16Ty, IntegerValue->isNegative() ? -IntValue: IntValue, true);
+                    return llvm::ConstantInt::get(Int16Ty, IntegerValue->isNegative() ? -IntValue: IntValue, true);
                 case ASTIntegerTypeKind::TYPE_UINT:
-                    return llvm::ConstantInt::get(CG->Int32Ty, IntValue, false);
+                    return llvm::ConstantInt::get(Int32Ty, IntValue, false);
                 case ASTIntegerTypeKind::TYPE_INT:
-                    return llvm::ConstantInt::get(CG->Int32Ty, IntegerValue->isNegative() ? -IntValue: IntValue, true);
+                    return llvm::ConstantInt::get(Int32Ty, IntegerValue->isNegative() ? -IntValue: IntValue, true);
                 case ASTIntegerTypeKind::TYPE_ULONG:
-                    return llvm::ConstantInt::get(CG->Int64Ty, IntValue, false);
+                    return llvm::ConstantInt::get(Int64Ty, IntValue, false);
                 case ASTIntegerTypeKind::TYPE_LONG:
-                    return llvm::ConstantInt::get(CG->Int64Ty, IntegerValue->isNegative() ? -IntValue: IntValue, true);
+                    return llvm::ConstantInt::get(Int64Ty, IntegerValue->isNegative() ? -IntValue: IntValue, true);
             }
         }
 
@@ -409,9 +435,9 @@ llvm::Constant *CodeGenModule::GenValue(const ASTType *Type, const ASTValue *Val
             const std::string &FPValue = ((ASTFloatingValue *) Val)->getValue();
             switch (FPType->getFloatingPointKind()) {
                 case ASTFloatingPointTypeKind::TYPE_FLOAT:
-                    return llvm::ConstantFP::get(CG->FloatTy, FPValue);
+                    return llvm::ConstantFP::get(FloatTy, FPValue);
                 case ASTFloatingPointTypeKind::TYPE_DOUBLE:
-                    return llvm::ConstantFP::get(CG->DoubleTy, FPValue);
+                    return llvm::ConstantFP::get(DoubleTy, FPValue);
             }
         }
 
@@ -654,9 +680,9 @@ llvm::Value *CodeGenModule::GenCall(ASTCall *Call) {
             if (Def->getClass()->getAttributes().empty()) { // size is zero
                 Instance = Builder->CreateAlloca(Def->getClass()->getCodeGen()->getType()); // alloca into the Stack
             } else { // size is greater than zero
-                AllocSize = ConstantExpr::getTruncOrBitCast(AllocSize, CG->Int32Ty);
+                AllocSize = ConstantExpr::getTruncOrBitCast(AllocSize, Int32Ty);
                 // @malloc data type struct
-                Instruction *I = CallInst::CreateMalloc(Builder->GetInsertBlock(), CG->Int32Ty, Ty, AllocSize, nullptr, nullptr);
+                Instruction *I = CallInst::CreateMalloc(Builder->GetInsertBlock(), Int32Ty, Ty, AllocSize, nullptr, nullptr);
                 Instance = Builder->Insert(I, ((ASTClassMethod *) Call->getDef())->getName() + "Inst");
             }
             Args.push_back(Instance);

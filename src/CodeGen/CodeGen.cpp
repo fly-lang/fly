@@ -11,6 +11,7 @@
 #include "CodeGen/CodeGenModule.h"
 #include "CodeGen/CharUnits.h"
 #include "CodeGen/CodeGenHeader.h"
+
 #include "AST/ASTModule.h"
 #include "AST/ASTNameSpace.h"
 #include "Frontend/FrontendOptions.h"
@@ -22,42 +23,12 @@
 
 using namespace fly;
 
-/// toCharUnitsFromBits - Convert a size in bits to a size in characters.
-CharUnits toCharUnitsFromBits(int64_t BitSize) {
-    return CharUnits::fromQuantity(BitSize / 8);
-}
-
 CodeGen::CodeGen(DiagnosticsEngine &Diags, CodeGenOptions &CodeGenOpts,
                  const std::shared_ptr<TargetOptions> &TargetOpts,
                  BackendActionKind BackendAction, bool ShowTimers) :
         Diags(Diags), CodeGenOpts(CodeGenOpts), TargetOpts(*TargetOpts),
         Target(CreateTargetInfo(Diags, TargetOpts)), ActionKind(BackendAction),
         ShowTimers(ShowTimers) {
-
-    // Configure Types
-    VoidTy = llvm::Type::getVoidTy(LLVMCtx);
-    BoolTy = llvm::Type::getInt1Ty(LLVMCtx);
-    Int8Ty = llvm::Type::getInt8Ty(LLVMCtx);
-    Int16Ty = llvm::Type::getInt16Ty(LLVMCtx);
-    Int32Ty = llvm::Type::getInt32Ty(LLVMCtx);
-    Int64Ty = llvm::Type::getInt64Ty(LLVMCtx);
-    HalfTy = llvm::Type::getHalfTy(LLVMCtx);
-    BFloatTy = llvm::Type::getBFloatTy(LLVMCtx);
-    FloatTy = llvm::Type::getFloatTy(LLVMCtx);
-    DoubleTy = llvm::Type::getDoubleTy(LLVMCtx);
-
-    Int8PtrTy = Int8Ty->getPointerTo(0);
-    Int8PtrPtrTy = Int8PtrTy->getPointerTo(0);
-
-    PointerWidthInBits = Target->getPointerWidth(0);
-    PointerAlignInBytes = toCharUnitsFromBits(Target->getPointerAlign(0)).getQuantity();
-    SizeSizeInBytes = toCharUnitsFromBits(Target->getMaxPointerWidth()).getQuantity();
-    IntAlignInBytes = toCharUnitsFromBits(Target->getIntAlign()).getQuantity();
-    IntTy = llvm::IntegerType::get(LLVMCtx, Target->getIntWidth());
-    IntPtrTy = llvm::IntegerType::get(LLVMCtx, Target->getMaxPointerWidth());
-//    AllocaInt8PtrTy = Int8Ty->getPointerTo(Module->getDataLayout().getAllocaAddrSpace());
-//
-//    ErrorTy =
 
 }
 
@@ -145,7 +116,7 @@ std::vector<llvm::Module *> CodeGen::GenerateModules(ASTContext &AST) {
 
 CodeGenModule *CodeGen::GenerateModule(ASTModule &AST) {
     FLY_DEBUG("CodeGen", "GenerateModule");
-    CodeGenModule *CGM = new CodeGenModule(Diags, this, AST, LLVMCtx, *Target, CodeGenOpts);
+    CodeGenModule *CGM = new CodeGenModule(Diags, AST, LLVMCtx, *Target, CodeGenOpts);
     AST.setCodeGen(CGM);
     return CGM;
 }

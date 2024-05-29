@@ -55,7 +55,7 @@ std::string ASTBinaryOperatorExpr::str() const {
 }
 
 ASTBinaryOptionKind ASTBinaryOperatorExpr::getOptionKind() const {
-    return ASTBinaryOptionKind::BINARY_LOGIC;
+    return OptionKind;
 }
 
 ASTTernaryOperatorExpr::ASTTernaryOperatorExpr(const SourceLocation &Loc, ASTTernaryOperatorKind Op) : ASTOperatorExpr(Loc), OperatorKind(Op) {
