@@ -50,8 +50,6 @@ namespace fly {
 
         ASTNameSpace *getNameSpace() const override;
 
-        virtual std::string print() const = 0;
-
         virtual std::string str() const override;
 
     };

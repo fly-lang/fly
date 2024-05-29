@@ -47,8 +47,6 @@ namespace fly {
 
         void setCodeGen(CodeGenVarBase *CGV);
 
-        std::string print() const override;
-
         std::string str() const override;
     };
 }

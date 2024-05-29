@@ -39,10 +39,6 @@ void ASTClassAttribute::setCodeGen(CodeGenVarBase *CG) {
     this->CodeGen = CG;
 }
 
-std::string ASTClassAttribute::print() const {
-    return Class->print() + "." + getName().data();
-}
-
 std::string ASTClassAttribute::str() const {
     return Logger("ASTClassVar").
             Super(ASTVar::str()).

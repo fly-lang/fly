@@ -70,7 +70,7 @@ bool ASTIdentityType::isEnum() const {
 }
 
 std::string ASTIdentityType::print() const {
-    return Name.data();
+    return getFullName();
 }
 
 std::string ASTIdentityType::str() const {

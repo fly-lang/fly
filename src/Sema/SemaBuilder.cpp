@@ -36,6 +36,9 @@
 #include "AST/ASTClass.h"
 #include "AST/ASTClassAttribute.h"
 #include "AST/ASTEnum.h"
+#include "AST/ASTExpr.h"
+#include "AST/ASTGroupExpr.h"
+#include "AST/ASTOperatorExpr.h"
 #include "AST/ASTExprStmt.h"
 #include "AST/ASTEnumEntry.h"
 #include "AST/ASTClassMethod.h"
@@ -866,43 +869,63 @@ ASTCallExpr *SemaBuilder::CreateNewExpr(ASTCall *Call) {
     return CreateExpr(Call);
 }
 
-ASTUnaryGroupExpr *SemaBuilder::CreateUnaryExpr(const SourceLocation &Loc, ASTUnaryOperatorKind Kind,
-                             ASTUnaryOptionKind OptionKind, ASTVarRefExpr *First) {
+ASTUnaryOperatorExpr *SemaBuilder::CreateOperatorExpr(const SourceLocation &Loc, ASTUnaryOperatorKind UnaryKind) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateOperatorExpr", Logger()
+            .Attr("Loc", (uint64_t) Loc.getRawEncoding())
+            .Attr("Kind", (uint64_t) UnaryKind)
+            .End());
+    return new ASTUnaryOperatorExpr(Loc, UnaryKind);
+}
+
+ASTBinaryOperatorExpr *SemaBuilder::CreateOperatorExpr(const SourceLocation &Loc, ASTBinaryOperatorKind BinaryKind) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateOperatorExpr", Logger()
+            .Attr("Loc", (uint64_t) Loc.getRawEncoding())
+            .Attr("Kind", (uint64_t) BinaryKind)
+            .End());
+    return new ASTBinaryOperatorExpr(Loc, BinaryKind);
+}
+
+ASTTernaryOperatorExpr *SemaBuilder::CreateOperatorExpr(const SourceLocation &Loc, ASTTernaryOperatorKind TernaryKind) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateOperatorExpr", Logger()
+            .Attr("Loc", (uint64_t) Loc.getRawEncoding())
+            .Attr("Kind", (uint64_t) TernaryKind)
+            .End());
+    return new ASTTernaryOperatorExpr(Loc, TernaryKind);
+}
+
+ASTUnaryGroupExpr *SemaBuilder::CreateUnaryExpr(ASTUnaryOperatorExpr *Operator, ASTVarRefExpr *First) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateUnaryExpr",
                       Logger()
-                      .Attr("Loc", (uint64_t) Loc.getRawEncoding())
-                      .Attr("Kind", (uint64_t) Kind)
-                      .Attr("OptionKind", (uint64_t) OptionKind)
-                      .Attr("First", First).End());
-
-    ASTUnaryGroupExpr *UnaryExpr = new ASTUnaryGroupExpr(Loc, Kind, OptionKind, First);
-
+                      .Attr("Operator", Operator)
+                      .Attr("First", First)
+                      .End());
+    ASTUnaryGroupExpr *UnaryExpr = new ASTUnaryGroupExpr(Operator->getLocation(), Operator, First);
     return UnaryExpr;
 }
 
-ASTBinaryGroupExpr *SemaBuilder::CreateBinaryExpr(const SourceLocation &OpLoc, ASTBinaryOperatorKind Kind,
-                              ASTExpr *First, ASTExpr *Second) {
+ASTBinaryGroupExpr *SemaBuilder::CreateBinaryExpr(ASTBinaryOperatorExpr *Operator,
+                                                  ASTExpr *First, ASTExpr *Second) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateBinaryExpr", Logger()
-                        .Attr("OpLoc", (uint64_t) OpLoc.getRawEncoding())
-                        .Attr("Kind", (uint64_t) Kind)
+                        .Attr("Operator", Operator)
                         .Attr("First", First)
                         .Attr("Second", Second).End());
 
-    ASTBinaryGroupExpr *BinaryExpr = new ASTBinaryGroupExpr(OpLoc, Kind, First, Second);
-
+    ASTBinaryGroupExpr *BinaryExpr = new ASTBinaryGroupExpr(First->getLocation(), Operator, First, Second);
     return BinaryExpr;
 }
 
-ASTTernaryGroupExpr *SemaBuilder::CreateTernaryExpr(ASTExpr *First, const SourceLocation &IfLoc,
-                               ASTExpr *Second, const SourceLocation &ElseLoc, ASTExpr *Third) {
+ASTTernaryGroupExpr *SemaBuilder::CreateTernaryExpr(ASTExpr *First,
+                                                    ASTTernaryOperatorExpr *FirstOperator, ASTExpr *Second,
+                                                    ASTTernaryOperatorExpr *SecondOperator, ASTExpr *Third) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateTernaryExpr", Logger()
                       .Attr("First", First)
-                      .Attr("IfLoc", (uint64_t) IfLoc.getRawEncoding())
+                      .Attr("FirstOperator", FirstOperator)
                       .Attr("Second", Second)
-                      .Attr("Loc", (uint64_t) ElseLoc.getRawEncoding())
+                      .Attr("SecondOperator", SecondOperator)
                       .Attr("Third", Third).End());
 
-    ASTTernaryGroupExpr *TernaryExpr = new ASTTernaryGroupExpr(First, IfLoc, Second, ElseLoc, Third);
+    ASTTernaryGroupExpr *TernaryExpr = new ASTTernaryGroupExpr(First->getLocation(),
+                                                               First, FirstOperator, Second, SecondOperator, Third);
 
     return TernaryExpr;
 }

@@ -11,13 +11,15 @@
 #ifndef FLY_CODEGEN_EXPR_H
 #define FLY_CODEGEN_EXPR_H
 
-#include "AST/ASTExpr.h"
 #include "CodeGenModule.h"
-
 
 namespace fly {
 
     class CodeGenModule;
+    class ASTUnaryGroupExpr;
+    class ASTBinaryGroupExpr;
+    class ASTTernaryGroupExpr;
+    enum class ASTBinaryOperatorKind;
 
     class CodeGenExpr {
 
@@ -45,11 +47,11 @@ namespace fly {
 
         llvm::Value *GenTernary(ASTTernaryGroupExpr *Expr);
 
-        Value *GenBinaryArith(const ASTExpr *E1, ASTBinaryOperatorKind Op, const ASTExpr *E2);
+        Value *GenBinaryArith(const ASTExpr *E1, ASTBinaryOperatorKind OperatorKind, const ASTExpr *E2);
 
-        Value *GenBinaryComparison(const ASTExpr *E1, ASTBinaryOperatorKind Op, const ASTExpr *E2);
+        Value *GenBinaryComparison(const ASTExpr *E1, ASTBinaryOperatorKind OperatorKind, const ASTExpr *E2);
 
-        Value *GenBinaryLogic(const ASTExpr *E1, ASTBinaryOperatorKind Op, const ASTExpr *E2);
+        Value *GenBinaryLogic(const ASTExpr *E1, ASTBinaryOperatorKind OperatorKind, const ASTExpr *E2);
     };
 }
 

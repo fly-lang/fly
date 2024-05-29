@@ -158,9 +158,15 @@ namespace fly {
 
     class ASTCallExpr;
 
+    class ASTUnaryOperatorExpr;
+
     class ASTUnaryGroupExpr;
 
+    class ASTBinaryOperatorExpr;
+
     class ASTBinaryGroupExpr;
+
+    class ASTTernaryOperatorExpr;
 
     class ASTTernaryGroupExpr;
 
@@ -178,8 +184,8 @@ namespace fly {
 
     enum class ASTClassKind;
     enum class ASTUnaryOperatorKind;
-    enum class ASTUnaryOptionKind;
     enum class ASTBinaryOperatorKind;
+    enum class ASTTernaryOperatorKind;
 
     class SemaBuilder {
 
@@ -339,14 +345,21 @@ namespace fly {
 
         ASTCallExpr *CreateNewExpr(ASTCall *Call);
 
-        ASTUnaryGroupExpr *CreateUnaryExpr(const SourceLocation &Loc, ASTUnaryOperatorKind Kind,
-                                           ASTUnaryOptionKind OptionKind, ASTVarRefExpr *First);
+        ASTUnaryOperatorExpr *CreateOperatorExpr(const SourceLocation &Loc, ASTUnaryOperatorKind UnaryKind);
 
-        ASTBinaryGroupExpr *CreateBinaryExpr(const SourceLocation &OpLoc,
-                                             ASTBinaryOperatorKind Kind, ASTExpr *First, ASTExpr *Second);
+        ASTBinaryOperatorExpr *CreateOperatorExpr(const SourceLocation &Loc, ASTBinaryOperatorKind BinaryKind);
 
-        ASTTernaryGroupExpr *CreateTernaryExpr(ASTExpr *First, const SourceLocation &IfLoc,
-                                               ASTExpr *Second, const SourceLocation &ElseLoc, ASTExpr *Third);
+        ASTTernaryOperatorExpr *CreateOperatorExpr(const SourceLocation &Loc, ASTTernaryOperatorKind TernaryKind);
+
+        ASTUnaryGroupExpr *CreateUnaryExpr(ASTUnaryOperatorExpr *Operator,
+                                           ASTVarRefExpr *First);
+
+        ASTBinaryGroupExpr *CreateBinaryExpr(ASTBinaryOperatorExpr *Operator,
+                                             ASTExpr *First, ASTExpr *Second);
+
+        ASTTernaryGroupExpr *CreateTernaryExpr(ASTExpr *First,
+                                               ASTTernaryOperatorExpr *FirstOperator, ASTExpr *Second,
+                                               ASTTernaryOperatorExpr *SecondOperator, ASTExpr *Third);
 
         // Create Statements
 

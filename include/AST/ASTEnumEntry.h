@@ -46,8 +46,6 @@ namespace fly {
 
         void setCodeGen(CodeGenEnumEntry *CGE);
 
-        std::string print() const;
-
         std::string str() const override;
     };
 }

@@ -36,8 +36,6 @@ namespace fly {
 
         void setDefaultValue(ASTValue *Value);
 
-        std::string print() const override;
-
         std::string str() const override;
     };
 }

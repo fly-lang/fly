@@ -73,10 +73,6 @@ ASTIdentifier *ASTIdentifier::getChild() const {
     return Child;
 }
 
-std::string ASTIdentifier::print() const {
-    return FullName;
-}
-
 std::string ASTIdentifier::str() const {
     return Logger("ASTIdentifier").
             Super(ASTBase::str()).

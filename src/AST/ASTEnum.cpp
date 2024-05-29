@@ -34,11 +34,6 @@ void ASTEnum::setCodeGen(CodeGenEnum *CGE) {
     CodeGen = CGE;
 }
 
-std::string ASTEnum::print() const {
-    std::string ClassName = Name.data();
-    return getNameSpace()->print() + "." + ClassName;
-}
-
 std::string ASTEnum::str() const {
 
     // Fields to string

@@ -92,7 +92,7 @@ ASTVoidType::ASTVoidType(const SourceLocation &Loc) : ASTType(Loc, ASTTypeKind::
 }
 
 std::string ASTVoidType::print() const {
-    return "";
+    return "void";
 }
 
 std::string ASTVoidType::str() const {

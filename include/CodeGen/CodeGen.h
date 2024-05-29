@@ -129,7 +129,7 @@ namespace fly {
 
         void GenerateHeaders(ASTContext &context);
 
-        CodeGenHeader *GenerateHeader(ASTModule &Module);
+        void GenerateHeader(ASTModule &Module);
 
         static std::string toIdentifier(llvm::StringRef Name, llvm::StringRef NameSpace, llvm::StringRef ClassName = "");
     };

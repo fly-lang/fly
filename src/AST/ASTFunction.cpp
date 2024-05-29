@@ -41,10 +41,6 @@ void ASTFunction::setCodeGen(CodeGenFunction *CGF) {
     CodeGen = CGF;
 }
 
-std::string ASTFunction::print() const {
-    return Name.data();
-}
-
 std::string ASTFunction::str() const {
     return Logger("ASTFunction").
             Super(ASTFunctionBase::str()).

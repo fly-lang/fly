@@ -33,10 +33,6 @@ void ASTEnumEntry::setCodeGen(CodeGenEnumEntry *CGE) {
     this->CodeGen = CGE;
 }
 
-std::string ASTEnumEntry::print() const {
-    return Enum->print() + "." + getName().data();
-}
-
 std::string ASTEnumEntry::str() const {
     return Logger("ASTEnumEntry").
             Super(ASTVar::str()).

@@ -20,10 +20,6 @@ ASTVar *ASTVarRef::getDef() const {
     return Def;
 }
 
-std::string ASTVarRef::print() const {
-    return Def ? Def->print() : ASTIdentifier::print();
-}
-
 std::string ASTVarRef::str() const {
     return Logger("ASTVarRef").
             Attr("Parent", Parent).

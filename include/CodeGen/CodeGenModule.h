@@ -113,6 +113,8 @@ namespace fly {
 
         void GenAll();
 
+        void GenHeaders();
+
         CodeGenGlobalVar *GenGlobalVar(ASTGlobalVar *GlobalVar, bool isExternal = false);
 
         CodeGenFunction *GenFunction(ASTFunction *Function, bool isExternal = false);

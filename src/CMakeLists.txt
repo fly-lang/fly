@@ -23,6 +23,7 @@ add_library(flyLib
         AST/ASTFailStmt.cpp
         AST/ASTFunction.cpp
         AST/ASTFunctionBase.cpp
+        AST/ASTGroupExpr.cpp
         AST/ASTGlobalVar.cpp
         AST/ASTHandleStmt.cpp
         AST/ASTIdentifier.cpp
@@ -35,6 +36,7 @@ add_library(flyLib
         AST/ASTLoopInStmt.cpp
         AST/ASTNameSpace.cpp
         AST/ASTModule.cpp
+        AST/ASTOperatorExpr.cpp
         AST/ASTParam.cpp
         AST/ASTScopes.cpp
         AST/ASTStmt.cpp

@@ -13,36 +13,9 @@
 
 #include "Parser.h"
 #include "AST/ASTExpr.h"
+#include "AST/ASTGroupExpr.h"
 
 namespace fly {
-
-    /**
-     * Raw Binary Operator
-     */
-    class RawBinaryOperator : public ASTEmptyExpr {
-
-        ASTBinaryOperatorKind Op;
-        bool Precedence;
-
-    public:
-        RawBinaryOperator(const SourceLocation &Loc, ASTBinaryOperatorKind Op) : ASTEmptyExpr(Loc), Op(Op) {
-            Precedence = Op == ASTBinaryOperatorKind::ARITH_MUL ||
-                         Op == ASTBinaryOperatorKind::ARITH_DIV ||
-                         Op == ASTBinaryOperatorKind::ARITH_MOD;
-        }
-
-        ASTBinaryOperatorKind getOp() const {
-            return Op;
-        }
-
-        bool isPrecedence() const {
-            return Precedence;
-        }
-
-        std::string str() const override {
-            return std::to_string((int) Op);
-        }
-    };
 
     class ExprParser {
 
@@ -53,7 +26,7 @@ namespace fly {
         std::vector<ASTExpr *> Group;
 
     public:
-        ExprParser(Parser *P);
+        explicit ExprParser(Parser *P);
 
         ASTExpr *ParseAssignExpr(ASTVarRef *VarRef = nullptr);
 

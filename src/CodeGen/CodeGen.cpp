@@ -158,7 +158,7 @@ void CodeGen::GenerateHeaders(ASTContext &AST) {
     }
 }
 
-CodeGenHeader *CodeGen::GenerateHeader(ASTModule &Module){
+void CodeGen::GenerateHeader(ASTModule &Module){
     FLY_DEBUG("CodeGen", "GenerateHeader");
     return CodeGenHeader::CreateFile(Diags, CodeGenOpts, Module);
 }

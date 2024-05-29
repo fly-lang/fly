@@ -31,8 +31,6 @@ namespace fly {
 
         llvm::StringRef getName() const;
 
-        std::string print() const override;
-
         std::string str() const override;
     };
 
@@ -63,8 +61,6 @@ namespace fly {
         ASTNameSpace *getNameSpace() const;
 
         void setNameSpace(ASTNameSpace *NS);
-
-        std::string print() const override;
 
         std::string str() const override;
     };

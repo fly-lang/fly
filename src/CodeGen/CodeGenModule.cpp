@@ -100,7 +100,7 @@ ASTModule &CodeGenModule::getAst() const {
 }
 
 void CodeGenModule::GenHeaders() {
-    GenAll(true);
+    GenAll();
 }
 
 void CodeGenModule::GenAll() {

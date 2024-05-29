@@ -72,8 +72,6 @@ namespace fly {
 
         ASTIdentifier *getChild() const;
 
-        std::string print() const;
-
         std::string str() const override;
     };
 }

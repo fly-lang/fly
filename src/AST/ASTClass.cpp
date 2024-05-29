@@ -47,11 +47,6 @@ void ASTClass::setCodeGen(CodeGenClass *CGC) {
     CodeGen = CGC;
 }
 
-std::string ASTClass::print() const {
-    std::string ClassName = Name.data();
-    return getNameSpace()->print() + "." + ClassName;
-}
-
 std::string ASTClass::str() const {
 
     // Fields to string

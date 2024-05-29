@@ -51,8 +51,6 @@ namespace fly {
 
         void setCodeGen(CodeGenGlobalVar *CG);
 
-        std::string print() const override;
-
         std::string str() const override;
 
     };

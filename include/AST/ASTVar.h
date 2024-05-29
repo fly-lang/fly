@@ -73,8 +73,6 @@ namespace fly {
 
         virtual CodeGenVarBase *getCodeGen() const = 0;
 
-        virtual std::string print() const = 0;
-
         std::string str() const override;
     };
 }

@@ -38,6 +38,8 @@
 #include "AST/ASTFailStmt.h"
 #include "AST/ASTVarRef.h"
 #include "AST/ASTExprStmt.h"
+#include "AST/ASTGroupExpr.h"
+#include "AST/ASTOperatorExpr.h"
 #include "CodeGen/CodeGen.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/Debug.h"
@@ -867,9 +869,9 @@ bool SemaResolver::ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr, ASTType *Type) {
 
                     Success = ResolveExpr(Stmt, Binary->First) && ResolveExpr(Stmt, Binary->Second);
                     if (Success) {
-                        if (Binary->getOptionKind() == ASTBinaryOptionKind::BINARY_ARITH ||
-                                Binary->getOptionKind() == ASTBinaryOptionKind::BINARY_COMPARISON) {
-                            Success = S.Validator->CheckArithTypes(Binary->OpLoc, Binary->First->Type,
+                        if (Binary->getOperator()->getOptionKind() == ASTBinaryOptionKind::BINARY_ARITH ||
+                                Binary->getOperator()->getOptionKind() == ASTBinaryOptionKind::BINARY_COMPARISON) {
+                            Success = S.Validator->CheckArithTypes(Binary->getLocation(), Binary->First->Type,
                                                                   Binary->Second->Type);
 
                             if (Success) {
@@ -887,11 +889,11 @@ bool SemaResolver::ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr, ASTType *Type) {
                                         Binary->First->Type = Binary->Second->Type;
                                 }
 
-                                Binary->Type = Binary->getOptionKind() == ASTBinaryOptionKind::BINARY_ARITH ?
+                                Binary->Type = Binary->getOperator()->getOptionKind() == ASTBinaryOptionKind::BINARY_ARITH ?
                                         Binary->First->Type : S.Builder->CreateBoolType(Expr->getLocation());
                             }
-                        } else if (Binary->getOptionKind() ==  ASTBinaryOptionKind::BINARY_LOGIC) {
-                            Success = S.Validator->CheckLogicalTypes(Binary->OpLoc,
+                        } else if (Binary->getOperator()->getOptionKind() ==  ASTBinaryOptionKind::BINARY_LOGIC) {
+                            Success = S.Validator->CheckLogicalTypes(Binary->getLocation(),
                                                                      Binary->First->Type, Binary->Second->Type);
                             Binary->Type = S.Builder->CreateBoolType(Expr->getLocation());
                         }

@@ -24,10 +24,6 @@ void ASTParam::setDefaultValue(ASTValue *Value) {
     DefaultValue = Value;
 }
 
-std::string ASTParam::print() const {
-    return ASTLocalVar::print();
-}
-
 std::string ASTParam::str() const {
     return Logger("ASTParam").
             Super(ASTLocalVar::str()).

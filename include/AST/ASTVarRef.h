@@ -36,8 +36,6 @@ namespace fly {
 
         ASTVar *getDef() const;
 
-        std::string print() const;
-
         std::string str() const;
     };
 }

@@ -36,8 +36,6 @@ namespace fly {
 
         llvm::StringRef getComment() const;
 
-        virtual std::string print() const = 0;
-
         virtual std::string str() const = 0;
     };
 

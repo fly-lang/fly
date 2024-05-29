@@ -12,6 +12,7 @@
 #include "AST/ASTVarRef.h"
 #include "AST/ASTIdentifier.h"
 #include "AST/ASTStmt.h"
+#include "AST/ASTOperatorExpr.h"
 #include "Sema/SemaBuilder.h"
 #include "Basic/Debug.h"
 
@@ -48,42 +49,41 @@ ASTExpr *ExprParser::ParseAssignExpr(ASTVarRef *VarRef) {
 
         // Arithmetic
         case tok::plusequal:
-            Op = ASTBinaryOperatorKind::ARITH_ADD;
+            Op = ASTBinaryOperatorKind::BINARY_ARITH_ADD;
             break;
         case tok::minusequal:
-            Op = ASTBinaryOperatorKind::ARITH_SUB;
+            Op = ASTBinaryOperatorKind::BINARY_ARITH_SUB;
             break;
         case tok::starequal:
-            Op = ASTBinaryOperatorKind::ARITH_MUL;
+            Op = ASTBinaryOperatorKind::BINARY_ARITH_MUL;
             break;
         case tok::slashequal:
-            Op = ASTBinaryOperatorKind::ARITH_DIV;
+            Op = ASTBinaryOperatorKind::BINARY_ARITH_DIV;
             break;
         case tok::percentequal:
-            Op = ASTBinaryOperatorKind::ARITH_MOD;
+            Op = ASTBinaryOperatorKind::BINARY_ARITH_MOD;
             break;
 
             // Bit
         case tok::ampequal:
-            Op = ASTBinaryOperatorKind::ARITH_AND;
+            Op = ASTBinaryOperatorKind::BINARY_ARITH_AND;
             break;
         case tok::pipeequal:
-            Op = ASTBinaryOperatorKind::ARITH_OR;
+            Op = ASTBinaryOperatorKind::BINARY_ARITH_OR;
             break;
         case tok::caretequal:
-            Op = ASTBinaryOperatorKind::ARITH_XOR;
+            Op = ASTBinaryOperatorKind::BINARY_ARITH_XOR;
             break;
         case tok::lesslessequal:
-            Op = ASTBinaryOperatorKind::ARITH_SHIFT_L;
+            Op = ASTBinaryOperatorKind::BINARY_ARITH_SHIFT_L;
             break;
         case tok::greatergreaterequal:
-            Op = ASTBinaryOperatorKind::ARITH_SHIFT_R;
+            Op = ASTBinaryOperatorKind::BINARY_ARITH_SHIFT_R;
             break;
         default:
             assert(0 && "Accept Only assignment operators");
     }
-    RawBinaryOperator *RawOp = new RawBinaryOperator(P->ConsumeToken(), Op);
-    Group.push_back(RawOp);
+    Group.push_back(P->Builder.CreateOperatorExpr(P->ConsumeToken(), Op));
 
     // Parse second operator
     ASTExpr *Second = ParseExpr();
@@ -157,9 +157,9 @@ ASTExpr *ExprParser::ParseExpr(bool IsFirst) {
     // Check if binary operator exists
     if (P->isBinaryOperator()) { // Parse Binary Expression
         Group.push_back(Expr);
-        ASTBinaryOperatorKind Op = ParseBinaryOperator();
-        RawBinaryOperator *RawOp = new RawBinaryOperator(P->ConsumeToken(), Op);
-        Group.push_back(RawOp);
+        ASTBinaryOperatorKind Operator = ParseBinaryOperator();
+        ASTBinaryOperatorExpr *BinaryOperatorExpr = P->Builder.CreateOperatorExpr(P->ConsumeToken(), Operator);
+        Group.push_back(BinaryOperatorExpr);
         Expr = ParseExpr(false);
 
         // Error: missing second operator
@@ -185,18 +185,20 @@ ASTExpr *ExprParser::ParseExpr(bool IsFirst) {
     if (P->isTernaryOperator() && IsFirst) { // Parse Ternary Expression
 
         // Parse True Expr
-        const SourceLocation &QuestionLoc = P->ConsumeToken();
+        ASTTernaryOperatorExpr *FirstOperator = P->Builder.CreateOperatorExpr(P->ConsumeToken(),
+                                                                               ASTTernaryOperatorKind::TERNARY_IF);
 
         ExprParser SubSecond(P);
-        ASTExpr *True = SubSecond.ParseExpr();
+        ASTExpr *FirstExpr = SubSecond.ParseExpr();
 
         if (P->Tok.getKind() == tok::colon) {
-            const SourceLocation &ColonLoc = P->ConsumeToken();
+            ASTTernaryOperatorExpr *SecondOperator = P->Builder.CreateOperatorExpr(P->ConsumeToken(),
+                                                                                    ASTTernaryOperatorKind::TERNARY_ELSE);
 
             ExprParser SubThird(P);
-            ASTExpr *False = SubThird.ParseExpr();
-            if (False != nullptr)
-                return P->Builder.CreateTernaryExpr(Expr, QuestionLoc, True, ColonLoc, False);
+            ASTExpr *SecondExpr = SubThird.ParseExpr();
+            if (SecondExpr != nullptr)
+                return P->Builder.CreateTernaryExpr(Expr, FirstOperator, FirstExpr, SecondOperator, SecondExpr);
         }
 
         // Error: Invalid operator in Ternary condition
@@ -253,22 +255,21 @@ ASTUnaryGroupExpr *ExprParser::ParseUnaryPostExpr(ASTVarRef *VarRef) {
     FLY_DEBUG_MESSAGE("ExprParser", "ParseUnaryPostExpr", Logger()
             .Attr("VarRef", VarRef).End());
     ASTVarRefExpr *VarRefExpr = P->Builder.CreateExpr(VarRef);
-    ASTUnaryOperatorKind Op;
+    ASTUnaryOperatorKind OperatorKind;
     switch (P->Tok.getKind()) {
-        case tok::exclaim:
-            Op = ASTUnaryOperatorKind::LOGIC_NOT;
-            break;
         case tok::plusplus:
-            Op = ASTUnaryOperatorKind::ARITH_INCR;
+            OperatorKind = ASTUnaryOperatorKind::UNARY_ARITH_POST_INCR;
             break;
         case tok::minusminus:
-            Op = ASTUnaryOperatorKind::ARITH_DECR;
+            OperatorKind = ASTUnaryOperatorKind::UNARY_ARITH_POST_DECR;
             break;
         default:
-            assert(0 && "Unary Operator not accepted");
+            // Error:
+            return nullptr;
     }
     P->ConsumeToken();
-    return P->Builder.CreateUnaryExpr(VarRef->getLocation(), Op, ASTUnaryOptionKind::UNARY_POST, VarRefExpr);
+    ASTUnaryOperatorExpr *OperatorExpr = P->Builder.CreateOperatorExpr(VarRef->getLocation(), OperatorKind);
+    return P->Builder.CreateUnaryExpr(OperatorExpr, VarRefExpr);
 }
 
 /**
@@ -283,25 +284,27 @@ ASTUnaryGroupExpr* ExprParser::ParseUnaryPreExpr(Parser *P) {
     ASTUnaryOperatorKind Op;
     switch (P->Tok.getKind()) {
         case tok::exclaim:
-            Op = ASTUnaryOperatorKind::LOGIC_NOT;
+            Op = ASTUnaryOperatorKind::UNARY_LOGIC_NOT;
             break;
         case tok::plusplus:
-            Op = ASTUnaryOperatorKind::ARITH_INCR;
+            Op = ASTUnaryOperatorKind::UNARY_ARITH_PRE_INCR;
             break;
         case tok::minusminus:
-            Op = ASTUnaryOperatorKind::ARITH_DECR;
+            Op = ASTUnaryOperatorKind::UNARY_ARITH_PRE_DECR;
             break;
         default:
-            assert(0 && "Unary Pre Operator not accepted");
+            // Error:
+            return nullptr;
     }
-    P->ConsumeToken();
+    const SourceLocation &Loc = P->ConsumeToken();
 
     // Check var identifier
     if (P->Tok.isAnyIdentifier()) {
         ASTIdentifier *Identifier = P->ParseIdentifier();
         ASTVarRef *VarRef = P->Builder.CreateVarRef(Identifier);
         ASTVarRefExpr *VarRefExpr = P->Builder.CreateExpr(VarRef);
-        return P->Builder.CreateUnaryExpr(VarRef->getLocation(), Op, ASTUnaryOptionKind::UNARY_PRE, VarRefExpr);
+        ASTUnaryOperatorExpr *OperatorExpr = P->Builder.CreateOperatorExpr(Loc, Op);
+        return P->Builder.CreateUnaryExpr(OperatorExpr, VarRefExpr);
     }
 
     // Error: unary operator
@@ -324,45 +327,45 @@ ASTBinaryOperatorKind ExprParser::ParseBinaryOperator() {
 
         // Binary Arithmetic
         case tok::plus:
-            return ASTBinaryOperatorKind::ARITH_ADD;
+            return ASTBinaryOperatorKind::BINARY_ARITH_ADD;
         case tok::minus:
-            return ASTBinaryOperatorKind::ARITH_SUB;
+            return ASTBinaryOperatorKind::BINARY_ARITH_SUB;
         case tok::star:
-            return ASTBinaryOperatorKind::ARITH_MUL;
+            return ASTBinaryOperatorKind::BINARY_ARITH_MUL;
         case tok::slash:
-            return ASTBinaryOperatorKind::ARITH_DIV;
+            return ASTBinaryOperatorKind::BINARY_ARITH_DIV;
         case tok::percent:
-            return ASTBinaryOperatorKind::ARITH_MOD;
+            return ASTBinaryOperatorKind::BINARY_ARITH_MOD;
         case tok::amp:
-            return ASTBinaryOperatorKind::ARITH_AND;
+            return ASTBinaryOperatorKind::BINARY_ARITH_AND;
         case tok::pipe:
-            return ASTBinaryOperatorKind::ARITH_OR;
+            return ASTBinaryOperatorKind::BINARY_ARITH_OR;
         case tok::caret:
-            return ASTBinaryOperatorKind::ARITH_XOR;
+            return ASTBinaryOperatorKind::BINARY_ARITH_XOR;
         case tok::lessless:
-            return ASTBinaryOperatorKind::ARITH_SHIFT_L;
+            return ASTBinaryOperatorKind::BINARY_ARITH_SHIFT_L;
         case tok::greatergreater:
-            return ASTBinaryOperatorKind::ARITH_SHIFT_R;
+            return ASTBinaryOperatorKind::BINARY_ARITH_SHIFT_R;
 
             // Logic
         case tok::ampamp:
-            return ASTBinaryOperatorKind::LOGIC_AND;
+            return ASTBinaryOperatorKind::BINARY_LOGIC_AND;
         case tok::pipepipe:
-            return ASTBinaryOperatorKind::LOGIC_OR;
+            return ASTBinaryOperatorKind::BINARY_LOGIC_OR;
 
             // Comparator
         case tok::less:
-            return ASTBinaryOperatorKind::COMP_LT;
+            return ASTBinaryOperatorKind::BINARY_COMP_LT;
         case tok::lessequal:
-            return ASTBinaryOperatorKind::COMP_LTE;
+            return ASTBinaryOperatorKind::BINARY_COMP_LTE;
         case tok::greater:
-            return ASTBinaryOperatorKind::COMP_GT;
+            return ASTBinaryOperatorKind::BINARY_COMP_GT;
         case tok::greaterequal:
-            return ASTBinaryOperatorKind::COMP_GTE;
+            return ASTBinaryOperatorKind::BINARY_COMP_GTE;
         case tok::exclaimequal:
-            return ASTBinaryOperatorKind::COMP_NE;
+            return ASTBinaryOperatorKind::BINARY_COMP_NE;
         case tok::equalequal:
-            return ASTBinaryOperatorKind::COMP_EQ;
+            return ASTBinaryOperatorKind::BINARY_COMP_EQ;
 
     }
     assert(0 && "Binary Operator not accepted");
@@ -372,7 +375,7 @@ void ExprParser::UpdateBinaryGroup(bool NoPrecedence) {
     FLY_DEBUG_MESSAGE("ClassParser", "ParseMethod", Logger()
             .Attr("NoPrecedence", NoPrecedence).End());
     std::vector<ASTExpr *> Result;
-    RawBinaryOperator *Op;
+    ASTBinaryOperatorExpr *Op;
     ASTExpr *Second;
     std::vector<ASTExpr *>::const_iterator It = Group.begin();
     ASTExpr *First = *It;
@@ -385,7 +388,7 @@ void ExprParser::UpdateBinaryGroup(bool NoPrecedence) {
 
         // The operation
         if (++It != Group.end()) {
-            Op = (RawBinaryOperator *) *It;
+            Op = (ASTBinaryOperatorExpr *) *It;
 
             // The second operator
             if (++It != Group.end()) {
@@ -393,7 +396,8 @@ void ExprParser::UpdateBinaryGroup(bool NoPrecedence) {
                 if (NoPrecedence || Op->isPrecedence()) {
                     First = Result.back();
                     Result.pop_back();
-                    Result.push_back(P->Builder.CreateBinaryExpr(Op->getLocation(), Op->getOp(), First, Second));
+
+                    Result.push_back(P->Builder.CreateBinaryExpr(Op, First, Second));
                 } else {
                     Result.push_back(Op);
                     Result.push_back(Second);
