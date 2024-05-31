@@ -132,8 +132,6 @@ namespace {
 
     TEST_F(CodeGenTest, CGDefaultValueGlobalVar) {
         ASTModule *Module = CreateModule();
-        CodeGenModule *CGM = CG->GenerateModule(*Module);
-
         ASTScopes *TopScopes = Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false);
 
         // default Bool value
@@ -193,6 +191,7 @@ namespace {
 
         // Generate Code
         EXPECT_FALSE(Diags.hasErrorOccurred());
+        CodeGenModule *CGM = CG->GenerateModule(*Module);
         std::string output;
 
         // a
@@ -274,7 +273,6 @@ namespace {
 
     TEST_F(CodeGenTest, CGValuedGlobalVar) {
         ASTModule *Module = CreateModule();
-        CodeGenModule *CGM = CG->GenerateModule(*Module);
 
         ASTScopes *TopScopes = Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false);
 
@@ -350,6 +348,7 @@ namespace {
 
         // Generate Code
         EXPECT_FALSE(Diags.hasErrorOccurred());
+        CodeGenModule *CGM = CG->GenerateModule(*Module);
         std::string output;
 
         // a
@@ -443,7 +442,6 @@ namespace {
 
     TEST_F(CodeGenTest, CGFuncParamTypes) {
         ASTModule *Module = CreateModule();
-        CodeGenModule *CGM = CG->GenerateModule(*Module);
 
         ASTScopes *TopScopes = Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false);
         ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func", TopScopes);
@@ -469,6 +467,7 @@ namespace {
         EXPECT_TRUE(S->Resolve());
 
         // Generate Code
+        CodeGenModule *CGM = CG->GenerateModule(*Module);
         CodeGenFunction *CGF = CGM->GenFunction(Func);
         CGF->GenBody();
         Function *F = CGF->getFunction();
@@ -509,7 +508,6 @@ namespace {
 
     TEST_F(CodeGenTest, CGFuncUseGlobalVar) {
         ASTModule *Module = CreateModule();
-        CodeGenModule *CGM = CG->GenerateModule(*Module);
 
         // float G = 2.0
         ASTFloatingValue *FloatingVal = Builder.CreateFloatingValue(SourceLoc, 2.0);
@@ -550,6 +548,7 @@ namespace {
         EXPECT_TRUE(S->Resolve());
 
         // Generate Code
+        CodeGenModule *CGM = CG->GenerateModule(*Module);
         CodeGenGlobalVar *CGGV = CGM->GenGlobalVar(GVar);
         Value *G = CGGV->getPointer();
 
@@ -581,7 +580,6 @@ namespace {
 
     TEST_F(CodeGenTest, CGValue) {
         ASTModule *Module = CreateModule();
-        CodeGenModule *CGM = CG->GenerateModule(*Module);
 
         // func()
         ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
@@ -600,6 +598,7 @@ namespace {
         EXPECT_TRUE(S->Resolve());
 
         // Generate Code
+        CodeGenModule *CGM = CG->GenerateModule(*Module);
         CodeGenFunction *CGF = CGM->GenFunction(Func);
         CGF->GenBody();
         Function *F = CGF->getFunction();
@@ -621,7 +620,6 @@ namespace {
 
     TEST_F(CodeGenTest, CGFuncCall) {
         ASTModule *Module = CreateModule();
-        CodeGenModule *CGM = CG->GenerateModule(*Module);
 
         // test()
         ASTFunction *Test = Builder.CreateFunction(SourceLoc, IntType, "test",
@@ -654,6 +652,7 @@ namespace {
 
 
         // Generate Code
+        CodeGenModule *CGM = CG->GenerateModule(*Module);
         CodeGenFunction *CGF_Test = CGM->GenFunction(Test);
         CGF_Test->GenBody();
         CodeGenFunction *CGF = CGM->GenFunction(Func);
@@ -682,7 +681,6 @@ namespace {
      */
     TEST_F(CodeGenTest, CGGroupExpr) {
         ASTModule *Module = CreateModule();
-        CodeGenModule *CGM = CG->GenerateModule(*Module);
 
         // func()
         ASTFunction *Func = Builder.CreateFunction(SourceLoc, IntType, "func",
@@ -706,7 +704,6 @@ namespace {
         ASTVarRefExpr *E4 = Builder.CreateExpr(Builder.CreateVarRef(cParam));
         ASTValueExpr *E5 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 2));
 
-        ;
         ASTBinaryGroupExpr *G2 = Builder.CreateBinaryExpr(Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_ARITH_MUL), E2, E3);
         ASTBinaryGroupExpr *G3 = Builder.CreateBinaryExpr(Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_ARITH_SUB), E4, E5);
         ASTBinaryGroupExpr *G1 = Builder.CreateBinaryExpr(Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_ARITH_DIV), G2, G3);
@@ -721,6 +718,7 @@ namespace {
         EXPECT_TRUE(S->Resolve());
 
         // Generate Code
+        CodeGenModule *CGM = CG->GenerateModule(*Module);
         CodeGenFunction *CGF = CGM->GenFunction(Func);
         CGF->GenBody();
         Function *F = CGF->getFunction();
@@ -732,26 +730,27 @@ namespace {
 
         EXPECT_EQ(output, "define i32 @func(%error* %0, i32 %1, i32 %2, i32 %3) {\n"
                           "entry:\n"
-                          "  %4 = alloca i32, align 4\n"
+                          "  %4 = alloca %error*, align 8\n"
                           "  %5 = alloca i32, align 4\n"
                           "  %6 = alloca i32, align 4\n"
-                          "  store i32 %1, i32* %4, align 4\n"
-                          "  store i32 %2, i32* %5, align 4\n"
-                          "  store i32 %3, i32* %6, align 4\n"
-                          "  %7 = load i32, i32* %4, align 4\n"
+                          "  %7 = alloca i32, align 4\n"
+                          "  store %error* %0, %error** %4, align 8\n"
+                          "  store i32 %1, i32* %5, align 4\n"
+                          "  store i32 %2, i32* %6, align 4\n"
+                          "  store i32 %3, i32* %7, align 4\n"
                           "  %8 = load i32, i32* %5, align 4\n"
-                          "  %9 = mul i32 %7, %8\n"
-                          "  %10 = load i32, i32* %6, align 4\n"
-                          "  %11 = sub i32 %10, 2\n"
-                          "  %12 = sdiv i32 %9, %11\n"
-                          "  %13 = add i32 1, %12\n"
-                          "  ret i32 %13\n"
+                          "  %9 = load i32, i32* %6, align 4\n"
+                          "  %10 = mul i32 %8, %9\n"
+                          "  %11 = load i32, i32* %7, align 4\n"
+                          "  %12 = sub i32 %11, 2\n"
+                          "  %13 = sdiv i32 %10, %12\n"
+                          "  %14 = add i32 1, %13\n"
+                          "  ret i32 %14\n"
                           "}\n");
     }
 
     TEST_F(CodeGenTest, CGArithOp) {
         ASTModule *Module = CreateModule();
-        CodeGenModule *CGM = CG->GenerateModule(*Module);
 
         // func()
         ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
@@ -890,6 +889,7 @@ namespace {
         EXPECT_TRUE(S->Resolve());
 
         // Generate Code
+        CodeGenModule *CGM = CG->GenerateModule(*Module);
         CodeGenFunction *CGF = CGM->GenFunction(Func);
         CGF->GenBody();
         Function *F = CGF->getFunction();
@@ -901,56 +901,57 @@ namespace {
 
         EXPECT_EQ(output, "define void @func(%error* %0, i32 %1, i32 %2, i32 %3) {\n"
                           "entry:\n"
-                          "  %4 = alloca i32, align 4\n"
+                          "  %4 = alloca %error*, align 8\n"
                           "  %5 = alloca i32, align 4\n"
                           "  %6 = alloca i32, align 4\n"
-                          "  store i32 %1, i32* %4, align 4\n"
-                          "  store i32 %2, i32* %5, align 4\n"
-                          "  store i32 %3, i32* %6, align 4\n"
-                          "  store i32 0, i32* %4, align 4\n"
+                          "  %7 = alloca i32, align 4\n"
+                          "  store %error* %0, %error** %4, align 8\n"
+                          "  store i32 %1, i32* %5, align 4\n"
+                          "  store i32 %2, i32* %6, align 4\n"
+                          "  store i32 %3, i32* %7, align 4\n"
                           "  store i32 0, i32* %5, align 4\n"
-                          "  %7 = load i32, i32* %4, align 4\n"
+                          "  store i32 0, i32* %6, align 4\n"
                           "  %8 = load i32, i32* %5, align 4\n"
-                          "  %9 = add i32 %7, %8\n"
-                          "  store i32 %9, i32* %6, align 4\n"
-                          "  %10 = sub i32 %7, %8\n"
-                          "  store i32 %10, i32* %6, align 4\n"
-                          "  %11 = mul i32 %7, %8\n"
-                          "  store i32 %11, i32* %6, align 4\n"
-                          "  %12 = sdiv i32 %7, %8\n"
-                          "  store i32 %12, i32* %6, align 4\n"
-                          "  %13 = srem i32 %7, %8\n"
-                          "  store i32 %13, i32* %6, align 4\n"
-                          "  %14 = and i32 %7, %8\n"
-                          "  store i32 %14, i32* %6, align 4\n"
-                          "  %15 = or i32 %7, %8\n"
-                          "  store i32 %15, i32* %6, align 4\n"
-                          "  %16 = xor i32 %7, %8\n"
-                          "  store i32 %16, i32* %6, align 4\n"
-                          "  %17 = shl i32 %7, %8\n"
-                          "  store i32 %17, i32* %6, align 4\n"
-                          "  %18 = ashr i32 %7, %8\n"
-                          "  store i32 %18, i32* %6, align 4\n"
+                          "  %9 = load i32, i32* %6, align 4\n"
+                          "  %10 = add i32 %8, %9\n"
+                          "  store i32 %10, i32* %7, align 4\n"
+                          "  %11 = sub i32 %8, %9\n"
+                          "  store i32 %11, i32* %7, align 4\n"
+                          "  %12 = mul i32 %8, %9\n"
+                          "  store i32 %12, i32* %7, align 4\n"
+                          "  %13 = sdiv i32 %8, %9\n"
+                          "  store i32 %13, i32* %7, align 4\n"
+                          "  %14 = srem i32 %8, %9\n"
+                          "  store i32 %14, i32* %7, align 4\n"
+                          "  %15 = and i32 %8, %9\n"
+                          "  store i32 %15, i32* %7, align 4\n"
+                          "  %16 = or i32 %8, %9\n"
+                          "  store i32 %16, i32* %7, align 4\n"
+                          "  %17 = xor i32 %8, %9\n"
+                          "  store i32 %17, i32* %7, align 4\n"
+                          "  %18 = shl i32 %8, %9\n"
+                          "  store i32 %18, i32* %7, align 4\n"
+                          "  %19 = ashr i32 %8, %9\n"
+                          "  store i32 %19, i32* %7, align 4\n"
                           // Unary Operations
-                          "  %19 = load i32, i32* %6, align 4\n"
-                          "  %20 = add nsw i32 %19, 1\n"
-                          "  store i32 %20, i32* %6, align 4\n"
-                          "  %21 = load i32, i32* %6, align 4\n"
-                          "  %22 = add nsw i32 %21, 1\n"
-                          "  store i32 %22, i32* %6, align 4\n"
-                          "  %23 = load i32, i32* %6, align 4\n"
-                          "  %24 = add nsw i32 %23, -1\n"
-                          "  store i32 %24, i32* %6, align 4\n"
-                          "  %25 = load i32, i32* %6, align 4\n"
-                          "  %26 = add nsw i32 %25, -1\n"
-                          "  store i32 %26, i32* %6, align 4\n"
+                          "  %20 = load i32, i32* %7, align 4\n"
+                          "  %21 = add nsw i32 %20, 1\n"
+                          "  store i32 %21, i32* %7, align 4\n"
+                          "  %22 = load i32, i32* %7, align 4\n"
+                          "  %23 = add nsw i32 %22, 1\n"
+                          "  store i32 %23, i32* %7, align 4\n"
+                          "  %24 = load i32, i32* %7, align 4\n"
+                          "  %25 = add nsw i32 %24, -1\n"
+                          "  store i32 %25, i32* %7, align 4\n"
+                          "  %26 = load i32, i32* %7, align 4\n"
+                          "  %27 = add nsw i32 %26, -1\n"
+                          "  store i32 %27, i32* %7, align 4\n"
                           "  ret void\n"
                           "}\n");
     }
 
     TEST_F(CodeGenTest, CGComparatorOp) {
         ASTModule *Module = CreateModule();
-        CodeGenModule *CGM = CG->GenerateModule(*Module);
 
         // func()
         ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
@@ -959,57 +960,68 @@ namespace {
         ASTLocalVar *aVar = Builder.CreateLocalVar(SourceLoc, IntType, "a");
         ASTLocalVar *bVar = Builder.CreateLocalVar(SourceLoc, IntType, "b");
         ASTLocalVar *cVar = Builder.CreateLocalVar(SourceLoc, BoolType, "c");
+        EXPECT_TRUE(Builder.AddLocalVar(Body, aVar));
+        EXPECT_TRUE(Builder.AddLocalVar(Body, bVar));
+        EXPECT_TRUE(Builder.AddLocalVar(Body, cVar));
 
         // a = 0
         ASTVarStmt *aVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(aVar));
-        Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 0));
+        ASTExpr *Expr1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 0));
+        EXPECT_TRUE(Builder.AddExpr(aVarStmt, Expr1));
         EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt));
 
         // b = 0
         ASTVarStmt *bVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(bVar));
-        Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 0));
+        ASTExpr *Expr2 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 0));
+        EXPECT_TRUE(Builder.AddExpr(bVarStmt, Expr2));
         EXPECT_TRUE(Builder.AddStmt(Body, bVarStmt));
 
         // c = a == b
         ASTVarStmt * cEqVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(cVar));
-        Builder.CreateBinaryExpr(Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_COMP_EQ),
+        ASTExpr *Expr3 = Builder.CreateBinaryExpr(Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_COMP_EQ),
                                   Builder.CreateExpr(Builder.CreateVarRef(aVar)),
                                   Builder.CreateExpr(Builder.CreateVarRef(bVar)));
+        EXPECT_TRUE(Builder.AddExpr(cEqVarStmt, Expr3));
         EXPECT_TRUE(Builder.AddStmt(Body, cEqVarStmt));
 
         // c = a != b
         ASTVarStmt * cNeqVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(cVar));
-        Builder.CreateBinaryExpr(Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_COMP_NE),
+        ASTExpr *Expr4 = Builder.CreateBinaryExpr(Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_COMP_NE),
                                   Builder.CreateExpr(Builder.CreateVarRef(aVar)),
                                   Builder.CreateExpr(Builder.CreateVarRef(bVar)));
+        EXPECT_TRUE(Builder.AddExpr(cNeqVarStmt, Expr4));
         EXPECT_TRUE(Builder.AddStmt(Body, cNeqVarStmt));
 
         // c = a > b
         ASTVarStmt * cGtVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(cVar));
-        Builder.CreateBinaryExpr(Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_COMP_GT),
+        ASTExpr *Expr5 = Builder.CreateBinaryExpr(Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_COMP_GT),
                                   Builder.CreateExpr(Builder.CreateVarRef(aVar)),
                                   Builder.CreateExpr(Builder.CreateVarRef(bVar)));
+        EXPECT_TRUE(Builder.AddExpr(cGtVarStmt, Expr5));
         EXPECT_TRUE(Builder.AddStmt(Body, cGtVarStmt));
 
         // c = a >= b
         ASTVarStmt * cGteVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(cVar));
-        Builder.CreateBinaryExpr(Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_COMP_GTE),
+        ASTExpr *Expr6 = Builder.CreateBinaryExpr(Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_COMP_GTE),
                                   Builder.CreateExpr(Builder.CreateVarRef(aVar)),
                                   Builder.CreateExpr(Builder.CreateVarRef(bVar)));
+        EXPECT_TRUE(Builder.AddExpr(cGteVarStmt, Expr6));
         EXPECT_TRUE(Builder.AddStmt(Body, cGteVarStmt));
 
         // c = a < b
         ASTVarStmt * cLtVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(cVar));
-        Builder.CreateBinaryExpr(Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_COMP_LT),
+        ASTExpr *Expr7 = Builder.CreateBinaryExpr(Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_COMP_LT),
                                   Builder.CreateExpr(Builder.CreateVarRef(aVar)),
                                   Builder.CreateExpr(Builder.CreateVarRef(bVar)));
+        EXPECT_TRUE(Builder.AddExpr(cLtVarStmt, Expr7));
         EXPECT_TRUE(Builder.AddStmt(Body, cLtVarStmt));
 
         // c = a <= b
         ASTVarStmt * cLteVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(cVar));
-        Builder.CreateBinaryExpr(Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_COMP_LTE),
+        ASTExpr *Expr8 = Builder.CreateBinaryExpr(Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_COMP_LTE),
                                   Builder.CreateExpr(Builder.CreateVarRef(aVar)),
                                   Builder.CreateExpr(Builder.CreateVarRef(bVar)));
+        EXPECT_TRUE(Builder.AddExpr(cLteVarStmt, Expr8));
         EXPECT_TRUE(Builder.AddStmt(Body, cLteVarStmt));
 
         // Add to Module
@@ -1018,6 +1030,7 @@ namespace {
         EXPECT_TRUE(S->Resolve());
 
         // Generate Code
+        CodeGenModule *CGM = CG->GenerateModule(*Module);
         CodeGenFunction *CGF = CGM->GenFunction(Func);
         CGF->GenBody();
         Function *F = CGF->getFunction();
@@ -1029,31 +1042,33 @@ namespace {
 
         EXPECT_EQ(output, "define void @func(%error* %0) {\n"
                           "entry:\n"
-                          "  %1 = alloca i32, align 4\n"
+                          "  %1 = alloca %error*, align 8\n"
                           "  %2 = alloca i32, align 4\n"
-                          "  %3 = alloca i8, align 1\n"
-                          "  store i32 0, i32* %1, align 4\n"
+                          "  %3 = alloca i32, align 4\n"
+                          "  %4 = alloca i8, align 1\n"
+                          "  store %error* %0, %error** %1, align 8\n"
                           "  store i32 0, i32* %2, align 4\n"
-                          "  %4 = load i32, i32* %1, align 4\n"
+                          "  store i32 0, i32* %3, align 4\n"
                           "  %5 = load i32, i32* %2, align 4\n"
-                          "  %6 = icmp eq i32 %4, %5\n"
-                          "  %7 = zext i1 %6 to i8\n"
-                          "  store i8 %7, i8* %3, align 1\n"
-                          "  %8 = icmp ne i32 %4, %5\n"
-                          "  %9 = zext i1 %8 to i8\n"
-                          "  store i8 %9, i8* %3, align 1\n"
-                          "  %10 = icmp sgt i32 %4, %5\n"
-                          "  %11 = zext i1 %10 to i8\n"
-                          "  store i8 %11, i8* %3, align 1\n"
-                          "  %12 = icmp sge i32 %4, %5\n"
-                          "  %13 = zext i1 %12 to i8\n"
-                          "  store i8 %13, i8* %3, align 1\n"
-                          "  %14 = icmp slt i32 %4, %5\n"
-                          "  %15 = zext i1 %14 to i8\n"
-                          "  store i8 %15, i8* %3, align 1\n"
-                          "  %16 = icmp sle i32 %4, %5\n"
-                          "  %17 = zext i1 %16 to i8\n"
-                          "  store i8 %17, i8* %3, align 1\n"
+                          "  %6 = load i32, i32* %3, align 4\n"
+                          "  %7 = icmp eq i32 %5, %6\n"
+                          "  %8 = zext i1 %7 to i8\n"
+                          "  store i8 %8, i8* %4, align 1\n"
+                          "  %9 = icmp ne i32 %5, %6\n"
+                          "  %10 = zext i1 %9 to i8\n"
+                          "  store i8 %10, i8* %4, align 1\n"
+                          "  %11 = icmp sgt i32 %5, %6\n"
+                          "  %12 = zext i1 %11 to i8\n"
+                          "  store i8 %12, i8* %4, align 1\n"
+                          "  %13 = icmp sge i32 %5, %6\n"
+                          "  %14 = zext i1 %13 to i8\n"
+                          "  store i8 %14, i8* %4, align 1\n"
+                          "  %15 = icmp slt i32 %5, %6\n"
+                          "  %16 = zext i1 %15 to i8\n"
+                          "  store i8 %16, i8* %4, align 1\n"
+                          "  %17 = icmp sle i32 %5, %6\n"
+                          "  %18 = zext i1 %17 to i8\n"
+                          "  store i8 %18, i8* %4, align 1\n"
                           "  ret void\n"
                           "}\n");
     }
@@ -1069,29 +1084,36 @@ namespace {
         ASTLocalVar *aVar = Builder.CreateLocalVar(SourceLoc, BoolType, "a");
         ASTLocalVar *bVar = Builder.CreateLocalVar(SourceLoc, BoolType, "b");
         ASTLocalVar *cVar = Builder.CreateLocalVar(SourceLoc, BoolType, "c");
+        EXPECT_TRUE(Builder.AddLocalVar(Body, aVar));
+        EXPECT_TRUE(Builder.AddLocalVar(Body, bVar));
+        EXPECT_TRUE(Builder.AddLocalVar(Body, cVar));
 
         // a = false
         ASTVarStmt *aVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(aVar));
-        Builder.CreateExpr(Builder.CreateBoolValue(SourceLoc, false));
+        ASTValueExpr *Expr1 = Builder.CreateExpr(Builder.CreateBoolValue(SourceLoc, false));
+        EXPECT_TRUE(Builder.AddExpr(aVarStmt, Expr1));
         EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt));
 
         // b = false
         ASTVarStmt *bVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(bVar));
-        Builder.CreateExpr(Builder.CreateBoolValue(SourceLoc, false));
+        ASTValueExpr *Expr2 = Builder.CreateExpr(Builder.CreateBoolValue(SourceLoc, false));
+        EXPECT_TRUE(Builder.AddExpr(bVarStmt, Expr2));
         EXPECT_TRUE(Builder.AddStmt(Body, bVarStmt));
 
         // c = a and b
         ASTVarStmt * cAndVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(cVar));
-        Builder.CreateBinaryExpr(Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_LOGIC_AND),
+        ASTExpr *Expr3 = Builder.CreateBinaryExpr(Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_LOGIC_AND),
                                   Builder.CreateExpr(Builder.CreateVarRef(aVar)),
                                   Builder.CreateExpr(Builder.CreateVarRef(bVar)));
+        EXPECT_TRUE(Builder.AddExpr(cAndVarStmt, Expr3));
         EXPECT_TRUE(Builder.AddStmt(Body, cAndVarStmt));
 
         // c = a or b
         ASTVarStmt * cOrVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(cVar));
-        Builder.CreateBinaryExpr(Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_LOGIC_OR),
+        ASTExpr *Expr4 = Builder.CreateBinaryExpr(Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_LOGIC_OR),
                                   Builder.CreateExpr(Builder.CreateVarRef(aVar)),
                                   Builder.CreateExpr(Builder.CreateVarRef(bVar)));
+        EXPECT_TRUE(Builder.AddExpr(cOrVarStmt, Expr4));
         EXPECT_TRUE(Builder.AddStmt(Body, cOrVarStmt));
 
         // Add to Module
@@ -1111,27 +1133,29 @@ namespace {
 
         EXPECT_EQ(output, "define void @func(%error* %0) {\n"
                           "entry:\n"
-                          "  %1 = alloca i8, align 1\n"
+                          "  %1 = alloca %error*, align 8\n"
                           "  %2 = alloca i8, align 1\n"
                           "  %3 = alloca i8, align 1\n"
-                          "  store i8 0, i8* %1, align 1\n"
+                          "  %4 = alloca i8, align 1\n"
+                          "  store %error* %0, %error** %1, align 8\n"
                           "  store i8 0, i8* %2, align 1\n"
-                          "  %4 = load i8, i8* %1, align 1\n"
-                          "  %5 = trunc i8 %4 to i1\n"
-                          "  br i1 %5, label %and, label %and1\n"
+                          "  store i8 0, i8* %3, align 1\n"
+                          "  %5 = load i8, i8* %2, align 1\n"
+                          "  %6 = trunc i8 %5 to i1\n"
+                          "  br i1 %6, label %and, label %and1\n"
                           "\n"
                           "and:                                              ; preds = %entry\n"
-                          "  %6 = load i8, i8* %2, align 1\n"
-                          "  %7 = trunc i8 %6 to i1\n"
+                          "  %7 = load i8, i8* %3, align 1\n"
+                          "  %8 = trunc i8 %7 to i1\n"
                           "  br label %and1\n"
                           "\n"
                           "and1:                                             ; preds = %and, %entry\n"
-                          "  %8 = phi i1 [ false, %entry ], [ %7, %and ]\n"
-                          "  %9 = zext i1 %8 to i8\n"
-                          "  store i8 %9, i8* %3, align 1\n"
-                          "  %10 = load i8, i8* %1, align 1\n"
-                          "  %11 = trunc i8 %10 to i1\n"
-                          "  br i1 %11, label %or2, label %or\n"
+                          "  %9 = phi i1 [ false, %entry ], [ %8, %and ]\n"
+                          "  %10 = zext i1 %9 to i8\n"
+                          "  store i8 %10, i8* %4, align 1\n"
+                          "  %11 = load i8, i8* %2, align 1\n"
+                          "  %12 = trunc i8 %11 to i1\n"
+                          "  br i1 %12, label %or2, label %or\n"
                           "\n"
                           "or:                                               ; preds = %and1\n"
                           "  %12 = load i8, i8* %2, align 1\n"

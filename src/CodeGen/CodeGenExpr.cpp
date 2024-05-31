@@ -38,7 +38,7 @@ llvm::Value *CodeGenExpr::GenValue(const ASTExpr *Expr) {
             return CGM->GenValue(Expr->getType(), ((ASTValueExpr *)Expr)->getValue());
         }
         case ASTExprKind::EXPR_VAR_REF: {
-            FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_REF_VAR");
+            FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_VAR_REF");
             ASTVarRef *VarRef = ((ASTVarRefExpr *) Expr)->getVarRef();
             assert(VarRef && "Missing Ref");
             return CGM->GenVarRef(VarRef);
@@ -290,10 +290,13 @@ llvm::Value *CodeGenExpr::GenGroup(ASTGroupExpr *Group) {
     switch (Group->getGroupKind()) {
         case ASTExprGroupKind::GROUP_UNARY:
             V = GenUnary((ASTUnaryGroupExpr *) Group);
+            break;
         case ASTExprGroupKind::GROUP_BINARY:
             V = GenBinary((ASTBinaryGroupExpr *) Group);
+            break;
         case ASTExprGroupKind::GROUP_TERNARY:
             V = GenTernary((ASTTernaryGroupExpr *) Group);
+            break;
     }
 
     return V;
@@ -454,17 +457,17 @@ llvm::Value *CodeGenExpr::GenBinaryComparison(const ASTExpr *E1, ASTBinaryOperat
     assert(0 && "Invalid Comparator Operator");
 }
 
-Value *CodeGenExpr::GenBinaryLogic(const ASTExpr *E1, ASTBinaryOperatorKind OperatorKind, const ASTExpr *E2) {
+llvm::Value *CodeGenExpr::GenBinaryLogic(const ASTExpr *E1, ASTBinaryOperatorKind OperatorKind, const ASTExpr *E2) {
     FLY_DEBUG("CodeGenExpr", "GenBinaryLogic");
     llvm::Value *V1 = GenValue(E1);
 //    V1 = Convert(V1, E1->getType(), BoolType); //FIXME
-    BasicBlock *FromBB = CGM->Builder->GetInsertBlock();
+    llvm::BasicBlock *FromBB = CGM->Builder->GetInsertBlock();
 
     switch (OperatorKind) {
 
         case ASTBinaryOperatorKind::BINARY_LOGIC_AND: {
-            llvm::BasicBlock *LeftBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "and");
-            llvm::BasicBlock *RightBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "and");
+            llvm::BasicBlock *LeftBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "and", FromBB->getParent());
+            llvm::BasicBlock *RightBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "and", FromBB->getParent());
 
             // From Branch
             CGM->Builder->CreateCondBr(V1, LeftBB, RightBB);
@@ -483,8 +486,8 @@ Value *CodeGenExpr::GenBinaryLogic(const ASTExpr *E1, ASTBinaryOperatorKind Oper
             return Phi;
         }
         case ASTBinaryOperatorKind::BINARY_LOGIC_OR: {
-            llvm::BasicBlock *LeftBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "or");
-            llvm::BasicBlock *RightBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "or");
+            llvm::BasicBlock *LeftBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "or", FromBB->getParent());
+            llvm::BasicBlock *RightBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "or", FromBB->getParent());
 
             // From Branch
             CGM->Builder->CreateCondBr(V1, RightBB, LeftBB);
@@ -512,12 +515,13 @@ llvm::Value *CodeGenExpr::GenTernary(ASTTernaryGroupExpr *Expr) {
     assert(Expr->getSecond() && "Second Expr is empty");
     assert(Expr->getThird() && "Third Expr is empty");
 
+    llvm::BasicBlock *FromBB = CGM->Builder->GetInsertBlock();
     llvm::Value *Cond = GenValue(Expr->getFirst());
 
     // Create Blocks
-    llvm::BasicBlock *TrueBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "terntrue");
-    llvm::BasicBlock *FalseBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "ternfalse");
-    llvm::BasicBlock *EndBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "ternend");
+    llvm::BasicBlock *TrueBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "terntrue", FromBB->getParent());
+    llvm::BasicBlock *FalseBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "ternfalse", FromBB->getParent());
+    llvm::BasicBlock *EndBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "ternend", FromBB->getParent());
 
     // Create Condition
     CGM->Builder->CreateCondBr(Cond, TrueBB, FalseBB);
