@@ -63,6 +63,31 @@ llvm::Value *CodeGenExpr::getValue() const {
     return Val;
 }
 
+llvm::Value *CodeGenExpr::ConvertToBool(llvm::Value *Val) {
+    FLY_DEBUG_MESSAGE("CodeGenExpr", "Convert",
+                      "FromVal=" << Val << " to Bool Type=");
+    if (Val->getType()->isIntegerTy()) {
+        if (Val->getType()->getIntegerBitWidth() > 8) {
+            llvm::Value *ZERO = llvm::ConstantInt::get(Val->getType(), 0);
+            return CGM->Builder->CreateICmpNE(Val, ZERO);
+        } else {
+            return CGM->Builder->CreateTrunc(Val, CGM->BoolTy);
+        }
+    }
+    if (Val->getType()->isFloatingPointTy()) {
+        llvm::Value *ZERO = llvm::ConstantFP::get(Val->getType(), 0);
+        return CGM->Builder->CreateFCmpUNE(Val, ZERO);
+    }
+    if (Val->getType()->isArrayTy()) {
+        // TODO
+        return nullptr;
+    }
+    if (Val->getType()->isStructTy()) {
+        // TODO
+        return nullptr;
+    }
+}
+
 llvm::Value *CodeGenExpr::Convert(llvm::Value *FromVal, const ASTType *FromType, const ASTType *ToType) {
     FLY_DEBUG_MESSAGE("CodeGenExpr", "Convert",
                       "Value=" << FromVal << " to ASTType=" << ToType->str());
@@ -460,6 +485,7 @@ llvm::Value *CodeGenExpr::GenBinaryComparison(const ASTExpr *E1, ASTBinaryOperat
 llvm::Value *CodeGenExpr::GenBinaryLogic(const ASTExpr *E1, ASTBinaryOperatorKind OperatorKind, const ASTExpr *E2) {
     FLY_DEBUG("CodeGenExpr", "GenBinaryLogic");
     llvm::Value *V1 = GenValue(E1);
+    V1 = ConvertToBool(V1);
 //    V1 = Convert(V1, E1->getType(), BoolType); //FIXME
     llvm::BasicBlock *FromBB = CGM->Builder->GetInsertBlock();
 
@@ -475,6 +501,7 @@ llvm::Value *CodeGenExpr::GenBinaryLogic(const ASTExpr *E1, ASTBinaryOperatorKin
             // Left Branch
             CGM->Builder->SetInsertPoint(LeftBB);
             llvm::Value *V2 = GenValue(E2);
+            V2 = ConvertToBool(V2);
             llvm::Value *V2Trunc = CGM->Builder->CreateTrunc(V2, CGM->BoolTy);
             CGM->Builder->CreateBr(RightBB);
 
@@ -529,19 +556,19 @@ llvm::Value *CodeGenExpr::GenTernary(ASTTernaryGroupExpr *Expr) {
     // True Label
     CGM->Builder->SetInsertPoint(TrueBB);
     llvm::Value *True = GenValue(Expr->getSecond());
-//    llvm::Value *BoolTrue = Convert(True, Expr->getSecond()->getType(), BoolType); FIXME
+    llvm::Value *BoolTrue = ConvertToBool(True);
     CGM->Builder->CreateBr(EndBB);
 
     // False Label
     CGM->Builder->SetInsertPoint(FalseBB);
     llvm::Value *False = GenValue(Expr->getThird());
-//    llvm::Value *BoolFalse = Convert(False, Expr->getThird()->getType(), BoolType); FIXME
+    llvm::Value *BoolFalse = ConvertToBool(False);
     CGM->Builder->CreateBr(EndBB);
 
     // End Label
     CGM->Builder->SetInsertPoint(EndBB);
     PHINode *Phi = CGM->Builder->CreatePHI(CGM->BoolTy, 2);
-    Phi->addIncoming(True, TrueBB);
-    Phi->addIncoming(False, FalseBB);
+    Phi->addIncoming(BoolTrue, TrueBB);
+    Phi->addIncoming(BoolFalse, FalseBB);
     return Phi;
 }

@@ -35,6 +35,8 @@ namespace fly {
 
         llvm::Value *getValue() const;
 
+        llvm::Value *ConvertToBool(llvm::Value *Val);
+
         llvm::Value *Convert(llvm::Value *FromVal, const ASTType *FromType, const ASTType *ToType);
 
         llvm::Value *GenGroup(ASTGroupExpr *Group);

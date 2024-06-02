@@ -1158,14 +1158,14 @@ namespace {
                           "  br i1 %12, label %or2, label %or\n"
                           "\n"
                           "or:                                               ; preds = %and1\n"
-                          "  %12 = load i8, i8* %2, align 1\n"
-                          "  %13 = trunc i8 %12 to i1\n"
+                          "  %13 = load i8, i8* %3, align 1\n"
+                          "  %14 = trunc i8 %13 to i1\n"
                           "  br label %or2\n"
                           "\n"
                           "or2:                                              ; preds = %or, %and1\n"
-                          "  %14 = phi i1 [ true, %and1 ], [ %13, %or ]\n"
-                          "  %15 = zext i1 %14 to i8\n"
-                          "  store i8 %15, i8* %3, align 1\n"
+                          "  %15 = phi i1 [ true, %and1 ], [ %14, %or ]\n"
+                          "  %16 = zext i1 %15 to i8\n"
+                          "  store i8 %16, i8* %4, align 1\n"
                           "  ret void\n"
                           "}\n");
     }
@@ -1181,15 +1181,20 @@ namespace {
         ASTLocalVar *aVar = Builder.CreateLocalVar(SourceLoc, BoolType, "a");
         ASTLocalVar *bVar = Builder.CreateLocalVar(SourceLoc, BoolType, "b");
         ASTLocalVar *cVar = Builder.CreateLocalVar(SourceLoc, BoolType, "c");
+        EXPECT_TRUE(Builder.AddLocalVar(Body, aVar));
+        EXPECT_TRUE(Builder.AddLocalVar(Body, bVar));
+        EXPECT_TRUE(Builder.AddLocalVar(Body, cVar));
 
         // a = false
         ASTVarStmt *aVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(aVar));
-        Builder.CreateExpr(Builder.CreateBoolValue(SourceLoc, false));
+        ASTValueExpr *Expr1 = Builder.CreateExpr(Builder.CreateBoolValue(SourceLoc, false));
+        EXPECT_TRUE(Builder.AddExpr(aVarStmt, Expr1));
         EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt));
 
         // b = false
         ASTVarStmt *bVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(bVar));
-        Builder.CreateExpr(Builder.CreateBoolValue(SourceLoc, false));
+        ASTValueExpr *Expr2 = Builder.CreateExpr(Builder.CreateBoolValue(SourceLoc, false));
+        EXPECT_TRUE(Builder.AddExpr(bVarStmt, Expr2));
         EXPECT_TRUE(Builder.AddStmt(Body, bVarStmt));
 
         // c = a == b ? a : b
@@ -1203,7 +1208,7 @@ namespace {
                                                                      Builder.CreateExpr(Builder.CreateVarRef(aVar)),
                                                                      Builder.CreateOperatorExpr(SourceLoc, ASTTernaryOperatorKind::TERNARY_ELSE),
                                                                      Builder.CreateExpr(Builder.CreateVarRef(bVar)));
-
+        EXPECT_TRUE(Builder.AddExpr(cVarStmt, TernaryExpr));
         EXPECT_TRUE(Builder.AddStmt(Body, cVarStmt));
 
         // Add to Module
@@ -1223,30 +1228,32 @@ namespace {
 
         EXPECT_EQ(output, "define void @func(%error* %0) {\n"
                           "entry:\n"
-                          "  %1 = alloca i8, align 1\n"
+                          "  %1 = alloca %error*, align 8\n"
                           "  %2 = alloca i8, align 1\n"
                           "  %3 = alloca i8, align 1\n"
-                          "  store i8 0, i8* %1, align 1\n"
+                          "  %4 = alloca i8, align 1\n"
+                          "  store %error* %0, %error** %1, align 8\n"
                           "  store i8 0, i8* %2, align 1\n"
-                          "  %4 = load i8, i8* %1, align 1\n"
+                          "  store i8 0, i8* %3, align 1\n"
                           "  %5 = load i8, i8* %2, align 1\n"
-                          "  %6 = icmp eq i8 %4, %5\n"
-                          "  br i1 %6, label %terntrue, label %ternfalse\n"
+                          "  %6 = load i8, i8* %3, align 1\n"
+                          "  %7 = icmp eq i8 %5, %6\n"
+                          "  br i1 %7, label %terntrue, label %ternfalse\n"
                           "\n"
                           "terntrue:                                         ; preds = %entry\n"
-                          "  %7 = load i8, i8* %1, align 1\n"
-                          "  %8 = trunc i8 %7 to i1\n"
+                          "  %8 = load i8, i8* %2, align 1\n"
+                          "  %9 = trunc i8 %8 to i1\n"
                           "  br label %ternend\n"
                           "\n"
                           "ternfalse:                                        ; preds = %entry\n"
-                          "  %9 = load i8, i8* %2, align 1\n"
-                          "  %10 = trunc i8 %9 to i1\n"
+                          "  %10 = load i8, i8* %3, align 1\n"
+                          "  %11 = trunc i8 %10 to i1\n"
                           "  br label %ternend\n"
                           "\n"
                           "ternend:                                          ; preds = %ternfalse, %terntrue\n"
-                          "  %11 = phi i1 [ %8, %terntrue ], [ %10, %ternfalse ]\n"
-                          "  %12 = zext i1 %11 to i8\n"
-                          "  store i8 %12, i8* %3, align 1\n"
+                          "  %12 = phi i1 [ %9, %terntrue ], [ %11, %ternfalse ]\n"
+                          "  %13 = zext i1 %12 to i8\n"
+                          "  store i8 %13, i8* %4, align 1\n"
                           "  ret void\n"
                           "}\n");
     }
