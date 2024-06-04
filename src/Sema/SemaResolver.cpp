@@ -347,12 +347,12 @@ bool SemaResolver::ResolveStmt(ASTStmt *Stmt) {
 }
 
 bool SemaResolver::ResolveBlock(ASTBlockStmt *Block) {
+    for (ASTStmt *Stmt : Block->Content) {
+        ResolveStmt(Stmt);
+    }
     for (auto &LocalVar : Block->LocalVars) {
         if (!LocalVar.second->isInitialized())
             S.Diag(LocalVar.getValue()->getLocation(), diag::err_sema_uninit_var) << LocalVar.getValue()->getName();
-    }
-    for (ASTStmt *Stmt : Block->Content) {
-        ResolveStmt(Stmt);
     }
     return true;
 }
@@ -361,7 +361,7 @@ bool SemaResolver::ResolveIfBlock(ASTIfStmt *IfStmt) {
     IfStmt->Condition->Type = S.Builder->CreateBoolType(IfStmt->Condition->getLocation());
     bool Success = ResolveExpr(IfStmt->getParent(), IfStmt->Condition) &&
                    S.Validator->CheckConvertibleTypes(IfStmt->Condition->Type, S.Builder->CreateBoolType(SourceLocation())) &&
-                   ResolveBlock(IfStmt->Block);
+                   ResolveStmt(IfStmt->Stmt);
     for (ASTElsif *Elsif : IfStmt->Elsif) {
         Elsif->Condition->Type = S.Builder->CreateBoolType(Elsif->Condition->getLocation());
         Success &= ResolveExpr(IfStmt->getParent(), Elsif->Condition) &&
@@ -369,7 +369,7 @@ bool SemaResolver::ResolveIfBlock(ASTIfStmt *IfStmt) {
                    ResolveBlock(Elsif->Block);
     }
     if (Success && IfStmt->Else) {
-        Success = ResolveBlock(IfStmt->Else);
+        Success = ResolveStmt(IfStmt->Else);
     }
     return Success;
 }
@@ -536,12 +536,12 @@ ASTVar *SemaResolver::ResolveVarRefNoParent(ASTStmt *Stmt, llvm::StringRef Name)
     ASTVar *Var = FindLocalVar(Stmt, Name);
 
     if (Var == nullptr) {
-        ASTFunctionBase *Top = Stmt->getFunction();
-        const auto &Module = FindModule(Top);
+        ASTFunctionBase *Function = Stmt->getFunction();
+        const auto &Module = FindModule(Function);
 
         // Search for Class Vars if Var is Class Method
-        if (Top->getKind() == ASTFunctionKind::CLASS_METHOD)
-            Var = ((ASTClassMethod *) Top)->getClass()->Attributes.lookup(Name);
+        if (Function->getKind() == ASTFunctionKind::CLASS_METHOD)
+            Var = ((ASTClassMethod *) Function)->getClass()->Attributes.lookup(Name);
 
         // Search for GlobalVars in Module
         if (Var == nullptr)
@@ -689,8 +689,8 @@ bool SemaResolver::ResolveCallNoParent(ASTStmt *Stmt, ASTCall *Call) {
 bool SemaResolver::ResolveCallWithParent(ASTStmt *Stmt, ASTCall *Call) {
     FLY_DEBUG_MESSAGE("Sema", "ResolveCall", Logger().Attr("Call", Call).End());
         
-    ASTFunctionBase *Top = Stmt->getFunction();
-    const auto &Module = FindModule(Top);
+    ASTFunctionBase *Function = Stmt->getFunction();
+    const auto &Module = FindModule(Function);
 
     switch (Call->getParent()->getIdKind()) {
 
@@ -982,8 +982,7 @@ ASTVar *SemaResolver::FindLocalVar(ASTStmt *Stmt, llvm::StringRef Name) const {
         if (It != Block->getLocalVars().end()) { // Search into this Block
             return It->getValue();
         } else if (Stmt->getParent()) { // search recursively into Parent Blocks to find the right Var definition
-            if (Stmt->Parent->getKind() == ASTStmtKind::STMT_BLOCK)
-                return FindLocalVar((ASTBlockStmt *) Stmt->getParent(), Name);
+            return FindLocalVar(Stmt->getParent(), Name);
         } else {
             llvm::SmallVector<ASTParam *, 8> Params = Stmt->getFunction()->getParams();
             for (auto &Param : Params) {
@@ -992,6 +991,8 @@ ASTVar *SemaResolver::FindLocalVar(ASTStmt *Stmt, llvm::StringRef Name) const {
                 }
             }
         }
+    } else if (Stmt->getKind() == ASTStmtKind::STMT_IF) {
+        return FindLocalVar(Stmt->getParent(), Name);
     }
     return nullptr;
 }

@@ -1020,12 +1020,10 @@ ASTBlockStmt *SemaBuilder::CreateBlockStmt(const SourceLocation &Loc) {
     return Block;
 }
 
-ASTIfStmt *SemaBuilder::CreateIfStmt(const SourceLocation &Loc, ASTExpr *Condition, ASTBlockStmt *Block) {
+ASTIfStmt *SemaBuilder::CreateIfStmt(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateIfStmt", Logger()
                       .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
     ASTIfStmt *IfStmt = new ASTIfStmt(Loc);
-    IfStmt->Condition = Condition;
-    IfStmt->Block = Block;
     return IfStmt;
 }
 
@@ -1375,6 +1373,9 @@ SemaBuilder::AddStmt(ASTStmt *Parent, ASTStmt *Stmt) {
     if (Parent->getKind() == ASTStmtKind::STMT_BLOCK) {
         ASTBlockStmt *BlockStmt = (ASTBlockStmt *) Parent;
         BlockStmt->Content.push_back(Stmt);
+    } else if (Parent->getKind() == ASTStmtKind::STMT_IF) {
+        ASTIfStmt *IfStmt = (ASTIfStmt *) Parent;
+        IfStmt->Stmt = Stmt;
     }
     return true;
 }
@@ -1388,8 +1389,8 @@ bool SemaBuilder::AddElsif(ASTIfStmt *IfStmt, ASTExpr *Condition, ASTBlockStmt *
     return !IfStmt->Elsif.empty();
 }
 
-bool SemaBuilder::AddElse(ASTIfStmt *IfStmt, ASTBlockStmt *Block) {
-    IfStmt->Else = Block;
+bool SemaBuilder::AddElse(ASTIfStmt *IfStmt, ASTStmt *Else) {
+    IfStmt->Else = Else;
     IfStmt->Else->Parent = IfStmt;
     return true;
 }
@@ -1420,9 +1421,7 @@ bool SemaBuilder::AddLoopPost(ASTLoopStmt *LoopStmt, ASTBlockStmt *Block) {
 }
 
 bool SemaBuilder::AddExpr(ASTVarStmt *Stmt, ASTExpr *Expr) {
-    ASTVarStmt *VarStmt = (ASTVarStmt *) Stmt;
-    VarStmt->getVarRef()->getDef()->setInitialization(VarStmt);
-    VarStmt->Expr = Expr;
+    Stmt->Expr = Expr;
     return true;
 }
 
@@ -1442,5 +1441,12 @@ bool SemaBuilder::AddExpr(ASTFailStmt *Stmt, ASTExpr *Expr) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddExpr",
                       Logger().Attr("Stmt", Stmt).Attr("Expr", Expr).End());
     Stmt->Expr = Expr;
+    return true;
+}
+
+bool SemaBuilder::AddExpr(ASTIfStmt *Stmt, ASTExpr *Expr) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "AddExpr",
+                      Logger().Attr("Stmt", Stmt).Attr("Expr", Expr).End());
+    Stmt->Condition = Expr;
     return true;
 }

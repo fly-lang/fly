@@ -36,7 +36,3 @@ ASTExpr *ASTVarStmt::getExpr() const {
 void ASTVarStmt::setExpr(fly::ASTExpr *E) {
     Expr = E;
 }
-
-ASTBlockStmt *ASTVarStmt::getBlock() const {
-    return Block;
-}

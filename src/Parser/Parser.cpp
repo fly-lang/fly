@@ -613,10 +613,14 @@ bool Parser::ParseIfStmt(ASTBlockStmt *Parent) {
     if (hasIfParen) {
         ParseEndParen(hasIfParen);
     }
+    // Create If
+    ASTIfStmt *IfStmt = Builder.CreateIfStmt(Tok.getLocation());
+    Builder.AddExpr(IfStmt, IfCondition);
+
     // Parse statement between braces for If
     ASTBlockStmt *IfBlock = Builder.CreateBlockStmt(Tok.getLocation());
     bool Success = ParseStmt(IfBlock, isBlockStart());
-    ASTIfStmt *IfStmt = Builder.CreateIfStmt(Tok.getLocation(), IfCondition, IfBlock);
+    Builder.AddStmt(IfStmt, IfBlock);
 
     // Add Elsif
     while (Success && Tok.is(tok::kw_elsif)) {

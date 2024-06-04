@@ -20,15 +20,15 @@ ASTExpr *ASTIfStmt::getCondition() {
     return Condition;
 }
 
-ASTBlockStmt *ASTIfStmt::getBlock() const {
-    return Block;
+ASTStmt *ASTIfStmt::getStmt() const {
+    return Stmt;
 }
 
 llvm::SmallVector<ASTElsif *, 8> ASTIfStmt::getElsif() {
     return Elsif;
 }
 
-ASTBlockStmt *ASTIfStmt::getElse() {
+ASTStmt *ASTIfStmt::getElse() {
     return Else;
 }
 

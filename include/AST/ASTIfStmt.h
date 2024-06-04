@@ -27,13 +27,13 @@ namespace fly {
         ASTExpr *Condition = nullptr;
 
         // The If Block statement
-        ASTBlockStmt *Block = nullptr;
+        ASTStmt *Stmt = nullptr;
 
         // The list of Elseif Blocks
         llvm::SmallVector<ASTElsif *, 8> Elsif;
 
         // The Else Block
-        ASTBlockStmt *Else = nullptr;
+        ASTStmt *Else = nullptr;
 
         explicit ASTIfStmt(const SourceLocation &Loc);
 
@@ -41,11 +41,11 @@ namespace fly {
 
         ASTExpr *getCondition();
 
-        ASTBlockStmt *getBlock() const;
+        ASTStmt *getStmt() const;
 
         llvm::SmallVector<ASTElsif *, 8> getElsif();
 
-        ASTBlockStmt *getElse();
+        ASTStmt *getElse();
 
         std::string str() const override;
     };

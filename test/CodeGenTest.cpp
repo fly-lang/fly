@@ -1260,39 +1260,45 @@ namespace {
 
     TEST_F(CodeGenTest, CGIfBlock) {
         ASTModule *Module = CreateModule();
-        CodeGenModule *CGM = CG->GenerateModule(*Module);
 
         // func()
         ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
                                                     Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        EXPECT_TRUE(Builder.AddFunction(Module, Func));
+
         ASTBlockStmt *Body = Builder.CreateBody(Func);
 
         // int a = 0
         ASTLocalVar *aVar = Builder.CreateLocalVar(SourceLoc, IntType, "a");
-        Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 0));
+        EXPECT_TRUE(Builder.AddLocalVar(Body, aVar));
+        ASTVarStmt *aVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(aVar));
+        ASTValueExpr *Expr1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 0));
+        EXPECT_TRUE(Builder.AddExpr(aVarStmt, Expr1));
+        EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt));
 
         // if (a == 1)
         ASTVarRefExpr *aVarRef = Builder.CreateExpr(Builder.CreateVarRef(aVar));
         ASTValueExpr *Value1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
-        ASTBinaryGroupExpr *IfCond = Builder.CreateBinaryExpr(Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_COMP_EQ),
-                                                              aVarRef, Value1);
+        ASTBinaryGroupExpr *IfCond = Builder.CreateBinaryExpr(
+                Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_COMP_EQ), aVarRef, Value1);
+
+        // Create/Add if block
+        ASTIfStmt *IfStmt = Builder.CreateIfStmt(SourceLoc);
+        EXPECT_TRUE(Builder.AddExpr(IfStmt, IfCond));
+        EXPECT_TRUE(Builder.AddStmt(Body, IfStmt));
 
         // { a = 2 }
         ASTBlockStmt *IfBlock = Builder.CreateBlockStmt(SourceLoc);
-        ASTVarStmt *aVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(aVar));
-        Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 2));
-        EXPECT_TRUE(Builder.AddStmt(IfBlock, aVarStmt));
-
-        // Create if block
-        ASTIfStmt *IfStmt = Builder.CreateIfStmt(SourceLoc, IfCond, IfBlock);
-        EXPECT_TRUE(Builder.AddStmt(Body, IfStmt));
-
-        // Add to Module
-        EXPECT_TRUE(Builder.AddFunction(Module, Func));
+        EXPECT_TRUE(Builder.AddStmt(IfStmt, IfBlock));
+        ASTVarStmt *a2VarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(aVar));
+        EXPECT_TRUE(Builder.AddStmt(IfBlock, a2VarStmt));
+        ASTValueExpr *Expr2 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 2));
+        EXPECT_TRUE(Builder.AddExpr(a2VarStmt, Expr2));
 
         EXPECT_TRUE(S->Resolve());
 
         // Generate Code
+        CodeGenModule *CGM = CG->GenerateModule(*Module);
         CodeGenFunction *CGF = CGM->GenFunction(Func);
         CGF->GenBody();
         Function *F = CGF->getFunction();
@@ -1304,14 +1310,16 @@ namespace {
 
         EXPECT_EQ(output, "define void @func(%error* %0) {\n"
                           "entry:\n"
-                          "  %1 = alloca i32, align 4\n"
-                          "  store i32 0, i32* %1, align 4\n"
-                          "  %2 = load i32, i32* %1, align 4\n"
-                          "  %3 = icmp eq i32 %2, 1\n"
-                          "  br i1 %3, label %ifthen, label %endif\n"
+                          "  %1 = alloca %error*, align 8\n"
+                          "  %2 = alloca i32, align 4\n"
+                          "  store %error* %0, %error** %1, align 8\n"
+                          "  store i32 0, i32* %2, align 4\n"
+                          "  %3 = load i32, i32* %2, align 4\n"
+                          "  %4 = icmp eq i32 %3, 1\n"
+                          "  br i1 %4, label %ifthen, label %endif\n"
                           "\n"
                           "ifthen:                                           ; preds = %entry\n"
-                          "  store i32 2, i32* %1, align 4\n"
+                          "  store i32 2, i32* %2, align 4\n"
                           "  br label %endif\n"
                           "\n"
                           "endif:                                            ; preds = %ifthen, %entry\n"
@@ -1321,14 +1329,15 @@ namespace {
 
     TEST_F(CodeGenTest, CGIfElseBlock) {
         ASTModule *Module = CreateModule();
-        CodeGenModule *CGM = CG->GenerateModule(*Module);
 
         // func()
         ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
                                                     Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlockStmt *Body = Builder.CreateBody(Func);
         ASTParam *aParam = Builder.CreateParam(SourceLoc, IntType, "a");
         EXPECT_TRUE(Builder.AddParam(Func, aParam));
+        EXPECT_TRUE(Builder.AddFunction(Module, Func));
+
+        ASTBlockStmt *Body = Builder.CreateBody(Func);
 
         // if (a == 1)
         ASTValueExpr *Value1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
@@ -1336,28 +1345,31 @@ namespace {
         ASTBinaryGroupExpr *IfCond = Builder.CreateBinaryExpr(Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_COMP_EQ),
                                                               aVarRef, Value1);
 
-        // Create if block
-        ASTBlockStmt *IfBlock = Builder.CreateBlockStmt(SourceLoc);
-        ASTIfStmt *IfStmt = Builder.CreateIfStmt(SourceLoc, IfCond, IfBlock);
+        // Create/Add if block
+        ASTIfStmt *IfStmt = Builder.CreateIfStmt(SourceLoc);
+        EXPECT_TRUE(Builder.AddExpr(IfStmt, IfCond));
+        EXPECT_TRUE(Builder.AddStmt(Body, IfStmt));
 
         // { a = 1 }
+        ASTBlockStmt *IfBlock = Builder.CreateBlockStmt(SourceLoc);
+        EXPECT_TRUE(Builder.AddStmt(IfStmt, IfBlock));
         ASTVarStmt *aVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(aParam));
-        Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
-        EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt));
+        EXPECT_TRUE(Builder.AddStmt(IfBlock, aVarStmt));
+        ASTValueExpr *Expr1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
+        EXPECT_TRUE(Builder.AddExpr(aVarStmt, Expr1));
 
-        // else {a == 2}
-        ASTBlockStmt *ElseBlock = Builder.CreateBlockStmt( SourceLoc);
+        // else {a = 2}
+        ASTBlockStmt *ElseBlock = Builder.CreateBlockStmt(SourceLoc);
+        EXPECT_TRUE(Builder.AddElse(IfStmt, ElseBlock));
         ASTVarStmt *aVarStmt2 = Builder.CreateVarStmt(Builder.CreateVarRef(aParam));
-        Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 2));
-        EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt2));
-        EXPECT_TRUE(Builder.AddStmt(Body, IfBlock));
-
-        // Add to Module
-        EXPECT_TRUE(Builder.AddFunction(Module, Func));
+        EXPECT_TRUE(Builder.AddStmt(ElseBlock, aVarStmt2));
+        ASTValueExpr *Expr2 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 2));
+        EXPECT_TRUE(Builder.AddExpr(aVarStmt2, Expr2));
 
         EXPECT_TRUE(S->Resolve());
 
         // Generate Code
+        CodeGenModule *CGM = CG->GenerateModule(*Module);
         CodeGenFunction *CGF = CGM->GenFunction(Func);
         CGF->GenBody();
         Function *F = CGF->getFunction();
@@ -1369,18 +1381,20 @@ namespace {
 
         EXPECT_EQ(output, "define void @func(%error* %0, i32 %1) {\n"
                           "entry:\n"
-                          "  %2 = alloca i32, align 4\n"
-                          "  store i32 %1, i32* %2, align 4\n"
-                          "  %3 = load i32, i32* %2, align 4\n"
-                          "  %4 = icmp eq i32 %3, 1\n"
-                          "  br i1 %4, label %ifthen, label %else\n"
+                          "  %2 = alloca %error*, align 8\n"
+                          "  %3 = alloca i32, align 4\n"
+                          "  store %error* %0, %error** %2, align 8\n"
+                          "  store i32 %1, i32* %3, align 4\n"
+                          "  %4 = load i32, i32* %3, align 4\n"
+                          "  %5 = icmp eq i32 %4, 1\n"
+                          "  br i1 %5, label %ifthen, label %else\n"
                           "\n"
                           "ifthen:                                           ; preds = %entry\n"
-                          "  store i32 1, i32* %2, align 4\n"
+                          "  store i32 1, i32* %3, align 4\n"
                           "  br label %endif\n"
                           "\n"
                           "else:                                             ; preds = %entry\n"
-                          "  store i32 2, i32* %2, align 4\n"
+                          "  store i32 2, i32* %3, align 4\n"
                           "  br label %endif\n"
                           "\n"
                           "endif:                                            ; preds = %else, %ifthen\n"
@@ -1390,62 +1404,70 @@ namespace {
 
     TEST_F(CodeGenTest, CGIfElsifElseBlock) {
         ASTModule *Module = CreateModule();
-        CodeGenModule *CGM = CG->GenerateModule(*Module);
 
         // func()
         ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
                                                     Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlockStmt *Body = Builder.CreateBody(Func);
         ASTParam *aParam = Builder.CreateParam(SourceLoc, IntType, "a");
         EXPECT_TRUE(Builder.AddParam(Func, aParam));
+        EXPECT_TRUE(Builder.AddFunction(Module, Func));
 
-        // if (a == 1) { a = 11 }
+        ASTBlockStmt *Body = Builder.CreateBody(Func);
+
+        // if (a == 1)
         ASTValueExpr *Value1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
         ASTVarRefExpr *aVarRef = Builder.CreateExpr(Builder.CreateVarRef(aParam));
         ASTBinaryGroupExpr *IfCond = Builder.CreateBinaryExpr(Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_COMP_EQ),
                                                               aVarRef, Value1);
+
+        // Create/Add if block
+        ASTIfStmt *IfStmt = Builder.CreateIfStmt(SourceLoc);
+        EXPECT_TRUE(Builder.AddExpr(IfStmt, IfCond));
+        EXPECT_TRUE(Builder.AddStmt(Body, IfStmt));
+        
+        // { a = 11 }
         ASTBlockStmt *IfBlock = Builder.CreateBlockStmt(SourceLoc);
-        // Create if block
-        ASTIfStmt *IfStmt = Builder.CreateIfStmt(SourceLoc, IfCond, IfBlock);
-
+        EXPECT_TRUE(Builder.AddStmt(IfStmt, IfBlock));
         ASTVarStmt *aVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(aParam));
-        Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 11));
-        EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt));
+        EXPECT_TRUE(Builder.AddStmt(IfBlock, aVarStmt));
+        ASTValueExpr *Expr1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 11));
+        EXPECT_TRUE(Builder.AddExpr(aVarStmt, Expr1));
 
-        // elsif (a == 2) { a = 22 }
+        // elsif (a == 2)
         ASTBlockStmt *ElsifBlock = Builder.CreateBlockStmt(SourceLoc);
         ASTValueExpr *Value2 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 2));
         ASTBinaryGroupExpr *ElsifCond = Builder.CreateBinaryExpr(Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_COMP_EQ),
                                                                  aVarRef, Value2);
+        EXPECT_TRUE(Builder.AddElsif(IfStmt, ElsifCond, ElsifBlock));
+        // { a = 22 }
         ASTVarStmt *aVarStmt2 = Builder.CreateVarStmt(Builder.CreateVarRef(aParam));
-        Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 22));
-        EXPECT_TRUE(Builder.AddStmt(Body, aVarStmt2));
+        EXPECT_TRUE(Builder.AddStmt(ElsifBlock, aVarStmt2));
+        ASTValueExpr *Expr2 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 22));
+        EXPECT_TRUE(Builder.AddExpr(aVarStmt2, Expr2));
 
         // elsif (a == 3) { a = 33 }
         ASTBlockStmt *ElsifBlock2 = Builder.CreateBlockStmt(SourceLoc);
         ASTValueExpr *Value3 = Builder.CreateExpr( Builder.CreateIntegerValue(SourceLoc, 3));
         ASTBinaryGroupExpr *ElsifCond2 = Builder.CreateBinaryExpr(Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_COMP_EQ),
                                                                   aVarRef, Value3);
-        ASTVarStmt *aVarStmt3 = Builder.CreateVarStmt(Builder.CreateVarRef(aParam));
-        Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 33));
         EXPECT_TRUE(Builder.AddElsif(IfStmt, ElsifCond2, ElsifBlock2));
-        Builder.AddStmt(Body, aVarStmt3);
+        ASTVarStmt *aVarStmt3 = Builder.CreateVarStmt(Builder.CreateVarRef(aParam));
+        EXPECT_TRUE(Builder.AddStmt(ElsifBlock2, aVarStmt3));
+        ASTValueExpr *Expr3 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 33));
+        EXPECT_TRUE(Builder.AddExpr(aVarStmt3, Expr3));
 
         // else {a == 44}
         ASTBlockStmt *ElseBlock = Builder.CreateBlockStmt(SourceLoc);
-        ASTVarStmt *aVarStmt4 = Builder.CreateVarStmt(Builder.CreateVarRef(aParam));
-        Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 44));
-        
         EXPECT_TRUE(Builder.AddElse(IfStmt, ElseBlock));
-
-        EXPECT_TRUE(Builder.AddStmt(Body, IfStmt));
-
-        // Add to Module
-        EXPECT_TRUE(Builder.AddFunction(Module, Func));
+        ASTVarStmt *aVarStmt4 = Builder.CreateVarStmt(Builder.CreateVarRef(aParam));
+        EXPECT_TRUE(Builder.AddStmt(ElseBlock, aVarStmt4));
+        ASTValueExpr *Expr4 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 44));
+        EXPECT_TRUE(Builder.AddExpr(aVarStmt4, Expr4));
 
         EXPECT_TRUE(S->Resolve());
 
         // Generate Code
+        CodeGenModule *CGM = CG->GenerateModule(*Module);    
         CodeGenFunction *CGF = CGM->GenFunction(Func);
         CGF->GenBody();
         Function *F = CGF->getFunction();
@@ -1457,36 +1479,38 @@ namespace {
 
         EXPECT_EQ(output, "define void @func(%error* %0, i32 %1) {\n"
                           "entry:\n"
-                          "  %2 = alloca i32, align 4\n"
-                          "  store i32 %1, i32* %2, align 4\n"
-                          "  %3 = load i32, i32* %2, align 4\n"
-                          "  %4 = icmp eq i32 %3, 1\n"
-                          "  br i1 %4, label %ifthen, label %elsif\n"
+                          "  %2 = alloca %error*, align 8\n"
+                          "  %3 = alloca i32, align 4\n"
+                          "  store %error* %0, %error** %2, align 8\n"
+                          "  store i32 %1, i32* %3, align 4\n"
+                          "  %4 = load i32, i32* %3, align 4\n"
+                          "  %5 = icmp eq i32 %4, 1\n"
+                          "  br i1 %5, label %ifthen, label %elsif\n"
                           "\n"
                           "ifthen:                                           ; preds = %entry\n"
-                          "  store i32 11, i32* %2, align 4\n"
+                          "  store i32 11, i32* %3, align 4\n"
                           "  br label %endif\n"
                           "\n"
                           "elsif:                                            ; preds = %entry\n"
-                          "  %5 = load i32, i32* %2, align 4\n"
-                          "  %6 = icmp eq i32 %5, 2\n"
-                          "  br i1 %6, label %elsifthen, label %elsif1\n"
+                          "  %6 = load i32, i32* %3, align 4\n"
+                          "  %7 = icmp eq i32 %6, 2\n"
+                          "  br i1 %7, label %elsifthen, label %elsif1\n"
                           "\n"
                           "elsifthen:                                        ; preds = %elsif\n"
-                          "  store i32 22, i32* %2, align 4\n"
+                          "  store i32 22, i32* %3, align 4\n"
                           "  br label %endif\n"
                           "\n"
                           "elsif1:                                           ; preds = %elsif\n"
-                          "  %7 = load i32, i32* %2, align 4\n"
-                          "  %8 = icmp eq i32 %7, 3\n"
-                          "  br i1 %8, label %elsifthen2, label %else\n"
+                          "  %8 = load i32, i32* %3, align 4\n"
+                          "  %9 = icmp eq i32 %8, 3\n"
+                          "  br i1 %9, label %elsifthen2, label %else\n"
                           "\n"
                           "elsifthen2:                                       ; preds = %elsif1\n"
-                          "  store i32 33, i32* %2, align 4\n"
+                          "  store i32 33, i32* %3, align 4\n"
                           "  br label %endif\n"
                           "\n"
                           "else:                                             ; preds = %elsif1\n"
-                          "  store i32 44, i32* %2, align 4\n"
+                          "  store i32 44, i32* %3, align 4\n"
                           "  br label %endif\n"
                           "\n"
                           "endif:                                            ; preds = %else, %elsifthen2, %elsifthen, %ifthen\n"
@@ -1532,7 +1556,7 @@ namespace {
         EXPECT_TRUE(Builder.AddStmt(ElsifBlock2, aVarStmt3));
 
         // Add if-elsif-elsif
-        ASTIfStmt *IfStmt = Builder.CreateIfStmt(SourceLoc, IfCond, IfBlock);
+        ASTIfStmt *IfStmt = Builder.CreateIfStmt(SourceLoc);
         EXPECT_TRUE(Builder.AddElsif(IfStmt, ElsifCond, ElsifBlock));
         EXPECT_TRUE(Builder.AddElsif(IfStmt, ElsifCond2, ElsifBlock2));
         EXPECT_TRUE(Builder.AddStmt(Body, IfStmt));

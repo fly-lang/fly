@@ -512,29 +512,29 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
         // Block of Stmt
         case ASTStmtKind::STMT_BLOCK: {
             ASTBlockStmt *Block = (ASTBlockStmt *) Stmt;
-            switch (Block->getKind()) {
-                case ASTStmtKind::STMT_BLOCK:
-                    GenBlock(CGF, Block->getContent());
-                    break;
-                case ASTStmtKind::STMT_IF:
-                    GenIfBlock(CGF, (ASTIfStmt *)Block);
-                    break;
-                case ASTStmtKind::STMT_SWITCH:
-                    GenSwitchBlock(CGF, (ASTSwitchStmt *)Block);
-                    break;
-                case ASTStmtKind::STMT_LOOP: {
-                    ASTLoopStmt *LoopBlock = (ASTLoopStmt *) Block;
-                    if (!LoopBlock->getPost()->isEmpty()) {
-                        GenForBlock(CGF, LoopBlock);
-                    } else {
-                        GenWhileBlock(CGF, LoopBlock);
-                    }
-                    break;
-                }
-                case ASTStmtKind::STMT_LOOP_IN: {
+            GenBlock(CGF, Block->getContent());
+            break;
+        }
 
-                }
+        case ASTStmtKind::STMT_IF:
+            GenIfBlock(CGF, (ASTIfStmt *)Stmt);
+            break;
+
+        case ASTStmtKind::STMT_SWITCH:
+            GenSwitchBlock(CGF, (ASTSwitchStmt *)Stmt);
+            break;
+
+        case ASTStmtKind::STMT_LOOP: {
+            ASTLoopStmt *LoopBlock = (ASTLoopStmt *) Stmt;
+            if (!LoopBlock->getPost()->isEmpty()) {
+                GenForBlock(CGF, LoopBlock);
+            } else {
+                GenWhileBlock(CGF, LoopBlock);
             }
+            break;
+        }
+
+        case ASTStmtKind::STMT_LOOP_IN: {
             break;
         }
 
@@ -730,14 +730,16 @@ void CodeGenModule::GenIfBlock(CodeGenFunctionBase *CGF, ASTIfStmt *If) {
 
         if (If->getElsif().empty()) { // If ...
             Builder->CreateCondBr(IfCond, IfBB, EndBB);
-            GenBlock(CGF, If->getBlock()->getContent(), IfBB);
+            Builder->SetInsertPoint(IfBB);
+            GenStmt(CGF, If->getStmt());
             Builder->CreateBr(EndBB);
         } else { // If - elsif ...
             llvm::BasicBlock *ElsifBB = llvm::BasicBlock::Create(LLVMCtx, "elsif", Fn, EndBB);
             Builder->CreateCondBr(IfCond, IfBB, ElsifBB);
 
             // Start if-then
-            GenBlock(CGF, If->getBlock()->getContent(), IfBB);
+            Builder->SetInsertPoint(IfBB);
+            GenStmt(CGF, If->getStmt());
             Builder->CreateBr(EndBB);
 
             // Create Elsif Blocks
@@ -770,14 +772,16 @@ void CodeGenModule::GenIfBlock(CodeGenFunctionBase *CGF, ASTIfStmt *If) {
 
         if (If->getElsif().empty()) { // If - Else
             Builder->CreateCondBr(IfCond, IfBB, ElseBB);
-            GenBlock(CGF, If->getBlock()->getContent(), IfBB);
+            Builder->SetInsertPoint(IfBB);
+            GenStmt(CGF, If->getStmt());
             Builder->CreateBr(EndBB);
         } else { // If - Elsif - Else
             llvm::BasicBlock *ElsifBB = llvm::BasicBlock::Create(LLVMCtx, "elsif", Fn, ElseBB);
             Builder->CreateCondBr(IfCond, IfBB, ElsifBB);
 
             // Start if-then
-            GenBlock(CGF, If->getBlock()->getContent(), IfBB);
+            Builder->SetInsertPoint(IfBB);
+            GenStmt(CGF, If->getStmt());
             Builder->CreateBr(EndBB);
 
             // Create Elsif Blocks
@@ -803,7 +807,8 @@ void CodeGenModule::GenIfBlock(CodeGenFunctionBase *CGF, ASTIfStmt *If) {
             }
         }
 
-        GenBlock(CGF, If->getElse()->getContent(), ElseBB);
+        Builder->SetInsertPoint(ElseBB);
+        GenStmt(CGF, If->getElse());
         Builder->CreateBr(EndBB);
     }
 

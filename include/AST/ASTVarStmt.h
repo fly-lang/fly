@@ -31,8 +31,6 @@ namespace fly {
 
         ASTExpr *Expr = nullptr;
 
-        ASTBlockStmt *Block = nullptr;
-
         ASTVarStmt(const SourceLocation &Loc, ASTVarRef *VarRef);
 
     public:
@@ -42,8 +40,6 @@ namespace fly {
         ASTExpr *getExpr() const;
 
         void setExpr(ASTExpr *);
-
-        ASTBlockStmt *getBlock() const;
 
         std::string str() const override;
     };

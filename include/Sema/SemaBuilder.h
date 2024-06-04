@@ -385,7 +385,7 @@ namespace fly {
 
         ASTBlockStmt *CreateBlockStmt(const SourceLocation &Loc);
 
-        ASTIfStmt *CreateIfStmt(const SourceLocation &Loc, ASTExpr *Condition, ASTBlockStmt *Block);
+        ASTIfStmt *CreateIfStmt(const SourceLocation &Loc);
 
         ASTSwitchStmt *CreateSwitchStmt(const SourceLocation &Loc, ASTExpr *Expr);
 
@@ -442,7 +442,7 @@ namespace fly {
 
         bool AddElsif(ASTIfStmt *IfStmt, ASTExpr *Condition, ASTBlockStmt *Block);
 
-        bool AddElse(ASTIfStmt *IfStmt, ASTBlockStmt *Block);
+        bool AddElse(ASTIfStmt *IfStmt, ASTStmt *Else);
 
         bool AddSwitchCase(ASTSwitchStmt *SwitchStmt, ASTValueExpr *ValueExpr, ASTBlockStmt *Block);
 
@@ -459,6 +459,8 @@ namespace fly {
         bool AddExpr(ASTReturnStmt *Stmt, ASTExpr *Expr);
 
         bool AddExpr(ASTFailStmt *Stmt, ASTExpr *Expr);
+
+        bool AddExpr(ASTIfStmt *Stmt, ASTExpr *Expr);
 
         template<class T>
         bool ContainsFunction(llvm::StringMap<std::map<uint64_t, llvm::SmallVector<T *, 4>>> &Functions,
