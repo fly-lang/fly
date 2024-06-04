@@ -32,7 +32,7 @@ namespace fly {
         llvm::SmallVector<ASTSwitchCase *, 8> Cases;
 
         // The Default Block
-        ASTBlockStmt *Default = nullptr;
+        ASTStmt *Default = nullptr;
 
         explicit ASTSwitchStmt(const SourceLocation &Loc);
 
@@ -42,7 +42,7 @@ namespace fly {
 
         llvm::SmallVector<ASTSwitchCase *, 8> &getCases();
 
-        ASTBlockStmt *getDefault();
+        ASTStmt *getDefault();
 
         std::string str() const override;
     };
@@ -52,24 +52,19 @@ namespace fly {
         friend class SemaBuilder;
         friend class SemaResolver;
 
-        // The Value Type
-        ASTType *Type = nullptr;
-
         // The case value
         ASTValueExpr *Value = nullptr;
 
         // The Case Block
-        ASTBlockStmt *Block = nullptr;
+        ASTStmt *Stmt = nullptr;
 
         explicit ASTSwitchCase(const SourceLocation &Loc);
 
     public:
 
-        ASTType *getType() const;
-
         ASTValueExpr *getValueExpr();
 
-        ASTBlockStmt *getBlock() const;
+        ASTStmt *getStmt() const;
 
         std::string str() const;
     };

@@ -1027,14 +1027,10 @@ ASTIfStmt *SemaBuilder::CreateIfStmt(const SourceLocation &Loc) {
     return IfStmt;
 }
 
-ASTSwitchStmt *SemaBuilder::CreateSwitchStmt(const SourceLocation &Loc, ASTExpr *Expr) {
+ASTSwitchStmt *SemaBuilder::CreateSwitchStmt(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateSwitchStmt", Logger()
                       .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
     ASTSwitchStmt *SwitchBlock = new ASTSwitchStmt(Loc);
-    if (S.Validator->CheckVarRefExpr(Expr)) {
-        ASTVarRefExpr *VarRefExpr = (ASTVarRefExpr *) Expr;
-        SwitchBlock->VarRef = VarRefExpr->VarRef;
-    }
     return SwitchBlock;
 }
 
@@ -1380,11 +1376,11 @@ SemaBuilder::AddStmt(ASTStmt *Parent, ASTStmt *Stmt) {
     return true;
 }
 
-bool SemaBuilder::AddElsif(ASTIfStmt *IfStmt, ASTExpr *Condition, ASTBlockStmt *Block) {
-    ASTElsif *Elsif = new ASTElsif(Block->getLocation());
+bool SemaBuilder::AddElsif(ASTIfStmt *IfStmt, ASTExpr *Condition, ASTStmt *Stmt) {
+    ASTElsif *Elsif = new ASTElsif(Stmt->getLocation());
     Elsif->Condition = Condition;
-    Elsif->Block = Block;
-    Elsif->Block->Parent = IfStmt;
+    Elsif->Stmt = Stmt;
+    Elsif->Stmt->Parent = IfStmt;
     IfStmt->Elsif.push_back(Elsif);
     return !IfStmt->Elsif.empty();
 }
@@ -1395,16 +1391,20 @@ bool SemaBuilder::AddElse(ASTIfStmt *IfStmt, ASTStmt *Else) {
     return true;
 }
 
-bool SemaBuilder::AddSwitchCase(ASTSwitchStmt *SwitchStmt, ASTValueExpr *ValueExpr, ASTBlockStmt *Block) {
-    ASTSwitchCase *Case = new ASTSwitchCase(Block->getLocation());
+bool SemaBuilder::AddSwitchCase(ASTSwitchStmt *SwitchStmt, ASTValueExpr *ValueExpr, ASTStmt *Stmt) {
+    Stmt->Function = SwitchStmt->Function;
+    Stmt->Parent = SwitchStmt;
+    ASTSwitchCase *Case = new ASTSwitchCase(Stmt->getLocation());
     Case->Value = ValueExpr;
+    Case->Stmt = Stmt;
     SwitchStmt->Cases.push_back(Case);
     return !SwitchStmt->Cases.empty();
 }
 
-bool SemaBuilder::AddSwitchDefault(ASTSwitchStmt *SwitchStmt, ASTBlockStmt *Block) {
-    SwitchStmt->Default = Block;
-    SwitchStmt->Default->Parent = SwitchStmt;
+bool SemaBuilder::AddSwitchDefault(ASTSwitchStmt *SwitchStmt, ASTStmt *Stmt) {
+    Stmt->Parent = SwitchStmt;
+    Stmt->Function = SwitchStmt->Function;
+    SwitchStmt->Default = Stmt;
     return true;
 }
 
@@ -1448,5 +1448,15 @@ bool SemaBuilder::AddExpr(ASTIfStmt *Stmt, ASTExpr *Expr) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "AddExpr",
                       Logger().Attr("Stmt", Stmt).Attr("Expr", Expr).End());
     Stmt->Condition = Expr;
+    return true;
+}
+
+bool SemaBuilder::AddExpr(ASTSwitchStmt *SwitchStmt, ASTExpr *Expr) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "AddExpr",
+                      Logger().Attr("Stmt", SwitchStmt).Attr("Expr", Expr).End());
+    if (S.Validator->CheckVarRefExpr(Expr)) {
+        ASTVarRefExpr *VarRefExpr = (ASTVarRefExpr *) Expr;
+        SwitchStmt->VarRef = VarRefExpr->VarRef;
+    }
     return true;
 }

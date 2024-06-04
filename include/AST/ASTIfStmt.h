@@ -59,7 +59,7 @@ namespace fly {
         ASTExpr *Condition = nullptr;
 
         // The Elsif Block statement
-        ASTBlockStmt *Block = nullptr;
+        ASTStmt *Stmt = nullptr;
 
         explicit ASTElsif(const SourceLocation &Loc);
 
@@ -67,7 +67,7 @@ namespace fly {
 
         ASTExpr *getCondition();
 
-        ASTBlockStmt *getBlock() const;
+        ASTStmt *getStmt() const;
 
         std::string str() const;
     };

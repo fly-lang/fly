@@ -687,12 +687,14 @@ bool Parser::ParseSwitchStmt(ASTBlockStmt *Parent) {
     // Parse (
     bool hasParen = ParseStartParen();
 
-    // Parse Var reference like (a)
-    ASTExpr *Expr = ParseExpr();
 
     // Parse switch keyword
-    ASTSwitchStmt *SwitchBlock = Builder.CreateSwitchStmt(ConsumeToken(), Expr);
+    ASTSwitchStmt *SwitchStmt = Builder.CreateSwitchStmt(ConsumeToken());
+
+    // Parse Var reference like (a)
+    ASTExpr *Expr = ParseExpr();
     if (Expr) {
+        Builder.AddExpr(SwitchStmt, Expr);
 
         // Consume Right Parenthesis ) if exists
         if (!ParseEndParen(hasParen)) {
@@ -703,12 +705,12 @@ bool Parser::ParseSwitchStmt(ASTBlockStmt *Parent) {
         if (isBlockStart()) {
             ConsumeBrace(BracketCount);
 
-            if (ParseSwitchCases(SwitchBlock)) {
+            if (ParseSwitchCases(SwitchStmt)) {
 
                 // Switch statement is at end of it's time add current Switch to parent statement
                 if (isBlockEnd()) {
                     ConsumeBrace(BracketCount);
-                    return Builder.AddStmt(Parent, SwitchBlock);
+                    return Builder.AddStmt(Parent, SwitchStmt);
                 }
             }
         }

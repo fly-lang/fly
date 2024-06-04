@@ -45,8 +45,8 @@ ASTExpr *ASTElsif::getCondition() {
     return Condition;
 }
 
-ASTBlockStmt *ASTElsif::getBlock() const {
-    return Block;
+ASTStmt *ASTElsif::getStmt() const {
+    return Stmt;
 }
 
 std::string ASTElsif::str() const {

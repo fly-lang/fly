@@ -24,7 +24,7 @@ llvm::SmallVector<ASTSwitchCase *, 8> &ASTSwitchStmt::getCases() {
     return Cases;
 }
 
-ASTBlockStmt *ASTSwitchStmt::getDefault() {
+ASTStmt *ASTSwitchStmt::getDefault() {
     return Default;
 }
 
@@ -42,17 +42,12 @@ ASTValueExpr *ASTSwitchCase::getValueExpr() {
     return Value;
 }
 
-ASTType *ASTSwitchCase::getType() const {
-    return Type;
-}
-
-ASTBlockStmt *ASTSwitchCase::getBlock() const {
-    return Block;
+ASTStmt *ASTSwitchCase::getStmt() const {
+    return Stmt;
 }
 
 std::string ASTSwitchCase::str() const {
     return Logger("ASTSwitchCase").
             Attr("Value", Value).
-            Attr("Type", Type).
             End();
 }

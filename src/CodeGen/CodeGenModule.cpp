@@ -758,7 +758,8 @@ void CodeGenModule::GenIfBlock(CodeGenFunctionBase *CGF, ASTIfStmt *If) {
                 llvm::Value *ElsifCond = GenExpr(Elsif->getCondition());
                 Builder->CreateCondBr(ElsifCond, ElsifThenBB, NextElsifBB);
 
-                GenBlock(CGF, Elsif->getBlock()->getContent(), ElsifThenBB);
+                Builder->SetInsertPoint(ElsifThenBB);
+                GenStmt(CGF, Elsif->getStmt());
                 Builder->CreateBr(EndBB);
 
                 ElsifBB = NextElsifBB;
@@ -800,7 +801,8 @@ void CodeGenModule::GenIfBlock(CodeGenFunctionBase *CGF, ASTIfStmt *If) {
                 llvm::Value *ElsifCond = GenExpr(Elsif->getCondition());
                 Builder->CreateCondBr(ElsifCond, ElsifThenBB, NextElsifBB);
 
-                GenBlock(CGF, Elsif->getBlock()->getContent(), ElsifThenBB);
+                Builder->SetInsertPoint(ElsifThenBB);
+                GenStmt(CGF, Elsif->getStmt());
                 Builder->CreateBr(EndBB);
 
                 ElsifBB = NextElsifBB;
@@ -832,7 +834,8 @@ llvm::BasicBlock *CodeGenModule::GenElsifBlock(CodeGenFunctionBase *CGF,
         Builder->CreateCondBr(Cond, ElsifBB, NextElsifBB);
 
         llvm::BasicBlock *ElsifThenBB = llvm::BasicBlock::Create(LLVMCtx, "elsifthen", Fn);
-        GenBlock(CGF, Elsif->getBlock()->getContent(), ElsifThenBB);
+        Builder->SetInsertPoint(ElsifThenBB);
+        GenStmt(CGF, Elsif->getStmt());
         return GenElsifBlock(CGF, ElsifThenBB, It);
     }
 }
@@ -859,7 +862,8 @@ void CodeGenModule::GenSwitchBlock(CodeGenFunctionBase *CGF, ASTSwitchStmt *Swit
         llvm::BasicBlock *CaseBB = NextCaseBB == nullptr ?
                                    llvm::BasicBlock::Create(LLVMCtx, "case", Fn, EndBR) : NextCaseBB;
         Inst->addCase(CaseConst, CaseBB);
-        GenBlock(CGF, Case->getBlock()->getContent(), CaseBB);
+        Builder->SetInsertPoint(CaseBB);
+        GenStmt(CGF, Case->getStmt());
 
         // If there is a Next
         if (i + 1 < Size) {
@@ -874,7 +878,8 @@ void CodeGenModule::GenSwitchBlock(CodeGenFunctionBase *CGF, ASTSwitchStmt *Swit
     if (Switch->getDefault()) {
         llvm::BasicBlock *DefaultBB = llvm::BasicBlock::Create(LLVMCtx, "default", Fn, EndBR);
         Inst->setDefaultDest(DefaultBB);
-        GenBlock(CGF, Switch->getDefault()->getContent(), DefaultBB);
+        Builder->SetInsertPoint(DefaultBB);
+        GenStmt(CGF, Switch->getDefault());
         Builder->CreateBr(EndBR);
     }
 

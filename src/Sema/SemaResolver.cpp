@@ -366,7 +366,7 @@ bool SemaResolver::ResolveIfBlock(ASTIfStmt *IfStmt) {
         Elsif->Condition->Type = S.Builder->CreateBoolType(Elsif->Condition->getLocation());
         Success &= ResolveExpr(IfStmt->getParent(), Elsif->Condition) &&
                    S.Validator->CheckConvertibleTypes(Elsif->Condition->Type, S.Builder->CreateBoolType(SourceLocation())) &&
-                   ResolveBlock(Elsif->Block);
+                   ResolveStmt(Elsif->Stmt);
     }
     if (Success && IfStmt->Else) {
         Success = ResolveStmt(IfStmt->Else);
@@ -379,10 +379,10 @@ bool SemaResolver::ResolveSwitchBlock(ASTSwitchStmt *SwitchStmt) {
     bool Success = ResolveVarRef(SwitchStmt->getParent(), SwitchStmt->getVarRef()) &&
                    S.Validator->CheckEqualTypes(SwitchStmt->getVarRef()->getDef()->getType(), ASTTypeKind::TYPE_INTEGER);
     for (ASTSwitchCase *Case : SwitchStmt->Cases) {
-        Success &= S.Validator->CheckEqualTypes(Case->getType(), ASTTypeKind::TYPE_INTEGER) &&
-                ResolveBlock(Case->Block);
+        Success &= S.Validator->CheckEqualTypes(Case->getValueExpr()->getType(), ASTTypeKind::TYPE_INTEGER) &&
+                ResolveStmt(Case->Stmt);
     }
-    return Success && ResolveBlock(SwitchStmt->Default);
+    return Success && ResolveStmt(SwitchStmt->Default);
 }
 
 bool SemaResolver::ResolveLoopBlock(ASTLoopStmt *LoopStmt) {
@@ -992,6 +992,12 @@ ASTVar *SemaResolver::FindLocalVar(ASTStmt *Stmt, llvm::StringRef Name) const {
             }
         }
     } else if (Stmt->getKind() == ASTStmtKind::STMT_IF) {
+        return FindLocalVar(Stmt->getParent(), Name);
+    } else if (Stmt->getKind() == ASTStmtKind::STMT_SWITCH) {
+        return FindLocalVar(Stmt->getParent(), Name);
+    }  else if (Stmt->getKind() == ASTStmtKind::STMT_LOOP) {
+        return FindLocalVar(Stmt->getParent(), Name);
+    }  else if (Stmt->getKind() == ASTStmtKind::STMT_LOOP_IN) {
         return FindLocalVar(Stmt->getParent(), Name);
     }
     return nullptr;
