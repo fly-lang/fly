@@ -254,7 +254,7 @@ bool SemaResolver::ResolveIdentities(ASTModule *Module) {
 //                    }
                         }
 
-                        Success &= ResolveBlock(Function->Body);
+                        Success &= ResolveStmtBlock(Function->Body);
                     }
                 }
 
@@ -273,7 +273,7 @@ bool SemaResolver::ResolveIdentities(ASTModule *Module) {
                             }
 
                             if (!Method->isAbstract()) {
-                                Success &= ResolveBlock(Method->Body); // FIXME check if already resolved
+                                Success &= ResolveStmtBlock(Method->Body); // FIXME check if already resolved
                             }
                         }
                     }
@@ -291,7 +291,7 @@ bool SemaResolver::ResolveFunctions(ASTModule *Module) {
     for (auto &StrMapEntry : Module->Functions) {
         for (auto &IntMap : StrMapEntry.getValue()) {
             for (auto &Function : IntMap.second) {
-                Success &= ResolveBlock(Function->Body);
+                Success &= ResolveStmtBlock(Function->Body);
             }
         }
     }
@@ -302,15 +302,15 @@ bool SemaResolver::ResolveStmt(ASTStmt *Stmt) {
     switch (Stmt->getKind()) {
 
         case ASTStmtKind::STMT_BLOCK:
-            return ResolveBlock((ASTBlockStmt *) Stmt);
+            return ResolveStmtBlock((ASTBlockStmt *) Stmt);
         case ASTStmtKind::STMT_IF:
-            return ResolveIfBlock((ASTIfStmt *) Stmt);
+            return ResolveStmtIf((ASTIfStmt *) Stmt);
         case ASTStmtKind::STMT_SWITCH:
-            return ResolveSwitchBlock((ASTSwitchStmt *) Stmt);
+            return ResolveStmtSwitch((ASTSwitchStmt *) Stmt);
         case ASTStmtKind::STMT_LOOP:
-            return ResolveLoopBlock((ASTLoopStmt *) Stmt);
+            return ResolveStmtLoop((ASTLoopStmt *) Stmt);
         case ASTStmtKind::STMT_LOOP_IN:
-            return ResolveLoopInBlock((ASTLoopInStmt *) Stmt);
+            return ResolveStmtLoopIn((ASTLoopInStmt *) Stmt);
         case ASTStmtKind::STMT_VAR: {
             ASTVarStmt *VarStmt = (ASTVarStmt *) Stmt;
             ResolveVarRef(Stmt->Parent, VarStmt->getVarRef());
@@ -346,7 +346,7 @@ bool SemaResolver::ResolveStmt(ASTStmt *Stmt) {
     assert(false && "Invalid ASTStmtKind");
 }
 
-bool SemaResolver::ResolveBlock(ASTBlockStmt *Block) {
+bool SemaResolver::ResolveStmtBlock(ASTBlockStmt *Block) {
     for (ASTStmt *Stmt : Block->Content) {
         ResolveStmt(Stmt);
     }
@@ -357,7 +357,7 @@ bool SemaResolver::ResolveBlock(ASTBlockStmt *Block) {
     return true;
 }
 
-bool SemaResolver::ResolveIfBlock(ASTIfStmt *IfStmt) {
+bool SemaResolver::ResolveStmtIf(ASTIfStmt *IfStmt) {
     IfStmt->Condition->Type = S.Builder->CreateBoolType(IfStmt->Condition->getLocation());
     bool Success = ResolveExpr(IfStmt->getParent(), IfStmt->Condition) &&
                    S.Validator->CheckConvertibleTypes(IfStmt->Condition->Type, S.Builder->CreateBoolType(SourceLocation())) &&
@@ -374,7 +374,7 @@ bool SemaResolver::ResolveIfBlock(ASTIfStmt *IfStmt) {
     return Success;
 }
 
-bool SemaResolver::ResolveSwitchBlock(ASTSwitchStmt *SwitchStmt) {
+bool SemaResolver::ResolveStmtSwitch(ASTSwitchStmt *SwitchStmt) {
     assert(SwitchStmt && "Switch Block cannot be null");
     bool Success = ResolveVarRef(SwitchStmt->getParent(), SwitchStmt->getVarRef()) &&
                    S.Validator->CheckEqualTypes(SwitchStmt->getVarRef()->getDef()->getType(), ASTTypeKind::TYPE_INTEGER);
@@ -385,17 +385,19 @@ bool SemaResolver::ResolveSwitchBlock(ASTSwitchStmt *SwitchStmt) {
     return Success && ResolveStmt(SwitchStmt->Default);
 }
 
-bool SemaResolver::ResolveLoopBlock(ASTLoopStmt *LoopStmt) {
-    bool Success = S.Validator->CheckConvertibleTypes(LoopStmt->Condition->Type, S.Builder->CreateBoolType(LoopStmt->Condition->getLocation()));
-    Success &= LoopStmt->Condition ? ResolveExpr(LoopStmt, LoopStmt->Condition) : true;
-    Success &= ResolveBlock(LoopStmt->Block);
-    Success &= LoopStmt->Init ? ResolveBlock(LoopStmt->Post) : true;
-    Success &= LoopStmt->Post ? ResolveBlock(LoopStmt->Post) : true;
+bool SemaResolver::ResolveStmtLoop(ASTLoopStmt *LoopStmt) {
+    LoopStmt->Init->Parent = LoopStmt;
+    LoopStmt->Init->Function = LoopStmt->Function;
+    LoopStmt->Loop->Parent = LoopStmt->Init;
+    bool Success = ResolveStmt(LoopStmt->Init) && ResolveExpr(LoopStmt->Init, LoopStmt->Condition);
+    Success = S.Validator->CheckConvertibleTypes(LoopStmt->Condition->Type, S.Builder->CreateBoolType(LoopStmt->Condition->getLocation()));
+    Success &= LoopStmt->Loop ? ResolveStmt(LoopStmt->Loop) : true;
+    Success &= LoopStmt->Post ? ResolveStmt(LoopStmt->Post) : true;
     return Success;
 }
 
-bool SemaResolver::ResolveLoopInBlock(ASTLoopInStmt *LoopInStmt) {
-    return ResolveVarRef(LoopInStmt->Parent, LoopInStmt->VarRef) && ResolveBlock(LoopInStmt->Block);
+bool SemaResolver::ResolveStmtLoopIn(ASTLoopInStmt *LoopInStmt) {
+    return ResolveVarRef(LoopInStmt->Parent, LoopInStmt->VarRef) && ResolveStmtBlock(LoopInStmt->Block);
 }
 
 bool SemaResolver::ResolveParentIdentifier(ASTStmt *Stmt, ASTIdentifier *&Identifier) {

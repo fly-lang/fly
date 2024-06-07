@@ -1034,12 +1034,11 @@ ASTSwitchStmt *SemaBuilder::CreateSwitchStmt(const SourceLocation &Loc) {
     return SwitchBlock;
 }
 
-ASTLoopStmt *SemaBuilder::CreateLoopStmt(const SourceLocation &Loc, ASTExpr *Condition, ASTBlockStmt *Block) {
+ASTLoopStmt *SemaBuilder::CreateLoopStmt(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateLoopStmt", Logger()
                       .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
     ASTLoopStmt *LoopStmt = new ASTLoopStmt(Loc);
-    LoopStmt->Condition = Condition;
-    LoopStmt->Block = Block;
+    LoopStmt->Init = CreateBlockStmt(Loc);
     return LoopStmt;
 }
 
@@ -1353,6 +1352,7 @@ SemaBuilder::AddCallArg(ASTCall *Call, ASTExpr *Expr) {
 }
 
 bool SemaBuilder::AddLocalVar(ASTBlockStmt *BlockStmt, ASTLocalVar *LocalVar) {
+    BlockStmt->Function->LocalVars.push_back(LocalVar);
     return BlockStmt->LocalVars.insert(std::make_pair(LocalVar->getName(), LocalVar)).second;
 }
 
@@ -1372,6 +1372,9 @@ SemaBuilder::AddStmt(ASTStmt *Parent, ASTStmt *Stmt) {
     } else if (Parent->getKind() == ASTStmtKind::STMT_IF) {
         ASTIfStmt *IfStmt = (ASTIfStmt *) Parent;
         IfStmt->Stmt = Stmt;
+    } else if (Parent->getKind() == ASTStmtKind::STMT_LOOP) {
+        ASTLoopStmt *LoopStmt = (ASTLoopStmt *) Parent;
+        LoopStmt->Loop = Stmt;
     }
     return true;
 }
@@ -1408,16 +1411,18 @@ bool SemaBuilder::AddSwitchDefault(ASTSwitchStmt *SwitchStmt, ASTStmt *Stmt) {
     return true;
 }
 
-bool SemaBuilder::AddLoopInit(ASTLoopStmt *LoopStmt, ASTBlockStmt *Block) {
-    Block->Parent = LoopStmt;
-    LoopStmt->Init = Block;
-    return false;
+bool SemaBuilder::AddLoopInit(ASTLoopStmt *LoopStmt, ASTStmt *Stmt) {
+    Stmt->Parent = LoopStmt;
+    Stmt->Function = LoopStmt->Function;
+    LoopStmt->Init = Stmt;
+    return true;
 }
 
-bool SemaBuilder::AddLoopPost(ASTLoopStmt *LoopStmt, ASTBlockStmt *Block) {
-    Block->Parent = LoopStmt;
-    LoopStmt->Post = Block;
-    return false;
+bool SemaBuilder::AddLoopPost(ASTLoopStmt *LoopStmt, ASTStmt *Stmt) {
+    Stmt->Parent = LoopStmt->Init;
+    Stmt->Function = LoopStmt->Function;
+    LoopStmt->Post = Stmt;
+    return true;
 }
 
 bool SemaBuilder::AddExpr(ASTVarStmt *Stmt, ASTExpr *Expr) {
@@ -1458,5 +1463,12 @@ bool SemaBuilder::AddExpr(ASTSwitchStmt *SwitchStmt, ASTExpr *Expr) {
         ASTVarRefExpr *VarRefExpr = (ASTVarRefExpr *) Expr;
         SwitchStmt->VarRef = VarRefExpr->VarRef;
     }
+    return true;
+}
+
+bool SemaBuilder::AddExpr(ASTLoopStmt *LoopStmt, ASTExpr *Expr) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "AddExpr",
+                      Logger().Attr("Stmt", LoopStmt).Attr("Expr", Expr).End());
+    LoopStmt->Condition = Expr;
     return true;
 }

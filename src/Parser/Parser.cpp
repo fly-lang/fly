@@ -804,6 +804,10 @@ bool Parser::ParseWhileStmt(ASTBlockStmt *Parent) {
     }
 
     ASTBlockStmt *BlockStmt = Builder.CreateBlockStmt(Tok.getLocation());
+    ASTLoopStmt *LoopStmt = Builder.CreateLoopStmt(Loc);
+    Builder.AddStmt(Parent, LoopStmt);
+    Builder.AddExpr(LoopStmt, Condition);
+    Builder.AddStmt(LoopStmt, BlockStmt);
 
     // Consume Right Parenthesis ) if exists
     if (!ParseEndParen(hasParen)) {
@@ -814,9 +818,9 @@ bool Parser::ParseWhileStmt(ASTBlockStmt *Parent) {
     bool Success = isBlockStart() ?
                    ParseStmt(BlockStmt) :
                    ParseStmt(BlockStmt, true); // Only for a single Stmt without braces
-    ASTLoopStmt *WhileStmt = Builder.CreateLoopStmt(Loc, Condition, BlockStmt);
 
-    return Success & Builder.AddStmt(Parent, WhileStmt);
+
+    return Success;
 }
 
 /**
@@ -872,7 +876,10 @@ bool Parser::ParseForStmt(ASTBlockStmt *Parent) {
     }
 
     ASTBlockStmt *LoopBlock = Builder.CreateBlockStmt(Tok.getLocation());
-    ASTLoopStmt *LoopStmt = Builder.CreateLoopStmt(Loc, Condition, LoopBlock);
+    ASTLoopStmt *LoopStmt = Builder.CreateLoopStmt(Loc);
+    Builder.AddStmt(Parent, LoopStmt);
+    Builder.AddExpr(LoopStmt, Condition);
+    Builder.AddStmt(LoopStmt, LoopBlock);
 
     // Parse statement between braces
     Success &= isBlockStart() ?

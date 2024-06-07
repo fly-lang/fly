@@ -54,6 +54,8 @@ namespace fly {
 
         ASTParam* Ellipsis = nullptr;
 
+        llvm::SmallVector<ASTLocalVar *, 8> LocalVars;
+
         // Body is the main BlockStmt
         ASTBlockStmt *Body = nullptr;
 
@@ -76,6 +78,8 @@ namespace fly {
         ASTParam *getEllipsis() const;
 
         void setEllipsis(ASTParam *Param);
+
+        llvm::SmallVector<ASTLocalVar *, 8> getLocalVars() const;
 
         const ASTBlockStmt *getBody() const;
 

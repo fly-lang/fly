@@ -211,9 +211,7 @@ namespace fly {
 
         void GenSwitchBlock(CodeGenFunctionBase *CGF, ASTSwitchStmt *Switch);
 
-        void GenForBlock(CodeGenFunctionBase *CGF, ASTLoopStmt *Loop);
-
-        void GenWhileBlock(CodeGenFunctionBase *CGF, ASTLoopStmt *While);
+        void GenLoopBlock(CodeGenFunctionBase *CGF, ASTLoopStmt *Loop);
 
         void pushArgs(ASTCall *pCall, llvm::SmallVector<llvm::Value *, 8> &Args);
 

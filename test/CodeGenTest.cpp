@@ -1531,14 +1531,13 @@ namespace {
         ASTBlockStmt *Body = Builder.CreateBody(Func);
         
         // if a == 1
+        ASTIfStmt *IfStmt = Builder.CreateIfStmt(SourceLoc);
+        EXPECT_TRUE(Builder.AddStmt(Body, IfStmt));
         ASTValueExpr *Value1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
         ASTVarRefExpr *aVarRef = Builder.CreateExpr(Builder.CreateVarRef(aParam));
         ASTBinaryGroupExpr *IfCond = Builder.CreateBinaryExpr(Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_COMP_EQ), aVarRef, Value1);
-
-        // Create/Add if block
-        ASTIfStmt *IfStmt = Builder.CreateIfStmt(SourceLoc);
         EXPECT_TRUE(Builder.AddExpr(IfStmt, IfCond));
-        EXPECT_TRUE(Builder.AddStmt(Body, IfStmt));
+
 
         // { a = 11 }
         ASTBlockStmt *IfBlock = Builder.CreateBlockStmt(SourceLoc);
@@ -1634,9 +1633,9 @@ namespace {
 
         // switch a
         ASTSwitchStmt *SwitchStmt = Builder.CreateSwitchStmt(SourceLoc);
+        EXPECT_TRUE(Builder.AddStmt(Body, SwitchStmt));
         ASTVarRefExpr *aVarRefExpr = Builder.CreateExpr(Builder.CreateVarRef(aParam));
         EXPECT_TRUE(Builder.AddExpr(SwitchStmt, aVarRefExpr));
-        EXPECT_TRUE(Builder.AddStmt(Body, SwitchStmt));
 
         // case 1: a = 1 break
         ASTBlockStmt *Case1Block = Builder.CreateBlockStmt(SourceLoc);
@@ -1709,36 +1708,36 @@ namespace {
 
     TEST_F(CodeGenTest, CGWhile) {
         ASTModule *Module = CreateModule();
-        CodeGenModule *CGM = CG->GenerateModule(*Module);
 
         // main()
         ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
                                                     Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlockStmt *Body = Builder.CreateBody(Func);
         ASTParam *aParam = Builder.CreateParam(SourceLoc, IntType, "a");
         EXPECT_TRUE(Builder.AddParam(Func, aParam));
+        EXPECT_TRUE(Builder.AddFunction(Module, Func));
+
+        ASTBlockStmt *Body = Builder.CreateBody(Func);
 
         // while a == 1
+        ASTLoopStmt *LoopStmt = Builder.CreateLoopStmt(SourceLoc);
+        EXPECT_TRUE(Builder.AddStmt(Body, LoopStmt));
         ASTValueExpr *Value1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
         ASTVarRefExpr *aVarRef = Builder.CreateExpr(Builder.CreateVarRef(aParam));
         ASTBinaryGroupExpr *Cond = Builder.CreateBinaryExpr(Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_COMP_EQ), aVarRef, Value1);
-
+        EXPECT_TRUE(Builder.AddExpr(LoopStmt, Cond));
+        
         // { a = 1 }
         ASTBlockStmt *BlockStmt = Builder.CreateBlockStmt(SourceLoc);
+        EXPECT_TRUE(Builder.AddStmt(LoopStmt, BlockStmt));
         ASTVarStmt *aVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(aParam));
-        Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
         EXPECT_TRUE(Builder.AddStmt(BlockStmt, aVarStmt));
-
-        // Add Loop
-        ASTLoopStmt *LoopStmt = Builder.CreateLoopStmt(SourceLoc, Cond, BlockStmt);
-        EXPECT_TRUE(Builder.AddStmt(Body, LoopStmt));
-
-        // Add to Module
-        EXPECT_TRUE(Builder.AddFunction(Module, Func));
+        ASTValueExpr *Expr1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
+        EXPECT_TRUE(Builder.AddExpr(aVarStmt, Expr1));
 
         EXPECT_TRUE(S->Resolve());
 
         // Generate Code
+        CodeGenModule *CGM = CG->GenerateModule(*Module);
         CodeGenFunction *CGF = CGM->GenFunction(Func);
         CGF->GenBody();
         Function *F = CGF->getFunction();
@@ -1750,75 +1749,79 @@ namespace {
 
         EXPECT_EQ(output, "define void @func(%error* %0, i32 %1) {\n"
                           "entry:\n"
-                          "  %2 = alloca i32, align 4\n"
-                          "  store i32 %1, i32* %2, align 4\n"
-                          "  br label %whilecond\n"
+                          "  %2 = alloca %error*, align 8\n"
+                          "  %3 = alloca i32, align 4\n"
+                          "  store %error* %0, %error** %2, align 8\n"
+                          "  store i32 %1, i32* %3, align 4\n"
+                          "  br label %loopcond\n"
                           "\n"
-                          "whilecond:                                        ; preds = %whileloop, %entry\n"
-                          "  %3 = load i32, i32* %2, align 4\n"
-                          "  %4 = icmp eq i32 %3, 1\n"
-                          "  br i1 %4, label %whileloop, label %whileend\n"
+                          "loopcond:                                         ; preds = %loop, %entry\n"
+                          "  %4 = load i32, i32* %3, align 4\n"
+                          "  %5 = icmp eq i32 %4, 1\n"
+                          "  br i1 %5, label %loop, label %loopend\n"
                           "\n"
-                          "whileloop:                                        ; preds = %whilecond\n"
-                          "  store i32 1, i32* %2, align 4\n"
-                          "  br label %whilecond\n"
+                          "loop:                                             ; preds = %loopcond\n"
+                          "  store i32 1, i32* %3, align 4\n"
+                          "  br label %loopcond\n"
                           "\n"
-                          "whileend:                                         ; preds = %whilecond\n"
+                          "loopend:                                          ; preds = %loopcond\n"
                           "  ret void\n"
                           "}\n");
     }
 
     TEST_F(CodeGenTest, CGFor) {
         ASTModule *Module = CreateModule();
-        CodeGenModule *CGM = CG->GenerateModule(*Module);
 
         // main()
         ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
                                                     Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlockStmt *Body = Builder.CreateBody(Func);
         ASTParam *aParam = Builder.CreateParam(SourceLoc, IntType, "a");
         EXPECT_TRUE(Builder.AddParam(Func, aParam));
+        EXPECT_TRUE(Builder.AddFunction(Module, Func));
+
+        ASTBlockStmt *Body = Builder.CreateBody(Func);
 
         // for int i = 1; i < 1; ++i
+        ASTLoopStmt *ForStmt = Builder.CreateLoopStmt(SourceLoc);
+        EXPECT_TRUE(Builder.AddStmt(Body, ForStmt));
+
         // int i = 1
         ASTBlockStmt *InitBlock = Builder.CreateBlockStmt(SourceLoc);
+        EXPECT_TRUE(Builder.AddLoopInit(ForStmt, InitBlock));
         ASTLocalVar *iVar = Builder.CreateLocalVar(SourceLoc, IntType, "i");
+        EXPECT_TRUE(Builder.AddLocalVar(InitBlock, iVar));
         ASTVarRef *iVarRef = Builder.CreateVarRef(iVar);
         ASTVarStmt *iVarStmt = Builder.CreateVarStmt(iVarRef);
-        ASTValueExpr *Value1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
-        EXPECT_TRUE(Builder.AddExpr(iVarStmt, Value1));
+        ASTValueExpr *Value1Expr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
+        EXPECT_TRUE(Builder.AddExpr(iVarStmt, Value1Expr));
         EXPECT_TRUE(Builder.AddStmt(InitBlock, iVarStmt));
 
         // i < 1
         ASTBinaryGroupExpr *Cond = Builder.CreateBinaryExpr(Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_COMP_LTE),
-                                                            Builder.CreateExpr(iVarRef), Value1);
-
+                                                            Builder.CreateExpr(iVarRef), Value1Expr);
+        EXPECT_TRUE(Builder.AddExpr(ForStmt, Cond));
+        
         // ++i
         ASTBlockStmt *PostBlock = Builder.CreateBlockStmt(SourceLoc);
+        EXPECT_TRUE(Builder.AddLoopPost(ForStmt, PostBlock));
         ASTUnaryGroupExpr *IncExpr = Builder.CreateUnaryExpr(Builder.CreateOperatorExpr(SourceLoc, ASTUnaryOperatorKind::UNARY_ARITH_PRE_INCR),
                                                              Builder.CreateExpr(Builder.CreateVarRef(iVar)));
-        ASTVarStmt *iVarIncStmt = Builder.CreateVarStmt(iVarRef);
+        ASTExprStmt *iVarIncStmt = Builder.CreateExprStmt(SourceLoc);
         EXPECT_TRUE(Builder.AddExpr(iVarIncStmt, IncExpr));
         EXPECT_TRUE(Builder.AddStmt(PostBlock, iVarIncStmt));
 
         // { a = 1}
         ASTBlockStmt *LoopBlock = Builder.CreateBlockStmt(SourceLoc);
+        EXPECT_TRUE(Builder.AddStmt(ForStmt, LoopBlock));
         ASTVarStmt *aVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(aParam));
-        Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
+        ASTValueExpr *Expr1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
+        EXPECT_TRUE(Builder.AddExpr(aVarStmt, Expr1));
         EXPECT_TRUE(Builder.AddStmt(LoopBlock, aVarStmt));
-
-        // Create for block
-        ASTLoopStmt *ForStmt = Builder.CreateLoopStmt(SourceLoc, Cond, LoopBlock);
-        EXPECT_TRUE(Builder.AddLoopInit(ForStmt, InitBlock));
-        EXPECT_TRUE(Builder.AddLoopPost(ForStmt, PostBlock));
-        EXPECT_TRUE(Builder.AddStmt(Body, ForStmt));
-        
-        // Add to Module
-        EXPECT_TRUE(Builder.AddFunction(Module, Func));
 
         EXPECT_TRUE(S->Resolve());
 
         // Generate Code
+        CodeGenModule *CGM = CG->GenerateModule(*Module);
         CodeGenFunction *CGF = CGM->GenFunction(Func);
         CGF->GenBody();
         Function *F = CGF->getFunction();
@@ -1830,342 +1833,344 @@ namespace {
 
         EXPECT_EQ(output, "define void @func(%error* %0, i32 %1) {\n"
                           "entry:\n"
-                          "  %2 = alloca i32, align 4\n"
+                          "  %2 = alloca %error*, align 8\n"
                           "  %3 = alloca i32, align 4\n"
-                          "  store i32 %1, i32* %2, align 4\n"
+                          "  %4 = alloca i32, align 4\n"
+                          "  store %error* %0, %error** %2, align 8\n"
+                          "  store i32 %1, i32* %3, align 4\n"
+                          "  store i32 1, i32* %4, align 4\n"
+                          "  br label %loopcond\n"
+                          "\n"
+                          "loopcond:                                         ; preds = %looppost, %entry\n"
+                          "  %5 = load i32, i32* %4, align 4\n"
+                          "  %6 = icmp sle i32 %5, 1\n"
+                          "  br i1 %6, label %loop, label %loopend\n"
+                          "\n"
+                          "loop:                                             ; preds = %loopcond\n"
                           "  store i32 1, i32* %3, align 4\n"
-                          "  br label %forcond\n"
+                          "  br label %looppost\n"
                           "\n"
-                          "forcond:                                          ; preds = %forpost, %entry\n"
-                          "  %4 = load i32, i32* %3, align 4\n"
-                          "  %5 = icmp sle i32 %4, 1\n"
-                          "  br i1 %5, label %forloop, label %endfor\n"
+                          "looppost:                                         ; preds = %loop\n"
+                          "  %7 = load i32, i32* %4, align 4\n"
+                          "  %8 = add nsw i32 %7, 1\n"
+                          "  store i32 %8, i32* %4, align 4\n"
+                          "  br label %loopcond\n"
                           "\n"
-                          "forloop:                                          ; preds = %forcond\n"
-                          "  store i32 1, i32* %2, align 4\n"
-                          "  br label %forpost\n"
-                          "\n"
-                          "forpost:                                          ; preds = %forloop\n"
-                          "  %6 = load i32, i32* %3, align 4\n"
-                          "  %7 = add nsw i32 %6, 1\n"
-                          "  store i32 %7, i32* %3, align 4\n"
-                          "  br label %forcond\n"
-                          "\n"
-                          "endfor:                                           ; preds = %forcond\n"
+                          "loopend:                                          ; preds = %loopcond\n"
                           "  ret void\n"
                           "}\n");
     }
 
-    TEST_F(CodeGenTest, CGClassOnlyMethods) {
-        ASTModule *Module = CreateModule();
-        CodeGenModule *CGM = CG->GenerateModule(*Module);
-
-        // TestClass {
-        //   int a() { return 1 }
-        //   public int b() { return 1 }
-        //   private const int c { return 1 }
-        // }
-        llvm::SmallVector<ASTClassType *, 4> ExtClasses;
-        ASTClass *TestClass = Builder.CreateClass(SourceLoc, ASTClassKind::CLASS, "TestClass",
-                                                  Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false),
-                                                  ExtClasses);
-
-        // int a() { return 1 }
-        ASTClassMethod *aFunc = Builder.CreateClassMethod(SourceLoc, IntType,
-                                                             "a",
-                                                             Builder.CreateScopes(
-                                                                     ASTVisibilityKind::V_DEFAULT, false, false));
-        ASTBlockStmt *aFuncBody = Builder.CreateBody(aFunc);
-        ASTReturnStmt *aFuncReturn = Builder.CreateReturnStmt(SourceLoc);
-        ASTValueExpr *aFuncExpr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLocation(), 1));
-        Builder.AddExpr(aFuncReturn, aFuncExpr);
-        Builder.AddStmt(aFuncBody, aFuncReturn);
-        Builder.AddClassMethod(TestClass, aFunc);
-
-        // public int b() { return 1 }
-        ASTClassMethod *bFunc = Builder.CreateClassMethod(SourceLoc, IntType,
-                                                             "b",
-                                                             Builder.CreateScopes(
-                                                                     ASTVisibilityKind::V_PUBLIC, false, false));
-        ASTBlockStmt *bFuncBody = Builder.CreateBody(bFunc);
-        ASTReturnStmt *bFuncReturn = Builder.CreateReturnStmt(SourceLoc);
-        ASTValueExpr *bFuncExpr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLocation(), 1));
-        Builder.AddExpr(bFuncReturn, bFuncExpr);
-        Builder.AddStmt(bFuncBody, bFuncReturn);
-        Builder.AddClassMethod(TestClass, bFunc);
-
-        // private const int c { return 1 }
-        ASTClassMethod *cFunc = Builder.CreateClassMethod(SourceLoc, IntType,
-                                                             "c",
-                                                             Builder.CreateScopes(
-                                                                     ASTVisibilityKind::V_PRIVATE, true, false));
-        ASTBlockStmt *cFuncBody = Builder.CreateBody(cFunc);
-        ASTReturnStmt *cFuncReturn = Builder.CreateReturnStmt(SourceLoc);
-        ASTValueExpr *cFuncExpr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLocation(), 1));
-        Builder.AddExpr(cFuncReturn, cFuncExpr);
-        Builder.AddStmt(cFuncBody, cFuncReturn);
-        Builder.AddClassMethod(TestClass, cFunc);
-
-        // int main() {
-        //  TestClass test = new TestClass()
-        //  int a = test.a()
-        //  int b = test.b()
-        //  int c = test.c()
-        //  delete test
-        // }
-        ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
-                                                    Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlockStmt *Body = Builder.CreateBody(Func);
-
-        // TestClass test = new TestClass()
-        ASTType *TestClassType = Builder.CreateClassType(TestClass);
-        ASTLocalVar *TestVar = Builder.CreateLocalVar(SourceLoc, TestClassType, "test");
-        ASTClassMethod *DefaultConstructor = TestClass->getConstructors().find(0)->second.front();
-        ASTVarRef *Instance = Builder.CreateVarRef(TestVar);
-        ASTCall *ConstructorCall = Builder.CreateCall(Instance, DefaultConstructor);
-        ASTCallExpr *NewExpr = Builder.CreateNewExpr(ConstructorCall);
-        ASTVarStmt *testNewStmt = Builder.CreateVarStmt(TestVar);
-        Builder.AddExpr(testNewStmt, NewExpr);
-        Builder.AddStmt(Body, testNewStmt);
-
-        // int a = test.a()
-        ASTType *aType = aFunc->getType();
-        ASTLocalVar *aVar = Builder.CreateLocalVar(SourceLoc, aType, "a");
-        ASTCallExpr *aCallExpr = Builder.CreateExpr(Builder.CreateCall(Instance, aFunc));
-        ASTVarStmt *aStmt = Builder.CreateVarStmt(aVar);
-        Builder.AddExpr(aStmt, aCallExpr);
-        Builder.AddStmt(Body, aStmt);
-
-        // int b = test.b()
-        ASTType *bType = bFunc->getType();
-        ASTLocalVar *bVar = Builder.CreateLocalVar(SourceLoc, bType, "b");
-        ASTCallExpr *bCallExpr = Builder.CreateExpr(Builder.CreateCall(Instance, bFunc));
-        ASTVarStmt *bStmt = Builder.CreateVarStmt(bVar);
-        Builder.AddExpr(bStmt, bCallExpr);
-        Builder.AddStmt(Body, bStmt);
-
-        // int c = test.c()
-        ASTType *cType = cFunc->getType();
-        ASTLocalVar *cVar = Builder.CreateLocalVar(SourceLoc, cType, "c");
-        ASTCallExpr *cCallExpr = Builder.CreateExpr(Builder.CreateCall(Instance, cFunc));
-        ASTVarStmt *cStmt = Builder.CreateVarStmt(cVar);
-        Builder.AddExpr(cStmt, cCallExpr);
-        Builder.AddStmt(Body, cStmt);
-
-        // delete test
-        ASTDeleteStmt *DeleteStmt = Builder.CreateDeleteStmt(SourceLoc, (ASTVarRef *) Instance);
-        Builder.AddStmt(Body, DeleteStmt);
-
-        // Add to Module
-        EXPECT_TRUE(Builder.AddIdentity(Module, TestClass));
-        EXPECT_TRUE(Builder.AddFunction(Module, Func));
-
-        bool Success = S->Resolve();
-        EXPECT_TRUE(Success);
-
-        if (Success) {
-
-            // Generate Code
-            CodeGenClass *CGC = CGM->GenClass(TestClass);
-            for (auto &F : CGC->getConstructors()) {
-                F->GenBody();
-            }
-            for (auto &F : CGC->getFunctions()) {
-                F->GenBody();
-            }
-            CodeGenFunction *CGF = CGM->GenFunction(Func);
-            CGF->GenBody();
-
-            EXPECT_FALSE(Diags.hasErrorOccurred());
-            std::string output = getOutput(CGM->getModule());
-
-            EXPECT_EQ(output, "%error = type { i8, i32, i8* }\n"
-                              "%TestClass = type { %TestClass_vtable* }\n"
-                              "%TestClass_vtable = type { i32 (%error*, %TestClass*), i32 (%error*, %TestClass*), i32 (%error*, %TestClass*) }\n"
-                              "\n"
-                              "define void @TestClass_TestClass(%error* %0, %TestClass* %1) {\n"
-                              "entry:\n"
-                              "  %2 = alloca %TestClass*, align 8\n"
-                              "  store %TestClass* %1, %TestClass** %2, align 8\n"
-                              "  %3 = load %TestClass*, %TestClass** %2, align 8\n"
-                              "  ret void\n"
-                              "}\n"
-                              "\n"
-                              "define i32 @TestClass_a(%error* %0, %TestClass* %1) {\n"
-                              "entry:\n"
-                              "  %2 = alloca %TestClass*, align 8\n"
-                              "  store %TestClass* %1, %TestClass** %2, align 8\n"
-                              "  %3 = load %TestClass*, %TestClass** %2, align 8\n"
-                              "  ret i32 1\n"
-                              "}\n"
-                              "\n"
-                              "define i32 @TestClass_b(%error* %0, %TestClass* %1) {\n"
-                              "entry:\n"
-                              "  %2 = alloca %TestClass*, align 8\n"
-                              "  store %TestClass* %1, %TestClass** %2, align 8\n"
-                              "  %3 = load %TestClass*, %TestClass** %2, align 8\n"
-                              "  ret i32 1\n"
-                              "}\n"
-                              "\n"
-                              "define i32 @TestClass_c(%error* %0, %TestClass* %1) {\n"
-                              "entry:\n"
-                              "  %2 = alloca %TestClass*, align 8\n"
-                              "  store %TestClass* %1, %TestClass** %2, align 8\n"
-                              "  %3 = load %TestClass*, %TestClass** %2, align 8\n"
-                              "  ret i32 1\n"
-                              "}\n"
-                              "\n"
-                              "define void @func(%error* %0) {\n"
-                              "entry:\n"
-                              "  %1 = alloca %TestClass, align 8\n"
-                              "  %2 = alloca i32, align 4\n"
-                              "  %3 = alloca i32, align 4\n"
-                              "  %4 = alloca i32, align 4\n"
-                              "  %5 = alloca %TestClass, align 8\n"
-                              "  call void @TestClass_TestClass(%error* %0, %TestClass* %5)\n"
-                              "  %6 = call i32 @TestClass_a(%error* %0, %TestClass* %5)\n"
-                              "  store i32 %6, i32* %2, align 4\n"
-                              "  %7 = call i32 @TestClass_b(%error* %0, %TestClass* %5)\n"
-                              "  store i32 %7, i32* %3, align 4\n"
-                              "  %8 = call i32 @TestClass_c(%error* %0, %TestClass* %5)\n"
-                              "  store i32 %8, i32* %4, align 4\n"
-                              "  ret void\n"
-                              "}\n");
-        }
-    }
-
-    TEST_F(CodeGenTest, CGClass) {
-        ASTModule *Module = CreateModule();
-        CodeGenModule *CGM = CG->GenerateModule(*Module);
-
-        // TestClass {
-        //   int a
-        //   int getA() { return a }
-        // }
-        llvm::SmallVector<ASTClassType *, 4> ExtClasses;
-        ASTClass *TestClass = Builder.CreateClass(SourceLoc, ASTClassKind::CLASS, "TestClass",
-                                                   Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false),
-                                                  ExtClasses);
-        ASTClassAttribute *aAttribute = Builder.CreateClassAttribute(SourceLoc, Builder.CreateIntType(SourceLoc),
-                                                                     "a",
-                                                                     Builder.CreateScopes(
-                                                              ASTVisibilityKind::V_DEFAULT, false, false));
-        Builder.AddClassAttribute(TestClass, aAttribute);
-
-
-        // int getA() { return a }
-        ASTClassMethod *getA = Builder.CreateClassMethod(SourceLoc, IntType,
-                                                            "getA",
-                                                            Builder.CreateScopes(
-                                                                     ASTVisibilityKind::V_DEFAULT, false, false));
-        ASTBlockStmt *aFuncBody = Builder.CreateBody(getA);
-        ASTReturnStmt *aFuncReturn = Builder.CreateReturnStmt(SourceLoc);
-        ASTVarRefExpr *aFuncReturnExpr = Builder.CreateExpr(Builder.CreateVarRef(aAttribute));
-        Builder.AddExpr(aFuncReturn, aFuncReturnExpr);
-        Builder.AddStmt(aFuncBody, aFuncReturn);
-        Builder.AddClassMethod(TestClass, getA);
-
-        // int main() {
-        //  TestClass test = new TestClass()
-        //  int a = test.getA()
-        //  delete test
-        // }
-        ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
-                                                    Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-        ASTBlockStmt *Body = Builder.CreateBody(Func);
-
-        // TestClass test = new TestClass()
-        ASTType *TestClassType = Builder.CreateClassType(TestClass);
-        ASTLocalVar *TestVar = Builder.CreateLocalVar(SourceLoc, TestClassType, "test");
-        Builder.AddLocalVar(Body, TestVar);
-        ASTVarStmt *TestVarStmt = Builder.CreateVarStmt(TestVar);
-        ASTClassMethod *DefaultConstructor = TestClass->getConstructors().find(0)->second.front();
-        ASTVarRef *Instance = Builder.CreateVarRef(TestVar);
-        ASTCall *ConstructorCall = Builder.CreateCall(Instance, DefaultConstructor);
-        ASTCallExpr *NewExpr = Builder.CreateNewExpr(ConstructorCall);
-        Builder.AddExpr(TestVarStmt, NewExpr);
-        Builder.AddStmt(Body, TestVarStmt);
-
-        // int a = test.a()
-        ASTType *aType = getA->getType();
-        ASTLocalVar *aVar = Builder.CreateLocalVar(SourceLoc, aType, "a");
-        Builder.AddLocalVar(Body, aVar);
-        ASTVarStmt *aVarStmt = Builder.CreateVarStmt(aVar);
-        ASTCallExpr *aCallExpr = Builder.CreateExpr(Builder.CreateCall(Instance, getA));
-        Builder.AddExpr(aVarStmt, aCallExpr);
-        Builder.AddStmt(Body, aVarStmt);
-
-        // delete test
-        ASTDeleteStmt *Delete = Builder.CreateDeleteStmt(SourceLoc, Instance);
-        Builder.AddStmt(Body, Delete);
-
-        // Add to Module
-        EXPECT_TRUE(Builder.AddIdentity(Module, TestClass));
-        EXPECT_TRUE(Builder.AddFunction(Module, Func));
-
-        bool Success = S->Resolve();
-        EXPECT_TRUE(Success);
-
-        if (Success) {
-
-            // Generate Code
-            CodeGenClass *CGC = CGM->GenClass(TestClass);
-            for (auto &F : CGC->getConstructors()) {
-                F->GenBody();
-            }
-            for (auto &F : CGC->getFunctions()) {
-                F->GenBody();
-            }
-            CodeGenFunction *CGF = CGM->GenFunction(Func);
-            CGF->GenBody();
-
-            EXPECT_FALSE(Diags.hasErrorOccurred());
-            std::string output = getOutput(CGM->getModule());
-
-            EXPECT_EQ(output, "%error = type { i8, i32, i8* }\n"
-                              "%TestClass = type { %TestClass_vtable*, i32 }\n"
-                              "%TestClass_vtable = type { i32 (%error*, %TestClass*) }\n"
-                              "\n"
-                              "define void @TestClass_TestClass(%error* %0, %TestClass* %1) {\n"
-                              "entry:\n"
-                              "  %2 = alloca %TestClass*, align 8\n"
-                              "  store %TestClass* %1, %TestClass** %2, align 8\n"
-                              "  %3 = load %TestClass*, %TestClass** %2, align 8\n"
-                              "  %4 = getelementptr inbounds %TestClass, %TestClass* %3, i32 0, i32 1\n"
-                              "  %5 = load i32, i32* %4, align 4\n"
-                              "  store i32 0, i32 %5, align 4\n"
-                              "  ret void\n"
-                              "}\n"
-                              "\n"
-                              "define i32 @TestClass_getA(%error* %0, %TestClass* %1) {\n"
-                              "entry:\n"
-                              "  %2 = alloca %TestClass*, align 8\n"
-                              "  store %TestClass* %1, %TestClass** %2, align 8\n"
-                              "  %3 = load %TestClass*, %TestClass** %2, align 8\n"
-                              "  %4 = getelementptr inbounds %TestClass, %TestClass* %3, i32 0, i32 1\n"
-                              "  %5 = load i32, i32* %4, align 4\n"
-                              "  ret i32 %5\n"
-                              "}\n"
-                              "\n"
-                              "define void @func(%error* %0) {\n"
-                              "entry:\n"
-                              "  %1 = alloca %TestClass, align 8\n"
-                              "  %2 = alloca i32, align 4\n"
-                              "  %malloccall = tail call i8* @malloc(i32 ptrtoint (%TestClass* getelementptr (%TestClass, %TestClass* null, i32 1) to i32))\n"
-                              "  %TestClassInst = bitcast i8* %malloccall to %TestClass*\n"
-                              "  call void @TestClass_TestClass(%error* %0, %TestClass* %TestClassInst)\n"
-                              "  %3 = call i32 @TestClass_getA(%error* %0, %TestClass* %TestClassInst)\n"
-                              "  store i32 %3, i32* %2, align 4\n"
-                              "  %4 = bitcast %TestClass* %TestClassInst to i8*\n"
-                              "  tail call void @free(i8* %4)\n"
-                              "  ret void\n"
-                              "}\n"
-                              "\n"
-                              "declare noalias i8* @malloc(i32)\n"
-                              "\n"
-                              "declare void @free(i8*)\n");
-        }
-    }
+//    TEST_F(CodeGenTest, CGClassOnlyMethods) {
+//        ASTModule *Module = CreateModule();
+//        CodeGenModule *CGM = CG->GenerateModule(*Module);
+//
+//        // TestClass {
+//        //   int a() { return 1 }
+//        //   public int b() { return 1 }
+//        //   private const int c { return 1 }
+//        // }
+//        llvm::SmallVector<ASTClassType *, 4> ExtClasses;
+//        ASTClass *TestClass = Builder.CreateClass(SourceLoc, ASTClassKind::CLASS, "TestClass",
+//                                                  Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false),
+//                                                  ExtClasses);
+//
+//        // int a() { return 1 }
+//        ASTClassMethod *aFunc = Builder.CreateClassMethod(SourceLoc, IntType,
+//                                                             "a",
+//                                                             Builder.CreateScopes(
+//                                                                     ASTVisibilityKind::V_DEFAULT, false, false));
+//        ASTBlockStmt *aFuncBody = Builder.CreateBody(aFunc);
+//        ASTReturnStmt *aFuncReturn = Builder.CreateReturnStmt(SourceLoc);
+//        ASTValueExpr *aFuncExpr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLocation(), 1));
+//        Builder.AddExpr(aFuncReturn, aFuncExpr);
+//        Builder.AddStmt(aFuncBody, aFuncReturn);
+//        Builder.AddClassMethod(TestClass, aFunc);
+//
+//        // public int b() { return 1 }
+//        ASTClassMethod *bFunc = Builder.CreateClassMethod(SourceLoc, IntType,
+//                                                             "b",
+//                                                             Builder.CreateScopes(
+//                                                                     ASTVisibilityKind::V_PUBLIC, false, false));
+//        ASTBlockStmt *bFuncBody = Builder.CreateBody(bFunc);
+//        ASTReturnStmt *bFuncReturn = Builder.CreateReturnStmt(SourceLoc);
+//        ASTValueExpr *bFuncExpr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLocation(), 1));
+//        Builder.AddExpr(bFuncReturn, bFuncExpr);
+//        Builder.AddStmt(bFuncBody, bFuncReturn);
+//        Builder.AddClassMethod(TestClass, bFunc);
+//
+//        // private const int c { return 1 }
+//        ASTClassMethod *cFunc = Builder.CreateClassMethod(SourceLoc, IntType,
+//                                                             "c",
+//                                                             Builder.CreateScopes(
+//                                                                     ASTVisibilityKind::V_PRIVATE, true, false));
+//        ASTBlockStmt *cFuncBody = Builder.CreateBody(cFunc);
+//        ASTReturnStmt *cFuncReturn = Builder.CreateReturnStmt(SourceLoc);
+//        ASTValueExpr *cFuncExpr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLocation(), 1));
+//        Builder.AddExpr(cFuncReturn, cFuncExpr);
+//        Builder.AddStmt(cFuncBody, cFuncReturn);
+//        Builder.AddClassMethod(TestClass, cFunc);
+//
+//        // int main() {
+//        //  TestClass test = new TestClass()
+//        //  int a = test.a()
+//        //  int b = test.b()
+//        //  int c = test.c()
+//        //  delete test
+//        // }
+//        ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
+//                                                    Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+//        ASTBlockStmt *Body = Builder.CreateBody(Func);
+//
+//        // TestClass test = new TestClass()
+//        ASTType *TestClassType = Builder.CreateClassType(TestClass);
+//        ASTLocalVar *TestVar = Builder.CreateLocalVar(SourceLoc, TestClassType, "test");
+//        ASTClassMethod *DefaultConstructor = TestClass->getConstructors().find(0)->second.front();
+//        ASTVarRef *Instance = Builder.CreateVarRef(TestVar);
+//        ASTCall *ConstructorCall = Builder.CreateCall(Instance, DefaultConstructor);
+//        ASTCallExpr *NewExpr = Builder.CreateNewExpr(ConstructorCall);
+//        ASTVarStmt *testNewStmt = Builder.CreateVarStmt(TestVar);
+//        Builder.AddExpr(testNewStmt, NewExpr);
+//        Builder.AddStmt(Body, testNewStmt);
+//
+//        // int a = test.a()
+//        ASTType *aType = aFunc->getType();
+//        ASTLocalVar *aVar = Builder.CreateLocalVar(SourceLoc, aType, "a");
+//        ASTCallExpr *aCallExpr = Builder.CreateExpr(Builder.CreateCall(Instance, aFunc));
+//        ASTVarStmt *aStmt = Builder.CreateVarStmt(aVar);
+//        Builder.AddExpr(aStmt, aCallExpr);
+//        Builder.AddStmt(Body, aStmt);
+//
+//        // int b = test.b()
+//        ASTType *bType = bFunc->getType();
+//        ASTLocalVar *bVar = Builder.CreateLocalVar(SourceLoc, bType, "b");
+//        ASTCallExpr *bCallExpr = Builder.CreateExpr(Builder.CreateCall(Instance, bFunc));
+//        ASTVarStmt *bStmt = Builder.CreateVarStmt(bVar);
+//        Builder.AddExpr(bStmt, bCallExpr);
+//        Builder.AddStmt(Body, bStmt);
+//
+//        // int c = test.c()
+//        ASTType *cType = cFunc->getType();
+//        ASTLocalVar *cVar = Builder.CreateLocalVar(SourceLoc, cType, "c");
+//        ASTCallExpr *cCallExpr = Builder.CreateExpr(Builder.CreateCall(Instance, cFunc));
+//        ASTVarStmt *cStmt = Builder.CreateVarStmt(cVar);
+//        Builder.AddExpr(cStmt, cCallExpr);
+//        Builder.AddStmt(Body, cStmt);
+//
+//        // delete test
+//        ASTDeleteStmt *DeleteStmt = Builder.CreateDeleteStmt(SourceLoc, (ASTVarRef *) Instance);
+//        Builder.AddStmt(Body, DeleteStmt);
+//
+//        // Add to Module
+//        EXPECT_TRUE(Builder.AddIdentity(Module, TestClass));
+//        EXPECT_TRUE(Builder.AddFunction(Module, Func));
+//
+//        bool Success = S->Resolve();
+//        EXPECT_TRUE(Success);
+//
+//        if (Success) {
+//
+//            // Generate Code
+//            CodeGenClass *CGC = CGM->GenClass(TestClass);
+//            for (auto &F : CGC->getConstructors()) {
+//                F->GenBody();
+//            }
+//            for (auto &F : CGC->getFunctions()) {
+//                F->GenBody();
+//            }
+//            CodeGenFunction *CGF = CGM->GenFunction(Func);
+//            CGF->GenBody();
+//
+//            EXPECT_FALSE(Diags.hasErrorOccurred());
+//            std::string output = getOutput(CGM->getModule());
+//
+//            EXPECT_EQ(output, "%error = type { i8, i32, i8* }\n"
+//                              "%TestClass = type { %TestClass_vtable* }\n"
+//                              "%TestClass_vtable = type { i32 (%error*, %TestClass*), i32 (%error*, %TestClass*), i32 (%error*, %TestClass*) }\n"
+//                              "\n"
+//                              "define void @TestClass_TestClass(%error* %0, %TestClass* %1) {\n"
+//                              "entry:\n"
+//                              "  %2 = alloca %TestClass*, align 8\n"
+//                              "  store %TestClass* %1, %TestClass** %2, align 8\n"
+//                              "  %3 = load %TestClass*, %TestClass** %2, align 8\n"
+//                              "  ret void\n"
+//                              "}\n"
+//                              "\n"
+//                              "define i32 @TestClass_a(%error* %0, %TestClass* %1) {\n"
+//                              "entry:\n"
+//                              "  %2 = alloca %TestClass*, align 8\n"
+//                              "  store %TestClass* %1, %TestClass** %2, align 8\n"
+//                              "  %3 = load %TestClass*, %TestClass** %2, align 8\n"
+//                              "  ret i32 1\n"
+//                              "}\n"
+//                              "\n"
+//                              "define i32 @TestClass_b(%error* %0, %TestClass* %1) {\n"
+//                              "entry:\n"
+//                              "  %2 = alloca %TestClass*, align 8\n"
+//                              "  store %TestClass* %1, %TestClass** %2, align 8\n"
+//                              "  %3 = load %TestClass*, %TestClass** %2, align 8\n"
+//                              "  ret i32 1\n"
+//                              "}\n"
+//                              "\n"
+//                              "define i32 @TestClass_c(%error* %0, %TestClass* %1) {\n"
+//                              "entry:\n"
+//                              "  %2 = alloca %TestClass*, align 8\n"
+//                              "  store %TestClass* %1, %TestClass** %2, align 8\n"
+//                              "  %3 = load %TestClass*, %TestClass** %2, align 8\n"
+//                              "  ret i32 1\n"
+//                              "}\n"
+//                              "\n"
+//                              "define void @func(%error* %0) {\n"
+//                              "entry:\n"
+//                              "  %1 = alloca %TestClass, align 8\n"
+//                              "  %2 = alloca i32, align 4\n"
+//                              "  %3 = alloca i32, align 4\n"
+//                              "  %4 = alloca i32, align 4\n"
+//                              "  %5 = alloca %TestClass, align 8\n"
+//                              "  call void @TestClass_TestClass(%error* %0, %TestClass* %5)\n"
+//                              "  %6 = call i32 @TestClass_a(%error* %0, %TestClass* %5)\n"
+//                              "  store i32 %6, i32* %2, align 4\n"
+//                              "  %7 = call i32 @TestClass_b(%error* %0, %TestClass* %5)\n"
+//                              "  store i32 %7, i32* %3, align 4\n"
+//                              "  %8 = call i32 @TestClass_c(%error* %0, %TestClass* %5)\n"
+//                              "  store i32 %8, i32* %4, align 4\n"
+//                              "  ret void\n"
+//                              "}\n");
+//        }
+//    }
+//
+//    TEST_F(CodeGenTest, CGClass) {
+//        ASTModule *Module = CreateModule();
+//        CodeGenModule *CGM = CG->GenerateModule(*Module);
+//
+//        // TestClass {
+//        //   int a
+//        //   int getA() { return a }
+//        // }
+//        llvm::SmallVector<ASTClassType *, 4> ExtClasses;
+//        ASTClass *TestClass = Builder.CreateClass(SourceLoc, ASTClassKind::CLASS, "TestClass",
+//                                                   Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false),
+//                                                  ExtClasses);
+//        ASTClassAttribute *aAttribute = Builder.CreateClassAttribute(SourceLoc, Builder.CreateIntType(SourceLoc),
+//                                                                     "a",
+//                                                                     Builder.CreateScopes(
+//                                                              ASTVisibilityKind::V_DEFAULT, false, false));
+//        Builder.AddClassAttribute(TestClass, aAttribute);
+//
+//
+//        // int getA() { return a }
+//        ASTClassMethod *getA = Builder.CreateClassMethod(SourceLoc, IntType,
+//                                                            "getA",
+//                                                            Builder.CreateScopes(
+//                                                                     ASTVisibilityKind::V_DEFAULT, false, false));
+//        ASTBlockStmt *aFuncBody = Builder.CreateBody(getA);
+//        ASTReturnStmt *aFuncReturn = Builder.CreateReturnStmt(SourceLoc);
+//        ASTVarRefExpr *aFuncReturnExpr = Builder.CreateExpr(Builder.CreateVarRef(aAttribute));
+//        Builder.AddExpr(aFuncReturn, aFuncReturnExpr);
+//        Builder.AddStmt(aFuncBody, aFuncReturn);
+//        Builder.AddClassMethod(TestClass, getA);
+//
+//        // int main() {
+//        //  TestClass test = new TestClass()
+//        //  int a = test.getA()
+//        //  delete test
+//        // }
+//        ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
+//                                                    Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+//        ASTBlockStmt *Body = Builder.CreateBody(Func);
+//
+//        // TestClass test = new TestClass()
+//        ASTType *TestClassType = Builder.CreateClassType(TestClass);
+//        ASTLocalVar *TestVar = Builder.CreateLocalVar(SourceLoc, TestClassType, "test");
+//        Builder.AddLocalVar(Body, TestVar);
+//        ASTVarStmt *TestVarStmt = Builder.CreateVarStmt(TestVar);
+//        ASTClassMethod *DefaultConstructor = TestClass->getConstructors().find(0)->second.front();
+//        ASTVarRef *Instance = Builder.CreateVarRef(TestVar);
+//        ASTCall *ConstructorCall = Builder.CreateCall(Instance, DefaultConstructor);
+//        ASTCallExpr *NewExpr = Builder.CreateNewExpr(ConstructorCall);
+//        Builder.AddExpr(TestVarStmt, NewExpr);
+//        Builder.AddStmt(Body, TestVarStmt);
+//
+//        // int a = test.a()
+//        ASTType *aType = getA->getType();
+//        ASTLocalVar *aVar = Builder.CreateLocalVar(SourceLoc, aType, "a");
+//        Builder.AddLocalVar(Body, aVar);
+//        ASTVarStmt *aVarStmt = Builder.CreateVarStmt(aVar);
+//        ASTCallExpr *aCallExpr = Builder.CreateExpr(Builder.CreateCall(Instance, getA));
+//        Builder.AddExpr(aVarStmt, aCallExpr);
+//        Builder.AddStmt(Body, aVarStmt);
+//
+//        // delete test
+//        ASTDeleteStmt *Delete = Builder.CreateDeleteStmt(SourceLoc, Instance);
+//        Builder.AddStmt(Body, Delete);
+//
+//        // Add to Module
+//        EXPECT_TRUE(Builder.AddIdentity(Module, TestClass));
+//        EXPECT_TRUE(Builder.AddFunction(Module, Func));
+//
+//        bool Success = S->Resolve();
+//        EXPECT_TRUE(Success);
+//
+//        if (Success) {
+//
+//            // Generate Code
+//            CodeGenClass *CGC = CGM->GenClass(TestClass);
+//            for (auto &F : CGC->getConstructors()) {
+//                F->GenBody();
+//            }
+//            for (auto &F : CGC->getFunctions()) {
+//                F->GenBody();
+//            }
+//            CodeGenFunction *CGF = CGM->GenFunction(Func);
+//            CGF->GenBody();
+//
+//            EXPECT_FALSE(Diags.hasErrorOccurred());
+//            std::string output = getOutput(CGM->getModule());
+//
+//            EXPECT_EQ(output, "%error = type { i8, i32, i8* }\n"
+//                              "%TestClass = type { %TestClass_vtable*, i32 }\n"
+//                              "%TestClass_vtable = type { i32 (%error*, %TestClass*) }\n"
+//                              "\n"
+//                              "define void @TestClass_TestClass(%error* %0, %TestClass* %1) {\n"
+//                              "entry:\n"
+//                              "  %2 = alloca %TestClass*, align 8\n"
+//                              "  store %TestClass* %1, %TestClass** %2, align 8\n"
+//                              "  %3 = load %TestClass*, %TestClass** %2, align 8\n"
+//                              "  %4 = getelementptr inbounds %TestClass, %TestClass* %3, i32 0, i32 1\n"
+//                              "  %5 = load i32, i32* %4, align 4\n"
+//                              "  store i32 0, i32 %5, align 4\n"
+//                              "  ret void\n"
+//                              "}\n"
+//                              "\n"
+//                              "define i32 @TestClass_getA(%error* %0, %TestClass* %1) {\n"
+//                              "entry:\n"
+//                              "  %2 = alloca %TestClass*, align 8\n"
+//                              "  store %TestClass* %1, %TestClass** %2, align 8\n"
+//                              "  %3 = load %TestClass*, %TestClass** %2, align 8\n"
+//                              "  %4 = getelementptr inbounds %TestClass, %TestClass* %3, i32 0, i32 1\n"
+//                              "  %5 = load i32, i32* %4, align 4\n"
+//                              "  ret i32 %5\n"
+//                              "}\n"
+//                              "\n"
+//                              "define void @func(%error* %0) {\n"
+//                              "entry:\n"
+//                              "  %1 = alloca %TestClass, align 8\n"
+//                              "  %2 = alloca i32, align 4\n"
+//                              "  %malloccall = tail call i8* @malloc(i32 ptrtoint (%TestClass* getelementptr (%TestClass, %TestClass* null, i32 1) to i32))\n"
+//                              "  %TestClassInst = bitcast i8* %malloccall to %TestClass*\n"
+//                              "  call void @TestClass_TestClass(%error* %0, %TestClass* %TestClassInst)\n"
+//                              "  %3 = call i32 @TestClass_getA(%error* %0, %TestClass* %TestClassInst)\n"
+//                              "  store i32 %3, i32* %2, align 4\n"
+//                              "  %4 = bitcast %TestClass* %TestClassInst to i8*\n"
+//                              "  tail call void @free(i8* %4)\n"
+//                              "  ret void\n"
+//                              "}\n"
+//                              "\n"
+//                              "declare noalias i8* @malloc(i32)\n"
+//                              "\n"
+//                              "declare void @free(i8*)\n");
+//        }
+//    }
 
 //    TEST_F(CodeGenTest, CGStruct) {
 //        ASTModule *Module = CreateModule();

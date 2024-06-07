@@ -89,8 +89,7 @@ void CodeGenFunctionBase::AllocaVars() {
     }
 
     // Allocation of all declared ASTLocalVar
-    for (auto &EntryLocalVar: AST->getBody()->getLocalVars()) {
-        ASTLocalVar *LocalVar = EntryLocalVar.getValue();
+    for (auto &LocalVar: AST->getLocalVars()) {
         LocalVar->setCodeGen(CGM->GenVar(LocalVar));
         LocalVar->getCodeGen()->Init();
     }

@@ -37,6 +37,8 @@ namespace fly {
 
         llvm::LoadInst *LoadI = nullptr;
 
+        llvm::StoreInst *StoreI = nullptr;
+
         llvm::StringRef BlockID;
 
     public:

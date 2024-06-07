@@ -24,20 +24,20 @@ bool ASTLoopStmt::isVerifyConditionOnEnd() const {
     return VerifyConditionOnEnd;
 }
 
-ASTBlockStmt *ASTLoopStmt::getBlock() const {
-    return Block;
-}
-
-ASTBlockStmt *ASTLoopStmt::getInit() const {
+ASTStmt *ASTLoopStmt::getInit() const {
     return Init;
 }
 
-ASTBlockStmt *ASTLoopStmt::getPost() const {
+ASTStmt *ASTLoopStmt::getLoop() const {
+    return Loop;
+}
+
+ASTStmt *ASTLoopStmt::getPost() const {
     return Post;
 }
 
 std::string ASTLoopStmt::str() const {
-    return Logger("ASTLoopBlock").
+    return Logger("ASTLoopStmt").
             Super(ASTStmt::str()).
             End();
 }

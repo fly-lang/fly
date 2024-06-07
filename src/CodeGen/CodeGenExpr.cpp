@@ -51,6 +51,7 @@ llvm::Value *CodeGenExpr::GenValue(const ASTExpr *Expr) {
         case ASTExprKind::EXPR_GROUP:
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_GROUP");
             return GenGroup((ASTGroupExpr *) Expr);
+
         case ASTExprKind::EXPR_EMPTY:
             return nullptr; // FIXME
     }
@@ -339,7 +340,7 @@ llvm::Value *CodeGenExpr::GenUnary(ASTUnaryGroupExpr *Expr) {
 
         case ASTUnaryOperatorKind::UNARY_ARITH_PRE_INCR: {
             llvm::Value *RHS = llvm::ConstantInt::get(CGM->Int32Ty, 1);
-            Value *NewVal = CGM->Builder->CreateNSWAdd(OldVal, RHS);
+            llvm::Value *NewVal = CGM->Builder->CreateNSWAdd(OldVal, RHS);
             CGVal->Store(NewVal);
             return NewVal;
         }

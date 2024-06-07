@@ -19,15 +19,16 @@ namespace fly {
         friend class SemaBuilder;
         friend class SemaResolver;
         friend class SemaValidator;
+
         ASTExpr *Condition = nullptr;
 
         bool VerifyConditionOnEnd = false;
 
-        ASTBlockStmt *Block = nullptr;
+        ASTStmt *Init = nullptr;
 
-        ASTBlockStmt *Init = nullptr;
+        ASTStmt *Loop = nullptr;
 
-        ASTBlockStmt *Post = nullptr;
+        ASTStmt *Post = nullptr;
 
         explicit ASTLoopStmt(const SourceLocation &Loc);
 
@@ -37,11 +38,11 @@ namespace fly {
 
         bool isVerifyConditionOnEnd() const;
 
-        ASTBlockStmt *getBlock() const;
+        ASTStmt *getInit() const;
 
-        ASTBlockStmt *getInit() const;
+        ASTStmt *getLoop() const;
 
-        ASTBlockStmt *getPost() const;
+        ASTStmt *getPost() const;
 
         std::string str() const override;
 

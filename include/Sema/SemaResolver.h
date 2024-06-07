@@ -81,15 +81,15 @@ namespace fly {
 
         bool ResolveStmt(ASTStmt *Stmt);
 
-        bool ResolveBlock(ASTBlockStmt *Block);
+        bool ResolveStmtBlock(ASTBlockStmt *Block);
 
-        bool ResolveIfBlock(ASTIfStmt *IfStmt);
+        bool ResolveStmtIf(ASTIfStmt *IfStmt);
 
-        bool ResolveSwitchBlock(ASTSwitchStmt *SwitchStmt);
+        bool ResolveStmtSwitch(ASTSwitchStmt *SwitchStmt);
 
-        bool ResolveLoopBlock(ASTLoopStmt *LoopStmt);
+        bool ResolveStmtLoop(ASTLoopStmt *LoopStmt);
 
-        bool ResolveLoopInBlock(ASTLoopInStmt *LoopInStmt);
+        bool ResolveStmtLoopIn(ASTLoopInStmt *LoopInStmt);
 
         bool ResolveParentIdentifier(ASTStmt *Stmt, ASTIdentifier *&Identifier);
 
