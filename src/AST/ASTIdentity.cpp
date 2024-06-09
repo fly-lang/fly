@@ -22,6 +22,10 @@ ASTTopDefKind ASTIdentity::getTopDefKind() const {
     return TopDefKind;
 }
 
+ASTIdentityType *ASTIdentity::getType() const {
+    return Type;
+}
+
 llvm::StringRef ASTIdentity::getName() const {
     return Name;
 }

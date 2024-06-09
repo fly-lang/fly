@@ -196,7 +196,7 @@ bool SemaResolver::ResolveIdentities(ASTModule *Module) {
                                                 // Insert methods in the Super and if is ok also in the base Class
                                                 if (S.Builder->InsertFunction(SuperMethods, SuperMethod)) {
                                                     ASTClassMethod *M = S.Builder->CreateClassMethod(SuperMethod->getLocation(),
-                                                                                                     SuperMethod->getType(),
+                                                                                                     SuperMethod->getReturnType(),
                                                                                                      SuperMethod->getName(),
                                                                                                      SuperMethod->getScopes());
                                                     M->Params = SuperMethod->Params;
@@ -336,7 +336,7 @@ bool SemaResolver::ResolveStmt(ASTStmt *Stmt) {
         case ASTStmtKind::STMT_RETURN: {
             ASTReturnStmt *ReturnStmt = (ASTReturnStmt *) Stmt;
             return ResolveExpr(Stmt->Parent, ReturnStmt->Expr) &&
-                   S.Validator->CheckConvertibleTypes(ReturnStmt->Expr->getType(), Stmt->getFunction()->getType());
+                   S.Validator->CheckConvertibleTypes(ReturnStmt->Expr->getType(), Stmt->getFunction()->getReturnType());
         }
         case ASTStmtKind::STMT_BREAK:
         case ASTStmtKind::STMT_CONTINUE:
@@ -589,7 +589,7 @@ bool SemaResolver::ResolveVarRefWithParent(ASTVarRef *VarRef) {
         case ASTIdentifierKind::REF_CALL: // NameSpace.call().var or call().var
         {
             ASTCall *ParentCall = (ASTCall*) VarRef->getParent();
-            ASTType * ParentType = ParentCall->getDef()->getType();
+            ASTType * ParentType = ParentCall->getDef()->getReturnType();
 
             // Parent is an Identity instance
             if (ParentType->isIdentity())
@@ -714,7 +714,7 @@ bool SemaResolver::ResolveCallWithParent(ASTStmt *Stmt, ASTCall *Call) {
             ASTCall *ParentCall = (ASTCall*) Call->getParent();
 
             // Parent is an Identity instance
-            ASTType * ParentType = ParentCall->getDef()->getType();
+            ASTType * ParentType = ParentCall->getDef()->getReturnType();
             return ParentType->isIdentity() && ResolveCall(Stmt, Call, (ASTIdentityType *) ParentType);
         }
         case ASTIdentifierKind::REF_VAR: // NameSpace.globalVarInstance.call() or instance.call()
@@ -837,7 +837,7 @@ bool SemaResolver::ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr, ASTType *Type) {
                         Expr->Type = Call->Def->ReturnType;
                         break;
                     case ASTCallKind::CALL_CONSTRUCTOR:
-                        Expr->Type = ((ASTClassMethod *) Call->Def)->getType();
+                        Expr->Type = ((ASTClassMethod *) Call->Def)->getReturnType();
                         break;
                 }
                 Success = true;

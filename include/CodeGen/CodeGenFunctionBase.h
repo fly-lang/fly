@@ -67,7 +67,11 @@ namespace fly {
 
         void setInsertPoint();
 
+        void AllocaErrorHandler();
+
         void AllocaVars();
+
+        void StoreErrorHandler(bool isMain);
 
         void StoreParams(bool isMain);
 

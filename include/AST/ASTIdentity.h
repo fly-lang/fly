@@ -42,6 +42,8 @@ namespace fly {
 
         ASTTopDefKind getTopDefKind() const override;
 
+        ASTIdentityType *getType() const;
+
         llvm::StringRef getName() const override;
 
         ASTScopes *getScopes() const;

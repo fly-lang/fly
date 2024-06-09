@@ -39,11 +39,10 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, ASTFunction *AST, bool isEx
 
     // Create LLVM Function
     FnType = llvm::FunctionType::get(RetType, ParamTypes, AST->getEllipsis() != nullptr);
-    Fn = llvm::Function::Create(FnType, llvm::GlobalValue::ExternalLinkage, "", CGM->getModule());
 
     // Set Name
     std::string Id = CodeGen::toIdentifier(AST->getName(), AST->getNameSpace()->getName());
-    Fn->setName(Id);
+    Fn = llvm::Function::Create(FnType, llvm::GlobalValue::ExternalLinkage, Id, CGM->getModule());
 
     // Set Linkage
     if (isExternal && AST->getScopes()->getVisibility() == ASTVisibilityKind::V_PRIVATE) {
@@ -65,7 +64,9 @@ void CodeGenFunction::GenBody() {
         ErrorHandler = Fn->getArg(0);
     }
 
+    AllocaErrorHandler();
     AllocaVars();
+    StoreErrorHandler(isMain);
     StoreParams(isMain);
     CGM->GenBlock(this, AST->getBody()->getContent());
 
@@ -80,12 +81,12 @@ void CodeGenFunction::GenBody() {
         llvm::Value *Ret = CGM->Builder->CreateICmpNE(CGM->Builder->CreateLoad(ErrorKind), Zero8);
         // main() will return 0 if ok or 1 on error
         CGM->Builder->CreateRet(CGM->Builder->CreateZExt(Ret, Fn->getReturnType()));
-    } else if (AST->getType()->isVoid()) {
+    } else if (AST->getReturnType()->isVoid()) {
         CGM->Builder->CreateRetVoid();
     }
 }
 
 bool CodeGenFunction::isMainFunction(ASTFunctionBase *FunctionBase) {
     return FunctionBase->getKind() == ASTFunctionKind::FUNCTION && ((ASTFunction *) FunctionBase)->getName() == StringRef("main")
-        && FunctionBase->getType()->isVoid();
+        && FunctionBase->getReturnType()->isVoid();
 }

@@ -69,7 +69,7 @@ namespace fly {
 
         ASTFunctionKind getKind();
 
-        ASTType *getType() const;
+        ASTType *getReturnType() const;
 
         ASTScopes *getScopes() const;
 

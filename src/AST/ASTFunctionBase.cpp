@@ -51,7 +51,7 @@ ASTFunctionKind ASTFunctionBase::getKind() {
     return Kind;
 }
 
-ASTType *ASTFunctionBase::getType() const {
+ASTType *ASTFunctionBase::getReturnType() const {
     return ReturnType;
 }
 

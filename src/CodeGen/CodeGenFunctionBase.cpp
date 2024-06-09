@@ -37,7 +37,7 @@ CodeGenModule *CodeGenFunctionBase::getCodeGenModule() {
 }
 
 void CodeGenFunctionBase::GenReturnType() {
-    RetType = CGM->GenType(AST->getType());
+    RetType = CGM->GenType(AST->getReturnType());
 }
 
 void CodeGenFunctionBase::GenParamTypes(CodeGenModule * CGM, llvm::SmallVector<llvm::Type *, 8> &Types, llvm::SmallVector<ASTParam *, 8> Params) {
@@ -78,9 +78,12 @@ void CodeGenFunctionBase::setInsertPoint() {
     CGM->Builder->SetInsertPoint(Entry);
 }
 
-void CodeGenFunctionBase::AllocaVars() {
+void CodeGenFunctionBase::AllocaErrorHandler() {
     // Alloca ErrorHandler
     AST->getErrorHandler()->getCodeGen()->Init();
+}
+
+void CodeGenFunctionBase::AllocaVars() {
 
     // Allocation of declared ASTParam
     for (auto &Param: AST->getParams()) {
@@ -95,12 +98,14 @@ void CodeGenFunctionBase::AllocaVars() {
     }
 }
 
+void CodeGenFunctionBase::StoreErrorHandler(bool isMain) {
+    if (!isMain)
+        CGM->Builder->CreateStore(Fn->getArg(0), AST->getErrorHandler()->getCodeGen()->getPointer());
+}
+
 void CodeGenFunctionBase::StoreParams(bool isMain) {
     // Store Param Values (n = 0 is the Error param)
     int n = isMain ? 0 : 1;
-
-    if (!isMain)
-        CGM->Builder->CreateStore(Fn->getArg(0), AST->getErrorHandler()->getCodeGen()->getPointer());
 
     for (auto &Param: AST->getParams()) {
 

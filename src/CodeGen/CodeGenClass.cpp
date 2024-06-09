@@ -22,6 +22,8 @@ using namespace fly;
 
 CodeGenClass::CodeGenClass(CodeGenModule *CGM, ASTClass *Class, bool isExternal) : CGM(CGM), AST(Class) {
     std::string TypeName = CodeGen::toIdentifier(Class->getName(), Class->getNameSpace()->getName());
+
+    // Generate Class Type
     Type = llvm::StructType::create(CGM->LLVMCtx, TypeName);
     TypePtr = Type->getPointerTo(CGM->Module->getDataLayout().getAllocaAddrSpace());
 

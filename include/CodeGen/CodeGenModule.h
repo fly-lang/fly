@@ -215,7 +215,13 @@ namespace fly {
 
         void pushArgs(ASTCall *pCall, llvm::SmallVector<llvm::Value *, 8> &Args);
 
-        void GenReturn(ASTFunctionBase *CGF, llvm::Value *V = nullptr);
+        void GenReturn(ASTFunctionBase *CGF, ASTExpr *Expr = nullptr);
+
+        llvm::Value *ConvertToBool(llvm::Value *Val);
+
+//        llvm::Value *Convert(llvm::Value *V, llvm::Type *T);
+
+        llvm::Value *Convert(llvm::Value *FromVal, const ASTType *FromType, const ASTType *ToType);
     };
 }
 

@@ -233,7 +233,7 @@ namespace fly {
         ASTClassAttribute *CreateClassAttribute(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
                              ASTScopes *Scopes);
 
-        ASTClassMethod *CreateClassConstructor(const SourceLocation &Loc, ASTScopes *Scopes);
+        ASTClassMethod *CreateClassConstructor(const SourceLocation &Loc, ASTClass &Class, ASTScopes *Scopes);
 
         ASTClassMethod *CreateClassMethod(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes,
                           bool Static = false);

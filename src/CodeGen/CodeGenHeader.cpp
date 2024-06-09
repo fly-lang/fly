@@ -68,7 +68,7 @@ void CodeGenHeader::CreateFile(DiagnosticsEngine &Diags, CodeGenOptions &CodeGen
         for (auto &IntMap : StrMapEntry.getValue()) {
             for (auto &Function: IntMap.second) {
                 if (Function->getScopes()->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
-                    Header.concat(Function->getType()->print())
+                    Header.concat(Function->getReturnType()->print())
                             .concat(Function->getName())
                             .concat("(");
                     std::string ParamsStr = getParameters(Function);
@@ -91,7 +91,7 @@ void CodeGenHeader::CreateFile(DiagnosticsEngine &Diags, CodeGenOptions &CodeGen
             for (auto &IntMap: Class->getConstructors()) {
                 for (auto &Constructor: IntMap.second) {
                     if (Constructor->getScopes()->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
-                        Header.concat(Constructor->getType()->print())
+                        Header.concat(Constructor->getReturnType()->print())
                                 .concat(Constructor->getName())
                                 .concat("(");
                         std::string ParamsStr = getParameters(Constructor);
@@ -103,7 +103,7 @@ void CodeGenHeader::CreateFile(DiagnosticsEngine &Diags, CodeGenOptions &CodeGen
                 for (auto &Entry: Map.second) {
                     for (auto Method: Entry.second) {
                         if (Method->getScopes()->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
-                            Header.concat(Method->getType()->print())
+                            Header.concat(Method->getReturnType()->print())
                                     .concat(Method->getName())
                                     .concat("(");
                             std::string ParamsStr = getParameters(Method);

@@ -39,8 +39,8 @@ CodeGenClassFunction::CodeGenClassFunction(CodeGenModule *CGM, ASTClassMethod *A
     // Set LLVM Function Name %MODULE_CLASS_METHOD (if MODULE == default is empty)
     FnType = llvm::FunctionType::get(RetType, ParamTypes, AST->getEllipsis() != nullptr);
 
-    std::string Name = CodeGen::toIdentifier(AST->getName(), Class->getNameSpace()->getName(), Class->getName());
-    Fn = llvm::Function::Create(FnType, llvm::GlobalValue::ExternalLinkage, Name, CGM->getModule());
+    std::string Id = CodeGen::toIdentifier(AST->getName(), Class->getNameSpace()->getName(), Class->getName());
+    Fn = llvm::Function::Create(FnType, llvm::GlobalValue::ExternalLinkage, Id, CGM->getModule());
 }
 
 void CodeGenClassFunction::GenBody() {
@@ -53,13 +53,22 @@ void CodeGenClassFunction::GenBody() {
     if (Class->getClassKind() != ASTClassKind::STRUCT)
         ErrorHandler = Fn->getArg(0);
 
-    // Class Method (not static)
+    // Alloca Vars
+    AllocaErrorHandler();
+    AllocaInst *Instance = nullptr;
     if (!((ASTClassMethod *) AST)->isStatic()) {
+        Instance = CGM->Builder->CreateAlloca(ClassType);
+    }
+    AllocaVars();
+
+    StoreErrorHandler(false);
+
+    // Class Method (not static)
+    if (Instance) {
 
         //Alloca, Store, Load the second arg which is the instance
         llvm::Argument *ClassTypePtr = Class->getClassKind() == ASTClassKind::STRUCT ? Fn->getArg(0) : Fn->getArg(1);
 
-        AllocaInst *Instance = CGM->Builder->CreateAlloca(ClassType);
         CGM->Builder->CreateStore(ClassTypePtr, Instance);
         llvm::LoadInst *Load = CGM->Builder->CreateLoad(Instance);
 
@@ -83,7 +92,6 @@ void CodeGenClassFunction::GenBody() {
     }
 
     // Alloca Function Local Vars and generate body
-    AllocaVars();
     StoreParams(false);
     CGM->GenBlock(this, AST->getBody()->getContent());
 

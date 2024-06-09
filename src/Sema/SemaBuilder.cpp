@@ -206,7 +206,7 @@ ASTClass *SemaBuilder::CreateClass(const SourceLocation &Loc, ASTClassKind Class
     // Create a default constructor
     if (ClassKind == ASTClassKind::CLASS || ClassKind == ASTClassKind::STRUCT) {
         ASTScopes *Scopes = new ASTScopes(SourceLocation());
-        ASTClassMethod *Constructor = CreateClassConstructor(SourceLocation(), Scopes);
+        ASTClassMethod *Constructor = CreateClassConstructor(SourceLocation(), *Class, Scopes);
         AddClassMethod(Class, Constructor);
         Class->autoDefaultConstructor = true;
     }
@@ -252,13 +252,14 @@ ASTClassAttribute *SemaBuilder::CreateClassAttribute(const SourceLocation &Loc, 
     return new ASTClassAttribute(Loc, Type, Name, Scopes);
 }
 
-ASTClassMethod *SemaBuilder::CreateClassConstructor(const SourceLocation &Loc, ASTScopes *Scopes) {
+ASTClassMethod *SemaBuilder::CreateClassConstructor(const SourceLocation &Loc, ASTClass &Class, ASTScopes *Scopes) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateClassConstructor",
                       Logger().Attr("Loc", (uint64_t) Loc.getRawEncoding())
                               .Attr("Scopes", Scopes)
                               .End());
     S.getValidator().CheckCreateClassConstructor(Loc, Scopes);
-    ASTClassMethod *M = new ASTClassMethod(Loc, ASTClassMethodKind::METHOD_CONSTRUCTOR, nullptr, llvm::StringRef(), Scopes);
+    ASTClassMethod *M = new ASTClassMethod(Loc, ASTClassMethodKind::METHOD_CONSTRUCTOR, Class.getType(), Class.getName(), Scopes);
+    M->ErrorHandler = CreateErrorHandlerParam();
     CreateBody(M);
     return M;
 }
@@ -274,6 +275,7 @@ ASTClassMethod *SemaBuilder::CreateClassMethod(const SourceLocation &Loc, ASTTyp
     S.getValidator().CheckCreateClassMethod(Loc, Type, Name, Scopes);
     ASTClassMethodKind Kind = Static ? ASTClassMethodKind::METHOD_STATIC : ASTClassMethodKind::METHOD_CUSTOM;
     ASTClassMethod *M = new ASTClassMethod(Loc, Kind, Type, Name, Scopes);
+    M->ErrorHandler = CreateErrorHandlerParam();
     return M;
 }
 

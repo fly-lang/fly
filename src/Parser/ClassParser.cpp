@@ -162,7 +162,7 @@ bool ClassParser::ParseMethod(ASTScopes *Scopes, ASTType *Type, const SourceLoca
     ASTClassMethod *Method;
     if (Name == Class->getName()) {
         if (!Type) {
-            Method = P->Builder.CreateClassConstructor(Loc, Scopes);
+            Method = P->Builder.CreateClassConstructor(Loc, *Class, Scopes);
             Success = FunctionParser::Parse(P, Method) && P->Builder.AddClassMethod(Class, Method);
         } else {
             P->Diag(diag::err_parser_invalid_type);
