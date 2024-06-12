@@ -81,7 +81,7 @@ namespace fly {
 
         llvm::SmallVector<ASTLocalVar *, 8> getLocalVars() const;
 
-        const ASTBlockStmt *getBody() const;
+        ASTBlockStmt *getBody() const;
 
         void setErrorHandler(ASTParam *ErrorHandler);
 

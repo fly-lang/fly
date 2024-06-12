@@ -12,5 +12,8 @@ public:
 
 int main() {
     Test *t = new Test(1);
-    return t->getA();
+    int a = t->getA();
+    a = t->getA();
+    delete t;
+    return a;
 }

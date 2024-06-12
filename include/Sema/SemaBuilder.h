@@ -319,11 +319,11 @@ namespace fly {
         // Create Call
         ASTCall *CreateCall(ASTIdentifier *Identifier);
 
-        ASTCall *CreateCall(ASTFunction *Function);
+        ASTCall *CreateCall(ASTFunction *Function, ASTVar *ErrorHandler);
 
-        ASTCall *CreateCall(ASTClassMethod *Method);
+        ASTCall *CreateCall(ASTClassMethod *Method, ASTVar *ErrorHandler);
 
-        ASTCall *CreateCall(ASTIdentifier *Instance, ASTClassMethod *Method);
+        ASTCall *CreateCall(ASTIdentifier *Instance, ASTClassMethod *Method, ASTVar *ErrorHandler);
 
         ASTArg *CreateArg(ASTExpr *Expr);
 

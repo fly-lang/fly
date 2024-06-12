@@ -35,7 +35,7 @@ llvm::SmallVector<ASTLocalVar *, 8> ASTFunctionBase::getLocalVars() const {
     return LocalVars;
 }
 
-const ASTBlockStmt *ASTFunctionBase::getBody() const {
+ASTBlockStmt *ASTFunctionBase::getBody() const {
     return Body;
 }
 

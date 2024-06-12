@@ -20,8 +20,8 @@ namespace fly {
     class ASTParam;
     class ASTArg;
     class ASTCallExpr;
-    class ASTVar;
     class ASTExpr;
+    class ASTVar;
 
     enum class ASTCallKind {
         CALL_FUNCTION,

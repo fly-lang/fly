@@ -32,8 +32,11 @@ CodeGenClassFunction::CodeGenClassFunction(CodeGenModule *CGM, ASTClassMethod *A
     CodeGenError *CGE = (CodeGenError *) AST->getErrorHandler()->getCodeGen();
     ParamTypes.push_back(CGE->getType());
 
-    if (TypePtr) // Instance method
+    // Add the instance var of the class type to the parameters of the function
+    if (TypePtr)
         ParamTypes.push_back(TypePtr);
+
+    // Generate param types
     GenParamTypes(CGM, ParamTypes, AST->getParams());
 
     // Set LLVM Function Name %MODULE_CLASS_METHOD (if MODULE == default is empty)
@@ -69,8 +72,9 @@ void CodeGenClassFunction::GenBody() {
         //Alloca, Store, Load the second arg which is the instance
         llvm::Argument *ClassTypePtr = Class->getClassKind() == ASTClassKind::STRUCT ? Fn->getArg(0) : Fn->getArg(1);
 
+        // Save Class instance and get Pointer
         CGM->Builder->CreateStore(ClassTypePtr, Instance);
-        llvm::LoadInst *Load = CGM->Builder->CreateLoad(Instance);
+        llvm::LoadInst *LoadInstance = CGM->Builder->CreateLoad(Instance);
 
         // All Class Vars
         for (auto &Entry : Class->getAttributes()) {
@@ -78,7 +82,7 @@ void CodeGenClassFunction::GenBody() {
 
             // Set CodeGen Class Instance
             CodeGenClassVar *CGVar = (CodeGenClassVar *) Var->getCodeGen();
-            CGVar->setInstance(Load);
+            CGVar->setInstance(LoadInstance);
             CGVar->Init();
 
             // Save all default var values
@@ -93,7 +97,7 @@ void CodeGenClassFunction::GenBody() {
 
     // Alloca Function Local Vars and generate body
     StoreParams(false);
-    CGM->GenBlock(this, AST->getBody()->getContent());
+    CGM->GenBlock(this, AST->getBody());
 
     // Add return Void
     if (FnType->getReturnType()->isVoidTy()) {

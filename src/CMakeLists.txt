@@ -110,7 +110,6 @@ add_library(flyLib
         CodeGen/CodeGenFunctionBase.cpp
         CodeGen/CodeGenGlobalVar.cpp
         CodeGen/CodeGenHandle.cpp
-        CodeGen/CodeGenInstance.cpp
         CodeGen/CodeGenHeader.cpp
         CodeGen/CodeGenModule.cpp
         CodeGen/CodeGenVar.cpp

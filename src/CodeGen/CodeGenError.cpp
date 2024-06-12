@@ -44,7 +44,14 @@ llvm::Value *CodeGenError::getPointer() {
     return Pointer;
 }
 
+llvm::StoreInst *CodeGenError::StorePointer(llvm::Value *Val) {
+    return CGM->Builder->CreateStore(Val, Pointer);
+}
+
 llvm::StoreInst *CodeGenError::Store(llvm::Value *Val) {
+    this->BlockID = CGM->Builder->GetInsertBlock()->getName();
+    this->LoadI = nullptr;
+
     // Add error param
     llvm::Value *ErrorVar = CGM->Builder->CreateLoad(Pointer);
     llvm::Value *Zero = llvm::ConstantInt::get(CGM->Int32Ty, 0);
@@ -76,11 +83,16 @@ llvm::StoreInst *CodeGenError::Store(llvm::Value *Val) {
 }
 
 llvm::LoadInst *CodeGenError::Load() {
-    return CGM->Builder->CreateLoad(Pointer);
+    this->BlockID = CGM->Builder->GetInsertBlock()->getName();
+    this->LoadI = CGM->Builder->CreateLoad(Pointer);
+    return this->LoadI;
 }
 
 llvm::Value *CodeGenError::getValue() {
-    return Load();
+    if (!this->LoadI || this->BlockID != CGM->Builder->GetInsertBlock()->getName()) {
+        return Load();
+    }
+    return this->LoadI;
 }
 
 ASTVar *CodeGenError::getVar() {

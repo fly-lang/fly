@@ -8,7 +8,6 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "CodeGen/CodeGenFunctionBase.h"
-#include "CodeGen/CodeGenInstance.h"
 #include "CodeGen/CodeGenEnumEntry.h"
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
@@ -100,7 +99,7 @@ void CodeGenFunctionBase::AllocaVars() {
 
 void CodeGenFunctionBase::StoreErrorHandler(bool isMain) {
     if (!isMain)
-        CGM->Builder->CreateStore(Fn->getArg(0), AST->getErrorHandler()->getCodeGen()->getPointer());
+        ((CodeGenError *) AST->getErrorHandler()->getCodeGen())->StorePointer(Fn->getArg(0));
 }
 
 void CodeGenFunctionBase::StoreParams(bool isMain) {

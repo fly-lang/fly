@@ -30,6 +30,10 @@ namespace fly {
 
         llvm::Value *Pointer = nullptr;
 
+        llvm::LoadInst *LoadI = nullptr;
+
+        llvm::StringRef BlockID;
+
     public:
 
         CodeGenError(CodeGenModule *CGM, ASTVar *Error);
@@ -39,6 +43,8 @@ namespace fly {
         void Init() override;
 
         llvm::Type *getType();
+
+        llvm::StoreInst *StorePointer(llvm::Value *Val);
 
         llvm::StoreInst *Store(llvm::Value *Val) override;
 

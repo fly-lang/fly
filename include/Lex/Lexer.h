@@ -223,7 +223,7 @@ namespace fly {
         /// produces comment and whitespace tokens.
         ///
         /// This requires the lexer to have an associated preprocessor. A standalone
-        /// lexer has nothing to Init to.
+        /// lexer has nothing to Instantiate to.
         void resetExtendedTokenMode();
 
         /// Gets source code buffer.

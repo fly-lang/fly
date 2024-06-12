@@ -20,7 +20,6 @@
 #include "CodeGen/CodeGenVar.h"
 #include "CodeGen/CodeGenExpr.h"
 #include "CodeGen/CodeGenEnum.h"
-#include "CodeGen/CodeGenInstance.h"
 #include "CodeGen/CodeGenHandle.h"
 #include "CodeGen/CodeGenError.h"
 #include "AST/ASTImport.h"
@@ -468,6 +467,358 @@ llvm::Constant *CodeGenModule::GenValue(const ASTType *Type, const ASTValue *Val
     assert(0 && "Unknown Type");
 }
 
+
+//llvm::Value *CodeGenModule::Convert(llvm::Value *V, llvm::Type *T) {
+//    if (V->getType()->isIntegerTy() && T->isIntegerTy()) {
+//        if (V->getType()->getIntegerBitWidth() < T->getIntegerBitWidth()) {
+//            return Builder->CreateZExt(V, T);
+//        } else if (V->getType()->getIntegerBitWidth() > T->getIntegerBitWidth()) {
+//            return Builder->CreateTrunc(V, T);
+//        } else {
+//            return V;
+//        }
+//    } else if (V->getType()->isIntegerTy() && T->isFloatingPointTy()) {
+//        return V->getType()->getTypeID()
+//    } else if (V->getType()->isFloatingPointTy() && T->isIntegerTy()) {
+//
+//    } else if (V->getType()->isFloatingPointTy() && T->isFloatingPointTy()) {
+//        if (V->getType()->getFPMantissaWidth() < T->getFPMantissaWidth()) {
+//            return Builder->CreateFPExt(V, T);
+//        } else if (V->getType()->getFPMantissaWidth() > T->getFPMantissaWidth()) {
+//            return Builder->CreateFPTrunc(V, T);
+//        } else {
+//            return V;
+//        }
+//    }
+//}
+
+llvm::Value *CodeGenModule::ConvertToBool(llvm::Value *V) {
+    FLY_DEBUG_MESSAGE("CodeGenExpr", "Convert",
+                      "FromVal=" << V << " to Bool Type=");
+    if (V->getType()->isIntegerTy()) {
+        if (V->getType()->getIntegerBitWidth() > 8) {
+            llvm::Value *ZERO = llvm::ConstantInt::get(V->getType(), 0);
+            return Builder->CreateICmpNE(V, ZERO);
+        } else {
+            return Builder->CreateTrunc(V, BoolTy);
+        }
+    }
+    if (V->getType()->isFloatingPointTy()) {
+        llvm::Value *ZERO = llvm::ConstantFP::get(V->getType(), 0);
+        return Builder->CreateFCmpUNE(V, ZERO);
+    }
+    if (V->getType()->isArrayTy()) {
+        // TODO
+        return nullptr;
+    }
+    if (V->getType()->isStructTy()) {
+        // TODO
+        return nullptr;
+    }
+
+    assert(false && "Unhandled Value Type");
+}
+
+llvm::Value *CodeGenModule::Convert(llvm::Value *FromVal, const ASTType *FromType, const ASTType *ToType) {
+    FLY_DEBUG_MESSAGE("CodeGenExpr", "Convert",
+                      "Value=" << FromVal << " to ASTType=" << ToType->str());
+    assert(ToType && "Invalid conversion type");
+
+    llvm::Type *FromLLVMType = FromVal->getType();
+    switch (ToType->getKind()) {
+
+        // to BOOL
+        case ASTTypeKind::TYPE_BOOL: {
+
+            // from BOOL
+            if (FromType->isBool()) {
+                return Builder->CreateTrunc(FromVal, BoolTy);
+            }
+
+            // from Integer
+            if (FromType->isInteger()) {
+                llvm::Value *ZERO = llvm::ConstantInt::get(FromLLVMType, 0, ((ASTIntegerType *) FromType)->isSigned());
+                return Builder->CreateICmpNE(FromVal, ZERO);
+            }
+
+            // from FLOATING POINT
+            if (FromLLVMType->isFloatTy()) {
+                llvm::Value *ZERO = llvm::ConstantFP::get(FromLLVMType, 0);
+                return Builder->CreateFCmpUNE(FromVal, ZERO);
+            }
+
+            // default 0
+            return llvm::ConstantInt::get(BoolTy, 0, false);
+        }
+
+            // to INTEGER
+        case ASTTypeKind::TYPE_INTEGER: {
+            ASTIntegerType *IntegerType = (ASTIntegerType *) ToType;
+            switch(IntegerType->getIntegerKind()) {
+
+                // to INT 8
+                case ASTIntegerTypeKind::TYPE_BYTE: {
+
+                    // from BOOL
+                    if (FromType->isBool()) {
+                        llvm::Value *ToVal = Builder->CreateTrunc(FromVal, BoolTy);
+                        return Builder->CreateZExt(ToVal, Int8Ty);
+                    }
+
+                    // from INTEGER
+                    if (FromType->isInteger()) {
+                        if (FromLLVMType == Int8Ty) {
+                            return FromVal;
+                        } else {
+                            return Builder->CreateTrunc(FromVal, Int8Ty);
+                        }
+                    }
+
+                    // from FLOATING POINT
+                    if (FromLLVMType->isFloatingPointTy()) {
+                        return Builder->CreateFPToUI(FromVal, Int8Ty);
+                    }
+                }
+
+                    // to INT 16
+                case ASTIntegerTypeKind::TYPE_SHORT:
+                case ASTIntegerTypeKind::TYPE_USHORT: {
+
+                    // from BOOL
+                    if (FromType->isBool()) {
+                        llvm::Value *ToVal = Builder->CreateTrunc(FromVal, BoolTy);
+                        return Builder->CreateZExt(ToVal, Int16Ty);
+                    }
+
+                    // from INTEGER
+                    if (FromType->isInteger()) {
+                        if (FromLLVMType == Int8Ty) {
+                            return Builder->CreateZExt(FromVal, Int16Ty);
+                        } else if (FromLLVMType == Int16Ty) {
+                            return FromVal;
+                        } else {
+                            return Builder->CreateTrunc(FromVal, Int16Ty);
+                        }
+                    }
+
+                    // from FLOATING POINT
+                    if (FromLLVMType->isFloatingPointTy()) {
+                        return IntegerType->isSigned() ? Builder->CreateFPToSI(FromVal, Int16Ty) :
+                               Builder->CreateFPToUI(FromVal, Int16Ty);
+                    }
+                }
+
+                    // to INT 32
+                case ASTIntegerTypeKind::TYPE_INT:
+                case ASTIntegerTypeKind::TYPE_UINT: {
+
+                    // from BOOL
+                    if (FromType->isBool()) {
+                        llvm::Value *ToVal = Builder->CreateTrunc(FromVal, BoolTy);
+                        return Builder->CreateZExt(ToVal, Int32Ty);
+                    }
+
+                    // from INTEGER
+                    if (FromType->isInteger()) {
+                        if (FromLLVMType == Int8Ty || FromLLVMType == Int16Ty) {
+                            return IntegerType->isSigned() ? Builder->CreateSExt(FromVal, Int32Ty) :
+                                   Builder->CreateZExt(FromVal, Int32Ty);
+                        } else if (FromLLVMType == Int32Ty) {
+                            return FromVal;
+                        } else {
+                            return Builder->CreateTrunc(FromVal, Int32Ty);
+                        }
+                    }
+
+                    // from FLOATING POINT
+                    if (FromLLVMType->isFloatingPointTy()) {
+                        return IntegerType->isSigned() ? Builder->CreateFPToSI(FromVal, Int32Ty) :
+                               Builder->CreateFPToUI(FromVal, Int32Ty);
+                    }
+                }
+
+                    // to INT 64
+                case ASTIntegerTypeKind::TYPE_LONG:
+                case ASTIntegerTypeKind::TYPE_ULONG: {
+
+                    // from BOOL
+                    if (FromType->isBool()) {
+                        llvm::Value *ToVal = Builder->CreateTrunc(FromVal, BoolTy);
+                        return Builder->CreateZExt(ToVal, Int64Ty);
+                    }
+
+                    // from INTEGER
+                    if (FromType->isInteger()) {
+                        if (FromLLVMType == Int8Ty || FromLLVMType == Int16Ty ||
+                            FromLLVMType == Int32Ty) {
+                            return IntegerType->isSigned() ? Builder->CreateSExt(FromVal, Int64Ty) :
+                                   Builder->CreateZExt(FromVal, Int64Ty);
+                        } else {
+                            return FromVal;
+                        }
+                    }
+
+                    // from FLOATING POINT
+                    if (FromType->isFloatingPoint()) {
+                        return IntegerType->isSigned() ? Builder->CreateFPToSI(FromVal, Int64Ty) :
+                               Builder->CreateFPToUI(FromVal, Int64Ty);
+                    }
+                }
+            }
+        }
+
+            // to FLOATING POINT
+        case ASTTypeKind::TYPE_FLOATING_POINT: {
+            switch(((ASTFloatingPointType *) ToType)->getFloatingPointKind()) {
+
+                // to FLOAT 32
+                case ASTFloatingPointTypeKind::TYPE_FLOAT: {
+
+                    // from BOOL
+                    if (FromType->isBool()) {
+                        return Builder->CreateTrunc(FromVal, BoolTy);
+                    }
+
+                    // from INT
+                    if (FromType->isInteger()) {
+                        return ((ASTIntegerType *) FromType)->isSigned() ?
+                               Builder->CreateSIToFP(FromVal, FloatTy) :
+                               Builder->CreateUIToFP(FromVal, FloatTy);
+                    }
+
+                    // from FLOAT
+                    if (FromType->isFloatingPoint()) {
+                        switch (((ASTFloatingPointType *) FromType)->getFloatingPointKind()) {
+
+                            case ASTFloatingPointTypeKind::TYPE_FLOAT:
+                                return FromVal;
+                            case ASTFloatingPointTypeKind::TYPE_DOUBLE:
+                                return Builder->CreateFPTrunc(FromVal, FloatTy);
+                        }
+                    }
+                }
+
+                    // to DOUBLE 64
+                case ASTFloatingPointTypeKind::TYPE_DOUBLE: {
+
+                    // from BOOL
+                    if (FromType->isBool()) {
+                        return Builder->CreateTrunc(FromVal, BoolTy);
+                    }
+
+                    // from INT
+                    if (FromType->isInteger()) {
+                        return ((ASTIntegerType *) FromType)->isSigned() ?
+                               Builder->CreateSIToFP(FromVal, DoubleTy) :
+                               Builder->CreateUIToFP(FromVal, DoubleTy);
+                    }
+
+                    // from FLOAT
+                    if (FromType->isFloatingPoint()) {
+                        switch (((ASTFloatingPointType *) FromType)->getFloatingPointKind()) {
+
+                            case ASTFloatingPointTypeKind::TYPE_FLOAT:
+                                return Builder->CreateFPExt(FromVal, DoubleTy);
+                            case ASTFloatingPointTypeKind::TYPE_DOUBLE:
+                                return FromVal;
+                        }
+                    }
+                }
+            }
+        }
+
+            // to Identity
+        case ASTTypeKind::TYPE_IDENTITY:
+            return FromVal; // TODO implement class cast
+    }
+    assert(0 && "Conversion failed");
+}
+
+CodeGenError *CodeGenModule::GenErrorHandler(ASTVar *Var) {
+    if (!Var->getType()->isError()) {
+        // Error: TODO
+    }
+    // Set CodeGenError
+    return new CodeGenError(this, Var);
+}
+
+CodeGenVarBase *CodeGenModule::GenVar(ASTVar *Var) {
+    CodeGenVar *CGV = new CodeGenVar(this, Var);
+    if (Var->getType()->isIdentity() && ((ASTIdentityType *) Var->getType())->isClass()) {
+        ASTClass *Class = (ASTClass *) ((ASTClassType *) Var->getType())->getDef();
+    }
+    return CGV;
+}
+
+llvm::Value *CodeGenModule::GenVarRef(ASTVarRef *VarRef) {
+
+    // Class Var
+    if (VarRef->getDef()->getVarKind() == ASTVarKind::VAR_CLASS) {
+
+        // Return the instance value
+        if (VarRef->getParent() && VarRef->getParent()->isCall()) { // TODO iterative parents
+            // TODO
+        } else if (VarRef->getParent() && VarRef->getParent()->isVarRef()) {
+            // get Value from CodeGen Instance (set in GenStmt())
+            CodeGenVarBase *CGV = ((ASTVarRef *) VarRef->getParent())->getDef()->getCodeGen();
+            return CGV->getValue();
+        } else { // Return static value
+            return VarRef->getDef()->getCodeGen()->getValue();
+        }
+    }
+
+    // Local Var
+    // Return the Value
+    return VarRef->getDef()->getCodeGen()->getValue();
+}
+
+llvm::Value *CodeGenModule::GenCall(ASTCall *Call) {
+    FLY_DEBUG_MESSAGE("CodeGenModule", "GenCall",
+                      "Call=" << Call->str());
+
+    // The function arguments
+    llvm::SmallVector<llvm::Value *, 8> Args;
+    // Add error as first param
+
+    Args.push_back(Call->getErrorHandler()->getCodeGen()->getValue()); // Error is a Pointer
+
+    // Take the CGI Value and pass to Call as first argument
+    llvm::Value *Instance = nullptr;
+
+    if (Call->getDef()->getKind() == ASTFunctionKind::CLASS_METHOD) {
+        ASTClassMethod *Def = (ASTClassMethod *) Call->getDef();
+
+        if (Def->isConstructor()) { // Call class constructor
+            llvm::StructType *Ty = Def->getClass()->getCodeGen()->getType();
+            Constant *AllocSize = ConstantExpr::getTruncOrBitCast(ConstantExpr::getSizeOf(Ty), Int32Ty);
+            // @malloc data type struct
+            Instruction *I = CallInst::CreateMalloc(Builder->GetInsertBlock(), Int32Ty, Ty, AllocSize, nullptr, nullptr);
+            Instance = Builder->Insert(I);
+            Args.push_back(Instance);
+        } else if (Call->getParent() && Call->getParent()->isCall()) { // TODO iterative parents
+            // TODO
+        } else if (Call->getParent() && Call->getParent()->isVarRef()) {
+            Args.push_back(((ASTVarRef *) Call->getParent())->getDef()->getCodeGen()->Load());
+        }
+        // else { // call static method }
+    }
+
+    // Add Call arguments to Function args
+    for (ASTArg *Arg : Call->getArgs()) {
+        llvm::Value *V = GenExpr(Arg->getExpr());
+        Args.push_back(V);
+    }
+    llvm::Value *RetVal = Builder->CreateCall(Call->getDef()->getCodeGen()->getFunction(), Args);
+
+    return Instance == nullptr ? RetVal : Instance;
+}
+
+llvm::Value *CodeGenModule::GenExpr(ASTExpr *Expr) {
+    FLY_DEBUG("CodeGenModule", "GenExpr");
+    CodeGenExpr *CGExpr = new CodeGenExpr(this, Expr);
+    return CGExpr->getValue();
+}
+
 void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
     FLY_DEBUG("CodeGenModule", "GenStmt");
     switch (Stmt->getKind()) {
@@ -479,20 +830,34 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
             ASTVarRef *VarRef = VarStmt->getVarRef();
 
             if (VarStmt->getExpr()) {
-                llvm::Value *V = GenExpr(VarStmt->getExpr());
-                if (VarRef->getDef()->getType()->isIdentity() &&
-                    ((ASTIdentityType *) VarStmt->getVarRef()->getDef()->getType())->isClass()) {
+                llvm::Value *V = GenExpr(VarStmt->getExpr()); // The Value which represents the Expr result
+                ASTVar *Var = VarRef->getDef();
+                if (Var->getType()->isIdentity()) {
 
-                    // set Value from CodeGen Instance
-                    ((CodeGenInstance *) VarRef->getDef()->getCodeGen())->Init(V);
+                    ASTIdentityType *IdentityType = (ASTIdentityType *) Var->getType();
+                    // set Value
+                    if (IdentityType->isClass()) {
+                        ASTClass *Class = (ASTClass *) ((ASTClassType *) IdentityType)->getDef();
+                        uint32_t n = 0;
+//                        for (auto &Var: Class->getCodeGen()->getVars()) {
+//                            CodeGenClassVar *CGCV = new CodeGenClassVar(this, (ASTClassAttribute *) Var->getVar(),
+//                                                                        Class->getCodeGen()->getType(), n++);
+//                            CGCV->setInstance(V);
+//
+//                            this->Vars.insert(std::make_pair(Var->getVar()->getName(), CGCV));
+//                        }
+//                        CodeGenVar *ICGV = (CodeGenVar *) VarRef->getDef()->getCodeGen();
+//                        ICGV->getVar();
+                    }
                 }
 
                 if (VarRef->getParent()) {
                     if (VarRef->getParent()->isCall()) { // TODO iterative parents
                         // TODO
                     } else if (VarRef->getParent()->isVarRef()) {
-                        CodeGenInstance *CGI = ((CodeGenInstance *) ((ASTVarRef *) VarRef->getParent())->getDef()->getCodeGen());
-                        CGI->getVar(VarRef->getDef()->getName())->Store(V);
+//                        CodeGenInstance *CGI = ((CodeGenInstance *) ((ASTVarRef *) VarRef->getParent())->getDef()->getCodeGen());
+//                        CGI->getVar(VarRef->getDef()->getName())->Store(V);
+                        // TODO
                     }
                 } else {
                     VarRef->getDef()->getCodeGen()->Store(V);
@@ -501,17 +866,17 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
             break;
         }
 
-        // Stmt with Expr
+            // Stmt with Expr
         case ASTStmtKind::STMT_EXPR: {
             ASTExprStmt *ExprStmt = (ASTExprStmt *) Stmt;
             GenExpr(ExprStmt->getExpr());
             break;
         }
 
-        // Block of Stmt
+            // Block of Stmt
         case ASTStmtKind::STMT_BLOCK: {
             ASTBlockStmt *Block = (ASTBlockStmt *) Stmt;
-            GenBlock(CGF, Block->getContent());
+            GenBlock(CGF, Block);
             break;
         }
 
@@ -532,30 +897,28 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
             break;
         }
 
-        // Delete Stmt
+            // Delete Stmt
         case ASTStmtKind::STMT_DELETE: {
             ASTDeleteStmt *Delete = (ASTDeleteStmt *) Stmt;
             ASTVar * Var = Delete->getVarRef()->getDef();
             if (Var->getType()->getKind() == ASTTypeKind::TYPE_IDENTITY) {
-                if (!((ASTClass *) ((ASTClassType *) Var->getType())->getDef())->getCodeGen()->getVars().empty()) {
-                    Instruction *I = CallInst::CreateFree(Var->getCodeGen()->getPointer(), Builder->GetInsertBlock());
-                    Builder->Insert(I);
-                }
+                Instruction *I = CallInst::CreateFree(Var->getCodeGen()->Load(), Builder->GetInsertBlock());
+                Builder->Insert(I);
             }
             break;
         }
 
-        // Break Stmt
+            // Break Stmt
         case ASTStmtKind::STMT_BREAK:
             // TODO go to break BB
             break;
 
-        // Continue Stmt
+            // Continue Stmt
         case ASTStmtKind::STMT_CONTINUE:
             // TODO go to continue BB
             break;
 
-        // Return Stmt
+            // Return Stmt
         case ASTStmtKind::STMT_RETURN: {
             ASTReturnStmt *Return = (ASTReturnStmt *) Stmt;
             GenReturn(Return->getFunction(), Return->getExpr());
@@ -573,7 +936,7 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
             GenStmt(CGF, HandleStmt);
             break;
         }
-        
+
         case ASTStmtKind::STMT_FAIL: {
             ASTFailStmt *FailStmt = (ASTFailStmt *) Stmt;
 
@@ -598,106 +961,9 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
     }
 }
 
-CodeGenError *CodeGenModule::GenErrorHandler(ASTVar *Var) {
-    if (!Var->getType()->isError()) {
-        // Error: TODO
-    }
-    // Set CodeGenError
-    return new CodeGenError(this, Var);
-}
-
-CodeGenVarBase *CodeGenModule::GenVar(ASTVar *Var) {
-    if (Var->getType()->isIdentity() && ((ASTIdentityType *) Var->getType())->isClass()) {
-        return new CodeGenInstance(this, Var);
-    }
-    return new CodeGenVar(this, Var);
-}
-
-llvm::Value *CodeGenModule::GenVarRef(ASTVarRef *VarRef) {
-
-    // Class Var
-    if (VarRef->getDef()->getVarKind() == ASTVarKind::VAR_CLASS) {
-
-        // Return the instance value
-        if (VarRef->getParent() && VarRef->getParent()->isCall()) { // TODO iterative parents
-            // TODO
-        } else if (VarRef->getParent() && VarRef->getParent()->isVarRef()) {
-            // get Value from CodeGen Instance (set in GenStmt())
-            CodeGenInstance *CGI = (CodeGenInstance *) ((ASTVarRef *) VarRef->getParent())->getDef()->getCodeGen();
-            CodeGenClassVar *CGV = CGI->getVar(VarRef->getDef()->getName());
-            return CGV->getValue();
-        } else { // Return static value
-            return VarRef->getDef()->getCodeGen()->getValue();
-        }
-    }
-
-    // Local Var
-    // Return the Value
-    return VarRef->getDef()->getCodeGen()->getValue();
-}
-
-llvm::Value *CodeGenModule::GenCall(ASTCall *Call) {
-    FLY_DEBUG_MESSAGE("CodeGenModule", "GenCall",
-                      "Call=" << Call->str());
-    // Check if Func is declared
-    if (Call->getDef() == nullptr) {
-        Diag(Call->getLocation(), diag::err_unref_call);
-        return nullptr;
-    }
-
-    // The function arguments
-    llvm::SmallVector<llvm::Value *, 8> Args;
-    // Add error as first param
-    CodeGenError *CGE = (CodeGenError *) Call->getDef()->getErrorHandler()->getCodeGen();
-    Args.push_back(CGE->getPointer()); // Error is a Pointer
-
-    // Take the CGI Value and pass to Call as first argument
-    llvm::Value *Instance = nullptr;
-
-    // Check Function
-    if (Call->getDef()->getKind() == ASTFunctionKind::FUNCTION) {
-        ASTFunction *Def = (ASTFunction *) Call->getDef(); // is resolved
-    }
-    else if (Call->getDef()->getKind() == ASTFunctionKind::CLASS_METHOD) {
-        ASTClassMethod *Def = (ASTClassMethod *) Call->getDef();
-
-        if (Def->isConstructor()) { // Call class constructor
-            llvm::StructType *Ty = Def->getClass()->getCodeGen()->getType();
-            Constant* AllocSize = ConstantExpr::getSizeOf(Ty);
-            if (Def->getClass()->getAttributes().empty()) { // size is zero
-                Instance = Builder->CreateAlloca(Def->getClass()->getCodeGen()->getType()); // alloca into the Stack
-            } else { // size is greater than zero
-                AllocSize = ConstantExpr::getTruncOrBitCast(AllocSize, Int32Ty);
-                // @malloc data type struct
-                Instruction *I = CallInst::CreateMalloc(Builder->GetInsertBlock(), Int32Ty, Ty, AllocSize, nullptr, nullptr);
-                Instance = Builder->Insert(I, ((ASTClassMethod *) Call->getDef())->getName() + "Inst");
-            }
-            Args.push_back(Instance);
-        } else if (Call->getParent() && Call->getParent()->isCall()) { // TODO iterative parents
-            // TODO
-        } else if (Call->getParent() && Call->getParent()->isVarRef()) {
-            Args.push_back(((ASTVarRef *) Call->getParent())->getDef()->getCodeGen()->getPointer());
-        }
-        // else { // call static method }
-    }
-
-    // Return Call Value
-    pushArgs(Call, Args);
-    llvm::Value *RetVal = Builder->CreateCall(Call->getDef()->getCodeGen()->getFunction(), Args);
-
-    return Instance == nullptr ? RetVal : Instance;
-}
-
-llvm::Value *CodeGenModule::GenExpr(ASTExpr *Expr) {
-    FLY_DEBUG("CodeGenModule", "GenExpr");
-    CodeGenExpr *CGExpr = new CodeGenExpr(this, Expr);
-    return CGExpr->getValue();
-}
-
-void CodeGenModule::GenBlock(CodeGenFunctionBase *CGF, const llvm::SmallVector<ASTStmt *, 8> &Content, llvm::BasicBlock *BB) {
+void CodeGenModule::GenBlock(CodeGenFunctionBase *CGF, ASTBlockStmt *BlockStmt) {
     FLY_DEBUG("CodeGenModule", "GenBlock");
-    if (BB) Builder->SetInsertPoint(BB);
-    for (ASTStmt *Stmt : Content) {
+    for (ASTStmt *Stmt : BlockStmt->getContent()) {
         GenStmt(CGF, Stmt);
     }
 }
@@ -937,14 +1203,6 @@ void CodeGenModule::GenLoopBlock(CodeGenFunctionBase *CGF, ASTLoopStmt *Loop) {
     Builder->SetInsertPoint(EndBB);
 }
 
-void CodeGenModule::pushArgs(ASTCall *Call, llvm::SmallVector<llvm::Value *, 8> &Args) {
-    // Add Call arguments to Function args
-    for (ASTArg *Arg : Call->getArgs()) {
-        llvm::Value *V = GenExpr(Arg->getExpr());
-        Args.push_back(V);
-    }
-}
-
 void CodeGenModule::GenReturn(ASTFunctionBase *F, ASTExpr *Expr) {
     // Create the Value for return
     if (F->getReturnType()->isVoid()) {
@@ -961,266 +1219,3 @@ void CodeGenModule::GenReturn(ASTFunctionBase *F, ASTExpr *Expr) {
     }
 }
 
-//llvm::Value *CodeGenModule::Convert(llvm::Value *V, llvm::Type *T) {
-//    if (V->getType()->isIntegerTy() && T->isIntegerTy()) {
-//        if (V->getType()->getIntegerBitWidth() < T->getIntegerBitWidth()) {
-//            return Builder->CreateZExt(V, T);
-//        } else if (V->getType()->getIntegerBitWidth() > T->getIntegerBitWidth()) {
-//            return Builder->CreateTrunc(V, T);
-//        } else {
-//            return V;
-//        }
-//    } else if (V->getType()->isIntegerTy() && T->isFloatingPointTy()) {
-//        return V->getType()->getTypeID()
-//    } else if (V->getType()->isFloatingPointTy() && T->isIntegerTy()) {
-//
-//    } else if (V->getType()->isFloatingPointTy() && T->isFloatingPointTy()) {
-//        if (V->getType()->getFPMantissaWidth() < T->getFPMantissaWidth()) {
-//            return Builder->CreateFPExt(V, T);
-//        } else if (V->getType()->getFPMantissaWidth() > T->getFPMantissaWidth()) {
-//            return Builder->CreateFPTrunc(V, T);
-//        } else {
-//            return V;
-//        }
-//    }
-//}
-
-llvm::Value *CodeGenModule::ConvertToBool(llvm::Value *V) {
-    FLY_DEBUG_MESSAGE("CodeGenExpr", "Convert",
-                      "FromVal=" << V << " to Bool Type=");
-    if (V->getType()->isIntegerTy()) {
-        if (V->getType()->getIntegerBitWidth() > 8) {
-            llvm::Value *ZERO = llvm::ConstantInt::get(V->getType(), 0);
-            return Builder->CreateICmpNE(V, ZERO);
-        } else {
-            return Builder->CreateTrunc(V, BoolTy);
-        }
-    }
-    if (V->getType()->isFloatingPointTy()) {
-        llvm::Value *ZERO = llvm::ConstantFP::get(V->getType(), 0);
-        return Builder->CreateFCmpUNE(V, ZERO);
-    }
-    if (V->getType()->isArrayTy()) {
-        // TODO
-        return nullptr;
-    }
-    if (V->getType()->isStructTy()) {
-        // TODO
-        return nullptr;
-    }
-}
-
-llvm::Value *CodeGenModule::Convert(llvm::Value *FromVal, const ASTType *FromType, const ASTType *ToType) {
-    FLY_DEBUG_MESSAGE("CodeGenExpr", "Convert",
-                      "Value=" << FromVal << " to ASTType=" << ToType->str());
-    assert(ToType && "Invalid conversion type");
-
-    llvm::Type *FromLLVMType = FromVal->getType();
-    switch (ToType->getKind()) {
-
-        // to BOOL
-        case ASTTypeKind::TYPE_BOOL: {
-
-            // from BOOL
-            if (FromType->isBool()) {
-                return Builder->CreateTrunc(FromVal, BoolTy);
-            }
-
-            // from Integer
-            if (FromType->isInteger()) {
-                llvm::Value *ZERO = llvm::ConstantInt::get(FromLLVMType, 0, ((ASTIntegerType *) FromType)->isSigned());
-                return Builder->CreateICmpNE(FromVal, ZERO);
-            }
-
-            // from FLOATING POINT
-            if (FromLLVMType->isFloatTy()) {
-                llvm::Value *ZERO = llvm::ConstantFP::get(FromLLVMType, 0);
-                return Builder->CreateFCmpUNE(FromVal, ZERO);
-            }
-
-            // default 0
-            return llvm::ConstantInt::get(BoolTy, 0, false);
-        }
-
-            // to INTEGER
-        case ASTTypeKind::TYPE_INTEGER: {
-            ASTIntegerType *IntegerType = (ASTIntegerType *) ToType;
-            switch(IntegerType->getIntegerKind()) {
-
-                // to INT 8
-                case ASTIntegerTypeKind::TYPE_BYTE: {
-
-                    // from BOOL
-                    if (FromType->isBool()) {
-                        llvm::Value *ToVal = Builder->CreateTrunc(FromVal, BoolTy);
-                        return Builder->CreateZExt(ToVal, Int8Ty);
-                    }
-
-                    // from INTEGER
-                    if (FromType->isInteger()) {
-                        if (FromLLVMType == Int8Ty) {
-                            return FromVal;
-                        } else {
-                            return Builder->CreateTrunc(FromVal, Int8Ty);
-                        }
-                    }
-
-                    // from FLOATING POINT
-                    if (FromLLVMType->isFloatingPointTy()) {
-                        return Builder->CreateFPToUI(FromVal, Int8Ty);
-                    }
-                }
-
-                    // to INT 16
-                case ASTIntegerTypeKind::TYPE_SHORT:
-                case ASTIntegerTypeKind::TYPE_USHORT: {
-
-                    // from BOOL
-                    if (FromType->isBool()) {
-                        llvm::Value *ToVal = Builder->CreateTrunc(FromVal, BoolTy);
-                        return Builder->CreateZExt(ToVal, Int16Ty);
-                    }
-
-                    // from INTEGER
-                    if (FromType->isInteger()) {
-                        if (FromLLVMType == Int8Ty) {
-                            return Builder->CreateZExt(FromVal, Int16Ty);
-                        } else if (FromLLVMType == Int16Ty) {
-                            return FromVal;
-                        } else {
-                            return Builder->CreateTrunc(FromVal, Int16Ty);
-                        }
-                    }
-
-                    // from FLOATING POINT
-                    if (FromLLVMType->isFloatingPointTy()) {
-                        return IntegerType->isSigned() ? Builder->CreateFPToSI(FromVal, Int16Ty) :
-                               Builder->CreateFPToUI(FromVal, Int16Ty);
-                    }
-                }
-
-                    // to INT 32
-                case ASTIntegerTypeKind::TYPE_INT:
-                case ASTIntegerTypeKind::TYPE_UINT: {
-
-                    // from BOOL
-                    if (FromType->isBool()) {
-                        llvm::Value *ToVal = Builder->CreateTrunc(FromVal, BoolTy);
-                        return Builder->CreateZExt(ToVal, Int32Ty);
-                    }
-
-                    // from INTEGER
-                    if (FromType->isInteger()) {
-                        if (FromLLVMType == Int8Ty || FromLLVMType == Int16Ty) {
-                            return IntegerType->isSigned() ? Builder->CreateSExt(FromVal, Int32Ty) :
-                                   Builder->CreateZExt(FromVal, Int32Ty);
-                        } else if (FromLLVMType == Int32Ty) {
-                            return FromVal;
-                        } else {
-                            return Builder->CreateTrunc(FromVal, Int32Ty);
-                        }
-                    }
-
-                    // from FLOATING POINT
-                    if (FromLLVMType->isFloatingPointTy()) {
-                        return IntegerType->isSigned() ? Builder->CreateFPToSI(FromVal, Int32Ty) :
-                               Builder->CreateFPToUI(FromVal, Int32Ty);
-                    }
-                }
-
-                    // to INT 64
-                case ASTIntegerTypeKind::TYPE_LONG:
-                case ASTIntegerTypeKind::TYPE_ULONG: {
-
-                    // from BOOL
-                    if (FromType->isBool()) {
-                        llvm::Value *ToVal = Builder->CreateTrunc(FromVal, BoolTy);
-                        return Builder->CreateZExt(ToVal, Int64Ty);
-                    }
-
-                    // from INTEGER
-                    if (FromType->isInteger()) {
-                        if (FromLLVMType == Int8Ty || FromLLVMType == Int16Ty ||
-                            FromLLVMType == Int32Ty) {
-                            return IntegerType->isSigned() ? Builder->CreateSExt(FromVal, Int64Ty) :
-                                   Builder->CreateZExt(FromVal, Int64Ty);
-                        } else {
-                            return FromVal;
-                        }
-                    }
-
-                    // from FLOATING POINT
-                    if (FromType->isFloatingPoint()) {
-                        return IntegerType->isSigned() ? Builder->CreateFPToSI(FromVal, Int64Ty) :
-                               Builder->CreateFPToUI(FromVal, Int64Ty);
-                    }
-                }
-            }
-        }
-
-            // to FLOATING POINT
-        case ASTTypeKind::TYPE_FLOATING_POINT: {
-            switch(((ASTFloatingPointType *) ToType)->getFloatingPointKind()) {
-
-                // to FLOAT 32
-                case ASTFloatingPointTypeKind::TYPE_FLOAT: {
-
-                    // from BOOL
-                    if (FromType->isBool()) {
-                        return Builder->CreateTrunc(FromVal, BoolTy);
-                    }
-
-                    // from INT
-                    if (FromType->isInteger()) {
-                        return ((ASTIntegerType *) FromType)->isSigned() ?
-                               Builder->CreateSIToFP(FromVal, FloatTy) :
-                               Builder->CreateUIToFP(FromVal, FloatTy);
-                    }
-
-                    // from FLOAT
-                    if (FromType->isFloatingPoint()) {
-                        switch (((ASTFloatingPointType *) FromType)->getFloatingPointKind()) {
-
-                            case ASTFloatingPointTypeKind::TYPE_FLOAT:
-                                return FromVal;
-                            case ASTFloatingPointTypeKind::TYPE_DOUBLE:
-                                return Builder->CreateFPTrunc(FromVal, FloatTy);
-                        }
-                    }
-                }
-
-                    // to DOUBLE 64
-                case ASTFloatingPointTypeKind::TYPE_DOUBLE: {
-
-                    // from BOOL
-                    if (FromType->isBool()) {
-                        return Builder->CreateTrunc(FromVal, BoolTy);
-                    }
-
-                    // from INT
-                    if (FromType->isInteger()) {
-                        return ((ASTIntegerType *) FromType)->isSigned() ?
-                               Builder->CreateSIToFP(FromVal, DoubleTy) :
-                               Builder->CreateUIToFP(FromVal, DoubleTy);
-                    }
-
-                    // from FLOAT
-                    if (FromType->isFloatingPoint()) {
-                        switch (((ASTFloatingPointType *) FromType)->getFloatingPointKind()) {
-
-                            case ASTFloatingPointTypeKind::TYPE_FLOAT:
-                                return Builder->CreateFPExt(FromVal, DoubleTy);
-                            case ASTFloatingPointTypeKind::TYPE_DOUBLE:
-                                return FromVal;
-                        }
-                    }
-                }
-            }
-        }
-
-            // to Identity
-        case ASTTypeKind::TYPE_IDENTITY:
-            return FromVal; // TODO implement class cast
-    }
-    assert(0 && "Conversion failed");
-}

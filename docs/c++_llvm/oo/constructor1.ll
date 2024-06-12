@@ -15,34 +15,50 @@ define dso_local i32 @main() #0 personality i8* bitcast (i32 (...)* @__gxx_perso
   %2 = alloca %class.Test*, align 8
   %3 = alloca i8*, align 8
   %4 = alloca i32, align 4
+  %5 = alloca i32, align 4
   store i32 0, i32* %1, align 4
-  %5 = call noalias nonnull i8* @_Znwm(i64 4) #4
-  %6 = bitcast i8* %5 to %class.Test*
-  invoke void @_ZN4TestC2Ei(%class.Test* %6, i32 1)
-          to label %7 unwind label %10
+  %6 = call noalias nonnull i8* @_Znwm(i64 4) #4
+  %7 = bitcast i8* %6 to %class.Test*
+  invoke void @_ZN4TestC2Ei(%class.Test* %7, i32 1)
+          to label %8 unwind label %19
 
-7:                                                ; preds = %0
-  store %class.Test* %6, %class.Test** %2, align 8
-  %8 = load %class.Test*, %class.Test** %2, align 8
-  %9 = call i32 @_ZN4Test4getAEv(%class.Test* %8)
-  ret i32 %9
+8:                                                ; preds = %0
+  store %class.Test* %7, %class.Test** %2, align 8
+  %9 = load %class.Test*, %class.Test** %2, align 8
+  %10 = call i32 @_ZN4Test4getAEv(%class.Test* %9)
+  store i32 %10, i32* %5, align 4
+  %11 = load %class.Test*, %class.Test** %2, align 8
+  %12 = call i32 @_ZN4Test4getAEv(%class.Test* %11)
+  store i32 %12, i32* %5, align 4
+  %13 = load %class.Test*, %class.Test** %2, align 8
+  %14 = icmp eq %class.Test* %13, null
+  br i1 %14, label %17, label %15
 
-10:                                               ; preds = %0
-  %11 = landingpad { i8*, i32 }
+15:                                               ; preds = %8
+  %16 = bitcast %class.Test* %13 to i8*
+  call void @_ZdlPv(i8* %16) #5
+  br label %17
+
+17:                                               ; preds = %15, %8
+  %18 = load i32, i32* %5, align 4
+  ret i32 %18
+
+19:                                               ; preds = %0
+  %20 = landingpad { i8*, i32 }
           cleanup
-  %12 = extractvalue { i8*, i32 } %11, 0
-  store i8* %12, i8** %3, align 8
-  %13 = extractvalue { i8*, i32 } %11, 1
-  store i32 %13, i32* %4, align 4
-  call void @_ZdlPv(i8* %5) #5
-  br label %14
+  %21 = extractvalue { i8*, i32 } %20, 0
+  store i8* %21, i8** %3, align 8
+  %22 = extractvalue { i8*, i32 } %20, 1
+  store i32 %22, i32* %4, align 4
+  call void @_ZdlPv(i8* %6) #5
+  br label %23
 
-14:                                               ; preds = %10
-  %15 = load i8*, i8** %3, align 8
-  %16 = load i32, i32* %4, align 4
-  %17 = insertvalue { i8*, i32 } undef, i8* %15, 0
-  %18 = insertvalue { i8*, i32 } %17, i32 %16, 1
-  resume { i8*, i32 } %18
+23:                                               ; preds = %19
+  %24 = load i8*, i8** %3, align 8
+  %25 = load i32, i32* %4, align 4
+  %26 = insertvalue { i8*, i32 } undef, i8* %24, 0
+  %27 = insertvalue { i8*, i32 } %26, i32 %25, 1
+  resume { i8*, i32 } %27
 }
 
 ; Function Attrs: nobuiltin allocsize(0)

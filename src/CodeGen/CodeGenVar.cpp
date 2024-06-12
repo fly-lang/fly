@@ -26,7 +26,12 @@ CodeGenVar::CodeGenVar(CodeGenModule *CGM, ASTVar *Var) : CGM(CGM), Var(Var) {
 }
 
 void CodeGenVar::Init() {
-    Pointer = CGM->Builder->CreateAlloca(T);
+    if (Var->getType()->isIdentity()) {
+        llvm::PointerType *PtrT = T->getPointerTo(CGM->Module->getDataLayout().getAllocaAddrSpace());
+        Pointer = CGM->Builder->CreateAlloca(PtrT);
+    } else {
+        Pointer = CGM->Builder->CreateAlloca(T);
+    }
 }
 
 llvm::StoreInst *CodeGenVar::Store(llvm::Value *Val) {
@@ -45,7 +50,6 @@ llvm::StoreInst *CodeGenVar::Store(llvm::Value *Val) {
 llvm::LoadInst *CodeGenVar::Load() {
     assert(Pointer && "Cannot load from unallocated stack");
     this->BlockID = CGM->Builder->GetInsertBlock()->getName();
-    this->StoreI = nullptr;
     this->LoadI = CGM->Builder->CreateLoad(Pointer);
     return this->LoadI;
 }

@@ -258,7 +258,7 @@ ASTClassMethod *SemaBuilder::CreateClassConstructor(const SourceLocation &Loc, A
                               .Attr("Scopes", Scopes)
                               .End());
     S.getValidator().CheckCreateClassConstructor(Loc, Scopes);
-    ASTClassMethod *M = new ASTClassMethod(Loc, ASTClassMethodKind::METHOD_CONSTRUCTOR, Class.getType(), Class.getName(), Scopes);
+    ASTClassMethod *M = new ASTClassMethod(Loc, ASTClassMethodKind::METHOD_CONSTRUCTOR, CreateVoidType(Loc), Class.getName(), Scopes);
     M->ErrorHandler = CreateErrorHandlerParam();
     CreateBody(M);
     return M;
@@ -712,28 +712,31 @@ ASTCall *SemaBuilder::CreateCall(ASTIdentifier *Identifier) {
  * @param Function
  * @return
  */
-ASTCall *SemaBuilder::CreateCall(ASTFunction *Function) {
+ASTCall *SemaBuilder::CreateCall(ASTFunction *Function, ASTVar *ErrorHandler) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateCall",
                       Logger().Attr("Function=", Function).End());
     ASTCall *Call = new ASTCall(SourceLocation(), Function->Name);
     Call->Def = Function;
+    Call->ErrorHandler = ErrorHandler;
     return Call;
 }
 
-ASTCall *SemaBuilder::CreateCall(ASTClassMethod *Method) {
+ASTCall *SemaBuilder::CreateCall(ASTClassMethod *Method, ASTVar *ErrorHandler) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateCall",
                       Logger().Attr("Method=", Method).End());
     ASTCall *Call = new ASTCall(SourceLocation(), Method->Name);
     Call->Def = Method;
+    Call->ErrorHandler = ErrorHandler;
     return Call;
 }
 
-ASTCall *SemaBuilder::CreateCall(ASTIdentifier *Instance, ASTClassMethod *Method) {
+ASTCall *SemaBuilder::CreateCall(ASTIdentifier *Instance, ASTClassMethod *Method, ASTVar *ErrorHandler) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateCall",
                       Logger().Attr("Function=", Method).End());
     ASTCall *Call = new ASTCall(SourceLocation(), Method->getName());
     Call->Parent = Instance;
     Call->Def = Method;
+    Call->ErrorHandler = ErrorHandler;
     return Call;
 }
 

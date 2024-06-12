@@ -66,7 +66,6 @@ namespace fly {
         friend class CodeGenClassVar;
         friend class CodeGenClassFunction;
         friend class CodeGenVarBase;
-        friend class CodeGenInstance;
         friend class CodeGenVar;
         friend class CodeGenExpr;
         friend class CodeGenError;
@@ -189,7 +188,11 @@ namespace fly {
 
         llvm::Constant *GenValue(const ASTType *Type, const ASTValue *Val);
 
-        void GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt);
+//        llvm::Value *Convert(llvm::Value *V, llvm::Type *T);
+
+        llvm::Value *ConvertToBool(llvm::Value *Val);
+
+        llvm::Value *Convert(llvm::Value *FromVal, const ASTType *FromType, const ASTType *ToType);
 
         CodeGenError *GenErrorHandler(ASTVar* Var);
 
@@ -201,7 +204,9 @@ namespace fly {
 
         llvm::Value *GenExpr(ASTExpr *Expr);
 
-        void GenBlock(CodeGenFunctionBase *CGF, const llvm::SmallVector<ASTStmt *, 8> &Content, llvm::BasicBlock *BB = nullptr);
+        void GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt);
+
+        void GenBlock(CodeGenFunctionBase *CGF, ASTBlockStmt *BlockStmt);
 
         void GenIfBlock(CodeGenFunctionBase *CGF, ASTIfStmt *If);
 
@@ -213,15 +218,7 @@ namespace fly {
 
         void GenLoopBlock(CodeGenFunctionBase *CGF, ASTLoopStmt *Loop);
 
-        void pushArgs(ASTCall *pCall, llvm::SmallVector<llvm::Value *, 8> &Args);
-
         void GenReturn(ASTFunctionBase *CGF, ASTExpr *Expr = nullptr);
-
-        llvm::Value *ConvertToBool(llvm::Value *Val);
-
-//        llvm::Value *Convert(llvm::Value *V, llvm::Type *T);
-
-        llvm::Value *Convert(llvm::Value *FromVal, const ASTType *FromType, const ASTType *ToType);
     };
 }
 
