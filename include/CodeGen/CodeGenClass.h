@@ -38,7 +38,7 @@ namespace fly {
 
         llvm::SmallVector<llvm::Type *, 4> TypeVector;
 
-        llvm::SmallVector<CodeGenClassVar *, 4> Vars;
+        llvm::SmallVector<CodeGenClassVar *, 4> Attributes;
 
         llvm::SmallVector<CodeGenClassFunction *, 4> Constructors;
 
@@ -55,7 +55,7 @@ namespace fly {
 
         llvm::StructType *getVTableType();
 
-        const llvm::SmallVector<CodeGenClassVar *, 4> &getVars() const;
+        const llvm::SmallVector<CodeGenClassVar *, 4> &getAttributes() const;
 
         const llvm::SmallVector<CodeGenClassFunction *, 4> &getConstructors() const;
 

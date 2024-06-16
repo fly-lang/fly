@@ -108,6 +108,8 @@ namespace fly {
 
         void CheckCreateLocalVar(const SourceLocation &Loc, ASTType *Type, StringRef Name, ASTScopes *Scopes);
 
+        bool CheckValueExpr(ASTExpr *Expr);
+
         bool CheckVarRefExpr(ASTExpr *Expr);
 
         bool CheckValue(ASTValue *Value);

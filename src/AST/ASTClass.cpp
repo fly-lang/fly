@@ -31,6 +31,10 @@ llvm::StringMap<ASTClassAttribute *> ASTClass::getAttributes() const {
     return Attributes;
 }
 
+ASTClassMethod *ASTClass::getDefaultConstructor() const {
+    return DefaultConstructor;
+}
+
 std::map <uint64_t,llvm::SmallVector <ASTClassMethod *, 4>> ASTClass::getConstructors() const {
     return Constructors;
 }

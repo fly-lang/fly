@@ -65,7 +65,7 @@ void CodeGenFunction::GenBody() {
     }
 
     AllocaErrorHandler();
-    AllocaVars();
+    AllocaLocalVars();
     StoreErrorHandler(isMain);
     StoreParams(isMain);
     CGM->GenBlock(this, AST->getBody());

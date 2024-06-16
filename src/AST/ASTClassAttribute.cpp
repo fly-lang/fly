@@ -23,12 +23,12 @@ ASTClass *ASTClassAttribute::getClass() const {
     return Class;
 }
 
-ASTVarStmt *ASTClassAttribute::getInit() const {
-    return Init;
+ASTExpr *ASTClassAttribute::getExpr() const {
+    return Expr;
 }
 
-void ASTClassAttribute::setInit(ASTVarStmt *VarDefine) {
-    Init = VarDefine;
+void ASTClassAttribute::setExpr(ASTExpr *E) {
+    Expr = E;
 }
 
 CodeGenVarBase *ASTClassAttribute::getCodeGen() const {

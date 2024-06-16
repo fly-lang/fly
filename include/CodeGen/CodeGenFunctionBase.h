@@ -69,7 +69,7 @@ namespace fly {
 
         void AllocaErrorHandler();
 
-        void AllocaVars();
+        void AllocaLocalVars();
 
         void StoreErrorHandler(bool isMain);
 

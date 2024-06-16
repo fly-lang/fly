@@ -196,6 +196,7 @@ bool SemaResolver::ResolveIdentities(ASTModule *Module) {
                                                 // Insert methods in the Super and if is ok also in the base Class
                                                 if (S.Builder->InsertFunction(SuperMethods, SuperMethod)) {
                                                     ASTClassMethod *M = S.Builder->CreateClassMethod(SuperMethod->getLocation(),
+                                                                                                     *Class,
                                                                                                      SuperMethod->getReturnType(),
                                                                                                      SuperMethod->getName(),
                                                                                                      SuperMethod->getScopes());
@@ -241,17 +242,36 @@ bool SemaResolver::ResolveIdentities(ASTModule *Module) {
                     }
                 }
 
+
+                // Set default values in attributes
+                if (Class->getClassKind() == ASTClassKind::CLASS || Class->getClassKind() == ASTClassKind::STRUCT) {
+
+                    // Init null value attributes with default values
+                    for (auto &EntryAttr : Class->Attributes) {
+                        ASTClassAttribute *Attr = EntryAttr.second;
+                        // Generate default values
+                        if (Attr->getExpr() == nullptr) {
+                            ASTValue *DefaultValue = S.Builder->CreateDefaultValue(Attr->getType());
+                            ASTValueExpr *ValueExpr = S.Builder->CreateExpr(DefaultValue);
+                            Attr->setExpr(ValueExpr);
+                        }
+                        S.Validator->CheckValueExpr(Attr->getExpr());
+                        Attr->getExpr()->Type = Attr->getType(); // Maintain expr type
+                    }
+                }
+
+                // Create default constructor if there aren't any other constructors
+                if (!Class->Constructors.empty()) {
+                    delete Class->DefaultConstructor;
+                }
+
                 // Constructors
                 for (auto &IntMap: Class->Constructors) {
                     for (auto &Function: IntMap.second) {
 
-                        // Check Class vars for each Constructor
+                        // Resolve Attribute types
                         for (auto &EntryVar: Class->Attributes) {
-
-                            // FIXME: Check if Method already contains this var name as LocalVar
-//                    if (!S.Validator->CheckDuplicateLocalVars(Function->Body, EntryVar.getKey())) {
-//                        return false;
-//                    }
+                            // TODO
                         }
 
                         Success &= ResolveStmtBlock(Function->Body);
@@ -637,6 +657,7 @@ bool SemaResolver::ResolveCall(ASTStmt *Stmt, ASTCall *Call) {
         return false;
     }
 
+    Call->ErrorHandler = Stmt->ErrorHandler;
     Call->Resolved = true;
     return true;
 }

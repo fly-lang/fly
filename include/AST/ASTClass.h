@@ -23,6 +23,7 @@ namespace fly {
     class ASTClassMethod;
     class CodeGenClass;
     class ASTBlockStmt;
+    class ASTVarStmt;
 
     enum class ASTClassKind {
         STRUCT, // has only Fields
@@ -43,7 +44,7 @@ namespace fly {
         // Class Fields
         llvm::StringMap<ASTClassAttribute *> Attributes;
 
-        bool autoDefaultConstructor = false;
+        ASTClassMethod *DefaultConstructor = nullptr;
 
         // Class Constructors
         std::map <uint64_t, llvm::SmallVector <ASTClassMethod *, 4>> Constructors;
@@ -62,6 +63,10 @@ namespace fly {
         llvm::SmallVector<ASTClassType *, 4> getSuperClasses() const;
 
         llvm::StringMap<ASTClassAttribute *> getAttributes() const;
+
+        const SmallVector<ASTVarStmt *, 4> &getStmtAttributes() const;
+
+        ASTClassMethod *getDefaultConstructor() const;
 
         std::map <uint64_t,llvm::SmallVector <ASTClassMethod *, 4>> getConstructors() const;
 

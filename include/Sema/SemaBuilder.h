@@ -230,12 +230,12 @@ namespace fly {
         ASTClass *CreateClass(const SourceLocation &Loc, ASTClassKind ClassKind, llvm::StringRef Name,
                               ASTScopes *Scopes, llvm::SmallVector<ASTClassType *, 4> &ClassTypes);
 
-        ASTClassAttribute *CreateClassAttribute(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
+        ASTClassAttribute *CreateClassAttribute(const SourceLocation &Loc, ASTClass &Class, ASTType *Type, llvm::StringRef Name,
                              ASTScopes *Scopes);
 
         ASTClassMethod *CreateClassConstructor(const SourceLocation &Loc, ASTClass &Class, ASTScopes *Scopes);
 
-        ASTClassMethod *CreateClassMethod(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes,
+        ASTClassMethod *CreateClassMethod(const SourceLocation &Loc, ASTClass &Class, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes,
                           bool Static = false);
 
         ASTClassMethod *CreateClassVirtualMethod(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes);
@@ -319,11 +319,11 @@ namespace fly {
         // Create Call
         ASTCall *CreateCall(ASTIdentifier *Identifier);
 
-        ASTCall *CreateCall(ASTFunction *Function, ASTVar *ErrorHandler);
+        ASTCall *CreateCall(ASTFunction *Function);
 
-        ASTCall *CreateCall(ASTClassMethod *Method, ASTVar *ErrorHandler);
+        ASTCall *CreateCall(ASTClassMethod *Method);
 
-        ASTCall *CreateCall(ASTIdentifier *Instance, ASTClassMethod *Method, ASTVar *ErrorHandler);
+        ASTCall *CreateCall(ASTIdentifier *Instance, ASTClassMethod *Method);
 
         ASTArg *CreateArg(ASTExpr *Expr);
 

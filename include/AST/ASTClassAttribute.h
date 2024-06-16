@@ -20,6 +20,7 @@ namespace fly {
     class ASTType;
     class ASTValue;
     class ASTVar;
+    class ASTExpr;
 
     class ASTClassAttribute : public ASTVar {
 
@@ -29,7 +30,7 @@ namespace fly {
 
         ASTClass *Class = nullptr;
 
-        ASTVarStmt *Init = nullptr;
+        ASTExpr *Expr = nullptr;
 
         CodeGenVarBase *CodeGen = nullptr;
 
@@ -39,9 +40,9 @@ namespace fly {
 
         ASTClass *getClass() const;
 
-        ASTVarStmt *getInit() const;
+        ASTExpr *getExpr() const;
 
-        void setInit(ASTVarStmt *varDefine);
+        void setExpr(ASTExpr *expr);
 
         CodeGenVarBase * getCodeGen() const override;
 

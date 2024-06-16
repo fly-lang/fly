@@ -316,6 +316,13 @@ void SemaValidator::CheckCreateLocalVar(const SourceLocation &Loc, ASTType *Type
 
 }
 
+bool SemaValidator::CheckValueExpr(ASTExpr *Expr) {
+    if (Expr->getExprKind() == ASTExprKind::EXPR_VALUE) {
+        return true;
+    }
+    return false;
+}
+
 bool SemaValidator::CheckVarRefExpr(ASTExpr *Expr) {
     if (Expr->getExprKind() == ASTExprKind::EXPR_VAR_REF) {
         return true;

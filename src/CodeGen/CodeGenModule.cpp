@@ -830,27 +830,7 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
             ASTVarRef *VarRef = VarStmt->getVarRef();
 
             if (VarStmt->getExpr()) {
-                llvm::Value *V = GenExpr(VarStmt->getExpr()); // The Value which represents the Expr result
-                ASTVar *Var = VarRef->getDef();
-                if (Var->getType()->isIdentity()) {
-
-                    ASTIdentityType *IdentityType = (ASTIdentityType *) Var->getType();
-                    // set Value
-                    if (IdentityType->isClass()) {
-                        ASTClass *Class = (ASTClass *) ((ASTClassType *) IdentityType)->getDef();
-                        uint32_t n = 0;
-//                        for (auto &Var: Class->getCodeGen()->getVars()) {
-//                            CodeGenClassVar *CGCV = new CodeGenClassVar(this, (ASTClassAttribute *) Var->getVar(),
-//                                                                        Class->getCodeGen()->getType(), n++);
-//                            CGCV->setInstance(V);
-//
-//                            this->Vars.insert(std::make_pair(Var->getVar()->getName(), CGCV));
-//                        }
-//                        CodeGenVar *ICGV = (CodeGenVar *) VarRef->getDef()->getCodeGen();
-//                        ICGV->getVar();
-                    }
-                }
-
+                llvm::Value *V = GenExpr(VarStmt->getExpr()); // The Value represents the Expr result
                 if (VarRef->getParent()) {
                     if (VarRef->getParent()->isCall()) { // TODO iterative parents
                         // TODO

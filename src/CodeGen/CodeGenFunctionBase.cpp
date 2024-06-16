@@ -82,7 +82,7 @@ void CodeGenFunctionBase::AllocaErrorHandler() {
     AST->getErrorHandler()->getCodeGen()->Init();
 }
 
-void CodeGenFunctionBase::AllocaVars() {
+void CodeGenFunctionBase::AllocaLocalVars() {
 
     // Allocation of declared ASTParam
     for (auto &Param: AST->getParams()) {

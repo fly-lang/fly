@@ -18,6 +18,8 @@
 #include "AST/ASTClassAttribute.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTClass.h"
+#include "AST/ASTVarStmt.h"
+#include "AST/ASTVarRef.h"
 #include "Basic/Debug.h"
 
 using namespace fly;
@@ -58,40 +60,34 @@ void CodeGenClassFunction::GenBody() {
 
     // Alloca Vars
     AllocaErrorHandler();
-    AllocaInst *Instance = nullptr;
+    AllocaInst *ClassInstance = nullptr;
     if (!((ASTClassMethod *) AST)->isStatic()) {
-        Instance = CGM->Builder->CreateAlloca(ClassType);
+        ClassInstance = CGM->Builder->CreateAlloca(ClassType);
     }
-    AllocaVars();
+    AllocaLocalVars();
 
     StoreErrorHandler(false);
 
-    // Class Method (not static)
-    if (Instance) {
+    // Instance Class Method (not static)
+    if (ClassInstance) {
 
         //Alloca, Store, Load the second arg which is the instance
         llvm::Argument *ClassTypePtr = Class->getClassKind() == ASTClassKind::STRUCT ? Fn->getArg(0) : Fn->getArg(1);
 
         // Save Class instance and get Pointer
-        CGM->Builder->CreateStore(ClassTypePtr, Instance);
-        llvm::LoadInst *LoadInstance = CGM->Builder->CreateLoad(Instance);
+        CGM->Builder->CreateStore(ClassTypePtr, ClassInstance);
+        llvm::LoadInst *LoadClassInstance = CGM->Builder->CreateLoad(ClassInstance);
 
         // All Class Vars
-        for (auto &Entry : Class->getAttributes()) {
-            ASTClassAttribute *Var = Entry.second;
-
+        ASTClassMethod *ClassMethod = (ASTClassMethod *) AST;
+        for (auto &AttrEntry : ClassMethod->getClass()->getAttributes()) {
+            ASTClassAttribute *Attr = AttrEntry.second;
             // Set CodeGen Class Instance
-            CodeGenClassVar *CGVar = (CodeGenClassVar *) Var->getCodeGen();
-            CGVar->setInstance(LoadInstance);
-            CGVar->Init();
-
-            // Save all default var values
-            if (((ASTClassMethod *) AST)->isConstructor()) {
-
-                // TODO execute PreConstructor
-//                llvm::Value *V = CGM->GenExpr(this, Var->getType(), Var->getExpr());
-//                CGVar->Store(V);
-            }
+            CodeGenClassVar *CGCV = (CodeGenClassVar *) Attr->getCodeGen();
+            CGCV->setInstance(LoadClassInstance);
+            CGCV->Init();
+            if (ClassMethod->isConstructor())
+                CGCV->Store(CGM->GenExpr(Attr->getExpr()));
         }
     }
 

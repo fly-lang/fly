@@ -3,7 +3,7 @@ source_filename = "constructor1.cpp"
 target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-pc-linux-gnu"
 
-%class.Test = type { i32 }
+%class.Test = type { i32, float }
 
 $_ZN4TestC2Ei = comdat any
 
@@ -16,49 +16,54 @@ define dso_local i32 @main() #0 personality i8* bitcast (i32 (...)* @__gxx_perso
   %3 = alloca i8*, align 8
   %4 = alloca i32, align 4
   %5 = alloca i32, align 4
+  %6 = alloca float, align 4
   store i32 0, i32* %1, align 4
-  %6 = call noalias nonnull i8* @_Znwm(i64 4) #4
-  %7 = bitcast i8* %6 to %class.Test*
-  invoke void @_ZN4TestC2Ei(%class.Test* %7, i32 1)
-          to label %8 unwind label %19
+  %7 = call noalias nonnull i8* @_Znwm(i64 8) #4
+  %8 = bitcast i8* %7 to %class.Test*
+  invoke void @_ZN4TestC2Ei(%class.Test* %8, i32 1)
+          to label %9 unwind label %23
 
-8:                                                ; preds = %0
-  store %class.Test* %7, %class.Test** %2, align 8
-  %9 = load %class.Test*, %class.Test** %2, align 8
-  %10 = call i32 @_ZN4Test4getAEv(%class.Test* %9)
-  store i32 %10, i32* %5, align 4
-  %11 = load %class.Test*, %class.Test** %2, align 8
-  %12 = call i32 @_ZN4Test4getAEv(%class.Test* %11)
-  store i32 %12, i32* %5, align 4
-  %13 = load %class.Test*, %class.Test** %2, align 8
-  %14 = icmp eq %class.Test* %13, null
-  br i1 %14, label %17, label %15
+9:                                                ; preds = %0
+  store %class.Test* %8, %class.Test** %2, align 8
+  %10 = load %class.Test*, %class.Test** %2, align 8
+  %11 = call i32 @_ZN4Test4getAEv(%class.Test* %10)
+  store i32 %11, i32* %5, align 4
+  %12 = load %class.Test*, %class.Test** %2, align 8
+  %13 = call i32 @_ZN4Test4getAEv(%class.Test* %12)
+  store i32 %13, i32* %5, align 4
+  %14 = load %class.Test*, %class.Test** %2, align 8
+  %15 = getelementptr inbounds %class.Test, %class.Test* %14, i32 0, i32 1
+  %16 = load float, float* %15, align 4
+  store float %16, float* %6, align 4
+  %17 = load %class.Test*, %class.Test** %2, align 8
+  %18 = icmp eq %class.Test* %17, null
+  br i1 %18, label %21, label %19
 
-15:                                               ; preds = %8
-  %16 = bitcast %class.Test* %13 to i8*
-  call void @_ZdlPv(i8* %16) #5
-  br label %17
+19:                                               ; preds = %9
+  %20 = bitcast %class.Test* %17 to i8*
+  call void @_ZdlPv(i8* %20) #5
+  br label %21
 
-17:                                               ; preds = %15, %8
-  %18 = load i32, i32* %5, align 4
-  ret i32 %18
+21:                                               ; preds = %19, %9
+  %22 = load i32, i32* %5, align 4
+  ret i32 %22
 
-19:                                               ; preds = %0
-  %20 = landingpad { i8*, i32 }
+23:                                               ; preds = %0
+  %24 = landingpad { i8*, i32 }
           cleanup
-  %21 = extractvalue { i8*, i32 } %20, 0
-  store i8* %21, i8** %3, align 8
-  %22 = extractvalue { i8*, i32 } %20, 1
-  store i32 %22, i32* %4, align 4
-  call void @_ZdlPv(i8* %6) #5
-  br label %23
+  %25 = extractvalue { i8*, i32 } %24, 0
+  store i8* %25, i8** %3, align 8
+  %26 = extractvalue { i8*, i32 } %24, 1
+  store i32 %26, i32* %4, align 4
+  call void @_ZdlPv(i8* %7) #5
+  br label %27
 
-23:                                               ; preds = %19
-  %24 = load i8*, i8** %3, align 8
-  %25 = load i32, i32* %4, align 4
-  %26 = insertvalue { i8*, i32 } undef, i8* %24, 0
-  %27 = insertvalue { i8*, i32 } %26, i32 %25, 1
-  resume { i8*, i32 } %27
+27:                                               ; preds = %23
+  %28 = load i8*, i8** %3, align 8
+  %29 = load i32, i32* %4, align 4
+  %30 = insertvalue { i8*, i32 } undef, i8* %28, 0
+  %31 = insertvalue { i8*, i32 } %30, i32 %29, 1
+  resume { i8*, i32 } %31
 }
 
 ; Function Attrs: nobuiltin allocsize(0)
@@ -74,6 +79,8 @@ define linkonce_odr dso_local void @_ZN4TestC2Ei(%class.Test* %0, i32 %1) unname
   %6 = load i32, i32* %4, align 4
   %7 = getelementptr inbounds %class.Test, %class.Test* %5, i32 0, i32 0
   store i32 %6, i32* %7, align 4
+  %8 = getelementptr inbounds %class.Test, %class.Test* %5, i32 0, i32 1
+  store float 3.300000e+01, float* %8, align 4
   ret void
 }
 
