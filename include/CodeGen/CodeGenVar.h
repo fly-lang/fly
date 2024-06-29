@@ -12,10 +12,11 @@
 #define FLY_CG_VAR_H
 
 #include "CodeGenVarBase.h"
-#include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/StringMap.h"
 
 namespace llvm {
     class Type;
+    class StringRef;
 }
 
 namespace fly {
@@ -29,20 +30,34 @@ namespace fly {
 
         CodeGenModule *CGM = nullptr;
 
-        ASTVar *Var = nullptr;
+        CodeGenVar *Parent = nullptr;
+
+        llvm::StringMap<CodeGenVar *> Vars;
 
         llvm::Type *T = nullptr;
 
-        llvm::Value *Pointer = nullptr;
+        llvm::AllocaInst *Pointer = nullptr;
 
         llvm::LoadInst *LoadI = nullptr;
 
         llvm::StringRef BlockID;
 
-    public:
-        CodeGenVar(CodeGenModule *CGM, ASTVar *Var);
+        uint32_t Index = 0;
 
-        void Init() override;
+    public:
+//        CodeGenVar(CodeGenModule *CGM, ASTVar *Var);
+
+        CodeGenVar(CodeGenModule *CGM, llvm::Type *T);
+
+        CodeGenVar(CodeGenModule *CGM, llvm::Type *Ty, CodeGenVar *Parent, uint32_t Index);
+
+        CodeGenVar *getParent();
+
+        CodeGenVarBase *getVar(llvm::StringRef Name);
+
+        llvm::Type *getType();
+
+        llvm::AllocaInst *Alloca();
 
         llvm::StoreInst *Store(llvm::Value *Val) override;
 
@@ -52,7 +67,7 @@ namespace fly {
 
         llvm::Value *getPointer() override;
 
-        ASTVar *getVar() override;
+        void addVar(llvm::StringRef Name, CodeGenVar *CGV);
     };
 }
 

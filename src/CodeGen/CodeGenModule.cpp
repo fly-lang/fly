@@ -193,9 +193,6 @@ void CodeGenModule::GenAll() {
     for (auto CGF : CGFunctions) {
         FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode",
                           "FunctionBody=" << CGF->getName());
-        for (auto CGV : CGGlobalVars) { // All global vars need to be Loaded from Init()
-            CGV->Init(); // FIXME only if used
-        }
         CGF->GenBody();
     }
 
@@ -735,18 +732,15 @@ llvm::Value *CodeGenModule::Convert(llvm::Value *FromVal, const ASTType *FromTyp
 }
 
 CodeGenError *CodeGenModule::GenErrorHandler(ASTVar *Var) {
-    if (!Var->getType()->isError()) {
-        // Error: TODO
-    }
     // Set CodeGenError
-    return new CodeGenError(this, Var);
+    llvm::Value *Pointer = Builder->CreateAlloca(ErrorPtrTy);
+    CodeGenError *CGE = new CodeGenError(this, Var, Pointer);
+    return CGE;
 }
 
-CodeGenVarBase *CodeGenModule::GenVar(ASTVar *Var) {
-    CodeGenVar *CGV = new CodeGenVar(this, Var);
-    if (Var->getType()->isIdentity() && ((ASTIdentityType *) Var->getType())->isClass()) {
-        ASTClass *Class = (ASTClass *) ((ASTClassType *) Var->getType())->getDef();
-    }
+CodeGenVar *CodeGenModule::GenLocalVar(ASTLocalVar *Var) {
+    llvm::Type *Ty = GenType(Var->getType());
+    CodeGenVar *CGV = new CodeGenVar(this, Ty);
     return CGV;
 }
 
@@ -756,12 +750,16 @@ llvm::Value *CodeGenModule::GenVarRef(ASTVarRef *VarRef) {
     if (VarRef->getDef()->getVarKind() == ASTVarKind::VAR_CLASS) {
 
         // Return the instance value
-        if (VarRef->getParent() && VarRef->getParent()->isCall()) { // TODO iterative parents
-            // TODO
-        } else if (VarRef->getParent() && VarRef->getParent()->isVarRef()) {
-            // get Value from CodeGen Instance (set in GenStmt())
-            CodeGenVarBase *CGV = ((ASTVarRef *) VarRef->getParent())->getDef()->getCodeGen();
-            return CGV->getValue();
+        if (VarRef->getParent()) {
+            if (VarRef->getParent()->isCall()) { // TODO iterative parents
+                // TODO
+            } else if (VarRef->getParent()->isVarRef()) {
+                CodeGenVarBase *CGI = ((ASTVarRef *) VarRef->getParent())->getDef()->getCodeGen();
+                llvm::Value *Inst = CGI->getValue();
+                return VarRef->getDef()->getCodeGen()->getValue();
+            } else {
+                // Error
+            }
         } else { // Return static value
             return VarRef->getDef()->getCodeGen()->getValue();
         }
@@ -788,19 +786,26 @@ llvm::Value *CodeGenModule::GenCall(ASTCall *Call) {
     if (Call->getDef()->getKind() == ASTFunctionKind::CLASS_METHOD) {
         ASTClassMethod *Def = (ASTClassMethod *) Call->getDef();
 
-        if (Def->isConstructor()) { // Call class constructor
-            llvm::StructType *Ty = Def->getClass()->getCodeGen()->getType();
-            Constant *AllocSize = ConstantExpr::getTruncOrBitCast(ConstantExpr::getSizeOf(Ty), Int32Ty);
+        if (Call->getParent()) {
+            if (Call->getParent()->isCall()) { // TODO iterative parents
+                // TODO
+            } else if (Call->getParent()->isVarRef()) {
+                CodeGenVarBase *CGI = ((ASTVarRef *) Call->getParent())->getDef()->getCodeGen();
+                Args.push_back(CGI->Load());
+            }
+        } else if (Def->isConstructor()) { // Call class constructor
+            llvm::Type *AllocType = Def->getClass()->getAttributes().empty() ? Int8Ty : (llvm::Type *) Def->getClass()->getCodeGen()->getType();
+            llvm::Constant *AllocSize = ConstantExpr::getTruncOrBitCast(ConstantExpr::getSizeOf(AllocType), AllocType);
+
             // @malloc data type struct
-            Instruction *I = CallInst::CreateMalloc(Builder->GetInsertBlock(), Int32Ty, Ty, AllocSize, nullptr, nullptr);
+            IntegerType *IntPtrType = llvm::Type::getIntNTy(LLVMCtx, Module->getDataLayout().getMaxPointerSizeInBits());
+            llvm::Instruction *I = CallInst::CreateMalloc(Builder->GetInsertBlock(), IntPtrType,
+                                                          AllocType, AllocSize, nullptr, nullptr);
             Instance = Builder->Insert(I);
             Args.push_back(Instance);
-        } else if (Call->getParent() && Call->getParent()->isCall()) { // TODO iterative parents
-            // TODO
-        } else if (Call->getParent() && Call->getParent()->isVarRef()) {
-            Args.push_back(((ASTVarRef *) Call->getParent())->getDef()->getCodeGen()->Load());
+        } else {
+            // call static method
         }
-        // else { // call static method }
     }
 
     // Add Call arguments to Function args
@@ -835,9 +840,10 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
                     if (VarRef->getParent()->isCall()) { // TODO iterative parents
                         // TODO
                     } else if (VarRef->getParent()->isVarRef()) {
-//                        CodeGenInstance *CGI = ((CodeGenInstance *) ((ASTVarRef *) VarRef->getParent())->getDef()->getCodeGen());
-//                        CGI->getVar(VarRef->getDef()->getName())->Store(V);
-                        // TODO
+                        // Take Parent Instance
+                        CodeGenVarBase *CGI = ((ASTVarRef *) VarRef->getParent())->getDef()->getCodeGen();
+                        CodeGenVarBase *CGV = CGI->getVar(VarRef->getName()); // Get Var Name
+                        CGV->Store(V);
                     }
                 } else {
                     VarRef->getDef()->getCodeGen()->Store(V);

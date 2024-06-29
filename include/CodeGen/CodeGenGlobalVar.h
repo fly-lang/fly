@@ -33,12 +33,14 @@ namespace fly {
 
         llvm::Value *Pointer = nullptr;
 
+        llvm::Value *Instance = nullptr;
+
         llvm::LoadInst *LoadI = nullptr;
 
     public:
         CodeGenGlobalVar(CodeGenModule *CGM, ASTGlobalVar* Var, bool isExternal = false);
 
-        void Init();
+//        llvm::AllocaInst *Alloca() override;
 
         llvm::StoreInst *Store(llvm::Value *Val) override;
 
@@ -48,7 +50,7 @@ namespace fly {
 
         llvm::Value *getPointer() override;
 
-        ASTVar *getVar() override;
+        CodeGenVarBase *getVar(llvm::StringRef Name);
     };
 }
 

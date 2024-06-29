@@ -32,8 +32,7 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, ASTFunction *AST, bool isEx
         GenReturnType();
 
         // Add ErrorHandler as first param
-        CodeGenError *CGE = (CodeGenError *) AST->getErrorHandler()->getCodeGen();
-        ParamTypes.push_back(CGE->getType());
+        ParamTypes.push_back(CGM->ErrorPtrTy);
     }
     GenParamTypes(CGM, ParamTypes, AST->getParams());
 
@@ -54,16 +53,7 @@ void CodeGenFunction::GenBody() {
     FLY_DEBUG("CodeGenFunction", "GenBody");
     setInsertPoint();
 
-    // Allocate Error if is Main Function or take from params
     bool isMain = isMainFunction(AST);
-    if (isMain) {
-        CodeGenError *CGE = (CodeGenError *) AST->getErrorHandler()->getCodeGen();
-        CGE->Init();
-        ErrorHandler = CGE->getPointer();
-    } else {
-        ErrorHandler = Fn->getArg(0);
-    }
-
     AllocaErrorHandler();
     AllocaLocalVars();
     StoreErrorHandler(isMain);

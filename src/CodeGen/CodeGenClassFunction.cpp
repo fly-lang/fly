@@ -31,8 +31,7 @@ CodeGenClassFunction::CodeGenClassFunction(CodeGenModule *CGM, ASTClassMethod *A
     GenReturnType();
 
     // Add ErrorHandler to params
-    CodeGenError *CGE = (CodeGenError *) AST->getErrorHandler()->getCodeGen();
-    ParamTypes.push_back(CGE->getType());
+    ParamTypes.push_back(CGM->ErrorPtrTy);
 
     // Add the instance var of the class type to the parameters of the function
     if (TypePtr)
@@ -51,43 +50,57 @@ CodeGenClassFunction::CodeGenClassFunction(CodeGenModule *CGM, ASTClassMethod *A
 void CodeGenClassFunction::GenBody() {
     FLY_DEBUG("CodeGenFunctionBase", "GenBody");
     ASTClass *Class = ((ASTClassMethod *) AST)->getClass();
-    Type *ClassType = Class->getCodeGen()->getTypePtr();
+    llvm::Type *ClassType = Class->getCodeGen()->getType();
     setInsertPoint();
 
-    // the first argument is the error
+    // the first argument is the error handler
     if (Class->getClassKind() != ASTClassKind::STRUCT)
         ErrorHandler = Fn->getArg(0);
 
-    // Alloca Vars
+    // Alloca Error Handler Var
     AllocaErrorHandler();
-    AllocaInst *ClassInstance = nullptr;
+
+    // Alloca Method Class Instance
+    CodeGenVar *CGI = nullptr;
     if (!((ASTClassMethod *) AST)->isStatic()) {
-        ClassInstance = CGM->Builder->CreateAlloca(ClassType);
+        CGI = new CodeGenVar(CGM, ClassType);
+        CGI->Alloca();
     }
+
+    // Alloca Local Vars
     AllocaLocalVars();
 
+    // Store Error Handler Var
     StoreErrorHandler(false);
 
     // Instance Class Method (not static)
-    if (ClassInstance) {
+    if (CGI) {
 
         //Alloca, Store, Load the second arg which is the instance
-        llvm::Argument *ClassTypePtr = Class->getClassKind() == ASTClassKind::STRUCT ? Fn->getArg(0) : Fn->getArg(1);
+        llvm::Argument *ClassInstancePtr = Class->getClassKind() == ASTClassKind::STRUCT ? Fn->getArg(0) : Fn->getArg(1);
 
         // Save Class instance and get Pointer
-        CGM->Builder->CreateStore(ClassTypePtr, ClassInstance);
-        llvm::LoadInst *LoadClassInstance = CGM->Builder->CreateLoad(ClassInstance);
+        CGI->Store(ClassInstancePtr);
+        CGI->Load();
 
+        // Set var Index offset in the struct type
+        uint32_t Index = 1;
         // All Class Vars
         ASTClassMethod *ClassMethod = (ASTClassMethod *) AST;
         for (auto &AttrEntry : ClassMethod->getClass()->getAttributes()) {
             ASTClassAttribute *Attr = AttrEntry.second;
+
             // Set CodeGen Class Instance
-            CodeGenClassVar *CGCV = (CodeGenClassVar *) Attr->getCodeGen();
-            CGCV->setInstance(LoadClassInstance);
-            CGCV->Init();
-            if (ClassMethod->isConstructor())
-                CGCV->Store(CGM->GenExpr(Attr->getExpr()));
+            llvm::Type *Ty = CGM->GenType(Attr->getType());
+            CodeGenVar *CGV = new CodeGenVar(CGM, Ty, CGI, Index); // FIXME replace con CodeGenClassVar
+            Attr->setCodeGen(CGV);
+
+            // Store attribute default value
+            if (ClassMethod->isConstructor()) {
+                Value *AttrValue = CGM->GenExpr(Attr->getExpr());
+                CGV->Store(AttrValue);
+            }
+            Index++;
         }
     }
 

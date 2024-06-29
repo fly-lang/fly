@@ -83,8 +83,6 @@ namespace fly {
 
         ASTBlockStmt *getBody() const;
 
-        void setErrorHandler(ASTParam *ErrorHandler);
-
         ASTParam *getErrorHandler();
 
         virtual CodeGenFunctionBase *getCodeGen() const = 0;

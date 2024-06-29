@@ -1,5 +1,6 @@
 add_executable(fly
-        Fly.cpp)
+        Fly.cpp
+        ../docs/c++_llvm/new.c)
 
 add_library(flyLib
 
@@ -101,7 +102,6 @@ add_library(flyLib
         CodeGen/CodeGen.cpp
         CodeGen/CodeGenClass.cpp
         CodeGen/CodeGenClassFunction.cpp
-        CodeGen/CodeGenClassVar.cpp
         CodeGen/CodeGenEnum.cpp
         CodeGen/CodeGenEnumEntry.cpp
         CodeGen/CodeGenExpr.cpp

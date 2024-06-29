@@ -23,12 +23,8 @@ CodeGenClassVar::CodeGenClassVar(CodeGenModule *CGM, ASTClassAttribute *Var, llv
         Zero(llvm::ConstantInt::get(CGM->Int32Ty, 0)) {
 }
 
-/**
- * Set when var is referenced
- * @param Instance
- */
-void CodeGenClassVar::Init() {
-    this->Pointer = nullptr;
+void CodeGenClassVar::setInstance(llvm::Value *Inst) {
+    this->Instance = Inst;
 }
 
 llvm::StoreInst *CodeGenClassVar::Store(llvm::Value *Val) {
@@ -64,14 +60,6 @@ llvm::Value *CodeGenClassVar::getPointer() {
     return this->Pointer;
 }
 
-ASTVar *CodeGenClassVar::getVar() {
-    return Var;
-}
-
 llvm::Value *CodeGenClassVar::getIndex() {
     return Index;
-}
-
-void CodeGenClassVar::setInstance(llvm::Value *Inst) {
-    this->Instance = Inst;
 }

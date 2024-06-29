@@ -16,35 +16,36 @@ define dso_local i32 @main() #0 personality i8* bitcast (i32 (...)* @__gxx_perso
   %3 = alloca i8*, align 8
   %4 = alloca i32, align 4
   %5 = alloca i32, align 4
-  %6 = alloca float, align 4
   store i32 0, i32* %1, align 4
-  %7 = call noalias nonnull i8* @_Znwm(i64 8) #4
-  %8 = bitcast i8* %7 to %class.Test*
-  invoke void @_ZN4TestC2Ei(%class.Test* %8, i32 1)
-          to label %9 unwind label %23
+  %6 = call noalias nonnull i8* @_Znwm(i64 8) #4
+  %7 = bitcast i8* %6 to %class.Test*
+  invoke void @_ZN4TestC2Ei(%class.Test* %7, i32 1)
+          to label %8 unwind label %23
 
-9:                                                ; preds = %0
-  store %class.Test* %8, %class.Test** %2, align 8
-  %10 = load %class.Test*, %class.Test** %2, align 8
-  %11 = call i32 @_ZN4Test4getAEv(%class.Test* %10)
-  store i32 %11, i32* %5, align 4
-  %12 = load %class.Test*, %class.Test** %2, align 8
-  %13 = call i32 @_ZN4Test4getAEv(%class.Test* %12)
-  store i32 %13, i32* %5, align 4
-  %14 = load %class.Test*, %class.Test** %2, align 8
-  %15 = getelementptr inbounds %class.Test, %class.Test* %14, i32 0, i32 1
-  %16 = load float, float* %15, align 4
-  store float %16, float* %6, align 4
+8:                                                ; preds = %0
+  store %class.Test* %7, %class.Test** %2, align 8
+  %9 = load %class.Test*, %class.Test** %2, align 8
+  %10 = call i32 @_ZN4Test4getAEv(%class.Test* %9)
+  store i32 %10, i32* %5, align 4
+  %11 = load %class.Test*, %class.Test** %2, align 8
+  %12 = call i32 @_ZN4Test4getAEv(%class.Test* %11)
+  store i32 %12, i32* %5, align 4
+  %13 = load %class.Test*, %class.Test** %2, align 8
+  %14 = getelementptr inbounds %class.Test, %class.Test* %13, i32 0, i32 1
+  store float 4.400000e+01, float* %14, align 4
+  %15 = load %class.Test*, %class.Test** %2, align 8
+  %16 = getelementptr inbounds %class.Test, %class.Test* %15, i32 0, i32 1
+  store float 2.200000e+01, float* %16, align 4
   %17 = load %class.Test*, %class.Test** %2, align 8
   %18 = icmp eq %class.Test* %17, null
   br i1 %18, label %21, label %19
 
-19:                                               ; preds = %9
+19:                                               ; preds = %8
   %20 = bitcast %class.Test* %17 to i8*
   call void @_ZdlPv(i8* %20) #5
   br label %21
 
-21:                                               ; preds = %19, %9
+21:                                               ; preds = %19, %8
   %22 = load i32, i32* %5, align 4
   ret i32 %22
 
@@ -55,7 +56,7 @@ define dso_local i32 @main() #0 personality i8* bitcast (i32 (...)* @__gxx_perso
   store i8* %25, i8** %3, align 8
   %26 = extractvalue { i8*, i32 } %24, 1
   store i32 %26, i32* %4, align 4
-  call void @_ZdlPv(i8* %7) #5
+  call void @_ZdlPv(i8* %6) #5
   br label %27
 
 27:                                               ; preds = %23

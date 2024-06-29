@@ -16,41 +16,61 @@
 #include "AST/ASTFunction.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTType.h"
-#include "llvm/IR/Value.h"
 
 using namespace fly;
 
-CodeGenVar::CodeGenVar(CodeGenModule *CGM, ASTVar *Var) : CGM(CGM), Var(Var) {
-    // Fix Architecture Compatibility of bool i1 to i8
-    this->T = Var->getType()->getKind() == ASTTypeKind::TYPE_BOOL ? CGM->Int8Ty : CGM->GenType(Var->getType());
+//CodeGenVar::CodeGenVar(CodeGenModule *CGM, ASTVar *Var) : CGM(CGM) {
+//    this->T = Var->getType()->getKind() == ASTTypeKind::TYPE_BOOL ? CGM->Int8Ty : CGM->GenType(Var->getType());
+//}
+
+CodeGenVar::CodeGenVar(CodeGenModule *CGM, llvm::Type *T) : CGM(CGM), T(T) {
+
 }
 
-void CodeGenVar::Init() {
-    if (Var->getType()->isIdentity()) {
-        llvm::PointerType *PtrT = T->getPointerTo(CGM->Module->getDataLayout().getAllocaAddrSpace());
-        Pointer = CGM->Builder->CreateAlloca(PtrT);
+CodeGenVar::CodeGenVar(CodeGenModule *CGM, llvm::Type *Ty, CodeGenVar *Parent, uint32_t Index) : CodeGenVar(CGM, Ty) {
+    this->Parent = Parent;
+    this->Index = Index;
+}
+
+CodeGenVar *CodeGenVar::getParent() {
+    return Parent;
+}
+
+CodeGenVarBase *CodeGenVar::getVar(llvm::StringRef Name) {
+    return Vars.lookup(Name);
+}
+
+llvm::Type *CodeGenVar::getType() {
+    return T;
+}
+
+llvm::AllocaInst *CodeGenVar::Alloca() {
+    if (this->T->isStructTy()) { // FIXME ?? with this->T->isStructTy()
+        llvm::PointerType *PtrTy = T->getPointerTo(CGM->Module->getDataLayout().getAllocaAddrSpace());
+        this->Pointer = CGM->Builder->CreateAlloca(PtrTy);
     } else {
-        Pointer = CGM->Builder->CreateAlloca(T);
+        this->Pointer = CGM->Builder->CreateAlloca(T->isIntegerTy(1) ? CGM->Int8Ty : T);
     }
+    return this->Pointer;
 }
 
 llvm::StoreInst *CodeGenVar::Store(llvm::Value *Val) {
-    assert(Pointer && "Cannot store into unallocated stack");
     this->BlockID = CGM->Builder->GetInsertBlock()->getName();
     this->LoadI = nullptr;
 
     // Fix Architecture Compatibility of bool i1 to i8
-    if (Var->getType()->getKind() == ASTTypeKind::TYPE_BOOL) {
+    if (T->isIntegerTy(1)) {
         Val = CGM->Builder->CreateZExt(Val, CGM->Int8Ty);
     }
-
-    return CGM->Builder->CreateStore(Val, this->Pointer);
+    if (Pointer == nullptr)
+        return CGM->Builder->CreateStore(Val, getPointer());
+    else
+        return CGM->Builder->CreateStore(Val, Pointer);
 }
 
 llvm::LoadInst *CodeGenVar::Load() {
-    assert(Pointer && "Cannot load from unallocated stack");
     this->BlockID = CGM->Builder->GetInsertBlock()->getName();
-    this->LoadI = CGM->Builder->CreateLoad(Pointer);
+    this->LoadI = CGM->Builder->CreateLoad(getPointer());
     return this->LoadI;
 }
 
@@ -62,9 +82,14 @@ llvm::Value *CodeGenVar::getValue() {
 }
 
 llvm::Value *CodeGenVar::getPointer() {
+    if (Parent) {
+        ConstantInt *Zero = llvm::ConstantInt::get(CGM->Int32Ty, 0);
+        ConstantInt *Idx = llvm::ConstantInt::get(CGM->Int32Ty, Index);
+        return CGM->Builder->CreateInBoundsGEP(Parent->getType(), Parent->getValue(), {Zero, Idx});
+    }
     return this->Pointer;
 }
 
-ASTVar *CodeGenVar::getVar() {
-    return Var;
+void CodeGenVar::addVar(StringRef Name, CodeGenVar *CGV) {
+    Vars.insert(std::make_pair(Name, CGV));
 }

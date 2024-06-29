@@ -18,14 +18,6 @@ CodeGenEnumEntry::CodeGenEnumEntry(CodeGenModule *CGM, ASTEnumEntry *EnumEntry) 
         Value(llvm::ConstantInt::get(CGM->Int32Ty, EnumEntry->getIndex())) {
 }
 
-llvm::Value *CodeGenEnumEntry::getValue() {
-    return Value;
-}
-
-void CodeGenEnumEntry::Init() {
-
-}
-
 StoreInst *CodeGenEnumEntry::Store(llvm::Value *Val) {
     return nullptr;
 }
@@ -34,10 +26,14 @@ LoadInst *CodeGenEnumEntry::Load() {
     return nullptr;
 }
 
+llvm::Value *CodeGenEnumEntry::getValue() {
+    return Value;
+}
+
 Value *CodeGenEnumEntry::getPointer() {
     return Value;
 }
 
-ASTVar *CodeGenEnumEntry::getVar() {
+CodeGenVarBase *CodeGenEnumEntry::getVar(llvm::StringRef Name) {
     return nullptr;
 }

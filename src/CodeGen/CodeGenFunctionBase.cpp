@@ -18,7 +18,9 @@
 #include "AST/ASTCall.h"
 #include "AST/ASTType.h"
 #include "AST/ASTIdentityType.h"
+#include "AST/ASTClass.h"
 #include "AST/ASTClassMethod.h"
+#include "AST/ASTClassAttribute.h"
 #include "Basic/Debug.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"
@@ -27,8 +29,7 @@
 using namespace fly;
 
 CodeGenFunctionBase::CodeGenFunctionBase(CodeGenModule *CGM, ASTFunctionBase *AST) : CGM(CGM), AST(AST) {
-    CodeGenError *CGE = CGM->GenErrorHandler(AST->getErrorHandler());
-    AST->getErrorHandler()->setCodeGen(CGE);
+
 }
 
 CodeGenModule *CodeGenFunctionBase::getCodeGenModule() {
@@ -79,21 +80,41 @@ void CodeGenFunctionBase::setInsertPoint() {
 
 void CodeGenFunctionBase::AllocaErrorHandler() {
     // Alloca ErrorHandler
-    AST->getErrorHandler()->getCodeGen()->Init();
+    CodeGenError *CGE = CGM->GenErrorHandler(AST->getErrorHandler());
+    AST->getErrorHandler()->setCodeGen(CGE);
 }
 
 void CodeGenFunctionBase::AllocaLocalVars() {
 
     // Allocation of declared ASTParam
     for (auto &Param: AST->getParams()) {
-        Param->setCodeGen(CGM->GenVar(Param));
-        Param->getCodeGen()->Init();
+        CodeGenVar *CGV = CGM->GenLocalVar(Param);
+        CGV->Alloca();
+        Param->setCodeGen(CGV);
     }
 
     // Allocation of all declared ASTLocalVar
     for (auto &LocalVar: AST->getLocalVars()) {
-        LocalVar->setCodeGen(CGM->GenVar(LocalVar));
-        LocalVar->getCodeGen()->Init();
+        CodeGenVar *CGV = CGM->GenLocalVar(LocalVar);
+        CGV->Alloca();
+
+        // Create CodeGenVar for all inner attributes of a class
+        if (LocalVar->getType()->isIdentity()) {
+            ASTIdentityType *IdentityType = (ASTIdentityType *) LocalVar->getType();
+            if (IdentityType->isClass()) {
+                ASTClass * Class =  (ASTClass *) IdentityType->getDef();
+                uint32_t Idx = 1; // 0 is the vtable type
+                for (auto &AttrEntry : Class->getAttributes()) {
+                    ASTClassAttribute *Attr = AttrEntry.getValue();
+                    CodeGenVar *CGAttr = new CodeGenVar(CGM, CGM->GenType(Attr->getType()), CGV, Idx);
+                    CGV->addVar(Attr->getName(), CGAttr);
+                    Attr->setCodeGen(CGAttr);
+                    Idx++;
+                }
+            }
+            
+        }
+        LocalVar->setCodeGen(CGV);
     }
 }
 
@@ -110,7 +131,7 @@ void CodeGenFunctionBase::StoreParams(bool isMain) {
 
         // Store Arg value into Param
         CodeGenVarBase *CGV = Param->getCodeGen();
-        CGV->Store(Fn->getArg(n)); // FIXME only for params passed by value
+        CGV->Store(Fn->getArg(n));
 
         // TODO if Arg is not present store the Param default value
 //        if (Param->getExpr()) {

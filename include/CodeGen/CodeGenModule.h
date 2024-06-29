@@ -52,7 +52,7 @@ namespace fly {
     class CodeGenFunction;
     class CodeGenFunctionBase;
     class CodeGenClass;
-    class CodeGenVarBase;
+    class CodeGenVar;
     class CodeGenEnum;
     class CodeGenError;
 
@@ -196,7 +196,7 @@ namespace fly {
 
         CodeGenError *GenErrorHandler(ASTVar* Var);
 
-        CodeGenVarBase *GenVar(ASTVar* Var);
+        CodeGenVar *GenLocalVar(ASTLocalVar* Var);
 
         llvm::Value *GenVarRef(ASTVarRef *VarRef);
 

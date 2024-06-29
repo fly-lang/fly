@@ -16,7 +16,8 @@ int main() {
     Test *t = new Test(1);
     int a = t->getA();
     a = t->getA();
-    float b = t->b;
+    t->b = 44;
+    t->b = 22;
     delete t;
     return a;
 }

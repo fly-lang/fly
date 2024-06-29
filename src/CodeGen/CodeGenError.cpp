@@ -19,7 +19,8 @@
 
 using namespace fly;
 
-CodeGenError::CodeGenError(CodeGenModule *CGM, ASTVar *Error) : CGM(CGM), Error(Error), T(CGM->ErrorPtrTy) {
+CodeGenError::CodeGenError(CodeGenModule *CGM, ASTVar *Error, llvm::Value *Pointer) :
+    CGM(CGM), Error(Error), Pointer(Pointer), T(CGM->ErrorPtrTy) {
 
 }
 
@@ -30,10 +31,6 @@ llvm::StructType *CodeGenError::GenErrorType(llvm::LLVMContext &LLVMCtx) {
     ErrorStructVector.push_back(llvm::Type::getInt32Ty(LLVMCtx)); // Error Integer
     ErrorStructVector.push_back(Int8Ty->getPointerTo(0)); // Error String or Class Instance
     return llvm::StructType::create(LLVMCtx, ErrorStructVector, "error");
-}
-
-void CodeGenError::Init() {
-    Pointer = CGM->Builder->CreateAlloca(T);
 }
 
 llvm::Type *CodeGenError::getType() {
@@ -93,10 +90,6 @@ llvm::Value *CodeGenError::getValue() {
         return Load();
     }
     return this->LoadI;
-}
-
-ASTVar *CodeGenError::getVar() {
-    return Error;
 }
 
 void CodeGenError::Store(ASTExpr *Expr) {
@@ -167,4 +160,8 @@ void CodeGenError::Store(ASTExpr *Expr) {
         llvm::Value *Ptr = CGM->Builder->CreateInBoundsGEP(T, ErrorVar, IdxList);
         CGM->Builder->CreateStore(PtrValue, Ptr);
     }
+}
+
+CodeGenVarBase *CodeGenError::getVar(llvm::StringRef Name) {
+    return nullptr;
 }

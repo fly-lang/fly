@@ -38,6 +38,8 @@ namespace fly {
 
         llvm::Value *Pointer = nullptr;
 
+        llvm::Value *Instance = nullptr;
+
         llvm::StringRef BlockID;
 
         llvm::Type *ClassType = nullptr;
@@ -48,12 +50,10 @@ namespace fly {
 
         llvm::LoadInst *LoadI = nullptr;
 
-        llvm::Value *Instance = nullptr;
-
     public:
         CodeGenClassVar(CodeGenModule *CGM, ASTClassAttribute *Var, llvm::Type *ClassType, uint32_t Index);
 
-        void Init() override;
+        void setInstance(llvm::Value *Inst);
 
         llvm::StoreInst *Store(llvm::Value *Val) override;
 
@@ -63,11 +63,7 @@ namespace fly {
 
         llvm::Value *getPointer() override;
 
-        ASTVar *getVar() override;
-
         llvm::Value *getIndex();
-
-        void setInstance(llvm::Value *Inst);
     };
 }
 

@@ -14,7 +14,9 @@
 namespace llvm {
     class StoreInst;
     class LoadInst;
+    class AllocaInst;
     class Value;
+    class StringRef;
 }
 
 namespace fly {
@@ -25,8 +27,6 @@ namespace fly {
 
     public:
 
-        virtual void Init() = 0;
-
         virtual llvm::StoreInst *Store(llvm::Value *Val) = 0;
 
         virtual llvm::LoadInst *Load() = 0;
@@ -35,7 +35,7 @@ namespace fly {
 
         virtual llvm::Value *getPointer() = 0;
 
-        virtual ASTVar *getVar() = 0;
+        virtual CodeGenVarBase *getVar(llvm::StringRef Name) = 0;
     };
 }
 

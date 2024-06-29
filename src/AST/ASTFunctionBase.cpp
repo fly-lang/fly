@@ -39,10 +39,6 @@ ASTBlockStmt *ASTFunctionBase::getBody() const {
     return Body;
 }
 
-void ASTFunctionBase::setErrorHandler(ASTParam *EH) {
-    ErrorHandler = EH;
-}
-
 ASTParam *ASTFunctionBase::getErrorHandler() {
     return ErrorHandler;
 }

@@ -29,20 +29,22 @@ namespace fly {
 
         llvm::Value *Value;
 
+        llvm::Value *Instance = nullptr;
+
     public:
         CodeGenEnumEntry(CodeGenModule *CGM, ASTEnumEntry *EnumEntry);
 
-        llvm::Value *getValue() override;
-
-        void Init() override;
+//        llvm::AllocaInst *Alloca() override;
 
         llvm::StoreInst *Store(llvm::Value *Val) override;
 
         llvm::LoadInst *Load() override;
 
+        llvm::Value *getValue() override;
+
         llvm::Value *getPointer() override;
 
-        ASTVar *getVar() override;
+        CodeGenVarBase *getVar(llvm::StringRef Name);
     };
 }
 

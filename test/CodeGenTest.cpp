@@ -1931,7 +1931,7 @@ namespace {
         Builder.AddLocalVar(Body, TestVar);
         ASTClassMethod *DefaultConstructor = TestClass->getDefaultConstructor();
         ASTVarRef *Instance = Builder.CreateVarRef(TestVar);
-        ASTCall *ConstructorCall = Builder.CreateCall(Instance, DefaultConstructor);
+        ASTCall *ConstructorCall = Builder.CreateCall(DefaultConstructor);
         ASTCallExpr *NewExpr = Builder.CreateNewExpr(ConstructorCall);
         ASTVarStmt *testNewStmt = Builder.CreateVarStmt(TestVar);
         Builder.AddExpr(testNewStmt, NewExpr);
@@ -2041,10 +2041,9 @@ namespace {
                               "  %5 = alloca i32, align 4\n"
                               "  store %error* %0, %error** %1, align 8\n"
                               "  %6 = load %error*, %error** %1, align 8\n"
-                              "  %malloccall = tail call i8* @malloc(i32 ptrtoint (i1** getelementptr (i1*, i1** null, i32 1) to i32))\n"
-                              "  %7 = bitcast i8* %malloccall to %TestClass*\n"
-                              "  call void @TestClass_TestClass(%error* %6, %TestClass* %7)\n"
-                              "  store %TestClass* %7, %TestClass** %2, align 8\n"
+                              "  %7 = tail call i8* @malloc(i8 ptrtoint (i8* getelementptr (i8, i8* null, i32 1) to i8))\n"
+                              "  call void @TestClass_TestClass(%error* %6, i8* %7)\n"
+                              "  store i8* %7, %TestClass** %2, align 8\n"
                               "  %8 = load %TestClass*, %TestClass** %2, align 8\n"
                               "  %9 = call i32 @TestClass_a(%error* %6, %TestClass* %8)\n"
                               "  store i32 %9, i32* %3, align 4\n"
@@ -2060,7 +2059,7 @@ namespace {
                               "  ret void\n"
                               "}\n"
                               "\n"
-                              "declare noalias i8* @malloc(i32)\n"
+                              "declare noalias i8* @malloc(i64)\n"
                               "\n"
                               "declare void @free(i8*)\n"
                               );
@@ -2101,6 +2100,7 @@ namespace {
         // int main() {
         //  TestClass test = new TestClass()
         //  int a = test.a()
+        //  test.a = 2
         //  delete test
         // }
         ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
@@ -2113,14 +2113,14 @@ namespace {
         ASTLocalVar *TestVar = Builder.CreateLocalVar(SourceLoc, TestClassType, "test");
         Builder.AddLocalVar(Body, TestVar);
         ASTClassMethod *DefaultConstructor = TestClass->getDefaultConstructor();
-        ASTVarRef *Instance = Builder.CreateVarRef(TestVar);
-        ASTCall *ConstructorCall = Builder.CreateCall(Instance, DefaultConstructor);
+        ASTCall *ConstructorCall = Builder.CreateCall(DefaultConstructor);
         ASTCallExpr *NewExpr = Builder.CreateNewExpr(ConstructorCall);
         ASTVarStmt *testNewStmt = Builder.CreateVarStmt(TestVar);
         Builder.AddExpr(testNewStmt, NewExpr);
         Builder.AddStmt(Body, testNewStmt);
 
         // int a = test.a()
+        ASTVarRef *Instance = Builder.CreateVarRef(TestVar);
         ASTType *aType = aFunc->getReturnType();
         ASTLocalVar *aVar = Builder.CreateLocalVar(SourceLoc, aType, "a");
         Builder.AddLocalVar(Body, aVar);
@@ -2128,6 +2128,12 @@ namespace {
         ASTVarStmt *aStmt = Builder.CreateVarStmt(aVar);
         Builder.AddExpr(aStmt, aCallExpr);
         Builder.AddStmt(Body, aStmt);
+
+        //  test.a = 2
+        ASTVarStmt *attrStmt = Builder.CreateVarStmt(Builder.CreateVarRef(Instance, aAttribute));
+        ASTValueExpr *value2Expr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLocation(), 2));
+        Builder.AddExpr(attrStmt, value2Expr);
+        Builder.AddStmt(Body, attrStmt);
 
         // delete test
         ASTDeleteStmt *DeleteStmt = Builder.CreateDeleteStmt(SourceLoc, (ASTVarRef *) Instance);
@@ -2165,8 +2171,7 @@ namespace {
                               "  store %TestClass* %1, %TestClass** %3, align 8\n"
                               "  %4 = load %TestClass*, %TestClass** %3, align 8\n"
                               "  %5 = getelementptr inbounds %TestClass, %TestClass* %4, i32 0, i32 1\n"
-                              "  %6 = load i32, i32* %5, align 4\n"
-                              "  store i32 0, i32 %6, align 4\n"
+                              "  store i32 0, i32* %5, align 4\n"
                               "  ret void\n"
                               "}\n"
                               "\n"
@@ -2189,20 +2194,26 @@ namespace {
                               "  %3 = alloca i32, align 4\n"
                               "  store %error* %0, %error** %1, align 8\n"
                               "  %4 = load %error*, %error** %1, align 8\n"
-                              "  %malloccall = tail call i8* @malloc(i32 ptrtoint (%TestClass* getelementptr (%TestClass, %TestClass* null, i32 1) to i32))\n"
+                              // TestClass test = new TestClass()
+                              "  %malloccall = tail call i8* @malloc(%TestClass ptrtoint (%TestClass* getelementptr (%TestClass, %TestClass* null, i32 1) to %TestClass))\n"
                               "  %5 = bitcast i8* %malloccall to %TestClass*\n"
                               "  call void @TestClass_TestClass(%error* %4, %TestClass* %5)\n"
                               "  store %TestClass* %5, %TestClass** %2, align 8\n"
                               "  %6 = load %TestClass*, %TestClass** %2, align 8\n"
+                              // int a = test.a()
                               "  %7 = call i32 @TestClass_a(%error* %4, %TestClass* %6)\n"
                               "  store i32 %7, i32* %3, align 4\n"
-                              "  %8 = load %TestClass*, %TestClass** %2, align 8\n"
-                              "  %9 = bitcast %TestClass* %8 to i8*\n"
-                              "  tail call void @free(i8* %9)\n"
+                              // test.a = 2
+                              "  %8 = getelementptr inbounds %TestClass, %TestClass* %6, i32 0, i32 1\n"
+                              "  store i32 2, i32* %8, align 4\n"
+                              // delete test
+                              "  %9 = load %TestClass*, %TestClass** %2, align 8\n"
+                              "  %10 = bitcast %TestClass* %9 to i8*\n"
+                              "  tail call void @free(i8* %10)\n"
                               "  ret void\n"
                               "}\n"
                               "\n"
-                              "declare noalias i8* @malloc(i32)\n"
+                              "declare noalias i8* @malloc(i64)\n"
                               "\n"
                               "declare void @free(i8*)\n"
             );
