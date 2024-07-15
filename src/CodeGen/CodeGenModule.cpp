@@ -778,7 +778,13 @@ llvm::Value *CodeGenModule::GenCall(ASTCall *Call) {
     llvm::SmallVector<llvm::Value *, 8> Args;
     // Add error as first param
 
-    Args.push_back(Call->getErrorHandler()->getCodeGen()->getValue()); // Error is a Pointer
+    if (Call->getDef()->getKind() == ASTFunctionKind::CLASS_METHOD) {
+        ASTClassMethod *Def = (ASTClassMethod *) Call->getDef();
+        if (Def->getClass()->getClassKind() != ASTClassKind::STRUCT)
+            Args.push_back(Call->getErrorHandler()->getCodeGen()->getValue()); // Error is a Pointer
+    } else {
+        Args.push_back(Call->getErrorHandler()->getCodeGen()->getValue()); // Error is a Pointer
+    }
 
     // Take the CGI Value and pass to Call as first argument
     llvm::Value *Instance = nullptr;

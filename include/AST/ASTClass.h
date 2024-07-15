@@ -42,7 +42,7 @@ namespace fly {
         llvm::SmallVector<ASTClassType *, 4> SuperClasses;
 
         // Class Fields
-        llvm::StringMap<ASTClassAttribute *> Attributes;
+        llvm::SmallVector<ASTClassAttribute *, 8> Attributes;
 
         ASTClassMethod *DefaultConstructor = nullptr;
 
@@ -62,9 +62,7 @@ namespace fly {
 
         llvm::SmallVector<ASTClassType *, 4> getSuperClasses() const;
 
-        llvm::StringMap<ASTClassAttribute *> getAttributes() const;
-
-        const SmallVector<ASTVarStmt *, 4> &getStmtAttributes() const;
+        llvm::SmallVector<ASTClassAttribute *, 8> getAttributes() const;
 
         ASTClassMethod *getDefaultConstructor() const;
 

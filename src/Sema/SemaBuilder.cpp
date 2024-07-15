@@ -246,7 +246,7 @@ ASTClassAttribute *SemaBuilder::CreateClassAttribute(const SourceLocation &Loc, 
     S.getValidator().CheckCreateClassVar(Loc, Name, Type, Scopes);
     ASTClassAttribute *Attribute = new ASTClassAttribute(Loc, Type, Name, Scopes);
     Attribute->Class = &Class;
-    Class.Attributes.insert(std::pair<llvm::StringRef, ASTClassAttribute *>(Attribute->getName(), Attribute));
+    Class.Attributes.push_back(Attribute);
     return Attribute;
 }
 
@@ -1247,13 +1247,9 @@ SemaBuilder::AddIdentity(ASTModule *Module, ASTIdentity *Identity) {
 
 bool
 SemaBuilder::AddClassAttribute(ASTClass *Class, ASTClassAttribute *Var) {
-    if (Class->Attributes.insert(std::pair<llvm::StringRef, ASTClassAttribute *>(Var->getName(), Var)).second) {
-        Var->Class = Class;
-        return Var;
-    }
-
-    S.Diag(Var->getLocation(), diag::err_sema_class_field_redeclare) << Var->getName();
-    return false;
+    Class->Attributes.push_back(Var);
+    Var->Class = Class;
+    return Var;
 }
 
 bool

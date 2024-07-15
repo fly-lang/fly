@@ -103,12 +103,12 @@ void CodeGenFunctionBase::AllocaLocalVars() {
             ASTIdentityType *IdentityType = (ASTIdentityType *) LocalVar->getType();
             if (IdentityType->isClass()) {
                 ASTClass * Class =  (ASTClass *) IdentityType->getDef();
-                uint32_t Idx = 1; // 0 is the vtable type
-                for (auto &AttrEntry : Class->getAttributes()) {
-                    ASTClassAttribute *Attr = AttrEntry.getValue();
-                    CodeGenVar *CGAttr = new CodeGenVar(CGM, CGM->GenType(Attr->getType()), CGV, Idx);
-                    CGV->addVar(Attr->getName(), CGAttr);
-                    Attr->setCodeGen(CGAttr);
+                // Class start with param 0 with the vtable type
+                uint32_t Idx = Class->getClassKind() == ASTClassKind::STRUCT ? 0 : 1;
+                for (auto &Attribute : Class->getAttributes()) {
+                    CodeGenVar *CGAttr = new CodeGenVar(CGM, CGM->GenType(Attribute->getType()), CGV, Idx);
+                    CGV->addVar(Attribute->getName(), CGAttr);
+                    Attribute->setCodeGen(CGAttr);
                     Idx++;
                 }
             }

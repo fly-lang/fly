@@ -84,9 +84,9 @@ void CodeGenHeader::CreateFile(DiagnosticsEngine &Diags, CodeGenOptions &CodeGen
         Header.concat(Identity->getName()).concat("{\n");
         if (Identity->getTopDefKind() == ASTTopDefKind::DEF_CLASS) {
             ASTClass* Class = (ASTClass *) Identity;
-            for (auto &AttrEntry : Class->getAttributes()) {
-                Header.concat(AttrEntry.getValue()->getType()->print()).concat(" ")
-                    .concat(AttrEntry.getValue()->getName()).concat("\n\n");
+            for (auto &Attribute : Class->getAttributes()) {
+                Header.concat(Attribute->getType()->print()).concat(" ")
+                    .concat(Attribute->getName()).concat("\n\n");
             }
             for (auto &IntMap: Class->getConstructors()) {
                 for (auto &Constructor: IntMap.second) {

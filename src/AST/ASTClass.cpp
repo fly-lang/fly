@@ -27,7 +27,7 @@ llvm::SmallVector<ASTClassType *, 4> ASTClass::getSuperClasses() const {
     return SuperClasses;
 }
 
-llvm::StringMap<ASTClassAttribute *> ASTClass::getAttributes() const {
+llvm::SmallVector<ASTClassAttribute *, 8> ASTClass::getAttributes() const {
     return Attributes;
 }
 
@@ -53,12 +53,6 @@ void ASTClass::setCodeGen(CodeGenClass *CGC) {
 
 std::string ASTClass::str() const {
 
-    // Fields to string
-    llvm::SmallVector<ASTClassAttribute *, 8> VarList;
-    for (auto &Field : Attributes) {
-        VarList.push_back(Field.second);
-    }
-
     // Methods to string
     llvm::SmallVector<ASTClassMethod *, 8> MethodList;
     for (auto &MapEntry : Methods) {
@@ -73,7 +67,7 @@ std::string ASTClass::str() const {
     return Logger("ASTClass").
            Super(ASTIdentity::str()).
            Attr("ClassKind", (uint64_t) ClassKind).
-           AttrList("Vars", VarList).
+           AttrList("Vars", Attributes).
            AttrList("Methods", MethodList).
            End();
 }

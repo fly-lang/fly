@@ -89,7 +89,7 @@ void CodeGenClass::Generate() {
 
             // add var to the type
             for (auto &Attribute: AST->getAttributes()) {
-                llvm::Type *AttrType = CGM->GenType(Attribute.second->getType());
+                llvm::Type *AttrType = CGM->GenType(Attribute->getType());
                 TypeVector.push_back(AttrType);
             }
         }

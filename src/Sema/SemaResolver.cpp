@@ -159,16 +159,15 @@ bool SemaResolver::ResolveIdentities(ASTModule *Module) {
                                 }
 
                                 // Add Vars to the Struct
-                                for (auto &EntryVar: SuperClass->getAttributes()) {
-                                    ASTClassAttribute *&SuperVar = EntryVar.getValue();
+                                for (auto &SuperAttribute: SuperClass->getAttributes()) {
 
                                     // Check Var already exists and type conflicts in Super Vars
-                                    ASTClassAttribute *ClassVar = Class->Attributes.lookup(EntryVar.getKey());
-                                    if (ClassVar == nullptr) {
-                                        Class->Attributes.insert(std::make_pair(SuperVar->getName(), SuperVar));
-                                    } else if (SuperVar->getType() != ClassVar->getType()) {
-                                        S.Diag(ClassVar->getLocation(), diag::err_sema_super_struct_var_conflict);
-                                        return false;
+                                    for (auto &Attribute : Class->Attributes) {
+                                        if (Attribute->getName() == SuperAttribute->getName()) {
+                                            S.Diag(Attribute->getLocation(), diag::err_sema_super_struct_var_conflict);
+                                            return false;
+                                        }
+                                        Class->Attributes.push_back(SuperAttribute);
                                     }
                                 }
                             }
@@ -247,16 +246,15 @@ bool SemaResolver::ResolveIdentities(ASTModule *Module) {
                 if (Class->getClassKind() == ASTClassKind::CLASS || Class->getClassKind() == ASTClassKind::STRUCT) {
 
                     // Init null value attributes with default values
-                    for (auto &EntryAttr : Class->Attributes) {
-                        ASTClassAttribute *Attr = EntryAttr.second;
+                    for (auto &Attribute : Class->Attributes) {
                         // Generate default values
-                        if (Attr->getExpr() == nullptr) {
-                            ASTValue *DefaultValue = S.Builder->CreateDefaultValue(Attr->getType());
+                        if (Attribute->getExpr() == nullptr) {
+                            ASTValue *DefaultValue = S.Builder->CreateDefaultValue(Attribute->getType());
                             ASTValueExpr *ValueExpr = S.Builder->CreateExpr(DefaultValue);
-                            Attr->setExpr(ValueExpr);
+                            Attribute->setExpr(ValueExpr);
                         }
-                        S.Validator->CheckValueExpr(Attr->getExpr());
-                        Attr->getExpr()->Type = Attr->getType(); // Maintain expr type
+                        S.Validator->CheckValueExpr(Attribute->getExpr());
+                        Attribute->getExpr()->Type = Attribute->getType(); // Maintain expr type
                     }
                 }
 
@@ -284,10 +282,10 @@ bool SemaResolver::ResolveIdentities(ASTModule *Module) {
                         for (auto &Method: IntMap.second) {
 
                             // Add Class vars for each Method
-                            for (auto &EntryVar: Class->Attributes) {
+                            for (auto &Attribute: Class->Attributes) {
 
                                 // Check if Method already contains this var name as LocalVar
-                                if (!S.Validator->CheckDuplicateLocalVars(Method->Body, EntryVar.getKey())) {
+                                if (!S.Validator->CheckDuplicateLocalVars(Method->Body, Attribute->getName())) {
                                     return false;
                                 }
                             }
@@ -563,7 +561,11 @@ ASTVar *SemaResolver::ResolveVarRefNoParent(ASTStmt *Stmt, llvm::StringRef Name)
 
         // Search for Class Vars if Var is Class Method
         if (Function->getKind() == ASTFunctionKind::CLASS_METHOD)
-            Var = ((ASTClassMethod *) Function)->getClass()->Attributes.lookup(Name);
+            for (auto &Attribute : ((ASTClassMethod *) Function)->getClass()->Attributes) {
+                if (Attribute->getName() == Name) {
+                    Var = Attribute;
+                }
+            }
 
         // Search for GlobalVars in Module
         if (Var == nullptr)
@@ -579,7 +581,11 @@ ASTVar *SemaResolver::ResolveVarRefNoParent(ASTStmt *Stmt, llvm::StringRef Name)
 
 ASTVar *SemaResolver::ResolveVarRef(llvm::StringRef Name, ASTIdentityType *IdentityType) {
     if (IdentityType->isClass()) {
-        return ((ASTClass *) ((ASTClassType *) IdentityType)->getDef())->Attributes.lookup(Name);
+        for (auto &Attribute : ((ASTClass *) ((ASTClassType *) IdentityType)->getDef())->Attributes) {
+            if (Attribute->getName() == Name) {
+                return Attribute;
+            }
+        }
     } else if (IdentityType->isEnum()) {
         return ((ASTEnum *) ((ASTEnumType *) IdentityType)->getDef())->Entries.lookup(Name);
     } else {

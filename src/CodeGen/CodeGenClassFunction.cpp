@@ -31,7 +31,9 @@ CodeGenClassFunction::CodeGenClassFunction(CodeGenModule *CGM, ASTClassMethod *A
     GenReturnType();
 
     // Add ErrorHandler to params
-    ParamTypes.push_back(CGM->ErrorPtrTy);
+    if (AST->getClass()->getClassKind() != ASTClassKind::STRUCT) {
+        ParamTypes.push_back(CGM->ErrorPtrTy);
+    }
 
     // Add the instance var of the class type to the parameters of the function
     if (TypePtr)
@@ -54,11 +56,12 @@ void CodeGenClassFunction::GenBody() {
     setInsertPoint();
 
     // the first argument is the error handler
-    if (Class->getClassKind() != ASTClassKind::STRUCT)
+    if (Class->getClassKind() != ASTClassKind::STRUCT) {
         ErrorHandler = Fn->getArg(0);
 
-    // Alloca Error Handler Var
-    AllocaErrorHandler();
+        // Alloca Error Handler Var
+        AllocaErrorHandler();
+    }
 
     // Alloca Method Class Instance
     CodeGenVar *CGI = nullptr;
@@ -70,8 +73,10 @@ void CodeGenClassFunction::GenBody() {
     // Alloca Local Vars
     AllocaLocalVars();
 
-    // Store Error Handler Var
-    StoreErrorHandler(false);
+    if (Class->getClassKind() != ASTClassKind::STRUCT) {
+        // Store Error Handler Var
+        StoreErrorHandler(false);
+    }
 
     // Instance Class Method (not static)
     if (CGI) {
@@ -84,20 +89,19 @@ void CodeGenClassFunction::GenBody() {
         CGI->Load();
 
         // Set var Index offset in the struct type
-        uint32_t Index = 1;
+        uint32_t Index = Class->getClassKind() == ASTClassKind::STRUCT ? 0 : 1;
         // All Class Vars
         ASTClassMethod *ClassMethod = (ASTClassMethod *) AST;
-        for (auto &AttrEntry : ClassMethod->getClass()->getAttributes()) {
-            ASTClassAttribute *Attr = AttrEntry.second;
+        for (auto &Attribute : ClassMethod->getClass()->getAttributes()) {
 
             // Set CodeGen Class Instance
-            llvm::Type *Ty = CGM->GenType(Attr->getType());
+            llvm::Type *Ty = CGM->GenType(Attribute->getType());
             CodeGenVar *CGV = new CodeGenVar(CGM, Ty, CGI, Index); // FIXME replace con CodeGenClassVar
-            Attr->setCodeGen(CGV);
+            Attribute->setCodeGen(CGV);
 
             // Store attribute default value
             if (ClassMethod->isConstructor()) {
-                Value *AttrValue = CGM->GenExpr(Attr->getExpr());
+                Value *AttrValue = CGM->GenExpr(Attribute->getExpr());
                 CGV->Store(AttrValue);
             }
             Index++;
