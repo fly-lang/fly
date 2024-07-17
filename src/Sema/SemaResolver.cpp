@@ -332,9 +332,9 @@ bool SemaResolver::ResolveStmt(ASTStmt *Stmt) {
         case ASTStmtKind::STMT_VAR: {
             ASTVarStmt *VarStmt = (ASTVarStmt *) Stmt;
             ResolveVarRef(Stmt->Parent, VarStmt->getVarRef());
-            if (VarStmt->getVarRef()->Resolved && VarStmt->getExpr() != nullptr && !VarStmt->getVarRef()->getDef()->isInitialized())
+            if (VarStmt->getVarRef()->Def && VarStmt->getExpr() != nullptr && !VarStmt->getVarRef()->getDef()->isInitialized())
                 VarStmt->getVarRef()->getDef()->setInitialization(VarStmt); // FIXME ? with if - else
-            return VarStmt->getVarRef()->Resolved && ResolveExpr(VarStmt->Parent, VarStmt->Expr, VarStmt->getVarRef()->getDef()->getType());
+            return VarStmt->getVarRef()->Def && ResolveExpr(VarStmt->Parent, VarStmt->Expr, VarStmt->getVarRef()->getDef()->getType());
         }
         case ASTStmtKind::STMT_EXPR:
             return ResolveExpr(Stmt->Parent, ((ASTExprStmt *) Stmt)->Expr);
@@ -471,7 +471,6 @@ bool SemaResolver::ResolveParentIdentifier(ASTStmt *Stmt, ASTIdentifier *&Identi
         if (Var) {
             Identifier = S.Builder->CreateVarRef(Identifier);
             ((ASTVarRef *) Identifier)->Def = Var;
-            Identifier->Resolved = true;
             return true;
         }
 
@@ -520,7 +519,6 @@ bool SemaResolver::ResolveIdentityType(ASTModule *Module, ASTIdentityType *Ident
         return false;
     }
 
-    IdentityType->Resolved = true;
     return true;
 }
 
@@ -532,7 +530,7 @@ bool SemaResolver::ResolveIdentityType(ASTModule *Module, ASTIdentityType *Ident
 bool SemaResolver::ResolveVarRef(ASTStmt *Stmt, ASTVarRef *VarRef) {
     FLY_DEBUG_MESSAGE("Sema", "ResolveVarRefWithParent", Logger().Attr("VarRef", VarRef).End());
     
-    if (!VarRef->Resolved) {
+    if (!VarRef->Def) {
         if (VarRef->getParent() == nullptr) {
             VarRef->Def = ResolveVarRefNoParent(Stmt, VarRef->getName());
         } else {
@@ -546,7 +544,6 @@ bool SemaResolver::ResolveVarRef(ASTStmt *Stmt, ASTVarRef *VarRef) {
         return false;
     }
 
-    VarRef->Resolved = true;
     return true;
 }
 
@@ -587,7 +584,11 @@ ASTVar *SemaResolver::ResolveVarRef(llvm::StringRef Name, ASTIdentityType *Ident
             }
         }
     } else if (IdentityType->isEnum()) {
-        return ((ASTEnum *) ((ASTEnumType *) IdentityType)->getDef())->Entries.lookup(Name);
+        for (auto &EnumEntry : ((ASTEnum *) ((ASTEnumType *) IdentityType)->getDef())->Entries) {
+            if (EnumEntry->getName() == Name) {
+                return EnumEntry;
+            }
+        }
     } else {
         assert(false && "IdentityType unknown");
     }
@@ -639,16 +640,13 @@ bool SemaResolver::ResolveVarRefWithParent(ASTVarRef *VarRef) {
             assert(false && "Unexpected Identifier Kind");
     }
 
-    if (VarRef->Def)
-        VarRef->Resolved = true;
-
     return VarRef->Def;
 }
 
 bool SemaResolver::ResolveCall(ASTStmt *Stmt, ASTCall *Call) {
     FLY_DEBUG_MESSAGE("Sema", "ResolveCall", Logger().Attr("Call", Call).End());
 
-    if (!Call->Resolved) {
+    if (!Call->Def) {
 
         if (Call->getParent() == nullptr) {
             ResolveCallNoParent(Stmt, Call);
@@ -664,7 +662,6 @@ bool SemaResolver::ResolveCall(ASTStmt *Stmt, ASTCall *Call) {
     }
 
     Call->ErrorHandler = Stmt->ErrorHandler;
-    Call->Resolved = true;
     return true;
 }
 
@@ -712,7 +709,7 @@ bool SemaResolver::ResolveCallNoParent(ASTStmt *Stmt, ASTCall *Call) {
         ResolveCall(Stmt, Call, ((ASTClass *) Identity)->Constructors);
     }
 
-    return Call->Resolved;
+    return Call->Def;
 }
 
 bool SemaResolver::ResolveCallWithParent(ASTStmt *Stmt, ASTCall *Call) {
@@ -763,7 +760,6 @@ bool SemaResolver::ResolveCallWithParent(ASTStmt *Stmt, ASTCall *Call) {
         return false;
     }
 
-    Call->Resolved = true;
     return Call->Def;
 }
 
@@ -778,7 +774,7 @@ bool SemaResolver::ResolveCall(ASTStmt *Stmt, ASTCall *Call,
         return ResolveCall(Stmt, Call, IntMap);
     }
 
-    return Call->Resolved;
+    return Call->Def;
 }
 
 template <class T>
@@ -804,7 +800,6 @@ bool SemaResolver::ResolveCall(ASTStmt *Stmt, ASTCall *Call,
 
                 if (Success) {
                     Call->Def = Function;
-                    Call->Resolved = true;
                     break;
                 }
             }
@@ -812,7 +807,7 @@ bool SemaResolver::ResolveCall(ASTStmt *Stmt, ASTCall *Call,
         S.Validator->DiagEnabled = true;
     }
 
-    return Call->Resolved;
+    return Call->Def;
 }
 
 bool SemaResolver::ResolveArg(ASTStmt *Stmt, ASTArg *Arg, ASTParam *Param) {

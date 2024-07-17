@@ -11,12 +11,12 @@
 #define FLY_AST_ENUMENTRY_H
 
 #include "AST/ASTVar.h"
-#include "CodeGen/CodeGenEnumEntry.h"
 
 namespace fly {
 
     class ASTEnum;
     class ASTEnumType;
+    class CodeGenEnumEntry;
 
     class ASTEnumEntry : public ASTVar {
 
@@ -42,9 +42,9 @@ namespace fly {
 
         uint32_t getIndex() const;
 
-        CodeGenEnumEntry *getCodeGen() const;
+        CodeGenVarBase *getCodeGen() const override;
 
-        void setCodeGen(CodeGenEnumEntry *CGE);
+        void setCodeGen(CodeGenEnumEntry *CG);
 
         std::string str() const override;
     };

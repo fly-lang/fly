@@ -12,6 +12,7 @@
 #define FLY_CODEGEN_ENUMENTRY_H
 
 #include "CodeGenVarBase.h"
+#include "llvm/ADT/StringRef.h"
 
 namespace llvm {
     class Value;
@@ -20,12 +21,9 @@ namespace llvm {
 namespace fly {
 
     class CodeGenModule;
-    class CodeGenEnum;
     class ASTEnumEntry;
 
     class CodeGenEnumEntry : public CodeGenVarBase {
-
-        friend class CodeGenEnum;
 
         llvm::Value *Value;
 
@@ -44,7 +42,7 @@ namespace fly {
 
         llvm::Value *getPointer() override;
 
-        CodeGenVarBase *getVar(llvm::StringRef Name);
+        CodeGenVarBase *getVar(llvm::StringRef Name) override;
     };
 }
 

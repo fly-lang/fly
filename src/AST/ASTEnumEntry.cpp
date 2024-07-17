@@ -9,12 +9,12 @@
 
 #include "AST/ASTEnumEntry.h"
 #include "AST/ASTEnum.h"
+#include "CodeGen/CodeGenEnumEntry.h"
 
 using namespace fly;
 
 ASTEnumEntry::ASTEnumEntry(const SourceLocation &Loc, ASTEnumType *Type, llvm::StringRef Name) :
         ASTVar(ASTVarKind::VAR_ENUM, Loc, Type, Name, nullptr) {
-
 }
 
 ASTEnum *ASTEnumEntry::getEnum() const {
@@ -25,12 +25,12 @@ uint32_t ASTEnumEntry::getIndex() const {
     return Index;
 }
 
-CodeGenEnumEntry *ASTEnumEntry::getCodeGen() const {
+CodeGenVarBase *ASTEnumEntry::getCodeGen() const {
     return CodeGen;
 }
 
-void ASTEnumEntry::setCodeGen(CodeGenEnumEntry *CGE) {
-    this->CodeGen = CGE;
+void ASTEnumEntry::setCodeGen(CodeGenEnumEntry *CG) {
+    CodeGen = CG;
 }
 
 std::string ASTEnumEntry::str() const {

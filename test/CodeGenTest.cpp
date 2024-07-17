@@ -37,8 +37,8 @@
 #include "AST/ASTClassAttribute.h"
 #include "AST/ASTClassMethod.h"
 #include "AST/ASTEnum.h"
-#include "AST/ASTExprStmt.h"
 #include "AST/ASTEnumEntry.h"
+#include "AST/ASTExprStmt.h"
 #include "AST/ASTExpr.h"
 #include "AST/ASTGroupExpr.h"
 #include "AST/ASTOperatorExpr.h"
@@ -2288,7 +2288,6 @@ namespace {
         ASTDeleteStmt *Delete = Builder.CreateDeleteStmt(SourceLoc, (ASTVarRef *) Instance);
         Builder.AddStmt(Body, Delete);
 
-
         bool Success = S->Resolve();
         EXPECT_TRUE(Success);
 
@@ -2354,74 +2353,80 @@ namespace {
         }
     }
 
-//    TEST_F(CodeGenTest, CGEnum) {
-//        ASTModule *Module = CreateModule();
-//        CodeGenModule *CGM = CG->GenerateModule(*Module);
-//
-//        // enum TestEnum {
-//        //   A
-//        //   B
-//        //   C
-//        // }
-//        ASTEnum *TestEnum = Builder.CreateEnum(SourceLoc, "TestEnum", Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-//        ASTEnumEntry *A = Builder.CreateEnumEntry(SourceLoc, "A");
-//        Builder.AddEnumEntry(TestEnum, A);
-//        ASTEnumEntry *B = Builder.CreateEnumEntry(SourceLoc, "B");
-//        Builder.AddEnumEntry(TestEnum, B);
-//        ASTEnumEntry *C = Builder.CreateEnumEntry(SourceLoc, "C");
-//        Builder.AddEnumEntry(TestEnum, C);
-//
-//        // int main() {
-//        //  TestEnum a = TestEnum.A;
-//        //  TestEnum b = a
-//        //  return 1
-//        // }
-//        ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
-//                                                    Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
-//        ASTBlockStmt *Body = Builder.CreateBody(Func);
-//
-//        ASTType *TestEnumType = Builder.CreateEnumType(TestEnum);
-//
-//        //  TestEnum a = TestEnum.A;
-//        ASTLocalVar *aVar = Builder.CreateLocalVar(SourceLoc, TestEnumType, "a");
-//        ASTVarRefExpr *aRefExpr = Builder.CreateExpr(aVar, Builder.CreateVarRef(A));
-//        Builder.AddStmt(Body, aVar);
-//
-//        //  TestEnum b = a
-//        ASTLocalVar *bVar = Builder.CreateLocalVar(SourceLoc, TestEnumType, "b");
-//        ASTVarRefExpr *bRefExpr = Builder.CreateExpr(bVar, Builder.CreateVarRef(aVar));
-//        Builder.AddStmt(Body, bVar);
-//
-//        // Add to Module
-//        EXPECT_TRUE(Builder.AddIdentity(TestEnum));
-//        EXPECT_TRUE(Builder.AddFunction(Func));
-//
-//        bool Success = S->Resolve();
-//        EXPECT_TRUE(Success);
-//
-//        if (Success) {
-//            // Generate Code
-//            CodeGenEnum *CGC = CGM->GenEnum(TestEnum);
-//            CodeGenFunction *CGF = CGM->GenFunction(Func);
-//            CGF->GenBody();
-//
-//            EXPECT_FALSE(Diags.hasErrorOccurred());
-//            std::string output = getOutput();
-//
-//            EXPECT_EQ(output, "%error = type { i8, i32, i8* }\n"
-//                              "\n"
-//                              "define void @func(%error* %0) {\n"
-//                              "entry:\n"
-//                              "  %1 = alloca i32, align 4\n"
-//                              "  %2 = alloca i32, align 4\n"
-//                              "  store i32 1, i32* %1, align 4\n"
-//                              "  %3 = load i32, i32* %1, align 4\n"
-//                              "  store i32 %3, i32* %2, align 4\n"
-//                              "  ret void\n"
-//                              "}\n");
-//        }
-//    }
-//
+    TEST_F(CodeGenTest, CGEnum) {
+        ASTModule *Module = CreateModule();
+
+        // enum TestEnum {
+        //   A
+        //   B
+        //   C
+        // }
+        llvm::SmallVector<ASTEnumType *, 4> SuperEnums;
+        ASTEnum *TestEnum = Builder.CreateEnum(SourceLoc, "TestEnum", Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false), SuperEnums);
+        Builder.AddIdentity(Module, TestEnum);
+        ASTEnumEntry *A = Builder.CreateEnumEntry(SourceLoc, TestEnum, "A");
+        ASTEnumEntry *B = Builder.CreateEnumEntry(SourceLoc, TestEnum, "B");
+        ASTEnumEntry *C = Builder.CreateEnumEntry(SourceLoc, TestEnum, "C");
+
+        // int main() {
+        //  TestEnum a = TestEnum.A;
+        //  TestEnum b = a
+        //  return 1
+        // }
+        ASTFunction *Func = Builder.CreateFunction(SourceLoc, VoidType, "func",
+                                                    Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false));
+        Builder.AddFunction(Module, Func);
+        ASTBlockStmt *Body = Builder.CreateBody(Func);
+
+        ASTType *TestEnumType = Builder.CreateEnumType(TestEnum);
+
+        //  TestEnum a = TestEnum.A;
+        ASTLocalVar *aVar = Builder.CreateLocalVar(SourceLoc, TestEnumType, "a");
+        Builder.AddLocalVar(Body, aVar);
+        ASTVarRefExpr *Enum_ARefExpr = Builder.CreateExpr(Builder.CreateVarRef(A));
+        ASTVarStmt *aVarStmt = Builder.CreateVarStmt(aVar);
+        Builder.AddExpr(aVarStmt, Enum_ARefExpr);
+        Builder.AddStmt(Body, aVarStmt);
+
+        //  TestEnum b = a
+        ASTLocalVar *bVar = Builder.CreateLocalVar(SourceLoc, TestEnumType, "b");
+        Builder.AddLocalVar(Body, bVar);
+        ASTVarStmt *bVarStmt = Builder.CreateVarStmt(bVar);
+        ASTVarRefExpr *aRefExpr = Builder.CreateExpr(Builder.CreateVarRef(aVar));
+        Builder.AddExpr(bVarStmt, aRefExpr);
+        Builder.AddStmt(Body, bVarStmt);
+
+        bool Success = S->Resolve();
+        EXPECT_TRUE(Success);
+
+        if (Success) {
+            CodeGenModule *CGM = CG->GenerateModule(*Module);
+
+            CGM->GenEnum(TestEnum);
+
+            // Generate Code
+            CodeGenFunction *CGF = CGM->GenFunction(Func);
+            CGF->GenBody();
+
+            EXPECT_FALSE(Diags.hasErrorOccurred());
+            std::string output = getOutput(CGM->getModule());
+
+            EXPECT_EQ(output, "%error = type { i8, i32, i8* }\n"
+                              "\n"
+                              "define void @func(%error* %0) {\n"
+                              "entry:\n"
+                              "  %1 = alloca %error*, align 8\n"
+                              "  %2 = alloca i32, align 4\n"
+                              "  %3 = alloca i32, align 4\n"
+                              "  store %error* %0, %error** %1, align 8\n"
+                              "  store i32 1, i32* %2, align 4\n"
+                              "  %4 = load i32, i32* %2, align 4\n"
+                              "  store i32 %4, i32* %3, align 4\n"
+                              "  ret void\n"
+                              "}\n");
+        }
+    }
+
 //    TEST_F(CodeGenTest, CGError) {
 //        ASTModule *Module = CreateModule();
 //        ASTScopes *TopScopes = Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false);

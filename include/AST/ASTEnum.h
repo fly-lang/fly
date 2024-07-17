@@ -20,7 +20,6 @@
 
 namespace fly {
 
-    class CodeGenEnum;
     class ASTEnumEntry;
 
     class ASTEnum : public ASTIdentity {
@@ -34,20 +33,14 @@ namespace fly {
         llvm::SmallVector<ASTEnumType *, 4> SuperClasses; // FIXME ?
 
         // Class Fields
-        llvm::StringMap<ASTEnumEntry *> Entries;
-
-        CodeGenEnum *CodeGen = nullptr;
+        llvm::SmallVector<ASTEnumEntry *, 8> Entries;
 
         ASTEnum(const SourceLocation &Loc, llvm::StringRef Name, ASTScopes *Scopes,
                  llvm::SmallVector<ASTEnumType *, 4> &ExtClasses);
 
     public:
 
-        llvm::StringMap<ASTEnumEntry *> getEntries() const;
-
-        CodeGenEnum *getCodeGen() const;
-
-        void setCodeGen(CodeGenEnum *CGC);
+        llvm::SmallVector<ASTEnumEntry *, 8> getEntries() const;
 
         std::string str() const override;
 

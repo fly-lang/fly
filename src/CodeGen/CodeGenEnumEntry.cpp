@@ -19,10 +19,12 @@ CodeGenEnumEntry::CodeGenEnumEntry(CodeGenModule *CGM, ASTEnumEntry *EnumEntry) 
 }
 
 StoreInst *CodeGenEnumEntry::Store(llvm::Value *Val) {
+    // FIXME give error
     return nullptr;
 }
 
 LoadInst *CodeGenEnumEntry::Load() {
+    // FIXME give error
     return nullptr;
 }
 
@@ -31,9 +33,11 @@ llvm::Value *CodeGenEnumEntry::getValue() {
 }
 
 Value *CodeGenEnumEntry::getPointer() {
-    return Value;
+    // FIXME give error
+    return nullptr;
 }
 
 CodeGenVarBase *CodeGenEnumEntry::getVar(llvm::StringRef Name) {
+    // FIXME give error
     return nullptr;
 }

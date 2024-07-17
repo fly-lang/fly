@@ -36,11 +36,11 @@
 #include "AST/ASTClass.h"
 #include "AST/ASTClassAttribute.h"
 #include "AST/ASTEnum.h"
+#include "AST/ASTEnumEntry.h"
 #include "AST/ASTExpr.h"
 #include "AST/ASTGroupExpr.h"
 #include "AST/ASTOperatorExpr.h"
 #include "AST/ASTExprStmt.h"
-#include "AST/ASTEnumEntry.h"
 #include "AST/ASTClassMethod.h"
 #include "AST/ASTFailStmt.h"
 #include "Basic/SourceLocation.h"
@@ -302,12 +302,17 @@ ASTEnum *SemaBuilder::CreateEnum(const SourceLocation &Loc, const llvm::StringRe
     return Enum;
 }
 
-ASTEnumEntry *SemaBuilder::CreateEnumEntry(const SourceLocation &Loc, ASTEnumType *Type, llvm::StringRef Name) {
+ASTEnumEntry *SemaBuilder::CreateEnumEntry(const SourceLocation &Loc, ASTEnum *Enum, llvm::StringRef Name) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateEnumEntry",
                       Logger().Attr("Loc", (uint64_t) Loc.getRawEncoding())
                               .Attr("Name", Name).End());
     S.getValidator().CheckCreateEnumEntry(Loc, Name);
-    return new ASTEnumEntry(Loc, Type, Name);
+    ASTEnumEntry *EnumEntry = new ASTEnumEntry(Loc, Enum->Type, Name);
+
+    EnumEntry->Enum = Enum;
+    EnumEntry->Index = Enum->Entries.size() + 1;
+    Enum->Entries.push_back(EnumEntry);
+    return EnumEntry;
 }
 
 /**
@@ -1271,12 +1276,6 @@ SemaBuilder::AddClassMethod(ASTClass *Class, ASTClassMethod *Method) {
     }
 
     return true;
-}
-
-bool SemaBuilder::AddEnumEntry(ASTEnum *Enum, ASTEnumEntry *Entry) {
-    Entry->Enum = Enum;
-    Entry->Index = Entry->getEnum()->Entries.size() + 1;
-    return Entry->getEnum()->Entries.insert(std::make_pair(Entry->getName(), Entry)).second;
 }
 
 bool

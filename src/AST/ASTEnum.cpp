@@ -11,7 +11,6 @@
 #include "AST/ASTEnumEntry.h"
 #include "AST/ASTScopes.h"
 #include "AST/ASTNameSpace.h"
-#include "CodeGen/CodeGenEnum.h"
 
 using namespace fly;
 
@@ -22,33 +21,17 @@ ASTEnum::ASTEnum(const SourceLocation &Loc, llvm::StringRef Name, ASTScopes *Sco
 
 }
 
-llvm::StringMap<ASTEnumEntry *> ASTEnum::getEntries() const {
+llvm::SmallVector<ASTEnumEntry *, 8> ASTEnum::getEntries() const {
     return Entries;
 }
 
-CodeGenEnum *ASTEnum::getCodeGen() const {
-    return CodeGen;
-}
-
-void ASTEnum::setCodeGen(CodeGenEnum *CGE) {
-    CodeGen = CGE;
-}
-
 std::string ASTEnum::str() const {
-
-    // Fields to string
-    std::string EnumList;
-    for (auto &Enum : Entries) {
-        std::string EQ = "=";
-        EnumList += Enum.getKey().data() + EQ + Enum.getValue()->str() + ",";
-    }
-    EnumList.substr(0, EnumList.length()-1);
 
     // Class to string
     return Logger("ASTClass").
            Super(ASTIdentity::str()).
            Attr("Name", Name).
            Attr("Scopes", Scopes).
-           Attr("Vars", EnumList).
+           AttrList("Entries", Entries).
            End();
 }

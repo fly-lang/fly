@@ -19,6 +19,7 @@
 #include "AST/ASTClass.h"
 #include "AST/ASTClassMethod.h"
 #include "AST/ASTClassAttribute.h"
+#include "AST/ASTEnumEntry.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/CodeGenOptions.h"
 #include "Basic/Debug.h"
@@ -115,7 +116,7 @@ void CodeGenHeader::CreateFile(DiagnosticsEngine &Diags, CodeGenOptions &CodeGen
         } else if (Identity->getTopDefKind() == ASTTopDefKind::DEF_ENUM) {
             ASTEnum* Enum = (ASTEnum *) Identity;
             for (auto &EnumEntry : Enum->getEntries()) {
-                Header.concat(EnumEntry.getKey()).concat("\n\n");
+                Header.concat(EnumEntry->getName()).concat("\n\n"); // TODO add value
             }
         }
         Header.concat("}\n\n");

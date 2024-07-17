@@ -178,7 +178,7 @@ namespace fly {
 
         CodeGenClass *GenClass(ASTClass *Class, bool isExternal = false);
 
-        CodeGenEnum *GenEnum(ASTEnum *Enum, bool isExternal = false);
+        void GenEnum(ASTEnum *Enum);
 
         llvm::Type *GenType(const ASTType *Type);
 

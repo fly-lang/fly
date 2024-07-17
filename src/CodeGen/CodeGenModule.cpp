@@ -16,10 +16,10 @@
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenFunction.h"
 #include "CodeGen/CodeGenClass.h"
+#include "CodeGen/CodeGenEnumEntry.h"
 #include "CodeGen/CodeGenGlobalVar.h"
 #include "CodeGen/CodeGenVar.h"
 #include "CodeGen/CodeGenExpr.h"
-#include "CodeGen/CodeGenEnum.h"
 #include "CodeGen/CodeGenHandle.h"
 #include "CodeGen/CodeGenError.h"
 #include "AST/ASTImport.h"
@@ -43,6 +43,7 @@
 #include "AST/ASTVarRef.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTEnum.h"
+#include "AST/ASTEnumEntry.h"
 #include "AST/ASTExprStmt.h"
 #include "Basic/Debug.h"
 #include "llvm/IR/GlobalVariable.h"
@@ -186,6 +187,8 @@ void CodeGenModule::GenAll() {
 //                if (FrontendOpts.CreateHeader) {
 //                    CGH->setClass((ASTClass *) Identity);
 //                }
+        } else if (Identity->getTopDefKind() == ASTTopDefKind::DEF_ENUM) {
+            GenEnum((ASTEnum *) Identity);
         }
     }
 
@@ -214,7 +217,7 @@ void CodeGenModule::GenAll() {
  * @param isExternal
  */
 CodeGenGlobalVar *CodeGenModule::GenGlobalVar(ASTGlobalVar* GlobalVar, bool isExternal) {
-    FLY_DEBUG_MESSAGE("CodeGenModule", "AddGlobalVar",
+    FLY_DEBUG_MESSAGE("CodeGenModule", "GenGlobalVar",
                       "GlobalVar=" << GlobalVar->str() << ", isExternal=" << isExternal);
     // Check Value
     CodeGenGlobalVar *CGGV = new CodeGenGlobalVar(this, GlobalVar, isExternal);
@@ -226,7 +229,7 @@ CodeGenGlobalVar *CodeGenModule::GenGlobalVar(ASTGlobalVar* GlobalVar, bool isEx
 }
 
 CodeGenFunction *CodeGenModule::GenFunction(ASTFunction *Function, bool isExternal) {
-    FLY_DEBUG_MESSAGE("CodeGenModule", "AddFunction",
+    FLY_DEBUG_MESSAGE("CodeGenModule", "GenFunction",
                       "Function=" << Function->str() << ", isExternal=" << isExternal);
     CodeGenFunction *CGF = new CodeGenFunction(this, Function, isExternal);
     Function->setCodeGen(CGF);
@@ -234,7 +237,7 @@ CodeGenFunction *CodeGenModule::GenFunction(ASTFunction *Function, bool isExtern
 }
 
 CodeGenClass *CodeGenModule::GenClass(ASTClass *Class, bool isExternal) {
-    FLY_DEBUG_MESSAGE("CodeGenModule", "AddFunction",
+    FLY_DEBUG_MESSAGE("CodeGenModule", "GenClass",
                       "Class=" << Class->str() << ", isExternal=" << isExternal);
     CodeGenClass *CGC = new CodeGenClass(this, Class, isExternal);
     Class->setCodeGen(CGC);
@@ -242,13 +245,10 @@ CodeGenClass *CodeGenModule::GenClass(ASTClass *Class, bool isExternal) {
     return CGC;
 }
 
-CodeGenEnum *CodeGenModule::GenEnum(ASTEnum *Enum, bool isExternal) {
-    FLY_DEBUG_MESSAGE("CodeGenModule", "AddFunction",
-                      "Class=" << Enum->str() << ", isExternal=" << isExternal);
-    CodeGenEnum *CGE = new CodeGenEnum(this, Enum, isExternal);
-    Enum->setCodeGen(CGE);
-    CGE->Generate();
-    return CGE;
+void CodeGenModule::GenEnum(ASTEnum *Enum) {
+    for (auto &Entry : Enum->getEntries()) {
+        Entry->setCodeGen(new CodeGenEnumEntry(this, Entry));
+    }
 }
 
 llvm::Type *CodeGenModule::GenType(const ASTType *Type) {
@@ -312,8 +312,7 @@ llvm::Type *CodeGenModule::GenType(const ASTType *Type) {
                     return Class->getCodeGen()->getType();
                 }
                 case ASTIdentityTypeKind::TYPE_ENUM: {
-                    ASTEnum *Enum = (ASTEnum *) ((ASTEnumType *) Type)->getDef();
-                    return Enum->getCodeGen()->getType();
+                    return Int32Ty;
                 }
             }
         }
