@@ -27,12 +27,16 @@ namespace fly {
 
         llvm::Value *Value;
 
+        llvm::Type *T;
+
         llvm::Value *Instance = nullptr;
 
     public:
         CodeGenEnumEntry(CodeGenModule *CGM, ASTEnumEntry *EnumEntry);
 
 //        llvm::AllocaInst *Alloca() override;
+
+        llvm::Type *getType() override;
 
         llvm::StoreInst *Store(llvm::Value *Val) override;
 

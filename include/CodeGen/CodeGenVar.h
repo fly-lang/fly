@@ -55,7 +55,7 @@ namespace fly {
 
         CodeGenVarBase *getVar(llvm::StringRef Name);
 
-        llvm::Type *getType();
+        llvm::Type *getType() override;
 
         llvm::AllocaInst *Alloca();
 

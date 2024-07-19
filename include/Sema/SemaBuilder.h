@@ -373,7 +373,7 @@ namespace fly {
 
         ASTContinueStmt *CreateContinueStmt(const SourceLocation &Loc);
 
-        ASTFailStmt *CreateFailStmt(const SourceLocation &Loc);
+        ASTFailStmt *CreateFailStmt(const SourceLocation &Loc, ASTVar *ErrorHandler);
 
         ASTExprStmt *CreateExprStmt(const SourceLocation &Loc);
 

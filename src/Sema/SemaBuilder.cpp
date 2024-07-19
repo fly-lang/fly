@@ -991,10 +991,11 @@ ASTContinueStmt *SemaBuilder::CreateContinueStmt(const SourceLocation &Loc) {
     return Continue;
 }
 
-ASTFailStmt *SemaBuilder::CreateFailStmt(const SourceLocation &Loc) {
+ASTFailStmt *SemaBuilder::CreateFailStmt(const SourceLocation &Loc, ASTVar *ErrorHandler) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateFailStmt", Logger()
             .Attr("Loc", (uint64_t)Loc.getRawEncoding()).End());
     ASTFailStmt *FailStmt = new ASTFailStmt(Loc);
+    FailStmt->setErrorHandler(ErrorHandler);
     return FailStmt;
 }
 

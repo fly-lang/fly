@@ -118,8 +118,22 @@ void CodeGenFunctionBase::AllocaLocalVars() {
 }
 
 void CodeGenFunctionBase::StoreErrorHandler(bool isMain) {
-    if (!isMain)
+    if (isMain) {
+        llvm::Constant *Zero = llvm::ConstantInt::get(CGM->Int32Ty, 0);
+        llvm::Constant *One = llvm::ConstantInt::get(CGM->Int32Ty, 1);
+        llvm::Constant *Two = llvm::ConstantInt::get(CGM->Int32Ty, 2);
+        llvm::Constant *NullPtr = llvm::ConstantPointerNull::get(CGM->Int8Ty->getPointerTo());
+        CodeGenVarBase *CGE = AST->getErrorHandler()->getCodeGen();
+        llvm::Value *ErrorVar = CGE->Load();
+        llvm::Value *PtrType = CGM->Builder->CreateInBoundsGEP(CGE->getType(), ErrorVar, {Zero, Zero});
+        CGM->Builder->CreateStore(llvm::ConstantInt::get(CGM->Int8Ty, 0), PtrType);
+        llvm::Value *PtrInt = CGM->Builder->CreateInBoundsGEP(CGE->getType(), ErrorVar, {Zero, One});
+        CGM->Builder->CreateStore(Zero, PtrInt);
+        llvm::Value *PtrPtr = CGM->Builder->CreateInBoundsGEP(CGE->getType(), ErrorVar, {Zero, Two});
+        CGM->Builder->CreateStore(NullPtr, PtrPtr);
+    } else {
         ((CodeGenError *) AST->getErrorHandler()->getCodeGen())->StorePointer(Fn->getArg(0));
+    }
 }
 
 void CodeGenFunctionBase::StoreParams(bool isMain) {

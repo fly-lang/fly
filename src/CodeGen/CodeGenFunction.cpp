@@ -66,6 +66,7 @@ void CodeGenFunction::GenBody() {
         llvm::Value *Zero8 = llvm::ConstantInt::get(CGM->Int8Ty, 0);
         // take return value from error struct
         CodeGenError *CGE = (CodeGenError *) AST->getErrorHandler()->getCodeGen();
+        ErrorHandler = CGE->getValue();
         llvm::Value *ErrorKind = CGM->Builder->CreateInBoundsGEP(CGE->getType(), ErrorHandler, {Zero32, Zero32});
         llvm::Value *Ret = CGM->Builder->CreateICmpNE(CGM->Builder->CreateLoad(ErrorKind), Zero8);
         // main() will return 0 if ok or 1 on error

@@ -42,6 +42,8 @@ namespace fly {
 
 //        llvm::AllocaInst *Alloca() override;
 
+        llvm::Type *getType() override;
+
         llvm::StoreInst *Store(llvm::Value *Val) override;
 
         llvm::LoadInst *Load() override;

@@ -909,7 +909,8 @@ bool Parser::ParseFailStmt(ASTBlockStmt *Parent) {
     FLY_DEBUG("Parser", "ParseFailStmt");
 
     const SourceLocation &Loc = ConsumeToken();
-    ASTFailStmt *FailStmt = Builder.CreateFailStmt(Loc);
+    ASTParam *Errorhandler = Parent->getFunction()->getErrorHandler();
+    ASTFailStmt *FailStmt = Builder.CreateFailStmt(Loc, Errorhandler);
     ASTExpr *Expr = ParseExpr();
     return Builder.AddExpr(FailStmt, Expr) && Builder.AddStmt(Parent, FailStmt);
 }

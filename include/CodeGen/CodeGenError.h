@@ -42,11 +42,19 @@ namespace fly {
 
         static llvm::StructType *GenErrorType(llvm::LLVMContext &LLVMCtx);
 
-        llvm::Type *getType();
+        llvm::Type *getType() override;
 
         llvm::StoreInst *StorePointer(llvm::Value *Val);
 
 //        llvm::AllocaInst *Alloca() override;
+
+        llvm::StoreInst *StoreDefault();
+
+        llvm::StoreInst *StoreInt(llvm::Value *Val);
+
+        llvm::StoreInst *StoreString(llvm::Value *Val);
+
+        llvm::StoreInst *StoreObject(llvm::Value *Val);
 
         llvm::StoreInst *Store(llvm::Value *Val) override;
 

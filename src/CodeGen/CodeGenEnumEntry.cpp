@@ -14,8 +14,12 @@
 
 using namespace fly;
 
-CodeGenEnumEntry::CodeGenEnumEntry(CodeGenModule *CGM, ASTEnumEntry *EnumEntry) :
+CodeGenEnumEntry::CodeGenEnumEntry(CodeGenModule *CGM, ASTEnumEntry *EnumEntry) : T(CGM->Int32Ty),
         Value(llvm::ConstantInt::get(CGM->Int32Ty, EnumEntry->getIndex())) {
+}
+
+llvm::Type *CodeGenEnumEntry::getType() {
+    return T;
 }
 
 StoreInst *CodeGenEnumEntry::Store(llvm::Value *Val) {

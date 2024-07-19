@@ -20,7 +20,7 @@
 using namespace fly;
 
 CodeGenError::CodeGenError(CodeGenModule *CGM, ASTVar *Error, llvm::Value *Pointer) :
-    CGM(CGM), Error(Error), Pointer(Pointer), T(CGM->ErrorPtrTy) {
+    CGM(CGM), Error(Error), Pointer(Pointer), T(CGM->ErrorTy) {
 
 }
 
@@ -45,38 +45,66 @@ llvm::StoreInst *CodeGenError::StorePointer(llvm::Value *Val) {
     return CGM->Builder->CreateStore(Val, Pointer);
 }
 
+llvm::StoreInst *CodeGenError::StoreDefault() {
+    // Error Type: 1=integer
+    ConstantInt *TypeValue = llvm::ConstantInt::get(CGM->Int8Ty, 1);
+    llvm::Value *Zero = llvm::ConstantInt::get(CGM->Int32Ty, 0);
+    llvm::Value *One = llvm::ConstantInt::get(CGM->Int32Ty, 1);
+    // Store Error Type
+    llvm::Value *ErrorVar = CGM->Builder->CreateLoad(Pointer);
+    llvm::Value *TypeValuePtr = CGM->Builder->CreateInBoundsGEP(T, ErrorVar, {Zero, Zero});
+    return CGM->Builder->CreateStore(TypeValue, TypeValuePtr);
+}
+
+llvm::StoreInst *CodeGenError::StoreInt(llvm::Value *Val) {
+    this->Store(Val);
+    // Error Type: 1=integer
+    ConstantInt *TypeValue = llvm::ConstantInt::get(CGM->Int8Ty, 1);
+    llvm::Value *Zero = llvm::ConstantInt::get(CGM->Int32Ty, 0);
+    llvm::Value *One = llvm::ConstantInt::get(CGM->Int32Ty, 1);
+    // Store Error Type
+    llvm::Value *ErrorVar = CGM->Builder->CreateLoad(Pointer);
+    llvm::Value *TypeValuePtr = CGM->Builder->CreateInBoundsGEP(T, ErrorVar, {Zero, Zero});
+    CGM->Builder->CreateStore(TypeValue, TypeValuePtr);
+    // Store Error Value
+    llvm::Value *ValuePtr = CGM->Builder->CreateInBoundsGEP(T, ErrorVar, {Zero, One});
+    return CGM->Builder->CreateStore(Val, ValuePtr);
+}
+
+llvm::StoreInst *CodeGenError::StoreString(llvm::Value *Val) {
+    this->Store(Val);
+    // Error Type: 2=string
+    ConstantInt *TypeValue = llvm::ConstantInt::get(CGM->Int8Ty, 2);
+    llvm::Value *Zero = llvm::ConstantInt::get(CGM->Int32Ty, 0);
+    llvm::Value *Two = llvm::ConstantInt::get(CGM->Int32Ty, 2);
+    // Store Error Type
+    llvm::Value *ErrorVar = CGM->Builder->CreateLoad(Pointer);
+    llvm::Value *TypeValuePtr = CGM->Builder->CreateInBoundsGEP(T, ErrorVar, {Zero, Zero});
+    CGM->Builder->CreateStore(TypeValue, TypeValuePtr);
+    // Store Error Value
+    llvm::Value *ValuePtr = CGM->Builder->CreateInBoundsGEP(T, ErrorVar, {Zero, Two});
+    return CGM->Builder->CreateStore(Val, ValuePtr);
+}
+
+llvm::StoreInst *CodeGenError::StoreObject(llvm::Value *Val) {
+    this->Store(Val);
+    // Error Type: 3=object
+    ConstantInt *TypeValue = llvm::ConstantInt::get(CGM->Int8Ty, 3);
+    llvm::Value *Zero = llvm::ConstantInt::get(CGM->Int32Ty, 0);
+    llvm::Value *Three = llvm::ConstantInt::get(CGM->Int32Ty, 3);
+    // Store Error Type
+    llvm::Value *ErrorVar = CGM->Builder->CreateLoad(Pointer);
+    llvm::Value *TypeValuePtr = CGM->Builder->CreateInBoundsGEP(T, ErrorVar, {Zero, Zero});
+    CGM->Builder->CreateStore(TypeValue, TypeValuePtr);
+    // Store Error Value
+    llvm::Value *ValuePtr = CGM->Builder->CreateInBoundsGEP(T, ErrorVar, {Zero, Three});
+    return CGM->Builder->CreateStore(Val, ValuePtr);
+}
+
 llvm::StoreInst *CodeGenError::Store(llvm::Value *Val) {
     this->BlockID = CGM->Builder->GetInsertBlock()->getName();
     this->LoadI = nullptr;
-
-    // Add error param
-    llvm::Value *ErrorVar = CGM->Builder->CreateLoad(Pointer);
-    llvm::Value *Zero = llvm::ConstantInt::get(CGM->Int32Ty, 0);
-    llvm::Value *TypeValue = nullptr;
-
-    if (Val == nullptr) {
-        // Error Type: 1=integer
-        TypeValue = llvm::ConstantInt::get(CGM->Int32Ty, 1);
-
-        // Error Value: 1
-        Val = llvm::ConstantInt::get(CGM->Int32Ty, 1);
-    } else if (Val->getType()->isIntegerTy()) {
-        // Error Type: 1=integer
-        TypeValue = llvm::ConstantInt::get(CGM->Int32Ty, 1);
-
-        // Error Value: IntVal
-        llvm::ArrayRef<Value *> IdxList = {Zero, llvm::ConstantInt::get(CGM->Int32Ty, 1)};
-        llvm::Value *Ptr = CGM->Builder->CreateInBoundsGEP(T, ErrorVar, IdxList);
-        CGM->Builder->CreateStore(Val, Ptr);
-    } else if (Val->getType()->isPointerTy()) {
-        llvm::ArrayRef<Value *> IdxList = {Zero, llvm::ConstantInt::get(CGM->Int8PtrTy, 2)};
-        llvm::Value *Ptr = CGM->Builder->CreateInBoundsGEP(T, ErrorVar, IdxList);
-        CGM->Builder->CreateStore(Val, Ptr);
-    }
-
-    // store error type
-    llvm::Value *TypeValuePtr = CGM->Builder->CreateInBoundsGEP(T, ErrorVar, {Zero, Zero});
-    return CGM->Builder->CreateStore(TypeValue, TypeValuePtr);
+    return nullptr;
 }
 
 llvm::LoadInst *CodeGenError::Load() {
@@ -90,76 +118,6 @@ llvm::Value *CodeGenError::getValue() {
         return Load();
     }
     return this->LoadI;
-}
-
-void CodeGenError::Store(ASTExpr *Expr) {
-
-    // Add error param
-    llvm::Value *ErrorVar = CGM->Builder->CreateLoad(Pointer);
-    llvm::Value *Zero = llvm::ConstantInt::get(CGM->Int32Ty, 0);
-    llvm::Value *TypeValue = nullptr;
-    llvm::Value *IntValue = nullptr;
-    llvm::Value *PtrValue = nullptr;
-
-    if (Expr == nullptr || Expr->getType()->isBool()) {
-        // Error Type: 1=integer
-        TypeValue = llvm::ConstantInt::get(CGM->Int32Ty, 1);
-
-        // Error Value: 1
-        IntValue = llvm::ConstantInt::get(CGM->Int32Ty, 1);
-
-    } else if (Expr->getType()->isInteger()) {
-        // Error Type: 1=integer
-        TypeValue = llvm::ConstantInt::get(CGM->Int32Ty, 1);
-
-        // Error Value: IntVal
-        IntValue = CGM->GenExpr(Expr);
-
-    } else if (Expr->getType()->isString()) {
-        // Error Type: 2=string
-        TypeValue = llvm::ConstantInt::get(CGM->Int32Ty, 2);
-
-        // Error Value: PtrVal
-        PtrValue = CGM->GenExpr(Expr);
-
-    } else if (Expr->getType()->isIdentity()) {
-        ASTIdentity * Identity = (ASTIdentity *) Expr->getType();
-        if (Identity->getTopDefKind() == ASTTopDefKind::DEF_ENUM) {
-            // Error Type: 3=enum
-            TypeValue = llvm::ConstantInt::get(CGM->Int32Ty, 3);
-
-            // Error Value: PtrVal
-            PtrValue = CGM->GenExpr(Expr); // FIXME need to store enum type and enum value
-        } else if (Identity->getTopDefKind() == ASTTopDefKind::DEF_CLASS) {
-            // Error Type: 4=class
-            TypeValue = llvm::ConstantInt::get(CGM->Int32Ty, 4);
-
-            // Error Value: PtrVal
-            PtrValue = CGM->GenExpr(Expr);
-        } else {
-            // Error: unsupported identity type
-        }
-    } else {
-        // Error: unsupported type
-    }
-
-    // store error type
-    llvm::Value *TypeValuePtr = CGM->Builder->CreateInBoundsGEP(T, ErrorVar, {Zero, Zero});
-    CGM->Builder->CreateStore(TypeValue, TypeValuePtr);
-
-    // store error int value
-    if (IntValue) {
-        llvm::ArrayRef<Value *> IdxList = {Zero, llvm::ConstantInt::get(CGM->Int32Ty, 1)};
-        llvm::Value *Ptr = CGM->Builder->CreateInBoundsGEP(T, ErrorVar, IdxList);
-        CGM->Builder->CreateStore(IntValue, Ptr);
-    }
-
-    // store error pointer value
-    if (PtrValue) {
-        llvm::ArrayRef<Value *> IdxList = {Zero, llvm::ConstantInt::get(CGM->Int8PtrTy, 2)};
-        llvm::Value *Ptr = CGM->Builder->CreateInBoundsGEP(T, ErrorVar, IdxList);
-        CGM->Builder->CreateStore(PtrValue, Ptr);
-    }
 }
 
 CodeGenVarBase *CodeGenError::getVar(llvm::StringRef Name) {

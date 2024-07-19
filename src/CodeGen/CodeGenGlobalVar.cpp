@@ -49,6 +49,10 @@ CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, ASTGlobalVar* Var, bool i
     Pointer = new llvm::GlobalVariable(*CGM->Module, Ty, IsConstant, Linkage, Const, Id);
 }
 
+llvm::Type *CodeGenGlobalVar::getType() {
+    return T;
+}
+
 llvm::StoreInst *CodeGenGlobalVar::Store(llvm::Value *Val) {
     assert(!((GlobalVariable *) Pointer)->isConstant() && "Cannot store into constant var");
     this->LoadI = nullptr;

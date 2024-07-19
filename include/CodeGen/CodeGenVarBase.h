@@ -16,6 +16,7 @@ namespace llvm {
     class LoadInst;
     class AllocaInst;
     class Value;
+    class Type;
     class StringRef;
 }
 
@@ -26,6 +27,8 @@ namespace fly {
     class CodeGenVarBase {
 
     public:
+
+        virtual llvm::Type *getType() = 0;
 
         virtual llvm::StoreInst *Store(llvm::Value *Val) = 0;
 

@@ -374,7 +374,7 @@ llvm::Constant *CodeGenModule::GenDefaultValue(const ASTType *Type, llvm::Type *
         }
 
         case ASTTypeKind::TYPE_ARRAY:
-            return ConstantAggregateZero::get(Ty);
+            return llvm::ConstantAggregateZero::get(Ty);
 
         case ASTTypeKind::TYPE_IDENTITY:
             return nullptr; // TODO
@@ -936,8 +936,24 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
             CodeGenError *CGE = (CodeGenError *) ErrorHandler->getCodeGen();
 
             // Store Fail value in ErrorHandler
-            llvm::Value *V = GenExpr(FailStmt->getExpr());
-            CGE->Store(V);
+            if (FailStmt->getExpr() == nullptr || FailStmt->getExpr()->getExprKind() == ASTExprKind::EXPR_EMPTY) {
+                CGE->StoreDefault();
+            } else if (FailStmt->getExpr()->getType()->isBool() || FailStmt->getExpr()->getType()->isInteger()) {
+                llvm::Value *V = GenExpr(FailStmt->getExpr());
+                CGE->StoreInt(V);
+            } else if (FailStmt->getExpr()->getType()->isString()) {
+                llvm::Value *V = GenExpr(FailStmt->getExpr());
+                CGE->StoreString(V);
+            } else if (FailStmt->getExpr()->getType()->isIdentity()) {
+                ASTIdentityType * IdentityType = (ASTIdentityType *) FailStmt->getExpr()->getType();
+                llvm::Value *V = GenExpr(FailStmt->getExpr());
+                if (IdentityType->isEnum()) {
+                    CGE->StoreInt(V);
+                } else if (IdentityType->isClass()) {
+                    CGE->StoreObject(V);
+                }
+            }
+            
 
             // Generate Return with default value for stop execution flow
             if (FailStmt->hasHandle()) {

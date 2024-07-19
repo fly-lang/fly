@@ -40,6 +40,7 @@
 #include "AST/ASTEnumEntry.h"
 #include "AST/ASTExprStmt.h"
 #include "AST/ASTExpr.h"
+#include "AST/ASTFailStmt.h"
 #include "AST/ASTGroupExpr.h"
 #include "AST/ASTOperatorExpr.h"
 #include "Basic/Diagnostic.h"
@@ -2427,163 +2428,241 @@ namespace {
         }
     }
 
-//    TEST_F(CodeGenTest, CGError) {
-//        ASTModule *Module = CreateModule();
-//        ASTScopes *TopScopes = Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false);
-//
-//        // int testFail0() {
-//        //   fail()
-//        // }
-//        ASTFunction *TestFail0 = Builder.CreateFunction(SourceLoc, IntType, "testFail0", TopScopes);
-//        ASTBlockStmt *Body0 = Builder.CreateBody(TestFail0);
-//        ASTExprStmt *Fail0 = Builder.CreateExprStmt(SourceLoc);
-//        Builder.CreateFailStmt(SourceLoc);
-//        EXPECT_TRUE(Builder.AddStmt(Body0, Fail0));
-//        EXPECT_TRUE(Builder.AddFunction(Module, TestFail0));
-//
-//        // int testFail1() {
-//        //   fail(true)
-//        // }
-//        ASTFunction *TestFail1 = Builder.CreateFunction(SourceLoc, IntType, "testFail1", TopScopes);
-//        ASTBlockStmt *Body1 = Builder.CreateBody(TestFail1);
-//        ASTExprStmt *Fail1 = Builder.CreateExprStmt(SourceLoc);
-//        ASTBoolValue *BoolVal = Builder.CreateBoolValue(SourceLoc, true);
-//        ASTValueExpr *BoolValExpr = Builder.CreateExpr(BoolVal);
-//        Builder.CreateFailStmt(Fail1);
-//        EXPECT_TRUE(Builder.AddStmt(Body1, Fail1));
-//        EXPECT_TRUE(Builder.AddFunction(Module, TestFail1));
-//
-//        // int testFail2() {
-//        //   fail(1)
-//        // }
-//        ASTFunction *TestFail2 = Builder.CreateFunction(SourceLoc, IntType, "testFail2", TopScopes);
-//        ASTBlockStmt *Body2 = Builder.CreateBody(TestFail2);
-//        ASTExprStmt *Fail2 = Builder.CreateExprStmt(SourceLoc);
-//        ASTIntegerValue *IntVal = Builder.CreateIntegerValue(SourceLoc, 1);
-//        ASTValueExpr *IntValExpr = Builder.CreateExpr(IntVal);
-//        Builder.CreateFailStmt(SourceLoc);
-//        EXPECT_TRUE(Builder.AddStmt(Body2, Fail2));
-//        EXPECT_TRUE(Builder.AddFunction(Module, TestFail2));
-//
-//        // int testFail3() {
-//        //  fail("Error")
-//        // }
-//        ASTFunction *TestFail3 = Builder.CreateFunction(SourceLoc, IntType, "testFail3", TopScopes);
-//        ASTBlockStmt *Body3 = Builder.CreateBody(TestFail3);
-//        ASTExprStmt *Fail3 = Builder.CreateExprStmt(SourceLoc);
-//        ASTStringValue *StrVal = Builder.CreateStringValue(SourceLoc, "Error");
-//        ASTValueExpr *StrValExpr = Builder.CreateExpr(StrVal);
-//        Builder.CreateFailStmt(SourceLoc);
-//        EXPECT_TRUE(Builder.AddStmt(Body3, Fail3));
-//        EXPECT_TRUE(Builder.AddFunction(Module, TestFail3));
-//
-//        ASTFunction *Main = Builder.CreateFunction(SourceLoc, VoidType, "main", TopScopes);
-//        ASTBlockStmt *MainBody = Builder.CreateBody(Main);
-//
-//        // main() {
-//        //   testFail0()
-//        //   testFail1()
-//        //   testFail2()
-//        //   testFail3()
-//        // }
-//
-//        // call test1()
-//        ASTExprStmt *CallTestFail0 = Builder.CreateExprStmt(SourceLoc);
-//        ASTCallExpr *CallExpr0 = Builder.CreateExpr(Builder.CreateCall(TestFail0));
-//        Builder.AddExpr(CallTestFail0, CallExpr0);
-//        EXPECT_TRUE(Builder.AddStmt(MainBody, CallTestFail0));
-//
-//        // call test1()
-//        ASTExprStmt *CallTestFail1 = Builder.CreateExprStmt(SourceLoc);
-//        ASTCallExpr *CallExpr1 = Builder.CreateExpr(Builder.CreateCall(TestFail1));
-//        Builder.AddExpr(CallTestFail1, CallExpr1);
-//        EXPECT_TRUE(Builder.AddStmt(MainBody, CallTestFail1));
-//
-//        // call test2()
-//        ASTExprStmt *CallTestFail2 = Builder.CreateExprStmt(SourceLoc);
-//        ASTCallExpr *CallExpr2 = Builder.CreateExpr(Builder.CreateCall(TestFail2));
-//        Builder.AddExpr(CallTestFail2, CallExpr2);
-//        EXPECT_TRUE(Builder.AddStmt(MainBody, CallTestFail2));
-//
-//        // call test2()
-//        ASTExprStmt *CallTestFail3 = Builder.CreateExprStmt(SourceLoc);
-//        ASTCallExpr *CallExpr3 = Builder.CreateExpr(Builder.CreateCall(TestFail3));
-//        Builder.AddExpr(CallTestFail3, CallExpr3);
-//        EXPECT_TRUE(Builder.AddStmt(MainBody, CallTestFail3));
-//
-//        EXPECT_TRUE(Builder.AddFunction(Module, Main));
-//        EXPECT_TRUE(S->Resolve());
-//
-//        // Generate Code
-//        CodeGenFunction *CGF_TestFail0 = CGM->GenFunction(TestFail0);
-//        CGF_TestFail0->GenBody();
-//        llvm::Function *F_TestFail0 = CGF_TestFail0->getFunction();
-//
-//        CodeGenFunction *CGF_TestFail1 = CGM->GenFunction(TestFail1);
-//        CGF_TestFail1->GenBody();
-//        llvm::Function *F_TestFail1 = CGF_TestFail1->getFunction();
-//
-//        CodeGenFunction *CGF_TestFail2 = CGM->GenFunction(TestFail2);
-//        CGF_TestFail2->GenBody();
-//        llvm::Function *F_TestFail2 = CGF_TestFail2->getFunction();
-//
-//        CodeGenFunction *CGF_TestFail3 = CGM->GenFunction(TestFail3);
-//        CGF_TestFail3->GenBody();
-//        llvm::Function *F_TestFail3 = CGF_TestFail3->getFunction();
-//
-//        CodeGenFunction *CGF_Main = CGM->GenFunction(Main);
-//        CGF_Main->GenBody();
-//        llvm::Function *F_Main = CGF_Main->getFunction();
-//
-//        EXPECT_FALSE(Diags.hasErrorOccurred());
-//        testing::internal::CaptureStdout();
-//        F_TestFail0->print(llvm::outs());
-//        F_TestFail1->print(llvm::outs());
-//        F_TestFail2->print(llvm::outs());
-//        F_TestFail3->print(llvm::outs());
-//        F_Main->print(llvm::outs());
-//        std::string output = testing::internal::GetCapturedStdout();
-//
-//        EXPECT_EQ(output, "define i32 @testFail0(%error* %0) {\n"
-//                          "entry:\n"
-//                          "  %1 = getelementptr inbounds %error, %error* %0, i32 0, i32 0\n"
-//                          "  store i8 1, i8* %1, align 1\n"
-//                          "  ret i32 0\n"
-//                          "}\n"
-//                          "define i32 @testFail1(%error* %0) {\n"
-//                          "entry:\n"
-//                          "  %1 = getelementptr inbounds %error, %error* %0, i32 0, i32 0\n"
-//                          "  store i8 1, i8* %1, align 1\n"
-//                          "  ret i32 0\n"
-//                          "}\n"
-//                          "define i32 @testFail2(%error* %0) {\n"
-//                          "entry:\n"
-//                          "  %1 = getelementptr inbounds %error, %error* %0, i32 0, i32 0\n"
-//                          "  store i8 2, i8* %1, align 1\n"
-//                          "  %2 = getelementptr inbounds %error, %error* %0, i32 0, i32 1\n"
-//                          "  store i32 1, i32* %2, align 4\n"
-//                          "  ret i32 0\n"
-//                          "}\n"
-//                          "define i32 @testFail3(%error* %0) {\n"
-//                          "entry:\n"
-//                          "  %1 = getelementptr inbounds %error, %error* %0, i32 0, i32 0\n"
-//                          "  store i8 3, i8* %1, align 1\n"
-//                          "  %2 = getelementptr inbounds %error, %error* %0, i32 0, i32 2\n"
-//                          "  store i8* getelementptr inbounds ([6 x i8], [6 x i8]* @0, i32 0, i32 0), i8** %2, align 8\n"
-//                          "  ret i32 0\n"
-//                          "}\n"
-//                          "define i32 @main() {\n"
-//                          "entry:\n"
-//                          "  %0 = alloca %error, align 8\n"
-//                          "  %1 = call i32 @testFail0(%error* %0)\n"
-//                          "  %2 = call i32 @testFail1(%error* %0)\n"
-//                          "  %3 = call i32 @testFail2(%error* %0)\n"
-//                          "  %4 = call i32 @testFail3(%error* %0)\n"
-//                          "  %5 = getelementptr inbounds %error, %error* %0, i32 0, i32 0\n"
-//                          "  %6 = load i8, i8* %5, align 1\n"
-//                          "  %7 = icmp ne i8 %6, 0\n"
-//                          "  %8 = zext i1 %7 to i32\n"
-//                          "  ret i32 %8\n"
-//                          "}\n");
-//    }
+    TEST_F(CodeGenTest, CGError) {
+        ASTModule *Module = CreateModule();
+        ASTScopes *TopScopes = Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false);
+
+        // int testFail0() {
+        //   fail()
+        // }
+        ASTFunction *TestFail0 = Builder.CreateFunction(SourceLoc, IntType, "testFail0", TopScopes);
+        ASTBlockStmt *Body0 = Builder.CreateBody(TestFail0);
+        ASTFailStmt *Fail0Stmt = Builder.CreateFailStmt(SourceLoc, TestFail0->getErrorHandler());
+        Builder.AddExpr(Fail0Stmt, Builder.CreateExpr());
+        EXPECT_TRUE(Builder.AddStmt(Body0, Fail0Stmt));
+        EXPECT_TRUE(Builder.AddFunction(Module, TestFail0));
+
+        // int testFail1() {
+        //   fail(true)
+        // }
+        ASTFunction *TestFail1 = Builder.CreateFunction(SourceLoc, IntType, "testFail1", TopScopes);
+        ASTBlockStmt *Body1 = Builder.CreateBody(TestFail1);
+        ASTBoolValue *BoolVal = Builder.CreateBoolValue(SourceLoc, true);
+        ASTFailStmt *Fail1Stmt = Builder.CreateFailStmt(SourceLoc, TestFail1->getErrorHandler());
+        Builder.AddExpr(Fail1Stmt, Builder.CreateExpr(BoolVal));
+        EXPECT_TRUE(Builder.AddStmt(Body1, Fail1Stmt));
+        EXPECT_TRUE(Builder.AddFunction(Module, TestFail1));
+
+        // int testFail2() {
+        //   fail(10)
+        // }
+        ASTFunction *TestFail2 = Builder.CreateFunction(SourceLoc, IntType, "testFail2", TopScopes);
+        ASTBlockStmt *Body2 = Builder.CreateBody(TestFail2);
+        ASTIntegerValue *IntVal = Builder.CreateIntegerValue(SourceLoc, 10);
+        ASTFailStmt *Fail2Stmt = Builder.CreateFailStmt(SourceLoc, TestFail2->getErrorHandler());
+        Builder.AddExpr(Fail2Stmt, Builder.CreateExpr(IntVal));
+        EXPECT_TRUE(Builder.AddStmt(Body2, Fail2Stmt));
+        EXPECT_TRUE(Builder.AddFunction(Module, TestFail2));
+
+        // int testFail3() {
+        //  fail("Error")
+        // }
+        ASTFunction *TestFail3 = Builder.CreateFunction(SourceLoc, IntType, "testFail3", TopScopes);
+        ASTBlockStmt *Body3 = Builder.CreateBody(TestFail3);
+        ASTStringValue *StrVal = Builder.CreateStringValue(SourceLoc, "Error");
+        ASTFailStmt *Fail3Stmt = Builder.CreateFailStmt(SourceLoc, TestFail3->getErrorHandler());
+        Builder.AddExpr(Fail3Stmt, Builder.CreateExpr(StrVal));
+        EXPECT_TRUE(Builder.AddStmt(Body3, Fail3Stmt));
+        EXPECT_TRUE(Builder.AddFunction(Module, TestFail3));
+
+        // int testFail4() {
+        //  fail(new TestStruct())
+        // }
+        llvm::SmallVector<ASTClassType *, 4> SuperClasses;
+        ASTClass *TestStruct = Builder.CreateClass(SourceLoc, ASTClassKind::STRUCT, "TestStruct",
+                                                   Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false),
+                                                   SuperClasses);
+        Builder.AddIdentity(Module, TestStruct);
+        ASTClassAttribute *aField = Builder.CreateClassAttribute(SourceLoc, *TestStruct, Builder.CreateIntType(SourceLoc),
+                                                                 "a",
+                                                                 Builder.CreateScopes(
+                                                                         ASTVisibilityKind::V_DEFAULT, false, false));
+
+        ASTFunction *TestFail4 = Builder.CreateFunction(SourceLoc, IntType, "testFail4", TopScopes);
+        ASTBlockStmt *Body4 = Builder.CreateBody(TestFail4);
+        // TestStruct test = new TestStruct()
+        ASTType *TestClassType = Builder.CreateClassType(TestStruct);
+        ASTClassMethod *DefaultConstructor = TestStruct->getDefaultConstructor();
+        ASTCall *ConstructorCall = Builder.CreateCall(DefaultConstructor);
+        // fail new TestStruct()
+        ASTFailStmt *Fail4Stmt = Builder.CreateFailStmt(SourceLoc, TestFail4->getErrorHandler());
+        Builder.AddExpr(Fail4Stmt, Builder.CreateNewExpr(ConstructorCall));
+        EXPECT_TRUE(Builder.AddStmt(Body4, Fail4Stmt));
+        EXPECT_TRUE(Builder.AddFunction(Module, TestFail4));
+
+        // main() {
+        //   testFail0()
+        //   testFail1()
+        //   testFail2()
+        //   testFail3()
+        //   testFail4()
+        // }
+        ASTFunction *Main = Builder.CreateFunction(SourceLoc, VoidType, "main", TopScopes);
+        ASTBlockStmt *MainBody = Builder.CreateBody(Main);
+
+        // call testFail0()
+        ASTExprStmt *CallTestFail0 = Builder.CreateExprStmt(SourceLoc);
+        ASTCallExpr *CallExpr0 = Builder.CreateExpr(Builder.CreateCall(TestFail0));
+        Builder.AddExpr(CallTestFail0, CallExpr0);
+        EXPECT_TRUE(Builder.AddStmt(MainBody, CallTestFail0));
+
+        // call testFail1()
+        ASTExprStmt *CallTestFail1 = Builder.CreateExprStmt(SourceLoc);
+        ASTCallExpr *CallExpr1 = Builder.CreateExpr(Builder.CreateCall(TestFail1));
+        Builder.AddExpr(CallTestFail1, CallExpr1);
+        EXPECT_TRUE(Builder.AddStmt(MainBody, CallTestFail1));
+
+        // call testFail2()
+        ASTExprStmt *CallTestFail2 = Builder.CreateExprStmt(SourceLoc);
+        ASTCallExpr *CallExpr2 = Builder.CreateExpr(Builder.CreateCall(TestFail2));
+        Builder.AddExpr(CallTestFail2, CallExpr2);
+        EXPECT_TRUE(Builder.AddStmt(MainBody, CallTestFail2));
+
+        // call testFail3()
+        ASTExprStmt *CallTestFail3 = Builder.CreateExprStmt(SourceLoc);
+        ASTCallExpr *CallExpr3 = Builder.CreateExpr(Builder.CreateCall(TestFail3));
+        Builder.AddExpr(CallTestFail3, CallExpr3);
+        EXPECT_TRUE(Builder.AddStmt(MainBody, CallTestFail3));
+
+        // call testFail4()
+        ASTExprStmt *CallTestFail4 = Builder.CreateExprStmt(SourceLoc);
+        ASTCallExpr *CallExpr4 = Builder.CreateExpr(Builder.CreateCall(TestFail4));
+        Builder.AddExpr(CallTestFail4, CallExpr4);
+        EXPECT_TRUE(Builder.AddStmt(MainBody, CallTestFail4));
+
+        EXPECT_TRUE(Builder.AddFunction(Module, Main));
+        EXPECT_TRUE(S->Resolve());
+
+        CodeGenModule *CGM = CG->GenerateModule(*Module);
+
+        // Generate Code
+        CodeGenClass *CGC = CGM->GenClass(TestStruct);
+        for (auto &F : CGC->getConstructors()) {
+            F->GenBody();
+        }
+
+        // Generate Code
+        CodeGenFunction *CGF_TestFail0 = CGM->GenFunction(TestFail0);
+        CGF_TestFail0->GenBody();
+        llvm::Function *F_TestFail0 = CGF_TestFail0->getFunction();
+
+        CodeGenFunction *CGF_TestFail1 = CGM->GenFunction(TestFail1);
+        CGF_TestFail1->GenBody();
+        llvm::Function *F_TestFail1 = CGF_TestFail1->getFunction();
+
+        CodeGenFunction *CGF_TestFail2 = CGM->GenFunction(TestFail2);
+        CGF_TestFail2->GenBody();
+        llvm::Function *F_TestFail2 = CGF_TestFail2->getFunction();
+
+        CodeGenFunction *CGF_TestFail3 = CGM->GenFunction(TestFail3);
+        CGF_TestFail3->GenBody();
+        llvm::Function *F_TestFail3 = CGF_TestFail3->getFunction();
+
+        CodeGenFunction *CGF_TestFail4 = CGM->GenFunction(TestFail4);
+        CGF_TestFail4->GenBody();
+        llvm::Function *F_TestFail4 = CGF_TestFail4->getFunction();
+
+        CodeGenFunction *CGF_Main = CGM->GenFunction(Main);
+        CGF_Main->GenBody();
+        llvm::Function *F_Main = CGF_Main->getFunction();
+
+        EXPECT_FALSE(Diags.hasErrorOccurred());
+        testing::internal::CaptureStdout();
+        F_TestFail0->print(llvm::outs());
+        F_TestFail1->print(llvm::outs());
+        F_TestFail2->print(llvm::outs());
+        F_TestFail3->print(llvm::outs());
+        F_TestFail4->print(llvm::outs());
+        F_Main->print(llvm::outs());
+        std::string output = testing::internal::GetCapturedStdout();
+
+        EXPECT_EQ(output, "define i32 @testFail0(%error* %0) {\n"
+                          "entry:\n"
+                          "  %1 = alloca %error*, align 8\n"
+                          "  store %error* %0, %error** %1, align 8\n"
+                          "  %2 = load %error*, %error** %1, align 8\n"
+                          "  %3 = getelementptr inbounds %error, %error* %2, i32 0, i32 0\n"
+                          "  store i8 1, i8* %3, align 1\n"
+                          "  ret i32 0\n"
+                          "}\n"
+                          "define i32 @testFail1(%error* %0) {\n"
+                          "entry:\n"
+                          "  %1 = alloca %error*, align 8\n"
+                          "  store %error* %0, %error** %1, align 8\n"
+                          "  %2 = load %error*, %error** %1, align 8\n"
+                          "  %3 = getelementptr inbounds %error, %error* %2, i32 0, i32 0\n"
+                          "  store i8 1, i8* %3, align 1\n"
+                          "  %4 = getelementptr inbounds %error, %error* %2, i32 0, i32 1\n"
+                          "  store i1 true, i32* %4, align 1\n"
+                          "  ret i32 0\n"
+                          "}\n"
+                          "define i32 @testFail2(%error* %0) {\n"
+                          "entry:\n"
+                          "  %1 = alloca %error*, align 8\n"
+                          "  store %error* %0, %error** %1, align 8\n"
+                          "  %2 = load %error*, %error** %1, align 8\n"
+                          "  %3 = getelementptr inbounds %error, %error* %2, i32 0, i32 0\n"
+                          "  store i8 1, i8* %3, align 1\n"
+                          "  %4 = getelementptr inbounds %error, %error* %2, i32 0, i32 1\n"
+                          "  store i8 10, i32* %4, align 1\n"
+                          "  ret i32 0\n"
+                          "}\n"
+                          "define i32 @testFail3(%error* %0) {\n"
+                          "entry:\n"
+                          "  %1 = alloca %error*, align 8\n"
+                          "  store %error* %0, %error** %1, align 8\n"
+                          "  %2 = load %error*, %error** %1, align 8\n"
+                          "  %3 = getelementptr inbounds %error, %error* %2, i32 0, i32 0\n"
+                          "  store i8 2, i8* %3, align 1\n"
+                          "  %4 = getelementptr inbounds %error, %error* %2, i32 0, i32 2\n"
+                          "  store i8* getelementptr inbounds ([6 x i8], [6 x i8]* @0, i32 0, i32 0), i8** %4, align 8\n"
+                          "  ret i32 0\n"
+                          "}\n"
+                          "define i32 @testFail4(%error* %0) {\n"
+                          "entry:\n"
+                          "  %1 = alloca %error*, align 8\n"
+                          "  %2 = alloca %TestStruct*, align 8\n"
+                          "  store %error* %0, %error** %1, align 8\n"
+                          "  %3 = load %error*, %error** %1, align 8\n"
+                          "  %malloccall = tail call i8* @malloc(%TestStruct trunc (i64 mul nuw (i64 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i64), i64 3) to %TestStruct))\n"
+                          "  %4 = bitcast i8* %malloccall to %TestStruct*\n"
+                          "  call void @TestStruct_TestStruct(%TestStruct* %4)\n"
+                          "  %5 = getelementptr inbounds %error, %error* %3, i32 0, i32 0\n"
+                          "  store i8 2, i8* %5, align 1\n"
+                          "  %6 = getelementptr inbounds %error, %error* %3, i32 0, i32 2\n"
+                          "  store %TestStruct* %4, i8** %6, align 8\n"
+                          "  ret i32 0\n"
+                          "}\n"
+                          "define i32 @main() {\n"
+                          "entry:\n"
+                          "  %0 = alloca %error*, align 8\n"
+                          "  %1 = load %error*, %error** %0, align 8\n"
+                          "  %2 = getelementptr inbounds %error, %error* %1, i32 0, i32 0\n"
+                          "  store i8 0, i8* %2, align 1\n"
+                          "  %3 = getelementptr inbounds %error, %error* %1, i32 0, i32 1\n"
+                          "  store i32 0, i32* %3, align 4\n"
+                          "  %4 = getelementptr inbounds %error, %error* %1, i32 0, i32 2\n"
+                          "  store i8* null, i8** %4, align 8\n"
+                          "  %5 = call i32 @testFail0(%error* %1)\n"
+                          "  %6 = call i32 @testFail1(%error* %1)\n"
+                          "  %7 = call i32 @testFail2(%error* %1)\n"
+                          "  %8 = call i32 @testFail3(%error* %1)\n"
+                          "  %9 = call i32 @testFail4(%error* %1)\n"
+                          "  %10 = getelementptr inbounds %error, %error* %1, i32 0, i32 0\n"
+                          "  %11 = load i8, i8* %10, align 1\n"
+                          "  %12 = icmp ne i8 %11, 0\n"
+                          "  %13 = zext i1 %12 to i32\n"
+                          "  ret i32 %13\n"
+                          "}\n");
+    }
 } // anonymous namespace
