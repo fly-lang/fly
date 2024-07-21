@@ -859,7 +859,7 @@ bool SemaResolver::ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr, ASTType *Type) {
                         Expr->Type = Call->Def->ReturnType;
                         break;
                     case ASTCallKind::CALL_CONSTRUCTOR:
-                        Expr->Type = ((ASTClassMethod *) Call->Def)->getReturnType();
+                        Expr->Type = ((ASTClassMethod *) Call->Def)->getClass()->getType();
                         break;
                 }
                 Success = true;
