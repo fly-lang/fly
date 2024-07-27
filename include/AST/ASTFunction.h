@@ -19,7 +19,7 @@ namespace fly {
     class ASTModule;
     class ASTType;
     class ASTBlockStmt;
-    class ASTScopes;
+    enum class ASTVisibilityKind;
     class CodeGenFunction;
 
     /**
@@ -37,6 +37,8 @@ namespace fly {
 
         ASTTopDefKind TopDefKind = ASTTopDefKind::DEF_FUNCTION;
 
+        ASTVisibilityKind Visibility;
+
         // Function Name
         llvm::StringRef Name;
 
@@ -45,13 +47,16 @@ namespace fly {
         // Populated during codegen phase
         CodeGenFunction *CodeGen = nullptr;
 
-        ASTFunction(const SourceLocation &Loc, ASTType *ReturnType, llvm::StringRef Name, ASTScopes *Scopes);
+        ASTFunction(ASTModule *Module, const SourceLocation &Loc, ASTType *ReturnType, llvm::StringRef Name,
+                    llvm::SmallVector<ASTScope *, 8> &Scopes);
 
     public:
 
         llvm::StringRef getName() const override;
 
         ASTTopDefKind getTopDefKind() const override;
+
+        ASTVisibilityKind getVisibility() const;
 
         ASTModule *getModule() const override;
 

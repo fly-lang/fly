@@ -27,9 +27,9 @@ using namespace fly;
  * @param Visibility
  * @param Constant
  */
-ClassParser::ClassParser(Parser *P, ASTScopes *ClassScopes) : P(P) {
+ClassParser::ClassParser(Parser *P, SmallVector<ASTScope *, 8> &Scopes) : P(P) {
     FLY_DEBUG_MESSAGE("ClassParser", "ClassParser", Logger()
-            .Attr("Scopes", ClassScopes).End());
+            .AttrList("Scopes", Scopes).End());
 
     ASTClassKind ClassKind;
     if (P->Tok.is(tok::kw_struct)) {
@@ -63,7 +63,7 @@ ClassParser::ClassParser(Parser *P, ASTScopes *ClassScopes) : P(P) {
     if (P->isBlockStart()) {
         P->ConsumeBrace(BraceCount);
 
-        Class = P->Builder.CreateClass(ClassLoc, ClassKind, ClassName, ClassScopes, SuperClasses);
+        Class = P->Builder.CreateClass(P->Module, ClassLoc, ClassKind, ClassName, Scopes, SuperClasses);
         bool Continue;
         do {
 
@@ -81,20 +81,20 @@ ClassParser::ClassParser(Parser *P, ASTScopes *ClassScopes) : P(P) {
             }
 
             // Parse Scopes
-            ASTScopes *Scopes = P->Builder.CreateScopes();
+            llvm::SmallVector<ASTScope *, 8> Scopes = P->ParseScopes();
 
             // Parse Type
             ASTType *Type = nullptr;
 
-            Continue = P->ParseScopes(Scopes) && P->ParseType(Type); // Continue loop if there is a field or a method
+            Continue =  P->ParseType(Type); // Continue loop if there is a field or a method
             if (Continue && P->Tok.isAnyIdentifier()) {
                 const StringRef &Name = P->Tok.getIdentifierInfo()->getName();
                 const SourceLocation &Loc = P->ConsumeToken();
 
                 if (P->Tok.is(tok::l_paren)) {
-                    Success &= ParseMethod(Scopes, Type, Loc, Name);
+                    ASTClassMethod *Method = ParseMethod(Scopes, Type, Loc, Name);
                 } else {
-                    Success &= ParseField(Scopes, Type, Loc, Name);
+                    ASTClassAttribute *Attribute = ParseAttribute(Scopes, Type, Loc, Name);
                 }
                 Continue = true;
             }
@@ -104,24 +104,24 @@ ClassParser::ClassParser(Parser *P, ASTScopes *ClassScopes) : P(P) {
 }
 
 /**
- * Parse Class Declaration
+ * ParseModule Class Declaration
  * @return
  */
-ASTClass *ClassParser::Parse(Parser *P, ASTScopes *ClassScopes) {
-    FLY_DEBUG_MESSAGE("ClassParser", "Parse", Logger()
-            .Attr("Scopes", ClassScopes).End());
-    ClassParser *CP = new ClassParser(P, ClassScopes);
+ASTClass *ClassParser::Parse(Parser *P, SmallVector<ASTScope *, 8> &Scopes) {
+    FLY_DEBUG_MESSAGE("ClassParser", "ParseModule", Logger()
+            .AttrList("Scopes", Scopes).End());
+    ClassParser *CP = new ClassParser(P, Scopes);
     return CP->Class;
 }
 
-bool ClassParser::ParseField(ASTScopes *Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name) {
+ASTClassAttribute *ClassParser::ParseAttribute(SmallVector<ASTScope *, 8> &Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name) {
     FLY_DEBUG_MESSAGE("ClassParser", "ParseMethod", Logger()
-            .Attr("Scopes", Scopes)
+            .AttrList("Scopes", Scopes)
             .Attr("Type", Type).End());
 
     if (!Type) {
         P->Diag(diag::err_parser_invalid_type);
-        return false;
+        return nullptr;
     }
 
     // Add Comment to AST
@@ -139,16 +139,14 @@ bool ClassParser::ParseField(ASTScopes *Scopes, ASTType *Type, const SourceLocat
             ASTExpr *Expr = P->ParseExpr();
             ClassVar->setExpr(Expr);
         }
-
-        return P->Builder.AddComment(ClassVar, Comment);
     }
-
-    return false;
+    
+    return ClassVar;
 }
 
-bool ClassParser::ParseMethod(ASTScopes *Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name) {
+ASTClassMethod *ClassParser::ParseMethod(SmallVector<ASTScope *, 8> &Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name) {
     FLY_DEBUG_MESSAGE("ClassParser", "ParseMethod", Logger()
-            .Attr("Scopes", Scopes)
+            .AttrList("Scopes", Scopes)
             .Attr("Type", Type).End());
 
     // Add Comment to AST
@@ -161,15 +159,15 @@ bool ClassParser::ParseMethod(ASTScopes *Scopes, ASTType *Type, const SourceLoca
     if (Name == Class->getName()) {
         if (!Type) {
             Method = P->Builder.CreateClassConstructor(Loc, *Class, Scopes);
-            Success = FunctionParser::Parse(P, Method) && P->Builder.AddClassMethod(Class, Method);
+            Success = FunctionParser::Parse(P, Method);
         } else {
             P->Diag(diag::err_parser_invalid_type);
             Success = false;
         }
     } else {
         Method = P->Builder.CreateClassMethod(Loc, *Class, Type, Name, Scopes);
-        Success = FunctionParser::Parse(P, Method) && P->Builder.AddClassMethod(Class, Method);
+        Success = FunctionParser::Parse(P, Method);
     }
 
-    return Success;
+    return Method;
 }

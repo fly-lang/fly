@@ -40,11 +40,14 @@ namespace fly {
         // Namespace declaration
         ASTNameSpace *NameSpace = nullptr;
 
+        // Module Id
+        const uint64_t Id;
+
         // Module FileName
         const std::string Name;
 
         // Global Vars
-        llvm::StringMap<ASTGlobalVar *> GlobalVars;
+        llvm::SmallVector<ASTGlobalVar *, 8> GlobalVars;
 
         // Functions
         llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> Functions;
@@ -52,10 +55,10 @@ namespace fly {
         const bool Header;
 
         // Contains all Imports, the key is Alias or Name
-        llvm::StringMap<ASTImport *> Imports;
+        llvm::SmallVector<ASTImport *, 8> Imports;
 
         // Contains all Imports, the key is Alias or Name
-        llvm::StringMap<ASTImport *> AliasImports;
+        llvm::SmallVector<ASTImport *, 8> AliasImports;
         
         // All used GlobalVars
         llvm::StringMap<ASTGlobalVar *> ExternalGlobalVars;
@@ -65,7 +68,7 @@ namespace fly {
 
         llvm::StringMap<ASTIdentity *> ExternalIdentities;
 
-        llvm::StringMap<ASTIdentity *> Identities; // TODO to Map
+        llvm::SmallVector<ASTIdentity *, 8> Identities;
 
         CodeGenModule *CodeGen = nullptr;
 
@@ -73,9 +76,11 @@ namespace fly {
 
         ~ASTModule();
 
-        ASTModule(std::string Name, ASTContext *Context, bool isHeader);
+        ASTModule(uint64_t &Id, std::string Name, ASTContext *Context, bool isHeader);
 
     public:
+
+        const uint64_t getId() const;
 
         bool isHeader() const;
 
@@ -85,17 +90,17 @@ namespace fly {
 
         ASTNameSpace* getNameSpace();
 
-        const llvm::StringMap<ASTImport*> &getImports();
+        const llvm::SmallVector<ASTImport *, 8> &getImports();
 
-        const llvm::StringMap<ASTImport*> &getAliasImports();
+        const llvm::SmallVector<ASTImport *, 8> &getAliasImports();
 
         const llvm::StringMap<ASTGlobalVar *> &getExternalGlobalVars() const;
 
         const llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> &getExternalFunctions() const;
 
-        llvm::StringMap<ASTIdentity *>getIdentities() const;
+        const llvm::SmallVector<ASTIdentity *, 8> &getIdentities() const;
 
-        const llvm::StringMap<ASTGlobalVar *> &getGlobalVars() const;
+        const llvm::SmallVector<ASTGlobalVar *, 8> &getGlobalVars() const;
 
         const llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> &getFunctions() const;
 

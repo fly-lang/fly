@@ -25,7 +25,7 @@ namespace fly {
     class ASTGlobalVar;
     class ASTVar;
     class ASTParam;
-    class ASTScopes;
+    class ASTScope;
     class CodeGenFunction;
     class CodeGenFunctionBase;
     class CodeGenVarBase;
@@ -48,7 +48,7 @@ namespace fly {
         // Function return type
         ASTType *ReturnType = nullptr;
 
-        ASTScopes * Scopes;
+        llvm::SmallVector<ASTScope *, 8> Scopes;
 
         llvm::SmallVector<ASTParam *, 8> Params;
 
@@ -63,7 +63,7 @@ namespace fly {
 
     protected:
 
-        ASTFunctionBase(const SourceLocation &Loc, ASTFunctionKind Kind, ASTType *ReturnType, ASTScopes *Scopes);
+        ASTFunctionBase(const SourceLocation &Loc, ASTFunctionKind Kind, ASTType *ReturnType, llvm::SmallVector<ASTScope *, 8> &Scopes);
 
     public:
 
@@ -71,7 +71,7 @@ namespace fly {
 
         ASTType *getReturnType() const;
 
-        ASTScopes *getScopes() const;
+        llvm::SmallVector<ASTScope *, 8> getScopes() const;
 
         llvm::SmallVector<ASTParam *, 8> getParams() const;
 

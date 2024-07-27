@@ -11,7 +11,8 @@
 
 using namespace fly;
 
-ASTParam::ASTParam(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes) :
+ASTParam::ASTParam(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
+                   llvm::SmallVector<ASTScope *, 8> &Scopes) :
         ASTLocalVar(ASTVarKind::VAR_PARAM, Loc, Type, Name, Scopes) {
 
 }

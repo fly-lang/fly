@@ -34,7 +34,8 @@ namespace fly {
 
         CodeGenEnumEntry *CodeGen = nullptr;
 
-        ASTEnumEntry(const SourceLocation &Loc, ASTEnumType *Type, llvm::StringRef Name);
+        ASTEnumEntry(const SourceLocation &Loc, ASTEnumType *Type, llvm::StringRef Name,
+                     SmallVector<ASTScope *, 8> &Scopes);
 
     public:
 

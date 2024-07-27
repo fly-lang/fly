@@ -14,9 +14,9 @@
 
 using namespace fly;
 
-ASTEnum::ASTEnum(const SourceLocation &Loc, llvm::StringRef Name, ASTScopes *Scopes,
-                   llvm::SmallVector<ASTEnumType *, 4> &ExtClasses) :
-        ASTIdentity(ASTTopDefKind::DEF_ENUM, Scopes, Loc, Name),
+ASTEnum::ASTEnum(ASTModule *Module, const SourceLocation &Loc, llvm::StringRef Name,
+                 llvm::SmallVector<ASTScope *, 8> &Scopes, llvm::SmallVector<ASTEnumType *, 4> &ExtClasses) :
+        ASTIdentity(Module, ASTTopDefKind::DEF_ENUM, Scopes, Loc, Name),
         SuperClasses(ExtClasses) {
 
 }
@@ -31,7 +31,7 @@ std::string ASTEnum::str() const {
     return Logger("ASTClass").
            Super(ASTIdentity::str()).
            Attr("Name", Name).
-           Attr("Scopes", Scopes).
+           AttrList("Scopes", Scopes).
            AttrList("Entries", Entries).
            End();
 }

@@ -631,7 +631,7 @@ static void HandleOrdinalModifier(unsigned ValNo,
   Out << ValNo << llvm::getOrdinalSuffix(ValNo);
 }
 
-/// PluralNumber - Parse an unsigned integer and advance Start.
+/// PluralNumber - ParseModule an unsigned integer and advance Start.
 static unsigned PluralNumber(const char *&Start, const char *End) {
   // Programming 101: Parse a decimal number :-)
   unsigned Val = 0;

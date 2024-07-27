@@ -15,8 +15,6 @@
 
 namespace fly {
 
-    class ASTScopes;
-
     /**
      * Local Var Declaration
      * Ex.
@@ -32,9 +30,11 @@ namespace fly {
 
     protected:
 
-        ASTLocalVar(ASTVarKind VarKind, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes);
+        ASTLocalVar(ASTVarKind VarKind, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
+                    llvm::SmallVector<ASTScope *, 8> &Scopes);
 
-        ASTLocalVar(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes);
+        ASTLocalVar(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
+                    llvm::SmallVector<ASTScope *, 8> &Scopes);
 
     public:
 

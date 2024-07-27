@@ -104,9 +104,9 @@ LLVMContext &CodeGen::getLLVMCtx() {
 std::vector<llvm::Module *> CodeGen::GenerateModules(ASTContext &AST) {
     FLY_DEBUG("CodeGen", "GenerateModules");
     std::vector<llvm::Module *> Modules;
-    for (auto &Entry : AST.getModules()) {
+    for (auto &Module : AST.getModules()) {
         Diags.getClient()->BeginSourceFile();
-        CodeGenModule *CGM = GenerateModule(*Entry.getValue());
+        CodeGenModule *CGM = GenerateModule(*Module);
         CGM->GenAll();
         Modules.push_back(CGM->Module);
         Diags.getClient()->EndSourceFile();
@@ -122,9 +122,9 @@ CodeGenModule *CodeGen::GenerateModule(ASTModule &AST) {
 }
 
 void CodeGen::GenerateHeaders(ASTContext &AST) {
-    for (auto &Entry : AST.getModules()) {
+    for (auto &Module : AST.getModules()) {
         Diags.getClient()->BeginSourceFile();
-        GenerateHeader(*Entry.getValue());
+        GenerateHeader(*Module);
         Diags.getClient()->EndSourceFile();
     }
 }

@@ -130,7 +130,7 @@ bool Frontend::Execute() {
 }
 
 /**
- * Parse Input File.
+ * ParseModule Input File.
  * @param CG
  * @return
  */
@@ -142,7 +142,7 @@ void Frontend::ParseFile(SemaBuilder &Builder, const std::string &FileName) {
         if (Input->Load()) {
             // Create Parser and start to parse
             Parser *P = new Parser(*Input, CI.getSourceManager(), Diags, Builder);
-            P->Parse();
+            P->ParseModule();
         }
     } else if (Input->getExt() == FileExt::LIB) {
         // Read Header Files from library by extracting them

@@ -12,12 +12,13 @@
 using namespace fly;
 
 ASTLocalVar::ASTLocalVar(ASTVarKind VarKind, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
-                         ASTScopes *Scopes) :
+                         llvm::SmallVector<ASTScope *, 8> &Scopes) :
         ASTVar(VarKind, Loc, Type, Name, Scopes) {
 
 }
 
-ASTLocalVar::ASTLocalVar(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes) :
+ASTLocalVar::ASTLocalVar(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
+                         llvm::SmallVector<ASTScope *, 8> &Scopes) :
         ASTVar(ASTVarKind::VAR_LOCAL, Loc, Type, Name, Scopes) {
 
 }

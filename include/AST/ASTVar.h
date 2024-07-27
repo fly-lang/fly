@@ -17,8 +17,8 @@ namespace fly {
     class SourceLocation;
     class CodeGenVarBase;
     class ASTType;
-    class ASTScopes;
     class ASTVarStmt;
+    class ASTScope;
 
     enum class ASTVarKind {
         VAR_PARAM,
@@ -45,13 +45,13 @@ namespace fly {
 
         llvm::StringRef Name;
 
-        ASTScopes *Scopes;
+        SmallVector<ASTScope *, 8> Scopes;
 
         ASTVarStmt *Initialization = nullptr;
 
     protected:
 
-        ASTVar(ASTVarKind VarKind, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes);
+        ASTVar(ASTVarKind VarKind, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, SmallVector<ASTScope *, 8> &Scopes);
 
     public:
 
@@ -69,7 +69,7 @@ namespace fly {
 
         void setInitialization(ASTVarStmt *VarDefine);
 
-        ASTScopes *getScopes() const;
+        const SmallVector<ASTScope *, 8> &getScopes() const;
 
         virtual CodeGenVarBase *getCodeGen() const = 0;
 

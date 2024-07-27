@@ -70,7 +70,7 @@ static DiagnosticBuilder Diag(DiagnosticsEngine *Diags, FullSourceLoc TokLoc,
     MakeCharSourceRange(TokLoc, TokBegin, TokRangeBegin, TokRangeEnd);
 }
 
-/// ProcessCharEscape - Parse a standard C escape sequence, which can occur in
+/// ProcessCharEscape - ParseModule a standard C escape sequence, which can occur in
 /// either a character or a string literal.
 static unsigned ProcessCharEscape(const char *ThisTokBegin,
                                   const char *&ThisTokBuf,

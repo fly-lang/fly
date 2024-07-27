@@ -60,26 +60,47 @@ SemaResolver::SemaResolver(Sema &S) : S(S) {
  * @return
  */
 bool SemaResolver::Resolve() {
-    bool Success = true;
 
     // Resolve Modules
-    for (auto &ModuleEntry : S.Context->getModules()) {
-        auto &Module = ModuleEntry.getValue();
-        Success &= ResolveImports(Module); // resolve Imports with NameSpaces
-        Success &= ResolveGlobalVars(Module); // resolve Global Vars
-        Success &= ResolveIdentities(Module);  // resolve Identity attributes and methods
-        Success &= ResolveFunctions(Module);  // resolve ASTBlock of Body Functions
+    for (auto &Module : S.Context->getModules()) {
+        ResolveModule(Module);
+        ResolveNameSpace(Module);
+        ResolveImports(Module); // resolve Imports with NameSpaces
+        ResolveGlobalVars(Module); // resolve Global Vars
+        ResolveIdentities(Module);  // resolve Identity attributes and methods
+        ResolveFunctions(Module);  // resolve ASTBlock of Body Functions
     }
 
     // Now all Imports must be read
     for(auto &Import : S.Context->ExternalImports) {
         if (!Import.getValue()->getNameSpace()) {
             S.Diag(Import.getValue()->getLocation(), diag::err_unresolved_import);
-            return false;
         }
     }
 
-    return Success;
+    return !S.Diags.hasErrorOccurred();
+}
+
+void SemaResolver::ResolveModule(ASTModule *Module) {
+    // If no NameSpace is assign set Default NameSpace
+    if (Module->NameSpace == nullptr)
+        Module->NameSpace = S.Context->DefaultNameSpace;
+
+    for (auto M : S.Context->Modules) {
+        if (M->getId() != Module->getId() && M->getName() == Module->getName()) {
+            S.Diag(diag::err_sema_module_duplicated) << M->getName();
+            return;
+        }
+    }
+}
+
+void SemaResolver::ResolveNameSpace(ASTModule *Module) {
+    for (auto &NameSpaceEntry : S.Context->NameSpaces) {
+        if (NameSpaceEntry.getValue()->getName() == Module->getNameSpace()->getName()) {
+            return;
+        }
+    }
+    S.Context->NameSpaces.insert(std::make_pair(Module->NameSpace->getName(), Module->NameSpace));
 }
 
 bool SemaResolver::ResolveNameSpace(ASTModule *Module, ASTIdentifier *&Identifier) {
@@ -98,13 +119,11 @@ bool SemaResolver::ResolveNameSpace(ASTModule *Module, ASTIdentifier *&Identifie
  * @param Module
  * @return
  */
-bool SemaResolver::ResolveImports(ASTModule *Module) {
-    bool Success = true;
+void SemaResolver::ResolveImports(ASTModule *Module) {
 
-    for (auto &ImportEntry : Module->getImports()) {
+    for (auto &Import : Module->getImports()) {
 
         // Search Namespace of the Import
-        auto &Import = ImportEntry.getValue();
         ASTNameSpace *NameSpaceFound = Module->Context->NameSpaces.lookup(Import->getName());
 
         if (NameSpaceFound) {
@@ -113,33 +132,92 @@ bool SemaResolver::ResolveImports(ASTModule *Module) {
             Import->setNameSpace(NameSpaceFound);
         } else {
             // Error: NameSpace not found
-            Success = false;
             S.Diag(Import->getLocation(), diag::err_namespace_notfound) << Import->getName();
+            return;
+        }
+
+        if (S.Validator->CheckImport(Module, Import)) {
+
+            // Check if this ASTModule already contains the imports
+            for (auto I : Module->Imports) {
+                if (I->getName() == Import->getName()) {
+                    S.Diag(Import->getLocation(), diag::err_conflict_import) << Import->getName();
+                }
+            }
+
+            // Check if this ASTModule already contains the name or alias
+            llvm::StringRef Id = (Import->getAlias() == nullptr) ? Import->getName()
+                                                                 : Import->getAlias()->getName();
+            for (auto AI : Module->AliasImports) {
+                if (AI->getName() == Id) {
+                    S.Diag(Import->getLocation(), diag::err_conflict_import) << Id;
+                    return;
+                }
+            }
         }
     }
-
-    return Success;
 }
 
-bool SemaResolver::ResolveGlobalVars(ASTModule *Module) {
-    bool Success = true;
+void SemaResolver::ResolveGlobalVars(ASTModule *Module) {
+    for (auto GlobalVar : Module->getGlobalVars()) {
+        if (GlobalVar->Expr->getExprKind() != ASTExprKind::EXPR_VALUE) {
+            S.Diag(GlobalVar->Expr->getLocation(), diag::err_invalid_gvar_value);
+        }
 
-    for (auto &GlobalVarEntry : Module->getGlobalVars()) {
-        ASTGlobalVar *GlobalVar = GlobalVarEntry.getValue();
-        Success = !GlobalVar->getType()->isIdentity() || ResolveIdentityType(Module, (ASTIdentityType *) GlobalVar->getType());
+        // Lookup into namespace for public var
+        if(GlobalVar->getVisibility() == ASTVisibilityKind::V_PUBLIC ||
+           GlobalVar->getVisibility() == ASTVisibilityKind::V_DEFAULT) {
+            ASTGlobalVar *LookupVar = Module->NameSpace->getGlobalVars().lookup(GlobalVar->getName());
+
+            if (LookupVar) { // This NameSpace already contains this GlobalVar
+                S.Diag(LookupVar->getLocation(), diag::err_duplicate_gvar) << LookupVar->getName();
+                return;
+            }
+
+            // Add into NameSpace for global resolution
+            // Add into Module for local resolution
+            auto Pair = std::make_pair(GlobalVar->getName(), GlobalVar);
+            // TODO check duplicate in namespace and Module
+            Module->GlobalVars.push_back(GlobalVar);
+            Module->NameSpace->GlobalVars.insert(Pair).second;
+            return;
+        }
+
+        // Lookup into Module for private var
+        if(GlobalVar->getVisibility() == ASTVisibilityKind::V_PRIVATE) {
+            for (auto GB : Module->GlobalVars) {
+                if (GlobalVar->getName() == GB->getName()) {
+                    S.Diag(GlobalVar->getLocation(), diag::err_duplicate_gvar) << GlobalVar->getName();
+                    return;
+                }
+
+                // Add into Module for local resolution
+                // TODO check duplicate in Module
+                Module->GlobalVars.push_back(GlobalVar);
+                return;
+            }
+        }
+
+        GlobalVar->getType()->isIdentity() || ResolveIdentityType(Module, (ASTIdentityType *) GlobalVar->getType());
     }
-
-    return Success;
 }
 
-bool SemaResolver::ResolveIdentities(ASTModule *Module) {
-    bool Success = true;
+void SemaResolver::ResolveIdentities(ASTModule *Module) {
     if (!Module->Identities.empty()) {
-        for (auto &StrMapEntry : Module->Identities) {
+        for (auto Identity : Module->Identities) {
 
-            ASTIdentity *Identity = StrMapEntry.getValue();
             if (Identity->getTopDefKind() == ASTTopDefKind::DEF_CLASS) {
                 ASTClass *Class = (ASTClass *) Identity;
+
+                // Add to NameSpaces
+                if (Identity->getVisibility() == ASTVisibilityKind::V_PUBLIC || Identity->getVisibility() == ASTVisibilityKind::V_DEFAULT) {
+                    ASTIdentity *LookupClass = Module->NameSpace->getIdentities().lookup(Identity->getName());
+                    if (LookupClass) { // This NameSpace already contains this Function
+                        S.Diag(LookupClass->Location, diag::err_duplicate_class) << LookupClass->getName();
+                        return;
+                    }
+                    Module->NameSpace->Identities.insert(std::make_pair(Identity->getName(), Identity)).second;
+                }
 
                 // Resolve Super Classes
                 if (!Class->SuperClasses.empty()) {
@@ -155,7 +233,7 @@ bool SemaResolver::ResolveIdentities(ASTModule *Module) {
                                 // Interface cannot extend a Struct
                                 if (Class->getClassKind() == ASTClassKind::INTERFACE) {
                                     S.Diag(SuperClassType->getLocation(), diag::err_sema_interface_ext_struct);
-                                    return false;
+                                    return;
                                 }
 
                                 // Add Vars to the Struct
@@ -165,7 +243,7 @@ bool SemaResolver::ResolveIdentities(ASTModule *Module) {
                                     for (auto &Attribute : Class->Attributes) {
                                         if (Attribute->getName() == SuperAttribute->getName()) {
                                             S.Diag(Attribute->getLocation(), diag::err_sema_super_struct_var_conflict);
-                                            return false;
+                                            return;
                                         }
                                         Class->Attributes.push_back(SuperAttribute);
                                     }
@@ -176,7 +254,7 @@ bool SemaResolver::ResolveIdentities(ASTModule *Module) {
                             if (Class->getClassKind() == ASTClassKind::INTERFACE &&
                                 SuperClass->getClassKind() == ASTClassKind::CLASS) {
                                 S.Diag(SuperClassType->getLocation(), diag::err_sema_interface_ext_class);
-                                return false;
+                                return;
                             }
 
                             // Class/Interface: take all Super Classes methods
@@ -194,11 +272,12 @@ bool SemaResolver::ResolveIdentities(ASTModule *Module) {
                                             } else {
                                                 // Insert methods in the Super and if is ok also in the base Class
                                                 if (S.Builder->InsertFunction(SuperMethods, SuperMethod)) {
+                                                    SmallVector<ASTScope *, 8> Scopes = SuperMethod->getScopes();
                                                     ASTClassMethod *M = S.Builder->CreateClassMethod(SuperMethod->getLocation(),
                                                                                                      *Class,
                                                                                                      SuperMethod->getReturnType(),
                                                                                                      SuperMethod->getName(),
-                                                                                                     SuperMethod->getScopes());
+                                                                                                     Scopes);
                                                     M->Params = SuperMethod->Params;
                                                     M->Body = SuperMethod->Body;
                                                     M->DerivedClass = Class;
@@ -207,12 +286,12 @@ bool SemaResolver::ResolveIdentities(ASTModule *Module) {
                                                 } else {
                                                     // Multiple Methods Implementations in Super Class need to be re-defined in base class
                                                     // Search if this method is re-defined in the base class
-                                                    if (SuperMethod->Scopes->getVisibility() !=
+                                                    if (SuperMethod->getVisibility() !=
                                                         ASTVisibilityKind::V_PRIVATE &&
                                                         !S.Builder->ContainsFunction(Class->Methods, SuperMethod)) {
                                                         S.Diag(SuperMethod->getLocation(),
                                                                diag::err_sema_super_class_method_conflict);
-                                                        return false;
+                                                        return;
                                                     }
                                                 }
                                             }
@@ -233,7 +312,7 @@ bool SemaResolver::ResolveIdentities(ASTModule *Module) {
                                 if (!S.Builder->ContainsFunction(Class->Methods, ISuperMethod)) {
                                     S.Diag(ISuperMethod->getLocation(),
                                            diag::err_sema_method_not_implemented);
-                                    return false;
+                                    return;
                                 }
                             }
                             MapIt++;
@@ -267,12 +346,18 @@ bool SemaResolver::ResolveIdentities(ASTModule *Module) {
                 for (auto &IntMap: Class->Constructors) {
                     for (auto &Function: IntMap.second) {
 
+                        // Check duplicates
+//                            if ()
+//                                S.Diag(Method->getLocation(), diag::err_sema_class_method_redeclare) << Method->getName();
+//                                return;
+//                            }
+
                         // Resolve Attribute types
                         for (auto &EntryVar: Class->Attributes) {
                             // TODO
                         }
 
-                        Success &= ResolveStmtBlock(Function->Body);
+                        ResolveStmtBlock(Function->Body);
                     }
                 }
 
@@ -281,39 +366,87 @@ bool SemaResolver::ResolveIdentities(ASTModule *Module) {
                     for (auto &IntMap: StrMapEntry.getValue()) {
                         for (auto &Method: IntMap.second) {
 
+                            // TODO
+                            // Check duplicates
+//                            if ()
+//                                S.Diag(Method->getLocation(), diag::err_sema_class_method_redeclare) << Method->getName();
+//                                return;
+//                            }
+
                             // Add Class vars for each Method
                             for (auto &Attribute: Class->Attributes) {
 
                                 // Check if Method already contains this var name as LocalVar
                                 if (!S.Validator->CheckDuplicateLocalVars(Method->Body, Attribute->getName())) {
-                                    return false;
+                                    return;
                                 }
                             }
 
                             if (!Method->isAbstract()) {
-                                Success &= ResolveStmtBlock(Method->Body); // FIXME check if already resolved
+                                ResolveStmtBlock(Method->Body); // FIXME check if already resolved
                             }
                         }
                     }
                 }
+
             } else if (Identity->getTopDefKind() == ASTTopDefKind::DEF_ENUM) {
                 // TODO
             }
         }
     }
-    return Success;
 }
 
-bool SemaResolver::ResolveFunctions(ASTModule *Module) {
-    bool Success = true;
+void SemaResolver::ResolveFunctions(ASTModule *Module) {
     for (auto &StrMapEntry : Module->Functions) {
         for (auto &IntMap : StrMapEntry.getValue()) {
             for (auto &Function : IntMap.second) {
-                Success &= ResolveStmtBlock(Function->Body);
+
+                // TODO
+                // Lookup into namespace for public var
+//                if(Function->getVisibility() == ASTVisibilityKind::V_PUBLIC ||
+//                   Function->getVisibility() == ASTVisibilityKind::V_DEFAULT) {
+//
+//                    // Add into NameSpace for global resolution
+//                    // Add into Module for local resolution
+//                    return InsertFunction(Module->NameSpace->Functions, Function) &&
+//                           InsertFunction(Module->Functions, Function);
+//                }
+//
+//                // Lookup into Module for private var
+//                if (Function->getVisibility() == ASTVisibilityKind::V_PRIVATE) {
+//
+//                    // Add into Module for local resolution
+//                    return InsertFunction(Module->Functions, Function);
+//                }
+
+                ResolveStmtBlock(Function->Body);
             }
         }
     }
-    return Success;
+}
+
+void SemaResolver::ResolveScopes(llvm::SmallVector<ASTScope *, 8> Scopes, ASTGlobalVar *GlobalVar) {
+    for (auto &Scope : Scopes) {
+        // TODO
+    }
+}
+
+void SemaResolver::ResolveScopes(llvm::SmallVector<ASTScope *, 8> Scopes, ASTFunction *Function) {
+    for (auto &Scope : Scopes) {
+        // TODO
+    }
+}
+
+void SemaResolver::ResolveScopes(llvm::SmallVector<ASTScope *, 8> Scopes, ASTClass *Class) {
+    for (auto &Scope : Scopes) {
+        // TODO
+    }
+}
+
+void SemaResolver::ResolveScopes(llvm::SmallVector<ASTScope *, 8> Scopes, ASTEnum *Enum) {
+    for (auto &Scope : Scopes) {
+        // TODO
+    }
 }
 
 bool SemaResolver::ResolveStmt(ASTStmt *Stmt) {
@@ -566,7 +699,9 @@ ASTVar *SemaResolver::ResolveVarRefNoParent(ASTStmt *Stmt, llvm::StringRef Name)
 
         // Search for GlobalVars in Module
         if (Var == nullptr)
-            Var = Module->GlobalVars.lookup(Name);
+            for (auto &GlobalVar : Module->GlobalVars)
+                if (GlobalVar->getName() == Name)
+                    Var = GlobalVar;
 
         // Search for GlobalVars in NameSpace
         if (Var == nullptr)
@@ -975,8 +1110,15 @@ ASTModule *SemaResolver::FindModule(llvm::StringRef Name, ASTNameSpace *NameSpac
 
 ASTImport *SemaResolver:: FindImport(ASTModule *Module, llvm::StringRef Name) {
     // Search into Module imports
-    ASTImport *Import = Module->Imports.lookup(Name);
-    return Import == nullptr ? Module->AliasImports.lookup(Name) : Import;
+    ASTImport *Import = nullptr;
+    for (auto &I : Module->Imports)
+        if (I->getName() == Name)
+            Import = I;
+    if (Import == nullptr)
+        for (auto &AliasImport :Module->AliasImports)
+            if (AliasImport->getName() == Name)
+                Import = AliasImport;
+    return Import;
 }
 
 ASTIdentityType *SemaResolver::FindIdentityType(llvm::StringRef Name, ASTNameSpace *NameSpace) const {

@@ -55,9 +55,8 @@ void CodeGenHeader::CreateFile(DiagnosticsEngine &Diags, CodeGenOptions &CodeGen
     llvm::Twine Header = llvm::Twine("namespace ").concat(AST.getNameSpace()->getName()).concat("\n\n");
 
     // generate global var declarations
-    for (auto &Entry : AST.getGlobalVars()) {
-        ASTGlobalVar *GlobalVar = Entry.getValue();
-        if (GlobalVar->getScopes()->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
+    for (auto GlobalVar : AST.getGlobalVars()) {
+        if (GlobalVar->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
             Header.concat(GlobalVar->getType()->print())
             .concat(GlobalVar->getName())
             .concat("\n\n");
@@ -68,7 +67,7 @@ void CodeGenHeader::CreateFile(DiagnosticsEngine &Diags, CodeGenOptions &CodeGen
     for (auto &StrMapEntry : AST.getFunctions()) {
         for (auto &IntMap : StrMapEntry.getValue()) {
             for (auto &Function: IntMap.second) {
-                if (Function->getScopes()->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
+                if (Function->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
                     Header.concat(Function->getReturnType()->print())
                             .concat(Function->getName())
                             .concat("(");
@@ -80,8 +79,7 @@ void CodeGenHeader::CreateFile(DiagnosticsEngine &Diags, CodeGenOptions &CodeGen
     }
 
     // generate Identity Header: class, enum
-    for (auto &Entry : AST.getIdentities()) {
-        ASTIdentity *Identity = Entry.getValue();
+    for (auto Identity : AST.getIdentities()) {
         Header.concat(Identity->getName()).concat("{\n");
         if (Identity->getTopDefKind() == ASTTopDefKind::DEF_CLASS) {
             ASTClass* Class = (ASTClass *) Identity;
@@ -91,7 +89,7 @@ void CodeGenHeader::CreateFile(DiagnosticsEngine &Diags, CodeGenOptions &CodeGen
             }
             for (auto &IntMap: Class->getConstructors()) {
                 for (auto &Constructor: IntMap.second) {
-                    if (Constructor->getScopes()->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
+                    if (Constructor->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
                         Header.concat(Constructor->getReturnType()->print())
                                 .concat(Constructor->getName())
                                 .concat("(");
@@ -103,7 +101,7 @@ void CodeGenHeader::CreateFile(DiagnosticsEngine &Diags, CodeGenOptions &CodeGen
             for (auto &Map: Class->getMethods()) {
                 for (auto &Entry: Map.second) {
                     for (auto Method: Entry.second) {
-                        if (Method->getScopes()->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
+                        if (Method->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
                             Header.concat(Method->getReturnType()->print())
                                     .concat(Method->getName())
                                     .concat("(");

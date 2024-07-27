@@ -10,6 +10,7 @@
 #ifndef FLY_AST_CONTEXT_H
 #define FLY_AST_CONTEXT_H
 
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 
 namespace fly {
@@ -32,13 +33,15 @@ namespace fly {
         friend class SemaResolver;
         friend class SemaValidator;
 
+        uint64_t ModuleIdCounter = 0;
+
         ASTNameSpace * DefaultNameSpace = nullptr;
 
         // All Context Namespaces
         llvm::StringMap<ASTNameSpace *> NameSpaces;
 
         // All Context Namespaces
-        llvm::StringMap<ASTModule *> Modules;
+        llvm::SmallVector<ASTModule *, 8> Modules;
 
         // All Files: <Name, ASTImport>
         llvm::StringMap<ASTImport *> ExternalImports; // TODO
@@ -49,11 +52,13 @@ namespace fly {
 
         ~ASTContext();
 
+        uint64_t getNextModuleId();
+
         ASTNameSpace *getDefaultNameSpace() const;
 
         const llvm::StringMap<ASTNameSpace *> &getNameSpaces() const;
 
-        const llvm::StringMap<ASTModule *> &getModules() const;
+        const llvm::SmallVector<ASTModule *, 8> &getModules() const;
     };
 }
 

@@ -85,28 +85,28 @@ namespace fly {
 
         void CheckCreateAlias(const SourceLocation &Loc, StringRef Name);
 
-        void CheckCreateGlobalVar(const SourceLocation &Loc, ASTType *Type, StringRef Name, ASTScopes *Scopes);
+        void CheckCreateGlobalVar(const SourceLocation &Loc, ASTType *Type, StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes);
 
-        void CheckCreateFunction(const SourceLocation &Loc, ASTType *Type, StringRef Name, ASTScopes *Scopes);
+        void CheckCreateFunction(const SourceLocation &Loc, ASTType *Type, StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes);
 
         void CheckCreateClass(const SourceLocation &Loc, StringRef Name, ASTClassKind ClassKind,
-                              ASTScopes *Scopes,
+                              llvm::SmallVector<ASTScope *, 8> &Scopes,
                               SmallVector<ASTClassType *, 4> &ClassTypes);
 
-        void CheckCreateClassVar(const SourceLocation &Loc, StringRef Name, ASTType *Type, ASTScopes *Scopes);
+        void CheckCreateClassVar(const SourceLocation &Loc, StringRef Name, ASTType *Type, llvm::SmallVector<ASTScope *, 8> &Scopes);
 
-        void CheckCreateClassConstructor(const SourceLocation &Loc, ASTScopes *Scopes);
+        void CheckCreateClassConstructor(const SourceLocation &Loc, llvm::SmallVector<ASTScope *, 8> &Scopes);
 
-        void CheckCreateClassMethod(const SourceLocation &Loc, ASTType *Type, StringRef Name, ASTScopes *Scopes);
+        void CheckCreateClassMethod(const SourceLocation &Loc, ASTType *Type, StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes);
 
-        void CheckCreateEnum(const SourceLocation &Loc, const StringRef Name, ASTScopes *Scopes,
+        void CheckCreateEnum(const SourceLocation &Loc, const StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes,
                              SmallVector<ASTEnumType *, 4> EnumTypes);
 
         void CheckCreateEnumEntry(const SourceLocation &Loc, StringRef Name);
 
-        void CheckCreateParam(const SourceLocation &Loc, ASTType *Type, StringRef Name, ASTScopes *Scopes);
+        void CheckCreateParam(const SourceLocation &Loc, ASTType *Type, StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes);
 
-        void CheckCreateLocalVar(const SourceLocation &Loc, ASTType *Type, StringRef Name, ASTScopes *Scopes);
+        void CheckCreateLocalVar(const SourceLocation &Loc, ASTType *Type, StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes);
 
         bool CheckValueExpr(ASTExpr *Expr);
 

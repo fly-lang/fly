@@ -9,8 +9,8 @@ add_executable(fly_test
         CodeGenTest.cpp
 #        DriverTest.cpp
 #        ImportTest.cpp
-#        LexerTest.cpp
-#        ParserTest.cpp
+        LexerTest.cpp
+        ParserTest.cpp
 #        ParserBadCode.cpp
 #        ParserBlockTest.cpp
 #        ParserClassTest.cpp

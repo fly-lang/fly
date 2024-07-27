@@ -14,10 +14,8 @@
 namespace fly {
 
     class ASTClass;
-    class ASTScopes;
     class ASTClassAttribute;
     class ASTClassMethod;
-    class ASTScopes;
     class Parser;
 
     class ClassParser {
@@ -32,15 +30,15 @@ namespace fly {
 
         unsigned short BraceCount = 0;
 
-        ClassParser(Parser *P, ASTScopes *ClassScopes);
+        ClassParser(Parser *P, SmallVector<ASTScope *, 8> &Scopes);
 
     public:
 
-        static ASTClass *Parse(Parser *P, ASTScopes *ClassScopes);
+        static ASTClass *Parse(Parser *P, SmallVector<ASTScope *, 8> &Scopes);
 
-        bool ParseField(ASTScopes *Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name);
+        ASTClassAttribute *ParseAttribute(SmallVector<ASTScope *, 8> &Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name);
 
-        bool ParseMethod(ASTScopes *Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name);
+        ASTClassMethod *ParseMethod(SmallVector<ASTScope *, 8> &Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name);
     };
 }
 

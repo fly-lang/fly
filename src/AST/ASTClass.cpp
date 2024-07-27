@@ -14,8 +14,9 @@
 
 using namespace fly;
 
-ASTClass::ASTClass(ASTClassKind ClassKind, ASTScopes *Scopes, const SourceLocation &Loc, llvm::StringRef Name) :
-        ASTIdentity(ASTTopDefKind::DEF_CLASS, Scopes, Loc, Name), ClassKind(ClassKind) {
+ASTClass::ASTClass(ASTModule *Module, ASTClassKind ClassKind, llvm::SmallVector<ASTScope *, 8> &Scopes,
+                   const SourceLocation &Loc, llvm::StringRef Name) :
+        ASTIdentity(Module, ASTTopDefKind::DEF_CLASS, Scopes, Loc, Name), ClassKind(ClassKind) {
 
 }
 

@@ -13,7 +13,7 @@
 using namespace fly;
 
 ASTClassMethod::ASTClassMethod(const SourceLocation &Loc, ASTClassMethodKind MethodKind, ASTType *Type,
-                               llvm::StringRef Name, ASTScopes *Scopes) :
+                               llvm::StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes) :
         ASTFunctionBase(Loc, ASTFunctionKind::CLASS_METHOD, Type, Scopes),
         Name(Name), MethodKind(MethodKind) {
 
@@ -25,6 +25,10 @@ const StringRef &ASTClassMethod::getName() const {
 
 ASTClassMethodKind ASTClassMethod::getMethodKind() const {
     return MethodKind;
+}
+
+ASTVisibilityKind ASTClassMethod::getVisibility() const {
+    return Visibility;
 }
 
 ASTClass *ASTClassMethod::getClass() const {
@@ -40,7 +44,7 @@ bool ASTClassMethod::isConstructor() {
 }
 
 bool ASTClassMethod::isStatic() {
-    return MethodKind == ASTClassMethodKind::METHOD_STATIC;
+    return Static;
 }
 
 bool ASTClassMethod::isAbstract() const {

@@ -35,7 +35,7 @@ namespace fly {
         // Class Fields
         llvm::SmallVector<ASTEnumEntry *, 8> Entries;
 
-        ASTEnum(const SourceLocation &Loc, llvm::StringRef Name, ASTScopes *Scopes,
+        ASTEnum(ASTModule *Module, const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes,
                  llvm::SmallVector<ASTEnumType *, 4> &ExtClasses);
 
     public:

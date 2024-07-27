@@ -17,13 +17,15 @@ namespace fly {
 
     class DiagnosticsEngine;
     class SemaBuilder;
+    class ASTBase;
     class ASTModule;
+    class ASTNameSpace;
     class ASTValue;
     class ASTIdentifier;
+    class ASTFunction;
     class ASTArrayValue;
     class ASTArrayType;
     class ASTClassType;
-    class ASTScopes;
     class ASTType;
     class ASTBlockStmt;
     class ASTCall;
@@ -33,9 +35,14 @@ namespace fly {
     class InputFile;
     class ASTHandleStmt;
     class ASTVarRef;
+    class ASTTopDef;
+    class ASTScope;
+    class ASTClass;
+    class ASTGlobalVar;
+    class ASTEnum;
     enum class ASTBinaryOperatorKind;
 
-    /// Parse the main file known to the preprocessor, producing an
+    /// ParseModule the main file known to the preprocessor, producing an
     /// abstract syntax tree.
     class Parser {
 
@@ -60,6 +67,8 @@ namespace fly {
 
         ASTModule *Module;
 
+        bool ContinueParsing = true;
+
         // PrevTokLocation - The location of the token we previously
         // consumed. This token is used for diagnostics where we expected to
         // see a token following another token (e.g., the ';' at the end of
@@ -74,24 +83,20 @@ namespace fly {
 
         Parser(const InputFile &Input, SourceManager &SourceMgr, DiagnosticsEngine &Diags, SemaBuilder &Builder);
 
-        bool Parse();
-        bool ParseHeader();
+        ASTModule *ParseModule();
+        ASTModule *ParseHeader();
+
+        bool isSuccess();
 
     private:
 
-        // Parse NameSpace
-        bool ParseNameSpace();
-
-        // Parse Imports
-        bool ParseImports();
-
-        // Parse Top Definitions
-        bool ParseTopDef();
-        bool ParseScopes(ASTScopes *&Scopes);
-        bool ParseGlobalVarDef(ASTScopes *Scopes, ASTType *Type);
-        bool ParseFunctionDef(ASTScopes *Scopes, ASTType *Type);
-        bool ParseClassDef(ASTScopes *Scopes);
-        bool ParseEnumDef(ASTScopes *Scopes);
+        ASTBase *Parse();
+        ASTBase *ParseTopDef(SmallVector<ASTScope *, 8>& Scopes);
+        SmallVector<ASTScope *, 8> ParseScopes();
+        ASTGlobalVar *ParseGlobalVarDef(SmallVector<ASTScope *, 8> &Scopes, ASTType *Type);
+        ASTFunction *ParseFunctionDef(SmallVector<ASTScope *, 8> &Scopes, ASTType *Type);
+        ASTClass *ParseClassDef(SmallVector<ASTScope *, 8> &Scopes);
+        ASTEnum *ParseEnumDef(SmallVector<ASTScope *, 8> &Scopes);
 
         // Parse Block Statement
         bool ParseBlock(ASTBlockStmt *Parent);

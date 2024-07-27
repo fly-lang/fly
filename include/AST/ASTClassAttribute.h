@@ -16,7 +16,6 @@
 namespace fly {
 
     class ASTClass;
-    class ASTScopes;
     class ASTType;
     class ASTValue;
     class ASTVar;
@@ -34,7 +33,8 @@ namespace fly {
 
         CodeGenVarBase *CodeGen = nullptr;
 
-        ASTClassAttribute(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes);
+        ASTClassAttribute(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
+                          SmallVector<ASTScope *, 8> &Scopes);
 
     public:
 

@@ -42,8 +42,6 @@ namespace fly {
 
     class ASTAlias;
 
-    class ASTScopes;
-
     class ASTClass;
 
     class ASTClassAttribute;
@@ -170,8 +168,6 @@ namespace fly {
 
     class ASTTernaryGroupExpr;
 
-    class ASTScopes;
-
     class ASTEnum;
 
     class ASTEnumEntry;
@@ -211,36 +207,44 @@ namespace fly {
         ASTModule *CreateHeaderModule(const std::string &Name);
 
         // Create NameSpace
-        ASTNameSpace *CreateNameSpace(ASTIdentifier *Identifier);
+        ASTNameSpace *CreateNameSpace(ASTModule *Module, ASTIdentifier *Identifier);
 
         // Create Top Definitions
-        ASTImport *CreateImport(const SourceLocation &Loc, StringRef Name);
+        ASTImport *CreateImport(ASTModule *Module, const SourceLocation &Loc, StringRef Name, ASTAlias* Alias);
 
-        ASTAlias *CreateAlias(const SourceLocation &Loc, StringRef Name);
+        ASTAlias *CreateAlias(ASTImport *Import, const SourceLocation &Loc, StringRef Name);
 
-        ASTScopes *CreateScopes(ASTVisibilityKind Visibility = ASTVisibilityKind::V_DEFAULT, bool Constant = false,
-                     bool = false);
+        SmallVector<ASTScope *, 8> CreateScopes(ASTVisibilityKind Visibility = ASTVisibilityKind::V_DEFAULT,
+                                                bool Constant = false, bool = false);
 
-        ASTGlobalVar *CreateGlobalVar(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
-                        ASTScopes *Scopes);
+        ASTScope *CreateScopeVisibility(const SourceLocation &Loc, ASTVisibilityKind Visibility);
 
-        ASTFunction *CreateFunction(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
-                       ASTScopes *Scopes);
+        ASTScope *CreateScopeConstant(const SourceLocation &Loc, bool Constant);
 
-        ASTClass *CreateClass(const SourceLocation &Loc, ASTClassKind ClassKind, llvm::StringRef Name,
-                              ASTScopes *Scopes, llvm::SmallVector<ASTClassType *, 4> &ClassTypes);
+        ASTScope *CreateScopeStatic(const SourceLocation &Loc, bool Static);
+
+        ASTGlobalVar *CreateGlobalVar(ASTModule *Module, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
+                                      SmallVector<ASTScope *, 8> &Scopes, ASTExpr *Expr = nullptr);
+
+        ASTFunction *CreateFunction(ASTModule *Module, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
+                                    SmallVector<ASTScope *, 8> &Scopes);
+
+        ASTClass *CreateClass(ASTModule *Module, const SourceLocation &Loc, ASTClassKind ClassKind, llvm::StringRef Name,
+                              SmallVector<ASTScope *, 8> &Scopes, llvm::SmallVector<ASTClassType *, 4> &ClassTypes);
 
         ASTClassAttribute *CreateClassAttribute(const SourceLocation &Loc, ASTClass &Class, ASTType *Type, llvm::StringRef Name,
-                             ASTScopes *Scopes);
+                                                SmallVector<ASTScope *, 8> &Scopes);
 
-        ASTClassMethod *CreateClassConstructor(const SourceLocation &Loc, ASTClass &Class, ASTScopes *Scopes);
+        ASTClassMethod *CreateClassConstructor(const SourceLocation &Loc, ASTClass &Class,
+                                               llvm::SmallVector<ASTScope *, 8> &Scopes);
 
-        ASTClassMethod *CreateClassMethod(const SourceLocation &Loc, ASTClass &Class, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes,
-                          bool Static = false);
+        ASTClassMethod *CreateClassMethod(const SourceLocation &Loc, ASTClass &Class, ASTType *Type,
+                                          llvm::StringRef Name, SmallVector<ASTScope *, 8> &Scopes);
 
-        ASTClassMethod *CreateClassVirtualMethod(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes);
+        ASTClassMethod *CreateClassVirtualMethod(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
+                                                 SmallVector<ASTScope *, 8> &Scopes);
 
-        ASTEnum *CreateEnum(const SourceLocation &Loc, llvm::StringRef Name, ASTScopes *Scopes,
+        ASTEnum *CreateEnum(ASTModule *Module, const SourceLocation &Loc, llvm::StringRef Name, SmallVector<ASTScope *, 8> &Scopes,
                    llvm::SmallVector<ASTEnumType *, 4> EnumTypes);
 
         ASTEnumEntry *CreateEnumEntry(const SourceLocation &Loc, ASTEnum *Enum, llvm::StringRef Name);
@@ -307,11 +311,13 @@ namespace fly {
 
         ASTValue *CreateDefaultValue(ASTType *Type);
 
-        ASTParam *CreateParam(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes = nullptr);
+        ASTParam *CreateParam(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
+                              llvm::SmallVector<ASTScope *, 8> *Scopes = nullptr);
 
         ASTParam *CreateErrorHandlerParam();
 
-        ASTLocalVar *CreateLocalVar(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,  ASTScopes *Scopes = nullptr);
+        ASTLocalVar *CreateLocalVar(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
+                                    llvm::SmallVector<ASTScope *, 8> *Scopes = nullptr);
 
         // Create Identifier
         ASTIdentifier *CreateIdentifier(const SourceLocation &Loc, llvm::StringRef Name);
@@ -395,38 +401,9 @@ namespace fly {
 
         /** Add AST **/
 
-        bool AddModule(ASTModule *Module, ASTNameSpace *NameSpace = nullptr);
-
-        // Add Module & NameSpace
-        bool AddNameSpace(ASTModule *Module, ASTNameSpace *NewNameSpace, bool ExternLib = false);
-
-        // Add Top definitions
-        bool AddImport(ASTModule *Module, ASTImport *Import);
-
-        bool AddExternalGlobalVar(ASTModule *Module, ASTGlobalVar *GlobalVar);
-
-        bool AddExternalFunction(ASTModule *Module, ASTFunction *Function);
-
-        bool AddExternalIdentities(ASTModule *Module, ASTIdentity *Identity);
-
-        bool AddGlobalVar(ASTModule *Module, ASTGlobalVar *GlobalVar, ASTValue *Value = nullptr);
-
-        bool AddFunction(ASTModule *Module, ASTFunction *Function);
-
-        bool AddIdentity(ASTModule *Module, ASTIdentity *Identity);
-
-        // Add details
-        bool AddClassAttribute(ASTClass *Class, ASTClassAttribute *Var);
-
-        bool AddClassMethod(ASTClass *Class, ASTClassMethod *Method);
-
-        bool AddEnumEntry(ASTEnum *Enum, ASTEnumEntry *Entry);
-
         bool AddParam(ASTFunctionBase *FunctionBase, ASTParam *Param);
 
         void AddFunctionVarParams(ASTFunctionBase *Function, ASTParam *Param); // TODO
-
-        bool AddComment(ASTBase *Base, llvm::StringRef Comment);
 
         // Add Value to Array
         bool AddArrayValue(ASTArrayValue *ArrayValue, ASTValue *Value);

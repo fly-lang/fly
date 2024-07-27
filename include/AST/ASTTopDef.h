@@ -19,7 +19,6 @@ namespace fly {
     class SourceLocation;
     class ASTModule;
     class ASTNameSpace;
-    class ASTScopes;
 
     enum class ASTTopDefKind {
         DEF_GLOBALVAR,

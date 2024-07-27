@@ -11,6 +11,7 @@
 #ifndef FLY_ENUMPARSER_H
 #define FLY_ENUMPARSER_H
 
+#include "llvm/ADT/SmallVector.h"
 #include <cstdint>
 
 namespace llvm {
@@ -19,9 +20,8 @@ namespace llvm {
 
 namespace fly {
 
+    class ASTScope;
     class ASTEnum;
-    class ASTScopes;
-    class ASTScopes;
     class Parser;
     class SourceLocation;
 
@@ -37,11 +37,11 @@ namespace fly {
 
         unsigned short BraceCount = 0;
 
-        EnumParser(Parser *P, ASTScopes *EnumScopes);
+        EnumParser(Parser *P, llvm::SmallVector<ASTScope *, 8> &Scopes);
 
     public:
 
-        static ASTEnum *Parse(Parser *P, ASTScopes *EnumScopes);
+        static ASTEnum *Parse(Parser *P, llvm::SmallVector<ASTScope *, 8> &Scopes);
 
         bool ParseField(const SourceLocation &Loc, llvm::StringRef Name);
     };

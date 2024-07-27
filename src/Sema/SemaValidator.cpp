@@ -272,34 +272,34 @@ void SemaValidator::CheckCreateAlias(const SourceLocation &Loc, StringRef Name) 
 }
 
 void
-SemaValidator::CheckCreateGlobalVar(const SourceLocation &Loc, ASTType *Type, const StringRef Name, ASTScopes *Scopes) {
+SemaValidator::CheckCreateGlobalVar(const SourceLocation &Loc, ASTType *Type, const StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes) {
 
 }
 
 void
-SemaValidator::CheckCreateFunction(const SourceLocation &Loc, ASTType *Type, const StringRef Name, ASTScopes *Scopes) {
+SemaValidator::CheckCreateFunction(const SourceLocation &Loc, ASTType *Type, const StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes) {
 
 }
 
 void SemaValidator::CheckCreateClass(const SourceLocation &Loc, StringRef Name, ASTClassKind ClassKind,
-                                     ASTScopes *Scopes, SmallVector<ASTClassType *, 4> &ClassTypes) {
+                                     llvm::SmallVector<ASTScope *, 8> &Scopes, SmallVector<ASTClassType *, 4> &ClassTypes) {
 
 }
 
-void SemaValidator::CheckCreateClassVar(const SourceLocation &Loc, StringRef Name, ASTType *Type, ASTScopes *Scopes) {
+void SemaValidator::CheckCreateClassVar(const SourceLocation &Loc, StringRef Name, ASTType *Type, llvm::SmallVector<ASTScope *, 8> &Scopes) {
 
 }
 
-void SemaValidator::CheckCreateClassConstructor(const SourceLocation &Loc, ASTScopes *Scopes) {
+void SemaValidator::CheckCreateClassConstructor(const SourceLocation &Loc, llvm::SmallVector<ASTScope *, 8> &Scopes) {
 
 }
 
 void
-SemaValidator::CheckCreateClassMethod(const SourceLocation &Loc, ASTType *Type, StringRef Name, ASTScopes *Scopes) {
+SemaValidator::CheckCreateClassMethod(const SourceLocation &Loc, ASTType *Type, StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes) {
 
 }
 
-void SemaValidator::CheckCreateEnum(const SourceLocation &Loc, const StringRef Name, ASTScopes *Scopes,
+void SemaValidator::CheckCreateEnum(const SourceLocation &Loc, const StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes,
                                     SmallVector<ASTEnumType *, 4> EnumTypes) {
 
 }
@@ -308,11 +308,11 @@ void SemaValidator::CheckCreateEnumEntry(const SourceLocation &Loc, StringRef Na
 
 }
 
-void SemaValidator::CheckCreateParam(const SourceLocation &Loc, ASTType *Type, StringRef Name, ASTScopes *Scopes) {
+void SemaValidator::CheckCreateParam(const SourceLocation &Loc, ASTType *Type, StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes) {
 
 }
 
-void SemaValidator::CheckCreateLocalVar(const SourceLocation &Loc, ASTType *Type, StringRef Name, ASTScopes *Scopes) {
+void SemaValidator::CheckCreateLocalVar(const SourceLocation &Loc, ASTType *Type, StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes) {
 
 }
 

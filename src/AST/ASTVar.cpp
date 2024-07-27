@@ -12,7 +12,8 @@
 
 using namespace fly;
 
-ASTVar::ASTVar(ASTVarKind VarKind, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes) :
+ASTVar::ASTVar(ASTVarKind VarKind, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
+               SmallVector<ASTScope *, 8> &Scopes) :
         ASTBase(Loc), VarKind(VarKind), Type(Type), Name(Name), Scopes(Scopes) {
 
 }
@@ -30,7 +31,12 @@ llvm::StringRef ASTVar::getName() const {
 }
 
 bool ASTVar::isConstant() const {
-    return Scopes->isConstant();
+    for (auto Scope : Scopes) {
+        if (Scope->getKind() == ASTScopeKind::SCOPE_CONSTANT) {
+            return Scope->isConstant();
+        }
+    }
+    return false;
 }
 
 bool ASTVar::isInitialized() {
@@ -45,7 +51,7 @@ void ASTVar::setInitialization(ASTVarStmt *VarDefine) {
     Initialization = VarDefine;
 }
 
-ASTScopes *ASTVar::getScopes() const {
+const SmallVector<ASTScope *, 8> &ASTVar::getScopes() const {
     return Scopes;
 }
 
@@ -55,6 +61,6 @@ std::string ASTVar::str() const {
             Attr("Type", Type).
             Attr("Name", Name).
             Attr("VarKind", (uint64_t) VarKind).
-            Attr("Scopes", Scopes).
+            AttrList("Scopes", Scopes).
             End();
 }

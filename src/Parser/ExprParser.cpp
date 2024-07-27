@@ -23,7 +23,7 @@ ExprParser::ExprParser(Parser *P) : P(P) {
 }
 
 /**
- * Parse a statement assignment Expression
+ * ParseModule a statement assignment Expression
  * @param Block
  * @param VarRef
  * @param Success true on Success or false on Error
@@ -107,7 +107,7 @@ ASTExpr *ExprParser::ParseAssignExpr(ASTVarRef *VarRef) {
 }
 
  /**
-  * Parse all Expressions
+  * ParseModule all Expressions
   * @param Stmt where come from
   * @param IsFirst when starting parse expression in a binary ternary or other multi expression
   * @return the ASTExpr
@@ -245,7 +245,7 @@ ASTExpr *ExprParser::ParseNewExpr(Parser *P) {
 }
 
 /**
- * Parse unary pre operators ++a, --a, !a
+ * ParseModule unary pre operators ++a, --a, !a
  * @param Block
  * @param VarRef
  * @param Success
@@ -273,7 +273,7 @@ ASTUnaryGroupExpr *ExprParser::ParseUnaryPostExpr(ASTVarRef *VarRef) {
 }
 
 /**
- * Parse unary operators ++a, --a, !a
+ * ParseModule unary operators ++a, --a, !a
  * @param Block
  * @param Success
  * @return
@@ -313,7 +313,7 @@ ASTUnaryGroupExpr* ExprParser::ParseUnaryPreExpr(Parser *P) {
 }
 
 /**
- * Parse Binary operators
+ * ParseModule Binary operators
  * @param Block
  * @param First
  * @param Success

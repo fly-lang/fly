@@ -1,13 +1,19 @@
+//===--------------------------------------------------------------------------------------------------------------===//
+// test/ParserTest.cpp - Parser tests
 //
-// Created by marco on 2/23/23.
+// Part of the Fly Project https://flylang.org
+// Under the Apache License v2.0 see LICENSE for details.
+// Thank you to LLVM Project https://llvm.org/
 //
+//===--------------------------------------------------------------------------------------------------------------===//
 
+// fly
 #include "TestUtils.h"
 #include "Parser/Parser.h"
 #include "Sema/Sema.h"
 #include "Sema/SemaBuilder.h"
-#include "Sys/Sys.h"
 
+// third party
 #include <gtest/gtest.h>
 
 #ifndef FLY_PARSERTEST_H
@@ -27,27 +33,28 @@ public:
     ParserTest() : CI(*TestUtils::CreateCompilerInstance()),
                    Diags(CI.getDiagnostics()) {
         S = Sema::CreateSema(CI.getDiagnostics());
-        Diags.getClient()->BeginSourceFile();
     }
 
     virtual ~ParserTest() {
-        Diags.getClient()->EndSourceFile();
         delete S;
     }
 
-    ASTModule *Parse(std::string FileName, llvm::StringRef Source, bool DoBuild = true) {
+    ASTModule *Parse(std::string FileName, llvm::StringRef Source) {
+        Diags.getClient()->BeginSourceFile();
         InputFile Input(Diags, CI.getSourceManager(), FileName);
         Input.Load(Source);
-        Parser *P = new Parser(Input, CI.getSourceManager(), Diags, *S->getBuilder());
-        ASTModule *Module = P->Parse();
-        Success = !Diags.hasErrorOccurred() && Module;
-        if (DoBuild)
-            Success &= S->Resolve();
-        return Module;
+        Parser *P = new Parser(Input, CI.getSourceManager(), Diags, S->getBuilder());
+        ASTModule *M = P->ParseModule();
+        Diags.getClient()->EndSourceFile();
+        return M;
+    }
+
+    bool Resolve() {
+        return S->Resolve();
     }
 
     bool isSuccess() const {
-        return Success;
+        return Success && !Diags.hasErrorOccurred();
     }
 
 };

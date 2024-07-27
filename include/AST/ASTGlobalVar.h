@@ -16,6 +16,8 @@
 
 namespace fly {
 
+    enum class ASTVisibilityKind;
+
     class ASTGlobalVar : public ASTVar, public virtual ASTTopDef {
 
         friend class SemaBuilder;
@@ -24,6 +26,8 @@ namespace fly {
 
         ASTTopDefKind TopDefKind = ASTTopDefKind::DEF_GLOBALVAR;
 
+        ASTVisibilityKind Visibility;
+
         ASTModule *Module = nullptr;
 
         ASTExpr *Expr = nullptr;
@@ -31,13 +35,15 @@ namespace fly {
         // Code Generator
         CodeGenGlobalVar *CodeGen = nullptr;
 
-        ASTGlobalVar(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes);
+        ASTGlobalVar(ASTModule *Module, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, SmallVector<ASTScope *, 8> &Scopes);
 
     public:
 
         ~ASTGlobalVar() = default;
 
         ASTTopDefKind getTopDefKind() const override;
+
+        ASTVisibilityKind getVisibility() const;
 
         ASTModule *getModule() const override;
 

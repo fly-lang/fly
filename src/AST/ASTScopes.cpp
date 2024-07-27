@@ -11,37 +11,29 @@
 
 using namespace fly;
 
-ASTScopes::ASTScopes(const SourceLocation &Loc) :
-        ASTBase(Loc), Visibility(ASTVisibilityKind::V_DEFAULT), Constant(false), Static(false) {
+ASTScope::ASTScope(const SourceLocation &Loc, ASTScopeKind Kind) :
+        ASTBase(Loc), Kind(Kind), Visibility(ASTVisibilityKind::V_DEFAULT), Constant(false), Static(false) {
 
 }
 
-ASTVisibilityKind ASTScopes::getVisibility() const {
+ASTScopeKind ASTScope::getKind() {
+    return Kind;
+}
+
+ASTVisibilityKind ASTScope::getVisibility() const {
     return Visibility;
 }
 
-void ASTScopes::setVisibility(ASTVisibilityKind V) {
-    this->Visibility = V;
-}
-
-bool ASTScopes::isConstant() const {
+bool ASTScope::isConstant() const {
     return Constant;
 }
 
-void ASTScopes::setConstant(bool C) {
-    this->Constant = C;
-}
-
-bool ASTScopes::isStatic() const {
+bool ASTScope::isStatic() const {
     return Static;
 }
 
-void ASTScopes::setStatic(bool S) {
-    this->Static = S;
-}
-
-std::string ASTScopes::str() const {
-    return Logger("ASTScopes").
+std::string ASTScope::str() const {
+    return Logger("ASTScope").
             Attr("Visibility", (uint64_t) Visibility).
             Attr("Constant", Constant).
             Attr("Constant", Static).

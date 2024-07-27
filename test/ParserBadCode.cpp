@@ -8,7 +8,6 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "ParserTest.h"
-#include "Frontend/FrontendAction.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTModule.h"
 #include "AST/ASTImport.h"

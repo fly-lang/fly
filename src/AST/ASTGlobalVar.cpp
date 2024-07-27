@@ -12,13 +12,17 @@
 
 using namespace fly;
 
-ASTGlobalVar::ASTGlobalVar(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes) :
-        ASTVar(ASTVarKind::VAR_GLOBAL, Loc, Type, Name, Scopes) {
+ASTGlobalVar::ASTGlobalVar(ASTModule *Module, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, SmallVector<ASTScope *, 8> &Scopes) :
+        ASTVar(ASTVarKind::VAR_GLOBAL, Loc, Type, Name, Scopes), Module(Module) {
 
 }
 
 ASTTopDefKind ASTGlobalVar::getTopDefKind() const {
     return TopDefKind;
+}
+
+ASTVisibilityKind ASTGlobalVar::getVisibility() const {
+    return Visibility;
 }
 
 ASTModule *ASTGlobalVar::getModule() const {

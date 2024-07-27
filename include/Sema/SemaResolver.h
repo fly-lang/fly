@@ -54,6 +54,9 @@ namespace fly {
     class ASTVar;
     class ASTIdentity;
     class ASTLoopInStmt;
+    class ASTScope;
+    class ASTGlobalVar;
+    class ASTEnum;
 
     class SemaResolver {
 
@@ -69,15 +72,27 @@ namespace fly {
 
     private:
 
+        void ResolveModule(ASTModule *Module);
+
+        void ResolveNameSpace(ASTModule *Module);
+
         bool ResolveNameSpace(ASTModule *Module, ASTIdentifier *&Identifier);
 
-        bool ResolveImports(ASTModule *Module);
+        void ResolveImports(ASTModule *Module);
 
-        bool ResolveGlobalVars(ASTModule *Module);
+        void ResolveGlobalVars(ASTModule *Module);
 
-        bool ResolveIdentities(ASTModule *Module);
+        void ResolveIdentities(ASTModule *Module);
 
-        bool ResolveFunctions(ASTModule *Module);
+        void ResolveFunctions(ASTModule *Module);
+
+        void ResolveScopes(llvm::SmallVector<ASTScope *, 8> Scopes,  ASTGlobalVar *GlobalVar);
+
+        void ResolveScopes(llvm::SmallVector<ASTScope *, 8> Scopes,  ASTFunction *Function);
+
+        void ResolveScopes(llvm::SmallVector<ASTScope *, 8> Scopes,  ASTClass *Class);
+
+        void ResolveScopes(llvm::SmallVector<ASTScope *, 8> Scopes,  ASTEnum *Enum);
 
         bool ResolveStmt(ASTStmt *Stmt);
 
@@ -125,6 +140,8 @@ namespace fly {
 
         ASTNameSpace *FindNameSpace(llvm::StringRef Name) const;
 
+        ASTImport *FindImport(ASTModule *Module, llvm::StringRef Name);
+
         ASTModule *FindModule(ASTFunctionBase *FunctionBase) const;
 
         ASTModule *FindModule(llvm::StringRef Name, ASTNameSpace *NameSpace) const;
@@ -134,8 +151,6 @@ namespace fly {
         ASTIdentityType *FindIdentityType(llvm::StringRef Name, ASTNameSpace *NameSpace) const;
 
         ASTVar *FindLocalVar(ASTStmt *Stmt, llvm::StringRef Name) const;
-
-        ASTImport *FindImport(ASTModule *Module, llvm::StringRef Name);
 
     };
 

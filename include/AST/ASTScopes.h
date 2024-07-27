@@ -14,6 +14,12 @@
 
 namespace fly {
 
+    enum class ASTScopeKind {
+        SCOPE_VISIBILITY,
+        SCOPE_CONSTANT,
+        SCOPE_STATIC
+    };
+
     enum class ASTVisibilityKind {
         V_DEFAULT,
         V_PUBLIC,
@@ -21,35 +27,31 @@ namespace fly {
         V_PROTECTED
     };
 
-    class ASTScopes : public ASTBase {
+    class ASTScope : public ASTBase {
 
         friend class SemaBuilder;
         friend class SemaResolver;
         friend class SemaValidator;
 
-        // Visibility of the Fields or Methods
-        ASTVisibilityKind Visibility = ASTVisibilityKind::V_DEFAULT;
+        ASTScopeKind Kind;
 
-        // Constant Fields or Methods
-        bool Constant = false;
+        ASTVisibilityKind Visibility;
 
-        // Static Fields or Methods
-        bool Static = false;
+        bool Constant;
 
-        explicit ASTScopes(const SourceLocation &Loc);
+        bool Static;
+
+        ASTScope(const SourceLocation &Loc, ASTScopeKind Kind);
 
     public:
-        ASTVisibilityKind getVisibility() const;
 
-        void setVisibility(ASTVisibilityKind visibility);
+        ASTScopeKind getKind();
+
+        ASTVisibilityKind getVisibility() const;
 
         bool isConstant() const;
 
-        void setConstant(bool constant);
-
         bool isStatic() const;
-
-        void setStatic(bool S);
 
         std::string str() const override;
     };

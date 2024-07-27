@@ -12,6 +12,7 @@
 
 #include "AST/ASTBase.h"
 #include "ASTTopDef.h"
+#include "AST/ASTScopes.h"
 
 namespace fly {
 
@@ -27,15 +28,17 @@ namespace fly {
 
         ASTTopDefKind TopDefKind;
 
-        ASTScopes *Scopes;
+        llvm::SmallVector<ASTScope *, 8> Scopes;
 
         llvm::StringRef Name;
+
+        ASTVisibilityKind Visibility;
 
         ASTModule *Module = nullptr;
 
         ASTIdentityType *Type = nullptr;
 
-        ASTIdentity(ASTTopDefKind TopDefKind, ASTScopes *Scopes,
+        ASTIdentity(ASTModule *Module, ASTTopDefKind TopDefKind, llvm::SmallVector<ASTScope *, 8> &Scopes,
                     const SourceLocation &Loc, llvm::StringRef Name);
 
     public:
@@ -46,7 +49,9 @@ namespace fly {
 
         llvm::StringRef getName() const override;
 
-        ASTScopes *getScopes() const;
+        ASTVisibilityKind getVisibility() const;
+
+        llvm::SmallVector<ASTScope *, 8> getScopes() const;
 
         ASTModule *getModule() const override;
 

@@ -104,6 +104,7 @@ PUNCTUATOR(equalequal,          "==")
 PUNCTUATOR(comma,               ",")
 PUNCTUATOR(at,                  "@")
 
+KEYWORD(as)
 KEYWORD(bool)
 KEYWORD(break)
 KEYWORD(byte)

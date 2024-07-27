@@ -17,15 +17,13 @@
 namespace fly {
 
     class ASTClass;
-    class ASTScopes;
     class ASTType;
     class ASTFunction;
-    class ASTScopes;
+    enum class ASTVisibilityKind;
 
     enum class ASTClassMethodKind {
-        METHOD_CUSTOM,
+        METHOD,
         METHOD_CONSTRUCTOR,
-        METHOD_STATIC,
         METHOD_VIRTUAL
     };
 
@@ -37,7 +35,11 @@ namespace fly {
 
         llvm::StringRef Name;
 
+        bool Static = false;
+
         ASTClassMethodKind MethodKind;
+
+        ASTVisibilityKind Visibility;
 
         ASTClass *Class = nullptr;
 
@@ -49,13 +51,15 @@ namespace fly {
         CodeGenClassFunction *CodeGen = nullptr;
 
         ASTClassMethod(const SourceLocation &Loc, ASTClassMethodKind MethodKind, ASTType *Type,
-                       llvm::StringRef Name, ASTScopes *Scopes);
+                       llvm::StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes);
 
     public:
 
         const StringRef &getName() const;
 
         ASTClassMethodKind getMethodKind() const;
+
+        ASTVisibilityKind getVisibility() const;
 
         ASTClass *getClass() const;
 

@@ -13,12 +13,16 @@
 
 using namespace fly;
 
-ASTModule::ASTModule(const std::string Name, ASTContext *Context, bool isHeader) :
-        Name(Name), Context(Context), Header(isHeader) {
+ASTModule::ASTModule(uint64_t &Id, const std::string Name, ASTContext *Context, bool isHeader) :
+        Id(Id), Name(Name), Context(Context), Header(isHeader) {
 }
 
 ASTModule::~ASTModule() {
     Imports.clear();
+}
+
+const uint64_t ASTModule::getId() const {
+    return Id;
 }
 
 bool ASTModule::isHeader() const {
@@ -37,11 +41,11 @@ ASTNameSpace* ASTModule::getNameSpace() {
     return NameSpace;
 }
 
-const llvm::StringMap<ASTImport*> &ASTModule::getImports() {
+const llvm::SmallVector<ASTImport *, 8> &ASTModule::getImports() {
     return Imports;
 }
 
-const llvm::StringMap<ASTImport*> &ASTModule::getAliasImports() {
+const llvm::SmallVector<ASTImport *, 8> &ASTModule::getAliasImports() {
     return AliasImports;
 }
 
@@ -53,11 +57,11 @@ const llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> 
     return ExternalFunctions;
 }
 
-llvm::StringMap<ASTIdentity *> ASTModule::getIdentities() const {
+const llvm::SmallVector<ASTIdentity *, 8> &ASTModule::getIdentities() const {
     return Identities;
 }
 
-const llvm::StringMap<ASTGlobalVar *> &ASTModule::getGlobalVars() const {
+const llvm::SmallVector<ASTGlobalVar *, 8> &ASTModule::getGlobalVars() const {
     return GlobalVars;
 }
 

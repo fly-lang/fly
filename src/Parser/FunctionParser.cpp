@@ -35,7 +35,7 @@ FunctionParser::FunctionParser(Parser *P, ASTFunctionBase *Function) : P(P), Fun
 }
 
 /**
- * Parse Parameters
+ * ParseModule Parameters
  * @return true on Success or false on Error
  */
 bool FunctionParser::ParseParams() {
@@ -55,7 +55,7 @@ bool FunctionParser::ParseParams() {
 }
 
 /**
- * Parse a single Function Param
+ * ParseModule a single Function Param
  * @return true on Success or false on Error
  */
 bool FunctionParser::ParseParam() {
@@ -73,10 +73,9 @@ bool FunctionParser::ParseParam() {
         const SourceLocation IdLoc = P->Tok.getLocation();
         P->ConsumeToken();
 
-        ASTScopes *Scopes = P->Builder.CreateScopes();
-        P->ParseScopes(Scopes);
+        llvm::SmallVector<ASTScope *, 8> Scopes = P->ParseScopes();
 
-        ASTParam *Param = P->Builder.CreateParam(IdLoc, Type, Name, Scopes);
+        ASTParam *Param = P->Builder.CreateParam(IdLoc, Type, Name, &Scopes);
 
         // Parse assignment =
         if (P->Tok.is(tok::equal)) {
@@ -108,7 +107,7 @@ bool FunctionParser::ParseParam() {
 }
 
 /**
- * Parse Function Body
+ * ParseModule Function Body
  * @return true on Success or false on Error
  */
 bool FunctionParser::ParseBody() {
@@ -123,7 +122,7 @@ bool FunctionParser::ParseBody() {
 }
 
 bool FunctionParser::Parse(Parser *P, ASTFunctionBase *Function) {
-    FLY_DEBUG_MESSAGE("FunctionParser", "Parse", Logger()
+    FLY_DEBUG_MESSAGE("FunctionParser", "ParseModule", Logger()
             .Attr("Function", Function).End());
     FunctionParser *FP = new FunctionParser(P, Function);
     bool Success = FP->ParseParams() && FP->ParseBody();

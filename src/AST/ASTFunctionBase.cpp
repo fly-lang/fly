@@ -14,12 +14,12 @@
 using namespace fly;
 
 ASTFunctionBase::ASTFunctionBase(const SourceLocation &Loc, ASTFunctionKind Kind, ASTType *ReturnType,
-                                 ASTScopes * Scopes) :
+                                 llvm::SmallVector<ASTScope *, 8> &Scopes) :
         ASTBase(Loc), Kind(Kind), ReturnType(ReturnType), Scopes(Scopes) {
 
 }
 
-ASTScopes *ASTFunctionBase::getScopes() const {
+llvm::SmallVector<ASTScope *, 8> ASTFunctionBase::getScopes() const {
     return Scopes;
 }
 

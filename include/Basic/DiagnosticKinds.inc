@@ -367,6 +367,7 @@ DIAG(err_var_assign_empty, CLASS_ERROR, (unsigned)diag::Severity::Error, "var as
 
 // Sema
 DIAG(err_sema_module_name_empty, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid global var value", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_module_duplicated, CLASS_ERROR, (unsigned)diag::Severity::Error, "module name '%0' is duplicated", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_namespace_empty, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid global var value", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_invalid_globalvar_value, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid global var value", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_generic, CLASS_ERROR, (unsigned)diag::Severity::Error, "semantic error", 0, SFINAE_Suppress, false, true, 0)

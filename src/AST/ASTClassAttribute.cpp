@@ -14,7 +14,7 @@
 using namespace fly;
 
 ASTClassAttribute::ASTClassAttribute(const SourceLocation &Loc, ASTType *Type,
-                                     llvm::StringRef Name, ASTScopes *Scopes) :
+                                     llvm::StringRef Name, SmallVector<ASTScope *, 8> &Scopes) :
         ASTVar(ASTVarKind::VAR_CLASS, Loc, Type, Name, Scopes) {
 
 }

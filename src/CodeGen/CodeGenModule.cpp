@@ -152,8 +152,7 @@ void CodeGenModule::GenAll() {
 
     // Generate GlobalVars
     std::vector<CodeGenGlobalVar *> CGGlobalVars;
-    for (const auto &Entry : AST.getGlobalVars()) {
-        ASTGlobalVar *GlobalVar = Entry.getValue();
+    for (const auto &GlobalVar : AST.getGlobalVars()) {
         FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode",
                           "GlobalVar=" << GlobalVar->str());
         CodeGenGlobalVar *CGV = GenGlobalVar(GlobalVar);
@@ -179,8 +178,7 @@ void CodeGenModule::GenAll() {
 
     // Generate Identities: Class & Enum
     std::vector<CodeGenClass *> CGClasses;
-    for (auto &StrMapEntry : AST.getIdentities()) {
-        ASTIdentity *Identity = StrMapEntry.getValue();
+    for (auto &Identity : AST.getIdentities()) {
         if (Identity->getTopDefKind() == ASTTopDefKind::DEF_CLASS) {
             CodeGenClass *CGC = GenClass((ASTClass *) Identity);
             CGClasses.push_back(CGC);

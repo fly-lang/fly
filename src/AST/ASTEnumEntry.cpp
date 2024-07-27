@@ -13,8 +13,13 @@
 
 using namespace fly;
 
-ASTEnumEntry::ASTEnumEntry(const SourceLocation &Loc, ASTEnumType *Type, llvm::StringRef Name) :
-        ASTVar(ASTVarKind::VAR_ENUM, Loc, Type, Name, nullptr) {
+static SmallVector<ASTScope *, 8> CreateScopes() {
+
+}
+
+ASTEnumEntry::ASTEnumEntry(const SourceLocation &Loc, ASTEnumType *Type, llvm::StringRef Name,
+                           SmallVector<ASTScope *, 8> &Scopes) :
+        ASTVar(ASTVarKind::VAR_ENUM, Loc, Type, Name, Scopes) {
 }
 
 ASTEnum *ASTEnumEntry::getEnum() const {

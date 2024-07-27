@@ -28,7 +28,8 @@ namespace fly {
 
         ASTValue *DefaultValue = nullptr;
 
-        ASTParam(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes);
+        ASTParam(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
+                 llvm::SmallVector<ASTScope *, 8> &Scopes);
 
     public:
 

@@ -12,8 +12,9 @@
 
 using namespace fly;
 
-ASTFunction::ASTFunction(const SourceLocation &Loc, ASTType *ReturnType, llvm::StringRef Name, ASTScopes *Scopes) :
-        ASTFunctionBase(Loc, ASTFunctionKind::FUNCTION, ReturnType, Scopes), Name(Name) {
+ASTFunction::ASTFunction(ASTModule *Module, const SourceLocation &Loc, ASTType *ReturnType, llvm::StringRef Name,
+                         llvm::SmallVector<ASTScope *, 8> &Scopes) :
+        ASTFunctionBase(Loc, ASTFunctionKind::FUNCTION, ReturnType, Scopes), Module(Module), Name(Name) {
 
 }
 
@@ -23,6 +24,10 @@ llvm::StringRef ASTFunction::getName() const {
 
 ASTTopDefKind ASTFunction::getTopDefKind() const {
     return TopDefKind;
+}
+
+ASTVisibilityKind ASTFunction::getVisibility() const {
+    return Visibility;
 }
 
 ASTModule *ASTFunction::getModule() const {

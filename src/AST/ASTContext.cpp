@@ -28,6 +28,10 @@ ASTContext::~ASTContext() {
     ExternalImports.clear();
 }
 
+uint64_t ASTContext::getNextModuleId() {
+    return ++ModuleIdCounter;
+}
+
 /**
  * Get the Default Namespace
  * @return DefaultNS
@@ -48,6 +52,6 @@ const llvm::StringMap<ASTNameSpace *> &ASTContext::getNameSpaces() const {
  * Get all Modules from the Context
  * @return
  */
-const llvm::StringMap<ASTModule *> &ASTContext::getModules() const {
+const llvm::SmallVector<ASTModule *, 8> &ASTContext::getModules() const {
     return Modules;
 }

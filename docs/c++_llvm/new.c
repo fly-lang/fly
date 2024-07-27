@@ -6,7 +6,7 @@ struct Test {
     int b;
 };
 
-int main() {
+int mainFunc() {
     // Allocate memory for one instance of struct Test
     struct Test *ptr = (struct Test *)malloc(sizeof(struct Test));
 
