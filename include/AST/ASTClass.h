@@ -11,10 +11,7 @@
 #define FLY_AST_CLASS_H
 
 #include "ASTIdentity.h"
-#include "ASTClassType.h"
-
 #include "llvm/ADT/StringMap.h"
-
 #include <map>
 
 namespace fly {
@@ -24,6 +21,7 @@ namespace fly {
     class CodeGenClass;
     class ASTBlockStmt;
     class ASTVarStmt;
+    class ASTClassType;
 
     enum class ASTClassKind {
         STRUCT, // has only Fields

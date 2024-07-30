@@ -11,7 +11,6 @@
 #define FLY_AST_ENUM_H
 
 #include "ASTIdentity.h"
-#include "ASTEnumType.h"
 
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
@@ -21,6 +20,7 @@
 namespace fly {
 
     class ASTEnumEntry;
+    class ASTEnumType;
 
     class ASTEnum : public ASTIdentity {
 

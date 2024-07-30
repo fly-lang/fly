@@ -12,11 +12,12 @@
 
 #include "AST/ASTBase.h"
 #include "ASTTopDef.h"
-#include "AST/ASTScopes.h"
 
 namespace fly {
 
     class ASTIdentityType;
+    class ASTScope;
+    enum class ASTVisibilityKind;
 
     class ASTIdentity : public ASTBase, public virtual ASTTopDef {
 

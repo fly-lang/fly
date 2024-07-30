@@ -9,6 +9,7 @@
 
 #include "AST/ASTIdentity.h"
 #include "AST/ASTModule.h"
+#include "AST/ASTScopes.h"
 
 using namespace fly;
 

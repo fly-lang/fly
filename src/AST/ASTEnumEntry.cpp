@@ -9,13 +9,10 @@
 
 #include "AST/ASTEnumEntry.h"
 #include "AST/ASTEnum.h"
+#include "AST/ASTEnumType.h"
 #include "CodeGen/CodeGenEnumEntry.h"
 
 using namespace fly;
-
-static SmallVector<ASTScope *, 8> CreateScopes() {
-
-}
 
 ASTEnumEntry::ASTEnumEntry(const SourceLocation &Loc, ASTEnumType *Type, llvm::StringRef Name,
                            SmallVector<ASTScope *, 8> &Scopes) :

@@ -28,6 +28,8 @@ namespace fly {
 
         ASTVisibilityKind Visibility;
 
+        bool Constant;
+
         ASTModule *Module = nullptr;
 
         ASTExpr *Expr = nullptr;
@@ -44,6 +46,8 @@ namespace fly {
         ASTTopDefKind getTopDefKind() const override;
 
         ASTVisibilityKind getVisibility() const;
+
+        bool isConstant() const;
 
         ASTModule *getModule() const override;
 

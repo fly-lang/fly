@@ -16,12 +16,12 @@
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTModule.h"
 #include "AST/ASTImport.h"
+#include "AST/ASTArg.h"
 #include "AST/ASTIdentifier.h"
 #include "AST/ASTBreakStmt.h"
 #include "AST/ASTContinueStmt.h"
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTFunction.h"
-#include "AST/ASTFunctionBase.h"
 #include "AST/ASTCall.h"
 #include "AST/ASTDeleteStmt.h"
 #include "AST/ASTParam.h"
@@ -36,6 +36,7 @@
 #include "AST/ASTClass.h"
 #include "AST/ASTClassAttribute.h"
 #include "AST/ASTEnum.h"
+#include "AST/ASTEnumType.h"
 #include "AST/ASTEnumEntry.h"
 #include "AST/ASTExpr.h"
 #include "AST/ASTGroupExpr.h"
@@ -69,7 +70,6 @@ std::string SemaBuilder::DEFAULT = "default";
 
 ASTNameSpace *SemaBuilder::CreateDefaultNameSpace() {
     FLY_DEBUG("SemaBuilder", "CreateDefaultNameSpace");
-    const SourceLocation &Loc = SourceLocation();
     return new ASTNameSpace(SourceLocation(), DEFAULT, S.Context);
 }
 
@@ -193,6 +193,9 @@ ASTFunction *SemaBuilder::CreateFunction(ASTModule *Module, const SourceLocation
     S.getValidator().CheckCreateFunction(Loc, Type, Name, Scopes);
     ASTFunction *F = new ASTFunction(Module, Loc, Type, Name, Scopes);
     F->ErrorHandler = CreateErrorHandlerParam();
+
+    InsertFunction(Module->Functions, F);
+
     return F;
 }
 
@@ -225,6 +228,12 @@ ASTClass *SemaBuilder::CreateClass(ASTModule *Module, const SourceLocation &Loc,
     // Create Default Constructor
     SmallVector<ASTScope *, 8> ConstructorScopes = S.Builder->CreateScopes();
     Class->DefaultConstructor = S.Builder->CreateClassConstructor(SourceLocation(), *Class, ConstructorScopes);
+
+    // FIXME replace with vector push
+//    if (!InsertFunction(Class.Constructors, M)) {
+//        S.Diag(M->getLocation(), diag::err_sema_class_method_redeclare) << M->getName();
+//    }
+
     return Class;
 }
 
@@ -323,11 +332,6 @@ ASTClassMethod *SemaBuilder::CreateClassConstructor(const SourceLocation &Loc, A
                               .End());
     S.getValidator().CheckCreateClassConstructor(Loc, Scopes);
     ASTClassMethod *M = new ASTClassMethod(Loc, ASTClassMethodKind::METHOD_CONSTRUCTOR, CreateVoidType(Loc), Class.getName(), Scopes);
-
-    // FIXME replace with vector push
-    if (!InsertFunction(Class.Constructors, M)) {
-        S.Diag(M->getLocation(), diag::err_sema_class_method_redeclare) << M->getName();
-    }
 
     M->ErrorHandler = CreateErrorHandlerParam();
     M->Class = &Class;

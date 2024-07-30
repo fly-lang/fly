@@ -15,20 +15,11 @@
 
 namespace fly {
 
-    class ASTGroupExpr;
-    class ASTExpr;
-    class ASTType;
-    class ASTVarRef;
-    class ASTLocalVar;
-    class ASTBlockStmt;
-    class ASTCall;
-    class ASTGlobalVar;
-    class ASTVar;
-    class ASTParam;
     class ASTScope;
-    class CodeGenFunction;
+    class ASTLocalVar;
+    class ASTParam;
+    class ASTType;
     class CodeGenFunctionBase;
-    class CodeGenVarBase;
 
     enum class ASTFunctionKind {
         FUNCTION,

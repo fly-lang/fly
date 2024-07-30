@@ -16,9 +16,11 @@
 #include "AST/ASTClass.h"
 #include "AST/ASTClassAttribute.h"
 #include "AST/ASTEnum.h"
+#include "AST/ASTEnumType.h"
 #include "AST/ASTEnumEntry.h"
 #include "AST/ASTType.h"
 #include "AST/ASTModule.h"
+#include "AST/ASTArg.h"
 #include "AST/ASTIfStmt.h"
 #include "AST/ASTImport.h"
 #include "AST/ASTGlobalVar.h"
@@ -162,6 +164,19 @@ void SemaResolver::ResolveGlobalVars(ASTModule *Module) {
     for (auto GlobalVar : Module->getGlobalVars()) {
         if (GlobalVar->Expr->getExprKind() != ASTExprKind::EXPR_VALUE) {
             S.Diag(GlobalVar->Expr->getLocation(), diag::err_invalid_gvar_value);
+        }
+
+        S.Validator->CheckScopes(GlobalVar->getScopes());
+        for (auto Scope : GlobalVar->getScopes()) {
+            switch (Scope->getKind()) {
+
+                case ASTScopeKind::SCOPE_VISIBILITY:
+                    GlobalVar->Visibility = Scope->Visibility;
+                    break;
+                case ASTScopeKind::SCOPE_CONSTANT:
+                    GlobalVar->Constant = Scope->Constant;
+                    break;
+            }
         }
 
         // Lookup into namespace for public var
@@ -338,9 +353,10 @@ void SemaResolver::ResolveIdentities(ASTModule *Module) {
                 }
 
                 // Create default constructor if there aren't any other constructors
-                if (!Class->Constructors.empty()) {
-                    delete Class->DefaultConstructor;
-                }
+                // FIXME this code remove default constructor
+//                if (!Class->Constructors.empty()) {
+//                    delete Class->DefaultConstructor;
+//                }
 
                 // Constructors
                 for (auto &IntMap: Class->Constructors) {
@@ -422,30 +438,6 @@ void SemaResolver::ResolveFunctions(ASTModule *Module) {
                 ResolveStmtBlock(Function->Body);
             }
         }
-    }
-}
-
-void SemaResolver::ResolveScopes(llvm::SmallVector<ASTScope *, 8> Scopes, ASTGlobalVar *GlobalVar) {
-    for (auto &Scope : Scopes) {
-        // TODO
-    }
-}
-
-void SemaResolver::ResolveScopes(llvm::SmallVector<ASTScope *, 8> Scopes, ASTFunction *Function) {
-    for (auto &Scope : Scopes) {
-        // TODO
-    }
-}
-
-void SemaResolver::ResolveScopes(llvm::SmallVector<ASTScope *, 8> Scopes, ASTClass *Class) {
-    for (auto &Scope : Scopes) {
-        // TODO
-    }
-}
-
-void SemaResolver::ResolveScopes(llvm::SmallVector<ASTScope *, 8> Scopes, ASTEnum *Enum) {
-    for (auto &Scope : Scopes) {
-        // TODO
     }
 }
 
@@ -727,6 +719,7 @@ ASTVar *SemaResolver::ResolveVarRef(llvm::StringRef Name, ASTIdentityType *Ident
     } else {
         assert(false && "IdentityType unknown");
     }
+    return nullptr;
 }
 
 bool SemaResolver::ResolveVarRefWithParent(ASTVarRef *VarRef) {
@@ -851,7 +844,6 @@ bool SemaResolver::ResolveCallWithParent(ASTStmt *Stmt, ASTCall *Call) {
     FLY_DEBUG_MESSAGE("Sema", "ResolveCall", Logger().Attr("Call", Call).End());
         
     ASTFunctionBase *Function = Stmt->getFunction();
-    const auto &Module = FindModule(Function);
 
     switch (Call->getParent()->getIdKind()) {
 

@@ -105,16 +105,15 @@ namespace fly {
         friend class SemaResolver;
         friend class SemaValidator;
 
-        // Only Ternary Condition (if ? then : else)
+        ASTExpr *First;
+
         ASTTernaryOperatorExpr *FirstOperator;
+
+        ASTExpr *Second;
 
         ASTTernaryOperatorExpr *SecondOperator;
 
-        ASTExpr *First = nullptr;
-
-        ASTExpr *Second = nullptr;
-
-        ASTExpr *Third = nullptr;
+        ASTExpr *Third;
 
         ASTTernaryGroupExpr(const SourceLocation &Loc, ASTExpr *First, ASTTernaryOperatorExpr *FirstOperator,
                             ASTExpr *Second, ASTTernaryOperatorExpr *SecondOperator, ASTExpr *Third);

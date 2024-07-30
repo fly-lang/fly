@@ -11,26 +11,7 @@
 #include "Sema/SemaBuilder.h"
 #include "Sema/SemaResolver.h"
 #include "Sema/SemaValidator.h"
-#include "AST/ASTContext.h"
-#include "AST/ASTNameSpace.h"
-#include "AST/ASTBlockStmt.h"
-#include "AST/ASTLocalVar.h"
-#include "AST/ASTFunctionBase.h"
-#include "AST/ASTFunction.h"
-#include "AST/ASTClass.h"
-#include "AST/ASTClassAttribute.h"
-#include "AST/ASTIdentifier.h"
-#include "AST/ASTImport.h"
-#include "AST/ASTClassMethod.h"
-#include "AST/ASTModule.h"
-#include "AST/ASTVarRef.h"
-#include "AST/ASTParam.h"
 #include "Basic/Diagnostic.h"
-#include "Basic/SourceLocation.h"
-#include "AST/ASTBase.h"
-#include "Basic/Debug.h"
-
-#include "llvm/ADT/StringRef.h"
 
 using namespace fly;
 

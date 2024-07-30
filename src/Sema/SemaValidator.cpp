@@ -16,7 +16,6 @@
 #include "AST/ASTEnum.h"
 #include "AST/ASTImport.h"
 #include "AST/ASTGlobalVar.h"
-#include "AST/ASTFunctionBase.h"
 #include "AST/ASTParam.h"
 #include "AST/ASTBlockStmt.h"
 #include "AST/ASTValue.h"
@@ -354,4 +353,8 @@ bool SemaValidator::CheckValue(ASTValue *Value) {
             break;
     }
     return true;
+}
+
+void SemaValidator::CheckScopes(const SmallVector<ASTScope *, 8> &vector) {
+
 }

@@ -8,40 +8,10 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTCall.h"
-#include "AST/ASTFunctionBase.h"
-#include "AST/ASTIdentifier.h"
-#include "AST/ASTExpr.h"
+#include "AST/ASTArg.h"
+
 
 using namespace fly;
-
-ASTArg::ASTArg(ASTExpr *Expr) :
-        ASTBase(Expr->getLocation()), Expr(Expr), Index(0) {
-
-}
-
-uint64_t ASTArg::getIndex() const {
-    return Index;
-}
-
-ASTParam *ASTArg::getDef() const {
-    return Def;
-}
-
-std::string ASTArg::str() const {
-    return Logger("ASTArg").
-            Super(ASTBase::str()).
-            Attr("Expr", Expr).
-            Attr("Index", Index).
-            End();
-}
-
-ASTCall *ASTArg::getCall() const {
-    return Call;
-}
-
-ASTExpr *ASTArg::getExpr() const {
-    return Expr;
-}
 
 ASTCall::ASTCall(const SourceLocation &Loc, llvm::StringRef Name) : ASTIdentifier(Loc, Name, ASTIdentifierKind::REF_CALL) {
 

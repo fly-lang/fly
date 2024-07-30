@@ -113,6 +113,8 @@ namespace fly {
         bool CheckVarRefExpr(ASTExpr *Expr);
 
         bool CheckValue(ASTValue *Value);
+
+        void CheckScopes(const SmallVector<ASTScope *, 8> &vector);
     };
 
 }  // end namespace fly

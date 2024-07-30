@@ -14,7 +14,6 @@
 
 namespace fly {
 
-    class ASTIfStmt;
     class ASTElsif;
 
     class ASTIfStmt : public ASTStmt {

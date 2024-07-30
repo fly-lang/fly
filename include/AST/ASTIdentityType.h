@@ -11,12 +11,12 @@
 #define FLY_AST_IDENTITYTYPE_H
 
 #include "AST/ASTType.h"
-#include "AST/ASTIdentity.h"
 #include "ASTIdentifier.h"
 
 namespace fly {
 
     class ASTIdentifier;
+    class ASTIdentity;
 
     enum class ASTIdentityTypeKind {
         TYPE_NONE = 0,

@@ -25,6 +25,10 @@ ASTVisibilityKind ASTGlobalVar::getVisibility() const {
     return Visibility;
 }
 
+bool ASTGlobalVar::isConstant() const {
+    return Constant;
+}
+
 ASTModule *ASTGlobalVar::getModule() const {
     return Module;
 }

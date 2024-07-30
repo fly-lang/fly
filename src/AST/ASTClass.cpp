@@ -11,6 +11,7 @@
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTClassAttribute.h"
 #include "AST/ASTClassMethod.h"
+#include "AST/ASTClassType.h"
 
 using namespace fly;
 

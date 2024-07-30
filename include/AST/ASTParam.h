@@ -14,7 +14,6 @@
 
 namespace fly {
 
-    class ASTFunctionBase;
     class ASTValue;
 
     /**

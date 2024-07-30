@@ -32,6 +32,7 @@ namespace fly {
     class CodeGenFunctionBase {
 
     protected:
+
         ASTFunctionBase *AST = nullptr;
 
         CodeGenModule *CGM = nullptr;

@@ -5,6 +5,7 @@ add_executable(fly
 add_library(flyLib
 
         # AST
+        AST/ASTArg.cpp
         AST/ASTBase.cpp
         AST/ASTBlockStmt.cpp
         AST/ASTBreakStmt.cpp
@@ -148,6 +149,10 @@ add_library(flyLib
         Sema/SemaResolver.cpp
         Sema/SemaValidator.cpp
 )
+
+#if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+#    target_compile_options(flyLib PRIVATE -Wall)
+#endif ()
 
 configure_file(
         ${CMAKE_SOURCE_DIR}/include/Config/Config.h.cmake

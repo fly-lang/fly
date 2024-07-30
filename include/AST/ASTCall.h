@@ -10,18 +10,13 @@
 #ifndef FLY_AST_CALL_H
 #define FLY_AST_CALL_H
 
-#include "AST/ASTBase.h"
-#include "AST/ASTIdentifier.h"
+#include "ASTIdentifier.h"
 
 namespace fly {
 
-    class ASTType;
-    class ASTFunctionBase;
-    class ASTParam;
     class ASTArg;
-    class ASTCallExpr;
-    class ASTExpr;
     class ASTVar;
+    class ASTFunctionBase;
 
     enum class ASTCallKind {
         CALL_FUNCTION,
@@ -71,35 +66,6 @@ namespace fly {
         ASTMemoryKind getMemoryKind() const;
 
         std::string str() const override;
-    };
-
-    class ASTArg : public ASTBase {
-
-        friend class SemaResolver;
-        friend class SemaBuilder;
-
-        ASTExpr *Expr;
-
-        uint64_t Index;
-
-        ASTParam *Def = nullptr;
-
-        ASTCall *Call = nullptr;
-
-        ASTArg(ASTExpr *Expr);
-
-    public:
-
-        ASTExpr *getExpr() const;
-
-        uint64_t getIndex() const;
-
-        ASTParam *getDef() const;
-
-        ASTCall *getCall() const;
-
-        std::string str() const override;
-
     };
 }
 

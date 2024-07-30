@@ -27,12 +27,15 @@
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTLocalVar.h"
 #include "AST/ASTDeleteStmt.h"
+#include "AST/ASTArg.h"
 #include "AST/ASTCall.h"
+#include "AST/ASTFunctionBase.h"
+#include "AST/ASTFunction.h"
 #include "AST/ASTGlobalVar.h"
+#include "AST/ASTClassType.h"
 #include "AST/ASTClassAttribute.h"
 #include "AST/ASTClassMethod.h"
 #include "AST/ASTFailStmt.h"
-#include "AST/ASTFunction.h"
 #include "AST/ASTHandleStmt.h"
 #include "AST/ASTBlockStmt.h"
 #include "AST/ASTIfStmt.h"
@@ -816,7 +819,10 @@ llvm::Value *CodeGenModule::GenCall(ASTCall *Call) {
         llvm::Value *V = GenExpr(Arg->getExpr());
         Args.push_back(V);
     }
-    llvm::Value *RetVal = Builder->CreateCall(Call->getDef()->getCodeGen()->getFunction(), Args);
+
+    ASTFunctionBase *Def = Call->getDef();
+    CodeGenFunctionBase *CGF = Def->getCodeGen();
+    llvm::Value *RetVal = Builder->CreateCall(CGF->getFunction(), Args);
 
     return Instance == nullptr ? RetVal : Instance;
 }
@@ -1113,7 +1119,7 @@ void CodeGenModule::GenSwitchBlock(CodeGenFunctionBase *CGF, ASTSwitchStmt *Swit
     unsigned long Size = Switch->getCases().size();
 
     llvm::BasicBlock *NextCaseBB = nullptr;
-    for (int i=0; i < Size; i++) {
+    for (unsigned long i=0; i < Size; i++) {
         ASTSwitchCase *Case = Switch->getCases()[i];
         llvm::Value *CaseVal = GenExpr(Case->getValueExpr());
         llvm::ConstantInt *CaseConst = llvm::cast<llvm::ConstantInt, llvm::Value>(CaseVal);

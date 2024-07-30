@@ -54,7 +54,6 @@ namespace fly {
     class ASTVar;
     class ASTIdentity;
     class ASTLoopInStmt;
-    class ASTScope;
     class ASTGlobalVar;
     class ASTEnum;
 
@@ -85,14 +84,6 @@ namespace fly {
         void ResolveIdentities(ASTModule *Module);
 
         void ResolveFunctions(ASTModule *Module);
-
-        void ResolveScopes(llvm::SmallVector<ASTScope *, 8> Scopes,  ASTGlobalVar *GlobalVar);
-
-        void ResolveScopes(llvm::SmallVector<ASTScope *, 8> Scopes,  ASTFunction *Function);
-
-        void ResolveScopes(llvm::SmallVector<ASTScope *, 8> Scopes,  ASTClass *Class);
-
-        void ResolveScopes(llvm::SmallVector<ASTScope *, 8> Scopes,  ASTEnum *Enum);
 
         bool ResolveStmt(ASTStmt *Stmt);
 

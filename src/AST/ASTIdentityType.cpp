@@ -7,6 +7,7 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
+#include "AST/ASTIdentity.h"
 #include "AST/ASTIdentityType.h"
 
 using namespace fly;

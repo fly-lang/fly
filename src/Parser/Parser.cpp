@@ -187,6 +187,8 @@ ASTBase *Parser::ParseTopDef(SmallVector<ASTScope *, 8>& Scopes) {
         // Define a GlobalVar
         return ParseGlobalVarDef(Scopes, Type);
     }
+
+    return nullptr;
 }
 
 SmallVector<ASTScope *, 8> Parser::ParseScopes() {

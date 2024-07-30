@@ -16,11 +16,7 @@
 
 namespace fly {
 
-    class ASTModule;
-    class ASTType;
-    class ASTBlockStmt;
     enum class ASTVisibilityKind;
-    class CodeGenFunction;
 
     /**
      * The Function Declaration and definition
@@ -39,10 +35,10 @@ namespace fly {
 
         ASTVisibilityKind Visibility;
 
+        ASTModule *Module;
+
         // Function Name
         llvm::StringRef Name;
-
-        ASTModule *Module = nullptr;
 
         // Populated during codegen phase
         CodeGenFunction *CodeGen = nullptr;

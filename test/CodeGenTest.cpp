@@ -20,7 +20,6 @@
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTFunction.h"
-#include "AST/ASTIdentifier.h"
 #include "AST/ASTDeleteStmt.h"
 #include "AST/ASTVar.h"
 #include "AST/ASTVarRef.h"
@@ -35,6 +34,7 @@
 #include "AST/ASTClassAttribute.h"
 #include "AST/ASTClassMethod.h"
 #include "AST/ASTEnum.h"
+#include "AST/ASTEnumType.h"
 #include "AST/ASTEnumEntry.h"
 #include "AST/ASTExprStmt.h"
 #include "AST/ASTExpr.h"
@@ -100,7 +100,7 @@ namespace {
                         DoubleType(Builder.CreateDoubleType(SourceLoc)),
                         ArrayInt0Type(Builder.CreateArrayType(SourceLoc, IntType,
                                                        Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 0)))),
-                        DefaultScopes(Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false)) {
+                        DefaultScopes(Builder.CreateScopes(ASTVisibilityKind::V_PUBLIC, false)) {
             llvm::InitializeAllTargets();
             llvm::InitializeAllTargetMCs();
             llvm::InitializeAllAsmPrinters();
@@ -535,7 +535,7 @@ namespace {
         testing::internal::CaptureStdout();
         G->print(llvm::outs());
         std::string output1 = testing::internal::GetCapturedStdout();
-        EXPECT_EQ(output1, "@G = internal global float 2.000000e+00");
+        EXPECT_EQ(output1, "@G = global float 2.000000e+00");
 
         testing::internal::CaptureStdout();
         F->print(llvm::outs());

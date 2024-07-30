@@ -14,8 +14,8 @@
 #include "AST/ASTModule.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTValue.h"
-#include "AST/ASTGlobalVar.h"
 #include "AST/ASTScopes.h"
+#include "AST/ASTGlobalVar.h"
 #include "AST/ASTVarStmt.h"
 
 using namespace fly;
