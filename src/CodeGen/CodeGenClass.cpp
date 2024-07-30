@@ -39,12 +39,12 @@ void CodeGenClass::Generate() {
     if (AST->getClassKind() == ASTClassKind::CLASS || AST->getClassKind() == ASTClassKind::STRUCT) {
 
         // Default Constructor
-        if (AST->getDefaultConstructor()) {
-            // Create Constructor CodeGen for Constructor
-            CodeGenClassFunction *CGCF = new CodeGenClassFunction(CGM, AST->getDefaultConstructor(), TypePtr);
-            AST->getDefaultConstructor()->setCodeGen(CGCF);
-            Constructors.push_back(CGCF);
-        }
+//        if (AST->getDefaultConstructor()) {
+//            // Create Constructor CodeGen for Constructor
+//            CodeGenClassFunction *CGCF = new CodeGenClassFunction(CGM, AST->getDefaultConstructor(), TypePtr);
+//            AST->getDefaultConstructor()->setCodeGen(CGCF);
+//            Constructors.push_back(CGCF);
+//        }
 
         // Add Constructors
         for (auto &Entry: AST->getConstructors()) {

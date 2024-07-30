@@ -392,6 +392,7 @@ DIAG(err_sema_interface_ext_struct, CLASS_ERROR, (unsigned)diag::Severity::Error
 DIAG(err_sema_interface_ext_class, CLASS_ERROR, (unsigned)diag::Severity::Error, "interface cannot extend a class", 0, SFINAE_Suppress, false, true, 0)
 
 // CodeGen
+DIAG(err_cg_unresolved_def, CLASS_ERROR, (unsigned)diag::Severity::Error, "unresolved definition '%0'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_void_value, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot assign void value", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_expr_operator_unexpected, CLASS_ERROR, (unsigned)diag::Severity::Error, "unexpected operator into expression", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_expr_operator_expected, CLASS_ERROR, (unsigned)diag::Severity::Error, "operator expected", 0, SFINAE_Suppress, false, true, 0)

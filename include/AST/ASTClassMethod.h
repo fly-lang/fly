@@ -12,7 +12,6 @@
 #define FLY_AST_CLASSMETHOD_H
 
 #include "ASTFunctionBase.h"
-#include "ASTScopes.h"
 #include "CodeGen/CodeGenClassFunction.h"
 
 namespace fly {
@@ -20,6 +19,7 @@ namespace fly {
     class ASTClass;
     class ASTType;
     class ASTFunction;
+    enum class ASTVisibilityKind;
 
     enum class ASTClassMethodKind {
         METHOD,
@@ -39,7 +39,7 @@ namespace fly {
 
         ASTClassMethodKind MethodKind;
 
-        ASTVisibilityKind Visibility = ASTVisibilityKind::V_DEFAULT;
+        ASTVisibilityKind Visibility;
 
         ASTClass *Class = nullptr;
 

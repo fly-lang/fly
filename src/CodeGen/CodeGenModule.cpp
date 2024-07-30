@@ -821,6 +821,9 @@ llvm::Value *CodeGenModule::GenCall(ASTCall *Call) {
     }
 
     ASTFunctionBase *Def = Call->getDef();
+    if (!Def) {
+        Diag(Call->getLocation(), diag::err_cg_unresolved_def) << Call->getName();
+    }
     CodeGenFunctionBase *CGF = Def->getCodeGen();
     llvm::Value *RetVal = Builder->CreateCall(CGF->getFunction(), Args);
 

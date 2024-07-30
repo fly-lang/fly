@@ -9,13 +9,14 @@
 
 #include "AST/ASTClassAttribute.h"
 #include "AST/ASTClass.h"
+#include "AST/ASTScopes.h"
 #include "CodeGen/CodeGenClassVar.h"
 
 using namespace fly;
 
 ASTClassAttribute::ASTClassAttribute(const SourceLocation &Loc, ASTType *Type,
                                      llvm::StringRef Name, SmallVector<ASTScope *, 8> &Scopes) :
-        ASTVar(ASTVarKind::VAR_CLASS, Loc, Type, Name, Scopes) {
+        ASTVar(ASTVarKind::VAR_CLASS, Loc, Type, Name, Scopes), Visibility(ASTVisibilityKind::V_DEFAULT) {
 
 }
 

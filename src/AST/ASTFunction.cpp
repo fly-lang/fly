@@ -9,12 +9,14 @@
 
 #include "AST/ASTFunction.h"
 #include "AST/ASTModule.h"
+#include "AST/ASTScopes.h"
 
 using namespace fly;
 
 ASTFunction::ASTFunction(ASTModule *Module, const SourceLocation &Loc, ASTType *ReturnType, llvm::StringRef Name,
                          llvm::SmallVector<ASTScope *, 8> &Scopes) :
-        ASTFunctionBase(Loc, ASTFunctionKind::FUNCTION, ReturnType, Scopes), Module(Module), Name(Name) {
+        ASTFunctionBase(Loc, ASTFunctionKind::FUNCTION, ReturnType, Scopes), Module(Module), Name(Name),
+        Visibility(ASTVisibilityKind::V_DEFAULT) {
 
 }
 

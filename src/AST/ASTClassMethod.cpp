@@ -9,13 +9,14 @@
 
 #include "AST/ASTClassMethod.h"
 #include "AST/ASTClass.h"
+#include "AST/ASTScopes.h"
 
 using namespace fly;
 
 ASTClassMethod::ASTClassMethod(const SourceLocation &Loc, ASTClassMethodKind MethodKind, ASTType *Type,
                                llvm::StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes) :
         ASTFunctionBase(Loc, ASTFunctionKind::CLASS_METHOD, Type, Scopes),
-        Name(Name), MethodKind(MethodKind) {
+        Name(Name), MethodKind(MethodKind), Visibility(ASTVisibilityKind::V_DEFAULT) {
 
 }
 

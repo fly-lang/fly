@@ -20,6 +20,7 @@ namespace fly {
     class ASTValue;
     class ASTVar;
     class ASTExpr;
+    enum class ASTVisibilityKind;
 
     class ASTClassAttribute : public ASTVar {
 
@@ -28,6 +29,8 @@ namespace fly {
         friend class SemaValidator;
 
         ASTClass *Class = nullptr;
+
+        ASTVisibilityKind Visibility;
 
         ASTExpr *Expr = nullptr;
 

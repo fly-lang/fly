@@ -229,11 +229,6 @@ ASTClass *SemaBuilder::CreateClass(ASTModule *Module, const SourceLocation &Loc,
     SmallVector<ASTScope *, 8> ConstructorScopes = S.Builder->CreateScopes();
     Class->DefaultConstructor = S.Builder->CreateClassConstructor(SourceLocation(), *Class, ConstructorScopes);
 
-    // FIXME replace with vector push
-//    if (!InsertFunction(Class.Constructors, M)) {
-//        S.Diag(M->getLocation(), diag::err_sema_class_method_redeclare) << M->getName();
-//    }
-
     return Class;
 }
 
@@ -331,12 +326,24 @@ ASTClassMethod *SemaBuilder::CreateClassConstructor(const SourceLocation &Loc, A
                               .AttrList("Scopes", Scopes)
                               .End());
     S.getValidator().CheckCreateClassConstructor(Loc, Scopes);
-    ASTClassMethod *M = new ASTClassMethod(Loc, ASTClassMethodKind::METHOD_CONSTRUCTOR, CreateVoidType(Loc), Class.getName(), Scopes);
+    ASTClassMethod *Constructor = new ASTClassMethod(Loc, ASTClassMethodKind::METHOD_CONSTRUCTOR, CreateVoidType(Loc), Class.getName(), Scopes);
 
-    M->ErrorHandler = CreateErrorHandlerParam();
-    M->Class = &Class;
-    CreateBody(M);
-    return M;
+    Constructor->ErrorHandler = CreateErrorHandlerParam();
+    Constructor->Class = &Class;
+    CreateBody(Constructor);
+
+    // Remove Default Constructor
+    if (Class.DefaultConstructor == nullptr) {
+        delete Class.DefaultConstructor;
+        Class.DefaultConstructor = nullptr;
+        Class.Constructors.clear();
+    }
+
+    // FIXME replace with vector push
+    if (!InsertFunction(Class.Constructors, Constructor)) {
+        S.Diag(Constructor->getLocation(), diag::err_sema_class_method_redeclare) << Constructor->getName();
+    }
+    return Constructor;
 }
 
 ASTClassMethod *SemaBuilder::CreateClassMethod(const SourceLocation &Loc, ASTClass &Class, ASTType *Type,

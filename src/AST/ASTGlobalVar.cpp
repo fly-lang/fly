@@ -9,11 +9,12 @@
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTModule.h"
 #include "AST/ASTNameSpace.h"
+#include "AST/ASTScopes.h"
 
 using namespace fly;
 
 ASTGlobalVar::ASTGlobalVar(ASTModule *Module, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, SmallVector<ASTScope *, 8> &Scopes) :
-        ASTVar(ASTVarKind::VAR_GLOBAL, Loc, Type, Name, Scopes), Module(Module) {
+        ASTVar(ASTVarKind::VAR_GLOBAL, Loc, Type, Name, Scopes), Module(Module), Constant(false), Visibility(ASTVisibilityKind::V_DEFAULT) {
 
 }
 

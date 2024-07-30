@@ -12,12 +12,14 @@
 #include "AST/ASTClassAttribute.h"
 #include "AST/ASTClassMethod.h"
 #include "AST/ASTClassType.h"
+#include "AST/ASTScopes.h"
 
 using namespace fly;
 
 ASTClass::ASTClass(ASTModule *Module, ASTClassKind ClassKind, llvm::SmallVector<ASTScope *, 8> &Scopes,
                    const SourceLocation &Loc, llvm::StringRef Name) :
-        ASTIdentity(Module, ASTTopDefKind::DEF_CLASS, Scopes, Loc, Name), ClassKind(ClassKind) {
+        ASTIdentity(Module, ASTTopDefKind::DEF_CLASS, Scopes, Loc, Name), ClassKind(ClassKind),
+        Visibility(ASTVisibilityKind::V_DEFAULT) {
 
 }
 

@@ -37,6 +37,8 @@ namespace fly {
 
         ASTClassKind ClassKind;
 
+        ASTVisibilityKind Visibility;
+
         llvm::SmallVector<ASTClassType *, 4> SuperClasses;
 
         // Class Fields
