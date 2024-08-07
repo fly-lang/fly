@@ -39,11 +39,11 @@ ASTClassMethod *ASTClass::getDefaultConstructor() const {
     return DefaultConstructor;
 }
 
-std::map <uint64_t,llvm::SmallVector <ASTClassMethod *, 4>> ASTClass::getConstructors() const {
+llvm::SmallVector<ASTClassMethod *, 8> ASTClass::getConstructors() const {
     return Constructors;
 }
 
-llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTClassMethod *, 4>>> ASTClass::getMethods() const {
+llvm::SmallVector<ASTClassMethod *, 8> ASTClass::getMethods() const {
     return Methods;
 }
 
@@ -57,21 +57,11 @@ void ASTClass::setCodeGen(CodeGenClass *CGC) {
 
 std::string ASTClass::str() const {
 
-    // Methods to string
-    llvm::SmallVector<ASTClassMethod *, 8> MethodList;
-    for (auto &MapEntry : Methods) {
-        for (auto &Vector : MapEntry.second) {
-            for (auto &Method :  Vector.second) {
-                MethodList.push_back(Method);
-            }
-        }
-    }
-
     // Class to string
     return Logger("ASTClass").
            Super(ASTIdentity::str()).
            Attr("ClassKind", (uint64_t) ClassKind).
            AttrList("Vars", Attributes).
-           AttrList("Methods", MethodList).
+           AttrList("Methods", Methods).
            End();
 }

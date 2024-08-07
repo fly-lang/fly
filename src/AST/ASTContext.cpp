@@ -18,34 +18,17 @@ using namespace fly;
  */
 ASTContext::ASTContext() = default;
 
+std::string ASTContext::DEFAULT_NAMESPACE = "default";
+
 /**
  * ASTContext destructor
  */
 ASTContext::~ASTContext() {
-    delete DefaultNameSpace;
-    NameSpaces.clear();
     Modules.clear();
-    ExternalImports.clear();
 }
 
 uint64_t ASTContext::getNextModuleId() {
     return ++ModuleIdCounter;
-}
-
-/**
- * Get the Default Namespace
- * @return DefaultNS
- */
-ASTNameSpace *ASTContext::getDefaultNameSpace() const {
-    return DefaultNameSpace;
-}
-
-/**
- * Get all added namespaces in the context
- * @return a StringMap of ASTNameSpace
- */
-const llvm::StringMap<ASTNameSpace *> &ASTContext::getNameSpaces() const {
-    return NameSpaces;
 }
 
 /**

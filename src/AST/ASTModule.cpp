@@ -37,8 +37,12 @@ std::string ASTModule::getName() {
     return Name;
 }
 
-ASTNameSpace* ASTModule::getNameSpace() {
-    return NameSpace;
+llvm::SmallVector<ASTNameSpace *, 8>  ASTModule::getNameSpaces() {
+    return NameSpaces;
+}
+
+ASTNameSpace *ASTModule::getNameSpace() {
+    return NameSpaces[0];
 }
 
 const llvm::SmallVector<ASTImport *, 8> &ASTModule::getImports() {
@@ -49,14 +53,6 @@ const llvm::SmallVector<ASTImport *, 8> &ASTModule::getAliasImports() {
     return AliasImports;
 }
 
-const llvm::StringMap<ASTGlobalVar *> &ASTModule::getExternalGlobalVars() const {
-    return ExternalGlobalVars;
-}
-
-const llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> &ASTModule::getExternalFunctions() const {
-    return ExternalFunctions;
-}
-
 const llvm::SmallVector<ASTIdentity *, 8> &ASTModule::getIdentities() const {
     return Identities;
 }
@@ -65,7 +61,7 @@ const llvm::SmallVector<ASTGlobalVar *, 8> &ASTModule::getGlobalVars() const {
     return GlobalVars;
 }
 
-const llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> &ASTModule::getFunctions() const {
+const llvm::SmallVector <ASTFunction *, 8> &ASTModule::getFunctions() const {
     return Functions;
 }
 

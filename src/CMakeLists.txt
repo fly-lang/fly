@@ -146,6 +146,7 @@ add_library(flyLib
         # Sema
         Sema/Sema.cpp
         Sema/SemaBuilder.cpp
+        Sema/SemaSymbols.cpp
         Sema/SemaResolver.cpp
         Sema/SemaValidator.cpp
 )

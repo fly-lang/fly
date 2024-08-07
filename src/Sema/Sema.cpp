@@ -11,7 +11,9 @@
 #include "Sema/SemaBuilder.h"
 #include "Sema/SemaResolver.h"
 #include "Sema/SemaValidator.h"
+#include "Sema/SemaSymbols.h"
 #include "Basic/Diagnostic.h"
+#include "AST/ASTContext.h"
 
 using namespace fly;
 
@@ -23,8 +25,12 @@ Sema* Sema::CreateSema(DiagnosticsEngine &Diags) {
     Sema *S = new Sema(Diags);
     S->Builder = new SemaBuilder(*S);
     S->Context = S->Builder->CreateContext();
-    S->Resolver = new SemaResolver(*S);
     S->Validator = new SemaValidator(*S);
+    S->DefaultSymbols = new SemaSymbols(*S);
+
+    // Add default NameSpace to MapSymbols
+    S->MapSymbols.insert(std::make_pair(ASTContext::DEFAULT_NAMESPACE, S->DefaultSymbols));
+
     return S;
 }
 
@@ -34,10 +40,6 @@ DiagnosticsEngine &Sema::getDiags() const {
 
 SemaBuilder &Sema::getBuilder() {
     return *Builder;
-}
-
-SemaResolver &Sema::getResolver() const {
-    return *Resolver;
 }
 
 SemaValidator &Sema::getValidator() const {
@@ -69,5 +71,5 @@ DiagnosticBuilder Sema::Diag(unsigned DiagID) const {
 }
 
 bool Sema::Resolve() {
-    return Resolver->Resolve();
+    return SemaResolver::Resolve(*this);
 }

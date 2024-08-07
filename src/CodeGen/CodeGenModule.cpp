@@ -134,24 +134,25 @@ void CodeGenModule::GenHeaders() {
 
 void CodeGenModule::GenAll() {
 
+    // TODO
     // Generate External GlobalVars
-    for (const auto &Entry : AST.getExternalGlobalVars()) {
-        ASTGlobalVar *GlobalVar = Entry.getValue();
-        FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode",
-                          "ExternalGlobalVar=" << GlobalVar->str());
-        GenGlobalVar(GlobalVar, true);
-    }
-
-    // Generate External Function
-    for (auto &StrMapEntry : AST.getExternalFunctions()) {
-        for (auto &IntMap : StrMapEntry.getValue()) {
-            for (auto &Function : IntMap.second) {
-                FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode",
-                                  "ExternalFunction=" << Function->str());
-                GenFunction(Function, true);
-            }
-        }
-    }
+//    for (const auto &Entry : AST.getExternalGlobalVars()) {
+//        ASTGlobalVar *GlobalVar = Entry.getValue();
+//        FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode",
+//                          "ExternalGlobalVar=" << GlobalVar->str());
+//        GenGlobalVar(GlobalVar, true);
+//    }
+//
+//    // Generate External Function
+//    for (auto &StrMapEntry : AST.getExternalFunctions()) {
+//        for (auto &IntMap : StrMapEntry.getValue()) {
+//            for (auto &Function : IntMap.second) {
+//                FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode",
+//                                  "ExternalFunction=" << Function->str());
+//                GenFunction(Function, true);
+//            }
+//        }
+//    }
 
     // Generate GlobalVars
     std::vector<CodeGenGlobalVar *> CGGlobalVars;
@@ -167,16 +168,12 @@ void CodeGenModule::GenAll() {
 
     // Instantiates all Function CodeGen in order to be set in all Call references
     std::vector<CodeGenFunction *> CGFunctions;
-    for (auto &FuncStrMap : AST.getFunctions()) {
-        for (auto &FuncList : FuncStrMap.getValue()) {
-            for (auto &Func : FuncList.second) {
-                CodeGenFunction *CGF = GenFunction(Func);
-                CGFunctions.push_back(CGF);
+    for (auto &Func : AST.getFunctions()) {
+        CodeGenFunction *CGF = GenFunction(Func);
+        CGFunctions.push_back(CGF);
 //                if (FrontendOpts.CreateHeader) {
 //                    CGH->AddFunction(Func);
 //                }
-            }
-        }
     }
 
     // Generate Identities: Class & Enum

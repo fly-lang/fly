@@ -64,17 +64,13 @@ void CodeGenHeader::CreateFile(DiagnosticsEngine &Diags, CodeGenOptions &CodeGen
     }
 
     // generate function declarations
-    for (auto &StrMapEntry : AST.getFunctions()) {
-        for (auto &IntMap : StrMapEntry.getValue()) {
-            for (auto &Function: IntMap.second) {
-                if (Function->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
-                    Header.concat(Function->getReturnType()->print())
-                            .concat(Function->getName())
-                            .concat("(");
-                    std::string ParamsStr = getParameters(Function);
-                    Header.concat(ParamsStr).concat(")").concat("\n\n");
-                }
-            }
+    for (auto &Function : AST.getFunctions()) {
+        if (Function->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
+            Header.concat(Function->getReturnType()->print())
+                    .concat(Function->getName())
+                    .concat("(");
+            std::string ParamsStr = getParameters(Function);
+            Header.concat(ParamsStr).concat(")").concat("\n\n");
         }
     }
 
@@ -83,32 +79,26 @@ void CodeGenHeader::CreateFile(DiagnosticsEngine &Diags, CodeGenOptions &CodeGen
         Header.concat(Identity->getName()).concat("{\n");
         if (Identity->getTopDefKind() == ASTTopDefKind::DEF_CLASS) {
             ASTClass* Class = (ASTClass *) Identity;
-            for (auto &Attribute : Class->getAttributes()) {
+            for (auto Attribute : Class->getAttributes()) {
                 Header.concat(Attribute->getType()->print()).concat(" ")
                     .concat(Attribute->getName()).concat("\n\n");
             }
-            for (auto &IntMap: Class->getConstructors()) {
-                for (auto &Constructor: IntMap.second) {
-                    if (Constructor->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
-                        Header.concat(Constructor->getReturnType()->print())
-                                .concat(Constructor->getName())
-                                .concat("(");
-                        std::string ParamsStr = getParameters(Constructor);
-                        Header.concat(ParamsStr).concat(")").concat("\n\n");
-                    }
+            for (auto Constructor: Class->getConstructors()) {
+                if (Constructor->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
+                    Header.concat(Constructor->getReturnType()->print())
+                            .concat(Constructor->getName())
+                            .concat("(");
+                    std::string ParamsStr = getParameters(Constructor);
+                    Header.concat(ParamsStr).concat(")").concat("\n\n");
                 }
             }
-            for (auto &Map: Class->getMethods()) {
-                for (auto &Entry: Map.second) {
-                    for (auto Method: Entry.second) {
-                        if (Method->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
-                            Header.concat(Method->getReturnType()->print())
-                                    .concat(Method->getName())
-                                    .concat("(");
-                            std::string ParamsStr = getParameters(Method);
-                            Header.concat(ParamsStr).concat(")").concat("\n\n");
-                        }
-                    }
+            for (auto &Method: Class->getMethods()) {
+                if (Method->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
+                    Header.concat(Method->getReturnType()->print())
+                            .concat(Method->getName())
+                            .concat("(");
+                    std::string ParamsStr = getParameters(Method);
+                    Header.concat(ParamsStr).concat(")").concat("\n\n");
                 }
             }
         } else if (Identity->getTopDefKind() == ASTTopDefKind::DEF_ENUM) {

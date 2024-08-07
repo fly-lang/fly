@@ -15,8 +15,10 @@
 namespace fly {
 
     enum class ASTIdentifierKind {
-        REF_UNDEF,
+        REF_UNDEFINED,
         REF_NAMESPACE,
+        REF_IMPORT,
+        REF_ALIAS,
         REF_TYPE,
         REF_CALL,
         REF_VAR
@@ -38,7 +40,7 @@ namespace fly {
 
         ASTIdentifier *Child = nullptr;
 
-        ASTIdentifierKind Kind = ASTIdentifierKind::REF_UNDEF;
+        ASTIdentifierKind Kind = ASTIdentifierKind::REF_UNDEFINED;
 
         ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name);
 
@@ -51,8 +53,6 @@ namespace fly {
         llvm::StringRef getName() const;
 
         std::string getFullName() const;
-
-        bool isUndef() const;
 
         bool isNameSpace() const;
 

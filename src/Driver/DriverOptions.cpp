@@ -43,7 +43,7 @@ static const OptTable::Info InfoTable[] = {
     {prefix_2, "version-short", "Print version number", nullptr, OPT_VERSION_SHORT, Option::OptionClass::FlagClass, 0, 0, 0, 0, nullptr, nullptr},
     {prefix_2, "version", "Print version information", nullptr, OPT_VERSION, Option::OptionClass::FlagClass, 0, 0, 0, 0, nullptr, nullptr},
     {prefix_1, "v", "Show commands to run and use verbose output", nullptr, OPT_VERBOSE, Option::OptionClass::FlagClass, 0, 0, 0, 0, nullptr, nullptr},
-    {prefix_1, "working-dir", "Resolve file paths relative to the specified directory", nullptr, OPT_WORKING_DIR, Option::OptionClass::JoinedOrSeparateClass, 0, 0, 0, 0, nullptr, nullptr},
+    {prefix_1, "working-dir", "ResolveModule file paths relative to the specified directory", nullptr, OPT_WORKING_DIR, Option::OptionClass::JoinedOrSeparateClass, 0, 0, 0, 0, nullptr, nullptr},
     {prefix_1, "w", "Suppress all warnings", nullptr, OPT_NO_WARNING, Option::OptionClass::FlagClass, 0, 0, 0, 0, nullptr, nullptr},
 };
 

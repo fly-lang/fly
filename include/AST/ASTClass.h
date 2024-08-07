@@ -12,7 +12,6 @@
 
 #include "ASTIdentity.h"
 #include "llvm/ADT/StringMap.h"
-#include <map>
 
 namespace fly {
 
@@ -47,10 +46,10 @@ namespace fly {
         ASTClassMethod *DefaultConstructor = nullptr;
 
         // Class Constructors
-        std::map <uint64_t, llvm::SmallVector <ASTClassMethod *, 4>> Constructors;
+        llvm::SmallVector <ASTClassMethod *, 8> Constructors;
 
         // Class Methods
-        llvm::StringMap<std::map <uint64_t, llvm::SmallVector <ASTClassMethod *, 4>>> Methods;
+        llvm::SmallVector <ASTClassMethod *, 8> Methods;
 
         CodeGenClass *CodeGen = nullptr;
 
@@ -66,9 +65,9 @@ namespace fly {
 
         ASTClassMethod *getDefaultConstructor() const;
 
-        std::map <uint64_t,llvm::SmallVector <ASTClassMethod *, 4>> getConstructors() const;
+        llvm::SmallVector<ASTClassMethod *, 8> getConstructors() const;
 
-        llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTClassMethod *, 4>>> getMethods() const;
+        llvm::SmallVector<ASTClassMethod *, 8> getMethods() const;
 
         CodeGenClass *getCodeGen() const;
 

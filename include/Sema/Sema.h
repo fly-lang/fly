@@ -10,6 +10,8 @@
 #ifndef FLY_SEMA_H
 #define FLY_SEMA_H
 
+#include "llvm/ADT/StringMap.h"
+
 namespace llvm {
     class StringRef;
 }
@@ -19,6 +21,7 @@ namespace fly {
     class SemaBuilder;
     class SemaResolver;
     class SemaValidator;
+    class SemaSymbols;
     class DiagnosticsEngine;
     class DiagnosticBuilder;
     class SourceLocation;
@@ -49,9 +52,13 @@ namespace fly {
 
         SemaBuilder *Builder = nullptr;
 
-        SemaResolver *Resolver = nullptr;
-
         SemaValidator *Validator = nullptr;
+
+        // Default Symbols
+        SemaSymbols *DefaultSymbols;
+
+        // Symbols organized by NameSpace
+        llvm::StringMap<SemaSymbols *> MapSymbols;
 
         Sema(DiagnosticsEngine &Diags);
 
@@ -62,8 +69,6 @@ namespace fly {
         SemaBuilder &getBuilder();
 
         DiagnosticsEngine &getDiags() const;
-
-        SemaResolver &getResolver() const;
 
         SemaValidator &getValidator() const;
 

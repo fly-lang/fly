@@ -61,16 +61,7 @@ SemaBuilder::SemaBuilder(Sema &S) : S(S) {
 ASTContext *SemaBuilder::CreateContext() {
     FLY_DEBUG("SemaBuilder", "CreateContext");
     S.Context = new ASTContext();
-    S.Context->DefaultNameSpace = CreateDefaultNameSpace();
-    S.Context->NameSpaces.insert(std::make_pair(S.Context->DefaultNameSpace->getName(), S.Context->DefaultNameSpace));
     return S.Context;
-}
-
-std::string SemaBuilder::DEFAULT = "default";
-
-ASTNameSpace *SemaBuilder::CreateDefaultNameSpace() {
-    FLY_DEBUG("SemaBuilder", "CreateDefaultNameSpace");
-    return new ASTNameSpace(SourceLocation(), DEFAULT, S.Context);
 }
 
 /**
@@ -110,18 +101,21 @@ ASTModule *SemaBuilder::CreateHeaderModule(const std::string &Name) {
  * @param Identifier
  * @return
  */
-ASTNameSpace *SemaBuilder::CreateNameSpace(ASTModule *Module, ASTIdentifier *Identifier) {
+ASTNameSpace *SemaBuilder::CreateNameSpace(ASTIdentifier *Identifier, ASTModule *Module) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateNameSpace", "Identifier=" << Identifier->str());
 
     S.getValidator().CheckCreateNameSpace(Identifier->getLocation(), Identifier->getName());
-    Module->NameSpace = new ASTNameSpace(Identifier->getLocation(), Identifier->getName(), S.Context);
+    ASTNameSpace *NameSpace = new ASTNameSpace(Identifier->getLocation(), Identifier->getName());
+
+    if (Module)
+        Module->NameSpaces.push_back(NameSpace);
 
     // Iterate over parents
     if (Identifier->getParent() != nullptr) {
-        Module->NameSpace->Parent = CreateNameSpace(Module, Identifier->getParent());
+        NameSpace->Parent = CreateNameSpace(Identifier->getParent());
     }
 
-    return Module->NameSpace;
+    return NameSpace;
 }
 
 ASTImport *SemaBuilder::CreateImport(ASTModule *Module, const SourceLocation &Loc, llvm::StringRef Name, ASTAlias *Alias) {
@@ -146,7 +140,7 @@ ASTAlias *SemaBuilder::CreateAlias(ASTImport *Import, const SourceLocation &Loc,
                       Logger().Attr("Loc", (uint64_t) Loc.getRawEncoding())
                               .Attr("Name", Name).End());
     S.getValidator().CheckCreateAlias(Loc, Name);
-    ASTAlias *Alias = new ASTAlias(Loc, Name);
+    ASTAlias *Alias = new ASTAlias(Import, Loc, Name);
     return Alias;
 }
 
@@ -193,8 +187,7 @@ ASTFunction *SemaBuilder::CreateFunction(ASTModule *Module, const SourceLocation
     S.getValidator().CheckCreateFunction(Loc, Type, Name, Scopes);
     ASTFunction *F = new ASTFunction(Module, Loc, Type, Name, Scopes);
     F->ErrorHandler = CreateErrorHandlerParam();
-
-    InsertFunction(Module->Functions, F);
+    Module->Functions.push_back(F);
 
     return F;
 }
@@ -339,10 +332,9 @@ ASTClassMethod *SemaBuilder::CreateClassConstructor(const SourceLocation &Loc, A
         Class.Constructors.clear();
     }
 
-    // FIXME replace with vector push
-    if (!InsertFunction(Class.Constructors, Constructor)) {
-        S.Diag(Constructor->getLocation(), diag::err_sema_class_method_redeclare) << Constructor->getName();
-    }
+    // Add to Class Constructors
+    Class.Constructors.push_back(Constructor);
+
     return Constructor;
 }
 
@@ -357,10 +349,8 @@ ASTClassMethod *SemaBuilder::CreateClassMethod(const SourceLocation &Loc, ASTCla
     S.getValidator().CheckCreateClassMethod(Loc, Type, Name, Scopes);
     ASTClassMethod *M = new ASTClassMethod(Loc, ASTClassMethodKind::METHOD, Type, Name, Scopes);
 
-    // FIXME replace with vector push
-    if (!InsertFunction(Class.Methods, M)) {
-        S.Diag(M->getLocation(), diag::err_sema_class_method_redeclare) << M->getName();
-    }
+    // Add to Class Methods
+    Class.Methods.push_back(M);
 
     M->ErrorHandler = CreateErrorHandlerParam();
     M->Class = &Class;

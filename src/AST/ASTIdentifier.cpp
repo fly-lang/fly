@@ -12,7 +12,7 @@
 using namespace fly;
 
 ASTIdentifier::ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name) :
-        ASTBase(Loc), Name(Name), Kind(ASTIdentifierKind::REF_UNDEF) {
+        ASTBase(Loc), Name(Name), Kind(ASTIdentifierKind::REF_UNDEFINED) {
     FullName = Name.data();
 }
 
@@ -32,10 +32,6 @@ llvm::StringRef ASTIdentifier::getName() const {
 
 std::string ASTIdentifier::getFullName() const {
     return FullName;
-}
-
-bool ASTIdentifier::isUndef() const {
-    return Kind == ASTIdentifierKind::REF_UNDEF;
 }
 
 bool ASTIdentifier::isNameSpace() const {

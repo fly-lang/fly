@@ -12,8 +12,6 @@
 
 #include "llvm/ADT/StringMap.h"
 
-#include <map>
-
 namespace fly {
 
     class CodeGenModule;
@@ -38,7 +36,7 @@ namespace fly {
         ASTContext* Context = nullptr;
 
         // Namespace declaration
-        ASTNameSpace *NameSpace = nullptr;
+        llvm::SmallVector<ASTNameSpace *, 8> NameSpaces;
 
         // Module Id
         const uint64_t Id;
@@ -50,7 +48,7 @@ namespace fly {
         llvm::SmallVector<ASTGlobalVar *, 8> GlobalVars;
 
         // Functions
-        llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> Functions;
+        llvm::SmallVector <ASTFunction *, 8> Functions;
 
         const bool Header;
 
@@ -59,14 +57,6 @@ namespace fly {
 
         // Contains all Imports, the key is Alias or Name
         llvm::SmallVector<ASTImport *, 8> AliasImports;
-        
-        // All used GlobalVars
-        llvm::StringMap<ASTGlobalVar *> ExternalGlobalVars;
-        
-        // All invoked Calls
-        llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> ExternalFunctions;
-
-        llvm::StringMap<ASTIdentity *> ExternalIdentities;
 
         llvm::SmallVector<ASTIdentity *, 8> Identities;
 
@@ -88,21 +78,19 @@ namespace fly {
 
         std::string getName();
 
-        ASTNameSpace* getNameSpace();
+        llvm::SmallVector<ASTNameSpace *, 8>  getNameSpaces();
+
+        ASTNameSpace *getNameSpace();
 
         const llvm::SmallVector<ASTImport *, 8> &getImports();
 
         const llvm::SmallVector<ASTImport *, 8> &getAliasImports();
 
-        const llvm::StringMap<ASTGlobalVar *> &getExternalGlobalVars() const;
-
-        const llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> &getExternalFunctions() const;
-
         const llvm::SmallVector<ASTIdentity *, 8> &getIdentities() const;
 
         const llvm::SmallVector<ASTGlobalVar *, 8> &getGlobalVars() const;
 
-        const llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> &getFunctions() const;
+        const llvm::SmallVector <ASTFunction *, 8> &getFunctions() const;
 
         CodeGenModule *getCodeGen() const;
 

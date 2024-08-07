@@ -358,3 +358,4 @@ bool SemaValidator::CheckValue(ASTValue *Value) {
 void SemaValidator::CheckScopes(const SmallVector<ASTScope *, 8> &vector) {
 
 }
+

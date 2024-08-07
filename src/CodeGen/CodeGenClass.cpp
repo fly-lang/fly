@@ -47,13 +47,11 @@ void CodeGenClass::Generate() {
 //        }
 
         // Add Constructors
-        for (auto &Entry: AST->getConstructors()) {
-            for (auto Constructor: Entry.second) {
-                // Create Constructor CodeGen for Constructor
-                CodeGenClassFunction *CGCF = new CodeGenClassFunction(CGM, Constructor, TypePtr);
-                Constructor->setCodeGen(CGCF);
-                Constructors.push_back(CGCF);
-            }
+        for (auto &Constructor: AST->getConstructors()) {
+            // Create Constructor CodeGen for Constructor
+            CodeGenClassFunction *CGCF = new CodeGenClassFunction(CGM, Constructor, TypePtr);
+            Constructor->setCodeGen(CGCF);
+            Constructors.push_back(CGCF);
         }
     }
 
@@ -63,19 +61,15 @@ void CodeGenClass::Generate() {
     // Set CodeGen Methods
     if (AST->getClassKind() == ASTClassKind::CLASS || AST->getClassKind() == ASTClassKind::INTERFACE) {
         llvm::SmallVector<llvm::Type *, 4> VTableVector;
-        for (auto &Map: AST->getMethods()) {
-            for (auto &Entry: Map.second) {
-                for (auto Method: Entry.second) {
-                    CodeGenClassFunction *CGCF = new CodeGenClassFunction(CGM, Method, TypePtr);
-                    if (!Method->isStatic()) { // only instance methods
-                        // Create the VTable Struct Type
-                        // %vtable_type = type { i32(%Foo*)* }
-                        VTableVector.push_back(CGCF->getFunctionType());
-                    }
-                    Method->setCodeGen(CGCF);
-                    Functions.push_back(CGCF);
-                }
+        for (auto &Method: AST->getMethods()) {
+            CodeGenClassFunction *CGCF = new CodeGenClassFunction(CGM, Method, TypePtr);
+            if (!Method->isStatic()) { // only instance methods
+                // Create the VTable Struct Type
+                // %vtable_type = type { i32(%Foo*)* }
+                VTableVector.push_back(CGCF->getFunctionType());
             }
+            Method->setCodeGen(CGCF);
+            Functions.push_back(CGCF);
         }
         VTableType->setBody(VTableVector);
 

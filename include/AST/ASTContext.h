@@ -35,28 +35,18 @@ namespace fly {
 
         uint64_t ModuleIdCounter = 0;
 
-        ASTNameSpace * DefaultNameSpace = nullptr;
-
-        // All Context Namespaces
-        llvm::StringMap<ASTNameSpace *> NameSpaces;
-
         // All Context Namespaces
         llvm::SmallVector<ASTModule *, 8> Modules;
-
-        // All Files: <Name, ASTImport>
-        llvm::StringMap<ASTImport *> ExternalImports; // TODO
 
         ASTContext();
 
     public:
 
+        static std::string DEFAULT_NAMESPACE;
+
         ~ASTContext();
 
         uint64_t getNextModuleId();
-
-        ASTNameSpace *getDefaultNameSpace() const;
-
-        const llvm::StringMap<ASTNameSpace *> &getNameSpaces() const;
 
         const llvm::SmallVector<ASTModule *, 8> &getModules() const;
     };

@@ -12,16 +12,12 @@
 using namespace fly;
 
 ASTImport::ASTImport(const SourceLocation &Loc, llvm::StringRef Name) :
-        ASTBase(Loc), Name(Name) {
+        ASTIdentifier(Loc, Name, ASTIdentifierKind::REF_IMPORT) {
 
 }
 
 ASTImport::~ASTImport() {
-    NameSpace = nullptr;
-}
 
-llvm::StringRef ASTImport::getName() const {
-    return Name;
 }
 
 const ASTAlias *ASTImport::getAlias() const {
@@ -32,30 +28,17 @@ void ASTImport::setAlias(ASTAlias *A) {
     Alias = A;
 }
 
-ASTNameSpace *ASTImport::getNameSpace() const {
-    return NameSpace;
-}
-
-void ASTImport::setNameSpace(ASTNameSpace *NS) {
-    NameSpace = NS;
-}
-
 std::string ASTImport::str() const {
     return Logger("ASTImport").
             Super(ASTBase::str()).
             Attr("Name", Name).
-            Attr("NameSpace", NameSpace).
             Attr("Alias",Alias).
             End();
 }
 
-ASTAlias::ASTAlias(const SourceLocation &Loc, llvm::StringRef Name) :
-        ASTBase(Loc), Name(Name) {
+ASTAlias::ASTAlias(ASTImport *Import, const SourceLocation &Loc, llvm::StringRef Name) :
+        ASTIdentifier(Loc, Name, ASTIdentifierKind::REF_ALIAS), Import(Import) {
 
-}
-
-llvm::StringRef ASTAlias::getName() const {
-    return Name;
 }
 
 std::string ASTAlias::str() const {
@@ -63,4 +46,8 @@ std::string ASTAlias::str() const {
             Super(ASTBase::str()).
             Attr("Name", Name).
             End();
+}
+
+ASTImport *ASTAlias::getImport() const {
+    return Import;
 }
