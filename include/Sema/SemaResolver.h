@@ -109,9 +109,13 @@ namespace fly {
 
         bool ResolveStmtLoopIn(ASTLoopInStmt *LoopInStmt);
 
-        void ResolveIdentifier(ASTIdentifier *&Identifier, ASTStmt *Stmt = nullptr);
+        bool ResolveParentIdentifier(ASTIdentifier *Identifier, ASTStmt *Stmt = nullptr);
 
-        bool ResolveUndefinedIdentifier(ASTIdentifier *&Identifier);
+        bool ResolveIdentifier(SemaSymbols *Parent, ASTIdentifier *Identifier);
+
+        bool ResolveIdentifier(ASTStmt *Stmt, ASTIdentifier *Identifier);
+
+        bool ResolveIdentifier(ASTType *Parent, ASTIdentifier *Identifier);
 
         bool ResolveVarRef(ASTStmt *Stmt, ASTVarRef *VarRef);
 
@@ -121,25 +125,26 @@ namespace fly {
 
         bool ResolveCall(ASTStmt *Stmt, ASTCall *Call, ASTIdentityType *IdentityType);
 
-        template <class T>
-        bool ResolveCall(ASTStmt *Stmt, ASTCall *Call, llvm::StringMap<std::map <uint64_t,llvm::SmallVector <T *, 4>>> &Functions);
-
-        template <class T>
-        bool ResolveCall(ASTStmt *Stmt, ASTCall *Call, std::map <uint64_t,llvm::SmallVector <T *, 4>> &Functions);
-
         bool ResolveArg(ASTStmt *Stmt, ASTArg *Arg, ASTParam *Param);
 
         bool ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr, ASTType *Type = nullptr);
 
-        SemaSymbols *FindNameSpace(ASTIdentifier *Identifier);
+        SemaSymbols *FindNameSpace(ASTIdentifier *Identifier) const;
 
-        ASTGlobalVar *FindGlobalVar(ASTIdentifier *Identifier) const;
+        ASTGlobalVar *FindGlobalVar(llvm::StringRef Name, SemaSymbols *Symbols = nullptr) const;
 
-        ASTIdentity *FindIdentity(ASTIdentityType *IdentityType);
+        ASTIdentity *FindIdentity(llvm::StringRef Name, SemaSymbols *Symbols = nullptr) const;
+
+        ASTFunction *FindFunction(ASTCall *Call, SemaSymbols *Symbols = nullptr) const;
+
+        template <typename T>
+        T *FindFunction(ASTCall *Call, llvm::StringMap<std::map<uint64_t, llvm::SmallVector<T *, 4>>> Functions) const;
 
         ASTVar *FindLocalVar(ASTStmt *Stmt, llvm::StringRef Name) const;
 
         SemaSymbols *AddImportSymbols(llvm::StringRef Name);
+
+        ASTClassMethod * FindMethod(ASTCall *Call, ASTClass *Class);
     };
 
 }  // end namespace fly

@@ -17,7 +17,7 @@ ASTIdentifier::ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name) :
 }
 
 ASTIdentifier::ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name, ASTIdentifierKind Kind) :
-        ASTBase(Loc), Name(Name), Kind(Kind) {
+        ASTBase(Loc), Name(Name), Kind(Kind), Resolved(true) {
     FullName = Name.data();
 }
 
@@ -32,6 +32,10 @@ llvm::StringRef ASTIdentifier::getName() const {
 
 std::string ASTIdentifier::getFullName() const {
     return FullName;
+}
+
+bool ASTIdentifier::isResolved() const {
+    return Resolved;
 }
 
 bool ASTIdentifier::isNameSpace() const {
@@ -76,3 +80,4 @@ std::string ASTIdentifier::str() const {
             Attr("Child", Child).
             End();
 }
+

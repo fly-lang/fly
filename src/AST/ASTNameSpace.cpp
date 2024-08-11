@@ -12,7 +12,7 @@
 using namespace fly;
 
 ASTNameSpace::ASTNameSpace(const SourceLocation &Loc, llvm::StringRef Name) :
-    ASTIdentifier(Loc, Name) {
+    ASTIdentifier(Loc, Name, ASTIdentifierKind::REF_NAMESPACE) {
 }
 
 ASTNameSpace::~ASTNameSpace() {

@@ -42,6 +42,8 @@ namespace fly {
 
         ASTIdentifierKind Kind = ASTIdentifierKind::REF_UNDEFINED;
 
+        bool Resolved = false;
+
         ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name);
 
         ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name, ASTIdentifierKind Kind);
@@ -53,6 +55,8 @@ namespace fly {
         llvm::StringRef getName() const;
 
         std::string getFullName() const;
+
+        bool isResolved() const;
 
         bool isNameSpace() const;
 
