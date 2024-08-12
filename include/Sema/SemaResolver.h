@@ -95,8 +95,6 @@ namespace fly {
 
         void ResolveType(ASTType *Type);
 
-        void ResolveIdentityType(ASTIdentityType *IdentityType);
-
         bool ResolveStmt(ASTStmt *Stmt);
 
         bool ResolveStmtBlock(ASTBlockStmt *Block);
@@ -109,33 +107,39 @@ namespace fly {
 
         bool ResolveStmtLoopIn(ASTLoopInStmt *LoopInStmt);
 
-        bool ResolveParentIdentifier(ASTIdentifier *Identifier, ASTStmt *Stmt = nullptr);
+        bool ResolveIdentityType(ASTIdentityType *IdentityType);
 
-        bool ResolveIdentifier(SemaSymbols *Parent, ASTIdentifier *Identifier);
+        bool ResolveIdentifier(SemaSymbols *NS, ASTIdentifier *Identifier);
+
+        bool ResolveIdentifier(ASTIdentity *Identity, ASTIdentifier *Identifier);
 
         bool ResolveIdentifier(ASTStmt *Stmt, ASTIdentifier *Identifier);
 
-        bool ResolveIdentifier(ASTType *Parent, ASTIdentifier *Identifier);
+        bool ResolveVarRef(SemaSymbols *NS, ASTVarRef *VarRef);
 
-        bool ResolveVarRef(ASTStmt *Stmt, ASTVarRef *VarRef);
+        bool ResolveVarRef(ASTIdentity *Identity, ASTVarRef *VarRef);
 
-        ASTVar *ResolveVarRef(llvm::StringRef Name, ASTIdentityType *IdentityType);
+        bool ResolveVarRefChain(ASTStmt *Stmt, ASTVarRef *VarRef);
 
-        bool ResolveCall(ASTStmt *Stmt, ASTCall *Call);
+        bool ResolveCall(SemaSymbols *NS, ASTCall *Call);
 
-        bool ResolveCall(ASTStmt *Stmt, ASTCall *Call, ASTIdentityType *IdentityType);
+        bool ResolveCall(ASTIdentity *Identity, ASTCall *Call);
+
+        bool ResolveCallChain(ASTStmt *Stmt, ASTCall *Call);
 
         bool ResolveArg(ASTStmt *Stmt, ASTArg *Arg, ASTParam *Param);
 
         bool ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr, ASTType *Type = nullptr);
 
-        SemaSymbols *FindNameSpace(ASTIdentifier *Identifier) const;
+        SemaSymbols *FindNameSpace(ASTIdentifier *Identifier, ASTIdentifier *&Current) const;
 
         ASTGlobalVar *FindGlobalVar(llvm::StringRef Name, SemaSymbols *Symbols = nullptr) const;
 
         ASTIdentity *FindIdentity(llvm::StringRef Name, SemaSymbols *Symbols = nullptr) const;
 
         ASTFunction *FindFunction(ASTCall *Call, SemaSymbols *Symbols = nullptr) const;
+
+        ASTClassMethod *FindClassMethod(ASTCall *Call, ASTClass *Class) const;
 
         template <typename T>
         T *FindFunction(ASTCall *Call, llvm::StringMap<std::map<uint64_t, llvm::SmallVector<T *, 4>>> Functions) const;

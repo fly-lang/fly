@@ -25,13 +25,15 @@ ASTIdentityTypeKind toIdentityKind(ASTTopDefKind Kind) {
 ASTIdentityType::ASTIdentityType(ASTIdentifier *Identifier) :
         ASTType(Identifier->getLocation(), ASTTypeKind::TYPE_IDENTITY),
         ASTIdentifier(Identifier->getLocation(), Identifier->getName(), ASTIdentifierKind::REF_TYPE), IdentityTypeKind(ASTIdentityTypeKind::TYPE_NONE) {
-
+    Parent = Identifier->getParent();
+    Child = Identifier->getChild();
 }
 
 ASTIdentityType::ASTIdentityType(ASTIdentifier *Identifier, ASTIdentityTypeKind IdentityKind) :
         ASTType(Identifier->getLocation(), ASTTypeKind::TYPE_IDENTITY),
         ASTIdentifier(Identifier->getLocation(), Identifier->getName(), ASTIdentifierKind::REF_TYPE), IdentityTypeKind(IdentityKind) {
-
+    Parent = Identifier->getParent();
+    Child = Identifier->getChild();
 }
 
 ASTIdentityType::ASTIdentityType(ASTIdentity *Def) :

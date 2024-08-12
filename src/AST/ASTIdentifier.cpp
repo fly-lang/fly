@@ -17,7 +17,7 @@ ASTIdentifier::ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name) :
 }
 
 ASTIdentifier::ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name, ASTIdentifierKind Kind) :
-        ASTBase(Loc), Name(Name), Kind(Kind), Resolved(true) {
+        ASTBase(Loc), Name(Name), Kind(Kind), Resolved(false) {
     FullName = Name.data();
 }
 

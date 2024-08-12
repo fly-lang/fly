@@ -50,7 +50,7 @@ namespace fly {
 
         ~ASTIdentifier();
 
-    public:
+     public:
 
         llvm::StringRef getName() const;
 
