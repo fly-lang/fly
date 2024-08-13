@@ -109,25 +109,25 @@ namespace fly {
 
         bool ResolveIdentityType(ASTIdentityType *IdentityType);
 
-        bool ResolveIdentifier(SemaSymbols *NS, ASTIdentifier *Identifier);
+        bool ResolveIdentifier(SemaSymbols *NS, ASTStmt *Stmt, ASTIdentifier *Identifier);
 
-        bool ResolveIdentifier(ASTIdentity *Identity, ASTIdentifier *Identifier);
+        bool ResolveIdentifier(ASTIdentity *Identity, ASTStmt *Stmt, ASTIdentifier *Identifier);
 
         bool ResolveIdentifier(ASTStmt *Stmt, ASTIdentifier *Identifier);
 
-        bool ResolveVarRef(SemaSymbols *NS, ASTVarRef *VarRef);
+        bool ResolveGlobalVarRef(SemaSymbols *NS, ASTStmt *Stmt, ASTVarRef *VarRef);
 
-        bool ResolveVarRef(ASTIdentity *Identity, ASTVarRef *VarRef);
+        bool ResolveStaticVarRef(ASTIdentity *Identity, ASTStmt *Stmt,ASTVarRef *VarRef);
 
-        bool ResolveVarRefChain(ASTStmt *Stmt, ASTVarRef *VarRef);
+        bool ResolveVarRef(ASTStmt *Stmt, ASTVarRef *VarRef);
 
-        bool ResolveCall(SemaSymbols *NS, ASTCall *Call);
+        bool ResolveFunctionCall(SemaSymbols *NS, ASTStmt *Stmt, ASTCall *Call);
 
-        bool ResolveCall(ASTIdentity *Identity, ASTCall *Call);
+        bool ResolveStaticCall(ASTIdentity *Identity, ASTStmt *Stmt, ASTCall *Call);
 
-        bool ResolveCallChain(ASTStmt *Stmt, ASTCall *Call);
+        bool ResolveCall(ASTStmt *Stmt, ASTCall *Call);
 
-        bool ResolveArg(ASTStmt *Stmt, ASTArg *Arg, ASTParam *Param);
+        bool ResolveCallArgs(ASTStmt *Stmt, ASTCall *Call);
 
         bool ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr, ASTType *Type = nullptr);
 

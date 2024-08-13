@@ -122,7 +122,7 @@ ASTBase *Parser:: Parse() {
         } else {
 
             // Create NameSpace
-            Base = Builder.CreateNameSpace(Module, Identifier);
+            Base = Builder.CreateNameSpace(Identifier, Module);
             FLY_DEBUG_MESSAGE("Parser", "ParseNameSpace", "NameSpace=" << Base);
         }
     } else if (Tok.is(tok::kw_import)) {
