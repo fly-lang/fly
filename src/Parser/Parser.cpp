@@ -37,6 +37,7 @@
 #include "AST/ASTExprStmt.h"
 #include "AST/ASTScopes.h"
 #include "Sema/SemaBuilder.h"
+#include "Sema/SemaBuilderScopes.h"
 #include "Frontend/InputFile.h"
 #include "Basic/Debug.h"
 
@@ -194,27 +195,26 @@ ASTBase *Parser::ParseTopDef(SmallVector<ASTScope *, 8>& Scopes) {
 SmallVector<ASTScope *, 8> Parser::ParseScopes() {
     FLY_DEBUG("ClassParser", "ParseScopes");
 
-    SmallVector<ASTScope *, 8> Scopes = Builder.CreateScopes();
+    SemaBuilderScopes *BuilderScopes = SemaBuilderScopes::Create();
 
     while (Tok.isNot(tok::eof)) {
         ASTScope *Scope;
         if (Tok.is(tok::kw_private)) {
-            Scope = Builder.CreateScopeVisibility(ConsumeToken(), ASTVisibilityKind::V_PRIVATE);
+            BuilderScopes->addVisibility(ConsumeToken(), ASTVisibilityKind::V_PRIVATE);
         } else if (Tok.is(tok::kw_protected)) {
-            Scope = Builder.CreateScopeVisibility(ConsumeToken(), ASTVisibilityKind::V_PROTECTED);
+            BuilderScopes->addVisibility(ConsumeToken(), ASTVisibilityKind::V_PROTECTED);
         } else if (Tok.is(tok::kw_public)) {
-            Scope = Builder.CreateScopeVisibility(ConsumeToken(), ASTVisibilityKind::V_PUBLIC);
+            BuilderScopes->addVisibility(ConsumeToken(), ASTVisibilityKind::V_PUBLIC);
         } else if (Tok.is(tok::kw_const)) {
-            Scope = Builder.CreateScopeConstant(ConsumeToken(), true);
+            BuilderScopes->addConstant(ConsumeToken(), true);
         } else if (Tok.is(tok::kw_static)) {
-            Scope = Builder.CreateScopeStatic(ConsumeToken(), true);
+            BuilderScopes->addStatic(ConsumeToken(), true);
         } else {
             break;
         }
-        Scopes.push_back(Scope);
     }
 
-    return Scopes;
+    return BuilderScopes->getScopes();
 }
 
 /**
@@ -424,7 +424,7 @@ bool Parser::ParseStmt(ASTBlockStmt *Parent, bool StopParse) {
             if (Type != nullptr) { // int a
                 // FIXME check Identifier for LocalVar
                 ASTLocalVar *LocalVar = Builder.CreateLocalVar(Tok.getLocation(), Type,
-                                                               Identifier1->getName(), &Scopes);
+                                                               Identifier1->getName(), Scopes);
                 ASTVarStmt *VarStmt = Builder.CreateVarStmt(LocalVar);
 
                 // int a = ...
@@ -443,7 +443,7 @@ bool Parser::ParseStmt(ASTBlockStmt *Parent, bool StopParse) {
 
                 // FIXME check Identifier for LocalVar
                 ASTLocalVar *LocalVar = Builder.CreateLocalVar(Tok.getLocation(), Type,
-                                                               Identifier2->getName(), &Scopes);
+                                                               Identifier2->getName(), Scopes);
 
                 // Type a = ...
                 if (Tok.is(tok::equal)) {
@@ -972,7 +972,7 @@ bool Parser::ParseCall(ASTIdentifier *&Identifier) {
     assert(Tok.is(tok::l_paren) && "Call start with parenthesis");
 
     // Parse Call args
-    ASTCall *Call = Builder.CreateCall(Identifier);
+    ASTCall *Call = Builder.CreateCall(Identifier, ASTCallKind::CALL_NONE);
     ConsumeParen(); // consume l_paren
 
     if (ParseCallArg(Call)) {

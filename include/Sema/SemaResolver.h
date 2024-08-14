@@ -133,11 +133,11 @@ namespace fly {
 
         SemaSymbols *FindNameSpace(ASTIdentifier *Identifier, ASTIdentifier *&Current) const;
 
-        ASTGlobalVar *FindGlobalVar(llvm::StringRef Name, SemaSymbols *Symbols = nullptr) const;
+        ASTGlobalVar *FindGlobalVar(llvm::StringRef Name, SemaSymbols *Symbols) const;
 
-        ASTIdentity *FindIdentity(llvm::StringRef Name, SemaSymbols *Symbols = nullptr) const;
+        ASTIdentity *FindIdentity(llvm::StringRef Name, SemaSymbols *Symbols) const;
 
-        ASTFunction *FindFunction(ASTCall *Call, SemaSymbols *Symbols = nullptr) const;
+        ASTFunction *FindFunction(ASTCall *Call, SemaSymbols *Symbols) const;
 
         ASTClassMethod *FindClassMethod(ASTCall *Call, ASTClass *Class) const;
 

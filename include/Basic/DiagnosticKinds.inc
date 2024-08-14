@@ -409,7 +409,7 @@ DIAG(err_invalid_return_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "Inv
 DIAG(err_unref_namespace, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unreferenced namespace '%0'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_unref_module, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unreferenced module '%0'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_unref_class, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unreferenced class '%0'", 0, SFINAE_Suppress, false, true, 0)
-DIAG(err_unref_call, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unreferenced call", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_unref_call, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unreferenced call %0", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_unref_var, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unreferenced var %0", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_call_enum, CLASS_ERROR, (unsigned)diag::Severity::Error, "call in enum not permitted", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_unref_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unreferenced type", 0, SFINAE_Suppress, false, true, 0)

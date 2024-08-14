@@ -1,6 +1,7 @@
 add_executable(fly
         Fly.cpp
-        ../docs/c++_llvm/new.c)
+        ../docs/c++_llvm/new.c
+        ../include/Sema/SemaBuilderScopes.h)
 
 add_library(flyLib
 
@@ -146,6 +147,7 @@ add_library(flyLib
         # Sema
         Sema/Sema.cpp
         Sema/SemaBuilder.cpp
+        Sema/SemaBuilderScopes.cpp
         Sema/SemaSymbols.cpp
         Sema/SemaResolver.cpp
         Sema/SemaValidator.cpp

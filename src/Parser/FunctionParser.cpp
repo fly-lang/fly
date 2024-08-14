@@ -75,7 +75,7 @@ bool FunctionParser::ParseParam() {
 
         llvm::SmallVector<ASTScope *, 8> Scopes = P->ParseScopes();
 
-        ASTParam *Param = P->Builder.CreateParam(IdLoc, Type, Name, &Scopes);
+        ASTParam *Param = P->Builder.CreateParam(IdLoc, Type, Name, Scopes);
 
         // Parse assignment =
         if (P->Tok.is(tok::equal)) {

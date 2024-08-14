@@ -33,10 +33,6 @@ ASTCallKind ASTCall::getCallKind() const {
     return CallKind;
 }
 
-ASTMemoryKind ASTCall::getMemoryKind() const {
-    return MemoryKind;
-}
-
 std::string ASTCall::str() const {
     return Logger("ASTFunctionCall").
             AttrList("Args", Args).

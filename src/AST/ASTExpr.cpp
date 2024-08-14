@@ -71,10 +71,6 @@ ASTVarRef *ASTVarRefExpr::getVarRef() const {
     return VarRef;
 }
 
-//ASTType *ASTVarRefExpr::getType() const {
-//    return Type ? Type : VarRef->getDef() ? VarRef->getDef()->getType() : nullptr;
-//}
-
 std::string ASTVarRefExpr::str() const {
     return Logger("ASTVarRefExpr").
            Super(ASTExpr::str()).
@@ -90,10 +86,6 @@ ASTCallExpr::ASTCallExpr(ASTCall *Call) :
 ASTCall *ASTCallExpr::getCall() const {
     return Call;
 }
-
-//ASTType *ASTCallExpr::getType() const {
-//    return Type ? Type : Call->getDef() ? Call->getDef()->getType() : nullptr;
-//}
 
 std::string ASTCallExpr::str() const {
     return Logger("ASTCallExpr").

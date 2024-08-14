@@ -234,7 +234,7 @@ ASTExpr *ExprParser::ParseNewExpr(Parser *P) {
         ASTIdentifier *Identifier = P->ParseIdentifier();
 
         if (Identifier->isCall()) { // Ex. a()
-            ASTCallExpr *CallExpr = P->Builder.CreateNewExpr((ASTCall *) Identifier);
+            ASTCallExpr *CallExpr = P->Builder.CreateExpr((ASTCall *) Identifier);
             return CallExpr;
         }
     }

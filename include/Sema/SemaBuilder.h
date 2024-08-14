@@ -22,6 +22,8 @@ namespace fly {
 
     class Sema;
 
+    class SemaBuilderScopes;
+
     class DiagnosticsEngine;
 
     class DiagnosticBuilder;
@@ -179,9 +181,14 @@ namespace fly {
     class ASTStringValue;
 
     enum class ASTClassKind;
+
     enum class ASTUnaryOperatorKind;
+
     enum class ASTBinaryOperatorKind;
+
     enum class ASTTernaryOperatorKind;
+
+    enum class ASTCallKind;
 
     class SemaBuilder {
 
@@ -212,15 +219,6 @@ namespace fly {
 
         ASTAlias *CreateAlias(ASTImport *Import, const SourceLocation &Loc, StringRef Name);
 
-        SmallVector<ASTScope *, 8> CreateScopes(ASTVisibilityKind Visibility = ASTVisibilityKind::V_DEFAULT,
-                                                bool Constant = false, bool = false);
-
-        ASTScope *CreateScopeVisibility(const SourceLocation &Loc, ASTVisibilityKind Visibility);
-
-        ASTScope *CreateScopeConstant(const SourceLocation &Loc, bool Constant);
-
-        ASTScope *CreateScopeStatic(const SourceLocation &Loc, bool Static);
-
         ASTGlobalVar *CreateGlobalVar(ASTModule *Module, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
                                       SmallVector<ASTScope *, 8> &Scopes, ASTExpr *Expr = nullptr);
 
@@ -245,7 +243,8 @@ namespace fly {
         ASTEnum *CreateEnum(ASTModule *Module, const SourceLocation &Loc, llvm::StringRef Name, SmallVector<ASTScope *, 8> &Scopes,
                    llvm::SmallVector<ASTEnumType *, 4> EnumTypes);
 
-        ASTEnumEntry *CreateEnumEntry(const SourceLocation &Loc, ASTEnum *Enum, llvm::StringRef Name);
+        ASTEnumEntry *CreateEnumEntry(const SourceLocation &Loc, ASTEnum *Enum, llvm::StringRef Name,
+                                      llvm::SmallVector<ASTScope *, 8> &Scopes);
 
         // Create Types
         ASTBoolType *CreateBoolType(const SourceLocation &Loc);
@@ -310,22 +309,22 @@ namespace fly {
         ASTValue *CreateDefaultValue(ASTType *Type);
 
         ASTParam *CreateParam(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
-                              llvm::SmallVector<ASTScope *, 8> *Scopes = nullptr);
+                              llvm::SmallVector<ASTScope *, 8> &Scopes);
 
         ASTParam *CreateErrorHandlerParam();
 
         ASTLocalVar *CreateLocalVar(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
-                                    llvm::SmallVector<ASTScope *, 8> *Scopes = nullptr);
+                                    llvm::SmallVector<ASTScope *, 8> &Scopes);
 
         // Create Identifier
         ASTIdentifier *CreateIdentifier(const SourceLocation &Loc, llvm::StringRef Name);
 
         // Create Call
-        ASTCall *CreateCall(ASTIdentifier *Identifier);
+        ASTCall *CreateCall(ASTIdentifier *Identifier, ASTCallKind CallKind);
 
         ASTCall *CreateCall(ASTFunction *Function);
 
-        ASTCall *CreateCall(ASTClassMethod *Method);
+        ASTCall *CreateCall(ASTClassMethod *Method, ASTCallKind CallKind);
 
         ASTCall *CreateCall(ASTIdentifier *Instance, ASTClassMethod *Method);
 
@@ -346,8 +345,6 @@ namespace fly {
         ASTCallExpr *CreateExpr(ASTCall *Call);
 
         ASTVarRefExpr *CreateExpr(ASTVarRef *VarRef);
-
-        ASTCallExpr *CreateNewExpr(ASTCall *Call);
 
         ASTUnaryOperatorExpr *CreateOperatorExpr(const SourceLocation &Loc, ASTUnaryOperatorKind UnaryKind);
 

@@ -65,11 +65,13 @@ EnumParser::EnumParser(Parser *P, llvm::SmallVector<ASTScope *, 8> &Scopes) : P(
                 break;
             }
 
+            SmallVector<ASTScope *, 8> Scopes = P->ParseScopes();
+
             if (P->Tok.isAnyIdentifier()) {
                 const StringRef &Name = P->Tok.getIdentifierInfo()->getName();
                 const SourceLocation &Loc = P->ConsumeToken();
                 
-                Success = ParseField(Loc, Name);
+                Success = ParseField(Loc, Name, Scopes);
             }
         } while (Success);
     }
@@ -86,10 +88,10 @@ ASTEnum *EnumParser::Parse(Parser *P, SmallVector<ASTScope *, 8> &Scopes) {
     return CP->Enum;
 }
 
-bool EnumParser::ParseField(const SourceLocation &Loc, llvm::StringRef Name) {
+bool EnumParser::ParseField(const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTScope *, 8> Scopes) {
     FLY_DEBUG_MESSAGE("ClassParser", "ParseMethod", Logger().Attr("Type", Name).End());
 
-    ASTEnumEntry *EnumEntry = P->Builder.CreateEnumEntry(Loc, Enum, Name);
+    ASTEnumEntry *EnumEntry = P->Builder.CreateEnumEntry(Loc, Enum, Name, Scopes);
 
     // Add Comment to AST
     llvm::StringRef Comment;

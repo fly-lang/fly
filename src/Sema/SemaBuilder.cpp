@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaBuilder.h"
+#include "Sema/SemaBuilderScopes.h"
 #include "Sema/Sema.h"
 #include "Sema/SemaResolver.h"
 #include "Sema/SemaValidator.h"
@@ -165,6 +166,7 @@ ASTGlobalVar *SemaBuilder::CreateGlobalVar(ASTModule *Module, const SourceLocati
     S.getValidator().CheckCreateGlobalVar(Loc, Type, Name, Scopes);
     ASTGlobalVar *GlobalVar = new ASTGlobalVar(Module, Loc, Type, Name, Scopes);
     GlobalVar->Expr = Expr;
+    Module->GlobalVars.push_back(GlobalVar);
     return GlobalVar;
 }
 
@@ -188,7 +190,6 @@ ASTFunction *SemaBuilder::CreateFunction(ASTModule *Module, const SourceLocation
     ASTFunction *F = new ASTFunction(Module, Loc, Type, Name, Scopes);
     F->ErrorHandler = CreateErrorHandlerParam();
     Module->Functions.push_back(F);
-
     return F;
 }
 
@@ -219,74 +220,9 @@ ASTClass *SemaBuilder::CreateClass(ASTModule *Module, const SourceLocation &Loc,
     Module->Identities.push_back(Class);
 
     // Create Default Constructor
-    SmallVector<ASTScope *, 8> ConstructorScopes = S.Builder->CreateScopes();
-    Class->DefaultConstructor = S.Builder->CreateClassConstructor(SourceLocation(), *Class, ConstructorScopes);
+    Class->DefaultConstructor = S.Builder->CreateClassConstructor(SourceLocation(), *Class, Scopes);
 
     return Class;
-}
-
-/**
- * Creates a Scope for Classes
- * @param Visibility
- * @param Constant
- * @param Static
- * @return
- */
-SmallVector<ASTScope *, 8> SemaBuilder::CreateScopes(ASTVisibilityKind Visibility, bool Constant, bool Static) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateClassScopes",
-                      Logger().Attr("Visibility", (uint64_t) Visibility)
-                              .Attr("Constant", Constant)
-                              .Attr("Static", Static).End());
-    SmallVector<ASTScope *, 8> Scopes;
-    Scopes.push_back(CreateScopeVisibility(SourceLocation(), Visibility));
-    Scopes.push_back(CreateScopeStatic(SourceLocation(), Static));
-    Scopes.push_back(CreateScopeConstant(SourceLocation(), Constant));
-    return Scopes;
-}
-
-/**
- * Creates a Scope for Visibility
- * @param Visibility
- * @param Constant
- * @param Static
- * @return
- */
-ASTScope *SemaBuilder::CreateScopeVisibility(const SourceLocation &Loc, ASTVisibilityKind Visibility) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateVisibilityScope",
-                      Logger().Attr("Visibility", (uint64_t) Visibility).End());
-    ASTScope *Scope = new ASTScope(Loc, ASTScopeKind::SCOPE_VISIBILITY);
-    Scope->Visibility = Visibility;
-    return Scope;
-}
-
-/**
- * Creates a Scope for Constant
- * @param Visibility
- * @param Constant
- * @param Static
- * @return
- */
-ASTScope *SemaBuilder::CreateScopeConstant(const SourceLocation &Loc, bool Constant) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateScopeConstant",
-                      Logger().Attr("Constant", Constant).End());
-    ASTScope *Scope = new ASTScope(Loc, ASTScopeKind::SCOPE_CONSTANT);
-    Scope->Constant = Constant;
-    return Scope;
-}
-
-/**
- * Creates a Scope for Static
- * @param Visibility
- * @param Constant
- * @param Static
- * @return
- */
-ASTScope *SemaBuilder::CreateScopeStatic(const SourceLocation &Loc, bool Static) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateScopeStatic",
-                      Logger().Attr("Static", Static).End());
-    ASTScope *Scope = new ASTScope(Loc, ASTScopeKind::SCOPE_STATIC);
-    Scope->Static = Static;
-    return Scope;
 }
 
 /**
@@ -381,12 +317,12 @@ ASTEnum *SemaBuilder::CreateEnum(ASTModule *Module, const SourceLocation &Loc, c
     return Enum;
 }
 
-ASTEnumEntry *SemaBuilder::CreateEnumEntry(const SourceLocation &Loc, ASTEnum *Enum, llvm::StringRef Name) {
+ASTEnumEntry *SemaBuilder::CreateEnumEntry(const SourceLocation &Loc, ASTEnum *Enum, llvm::StringRef Name,
+                                           llvm::SmallVector<ASTScope *, 8> &Scopes) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateEnumEntry",
                       Logger().Attr("Loc", (uint64_t) Loc.getRawEncoding())
                               .Attr("Name", Name).End());
     S.getValidator().CheckCreateEnumEntry(Loc, Name);
-    SmallVector<ASTScope *, 8> Scopes = CreateScopes();
     ASTEnumEntry *EnumEntry = new ASTEnumEntry(Loc, Enum->Type, Name, Scopes);
 
     EnumEntry->Enum = Enum;
@@ -733,23 +669,21 @@ ASTValue *SemaBuilder::CreateDefaultValue(ASTType *Type) {
  * @return
  */
 ASTParam *SemaBuilder::CreateParam(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
-                                   llvm::SmallVector<ASTScope *, 8> *Scopes) {
+                                   llvm::SmallVector<ASTScope *, 8> &Scopes) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateParam",
                       Logger().Attr("Loc", (uint64_t) Loc.getRawEncoding())
                       .Attr("Type", Type)
                       .Attr("Name", Name)
-                      .AttrList("Scopes", *Scopes)
+                      .AttrList("Scopes", Scopes)
                       .End());
-    llvm::SmallVector<ASTScope *, 8> VarScopes;
-    if (Scopes == nullptr)
-        VarScopes = CreateScopes();
-    S.getValidator().CheckCreateParam(Loc, Type, Name, VarScopes);
-    ASTParam *Param = new ASTParam(Loc, Type, Name, VarScopes);
+    S.getValidator().CheckCreateParam(Loc, Type, Name, Scopes);
+    ASTParam *Param = new ASTParam(Loc, Type, Name, Scopes);
     return Param;
 }
 
 ASTParam *SemaBuilder::CreateErrorHandlerParam() {
-    return CreateParam(SourceLocation(), CreateErrorType(), "error");
+    SmallVector<ASTScope *, 8> Scopes = SemaBuilderScopes::Create()->getScopes();
+    return CreateParam(SourceLocation(), CreateErrorType(), "error", Scopes);
 }
 
 /**
@@ -761,15 +695,12 @@ ASTParam *SemaBuilder::CreateErrorHandlerParam() {
  * @param Constant
  * @return
  */
-ASTLocalVar *SemaBuilder::CreateLocalVar(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, llvm::SmallVector<ASTScope *, 8> *Scopes) {
+ASTLocalVar *SemaBuilder::CreateLocalVar(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateLocalVar",
                       Logger().Attr("Name", Name)
-                              .AttrList("Scopes", *Scopes).End());
-    llvm::SmallVector<ASTScope *, 8> VarScopes;
-    if (Scopes == nullptr)
-        VarScopes = CreateScopes();
-    S.getValidator().CheckCreateLocalVar(Loc, Type, Name, VarScopes);
-    ASTLocalVar *LocalVar = new ASTLocalVar(Loc, Type, Name, VarScopes);
+                              .AttrList("Scopes", Scopes).End());
+    S.getValidator().CheckCreateLocalVar(Loc, Type, Name, Scopes);
+    ASTLocalVar *LocalVar = new ASTLocalVar(Loc, Type, Name, Scopes);
     return LocalVar;
 }
 
@@ -789,10 +720,11 @@ ASTIdentifier *SemaBuilder::CreateIdentifier(const SourceLocation &Loc, llvm::St
  * @param NameSpace
  * @return
  */
-ASTCall *SemaBuilder::CreateCall(ASTIdentifier *Identifier) {
+ASTCall *SemaBuilder::CreateCall(ASTIdentifier *Identifier, ASTCallKind CallKind) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateCall",
                       Logger().Attr("Identifier", Identifier).End());
     ASTCall *Call = new ASTCall(Identifier->getLocation(), Identifier->getName());
+    Call->CallKind = CallKind;
     Call->Parent = Identifier->Parent;
     Call->Child = Identifier->Child;
     Call->FullName = Identifier->FullName;
@@ -813,7 +745,7 @@ ASTCall *SemaBuilder::CreateCall(ASTFunction *Function) {
     return Call;
 }
 
-ASTCall *SemaBuilder::CreateCall(ASTClassMethod *Method) {
+ASTCall *SemaBuilder::CreateCall(ASTClassMethod *Method, ASTCallKind CallKind) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateCall",
                       Logger().Attr("Method=", Method).End());
     ASTCall *Call = new ASTCall(SourceLocation(), Method->Name);
@@ -955,13 +887,6 @@ ASTVarRefExpr *SemaBuilder::CreateExpr(ASTVarRef *VarRef) {
                       Logger().Attr("VarRef", VarRef).End());
     ASTVarRefExpr *VarRefExpr = new ASTVarRefExpr(VarRef);
     return VarRefExpr;
-}
-
-ASTCallExpr *SemaBuilder::CreateNewExpr(ASTCall *Call) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateNewExpr",
-                      Logger().Attr("Call", Call).End());
-    Call->CallKind = ASTCallKind::CALL_CONSTRUCTOR;
-    return CreateExpr(Call);
 }
 
 ASTUnaryOperatorExpr *SemaBuilder::CreateOperatorExpr(const SourceLocation &Loc, ASTUnaryOperatorKind UnaryKind) {

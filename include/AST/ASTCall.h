@@ -19,15 +19,11 @@ namespace fly {
     class ASTFunctionBase;
 
     enum class ASTCallKind {
-        CALL_FUNCTION,
-        CALL_CONSTRUCTOR
-    };
-
-    enum class ASTMemoryKind {
-        CALL_MANAGED,
-        CALL_UNIQUE,
-        CALL_SHARED,
-        CALL_WEAK
+        CALL_NONE,
+        CALL_NEW,
+        CALL_NEW_UNIQUE,
+        CALL_NEW_SHARED,
+        CALL_NEW_WEAK
     };
 
     /**
@@ -47,9 +43,7 @@ namespace fly {
 
         ASTFunctionBase *Def = nullptr;
 
-        ASTCallKind CallKind = ASTCallKind::CALL_FUNCTION;
-
-        ASTMemoryKind MemoryKind = ASTMemoryKind::CALL_MANAGED;
+        ASTCallKind CallKind = ASTCallKind::CALL_NONE;
 
         ASTCall(const SourceLocation &Loc, llvm::StringRef Name);
 
@@ -62,8 +56,6 @@ namespace fly {
         ASTFunctionBase *getDef() const;
 
         ASTCallKind getCallKind() const;
-
-        ASTMemoryKind getMemoryKind() const;
 
         std::string str() const override;
     };

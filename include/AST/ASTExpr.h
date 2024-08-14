@@ -28,6 +28,7 @@ namespace fly {
         EXPR_VALUE,
         EXPR_VAR_REF,
         EXPR_CALL,
+        EXPR_NEW,
         EXPR_GROUP,
         EXPR_OPERATOR
     };

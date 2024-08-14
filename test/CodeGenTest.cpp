@@ -16,6 +16,7 @@
 #include "CodeGen/CodeGenClass.h"
 #include "Sema/Sema.h"
 #include "Sema/SemaBuilder.h"
+#include "Sema/SemaBuilderScopes.h"
 #include "AST/ASTModule.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTGlobalVar.h"
@@ -50,6 +51,7 @@
 #include "llvm/Support/Host.h"
 #include "llvm/Support/TargetSelect.h"
 #include "gtest/gtest.h"
+#include "AST/ASTCall.h"
 
 // standard
 #include <vector>
@@ -80,7 +82,8 @@ namespace {
         ASTType *FloatType;
         ASTType *DoubleType;
         ASTType *ArrayInt0Type;
-        llvm::SmallVector<ASTScope *, 8> DefaultScopes;
+        llvm::SmallVector<ASTScope *, 8> TopScopes;
+        llvm::SmallVector<ASTScope *, 8> EmptyScopes;
 
         CodeGenTest() : CI(*TestUtils::CreateCompilerInstance()),
                         CG(TestUtils::CreateCodeGen(CI)),
@@ -100,7 +103,10 @@ namespace {
                         DoubleType(Builder.CreateDoubleType(SourceLoc)),
                         ArrayInt0Type(Builder.CreateArrayType(SourceLoc, IntType,
                                                        Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 0)))),
-                        DefaultScopes(Builder.CreateScopes(ASTVisibilityKind::V_PUBLIC, false)) {
+                        TopScopes(SemaBuilderScopes::Create()
+                            ->addVisibility(SourceLocation(), ASTVisibilityKind::V_DEFAULT)
+                            ->addConstant(SourceLocation(), false)->getScopes()),
+                        EmptyScopes(SemaBuilderScopes::Create()->getScopes()) {
             llvm::InitializeAllTargets();
             llvm::InitializeAllTargetMCs();
             llvm::InitializeAllAsmPrinters();
@@ -131,7 +137,6 @@ namespace {
 
     TEST_F(CodeGenTest, CGDefaultValueGlobalVar) {
         ASTModule *Module = CreateModule();
-        llvm::SmallVector<ASTScope *, 8> TopScopes = Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false);
 
         // default Bool value
         ASTValueExpr *DefaultBoolVal = Builder.CreateExpr(Builder.CreateDefaultValue(BoolType));
@@ -264,8 +269,6 @@ namespace {
 
     TEST_F(CodeGenTest, CGValuedGlobalVar) {
         ASTModule *Module = CreateModule();
-
-        llvm::SmallVector<ASTScope *, 8> TopScopes = Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false);
 
         // a
         ASTBoolValue *BoolVal = Builder.CreateBoolValue(SourceLoc, true);
@@ -424,21 +427,20 @@ namespace {
     TEST_F(CodeGenTest, CGFuncParamTypes) {
         ASTModule *Module = CreateModule();
 
-        llvm::SmallVector<ASTScope *, 8> TopScopes = Builder.CreateScopes(ASTVisibilityKind::V_DEFAULT, false);
         ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes);
         // func(int P1, float P2, bool P3, long P4, double P5, byte P6, short P7, ushort P8, uint P9, ulong P10) {
         // }
 
-        EXPECT_TRUE(Builder.AddParam(Func, Builder.CreateParam(SourceLoc, IntType, "P1")));
-        EXPECT_TRUE(Builder.AddParam(Func, Builder.CreateParam(SourceLoc, FloatType, "P2")));
-        EXPECT_TRUE(Builder.AddParam(Func, Builder.CreateParam(SourceLoc, BoolType, "P3")));
-        EXPECT_TRUE(Builder.AddParam(Func, Builder.CreateParam(SourceLoc, LongType, "P4")));
-        EXPECT_TRUE(Builder.AddParam(Func, Builder.CreateParam(SourceLoc, DoubleType, "P5")));
-        EXPECT_TRUE(Builder.AddParam(Func, Builder.CreateParam(SourceLoc, ByteType, "P6")));
-        EXPECT_TRUE(Builder.AddParam(Func, Builder.CreateParam(SourceLoc, ShortType, "P7")));
-        EXPECT_TRUE(Builder.AddParam(Func, Builder.CreateParam(SourceLoc, UShortType, "P8")));
-        EXPECT_TRUE(Builder.AddParam(Func, Builder.CreateParam(SourceLoc, UIntType, "P9")));
-        EXPECT_TRUE(Builder.AddParam(Func, Builder.CreateParam(SourceLoc, ULongType, "P10")));
+        EXPECT_TRUE(Builder.AddParam(Func, Builder.CreateParam(SourceLoc, IntType, "P1", EmptyScopes)));
+        EXPECT_TRUE(Builder.AddParam(Func, Builder.CreateParam(SourceLoc, FloatType, "P2", EmptyScopes)));
+        EXPECT_TRUE(Builder.AddParam(Func, Builder.CreateParam(SourceLoc, BoolType, "P3", EmptyScopes)));
+        EXPECT_TRUE(Builder.AddParam(Func, Builder.CreateParam(SourceLoc, LongType, "P4", EmptyScopes)));
+        EXPECT_TRUE(Builder.AddParam(Func, Builder.CreateParam(SourceLoc, DoubleType, "P5", EmptyScopes)));
+        EXPECT_TRUE(Builder.AddParam(Func, Builder.CreateParam(SourceLoc, ByteType, "P6", EmptyScopes)));
+        EXPECT_TRUE(Builder.AddParam(Func, Builder.CreateParam(SourceLoc, ShortType, "P7", EmptyScopes)));
+        EXPECT_TRUE(Builder.AddParam(Func, Builder.CreateParam(SourceLoc, UShortType, "P8", EmptyScopes)));
+        EXPECT_TRUE(Builder.AddParam(Func, Builder.CreateParam(SourceLoc, UIntType, "P9", EmptyScopes)));
+        EXPECT_TRUE(Builder.AddParam(Func, Builder.CreateParam(SourceLoc, ULongType, "P10", EmptyScopes)));
         ASTBlockStmt *Body = Builder.CreateBody(Func);
 
         // validate and resolve
@@ -489,15 +491,15 @@ namespace {
 
         // float G = 2.0
         ASTFloatingValue *FloatingVal = Builder.CreateFloatingValue(SourceLoc, 2.0);
-        ASTGlobalVar *GVar = Builder.CreateGlobalVar(Module, SourceLoc, FloatType, "G", DefaultScopes,
+        ASTGlobalVar *GVar = Builder.CreateGlobalVar(Module, SourceLoc, FloatType, "G", TopScopes,
                                                      Builder.CreateExpr(FloatingVal));
 
         // func()
-        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, IntType, "func", DefaultScopes);
+        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, IntType, "func", TopScopes);
         ASTBlockStmt *Body = Builder.CreateBody(Func);
 
         // int A = 1
-        ASTLocalVar *VarA = Builder.CreateLocalVar(SourceLoc, IntType, "A");
+        ASTLocalVar *VarA = Builder.CreateLocalVar(SourceLoc, IntType, "A", EmptyScopes);
         EXPECT_TRUE(Builder.AddLocalVar(Body, VarA));
         ASTVarStmt *VarAStmt = Builder.CreateVarStmt(VarA);
         ASTExpr *ExprA = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
@@ -556,10 +558,10 @@ namespace {
         ASTModule *Module = CreateModule();
 
         // func()
-        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "func", DefaultScopes);
+        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes);
         ASTBlockStmt *Body = Builder.CreateBody(Func);
         // int a = 1
-        ASTLocalVar *LocalVar = Builder.CreateLocalVar(SourceLoc, Builder.CreateIntType(SourceLoc), "a");
+        ASTLocalVar *LocalVar = Builder.CreateLocalVar(SourceLoc, Builder.CreateIntType(SourceLoc), "a", EmptyScopes);
         EXPECT_TRUE(Builder.AddLocalVar(Body, LocalVar));
         ASTVarStmt *VarStmt = Builder.CreateVarStmt(LocalVar);
         ASTValueExpr *ValueExpr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
@@ -594,11 +596,11 @@ namespace {
         ASTModule *Module = CreateModule();
 
         // test()
-        ASTFunction *Test = Builder.CreateFunction(Module, SourceLoc, IntType, "test", DefaultScopes);
+        ASTFunction *Test = Builder.CreateFunction(Module, SourceLoc, IntType, "test", TopScopes);
         Builder.CreateBody(Test);
 
         // func()
-        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, IntType, "func", DefaultScopes);
+        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, IntType, "func", TopScopes);
         ASTBlockStmt *Body = Builder.CreateBody(Func);
 
         // call test()
@@ -650,13 +652,13 @@ namespace {
         ASTModule *Module = CreateModule();
 
         // func()
-        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, IntType, "func", DefaultScopes);
+        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, IntType, "func", TopScopes);
         ASTBlockStmt *Body = Builder.CreateBody(Func);
-        ASTParam *aParam = Builder.CreateParam(SourceLoc, IntType, "a");
+        ASTParam *aParam = Builder.CreateParam(SourceLoc, IntType, "a", EmptyScopes);
         EXPECT_TRUE(Builder.AddParam(Func, aParam));
-        ASTParam *bParam = Builder.CreateParam(SourceLoc, IntType, "b");
+        ASTParam *bParam = Builder.CreateParam(SourceLoc, IntType, "b", EmptyScopes);
         EXPECT_TRUE(Builder.AddParam(Func, bParam));
-        ASTParam *cParam = Builder.CreateParam(SourceLoc, IntType, "c");
+        ASTParam *cParam = Builder.CreateParam(SourceLoc, IntType, "c", EmptyScopes);
         EXPECT_TRUE(Builder.AddParam(Func, cParam));
 
         ASTReturnStmt *Return = Builder.CreateReturnStmt(SourceLoc);
@@ -717,13 +719,13 @@ namespace {
         ASTModule *Module = CreateModule();
 
         // func()
-        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "func", DefaultScopes);
+        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes);
         ASTBlockStmt *Body = Builder.CreateBody(Func);
-        ASTParam *aParam = Builder.CreateParam(SourceLoc, IntType, "a");
+        ASTParam *aParam = Builder.CreateParam(SourceLoc, IntType, "a", EmptyScopes);
         EXPECT_TRUE(Builder.AddParam(Func, aParam));
-        ASTParam *bParam = Builder.CreateParam(SourceLoc, IntType, "b");
+        ASTParam *bParam = Builder.CreateParam(SourceLoc, IntType, "b", EmptyScopes);
         EXPECT_TRUE(Builder.AddParam(Func, bParam));
-        ASTParam *cParam = Builder.CreateParam(SourceLoc, IntType, "c");
+        ASTParam *cParam = Builder.CreateParam(SourceLoc, IntType, "c", EmptyScopes);
         EXPECT_TRUE(Builder.AddParam(Func, cParam));
 
         // a = 0
@@ -915,11 +917,11 @@ namespace {
         ASTModule *Module = CreateModule();
 
         // func()
-        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "func", DefaultScopes);
+        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes);
         ASTBlockStmt *Body = Builder.CreateBody(Func);
-        ASTLocalVar *aVar = Builder.CreateLocalVar(SourceLoc, IntType, "a");
-        ASTLocalVar *bVar = Builder.CreateLocalVar(SourceLoc, IntType, "b");
-        ASTLocalVar *cVar = Builder.CreateLocalVar(SourceLoc, BoolType, "c");
+        ASTLocalVar *aVar = Builder.CreateLocalVar(SourceLoc, IntType, "a", EmptyScopes);
+        ASTLocalVar *bVar = Builder.CreateLocalVar(SourceLoc, IntType, "b", EmptyScopes);
+        ASTLocalVar *cVar = Builder.CreateLocalVar(SourceLoc, BoolType, "c", EmptyScopes);
         EXPECT_TRUE(Builder.AddLocalVar(Body, aVar));
         EXPECT_TRUE(Builder.AddLocalVar(Body, bVar));
         EXPECT_TRUE(Builder.AddLocalVar(Body, cVar));
@@ -1036,11 +1038,11 @@ namespace {
         CodeGenModule *CGM = CG->GenerateModule(*Module);
 
         // func()
-        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "func", DefaultScopes);
+        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes);
         ASTBlockStmt *Body = Builder.CreateBody(Func);
-        ASTLocalVar *aVar = Builder.CreateLocalVar(SourceLoc, BoolType, "a");
-        ASTLocalVar *bVar = Builder.CreateLocalVar(SourceLoc, BoolType, "b");
-        ASTLocalVar *cVar = Builder.CreateLocalVar(SourceLoc, BoolType, "c");
+        ASTLocalVar *aVar = Builder.CreateLocalVar(SourceLoc, BoolType, "a", EmptyScopes);
+        ASTLocalVar *bVar = Builder.CreateLocalVar(SourceLoc, BoolType, "b", EmptyScopes);
+        ASTLocalVar *cVar = Builder.CreateLocalVar(SourceLoc, BoolType, "c", EmptyScopes);
         EXPECT_TRUE(Builder.AddLocalVar(Body, aVar));
         EXPECT_TRUE(Builder.AddLocalVar(Body, bVar));
         EXPECT_TRUE(Builder.AddLocalVar(Body, cVar));
@@ -1130,11 +1132,11 @@ namespace {
         CodeGenModule *CGM = CG->GenerateModule(*Module);
 
         // func()
-        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "func", DefaultScopes);
+        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes);
         ASTBlockStmt *Body = Builder.CreateBody(Func);
-        ASTLocalVar *aVar = Builder.CreateLocalVar(SourceLoc, BoolType, "a");
-        ASTLocalVar *bVar = Builder.CreateLocalVar(SourceLoc, BoolType, "b");
-        ASTLocalVar *cVar = Builder.CreateLocalVar(SourceLoc, BoolType, "c");
+        ASTLocalVar *aVar = Builder.CreateLocalVar(SourceLoc, BoolType, "a", EmptyScopes);
+        ASTLocalVar *bVar = Builder.CreateLocalVar(SourceLoc, BoolType, "b", EmptyScopes);
+        ASTLocalVar *cVar = Builder.CreateLocalVar(SourceLoc, BoolType, "c", EmptyScopes);
         EXPECT_TRUE(Builder.AddLocalVar(Body, aVar));
         EXPECT_TRUE(Builder.AddLocalVar(Body, bVar));
         EXPECT_TRUE(Builder.AddLocalVar(Body, cVar));
@@ -1214,11 +1216,11 @@ namespace {
         ASTModule *Module = CreateModule();
 
         // func()
-        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "func", DefaultScopes);
+        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes);
         ASTBlockStmt *Body = Builder.CreateBody(Func);
 
         // int a = 0
-        ASTLocalVar *aVar = Builder.CreateLocalVar(SourceLoc, IntType, "a");
+        ASTLocalVar *aVar = Builder.CreateLocalVar(SourceLoc, IntType, "a", EmptyScopes);
         EXPECT_TRUE(Builder.AddLocalVar(Body, aVar));
         ASTVarStmt *aVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(aVar));
         ASTValueExpr *Expr1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 0));
@@ -1281,8 +1283,8 @@ namespace {
         ASTModule *Module = CreateModule();
 
         // func()
-        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "func", DefaultScopes);
-        ASTParam *aParam = Builder.CreateParam(SourceLoc, IntType, "a");
+        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes);
+        ASTParam *aParam = Builder.CreateParam(SourceLoc, IntType, "a", EmptyScopes);
         EXPECT_TRUE(Builder.AddParam(Func, aParam));
 
         ASTBlockStmt *Body = Builder.CreateBody(Func);
@@ -1355,8 +1357,8 @@ namespace {
         ASTModule *Module = CreateModule();
 
         // func()
-        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "func", DefaultScopes);
-        ASTParam *aParam = Builder.CreateParam(SourceLoc, IntType, "a");
+        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes);
+        ASTParam *aParam = Builder.CreateParam(SourceLoc, IntType, "a", EmptyScopes);
         EXPECT_TRUE(Builder.AddParam(Func, aParam));
 
         ASTBlockStmt *Body = Builder.CreateBody(Func);
@@ -1470,8 +1472,8 @@ namespace {
         ASTModule *Module = CreateModule();
 
         // main()
-        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "func", DefaultScopes);
-        ASTParam *aParam = Builder.CreateParam(SourceLoc, IntType, "a");
+        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes);
+        ASTParam *aParam = Builder.CreateParam(SourceLoc, IntType, "a", EmptyScopes);
         EXPECT_TRUE(Builder.AddParam(Func, aParam));
 
         ASTBlockStmt *Body = Builder.CreateBody(Func);
@@ -1568,8 +1570,8 @@ namespace {
         ASTModule *Module = CreateModule();
 
         // main()
-        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "func", DefaultScopes);
-        ASTParam *aParam = Builder.CreateParam(SourceLoc, IntType, "a");
+        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes);
+        ASTParam *aParam = Builder.CreateParam(SourceLoc, IntType, "a", EmptyScopes);
         EXPECT_TRUE(Builder.AddParam(Func, aParam));
 
         ASTBlockStmt *Body = Builder.CreateBody(Func);
@@ -1653,8 +1655,8 @@ namespace {
         ASTModule *Module = CreateModule();
 
         // main()
-        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "func", DefaultScopes);
-        ASTParam *aParam = Builder.CreateParam(SourceLoc, IntType, "a");
+        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes);
+        ASTParam *aParam = Builder.CreateParam(SourceLoc, IntType, "a", EmptyScopes);
         EXPECT_TRUE(Builder.AddParam(Func, aParam));
 
         ASTBlockStmt *Body = Builder.CreateBody(Func);
@@ -1714,8 +1716,8 @@ namespace {
         ASTModule *Module = CreateModule();
 
         // main()
-        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "func", DefaultScopes);
-        ASTParam *aParam = Builder.CreateParam(SourceLoc, IntType, "a");
+        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes);
+        ASTParam *aParam = Builder.CreateParam(SourceLoc, IntType, "a", EmptyScopes);
         EXPECT_TRUE(Builder.AddParam(Func, aParam));
 
         ASTBlockStmt *Body = Builder.CreateBody(Func);
@@ -1727,7 +1729,7 @@ namespace {
         // int i = 1
         ASTBlockStmt *InitBlock = Builder.CreateBlockStmt(SourceLoc);
         EXPECT_TRUE(Builder.AddLoopInit(ForStmt, InitBlock));
-        ASTLocalVar *iVar = Builder.CreateLocalVar(SourceLoc, IntType, "i");
+        ASTLocalVar *iVar = Builder.CreateLocalVar(SourceLoc, IntType, "i", EmptyScopes);
         EXPECT_TRUE(Builder.AddLocalVar(InitBlock, iVar));
         ASTVarRef *iVarRef = Builder.CreateVarRef(iVar);
         ASTVarStmt *iVarStmt = Builder.CreateVarStmt(iVarRef);
@@ -1810,12 +1812,12 @@ namespace {
         // }
         llvm::SmallVector<ASTClassType *, 4> SuperClasses;
         ASTClass *TestClass = Builder.CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass",
-                                                  DefaultScopes, SuperClasses);
+                                                  TopScopes, SuperClasses);
 
         // int a() { return 1 }
         ASTClassMethod *aFunc = Builder.CreateClassMethod(SourceLoc, *TestClass, IntType,
                                                           "a",
-                                                          DefaultScopes);
+                                                          TopScopes);
         ASTBlockStmt *aFuncBody = Builder.CreateBody(aFunc);
         ASTReturnStmt *aFuncReturn = Builder.CreateReturnStmt(SourceLoc);
         ASTValueExpr *aFuncExpr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLocation(), 1));
@@ -1825,7 +1827,7 @@ namespace {
 
         // public int b() { return 1 }
         ASTClassMethod *bFunc = Builder.CreateClassMethod(SourceLoc, *TestClass, IntType,
-                                                          "b", DefaultScopes);
+                                                          "b", TopScopes);
         ASTBlockStmt *bFuncBody = Builder.CreateBody(bFunc);
         ASTReturnStmt *bFuncReturn = Builder.CreateReturnStmt(SourceLoc);
         ASTValueExpr *bFuncExpr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLocation(), 1));
@@ -1834,7 +1836,7 @@ namespace {
 
         // private const int c { return 1 }
         ASTClassMethod *cFunc = Builder.CreateClassMethod(SourceLoc, *TestClass, IntType,
-                                                          "c", DefaultScopes);
+                                                          "c", TopScopes);
         ASTBlockStmt *cFuncBody = Builder.CreateBody(cFunc);
         ASTReturnStmt *cFuncReturn = Builder.CreateReturnStmt(SourceLoc);
         ASTValueExpr *cFuncExpr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLocation(), 1));
@@ -1848,24 +1850,24 @@ namespace {
         //  int c = test.c()
         //  delete test
         // }
-        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "func", DefaultScopes);
+        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes);
         ASTBlockStmt *Body = Builder.CreateBody(Func);
 
         // TestClass test = new TestClass()
         ASTType *TestClassType = Builder.CreateClassType(TestClass);
-        ASTLocalVar *TestVar = Builder.CreateLocalVar(SourceLoc, TestClassType, "test");
+        ASTLocalVar *TestVar = Builder.CreateLocalVar(SourceLoc, TestClassType, "test", EmptyScopes);
         Builder.AddLocalVar(Body, TestVar);
         ASTClassMethod *DefaultConstructor = TestClass->getDefaultConstructor();
         ASTVarRef *Instance = Builder.CreateVarRef(TestVar);
-        ASTCall *ConstructorCall = Builder.CreateCall(DefaultConstructor);
-        ASTCallExpr *NewExpr = Builder.CreateNewExpr(ConstructorCall);
+        ASTCall *ConstructorCall = Builder.CreateCall(DefaultConstructor, ASTCallKind::CALL_NEW);
+        ASTCallExpr *NewExpr = Builder.CreateExpr(ConstructorCall);
         ASTVarStmt *testNewStmt = Builder.CreateVarStmt(TestVar);
         Builder.AddExpr(testNewStmt, NewExpr);
         Builder.AddStmt(Body, testNewStmt);
 
         // int a = test.a()
         ASTType *aType = aFunc->getReturnType();
-        ASTLocalVar *aVar = Builder.CreateLocalVar(SourceLoc, aType, "a");
+        ASTLocalVar *aVar = Builder.CreateLocalVar(SourceLoc, aType, "a", EmptyScopes);
         Builder.AddLocalVar(Body, aVar);
         ASTCallExpr *aCallExpr = Builder.CreateExpr(Builder.CreateCall(Instance, aFunc));
         ASTVarStmt *aStmt = Builder.CreateVarStmt(aVar);
@@ -1874,7 +1876,7 @@ namespace {
 
         // int b = test.b()
         ASTType *bType = bFunc->getReturnType();
-        ASTLocalVar *bVar = Builder.CreateLocalVar(SourceLoc, bType, "b");
+        ASTLocalVar *bVar = Builder.CreateLocalVar(SourceLoc, bType, "b", EmptyScopes);
         Builder.AddLocalVar(Body, bVar);
         ASTCallExpr *bCallExpr = Builder.CreateExpr(Builder.CreateCall(Instance, bFunc));
         ASTVarStmt *bStmt = Builder.CreateVarStmt(bVar);
@@ -1883,7 +1885,7 @@ namespace {
 
         // int c = test.c()
         ASTType *cType = cFunc->getReturnType();
-        ASTLocalVar *cVar = Builder.CreateLocalVar(SourceLoc, cType, "c");
+        ASTLocalVar *cVar = Builder.CreateLocalVar(SourceLoc, cType, "c", EmptyScopes);
         Builder.AddLocalVar(Body, cVar);
         ASTCallExpr *cCallExpr = Builder.CreateExpr(Builder.CreateCall(Instance, cFunc));
         ASTVarStmt *cStmt = Builder.CreateVarStmt(cVar);
@@ -2000,17 +2002,17 @@ namespace {
         //   int a() { return a }
         // }
         llvm::SmallVector<ASTClassType *, 4> SuperClasses;
-        ASTClass *TestClass = Builder.CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass", DefaultScopes,
+        ASTClass *TestClass = Builder.CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass", TopScopes,
                                                   SuperClasses);
 
         // int a
         ASTClassAttribute *aAttribute = Builder.CreateClassAttribute(SourceLoc, *TestClass,
                                                                      Builder.CreateIntType(SourceLoc),
-                                                                     "a", DefaultScopes);
+                                                                     "a", TopScopes);
 
         // int a() { return a }
         ASTClassMethod *aFunc = Builder.CreateClassMethod(SourceLoc, *TestClass, IntType,
-                                                          "a", DefaultScopes);
+                                                          "a", TopScopes);
         ASTBlockStmt *aFuncBody = Builder.CreateBody(aFunc);
         ASTReturnStmt *aFuncReturn = Builder.CreateReturnStmt(SourceLoc);
         Builder.AddExpr(aFuncReturn, Builder.CreateExpr(Builder.CreateVarRef(aAttribute)));
@@ -2022,16 +2024,16 @@ namespace {
         //  test.a = 2
         //  delete test
         // }
-        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "func", DefaultScopes);
+        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes);
         ASTBlockStmt *Body = Builder.CreateBody(Func);
 
         // TestClass test = new TestClass()
         ASTType *TestClassType = Builder.CreateClassType(TestClass);
-        ASTLocalVar *TestVar = Builder.CreateLocalVar(SourceLoc, TestClassType, "test");
+        ASTLocalVar *TestVar = Builder.CreateLocalVar(SourceLoc, TestClassType, "test", EmptyScopes);
         Builder.AddLocalVar(Body, TestVar);
         ASTClassMethod *DefaultConstructor = TestClass->getDefaultConstructor();
-        ASTCall *ConstructorCall = Builder.CreateCall(DefaultConstructor);
-        ASTCallExpr *NewExpr = Builder.CreateNewExpr(ConstructorCall);
+        ASTCall *ConstructorCall = Builder.CreateCall(DefaultConstructor, ASTCallKind::CALL_NEW);
+        ASTCallExpr *NewExpr = Builder.CreateExpr(ConstructorCall);
         ASTVarStmt *testNewStmt = Builder.CreateVarStmt(TestVar);
         Builder.AddExpr(testNewStmt, NewExpr);
         Builder.AddStmt(Body, testNewStmt);
@@ -2039,7 +2041,7 @@ namespace {
         // int a = test.a()
         ASTVarRef *Instance = Builder.CreateVarRef(TestVar);
         ASTType *aType = aFunc->getReturnType();
-        ASTLocalVar *aVar = Builder.CreateLocalVar(SourceLoc, aType, "a");
+        ASTLocalVar *aVar = Builder.CreateLocalVar(SourceLoc, aType, "a", EmptyScopes);
         Builder.AddLocalVar(Body, aVar);
         ASTCallExpr *aCallExpr = Builder.CreateExpr(Builder.CreateCall(Instance, aFunc));
         ASTVarStmt *aStmt = Builder.CreateVarStmt(aVar);
@@ -2148,13 +2150,13 @@ namespace {
 
         llvm::SmallVector<ASTClassType *, 4> SuperClasses;
         ASTClass *TestStruct = Builder.CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "TestStruct",
-                                                   DefaultScopes, SuperClasses);
+                                                   TopScopes, SuperClasses);
         ASTClassAttribute *aField = Builder.CreateClassAttribute(SourceLoc, *TestStruct, Builder.CreateIntType(SourceLoc),
-                                                                 "a", DefaultScopes);
+                                                                 "a", TopScopes);
         ASTClassAttribute *bField = Builder.CreateClassAttribute(SourceLoc, *TestStruct, Builder.CreateIntType(SourceLoc),
-                                                                 "b", DefaultScopes);
+                                                                 "b", TopScopes);
         ASTClassAttribute *cField = Builder.CreateClassAttribute(SourceLoc, *TestStruct, Builder.CreateIntType(SourceLoc),
-                                                                 "c", DefaultScopes);
+                                                                 "c", TopScopes);
 
         // int func() {
         //  TestStruct test = new TestStruct();
@@ -2162,23 +2164,23 @@ namespace {
         //  test.b = 2
         //  return 1
         // }
-        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "func", DefaultScopes);
+        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes);
         ASTBlockStmt *Body = Builder.CreateBody(Func);
 
         // TestStruct test = new TestStruct()
         ASTType *TestClassType = Builder.CreateClassType(TestStruct);
-        ASTLocalVar *TestVar = Builder.CreateLocalVar(SourceLoc, TestClassType, "test");
+        ASTLocalVar *TestVar = Builder.CreateLocalVar(SourceLoc, TestClassType, "test", EmptyScopes);
         Builder.AddLocalVar(Body, TestVar);
         ASTClassMethod *DefaultConstructor = TestStruct->getDefaultConstructor();
-        ASTCall *ConstructorCall = Builder.CreateCall(DefaultConstructor);
-        ASTCallExpr *NewExpr = Builder.CreateNewExpr(ConstructorCall);
+        ASTCall *ConstructorCall = Builder.CreateCall(DefaultConstructor, ASTCallKind::CALL_NEW);
+        ASTCallExpr *NewExpr = Builder.CreateExpr(ConstructorCall);
         ASTVarStmt *testNewStmt = Builder.CreateVarStmt(TestVar);
         Builder.AddExpr(testNewStmt, NewExpr);
         Builder.AddStmt(Body, testNewStmt);
 
         // int a = test.a
         ASTVarRef *Instance = Builder.CreateVarRef(TestVar);
-        ASTLocalVar *aVar = Builder.CreateLocalVar(SourceLoc, IntType, "a");
+        ASTLocalVar *aVar = Builder.CreateLocalVar(SourceLoc, IntType, "a", EmptyScopes);
         Builder.AddLocalVar(Body, aVar);
         ASTVarRefExpr *test_aRefExpr = Builder.CreateExpr(Builder.CreateVarRef(Instance, aField));
         ASTVarStmt *aVarStmt = Builder.CreateVarStmt(aVar);
@@ -2269,23 +2271,23 @@ namespace {
         //   C
         // }
         llvm::SmallVector<ASTEnumType *, 4> SuperEnums;
-        ASTEnum *TestEnum = Builder.CreateEnum(Module, SourceLoc, "TestEnum", DefaultScopes, SuperEnums);
-        ASTEnumEntry *A = Builder.CreateEnumEntry(SourceLoc, TestEnum, "A");
-        ASTEnumEntry *B = Builder.CreateEnumEntry(SourceLoc, TestEnum, "B");
-        ASTEnumEntry *C = Builder.CreateEnumEntry(SourceLoc, TestEnum, "C");
+        ASTEnum *TestEnum = Builder.CreateEnum(Module, SourceLoc, "TestEnum", TopScopes, SuperEnums);
+        ASTEnumEntry *A = Builder.CreateEnumEntry(SourceLoc, TestEnum, "A", EmptyScopes);
+        ASTEnumEntry *B = Builder.CreateEnumEntry(SourceLoc, TestEnum, "B", EmptyScopes);
+        ASTEnumEntry *C = Builder.CreateEnumEntry(SourceLoc, TestEnum, "C", EmptyScopes);
 
         // int main() {
         //  TestEnum a = TestEnum.A;
         //  TestEnum b = a
         //  return 1
         // }
-        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "func", DefaultScopes);
+        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes);
         ASTBlockStmt *Body = Builder.CreateBody(Func);
 
         ASTType *TestEnumType = Builder.CreateEnumType(TestEnum);
 
         //  TestEnum a = TestEnum.A;
-        ASTLocalVar *aVar = Builder.CreateLocalVar(SourceLoc, TestEnumType, "a");
+        ASTLocalVar *aVar = Builder.CreateLocalVar(SourceLoc, TestEnumType, "a", EmptyScopes);
         Builder.AddLocalVar(Body, aVar);
         ASTVarRefExpr *Enum_ARefExpr = Builder.CreateExpr(Builder.CreateVarRef(A));
         ASTVarStmt *aVarStmt = Builder.CreateVarStmt(aVar);
@@ -2293,7 +2295,7 @@ namespace {
         Builder.AddStmt(Body, aVarStmt);
 
         //  TestEnum b = a
-        ASTLocalVar *bVar = Builder.CreateLocalVar(SourceLoc, TestEnumType, "b");
+        ASTLocalVar *bVar = Builder.CreateLocalVar(SourceLoc, TestEnumType, "b", EmptyScopes);
         Builder.AddLocalVar(Body, bVar);
         ASTVarStmt *bVarStmt = Builder.CreateVarStmt(bVar);
         ASTVarRefExpr *aRefExpr = Builder.CreateExpr(Builder.CreateVarRef(aVar));
@@ -2337,7 +2339,7 @@ namespace {
         // int testFail0() {
         //   fail()
         // }
-        ASTFunction *TestFail0 = Builder.CreateFunction(Module, SourceLoc, IntType, "testFail0", DefaultScopes);
+        ASTFunction *TestFail0 = Builder.CreateFunction(Module, SourceLoc, IntType, "testFail0", TopScopes);
         ASTBlockStmt *Body0 = Builder.CreateBody(TestFail0);
         ASTFailStmt *Fail0Stmt = Builder.CreateFailStmt(SourceLoc, TestFail0->getErrorHandler());
         Builder.AddExpr(Fail0Stmt, Builder.CreateExpr());
@@ -2346,7 +2348,7 @@ namespace {
         // int testFail1() {
         //   fail(true)
         // }
-        ASTFunction *TestFail1 = Builder.CreateFunction(Module, SourceLoc, IntType, "testFail1", DefaultScopes);
+        ASTFunction *TestFail1 = Builder.CreateFunction(Module, SourceLoc, IntType, "testFail1", TopScopes);
         ASTBlockStmt *Body1 = Builder.CreateBody(TestFail1);
         ASTBoolValue *BoolVal = Builder.CreateBoolValue(SourceLoc, true);
         ASTFailStmt *Fail1Stmt = Builder.CreateFailStmt(SourceLoc, TestFail1->getErrorHandler());
@@ -2356,7 +2358,7 @@ namespace {
         // int testFail2() {
         //   fail(10)
         // }
-        ASTFunction *TestFail2 = Builder.CreateFunction(Module, SourceLoc, IntType, "testFail2", DefaultScopes);
+        ASTFunction *TestFail2 = Builder.CreateFunction(Module, SourceLoc, IntType, "testFail2", TopScopes);
         ASTBlockStmt *Body2 = Builder.CreateBody(TestFail2);
         ASTIntegerValue *IntVal = Builder.CreateIntegerValue(SourceLoc, 10);
         ASTFailStmt *Fail2Stmt = Builder.CreateFailStmt(SourceLoc, TestFail2->getErrorHandler());
@@ -2366,7 +2368,7 @@ namespace {
         // int testFail3() {
         //  fail("Error")
         // }
-        ASTFunction *TestFail3 = Builder.CreateFunction(Module, SourceLoc, IntType, "testFail3", DefaultScopes);
+        ASTFunction *TestFail3 = Builder.CreateFunction(Module, SourceLoc, IntType, "testFail3", TopScopes);
         ASTBlockStmt *Body3 = Builder.CreateBody(TestFail3);
         ASTStringValue *StrVal = Builder.CreateStringValue(SourceLoc, "Error");
         ASTFailStmt *Fail3Stmt = Builder.CreateFailStmt(SourceLoc, TestFail3->getErrorHandler());
@@ -2377,18 +2379,18 @@ namespace {
         //  fail(new TestStruct())
         // }
         llvm::SmallVector<ASTClassType *, 4> SuperClasses;
-        ASTClass *TestStruct = Builder.CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "TestStruct", DefaultScopes, SuperClasses);
-        ASTClassAttribute *aField = Builder.CreateClassAttribute(SourceLoc, *TestStruct, Builder.CreateIntType(SourceLoc), "a", DefaultScopes);
+        ASTClass *TestStruct = Builder.CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "TestStruct", TopScopes, SuperClasses);
+        ASTClassAttribute *aField = Builder.CreateClassAttribute(SourceLoc, *TestStruct, Builder.CreateIntType(SourceLoc), "a", TopScopes);
 
-        ASTFunction *TestFail4 = Builder.CreateFunction(Module, SourceLoc, IntType, "testFail4", DefaultScopes);
+        ASTFunction *TestFail4 = Builder.CreateFunction(Module, SourceLoc, IntType, "testFail4", TopScopes);
         ASTBlockStmt *Body4 = Builder.CreateBody(TestFail4);
         // TestStruct test = new TestStruct()
         ASTType *TestClassType = Builder.CreateClassType(TestStruct);
         ASTClassMethod *DefaultConstructor = TestStruct->getDefaultConstructor();
-        ASTCall *ConstructorCall = Builder.CreateCall(DefaultConstructor);
+        ASTCall *ConstructorCall = Builder.CreateCall(DefaultConstructor, ASTCallKind::CALL_NEW);
         // fail new TestStruct()
         ASTFailStmt *Fail4Stmt = Builder.CreateFailStmt(SourceLoc, TestFail4->getErrorHandler());
-        Builder.AddExpr(Fail4Stmt, Builder.CreateNewExpr(ConstructorCall));
+        Builder.AddExpr(Fail4Stmt, Builder.CreateExpr(ConstructorCall));
         EXPECT_TRUE(Builder.AddStmt(Body4, Fail4Stmt));
 
         // main() {
@@ -2398,7 +2400,7 @@ namespace {
         //   testFail3()
         //   testFail4()
         // }
-        ASTFunction *Main = Builder.CreateFunction(Module, SourceLoc, VoidType, "main", DefaultScopes);
+        ASTFunction *Main = Builder.CreateFunction(Module, SourceLoc, VoidType, "main", TopScopes);
         ASTBlockStmt *MainBody = Builder.CreateBody(Main);
 
         // call testFail0()
