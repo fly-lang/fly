@@ -7,26 +7,26 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "Sema/SemaSymbols.h"
+#include "Sema/SemaSpaceSymbols.h"
 #include "Sema/Sema.h"
 
 #include "llvm/ADT/StringMap.h"
 
 using namespace fly;
 
-SemaSymbols::SemaSymbols(Sema &S) : S(S) {
+SemaSpaceSymbols::SemaSpaceSymbols(Sema &S) : S(S) {
 
 }
 
-const llvm::StringMap<ASTGlobalVar *> &SemaSymbols::getGlobalVars() const {
+const llvm::StringMap<ASTGlobalVar *> &SemaSpaceSymbols::getGlobalVars() const {
     return GlobalVars;
 }
 
-const llvm::StringMap<std::map<uint64_t, llvm::SmallVector<ASTFunction *, 4>>> &SemaSymbols::getFunctions() const {
+const llvm::StringMap<std::map<uint64_t, llvm::SmallVector<ASTFunction *, 4>>> &SemaSpaceSymbols::getFunctions() const {
     return Functions;
 }
 
-const llvm::StringMap<ASTIdentity *> &SemaSymbols::getIdentities() const {
+const llvm::StringMap<SemaIdentitySymbols *> &SemaSpaceSymbols::getIdentities() const {
     return Identities;
 }
 

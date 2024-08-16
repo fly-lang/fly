@@ -749,6 +749,7 @@ ASTCall *SemaBuilder::CreateCall(ASTClassMethod *Method, ASTCallKind CallKind) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateCall",
                       Logger().Attr("Method=", Method).End());
     ASTCall *Call = new ASTCall(SourceLocation(), Method->Name);
+    Call->CallKind = CallKind;
     Call->Def = Method;
     return Call;
 }

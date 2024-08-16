@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Sema/SemaSymbols.h - SemaSymbols
+// include/Sema/SemaSpaceSymbols.h - SemaSpaceSymbols
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,8 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_SEMA_SYMBOLS_H
-#define FLY_SEMA_SYMBOLS_H
+#ifndef FLY_SEMA_SPACESYMBOLS_H
+#define FLY_SEMA_SPACESYMBOLS_H
 
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
@@ -21,11 +21,9 @@ namespace fly {
     class ASTModule;
     class ASTGlobalVar;
     class ASTFunction;
-    class ASTIdentity;
-    class ASTClassAttribute;
-    class ASTClassMethod;
+    class SemaIdentitySymbols;
 
-    class SemaSymbols {
+    class SemaSpaceSymbols {
 
         friend class Sema;
         friend class SemaResolver;
@@ -43,15 +41,9 @@ namespace fly {
         llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> Functions;
 
         // Identities: Class, Enum
-        llvm::StringMap<ASTIdentity *> Identities;
+        llvm::StringMap<SemaIdentitySymbols *> Identities;
 
-        // Class Attributes
-        llvm::StringMap<llvm::StringMap<ASTClassAttribute *>> ClassAttributes;
-
-        // Class Functions
-        llvm::StringMap<llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTClassMethod *, 4>>>> ClassMethods;
-
-        explicit SemaSymbols(Sema &S);
+        explicit SemaSpaceSymbols(Sema &S);
 
     public:
 
@@ -59,35 +51,35 @@ namespace fly {
 
         const llvm::StringMap<std::map<uint64_t, llvm::SmallVector<ASTFunction *, 4>>> &getFunctions() const;
 
-        const llvm::StringMap<ASTIdentity *> &getIdentities() const;
+        const llvm::StringMap<SemaIdentitySymbols *> &getIdentities() const;
 
-        template<class T>
-        bool ContainsFunction(llvm::StringMap<std::map<uint64_t, llvm::SmallVector<T *, 4>>> &Functions,
-                              T *NewFunction) {
-            // Search by Name
-            const auto &StrMapIt = Functions.find(NewFunction->getName());
-            if (StrMapIt != Functions.end()) {
-
-                // Search by Number of Parameters
-                const auto IntMapIt = StrMapIt->second.find(NewFunction->getParams().size());
-
-                // Search by Type of Parameters
-                llvm::SmallVector<T *, 4> VectorFunctions = IntMapIt->second;
-                for (auto &Function: VectorFunctions) {
-
-                    // Check if NewFunction have no params
-                    if (NewFunction->getParams().empty() && Function->getParams().empty()) {
-                        return true;
-                    }
-
-                    // Check types
-                    if (!S.Validator->CheckParams(Function->getParams(), NewFunction->getParams())) {
-                        return true;
-                    }
-                }
-            }
-            return false;
-        }
+//        template<class T>
+//        bool ContainsFunction(llvm::StringMap<std::map<uint64_t, llvm::SmallVector<T *, 4>>> &Functions,
+//                              T *NewFunction) {
+//            // Search by Name
+//            const auto &StrMapIt = Functions.find(NewFunction->getName());
+//            if (StrMapIt != Functions.end()) {
+//
+//                // Search by Number of Parameters
+//                const auto IntMapIt = StrMapIt->second.find(NewFunction->getParams().size());
+//
+//                // Search by Type of Parameters
+//                llvm::SmallVector<T *, 4> VectorFunctions = IntMapIt->second;
+//                for (auto &Function: VectorFunctions) {
+//
+//                    // Check if NewFunction have no params
+//                    if (NewFunction->getParams().empty() && Function->getParams().empty()) {
+//                        return true;
+//                    }
+//
+//                    // Check types
+//                    if (!S.Validator->CheckParams(Function->getParams(), NewFunction->getParams())) {
+//                        return true;
+//                    }
+//                }
+//            }
+//            return false;
+//        }
 
         template<class T>
         static bool InsertFunction(llvm::StringMap<std::map<uint64_t, llvm::SmallVector<T *, 4>>> &Functions,

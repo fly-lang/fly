@@ -21,7 +21,7 @@ namespace fly {
     class SemaBuilder;
     class SemaResolver;
     class SemaValidator;
-    class SemaSymbols;
+    class SemaSpaceSymbols;
     class DiagnosticsEngine;
     class DiagnosticBuilder;
     class SourceLocation;
@@ -55,10 +55,10 @@ namespace fly {
         SemaValidator *Validator = nullptr;
 
         // Default Symbols
-        SemaSymbols *DefaultSymbols;
+        SemaSpaceSymbols *DefaultSymbols;
 
         // Symbols organized by NameSpace
-        llvm::StringMap<SemaSymbols *> MapSymbols;
+        llvm::StringMap<SemaSpaceSymbols *> MapSymbols;
 
         Sema(DiagnosticsEngine &Diags);
 

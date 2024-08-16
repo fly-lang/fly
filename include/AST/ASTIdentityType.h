@@ -15,6 +15,7 @@
 
 namespace fly {
 
+    class SemaIdentitySymbols;
     class ASTIdentifier;
     class ASTIdentity;
 
@@ -36,6 +37,8 @@ namespace fly {
     protected:
 
         ASTIdentity *Def = nullptr;
+
+        SemaIdentitySymbols *IdentitySymbols = nullptr;
 
         ASTIdentityTypeKind IdentityTypeKind;
 

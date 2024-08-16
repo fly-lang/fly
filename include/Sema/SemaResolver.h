@@ -23,7 +23,8 @@ namespace fly {
 
     class Sema;
     class SemaBuilder;
-    class SemaSymbols;
+    class SemaSpaceSymbols;
+    class SemaIdentitySymbols;
     class DiagnosticsEngine;
     class DiagnosticBuilder;
     class SourceLocation;
@@ -67,11 +68,11 @@ namespace fly {
 
         ASTModule *Module;
 
-        SemaSymbols *NameSpace;
+        SemaSpaceSymbols *MySpaceSymbols;
 
-        llvm::StringMap<SemaSymbols *> Imports;
+        llvm::StringMap<SemaSpaceSymbols *> ImportSymbols;
 
-        SemaResolver(Sema &S, ASTModule *Module, SemaSymbols *Symbols);
+        SemaResolver(Sema &S, ASTModule *Module, SemaSpaceSymbols *SpaceSymbols);
 
     public:
 
@@ -109,21 +110,21 @@ namespace fly {
 
         bool ResolveIdentityType(ASTIdentityType *IdentityType);
 
-        bool ResolveIdentifier(SemaSymbols *NS, ASTStmt *Stmt, ASTIdentifier *Identifier);
+        bool ResolveIdentifier(SemaSpaceSymbols *SpaceSymbols, ASTStmt *Stmt, ASTIdentifier *Identifier);
 
-        bool ResolveIdentifier(ASTIdentity *Identity, ASTStmt *Stmt, ASTIdentifier *Identifier);
+        bool ResolveIdentifier(SemaIdentitySymbols *IdentitySymbols, ASTStmt *Stmt, ASTIdentifier *Identifier);
 
         bool ResolveIdentifier(ASTStmt *Stmt, ASTIdentifier *Identifier);
 
-        bool ResolveGlobalVarRef(SemaSymbols *NS, ASTStmt *Stmt, ASTVarRef *VarRef);
+        bool ResolveGlobalVarRef(SemaSpaceSymbols *SpaceSymbols, ASTStmt *Stmt, ASTVarRef *VarRef);
 
-        bool ResolveStaticVarRef(ASTIdentity *Identity, ASTStmt *Stmt,ASTVarRef *VarRef);
+        bool ResolveStaticVarRef(SemaIdentitySymbols *IdentitySymbols, ASTStmt *Stmt,ASTVarRef *VarRef);
 
         bool ResolveVarRef(ASTStmt *Stmt, ASTVarRef *VarRef);
 
-        bool ResolveFunctionCall(SemaSymbols *NS, ASTStmt *Stmt, ASTCall *Call);
+        bool ResolveFunctionCall(SemaSpaceSymbols *SpaceSymbols, ASTStmt *Stmt, ASTCall *Call);
 
-        bool ResolveStaticCall(ASTIdentity *Identity, ASTStmt *Stmt, ASTCall *Call);
+        bool ResolveStaticCall(SemaIdentitySymbols *IdentitySymbols, ASTStmt *Stmt, ASTCall *Call);
 
         bool ResolveCall(ASTStmt *Stmt, ASTCall *Call);
 
@@ -131,24 +132,22 @@ namespace fly {
 
         bool ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr, ASTType *Type = nullptr);
 
-        SemaSymbols *FindNameSpace(ASTIdentifier *Identifier, ASTIdentifier *&Current) const;
+        SemaSpaceSymbols *FindSpaceSymbols(ASTIdentifier *Identifier, ASTIdentifier *&Current) const;
 
-        ASTGlobalVar *FindGlobalVar(llvm::StringRef Name, SemaSymbols *Symbols) const;
+        ASTGlobalVar *FindGlobalVar(llvm::StringRef Name, SemaSpaceSymbols *SpaceSymbols) const;
 
-        ASTIdentity *FindIdentity(llvm::StringRef Name, SemaSymbols *Symbols) const;
+        SemaIdentitySymbols *FindIdentity(llvm::StringRef Name, SemaSpaceSymbols *SpaceSymbols) const;
 
-        ASTFunction *FindFunction(ASTCall *Call, SemaSymbols *Symbols) const;
+        ASTFunction *FindFunction(ASTCall *Call, SemaSpaceSymbols *SpaceSymbols) const;
 
-        ASTClassMethod *FindClassMethod(ASTCall *Call, ASTClass *Class) const;
+        ASTClassMethod *FindClassMethod(ASTCall *Call, SemaIdentitySymbols *IdentitySymbols) const;
 
         template <typename T>
         T *FindFunction(ASTCall *Call, llvm::StringMap<std::map<uint64_t, llvm::SmallVector<T *, 4>>> Functions) const;
 
         ASTVar *FindLocalVar(ASTStmt *Stmt, llvm::StringRef Name) const;
 
-        SemaSymbols *AddImportSymbols(llvm::StringRef Name);
-
-        ASTClassMethod * FindMethod(ASTCall *Call, ASTClass *Class);
+        SemaSpaceSymbols *AddImportSymbols(llvm::StringRef Name);
     };
 
 }  // end namespace fly

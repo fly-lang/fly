@@ -11,7 +11,7 @@
 #include "Sema/SemaBuilder.h"
 #include "Sema/SemaResolver.h"
 #include "Sema/SemaValidator.h"
-#include "Sema/SemaSymbols.h"
+#include "Sema/SemaSpaceSymbols.h"
 #include "Basic/Diagnostic.h"
 #include "AST/ASTContext.h"
 
@@ -26,7 +26,7 @@ Sema* Sema::CreateSema(DiagnosticsEngine &Diags) {
     S->Builder = new SemaBuilder(*S);
     S->Context = S->Builder->CreateContext();
     S->Validator = new SemaValidator(*S);
-    S->DefaultSymbols = new SemaSymbols(*S);
+    S->DefaultSymbols = new SemaSpaceSymbols(*S);
 
     // Add default NameSpace to MapSymbols
     S->MapSymbols.insert(std::make_pair(ASTContext::DEFAULT_NAMESPACE, S->DefaultSymbols));

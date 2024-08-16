@@ -768,8 +768,8 @@ llvm::Value *CodeGenModule::GenVarRef(ASTVarRef *VarRef) {
 }
 
 llvm::Value *CodeGenModule::GenCall(ASTCall *Call) {
-    FLY_DEBUG_MESSAGE("CodeGenModule", "GenCall",
-                      "Call=" << Call->str());
+    FLY_DEBUG_MESSAGE("CodeGenModule", "GenCall", "Call=" << Call->str());
+    assert(Call->getDef() && "Undefined Call");
 
     // The function arguments
     llvm::SmallVector<llvm::Value *, 8> Args;
