@@ -42,7 +42,7 @@ llvm::SmallVector<ASTNameSpace *, 8>  ASTModule::getNameSpaces() {
 }
 
 ASTNameSpace *ASTModule::getNameSpace() {
-    return NameSpaces[0];
+    return NameSpaces.empty() ? nullptr : NameSpaces[0];
 }
 
 const llvm::SmallVector<ASTImport *, 8> &ASTModule::getImports() {

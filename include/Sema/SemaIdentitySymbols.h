@@ -20,6 +20,7 @@ namespace fly {
     class Sema;
     class ASTIdentity;
     class ASTClassAttribute;
+    class ASTEnumEntry;
     class ASTClassMethod;
 
     class SemaIdentitySymbols {
@@ -32,6 +33,9 @@ namespace fly {
         // Class Attributes
         llvm::StringMap<ASTClassAttribute *> Attributes;
 
+        // Enum Entries
+        llvm::StringMap<ASTEnumEntry *> Entries;
+
         // Class Functions
         llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTClassMethod *, 4>>> Methods;
 
@@ -42,6 +46,8 @@ namespace fly {
         ASTIdentity *getIdentity();
 
         llvm::StringMap<ASTClassAttribute *> getAttributes();
+
+        const llvm::StringMap<ASTEnumEntry *> &getEntries() const;
 
         llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTClassMethod *, 4>>> getMethods();
     };

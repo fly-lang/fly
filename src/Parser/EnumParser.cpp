@@ -91,7 +91,7 @@ ASTEnum *EnumParser::Parse(Parser *P, SmallVector<ASTScope *, 8> &Scopes) {
 bool EnumParser::ParseField(const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTScope *, 8> Scopes) {
     FLY_DEBUG_MESSAGE("ClassParser", "ParseMethod", Logger().Attr("Type", Name).End());
 
-    ASTEnumEntry *EnumEntry = P->Builder.CreateEnumEntry(Loc, Enum, Name, Scopes);
+    ASTEnumEntry *EnumEntry = P->Builder.CreateEnumEntry(Loc, *Enum, Name, Scopes);
 
     // Add Comment to AST
     llvm::StringRef Comment;

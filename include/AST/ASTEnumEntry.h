@@ -28,18 +28,18 @@ namespace fly {
 
         uint32_t Index;
 
-        ASTEnum *Enum = nullptr;
+        ASTEnum &Enum;
 
         llvm::StringRef Comment;
 
         CodeGenEnumEntry *CodeGen = nullptr;
 
-        ASTEnumEntry(const SourceLocation &Loc, ASTEnumType *Type, llvm::StringRef Name,
+        ASTEnumEntry(const SourceLocation &Loc, ASTEnum &Type, llvm::StringRef Name,
                      SmallVector<ASTScope *, 8> &Scopes);
 
     public:
 
-        ASTEnum *getEnum() const;
+        ASTEnum &getEnum() const;
 
         uint32_t getIndex() const;
 

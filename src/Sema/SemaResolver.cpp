@@ -227,6 +227,11 @@ void SemaResolver::ResolveIdentityDeclarations() {
                     SemaSpaceSymbols::InsertFunction(IdentitySymbols->Methods, Method);
                 }
             }
+        } else if (Identity->getTopDefKind() == ASTTopDefKind::DEF_ENUM) {
+            ASTEnum *Enum = (ASTEnum *) Identity;
+            for (auto &Entry: Enum->Entries) {
+                IdentitySymbols->Entries.insert(std::make_pair(Entry->getName(), Entry));
+            }
         }
     }
 }
@@ -450,7 +455,11 @@ void SemaResolver::ResolveIdentityDefinitions() {
             }
 
         } else if (Identity->getTopDefKind() == ASTTopDefKind::DEF_ENUM) {
-            // TODO
+            ASTEnum *Enum = (ASTEnum *) Identity;
+            for (auto &Entry : Enum->Entries) {
+                // TODO check Entry value
+                // S.Validator->CheckValueExpr(Entry->getExpr());
+            }
         }
     }
 }
@@ -499,9 +508,9 @@ bool SemaResolver::ResolveStmt(ASTStmt *Stmt) {
         case ASTStmtKind::STMT_VAR: {
             ASTVarStmt *VarStmt = (ASTVarStmt *) Stmt;
             ResolveVarRef(Stmt->Parent, VarStmt->getVarRef());
-            if (VarStmt->getVarRef()->Def && VarStmt->getExpr() != nullptr && !VarStmt->getVarRef()->getDef()->isInitialized())
+            if (VarStmt->getVarRef()->getDef() && VarStmt->getExpr() != nullptr && !VarStmt->getVarRef()->getDef()->isInitialized())
                 VarStmt->getVarRef()->getDef()->setInitialization(VarStmt); // FIXME ? with if - else
-            return VarStmt->getVarRef()->Def && ResolveExpr(VarStmt->Parent, VarStmt->Expr, VarStmt->getVarRef()->getDef()->getType());
+            return VarStmt->getVarRef()->getDef() && ResolveExpr(VarStmt->Parent, VarStmt->Expr, VarStmt->getVarRef()->getDef()->getType());
         }
         case ASTStmtKind::STMT_EXPR:
             return ResolveExpr(Stmt->Parent, ((ASTExprStmt *) Stmt)->Expr);
@@ -822,12 +831,10 @@ bool SemaResolver::ResolveStaticVarRef(SemaIdentitySymbols *IdentitySymbols, AST
                 VarRef->Resolved = true;
             }
         } else if (IdentitySymbols->getIdentity()->getTopDefKind() == ASTTopDefKind::DEF_ENUM) {
-            for (auto &EnumEntry: ((ASTEnum *) IdentitySymbols)->Entries) {
-                if (EnumEntry->getName() == VarRef->getName()) {
-                    VarRef->Def = EnumEntry;
-                    VarRef->Resolved = true;
-                    break;
-                }
+            ASTEnumEntry *Entry = IdentitySymbols->getEntries().lookup(VarRef->getName());
+            if (Entry) {
+                VarRef->Def = Entry;
+                VarRef->Resolved = true;
             }
         }
     }

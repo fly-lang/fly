@@ -104,8 +104,7 @@ namespace {
                         ArrayInt0Type(Builder.CreateArrayType(SourceLoc, IntType,
                                                        Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 0)))),
                         TopScopes(SemaBuilderScopes::Create()
-                            ->addVisibility(SourceLocation(), ASTVisibilityKind::V_DEFAULT)
-                            ->addConstant(SourceLocation(), false)->getScopes()),
+                            ->addVisibility(SourceLocation(), ASTVisibilityKind::V_DEFAULT)->getScopes()),
                         EmptyScopes(SemaBuilderScopes::Create()->getScopes()) {
             llvm::InitializeAllTargets();
             llvm::InitializeAllTargetMCs();
@@ -2124,7 +2123,7 @@ namespace {
                               "  store i32 %7, i32* %3, align 4\n"
                               // test.a = 2
                               "  %8 = getelementptr inbounds %TestClass, %TestClass* %6, i32 0, i32 1\n"
-                              "  store i32 2, i32* %8, align 4\n"
+                              "  store i8 2, i32* %8, align 1\n"
                               // delete test
                               "  %9 = load %TestClass*, %TestClass** %2, align 8\n"
                               "  %10 = bitcast %TestClass* %9 to i8*\n"
@@ -2188,7 +2187,8 @@ namespace {
         Builder.AddStmt(Body, aVarStmt);
 
         // test.b = 2
-        ASTVarStmt *test_bVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(Instance, bField));
+        ASTVarRef *Instance2 = Builder.CreateVarRef(TestVar);
+        ASTVarStmt *test_bVarStmt = Builder.CreateVarStmt(Builder.CreateVarRef(Instance2, bField));
         ASTExpr *Expr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 2));
         Builder.AddExpr(test_bVarStmt, Expr);
         Builder.AddStmt(Body, test_bVarStmt);
@@ -2272,9 +2272,9 @@ namespace {
         // }
         llvm::SmallVector<ASTEnumType *, 4> SuperEnums;
         ASTEnum *TestEnum = Builder.CreateEnum(Module, SourceLoc, "TestEnum", TopScopes, SuperEnums);
-        ASTEnumEntry *A = Builder.CreateEnumEntry(SourceLoc, TestEnum, "A", EmptyScopes);
-        ASTEnumEntry *B = Builder.CreateEnumEntry(SourceLoc, TestEnum, "B", EmptyScopes);
-        ASTEnumEntry *C = Builder.CreateEnumEntry(SourceLoc, TestEnum, "C", EmptyScopes);
+        ASTEnumEntry *A = Builder.CreateEnumEntry(SourceLoc, *TestEnum, "A", EmptyScopes);
+        ASTEnumEntry *B = Builder.CreateEnumEntry(SourceLoc, *TestEnum, "B", EmptyScopes);
+        ASTEnumEntry *C = Builder.CreateEnumEntry(SourceLoc, *TestEnum, "C", EmptyScopes);
 
         // int main() {
         //  TestEnum a = TestEnum.A;

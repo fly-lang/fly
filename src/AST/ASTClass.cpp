@@ -17,9 +17,9 @@
 using namespace fly;
 
 ASTClass::ASTClass(ASTModule *Module, ASTClassKind ClassKind, llvm::SmallVector<ASTScope *, 8> &Scopes,
-                   const SourceLocation &Loc, llvm::StringRef Name) :
+                   const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTClassType *, 4> &SuperClasses) :
         ASTIdentity(Module, ASTTopDefKind::DEF_CLASS, Scopes, Loc, Name), ClassKind(ClassKind),
-        Visibility(ASTVisibilityKind::V_DEFAULT) {
+        Visibility(ASTVisibilityKind::V_DEFAULT), SuperClasses(SuperClasses) {
 
 }
 

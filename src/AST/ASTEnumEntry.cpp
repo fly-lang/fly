@@ -14,12 +14,12 @@
 
 using namespace fly;
 
-ASTEnumEntry::ASTEnumEntry(const SourceLocation &Loc, ASTEnumType *Type, llvm::StringRef Name,
+ASTEnumEntry::ASTEnumEntry(const SourceLocation &Loc, ASTEnum &Enum, llvm::StringRef Name,
                            SmallVector<ASTScope *, 8> &Scopes) :
-        ASTVar(ASTVarKind::VAR_ENUM, Loc, Type, Name, Scopes) {
+        ASTVar(ASTVarKind::VAR_ENUM, Loc, Enum.getType(), Name, Scopes), Enum(Enum) {
 }
 
-ASTEnum *ASTEnumEntry::getEnum() const {
+ASTEnum &ASTEnumEntry::getEnum() const {
     return Enum;
 }
 

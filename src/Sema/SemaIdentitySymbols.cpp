@@ -25,6 +25,10 @@ llvm::StringMap<ASTClassAttribute *> SemaIdentitySymbols::getAttributes() {
     return Attributes;
 }
 
+const llvm::StringMap<ASTEnumEntry *> &SemaIdentitySymbols::getEntries() const {
+    return Entries;
+}
+
 llvm::StringMap<std::map<uint64_t, llvm::SmallVector<ASTClassMethod *, 4>>> SemaIdentitySymbols::getMethods() {
     return Methods;
 }

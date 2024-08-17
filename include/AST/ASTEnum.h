@@ -28,15 +28,13 @@ namespace fly {
         friend class SemaResolver;
         friend class SemaValidator;
 
-        ASTEnumType *Type = nullptr;
-
         llvm::SmallVector<ASTEnumType *, 4> SuperClasses; // FIXME ?
 
         // Class Fields
         llvm::SmallVector<ASTEnumEntry *, 8> Entries;
 
         ASTEnum(ASTModule *Module, const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes,
-                 llvm::SmallVector<ASTEnumType *, 4> &ExtClasses);
+                 llvm::SmallVector<ASTEnumType *, 4> &SuperClasses);
 
     public:
 

@@ -14,13 +14,13 @@
 
 using namespace fly;
 
-ASTClassAttribute::ASTClassAttribute(const SourceLocation &Loc, ASTType *Type,
+ASTClassAttribute::ASTClassAttribute(const SourceLocation &Loc, ASTClass &Class, ASTType *Type,
                                      llvm::StringRef Name, SmallVector<ASTScope *, 8> &Scopes) :
-        ASTVar(ASTVarKind::VAR_CLASS, Loc, Type, Name, Scopes), Visibility(ASTVisibilityKind::V_DEFAULT) {
+        ASTVar(ASTVarKind::VAR_CLASS, Loc, Type, Name, Scopes), Class(Class), Visibility(ASTVisibilityKind::V_DEFAULT) {
 
 }
 
-ASTClass *ASTClassAttribute::getClass() const {
+ASTClass &ASTClassAttribute::getClass() const {
     return Class;
 }
 

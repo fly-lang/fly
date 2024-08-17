@@ -28,7 +28,7 @@ namespace fly {
         friend class SemaResolver;
         friend class SemaValidator;
 
-        ASTClass *Class = nullptr;
+        ASTClass &Class;
 
         ASTVisibilityKind Visibility;
 
@@ -36,12 +36,12 @@ namespace fly {
 
         CodeGenVarBase *CodeGen = nullptr;
 
-        ASTClassAttribute(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
+        ASTClassAttribute(const SourceLocation &Loc, ASTClass &Class, ASTType *Type, llvm::StringRef Name,
                           SmallVector<ASTScope *, 8> &Scopes);
 
     public:
 
-        ASTClass *getClass() const;
+        ASTClass &getClass() const;
 
         ASTExpr *getExpr() const;
 

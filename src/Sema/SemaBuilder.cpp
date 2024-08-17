@@ -210,11 +210,8 @@ ASTClass *SemaBuilder::CreateClass(ASTModule *Module, const SourceLocation &Loc,
                               .AttrList("Scopes", Scopes)
                               .End());
     S.getValidator().CheckCreateClass(Loc, Name, ClassKind, Scopes, ClassTypes);
-    ASTClass *Class = new ASTClass(Module, ClassKind, Scopes, Loc, Name);
-    Class->SuperClasses = ClassTypes;
+    ASTClass *Class = new ASTClass(Module, ClassKind, Scopes, Loc, Name, ClassTypes);
     Class->Type = CreateClassType(Class);
-
-    Class->Module = Module;
 
     // Lookup into namespace
     Module->Identities.push_back(Class);
@@ -242,8 +239,7 @@ ASTClassAttribute *SemaBuilder::CreateClassAttribute(const SourceLocation &Loc, 
                                 .Attr("Name", Name)
                                 .AttrList("Scopes", Scopes).End());
     S.getValidator().CheckCreateClassVar(Loc, Name, Type, Scopes);
-    ASTClassAttribute *Attribute = new ASTClassAttribute(Loc, Type, Name, Scopes);
-    Attribute->Class = &Class;
+    ASTClassAttribute *Attribute = new ASTClassAttribute(Loc, Class, Type, Name, Scopes);
     Class.Attributes.push_back(Attribute);
     return Attribute;
 }
@@ -314,20 +310,22 @@ ASTEnum *SemaBuilder::CreateEnum(ASTModule *Module, const SourceLocation &Loc, c
     S.getValidator().CheckCreateEnum(Loc, Name, Scopes, EnumTypes);
     ASTEnum *Enum = new ASTEnum(Module, Loc, Name, Scopes, EnumTypes);
     Enum->Type = CreateEnumType(Enum);
+
+    // Lookup into namespace
+    Module->Identities.push_back(Enum);
+
     return Enum;
 }
 
-ASTEnumEntry *SemaBuilder::CreateEnumEntry(const SourceLocation &Loc, ASTEnum *Enum, llvm::StringRef Name,
+ASTEnumEntry *SemaBuilder::CreateEnumEntry(const SourceLocation &Loc, ASTEnum &Enum, llvm::StringRef Name,
                                            llvm::SmallVector<ASTScope *, 8> &Scopes) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateEnumEntry",
                       Logger().Attr("Loc", (uint64_t) Loc.getRawEncoding())
                               .Attr("Name", Name).End());
     S.getValidator().CheckCreateEnumEntry(Loc, Name);
-    ASTEnumEntry *EnumEntry = new ASTEnumEntry(Loc, Enum->Type, Name, Scopes);
-
-    EnumEntry->Enum = Enum;
-    EnumEntry->Index = Enum->Entries.size() + 1;
-    Enum->Entries.push_back(EnumEntry);
+    ASTEnumEntry *EnumEntry = new ASTEnumEntry(Loc, Enum, Name, Scopes);
+    EnumEntry->Index = Enum.Entries.size() + 1;
+    Enum.Entries.push_back(EnumEntry);
     return EnumEntry;
 }
 
@@ -784,7 +782,42 @@ ASTVarRef *SemaBuilder::CreateVarRef(ASTVar *Var) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateVarRef",
                       Logger().Attr("Var", Var).End());
     ASTVarRef *VarRef = new ASTVarRef(Var->getLocation(), Var->getName());
-    VarRef->Def = Var;
+    switch (Var->getVarKind()) {
+        
+        case ASTVarKind::VAR_GLOBAL: {
+            ASTNameSpace *NameSpace = ((ASTGlobalVar *) Var)->getModule()->getNameSpace();
+            if (NameSpace) {
+                NameSpace->Child = VarRef;
+                VarRef->Parent = NameSpace;
+            }
+        }
+            break;
+        case ASTVarKind::VAR_CLASS: {
+            ASTClass &Class = ((ASTClassAttribute *) Var)->getClass();
+            ASTIdentifier *ClassType = CreateIdentifier(Class.getLocation(), Class.getName());
+            ASTIdentifier *NameSpace = Class.getNameSpace() ? CreateIdentifier(Class.getNameSpace()->getLocation(), Class.getNameSpace()->getName()) : nullptr;
+            if (NameSpace) {
+                NameSpace->Child = ClassType;
+                ClassType->Parent = NameSpace;
+            }
+            ClassType->Child = VarRef;
+            VarRef->Parent = ClassType;
+
+        }
+            break;
+        case ASTVarKind::VAR_ENUM: {
+            ASTEnum &Enum = ((ASTEnumEntry *) Var)->getEnum();
+            ASTIdentifier *EnumType = CreateIdentifier(Enum.getLocation(), Enum.getName());
+            ASTIdentifier *NameSpace = Enum.getNameSpace() ? CreateIdentifier(Enum.getNameSpace()->getLocation(), Enum.getNameSpace()->getName()) : nullptr;
+            if (NameSpace) {
+                NameSpace->Child = EnumType;
+                EnumType->Parent = NameSpace;
+            }
+            EnumType->Child = VarRef;
+            VarRef->Parent = EnumType;
+        }
+            break;
+    }
     return VarRef;
 }
 
@@ -793,6 +826,7 @@ ASTVarRef *SemaBuilder::CreateVarRef(ASTIdentifier *Instance, ASTVar *Var) {
                       Logger().Attr("Instance", Instance).Attr("Var", Var).End());
     ASTVarRef *VarRef = CreateVarRef(Var);
     VarRef->Parent = Instance;
+    Instance->Child = VarRef;
     return VarRef;
 }
 

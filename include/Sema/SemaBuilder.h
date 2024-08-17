@@ -243,7 +243,7 @@ namespace fly {
         ASTEnum *CreateEnum(ASTModule *Module, const SourceLocation &Loc, llvm::StringRef Name, SmallVector<ASTScope *, 8> &Scopes,
                    llvm::SmallVector<ASTEnumType *, 4> EnumTypes);
 
-        ASTEnumEntry *CreateEnumEntry(const SourceLocation &Loc, ASTEnum *Enum, llvm::StringRef Name,
+        ASTEnumEntry *CreateEnumEntry(const SourceLocation &Loc, ASTEnum &Enum, llvm::StringRef Name,
                                       llvm::SmallVector<ASTScope *, 8> &Scopes);
 
         // Create Types
