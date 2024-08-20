@@ -708,7 +708,8 @@ ASTIdentifier *SemaBuilder::CreateIdentifier(const SourceLocation &Loc, llvm::St
             .Attr("Name", Name)
             .End());
     S.getValidator().CheckCreateIdentifier(Loc, Name);
-    return new ASTIdentifier(Loc, Name);
+    ASTIdentifier *Identifier = new ASTIdentifier(Loc, Name);
+    return Identifier;
 }
 
 /**
@@ -718,14 +719,24 @@ ASTIdentifier *SemaBuilder::CreateIdentifier(const SourceLocation &Loc, llvm::St
  * @param NameSpace
  * @return
  */
-ASTCall *SemaBuilder::CreateCall(ASTIdentifier *Identifier, ASTCallKind CallKind) {
+ASTCall *SemaBuilder::CreateCall(ASTIdentifier *Identifier, llvm::SmallVector<ASTExpr *, 8> &Args, ASTCallKind CallKind,
+                                 ASTIdentifier *Parent) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateCall",
                       Logger().Attr("Identifier", Identifier).End());
     ASTCall *Call = new ASTCall(Identifier->getLocation(), Identifier->getName());
     Call->CallKind = CallKind;
-    Call->Parent = Identifier->Parent;
-    Call->Child = Identifier->Child;
-    Call->FullName = Identifier->FullName;
+    if (Parent) { // Take Parent
+        Parent->AddChild(Call);
+    } else { // Do a copy
+        Call->Parent = Identifier->Parent;
+        Call->Child = Identifier->Child;
+        Call->FullName = Identifier->FullName;
+    }
+    uint64_t i = 0;
+    for (auto &Expr : Args) {
+        ASTArg *Arg = new ASTArg(Expr, i++);
+        Call->Args.push_back(Arg);
+    }
     return Call;
 }
 
@@ -735,11 +746,13 @@ ASTCall *SemaBuilder::CreateCall(ASTIdentifier *Identifier, ASTCallKind CallKind
  * @param Function
  * @return
  */
-ASTCall *SemaBuilder::CreateCall(ASTFunction *Function) {
+ASTCall *SemaBuilder::CreateCall(ASTFunction *Function, llvm::SmallVector<ASTExpr *, 8> &Args) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateCall",
                       Logger().Attr("Function=", Function).End());
-    ASTCall *Call = new ASTCall(SourceLocation(), Function->Name);
+    ASTIdentifier *Identifier = CreateIdentifier(SourceLocation(), Function->Name);
+    ASTCall *Call = CreateCall(Identifier, Args, ASTCallKind::CALL_FUNCTION);
     Call->Def = Function;
+    Call->Resolved = true;
     return Call;
 }
 
@@ -761,19 +774,17 @@ ASTCall *SemaBuilder::CreateCall(ASTIdentifier *Instance, ASTClassMethod *Method
     return Call;
 }
 
-ASTArg *SemaBuilder::CreateArg(ASTExpr *Expr) {
-    FLY_DEBUG("SemaBuilder", "CreateArg");
-    ASTArg *Arg = new ASTArg(Expr);
-    return Arg;
-}
-
-ASTVarRef *SemaBuilder::CreateVarRef(ASTIdentifier *Identifier) {
+ASTVarRef *SemaBuilder::CreateVarRef(ASTIdentifier *Identifier, ASTIdentifier *Parent) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateVarRef",
                       Logger().Attr("Identifier", Identifier).End());
     ASTVarRef *VarRef = new ASTVarRef(Identifier->getLocation(), Identifier->getName());
-    VarRef->Parent = Identifier->Parent;
-    VarRef->Child = Identifier->Child;
-    VarRef->FullName = Identifier->FullName;
+    if (Parent) { // Take Parent
+        Parent->AddChild(VarRef);
+    } else { // Do a copy
+        VarRef->Parent = Identifier->Parent;
+        VarRef->Child = Identifier->Child;
+        VarRef->FullName = Identifier->FullName;
+    }
     // delete Identifier; TODO
     return VarRef;
 }
@@ -782,51 +793,8 @@ ASTVarRef *SemaBuilder::CreateVarRef(ASTVar *Var) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateVarRef",
                       Logger().Attr("Var", Var).End());
     ASTVarRef *VarRef = new ASTVarRef(Var->getLocation(), Var->getName());
-    switch (Var->getVarKind()) {
-        
-        case ASTVarKind::VAR_GLOBAL: {
-            ASTNameSpace *NameSpace = ((ASTGlobalVar *) Var)->getModule()->getNameSpace();
-            if (NameSpace) {
-                NameSpace->Child = VarRef;
-                VarRef->Parent = NameSpace;
-            }
-        }
-            break;
-        case ASTVarKind::VAR_CLASS: {
-            ASTClass &Class = ((ASTClassAttribute *) Var)->getClass();
-            ASTIdentifier *ClassType = CreateIdentifier(Class.getLocation(), Class.getName());
-            ASTIdentifier *NameSpace = Class.getNameSpace() ? CreateIdentifier(Class.getNameSpace()->getLocation(), Class.getNameSpace()->getName()) : nullptr;
-            if (NameSpace) {
-                NameSpace->Child = ClassType;
-                ClassType->Parent = NameSpace;
-            }
-            ClassType->Child = VarRef;
-            VarRef->Parent = ClassType;
-
-        }
-            break;
-        case ASTVarKind::VAR_ENUM: {
-            ASTEnum &Enum = ((ASTEnumEntry *) Var)->getEnum();
-            ASTIdentifier *EnumType = CreateIdentifier(Enum.getLocation(), Enum.getName());
-            ASTIdentifier *NameSpace = Enum.getNameSpace() ? CreateIdentifier(Enum.getNameSpace()->getLocation(), Enum.getNameSpace()->getName()) : nullptr;
-            if (NameSpace) {
-                NameSpace->Child = EnumType;
-                EnumType->Parent = NameSpace;
-            }
-            EnumType->Child = VarRef;
-            VarRef->Parent = EnumType;
-        }
-            break;
-    }
-    return VarRef;
-}
-
-ASTVarRef *SemaBuilder::CreateVarRef(ASTIdentifier *Instance, ASTVar *Var) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateVarRef",
-                      Logger().Attr("Instance", Instance).Attr("Var", Var).End());
-    ASTVarRef *VarRef = CreateVarRef(Var);
-    VarRef->Parent = Instance;
-    Instance->Child = VarRef;
+    VarRef->Resolved = true;
+    VarRef->Def = Var;
     return VarRef;
 }
 
@@ -1151,19 +1119,6 @@ bool SemaBuilder::AddStructValue(ASTStructValue *StructValue, llvm::StringRef Ke
             .Attr("StructValue", StructValue)
             .Attr("Key", Key).Attr("Value", Value).End());
     return StructValue->Values.insert(std::make_pair(Key, Value)).second;
-}
-
-bool
-SemaBuilder::AddCallArg(ASTCall *Call, ASTExpr *Expr) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "AddCallArg", Logger()
-                      .Attr("FunctionCall", Call)
-                      .Attr("Expr", Expr).End());
-    if (Expr->getExprKind() != ASTExprKind::EXPR_EMPTY) {
-        ASTArg *Arg = new ASTArg(Expr);
-        Arg->Index = Call->getArgs().empty() ? 0 : Call->getArgs().size();
-        Call->Args.push_back(Arg);
-    }
-    return true;
 }
 
 bool SemaBuilder::AddLocalVar(ASTBlockStmt *BlockStmt, ASTLocalVar *LocalVar) {

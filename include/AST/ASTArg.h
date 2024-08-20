@@ -32,7 +32,7 @@ namespace fly {
 
         ASTCall *Call = nullptr;
 
-        ASTArg(ASTExpr *Expr);
+        ASTArg(ASTExpr *Expr, uint64_t Index);
 
     public:
 

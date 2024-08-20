@@ -13,8 +13,8 @@
 
 using namespace fly;
 
-ASTArg::ASTArg(ASTExpr *Expr) :
-        ASTBase(Expr->getLocation()), Expr(Expr), Index(0) {
+ASTArg::ASTArg(ASTExpr *Expr, uint64_t Index) :
+        ASTBase(Expr->getLocation()), Expr(Expr), Index(Index) {
 
 }
 

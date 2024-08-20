@@ -541,9 +541,15 @@ bool SemaResolver::ResolveStmt(ASTStmt *Stmt) {
 }
 
 bool SemaResolver::ResolveStmtBlock(ASTBlockStmt *Block) {
+    // Resolve LocalVar Type
+    for (auto &LocalVar : Block->LocalVars) {
+        ResolveType(LocalVar.getValue()->getType());
+    }
+    // Resolve Statements
     for (ASTStmt *Stmt : Block->Content) {
         ResolveStmt(Stmt);
     }
+    // Check LocalVar initialization
     for (auto &LocalVar : Block->LocalVars) {
         if (!LocalVar.second->isInitialized())
             S.Diag(LocalVar.getValue()->getLocation(), diag::err_sema_uninit_var) << LocalVar.getValue()->getName();
@@ -672,6 +678,7 @@ bool SemaResolver::ResolveIdentifier(SemaSpaceSymbols *SpaceSymbols, ASTStmt *St
                 ASTType *Type = Call->getDef()->getReturnType();
                 if (Type->isIdentity()) {
                     if (ResolveIdentityType((ASTIdentityType *) Type))
+                        // Can be only a Call or a Var
                         return ResolveIdentifier(((ASTIdentityType *) Type)->IdentitySymbols, Stmt, Call->getChild());
                 } else {
                     // Error: cannot access to not identity var
@@ -679,7 +686,7 @@ bool SemaResolver::ResolveIdentifier(SemaSpaceSymbols *SpaceSymbols, ASTStmt *St
                 }
             }
         } else {
-
+            // Identity is Type
             // NameSpace.Type...Call() or NameSpace.Type...Var
             SemaIdentitySymbols *IdentitySymbols = FindIdentity(Identifier->getName(), SpaceSymbols);
             if (IdentitySymbols) {
@@ -702,6 +709,7 @@ bool SemaResolver::ResolveIdentifier(SemaSpaceSymbols *SpaceSymbols, ASTStmt *St
                 return Identifier->Resolved;
             }
 
+            // Identity is GlobalVar
             // NameSpace.GlobalVar...Call() or NameSpace.GlobalVar...Var
             return ResolveGlobalVarRef(SpaceSymbols, Stmt, (ASTVarRef *) Identifier);
         }
@@ -765,10 +773,11 @@ bool SemaResolver::ResolveIdentifier(ASTStmt *Stmt, ASTIdentifier *Identifier) {
                     // Error: cannot access to not identity var
                 }
                 if (ResolveIdentityType((ASTIdentityType *) Type))
+                    // Can be only a Call or a Var
                     return ResolveIdentifier(((ASTIdentityType *) Type)->IdentitySymbols, Stmt, Call->getChild());
             }
 
-        } else {
+        } else if (Identifier->isVarRef()) {
             auto *VarRef = (ASTVarRef *) Identifier;
 
             // Search in LocalVars
@@ -794,11 +803,16 @@ bool SemaResolver::ResolveIdentifier(ASTStmt *Stmt, ASTIdentifier *Identifier) {
                 VarRef->Resolved = true;
 
                 // Resolve Child
-                if (VarRef->getChild()) {
-                    return ResolveIdentifier(Stmt, VarRef->getChild());
+                if (VarRef->getChild() && Var->getType()->isIdentity()) {
+                    ASTIdentityType *IdentityType = (ASTIdentityType *) Var->getType();
+                    return ResolveIdentifier(IdentityType->IdentitySymbols, Stmt, VarRef->getChild());
                 }
             }
-
+        } else {
+            ASTIdentityType *IdentityType = S.Builder->CreateIdentityType(Identifier);
+            if (ResolveIdentityType(IdentityType) && IdentityType->getChild()) {
+                return ResolveIdentifier(IdentityType->IdentitySymbols, Stmt, IdentityType->getChild());
+            }
         }
     }
 
@@ -976,7 +990,7 @@ bool SemaResolver::ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr, ASTType *Type) {
             if (ResolveCall(Stmt, Call)) {
                 switch (Call->getCallKind()) {
 
-                    case ASTCallKind::CALL_NONE:
+                    case ASTCallKind::CALL_FUNCTION:
                         Expr->Type = Call->Def->ReturnType;
                         break;
                     case ASTCallKind::CALL_NEW: {

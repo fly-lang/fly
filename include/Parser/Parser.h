@@ -115,7 +115,7 @@ namespace fly {
         bool ParseBuiltinType(ASTType *&);
         bool ParseArrayType(ASTType *&);
         bool ParseType(ASTType *&);
-        bool ParseCall(ASTIdentifier *&Identifier);
+        ASTCall *ParseCall(ASTIdentifier *&Identifier);
         bool ParseCallArg(ASTCall *Call);
         ASTIdentifier *ParseIdentifier(ASTIdentifier *Parent = nullptr);
 

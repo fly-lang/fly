@@ -58,11 +58,10 @@ ASTIdentifierKind ASTIdentifier::getIdKind() const {
     return Kind;
 }
 
-ASTIdentifier *ASTIdentifier::AddChild(ASTIdentifier *Identifier) {
+void ASTIdentifier::AddChild(ASTIdentifier *Identifier) {
     Child = Identifier;
     Child->Parent = this;
-    FullName.append(".").append(Name.data());
-    return Child;
+    Child->FullName = FullName.append(".").append(Child->Name.data());
 }
 
 ASTIdentifier *ASTIdentifier::getParent() const {

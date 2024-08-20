@@ -68,7 +68,7 @@ namespace fly {
 
         ASTIdentifierKind getIdKind() const;
 
-        ASTIdentifier * AddChild(ASTIdentifier *Identifier);
+        void AddChild(ASTIdentifier *Identifier);
 
         ASTIdentifier *getParent() const;
 

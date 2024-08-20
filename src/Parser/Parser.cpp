@@ -966,26 +966,30 @@ bool Parser::ParseType(ASTType *&Type) {
  * @param Loc
  * @return true on Success or false on Error
  */
-bool Parser::ParseCall(ASTIdentifier *&Identifier) {
+ASTCall *Parser::ParseCall(ASTIdentifier *&Identifier) {
     FLY_DEBUG_MESSAGE("Parser", "ParseCall", Logger()
             .Attr("Loc", Identifier).End());
     assert(Tok.is(tok::l_paren) && "Call start with parenthesis");
 
     // Parse Call args
-    ASTCall *Call = Builder.CreateCall(Identifier, ASTCallKind::CALL_NONE);
     ConsumeParen(); // consume l_paren
+    ASTCall *Call = nullptr;
 
-    if (ParseCallArg(Call)) {
-
-        if (Tok.is(tok::r_paren)) {
-            ConsumeParen();
-
-            Identifier = Call;
-            return true; // end
+    // Parse Args in a Function Call
+    llvm::SmallVector<ASTExpr *, 8> Args;
+    ASTExpr *Arg = nullptr;
+    while ((Arg = ParseExpr(nullptr))) {
+        Args.push_back(Arg);
+        if (Tok.isNot(tok::comma)) {
+            break;
         }
     }
+    if (Tok.is(tok::r_paren)) {
+        ConsumeParen();
+        Call = Builder.CreateCall(Identifier, Args, ASTCallKind::CALL_FUNCTION);
+    }
 
-    return false;
+    return Call;
 }
 
 /**
@@ -997,17 +1001,7 @@ bool Parser::ParseCallArg(ASTCall *Call) {
     FLY_DEBUG_MESSAGE("Parser", "ParseCallArg",
                       Logger().Attr("Call", Call).End());
 
-    // Parse Args in a Function Call
-    if (Builder.AddCallArg(Call, ParseExpr(nullptr))) {
 
-        if (Tok.is(tok::comma)) {
-            ConsumeToken();
-
-            return ParseCallArg(Call);
-        }
-
-        return true;
-    }
 
     Diag(Tok.getLocation(), diag::err_func_param);
     return false;
@@ -1031,7 +1025,8 @@ ASTIdentifier *Parser::ParseIdentifier(ASTIdentifier *Parent) {
     if (Parent == nullptr) {
         Child = Builder.CreateIdentifier(ConsumeToken(), Name);
     } else {
-        Child = Parent->AddChild(Builder.CreateIdentifier(ConsumeToken(), Name));
+        Parent->AddChild(Builder.CreateIdentifier(ConsumeToken(), Name));
+        Child = Parent->getChild();
     }
 
     // case 0: Class

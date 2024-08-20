@@ -320,22 +320,18 @@ namespace fly {
         ASTIdentifier *CreateIdentifier(const SourceLocation &Loc, llvm::StringRef Name);
 
         // Create Call
-        ASTCall *CreateCall(ASTIdentifier *Identifier, ASTCallKind CallKind);
+        ASTCall *CreateCall(ASTIdentifier *Identifier, llvm::SmallVector<ASTExpr *, 8> &Args, ASTCallKind CallKind, ASTIdentifier *Parent = nullptr);
 
-        ASTCall *CreateCall(ASTFunction *Function);
+        ASTCall *CreateCall(ASTFunction *Function, llvm::SmallVector<ASTExpr *, 8> &Args);
 
         ASTCall *CreateCall(ASTClassMethod *Method, ASTCallKind CallKind);
 
         ASTCall *CreateCall(ASTIdentifier *Instance, ASTClassMethod *Method);
 
-        ASTArg *CreateArg(ASTExpr *Expr);
-
         // Create VarRef
-        ASTVarRef *CreateVarRef(ASTIdentifier *Identifier);
+        ASTVarRef *CreateVarRef(ASTIdentifier *Identifier, ASTIdentifier *Parent = nullptr);
 
         ASTVarRef *CreateVarRef(ASTVar *Var);
-
-        ASTVarRef *CreateVarRef(ASTIdentifier *Instance, ASTVar *Var);
 
         // Create Expressions
         ASTEmptyExpr *CreateExpr();
@@ -404,8 +400,6 @@ namespace fly {
         bool AddArrayValue(ASTArrayValue *ArrayValue, ASTValue *Value);
 
         bool AddStructValue(ASTStructValue *ArrayValue, llvm::StringRef Key, ASTValue *Value);
-
-        bool AddCallArg(ASTCall *Call, ASTExpr *Expr);
 
         bool AddLocalVar(ASTBlockStmt *BlockStmt, ASTLocalVar *LocalVar);
 

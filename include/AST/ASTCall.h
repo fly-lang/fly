@@ -19,7 +19,7 @@ namespace fly {
     class ASTFunctionBase;
 
     enum class ASTCallKind {
-        CALL_NONE,
+        CALL_FUNCTION,
         CALL_NEW,
         CALL_NEW_UNIQUE,
         CALL_NEW_SHARED,
@@ -43,7 +43,7 @@ namespace fly {
 
         ASTFunctionBase *Def = nullptr;
 
-        ASTCallKind CallKind = ASTCallKind::CALL_NONE;
+        ASTCallKind CallKind = ASTCallKind::CALL_FUNCTION;
 
         ASTCall(const SourceLocation &Loc, llvm::StringRef Name);
 
