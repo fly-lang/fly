@@ -22,109 +22,87 @@
 using namespace fly;
 
 /**
- * FunctionParser Constructor
- * @param P
- * @param FuncName
- * @param FuncNameLoc
- */
-FunctionParser::FunctionParser(Parser *P, ASTFunctionBase *Function) : P(P), Function(Function) {
-    assert(Function && "Function must be initialized");
-
-    FLY_DEBUG_MESSAGE("FunctionParser", "FunctionParser", Logger()
-                        .Attr("Function", Function).End());
-}
-
-/**
- * ParseModule Parameters
- * @return true on Success or false on Error
- */
-bool FunctionParser::ParseParams() {
-    FLY_DEBUG("FunctionParser", "ParseParams");
-
-    if (P->Tok.is(tok::l_paren)) { // parse start of function ()
-        P->ConsumeParen(); // consume l_paren
-    }
-
-    if (P->Tok.is(tok::r_paren)) {
-        P->ConsumeParen();
-        return true; // end
-    }
-
-    // Parse Params as Decl in Function Definition
-    return ParseParam();
-}
-
-/**
  * ParseModule a single Function Param
  * @return true on Success or false on Error
  */
-bool FunctionParser::ParseParam() {
-    FLY_DEBUG("FunctionParser", "ParseParams");
+ASTParam *FunctionParser::ParseParam(Parser *P) {
+    FLY_DEBUG("FunctionParser", "ParseParam");
 
     // Var Constant
     bool Const = P->isConst();
 
     // Var Type
     ASTType *Type = nullptr;
-    if (P->ParseType(Type)) {
+    if (!P->ParseType(Type)) {
+        P->Diag(diag::err_parser_invalid_type);
+        return nullptr;
+    }
 
-        // Var Name
-        const StringRef Name = P->Tok.getIdentifierInfo()->getName();
-        const SourceLocation IdLoc = P->Tok.getLocation();
+    // Var Name
+    const StringRef Name = P->Tok.getIdentifierInfo()->getName();
+    const SourceLocation Loc = P->Tok.getLocation();
+    P->ConsumeToken();
+
+    // Parse Scopes
+    llvm::SmallVector<ASTScope *, 8> Scopes = P->ParseScopes();
+
+    // Parse assignment =
+    ASTValue *Value = nullptr;
+    if (P->Tok.is(tok::equal)) {
         P->ConsumeToken();
 
-        llvm::SmallVector<ASTScope *, 8> Scopes = P->ParseScopes();
-
-        ASTParam *Param = P->Builder.CreateParam(IdLoc, Type, Name, Scopes);
-
-        // Parse assignment =
-        if (P->Tok.is(tok::equal)) {
-            P->ConsumeToken();
-
-            // Start Parsing
-            if (P->isValue()) {
-                ASTValue *Val = P->ParseValue();
-                Param->setDefaultValue(Val);
-            }
-        }
-
-        if (P->Builder.AddParam(Function, Param)) {
-
-            if (P->Tok.is(tok::comma)) {
-                P->ConsumeToken();
-                return ParseParam();
-            }
-
-            if (P->Tok.is(tok::r_paren)) {
-                P->ConsumeParen();
-                return true; // end
-            }
+        // Start Parsing
+        if (P->isValue()) {
+            Value = P->ParseValue();
         }
     }
 
-    P->Diag(P->Tok.getLocation(), diag::err_func_param);
-    return false;
+    ASTParam *Param = P->Builder.CreateParam(Loc, Type, Name, Scopes, Value);
+    return Param;
+}
+
+/**
+ * ParseModule Parameters
+ * @return true on Success or false on Error
+ */
+llvm::SmallVector<ASTParam *, 8> FunctionParser::ParseParams(Parser *P) {
+    FLY_DEBUG("FunctionParser", "ParseParams");
+
+    if (P->Tok.is(tok::l_paren)) { // parse start of function ()
+        P->ConsumeParen(); // consume l_paren
+    }
+
+    llvm::SmallVector<ASTParam *, 8> Params;
+    ASTParam *Param;
+    while ((Param = ParseParam(P))) {
+        Params.push_back(Param);
+        if (P->Tok.isNot(tok::comma)) {
+            break;
+        }
+    }
+
+    if (P->Tok.is(tok::r_paren)) {
+        P->ConsumeParen();
+    } else {
+        // FIXME Error desc
+        P->Diag(P->Tok.getLocation(), diag::err_parser_generic);
+    }
+
+    return Params;
 }
 
 /**
  * ParseModule Function Body
  * @return true on Success or false on Error
  */
-bool FunctionParser::ParseBody() {
+ASTBlockStmt *FunctionParser::ParseBody(Parser *P) {
     FLY_DEBUG("FunctionParser", "ParseBody");
 
+    ASTBlockStmt *Body = nullptr;
     if (P->isBlockStart()) {
-        Function->Body = P->Builder.CreateBody(Function);
-        return P->ParseBlock(Function->Body) && P->isBraceBalanced();
+        Body = P->Builder.CreateBlockStmt(SourceLocation());
+        P->ParseBlock(Body) && P->isBraceBalanced();
     }
 
-    return true;
-}
-
-bool FunctionParser::Parse(Parser *P, ASTFunctionBase *Function) {
-    FLY_DEBUG_MESSAGE("FunctionParser", "ParseModule", Logger()
-            .Attr("Function", Function).End());
-    FunctionParser *FP = new FunctionParser(P, Function);
-    bool Success = FP->ParseParams() && FP->ParseBody();
-    return Success;
+    return Body;
 }

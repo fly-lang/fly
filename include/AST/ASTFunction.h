@@ -44,7 +44,7 @@ namespace fly {
         CodeGenFunction *CodeGen = nullptr;
 
         ASTFunction(ASTModule *Module, const SourceLocation &Loc, ASTType *ReturnType, llvm::StringRef Name,
-                    llvm::SmallVector<ASTScope *, 8> &Scopes);
+                    llvm::SmallVector<ASTScope *, 8> &Scopes, llvm::SmallVector<ASTParam *, 8> &Params);
 
     public:
 

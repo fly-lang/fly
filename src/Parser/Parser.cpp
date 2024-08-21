@@ -277,18 +277,13 @@ ASTFunction *Parser::ParseFunctionDef(SmallVector<ASTScope *, 8> &Scopes, ASTTyp
         Comment = BlockComment;
     }
 
-    const StringRef &Name = Tok.getIdentifierInfo()->getName();
-    ASTFunction *Function = Builder.CreateFunction(Module, ConsumeToken(), Type, Name, Scopes);
-    if (FunctionParser::Parse(this, Function)) {
-
-        // Error: body must be empty in header declaration
-        if (Module->isHeader() && !Function->getBody()->isEmpty()) {
-            // TODO
-        }
-
-        BlockComment = StringRef();
-    }
-
+    
+    StringRef Name = Tok.getIdentifierInfo()->getName();
+    const SourceLocation &Loc = ConsumeToken();
+    llvm::SmallVector<ASTParam *, 8> Params = FunctionParser::ParseParams(this);
+    ASTBlockStmt *Body = FunctionParser::ParseBody(this);
+    ASTFunction *Function = Builder.CreateFunction(Module, Loc, Type, Name, Scopes, Params, Body);
+    
     return Function;
 }
 
@@ -977,7 +972,7 @@ ASTCall *Parser::ParseCall(ASTIdentifier *&Identifier) {
 
     // Parse Args in a Function Call
     llvm::SmallVector<ASTExpr *, 8> Args;
-    ASTExpr *Arg = nullptr;
+    ASTExpr *Arg;
     while ((Arg = ParseExpr(nullptr))) {
         Args.push_back(Arg);
         if (Tok.isNot(tok::comma)) {

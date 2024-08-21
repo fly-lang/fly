@@ -223,22 +223,27 @@ namespace fly {
                                       SmallVector<ASTScope *, 8> &Scopes, ASTExpr *Expr = nullptr);
 
         ASTFunction *CreateFunction(ASTModule *Module, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
-                                    SmallVector<ASTScope *, 8> &Scopes);
+                                    SmallVector<ASTScope *, 8> &Scopes, SmallVector<ASTParam *, 8> &Params,
+                                    ASTBlockStmt *Body = nullptr);
 
         ASTClass *CreateClass(ASTModule *Module, const SourceLocation &Loc, ASTClassKind ClassKind, llvm::StringRef Name,
                               SmallVector<ASTScope *, 8> &Scopes, llvm::SmallVector<ASTClassType *, 4> &ClassTypes);
 
-        ASTClassAttribute *CreateClassAttribute(const SourceLocation &Loc, ASTClass &Class, ASTType *Type, llvm::StringRef Name,
-                                                SmallVector<ASTScope *, 8> &Scopes);
+        ASTClassAttribute *CreateClassAttribute(const SourceLocation &Loc, ASTClass &Class, ASTType *Type,
+                                                llvm::StringRef Name, SmallVector<ASTScope *, 8> &Scopes,
+                                                ASTExpr *Expr = nullptr);
 
         ASTClassMethod *CreateClassConstructor(const SourceLocation &Loc, ASTClass &Class,
-                                               llvm::SmallVector<ASTScope *, 8> &Scopes);
+                                               llvm::SmallVector<ASTScope *, 8> &Scopes,
+                                               llvm::SmallVector<ASTParam *, 8> &Params, ASTBlockStmt *Body);
 
         ASTClassMethod *CreateClassMethod(const SourceLocation &Loc, ASTClass &Class, ASTType *Type,
-                                          llvm::StringRef Name, SmallVector<ASTScope *, 8> &Scopes);
+                                          llvm::StringRef Name, SmallVector<ASTScope *, 8> &Scopes,
+                                          llvm::SmallVector<ASTParam *, 8> &Params, ASTBlockStmt *Body);
 
         ASTClassMethod *CreateClassVirtualMethod(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
-                                                 SmallVector<ASTScope *, 8> &Scopes);
+                                                 SmallVector<ASTScope *, 8> &Scopes,
+                                                 llvm::SmallVector<ASTParam *, 8> &Params);
 
         ASTEnum *CreateEnum(ASTModule *Module, const SourceLocation &Loc, llvm::StringRef Name, SmallVector<ASTScope *, 8> &Scopes,
                    llvm::SmallVector<ASTEnumType *, 4> EnumTypes);
@@ -309,7 +314,7 @@ namespace fly {
         ASTValue *CreateDefaultValue(ASTType *Type);
 
         ASTParam *CreateParam(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
-                              llvm::SmallVector<ASTScope *, 8> &Scopes);
+                              llvm::SmallVector<ASTScope *, 8> &Scopes, ASTValue *DefaultValue = nullptr);
 
         ASTParam *CreateErrorHandlerParam();
 
@@ -378,7 +383,7 @@ namespace fly {
 
         // Create Blocks structures
 
-        ASTBlockStmt *CreateBody(ASTFunctionBase *FunctionBase);
+        ASTBlockStmt *CreateBody(ASTFunctionBase *FunctionBase, ASTBlockStmt *Body);
 
         ASTBlockStmt *CreateBlockStmt(const SourceLocation &Loc);
 
@@ -392,8 +397,6 @@ namespace fly {
 
         /** Add AST **/
 
-        bool AddParam(ASTFunctionBase *FunctionBase, ASTParam *Param);
-
         void AddFunctionVarParams(ASTFunctionBase *Function, ASTParam *Param); // TODO
 
         // Add Value to Array
@@ -403,7 +406,8 @@ namespace fly {
 
         bool AddLocalVar(ASTBlockStmt *BlockStmt, ASTLocalVar *LocalVar);
 
-        // Add Stmt
+        /** Add Stmt **/
+
         bool AddStmt(ASTStmt *Parent, ASTStmt *Stmt);
 
         bool AddElsif(ASTIfStmt *IfStmt, ASTExpr *Condition, ASTStmt *Stmt);
@@ -417,6 +421,8 @@ namespace fly {
         bool AddLoopInit(ASTLoopStmt *LoopStmt, ASTStmt *Stmt);
 
         bool AddLoopPost(ASTLoopStmt *LoopStmt, ASTStmt *Stmt);
+
+        /** Add Expr **/
 
         bool AddExpr(ASTVarStmt *Stmt, ASTExpr *Expr);
 

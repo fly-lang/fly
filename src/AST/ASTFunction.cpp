@@ -14,8 +14,8 @@
 using namespace fly;
 
 ASTFunction::ASTFunction(ASTModule *Module, const SourceLocation &Loc, ASTType *ReturnType, llvm::StringRef Name,
-                         llvm::SmallVector<ASTScope *, 8> &Scopes) :
-        ASTFunctionBase(Loc, ASTFunctionKind::FUNCTION, ReturnType, Scopes), Module(Module), Name(Name),
+                         llvm::SmallVector<ASTScope *, 8> &Scopes, llvm::SmallVector<ASTParam *, 8> &Params) :
+        ASTFunctionBase(Loc, ASTFunctionKind::FUNCTION, ReturnType, Scopes, Params), Module(Module), Name(Name),
         Visibility(ASTVisibilityKind::V_DEFAULT) {
 
 }

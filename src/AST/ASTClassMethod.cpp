@@ -14,8 +14,9 @@
 using namespace fly;
 
 ASTClassMethod::ASTClassMethod(const SourceLocation &Loc, ASTClassMethodKind MethodKind, ASTType *Type,
-                               llvm::StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes) :
-        ASTFunctionBase(Loc, ASTFunctionKind::CLASS_METHOD, Type, Scopes),
+                               llvm::StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes,
+                               llvm::SmallVector<ASTParam *, 8> &Params) :
+        ASTFunctionBase(Loc, ASTFunctionKind::CLASS_METHOD, Type, Scopes, Params),
         Name(Name), MethodKind(MethodKind), Visibility(ASTVisibilityKind::V_DEFAULT) {
 
 }

@@ -475,6 +475,11 @@ void SemaResolver::ResolveFunctionDefinitions() {
 
         // Resolve Parameters Types
         for (auto &Param : Function->getParams()) {
+            // Check duplicated params
+            // TODO
+            //S.Validator->CheckDuplicateParams(Function->Params, Param);
+
+            // resolve parame type
             ResolveType(Param->getType());
         }
 

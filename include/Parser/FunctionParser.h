@@ -18,7 +18,7 @@ namespace fly {
     class Parser;
     class ASTFunction;
     class ASTFunctionBase;
-    class ASTCall;
+    class ASTParam;
     class ASTType;
     class ASTBlockStmt;
     class SourceLocation;
@@ -27,23 +27,14 @@ namespace fly {
 
         friend class Parser;
 
-        Parser *P;
-
-        ASTFunctionBase *Function;
-
-        unsigned short BraceCount = 0;
-
-        FunctionParser(Parser *P, ASTFunctionBase *Function);
-
-        bool ParseParams();
-
-        bool ParseParam();
-
-        bool ParseBody();
+        static ASTParam *ParseParam(Parser *P);
 
     public:
 
-        static bool Parse(Parser *P, ASTFunctionBase *Function);
+        static llvm::SmallVector<ASTParam *, 8> ParseParams(Parser *P);
+
+        static ASTBlockStmt *ParseBody(Parser *P);
+
     };
 }
 

@@ -26,8 +26,6 @@ namespace fly {
 
         ASTClass *Class = nullptr;
 
-        bool Success = true;
-
         unsigned short BraceCount = 0;
 
         ClassParser(Parser *P, SmallVector<ASTScope *, 8> &Scopes);

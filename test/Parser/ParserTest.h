@@ -8,7 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 // fly
-#include "TestUtils.h"
+#include "../TestUtils.h"
 #include "Parser/Parser.h"
 #include "Sema/Sema.h"
 #include "Sema/SemaBuilder.h"

@@ -75,7 +75,6 @@ ClassParser::ClassParser(Parser *P, SmallVector<ASTScope *, 8> &Scopes) : P(P) {
 
             // Error: Class block not correctly closed
             if (P->Tok.is(tok::eof)) {
-                Success = false;
                 P->Diag(P->Tok, diag::err_class_block_unclosed);
                 break;
             }
@@ -92,9 +91,9 @@ ClassParser::ClassParser(Parser *P, SmallVector<ASTScope *, 8> &Scopes) : P(P) {
                 const SourceLocation &Loc = P->ConsumeToken();
 
                 if (P->Tok.is(tok::l_paren)) {
-                    ASTClassMethod *Method = ParseMethod(Scopes, Type, Loc, Name);
+                    ParseMethod(Scopes, Type, Loc, Name);
                 } else {
-                    ASTClassAttribute *Attribute = ParseAttribute(Scopes, Type, Loc, Name);
+                    ParseAttribute(Scopes, Type, Loc, Name);
                 }
                 Continue = true;
             }
@@ -130,18 +129,14 @@ ASTClassAttribute *ClassParser::ParseAttribute(SmallVector<ASTScope *, 8> &Scope
         Comment = P->BlockComment;
     }
 
-    ASTClassAttribute *ClassVar = P->Builder.CreateClassAttribute(Loc, *Class, Type, Name, Scopes);
-    if (ClassVar) {
-        // Parsing =
-        if (P->Tok.is(tok::equal)) {
-            P->ConsumeToken();
-
-            ASTExpr *Expr = P->ParseExpr();
-            ClassVar->setExpr(Expr);
-        }
+    // Parsing =
+    ASTExpr *Expr = nullptr;
+    if (P->Tok.is(tok::equal)) {
+        P->ConsumeToken();
+        Expr = P->ParseExpr();
     }
-    
-    return ClassVar;
+
+    return P->Builder.CreateClassAttribute(Loc, *Class, Type, Name, Scopes, Expr);
 }
 
 ASTClassMethod *ClassParser::ParseMethod(SmallVector<ASTScope *, 8> &Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name) {
@@ -155,18 +150,13 @@ ASTClassMethod *ClassParser::ParseMethod(SmallVector<ASTScope *, 8> &Scopes, AST
         Comment = P->BlockComment;
     }
 
+    llvm::SmallVector<ASTParam *, 8> Params = FunctionParser::ParseParams(P);
+    ASTBlockStmt *Body = FunctionParser::ParseBody(P);
     ASTClassMethod *Method;
     if (Name == Class->getName()) {
-        if (!Type) {
-            Method = P->Builder.CreateClassConstructor(Loc, *Class, Scopes);
-            Success = FunctionParser::Parse(P, Method);
-        } else {
-            P->Diag(diag::err_parser_invalid_type);
-            Success = false;
-        }
+        Method = P->Builder.CreateClassConstructor(Loc, *Class, Scopes, Params, Body);
     } else {
-        Method = P->Builder.CreateClassMethod(Loc, *Class, Type, Name, Scopes);
-        Success = FunctionParser::Parse(P, Method);
+        Method = P->Builder.CreateClassMethod(Loc, *Class, Type, Name, Scopes, Params, Body);
     }
 
     return Method;

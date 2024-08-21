@@ -50,8 +50,8 @@ namespace fly {
         // Populated during codegen phase
         CodeGenClassFunction *CodeGen = nullptr;
 
-        ASTClassMethod(const SourceLocation &Loc, ASTClassMethodKind MethodKind, ASTType *Type,
-                       llvm::StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes);
+        ASTClassMethod(const SourceLocation &Loc, ASTClassMethodKind MethodKind, ASTType *Type, llvm::StringRef Name,
+                       llvm::SmallVector<ASTScope *, 8> &Scopes, llvm::SmallVector<ASTParam *, 8> &Params);
 
     public:
 

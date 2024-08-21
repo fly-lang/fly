@@ -6,18 +6,19 @@ message(STATUS "Adding Fly Tests")
 
 add_executable(fly_test
 #        CmdTest.cpp
-        CodeGenTest.cpp
+        CodeGen/CodeGenTest.cpp
 #        DriverTest.cpp
 #        ImportTest.cpp
         LexerTest.cpp
-        ParserTest.cpp
-#        ParserBadCode.cpp
-#        ParserBlockTest.cpp
-#        ParserClassTest.cpp
-#        ParserExprTest.cpp
+        Parser/ParserTest.cpp
+#        Parser/ParserBadCode.cpp
+#        Parser/ParserBlockTest.cpp
+#        Parser/ParserClassTest.cpp
+#        Parser/ParserExprTest.cpp
         TestMain.cpp
         ${BACKWARD_ENABLE}
-        )
+        CodeGen/CodeGenTest.h
+)
 
 add_backward(fly_test)
 

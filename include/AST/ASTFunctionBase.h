@@ -54,7 +54,8 @@ namespace fly {
 
     protected:
 
-        ASTFunctionBase(const SourceLocation &Loc, ASTFunctionKind Kind, ASTType *ReturnType, llvm::SmallVector<ASTScope *, 8> &Scopes);
+        ASTFunctionBase(const SourceLocation &Loc, ASTFunctionKind Kind, ASTType *ReturnType,
+                        llvm::SmallVector<ASTScope *, 8> &Scopes, llvm::SmallVector<ASTParam *, 8> &Params);
 
     public:
 
