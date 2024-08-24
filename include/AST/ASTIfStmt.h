@@ -19,6 +19,7 @@ namespace fly {
     class ASTIfStmt : public ASTStmt {
 
         friend class SemaBuilder;
+        friend class SemaBuilderIfStmt;
         friend class SemaResolver;
         friend class SemaValidator;
 
@@ -52,6 +53,7 @@ namespace fly {
     class ASTElsif {
 
         friend class SemaBuilder;
+        friend class SemaBuilderIfStmt;
         friend class SemaResolver;
 
         // The Else If expression condition

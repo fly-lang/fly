@@ -35,6 +35,7 @@
 #include "AST/ASTLoopInStmt.h"
 #include "AST/ASTBlockStmt.h"
 #include "AST/ASTValue.h"
+#include "AST/ASTReturnStmt.h"
 #include "AST/ASTHandleStmt.h"
 #include "AST/ASTDeleteStmt.h"
 #include "AST/ASTVar.h"

@@ -24,6 +24,14 @@ namespace fly {
 
     class SemaBuilderScopes;
 
+    class SemaBuilderStmt;
+
+    class SemaBuilderIfStmt;
+
+    class SemaBuilderSwitchStmt;
+
+    class SemaBuilderLoopStmt;
+
     class DiagnosticsEngine;
 
     class DiagnosticBuilder;
@@ -305,7 +313,7 @@ namespace fly {
 
         ASTFloatingValue *CreateFloatingValue(const SourceLocation &Loc, double Val);
 
-        ASTArrayValue *CreateArrayValue(const SourceLocation &Loc);
+        ASTArrayValue *CreateArrayValue(const SourceLocation &Loc, llvm::SmallVector<ASTValue *, 8> Values);
 
         ASTStringValue *CreateStringValue(const SourceLocation &Loc, StringRef Str);
 
@@ -318,7 +326,7 @@ namespace fly {
 
         ASTParam *CreateErrorHandlerParam();
 
-        ASTLocalVar *CreateLocalVar(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
+        ASTLocalVar *CreateLocalVar(ASTBlockStmt *BlockStmt, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
                                     llvm::SmallVector<ASTScope *, 8> &Scopes);
 
         // Create Identifier
@@ -365,21 +373,21 @@ namespace fly {
 
         // Create Statements
 
-        ASTVarStmt *CreateVarStmt(ASTVarRef *VarRef);
+        SemaBuilderStmt *CreateVarStmt(ASTStmt *Parent, ASTVarRef *VarRef);
 
-        ASTVarStmt *CreateVarStmt(ASTVar *Var);
+        SemaBuilderStmt *CreateVarStmt(ASTStmt *Parent, ASTVar *Var);
 
-        ASTReturnStmt *CreateReturnStmt(const SourceLocation &Loc);
+        SemaBuilderStmt *CreateReturnStmt(ASTStmt *Parent, const SourceLocation &Loc);
 
-        ASTBreakStmt *CreateBreakStmt(const SourceLocation &Loc);
+        SemaBuilderStmt *CreateFailStmt(ASTStmt *Parent, const SourceLocation &Loc, ASTVar *ErrorHandler);
 
-        ASTContinueStmt *CreateContinueStmt(const SourceLocation &Loc);
+        SemaBuilderStmt *CreateExprStmt(ASTStmt *Parent, const SourceLocation &Loc);
 
-        ASTFailStmt *CreateFailStmt(const SourceLocation &Loc, ASTVar *ErrorHandler);
+        ASTBreakStmt *CreateBreakStmt(ASTStmt *Parent, const SourceLocation &Loc);
 
-        ASTExprStmt *CreateExprStmt(const SourceLocation &Loc);
+        ASTContinueStmt *CreateContinueStmt(ASTStmt *Parent, const SourceLocation &Loc);
 
-        ASTDeleteStmt *CreateDeleteStmt(const SourceLocation &Loc, ASTVarRef *VarRef);
+        ASTDeleteStmt *CreateDeleteStmt(ASTStmt *Parent, const SourceLocation &Loc, ASTVarRef *VarRef);
 
         // Create Blocks structures
 
@@ -387,56 +395,20 @@ namespace fly {
 
         ASTBlockStmt *CreateBlockStmt(const SourceLocation &Loc);
 
-        ASTIfStmt *CreateIfStmt(const SourceLocation &Loc);
+        SemaBuilderIfStmt *CreateIfBuilder(ASTStmt *Parent);
 
-        ASTSwitchStmt *CreateSwitchStmt(const SourceLocation &Loc);
+        SemaBuilderSwitchStmt *CreateSwitchBuilder(ASTStmt *Parent);
 
-        ASTLoopStmt *CreateLoopStmt(const SourceLocation &Loc);
+        SemaBuilderLoopStmt *CreateLoopBuilder(ASTStmt *Parent);
 
-        ASTHandleStmt *CreateHandleStmt(const SourceLocation &Loc, ASTVarRef *ErrorRef);
+        ASTHandleStmt *CreateHandleStmt(ASTStmt *Parent, const SourceLocation &Loc, ASTVarRef *ErrorRef);
 
         /** Add AST **/
 
         void AddFunctionVarParams(ASTFunctionBase *Function, ASTParam *Param); // TODO
 
-        // Add Value to Array
-        bool AddArrayValue(ASTArrayValue *ArrayValue, ASTValue *Value);
-
         bool AddStructValue(ASTStructValue *ArrayValue, llvm::StringRef Key, ASTValue *Value);
 
-        bool AddLocalVar(ASTBlockStmt *BlockStmt, ASTLocalVar *LocalVar);
-
-        /** Add Stmt **/
-
-        bool AddStmt(ASTStmt *Parent, ASTStmt *Stmt);
-
-        bool AddElsif(ASTIfStmt *IfStmt, ASTExpr *Condition, ASTStmt *Stmt);
-
-        bool AddElse(ASTIfStmt *IfStmt, ASTStmt *Else);
-
-        bool AddSwitchCase(ASTSwitchStmt *SwitchStmt, ASTValueExpr *ValueExpr, ASTStmt *Stmt);
-
-        bool AddSwitchDefault(ASTSwitchStmt *SwitchStmt, ASTStmt *Stmt);
-
-        bool AddLoopInit(ASTLoopStmt *LoopStmt, ASTStmt *Stmt);
-
-        bool AddLoopPost(ASTLoopStmt *LoopStmt, ASTStmt *Stmt);
-
-        /** Add Expr **/
-
-        bool AddExpr(ASTVarStmt *Stmt, ASTExpr *Expr);
-
-        bool AddExpr(ASTExprStmt *Stmt, ASTExpr *Expr);
-
-        bool AddExpr(ASTReturnStmt *Stmt, ASTExpr *Expr);
-
-        bool AddExpr(ASTFailStmt *Stmt, ASTExpr *Expr);
-
-        bool AddExpr(ASTIfStmt *Stmt, ASTExpr *Expr);
-
-        bool AddExpr(ASTSwitchStmt *SwitchStmt, ASTExpr *Expr);
-
-        bool AddExpr(ASTLoopStmt *LoopStmt, ASTExpr *Expr);
     };
 
 }  // end namespace fly

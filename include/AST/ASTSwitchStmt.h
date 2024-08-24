@@ -22,6 +22,7 @@ namespace fly {
     class ASTSwitchStmt : public ASTStmt {
 
         friend class SemaBuilder;
+        friend class SemaBuilderSwitchStmt;
         friend class SemaResolver;
         friend class SemaValidator;
 
@@ -50,6 +51,7 @@ namespace fly {
     class ASTSwitchCase {
 
         friend class SemaBuilder;
+        friend class SemaBuilderSwitchStmt;
         friend class SemaResolver;
 
         // The case value

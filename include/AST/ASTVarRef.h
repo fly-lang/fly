@@ -25,6 +25,7 @@ namespace fly {
     class ASTVarRef : public ASTIdentifier {
 
         friend class SemaBuilder;
+        friend class SemaBuilderStmt;
         friend class SemaResolver;
         friend class SemaValidator;
 

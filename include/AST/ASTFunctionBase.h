@@ -83,27 +83,6 @@ namespace fly {
 
         std::string str() const override;
     };
-
-    /**
-     * The Return Declaration into a Function
-     * Ex.
-     *   return true
-     */
-    class ASTReturnStmt : public ASTStmt {
-
-        friend class SemaBuilder;
-        friend class SemaResolver;
-
-        ASTExpr *Expr = nullptr;
-
-        ASTReturnStmt(const SourceLocation &Loc);
-
-    public:
-
-        ASTExpr *getExpr() const;
-
-        std::string str() const override;
-    };
 }
 
 #endif //FLY_AST_FUNCTIONBASE_H

@@ -66,18 +66,3 @@ std::string ASTFunctionBase::str() const {
 ASTParam *ASTFunctionBase::getEllipsis() const {
     return Ellipsis;
 }
-
-ASTReturnStmt::ASTReturnStmt(const SourceLocation &Loc) :
-        ASTStmt(Loc, ASTStmtKind::STMT_RETURN) {
-
-}
-
-ASTExpr *ASTReturnStmt::getExpr() const {
-    return Expr;
-}
-
-std::string ASTReturnStmt::str() const {
-    return Logger("ASTReturn").
-            Attr("Kind", (uint64_t) Kind).
-            End();
-}

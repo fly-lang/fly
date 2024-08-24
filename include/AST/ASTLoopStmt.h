@@ -17,12 +17,13 @@ namespace fly {
     class ASTLoopStmt : public ASTStmt {
 
         friend class SemaBuilder;
+        friend class SemaBuilderLoopStmt;
         friend class SemaResolver;
         friend class SemaValidator;
 
         ASTExpr *Condition = nullptr;
 
-        bool VerifyConditionOnEnd = false;
+        bool VerifyConditionAtEnd = false;
 
         ASTStmt *Init = nullptr;
 
@@ -36,7 +37,7 @@ namespace fly {
 
         ASTExpr *getCondition();
 
-        bool isVerifyConditionOnEnd() const;
+        bool hasVerifyConditionAtEnd() const;
 
         ASTStmt *getInit() const;
 

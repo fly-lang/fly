@@ -44,6 +44,7 @@
 #include "AST/ASTValue.h"
 #include "AST/ASTVarStmt.h"
 #include "AST/ASTVarRef.h"
+#include "AST/ASTReturnStmt.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTEnum.h"
 #include "AST/ASTEnumEntry.h"

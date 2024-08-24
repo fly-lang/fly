@@ -20,8 +20,8 @@ ASTExpr *ASTLoopStmt::getCondition() {
     return Condition;
 }
 
-bool ASTLoopStmt::isVerifyConditionOnEnd() const {
-    return VerifyConditionOnEnd;
+bool ASTLoopStmt::hasVerifyConditionAtEnd() const {
+    return VerifyConditionAtEnd;
 }
 
 ASTStmt *ASTLoopStmt::getInit() const {

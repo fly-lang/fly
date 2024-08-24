@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTFailStmt.h - AST Fail Statement header
+// include/AST/ASTReturnStmt.h - AST Variable Assign statement
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,41 +7,34 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_AST_FAILSTMT_H
-#define FLY_AST_FAILSTMT_H
+#ifndef FLY_AST_RETURNSTMT_H
+#define FLY_AST_RETURNSTMT_H
 
 #include "ASTStmt.h"
 
 namespace fly {
 
-    class ASTVarRef;
-    class ASTHandleStmt;
-
-    class ASTFailStmt : public ASTStmt {
+    /**
+     * The Return Declaration into a Function
+     * Ex.
+     *   return true
+     */
+    class ASTReturnStmt : public ASTStmt {
 
         friend class SemaBuilder;
         friend class SemaBuilderStmt;
         friend class SemaResolver;
-        friend class SemaValidator;
 
         ASTExpr *Expr = nullptr;
 
-        ASTHandleStmt *Handle = nullptr;
-
-        ASTFailStmt(const SourceLocation &Loc);
+        ASTReturnStmt(const SourceLocation &Loc);
 
     public:
 
         ASTExpr *getExpr() const;
 
-        void setExpr(ASTExpr *);
-
-        bool hasHandle();
-
-        ASTHandleStmt *getHandle();
-
         std::string str() const override;
     };
 }
 
-#endif //FLY_AST_FAILSTMT_H
+#endif // FLY_AST_RETURNSTMT_H

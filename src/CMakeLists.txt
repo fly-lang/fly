@@ -41,6 +41,7 @@ add_library(flyLib
         AST/ASTModule.cpp
         AST/ASTOperatorExpr.cpp
         AST/ASTParam.cpp
+        AST/ASTReturnStmt.cpp
         AST/ASTScopes.cpp
         AST/ASTStmt.cpp
         AST/ASTSwitchStmt.cpp
@@ -147,6 +148,10 @@ add_library(flyLib
         # Sema
         Sema/Sema.cpp
         Sema/SemaBuilder.cpp
+        Sema/SemaBuilderStmt.cpp
+        Sema/SemaBuilderIfStmt.cpp
+        Sema/SemaBuilderSwitchStmt.cpp
+        Sema/SemaBuilderLoopStmt.cpp
         Sema/SemaBuilderScopes.cpp
         Sema/SemaSpaceSymbols.cpp
         Sema/SemaIdentitySymbols.cpp

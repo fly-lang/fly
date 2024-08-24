@@ -17,6 +17,7 @@ namespace fly {
 
     class DiagnosticsEngine;
     class SemaBuilder;
+    class SemaBuilderSwitchStmt;
     class ASTBase;
     class ASTModule;
     class ASTNameSpace;
@@ -105,7 +106,7 @@ namespace fly {
         bool ParseEndParen(bool HasParen);
         bool ParseIfStmt(ASTBlockStmt *Parent);
         bool ParseSwitchStmt(ASTBlockStmt *Parent);
-        bool ParseSwitchCases(ASTSwitchStmt *SwitchStmt);
+        bool ParseSwitchCases(SemaBuilderSwitchStmt *SwitchBuilder);
         bool ParseWhileStmt(ASTBlockStmt *Parent);
         bool ParseForStmt(ASTBlockStmt *Parent);
         bool ParseHandleStmt(ASTBlockStmt *Parent, ASTVarRef *Error);

@@ -21,6 +21,9 @@ namespace fly {
     class SemaBuilder;
     class SemaResolver;
     class SemaValidator;
+    class SemaBuilderIfStmt;
+    class SemaBuilderSwitchStmt;
+    class SemaBuilderLoopStmt;
     class SemaSpaceSymbols;
     class DiagnosticsEngine;
     class DiagnosticBuilder;
@@ -44,6 +47,9 @@ namespace fly {
     class Sema {
 
         friend class SemaBuilder;
+        friend class SemaBuilderIfStmt;
+        friend class SemaBuilderSwitchStmt;
+        friend class SemaBuilderLoopStmt;
         friend class SemaResolver;
 
         DiagnosticsEngine &Diags;

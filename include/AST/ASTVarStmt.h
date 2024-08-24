@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTVarAssignStmt.h - AST Variable Assign statement
+// include/AST/ASTVarStmt.h - AST Variable statement
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -24,6 +24,7 @@ namespace fly {
     class ASTVarStmt : public ASTStmt {
 
         friend class SemaBuilder;
+        friend class SemaBuilderStmt;
         friend class SemaResolver;
         friend class SemaValidator;
 
