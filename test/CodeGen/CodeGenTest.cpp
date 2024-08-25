@@ -1228,14 +1228,14 @@ namespace {
         ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes, Params, Body);
 
         // if (a == 1)
+        SemaBuilderIfStmt *IfBuilder = Builder.CreateIfBuilder(Body);
         ASTValueExpr *Value1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
         ASTVarRefExpr *aVarRef = Builder.CreateExpr(CreateVarRef(aParam));
         ASTBinaryGroupExpr *IfCond = Builder.CreateBinaryExpr(Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_COMP_EQ),
                                                               aVarRef, Value1);
-
-        // Create/Add if block
-        SemaBuilderIfStmt *IfBuilder = Builder.CreateIfBuilder(Body);
         ASTBlockStmt *IfBlock = Builder.CreateBlockStmt(SourceLoc);
+        IfBuilder->If(SourceLoc, IfCond, IfBlock);
+
 
         // { a = 11 }
         SemaBuilderStmt *aVarStmt = Builder.CreateVarStmt(IfBlock, CreateVarRef(aParam));
@@ -1437,7 +1437,7 @@ namespace {
         ASTBlockStmt *Case1Block = Builder.CreateBlockStmt(SourceLoc);
         ASTValueExpr *Case1Value = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
         SwitchBuilder->Case(SourceLoc, Case1Value, Case1Block);
-        SemaBuilderStmt *aVarStmt1 = Builder.CreateVarStmt(Body, CreateVarRef(aParam));
+        SemaBuilderStmt *aVarStmt1 = Builder.CreateVarStmt(Case1Block, CreateVarRef(aParam));
         ASTValueExpr *Expr1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
         aVarStmt1->setExpr(Expr1);
 
@@ -1445,14 +1445,14 @@ namespace {
         ASTBlockStmt *Case2Block = Builder.CreateBlockStmt(SourceLoc);
         ASTValueExpr *Case2Value = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 2));
         SwitchBuilder->Case(SourceLoc, Case2Value, Case2Block);
-        SemaBuilderStmt *aVarStmt2 = Builder.CreateVarStmt(Body, CreateVarRef(aParam));
+        SemaBuilderStmt *aVarStmt2 = Builder.CreateVarStmt(Case2Block, CreateVarRef(aParam));
         ASTValueExpr *Expr2 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 2));
         aVarStmt2->setExpr(Expr2);
 
         // default: a = 3
         ASTBlockStmt *DefaultBlock = Builder.CreateBlockStmt(SourceLoc);
         SwitchBuilder->Default(SourceLoc, DefaultBlock);
-        SemaBuilderStmt *aVarStmt3 = Builder.CreateVarStmt(Body, CreateVarRef(aParam));
+        SemaBuilderStmt *aVarStmt3 = Builder.CreateVarStmt(DefaultBlock, CreateVarRef(aParam));
         ASTValueExpr *Expr3 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 3));
         aVarStmt3->setExpr(Expr3);
 
@@ -1511,12 +1511,12 @@ namespace {
         ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes, Params, Body);
 
         // while a == 1
-        SemaBuilderLoopStmt *LoopBuilder = Builder.CreateLoopBuilder(Body);
+        SemaBuilderLoopStmt *LoopBuilder = Builder.CreateLoopBuilder(Body, SourceLoc);
         ASTValueExpr *Value1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
         ASTVarRefExpr *aVarRef = Builder.CreateExpr(CreateVarRef(aParam));
         ASTBinaryGroupExpr *Cond = Builder.CreateBinaryExpr(Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_COMP_EQ), aVarRef, Value1);
         ASTBlockStmt *BlockStmt = Builder.CreateBlockStmt(SourceLoc);
-        LoopBuilder->Loop(SourceLoc, Cond, BlockStmt);
+        LoopBuilder->Loop(Cond, BlockStmt);
 
         // { a = 1 }
         SemaBuilderStmt *aVarStmt = Builder.CreateVarStmt(BlockStmt, CreateVarRef(aParam));
@@ -1569,37 +1569,38 @@ namespace {
         ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes, Params, Body);
 
         // for int i = 1; i < 1; ++i
-        SemaBuilderLoopStmt *LoopBuilder = Builder.CreateLoopBuilder(Body);
+        SemaBuilderLoopStmt *LoopBuilder = Builder.CreateLoopBuilder(Body, SourceLoc);
 
         // Init
         // int i = 1
         ASTBlockStmt *InitBlock = Builder.CreateBlockStmt(SourceLoc);
+        LoopBuilder->Init(InitBlock);
         ASTLocalVar *iVar = Builder.CreateLocalVar(InitBlock, SourceLoc, IntType, "i", EmptyScopes);
         ASTVarRef *iVarRef = CreateVarRef(iVar);
-        SemaBuilderStmt *iVarStmt = Builder.CreateVarStmt(Body, iVarRef);
+        SemaBuilderStmt *iVarStmt = Builder.CreateVarStmt(InitBlock, iVarRef);
         ASTValueExpr *Value1Expr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
         iVarStmt->setExpr(Value1Expr);
-        LoopBuilder->Init(InitBlock);
+
 
         // Condition
         // i < 1
         ASTBinaryGroupExpr *Cond = Builder.CreateBinaryExpr(Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_COMP_LTE),
                                                             Builder.CreateExpr(iVarRef), Value1Expr);
         ASTBlockStmt *LoopBlock = Builder.CreateBlockStmt(SourceLoc);
-        LoopBuilder->Loop(SourceLoc, Cond, LoopBlock);
+        LoopBuilder->Loop(Cond, LoopBlock);
 
         // Post
         // ++i
         ASTBlockStmt *PostBlock = Builder.CreateBlockStmt(SourceLoc);
+        LoopBuilder->Post(PostBlock);
         ASTUnaryGroupExpr *IncExpr = Builder.CreateUnaryExpr(Builder.CreateOperatorExpr(SourceLoc, ASTUnaryOperatorKind::UNARY_ARITH_PRE_INCR),
                                                              Builder.CreateExpr(CreateVarRef(iVar)));
         SemaBuilderStmt *iVarIncStmt = Builder.CreateExprStmt(PostBlock, SourceLoc);
         iVarIncStmt->setExpr(IncExpr);
-        LoopBuilder->Post(PostBlock);
 
         // Loop Block
         // { a = 1 }
-        SemaBuilderStmt *aVarStmt = Builder.CreateVarStmt(Body, CreateVarRef(aParam));
+        SemaBuilderStmt *aVarStmt = Builder.CreateVarStmt(LoopBlock, CreateVarRef(aParam));
         ASTValueExpr *Expr1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
         aVarStmt->setExpr(Expr1);
 

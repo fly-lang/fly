@@ -27,10 +27,6 @@ llvm::SmallVector<ASTParam *, 8> ASTFunctionBase::getParams() const {
     return Params;
 }
 
-void ASTFunctionBase::setEllipsis(ASTParam *Param) {
-    Ellipsis = Param;
-}
-
 llvm::SmallVector<ASTLocalVar *, 8> ASTFunctionBase::getLocalVars() const {
     return LocalVars;
 }
@@ -51,18 +47,10 @@ ASTType *ASTFunctionBase::getReturnType() const {
     return ReturnType;
 }
 
-bool ASTFunctionBase::isVarArg() {
-    return Ellipsis != nullptr;
-}
-
 std::string ASTFunctionBase::str() const {
     return Logger("ASTFunctionBase").
            Super(ASTBase::str()).
            AttrList("Params", Params).
            Attr("ReturnType", ReturnType).
            End();
-}
-
-ASTParam *ASTFunctionBase::getEllipsis() const {
-    return Ellipsis;
 }

@@ -16,6 +16,7 @@ namespace fly {
 
     class SemaBuilder;
     class ASTStmt;
+    class ASTBlockStmt;
     class SourceLocation;
     class ASTExpr;
     class ASTVarRef;
@@ -31,16 +32,16 @@ namespace fly {
 
     public:
 
-        static SemaBuilderStmt *CreateVar(SemaBuilder *Builder, ASTStmt *Parent, ASTVarRef *VarRef);
+        static SemaBuilderStmt *CreateVar(SemaBuilder *Builder, ASTBlockStmt *Parent, ASTVarRef *VarRef);
 
-        static SemaBuilderStmt *CreateVar(SemaBuilder *Builder, ASTStmt *Parent, ASTVar *Var);
+        static SemaBuilderStmt *CreateVar(SemaBuilder *Builder, ASTBlockStmt *Parent, ASTVar *Var);
 
-        static SemaBuilderStmt *CreateReturn(SemaBuilder *Builder, ASTStmt *Parent, const SourceLocation &Loc);
+        static SemaBuilderStmt *CreateReturn(SemaBuilder *Builder, ASTBlockStmt *Parent, const SourceLocation &Loc);
 
-        static SemaBuilderStmt *CreateFail(SemaBuilder *Builder, ASTStmt *Parent, const SourceLocation &Loc,
+        static SemaBuilderStmt *CreateFail(SemaBuilder *Builder, ASTBlockStmt *Parent, const SourceLocation &Loc,
                                            ASTVar *ErrorHandler);
 
-        static SemaBuilderStmt *CreateExpr(SemaBuilder *Builder, ASTStmt *Parent, const SourceLocation &Loc);
+        static SemaBuilderStmt *CreateExpr(SemaBuilder *Builder, ASTBlockStmt *Parent, const SourceLocation &Loc);
 
         void setExpr(ASTExpr *Expr);
     };

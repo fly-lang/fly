@@ -752,8 +752,8 @@ bool Parser::ParseWhileStmt(ASTBlockStmt *Parent) {
     }
 
     ASTBlockStmt *BlockStmt = Builder.CreateBlockStmt(Tok.getLocation());
-    SemaBuilderLoopStmt *LoopBuilder = Builder.CreateLoopBuilder(Parent);
-    LoopBuilder->Loop(Loc, Condition, BlockStmt);
+    SemaBuilderLoopStmt *LoopBuilder = Builder.CreateLoopBuilder(Parent, Loc);
+    LoopBuilder->Loop(Condition, BlockStmt);
 
 
     // Consume Right Parenthesis ) if exists
@@ -823,8 +823,8 @@ bool Parser::ParseForStmt(ASTBlockStmt *Parent) {
     }
 
     ASTBlockStmt *LoopBlock = Builder.CreateBlockStmt(Tok.getLocation());
-    SemaBuilderLoopStmt *LoopBuilder = Builder.CreateLoopBuilder(Parent);
-    LoopBuilder->Loop(Loc, Condition, LoopBlock);
+    SemaBuilderLoopStmt *LoopBuilder = Builder.CreateLoopBuilder(Parent, Loc);
+    LoopBuilder->Loop(Condition, LoopBlock);
     LoopBuilder->Init(InitBlock);
     LoopBuilder->Post(PostBlock);
 
@@ -1171,16 +1171,18 @@ ASTValue *Parser::ParseValues() {
 
         // if is Identifier -> struct
         if (Tok.isAnyIdentifier()) {
+            llvm::StringMap<ASTValue *> StructValues;
             const StringRef &Key = Tok.getIdentifierInfo()->getName();
             ConsumeToken();
             
             if (Tok.is(tok::equal)) {
-                Values = Builder.CreateStructValue(StartLoc);
+                // FIXME
+                Values = Builder.CreateStructValue(StartLoc, StructValues);
                 ConsumeToken();
 
                 ASTValue *Value = ParseValue();
                 if (Value) {
-                    Builder.AddStructValue((ASTStructValue *) Values, Key, Value);
+                    StructValues.insert(std::make_pair(Key, Value));
                     if (Tok.is(tok::comma)) {
                         ConsumeToken();
                     } else {

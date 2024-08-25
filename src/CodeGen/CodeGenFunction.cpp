@@ -37,7 +37,7 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, ASTFunction *AST, bool isEx
     GenParamTypes(CGM, ParamTypes, AST->getParams());
 
     // Create LLVM Function
-    FnType = llvm::FunctionType::get(RetType, ParamTypes, AST->getEllipsis() != nullptr);
+    FnType = llvm::FunctionType::get(RetType, ParamTypes, false);
 
     // Set Name
     std::string Id = CodeGen::toIdentifier(AST->getName(), AST->getNameSpace()->getName());

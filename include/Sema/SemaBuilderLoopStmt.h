@@ -16,27 +16,28 @@ namespace fly {
     class ASTLoopStmt;
     class SourceLocation;
     class ASTStmt;
+    class ASTBlockStmt;
     class ASTExpr;
 
     class SemaBuilderLoopStmt {
 
         Sema &S;
 
-        ASTStmt *Parent;
+        ASTBlockStmt *Parent;
 
         ASTLoopStmt *LoopStmt;
 
-        explicit SemaBuilderLoopStmt(Sema &S, ASTStmt *Parent);
+        explicit SemaBuilderLoopStmt(Sema &S, ASTBlockStmt *Parent);
 
     public:
 
-        static SemaBuilderLoopStmt *Create(Sema &S, ASTStmt *Parent);
+        static SemaBuilderLoopStmt *Create(Sema &S, ASTBlockStmt *Parent, const SourceLocation &Loc);
 
-        SemaBuilderLoopStmt *Loop(const SourceLocation &Loc, ASTExpr *Expr, ASTStmt *Stmt);
+        SemaBuilderLoopStmt *Loop(ASTExpr *Expr, ASTBlockStmt *Stmt);
 
-        void Init(ASTStmt *Stmt);
+        void Init(ASTBlockStmt *Stmt);
 
-        void Post(ASTStmt *Stmt);
+        void Post(ASTBlockStmt *Stmt);
 
         void VerifyConditionAtEnd();
     };

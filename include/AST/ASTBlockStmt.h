@@ -24,6 +24,10 @@ namespace fly {
     class ASTBlockStmt : public ASTStmt {
 
         friend class SemaBuilder;
+        friend class SemaBuilderStmt;
+        friend class SemaBuilderIfStmt;
+        friend class SemaBuilderSwitchStmt;
+        friend class SemaBuilderLoopStmt;
         friend class SemaResolver;
         friend class SemaValidator;
 

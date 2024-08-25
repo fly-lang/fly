@@ -14,34 +14,38 @@
 
 using namespace fly;
 
-SemaBuilderLoopStmt::SemaBuilderLoopStmt(Sema &S, ASTStmt *Parent) : S(S), Parent(Parent) {
+SemaBuilderLoopStmt::SemaBuilderLoopStmt(Sema &S, ASTBlockStmt *Parent) : S(S), Parent(Parent) {
 
 }
 
-SemaBuilderLoopStmt *SemaBuilderLoopStmt::Create(Sema &S, ASTStmt *Parent) {
-    return new SemaBuilderLoopStmt(S, Parent);
-}
-
-SemaBuilderLoopStmt *SemaBuilderLoopStmt::Loop(const SourceLocation &Loc, ASTExpr *Expr, ASTStmt *Stmt) {
-    LoopStmt = new ASTLoopStmt(Loc);
-    LoopStmt->Condition = Expr;
+SemaBuilderLoopStmt *SemaBuilderLoopStmt::Create(Sema &S, ASTBlockStmt *Parent, const SourceLocation &Loc) {
+    SemaBuilderLoopStmt *Builder = new SemaBuilderLoopStmt(S, Parent);
+    Builder->LoopStmt = new ASTLoopStmt(Loc);
     // Inner Stmt
-    LoopStmt->Parent = Parent;
-    LoopStmt->Function = Parent->Function;
+    Parent->Content.push_back(Builder->LoopStmt);
+    Builder->LoopStmt->Parent = Parent;
+    Builder->LoopStmt->Function = Parent->Function;
+    return Builder;
+}
+
+SemaBuilderLoopStmt *SemaBuilderLoopStmt::Loop(ASTExpr *Expr, ASTBlockStmt *Stmt) {
+    LoopStmt->Condition = Expr;
+    LoopStmt->Loop = Stmt;
+
     // Inner Stmt
     Stmt->Parent = Parent;
     Stmt->Function = Parent->Function;
     return this;
 }
 
-void SemaBuilderLoopStmt::Init(ASTStmt *Stmt) {
+void SemaBuilderLoopStmt::Init(ASTBlockStmt *Stmt) {
     LoopStmt->Init = Stmt;
     // Inner Stmt
     Stmt->Parent = LoopStmt;
     Stmt->Function = LoopStmt->Function;
 }
 
-void SemaBuilderLoopStmt::Post(ASTStmt *Stmt) {
+void SemaBuilderLoopStmt::Post(ASTBlockStmt *Stmt) {
     LoopStmt->Post = Stmt;
     // Inner Stmt
     Stmt->Parent = LoopStmt->Init;

@@ -10,23 +10,26 @@
 #include "Sema/SemaBuilderIfStmt.h"
 #include "Sema/SemaBuilder.h"
 #include "AST/ASTIfStmt.h"
+#include "AST/ASTBlockStmt.h"
 
 using namespace fly;
 
-SemaBuilderIfStmt::SemaBuilderIfStmt(Sema &S, ASTStmt *Parent) : S(S), Parent(Parent) {
+SemaBuilderIfStmt::SemaBuilderIfStmt(Sema &S, ASTBlockStmt *Parent) : S(S), Parent(Parent) {
 
 }
 
-SemaBuilderIfStmt *SemaBuilderIfStmt::Create(Sema &S, ASTStmt *Parent) {
+SemaBuilderIfStmt *SemaBuilderIfStmt::Create(Sema &S, ASTBlockStmt *Parent) {
     return new SemaBuilderIfStmt(S, Parent);
 }
 
-SemaBuilderIfStmt *SemaBuilderIfStmt::If(const SourceLocation &Loc, ASTExpr *Expr, ASTStmt *Stmt) {
+SemaBuilderIfStmt *SemaBuilderIfStmt::If(const SourceLocation &Loc, ASTExpr *Expr, ASTBlockStmt *Stmt) {
     IfStmt = new ASTIfStmt(Loc);
-    IfStmt->Parent = Parent;
-    IfStmt->Function = Parent->Function;
     IfStmt->Condition = Expr;
     IfStmt->Stmt = Stmt;
+    // Inner Stmt
+    Parent->Content.push_back(IfStmt);
+    IfStmt->Parent = Parent;
+    IfStmt->Function = Parent->Function;
     // Inner Stmt
     Stmt->Parent = IfStmt;
     Stmt->Function = IfStmt->Function;
@@ -34,7 +37,7 @@ SemaBuilderIfStmt *SemaBuilderIfStmt::If(const SourceLocation &Loc, ASTExpr *Exp
 }
 
 
-SemaBuilderIfStmt *SemaBuilderIfStmt::ElseIf(const SourceLocation &Loc, ASTExpr *Expr, ASTStmt *Stmt) {
+SemaBuilderIfStmt *SemaBuilderIfStmt::ElseIf(const SourceLocation &Loc, ASTExpr *Expr, ASTBlockStmt *Stmt) {
     ASTElsif *Elsif = new ASTElsif(Loc);
     Elsif->Condition = Expr;
     Elsif->Stmt = Stmt;
@@ -46,7 +49,7 @@ SemaBuilderIfStmt *SemaBuilderIfStmt::ElseIf(const SourceLocation &Loc, ASTExpr 
     return this;
 }
 
-SemaBuilderIfStmt *SemaBuilderIfStmt::Else(const SourceLocation &Loc, ASTStmt *Stmt) {
+SemaBuilderIfStmt *SemaBuilderIfStmt::Else(const SourceLocation &Loc, ASTBlockStmt *Stmt) {
     // Inner Stmt
     Stmt->Parent = IfStmt;
     Stmt->Function = IfStmt->Function;

@@ -317,7 +317,7 @@ namespace fly {
 
         ASTStringValue *CreateStringValue(const SourceLocation &Loc, StringRef Str);
 
-        ASTStructValue *CreateStructValue(const SourceLocation &Loc);
+        ASTStructValue *CreateStructValue(const SourceLocation &Loc, llvm::StringMap<ASTValue *>);
 
         ASTValue *CreateDefaultValue(ASTType *Type);
 
@@ -373,21 +373,21 @@ namespace fly {
 
         // Create Statements
 
-        SemaBuilderStmt *CreateVarStmt(ASTStmt *Parent, ASTVarRef *VarRef);
+        SemaBuilderStmt *CreateVarStmt(ASTBlockStmt *Parent, ASTVarRef *VarRef);
 
-        SemaBuilderStmt *CreateVarStmt(ASTStmt *Parent, ASTVar *Var);
+        SemaBuilderStmt *CreateVarStmt(ASTBlockStmt *Parent, ASTVar *Var);
 
-        SemaBuilderStmt *CreateReturnStmt(ASTStmt *Parent, const SourceLocation &Loc);
+        SemaBuilderStmt *CreateReturnStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
 
-        SemaBuilderStmt *CreateFailStmt(ASTStmt *Parent, const SourceLocation &Loc, ASTVar *ErrorHandler);
+        SemaBuilderStmt *CreateFailStmt(ASTBlockStmt *Parent, const SourceLocation &Loc, ASTVar *ErrorHandler);
 
-        SemaBuilderStmt *CreateExprStmt(ASTStmt *Parent, const SourceLocation &Loc);
+        SemaBuilderStmt *CreateExprStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
 
-        ASTBreakStmt *CreateBreakStmt(ASTStmt *Parent, const SourceLocation &Loc);
+        ASTBreakStmt *CreateBreakStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
 
-        ASTContinueStmt *CreateContinueStmt(ASTStmt *Parent, const SourceLocation &Loc);
+        ASTContinueStmt *CreateContinueStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
 
-        ASTDeleteStmt *CreateDeleteStmt(ASTStmt *Parent, const SourceLocation &Loc, ASTVarRef *VarRef);
+        ASTDeleteStmt *CreateDeleteStmt(ASTBlockStmt *Parent, const SourceLocation &Loc, ASTVarRef *VarRef);
 
         // Create Blocks structures
 
@@ -395,19 +395,13 @@ namespace fly {
 
         ASTBlockStmt *CreateBlockStmt(const SourceLocation &Loc);
 
-        SemaBuilderIfStmt *CreateIfBuilder(ASTStmt *Parent);
+        SemaBuilderIfStmt *CreateIfBuilder(ASTBlockStmt *Parent);
 
-        SemaBuilderSwitchStmt *CreateSwitchBuilder(ASTStmt *Parent);
+        SemaBuilderSwitchStmt *CreateSwitchBuilder(ASTBlockStmt *Parent);
 
-        SemaBuilderLoopStmt *CreateLoopBuilder(ASTStmt *Parent);
+        SemaBuilderLoopStmt *CreateLoopBuilder(ASTBlockStmt *Parent, const SourceLocation &Loc);
 
-        ASTHandleStmt *CreateHandleStmt(ASTStmt *Parent, const SourceLocation &Loc, ASTVarRef *ErrorRef);
-
-        /** Add AST **/
-
-        void AddFunctionVarParams(ASTFunctionBase *Function, ASTParam *Param); // TODO
-
-        bool AddStructValue(ASTStructValue *ArrayValue, llvm::StringRef Key, ASTValue *Value);
+        ASTHandleStmt *CreateHandleStmt(ASTBlockStmt *Parent, const SourceLocation &Loc, ASTVarRef *ErrorRef);
 
     };
 

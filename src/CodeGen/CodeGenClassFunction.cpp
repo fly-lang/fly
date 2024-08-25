@@ -43,7 +43,7 @@ CodeGenClassFunction::CodeGenClassFunction(CodeGenModule *CGM, ASTClassMethod *A
     GenParamTypes(CGM, ParamTypes, AST->getParams());
 
     // Set LLVM Function Name %MODULE_CLASS_METHOD (if MODULE == default is empty)
-    FnType = llvm::FunctionType::get(RetType, ParamTypes, AST->getEllipsis() != nullptr);
+    FnType = llvm::FunctionType::get(RetType, ParamTypes, false);
 
     std::string Id = CodeGen::toIdentifier(AST->getName(), Class->getNameSpace()->getName(), Class->getName());
     Fn = llvm::Function::Create(FnType, llvm::GlobalValue::ExternalLinkage, Id, CGM->getModule());

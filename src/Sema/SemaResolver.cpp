@@ -556,10 +556,11 @@ bool SemaResolver::ResolveStmtBlock(ASTBlockStmt *Block) {
         ResolveStmt(Stmt);
     }
     // Check LocalVar initialization
-    for (auto &LocalVar : Block->LocalVars) {
-        if (!LocalVar.second->isInitialized())
-            S.Diag(LocalVar.getValue()->getLocation(), diag::err_sema_uninit_var) << LocalVar.getValue()->getName();
-    }
+    // TODO
+//    for (auto &LocalVar : Block->LocalVars) {
+//        if (!LocalVar.second->isInitialized())
+//            S.Diag(LocalVar.getValue()->getLocation(), diag::err_sema_uninit_var) << LocalVar.getValue()->getName();
+//    }
     return true;
 }
 
@@ -592,12 +593,18 @@ bool SemaResolver::ResolveStmtSwitch(ASTSwitchStmt *SwitchStmt) {
 }
 
 bool SemaResolver::ResolveStmtLoop(ASTLoopStmt *LoopStmt) {
-    LoopStmt->Init->Parent = LoopStmt;
-    LoopStmt->Init->Function = LoopStmt->Function;
-    LoopStmt->Loop->Parent = LoopStmt->Init;
-    bool Success = ResolveStmt(LoopStmt->Init) && ResolveExpr(LoopStmt->Init, LoopStmt->Condition);
-    Success = S.Validator->CheckConvertibleTypes(LoopStmt->Condition->Type, S.Builder->CreateBoolType(LoopStmt->Condition->getLocation()));
-    Success &= LoopStmt->Loop ? ResolveStmt(LoopStmt->Loop) : true;
+    // Check Loop is not null or empty
+    bool Success = LoopStmt->Loop != nullptr;
+
+    // CHeck Init
+    if (LoopStmt->Init) {
+        LoopStmt->Loop->Parent = LoopStmt->Init;
+        Success = ResolveStmt(LoopStmt->Init) && ResolveExpr(LoopStmt->Init, LoopStmt->Condition);
+    } else {
+        Success = ResolveExpr(LoopStmt->Parent, LoopStmt->Condition);
+    }
+    Success = S.Validator->CheckConvertibleTypes(LoopStmt->Condition->Type, S.Builder->CreateBoolType(SourceLocation()));
+    Success = ResolveStmt(LoopStmt->Loop);
     Success &= LoopStmt->Post ? ResolveStmt(LoopStmt->Post) : true;
     return Success;
 }
