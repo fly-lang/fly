@@ -260,6 +260,7 @@ namespace fly {
                                       llvm::SmallVector<ASTScope *, 8> &Scopes);
 
         // Create Types
+
         ASTBoolType *CreateBoolType(const SourceLocation &Loc);
 
         ASTByteType *CreateByteType(const SourceLocation &Loc);
@@ -330,9 +331,11 @@ namespace fly {
                                     llvm::SmallVector<ASTScope *, 8> &Scopes);
 
         // Create Identifier
+
         ASTIdentifier *CreateIdentifier(const SourceLocation &Loc, llvm::StringRef Name);
 
         // Create Call
+
         ASTCall *CreateCall(ASTIdentifier *Identifier, llvm::SmallVector<ASTExpr *, 8> &Args, ASTCallKind CallKind, ASTIdentifier *Parent = nullptr);
 
         ASTCall *CreateCall(ASTFunction *Function, llvm::SmallVector<ASTExpr *, 8> &Args);
@@ -347,6 +350,7 @@ namespace fly {
         ASTVarRef *CreateVarRef(ASTVar *Var);
 
         // Create Expressions
+
         ASTEmptyExpr *CreateExpr();
 
         ASTValueExpr *CreateExpr(ASTValue *Value);
