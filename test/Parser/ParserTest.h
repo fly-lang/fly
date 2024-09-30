@@ -28,7 +28,6 @@ public:
     ASTContext *Context;
     Sema *S;
     DiagnosticsEngine &Diags;
-    bool Success = false;
 
     ParserTest() : CI(*TestUtils::CreateCompilerInstance()),
                    Diags(CI.getDiagnostics()) {
@@ -51,10 +50,6 @@ public:
 
     bool Resolve() {
         return S->Resolve();
-    }
-
-    bool isSuccess() const {
-        return Success && !Diags.hasErrorOccurred();
     }
 
 };

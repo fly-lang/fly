@@ -225,7 +225,7 @@ namespace fly {
         // Create Top Definitions
         ASTImport *CreateImport(ASTModule *Module, const SourceLocation &Loc, StringRef Name, ASTAlias* Alias);
 
-        ASTAlias *CreateAlias(ASTImport *Import, const SourceLocation &Loc, StringRef Name);
+        ASTAlias *CreateAlias(const SourceLocation &Loc, StringRef Name);
 
         ASTGlobalVar *CreateGlobalVar(ASTModule *Module, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
                                       SmallVector<ASTScope *, 8> &Scopes, ASTExpr *Expr = nullptr);

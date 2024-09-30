@@ -24,8 +24,6 @@ namespace fly {
         friend class SemaBuilder;
         friend class SemaResolver;
 
-        llvm::StringRef Name;
-
         ASTAlias *Alias = nullptr;
 
         ASTImport(const SourceLocation &Loc, llvm::StringRef Name);
@@ -34,7 +32,7 @@ namespace fly {
 
         ~ASTImport();
 
-        const ASTAlias *getAlias() const;
+        ASTAlias *getAlias() const;
 
         void setAlias(ASTAlias *Alias);
 
@@ -47,11 +45,9 @@ namespace fly {
         friend class SemaResolver;
         friend class SemaValidator;
 
-        llvm::StringRef Name;
-
         ASTImport *Import;
 
-        ASTAlias(ASTImport *Import, const SourceLocation &Loc, llvm::StringRef Name);
+        ASTAlias(const SourceLocation &Loc, llvm::StringRef Name);
 
     public:
 

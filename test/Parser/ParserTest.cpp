@@ -37,11 +37,9 @@ namespace {
         llvm::StringRef str = ("namespace std");
         ASTModule *Module = Parse("SingleNameSpace", str);
         ASSERT_TRUE(Resolve());
-        ASSERT_TRUE(isSuccess());
-        
-        EXPECT_EQ(Module->getName(), "SingleNameSpace");
 
-        // verify AST contains package
+        // Verify
+        EXPECT_EQ(Module->getName(), "SingleNameSpace");
         EXPECT_EQ(Module->getNameSpace()->getName(), "std");
     }
 
@@ -49,8 +47,7 @@ namespace {
         llvm::StringRef str = ("namespace std\n"
                                 "namespace bad");
         ASTModule *Module = Parse("MultiNamespaceError", str);
-        ASSERT_TRUE(Resolve());
-        EXPECT_FALSE(isSuccess());
+        ASSERT_FALSE(Resolve());
     }
 
     TEST_F(ParserTest, SingleImport) {
@@ -60,7 +57,6 @@ namespace {
         ASTModule *Module1 = Parse("packageA.fly", str1);
         ASTModule *Module2 = Parse("std.fly", str2);
         ASSERT_TRUE(Resolve());
-        ASSERT_TRUE(isSuccess());
 
         // Select packageA import
         ASTImport *PackageA = nullptr;
@@ -70,44 +66,49 @@ namespace {
             }
         }
 
-        EXPECT_TRUE(PackageA);
+        EXPECT_NE(PackageA, nullptr);
         EXPECT_EQ(PackageA->getName(), "packageA");
         EXPECT_EQ(PackageA->getAlias(), nullptr);
-
     }
 
     TEST_F(ParserTest, SingleImportAlias) {
         llvm::StringRef str1 = ("namespace standard");
+        llvm::StringRef str2 = ("import standard as std");
         ASTModule *Module1 = Parse("standard.fly", str1);
-
-        llvm::StringRef str2 = ("import standard std");
         ASTModule *Module2 = Parse("default.fly", str2);
 
         ASSERT_TRUE(Resolve());
-        ASSERT_TRUE(isSuccess());
+
+        EXPECT_EQ(Module2->getNameSpace()->getName(), "default");
 
         // Select standard import
         ASTImport *standardImport = nullptr;
+        ASTAlias *standardImportAlias = nullptr;
         for (auto Import : Module2->getImports()) {
             if (Import->getName() == "standard") {
                 standardImport = Import;
+                standardImportAlias = standardImport->getAlias();
             }
         }
 
-        // Select standard alias
-        ASTImport *stdAlias = nullptr;
-        for (auto Import : Module2->getAliasImports()) {
-            if (Import->getName() == "std") {
-                stdAlias = Import;
-            }
-        }
-
-        EXPECT_TRUE(standardImport);
-        EXPECT_EQ(Module2->getNameSpace()->getName(), "default");
+        EXPECT_NE(standardImport, nullptr);
         EXPECT_EQ(standardImport->getName(), "standard");
         EXPECT_EQ(standardImport->getAlias()->getName(), "std");
-        EXPECT_EQ(stdAlias->getName(), "standard");
-        EXPECT_EQ(stdAlias->getAlias()->getName(), "std");
+
+        EXPECT_NE(standardImportAlias, nullptr);
+        EXPECT_EQ(standardImportAlias->getName(), "std");
+
+        // Select standard alias
+        ASTImport *AliasImport = nullptr;
+        for (auto Alias : Module2->getAliasImports()) {
+            if (Alias->getName() == "standard") {
+                AliasImport = Alias;
+            }
+        }
+
+        EXPECT_NE(AliasImport, nullptr);
+        EXPECT_EQ(standardImport->getName(), "standard");
+        EXPECT_EQ(AliasImport->getAlias()->getName(), "std");
     }
 
 //    TEST_F(ParserTest,  LineComments) {
@@ -119,7 +120,7 @@ namespace {
 //
 //        ASTModule *Module = Parse("LineComments", str);
 //        ASSERT_TRUE(Resolve());
-//        ASSERT_TRUE(isSuccess());
+
 //
 //        ASTGlobalVar *GlobalB = Module->getGlobalVars().find("b")->getValue();
 //        EXPECT_EQ(GlobalB->getName(), "b");
@@ -143,7 +144,7 @@ namespace {
 //                               "void func2() {}\n"
 //        );
 //        ASTModule *Module = Parse("BlockComments", str);
-//        ASSERT_TRUE(isSuccess());
+
 //
 //        ASTGlobalVar *GlobalB = Module->getGlobalVars().find("b")->getValue();
 //        EXPECT_EQ(GlobalB->getName(), "b");
@@ -173,7 +174,7 @@ namespace {
 //        ASTModule *Module = Parse("GlobalVars", str);
 //
 //        ASSERT_TRUE(Resolve());
-//        ASSERT_TRUE(isSuccess());
+
 //
 //        ASTGlobalVar *VerifyA = Module->getGlobalVars().find("a")->getValue();
 //        ASTGlobalVar *VerifyB = Module->getNameSpace()->getGlobalVars().find("b")->getValue();
@@ -246,7 +247,7 @@ namespace {
 //        ASTModule *Module = Parse("GlobalConstants", str);
 //
 //        ASSERT_TRUE(Resolve());
-//        ASSERT_TRUE(isSuccess());
+
 //
 //        ASTGlobalVar *VerifyA = Module->getGlobalVars().find("a")->getValue();
 //        ASTGlobalVar *VerifyB = Module->getGlobalVars().find("b")->getValue();
@@ -282,7 +283,7 @@ namespace {
 //                               );
 //        ASTModule *Module = Parse("GlobalArray", str);
 //        ASSERT_TRUE(Resolve());
-//        ASSERT_TRUE(isSuccess());
+
 //
 //        ASTGlobalVar *a = Module->getGlobalVars().find("a")->getValue();
 //        ASTGlobalVar *b = Module->getGlobalVars().find("b")->getValue();
@@ -352,7 +353,7 @@ namespace {
 //        );
 //        ASTModule *Module = Parse("GlobalChar", str);
 //        ASSERT_TRUE(Resolve());
-//        ASSERT_TRUE(isSuccess());
+
 //
 //        ASTGlobalVar *a = Module->getGlobalVars().find("a")->getValue();
 //        ASTGlobalVar *b = Module->getGlobalVars().find("b")->getValue();
@@ -406,7 +407,7 @@ namespace {
 //        );
 //        ASTModule *Module = Parse("GlobalString", str);
 //        ASSERT_TRUE(Resolve());
-//        ASSERT_TRUE(isSuccess());
+
 //
 //        ASTGlobalVar *a = Module->getGlobalVars().find("a")->getValue();
 //        ASTGlobalVar *b = Module->getGlobalVars().find("b")->getValue();
@@ -431,7 +432,7 @@ namespace {
 //        llvm::StringRef str = ("void func() {}\n");
 //        ASTModule *AST = Parse("FunctionDefaultVoidEmpty", str);
 //        ASSERT_TRUE(Resolve());
-//        ASSERT_TRUE(isSuccess());
+
 //
 //        EXPECT_TRUE(AST->getFunctions().size() == 1); // Func has DEFAULT Visibility
 //        EXPECT_TRUE(AST->getNameSpace()->getFunctions().size() == 2); // Default contains also fail() function
@@ -449,7 +450,7 @@ namespace {
 //        ASTModule *Module = Parse("FunctionPrivateReturnParams", str);
 //
 //        ASSERT_TRUE(Resolve());
-//        ASSERT_TRUE(isSuccess());
+
 //
 //        EXPECT_TRUE(Module->getFunctions().size() == 1); // func() has PRIVATE Visibility
 //        ASTFunction *VerifyFunc = *Module->getFunctions().begin()->getValue().begin()->second.begin();
@@ -491,7 +492,7 @@ namespace {
 //        ASTModule *Module = Parse("TypeDefaultVarReturn", str);
 //
 //        ASSERT_TRUE(Resolve());
-//        ASSERT_TRUE(isSuccess());
+
 //
 //        // Get Body
 //        ASTFunction *F = *Module->getFunctions().begin()->getValue().begin()->second.begin();
@@ -529,7 +530,7 @@ namespace {
 //        ASTModule *Module = Parse("UndefLocalVar", str);
 //
 //        ASSERT_TRUE(Resolve());
-//        ASSERT_TRUE(isSuccess());
+
 //
 //        // Get Body
 //        ASTFunction *F = *Module->getFunctions().begin()->getValue().begin()->second.begin();
@@ -628,7 +629,7 @@ namespace {
 //        ASTModule *Module = Parse("FunctionCall", str);
 //
 //        ASSERT_TRUE(Resolve());
-//        ASSERT_TRUE(isSuccess());
+
 //
 //        // Get all functions
 //        ASTFunction *doSome = *Module->getFunctions().find("doSome")->getValue().begin()->second.begin();
@@ -696,7 +697,7 @@ namespace {
 //                               "}\n");
 //        ASTModule *Module = Parse("FunctionFail", str);
 //        ASSERT_TRUE(Resolve());
-//        ASSERT_TRUE(isSuccess());
+
 //
 //        // Get all functions
 //        ASTFunction *err0 = *Module->getFunctions().find("err0")->getValue().begin()->second.begin();

@@ -142,12 +142,12 @@ ASTImport *SemaBuilder::CreateImport(ASTModule *Module, const SourceLocation &Lo
     return Import;
 }
 
-ASTAlias *SemaBuilder::CreateAlias(ASTImport *Import, const SourceLocation &Loc, llvm::StringRef Name) {
+ASTAlias *SemaBuilder::CreateAlias(const SourceLocation &Loc, llvm::StringRef Name) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateImport",
                       Logger().Attr("Loc", (uint64_t) Loc.getRawEncoding())
                               .Attr("Name", Name).End());
     S.getValidator().CheckCreateAlias(Loc, Name);
-    ASTAlias *Alias = new ASTAlias(Import, Loc, Name);
+    ASTAlias *Alias = new ASTAlias(Loc, Name);
     return Alias;
 }
 

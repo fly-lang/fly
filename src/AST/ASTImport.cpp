@@ -20,7 +20,7 @@ ASTImport::~ASTImport() {
 
 }
 
-const ASTAlias *ASTImport::getAlias() const {
+ASTAlias *ASTImport::getAlias() const {
     return Alias;
 }
 
@@ -36,8 +36,8 @@ std::string ASTImport::str() const {
             End();
 }
 
-ASTAlias::ASTAlias(ASTImport *Import, const SourceLocation &Loc, llvm::StringRef Name) :
-        ASTIdentifier(Loc, Name, ASTIdentifierKind::REF_ALIAS), Import(Import) {
+ASTAlias::ASTAlias(const SourceLocation &Loc, llvm::StringRef Name) :
+        ASTIdentifier(Loc, Name, ASTIdentifierKind::REF_ALIAS) {
 
 }
 

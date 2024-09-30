@@ -149,6 +149,8 @@ ASTBase *Parser:: Parse() {
 
                 if (IdentifierAlias == nullptr) {
                     Diag(Tok, diag::err_import_undefined);
+                } else {
+                    Alias = Builder.CreateAlias(IdentifierAlias->getLocation(), IdentifierAlias->getName());
                 }
             }
 
