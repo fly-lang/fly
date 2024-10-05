@@ -294,8 +294,8 @@ DIAG(warn_pp_objc_macro_redef_ignored, CLASS_WARNING, (unsigned)diag::Severity::
 DIAG(warn_pp_undef_identifier, CLASS_WARNING, (unsigned)diag::Severity::Ignored, "%0 is not defined, evaluates to 0", 741, SFINAE_Suppress, false, false, 1)
 DIAG(warn_quoted_include_in_framework_header, CLASS_WARNING, (unsigned)diag::Severity::Ignored, "double-quoted include \"%0\" in framework header, expected angle-bracketed instead", 609, SFINAE_Suppress, false, false, 1)
 DIAG(warn_ucn_escape_incomplete, CLASS_WARNING, (unsigned)diag::Severity::Warning, "incomplete universal character name; treating as '\\' followed by identifier", 753, SFINAE_Suppress, false, false, 1)
-DIAG(warn_ucn_escape_no_digits, CLASS_WARNING, (unsigned)diag::Severity::Warning, "\\%0 used with no following hex digits; treating as '\\' followed by identifier", 753, SFINAE_Suppress, false, false, 1)
 DIAG(warn_ucn_escape_surrogate, CLASS_WARNING, (unsigned)diag::Severity::Warning, "universal character name refers to a surrogate character", 753, SFINAE_Suppress, false, false, 1)
+DIAG(warn_ucn_escape_no_digits, CLASS_WARNING, (unsigned)diag::Severity::Warning, "\\%0 used with no following hex digits; treating as '\\' followed by identifier", 753, SFINAE_Suppress, false, false, 1)
 DIAG(warn_ucn_not_valid_in_c89, CLASS_WARNING, (unsigned)diag::Severity::Warning, "universal character names are only valid in C99 or C++; treating as '\\' followed by identifier", 753, SFINAE_Suppress, false, false, 1)
 DIAG(warn_ucn_not_valid_in_c89_literal, CLASS_EXTENSION, (unsigned)diag::Severity::Warning, "universal character names are only valid in C99 or C++", 753, SFINAE_Suppress, false, false, 1)
 DIAG(warn_uncovered_module_header, CLASS_WARNING, (unsigned)diag::Severity::Warning, "umbrella header for module '%0' does not include header '%1'", 354, SFINAE_Suppress, false, false, 1)
@@ -304,8 +304,7 @@ DIAG(warn_utf8_symbol_homoglyph, CLASS_WARNING, (unsigned)diag::Severity::Warnin
 DIAG(warn_utf8_symbol_zero_width, CLASS_WARNING, (unsigned)diag::Severity::Warning, "identifier contains Unicode character <U+%0> that is invisible in some environments", 756, SFINAE_Suppress, false, false, 1)
 
 // Parser Errors
-DIAG(err_namespace_multi_defined, CLASS_ERROR, (unsigned)diag::Severity::Error, "namespace defined more than one time", 0, SFINAE_Suppress, false, true, 0)
-DIAG(err_namespace_invalid, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid namespace defined '%0'", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_parse_identifier_expected, CLASS_ERROR, (unsigned)diag::Severity::Error, "an identifier is expected", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_parse_identifier_invalid, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid identifier", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_import_undefined, CLASS_ERROR, (unsigned)diag::Severity::Error, "import undefined", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_import_invalid, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid import", 0, SFINAE_Suppress, false, true, 0)

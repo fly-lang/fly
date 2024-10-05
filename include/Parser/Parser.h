@@ -41,6 +41,7 @@ namespace fly {
     class ASTClass;
     class ASTGlobalVar;
     class ASTEnum;
+    class ASTComment;
     enum class ASTBinaryOperatorKind;
 
     /// ParseModule the main file known to the preprocessor, producing an
@@ -98,6 +99,7 @@ namespace fly {
         ASTFunction *ParseFunctionDef(SmallVector<ASTScope *, 8> &Scopes, ASTType *Type);
         ASTClass *ParseClassDef(SmallVector<ASTScope *, 8> &Scopes);
         ASTEnum *ParseEnumDef(SmallVector<ASTScope *, 8> &Scopes);
+        ASTComment *ParseCommentMultiline();
 
         // Parse Block Statement
         bool ParseBlock(ASTBlockStmt *Parent);

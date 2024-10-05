@@ -123,7 +123,7 @@ ASTBase *Parser:: Parse() {
 
         // Check identifier Error
         if (Identifier == nullptr) {
-            Diag(Tok, diag::err_namespace_invalid);
+            Diag(Tok, diag::err_parse_identifier_expected);
         } else {
 
             // Create NameSpace
@@ -136,8 +136,9 @@ ASTBase *Parser:: Parse() {
         // Parse import identifier
         ASTIdentifier *IdentifierImport = ParseIdentifier();
 
+        // Check identifier Error
         if (IdentifierImport == nullptr) {
-            Diag(Tok, diag::err_import_undefined);
+            Diag(Tok, diag::err_parse_identifier_expected);
         } else {
 
             ASTAlias *Alias = nullptr;
@@ -147,8 +148,9 @@ ASTBase *Parser:: Parse() {
                 // Parse import alias identifier
                 ASTIdentifier *IdentifierAlias = ParseIdentifier();
 
+                // Check identifier Error
                 if (IdentifierAlias == nullptr) {
-                    Diag(Tok, diag::err_import_undefined);
+                    Diag(Tok, diag::err_parse_identifier_expected);
                 } else {
                     Alias = Builder.CreateAlias(IdentifierAlias->getLocation(), IdentifierAlias->getName());
                 }
@@ -185,14 +187,18 @@ ASTBase *Parser::ParseTopDef(SmallVector<ASTScope *, 8>& Scopes) {
     ASTType *Type = nullptr;
     if (ParseType(Type)) {
 
-        // Define a Function
-        if (Tok.isAnyIdentifier() &&
-            Lex.findNextToken(Tok.getLocation(), SourceMgr)->is(tok::l_paren)) {
-            return ParseFunctionDef(Scopes, Type);
-        }
+        if (Tok.isAnyIdentifier()) {
 
-        // Define a GlobalVar
-        return ParseGlobalVarDef(Scopes, Type);
+            // Define a Function
+            if (Lexer::findNextToken(Tok.getLocation(), SourceMgr)->is(tok::l_paren)) {
+                return ParseFunctionDef(Scopes, Type);
+            } else {
+                // Define a GlobalVar
+                return ParseGlobalVarDef(Scopes, Type);
+            }
+        } else {
+            Diag(Tok, diag::err_parse_identifier_invalid);
+        }
     }
 
     return nullptr;
@@ -236,15 +242,7 @@ ASTGlobalVar *Parser::ParseGlobalVarDef(SmallVector<ASTScope *, 8> &Scopes, ASTT
     FLY_DEBUG_MESSAGE("Parser", "ParseGlobalVarDef", Logger()
                                                     .AttrList("Scopes", Scopes)
                                                     .Attr("Type", Type).End());
-
     assert(Tok.isAnyIdentifier() && "Tok must be an Identifier");
-
-    // Add Comment to AST
-    llvm::StringRef Comment;
-    if (!BlockComment.empty()) {
-        Comment = BlockComment;
-        BlockComment = StringRef();
-    }
     
     llvm::StringRef Name = Tok.getIdentifierInfo()->getName();
     SourceLocation Loc = ConsumeToken();
@@ -276,13 +274,6 @@ ASTFunction *Parser::ParseFunctionDef(SmallVector<ASTScope *, 8> &Scopes, ASTTyp
     FLY_DEBUG_MESSAGE("Parser", "ParseFunctionDef",  Logger()
                                                     .AttrList("Scopes", Scopes)
                                                     .Attr("Type", Type).End());
-
-    // Add Comment to AST
-    llvm::StringRef Comment;
-    if (!BlockComment.empty()) {
-        Comment = BlockComment;
-    }
-
     
     StringRef Name = Tok.getIdentifierInfo()->getName();
     const SourceLocation &Loc = ConsumeToken();
@@ -302,13 +293,6 @@ ASTFunction *Parser::ParseFunctionDef(SmallVector<ASTScope *, 8> &Scopes, ASTTyp
 ASTClass * Parser::ParseClassDef(SmallVector<ASTScope *, 8> &Scopes) {
     FLY_DEBUG_MESSAGE("Parser", "ParseClassDef", Logger().AttrList("Scopes", Scopes).End());
 
-    // Add Comment to AST
-    llvm::StringRef Comment;
-    if (!BlockComment.empty()) {
-        Comment = BlockComment;
-        BlockComment = StringRef();
-    }
-
     ASTClass *Class = ClassParser::Parse(this, Scopes);
     return Class;
 }
@@ -323,16 +307,21 @@ ASTClass * Parser::ParseClassDef(SmallVector<ASTScope *, 8> &Scopes) {
 ASTEnum *Parser::ParseEnumDef(SmallVector<ASTScope *, 8>&Scopes) {
     FLY_DEBUG_MESSAGE("Parser", "ParseClassDef", Logger().AttrList("Scopes", Scopes).End());
 
-    // Add Comment to AST
-    llvm::StringRef Comment;
-    if (!BlockComment.empty()) {
-        Comment = BlockComment;
-        BlockComment = StringRef();
-    }
-
     ASTEnum *Enum = EnumParser::Parse(this, Scopes);
-
     return Enum;
+}
+
+ASTComment *Parser::ParseCommentMultiline() {
+    FLY_DEBUG("Parser", "ParseCommentMultiline");
+    assert((Tok.getKind() == tok::comment) || Tok.is(tok::slashstar) && "Tok must be a Comment");
+
+    ASTComment *Comment = nullptr;
+    // Parse all as string
+    llvm::StringRef Content;
+    if (Tok.is(tok::starslash)) { // end comment
+        Builder.CreateCommentMultiline(Tok.getLocation(), Content);
+    }
+    return Comment;
 }
 
 /**
@@ -1165,21 +1154,22 @@ ASTValue *Parser::ParseValues() {
     FLY_DEBUG("Parser", "ParseValues");
     const SourceLocation &StartLoc = ConsumeBrace(BracketCount);
     
-    // Init with a zero value
-    ASTValue *Values = nullptr;
+    // Set Values Struct and Array for next
+    bool isStruct = false;
+    llvm::StringMap<ASTValue *> StructValues;
+    llvm::SmallVector<ASTValue *, 8> ArrayValues;
 
     // Parse array values Ex. {1, 2, 3}
     while (Tok.isNot(tok::r_brace) && Tok.isNot(tok::eof)) {
 
         // if is Identifier -> struct
         if (Tok.isAnyIdentifier()) {
-            llvm::StringMap<ASTValue *> StructValues;
+            isStruct = true;
             const StringRef &Key = Tok.getIdentifierInfo()->getName();
             ConsumeToken();
             
             if (Tok.is(tok::equal)) {
                 // FIXME
-                Values = Builder.CreateStructValue(StartLoc, StructValues);
                 ConsumeToken();
 
                 ASTValue *Value = ParseValue();
@@ -1192,16 +1182,12 @@ ASTValue *Parser::ParseValues() {
                     }
                 } else {
                     Diag(diag::err_invalid_value) << Tok.getName();
-                    return Values;
                 }
             }
         } else { // if is Value -> array
-            llvm::SmallVector<ASTValue *, 8> Array;
-            if (Values == nullptr)
-                Values = Builder.CreateArrayValue(StartLoc, Array);
             ASTValue *Value = ParseValue();
             if (Value) {
-                Array.push_back(Value);
+                ArrayValues.push_back(Value);
                 if (Tok.is(tok::comma)) {
                     ConsumeToken();
                 } else {
@@ -1209,7 +1195,6 @@ ASTValue *Parser::ParseValues() {
                 }
             } else {
                 Diag(diag::err_invalid_value) << Tok.getName();
-                return Values;
             }
         }
 
@@ -1218,13 +1203,15 @@ ASTValue *Parser::ParseValues() {
     // End of Array
     if (Tok.is(tok::r_brace)) {
         ConsumeBrace(BracketCount);
-        if (Values == nullptr)
-            Values = Builder.CreateZeroValue(StartLoc);
-        return Values;
+        if (isStruct) {
+            return Builder.CreateStructValue(StartLoc, StructValues);
+        } else {
+            return Builder.CreateArrayValue(StartLoc, ArrayValues);
+        }
     }
 
     Diag(diag::err_invalid_value) << Tok.getName();
-    return Values;
+    return Builder.CreateZeroValue(Tok.getLocation());
 }
 
 ASTExpr *Parser::ParseExpr(ASTIdentifier *Identifier) {

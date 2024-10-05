@@ -52,6 +52,8 @@ namespace fly {
 
     class ASTAlias;
 
+    class ASTComment;
+
     class ASTClass;
 
     class ASTClassAttribute;
@@ -226,6 +228,8 @@ namespace fly {
         ASTImport *CreateImport(ASTModule *Module, const SourceLocation &Loc, StringRef Name, ASTAlias* Alias);
 
         ASTAlias *CreateAlias(const SourceLocation &Loc, StringRef Name);
+
+        ASTComment *CreateCommentMultiline(const SourceLocation &Loc, llvm::StringRef Content);
 
         ASTGlobalVar *CreateGlobalVar(ASTModule *Module, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
                                       SmallVector<ASTScope *, 8> &Scopes, ASTExpr *Expr = nullptr);

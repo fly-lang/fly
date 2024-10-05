@@ -24,6 +24,7 @@
 #include "AST/ASTModule.h"
 #include "AST/ASTImport.h"
 #include "AST/ASTArg.h"
+#include "AST/ASTComment.h"
 #include "AST/ASTIdentifier.h"
 #include "AST/ASTBreakStmt.h"
 #include "AST/ASTContinueStmt.h"
@@ -149,6 +150,14 @@ ASTAlias *SemaBuilder::CreateAlias(const SourceLocation &Loc, llvm::StringRef Na
     S.getValidator().CheckCreateAlias(Loc, Name);
     ASTAlias *Alias = new ASTAlias(Loc, Name);
     return Alias;
+}
+
+ASTComment *SemaBuilder::CreateCommentMultiline(const SourceLocation &Loc, llvm::StringRef Content) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateCommentMultiline",
+                      Logger().Attr("Loc", (uint64_t) Loc.getRawEncoding())
+                              .Attr("Content", Content).End());
+    ASTComment *Comment = new ASTComment(Loc, Content);
+    return Comment;
 }
 
 /**

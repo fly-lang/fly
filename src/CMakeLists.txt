@@ -15,6 +15,7 @@ add_library(flyLib
         AST/ASTClassMethod.cpp
         AST/ASTClassType.cpp
         AST/ASTClassAttribute.cpp
+        AST/ASTComment.cpp
         AST/ASTContext.cpp
         AST/ASTContinueStmt.cpp
         AST/ASTDeleteStmt.cpp

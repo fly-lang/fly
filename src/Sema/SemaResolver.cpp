@@ -290,7 +290,7 @@ void SemaResolver::ResolveGlobalVarDefinitions() {
     for (auto GlobalVar : Module->getGlobalVars()) {
 
         // Check Expr Value
-        if (GlobalVar->Expr->getExprKind() != ASTExprKind::EXPR_VALUE) {
+        if (GlobalVar->Expr && GlobalVar->Expr->getExprKind() != ASTExprKind::EXPR_VALUE) {
             S.Diag(GlobalVar->Expr->getLocation(), diag::err_invalid_gvar_value);
         }
 

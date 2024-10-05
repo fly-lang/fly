@@ -30,7 +30,7 @@ public:
     DiagnosticsEngine &Diags;
 
     ParserTest() : CI(*TestUtils::CreateCompilerInstance()),
-                   Diags(CI.getDiagnostics()) {
+                        Diags(CI.getDiagnostics()) {
         S = Sema::CreateSema(CI.getDiagnostics());
     }
 

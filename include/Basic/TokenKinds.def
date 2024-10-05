@@ -103,6 +103,8 @@ PUNCTUATOR(equal,               "=")
 PUNCTUATOR(equalequal,          "==")
 PUNCTUATOR(comma,               ",")
 PUNCTUATOR(at,                  "@")
+PUNCTUATOR(slashstar,           "/*")
+PUNCTUATOR(starslash,           "*/")
 
 KEYWORD(as)
 KEYWORD(bool)
