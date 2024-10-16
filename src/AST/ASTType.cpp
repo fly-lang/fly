@@ -338,8 +338,8 @@ std::string ASTStringType::str() const {
             End();
 }
 
-ASTErrorType::ASTErrorType() :
-        ASTType(SourceLocation(), ASTTypeKind::TYPE_ERROR) {
+ASTErrorType::ASTErrorType(const SourceLocation &Loc) :
+        ASTType(Loc, ASTTypeKind::TYPE_ERROR) {
 
 }
 

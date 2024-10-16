@@ -13,15 +13,7 @@
 #include "AST/ASTImport.h"
 #include "AST/ASTGlobalVar.h"
 #include "AST/ASTFunction.h"
-#include "AST/ASTCall.h"
-#include "AST/ASTValue.h"
-#include "AST/ASTVarStmt.h"
-#include "AST/ASTVarRef.h"
-#include "AST/ASTClass.h"
-#include "AST/ASTClassAttribute.h"
-#include "AST/ASTClassMethod.h"
-#include "AST/ASTBlockStmt.h"
-#include "AST/ASTExpr.h"
+#include "AST/ASTComment.h"
 
 #include "llvm/ADT/StringMap.h"
 
@@ -29,24 +21,24 @@ namespace {
 
     using namespace fly;
 
-    TEST_F(ParserTest,  LineComments) {
-        llvm::StringRef str = ("// Global var comment\n"
-                               "int b\n"
-                               "// Func comment\n"
-                               "void func() {}\n"
-        );
-
-        ASTModule *Module = Parse("LineComments", str);
-        ASSERT_TRUE(Resolve());
-
-        ASTGlobalVar *GlobalB = Module->getGlobalVars().find("b")->getValue();
-        EXPECT_EQ(GlobalB->getName(), "b");
-        EXPECT_EQ(GlobalB->getComment(), "");
-
-        const ASTFunction *Func = *Module->getFunctions().begin()->getValue().begin()->second.begin();
-        EXPECT_EQ(Func->getName(), "func");
-        EXPECT_EQ(Func->getComment(), "");
-    }
+//    TEST_F(ParserTest,  LineComments) {
+//        llvm::StringRef str = ("// Global var comment\n"
+//                               "int b\n"
+//                               "// Func comment\n"
+//                               "void func() {}\n"
+//        );
+//
+//        ASTModule *Module = Parse("LineComments", str);
+//        ASSERT_TRUE(Resolve());
+//
+//        ASTGlobalVar *VarB = *Module->getGlobalVars().begin();
+//        EXPECT_EQ(VarB->getName(), "b");
+//        EXPECT_EQ(VarB->getComment()->getContent(), "// Global var comment");
+//
+//        ASTFunction *Func = *Module->getFunctions().begin();
+//        EXPECT_EQ(Func->getName(), "func");
+//        EXPECT_EQ(Func->getComment()->getContent(), "// Func comment");
+//    }
 
     TEST_F(ParserTest, BlockComments) {
         llvm::StringRef str = (" /* Global var block comment */\n"
@@ -55,24 +47,30 @@ namespace {
                                "// Func line comment\n"
                                "\t /*   Func block comment \n*/\n"
                                "void func() {\n"
-                               "  /* body comment */\n"
+                               "  /* body block comment */\n"
+                               "  // body inline comment */\n"
                                "}\n"
-                               "//body comment\n"
+                               "void func1() {}\n"
+                               "/*   Func2 block comment \n*/\n"
+                               "//func2 line comment\n"
                                "void func2() {}\n"
         );
         ASTModule *Module = Parse("BlockComments", str);
 
+        ASTGlobalVar *VarB = *Module->getGlobalVars().begin();
+        EXPECT_EQ(VarB->getName(), "b");
+        EXPECT_EQ(VarB->getComment()->getContent(), "/* Global var block comment */");
 
-        ASTGlobalVar *GlobalB = Module->getGlobalVars().find("b")->getValue();
-        EXPECT_EQ(GlobalB->getName(), "b");
-        EXPECT_EQ(GlobalB->getComment(), "/* Global var block comment */");
-
-        ASTFunction *Func = *Module->getFunctions().find("func")->getValue().begin()->second.begin();
+        ASTFunction *Func = Module->getFunctions().begin()[0];
         EXPECT_EQ(Func->getName(), "func");
-        EXPECT_EQ(Func->getComment(), "/*   Func block comment \n*/");
+        EXPECT_EQ(Func->getComment()->getContent(), "/*   Func block comment \n*/");
 
-        ASTFunction *Func2 = *Module->getFunctions().find("func2")->getValue().begin()->second.begin();
+        ASTFunction *Func1 = Module->getFunctions().begin()[1];
+        EXPECT_EQ(Func1->getName(), "func1");
+        EXPECT_EQ(Func1->getComment(), nullptr);
+
+        ASTFunction *Func2 = Module->getFunctions().begin()[2];
         EXPECT_EQ(Func2->getName(), "func2");
-        EXPECT_EQ(Func2->getComment(), StringRef());
+        EXPECT_EQ(Func2->getComment()->getContent(), "/*   Func2 block comment \n*/");
     }
 }

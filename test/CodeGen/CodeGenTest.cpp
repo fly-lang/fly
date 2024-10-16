@@ -31,6 +31,7 @@
 #include "AST/ASTIfStmt.h"
 #include "AST/ASTSwitchStmt.h"
 #include "AST/ASTLoopStmt.h"
+#include "AST/ASTHandleStmt.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTClassAttribute.h"
 #include "AST/ASTClassMethod.h"
@@ -2154,46 +2155,46 @@ namespace {
         }
     }
 
-    TEST_F(CodeGenTest, CGError) {
+    TEST_F(CodeGenTest, CGErrorFail) {
         ASTModule *Module = CreateModule();
 
         // int testFail0() {
-        //   fail()
+        //   fail
         // }
         ASTBlockStmt *Body0 = Builder.CreateBlockStmt(SourceLoc);
         ASTFunction *TestFail0 = Builder.CreateFunction(Module, SourceLoc, IntType, "testFail0", TopScopes, Params, Body0);
-        SemaBuilderStmt *Fail0Stmt = Builder.CreateFailStmt(Body0, SourceLoc, TestFail0->getErrorHandler());
+        SemaBuilderStmt *Fail0Stmt = Builder.CreateFailStmt(Body0, SourceLoc);
         Fail0Stmt->setExpr(Builder.CreateExpr());
 
         // int testFail1() {
-        //   fail(true)
+        //   fail true
         // }
         ASTBlockStmt *Body1 = Builder.CreateBlockStmt(SourceLoc);
         ASTFunction *TestFail1 = Builder.CreateFunction(Module, SourceLoc, IntType, "testFail1", TopScopes, Params, Body1);
         ASTBoolValue *BoolVal = Builder.CreateBoolValue(SourceLoc, true);
-        SemaBuilderStmt *Fail1Stmt = Builder.CreateFailStmt(Body1, SourceLoc, TestFail1->getErrorHandler());
+        SemaBuilderStmt *Fail1Stmt = Builder.CreateFailStmt(Body1, SourceLoc);
         Fail1Stmt->setExpr(Builder.CreateExpr(BoolVal));
 
         // int testFail2() {
-        //   fail(10)
+        //   fail 10
         // }
         ASTBlockStmt *Body2 = Builder.CreateBlockStmt(SourceLoc);
         ASTFunction *TestFail2 = Builder.CreateFunction(Module, SourceLoc, IntType, "testFail2", TopScopes, Params, Body2);
         ASTIntegerValue *IntVal = Builder.CreateIntegerValue(SourceLoc, 10);
-        SemaBuilderStmt *Fail2Stmt = Builder.CreateFailStmt(Body2, SourceLoc, TestFail2->getErrorHandler());
+        SemaBuilderStmt *Fail2Stmt = Builder.CreateFailStmt(Body2, SourceLoc);
         Fail2Stmt->setExpr(Builder.CreateExpr(IntVal));
 
         // int testFail3() {
-        //  fail("Error")
+        //  fail "Error"
         // }
         ASTBlockStmt *Body3 = Builder.CreateBlockStmt(SourceLoc);
         ASTFunction *TestFail3 = Builder.CreateFunction(Module, SourceLoc, IntType, "testFail3", TopScopes, Params, Body3);
         ASTStringValue *StrVal = Builder.CreateStringValue(SourceLoc, "Error");
-        SemaBuilderStmt *Fail3Stmt = Builder.CreateFailStmt(Body3, SourceLoc, TestFail3->getErrorHandler());
+        SemaBuilderStmt *Fail3Stmt = Builder.CreateFailStmt(Body3, SourceLoc);
         Fail3Stmt->setExpr(Builder.CreateExpr(StrVal));
 
         // int testFail4() {
-        //  fail(new TestStruct())
+        //  fail new TestStruct()
         // }
         llvm::SmallVector<ASTClassType *, 4> SuperClasses;
         ASTClass *TestStruct = Builder.CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "TestStruct", TopScopes, SuperClasses);
@@ -2206,7 +2207,7 @@ namespace {
         ASTClassMethod *DefaultConstructor = TestStruct->getDefaultConstructor();
         ASTCall *ConstructorCall = CreateNew(DefaultConstructor, Args);
         // fail new TestStruct()
-        SemaBuilderStmt *Fail4Stmt = Builder.CreateFailStmt(Body4, SourceLoc, TestFail4->getErrorHandler());
+        SemaBuilderStmt *Fail4Stmt = Builder.CreateFailStmt(Body4, SourceLoc);
         Fail4Stmt->setExpr(Builder.CreateExpr(ConstructorCall));
 
         // main() {
@@ -2366,6 +2367,54 @@ namespace {
                           "  %12 = icmp ne i8 %11, 0\n"
                           "  %13 = zext i1 %12 to i32\n"
                           "  ret i32 %13\n"
+                          "}\n");
+    }
+
+    TEST_F(CodeGenTest, CGErrorHandle) {
+        ASTModule *Module = CreateModule();
+
+        // main() {
+        //   error A = handle fail
+        // }
+        ASTBlockStmt *Body = Builder.CreateBlockStmt(SourceLoc);
+        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "main", TopScopes, Params, Body);
+        ASTLocalVar *VarA = Builder.CreateLocalVar(Body, SourceLoc, ErrorType, "A", EmptyScopes);
+        ASTVarRef *ErrorVarRef = Builder.CreateVarRef(VarA);
+        ASTHandleStmt *HandleStmt = Builder.CreateHandleStmt(Body, SourceLoc, ErrorVarRef);
+        ASTBlockStmt *HandleBlock = Builder.CreateBlockStmt(HandleStmt, SourceLoc);
+        SemaBuilderStmt *Fail0Stmt = Builder.CreateFailStmt(HandleBlock, SourceLoc);
+        Fail0Stmt->setExpr(Builder.CreateExpr());
+
+        // Validate and Resolve
+        EXPECT_TRUE(S->Resolve());
+
+        CodeGenModule *CGM = CG->GenerateModule(*Module);
+
+        CodeGenFunction *CGF_Main = CGM->GenFunction(Func);
+        CGF_Main->GenBody();
+        llvm::Function *F_Main = CGF_Main->getFunction();
+
+        EXPECT_FALSE(Diags.hasErrorOccurred());
+        testing::internal::CaptureStdout();
+        F_Main->print(llvm::outs());
+        std::string output = testing::internal::GetCapturedStdout();
+
+        EXPECT_EQ(output, "define i32 @main() {\n"
+                          "entry:\n"
+                          "  %0 = alloca %error*, align 8\n"
+                          "  %1 = alloca %error*, align 8\n"
+                          "  %2 = load %error*, %error** %0, align 8\n"
+                          "  %3 = getelementptr inbounds %error, %error* %2, i32 0, i32 0\n"
+                          "  store i8 0, i8* %3, align 1\n"
+                          "  %4 = getelementptr inbounds %error, %error* %2, i32 0, i32 1\n"
+                          "  store i32 0, i32* %4, align 4\n"
+                          "  %5 = getelementptr inbounds %error, %error* %2, i32 0, i32 2\n"
+                          "  store i8* null, i8** %5, align 8\n"
+                          "  %6 = getelementptr inbounds %error, %error* %2, i32 0, i32 0\n"
+                          "  %7 = load i8, i8* %6, align 1\n"
+                          "  %8 = icmp ne i8 %7, 0\n"
+                          "  %9 = zext i1 %8 to i32\n"
+                          "  ret i32 %9\n"
                           "}\n");
     }
 } // anonymous namespace

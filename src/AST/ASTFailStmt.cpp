@@ -16,6 +16,10 @@ ASTFailStmt::ASTFailStmt(const SourceLocation &Loc) :
 
 }
 
+ASTVar *ASTFailStmt::getErrorHandler() const {
+    return ErrorHandler;
+}
+
 ASTExpr *ASTFailStmt::getExpr() const {
     return Expr;
 }
@@ -24,12 +28,13 @@ void ASTFailStmt::setExpr(fly::ASTExpr *E) {
     Expr = E;
 }
 
+
 bool ASTFailStmt::hasHandle() {
-    return Handle != nullptr;
+    return HandleStmt != nullptr;
 }
 
 ASTHandleStmt *ASTFailStmt::getHandle() {
-    return Handle;
+    return HandleStmt;
 }
 
 std::string ASTFailStmt::str() const {

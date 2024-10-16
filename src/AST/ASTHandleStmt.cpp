@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTHandleStmt.h"
+#include "AST/ASTVarRef.h"
 
 using namespace fly;
 
@@ -16,20 +17,12 @@ ASTHandleStmt::ASTHandleStmt(const SourceLocation &Loc) :
 
 }
 
-void ASTHandleStmt::setErrorHandlerRef(ASTVarRef *errorRef) {
-    ErrorHandlerRef = errorRef;
-}
-
 ASTVarRef *ASTHandleStmt::getErrorHandlerRef() const {
     return ErrorHandlerRef;
 }
 
-ASTStmt *ASTHandleStmt::getHandle() const {
-    return Handle;
-}
-
-void ASTHandleStmt::setHandle(ASTStmt *H) {
-    Handle = H;
+void ASTHandleStmt::setErrorHandlerRef(ASTVarRef *ErrorHandler) {
+    ErrorHandlerRef = ErrorHandler;
 }
 
 CodeGenHandle *ASTHandleStmt::getCodeGen() const {
@@ -43,7 +36,6 @@ void ASTHandleStmt::setCodeGen(CodeGenHandle *codeGen) {
 std::string ASTHandleStmt::str() const {
     return Logger("ASTHandleBlock").
             Super(ASTStmt::str()).
-            Attr("ErrorRef", ErrorHandlerRef).
-            Attr("Handle", Handle).
+            Attr("ErrorHandler", ErrorHandlerRef).
             End();
 }

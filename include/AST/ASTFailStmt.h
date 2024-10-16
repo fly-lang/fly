@@ -26,11 +26,15 @@ namespace fly {
 
         ASTExpr *Expr = nullptr;
 
-        ASTHandleStmt *Handle = nullptr;
+        ASTVar *ErrorHandler = nullptr;
+
+        ASTHandleStmt *HandleStmt = nullptr;
 
         ASTFailStmt(const SourceLocation &Loc);
 
     public:
+
+        ASTVar *getErrorHandler() const;
 
         ASTExpr *getExpr() const;
 

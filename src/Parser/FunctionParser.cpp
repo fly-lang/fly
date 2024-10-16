@@ -28,23 +28,19 @@ using namespace fly;
 ASTParam *FunctionParser::ParseParam(Parser *P) {
     FLY_DEBUG("FunctionParser", "ParseParam");
 
-    // Var Constant
-    bool Const = P->isConst();
+    // Parse Scopes
+    llvm::SmallVector<ASTScope *, 8> Scopes = P->ParseScopes();
 
     // Var Type
-    ASTType *Type = nullptr;
-    if (!P->ParseType(Type)) {
+    ASTType *Type = P->ParseType();
+    if (!Type) {
         P->Diag(diag::err_parser_invalid_type);
         return nullptr;
     }
 
     // Var Name
     const StringRef Name = P->Tok.getIdentifierInfo()->getName();
-    const SourceLocation Loc = P->Tok.getLocation();
-    P->ConsumeToken();
-
-    // Parse Scopes
-    llvm::SmallVector<ASTScope *, 8> Scopes = P->ParseScopes();
+    const SourceLocation &Loc = P->ConsumeToken();
 
     // Parse assignment =
     ASTValue *Value = nullptr;
@@ -67,17 +63,15 @@ ASTParam *FunctionParser::ParseParam(Parser *P) {
  */
 llvm::SmallVector<ASTParam *, 8> FunctionParser::ParseParams(Parser *P) {
     FLY_DEBUG("FunctionParser", "ParseParams");
-
-    if (P->Tok.is(tok::l_paren)) { // parse start of function ()
-        P->ConsumeParen(); // consume l_paren
-    }
+    assert(P->Tok.is(tok::l_paren) && "Tok must be an Identifier");
+    P->ConsumeParen(); // consume l_paren
 
     llvm::SmallVector<ASTParam *, 8> Params;
     ASTParam *Param;
-    while ((Param = ParseParam(P))) {
+    while (P->Tok.isNot(tok::r_paren) && P->Tok.isNot(tok::eof) && (Param = ParseParam(P))) {
         Params.push_back(Param);
-        if (P->Tok.isNot(tok::comma)) {
-            break;
+        if (P->Tok.is(tok::comma)) {
+            P->ConsumeToken();
         }
     }
 
@@ -97,12 +91,8 @@ llvm::SmallVector<ASTParam *, 8> FunctionParser::ParseParams(Parser *P) {
  */
 ASTBlockStmt *FunctionParser::ParseBody(Parser *P) {
     FLY_DEBUG("FunctionParser", "ParseBody");
-
-    ASTBlockStmt *Body = nullptr;
-    if (P->isBlockStart()) {
-        Body = P->Builder.CreateBlockStmt(SourceLocation());
-        P->ParseBlock(Body) && P->isBraceBalanced();
-    }
-
+    assert(P->isBlockStart() && "Block Start");
+    ASTBlockStmt *Body = P->Builder.CreateBlockStmt(P->Tok.getLocation());
+    P->ParseBlock(Body, true);
     return Body;
 }

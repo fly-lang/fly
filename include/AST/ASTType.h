@@ -402,7 +402,7 @@ namespace fly {
         friend class SemaResolver;
         friend class SemaValidator;
 
-        ASTErrorType();
+        ASTErrorType(const SourceLocation &Loc);
 
     public:
 

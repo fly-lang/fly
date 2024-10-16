@@ -27,14 +27,6 @@ ASTStmtKind ASTStmt::getKind() const {
     return Kind;
 }
 
-void ASTStmt::setErrorHandler(ASTVar *EH) {
-    ErrorHandler = EH;
-}
-
-ASTVar *ASTStmt::getErrorHandler() {
-    return ErrorHandler;
-}
-
 std::string ASTStmt::str() const {
     return Logger("ASTStmt").
             Super(ASTBase::str()).

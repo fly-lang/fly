@@ -53,8 +53,6 @@ namespace fly {
 
         ASTFunctionBase *Function = nullptr;
 
-        ASTVar *ErrorHandler = nullptr;
-
         ASTStmt(const SourceLocation &Loc, ASTStmtKind Kind);
 
     public:
@@ -64,10 +62,6 @@ namespace fly {
         ASTFunctionBase *getFunction() const;
 
         ASTStmtKind getKind() const;
-
-        void setErrorHandler(ASTVar *ErrorHandler);
-
-        ASTVar *getErrorHandler();
 
         std::string str() const override;
     };

@@ -128,6 +128,10 @@ namespace fly {
         /// it returns comments, when it is set to 0 it returns normal tokens only.
         unsigned char ExtendedTokenMode;
 
+        bool isKeepBlockComment = true;
+
+        llvm::StringRef BlockComment;
+
         //===------------------------------------------------------------------------------------------------------===//
         // Context that changes as the file is lexed.
         // NOTE: any state that mutates when in raw mode must have save/restore code
@@ -209,6 +213,10 @@ namespace fly {
             return ExtendedTokenMode > 0;
         }
 
+        bool keepBlockComment() const {
+            return isKeepBlockComment;
+        }
+
         /// SetCommentRetentionMode - Change the comment retention mode of the lexer
         /// to the specified mode.  This is really only useful when lexing in raw
         /// mode, because otherwise the lexer needs to manage this.
@@ -216,6 +224,10 @@ namespace fly {
             assert(!isKeepWhitespaceMode() &&
                    "Can't play with comment retention state when retaining whitespace");
             ExtendedTokenMode = Mode ? 1 : 0;
+        }
+
+        void ClearBlockComment() {
+            BlockComment = StringRef();
         }
 
         /// Sets the extended token mode back to its initial value, according to the
@@ -484,6 +496,11 @@ namespace fly {
             Result.setLocation(getSourceLocation(BufferPtr, TokLen));
             Result.setKind(Kind);
             BufferPtr = TokEnd;
+        }
+
+        void FormBlockCommentWithChars(const char *TokEnd) {
+            unsigned TokLen = TokEnd - BufferPtr;
+            BlockComment = StringRef(BufferPtr, TokLen);
         }
 
         //===------------------------------------------------------------------------------------------------------===//

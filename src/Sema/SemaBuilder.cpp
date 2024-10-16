@@ -152,8 +152,8 @@ ASTAlias *SemaBuilder::CreateAlias(const SourceLocation &Loc, llvm::StringRef Na
     return Alias;
 }
 
-ASTComment *SemaBuilder::CreateCommentMultiline(const SourceLocation &Loc, llvm::StringRef Content) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateCommentMultiline",
+ASTComment *SemaBuilder::CreateComment(const SourceLocation &Loc, llvm::StringRef Content) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateComment",
                       Logger().Attr("Loc", (uint64_t) Loc.getRawEncoding())
                               .Attr("Content", Content).End());
     ASTComment *Comment = new ASTComment(Loc, Content);
@@ -171,7 +171,7 @@ ASTComment *SemaBuilder::CreateCommentMultiline(const SourceLocation &Loc, llvm:
  */
 ASTGlobalVar *SemaBuilder::CreateGlobalVar(ASTModule *Module, const SourceLocation &Loc, ASTType *Type,
                                            const llvm::StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes,
-                                           ASTExpr *Expr) {
+                                           ASTExpr *Expr, ASTComment *Comment) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateGlobalVar",
                       Logger()
                       .Attr("Loc", (uint64_t) Loc.getRawEncoding())
@@ -180,6 +180,7 @@ ASTGlobalVar *SemaBuilder::CreateGlobalVar(ASTModule *Module, const SourceLocati
                       .AttrList("Scopes", Scopes).End());
     S.getValidator().CheckCreateGlobalVar(Loc, Type, Name, Scopes);
     ASTGlobalVar *GlobalVar = new ASTGlobalVar(Module, Loc, Type, Name, Scopes);
+    GlobalVar->Comment = Comment;
     GlobalVar->Expr = Expr;
     Module->GlobalVars.push_back(GlobalVar);
     return GlobalVar;
@@ -196,7 +197,7 @@ ASTGlobalVar *SemaBuilder::CreateGlobalVar(ASTModule *Module, const SourceLocati
  */
 ASTFunction *SemaBuilder::CreateFunction(ASTModule *Module, const SourceLocation &Loc, ASTType *Type,
                                          llvm::StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes,
-                                         SmallVector<ASTParam *, 8> &Params, ASTBlockStmt *Body) {
+                                         SmallVector<ASTParam *, 8> &Params, ASTBlockStmt *Body, ASTComment *Comment) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateFunction",
                       Logger().Attr("Loc", (uint64_t) Loc.getRawEncoding())
                               .Attr("Type", Type)
@@ -204,6 +205,7 @@ ASTFunction *SemaBuilder::CreateFunction(ASTModule *Module, const SourceLocation
                               .AttrList("Scopes", Scopes).End());
     S.getValidator().CheckCreateFunction(Loc, Type, Name, Scopes);
     ASTFunction *Function = new ASTFunction(Module, Loc, Type, Name, Scopes, Params);
+    Function->Comment = Comment;
 
     // Create Error handler
     Function->ErrorHandler = CreateErrorHandlerParam();
@@ -224,8 +226,9 @@ ASTFunction *SemaBuilder::CreateFunction(ASTModule *Module, const SourceLocation
  * @param Scopes
  * @return
  */
-ASTClass *SemaBuilder::CreateClass(ASTModule *Module, const SourceLocation &Loc, ASTClassKind ClassKind, const llvm::StringRef Name,
-                                   llvm::SmallVector<ASTScope *, 8> &Scopes, llvm::SmallVector<ASTClassType *, 4> &ClassTypes) {
+ASTClass *SemaBuilder::CreateClass(ASTModule *Module, const SourceLocation &Loc, ASTClassKind ClassKind,
+                                   const llvm::StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes,
+                                   llvm::SmallVector<ASTClassType *, 4> &ClassTypes, ASTComment *Comment) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateClass",
                       Logger().Attr("ClassKind", (uint64_t) ClassKind)
                               .Attr("Loc", (uint64_t) Loc.getRawEncoding())
@@ -234,6 +237,7 @@ ASTClass *SemaBuilder::CreateClass(ASTModule *Module, const SourceLocation &Loc,
                               .End());
     S.getValidator().CheckCreateClass(Loc, Name, ClassKind, Scopes, ClassTypes);
     ASTClass *Class = new ASTClass(Module, ClassKind, Scopes, Loc, Name, ClassTypes);
+    Class->Comment = Comment;
     Class->Type = CreateClassType(Class);
 
     // Lookup into namespace
@@ -347,12 +351,13 @@ ASTClassMethod *SemaBuilder::CreateClassVirtualMethod(const SourceLocation &Loc,
 
 ASTEnum *SemaBuilder::CreateEnum(ASTModule *Module, const SourceLocation &Loc, const llvm::StringRef Name,
                                  llvm::SmallVector<ASTScope *, 8> &Scopes,
-                                 llvm::SmallVector<ASTEnumType *, 4> EnumTypes) {
+                                 llvm::SmallVector<ASTEnumType *, 4> EnumTypes, ASTComment *Comment) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateEnum",
                       Logger().AttrList("Scopes", Scopes).Attr("Name", Name).End());
     S.getValidator().CheckCreateEnum(Loc, Name, Scopes, EnumTypes);
     ASTEnum *Enum = new ASTEnum(Module, Loc, Name, Scopes, EnumTypes);
     Enum->Type = CreateEnumType(Enum);
+    Enum->Comment = Comment;
 
     // Lookup into namespace
     Module->Identities.push_back(Enum);
@@ -545,9 +550,9 @@ ASTIdentityType *SemaBuilder::CreateIdentityType(ASTIdentifier *Identifier) {
     return new ASTIdentityType(Identifier);
 }
 
-ASTErrorType *SemaBuilder::CreateErrorType() {
+ASTErrorType *SemaBuilder::CreateErrorType(const SourceLocation &Loc) {
     FLY_DEBUG("SemaBuilder", "CreateErrorType");
-    return new ASTErrorType();
+    return new ASTErrorType(Loc);
 }
 
 /**
@@ -730,7 +735,7 @@ ASTParam *SemaBuilder::CreateParam(const SourceLocation &Loc, ASTType *Type, llv
 
 ASTParam *SemaBuilder::CreateErrorHandlerParam() {
     SmallVector<ASTScope *, 8> Scopes = SemaBuilderScopes::Create()->getScopes();
-    return CreateParam(SourceLocation(), CreateErrorType(), "error", Scopes);
+    return CreateParam(SourceLocation(), CreateErrorType(SourceLocation()), "error", Scopes);
 }
 
 /**
@@ -1047,10 +1052,10 @@ SemaBuilderStmt *SemaBuilder::CreateReturnStmt(ASTBlockStmt *Parent, const Sourc
  * @param ErrorHandler
  * @return
  */
-SemaBuilderStmt *SemaBuilder::CreateFailStmt(ASTBlockStmt *Parent, const SourceLocation &Loc, ASTVar *ErrorHandler) {
+SemaBuilderStmt *SemaBuilder::CreateFailStmt(ASTBlockStmt *Parent, const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateFailStmt", Logger()
             .Attr("Loc", (uint64_t)Loc.getRawEncoding()).End());
-    return SemaBuilderStmt::CreateFail(this, Parent, Loc, ErrorHandler);
+    return SemaBuilderStmt::CreateFail(this, Parent, Loc);
 }
 
 SemaBuilderStmt *SemaBuilder::CreateExprStmt(ASTBlockStmt *Parent, const SourceLocation &Loc) {
@@ -1099,7 +1104,6 @@ SemaBuilder::CreateBody(ASTFunctionBase *FunctionBase, ASTBlockStmt *Body) {
     Body->Parent = nullptr; // body cannot have a parent stmt
     FunctionBase->Body = Body;
     FunctionBase->Body->Function = FunctionBase;
-    FunctionBase->Body->ErrorHandler = FunctionBase->ErrorHandler;
     return FunctionBase->Body;
 }
 
@@ -1107,6 +1111,14 @@ ASTBlockStmt *SemaBuilder::CreateBlockStmt(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateBlockStmt", Logger()
                       .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
     ASTBlockStmt *Block = new ASTBlockStmt(Loc);
+    return Block;
+}
+
+ASTBlockStmt *SemaBuilder::CreateBlockStmt(ASTStmt *Parent, const SourceLocation &Loc) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateBlockStmt", Logger()
+            .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
+    ASTBlockStmt *Block = new ASTBlockStmt(Loc);
+    Block->Parent = Parent;
     return Block;
 }
 

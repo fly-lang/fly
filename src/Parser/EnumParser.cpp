@@ -21,7 +21,7 @@ using namespace fly;
  * @param Visibility
  * @param Constant
  */
-EnumParser::EnumParser(Parser *P, llvm::SmallVector<ASTScope *, 8> &Scopes) : P(P) {
+EnumParser::EnumParser(Parser *P, ASTComment *Comment, llvm::SmallVector<ASTScope *, 8> &Scopes) : P(P) {
     FLY_DEBUG_MESSAGE("ClassParser", "ClassParser", Logger()
             .AttrList("Scopes", Scopes).End());
     assert(P->Tok.is(tok::kw_enum) && "No ClassKind defined");
@@ -48,7 +48,7 @@ EnumParser::EnumParser(Parser *P, llvm::SmallVector<ASTScope *, 8> &Scopes) : P(
     if (P->isBlockStart()) {
         P->ConsumeBrace(BraceCount);
 
-        Enum = P->Builder.CreateEnum(P->Module, ClassLoc, EnumName, Scopes, SuperClasses);
+        Enum = P->Builder.CreateEnum(P->Module, ClassLoc, EnumName, Scopes, SuperClasses, Comment);
         uint64_t Index = 0;
         do {
 
@@ -81,10 +81,10 @@ EnumParser::EnumParser(Parser *P, llvm::SmallVector<ASTScope *, 8> &Scopes) : P(
  * ParseModule Class Declaration
  * @return
  */
-ASTEnum *EnumParser::Parse(Parser *P, SmallVector<ASTScope *, 8> &Scopes) {
+ASTEnum *EnumParser::Parse(Parser *P, ASTComment *Comment, SmallVector<ASTScope *, 8> &Scopes) {
     FLY_DEBUG_MESSAGE("EnumParser", "ParseModule", Logger()
             .AttrList("Scopes", Scopes).End());
-    EnumParser *CP = new EnumParser(P, Scopes);
+    EnumParser *CP = new EnumParser(P, Comment, Scopes);
     return CP->Enum;
 }
 
@@ -92,12 +92,6 @@ bool EnumParser::ParseField(const SourceLocation &Loc, llvm::StringRef Name, llv
     FLY_DEBUG_MESSAGE("ClassParser", "ParseMethod", Logger().Attr("Type", Name).End());
 
     ASTEnumEntry *EnumEntry = P->Builder.CreateEnumEntry(Loc, *Enum, Name, Scopes);
-
-    // Add Comment to AST
-    llvm::StringRef Comment;
-    if (!P->BlockComment.empty()) {
-        Comment = P->BlockComment;
-    }
 
     return true;
 }

@@ -55,11 +55,9 @@ SemaBuilderStmt *SemaBuilderStmt::CreateReturn(SemaBuilder *Builder, ASTBlockStm
     return BuilderStmt;
 }
 
-SemaBuilderStmt *SemaBuilderStmt::CreateFail(SemaBuilder *Builder, ASTBlockStmt *Parent, const SourceLocation &Loc,
-                                             ASTVar *ErrorHandler) {
+SemaBuilderStmt *SemaBuilderStmt::CreateFail(SemaBuilder *Builder, ASTBlockStmt *Parent, const SourceLocation &Loc) {
     SemaBuilderStmt *BuilderStmt = new SemaBuilderStmt(Builder);
     BuilderStmt->Stmt = new ASTFailStmt(Loc);
-    BuilderStmt->Stmt->setErrorHandler(ErrorHandler);
     // Inner Stmt
     Parent->Content.push_back(BuilderStmt->Stmt);
     BuilderStmt->Stmt->Parent = Parent;

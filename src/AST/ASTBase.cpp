@@ -19,7 +19,7 @@ const SourceLocation &ASTBase::getLocation() const {
     return Location;
 }
 
-llvm::StringRef ASTBase::getComment() const {
+ASTComment *ASTBase::getComment() const {
     return Comment;
 }
 

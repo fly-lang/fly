@@ -18,6 +18,8 @@
 
 namespace fly {
 
+    class ASTComment;
+
     class ASTBase {
 
         friend class SemaBuilder;
@@ -26,7 +28,7 @@ namespace fly {
 
         SourceLocation Location;
 
-        llvm::StringRef Comment;
+        ASTComment *Comment = nullptr;
 
     public:
 
@@ -34,7 +36,7 @@ namespace fly {
 
         virtual const SourceLocation &getLocation() const;
 
-        llvm::StringRef getComment() const;
+        ASTComment *getComment() const;
 
         virtual std::string str() const = 0;
     };

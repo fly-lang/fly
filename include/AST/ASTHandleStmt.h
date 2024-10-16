@@ -20,6 +20,7 @@ namespace fly {
     class ASTHandleStmt : public ASTStmt {
 
         friend class SemaBuilder;
+        friend class SemaBuilderStmt;
         friend class SemaResolver;
         friend class SemaValidator;
 
@@ -35,11 +36,7 @@ namespace fly {
 
         ASTVarRef *getErrorHandlerRef() const;
 
-        void setErrorHandlerRef(ASTVarRef *errorRef);
-
-        ASTStmt *getHandle() const;
-
-        void setHandle(ASTStmt *H);
+        void setErrorHandlerRef(ASTVarRef *ErrorHandler);
 
         CodeGenHandle *getCodeGen() const;
 

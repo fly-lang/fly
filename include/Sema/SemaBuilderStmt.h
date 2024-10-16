@@ -38,8 +38,7 @@ namespace fly {
 
         static SemaBuilderStmt *CreateReturn(SemaBuilder *Builder, ASTBlockStmt *Parent, const SourceLocation &Loc);
 
-        static SemaBuilderStmt *CreateFail(SemaBuilder *Builder, ASTBlockStmt *Parent, const SourceLocation &Loc,
-                                           ASTVar *ErrorHandler);
+        static SemaBuilderStmt *CreateFail(SemaBuilder *Builder, ASTBlockStmt *Parent, const SourceLocation &Loc);
 
         static SemaBuilderStmt *CreateExpr(SemaBuilder *Builder, ASTBlockStmt *Parent, const SourceLocation &Loc);
 

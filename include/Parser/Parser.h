@@ -31,7 +31,10 @@ namespace fly {
     class ASTBlockStmt;
     class ASTCall;
     class ASTStmt;
+    class ASTIfStmt;
+    class ASTFailStmt;
     class ASTSwitchStmt;
+    class ASTLoopStmt;
     class ASTExpr;
     class InputFile;
     class ASTHandleStmt;
@@ -69,8 +72,6 @@ namespace fly {
 
         ASTModule *Module;
 
-        bool ContinueParsing = true;
-
         // PrevTokLocation - The location of the token we previously
         // consumed. This token is used for diagnostics where we expected to
         // see a token following another token (e.g., the ';' at the end of
@@ -78,8 +79,6 @@ namespace fly {
         SourceLocation PrevTokLocation;
 
         unsigned short ParenCount = 0, BracketCount = 0, BraceCount = 0;
-
-        llvm::StringRef BlockComment;
 
     public:
 
@@ -92,20 +91,21 @@ namespace fly {
 
     private:
 
-        ASTBase *Parse();
-        ASTBase *ParseTopDef(SmallVector<ASTScope *, 8>& Scopes);
+        void Parse();
+        ASTBase *ParseTopDef(ASTComment *Comment, SmallVector<ASTScope *, 8>& Scopes);
         SmallVector<ASTScope *, 8> ParseScopes();
-        ASTGlobalVar *ParseGlobalVarDef(SmallVector<ASTScope *, 8> &Scopes, ASTType *Type);
-        ASTFunction *ParseFunctionDef(SmallVector<ASTScope *, 8> &Scopes, ASTType *Type);
-        ASTClass *ParseClassDef(SmallVector<ASTScope *, 8> &Scopes);
-        ASTEnum *ParseEnumDef(SmallVector<ASTScope *, 8> &Scopes);
-        ASTComment *ParseCommentMultiline();
+        ASTGlobalVar *ParseGlobalVarDef(ASTComment *Comment, SmallVector<ASTScope *, 8> &Scopes, ASTType *Type);
+        ASTFunction *ParseFunctionDef(ASTComment *Comment, SmallVector<ASTScope *, 8> &Scopes, ASTType *Type);
+        ASTClass *ParseClassDef(ASTComment *Comment, SmallVector<ASTScope *, 8> &Scopes);
+        ASTEnum *ParseEnumDef(ASTComment *Comment, SmallVector<ASTScope *, 8> &Scopes);
+        ASTComment *ParseComments();
+        void SkipComments();
 
-        // Parse Block Statement
-        bool ParseBlock(ASTBlockStmt *Parent);
-        bool ParseStmt(ASTBlockStmt *Parent, bool StopParse = false);
-        bool ParseStartParen();
-        bool ParseEndParen(bool HasParen);
+        // Parse Stmt
+        bool ParseBlock(ASTBlockStmt *Parent, bool isBody = false);
+        bool ParseStmt(ASTBlockStmt *Parent);
+        bool ParseStartParen(); // FIXME remove?
+        bool ParseEndParen(bool HasParen); // FIXME remove?
         bool ParseIfStmt(ASTBlockStmt *Parent);
         bool ParseSwitchStmt(ASTBlockStmt *Parent);
         bool ParseSwitchCases(SemaBuilderSwitchStmt *SwitchBuilder);
@@ -115,11 +115,10 @@ namespace fly {
         bool ParseFailStmt(ASTBlockStmt *Parent);
 
         // Parse Identifiers
-        bool ParseBuiltinType(ASTType *&);
-        bool ParseArrayType(ASTType *&);
-        bool ParseType(ASTType *&);
+        ASTType *ParseBuiltinType();
+        ASTArrayType *ParseArrayType(ASTType *);
+        ASTType *ParseType();
         ASTCall *ParseCall(ASTIdentifier *&Identifier);
-        bool ParseCallArg(ASTCall *Call);
         ASTIdentifier *ParseIdentifier(ASTIdentifier *Parent = nullptr);
 
         // Parse a Value
@@ -128,10 +127,9 @@ namespace fly {
         ASTValue *ParseValues();
 
         // Parse Expressions
-        ASTExpr *ParseExpr(ASTIdentifier *Identifier = nullptr);
+        ASTExpr *ParseExpr(ASTIdentifier *Identifier = nullptr, bool isRoot = false);
 
         // Check Keywords
-        bool isBuiltinType(Token &Tok);
         bool isArrayType(Token &Tok);
         bool isValue();
         bool isConst();
@@ -145,7 +143,8 @@ namespace fly {
         bool isTokenBrace() const;
         bool isTokenStringLiteral() const;
         bool isTokenSpecial() const;
-        bool isTokenAssignOperator() const;
+        bool isTokenComment() const;
+        bool isTokenAssignOperator(const Token &Tok) const;
         bool isNewOperator(Token &Tok);
         bool isUnaryPreOperator(Token &Tok);
         bool isUnaryPostOperator();
@@ -156,7 +155,6 @@ namespace fly {
         SourceLocation ConsumeBrace(unsigned short &BraceCount);
         bool isBraceBalanced() const;
         SourceLocation ConsumeStringToken();
-        SourceLocation ConsumeNext();
         llvm::StringRef getLiteralString();
 
         // Diagnostics

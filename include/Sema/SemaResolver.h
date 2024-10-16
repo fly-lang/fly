@@ -48,6 +48,8 @@ namespace fly {
     class ASTIfStmt;
     class ASTSwitchStmt;
     class ASTLoopStmt;
+    class ASTFailStmt;
+    class ASTHandleStmt;
     class ASTClassType;
     class ASTFunction;
     class ASTFunctionBase;
@@ -59,6 +61,7 @@ namespace fly {
     class ASTLoopInStmt;
     class ASTGlobalVar;
     class ASTEnum;
+    class ASTVarStmt;
 
     class SemaResolver {
 
@@ -107,6 +110,12 @@ namespace fly {
         bool ResolveStmtLoop(ASTLoopStmt *LoopStmt);
 
         bool ResolveStmtLoopIn(ASTLoopInStmt *LoopInStmt);
+
+        bool ResolveStmtVar(ASTVarStmt *VarStmt);
+
+        bool ResolveStmtFail(ASTFailStmt *FailStmt);
+
+        bool ResolveStmtHandle(ASTHandleStmt *HandleStmt);
 
         bool ResolveIdentityType(ASTIdentityType *IdentityType);
 

@@ -511,28 +511,16 @@ bool SemaResolver::ResolveStmt(ASTStmt *Stmt) {
             return ResolveStmtLoop((ASTLoopStmt *) Stmt);
         case ASTStmtKind::STMT_LOOP_IN:
             return ResolveStmtLoopIn((ASTLoopInStmt *) Stmt);
-        case ASTStmtKind::STMT_VAR: {
-            ASTVarStmt *VarStmt = (ASTVarStmt *) Stmt;
-            ResolveVarRef(Stmt->Parent, VarStmt->getVarRef());
-            if (VarStmt->getVarRef()->getDef() && VarStmt->getExpr() != nullptr && !VarStmt->getVarRef()->getDef()->isInitialized())
-                VarStmt->getVarRef()->getDef()->setInitialization(VarStmt); // FIXME ? with if - else
-            return VarStmt->getVarRef()->getDef() && ResolveExpr(VarStmt->Parent, VarStmt->Expr, VarStmt->getVarRef()->getDef()->getType());
-        }
+        case ASTStmtKind::STMT_VAR:
+            return ResolveStmtVar((ASTVarStmt *) Stmt);
         case ASTStmtKind::STMT_EXPR:
             return ResolveExpr(Stmt->Parent, ((ASTExprStmt *) Stmt)->Expr);
         case ASTStmtKind::STMT_FAIL:
-            return ResolveExpr(Stmt->Parent, ((ASTFailStmt *) Stmt)->Expr);
-        case ASTStmtKind::STMT_HANDLE: {
-            ASTHandleStmt *HandlStmt = (ASTHandleStmt *) Stmt;
-            bool Success = true;
-            if (HandlStmt->ErrorHandlerRef != nullptr)
-                Success = ResolveVarRef(Stmt->Parent, HandlStmt->ErrorHandlerRef);
-            return Success && ResolveStmt(HandlStmt->Handle);
-        }
-        case ASTStmtKind::STMT_DELETE: {
-            ASTDeleteStmt *DeleteStmt = (ASTDeleteStmt *) Stmt;
-            return ResolveVarRef(Stmt->Parent, DeleteStmt->VarRef);
-        }
+            return ResolveStmtFail((ASTFailStmt *) Stmt);
+        case ASTStmtKind::STMT_HANDLE:
+            return ResolveStmtHandle((ASTHandleStmt *) Stmt);
+        case ASTStmtKind::STMT_DELETE:
+            return ResolveVarRef(Stmt->Parent, ((ASTDeleteStmt *) Stmt)->VarRef);
         case ASTStmtKind::STMT_RETURN: {
             ASTReturnStmt *ReturnStmt = (ASTReturnStmt *) Stmt;
             return ResolveExpr(Stmt->Parent, ReturnStmt->Expr) &&
@@ -611,6 +599,34 @@ bool SemaResolver::ResolveStmtLoop(ASTLoopStmt *LoopStmt) {
 
 bool SemaResolver::ResolveStmtLoopIn(ASTLoopInStmt *LoopInStmt) {
     return ResolveVarRef(LoopInStmt->Parent, LoopInStmt->VarRef) && ResolveStmtBlock(LoopInStmt->Block);
+}
+
+bool SemaResolver::ResolveStmtVar(ASTVarStmt *VarStmt) {
+    ResolveVarRef(VarStmt->Parent, VarStmt->VarRef);
+    if (VarStmt->getVarRef()->getDef() && VarStmt->getExpr() != nullptr && !VarStmt->getVarRef()->getDef()->isInitialized())
+        VarStmt->getVarRef()->getDef()->setInitialization(VarStmt); // FIXME ? with if - else
+    return VarStmt->getVarRef()->getDef() && ResolveExpr(VarStmt->Parent, VarStmt->Expr, VarStmt->getVarRef()->getDef()->getType());
+}
+
+bool SemaResolver::ResolveStmtFail(ASTFailStmt *FailStmt) {
+    ASTStmt *Parent = FailStmt;
+    // Set error handler with parent block or function
+    while (FailStmt->ErrorHandler == nullptr) {
+        Parent = Parent->getParent();
+        if (Parent == nullptr) {
+            FailStmt->ErrorHandler = FailStmt->getFunction()->getErrorHandler();
+        } else if (Parent->getKind() == ASTStmtKind::STMT_HANDLE) {
+            FailStmt->HandleStmt = ((ASTHandleStmt *) Parent);
+            ASTVarRef *ErrorRef = FailStmt->HandleStmt->ErrorHandlerRef;
+            FailStmt->ErrorHandler = ErrorRef->getDef(); // Already resolved in ResolveStmtHandle()
+        }
+    }
+    return ResolveExpr(FailStmt->Parent, FailStmt->Expr);
+}
+
+bool SemaResolver::ResolveStmtHandle(ASTHandleStmt *HandleStmt) {
+    ResolveVarRef(HandleStmt->getParent(), HandleStmt->ErrorHandlerRef);
+    return ResolveStmt(HandleStmt->Handle);
 }
 
 bool SemaResolver::ResolveIdentityType(ASTIdentityType *IdentityType) {
@@ -955,7 +971,16 @@ bool SemaResolver::ResolveCall(ASTStmt *Stmt, ASTCall *Call) {
         S.Diag(Call->getLocation(), diag::err_unref_call) << Call->getName();
     }
 
-    Call->ErrorHandler = Stmt->ErrorHandler;
+    ASTStmt *Parent = Stmt;
+    while (Call->ErrorHandler == nullptr) {
+        Parent = Parent->getParent();
+        if (Parent == nullptr) {
+            Call->ErrorHandler = Stmt->getFunction()->getErrorHandler();
+        } else if (Parent->getKind() == ASTStmtKind::STMT_HANDLE) {
+            Call->ErrorHandler = ((ASTHandleStmt *) Parent)->ErrorHandlerRef->getDef();
+        }
+    }
+
     return Call->isResolved();
 }
 
@@ -1202,5 +1227,3 @@ SemaSpaceSymbols *SemaResolver::AddImportSymbols(llvm::StringRef Name) {
     ImportSymbols.insert(std::make_pair(Name, SpaceSymbols));
     return SpaceSymbols;
 }
-
-

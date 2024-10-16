@@ -52,6 +52,7 @@ public:
     ASTType *FloatType;
     ASTType *DoubleType;
     ASTType *ArrayInt0Type;
+    ASTErrorType *ErrorType;
     llvm::SmallVector<ASTScope *, 8> TopScopes;
     llvm::SmallVector<ASTScope *, 8> EmptyScopes;
     llvm::SmallVector<ASTExpr *, 8> Args;
@@ -75,6 +76,7 @@ public:
                     DoubleType(Builder.CreateDoubleType(SourceLoc)),
                     ArrayInt0Type(Builder.CreateArrayType(SourceLoc, IntType,
                                                           Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 0)))),
+                    ErrorType(Builder.CreateErrorType(SourceLoc)),
                     TopScopes(SemaBuilderScopes::Create()
                                       ->addVisibility(SourceLocation(), ASTVisibilityKind::V_DEFAULT)->getScopes()),
                     EmptyScopes(SemaBuilderScopes::Create()->getScopes()) {

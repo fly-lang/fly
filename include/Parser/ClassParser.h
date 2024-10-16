@@ -28,11 +28,11 @@ namespace fly {
 
         unsigned short BraceCount = 0;
 
-        ClassParser(Parser *P, SmallVector<ASTScope *, 8> &Scopes);
+        ClassParser(Parser *P, ASTComment *Comment, SmallVector<ASTScope *, 8> &Scopes);
 
     public:
 
-        static ASTClass *Parse(Parser *P, SmallVector<ASTScope *, 8> &Scopes);
+        static ASTClass *Parse(Parser *P, ASTComment *Comment, SmallVector<ASTScope *, 8> &Scopes);
 
         ASTClassAttribute *ParseAttribute(SmallVector<ASTScope *, 8> &Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name);
 

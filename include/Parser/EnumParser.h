@@ -24,6 +24,7 @@ namespace fly {
     class ASTEnum;
     class Parser;
     class SourceLocation;
+    class ASTComment;
 
     class EnumParser {
 
@@ -37,11 +38,11 @@ namespace fly {
 
         unsigned short BraceCount = 0;
 
-        EnumParser(Parser *P, llvm::SmallVector<ASTScope *, 8> &Scopes);
+        EnumParser(Parser *P, ASTComment *Comment, llvm::SmallVector<ASTScope *, 8> &Scopes);
 
     public:
 
-        static ASTEnum *Parse(Parser *P, llvm::SmallVector<ASTScope *, 8> &Scopes);
+        static ASTEnum *Parse(Parser *P, ASTComment *Comment, llvm::SmallVector<ASTScope *, 8> &Scopes);
 
         bool ParseField(const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTScope *, 8> Scopes);
     };

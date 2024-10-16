@@ -10,14 +10,15 @@ add_executable(fly_test
 #        DriverTest.cpp
 #        ImportTest.cpp
         LexerTest.cpp
-#        Parser/ParserCommentTest.cpp
-#        Parser/ParserFunctionTest.cpp
+        Parser/ParserCommentTest.cpp
+#        Parser/ParserExprTest.cpp
+        Parser/ParserFunctionTest.cpp
         Parser/ParserGlobalVarTest.cpp
         Parser/ParserImportTest.cpp
+        Parser/ParserLocalVarTest.cpp
 #        Parser/ParserBadCode.cpp
 #        Parser/ParserBlockTest.cpp
 #        Parser/ParserClassTest.cpp
-#        Parser/ParserExprTest.cpp
         TestMain.cpp
         ${BACKWARD_ENABLE}
         CodeGen/CodeGenTest.h

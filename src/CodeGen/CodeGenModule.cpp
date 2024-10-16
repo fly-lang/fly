@@ -315,6 +315,10 @@ llvm::Type *CodeGenModule::GenType(const ASTType *Type) {
                 }
             }
         }
+
+        case ASTTypeKind::TYPE_ERROR: {
+            return ErrorTy;
+        }
     }
     assert(0 && "Unknown Var Type Kind");
 }

@@ -27,7 +27,7 @@ using namespace fly;
  * @param Visibility
  * @param Constant
  */
-ClassParser::ClassParser(Parser *P, SmallVector<ASTScope *, 8> &Scopes) : P(P) {
+ClassParser::ClassParser(Parser *P, ASTComment *Comment, SmallVector<ASTScope *, 8> &Scopes) : P(P) {
     FLY_DEBUG_MESSAGE("ClassParser", "ClassParser", Logger()
             .AttrList("Scopes", Scopes).End());
 
@@ -63,7 +63,7 @@ ClassParser::ClassParser(Parser *P, SmallVector<ASTScope *, 8> &Scopes) : P(P) {
     if (P->isBlockStart()) {
         P->ConsumeBrace(BraceCount);
 
-        Class = P->Builder.CreateClass(P->Module, ClassLoc, ClassKind, ClassName, Scopes, SuperClasses);
+        Class = P->Builder.CreateClass(P->Module, ClassLoc, ClassKind, ClassName, Scopes, SuperClasses, Comment);
         bool Continue;
         do {
 
@@ -83,9 +83,9 @@ ClassParser::ClassParser(Parser *P, SmallVector<ASTScope *, 8> &Scopes) : P(P) {
             llvm::SmallVector<ASTScope *, 8> Scopes = P->ParseScopes();
 
             // Parse Type
-            ASTType *Type = nullptr;
+            ASTType *Type = P->ParseType(); // Continue loop if there is a field or a method
 
-            Continue =  P->ParseType(Type); // Continue loop if there is a field or a method
+            Continue = Type != nullptr;
             if (Continue && P->Tok.isAnyIdentifier()) {
                 const StringRef &Name = P->Tok.getIdentifierInfo()->getName();
                 const SourceLocation &Loc = P->ConsumeToken();
@@ -106,11 +106,13 @@ ClassParser::ClassParser(Parser *P, SmallVector<ASTScope *, 8> &Scopes) : P(P) {
  * ParseModule Class Declaration
  * @return
  */
-ASTClass *ClassParser::Parse(Parser *P, SmallVector<ASTScope *, 8> &Scopes) {
+ASTClass *ClassParser::Parse(Parser *P, ASTComment *Comment, SmallVector<ASTScope *, 8> &Scopes) {
     FLY_DEBUG_MESSAGE("ClassParser", "ParseModule", Logger()
             .AttrList("Scopes", Scopes).End());
-    ClassParser *CP = new ClassParser(P, Scopes);
-    return CP->Class;
+    ClassParser *CP = new ClassParser(P, Comment, Scopes);
+    ASTClass *Class = CP->Class;
+    delete CP;
+    return Class;
 }
 
 ASTClassAttribute *ClassParser::ParseAttribute(SmallVector<ASTScope *, 8> &Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name) {
@@ -121,12 +123,6 @@ ASTClassAttribute *ClassParser::ParseAttribute(SmallVector<ASTScope *, 8> &Scope
     if (!Type) {
         P->Diag(diag::err_parser_invalid_type);
         return nullptr;
-    }
-
-    // Add Comment to AST
-    llvm::StringRef Comment;
-    if (!P->BlockComment.empty()) {
-        Comment = P->BlockComment;
     }
 
     // Parsing =
@@ -144,14 +140,8 @@ ASTClassMethod *ClassParser::ParseMethod(SmallVector<ASTScope *, 8> &Scopes, AST
             .AttrList("Scopes", Scopes)
             .Attr("Type", Type).End());
 
-    // Add Comment to AST
-    llvm::StringRef Comment;
-    if (!P->BlockComment.empty()) {
-        Comment = P->BlockComment;
-    }
-
     llvm::SmallVector<ASTParam *, 8> Params = FunctionParser::ParseParams(P);
-    ASTBlockStmt *Body = FunctionParser::ParseBody(P);
+    ASTBlockStmt *Body = P->isBlockStart() ? FunctionParser::ParseBody(P) : nullptr;
     ASTClassMethod *Method;
     if (Name == Class->getName()) {
         Method = P->Builder.CreateClassConstructor(Loc, *Class, Scopes, Params, Body);

@@ -117,7 +117,7 @@ ASTExpr *ExprParser::ParseExpr(bool IsFirst) {
              .Attr("IsFirst", IsFirst).End());
 
     // The parsed ASTExpr
-    ASTExpr *Expr = nullptr;
+    ASTExpr *Expr;
 
     // Location of the starting expression
     if (P->Tok.is(tok::l_paren)) { // Start a new Group of Expressions

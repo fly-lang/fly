@@ -87,14 +87,11 @@ void Lexer::InitLexer(const char *BufStart, const char *BufPtr, const char *BufE
     // or otherwise skipping over tokens.
     LexingRawMode = false;
 
-    // Default to not keeping comments.
-    ExtendedTokenMode = 0;
-
     // Populate the identifier table with info about keywords for the current language.
     Identifiers.AddKeywords();
 
     // Default to not keeping comments.
-    ExtendedTokenMode = 1;
+    ExtendedTokenMode = 0;
 }
 
 /// Lexer constructor - Create a new raw lexer object.  This object is only
@@ -822,8 +819,7 @@ const char *Lexer::SkipEscapedNewLines(const char *P) {
     }
 }
 
-Optional<Token> Lexer::findNextToken(SourceLocation Loc,
-                                     const SourceManager &SM) {
+Optional<Token> Lexer::findNextToken(SourceLocation Loc, const SourceManager &SM) {
     Loc = Lexer::getLocForEndOfToken(Loc, 0, SM);
 
     // Break down the source location.
@@ -1663,13 +1659,12 @@ bool Lexer::SkipLineComment(Token &Result, const char *CurPtr,
     }
 
     // If we are returning comments as tokens, return this comment as a token.
-    // Do not return token for line comment
-//    if (inKeepCommentMode()) {
-//        const char *TokStart = BufferPtr;
-//        FormTokenWithChars(Result, CurPtr, tok::comment);
-//        Result.setCommentData(TokStart);
-//        return true;
-//    }
+    if (inKeepCommentMode()) {
+        const char *TokStart = BufferPtr;
+        FormTokenWithChars(Result, CurPtr, tok::comment);
+        Result.setCommentData(TokStart);
+        return true;
+    }
 
     // Otherwise, eat the \n character.  We don't care if this is a \n\r or
     // \r\n sequence.  This is an efficiency hack (because we know the \n can't
@@ -1909,6 +1904,10 @@ bool Lexer::SkipBlockComment(Token &Result, const char *CurPtr,
         FormTokenWithChars(Result, CurPtr, tok::comment);
         Result.setCommentData(TokStart);
         return true;
+    }
+
+    if (keepBlockComment()) {
+        FormBlockCommentWithChars(CurPtr);
     }
 
     // It is common for the tokens immediately after a /**/ comment to be

@@ -29,54 +29,29 @@ namespace {
 
     using namespace fly;
 
-    TEST_F(ParserTest, FunctionVisibilityDefault) {
-        llvm::StringRef str = ("void func() {}\n");
-        ASTModule *Module = Parse("FunctionVisibilityDefault", str);
-
-        ASSERT_TRUE(Resolve());
-
-        EXPECT_TRUE(Module->getFunctions().size() == 1);
-        ASTFunction *Func = *Module->getFunctions().begin();
-        EXPECT_EQ(Func->getVisibility(), ASTVisibilityKind::V_DEFAULT);
-        EXPECT_EQ(Func->getReturnType()->getKind(), ASTTypeKind::TYPE_VOID);
-    }
-
-    TEST_F(ParserTest, FunctionVisibilityPrivate) {
-        llvm::StringRef str = ("private void func() {}\n");
-        ASTModule *Module = Parse("FunctionVisibilityPrivate", str);
-
-        ASSERT_TRUE(Resolve());
-
-        EXPECT_TRUE(Module->getFunctions().size() == 1);
-        ASTFunction *Func = *Module->getFunctions().begin();
-        EXPECT_EQ(Func->getVisibility(), ASTVisibilityKind::V_PRIVATE);
-        EXPECT_EQ(Func->getReturnType()->getKind(), ASTTypeKind::TYPE_VOID);
-    }
-
-    TEST_F(ParserTest, FunctionVisibilityPublic) {
-        llvm::StringRef str = ("public void func() {}\n");
-        ASTModule *Module = Parse("FunctionVisibilityPublic", str);
-
-        ASSERT_TRUE(Resolve());
-
-        EXPECT_TRUE(Module->getFunctions().size() == 1);
-        ASTFunction *Func = *Module->getFunctions().begin();
-        EXPECT_EQ(Func->getVisibility(), ASTVisibilityKind::V_PUBLIC);
-        EXPECT_EQ(Func->getReturnType()->getKind(), ASTTypeKind::TYPE_VOID);
-    }
-
-    TEST_F(ParserTest, FunctionType) {
-        llvm::StringRef str = ("void func(bool a, "
-                               "byte b, short c, ushort d, int e, uint f, long g, ulong h, "
-                               "float i, double j, Type t) {}\n");
+    TEST_F(ParserTest, LocalVarType) {
+        llvm::StringRef str = ("void func() {\n"
+                               "bool a\n"
+                               "byte b\n"
+                               "short c\n"
+                               "ushort d\n"
+                               "int e\n"
+                               "uint f\n"
+                               "long g\n"
+                               "ulong h\n"
+                               "float i\n"
+                               "double j\n"
+                               "Type t\n"
+                               "}\n");
         ASTModule *Module = Parse("FunctionType", str);
 
         ASSERT_TRUE(Resolve());
 
+
         // Get Body
-        ASTFunction *Func = *Module->getFunctions().begin();
-        EXPECT_EQ(Func->getReturnType()->getKind(), ASTTypeKind::TYPE_VOID);
-        const ASTBlockStmt *Body = Func->getBody();
+        ASTFunction *F = *Module->getFunctions().begin();
+        EXPECT_EQ(F->getReturnType()->getKind(), ASTTypeKind::TYPE_VOID);
+        const ASTBlockStmt *Body = F->getBody();
 
         // Test: bool a
         ASTVarStmt *aStmt = (ASTVarStmt *) Body->getContent()[0];

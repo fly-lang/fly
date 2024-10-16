@@ -229,17 +229,17 @@ namespace fly {
 
         ASTAlias *CreateAlias(const SourceLocation &Loc, StringRef Name);
 
-        ASTComment *CreateCommentMultiline(const SourceLocation &Loc, llvm::StringRef Content);
+        ASTComment *CreateComment(const SourceLocation &Loc, llvm::StringRef Content);
 
         ASTGlobalVar *CreateGlobalVar(ASTModule *Module, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
-                                      SmallVector<ASTScope *, 8> &Scopes, ASTExpr *Expr = nullptr);
+                                      SmallVector<ASTScope *, 8> &Scopes, ASTExpr *Expr = nullptr, ASTComment *Comment = nullptr);
 
         ASTFunction *CreateFunction(ASTModule *Module, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
                                     SmallVector<ASTScope *, 8> &Scopes, SmallVector<ASTParam *, 8> &Params,
-                                    ASTBlockStmt *Body = nullptr);
+                                    ASTBlockStmt *Body = nullptr, ASTComment *Comment = nullptr);
 
         ASTClass *CreateClass(ASTModule *Module, const SourceLocation &Loc, ASTClassKind ClassKind, llvm::StringRef Name,
-                              SmallVector<ASTScope *, 8> &Scopes, llvm::SmallVector<ASTClassType *, 4> &ClassTypes);
+                              SmallVector<ASTScope *, 8> &Scopes, llvm::SmallVector<ASTClassType *, 4> &ClassTypes, ASTComment *Comment = nullptr);
 
         ASTClassAttribute *CreateClassAttribute(const SourceLocation &Loc, ASTClass &Class, ASTType *Type,
                                                 llvm::StringRef Name, SmallVector<ASTScope *, 8> &Scopes,
@@ -258,7 +258,7 @@ namespace fly {
                                                  llvm::SmallVector<ASTParam *, 8> &Params);
 
         ASTEnum *CreateEnum(ASTModule *Module, const SourceLocation &Loc, llvm::StringRef Name, SmallVector<ASTScope *, 8> &Scopes,
-                   llvm::SmallVector<ASTEnumType *, 4> EnumTypes);
+                   llvm::SmallVector<ASTEnumType *, 4> EnumTypes, ASTComment *Comment = nullptr);
 
         ASTEnumEntry *CreateEnumEntry(const SourceLocation &Loc, ASTEnum &Enum, llvm::StringRef Name,
                                       llvm::SmallVector<ASTScope *, 8> &Scopes);
@@ -301,7 +301,7 @@ namespace fly {
 
         ASTIdentityType *CreateIdentityType(ASTIdentifier *Identifier);
 
-        ASTErrorType *CreateErrorType();
+        ASTErrorType *CreateErrorType(const SourceLocation &Loc);
 
         // Create Values
         ASTNullValue *CreateNullValue(const SourceLocation &Loc);
@@ -387,7 +387,7 @@ namespace fly {
 
         SemaBuilderStmt *CreateReturnStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
 
-        SemaBuilderStmt *CreateFailStmt(ASTBlockStmt *Parent, const SourceLocation &Loc, ASTVar *ErrorHandler);
+        SemaBuilderStmt *CreateFailStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
 
         SemaBuilderStmt *CreateExprStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
 
@@ -402,6 +402,8 @@ namespace fly {
         ASTBlockStmt *CreateBody(ASTFunctionBase *FunctionBase, ASTBlockStmt *Body);
 
         ASTBlockStmt *CreateBlockStmt(const SourceLocation &Loc);
+
+        ASTBlockStmt *CreateBlockStmt(ASTStmt *Parent, const SourceLocation &Loc);
 
         SemaBuilderIfStmt *CreateIfBuilder(ASTBlockStmt *Parent);
 
