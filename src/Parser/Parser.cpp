@@ -8,10 +8,10 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Parser/Parser.h"
-#include "Parser/FunctionParser.h"
-#include "Parser/ExprParser.h"
-#include "Parser/ClassParser.h"
-#include "Parser/EnumParser.h"
+#include "Parser/ParserFunction.h"
+#include "Parser/ParserExpr.h"
+#include "Parser/ParserClass.h"
+#include "Parser/ParserEnum.h"
 #include "AST/ASTModule.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTEnum.h"
@@ -26,7 +26,7 @@
 #include "AST/ASTContinueStmt.h"
 #include "AST/ASTBreakStmt.h"
 #include "AST/ASTValue.h"
-#include "AST/ASTVarStmt.h"
+#include "AST/ASTAssignmentStmt.h"
 #include "AST/ASTIfStmt.h"
 #include "AST/ASTSwitchStmt.h"
 #include "AST/ASTLoopStmt.h"
@@ -292,8 +292,8 @@ ASTFunction *Parser::ParseFunctionDef(ASTComment *Comment, SmallVector<ASTScope 
     StringRef Name = Tok.getIdentifierInfo()->getName();
     const SourceLocation &Loc = ConsumeToken();
 
-    llvm::SmallVector<ASTParam *, 8> Params = FunctionParser::ParseParams(this);
-    ASTBlockStmt *Body = isBlockStart() ? FunctionParser::ParseBody(this) : nullptr;
+    llvm::SmallVector<ASTParam *, 8> Params = ParserFunction::ParseParams(this);
+    ASTBlockStmt *Body = isBlockStart() ? ParserFunction::ParseBody(this) : nullptr;
     ASTFunction *Function = Builder.CreateFunction(Module, Loc, Type, Name, Scopes, Params, Body, Comment);
     
     return Function;
@@ -308,7 +308,7 @@ ASTFunction *Parser::ParseFunctionDef(ASTComment *Comment, SmallVector<ASTScope 
 ASTClass * Parser::ParseClassDef(ASTComment *Comment, SmallVector<ASTScope *, 8> &Scopes) {
     FLY_DEBUG_MESSAGE("Parser", "ParseClassDef", Logger().AttrList("Scopes", Scopes).End());
 
-    ASTClass *Class = ClassParser::Parse(this, Comment, Scopes);
+    ASTClass *Class = ParserClass::Parse(this, Comment, Scopes);
     return Class;
 }
 
@@ -323,7 +323,7 @@ ASTEnum *Parser::ParseEnumDef(ASTComment *Comment, SmallVector<ASTScope *, 8>&Sc
     FLY_DEBUG_MESSAGE("Parser", "ParseClassDef", Logger().AttrList("Scopes", Scopes).End());
     assert(Tok.is(tok::kw_enum) && "Token Enum expected");
 
-    ASTEnum *Enum = EnumParser::Parse(this, Comment, Scopes);
+    ASTEnum *Enum = ParserEnum::Parse(this, Comment, Scopes);
     return Enum;
 }
 
@@ -472,7 +472,7 @@ bool Parser::ParseStmt(ASTBlockStmt *Parent) {
                     ASTVarRef *ErrorVarRef = Builder.CreateVarRef(LocalVar);
                     ParseHandleStmt(Parent, ErrorVarRef);
                 } else {
-                    SemaBuilderStmt *BuilderStmt = Builder.CreateVarStmt(Parent, LocalVar);
+                    SemaBuilderStmt *BuilderStmt = Builder.CreateAssignmentStmt(Parent, LocalVar);
 
                     // Parse Expr
                     ASTExpr *Expr = ParseExpr();
@@ -487,7 +487,7 @@ bool Parser::ParseStmt(ASTBlockStmt *Parent) {
         // a = ...
         ASTIdentifier *Identifier = ParseIdentifier();
         ASTVarRef *VarRef = Builder.CreateVarRef(Identifier);
-        SemaBuilderStmt *BuilderStmt = Builder.CreateVarStmt(Parent, VarRef);
+        SemaBuilderStmt *BuilderStmt = Builder.CreateAssignmentStmt(Parent, VarRef);
         
         // Consume assign operator
         ConsumeToken();
@@ -1224,11 +1224,9 @@ ASTValue *Parser::ParseValues() {
     return Builder.CreateZeroValue(Tok.getLocation());
 }
 
-ASTExpr *Parser::ParseExpr(ASTIdentifier *Identifier, bool isRoot) {
-    FLY_DEBUG_MESSAGE("Parser", "ParseExpr", Logger().Attr("Identifier", Identifier).End());
-    ExprParser Parser(this);
-    ASTExpr *Expr = Identifier ? Parser.ParseExpr(Identifier) : Parser.ParseExpr();
-    return Expr;
+ASTExpr *Parser::ParseExpr() {
+    FLY_DEBUG("Parser", "ParseExpr");
+    return ParserExpr::Parse(this);
 }
 
 bool Parser::isArrayType(Token &Tok) {

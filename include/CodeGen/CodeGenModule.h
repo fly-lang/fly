@@ -38,7 +38,7 @@ namespace fly {
     class ASTValue;
     class ASTStmt;
     class ASTExpr;
-    class ASTGroupExpr;
+    class ASTOpExpr;
     class ASTIfStmt;
     class ASTSwitchStmt;
     class ASTLoopStmt;

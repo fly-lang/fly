@@ -7,7 +7,7 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "Parser/EnumParser.h"
+#include "Parser/ParserEnum.h"
 #include "Parser/Parser.h"
 #include "AST/ASTType.h"
 #include "Sema/SemaBuilder.h"
@@ -21,7 +21,7 @@ using namespace fly;
  * @param Visibility
  * @param Constant
  */
-EnumParser::EnumParser(Parser *P, ASTComment *Comment, llvm::SmallVector<ASTScope *, 8> &Scopes) : P(P) {
+ParserEnum::ParserEnum(Parser *P, ASTComment *Comment, llvm::SmallVector<ASTScope *, 8> &Scopes) : P(P) {
     FLY_DEBUG_MESSAGE("ClassParser", "ClassParser", Logger()
             .AttrList("Scopes", Scopes).End());
     assert(P->Tok.is(tok::kw_enum) && "No ClassKind defined");
@@ -81,14 +81,14 @@ EnumParser::EnumParser(Parser *P, ASTComment *Comment, llvm::SmallVector<ASTScop
  * ParseModule Class Declaration
  * @return
  */
-ASTEnum *EnumParser::Parse(Parser *P, ASTComment *Comment, SmallVector<ASTScope *, 8> &Scopes) {
+ASTEnum *ParserEnum::Parse(Parser *P, ASTComment *Comment, SmallVector<ASTScope *, 8> &Scopes) {
     FLY_DEBUG_MESSAGE("EnumParser", "ParseModule", Logger()
             .AttrList("Scopes", Scopes).End());
-    EnumParser *CP = new EnumParser(P, Comment, Scopes);
+    ParserEnum *CP = new ParserEnum(P, Comment, Scopes);
     return CP->Enum;
 }
 
-bool EnumParser::ParseField(const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTScope *, 8> Scopes) {
+bool ParserEnum::ParseField(const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTScope *, 8> Scopes) {
     FLY_DEBUG_MESSAGE("ClassParser", "ParseMethod", Logger().Attr("Type", Name).End());
 
     ASTEnumEntry *EnumEntry = P->Builder.CreateEnumEntry(Loc, *Enum, Name, Scopes);

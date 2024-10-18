@@ -61,7 +61,7 @@ namespace fly {
     class ASTLoopInStmt;
     class ASTGlobalVar;
     class ASTEnum;
-    class ASTVarStmt;
+    class ASTAssignmentStmt;
 
     class SemaResolver {
 
@@ -111,7 +111,7 @@ namespace fly {
 
         bool ResolveStmtLoopIn(ASTLoopInStmt *LoopInStmt);
 
-        bool ResolveStmtVar(ASTVarStmt *VarStmt);
+        bool ResolveStmtVar(ASTAssignmentStmt *VarStmt);
 
         bool ResolveStmtFail(ASTFailStmt *FailStmt);
 

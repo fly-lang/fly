@@ -8,8 +8,8 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#ifndef FLY_FUNCTIONPARSER_H
-#define FLY_FUNCTIONPARSER_H
+#ifndef FLY_PARSERFUNCTION_H
+#define FLY_PARSERFUNCTION_H
 
 #include "llvm/ADT/StringRef.h"
 
@@ -23,7 +23,7 @@ namespace fly {
     class ASTBlockStmt;
     class SourceLocation;
 
-    class FunctionParser {
+    class ParserFunction {
 
         friend class Parser;
 
@@ -39,4 +39,4 @@ namespace fly {
 }
 
 
-#endif //FLY_FUNCTIONPARSER_H
+#endif //FLY_PARSERFUNCTION_H

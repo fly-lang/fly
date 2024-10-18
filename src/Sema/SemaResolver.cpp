@@ -39,12 +39,11 @@
 #include "AST/ASTHandleStmt.h"
 #include "AST/ASTDeleteStmt.h"
 #include "AST/ASTVar.h"
-#include "AST/ASTVarStmt.h"
+#include "AST/ASTAssignmentStmt.h"
 #include "AST/ASTFailStmt.h"
 #include "AST/ASTVarRef.h"
 #include "AST/ASTExprStmt.h"
-#include "AST/ASTGroupExpr.h"
-#include "AST/ASTOperatorExpr.h"
+#include "AST/ASTOpExpr.h"
 #include "CodeGen/CodeGen.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/Debug.h"
@@ -511,8 +510,8 @@ bool SemaResolver::ResolveStmt(ASTStmt *Stmt) {
             return ResolveStmtLoop((ASTLoopStmt *) Stmt);
         case ASTStmtKind::STMT_LOOP_IN:
             return ResolveStmtLoopIn((ASTLoopInStmt *) Stmt);
-        case ASTStmtKind::STMT_VAR:
-            return ResolveStmtVar((ASTVarStmt *) Stmt);
+        case ASTStmtKind::STMT_ASSIGN:
+            return ResolveStmtVar((ASTAssignmentStmt *) Stmt);
         case ASTStmtKind::STMT_EXPR:
             return ResolveExpr(Stmt->Parent, ((ASTExprStmt *) Stmt)->Expr);
         case ASTStmtKind::STMT_FAIL:
@@ -601,7 +600,7 @@ bool SemaResolver::ResolveStmtLoopIn(ASTLoopInStmt *LoopInStmt) {
     return ResolveVarRef(LoopInStmt->Parent, LoopInStmt->VarRef) && ResolveStmtBlock(LoopInStmt->Block);
 }
 
-bool SemaResolver::ResolveStmtVar(ASTVarStmt *VarStmt) {
+bool SemaResolver::ResolveStmtVar(ASTAssignmentStmt *VarStmt) {
     ResolveVarRef(VarStmt->Parent, VarStmt->VarRef);
     if (VarStmt->getVarRef()->getDef() && VarStmt->getExpr() != nullptr && !VarStmt->getVarRef()->getDef()->isInitialized())
         VarStmt->getVarRef()->getDef()->setInitialization(VarStmt); // FIXME ? with if - else
@@ -1044,69 +1043,69 @@ bool SemaResolver::ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr, ASTType *Type) {
                 return false;
             }
         }
-        case ASTExprKind::EXPR_GROUP: {
-            switch (((ASTGroupExpr *) Expr)->getGroupKind()) {
-                case ASTExprGroupKind::GROUP_UNARY: {
-                    ASTUnaryGroupExpr *Unary = (ASTUnaryGroupExpr *) Expr;
-                    Success = ResolveExpr(Stmt, (ASTExpr *) Unary->First);
-                    Expr->Type = Unary->First->Type;
+        case ASTExprKind::EXPR_OP: {
+            switch (((ASTOpExpr *) Expr)->getOpExprKind()) {
+                case ASTOpExprKind::OP_UNARY: {
+                    ASTUnaryOpExpr *Unary = (ASTUnaryOpExpr *) Expr;
+                    Success = ResolveExpr(Stmt, (ASTExpr *) Unary->Expr);
+                    Expr->Type = Unary->Expr->Type;
                     break;
                 }
-                case ASTExprGroupKind::GROUP_BINARY: {
-                    ASTBinaryGroupExpr *Binary = (ASTBinaryGroupExpr *) Expr;
+                case ASTOpExprKind::OP_BINARY: {
+                    ASTBinaryOpExpr *Binary = (ASTBinaryOpExpr *) Expr;
 
-                    if (Binary->First->Kind == ASTExprKind::EXPR_EMPTY) {
+                    if (Binary->LeftExpr->Kind == ASTExprKind::EXPR_EMPTY) {
                         // Error: Binary cannot contain ASTEmptyExpr
-                        S.Diag(Binary->First->getLocation(), diag::err_sema_empty_expr);
+                        S.Diag(Binary->LeftExpr->getLocation(), diag::err_sema_empty_expr);
                         return false;
                     }
 
-                    if (Binary->Second->Kind == ASTExprKind::EXPR_EMPTY) {
+                    if (Binary->RightExpr->Kind == ASTExprKind::EXPR_EMPTY) {
                         // Error: Binary cannot contain ASTEmptyExpr
-                        S.Diag(Binary->Second->getLocation(), diag::err_sema_empty_expr);
+                        S.Diag(Binary->RightExpr->getLocation(), diag::err_sema_empty_expr);
                         return false;
                     }
 
-                    Success = ResolveExpr(Stmt, Binary->First) && ResolveExpr(Stmt, Binary->Second);
+                    Success = ResolveExpr(Stmt, Binary->LeftExpr) && ResolveExpr(Stmt, Binary->RightExpr);
                     if (Success) {
-                        if (Binary->getOperator()->getOptionKind() == ASTBinaryOptionKind::BINARY_ARITH ||
-                                Binary->getOperator()->getOptionKind() == ASTBinaryOptionKind::BINARY_COMPARISON) {
-                            Success = S.Validator->CheckArithTypes(Binary->getLocation(), Binary->First->Type,
-                                                                  Binary->Second->Type);
+                        if (Binary->getTypeKind() == ASTBinaryOpTypeExprKind::OP_BINARY_ARITH ||
+                                Binary->getTypeKind() == ASTBinaryOpTypeExprKind::OP_BINARY_COMPARISON) {
+                            Success = S.Validator->CheckArithTypes(Binary->getLocation(), Binary->LeftExpr->Type,
+                                                                  Binary->RightExpr->Type);
 
                             if (Success) {
                                 // Selects the largest data Type
                                 // Promotes First or Second Expr Types in order to be equal
-                                if (Binary->First->Type->isInteger()) {
-                                    if (((ASTIntegerType *)Binary->First->Type)->getSize() > ((ASTIntegerType *)Binary->Second->Type)->getSize())
-                                        Binary->Second->Type = Binary->First->Type;
+                                if (Binary->LeftExpr->Type->isInteger()) {
+                                    if (((ASTIntegerType *)Binary->LeftExpr->Type)->getSize() > ((ASTIntegerType *)Binary->RightExpr->Type)->getSize())
+                                        Binary->RightExpr->Type = Binary->LeftExpr->Type;
                                     else
-                                        Binary->First->Type = Binary->Second->Type;
-                                } else if (Binary->First->Type->isFloatingPoint()) {
-                                    if (((ASTFloatingPointType *)Binary->First->Type)->getSize() > ((ASTFloatingPointType *)Binary->Second->Type)->getSize())
-                                        Binary->Second->Type = Binary->First->Type;
+                                        Binary->LeftExpr->Type = Binary->RightExpr->Type;
+                                } else if (Binary->LeftExpr->Type->isFloatingPoint()) {
+                                    if (((ASTFloatingPointType *)Binary->LeftExpr->Type)->getSize() > ((ASTFloatingPointType *)Binary->RightExpr->Type)->getSize())
+                                        Binary->RightExpr->Type = Binary->LeftExpr->Type;
                                     else
-                                        Binary->First->Type = Binary->Second->Type;
+                                        Binary->LeftExpr->Type = Binary->RightExpr->Type;
                                 }
 
-                                Binary->Type = Binary->getOperator()->getOptionKind() == ASTBinaryOptionKind::BINARY_ARITH ?
-                                        Binary->First->Type : S.Builder->CreateBoolType(Expr->getLocation());
+                                Binary->Type = Binary->getTypeKind() == ASTBinaryOpTypeExprKind::OP_BINARY_ARITH ?
+                                               Binary->LeftExpr->Type : S.Builder->CreateBoolType(Expr->getLocation());
                             }
-                        } else if (Binary->getOperator()->getOptionKind() ==  ASTBinaryOptionKind::BINARY_LOGIC) {
+                        } else if (Binary->getTypeKind() == ASTBinaryOpTypeExprKind::OP_BINARY_LOGIC) {
                             Success = S.Validator->CheckLogicalTypes(Binary->getLocation(),
-                                                                     Binary->First->Type, Binary->Second->Type);
+                                                                     Binary->LeftExpr->Type, Binary->RightExpr->Type);
                             Binary->Type = S.Builder->CreateBoolType(Expr->getLocation());
                         }
                     }
                     break;
                 }
-                case ASTExprGroupKind::GROUP_TERNARY: {
-                    ASTTernaryGroupExpr *Ternary = (ASTTernaryGroupExpr *) Expr;
-                    Success = ResolveExpr(Stmt, Ternary->First) &&
-                              S.Validator->CheckConvertibleTypes(Ternary->First->Type, S.Builder->CreateBoolType(SourceLocation())) &&
-                              ResolveExpr(Stmt, Ternary->Second) &&
-                              ResolveExpr(Stmt, Ternary->Third);
-                    Ternary->Type = Ternary->Second->Type; // The group type is equals to the second type
+                case ASTOpExprKind::OP_TERNARY: {
+                    ASTTernaryOpExpr *Ternary = (ASTTernaryOpExpr *) Expr;
+                    Success = ResolveExpr(Stmt, Ternary->ConditionExpr) &&
+                              S.Validator->CheckConvertibleTypes(Ternary->ConditionExpr->Type, S.Builder->CreateBoolType(SourceLocation())) &&
+                              ResolveExpr(Stmt, Ternary->TrueExpr) &&
+                              ResolveExpr(Stmt, Ternary->FalseExpr);
+                    Ternary->Type = Ternary->TrueExpr->Type; // The group type is equals to the second type
                     break;
                 }
             }

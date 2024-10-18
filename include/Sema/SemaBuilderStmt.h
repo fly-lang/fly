@@ -21,6 +21,7 @@ namespace fly {
     class ASTExpr;
     class ASTVarRef;
     class ASTVar;
+    enum class ASTAssignOperatorKind;
 
     class SemaBuilderStmt {
 
@@ -32,7 +33,7 @@ namespace fly {
 
     public:
 
-        static SemaBuilderStmt *CreateVar(SemaBuilder *Builder, ASTBlockStmt *Parent, ASTVarRef *VarRef);
+        static SemaBuilderStmt *CreateAssignment(SemaBuilder *Builder, ASTBlockStmt *Parent, ASTVarRef *VarRef, ASTAssignOperatorKind AssignOperatorKind);
 
         static SemaBuilderStmt *CreateVar(SemaBuilder *Builder, ASTBlockStmt *Parent, ASTVar *Var);
 

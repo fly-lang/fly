@@ -10,7 +10,7 @@
 #include "Sema/SemaBuilderStmt.h"
 #include "Sema/SemaBuilder.h"
 #include "AST/ASTBlockStmt.h"
-#include "AST/ASTVarStmt.h"
+#include "AST/ASTAssignmentStmt.h"
 #include "AST/ASTVarRef.h"
 #include "AST/ASTReturnStmt.h"
 #include "AST/ASTFailStmt.h"
@@ -22,21 +22,10 @@ SemaBuilderStmt::SemaBuilderStmt(SemaBuilder *Builder) : Builder(Builder) {
 
 }
 
-SemaBuilderStmt *SemaBuilderStmt::CreateVar(SemaBuilder *Builder, ASTBlockStmt *Parent, ASTVarRef *VarRef) {
+SemaBuilderStmt *SemaBuilderStmt::CreateAssignment(SemaBuilder *Builder, ASTBlockStmt *Parent, ASTVarRef *VarRef,
+                                                   ASTAssignOperatorKind AssignOperatorKind) {
     SemaBuilderStmt *BuilderStmt = new SemaBuilderStmt(Builder);
-    BuilderStmt->Stmt = new ASTVarStmt(VarRef->getLocation(), VarRef);
-
-    // Inner Stmt
-    Parent->Content.push_back(BuilderStmt->Stmt);
-    BuilderStmt->Stmt->Parent = Parent;
-    BuilderStmt->Stmt->Function = Parent->Function;
-    return BuilderStmt;
-}
-
-SemaBuilderStmt *SemaBuilderStmt::CreateVar(SemaBuilder *Builder, ASTBlockStmt *Parent, ASTVar *Var) {
-    SemaBuilderStmt *BuilderStmt = new SemaBuilderStmt(Builder);
-    ASTVarRef *VarRef = Builder->CreateVarRef(Var);
-    BuilderStmt->Stmt = new ASTVarStmt(Var->getLocation(), VarRef);
+    BuilderStmt->Stmt = new ASTAssignmentStmt(VarRef->getLocation(), VarRef, AssignOperatorKind);
 
     // Inner Stmt
     Parent->Content.push_back(BuilderStmt->Stmt);
@@ -78,8 +67,8 @@ SemaBuilderStmt *SemaBuilderStmt::CreateExpr(SemaBuilder *Builder, ASTBlockStmt 
 void SemaBuilderStmt::setExpr(ASTExpr *Expr) {
     // TODO use a super class with expr
     switch (Stmt->getKind()) {
-        case ASTStmtKind::STMT_VAR:
-            ((ASTVarStmt *) Stmt)->Expr = Expr;
+        case ASTStmtKind::STMT_ASSIGN:
+            ((ASTAssignmentStmt *) Stmt)->Expr = Expr;
             return;
         case ASTStmtKind::STMT_RETURN:
             ((ASTReturnStmt *) Stmt)->Expr = Expr;

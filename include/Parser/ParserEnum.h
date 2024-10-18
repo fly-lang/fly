@@ -8,8 +8,8 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#ifndef FLY_ENUMPARSER_H
-#define FLY_ENUMPARSER_H
+#ifndef FLY_PARSERENUM_H
+#define FLY_PARSERENUM_H
 
 #include "llvm/ADT/SmallVector.h"
 #include <cstdint>
@@ -26,7 +26,7 @@ namespace fly {
     class SourceLocation;
     class ASTComment;
 
-    class EnumParser {
+    class ParserEnum {
 
         friend class Parser;
 
@@ -38,7 +38,7 @@ namespace fly {
 
         unsigned short BraceCount = 0;
 
-        EnumParser(Parser *P, ASTComment *Comment, llvm::SmallVector<ASTScope *, 8> &Scopes);
+        ParserEnum(Parser *P, ASTComment *Comment, llvm::SmallVector<ASTScope *, 8> &Scopes);
 
     public:
 

@@ -18,7 +18,7 @@
 #include "AST/ASTClassAttribute.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTClass.h"
-#include "AST/ASTVarStmt.h"
+#include "AST/ASTAssignmentStmt.h"
 #include "AST/ASTVarRef.h"
 #include "Basic/Debug.h"
 

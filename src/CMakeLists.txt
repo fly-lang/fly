@@ -27,7 +27,6 @@ add_library(flyLib
         AST/ASTFailStmt.cpp
         AST/ASTFunction.cpp
         AST/ASTFunctionBase.cpp
-        AST/ASTGroupExpr.cpp
         AST/ASTGlobalVar.cpp
         AST/ASTHandleStmt.cpp
         AST/ASTIdentifier.cpp
@@ -40,7 +39,7 @@ add_library(flyLib
         AST/ASTLoopInStmt.cpp
         AST/ASTNameSpace.cpp
         AST/ASTModule.cpp
-        AST/ASTOperatorExpr.cpp
+        AST/ASTOpExpr.cpp
         AST/ASTParam.cpp
         AST/ASTReturnStmt.cpp
         AST/ASTScopes.cpp
@@ -50,7 +49,7 @@ add_library(flyLib
         AST/ASTValue.cpp
         AST/ASTVar.cpp
         AST/ASTVarRef.cpp
-        AST/ASTVarStmt.cpp
+        AST/ASTAssignmentStmt.cpp
 
         # Basic
         Basic/Archiver.cpp
@@ -140,10 +139,10 @@ add_library(flyLib
         Lex/HeaderMap.cpp
 
         # Parser
-        Parser/ClassParser.cpp
-        Parser/EnumParser.cpp
-        Parser/ExprParser.cpp
-        Parser/FunctionParser.cpp
+        Parser/ParserClass.cpp
+        Parser/ParserEnum.cpp
+        Parser/ParserExpr.cpp
+        Parser/ParserFunction.cpp
         Parser/Parser.cpp
 
         # Sema

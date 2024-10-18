@@ -17,7 +17,7 @@ namespace fly {
     class SourceLocation;
     class CodeGenVarBase;
     class ASTType;
-    class ASTVarStmt;
+    class ASTAssignmentStmt;
     class ASTScope;
 
     enum class ASTVarKind {
@@ -47,7 +47,7 @@ namespace fly {
 
         SmallVector<ASTScope *, 8> Scopes;
 
-        ASTVarStmt *Initialization = nullptr;
+        ASTAssignmentStmt *Initialization = nullptr;
 
     protected:
 
@@ -65,9 +65,9 @@ namespace fly {
 
         bool isInitialized();
 
-        ASTVarStmt *getInitialization();
+        ASTAssignmentStmt *getInitialization();
 
-        void setInitialization(ASTVarStmt *VarDefine);
+        void setInitialization(ASTAssignmentStmt *VarDefine);
 
         const SmallVector<ASTScope *, 8> &getScopes() const;
 

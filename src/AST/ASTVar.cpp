@@ -43,11 +43,11 @@ bool ASTVar::isInitialized() {
     return Initialization != nullptr;
 }
 
-ASTVarStmt *ASTVar::getInitialization() {
+ASTAssignmentStmt *ASTVar::getInitialization() {
     return Initialization;
 }
 
-void ASTVar::setInitialization(ASTVarStmt *VarDefine) {
+void ASTVar::setInitialization(ASTAssignmentStmt *VarDefine) {
     Initialization = VarDefine;
 }
 

@@ -13,6 +13,7 @@
 #include "Sema/Sema.h"
 #include "Sema/SemaValidator.h"
 #include "AST/ASTScopes.h"
+#include "AST/ASTAssignmentStmt.h"
 
 #include "llvm/ADT/StringMap.h"
 
@@ -90,7 +91,7 @@ namespace fly {
 
     class ASTExprStmt;
 
-    class ASTVarStmt;
+    class ASTAssignmentStmt;
 
     class ASTParam;
 
@@ -160,8 +161,6 @@ namespace fly {
 
     class ASTExpr;
 
-    class ASTEmptyExpr;
-
     class ASTValueExpr;
 
     class ASTVarRefExpr;
@@ -170,15 +169,15 @@ namespace fly {
 
     class ASTUnaryOperatorExpr;
 
-    class ASTUnaryGroupExpr;
+    class ASTUnaryOpExpr;
 
     class ASTBinaryOperatorExpr;
 
-    class ASTBinaryGroupExpr;
+    class ASTBinaryOpExpr;
 
     class ASTTernaryOperatorExpr;
 
-    class ASTTernaryGroupExpr;
+    class ASTTernaryOpExpr;
 
     class ASTEnum;
 
@@ -189,14 +188,14 @@ namespace fly {
     class ASTFailStmt;
 
     class ASTStringValue;
-
+    
     enum class ASTClassKind;
 
-    enum class ASTUnaryOperatorKind;
+    enum class ASTUnaryOpExprKind;
 
-    enum class ASTBinaryOperatorKind;
+    enum class ASTBinaryOpExprKind;
 
-    enum class ASTTernaryOperatorKind;
+    enum class ASTTernaryOpExprKind;
 
     enum class ASTCallKind;
 
@@ -209,8 +208,6 @@ namespace fly {
         Sema &S;
 
         ASTContext *CreateContext();
-
-        ASTNameSpace *CreateDefaultNameSpace();
 
     public:
 
@@ -355,35 +352,28 @@ namespace fly {
 
         // Create Expressions
 
-        ASTEmptyExpr *CreateExpr();
-
         ASTValueExpr *CreateExpr(ASTValue *Value);
 
         ASTCallExpr *CreateExpr(ASTCall *Call);
 
         ASTVarRefExpr *CreateExpr(ASTVarRef *VarRef);
 
-        ASTUnaryOperatorExpr *CreateOperatorExpr(const SourceLocation &Loc, ASTUnaryOperatorKind UnaryKind);
+        ASTUnaryOpExpr *CreateUnaryOpExpr(const SourceLocation &Loc, ASTUnaryOpExprKind OpKind, ASTExpr *Expr);
 
-        ASTBinaryOperatorExpr *CreateOperatorExpr(const SourceLocation &Loc, ASTBinaryOperatorKind BinaryKind);
+        ASTBinaryOpExpr *CreateBinaryOpExpr(ASTBinaryOpExprKind OpKind, const SourceLocation &OpLocation,
+                                            ASTExpr *LeftExpr, ASTExpr *RightExpr);
 
-        ASTTernaryOperatorExpr *CreateOperatorExpr(const SourceLocation &Loc, ASTTernaryOperatorKind TernaryKind);
-
-        ASTUnaryGroupExpr *CreateUnaryExpr(ASTUnaryOperatorExpr *Operator,
-                                           ASTVarRefExpr *First);
-
-        ASTBinaryGroupExpr *CreateBinaryExpr(ASTBinaryOperatorExpr *Operator,
-                                             ASTExpr *First, ASTExpr *Second);
-
-        ASTTernaryGroupExpr *CreateTernaryExpr(ASTExpr *First,
-                                               ASTTernaryOperatorExpr *FirstOperator, ASTExpr *Second,
-                                               ASTTernaryOperatorExpr *SecondOperator, ASTExpr *Third);
+        ASTTernaryOpExpr *CreateTernaryOpExpr(ASTExpr *ConditionExpr,
+                                              const SourceLocation &TrueOpLocation, ASTExpr *TrueExpr,
+                                              const SourceLocation &FalseOpLocation, ASTExpr *FalseExpr);
 
         // Create Statements
 
-        SemaBuilderStmt *CreateVarStmt(ASTBlockStmt *Parent, ASTVarRef *VarRef);
+        SemaBuilderStmt *CreateAssignmentStmt(ASTBlockStmt *Parent, ASTVarRef *VarRef,
+                                              ASTAssignOperatorKind Kind = ASTAssignOperatorKind::EQUAL);
 
-        SemaBuilderStmt *CreateVarStmt(ASTBlockStmt *Parent, ASTVar *Var);
+        SemaBuilderStmt *CreateAssignmentStmt(ASTBlockStmt *Parent, ASTVar *Var,
+                                              ASTAssignOperatorKind Kind = ASTAssignOperatorKind::EQUAL);
 
         SemaBuilderStmt *CreateReturnStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
 

@@ -16,27 +16,45 @@ namespace fly {
 
     class ASTVarRef;
 
+    enum class ASTAssignOperatorKind {
+        EQUAL,
+        PLUS_EQUAL,
+        MINUS_EQUAL,
+        AMP_EQUAL,
+        PIPE_EQUAL,
+        STAR_EQUAL,
+        SLASH_EQUAL,
+        PERCENT_EQUAL,
+        LESSLESS_EQUAL,
+        GREATERGREATER_EQUAL,
+        CARET_EQUAL
+    };
+
     /**
      * Assign somethings to a Local Var
      * Ex.
      *  a = 1
      */
-    class ASTVarStmt : public ASTStmt {
+    class ASTAssignmentStmt : public ASTStmt {
 
         friend class SemaBuilder;
         friend class SemaBuilderStmt;
         friend class SemaResolver;
         friend class SemaValidator;
 
-        ASTVarRef *VarRef = nullptr;
+        ASTVarRef *VarRef;
+
+        ASTAssignOperatorKind Kind;
 
         ASTExpr *Expr = nullptr;
 
-        ASTVarStmt(const SourceLocation &Loc, ASTVarRef *VarRef);
+        ASTAssignmentStmt(const SourceLocation &Loc, ASTVarRef *VarRef, ASTAssignOperatorKind AssignOperatorKind);
 
     public:
 
         ASTVarRef *getVarRef() const;
+
+        ASTAssignOperatorKind getKind1() const;
 
         ASTExpr *getExpr() const;
 

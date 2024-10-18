@@ -38,7 +38,7 @@
 #include "AST/ASTLoopStmt.h"
 #include "AST/ASTSwitchStmt.h"
 #include "AST/ASTHandleStmt.h"
-#include "AST/ASTVarStmt.h"
+#include "AST/ASTAssignmentStmt.h"
 #include "AST/ASTVarRef.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTClass.h"
@@ -47,8 +47,7 @@
 #include "AST/ASTEnumType.h"
 #include "AST/ASTEnumEntry.h"
 #include "AST/ASTExpr.h"
-#include "AST/ASTGroupExpr.h"
-#include "AST/ASTOperatorExpr.h"
+#include "AST/ASTOpExpr.h"
 #include "AST/ASTExprStmt.h"
 #include "AST/ASTClassMethod.h"
 #include "AST/ASTFailStmt.h"
@@ -855,13 +854,6 @@ ASTVarRef *SemaBuilder::CreateVarRef(ASTVar *Var) {
     return VarRef;
 }
 
-ASTEmptyExpr *SemaBuilder::CreateExpr() {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateExpr",
-                      Logger().End());
-    ASTEmptyExpr *Expr = new ASTEmptyExpr(SourceLocation());
-    return Expr;
-}
-
 ASTValueExpr *SemaBuilder::CreateExpr(ASTValue *Value) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateExpr",
                       Logger().Attr("Value", Value).End());
@@ -949,63 +941,42 @@ ASTVarRefExpr *SemaBuilder::CreateExpr(ASTVarRef *VarRef) {
     return VarRefExpr;
 }
 
-ASTUnaryOperatorExpr *SemaBuilder::CreateOperatorExpr(const SourceLocation &Loc, ASTUnaryOperatorKind UnaryKind) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateOperatorExpr", Logger()
-            .Attr("Loc", (uint64_t) Loc.getRawEncoding())
-            .Attr("Kind", (uint64_t) UnaryKind)
-            .End());
-    return new ASTUnaryOperatorExpr(Loc, UnaryKind);
-}
-
-ASTBinaryOperatorExpr *SemaBuilder::CreateOperatorExpr(const SourceLocation &Loc, ASTBinaryOperatorKind BinaryKind) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateOperatorExpr", Logger()
-            .Attr("Loc", (uint64_t) Loc.getRawEncoding())
-            .Attr("Kind", (uint64_t) BinaryKind)
-            .End());
-    return new ASTBinaryOperatorExpr(Loc, BinaryKind);
-}
-
-ASTTernaryOperatorExpr *SemaBuilder::CreateOperatorExpr(const SourceLocation &Loc, ASTTernaryOperatorKind TernaryKind) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateOperatorExpr", Logger()
-            .Attr("Loc", (uint64_t) Loc.getRawEncoding())
-            .Attr("Kind", (uint64_t) TernaryKind)
-            .End());
-    return new ASTTernaryOperatorExpr(Loc, TernaryKind);
-}
-
-ASTUnaryGroupExpr *SemaBuilder::CreateUnaryExpr(ASTUnaryOperatorExpr *Operator, ASTVarRefExpr *First) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateUnaryExpr",
+ASTUnaryOpExpr *SemaBuilder::CreateUnaryOpExpr(const SourceLocation &Loc, ASTUnaryOpExprKind OpKind, ASTExpr *Expr) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateUnaryOpExpr",
                       Logger()
-                      .Attr("Operator", Operator)
-                      .Attr("First", First)
+                      .Attr("Loc", (uint64_t) Loc.getRawEncoding())
+                      .Attr("OpKind", (uint64_t) OpKind)
+                      .Attr("Expr", Expr)
                       .End());
-    ASTUnaryGroupExpr *UnaryExpr = new ASTUnaryGroupExpr(Operator->getLocation(), Operator, First);
-    return UnaryExpr;
+    ASTUnaryOpExpr *UnaryOpExpr = new ASTUnaryOpExpr(Loc, OpKind, Expr);
+    return UnaryOpExpr;
 }
 
-ASTBinaryGroupExpr *SemaBuilder::CreateBinaryExpr(ASTBinaryOperatorExpr *Operator,
-                                                  ASTExpr *First, ASTExpr *Second) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateBinaryExpr", Logger()
-                        .Attr("Operator", Operator)
-                        .Attr("First", First)
-                        .Attr("Second", Second).End());
+ASTBinaryOpExpr *SemaBuilder::CreateBinaryOpExpr(ASTBinaryOpExprKind OpKind, const SourceLocation &OpLocation,
+                                                 ASTExpr *LeftExpr, ASTExpr *RightExpr) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateBinaryOpExpr", Logger()
+                        .Attr("OpKind", (uint64_t) OpKind)
+                        .Attr("OpLocation", (uint64_t) OpLocation.getRawEncoding())
+                        .Attr("LeftExpr", LeftExpr)
+                        .Attr("RightExpr", RightExpr).End());
 
-    ASTBinaryGroupExpr *BinaryExpr = new ASTBinaryGroupExpr(First->getLocation(), Operator, First, Second);
-    return BinaryExpr;
+    ASTBinaryOpExpr *BinaryOpExpr = new ASTBinaryOpExpr(OpKind, OpLocation, LeftExpr, RightExpr);
+    return BinaryOpExpr;
 }
 
-ASTTernaryGroupExpr *SemaBuilder::CreateTernaryExpr(ASTExpr *First,
-                                                    ASTTernaryOperatorExpr *FirstOperator, ASTExpr *Second,
-                                                    ASTTernaryOperatorExpr *SecondOperator, ASTExpr *Third) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateTernaryExpr", Logger()
-                      .Attr("First", First)
-                      .Attr("FirstOperator", FirstOperator)
-                      .Attr("Second", Second)
-                      .Attr("SecondOperator", SecondOperator)
-                      .Attr("Third", Third).End());
+ASTTernaryOpExpr *SemaBuilder::CreateTernaryOpExpr(ASTExpr *ConditionExpr,
+                                                   const SourceLocation &TrueOpLocation, ASTExpr *TrueExpr,
+                                                   const SourceLocation &FalseOpLocation, ASTExpr *FalseExpr) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateTernaryOpExpr", Logger()
+                      .Attr("ConditionExpr", ConditionExpr)
+                      .Attr("TrueOpLocation", (uint64_t) TrueOpLocation.getRawEncoding())
+                      .Attr("TrueExpr", TrueExpr)
+                      .Attr("FalseOpLocation", (uint64_t) FalseOpLocation.getRawEncoding())
+                      .Attr("FalseExpr", FalseExpr).End());
 
-    ASTTernaryGroupExpr *TernaryExpr = new ASTTernaryGroupExpr(First->getLocation(),
-                                                               First, FirstOperator, Second, SecondOperator, Third);
+    ASTTernaryOpExpr *TernaryExpr = new ASTTernaryOpExpr(ConditionExpr,
+                                                         TrueOpLocation, TrueExpr,
+                                                         FalseOpLocation, FalseExpr);
 
     return TernaryExpr;
 }
@@ -1016,10 +987,10 @@ ASTTernaryGroupExpr *SemaBuilder::CreateTernaryExpr(ASTExpr *First,
  * @param VarRef
  * @return
  */
-SemaBuilderStmt *SemaBuilder::CreateVarStmt(ASTBlockStmt *Parent, ASTVarRef *VarRef) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateVarStmt",
+SemaBuilderStmt *SemaBuilder::CreateAssignmentStmt(ASTBlockStmt *Parent, ASTVarRef *VarRef, ASTAssignOperatorKind Kind) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateAssignmentStmt",
                       Logger().Attr("VarRef", VarRef).End());
-    return SemaBuilderStmt::CreateVar(this, Parent, VarRef);
+    return SemaBuilderStmt::CreateAssignment(this, Parent, VarRef, Kind);
 }
 
 /**
@@ -1028,10 +999,11 @@ SemaBuilderStmt *SemaBuilder::CreateVarStmt(ASTBlockStmt *Parent, ASTVarRef *Var
  * @param VarRef
  * @return
  */
-SemaBuilderStmt *SemaBuilder::CreateVarStmt(ASTBlockStmt *Parent, ASTVar *Var) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateVarStmt",
+SemaBuilderStmt *SemaBuilder::CreateAssignmentStmt(ASTBlockStmt *Parent, ASTVar *Var, ASTAssignOperatorKind Kind) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateAssignmentStmt",
                       Logger().Attr("Var", Var).End());
-    return SemaBuilderStmt::CreateVar(this, Parent, Var);
+    ASTVarRef *VarRef = CreateVarRef(Var);
+    return SemaBuilderStmt::CreateAssignment(this, Parent, VarRef, Kind);
 }
 
 /**

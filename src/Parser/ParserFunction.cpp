@@ -8,7 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Parser/Parser.h"
-#include "Parser/FunctionParser.h"
+#include "Parser/ParserFunction.h"
 #include "AST/ASTParam.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTCall.h"
@@ -25,7 +25,7 @@ using namespace fly;
  * ParseModule a single Function Param
  * @return true on Success or false on Error
  */
-ASTParam *FunctionParser::ParseParam(Parser *P) {
+ASTParam *ParserFunction::ParseParam(Parser *P) {
     FLY_DEBUG("FunctionParser", "ParseParam");
 
     // Parse Scopes
@@ -61,7 +61,7 @@ ASTParam *FunctionParser::ParseParam(Parser *P) {
  * ParseModule Parameters
  * @return true on Success or false on Error
  */
-llvm::SmallVector<ASTParam *, 8> FunctionParser::ParseParams(Parser *P) {
+llvm::SmallVector<ASTParam *, 8> ParserFunction::ParseParams(Parser *P) {
     FLY_DEBUG("FunctionParser", "ParseParams");
     assert(P->Tok.is(tok::l_paren) && "Tok must be an Identifier");
     P->ConsumeParen(); // consume l_paren
@@ -89,7 +89,7 @@ llvm::SmallVector<ASTParam *, 8> FunctionParser::ParseParams(Parser *P) {
  * ParseModule Function Body
  * @return true on Success or false on Error
  */
-ASTBlockStmt *FunctionParser::ParseBody(Parser *P) {
+ASTBlockStmt *ParserFunction::ParseBody(Parser *P) {
     FLY_DEBUG("FunctionParser", "ParseBody");
     assert(P->isBlockStart() && "Block Start");
     ASTBlockStmt *Body = P->Builder.CreateBlockStmt(P->Tok.getLocation());

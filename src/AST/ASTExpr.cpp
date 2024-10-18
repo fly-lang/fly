@@ -39,14 +39,6 @@ std::string ASTExpr::str() const {
            End();
 }
 
-ASTEmptyExpr::ASTEmptyExpr(const SourceLocation &Loc) : ASTExpr(Loc, ASTExprKind::EXPR_EMPTY) {
-
-}
-
-std::string ASTEmptyExpr::str() const {
-    return Logger("ASTEmptyExpr").End();
-}
-
 ASTValueExpr::ASTValueExpr(ASTValue *Val) : ASTExpr(Val->getLocation(), ASTExprKind::EXPR_VALUE), Value(Val) {
 
 }

@@ -306,6 +306,9 @@ DIAG(warn_utf8_symbol_zero_width, CLASS_WARNING, (unsigned)diag::Severity::Warni
 // Parser Errors
 DIAG(err_parse_identifier_expected, CLASS_ERROR, (unsigned)diag::Severity::Error, "an identifier is expected", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_parse_identifier_invalid, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid identifier", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_parse_ternary_expr, CLASS_ERROR, (unsigned)diag::Severity::Error, "expected ':' in ternary expression", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_parse_expr_close_paren, CLASS_ERROR, (unsigned)diag::Severity::Error, "expected ')' after expression", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_parse_expr_expected_primary, CLASS_ERROR, (unsigned)diag::Severity::Error, "expected a primary expression", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_import_undefined, CLASS_ERROR, (unsigned)diag::Severity::Error, "import undefined", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_import_invalid, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid import", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_scope_visibility_duplicate, CLASS_ERROR, (unsigned)diag::Severity::Error, "visibility scope '%0' already defined", 0, SFINAE_Suppress, false, true, 0)

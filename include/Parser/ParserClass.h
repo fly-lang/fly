@@ -8,8 +8,8 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#ifndef FLY_CLASSPARSER_H
-#define FLY_CLASSPARSER_H
+#ifndef FLY_PARSERCLASS_H
+#define FLY_PARSERCLASS_H
 
 namespace fly {
 
@@ -18,7 +18,7 @@ namespace fly {
     class ASTClassMethod;
     class Parser;
 
-    class ClassParser {
+    class ParserClass {
 
         friend class Parser;
 
@@ -28,7 +28,7 @@ namespace fly {
 
         unsigned short BraceCount = 0;
 
-        ClassParser(Parser *P, ASTComment *Comment, SmallVector<ASTScope *, 8> &Scopes);
+        ParserClass(Parser *P, ASTComment *Comment, SmallVector<ASTScope *, 8> &Scopes);
 
     public:
 
@@ -40,4 +40,4 @@ namespace fly {
     };
 }
 
-#endif //FLY_CLASSPARSER_H
+#endif //FLY_PARSERCLASS_H

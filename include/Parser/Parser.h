@@ -51,10 +51,10 @@ namespace fly {
     /// abstract syntax tree.
     class Parser {
 
-        friend class FunctionParser;
-        friend class ClassParser;
-        friend class EnumParser;
-        friend class ExprParser;
+        friend class ParserFunction;
+        friend class ParserClass;
+        friend class ParserEnum;
+        friend class ParserExpr;
 
         const InputFile &Input;
 
@@ -127,7 +127,7 @@ namespace fly {
         ASTValue *ParseValues();
 
         // Parse Expressions
-        ASTExpr *ParseExpr(ASTIdentifier *Identifier = nullptr, bool isRoot = false);
+        ASTExpr *ParseExpr();
 
         // Check Keywords
         bool isArrayType(Token &Tok);

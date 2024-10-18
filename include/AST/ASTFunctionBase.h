@@ -30,8 +30,8 @@ namespace fly {
 
         friend class SemaBuilder;
         friend class SemaResolver;
-        friend class FunctionParser;
-        friend class ClassParser;
+        friend class ParserFunction;
+        friend class ParserClass;
         friend class ASTParam;
 
         ASTFunctionKind Kind;

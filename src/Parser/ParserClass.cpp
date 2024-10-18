@@ -8,14 +8,14 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Parser/Parser.h"
-#include "Parser/FunctionParser.h"
-#include "Parser/ClassParser.h"
+#include "Parser/ParserFunction.h"
+#include "Parser/ParserClass.h"
 #include "AST/ASTBlockStmt.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTClassAttribute.h"
 #include "AST/ASTType.h"
 #include "AST/ASTClassMethod.h"
-#include "AST/ASTVarStmt.h"
+#include "AST/ASTAssignmentStmt.h"
 #include "Sema/SemaBuilder.h"
 #include "Basic/Debug.h"
 
@@ -27,7 +27,7 @@ using namespace fly;
  * @param Visibility
  * @param Constant
  */
-ClassParser::ClassParser(Parser *P, ASTComment *Comment, SmallVector<ASTScope *, 8> &Scopes) : P(P) {
+ParserClass::ParserClass(Parser *P, ASTComment *Comment, SmallVector<ASTScope *, 8> &Scopes) : P(P) {
     FLY_DEBUG_MESSAGE("ClassParser", "ClassParser", Logger()
             .AttrList("Scopes", Scopes).End());
 
@@ -106,16 +106,16 @@ ClassParser::ClassParser(Parser *P, ASTComment *Comment, SmallVector<ASTScope *,
  * ParseModule Class Declaration
  * @return
  */
-ASTClass *ClassParser::Parse(Parser *P, ASTComment *Comment, SmallVector<ASTScope *, 8> &Scopes) {
+ASTClass *ParserClass::Parse(Parser *P, ASTComment *Comment, SmallVector<ASTScope *, 8> &Scopes) {
     FLY_DEBUG_MESSAGE("ClassParser", "ParseModule", Logger()
             .AttrList("Scopes", Scopes).End());
-    ClassParser *CP = new ClassParser(P, Comment, Scopes);
+    ParserClass *CP = new ParserClass(P, Comment, Scopes);
     ASTClass *Class = CP->Class;
     delete CP;
     return Class;
 }
 
-ASTClassAttribute *ClassParser::ParseAttribute(SmallVector<ASTScope *, 8> &Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name) {
+ASTClassAttribute *ParserClass::ParseAttribute(SmallVector<ASTScope *, 8> &Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name) {
     FLY_DEBUG_MESSAGE("ClassParser", "ParseMethod", Logger()
             .AttrList("Scopes", Scopes)
             .Attr("Type", Type).End());
@@ -135,13 +135,13 @@ ASTClassAttribute *ClassParser::ParseAttribute(SmallVector<ASTScope *, 8> &Scope
     return P->Builder.CreateClassAttribute(Loc, *Class, Type, Name, Scopes, Expr);
 }
 
-ASTClassMethod *ClassParser::ParseMethod(SmallVector<ASTScope *, 8> &Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name) {
+ASTClassMethod *ParserClass::ParseMethod(SmallVector<ASTScope *, 8> &Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name) {
     FLY_DEBUG_MESSAGE("ClassParser", "ParseMethod", Logger()
             .AttrList("Scopes", Scopes)
             .Attr("Type", Type).End());
 
-    llvm::SmallVector<ASTParam *, 8> Params = FunctionParser::ParseParams(P);
-    ASTBlockStmt *Body = P->isBlockStart() ? FunctionParser::ParseBody(P) : nullptr;
+    llvm::SmallVector<ASTParam *, 8> Params = ParserFunction::ParseParams(P);
+    ASTBlockStmt *Body = P->isBlockStart() ? ParserFunction::ParseBody(P) : nullptr;
     ASTClassMethod *Method;
     if (Name == Class->getName()) {
         Method = P->Builder.CreateClassConstructor(Loc, *Class, Scopes, Params, Body);

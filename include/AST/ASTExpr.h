@@ -29,8 +29,7 @@ namespace fly {
         EXPR_VAR_REF,
         EXPR_CALL,
         EXPR_NEW,
-        EXPR_GROUP,
-        EXPR_OPERATOR
+        EXPR_OP
     };
 
     /**
@@ -55,18 +54,6 @@ namespace fly {
         ASTType *getType() const;
 
         ASTExprKind getExprKind() const;
-
-        std::string str() const override;
-    };
-
-    class ASTEmptyExpr : public ASTExpr {
-
-        friend class SemaBuilder;
-        friend class SemaResolver;
-
-    public:
-
-        explicit ASTEmptyExpr(const SourceLocation &Loc);
 
         std::string str() const override;
     };

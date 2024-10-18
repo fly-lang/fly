@@ -1054,86 +1054,86 @@ static void maybeDiagnoseIDCharCompat(DiagnosticsEngine &Diags, uint32_t C,
 /// character, check whether it's a homoglyph for a common non-identifier
 /// source character that is unlikely to be an intentional identifier
 /// character and warn if so.
-static void maybeDiagnoseUTF8Homoglyph(DiagnosticsEngine &Diags, uint32_t C,
-                                       CharSourceRange Range) {
-    // FIXME: Handle Unicode quotation marks (smart quotes, fullwidth quotes).
-    struct HomoglyphPair {
-        uint32_t Character;
-        char LooksLike;
-
-        bool operator<(HomoglyphPair R) const { return Character < R.Character; }
-    };
-    static constexpr HomoglyphPair SortedHomoglyphs[] = {
-            {U'\u00ad', 0},   // SOFT HYPHEN
-            {U'\u01c3', '!'}, // LATIN LETTER RETROFLEX CLICK
-            {U'\u037e', ';'}, // GREEK QUESTION MARK
-            {U'\u200b', 0},   // ZERO WIDTH SPACE
-            {U'\u200c', 0},   // ZERO WIDTH NON-JOINER
-            {U'\u200d', 0},   // ZERO WIDTH JOINER
-            {U'\u2060', 0},   // WORD JOINER
-            {U'\u2061', 0},   // FUNCTION APPLICATION
-            {U'\u2062', 0},   // INVISIBLE TIMES
-            {U'\u2063', 0},   // INVISIBLE SEPARATOR
-            {U'\u2064', 0},   // INVISIBLE PLUS
-            {U'\u2212', '-'}, // MINUS SIGN
-            {U'\u2215', '/'}, // DIVISION SLASH
-            {U'\u2216', '\\'}, // SET MINUS
-            {U'\u2217', '*'}, // ASTERISK OPERATOR
-            {U'\u2223', '|'}, // DIVIDES
-            {U'\u2227', '^'}, // LOGICAL AND
-            {U'\u2236', ':'}, // RATIO
-            {U'\u223c', '~'}, // TILDE OPERATOR
-            {U'\ua789', ':'}, // MODIFIER LETTER COLON
-            {U'\ufeff', 0},   // ZERO WIDTH NO-BREAK SPACE
-            {U'\uff01', '!'}, // FULLWIDTH EXCLAMATION MARK
-            {U'\uff03', '#'}, // FULLWIDTH NUMBER SIGN
-            {U'\uff04', '$'}, // FULLWIDTH DOLLAR SIGN
-            {U'\uff05', '%'}, // FULLWIDTH PERCENT SIGN
-            {U'\uff06', '&'}, // FULLWIDTH AMPERSAND
-            {U'\uff08', '('}, // FULLWIDTH LEFT PARENTHESIS
-            {U'\uff09', ')'}, // FULLWIDTH RIGHT PARENTHESIS
-            {U'\uff0a', '*'}, // FULLWIDTH ASTERISK
-            {U'\uff0b', '+'}, // FULLWIDTH ASTERISK
-            {U'\uff0c', ','}, // FULLWIDTH COMMA
-            {U'\uff0d', '-'}, // FULLWIDTH HYPHEN-MINUS
-            {U'\uff0e', '.'}, // FULLWIDTH FULL STOP
-            {U'\uff0f', '/'}, // FULLWIDTH SOLIDUS
-            {U'\uff1a', ':'}, // FULLWIDTH COLON
-            {U'\uff1b', ';'}, // FULLWIDTH SEMICOLON
-            {U'\uff1c', '<'}, // FULLWIDTH LESS-THAN SIGN
-            {U'\uff1d', '='}, // FULLWIDTH EQUALS SIGN
-            {U'\uff1e', '>'}, // FULLWIDTH GREATER-THAN SIGN
-            {U'\uff1f', '?'}, // FULLWIDTH QUESTION MARK
-            {U'\uff20', '@'}, // FULLWIDTH COMMERCIAL AT
-            {U'\uff3b', '['}, // FULLWIDTH LEFT SQUARE BRACKET
-            {U'\uff3c', '\\'}, // FULLWIDTH REVERSE SOLIDUS
-            {U'\uff3d', ']'}, // FULLWIDTH RIGHT SQUARE BRACKET
-            {U'\uff3e', '^'}, // FULLWIDTH CIRCUMFLEX ACCENT
-            {U'\uff5b', '{'}, // FULLWIDTH LEFT CURLY BRACKET
-            {U'\uff5c', '|'}, // FULLWIDTH VERTICAL LINE
-            {U'\uff5d', '}'}, // FULLWIDTH RIGHT CURLY BRACKET
-            {U'\uff5e', '~'}, // FULLWIDTH TILDE
-            {0,         0}
-    };
-    auto Homoglyph =
-            std::lower_bound(std::begin(SortedHomoglyphs),
-                             std::end(SortedHomoglyphs) - 1, HomoglyphPair{C, '\0'});
-    if (Homoglyph->Character == C) {
-        llvm::SmallString<5> CharBuf;
-        {
-            llvm::raw_svector_ostream CharOS(CharBuf);
-            llvm::write_hex(CharOS, C, llvm::HexPrintStyle::Upper, 4);
-        }
-        if (Homoglyph->LooksLike) {
-            const char LooksLikeStr[] = {Homoglyph->LooksLike, 0};
-            Diags.Report(Range.getBegin(), diag::warn_utf8_symbol_homoglyph)
-                    << Range << CharBuf << LooksLikeStr;
-        } else {
-            Diags.Report(Range.getBegin(), diag::warn_utf8_symbol_zero_width)
-                    << Range << CharBuf;
-        }
-    }
-}
+//static void maybeDiagnoseUTF8Homoglyph(DiagnosticsEngine &Diags, uint32_t C,
+//                                       CharSourceRange Range) {
+//    // FIXME: Handle Unicode quotation marks (smart quotes, fullwidth quotes).
+//    struct HomoglyphPair {
+//        uint32_t Character;
+//        char LooksLike;
+//
+//        bool operator<(HomoglyphPair R) const { return Character < R.Character; }
+//    };
+//    static constexpr HomoglyphPair SortedHomoglyphs[] = {
+//            {U'\u00ad', 0},   // SOFT HYPHEN
+//            {U'\u01c3', '!'}, // LATIN LETTER RETROFLEX CLICK
+//            {U'\u037e', ';'}, // GREEK QUESTION MARK
+//            {U'\u200b', 0},   // ZERO WIDTH SPACE
+//            {U'\u200c', 0},   // ZERO WIDTH NON-JOINER
+//            {U'\u200d', 0},   // ZERO WIDTH JOINER
+//            {U'\u2060', 0},   // WORD JOINER
+//            {U'\u2061', 0},   // FUNCTION APPLICATION
+//            {U'\u2062', 0},   // INVISIBLE TIMES
+//            {U'\u2063', 0},   // INVISIBLE SEPARATOR
+//            {U'\u2064', 0},   // INVISIBLE PLUS
+//            {U'\u2212', '-'}, // MINUS SIGN
+//            {U'\u2215', '/'}, // DIVISION SLASH
+//            {U'\u2216', '\\'}, // SET MINUS
+//            {U'\u2217', '*'}, // ASTERISK OPERATOR
+//            {U'\u2223', '|'}, // DIVIDES
+//            {U'\u2227', '^'}, // LOGICAL AND
+//            {U'\u2236', ':'}, // RATIO
+//            {U'\u223c', '~'}, // TILDE OPERATOR
+//            {U'\ua789', ':'}, // MODIFIER LETTER COLON
+//            {U'\ufeff', 0},   // ZERO WIDTH NO-BREAK SPACE
+//            {U'\uff01', '!'}, // FULLWIDTH EXCLAMATION MARK
+//            {U'\uff03', '#'}, // FULLWIDTH NUMBER SIGN
+//            {U'\uff04', '$'}, // FULLWIDTH DOLLAR SIGN
+//            {U'\uff05', '%'}, // FULLWIDTH PERCENT SIGN
+//            {U'\uff06', '&'}, // FULLWIDTH AMPERSAND
+//            {U'\uff08', '('}, // FULLWIDTH LEFT PARENTHESIS
+//            {U'\uff09', ')'}, // FULLWIDTH RIGHT PARENTHESIS
+//            {U'\uff0a', '*'}, // FULLWIDTH ASTERISK
+//            {U'\uff0b', '+'}, // FULLWIDTH ASTERISK
+//            {U'\uff0c', ','}, // FULLWIDTH COMMA
+//            {U'\uff0d', '-'}, // FULLWIDTH HYPHEN-MINUS
+//            {U'\uff0e', '.'}, // FULLWIDTH FULL STOP
+//            {U'\uff0f', '/'}, // FULLWIDTH SOLIDUS
+//            {U'\uff1a', ':'}, // FULLWIDTH COLON
+//            {U'\uff1b', ';'}, // FULLWIDTH SEMICOLON
+//            {U'\uff1c', '<'}, // FULLWIDTH LESS-THAN SIGN
+//            {U'\uff1d', '='}, // FULLWIDTH EQUALS SIGN
+//            {U'\uff1e', '>'}, // FULLWIDTH GREATER-THAN SIGN
+//            {U'\uff1f', '?'}, // FULLWIDTH QUESTION MARK
+//            {U'\uff20', '@'}, // FULLWIDTH COMMERCIAL AT
+//            {U'\uff3b', '['}, // FULLWIDTH LEFT SQUARE BRACKET
+//            {U'\uff3c', '\\'}, // FULLWIDTH REVERSE SOLIDUS
+//            {U'\uff3d', ']'}, // FULLWIDTH RIGHT SQUARE BRACKET
+//            {U'\uff3e', '^'}, // FULLWIDTH CIRCUMFLEX ACCENT
+//            {U'\uff5b', '{'}, // FULLWIDTH LEFT CURLY BRACKET
+//            {U'\uff5c', '|'}, // FULLWIDTH VERTICAL LINE
+//            {U'\uff5d', '}'}, // FULLWIDTH RIGHT CURLY BRACKET
+//            {U'\uff5e', '~'}, // FULLWIDTH TILDE
+//            {0,         0}
+//    };
+//    auto Homoglyph =
+//            std::lower_bound(std::begin(SortedHomoglyphs),
+//                             std::end(SortedHomoglyphs) - 1, HomoglyphPair{C, '\0'});
+//    if (Homoglyph->Character == C) {
+//        llvm::SmallString<5> CharBuf;
+//        {
+//            llvm::raw_svector_ostream CharOS(CharBuf);
+//            llvm::write_hex(CharOS, C, llvm::HexPrintStyle::Upper, 4);
+//        }
+//        if (Homoglyph->LooksLike) {
+//            const char LooksLikeStr[] = {Homoglyph->LooksLike, 0};
+//            Diags.Report(Range.getBegin(), diag::warn_utf8_symbol_homoglyph)
+//                    << Range << CharBuf << LooksLikeStr;
+//        } else {
+//            Diags.Report(Range.getBegin(), diag::warn_utf8_symbol_zero_width)
+//                    << Range << CharBuf;
+//        }
+//    }
+//}
 
 bool Lexer::tryConsumeIdentifierUCN(const char *&CurPtr, unsigned Size,
                                     Token &Result) {
@@ -1169,13 +1169,13 @@ bool Lexer::tryConsumeIdentifierUTF8Char(const char *&CurPtr) {
         !isAllowedIDChar(static_cast<uint32_t>(CodePoint)))
         return false;
 
-    if (!isLexingRawMode()) {
-        maybeDiagnoseIDCharCompat(Diags, CodePoint,
-                                  makeCharRange(*this, CurPtr, UnicodePtr),
-                /*IsFirst=*/false);
-        maybeDiagnoseUTF8Homoglyph(Diags, CodePoint,
-                                   makeCharRange(*this, CurPtr, UnicodePtr));
-    }
+//    if (!isLexingRawMode()) {
+//        maybeDiagnoseIDCharCompat(Diags, CodePoint,
+//                                  makeCharRange(*this, CurPtr, UnicodePtr),
+//                /*IsFirst=*/false);
+//        maybeDiagnoseUTF8Homoglyph(Diags, CodePoint,
+//                                   makeCharRange(*this, CurPtr, UnicodePtr));
+//    }
 
     CurPtr = UnicodePtr;
     return true;
@@ -2228,13 +2228,13 @@ bool Lexer::CheckUnicodeWhitespace(Token &Result, uint32_t C,
 
 bool Lexer::LexUnicode(Token &Result, uint32_t C, const char *CurPtr) {
     if (isAllowedIDChar(C) && isAllowedInitiallyIDChar(C)) {
-        if (!isLexingRawMode()) {
-            maybeDiagnoseIDCharCompat(Diags, C,
-                                      makeCharRange(*this, BufferPtr, CurPtr),
-                    /*IsFirst=*/true);
-            maybeDiagnoseUTF8Homoglyph(Diags, C,
-                                       makeCharRange(*this, BufferPtr, CurPtr));
-        }
+//        if (!isLexingRawMode()) {
+//            maybeDiagnoseIDCharCompat(Diags, C,
+//                                      makeCharRange(*this, BufferPtr, CurPtr),
+//                    /*IsFirst=*/true);
+//            maybeDiagnoseUTF8Homoglyph(Diags, C,
+//                                       makeCharRange(*this, BufferPtr, CurPtr));
+//        }
 
         MIOpt.ReadToken();
         return LexIdentifier(Result, CurPtr);

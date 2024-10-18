@@ -16,7 +16,7 @@
 #include "AST/ASTValue.h"
 #include "AST/ASTScopes.h"
 #include "AST/ASTGlobalVar.h"
-#include "AST/ASTVarStmt.h"
+#include "AST/ASTAssignmentStmt.h"
 
 using namespace fly;
 
