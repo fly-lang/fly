@@ -38,11 +38,10 @@ namespace {
     TEST_F(ParserTest, UnaryExpr) {
         llvm::StringRef str = (
                 "void func(int a) {\n"
-                "  ++a"
-                "  a++"
-                "  --a"
-                "  a--"
-                "  a = ++a + 1"
+                "  ++a\n"
+                "  a++\n"
+                "  --a\n"
+                "  a--\n"
                 "}\n");
         ASTModule *Module = Parse("UnaryExpr", str);
         
@@ -75,19 +74,36 @@ namespace {
         ASTUnaryOpExpr *a4Unary = (ASTUnaryOpExpr *) a4Stmt->getExpr();
         EXPECT_EQ(a4Unary->getOpKind(), ASTUnaryOpExprKind::OP_UNARY_POST_DECR);
         EXPECT_EQ(((ASTVarRefExpr *) a4Unary->getExpr())->getVarRef()->getName(), "a");
+    }
 
-//        // a = ++a + 1
-//        const ASTAssignmentStmt *a5Var = (ASTAssignmentStmt *) Body->getContent()[4];
-//        EXPECT_EQ(a5Var->getExpr()->getExprKind(), ASTExprKind::EXPR_GROUP);
-//        ASTUnaryOpExpr *Group = (ASTBinaryGroupExpr *) a5Var->getExpr();
-//        EXPECT_EQ(Group->getOpKind(), ASTBinaryOperatorKind::ARITH_ADD);
-//        EXPECT_EQ(Group->getOptionKind(), ASTBinaryOptionKind::BINARY_ARITH);
-//        const ASTUnaryOpExpr *E1 = (ASTUnaryGroupExpr *) Group->getFirst();
-//        EXPECT_EQ(E1->getOpKind(), ASTUnaryOperatorKind::ARITH_INCR);
-//        EXPECT_EQ(E1->getOptionKind(), ASTUnaryOptionKind::UNARY_PRE);
-//        ASTValueExpr *ValueExpr = (ASTValueExpr *) Group->getSecond();
-//        EXPECT_EQ(ValueExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
-//        EXPECT_EQ(ValueExpr->getValue()->print(), "1");
+    TEST_F(ParserTest, UnarySideExpr) {
+        llvm::StringRef str = (
+                "void func(int a) {\n"
+                "  a = ++a + 1"
+                "}\n");
+        ASTModule *Module = Parse("UnaryExpr", str);
+
+        ASSERT_TRUE(Resolve());
+
+        // Get Body
+        ASTFunction *Func = *Module->getFunctions().begin();
+        const ASTBlockStmt *Body = Func->getBody();
+
+        // a = ++a + 1
+        const ASTAssignmentStmt *AssignmentStmt = (ASTAssignmentStmt *) Body->getContent()[0];
+        EXPECT_EQ(AssignmentStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_OP);
+        EXPECT_EQ(((ASTOpExpr *) AssignmentStmt->getExpr())->getOpExprKind(), ASTOpExprKind::OP_BINARY);
+        EXPECT_EQ(((ASTBinaryOpExpr *) AssignmentStmt->getExpr())->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_ADD);
+        ASTBinaryOpExpr *BinaryExpr = (ASTBinaryOpExpr *) AssignmentStmt->getExpr();
+
+        const ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
+        EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_OP);
+        EXPECT_EQ(((ASTOpExpr *) LeftExpr)->getOpExprKind(), ASTOpExprKind::OP_UNARY);
+        EXPECT_EQ(((ASTUnaryOpExpr *) LeftExpr)->getOpKind(), ASTUnaryOpExprKind::OP_UNARY_PRE_INCR);
+
+        ASTValueExpr *ValueExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
+        EXPECT_EQ(ValueExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
+        EXPECT_EQ(ValueExpr->getValue()->print(), "1");
     }
 
 //    TEST_F(ParserTest, IntBinaryArithOperation) {

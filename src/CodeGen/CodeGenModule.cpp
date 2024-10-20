@@ -945,7 +945,7 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
             CodeGenError *CGE = (CodeGenError *) ErrorHandler->getCodeGen();
 
             // Store Fail value in ErrorHandler
-            if (FailStmt->getExpr() == nullptr || FailStmt->getExpr()->getExprKind() == ASTExprKind::EXPR_EMPTY) {
+            if (FailStmt->getExpr() == nullptr) {
                 CGE->StoreDefault();
             } else if (FailStmt->getExpr()->getType()->isBool() || FailStmt->getExpr()->getType()->isInteger()) {
                 llvm::Value *V = GenExpr(FailStmt->getExpr());

@@ -24,7 +24,6 @@ namespace fly {
     class ASTStmt;
 
     enum class ASTExprKind : char {
-        EXPR_EMPTY,
         EXPR_VALUE,
         EXPR_VAR_REF,
         EXPR_CALL,

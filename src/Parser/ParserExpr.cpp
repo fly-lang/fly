@@ -20,7 +20,6 @@ using namespace fly;
 
 Precedence getPrecedence(Token Tok) {
     switch (Tok.getKind()) {
-        case tok::equal:
         case tok::plusequal:
         case tok::minusequal:
         case tok::starequal:
@@ -56,7 +55,7 @@ Precedence getPrecedence(Token Tok) {
 
 bool isRightAssociative(Token Tok) {
     // Only assignment operators are right-associative
-    return Tok.isOneOf(tok::equal, tok::plusequal, tok::minusequal, tok::starequal, tok::slashequal, tok::percentequal,
+    return Tok.isOneOf(tok::plusequal, tok::minusequal, tok::starequal, tok::slashequal, tok::percentequal,
                        tok::ampequal, tok::pipeequal, tok::caretequal, tok::lesslessequal, tok::greatergreaterequal);
 }
 
@@ -145,41 +144,42 @@ ASTBinaryOpExprKind toBinaryOpExprKind(Token Tok) {
     assert(false && "Invalid Binary Token details");
 }
 
-ASTExpr *ParserExpr::Parse(Parser *P) {
-    ParserExpr *EP = new ParserExpr(P);
-    return EP->Expr;
-}
-
-ParserExpr::ParserExpr(Parser *P) : P(P) {
+ParserExpr::ParserExpr(Parser *P, ASTExpr *Left) : P(P) {
     FLY_DEBUG_MESSAGE("ExprParser", "ExprParser", Logger().End());
 
-    // Start with the lowest precedence
-    Precedence precedence = Precedence::LOWEST;
-
     // Parse the primary expression (handles parentheses, literals, identifiers, and now unary operators)
-    ASTExpr* Left = ParsePrimary();
+    if (Left == nullptr)
+        Left = ParsePrimary();
 
-    while (true) {
-        Token OpTok = P->Tok;
-        Precedence nextPrecedence = getPrecedence(OpTok);
+    // Expr contains a binary or ternary operator
+    if (isBinaryOperator() || isTernaryOperator()) {
 
-        // If the next operator has lower precedence, stop parsing
-        if (nextPrecedence < precedence) {
-            break;
-        }
+        // Start with the lowest precedence
+        Precedence precedence = Precedence::LOWEST;
 
-        // Consume the operator
-        P->ConsumeToken();
+        while (true) {
+            Token OpTok = P->Tok;
+            Precedence nextPrecedence = getPrecedence(OpTok);
 
-        // Handle binary expression or ternary expression
-        if (OpTok.is(tok::question)) {
-            Left = ParseTernaryExpr(Left);  // Handle ternary operators
-        } else {
-            Left = ParseBinaryExpr(Left, OpTok, nextPrecedence);  // Handle binary expressions
+            // If the next operator has lower precedence, stop parsing
+            if (nextPrecedence == Precedence::LOWEST || nextPrecedence < precedence) {
+                break;
+            }
+
+            // Handle binary expression or ternary expression
+            if (isTernaryOperator()) {
+                Left = ParseTernaryExpr(Left);  // Handle ternary operators
+            } else {
+                Left = ParseBinaryExpr(Left, OpTok, nextPrecedence);  // Handle binary expressions
+            }
         }
     }
-    
     Expr = Left;
+}
+
+ASTExpr *ParserExpr::Parse(Parser *P, ASTExpr *Expr) {
+    ParserExpr *EP = new ParserExpr(P, Expr);
+    return EP->Expr;
 }
 
 ASTExpr *ParserExpr::ParsePrimary() {
@@ -190,23 +190,25 @@ ASTExpr *ParserExpr::ParsePrimary() {
     } else if (P->Tok.isAnyIdentifier()) { // Ex. a or a++ or func()
         ASTIdentifier *Identifier = P->ParseIdentifier();
         if (Identifier->isCall()) { // Ex. a()
-            ASTCallExpr *CallExpr = P->Builder.CreateExpr((ASTCall *) Identifier);
-            return CallExpr;
+            return P->Builder.CreateExpr((ASTCall *) Identifier);
         } else { // parse function call, variable post increment/decrement or simple var
             ASTVarRef *VarRef = P->Builder.CreateVarRef(Identifier);
             ASTVarRefExpr *Primary = P->Builder.CreateExpr(VarRef);
-            if (P->isUnaryPostOperator()) { // Ex. a++ or a--
-                Token &UnaryTok = P->Tok;
-                return P->Builder.CreateUnaryOpExpr(Tok.getLocation(), toUnaryOpExprKind(UnaryTok, true), Primary);
+            if (isUnaryPostOperator()) { // Ex. a++ or a--
+                ASTUnaryOpExprKind OpKind = toUnaryOpExprKind(Tok, true);
+                P->ConsumeToken();
+                return P->Builder.CreateUnaryOpExpr(Primary->getLocation(), OpKind, Primary);
             } else {
                 // Simple VarRef
                 return P->Builder.CreateExpr(VarRef);
             }
         }
-    } else if (P->isUnaryPreOperator(P->Tok)) { // Ex. ++a or --a or !a
+    } else if (isUnaryPreOperator(P->Tok)) { // Ex. ++a or --a or !a
+        ASTUnaryOpExprKind OpKind = toUnaryOpExprKind(Tok, false);
+        const SourceLocation &Loc = P->ConsumeToken();
         ASTExpr* Primary = ParsePrimary();  // Parse the operand (recursively)
-        return P->Builder.CreateUnaryOpExpr(Tok.getLocation(), toUnaryOpExprKind(Tok, false), Primary);
-    } else if (P->isNewOperator(P->Tok)) {
+        return P->Builder.CreateUnaryOpExpr(Loc, OpKind, Primary);
+    } else if (isNewOperator(P->Tok)) {
         return ParseNewExpr(P);
     } else if (P->Tok.is(tok::l_paren)) {
         ASTExpr *Primary = Parse(P);
@@ -214,9 +216,10 @@ ASTExpr *ParserExpr::ParsePrimary() {
             P->Diag(P->Tok.getLocation(), diag::err_parse_expr_close_paren);
         }
         return Primary;
-    } else {
-        P->Diag(P->Tok.getLocation(), diag::err_parse_expr_expected_primary);
     }
+
+    P->Diag(P->Tok.getLocation(), diag::err_parse_expr_expected_primary);
+    return nullptr;
 }
 
 ASTUnaryOpExpr *ParserExpr::ParseUnaryExpr() {
@@ -230,6 +233,9 @@ ASTUnaryOpExpr *ParserExpr::ParseUnaryExpr() {
 }
 
 ASTBinaryOpExpr *ParserExpr::ParseBinaryExpr(ASTExpr *LeftExpr, Token OpToken, Precedence precedence) {
+    // Consume the binary operator
+    P->ConsumeToken();
+
     // Parse the right-hand side of the binary expression
     ASTExpr* RightExpr = ParsePrimary();  // Parse the RHS (which may include parentheses)
 
@@ -261,6 +267,88 @@ ASTTernaryOpExpr *ParserExpr::ParseTernaryExpr(ASTExpr *ConditionExpr) {
     ASTExpr* FalseExpr = Parse(P);  // Parse the false expression
 
     return P->Builder.CreateTernaryOpExpr(ConditionExpr, TrueOpLoc, TrueExpr, FalseOpLoc, FalseExpr);
+}
+
+/**
+ * Check if Token is one of the Unary Pre Operators
+ * @return true on Success or false on Error
+ */
+bool ParserExpr::isNewOperator(Token &Tok) {
+    FLY_DEBUG("Parser", "isNewOperator");
+    return Tok.is(tok::kw_new);
+}
+
+/**
+ * Check if Token is one of the Unary Pre Operators
+ * @return true on Success or false on Error
+ */
+bool ParserExpr::isUnaryPreOperator(Token &Tok) {
+    FLY_DEBUG("Parser", "isUnaryPreOperator");
+    return Tok.isOneOf(tok::plusplus, tok::minusminus, tok::exclaim);
+}
+
+/**
+ * Check if Token is one of the Unary Post Operators
+ * @return true on Success or false on Error
+ */
+bool ParserExpr::isUnaryPostOperator() {
+    FLY_DEBUG("Parser", "isUnaryPostOperator");
+    return P->Tok.isOneOf(tok::plusplus, tok::minusminus);
+}
+
+/**
+ * Check if Token is one of Binary Operators
+ * @return true on Success or false on Error
+ */
+bool ParserExpr::isBinaryOperator() {
+    FLY_DEBUG("Parser", "isBinaryOperator");
+    return P->Tok.isOneOf(
+
+            // Arithmetic Operators
+            tok::plus, // + add
+            tok::minus, // - subtract
+            tok::star, // * multiply
+            tok::slash, // / divide
+            tok::percent, // % percentage
+
+            // Logic Operators
+            tok::ampamp, // && logic and
+            tok::pipepipe, // || logic or
+            tok::less, // <
+            tok::greater, // >
+            tok::lessequal, // <= less than
+            tok::greaterequal, // >= greater than
+            tok::equalequal, // == equal compare
+            tok::exclaimequal, // != different compare
+
+            // Bit operators
+            tok::amp, // & and
+            tok::pipe, // | or
+            tok::caret, // ^ xor
+            tok::lessless, // << shift left
+            tok::greatergreater, // >> shift right
+
+            // Assignment
+            tok::plusequal,
+            tok::minusequal,
+            tok::starequal,
+            tok::slashequal,
+            tok::percentequal,
+            tok::ampequal,
+            tok::pipeequal,
+            tok::lesslessequal,
+            tok::greatergreaterequal,
+            tok::caretequal
+    );
+}
+
+/**
+ * Check if Token is one of Binary Operators
+ * @return true on Success or false on Error
+ */
+bool ParserExpr::isTernaryOperator() {
+    FLY_DEBUG("Parser", "isTernaryOperator");
+    return P->Tok.is(tok::question);
 }
 
 /**

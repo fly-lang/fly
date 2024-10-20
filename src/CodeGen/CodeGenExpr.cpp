@@ -50,9 +50,6 @@ llvm::Value *CodeGenExpr::GenValue(const ASTExpr *Expr) {
         case ASTExprKind::EXPR_OP:
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_GROUP");
             return GenOp((ASTOpExpr *) Expr);
-
-        case ASTExprKind::EXPR_EMPTY:
-            return nullptr; // FIXME
     }
 
     assert("Unknown Expr Kind");

@@ -26,9 +26,9 @@ namespace fly {
         ASTExpr *Expr = nullptr;
 
     public:
-        explicit ParserExpr(Parser *P);
+        ParserExpr(Parser *P, ASTExpr *Expr = nullptr);
 
-        static ASTExpr *Parse(Parser *P);
+        static ASTExpr *Parse(Parser *P, ASTExpr *Expr = nullptr);
 
     private:
         ASTExpr *ParsePrimary();
@@ -40,6 +40,16 @@ namespace fly {
         ASTTernaryOpExpr *ParseTernaryExpr(ASTExpr *ConditionExpr);
 
         ASTExpr *ParseNewExpr(Parser *P);
+
+        bool isNewOperator(Token &Tok);
+
+        bool isUnaryPreOperator(Token &Tok);
+
+        bool isUnaryPostOperator();
+
+        bool isBinaryOperator();
+
+        bool isTernaryOperator();
 
     };
 

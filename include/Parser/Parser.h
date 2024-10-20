@@ -102,7 +102,7 @@ namespace fly {
         void SkipComments();
 
         // Parse Stmt
-        bool ParseBlock(ASTBlockStmt *Parent, bool isBody = false);
+        bool ParseBlock(ASTBlockStmt *Parent);
         bool ParseStmt(ASTBlockStmt *Parent);
         bool ParseStartParen(); // FIXME remove?
         bool ParseEndParen(bool HasParen); // FIXME remove?
@@ -144,12 +144,7 @@ namespace fly {
         bool isTokenStringLiteral() const;
         bool isTokenSpecial() const;
         bool isTokenComment() const;
-        bool isTokenAssignOperator(const Token &Tok) const;
-        bool isNewOperator(Token &Tok);
-        bool isUnaryPreOperator(Token &Tok);
-        bool isUnaryPostOperator();
-        bool isBinaryOperator();
-        bool isTernaryOperator();
+        bool isAssignOperator(const Token &Tok) const;
         SourceLocation ConsumeParen();
         SourceLocation ConsumeBracket();
         SourceLocation ConsumeBrace(unsigned short &BraceCount);

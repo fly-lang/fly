@@ -261,7 +261,7 @@ ASTGlobalVar *Parser::ParseGlobalVarDef(ASTComment *Comment, SmallVector<ASTScop
 
     // Parsing =
     ASTExpr *Expr = nullptr;
-    if (isTokenAssignOperator(Tok)) {
+    if (isAssignOperator(Tok)) {
         ConsumeToken();
         
         // Parse Expr
@@ -351,30 +351,13 @@ void Parser::SkipComments() {
  * @param Stmt
  * @return
  */
-bool Parser::ParseBlock(ASTBlockStmt *Block, bool isBody) {
+bool Parser::ParseBlock(ASTBlockStmt *Block) {
     FLY_DEBUG_MESSAGE("Parser", "ParseStmt", Logger().Attr("Block", Block).End());
     assert(isBlockStart() && "Block Start");
 
-    bool Success = false;
-    const SourceLocation &BraceTok = ConsumeBrace(BracketCount);
-    if (isBlockEnd()) {
+    ConsumeBrace(BracketCount);
 
-        // Clear Comments
-        if (isBody)
-            Lex.ClearBlockComment();
-
-        ConsumeBrace(BracketCount);
-    } else {
-        Success = ParseStmt(Block);
-    }
-
-    if (!isBraceBalanced()) {
-        // Fixme Error parse brace not balanced
-        Diag(BraceTok, diag::err_parser_generic);
-        Success = false;
-    }
-
-    return Success;
+    return ParseStmt(Block);
 }
 
 /**
@@ -391,6 +374,13 @@ bool Parser::ParseBlock(ASTBlockStmt *Block, bool isBody) {
  */
 bool Parser::ParseStmt(ASTBlockStmt *Parent) {
     FLY_DEBUG_MESSAGE("Parser", "ParseStmt", Logger().Attr("Block", Parent).End());
+
+    if (isBlockEnd()) {
+        bool Balanced = isBraceBalanced();
+        Lex.ClearBlockComment();
+        ConsumeBrace(BracketCount);
+        return Balanced;
+    }
 
     // Parse if stmt
     if (Tok.is(tok::kw_if)) {
@@ -447,11 +437,10 @@ bool Parser::ParseStmt(ASTBlockStmt *Parent) {
     SmallVector<ASTScope *, 8> Scopes = ParseScopes();
 
     // Find next tokens
-    const Optional<Token> &Tok1 = Lexer::findNextToken(Tok.getLocation(), SourceMgr);
-    const Optional<Token> &Tok2 = Lexer::findNextToken(Tok1->getLocation(), SourceMgr);
+    const Optional<Token> &NexTok = Lexer::findNextToken(Tok.getLocation(), SourceMgr);
 
     // Parse LocalVar
-    if (Tok1->isAnyIdentifier() && Tok2->isAnyIdentifier() || Tok1->isKeyword() && Tok2->isAnyIdentifier()) {
+    if (Tok.isAnyIdentifier() && NexTok->isAnyIdentifier() || Tok.isKeyword() && NexTok->isAnyIdentifier()) {
         // const int a
         // Type a
         // int a = ...
@@ -465,7 +454,7 @@ bool Parser::ParseStmt(ASTBlockStmt *Parent) {
                                                            Identifier->getName(), Scopes);
 
             // Assign to LocalVar
-            if (isTokenAssignOperator(Tok)) {
+            if (isAssignOperator(Tok)) {
                 ConsumeToken();
 
                 if (Tok.is(tok::kw_handle)) {
@@ -482,18 +471,23 @@ bool Parser::ParseStmt(ASTBlockStmt *Parent) {
                 return ParseStmt(Parent);
             }
         }
-    } else if (Tok1->isAnyIdentifier() && isTokenAssignOperator(Tok2.getValue())) {
+    } else if (Tok.isAnyIdentifier() && isAssignOperator(NexTok.getValue())) {
         // Parse Var
         // a = ...
         ASTIdentifier *Identifier = ParseIdentifier();
         ASTVarRef *VarRef = Builder.CreateVarRef(Identifier);
-        SemaBuilderStmt *BuilderStmt = Builder.CreateAssignmentStmt(Parent, VarRef);
-        
-        // Consume assign operator
-        ConsumeToken();
+
+        // Create Left Expr only for +=, -=, *=, etc.
+        ASTExpr *Left = nullptr;
+        if (Tok.is(tok::equal)) {
+            ConsumeToken();
+        } else {
+            Left = Builder.CreateExpr(VarRef);
+        }
 
         // Parse Expr
-        ASTExpr *Expr = ParseExpr();
+        ASTExpr *Expr = ParserExpr::Parse(this, Left);
+        SemaBuilderStmt *BuilderStmt = Builder.CreateAssignmentStmt(Parent, VarRef);
         BuilderStmt->setExpr(Expr);
         return ParseStmt(Parent);
     } else {
@@ -501,9 +495,10 @@ bool Parser::ParseStmt(ASTBlockStmt *Parent) {
         // a++
         // ++a
         // new A()
-        SemaBuilderStmt *BuilderStmt = Builder.CreateExprStmt(Parent, Tok.getLocation());
         ASTExpr *Expr = ParseExpr();
+        SemaBuilderStmt *BuilderStmt = Builder.CreateExprStmt(Parent, Expr->getLocation());
         BuilderStmt->setExpr(Expr);
+        return ParseStmt(Parent);
     }
 
     // End of Stmt
@@ -1461,78 +1456,11 @@ void Parser::DiagInvalidId(SourceLocation Loc) {
     }
 }
 
-bool Parser::isTokenAssignOperator(const Token &Tok) const {
-    FLY_DEBUG("Parser", "isTokenAssignOperator");
+bool Parser::isAssignOperator(const Token &Tok) const {
+    FLY_DEBUG("Parser", "isAssignOperator");
     return Tok.isOneOf(tok::equal, tok::plusequal, tok::minusequal, tok::starequal, tok::slashequal,
                    tok::percentequal, tok::ampequal, tok::pipeequal, tok::caretequal, tok::lesslessequal,
                    tok::greatergreaterequal);
 }
 
-/**
- * Check if Token is one of the Unary Pre Operators
- * @return true on Success or false on Error
- */
-bool Parser::isNewOperator(Token &Tok) {
-    FLY_DEBUG("Parser", "isNewOperator");
-    return Tok.is(tok::kw_new);
-}
 
-/**
- * Check if Token is one of the Unary Pre Operators
- * @return true on Success or false on Error
- */
-bool Parser::isUnaryPreOperator(Token &Tok) {
-    FLY_DEBUG("Parser", "isUnaryPreOperator");
-    return Tok.isOneOf(tok::plusplus, tok::minusminus, tok::exclaim);
-}
-
-/**
- * Check if Token is one of the Unary Post Operators
- * @return true on Success or false on Error
- */
-bool Parser::isUnaryPostOperator() {
-    FLY_DEBUG("Parser", "isUnaryPostOperator");
-    return Tok.isOneOf(tok::plusplus, tok::minusminus);
-}
-
-/**
- * Check if Token is one of Binary Operators
- * @return true on Success or false on Error
- */
-bool Parser::isBinaryOperator() {
-    FLY_DEBUG("Parser", "isBinaryOperator");
-    return Tok.isOneOf(
-            // Arithmetci Operators
-            tok::plus, // + add
-            tok::minus, // - subtract
-            tok::star, // * multiply
-            tok::slash, // / divide
-            tok::percent, // % percentage
-
-            // Logic Operators
-            tok::ampamp, // && logic and
-            tok::pipepipe, // || logic or
-            tok::less, // <
-            tok::greater, // >
-            tok::lessequal, // <= less than
-            tok::greaterequal, // >= greater than
-            tok::equalequal, // == equal compare
-            tok::exclaimequal, // != different compare
-
-            // Bit operators
-            tok::amp, // & and
-            tok::pipe, // | or
-            tok::caret, // ^ xor
-            tok::lessless, // << shift left
-            tok::greatergreater // >> shift right
-    );
-}
-
-/**
- * Check if Token is one of Binary Operators
- * @return true on Success or false on Error
- */
-bool Parser::isTernaryOperator() {
-    FLY_DEBUG("Parser", "isTernaryOperator");
-    return Tok.is(tok::question);
-}

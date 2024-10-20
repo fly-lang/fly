@@ -1003,8 +1003,6 @@ bool SemaResolver::ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr, ASTType *Type) {
 
     bool Success = false;
     switch (Expr->getExprKind()) {
-        case ASTExprKind::EXPR_EMPTY:
-            return true;
         case ASTExprKind::EXPR_VALUE: {
             // Select the best option for this Value
             ASTValueExpr *ValueExpr = (ASTValueExpr *) Expr;
@@ -1053,18 +1051,6 @@ bool SemaResolver::ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr, ASTType *Type) {
                 }
                 case ASTOpExprKind::OP_BINARY: {
                     ASTBinaryOpExpr *Binary = (ASTBinaryOpExpr *) Expr;
-
-                    if (Binary->LeftExpr->Kind == ASTExprKind::EXPR_EMPTY) {
-                        // Error: Binary cannot contain ASTEmptyExpr
-                        S.Diag(Binary->LeftExpr->getLocation(), diag::err_sema_empty_expr);
-                        return false;
-                    }
-
-                    if (Binary->RightExpr->Kind == ASTExprKind::EXPR_EMPTY) {
-                        // Error: Binary cannot contain ASTEmptyExpr
-                        S.Diag(Binary->RightExpr->getLocation(), diag::err_sema_empty_expr);
-                        return false;
-                    }
 
                     Success = ResolveExpr(Stmt, Binary->LeftExpr) && ResolveExpr(Stmt, Binary->RightExpr);
                     if (Success) {
