@@ -21,6 +21,7 @@ namespace fly {
     enum class Precedence {
         LOWEST,         // No operators
         ASSIGNMENT,     // =, +=, -=, etc.
+        TERNARY,        // ?
         LOGICAL,        // ||, &&
         RELATIONAL,     // ==, !=, <, >, <=, >=
         ADDITIVE,       // +, -
@@ -64,17 +65,17 @@ namespace fly {
         OP_BINARY_LTE,
 
         // ASSIGN
-        OP_BINARY_ASSINGN,
-        OP_BINARY_AND_ASSIGN,
+        OP_BINARY_ASSIGN,
+        OP_BINARY_ASSIGN_AND,
         OP_BINARY_ASSIGN_MUL,
-        OP_BINARY_ADD_ASSIGN,
-        OP_BINARY_SUB_ASSIGN,
-        OP_BINARY_DIV_ASSIGN,
-        OP_BINARY_MOD_ASSIGN,
-        OP_BINARY_SHIFT_L_ASSIGN,
-        OP_BINARY_SHIFT_R_ASSIGN,
-        OP_BINARY_XOR_ASSIGN,
-        OP_BINARY_OR_ASSIGN
+        OP_BINARY_ASSIGN_ADD,
+        OP_BINARY_ASSIGN_SUB,
+        OP_BINARY_ASSIGN_DIV,
+        OP_BINARY_ASSIGN_MOD,
+        OP_BINARY_ASSIGN_SHIFT_L,
+        OP_BINARY_ASSIGN_SHIFT_R,
+        OP_BINARY_ASSIGN_XOR,
+        OP_BINARY_ASSIGN_OR
     };
 
     enum class ASTBinaryOpTypeExprKind {
@@ -82,11 +83,6 @@ namespace fly {
         OP_BINARY_COMPARISON,
         OP_BINARY_ASSIGN,
         OP_BINARY_LOGIC,
-    };
-
-    enum class ASTTernaryOpExprKind {
-        OP_TERNARY_IF,
-        OP_TERNARY_ELSE,
     };
 
     enum class ASTOpExprKind {

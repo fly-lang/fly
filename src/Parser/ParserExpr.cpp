@@ -20,6 +20,8 @@ using namespace fly;
 
 Precedence getPrecedence(Token Tok) {
     switch (Tok.getKind()) {
+        case fly::tok::question:
+            return Precedence::TERNARY;
         case tok::plusequal:
         case tok::minusequal:
         case tok::starequal:
@@ -31,7 +33,9 @@ Precedence getPrecedence(Token Tok) {
         case tok::greatergreaterequal:
         case tok::caretequal:
             return Precedence::ASSIGNMENT;
+        case tok::pipepipe:
         case tok::pipe:
+        case tok::ampamp:
         case tok::amp:
         case tok::caret:
             return Precedence::LOGICAL;
@@ -46,6 +50,7 @@ Precedence getPrecedence(Token Tok) {
         case tok::minus:
             return Precedence::ADDITIVE;
         case tok::star:
+        case tok::percent:
         case tok::slash:
             return Precedence::MULTIPLICATIVE;
         default:
@@ -87,7 +92,7 @@ ASTBinaryOpExprKind toBinaryOpExprKind(Token Tok) {
         case tok::ampamp:
             return ASTBinaryOpExprKind::OP_BINARY_AND_LOG;
         case tok::ampequal:
-            return ASTBinaryOpExprKind::OP_BINARY_AND_ASSIGN;
+            return ASTBinaryOpExprKind::OP_BINARY_ASSIGN_AND;
         case tok::star:
             return ASTBinaryOpExprKind::OP_BINARY_MUL;
         case tok::starequal:
@@ -95,21 +100,21 @@ ASTBinaryOpExprKind toBinaryOpExprKind(Token Tok) {
         case tok::plus:
             return ASTBinaryOpExprKind::OP_BINARY_ADD;
         case tok::plusequal:
-            return ASTBinaryOpExprKind::OP_BINARY_ADD_ASSIGN;
+            return ASTBinaryOpExprKind::OP_BINARY_ASSIGN_ADD;
         case tok::minus:
             return ASTBinaryOpExprKind::OP_BINARY_SUB;
         case tok::minusequal:
-            return ASTBinaryOpExprKind::OP_BINARY_SUB_ASSIGN;
+            return ASTBinaryOpExprKind::OP_BINARY_ASSIGN_SUB;
         case tok::exclaimequal:
             return ASTBinaryOpExprKind::OP_BINARY_NE;
         case tok::slash:
             return ASTBinaryOpExprKind::OP_BINARY_DIV;
         case tok::slashequal:
-            return ASTBinaryOpExprKind::OP_BINARY_DIV_ASSIGN;
+            return ASTBinaryOpExprKind::OP_BINARY_ASSIGN_DIV;
         case tok::percent:
             return ASTBinaryOpExprKind::OP_BINARY_MOD;
         case tok::percentequal:
-            return ASTBinaryOpExprKind::OP_BINARY_MOD_ASSIGN;
+            return ASTBinaryOpExprKind::OP_BINARY_ASSIGN_MOD;
         case tok::less:
             return ASTBinaryOpExprKind::OP_BINARY_LT;
         case tok::lessless:
@@ -117,7 +122,7 @@ ASTBinaryOpExprKind toBinaryOpExprKind(Token Tok) {
         case tok::lessequal:
             return ASTBinaryOpExprKind::OP_BINARY_LTE;
         case tok::lesslessequal:
-            return ASTBinaryOpExprKind::OP_BINARY_SHIFT_L_ASSIGN;
+            return ASTBinaryOpExprKind::OP_BINARY_ASSIGN_SHIFT_L;
         case tok::greater:
             return ASTBinaryOpExprKind::OP_BINARY_GT;
         case tok::greatergreater:
@@ -125,19 +130,19 @@ ASTBinaryOpExprKind toBinaryOpExprKind(Token Tok) {
         case tok::greaterequal:
             return ASTBinaryOpExprKind::OP_BINARY_GTE;
         case tok::greatergreaterequal:
-            return ASTBinaryOpExprKind::OP_BINARY_SHIFT_R_ASSIGN;
+            return ASTBinaryOpExprKind::OP_BINARY_ASSIGN_SHIFT_R;
         case tok::caret:
             return ASTBinaryOpExprKind::OP_BINARY_XOR;
         case tok::caretequal:
-            return ASTBinaryOpExprKind::OP_BINARY_XOR_ASSIGN;
+            return ASTBinaryOpExprKind::OP_BINARY_ASSIGN_XOR;
         case tok::pipe:
             return ASTBinaryOpExprKind::OP_BINARY_OR;
         case tok::pipepipe:
             return ASTBinaryOpExprKind::OP_BINARY_OR_LOG;
         case tok::pipeequal:
-            return ASTBinaryOpExprKind::OP_BINARY_OR_ASSIGN;
+            return ASTBinaryOpExprKind::OP_BINARY_ASSIGN_OR;
         case tok::equal:
-            return ASTBinaryOpExprKind::OP_BINARY_ASSINGN;
+            return ASTBinaryOpExprKind::OP_BINARY_ASSIGN;
         case tok::equalequal:
             return ASTBinaryOpExprKind::OP_BINARY_EQ;
     }
@@ -209,10 +214,13 @@ ASTExpr *ParserExpr::ParsePrimary() {
         ASTExpr* Primary = ParsePrimary();  // Parse the operand (recursively)
         return P->Builder.CreateUnaryOpExpr(Loc, OpKind, Primary);
     } else if (isNewOperator(P->Tok)) {
-        return ParseNewExpr(P);
+        return ParseNewExpr();
     } else if (P->Tok.is(tok::l_paren)) {
+        P->ConsumeParen();
         ASTExpr *Primary = Parse(P);
-        if (P->Tok.isNot(tok::r_paren)) {
+        if (P->Tok.is(tok::r_paren)) {
+            P->ConsumeParen();
+        } else {
             P->Diag(P->Tok.getLocation(), diag::err_parse_expr_close_paren);
         }
         return Primary;
@@ -351,209 +359,10 @@ bool ParserExpr::isTernaryOperator() {
     return P->Tok.is(tok::question);
 }
 
-/**
- * ParseModule a statement assignment Expression
- * @param Block
- * @param VarRef
- * @param Success true on Success or false on Error
- * @return the ASTExpr
- */
-//ASTExpr *ExprParser::ParseAssignExpr(ASTVarRef *VarRef) {
-//    FLY_DEBUG_MESSAGE("ExprParser", "ParseAssignExpr", Logger()
-//            .Attr("VarRef", VarRef).End());
-//
-//    // Parsing =
-//    if (P->Tok.is(tok::equal)) {
-//        P->ConsumeToken();
-//        return ParseExpr();
-//    }
-//
-//    // Create First Expr
-//    ASTVarRefExpr *First = P->Builder.CreateExpr(VarRef);
-//    Group.push_back(First);
-//
-//    // Parse binary assignment operator
-//    ASTBinaryOperatorKind Op;
-//    switch (P->Tok.getKind()) {
-//
-//        // Arithmetic
-//        case tok::plusequal:
-//            Op = ASTBinaryOperatorKind::BINARY_ARITH_ADD;
-//            break;
-//        case tok::minusequal:
-//            Op = ASTBinaryOperatorKind::BINARY_ARITH_SUB;
-//            break;
-//        case tok::starequal:
-//            Op = ASTBinaryOperatorKind::BINARY_ARITH_MUL;
-//            break;
-//        case tok::slashequal:
-//            Op = ASTBinaryOperatorKind::BINARY_ARITH_DIV;
-//            break;
-//        case tok::percentequal:
-//            Op = ASTBinaryOperatorKind::BINARY_ARITH_MOD;
-//            break;
-//
-//            // Bit
-//        case tok::ampequal:
-//            Op = ASTBinaryOperatorKind::BINARY_ARITH_AND;
-//            break;
-//        case tok::pipeequal:
-//            Op = ASTBinaryOperatorKind::BINARY_ARITH_OR;
-//            break;
-//        case tok::caretequal:
-//            Op = ASTBinaryOperatorKind::BINARY_ARITH_XOR;
-//            break;
-//        case tok::lesslessequal:
-//            Op = ASTBinaryOperatorKind::BINARY_ARITH_SHIFT_L;
-//            break;
-//        case tok::greatergreaterequal:
-//            Op = ASTBinaryOperatorKind::BINARY_ARITH_SHIFT_R;
-//            break;
-//        default:
-//            assert(0 && "Accept Only assignment operators");
-//    }
-//    Group.push_back(P->Builder.CreateOperatorExpr(P->ConsumeToken(), Op));
-//
-//    // Parse second operator
-//    ASTExpr *Second = ParseExpr();
-//
-//    // Error: missing second operator
-//    if (First == nullptr) {
-//        P->Diag(P->Tok.getLocation(), diag::err_parser_miss_oper);
-//        return nullptr;
-//    }
-//
-//    // This is the last item in the expression
-//    Group.push_back(Second);
-//
-//    // Update Group
-//    UpdateBinaryGroup(false);
-//    UpdateBinaryGroup(true);
-//    assert(Group.size() == 1 && "Only one Group entry at the end");
-//    assert(Group[0]->getExprKind() == ASTExprKind::EXPR_GROUP && "Only one Group entry at the end");
-//    assert(((ASTOpExpr *) Group[0])->getOpExprKind() == ASTExprGroupKind::GROUP_BINARY && "Only one Group entry at the end");
-//    return (ASTBinaryOpExpr *) Group[0];
-//}
+ASTExpr *ParserExpr::ParseNewExpr() {
+    FLY_DEBUG("ExprParser", "ParseNewExpr");
+    const SourceLocation &NewOpLoc = P->ConsumeToken();  // Consume 'new'
 
- /**
-  * ParseModule all Expressions
-  * @param Stmt where come from
-  * @param IsFirst when starting parse expression in a binary ternary or other multi expression
-  * @return the ASTExpr
-  */
-//ASTExpr *ExprParser::ParseExpr(bool IsFirst) {
-//     FLY_DEBUG_MESSAGE("ExprParser", "ParseExpr", Logger()
-//             .Attr("IsFirst", IsFirst).End());
-//
-//    // The parsed ASTExpr
-//    ASTExpr *Expr;
-//
-//    // Location of the starting expression
-//    if (P->Tok.is(tok::l_paren)) { // Start a new Group of Expressions
-//        P->ConsumeParen();
-//
-//        ExprParser SubP(P);
-//        Expr = SubP.ParseExpr();
-//        if (Expr) {
-//            if (P->Tok.is(tok::r_paren)) {
-//                P->ConsumeParen();
-//            } else { // Error: parenthesis unclosed
-//                P->Diag(P->Tok.getLocation(), diag::err_paren_unclosed);
-//                return nullptr;
-//            }
-//        }
-//    } else if (P->isValue()) { // Ex. 1
-//        Expr = P->Builder.CreateExpr(P->ParseValue());
-//    } else if (P->Tok.isAnyIdentifier()) { // Ex. a or a++ or func()
-//        Expr = ParseExpr(P->ParseIdentifier());
-//    } else if (P->isUnaryPreOperator(P->Tok)) { // Ex. ++a or --a or !a
-//        Expr = ParseUnaryPreExpr(P); // Parse Unary Post Expression
-//    } else if (P->isNewOperator(P->Tok)) {
-//        Expr = ParseNewExpr(P);
-//    }
-//
-//     // Error: missing expression
-//     if (Expr == nullptr) {
-//         P->Diag(P->Tok.getLocation(), diag::err_parser_miss_expr);
-//         return nullptr;
-//     }
-//
-//    // Check if binary operator exists
-//    if (P->isBinaryOperator()) { // Parse Binary Expression
-//        Group.push_back(Expr);
-//        ASTBinaryOperatorKind Operator = ParseBinaryOperator();
-//        ASTBinaryOperatorExpr *BinaryOperatorExpr = P->Builder.CreateOperatorExpr(P->ConsumeToken(), Operator);
-//        Group.push_back(BinaryOperatorExpr);
-//        Expr = ParseExpr(false);
-//
-//        // Error: missing second operator
-//        if (Expr == nullptr) {
-//            P->Diag(P->Tok.getLocation(), diag::err_parser_miss_oper);
-//            return nullptr;
-//        }
-//
-//        if (IsFirst) {
-//            // This is the last item in the expression
-//            Group.push_back(Expr);
-//
-//            // Update Group
-//            UpdateBinaryGroup(false);
-//            UpdateBinaryGroup(true);
-//            assert(Group.size() == 1 && "Only one Group entry at the end");
-//            assert(Group[0]->getExprKind() == ASTExprKind::EXPR_GROUP && "Only one Group entry at the end");
-//            assert(((ASTOpExpr *) Group[0])->getOpExprKind() == ASTExprGroupKind::GROUP_BINARY && "Only one Group entry at the end");
-//            Expr = Group[0];
-//        }
-//    }
-//    
-//    if (P->isTernaryOperator() && IsFirst) { // Parse Ternary Expression
-//
-//        // Parse True Expr
-//        ASTTernaryOperatorExpr *FirstOperator = P->Builder.CreateOperatorExpr(P->ConsumeToken(),
-//                                                                              ASTTernaryOpExprKind::TERNARY_IF);
-//
-//        ExprParser SubSecond(P);
-//        ASTExpr *FirstExpr = SubSecond.ParseExpr();
-//
-//        if (P->Tok.getKind() == tok::colon) {
-//            ASTTernaryOperatorExpr *SecondOperator = P->Builder.CreateOperatorExpr(P->ConsumeToken(),
-//                                                                                   ASTTernaryOpExprKind::TERNARY_ELSE);
-//
-//            ExprParser SubThird(P);
-//            ASTExpr *SecondExpr = SubThird.ParseExpr();
-//            if (SecondExpr != nullptr)
-//                return P->Builder.CreateTernaryExpr(Expr, FirstOperator, FirstExpr, SecondOperator, SecondExpr);
-//        }
-//
-//        // Error: Invalid operator in Ternary condition
-//        P->Diag(P->Tok.getLocation(), diag::err_parser_miss_oper);
-//        return nullptr;
-//    }
-//
-//    return Expr;
-//}
-//
-//ASTExpr *ExprParser::ParseExpr(ASTIdentifier *Identifier) {
-//    FLY_DEBUG_MESSAGE("ExprParser", "ParseExpr",
-//                      Logger().Attr("Identifier", Identifier).End());
-//    if (Identifier->isCall()) { // Ex. a()
-//        ASTCallExpr *CallExpr = P->Builder.CreateExpr((ASTCall *) Identifier);
-//        return CallExpr;
-//    } else { // parse variable post increment/decrement or simple var
-//        ASTVarRef *VarRef = P->Builder.CreateVarRef(Identifier);
-//        if (P->isUnaryPostOperator()) { // Ex. a++ or a--
-//            return ParseUnaryPostExpr(VarRef); // Parse Unary Pre Expression
-//        } else {
-//            // Simple Var
-//            ASTVarRefExpr *VarRefExpr = P->Builder.CreateExpr(VarRef);
-//            return VarRefExpr;
-//        }
-//    }
-//}
-
-ASTExpr *ParserExpr::ParseNewExpr(Parser *P) {
-    FLY_DEBUG("ExprParser", "ParseNewExpr"); // TODO add assert(keyword is new)
-    P->ConsumeToken();
     if (P->Tok.isAnyIdentifier()) {
         ASTIdentifier *Identifier = P->ParseIdentifier();
 

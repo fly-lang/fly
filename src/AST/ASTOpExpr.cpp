@@ -73,17 +73,17 @@ ASTBinaryOpTypeExprKind ASTBinaryOpExpr::setTypeKind(ASTBinaryOpExprKind OpKind)
         case ASTBinaryOpExprKind::OP_BINARY_LTE:
             return ASTBinaryOpTypeExprKind::OP_BINARY_COMPARISON;
 
-        case ASTBinaryOpExprKind::OP_BINARY_ASSINGN:
-        case ASTBinaryOpExprKind::OP_BINARY_AND_ASSIGN:
+        case ASTBinaryOpExprKind::OP_BINARY_ASSIGN:
+        case ASTBinaryOpExprKind::OP_BINARY_ASSIGN_AND:
         case ASTBinaryOpExprKind::OP_BINARY_ASSIGN_MUL:
-        case ASTBinaryOpExprKind::OP_BINARY_ADD_ASSIGN:
-        case ASTBinaryOpExprKind::OP_BINARY_SUB_ASSIGN:
-        case ASTBinaryOpExprKind::OP_BINARY_DIV_ASSIGN:
-        case ASTBinaryOpExprKind::OP_BINARY_MOD_ASSIGN:
-        case ASTBinaryOpExprKind::OP_BINARY_SHIFT_L_ASSIGN:
-        case ASTBinaryOpExprKind::OP_BINARY_SHIFT_R_ASSIGN:
-        case ASTBinaryOpExprKind::OP_BINARY_XOR_ASSIGN:
-        case ASTBinaryOpExprKind::OP_BINARY_OR_ASSIGN:
+        case ASTBinaryOpExprKind::OP_BINARY_ASSIGN_ADD:
+        case ASTBinaryOpExprKind::OP_BINARY_ASSIGN_SUB:
+        case ASTBinaryOpExprKind::OP_BINARY_ASSIGN_DIV:
+        case ASTBinaryOpExprKind::OP_BINARY_ASSIGN_MOD:
+        case ASTBinaryOpExprKind::OP_BINARY_ASSIGN_SHIFT_L:
+        case ASTBinaryOpExprKind::OP_BINARY_ASSIGN_SHIFT_R:
+        case ASTBinaryOpExprKind::OP_BINARY_ASSIGN_XOR:
+        case ASTBinaryOpExprKind::OP_BINARY_ASSIGN_OR:
             return ASTBinaryOpTypeExprKind::OP_BINARY_ASSIGN;
     }
     return ASTBinaryOpTypeExprKind::OP_BINARY_ASSIGN;

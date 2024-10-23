@@ -39,7 +39,7 @@ namespace fly {
 
         ASTTernaryOpExpr *ParseTernaryExpr(ASTExpr *ConditionExpr);
 
-        ASTExpr *ParseNewExpr(Parser *P);
+        ASTExpr *ParseNewExpr();
 
         bool isNewOperator(Token &Tok);
 

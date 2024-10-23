@@ -8,26 +8,15 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "ParserTest.h"
-#include "AST/ASTNameSpace.h"
 #include "AST/ASTModule.h"
-#include "AST/ASTImport.h"
-#include "AST/ASTGlobalVar.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTCall.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTAssignmentStmt.h"
 #include "AST/ASTVarRef.h"
-#include "AST/ASTParam.h"
 #include "AST/ASTOpExpr.h"
 #include "AST/ASTBlockStmt.h"
 #include "AST/ASTExprStmt.h"
-#include "AST/ASTLoopStmt.h"
-#include "AST/ASTIfStmt.h"
-#include "AST/ASTSwitchStmt.h"
-#include "AST/ASTLoopStmt.h"
-#include "AST/ASTClass.h"
-#include "AST/ASTClassAttribute.h"
-#include "AST/ASTClassMethod.h"
 
 #include "llvm/ADT/StringMap.h"
 
@@ -44,7 +33,6 @@ namespace {
                 "  a--\n"
                 "}\n");
         ASTModule *Module = Parse("UnaryExpr", str);
-        
         ASSERT_TRUE(Resolve());
 
         // Get Body
@@ -79,17 +67,16 @@ namespace {
     TEST_F(ParserTest, UnarySideExpr) {
         llvm::StringRef str = (
                 "void func(int a) {\n"
-                "  a = ++a + 1"
+                "  a = a++ + ++a"
                 "}\n");
         ASTModule *Module = Parse("UnaryExpr", str);
-
         ASSERT_TRUE(Resolve());
 
         // Get Body
         ASTFunction *Func = *Module->getFunctions().begin();
         const ASTBlockStmt *Body = Func->getBody();
 
-        // a = ++a + 1
+        // a = a++ + ++a
         const ASTAssignmentStmt *AssignmentStmt = (ASTAssignmentStmt *) Body->getContent()[0];
         EXPECT_EQ(AssignmentStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_OP);
         EXPECT_EQ(((ASTOpExpr *) AssignmentStmt->getExpr())->getOpExprKind(), ASTOpExprKind::OP_BINARY);
@@ -99,214 +86,905 @@ namespace {
         const ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
         EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_OP);
         EXPECT_EQ(((ASTOpExpr *) LeftExpr)->getOpExprKind(), ASTOpExprKind::OP_UNARY);
-        EXPECT_EQ(((ASTUnaryOpExpr *) LeftExpr)->getOpKind(), ASTUnaryOpExprKind::OP_UNARY_PRE_INCR);
+        EXPECT_EQ(((ASTUnaryOpExpr *) LeftExpr)->getOpKind(), ASTUnaryOpExprKind::OP_UNARY_POST_INCR);
 
-        ASTValueExpr *ValueExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
-        EXPECT_EQ(ValueExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(ValueExpr->getValue()->print(), "1");
+        const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
+        EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_OP);
+        EXPECT_EQ(((ASTOpExpr *) RightExpr)->getOpExprKind(), ASTOpExprKind::OP_UNARY);
+        EXPECT_EQ(((ASTUnaryOpExpr *) RightExpr)->getOpKind(), ASTUnaryOpExprKind::OP_UNARY_PRE_INCR);
     }
 
-//    TEST_F(ParserTest, IntBinaryArithOperation) {
-//        llvm::StringRef str = ("int func() {\n"
-//                               "  int a = 2\n"
-//                               "  int b = a + b / a - b\n"
-//                               "  return a\n"
-//                               "}\n");
-//        ASTModule *Module = Parse("IntBinaryArithOperation", str);
-//
-//        ASSERT_TRUE(isSuccess());
-//
-//        // Get Body
-//        ASTFunction *F = *(Module->getNameSpace()->getFunctions().begin())->getValue().begin()->second.begin();
-//        const ASTBlock *Body = F->getBody();
-//
-//        // Test: int a = 2
-//
-//        const ASTAssignmentStmt *aVar = (ASTAssignmentStmt *) Body->getContent()[0];
-//        EXPECT_EQ(aVar->getVarRef()->getDef()->getName(), "a");
-//        EXPECT_EQ(aVar->getExpr()->getExprKind(), ASTExprKind::EXPR_VALUE);
-//        EXPECT_EQ(((ASTValueExpr *) aVar->getExpr())->getValue()->print(), "2");
-//
-//        // Test: int b = a + b / a - b
-//
-//        const ASTAssignmentStmt *bVar = (ASTAssignmentStmt *) Body->getContent()[1];
-//        EXPECT_EQ(bVar->getVarRef()->getDef()->getName(), "b");
-//        EXPECT_EQ(bVar->getExpr()->getExprKind(), ASTExprKind::EXPR_GROUP);
-//        EXPECT_EQ(((ASTGroupExpr *) bVar->getExpr())->getGroupKind(), ASTExprGroupKind::GROUP_BINARY);
-//        ASTBinaryGroupExpr *bGroup = (ASTBinaryGroupExpr *) bVar->getExpr();
-//
-//        // int b = G1 - b
-//        const ASTBinaryGroupExpr *G1 = (ASTBinaryGroupExpr *) bGroup->getFirst();
-//        EXPECT_EQ(bGroup->getOpKind(), ASTBinaryOperatorKind::ARITH_SUB);
-//        EXPECT_EQ(((ASTVarRefExpr *) bGroup->getSecond())->getVarRef()->getName(), "b");
-//
-//        // G1 = a + G2
-//        EXPECT_EQ(((ASTVarRefExpr *) G1->getFirst())->getVarRef()->getName(), "a");
-//        EXPECT_EQ(G1->getOpKind(), ASTBinaryOperatorKind::ARITH_ADD);
-//        const ASTBinaryGroupExpr *G2 = (ASTBinaryGroupExpr *) G1->getSecond();
-//
-//        // G2 = b / a
-//        const ASTVarRefExpr *b = (ASTVarRefExpr *) G2->getFirst();
-//        EXPECT_EQ(G2->getOpKind(), ASTBinaryOperatorKind::ARITH_DIV);
-//        const ASTVarRefExpr *a = (ASTVarRefExpr *) G2->getSecond();
-//
-//    }
-//
-//    TEST_F(ParserTest, FloatBinaryArithOperation) {
-//        llvm::StringRef str = ("float func() {\n"
-//                               "  float a = 1.0"
-//                               "  float b = a * b - a / b"
-//                               "  return b\n"
-//                               "}\n");
-//        ASTModule *Module = Parse("FloatBinaryArithOperation", str);
-//
-//        ASSERT_TRUE(isSuccess());
-//
-//        // Get Body
-//        ASTFunction *F = *Module->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
-//        const ASTBlock *Body = F->getBody();
-//
-//        // Test: float a -= 1.0
-//        const ASTAssignmentStmt *aVar = (ASTAssignmentStmt *) Body->getContent()[0];
-//        EXPECT_EQ(aVar->getVarRef()->getDef()->getName(), "a");
-//        EXPECT_EQ(aVar->getExpr()->getExprKind(), ASTExprKind::EXPR_VALUE);
-//        EXPECT_EQ(((ASTValueExpr *) aVar->getExpr())->getValue()->print(), "1.0");
-//
-//        // Test: int b = a * b - a / b
-//        const ASTAssignmentStmt *bVar = (ASTAssignmentStmt *) Body->getContent()[1];
-//        EXPECT_EQ(bVar->getVarRef()->getDef()->getName(), "b");
-//        EXPECT_EQ(bVar->getExpr()->getExprKind(), ASTExprKind::EXPR_GROUP);
-//        EXPECT_EQ(((ASTGroupExpr *) bVar->getExpr())->getGroupKind(), ASTExprGroupKind::GROUP_BINARY);
-//        ASTBinaryGroupExpr *bGroup = (ASTBinaryGroupExpr *) bVar->getExpr();
-//
-//        // int b = G1 - G2
-//        const ASTBinaryGroupExpr *G1 = (ASTBinaryGroupExpr *) bGroup->getFirst();
-//        const ASTBinaryGroupExpr *G2 = (ASTBinaryGroupExpr *) bGroup->getSecond();
-//        EXPECT_EQ(bGroup->getOpKind(), ASTBinaryOperatorKind::ARITH_SUB);
-//
-//        // G1 = a * b
-//        EXPECT_EQ(((ASTVarRefExpr *) G1->getFirst())->getVarRef()->getName(), "a");
-//        EXPECT_EQ(G1->getOpKind(), ASTBinaryOperatorKind::ARITH_MUL);
-//        EXPECT_EQ(((ASTVarRefExpr *) G1->getSecond())->getVarRef()->getName(), "b");
-//
-//        // G2 = a / b
-//        EXPECT_EQ(((ASTVarRefExpr *) G2->getFirst())->getVarRef()->getName(), "a");
-//        EXPECT_EQ(G2->getOpKind(), ASTBinaryOperatorKind::ARITH_DIV);
-//        EXPECT_EQ(((ASTVarRefExpr *) G2->getSecond())->getVarRef()->getName(), "b");
-//
-//    }
-//
-//    TEST_F(ParserTest, BoolBinaryLogicOperation) {
-//        llvm::StringRef str = ("bool func() {\n"
-//                               "  bool a = true"
-//                               "  bool b = a || false && a == true\n"
-//                               "  return b\n"
-//                               "}\n");
-//        ASTModule *Module = Parse("BoolBinaryLogicOperation", str);
-//
-//        ASSERT_TRUE(isSuccess());
-//
-//        // Get Body
-//        ASTFunction *F = *Module->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
-//        const ASTBlock *Body = F->getBody();
-//
-//        // Test: bool a = true
-//        const ASTAssignmentStmt *aVar = (ASTAssignmentStmt *) Body->getContent()[0];
-//        EXPECT_EQ(aVar->getVarRef()->getDef()->getName(), "a");
-//        EXPECT_EQ(aVar->getExpr()->getExprKind(), ASTExprKind::EXPR_VALUE);
-//        EXPECT_EQ(((ASTValueExpr *) aVar->getExpr())->getValue()->print(), "true");
-//
-//        // Test: bool b = a || false && a == true
-//        const ASTAssignmentStmt *bVar = (ASTAssignmentStmt *) Body->getContent()[1];
-//        EXPECT_EQ(bVar->getVarRef()->getDef()->getName(), "b");
-//        EXPECT_EQ(bVar->getExpr()->getExprKind(), ASTExprKind::EXPR_GROUP);
-//        EXPECT_EQ(((ASTGroupExpr *) bVar->getExpr())->getGroupKind(), ASTExprGroupKind::GROUP_BINARY);
-//        ASTBinaryGroupExpr *bGroup = (ASTBinaryGroupExpr *) bVar->getExpr();
-//
-//        // int b = G1 == true
-//        const ASTBinaryGroupExpr *G1 = (ASTBinaryGroupExpr *) bGroup->getFirst();
-//        EXPECT_EQ(bGroup->getOpKind(), ASTBinaryOperatorKind::COMP_EQ);
-//        EXPECT_EQ(((ASTValueExpr *) bGroup->getSecond())->getValue()->print(), "true");
-//
-//        // G1 = G2 && a
-//        const ASTBinaryGroupExpr *G2 = (ASTBinaryGroupExpr *) G1->getFirst();
-//        EXPECT_EQ(G1->getOpKind(), ASTBinaryOperatorKind::LOGIC_AND);
-//        EXPECT_EQ(((ASTValueExpr *) G2->getSecond())->getValue()->print(), "false");
-//
-//        // G2 = a || false
-//        EXPECT_EQ(((ASTVarRefExpr *) G2->getFirst())->getVarRef()->getName(), "a");
-//        EXPECT_EQ(G2->getOpKind(), ASTBinaryOperatorKind::LOGIC_OR);
-//        EXPECT_EQ(((ASTValueExpr *) G2->getSecond())->getValue()->print(), "false");
-//
-//    }
-//
-//    TEST_F(ParserTest, LongBinaryArithOperation) {
-//        llvm::StringRef str = ("long func() {\n"
-//                               "  long a = 1\n"
-//                               "  long b = (a + b) / (a - b)\n"
-//                               "  return b\n"
-//                               "}\n");
-//        ASTModule *Module = Parse("LongBinaryArithOperation", str);
-//
-//        ASSERT_TRUE(isSuccess());
-//
-//        // Get Body
-//        ASTFunction *F = *Module->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
-//        const ASTBlock *Body = F->getBody();
-//
-//        // Test: long a = 1
-//
-//        const ASTAssignmentStmt *aVar = (ASTAssignmentStmt *) Body->getContent()[0];
-//        EXPECT_EQ(aVar->getVarRef()->getDef()->getName(), "a");
-//        EXPECT_EQ(aVar->getExpr()->getExprKind(), ASTExprKind::EXPR_VALUE);
-//        EXPECT_EQ(((ASTValueExpr *) aVar->getExpr())->getValue()->print(), "1");
-//
-//        // Test: long b = (a + b) / (a - b)
-//
-//        const ASTAssignmentStmt *bVar = (ASTAssignmentStmt *) Body->getContent()[1];
-//        EXPECT_EQ(bVar->getVarRef()->getDef()->getName(), "b");
-//        EXPECT_EQ(bVar->getExpr()->getExprKind(), ASTExprKind::EXPR_GROUP);
-//        EXPECT_EQ(((ASTGroupExpr *) bVar->getExpr())->getGroupKind(), ASTExprGroupKind::GROUP_BINARY);
-//        ASTBinaryGroupExpr *bGroup = (ASTBinaryGroupExpr *) bVar->getExpr();
-//
-//        // long b = G1 / G2
-//        const ASTBinaryGroupExpr *G1 = (ASTBinaryGroupExpr *) bGroup->getFirst();
-//        const ASTBinaryGroupExpr *G2 = (ASTBinaryGroupExpr *) bGroup->getSecond();
-//        EXPECT_EQ(bGroup->getOpKind(), ASTBinaryOperatorKind::ARITH_DIV);
-//
-//        // G1 = a + b
-//        EXPECT_EQ(((ASTVarRefExpr *) G1->getFirst())->getVarRef()->getName(), "a");
-//        EXPECT_EQ(G1->getOpKind(), ASTBinaryOperatorKind::ARITH_ADD);
-//        EXPECT_EQ(((ASTVarRefExpr *) G1->getSecond())->getVarRef()->getName(), "b");
-//
-//        // G2 = a - b
-//        EXPECT_EQ(((ASTVarRefExpr *) G2->getFirst())->getVarRef()->getName(), "a");
-//        EXPECT_EQ(G2->getOpKind(), ASTBinaryOperatorKind::ARITH_SUB);
-//        EXPECT_EQ(((ASTVarRefExpr *) G2->getSecond())->getVarRef()->getName(), "b");
-//
-//    }
-//
-//    TEST_F(ParserTest, CondTernaryOperation) {
-//        llvm::StringRef str = ("int func(int a) {\n"
-//                               "  return a==1 ? 1 : a\n"
-//                               "}\n");
-//        ASTModule *Module = Parse("CondTernaryOperation", str);
-//
-//        ASSERT_TRUE(isSuccess());
-//
-//        // Get Body
-//        ASTFunction *F = *Module->getNameSpace()->getFunctions().begin()->getValue().begin()->second.begin();
-//        ASTParam *a = F->getParams()->getList()[0];
-//        const ASTBlock *Body = F->getBody();
-//
-//        ASTReturnStmt *Ret = (ASTReturnStmt *) Body->getContent()[0];
-//        ASTTernaryGroupExpr *Expr = (ASTTernaryGroupExpr *) Ret->getExpr();
-//        ASTBinaryGroupExpr *Comp = ((ASTBinaryGroupExpr *) Expr->getFirst());
-//        EXPECT_EQ(Comp->getOpKind(), ASTBinaryOperatorKind::COMP_EQ);
-//        EXPECT_EQ(((ASTVarRefExpr *) Comp->getFirst())->getVarRef()->getName(), "a");
-//        EXPECT_EQ(((ASTValueExpr *) Comp->getSecond())->getValue()->print(), "1");
-//        EXPECT_EQ(((ASTValueExpr *) Expr->getSecond())->getValue()->print(), "1");
-//        EXPECT_EQ(((ASTVarRefExpr *) Expr->getThird())->getVarRef()->getName(), "a");
-//
-//    }
+    TEST_F(ParserTest, BinaryAssignAddExpr) {
+        llvm::StringRef str = (
+                "void func(int a) {\n"
+                "  a += 1"
+                "}\n");
+        ASTModule *Module = Parse("BinaryAssignAddExpr", str);
+        ASSERT_TRUE(Resolve());
+
+        // Get Body
+        ASTFunction *Func = *Module->getFunctions().begin();
+        const ASTBlockStmt *Body = Func->getBody();
+
+        // a += 1
+        const ASTAssignmentStmt *AssignmentStmt = (ASTAssignmentStmt *) Body->getContent()[0];
+        EXPECT_EQ(AssignmentStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_OP);
+        EXPECT_EQ(((ASTOpExpr *) AssignmentStmt->getExpr())->getOpExprKind(), ASTOpExprKind::OP_BINARY);
+        EXPECT_EQ(((ASTBinaryOpExpr *) AssignmentStmt->getExpr())->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_ASSIGN_ADD);
+        ASTBinaryOpExpr *BinaryExpr = (ASTBinaryOpExpr *) AssignmentStmt->getExpr();
+
+        const ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
+        EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_VAR_REF);
+
+        const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
+        EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
+        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
+    }
+
+    TEST_F(ParserTest, BinaryAssignSubExpr) {
+        llvm::StringRef str = (
+                "void func(int a) {\n"
+                "  a -= 1"
+                "}\n");
+        ASTModule *Module = Parse("BinaryAssignSubExpr", str);
+        ASSERT_TRUE(Resolve());
+
+        // Get Body
+        ASTFunction *Func = *Module->getFunctions().begin();
+        const ASTBlockStmt *Body = Func->getBody();
+
+        // a -= 1
+        const ASTAssignmentStmt *AssignmentStmt = (ASTAssignmentStmt *) Body->getContent()[0];
+        EXPECT_EQ(AssignmentStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_OP);
+        EXPECT_EQ(((ASTOpExpr *) AssignmentStmt->getExpr())->getOpExprKind(), ASTOpExprKind::OP_BINARY);
+        EXPECT_EQ(((ASTBinaryOpExpr *) AssignmentStmt->getExpr())->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_ASSIGN_SUB);
+        ASTBinaryOpExpr *BinaryExpr = (ASTBinaryOpExpr *) AssignmentStmt->getExpr();
+
+        const ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
+        EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_VAR_REF);
+
+        const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
+        EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
+        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
+    }
+
+    TEST_F(ParserTest, BinaryAssignMulExpr) {
+        llvm::StringRef str = (
+                "void func(int a) {\n"
+                "  a *= 1"
+                "}\n");
+        ASTModule *Module = Parse("BinaryAssignMulExpr", str);
+        ASSERT_TRUE(Resolve());
+
+        // Get Body
+        ASTFunction *Func = *Module->getFunctions().begin();
+        const ASTBlockStmt *Body = Func->getBody();
+
+        // a *= 1
+        const ASTAssignmentStmt *AssignmentStmt = (ASTAssignmentStmt *) Body->getContent()[0];
+        EXPECT_EQ(AssignmentStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_OP);
+        EXPECT_EQ(((ASTOpExpr *) AssignmentStmt->getExpr())->getOpExprKind(), ASTOpExprKind::OP_BINARY);
+        EXPECT_EQ(((ASTBinaryOpExpr *) AssignmentStmt->getExpr())->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_ASSIGN_MUL);
+        ASTBinaryOpExpr *BinaryExpr = (ASTBinaryOpExpr *) AssignmentStmt->getExpr();
+
+        const ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
+        EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_VAR_REF);
+
+        const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
+        EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
+        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
+    }
+
+    TEST_F(ParserTest, BinaryAssignDivExpr) {
+        llvm::StringRef str = (
+                "void func(int a) {\n"
+                "  a /= 1"
+                "}\n");
+        ASTModule *Module = Parse("BinaryAssignDivExpr", str);
+        ASSERT_TRUE(Resolve());
+
+        // Get Body
+        ASTFunction *Func = *Module->getFunctions().begin();
+        const ASTBlockStmt *Body = Func->getBody();
+
+        // a /= 1
+        const ASTAssignmentStmt *AssignmentStmt = (ASTAssignmentStmt *) Body->getContent()[0];
+        EXPECT_EQ(AssignmentStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_OP);
+        EXPECT_EQ(((ASTOpExpr *) AssignmentStmt->getExpr())->getOpExprKind(), ASTOpExprKind::OP_BINARY);
+        EXPECT_EQ(((ASTBinaryOpExpr *) AssignmentStmt->getExpr())->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_ASSIGN_DIV);
+        ASTBinaryOpExpr *BinaryExpr = (ASTBinaryOpExpr *) AssignmentStmt->getExpr();
+
+        const ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
+        EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_VAR_REF);
+
+        const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
+        EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
+        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
+    }
+
+    TEST_F(ParserTest, BinaryAssignModExpr) {
+        llvm::StringRef str = (
+                "void func(int a) {\n"
+                "  a %= 1"
+                "}\n");
+        ASTModule *Module = Parse("BinaryAssignModExpr", str);
+        ASSERT_TRUE(Resolve());
+
+        // Get Body
+        ASTFunction *Func = *Module->getFunctions().begin();
+        const ASTBlockStmt *Body = Func->getBody();
+
+        // a %= 1
+        const ASTAssignmentStmt *AssignmentStmt = (ASTAssignmentStmt *) Body->getContent()[0];
+        EXPECT_EQ(AssignmentStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_OP);
+        EXPECT_EQ(((ASTOpExpr *) AssignmentStmt->getExpr())->getOpExprKind(), ASTOpExprKind::OP_BINARY);
+        EXPECT_EQ(((ASTBinaryOpExpr *) AssignmentStmt->getExpr())->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_ASSIGN_MOD);
+        ASTBinaryOpExpr *BinaryExpr = (ASTBinaryOpExpr *) AssignmentStmt->getExpr();
+
+        const ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
+        EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_VAR_REF);
+
+        const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
+        EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
+        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
+    }
+
+    TEST_F(ParserTest, BinaryAssignAndExpr) {
+        llvm::StringRef str = (
+                "void func(int a) {\n"
+                "  a &= 1"
+                "}\n");
+        ASTModule *Module = Parse("BinaryAssignAndExpr", str);
+        ASSERT_TRUE(Resolve());
+
+        // Get Body
+        ASTFunction *Func = *Module->getFunctions().begin();
+        const ASTBlockStmt *Body = Func->getBody();
+
+        // a &= 1
+        const ASTAssignmentStmt *AssignmentStmt = (ASTAssignmentStmt *) Body->getContent()[0];
+        EXPECT_EQ(AssignmentStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_OP);
+        EXPECT_EQ(((ASTOpExpr *) AssignmentStmt->getExpr())->getOpExprKind(), ASTOpExprKind::OP_BINARY);
+        EXPECT_EQ(((ASTBinaryOpExpr *) AssignmentStmt->getExpr())->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_ASSIGN_AND);
+        ASTBinaryOpExpr *BinaryExpr = (ASTBinaryOpExpr *) AssignmentStmt->getExpr();
+
+        const ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
+        EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_VAR_REF);
+
+        const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
+        EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
+        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
+    }
+
+    TEST_F(ParserTest, BinaryAssignOrExpr) {
+        llvm::StringRef str = (
+                "void func(int a) {\n"
+                "  a |= 1"
+                "}\n");
+        ASTModule *Module = Parse("BinaryAssignOrExpr", str);
+        ASSERT_TRUE(Resolve());
+
+        // Get Body
+        ASTFunction *Func = *Module->getFunctions().begin();
+        const ASTBlockStmt *Body = Func->getBody();
+
+        // a |= 1
+        const ASTAssignmentStmt *AssignmentStmt = (ASTAssignmentStmt *) Body->getContent()[0];
+        EXPECT_EQ(AssignmentStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_OP);
+        EXPECT_EQ(((ASTOpExpr *) AssignmentStmt->getExpr())->getOpExprKind(), ASTOpExprKind::OP_BINARY);
+        EXPECT_EQ(((ASTBinaryOpExpr *) AssignmentStmt->getExpr())->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_ASSIGN_OR);
+        ASTBinaryOpExpr *BinaryExpr = (ASTBinaryOpExpr *) AssignmentStmt->getExpr();
+
+        const ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
+        EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_VAR_REF);
+
+        const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
+        EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
+        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
+    }
+
+    TEST_F(ParserTest, BinaryAssignXorExpr) {
+        llvm::StringRef str = (
+                "void func(int a) {\n"
+                "  a ^= 1"
+                "}\n");
+        ASTModule *Module = Parse("BinaryAssignXorExpr", str);
+        ASSERT_TRUE(Resolve());
+
+        // Get Body
+        ASTFunction *Func = *Module->getFunctions().begin();
+        const ASTBlockStmt *Body = Func->getBody();
+
+        // a ^= 1
+        const ASTAssignmentStmt *AssignmentStmt = (ASTAssignmentStmt *) Body->getContent()[0];
+        EXPECT_EQ(AssignmentStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_OP);
+        EXPECT_EQ(((ASTOpExpr *) AssignmentStmt->getExpr())->getOpExprKind(), ASTOpExprKind::OP_BINARY);
+        EXPECT_EQ(((ASTBinaryOpExpr *) AssignmentStmt->getExpr())->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_ASSIGN_XOR);
+        ASTBinaryOpExpr *BinaryExpr = (ASTBinaryOpExpr *) AssignmentStmt->getExpr();
+
+        const ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
+        EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_VAR_REF);
+
+        const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
+        EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
+        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
+    }
+
+    TEST_F(ParserTest, BinaryAssignShiftLExpr) {
+        llvm::StringRef str = (
+                "void func(int a) {\n"
+                "  a <<= 1"
+                "}\n");
+        ASTModule *Module = Parse("BinaryAssignShiftLExpr", str);
+        ASSERT_TRUE(Resolve());
+
+        // Get Body
+        ASTFunction *Func = *Module->getFunctions().begin();
+        const ASTBlockStmt *Body = Func->getBody();
+
+        // a <<= 1
+        const ASTAssignmentStmt *AssignmentStmt = (ASTAssignmentStmt *) Body->getContent()[0];
+        EXPECT_EQ(AssignmentStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_OP);
+        EXPECT_EQ(((ASTOpExpr *) AssignmentStmt->getExpr())->getOpExprKind(), ASTOpExprKind::OP_BINARY);
+        EXPECT_EQ(((ASTBinaryOpExpr *) AssignmentStmt->getExpr())->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_ASSIGN_SHIFT_L);
+        ASTBinaryOpExpr *BinaryExpr = (ASTBinaryOpExpr *) AssignmentStmt->getExpr();
+
+        const ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
+        EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_VAR_REF);
+
+        const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
+        EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
+        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
+    }
+
+    TEST_F(ParserTest, BinaryAssignShiftRExpr) {
+        llvm::StringRef str = (
+                "void func(int a) {\n"
+                "  a >>= 1"
+                "}\n");
+        ASTModule *Module = Parse("BinaryAssignShiftRExpr", str);
+        ASSERT_TRUE(Resolve());
+
+        // Get Body
+        ASTFunction *Func = *Module->getFunctions().begin();
+        const ASTBlockStmt *Body = Func->getBody();
+
+        // a <<= 1
+        const ASTAssignmentStmt *AssignmentStmt = (ASTAssignmentStmt *) Body->getContent()[0];
+        EXPECT_EQ(AssignmentStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_OP);
+        EXPECT_EQ(((ASTOpExpr *) AssignmentStmt->getExpr())->getOpExprKind(), ASTOpExprKind::OP_BINARY);
+        EXPECT_EQ(((ASTBinaryOpExpr *) AssignmentStmt->getExpr())->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_ASSIGN_SHIFT_R);
+        ASTBinaryOpExpr *BinaryExpr = (ASTBinaryOpExpr *) AssignmentStmt->getExpr();
+
+        const ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
+        EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_VAR_REF);
+
+        const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
+        EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
+        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
+    }
+
+    TEST_F(ParserTest, BinaryAddExpr) {
+        llvm::StringRef str = (
+                "void func(int a) {\n"
+                "  a = a + 1"
+                "}\n");
+        ASTModule *Module = Parse("BinaryAddExpr", str);
+        ASSERT_TRUE(Resolve());
+
+        // Get Body
+        ASTFunction *Func = *Module->getFunctions().begin();
+        const ASTBlockStmt *Body = Func->getBody();
+
+        // a = a + 1
+        const ASTAssignmentStmt *AssignmentStmt = (ASTAssignmentStmt *) Body->getContent()[0];
+        EXPECT_EQ(AssignmentStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_OP);
+        EXPECT_EQ(((ASTOpExpr *) AssignmentStmt->getExpr())->getOpExprKind(), ASTOpExprKind::OP_BINARY);
+        EXPECT_EQ(((ASTBinaryOpExpr *) AssignmentStmt->getExpr())->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_ADD);
+        ASTBinaryOpExpr *BinaryExpr = (ASTBinaryOpExpr *) AssignmentStmt->getExpr();
+
+        const ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
+        EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_VAR_REF);
+
+        const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
+        EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
+        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
+    }
+
+    TEST_F(ParserTest, BinarySubExpr) {
+        llvm::StringRef str = (
+                "void func(int a) {\n"
+                "  a = a - 1"
+                "}\n");
+        ASTModule *Module = Parse("BinarySubExpr", str);
+        ASSERT_TRUE(Resolve());
+
+        // Get Body
+        ASTFunction *Func = *Module->getFunctions().begin();
+        const ASTBlockStmt *Body = Func->getBody();
+
+        // a = a - 1
+        const ASTAssignmentStmt *AssignmentStmt = (ASTAssignmentStmt *) Body->getContent()[0];
+        EXPECT_EQ(AssignmentStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_OP);
+        EXPECT_EQ(((ASTOpExpr *) AssignmentStmt->getExpr())->getOpExprKind(), ASTOpExprKind::OP_BINARY);
+        EXPECT_EQ(((ASTBinaryOpExpr *) AssignmentStmt->getExpr())->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_SUB);
+        ASTBinaryOpExpr *BinaryExpr = (ASTBinaryOpExpr *) AssignmentStmt->getExpr();
+
+        const ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
+        EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_VAR_REF);
+
+        const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
+        EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
+        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
+    }
+
+    TEST_F(ParserTest, BinaryMulExpr) {
+        llvm::StringRef str = (
+                "void func(int a) {\n"
+                "  a = a * 1"
+                "}\n");
+        ASTModule *Module = Parse("BinaryMulExpr", str);
+        ASSERT_TRUE(Resolve());
+
+        // Get Body
+        ASTFunction *Func = *Module->getFunctions().begin();
+        const ASTBlockStmt *Body = Func->getBody();
+
+        // a = a * 1
+        const ASTAssignmentStmt *AssignmentStmt = (ASTAssignmentStmt *) Body->getContent()[0];
+        EXPECT_EQ(AssignmentStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_OP);
+        EXPECT_EQ(((ASTOpExpr *) AssignmentStmt->getExpr())->getOpExprKind(), ASTOpExprKind::OP_BINARY);
+        EXPECT_EQ(((ASTBinaryOpExpr *) AssignmentStmt->getExpr())->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_MUL);
+        ASTBinaryOpExpr *BinaryExpr = (ASTBinaryOpExpr *) AssignmentStmt->getExpr();
+
+        const ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
+        EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_VAR_REF);
+
+        const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
+        EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
+        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
+    }
+
+    TEST_F(ParserTest, BinaryDivExpr) {
+        llvm::StringRef str = (
+                "void func(int a) {\n"
+                "  a = a / 1"
+                "}\n");
+        ASTModule *Module = Parse("BinaryDivExpr", str);
+        ASSERT_TRUE(Resolve());
+
+        // Get Body
+        ASTFunction *Func = *Module->getFunctions().begin();
+        const ASTBlockStmt *Body = Func->getBody();
+
+        // a = a / 1
+        const ASTAssignmentStmt *AssignmentStmt = (ASTAssignmentStmt *) Body->getContent()[0];
+        EXPECT_EQ(AssignmentStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_OP);
+        EXPECT_EQ(((ASTOpExpr *) AssignmentStmt->getExpr())->getOpExprKind(), ASTOpExprKind::OP_BINARY);
+        EXPECT_EQ(((ASTBinaryOpExpr *) AssignmentStmt->getExpr())->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_DIV);
+        ASTBinaryOpExpr *BinaryExpr = (ASTBinaryOpExpr *) AssignmentStmt->getExpr();
+
+        const ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
+        EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_VAR_REF);
+
+        const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
+        EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
+        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
+    }
+
+    TEST_F(ParserTest, BinaryModExpr) {
+        llvm::StringRef str = (
+                "void func(int a) {\n"
+                "  a = a % 1"
+                "}\n");
+        ASTModule *Module = Parse("BinaryModExpr", str);
+        ASSERT_TRUE(Resolve());
+
+        // Get Body
+        ASTFunction *Func = *Module->getFunctions().begin();
+        const ASTBlockStmt *Body = Func->getBody();
+
+        // a = a % 1
+        const ASTAssignmentStmt *AssignmentStmt = (ASTAssignmentStmt *) Body->getContent()[0];
+        EXPECT_EQ(AssignmentStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_OP);
+        EXPECT_EQ(((ASTOpExpr *) AssignmentStmt->getExpr())->getOpExprKind(), ASTOpExprKind::OP_BINARY);
+        EXPECT_EQ(((ASTBinaryOpExpr *) AssignmentStmt->getExpr())->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_MOD);
+        ASTBinaryOpExpr *BinaryExpr = (ASTBinaryOpExpr *) AssignmentStmt->getExpr();
+
+        const ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
+        EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_VAR_REF);
+
+        const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
+        EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
+        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
+    }
+
+    TEST_F(ParserTest, BinaryAndExpr) {
+        llvm::StringRef str = (
+                "void func(int a) {\n"
+                "  a = a & 1"
+                "}\n");
+        ASTModule *Module = Parse("BinaryAndExpr", str);
+        ASSERT_TRUE(Resolve());
+
+        // Get Body
+        ASTFunction *Func = *Module->getFunctions().begin();
+        const ASTBlockStmt *Body = Func->getBody();
+
+        // a = a & 1
+        const ASTAssignmentStmt *AssignmentStmt = (ASTAssignmentStmt *) Body->getContent()[0];
+        EXPECT_EQ(AssignmentStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_OP);
+        EXPECT_EQ(((ASTOpExpr *) AssignmentStmt->getExpr())->getOpExprKind(), ASTOpExprKind::OP_BINARY);
+        EXPECT_EQ(((ASTBinaryOpExpr *) AssignmentStmt->getExpr())->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_AND);
+        ASTBinaryOpExpr *BinaryExpr = (ASTBinaryOpExpr *) AssignmentStmt->getExpr();
+
+        const ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
+        EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_VAR_REF);
+
+        const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
+        EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
+        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
+    }
+
+    TEST_F(ParserTest, BinaryOrExpr) {
+        llvm::StringRef str = (
+                "void func(int a) {\n"
+                "  a = a | 1"
+                "}\n");
+        ASTModule *Module = Parse("BinaryOrExpr", str);
+        ASSERT_TRUE(Resolve());
+
+        // Get Body
+        ASTFunction *Func = *Module->getFunctions().begin();
+        const ASTBlockStmt *Body = Func->getBody();
+
+        // a = a | 1
+        const ASTAssignmentStmt *AssignmentStmt = (ASTAssignmentStmt *) Body->getContent()[0];
+        EXPECT_EQ(AssignmentStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_OP);
+        EXPECT_EQ(((ASTOpExpr *) AssignmentStmt->getExpr())->getOpExprKind(), ASTOpExprKind::OP_BINARY);
+        EXPECT_EQ(((ASTBinaryOpExpr *) AssignmentStmt->getExpr())->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_OR);
+        ASTBinaryOpExpr *BinaryExpr = (ASTBinaryOpExpr *) AssignmentStmt->getExpr();
+
+        const ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
+        EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_VAR_REF);
+
+        const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
+        EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
+        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
+    }
+
+    TEST_F(ParserTest, BinaryXorExpr) {
+        llvm::StringRef str = (
+                "void func(int a) {\n"
+                "  a = a ^ 1"
+                "}\n");
+        ASTModule *Module = Parse("BinaryXorExpr", str);
+        ASSERT_TRUE(Resolve());
+
+        // Get Body
+        ASTFunction *Func = *Module->getFunctions().begin();
+        const ASTBlockStmt *Body = Func->getBody();
+
+        // a = a | 1
+        const ASTAssignmentStmt *AssignmentStmt = (ASTAssignmentStmt *) Body->getContent()[0];
+        EXPECT_EQ(AssignmentStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_OP);
+        EXPECT_EQ(((ASTOpExpr *) AssignmentStmt->getExpr())->getOpExprKind(), ASTOpExprKind::OP_BINARY);
+        EXPECT_EQ(((ASTBinaryOpExpr *) AssignmentStmt->getExpr())->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_XOR);
+        ASTBinaryOpExpr *BinaryExpr = (ASTBinaryOpExpr *) AssignmentStmt->getExpr();
+
+        const ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
+        EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_VAR_REF);
+
+        const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
+        EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
+        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
+    }
+
+    TEST_F(ParserTest, BinaryShiftLExpr) {
+        llvm::StringRef str = (
+                "void func(int a) {\n"
+                "  a = a << 1"
+                "}\n");
+        ASTModule *Module = Parse("BinaryShiftLExpr", str);
+        ASSERT_TRUE(Resolve());
+
+        // Get Body
+        ASTFunction *Func = *Module->getFunctions().begin();
+        const ASTBlockStmt *Body = Func->getBody();
+
+        // a = a << 1
+        const ASTAssignmentStmt *AssignmentStmt = (ASTAssignmentStmt *) Body->getContent()[0];
+        EXPECT_EQ(AssignmentStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_OP);
+        EXPECT_EQ(((ASTOpExpr *) AssignmentStmt->getExpr())->getOpExprKind(), ASTOpExprKind::OP_BINARY);
+        EXPECT_EQ(((ASTBinaryOpExpr *) AssignmentStmt->getExpr())->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_SHIFT_L);
+        ASTBinaryOpExpr *BinaryExpr = (ASTBinaryOpExpr *) AssignmentStmt->getExpr();
+
+        const ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
+        EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_VAR_REF);
+
+        const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
+        EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
+        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
+    }
+
+    TEST_F(ParserTest, BinaryShiftRExpr) {
+        llvm::StringRef str = (
+                "void func(int a) {\n"
+                "  a = a >> 1"
+                "}\n");
+        ASTModule *Module = Parse("BinaryShiftRExpr", str);
+        ASSERT_TRUE(Resolve());
+
+        // Get Body
+        ASTFunction *Func = *Module->getFunctions().begin();
+        const ASTBlockStmt *Body = Func->getBody();
+
+        // a = a << 1
+        const ASTAssignmentStmt *AssignmentStmt = (ASTAssignmentStmt *) Body->getContent()[0];
+        EXPECT_EQ(AssignmentStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_OP);
+        EXPECT_EQ(((ASTOpExpr *) AssignmentStmt->getExpr())->getOpExprKind(), ASTOpExprKind::OP_BINARY);
+        EXPECT_EQ(((ASTBinaryOpExpr *) AssignmentStmt->getExpr())->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_SHIFT_R);
+        ASTBinaryOpExpr *BinaryExpr = (ASTBinaryOpExpr *) AssignmentStmt->getExpr();
+
+        const ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
+        EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_VAR_REF);
+
+        const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
+        EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
+        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
+    }
+
+    TEST_F(ParserTest, BinaryLogicAndExpr) {
+        llvm::StringRef str = (
+                "void func(bool a) {\n"
+                "  a = a && true"
+                "}\n");
+        ASTModule *Module = Parse("BinaryLogicAndExpr", str);
+        ASSERT_TRUE(Resolve());
+
+        // Get Body
+        ASTFunction *Func = *Module->getFunctions().begin();
+        const ASTBlockStmt *Body = Func->getBody();
+
+        // a = a && true
+        const ASTAssignmentStmt *AssignmentStmt = (ASTAssignmentStmt *) Body->getContent()[0];
+        EXPECT_EQ(AssignmentStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_OP);
+        EXPECT_EQ(((ASTOpExpr *) AssignmentStmt->getExpr())->getOpExprKind(), ASTOpExprKind::OP_BINARY);
+        EXPECT_EQ(((ASTBinaryOpExpr *) AssignmentStmt->getExpr())->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_AND_LOG);
+        ASTBinaryOpExpr *BinaryExpr = (ASTBinaryOpExpr *) AssignmentStmt->getExpr();
+
+        const ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
+        EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_VAR_REF);
+
+        const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
+        EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
+        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "true");
+    }
+
+    TEST_F(ParserTest, BinaryLogicOrExpr) {
+        llvm::StringRef str = (
+                "void func(bool a) {\n"
+                "  a = a || true"
+                "}\n");
+        ASTModule *Module = Parse("BinaryLogicOrExpr", str);
+        ASSERT_TRUE(Resolve());
+
+        // Get Body
+        ASTFunction *Func = *Module->getFunctions().begin();
+        const ASTBlockStmt *Body = Func->getBody();
+
+        // a = a || true
+        const ASTAssignmentStmt *AssignmentStmt = (ASTAssignmentStmt *) Body->getContent()[0];
+        EXPECT_EQ(AssignmentStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_OP);
+        EXPECT_EQ(((ASTOpExpr *) AssignmentStmt->getExpr())->getOpExprKind(), ASTOpExprKind::OP_BINARY);
+        EXPECT_EQ(((ASTBinaryOpExpr *) AssignmentStmt->getExpr())->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_OR_LOG);
+        ASTBinaryOpExpr *BinaryExpr = (ASTBinaryOpExpr *) AssignmentStmt->getExpr();
+
+        const ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
+        EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_VAR_REF);
+
+        const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
+        EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
+        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "true");
+    }
+
+    TEST_F(ParserTest, BinaryComparisonEqualExpr) {
+        llvm::StringRef str = (
+                "void func(bool a) {\n"
+                "  a = a == true"
+                "}\n");
+        ASTModule *Module = Parse("BinaryComparisonEqualExpr", str);
+        ASSERT_TRUE(Resolve());
+
+        // Get Body
+        ASTFunction *Func = *Module->getFunctions().begin();
+        const ASTBlockStmt *Body = Func->getBody();
+
+        // a = a == true
+        const ASTAssignmentStmt *AssignmentStmt = (ASTAssignmentStmt *) Body->getContent()[0];
+        EXPECT_EQ(AssignmentStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_OP);
+        EXPECT_EQ(((ASTOpExpr *) AssignmentStmt->getExpr())->getOpExprKind(), ASTOpExprKind::OP_BINARY);
+        EXPECT_EQ(((ASTBinaryOpExpr *) AssignmentStmt->getExpr())->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_EQ);
+        ASTBinaryOpExpr *BinaryExpr = (ASTBinaryOpExpr *) AssignmentStmt->getExpr();
+
+        const ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
+        EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_VAR_REF);
+
+        const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
+        EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
+        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "true");
+    }
+
+    TEST_F(ParserTest, BinaryComparisonNotEqualExpr) {
+        llvm::StringRef str = (
+                "void func(bool a) {\n"
+                "  a = a != true"
+                "}\n");
+        ASTModule *Module = Parse("BinaryComparisonNotEqualExpr", str);
+        ASSERT_TRUE(Resolve());
+
+        // Get Body
+        ASTFunction *Func = *Module->getFunctions().begin();
+        const ASTBlockStmt *Body = Func->getBody();
+
+        // a = a != true
+        const ASTAssignmentStmt *AssignmentStmt = (ASTAssignmentStmt *) Body->getContent()[0];
+        EXPECT_EQ(AssignmentStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_OP);
+        EXPECT_EQ(((ASTOpExpr *) AssignmentStmt->getExpr())->getOpExprKind(), ASTOpExprKind::OP_BINARY);
+        EXPECT_EQ(((ASTBinaryOpExpr *) AssignmentStmt->getExpr())->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_NE);
+        ASTBinaryOpExpr *BinaryExpr = (ASTBinaryOpExpr *) AssignmentStmt->getExpr();
+
+        const ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
+        EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_VAR_REF);
+
+        const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
+        EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
+        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "true");
+    }
+
+    TEST_F(ParserTest, BinaryComparisonGreaterThanExpr) {
+        llvm::StringRef str = (
+                "void func(bool a) {\n"
+                "  a = a > true"
+                "}\n");
+        ASTModule *Module = Parse("BinaryComparisonGreaterThanExpr", str);
+        ASSERT_TRUE(Resolve());
+
+        // Get Body
+        ASTFunction *Func = *Module->getFunctions().begin();
+        const ASTBlockStmt *Body = Func->getBody();
+
+        // a = a > true
+        const ASTAssignmentStmt *AssignmentStmt = (ASTAssignmentStmt *) Body->getContent()[0];
+        EXPECT_EQ(AssignmentStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_OP);
+        EXPECT_EQ(((ASTOpExpr *) AssignmentStmt->getExpr())->getOpExprKind(), ASTOpExprKind::OP_BINARY);
+        EXPECT_EQ(((ASTBinaryOpExpr *) AssignmentStmt->getExpr())->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_GT);
+        ASTBinaryOpExpr *BinaryExpr = (ASTBinaryOpExpr *) AssignmentStmt->getExpr();
+
+        const ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
+        EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_VAR_REF);
+
+        const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
+        EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
+        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "true");
+    }
+
+    TEST_F(ParserTest, BinaryComparisonGreaterThanEqualExpr) {
+        llvm::StringRef str = (
+                "void func(bool a) {\n"
+                "  a = a >= true"
+                "}\n");
+        ASTModule *Module = Parse("BinaryComparisonGreaterThanEqualExpr", str);
+        ASSERT_TRUE(Resolve());
+
+        // Get Body
+        ASTFunction *Func = *Module->getFunctions().begin();
+        const ASTBlockStmt *Body = Func->getBody();
+
+        // a = a >= true
+        const ASTAssignmentStmt *AssignmentStmt = (ASTAssignmentStmt *) Body->getContent()[0];
+        EXPECT_EQ(AssignmentStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_OP);
+        EXPECT_EQ(((ASTOpExpr *) AssignmentStmt->getExpr())->getOpExprKind(), ASTOpExprKind::OP_BINARY);
+        EXPECT_EQ(((ASTBinaryOpExpr *) AssignmentStmt->getExpr())->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_GTE);
+        ASTBinaryOpExpr *BinaryExpr = (ASTBinaryOpExpr *) AssignmentStmt->getExpr();
+
+        const ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
+        EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_VAR_REF);
+
+        const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
+        EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
+        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "true");
+    }
+
+    TEST_F(ParserTest, BinaryComparisonLessThanExpr) {
+        llvm::StringRef str = (
+                "void func(bool a) {\n"
+                "  a = a < true"
+                "}\n");
+        ASTModule *Module = Parse("BinaryComparisonLessThanExpr", str);
+        ASSERT_TRUE(Resolve());
+
+        // Get Body
+        ASTFunction *Func = *Module->getFunctions().begin();
+        const ASTBlockStmt *Body = Func->getBody();
+
+        // a = a < true
+        const ASTAssignmentStmt *AssignmentStmt = (ASTAssignmentStmt *) Body->getContent()[0];
+        EXPECT_EQ(AssignmentStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_OP);
+        EXPECT_EQ(((ASTOpExpr *) AssignmentStmt->getExpr())->getOpExprKind(), ASTOpExprKind::OP_BINARY);
+        EXPECT_EQ(((ASTBinaryOpExpr *) AssignmentStmt->getExpr())->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_LT);
+        ASTBinaryOpExpr *BinaryExpr = (ASTBinaryOpExpr *) AssignmentStmt->getExpr();
+
+        const ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
+        EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_VAR_REF);
+
+        const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
+        EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
+        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "true");
+    }
+
+    TEST_F(ParserTest, BinaryComparisonLessThanEqualExpr) {
+        llvm::StringRef str = (
+                "void func(bool a) {\n"
+                "  a = a <= true"
+                "}\n");
+        ASTModule *Module = Parse("BinaryComparisonLessThanEqualExpr", str);
+        ASSERT_TRUE(Resolve());
+
+        // Get Body
+        ASTFunction *Func = *Module->getFunctions().begin();
+        const ASTBlockStmt *Body = Func->getBody();
+
+        // a = a <= true
+        const ASTAssignmentStmt *AssignmentStmt = (ASTAssignmentStmt *) Body->getContent()[0];
+        EXPECT_EQ(AssignmentStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_OP);
+        EXPECT_EQ(((ASTOpExpr *) AssignmentStmt->getExpr())->getOpExprKind(), ASTOpExprKind::OP_BINARY);
+        EXPECT_EQ(((ASTBinaryOpExpr *) AssignmentStmt->getExpr())->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_LTE);
+        ASTBinaryOpExpr *BinaryExpr = (ASTBinaryOpExpr *) AssignmentStmt->getExpr();
+
+        const ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
+        EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_VAR_REF);
+
+        const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
+        EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
+        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "true");
+    }
+
+    TEST_F(ParserTest, BinaryAddMulExpr) {
+        llvm::StringRef str = (
+                "void func(int a) {\n"
+                "  a = a + 2 * a"
+                "}\n");
+        ASTModule *Module = Parse("BinaryAddMulExpr", str);
+        ASSERT_TRUE(Resolve());
+
+        // Get Body
+        ASTFunction *Func = *Module->getFunctions().begin();
+        const ASTBlockStmt *Body = Func->getBody();
+
+        // a = a + 2 * a
+        const ASTAssignmentStmt *AssignmentStmt = (ASTAssignmentStmt *) Body->getContent()[0];
+        EXPECT_EQ(AssignmentStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_OP);
+        EXPECT_EQ(((ASTOpExpr *) AssignmentStmt->getExpr())->getOpExprKind(), ASTOpExprKind::OP_BINARY);
+        EXPECT_EQ(((ASTBinaryOpExpr *) AssignmentStmt->getExpr())->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_ADD);
+        ASTBinaryOpExpr *BinaryAddExpr = (ASTBinaryOpExpr *) AssignmentStmt->getExpr();
+
+        const ASTExpr *LeftExpr = BinaryAddExpr->getLeftExpr();
+        EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_VAR_REF);
+
+        const ASTExpr *RightExpr = (ASTValueExpr *) BinaryAddExpr->getRightExpr();
+        EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_OP);
+        ASTBinaryOpExpr *BinaryMulExpr = (ASTBinaryOpExpr *) RightExpr;
+        EXPECT_EQ(BinaryMulExpr->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_MUL);
+        
+        EXPECT_EQ(((ASTValueExpr *) BinaryMulExpr->getLeftExpr())->getValue()->print(), "2");
+        EXPECT_EQ(BinaryMulExpr->getRightExpr()->getExprKind(), ASTExprKind::EXPR_VAR_REF);
+    }
+
+    TEST_F(ParserTest, BinarySubDivExpr) {
+        llvm::StringRef str = (
+                "void func(int a) {\n"
+                "  a = a - 2 / a"
+                "}\n");
+        ASTModule *Module = Parse("BinarySubDivExpr", str);
+        ASSERT_TRUE(Resolve());
+
+        // Get Body
+        ASTFunction *Func = *Module->getFunctions().begin();
+        const ASTBlockStmt *Body = Func->getBody();
+
+        // a = a - 2 / a
+        const ASTAssignmentStmt *AssignmentStmt = (ASTAssignmentStmt *) Body->getContent()[0];
+        EXPECT_EQ(AssignmentStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_OP);
+        EXPECT_EQ(((ASTOpExpr *) AssignmentStmt->getExpr())->getOpExprKind(), ASTOpExprKind::OP_BINARY);
+        EXPECT_EQ(((ASTBinaryOpExpr *) AssignmentStmt->getExpr())->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_SUB);
+        ASTBinaryOpExpr *BinaryAddExpr = (ASTBinaryOpExpr *) AssignmentStmt->getExpr();
+
+        const ASTExpr *LeftExpr = BinaryAddExpr->getLeftExpr();
+        EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_VAR_REF);
+
+        const ASTExpr *RightExpr = (ASTValueExpr *) BinaryAddExpr->getRightExpr();
+        EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_OP);
+        ASTBinaryOpExpr *BinaryMulExpr = (ASTBinaryOpExpr *) RightExpr;
+        EXPECT_EQ(BinaryMulExpr->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_DIV);
+
+        EXPECT_EQ(((ASTValueExpr *) BinaryMulExpr->getLeftExpr())->getValue()->print(), "2");
+        EXPECT_EQ(BinaryMulExpr->getRightExpr()->getExprKind(), ASTExprKind::EXPR_VAR_REF);
+    }
+
+    TEST_F(ParserTest, BinaryParenExpr) {
+        llvm::StringRef str = (
+                "void func(int a) {\n"
+                "  a = (2 - a) % (a + 1)"
+                "}\n");
+        ASTModule *Module = Parse("BinaryParenExpr", str);
+        ASSERT_TRUE(Resolve());
+
+        // Get Body
+        ASTFunction *Func = *Module->getFunctions().begin();
+        const ASTBlockStmt *Body = Func->getBody();
+
+        // a = (2 - a) % (a + 1)
+        const ASTAssignmentStmt *AssignmentStmt = (ASTAssignmentStmt *) Body->getContent()[0];
+        EXPECT_EQ(AssignmentStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_OP);
+        EXPECT_EQ(((ASTOpExpr *) AssignmentStmt->getExpr())->getOpExprKind(), ASTOpExprKind::OP_BINARY);
+        EXPECT_EQ(((ASTBinaryOpExpr *) AssignmentStmt->getExpr())->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_MOD);
+        ASTBinaryOpExpr *BinaryModExpr = (ASTBinaryOpExpr *) AssignmentStmt->getExpr();
+
+        const ASTExpr *LeftExpr = BinaryModExpr->getLeftExpr();
+        EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_OP);
+        ASTBinaryOpExpr *BinarySubExpr = (ASTBinaryOpExpr *) LeftExpr;
+        EXPECT_EQ(BinarySubExpr->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_SUB);
+        EXPECT_EQ(((ASTValueExpr *) BinarySubExpr->getLeftExpr())->getValue()->print(), "2");
+        EXPECT_EQ(((ASTVarRefExpr *) BinarySubExpr->getRightExpr())->getVarRef()->getDef()->getName(), "a");
+
+        const ASTExpr *RightExpr = (ASTValueExpr *) BinaryModExpr->getRightExpr();
+        EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_OP);
+        ASTBinaryOpExpr *BinaryAddExpr = (ASTBinaryOpExpr *) RightExpr;
+        EXPECT_EQ(BinaryAddExpr->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_ADD);
+        EXPECT_EQ(((ASTVarRefExpr *) BinaryAddExpr->getLeftExpr())->getVarRef()->getDef()->getName(), "a");
+        EXPECT_EQ(((ASTValueExpr *) BinaryAddExpr->getRightExpr())->getValue()->print(), "1");
+    }
+
+    TEST_F(ParserTest, TernaryExpr) {
+        llvm::StringRef str = (
+                "void func(int a) {\n"
+                "  a = a==1 ? 1 : a"
+                "}\n");
+        ASTModule *Module = Parse("TernaryExpr", str);
+        ASSERT_TRUE(Resolve());
+
+        // Get Body
+        ASTFunction *Func = *Module->getFunctions().begin();
+        const ASTBlockStmt *Body = Func->getBody();
+
+        // a = a <= true
+        const ASTAssignmentStmt *AssignmentStmt = (ASTAssignmentStmt *) Body->getContent()[0];
+        EXPECT_EQ(AssignmentStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_OP);
+        EXPECT_EQ(((ASTOpExpr *) AssignmentStmt->getExpr())->getOpExprKind(), ASTOpExprKind::OP_TERNARY);
+        ASTTernaryOpExpr *TernaryExpr = (ASTTernaryOpExpr *) AssignmentStmt->getExpr();
+
+        const ASTExpr *ConditionExpr = TernaryExpr->getConditionExpr();
+        EXPECT_EQ(ConditionExpr->getExprKind(), ASTExprKind::EXPR_OP);
+        EXPECT_EQ(((ASTOpExpr *) ConditionExpr)->getOpExprKind(), ASTOpExprKind::OP_BINARY);
+        EXPECT_EQ(((ASTBinaryOpExpr *) ConditionExpr)->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_EQ);
+        ASTBinaryOpExpr *BinaryExpr = (ASTBinaryOpExpr *) ConditionExpr;
+
+        const ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
+        EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_VAR_REF);
+
+        const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
+        EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
+        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
+        
+        const ASTExpr *TrueExpr = TernaryExpr->getTrueExpr();
+        EXPECT_EQ(TrueExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
+        EXPECT_EQ(((ASTValueExpr *) TrueExpr)->getValue()->print(), "1");
+
+        const ASTExpr *FalseExpr = (ASTValueExpr *) TernaryExpr->getFalseExpr();
+        EXPECT_EQ(FalseExpr->getExprKind(), ASTExprKind::EXPR_VAR_REF);
+        EXPECT_EQ(((ASTVarRefExpr *) FalseExpr)->getVarRef()->getName(), "a");
+
+    }
+
 }
