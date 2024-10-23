@@ -12,12 +12,12 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "Lex/LiteralSupport.h"
+#include "Parser/LiteralSupport.h"
 #include "Basic/CharInfo.h"
 #include "Basic/SourceLocation.h"
 #include "Basic/TargetInfo.h"
-#include "Lex/Lexer.h"
-#include "Lex/Token.h"
+#include "Parser/Lexer.h"
+#include "Parser/Token.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringExtras.h"

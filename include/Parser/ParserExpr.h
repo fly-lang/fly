@@ -31,9 +31,7 @@ namespace fly {
         static ASTExpr *Parse(Parser *P, ASTExpr *Expr = nullptr);
 
     private:
-        ASTExpr *ParsePrimary();
-
-        ASTUnaryOpExpr *ParseUnaryExpr();
+        ASTExpr *ParsePrimary(bool Expected = false);
 
         ASTBinaryOpExpr *ParseBinaryExpr(ASTExpr *LeftExpr, Token OpToken, Precedence Precedence);
 

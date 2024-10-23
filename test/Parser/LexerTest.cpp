@@ -7,7 +7,7 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "Lex/Lexer.h"
+#include "Parser/Lexer.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/DiagnosticOptions.h"
 #include "Basic/FileManager.h"

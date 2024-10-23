@@ -11,15 +11,15 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "Lex/Lexer.h"
-#include "Lex/UnicodeCharSets.h"
+#include "Parser/Lexer.h"
+#include "Parser/UnicodeCharSets.h"
 #include "Basic/CharInfo.h"
 #include "Basic/IdentifierTable.h"
 #include "Basic/SourceLocation.h"
 #include "Basic/SourceManager.h"
 #include "Basic/TokenKinds.h"
-#include "Lex/LiteralSupport.h"
-#include "Lex/Token.h"
+#include "Parser/LiteralSupport.h"
+#include "Parser/Token.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/LLVM.h"
 #include "Basic/TokenKinds.h"

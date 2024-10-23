@@ -13,7 +13,7 @@
 #include "Basic/LLVM.h"
 #include "Basic/SourceLocation.h"
 #include "Basic/SourceManager.h"
-#include "Lex/Lexer.h"
+#include "Parser/Lexer.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/None.h"

@@ -21,6 +21,7 @@ namespace fly {
     class ParserClass {
 
         friend class Parser;
+        friend class ParserMethod;
 
         Parser *P;
 
@@ -28,15 +29,15 @@ namespace fly {
 
         unsigned short BraceCount = 0;
 
-        ParserClass(Parser *P, ASTComment *Comment, SmallVector<ASTScope *, 8> &Scopes);
+        ParserClass(Parser *P, ASTComment *Comment, llvm::SmallVector<ASTScope *, 8> &Scopes);
 
     public:
 
-        static ASTClass *Parse(Parser *P, ASTComment *Comment, SmallVector<ASTScope *, 8> &Scopes);
+        static ASTClass *Parse(Parser *P, ASTComment *Comment, llvm::SmallVector<ASTScope *, 8> &Scopes);
 
-        ASTClassAttribute *ParseAttribute(SmallVector<ASTScope *, 8> &Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name);
+        ASTClassAttribute *ParseAttribute(llvm::SmallVector<ASTScope *, 8> &Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name);
 
-        ASTClassMethod *ParseMethod(SmallVector<ASTScope *, 8> &Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name);
+        ASTClassMethod *ParseMethod(llvm::SmallVector<ASTScope *, 8> &Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name);
     };
 }
 

@@ -15,7 +15,7 @@
 #include "Basic/DiagnosticOptions.h"
 #include "Basic/SourceManager.h"
 #include "Frontend/TextDiagnostic.h"
-#include "Lex/Lexer.h"
+#include "Parser/Lexer.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"

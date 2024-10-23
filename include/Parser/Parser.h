@@ -10,8 +10,8 @@
 #ifndef FLY_PARSER_H
 #define FLY_PARSER_H
 
-#include "Lex/Token.h"
-#include "Lex/Lexer.h"
+#include "Token.h"
+#include "Lexer.h"
 
 namespace fly {
 
@@ -55,6 +55,7 @@ namespace fly {
         friend class ParserClass;
         friend class ParserEnum;
         friend class ParserExpr;
+        friend class ParserMethod;
 
         const InputFile &Input;
 
@@ -130,6 +131,7 @@ namespace fly {
         ASTExpr *ParseExpr();
 
         // Check Keywords
+        bool isBuiltinType(Token &Tok);
         bool isArrayType(Token &Tok);
         bool isValue();
         bool isConst();

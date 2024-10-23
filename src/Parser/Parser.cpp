@@ -288,15 +288,8 @@ ASTFunction *Parser::ParseFunctionDef(ASTComment *Comment, SmallVector<ASTScope 
     FLY_DEBUG_MESSAGE("Parser", "ParseFunctionDef",  Logger()
                                                     .AttrList("Scopes", Scopes)
                                                     .Attr("Type", Type).End());
-    assert(Tok.isAnyIdentifier() && "Tok must be an Identifier");
-    StringRef Name = Tok.getIdentifierInfo()->getName();
-    const SourceLocation &Loc = ConsumeToken();
 
-    llvm::SmallVector<ASTParam *, 8> Params = ParserFunction::ParseParams(this);
-    ASTBlockStmt *Body = isBlockStart() ? ParserFunction::ParseBody(this) : nullptr;
-    ASTFunction *Function = Builder.CreateFunction(Module, Loc, Type, Name, Scopes, Params, Body, Comment);
-    
-    return Function;
+    return ParserFunction::Parse(this, Scopes, Type, Comment);
 }
 
 /**
@@ -440,7 +433,7 @@ bool Parser::ParseStmt(ASTBlockStmt *Parent) {
     const Optional<Token> &NexTok = Lexer::findNextToken(Tok.getLocation(), SourceMgr);
 
     // Parse LocalVar
-    if (Tok.isAnyIdentifier() && NexTok->isAnyIdentifier() || Tok.isKeyword() && NexTok->isAnyIdentifier()) {
+    if (Tok.isAnyIdentifier() && NexTok->isAnyIdentifier() || isBuiltinType(Tok) && NexTok->isAnyIdentifier()) {
         // const int a
         // Type a
         // int a = ...
@@ -467,9 +460,8 @@ bool Parser::ParseStmt(ASTBlockStmt *Parent) {
                     ASTExpr *Expr = ParseExpr();
                     BuilderStmt->setExpr(Expr);
                 }
-
-                return ParseStmt(Parent);
             }
+            return ParseStmt(Parent);
         }
     } else if (Tok.isAnyIdentifier() && isAssignOperator(NexTok.getValue())) {
         // Parse Var
@@ -932,24 +924,14 @@ ASTArrayType *Parser::ParseArrayType(ASTType *Type) {
     assert(isArrayType(Tok) && "Invalid array parse");
 
     ASTArrayType *ArrayType = nullptr;
-    do {
-        const SourceLocation &Loc = ConsumeBracket();
-        ASTExpr *Expr;
-
-        if (Tok.is(tok::r_square)) {
-            ConsumeBracket();
-            Expr = Builder.CreateExpr(Builder.CreateIntegerValue(Loc, 0));
-            Type = Builder.CreateArrayType(Loc, Type, Expr);
-        } else {
-            Expr = ParseExpr();
-            if (Tok.is(tok::r_square)) {
-                ConsumeBracket();
-                Type = Builder.CreateArrayType(Loc, Type, Expr);
-            } else {
-                Diag(Loc, diag::err_parser_unclosed_bracket);
-            }
-        }
-    } while (Tok.is(tok::l_square));
+    const SourceLocation &Loc = ConsumeBracket();
+    ASTExpr *Expr = ParseExpr();
+    if (Tok.is(tok::r_square)) {
+        ConsumeBracket();
+        ArrayType = Builder.CreateArrayType(Loc, Type, Expr);
+    } else {
+        Diag(Loc, diag::err_parser_unclosed_bracket);
+    }
 
     return ArrayType;
 }
@@ -962,7 +944,9 @@ ASTType *Parser::ParseType() {
     FLY_DEBUG("Parser", "ParseType");
 
     ASTType *Type = nullptr;
-    if (Tok.isAnyIdentifier()) {
+    if (isBuiltinType(Tok)) {
+        Type = ParseBuiltinType();
+    } else if (Tok.isAnyIdentifier()) {
         ASTIdentifier *Identifier = ParseIdentifier();
         if (!Identifier->isCall()) {
             Type = Builder.CreateClassType(Identifier);
@@ -972,8 +956,6 @@ ASTType *Parser::ParseType() {
                 }
             }
         }
-    } else {
-        Type = ParseBuiltinType();
     }
 
     return Type;
@@ -1165,7 +1147,7 @@ ASTValue *Parser::ParseValues() {
     llvm::SmallVector<ASTValue *, 8> ArrayValues;
 
     // Parse array values Ex. {1, 2, 3}
-    while (Tok.isNot(tok::r_brace) && Tok.isNot(tok::eof)) {
+    while(Tok.isNot(tok::r_brace)) {
 
         // if is Identifier -> struct
         if (Tok.isAnyIdentifier()) {
@@ -1180,11 +1162,6 @@ ASTValue *Parser::ParseValues() {
                 ASTValue *Value = ParseValue();
                 if (Value) {
                     StructValues.insert(std::make_pair(Key, Value));
-                    if (Tok.is(tok::comma)) {
-                        ConsumeToken();
-                    } else {
-                        break;
-                    }
                 } else {
                     Diag(diag::err_invalid_value) << Tok.getName();
                 }
@@ -1193,17 +1170,17 @@ ASTValue *Parser::ParseValues() {
             ASTValue *Value = ParseValue();
             if (Value) {
                 ArrayValues.push_back(Value);
-                if (Tok.is(tok::comma)) {
-                    ConsumeToken();
-                } else {
-                    break;
-                }
             } else {
                 Diag(diag::err_invalid_value) << Tok.getName();
             }
         }
 
-    }
+        if (Tok.is(tok::comma)) {
+            ConsumeToken();
+        } else {
+            break;
+        }
+    };
 
     // End of Array
     if (Tok.is(tok::r_brace)) {
@@ -1224,9 +1201,15 @@ ASTExpr *Parser::ParseExpr() {
     return ParserExpr::Parse(this);
 }
 
+bool Parser::isBuiltinType(Token &Tok) {
+    FLY_DEBUG("Parser", "isBuiltinType");
+    return Tok.isOneOf(tok::kw_bool, tok::kw_byte, tok::kw_ushort, tok::kw_short, tok::kw_uint, tok::kw_int,
+                       tok::kw_ulong, tok::kw_long, tok::kw_float, tok::kw_double, tok::kw_void, tok::kw_string,
+                       tok::kw_error);
+}
+
 bool Parser::isArrayType(Token &Tok) {
     FLY_DEBUG("Parser", "isArrayType");
-
     return Tok.is(tok::l_square);
 }
 
@@ -1462,5 +1445,3 @@ bool Parser::isAssignOperator(const Token &Tok) const {
                    tok::percentequal, tok::ampequal, tok::pipeequal, tok::caretequal, tok::lesslessequal,
                    tok::greatergreaterequal);
 }
-
-

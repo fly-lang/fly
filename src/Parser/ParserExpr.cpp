@@ -38,6 +38,8 @@ Precedence getPrecedence(Token Tok) {
         case tok::ampamp:
         case tok::amp:
         case tok::caret:
+        case tok::lessless:
+        case tok::greatergreater:
             return Precedence::LOGICAL;
         case tok::equalequal:
         case tok::exclaimequal:
@@ -183,11 +185,11 @@ ParserExpr::ParserExpr(Parser *P, ASTExpr *Left) : P(P) {
 }
 
 ASTExpr *ParserExpr::Parse(Parser *P, ASTExpr *Expr) {
-    ParserExpr *EP = new ParserExpr(P, Expr);
-    return EP->Expr;
+    ParserExpr *PE = new ParserExpr(P, Expr);
+    return PE->Expr;
 }
 
-ASTExpr *ParserExpr::ParsePrimary() {
+ASTExpr *ParserExpr::ParsePrimary(bool Expected) {
     Token &Tok = P->Tok;
 
     if (P->isValue()) { // Ex. 1
@@ -211,7 +213,7 @@ ASTExpr *ParserExpr::ParsePrimary() {
     } else if (isUnaryPreOperator(P->Tok)) { // Ex. ++a or --a or !a
         ASTUnaryOpExprKind OpKind = toUnaryOpExprKind(Tok, false);
         const SourceLocation &Loc = P->ConsumeToken();
-        ASTExpr* Primary = ParsePrimary();  // Parse the operand (recursively)
+        ASTExpr* Primary = ParsePrimary(true);  // Parse the operand (recursively)
         return P->Builder.CreateUnaryOpExpr(Loc, OpKind, Primary);
     } else if (isNewOperator(P->Tok)) {
         return ParseNewExpr();
@@ -226,18 +228,9 @@ ASTExpr *ParserExpr::ParsePrimary() {
         return Primary;
     }
 
-    P->Diag(P->Tok.getLocation(), diag::err_parse_expr_expected_primary);
+    if (Expected)
+        P->Diag(P->Tok.getLocation(), diag::err_parse_expr_expected_primary);
     return nullptr;
-}
-
-ASTUnaryOpExpr *ParserExpr::ParseUnaryExpr() {
-    Token OpTok = P->Tok;
-
-    // Parse the operand
-    ASTExpr* Primary = ParsePrimary();
-
-    // Return the unary operation AST node
-    return P->Builder.CreateUnaryOpExpr(OpTok.getLocation(), toUnaryOpExprKind(OpTok, true), Primary);
 }
 
 ASTBinaryOpExpr *ParserExpr::ParseBinaryExpr(ASTExpr *LeftExpr, Token OpToken, Precedence precedence) {
@@ -245,7 +238,7 @@ ASTBinaryOpExpr *ParserExpr::ParseBinaryExpr(ASTExpr *LeftExpr, Token OpToken, P
     P->ConsumeToken();
 
     // Parse the right-hand side of the binary expression
-    ASTExpr* RightExpr = ParsePrimary();  // Parse the RHS (which may include parentheses)
+    ASTExpr* RightExpr = ParsePrimary(true);  // Parse the RHS (which may include parentheses)
 
     // Check for higher precedence operators on the right-hand side
     Token NextTok = P->Tok;

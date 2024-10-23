@@ -133,16 +133,14 @@ add_library(flyLib
         Frontend/TextDiagnosticBuffer.cpp
         Frontend/TextDiagnosticPrinter.cpp
 
-        # Lex
-        Lex/Lexer.cpp
-        Lex/LiteralSupport.cpp
-        Lex/HeaderMap.cpp
-
         # Parser
+        Parser/Lexer.cpp
+        Parser/LiteralSupport.cpp
         Parser/ParserClass.cpp
         Parser/ParserEnum.cpp
         Parser/ParserExpr.cpp
         Parser/ParserFunction.cpp
+        Parser/ParserMethod.cpp
         Parser/Parser.cpp
 
         # Sema

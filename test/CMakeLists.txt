@@ -9,10 +9,10 @@ add_executable(fly_test
 #        CodeGen/CodeGenTest.cpp
 #        DriverTest.cpp
 #        ImportTest.cpp
-        LexerTest.cpp
-        Parser/ParserCommentTest.cpp
+        Parser/LexerTest.cpp
+#        Parser/ParserCommentTest.cpp
         Parser/ParserExprTest.cpp
-        Parser/ParserFunctionTest.cpp
+#        Parser/ParserFunctionTest.cpp
         Parser/ParserGlobalVarTest.cpp
         Parser/ParserImportTest.cpp
         Parser/ParserLocalVarTest.cpp

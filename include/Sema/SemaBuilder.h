@@ -233,7 +233,7 @@ namespace fly {
 
         ASTFunction *CreateFunction(ASTModule *Module, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
                                     SmallVector<ASTScope *, 8> &Scopes, SmallVector<ASTParam *, 8> &Params,
-                                    ASTBlockStmt *Body = nullptr, ASTComment *Comment = nullptr);
+                                    ASTComment *Comment = nullptr, ASTBlockStmt *Body = nullptr);
 
         ASTClass *CreateClass(ASTModule *Module, const SourceLocation &Loc, ASTClassKind ClassKind, llvm::StringRef Name,
                               SmallVector<ASTScope *, 8> &Scopes, llvm::SmallVector<ASTClassType *, 4> &ClassTypes, ASTComment *Comment = nullptr);
@@ -244,11 +244,11 @@ namespace fly {
 
         ASTClassMethod *CreateClassConstructor(const SourceLocation &Loc, ASTClass &Class,
                                                llvm::SmallVector<ASTScope *, 8> &Scopes,
-                                               llvm::SmallVector<ASTParam *, 8> &Params, ASTBlockStmt *Body);
+                                               llvm::SmallVector<ASTParam *, 8> &Params, ASTBlockStmt *Body = nullptr);
 
         ASTClassMethod *CreateClassMethod(const SourceLocation &Loc, ASTClass &Class, ASTType *Type,
                                           llvm::StringRef Name, SmallVector<ASTScope *, 8> &Scopes,
-                                          llvm::SmallVector<ASTParam *, 8> &Params, ASTBlockStmt *Body);
+                                          llvm::SmallVector<ASTParam *, 8> &Params, ASTBlockStmt *Body = nullptr);
 
         ASTClassMethod *CreateClassVirtualMethod(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
                                                  SmallVector<ASTScope *, 8> &Scopes,

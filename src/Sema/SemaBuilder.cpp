@@ -196,7 +196,7 @@ ASTGlobalVar *SemaBuilder::CreateGlobalVar(ASTModule *Module, const SourceLocati
  */
 ASTFunction *SemaBuilder::CreateFunction(ASTModule *Module, const SourceLocation &Loc, ASTType *Type,
                                          llvm::StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes,
-                                         SmallVector<ASTParam *, 8> &Params, ASTBlockStmt *Body, ASTComment *Comment) {
+                                         SmallVector<ASTParam *, 8> &Params, ASTComment *Comment, ASTBlockStmt *Body) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateFunction",
                       Logger().Attr("Loc", (uint64_t) Loc.getRawEncoding())
                               .Attr("Type", Type)
@@ -753,7 +753,7 @@ ASTLocalVar *SemaBuilder::CreateLocalVar(ASTBlockStmt *BlockStmt, const SourceLo
                               .AttrList("Scopes", Scopes).End());
     S.getValidator().CheckCreateLocalVar(Loc, Type, Name, Scopes);
     ASTLocalVar *LocalVar = new ASTLocalVar(Loc, Type, Name, Scopes);
-    BlockStmt->Function->LocalVars.push_back(LocalVar); // Function Local var to be allocated
+    BlockStmt->getFunction()->LocalVars.push_back(LocalVar); // Function Local var to be allocated
     BlockStmt->LocalVars.insert(std::make_pair(LocalVar->getName(), LocalVar)); // Check duplicate in Block Stmt
     return LocalVar;
 }

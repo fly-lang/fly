@@ -21,11 +21,70 @@
 
 using namespace fly;
 
+ParserFunction::ParserFunction(Parser *P) : P(P) {
+
+}
+
+ASTFunction *ParserFunction::Parse(Parser *P, SmallVector<ASTScope *, 8> Scopes, ASTType *Type, ASTComment *Comment) {
+    ParserFunction *PF = new ParserFunction(P);
+
+    assert(P->Tok.isAnyIdentifier() && "Tok must be an Identifier");
+    StringRef Name = P->Tok.getIdentifierInfo()->getName();
+    const SourceLocation &Loc = P->ConsumeToken();
+    SmallVector<ASTParam *, 8> Params = PF->ParseParams();
+    ASTFunction *Function = P->Builder.CreateFunction(P->Module, Loc, Type, Name, Scopes, Params, Comment);
+    ASTBlockStmt *Body = P->isBlockStart() ? PF->ParseBody(Function) : nullptr;
+    return Function;
+}
+
+/**
+ * ParseModule Function Body
+ * @return true on Success or false on Error
+ */
+ASTBlockStmt *ParserFunction::ParseBody(ASTFunctionBase *F) {
+    FLY_DEBUG("FunctionParser", "ParseBody");
+    assert(P->isBlockStart() && "Block Start");
+    ASTBlockStmt *Block = P->Builder.CreateBlockStmt(P->Tok.getLocation());
+    ASTBlockStmt *Body = P->Builder.CreateBody(F, Block);
+    P->ParseBlock(Body);
+    return Body;
+}
+
+
+/**
+ * ParseModule Parameters
+ * @return true on Success or false on Error
+ */
+llvm::SmallVector<ASTParam *, 8> ParserFunction::ParseParams() {
+    FLY_DEBUG("FunctionParser", "ParseParams");
+    assert(P->Tok.is(tok::l_paren) && "Tok must be an Identifier");
+    P->ConsumeParen(); // consume l_paren
+
+    llvm::SmallVector<ASTParam *, 8> Params;
+
+    while (true) {
+        ASTParam *Param = ParseParam();
+        Params.push_back(Param);
+        if (P->Tok.isNot(tok::comma)) {
+            break;
+        }
+    }
+
+    if (P->Tok.is(tok::r_paren)) {
+        P->ConsumeParen();
+    } else {
+        // FIXME Error desc
+        P->Diag(P->Tok.getLocation(), diag::err_parser_generic);
+    }
+
+    return Params;
+}
+
 /**
  * ParseModule a single Function Param
  * @return true on Success or false on Error
  */
-ASTParam *ParserFunction::ParseParam(Parser *P) {
+ASTParam *ParserFunction::ParseParam() {
     FLY_DEBUG("FunctionParser", "ParseParam");
 
     // Parse Scopes
@@ -55,45 +114,4 @@ ASTParam *ParserFunction::ParseParam(Parser *P) {
 
     ASTParam *Param = P->Builder.CreateParam(Loc, Type, Name, Scopes, Value);
     return Param;
-}
-
-/**
- * ParseModule Parameters
- * @return true on Success or false on Error
- */
-llvm::SmallVector<ASTParam *, 8> ParserFunction::ParseParams(Parser *P) {
-    FLY_DEBUG("FunctionParser", "ParseParams");
-    assert(P->Tok.is(tok::l_paren) && "Tok must be an Identifier");
-    P->ConsumeParen(); // consume l_paren
-
-    llvm::SmallVector<ASTParam *, 8> Params;
-
-    while (true) {
-        ASTParam *Param = ParseParam(P);
-        Params.push_back(Param);
-        if (P->Tok.isNot(tok::comma)) {
-            break;
-        }
-    }
-
-    if (P->Tok.is(tok::r_paren)) {
-        P->ConsumeParen();
-    } else {
-        // FIXME Error desc
-        P->Diag(P->Tok.getLocation(), diag::err_parser_generic);
-    }
-
-    return Params;
-}
-
-/**
- * ParseModule Function Body
- * @return true on Success or false on Error
- */
-ASTBlockStmt *ParserFunction::ParseBody(Parser *P) {
-    FLY_DEBUG("FunctionParser", "ParseBody");
-    assert(P->isBlockStart() && "Block Start");
-    ASTBlockStmt *Body = P->Builder.CreateBlockStmt(P->Tok.getLocation());
-    P->ParseBlock(Body);
-    return Body;
 }

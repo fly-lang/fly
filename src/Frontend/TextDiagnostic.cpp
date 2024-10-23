@@ -12,7 +12,7 @@
 #include "Basic/DiagnosticOptions.h"
 #include "Basic/FileManager.h"
 #include "Basic/SourceManager.h"
-#include "Lex/Lexer.h"
+#include "Parser/Lexer.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/ConvertUTF.h"

@@ -8,7 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Parser/Parser.h"
-#include "Parser/ParserFunction.h"
+#include "Parser/ParserMethod.h"
 #include "Parser/ParserClass.h"
 #include "AST/ASTBlockStmt.h"
 #include "AST/ASTClass.h"
@@ -139,15 +139,5 @@ ASTClassMethod *ParserClass::ParseMethod(SmallVector<ASTScope *, 8> &Scopes, AST
     FLY_DEBUG_MESSAGE("ClassParser", "ParseMethod", Logger()
             .AttrList("Scopes", Scopes)
             .Attr("Type", Type).End());
-
-    llvm::SmallVector<ASTParam *, 8> Params = ParserFunction::ParseParams(P);
-    ASTBlockStmt *Body = P->isBlockStart() ? ParserFunction::ParseBody(P) : nullptr;
-    ASTClassMethod *Method;
-    if (Name == Class->getName()) {
-        Method = P->Builder.CreateClassConstructor(Loc, *Class, Scopes, Params, Body);
-    } else {
-        Method = P->Builder.CreateClassMethod(Loc, *Class, Type, Name, Scopes, Params, Body);
-    }
-
-    return Method;
+    return ParserMethod::Parse(this, Scopes, Type, Loc, Name);
 }

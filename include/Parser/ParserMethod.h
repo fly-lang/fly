@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Parser/FunctionParser.h - Function Parser
+// include/Parser/ParserMethod.h - Method Parser
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,46 +8,39 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#ifndef FLY_PARSERFUNCTION_H
-#define FLY_PARSERFUNCTION_H
+#ifndef FLY_PARSERMETHOD_H
+#define FLY_PARSERMETHOD_H
 
-#include "llvm/ADT/StringRef.h"
+#include "ParserFunction.h"
 #include "llvm/ADT/SmallVector.h"
 
 namespace fly {
 
     class Parser;
-    class ASTFunction;
-    class ASTFunctionBase;
     class ASTParam;
     class ASTType;
     class ASTBlockStmt;
+    class SourceLocation;
     class ASTScope;
     class ASTComment;
-    class SourceLocation;
+    class ASTClassMethod;
+    class ParserClass;
 
-    class ParserFunction {
+    class ParserMethod : ParserFunction {
 
         friend class Parser;
 
-        Parser *P;
+        ParserClass *PC;
 
     public:
 
-        explicit ParserFunction(Parser *P);
+        explicit ParserMethod(ParserClass *PC);
 
-        static ASTFunction *Parse(Parser *P, llvm::SmallVector<ASTScope *, 8> Scopes, ASTType *Type, ASTComment *Comment);
-
-        ASTBlockStmt *ParseBody(ASTFunctionBase *F);
-
-        llvm::SmallVector<ASTParam *, 8> ParseParams();
-
-    private:
-
-        ASTParam *ParseParam();
+        static ASTClassMethod *Parse(ParserClass *PC, llvm::SmallVector<ASTScope *, 8> Scopes, ASTType *Type,
+                                  const SourceLocation &Loc, llvm::StringRef Name);
 
     };
 }
 
 
-#endif //FLY_PARSERFUNCTION_H
+#endif //FLY_PARSERMETHOD_H
