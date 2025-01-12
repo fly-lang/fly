@@ -51,21 +51,21 @@ std::string ASTBoolValue::str() const {
             End();
 }
 
-ASTIntegerValue::ASTIntegerValue(const SourceLocation &Loc, uint64_t Value, bool Negative) :
-        ASTValue(ASTTypeKind::TYPE_INTEGER, Loc), Value(Value), Negative(Negative) {
+ASTIntegerValue::ASTIntegerValue(const SourceLocation &Loc, llvm::StringRef Value, uint8_t Radix) :
+        ASTValue(ASTTypeKind::TYPE_INTEGER, Loc), Value(Value), Radix(Radix) {
 
 }
 
-bool ASTIntegerValue::isNegative() const {
-    return Negative;
-}
-
-uint64_t ASTIntegerValue::getValue() const {
+llvm::StringRef ASTIntegerValue::getValue() const {
     return Value;
 }
 
+uint8_t ASTIntegerValue::getRadix() const {
+    return Radix;
+}
+
 std::string ASTIntegerValue::print() const {
-    return (Negative ? "-" : "") + std::to_string(Value);
+    return std::string(Value.data());
 }
 
 
@@ -73,12 +73,12 @@ std::string ASTIntegerValue::str() const {
     return Logger("ASTIntegerValue").
             Super(ASTValue::str()).
             Attr("Value", Value).
-            Attr("Negative", Negative).
+            Attr("Radix", (uint64_t) Radix).
             End();
 }
 
-ASTFloatingValue::ASTFloatingValue(const SourceLocation &Loc, std::string Value)
-    : ASTValue(ASTTypeKind::TYPE_FLOATING_POINT, Loc), Value(std::move(Value)) {
+ASTFloatingValue::ASTFloatingValue(const SourceLocation &Loc, llvm::StringRef Value)
+    : ASTValue(ASTTypeKind::TYPE_FLOATING_POINT, Loc), Value(Value) {
 
 }
 

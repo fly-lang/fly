@@ -45,6 +45,7 @@
 #include "Sema/SemaBuilderLoopStmt.h"
 #include "Frontend/InputFile.h"
 #include "Basic/Debug.h"
+#include "llvm/Support/Regex.h"
 
 using namespace fly;
 
@@ -1055,28 +1056,18 @@ ASTValue *Parser::ParseValue() {
 
     // Parse Numeric Constants
     if (Tok.is(tok::numeric_constant)) {
-        std::string Val = std::string(Tok.getLiteralData(), Tok.getLength());
+        llvm::StringRef Val = StringRef(Tok.getLiteralData(), Tok.getLength());
         return ParseValueNumber(Val);
     }
 
     if (Tok.isCharLiteral()) {
-        // empty char is like a zero byte
-        if (Tok.getLiteralData() == nullptr && Tok.getLength() == 0) {
-            const SourceLocation &Loc = ConsumeToken();
-            return Builder.CreateIntegerValue(Loc, 0);
-        }
-
-        StringRef Val = StringRef(Tok.getLiteralData(), Tok.getLength());
-        char Ch = *Val.begin();
-
-        const SourceLocation &Loc = ConsumeToken();
-        return Builder.CreateCharValue(Loc, Ch);
+        llvm::StringRef Val = StringRef(Tok.getLiteralData(), Tok.getLength());
+        return Builder.CreateStringValue(ConsumeStringToken(), Val);
     }
 
     if (Tok.isStringLiteral()) {
-        const char *Data = Tok.getLiteralData();
-        size_t Length = Tok.getLength();
-        return Builder.CreateStringValue(ConsumeStringToken(), StringRef(Data, Length));
+        llvm::StringRef Val = StringRef(Tok.getLiteralData(), Tok.getLength());
+        return Builder.CreateStringValue(ConsumeStringToken(), Val);
     }
 
     // Parse true or false boolean values
@@ -1096,41 +1087,30 @@ ASTValue *Parser::ParseValue() {
     return nullptr;
 }
 
-ASTValue *Parser::ParseValueNumber(std::string &Str) {
-    FLY_DEBUG_MESSAGE("Parser", "ParseValueNumber", Logger().Attr("Str", Str).End());
+ASTValue *Parser::ParseValueNumber(llvm::StringRef Input) {
+    FLY_DEBUG_MESSAGE("Parser", "ParseValueNumber", Logger().Attr("Str", Input).End());
 
     const SourceLocation &Loc = ConsumeToken();
 
-    // TODO Check Hex Value
-    bool IsNegative = Str[0] == '-';
-    uint64_t Integer = 0;
-    uint64_t Fraction = 0;
-    bool IsFloatingPoint = false;
-    for (unsigned I = 0; I < Str.size(); I++) {
-        if (Str[I] == '.') { // check if contain decimals
-            Integer = 0;
-            IsFloatingPoint = true;
-            continue;
-        }
+    llvm::Regex FloatRegex(R"(^[-+]?[0-9]*\.[0-9]+([eE][-+]?[0-9]+)?$)");
 
-        unsigned char N = Str[I] - '0';
-        if (N > 9) {
-            Diag(Loc, diag::err_parse_number) << Str;
-            return nullptr;
-        }
-        // subtract '0' from ASCII value of a digit, to obtain integer value of the digit.
-        if (IsFloatingPoint) {
-            Fraction += Fraction; // need only for zero verify
-        }
-        else {
-            Integer = Integer * 10 + N;
-        }
+    if (Input.substr(0, 2) == "0b" || Input.substr(0, 2) == "0B") {
+        // Binary
+        return Builder.CreateIntegerValue(Loc, Input, 2);
+    } else if (Input.substr(0, 2) == "0x" || Input.substr(0, 2) == "0X") {
+        // Hexadecimal
+        return Builder.CreateIntegerValue(Loc, Input, 16);
+    } else if (Input[0] == '0' && Input.size() > 1) {
+        // Octal
+        return Builder.CreateIntegerValue(Loc, Input, 8);
+    } else if (FloatRegex.match(Input)) {
+        // Floating point
+        return Builder.CreateFloatingValue(Loc, Input);
+    } else {
+        // Decimal
+        return Builder.CreateIntegerValue(Loc, Input, 10);
     }
 
-    if (IsFloatingPoint) {
-        return Builder.CreateFloatingValue(Loc, Str);
-    }
-    return Builder.CreateIntegerValue(Loc, Integer, IsNegative);
 }
 
 /**

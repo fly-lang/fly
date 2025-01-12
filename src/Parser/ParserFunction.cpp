@@ -63,18 +63,33 @@ llvm::SmallVector<ASTParam *, 8> ParserFunction::ParseParams() {
     llvm::SmallVector<ASTParam *, 8> Params;
 
     while (true) {
-        ASTParam *Param = ParseParam();
-        Params.push_back(Param);
-        if (P->Tok.isNot(tok::comma)) {
+        // Check for closing parenthesis (end of parameter list)
+        if (P->Tok.is(tok::r_paren)) {
+            P->ConsumeParen();
             break;
         }
-    }
 
-    if (P->Tok.is(tok::r_paren)) {
-        P->ConsumeParen();
-    } else {
-        // FIXME Error desc
-        P->Diag(P->Tok.getLocation(), diag::err_parser_generic);
+        // Parse a parameter
+        ASTParam *Param = ParseParam();
+        if (Param == nullptr) {
+            // Handle error: Invalid parameter syntax
+            P->Diag(P->Tok.getLocation(), diag::err_parser_invalid_param);
+            break;
+        }
+
+        // Add the parsed parameter to the list
+        Params.push_back(Param);
+
+        // Check for a comma (',') to separate parameters
+        if (P->Tok.is(tok::comma)) {
+            P->ConsumeToken(); // Consume the comma and continue
+        } else if (P->Tok.is(tok::r_paren)) {
+            P->ConsumeParen();
+            break; // End of parameter list
+        } else {
+            // Handle error: Unexpected token
+            P->Diag(P->Tok.getLocation(), diag::err_parse_expected_comma_or_rparen);
+        }
     }
 
     return Params;

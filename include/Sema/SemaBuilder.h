@@ -205,6 +205,12 @@ namespace fly {
 
         friend class SemaResolver;
 
+        static const uint8_t DEFAULT_INTEGER_RADIX;
+
+        static const llvm::StringRef DEFAULT_INTEGER_VALUE;
+
+        static const llvm::StringRef DEFAULT_FLOATING_VALUE;
+
         Sema &S;
 
         ASTContext *CreateContext();
@@ -307,13 +313,12 @@ namespace fly {
 
         ASTBoolValue *CreateBoolValue(const SourceLocation &Loc, bool Val);
 
-        ASTIntegerValue *CreateIntegerValue(const SourceLocation &Loc, uint64_t Val, bool Negative = false);
+        ASTIntegerValue *CreateIntegerValue(const SourceLocation &Loc, llvm::StringRef Value, uint8_t Radix);
 
-        ASTIntegerValue *CreateCharValue(const SourceLocation &Loc, char Val);
+        ASTIntegerValue *CreateIntegerValue(const SourceLocation &Loc, llvm::StringRef Value);
 
-        ASTFloatingValue *CreateFloatingValue(const SourceLocation &Loc, std::string Val);
 
-        ASTFloatingValue *CreateFloatingValue(const SourceLocation &Loc, double Val);
+        ASTFloatingValue *CreateFloatingValue(const SourceLocation &Loc, llvm::StringRef Val);
 
         ASTArrayValue *CreateArrayValue(const SourceLocation &Loc, llvm::SmallVector<ASTValue *, 8> Values);
 

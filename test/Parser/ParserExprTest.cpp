@@ -388,7 +388,7 @@ namespace {
 
         const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
+        EXPECT_EQ(((ASTIntegerValue *)((ASTValueExpr *) RightExpr)->getValue())->getValue(), "1");
     }
 
     TEST_F(ParserTest, BinarySubExpr) {

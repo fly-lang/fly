@@ -65,6 +65,10 @@ SemaBuilder::SemaBuilder(Sema &S) : S(S) {
     FLY_DEBUG("SemaBuilder", "SemaBuilder");
 }
 
+const uint8_t SemaBuilder::DEFAULT_INTEGER_RADIX= 10;
+const llvm::StringRef SemaBuilder::DEFAULT_INTEGER_VALUE = StringRef("0");
+const llvm::StringRef SemaBuilder::DEFAULT_FLOATING_VALUE = StringRef("0.0");
+
 ASTContext *SemaBuilder::CreateContext() {
     FLY_DEBUG("SemaBuilder", "CreateContext");
     S.Context = new ASTContext();
@@ -606,26 +610,15 @@ ASTBoolValue *SemaBuilder::CreateBoolValue(const SourceLocation &Loc, bool Val) 
  * @param Negative
  * @return
  */
-ASTIntegerValue *SemaBuilder::CreateIntegerValue(const SourceLocation &Loc, uint64_t Val, bool Negative) {
+ASTIntegerValue *SemaBuilder::CreateIntegerValue(const SourceLocation &Loc, llvm::StringRef Value, uint8_t Radix) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateIntegerValue",
                       "Loc=" << Loc.getRawEncoding() <<
-                      ", Val=" << Val <<
-                      ", Negative=" << Negative);
-    return new ASTIntegerValue(Loc, Val, Negative);
+                      ", Val=" << Value << " Radix=" << Radix);
+    return new ASTIntegerValue(Loc, Value, Radix);
 }
 
-/**
- * Creates a char value
- * @param Loc
- * @param Val
- * @return
- */
-ASTIntegerValue *
-SemaBuilder::CreateCharValue(const SourceLocation &Loc, char Val) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateCharValue",
-                      "Loc=" << Loc.getRawEncoding() <<
-                      ", Val=" << Val);
-    return CreateIntegerValue(Loc, Val, false);
+ASTIntegerValue *SemaBuilder::CreateIntegerValue(const SourceLocation &Loc, llvm::StringRef Value) {
+    return new ASTIntegerValue(Loc, Value, DEFAULT_INTEGER_RADIX);
 }
 
 /**
@@ -634,25 +627,11 @@ SemaBuilder::CreateCharValue(const SourceLocation &Loc, char Val) {
  * @param Val
  * @return
  */
-ASTFloatingValue *SemaBuilder::CreateFloatingValue(const SourceLocation &Loc, std::string Val) {
+ASTFloatingValue *SemaBuilder::CreateFloatingValue(const SourceLocation &Loc, llvm::StringRef Val) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateFloatingValue",
                       "Loc=" << Loc.getRawEncoding() <<
                       ", Val=" << Val);
     return new ASTFloatingValue(Loc, Val);
-}
-
-/**
- * Creates a floating point value
- * @param Loc
- * @param Val
- * @return
- */
-ASTFloatingValue *SemaBuilder::CreateFloatingValue(const SourceLocation &Loc, double Val) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateFloatingValue",
-                      "Loc=" << Loc.getRawEncoding() <<
-                      ", Val=" << Val);
-    std::string StrVal = std::to_string(Val);
-    return new ASTFloatingValue(Loc, StrVal);
 }
 
 /**
@@ -694,9 +673,9 @@ ASTValue *SemaBuilder::CreateDefaultValue(ASTType *Type) {
     if (Type->isBool()) {
         Value = CreateBoolValue(Type->getLocation(), false);
     } else if (Type->isInteger()) {
-        Value = CreateIntegerValue(Type->getLocation(), 0);
+        Value = CreateIntegerValue(Type->getLocation(), DEFAULT_INTEGER_VALUE, DEFAULT_INTEGER_RADIX);
     } else if (Type->isFloatingPoint()) {
-        Value = CreateFloatingValue(Type->getLocation(), 0.0);
+        Value = CreateFloatingValue(Type->getLocation(), DEFAULT_FLOATING_VALUE);
     }else if (Type->isArray()) {
         llvm::SmallVector<ASTValue *, 8> Values;
         Value = CreateArrayValue(Type->getLocation(), Values);
@@ -867,45 +846,11 @@ ASTValueExpr *SemaBuilder::CreateExpr(ASTValue *Value) {
             Expr->Type = CreateBoolType(Loc);
             break;
 
-        case ASTTypeKind::TYPE_INTEGER: {
-            ASTIntegerValue *Integer = ((ASTIntegerValue *) Expr->Value);
-
-            if (Integer->Negative) { // Integer is negative (Ex. -2)
-
-                if (Integer->Value > MIN_LONG) { // Negative Integer overflow min value
-                    S.Diag(Expr->getLocation(), diag::err_sema_int_min_overflow);
-                    return Expr;
-                }
-
-                if (Integer->Value > MIN_INT) {
-                    Expr->Type = CreateLongType(Loc);
-                } else if (Integer->Value > MIN_SHORT) {
-                    Expr->Type = CreateIntType(Loc);
-                } else {
-                    Expr->Type = CreateShortType(Loc);
-                }
-            } else { // Positive Integer
-
-                if (Integer->Value > MAX_LONG) { // Positive Integer overflow max value
-                    S.Diag(Expr->getLocation(), diag::err_sema_int_max_overflow);
-                    return Expr;
-                }
-
-                if (Integer->Value > MAX_INT) {
-                    Expr->Type = CreateLongType(Loc);
-                } else if (Integer->Value > MAX_SHORT) {
-                    Expr->Type = CreateIntType(Loc);
-                } else if (Integer->Value > MAX_BYTE) {
-                    Expr->Type = CreateShortType(Loc);
-                } else {
-                    Expr->Type = CreateByteType(Loc);
-                }
-            }
+        case ASTTypeKind::TYPE_INTEGER:
+            Expr->Type = CreateLongType(Loc);
             break;
-        }
 
         case ASTTypeKind::TYPE_FLOATING_POINT:
-            // Creating as Float on first but transform in Double if is contained into a Binary Expr with a Double Type
             Expr->Type = CreateDoubleType(Loc);
             break;
 

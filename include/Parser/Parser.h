@@ -124,7 +124,7 @@ namespace fly {
 
         // Parse a Value
         ASTValue *ParseValue();
-        ASTValue *ParseValueNumber(std::string &Str);
+        ASTValue *ParseValueNumber(llvm::StringRef Input);
         ASTValue *ParseValues();
 
         // Parse Expressions

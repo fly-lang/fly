@@ -75,17 +75,17 @@ namespace fly {
         friend class SemaResolver;
         friend class SemaValidator;
 
-        uint64_t Value; // the integer value
+        llvm::StringRef Value; // the integer value
 
-        bool Negative; // true is positive, false is negative
+        uint8_t Radix;
 
-        ASTIntegerValue(const SourceLocation &Loc, uint64_t Value, bool Negative = false);
+        ASTIntegerValue(const SourceLocation &Loc, llvm::StringRef Value, uint8_t Radix);
 
     public:
 
-        bool isNegative() const;
+        llvm::StringRef getValue() const;
 
-        uint64_t getValue() const;
+        uint8_t getRadix() const;
 
         std::string print() const override;
 
@@ -103,7 +103,7 @@ namespace fly {
 
         std::string Value;
 
-        ASTFloatingValue(const SourceLocation &Loc, std::string Val);
+        ASTFloatingValue(const SourceLocation &Loc, llvm::StringRef Val);
 
     public:
 

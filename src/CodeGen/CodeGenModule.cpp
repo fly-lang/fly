@@ -325,11 +325,16 @@ llvm::Type *CodeGenModule::GenType(const ASTType *Type) {
 
 llvm::ArrayType *CodeGenModule::GenArrayType(const ASTArrayType *ArrayType) {
     llvm::Type *SubType = GenType(ArrayType->getType());
-    if (ArrayType->getSize()->getExprKind() == ASTExprKind::EXPR_VALUE) {
-        ASTValueExpr *SizeExpr = (ASTValueExpr *) ArrayType->getSize();
-        ASTIntegerValue *SizeValue = (ASTIntegerValue *) SizeExpr->getValue();
-        return llvm::ArrayType::get(SubType, SizeValue->getValue());
+    llvm::Value *Val = GenExpr(ArrayType->getSize());
+
+    // Check if the Value is a ConstantInt
+    if (auto *constInt = dyn_cast<ConstantInt>(Val)) {
+        // Extract the value as uint64_t
+        uint64_t IntVal = constInt->getZExtValue(); // Use getSExtValue() for signed values
+        return llvm::ArrayType::get(SubType, IntVal);
     }
+
+    // TODO Error: cannot convert Size to Int
 
     return nullptr;
     assert("Array Size error");
@@ -408,22 +413,21 @@ llvm::Constant *CodeGenModule::GenValue(const ASTType *Type, const ASTValue *Val
         case ASTTypeKind::TYPE_INTEGER: {
             ASTIntegerType *IntegerType = (ASTIntegerType *) Type;
             ASTIntegerValue *IntegerValue = (ASTIntegerValue *) Val;
-            uint64_t IntValue = IntegerValue->getValue();
             switch (IntegerType->getIntegerKind()) {
                 case ASTIntegerTypeKind::TYPE_BYTE:
-                    return llvm::ConstantInt::get(Int8Ty, IntValue, false);
+                    return llvm::ConstantInt::get(Int8Ty, IntegerValue->getValue(), IntegerValue->getRadix());
                 case ASTIntegerTypeKind::TYPE_USHORT:
-                    return llvm::ConstantInt::get(Int16Ty, IntValue, false);
+                    return llvm::ConstantInt::get(Int16Ty, IntegerValue->getValue(), IntegerValue->getRadix());
                 case ASTIntegerTypeKind::TYPE_SHORT:
-                    return llvm::ConstantInt::get(Int16Ty, IntegerValue->isNegative() ? -IntValue: IntValue, true);
+                    return llvm::ConstantInt::get(Int16Ty, IntegerValue->getValue(), IntegerValue->getRadix());
                 case ASTIntegerTypeKind::TYPE_UINT:
-                    return llvm::ConstantInt::get(Int32Ty, IntValue, false);
+                    return llvm::ConstantInt::get(Int32Ty, IntegerValue->getValue(), IntegerValue->getRadix());
                 case ASTIntegerTypeKind::TYPE_INT:
-                    return llvm::ConstantInt::get(Int32Ty, IntegerValue->isNegative() ? -IntValue: IntValue, true);
+                    return llvm::ConstantInt::get(Int32Ty, IntegerValue->getValue(), IntegerValue->getRadix());
                 case ASTIntegerTypeKind::TYPE_ULONG:
-                    return llvm::ConstantInt::get(Int64Ty, IntValue, false);
+                    return llvm::ConstantInt::get(Int64Ty, IntegerValue->getValue(), IntegerValue->getRadix());
                 case ASTIntegerTypeKind::TYPE_LONG:
-                    return llvm::ConstantInt::get(Int64Ty, IntegerValue->isNegative() ? -IntValue: IntValue, true);
+                    return llvm::ConstantInt::get(Int64Ty, IntegerValue->getValue(), IntegerValue->getRadix());
             }
         }
 

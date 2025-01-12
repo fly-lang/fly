@@ -31,6 +31,7 @@ namespace fly {
         ASTComment *Comment = nullptr;
 
     public:
+        virtual ~ASTBase() = default;
 
         explicit ASTBase(const SourceLocation &Loc);
 
