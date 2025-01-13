@@ -907,6 +907,9 @@ ASTType *Parser::ParseBuiltinType() {
         case tok::kw_void:
             Type = Builder.CreateVoidType(ConsumeToken());
             break;
+        case tok::kw_char:
+            Type = Builder.CreateCharType(ConsumeToken());
+            break;
         case tok::kw_string:
             Type = Builder.CreateStringType(ConsumeToken());
             break;
@@ -1056,17 +1059,17 @@ ASTValue *Parser::ParseValue() {
 
     // Parse Numeric Constants
     if (Tok.is(tok::numeric_constant)) {
-        llvm::StringRef Val = StringRef(Tok.getLiteralData(), Tok.getLength());
+        llvm::StringRef Val = llvm::StringRef(Tok.getLiteralData(), Tok.getLength());
         return ParseValueNumber(Val);
     }
 
     if (Tok.isCharLiteral()) {
-        llvm::StringRef Val = StringRef(Tok.getLiteralData(), Tok.getLength());
-        return Builder.CreateStringValue(ConsumeStringToken(), Val);
+        llvm::StringRef Val = llvm::StringRef(Tok.getLiteralData(), Tok.getLength());
+        return Builder.CreateCharValue(ConsumeToken(), Val);
     }
 
     if (Tok.isStringLiteral()) {
-        llvm::StringRef Val = StringRef(Tok.getLiteralData(), Tok.getLength());
+        llvm::StringRef Val = llvm::StringRef(Tok.getLiteralData(), Tok.getLength());
         return Builder.CreateStringValue(ConsumeStringToken(), Val);
     }
 
@@ -1185,7 +1188,7 @@ bool Parser::isBuiltinType(Token &Tok) {
     FLY_DEBUG("Parser", "isBuiltinType");
     return Tok.isOneOf(tok::kw_bool, tok::kw_byte, tok::kw_ushort, tok::kw_short, tok::kw_uint, tok::kw_int,
                        tok::kw_ulong, tok::kw_long, tok::kw_float, tok::kw_double, tok::kw_void, tok::kw_string,
-                       tok::kw_error);
+                       tok::kw_char, tok::kw_error);
 }
 
 bool Parser::isArrayType(Token &Tok) {

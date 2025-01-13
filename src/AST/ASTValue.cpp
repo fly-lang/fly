@@ -64,11 +64,6 @@ uint8_t ASTIntegerValue::getRadix() const {
     return Radix;
 }
 
-std::string ASTIntegerValue::print() const {
-    return std::string(Value.data());
-}
-
-
 std::string ASTIntegerValue::str() const {
     return Logger("ASTIntegerValue").
             Super(ASTValue::str()).
@@ -97,6 +92,22 @@ std::string ASTFloatingValue::str() const {
             End();
 }
 
+ASTCharValue::ASTCharValue(const SourceLocation &Loc, llvm::StringRef Value)
+        : ASTValue(ASTTypeKind::TYPE_STRING, Loc), Value(Value) {
+
+}
+
+llvm::StringRef ASTCharValue::getValue() const {
+    return Value;
+}
+
+std::string ASTCharValue::str() const {
+    return Logger("ASTCharValue").
+            Super(ASTValue::str()).
+            Attr("Value", Value).
+            End();
+}
+
 ASTStringValue::ASTStringValue(const SourceLocation &Loc, llvm::StringRef Value)
         : ASTValue(ASTTypeKind::TYPE_STRING, Loc), Value(Value) {
 
@@ -111,7 +122,7 @@ std::string ASTStringValue::print() const {
 }
 
 std::string ASTStringValue::str() const {
-    return Logger("ASTFloatingValue").
+    return Logger("ASTStringValue").
             Super(ASTValue::str()).
             Attr("Value", Value).
             End();

@@ -39,8 +39,6 @@ namespace fly {
 
         std::string printType() const;
 
-        virtual std::string print() const = 0;
-
         std::string str() const override;
     };
 
@@ -61,7 +59,7 @@ namespace fly {
 
         bool getValue() const;
 
-        std::string print() const override;
+        std::string print() const;
 
         std::string str() const override;
     };
@@ -87,8 +85,6 @@ namespace fly {
 
         uint8_t getRadix() const;
 
-        std::string print() const override;
-
         std::string str() const override;
     };
 
@@ -109,7 +105,27 @@ namespace fly {
 
         std::string getValue() const;
 
-        std::string print() const override;
+        std::string print() const;
+
+        std::string str() const override;
+    };
+
+    /**
+     * Used for Char
+     */
+    class ASTCharValue : public ASTValue {
+
+        friend class SemaBuilder;
+        friend class SemaResolver;
+        friend class SemaValidator;
+
+        llvm::StringRef Value;
+
+        ASTCharValue(const SourceLocation &Loc, llvm::StringRef Value);
+
+    public:
+
+        llvm::StringRef getValue() const;
 
         std::string str() const override;
     };
@@ -131,7 +147,7 @@ namespace fly {
 
         llvm::StringRef getValue() const;
 
-        std::string print() const override;
+        std::string print() const;
 
         std::string str() const override;
     };
@@ -157,7 +173,7 @@ namespace fly {
 
         bool empty() const;
 
-        std::string print() const override;
+        std::string print() const;
 
         std::string str() const override;
     };
@@ -183,7 +199,7 @@ namespace fly {
 
         bool empty() const;
 
-        std::string print() const override;
+        std::string print() const;
 
         std::string str() const override;
     };
@@ -198,7 +214,7 @@ namespace fly {
 
     public:
 
-        std::string print() const override;
+        std::string print() const;
 
         std::string str() const override;
     };
@@ -213,7 +229,7 @@ namespace fly {
 
     public:
 
-        std::string print() const override;
+        std::string print() const;
 
         std::string str() const override;
     };

@@ -118,7 +118,7 @@ namespace {
 
         const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
+        EXPECT_EQ(((ASTIntegerValue *)((ASTValueExpr *) RightExpr)->getValue())->getValue(), "1");
     }
 
     TEST_F(ParserTest, BinaryAssignSubExpr) {
@@ -145,7 +145,7 @@ namespace {
 
         const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
+        EXPECT_EQ(((ASTIntegerValue *)((ASTValueExpr *) RightExpr)->getValue())->getValue(), "1");
     }
 
     TEST_F(ParserTest, BinaryAssignMulExpr) {
@@ -172,7 +172,7 @@ namespace {
 
         const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
+        EXPECT_EQ(((ASTIntegerValue *)((ASTValueExpr *) RightExpr)->getValue())->getValue(), "1");
     }
 
     TEST_F(ParserTest, BinaryAssignDivExpr) {
@@ -199,7 +199,7 @@ namespace {
 
         const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
+        EXPECT_EQ(((ASTIntegerValue *)((ASTValueExpr *) RightExpr)->getValue())->getValue(), "1");
     }
 
     TEST_F(ParserTest, BinaryAssignModExpr) {
@@ -226,7 +226,7 @@ namespace {
 
         const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
+        EXPECT_EQ(((ASTIntegerValue *)((ASTValueExpr *) RightExpr)->getValue())->getValue(), "1");
     }
 
     TEST_F(ParserTest, BinaryAssignAndExpr) {
@@ -253,7 +253,7 @@ namespace {
 
         const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
+        EXPECT_EQ(((ASTIntegerValue *)((ASTValueExpr *) RightExpr)->getValue())->getValue(), "1");
     }
 
     TEST_F(ParserTest, BinaryAssignOrExpr) {
@@ -280,7 +280,7 @@ namespace {
 
         const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
+        EXPECT_EQ(((ASTIntegerValue *)((ASTValueExpr *) RightExpr)->getValue())->getValue(), "1");
     }
 
     TEST_F(ParserTest, BinaryAssignXorExpr) {
@@ -307,7 +307,7 @@ namespace {
 
         const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
+        EXPECT_EQ(((ASTIntegerValue *)((ASTValueExpr *) RightExpr)->getValue())->getValue(), "1");
     }
 
     TEST_F(ParserTest, BinaryAssignShiftLExpr) {
@@ -334,7 +334,7 @@ namespace {
 
         const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
+        EXPECT_EQ(((ASTIntegerValue *)((ASTValueExpr *) RightExpr)->getValue())->getValue(), "1");
     }
 
     TEST_F(ParserTest, BinaryAssignShiftRExpr) {
@@ -361,7 +361,7 @@ namespace {
 
         const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
+        EXPECT_EQ(((ASTIntegerValue *)((ASTValueExpr *) RightExpr)->getValue())->getValue(), "1");
     }
 
     TEST_F(ParserTest, BinaryAddExpr) {
@@ -415,7 +415,7 @@ namespace {
 
         const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
+        EXPECT_EQ(((ASTIntegerValue *)((ASTValueExpr *) RightExpr)->getValue())->getValue(), "1");
     }
 
     TEST_F(ParserTest, BinaryMulExpr) {
@@ -442,7 +442,7 @@ namespace {
 
         const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
+        EXPECT_EQ(((ASTIntegerValue *)((ASTValueExpr *) RightExpr)->getValue())->getValue(), "1");
     }
 
     TEST_F(ParserTest, BinaryDivExpr) {
@@ -469,7 +469,7 @@ namespace {
 
         const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
+        EXPECT_EQ(((ASTIntegerValue *)((ASTValueExpr *) RightExpr)->getValue())->getValue(), "1");
     }
 
     TEST_F(ParserTest, BinaryModExpr) {
@@ -496,7 +496,7 @@ namespace {
 
         const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
+        EXPECT_EQ(((ASTIntegerValue *)((ASTValueExpr *) RightExpr)->getValue())->getValue(), "1");
     }
 
     TEST_F(ParserTest, BinaryAndExpr) {
@@ -523,7 +523,7 @@ namespace {
 
         const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
+        EXPECT_EQ(((ASTIntegerValue *)((ASTValueExpr *) RightExpr)->getValue())->getValue(), "1");
     }
 
     TEST_F(ParserTest, BinaryOrExpr) {
@@ -550,7 +550,7 @@ namespace {
 
         const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
+        EXPECT_EQ(((ASTIntegerValue *)((ASTValueExpr *) RightExpr)->getValue())->getValue(), "1");
     }
 
     TEST_F(ParserTest, BinaryXorExpr) {
@@ -577,7 +577,7 @@ namespace {
 
         const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
+        EXPECT_EQ(((ASTIntegerValue *)((ASTValueExpr *) RightExpr)->getValue())->getValue(), "1");
     }
 
     TEST_F(ParserTest, BinaryShiftLExpr) {
@@ -604,7 +604,7 @@ namespace {
 
         const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
+        EXPECT_EQ(((ASTIntegerValue *)((ASTValueExpr *) RightExpr)->getValue())->getValue(), "1");
     }
 
     TEST_F(ParserTest, BinaryShiftRExpr) {
@@ -631,7 +631,7 @@ namespace {
 
         const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
+        EXPECT_EQ(((ASTIntegerValue *)((ASTValueExpr *) RightExpr)->getValue())->getValue(), "1");
     }
 
     TEST_F(ParserTest, BinaryLogicAndExpr) {
@@ -658,7 +658,7 @@ namespace {
 
         const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "true");
+        EXPECT_EQ(((ASTBoolValue *)((ASTValueExpr *) RightExpr)->getValue())->getValue(), true);
     }
 
     TEST_F(ParserTest, BinaryLogicOrExpr) {
@@ -685,7 +685,7 @@ namespace {
 
         const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "true");
+        EXPECT_EQ(((ASTBoolValue *)((ASTValueExpr *) RightExpr)->getValue())->getValue(), true);
     }
 
     TEST_F(ParserTest, BinaryComparisonEqualExpr) {
@@ -712,7 +712,7 @@ namespace {
 
         const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "true");
+        EXPECT_EQ(((ASTBoolValue *)((ASTValueExpr *) RightExpr)->getValue())->getValue(), true);
     }
 
     TEST_F(ParserTest, BinaryComparisonNotEqualExpr) {
@@ -739,7 +739,7 @@ namespace {
 
         const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "true");
+        EXPECT_EQ(((ASTBoolValue *)((ASTValueExpr *) RightExpr)->getValue())->getValue(), true);
     }
 
     TEST_F(ParserTest, BinaryComparisonGreaterThanExpr) {
@@ -766,7 +766,7 @@ namespace {
 
         const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "true");
+        EXPECT_EQ(((ASTBoolValue *)((ASTValueExpr *) RightExpr)->getValue())->getValue(), true);
     }
 
     TEST_F(ParserTest, BinaryComparisonGreaterThanEqualExpr) {
@@ -793,7 +793,7 @@ namespace {
 
         const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "true");
+        EXPECT_EQ(((ASTBoolValue *)((ASTValueExpr *) RightExpr)->getValue())->getValue(), true);
     }
 
     TEST_F(ParserTest, BinaryComparisonLessThanExpr) {
@@ -820,7 +820,7 @@ namespace {
 
         const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "true");
+        EXPECT_EQ(((ASTBoolValue *)((ASTValueExpr *) RightExpr)->getValue())->getValue(), true);
     }
 
     TEST_F(ParserTest, BinaryComparisonLessThanEqualExpr) {
@@ -847,7 +847,7 @@ namespace {
 
         const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "true");
+        EXPECT_EQ(((ASTBoolValue *)((ASTValueExpr *) RightExpr)->getValue())->getValue(), true);
     }
 
     TEST_F(ParserTest, BinaryAddMulExpr) {
@@ -876,8 +876,8 @@ namespace {
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_OP);
         ASTBinaryOpExpr *BinaryMulExpr = (ASTBinaryOpExpr *) RightExpr;
         EXPECT_EQ(BinaryMulExpr->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_MUL);
-        
-        EXPECT_EQ(((ASTValueExpr *) BinaryMulExpr->getLeftExpr())->getValue()->print(), "2");
+
+        EXPECT_EQ(((ASTIntegerValue *)((ASTValueExpr *) BinaryMulExpr->getLeftExpr())->getValue())->getValue(), "2");
         EXPECT_EQ(BinaryMulExpr->getRightExpr()->getExprKind(), ASTExprKind::EXPR_VAR_REF);
     }
 
@@ -908,7 +908,7 @@ namespace {
         ASTBinaryOpExpr *BinaryMulExpr = (ASTBinaryOpExpr *) RightExpr;
         EXPECT_EQ(BinaryMulExpr->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_DIV);
 
-        EXPECT_EQ(((ASTValueExpr *) BinaryMulExpr->getLeftExpr())->getValue()->print(), "2");
+        EXPECT_EQ(((ASTIntegerValue *)((ASTValueExpr *) BinaryMulExpr->getLeftExpr())->getValue())->getValue(), "2");
         EXPECT_EQ(BinaryMulExpr->getRightExpr()->getExprKind(), ASTExprKind::EXPR_VAR_REF);
     }
 
@@ -935,7 +935,7 @@ namespace {
         EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_OP);
         ASTBinaryOpExpr *BinarySubExpr = (ASTBinaryOpExpr *) LeftExpr;
         EXPECT_EQ(BinarySubExpr->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_SUB);
-        EXPECT_EQ(((ASTValueExpr *) BinarySubExpr->getLeftExpr())->getValue()->print(), "2");
+        EXPECT_EQ(((ASTIntegerValue *)((ASTValueExpr *) BinarySubExpr->getLeftExpr())->getValue())->getValue(), "2");
         EXPECT_EQ(((ASTVarRefExpr *) BinarySubExpr->getRightExpr())->getVarRef()->getDef()->getName(), "a");
 
         const ASTExpr *RightExpr = (ASTValueExpr *) BinaryModExpr->getRightExpr();
@@ -943,7 +943,7 @@ namespace {
         ASTBinaryOpExpr *BinaryAddExpr = (ASTBinaryOpExpr *) RightExpr;
         EXPECT_EQ(BinaryAddExpr->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_ADD);
         EXPECT_EQ(((ASTVarRefExpr *) BinaryAddExpr->getLeftExpr())->getVarRef()->getDef()->getName(), "a");
-        EXPECT_EQ(((ASTValueExpr *) BinaryAddExpr->getRightExpr())->getValue()->print(), "1");
+        EXPECT_EQ(((ASTIntegerValue *)((ASTValueExpr *) BinaryAddExpr->getRightExpr())->getValue())->getValue(), "1");
     }
 
     TEST_F(ParserTest, TernaryExpr) {
@@ -975,11 +975,11 @@ namespace {
 
         const ASTExpr *RightExpr = (ASTValueExpr *) BinaryExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(((ASTValueExpr *) RightExpr)->getValue()->print(), "1");
-        
+        EXPECT_EQ(((ASTIntegerValue *)((ASTValueExpr *) RightExpr)->getValue())->getValue(), "1");
+
         const ASTExpr *TrueExpr = TernaryExpr->getTrueExpr();
         EXPECT_EQ(TrueExpr->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(((ASTValueExpr *) TrueExpr)->getValue()->print(), "1");
+        EXPECT_EQ(((ASTBoolValue *)((ASTValueExpr *) TrueExpr)->getValue())->getValue(), false);
 
         const ASTExpr *FalseExpr = (ASTValueExpr *) TernaryExpr->getFalseExpr();
         EXPECT_EQ(FalseExpr->getExprKind(), ASTExprKind::EXPR_VAR_REF);

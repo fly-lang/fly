@@ -11,7 +11,6 @@
 #define FLY_AST_CONTEXT_H
 
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/StringMap.h"
 
 namespace fly {
 

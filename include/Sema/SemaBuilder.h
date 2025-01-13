@@ -188,6 +188,8 @@ namespace fly {
     class ASTFailStmt;
 
     class ASTStringValue;
+
+    class ASTCharValue;
     
     enum class ASTClassKind;
 
@@ -294,6 +296,8 @@ namespace fly {
 
         ASTStringType *CreateStringType(const SourceLocation &Loc);
 
+        ASTCharType *CreateCharType(const SourceLocation &Loc);
+
         ASTClassType *CreateClassType(ASTClass *Class);
 
         ASTClassType *CreateClassType(ASTIdentifier *Class);
@@ -321,6 +325,8 @@ namespace fly {
         ASTFloatingValue *CreateFloatingValue(const SourceLocation &Loc, llvm::StringRef Val);
 
         ASTArrayValue *CreateArrayValue(const SourceLocation &Loc, llvm::SmallVector<ASTValue *, 8> Values);
+
+        ASTCharValue *CreateCharValue(const SourceLocation &Loc, StringRef Str);
 
         ASTStringValue *CreateStringValue(const SourceLocation &Loc, StringRef Str);
 

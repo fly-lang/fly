@@ -506,6 +506,11 @@ ASTArrayType *SemaBuilder::CreateArrayType(const SourceLocation &Loc, ASTType *T
     return new ASTArrayType(Loc, Type, Size);
 }
 
+ASTCharType *SemaBuilder::CreateCharType(const SourceLocation &Loc) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateCharType", "Loc=" << Loc.getRawEncoding());
+    return new ASTCharType(Loc);
+}
+
 ASTStringType *SemaBuilder::CreateStringType(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateStringType", "Loc=" << Loc.getRawEncoding());
     return new ASTStringType(Loc);
@@ -645,6 +650,12 @@ ASTArrayValue *SemaBuilder::CreateArrayValue(const SourceLocation &Loc, llvm::Sm
     ASTArrayValue *Array = new ASTArrayValue(Loc);
     Array->Values = std::move(Values);
     return Array;
+}
+
+ASTCharValue *SemaBuilder::CreateCharValue(const SourceLocation &Loc, llvm::StringRef Str) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateCharValue",
+                      "Loc=" << Loc.getRawEncoding());
+    return new ASTCharValue(Loc, Str);
 }
 
 ASTStringValue *SemaBuilder::CreateStringValue(const SourceLocation &Loc, llvm::StringRef Str) {

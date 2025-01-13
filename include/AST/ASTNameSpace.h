@@ -12,10 +12,6 @@
 
 #include "ASTIdentifier.h"
 
-#include "llvm/ADT/StringMap.h"
-
-#include <map>
-
 namespace fly {
 
     class ASTModule;

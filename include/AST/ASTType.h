@@ -56,6 +56,7 @@ namespace fly {
         TYPE_INTEGER,
         TYPE_FLOATING_POINT,
         TYPE_STRING,
+        TYPE_CHAR,
         TYPE_ARRAY,
         TYPE_IDENTITY,
         TYPE_ERROR
@@ -385,6 +386,24 @@ namespace fly {
         friend class SemaValidator;
 
         explicit ASTStringType(const SourceLocation &Loc);
+
+    public:
+
+        std::string print() const override;
+
+        std::string str() const override;
+    };
+
+    /**
+     * Char Type
+     */
+    class ASTCharType : public ASTType {
+
+        friend class SemaBuilder;
+        friend class SemaResolver;
+        friend class SemaValidator;
+
+        explicit ASTCharType(const SourceLocation &Loc);
 
     public:
 

@@ -71,6 +71,8 @@ std::string ASTType::printType(const ASTTypeKind Kind) {
             return "Array";
         case ASTTypeKind::TYPE_IDENTITY:
             return "Identity";
+        case ASTTypeKind::TYPE_CHAR:
+            return "Char";
         case ASTTypeKind::TYPE_STRING:
             return "String";
         case ASTTypeKind::TYPE_ERROR:
@@ -334,6 +336,21 @@ std::string ASTStringType::print() const {
 
 std::string ASTStringType::str() const {
     return Logger("ASTStringType").
+            Super(ASTType::str()).
+            End();
+}
+
+ASTCharType::ASTCharType(const SourceLocation &Loc) :
+        ASTType(Loc, ASTTypeKind::TYPE_CHAR) {
+
+}
+
+std::string ASTCharType::print() const {
+    return "string";
+}
+
+std::string ASTCharType::str() const {
+    return Logger("ASTCharType").
             Super(ASTType::str()).
             End();
 }
