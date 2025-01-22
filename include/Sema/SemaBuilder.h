@@ -388,9 +388,12 @@ namespace fly {
 
         SemaBuilderStmt *CreateReturnStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
 
+        SemaBuilderStmt *CreateExprStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
+
         SemaBuilderStmt *CreateFailStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
 
-        SemaBuilderStmt *CreateExprStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
+        ASTHandleStmt *CreateHandleStmt(ASTBlockStmt *Parent, const SourceLocation &Loc,
+            ASTBlockStmt *BlockStmt, ASTVarRef *ErrorRef = nullptr);
 
         ASTBreakStmt *CreateBreakStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
 
@@ -411,8 +414,6 @@ namespace fly {
         SemaBuilderSwitchStmt *CreateSwitchBuilder(ASTBlockStmt *Parent);
 
         SemaBuilderLoopStmt *CreateLoopBuilder(ASTBlockStmt *Parent, const SourceLocation &Loc);
-
-        ASTHandleStmt *CreateHandleStmt(ASTBlockStmt *Parent, const SourceLocation &Loc, ASTVarRef *ErrorRef);
 
     };
 

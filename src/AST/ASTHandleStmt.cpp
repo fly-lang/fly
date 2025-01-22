@@ -25,6 +25,10 @@ void ASTHandleStmt::setErrorHandlerRef(ASTVarRef *ErrorHandler) {
     ErrorHandlerRef = ErrorHandler;
 }
 
+ASTBlockStmt* ASTHandleStmt::getHandle() const {
+    return Handle;
+}
+
 CodeGenHandle *ASTHandleStmt::getCodeGen() const {
     return CodeGen;
 }

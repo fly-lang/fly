@@ -27,6 +27,49 @@ namespace {
 
     using namespace fly;
 
+    TEST_F(ParserTest, GlobalVars) {
+        llvm::StringRef str = ("private Obj o");
+        ASTModule *Module = Parse("GlobalVars", str);
+
+        ASSERT_TRUE(Resolve());
+
+        ASTGlobalVar *VarO = Module->getGlobalVars().front();
+
+        EXPECT_EQ(VarO->getVisibility(), ASTVisibilityKind::V_PRIVATE);
+        EXPECT_FALSE(VarO->isConstant());
+        EXPECT_EQ(((ASTIntegerType *) VarO->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_INT);
+        EXPECT_EQ(VarO->getName(), "o");
+    }
+
+    // TEST_F(ParserTest, NullTypeVarReturn) {
+    //     llvm::StringRef str = ("Type func() {\n"
+    //                            "  Type t = null"
+    //                            "  return t\n"
+    //                            "}\n");
+    //     ASTModule *Module = Parse("TypeDefaultVarReturn", str);
+    //
+    //     ASSERT_TRUE(Resolve());
+    //
+    //
+    //     // Get Body
+    //     ASTFunction *F = *Module->getFunctions().begin()->getValue().begin()->second.begin();
+    //     EXPECT_EQ(F->getReturnType()->getKind(), ASTTypeKind::TYPE_IDENTITY);
+    //     const ASTBlockStmt *Body = F->getBody();
+    //
+    //     // Test: Type t
+    //     ASTVarStmt *varStmt = (ASTVarStmt *) Body->getContent()[0];
+    //     EXPECT_EQ(varStmt->getVarRef()->getName(), "t");
+    //     ASTIdentityType *ClassType = (ASTIdentityType *) varStmt->getVarRef()->getDef()->getType();
+    //     EXPECT_EQ(ClassType->getKind(), ASTTypeKind::TYPE_IDENTITY);
+    //     EXPECT_EQ(ClassType->getName(), "Type");
+    //     ASSERT_EQ(((ASTNullValue *)((ASTValueExpr *) varStmt->getExpr())->getValue())->print(), "null");
+    //
+    //     const ASTReturnStmt *Ret = (ASTReturnStmt *) Body->getContent()[1];
+    //     ASTVarRefExpr *RetRef = (ASTVarRefExpr *) Ret->getExpr();
+    //     EXPECT_EQ(RetRef->getVarRef()->getName(), "t");
+    //
+    // }
+
     TEST_F(ParserTest, ClassEmpty) {
         llvm::StringRef str = ("public class Test {}\n");
         ASTModule *Module = Parse("ClassEmpty", str);

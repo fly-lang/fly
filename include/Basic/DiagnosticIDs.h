@@ -28,7 +28,7 @@ namespace fly {
   namespace diag {
     // Size of each of the diagnostic categories.
     enum {
-      DIAG_SIZE_COMMON        =  400
+      DIAG_SIZE_COMMON        =  420
     };
     // Start position for diagnostics.
     enum {

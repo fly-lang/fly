@@ -14,6 +14,7 @@
 #include "AST/ASTVarRef.h"
 #include "AST/ASTReturnStmt.h"
 #include "AST/ASTFailStmt.h"
+#include "AST/ASTHandleStmt.h"
 #include "AST/ASTExprStmt.h"
 
 using namespace fly;

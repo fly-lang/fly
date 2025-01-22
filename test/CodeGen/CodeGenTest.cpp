@@ -41,7 +41,6 @@
 #include "AST/ASTExprStmt.h"
 #include "AST/ASTFailStmt.h"
 #include "AST/ASTOpExpr.h"
-#include "AST/ASTOperatorExpr.h"
 
 
 namespace {
@@ -2218,7 +2217,7 @@ namespace {
         // }
         ASTBlockStmt *Body2 = Builder.CreateBlockStmt(SourceLoc);
         ASTFunction *TestFail2 = Builder.CreateFunction(Module, SourceLoc, IntType, "testFail2", TopScopes, Params, Body2);
-        ASTIntegerValue *IntVal = Builder.CreateIntegerValue(SourceLoc, 10);
+        ASTIntegerValue *IntVal = Builder.CreateIntegerValue(SourceLoc, "10");
         SemaBuilderStmt *Fail2Stmt = Builder.CreateFailStmt(Body2, SourceLoc);
         Fail2Stmt->setExpr(Builder.CreateExpr(IntVal));
 

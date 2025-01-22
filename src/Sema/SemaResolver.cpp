@@ -35,6 +35,7 @@
 #include "AST/ASTLoopInStmt.h"
 #include "AST/ASTBlockStmt.h"
 #include "AST/ASTValue.h"
+#include "AST/ASTExpr.h"
 #include "AST/ASTReturnStmt.h"
 #include "AST/ASTHandleStmt.h"
 #include "AST/ASTDeleteStmt.h"
@@ -76,7 +77,7 @@ bool SemaResolver::Resolve(Sema &S) {
             }
         }
 
-        // If no NameSpace is assign set Default NameSpace
+        // If no NameSpace is assigned, set Default NameSpace
         if (Module->getNameSpaces().empty())
             Module->NameSpaces.push_back(new ASTNameSpace(SourceLocation(), ASTContext::DEFAULT_NAMESPACE));
 
@@ -488,13 +489,15 @@ void SemaResolver::ResolveFunctionDefinitions() {
     }
 }
 
-void SemaResolver::ResolveType(ASTType *Type) {
+bool SemaResolver::ResolveType(ASTType *Type) {
     if (Type->isIdentity()) {
-        ResolveIdentityType((ASTIdentityType *) Type);
+        return ResolveIdentityType((ASTIdentityType *) Type);
     } else if (Type->isArray()) {
         ASTArrayType *ArrayType = (ASTArrayType *) Type;
-        ResolveType(ArrayType->getType());
+        return ResolveType(ArrayType->getType());
     }
+    // TODO Error: Type not resolved
+    return false;
 }
 
 bool SemaResolver::ResolveStmt(ASTStmt *Stmt) {
@@ -604,7 +607,8 @@ bool SemaResolver::ResolveStmtVar(ASTAssignmentStmt *VarStmt) {
     ResolveVarRef(VarStmt->Parent, VarStmt->VarRef);
     if (VarStmt->getVarRef()->getDef() && VarStmt->getExpr() != nullptr && !VarStmt->getVarRef()->getDef()->isInitialized())
         VarStmt->getVarRef()->getDef()->setInitialization(VarStmt); // FIXME ? with if - else
-    return VarStmt->getVarRef()->getDef() && ResolveExpr(VarStmt->Parent, VarStmt->Expr, VarStmt->getVarRef()->getDef()->getType());
+    return VarStmt->getVarRef()->getDef() &&
+        ResolveExpr(VarStmt->Parent, VarStmt->Expr, VarStmt->getVarRef()->getDef()->getType());
 }
 
 bool SemaResolver::ResolveStmtFail(ASTFailStmt *FailStmt) {
@@ -612,19 +616,24 @@ bool SemaResolver::ResolveStmtFail(ASTFailStmt *FailStmt) {
     // Set error handler with parent block or function
     while (FailStmt->ErrorHandler == nullptr) {
         Parent = Parent->getParent();
-        if (Parent == nullptr) {
+        if (Parent == nullptr) { // assign function error handler if parents have no handler
             FailStmt->ErrorHandler = FailStmt->getFunction()->getErrorHandler();
         } else if (Parent->getKind() == ASTStmtKind::STMT_HANDLE) {
-            FailStmt->HandleStmt = ((ASTHandleStmt *) Parent);
+            FailStmt->HandleStmt = (ASTHandleStmt *) Parent;
             ASTVarRef *ErrorRef = FailStmt->HandleStmt->ErrorHandlerRef;
             FailStmt->ErrorHandler = ErrorRef->getDef(); // Already resolved in ResolveStmtHandle()
         }
     }
-    return ResolveExpr(FailStmt->Parent, FailStmt->Expr);
+
+    if (FailStmt->Expr)
+        return ResolveExpr(FailStmt->Parent, FailStmt->Expr);
+
+    return FailStmt->ErrorHandler;
 }
 
 bool SemaResolver::ResolveStmtHandle(ASTHandleStmt *HandleStmt) {
-    ResolveVarRef(HandleStmt->getParent(), HandleStmt->ErrorHandlerRef);
+    if (HandleStmt->ErrorHandlerRef)
+        ResolveVarRef(HandleStmt->getParent(), HandleStmt->ErrorHandlerRef);
     return ResolveStmt(HandleStmt->Handle);
 }
 
@@ -959,10 +968,23 @@ bool SemaResolver::ResolveCall(ASTStmt *Stmt, ASTCall *Call) {
         if (SpaceSymbols)
             Current->Parent = S.Builder->CreateNameSpace(Current->getParent());
 
+        // Resolve Expression in Arguments
+        bool ResolvedArgs = true;
+        for (ASTArg *Arg : Call->getArgs()) {
+            ResolvedArgs &= ResolveExpr(Stmt, Arg->getExpr());
+        }
+
+        // if Arguments are not resolved is not possible go ahead with call reference resolution
+        // cannot resolve with the function parameters types
+        if (!ResolvedArgs) {
+            return false;
+        }
+
+        // resolve identifier from most significant to less
         Call->Resolved = (SpaceSymbols && ResolveIdentifier(SpaceSymbols, Stmt, Current)) || // Resolve in NameSpace: Type, Function, GlobalVar
-               ResolveIdentifier(Stmt, Current) || // Resolve in statements as LocalVar
-               ResolveIdentifier(MySpaceSymbols, Stmt, Current) || // Module NameSpace
-               ResolveIdentifier(S.DefaultSymbols, Stmt, Current); // Default NameSpace, Class Method or Attribute, LocalVar
+           ResolveIdentifier(Stmt, Current) || // Resolve in statements as LocalVar
+           ResolveIdentifier(MySpaceSymbols, Stmt, Current) || // Module NameSpace
+           ResolveIdentifier(S.DefaultSymbols, Stmt, Current); // Default NameSpace, Class Method or Attribute, LocalVar
     }
 
     // VarRef not found in Module, namespace and Module imports
@@ -970,13 +992,17 @@ bool SemaResolver::ResolveCall(ASTStmt *Stmt, ASTCall *Call) {
         S.Diag(Call->getLocation(), diag::err_unref_call) << Call->getName();
     }
 
+    // Search from until parent is null or parent is a Handle Stmt
     ASTStmt *Parent = Stmt;
     while (Call->ErrorHandler == nullptr) {
         Parent = Parent->getParent();
         if (Parent == nullptr) {
             Call->ErrorHandler = Stmt->getFunction()->getErrorHandler();
         } else if (Parent->getKind() == ASTStmtKind::STMT_HANDLE) {
-            Call->ErrorHandler = ((ASTHandleStmt *) Parent)->ErrorHandlerRef->getDef();
+            ASTHandleStmt *HandleStmt = (ASTHandleStmt *) Parent;
+            if (HandleStmt->ErrorHandlerRef != nullptr) {
+                Call->ErrorHandler = HandleStmt->ErrorHandlerRef->Def;
+            }
         }
     }
 
@@ -1180,29 +1206,19 @@ T *SemaResolver::FindFunction(ASTCall *Call, llvm::StringMap<std::map<uint64_t, 
  */
 ASTVar *SemaResolver::FindLocalVar(ASTStmt *Stmt, llvm::StringRef Name) const {
     FLY_DEBUG_MESSAGE("Sema", "FindLocalVar", Logger().Attr("Parent", Stmt).Attr("Name", Name).End());
-    if (Stmt->getKind() == ASTStmtKind::STMT_BLOCK) {
-        ASTBlockStmt *Block = (ASTBlockStmt *) Stmt;
-        const auto &It = Block->getLocalVars().find(Name);
-        if (It != Block->getLocalVars().end()) { // Search into this Block
-            return It->getValue();
-        } else if (Stmt->getParent()) { // search recursively into Parent Blocks to find the right Var definition
-            return FindLocalVar(Stmt->getParent(), Name);
-        } else {
-            llvm::SmallVector<ASTParam *, 8> Params = Stmt->getFunction()->getParams();
-            for (auto &Param : Params) {
-                if (Param->getName() == Name) { // Search into ASTParam list
-                    return Param;
-                }
+    ASTBlockStmt *Block = (ASTBlockStmt *) Stmt;
+    const auto &It = Block->getLocalVars().find(Name);
+    if (It != Block->getLocalVars().end()) { // Search into this Block
+        return It->getValue();
+    } else if (Stmt->getParent()) { // search recursively into Parent Blocks to find the right Var definition
+        return FindLocalVar(Stmt->getParent(), Name);
+    } else { // Search into ASTParam list
+        llvm::SmallVector<ASTParam *, 8> Params = Stmt->getFunction()->getParams();
+        for (auto &Param : Params) {
+            if (Param->getName() == Name) {
+                return Param;
             }
         }
-    } else if (Stmt->getKind() == ASTStmtKind::STMT_IF) {
-        return FindLocalVar(Stmt->getParent(), Name);
-    } else if (Stmt->getKind() == ASTStmtKind::STMT_SWITCH) {
-        return FindLocalVar(Stmt->getParent(), Name);
-    }  else if (Stmt->getKind() == ASTStmtKind::STMT_LOOP) {
-        return FindLocalVar(Stmt->getParent(), Name);
-    }  else if (Stmt->getKind() == ASTStmtKind::STMT_LOOP_IN) {
-        return FindLocalVar(Stmt->getParent(), Name);
     }
     return nullptr;
 }

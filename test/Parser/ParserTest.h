@@ -49,7 +49,9 @@ public:
     }
 
     bool Resolve() {
+        Diags.getClient()->BeginSourceFile();
         return S->Resolve();
+        Diags.getClient()->EndSourceFile();
     }
 
 };

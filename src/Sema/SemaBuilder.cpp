@@ -974,6 +974,12 @@ SemaBuilderStmt *SemaBuilder::CreateReturnStmt(ASTBlockStmt *Parent, const Sourc
     return SemaBuilderStmt::CreateReturn(this, Parent, Loc);
 }
 
+SemaBuilderStmt *SemaBuilder::CreateExprStmt(ASTBlockStmt *Parent, const SourceLocation &Loc) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateExprStmt", Logger()
+            .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
+    return SemaBuilderStmt::CreateExpr(this, Parent, Loc);
+}
+
 /**
  * Creates an SemaBuilderStmt with ASTFailStmt
  * @param Loc
@@ -986,10 +992,23 @@ SemaBuilderStmt *SemaBuilder::CreateFailStmt(ASTBlockStmt *Parent, const SourceL
     return SemaBuilderStmt::CreateFail(this, Parent, Loc);
 }
 
-SemaBuilderStmt *SemaBuilder::CreateExprStmt(ASTBlockStmt *Parent, const SourceLocation &Loc) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateExprStmt", Logger()
+ASTHandleStmt *SemaBuilder::CreateHandleStmt(ASTBlockStmt *Parent, const SourceLocation &Loc,
+    ASTBlockStmt *BlockStmt, ASTVarRef *ErrorRef) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateHandleStmt", Logger()
             .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
-    return SemaBuilderStmt::CreateExpr(this, Parent, Loc);
+
+        ASTHandleStmt *HandleStmt = new ASTHandleStmt(Loc);
+        HandleStmt->ErrorHandlerRef = ErrorRef;
+        HandleStmt->Parent = Parent;
+        HandleStmt->Function = Parent->Function;
+        HandleStmt->Handle = BlockStmt;
+        Parent->Content.push_back(HandleStmt);
+
+        // set Handle Block
+        BlockStmt->Parent = HandleStmt;
+        BlockStmt->Function = HandleStmt->Function;
+
+        return HandleStmt;
 }
 
 ASTBreakStmt *SemaBuilder::CreateBreakStmt(ASTBlockStmt *Parent, const SourceLocation &Loc) {
@@ -1063,17 +1082,6 @@ SemaBuilderSwitchStmt *SemaBuilder::CreateSwitchBuilder(ASTBlockStmt *Parent) {
 SemaBuilderLoopStmt *SemaBuilder::CreateLoopBuilder(ASTBlockStmt *Parent, const SourceLocation &Loc) {
     FLY_DEBUG("SemaBuilder", "CreateLoopBuilder");
     return SemaBuilderLoopStmt::Create(S, Parent, Loc);
-}
-
-ASTHandleStmt *SemaBuilder::CreateHandleStmt(ASTBlockStmt *Parent, const SourceLocation &Loc, ASTVarRef *ErrorRef) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateHandleStmt", Logger()
-            .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
-    ASTHandleStmt *HandleStmt = new ASTHandleStmt(Loc);
-    HandleStmt->setErrorHandlerRef(ErrorRef);
-    // Inner Stmt
-    HandleStmt->Parent = Parent;
-    HandleStmt->Function = Parent->Function;
-    return HandleStmt;
 }
 
 //llvm::StringRef

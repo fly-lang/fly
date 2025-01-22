@@ -82,7 +82,7 @@ bool SemaValidator::CheckImport(ASTModule *Module, ASTImport *Import) {
     // Error: Empty Import
     if (Import->getName().empty()) {
         if (DiagEnabled)
-            S.Diag(Import->getLocation(), diag::err_import_undefined);
+            S.Diag(Import->getLocation(), diag::err_sema_import_undefined);
         return false;
     }
 
@@ -338,7 +338,6 @@ bool SemaValidator::CheckValue(ASTValue *Value) {
         case ASTTypeKind::TYPE_BOOL:
             break;
         case ASTTypeKind::TYPE_INTEGER: {
-            ASTIntegerValue *Integer = (ASTIntegerValue *) Value;
             break;
         }
         case ASTTypeKind::TYPE_FLOATING_POINT:

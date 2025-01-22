@@ -97,7 +97,7 @@ namespace fly {
 
         void ResolveFunctionDefinitions();
 
-        void ResolveType(ASTType *Type);
+        bool ResolveType(ASTType *Type);
 
         bool ResolveStmt(ASTStmt *Stmt);
 

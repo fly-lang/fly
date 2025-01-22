@@ -26,7 +26,7 @@ namespace fly {
 
         ASTVarRef *ErrorHandlerRef = nullptr;
 
-        ASTStmt *Handle = nullptr;
+        ASTBlockStmt *Handle = nullptr;
 
         CodeGenHandle * CodeGen = nullptr;
 
@@ -37,6 +37,8 @@ namespace fly {
         ASTVarRef *getErrorHandlerRef() const;
 
         void setErrorHandlerRef(ASTVarRef *ErrorHandler);
+
+        ASTBlockStmt* getHandle() const;
 
         CodeGenHandle *getCodeGen() const;
 

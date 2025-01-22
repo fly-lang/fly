@@ -63,6 +63,8 @@ bool Frontend::Execute() {
         Diags.getClient()->EndSourceFile();
     }
 
+    Diags.getClient()->BeginSourceFile();
+
     // Resolve AST references
     if (S->Resolve()) {
         // Generate Backend Code
@@ -73,15 +75,15 @@ bool Frontend::Execute() {
 
         // Emit code base on BackendActionKind
         for (auto M : Modules) {
-            Diags.getClient()->BeginSourceFile();
             CG.Emit(M, M->getName());
-            Diags.getClient()->EndSourceFile();
         }
 
         if (CI.getFrontendOptions().CreateHeader) {
             CG.GenerateHeaders(S->getContext());
         }
     }
+
+    Diags.getClient()->EndSourceFile();
 
     // Finish client diagnostics
     Diags.getClient()->finish();

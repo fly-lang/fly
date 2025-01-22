@@ -103,6 +103,7 @@ namespace fly {
         void SkipComments();
 
         // Parse Stmt
+        bool ParseBlockOrStmt(ASTBlockStmt *Parent);
         bool ParseBlock(ASTBlockStmt *Parent);
         bool ParseStmt(ASTBlockStmt *Parent);
         bool ParseStartParen(); // FIXME remove?
@@ -119,7 +120,7 @@ namespace fly {
         ASTType *ParseBuiltinType();
         ASTArrayType *ParseArrayType(ASTType *);
         ASTType *ParseType();
-        ASTCall *ParseCall(ASTIdentifier *&Identifier);
+        ASTCall *ParseCallIdentifier(ASTIdentifier *&Identifier);
         ASTIdentifier *ParseIdentifier(ASTIdentifier *Parent = nullptr);
 
         // Parse a Value
