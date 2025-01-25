@@ -30,7 +30,7 @@ CodeGenClassFunction::CodeGenClassFunction(CodeGenModule *CGM, ASTClassMethod *A
     // Generate return type
     GenReturnType();
 
-    // Add ErrorHandler to params
+    // Add ErrorHandler to params, Struct doesn't use ErrorHandler
     if (AST->getClass()->getClassKind() != ASTClassKind::STRUCT) {
         ParamTypes.push_back(CGM->ErrorPtrTy);
     }

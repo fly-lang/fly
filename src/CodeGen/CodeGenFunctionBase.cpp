@@ -94,26 +94,30 @@ void CodeGenFunctionBase::AllocaLocalVars() {
 
     // Allocation of all declared ASTLocalVar
     for (auto &LocalVar: AST->getLocalVars()) {
-        CodeGenVar *CGV = CGM->GenLocalVar(LocalVar);
-        CGV->Alloca();
+    	if (LocalVar->getType()->isError()) {
+    		CodeGenError *CGE = CGM->GenErrorHandler(LocalVar);
+    		LocalVar->setCodeGen(CGE);
+		} else {
+    		CodeGenVar *CGV = CGM->GenLocalVar(LocalVar);
+    		CGV->Alloca();
 
-        // Create CodeGenVar for all inner attributes of a class
-        if (LocalVar->getType()->isIdentity()) {
-            ASTIdentityType *IdentityType = (ASTIdentityType *) LocalVar->getType();
-            if (IdentityType->isClass()) {
-                ASTClass * Class =  (ASTClass *) IdentityType->getDef();
-                // Class start with param 0 with the vtable type
-                uint32_t Idx = Class->getClassKind() == ASTClassKind::STRUCT ? 0 : 1;
-                for (auto &Attribute : Class->getAttributes()) {
-                    CodeGenVar *CGAttr = new CodeGenVar(CGM, CGM->GenType(Attribute->getType()), CGV, Idx);
-                    CGV->addVar(Attribute->getName(), CGAttr);
-                    Attribute->setCodeGen(CGAttr);
-                    Idx++;
-                }
-            }
-            
-        }
-        LocalVar->setCodeGen(CGV);
+    		// Create CodeGenVar for all inner attributes of a class
+    		if (LocalVar->getType()->isIdentity()) {
+    			ASTIdentityType *IdentityType = (ASTIdentityType *) LocalVar->getType();
+    			if (IdentityType->isClass()) {
+    				ASTClass * Class =  (ASTClass *) IdentityType->getDef();
+    				// Class start with param 0 with the vtable type
+    				uint32_t Idx = Class->getClassKind() == ASTClassKind::STRUCT ? 0 : 1;
+    				for (auto &Attribute : Class->getAttributes()) {
+    					CodeGenVar *CGAttr = new CodeGenVar(CGM, CGM->GenType(Attribute->getType()), CGV, Idx);
+    					CGV->addVar(Attribute->getName(), CGAttr);
+    					Attribute->setCodeGen(CGAttr);
+    					Idx++;
+    				}
+    			}
+    		}
+			LocalVar->setCodeGen(CGV);
+    	}
     }
 }
 

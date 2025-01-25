@@ -45,7 +45,6 @@ namespace fly {
     class ASTGlobalVar;
     class ASTEnum;
     class ASTComment;
-    enum class ASTBinaryOperatorKind;
 
     /// ParseModule the main file known to the preprocessor, producing an
     /// abstract syntax tree.

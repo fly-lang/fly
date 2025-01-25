@@ -20,8 +20,8 @@
 #include "CodeGen/CodeGenGlobalVar.h"
 #include "CodeGen/CodeGenVar.h"
 #include "CodeGen/CodeGenExpr.h"
-#include "CodeGen/CodeGenHandle.h"
 #include "CodeGen/CodeGenError.h"
+#include "CodeGen/CodeGenHandle.h"
 #include "AST/ASTImport.h"
 #include "AST/ASTModule.h"
 #include "AST/ASTNameSpace.h"
@@ -842,6 +842,27 @@ llvm::Value *CodeGenModule::GenExpr(ASTExpr *Expr) {
     return CGExpr->getValue();
 }
 
+void CodeGenModule::GenFailStmt(ASTFailStmt *FailStmt, CodeGenError *CGE) {
+	// Store Fail value in ErrorHandler
+	if (FailStmt->getExpr() == nullptr) {
+		CGE->StoreInt(llvm::ConstantInt::get(Int32Ty, 1));
+	} else if (FailStmt->getExpr()->getType()->isBool() || FailStmt->getExpr()->getType()->isInteger()) {
+		llvm::Value *V = GenExpr(FailStmt->getExpr());
+		CGE->StoreInt(V);
+	} else if (FailStmt->getExpr()->getType()->isString()) {
+		llvm::Value *V = GenExpr(FailStmt->getExpr());
+		CGE->StoreString(V);
+	} else if (FailStmt->getExpr()->getType()->isIdentity()) {
+		ASTIdentityType * IdentityType = (ASTIdentityType *) FailStmt->getExpr()->getType();
+		llvm::Value *V = GenExpr(FailStmt->getExpr());
+		if (IdentityType->isEnum()) {
+			CGE->StoreInt(V);
+		} else if (IdentityType->isClass()) {
+			CGE->StoreObject(V);
+		}
+	}
+}
+
 void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
     FLY_DEBUG("CodeGenModule", "GenStmt");
     switch (Stmt->getKind()) {
@@ -859,7 +880,7 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
                         // TODO
                     } else if (VarRef->getParent()->isVarRef()) {
                         // Take Parent Instance
-                        CodeGenVarBase *CGI = ((ASTVarRef *) VarRef->getParent())->getDef()->getCodeGen();
+                        CodeGenVarBase *CGI = static_cast<ASTVarRef *>(VarRef->getParent())->getDef()->getCodeGen();
                         CodeGenVarBase *CGV = CGI->getVar(VarRef->getName()); // Get Var Name
                         CGV->Store(V);
                     }
@@ -872,28 +893,28 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
 
             // Stmt with Expr
         case ASTStmtKind::STMT_EXPR: {
-            ASTExprStmt *ExprStmt = (ASTExprStmt *) Stmt;
+            ASTExprStmt *ExprStmt = static_cast<ASTExprStmt *>(Stmt);
             GenExpr(ExprStmt->getExpr());
             break;
         }
 
             // Block of Stmt
         case ASTStmtKind::STMT_BLOCK: {
-            ASTBlockStmt *Block = (ASTBlockStmt *) Stmt;
+            ASTBlockStmt *Block = static_cast<ASTBlockStmt *>(Stmt);
             GenBlock(CGF, Block);
             break;
         }
 
         case ASTStmtKind::STMT_IF:
-            GenIfBlock(CGF, (ASTIfStmt *)Stmt);
+            GenIfBlock(CGF, static_cast<ASTIfStmt *>(Stmt));
             break;
 
         case ASTStmtKind::STMT_SWITCH:
-            GenSwitchBlock(CGF, (ASTSwitchStmt *)Stmt);
+            GenSwitchBlock(CGF, static_cast<ASTSwitchStmt *>(Stmt));
             break;
 
         case ASTStmtKind::STMT_LOOP: {
-            GenLoopBlock(CGF, (ASTLoopStmt *) Stmt);
+            GenLoopBlock(CGF, static_cast<ASTLoopStmt *>(Stmt));
             break;
         }
 
@@ -930,53 +951,56 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
         }
 
         case ASTStmtKind::STMT_HANDLE: {
-            ASTHandleStmt *HandleStmt = (ASTHandleStmt *) Stmt;
+            ASTHandleStmt *HandleStmt = static_cast<ASTHandleStmt *>(Stmt);
 
-            CodeGenHandle *CGH = new CodeGenHandle(this);
-            HandleStmt->setCodeGen(CGH);
-            llvm::BasicBlock *HandleBB = CGH->GenBlock();
+        	// New CodeGen Handle
+        	CodeGenHandle *CGH = new CodeGenHandle(this, CGF);
+        	HandleStmt->setCodeGen(CGH);
+
+        	// Set Handle Block
+            llvm::BasicBlock *HandleBB = CGH->getHandleBlock();
             Builder->CreateBr(HandleBB);
             Builder->SetInsertPoint(HandleBB);
-            GenStmt(CGF, HandleStmt);
+
+        	// Continue with code generator
+            GenStmt(CGF, HandleStmt->getHandle());
+
+        	// Continue in Safe Block
+        	Builder->SetInsertPoint(CGH->getSafeBlock());
             break;
         }
 
         case ASTStmtKind::STMT_FAIL: {
-            ASTFailStmt *FailStmt = (ASTFailStmt *) Stmt;
+            ASTFailStmt *FailStmt = static_cast<ASTFailStmt *>(Stmt);
 
-            // Take the current ErrorHandler CodeGen
-            ASTVar *ErrorHandler = FailStmt->getErrorHandler();
-            CodeGenError *CGE = (CodeGenError *) ErrorHandler->getCodeGen();
+        	ASTStmt *Parent = FailStmt->getParent();
 
-            // Store Fail value in ErrorHandler
-            if (FailStmt->getExpr() == nullptr) {
-                CGE->StoreDefault();
-            } else if (FailStmt->getExpr()->getType()->isBool() || FailStmt->getExpr()->getType()->isInteger()) {
-                llvm::Value *V = GenExpr(FailStmt->getExpr());
-                CGE->StoreInt(V);
-            } else if (FailStmt->getExpr()->getType()->isString()) {
-                llvm::Value *V = GenExpr(FailStmt->getExpr());
-                CGE->StoreString(V);
-            } else if (FailStmt->getExpr()->getType()->isIdentity()) {
-                ASTIdentityType * IdentityType = (ASTIdentityType *) FailStmt->getExpr()->getType();
-                llvm::Value *V = GenExpr(FailStmt->getExpr());
-                if (IdentityType->isEnum()) {
-                    CGE->StoreInt(V);
-                } else if (IdentityType->isClass()) {
-                    CGE->StoreObject(V);
-                }
-            }
-            
+        	// Set error handler with parent block or function
+        	while (true) {
+        		Parent = Parent->getParent();
+        		if (Parent == nullptr) {
+        			// Set Function ErrorHandler with Fail
+        			CodeGenError *CGE = static_cast<CodeGenError *>(FailStmt->getFunction()->getErrorHandler()->getCodeGen());
+        			GenFailStmt(FailStmt, CGE);
 
-            // Generate Return with default value for stop execution flow
-            if (FailStmt->hasHandle()) {
-                ASTHandleStmt *HandleStmt = FailStmt->getHandle();
-                HandleStmt->getCodeGen()->GoToBlock();
-            } else {
-                ASTFunctionBase *F = FailStmt->getParent()->getFunction();
-                GenReturn(F);
-            }
-            break;
+        			// Generate Return with default value for stop execution flow
+        			ASTFunctionBase *F = FailStmt->getParent()->getFunction();
+        			GenReturn(F);
+        			break;
+        		} else if (Parent->getKind() == ASTStmtKind::STMT_HANDLE) {
+					// Set ErrorHandler of the parent with Fail
+					ASTHandleStmt * HandleStmt = static_cast<ASTHandleStmt *>(Parent);
+
+					// Take the current ErrorHandler CodeGen (already resolved in ResolveStmtHandle())
+					CodeGenError *CGE = (CodeGenError *) HandleStmt->getErrorHandlerRef()->getDef()->getCodeGen();
+					GenFailStmt(FailStmt, CGE);
+
+					CodeGenHandle *CGH = HandleStmt->getCodeGen();
+					Builder->CreateBr(CGH->getSafeBlock());
+        			break;
+				}
+        	}
+        	break;
         }
     }
 }

@@ -26,23 +26,13 @@ namespace fly {
 
         ASTExpr *Expr = nullptr;
 
-        ASTVar *ErrorHandler = nullptr;
-
-        ASTHandleStmt *HandleStmt = nullptr;
-
         ASTFailStmt(const SourceLocation &Loc);
 
     public:
 
-        ASTVar *getErrorHandler() const;
-
         ASTExpr *getExpr() const;
 
         void setExpr(ASTExpr *);
-
-        bool hasHandle();
-
-        ASTHandleStmt *getHandle();
 
         std::string str() const override;
     };

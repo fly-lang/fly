@@ -75,7 +75,7 @@ public:
                     FloatType(Builder.CreateFloatType(SourceLoc)),
                     DoubleType(Builder.CreateDoubleType(SourceLoc)),
                     ArrayInt0Type(Builder.CreateArrayType(SourceLoc, IntType,
-                                                          Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 0)))),
+                                                          Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, "0")))),
                     ErrorType(Builder.CreateErrorType(SourceLoc)),
                     TopScopes(SemaBuilderScopes::Create()
                                       ->addVisibility(SourceLocation(), ASTVisibilityKind::V_DEFAULT)->getScopes()),

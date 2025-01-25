@@ -241,7 +241,7 @@ namespace fly {
 
         ASTFunction *CreateFunction(ASTModule *Module, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
                                     SmallVector<ASTScope *, 8> &Scopes, SmallVector<ASTParam *, 8> &Params,
-                                    ASTComment *Comment = nullptr, ASTBlockStmt *Body = nullptr);
+                                    ASTBlockStmt *Body = nullptr, ASTComment *Comment = nullptr);
 
         ASTClass *CreateClass(ASTModule *Module, const SourceLocation &Loc, ASTClassKind ClassKind, llvm::StringRef Name,
                               SmallVector<ASTScope *, 8> &Scopes, llvm::SmallVector<ASTClassType *, 4> &ClassTypes, ASTComment *Comment = nullptr);
@@ -371,7 +371,7 @@ namespace fly {
 
         ASTUnaryOpExpr *CreateUnaryOpExpr(const SourceLocation &Loc, ASTUnaryOpExprKind OpKind, ASTExpr *Expr);
 
-        ASTBinaryOpExpr *CreateBinaryOpExpr(ASTBinaryOpExprKind OpKind, const SourceLocation &OpLocation,
+        ASTBinaryOpExpr *CreateBinaryOpExpr(const SourceLocation &OpLocation, ASTBinaryOpExprKind OpKind,
                                             ASTExpr *LeftExpr, ASTExpr *RightExpr);
 
         ASTTernaryOpExpr *CreateTernaryOpExpr(ASTExpr *ConditionExpr,

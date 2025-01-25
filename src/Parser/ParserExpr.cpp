@@ -92,7 +92,7 @@ ASTBinaryOpExprKind toBinaryOpExprKind(Token Tok) {
         case tok::amp:
             return ASTBinaryOpExprKind::OP_BINARY_AND;
         case tok::ampamp:
-            return ASTBinaryOpExprKind::OP_BINARY_AND_LOG;
+            return ASTBinaryOpExprKind::OP_BINARY_LOGIC_AND;
         case tok::ampequal:
             return ASTBinaryOpExprKind::OP_BINARY_ASSIGN_AND;
         case tok::star:
@@ -140,7 +140,7 @@ ASTBinaryOpExprKind toBinaryOpExprKind(Token Tok) {
         case tok::pipe:
             return ASTBinaryOpExprKind::OP_BINARY_OR;
         case tok::pipepipe:
-            return ASTBinaryOpExprKind::OP_BINARY_OR_LOG;
+            return ASTBinaryOpExprKind::OP_BINARY_LOGIC_OR;
         case tok::pipeequal:
             return ASTBinaryOpExprKind::OP_BINARY_ASSIGN_OR;
         case tok::equal:
@@ -251,7 +251,7 @@ ASTBinaryOpExpr *ParserExpr::ParseBinaryExpr(ASTExpr *LeftExpr, Token OpToken, P
 
     // Combine the left and right into a binary operation node
 
-    return P->Builder.CreateBinaryOpExpr(toBinaryOpExprKind(OpToken), OpToken.getLocation(), LeftExpr, RightExpr);
+    return P->Builder.CreateBinaryOpExpr(OpToken.getLocation(), toBinaryOpExprKind(OpToken), LeftExpr, RightExpr);
 }
 
 ASTTernaryOpExpr *ParserExpr::ParseTernaryExpr(ASTExpr *ConditionExpr) {

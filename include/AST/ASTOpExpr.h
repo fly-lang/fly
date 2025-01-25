@@ -53,8 +53,8 @@ namespace fly {
         OP_BINARY_SHIFT_R,
 
         // Logic
-        OP_BINARY_AND_LOG,
-        OP_BINARY_OR_LOG ,
+        OP_BINARY_LOGIC_AND,
+        OP_BINARY_LOGIC_OR ,
 
         // Comparison
         OP_BINARY_EQ ,

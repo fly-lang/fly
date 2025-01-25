@@ -9,6 +9,7 @@
 
 // fly
 #include "CodeGenTest.h"
+#include "CodeGenTest.h"
 #include "CodeGen/CodeGenModule.h"
 #include "CodeGen/CodeGenGlobalVar.h"
 #include "CodeGen/CodeGenFunction.h"
@@ -187,39 +188,39 @@ namespace {
         ASTGlobalVar *aVar = Builder.CreateGlobalVar(Module, SourceLoc, BoolType, "a", TopScopes, Builder.CreateExpr(BoolVal));
 
         // b
-        ASTIntegerValue *ByteVal = Builder.CreateIntegerValue(SourceLoc, 1);
+        ASTIntegerValue *ByteVal = Builder.CreateIntegerValue(SourceLoc, "1");
         ASTGlobalVar *bVar = Builder.CreateGlobalVar(Module, SourceLoc, ByteType, "b", TopScopes, Builder.CreateExpr(ByteVal));
 
         // c
-        ASTIntegerValue *ShortVal = Builder.CreateIntegerValue(SourceLoc, 2, true);
+        ASTIntegerValue *ShortVal = Builder.CreateIntegerValue(SourceLoc, "-2");
         ASTGlobalVar *cVar = Builder.CreateGlobalVar(Module, SourceLoc, ShortType, "c", TopScopes, Builder.CreateExpr(ShortVal));
 
         // d
-        ASTIntegerValue *UShortVal = Builder.CreateIntegerValue(SourceLoc, 2);
+        ASTIntegerValue *UShortVal = Builder.CreateIntegerValue(SourceLoc, "2");
         ASTGlobalVar *dVar = Builder.CreateGlobalVar(Module, SourceLoc, UShortType, "d", TopScopes, Builder.CreateExpr(UShortVal));
 
         // e
-        ASTIntegerValue *IntVal = Builder.CreateIntegerValue(SourceLoc, 3, true);
+        ASTIntegerValue *IntVal = Builder.CreateIntegerValue(SourceLoc, "-3");
         ASTGlobalVar *eVar = Builder.CreateGlobalVar(Module, SourceLoc, IntType, "e", TopScopes, Builder.CreateExpr(IntVal));
 
         // f
-        ASTIntegerValue *UIntVal = Builder.CreateIntegerValue(SourceLoc, 3);
+        ASTIntegerValue *UIntVal = Builder.CreateIntegerValue(SourceLoc, "3");
         ASTGlobalVar *fVar = Builder.CreateGlobalVar(Module, SourceLoc, UIntType, "f", TopScopes, Builder.CreateExpr(UIntVal));
 
         // g
-        ASTIntegerValue *LongVal = Builder.CreateIntegerValue(SourceLoc, 4, true);
+        ASTIntegerValue *LongVal = Builder.CreateIntegerValue(SourceLoc, "-4");
         ASTGlobalVar *gVar = Builder.CreateGlobalVar(Module, SourceLoc, LongType, "g", TopScopes, Builder.CreateExpr(LongVal));
 
         // h
-        ASTIntegerValue *ULongVal = Builder.CreateIntegerValue(SourceLoc, 4);
+        ASTIntegerValue *ULongVal = Builder.CreateIntegerValue(SourceLoc, "4");
         ASTGlobalVar *hVar = Builder.CreateGlobalVar(Module, SourceLoc, ULongType, "h", TopScopes, Builder.CreateExpr(ULongVal));
 
         // i
-        ASTFloatingValue *FloatVal = Builder.CreateFloatingValue(SourceLoc, 1.5);
+        ASTFloatingValue *FloatVal = Builder.CreateFloatingValue(SourceLoc, "1.5");
         ASTGlobalVar *iVar = Builder.CreateGlobalVar(Module, SourceLoc, FloatType, "i", TopScopes, Builder.CreateExpr(FloatVal));
 
         // j
-        ASTFloatingValue *DoubleVal = Builder.CreateFloatingValue(SourceLoc, 2.5);
+        ASTFloatingValue *DoubleVal = Builder.CreateFloatingValue(SourceLoc, "2.5");
         ASTGlobalVar *jVar = Builder.CreateGlobalVar(Module, SourceLoc, DoubleType, "j", TopScopes, Builder.CreateExpr(DoubleVal));
 
         // k (empty array)
@@ -229,10 +230,10 @@ namespace {
 
         // l (array with 2 val)
         llvm::SmallVector<ASTValue *, 8> Values;
-        Values.push_back(Builder.CreateIntegerValue(SourceLoc, 1)); // ArrayVal = {1}
-        Values.push_back(Builder.CreateIntegerValue(SourceLoc, 2)); // ArrayVal = {1, 1}
+        Values.push_back(Builder.CreateIntegerValue(SourceLoc, "1")); // ArrayVal = {1}
+        Values.push_back(Builder.CreateIntegerValue(SourceLoc, "2")); // ArrayVal = {1, 1}
         ASTArrayValue *ArrayVal = Builder.CreateArrayValue(SourceLoc, Values);
-        ASTValueExpr *SizeExpr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, ArrayVal->size()));
+        ASTValueExpr *SizeExpr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, "2"));
         ASTArrayType *ArrayInt2Type = Builder.CreateArrayType(SourceLoc, IntType, SizeExpr);
         ASTGlobalVar *lVar = Builder.CreateGlobalVar(Module, SourceLoc, ArrayInt2Type, "l", TopScopes, Builder.CreateExpr(ArrayVal));
 
@@ -405,7 +406,7 @@ namespace {
         ASTModule *Module = CreateModule();
 
         // float G = 2.0
-        ASTFloatingValue *FloatingVal = Builder.CreateFloatingValue(SourceLoc, 2.0);
+        ASTFloatingValue *FloatingVal = Builder.CreateFloatingValue(SourceLoc, "2.0");
         ASTGlobalVar *GVar = Builder.CreateGlobalVar(Module, SourceLoc, FloatType, "G", TopScopes,
                                                      Builder.CreateExpr(FloatingVal));
 
@@ -416,14 +417,14 @@ namespace {
         // int A = 1
         ASTLocalVar *VarA = Builder.CreateLocalVar(Body, SourceLoc, IntType, "A", EmptyScopes);
         SemaBuilderStmt *VarAStmt = Builder.CreateAssignmentStmt(Body, VarA);
-        ASTExpr *ExprA = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
+        ASTExpr *ExprA = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, "1"));
         VarAStmt->setExpr(ExprA);
 
         // GlobalVar
         // G = 1
         ASTVarRef *VarRefG = CreateVarRef(GVar);
         SemaBuilderStmt * GVarStmt = Builder.CreateAssignmentStmt(Body, VarRefG);
-        ASTExpr *ExprG = Builder.CreateExpr(Builder.CreateFloatingValue(SourceLoc, 1));
+        ASTExpr *ExprG = Builder.CreateExpr(Builder.CreateFloatingValue(SourceLoc, "1"));
         GVarStmt->setExpr(ExprG);
 
         // return A
@@ -475,7 +476,7 @@ namespace {
         // int a = 1
         ASTLocalVar *LocalVar = Builder.CreateLocalVar(Body, SourceLoc, Builder.CreateIntType(SourceLoc), "a", EmptyScopes);
         SemaBuilderStmt *VarStmt = Builder.CreateAssignmentStmt(Body, LocalVar);
-        ASTValueExpr *ValueExpr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
+        ASTValueExpr *ValueExpr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, "1"));
         VarStmt->setExpr(ValueExpr);
 
         // validate and resolve
@@ -575,20 +576,16 @@ namespace {
         // E1 + (E2 * E3) / (E4 - E5)
         // E1 + (G2 / G3)
         // E1 + G1
-        ASTValueExpr *E1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
+        ASTValueExpr *E1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, "1"));
         ASTVarRefExpr *E2 = Builder.CreateExpr(CreateVarRef(aParam));
         ASTVarRefExpr *E3 = Builder.CreateExpr(CreateVarRef(bParam));
         ASTVarRefExpr *E4 = Builder.CreateExpr(CreateVarRef(cParam));
-        ASTValueExpr *E5 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 2));
+        ASTValueExpr *E5 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, "2"));
 
-        ASTBinaryOpExpr *G2 = Builder.CreateBinaryOpExpr(
-                Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_ARITH_MUL), E2, E3);
-        ASTBinaryOpExpr *G3 = Builder.CreateBinaryOpExpr(
-                Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_ARITH_SUB), E4, E5);
-        ASTBinaryOpExpr *G1 = Builder.CreateBinaryOpExpr(
-                Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_ARITH_DIV), G2, G3);
-        ASTBinaryOpExpr *Group = Builder.CreateBinaryOpExpr(
-                Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_ARITH_ADD), E1, G1);
+        ASTBinaryOpExpr *G2 = Builder.CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_MUL, E2, E3);
+        ASTBinaryOpExpr *G3 = Builder.CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_SUB, E4, E5);
+        ASTBinaryOpExpr *G1 = Builder.CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_DIV, G2, G3);
+        ASTBinaryOpExpr *Group = Builder.CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_ADD, E1, G1);
 
         Return->setExpr(Group);
 
@@ -643,119 +640,105 @@ namespace {
 
         // a = 0
         SemaBuilderStmt *aVarStmt = Builder.CreateAssignmentStmt(Body, CreateVarRef(aParam));
-        ASTExpr *AssignExpr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 0));
+        ASTExpr *AssignExpr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, "0"));
         aVarStmt->setExpr(AssignExpr);
 
         // b = 0
         SemaBuilderStmt *bVarStmt = Builder.CreateAssignmentStmt(Body, CreateVarRef(bParam));
-        AssignExpr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 0));
+        AssignExpr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, "0"));
         bVarStmt->setExpr(AssignExpr);
 
         // c = a + b
         SemaBuilderStmt * cAddVarStmt = Builder.CreateAssignmentStmt(Body, CreateVarRef(cParam));
-        AssignExpr = Builder.CreateBinaryOpExpr(
-                Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_ARITH_ADD),
+        AssignExpr = Builder.CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_ADD,
                 Builder.CreateExpr(CreateVarRef(aParam)),
                 Builder.CreateExpr(CreateVarRef(bParam)));
         cAddVarStmt->setExpr(AssignExpr);
 
         // c = a - b
         SemaBuilderStmt * cSubVarStmt = Builder.CreateAssignmentStmt(Body, CreateVarRef(cParam));
-        AssignExpr = Builder.CreateBinaryOpExpr(
-                Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_ARITH_SUB),
+        AssignExpr = Builder.CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_SUB,
                 Builder.CreateExpr(CreateVarRef(aParam)),
                 Builder.CreateExpr(CreateVarRef(bParam)));
         cSubVarStmt->setExpr(AssignExpr);
 
         // c = a * b
         SemaBuilderStmt * cMulVarStmt = Builder.CreateAssignmentStmt(Body, CreateVarRef(cParam));
-        AssignExpr = Builder.CreateBinaryOpExpr(
-                Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_ARITH_MUL),
+        AssignExpr = Builder.CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_MUL,
                 Builder.CreateExpr(CreateVarRef(aParam)),
                 Builder.CreateExpr(CreateVarRef(bParam)));
         cMulVarStmt->setExpr(AssignExpr);
 
         // c = a / b
         SemaBuilderStmt * cDivVarStmt = Builder.CreateAssignmentStmt(Body, CreateVarRef(cParam));
-        AssignExpr = Builder.CreateBinaryOpExpr(
-                Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_ARITH_DIV),
+        AssignExpr = Builder.CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_DIV,
                 Builder.CreateExpr(CreateVarRef(aParam)),
                 Builder.CreateExpr(CreateVarRef(bParam)));
         cDivVarStmt->setExpr(AssignExpr);
 
         // c = a % b
         SemaBuilderStmt * cModVarStmt = Builder.CreateAssignmentStmt(Body, CreateVarRef(cParam));
-        AssignExpr = Builder.CreateBinaryOpExpr(
-                Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_ARITH_MOD),
+        AssignExpr = Builder.CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_MOD,
                 Builder.CreateExpr(CreateVarRef(aParam)),
                 Builder.CreateExpr(CreateVarRef(bParam)));
         cModVarStmt->setExpr(AssignExpr);
 
         // c = a & b
         SemaBuilderStmt * cAndVarStmt = Builder.CreateAssignmentStmt(Body, CreateVarRef(cParam));
-        AssignExpr = Builder.CreateBinaryOpExpr(
-                Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_ARITH_AND),
+        AssignExpr = Builder.CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_AND,
                 Builder.CreateExpr(CreateVarRef(aParam)),
                 Builder.CreateExpr(CreateVarRef(bParam)));
         cAndVarStmt->setExpr(AssignExpr);
 
         // c = a | b
         SemaBuilderStmt * cOrVarStmt = Builder.CreateAssignmentStmt(Body, CreateVarRef(cParam));
-        AssignExpr = Builder.CreateBinaryOpExpr(
-                Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_ARITH_OR),
+        AssignExpr = Builder.CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_OR,
                 Builder.CreateExpr(CreateVarRef(aParam)),
                 Builder.CreateExpr(CreateVarRef(bParam)));
         cOrVarStmt->setExpr(AssignExpr);
 
         // c = a xor b
         SemaBuilderStmt * cXorVarStmt = Builder.CreateAssignmentStmt(Body, CreateVarRef(cParam));
-        AssignExpr = Builder.CreateBinaryOpExpr(
-                Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_ARITH_XOR),
+        AssignExpr = Builder.CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_XOR,
                 Builder.CreateExpr(CreateVarRef(aParam)),
                 Builder.CreateExpr(CreateVarRef(bParam)));
         cXorVarStmt->setExpr(AssignExpr);
 
         // c = a << b
         SemaBuilderStmt * cShlVarStmt = Builder.CreateAssignmentStmt(Body, CreateVarRef(cParam));
-        AssignExpr = Builder.CreateBinaryOpExpr(
-                Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_ARITH_SHIFT_L),
+        AssignExpr = Builder.CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_SHIFT_L,
                 Builder.CreateExpr(CreateVarRef(aParam)),
                 Builder.CreateExpr(CreateVarRef(bParam)));
         cShlVarStmt->setExpr(AssignExpr);
 
         // c = a >> b
         SemaBuilderStmt * cShrVarStmt = Builder.CreateAssignmentStmt(Body, CreateVarRef(cParam));
-        AssignExpr = Builder.CreateBinaryOpExpr(
-                Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_ARITH_SHIFT_R),
+        AssignExpr = Builder.CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_SHIFT_R,
                 Builder.CreateExpr(CreateVarRef(aParam)),
                 Builder.CreateExpr(CreateVarRef(bParam)));
         cShrVarStmt->setExpr(AssignExpr);
 
         // ++c
         SemaBuilderStmt *cPreIncVarStmt = Builder.CreateExprStmt(Body, SourceLoc);
-        AssignExpr = Builder.CreateUnaryOpExpr(
-                Builder.CreateOperatorExpr(SourceLoc, ASTUnaryOpExprKind::UNARY_ARITH_PRE_INCR),
+        AssignExpr = Builder.CreateUnaryOpExpr(SourceLoc, ASTUnaryOpExprKind::OP_UNARY_PRE_INCR,
                 Builder.CreateExpr(CreateVarRef(cParam)));
         cPreIncVarStmt->setExpr(AssignExpr);
 
         // c++
         SemaBuilderStmt *cPostIncVarStmt = Builder.CreateExprStmt(Body, SourceLoc);
-        AssignExpr = Builder.CreateUnaryOpExpr(
-                Builder.CreateOperatorExpr(SourceLoc, ASTUnaryOpExprKind::UNARY_ARITH_POST_INCR),
+        AssignExpr = Builder.CreateUnaryOpExpr(SourceLoc, ASTUnaryOpExprKind::OP_UNARY_POST_INCR,
                 Builder.CreateExpr(CreateVarRef(cParam)));
         cPostIncVarStmt->setExpr(AssignExpr);
 
-        // ++c
+        // --c
         SemaBuilderStmt *cPreDecVarStmt = Builder.CreateExprStmt(Body, SourceLoc);
-        AssignExpr = Builder.CreateUnaryOpExpr(
-                Builder.CreateOperatorExpr(SourceLoc, ASTUnaryOpExprKind::UNARY_ARITH_PRE_DECR),
+        AssignExpr = Builder.CreateUnaryOpExpr(SourceLoc, ASTUnaryOpExprKind::OP_UNARY_PRE_DECR,
                 Builder.CreateExpr(CreateVarRef(cParam)));
         cPreDecVarStmt->setExpr(AssignExpr);
 
-        // c++
+        // c--
         SemaBuilderStmt *cPostDecVarStmt = Builder.CreateExprStmt(Body, SourceLoc);
-        AssignExpr = Builder.CreateUnaryOpExpr(
-                Builder.CreateOperatorExpr(SourceLoc, ASTUnaryOpExprKind::UNARY_ARITH_PRE_DECR),
+        AssignExpr = Builder.CreateUnaryOpExpr(SourceLoc, ASTUnaryOpExprKind::OP_UNARY_POST_DECR,
                 Builder.CreateExpr(CreateVarRef(cParam)));
         cPostDecVarStmt->setExpr(AssignExpr);
 
@@ -837,58 +820,52 @@ namespace {
 
         // a = 0
         SemaBuilderStmt *aVarStmt = Builder.CreateAssignmentStmt(Body, CreateVarRef(aVar));
-        ASTExpr *Expr1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 0));
+        ASTExpr *Expr1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, "0"));
         aVarStmt->setExpr(Expr1);
 
         // b = 0
         SemaBuilderStmt *bVarStmt = Builder.CreateAssignmentStmt(Body, CreateVarRef(bVar));
-        ASTExpr *Expr2 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 0));
+        ASTExpr *Expr2 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, "0"));
         bVarStmt->setExpr(Expr2);
 
         // c = a == b
         SemaBuilderStmt * cEqVarStmt = Builder.CreateAssignmentStmt(Body, CreateVarRef(cVar));
-        ASTExpr *Expr3 = Builder.CreateBinaryOpExpr(
-                Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_COMP_EQ),
+        ASTExpr *Expr3 = Builder.CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_EQ,
                 Builder.CreateExpr(CreateVarRef(aVar)),
                 Builder.CreateExpr(CreateVarRef(bVar)));
         cEqVarStmt->setExpr(Expr3);
 
         // c = a != b
         SemaBuilderStmt * cNeqVarStmt = Builder.CreateAssignmentStmt(Body, CreateVarRef(cVar));
-        ASTExpr *Expr4 = Builder.CreateBinaryOpExpr(
-                Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_COMP_NE),
+        ASTExpr *Expr4 = Builder.CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_NE,
                 Builder.CreateExpr(CreateVarRef(aVar)),
                 Builder.CreateExpr(CreateVarRef(bVar)));
         cNeqVarStmt->setExpr(Expr4);
 
         // c = a > b
         SemaBuilderStmt * cGtVarStmt = Builder.CreateAssignmentStmt(Body, CreateVarRef(cVar));
-        ASTExpr *Expr5 = Builder.CreateBinaryOpExpr(
-                Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_COMP_GT),
+        ASTExpr *Expr5 = Builder.CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_GT,
                 Builder.CreateExpr(CreateVarRef(aVar)),
                 Builder.CreateExpr(CreateVarRef(bVar)));
         cGtVarStmt->setExpr(Expr5);
 
         // c = a >= b
         SemaBuilderStmt * cGteVarStmt = Builder.CreateAssignmentStmt(Body, CreateVarRef(cVar));
-        ASTExpr *Expr6 = Builder.CreateBinaryOpExpr(
-                Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_COMP_GTE),
+        ASTExpr *Expr6 = Builder.CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_GTE,
                 Builder.CreateExpr(CreateVarRef(aVar)),
                 Builder.CreateExpr(CreateVarRef(bVar)));
         cGteVarStmt->setExpr(Expr6);
 
         // c = a < b
         SemaBuilderStmt * cLtVarStmt = Builder.CreateAssignmentStmt(Body, CreateVarRef(cVar));
-        ASTExpr *Expr7 = Builder.CreateBinaryOpExpr(
-                Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_COMP_LT),
+        ASTExpr *Expr7 = Builder.CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_LT,
                 Builder.CreateExpr(CreateVarRef(aVar)),
                 Builder.CreateExpr(CreateVarRef(bVar)));
         cLtVarStmt->setExpr(Expr7);
 
         // c = a <= b
         SemaBuilderStmt * cLteVarStmt = Builder.CreateAssignmentStmt(Body, CreateVarRef(cVar));
-        ASTExpr *Expr8 = Builder.CreateBinaryOpExpr(
-                Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_COMP_LTE),
+        ASTExpr *Expr8 = Builder.CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_LTE,
                 Builder.CreateExpr(CreateVarRef(aVar)),
                 Builder.CreateExpr(CreateVarRef(bVar)));
         cLteVarStmt->setExpr(Expr8);
@@ -964,16 +941,14 @@ namespace {
 
         // c = a and b
         SemaBuilderStmt * cAndVarStmt = Builder.CreateAssignmentStmt(Body, CreateVarRef(cVar));
-        ASTExpr *Expr3 = Builder.CreateBinaryOpExpr(
-                Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_LOGIC_AND),
+        ASTExpr *Expr3 = Builder.CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_LOGIC_AND,
                 Builder.CreateExpr(CreateVarRef(aVar)),
                 Builder.CreateExpr(CreateVarRef(bVar)));
         cAndVarStmt->setExpr(Expr3);
 
         // c = a or b
         SemaBuilderStmt * cOrVarStmt = Builder.CreateAssignmentStmt(Body, CreateVarRef(cVar));
-        ASTExpr *Expr4 = Builder.CreateBinaryOpExpr(
-                Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_LOGIC_OR),
+        ASTExpr *Expr4 = Builder.CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_LOGIC_OR,
                 Builder.CreateExpr(CreateVarRef(aVar)),
                 Builder.CreateExpr(CreateVarRef(bVar)));
         cOrVarStmt->setExpr(Expr4);
@@ -1054,17 +1029,13 @@ namespace {
 
         // c = a == b ? a : b
         SemaBuilderStmt * cVarStmt = Builder.CreateAssignmentStmt(Body, CreateVarRef(cVar));
-        ASTBinaryOpExpr *Cond = Builder.CreateBinaryOpExpr(
-                Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_COMP_EQ),
+        ASTBinaryOpExpr *Cond = Builder.CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_EQ,
                 Builder.CreateExpr(CreateVarRef(aVar)),
                 Builder.CreateExpr(CreateVarRef(bVar)));
 
-        ASTTernaryOpExpr *TernaryExpr = Builder.CreateTernaryOpExpr(Cond,
-                                                                    Builder.CreateOperatorExpr(SourceLoc,
-                                                                                               ASTTernaryOpExprKind::TERNARY_IF),
+        ASTTernaryOpExpr *TernaryExpr = Builder.CreateTernaryOpExpr(Cond, SourceLoc,
                                                                     Builder.CreateExpr(CreateVarRef(aVar)),
-                                                                    Builder.CreateOperatorExpr(SourceLoc,
-                                                                                               ASTTernaryOpExprKind::TERNARY_ELSE),
+                                                                    SourceLoc,
                                                                     Builder.CreateExpr(CreateVarRef(bVar)));
         cVarStmt->setExpr(TernaryExpr);
 
@@ -1123,14 +1094,13 @@ namespace {
         // int a = 0
         ASTLocalVar *aVar = Builder.CreateLocalVar(Body, SourceLoc, IntType, "a", EmptyScopes);
         SemaBuilderStmt *aVarStmt = Builder.CreateAssignmentStmt(Body, CreateVarRef(aVar));
-        ASTValueExpr *Expr1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 0));
+        ASTValueExpr *Expr1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, "0"));
         aVarStmt->setExpr(Expr1);
 
         // if (a == 1)
         ASTVarRefExpr *aVarRef = Builder.CreateExpr(CreateVarRef(aVar));
-        ASTValueExpr *Value1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
-        ASTBinaryOpExpr *IfCond = Builder.CreateBinaryOpExpr(
-                Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_COMP_EQ), aVarRef, Value1);
+        ASTValueExpr *Value1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, "1"));
+        ASTBinaryOpExpr *IfCond = Builder.CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_EQ, aVarRef, Value1);
 
         // Create/Add if block
         SemaBuilderIfStmt *IfBuilder = Builder.CreateIfBuilder(Body);
@@ -1139,7 +1109,7 @@ namespace {
 
         // { a = 2 }
         SemaBuilderStmt *a2VarStmt = Builder.CreateAssignmentStmt(IfBlock, CreateVarRef(aVar));
-        ASTValueExpr *Expr2 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 2));
+        ASTValueExpr *Expr2 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, "2"));
         a2VarStmt->setExpr(Expr2);
 
         // validate and resolve
@@ -1186,10 +1156,9 @@ namespace {
         ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes, Params, Body);
 
         // if (a == 1)
-        ASTValueExpr *Value1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
+        ASTValueExpr *Value1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, "1"));
         ASTVarRefExpr *aVarRef = Builder.CreateExpr(CreateVarRef(aParam));
-        ASTBinaryOpExpr *IfCond = Builder.CreateBinaryOpExpr(
-                Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_COMP_EQ),
+        ASTBinaryOpExpr *IfCond = Builder.CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_EQ,
                 aVarRef, Value1);
 
         // Create/Add if block
@@ -1199,14 +1168,14 @@ namespace {
 
         // { a = 1 }
         SemaBuilderStmt *aVarStmt = Builder.CreateAssignmentStmt(IfBlock, CreateVarRef(aParam));
-        ASTValueExpr *Expr1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
+        ASTValueExpr *Expr1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, "1"));
         aVarStmt->setExpr(Expr1);
 
         // else {a = 2}
         ASTBlockStmt *ElseBlock = Builder.CreateBlockStmt(SourceLoc);
         IfBuilder->Else(SourceLoc, ElseBlock);
         SemaBuilderStmt *aVarStmt2 = Builder.CreateAssignmentStmt(ElseBlock, CreateVarRef(aParam));
-        ASTValueExpr *Expr2 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 2));
+        ASTValueExpr *Expr2 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, "2"));
         aVarStmt2->setExpr(Expr2);
 
         // validate and resolve
@@ -1259,10 +1228,9 @@ namespace {
 
         // if (a == 1)
         SemaBuilderIfStmt *IfBuilder = Builder.CreateIfBuilder(Body);
-        ASTValueExpr *Value1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
+        ASTValueExpr *Value1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, "1"));
         ASTVarRefExpr *aVarRef = Builder.CreateExpr(CreateVarRef(aParam));
-        ASTBinaryOpExpr *IfCond = Builder.CreateBinaryOpExpr(
-                Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_COMP_EQ),
+        ASTBinaryOpExpr *IfCond = Builder.CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_EQ,
                 aVarRef, Value1);
         ASTBlockStmt *IfBlock = Builder.CreateBlockStmt(SourceLoc);
         IfBuilder->If(SourceLoc, IfCond, IfBlock);
@@ -1270,37 +1238,35 @@ namespace {
 
         // { a = 11 }
         SemaBuilderStmt *aVarStmt = Builder.CreateAssignmentStmt(IfBlock, CreateVarRef(aParam));
-        ASTValueExpr *Expr1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 11));
+        ASTValueExpr *Expr1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, "11"));
         aVarStmt->setExpr(Expr1);
 
         // elsif (a == 2)
         ASTBlockStmt *ElsifBlock = Builder.CreateBlockStmt(SourceLoc);
-        ASTValueExpr *Value2 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 2));
-        ASTBinaryOpExpr *ElsifCond = Builder.CreateBinaryOpExpr(
-                Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_COMP_EQ),
+        ASTValueExpr *Value2 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, "2"));
+        ASTBinaryOpExpr *ElsifCond = Builder.CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_EQ,
                 aVarRef, Value2);
         IfBuilder->ElseIf(SourceLoc, ElsifCond, ElsifBlock);
         // { a = 22 }
         SemaBuilderStmt *aVarStmt2 = Builder.CreateAssignmentStmt(ElsifBlock, CreateVarRef(aParam));
-        ASTValueExpr *Expr2 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 22));
+        ASTValueExpr *Expr2 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, "22"));
         aVarStmt2->setExpr(Expr2);
 
         // elsif (a == 3) { a = 33 }
         ASTBlockStmt *ElsifBlock2 = Builder.CreateBlockStmt(SourceLoc);
-        ASTValueExpr *Value3 = Builder.CreateExpr( Builder.CreateIntegerValue(SourceLoc, 3));
-        ASTBinaryOpExpr *ElsifCond2 = Builder.CreateBinaryOpExpr(
-                Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_COMP_EQ),
+        ASTValueExpr *Value3 = Builder.CreateExpr( Builder.CreateIntegerValue(SourceLoc, "3"));
+        ASTBinaryOpExpr *ElsifCond2 = Builder.CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_EQ,
                 aVarRef, Value3);
         IfBuilder->ElseIf(SourceLoc, ElsifCond2, ElsifBlock2);
         SemaBuilderStmt *aVarStmt3 = Builder.CreateAssignmentStmt(ElsifBlock2, CreateVarRef(aParam));
-        ASTValueExpr *Expr3 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 33));
+        ASTValueExpr *Expr3 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, "33"));
         aVarStmt3->setExpr(Expr3);
 
         // else {a == 44}
         ASTBlockStmt *ElseBlock = Builder.CreateBlockStmt(SourceLoc);
         IfBuilder->Else(SourceLoc, ElseBlock);
         SemaBuilderStmt *aVarStmt4 = Builder.CreateAssignmentStmt(ElseBlock, CreateVarRef(aParam));
-        ASTValueExpr *Expr4 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 44));
+        ASTValueExpr *Expr4 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, "44"));
         aVarStmt4->setExpr(Expr4);
 
         // validate and resolve
@@ -1371,38 +1337,35 @@ namespace {
         // if a == 1
         SemaBuilderIfStmt *IfBuilder = Builder.CreateIfBuilder(Body);
         ASTBlockStmt *IfBlock = Builder.CreateBlockStmt(SourceLoc);
-        ASTValueExpr *Value1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
+        ASTValueExpr *Value1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, "1"));
         ASTVarRefExpr *aVarRef = Builder.CreateExpr(CreateVarRef(aParam));
-        ASTBinaryOpExpr *IfCond = Builder.CreateBinaryOpExpr(
-                Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_COMP_EQ), aVarRef, Value1);
+        ASTBinaryOpExpr *IfCond = Builder.CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_EQ, aVarRef, Value1);
 
         // { a = 11 }
         IfBuilder->If(SourceLoc, IfCond, IfBlock);
         SemaBuilderStmt *aVarStmt = Builder.CreateAssignmentStmt(IfBlock, CreateVarRef(aParam));
-        ASTValueExpr *Expr1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 11));
+        ASTValueExpr *Expr1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, "11"));
         aVarStmt->setExpr(Expr1);
 
         // elsif (a == 2)
         ASTBlockStmt *ElsifBlock = Builder.CreateBlockStmt(SourceLoc);
-        ASTValueExpr *Value2 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 2));
-        ASTBinaryOpExpr *ElsifCond = Builder.CreateBinaryOpExpr(
-                Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_COMP_EQ),
+        ASTValueExpr *Value2 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, "2"));
+        ASTBinaryOpExpr *ElsifCond = Builder.CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_EQ,
                 aVarRef, Value2);
         IfBuilder->ElseIf(SourceLoc, ElsifCond, ElsifBlock);
         // { a = 22 }
         SemaBuilderStmt *aVarStmt2 = Builder.CreateAssignmentStmt(ElsifBlock, CreateVarRef(aParam));
-        ASTValueExpr *Expr2 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 22));
+        ASTValueExpr *Expr2 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, "22"));
         aVarStmt2->setExpr(Expr2);
 
         // elsif (a == 3) { a = 33 }
         ASTBlockStmt *ElsifBlock2 = Builder.CreateBlockStmt(SourceLoc);
-        ASTValueExpr *Value3 = Builder.CreateExpr( Builder.CreateIntegerValue(SourceLoc, 3));
-        ASTBinaryOpExpr *ElsifCond2 = Builder.CreateBinaryOpExpr(
-                Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_COMP_EQ),
+        ASTValueExpr *Value3 = Builder.CreateExpr( Builder.CreateIntegerValue(SourceLoc, "3"));
+        ASTBinaryOpExpr *ElsifCond2 = Builder.CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_EQ,
                 aVarRef, Value3);
         IfBuilder->ElseIf(SourceLoc, ElsifCond2, ElsifBlock2);
         SemaBuilderStmt *aVarStmt3 = Builder.CreateAssignmentStmt(ElsifBlock2, CreateVarRef(aParam));
-        ASTValueExpr *Expr3 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 33));
+        ASTValueExpr *Expr3 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, "33"));
         aVarStmt3->setExpr(Expr3);
 
         EXPECT_TRUE(S->Resolve());
@@ -1471,25 +1434,25 @@ namespace {
 
         // case 1: a = 1 break
         ASTBlockStmt *Case1Block = Builder.CreateBlockStmt(SourceLoc);
-        ASTValueExpr *Case1Value = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
+        ASTValueExpr *Case1Value = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, "1"));
         SwitchBuilder->Case(SourceLoc, Case1Value, Case1Block);
         SemaBuilderStmt *aVarStmt1 = Builder.CreateAssignmentStmt(Case1Block, CreateVarRef(aParam));
-        ASTValueExpr *Expr1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
+        ASTValueExpr *Expr1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, "1"));
         aVarStmt1->setExpr(Expr1);
 
         // case 2: a = 2 break
         ASTBlockStmt *Case2Block = Builder.CreateBlockStmt(SourceLoc);
-        ASTValueExpr *Case2Value = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 2));
+        ASTValueExpr *Case2Value = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, "2"));
         SwitchBuilder->Case(SourceLoc, Case2Value, Case2Block);
         SemaBuilderStmt *aVarStmt2 = Builder.CreateAssignmentStmt(Case2Block, CreateVarRef(aParam));
-        ASTValueExpr *Expr2 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 2));
+        ASTValueExpr *Expr2 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, "2"));
         aVarStmt2->setExpr(Expr2);
 
         // default: a = 3
         ASTBlockStmt *DefaultBlock = Builder.CreateBlockStmt(SourceLoc);
         SwitchBuilder->Default(SourceLoc, DefaultBlock);
         SemaBuilderStmt *aVarStmt3 = Builder.CreateAssignmentStmt(DefaultBlock, CreateVarRef(aParam));
-        ASTValueExpr *Expr3 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 3));
+        ASTValueExpr *Expr3 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, "3"));
         aVarStmt3->setExpr(Expr3);
 
         // Add switch
@@ -1514,8 +1477,8 @@ namespace {
                           "  store i32 %1, i32* %3, align 4\n"
                           "  %4 = load i32, i32* %3, align 4\n"
                           "  switch i32 %4, label %default [\n"
-                          "    i8 1, label %case\n"
-                          "    i8 2, label %case1\n"
+                          "    i32 1, label %case\n"
+                          "    i32 2, label %case1\n"
                           "  ]\n"
                           "\n"
                           "case:                                             ; preds = %entry\n"
@@ -1548,16 +1511,15 @@ namespace {
 
         // while a == 1
         SemaBuilderLoopStmt *LoopBuilder = Builder.CreateLoopBuilder(Body, SourceLoc);
-        ASTValueExpr *Value1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
+        ASTValueExpr *Value1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, "1"));
         ASTVarRefExpr *aVarRef = Builder.CreateExpr(CreateVarRef(aParam));
-        ASTBinaryOpExpr *Cond = Builder.CreateBinaryOpExpr(
-                Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_COMP_EQ), aVarRef, Value1);
+        ASTBinaryOpExpr *Cond = Builder.CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_EQ, aVarRef, Value1);
         ASTBlockStmt *BlockStmt = Builder.CreateBlockStmt(SourceLoc);
         LoopBuilder->Loop(Cond, BlockStmt);
 
         // { a = 1 }
         SemaBuilderStmt *aVarStmt = Builder.CreateAssignmentStmt(BlockStmt, CreateVarRef(aParam));
-        ASTValueExpr *Expr1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
+        ASTValueExpr *Expr1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, "1"));
         aVarStmt->setExpr(Expr1);
 
         EXPECT_TRUE(S->Resolve());
@@ -1615,14 +1577,13 @@ namespace {
         ASTLocalVar *iVar = Builder.CreateLocalVar(InitBlock, SourceLoc, IntType, "i", EmptyScopes);
         ASTVarRef *iVarRef = CreateVarRef(iVar);
         SemaBuilderStmt *iVarStmt = Builder.CreateAssignmentStmt(InitBlock, iVarRef);
-        ASTValueExpr *Value1Expr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
+        ASTValueExpr *Value1Expr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, "1"));
         iVarStmt->setExpr(Value1Expr);
 
 
         // Condition
         // i < 1
-        ASTBinaryOpExpr *Cond = Builder.CreateBinaryOpExpr(
-                Builder.CreateOperatorExpr(SourceLoc, ASTBinaryOperatorKind::BINARY_COMP_LTE),
+        ASTBinaryOpExpr *Cond = Builder.CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_LTE,
                 Builder.CreateExpr(iVarRef), Value1Expr);
         ASTBlockStmt *LoopBlock = Builder.CreateBlockStmt(SourceLoc);
         LoopBuilder->Loop(Cond, LoopBlock);
@@ -1631,8 +1592,7 @@ namespace {
         // ++i
         ASTBlockStmt *PostBlock = Builder.CreateBlockStmt(SourceLoc);
         LoopBuilder->Post(PostBlock);
-        ASTUnaryOpExpr *IncExpr = Builder.CreateUnaryOpExpr(
-                Builder.CreateOperatorExpr(SourceLoc, ASTUnaryOpExprKind::UNARY_ARITH_PRE_INCR),
+        ASTUnaryOpExpr *IncExpr = Builder.CreateUnaryOpExpr(SourceLoc, ASTUnaryOpExprKind::OP_UNARY_PRE_INCR,
                 Builder.CreateExpr(CreateVarRef(iVar)));
         SemaBuilderStmt *iVarIncStmt = Builder.CreateExprStmt(PostBlock, SourceLoc);
         iVarIncStmt->setExpr(IncExpr);
@@ -1640,7 +1600,7 @@ namespace {
         // Loop Block
         // { a = 1 }
         SemaBuilderStmt *aVarStmt = Builder.CreateAssignmentStmt(LoopBlock, CreateVarRef(aParam));
-        ASTValueExpr *Expr1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 1));
+        ASTValueExpr *Expr1 = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, "1"));
         aVarStmt->setExpr(Expr1);
 
         // Resolve
@@ -1706,7 +1666,7 @@ namespace {
                                                           TopScopes, Params, aFuncBody);
 
         SemaBuilderStmt *aFuncReturn = Builder.CreateReturnStmt(aFuncBody, SourceLoc);
-        ASTValueExpr *aFuncExpr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLocation(), 1));
+        ASTValueExpr *aFuncExpr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLocation(), "1"));
         aFuncReturn->setExpr(aFuncExpr);
 
 
@@ -1715,7 +1675,7 @@ namespace {
         ASTClassMethod *bFunc = Builder.CreateClassMethod(SourceLoc, *TestClass, IntType,
                                                           "b", TopScopes, Params, bFuncBody);
         SemaBuilderStmt *bFuncReturn = Builder.CreateReturnStmt(bFuncBody, SourceLoc);
-        ASTValueExpr *bFuncExpr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLocation(), 1));
+        ASTValueExpr *bFuncExpr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLocation(), "1"));
         bFuncReturn->setExpr(bFuncExpr);
 
         // private const int c { return 1 }
@@ -1723,7 +1683,7 @@ namespace {
         ASTClassMethod *cFunc = Builder.CreateClassMethod(SourceLoc, *TestClass, IntType,
                                                           "c", TopScopes, Params, cFuncBody);
         SemaBuilderStmt *cFuncReturn = Builder.CreateReturnStmt(cFuncBody, SourceLoc);
-        ASTValueExpr *cFuncExpr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLocation(), 1));
+        ASTValueExpr *cFuncExpr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLocation(), "1"));
         cFuncReturn->setExpr(cFuncExpr);
 
         // int main() {
@@ -1767,7 +1727,7 @@ namespace {
         cStmt->setExpr(cCallExpr);
 
         // delete test
-        ASTDeleteStmt *DeleteStmt = Builder.CreateDeleteStmt(Body, SourceLoc, (ASTVarRef *) CreateVarRef(TestVar));
+        ASTDeleteStmt *DeleteStmt = Builder.CreateDeleteStmt(Body, SourceLoc, CreateVarRef(TestVar));
 
         bool Success = S->Resolve();
         EXPECT_TRUE(Success);
@@ -1918,7 +1878,7 @@ namespace {
 
         //  test.a = 2
         SemaBuilderStmt *attrStmt = Builder.CreateAssignmentStmt(Body, CreateVarRef(aAttribute, CreateVarRef(TestVar)));
-        ASTValueExpr *value2Expr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLocation(), 2));
+        ASTValueExpr *value2Expr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLocation(), "2"));
         attrStmt->setExpr(value2Expr);
 
         // delete test
@@ -2054,7 +2014,7 @@ namespace {
         ASTVarRef *Instance2 = CreateVarRef(TestVar);
         ASTVarRef *test_bVarRef = CreateVarRef(bField, Instance2);
         SemaBuilderStmt *test_bVarStmt = Builder.CreateAssignmentStmt(Body, test_bVarRef);
-        ASTExpr *Expr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, 2));
+        ASTExpr *Expr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, "2"));
         test_bVarStmt->setExpr(Expr);
 
         // delete test
@@ -2191,6 +2151,96 @@ namespace {
                               "  ret void\n"
                               "}\n");
         }
+    }
+
+	TEST_F(CodeGenTest, CGMain) {
+        ASTModule *Module = CreateModule();
+
+        // main() {
+        //
+        // }
+        ASTBlockStmt *Body = Builder.CreateBlockStmt(SourceLoc);
+        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "main", TopScopes, Params, Body);
+
+        // Validate and Resolve
+        EXPECT_TRUE(S->Resolve());
+
+        CodeGenModule *CGM = CG->GenerateModule(*Module);
+
+        CodeGenFunction *CGF_Main = CGM->GenFunction(Func);
+        CGF_Main->GenBody();
+        llvm::Function *F_Main = CGF_Main->getFunction();
+
+        EXPECT_FALSE(Diags.hasErrorOccurred());
+        testing::internal::CaptureStdout();
+        F_Main->print(llvm::outs());
+        std::string output = testing::internal::GetCapturedStdout();
+
+        EXPECT_EQ(output, "define i32 @main() {\n"
+                          "entry:\n"
+                          "  %0 = alloca %error*, align 8\n"
+                          "  %1 = load %error*, %error** %0, align 8\n"
+                          "  %2 = getelementptr inbounds %error, %error* %1, i32 0, i32 0\n"
+                          "  store i8 0, i8* %2, align 1\n"
+                          "  %3 = getelementptr inbounds %error, %error* %1, i32 0, i32 1\n"
+                          "  store i32 0, i32* %3, align 4\n"
+                          "  %4 = getelementptr inbounds %error, %error* %1, i32 0, i32 2\n"
+                          "  store i8* null, i8** %4, align 8\n"
+                          "  %5 = getelementptr inbounds %error, %error* %1, i32 0, i32 0\n"
+                          "  %6 = load i8, i8* %5, align 1\n"
+                          "  %7 = icmp ne i8 %6, 0\n"
+                          "  %8 = zext i1 %7 to i32\n"
+                          "  ret i32 %8\n"
+                          "}\n");
+    }
+
+	TEST_F(CodeGenTest, CGErrorHandler) {
+        ASTModule *Module = CreateModule();
+
+        // func() {
+        //   error A = handle fail
+        // }
+        ASTBlockStmt *Body = Builder.CreateBlockStmt(SourceLoc);
+        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes, Params, Body);
+        ASTLocalVar *ErrorA = Builder.CreateLocalVar(Body, SourceLoc, ErrorType, "A", EmptyScopes);
+        ASTVarRef *ErrorVarRef = Builder.CreateVarRef(ErrorA);
+        ASTBlockStmt *HandleBlock = Builder.CreateBlockStmt(SourceLoc);
+        Builder.CreateHandleStmt(Body, SourceLoc, HandleBlock, ErrorVarRef);
+
+        SemaBuilderStmt *Fail0Stmt = Builder.CreateFailStmt(HandleBlock, SourceLoc);
+
+        // Validate and Resolve
+        EXPECT_TRUE(S->Resolve());
+
+        CodeGenModule *CGM = CG->GenerateModule(*Module);
+
+        CodeGenFunction *CGF_Main = CGM->GenFunction(Func);
+        CGF_Main->GenBody();
+        llvm::Function *F_Main = CGF_Main->getFunction();
+
+        EXPECT_FALSE(Diags.hasErrorOccurred());
+        testing::internal::CaptureStdout();
+        F_Main->print(llvm::outs());
+        std::string output = testing::internal::GetCapturedStdout();
+
+        EXPECT_EQ(output, "define void @func(%error* %0) {\n"
+                          "entry:\n"
+                          "  %1 = alloca %error*, align 8\n"
+                          "  %2 = alloca %error*, align 8\n"
+                          "  store %error* %0, %error** %1, align 8\n"
+                          "  br label %handle\n"
+                          "\n"
+                          "handle:                                           ; preds = %entry\n"
+                          "  %3 = load %error*, %error** %2, align 8\n"
+                          "  %4 = getelementptr inbounds %error, %error* %3, i32 0, i32 0\n"
+                          "  store i8 1, i8* %4, align 1\n"
+                          "  %5 = getelementptr inbounds %error, %error* %3, i32 0, i32 1\n"
+                          "  store i32 1, i32* %5, align 4\n"
+                          "  br label %safe\n"
+                          "\n"
+                          "safe:                                             ; preds = %handle\n"
+                          "  ret void\n"
+                          "}\n");
     }
 
     TEST_F(CodeGenTest, CGErrorFail) {
@@ -2335,6 +2385,8 @@ namespace {
                           "  %2 = load %error*, %error** %1, align 8\n"
                           "  %3 = getelementptr inbounds %error, %error* %2, i32 0, i32 0\n"
                           "  store i8 1, i8* %3, align 1\n"
+                          "  %4 = getelementptr inbounds %error, %error* %2, i32 0, i32 1\n"
+                          "  store i32 1, i32* %4, align 4\n"
                           "  ret i32 0\n"
                           "}\n"
                           "define i32 @testFail1(%error* %0) {\n"
@@ -2356,7 +2408,7 @@ namespace {
                           "  %3 = getelementptr inbounds %error, %error* %2, i32 0, i32 0\n"
                           "  store i8 1, i8* %3, align 1\n"
                           "  %4 = getelementptr inbounds %error, %error* %2, i32 0, i32 1\n"
-                          "  store i8 10, i32* %4, align 1\n"
+                          "  store i32 10, i32* %4, align 4\n"
                           "  ret i32 0\n"
                           "}\n"
                           "define i32 @testFail3(%error* %0) {\n"
@@ -2404,53 +2456,6 @@ namespace {
                           "  %12 = icmp ne i8 %11, 0\n"
                           "  %13 = zext i1 %12 to i32\n"
                           "  ret i32 %13\n"
-                          "}\n");
-    }
-
-    TEST_F(CodeGenTest, CGErrorHandle) {
-        ASTModule *Module = CreateModule();
-
-        // main() {
-        //   error A = handle fail
-        // }
-        ASTBlockStmt *Body = Builder.CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "main", TopScopes, Params, Body);
-        ASTLocalVar *VarA = Builder.CreateLocalVar(Body, SourceLoc, ErrorType, "A", EmptyScopes);
-        ASTVarRef *ErrorVarRef = Builder.CreateVarRef(VarA);
-        ASTHandleStmt *HandleStmt = Builder.CreateHandleStmt(Body, SourceLoc, ErrorVarRef);
-        ASTBlockStmt *HandleBlock = Builder.CreateBlockStmt(HandleStmt, SourceLoc);
-        SemaBuilderStmt *Fail0Stmt = Builder.CreateFailStmt(HandleBlock, SourceLoc);
-
-        // Validate and Resolve
-        EXPECT_TRUE(S->Resolve());
-
-        CodeGenModule *CGM = CG->GenerateModule(*Module);
-
-        CodeGenFunction *CGF_Main = CGM->GenFunction(Func);
-        CGF_Main->GenBody();
-        llvm::Function *F_Main = CGF_Main->getFunction();
-
-        EXPECT_FALSE(Diags.hasErrorOccurred());
-        testing::internal::CaptureStdout();
-        F_Main->print(llvm::outs());
-        std::string output = testing::internal::GetCapturedStdout();
-
-        EXPECT_EQ(output, "define i32 @main() {\n"
-                          "entry:\n"
-                          "  %0 = alloca %error*, align 8\n"
-                          "  %1 = alloca %error*, align 8\n"
-                          "  %2 = load %error*, %error** %0, align 8\n"
-                          "  %3 = getelementptr inbounds %error, %error* %2, i32 0, i32 0\n"
-                          "  store i8 0, i8* %3, align 1\n"
-                          "  %4 = getelementptr inbounds %error, %error* %2, i32 0, i32 1\n"
-                          "  store i32 0, i32* %4, align 4\n"
-                          "  %5 = getelementptr inbounds %error, %error* %2, i32 0, i32 2\n"
-                          "  store i8* null, i8** %5, align 8\n"
-                          "  %6 = getelementptr inbounds %error, %error* %2, i32 0, i32 0\n"
-                          "  %7 = load i8, i8* %6, align 1\n"
-                          "  %8 = icmp ne i8 %7, 0\n"
-                          "  %9 = zext i1 %8 to i32\n"
-                          "  ret i32 %9\n"
                           "}\n");
     }
 } // anonymous namespace

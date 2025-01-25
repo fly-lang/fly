@@ -9,20 +9,20 @@
 
 #include "CodeGen/CodeGenHandle.h"
 #include "CodeGen/CodeGenModule.h"
+#include "CodeGen/CodeGenFunctionBase.h"
 #include "llvm/IR/BasicBlock.h"
 
 using namespace fly;
 
-CodeGenHandle::CodeGenHandle(CodeGenModule *CGM) : CGM(CGM) {
-
+CodeGenHandle::CodeGenHandle(CodeGenModule *CGM, CodeGenFunctionBase *CGF) : CGM(CGM) {
+	HandleBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "handle", CGF->getFunction());
+	SafeBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "safe", CGF->getFunction());
 }
 
-llvm::BasicBlock *CodeGenHandle::GenBlock() {
-    HandleBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "handle");
+llvm::BasicBlock *CodeGenHandle::getHandleBlock() {
     return HandleBB;
 }
 
-void CodeGenHandle::GoToBlock() {
-    CGM->Builder->CreateBr(HandleBB);
+llvm::BasicBlock *CodeGenHandle::getSafeBlock() {
+	return SafeBB;
 }
-

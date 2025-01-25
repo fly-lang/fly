@@ -47,6 +47,7 @@ namespace fly {
     class ASTEnum;
     class ASTIdentifier;
     class ASTVarRef;
+    class ASTFailStmt;
     class CodeGen;
     class CodeGenGlobalVar;
     class CodeGenFunction;
@@ -203,6 +204,8 @@ namespace fly {
         llvm::Value *GenCall(ASTCall *Call);
 
         llvm::Value *GenExpr(ASTExpr *Expr);
+
+        void GenFailStmt(ASTFailStmt *FailStmt, CodeGenError *CGH);
 
         void GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt);
 

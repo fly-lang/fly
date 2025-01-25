@@ -49,15 +49,30 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, ASTFunction *AST, bool isEx
     }
 }
 
+/**
+ * Alloca Error Handler
+ * Alloca Local Vars
+ */
 void CodeGenFunction::GenBody() {
     FLY_DEBUG("CodeGenFunction", "GenBody");
     setInsertPoint();
 
+	// Function name is equal to main
     bool isMain = isMainFunction(AST);
+
+	// Alloca Function Error Handler
     AllocaErrorHandler();
+
+	// Alloca Function Parameters and Local Vars
     AllocaLocalVars();
+
+	// Store in Function Error Handler
     StoreErrorHandler(isMain);
+
+	// Store in Function Parameters
     StoreParams(isMain);
+
+	// Generate Function Body
     CGM->GenBlock(this, AST->getBody());
 
     // if is Main check error and return right exit code

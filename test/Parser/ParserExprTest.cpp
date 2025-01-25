@@ -650,7 +650,7 @@ namespace {
         const ASTAssignmentStmt *AssignmentStmt = (ASTAssignmentStmt *) Body->getContent()[0];
         EXPECT_EQ(AssignmentStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_OP);
         EXPECT_EQ(((ASTOpExpr *) AssignmentStmt->getExpr())->getOpExprKind(), ASTOpExprKind::OP_BINARY);
-        EXPECT_EQ(((ASTBinaryOpExpr *) AssignmentStmt->getExpr())->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_AND_LOG);
+        EXPECT_EQ(((ASTBinaryOpExpr *) AssignmentStmt->getExpr())->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_LOGIC_AND);
         ASTBinaryOpExpr *BinaryExpr = (ASTBinaryOpExpr *) AssignmentStmt->getExpr();
 
         const ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
@@ -677,7 +677,7 @@ namespace {
         const ASTAssignmentStmt *AssignmentStmt = (ASTAssignmentStmt *) Body->getContent()[0];
         EXPECT_EQ(AssignmentStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_OP);
         EXPECT_EQ(((ASTOpExpr *) AssignmentStmt->getExpr())->getOpExprKind(), ASTOpExprKind::OP_BINARY);
-        EXPECT_EQ(((ASTBinaryOpExpr *) AssignmentStmt->getExpr())->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_OR_LOG);
+        EXPECT_EQ(((ASTBinaryOpExpr *) AssignmentStmt->getExpr())->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_LOGIC_OR);
         ASTBinaryOpExpr *BinaryExpr = (ASTBinaryOpExpr *) AssignmentStmt->getExpr();
 
         const ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();

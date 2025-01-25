@@ -249,7 +249,7 @@ llvm::Value *CodeGenExpr::GenBinaryLogic(const ASTExpr *E1, ASTBinaryOpExprKind 
 
     switch (OperatorKind) {
 
-        case ASTBinaryOpExprKind::OP_BINARY_AND: {
+        case ASTBinaryOpExprKind::OP_BINARY_LOGIC_AND: {
             llvm::BasicBlock *LeftBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "and", FromBB->getParent());
             llvm::BasicBlock *RightBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "and", FromBB->getParent());
 
@@ -270,7 +270,7 @@ llvm::Value *CodeGenExpr::GenBinaryLogic(const ASTExpr *E1, ASTBinaryOpExprKind 
             Phi->addIncoming(V2Trunc, LeftBB);
             return Phi;
         }
-        case ASTBinaryOpExprKind::OP_BINARY_OR: {
+        case ASTBinaryOpExprKind::OP_BINARY_LOGIC_OR: {
             llvm::BasicBlock *LeftBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "or", FromBB->getParent());
             llvm::BasicBlock *RightBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "or", FromBB->getParent());
 

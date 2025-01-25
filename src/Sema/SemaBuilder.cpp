@@ -200,7 +200,7 @@ ASTGlobalVar *SemaBuilder::CreateGlobalVar(ASTModule *Module, const SourceLocati
  */
 ASTFunction *SemaBuilder::CreateFunction(ASTModule *Module, const SourceLocation &Loc, ASTType *Type,
                                          llvm::StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes,
-                                         SmallVector<ASTParam *, 8> &Params, ASTComment *Comment, ASTBlockStmt *Body) {
+                                         SmallVector<ASTParam *, 8> &Params, ASTBlockStmt *Body, ASTComment *Comment) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateFunction",
                       Logger().Attr("Loc", (uint64_t) Loc.getRawEncoding())
                               .Attr("Type", Type)
@@ -858,11 +858,11 @@ ASTValueExpr *SemaBuilder::CreateExpr(ASTValue *Value) {
             break;
 
         case ASTTypeKind::TYPE_INTEGER:
-            Expr->Type = CreateLongType(Loc);
+            Expr->Type = CreateIntType(Loc);
             break;
 
         case ASTTypeKind::TYPE_FLOATING_POINT:
-            Expr->Type = CreateDoubleType(Loc);
+            Expr->Type = CreateFloatType(Loc);
             break;
 
         case ASTTypeKind::TYPE_STRING:
@@ -908,7 +908,7 @@ ASTUnaryOpExpr *SemaBuilder::CreateUnaryOpExpr(const SourceLocation &Loc, ASTUna
     return UnaryOpExpr;
 }
 
-ASTBinaryOpExpr *SemaBuilder::CreateBinaryOpExpr(ASTBinaryOpExprKind OpKind, const SourceLocation &OpLocation,
+ASTBinaryOpExpr *SemaBuilder::CreateBinaryOpExpr(const SourceLocation &OpLocation, ASTBinaryOpExprKind OpKind,
                                                  ASTExpr *LeftExpr, ASTExpr *RightExpr) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateBinaryOpExpr", Logger()
                         .Attr("OpKind", (uint64_t) OpKind)

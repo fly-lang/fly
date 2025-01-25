@@ -32,7 +32,7 @@ ASTFunction *ParserFunction::Parse(Parser *P, SmallVector<ASTScope *, 8> Scopes,
     StringRef Name = P->Tok.getIdentifierInfo()->getName();
     const SourceLocation &Loc = P->ConsumeToken();
     SmallVector<ASTParam *, 8> Params = PF->ParseParams();
-    ASTFunction *Function = P->Builder.CreateFunction(P->Module, Loc, Type, Name, Scopes, Params, Comment);
+    ASTFunction *Function = P->Builder.CreateFunction(P->Module, Loc, Type, Name, Scopes, Params, nullptr, Comment);
     ASTBlockStmt *Body = P->isBlockStart() ? PF->ParseBody(Function) : nullptr;
     return Function;
 }

@@ -18,6 +18,7 @@ namespace fly {
 
     class CodeGenModule;
     class CodeGenClass;
+    class CodeGenFunctionBase;
 
 
     class CodeGenHandle {
@@ -26,13 +27,15 @@ namespace fly {
 
         llvm::BasicBlock *HandleBB;
 
+        llvm::BasicBlock *SafeBB;
+
     public:
 
-        CodeGenHandle(CodeGenModule *CGM);
+        CodeGenHandle(CodeGenModule *CGM, CodeGenFunctionBase *CGF);
 
-        llvm::BasicBlock *GenBlock();
+        llvm::BasicBlock *getHandleBlock();
 
-        void GoToBlock();
+        llvm::BasicBlock *getSafeBlock();
     };
 }
 

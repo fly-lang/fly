@@ -43,37 +43,28 @@ llvm::StoreInst *CodeGenError::StorePointer(llvm::Value *Val) {
     return CGM->Builder->CreateStore(Val, Pointer);
 }
 
-llvm::StoreInst *CodeGenError::StoreDefault() {
-    // Error Type: 1=integer
-    // Error: {errorType: i8, errorInt: i32, errorPointer: *i8}
-    ConstantInt *TypeValue = llvm::ConstantInt::get(CGM->Int8Ty, 1);
-    llvm::Value *Zero = llvm::ConstantInt::get(CGM->Int32Ty, 0);
-    llvm::Value *One = llvm::ConstantInt::get(CGM->Int32Ty, 1);
-    // Store Error Type
-    llvm::Value *ErrorVar = CGM->Builder->CreateLoad(Pointer);
-    llvm::Value *TypeValuePtr = CGM->Builder->CreateInBoundsGEP(T, ErrorVar, {Zero, Zero});
-    return CGM->Builder->CreateStore(TypeValue, TypeValuePtr);
-}
-
 llvm::StoreInst *CodeGenError::StoreInt(llvm::Value *Val) {
-    this->Store(Val);
-    // Error Type: 1=integer
+    // errorType: 1=integer
     // Error: {errorType: i8, errorInt: i32, errorPointer: *i8}
     ConstantInt *TypeValue = llvm::ConstantInt::get(CGM->Int8Ty, 1);
     llvm::Value *Zero = llvm::ConstantInt::get(CGM->Int32Ty, 0);
     llvm::Value *One = llvm::ConstantInt::get(CGM->Int32Ty, 1);
+
     // Store Error Type
-    llvm::Value *ErrorVar = CGM->Builder->CreateLoad(Pointer);
-    llvm::Value *TypeValuePtr = CGM->Builder->CreateInBoundsGEP(T, ErrorVar, {Zero, Zero});
-    CGM->Builder->CreateStore(TypeValue, TypeValuePtr);
-    // Store Error Value
-    llvm::Value *ValuePtr = CGM->Builder->CreateInBoundsGEP(T, ErrorVar, {Zero, One});
-    return CGM->Builder->CreateStore(Val, ValuePtr);
+	// llvm::Type *ErrorType = llvm::Type::getInt8Ty(CGM->LLVMCtx); // TODO LLVM 15
+	// llvm::Value *ErrorVar = CGM->Builder->CreateLoad(ErrorType, Pointer); // TODO LLVM 15
+	llvm::Value *ErrorVar = CGM->Builder->CreateLoad(CGM->ErrorPtrTy, Pointer);
+	llvm::Value *TypeValuePtr = CGM->Builder->CreateInBoundsGEP(T, ErrorVar, {Zero, Zero});
+	CGM->Builder->CreateStore(TypeValue, TypeValuePtr);
+
+	// Store Error Value
+	llvm::Value *ValuePtr = CGM->Builder->CreateInBoundsGEP(T, ErrorVar, {Zero, One});
+	return CGM->Builder->CreateStore(Val, ValuePtr);
 }
 
 llvm::StoreInst *CodeGenError::StoreString(llvm::Value *Val) {
     this->Store(Val);
-    // Error Type: 2=string
+    // errorType: 2=string
     // Error: {errorType: i8, errorInt: i32, errorPointer: *i8}
     ConstantInt *TypeValue = llvm::ConstantInt::get(CGM->Int8Ty, 2);
     llvm::Value *Zero = llvm::ConstantInt::get(CGM->Int32Ty, 0);
@@ -89,7 +80,7 @@ llvm::StoreInst *CodeGenError::StoreString(llvm::Value *Val) {
 
 llvm::StoreInst *CodeGenError::StoreObject(llvm::Value *Val) {
     this->Store(Val);
-    // Error Type: 3=object
+    // errorType: 3=object
     // Error: {errorType: i8, errorInt: i32, errorPointer: *i8}
     ConstantInt *TypeValue = llvm::ConstantInt::get(CGM->Int8Ty, 3);
     llvm::Value *Zero = llvm::ConstantInt::get(CGM->Int32Ty, 0);

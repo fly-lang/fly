@@ -48,8 +48,6 @@ namespace fly {
 
 //        llvm::AllocaInst *Alloca() override;
 
-        llvm::StoreInst *StoreDefault();
-
         llvm::StoreInst *StoreInt(llvm::Value *Val);
 
         llvm::StoreInst *StoreString(llvm::Value *Val);

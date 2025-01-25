@@ -61,8 +61,8 @@ ASTBinaryOpTypeExprKind ASTBinaryOpExpr::setTypeKind(ASTBinaryOpExprKind OpKind)
         case ASTBinaryOpExprKind::OP_BINARY_SHIFT_R:
             return ASTBinaryOpTypeExprKind::OP_BINARY_ARITH;
 
-        case ASTBinaryOpExprKind::OP_BINARY_AND_LOG:
-        case ASTBinaryOpExprKind::OP_BINARY_OR_LOG:
+        case ASTBinaryOpExprKind::OP_BINARY_LOGIC_AND:
+        case ASTBinaryOpExprKind::OP_BINARY_LOGIC_OR:
             return ASTBinaryOpTypeExprKind::OP_BINARY_LOGIC;
 
         case ASTBinaryOpExprKind::OP_BINARY_EQ:
