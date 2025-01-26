@@ -24,7 +24,7 @@ SemaBuilderIfStmt *SemaBuilderIfStmt::Create(Sema &S, ASTBlockStmt *Parent) {
 
 SemaBuilderIfStmt *SemaBuilderIfStmt::If(const SourceLocation &Loc, ASTExpr *Expr, ASTBlockStmt *Stmt) {
     IfStmt = new ASTIfStmt(Loc);
-    IfStmt->Condition = Expr;
+    IfStmt->Rule = Expr;
     IfStmt->Stmt = Stmt;
     // Inner Stmt
     Parent->Content.push_back(IfStmt);
@@ -38,8 +38,8 @@ SemaBuilderIfStmt *SemaBuilderIfStmt::If(const SourceLocation &Loc, ASTExpr *Exp
 
 
 SemaBuilderIfStmt *SemaBuilderIfStmt::ElseIf(const SourceLocation &Loc, ASTExpr *Expr, ASTBlockStmt *Stmt) {
-    ASTElsif *Elsif = new ASTElsif(Loc);
-    Elsif->Condition = Expr;
+    ASTRuleStmt *Elsif = new ASTRuleStmt(Loc);
+    Elsif->Rule = Expr;
     Elsif->Stmt = Stmt;
     // Inner Stmt
     Stmt->Parent = IfStmt;

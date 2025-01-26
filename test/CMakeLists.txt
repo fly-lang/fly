@@ -17,7 +17,7 @@ add_executable(fly_test
         Parser/ParserImportTest.cpp
         Parser/ParserLocalVarTest.cpp
 #        Parser/ParserBadCode.cpp
-#        Parser/ParserBlockTest.cpp
+        Parser/ParserBlockTest.cpp
 #        Parser/ParserClassTest.cpp
         TestMain.cpp
         ${BACKWARD_ENABLE}

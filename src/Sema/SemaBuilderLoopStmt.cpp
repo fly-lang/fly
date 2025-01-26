@@ -21,6 +21,7 @@ SemaBuilderLoopStmt::SemaBuilderLoopStmt(Sema &S, ASTBlockStmt *Parent) : S(S), 
 SemaBuilderLoopStmt *SemaBuilderLoopStmt::Create(Sema &S, ASTBlockStmt *Parent, const SourceLocation &Loc) {
     SemaBuilderLoopStmt *Builder = new SemaBuilderLoopStmt(S, Parent);
     Builder->LoopStmt = new ASTLoopStmt(Loc);
+
     // Inner Stmt
     Parent->Content.push_back(Builder->LoopStmt);
     Builder->LoopStmt->Parent = Parent;
@@ -29,8 +30,8 @@ SemaBuilderLoopStmt *SemaBuilderLoopStmt::Create(Sema &S, ASTBlockStmt *Parent, 
 }
 
 SemaBuilderLoopStmt *SemaBuilderLoopStmt::Loop(ASTExpr *Expr, ASTBlockStmt *Stmt) {
-    LoopStmt->Condition = Expr;
-    LoopStmt->Loop = Stmt;
+    LoopStmt->Rule = Expr;
+    LoopStmt->Stmt = Stmt;
 
     // Inner Stmt
     Stmt->Parent = Parent;
@@ -40,6 +41,7 @@ SemaBuilderLoopStmt *SemaBuilderLoopStmt::Loop(ASTExpr *Expr, ASTBlockStmt *Stmt
 
 void SemaBuilderLoopStmt::Init(ASTBlockStmt *Stmt) {
     LoopStmt->Init = Stmt;
+
     // Inner Stmt
     Stmt->Parent = LoopStmt;
     Stmt->Function = LoopStmt->Function;
@@ -47,6 +49,7 @@ void SemaBuilderLoopStmt::Init(ASTBlockStmt *Stmt) {
 
 void SemaBuilderLoopStmt::Post(ASTBlockStmt *Stmt) {
     LoopStmt->Post = Stmt;
+
     // Inner Stmt
     Stmt->Parent = LoopStmt->Init;
     Stmt->Function = LoopStmt->Function;

@@ -20,7 +20,7 @@ ASTVarRef *ASTSwitchStmt::getVarRef() const {
     return VarRef;
 }
 
-llvm::SmallVector<ASTSwitchCase *, 8> &ASTSwitchStmt::getCases() {
+llvm::SmallVector<ASTRuleStmt *, 8> &ASTSwitchStmt::getCases() {
     return Cases;
 }
 
@@ -32,22 +32,5 @@ std::string ASTSwitchStmt::str() const {
     return Logger("ASTSwitchStmt").
             Super(ASTStmt::str()).
             Attr("VarRef", VarRef).
-            End();
-}
-
-ASTSwitchCase::ASTSwitchCase(const SourceLocation &Loc) {
-}
-
-ASTValueExpr *ASTSwitchCase::getValueExpr() {
-    return Value;
-}
-
-ASTStmt *ASTSwitchCase::getStmt() const {
-    return Stmt;
-}
-
-std::string ASTSwitchCase::str() const {
-    return Logger("ASTSwitchCase").
-            Attr("Value", Value).
             End();
 }

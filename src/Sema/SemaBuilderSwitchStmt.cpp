@@ -25,6 +25,7 @@ SemaBuilderSwitchStmt *SemaBuilderSwitchStmt::Create(Sema &S, ASTBlockStmt *Pare
 
 SemaBuilderSwitchStmt *SemaBuilderSwitchStmt::Switch(const SourceLocation &Loc, ASTExpr *Expr) {
     SwitchStmt = new ASTSwitchStmt(Loc);
+
     // Inner stmt
     Parent->Content.push_back(SwitchStmt);
     SwitchStmt->Parent = Parent;
@@ -35,12 +36,16 @@ SemaBuilderSwitchStmt *SemaBuilderSwitchStmt::Switch(const SourceLocation &Loc, 
 }
 
 SemaBuilderSwitchStmt *SemaBuilderSwitchStmt::Case(const SourceLocation &Loc, ASTExpr *Expr, ASTBlockStmt *Stmt) {
-    ASTSwitchCase *Case = new ASTSwitchCase(Loc);
-    Case->Value = (ASTValueExpr *) Expr;
+    ASTRuleStmt *Case = new ASTRuleStmt(Loc);
+    Case->Rule = Expr;
     Case->Stmt = Stmt;
+	Case->Parent = SwitchStmt;
+	Case->Function = SwitchStmt->Function;
+
     // Inner Stmt
-    Stmt->Parent = SwitchStmt;
+    Stmt->Parent = Case;
     Stmt->Function = SwitchStmt->Function;
+
     // add to switch list
     SwitchStmt->Cases.push_back(Case);
     return this;
@@ -48,8 +53,13 @@ SemaBuilderSwitchStmt *SemaBuilderSwitchStmt::Case(const SourceLocation &Loc, AS
 
 SemaBuilderSwitchStmt *SemaBuilderSwitchStmt::Default(const SourceLocation &Loc, ASTBlockStmt *Stmt) {
     SwitchStmt->Default = Stmt;
+
     // Inner Stmt
     Stmt->Parent = SwitchStmt;
     Stmt->Function = SwitchStmt->Function;
     return this;
+}
+
+bool SemaBuilderSwitchStmt::hasDefault() {
+	return SwitchStmt->Default != nullptr;
 }

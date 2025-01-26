@@ -40,6 +40,8 @@ namespace fly {
         SemaBuilderSwitchStmt *Case(const SourceLocation &Loc, ASTExpr *Expr, ASTBlockStmt *Stmt);
 
         SemaBuilderSwitchStmt *Default(const SourceLocation &Loc, ASTBlockStmt *Stmt);
+
+        bool hasDefault();
     };
 }
 

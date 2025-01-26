@@ -1017,7 +1017,7 @@ void CodeGenModule::GenIfBlock(CodeGenFunctionBase *CGF, ASTIfStmt *If) {
     llvm::Function *Fn = CGF->getFunction();
 
     // If Block
-    llvm::Value *IfCond = GenExpr(If->getCondition());
+    llvm::Value *IfCond = GenExpr(If->getRule());
     llvm::BasicBlock *IfBB = llvm::BasicBlock::Create(LLVMCtx, "ifthen", Fn);
 
     // Create End block
@@ -1050,9 +1050,9 @@ void CodeGenModule::GenIfBlock(CodeGenFunctionBase *CGF, ASTIfStmt *If) {
                 } else {
                     NextElsifBB = llvm::BasicBlock::Create(LLVMCtx, "elsif", Fn, EndBB);
                 }
-                ASTElsif *Elsif = If->getElsif()[i];
+                ASTRuleStmt *Elsif = If->getElsif()[i];
                 Builder->SetInsertPoint(ElsifBB);
-                llvm::Value *ElsifCond = GenExpr(Elsif->getCondition());
+                llvm::Value *ElsifCond = GenExpr(Elsif->getRule());
                 Builder->CreateCondBr(ElsifCond, ElsifThenBB, NextElsifBB);
 
                 Builder->SetInsertPoint(ElsifThenBB);
@@ -1093,9 +1093,9 @@ void CodeGenModule::GenIfBlock(CodeGenFunctionBase *CGF, ASTIfStmt *If) {
                 } else {
                     NextElsifBB = llvm::BasicBlock::Create(LLVMCtx, "elsif", Fn, ElseBB);
                 }
-                ASTElsif *Elsif = If->getElsif()[i];
+                ASTRuleStmt *Elsif = If->getElsif()[i];
                 Builder->SetInsertPoint(ElsifBB);
-                llvm::Value *ElsifCond = GenExpr(Elsif->getCondition());
+                llvm::Value *ElsifCond = GenExpr(Elsif->getRule());
                 Builder->CreateCondBr(ElsifCond, ElsifThenBB, NextElsifBB);
 
                 Builder->SetInsertPoint(ElsifThenBB);
@@ -1117,16 +1117,16 @@ void CodeGenModule::GenIfBlock(CodeGenFunctionBase *CGF, ASTIfStmt *If) {
 
 llvm::BasicBlock *CodeGenModule::GenElsifBlock(CodeGenFunctionBase *CGF,
                                                llvm::BasicBlock *ElsifBB,
-                                               llvm::SmallVector<ASTElsif *, 8>::iterator &It) {
+                                               llvm::SmallVector<ASTRuleStmt *, 8>::iterator &It) {
     FLY_DEBUG("CodeGenModule", "GenElsifBlock");
     llvm::Function *Fn = CGF->getFunction();
-    ASTElsif *&Elsif = *It;
+    ASTRuleStmt *&Elsif = *It;
     It++;
     if (*It == nullptr) {
         return ElsifBB;
     } else {
         Builder->SetInsertPoint(ElsifBB);
-        llvm::Value *Cond = GenExpr(Elsif->getCondition());
+        llvm::Value *Cond = GenExpr(Elsif->getRule());
         llvm::BasicBlock *NextElsifBB = llvm::BasicBlock::Create(LLVMCtx, "elsif", Fn);
         Builder->CreateCondBr(Cond, ElsifBB, NextElsifBB);
 
@@ -1153,8 +1153,8 @@ void CodeGenModule::GenSwitchBlock(CodeGenFunctionBase *CGF, ASTSwitchStmt *Swit
 
     llvm::BasicBlock *NextCaseBB = nullptr;
     for (unsigned long i=0; i < Size; i++) {
-        ASTSwitchCase *Case = Switch->getCases()[i];
-        llvm::Value *CaseVal = GenExpr(Case->getValueExpr());
+        ASTRuleStmt *Case = Switch->getCases()[i];
+        llvm::Value *CaseVal = GenExpr(Case->getRule());
         llvm::ConstantInt *CaseConst = llvm::cast<llvm::ConstantInt, llvm::Value>(CaseVal);
         llvm::BasicBlock *CaseBB = NextCaseBB == nullptr ?
                                    llvm::BasicBlock::Create(LLVMCtx, "case", Fn, EndBB) : NextCaseBB;
@@ -1195,7 +1195,7 @@ void CodeGenModule::GenLoopBlock(CodeGenFunctionBase *CGF, ASTLoopStmt *Loop) {
 
     // Create Condition Block
     llvm::BasicBlock *CondBB = nullptr;
-    if (Loop->getCondition()) {
+    if (Loop->getRule()) {
         CondBB = llvm::BasicBlock::Create(LLVMCtx, "loopcond", Fn);
     }
 
@@ -1217,7 +1217,7 @@ void CodeGenModule::GenLoopBlock(CodeGenFunctionBase *CGF, ASTLoopStmt *Loop) {
 
         // Create Condition
         Builder->SetInsertPoint(CondBB);
-        llvm::Value *Cond = GenExpr(Loop->getCondition());
+        llvm::Value *Cond = GenExpr(Loop->getRule());
         Builder->CreateCondBr(Cond, LoopBB, EndBB);
     } else {
         Builder->CreateBr(LoopBB);

@@ -42,6 +42,7 @@ add_library(flyLib
         AST/ASTOpExpr.cpp
         AST/ASTParam.cpp
         AST/ASTReturnStmt.cpp
+        AST/ASTRuleStmt.cpp
         AST/ASTScopes.cpp
         AST/ASTStmt.cpp
         AST/ASTSwitchStmt.cpp

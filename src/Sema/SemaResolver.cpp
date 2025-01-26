@@ -505,6 +505,10 @@ bool SemaResolver::ResolveStmt(ASTStmt *Stmt) {
 
         case ASTStmtKind::STMT_BLOCK:
             return ResolveStmtBlock(static_cast<ASTBlockStmt *>(Stmt));
+		case ASTStmtKind::STMT_RULE: {
+			ASTRuleStmt *Rule = static_cast<ASTRuleStmt *>(Stmt);
+			return ResolveExpr(Rule->getParent(), Rule->getRule()) && ResolveStmt(Rule->getStmt());
+		}
         case ASTStmtKind::STMT_IF:
             return ResolveStmtIf(static_cast<ASTIfStmt *>(Stmt));
         case ASTStmtKind::STMT_SWITCH:
@@ -524,10 +528,18 @@ bool SemaResolver::ResolveStmt(ASTStmt *Stmt) {
         case ASTStmtKind::STMT_DELETE:
             return ResolveVarRef(Stmt->Parent, static_cast<ASTDeleteStmt *>(Stmt)->VarRef);
         case ASTStmtKind::STMT_RETURN: {
-        	ASTType * ReturnType = Stmt->getFunction()->getReturnType(); // Force Return Expr to be of Return Type
-            ASTReturnStmt *ReturnStmt = static_cast<ASTReturnStmt *>(Stmt);
-            return ResolveExpr(Stmt->Parent, ReturnStmt->Expr, ReturnType) &&
-                   S.Validator->CheckConvertibleTypes(ReturnStmt->Expr->getType(), Stmt->getFunction()->getReturnType());
+        	ASTReturnStmt *ReturnStmt = static_cast<ASTReturnStmt *>(Stmt);
+        	ASTType * ReturnType = ReturnStmt->Parent->getFunction()->getReturnType(); // Force Return Expr to be of Return Type
+			bool Success = true;
+        	if (ReturnStmt->Expr != nullptr) {
+            	Success = ResolveExpr(ReturnStmt->Parent, ReturnStmt->Expr, ReturnType) &&
+        		S.Validator->CheckConvertibleTypes(ReturnStmt->Expr->getType(), ReturnStmt->Parent->getFunction()->getReturnType());
+            } else {
+            	if (!ReturnStmt->Parent->getFunction()->getReturnType()->isVoid()) {
+            		S.Diag(ReturnStmt->getLocation(), diag::err_invalid_return_type);
+            	}
+            }
+            return Success;
         }
         case ASTStmtKind::STMT_BREAK:
         case ASTStmtKind::STMT_CONTINUE:
@@ -556,12 +568,12 @@ bool SemaResolver::ResolveStmtBlock(ASTBlockStmt *Block) {
 }
 
 bool SemaResolver::ResolveStmtIf(ASTIfStmt *IfStmt) {
-    ASTBoolType * IfBoolType = S.Builder->CreateBoolType(IfStmt->Condition->getLocation());
-    bool Success = ResolveExpr(IfStmt->getParent(), IfStmt->Condition, IfBoolType) &&
+    ASTBoolType * IfBoolType = S.Builder->CreateBoolType(IfStmt->Rule->getLocation());
+    bool Success = ResolveExpr(IfStmt->getParent(), IfStmt->Rule, IfBoolType) &&
                    ResolveStmt(IfStmt->Stmt);
-    for (ASTElsif *Elsif : IfStmt->Elsif) {
-        ASTBoolType * ElsifBoolType = S.Builder->CreateBoolType(Elsif->Condition->getLocation());
-        Success &= ResolveExpr(IfStmt->getParent(), Elsif->Condition, ElsifBoolType) &&
+    for (ASTRuleStmt *Elsif : IfStmt->Elsif) {
+        ASTBoolType * ElsifBoolType = S.Builder->CreateBoolType(Elsif->Rule->getLocation());
+        Success &= ResolveExpr(IfStmt->getParent(), Elsif->Rule, ElsifBoolType) &&
                    ResolveStmt(Elsif->Stmt);
     }
     if (Success && IfStmt->Else) {
@@ -572,30 +584,37 @@ bool SemaResolver::ResolveStmtIf(ASTIfStmt *IfStmt) {
 
 bool SemaResolver::ResolveStmtSwitch(ASTSwitchStmt *SwitchStmt) {
     assert(SwitchStmt && "Switch Block cannot be null");
+
     bool Success = ResolveVarRef(SwitchStmt->getParent(), SwitchStmt->getVarRef()) &&
                    S.Validator->CheckEqualTypes(SwitchStmt->getVarRef()->getDef()->getType(), ASTTypeKind::TYPE_INTEGER);
-    for (ASTSwitchCase *Case : SwitchStmt->Cases) {
-        Success &= S.Validator->CheckEqualTypes(Case->getValueExpr()->getType(), ASTTypeKind::TYPE_INTEGER) &&
-                ResolveStmt(Case->Stmt);
+    for (ASTRuleStmt *Case : SwitchStmt->Cases) {
+    	Success &= ResolveExpr(SwitchStmt, Case->getRule());
+        Success &= S.Validator->CheckEqualTypes(Case->getRule()->getType(), ASTTypeKind::TYPE_INTEGER) &&
+                ResolveStmt(Case);
     }
     return Success && ResolveStmt(SwitchStmt->Default);
 }
 
 bool SemaResolver::ResolveStmtLoop(ASTLoopStmt *LoopStmt) {
     // Check Loop is not null or empty
-    bool Success = LoopStmt->Loop != nullptr;
+    bool Success = LoopStmt->Stmt != nullptr;
+
+	if (LoopStmt->getRule() == nullptr) { // Error: empty condition expr
+		S.Diag(diag::err_parse_empty_while_expr);
+		Success = false;
+	}
 
     // Check Init
-	ASTBoolType * ConditionBoolType = S.Builder->CreateBoolType(LoopStmt->Condition->getLocation());
+	ASTBoolType * ConditionBoolType = S.Builder->CreateBoolType(LoopStmt->Rule->getLocation());
     if (LoopStmt->Init) {
-        LoopStmt->Loop->Parent = LoopStmt->Init;
+        LoopStmt->Stmt->Parent = LoopStmt->Init;
         Success = ResolveStmt(LoopStmt->Init) &&
-        	ResolveExpr(LoopStmt->Init, LoopStmt->Condition, ConditionBoolType);
+        	ResolveExpr(LoopStmt->Init, LoopStmt->Rule, ConditionBoolType);
     } else {
-        Success = ResolveExpr(LoopStmt->Parent, LoopStmt->Condition, ConditionBoolType);
+        Success = ResolveExpr(LoopStmt->Parent, LoopStmt->Rule, ConditionBoolType);
     }
-    Success = S.Validator->CheckConvertibleTypes(LoopStmt->Condition->Type, S.Builder->CreateBoolType(SourceLocation()));
-    Success = ResolveStmt(LoopStmt->Loop);
+    Success = S.Validator->CheckConvertibleTypes(LoopStmt->Rule->Type, S.Builder->CreateBoolType(SourceLocation()));
+    Success = ResolveStmt(LoopStmt->Stmt);
     Success &= LoopStmt->Post ? ResolveStmt(LoopStmt->Post) : true;
     return Success;
 }

@@ -12,12 +12,8 @@
 using namespace fly;
 
 ASTLoopStmt::ASTLoopStmt(const SourceLocation &Loc) :
-        ASTStmt(Loc, ASTStmtKind::STMT_LOOP) {
+        ASTRuleStmt(Loc, ASTStmtKind::STMT_LOOP) {
 
-}
-
-ASTExpr *ASTLoopStmt::getCondition() {
-    return Condition;
 }
 
 bool ASTLoopStmt::hasVerifyConditionAtEnd() const {
@@ -29,7 +25,7 @@ ASTStmt *ASTLoopStmt::getInit() const {
 }
 
 ASTStmt *ASTLoopStmt::getLoop() const {
-    return Loop;
+    return getStmt();
 }
 
 ASTStmt *ASTLoopStmt::getPost() const {

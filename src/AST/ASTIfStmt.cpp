@@ -12,19 +12,11 @@
 using namespace fly;
 
 ASTIfStmt::ASTIfStmt(const SourceLocation &Loc) :
-        ASTStmt(Loc, ASTStmtKind::STMT_IF) {
+        ASTRuleStmt(Loc, ASTStmtKind::STMT_IF) {
 
 }
 
-ASTExpr *ASTIfStmt::getCondition() {
-    return Condition;
-}
-
-ASTStmt *ASTIfStmt::getStmt() const {
-    return Stmt;
-}
-
-llvm::SmallVector<ASTElsif *, 8> ASTIfStmt::getElsif() {
+llvm::SmallVector<ASTRuleStmt *, 8> ASTIfStmt::getElsif() {
     return Elsif;
 }
 
@@ -36,21 +28,4 @@ std::string ASTIfStmt::str() const {
     return Logger("ASTIfStmt").
            Super(ASTStmt::str()).
            End();
-}
-
-ASTElsif::ASTElsif(const SourceLocation &Loc) {
-}
-
-ASTExpr *ASTElsif::getCondition() {
-    return Condition;
-}
-
-ASTStmt *ASTElsif::getStmt() const {
-    return Stmt;
-}
-
-std::string ASTElsif::str() const {
-    return Logger("ASTElsif").
-            Attr("Condition", Condition).
-            End();
 }

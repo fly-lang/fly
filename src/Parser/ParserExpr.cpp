@@ -81,7 +81,7 @@ ASTUnaryOpExprKind toUnaryOpExprKind(Token Tok, bool isPost) {
             case tok::minusminus:
                 return ASTUnaryOpExprKind::OP_UNARY_PRE_DECR;
             case tok::exclaim:
-                return ASTUnaryOpExprKind::OP_UNARY_PRE_DECR;
+                return ASTUnaryOpExprKind::OP_UNARY_NOT_LOG;
         }
     }
     assert(false && "Invalid Unary Token details");

@@ -52,7 +52,6 @@ IncludeBlocks: Regroup            # Group includes into separate blocks (e.g., s
 
 # Trailing commas
 Cpp11BracedListStyle: true        # Use C++11 braced list style with trailing commas
-IncludeTrailingComma: true        # Add trailing commas in container literals where valid
 
 # Macros
 IndentPPDirectives: None          # Preprocessor directives are not indented

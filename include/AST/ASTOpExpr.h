@@ -14,10 +14,6 @@
 
 namespace fly {
 
-    class ASTUnaryOpExpr;
-    class ASTBinaryOpExpr;
-    class ASTTernaryOpExpr;
-
     enum class Precedence {
         LOWEST,         // No operators
         ASSIGNMENT,     // =, +=, -=, etc.

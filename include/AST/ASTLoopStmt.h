@@ -10,32 +10,26 @@
 #ifndef FLY_AST_LOOPSTMT_H
 #define FLY_AST_LOOPSTMT_H
 
-#include "ASTStmt.h"
+#include "ASTRuleStmt.h"
 
 namespace fly {
 
-    class ASTLoopStmt : public ASTStmt {
+    class ASTLoopStmt : public ASTRuleStmt {
 
         friend class SemaBuilder;
         friend class SemaBuilderLoopStmt;
         friend class SemaResolver;
         friend class SemaValidator;
 
-        ASTExpr *Condition = nullptr;
-
         bool VerifyConditionAtEnd = false;
 
         ASTStmt *Init = nullptr;
-
-        ASTStmt *Loop = nullptr;
 
         ASTStmt *Post = nullptr;
 
         explicit ASTLoopStmt(const SourceLocation &Loc);
 
     public:
-
-        ASTExpr *getCondition();
 
         bool hasVerifyConditionAtEnd() const;
 

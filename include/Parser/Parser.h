@@ -85,35 +85,47 @@ namespace fly {
         Parser(const InputFile &Input, SourceManager &SourceMgr, DiagnosticsEngine &Diags, SemaBuilder &Builder);
 
         ASTModule *ParseModule();
+
         ASTModule *ParseHeader();
 
         bool isSuccess();
 
     private:
 
-        void Parse();
+        ASTBase *ParseNameSpace();
+
+        ASTBase * ParseImport();
+
+        ASTBase * ParseTopDefs();
+
         ASTBase *ParseTopDef(ASTComment *Comment, SmallVector<ASTScope *, 8>& Scopes);
+
         SmallVector<ASTScope *, 8> ParseScopes();
+
         ASTGlobalVar *ParseGlobalVarDef(ASTComment *Comment, SmallVector<ASTScope *, 8> &Scopes, ASTType *Type);
+
         ASTFunction *ParseFunctionDef(ASTComment *Comment, SmallVector<ASTScope *, 8> &Scopes, ASTType *Type);
+
         ASTClass *ParseClassDef(ASTComment *Comment, SmallVector<ASTScope *, 8> &Scopes);
+
         ASTEnum *ParseEnumDef(ASTComment *Comment, SmallVector<ASTScope *, 8> &Scopes);
+
         ASTComment *ParseComments();
+
         void SkipComments();
 
-        // Parse Stmt
-        bool ParseBlockOrStmt(ASTBlockStmt *Parent);
-        bool ParseBlock(ASTBlockStmt *Parent);
-        bool ParseStmt(ASTBlockStmt *Parent);
+        // Parse Block or Stmt
+        void ParseBlockOrStmt(ASTBlockStmt *Parent);
+        void ParseBlock(ASTBlockStmt *Parent);
+        void ParseStmt(ASTBlockStmt *Parent);
         bool ParseStartParen(); // FIXME remove?
-        bool ParseEndParen(bool HasParen); // FIXME remove?
-        bool ParseIfStmt(ASTBlockStmt *Parent);
-        bool ParseSwitchStmt(ASTBlockStmt *Parent);
-        bool ParseSwitchCases(SemaBuilderSwitchStmt *SwitchBuilder);
-        bool ParseWhileStmt(ASTBlockStmt *Parent);
-        bool ParseForStmt(ASTBlockStmt *Parent);
-        bool ParseHandleStmt(ASTBlockStmt *Parent, ASTVarRef *Error);
-        bool ParseFailStmt(ASTBlockStmt *Parent);
+        void ParseEndParen(bool HasParen); // FIXME remove?
+        void ParseIfStmt(ASTBlockStmt *Parent);
+        void ParseSwitchStmt(ASTBlockStmt *Parent);
+        void ParseWhileStmt(ASTBlockStmt *Parent);
+        void ParseForStmt(ASTBlockStmt *Parent);
+        void ParseHandleStmt(ASTBlockStmt *Parent, ASTVarRef *Error);
+        void ParseFailStmt(ASTBlockStmt *Parent);
 
         // Parse Identifiers
         ASTType *ParseBuiltinType();

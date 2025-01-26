@@ -215,7 +215,7 @@ namespace fly {
 
         llvm::BasicBlock *GenElsifBlock(CodeGenFunctionBase *CGF,
                                         llvm::BasicBlock *ElsifBB,
-                                        llvm::SmallVector<ASTElsif *, 8>::iterator &It);
+                                        llvm::SmallVector<ASTRuleStmt *, 8>::iterator &It);
 
         void GenSwitchBlock(CodeGenFunctionBase *CGF, ASTSwitchStmt *Switch);
 

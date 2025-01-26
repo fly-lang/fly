@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTIfBlock.h - AST If Block Statement header
+// include/AST/ASTRuleStmt.h - AST Rule Statement header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,37 +7,42 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_AST_IFSTMT_H
-#define FLY_AST_IFSTMT_H
+#ifndef FLY_AST_RULESTMT_H
+#define FLY_AST_RULESTMT_H
 
-#include "ASTRuleStmt.h"
+#include "ASTStmt.h"
 
 namespace fly {
 
-    class ASTIfStmt : public ASTRuleStmt {
+    class ASTRuleStmt : public ASTStmt {
 
         friend class SemaBuilder;
         friend class SemaBuilderIfStmt;
+        friend class SemaBuilderSwitchStmt;
+        friend class SemaBuilderLoopStmt;
         friend class SemaResolver;
         friend class SemaValidator;
 
-        // The list of Elseif Blocks
-        llvm::SmallVector<ASTRuleStmt *, 8> Elsif;
+        // The Rule expression can be used with different scopes
+        ASTExpr *Rule = nullptr;
 
-        // The Else Block
-        ASTStmt *Else = nullptr;
+        // The If Block statement
+        ASTStmt *Stmt = nullptr;
 
-        explicit ASTIfStmt(const SourceLocation &Loc);
+    protected:
+
+        explicit ASTRuleStmt(const SourceLocation &Loc);
+
+        ASTRuleStmt(const SourceLocation &Loc, ASTStmtKind Kind);
 
     public:
 
-        llvm::SmallVector<ASTRuleStmt *, 8> getElsif();
+        ASTExpr *getRule();
 
-        ASTStmt *getElse();
+        ASTStmt *getStmt() const;
 
         std::string str() const override;
     };
-
 }
 
 
