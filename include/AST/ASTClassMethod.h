@@ -19,6 +19,7 @@ namespace fly {
     class ASTClass;
     class ASTType;
     class ASTFunction;
+    class ASTComment;
     enum class ASTVisibilityKind;
 
     enum class ASTClassMethodKind {
@@ -44,8 +45,6 @@ namespace fly {
         ASTClass *Class = nullptr;
 
         ASTClass *DerivedClass = nullptr;
-
-        llvm::StringRef Comment;
 
         // Populated during codegen phase
         CodeGenClassFunction *CodeGen = nullptr;

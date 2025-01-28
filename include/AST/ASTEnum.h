@@ -11,11 +11,7 @@
 #define FLY_AST_ENUM_H
 
 #include "ASTIdentity.h"
-
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/StringMap.h"
-
-#include <map>
 
 namespace fly {
 
@@ -37,6 +33,8 @@ namespace fly {
                  llvm::SmallVector<ASTEnumType *, 4> &SuperClasses);
 
     public:
+
+        ASTModule* getModule() const;
 
         llvm::SmallVector<ASTEnumEntry *, 8> getEntries() const;
 

@@ -45,7 +45,7 @@ TEST_F(ParserTest, IfElsifElseStmt) {
 
 	// If
 	ASTIfStmt *IfStmt = (ASTIfStmt *)Body->getContent()[0];
-	EXPECT_EQ(IfStmt->getKind(), ASTStmtKind::STMT_IF);
+	EXPECT_EQ(IfStmt->getStmtKind(), ASTStmtKind::STMT_IF);
 	ASTBinaryOpExpr *IfCond = (ASTBinaryOpExpr *)IfStmt->getRule();
 	EXPECT_EQ(((ASTVarRefExpr *) IfCond->getLeftExpr())->getVarRef()->getName(), "a");
 	EXPECT_EQ(IfCond->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_EQ);
@@ -87,7 +87,7 @@ TEST_F(ParserTest, IfElsifElseInlineStmt) {
 
 	// If
 	ASTIfStmt *IfStmt = (ASTIfStmt *)Body->getContent()[0];
-	EXPECT_EQ(IfStmt->getKind(), ASTStmtKind::STMT_IF);
+	EXPECT_EQ(IfStmt->getStmtKind(), ASTStmtKind::STMT_IF);
 	ASTBinaryOpExpr *IfCond = (ASTBinaryOpExpr *)IfStmt->getRule();
 	EXPECT_EQ(((ASTVarRefExpr *) IfCond->getLeftExpr())->getVarRef()->getName(), "a");
 	EXPECT_EQ(IfCond->getOpKind(), ASTBinaryOpExprKind::OP_BINARY_EQ);
@@ -132,19 +132,19 @@ TEST_F(ParserTest, SwitchCaseDefaultStmt) {
 	const ASTBlockStmt *Body = F->getBody();
 
 	ASTSwitchStmt *SwitchStmt = (ASTSwitchStmt *)Body->getContent()[0];
-	EXPECT_EQ(SwitchStmt->getKind(), ASTStmtKind::STMT_SWITCH);
+	EXPECT_EQ(SwitchStmt->getStmtKind(), ASTStmtKind::STMT_SWITCH);
 
 	ASTRuleStmt *Case0 = SwitchStmt->getCases()[0];
 	EXPECT_EQ(((ASTIntegerValue *) ((ASTValueExpr *) Case0->getRule())->getValue())->getValue(), "1");
-	EXPECT_EQ(((ASTBlockStmt *) Case0->getStmt())->getContent()[0]->getKind(), ASTStmtKind::STMT_BREAK);
+	EXPECT_EQ(((ASTBlockStmt *) Case0->getStmt())->getContent()[0]->getStmtKind(), ASTStmtKind::STMT_BREAK);
 
 	ASTRuleStmt *Case1 = SwitchStmt->getCases()[1];
 	EXPECT_EQ(((ASTIntegerValue *) ((ASTValueExpr *) Case1->getRule())->getValue())->getValue(), "2");
 	EXPECT_TRUE(((ASTBlockStmt *) Case1->getStmt())->getContent().empty());
 
 	ASTBlockStmt *Default = (ASTBlockStmt *)SwitchStmt->getDefault();
-	EXPECT_EQ(Default->getKind(), ASTStmtKind::STMT_BLOCK);
-	EXPECT_EQ(Default->getContent()[0]->getKind(), ASTStmtKind::STMT_RETURN);
+	EXPECT_EQ(Default->getStmtKind(), ASTStmtKind::STMT_BLOCK);
+	EXPECT_EQ(Default->getContent()[0]->getStmtKind(), ASTStmtKind::STMT_RETURN);
 }
 
 TEST_F(ParserTest, WhileStmt) {
@@ -162,7 +162,7 @@ TEST_F(ParserTest, WhileStmt) {
 	const ASTBlockStmt *Body = F->getBody();
 
 	ASTLoopStmt *WhileBlock = (ASTLoopStmt *)Body->getContent()[0];
-	EXPECT_EQ(WhileBlock->getKind(), ASTStmtKind::STMT_LOOP);
+	EXPECT_EQ(WhileBlock->getStmtKind(), ASTStmtKind::STMT_LOOP);
 	EXPECT_FALSE(WhileBlock->getRule() == nullptr);
 	EXPECT_FALSE(((ASTBlockStmt *) WhileBlock->getStmt())->isEmpty());
 
@@ -185,7 +185,7 @@ TEST_F(ParserTest, WhileValueStmt) {
 	const ASTBlockStmt *Body = F->getBody();
 
 	ASTLoopStmt *WhileBlock = (ASTLoopStmt *)Body->getContent()[0];
-	EXPECT_EQ(WhileBlock->getKind(), ASTStmtKind::STMT_LOOP);
+	EXPECT_EQ(WhileBlock->getStmtKind(), ASTStmtKind::STMT_LOOP);
 	EXPECT_EQ(((ASTBoolValue *)((ASTValueExpr *) WhileBlock->getRule())->getValue())->getValue(), true);
 	EXPECT_FALSE(((ASTBlockStmt *) WhileBlock->getStmt())->isEmpty());
 }
@@ -205,7 +205,7 @@ TEST_F(ParserTest, ForStmt) {
 	const ASTBlockStmt *Body = F->getBody();
 
 	ASTLoopStmt *ForBlock = (ASTLoopStmt *)Body->getContent()[0];
-	EXPECT_EQ(ForBlock->getKind(), ASTStmtKind::STMT_LOOP);
+	EXPECT_EQ(ForBlock->getStmtKind(), ASTStmtKind::STMT_LOOP);
 
 	ASTBlockStmt *InitStmt = (ASTBlockStmt *) ForBlock->getInit();
 	ASTBlockStmt *LoopStmt = (ASTBlockStmt *) ForBlock->getLoop();

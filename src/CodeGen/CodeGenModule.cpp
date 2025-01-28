@@ -180,13 +180,13 @@ void CodeGenModule::GenAll() {
     // Generate Identities: Class & Enum
     std::vector<CodeGenClass *> CGClasses;
     for (auto &Identity : AST.getIdentities()) {
-        if (Identity->getTopDefKind() == ASTTopDefKind::DEF_CLASS) {
+        if (Identity->getIdentityKind() == ASTIdentityKind::ID_CLASS) {
             CodeGenClass *CGC = GenClass((ASTClass *) Identity);
             CGClasses.push_back(CGC);
 //                if (FrontendOpts.CreateHeader) {
 //                    CGH->setClass((ASTClass *) Identity);
 //                }
-        } else if (Identity->getTopDefKind() == ASTTopDefKind::DEF_ENUM) {
+        } else if (Identity->getIdentityKind() == ASTIdentityKind::ID_ENUM) {
             GenEnum((ASTEnum *) Identity);
         }
     }
@@ -253,7 +253,7 @@ void CodeGenModule::GenEnum(ASTEnum *Enum) {
 llvm::Type *CodeGenModule::GenType(const ASTType *Type) {
     FLY_DEBUG("CodeGenModule", "GenType");
     // Check Type
-    switch (Type->getKind()) {
+    switch (Type->getStmtKind()) {
 
         case ASTTypeKind::TYPE_VOID:
             return VoidTy;
@@ -342,8 +342,8 @@ llvm::ArrayType *CodeGenModule::GenArrayType(const ASTArrayType *ArrayType) {
 
 llvm::Constant *CodeGenModule::GenDefaultValue(const ASTType *Type, llvm::Type *Ty) {
     FLY_DEBUG("CodeGenModule", "GenDefaultValue");
-    assert(Type->getKind() != ASTTypeKind::TYPE_VOID && "No default value for Void Type");
-    switch (Type->getKind()) {
+    assert(Type->getStmtKind() != ASTTypeKind::TYPE_VOID && "No default value for Void Type");
+    switch (Type->getStmtKind()) {
 
         // Bool
         case ASTTypeKind::TYPE_BOOL:
@@ -403,7 +403,7 @@ llvm::Constant *CodeGenModule::GenValue(const ASTType *Type, const ASTValue *Val
 
     //TODO value conversion from Val->getType() to TypeBase (if are different)
 
-    switch (Type->getKind()) {
+    switch (Type->getStmtKind()) {
 
         // Bool
         case ASTTypeKind::TYPE_BOOL:
@@ -528,7 +528,7 @@ llvm::Value *CodeGenModule::Convert(llvm::Value *FromVal, const ASTType *FromTyp
     assert(ToType && "Invalid conversion type");
 
     llvm::Type *FromLLVMType = FromVal->getType();
-    switch (ToType->getKind()) {
+    switch (ToType->getStmtKind()) {
 
         // to BOOL
         case ASTTypeKind::TYPE_BOOL: {
@@ -865,7 +865,7 @@ void CodeGenModule::GenFailStmt(ASTFailStmt *FailStmt, CodeGenError *CGE) {
 
 void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
     FLY_DEBUG("CodeGenModule", "GenStmt");
-    switch (Stmt->getKind()) {
+    switch (Stmt->getStmtKind()) {
 
         // Var Assignment
         case ASTStmtKind::STMT_ASSIGN: {
@@ -926,7 +926,7 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
         case ASTStmtKind::STMT_DELETE: {
             ASTDeleteStmt *Delete = (ASTDeleteStmt *) Stmt;
             ASTVar * Var = Delete->getVarRef()->getDef();
-            if (Var->getType()->getKind() == ASTTypeKind::TYPE_IDENTITY) {
+            if (Var->getType()->getStmtKind() == ASTTypeKind::TYPE_IDENTITY) {
                 Instruction *I = CallInst::CreateFree(Var->getCodeGen()->Load(), Builder->GetInsertBlock());
                 Builder->Insert(I);
             }
@@ -987,7 +987,7 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
         			ASTFunctionBase *F = FailStmt->getParent()->getFunction();
         			GenReturn(F);
         			break;
-        		} else if (Parent->getKind() == ASTStmtKind::STMT_HANDLE) {
+        		} else if (Parent->getStmtKind() == ASTStmtKind::STMT_HANDLE) {
 					// Set ErrorHandler of the parent with Fail
 					ASTHandleStmt * HandleStmt = static_cast<ASTHandleStmt *>(Parent);
 

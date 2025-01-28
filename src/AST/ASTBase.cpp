@@ -11,7 +11,7 @@
 
 using namespace fly;
 
-ASTBase::ASTBase(const SourceLocation &Loc) : Location(Loc) {
+ASTBase::ASTBase(const SourceLocation &Loc, ASTKind Kind) : Location(Loc), Kind(Kind) {
 
 }
 
@@ -19,14 +19,14 @@ const SourceLocation &ASTBase::getLocation() const {
     return Location;
 }
 
-ASTComment *ASTBase::getComment() const {
-    return Comment;
+ASTKind ASTBase::getKind() const {
+	return Kind;
 }
 
 std::string ASTBase::str() const {
     return Logger("ASTBase").
-            Attr("Location", (uint64_t) Location.getRawEncoding()).
-            Attr("Comment", Comment).
+            Attr("Location", static_cast<uint64_t>(Location.getRawEncoding())).
+			Attr("Kind", static_cast<uint64_t>(Kind)).
             End();
 }
 

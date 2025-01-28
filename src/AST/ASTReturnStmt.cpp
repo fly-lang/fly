@@ -22,6 +22,6 @@ ASTExpr *ASTReturnStmt::getExpr() const {
 
 std::string ASTReturnStmt::str() const {
     return Logger("ASTReturn").
-            Attr("Kind", (uint64_t) Kind).
+            Attr("Expr", Expr).
             End();
 }

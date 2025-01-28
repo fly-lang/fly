@@ -9,9 +9,12 @@
 
 #include "AST/ASTComment.h"
 
+#include <llvm/IR/Module.h>
+
 using namespace fly;
 
-ASTComment::ASTComment(const SourceLocation &Loc, llvm::StringRef Content) : ASTBase(Loc), Content(Content) {
+ASTComment::ASTComment(const SourceLocation &Loc, llvm::StringRef Content) :
+	ASTBase(Loc, ASTKind::AST_COMMENT), Content(Content) {
 
 }
 

@@ -48,7 +48,7 @@ namespace fly {
 
     protected:
 
-        ASTStmtKind Kind;
+        ASTStmtKind StmtKind;
 
         ASTStmt *Parent = nullptr;
 
@@ -62,7 +62,7 @@ namespace fly {
 
         ASTFunctionBase *getFunction() const;
 
-        ASTStmtKind getKind() const;
+        ASTStmtKind getStmtKind() const;
 
         std::string str() const override;
     };

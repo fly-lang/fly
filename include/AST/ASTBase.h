@@ -20,6 +20,20 @@ namespace fly {
 
     class ASTComment;
 
+    enum class ASTKind {
+        AST_VAR,
+        AST_ARG,
+        AST_STMT,
+        AST_TYPE,
+        AST_VALUE,
+        AST_EXPR,
+        AST_IDENTIFIER,
+        AST_IDENTITY,
+        AST_COMMENT,
+        AST_FUNCTION,
+        AST_SCOPE,
+    };
+
     class ASTBase {
 
         friend class SemaBuilder;
@@ -28,16 +42,18 @@ namespace fly {
 
         SourceLocation Location;
 
+        ASTKind Kind;
+
         ASTComment *Comment = nullptr;
 
     public:
         virtual ~ASTBase() = default;
 
-        explicit ASTBase(const SourceLocation &Loc);
+        explicit ASTBase(const SourceLocation &Loc, ASTKind Kind);
 
         virtual const SourceLocation &getLocation() const;
 
-        ASTComment *getComment() const;
+        virtual ASTKind getKind() const;
 
         virtual std::string str() const = 0;
     };

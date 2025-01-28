@@ -51,7 +51,7 @@ bool SemaValidator::CheckDuplicateParams(llvm::SmallVector<ASTParam *, 8> Params
  * @return
  */
 bool SemaValidator::CheckDuplicateLocalVars(ASTStmt *Stmt, llvm::StringRef VarName) {
-    if (Stmt->getKind() != ASTStmtKind::STMT_BLOCK) {
+    if (Stmt->getStmtKind() != ASTStmtKind::STMT_BLOCK) {
         // Error: need stmt block, cannot search duplicate var
         return true;
     }
@@ -70,6 +70,14 @@ bool SemaValidator::CheckDuplicateLocalVars(ASTStmt *Stmt, llvm::StringRef VarNa
     }
 
     return true;
+}
+
+void SemaValidator::CheckCommentParams(const llvm::SmallVector<ASTParam *, 8> &Params) {
+	// TODO
+}
+
+void SemaValidator::CheckCommentReturn(ASTType *ReturnType) {
+	// TODO
 }
 
 /**
@@ -113,7 +121,7 @@ bool SemaValidator::CheckExpr(ASTExpr *Expr) {
 }
 
 bool SemaValidator::CheckEqualTypes(ASTType *Type1, ASTType *Type2) {
-    if (Type1->getKind() == Type2->getKind()) {
+    if (Type1->getStmtKind() == Type2->getStmtKind()) {
         if (Type1->isArray()) {
             return CheckEqualTypes(((ASTArrayType *) Type1)->getType(), ((ASTArrayType *) Type2)->getType());
         } else if (Type1->isIdentity()) {
@@ -131,7 +139,7 @@ bool SemaValidator::CheckEqualTypes(ASTType *Type1, ASTType *Type2) {
 }
 
 bool SemaValidator::CheckEqualTypes(ASTType *Type, ASTTypeKind Kind) {
-    if (Type->getKind() != Kind) {
+    if (Type->getStmtKind() != Kind) {
         if (DiagEnabled)
             S.Diag(Type->getLocation(), diag::err_sema_macro_type) << Type->printType();
         return false;
@@ -163,8 +171,8 @@ bool SemaValidator::CheckConvertibleTypes(ASTType *FromType, ASTType *ToType) {
 
     else if (FromType->isArray() && ToType->isArray()) {
         // FIXME
-        return ((ASTArrayType *) FromType)->getType()->getKind() ==
-               ((ASTArrayType *) ToType)->getType()->getKind();
+        return ((ASTArrayType *) FromType)->getType()->getStmtKind() ==
+               ((ASTArrayType *) ToType)->getType()->getStmtKind();
     }
 
     else if (FromType->isIdentity() && ToType->isIdentity()) {
@@ -203,7 +211,7 @@ bool SemaValidator::CheckConvertibleTypes(ASTType *FromType, ASTType *ToType) {
 }
 
 bool SemaValidator::CheckArithTypes(const SourceLocation &Loc, ASTType *Type1, ASTType *Type2) {
-    if (Type1->getKind() == Type2->getKind()) {
+    if (Type1->getStmtKind() == Type2->getStmtKind()) {
         return true;
     }
 
@@ -216,7 +224,7 @@ bool SemaValidator::CheckArithTypes(const SourceLocation &Loc, ASTType *Type1, A
 }
 
 bool SemaValidator::CheckLogicalTypes(const SourceLocation &Loc, ASTType *Type1, ASTType *Type2) {
-    if (Type1->getKind() == ASTTypeKind::TYPE_BOOL && Type2->getKind() == ASTTypeKind::TYPE_BOOL) {
+    if (Type1->getStmtKind() == ASTTypeKind::TYPE_BOOL && Type2->getStmtKind() == ASTTypeKind::TYPE_BOOL) {
         return true;
     }
 

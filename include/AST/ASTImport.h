@@ -14,6 +14,7 @@
 
 namespace fly {
 
+    class ASTComment;
     class ASTNameSpace;
     class ASTModule;
     class ASTAlias;
@@ -24,6 +25,8 @@ namespace fly {
         friend class SemaBuilder;
         friend class SemaResolver;
 
+        ASTModule *Module;
+
         ASTAlias *Alias = nullptr;
 
         ASTImport(const SourceLocation &Loc, llvm::StringRef Name);
@@ -31,6 +34,8 @@ namespace fly {
     public:
 
         ~ASTImport();
+
+        ASTModule* getModule() const;
 
         ASTAlias *getAlias() const;
 

@@ -24,10 +24,6 @@ llvm::StringRef ASTFunction::getName() const {
     return Name;
 }
 
-ASTTopDefKind ASTFunction::getTopDefKind() const {
-    return TopDefKind;
-}
-
 ASTVisibilityKind ASTFunction::getVisibility() const {
     return Visibility;
 }

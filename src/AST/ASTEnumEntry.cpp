@@ -38,7 +38,6 @@ void ASTEnumEntry::setCodeGen(CodeGenEnumEntry *CG) {
 std::string ASTEnumEntry::str() const {
     return Logger("ASTEnumEntry").
             Super(ASTVar::str()).
-            Attr("Index", (uint64_t) Index).
-            Attr("Comment", Comment).
+            Attr("Index", static_cast<uint64_t>(Index)).
             End();
 }

@@ -20,6 +20,7 @@ namespace fly {
     class ASTValue;
     class ASTVar;
     class ASTExpr;
+    class ASTComment;
     enum class ASTVisibilityKind;
 
     class ASTClassAttribute : public ASTVar {

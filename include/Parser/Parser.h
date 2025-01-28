@@ -39,7 +39,6 @@ namespace fly {
     class InputFile;
     class ASTHandleStmt;
     class ASTVarRef;
-    class ASTTopDef;
     class ASTScope;
     class ASTClass;
     class ASTGlobalVar;
@@ -96,23 +95,19 @@ namespace fly {
 
         ASTBase * ParseImport();
 
-        ASTBase * ParseTopDefs();
-
-        ASTBase *ParseTopDef(ASTComment *Comment, SmallVector<ASTScope *, 8>& Scopes);
+        ASTBase *ParseDefinition();
 
         SmallVector<ASTScope *, 8> ParseScopes();
 
-        ASTGlobalVar *ParseGlobalVarDef(ASTComment *Comment, SmallVector<ASTScope *, 8> &Scopes, ASTType *Type);
+        ASTGlobalVar *ParseGlobalVarDef(SmallVector<ASTScope *, 8> &Scopes, ASTType *Type);
 
-        ASTFunction *ParseFunctionDef(ASTComment *Comment, SmallVector<ASTScope *, 8> &Scopes, ASTType *Type);
+        ASTFunction *ParseFunctionDef(SmallVector<ASTScope *, 8> &Scopes, ASTType *Type);
 
-        ASTClass *ParseClassDef(ASTComment *Comment, SmallVector<ASTScope *, 8> &Scopes);
+        ASTClass *ParseClassDef(SmallVector<ASTScope *, 8> &Scopes);
 
-        ASTEnum *ParseEnumDef(ASTComment *Comment, SmallVector<ASTScope *, 8> &Scopes);
+        ASTEnum *ParseEnumDef(SmallVector<ASTScope *, 8> &Scopes);
 
-        ASTComment *ParseComments();
-
-        void SkipComments();
+        ASTComment *ParseComment();
 
         // Parse Block or Stmt
         void ParseBlockOrStmt(ASTBlockStmt *Parent);

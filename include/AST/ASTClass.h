@@ -15,6 +15,7 @@
 
 namespace fly {
 
+    class ASTModule;
     class ASTClassAttribute;
     class ASTClassMethod;
     class CodeGenClass;
@@ -57,6 +58,8 @@ namespace fly {
                  const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTClassType *, 4> &ClassTypes);
 
     public:
+
+        ASTModule* getModule() const;
 
         ASTClassKind getClassKind() const;
 

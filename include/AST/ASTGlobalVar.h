@@ -10,27 +10,27 @@
 #ifndef FLY_AST_GLOBALVAR_H
 #define FLY_AST_GLOBALVAR_H
 
-#include "ASTTopDef.h"
 #include "ASTVar.h"
 #include "CodeGen/CodeGenGlobalVar.h"
 
 namespace fly {
 
+    class ASTModule;
+    class ASTNameSpace;
+    class ASTComment;
     enum class ASTVisibilityKind;
 
-    class ASTGlobalVar : public ASTVar, public virtual ASTTopDef {
+    class ASTGlobalVar : public ASTVar {
 
         friend class SemaBuilder;
         friend class SemaResolver;
         friend class SemaValidator;
 
-        ASTTopDefKind TopDefKind = ASTTopDefKind::DEF_GLOBALVAR;
-
         ASTVisibilityKind Visibility;
 
         bool Constant;
 
-        ASTModule *Module = nullptr;
+        ASTModule *Module;
 
         ASTExpr *Expr = nullptr;
 
@@ -43,17 +43,15 @@ namespace fly {
 
         ~ASTGlobalVar() = default;
 
-        ASTTopDefKind getTopDefKind() const override;
-
         ASTVisibilityKind getVisibility() const;
 
         bool isConstant() const;
 
-        ASTModule *getModule() const override;
+        ASTModule *getModule() const;
 
-        ASTNameSpace *getNameSpace() const override;
+        ASTNameSpace *getNameSpace() const;
 
-        llvm::StringRef getName() const override;
+        llvm::StringRef getName() const;
 
         ASTExpr *getExpr() const;
 

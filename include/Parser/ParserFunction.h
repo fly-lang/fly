@@ -36,7 +36,7 @@ namespace fly {
 
         explicit ParserFunction(Parser *P);
 
-        static ASTFunction *Parse(Parser *P, llvm::SmallVector<ASTScope *, 8> Scopes, ASTType *Type, ASTComment *Comment);
+        static ASTFunction *Parse(Parser *P, llvm::SmallVector<ASTScope *, 8> Scopes, ASTType *Type);
 
         ASTBlockStmt *ParseBody(ASTFunctionBase *F);
 

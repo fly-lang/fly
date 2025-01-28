@@ -12,12 +12,12 @@
 using namespace fly;
 
 ASTIdentifier::ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name) :
-        ASTBase(Loc), Name(Name), Kind(ASTIdentifierKind::REF_UNDEFINED) {
+        ASTBase(Loc, ASTKind::AST_IDENTIFIER), Name(Name) {
     FullName = Name.data();
 }
 
 ASTIdentifier::ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name, ASTIdentifierKind Kind) :
-        ASTBase(Loc), Name(Name), Kind(Kind), Resolved(false) {
+        ASTBase(Loc, ASTKind::AST_IDENTIFIER), Name(Name), Kind(Kind), Resolved(false) {
     FullName = Name.data();
 }
 

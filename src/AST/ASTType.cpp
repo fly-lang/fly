@@ -12,11 +12,11 @@
 using namespace fly;
 
 ASTType::ASTType(const SourceLocation &Loc, ASTTypeKind MacroKind) :
-        ASTBase(Loc), Kind(MacroKind) {
+        ASTBase(Loc, ASTKind::AST_TYPE), Kind(MacroKind) {
 
 }
 
-const ASTTypeKind &ASTType::getKind() const  {
+const ASTTypeKind &ASTType::getStmtKind() const  {
     return Kind;
 }
 

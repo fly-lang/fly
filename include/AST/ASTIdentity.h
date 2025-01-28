@@ -11,52 +11,59 @@
 #define FLY_AST_IDENTITY_H
 
 #include "AST/ASTBase.h"
-#include "ASTTopDef.h"
 
 namespace fly {
 
+    class ASTModule;
+    class ASTNameSpace;
+    class ASTComment;
     class ASTIdentityType;
     class ASTScope;
     enum class ASTVisibilityKind;
 
-    class ASTIdentity : public ASTBase, public virtual ASTTopDef {
+    enum class ASTIdentityKind {
+        ID_CLASS,
+        ID_ENUM
+    };
+
+    class ASTIdentity : public ASTBase {
 
         friend class SemaBuilder;
         friend class SemaResolver;
         friend class SemaValidator;
 
-    protected:
+        llvm::SmallVector<ASTBase *, 8> Definitions;
 
-        ASTTopDefKind TopDefKind;
+    protected:
 
         llvm::SmallVector<ASTScope *, 8> Scopes;
 
         llvm::StringRef Name;
 
+        ASTIdentityKind IdentityKind;
+
         ASTVisibilityKind Visibility;
 
-        ASTModule *Module = nullptr;
+        ASTModule *Module;
 
         ASTIdentityType *Type = nullptr;
 
-        ASTIdentity(ASTModule *Module, ASTTopDefKind TopDefKind, llvm::SmallVector<ASTScope *, 8> &Scopes,
+        ASTIdentity(ASTModule *Module, ASTIdentityKind IdentityKind, llvm::SmallVector<ASTScope *, 8> &Scopes,
                     const SourceLocation &Loc, llvm::StringRef Name);
 
     public:
 
-        ASTTopDefKind getTopDefKind() const override;
-
         ASTIdentityType *getType() const;
 
-        llvm::StringRef getName() const override;
+        ASTIdentityKind getIdentityKind() const;
+
+        llvm::StringRef getName() const;
 
         ASTVisibilityKind getVisibility() const;
 
         llvm::SmallVector<ASTScope *, 8> getScopes() const;
 
-        ASTModule *getModule() const override;
-
-        ASTNameSpace *getNameSpace() const override;
+        ASTNameSpace *getNameSpace() const;
 
         virtual std::string str() const override;
 

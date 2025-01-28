@@ -47,6 +47,10 @@ namespace fly {
 
         bool CheckDuplicateLocalVars(ASTStmt *Stmt, llvm::StringRef VarName);
 
+        void CheckCommentParams(const llvm::SmallVector<ASTParam*, 8> &Params);
+
+        void CheckCommentReturn(ASTType* ReturnType);
+
         static bool CheckParams(llvm::SmallVector<ASTParam *, 8> Params, llvm::SmallVector<ASTParam *, 8> CheckParams) {
             // Types will be checked on Resolve()
             for (ASTParam *Param : Params) {

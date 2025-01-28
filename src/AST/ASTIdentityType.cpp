@@ -12,16 +12,6 @@
 
 using namespace fly;
 
-ASTIdentityTypeKind toIdentityKind(ASTTopDefKind Kind) {
-    if (Kind == fly::ASTTopDefKind::DEF_CLASS) {
-        return ASTIdentityTypeKind::TYPE_CLASS;
-    }
-    if (Kind == fly::ASTTopDefKind::DEF_ENUM) {
-        return ASTIdentityTypeKind::TYPE_ENUM;
-    }
-    return ASTIdentityTypeKind::TYPE_NONE;
-}
-
 ASTIdentityType::ASTIdentityType(ASTIdentifier *Identifier) :
         ASTType(Identifier->getLocation(), ASTTypeKind::TYPE_IDENTITY),
         ASTIdentifier(Identifier->getLocation(), Identifier->getName(), ASTIdentifierKind::REF_TYPE), IdentityTypeKind(ASTIdentityTypeKind::TYPE_NONE) {
@@ -39,7 +29,7 @@ ASTIdentityType::ASTIdentityType(ASTIdentifier *Identifier, ASTIdentityTypeKind 
 ASTIdentityType::ASTIdentityType(ASTIdentity *Def) :
         ASTType(SourceLocation(), ASTTypeKind::TYPE_IDENTITY),
         ASTIdentifier(SourceLocation(), Def->getName(), ASTIdentifierKind::REF_TYPE),
-        Def(Def), IdentityTypeKind(toIdentityKind(Def->getTopDefKind())) {
+        Def(Def) {
 
 }
 

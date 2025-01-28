@@ -25,14 +25,14 @@ ParserFunction::ParserFunction(Parser *P) : P(P) {
 
 }
 
-ASTFunction *ParserFunction::Parse(Parser *P, SmallVector<ASTScope *, 8> Scopes, ASTType *Type, ASTComment *Comment) {
+ASTFunction *ParserFunction::Parse(Parser *P, SmallVector<ASTScope *, 8> Scopes, ASTType *Type) {
     ParserFunction *PF = new ParserFunction(P);
 
     assert(P->Tok.isAnyIdentifier() && "Tok must be an Identifier");
     StringRef Name = P->Tok.getIdentifierInfo()->getName();
     const SourceLocation &Loc = P->ConsumeToken();
     SmallVector<ASTParam *, 8> Params = PF->ParseParams();
-    ASTFunction *Function = P->Builder.CreateFunction(P->Module, Loc, Type, Name, Scopes, Params, nullptr, Comment);
+    ASTFunction *Function = P->Builder.CreateFunction(P->Module, Loc, Type, Name, Scopes, Params, nullptr);
     ASTBlockStmt *Body = P->isBlockStart() ? PF->ParseBody(Function) : nullptr;
     return Function;
 }

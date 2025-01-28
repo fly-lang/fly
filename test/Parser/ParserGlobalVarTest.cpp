@@ -80,7 +80,7 @@ namespace {
 
         EXPECT_EQ(VarC->getVisibility(), ASTVisibilityKind::V_DEFAULT);
         ASSERT_FALSE(VarC->isConstant());
-        EXPECT_EQ(VarC->getType()->getKind(), ASTTypeKind::TYPE_BOOL);
+        EXPECT_EQ(VarC->getType()->getStmtKind(), ASTTypeKind::TYPE_BOOL);
         EXPECT_EQ(VarC->getName(), "c");
 
         EXPECT_EQ(VarD->getVisibility(), ASTVisibilityKind::V_DEFAULT);
@@ -129,7 +129,7 @@ namespace {
         ASTGlobalVar *VarA = *Module->getGlobalVars().begin();
 
         // a
-        EXPECT_EQ(VarA->getType()->getKind(), ASTTypeKind::TYPE_ARRAY);
+        EXPECT_EQ(VarA->getType()->getStmtKind(), ASTTypeKind::TYPE_ARRAY);
         EXPECT_EQ(((ASTIntegerType *) ((ASTArrayType *) VarA->getType())->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_BYTE);
         EXPECT_EQ((ASTValueExpr *)((ASTArrayType *) VarA->getType())->getSize(), nullptr);
         EXPECT_NE(((ASTNullValue *) ((ASTValueExpr *) VarA->getExpr())->getValue()), nullptr);
@@ -145,7 +145,7 @@ namespace {
         ASTGlobalVar *VarB = *Module->getGlobalVars().begin();
 
         // b
-        EXPECT_EQ(VarB->getType()->getKind(), ASTTypeKind::TYPE_ARRAY);
+        EXPECT_EQ(VarB->getType()->getStmtKind(), ASTTypeKind::TYPE_ARRAY);
         EXPECT_EQ(((ASTIntegerType *) ((ASTArrayType *) VarB->getType())->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_BYTE);
         EXPECT_EQ((ASTValueExpr *)((ASTArrayType *) VarB->getType())->getSize(), nullptr);
         EXPECT_NE(VarB->getExpr(), nullptr);
@@ -163,7 +163,7 @@ namespace {
         ASTGlobalVar *VarC = *Module->getGlobalVars().begin();
 
         // c
-        EXPECT_EQ(VarC->getType()->getKind(), ASTTypeKind::TYPE_ARRAY);
+        EXPECT_EQ(VarC->getType()->getStmtKind(), ASTTypeKind::TYPE_ARRAY);
         EXPECT_EQ(((ASTIntegerType *) ((ASTArrayType *) VarC->getType())->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_BYTE);
         EXPECT_EQ((ASTValueExpr *)((ASTArrayType *) VarC->getType())->getSize(), nullptr);
         EXPECT_NE(VarC->getExpr(), nullptr);
@@ -185,7 +185,7 @@ namespace {
         ASTGlobalVar *VarD = *Module->getGlobalVars().begin();
 
         // d
-        EXPECT_EQ(VarD->getType()->getKind(), ASTTypeKind::TYPE_ARRAY);
+        EXPECT_EQ(VarD->getType()->getStmtKind(), ASTTypeKind::TYPE_ARRAY);
         EXPECT_EQ(((ASTIntegerType *) ((ASTArrayType *) VarD->getType())->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_BYTE);
         EXPECT_EQ(((ASTIntegerValue *) ((ASTValueExpr *)((ASTArrayType *) VarD->getType())->getSize())->getValue())->getValue(), "3");
         EXPECT_EQ(VarD->getExpr(), nullptr);
@@ -201,7 +201,7 @@ namespace {
         ASTGlobalVar *VarE = *Module->getGlobalVars().begin();
 
         // e
-        EXPECT_EQ(VarE->getType()->getKind(), ASTTypeKind::TYPE_ARRAY);
+        EXPECT_EQ(VarE->getType()->getStmtKind(), ASTTypeKind::TYPE_ARRAY);
         EXPECT_EQ(((ASTIntegerType *) ((ASTArrayType *) VarE->getType())->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_BYTE);
         EXPECT_EQ(((ASTIntegerValue *) ((ASTValueExpr *)((ASTArrayType *) VarE->getType())->getSize())->getValue())->getValue(), "3");
         EXPECT_NE(VarE->getExpr(), nullptr);
@@ -232,12 +232,12 @@ namespace {
         }
 
         // a
-        EXPECT_EQ(VarA->getType()->getKind(), ASTTypeKind::TYPE_CHAR);
+        EXPECT_EQ(VarA->getType()->getStmtKind(), ASTTypeKind::TYPE_CHAR);
         EXPECT_NE(VarA->getExpr(), nullptr);
         EXPECT_EQ(((ASTCharValue *) ((ASTValueExpr *)VarA->getExpr())->getValue())->getValue(), "");
 
         // b
-        EXPECT_EQ(VarB->getType()->getKind(), ASTTypeKind::TYPE_CHAR);
+        EXPECT_EQ(VarB->getType()->getStmtKind(), ASTTypeKind::TYPE_CHAR);
         EXPECT_NE(VarB->getExpr(), nullptr);
         EXPECT_EQ(((ASTCharValue *) ((ASTValueExpr *)VarB->getExpr())->getValue())->getValue(), "b");
     }
@@ -262,9 +262,9 @@ namespace {
         }
 
         // c
-        EXPECT_EQ(VarC->getType()->getKind(), ASTTypeKind::TYPE_ARRAY);
+        EXPECT_EQ(VarC->getType()->getStmtKind(), ASTTypeKind::TYPE_ARRAY);
         ASTArrayType *VarCType = (ASTArrayType *) VarC->getType();
-        EXPECT_EQ(VarCType->getType()->getKind(), ASTTypeKind::TYPE_CHAR);
+        EXPECT_EQ(VarCType->getType()->getStmtKind(), ASTTypeKind::TYPE_CHAR);
         ASTValueExpr *cExpr = (ASTValueExpr *) VarC->getExpr();
         EXPECT_EQ(((const ASTArrayValue *) cExpr->getValue())->size(), 4);
         EXPECT_FALSE(((const ASTArrayValue *) cExpr->getValue())->empty());
@@ -274,8 +274,8 @@ namespace {
         EXPECT_EQ(((ASTCharValue *) ((const ASTArrayValue *) cExpr->getValue())->getValues()[3])->getValue(), "");
 
         // d
-        EXPECT_EQ(VarD->getType()->getKind(), ASTTypeKind::TYPE_ARRAY);
-        EXPECT_EQ(((ASTArrayType *) VarC->getType())->getType()->getKind(), ASTTypeKind::TYPE_CHAR);
+        EXPECT_EQ(VarD->getType()->getStmtKind(), ASTTypeKind::TYPE_ARRAY);
+        EXPECT_EQ(((ASTArrayType *) VarC->getType())->getType()->getStmtKind(), ASTTypeKind::TYPE_CHAR);
         EXPECT_EQ(((ASTCharValue *) ((ASTValueExpr *)((ASTArrayType *) VarD->getType())->getSize())->getValue())->getValue(), "2");
         EXPECT_NE(VarD->getExpr(), nullptr);
         ASTValueExpr *dExpr = (ASTValueExpr *) VarD->getExpr();
@@ -310,13 +310,13 @@ namespace {
         }
 
         // a
-        EXPECT_EQ(VarA->getType()->getKind(), ASTTypeKind::TYPE_STRING);
+        EXPECT_EQ(VarA->getType()->getStmtKind(), ASTTypeKind::TYPE_STRING);
         EXPECT_NE(VarA->getExpr(), nullptr);
         const ASTValue *ValA = ((ASTValueExpr *) VarA->getExpr())->getValue();
         EXPECT_EQ(((ASTArrayValue *) ValA)->getValues().size(), 0);
 
         // b
-        EXPECT_EQ(VarB->getType()->getKind(), ASTTypeKind::TYPE_STRING);
+        EXPECT_EQ(VarB->getType()->getStmtKind(), ASTTypeKind::TYPE_STRING);
         StringRef Str = ((ASTStringValue *) ((ASTValueExpr *) VarB->getExpr())->getValue())->getValue();
         EXPECT_EQ(Str.size(), 3);
         EXPECT_EQ(Str.data()[0], 'a');
@@ -324,7 +324,7 @@ namespace {
         EXPECT_EQ(Str.data()[2], 'c');
 
         // c
-        EXPECT_EQ(VarC->getType()->getKind(), ASTTypeKind::TYPE_STRING);
+        EXPECT_EQ(VarC->getType()->getStmtKind(), ASTTypeKind::TYPE_STRING);
         EXPECT_EQ(VarC->getExpr(), nullptr);
     }
 }

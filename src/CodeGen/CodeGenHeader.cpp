@@ -77,7 +77,7 @@ void CodeGenHeader::CreateFile(DiagnosticsEngine &Diags, CodeGenOptions &CodeGen
     // generate Identity Header: class, enum
     for (auto Identity : AST.getIdentities()) {
         Header.concat(Identity->getName()).concat("{\n");
-        if (Identity->getTopDefKind() == ASTTopDefKind::DEF_CLASS) {
+        if (Identity->getIdentityKind() == ASTIdentityKind::ID_CLASS) {
             ASTClass* Class = (ASTClass *) Identity;
             for (auto Attribute : Class->getAttributes()) {
                 Header.concat(Attribute->getType()->print()).concat(" ")
@@ -101,7 +101,7 @@ void CodeGenHeader::CreateFile(DiagnosticsEngine &Diags, CodeGenOptions &CodeGen
                     Header.concat(ParamsStr).concat(")").concat("\n\n");
                 }
             }
-        } else if (Identity->getTopDefKind() == ASTTopDefKind::DEF_ENUM) {
+        } else if (Identity->getIdentityKind() == ASTIdentityKind::ID_ENUM) {
             ASTEnum* Enum = (ASTEnum *) Identity;
             for (auto &EnumEntry : Enum->getEntries()) {
                 Header.concat(EnumEntry->getName()).concat("\n\n"); // TODO add value

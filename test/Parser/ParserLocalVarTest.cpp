@@ -52,14 +52,14 @@ namespace {
 
         // Get Body
         ASTFunction *F = *Module->getFunctions().begin();
-        EXPECT_EQ(F->getReturnType()->getKind(), ASTTypeKind::TYPE_VOID);
+        EXPECT_EQ(F->getReturnType()->getStmtKind(), ASTTypeKind::TYPE_VOID);
         const ASTBlockStmt *Body = F->getBody();
 
         // Test: bool a
         ASTAssignmentStmt *aStmt = (ASTAssignmentStmt *) Body->getContent()[0];
         ASTVar *aVar = aStmt->getVarRef()->getDef();
         EXPECT_EQ(aVar->getName(), "a");
-        EXPECT_EQ(aVar->getType()->getKind(), ASTTypeKind::TYPE_BOOL);
+        EXPECT_EQ(aVar->getType()->getStmtKind(), ASTTypeKind::TYPE_BOOL);
         ASTBoolValue* BoolValue = S->getBuilder().CreateBoolValue(SourceLocation(), false);
         ASSERT_EQ(((ASTBoolValue *)((ASTValueExpr *) aStmt->getExpr())->getValue())->getValue(), BoolValue->getValue());
 
@@ -155,21 +155,21 @@ namespace {
         ASTParam *Par2 = Func->getParams()[2];
 
         EXPECT_EQ(Par0->getName(), "a");
-        EXPECT_EQ(Par0->getType()->getKind(), ASTTypeKind::TYPE_INTEGER);
+        EXPECT_EQ(Par0->getType()->getStmtKind(), ASTTypeKind::TYPE_INTEGER);
         EXPECT_EQ(Par0->isConstant(), false);
 
         EXPECT_EQ(Par1->getName(), "b");
-        EXPECT_EQ(Par1->getType()->getKind(), ASTTypeKind::TYPE_FLOATING_POINT);
+        EXPECT_EQ(Par1->getType()->getStmtKind(), ASTTypeKind::TYPE_FLOATING_POINT);
         EXPECT_EQ(Par1->isConstant(), true);
 
         EXPECT_EQ(Par2->getName(), "c");
-        EXPECT_EQ(Par2->getType()->getKind(), ASTTypeKind::TYPE_BOOL);
+        EXPECT_EQ(Par2->getType()->getStmtKind(), ASTTypeKind::TYPE_BOOL);
         EXPECT_EQ(Par2->isConstant(), false);
         EXPECT_EQ(Par2->getDefaultValue()->getTypeKind(), ASTTypeKind::TYPE_BOOL);
         EXPECT_EQ(((ASTBoolValue *) Par2->getDefaultValue())->getValue(), false);
 
         ASTReturnStmt *ReturnStmt = (ASTReturnStmt *) Func->getBody()->getContent()[0];
-        EXPECT_EQ(ReturnStmt->getKind(), ASTStmtKind::STMT_RETURN);
+        EXPECT_EQ(ReturnStmt->getStmtKind(), ASTStmtKind::STMT_RETURN);
         EXPECT_EQ((ReturnStmt->getExpr())->getExprKind(), ASTExprKind::EXPR_VALUE);
         EXPECT_EQ(((ASTIntegerValue *) ((ASTValueExpr*) ReturnStmt->getExpr())->getValue())->getValue(), "1");
     }
@@ -216,7 +216,7 @@ namespace {
 
         // Test: doOther(a, b)
         ASTExprStmt *doOtherStmt = (ASTExprStmt *) Body->getContent()[2];
-        EXPECT_EQ(doOtherStmt->getKind(), ASTStmtKind::STMT_EXPR);
+        EXPECT_EQ(doOtherStmt->getStmtKind(), ASTStmtKind::STMT_EXPR);
         ASTCallExpr *doOtherCall = (ASTCallExpr *) doOtherStmt->getExpr();
         EXPECT_EQ(doOtherCall->getCall()->getName(), "doOther");
         ASTArg *Arg0 = doOtherCall->getCall()->getArgs()[0];

@@ -18,10 +18,6 @@ ASTGlobalVar::ASTGlobalVar(ASTModule *Module, const SourceLocation &Loc, ASTType
 
 }
 
-ASTTopDefKind ASTGlobalVar::getTopDefKind() const {
-    return TopDefKind;
-}
-
 ASTVisibilityKind ASTGlobalVar::getVisibility() const {
     return Visibility;
 }

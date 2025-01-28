@@ -31,7 +31,7 @@ namespace fly {
     class ASTContext;
     class ASTNameSpace;
     class ASTModule;
-    class ASTTopDef;
+    class ASTBase;
     class ASTClass;
     class ASTClassMethod;
     class ASTStmt;
@@ -54,6 +54,7 @@ namespace fly {
     class ASTFunction;
     class ASTFunctionBase;
     class ASTIdentifier;
+    class ASTComment;
     class ASTImport;
     class ASTIdentityType;
     class ASTVar;
@@ -89,13 +90,21 @@ namespace fly {
 
         void ResolveIdentityDeclarations();
 
+        void ResolveDefinitions();
+
+        void ResolveCommentDefinition(ASTComment *Comment, ASTBase *NextDef);
+
+        void ResolveNameSpaceDefinition();
+
         void ResolveImportDefinitions();
 
-        void ResolveGlobalVarDefinitions();
+        void ResolveGlobalVarDefinition(ASTGlobalVar *GlobalVar);
 
-        void ResolveIdentityDefinitions();
+        void ResolveFunctionDefinition(ASTFunction *Function);
 
-        void ResolveFunctionDefinitions();
+        void ResolveClassDefinition(ASTClass *Class);
+
+        void ResolveEnumDefinition(ASTEnum *Enum);
 
         bool ResolveType(ASTType *Type);
 

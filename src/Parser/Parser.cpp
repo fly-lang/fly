@@ -79,7 +79,7 @@ ASTModule *Parser::ParseModule() {
 	bool Success = true;
     while (Success && Tok.isNot(tok::eof)) {
 	    // Parse namespace, imports and top definitions
-    	Success = ParseNameSpace() != nullptr || ParseImport() != nullptr || ParseTopDefs() != nullptr;
+    	Success = ParseNameSpace() != nullptr || ParseImport() != nullptr || ParseDefinition() != nullptr;
     }
 
     return Module;
@@ -168,38 +168,23 @@ ASTBase *Parser::ParseImport() {
 	return nullptr;
 }
 
-ASTBase *Parser::ParseTopDefs() {
-	if (Tok.isOneOf(tok::kw_private,tok::kw_protected, tok::kw_public, tok::kw_const, tok::kw_static)) {
+ASTBase *Parser::ParseDefinition() {
+    assert(!isTokenComment() && "Token comment not expected");
 
-		// Parse Comments
-		ASTComment *Comment = Lex.BlockComment.empty() ? nullptr : Builder.CreateComment(SourceLocation(), Lex.BlockComment);
-
-		// Parse Public/Private and Constant
-		SmallVector<ASTScope *, 8> Scopes = ParseScopes();
-
-		// Parse TopDef: GlobalVar, Function, Class, Enum
-		return ParseTopDef(Comment, Scopes);
+	if (isTokenComment()) {
+		return ParseComment();
 	}
 
-	// Parse Comments
-	ASTComment *Comment = Lex.BlockComment.empty() ? nullptr : Builder.CreateComment(SourceLocation(), Lex.BlockComment);
-
-	SmallVector<ASTScope *, 8> Scopes;
-
-	// Parse TopDef: GlobalVar, Function, Class, Enum
-	return ParseTopDef(Comment, Scopes);
-}
-
-ASTBase *Parser::ParseTopDef(ASTComment *Comment, SmallVector<ASTScope *, 8>& Scopes) {
-    assert(!isTokenComment() && "Token comment not expected");
+	// Parse Top Scopes: Public/Private and Constant
+	SmallVector<ASTScope *, 8> Scopes = ParseScopes();
 
     // Define a Class
     if (Tok.isOneOf(tok::kw_struct, tok::kw_class, tok::kw_interface)) {
-        return ParseClassDef(Comment, Scopes);
+        return ParseClassDef(Scopes);
     }
 
     if (Tok.is(tok::kw_enum)) {
-        return ParseEnumDef(Comment, Scopes);
+        return ParseEnumDef(Scopes);
     }
 
     // Parse Type
@@ -211,10 +196,10 @@ ASTBase *Parser::ParseTopDef(ASTComment *Comment, SmallVector<ASTScope *, 8>& Sc
 
             // Define a Function
             if (Lexer::findNextToken(Tok.getLocation(), SourceMgr)->is(tok::l_paren)) {
-                return ParseFunctionDef(Comment, Scopes, Type);
+                return ParseFunctionDef(Scopes, Type);
             } else {
                 // Define a GlobalVar
-                return ParseGlobalVarDef(Comment, Scopes, Type);
+                return ParseGlobalVarDef(Scopes, Type);
             }
         } else {
             Diag(Tok, diag::err_parse_identifier_invalid);
@@ -258,7 +243,7 @@ SmallVector<ASTScope *, 8> Parser::ParseScopes() {
  * @param NameLoc
  * @return
  */
-ASTGlobalVar *Parser::ParseGlobalVarDef(ASTComment *Comment, SmallVector<ASTScope *, 8> &Scopes, ASTType *Type) {
+ASTGlobalVar *Parser::ParseGlobalVarDef(SmallVector<ASTScope *, 8> &Scopes, ASTType *Type) {
     FLY_DEBUG_MESSAGE("Parser", "ParseGlobalVarDef", Logger()
                                                     .AttrList("Scopes", Scopes)
                                                     .Attr("Type", Type).End());
@@ -277,7 +262,7 @@ ASTGlobalVar *Parser::ParseGlobalVarDef(ASTComment *Comment, SmallVector<ASTScop
     }
 
     // GlobalVar
-    ASTGlobalVar *GlobalVar = Builder.CreateGlobalVar(Module, Loc, Type, Name, Scopes, Expr, Comment);
+    ASTGlobalVar *GlobalVar = Builder.CreateGlobalVar(Module, Loc, Type, Name, Scopes, Expr);
 
     return GlobalVar;
 }
@@ -292,12 +277,12 @@ ASTGlobalVar *Parser::ParseGlobalVarDef(ASTComment *Comment, SmallVector<ASTScop
  * @param NameLoc
  * @return
  */
-ASTFunction *Parser::ParseFunctionDef(ASTComment *Comment, SmallVector<ASTScope *, 8> &Scopes, ASTType *Type) {
+ASTFunction *Parser::ParseFunctionDef(SmallVector<ASTScope *, 8> &Scopes, ASTType *Type) {
     FLY_DEBUG_MESSAGE("Parser", "ParseFunctionDef",  Logger()
                                                     .AttrList("Scopes", Scopes)
                                                     .Attr("Type", Type).End());
 
-    return ParserFunction::Parse(this, Scopes, Type, Comment);
+    return ParserFunction::Parse(this, Scopes, Type);
 }
 
 /**
@@ -306,10 +291,10 @@ ASTFunction *Parser::ParseFunctionDef(ASTComment *Comment, SmallVector<ASTScope 
  * @param Constant
  * @return
  */
-ASTClass * Parser::ParseClassDef(ASTComment *Comment, SmallVector<ASTScope *, 8> &Scopes) {
+ASTClass * Parser::ParseClassDef(SmallVector<ASTScope *, 8> &Scopes) {
     FLY_DEBUG_MESSAGE("Parser", "ParseClassDef", Logger().AttrList("Scopes", Scopes).End());
 
-    ASTClass *Class = ParserClass::Parse(this, Comment, Scopes);
+    ASTClass *Class = ParserClass::Parse(this, Scopes);
     return Class;
 }
 
@@ -320,31 +305,29 @@ ASTClass * Parser::ParseClassDef(ASTComment *Comment, SmallVector<ASTScope *, 8>
  * @param Constant
  * @return
  */
-ASTEnum *Parser::ParseEnumDef(ASTComment *Comment, SmallVector<ASTScope *, 8>&Scopes) {
+ASTEnum *Parser::ParseEnumDef(SmallVector<ASTScope *, 8>&Scopes) {
     FLY_DEBUG_MESSAGE("Parser", "ParseClassDef", Logger().AttrList("Scopes", Scopes).End());
     assert(Tok.is(tok::kw_enum) && "Token Enum expected");
 
-    ASTEnum *Enum = ParserEnum::Parse(this, Comment, Scopes);
+    ASTEnum *Enum = ParserEnum::Parse(this, Scopes);
     return Enum;
 }
 
-ASTComment *Parser::ParseComments() {
-    FLY_DEBUG("Parser", "ParseComments");
-    assert(!Lex.BlockComment.empty() && "Block Comment must be not empty");
+/**
+ * Parse a Comment
+ * @return the Comment
+ */
+ASTComment *Parser::ParseComment() {
+	FLY_DEBUG("Parser", "ParseComments");
+	assert(!Lex.BlockComment.empty() && "Block Comment must be not empty");
 
-    // Parse all as string
-    ASTComment *Comment = nullptr;
-    if (!Lex.BlockComment.empty()) {
-        Comment = Builder.CreateComment(SourceLocation(), Lex.BlockComment);
-    }
-    return Comment;
-}
+	// Parse all as string
+	ASTComment *Comment = nullptr;
+	if (!Lex.BlockComment.empty()) {
+		Comment = Builder.CreateComment(Module, SourceLocation(), Lex.BlockComment);
+	}
 
-void Parser::SkipComments() {
-    if (isTokenComment()) {
-        ConsumeToken();
-        SkipComments();
-    }
+	return Comment;
 }
 
 void Parser::ParseBlockOrStmt(ASTBlockStmt* Parent) {

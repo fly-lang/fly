@@ -12,7 +12,7 @@
 using namespace fly;
 
 ASTStmt::ASTStmt(const SourceLocation &Loc, ASTStmtKind Kind) :
-        ASTBase(Loc), Kind(Kind) {
+        ASTBase(Loc, ASTKind::AST_STMT), StmtKind(Kind) {
 }
 
 ASTStmt *ASTStmt::getParent() const {
@@ -23,14 +23,14 @@ ASTFunctionBase *ASTStmt::getFunction() const {
     return Function;
 }
 
-ASTStmtKind ASTStmt::getKind() const {
-    return Kind;
+ASTStmtKind ASTStmt::getStmtKind() const {
+    return StmtKind;
 }
 
 std::string ASTStmt::str() const {
     return Logger("ASTStmt").
             Super(ASTBase::str()).
-            Attr("Kind", (uint64_t) Kind).
+            Attr("Kind", static_cast<uint64_t>(StmtKind)).
             End();
 }
 

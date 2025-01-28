@@ -19,6 +19,10 @@ ASTNameSpace::~ASTNameSpace() {
 
 }
 
+ASTModule * ASTNameSpace::getModule() const {
+	return Module;
+}
+
 std::string ASTNameSpace::str() const {
     return Logger("ASTNameSpace").
            Attr("Name", Name).

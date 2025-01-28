@@ -14,7 +14,7 @@ using namespace fly;
 
 ASTVar::ASTVar(ASTVarKind VarKind, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
                SmallVector<ASTScope *, 8> &Scopes) :
-        ASTBase(Loc), VarKind(VarKind), Type(Type), Name(Name), Scopes(Scopes) {
+        ASTBase(Loc, ASTKind::AST_VAR), VarKind(VarKind), Type(Type), Name(Name), Scopes(Scopes) {
 
 }
 

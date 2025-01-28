@@ -19,7 +19,7 @@
 using namespace fly;
 
 ASTExpr::ASTExpr(const SourceLocation &Loc, ASTExprKind Kind) :
-        ASTBase(Loc), Kind(Kind) {
+        ASTBase(Loc, ASTKind::AST_EXPR), Kind(Kind) {
 
 }
 

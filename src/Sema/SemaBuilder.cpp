@@ -104,6 +104,18 @@ ASTModule *SemaBuilder::CreateHeaderModule(const std::string &Name) {
     return new ASTModule(Id, Name, S.Context, true);
 }
 
+ASTComment *SemaBuilder::CreateComment(ASTModule *Module, const SourceLocation &Loc, llvm::StringRef Content) {
+	FLY_DEBUG_MESSAGE("SemaBuilder", "CreateComment",
+					  Logger().Attr("Loc", (uint64_t) Loc.getRawEncoding())
+							  .Attr("Content", Content).End());
+	ASTComment *Comment = new ASTComment(Loc, Content);
+
+	// Add Comment to Module
+	Module->Definitions.push_back(Comment);
+
+	return Comment;
+}
+
 /**
  * Create a NameSpace for each parent
  * NS3.NS2.NS1 -> Identifier->Parent
@@ -118,8 +130,9 @@ ASTNameSpace *SemaBuilder::CreateNameSpace(ASTIdentifier *Identifier, ASTModule 
     S.getValidator().CheckCreateNameSpace(Identifier->getLocation(), Identifier->getName());
     ASTNameSpace *NameSpace = new ASTNameSpace(Identifier->getLocation(), Identifier->getName());
 
-    if (Module)
-        Module->NameSpaces.push_back(NameSpace);
+	// Add NameSpace to Module
+	Module->Definitions.push_back(NameSpace);
+    Module->NameSpaces.push_back(NameSpace);
 
     // Iterate over parents
     if (Identifier->getParent() != nullptr) {
@@ -135,7 +148,9 @@ ASTImport *SemaBuilder::CreateImport(ASTModule *Module, const SourceLocation &Lo
                               .Attr("Name", Name).End());
     S.getValidator().CheckCreateImport(Loc, Name);
     ASTImport *Import = new ASTImport(Loc, Name);
+
     // Add Import to Module
+	Module->Definitions.push_back(Import);
     Module->Imports.push_back(Import);
 
     if (Alias) {
@@ -155,14 +170,6 @@ ASTAlias *SemaBuilder::CreateAlias(const SourceLocation &Loc, llvm::StringRef Na
     return Alias;
 }
 
-ASTComment *SemaBuilder::CreateComment(const SourceLocation &Loc, llvm::StringRef Content) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateComment",
-                      Logger().Attr("Loc", (uint64_t) Loc.getRawEncoding())
-                              .Attr("Content", Content).End());
-    ASTComment *Comment = new ASTComment(Loc, Content);
-    return Comment;
-}
-
 /**
  * Creates an ASTGlobalVar
  * @param Module
@@ -174,7 +181,7 @@ ASTComment *SemaBuilder::CreateComment(const SourceLocation &Loc, llvm::StringRe
  */
 ASTGlobalVar *SemaBuilder::CreateGlobalVar(ASTModule *Module, const SourceLocation &Loc, ASTType *Type,
                                            const llvm::StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes,
-                                           ASTExpr *Expr, ASTComment *Comment) {
+                                           ASTExpr *Expr) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateGlobalVar",
                       Logger()
                       .Attr("Loc", (uint64_t) Loc.getRawEncoding())
@@ -183,9 +190,12 @@ ASTGlobalVar *SemaBuilder::CreateGlobalVar(ASTModule *Module, const SourceLocati
                       .AttrList("Scopes", Scopes).End());
     S.getValidator().CheckCreateGlobalVar(Loc, Type, Name, Scopes);
     ASTGlobalVar *GlobalVar = new ASTGlobalVar(Module, Loc, Type, Name, Scopes);
-    GlobalVar->Comment = Comment;
     GlobalVar->Expr = Expr;
+
+	// Global Var to Module
+	Module->Definitions.push_back(GlobalVar);
     Module->GlobalVars.push_back(GlobalVar);
+
     return GlobalVar;
 }
 
@@ -200,7 +210,7 @@ ASTGlobalVar *SemaBuilder::CreateGlobalVar(ASTModule *Module, const SourceLocati
  */
 ASTFunction *SemaBuilder::CreateFunction(ASTModule *Module, const SourceLocation &Loc, ASTType *Type,
                                          llvm::StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes,
-                                         SmallVector<ASTParam *, 8> &Params, ASTBlockStmt *Body, ASTComment *Comment) {
+                                         SmallVector<ASTParam *, 8> &Params, ASTBlockStmt *Body) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateFunction",
                       Logger().Attr("Loc", (uint64_t) Loc.getRawEncoding())
                               .Attr("Type", Type)
@@ -208,7 +218,6 @@ ASTFunction *SemaBuilder::CreateFunction(ASTModule *Module, const SourceLocation
                               .AttrList("Scopes", Scopes).End());
     S.getValidator().CheckCreateFunction(Loc, Type, Name, Scopes);
     ASTFunction *Function = new ASTFunction(Module, Loc, Type, Name, Scopes, Params);
-    Function->Comment = Comment;
 
     // Create Error handler
     Function->ErrorHandler = CreateErrorHandlerParam();
@@ -217,7 +226,10 @@ ASTFunction *SemaBuilder::CreateFunction(ASTModule *Module, const SourceLocation
     if (Body)
         CreateBody(Function, Body);
 
+	// Add Function to Module
+	Module->Definitions.push_back(Function);
     Module->Functions.push_back(Function);
+
     return Function;
 }
 
@@ -231,7 +243,7 @@ ASTFunction *SemaBuilder::CreateFunction(ASTModule *Module, const SourceLocation
  */
 ASTClass *SemaBuilder::CreateClass(ASTModule *Module, const SourceLocation &Loc, ASTClassKind ClassKind,
                                    const llvm::StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes,
-                                   llvm::SmallVector<ASTClassType *, 4> &ClassTypes, ASTComment *Comment) {
+                                   llvm::SmallVector<ASTClassType *, 4> &ClassTypes) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateClass",
                       Logger().Attr("ClassKind", (uint64_t) ClassKind)
                               .Attr("Loc", (uint64_t) Loc.getRawEncoding())
@@ -240,10 +252,10 @@ ASTClass *SemaBuilder::CreateClass(ASTModule *Module, const SourceLocation &Loc,
                               .End());
     S.getValidator().CheckCreateClass(Loc, Name, ClassKind, Scopes, ClassTypes);
     ASTClass *Class = new ASTClass(Module, ClassKind, Scopes, Loc, Name, ClassTypes);
-    Class->Comment = Comment;
     Class->Type = CreateClassType(Class);
 
-    // Lookup into namespace
+	// Add Class to Module
+	Module->Definitions.push_back(Class);
     Module->Identities.push_back(Class);
 
     // Create Default Constructor
@@ -354,15 +366,15 @@ ASTClassMethod *SemaBuilder::CreateClassVirtualMethod(const SourceLocation &Loc,
 
 ASTEnum *SemaBuilder::CreateEnum(ASTModule *Module, const SourceLocation &Loc, const llvm::StringRef Name,
                                  llvm::SmallVector<ASTScope *, 8> &Scopes,
-                                 llvm::SmallVector<ASTEnumType *, 4> EnumTypes, ASTComment *Comment) {
+                                 llvm::SmallVector<ASTEnumType *, 4> EnumTypes) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateEnum",
                       Logger().AttrList("Scopes", Scopes).Attr("Name", Name).End());
     S.getValidator().CheckCreateEnum(Loc, Name, Scopes, EnumTypes);
     ASTEnum *Enum = new ASTEnum(Module, Loc, Name, Scopes, EnumTypes);
     Enum->Type = CreateEnumType(Enum);
-    Enum->Comment = Comment;
 
-    // Lookup into namespace
+    // Add Enum to Module
+	Module->Definitions.push_back(Enum);
     Module->Identities.push_back(Enum);
 
     return Enum;
@@ -1083,14 +1095,3 @@ SemaBuilderLoopStmt *SemaBuilder::CreateLoopBuilder(ASTBlockStmt *Parent, const 
     FLY_DEBUG("SemaBuilder", "CreateLoopBuilder");
     return SemaBuilderLoopStmt::Create(S, Parent, Loc);
 }
-
-//llvm::StringRef
-//getComment(llvm::StringRef C) {
-//    if (C.empty()) {
-//        return C;
-//    }
-//    const char *t = " \t\n\r\f\v";
-//    C = C.substr(2, C.size() - 4);
-//    C = C.erase(0, C.find_first_not_of(t)); // TODO Check
-//    return C.erase(C.find_last_not_of(t) + 1);
-//}

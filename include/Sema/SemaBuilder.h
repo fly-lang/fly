@@ -47,8 +47,6 @@ namespace fly {
 
     class ASTModule;
 
-    class ASTTopDef;
-
     class ASTImport;
 
     class ASTAlias;
@@ -226,6 +224,8 @@ namespace fly {
 
         ASTModule *CreateHeaderModule(const std::string &Name);
 
+        ASTComment *CreateComment(ASTModule *Module, const SourceLocation &Loc, llvm::StringRef Content);
+
         // Create NameSpace
         ASTNameSpace *CreateNameSpace(ASTIdentifier *Identifier, ASTModule *Module = nullptr);
 
@@ -234,17 +234,15 @@ namespace fly {
 
         ASTAlias *CreateAlias(const SourceLocation &Loc, StringRef Name);
 
-        ASTComment *CreateComment(const SourceLocation &Loc, llvm::StringRef Content);
-
         ASTGlobalVar *CreateGlobalVar(ASTModule *Module, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
-                                      SmallVector<ASTScope *, 8> &Scopes, ASTExpr *Expr = nullptr, ASTComment *Comment = nullptr);
+                                      SmallVector<ASTScope *, 8> &Scopes, ASTExpr *Expr = nullptr);
 
         ASTFunction *CreateFunction(ASTModule *Module, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
                                     SmallVector<ASTScope *, 8> &Scopes, SmallVector<ASTParam *, 8> &Params,
-                                    ASTBlockStmt *Body = nullptr, ASTComment *Comment = nullptr);
+                                    ASTBlockStmt *Body = nullptr);
 
         ASTClass *CreateClass(ASTModule *Module, const SourceLocation &Loc, ASTClassKind ClassKind, llvm::StringRef Name,
-                              SmallVector<ASTScope *, 8> &Scopes, llvm::SmallVector<ASTClassType *, 4> &ClassTypes, ASTComment *Comment = nullptr);
+                              SmallVector<ASTScope *, 8> &Scopes, llvm::SmallVector<ASTClassType *, 4> &ClassTypes);
 
         ASTClassAttribute *CreateClassAttribute(const SourceLocation &Loc, ASTClass &Class, ASTType *Type,
                                                 llvm::StringRef Name, SmallVector<ASTScope *, 8> &Scopes,
@@ -263,7 +261,7 @@ namespace fly {
                                                  llvm::SmallVector<ASTParam *, 8> &Params);
 
         ASTEnum *CreateEnum(ASTModule *Module, const SourceLocation &Loc, llvm::StringRef Name, SmallVector<ASTScope *, 8> &Scopes,
-                   llvm::SmallVector<ASTEnumType *, 4> EnumTypes, ASTComment *Comment = nullptr);
+                   llvm::SmallVector<ASTEnumType *, 4> EnumTypes);
 
         ASTEnumEntry *CreateEnumEntry(const SourceLocation &Loc, ASTEnum &Enum, llvm::StringRef Name,
                                       llvm::SmallVector<ASTScope *, 8> &Scopes);

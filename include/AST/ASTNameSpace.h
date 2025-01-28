@@ -20,6 +20,7 @@ namespace fly {
     class ASTIdentity;
     class ASTFunction;
     class ASTImport;
+    class ASTComment;
     class ASTIdentityType;
 
     class ASTNameSpace : public ASTIdentifier {
@@ -28,11 +29,15 @@ namespace fly {
         friend class SemaResolver;
         friend class SemaValidator;
 
+        ASTModule *Module;
+
         ASTNameSpace(const SourceLocation &Loc, llvm::StringRef Name);
 
     public:
 
         ~ASTNameSpace();
+
+        ASTModule* getModule() const;
 
         std::string str() const override;
     };

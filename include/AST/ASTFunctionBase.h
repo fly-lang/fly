@@ -19,6 +19,7 @@ namespace fly {
     class ASTLocalVar;
     class ASTParam;
     class ASTType;
+    class ASTComment;
     class CodeGenFunctionBase;
 
     enum class ASTFunctionKind {

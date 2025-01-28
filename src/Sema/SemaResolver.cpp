@@ -52,6 +52,7 @@
 #include "llvm/ADT/StringMap.h"
 
 #include <string>
+#include <AST/ASTComment.h>
 
 using namespace fly;
 
@@ -97,7 +98,7 @@ bool SemaResolver::Resolve(Sema &S) {
         // Add Module in the Symbol Modules: you can retrieve all Modules from a NameSpace
         Symbols->Modules.push_back(Module);
 
-        // Resolve declarations
+        // Resolve Declarations
         SemaResolver *Resolver = new SemaResolver(S, Module, Symbols);
         Resolver->ResolveGlobalVarDeclarations(); // resolve Global Vars
         Resolver->ResolveFunctionDeclarations();  // resolve ASTBlock of Body Functions
@@ -109,10 +110,9 @@ bool SemaResolver::Resolve(Sema &S) {
 
     // Second: Resolve Definitions
     for (auto &Resolver : Resolvers) {
-        Resolver->ResolveImportDefinitions();
-        Resolver->ResolveGlobalVarDefinitions();
-        Resolver->ResolveFunctionDefinitions();
-        Resolver->ResolveIdentityDefinitions();
+    	Resolver->ResolveNameSpaceDefinition();
+    	Resolver->ResolveImportDefinitions();
+    	Resolver->ResolveDefinitions();
     }
 
     return !S.Diags.hasErrorOccurred();
@@ -212,7 +212,7 @@ void SemaResolver::ResolveIdentityDeclarations() {
         Identity->Type->IdentitySymbols = IdentitySymbols;
 
         // Resolve Attributes and Methods
-        if (Identity->getTopDefKind() == ASTTopDefKind::DEF_CLASS) {
+        if (Identity->getIdentityKind() == ASTIdentityKind::ID_CLASS) {
             ASTClass *Class = static_cast<ASTClass *>(Identity);
             if (Class->getClassKind() == ASTClassKind::CLASS || Class->getClassKind() == ASTClassKind::STRUCT) {
 
@@ -228,7 +228,7 @@ void SemaResolver::ResolveIdentityDeclarations() {
                     SemaSpaceSymbols::InsertFunction(IdentitySymbols->Methods, Method);
                 }
             }
-        } else if (Identity->getTopDefKind() == ASTTopDefKind::DEF_ENUM) {
+        } else if (Identity->getIdentityKind() == ASTIdentityKind::ID_ENUM) {
             ASTEnum *Enum = static_cast<ASTEnum *>(Identity);
             for (auto &Entry: Enum->Entries) {
                 IdentitySymbols->Entries.insert(std::make_pair(Entry->getName(), Entry));
@@ -237,122 +237,236 @@ void SemaResolver::ResolveIdentityDeclarations() {
     }
 }
 
+void SemaResolver::ResolveDefinitions() {
+	unsigned i = 0;
+	for (ASTBase *Def: Module->Definitions) {
+
+		// Set Comment if the previous AST is a Comment
+		if (i > 0 && Def->getKind() != ASTKind::AST_COMMENT) { // Cannot set a comment of a comment
+			ASTBase *ProbablyComment = Module->Definitions[i-1];
+			if (ProbablyComment->getKind() == ASTKind::AST_COMMENT) {
+				Def->Comment = static_cast<ASTComment *>(ProbablyComment);
+			}
+		}
+
+		switch (Def->getKind()) {
+			case ASTKind::AST_VAR:
+				ResolveGlobalVarDefinition(static_cast<ASTGlobalVar *>(Def));
+				break;
+			case ASTKind::AST_FUNCTION:
+				ResolveFunctionDefinition(static_cast<ASTFunction *>(Def));
+				break;
+			case ASTKind::AST_IDENTITY: {
+				ASTIdentity *Identity = static_cast<ASTIdentity *>(Def);
+				switch (Identity->getIdentityKind()) {
+				case ASTIdentityKind::ID_CLASS:
+					ResolveClassDefinition(static_cast<ASTClass *>(Def));
+					break;
+				case ASTIdentityKind::ID_ENUM:
+					ResolveEnumDefinition(static_cast<ASTEnum *>(Def));
+					break;
+				}
+			} break;
+			case ASTKind::AST_COMMENT: {
+				ASTBase *NextDef = Module->Definitions.size() > i ? Module->Definitions[i+1] : nullptr;
+				ResolveCommentDefinition(static_cast<ASTComment *>(Def), NextDef);
+			} break;
+		}
+
+		i++;
+	}
+}
+
+void SemaResolver::ResolveCommentDefinition(ASTComment *Comment, ASTBase *NextDef) {
+	switch (NextDef->getKind()) {
+
+	case ASTKind::AST_VAR:
+		NextDef->Comment = Comment;
+		break;
+	case ASTKind::AST_FUNCTION: {
+		ASTFunction *Function = static_cast<ASTFunction *>(NextDef);
+		S.Validator->CheckCommentParams(Function->getParams());
+		S.Validator->CheckCommentReturn(Function->getReturnType());
+		NextDef->Comment = Comment;
+	} break;
+	case ASTKind::AST_IDENTITY: {
+		// Set Class Comment
+		ASTIdentity *Identity = static_cast<ASTIdentity *>(NextDef);
+		Identity->Comment = Comment;
+
+		// Set Class Attributes and Methods Comment
+		unsigned i = 0;
+		for (auto ClassDef: Identity->Definitions) {
+
+			// Set Comment in Attributes and Methods
+			if (ClassDef->getKind() == ASTKind::AST_COMMENT) {
+
+				// Set the Next Definition if exists
+				ASTBase *NextAST = Identity->Definitions.size() > i ? Identity->Definitions[i+1] : nullptr;
+				if (NextAST) {
+					if (NextAST->getKind() == ASTKind::AST_VAR) { // Attribute
+						NextAST->Comment = Comment;
+
+					} else if (NextAST->getKind() == ASTKind::AST_FUNCTION) { // Method
+						ASTClassMethod *Method = static_cast<ASTClassMethod *>(NextAST);
+						S.Validator->CheckCommentParams(Method->getParams());
+						S.Validator->CheckCommentReturn(Method->getReturnType());
+						NextAST->Comment = Comment;
+					}
+				}
+			}
+
+			i++;
+		}
+	} break;
+	case ASTKind::AST_COMMENT:
+		// Do nothing
+		break;
+	}
+}
+
+void SemaResolver::ResolveNameSpaceDefinition() {
+	return;
+}
+
 /**
  * ResolveModule Import Definitions
  */
 void SemaResolver::ResolveImportDefinitions() {
-    for (auto &Import : Module->getImports()) {
 
-        // Search Namespace of the Import
-        SemaSpaceSymbols *ImportNameSpace = S.MapSymbols.lookup(Import->getName());
+	for (ASTImport *Import : Module->Imports) {
+		// Search Namespace of the Import
+		SemaSpaceSymbols *ImportNameSpace = S.MapSymbols.lookup(Import->getName());
 
-        if (!ImportNameSpace) {
-            // Error: NameSpace not found
-            S.Diag(Import->getLocation(), diag::err_namespace_notfound) << Import->getName();
-            return;
-        }
+		if (!ImportNameSpace) {
+			// Error: NameSpace not found
+			S.Diag(Import->getLocation(), diag::err_namespace_notfound) << Import->getName();
+			return;
+		}
 
-        // Check import
-        S.Validator->CheckImport(Module, Import);
+		// Check import
+		S.Validator->CheckImport(Module, Import);
 
-        // Check import duplications
-        llvm::StringRef ImportName = Import->getName();
-        auto Duplicate = ImportSymbols.lookup(Import->getName());
-        if (Duplicate) {
-            S.Diag(Import->getLocation(), diag::err_conflict_import) << Import->getName();
-            return;
-        }
+		// Check import duplications
+		llvm::StringRef ImportName = Import->getName();
+		auto Duplicate = ImportSymbols.lookup(Import->getName());
+		if (Duplicate) {
+			S.Diag(Import->getLocation(), diag::err_conflict_import) << Import->getName();
+			return;
+		}
 
-        if (Import->getAlias()) {
+		if (Import->getAlias()) {
 
-            // Check Alias
-            llvm::StringRef AliasName = Import->getAlias()->getName();
-            Duplicate = ImportSymbols.lookup(AliasName);
-            if (Duplicate) {
-                S.Diag(Import->getLocation(), diag::err_conflict_import_alias) << AliasName;
-                return;
-            }
+			// Check Alias
+			llvm::StringRef AliasName = Import->getAlias()->getName();
+			Duplicate = ImportSymbols.lookup(AliasName);
+			if (Duplicate) {
+				S.Diag(Import->getLocation(), diag::err_conflict_import_alias) << AliasName;
+				return;
+			}
 
-            // Add NameSpace Symbols with Alias name
-            AddImportSymbols(AliasName);
-        } else {
+			// Add NameSpace Symbols with Alias name
+			AddImportSymbols(AliasName);
+		} else {
 
-            // Add NameSpace Symbols Import name
-            AddImportSymbols(ImportName);
-        }
-    }
+			// Add NameSpace Symbols Import name
+			AddImportSymbols(ImportName);
+		}
+	}
 }
 
 /**
  * Resolve Module GlobalVar Definitions
  */
-void SemaResolver::ResolveGlobalVarDefinitions() {
-    for (auto GlobalVar : Module->getGlobalVars()) {
-
-        // Check Expr Value
-        if (GlobalVar->Expr && GlobalVar->Expr->getExprKind() != ASTExprKind::EXPR_VALUE) {
-            S.Diag(GlobalVar->Expr->getLocation(), diag::err_invalid_gvar_value);
-        }
-
-        // Resolve Type
-        ResolveType(GlobalVar->getType());
+void SemaResolver::ResolveGlobalVarDefinition(ASTGlobalVar *GlobalVar) {
+    // Check Expr Value
+    if (GlobalVar->Expr && GlobalVar->Expr->getExprKind() != ASTExprKind::EXPR_VALUE) {
+        S.Diag(GlobalVar->Expr->getLocation(), diag::err_invalid_gvar_value);
     }
+
+    // Resolve Type
+    ResolveType(GlobalVar->getType());
+}
+
+/**
+ * Resolve Module Function Definitions
+ */
+void SemaResolver::ResolveFunctionDefinition(ASTFunction *Function) {
+	// Resolve Return Type
+	ResolveType(Function->getReturnType());
+
+	// Resolve Parameters Types
+	for (auto Param : Function->getParams()) {
+		// Check duplicated params
+		// TODO
+		//S.Validator->CheckDuplicateParams(Function->Params, Param);
+
+		// resolve parameter type
+		ResolveType(Param->getType());
+	}
+
+	// Resolve Function Body
+	ResolveStmtBlock(Function->Body);
+}
+
+void SemaResolver::ResolveEnumDefinition(ASTEnum *Enum) {
+	for (auto &Entry : Enum->Entries) {
+		// TODO check Entry value
+		// S.Validator->CheckValueExpr(Entry->getExpr());
+	}
 }
 
 /**
  * Resolve Module Identity Definitions
  */
-void SemaResolver::ResolveIdentityDefinitions() {
-    for (auto Identity : Module->Identities) {
-        SemaIdentitySymbols *IdentitySymbols = Identity->getType()->IdentitySymbols;
+void SemaResolver::ResolveClassDefinition(ASTClass *Class) {
+    SemaIdentitySymbols *IdentitySymbols = Class->getType()->IdentitySymbols;
 
-        if (Identity->getTopDefKind() == ASTTopDefKind::DEF_CLASS) {
-            ASTClass *Class = static_cast<ASTClass *>(Identity);
+    if (Class->getIdentityKind() == ASTIdentityKind::ID_CLASS) {
+        // Resolve Super Classes
+        if (!Class->SuperClasses.empty()) {
+            llvm::StringMap<std::map<uint64_t, llvm::SmallVector<ASTClassMethod *, 4>>> SuperMethods;
+            llvm::StringMap<std::map<uint64_t, llvm::SmallVector<ASTClassMethod *, 4>>> ISuperMethods;
+            for (ASTIdentityType *SuperClassType: Class->SuperClasses) {
+                ResolveType(SuperClassType);
+                ASTClass *SuperClass = static_cast<ASTClass *>(SuperClassType->getDef());
 
-            // Resolve Super Classes
-            if (!Class->SuperClasses.empty()) {
-                llvm::StringMap<std::map<uint64_t, llvm::SmallVector<ASTClassMethod *, 4>>> SuperMethods;
-                llvm::StringMap<std::map<uint64_t, llvm::SmallVector<ASTClassMethod *, 4>>> ISuperMethods;
-                for (ASTIdentityType *SuperClassType: Class->SuperClasses) {
-                    ResolveType(SuperClassType);
-                    ASTClass *SuperClass = static_cast<ASTClass *>(SuperClassType->getDef());
+                // Struct: Resolve Var in Super Classes
+                if (SuperClass->getClassKind() == ASTClassKind::STRUCT) {
 
-                    // Struct: Resolve Var in Super Classes
-                    if (SuperClass->getClassKind() == ASTClassKind::STRUCT) {
-
-                        // Interface cannot extend a Struct
-                        if (Class->getClassKind() == ASTClassKind::INTERFACE) {
-                            S.Diag(SuperClassType->getLocation(), diag::err_sema_interface_ext_struct);
-                            return;
-                        }
-
-                        // Add Vars to the Struct
-                        for (auto &SuperAttribute: SuperClass->getAttributes()) {
-
-                            // Check Var already exists and type conflicts in Super Vars
-                            for (auto &Attribute : Class->Attributes) {
-                                if (Attribute->getName() == SuperAttribute->getName()) {
-                                    S.Diag(Attribute->getLocation(), diag::err_sema_super_struct_var_conflict);
-                                    return;
-                                }
-                                Class->Attributes.push_back(SuperAttribute);
-                            }
-                        }
-                    }
-
-                    // Interface cannot extend a Class
-                    if (Class->getClassKind() == ASTClassKind::INTERFACE &&
-                        SuperClass->getClassKind() == ASTClassKind::CLASS) {
-                        S.Diag(SuperClassType->getLocation(), diag::err_sema_interface_ext_class);
+                    // Interface cannot extend a Struct
+                    if (Class->getClassKind() == ASTClassKind::INTERFACE) {
+                        S.Diag(SuperClassType->getLocation(), diag::err_sema_interface_ext_struct);
                         return;
                     }
 
-                    // Class/Interface: take all Super Classes methods
-                    if (SuperClass->getClassKind() == ASTClassKind::CLASS ||
-                        SuperClass->getClassKind() == ASTClassKind::INTERFACE) {
+                    // Add Vars to the Struct
+                    for (auto &SuperAttribute: SuperClass->getAttributes()) {
 
-                        // FIXME
-                        // Collects Super Methods of the Super Classes
+                        // Check Var already exists and type conflicts in Super Vars
+                        for (auto &Attribute : Class->Attributes) {
+                            if (Attribute->getName() == SuperAttribute->getName()) {
+                                S.Diag(Attribute->getLocation(), diag::err_sema_super_struct_var_conflict);
+                                return;
+                            }
+                            Class->Attributes.push_back(SuperAttribute);
+                        }
+                    }
+                }
+
+                // Interface cannot extend a Class
+                if (Class->getClassKind() == ASTClassKind::INTERFACE &&
+                    SuperClass->getClassKind() == ASTClassKind::CLASS) {
+                    S.Diag(SuperClassType->getLocation(), diag::err_sema_interface_ext_class);
+                    return;
+                }
+
+                // Class/Interface: take all Super Classes methods
+                if (SuperClass->getClassKind() == ASTClassKind::CLASS ||
+                    SuperClass->getClassKind() == ASTClassKind::INTERFACE) {
+
+                    // FIXME
+                    // Collects Super Methods of the Super Classes
 //                                for (auto SuperMethod: SuperClass->getMethods()) {
 //                                    if (SuperClass->getClassKind() == ASTClassKind::INTERFACE) {
 //                                        S.Builder->InsertFunction(ISuperMethods, SuperMethod);
@@ -383,11 +497,11 @@ void SemaResolver::ResolveIdentityDefinitions() {
 //                                        }
 //                                    }
 //                                }
-                    }
                 }
+            }
 
-                // FIXME
-                // Check if all abstract methods are implemented
+            // FIXME
+            // Check if all abstract methods are implemented
 //                    for (const auto &EntryMap: ISuperMethods) {
 //                        const auto &Map = EntryMap.getValue();
 //                        auto MapIt = Map.begin();
@@ -402,90 +516,58 @@ void SemaResolver::ResolveIdentityDefinitions() {
 //                            MapIt++;
 //                        }
 //                    }
-            }
+        }
 
 
-            // Set default values in attributes
-            if (Class->getClassKind() == ASTClassKind::CLASS || Class->getClassKind() == ASTClassKind::STRUCT) {
+        // Set default values in attributes
+        if (Class->getClassKind() == ASTClassKind::CLASS || Class->getClassKind() == ASTClassKind::STRUCT) {
 
-                // Init null value attributes with default values
-                for (auto &Attribute : Class->Attributes) {
-                    // Generate default values
-                    if (Attribute->getExpr() == nullptr) {
-                        ASTValue *DefaultValue = S.Builder->CreateDefaultValue(Attribute->getType());
-                        ASTValueExpr *ValueExpr = S.Builder->CreateExpr(DefaultValue);
-                        Attribute->setExpr(ValueExpr);
-                    }
-                    S.Validator->CheckValueExpr(Attribute->getExpr());
-                    Attribute->getExpr()->Type = Attribute->getType(); // Maintain expr type
+            // Init null value attributes with default values
+            for (auto &Attribute : Class->Attributes) {
+                // Generate default values
+                if (Attribute->getExpr() == nullptr) {
+                    ASTValue *DefaultValue = S.Builder->CreateDefaultValue(Attribute->getType());
+                    ASTValueExpr *ValueExpr = S.Builder->CreateExpr(DefaultValue);
+                    Attribute->setExpr(ValueExpr);
                 }
+                S.Validator->CheckValueExpr(Attribute->getExpr());
+                Attribute->getExpr()->Type = Attribute->getType(); // Maintain expr type
             }
+        }
 
-            // Create default constructor if there aren't any other constructors
-            // FIXME this code remove default constructor
+        // Create default constructor if there aren't any other constructors
+        // FIXME this code remove default constructor
 //                if (!Class->Constructors.empty()) {
 //                    delete Class->DefaultConstructor;
 //                }
 
-            // Constructors
-            for (auto Constructor: Class->Constructors) {
+        // Constructors
+        for (auto Constructor: Class->Constructors) {
 
-                // Resolve Attribute types
-                for (auto &Attribute: Class->Attributes) {
-                    // TODO
-                }
-                SemaSpaceSymbols::InsertFunction(IdentitySymbols->Methods, Constructor);
-                ResolveStmtBlock(Constructor->Body);
+            // Resolve Attribute types
+            for (auto &Attribute: Class->Attributes) {
+                // TODO
             }
-
-            // Methods
-            for (auto Method: Class->Methods) {
-
-                // Add Class vars for each Method
-                for (auto &Attribute: Class->Attributes) {
-
-                    // Check if Method already contains this var name as LocalVar
-                    if (!S.Validator->CheckDuplicateLocalVars(Method->Body, Attribute->getName())) {
-                        return;
-                    }
-                }
-
-                if (!Method->isAbstract()) {
-                    ResolveStmtBlock(Method->Body); // FIXME check if already resolved
-                }
-            }
-
-        } else if (Identity->getTopDefKind() == ASTTopDefKind::DEF_ENUM) {
-            ASTEnum *Enum = static_cast<ASTEnum *>(Identity);
-            for (auto &Entry : Enum->Entries) {
-                // TODO check Entry value
-                // S.Validator->CheckValueExpr(Entry->getExpr());
-            }
-        }
-    }
-}
-
-/**
- * Resolve Module Function Definitions
- */
-void SemaResolver::ResolveFunctionDefinitions() {
-    for (auto Function : Module->getFunctions()) {
-
-        // Resolve Return Type
-        ResolveType(Function->getReturnType());
-
-        // Resolve Parameters Types
-        for (auto Param : Function->getParams()) {
-            // Check duplicated params
-            // TODO
-            //S.Validator->CheckDuplicateParams(Function->Params, Param);
-
-            // resolve parameter type
-            ResolveType(Param->getType());
+            SemaSpaceSymbols::InsertFunction(IdentitySymbols->Methods, Constructor);
+            ResolveStmtBlock(Constructor->Body);
         }
 
-        // Resolve Function Body
-        ResolveStmtBlock(Function->Body);
+        // Methods
+        for (auto Method: Class->Methods) {
+
+            // Add Class vars for each Method
+            for (auto &Attribute: Class->Attributes) {
+
+                // Check if Method already contains this var name as LocalVar
+                if (!S.Validator->CheckDuplicateLocalVars(Method->Body, Attribute->getName())) {
+                    return;
+                }
+            }
+
+            if (!Method->isAbstract()) {
+                ResolveStmtBlock(Method->Body); // FIXME check if already resolved
+            }
+        }
     }
 }
 
@@ -501,7 +583,7 @@ bool SemaResolver::ResolveType(ASTType *Type) {
 }
 
 bool SemaResolver::ResolveStmt(ASTStmt *Stmt) {
-    switch (Stmt->getKind()) {
+    switch (Stmt->getStmtKind()) {
 
         case ASTStmtKind::STMT_BLOCK:
             return ResolveStmtBlock(static_cast<ASTBlockStmt *>(Stmt));
@@ -735,9 +817,9 @@ bool SemaResolver::ResolveIdentifier(SemaSpaceSymbols *SpaceSymbols, ASTStmt *St
             // NameSpace.Type...Call() or NameSpace.Type...Var
             SemaIdentitySymbols *IdentitySymbols = FindIdentity(Identifier->getName(), SpaceSymbols);
             if (IdentitySymbols) {
-                if (IdentitySymbols->getIdentity()->getTopDefKind() == ASTTopDefKind::DEF_CLASS)
+                if (IdentitySymbols->getIdentity()->getIdentityKind() == ASTIdentityKind::ID_CLASS)
                     Identifier = S.Builder->CreateClassType(Identifier);
-                else if (IdentitySymbols->getIdentity()->getTopDefKind() == ASTTopDefKind::DEF_ENUM)
+                else if (IdentitySymbols->getIdentity()->getIdentityKind() == ASTIdentityKind::ID_ENUM)
                     Identifier = S.Builder->CreateEnumType(Identifier);
                 static_cast<ASTIdentityType *>(Identifier)->Def = IdentitySymbols->getIdentity();
                 Identifier->Resolved = true;
@@ -883,13 +965,13 @@ bool SemaResolver::ResolveStaticVarRef(SemaIdentitySymbols *IdentitySymbols, AST
     assert(VarRef && "VarRef cannot be null");
 
     if (VarRef->isResolved() == false) {
-        if (IdentitySymbols->getIdentity()->getTopDefKind() == ASTTopDefKind::DEF_CLASS) {
+        if (IdentitySymbols->getIdentity()->getIdentityKind() == ASTIdentityKind::ID_CLASS) {
             ASTClassAttribute *Attribute = IdentitySymbols->getAttributes().lookup(VarRef->getName());
             if (Attribute) {
                 VarRef->Def = Attribute;
                 VarRef->Resolved = true;
             }
-        } else if (IdentitySymbols->getIdentity()->getTopDefKind() == ASTTopDefKind::DEF_ENUM) {
+        } else if (IdentitySymbols->getIdentity()->getIdentityKind() == ASTIdentityKind::ID_ENUM) {
             ASTEnumEntry *Entry = IdentitySymbols->getEntries().lookup(VarRef->getName());
             if (Entry) {
                 VarRef->Def = Entry;
@@ -952,7 +1034,7 @@ bool SemaResolver::ResolveStaticCall(SemaIdentitySymbols *IdentitySymbols, ASTSt
     assert(Call && "Call cannot be null");
 
     if (ResolveCallArgs(Stmt, Call)) {
-        if (IdentitySymbols->getIdentity()->getTopDefKind() == ASTTopDefKind::DEF_CLASS) {
+        if (IdentitySymbols->getIdentity()->getIdentityKind() == ASTIdentityKind::ID_CLASS) {
             ASTClassMethod *Method = FindClassMethod(Call, IdentitySymbols);
             Call->Def = Method;
             Call->Resolved = true;
@@ -1006,7 +1088,7 @@ bool SemaResolver::ResolveCall(ASTStmt *Stmt, ASTCall *Call) {
         Parent = Parent->getParent();
         if (Parent == nullptr) {
             Call->ErrorHandler = Stmt->getFunction()->getErrorHandler();
-        } else if (Parent->getKind() == ASTStmtKind::STMT_HANDLE) {
+        } else if (Parent->getStmtKind() == ASTStmtKind::STMT_HANDLE) {
             ASTHandleStmt *HandleStmt = static_cast<ASTHandleStmt*>(Parent);
             if (HandleStmt->ErrorHandlerRef != nullptr) {
                 Call->ErrorHandler = HandleStmt->ErrorHandlerRef->Def;
@@ -1228,7 +1310,7 @@ T *SemaResolver::FindFunction(ASTCall *Call, llvm::StringMap<std::map<uint64_t, 
 ASTVar *SemaResolver::FindLocalVar(ASTStmt *Stmt, llvm::StringRef Name) const {
     FLY_DEBUG_MESSAGE("Sema", "FindLocalVar", Logger().Attr("Parent", Stmt).Attr("Name", Name).End());
 
-	if (Stmt->getKind() == ASTStmtKind::STMT_BLOCK) {
+	if (Stmt->getStmtKind() == ASTStmtKind::STMT_BLOCK) {
 		ASTBlockStmt *Block = static_cast<ASTBlockStmt*>(Stmt);
 		const auto &It = Block->getLocalVars().find(Name);
 		if (It != Block->getLocalVars().end()) { // Search into this Block

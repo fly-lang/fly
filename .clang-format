@@ -58,6 +58,5 @@ IndentPPDirectives: None          # Preprocessor directives are not indented
 MacroBlockBegin: '^#if'           # Macro block start (used to group directives)
 MacroBlockEnd: '^#endif'          # Macro block end
 
-# Formatting for inline comments
-SpacesInLineCommentPrefix: [ '#', '///', '//!', '//', '**' ] # Custom comment prefixes
+# Custom comment prefixes
 SpaceBeforeParens: ControlStatements # Space before parentheses in control statements only

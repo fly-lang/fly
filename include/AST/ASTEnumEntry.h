@@ -16,6 +16,7 @@ namespace fly {
 
     class ASTEnum;
     class ASTEnumType;
+    class ASTComment;
     class CodeGenEnumEntry;
 
     class ASTEnumEntry : public ASTVar {
@@ -29,8 +30,6 @@ namespace fly {
         uint32_t Index;
 
         ASTEnum &Enum;
-
-        llvm::StringRef Comment;
 
         CodeGenEnumEntry *CodeGen = nullptr;
 

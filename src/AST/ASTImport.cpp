@@ -20,6 +20,10 @@ ASTImport::~ASTImport() {
 
 }
 
+ASTModule * ASTImport::getModule() const {
+	return Module;
+}
+
 ASTAlias *ASTImport::getAlias() const {
     return Alias;
 }

@@ -10,12 +10,13 @@
 #ifndef FLY_AST_FUNCTION_H
 #define FLY_AST_FUNCTION_H
 
-#include "ASTTopDef.h"
 #include "ASTFunctionBase.h"
 #include "CodeGen/CodeGenFunction.h"
 
 namespace fly {
 
+    class ASTModule;
+    class ASTNameSpace;
     enum class ASTVisibilityKind;
 
     /**
@@ -25,13 +26,11 @@ namespace fly {
      *     return 1
      *   }
      */
-    class ASTFunction : public ASTFunctionBase, public virtual ASTTopDef {
+    class ASTFunction : public ASTFunctionBase {
 
         friend class SemaBuilder;
         friend class SemaResolver;
         friend class SemaValidator;
-
-        ASTTopDefKind TopDefKind = ASTTopDefKind::DEF_FUNCTION;
 
         ASTVisibilityKind Visibility;
 
@@ -48,15 +47,13 @@ namespace fly {
 
     public:
 
-        llvm::StringRef getName() const override;
-
-        ASTTopDefKind getTopDefKind() const override;
+        llvm::StringRef getName() const;
 
         ASTVisibilityKind getVisibility() const;
 
-        ASTModule *getModule() const override;
+        ASTModule *getModule() const;
 
-        ASTNameSpace *getNameSpace() const override;
+        ASTNameSpace *getNameSpace() const;
 
         CodeGenFunction *getCodeGen() const override;
 

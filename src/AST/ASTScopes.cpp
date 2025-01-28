@@ -12,7 +12,7 @@
 using namespace fly;
 
 ASTScope::ASTScope(const SourceLocation &Loc, ASTScopeKind Kind) :
-        ASTBase(Loc), Kind(Kind), Visibility(ASTVisibilityKind::V_DEFAULT), Constant(false), Static(false) {
+        ASTBase(Loc, ASTKind::AST_SCOPE), Kind(Kind), Visibility(ASTVisibilityKind::V_DEFAULT), Constant(false), Static(false) {
 
 }
 

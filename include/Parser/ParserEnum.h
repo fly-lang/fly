@@ -38,11 +38,11 @@ namespace fly {
 
         unsigned short BraceCount = 0;
 
-        ParserEnum(Parser *P, ASTComment *Comment, llvm::SmallVector<ASTScope *, 8> &Scopes);
+        ParserEnum(Parser *P, llvm::SmallVector<ASTScope *, 8> &Scopes);
 
     public:
 
-        static ASTEnum *Parse(Parser *P, ASTComment *Comment, llvm::SmallVector<ASTScope *, 8> &Scopes);
+        static ASTEnum *Parse(Parser *P, llvm::SmallVector<ASTScope *, 8> &Scopes);
 
         bool ParseField(const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTScope *, 8> Scopes);
     };

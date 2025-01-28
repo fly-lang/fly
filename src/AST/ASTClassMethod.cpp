@@ -65,6 +65,5 @@ std::string ASTClassMethod::str() const {
     return Logger("ASTClassFunction").
            Super(ASTFunctionBase::str()).
             Attr("Class", Class).
-            Attr("Comment", Comment).
             End();
 }

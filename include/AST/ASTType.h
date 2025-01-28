@@ -83,7 +83,7 @@ namespace fly {
 
         virtual ~ASTType() = default;
 
-        const ASTTypeKind &getKind() const;
+        const ASTTypeKind &getStmtKind() const;
 
         bool isBool() const;
 

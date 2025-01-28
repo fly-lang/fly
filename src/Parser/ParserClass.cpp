@@ -27,7 +27,7 @@ using namespace fly;
  * @param Visibility
  * @param Constant
  */
-ParserClass::ParserClass(Parser *P, ASTComment *Comment, SmallVector<ASTScope *, 8> &Scopes) : P(P) {
+ParserClass::ParserClass(Parser *P, SmallVector<ASTScope *, 8> &Scopes) : P(P) {
     FLY_DEBUG_MESSAGE("ClassParser", "ClassParser", Logger()
             .AttrList("Scopes", Scopes).End());
 
@@ -63,7 +63,7 @@ ParserClass::ParserClass(Parser *P, ASTComment *Comment, SmallVector<ASTScope *,
     if (P->isBlockStart()) {
         P->ConsumeBrace(BraceCount);
 
-        Class = P->Builder.CreateClass(P->Module, ClassLoc, ClassKind, ClassName, Scopes, SuperClasses, Comment);
+        Class = P->Builder.CreateClass(P->Module, ClassLoc, ClassKind, ClassName, Scopes, SuperClasses);
         bool Continue;
         do {
 
@@ -106,10 +106,10 @@ ParserClass::ParserClass(Parser *P, ASTComment *Comment, SmallVector<ASTScope *,
  * ParseModule Class Declaration
  * @return
  */
-ASTClass *ParserClass::Parse(Parser *P, ASTComment *Comment, SmallVector<ASTScope *, 8> &Scopes) {
+ASTClass *ParserClass::Parse(Parser *P, SmallVector<ASTScope *, 8> &Scopes) {
     FLY_DEBUG_MESSAGE("ClassParser", "ParseModule", Logger()
             .AttrList("Scopes", Scopes).End());
-    ParserClass *CP = new ParserClass(P, Comment, Scopes);
+    ParserClass *CP = new ParserClass(P, Scopes);
     ASTClass *Class = CP->Class;
     delete CP;
     return Class;

@@ -13,18 +13,18 @@
 
 using namespace fly;
 
-ASTIdentity::ASTIdentity(ASTModule *Module, ASTTopDefKind TopDefKind, llvm::SmallVector<ASTScope *, 8> &Scopes,
+ASTIdentity::ASTIdentity(ASTModule *Module, ASTIdentityKind IdentityKind, llvm::SmallVector<ASTScope *, 8> &Scopes,
                          const SourceLocation &Loc, llvm::StringRef Name) :
-        ASTBase(Loc), Module(Module), TopDefKind(TopDefKind), Scopes(Scopes), Name(Name) {
+        ASTBase(Loc, ASTKind::AST_IDENTITY), Module(Module), Scopes(Scopes), Name(Name) {
 
-}
-
-ASTTopDefKind ASTIdentity::getTopDefKind() const {
-    return TopDefKind;
 }
 
 ASTIdentityType *ASTIdentity::getType() const {
     return Type;
+}
+
+ASTIdentityKind ASTIdentity::getIdentityKind() const {
+	return IdentityKind;
 }
 
 llvm::StringRef ASTIdentity::getName() const {
@@ -39,10 +39,6 @@ llvm::SmallVector<ASTScope *, 8> ASTIdentity::getScopes() const {
     return Scopes;
 }
 
-ASTModule *ASTIdentity::getModule() const {
-    return Module;
-}
-
 ASTNameSpace *ASTIdentity::getNameSpace() const {
     return Module->getNameSpace();
 }
@@ -51,7 +47,6 @@ std::string ASTIdentity::str() const {
     return Logger("ASTIdentity").
             Super(ASTBase::str()).
             Attr("Name", Name).
-            Attr("TopDefKind", (uint64_t) TopDefKind).
             AttrList("Scopes", Scopes).
             End();
 }

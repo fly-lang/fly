@@ -67,7 +67,7 @@ SemaBuilderStmt *SemaBuilderStmt::CreateExpr(SemaBuilder *Builder, ASTBlockStmt 
 
 void SemaBuilderStmt::setExpr(ASTExpr *Expr) {
     // TODO use a super class with expr
-    switch (Stmt->getKind()) {
+    switch (Stmt->getStmtKind()) {
         case ASTStmtKind::STMT_ASSIGN:
             ((ASTAssignmentStmt *) Stmt)->Expr = Expr;
             return;
