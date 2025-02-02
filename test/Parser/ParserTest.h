@@ -25,7 +25,7 @@ class ParserTest : public ::testing::Test {
 
 public:
     const CompilerInstance CI;
-    ASTContext *Context;
+    SymTable *Context;
     Sema *S;
     DiagnosticsEngine &Diags;
 
@@ -42,7 +42,7 @@ public:
         Diags.getClient()->BeginSourceFile();
         InputFile Input(Diags, CI.getSourceManager(), FileName);
         Input.Load(Source);
-        Parser *P = new Parser(Input, CI.getSourceManager(), Diags, S->getBuilder());
+        Parser *P = new Parser(Input, CI.getSourceManager(), Diags, S->getASTBuilder());
         ASTModule *M = P->ParseModule();
         Diags.getClient()->EndSourceFile();
         return M;

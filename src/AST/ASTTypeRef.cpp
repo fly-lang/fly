@@ -1,0 +1,42 @@
+//===-------------------------------------------------------------------------------------------------------------===//
+// include/AST/ASTTypeRef.cpp - AST Type Ref implementation
+//
+// Part of the Fly Project https://flylang.org
+// Under the Apache License v2.0 see LICENSE for details.
+// Thank you to LLVM Project https://llvm.org/
+//
+//===--------------------------------------------------------------------------------------------------------------===//
+
+#include "AST/ASTTypeRef.h"
+
+using namespace fly;
+
+ASTTypeRef::ASTTypeRef(const SourceLocation &Loc, llvm::StringRef Name, bool Array) :
+        ASTIdentifier(Loc, Name, ASTRefKind::REF_TYPE), Array(Array) {
+
+}
+
+SymType * ASTTypeRef::getDef() const {
+	return Def;
+}
+
+bool ASTTypeRef::isArray() const {
+	return Array;
+}
+
+std::string ASTTypeRef::str() const {
+    return Logger("ASTTypeRef").
+    Super(ASTIdentifier::str()).
+    End();
+}
+
+ASTArrayTypeRef::ASTArrayTypeRef(const SourceLocation &Loc, llvm::StringRef Name) : ASTTypeRef(Loc, Name, true) {
+}
+
+ASTExpr * ASTArrayTypeRef::getSize() const {
+	return Size;
+}
+
+std::string ASTArrayTypeRef::str() const {
+	return ASTTypeRef::str();
+}

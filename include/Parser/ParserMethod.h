@@ -17,13 +17,12 @@
 namespace fly {
 
     class Parser;
-    class ASTParam;
+    class ASTVar;
     class ASTType;
     class ASTBlockStmt;
     class SourceLocation;
     class ASTScope;
     class ASTComment;
-    class ASTClassMethod;
     class ParserClass;
 
     class ParserMethod : ParserFunction {
@@ -36,7 +35,7 @@ namespace fly {
 
         explicit ParserMethod(ParserClass *PC);
 
-        static ASTClassMethod *Parse(ParserClass *PC, llvm::SmallVector<ASTScope *, 8> Scopes, ASTType *Type,
+        static ASTFunction *Parse(ParserClass *PC, llvm::SmallVector<ASTScope *, 8> Scopes, ASTType *Type,
                                   const SourceLocation &Loc, llvm::StringRef Name);
 
     };

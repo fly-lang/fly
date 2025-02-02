@@ -11,9 +11,7 @@
 #define FLY_FRONTEND_H
 
 #include "CompilerInstance.h"
-#include "FrontendOptions.h"
 #include "Basic/Diagnostic.h"
-#include "AST/ASTContext.h"
 
 namespace llvm {
     class TimerGroup;
@@ -24,7 +22,7 @@ namespace fly {
 
     class FrontendAction;
     class CompilerInstance;
-    class SemaBuilder;
+    class ASTBuilder;
     class Sema;
 
     class Frontend {
@@ -51,7 +49,7 @@ namespace fly {
 
         bool Execute();
 
-        void ParseFile(SemaBuilder &Builder, const std::string &FileName);
+        void ParseFile(ASTBuilder &Builder, const std::string &FileName);
 
         void CreateFrontendTimer();
 

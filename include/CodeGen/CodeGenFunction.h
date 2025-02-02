@@ -8,29 +8,29 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#ifndef FLY_CODEGENFUNCTION_H
-#define FLY_CODEGENFUNCTION_H
+#ifndef FLY_CODEGEN_FUNCTION_H
+#define FLY_CODEGEN_FUNCTION_H
 
 #include "CodeGenFunctionBase.h"
 
 namespace fly {
 
-    class ASTFunction;
+    class SymFunction;
     class CodeGenModule;
 
     class CodeGenFunction : public CodeGenFunctionBase {
 
-        ASTFunction *AST = nullptr;
+        bool isExternal;
 
-        bool isExternal = false;
+        bool isMain;
 
     public:
-        CodeGenFunction(CodeGenModule *CGM, ASTFunction *AST, bool isExternal = false);
+        CodeGenFunction(CodeGenModule *CGM, SymFunction *Sym, bool isExternal = false);
 
         void GenBody() override;
 
-        static bool isMainFunction(ASTFunctionBase *FunctionBase);
+        static bool isMainFunction(SymFunction *Sym);
     };
 }
 
-#endif //FLY_CODEGENFUNCTION_H
+#endif //FLY_CODEGEN_FUNCTION_H

@@ -8,22 +8,21 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaBuilderStmt.h"
-#include "Sema/SemaBuilder.h"
+#include "Sema/ASTBuilder.h"
 #include "AST/ASTBlockStmt.h"
 #include "AST/ASTAssignmentStmt.h"
 #include "AST/ASTVarRef.h"
 #include "AST/ASTReturnStmt.h"
 #include "AST/ASTFailStmt.h"
-#include "AST/ASTHandleStmt.h"
 #include "AST/ASTExprStmt.h"
 
 using namespace fly;
 
-SemaBuilderStmt::SemaBuilderStmt(SemaBuilder *Builder) : Builder(Builder) {
+SemaBuilderStmt::SemaBuilderStmt(ASTBuilder *Builder) : Builder(Builder) {
 
 }
 
-SemaBuilderStmt *SemaBuilderStmt::CreateAssignment(SemaBuilder *Builder, ASTBlockStmt *Parent, ASTVarRef *VarRef,
+SemaBuilderStmt *SemaBuilderStmt::CreateAssignment(ASTBuilder *Builder, ASTBlockStmt *Parent, ASTVarRef *VarRef,
                                                    ASTAssignOperatorKind AssignOperatorKind) {
     SemaBuilderStmt *BuilderStmt = new SemaBuilderStmt(Builder);
     BuilderStmt->Stmt = new ASTAssignmentStmt(VarRef->getLocation(), VarRef, AssignOperatorKind);
@@ -35,7 +34,7 @@ SemaBuilderStmt *SemaBuilderStmt::CreateAssignment(SemaBuilder *Builder, ASTBloc
     return BuilderStmt;
 }
 
-SemaBuilderStmt *SemaBuilderStmt::CreateReturn(SemaBuilder *Builder, ASTBlockStmt *Parent, const SourceLocation &Loc) {
+SemaBuilderStmt *SemaBuilderStmt::CreateReturn(ASTBuilder *Builder, ASTBlockStmt *Parent, const SourceLocation &Loc) {
     SemaBuilderStmt *BuilderStmt = new SemaBuilderStmt(Builder);
     BuilderStmt->Stmt = new ASTReturnStmt(Loc);
     // Inner Stmt
@@ -45,7 +44,7 @@ SemaBuilderStmt *SemaBuilderStmt::CreateReturn(SemaBuilder *Builder, ASTBlockStm
     return BuilderStmt;
 }
 
-SemaBuilderStmt *SemaBuilderStmt::CreateFail(SemaBuilder *Builder, ASTBlockStmt *Parent, const SourceLocation &Loc) {
+SemaBuilderStmt *SemaBuilderStmt::CreateFail(ASTBuilder *Builder, ASTBlockStmt *Parent, const SourceLocation &Loc) {
     SemaBuilderStmt *BuilderStmt = new SemaBuilderStmt(Builder);
     BuilderStmt->Stmt = new ASTFailStmt(Loc);
     // Inner Stmt
@@ -55,7 +54,7 @@ SemaBuilderStmt *SemaBuilderStmt::CreateFail(SemaBuilder *Builder, ASTBlockStmt 
     return BuilderStmt;
 }
 
-SemaBuilderStmt *SemaBuilderStmt::CreateExpr(SemaBuilder *Builder, ASTBlockStmt *Parent, const SourceLocation &Loc) {
+SemaBuilderStmt *SemaBuilderStmt::CreateExpr(ASTBuilder *Builder, ASTBlockStmt *Parent, const SourceLocation &Loc) {
     SemaBuilderStmt *BuilderStmt = new SemaBuilderStmt(Builder);
     BuilderStmt->Stmt = new ASTExprStmt(Loc);
     // Inner Stmt

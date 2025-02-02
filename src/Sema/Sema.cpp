@@ -8,12 +8,11 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/Sema.h"
-#include "Sema/SemaBuilder.h"
+#include "Sema/ASTBuilder.h"
 #include "Sema/SemaResolver.h"
 #include "Sema/SemaValidator.h"
-#include "Sema/SemaSpaceSymbols.h"
+#include "Sema/SymBuilder.h"
 #include "Basic/Diagnostic.h"
-#include "AST/ASTContext.h"
 
 using namespace fly;
 
@@ -21,15 +20,26 @@ Sema::Sema(DiagnosticsEngine &Diags) : Diags(Diags) {
 
 }
 
+Sema::~Sema() {
+	Modules.clear();
+}
+
 Sema* Sema::CreateSema(DiagnosticsEngine &Diags) {
     Sema *S = new Sema(Diags);
-    S->Builder = new SemaBuilder(*S);
-    S->Context = S->Builder->CreateContext();
-    S->Validator = new SemaValidator(*S);
-    S->DefaultSymbols = new SemaSpaceSymbols(*S);
 
-    // Add default NameSpace to MapSymbols
-    S->MapSymbols.insert(std::make_pair(ASTContext::DEFAULT_NAMESPACE, S->DefaultSymbols));
+	// Init the Sema Builder
+    S->Builder = new ASTBuilder(*S);
+
+	S->SymBuildr = new SymBuilder(*S);
+
+	// Init the Validator
+    S->Validator = new SemaValidator(*S);
+
+	// Init the Sema AST Context
+	S->Table = S->SymBuildr->CreateTable();
+
+	// Create the Default NameSpace
+	S->Builder->CreateSymNameSpace();
 
     return S;
 }
@@ -38,16 +48,24 @@ DiagnosticsEngine &Sema::getDiags() const {
     return Diags;
 }
 
-SemaBuilder &Sema::getBuilder() {
+ASTBuilder &Sema::getASTBuilder() {
     return *Builder;
+}
+
+SymBuilder &Sema::getSymBuilder() {
+	return *SymBuildr;
 }
 
 SemaValidator &Sema::getValidator() const {
     return *Validator;
 }
 
-ASTContext &Sema::getContext() const {
-    return *Context;
+SymTable &Sema::getSymTable() const {
+    return *Table;
+}
+
+llvm::SmallVector<ASTModule *, 4> Sema::getModules() const {
+	return Modules;
 }
 
 /**

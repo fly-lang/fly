@@ -13,21 +13,21 @@
 #include "CodeGen/CodeGenError.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTFunction.h"
-#include "AST/ASTParam.h"
+#include "AST/ASTVar.h"
 #include "AST/ASTCall.h"
-#include "AST/ASTType.h"
-#include "AST/ASTIdentityType.h"
 #include "AST/ASTClass.h"
-#include "AST/ASTClassMethod.h"
-#include "AST/ASTClassAttribute.h"
+#include "Sym/SymClassMethod.h"
+#include "Sym/SymClassAttribute.h"
 #include "Basic/Debug.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"
 #include "llvm/ADT/StringRef.h"
 
+#include <AST/ASTTypeRef.h>
+
 using namespace fly;
 
-CodeGenFunctionBase::CodeGenFunctionBase(CodeGenModule *CGM, ASTFunctionBase *AST) : CGM(CGM), AST(AST) {
+CodeGenFunctionBase::CodeGenFunctionBase(CodeGenModule *CGM, SymFunctionBase *Sym) : CGM(CGM), Sym(Sym) {
 
 }
 
@@ -36,17 +36,17 @@ CodeGenModule *CodeGenFunctionBase::getCodeGenModule() {
 }
 
 void CodeGenFunctionBase::GenReturnType() {
-    RetType = CGM->GenType(AST->getReturnType());
+    RetType = CGM->GenType(Sym->getAST()->getReturnType()->getDef());
 }
 
-void CodeGenFunctionBase::GenParamTypes(CodeGenModule * CGM, llvm::SmallVector<llvm::Type *, 8> &Types, llvm::SmallVector<ASTParam *, 8> Params) {
+void CodeGenFunctionBase::GenParamTypes(CodeGenModule * CGM, llvm::SmallVector<llvm::Type *, 8> &Types, llvm::SmallVector<ASTVar *, 8> Params) {
     // Populate Types by reference
     if (Params.empty()) {
         return;
     }
     if (!Params.empty()) {
         for (auto Param : Params) {
-            llvm::Type *ParamTy = CGM->GenType(Param->getType());
+            llvm::Type *ParamTy = CGM->GenType(Param->getTypeRef()->getDef());
             Types.push_back(ParamTy);
         }
     }
@@ -55,8 +55,8 @@ void CodeGenFunctionBase::GenParamTypes(CodeGenModule * CGM, llvm::SmallVector<l
 //    }
 }
 
-ASTFunctionBase *CodeGenFunctionBase::getAST() {
-    return AST;
+SymFunctionBase *CodeGenFunctionBase::getSym() {
+    return Sym;
 }
 
 llvm::StringRef CodeGenFunctionBase::getName() const {
@@ -79,21 +79,21 @@ void CodeGenFunctionBase::setInsertPoint() {
 
 void CodeGenFunctionBase::AllocaErrorHandler() {
     // Alloca ErrorHandler
-    CodeGenError *CGE = CGM->GenErrorHandler(AST->getErrorHandler());
-    AST->getErrorHandler()->setCodeGen(CGE);
+    CodeGenError *CGE = CGM->GenErrorHandler(Sym->getAST()->getErrorHandler());
+    Sym->getAST()->getErrorHandler()->setCodeGen(CGE);
 }
 
 void CodeGenFunctionBase::AllocaLocalVars() {
 
-    // Allocation of declared ASTParam
-    for (auto &Param: AST->getParams()) {
+    // Allocation of declared ASTVar
+    for (auto Param: Sym->getAST()->getParams()) {
         CodeGenVar *CGV = CGM->GenLocalVar(Param);
         CGV->Alloca();
         Param->setCodeGen(CGV);
     }
 
     // Allocation of all declared ASTLocalVar
-    for (auto &LocalVar: AST->getLocalVars()) {
+    for (auto &LocalVar: Sym->getLocalVars()) {
     	if (LocalVar->getType()->isError()) {
     		CodeGenError *CGE = CGM->GenErrorHandler(LocalVar);
     		LocalVar->setCodeGen(CGE);
@@ -103,7 +103,7 @@ void CodeGenFunctionBase::AllocaLocalVars() {
 
     		// Create CodeGenVar for all inner attributes of a class
     		if (LocalVar->getType()->isIdentity()) {
-    			ASTIdentityType *IdentityType = (ASTIdentityType *) LocalVar->getType();
+    			ASTRefType *IdentityType = (ASTRefType *) LocalVar->getType();
     			if (IdentityType->isClass()) {
     				ASTClass * Class =  (ASTClass *) IdentityType->getDef();
     				// Class start with param 0 with the vtable type
@@ -127,7 +127,7 @@ void CodeGenFunctionBase::StoreErrorHandler(bool isMain) {
         llvm::Constant *One = llvm::ConstantInt::get(CGM->Int32Ty, 1);
         llvm::Constant *Two = llvm::ConstantInt::get(CGM->Int32Ty, 2);
         llvm::Constant *NullPtr = llvm::ConstantPointerNull::get(CGM->Int8Ty->getPointerTo());
-        CodeGenVarBase *CGE = AST->getErrorHandler()->getCodeGen();
+        CodeGenVarBase *CGE = Sym->getErrorHandler()->getCodeGen();
         llvm::Value *ErrorVar = CGE->Load();
         llvm::Value *PtrType = CGM->Builder->CreateInBoundsGEP(CGE->getType(), ErrorVar, {Zero, Zero});
         CGM->Builder->CreateStore(llvm::ConstantInt::get(CGM->Int8Ty, 0), PtrType);
@@ -136,7 +136,7 @@ void CodeGenFunctionBase::StoreErrorHandler(bool isMain) {
         llvm::Value *PtrPtr = CGM->Builder->CreateInBoundsGEP(CGE->getType(), ErrorVar, {Zero, Two});
         CGM->Builder->CreateStore(NullPtr, PtrPtr);
     } else {
-        ((CodeGenError *) AST->getErrorHandler()->getCodeGen())->StorePointer(Fn->getArg(0));
+        ((CodeGenError *) Sym->getErrorHandler()->getCodeGen())->StorePointer(Fn->getArg(0));
     }
 }
 
@@ -144,7 +144,7 @@ void CodeGenFunctionBase::StoreParams(bool isMain) {
     // Store Param Values (n = 0 is the Error param)
     int n = isMain ? 0 : 1;
 
-    for (auto &Param: AST->getParams()) {
+    for (auto &Param: Sym->getParams()) {
 
         // Store Arg value into Param
         CodeGenVarBase *CGV = Param->getCodeGen();

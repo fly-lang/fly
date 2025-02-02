@@ -19,7 +19,7 @@ ASTStmt *ASTStmt::getParent() const {
     return Parent;
 }
 
-ASTFunctionBase *ASTStmt::getFunction() const {
+ASTFunction *ASTStmt::getFunction() const {
     return Function;
 }
 

@@ -11,22 +11,26 @@
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
 #include "CodeGen/CodeGenError.h"
-#include "AST/ASTNameSpace.h"
 #include "AST/ASTModule.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTScopes.h"
-#include "AST/ASTType.h"
+#include "Sym/SymFunction.h"
+#include "AST/ASTTypeRef.h"
 #include "Basic/Debug.h"
 #include "llvm/IR/Function.h"
 #include "llvm/ADT/StringRef.h"
 
+#include <Sym/SymModule.h>
+#include <Sym/SymNameSpace.h>
+#include <Sym/SymType.h>
+
 using namespace fly;
 
-CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, ASTFunction *AST, bool isExternal) :
-    CodeGenFunctionBase(CGM, AST), AST(AST), isExternal(isExternal) {
+CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, SymFunction *Sym, bool isExternal) :
+    CodeGenFunctionBase(CGM, Sym), isExternal(isExternal), isMain(isMainFunction(Sym)) {
 
     // Generate Params Types
-    if (isMainFunction(AST)) {
+    if (isMain) {
         RetType = CGM->Int32Ty;
     } else {
         GenReturnType();
@@ -34,17 +38,17 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, ASTFunction *AST, bool isEx
         // Add ErrorHandler as first param
         ParamTypes.push_back(CGM->ErrorPtrTy);
     }
-    GenParamTypes(CGM, ParamTypes, AST->getParams());
+    GenParamTypes(CGM, ParamTypes, Sym->getAST()->getParams());
 
     // Create LLVM Function
     FnType = llvm::FunctionType::get(RetType, ParamTypes, false);
 
     // Set Name
-    std::string Id = CodeGen::toIdentifier(AST->getName(), AST->getNameSpace()->getName());
+    std::string Id = CodeGen::toIdentifier(Sym->getAST()->getName(), Sym->getModule()->getNameSpace()->getName());
     Fn = llvm::Function::Create(FnType, llvm::GlobalValue::ExternalLinkage, Id, CGM->getModule());
 
     // Set Linkage
-    if (isExternal && AST->getVisibility() == ASTVisibilityKind::V_PRIVATE) {
+    if (isExternal && Sym->getVisibility() == ASTVisibilityKind::V_PRIVATE) {
         Fn->setLinkage(GlobalValue::LinkageTypes::InternalLinkage);
     }
 }
@@ -56,9 +60,6 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, ASTFunction *AST, bool isEx
 void CodeGenFunction::GenBody() {
     FLY_DEBUG("CodeGenFunction", "GenBody");
     setInsertPoint();
-
-	// Function name is equal to main
-    bool isMain = isMainFunction(AST);
 
 	// Alloca Function Error Handler
     AllocaErrorHandler();
@@ -73,25 +74,24 @@ void CodeGenFunction::GenBody() {
     StoreParams(isMain);
 
 	// Generate Function Body
-    CGM->GenBlock(this, AST->getBody());
+    CGM->GenBlock(this, Sym->getAST()->getBody());
 
     // if is Main check error and return right exit code
     if (isMain) {
         llvm::Value *Zero32 = llvm::ConstantInt::get(CGM->Int32Ty, 0);
         llvm::Value *Zero8 = llvm::ConstantInt::get(CGM->Int8Ty, 0);
         // take return value from error struct
-        CodeGenError *CGE = (CodeGenError *) AST->getErrorHandler()->getCodeGen();
+        CodeGenError *CGE = (CodeGenError *) Sym->getAST()->getErrorHandler()->getCodeGen();
         ErrorHandler = CGE->getValue();
         llvm::Value *ErrorKind = CGM->Builder->CreateInBoundsGEP(CGE->getType(), ErrorHandler, {Zero32, Zero32});
         llvm::Value *Ret = CGM->Builder->CreateICmpNE(CGM->Builder->CreateLoad(ErrorKind), Zero8);
         // main() will return 0 if ok or 1 on error
         CGM->Builder->CreateRet(CGM->Builder->CreateZExt(Ret, Fn->getReturnType()));
-    } else if (AST->getReturnType()->isVoid()) {
+    } else if (Sym->getAST()->getReturnType()->getDef()->isVoid()) {
         CGM->Builder->CreateRetVoid();
     }
 }
 
-bool CodeGenFunction::isMainFunction(ASTFunctionBase *FunctionBase) {
-    return FunctionBase->getKind() == ASTFunctionKind::FUNCTION && ((ASTFunction *) FunctionBase)->getName() == StringRef("main")
-        && FunctionBase->getReturnType()->isVoid();
+bool CodeGenFunction::isMainFunction(SymFunction *Sym) {
+    return Sym->getAST()->getName() == StringRef("main") && Sym->getAST()->getReturnType()->getDef()->isVoid();
 }

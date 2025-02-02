@@ -16,7 +16,7 @@ namespace fly {
 
     class ASTArg;
     class ASTVar;
-    class ASTFunctionBase;
+    class SymFunctionBase;
 
     enum class ASTCallKind {
         CALL_FUNCTION,
@@ -33,7 +33,7 @@ namespace fly {
      */
     class ASTCall : public ASTIdentifier {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
         friend class SemaResolver;
         friend class SemaValidator;
 
@@ -41,7 +41,7 @@ namespace fly {
 
         llvm::SmallVector<ASTArg *, 8> Args;
 
-        ASTFunctionBase *Def = nullptr;
+        SymFunctionBase *Def = nullptr;
 
         ASTCallKind CallKind = ASTCallKind::CALL_FUNCTION;
 
@@ -53,7 +53,7 @@ namespace fly {
 
         llvm::SmallVector<ASTArg *, 8> getArgs() const;
 
-        ASTFunctionBase *getDef() const;
+        SymFunctionBase *getDef() const;
 
         ASTCallKind getCallKind() const;
 

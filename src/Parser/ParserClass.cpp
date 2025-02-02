@@ -10,13 +10,9 @@
 #include "Parser/Parser.h"
 #include "Parser/ParserMethod.h"
 #include "Parser/ParserClass.h"
-#include "AST/ASTBlockStmt.h"
 #include "AST/ASTClass.h"
-#include "AST/ASTClassAttribute.h"
 #include "AST/ASTType.h"
-#include "AST/ASTClassMethod.h"
-#include "AST/ASTAssignmentStmt.h"
-#include "Sema/SemaBuilder.h"
+#include "Sema/ASTBuilder.h"
 #include "Basic/Debug.h"
 
 using namespace fly;
@@ -83,7 +79,7 @@ ParserClass::ParserClass(Parser *P, SmallVector<ASTScope *, 8> &Scopes) : P(P) {
             llvm::SmallVector<ASTScope *, 8> Scopes = P->ParseScopes();
 
             // Parse Type
-            ASTType *Type = P->ParseType(); // Continue loop if there is a field or a method
+            ASTType *Type = P->ParseTypeRef(); // Continue loop if there is a field or a method
 
             Continue = Type != nullptr;
             if (Continue && P->Tok.isAnyIdentifier()) {

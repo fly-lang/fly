@@ -13,22 +13,27 @@
 #include "CodeGen/CodeGenModule.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTModule.h"
-#include "AST/ASTClassAttribute.h"
-#include "AST/ASTClassMethod.h"
-#include "AST/ASTNameSpace.h"
+#include "Sym/SymClass.h"
+#include "Sym/SymModule.h"
+#include "Sym/SymNameSpace.h"
 #include "llvm/IR/DerivedTypes.h"
+
+#include <AST/ASTTypeRef.h>
+#include <AST/ASTVar.h>
+#include <Sym/SymClassAttribute.h>
+#include <Sym/SymClassMethod.h>
 
 using namespace fly;
 
-CodeGenClass::CodeGenClass(CodeGenModule *CGM, ASTClass *Class, bool isExternal) : CGM(CGM), AST(Class) {
-    std::string TypeName = CodeGen::toIdentifier(Class->getName(), Class->getNameSpace()->getName());
+CodeGenClass::CodeGenClass(CodeGenModule *CGM, SymClass *Sym, bool isExternal) : CGM(CGM), Sym(Sym) {
+    std::string TypeName = CodeGen::toIdentifier(Sym->getAST()->getName(), Sym->getModule()->getNameSpace()->getName());
 
     // Generate Class Type
     Type = llvm::StructType::create(CGM->LLVMCtx, TypeName);
     TypePtr = Type->getPointerTo(CGM->Module->getDataLayout().getAllocaAddrSpace());
 
     // Generate VTable from Class and Interface
-    if (Class->getClassKind() == ASTClassKind::CLASS || Class->getClassKind() == ASTClassKind::INTERFACE) {
+    if (Sym->getAST()->getClassKind() == ASTClassKind::CLASS || Sym->getAST()->getClassKind() == ASTClassKind::INTERFACE) {
         VTableType = llvm::StructType::create(CGM->LLVMCtx, TypeName + "_vtable");
     }
 }
@@ -36,7 +41,7 @@ CodeGenClass::CodeGenClass(CodeGenModule *CGM, ASTClass *Class, bool isExternal)
 void CodeGenClass::Generate() {
 
     // Generate Constructors
-    if (AST->getClassKind() == ASTClassKind::CLASS || AST->getClassKind() == ASTClassKind::STRUCT) {
+    if (Sym->getAST()->getClassKind() == ASTClassKind::CLASS || Sym->getAST()->getClassKind() == ASTClassKind::STRUCT) {
 
         // Default Constructor
 //        if (AST->getDefaultConstructor()) {
@@ -47,7 +52,9 @@ void CodeGenClass::Generate() {
 //        }
 
         // Add Constructors
-        for (auto &Constructor: AST->getConstructors()) {
+        for (auto Pair: Sym->getConstructors()) {
+			SymClassMethod * Constructor = Pair.getSecond();
+
             // Create Constructor CodeGen for Constructor
             CodeGenClassFunction *CGCF = new CodeGenClassFunction(CGM, Constructor, TypePtr);
             Constructor->setCodeGen(CGCF);
@@ -59,9 +66,10 @@ void CodeGenClass::Generate() {
     llvm::SmallVector<llvm::Type *, 4> TypeVector;
 
     // Set CodeGen Methods
-    if (AST->getClassKind() == ASTClassKind::CLASS || AST->getClassKind() == ASTClassKind::INTERFACE) {
+    if (Sym->getAST()->getClassKind() == ASTClassKind::CLASS || Sym->getAST()->getClassKind() == ASTClassKind::INTERFACE) {
         llvm::SmallVector<llvm::Type *, 4> VTableVector;
-        for (auto &Method: AST->getMethods()) {
+        for (auto Pair: Sym->getMethods()) {
+        	SymClassMethod *Method = Pair.getSecond();
             CodeGenClassFunction *CGCF = new CodeGenClassFunction(CGM, Method, TypePtr);
             if (!Method->isStatic()) { // only instance methods
                 // Create the VTable Struct Type
@@ -78,12 +86,13 @@ void CodeGenClass::Generate() {
     }
 
     // Set CodeGen Attributes
-    if (!AST->getAttributes().empty()) {
-        if (AST->getClassKind() == ASTClassKind::CLASS || AST->getClassKind() == ASTClassKind::STRUCT) {
+    if (!Sym->getAttributes().empty()) {
+        if (Sym->getAST()->getClassKind() == ASTClassKind::CLASS || Sym->getAST()->getClassKind() == ASTClassKind::STRUCT) {
 
             // add var to the type
-            for (auto &Attribute: AST->getAttributes()) {
-                llvm::Type *AttrType = CGM->GenType(Attribute->getType());
+            for (auto AttributeEntry: Sym->getAttributes()) {
+            	SymClassAttribute *Attribute = AttributeEntry.getValue();
+                llvm::Type *AttrType = CGM->GenType(Attribute->getAST()->getTypeRef()->getDef());
                 TypeVector.push_back(AttrType);
             }
         }

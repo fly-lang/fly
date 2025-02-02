@@ -9,8 +9,6 @@
 
 #include "Frontend/Frontend.h"
 #include "Sema/Sema.h"
-#include "Sema/SemaBuilder.h"
-#include "AST/ASTNameSpace.h"
 #include "Parser/Parser.h"
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
@@ -59,7 +57,7 @@ bool Frontend::Execute() {
     // Parse input files
     for (auto &FileName: CI.getFrontendOptions().getInputFiles()) {
         Diags.getClient()->BeginSourceFile();
-        ParseFile(S->getBuilder(), FileName);
+        ParseFile(S->getASTBuilder(), FileName);
         Diags.getClient()->EndSourceFile();
     }
 
@@ -71,7 +69,7 @@ bool Frontend::Execute() {
         CodeGen CG(Diags, CI.getCodeGenOptions(), CI.getTargetOptions(),
                    CI.getFrontendOptions().BackendAction,
                    CI.getFrontendOptions().ShowTimers);
-        std::vector<llvm::Module *> Modules = CG.GenerateModules(S->getContext());
+        std::vector<llvm::Module *> Modules = CG.GenerateModules(S->getSymTable());
 
         // Emit code base on BackendActionKind
         for (auto M : Modules) {
@@ -79,7 +77,7 @@ bool Frontend::Execute() {
         }
 
         if (CI.getFrontendOptions().CreateHeader) {
-            CG.GenerateHeaders(S->getContext());
+            CG.GenerateHeaders(S->getSymTable());
         }
     }
 
@@ -136,7 +134,7 @@ bool Frontend::Execute() {
  * @param CG
  * @return
  */
-void Frontend::ParseFile(SemaBuilder &Builder, const std::string &FileName) {
+void Frontend::ParseFile(ASTBuilder &Builder, const std::string &FileName) {
 
     FLY_DEBUG_MESSAGE("Frontend", "Execute", "Loading input file " + FileName);
     InputFile *Input = new InputFile(Diags, CI.getSourceManager(), FileName);

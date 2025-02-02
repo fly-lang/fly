@@ -16,7 +16,7 @@ namespace fly {
 
     class ASTLoopStmt : public ASTRuleStmt {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
         friend class SemaBuilderLoopStmt;
         friend class SemaResolver;
         friend class SemaValidator;

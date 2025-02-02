@@ -34,7 +34,7 @@ AllowShortLambdasOnASingleLine: All # Allow lambdas to fit on a single line
 AllowShortIfStatementsOnASingleLine: false # Require multi-line `if` statements even if short
 
 # Namespace indentation
-NamespaceIndentation: None        # Do not indent within namespaces
+NamespaceIndentation: Inner        # indent within namespaces
 
 # Pointer and reference styles
 PointerAlignment: Right           # Align pointer symbols to the type

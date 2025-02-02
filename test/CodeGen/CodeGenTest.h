@@ -39,7 +39,7 @@ public:
     DiagnosticsEngine &Diags;
     Sema *S;
     SourceLocation SourceLoc;
-    SemaBuilder &Builder;
+    ASTBuilder &Builder;
     ASTType *VoidType;
     ASTType *BoolType;
     ASTType *ByteType;
@@ -56,13 +56,13 @@ public:
     llvm::SmallVector<ASTScope *, 8> TopScopes;
     llvm::SmallVector<ASTScope *, 8> EmptyScopes;
     llvm::SmallVector<ASTExpr *, 8> Args;
-    llvm::SmallVector<ASTParam *, 8> Params;
+    llvm::SmallVector<ASTVar *, 8> Params;
 
     CodeGenTest() : CI(*TestUtils::CreateCompilerInstance()),
                     CG(TestUtils::CreateCodeGen(CI)),
                     Diags(CI.getDiagnostics()),
                     S(Sema::CreateSema(CI.getDiagnostics())),
-                    Builder(S->getBuilder()),
+                    Builder(S->getASTBuilder()),
                     VoidType(Builder.CreateVoidType(SourceLoc)),
                     BoolType(Builder.CreateBoolType(SourceLoc)),
                     ByteType(Builder.CreateByteType(SourceLoc)),

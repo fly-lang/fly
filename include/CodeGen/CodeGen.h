@@ -16,7 +16,7 @@
 
 #include "CodeGen/BackendUtil.h"
 #include "Basic/Diagnostic.h"
-#include "AST/ASTContext.h"
+#include "Sym/SymTable.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/Linker/Linker.h"
 #include <memory>
@@ -63,13 +63,13 @@ namespace fly {
 
         llvm::LLVMContext &getLLVMCtx();
 
-        std::vector<llvm::Module *> GenerateModules(ASTContext &Context);
+        std::vector<llvm::Module *> GenerateModules(SymTable &Table);
 
-        CodeGenModule *GenerateModule(ASTModule &AST);
+        CodeGenModule *GenerateModule(SymNameSpace &NameSpace);
 
-        void GenerateHeaders(ASTContext &context);
+        void GenerateHeaders(SymTable &Table);
 
-        void GenerateHeader(ASTModule &Module);
+        void GenerateHeader(SymNameSpace &NameSpace);
 
         static std::string toIdentifier(llvm::StringRef Name, llvm::StringRef NameSpace, llvm::StringRef ClassName = "");
     };

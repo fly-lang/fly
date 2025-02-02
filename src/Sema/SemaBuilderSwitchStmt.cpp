@@ -8,10 +8,13 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaBuilderSwitchStmt.h"
-#include "Sema/SemaBuilder.h"
+#include "Sema/ASTBuilder.h"
 #include "AST/ASTSwitchStmt.h"
 #include "AST/ASTBlockStmt.h"
 #include "AST/ASTExpr.h"
+
+#include <Sema/Sema.h>
+#include <Sema/SemaValidator.h>
 
 using namespace fly;
 
@@ -30,7 +33,7 @@ SemaBuilderSwitchStmt *SemaBuilderSwitchStmt::Switch(const SourceLocation &Loc, 
     Parent->Content.push_back(SwitchStmt);
     SwitchStmt->Parent = Parent;
     SwitchStmt->Function = Parent->Function;
-    if (S.Validator->CheckVarRefExpr(Expr))
+    if (S.getValidator().CheckVarRefExpr(Expr))
         SwitchStmt->VarRef = ((ASTVarRefExpr *) Expr)->getVarRef();
     return this;
 }

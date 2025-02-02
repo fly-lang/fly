@@ -10,6 +10,8 @@
 #ifndef FLY_SEMA_H
 #define FLY_SEMA_H
 
+#include <llvm/ADT/SmallVector.h>
+
 #include "llvm/ADT/StringMap.h"
 
 namespace llvm {
@@ -18,23 +20,21 @@ namespace llvm {
 
 namespace fly {
 
-    class SemaBuilder;
+    class SymBuilder;
+    class ASTBuilder;
     class SemaResolver;
     class SemaValidator;
     class SemaBuilderIfStmt;
     class SemaBuilderSwitchStmt;
     class SemaBuilderLoopStmt;
-    class SemaSpaceSymbols;
     class DiagnosticsEngine;
     class DiagnosticBuilder;
     class SourceLocation;
-    class ASTContext;
-    class ASTNameSpace;
+    class SymTable;
+    class SymNameSpace;
     class ASTModule;
     class ASTIdentity;
-    class ASTClassAttribute;
-    class ASTClassMethod;
-    class ASTFunctionBase;
+    class ASTFunction;
     class ASTFunction;
     class ASTImport;
     class ASTLocalVar;
@@ -42,43 +42,47 @@ namespace fly {
     class ASTVar;
     class ASTBlockStmt;
     class ASTIdentifier;
-    class ASTIdentityType;
+    class ASTRefType;
 
     class Sema {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
         friend class SemaBuilderIfStmt;
         friend class SemaBuilderSwitchStmt;
         friend class SemaBuilderLoopStmt;
         friend class SemaResolver;
+        friend class SymBuilder;
 
         DiagnosticsEngine &Diags;
 
-        ASTContext *Context = nullptr;
+        llvm::SmallVector<ASTModule *, 4> Modules;
 
-        SemaBuilder *Builder = nullptr;
+        SymTable *Table = nullptr;
+
+        ASTBuilder *Builder = nullptr;
+
+        SymBuilder *SymBuildr = nullptr;
 
         SemaValidator *Validator = nullptr;
-
-        // Default Symbols
-        SemaSpaceSymbols *DefaultSymbols;
-
-        // Symbols organized by NameSpace
-        llvm::StringMap<SemaSpaceSymbols *> MapSymbols;
 
         Sema(DiagnosticsEngine &Diags);
 
     public:
+        ~Sema();
 
         static Sema* CreateSema(DiagnosticsEngine &Diags);
 
-        SemaBuilder &getBuilder();
+        ASTBuilder &getASTBuilder();
+
+        SymBuilder &getSymBuilder();
 
         DiagnosticsEngine &getDiags() const;
 
         SemaValidator &getValidator() const;
 
-        ASTContext &getContext() const;
+        SymTable &getSymTable() const;
+
+        llvm::SmallVector<ASTModule*, 4> getModules() const;
 
         bool Resolve();
 

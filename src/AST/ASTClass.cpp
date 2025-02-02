@@ -8,18 +8,13 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTClass.h"
-#include "AST/ASTNameSpace.h"
-#include "AST/ASTClassAttribute.h"
-#include "AST/ASTClassMethod.h"
-#include "AST/ASTClassType.h"
 #include "AST/ASTScopes.h"
 
 using namespace fly;
 
 ASTClass::ASTClass(ASTModule *Module, ASTClassKind ClassKind, llvm::SmallVector<ASTScope *, 8> &Scopes,
-                   const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTClassType *, 4> &SuperClasses) :
-        ASTIdentity(Module, ASTIdentityKind::ID_CLASS, Scopes, Loc, Name), ClassKind(ClassKind),
-        Visibility(ASTVisibilityKind::V_DEFAULT), SuperClasses(SuperClasses) {
+                   const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTTypeRef *, 4> &SuperClasses) :
+        ASTBase(Loc, ASTKind::AST_CLASS), ClassKind(ClassKind), Scopes(Scopes), Name(Name), SuperClasses(SuperClasses) {
 
 }
 
@@ -27,45 +22,33 @@ ASTModule * ASTClass::getModule() const {
 	return Module;
 }
 
+llvm::SmallVector<ASTBase *, 8> ASTClass::getDefinitions() const {
+	return Definitions;
+}
+
 ASTClassKind ASTClass::getClassKind() const {
-    return ClassKind;
+	return ClassKind;
 }
 
-llvm::SmallVector<ASTClassType *, 4> ASTClass::getSuperClasses() const {
+llvm::SmallVector<ASTScope *, 8> ASTClass::getScopes() const {
+	return Scopes;
+}
+
+llvm::StringRef ASTClass::getName() const {
+	return Name;
+}
+
+llvm::SmallVector<ASTTypeRef *, 4> ASTClass::getSuperClasses() const {
     return SuperClasses;
-}
-
-llvm::SmallVector<ASTClassAttribute *, 8> ASTClass::getAttributes() const {
-    return Attributes;
-}
-
-ASTClassMethod *ASTClass::getDefaultConstructor() const {
-    return DefaultConstructor;
-}
-
-llvm::SmallVector<ASTClassMethod *, 8> ASTClass::getConstructors() const {
-    return Constructors;
-}
-
-llvm::SmallVector<ASTClassMethod *, 8> ASTClass::getMethods() const {
-    return Methods;
-}
-
-CodeGenClass *ASTClass::getCodeGen() const {
-    return CodeGen;
-}
-
-void ASTClass::setCodeGen(CodeGenClass *CGC) {
-    CodeGen = CGC;
 }
 
 std::string ASTClass::str() const {
 
     // Class to string
     return Logger("ASTClass").
-           Super(ASTIdentity::str()).
+           Super(ASTBase::str()).
            Attr("ClassKind", (uint64_t) ClassKind).
-           AttrList("Vars", Attributes).
-           AttrList("Methods", Methods).
+           Attr("Name", Name).
+           AttrList("Definitions", Definitions).
            End();
 }

@@ -29,7 +29,7 @@ namespace fly {
 
     class ASTScope : public ASTBase {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
         friend class SemaBuilderScopes;
         friend class SemaResolver;
         friend class SemaValidator;

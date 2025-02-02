@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTFunction.cpp - AST Function implementation
+// src/AST/ASTFunctionBase.cpp - AST Function Base
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,44 +8,51 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTFunction.h"
-#include "AST/ASTModule.h"
-#include "AST/ASTScopes.h"
+#include "AST/ASTBlockStmt.h"
+#include "AST/ASTVar.h"
 
 using namespace fly;
 
-ASTFunction::ASTFunction(ASTModule *Module, const SourceLocation &Loc, ASTType *ReturnType, llvm::StringRef Name,
-                         llvm::SmallVector<ASTScope *, 8> &Scopes, llvm::SmallVector<ASTParam *, 8> &Params) :
-        ASTFunctionBase(Loc, ASTFunctionKind::FUNCTION, ReturnType, Scopes, Params), Module(Module), Name(Name),
-        Visibility(ASTVisibilityKind::V_DEFAULT) {
+ASTFunction::ASTFunction(const SourceLocation &Loc, llvm::StringRef Name, ASTTypeRef *ReturnType,
+                                 llvm::SmallVector<ASTScope *, 8> &Scopes, llvm::SmallVector<ASTVar *, 8> &Params) :
+        ASTBase(Loc, ASTKind::AST_FUNCTION), ReturnType(ReturnType), Scopes(Scopes), Params(Params) {
 
 }
 
 llvm::StringRef ASTFunction::getName() const {
-    return Name;
 }
 
-ASTVisibilityKind ASTFunction::getVisibility() const {
-    return Visibility;
+bool ASTFunction::isVarArg() {
 }
 
-ASTModule *ASTFunction::getModule() const {
-    return Module;
+llvm::SmallVector<ASTScope *, 8> ASTFunction::getScopes() const {
+    return Scopes;
 }
 
-ASTNameSpace *ASTFunction::getNameSpace() const {
-    return Module->getNameSpace();
+llvm::SmallVector<ASTVar *, 8> ASTFunction::getParams() const {
+    return Params;
 }
 
-CodeGenFunction *ASTFunction::getCodeGen() const {
-    return CodeGen;
+llvm::SmallVector<ASTLocalVar *, 8> ASTFunction::getLocalVars() const {
+    return LocalVars;
 }
 
-void ASTFunction::setCodeGen(CodeGenFunction *CGF) {
-    CodeGen = CGF;
+ASTBlockStmt *ASTFunction::getBody() const {
+    return Body;
+}
+
+ASTVar *ASTFunction::getErrorHandler() {
+    return ErrorHandler;
+}
+
+ASTTypeRef *ASTFunction::getReturnType() const {
+    return ReturnType;
 }
 
 std::string ASTFunction::str() const {
-    return Logger("ASTFunction").
-            Super(ASTFunctionBase::str()).
-            End();
+    return Logger("ASTFunctionBase").
+           Super(ASTBase::str()).
+           AttrList("Params", Params).
+           Attr("ReturnType", ReturnType).
+           End();
 }

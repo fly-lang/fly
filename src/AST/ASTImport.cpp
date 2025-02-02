@@ -12,7 +12,7 @@
 using namespace fly;
 
 ASTImport::ASTImport(const SourceLocation &Loc, llvm::StringRef Name) :
-        ASTIdentifier(Loc, Name, ASTIdentifierKind::REF_IMPORT) {
+        ASTBase(Loc, ASTKind::AST_IMPORT) {
 
 }
 
@@ -28,8 +28,8 @@ ASTAlias *ASTImport::getAlias() const {
     return Alias;
 }
 
-void ASTImport::setAlias(ASTAlias *A) {
-    Alias = A;
+void ASTImport::setAlias(ASTAlias *Alias) {
+    this->Alias = Alias;
 }
 
 std::string ASTImport::str() const {
@@ -38,20 +38,4 @@ std::string ASTImport::str() const {
             Attr("Name", Name).
             Attr("Alias",Alias).
             End();
-}
-
-ASTAlias::ASTAlias(const SourceLocation &Loc, llvm::StringRef Name) :
-        ASTIdentifier(Loc, Name, ASTIdentifierKind::REF_ALIAS) {
-
-}
-
-std::string ASTAlias::str() const {
-    return Logger("ASTImport").
-            Super(ASTBase::str()).
-            Attr("Name", Name).
-            End();
-}
-
-ASTImport *ASTAlias::getImport() const {
-    return Import;
 }

@@ -10,72 +10,58 @@
 #ifndef FLY_AST_CLASS_H
 #define FLY_AST_CLASS_H
 
-#include "ASTIdentity.h"
-#include "llvm/ADT/StringMap.h"
+#include "ASTBase.h"
 
 namespace fly {
 
     class ASTModule;
+    class ASTScope;
     class ASTClassAttribute;
-    class ASTClassMethod;
     class CodeGenClass;
     class ASTBlockStmt;
     class ASTAssignmentStmt;
-    class ASTClassType;
+class ASTTypeRef;
 
     enum class ASTClassKind {
-        STRUCT, // has only Fields
-        CLASS, // has only Fields and Methods defined
-        INTERFACE, // has only Methods declarations
+        CLASS,
+        INTERFACE,
+        STRUCT
     };
 
-    class ASTClass : public ASTIdentity {
+    class ASTClass : public ASTBase {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
         friend class SemaResolver;
         friend class SemaValidator;
 
+        ASTModule *Module;
+
+        llvm::SmallVector<ASTBase *, 8> Definitions;
+
+        llvm::SmallVector<ASTScope *, 8> Scopes;
+
+        llvm::StringRef Name;
+
         ASTClassKind ClassKind;
 
-        ASTVisibilityKind Visibility;
-
-        llvm::SmallVector<ASTClassType *, 4> SuperClasses;
-
-        // Class Fields
-        llvm::SmallVector<ASTClassAttribute *, 8> Attributes;
-
-        ASTClassMethod *DefaultConstructor = nullptr;
-
-        // Class Constructors
-        llvm::SmallVector <ASTClassMethod *, 8> Constructors;
-
-        // Class Methods
-        llvm::SmallVector <ASTClassMethod *, 8> Methods;
-
-        CodeGenClass *CodeGen = nullptr;
+        llvm::SmallVector<ASTTypeRef *, 4> SuperClasses;
 
         ASTClass(ASTModule *Module, ASTClassKind ClassKind, llvm::SmallVector<ASTScope *, 8> &Scopes,
-                 const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTClassType *, 4> &ClassTypes);
+                 const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTTypeRef *, 4> &SuperClasses);
 
     public:
 
         ASTModule* getModule() const;
 
+        llvm::SmallVector<ASTBase *, 8> getDefinitions() const;
+
         ASTClassKind getClassKind() const;
 
-        llvm::SmallVector<ASTClassType *, 4> getSuperClasses() const;
+        llvm::SmallVector<ASTTypeRef *, 4> getSuperClasses() const;
 
-        llvm::SmallVector<ASTClassAttribute *, 8> getAttributes() const;
+        llvm::SmallVector<ASTScope *, 8> getScopes() const;
 
-        ASTClassMethod *getDefaultConstructor() const;
-
-        llvm::SmallVector<ASTClassMethod *, 8> getConstructors() const;
-
-        llvm::SmallVector<ASTClassMethod *, 8> getMethods() const;
-
-        CodeGenClass *getCodeGen() const;
-
-        void setCodeGen(CodeGenClass *CGC);
+        llvm::StringRef getName() const;
 
         std::string str() const override;
 

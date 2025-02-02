@@ -10,24 +10,32 @@
 #ifndef FLY_AST_ENUM_H
 #define FLY_AST_ENUM_H
 
-#include "ASTIdentity.h"
+#include "ASTBase.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringRef.h"
 
 namespace fly {
 
+    class ASTModule;
+    class ASTScope;
     class ASTEnumEntry;
     class ASTEnumType;
 
-    class ASTEnum : public ASTIdentity {
+    class ASTEnum : public ASTBase {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
         friend class SemaResolver;
         friend class SemaValidator;
 
-        llvm::SmallVector<ASTEnumType *, 4> SuperClasses; // FIXME ?
+        ASTModule *Module;
 
-        // Class Fields
-        llvm::SmallVector<ASTEnumEntry *, 8> Entries;
+        llvm::SmallVector<ASTBase *, 8> Definitions;
+
+        llvm::SmallVector<ASTScope *, 8> Scopes;
+
+        llvm::StringRef Name;
+
+        llvm::SmallVector<ASTEnumType *, 4> SuperClasses; // FIXME ?
 
         ASTEnum(ASTModule *Module, const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes,
                  llvm::SmallVector<ASTEnumType *, 4> &SuperClasses);
@@ -36,7 +44,13 @@ namespace fly {
 
         ASTModule* getModule() const;
 
-        llvm::SmallVector<ASTEnumEntry *, 8> getEntries() const;
+        llvm::SmallVector<ASTBase*, 8> getDefinitions() const;
+
+        llvm::SmallVector<ASTScope*, 8> getScopes() const;
+
+        llvm::StringRef getName() const;
+
+        llvm::SmallVector<ASTEnumType*, 4> getSuperClasses() const;
 
         std::string str() const override;
 

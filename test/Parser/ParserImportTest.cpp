@@ -12,6 +12,8 @@
 #include "AST/ASTModule.h"
 #include "AST/ASTImport.h"
 
+#include <AST/ASTNameSpaceRef.h>
+
 namespace {
 
     using namespace fly;
@@ -23,7 +25,7 @@ namespace {
 
         // Verify
         EXPECT_EQ(Module->getName(), "SingleNameSpace");
-        EXPECT_EQ(Module->getNameSpace()->getName(), "std");
+        EXPECT_EQ(Module->getNameSpace()->getDef()->getName(), "std");
     }
 
     TEST_F(ParserTest, MultiNamespaceError) {
@@ -62,7 +64,7 @@ namespace {
 
         ASSERT_TRUE(Resolve());
 
-        EXPECT_EQ(Module2->getNameSpace()->getName(), "default");
+        EXPECT_EQ(Module2->getNameSpace()->getDef()->getName(), "default");
 
         // Select standard import
         ASTImport *standardImport = nullptr;

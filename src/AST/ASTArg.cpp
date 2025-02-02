@@ -22,7 +22,7 @@ uint64_t ASTArg::getIndex() const {
     return Index;
 }
 
-ASTParam *ASTArg::getDef() const {
+ASTVar *ASTArg::getDef() const {
     return Def;
 }
 

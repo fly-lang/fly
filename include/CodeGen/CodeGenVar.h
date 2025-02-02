@@ -8,8 +8,8 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#ifndef FLY_CG_VAR_H
-#define FLY_CG_VAR_H
+#ifndef FLY_CODEGEN_VAR_H
+#define FLY_CODEGEN_VAR_H
 
 #include "CodeGenVarBase.h"
 #include "llvm/ADT/StringMap.h"
@@ -71,4 +71,4 @@ namespace fly {
     };
 }
 
-#endif //FLY_CG_VAR_H
+#endif //FLY_CODEGEN_VAR_H

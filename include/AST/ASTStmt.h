@@ -34,11 +34,11 @@ namespace fly {
     class ASTExpr;
     class ASTBlockStmt;
     class ASTVar;
-    class ASTFunctionBase;
+    class ASTFunction;
 
     class ASTStmt : public ASTBase {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
         friend class SemaBuilderStmt;
         friend class SemaBuilderIfStmt;
         friend class SemaBuilderSwitchStmt;
@@ -52,7 +52,7 @@ namespace fly {
 
         ASTStmt *Parent = nullptr;
 
-        ASTFunctionBase *Function = nullptr;
+        ASTFunction *Function = nullptr;
 
         ASTStmt(const SourceLocation &Loc, ASTStmtKind Kind);
 
@@ -60,7 +60,7 @@ namespace fly {
 
         virtual ASTStmt *getParent() const;
 
-        ASTFunctionBase *getFunction() const;
+        ASTFunction *getFunction() const;
 
         ASTStmtKind getStmtKind() const;
 

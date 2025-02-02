@@ -11,7 +11,6 @@
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTModule.h"
 #include "AST/ASTImport.h"
-#include "AST/ASTGlobalVar.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTCall.h"
 #include "AST/ASTValue.h"
@@ -80,61 +79,61 @@ namespace {
         const ASTBlockStmt *Body = Func->getBody();
 
         // Test: bool a
-        ASTParam *aVar = Func->getParams()[0];
+        ASTVar *aVar = Func->getParams()[0];
         EXPECT_EQ(aVar->getName(), "a");
         EXPECT_EQ(aVar->getType()->getStmtKind(), ASTTypeKind::TYPE_BOOL);
         ASSERT_EQ(aVar->getDefaultValue(), nullptr);
 
         // Test: byte b
-    	ASTParam *bVar = Func->getParams()[1];
+    	ASTVar *bVar = Func->getParams()[1];
         EXPECT_EQ(bVar->getName(), "b");
         EXPECT_EQ(((ASTIntegerType *) bVar->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_BYTE);
         ASSERT_EQ(bVar->getDefaultValue(), nullptr);
 
         // Test: short c
-        ASTParam *cVar = Func->getParams()[2];
+        ASTVar *cVar = Func->getParams()[2];
         EXPECT_EQ(cVar->getName(), "c");
         EXPECT_EQ(((ASTIntegerType *) cVar->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_SHORT);
         ASSERT_EQ(cVar->getDefaultValue(), nullptr);
 
         // Test: ushort d
-        ASTParam *dVar = Func->getParams()[3];
+        ASTVar *dVar = Func->getParams()[3];
         EXPECT_EQ(dVar->getName(), "d");
         EXPECT_EQ(((ASTIntegerType *) dVar->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_USHORT);
         ASSERT_EQ(dVar->getDefaultValue(), nullptr);
 
         // Test: int e
-        ASTParam *eVar = Func->getParams()[4];
+        ASTVar *eVar = Func->getParams()[4];
         EXPECT_EQ(eVar->getName(), "e");
         EXPECT_EQ(((ASTIntegerType *) eVar->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_INT);
         ASSERT_EQ(eVar->getDefaultValue(), nullptr);
 
         // Test: uint f
-        ASTParam *fVar = Func->getParams()[5];
+        ASTVar *fVar = Func->getParams()[5];
         EXPECT_EQ(fVar->getName(), "f");
         EXPECT_EQ(((ASTIntegerType *) fVar->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_UINT);
         ASSERT_EQ(fVar->getDefaultValue(), nullptr);
 
         // Test: long g
-        ASTParam *gVar = Func->getParams()[6];
+        ASTVar *gVar = Func->getParams()[6];
         EXPECT_EQ(gVar->getName(), "g");
         EXPECT_EQ(((ASTIntegerType *) gVar->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_LONG);
         ASSERT_EQ(gVar->getDefaultValue(), nullptr);
 
         // Test: ulong h
-        ASTParam *hVar = Func->getParams()[7];
+        ASTVar *hVar = Func->getParams()[7];
         EXPECT_EQ(hVar->getName(), "h");
         EXPECT_EQ(((ASTIntegerType *) hVar->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_ULONG);
         ASSERT_EQ(hVar->getDefaultValue(), nullptr);
 
         // Test: float i
-        ASTParam *iVar = Func->getParams()[8];
+        ASTVar *iVar = Func->getParams()[8];
         EXPECT_EQ(iVar->getName(), "i");
         EXPECT_EQ(((ASTFloatingPointType *) iVar->getType())->getFloatingPointKind(), ASTFloatingPointTypeKind::TYPE_FLOAT);
         ASSERT_EQ(iVar->getDefaultValue(), nullptr);
 
         // Test: double j
-        ASTParam *jVar = Func->getParams()[9];
+        ASTVar *jVar = Func->getParams()[9];
         EXPECT_EQ(jVar->getName(), "j");
         EXPECT_EQ(((ASTFloatingPointType *) jVar->getType())->getFloatingPointKind(), ASTFloatingPointTypeKind::TYPE_DOUBLE);
         ASSERT_EQ(jVar->getDefaultValue(), nullptr);
@@ -161,9 +160,9 @@ namespace {
         ASTFunction *VerifyFunc = Module->getFunctions()[0];
         EXPECT_EQ(VerifyFunc->getVisibility(), ASTVisibilityKind::V_PRIVATE);
 
-        ASTParam *Par0 = VerifyFunc->getParams()[0];
-        ASTParam *Par1 = VerifyFunc->getParams()[1];
-        ASTParam *Par2 = VerifyFunc->getParams()[2];
+        ASTVar *Par0 = VerifyFunc->getParams()[0];
+        ASTVar *Par1 = VerifyFunc->getParams()[1];
+        ASTVar *Par2 = VerifyFunc->getParams()[2];
 
         EXPECT_EQ(Par0->getName(), "a");
         EXPECT_EQ(Par0->getType()->getStmtKind(), ASTTypeKind::TYPE_INTEGER);

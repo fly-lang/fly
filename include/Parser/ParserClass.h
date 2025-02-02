@@ -14,8 +14,8 @@
 namespace fly {
 
     class ASTClass;
-    class ASTClassAttribute;
-    class ASTClassMethod;
+    class ASTFunction;
+    class ASTVar;
     class Parser;
 
     class ParserClass {
@@ -35,9 +35,9 @@ namespace fly {
 
         static ASTClass *Parse(Parser *P, llvm::SmallVector<ASTScope *, 8> &Scopes);
 
-        ASTClassAttribute *ParseAttribute(llvm::SmallVector<ASTScope *, 8> &Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name);
+        ASTVar *ParseAttribute(llvm::SmallVector<ASTScope *, 8> &Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name);
 
-        ASTClassMethod *ParseMethod(llvm::SmallVector<ASTScope *, 8> &Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name);
+        ASTFunction *ParseMethod(llvm::SmallVector<ASTScope *, 8> &Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name);
     };
 }
 

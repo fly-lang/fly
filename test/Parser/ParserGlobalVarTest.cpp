@@ -9,7 +9,6 @@
 
 #include "ParserTest.h"
 #include "AST/ASTModule.h"
-#include "AST/ASTGlobalVar.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTExpr.h"
 

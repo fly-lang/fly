@@ -11,7 +11,6 @@
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTModule.h"
 #include "AST/ASTImport.h"
-#include "AST/ASTGlobalVar.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTComment.h"
 

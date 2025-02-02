@@ -14,7 +14,6 @@
 
 namespace fly {
 
-    class ASTType;
     class ASTValue;
     class ASTVarRef;
     class ASTCall;
@@ -22,6 +21,7 @@ namespace fly {
     class ASTCallExpr;
     class ASTValueExpr;
     class ASTStmt;
+    class ASTTypeRef;
 
     enum class ASTExprKind : char {
         EXPR_VALUE,
@@ -36,7 +36,7 @@ namespace fly {
      */
     class ASTExpr : public ASTBase {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
         friend class SemaResolver;
         friend class SemaValidator;
 
@@ -44,13 +44,13 @@ namespace fly {
 
         const ASTExprKind Kind;
 
-        ASTType *Type = nullptr;
+        ASTTypeRef *TypeRef = nullptr;
 
         ASTExpr(const SourceLocation &Loc, ASTExprKind Kind);
 
     public:
 
-        ASTType *getType() const;
+        ASTTypeRef *getTypeRef() const;
 
         ASTExprKind getExprKind() const;
 
@@ -62,7 +62,7 @@ namespace fly {
      */
     class ASTValueExpr : public ASTExpr {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
         friend class SemaResolver;
         friend class SemaValidator;
 
@@ -82,7 +82,7 @@ namespace fly {
      */
     class ASTVarRefExpr : public ASTExpr {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
         friend class SemaResolver;
         friend class SemaValidator;
 
@@ -102,7 +102,7 @@ namespace fly {
      */
     class ASTCallExpr : public ASTExpr {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
         friend class SemaResolver;
         friend class SemaValidator;
 

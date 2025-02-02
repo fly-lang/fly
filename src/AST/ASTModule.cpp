@@ -7,19 +7,15 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "AST/ASTContext.h"
-#include "AST/ASTNameSpace.h"
 #include "AST/ASTModule.h"
 
 using namespace fly;
 
-ASTModule::ASTModule(uint64_t &Id, const std::string Name, ASTContext *Context, bool isHeader) :
-        Id(Id), Name(Name), Context(Context), Header(isHeader) {
+ASTModule::ASTModule(uint64_t &Id, const std::string Name, bool isHeader) :
+        Id(Id), Name(Name), Header(isHeader) {
 }
 
-ASTModule::~ASTModule() {
-    Imports.clear();
-}
+ASTModule::~ASTModule() = default;
 
 const uint64_t ASTModule::getId() const {
     return Id;
@@ -29,52 +25,21 @@ bool ASTModule::isHeader() const {
     return Header;
 }
 
-ASTContext &ASTModule::getContext() const {
-    return *Context;
-}
-
 std::string ASTModule::getName() {
     return Name;
 }
 
-llvm::SmallVector<ASTNameSpace *, 8>  ASTModule::getNameSpaces() {
-    return NameSpaces;
-}
-
 ASTNameSpace *ASTModule::getNameSpace() {
-    return NameSpaces.empty() ? nullptr : NameSpaces[0];
+    return NameSpace;
 }
 
-const llvm::SmallVector<ASTImport *, 8> &ASTModule::getImports() {
-    return Imports;
-}
-
-const llvm::SmallVector<ASTImport *, 8> &ASTModule::getAliasImports() {
-    return AliasImports;
-}
-
-const llvm::SmallVector<ASTIdentity *, 8> &ASTModule::getIdentities() const {
-    return Identities;
-}
-
-const llvm::SmallVector<ASTGlobalVar *, 8> &ASTModule::getGlobalVars() const {
-    return GlobalVars;
-}
-
-const llvm::SmallVector <ASTFunction *, 8> &ASTModule::getFunctions() const {
-    return Functions;
-}
-
-CodeGenModule *ASTModule::getCodeGen() const {
-    return CodeGen;
-}
-
-void ASTModule::setCodeGen(CodeGenModule *CGM) {
-    CodeGen = CGM;
+const llvm::SmallVector<ASTBase *, 8> &ASTModule::getDefinitions() const {
+	return Definitions;
 }
 
 std::string ASTModule::str() const {
     return Logger("ASTModule").
            Attr("Name", Name).
+		   Attr("NameSpace", NameSpace).
            End();
 }

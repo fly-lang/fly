@@ -37,7 +37,7 @@ namespace fly {
      */
     class ASTAssignmentStmt : public ASTStmt {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
         friend class SemaBuilderStmt;
         friend class SemaResolver;
         friend class SemaValidator;

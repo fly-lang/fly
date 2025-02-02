@@ -23,15 +23,17 @@ namespace fly {
     class CodeGenModule;
     class CodeGenClass;
     class CodeGenVar;
-    class ASTClassMethod;
+    class SymClassMethod;
 
     class CodeGenClassFunction : public CodeGenFunctionBase {
 
         friend class CodeGenClass;
 
-        SmallVector<CodeGenVar *, 4> Attributes;
+        SymClassMethod *Sym;
 
-        CodeGenClassFunction(CodeGenModule *CGM, ASTClassMethod *AST, llvm::PointerType *TypePtr);
+        llvm::SmallVector<CodeGenVar *, 4> Attributes;
+
+        CodeGenClassFunction(CodeGenModule *CGM, SymClassMethod *Sym, llvm::PointerType *TypePtr);
 
     public:
 

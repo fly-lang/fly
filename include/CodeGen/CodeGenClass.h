@@ -21,14 +21,14 @@ namespace llvm {
 
 namespace fly {
 
-    class CodeGenModule;
+    class SymClass;
     class ASTClass;
 
     class CodeGenClass {
 
-        CodeGenModule * CGM = nullptr;
+        CodeGenModule * CGM;
 
-        ASTClass *AST = nullptr;
+        SymClass *Sym;
 
         llvm::StructType *Type = nullptr;
 
@@ -45,7 +45,7 @@ namespace fly {
         llvm::SmallVector<CodeGenClassFunction *, 4> Functions;
 
     public:
-        CodeGenClass(CodeGenModule *CGM, ASTClass *Class, bool isExternal = false);
+        CodeGenClass(CodeGenModule *CGM, SymClass *Sym, bool isExternal = false);
 
         void Generate();
 

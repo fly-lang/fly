@@ -10,22 +10,24 @@
 #ifndef FLY_AST_IMPORT_H
 #define FLY_AST_IMPORT_H
 
-#include "ASTIdentifier.h"
+#include "ASTBase.h"
 
 namespace fly {
 
     class ASTComment;
-    class ASTNameSpace;
+    class SymNameSpace;
     class ASTModule;
     class ASTAlias;
 
-    class ASTImport : public ASTIdentifier {
+    class ASTImport : public ASTBase {
 
         friend class Sema;
-        friend class SemaBuilder;
+        friend class ASTBuilder;
         friend class SemaResolver;
 
         ASTModule *Module;
+
+        llvm::StringRef Name;
 
         ASTAlias *Alias = nullptr;
 
@@ -44,22 +46,6 @@ namespace fly {
         std::string str() const override;
     };
 
-    class ASTAlias : public ASTIdentifier {
-
-        friend class SemaBuilder;
-        friend class SemaResolver;
-        friend class SemaValidator;
-
-        ASTImport *Import;
-
-        ASTAlias(const SourceLocation &Loc, llvm::StringRef Name);
-
-    public:
-
-        ASTImport *getImport() const;
-
-        std::string str() const override;
-    };
 }
 
 #endif //FLY_AST_IMPORT_H

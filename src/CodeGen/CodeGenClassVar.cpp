@@ -12,13 +12,11 @@
 #include "CodeGen/CodeGenClass.h"
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
-#include "AST/ASTClassAttribute.h"
 #include "AST/ASTClass.h"
-#include "AST/ASTType.h"
 
 using namespace fly;
 
-CodeGenClassVar::CodeGenClassVar(CodeGenModule *CGM, ASTClassAttribute *Var, llvm::Type *ClassType, uint32_t Index) :
+CodeGenClassVar::CodeGenClassVar(CodeGenModule *CGM, SymClassAttribute *Var, llvm::Type *ClassType, uint32_t Index) :
         CGM(CGM), Var(Var), ClassType(ClassType), Index(llvm::ConstantInt::get(CGM->Int32Ty, Index)),
         Zero(llvm::ConstantInt::get(CGM->Int32Ty, 0)) {
 }
@@ -31,7 +29,7 @@ llvm::StoreInst *CodeGenClassVar::Store(llvm::Value *Val) {
     assert(ClassType && "Class Type not defined");
 
     // Fix Architecture Compatibility of bool i1 to i8
-    if (Var->getType()->getKind() == ASTTypeKind::TYPE_BOOL) {
+    if (Var->getTypeRef()->getKind() == ASTTypeKind::TYPE_BOOL) {
         Val = CGM->Builder->CreateZExt(Val, CGM->Int8Ty);
     }
 

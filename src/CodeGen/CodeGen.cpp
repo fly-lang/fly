@@ -11,7 +11,7 @@
 #include "CodeGen/CodeGenModule.h"
 #include "CodeGen/CharUnits.h"
 #include "CodeGen/CodeGenHeader.h"
-
+#include "Sym/SymNameSpace.h"
 #include "AST/ASTModule.h"
 #include "AST/ASTNameSpace.h"
 #include "Frontend/FrontendOptions.h"
@@ -101,12 +101,12 @@ LLVMContext &CodeGen::getLLVMCtx() {
     return LLVMCtx;
 }
 
-std::vector<llvm::Module *> CodeGen::GenerateModules(ASTContext &AST) {
+std::vector<llvm::Module *> CodeGen::GenerateModules(SymTable &Table) {
     FLY_DEBUG("CodeGen", "GenerateModules");
     std::vector<llvm::Module *> Modules;
-    for (auto &Module : AST.getModules()) {
+    for (auto &NameSpace : Table.getNameSpaces()) {
         Diags.getClient()->BeginSourceFile();
-        CodeGenModule *CGM = GenerateModule(*Module);
+        CodeGenModule *CGM = GenerateModule(*NameSpace.getValue());
         CGM->GenAll();
         Modules.push_back(CGM->Module);
         Diags.getClient()->EndSourceFile();
@@ -114,24 +114,24 @@ std::vector<llvm::Module *> CodeGen::GenerateModules(ASTContext &AST) {
     return Modules;
 }
 
-CodeGenModule *CodeGen::GenerateModule(ASTModule &AST) {
+CodeGenModule *CodeGen::GenerateModule(SymNameSpace &NameSpace) {
     FLY_DEBUG("CodeGen", "GenerateModule");
-    CodeGenModule *CGM = new CodeGenModule(Diags, AST, LLVMCtx, *Target, CodeGenOpts);
-    AST.setCodeGen(CGM);
+    CodeGenModule *CGM = new CodeGenModule(Diags, NameSpace, LLVMCtx, *Target, CodeGenOpts);
+    NameSpace.setCodeGen(CGM);
     return CGM;
 }
 
-void CodeGen::GenerateHeaders(ASTContext &AST) {
-    for (auto &Module : AST.getModules()) {
+void CodeGen::GenerateHeaders(SymTable &SymbolTable) {
+    for (auto &NameSpace : SymbolTable.getNameSpaces()) {
         Diags.getClient()->BeginSourceFile();
-        GenerateHeader(*Module);
+        GenerateHeader(*NameSpace.getValue());
         Diags.getClient()->EndSourceFile();
     }
 }
 
-void CodeGen::GenerateHeader(ASTModule &Module){
+void CodeGen::GenerateHeader(SymNameSpace &NameSpace){
     FLY_DEBUG("CodeGen", "GenerateHeader");
-    return CodeGenHeader::CreateFile(Diags, CodeGenOpts, Module);
+    return CodeGenHeader::CreateFile(Diags, CodeGenOpts, NameSpace);
 }
 
 std::string CodeGen::toIdentifier(llvm::StringRef Name, llvm::StringRef NameSpace, llvm::StringRef ClassName) {

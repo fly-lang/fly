@@ -21,7 +21,7 @@ namespace llvm {
 namespace fly {
 
     class CodeGenModule;
-    class ASTEnumEntry;
+    class SymEnumEntry;
 
     class CodeGenEnumEntry : public CodeGenVarBase {
 
@@ -32,7 +32,7 @@ namespace fly {
         llvm::Value *Instance = nullptr;
 
     public:
-        CodeGenEnumEntry(CodeGenModule *CGM, ASTEnumEntry *EnumEntry);
+        CodeGenEnumEntry(CodeGenModule *CGM, SymEnumEntry *Sym);
 
 //        llvm::AllocaInst *Alloca() override;
 

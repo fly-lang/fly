@@ -12,19 +12,19 @@
 using namespace fly;
 
 ASTNameSpace::ASTNameSpace(const SourceLocation &Loc, llvm::StringRef Name) :
-    ASTIdentifier(Loc, Name, ASTIdentifierKind::REF_NAMESPACE) {
+    ASTBase(Loc, ASTKind::AST_NAMESPACE), Name(Name) {
 }
 
 ASTNameSpace::~ASTNameSpace() {
 
 }
 
-ASTModule * ASTNameSpace::getModule() const {
-	return Module;
+llvm::StringRef ASTNameSpace::getName() const {
+	return Name;
 }
 
 std::string ASTNameSpace::str() const {
-    return Logger("ASTNameSpace").
+    return Logger("ASTNameSpaceRe").
            Attr("Name", Name).
            End();
 }

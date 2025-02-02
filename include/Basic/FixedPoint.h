@@ -23,7 +23,7 @@
 
 namespace fly {
 
-class ASTContext;
+class SymTable;
 class QualType;
 
 /// The fixed point semantics work similarly to llvm::fltSemantics. The width

@@ -15,7 +15,7 @@
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTModule.h"
 #include "AST/ASTImport.h"
-#include "AST/ASTGlobalVar.h"
+#include "AST/ASTVar.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTCall.h"
 #include "AST/ASTValue.h"
@@ -60,7 +60,7 @@ namespace {
         ASTVar *aVar = aStmt->getVarRef()->getDef();
         EXPECT_EQ(aVar->getName(), "a");
         EXPECT_EQ(aVar->getType()->getStmtKind(), ASTTypeKind::TYPE_BOOL);
-        ASTBoolValue* BoolValue = S->getBuilder().CreateBoolValue(SourceLocation(), false);
+        ASTBoolValue* BoolValue = S->getASTBuilder().CreateBoolValue(SourceLocation(), false);
         ASSERT_EQ(((ASTBoolValue *)((ASTValueExpr *) aStmt->getExpr())->getValue())->getValue(), BoolValue->getValue());
 
         // Test: byte b
@@ -68,7 +68,7 @@ namespace {
         ASTVar *bVar = bStmt->getVarRef()->getDef();
         EXPECT_EQ(bVar->getName(), "b");
         EXPECT_EQ(((ASTIntegerType *) bVar->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_BYTE);
-        ASTIntegerValue* ZeroIntValue = S->getBuilder().CreateIntegerValue(SourceLocation(), "0");
+        ASTIntegerValue* ZeroIntValue = S->getASTBuilder().CreateIntegerValue(SourceLocation(), "0");
         ASSERT_EQ(((ASTIntegerValue *)((ASTValueExpr *) bStmt->getExpr())->getValue())->getValue(), ZeroIntValue->getValue());
 
         // Test: short c
@@ -118,7 +118,7 @@ namespace {
         ASTVar *iVar = iStmt->getVarRef()->getDef();
         EXPECT_EQ(iVar->getName(), "i");
         EXPECT_EQ(((ASTFloatingPointType *) iVar->getType())->getFloatingPointKind(), ASTFloatingPointTypeKind::TYPE_FLOAT);
-        ASTFloatingValue* ZeroFloatValue = S->getBuilder().CreateFloatingValue(SourceLocation(), "0.0");
+        ASTFloatingValue* ZeroFloatValue = S->getASTBuilder().CreateFloatingValue(SourceLocation(), "0.0");
         ASSERT_EQ(((ASTFloatingValue *)((ASTValueExpr *) iStmt->getExpr())->getValue())->getValue(), ZeroFloatValue->getValue());
 
         // Test: double j
@@ -150,9 +150,9 @@ namespace {
         ASTFunction *Func = *Module->getFunctions().begin();
         EXPECT_EQ(Func->getVisibility(), ASTVisibilityKind::V_PRIVATE);
 
-        ASTParam *Par0 = Func->getParams()[0];
-        ASTParam *Par1 = Func->getParams()[1];
-        ASTParam *Par2 = Func->getParams()[2];
+        ASTVar *Par0 = Func->getParams()[0];
+        ASTVar *Par1 = Func->getParams()[1];
+        ASTVar *Par2 = Func->getParams()[2];
 
         EXPECT_EQ(Par0->getName(), "a");
         EXPECT_EQ(Par0->getType()->getStmtKind(), ASTTypeKind::TYPE_INTEGER);

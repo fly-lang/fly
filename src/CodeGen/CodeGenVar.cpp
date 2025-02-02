@@ -12,10 +12,6 @@
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenClass.h"
 #include "CodeGen/CodeGenModule.h"
-#include "AST/ASTVar.h"
-#include "AST/ASTFunction.h"
-#include "AST/ASTClass.h"
-#include "AST/ASTType.h"
 
 using namespace fly;
 

@@ -14,11 +14,8 @@
 
 namespace fly {
 
-    enum class ASTIdentifierKind {
+    enum class ASTRefKind {
         REF_UNDEFINED,
-        REF_NAMESPACE,
-        REF_IMPORT,
-        REF_ALIAS,
         REF_TYPE,
         REF_CALL,
         REF_VAR
@@ -26,11 +23,13 @@ namespace fly {
 
     class ASTIdentifier : public ASTBase {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
         friend class SemaResolver;
         friend class SemaValidator;
 
     protected:
+
+        ASTRefKind RefKind;
 
         const llvm::StringRef Name;
 
@@ -40,13 +39,9 @@ namespace fly {
 
         ASTIdentifier *Child = nullptr;
 
-        ASTIdentifierKind Kind = ASTIdentifierKind::REF_UNDEFINED;
-
         bool Resolved = false;
 
-        ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name);
-
-        ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name, ASTIdentifierKind Kind);
+        ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name, ASTRefKind Kind);
 
         ~ASTIdentifier();
 
@@ -66,7 +61,7 @@ namespace fly {
 
         bool isVarRef() const;
 
-        ASTIdentifierKind getIdKind() const;
+        ASTRefKind getRefKind() const;
 
         void AddChild(ASTIdentifier *Identifier);
 

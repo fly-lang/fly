@@ -11,37 +11,38 @@
 #include "CodeGen/CodeGenGlobalVar.h"
 #include "CodeGen/CodeGenModule.h"
 #include "CodeGen/CodeGen.h"
-#include "AST/ASTModule.h"
-#include "AST/ASTNameSpace.h"
+#include "Sym/SymModule.h"
+#include "Sym/SymNameSpace.h"
+#include "AST/ASTVar.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTScopes.h"
-#include "AST/ASTGlobalVar.h"
-#include "AST/ASTAssignmentStmt.h"
+
+#include <Sym/SymGlobalVar.h>
 
 using namespace fly;
 
-CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, ASTGlobalVar* Var, bool isExternal) : CGM(CGM), Var(Var) {
-    std::string Id = CodeGen::toIdentifier(Var->getName(), Var->getNameSpace()->getName());
+CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, SymGlobalVar* Sym, bool isExternal) : CGM(CGM), Sym(Sym) {
+    std::string Id = CodeGen::toIdentifier(Sym->getAST()->getName(), Sym->getModule()->getNameSpace()->getName());
 
     // Check Value
     llvm::Constant *Const = nullptr;
-    bool IsConstant = Var->isConstant();
+    bool IsConstant = Sym->isConstant();
     GlobalValue::LinkageTypes Linkage = GlobalValue::LinkageTypes::ExternalLinkage;
-    llvm::Type *Ty = CGM->GenType(Var->getType());
+    llvm::Type *Ty = CGM->GenType(Sym->getType());
     if (!isExternal) {
-        if (Var->getVisibility() == ASTVisibilityKind::V_PRIVATE) {
+        if (Sym->getVisibility() == ASTVisibilityKind::V_PRIVATE) {
             Linkage = GlobalValue::LinkageTypes::InternalLinkage;
         }
-        if (Var->getExpr() == nullptr) {
-            Const = CGM->GenDefaultValue(Var->getType(), Ty);
+        if (Sym->getExpr() == nullptr) {
+            Const = CGM->GenDefaultValue(Sym->getType(), Ty);
         } else {
-            ASTValue *Value = ((ASTValueExpr *) Var->getExpr())->getValue();
-            if (Var->getType()->isString()) {
+            ASTValue *Value = ((ASTValueExpr *) Sym->getExpr())->getValue();
+            if (Sym->getType()->isString()) {
                 llvm::StringRef Str = ((ASTStringValue *) Value)->getValue();
                 Const = llvm::ConstantDataArray::getString(CGM->LLVMCtx, Str);
                 Ty = Const->getType();
             } else {
-                Const = CGM->GenValue(Var->getType(), Value);
+                Const = CGM->GenValue(Sym->getType(), Value);
             }
         }
     }

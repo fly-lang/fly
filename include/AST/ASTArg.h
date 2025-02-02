@@ -15,20 +15,20 @@
 namespace fly {
 
     class ASTExpr;
-    class ASTParam;
+    class ASTVar;
     class ASTCall;
 
     class ASTArg : public ASTBase {
 
         friend class SemaResolver;
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
 
         ASTExpr *Expr;
 
         uint64_t Index;
 
-        ASTParam *Def = nullptr;
+        ASTVar *Def = nullptr;
 
         ASTCall *Call = nullptr;
 
@@ -40,7 +40,7 @@ namespace fly {
 
         uint64_t getIndex() const;
 
-        ASTParam *getDef() const;
+        ASTVar *getDef() const;
 
         ASTCall *getCall() const;
 
@@ -49,4 +49,4 @@ namespace fly {
     };
 }
 
-#endif //FLY_AST_CALL_H
+#endif //FLY_AST_ARG_H

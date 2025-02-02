@@ -11,43 +11,21 @@
 ///
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_CODEGENMODULE_H
-#define FLY_CODEGENMODULE_H
+#ifndef FLY_CODEGEN_MODULE_H
+#define FLY_CODEGEN_MODULE_H
 
-#include "CharUnits.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/TargetInfo.h"
 #include <llvm/IR/Module.h>
-#include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/IRBuilder.h>
-#include <AST/ASTBlockStmt.h>
-#include <AST/ASTIfStmt.h>
+#include <Sym/SymType.h>
 
 using namespace llvm;
 
 namespace fly {
 
-    class ASTContext;
-    class ASTModule;
-    class ASTImport;
-    class ASTGlobalVar;
-    class ASTFunction;
-    class ASTCall;
-    class ASTType;
-    class ASTArrayType;
-    class ASTValue;
-    class ASTStmt;
-    class ASTExpr;
-    class ASTOpExpr;
-    class ASTIfStmt;
-    class ASTSwitchStmt;
-    class ASTLoopStmt;
-    class ASTClass;
-    class ASTVar;
-    class ASTEnum;
-    class ASTIdentifier;
-    class ASTVarRef;
-    class ASTFailStmt;
+    class SymNameSpace;
+    class SymTable;
     class CodeGen;
     class CodeGenGlobalVar;
     class CodeGenFunction;
@@ -56,6 +34,26 @@ namespace fly {
     class CodeGenVar;
     class CodeGenEnum;
     class CodeGenError;
+class ASTCall;
+class ASTFailStmt;
+class ASTLoopStmt;
+class ASTSwitchStmt;
+class ASTValue;
+class ASTVar;
+class ASTRuleStmt;
+class ASTVarRef;
+class ASTFunction;
+class ASTExpr;
+class ASTStmt;
+class ASTBlockStmt;
+class ASTIfStmt;
+class SymGlobalVar;
+class SymFunction;
+class SymClass;
+class SymClassAttribute;
+class SymClassMethod;
+class SymEnum;
+class SymFunctionBase;
 
     class CodeGenModule {
 
@@ -78,7 +76,7 @@ namespace fly {
         // CodeGen Options
         CodeGenOptions &CGOpts;
 
-        ASTModule &AST;
+        SymNameSpace &NameSpace;
 
         // Target Info
         TargetInfo &Target;
@@ -158,12 +156,12 @@ namespace fly {
 
         llvm::PointerType *ErrorPtrTy;
 
-        CodeGenModule(DiagnosticsEngine &Diags, ASTModule &AST, LLVMContext &LLVMCtx, TargetInfo &Target,
+        CodeGenModule(DiagnosticsEngine &Diags, SymNameSpace &NameSpace, LLVMContext &LLVMCtx, TargetInfo &Target,
                       CodeGenOptions &CGOpts);
 
         virtual ~CodeGenModule();
 
-        ASTModule &getAst() const;
+        SymNameSpace &getNameSpace() const;
 
         DiagnosticBuilder Diag(const SourceLocation &Loc, unsigned DiagID);
 
@@ -173,31 +171,31 @@ namespace fly {
 
         void GenHeaders();
 
-        CodeGenGlobalVar *GenGlobalVar(ASTGlobalVar *GlobalVar, bool isExternal = false);
+        CodeGenGlobalVar *GenGlobalVar(SymGlobalVar *GlobalVar, bool isExternal = false);
 
-        CodeGenFunction *GenFunction(ASTFunction *Function, bool isExternal = false);
+        CodeGenFunction *GenFunction(SymFunction *Function, bool isExternal = false);
 
-        CodeGenClass *GenClass(ASTClass *Class, bool isExternal = false);
+        CodeGenClass *GenClass(SymClass *Class, bool isExternal = false);
 
-        void GenEnum(ASTEnum *Enum);
+        void GenEnum(SymEnum *Enum);
 
-        llvm::Type *GenType(const ASTType *Type);
+        llvm::Type *GenType(const SymType *Type);
 
-        llvm::ArrayType *GenArrayType(const ASTArrayType *Type);
+        llvm::ArrayType *GenArrayType(const SymTypeArray *Type);
 
-        llvm::Constant *GenDefaultValue(const ASTType *Type, llvm::Type *Ty = nullptr);
+        llvm::Constant *GenDefaultValue(const SymType *Type, llvm::Type *Ty = nullptr);
 
-        llvm::Constant *GenValue(const ASTType *Type, const ASTValue *Val);
+        llvm::Constant *GenValue(const SymType *Type, const ASTValue *Val);
 
 //        llvm::Value *Convert(llvm::Value *V, llvm::Type *T);
 
         llvm::Value *ConvertToBool(llvm::Value *Val);
 
-        llvm::Value *Convert(llvm::Value *FromVal, const ASTType *FromType, const ASTType *ToType);
+        llvm::Value *Convert(llvm::Value *FromVal, const SymType *FromType, const SymType *ToType);
 
         CodeGenError *GenErrorHandler(ASTVar* Var);
 
-        CodeGenVar *GenLocalVar(ASTLocalVar* Var);
+        CodeGenVar *GenLocalVar(ASTVar* Var);
 
         llvm::Value *GenVarRef(ASTVarRef *VarRef);
 
@@ -221,8 +219,8 @@ namespace fly {
 
         void GenLoopBlock(CodeGenFunctionBase *CGF, ASTLoopStmt *Loop);
 
-        void GenReturn(ASTFunctionBase *CGF, ASTExpr *Expr = nullptr);
+        void GenReturn(ASTFunction *CGF, ASTExpr *Expr = nullptr);
     };
 }
 
-#endif //FLY_CODEGENMODULE_H
+#endif //FLY_CODEGEN_MODULE_H

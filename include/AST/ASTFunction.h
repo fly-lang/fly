@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTFunction.h - AST Function header
+// include/AST/ASTFunction.h - AST Function Base header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,60 +7,69 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_AST_FUNCTION_H
-#define FLY_AST_FUNCTION_H
+#ifndef FLY_AST_FUNCTIONBASE_H
+#define FLY_AST_FUNCTIONBASE_H
 
-#include "ASTFunctionBase.h"
-#include "CodeGen/CodeGenFunction.h"
+#include "ASTStmt.h"
+#include "ASTBase.h"
 
 namespace fly {
 
-    class ASTModule;
-    class ASTNameSpace;
-    enum class ASTVisibilityKind;
+    class ASTScope;
+    class ASTLocalVar;
+    class ASTVar;
+    class ASTComment;
+class ASTTypeRef;
+    class CodeGenFunctionBase;
 
-    /**
-     * The Function Declaration and definition
-     * Ex.
-     *   int func() {
-     *     return 1
-     *   }
-     */
-    class ASTFunction : public ASTFunctionBase {
+    class ASTFunction : public ASTBase {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
         friend class SemaResolver;
-        friend class SemaValidator;
+        friend class ParserFunction;
+        friend class ParserClass;
 
-        ASTVisibilityKind Visibility;
-
-        ASTModule *Module;
-
-        // Function Name
         llvm::StringRef Name;
 
-        // Populated during codegen phase
-        CodeGenFunction *CodeGen = nullptr;
+        // Function return type
+        ASTTypeRef *ReturnType = nullptr;
 
-        ASTFunction(ASTModule *Module, const SourceLocation &Loc, ASTType *ReturnType, llvm::StringRef Name,
-                    llvm::SmallVector<ASTScope *, 8> &Scopes, llvm::SmallVector<ASTParam *, 8> &Params);
+        llvm::SmallVector<ASTScope *, 8> Scopes;
+
+        llvm::SmallVector<ASTVar *, 8> Params;
+
+        llvm::SmallVector<ASTLocalVar *, 8> LocalVars;
+
+        // Body is the main BlockStmt
+        ASTBlockStmt *Body = nullptr;
+
+        ASTVar *ErrorHandler = nullptr;
+
+    protected:
+
+        ASTFunction(const SourceLocation &Loc, llvm::StringRef Name, ASTTypeRef *ReturnType,
+                        llvm::SmallVector<ASTScope *, 8> &Scopes, llvm::SmallVector<ASTVar *, 8> &Params);
 
     public:
 
         llvm::StringRef getName() const;
 
-        ASTVisibilityKind getVisibility() const;
+        ASTTypeRef *getReturnType() const;
 
-        ASTModule *getModule() const;
+        llvm::SmallVector<ASTScope *, 8> getScopes() const;
 
-        ASTNameSpace *getNameSpace() const;
+        llvm::SmallVector<ASTVar *, 8> getParams() const;
 
-        CodeGenFunction *getCodeGen() const override;
+        llvm::SmallVector<ASTLocalVar *, 8> getLocalVars() const;
 
-        void setCodeGen(CodeGenFunction *CGF);
+        ASTBlockStmt *getBody() const;
+
+        ASTVar *getErrorHandler();
+
+        bool isVarArg();
 
         std::string str() const override;
     };
 }
 
-#endif //FLY_AST_FUNCTION_H
+#endif //FLY_AST_FUNCTIONBASE_H

@@ -8,12 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "CodeGen/CodeGenError.h"
-#include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
-#include "CodeGen/CodeGenFunction.h"
-#include "AST/ASTIdentityType.h"
-#include "AST/ASTExpr.h"
-#include "AST/ASTVar.h"
 
 using namespace fly;
 

@@ -16,18 +16,17 @@
 namespace fly {
 
     class DiagnosticsEngine;
-    class SemaBuilder;
+    class ASTBuilder;
     class SemaBuilderSwitchStmt;
     class ASTBase;
     class ASTModule;
-    class ASTNameSpace;
+    class SymNameSpace;
     class ASTValue;
     class ASTIdentifier;
     class ASTFunction;
     class ASTArrayValue;
     class ASTArrayType;
     class ASTClassType;
-    class ASTType;
     class ASTBlockStmt;
     class ASTCall;
     class ASTStmt;
@@ -41,9 +40,12 @@ namespace fly {
     class ASTVarRef;
     class ASTScope;
     class ASTClass;
-    class ASTGlobalVar;
     class ASTEnum;
     class ASTComment;
+    class ASTNameSpace;
+    class ASTImport;
+    class ASTVar;
+class ASTTypeRef;
 
     /// ParseModule the main file known to the preprocessor, producing an
     /// abstract syntax tree.
@@ -61,7 +63,7 @@ namespace fly {
 
         SourceManager &SourceMgr;
 
-        SemaBuilder &Builder;
+        ASTBuilder &Builder;
 
         Lexer Lex;
 
@@ -81,7 +83,7 @@ namespace fly {
 
     public:
 
-        Parser(const InputFile &Input, SourceManager &SourceMgr, DiagnosticsEngine &Diags, SemaBuilder &Builder);
+        Parser(const InputFile &Input, SourceManager &SourceMgr, DiagnosticsEngine &Diags, ASTBuilder &Builder);
 
         ASTModule *ParseModule();
 
@@ -91,21 +93,21 @@ namespace fly {
 
     private:
 
-        ASTBase *ParseNameSpace();
+        ASTNameSpace *ParseNameSpace();
 
-        ASTBase * ParseImport();
+        ASTImport * ParseImport();
 
         ASTBase *ParseDefinition();
 
         SmallVector<ASTScope *, 8> ParseScopes();
 
-        ASTGlobalVar *ParseGlobalVarDef(SmallVector<ASTScope *, 8> &Scopes, ASTType *Type);
+        ASTVar *ParseGlobalVar(SmallVector<ASTScope *, 8> &Scopes, ASTType *Type);
 
-        ASTFunction *ParseFunctionDef(SmallVector<ASTScope *, 8> &Scopes, ASTType *Type);
+        ASTFunction *ParseFunction(SmallVector<ASTScope *, 8> &Scopes, ASTType *Type);
 
-        ASTClass *ParseClassDef(SmallVector<ASTScope *, 8> &Scopes);
+        ASTClass *ParseClass(SmallVector<ASTScope *, 8> &Scopes);
 
-        ASTEnum *ParseEnumDef(SmallVector<ASTScope *, 8> &Scopes);
+        ASTEnum *ParseEnum(SmallVector<ASTScope *, 8> &Scopes);
 
         ASTComment *ParseComment();
 
@@ -123,11 +125,10 @@ namespace fly {
         void ParseFailStmt(ASTBlockStmt *Parent);
 
         // Parse Identifiers
-        ASTType *ParseBuiltinType();
-        ASTArrayType *ParseArrayType(ASTType *);
-        ASTType *ParseType();
+        ASTArrayType *ParseArrayType(ASTTypeRef *);
+        ASTTypeRef *ParseTypeRef();
         ASTCall *ParseCallIdentifier(ASTIdentifier *&Identifier);
-        ASTIdentifier *ParseIdentifier(ASTIdentifier *Parent = nullptr);
+        ASTIdentifier *ParseIdentifier(ASTIdentifier *Parent = nullptr, bool istype = false);
 
         // Parse a Value
         ASTValue *ParseValue();

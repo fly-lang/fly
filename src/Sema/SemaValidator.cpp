@@ -9,22 +9,75 @@
 
 #include "Sema/Sema.h"
 #include "Sema/SemaValidator.h"
-#include "AST/ASTContext.h"
+#include "Sym/SymTable.h"
+#include "Sym/SymNameSpace.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTModule.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTEnum.h"
 #include "AST/ASTImport.h"
-#include "AST/ASTGlobalVar.h"
-#include "AST/ASTParam.h"
+#include "AST/ASTVar.h"
+#include "AST/ASTVar.h"
 #include "AST/ASTBlockStmt.h"
 #include "AST/ASTValue.h"
+#include "AST/ASTTypeRef.h"
 #include "Basic/Diagnostic.h"
+
+#include <Sym/SymGlobalVar.h>
+#include <Sym/SymModule.h>
 
 using namespace fly;
 
 SemaValidator::SemaValidator(Sema &S) : S(S) {
 
+}
+
+bool SemaValidator::CheckDuplicateModules(ASTModule *Module) {
+	// Check Duplicate Module Names
+	for (auto ModuleEntry : S.getSymTable().getModules()) {
+		ASTModule * AST = ModuleEntry.getValue()->getAST();
+		if (AST->getId() != Module->getId() && AST->getName() == Module->getName()) {
+			S.Diag(diag::err_sema_module_duplicated) << AST->getName();
+			return false;
+		}
+	}
+	return true;
+}
+
+bool SemaValidator::CheckDuplicateVars(const llvm::StringMap<SymGlobalVar *> &Vars, ASTVar *Var) {
+	SymGlobalVar *DuplicateVar = Vars.lookup(Var->getName());
+	if (DuplicateVar) { // This NameSpace already contains this GlobalVar
+		S.Diag(DuplicateVar->getAST()->getLocation(), diag::err_duplicate_gvar) << DuplicateVar->getAST()->getName();
+		return false;
+	}
+	return true;
+}
+
+bool SemaValidator::CheckDuplicateFunctions(
+	const llvm::SmallVector<SymFunction *, 8> &Functions, ASTFunction *function) {
+
+	// Create the Functions Structure for check duplicates
+
+
+	return true;
+}
+
+// bool SemaValidator::CheckDuplicateIdentities(const llvm::StringMap<SymIdentity *> &Identities, ASTIdentity * Identity) {
+// 	SymIdentity *DuplicateIdentity = Identities.lookup(Identity->getName());
+// 	if (DuplicateIdentity) { // This NameSpace already contains this Identity
+// 		S.Diag(Identity->getLocation(), diag::err_duplicate_identity) << Identity->getName();
+// 		return false;
+// 	}
+//
+// 	return true;
+// }
+
+bool SemaValidator::CheckClass(ASTClass *Class) {
+	return true;
+}
+
+bool SemaValidator::CheckEnum(ASTEnum *Enum) {
+	return true;
 }
 
 /**
@@ -33,8 +86,8 @@ SemaValidator::SemaValidator(Sema &S) : S(S) {
  * @param Param
  * @return
  */
-bool SemaValidator::CheckDuplicateParams(llvm::SmallVector<ASTParam *, 8> Params, ASTParam *Param) {
-    for (ASTParam *P : Params) {
+bool SemaValidator::CheckDuplicateParams(llvm::SmallVector<ASTVar *, 8> Params, ASTVar *Param) {
+    for (ASTVar *P : Params) {
         if (P->getName() == Param->getName()) {
             if (DiagEnabled)
                 S.Diag(Param->getLocation(), diag::err_conflict_params) << Param->getName();
@@ -72,11 +125,11 @@ bool SemaValidator::CheckDuplicateLocalVars(ASTStmt *Stmt, llvm::StringRef VarNa
     return true;
 }
 
-void SemaValidator::CheckCommentParams(const llvm::SmallVector<ASTParam *, 8> &Params) {
+bool SemaValidator::CheckCommentParams(const llvm::SmallVector<ASTVar *, 8> &Params) {
 	// TODO
 }
 
-void SemaValidator::CheckCommentReturn(ASTType *ReturnType) {
+bool SemaValidator::CheckCommentReturn(ASTTypeRef *ReturnType) {
 	// TODO
 }
 
@@ -86,7 +139,9 @@ void SemaValidator::CheckCommentReturn(ASTType *ReturnType) {
  * @param Import
  * @return
  */
-bool SemaValidator::CheckImport(ASTModule *Module, ASTImport *Import) {
+bool SemaValidator::CheckImport(ASTImport *Import) {
+	ASTModule *Module = Import->getModule();
+
     // Error: Empty Import
     if (Import->getName().empty()) {
         if (DiagEnabled)
@@ -95,24 +150,32 @@ bool SemaValidator::CheckImport(ASTModule *Module, ASTImport *Import) {
     }
 
     // Error: name is equals to the current ASTModule namespace
-    if (Import->getName() == Module->getNameSpace()->getName()) {
+    if (Import->getName() == Module->getNameSpace()->getDef()->getName()) {
         if (DiagEnabled)
             S.Diag(Import->getLocation(), diag::err_import_conflict_namespace) << Import->getName();
         return false;
     }
 
     // Error: alias is equals to the current ASTModule namespace
-    if (Import->getAlias() && Import->getAlias()->getName() == Module->getNameSpace()->getName()) {
+    if (Import->getAlias() && Import->getAlias()->getName() == Module->getNameSpace()->getDef()->getName()) {
         if (DiagEnabled)
             S.Diag(Import->getAlias()->getLocation(), diag::err_alias_conflict_namespace) << Import->getAlias()->getName();
         return false;
     }
 
+	// Search Namespace in Symbol Table
+	SymNameSpace *ImportNameSpace = S.getSymTable().getNameSpaces().lookup(Import->getName());
+	if (!ImportNameSpace) {
+		// Error: NameSpace not found
+		S.Diag(Import->getLocation(), diag::err_namespace_notfound) << Import->getName();
+		return false;
+	}
+
     return true;
 }
 
 bool SemaValidator::CheckExpr(ASTExpr *Expr) {
-    if (!Expr->getType()) {
+    if (!Expr->getTypeRef()) {
         if (DiagEnabled)
             S.Diag(Expr->getLocation(), diag::err_expr_type_miss);
         return false;
@@ -125,11 +188,11 @@ bool SemaValidator::CheckEqualTypes(ASTType *Type1, ASTType *Type2) {
         if (Type1->isArray()) {
             return CheckEqualTypes(((ASTArrayType *) Type1)->getType(), ((ASTArrayType *) Type2)->getType());
         } else if (Type1->isIdentity()) {
-            if (((ASTIdentityType *) Type1)->isClass()) {
+            if (((ASTRefType *) Type1)->isClass()) {
                 return CheckClassInheritance((ASTClassType *) Type1, (ASTClassType *) Type2) ||
                         CheckClassInheritance((ASTClassType *) Type2, (ASTClassType *) Type1);
             } else {
-                return ((ASTIdentityType *) Type1)->getFullName() == ((ASTIdentityType *) Type2)->getFullName();
+                return ((ASTRefType *) Type1)->getFullName() == ((ASTRefType *) Type2)->getFullName();
             }
         }
         return true;
@@ -138,7 +201,7 @@ bool SemaValidator::CheckEqualTypes(ASTType *Type1, ASTType *Type2) {
     return false;
 }
 
-bool SemaValidator::CheckEqualTypes(ASTType *Type, ASTTypeKind Kind) {
+bool SemaValidator::CheckEqualTypes(ASTType *Type, ASTValueKind Kind) {
     if (Type->getStmtKind() != Kind) {
         if (DiagEnabled)
             S.Diag(Type->getLocation(), diag::err_sema_macro_type) << Type->printType();
@@ -176,8 +239,8 @@ bool SemaValidator::CheckConvertibleTypes(ASTType *FromType, ASTType *ToType) {
     }
 
     else if (FromType->isIdentity() && ToType->isIdentity()) {
-        ASTIdentityType *FromIdentityType = (ASTIdentityType *) FromType;
-        ASTIdentityType *ToIdentityType = (ASTIdentityType *) ToType;
+        ASTRefType *FromIdentityType = (ASTRefType *) FromType;
+        ASTRefType *ToIdentityType = (ASTRefType *) ToType;
 
         // Check Enum name is equals
         if (FromIdentityType->isEnum() && ToIdentityType->isEnum()) {
@@ -224,7 +287,7 @@ bool SemaValidator::CheckArithTypes(const SourceLocation &Loc, ASTType *Type1, A
 }
 
 bool SemaValidator::CheckLogicalTypes(const SourceLocation &Loc, ASTType *Type1, ASTType *Type2) {
-    if (Type1->getStmtKind() == ASTTypeKind::TYPE_BOOL && Type2->getStmtKind() == ASTTypeKind::TYPE_BOOL) {
+    if (Type1->getStmtKind() == ASTValueKind::TYPE_BOOL && Type2->getStmtKind() == ASTValueKind::TYPE_BOOL) {
         return true;
     }
 
@@ -236,21 +299,21 @@ bool SemaValidator::CheckLogicalTypes(const SourceLocation &Loc, ASTType *Type1,
     return false;
 }
 
-bool SemaValidator::CheckClassInheritance(ASTClassType *FromType, ASTClassType *ToType) {
-    const StringRef &FromName = FromType->getDef()->getName();
-    const StringRef &ToName = ToType->getDef()->getName();
-    if (FromName == ToName) {
-        return true;
-    } else {
-        const SmallVector<ASTClassType *, 4> &SuperClasses = ((ASTClass *) FromType->getDef())->getSuperClasses();
-        for (ASTClassType *SuperClass : SuperClasses) {
-            if (CheckClassInheritance(SuperClass, ToType)) {
-                return true;
-            }
-        }
-    }
-    return false;
-}
+// bool SemaValidator::CheckClassInheritance(ASTClassType *FromType, ASTClassType *ToType) {
+//     const StringRef &FromName = FromType->getDef()->getName();
+//     const StringRef &ToName = ToType->getDef()->getName();
+//     if (FromName == ToName) {
+//         return true;
+//     } else {
+//         const SmallVector<ASTClassType *, 4> &SuperClasses = ((ASTClass *) FromType->getDef())->getSuperClasses();
+//         for (ASTClassType *SuperClass : SuperClasses) {
+//             if (CheckClassInheritance(SuperClass, ToType)) {
+//                 return true;
+//             }
+//         }
+//     }
+//     return false;
+// }
 
 void SemaValidator::CheckCreateModule(const std::string &Name) {
     if (Name.empty()) {
@@ -279,12 +342,12 @@ void SemaValidator::CheckCreateAlias(const SourceLocation &Loc, StringRef Name) 
 }
 
 void
-SemaValidator::CheckCreateGlobalVar(const SourceLocation &Loc, ASTType *Type, const StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes) {
+SemaValidator::CheckCreateGlobalVar(const SourceLocation &Loc, ASTTypeRef *TypeRef, const StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes) {
 
 }
 
 void
-SemaValidator::CheckCreateFunction(const SourceLocation &Loc, ASTType *Type, const StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes) {
+SemaValidator::CheckCreateFunction(const SourceLocation &Loc, ASTTypeRef *TypeRef, const StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes) {
 
 }
 
@@ -293,7 +356,7 @@ void SemaValidator::CheckCreateClass(const SourceLocation &Loc, StringRef Name, 
 
 }
 
-void SemaValidator::CheckCreateClassVar(const SourceLocation &Loc, StringRef Name, ASTType *Type, llvm::SmallVector<ASTScope *, 8> &Scopes) {
+void SemaValidator::CheckCreateClassAttribute(const SourceLocation &Loc, StringRef Name, ASTTypeRef *TypeRef, llvm::SmallVector<ASTScope *, 8> &Scopes) {
 
 }
 
@@ -302,7 +365,7 @@ void SemaValidator::CheckCreateClassConstructor(const SourceLocation &Loc, llvm:
 }
 
 void
-SemaValidator::CheckCreateClassMethod(const SourceLocation &Loc, ASTType *Type, StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes) {
+SemaValidator::CheckCreateClassMethod(const SourceLocation &Loc, ASTTypeRef *TypeRef, StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes) {
 
 }
 
@@ -315,11 +378,11 @@ void SemaValidator::CheckCreateEnumEntry(const SourceLocation &Loc, StringRef Na
 
 }
 
-void SemaValidator::CheckCreateParam(const SourceLocation &Loc, ASTType *Type, StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes) {
+void SemaValidator::CheckCreateParam(const SourceLocation &Loc, ASTTypeRef *TypeRef, StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes) {
 
 }
 
-void SemaValidator::CheckCreateLocalVar(const SourceLocation &Loc, ASTType *Type, StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes) {
+void SemaValidator::CheckCreateLocalVar(const SourceLocation &Loc, ASTTypeRef *TypeRef, StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes) {
 
 }
 
@@ -337,32 +400,7 @@ bool SemaValidator::CheckVarRefExpr(ASTExpr *Expr) {
     return false;
 }
 
-bool SemaValidator::CheckValue(ASTValue *Value) {
-    // TODO
-    switch (Value->getTypeKind()) {
-
-        case ASTTypeKind::TYPE_VOID:
-            break;
-        case ASTTypeKind::TYPE_BOOL:
-            break;
-        case ASTTypeKind::TYPE_INTEGER: {
-            break;
-        }
-        case ASTTypeKind::TYPE_FLOATING_POINT:
-            break;
-        case ASTTypeKind::TYPE_STRING:
-            break;
-        case ASTTypeKind::TYPE_ARRAY:
-            break;
-        case ASTTypeKind::TYPE_IDENTITY:
-            break;
-        case ASTTypeKind::TYPE_ERROR:
-            break;
-    }
-    return true;
-}
-
-void SemaValidator::CheckScopes(const SmallVector<ASTScope *, 8> &vector) {
-
+bool SemaValidator::CheckScopes(const SmallVector<ASTScope *, 8> &vector) {
+	return true;
 }
 

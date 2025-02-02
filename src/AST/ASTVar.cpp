@@ -12,18 +12,14 @@
 
 using namespace fly;
 
-ASTVar::ASTVar(ASTVarKind VarKind, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
+ASTVar::ASTVar(const SourceLocation &Loc, ASTTypeRef *TypeRef, llvm::StringRef Name,
                SmallVector<ASTScope *, 8> &Scopes) :
-        ASTBase(Loc, ASTKind::AST_VAR), VarKind(VarKind), Type(Type), Name(Name), Scopes(Scopes) {
+        ASTBase(Loc, ASTKind::AST_VAR), TypeRef(TypeRef), Name(Name), Scopes(Scopes) {
 
 }
 
-ASTVarKind ASTVar::getVarKind() {
-    return VarKind;
-}
-
-ASTType *ASTVar::getType() const {
-    return Type;
+ASTTypeRef *ASTVar::getTypeRef() const {
+    return TypeRef;
 }
 
 llvm::StringRef ASTVar::getName() const {
@@ -55,12 +51,16 @@ const SmallVector<ASTScope *, 8> &ASTVar::getScopes() const {
     return Scopes;
 }
 
+ASTExpr * ASTVar::getExpr() const {
+	return Expr;
+}
+
 std::string ASTVar::str() const {
     return Logger("ASTVar").
             Super(ASTBase::str()).
-            Attr("Type", Type).
+            Attr("TypeRef", TypeRef).
             Attr("Name", Name).
-            Attr("VarKind", (uint64_t) VarKind).
+            Attr("Expr", Expr).
             AttrList("Scopes", Scopes).
             End();
 }

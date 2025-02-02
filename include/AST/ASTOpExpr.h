@@ -92,7 +92,7 @@ namespace fly {
      */
     class ASTOpExpr : public ASTExpr {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
         friend class SemaResolver;
         friend class SemaValidator;
 
@@ -112,7 +112,7 @@ namespace fly {
      */
     class ASTUnaryOpExpr : public ASTOpExpr {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
         friend class SemaResolver;
         friend class SemaValidator;
 
@@ -140,7 +140,7 @@ namespace fly {
      */
     class ASTBinaryOpExpr : public ASTOpExpr {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
         friend class SemaResolver;
         friend class SemaValidator;
 
@@ -179,7 +179,7 @@ namespace fly {
      */
     class ASTTernaryOpExpr : public ASTOpExpr {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
         friend class SemaResolver;
         friend class SemaValidator;
 

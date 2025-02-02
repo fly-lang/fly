@@ -14,7 +14,7 @@
 
 namespace fly {
 
-    class SemaBuilder;
+    class ASTBuilder;
     class ASTStmt;
     class ASTBlockStmt;
     class SourceLocation;
@@ -25,23 +25,23 @@ namespace fly {
 
     class SemaBuilderStmt {
 
-        SemaBuilder *Builder;
+        ASTBuilder *Builder;
 
-        SemaBuilderStmt(SemaBuilder *Builder);
+        SemaBuilderStmt(ASTBuilder *Builder);
 
         ASTStmt *Stmt;
 
     public:
 
-        static SemaBuilderStmt *CreateAssignment(SemaBuilder *Builder, ASTBlockStmt *Parent, ASTVarRef *VarRef, ASTAssignOperatorKind AssignOperatorKind);
+        static SemaBuilderStmt *CreateAssignment(ASTBuilder *Builder, ASTBlockStmt *Parent, ASTVarRef *VarRef, ASTAssignOperatorKind AssignOperatorKind);
 
-        static SemaBuilderStmt *CreateVar(SemaBuilder *Builder, ASTBlockStmt *Parent, ASTVar *Var);
+        static SemaBuilderStmt *CreateVar(ASTBuilder *Builder, ASTBlockStmt *Parent, ASTVar *Var);
 
-        static SemaBuilderStmt *CreateReturn(SemaBuilder *Builder, ASTBlockStmt *Parent, const SourceLocation &Loc);
+        static SemaBuilderStmt *CreateReturn(ASTBuilder *Builder, ASTBlockStmt *Parent, const SourceLocation &Loc);
 
-        static SemaBuilderStmt *CreateFail(SemaBuilder *Builder, ASTBlockStmt *Parent, const SourceLocation &Loc);
+        static SemaBuilderStmt *CreateFail(ASTBuilder *Builder, ASTBlockStmt *Parent, const SourceLocation &Loc);
 
-        static SemaBuilderStmt *CreateExpr(SemaBuilder *Builder, ASTBlockStmt *Parent, const SourceLocation &Loc);
+        static SemaBuilderStmt *CreateExpr(ASTBuilder *Builder, ASTBlockStmt *Parent, const SourceLocation &Loc);
 
         void setExpr(ASTExpr *Expr);
     };

@@ -8,31 +8,26 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTValue.h"
-#include "AST/ASTType.h"
 
 using namespace fly;
 
-ASTValue::ASTValue(const ASTTypeKind TypeKind, const SourceLocation &Location) :
-        ASTBase(Location, ASTKind::AST_VALUE), TypeKind(TypeKind) {
+ASTValue::ASTValue(const ASTValueKind ValueKind, const SourceLocation &Location) :
+        ASTBase(Location, ASTKind::AST_VALUE), ValueKind(ValueKind) {
 
 }
 
-const ASTTypeKind &ASTValue::getTypeKind() const {
-    return TypeKind;
-}
-
-std::string ASTValue::printType() const {
-    return ASTType::printType(TypeKind);
+const ASTValueKind &ASTValue::getTypeKind() const {
+    return ValueKind;
 }
 
 std::string ASTValue::str() const {
     return Logger("ASTValue").
             Super(ASTBase::str()).
-            Attr("Kind", (uint64_t) TypeKind).
+            Attr("Kind", (uint64_t) ValueKind).
             End();
 }
 
-ASTBoolValue::ASTBoolValue(const SourceLocation &Loc, bool Value) : ASTValue(ASTTypeKind::TYPE_BOOL, Loc), Value(Value) {
+ASTBoolValue::ASTBoolValue(const SourceLocation &Loc, bool Value) : ASTValue(ASTValueKind::VAL_BOOL, Loc), Value(Value) {
 
 }
 
@@ -52,7 +47,7 @@ std::string ASTBoolValue::str() const {
 }
 
 ASTIntegerValue::ASTIntegerValue(const SourceLocation &Loc, llvm::StringRef Value, uint8_t Radix) :
-        ASTValue(ASTTypeKind::TYPE_INTEGER, Loc), Value(Value), Radix(Radix) {
+        ASTValue(ASTValueKind::VAL_INT, Loc), Value(Value), Radix(Radix) {
 
 }
 
@@ -73,7 +68,7 @@ std::string ASTIntegerValue::str() const {
 }
 
 ASTFloatingValue::ASTFloatingValue(const SourceLocation &Loc, llvm::StringRef Value)
-    : ASTValue(ASTTypeKind::TYPE_FLOATING_POINT, Loc), Value(Value) {
+    : ASTValue(ASTValueKind::VAL_FLOAT, Loc), Value(Value) {
 
 }
 
@@ -93,7 +88,7 @@ std::string ASTFloatingValue::str() const {
 }
 
 ASTCharValue::ASTCharValue(const SourceLocation &Loc, llvm::StringRef Value)
-        : ASTValue(ASTTypeKind::TYPE_STRING, Loc), Value(Value) {
+        : ASTValue(ASTValueKind::VAL_STRING, Loc), Value(Value) {
 
 }
 
@@ -109,7 +104,7 @@ std::string ASTCharValue::str() const {
 }
 
 ASTStringValue::ASTStringValue(const SourceLocation &Loc, llvm::StringRef Value)
-        : ASTValue(ASTTypeKind::TYPE_STRING, Loc), Value(Value) {
+        : ASTValue(ASTValueKind::VAL_STRING, Loc), Value(Value) {
 
 }
 
@@ -128,7 +123,7 @@ std::string ASTStringValue::str() const {
             End();
 }
 
-ASTArrayValue::ASTArrayValue(const SourceLocation &Loc) : ASTValue(ASTTypeKind::TYPE_ARRAY, Loc) {
+ASTArrayValue::ASTArrayValue(const SourceLocation &Loc) : ASTValue(ASTValueKind::VAL_ARRAY, Loc) {
 
 }
 
@@ -160,7 +155,7 @@ const llvm::SmallVector<ASTValue *, 8> &ASTArrayValue::getValues() const {
     return Values;
 }
 
-ASTStructValue::ASTStructValue(const SourceLocation &Loc) : ASTValue(ASTTypeKind::TYPE_IDENTITY, Loc) {
+ASTStructValue::ASTStructValue(const SourceLocation &Loc) : ASTValue(ASTValueKind::VAL_STRUCT, Loc) {
 
 }
 
@@ -192,7 +187,7 @@ const llvm::StringMap<ASTValue *> &ASTStructValue::getValues() const {
     return Values;
 }
 
-ASTNullValue::ASTNullValue(const SourceLocation &Loc) : ASTValue(ASTTypeKind::TYPE_IDENTITY, Loc) {
+ASTNullValue::ASTNullValue(const SourceLocation &Loc) : ASTValue(ASTValueKind::VAL_NULL, Loc) {
 
 }
 
@@ -206,7 +201,7 @@ std::string ASTNullValue::str() const {
             End();
 }
 
-ASTZeroValue::ASTZeroValue(const SourceLocation &Loc) : ASTValue(ASTTypeKind::TYPE_IDENTITY, Loc) {
+ASTZeroValue::ASTZeroValue(const SourceLocation &Loc) : ASTValue(ASTValueKind::VAL_ZERO, Loc) {
 
 }
 

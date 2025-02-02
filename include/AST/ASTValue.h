@@ -16,28 +16,36 @@
 
 namespace fly {
 
-    class ASTType;
     class SourceLocation;
 
-    enum class ASTTypeKind;
+    enum class ASTValueKind {
+        VAL_BOOL,
+        VAL_INT,
+        VAL_FLOAT,
+        VAL_STRING,
+        VAL_CHAR,
+        VAL_ARRAY,
+        VAL_STRUCT,
+        VAL_NULL,
+        VAL_ZERO
+    };
+
 
     class ASTValue : public ASTBase {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
         friend class SemaResolver;
         friend class SemaValidator;
 
-        const ASTTypeKind TypeKind;
+        const ASTValueKind ValueKind;
 
     protected:
 
-        ASTValue(ASTTypeKind TypeKind, const SourceLocation &Location);
+        ASTValue(ASTValueKind ValueKind, const SourceLocation &Location);
 
     public:
 
-        const ASTTypeKind &getTypeKind() const;
-
-        std::string printType() const;
+        const ASTValueKind &getTypeKind() const;
 
         std::string str() const override;
     };
@@ -47,7 +55,7 @@ namespace fly {
      */
     class ASTBoolValue : public ASTValue {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
         friend class SemaResolver;
         friend class SemaValidator;
 
@@ -69,7 +77,7 @@ namespace fly {
      */
     class ASTIntegerValue : public ASTValue {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
         friend class SemaResolver;
         friend class SemaValidator;
 
@@ -93,7 +101,7 @@ namespace fly {
      */
     class ASTFloatingValue : public ASTValue {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
         friend class SemaResolver;
         friend class SemaValidator;
 
@@ -115,7 +123,7 @@ namespace fly {
      */
     class ASTCharValue : public ASTValue {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
         friend class SemaResolver;
         friend class SemaValidator;
 
@@ -135,7 +143,7 @@ namespace fly {
      */
     class ASTStringValue : public ASTValue {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
         friend class SemaResolver;
         friend class SemaValidator;
 
@@ -157,7 +165,7 @@ namespace fly {
      */
     class ASTArrayValue : public ASTValue {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
         friend class SemaResolver;
         friend class SemaValidator;
 
@@ -183,7 +191,7 @@ namespace fly {
      */
     class ASTStructValue : public ASTValue {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
         friend class SemaResolver;
         friend class SemaValidator;
 
@@ -206,7 +214,7 @@ namespace fly {
 
     class ASTNullValue : public ASTValue {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
         friend class SemaResolver;
         friend class SemaValidator;
 
@@ -221,7 +229,7 @@ namespace fly {
 
     class ASTZeroValue : public ASTValue {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
         friend class SemaResolver;
         friend class SemaValidator;
 

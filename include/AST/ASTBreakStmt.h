@@ -19,7 +19,7 @@ namespace fly {
      */
     class ASTBreakStmt : public ASTStmt {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
         friend class SemaResolver;
         friend class SemaValidator;
 

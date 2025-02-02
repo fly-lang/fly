@@ -13,7 +13,6 @@
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/SmallVector.h"
-#include "AST/ASTParam.h"
 
 namespace llvm {
     class Function;
@@ -21,19 +20,20 @@ namespace llvm {
     class Type;
     class BasicBlock;
     class StructType;
+    class Value;
 }
 
 namespace fly {
 
-    class ASTFunctionBase;
-    class ASTType;
+    class SymFunctionBase;
+    class ASTVar;
     class CodeGenModule;
 
     class CodeGenFunctionBase {
 
     protected:
 
-        ASTFunctionBase *AST = nullptr;
+        SymFunctionBase *Sym = nullptr;
 
         CodeGenModule *CGM = nullptr;
 
@@ -50,15 +50,15 @@ namespace fly {
         llvm::Value *ErrorHandler = nullptr;
 
     public:
-        CodeGenFunctionBase(CodeGenModule *CGM, ASTFunctionBase *AST);
+        CodeGenFunctionBase(CodeGenModule *CGM, SymFunctionBase *AST);
 
         CodeGenModule *getCodeGenModule();
 
         void GenReturnType();
 
-        void GenParamTypes(CodeGenModule * CGM, SmallVector<llvm::Type *, 8> &Types, llvm::SmallVector<ASTParam *, 8> Params);
+        void GenParamTypes(CodeGenModule * CGM, llvm::SmallVector<llvm::Type *, 8> &Types, llvm::SmallVector<ASTVar *, 8> Params);
 
-        ASTFunctionBase *getAST();
+        SymFunctionBase *getSym();
 
         llvm::StringRef getName() const;
 

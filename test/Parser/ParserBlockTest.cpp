@@ -10,7 +10,7 @@
 #include "ParserTest.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTModule.h"
-#include "AST/ASTGlobalVar.h"
+#include "AST/ASTVar.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTVarRef.h"

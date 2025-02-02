@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTNameSpace.h - AST Namespace header
+// include/AST/ASTNameSpace.h - AST Namespace Ref header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -14,22 +14,17 @@
 
 namespace fly {
 
-    class ASTModule;
-    class ASTContext;
-    class ASTGlobalVar;
-    class ASTIdentity;
-    class ASTFunction;
-    class ASTImport;
-    class ASTComment;
-    class ASTIdentityType;
+    class SymNameSpace;
 
-    class ASTNameSpace : public ASTIdentifier {
+    class ASTNameSpace : public ASTBase {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
         friend class SemaResolver;
         friend class SemaValidator;
 
-        ASTModule *Module;
+        SymNameSpace *Sym;
+
+        const llvm::StringRef Name;
 
         ASTNameSpace(const SourceLocation &Loc, llvm::StringRef Name);
 
@@ -37,9 +32,11 @@ namespace fly {
 
         ~ASTNameSpace();
 
-        ASTModule* getModule() const;
+        llvm::StringRef getName() const;
 
-        std::string str() const override;
+        SymNameSpace* getDef() const;
+
+        std::string str() const;
     };
 }
 

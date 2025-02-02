@@ -8,16 +8,13 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTEnum.h"
-#include "AST/ASTEnumEntry.h"
 #include "AST/ASTScopes.h"
-#include "AST/ASTNameSpace.h"
 
 using namespace fly;
 
 ASTEnum::ASTEnum(ASTModule *Module, const SourceLocation &Loc, llvm::StringRef Name,
                  llvm::SmallVector<ASTScope *, 8> &Scopes, llvm::SmallVector<ASTEnumType *, 4> &SuperClasses) :
-        ASTIdentity(Module, ASTIdentityKind ::ID_ENUM, Scopes, Loc, Name),
-        SuperClasses(SuperClasses) {
+        ASTBase(Loc, ASTKind::AST_ENUM), Name(Name), Scopes(Scopes), SuperClasses(SuperClasses) {
 
 }
 
@@ -25,17 +22,29 @@ ASTModule * ASTEnum::getModule() const {
 	return Module;
 }
 
-llvm::SmallVector<ASTEnumEntry *, 8> ASTEnum::getEntries() const {
-    return Entries;
+llvm::SmallVector<ASTBase *, 8> ASTEnum::getDefinitions() const {
+	return Definitions;
+}
+
+llvm::SmallVector<ASTScope *, 8> ASTEnum::getScopes() const {
+	return Scopes;
+}
+
+llvm::StringRef ASTEnum::getName() const {
+	return Name;
+}
+
+llvm::SmallVector<ASTEnumType *, 4> ASTEnum::getSuperClasses() const {
+	return SuperClasses;
 }
 
 std::string ASTEnum::str() const {
 
     // Class to string
     return Logger("ASTClass").
-           Super(ASTIdentity::str()).
+           Super(ASTBase::str()).
            Attr("Name", Name).
            AttrList("Scopes", Scopes).
-           AttrList("Entries", Entries).
+           AttrList("Definitions", Definitions).
            End();
 }

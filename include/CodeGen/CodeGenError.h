@@ -16,7 +16,6 @@
 namespace fly {
 
     class CodeGenModule;
-    class CodeGenFunctionBase;
     class ASTExpr;
     class ASTVar;
 

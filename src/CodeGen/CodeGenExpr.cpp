@@ -12,13 +12,16 @@
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenExpr.h"
 #include "CodeGen/CodeGenFunctionBase.h"
-#include "AST/ASTGlobalVar.h"
-#include "AST/ASTLocalVar.h"
 #include "AST/ASTExpr.h"
 #include "AST/ASTVarRef.h"
 #include "AST/ASTOpExpr.h"
 #include "Basic/Debug.h"
 #include "llvm/IR/Value.h"
+
+#include <AST/ASTTypeRef.h>
+#include <CodeGen/CodeGenVarBase.h>
+#include <Sym/SymType.h>
+#include <Sym/SymVar.h>
 
 using namespace fly;
 
@@ -34,7 +37,7 @@ llvm::Value *CodeGenExpr::GenValue(const ASTExpr *Expr) {
 
         case ASTExprKind::EXPR_VALUE: {
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_VALUE");
-            return CGM->GenValue(Expr->getType(), ((ASTValueExpr *)Expr)->getValue());
+            return CGM->GenValue(Expr->getTypeRef(), ((ASTValueExpr *)Expr)->getValue());
         }
         case ASTExprKind::EXPR_VAR_REF: {
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_VAR_REF");
@@ -153,7 +156,7 @@ llvm::Value *CodeGenExpr::GenBinaryArith(const ASTExpr *E1, ASTBinaryOpExprKind 
     llvm::Value *V2 = GenValue(E2);
 
     // Convert E2 to E1 Type
-    V2 = CGM->Convert(V2, E2->getType(), E1->getType()); // Implicit conversion
+    V2 = CGM->Convert(V2, E2->getTypeRef(), E1->getTypeRef()); // Implicit conversion
 
     switch (OperatorKind) {
 
@@ -185,17 +188,18 @@ llvm::Value *CodeGenExpr::GenBinaryComparison(const ASTExpr *E1, ASTBinaryOpExpr
     FLY_DEBUG("CodeGenExpr", "GenBinaryComparison");
     llvm::Value *V1 = GenValue(E1);
     llvm::Value *V2 = GenValue(E2);
-    ASTType *V2Type = E2->getType();
+    SymType *V2Type = E2->getTypeRef()->getDef();
 
-    if (E1->getType()->isBool() && E2->getType()->isBool()) {
+    if (E1->getTypeRef()->getDef()->isBool() && E2->getTypeRef()->getDef()->isBool()) {
         switch (OperatorKind) {
             case ASTBinaryOpExprKind::OP_BINARY_EQ:
                 return CGM->Builder->CreateICmpEQ(V1, V2);
             case ASTBinaryOpExprKind::OP_BINARY_NE:
                 return CGM->Builder->CreateICmpNE(V1, V2);
         }
-    } else if (E1->getType()->isInteger() && E2->getType()->isInteger()) {
-        bool Signed = ((ASTIntegerType *) E1->getType())->isSigned() || ((ASTIntegerType *) E2->getType())->isSigned();
+    } else if (E1->getTypeRef()->getDef()->isInteger() && E2->getTypeRef()->getDef()->isInteger()) {
+        bool Signed = static_cast<SymTypeInt *>(E1->getTypeRef()->getDef())->isSigned() ||
+        	static_cast<SymTypeInt *>(E2->getTypeRef()->getDef())->isSigned();
         switch (OperatorKind) {
 
             case ASTBinaryOpExprKind::OP_BINARY_EQ:
@@ -215,10 +219,10 @@ llvm::Value *CodeGenExpr::GenBinaryComparison(const ASTExpr *E1, ASTBinaryOpExpr
         // Convert values to Float if one of them is Float
         if ( (V1->getType()->isFloatTy() || V1->getType()->isDoubleTy()) &&
              (V2->getType()->isIntegerTy() || V2->getType()->isIntegerTy()) ) {
-            V2 = CGM->Convert(V2, V2Type, E1->getType()); // Explicit conversion
+            V2 = CGM->Convert(V2, V2Type, E1->getTypeRef()); // Explicit conversion
         } else if ( (V1->getType()->isIntegerTy() || V1->getType()->isIntegerTy()) &&
                     (V2->getType()->isFloatTy() || V2->getType()->isDoubleTy()) ) {
-            V1 = CGM->Convert(V1, V2Type, E1->getType()); // Explicit conversion
+            V1 = CGM->Convert(V1, V2Type, E1->getTypeRef()); // Explicit conversion
         }
         switch (OperatorKind) {
 

@@ -12,11 +12,11 @@
 
 using namespace fly;
 
-ASTVarRef::ASTVarRef(const SourceLocation &Loc, llvm::StringRef Name) : ASTIdentifier(Loc, Name, ASTIdentifierKind::REF_VAR) {
+ASTVarRef::ASTVarRef(const SourceLocation &Loc, llvm::StringRef Name) : ASTIdentifier(Loc, Name, ASTRefKind::REF_VAR) {
 
 }
 
-ASTVar *ASTVarRef::getDef() const {
+SymVar *ASTVarRef::getDef() const {
     return Def;
 }
 

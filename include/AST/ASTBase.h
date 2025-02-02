@@ -21,6 +21,9 @@ namespace fly {
     class ASTComment;
 
     enum class ASTKind {
+        AST_NAMESPACE,
+        AST_IMPORT,
+        AST_ALIAS,
         AST_VAR,
         AST_ARG,
         AST_STMT,
@@ -28,23 +31,24 @@ namespace fly {
         AST_VALUE,
         AST_EXPR,
         AST_IDENTIFIER,
-        AST_IDENTITY,
         AST_COMMENT,
         AST_FUNCTION,
         AST_SCOPE,
+        AST_STRUCT,
+        AST_CLASS,
+        AST_INTERFACE,
+        AST_ENUM,
     };
 
     class ASTBase {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
         friend class SemaResolver;
         friend class SemaValidator;
 
         SourceLocation Location;
 
         ASTKind Kind;
-
-        ASTComment *Comment = nullptr;
 
     public:
         virtual ~ASTBase() = default;

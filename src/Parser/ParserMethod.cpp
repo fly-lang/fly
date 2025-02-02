@@ -11,7 +11,7 @@
 #include "Parser/ParserClass.h"
 #include "Parser/Parser.h"
 #include "AST/ASTClass.h"
-#include "Sema/SemaBuilder.h"
+#include "Sema/ASTBuilder.h"
 
 #include <vector>
 
@@ -21,16 +21,16 @@ ParserMethod::ParserMethod(ParserClass *PC) : ParserFunction(PC->P) {
 
 }
 
-ASTClassMethod *ParserMethod::Parse(ParserClass *PC, llvm::SmallVector<ASTScope *, 8> Scopes, ASTType *Type,
+ASTFunction *ParserMethod::Parse(ParserClass *PC, llvm::SmallVector<ASTScope *, 8> Scopes, ASTType *Type,
                                  const SourceLocation &Loc, llvm::StringRef Name) {
 
     ParserMethod *PF = new ParserMethod(PC);
-    SmallVector<ASTParam *, 8> Params = PF->ParseParams();
+    SmallVector<ASTVar *, 8> Params = PF->ParseParams();
 
-    ASTClassMethod *Method = (Name == PC->Class->getName()) ?
+    ASTFunction *Method = (Name == PC->Class->getName()) ?
                              PC->P->Builder.CreateClassConstructor(Loc, *PC->Class, Scopes, Params) :
                              PC->P->Builder.CreateClassMethod(Loc, *PC->Class, Type, Name, Scopes, Params);
 
-    ASTBlockStmt *Body = PC->P->isBlockStart() ? PF->ParseBody((ASTFunctionBase *) Method) : nullptr;
+    ASTBlockStmt *Body = PC->P->isBlockStart() ? PF->ParseBody((ASTFunction *) Method) : nullptr;
     return Method;
 }

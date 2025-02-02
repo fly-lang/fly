@@ -9,8 +9,7 @@
 
 #include "Parser/ParserEnum.h"
 #include "Parser/Parser.h"
-#include "AST/ASTType.h"
-#include "Sema/SemaBuilder.h"
+#include "Sema/ASTBuilder.h"
 #include "Basic/Debug.h"
 
 using namespace fly;

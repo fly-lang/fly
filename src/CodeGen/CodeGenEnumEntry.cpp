@@ -8,14 +8,13 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "CodeGen/CodeGenEnumEntry.h"
-#include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
-#include "AST/ASTEnumEntry.h"
+#include "Sym/SymEnumEntry.h"
 
 using namespace fly;
 
-CodeGenEnumEntry::CodeGenEnumEntry(CodeGenModule *CGM, ASTEnumEntry *EnumEntry) : T(CGM->Int32Ty),
-        Value(llvm::ConstantInt::get(CGM->Int32Ty, EnumEntry->getIndex())) {
+CodeGenEnumEntry::CodeGenEnumEntry(CodeGenModule *CGM, SymEnumEntry *Sym) : T(CGM->Int32Ty),
+        Value(llvm::ConstantInt::get(CGM->Int32Ty, Sym->getIndex())) {
 }
 
 llvm::Type *CodeGenEnumEntry::getType() {

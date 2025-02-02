@@ -21,7 +21,7 @@ namespace fly {
 
     class ASTSwitchStmt : public ASTStmt {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
         friend class SemaBuilderSwitchStmt;
         friend class SemaResolver;
         friend class SemaValidator;

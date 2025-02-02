@@ -10,11 +10,8 @@
 #include "AST/ASTExpr.h"
 #include "AST/ASTVarRef.h"
 #include "AST/ASTValue.h"
-#include "AST/ASTFunction.h"
 #include "AST/ASTCall.h"
-#include "AST/ASTStmt.h"
-#include "AST/ASTType.h"
-#include "Sema/SemaBuilder.h"
+#include "AST/ASTTypeRef.h"
 
 using namespace fly;
 
@@ -27,15 +24,15 @@ ASTExprKind ASTExpr::getExprKind() const {
     return Kind;
 }
 
-ASTType *ASTExpr::getType() const {
-    return Type;
+ASTTypeRef *ASTExpr::getTypeRef() const {
+    return TypeRef;
 }
 
 std::string ASTExpr::str() const {
     return Logger("ASTExpr").
            Super(ASTBase::str()).
            Attr("Kind", (uint64_t) Kind).
-           Attr("Type", Type).
+           Attr("TypeRef", TypeRef).
            End();
 }
 

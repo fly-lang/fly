@@ -13,7 +13,7 @@
 
 using namespace fly;
 
-ASTCall::ASTCall(const SourceLocation &Loc, llvm::StringRef Name) : ASTIdentifier(Loc, Name, ASTIdentifierKind::REF_CALL) {
+ASTCall::ASTCall(const SourceLocation &Loc, llvm::StringRef Name) : ASTIdentifier(Loc, Name, ASTRefKind::REF_CALL) {
 
 }
 
@@ -25,7 +25,7 @@ llvm::SmallVector<ASTArg *, 8> ASTCall::getArgs() const {
     return Args;
 }
 
-ASTFunctionBase *ASTCall::getDef() const {
+SymFunctionBase *ASTCall::getDef() const {
     return Def;
 }
 
@@ -34,7 +34,7 @@ ASTCallKind ASTCall::getCallKind() const {
 }
 
 std::string ASTCall::str() const {
-    return Logger("ASTFunctionCall").
+    return Logger("ASTCall").
             AttrList("Args", Args).
             Attr("Def", Def).
             End();

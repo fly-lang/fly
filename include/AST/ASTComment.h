@@ -21,7 +21,7 @@ namespace fly {
 
     class ASTComment : public ASTBase {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
         friend class SemaResolver;
         friend class SemaValidator;
 

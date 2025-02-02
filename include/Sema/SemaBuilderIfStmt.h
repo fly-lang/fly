@@ -13,7 +13,7 @@
 namespace fly {
 
     class Sema;
-    class SemaBuilder;
+    class ASTBuilder;
     class ASTIfStmt;
     class ASTStmt;
     class ASTBlockStmt;

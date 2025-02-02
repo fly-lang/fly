@@ -8,26 +8,23 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#ifndef FLY_CODEGENGLOBALVAR_H
-#define FLY_CODEGENGLOBALVAR_H
+#ifndef FLY_CODEGEN_GLOBALVAR_H
+#define FLY_CODEGEN_GLOBALVAR_H
 
 #include "CodeGenVar.h"
-#include "AST/ASTType.h"
 #include "llvm/IR/GlobalVariable.h"
-#include "llvm/ADT/StringRef.h"
 #include <llvm/IR/Instructions.h>
-#include <AST/ASTExpr.h>
 
 namespace fly {
 
+    class SymGlobalVar;
     class CodeGenModule;
-    class ASTGlobalVar;
 
     class CodeGenGlobalVar : public CodeGenVarBase {
 
-        CodeGenModule *CGM = nullptr;
+        CodeGenModule *CGM;
 
-        ASTVar *Var = nullptr;
+        SymGlobalVar *Sym;
 
         llvm::Type *T = nullptr;
 
@@ -38,7 +35,7 @@ namespace fly {
         llvm::LoadInst *LoadI = nullptr;
 
     public:
-        CodeGenGlobalVar(CodeGenModule *CGM, ASTGlobalVar* Var, bool isExternal = false);
+        CodeGenGlobalVar(CodeGenModule *CGM, SymGlobalVar* Sym, bool isExternal = false);
 
 //        llvm::AllocaInst *Alloca() override;
 
@@ -56,4 +53,4 @@ namespace fly {
     };
 }
 
-#endif //FLY_CODEGENGLOBALVAR_H
+#endif //FLY_CODEGEN_GLOBALVAR_H

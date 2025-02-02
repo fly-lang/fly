@@ -7,39 +7,38 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_CODEGENHEADER_H
-#define FLY_CODEGENHEADER_H
+#ifndef FLY_CODEGEN_HEADER_H
+#define FLY_CODEGEN_HEADER_H
 
 #include <vector>
 #include <string>
 
 namespace fly {
-
     class DiagnosticsEngine;
-    class ASTNameSpace;
-    class ASTGlobalVar;
+    class SymNameSpace;
     class ASTFunction;
     class ASTClass;
     class ASTType;
     class ASTModule;
     class CodeGenOptions;
+    class ASTVar;
 
-    class CodeGenHeader {
-
+    class CodeGenHeader
+    {
     public:
-        static void CreateFile(DiagnosticsEngine &Diags, CodeGenOptions &CodeGenOpts, ASTModule &Module);
+        static void CreateFile(DiagnosticsEngine& Diags, CodeGenOptions& CodeGenOpts, SymNameSpace& NameSpace);
 
         std::string SaveFile();
 
-        void AddGlobalVar(ASTGlobalVar *GlobalVar);
+        void AddGlobalVar(ASTVar* GlobalVar);
 
-        void AddFunction(ASTFunction *Func);
+        void AddFunction(ASTFunction* Func);
 
-        void setClass(ASTClass *Class);
+        void setClass(ASTClass* Class);
 
-        const std::string Convert(ASTType *Type);
+        const std::string Convert(ASTType* Type);
 
-        void AddNameSpace(ASTNameSpace *pSpace);
+        void AddNameSpace(SymNameSpace* pSpace);
     };
 }
 

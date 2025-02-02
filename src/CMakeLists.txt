@@ -1,52 +1,42 @@
 add_executable(fly
         Fly.cpp
-        ../docs/c++_llvm/new.c
-        ../include/Sema/SemaBuilderScopes.h)
+)
 
 add_library(flyLib
 
         # AST
+        AST/ASTAlias.cpp
         AST/ASTArg.cpp
         AST/ASTBase.cpp
         AST/ASTBlockStmt.cpp
         AST/ASTBreakStmt.cpp
         AST/ASTCall.cpp
         AST/ASTClass.cpp
-        AST/ASTClassMethod.cpp
-        AST/ASTClassType.cpp
-        AST/ASTClassAttribute.cpp
         AST/ASTComment.cpp
-        AST/ASTContext.cpp
+        Sym/SymTable.cpp
         AST/ASTContinueStmt.cpp
         AST/ASTDeleteStmt.cpp
         AST/ASTEnum.cpp
-        AST/ASTEnumEntry.cpp
-        AST/ASTEnumType.cpp
         AST/ASTExpr.cpp
         AST/ASTExprStmt.cpp
         AST/ASTFailStmt.cpp
         AST/ASTFunction.cpp
-        AST/ASTFunctionBase.cpp
-        AST/ASTGlobalVar.cpp
         AST/ASTHandleStmt.cpp
         AST/ASTIdentifier.cpp
-        AST/ASTIdentity.cpp
-        AST/ASTIdentityType.cpp
+        AST/ASTTypeRef.cpp
         AST/ASTIfStmt.cpp
         AST/ASTImport.cpp
-        AST/ASTLocalVar.cpp
         AST/ASTLoopStmt.cpp
         AST/ASTLoopInStmt.cpp
+        Sym/SymNameSpace.cpp
         AST/ASTNameSpace.cpp
         AST/ASTModule.cpp
         AST/ASTOpExpr.cpp
-        AST/ASTParam.cpp
         AST/ASTReturnStmt.cpp
         AST/ASTRuleStmt.cpp
         AST/ASTScopes.cpp
         AST/ASTStmt.cpp
         AST/ASTSwitchStmt.cpp
-        AST/ASTType.cpp
         AST/ASTValue.cpp
         AST/ASTVar.cpp
         AST/ASTVarRef.cpp
@@ -146,16 +136,31 @@ add_library(flyLib
 
         # Sema
         Sema/Sema.cpp
-        Sema/SemaBuilder.cpp
+        Sema/ASTBuilder.cpp
         Sema/SemaBuilderStmt.cpp
         Sema/SemaBuilderIfStmt.cpp
         Sema/SemaBuilderSwitchStmt.cpp
         Sema/SemaBuilderLoopStmt.cpp
         Sema/SemaBuilderScopes.cpp
-        Sema/SemaSpaceSymbols.cpp
-        Sema/SemaIdentitySymbols.cpp
         Sema/SemaResolver.cpp
         Sema/SemaValidator.cpp
+        Sema/SymBuilder.cpp
+
+        # Sym
+        Sym/SymClass.cpp
+        Sym/SymClassAttribute.cpp
+        Sym/SymClassMethod.cpp
+        Sym/SymEnum.cpp
+        Sym/SymEnumEntry.cpp
+        Sym/SymFunction.cpp
+        Sym/SymFunctionBase.cpp
+        Sym/SymGlobalVar.cpp
+        Sym/SymLocalVar.cpp
+        Sym/SymModule.cpp
+        Sym/SymNameSpace.cpp
+        Sym/SymTable.cpp
+        Sym/SymType.cpp
+        Sym/SymVar.cpp
 )
 
 #if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")

@@ -11,22 +11,14 @@
 #define FLY_AST_VAR_H
 
 #include "ASTBase.h"
+#include "ASTExpr.h"
 
 namespace fly {
 
     class SourceLocation;
     class CodeGenVarBase;
-    class ASTType;
     class ASTAssignmentStmt;
     class ASTScope;
-
-    enum class ASTVarKind {
-        VAR_PARAM,
-        VAR_LOCAL,
-        VAR_GLOBAL,
-        VAR_CLASS,
-        VAR_ENUM
-    };
 
     /**
      * Base Var used in:
@@ -35,29 +27,27 @@ namespace fly {
      */
     class ASTVar : public ASTBase {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
         friend class SemaResolver;
         friend class SemaValidator;
 
-        ASTVarKind VarKind;
-
-        ASTType *Type;
+        ASTTypeRef *TypeRef;
 
         llvm::StringRef Name;
 
         SmallVector<ASTScope *, 8> Scopes;
 
+        ASTExpr *Expr;
+
         ASTAssignmentStmt *Initialization = nullptr;
 
     protected:
 
-        ASTVar(ASTVarKind VarKind, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, SmallVector<ASTScope *, 8> &Scopes);
+        ASTVar(const SourceLocation &Loc, ASTTypeRef *Type, llvm::StringRef Name, SmallVector<ASTScope *, 8> &Scopes);
 
     public:
 
-        ASTVarKind getVarKind();
-
-        ASTType *getType() const;
+        ASTTypeRef *getTypeRef() const;
 
         llvm::StringRef getName() const;
 
@@ -71,7 +61,7 @@ namespace fly {
 
         const SmallVector<ASTScope *, 8> &getScopes() const;
 
-        virtual CodeGenVarBase *getCodeGen() const = 0;
+        ASTExpr *getExpr() const;
 
         std::string str() const override;
     };

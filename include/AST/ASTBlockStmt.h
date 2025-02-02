@@ -23,7 +23,7 @@ namespace fly {
      */
     class ASTBlockStmt : public ASTStmt {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
         friend class SemaBuilderStmt;
         friend class SemaBuilderIfStmt;
         friend class SemaBuilderSwitchStmt;

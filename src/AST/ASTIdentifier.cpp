@@ -11,13 +11,9 @@
 
 using namespace fly;
 
-ASTIdentifier::ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name) :
-        ASTBase(Loc, ASTKind::AST_IDENTIFIER), Name(Name) {
-    FullName = Name.data();
-}
 
-ASTIdentifier::ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name, ASTIdentifierKind Kind) :
-        ASTBase(Loc, ASTKind::AST_IDENTIFIER), Name(Name), Kind(Kind), Resolved(false) {
+ASTIdentifier::ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name, ASTRefKind Kind) :
+        ASTBase(Loc, ASTKind::AST_IDENTIFIER), Name(Name), RefKind(Kind), Resolved(false) {
     FullName = Name.data();
 }
 
@@ -38,24 +34,20 @@ bool ASTIdentifier::isResolved() const {
     return Resolved;
 }
 
-bool ASTIdentifier::isNameSpace() const {
-    return Kind == ASTIdentifierKind::REF_NAMESPACE;
-}
-
 bool ASTIdentifier::isType() const {
-    return Kind == ASTIdentifierKind::REF_TYPE;
+    return RefKind == ASTRefKind::REF_TYPE;
 }
 
 bool ASTIdentifier::isCall() const {
-    return Kind == ASTIdentifierKind::REF_CALL;
+    return RefKind == ASTRefKind::REF_CALL;
 }
 
 bool ASTIdentifier::isVarRef() const {
-    return Kind == ASTIdentifierKind::REF_VAR;
+    return RefKind == ASTRefKind::REF_VAR;
 }
 
-ASTIdentifierKind ASTIdentifier::getIdKind() const {
-    return Kind;
+ASTRefKind ASTIdentifier::getRefKind() const {
+    return RefKind;
 }
 
 void ASTIdentifier::AddChild(ASTIdentifier *Identifier) {
