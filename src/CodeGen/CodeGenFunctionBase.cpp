@@ -36,7 +36,7 @@ CodeGenModule *CodeGenFunctionBase::getCodeGenModule() {
 }
 
 void CodeGenFunctionBase::GenReturnType() {
-    RetType = CGM->GenType(Sym->getAST()->getReturnType()->getDef());
+    RetType = CGM->GenType(Sym->getAST()->getReturnTypeRef()->getDef());
 }
 
 void CodeGenFunctionBase::GenParamTypes(CodeGenModule * CGM, llvm::SmallVector<llvm::Type *, 8> &Types, llvm::SmallVector<ASTVar *, 8> Params) {
@@ -72,7 +72,7 @@ llvm::FunctionType *CodeGenFunctionBase::getFunctionType() {
 }
 
 void CodeGenFunctionBase::setInsertPoint() {
-    FLY_DEBUG("CodeGenFunctionBase", "setInsertPoint");
+    FLY_DEBUG_START("CodeGenFunctionBase", "setInsertPoint");
     Entry = BasicBlock::Create(CGM->LLVMCtx, "entry", Fn);
     CGM->Builder->SetInsertPoint(Entry);
 }
@@ -92,7 +92,7 @@ void CodeGenFunctionBase::AllocaLocalVars() {
         Param->setCodeGen(CGV);
     }
 
-    // Allocation of all declared ASTLocalVar
+    // Allocation of all declared ASTVar
     for (auto &LocalVar: Sym->getLocalVars()) {
     	if (LocalVar->getType()->isError()) {
     		CodeGenError *CGE = CGM->GenErrorHandler(LocalVar);

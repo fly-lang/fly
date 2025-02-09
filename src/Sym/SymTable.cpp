@@ -22,14 +22,70 @@ SymTable::SymTable() = default;
  */
 SymTable::~SymTable() = default;
 
-llvm::StringMap<SymModule *> SymTable::getModules() const {
+const llvm::DenseMap<uint64_t, SymModule *> &SymTable::getModules() const {
 	return Modules;
 }
 
-SymNameSpace * SymTable::getDefaultNameSpace() const {
+const SymNameSpace * SymTable::getDefaultNameSpace() const {
 	return DefaultNameSpace;
 }
 
-llvm::StringMap<SymNameSpace *> SymTable::getNameSpaces() const {
+const llvm::StringMap<SymNameSpace *> &SymTable::getNameSpaces() const {
 	return NameSpaces;
+}
+
+SymType * SymTable::getBoolType() const {
+	return BoolType;
+}
+
+SymType * SymTable::getByteType() const {
+	return ByteType;
+}
+
+SymType * SymTable::getUShortType() const {
+	return UShortType;
+}
+
+SymType * SymTable::getShortType() const {
+	return ShortType;
+}
+
+SymType * SymTable::getUIntType() const {
+	return UIntType;
+}
+
+SymType * SymTable::getIntType() const {
+	return IntType;
+}
+
+SymType * SymTable::getULongType() const {
+	return ULongType;
+}
+
+SymType * SymTable::getLongType() const {
+	return LongType;
+}
+
+SymType * SymTable::getFloatType() const {
+	return FloatType;
+}
+
+SymType * SymTable::getDoubleType() const {
+	return DoubleType;
+}
+
+SymType * SymTable::getVoidType() const {
+	return VoidType;
+}
+
+SymType * SymTable::getCharType() const {
+	return CharType;
+}
+
+SymType * SymTable::getStringType() const {
+	return StringType;
+}
+
+SymType * SymTable::getErrorType() const {
+	return ErrorType;
 }

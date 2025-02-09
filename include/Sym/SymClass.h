@@ -18,6 +18,8 @@
 #include <map>
 #include <llvm/ADT/DenseMap.h>
 
+#include "SymVisibilityKind.h"
+
 namespace fly {
 
     class Sema;
@@ -29,28 +31,47 @@ namespace fly {
     class SymModule;
     enum class SymVisibilityKind;
 
+    enum class SymClassKind {
+        CLASS, INTERFACE, STRUCT
+    };
+
     class SymClass : public SymType {
 
         friend class SymBuilder;
         friend class SemaResolver;
         friend class SemaValidator;
 
+        // AST linked to this Class Symbol
         ASTClass *AST;
 
+        // Class Module
         SymModule *Module;
+
+        // Class Visibility
+        SymVisibilityKind Visibility = SymVisibilityKind::DEFAULT;
+
+        // Class is Constant (cannot be redefined)
+        bool Constant;
+
+        // Class Kind
+        SymClassKind ClassKind;
+
+        // Super Classes
+        llvm::StringMap<SymClass *> SuperClasses;
 
         // Class Attributes
         llvm::StringMap<SymClassAttribute *> Attributes;
 
+        // Class Methods
         llvm::DenseMap<size_t, SymClassMethod *> Methods;
 
+        // Class Constructors
         llvm::DenseMap<size_t, SymClassMethod *> Constructors;
 
-        // Class Functions
-        llvm::StringMap<std::map <uint64_t,llvm::SmallVector <SymClassMethod *, 4>>> SearchFunctions;
-
+        // Class Comment
         SymComment *Comment = nullptr;
 
+        // Class CodeGen
         CodeGenClass *CodeGen = nullptr;
 
         explicit SymClass(ASTClass *Class);
@@ -61,11 +82,19 @@ namespace fly {
 
         SymModule *getModule() const;
 
-        llvm::StringMap<SymClassAttribute *> getAttributes() const;
+        SymVisibilityKind getVisibility() const;
 
-        llvm::DenseMap<size_t, SymClassMethod *> getMethods() const;
+        bool isConstant() const;
 
-        llvm::DenseMap<size_t, SymClassMethod *> getConstructors() const;
+        SymClassKind getClassKind() const;
+
+        const llvm::StringMap<SymClass *> &getSuperClasses() const;
+
+        const llvm::StringMap<SymClassAttribute *> &getAttributes() const;
+
+        const llvm::DenseMap<size_t, SymClassMethod *> &getMethods() const;
+
+        const llvm::DenseMap<size_t, SymClassMethod *> &getConstructors() const;
 
         SymComment *getComment() const;
 

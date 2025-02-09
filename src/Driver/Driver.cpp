@@ -71,7 +71,7 @@ Driver::~Driver() {
 }
 
 CompilerInstance &Driver::BuildCompilerInstance() {
-    FLY_DEBUG("Driver", "BuildCompilerInstance");
+    FLY_DEBUG_START("Driver", "BuildCompilerInstance");
     llvm::PrettyStackTraceString CrashInfo("Building compiler instance");
 
     // Create diagnostics
@@ -104,7 +104,7 @@ CompilerInstance &Driver::BuildCompilerInstance() {
 
 // Diagnostics
 IntrusiveRefCntPtr<DiagnosticsEngine> Driver::CreateDiagnostics(IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts) {
-    FLY_DEBUG("Driver", "CreateDiagnostics");
+    FLY_DEBUG_START("Driver", "CreateDiagnostics");
     DiagOpts = new DiagnosticOptions;
     TextDiagnosticPrinter *DiagClient = new TextDiagnosticPrinter(llvm::errs(), &*DiagOpts);
     StringRef ExeBasename(llvm::sys::path::stem(Path));
@@ -148,7 +148,7 @@ IntrusiveRefCntPtr<DiagnosticsEngine> Driver::CreateDiagnostics(IntrusiveRefCntP
 }
 
 IntrusiveRefCntPtr<DiagnosticOptions> Driver::BuildDiagnosticOptions() {
-    FLY_DEBUG("Driver", "BuildDiagnosticOptions");
+    FLY_DEBUG_START("Driver", "BuildDiagnosticOptions");
     IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts(new DiagnosticOptions);
     DiagOpts->DiagnosticLogFile = ArgList.hasArg(options::OPT_LOG_FILE) ?
             std::string(ArgList.getLastArgValue(options::OPT_LOG_FILE)) : "";
@@ -348,7 +348,7 @@ void Driver::printVersion(bool full) {
 }
 
 bool Driver::Execute() {
-    FLY_DEBUG("Driver", "Execute");
+    FLY_DEBUG_START("Driver", "Execute");
     bool Success = true;
 
     if (doExecute) {

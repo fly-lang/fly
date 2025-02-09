@@ -56,13 +56,13 @@ namespace fly {
 
 		const llvm::StringMap<SymNameSpace *> &getImports() const;
 
-        llvm::StringMap<SymGlobalVar *> getGlobalVars() const;
+        const llvm::StringMap<SymGlobalVar *> &getGlobalVars() const;
 
-        llvm::StringMap<SymFunction *> getFunctions() const;
+        const llvm::StringMap<SymFunction *> &getFunctions() const;
 
-        llvm::StringMap<SymClass *> getClasses() const;
+        const llvm::StringMap<SymClass *> &getClasses() const;
 
-        llvm::StringMap<SymEnum *> getEnums() const;
+        const llvm::StringMap<SymEnum *> &getEnums() const;
 
     };
 }

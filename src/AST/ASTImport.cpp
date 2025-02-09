@@ -9,10 +9,12 @@
 
 #include "AST/ASTImport.h"
 
+#include <llvm/ADT/StringExtras.h>
+
 using namespace fly;
 
-ASTImport::ASTImport(const SourceLocation &Loc, llvm::StringRef Name) :
-        ASTBase(Loc, ASTKind::AST_IMPORT) {
+ASTImport::ASTImport(const SourceLocation &Loc, llvm::SmallVector<llvm::StringRef, 4> &Names) :
+        ASTBase(Loc, ASTKind::AST_IMPORT), Name(llvm::join(Names, ".")) {
 
 }
 
@@ -22,6 +24,10 @@ ASTImport::~ASTImport() {
 
 ASTModule * ASTImport::getModule() const {
 	return Module;
+}
+
+llvm::StringRef ASTImport::getName() const {
+	return  Name;
 }
 
 ASTAlias *ASTImport::getAlias() const {

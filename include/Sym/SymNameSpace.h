@@ -21,6 +21,7 @@ namespace fly {
     class SymClass;
     class SymEnum;
     class CodeGenModule;
+    class SymType;
 
     class SymNameSpace {
 
@@ -36,13 +37,10 @@ namespace fly {
         llvm::StringMap<SymGlobalVar *> GlobalVars;
 
         // Functions
-        llvm::SmallVector<SymFunction *, 8> Functions;
+        llvm::StringMap<SymFunction *> Functions;
 
-        // Classes
-        llvm::StringMap<SymClass *> Classes;
-
-        // Enumerations
-        llvm::StringMap<SymEnum *> Enums;
+        // Types
+        llvm::StringMap<SymType *> Types;
 
         CodeGenModule* CodeGen = nullptr;
 
@@ -58,15 +56,13 @@ namespace fly {
 
         llvm::StringRef getName() const;
 
-        llvm::SmallVector<ASTModule *, 8> getModules() const;
+        const llvm::SmallVector<ASTModule *, 8> &getModules() const;
 
-        llvm::StringMap<SymGlobalVar *> getGlobalVars() const;
+        const llvm::StringMap<SymGlobalVar *> &getGlobalVars() const;
 
-        llvm::SmallVector<SymFunction *, 8> getFunctions() const;
+        const llvm::StringMap<SymFunction *> &getFunctions() const;
 
-        llvm::StringMap<SymClass *> getClasses() const;
-
-        llvm::StringMap<SymEnum *> getEnums() const;
+        const llvm::StringMap<SymType *> &getTypes() const;
 
         CodeGenModule* getCodeGen() const;
 

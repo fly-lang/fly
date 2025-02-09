@@ -10,6 +10,7 @@
 #ifndef FLY_SYM_GLOBALVAR_H
 #define FLY_SYM_GLOBALVAR_H
 
+#include "SymVisibilityKind.h"
 #include "Sym/SymVar.h"
 #include "CodeGen/CodeGenGlobalVar.h"
 
@@ -31,6 +32,8 @@ namespace fly {
 
         SymComment *Comment = nullptr;
 
+        SymVisibilityKind Visibility = SymVisibilityKind::DEFAULT;
+
         // Code Generator
         CodeGenGlobalVar *CodeGen = nullptr;
 
@@ -41,6 +44,8 @@ namespace fly {
         SymModule *getModule() const;
 
         SymComment *getComment() const;
+
+        SymVisibilityKind getVisibility() const;
 
         CodeGenGlobalVar *getCodeGen() const override;
 

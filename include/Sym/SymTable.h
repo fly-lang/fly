@@ -10,21 +10,25 @@
 #ifndef FLY_SYMTABLE_H
 #define FLY_SYMTABLE_H
 
+#include <AST/ASTTypeRef.h>
+#include <llvm/ADT/DenseMap.h>
 #include <llvm/ADT/StringMap.h>
 
 namespace fly {
 
     class SymModule;
     class SymNameSpace;
+    class SymType;
 
     /**
      * AST Context
      */
     class SymTable {
 
+        friend class SemaResolver;
         friend class SymBuilder;
 
-        llvm::StringMap<SymModule *> Modules;
+        llvm::DenseMap<uint64_t, SymModule *> Modules;
 
         // The Default NameSpace
         SymNameSpace *DefaultNameSpace;
@@ -32,17 +36,74 @@ namespace fly {
         // All NameSpaces in the Context
         llvm::StringMap<SymNameSpace *> NameSpaces;
 
+        SymType *BoolType;
+
+        SymType *ByteType;
+
+        SymType *UShortType;
+
+        SymType *ShortType;
+
+        SymType *UIntType;
+
+        SymType *IntType;
+
+        SymType *ULongType;
+
+        SymType *LongType;
+
+        SymType *FloatType;
+
+        SymType *DoubleType;
+
+        SymType *VoidType;
+
+        SymType *CharType;
+
+        SymType *StringType;
+
+        SymType *ErrorType;
+
         SymTable();
 
     public:
 
         ~SymTable();
 
-        llvm::StringMap<SymModule *> getModules() const;
+        const llvm::DenseMap<uint64_t, SymModule *> &getModules() const;
 
-        SymNameSpace *getDefaultNameSpace() const;
+        const SymNameSpace *getDefaultNameSpace() const;
 
-        llvm::StringMap<SymNameSpace*> getNameSpaces() const;
+        const llvm::StringMap<SymNameSpace*> &getNameSpaces() const;
+
+        SymType *getBoolType() const;
+
+        SymType * getByteType() const;
+
+        SymType * getUShortType() const;
+
+        SymType * getShortType() const;
+
+        SymType * getUIntType() const;
+
+        SymType * getIntType() const;
+
+        SymType * getULongType() const;
+
+        SymType * getLongType() const;
+
+        SymType * getFloatType() const;
+
+        SymType * getDoubleType() const;
+
+        SymType * getVoidType() const;
+
+        SymType * getCharType() const;
+
+        SymType * getStringType() const;
+
+        SymType * getErrorType() const;
+
     };
 }
 

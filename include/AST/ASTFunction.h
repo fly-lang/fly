@@ -10,35 +10,37 @@
 #ifndef FLY_AST_FUNCTIONBASE_H
 #define FLY_AST_FUNCTIONBASE_H
 
-#include "ASTStmt.h"
 #include "ASTBase.h"
 
 namespace fly {
 
     class ASTScope;
-    class ASTLocalVar;
     class ASTVar;
     class ASTComment;
-class ASTTypeRef;
-    class CodeGenFunctionBase;
+    class ASTTypeRef;
+class ASTBlockStmt;
+class SymFunctionBase;
 
     class ASTFunction : public ASTBase {
 
         friend class ASTBuilder;
+        friend class SymBuilder;
         friend class SemaResolver;
         friend class ParserFunction;
         friend class ParserClass;
 
+        SymFunctionBase *Def;
+
         llvm::StringRef Name;
 
         // Function return type
-        ASTTypeRef *ReturnType = nullptr;
+        ASTTypeRef *ReturnTypeRef = nullptr;
 
         llvm::SmallVector<ASTScope *, 8> Scopes;
 
         llvm::SmallVector<ASTVar *, 8> Params;
 
-        llvm::SmallVector<ASTLocalVar *, 8> LocalVars;
+        llvm::SmallVector<ASTVar *, 8> LocalVars;
 
         // Body is the main BlockStmt
         ASTBlockStmt *Body = nullptr;
@@ -47,20 +49,20 @@ class ASTTypeRef;
 
     protected:
 
-        ASTFunction(const SourceLocation &Loc, llvm::StringRef Name, ASTTypeRef *ReturnType,
-                        llvm::SmallVector<ASTScope *, 8> &Scopes, llvm::SmallVector<ASTVar *, 8> &Params);
+        ASTFunction(const SourceLocation &Loc, ASTTypeRef *ReturnType,llvm::SmallVector<ASTScope *, 8> &Scopes,
+            llvm::StringRef Name, llvm::SmallVector<ASTVar *, 8> &Params);
 
     public:
 
         llvm::StringRef getName() const;
 
-        ASTTypeRef *getReturnType() const;
+        ASTTypeRef *getReturnTypeRef() const;
 
         llvm::SmallVector<ASTScope *, 8> getScopes() const;
 
         llvm::SmallVector<ASTVar *, 8> getParams() const;
 
-        llvm::SmallVector<ASTLocalVar *, 8> getLocalVars() const;
+        llvm::SmallVector<ASTVar *, 8> getLocalVars() const;
 
         ASTBlockStmt *getBody() const;
 

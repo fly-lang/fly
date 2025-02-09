@@ -32,28 +32,27 @@ namespace fly {
     class CodeGenFunctionBase;
     class CodeGenClass;
     class CodeGenVar;
-    class CodeGenEnum;
     class CodeGenError;
-class ASTCall;
-class ASTFailStmt;
-class ASTLoopStmt;
-class ASTSwitchStmt;
-class ASTValue;
-class ASTVar;
-class ASTRuleStmt;
-class ASTVarRef;
-class ASTFunction;
-class ASTExpr;
-class ASTStmt;
-class ASTBlockStmt;
-class ASTIfStmt;
-class SymGlobalVar;
-class SymFunction;
-class SymClass;
-class SymClassAttribute;
-class SymClassMethod;
-class SymEnum;
-class SymFunctionBase;
+    class ASTCall;
+    class ASTFailStmt;
+    class ASTLoopStmt;
+    class ASTSwitchStmt;
+    class ASTValue;
+    class ASTVar;
+    class ASTRuleStmt;
+    class ASTVarRef;
+    class ASTFunction;
+    class ASTExpr;
+    class ASTStmt;
+    class ASTBlockStmt;
+    class ASTIfStmt;
+    class SymGlobalVar;
+    class SymFunction;
+    class SymClass;
+    class SymClassAttribute;
+    class SymClassMethod;
+    class SymEnum;
+    class SymFunctionBase;
 
     class CodeGenModule {
 

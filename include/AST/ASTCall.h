@@ -41,7 +41,7 @@ namespace fly {
 
         llvm::SmallVector<ASTArg *, 8> Args;
 
-        SymFunctionBase *Def = nullptr;
+        SymFunctionBase **Def = nullptr;
 
         ASTCallKind CallKind = ASTCallKind::CALL_FUNCTION;
 

@@ -65,7 +65,7 @@ bool Archiver::CreateLib(const llvm::SmallVector<std::string, 4> &Files) {
 }
 
 bool Archiver::ExtractLib(FileManager &FileMgr) {
-    FLY_DEBUG("Archiver", "ExtractLib");
+    FLY_DEBUG_START("Archiver", "ExtractLib");
     // Create or open the archive object.
     ErrorOr<std::unique_ptr<MemoryBuffer>> Buf =
             MemoryBuffer::getFile(ArchiveName, -1, false);

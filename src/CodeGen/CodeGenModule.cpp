@@ -251,7 +251,7 @@ void CodeGenModule::GenEnum(SymEnum *Enum) {
 }
 
 llvm::Type *CodeGenModule::GenType(const SymType *Type) {
-    FLY_DEBUG("CodeGenModule", "GenType");
+    FLY_DEBUG_START("CodeGenModule", "GenType");
     // Check Type
     switch (Type->getKind()) {
 
@@ -328,8 +328,8 @@ llvm::ArrayType *CodeGenModule::GenArrayType(const SymTypeArray *ArrayType) {
     assert("Array Size error");
 }
 
-llvm::Constant *CodeGenModule::GenDefaultValue(const ASTType *Type, llvm::Type *Ty) {
-    FLY_DEBUG("CodeGenModule", "GenDefaultValue");
+llvm::Constant *CodeGenModule::GenDefaultValue(const SymType *Type, llvm::Type *Ty) {
+    FLY_DEBUG_START("CodeGenModule", "GenDefaultValue");
     assert(Type->getStmtKind() != ASTValueKind::TYPE_VOID && "No default value for Void Type");
     switch (Type->getStmtKind()) {
 
@@ -380,12 +380,12 @@ llvm::Constant *CodeGenModule::GenDefaultValue(const ASTType *Type, llvm::Type *
 
 /**
  * Generate a LLVM Constant Value
- * @param Type is the parsed ASTType
+ * @param Type is the parsed symType
  * @param Val need to be correctly configured or you need to call GenDefaultValue()
  * @return
  */
-llvm::Constant *CodeGenModule::GenValue(const ASTType *Type, const ASTValue *Val) {
-    FLY_DEBUG("CodeGenModule", "GenValue");
+llvm::Constant *CodeGenModule::GenValue(const SymType *Type, const ASTValue *Val) {
+    FLY_DEBUG_START("CodeGenModule", "GenValue");
     assert(Type && "Type has to be not empty");
     assert(Val && "Value has to be not empty");
 
@@ -510,7 +510,7 @@ llvm::Value *CodeGenModule::ConvertToBool(llvm::Value *V) {
     assert(false && "Unhandled Value Type");
 }
 
-llvm::Value *CodeGenModule::Convert(llvm::Value *FromVal, const ASTType *FromType, const ASTType *ToType) {
+llvm::Value *CodeGenModule::Convert(llvm::Value *FromVal, const SymType *FromType, const SymType *ToType) {
     FLY_DEBUG_MESSAGE("CodeGenExpr", "Convert",
                       "Value=" << FromVal << " to ASTType=" << ToType->str());
     assert(ToType && "Invalid conversion type");
@@ -825,7 +825,7 @@ llvm::Value *CodeGenModule::GenCall(ASTCall *Call) {
 }
 
 llvm::Value *CodeGenModule::GenExpr(ASTExpr *Expr) {
-    FLY_DEBUG("CodeGenModule", "GenExpr");
+    FLY_DEBUG_START("CodeGenModule", "GenExpr");
     CodeGenExpr *CGExpr = new CodeGenExpr(this, Expr);
     return CGExpr->getValue();
 }
@@ -852,7 +852,7 @@ void CodeGenModule::GenFailStmt(ASTFailStmt *FailStmt, CodeGenError *CGE) {
 }
 
 void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
-    FLY_DEBUG("CodeGenModule", "GenStmt");
+    FLY_DEBUG_START("CodeGenModule", "GenStmt");
     switch (Stmt->getStmtKind()) {
 
         // Var Assignment
@@ -994,14 +994,14 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
 }
 
 void CodeGenModule::GenBlock(CodeGenFunctionBase *CGF, ASTBlockStmt *BlockStmt) {
-    FLY_DEBUG("CodeGenModule", "GenBlock");
+    FLY_DEBUG_START("CodeGenModule", "GenBlock");
     for (ASTStmt *Stmt : BlockStmt->getContent()) {
         GenStmt(CGF, Stmt);
     }
 }
 
 void CodeGenModule::GenIfBlock(CodeGenFunctionBase *CGF, ASTIfStmt *If) {
-    FLY_DEBUG("CodeGenModule", "GenIfBlock");
+    FLY_DEBUG_START("CodeGenModule", "GenIfBlock");
     llvm::Function *Fn = CGF->getFunction();
 
     // If Block
@@ -1106,7 +1106,7 @@ void CodeGenModule::GenIfBlock(CodeGenFunctionBase *CGF, ASTIfStmt *If) {
 llvm::BasicBlock *CodeGenModule::GenElsifBlock(CodeGenFunctionBase *CGF,
                                                llvm::BasicBlock *ElsifBB,
                                                llvm::SmallVector<ASTRuleStmt *, 8>::iterator &It) {
-    FLY_DEBUG("CodeGenModule", "GenElsifBlock");
+    FLY_DEBUG_START("CodeGenModule", "GenElsifBlock");
     llvm::Function *Fn = CGF->getFunction();
     ASTRuleStmt *&Elsif = *It;
     It++;
@@ -1126,7 +1126,7 @@ llvm::BasicBlock *CodeGenModule::GenElsifBlock(CodeGenFunctionBase *CGF,
 }
 
 void CodeGenModule::GenSwitchBlock(CodeGenFunctionBase *CGF, ASTSwitchStmt *Switch) {
-    FLY_DEBUG("CodeGenModule", "GenSwitchBlock");
+    FLY_DEBUG_START("CodeGenModule", "GenSwitchBlock");
     llvm::Function *Fn = CGF->getFunction();
 
     // Create End Block
@@ -1173,7 +1173,7 @@ void CodeGenModule::GenSwitchBlock(CodeGenFunctionBase *CGF, ASTSwitchStmt *Swit
 }
 
 void CodeGenModule::GenLoopBlock(CodeGenFunctionBase *CGF, ASTLoopStmt *Loop) {
-    FLY_DEBUG("CodeGenModule", "GenLoopBlock");
+    FLY_DEBUG_START("CodeGenModule", "GenLoopBlock");
     llvm::Function *Fn = CGF->getFunction();
 
     // Generate Init Statements
@@ -1237,15 +1237,15 @@ void CodeGenModule::GenLoopBlock(CodeGenFunctionBase *CGF, ASTLoopStmt *Loop) {
 
 void CodeGenModule::GenReturn(ASTFunction *F, ASTExpr *Expr) {
     // Create the Value for return
-    if (F->getReturnType()->getDef()->isVoid()) {
+    if (F->getReturnTypeRef()->getDef()->isVoid()) {
         Builder->CreateRetVoid();
     } else {
         Value *Ret;
         if (Expr) {
             llvm::Value *V = GenExpr(Expr);
-            Ret = Convert(V, Expr->getTypeRef()->getDef(), F->getReturnType()->getDef());
+            Ret = Convert(V, Expr->getTypeRef()->getDef(), F->getReturnTypeRef()->getDef());
         } else {
-            Ret = GenDefaultValue(F->getReturnType()->getDef());
+            Ret = GenDefaultValue(F->getReturnTypeRef()->getDef());
         }
         Builder->CreateRet(Ret);
     }

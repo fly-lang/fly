@@ -27,17 +27,21 @@ namespace fly {
 
         ASTModule *Module;
 
-        llvm::StringRef Name;
+        llvm::SmallVector<llvm::StringRef, 4> Names;
+
+        std::string Name;
 
         ASTAlias *Alias = nullptr;
 
-        ASTImport(const SourceLocation &Loc, llvm::StringRef Name);
+        ASTImport(const SourceLocation &Loc, llvm::SmallVector<llvm::StringRef, 4> &Names);
 
     public:
 
         ~ASTImport();
 
         ASTModule* getModule() const;
+
+        llvm::StringRef getName() const;
 
         ASTAlias *getAlias() const;
 

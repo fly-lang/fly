@@ -17,7 +17,7 @@ ASTVarRef::ASTVarRef(const SourceLocation &Loc, llvm::StringRef Name) : ASTIdent
 }
 
 SymVar *ASTVarRef::getDef() const {
-    return Def;
+    return *Def;
 }
 
 std::string ASTVarRef::str() const {

@@ -12,7 +12,7 @@
 
 using namespace fly;
 
-SymClass::SymClass(ASTClass *AST) : SymType(AST) {
+SymClass::SymClass(ASTClass *AST) : SymType(SymTypeKind::TYPE_CLASS), AST(AST) {
 
 }
 
@@ -24,15 +24,31 @@ SymModule * SymClass::getModule() const {
 	return Module;
 }
 
-llvm::StringMap<SymClassAttribute *> SymClass::getAttributes() const {
+SymVisibilityKind SymClass::getVisibility() const {
+	return Visibility;
+}
+
+bool SymClass::isConstant() const {
+	return Constant;
+}
+
+SymClassKind SymClass::getClassKind() const {
+	return ClassKind;
+}
+
+const llvm::StringMap<SymClass *> &SymClass::getSuperClasses() const {
+	return SuperClasses;
+}
+
+const llvm::StringMap<SymClassAttribute *> &SymClass::getAttributes() const {
     return Attributes;
 }
 
-llvm::DenseMap<size_t, SymClassMethod *> SymClass::getMethods() const {
+const llvm::DenseMap<size_t, SymClassMethod *> &SymClass::getMethods() const {
     return Methods;
 }
 
-llvm::DenseMap<size_t, SymClassMethod *> SymClass::getConstructors() const {
+const llvm::DenseMap<size_t, SymClassMethod *> &SymClass::getConstructors() const {
 	return Constructors;
 }
 

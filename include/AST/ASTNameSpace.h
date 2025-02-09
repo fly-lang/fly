@@ -22,9 +22,9 @@ namespace fly {
         friend class SemaResolver;
         friend class SemaValidator;
 
-        SymNameSpace *Sym;
-
         const llvm::StringRef Name;
+
+        ASTNameSpace *Parent = nullptr;
 
         ASTNameSpace(const SourceLocation &Loc, llvm::StringRef Name);
 
@@ -34,7 +34,7 @@ namespace fly {
 
         llvm::StringRef getName() const;
 
-        SymNameSpace* getDef() const;
+        ASTNameSpace *getParent() const;
 
         std::string str() const;
     };

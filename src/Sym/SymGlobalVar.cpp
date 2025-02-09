@@ -23,6 +23,10 @@ SymComment * SymGlobalVar::getComment() const {
 	return Comment;
 }
 
+SymVisibilityKind SymGlobalVar::getVisibility() const {
+	return Visibility;
+}
+
 CodeGenGlobalVar *SymGlobalVar::getCodeGen() const {
 	return CodeGen;
 }

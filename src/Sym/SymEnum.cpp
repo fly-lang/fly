@@ -13,7 +13,7 @@
 
 using namespace fly;
 
-SymEnum::SymEnum(ASTEnum *Enum) : SymType(Enum) {
+SymEnum::SymEnum(ASTEnum *AST) : SymType(SymTypeKind::TYPE_ENUM), AST(AST) {
 
 }
 
@@ -23,6 +23,18 @@ ASTEnum *SymEnum::getAST() {
 
 SymModule * SymEnum::getModule() const {
 	return Module;
+}
+
+const llvm::StringMap<SymEnum *> &SymEnum::getSuperEnums() const {
+	return SuperEnums;
+}
+
+SymVisibilityKind SymEnum::getVisibility() const {
+	return Visibility;
+}
+
+bool SymEnum::isConstant() const {
+	return Constant;
 }
 
 const llvm::StringMap<SymEnumEntry *> &SymEnum::getEntries() const {

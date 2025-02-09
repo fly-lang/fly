@@ -18,7 +18,6 @@ namespace fly {
     class SymNameSpace;
     class ASTFunction;
     class ASTClass;
-    class ASTType;
     class ASTModule;
     class CodeGenOptions;
     class ASTVar;
@@ -36,7 +35,7 @@ namespace fly {
 
         void setClass(ASTClass* Class);
 
-        const std::string Convert(ASTType* Type);
+        const std::string Convert(ASTTypeRef* TypeRef);
 
         void AddNameSpace(SymNameSpace* pSpace);
     };

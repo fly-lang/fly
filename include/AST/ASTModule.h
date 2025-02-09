@@ -11,7 +11,6 @@
 #define FLY_AST_MODULE_H
 
 #include "AST/ASTBase.h"
-#include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/SmallVector.h"
 
 namespace fly {
@@ -29,7 +28,7 @@ namespace fly {
         ASTNameSpace* NameSpace = nullptr;
 
         // Module Id
-        const uint64_t Id;
+        const size_t Id;
 
         // Module FileName
         const std::string Name;
@@ -44,10 +43,10 @@ namespace fly {
 
         ~ASTModule();
 
-        ASTModule(uint64_t& Id, std::string Name, bool isHeader);
+        ASTModule(size_t& Id, std::string Name, bool isHeader);
 
     public:
-        const uint64_t getId() const;
+        const size_t getId() const;
 
         bool isHeader() const;
 

@@ -13,7 +13,7 @@
 using namespace fly;
 
 ASTEnum::ASTEnum(ASTModule *Module, const SourceLocation &Loc, llvm::StringRef Name,
-                 llvm::SmallVector<ASTScope *, 8> &Scopes, llvm::SmallVector<ASTEnumType *, 4> &SuperClasses) :
+                 llvm::SmallVector<ASTScope *, 8> &Scopes, llvm::SmallVector<ASTTypeRef *, 4> &SuperClasses) :
         ASTBase(Loc, ASTKind::AST_ENUM), Name(Name), Scopes(Scopes), SuperClasses(SuperClasses) {
 
 }
@@ -34,7 +34,7 @@ llvm::StringRef ASTEnum::getName() const {
 	return Name;
 }
 
-llvm::SmallVector<ASTEnumType *, 4> ASTEnum::getSuperClasses() const {
+llvm::SmallVector<ASTTypeRef *, 4> ASTEnum::getSuperClasses() const {
 	return SuperClasses;
 }
 

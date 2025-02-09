@@ -16,6 +16,8 @@
 #define FLY_DEBUG_PRINT_PREFIX "[Debug] "
 #define FLY_DEBUG_PRINT_SEP1 "::"
 #define FLY_DEBUG_PRINT_SEP2 " - "
+#define FLY_DEBUG_PRINT_START "start"
+#define FLY_DEBUG_PRINT_END "end"
 #define FLY_DEBUG_PRINT_POSTFIX "\n"
 
 extern bool DebugEnabled;
@@ -29,9 +31,14 @@ extern bool DebugEnabled;
         << CLASS << FLY_DEBUG_PRINT_SEP1 << METHOD << FLY_DEBUG_PRINT_SEP2 << MESSAGE \
         << FLY_DEBUG_PRINT_POSTFIX)
 
-#define FLY_DEBUG(CLASS, METHOD) \
+#define FLY_DEBUG_START(CLASS, METHOD) \
     FLY_DEBUG_WITH_TYPE(DEBUG_TYPE, llvm::dbgs() << FLY_DEBUG_PRINT_PREFIX \
-        << CLASS << FLY_DEBUG_PRINT_SEP1 << METHOD \
+        << FLY_DEBUG_PRINT_START << CLASS << FLY_DEBUG_PRINT_SEP1 << METHOD \
+        << FLY_DEBUG_PRINT_POSTFIX)
+
+#define FLY_DEBUG_END(CLASS, METHOD) \
+    FLY_DEBUG_WITH_TYPE(DEBUG_TYPE, llvm::dbgs() << FLY_DEBUG_PRINT_PREFIX \
+        << FLY_DEBUG_PRINT_END << FLY_DEBUG_PRINT_SEP1 << METHOD \
         << FLY_DEBUG_PRINT_POSTFIX)
 
 #endif

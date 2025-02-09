@@ -31,9 +31,13 @@ namespace fly {
     class SymEnumEntry;
     class SymType;
     class ASTClass;
+    class ASTImport;
     class ASTEnum;
-class SymTypeInt;
-class SymTypeFP;
+    class ASTComment;
+    class ASTVar;
+    class ASTFunction;
+	class SymTypeInt;
+	class SymTypeFP;
 
     class SymBuilder {
 
@@ -53,7 +57,11 @@ class SymTypeFP;
 
     	SymNameSpace *CreateNameSpace(llvm::StringRef Name);
 
+    	SymNameSpace *AddNameSpace(llvm::StringRef Name);
+
     	SymModule* CreateModule(ASTModule *AST);
+
+    	void CreateImport(SymModule* Module, ASTImport* AST);
 
     	SymGlobalVar *CreateGlobalVar(SymModule *Module, ASTVar *AST);
 
@@ -61,24 +69,23 @@ class SymTypeFP;
 
     	SymClass *CreateClass(SymModule *Module, ASTClass *AST);
 
-    	SymClassAttribute *CreateClassAttribute(SymClass *Class, ASTVar *AST);
+    	SymClassAttribute *CreateClassAttribute(SymClass *Class, ASTVar *AST, SymComment *Comment);
 
-    	SymClassMethod *CreateClassFunction(SymClass *Class, ASTFunction *AST);
+    	SymClassMethod *CreateClassFunction(SymClass *Class, ASTFunction *AST, SymComment *Comment);
 
     	SymEnum *CreateEnum(SymModule *Module, ASTEnum *AST);
 
-    	SymEnum *CreateEnumEntry(SymEnum *Enum, ASTVar *AST);
+    	SymEnumEntry *CreateEnumEntry(SymEnum *Enum, ASTVar *AST, SymComment *Comment);
 
-    	SymType * SymBuilder::CreateType(SymTypeKind Kind);
+    	SymType *CreateType(SymTypeKind Kind);
 
     	SymTypeInt *CreateIntType(SymIntTypeKind IntKind);
 
     	SymTypeFP *CreateFPType(SymFPTypeKind FPKind);
 
-    	SymTypeArray *CreateArrayType(SymType Type, uint64_t Size);
+    	SymTypeArray *CreateArrayType(SymType *Type, size_t Size);
 
 	    SymComment* CreateComment(ASTComment* AST);
-
     };
 
 }  // end namespace fly

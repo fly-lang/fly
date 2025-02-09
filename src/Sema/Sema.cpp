@@ -38,9 +38,6 @@ Sema* Sema::CreateSema(DiagnosticsEngine &Diags) {
 	// Init the Sema AST Context
 	S->Table = S->SymBuildr->CreateTable();
 
-	// Create the Default NameSpace
-	S->Builder->CreateSymNameSpace();
-
     return S;
 }
 
@@ -64,7 +61,7 @@ SymTable &Sema::getSymTable() const {
     return *Table;
 }
 
-llvm::SmallVector<ASTModule *, 4> Sema::getModules() const {
+const llvm::SmallVector<ASTModule *, 4> &Sema::getModules() const {
 	return Modules;
 }
 

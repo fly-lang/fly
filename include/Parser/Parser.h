@@ -25,8 +25,6 @@ namespace fly {
     class ASTIdentifier;
     class ASTFunction;
     class ASTArrayValue;
-    class ASTArrayType;
-    class ASTClassType;
     class ASTBlockStmt;
     class ASTCall;
     class ASTStmt;
@@ -45,129 +43,218 @@ namespace fly {
     class ASTNameSpace;
     class ASTImport;
     class ASTVar;
-class ASTTypeRef;
+    class ASTArrayTypeRef;
+    class ASTTypeRef;
 
     /// ParseModule the main file known to the preprocessor, producing an
     /// abstract syntax tree.
     class Parser {
 
-        friend class ParserFunction;
-        friend class ParserClass;
-        friend class ParserEnum;
-        friend class ParserExpr;
-        friend class ParserMethod;
+    friend class ParserFunction;
+    friend class ParserClass;
+    friend class ParserEnum;
+    friend class ParserExpr;
+    friend class ParserMethod;
 
-        const InputFile &Input;
+    const InputFile &Input;
 
-        DiagnosticsEngine &Diags;
+    DiagnosticsEngine &Diags;
 
-        SourceManager &SourceMgr;
+    SourceManager &SourceMgr;
 
-        ASTBuilder &Builder;
+    ASTBuilder &Builder;
 
-        Lexer Lex;
+    Lexer Lex;
 
-        /// Tok - The current token we are peeking ahead.  All parsing methods assume
-        /// that this is valid.
-        Token Tok;
+    /// Tok - The current token we are peeking ahead.  All parsing methods assume
+    /// that this is valid.
+    Token Tok;
 
-        ASTModule *Module;
+    ASTModule *Module;
 
-        // PrevTokLocation - The location of the token we previously
-        // consumed. This token is used for diagnostics where we expected to
-        // see a token following another token (e.g., the ';' at the end of
-        // a statement).
-        SourceLocation PrevTokLocation;
+    // PrevTokLocation - The location of the token we previously
+    // consumed. This token is used for diagnostics where we expected to
+    // see a token following another token (e.g., the ';' at the end of
+    // a statement).
+    SourceLocation PrevTokLocation;
 
-        unsigned short ParenCount = 0, BracketCount = 0, BraceCount = 0;
+    unsigned short ParenCount = 0, BracketCount = 0, BraceCount = 0;
 
-    public:
+public:
 
-        Parser(const InputFile &Input, SourceManager &SourceMgr, DiagnosticsEngine &Diags, ASTBuilder &Builder);
+    /// Constructor for the Parser class.
+    Parser(const InputFile &Input, SourceManager &SourceMgr, DiagnosticsEngine &Diags, ASTBuilder &Builder);
 
-        ASTModule *ParseModule();
+    /// Parse the main module.
+    ASTModule *ParseModule();
 
-        ASTModule *ParseHeader();
+    /// Parse the header of the module.
+    ASTModule *ParseHeader();
 
-        bool isSuccess();
+    /// Check if the parsing was successful.
+    bool isSuccess();
 
-    private:
+private:
 
-        ASTNameSpace *ParseNameSpace();
+    /// Parse names.
+    llvm::SmallVector<llvm::StringRef, 4> ParseNames();
 
-        ASTImport * ParseImport();
+    /// Parse a namespace.
+    ASTNameSpace *ParseNameSpace();
 
-        ASTBase *ParseDefinition();
+    /// Parse an import statement.
+    ASTImport * ParseImport();
 
-        SmallVector<ASTScope *, 8> ParseScopes();
+    /// Parse a definition.
+    ASTBase *ParseDefinition();
 
-        ASTVar *ParseGlobalVar(SmallVector<ASTScope *, 8> &Scopes, ASTType *Type);
+    /// Parse multiple scopes.
+    SmallVector<ASTScope *, 8> ParseScopes();
 
-        ASTFunction *ParseFunction(SmallVector<ASTScope *, 8> &Scopes, ASTType *Type);
+    /// Parse a global variable.
+    ASTVar *ParseGlobalVar(SmallVector<ASTScope *, 8> &Scopes, ASTTypeRef *TypeRef);
 
-        ASTClass *ParseClass(SmallVector<ASTScope *, 8> &Scopes);
+    /// Parse a function.
+    ASTFunction *ParseFunction(SmallVector<ASTScope *, 8> &Scopes, ASTTypeRef *TypeRef);
 
-        ASTEnum *ParseEnum(SmallVector<ASTScope *, 8> &Scopes);
+    /// Parse a class.
+    ASTClass *ParseClass(SmallVector<ASTScope *, 8> &Scopes);
 
-        ASTComment *ParseComment();
+    /// Parse an enum.
+    ASTEnum *ParseEnum(SmallVector<ASTScope *, 8> &Scopes);
 
-        // Parse Block or Stmt
-        void ParseBlockOrStmt(ASTBlockStmt *Parent);
-        void ParseBlock(ASTBlockStmt *Parent);
-        void ParseStmt(ASTBlockStmt *Parent);
-        bool ParseStartParen(); // FIXME remove?
-        void ParseEndParen(bool HasParen); // FIXME remove?
-        void ParseIfStmt(ASTBlockStmt *Parent);
-        void ParseSwitchStmt(ASTBlockStmt *Parent);
-        void ParseWhileStmt(ASTBlockStmt *Parent);
-        void ParseForStmt(ASTBlockStmt *Parent);
-        void ParseHandleStmt(ASTBlockStmt *Parent, ASTVarRef *Error);
-        void ParseFailStmt(ASTBlockStmt *Parent);
+    /// Parse a comment.
+    ASTComment *ParseComment();
 
-        // Parse Identifiers
-        ASTArrayType *ParseArrayType(ASTTypeRef *);
-        ASTTypeRef *ParseTypeRef();
-        ASTCall *ParseCallIdentifier(ASTIdentifier *&Identifier);
-        ASTIdentifier *ParseIdentifier(ASTIdentifier *Parent = nullptr, bool istype = false);
+    /// Parse a block or statement.
+    void ParseBlockOrStmt(ASTBlockStmt *Parent);
 
-        // Parse a Value
-        ASTValue *ParseValue();
-        ASTValue *ParseValueNumber(llvm::StringRef Input);
-        ASTValue *ParseValues();
+    /// Parse a block.
+    void ParseBlock(ASTBlockStmt *Parent);
 
-        // Parse Expressions
-        ASTExpr *ParseExpr();
+    /// Parse a statement.
+    void ParseStmt(ASTBlockStmt *Parent);
 
-        // Check Keywords
-        bool isBuiltinType(Token &Tok);
-        bool isArrayType(Token &Tok);
-        bool isValue();
-        bool isConst();
-        bool isBlockStart();
-        bool isBlockEnd();
+    /// Parse the start of a parenthesis.
+    bool ParseStartParen();
 
-        // Parse Tokens
-        SourceLocation ConsumeToken();
-        bool isTokenParen() const;
-        bool isTokenBracket() const;
-        bool isTokenBrace() const;
-        bool isTokenStringLiteral() const;
-        bool isTokenSpecial() const;
-        bool isTokenComment() const;
-        bool isAssignOperator(const Token &Tok) const;
-        SourceLocation ConsumeParen();
-        SourceLocation ConsumeBracket();
-        SourceLocation ConsumeBrace(unsigned short &BraceCount);
-        bool isBraceBalanced() const;
-        SourceLocation ConsumeStringToken();
-        llvm::StringRef getLiteralString();
+    /// Parse the end of a parenthesis.
+    void ParseEndParen(bool HasParen);
 
-        // Diagnostics
-        DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID);
-        DiagnosticBuilder Diag(const Token &Tok, unsigned DiagID);
-        DiagnosticBuilder Diag(unsigned DiagID);
-        void DiagInvalidId(SourceLocation Loc);
-    };
+    /// Parse an if statement.
+    void ParseIfStmt(ASTBlockStmt *Parent);
+
+    /// Parse a switch statement.
+    void ParseSwitchStmt(ASTBlockStmt *Parent);
+
+    /// Parse a while statement.
+    void ParseWhileStmt(ASTBlockStmt *Parent);
+
+    /// Parse a for statement.
+    void ParseForStmt(ASTBlockStmt *Parent);
+
+    /// Parse a handle statement.
+    void ParseHandleStmt(ASTBlockStmt *Parent, ASTVarRef *Error);
+
+    /// Parse a fail statement.
+    void ParseFailStmt(ASTBlockStmt *Parent);
+
+    /// Parse an array type reference.
+    ASTArrayTypeRef *ParseArrayTypeRef(ASTTypeRef *);
+
+    /// Parse a type reference.
+    ASTTypeRef *ParseTypeRef();
+
+    /// Parse a call.
+    ASTCall *ParseCall(ASTIdentifier *&Identifier);
+
+    /// Parse an identifier.
+    ASTIdentifier *ParseIdentifier(ASTIdentifier *Parent = nullptr, bool istype = false);
+
+    /// Parse a value.
+    ASTValue *ParseValue();
+
+    /// Parse a number value.
+    ASTValue *ParseValueNumber(llvm::StringRef Value);
+
+    /// Parse multiple values.
+    ASTValue *ParseValues();
+
+    /// Parse an expression.
+    ASTExpr *ParseExpr();
+
+    /// Check if the token is a built-in type.
+    bool isBuiltinType(Token &Tok);
+
+    /// Check if the token is an array type.
+    bool isArrayType(Token &Tok);
+
+    /// Check if the token is a value.
+    bool isValue();
+
+    /// Check if the token is a constant.
+    bool isConst();
+
+    /// Check if the token is the start of a block.
+    bool isBlockStart();
+
+    /// Check if the token is the end of a block.
+    bool isBlockEnd();
+
+    /// Consume the current token.
+    SourceLocation ConsumeToken();
+
+    /// Check if the token is a parenthesis.
+    bool isTokenParen() const;
+
+    /// Check if the token is a bracket.
+    bool isTokenBracket() const;
+
+    /// Check if the token is a brace.
+    bool isTokenBrace() const;
+
+    /// Check if the token is a string literal.
+    bool isTokenStringLiteral() const;
+
+    /// Check if the token is a special character.
+    bool isTokenSpecial() const;
+
+    /// Check if the token is a comment.
+    bool isTokenComment() const;
+
+    /// Check if the token is an assignment operator.
+    bool isAssignOperator(const Token &Tok) const;
+
+    /// Consume a parenthesis token.
+    SourceLocation ConsumeParen();
+
+    /// Consume a bracket token.
+    SourceLocation ConsumeBracket();
+
+    /// Consume a brace token.
+    SourceLocation ConsumeBrace(unsigned short &BraceCount);
+
+    /// Check if the braces are balanced.
+    bool isBraceBalanced() const;
+
+    /// Consume a string token.
+    SourceLocation ConsumeStringToken();
+
+    /// Get the literal string from the token.
+    llvm::StringRef getLiteralString();
+
+    /// Emit a diagnostic message.
+    DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID);
+
+    /// Emit a diagnostic message for a token.
+    DiagnosticBuilder Diag(const Token &Tok, unsigned DiagID);
+
+    /// Emit a diagnostic message.
+    DiagnosticBuilder Diag(unsigned DiagID);
+
+    /// Emit a diagnostic message for an invalid identifier.
+    void DiagInvalidId(SourceLocation Loc);
+};
 
 }  // end namespace fly
 

@@ -111,8 +111,6 @@ namespace fly {
 
     class ASTDoubleType;
 
-    class ASTArrayType;
-
     class ASTTypeRef;
 
     class ASTVoidType;
@@ -184,6 +182,10 @@ namespace fly {
     class ASTCharType;
 
     class ASTErrorType;
+
+    class ASTArrayTypeRef;
+
+    class ASTNameSpaceRef;
     
     enum class ASTClassKind;
 
@@ -223,16 +225,19 @@ namespace fly {
         ASTComment *CreateComment(ASTModule *Module, const SourceLocation &Loc, llvm::StringRef Content);
 
         // Create NameSpace
-        SymNameSpace *CreateSymNameSpace();
-        SymNameSpace *CreateSymNameSpace(llvm::StringRef Name);
+        ASTNameSpace *CreateNameSpace(const SourceLocation &Loc, llvm::StringRef Name, ASTModule *Module = nullptr);
 
-        // Create NameSpaceRef
-        ASTNameSpace *CreateNameSpace(ASTModule *Module, ASTIdentifier *Identifier);
+        // Create NameSpace
+        ASTNameSpace *CreateNameSpace(const SourceLocation &Loc, llvm::SmallVector<llvm::StringRef, 4> &Names, ASTModule *Module);
 
-        // Create Top Definitions
+        // Create Import
         ASTImport *CreateImport(ASTModule *Module, const SourceLocation &Loc, llvm::StringRef Name, ASTAlias *Alias);
 
-        ASTAlias * CreateAlias(SourceLocation Loc, llvm::StringRef Name);
+        // Create Import
+        ASTImport *CreateImport(ASTModule *Module, const SourceLocation &Loc, llvm::SmallVector<llvm::StringRef, 4> &Names, ASTAlias *Alias);
+
+        // Create Alias
+        ASTAlias * CreateAlias(const SourceLocation &Loc, llvm::StringRef Name);
 
         ASTVar *CreateGlobalVar(ASTModule *Module, const SourceLocation &Loc, ASTTypeRef *Type, llvm::StringRef Name,
                                       llvm::SmallVector<ASTScope *, 8> &Scopes, ASTExpr *Expr = nullptr);
@@ -242,61 +247,57 @@ namespace fly {
                                     ASTBlockStmt *Body = nullptr);
 
         ASTClass *CreateClass(ASTModule *Module, const SourceLocation &Loc, ASTClassKind ClassKind, llvm::StringRef Name,
-                              llvm::SmallVector<ASTScope *, 8> &Scopes);
+                              llvm::SmallVector<ASTScope *, 8> &Scopes, llvm::SmallVector<ASTTypeRef *, 4> &SuperClasses);
 
-        ASTVar *CreateClassAttribute(const SourceLocation &Loc, ASTClass &Class, ASTTypeRef *Type,
+        ASTVar *CreateClassAttribute(const SourceLocation &Loc, ASTClass *Class, ASTTypeRef *TypeRef,
                                                 llvm::StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes,
                                                 ASTExpr *Expr = nullptr);
 
-        ASTFunction *CreateClassConstructor(const SourceLocation &Loc, ASTClass &Class,
-                                               llvm::SmallVector<ASTScope *, 8> &Scopes,
-                                               llvm::SmallVector<ASTVar *, 8> &Params, ASTBlockStmt *Body = nullptr);
-
-        ASTFunction *CreateClassMethod(const SourceLocation &Loc, ASTClass &Class, ASTTypeRef *Type,
+        ASTFunction *CreateClassMethod(const SourceLocation &Loc, ASTClass *Class, ASTTypeRef *TypeRef,
                                           llvm::StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes,
                                           llvm::SmallVector<ASTVar *, 8> &Params, ASTBlockStmt *Body = nullptr);
 
-        ASTFunction *CreateClassVirtualMethod(const SourceLocation &Loc, ASTTypeRef *Type, llvm::StringRef Name,
-                                                 llvm::SmallVector<ASTScope *, 8> &Scopes,
-                                                 llvm::SmallVector<ASTVar *, 8> &Params);
-
         ASTEnum *CreateEnum(ASTModule *Module, const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes,
-                   llvm::SmallVector<ASTVar *, 4> EnumTypes);
+                   llvm::SmallVector<ASTTypeRef *, 4> EnumTypes);
 
-        ASTVar *CreateEnumEntry(const SourceLocation &Loc, ASTEnum &Enum, llvm::StringRef Name,
+        ASTVar *CreateEnumEntry(const SourceLocation &Loc, ASTEnum *Enum, llvm::StringRef Name,
                                       llvm::SmallVector<ASTScope *, 8> &Scopes);
 
         // Create Types
 
-        ASTTypeRef *CreateBoolType(const SourceLocation &Loc);
+        ASTTypeRef *CreateBoolTypeRef(const SourceLocation &Loc);
 
-        ASTTypeRef *CreateByteType(const SourceLocation &Loc);
+        ASTTypeRef *CreateByteTypeRef(const SourceLocation &Loc);
 
-        ASTTypeRef *CreateUShortType(const SourceLocation &Loc);
+        ASTTypeRef *CreateUShortTypeRef(const SourceLocation &Loc);
 
-        ASTTypeRef *CreateShortType(const SourceLocation &Loc);
+        ASTTypeRef *CreateShortTypeRef(const SourceLocation &Loc);
 
-        ASTTypeRef *CreateUIntType(const SourceLocation &Loc);
+        ASTTypeRef *CreateUIntTypeRef(const SourceLocation &Loc);
 
-        ASTTypeRef *CreateIntType(const SourceLocation &Loc);
+        ASTTypeRef *CreateIntTypeRef(const SourceLocation &Loc);
 
-        ASTTypeRef *CreateULongType(const SourceLocation &Loc);
+        ASTTypeRef *CreateULongTypeRef(const SourceLocation &Loc);
 
-        ASTTypeRef *CreateLongType(const SourceLocation &Loc);
+        ASTTypeRef *CreateLongTypeRef(const SourceLocation &Loc);
 
-        ASTTypeRef *CreateFloatType(const SourceLocation &Loc);
+        ASTTypeRef *CreateFloatTypeRef(const SourceLocation &Loc);
 
-        ASTTypeRef *CreateDoubleType(const SourceLocation &Loc);
+        ASTTypeRef *CreateDoubleTypeRef(const SourceLocation &Loc);
 
-        ASTTypeRef *CreateVoidType(const SourceLocation &Loc);
+        ASTTypeRef *CreateVoidTypeRef(const SourceLocation &Loc);
 
-        ASTTypeRef *CreateArrayType(const SourceLocation &Loc, ASTTypeRef *TypeRef, ASTExpr *Size);
+        ASTTypeRef *CreateStringTypeRef(const SourceLocation &Loc);
 
-        ASTTypeRef *CreateStringType(const SourceLocation &Loc);
+        ASTTypeRef *CreateCharTypeRef(const SourceLocation &Loc);
 
-        ASTTypeRef *CreateCharType(const SourceLocation &Loc);
+        ASTTypeRef *CreateErrorTypeRef(const SourceLocation &Loc);
 
-        ASTTypeRef *CreateErrorType(const SourceLocation &Loc);
+        ASTArrayTypeRef *CreateArrayTypeRef(const SourceLocation &Loc, ASTTypeRef *TypeRef, ASTExpr *Size);
+
+        ASTTypeRef *CreateTypeRef(const SourceLocation &Loc, llvm::StringRef Name, ASTNameSpaceRef *NameSpaceRef = nullptr);
+
+        ASTNameSpaceRef *CreateNameSpaceRef(const SourceLocation &Loc, llvm::SmallVector<llvm::StringRef, 4> &Names);
 
         // Create Values
 
@@ -308,17 +309,17 @@ namespace fly {
 
         ASTBoolValue *CreateBoolValue(const SourceLocation &Loc, bool Val);
 
-        ASTIntegerValue *CreateIntegerValue(const SourceLocation &Loc, llvm::StringRef Value, uint8_t Radix);
+        ASTIntegerValue *CreateIntegerValue(const SourceLocation &Loc, llvm::StringRef Val, uint8_t Radix);
 
-        ASTIntegerValue *CreateIntegerValue(const SourceLocation &Loc, llvm::StringRef Value);
+        ASTIntegerValue *CreateIntegerValue(const SourceLocation &Loc, llvm::StringRef Val);
 
         ASTFloatingValue *CreateFloatingValue(const SourceLocation &Loc, llvm::StringRef Val);
 
         ASTArrayValue *CreateArrayValue(const SourceLocation &Loc, llvm::SmallVector<ASTValue *, 8> Values);
 
-        ASTCharValue *CreateCharValue(const SourceLocation &Loc, llvm::StringRef Str);
+        ASTCharValue *CreateCharValue(const SourceLocation &Loc, llvm::StringRef Val);
 
-        ASTStringValue *CreateStringValue(const SourceLocation &Loc, llvm::StringRef Str);
+        ASTStringValue *CreateStringValue(const SourceLocation &Loc, llvm::StringRef Val);
 
         ASTStructValue *CreateStructValue(const SourceLocation &Loc, llvm::StringMap<ASTValue *>);
 
@@ -336,9 +337,11 @@ namespace fly {
 
         // Create Call
 
-        ASTCall *CreateCall(ASTIdentifier *Identifier, llvm::SmallVector<ASTExpr *, 8> &Args, ASTCallKind CallKind, ASTIdentifier *Parent = nullptr);
+        ASTCall *CreateCall(const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTExpr *, 8> &Args, ASTCallKind CallKind, ASTIdentifier *Parent = nullptr);
 
         ASTCall *CreateCall(ASTFunction *Function, llvm::SmallVector<ASTExpr *, 8> &Args);
+
+        ASTCall *CreateCall(ASTIdentifier *Instance, ASTFunction *Method);
 
         // Create VarRef
         ASTVarRef *CreateVarRef(ASTIdentifier *Identifier, ASTIdentifier *Parent = nullptr);

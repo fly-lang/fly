@@ -49,7 +49,7 @@ std::string getParameters(ASTFunction *Function) {
 }
 
 void CodeGenHeader::CreateFile(DiagnosticsEngine &Diags, CodeGenOptions &CodeGenOpts, SymNameSpace &NameSpace) {
-	FLY_DEBUG("CodeGenHeader", "GenerateFile");
+	FLY_DEBUG_START("CodeGenHeader", "GenerateFile");
 	llvm::Twine FileHeader = llvm::Twine(NameSpace.getName()).concat(".h");
 	llvm::StringRef FileName = llvm::sys::path::filename(FileHeader.str());
 	FLY_DEBUG_MESSAGE("CodeGenHeader", "GenerateFile", "FileName=" << FileName);
@@ -71,7 +71,7 @@ void CodeGenHeader::CreateFile(DiagnosticsEngine &Diags, CodeGenOptions &CodeGen
 	for (auto &SymFunc : NameSpace.getFunctions()) {
 		ASTFunction *Function = SymFunc->getFunction();
 		if (Function->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
-			Header.concat(Function->getReturnType()->print())
+			Header.concat(Function->getReturnTypeRef()->print())
 			      .concat(Function->getName())
 			      .concat("(");
 			std::string ParamsStr = getParameters(Function);

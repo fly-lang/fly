@@ -34,7 +34,7 @@ Frontend::~Frontend() {
 bool Frontend::Execute() {
     assert(!CI.getFrontendOptions().ShowHelp && "Client must handle '-help'!");
     assert(!CI.getFrontendOptions().ShowVersion && "Client must handle '-version'!");
-    FLY_DEBUG("Frontend", "Execute");
+    FLY_DEBUG_START("Frontend", "Execute");
 
     raw_ostream &OS = llvm::errs();
 
@@ -168,7 +168,7 @@ void Frontend::ParseFile(ASTBuilder &Builder, const std::string &FileName) {
 }
 
 void Frontend::CreateFrontendTimer() {
-    FLY_DEBUG("Frontend", "CreateFrontendTimer");
+    FLY_DEBUG_START("Frontend", "CreateFrontendTimer");
     FrontendTimerGroup.reset(
             new llvm::TimerGroup("frontend", "Clang front-end time report"));
     FrontendTimer.reset(

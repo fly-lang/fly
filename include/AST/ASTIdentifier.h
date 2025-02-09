@@ -16,6 +16,7 @@ namespace fly {
 
     enum class ASTRefKind {
         REF_UNDEFINED,
+        REF_NAMESPACE,
         REF_TYPE,
         REF_CALL,
         REF_VAR

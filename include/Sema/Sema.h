@@ -33,16 +33,14 @@ namespace fly {
     class SymTable;
     class SymNameSpace;
     class ASTModule;
-    class ASTIdentity;
     class ASTFunction;
     class ASTFunction;
     class ASTImport;
-    class ASTLocalVar;
     class ASTVarRef;
     class ASTVar;
     class ASTBlockStmt;
     class ASTIdentifier;
-    class ASTRefType;
+    class ASTTypeRef;
 
     class Sema {
 
@@ -82,7 +80,7 @@ namespace fly {
 
         SymTable &getSymTable() const;
 
-        llvm::SmallVector<ASTModule*, 4> getModules() const;
+        const llvm::SmallVector<ASTModule*, 4> &getModules() const;
 
         bool Resolve();
 

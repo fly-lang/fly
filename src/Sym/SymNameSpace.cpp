@@ -26,24 +26,20 @@ llvm::StringRef SymNameSpace::getName() const {
 	return Name;
 }
 
-llvm::SmallVector<ASTModule *, 8> SymNameSpace::getModules() const {
+const llvm::SmallVector<ASTModule *, 8> &SymNameSpace::getModules() const {
 	return Modules;
 }
 
-llvm::StringMap<SymGlobalVar *> SymNameSpace::getGlobalVars() const {
+const llvm::StringMap<SymGlobalVar *> &SymNameSpace::getGlobalVars() const {
 	return GlobalVars;
 }
 
-llvm::SmallVector<SymFunction *, 8> SymNameSpace::getFunctions() const {
+const llvm::StringMap<SymFunction *> &SymNameSpace::getFunctions() const {
 	return Functions;
 }
 
-llvm::StringMap<SymClass *> SymNameSpace::getClasses() const {
-	return Classes;
-}
-
-llvm::StringMap<SymEnum *> SymNameSpace::getEnums() const {
-	return Enums;
+const llvm::StringMap<SymType *> &SymNameSpace::getTypes() const {
+	return Types;
 }
 
 CodeGenModule *SymNameSpace::getCodeGen() const {

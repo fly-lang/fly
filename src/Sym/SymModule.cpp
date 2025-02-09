@@ -31,18 +31,18 @@ const llvm::StringMap<SymNameSpace *> &SymModule::getImports() const {
 	return Imports;
 }
 
-llvm::StringMap<SymGlobalVar *> SymModule::getGlobalVars() const {
+const llvm::StringMap<SymGlobalVar *> &SymModule::getGlobalVars() const {
 	return GlobalVars;
 }
 
-llvm::StringMap<SymFunction *> SymModule::getFunctions() const {
+const llvm::StringMap<SymFunction *> &SymModule::getFunctions() const {
 	return Functions;
 }
 
-llvm::StringMap<SymClass *> SymModule::getClasses() const {
+const llvm::StringMap<SymClass *> &SymModule::getClasses() const {
 	return Classes;
 }
 
-llvm::StringMap<SymEnum *> SymModule::getEnums() const {
+const llvm::StringMap<SymEnum *> &SymModule::getEnums() const {
 	return Enums;
 }

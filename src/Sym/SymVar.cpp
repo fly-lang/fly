@@ -20,12 +20,11 @@ ASTVar *SymVar::getAST() const {
 	return AST;
 }
 
-
 SymVarKind SymVar::getKind() const {
 	return Kind;
 }
 
-
-
-
+bool SymVar::isConstant() const {
+	return Constant;
+}
 

@@ -56,7 +56,7 @@ CodeGenClassFunction::CodeGenClassFunction(CodeGenModule *CGM, SymClassMethod *S
 }
 
 void CodeGenClassFunction::GenBody() {
-    FLY_DEBUG("CodeGenFunctionBase", "GenBody");
+    FLY_DEBUG_START("CodeGenFunctionBase", "GenBody");
     SymClass *Class = Sym->getClass();
     llvm::Type *ClassType = Class->getCodeGen()->getType();
     setInsertPoint();

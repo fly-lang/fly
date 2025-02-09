@@ -177,7 +177,7 @@ namespace fly {
 
         const llvm::SmallVector<ASTValue *, 8> &getValues() const;
 
-        uint64_t size() const;
+        size_t size() const;
 
         bool empty() const;
 
@@ -203,7 +203,7 @@ namespace fly {
 
         const llvm::StringMap<ASTValue *> &getValues() const;
 
-        uint64_t size() const;
+        size_t size() const;
 
         bool empty() const;
 

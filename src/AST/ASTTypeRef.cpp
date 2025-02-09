@@ -11,8 +11,8 @@
 
 using namespace fly;
 
-ASTTypeRef::ASTTypeRef(const SourceLocation &Loc, llvm::StringRef Name, bool Array) :
-        ASTIdentifier(Loc, Name, ASTRefKind::REF_TYPE), Array(Array) {
+ASTTypeRef::ASTTypeRef(const SourceLocation &Loc, llvm::StringRef Name, ASTNameSpaceRef *NameSpaceRef, bool Array) :
+        ASTIdentifier(Loc, Name, ASTRefKind::REF_TYPE), NameSpaceRef(NameSpaceRef), Array(Array) {
 
 }
 
@@ -24,13 +24,22 @@ bool ASTTypeRef::isArray() const {
 	return Array;
 }
 
+ASTNameSpaceRef *ASTTypeRef::getNameSpaceRef() const {
+	return NameSpaceRef;
+}
+
 std::string ASTTypeRef::str() const {
     return Logger("ASTTypeRef").
     Super(ASTIdentifier::str()).
     End();
 }
 
-ASTArrayTypeRef::ASTArrayTypeRef(const SourceLocation &Loc, llvm::StringRef Name) : ASTTypeRef(Loc, Name, true) {
+ASTArrayTypeRef::ASTArrayTypeRef(const SourceLocation &Loc, ASTTypeRef *TypeRef, llvm::StringRef Name) :
+	ASTTypeRef(Loc, Name, TypeRef->getNameSpaceRef(), true) {
+}
+
+ASTTypeRef * ASTArrayTypeRef::getTypeRef() const {
+	return TypeRef;
 }
 
 ASTExpr * ASTArrayTypeRef::getSize() const {

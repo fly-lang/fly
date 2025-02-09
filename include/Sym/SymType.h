@@ -11,6 +11,7 @@
 #define FLY_SYM_TYPE_H
 
 #include <cstdint>
+#include <llvm/ADT/StringRef.h>
 
 
 namespace fly {
@@ -59,10 +60,10 @@ namespace fly {
         TYPE_FLOATING_POINT,
         TYPE_STRING,
         TYPE_CHAR,
+        TYPE_ERROR,
         TYPE_ARRAY,
         TYPE_CLASS,
-        TYPE_ENUM,
-        TYPE_ERROR
+        TYPE_ENUM
     };
 
     class SymType
@@ -73,11 +74,17 @@ namespace fly {
 
         const SymTypeKind Kind;
 
+        std::string Name;
+
         explicit SymType(SymTypeKind Kind);
+
+        explicit SymType(SymTypeKind Kind, std::string Name);
 
     public:
 
         const SymTypeKind getKind() const;
+
+        const std::string getName() const;
 
         bool isBool() const;
 
@@ -89,6 +96,8 @@ namespace fly {
 
         bool isString() const;
 
+        bool isChar() const;
+
         bool isClass() const;
 
         bool isEnum() const;
@@ -98,57 +107,57 @@ namespace fly {
         bool isVoid() const;
     };
 
-class SymTypeInt : public SymType {
+    class SymTypeInt : public SymType {
 
-    friend class SymBuilder;
-    friend class SemaResolver;
-    friend class SemaValidator;
+        friend class SymBuilder;
+        friend class SemaResolver;
+        friend class SemaValidator;
 
-    const SymIntTypeKind IntKind;
+        const SymIntTypeKind IntKind;
 
-    explicit SymTypeInt(SymIntTypeKind IntKind);
+        explicit SymTypeInt(SymIntTypeKind IntKind);
 
-    public:
+        public:
 
-    const SymIntTypeKind getIntKind() const;
+        const SymIntTypeKind getIntKind() const;
 
-    bool isSigned();
-};
+        bool isSigned();
+    };
 
-class SymTypeFP : public SymType {
+    class SymTypeFP : public SymType {
 
-    friend class SymBuilder;
-    friend class SemaResolver;
-    friend class SemaValidator;
+        friend class SymBuilder;
+        friend class SemaResolver;
+        friend class SemaValidator;
 
-    const SymFPTypeKind FPKind;
+        const SymFPTypeKind FPKind;
 
-    explicit SymTypeFP(SymFPTypeKind FPKind);
+        explicit SymTypeFP(SymFPTypeKind FPKind);
 
-    public:
+        public:
 
-    const SymFPTypeKind getFPKind() const;
-};
+        const SymFPTypeKind getFPKind() const;
+    };
 
-class SymTypeArray : public SymType {
+    class SymTypeArray : public SymType {
 
-    friend class SymBuilder;
-    friend class SemaResolver;
-    friend class SemaValidator;
+        friend class SymBuilder;
+        friend class SemaResolver;
+        friend class SemaValidator;
 
-    explicit SymTypeArray(SymType Type, uint64_t Size);
+        explicit SymTypeArray(SymType *Type, uint64_t Size);
 
-    SymType Type;
+        SymType *Type;
 
-    const uint64_t Size;
+        const uint64_t Size;
 
-    public:
+        public:
 
-    SymType getType();
+        SymType *getType();
 
-    const uint64_t getSize() const;
+        const uint64_t getSize() const;
 
-};
+    };
 
 }
 

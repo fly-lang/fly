@@ -34,17 +34,13 @@ namespace fly {
 
     public:
 
-        explicit ParserFunction(Parser *P);
+        static llvm::SmallVector<ASTVar *, 8> ParseParams(Parser *P);
 
-        static ASTFunction *Parse(Parser *P, llvm::SmallVector<ASTScope *, 8> Scopes, ASTTypeRef *Type);
-
-        ASTBlockStmt *ParseBody(ASTFunction *F);
-
-        llvm::SmallVector<ASTVar *, 8> ParseParams();
+        static ASTBlockStmt *ParseBody(Parser *P, ASTFunction *F);
 
     private:
 
-        ASTVar *ParseParam();
+        static ASTVar *ParseParam(Parser *P);
 
     };
 }

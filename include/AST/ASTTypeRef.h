@@ -16,6 +16,7 @@ namespace fly {
 
     class SymType;
     class ASTExpr;
+    class ASTNameSpaceRef;
 
     /**
      * Identity Type
@@ -30,15 +31,18 @@ namespace fly {
 
         bool Array;
 
+        ASTNameSpaceRef *NameSpaceRef;
+
     protected:
 
-        explicit ASTTypeRef(const SourceLocation &Loc, llvm::StringRef Name, bool Array = false);
+        explicit ASTTypeRef(const SourceLocation &Loc, llvm::StringRef Name, ASTNameSpaceRef *NameSpaceRef, bool Array = false);
 
     public:
-
         SymType *getDef() const;
 
         bool isArray() const;
+
+        ASTNameSpaceRef *getNameSpaceRef() const;
 
         std::string str() const override;
     };
@@ -49,13 +53,15 @@ namespace fly {
         friend class SemaResolver;
         friend class SemaValidator;
 
-        ASTTypeRef *Type;
+        ASTTypeRef *TypeRef;
 
         ASTExpr *Size;
 
-        explicit ASTArrayTypeRef(const SourceLocation &Loc, llvm::StringRef Name);
+        explicit ASTArrayTypeRef(const SourceLocation &Loc,  ASTTypeRef *TypeRef, llvm::StringRef Name);
 
     public:
+
+        ASTTypeRef *getTypeRef() const;
 
         ASTExpr *getSize() const;
 

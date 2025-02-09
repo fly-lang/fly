@@ -2088,7 +2088,7 @@ namespace {
         //   B
         //   C
         // }
-        llvm::SmallVector<ASTEnumType *, 4> SuperEnums;
+        llvm::SmallVector<ASTTypeRef *, 4> SuperEnums;
         ASTEnum *TestEnum = Builder.CreateEnum(Module, SourceLoc, "TestEnum", TopScopes, SuperEnums);
         ASTEnumEntry *A = Builder.CreateEnumEntry(SourceLoc, *TestEnum, "A", EmptyScopes);
         ASTEnumEntry *B = Builder.CreateEnumEntry(SourceLoc, *TestEnum, "B", EmptyScopes);
@@ -2102,7 +2102,7 @@ namespace {
         ASTBlockStmt *Body = Builder.CreateBlockStmt(SourceLoc);
         ASTFunction *Func = Builder.CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes, Params, Body);
 
-        ASTEnumType *TestEnumType = Builder.CreateEnumType(TestEnum);
+        ASTTypeRef *TestEnumType = Builder.CreateTypeRef(TestEnum);
 
         //  TestEnum a = TestEnum.A;
         ASTVar *aVar = Builder.CreateLocalVar(Body, SourceLoc, TestEnumType, "a", EmptyScopes);

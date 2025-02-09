@@ -26,7 +26,7 @@ llvm::SmallVector<ASTArg *, 8> ASTCall::getArgs() const {
 }
 
 SymFunctionBase *ASTCall::getDef() const {
-    return Def;
+    return *Def;
 }
 
 ASTCallKind ASTCall::getCallKind() const {

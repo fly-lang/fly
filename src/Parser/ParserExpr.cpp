@@ -19,6 +19,7 @@
 using namespace fly;
 
 Precedence getPrecedence(Token Tok) {
+	FLY_DEBUG_START("ParserExpr", "getPrecedence");
     switch (Tok.getKind()) {
         case fly::tok::question:
             return Precedence::TERNARY;
@@ -61,12 +62,14 @@ Precedence getPrecedence(Token Tok) {
 }
 
 bool isRightAssociative(Token Tok) {
+	FLY_DEBUG_START("ParserExpr", "isRightAssociative");
     // Only assignment operators are right-associative
     return Tok.isOneOf(tok::plusequal, tok::minusequal, tok::starequal, tok::slashequal, tok::percentequal,
                        tok::ampequal, tok::pipeequal, tok::caretequal, tok::lesslessequal, tok::greatergreaterequal);
 }
 
 ASTUnaryOpExprKind toUnaryOpExprKind(Token Tok, bool isPost) {
+	FLY_DEBUG_START("ParserExpr", "toUnaryOpExprKind");
     if (isPost) {
         switch (Tok.getKind()) {
             case tok::plusplus:
@@ -88,6 +91,7 @@ ASTUnaryOpExprKind toUnaryOpExprKind(Token Tok, bool isPost) {
 }
 
 ASTBinaryOpExprKind toBinaryOpExprKind(Token Tok) {
+	FLY_DEBUG_START("ParserExpr", "toBinaryOpExprKind");
     switch (Tok.getKind()) {
         case tok::amp:
             return ASTBinaryOpExprKind::OP_BINARY_AND;
@@ -152,7 +156,7 @@ ASTBinaryOpExprKind toBinaryOpExprKind(Token Tok) {
 }
 
 ParserExpr::ParserExpr(Parser *P, ASTExpr *Left) : P(P) {
-    FLY_DEBUG_MESSAGE("ExprParser", "ExprParser", Logger().End());
+	FLY_DEBUG_START("ParserExpr", "ParserExpr");
 
     // Parse the primary expression (handles parentheses, literals, identifiers, and now unary operators)
     if (Left == nullptr)
@@ -185,11 +189,13 @@ ParserExpr::ParserExpr(Parser *P, ASTExpr *Left) : P(P) {
 }
 
 ASTExpr *ParserExpr::Parse(Parser *P, ASTExpr *Expr) {
+	FLY_DEBUG_START("ParserExpr", "Parse");
     ParserExpr *PE = new ParserExpr(P, Expr);
     return PE->Expr;
 }
 
 ASTExpr *ParserExpr::ParsePrimary(bool Expected) {
+	FLY_DEBUG_START("ParserExpr", "ParsePrimary");
     Token &Tok = P->Tok;
 
     if (P->isValue()) { // Ex. 1
@@ -234,6 +240,8 @@ ASTExpr *ParserExpr::ParsePrimary(bool Expected) {
 }
 
 ASTBinaryOpExpr *ParserExpr::ParseBinaryExpr(ASTExpr *LeftExpr, Token OpToken, Precedence precedence) {
+	FLY_DEBUG_START("ParserExpr", "ParseBinaryExpr");
+
     // Consume the binary operator
     P->ConsumeToken();
 
@@ -255,6 +263,7 @@ ASTBinaryOpExpr *ParserExpr::ParseBinaryExpr(ASTExpr *LeftExpr, Token OpToken, P
 }
 
 ASTTernaryOpExpr *ParserExpr::ParseTernaryExpr(ASTExpr *ConditionExpr) {
+	FLY_DEBUG_START("ParserExpr", "ParseTernaryExpr");
     const SourceLocation &TrueOpLoc = P->ConsumeToken();  // Consume '?'
 
     ASTExpr* TrueExpr = Parse(P);  // Parse the true expression
@@ -275,7 +284,7 @@ ASTTernaryOpExpr *ParserExpr::ParseTernaryExpr(ASTExpr *ConditionExpr) {
  * @return true on Success or false on Error
  */
 bool ParserExpr::isNewOperator(Token &Tok) {
-    FLY_DEBUG("Parser", "isNewOperator");
+    FLY_DEBUG_START("ParserExpr", "isNewOperator");
     return Tok.is(tok::kw_new);
 }
 
@@ -284,7 +293,7 @@ bool ParserExpr::isNewOperator(Token &Tok) {
  * @return true on Success or false on Error
  */
 bool ParserExpr::isUnaryPreOperator(Token &Tok) {
-    FLY_DEBUG("Parser", "isUnaryPreOperator");
+    FLY_DEBUG_START("ParserExpr", "isUnaryPreOperator");
     return Tok.isOneOf(tok::plusplus, tok::minusminus, tok::exclaim);
 }
 
@@ -293,7 +302,7 @@ bool ParserExpr::isUnaryPreOperator(Token &Tok) {
  * @return true on Success or false on Error
  */
 bool ParserExpr::isUnaryPostOperator() {
-    FLY_DEBUG("Parser", "isUnaryPostOperator");
+    FLY_DEBUG_START("ParserExpr", "isUnaryPostOperator");
     return P->Tok.isOneOf(tok::plusplus, tok::minusminus);
 }
 
@@ -302,7 +311,7 @@ bool ParserExpr::isUnaryPostOperator() {
  * @return true on Success or false on Error
  */
 bool ParserExpr::isBinaryOperator() {
-    FLY_DEBUG("Parser", "isBinaryOperator");
+    FLY_DEBUG_START("ParserExpr", "isBinaryOperator");
     return P->Tok.isOneOf(
 
             // Arithmetic Operators
@@ -348,12 +357,12 @@ bool ParserExpr::isBinaryOperator() {
  * @return true on Success or false on Error
  */
 bool ParserExpr::isTernaryOperator() {
-    FLY_DEBUG("Parser", "isTernaryOperator");
+    FLY_DEBUG_START("ParserExpr", "isTernaryOperator");
     return P->Tok.is(tok::question);
 }
 
 ASTExpr *ParserExpr::ParseNewExpr() {
-    FLY_DEBUG("ExprParser", "ParseNewExpr");
+    FLY_DEBUG_START("ParserExpr", "ParseNewExpr");
     const SourceLocation &NewOpLoc = P->ConsumeToken();  // Consume 'new'
 
     if (P->Tok.isAnyIdentifier()) {

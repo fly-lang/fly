@@ -18,8 +18,8 @@ namespace fly {
 
     class ASTModule;
     class ASTScope;
+    class ASTTypeRef;
     class ASTEnumEntry;
-    class ASTEnumType;
 
     class ASTEnum : public ASTBase {
 
@@ -35,10 +35,10 @@ namespace fly {
 
         llvm::StringRef Name;
 
-        llvm::SmallVector<ASTEnumType *, 4> SuperClasses; // FIXME ?
+        llvm::SmallVector<ASTTypeRef *, 4> SuperClasses; // FIXME ?
 
         ASTEnum(ASTModule *Module, const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes,
-                 llvm::SmallVector<ASTEnumType *, 4> &SuperClasses);
+                 llvm::SmallVector<ASTTypeRef *, 4> &SuperClasses);
 
     public:
 
@@ -50,7 +50,7 @@ namespace fly {
 
         llvm::StringRef getName() const;
 
-        llvm::SmallVector<ASTEnumType*, 4> getSuperClasses() const;
+        llvm::SmallVector<ASTTypeRef*, 4> getSuperClasses() const;
 
         std::string str() const override;
 

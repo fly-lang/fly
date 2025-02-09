@@ -35,9 +35,9 @@ namespace fly {
 
         static ASTClass *Parse(Parser *P, llvm::SmallVector<ASTScope *, 8> &Scopes);
 
-        ASTVar *ParseAttribute(llvm::SmallVector<ASTScope *, 8> &Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name);
+        ASTVar *ParseAttribute(llvm::SmallVector<ASTScope *, 8> &Scopes, ASTTypeRef *TypeRef, const SourceLocation &Loc, llvm::StringRef Name);
 
-        ASTFunction *ParseMethod(llvm::SmallVector<ASTScope *, 8> &Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name);
+        ASTFunction *ParseMethod(llvm::SmallVector<ASTScope *, 8> &Scopes, ASTTypeRef *TypeRef, const SourceLocation &Loc, llvm::StringRef Name);
     };
 }
 

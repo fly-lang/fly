@@ -10,34 +10,17 @@
 #include "Parser/Parser.h"
 #include "Parser/ParserFunction.h"
 #include "AST/ASTVar.h"
-#include "AST/ASTBlockStmt.h"
 #include "Basic/Debug.h"
 #include "Sema/ASTBuilder.h"
 
 using namespace fly;
 
-ParserFunction::ParserFunction(Parser *P) : P(P) {
-
-}
-
-ASTFunction *ParserFunction::Parse(Parser *P, SmallVector<ASTScope *, 8> Scopes, ASTTypeRef *Type) {
-    ParserFunction *PF = new ParserFunction(P);
-
-    assert(P->Tok.isAnyIdentifier() && "Tok must be an Identifier");
-    StringRef Name = P->Tok.getIdentifierInfo()->getName();
-    const SourceLocation &Loc = P->ConsumeToken();
-    SmallVector<ASTVar *, 8> Params = PF->ParseParams();
-    ASTFunction *Function = P->Builder.CreateFunction(P->Module, Loc, Type, Name, Scopes, Params, nullptr);
-    ASTBlockStmt *Body = P->isBlockStart() ? PF->ParseBody(Function) : nullptr;
-    return Function;
-}
-
 /**
  * ParseModule Function Body
  * @return true on Success or false on Error
  */
-ASTBlockStmt *ParserFunction::ParseBody(ASTFunction *F) {
-    FLY_DEBUG("FunctionParser", "ParseBody");
+ASTBlockStmt *ParserFunction::ParseBody(Parser *P, ASTFunction *F) {
+    FLY_DEBUG_START("ParserFunction", "ParseBody");
     assert(P->isBlockStart() && "Block Start");
     ASTBlockStmt *Block = P->Builder.CreateBlockStmt(P->Tok.getLocation());
     ASTBlockStmt *Body = P->Builder.CreateBody(F, Block);
@@ -50,8 +33,8 @@ ASTBlockStmt *ParserFunction::ParseBody(ASTFunction *F) {
  * ParseModule Parameters
  * @return true on Success or false on Error
  */
-llvm::SmallVector<ASTVar *, 8> ParserFunction::ParseParams() {
-    FLY_DEBUG("FunctionParser", "ParseParams");
+llvm::SmallVector<ASTVar *, 8> ParserFunction::ParseParams(Parser *P) {
+    FLY_DEBUG_START("ParserFunction", "ParseParams");
     assert(P->Tok.is(tok::l_paren) && "Tok must be an Identifier");
     P->ConsumeParen(); // consume l_paren
 
@@ -65,7 +48,7 @@ llvm::SmallVector<ASTVar *, 8> ParserFunction::ParseParams() {
         }
 
         // Parse a parameter
-        ASTVar *Param = ParseParam();
+        ASTVar *Param = ParseParam(P);
         if (Param == nullptr) {
             // Handle error: Invalid parameter syntax
             P->Diag(P->Tok.getLocation(), diag::err_parser_invalid_param);
@@ -94,14 +77,14 @@ llvm::SmallVector<ASTVar *, 8> ParserFunction::ParseParams() {
  * ParseModule a single Function Param
  * @return true on Success or false on Error
  */
-ASTVar *ParserFunction::ParseParam() {
-    FLY_DEBUG("FunctionParser", "ParseParam");
+ASTVar *ParserFunction::ParseParam(Parser *P) {
+    FLY_DEBUG_START("ParserFunction", "ParseParam");
 
     // Parse Scopes
     llvm::SmallVector<ASTScope *, 8> Scopes = P->ParseScopes();
 
     // Var Type
-    ASTType *Type = P->ParseTypeRef();
+    ASTTypeRef *Type = P->ParseTypeRef();
     if (!Type) {
         P->Diag(diag::err_parser_invalid_type);
         return nullptr;

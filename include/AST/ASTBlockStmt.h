@@ -16,7 +16,7 @@
 
 namespace fly {
 
-    class ASTLocalVar;
+    class ASTVar;
 
     /**
      * AST Block
@@ -35,7 +35,7 @@ namespace fly {
         llvm::SmallVector<ASTStmt *, 8> Content;
 
         // Contains all vars declared in this Block
-        llvm::StringMap<ASTLocalVar *> LocalVars;
+        llvm::StringMap<ASTVar *> LocalVars;
 
     protected:
 
@@ -49,7 +49,7 @@ namespace fly {
 
         void Clear();
 
-        const llvm::StringMap<ASTLocalVar *> &getLocalVars() const;
+        const llvm::StringMap<ASTVar *> &getLocalVars() const;
 
         std::string str() const override;
     };

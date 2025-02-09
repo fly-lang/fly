@@ -23,6 +23,10 @@ llvm::StringRef ASTNameSpace::getName() const {
 	return Name;
 }
 
+ASTNameSpace *ASTNameSpace::getParent() const {
+	return Parent;
+}
+
 std::string ASTNameSpace::str() const {
     return Logger("ASTNameSpaceRe").
            Attr("Name", Name).

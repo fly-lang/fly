@@ -10,6 +10,9 @@
 #ifndef FLY_SYM_ENUM_H
 #define FLY_SYM_ENUM_H
 
+#include <AST/ASTScopes.h>
+
+#include "SymVisibilityKind.h"
 #include "Sym/SymType.h"
 #include "llvm/ADT/StringMap.h"
 
@@ -19,7 +22,7 @@ namespace fly {
     class ASTEnum;
     class SymComment;
     class SymEnumEntry;
-class SymModule;
+    class SymModule;
     enum class SymVisibilityKind;
 
     class SymEnum : public SymType {
@@ -32,18 +35,31 @@ class SymModule;
 
         SymModule *Module;
 
+        // Super Enums
+        llvm::StringMap<SymEnum *> SuperEnums;
+
+        SymVisibilityKind Visibility = SymVisibilityKind::DEFAULT;
+
+        bool Constant;
+
         // Enum Entries
         llvm::StringMap<SymEnumEntry *> Entries;
 
         SymComment *Comment = nullptr;
 
-        explicit SymEnum(ASTEnum *Enum);
+        explicit SymEnum(ASTEnum *AST);
 
     public:
 
         ASTEnum *getAST();
 
         SymModule *getModule() const;
+
+        const llvm::StringMap<SymEnum *> &getSuperEnums() const;
+
+        SymVisibilityKind getVisibility() const;
+
+        bool isConstant() const;
 
         const llvm::StringMap<SymEnumEntry *> &getEntries() const;
 

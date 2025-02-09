@@ -102,7 +102,7 @@ LLVMContext &CodeGen::getLLVMCtx() {
 }
 
 std::vector<llvm::Module *> CodeGen::GenerateModules(SymTable &Table) {
-    FLY_DEBUG("CodeGen", "GenerateModules");
+    FLY_DEBUG_START("CodeGen", "GenerateModules");
     std::vector<llvm::Module *> Modules;
     for (auto &NameSpace : Table.getNameSpaces()) {
         Diags.getClient()->BeginSourceFile();
@@ -115,7 +115,7 @@ std::vector<llvm::Module *> CodeGen::GenerateModules(SymTable &Table) {
 }
 
 CodeGenModule *CodeGen::GenerateModule(SymNameSpace &NameSpace) {
-    FLY_DEBUG("CodeGen", "GenerateModule");
+    FLY_DEBUG_START("CodeGen", "GenerateModule");
     CodeGenModule *CGM = new CodeGenModule(Diags, NameSpace, LLVMCtx, *Target, CodeGenOpts);
     NameSpace.setCodeGen(CGM);
     return CGM;
@@ -130,7 +130,7 @@ void CodeGen::GenerateHeaders(SymTable &SymbolTable) {
 }
 
 void CodeGen::GenerateHeader(SymNameSpace &NameSpace){
-    FLY_DEBUG("CodeGen", "GenerateHeader");
+    FLY_DEBUG_START("CodeGen", "GenerateHeader");
     return CodeGenHeader::CreateFile(Diags, CodeGenOpts, NameSpace);
 }
 

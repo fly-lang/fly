@@ -131,7 +131,6 @@ add_library(flyLib
         Parser/ParserEnum.cpp
         Parser/ParserExpr.cpp
         Parser/ParserFunction.cpp
-        Parser/ParserMethod.cpp
         Parser/Parser.cpp
 
         # Sema

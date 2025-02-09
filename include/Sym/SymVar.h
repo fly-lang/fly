@@ -34,6 +34,8 @@ namespace fly {
 
     	SymVarKind Kind;
 
+    	bool Constant;
+
         explicit SymVar(ASTVar *AST, SymVarKind Kind);
 
     public:
@@ -41,6 +43,8 @@ namespace fly {
     	ASTVar *getAST() const;
 
     	SymVarKind getKind() const;
+
+    	bool isConstant() const;
 
     	virtual CodeGenVarBase *getCodeGen() const = 0;
 

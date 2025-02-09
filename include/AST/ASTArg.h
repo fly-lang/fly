@@ -26,19 +26,19 @@ namespace fly {
 
         ASTExpr *Expr;
 
-        uint64_t Index;
+        size_t Index;
 
         ASTVar *Def = nullptr;
 
         ASTCall *Call = nullptr;
 
-        ASTArg(ASTExpr *Expr, uint64_t Index);
+        ASTArg(ASTExpr *Expr, size_t Index);
 
     public:
 
         ASTExpr *getExpr() const;
 
-        uint64_t getIndex() const;
+        size_t getIndex() const;
 
         ASTVar *getDef() const;
 

@@ -27,7 +27,7 @@ using namespace fly;
 
 CodeGenExpr::CodeGenExpr(CodeGenModule *CGM, ASTExpr *Expr) :
         CGM(CGM) {
-    FLY_DEBUG("CodeGenExpr", "CodeGenExpr");
+    FLY_DEBUG_START("CodeGenExpr", "CodeGenExpr");
     Val = GenValue(Expr);
 }
 
@@ -88,7 +88,7 @@ llvm::Value *CodeGenExpr::GenOp(ASTOpExpr *Expr) {
 }
 
 llvm::Value *CodeGenExpr::GenUnary(ASTUnaryOpExpr *Expr) {
-    FLY_DEBUG("CodeGenExpr", "GenUnary");
+    FLY_DEBUG_START("CodeGenExpr", "GenUnary");
     assert(Expr->getOpExprKind() == ASTOpExprKind::OP_UNARY && "Expected Unary Group Expr");
     assert(Expr->getExpr() && "Unary Expr empty");
 
@@ -132,7 +132,7 @@ llvm::Value *CodeGenExpr::GenUnary(ASTUnaryOpExpr *Expr) {
 }
 
 llvm::Value *CodeGenExpr::GenBinary(ASTBinaryOpExpr *Expr) {
-    FLY_DEBUG("CodeGenExpr", "GenBinary");
+    FLY_DEBUG_START("CodeGenExpr", "GenBinary");
     assert(Expr->getOpExprKind() == ASTOpExprKind::OP_BINARY && "Expected Binary Group Expr");
     assert(Expr->getLeftExpr() && "First Expr is empty");
     assert(Expr->getRightExpr() && "Second Expr is empty");
@@ -151,7 +151,7 @@ llvm::Value *CodeGenExpr::GenBinary(ASTBinaryOpExpr *Expr) {
 }
 
 llvm::Value *CodeGenExpr::GenBinaryArith(const ASTExpr *E1, ASTBinaryOpExprKind OperatorKind, const ASTExpr *E2) {
-    FLY_DEBUG("CodeGenExpr", "GenBinaryArith");
+    FLY_DEBUG_START("CodeGenExpr", "GenBinaryArith");
     llvm::Value *V1 = GenValue(E1);
     llvm::Value *V2 = GenValue(E2);
 
@@ -185,7 +185,7 @@ llvm::Value *CodeGenExpr::GenBinaryArith(const ASTExpr *E1, ASTBinaryOpExprKind 
 }
 
 llvm::Value *CodeGenExpr::GenBinaryComparison(const ASTExpr *E1, ASTBinaryOpExprKind OperatorKind, const ASTExpr *E2) {
-    FLY_DEBUG("CodeGenExpr", "GenBinaryComparison");
+    FLY_DEBUG_START("CodeGenExpr", "GenBinaryComparison");
     llvm::Value *V1 = GenValue(E1);
     llvm::Value *V2 = GenValue(E2);
     SymType *V2Type = E2->getTypeRef()->getDef();
@@ -245,7 +245,7 @@ llvm::Value *CodeGenExpr::GenBinaryComparison(const ASTExpr *E1, ASTBinaryOpExpr
 }
 
 llvm::Value *CodeGenExpr::GenBinaryLogic(const ASTExpr *E1, ASTBinaryOpExprKind OperatorKind, const ASTExpr *E2) {
-    FLY_DEBUG("CodeGenExpr", "GenBinaryLogic");
+    FLY_DEBUG_START("CodeGenExpr", "GenBinaryLogic");
     llvm::Value *V1 = GenValue(E1);
     V1 = CGM->ConvertToBool(V1);
 //    V1 = Convert(V1, E1->getType(), BoolType); //FIXME

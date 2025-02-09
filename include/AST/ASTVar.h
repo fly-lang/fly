@@ -10,6 +10,8 @@
 #ifndef FLY_AST_VAR_H
 #define FLY_AST_VAR_H
 
+#include <Sym/SymVar.h>
+
 #include "ASTBase.h"
 #include "ASTExpr.h"
 
@@ -24,12 +26,16 @@ namespace fly {
      * Base Var used in:
      *  - LocalVar
      *  - GlobalVar
+     *  - ClassAttribute
      */
     class ASTVar : public ASTBase {
 
         friend class ASTBuilder;
+        friend class SymBuilder;
         friend class SemaResolver;
         friend class SemaValidator;
+
+        SymVar *Def = nullptr;
 
         ASTTypeRef *TypeRef;
 
@@ -46,6 +52,8 @@ namespace fly {
         ASTVar(const SourceLocation &Loc, ASTTypeRef *Type, llvm::StringRef Name, SmallVector<ASTScope *, 8> &Scopes);
 
     public:
+
+        SymVar *getDef() const;
 
         ASTTypeRef *getTypeRef() const;
 

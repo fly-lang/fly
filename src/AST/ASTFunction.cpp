@@ -13,16 +13,18 @@
 
 using namespace fly;
 
-ASTFunction::ASTFunction(const SourceLocation &Loc, llvm::StringRef Name, ASTTypeRef *ReturnType,
-                                 llvm::SmallVector<ASTScope *, 8> &Scopes, llvm::SmallVector<ASTVar *, 8> &Params) :
-        ASTBase(Loc, ASTKind::AST_FUNCTION), ReturnType(ReturnType), Scopes(Scopes), Params(Params) {
+ASTFunction::ASTFunction(const SourceLocation &Loc, ASTTypeRef *ReturnType,
+                                 llvm::SmallVector<ASTScope *, 8> &Scopes, llvm::StringRef Name, llvm::SmallVector<ASTVar *, 8> &Params) :
+        ASTBase(Loc, ASTKind::AST_FUNCTION), ReturnTypeRef(ReturnType), Scopes(Scopes), Params(Params) {
 
 }
 
 llvm::StringRef ASTFunction::getName() const {
+	return Name;
 }
 
 bool ASTFunction::isVarArg() {
+	return false;
 }
 
 llvm::SmallVector<ASTScope *, 8> ASTFunction::getScopes() const {
@@ -33,7 +35,7 @@ llvm::SmallVector<ASTVar *, 8> ASTFunction::getParams() const {
     return Params;
 }
 
-llvm::SmallVector<ASTLocalVar *, 8> ASTFunction::getLocalVars() const {
+llvm::SmallVector<ASTVar *, 8> ASTFunction::getLocalVars() const {
     return LocalVars;
 }
 
@@ -45,14 +47,14 @@ ASTVar *ASTFunction::getErrorHandler() {
     return ErrorHandler;
 }
 
-ASTTypeRef *ASTFunction::getReturnType() const {
-    return ReturnType;
+ASTTypeRef *ASTFunction::getReturnTypeRef() const {
+    return ReturnTypeRef;
 }
 
 std::string ASTFunction::str() const {
     return Logger("ASTFunctionBase").
            Super(ASTBase::str()).
            AttrList("Params", Params).
-           Attr("ReturnType", ReturnType).
+           Attr("ReturnType", ReturnTypeRef).
            End();
 }

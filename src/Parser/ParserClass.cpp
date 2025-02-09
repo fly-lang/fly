@@ -8,10 +8,9 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Parser/Parser.h"
-#include "Parser/ParserMethod.h"
+#include "Parser/ParserFunction.h"
 #include "Parser/ParserClass.h"
 #include "AST/ASTClass.h"
-#include "AST/ASTType.h"
 #include "Sema/ASTBuilder.h"
 #include "Basic/Debug.h"
 
@@ -24,8 +23,7 @@ using namespace fly;
  * @param Constant
  */
 ParserClass::ParserClass(Parser *P, SmallVector<ASTScope *, 8> &Scopes) : P(P) {
-    FLY_DEBUG_MESSAGE("ClassParser", "ClassParser", Logger()
-            .AttrList("Scopes", Scopes).End());
+    FLY_DEBUG_START("ClassParser", "ClassParser");
 
     ASTClassKind ClassKind;
     if (P->Tok.is(tok::kw_struct)) {
@@ -46,12 +44,12 @@ ParserClass::ParserClass(Parser *P, SmallVector<ASTScope *, 8> &Scopes) : P(P) {
 
     // Parse classes after colon
     // class Example : SuperClass Interface Struct { ... }
-    llvm::SmallVector<ASTClassType *, 4> SuperClasses;
+    llvm::SmallVector<ASTTypeRef *, 4> SuperClasses;
     if (P->Tok.is(tok::colon)) {
         P->ConsumeToken();
         while (P->Tok.isAnyIdentifier()) {
-            ASTClassType *ClassType = P->Builder.CreateClassType(P->ParseIdentifier());
-            SuperClasses.push_back(ClassType);
+            ASTTypeRef *TypeRef = P->Builder.CreateTypeRef(P->ParseIdentifier());
+            SuperClasses.push_back(TypeRef);
         }
     }
 
@@ -79,7 +77,7 @@ ParserClass::ParserClass(Parser *P, SmallVector<ASTScope *, 8> &Scopes) : P(P) {
             llvm::SmallVector<ASTScope *, 8> Scopes = P->ParseScopes();
 
             // Parse Type
-            ASTType *Type = P->ParseTypeRef(); // Continue loop if there is a field or a method
+            ASTTypeRef *Type = P->ParseTypeRef(); // Continue loop if there is a field or a method
 
             Continue = Type != nullptr;
             if (Continue && P->Tok.isAnyIdentifier()) {
@@ -103,20 +101,17 @@ ParserClass::ParserClass(Parser *P, SmallVector<ASTScope *, 8> &Scopes) : P(P) {
  * @return
  */
 ASTClass *ParserClass::Parse(Parser *P, SmallVector<ASTScope *, 8> &Scopes) {
-    FLY_DEBUG_MESSAGE("ClassParser", "ParseModule", Logger()
-            .AttrList("Scopes", Scopes).End());
+	FLY_DEBUG_START("ClassParser", "Parse");
     ParserClass *CP = new ParserClass(P, Scopes);
     ASTClass *Class = CP->Class;
     delete CP;
     return Class;
 }
 
-ASTClassAttribute *ParserClass::ParseAttribute(SmallVector<ASTScope *, 8> &Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name) {
-    FLY_DEBUG_MESSAGE("ClassParser", "ParseMethod", Logger()
-            .AttrList("Scopes", Scopes)
-            .Attr("Type", Type).End());
+ASTVar *ParserClass::ParseAttribute(SmallVector<ASTScope *, 8> &Scopes, ASTTypeRef *TypeRef, const SourceLocation &Loc, llvm::StringRef Name) {
+	FLY_DEBUG_START("ClassParser", "ParseAttribute");
 
-    if (!Type) {
+    if (!TypeRef) {
         P->Diag(diag::err_parser_invalid_type);
         return nullptr;
     }
@@ -128,12 +123,15 @@ ASTClassAttribute *ParserClass::ParseAttribute(SmallVector<ASTScope *, 8> &Scope
         Expr = P->ParseExpr();
     }
 
-    return P->Builder.CreateClassAttribute(Loc, *Class, Type, Name, Scopes, Expr);
+    return P->Builder.CreateClassAttribute(Loc, Class, TypeRef, Name, Scopes, Expr);
 }
 
-ASTClassMethod *ParserClass::ParseMethod(SmallVector<ASTScope *, 8> &Scopes, ASTType *Type, const SourceLocation &Loc, llvm::StringRef Name) {
-    FLY_DEBUG_MESSAGE("ClassParser", "ParseMethod", Logger()
-            .AttrList("Scopes", Scopes)
-            .Attr("Type", Type).End());
-    return ParserMethod::Parse(this, Scopes, Type, Loc, Name);
+ASTFunction *ParserClass::ParseMethod(SmallVector<ASTScope *, 8> &Scopes, ASTTypeRef *TypeRef,
+	const SourceLocation &Loc, llvm::StringRef Name) {
+	FLY_DEBUG_START("ClassParser", "ParseMethod");
+
+	SmallVector<ASTVar *, 8> Params = ParserFunction::ParseParams(P);
+	ASTFunction *Function = P->Builder.CreateClassMethod(Loc, Class, TypeRef, Name, Scopes, Params);
+	ASTBlockStmt *Body = P->isBlockStart() ? ParserFunction::ParseBody(P, Function) : nullptr;
+	return Function;
 }

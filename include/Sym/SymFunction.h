@@ -11,6 +11,7 @@
 #define FLY_SYM_FUNCTION_H
 
 #include "SymFunctionBase.h"
+#include "SymVisibilityKind.h"
 #include "CodeGen/CodeGenFunction.h"
 
 namespace fly {
@@ -29,18 +30,28 @@ namespace fly {
 
         SymModule *Module;
 
+        const std::string MangledName;
+
         SymComment *Comment = nullptr;
+
+        SymVisibilityKind Visibility = SymVisibilityKind::DEFAULT;
 
         // Populated during codegen phase
         CodeGenFunction *CodeGen = nullptr;
 
-        explicit SymFunction(ASTFunction *Function);
+        explicit SymFunction(ASTFunction *AST);
+
+        static std::string Mangle(ASTFunction *AST);
 
     public:
 
         SymModule *getModule() const;
 
+        std::string getMangledName() const;
+
         SymComment *getComment() const;
+
+        SymVisibilityKind getVisibility() const;
 
         CodeGenFunction *getCodeGen() const override;
 
