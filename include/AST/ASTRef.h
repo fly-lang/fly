@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTIdentifier.h - AST Identifier header
+// include/AST/ASTRef.h - AST Identifier header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -22,7 +22,7 @@ namespace fly {
         REF_VAR
     };
 
-    class ASTIdentifier : public ASTBase {
+    class ASTRef : public ASTBase {
 
         friend class ASTBuilder;
         friend class SemaResolver;
@@ -36,15 +36,15 @@ namespace fly {
 
         std::string FullName;
 
-        ASTIdentifier *Parent = nullptr;
+        ASTRef *Parent = nullptr;
 
-        ASTIdentifier *Child = nullptr;
+        ASTRef *Child = nullptr;
 
         bool Resolved = false;
 
-        ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name, ASTRefKind Kind);
+        ASTRef(const SourceLocation &Loc, llvm::StringRef Name, ASTRefKind Kind);
 
-        ~ASTIdentifier();
+        ~ASTRef();
 
      public:
 
@@ -64,11 +64,11 @@ namespace fly {
 
         ASTRefKind getRefKind() const;
 
-        void AddChild(ASTIdentifier *Identifier);
+        void AddChild(ASTRef *Identifier);
 
-        ASTIdentifier *getParent() const;
+        ASTRef *getParent() const;
 
-        ASTIdentifier *getChild() const;
+        ASTRef *getChild() const;
 
         std::string str() const override;
     };

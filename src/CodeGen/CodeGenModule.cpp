@@ -36,7 +36,7 @@
 #include "AST/ASTSwitchStmt.h"
 #include "AST/ASTLoopStmt.h"
 #include "AST/ASTValue.h"
-#include "AST/ASTAssignmentStmt.h"
+#include "AST/ASTVarStmt.h"
 #include "AST/ASTVarRef.h"
 #include "AST/ASTReturnStmt.h"
 #include "AST/ASTClass.h"
@@ -856,8 +856,8 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
     switch (Stmt->getStmtKind()) {
 
         // Var Assignment
-        case ASTStmtKind::STMT_ASSIGN: {
-            ASTAssignmentStmt *VarStmt = (ASTAssignmentStmt *) Stmt;
+        case ASTStmtKind::STMT_VAR: {
+            ASTVarStmt *VarStmt = (ASTVarStmt *) Stmt;
 
             ASTVarRef *VarRef = VarStmt->getVarRef();
 

@@ -7,64 +7,64 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "AST/ASTIdentifier.h"
+#include "AST/ASTRef.h"
 
 using namespace fly;
 
 
-ASTIdentifier::ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name, ASTRefKind Kind) :
-        ASTBase(Loc, ASTKind::AST_IDENTIFIER), Name(Name), RefKind(Kind), Resolved(false) {
+ASTRef::ASTRef(const SourceLocation &Loc, llvm::StringRef Name, ASTRefKind Kind) :
+        ASTBase(Loc, ASTKind::AST_REF), Name(Name), RefKind(Kind), Resolved(false) {
     FullName = Name.data();
 }
 
 
-ASTIdentifier::~ASTIdentifier() {
+ASTRef::~ASTRef() {
     delete Parent;
 }
 
-llvm::StringRef ASTIdentifier::getName() const {
+llvm::StringRef ASTRef::getName() const {
     return Name;
 }
 
-std::string ASTIdentifier::getFullName() const {
+std::string ASTRef::getFullName() const {
     return FullName;
 }
 
-bool ASTIdentifier::isResolved() const {
+bool ASTRef::isResolved() const {
     return Resolved;
 }
 
-bool ASTIdentifier::isType() const {
+bool ASTRef::isType() const {
     return RefKind == ASTRefKind::REF_TYPE;
 }
 
-bool ASTIdentifier::isCall() const {
+bool ASTRef::isCall() const {
     return RefKind == ASTRefKind::REF_CALL;
 }
 
-bool ASTIdentifier::isVarRef() const {
+bool ASTRef::isVarRef() const {
     return RefKind == ASTRefKind::REF_VAR;
 }
 
-ASTRefKind ASTIdentifier::getRefKind() const {
+ASTRefKind ASTRef::getRefKind() const {
     return RefKind;
 }
 
-void ASTIdentifier::AddChild(ASTIdentifier *Identifier) {
+void ASTRef::AddChild(ASTRef *Identifier) {
     Child = Identifier;
     Child->Parent = this;
     Child->FullName = FullName.append(".").append(Child->Name.data());
 }
 
-ASTIdentifier *ASTIdentifier::getParent() const {
+ASTRef *ASTRef::getParent() const {
     return Parent;
 }
 
-ASTIdentifier *ASTIdentifier::getChild() const {
+ASTRef *ASTRef::getChild() const {
     return Child;
 }
 
-std::string ASTIdentifier::str() const {
+std::string ASTRef::str() const {
     return Logger("ASTIdentifier").
             Super(ASTBase::str()).
             Attr("Name", Name).

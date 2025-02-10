@@ -22,11 +22,9 @@
 #include "AST/ASTExpr.h"
 #include "AST/ASTExprStmt.h"
 #include "AST/ASTArg.h"
-#include "AST/ASTAssignmentStmt.h"
+#include "AST/ASTVarStmt.h"
 #include "AST/ASTVarRef.h"
 #include "AST/ASTClass.h"
-#include "AST/ASTClassAttribute.h"
-#include "AST/ASTClassMethod.h"
 #include "AST/ASTBlockStmt.h"
 
 namespace {

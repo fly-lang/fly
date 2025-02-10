@@ -10,7 +10,7 @@
 #ifndef FLY_SEMA_BUILDER_H
 #define FLY_SEMA_BUILDER_H
 
-#include <AST/ASTAssignmentStmt.h>
+#include <AST/ASTVarStmt.h>
 
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
@@ -55,7 +55,7 @@ namespace fly {
 
     class ASTFunction;
 
-    class ASTIdentifier;
+    class ASTRef;
 
     class ASTHandleStmt;
 
@@ -79,7 +79,7 @@ namespace fly {
 
     class ASTExprStmt;
 
-    class ASTAssignmentStmt;
+    class ASTVarStmt;
 
     class ASTVar;
 
@@ -186,6 +186,8 @@ namespace fly {
     class ASTArrayTypeRef;
 
     class ASTNameSpaceRef;
+
+    class SymVar;
     
     enum class ASTClassKind;
 
@@ -331,22 +333,20 @@ namespace fly {
         ASTVar *CreateLocalVar(ASTBlockStmt *BlockStmt, const SourceLocation &Loc, ASTTypeRef *Type, llvm::StringRef Name,
                                     llvm::SmallVector<ASTScope *, 8> &Scopes);
 
-        // Create Identifier
-
-        ASTIdentifier *CreateIdentifier(const SourceLocation &Loc, llvm::StringRef Name);
-
         // Create Call
 
-        ASTCall *CreateCall(const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTExpr *, 8> &Args, ASTCallKind CallKind, ASTIdentifier *Parent = nullptr);
+        ASTCall *CreateCall(const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTExpr *, 8> &Args, ASTCallKind CallKind, ASTRef *Parent = nullptr);
 
         ASTCall *CreateCall(ASTFunction *Function, llvm::SmallVector<ASTExpr *, 8> &Args);
 
-        ASTCall *CreateCall(ASTIdentifier *Instance, ASTFunction *Method);
+        ASTCall *CreateCall(ASTRef *Instance, ASTFunction *Method);
 
         // Create VarRef
-        ASTVarRef *CreateVarRef(ASTIdentifier *Identifier, ASTIdentifier *Parent = nullptr);
+        ASTVarRef *CreateVarRef(const SourceLocation &Loc, llvm::StringRef Name, ASTRef *Parent = nullptr);
 
         ASTVarRef *CreateVarRef(ASTVar *Var);
+
+        ASTRef *CreateUndefinedRef(const SourceLocation &Loc, llvm::StringRef Name, ASTRef *Parent = nullptr);
 
         // Create Expressions
 

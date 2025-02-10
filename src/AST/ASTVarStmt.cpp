@@ -7,33 +7,32 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "AST/ASTAssignmentStmt.h"
-#include "AST/ASTBlockStmt.h"
+#include "AST/ASTVarStmt.h"
 
 using namespace fly;
 
-ASTAssignmentStmt::ASTAssignmentStmt(const SourceLocation &Loc, ASTVarRef *VarRef, ASTAssignOperatorKind AssignOperatorKind) :
-        ASTStmt(Loc, ASTStmtKind::STMT_ASSIGN), VarRef(VarRef), Kind(AssignOperatorKind) {
+ASTVarStmt::ASTVarStmt(const SourceLocation &Loc, ASTVarRef *VarRef, ASTAssignOperatorKind AssignOperatorKind) :
+        ASTStmt(Loc, ASTStmtKind::STMT_VAR), VarRef(VarRef), Kind(AssignOperatorKind) {
 
 }
 
-ASTVarRef *ASTAssignmentStmt::getVarRef() const {
+ASTVarRef *ASTVarStmt::getVarRef() const {
     return VarRef;
 }
 
-ASTAssignOperatorKind ASTAssignmentStmt::getKind1() const {
+ASTAssignOperatorKind ASTVarStmt::getKind1() const {
     return Kind;
 }
 
-ASTExpr *ASTAssignmentStmt::getExpr() const {
+ASTExpr *ASTVarStmt::getExpr() const {
     return Expr;
 }
 
-void ASTAssignmentStmt::setExpr(fly::ASTExpr *E) {
+void ASTVarStmt::setExpr(fly::ASTExpr *E) {
     Expr = E;
 }
 
-std::string ASTAssignmentStmt::str() const {
+std::string ASTVarStmt::str() const {
     return Logger("ASTVarAssign").
             Super(ASTStmt::str()).
             Attr("VarRef", VarRef).

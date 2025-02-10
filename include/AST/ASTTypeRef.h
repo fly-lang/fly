@@ -10,7 +10,7 @@
 #ifndef FLY_AST_TYPEREF_H
 #define FLY_AST_TYPEREF_H
 
-#include "ASTIdentifier.h"
+#include "ASTRef.h"
 
 namespace fly {
 
@@ -21,7 +21,7 @@ namespace fly {
     /**
      * Identity Type
      */
-    class ASTTypeRef : public ASTIdentifier {
+    class ASTTypeRef : public ASTRef {
 
         friend class ASTBuilder;
         friend class SemaResolver;
@@ -35,7 +35,8 @@ namespace fly {
 
     protected:
 
-        explicit ASTTypeRef(const SourceLocation &Loc, llvm::StringRef Name, ASTNameSpaceRef *NameSpaceRef, bool Array = false);
+        explicit ASTTypeRef(const SourceLocation &Loc, llvm::StringRef Name, ASTNameSpaceRef *NameSpaceRef = nullptr,
+            bool Array = false);
 
     public:
         SymType *getDef() const;

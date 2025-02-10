@@ -48,8 +48,8 @@ ParserClass::ParserClass(Parser *P, SmallVector<ASTScope *, 8> &Scopes) : P(P) {
     if (P->Tok.is(tok::colon)) {
         P->ConsumeToken();
         while (P->Tok.isAnyIdentifier()) {
-            ASTTypeRef *TypeRef = P->Builder.CreateTypeRef(P->ParseIdentifier());
-            SuperClasses.push_back(TypeRef);
+            ASTTypeRef *ClassTypeRef = P->ParseTypeRef();
+            SuperClasses.push_back(ClassTypeRef);
         }
     }
 

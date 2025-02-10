@@ -41,8 +41,6 @@ namespace fly {
 
         explicit SymFunction(ASTFunction *AST);
 
-        static std::string Mangle(ASTFunction *AST);
-
     public:
 
         SymModule *getModule() const;

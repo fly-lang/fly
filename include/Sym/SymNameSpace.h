@@ -29,7 +29,9 @@ namespace fly {
         friend class SemaResolver;
         friend class SemaValidator;
 
-        llvm::StringRef Name;
+        std::string Name;
+
+        SymNameSpace *Parent;
 
         llvm::SmallVector<ASTModule *, 8> Modules;
 
@@ -46,7 +48,7 @@ namespace fly {
 
         SymNameSpace();
 
-        SymNameSpace(llvm::StringRef Name);
+        explicit SymNameSpace(const std::string& Name);
 
     public:
 
@@ -55,6 +57,8 @@ namespace fly {
         ~SymNameSpace();
 
         llvm::StringRef getName() const;
+
+        SymNameSpace *getParent() const;
 
         const llvm::SmallVector<ASTModule *, 8> &getModules() const;
 

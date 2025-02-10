@@ -10,9 +10,16 @@
 #ifndef FLY_SYM_FUNCTIONBASE_H
 #define FLY_SYM_FUNCTIONBASE_H
 
+#include <string>
+#include <llvm/ADT/SmallVector.h>
+
+#include "SymType.h"
+
+
 namespace fly {
 
     class ASTFunction;
+class ASTVar;
     class CodeGenFunctionBase;
 
     enum class SymFunctionKind {
@@ -33,6 +40,10 @@ namespace fly {
         explicit SymFunctionBase(ASTFunction *AST, SymFunctionKind Kind);
 
     public:
+
+        static std::string MangleFunction(ASTFunction *AST);
+
+        static std::string MangleFunction(llvm::StringRef Name, const llvm::SmallVector<SymType *, 8> &Params);
 
         ASTFunction *getAST();
 

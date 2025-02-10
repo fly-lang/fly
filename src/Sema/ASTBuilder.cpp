@@ -24,7 +24,6 @@
 #include "AST/ASTImport.h"
 #include "AST/ASTArg.h"
 #include "AST/ASTComment.h"
-#include "AST/ASTIdentifier.h"
 #include "AST/ASTBreakStmt.h"
 #include "AST/ASTContinueStmt.h"
 #include "AST/ASTFunction.h"
@@ -33,7 +32,7 @@
 #include "AST/ASTVar.h"
 #include "AST/ASTBlockStmt.h"
 #include "AST/ASTHandleStmt.h"
-#include "AST/ASTAssignmentStmt.h"
+#include "AST/ASTVarStmt.h"
 #include "AST/ASTVarRef.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTClass.h"
@@ -116,7 +115,9 @@ ASTNameSpace * ASTBuilder::CreateNameSpace(const SourceLocation &Loc, llvm::Stri
 		S.Diag(Loc, diag::err_sema_namespace_empty);
 	}
 
-	ASTNameSpace *NS = new ASTNameSpace(Loc, Name);
+	llvm::SmallVector<llvm::StringRef, 4> Names;
+	Names.push_back(Name);
+	ASTNameSpace *NS = new ASTNameSpace(Loc, Names);
 
 	// Add NameSpace to Module
 	if (Module)
@@ -142,14 +143,7 @@ ASTNameSpace *ASTBuilder::CreateNameSpace(const SourceLocation &Loc, llvm::Small
 	}
 
 	// Create NameSpace with parent
-	ASTNameSpace *NS = nullptr;
-	ASTNameSpace *Parent = nullptr;
-	for (auto Name : Names) {
-		NS = CreateNameSpace(Loc, Name);
-		NS->Parent = Parent;
-		Parent = NS;
-	}
-
+	ASTNameSpace *NS = new ASTNameSpace(Loc, Names);
 	Module->NameSpace = NS;
 
 	FLY_DEBUG_END("ASTBuilder", "CreateNameSpace");
@@ -779,16 +773,6 @@ ASTVar *ASTBuilder::CreateLocalVar(ASTBlockStmt *BlockStmt, const SourceLocation
     return Var;
 }
 
-ASTIdentifier *ASTBuilder::CreateIdentifier(const SourceLocation &Loc, llvm::StringRef Name) {
-    FLY_DEBUG_MESSAGE("ASTBuilder", "CreateIdentifier", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
-
-    S.getValidator().CheckNameEmpty(Loc, Name);
-    ASTIdentifier *Identifier = new ASTIdentifier(Loc, Name, ASTRefKind::REF_UNDEFINED);
-
-	FLY_DEBUG_END("ASTBuilder", "CreateIdentifier");
-    return Identifier;
-}
-
 /**
  * Create an ASTFunctionCall without definition
  * @param Location
@@ -797,7 +781,7 @@ ASTIdentifier *ASTBuilder::CreateIdentifier(const SourceLocation &Loc, llvm::Str
  * @return
  */
 ASTCall *ASTBuilder::CreateCall(const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTExpr *, 8> &Args, ASTCallKind CallKind,
-                                 ASTIdentifier *Parent) {
+                                 ASTRef *Parent) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateCall", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
 
     ASTCall *Call = new ASTCall(Loc, Name);
@@ -834,7 +818,7 @@ ASTCall *ASTBuilder::CreateCall(ASTFunction *Function, llvm::SmallVector<ASTExpr
 	return Call;
 }
 
-ASTCall *ASTBuilder::CreateCall(ASTIdentifier *Instance, ASTFunction *Method) {
+ASTCall *ASTBuilder::CreateCall(ASTRef *Instance, ASTFunction *Method) {
     FLY_DEBUG_START("ASTBuilder", "CreateCall");
 
     ASTCall *Call = new ASTCall(SourceLocation(), Method->getName());
@@ -845,16 +829,14 @@ ASTCall *ASTBuilder::CreateCall(ASTIdentifier *Instance, ASTFunction *Method) {
     return Call;
 }
 
-ASTVarRef *ASTBuilder::CreateVarRef(ASTIdentifier *Identifier, ASTIdentifier *Parent) {
+ASTVarRef *ASTBuilder::CreateVarRef(const SourceLocation &Loc, llvm::StringRef Name, ASTRef *Parent) {
     FLY_DEBUG_START("ASTBuilder", "CreateVarRef");
 
-    ASTVarRef *VarRef = new ASTVarRef(Identifier->getLocation(), Identifier->getName());
+    ASTVarRef *VarRef = new ASTVarRef(Loc, Name);
     if (Parent) { // Take Parent
         Parent->AddChild(VarRef);
     } else { // Do a copy
-        VarRef->Parent = Identifier->Parent;
-        VarRef->Child = Identifier->Child;
-        VarRef->FullName = Identifier->FullName;
+        VarRef->Parent = Parent;
     }
     // delete Identifier; TODO
 
@@ -870,6 +852,16 @@ ASTVarRef *ASTBuilder::CreateVarRef(ASTVar *Var) {
 	VarRef->Def = &Var->Def;
 
 	FLY_DEBUG_END("ASTBuilder", "CreateVarRef");
+	return VarRef;
+}
+
+ASTRef *ASTBuilder::CreateUndefinedRef(const SourceLocation &Loc, llvm::StringRef Name, ASTRef *Parent) {
+	FLY_DEBUG_START("ASTBuilder", "CreateUndefinedRef");
+
+	ASTRef *VarRef = new ASTRef(Loc, Name, ASTRefKind::REF_UNDEFINED);
+	VarRef->Parent = Parent;
+
+	FLY_DEBUG_END("ASTBuilder", "CreateUndefinedRef");
 	return VarRef;
 }
 

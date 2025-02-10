@@ -38,8 +38,8 @@ ParserEnum::ParserEnum(Parser *P, llvm::SmallVector<ASTScope *, 8> &Scopes) : P(
     if (P->Tok.is(tok::colon)) {
         P->ConsumeToken();
         while (P->Tok.isAnyIdentifier()) {
-            ASTTypeRef *EnumType = P->Builder.CreateTypeRef(P->ParseIdentifier());
-            SuperClasses.push_back(EnumType);
+            ASTTypeRef *EnumTypeRef = P->ParseTypeRef();
+            SuperClasses.push_back(EnumTypeRef);
         }
     }
 

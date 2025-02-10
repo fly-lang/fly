@@ -63,10 +63,10 @@ namespace fly {
         llvm::StringMap<SymClassAttribute *> Attributes;
 
         // Class Methods
-        llvm::DenseMap<size_t, SymClassMethod *> Methods;
+        llvm::StringMap<SymClassMethod *> Methods;
 
         // Class Constructors
-        llvm::DenseMap<size_t, SymClassMethod *> Constructors;
+        llvm::StringMap<SymClassMethod *> Constructors;
 
         // Class Comment
         SymComment *Comment = nullptr;
@@ -92,9 +92,9 @@ namespace fly {
 
         const llvm::StringMap<SymClassAttribute *> &getAttributes() const;
 
-        const llvm::DenseMap<size_t, SymClassMethod *> &getMethods() const;
+        const llvm::StringMap<SymClassMethod *> &getMethods() const;
 
-        const llvm::DenseMap<size_t, SymClassMethod *> &getConstructors() const;
+        const llvm::StringMap<SymClassMethod *> &getConstructors() const;
 
         SymComment *getComment() const;
 

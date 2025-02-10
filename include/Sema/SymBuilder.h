@@ -31,6 +31,7 @@ namespace fly {
     class SymEnumEntry;
     class SymType;
     class ASTClass;
+    class ASTNameSpace;
     class ASTImport;
     class ASTEnum;
     class ASTComment;
@@ -55,9 +56,7 @@ namespace fly {
 
     	SymNameSpace *CreateNameSpace();
 
-    	SymNameSpace *CreateNameSpace(llvm::StringRef Name);
-
-    	SymNameSpace *AddNameSpace(llvm::StringRef Name);
+    	SymNameSpace *CreateOrGetNameSpace(ASTNameSpace *AST);
 
     	SymModule* CreateModule(ASTModule *AST);
 

@@ -10,7 +10,7 @@
 #include "Parser/ParserExpr.h"
 #include "AST/ASTVar.h"
 #include "AST/ASTVarRef.h"
-#include "AST/ASTIdentifier.h"
+#include "AST/ASTRef.h"
 #include "AST/ASTStmt.h"
 #include "AST/ASTOpExpr.h"
 #include "Sema/ASTBuilder.h"
@@ -201,11 +201,11 @@ ASTExpr *ParserExpr::ParsePrimary(bool Expected) {
     if (P->isValue()) { // Ex. 1
         return P->Builder.CreateExpr(P->ParseValue());
     } else if (P->Tok.isAnyIdentifier()) { // Ex. a or a++ or func()
-        ASTIdentifier *Identifier = P->ParseIdentifier();
-        if (Identifier->isCall()) { // Ex. a()
-            return P->Builder.CreateExpr((ASTCall *) Identifier);
+        ASTRef *Ref = P->ParseCallOrVarRef();
+        if (Ref->isCall()) { // Ex. a()
+            return P->Builder.CreateExpr((ASTCall *) Ref);
         } else { // parse function call, variable post increment/decrement or simple var
-            ASTVarRef *VarRef = P->Builder.CreateVarRef(Identifier);
+            ASTVarRef *VarRef = static_cast<ASTVarRef *>(Ref);
             ASTVarRefExpr *Primary = P->Builder.CreateExpr(VarRef);
             if (isUnaryPostOperator()) { // Ex. a++ or a--
                 ASTUnaryOpExprKind OpKind = toUnaryOpExprKind(Tok, true);
@@ -366,12 +366,9 @@ ASTExpr *ParserExpr::ParseNewExpr() {
     const SourceLocation &NewOpLoc = P->ConsumeToken();  // Consume 'new'
 
     if (P->Tok.isAnyIdentifier()) {
-        ASTIdentifier *Identifier = P->ParseIdentifier();
-
-        if (Identifier->isCall()) { // Ex. a()
-            ASTCallExpr *CallExpr = P->Builder.CreateExpr((ASTCall *) Identifier);
-            return CallExpr;
-        }
+        ASTCall *Call = P->ParseCall();
+    	ASTCallExpr *CallExpr = P->Builder.CreateExpr(Call);
+    	return CallExpr;
     }
 
     // Error:

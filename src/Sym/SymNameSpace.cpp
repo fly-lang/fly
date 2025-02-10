@@ -17,13 +17,17 @@ std::string SymNameSpace::DEFAULT_NAMESPACE = "default";
 SymNameSpace::SymNameSpace() : Name(DEFAULT_NAMESPACE) {
 }
 
-SymNameSpace::SymNameSpace(llvm::StringRef Name) : Name(Name) {
+SymNameSpace::SymNameSpace(const std::string& Name) : Name(Name) {
 }
 
 SymNameSpace::~SymNameSpace() = default;
 
 llvm::StringRef SymNameSpace::getName() const {
 	return Name;
+}
+
+SymNameSpace * SymNameSpace::getParent() const {
+	return Parent;
 }
 
 const llvm::SmallVector<ASTModule *, 8> &SymNameSpace::getModules() const {

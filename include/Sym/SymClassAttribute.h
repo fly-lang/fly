@@ -32,6 +32,8 @@ namespace fly {
 
         SymComment *Comment = nullptr;
 
+    protected:
+
         explicit SymClassAttribute(ASTVar *AST);
 
     public:

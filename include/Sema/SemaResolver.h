@@ -52,23 +52,28 @@ namespace fly {
     class ASTFailStmt;
     class ASTHandleStmt;
     class ASTFunction;
-    class ASTIdentifier;
+    class ASTRef;
     class ASTComment;
     class ASTImport;
     class ASTTypeRef;
     class ASTVar;
     class ASTLoopInStmt;
     class ASTEnum;
-    class ASTAssignmentStmt;
+    class ASTVarStmt;
     class SymGlobalVar;
     class SymFunction;
-class ASTScope;
+    class SymVar;
+    class SymLocalVar;
+    class SymFunctionBase;
+    class ASTScope;
 
     class SemaResolver {
-
         friend class Sema;
 
         Sema &S;
+
+        // This is the Default NameSpace
+        SymNameSpace *Default;
 
         // This is the Module NameSpace
         SymNameSpace *NameSpace;
@@ -121,39 +126,47 @@ class ASTScope;
 
         bool ResolveStmtLoopIn(ASTLoopInStmt *LoopInStmt);
 
-        bool ResolveStmtVar(ASTAssignmentStmt *VarStmt);
+        bool ResolveStmtVar(ASTVarStmt *VarStmt);
 
         bool ResolveStmtFail(ASTFailStmt *FailStmt);
 
         bool ResolveStmtHandle(ASTHandleStmt *HandleStmt);
 
-        bool ResolveIdentifier(SymNameSpace *NameSpace, ASTStmt *Stmt, ASTIdentifier *Identifier);
-
-        bool ResolveIdentifier(ASTIdentity *Identity, ASTStmt *Stmt, ASTIdentifier *Identifier);
-
-        bool ResolveIdentifier(ASTStmt *Stmt, ASTIdentifier *Ref);
-
-        bool ResolveGlobalVarRef(SymNameSpace *NameSpace, ASTStmt *Stmt, ASTVarRef *VarRef);
-
-        bool ResolveVarRef(ASTStmt *Stmt, ASTVarRef *VarRef);
-
-        bool ResolveFunctionCall(SymNameSpace *NameSpace, ASTStmt *Stmt, ASTCall *Call);
-
-        bool ResolveStaticVarRef(SymIdentity *Identity, ASTStmt *Stmt, ASTVarRef *VarRef);
-
-        bool ResolveStaticCall(ASTIdentity *Identity, ASTStmt *Stmt, ASTCall *Call);
-
-        bool ResolveCall(ASTStmt *Stmt, ASTCall *Call);
-
-        bool ResolveCallArgs(ASTStmt *Stmt, ASTCall *Call);
-
         bool ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr, SymType *Type = nullptr);
 
-        SymNameSpace *FindNameSpace(ASTIdentifier *Identifier, ASTIdentifier *&Current) const;
+        // bool ResolveRef(SymNameSpace *NameSpace, ASTStmt *Stmt, ASTRef *Ref);
+        //
+        // bool ResolveRef(ASTIdentity *Identity, ASTStmt *Stmt, ASTRef *Identifier);
 
-        ASTVar *FindLocalVar(ASTStmt *Stmt, llvm::StringRef Name) const;
+        // bool ResolveRef(ASTStmt *Stmt, ASTRef *Ref);
+
+        // bool ResolveGlobalVarRef(SymNameSpace *NameSpace, ASTStmt *Stmt, ASTVarRef *VarRef);
+
+        // bool ResolveVarRef(ASTStmt *Stmt, ASTVarRef *VarRef);
+        //
+        // bool ResolveStaticVarRef(SymIdentity *Identity, ASTStmt *Stmt, ASTVarRef *VarRef);
+        //
+        // bool ResolveFunctionCall(SymNameSpace *NameSpace, ASTStmt *Stmt, ASTCall *Call);
+        //
+        // bool ResolveStaticCall(ASTIdentity *Identity, ASTStmt *Stmt, ASTCall *Call);
+
+        ASTRef *ResolveCall(ASTStmt *Stmt, ASTCall *Call, SymNameSpace *NameSpaces...);
+
+        ASTRef *ResolveRef(ASTStmt *Stmt, ASTRef *Ref);
+
+        ASTRef *ResolveRef(ASTStmt *Stmt, ASTRef *Ref, SymNameSpace *NameSpaces...);
+
+        ASTRef *ResolveRef(SymType *Type, ASTRef *Ref, SymNameSpace *NameSpaces...);
+
+        ASTRef *ResolveRef(SymVar *Var, ASTRef *Ref, SymNameSpace *NameSpaces...);
+
+        SymType *FindType(llvm::StringRef Name, SymNameSpace *NameSpaces...);
+
+        SymVar *FindVar(ASTStmt *Stmt, ASTRef *Ref, SymNameSpace *NameSpaces...) const;
+
+        SymLocalVar *FindLocalVar(ASTStmt *Stmt, ASTRef *Ref) const;
     };
 
-}  // end namespace fly
+} // end namespace fly
 
 #endif

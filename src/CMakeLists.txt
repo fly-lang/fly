@@ -22,7 +22,7 @@ add_library(flyLib
         AST/ASTFailStmt.cpp
         AST/ASTFunction.cpp
         AST/ASTHandleStmt.cpp
-        AST/ASTIdentifier.cpp
+        AST/ASTRef.cpp
         AST/ASTTypeRef.cpp
         AST/ASTIfStmt.cpp
         AST/ASTImport.cpp
@@ -40,7 +40,7 @@ add_library(flyLib
         AST/ASTValue.cpp
         AST/ASTVar.cpp
         AST/ASTVarRef.cpp
-        AST/ASTAssignmentStmt.cpp
+        AST/ASTVarStmt.cpp
 
         # Basic
         Basic/Archiver.cpp

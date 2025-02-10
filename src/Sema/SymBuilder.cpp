@@ -27,6 +27,7 @@
 #include <AST/ASTFunction.h>
 #include <AST/ASTVar.h>
 #include <AST/ASTModule.h>
+#include <AST/ASTNameSpace.h>
 #include <AST/ASTScopes.h>
 #include <Sema/SymBuilder.h>
 #include <Sym/SymClassAttribute.h>
@@ -93,22 +94,24 @@ SymNameSpace *SymBuilder::CreateNameSpace() {
 	return NameSpace;
 }
 
-SymNameSpace *SymBuilder::CreateNameSpace(llvm::StringRef Name) {
-	FLY_DEBUG_MESSAGE("SemaBuilder", "CreateNameSpace", "Name=" << Name);
+SymNameSpace * SymBuilder::CreateOrGetNameSpace(ASTNameSpace *AST) {
+	SymNameSpace *Parent = nullptr;
+	SymNameSpace *NameSpace = nullptr;
+	std::string FullName = "";
+	for (auto It = AST->getNames().begin(); It != AST->getNames().end(); ++It) {
+		// Generate the full name
+		FullName += It == AST->getNames().begin() ? std::string(*It) : "." + FullName;
 
-	SymNameSpace *NameSpace = new SymNameSpace(Name);
-	S.Table->NameSpaces.insert(std::make_pair<>(NameSpace->getName(), NameSpace));
-
-	FLY_DEBUG_END("SymBuilder", "CreateNameSpace");
-	return NameSpace;
-}
-
-SymNameSpace * SymBuilder::AddNameSpace(llvm::StringRef Name) {
-	// Create the NameSpace if not exists yet in the Context
-	SymNameSpace *NameSpace = S.getSymTable().getNameSpaces().lookup(Name);
-	if (NameSpace == nullptr) {
-		S.getSymBuilder().CreateNameSpace(Name);
+		// Create the NameSpace if not exists yet in the Context
+		NameSpace = S.getSymTable().getNameSpaces().lookup(FullName);
+		if (NameSpace == nullptr) {
+			NameSpace = new SymNameSpace(FullName);
+			S.Table->NameSpaces.insert(std::make_pair<>(NameSpace->getName(), NameSpace));
+			NameSpace->Parent = Parent;
+			Parent = NameSpace;
+		}
 	}
+
 	return NameSpace;
 }
 

@@ -10,7 +10,7 @@
 #ifndef FLY_AST_CALL_H
 #define FLY_AST_CALL_H
 
-#include "ASTIdentifier.h"
+#include "ASTRef.h"
 
 namespace fly {
 
@@ -31,7 +31,7 @@ namespace fly {
      * Ex.
      *  int a = sqrt(4)
      */
-    class ASTCall : public ASTIdentifier {
+    class ASTCall : public ASTRef {
 
         friend class ASTBuilder;
         friend class SemaResolver;

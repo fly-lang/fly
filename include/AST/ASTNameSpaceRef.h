@@ -10,13 +10,13 @@
 #ifndef FLY_AST_NAMESPACEREF_H
 #define FLY_AST_NAMESPACEREF_H
 
-#include "ASTIdentifier.h"
+#include "ASTRef.h"
 
 namespace fly {
 
     class SymNameSpace;
 
-    class ASTNameSpaceRef : public ASTIdentifier {
+    class ASTNameSpaceRef : public ASTRef {
 
         friend class ASTBuilder;
         friend class SemaResolver;

@@ -12,7 +12,7 @@
 
 using namespace fly;
 
-ASTVarRef::ASTVarRef(const SourceLocation &Loc, llvm::StringRef Name) : ASTIdentifier(Loc, Name, ASTRefKind::REF_VAR) {
+ASTVarRef::ASTVarRef(const SourceLocation &Loc, llvm::StringRef Name) : ASTRef(Loc, Name, ASTRefKind::REF_VAR) {
 
 }
 

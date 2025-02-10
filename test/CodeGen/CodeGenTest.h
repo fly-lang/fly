@@ -107,25 +107,25 @@ public:
         return output;
     }
 
-    ASTVarRef *CreateVarRef(ASTVar *Var, ASTIdentifier *Parent = nullptr) {
-        ASTIdentifier *Identifier = Builder.CreateIdentifier(SourceLoc, Var->getName());
+    ASTVarRef *CreateVarRef(ASTVar *Var, ASTRef *Parent = nullptr) {
+        ASTRef *Identifier = Builder.CreateIdentifier(SourceLoc, Var->getName());
         return Builder.CreateVarRef(Identifier, Parent);
     }
 
-    ASTCall *CreateCall(ASTFunction *Function, llvm::SmallVector<ASTExpr *, 8> &Args, ASTIdentifier *Parent = nullptr) {
-        ASTIdentifier *Identifier = Builder.CreateIdentifier(SourceLoc, Function->getName());
+    ASTCall *CreateCall(ASTFunction *Function, llvm::SmallVector<ASTExpr *, 8> &Args, ASTRef *Parent = nullptr) {
+        ASTRef *Identifier = Builder.CreateIdentifier(SourceLoc, Function->getName());
         ASTCall *Call = Builder.CreateCall(Identifier, Args, ASTCallKind::CALL_FUNCTION, Parent);
         return Call;
     }
 
-    ASTCall *CreateCall(ASTClassMethod *Function, llvm::SmallVector<ASTExpr *, 8> &Args, ASTIdentifier *Parent = nullptr) {
-        ASTIdentifier *Identifier = Builder.CreateIdentifier(SourceLoc, Function->getName());
+    ASTCall *CreateCall(ASTClassMethod *Function, llvm::SmallVector<ASTExpr *, 8> &Args, ASTRef *Parent = nullptr) {
+        ASTRef *Identifier = Builder.CreateIdentifier(SourceLoc, Function->getName());
         ASTCall *Call = Builder.CreateCall(Identifier, Args, ASTCallKind::CALL_FUNCTION, Parent);
         return Call;
     }
 
-    ASTCall *CreateNew(ASTClassMethod *Function, llvm::SmallVector<ASTExpr *, 8> &Args, ASTIdentifier *Parent = nullptr) {
-        ASTIdentifier *Identifier = Builder.CreateIdentifier(SourceLoc, Function->getName());
+    ASTCall *CreateNew(ASTClassMethod *Function, llvm::SmallVector<ASTExpr *, 8> &Args, ASTRef *Parent = nullptr) {
+        ASTRef *Identifier = Builder.CreateIdentifier(SourceLoc, Function->getName());
         ASTCall *Call = Builder.CreateCall(Identifier, Args, ASTCallKind::CALL_NEW, Parent);
         return Call;
     }

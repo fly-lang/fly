@@ -39,7 +39,7 @@ namespace fly {
     class ASTVarRef;
     class ASTVar;
     class ASTBlockStmt;
-    class ASTIdentifier;
+    class ASTRef;
     class ASTTypeRef;
 
     class Sema {

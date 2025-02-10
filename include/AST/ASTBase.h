@@ -25,7 +25,7 @@ namespace fly {
         AST_TYPE,
         AST_VALUE,
         AST_EXPR,
-        AST_IDENTIFIER,
+        AST_REF,
         AST_COMMENT,
         AST_FUNCTION,
         AST_SCOPE,

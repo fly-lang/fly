@@ -12,7 +12,7 @@
 using namespace fly;
 
 ASTTypeRef::ASTTypeRef(const SourceLocation &Loc, llvm::StringRef Name, ASTNameSpaceRef *NameSpaceRef, bool Array) :
-        ASTIdentifier(Loc, Name, ASTRefKind::REF_TYPE), NameSpaceRef(NameSpaceRef), Array(Array) {
+        ASTRef(Loc, Name, ASTRefKind::REF_TYPE), NameSpaceRef(NameSpaceRef), Array(Array) {
 
 }
 
@@ -30,7 +30,7 @@ ASTNameSpaceRef *ASTTypeRef::getNameSpaceRef() const {
 
 std::string ASTTypeRef::str() const {
     return Logger("ASTTypeRef").
-    Super(ASTIdentifier::str()).
+    Super(ASTRef::str()).
     End();
 }
 

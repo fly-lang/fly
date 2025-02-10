@@ -22,7 +22,7 @@ namespace fly {
     class ASTModule;
     class SymNameSpace;
     class ASTValue;
-    class ASTIdentifier;
+    class ASTRef;
     class ASTFunction;
     class ASTArrayValue;
     class ASTBlockStmt;
@@ -135,6 +135,8 @@ private:
     /// Parse a statement.
     void ParseStmt(ASTBlockStmt *Parent);
 
+    bool isVarOrType(Optional<Token> &NexTok);
+
     /// Parse the start of a parenthesis.
     bool ParseStartParen();
 
@@ -159,17 +161,28 @@ private:
     /// Parse a fail statement.
     void ParseFailStmt(ASTBlockStmt *Parent);
 
-    /// Parse an array type reference.
-    ASTArrayTypeRef *ParseArrayTypeRef(ASTTypeRef *);
-
     /// Parse a type reference.
     ASTTypeRef *ParseTypeRef();
 
+    /// Parse a builtin type reference
+    ASTTypeRef *ParseBuiltinTypeRef();
+
+    /// Parse an array type reference.
+    ASTArrayTypeRef *ParseArrayTypeRef(ASTTypeRef *);
+
+    /// Parse a var ref.
+    ASTVarRef *ParseVarRef();
+
+    ASTCall *ParseCall();
+
     /// Parse a call.
-    ASTCall *ParseCall(ASTIdentifier *&Identifier);
+    ASTCall *ParseCall(const SourceLocation &Loc, llvm::StringRef Name, ASTRef *Parent);
+
+    /// Parse a call or varref
+    ASTRef *ParseCallOrVarRef();
 
     /// Parse an identifier.
-    ASTIdentifier *ParseIdentifier(ASTIdentifier *Parent = nullptr, bool istype = false);
+    ASTRef *ParseRef(ASTRef *Parent = nullptr);
 
     /// Parse a value.
     ASTValue *ParseValue();

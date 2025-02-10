@@ -10,7 +10,7 @@
 #ifndef FLY_AST_NAMESPACE_H
 #define FLY_AST_NAMESPACE_H
 
-#include "ASTIdentifier.h"
+#include "ASTBase.h"
 
 namespace fly {
 
@@ -22,19 +22,17 @@ namespace fly {
         friend class SemaResolver;
         friend class SemaValidator;
 
-        const llvm::StringRef Name;
+        llvm::SmallVector<llvm::StringRef, 4> Names;
 
         ASTNameSpace *Parent = nullptr;
 
-        ASTNameSpace(const SourceLocation &Loc, llvm::StringRef Name);
+        ASTNameSpace(const SourceLocation &Loc, llvm::SmallVector<llvm::StringRef, 4> &Names);
 
     public:
 
         ~ASTNameSpace();
 
-        llvm::StringRef getName() const;
-
-        ASTNameSpace *getParent() const;
+        const llvm::SmallVector<llvm::StringRef, 4> &getNames() const;
 
         std::string str() const;
     };

@@ -19,7 +19,7 @@
 #include "AST/ASTComment.h"
 #include "AST/ASTCall.h"
 #include "AST/ASTExpr.h"
-#include "AST/ASTIdentifier.h"
+#include "AST/ASTVarRef.h"
 #include "AST/ASTBlockStmt.h"
 #include "AST/ASTContinueStmt.h"
 #include "AST/ASTBreakStmt.h"
@@ -468,11 +468,11 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
     // Parse scopes
     SmallVector<ASTScope *, 8> Scopes = ParseScopes();
 
-    // Find next tokens
-    const Optional<Token> &NexTok = Lexer::findNextToken(Tok.getLocation(), SourceMgr);
+	// Parse a Local Var
+	Optional<Token> NexTok = Tok;
+	Optional<Token> NexTok2 = Tok;
+    if (isVarOrType(NexTok) && isVarOrType(NexTok) || isBuiltinType(Tok) && isVarOrType(NexTok2)) {
 
-    // Parse a Local Var
-    if (Tok.isAnyIdentifier() && NexTok->isAnyIdentifier() || isBuiltinType(Tok) && NexTok->isAnyIdentifier()) {
         // const int a
         // Type a
         // int a = ...
@@ -484,9 +484,9 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
         }
 
         // Create a Local Var
-        ASTIdentifier *Identifier = ParseIdentifier();
-        ASTVar *LocalVar = Builder.CreateLocalVar(Parent, Tok.getLocation(), TypeRef,
-                                                       Identifier->getName(), Scopes);
+    	llvm::StringRef Name = Tok.getIdentifierInfo()->getName();
+    	const SourceLocation &Loc = ConsumeToken();
+        ASTVar *LocalVar = Builder.CreateLocalVar(Parent, Loc, TypeRef, Name, Scopes);
 
         // Assign to LocalVar
         if (isAssignOperator(Tok)) {
@@ -508,11 +508,10 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
     }
 
     // Parse a Var Assignment
-    if (Tok.isAnyIdentifier() && isAssignOperator(NexTok.getValue())) {
+    if (isVarOrType(NexTok) && isAssignOperator(NexTok.getValue())) {
         // Parse Var
         // a = ...
-        ASTIdentifier *Identifier = ParseIdentifier();
-        ASTVarRef *VarRef = Builder.CreateVarRef(Identifier);
+        ASTVarRef *VarRef = ParseVarRef();
 
         // Create Left Expr only for +=, -=, *=, etc.
         ASTExpr *Left = nullptr;
@@ -536,6 +535,27 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
     ASTExpr *Expr = ParseExpr();
     SemaBuilderStmt *BuilderStmt = Builder.CreateExprStmt(Parent, Expr->getLocation());
     BuilderStmt->setExpr(Expr);
+}
+
+bool Parser::isVarOrType(Optional<Token> &NexTok) {
+	do {
+		if (NexTok.getValue().isAnyIdentifier()) {
+			NexTok = Lexer::findNextToken(NexTok->getLocation(), SourceMgr);
+		} else {
+			return false;
+		}
+	} while (NexTok.getValue().is(tok::period) && ((NexTok = Lexer::findNextToken(Tok.getLocation(), SourceMgr))));
+
+	if (NexTok->is(tok::l_paren)) {
+		return false;
+	}
+
+
+	if (NexTok->isOneOf(tok::plusplus, tok::minusminus)) {
+		return false;
+	}
+
+	return true;
 }
 
 /**
@@ -877,25 +897,6 @@ void Parser::ParseFailStmt(ASTBlockStmt *Parent) {
     BuilderStmt->setExpr(Expr);
 }
 
-ASTArrayTypeRef *Parser::ParseArrayTypeRef(ASTTypeRef *TypeRef) {
-	FLY_DEBUG_START("Parser", "ParseArrayType");
-    assert(isArrayType(Tok) && "Invalid array parse");
-
-	//TODO array multidimensional
-
-    ASTArrayTypeRef *ArrayTypeRef = nullptr;
-    const SourceLocation &Loc = ConsumeBracket();
-    ASTExpr *Expr = ParseExpr();
-    if (Tok.is(tok::r_square)) {
-        ConsumeBracket();
-        ArrayTypeRef = Builder.CreateArrayTypeRef(Loc, TypeRef, Expr);
-    } else {
-        Diag(Loc, diag::err_parser_unclosed_bracket);
-    }
-
-    return ArrayTypeRef;
-}
-
 /**
  * ParseModule a data Type
  * @return true on Success or false on Error
@@ -905,111 +906,165 @@ ASTTypeRef *Parser::ParseTypeRef() {
 
     ASTTypeRef *TypeRef = nullptr;
     if (isBuiltinType(Tok)) {
-    	switch (Tok.getKind()) {
-    	case tok::kw_bool:
-    		TypeRef = Builder.CreateBoolTypeRef(ConsumeToken());
-    		break;
-    	case tok::kw_byte:
-    		TypeRef = Builder.CreateByteTypeRef(ConsumeToken());
-    		break;
-    	case tok::kw_ushort:
-    		TypeRef = Builder.CreateUShortTypeRef(ConsumeToken());
-    		break;
-    	case tok::kw_short:
-    		TypeRef = Builder.CreateShortTypeRef(ConsumeToken());
-    		break;
-    	case tok::kw_uint:
-    		TypeRef = Builder.CreateUIntTypeRef(ConsumeToken());
-    		break;
-    	case tok::kw_int:
-    		TypeRef = Builder.CreateIntTypeRef(ConsumeToken());
-    		break;
-    	case tok::kw_ulong:
-    		TypeRef = Builder.CreateULongTypeRef(ConsumeToken());
-    		break;
-    	case tok::kw_long:
-    		TypeRef = Builder.CreateLongTypeRef(ConsumeToken());
-    		break;
-    	case tok::kw_float:
-    		TypeRef = Builder.CreateFloatTypeRef(ConsumeToken());
-    		break;
-    	case tok::kw_double:
-    		TypeRef = Builder.CreateDoubleTypeRef(ConsumeToken());
-    		break;
-    	case tok::kw_void:
-    		TypeRef = Builder.CreateVoidTypeRef(ConsumeToken());
-    		break;
-    	case tok::kw_char:
-    		TypeRef = Builder.CreateCharTypeRef(ConsumeToken());
-    		break;
-    	case tok::kw_string:
-    		TypeRef = Builder.CreateStringTypeRef(ConsumeToken());
-    		break;
-    	case tok::kw_error:
-    		TypeRef = Builder.CreateErrorTypeRef(ConsumeToken());
-    		break;
-    	default:
-    		Diag(Tok.getLocation(), diag::err_parser_invalid_type);
-    		TypeRef = nullptr;
-    	}
-    	return isArrayType(Tok) ? ParseArrayTypeRef(TypeRef) : TypeRef;
+    	return ParseBuiltinTypeRef();
     }
 
-	// Parse Names
-	const SourceLocation &Loc = Tok.getLocation();
+	// Parse Class or Enum Type
+	if (Tok.isAnyIdentifier()) {
+		llvm::SmallVector<llvm::StringRef, 4> Names;
+		Names.push_back(Tok.getIdentifierInfo()->getName());
+		const SourceLocation &Loc = ConsumeToken();
+		do {
 
-	llvm::SmallVector<llvm::StringRef, 4> Names;
-	Names.push_back(Tok.getIdentifierInfo()->getName());
-	ConsumeToken();
-	do {
-		//Check if is a period
-		if (Tok.is(tok::period)) {
-			ConsumeToken();
+			//Check if is a period
+			if (Tok.is(tok::period)) {
+				ConsumeToken();
+			}
+
+			// Check if is an Identifier
+			if (!Tok.isAnyIdentifier()) {
+				Diag(Tok, diag::err_parse_identifier_expected);
+				return TypeRef;
+			}
+
+			// Parse Identifier
+			llvm::StringRef Name = Tok.getIdentifierInfo()->getName();
+			const SourceLocation &NameLoc = ConsumeToken();
+
+			// with Array Type al previous Names are NameSpace
+			if (isArrayType(Tok)) {
+				TypeRef = Builder.CreateTypeRef(NameLoc, Name, Builder.CreateNameSpaceRef(Loc, Names));
+				ASTArrayTypeRef *ArrayTypeRef = ParseArrayTypeRef(TypeRef);
+				return ArrayTypeRef;
+			}
+
+			// Add Name, but you don't know if is a Type or a NameSpace
+			Names.push_back(Name);
+
+		} while (Tok.is(tok::period));
+
+
+		if (Names.empty()) {
+			Diag(Tok.getLocation(), diag::err_syntax_error);
+			return nullptr;
 		}
 
-		// Check if is an Identifier
-		if (!Tok.isAnyIdentifier()) {
-			Diag(Tok, diag::err_parse_identifier_expected);
-			return TypeRef;
+		// Take last Name as TypeRef
+		llvm::StringRef TypeRefName = Names[Names.size()-1];
+
+		// Take all Names as NameSpace
+		llvm::SmallVector<llvm::StringRef, 4> NameSpace;
+		if (Names.size() > 1) {
+			for (size_t i = Names.size()-2; i > 0; --i) {
+				NameSpace.push_back(Names[i]);
+			}
 		}
 
-		// Parse Identifier
-		llvm::StringRef Name = Tok.getIdentifierInfo()->getName();
-		const SourceLocation &NameLoc = ConsumeToken();
+		// Create TypeRef with parent namespace
+		TypeRef = Builder.CreateTypeRef(Loc, TypeRefName, Builder.CreateNameSpaceRef(Loc, NameSpace));
+	}
 
-		// with Array Type al previous Names are NameSpace
-		if (isArrayType(Tok)) {
-			TypeRef = Builder.CreateTypeRef(NameLoc, Name, Builder.CreateNameSpaceRef(Loc, Names));
-			ASTArrayTypeRef *ArrayTypeRef = ParseArrayTypeRef(TypeRef);
-			return ArrayTypeRef;
-		}
+    return TypeRef;
+}
 
-		// Add Name, but you don't know if is a Type or a NameSpace
-		Names.push_back(Name);
+ASTTypeRef * Parser::ParseBuiltinTypeRef() {
+	ASTTypeRef *TypeRef = nullptr;
+	switch (Tok.getKind()) {
+	case tok::kw_bool:
+		TypeRef = Builder.CreateBoolTypeRef(ConsumeToken());
+		break;
+	case tok::kw_byte:
+		TypeRef = Builder.CreateByteTypeRef(ConsumeToken());
+		break;
+	case tok::kw_ushort:
+		TypeRef = Builder.CreateUShortTypeRef(ConsumeToken());
+		break;
+	case tok::kw_short:
+		TypeRef = Builder.CreateShortTypeRef(ConsumeToken());
+		break;
+	case tok::kw_uint:
+		TypeRef = Builder.CreateUIntTypeRef(ConsumeToken());
+		break;
+	case tok::kw_int:
+		TypeRef = Builder.CreateIntTypeRef(ConsumeToken());
+		break;
+	case tok::kw_ulong:
+		TypeRef = Builder.CreateULongTypeRef(ConsumeToken());
+		break;
+	case tok::kw_long:
+		TypeRef = Builder.CreateLongTypeRef(ConsumeToken());
+		break;
+	case tok::kw_float:
+		TypeRef = Builder.CreateFloatTypeRef(ConsumeToken());
+		break;
+	case tok::kw_double:
+		TypeRef = Builder.CreateDoubleTypeRef(ConsumeToken());
+		break;
+	case tok::kw_void:
+		TypeRef = Builder.CreateVoidTypeRef(ConsumeToken());
+		break;
+	case tok::kw_char:
+		TypeRef = Builder.CreateCharTypeRef(ConsumeToken());
+		break;
+	case tok::kw_string:
+		TypeRef = Builder.CreateStringTypeRef(ConsumeToken());
+		break;
+	case tok::kw_error:
+		TypeRef = Builder.CreateErrorTypeRef(ConsumeToken());
+		break;
+	default:
+		Diag(Tok.getLocation(), diag::err_parser_invalid_type);
+		TypeRef = nullptr;
+	}
+	return isArrayType(Tok) ? ParseArrayTypeRef(TypeRef) : TypeRef;
+}
 
-	} while (Tok.is(tok::period));
+ASTArrayTypeRef *Parser::ParseArrayTypeRef(ASTTypeRef *TypeRef) {
+	FLY_DEBUG_START("Parser", "ParseArrayType");
+	assert(isArrayType(Tok) && "Invalid array parse");
 
+	//TODO array multidimensional
 
-	if (Names.empty()) {
-		Diag(Tok.getLocation(), diag::err_syntax_error);
+	ASTArrayTypeRef *ArrayTypeRef = nullptr;
+	const SourceLocation &Loc = ConsumeBracket();
+	ASTExpr *Expr = ParseExpr();
+	if (Tok.is(tok::r_square)) {
+		ConsumeBracket();
+		ArrayTypeRef = Builder.CreateArrayTypeRef(Loc, TypeRef, Expr);
+	} else {
+		Diag(Loc, diag::err_parser_unclosed_bracket);
+	}
+
+	return ArrayTypeRef;
+}
+
+ASTVarRef * Parser::ParseVarRef() {
+	FLY_DEBUG_START("Parser", "ParseVarRef");
+	assert(Tok.isAnyIdentifier() && "VarRef start with Name");
+
+	// Parse NameSpace or Class/Enum
+	ASTRef *Ref = ParseRef();
+
+	if (Ref->isCall()) {
+		// Error: unexpected Call
+		Diag(Ref->getLocation(), diag::err_syntax_error);
 		return nullptr;
 	}
 
-	// Take last Name as TypeRef
-	llvm::StringRef TypeRefName = Names[Names.size()-1];
+	ASTVarRef * VarRef = Builder.CreateVarRef(Ref->getLocation(), Ref->getName(), Ref->getParent());
 
-	// Take all Names as NameSpace
-	llvm::SmallVector<llvm::StringRef, 4> NameSpace;
-	if (Names.size() > 1) {
-		for (size_t i = Names.size()-2; i > 0; --i) {
-			NameSpace.push_back(Names[i]);
-		}
-	}
+	FLY_DEBUG_END("Parser", "ParseVarRef");
+	return VarRef;
+}
 
-	// Create TypeRef with parent namespace
-	TypeRef = Builder.CreateTypeRef(Loc, TypeRefName, Builder.CreateNameSpaceRef(Loc, NameSpace));
-
-    return TypeRef;
+/**
+ * ParseModule a Function Call
+ * @return true on Success or false on Error
+ */
+ASTCall *Parser::ParseCall() {
+	llvm::StringRef Name = Tok.getIdentifierInfo()->getName();
+	const SourceLocation &Loc = ConsumeToken();
+	return ParseCall(Loc, Name, nullptr);
 }
 
 /**
@@ -1019,7 +1074,7 @@ ASTTypeRef *Parser::ParseTypeRef() {
  * @param Loc
  * @return true on Success or false on Error
  */
-ASTCall *Parser::ParseCall(ASTIdentifier *&Identifier) {
+ASTCall *Parser::ParseCall(const SourceLocation &Loc, llvm::StringRef Name, ASTRef *Parent) {
 	FLY_DEBUG_START("Parser", "ParseCall");
     assert(Tok.is(tok::l_paren) && "Call start with parenthesis");
 
@@ -1058,52 +1113,38 @@ ASTCall *Parser::ParseCall(ASTIdentifier *&Identifier) {
         }
     }
 
-    return Builder.CreateCall(Identifier->getLocation(), Identifier->getName(), Args, ASTCallKind::CALL_FUNCTION,
-    	Identifier->getParent());
+    return Builder.CreateCall(Loc, Name, Args, ASTCallKind::CALL_FUNCTION, Parent);
+}
+
+ASTRef * Parser::ParseCallOrVarRef() {
+	ASTRef * Ref = ParseRef();
+	if (!Ref->isCall()) {
+		return Builder.CreateVarRef(Ref->getLocation(), Ref->getName(), Ref->getParent());
+	}
 }
 
 /**
  * ParseModule as Identifier
  * @return
  */
-ASTIdentifier *Parser::ParseIdentifier(ASTIdentifier *Parent, bool isType) {
+ASTRef *Parser::ParseRef(ASTRef *Parent) {
     FLY_DEBUG_START("Parser", "ParseIdentifier");
     assert(Tok.isAnyIdentifier() && "Token Identifier expected");
 
-    // Create the Child and work on it
-    ASTIdentifier *Child;
-    llvm::StringRef Name = Tok.getIdentifierInfo()->getName();
-    if (Parent == nullptr) {
-        Child = Builder.CreateIdentifier(ConsumeToken(), Name);
-    } else {
-        Parent->AddChild(Builder.CreateIdentifier(ConsumeToken(), Name));
-        Child = Parent->getChild();
-    }
+	ASTRef *Ref = nullptr;
+	do {
+		llvm::StringRef Name = Tok.getIdentifierInfo()->getName();
+		const SourceLocation &Loc = ConsumeToken();
 
-    // case 0: Class
-    // case 1: var -> VarRef
-    // case 2: func() -> FunctionCall
-    // Case 3: ns1.var -> VarRef
-    // Case 4: ns1.func() -> FunctionCall
-    // Case 5: ns1.Enum.CONST -> ClassVar
-    // Case 6: ns1.Class.method() -> ClassFunction
-    // Case 7: ns1.Class.var -> Method return Object
-    if (Tok.is(tok::l_paren)) {
-        Child = ParseCall(Child);
-    }
+		if (Tok.is(tok::l_paren)) {
+			Ref = ParseCall(Loc, Name, Parent);
+		} else {
+			Ref = Builder.CreateUndefinedRef(Loc, Name, Parent);
+		}
+		Parent = Ref;
+	} while (Tok.is(tok::period) && ConsumeToken().isValid());
 
-    if (Tok.is(tok::period)) {
-        ConsumeToken();
-
-        if (Tok.isAnyIdentifier()) {
-            return ParseIdentifier(Child);
-        } else {
-            Diag(Tok.getLocation(), diag::err_invalid_id) << Tok.getKind();
-            return Child;
-        }
-    }
-
-    return Child;
+    return Ref;
 }
 
 /**

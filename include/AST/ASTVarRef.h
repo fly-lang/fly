@@ -10,7 +10,7 @@
 #ifndef FLY_AST_VARREF_H
 #define FLY_AST_VARREF_H
 
-#include "AST/ASTIdentifier.h"
+#include "AST/ASTRef.h"
 
 namespace fly {
 
@@ -22,7 +22,7 @@ namespace fly {
      *  ... = a + ...
      *  b = ...
      */
-    class ASTVarRef : public ASTIdentifier {
+    class ASTVarRef : public ASTRef {
 
         friend class ASTBuilder;
         friend class SemaBuilderStmt;

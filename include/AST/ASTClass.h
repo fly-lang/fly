@@ -19,7 +19,7 @@ namespace fly {
     class ASTClassAttribute;
     class CodeGenClass;
     class ASTBlockStmt;
-    class ASTAssignmentStmt;
+    class ASTVarStmt;
     class ASTTypeRef;
 
     enum class ASTClassKind {

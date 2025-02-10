@@ -11,24 +11,19 @@
 
 using namespace fly;
 
-ASTNameSpace::ASTNameSpace(const SourceLocation &Loc, llvm::StringRef Name) :
-    ASTBase(Loc, ASTKind::AST_NAMESPACE), Name(Name) {
+ASTNameSpace::ASTNameSpace(const SourceLocation &Loc, llvm::SmallVector<llvm::StringRef, 4> &Names) :
+    ASTBase(Loc, ASTKind::AST_NAMESPACE), Names(Names) {
 }
 
 ASTNameSpace::~ASTNameSpace() {
 
 }
 
-llvm::StringRef ASTNameSpace::getName() const {
-	return Name;
-}
-
-ASTNameSpace *ASTNameSpace::getParent() const {
-	return Parent;
+const llvm::SmallVector<llvm::StringRef, 4> & ASTNameSpace::getNames() const {
+	return Names;
 }
 
 std::string ASTNameSpace::str() const {
-    return Logger("ASTNameSpaceRe").
-           Attr("Name", Name).
+    return Logger("ASTNameSpace").
            End();
 }

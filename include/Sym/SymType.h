@@ -76,6 +76,8 @@ namespace fly {
 
         std::string Name;
 
+    protected:
+
         explicit SymType(SymTypeKind Kind);
 
         explicit SymType(SymTypeKind Kind, std::string Name);

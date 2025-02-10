@@ -35,7 +35,7 @@ namespace fly {
      * Ex.
      *  a = 1
      */
-    class ASTAssignmentStmt : public ASTStmt {
+    class ASTVarStmt : public ASTStmt {
 
         friend class ASTBuilder;
         friend class SemaBuilderStmt;
@@ -48,7 +48,7 @@ namespace fly {
 
         ASTExpr *Expr = nullptr;
 
-        ASTAssignmentStmt(const SourceLocation &Loc, ASTVarRef *VarRef, ASTAssignOperatorKind AssignOperatorKind);
+        ASTVarStmt(const SourceLocation &Loc, ASTVarRef *VarRef, ASTAssignOperatorKind AssignOperatorKind);
 
     public:
 

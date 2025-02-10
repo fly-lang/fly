@@ -36,6 +36,8 @@ namespace fly {
 
     	bool Constant;
 
+    protected:
+
         explicit SymVar(ASTVar *AST, SymVarKind Kind);
 
     public:

@@ -44,11 +44,11 @@ const llvm::StringMap<SymClassAttribute *> &SymClass::getAttributes() const {
     return Attributes;
 }
 
-const llvm::DenseMap<size_t, SymClassMethod *> &SymClass::getMethods() const {
+const llvm::StringMap<SymClassMethod *> &SymClass::getMethods() const {
     return Methods;
 }
 
-const llvm::DenseMap<size_t, SymClassMethod *> &SymClass::getConstructors() const {
+const llvm::StringMap<SymClassMethod *> &SymClass::getConstructors() const {
 	return Constructors;
 }
 

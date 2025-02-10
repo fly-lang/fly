@@ -10,7 +10,6 @@
 #include "Sema/SemaBuilderStmt.h"
 #include "Sema/ASTBuilder.h"
 #include "AST/ASTBlockStmt.h"
-#include "AST/ASTAssignmentStmt.h"
 #include "AST/ASTVarRef.h"
 #include "AST/ASTReturnStmt.h"
 #include "AST/ASTFailStmt.h"
@@ -25,7 +24,7 @@ SemaBuilderStmt::SemaBuilderStmt(ASTBuilder *Builder) : Builder(Builder) {
 SemaBuilderStmt *SemaBuilderStmt::CreateAssignment(ASTBuilder *Builder, ASTBlockStmt *Parent, ASTVarRef *VarRef,
                                                    ASTAssignOperatorKind AssignOperatorKind) {
     SemaBuilderStmt *BuilderStmt = new SemaBuilderStmt(Builder);
-    BuilderStmt->Stmt = new ASTAssignmentStmt(VarRef->getLocation(), VarRef, AssignOperatorKind);
+    BuilderStmt->Stmt = new ASTVarStmt(VarRef->getLocation(), VarRef, AssignOperatorKind);
 
     // Inner Stmt
     Parent->Content.push_back(BuilderStmt->Stmt);
@@ -67,8 +66,8 @@ SemaBuilderStmt *SemaBuilderStmt::CreateExpr(ASTBuilder *Builder, ASTBlockStmt *
 void SemaBuilderStmt::setExpr(ASTExpr *Expr) {
     // TODO use a super class with expr
     switch (Stmt->getStmtKind()) {
-        case ASTStmtKind::STMT_ASSIGN:
-            ((ASTAssignmentStmt *) Stmt)->Expr = Expr;
+        case ASTStmtKind::STMT_VAR:
+            ((ASTVarStmt *) Stmt)->Expr = Expr;
             return;
         case ASTStmtKind::STMT_RETURN:
             ((ASTReturnStmt *) Stmt)->Expr = Expr;
