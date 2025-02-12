@@ -50,6 +50,7 @@
 #include <AST/ASTVar.h>
 #include <CodeGen/CharUnits.h>
 #include <Sym/SymClass.h>
+#include <Sym/SymClassMethod.h>
 #include <Sym/SymEnum.h>
 #include <Sym/SymEnumEntry.h>
 #include <Sym/SymFunction.h>
@@ -159,9 +160,8 @@ void CodeGenModule::GenAll() {
 
     // Generate GlobalVars
     std::vector<CodeGenGlobalVar *> CGGlobalVars;
-    for (const auto GlobalVarEntry : NameSpace.getGlobalVars()) {
-    	SymGlobalVar *GlobalVar = GlobalVarEntry.getValue();
-        CodeGenGlobalVar *CGV = GenGlobalVar(GlobalVar);
+    for (auto Entry : NameSpace.getGlobalVars()) {
+        CodeGenGlobalVar *CGV = GenGlobalVar(Entry.getValue());
         CGGlobalVars.push_back(CGV);
 //        if (FrontendOpts.CreateHeader) {
 //            CGH->AddGlobalVar(GlobalVar);
@@ -170,8 +170,8 @@ void CodeGenModule::GenAll() {
 
     // Instantiates all Function CodeGen in order to be set in all Call references
     std::vector<CodeGenFunction *> CGFunctions;
-    for (auto Func : NameSpace.getFunctions()) {
-        CodeGenFunction *CGF = GenFunction(Func);
+    for (auto Entry : NameSpace.getFunctions()) {
+        CodeGenFunction *CGF = GenFunction(Entry.getValue());
         CGFunctions.push_back(CGF);
 //                if (FrontendOpts.CreateHeader) {
 //                    CGH->AddFunction(Func);
@@ -180,9 +180,14 @@ void CodeGenModule::GenAll() {
 
 	// Generate Classes
 	llvm::SmallVector<CodeGenClass *, 8> CGClasses;
-	for (auto ClassEntry : NameSpace.getClasses()) {
-			CodeGenClass *CGC = GenClass(ClassEntry.getValue());
+	for (auto Entry : NameSpace.getTypes()) {
+		SymType * Type = Entry.getValue();
+		if (Type->isClass()) {
+			CodeGenClass *CGC = GenClass(static_cast<SymClass *>(Type));
 			CGClasses.push_back(CGC);
+		} else {
+			GenEnum(static_cast<SymEnum *>(Type));
+		}
 	}
 
     // Body must be generated after all CodeGen has been set for each TopDef
@@ -201,12 +206,6 @@ void CodeGenModule::GenAll() {
             CGCF->GenBody();
         }
     }
-
-	// Generate Enums
-	for (auto EnumEntry : NameSpace.getEnums()) {
-		GenEnum(EnumEntry.getValue());
-	}
-
 }
 
 /**
@@ -215,8 +214,8 @@ void CodeGenModule::GenAll() {
  * @param isExternal
  */
 CodeGenGlobalVar *CodeGenModule::GenGlobalVar(SymGlobalVar* GlobalVar, bool isExternal) {
-    FLY_DEBUG_MESSAGE("CodeGenModule", "GenGlobalVar",
-                      "GlobalVar=" << GlobalVar->str() << ", isExternal=" << isExternal);
+    // FLY_DEBUG_MESSAGE("CodeGenModule", "GenGlobalVar",
+    //                   "GlobalVar=" << GlobalVar->str() << ", isExternal=" << isExternal);
     // Check Value
     CodeGenGlobalVar *CGGV = new CodeGenGlobalVar(this, GlobalVar, isExternal);
     if (CGGV->getPointer()) { // Pointer is the GlobalVar, if is nullptr CodeGenGlobalVar is nullptr
@@ -227,16 +226,16 @@ CodeGenGlobalVar *CodeGenModule::GenGlobalVar(SymGlobalVar* GlobalVar, bool isEx
 }
 
 CodeGenFunction *CodeGenModule::GenFunction(SymFunction *Function, bool isExternal) {
-    FLY_DEBUG_MESSAGE("CodeGenModule", "GenFunction",
-                      "Function=" << Function->str() << ", isExternal=" << isExternal);
+    // FLY_DEBUG_MESSAGE("CodeGenModule", "GenFunction",
+    //                   "Function=" << Function->str() << ", isExternal=" << isExternal);
     CodeGenFunction *CGF = new CodeGenFunction(this, Function, isExternal);
     Function->setCodeGen(CGF);
     return CGF;
 }
 
 CodeGenClass *CodeGenModule::GenClass(SymClass *Class, bool isExternal) {
-    FLY_DEBUG_MESSAGE("CodeGenModule", "GenClass",
-                      "Class=" << Class->str() << ", isExternal=" << isExternal);
+    // FLY_DEBUG_MESSAGE("CodeGenModule", "GenClass",
+    //                   "Class=" << Class->str() << ", isExternal=" << isExternal);
     CodeGenClass *CGC = new CodeGenClass(this, Class, isExternal);
     Class->setCodeGen(CGC);
     CGC->Generate();
@@ -250,7 +249,7 @@ void CodeGenModule::GenEnum(SymEnum *Enum) {
     }
 }
 
-llvm::Type *CodeGenModule::GenType(const SymType *Type) {
+llvm::Type *CodeGenModule::GenType(SymType *Type) {
     FLY_DEBUG_START("CodeGenModule", "GenType");
     // Check Type
     switch (Type->getKind()) {
@@ -311,7 +310,7 @@ llvm::Type *CodeGenModule::GenType(const SymType *Type) {
     assert(0 && "Unknown Var Type Kind");
 }
 
-llvm::ArrayType *CodeGenModule::GenArrayType(const SymTypeArray *ArrayType) {
+llvm::ArrayType *CodeGenModule::GenArrayType(SymTypeArray *ArrayType) {
     llvm::Type *SubType = GenType(ArrayType->getType());
     llvm::Value *Val = GenExpr(ArrayType->getSize());
 
@@ -328,19 +327,19 @@ llvm::ArrayType *CodeGenModule::GenArrayType(const SymTypeArray *ArrayType) {
     assert("Array Size error");
 }
 
-llvm::Constant *CodeGenModule::GenDefaultValue(const SymType *Type, llvm::Type *Ty) {
+llvm::Constant *CodeGenModule::GenDefaultValue(SymType *Type, llvm::Type *Ty) {
     FLY_DEBUG_START("CodeGenModule", "GenDefaultValue");
-    assert(Type->getStmtKind() != ASTValueKind::TYPE_VOID && "No default value for Void Type");
-    switch (Type->getStmtKind()) {
+    assert(Type->getKind() != SymTypeKind::TYPE_VOID && "No default value for Void Type");
+    switch (Type->getKind()) {
 
         // Bool
-        case ASTValueKind::TYPE_BOOL:
+        case SymTypeKind::TYPE_BOOL:
             return llvm::ConstantInt::get(BoolTy, 0, false);
 
         // Integer
-        case ASTValueKind::TYPE_INTEGER: {
-            ASTIntegerType *IntegerType = (ASTIntegerType *) Type;
-            switch (IntegerType->getIntegerKind()) {
+        case SymTypeKind::TYPE_INTEGER: {
+            SymTypeInt *IntegerType = (SymTypeInt *) Type;
+            switch (IntegerType->getIntKind()) {
                 case SymIntTypeKind::TYPE_BYTE:
                     return llvm::ConstantInt::get(Int8Ty, 0, false);
                 case SymIntTypeKind::TYPE_USHORT:
@@ -359,9 +358,9 @@ llvm::Constant *CodeGenModule::GenDefaultValue(const SymType *Type, llvm::Type *
         }
 
         // Floating Point
-        case ASTValueKind::TYPE_FLOATING_POINT: {
-            ASTFloatingPointType *FloatingPointType = (ASTFloatingPointType *) Type;
-            switch (FloatingPointType->getFloatingPointKind()) {
+        case SymTypeKind::TYPE_FLOATING_POINT: {
+            SymTypeFP *FloatingPointType = (SymTypeFP *) Type;
+            switch (FloatingPointType->getFPKind()) {
                 case SymFPTypeKind::TYPE_FLOAT:
                     return llvm::ConstantFP::get(FloatTy, 0.0);
                 case SymFPTypeKind::TYPE_DOUBLE:
@@ -369,10 +368,10 @@ llvm::Constant *CodeGenModule::GenDefaultValue(const SymType *Type, llvm::Type *
             }
         }
 
-        case ASTValueKind::TYPE_ARRAY:
+        case SymTypeKind::TYPE_ARRAY:
             return llvm::ConstantAggregateZero::get(Ty);
 
-        case ASTValueKind::TYPE_CLASS:
+        case SymTypeKind::TYPE_CLASS:
             return nullptr; // TODO
     }
     assert(0 && "Unknown Type");
@@ -384,24 +383,24 @@ llvm::Constant *CodeGenModule::GenDefaultValue(const SymType *Type, llvm::Type *
  * @param Val need to be correctly configured or you need to call GenDefaultValue()
  * @return
  */
-llvm::Constant *CodeGenModule::GenValue(const SymType *Type, const ASTValue *Val) {
+llvm::Constant *CodeGenModule::GenValue(SymType *Type, ASTValue *Val) {
     FLY_DEBUG_START("CodeGenModule", "GenValue");
     assert(Type && "Type has to be not empty");
     assert(Val && "Value has to be not empty");
 
     //TODO value conversion from Val->getType() to TypeBase (if are different)
 
-    switch (Type->getStmtKind()) {
+    switch (Type->getKind()) {
 
         // Bool
-        case ASTValueKind::TYPE_BOOL:
+        case SymTypeKind::TYPE_BOOL:
             return llvm::ConstantInt::get(BoolTy, ((ASTBoolValue *)Val)->getValue(), false);
 
         // Integer
-        case ASTValueKind::TYPE_INTEGER: {
-            ASTIntegerType *IntegerType = (ASTIntegerType *) Type;
+        case SymTypeKind::TYPE_INTEGER: {
+            SymTypeInt *IntegerType = (SymTypeInt *) Type;
             ASTIntegerValue *IntegerValue = (ASTIntegerValue *) Val;
-            switch (IntegerType->getIntegerKind()) {
+            switch (IntegerType->getIntKind()) {
                 case SymIntTypeKind::TYPE_BYTE:
                     return llvm::ConstantInt::get(Int8Ty, IntegerValue->getValue(), IntegerValue->getRadix());
                 case SymIntTypeKind::TYPE_USHORT:
@@ -420,10 +419,10 @@ llvm::Constant *CodeGenModule::GenValue(const SymType *Type, const ASTValue *Val
         }
 
         // Floating Point
-        case ASTValueKind::TYPE_FLOATING_POINT: {
-            ASTFloatingPointType *FPType = (ASTFloatingPointType *) Type;
+        case SymTypeKind::TYPE_FLOATING_POINT: {
+            SymTypeFP *FPType = (SymTypeFP *) Type;
             const std::string &FPValue = ((ASTFloatingValue *) Val)->getValue();
-            switch (FPType->getFloatingPointKind()) {
+            switch (FPType->getFPKind()) {
                 case SymFPTypeKind::TYPE_FLOAT:
                     return llvm::ConstantFP::get(FloatTy, FPValue);
                 case SymFPTypeKind::TYPE_DOUBLE:
@@ -432,26 +431,26 @@ llvm::Constant *CodeGenModule::GenValue(const SymType *Type, const ASTValue *Val
         }
 
         // Array
-        case ASTValueKind::TYPE_ARRAY: {
-            llvm::ArrayType *ArrType = GenArrayType((ASTArrayType *) Type);
+        case SymTypeKind::TYPE_ARRAY: {
+            llvm::ArrayType *ArrType = GenArrayType((SymTypeArray *) Type);
             std::vector<llvm::Constant *> Values;
             for (ASTValue *Value : ((ASTArrayValue *) Val)->getValues()) {
-                llvm::Constant * V = GenValue(((ASTArrayType *) Type)->getType(), Value);
+                llvm::Constant * V = GenValue(((SymTypeArray *) Type)->getType(), Value);
                 Values.push_back(V);
             }
             return llvm::ConstantArray::get(ArrType, makeArrayRef(Values));
         }
 
-        case ASTValueKind::TYPE_STRING: {
+        case SymTypeKind::TYPE_STRING: {
             return Builder->CreateGlobalStringPtr(((ASTStringValue *) Val)->getValue());
         }
 
         // Identity
-        case ASTValueKind::TYPE_CLASS:
+        case SymTypeKind::TYPE_CLASS:
             break;
 
         // Void
-        case ASTValueKind::TYPE_VOID:
+        case SymTypeKind::TYPE_VOID:
             // FIXME
             break;
     }
@@ -510,16 +509,16 @@ llvm::Value *CodeGenModule::ConvertToBool(llvm::Value *V) {
     assert(false && "Unhandled Value Type");
 }
 
-llvm::Value *CodeGenModule::Convert(llvm::Value *FromVal, const SymType *FromType, const SymType *ToType) {
-    FLY_DEBUG_MESSAGE("CodeGenExpr", "Convert",
-                      "Value=" << FromVal << " to ASTType=" << ToType->str());
+llvm::Value *CodeGenModule::Convert(llvm::Value *FromVal, SymType *FromType, SymType *ToType) {
+    // FLY_DEBUG_MESSAGE("CodeGenExpr", "Convert",
+    //                   "Value=" << FromVal << " to ASTType=" << ToType->str());
     assert(ToType && "Invalid conversion type");
 
     llvm::Type *FromLLVMType = FromVal->getType();
-    switch (ToType->getStmtKind()) {
+    switch (ToType->getKind()) {
 
         // to BOOL
-        case ASTValueKind::TYPE_BOOL: {
+        case SymTypeKind::TYPE_BOOL: {
 
             // from BOOL
             if (FromType->isBool()) {
@@ -528,7 +527,7 @@ llvm::Value *CodeGenModule::Convert(llvm::Value *FromVal, const SymType *FromTyp
 
             // from Integer
             if (FromType->isInteger()) {
-                llvm::Value *ZERO = llvm::ConstantInt::get(FromLLVMType, 0, ((ASTIntegerType *) FromType)->isSigned());
+                llvm::Value *ZERO = llvm::ConstantInt::get(FromLLVMType, 0, ((SymTypeInt *) FromType)->isSigned());
                 return Builder->CreateICmpNE(FromVal, ZERO);
             }
 
@@ -543,9 +542,9 @@ llvm::Value *CodeGenModule::Convert(llvm::Value *FromVal, const SymType *FromTyp
         }
 
             // to INTEGER
-        case ASTValueKind::TYPE_INTEGER: {
-            ASTIntegerType *IntegerType = (ASTIntegerType *) ToType;
-            switch(IntegerType->getIntegerKind()) {
+        case SymTypeKind::TYPE_INTEGER: {
+            SymTypeInt *IntegerType = (SymTypeInt *) ToType;
+            switch(IntegerType->getIntKind()) {
 
                 // to INT 8
                 case SymIntTypeKind::TYPE_BYTE: {
@@ -659,8 +658,8 @@ llvm::Value *CodeGenModule::Convert(llvm::Value *FromVal, const SymType *FromTyp
         }
 
             // to FLOATING POINT
-        case ASTValueKind::TYPE_FLOATING_POINT: {
-            switch(((ASTFloatingPointType *) ToType)->getFloatingPointKind()) {
+        case SymTypeKind::TYPE_FLOATING_POINT: {
+            switch(((SymTypeFP *) ToType)->getFPKind()) {
 
                 // to FLOAT 32
                 case SymFPTypeKind::TYPE_FLOAT: {
@@ -672,14 +671,14 @@ llvm::Value *CodeGenModule::Convert(llvm::Value *FromVal, const SymType *FromTyp
 
                     // from INT
                     if (FromType->isInteger()) {
-                        return ((ASTIntegerType *) FromType)->isSigned() ?
+                        return ((SymTypeInt *) FromType)->isSigned() ?
                                Builder->CreateSIToFP(FromVal, FloatTy) :
                                Builder->CreateUIToFP(FromVal, FloatTy);
                     }
 
                     // from FLOAT
                     if (FromType->isFloatingPoint()) {
-                        switch (((ASTFloatingPointType *) FromType)->getFloatingPointKind()) {
+                        switch (((SymTypeFP *) FromType)->getFPKind()) {
 
                             case SymFPTypeKind::TYPE_FLOAT:
                                 return FromVal;
@@ -699,14 +698,14 @@ llvm::Value *CodeGenModule::Convert(llvm::Value *FromVal, const SymType *FromTyp
 
                     // from INT
                     if (FromType->isInteger()) {
-                        return ((ASTIntegerType *) FromType)->isSigned() ?
+                        return ((SymTypeInt *) FromType)->isSigned() ?
                                Builder->CreateSIToFP(FromVal, DoubleTy) :
                                Builder->CreateUIToFP(FromVal, DoubleTy);
                     }
 
                     // from FLOAT
                     if (FromType->isFloatingPoint()) {
-                        switch (((ASTFloatingPointType *) FromType)->getFloatingPointKind()) {
+                        switch (((SymTypeFP *) FromType)->getFPKind()) {
 
                             case SymFPTypeKind::TYPE_FLOAT:
                                 return Builder->CreateFPExt(FromVal, DoubleTy);
@@ -719,7 +718,7 @@ llvm::Value *CodeGenModule::Convert(llvm::Value *FromVal, const SymType *FromTyp
         }
 
             // to Identity
-        case ASTValueKind::TYPE_CLASS:
+        case SymTypeKind::TYPE_CLASS:
             return FromVal; // TODO implement class cast
     }
     assert(0 && "Conversion failed");
@@ -733,7 +732,7 @@ CodeGenError *CodeGenModule::GenErrorHandler(ASTVar *Var) {
 }
 
 CodeGenVar *CodeGenModule::GenLocalVar(ASTVar *Var) {
-    llvm::Type *Ty = GenType(Var->getTypeRef()->getDef());
+    llvm::Type *Ty = GenType(Var->getTypeRef()->getType());
     CodeGenVar *CGV = new CodeGenVar(this, Ty);
     return CGV;
 }
@@ -741,60 +740,60 @@ CodeGenVar *CodeGenModule::GenLocalVar(ASTVar *Var) {
 llvm::Value *CodeGenModule::GenVarRef(ASTVarRef *VarRef) {
 
     // Class Var
-    if (VarRef->getDef()->getVarKind() == ASTVarKind::VAR_CLASS) {
+    if (VarRef->getVar()->getKind() == SymVarKind::VAR_CLASS) {
 
         // Return the instance value
         if (VarRef->getParent()) {
             if (VarRef->getParent()->isCall()) { // TODO iterative parents
                 // TODO
             } else if (VarRef->getParent()->isVarRef()) {
-                CodeGenVarBase *CGI = ((ASTVarRef *) VarRef->getParent())->getDef()->getCodeGen();
+                CodeGenVarBase *CGI = ((ASTVarRef *) VarRef->getParent())->getVar()->getCodeGen();
                 llvm::Value *Inst = CGI->getValue();
-                return VarRef->getDef()->getCodeGen()->getValue();
+                return VarRef->getVar()->getCodeGen()->getValue();
             } else {
                 // Error
             }
         } else { // Return static value
-            return VarRef->getDef()->getCodeGen()->getValue();
+            return VarRef->getVar()->getCodeGen()->getValue();
         }
     }
 
     // Local Var
     // Return the Value
-    return VarRef->getDef()->getCodeGen()->getValue();
+    return VarRef->getVar()->getCodeGen()->getValue();
 }
 
 llvm::Value *CodeGenModule::GenCall(ASTCall *Call) {
     FLY_DEBUG_MESSAGE("CodeGenModule", "GenCall", "Call=" << Call->str());
-    assert(Call->getDef() && "Undefined Call");
+    assert(Call->getFunction() && "Undefined Call");
 
     // The function arguments
     llvm::SmallVector<llvm::Value *, 8> Args;
     // Add error as first param
 
-    if (Call->getDef()->getKind() == ASTFunctionKind::CLASS_METHOD) {
-        ASTClassMethod *Def = (ASTClassMethod *) Call->getDef();
-        if (Def->getClass()->getClassKind() != ASTClassKind::STRUCT)
-            Args.push_back(Call->getErrorHandler()->getCodeGen()->getValue()); // Error is a Pointer
+    if (Call->getFunction()->getKind() == SymFunctionKind::METHOD) {
+        SymClassMethod *Method = static_cast<SymClassMethod *>(Call->getFunction());
+        if (Method->getClass()->getClassKind() != SymClassKind::STRUCT)
+            Args.push_back(Call->getErrorHandler()->getVar()->getCodeGen()->getValue()); // Error is a Pointer
     } else {
-        Args.push_back(Call->getErrorHandler()->getCodeGen()->getValue()); // Error is a Pointer
+        Args.push_back(Call->getErrorHandler()->getVar()->getCodeGen()->getValue()); // Error is a Pointer
     }
 
     // Take the CGI Value and pass to Call as first argument
     llvm::Value *Instance = nullptr;
 
-    if (Call->getDef()->getKind() == ASTFunctionKind::CLASS_METHOD) {
-        ASTClassMethod *Def = (ASTClassMethod *) Call->getDef();
+    if (Call->getFunction()->getKind() == SymFunctionKind::METHOD) {
+    	SymClassMethod *Method = static_cast<SymClassMethod *>(Call->getFunction());
 
         if (Call->getParent()) {
             if (Call->getParent()->isCall()) { // TODO iterative parents
                 // TODO
             } else if (Call->getParent()->isVarRef()) {
-                CodeGenVarBase *CGI = ((ASTVarRef *) Call->getParent())->getDef()->getCodeGen();
+                CodeGenVarBase *CGI = ((ASTVarRef *) Call->getParent())->getVar()->getCodeGen();
                 Args.push_back(CGI->Load());
             }
-        } else if (Def->isConstructor()) { // Call class constructor
-            llvm::Type *AllocType = Def->getClass()->getAttributes().empty() ? Int8Ty : (llvm::Type *) Def->getClass()->getCodeGen()->getType();
+        } else if (Method->isConstructor()) { // Call class constructor
+            llvm::Type *AllocType = Method->getClass()->getAttributes().empty() ? Int8Ty : Method->getClass()->getCodeGen()->getType();
             llvm::Constant *AllocSize = ConstantExpr::getTruncOrBitCast(ConstantExpr::getSizeOf(AllocType), AllocType);
 
             // @malloc data type struct
@@ -814,7 +813,7 @@ llvm::Value *CodeGenModule::GenCall(ASTCall *Call) {
         Args.push_back(V);
     }
 
-    SymFunctionBase *Def = Call->getDef();
+    SymFunctionBase *Def = Call->getFunction();
     if (!Def) {
         Diag(Call->getLocation(), diag::err_cg_unresolved_def) << Call->getName();
     }
@@ -834,17 +833,17 @@ void CodeGenModule::GenFailStmt(ASTFailStmt *FailStmt, CodeGenError *CGE) {
 	// Store Fail value in ErrorHandler
 	if (FailStmt->getExpr() == nullptr) {
 		CGE->StoreInt(llvm::ConstantInt::get(Int32Ty, 1));
-	} else if (FailStmt->getExpr()->getTypeRef()->getDef()->isBool() || FailStmt->getExpr()->getTypeRef()->getDef()->isInteger()) {
+	} else if (FailStmt->getExpr()->getTypeRef()->getType()->isBool() || FailStmt->getExpr()->getTypeRef()->getType()->isInteger()) {
 		llvm::Value *V = GenExpr(FailStmt->getExpr());
 		CGE->StoreInt(V);
-	} else if (FailStmt->getExpr()->getTypeRef()->getDef()->isString()) {
+	} else if (FailStmt->getExpr()->getTypeRef()->getType()->isString()) {
 		llvm::Value *V = GenExpr(FailStmt->getExpr());
 		CGE->StoreString(V);
-	} else if (FailStmt->getExpr()->getTypeRef()->getDef()->isClass()) {
+	} else if (FailStmt->getExpr()->getTypeRef()->getType()->isClass()) {
 		ASTTypeRef * IdentityType = FailStmt->getExpr()->getTypeRef();
 		llvm::Value *V = GenExpr(FailStmt->getExpr());
 		CGE->StoreObject(V);
-	} else if (FailStmt->getExpr()->getTypeRef()->getDef()->isEnum()) {
+	} else if (FailStmt->getExpr()->getTypeRef()->getType()->isEnum()) {
 		ASTTypeRef * IdentityType = FailStmt->getExpr()->getTypeRef();
 		llvm::Value *V = GenExpr(FailStmt->getExpr());
 		CGE->StoreInt(V);
@@ -868,12 +867,12 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
                         // TODO
                     } else if (VarRef->getParent()->isVarRef()) {
                         // Take Parent Instance
-                        CodeGenVarBase *CGI = static_cast<ASTVarRef *>(VarRef->getParent())->getDef()->getCodeGen();
+                        CodeGenVarBase *CGI = static_cast<ASTVarRef *>(VarRef->getParent())->getVar()->getCodeGen();
                         CodeGenVarBase *CGV = CGI->getVar(VarRef->getName()); // Get Var Name
                         CGV->Store(V);
                     }
                 } else {
-                    VarRef->getDef()->getCodeGen()->Store(V);
+                    VarRef->getVar()->getCodeGen()->Store(V);
                 }
             }
             break;
@@ -913,8 +912,8 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
             // Delete Stmt
         case ASTStmtKind::STMT_DELETE: {
             ASTDeleteStmt *Delete = (ASTDeleteStmt *) Stmt;
-            SymVar * Var = Delete->getVarRef()->getDef();
-            if (Var->getAST()->getTypeRef()->getDef()->isClass()) {
+            SymVar * Var = Delete->getVarRef()->getVar();
+            if (Var->getAST()->getTypeRef()->getType()->isClass()) {
                 Instruction *I = CallInst::CreateFree(Var->getCodeGen()->Load(), Builder->GetInsertBlock());
                 Builder->Insert(I);
             }
@@ -968,7 +967,7 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
         		Parent = Parent->getParent();
         		if (Parent == nullptr) {
         			// Set Function ErrorHandler with Fail
-        			CodeGenError *CGE = static_cast<CodeGenError *>(FailStmt->getFunction()->getErrorHandler()->getCodeGen());
+        			CodeGenError *CGE = static_cast<CodeGenError *>(FailStmt->getFunction()->getErrorHandler()->getVar()->getCodeGen());
         			GenFailStmt(FailStmt, CGE);
 
         			// Generate Return with default value for stop execution flow
@@ -980,7 +979,7 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
 					ASTHandleStmt * HandleStmt = static_cast<ASTHandleStmt *>(Parent);
 
 					// Take the current ErrorHandler CodeGen (already resolved in ResolveStmtHandle())
-					CodeGenError *CGE = (CodeGenError *) HandleStmt->getErrorHandlerRef()->getDef()->getCodeGen();
+					CodeGenError *CGE = (CodeGenError *) HandleStmt->getErrorHandlerRef()->getVar()->getCodeGen();
 					GenFailStmt(FailStmt, CGE);
 
 					CodeGenHandle *CGH = HandleStmt->getCodeGen();
@@ -1133,7 +1132,7 @@ void CodeGenModule::GenSwitchBlock(CodeGenFunctionBase *CGF, ASTSwitchStmt *Swit
     llvm::BasicBlock *EndBB = llvm::BasicBlock::Create(LLVMCtx, "endswitch", Fn);
 
     // Create Expression evaluator for Switch
-    llvm::Value *SwitchVal = Switch->getVarRef()->getDef()->getCodeGen()->getValue();
+    llvm::Value *SwitchVal = Switch->getVarRef()->getVar()->getCodeGen()->getValue();
     llvm::SwitchInst *Inst = Builder->CreateSwitch(SwitchVal, EndBB);
 
     // Create Cases
@@ -1237,15 +1236,15 @@ void CodeGenModule::GenLoopBlock(CodeGenFunctionBase *CGF, ASTLoopStmt *Loop) {
 
 void CodeGenModule::GenReturn(ASTFunction *F, ASTExpr *Expr) {
     // Create the Value for return
-    if (F->getReturnTypeRef()->getDef()->isVoid()) {
+    if (F->getReturnTypeRef()->getType()->isVoid()) {
         Builder->CreateRetVoid();
     } else {
         Value *Ret;
         if (Expr) {
             llvm::Value *V = GenExpr(Expr);
-            Ret = Convert(V, Expr->getTypeRef()->getDef(), F->getReturnTypeRef()->getDef());
+            Ret = Convert(V, Expr->getTypeRef()->getType(), F->getReturnTypeRef()->getType());
         } else {
-            Ret = GenDefaultValue(F->getReturnTypeRef()->getDef());
+            Ret = GenDefaultValue(F->getReturnTypeRef()->getType());
         }
         Builder->CreateRet(Ret);
     }

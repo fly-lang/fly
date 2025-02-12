@@ -72,9 +72,17 @@ namespace fly {
         friend class SemaResolver;
         friend class SemaValidator;
 
+        static size_t IdCounter;
+
+        const size_t Id;
+
         const SymTypeKind Kind;
 
-        std::string Name;
+        const std::string Name;
+
+        std::string getTypeName(SymTypeKind Kind);
+
+        size_t GenerateId(fly::SymTypeKind Kind);
 
     protected:
 
@@ -83,6 +91,8 @@ namespace fly {
         explicit SymType(SymTypeKind Kind, std::string Name);
 
     public:
+
+        const size_t getId() const;
 
         const SymTypeKind getKind() const;
 
@@ -141,23 +151,25 @@ namespace fly {
         const SymFPTypeKind getFPKind() const;
     };
 
+    class ASTExpr;
+
     class SymTypeArray : public SymType {
 
         friend class SymBuilder;
         friend class SemaResolver;
         friend class SemaValidator;
 
-        explicit SymTypeArray(SymType *Type, uint64_t Size);
+        explicit SymTypeArray(SymType *Type, ASTExpr *Size);
 
         SymType *Type;
 
-        const uint64_t Size;
+        ASTExpr *Size;
 
         public:
 
         SymType *getType();
 
-        const uint64_t getSize() const;
+        ASTExpr *getSize() const;
 
     };
 

@@ -9,16 +9,13 @@
 
 #include "Sym/SymEnumEntry.h"
 
-#include <strings.h>
-#include <CodeGen/CodeGen.h>
-
 using namespace fly;
 
 SymEnumEntry::SymEnumEntry(ASTVar *AST) : SymVar(AST, SymVarKind::VAR_ENUM) {
 
 }
 
-uint32_t SymEnumEntry::getIndex() const {
+size_t SymEnumEntry::getIndex() const {
 	return Index;
 }
 

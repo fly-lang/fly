@@ -187,7 +187,7 @@ SymGlobalVar * SymBuilder::CreateGlobalVar(SymModule *Module, ASTVar *AST) {
 	}
 
 	Module->GlobalVars.insert(std::make_pair(AST->getName(), GlobalVar));
-	AST->Def = GlobalVar;
+	AST->Var = GlobalVar;
 
 	// Check and set GlobalVar Scopes
 	for (auto Scope : AST->getScopes()) {
@@ -315,7 +315,7 @@ SymClassAttribute * SymBuilder::CreateClassAttribute(SymClass *Class, ASTVar *AS
 	SymClassAttribute *Attribute = new SymClassAttribute(AST);
 
 	Class->Attributes.insert(std::make_pair(AST->getName(), Attribute));
-	AST->Def = Attribute;
+	AST->Var = Attribute;
 	Attribute->Comment = Comment;
 
 	FLY_DEBUG_END("SymBuilder", "CreateClassAttribute");
@@ -426,7 +426,7 @@ SymTypeFP * SymBuilder::CreateFPType(SymFPTypeKind FPKind) {
 	return Type;
 }
 
-SymTypeArray * SymBuilder::CreateArrayType(SymType *Type, uint64_t Size) {
+SymTypeArray * SymBuilder::CreateArrayType(SymType *Type, ASTExpr *Expr) {
 	FLY_DEBUG_START("SymBuilder", "CreateArrayType");
 
 	SymTypeArray * TypeArray = new SymTypeArray(Type, Size);

@@ -56,9 +56,9 @@ namespace fly {
 
     	SymClass *getClass() const;
 
-    	bool SymClassMethod::isConstructor() const;
+    	bool isConstructor() const;
 
-    	bool SymClassMethod::isStatic() const;
+    	bool isStatic() const;
 
     	SymClass *getDerivedClass() const;
 

@@ -25,8 +25,8 @@ llvm::SmallVector<ASTArg *, 8> ASTCall::getArgs() const {
     return Args;
 }
 
-SymFunctionBase *ASTCall::getDef() const {
-    return *Def;
+SymFunctionBase *ASTCall::getFunction() const {
+    return *Function;
 }
 
 ASTCallKind ASTCall::getCallKind() const {
@@ -36,6 +36,6 @@ ASTCallKind ASTCall::getCallKind() const {
 std::string ASTCall::str() const {
     return Logger("ASTCall").
             AttrList("Args", Args).
-            Attr("Def", Def).
+            Attr("Def", Function).
             End();
 }

@@ -54,6 +54,7 @@
 #include <Sema/SymBuilder.h>
 #include <Sym/SymClassAttribute.h>
 #include <Sym/SymClassMethod.h>
+#include <Sym/SymEnumEntry.h>
 #include <Sym/SymFunction.h>
 #include <Sym/SymGlobalVar.h>
 #include <Sym/SymLocalVar.h>
@@ -293,7 +294,7 @@ void SemaResolver::ResolveClasses() {
 		// Resolve Super Classes
 		for (auto ClassTypeRef : Sym->getAST()->getSuperClasses()) {
 			if (ResolveTypeRef(ClassTypeRef)) {
-				SymType *SuperType = ClassTypeRef->getDef();
+				SymType *SuperType = ClassTypeRef->getType();
 
 				if (SuperType->getKind() != SymTypeKind::TYPE_CLASS) {
 					// Error: invalid superclass type
@@ -384,7 +385,7 @@ void SemaResolver::ResolveClasses() {
 				SymClassAttribute *Attribute = AttributeEntry.getValue();
 				// Generate default values
 				if (Attribute->getAST()->getExpr() == nullptr) {
-					ASTValue *DefaultValue = S.Builder->CreateDefaultValue(Attribute->getAST()->getTypeRef()->getDef());
+					ASTValue *DefaultValue = S.Builder->CreateDefaultValue(Attribute->getType());
 					ASTValueExpr *ValueExpr = S.Builder->CreateExpr(DefaultValue);
 					Attribute->AST->Expr = ValueExpr;
 				}
@@ -405,12 +406,12 @@ void SemaResolver::ResolveClasses() {
 			for (auto &Attribute: Sym->Attributes) {
 				// TODO
 			}
-			ResolveStmtBlock(ConstructorEntry.getSecond()->getAST()->Body);
+			ResolveStmtBlock(ConstructorEntry.getValue()->getAST()->Body);
 		}
 
 		// Methods
 		for (auto MethodEntry : Sym->Methods) {
-			SymClassMethod * Method = MethodEntry.getSecond();
+			SymClassMethod * Method = MethodEntry.getValue();
 
 			// Add Class vars for each Method
 			for (auto &Attribute: Sym->Attributes) {
@@ -472,23 +473,23 @@ bool SemaResolver::ResolveTypeRef(ASTTypeRef *&TypeRef) {
 			ASTRef *Parent = nullptr;
 			for (auto ImportEntry : Module->getImports()) {
 				SymNameSpace * Import = ImportEntry.getValue();
-				if (!TypeRef->Def)
-					TypeRef->Def = Import->getTypes().lookup(TypeRef->getParent()->getName());
+				if (!TypeRef->Type)
+					TypeRef->Type = Import->getTypes().lookup(TypeRef->getParent()->getName());
 			}
 		} else {
 			// Resolve in current NameSpace
-			TypeRef->Def = NameSpace->getTypes().lookup(TypeRef->getName());
+			TypeRef->Type = NameSpace->getTypes().lookup(TypeRef->getName());
 
 			// Resolve in Default NameSpace
-			if (!TypeRef->Def)
-				TypeRef->Def = S.getSymTable().getDefaultNameSpace()->getTypes().lookup(TypeRef->getName());
+			if (!TypeRef->Type)
+				TypeRef->Type = S.getSymTable().getDefaultNameSpace()->getTypes().lookup(TypeRef->getName());
 		}
 
 		// Take Identity from NameSpace
-		TypeRef->Resolved = TypeRef->Def != nullptr; // Evict Cycle Loop: can be resolved only now
+		TypeRef->Resolved = TypeRef->Type != nullptr; // Evict Cycle Loop: can be resolved only now
 	}
 
-	if (!TypeRef->Def) {
+	if (!TypeRef->Type) {
 		S.Diag(TypeRef->getLocation(), diag::err_unref_type);
 		return false;
 	}
@@ -528,11 +529,11 @@ bool SemaResolver::ResolveStmt(ASTStmt *Stmt) {
         	ASTTypeRef * ReturnType = ReturnStmt->Parent->getFunction()->getReturnTypeRef(); // Force Return Expr to be of Return Type
 			bool Success = true;
         	if (ReturnStmt->Expr != nullptr) {
-            	Success = ResolveExpr(ReturnStmt->Parent, ReturnStmt->Expr, ReturnType->getDef()) &&
-        		S.getValidator().CheckConvertibleTypes(ReturnStmt->getExpr()->getTypeRef()->getDef(),
-        			ReturnStmt->getParent()->getFunction()->getReturnTypeRef()->getDef());
+            	Success = ResolveExpr(ReturnStmt->Parent, ReturnStmt->Expr, ReturnType->getType()) &&
+        		S.getValidator().CheckConvertibleTypes(ReturnStmt->getExpr()->getTypeRef()->getType(),
+        			ReturnStmt->getParent()->getFunction()->getReturnTypeRef()->getType());
             } else {
-            	if (!ReturnStmt->Parent->getFunction()->getReturnTypeRef()->getDef()->isVoid()) {
+            	if (!ReturnStmt->Parent->getFunction()->getReturnTypeRef()->getType()->isVoid()) {
             		S.Diag(ReturnStmt->getLocation(), diag::err_invalid_return_type);
             	}
             }
@@ -584,10 +585,10 @@ bool SemaResolver::ResolveStmtSwitch(ASTSwitchStmt *SwitchStmt) {
     assert(SwitchStmt && "Switch Block cannot be null");
 
     bool Success = ResolveRef(SwitchStmt->getParent(), SwitchStmt->VarRef) &&
-    	SwitchStmt->getVarRef()->getDef()->getAST()->getTypeRef()->getDef()->isInteger();
+    	SwitchStmt->getVarRef()->getVar()->getType()->isInteger();
     for (ASTRuleStmt *Case : SwitchStmt->Cases) {
     	Success &= ResolveExpr(SwitchStmt, Case->getRule());
-        Success &= Case->getRule()->getTypeRef()->getDef()->isInteger() && ResolveStmt(Case);
+        Success &= Case->getRule()->getTypeRef()->getType()->isInteger() && ResolveStmt(Case);
     }
     return Success && ResolveStmt(SwitchStmt->Default);
 }
@@ -609,7 +610,7 @@ bool SemaResolver::ResolveStmtLoop(ASTLoopStmt *LoopStmt) {
     } else {
         Success = ResolveExpr(LoopStmt->Parent, LoopStmt->Rule, S.getSymTable().getBoolType());
     }
-    Success = S.getValidator().CheckConvertibleTypes(LoopStmt->getRule()->getTypeRef()->Def, S.getSymTable().getBoolType());
+    Success = S.getValidator().CheckConvertibleTypes(LoopStmt->getRule()->getTypeRef()->Type, S.getSymTable().getBoolType());
     Success &= ResolveStmt(LoopStmt->Stmt);
     Success &= LoopStmt->Post ? ResolveStmt(LoopStmt->Post) : true;
     return Success;
@@ -621,10 +622,11 @@ bool SemaResolver::ResolveStmtLoopIn(ASTLoopInStmt *LoopInStmt) {
 
 bool SemaResolver::ResolveStmtVar(ASTVarStmt *VarStmt) {
     ResolveRef(VarStmt->Parent, VarStmt->VarRef);
-    if (VarStmt->getVarRef()->getDef() && VarStmt->getExpr() != nullptr && !VarStmt->getVarRef()->getDef()->isInitialized())
-        VarStmt->getVarRef()->getDef()->setInitialization(VarStmt); // FIXME ? with if - else
-    return VarStmt->getVarRef()->getDef() &&
-        ResolveExpr(VarStmt->Parent, VarStmt->Expr, VarStmt->getVarRef()->getDef()->getType());
+	SymVar *Var = VarStmt->getVarRef()->getVar();
+    if (Var && VarStmt->getExpr() != nullptr) {
+    	return ResolveExpr(VarStmt->Parent, VarStmt->Expr, Var->getType());
+    }
+	return false;
 }
 
 bool SemaResolver::ResolveStmtFail(ASTFailStmt *FailStmt) {
@@ -657,13 +659,13 @@ bool SemaResolver::ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr, SymType *Type) {
             // Select the best option for this Value
             ASTValueExpr *ValueExpr = static_cast<ASTValueExpr*>(Expr);
             if (Type != nullptr)
-                ValueExpr->getTypeRef()->Def = Type;
+                ValueExpr->getTypeRef()->Type = Type;
             return S.getValidator().CheckValue(ValueExpr->getValue());
         }
         case ASTExprKind::EXPR_VAR_REF: {
             ASTVarRef *VarRef = static_cast<ASTVarRefExpr*>(Expr)->getVarRef();
             if (ResolveRef(Stmt, VarRef)) {
-                Expr->getTypeRef()->Def = VarRef->getDef()->getAST()->getTypeRef()->getDef();
+                Expr->getTypeRef()->Type = VarRef->getVar()->getType();
                 Success = true;
                 break;
             } else {
@@ -676,13 +678,13 @@ bool SemaResolver::ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr, SymType *Type) {
                 switch (Call->getCallKind()) {
 
                     case ASTCallKind::CALL_FUNCTION:
-                        Expr->getTypeRef()->Def = Call->getDef()->getAST()->getReturnTypeRef()->getDef();
+                        Expr->getTypeRef()->Type = Call->getFunction()->getReturnType();
                         break;
                     case ASTCallKind::CALL_NEW: {
-                        ASTFunction *AST = Call->getDef()->getAST();
+                        ASTFunction *AST = Call->getFunction()->getAST();
                     	// FIXME NameSpace exists?
                     	SymType *Type = S.getSymTable().getDefaultNameSpace()->getTypes().lookup(AST->getName());
-                        Expr->getTypeRef()->Def = Type;
+                        Expr->getTypeRef()->Type = Type;
                     }
                     break;
                 }
@@ -696,7 +698,7 @@ bool SemaResolver::ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr, SymType *Type) {
                 case ASTOpExprKind::OP_UNARY: {
                     ASTUnaryOpExpr *Unary = static_cast<ASTUnaryOpExpr*>(Expr);
                     Success = ResolveExpr(Stmt, const_cast<ASTExpr*>(Unary->Expr));
-                    Expr->getTypeRef()->Def = Unary->getExpr()->getTypeRef()->getDef();
+                    Expr->getTypeRef()->Type = Unary->getExpr()->getTypeRef()->getType();
                     break;
                 }
                 case ASTOpExprKind::OP_BINARY: {
@@ -706,15 +708,15 @@ bool SemaResolver::ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr, SymType *Type) {
                     if (Success) {
 
                     	// Check if Left and Right Expr are resolved
-                    	SymType * LeftType = Binary->getLeftExpr()->getTypeRef()->getDef();
-                    	SymType * RightType = Binary->getRightExpr()->getTypeRef()->getDef();
+                    	SymType * LeftType = Binary->getLeftExpr()->getTypeRef()->getType();
+                    	SymType * RightType = Binary->getRightExpr()->getTypeRef()->getType();
 
                         if (Binary->getTypeKind() == ASTBinaryOpTypeExprKind::OP_BINARY_ARITH ||
                                 Binary->getTypeKind() == ASTBinaryOpTypeExprKind::OP_BINARY_COMPARISON) {
 
                         	// Check Compatible Types Bool/Bool, Float/Float, Integer/Integer
-                            Success = S.getValidator().CheckArithTypes(Binary->getLeftExpr()->getTypeRef()->getDef(),
-                                                                  Binary->getRightExpr()->getTypeRef()->getDef());
+                            Success = S.getValidator().CheckArithTypes(Binary->getLeftExpr()->getTypeRef()->getType(),
+                                                                  Binary->getRightExpr()->getTypeRef()->getType());
 
                             if (Success) {
                             	// Set respectively the Left or Right Expr Type by chose the Expr which is not a Value Type
@@ -724,28 +726,28 @@ bool SemaResolver::ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr, SymType *Type) {
                             	// 1 will have type int
                             	if (Binary->getLeftExpr()->getExprKind() == ASTExprKind::EXPR_VALUE &&
 									Binary->getRightExpr()->getExprKind() != ASTExprKind::EXPR_VALUE) {
-                            		Binary->getLeftExpr()->getTypeRef()->Def = RightType;
+                            		Binary->getLeftExpr()->getTypeRef()->Type = RightType;
 								} else if (Binary->getRightExpr()->getExprKind() == ASTExprKind::EXPR_VALUE &&
                             		Binary->getLeftExpr()->getExprKind() != ASTExprKind::EXPR_VALUE) {
-                            		Binary->getRightExpr()->getTypeRef()->Def = LeftType;
+                            		Binary->getRightExpr()->getTypeRef()->Type = LeftType;
                             	}
 
                                 // Promotes First or Second Expr Types in order to be equal
                                 if (LeftType->isInteger()) {
                                     if (static_cast<SymTypeInt *>(LeftType)->getIntKind() >
                                     	static_cast<SymTypeInt*>(RightType)->getIntKind())
-                                        Binary->getTypeRef()->Def = LeftType;
+                                        Binary->getTypeRef()->Type = LeftType;
                                     else
-                                        Binary->getTypeRef()->Def = RightType;
+                                        Binary->getTypeRef()->Type = RightType;
                                 } else if (LeftType->isFloatingPoint()) {
                                     if (static_cast<SymTypeFP*>(LeftType)->getFPKind() >
                                     	static_cast<SymTypeFP*>(RightType)->getFPKind())
-                                		Binary->getTypeRef()->Def = LeftType;
+                                		Binary->getTypeRef()->Type = LeftType;
                                     else
-                                		Binary->getTypeRef()->Def = RightType;
+                                		Binary->getTypeRef()->Type = RightType;
                                 }
 
-                                Binary->getTypeRef()->Def = Binary->getTypeKind() == ASTBinaryOpTypeExprKind::OP_BINARY_ARITH ?
+                                Binary->getTypeRef()->Type = Binary->getTypeKind() == ASTBinaryOpTypeExprKind::OP_BINARY_ARITH ?
                                                LeftType : S.getSymTable().getBoolType();
                             } else {
                             	S.Diag(Binary->getLocation(), diag::err_sema_types_operation)
@@ -755,7 +757,7 @@ bool SemaResolver::ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr, SymType *Type) {
                         } else if (Binary->getTypeKind() == ASTBinaryOpTypeExprKind::OP_BINARY_LOGIC) {
                             Success = S.getValidator().CheckLogicalTypes(LeftType, RightType);
                         	if (Success) {
-                        		Binary->getTypeRef()->Def = S.getSymTable().getBoolType();
+                        		Binary->getTypeRef()->Type = S.getSymTable().getBoolType();
                         	} else {
                         		S.Diag(Binary->getLocation(), diag::err_sema_types_logical)
 									<< LeftType->getName()
@@ -768,10 +770,10 @@ bool SemaResolver::ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr, SymType *Type) {
                 case ASTOpExprKind::OP_TERNARY: {
                     ASTTernaryOpExpr *Ternary = static_cast<ASTTernaryOpExpr*>(Expr);
                     Success = ResolveExpr(Stmt, Ternary->ConditionExpr) &&
-                              S.getValidator().CheckConvertibleTypes(Ternary->getConditionExpr()->getTypeRef()->getDef(), S.getSymTable().getBoolType()) &&
+                              S.getValidator().CheckConvertibleTypes(Ternary->getConditionExpr()->getTypeRef()->getType(), S.getSymTable().getBoolType()) &&
                               ResolveExpr(Stmt, Ternary->TrueExpr) &&
                               ResolveExpr(Stmt, Ternary->FalseExpr);
-                    Ternary->getTypeRef()->Def = Ternary->getTrueExpr()->getTypeRef()->getDef(); // The group type is equals to the second type
+                    Ternary->getTypeRef()->Type = Ternary->getTrueExpr()->getTypeRef()->getType(); // The group type is equals to the second type
                     break;
                 }
             }
@@ -784,289 +786,14 @@ bool SemaResolver::ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr, SymType *Type) {
     return Success;
 }
 
-// bool SemaResolver::ResolveRef(SymNameSpace *NameSpace, ASTStmt *Stmt, ASTRef *Ref) {
-//     assert(NameSpace && "NameSpace cannot be null");
-//     assert(Ref && "Identifier cannot be null");
-//
-//     if (Ref->isResolved() == false) {
-//
-//         if (Ref->isCall()) { // Call cannot be undefined
-//             ASTCall *Call = static_cast<ASTCall *>(Ref);
-//
-//             // NameSpace.ConstructorCall()... or NameSpace.Call()...
-//             Ref->Resolved = ResolveFunctionCall(NameSpace, Stmt, Call);
-//             if (Ref->isResolved() == false) {
-//
-//                 // Constructor
-//                 if (Call->getCallKind() == ASTCallKind::CALL_NEW ||
-//                     Call->getCallKind() == ASTCallKind::CALL_NEW_UNIQUE ||
-//                     Call->getCallKind() == ASTCallKind::CALL_NEW_SHARED ||
-//                     Call->getCallKind() == ASTCallKind::CALL_NEW_WEAK) {
-//                     ASTIdentity *Identity = FindIdentity(Call->getName(), NameSpace);
-//                     if (Identity)
-//                         Call->Resolved = ResolveStaticCall(Identity, Stmt, Call);
-//                 } else {
-//                     // Function
-//                     ASTFunction *Function = FindFunction(Call, NameSpace);
-//                     if (Function) {
-//                         Call->Def = Function;
-//                         Call->Resolved = true;
-//                     }
-//                 }
-//             }
-//
-//             // Resolve Child
-//             if (Ref->isResolved() && Call->getChild()) {
-//                 ASTTypeRef *TypeRef = Call->getDef()->getAST()->getReturnTypeRef();
-//                 if (!TypeRef->isResolved() && ResolveTypeRef(TypeRef)) {
-//                     // Can be only a Call or a Var
-//                 	return ResolveRef(TypeRef->getDef(), Stmt, Call->getChild());
-//                 } else {
-//                     // Error: cannot access to not identity var
-//                     // TODO
-//                 }
-//             }
-//         } else {
-//         	// Ref is a Type
-//             // NameSpace.Type...Call() or NameSpace.Type...Var
-//             SymType *Type = NameSpace->getTypes().lookup(Ref->getName());
-//             if (Type) {
-//                 static_cast<ASTTypeRef *>(Ref)->Def = Type;
-//                 Ref->Resolved = true;
-//
-//                 // Resolve Child
-//                 if (Ref->getChild()) {
-//                     if (Ref->getChild()->isCall()) {
-//                         return ResolveStaticCall(Type, Stmt, static_cast<ASTCall *>(Ref->getChild()));
-//                     } else {
-//                         return ResolveStaticVarRef(Type, Stmt, static_cast<ASTVarRef *>(Ref->getChild()));
-//                     }
-//                 }
-//
-//                 return Ref->Resolved;
-//             }
-//
-//             // Identity is GlobalVar
-//             // NameSpace.GlobalVar...Call() or NameSpace.GlobalVar...Var
-//             return ResolveGlobalVarRef(NameSpace, Stmt, static_cast<ASTVarRef *>(Ref));
-//         }
-//     }
-//
-//     return Ref->isResolved();
-// }
-
-// bool SemaResolver::ResolveRef(SymType *Type, ASTStmt *Stmt, ASTRef *Identifier) {
-//     assert(Type && "Identity cannot be null");
-//     assert(Identifier && "Identifier cannot be null");
-//
-//     if (Identifier->isResolved() == false) {
-//         if (Identifier->isCall()) { // Call cannot be undefined
-//             return ResolveStaticCall(Type, Stmt, static_cast<ASTCall*>(Identifier));
-//         } else {
-//             return ResolveStaticVarRef(Type, Stmt, static_cast<ASTVarRef*>(Identifier));
-//         }
-//     }
-//
-//     return Identifier->Resolved;
-// }
-//
-// bool SemaResolver::ResolveRef(ASTStmt *Stmt, ASTRef *Ref) {
-//     assert(Stmt && "Stmt cannot be null");
-//     assert(Ref && "Identifier cannot be null");
-//
-//     if (Ref->isResolved() == false) {
-//         if (Ref->isCall()) { // Call cannot be undefined
-//             ASTCall *Call = static_cast<ASTCall*>(Ref);
-//
-//             if (Call->getCallKind() == ASTCallKind::CALL_NEW) {
-//                 SymType *Type = FindIdentity(Call->getName(), NameSpace);
-//                 if (Identity)
-//                     Call->Resolved = ResolveStaticCall(Identity, Stmt, Call);
-//             } else {
-//
-//                 // call function()
-//                 ASTFunction *Function = FindFunction(Call, NameSpace);
-//                 if (Function == nullptr) {
-//                     Function = FindFunction(Call, S.getSymTable().getDefaultNameSpace());
-//                     Call->Def = Function;
-//                     Call->Resolved = true;
-//                 }
-//
-//                 // call method()
-//                 if (Function == nullptr) {
-//                     if (Stmt->getFunction()->getKind() == ASTFunctionKind::CLASS_METHOD) {
-//                         ASTClass *Class = static_cast<ASTFunction*>(Stmt->getFunction())->getClass();
-//                         Function = FindClassMethod(Call, Class);
-//                         Call->Def = Function;
-//                         Call->Resolved = true;
-//                     }
-//                 }
-//             }
-//
-//             // Resolve child
-//             if (Call->Def && Call->getChild()) {
-//                 ASTTypeRef *TypeRef = Call->getDef()->getAST()->getReturnTypeRef();
-//                 if (!TypeRef->isIdentity()) {
-//                     // Error: cannot access to not identity var
-//                 }
-//                 if (ResolveTypeRef(TypeRef))
-//                     // Can be only a Call or a Var
-//                     return ResolveRef(static_cast<ASTTypeRef*>(TypeRef)->getDef(), Stmt, Call->getChild());
-//             }
-//
-//         } else if (Ref->isVarRef()) {
-//             auto *VarRef = static_cast<ASTVarRef*>(Ref);
-//
-//             // Search in LocalVars
-//             // LocalVar.Var or ClassAttribute.Var
-//             ASTVar *Var = ResolveRef(Stmt, Ref->getName());
-//
-//             // Check if Function is a class Method
-//             if (Var == nullptr) {
-//                 ASTFunction *Function = Stmt->getFunction();
-//
-//                 // Search for Class Vars if Var is Class Method
-//                 if (Function->getKind() == ASTFunctionKind::CLASS_METHOD) {
-//                     for (auto &Attribute: static_cast<ASTFunction*>(Function)->getClass()->Attributes) {
-//                         if (Attribute->getName() == Ref->getName()) {
-//                             Var = Attribute;
-//                         }
-//                     }
-//                 }
-//             }
-//
-//             if (Var) {
-//                 VarRef->Def = Var;
-//                 VarRef->Resolved = true;
-//
-//                 // Resolve Child
-//                 if (VarRef->getChild() && Var->getTypeRef()->isIdentity()) {
-//                     ASTTypeRef *IdentityType = static_cast<ASTTypeRef*>(Var->getTypeRef());
-//                     return ResolveRef(IdentityType->getDef(), Stmt, VarRef->getChild());
-//                 }
-//             }
-//         } else {
-//             ASTTypeRef *TypeRef = S.Builder->CreateTypeRef(Ref);
-//             if (ResolveTypeRef(TypeRef) && TypeRef->getChild()) {
-//                 return ResolveRef(TypeRef->getDef(), Stmt, TypeRef->getChild());
-//             }
-//         }
-//     }
-//
-//     return Ref->Resolved;
-// }
-
-// bool SemaResolver::ResolveGlobalVarRef(SymNameSpace *NameSpace, ASTStmt *Stmt, ASTVarRef *VarRef) {
-//     assert(NameSpace && "NameSpace cannot be null");
-//     assert(VarRef && "VarRef cannot be null");
-//
-//     if (VarRef->isResolved() == false) {
-//     	SymVar *GlobalVar = nullptr;
-//     	if (NameSpace) {
-//     		GlobalVar = NameSpace->GlobalVars.lookup(VarRef->getName());
-//     	} else {
-//     		// Search in Module
-//     		GlobalVar = Module->getGlobalVars().lookup(VarRef->getName());
-//
-//     		// Search in Default NameSpace
-//     		if (!GlobalVar)
-//     			GlobalVar = S.getSymTable().getDefaultNameSpace()->getGlobalVars().lookup(VarRef->getName());
-//     	}
-//
-//     	// GlobalVar found
-//     	if (GlobalVar) {
-//             VarRef->Def = &GlobalVar->getAST()->Def;
-//             VarRef->Resolved = true;
-//         }
-//     }
-//     return VarRef->Resolved;
-// }
-
-
-// /**
-//  * ResolveModule a VarRef with its declaration
-//  * @param VarRef
-//  * @return true if no error occurs, otherwise false
-//  */
-// bool SemaResolver::ResolveVarRef(ASTStmt *Stmt, ASTVarRef *VarRef) {
-// 	FLY_DEBUG_MESSAGE("Sema", "ResolveVarRefWithParent", Logger().Attr("VarRef", VarRef).End());
-// 	assert(Stmt && "Stmt cannot be null");
-// 	assert(VarRef && "VarRef cannot be null");
-//
-// 	if (VarRef->isResolved() == false) {
-//
-// 		ASTRef *Current = nullptr;
-// 		SymNameSpace *VarNameSpace = FindNameSpace(VarRef, Current);
-//
-// 		VarRef->Resolved = (VarNameSpace && ResolveRef(VarNameSpace, Stmt, Current)) || // Resolve in NameSpace: Type, Function, GlobalVar
-// 			   ResolveRef(Stmt, Current) || // Resolve in statements as LocalVar
-// 			   ResolveRef(NameSpace, Stmt, Current) ||
-// 			   ResolveRef(S.getSymTable().getDefaultNameSpace(), Stmt, Current); // Default NameSpace, Class Method or Attribute, LocalVar
-// 	}
-//
-// 	// VarRef not found in Module, namespace and Module imports
-// 	if (VarRef->isResolved() == false) {
-// 		S.Diag(VarRef->getLocation(), diag::err_unref_var) << VarRef->Name;
-// 		return false;
-// 	}
-//
-// 	return true;
-// }
-//
-// bool SemaResolver::ResolveStaticVarRef(SymType *Type, ASTStmt *Stmt, ASTVarRef *VarRef) {
-//     assert(Type && "Identity cannot be null");
-//     assert(VarRef && "VarRef cannot be null");
-//
-//     if (VarRef->isResolved() == false) {
-//         if (Type->isClass()) {
-//             ASTVar *Attribute = static_cast<ASTClass *>(Type)->getAttributes().lookup(VarRef->getName());
-//             if (Attribute) {
-//                 VarRef->Def = Attribute;
-//                 VarRef->Resolved = true;
-//             }
-//         } else if (Type->isEnum()) {
-//             ASTEnumEntry *Entry = static_cast<ASTEnum *>(Type)->getEntries().lookup(VarRef->getName());
-//             if (Entry) {
-//                 VarRef->Def = Entry;
-//                 VarRef->Resolved = true;
-//             }
-//         }
-//     }
-//
-//     return VarRef->Resolved;
-// }
-//
-// bool SemaResolver::ResolveFunctionCall(SymNameSpace *NameSpace, ASTStmt *Stmt, ASTCall *Call) {
-//     assert(NameSpace && "NameSpace cannot be null");
-//     assert(Call && "Call cannot be null");
-//
-//     if (ResolveCallArgs(Stmt, Call)) {
-//         ASTFunction *Function = FindFunction(Call, NameSpace);
-//         if (Function) {
-//             Call->Def = Function;
-//             Call->Resolved = true;
-//         }
-//     }
-//     return Call->isResolved();
-// }
-//
-// bool SemaResolver::ResolveStaticCall(SymType *Type, ASTStmt *Stmt, ASTCall *Call) {
-//     assert(Type && "Identity cannot be null");
-//     assert(Call && "Call cannot be null");
-//
-//     if (ResolveCallArgs(Stmt, Call)) {
-//         if (Type->isClass()) {
-//             ASTFunction *Method = FindClassMethod(Call, static_cast<ASTClass *>(Type));
-//             Call->Def = Method;
-//             Call->Resolved = true;
-//         } else {
-//             S.Diag(Call->getLocation(), diag::err_sema_call_enum);
-//         }
-//     }
-//
-//     return Call->Resolved;
-// }
-
+/**
+ * Resolve a Call Reference
+ * @param Stmt
+ * @param Call
+ * @param NameSpaces
+ * @param ...
+ * @return
+ */
 ASTRef *SemaResolver::ResolveCall(ASTStmt *Stmt, ASTCall *Call, SymNameSpace *NameSpaces...) {
     FLY_DEBUG_MESSAGE("Sema", "ResolveCall", Logger().Attr("Call", Call).End());
     assert(Stmt && "Stmt cannot be null");
@@ -1077,47 +804,42 @@ ASTRef *SemaResolver::ResolveCall(ASTStmt *Stmt, ASTCall *Call, SymNameSpace *Na
     	for (auto NS : NameSpaces) {
 
     		// Resolve Expression in Arguments
-    		bool isResolvedArgs =  true;
-    		llvm::SmallVector<SymType *, 8> CallTypes;
-    		for (auto Arg : Call->getArgs()) {
-    			isResolvedArgs &= ResolveExpr(Stmt, Arg->getExpr());
-    			CallTypes.push_back(Arg->getExpr()->getTypeRef()->getDef());
-    		}
+    		llvm::SmallVector<SymType *, 8> CallTypes = ResolveCallArgTypes(Stmt, Call);
 
     		// if Arguments are not resolved is not possible go ahead with call reference resolution
     		// cannot resolve with the function parameters types
-    		if (isResolvedArgs) {
-    			std::string Mangled = SymFunctionBase::MangleFunction(Call->Name, CallTypes);
+    		std::string Mangled = SymFunctionBase::MangleFunction(Call->Name, CallTypes);
 
-    			// Constructor
-                if (Call->getCallKind() == ASTCallKind::CALL_NEW ||
-                    Call->getCallKind() == ASTCallKind::CALL_NEW_UNIQUE ||
-                    Call->getCallKind() == ASTCallKind::CALL_NEW_SHARED ||
-                    Call->getCallKind() == ASTCallKind::CALL_NEW_WEAK) {
+    		// Constructor
+            if (Call->getCallKind() == ASTCallKind::CALL_NEW ||
+                Call->getCallKind() == ASTCallKind::CALL_NEW_UNIQUE ||
+                Call->getCallKind() == ASTCallKind::CALL_NEW_SHARED ||
+                Call->getCallKind() == ASTCallKind::CALL_NEW_WEAK) {
 
-                	// Take the Type from the NameSpace
-                    SymType *Type = FindType(Call->getName(), NS);
-                	if (Type && Type->isClass()) {
-						SymClass *Class = static_cast<SymClass *>(Type);
-						SymClassMethod *Constructor = Class->getConstructors().lookup(Mangled);
+                // Take the Type from the NameSpace
+                SymType *Type = FindType(Call->getName(), NS);
+                if (Type && Type->isClass()) {
+					SymClass *Class = static_cast<SymClass *>(Type);
+					SymClassMethod *Constructor = Class->getConstructors().lookup(Mangled);
 
-                		if (Call->Child)
-                			return ResolveRef(Type, Call->Child, NS);
-                		Call->Def = &Constructor;
-                	}
-                } else {
-
-                	// Take the Function
-	                SymFunction *Func = NS->getFunctions().lookup(Mangled);
-                	if (Func) {
-                		if (Call->Child)
-                			return ResolveRef(Func->getAST()->getReturnTypeRef()->getDef(), Call->Child, NS);
-                		Call->Def = &Func;
-                	}
+                	if (Call->Child)
+                		return ResolveRef(Type, Call->Child, NS);
+                	Call->Function = &Constructor;
+                	Call->Resolved = true;
                 }
+            } else {
 
-    			return Call;
-    		}
+                // Take the Function
+                SymFunction *Func = NS->getFunctions().lookup(Mangled);
+                if (Func) {
+                	if (Call->Child)
+                		return ResolveRef(Func->getReturnType(), Call->Child, NS);
+                	Call->Function = &Func;
+                	Call->Resolved = true;
+                }
+            }
+
+    		return Call;
     	}
     }
 
@@ -1135,7 +857,7 @@ ASTRef *SemaResolver::ResolveCall(ASTStmt *Stmt, ASTCall *Call, SymNameSpace *Na
         } else if (Parent->getStmtKind() == ASTStmtKind::STMT_HANDLE) {
             ASTHandleStmt *HandleStmt = static_cast<ASTHandleStmt*>(Parent);
             if (HandleStmt->ErrorHandlerRef != nullptr) {
-                Call->ErrorHandler = HandleStmt->ErrorHandlerRef->Def;
+                Call->ErrorHandler->Var = *HandleStmt->ErrorHandlerRef->Var;
             }
         }
     }
@@ -1143,6 +865,22 @@ ASTRef *SemaResolver::ResolveCall(ASTStmt *Stmt, ASTCall *Call, SymNameSpace *Na
     return Call;
 }
 
+llvm::SmallVector<SymType *, 8> SemaResolver::ResolveCallArgTypes(ASTStmt *Stmt, ASTCall *Call) {
+	// Resolve Expression in Arguments
+	llvm::SmallVector<SymType *, 8> CallTypes;
+	for (auto Arg : Call->getArgs()) {
+		ResolveExpr(Stmt, Arg->Expr);
+		CallTypes.push_back(Arg->getExpr()->getTypeRef()->getType());
+	}
+	return CallTypes;
+}
+
+/**
+ * Resolve a Reference from starting from the Stmt
+ * @param Stmt
+ * @param Ref
+ * @return
+ */
 ASTRef *SemaResolver:: ResolveRef(ASTStmt *Stmt, ASTRef *Ref) {
 	if (!Ref->Resolved) {
 
@@ -1158,6 +896,14 @@ ASTRef *SemaResolver:: ResolveRef(ASTStmt *Stmt, ASTRef *Ref) {
 	return Ref;
 }
 
+/**
+ * Resolve a Reference, continue to resolve until the Ref is completely resolved
+ * @param Stmt
+ * @param Ref
+ * @param NameSpaces
+ * @param ...
+ * @return
+ */
 ASTRef *SemaResolver:: ResolveRef(ASTStmt *Stmt, ASTRef *Ref, SymNameSpace *NameSpaces...) {
 	if (!Ref->Resolved) {
 
@@ -1176,92 +922,156 @@ ASTRef *SemaResolver:: ResolveRef(ASTStmt *Stmt, ASTRef *Ref, SymNameSpace *Name
 		// Ref is a Class or an Enum defined in Module or Default NameSpace?
 		SymType *Type = FindType(Ref->getName(), NameSpaces);
 		if (Type)
-			return ResolveRef(Type, Ref->Child, NameSpaces);
+			return ResolveRef(Stmt, Type, Ref->Child);
 
 		// Ref is a LocalVar defined in Stmt?
-		SymVar * Var = FindVar(Stmt, Ref, NameSpaces);
-		if (Var) {
-			if (Ref->Child)
-				return ResolveRef(Var, Ref->Child, NameSpaces);
-			ASTVarRef *Result = S.getASTBuilder().CreateVarRef(Ref->getLocation(), Ref->getName(), Ref->getParent());
-			Result->Def = &Var;
-			return Result;
+		SymVar *Var = nullptr;
+		if (Stmt->getStmtKind() == ASTStmtKind::STMT_BLOCK) {
+			ASTBlockStmt *Block = static_cast<ASTBlockStmt*>(Stmt);
+			const auto &It = Block->getLocalVars().find(Ref->getName());
+			if (It != Block->getLocalVars().end()) { // Search into this Block
+				Var = It->getValue()->getVar();
+			}
 		}
 
-		// Error: symbol not found
-		S.Diag(Ref->getLocation(), diag::err_syntax_error);
-		return nullptr;
+		// Search in parent Stmt
+		if (!Var) {
+			if (Stmt->getParent()) { // search recursively into Parent Stmt to find the right Var definition
+				ASTRef * SearchRef = ResolveRef(Stmt->getParent(), Ref);
+				if (SearchRef->isResolved()) {
+					Var = static_cast<ASTVarRef *>(SearchRef)->getVar();
+				}
+			}
+		}
+
+		// Search into Function Parameter list
+		if (!Var) {
+			llvm::SmallVector<ASTVar *, 8> Params = Stmt->getFunction()->getParams();
+			for (auto &Param : Params) {
+				if (Param->getName() == Ref->getName()) {
+					Var = Param->getVar();
+				}
+			}
+		}
+
+		// Search into Global Vars
+		if (!Var) {
+			for (auto NS : NameSpaces) {
+				Var = NS->getGlobalVars().lookup(Ref->getName());
+				if (Var)
+					break;
+			}
+		}
+
+		if (Var) {
+			if (Ref->Child)
+				return ResolveRef(Stmt, Var, Ref->Child);
+
+			ASTVarRef *Result = S.getASTBuilder().CreateVarRef(Ref->getLocation(), Ref->getName(), Ref->getParent());
+			Result->Var = &Var;
+			Result->Resolved = true;
+			return Result;
+		}
 	}
 
+	// Error: symbol not found
+	S.Diag(Ref->getLocation(), diag::err_syntax_error);
+	Ref->Resolved = true;
 	return Ref;
 }
 
-ASTRef *SemaResolver:: ResolveRef(SymType *Type, ASTRef *Ref, SymNameSpace *NameSpaces...) {
+/**
+ * Resolve static Ref to a Class or Enum
+ * @param Type
+ * @param Ref
+ * @return
+ */
+ASTRef *SemaResolver:: ResolveRef(ASTStmt *Stmt, SymType *Type, ASTRef *Ref) {
 	if (!Ref->Resolved) {
-		// static call
+		if (Type->isClass()) {
+            SymClass *Class = static_cast<SymClass *>(Type);
 
-		// static var
+			// static call
+			if (Ref->isCall()) {
+				ASTCall *Call = static_cast<ASTCall *>(Ref);
+				SmallVector<SymType *, 8> CallTypes = ResolveCallArgTypes(Stmt, Call);
+				std::string Mangled = SymFunctionBase::MangleFunction(Call->getName(), CallTypes);
+				SymFunctionBase* Method = Class->getMethods().lookup(Mangled);
+				if (Method) {
+					if (Ref->Child)
+						return ResolveRef(Stmt, Method->getReturnType(), Ref->Child);
+                    Call->Function = &Method;
+                    Call->Resolved = true;
+                }
+			} else { // static var
+				SymVar *Var = Class->getAttributes().lookup(Ref->getName());
+				if (Var && static_cast<SymClassAttribute *>(Var)->isStatic()) {
+					if (Ref->Child)
+						return ResolveRef(Stmt, Var, Ref->Child);
+					Ref = S.getASTBuilder().CreateVarRef(Ref->getLocation(), Ref->getName(), Ref->getParent());
+					static_cast<ASTVarRef *>(Ref)->Var = &Var;
+					Ref->Resolved = true;
+				}
+			}
+        } else if (Type->isEnum()) {
 
-		// enum
-	}
-}
-
-ASTRef *SemaResolver:: ResolveRef(SymVar *Var, ASTRef *Ref, SymNameSpace *NameSpaces...) {
-	if (!Ref->Resolved) {
-		// instance call
-
-		// public var
-
-	}
-}
-
-SymType * SemaResolver::FindType(llvm::StringRef Name, SymNameSpace *NameSpaces...) {
-	for (SymNameSpace *NS : NameSpaces) {
-		SymType *Type = NS->getTypes().lookup(Name);
-		if (Type)
-			return Type;
-	}
-}
-
-SymVar * SemaResolver::FindVar(ASTStmt *Stmt, ASTRef *Ref, SymNameSpace *NameSpaces...) const {
-	SymVar *Var = FindLocalVar(Stmt, Ref);
-	if (Var)
-		return Var;
-
-	for (SymNameSpace *NS : NameSpaces) {
-		SymVar *Var = NS->getGlobalVars().lookup(Ref->getName());
-		if (Var)
-			return Var;
+        	// Enum Entry
+            SymEnum *Enum = static_cast<SymEnum *>(Type);
+            SymVar *Var = Enum->getEntries().lookup(Ref->getName());
+            if (Var) {
+            	if (Ref->Child)
+                    return ResolveRef(Stmt, Var, Ref->Child);
+            	Ref = S.getASTBuilder().CreateVarRef(Ref->getLocation(), Ref->getName(), Ref->getParent());
+                static_cast<ASTVarRef *>(Ref)->Var = &Var;
+                Ref->Resolved = true;
+            }
+        }
 	}
 }
 
 /**
- * Search a VarRef into declared Block's vars
- * If found set LocalVar
- * @param Stmt
- * @param Name
- * @return the found LocalVar
+ * Resolve a Reference from parent instance
+ * @param Var
+ * @param Ref
+ * @return
  */
-SymLocalVar *SemaResolver::FindLocalVar(ASTStmt *Stmt, ASTRef *Ref) const {
-    FLY_DEBUG_MESSAGE("Sema", "FindLocalVar", Logger().Attr("Parent", Stmt).Attr("Name", Ref->getName()).End());
+ASTRef *SemaResolver:: ResolveRef(ASTStmt *Stmt, SymVar *Var, ASTRef *Ref) {
+	if (!Ref->Resolved) {
 
-	if (Stmt->getStmtKind() == ASTStmtKind::STMT_BLOCK) {
-		ASTBlockStmt *Block = static_cast<ASTBlockStmt*>(Stmt);
-		const auto &It = Block->getLocalVars().find(Ref->getName());
-		if (It != Block->getLocalVars().end()) { // Search into this Block
-			return It->getValue();
+		SymType *Type = Var->getType();
+		if (Type->isClass()) {
+			SymClass * Class = static_cast<SymClass *>(Type);
+			// instance call
+			if (Ref->isCall()) {
+				ASTCall *Call = static_cast<ASTCall *>(Ref);
+				SmallVector<SymType *, 8> CallTypes = ResolveCallArgTypes(Stmt, Call);
+				std::string Mangled = SymFunctionBase::MangleFunction(Call->getName(), CallTypes);
+				SymFunctionBase* Method = Class->getMethods().lookup(Mangled);
+				if (Ref->Child)
+					return ResolveRef(Stmt, Method->getReturnType(), Ref->Child);
+				Call->Function = &Method;
+				Ref->Resolved = true;
+			} else {
+				// instance var
+				SymVar *Attribute = Class->getAttributes().lookup(Ref->getName());
+				if (Ref->Child)
+					return ResolveRef(Stmt, Var, Ref->Child);
+				Ref = S.getASTBuilder().CreateVarRef(Ref->getLocation(), Ref->getName(), Ref->getParent());
+				static_cast<ASTVarRef *>(Ref)->Var = &Attribute;
+				Ref->Resolved = true;
+			}
+		} else {
+			// Error: no child found from Ref
+			S.Diag(Ref->getLocation(), diag::err_syntax_error);
+			return nullptr;
 		}
 	}
+}
 
-	if (Stmt->getParent()) { // search recursively into Parent Blocks to find the right Var definition
-        return ResolveRef(Stmt->getParent(), Ref->getName());
-    } else { // Search into Parameter list
-        llvm::SmallVector<ASTVar *, 8> Params = Stmt->getFunction()->getParams();
-        for (auto &Param : Params) {
-            if (Param->getName() == Ref->getName()) {
-                return Param;
-            }
-        }
-    }
-    return nullptr;
+SymType * SemaResolver::FindType(llvm::StringRef Name, SymNameSpace *NameSpaces...) const {
+	for (auto &NS : NameSpaces) {
+		SymType *Type = NS->getTypes().lookup(Name);
+		if (Type)
+			return Type;
+	}
 }

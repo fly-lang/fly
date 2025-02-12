@@ -21,8 +21,20 @@ using namespace fly;
 SymFunctionBase::SymFunctionBase(ASTFunction *AST, SymFunctionKind Kind) : AST(AST), Kind(Kind) {
 }
 
+llvm::SmallVector<SymType *, 8> &SymFunctionBase::getArgTypes() {
+    return ArgTypes;
+}
+
+SymType *SymFunctionBase::getReturnType() {
+    return ReturnType;
+}
+
 ASTFunction * SymFunctionBase::getAST() {
 	return AST;
+}
+
+SymFunctionKind SymFunctionBase::getKind() const {
+    return Kind;
 }
 
 // Mapping Fly types to mangled representations
@@ -52,16 +64,16 @@ std::string MangleType(SymType *Type) {
 	std::string Mangled = "";
 
 	switch (Type->getKind()) {
-	case SymTypeKind::TYPE_ARRAY:
+	case SymTypeKind::TYPE_ARRAY: {
 		SymTypeArray *Array = static_cast<SymTypeArray *>(Type);
 		Mangled += "_A" + Array->getSize() + MangleType(Array->getType());
-		break;
+	}	break;
 	case SymTypeKind::TYPE_CLASS:
 		Mangled += "_C" + Type->getName();
 		break;
-	case SymTypeKind::TYPE_ENUM:
+	case SymTypeKind::TYPE_ENUM: {
 		Mangled += "_E" + Type->getName();
-		break;
+	}	break;
 	default:
 		Mangled += typeMap.at(Type->getName());
 	}
@@ -73,7 +85,7 @@ std::string MangleType(SymType *Type) {
 std::string SymFunctionBase::MangleFunction(ASTFunction *AST) {
 	llvm::SmallVector<SymType *, 8> Params;
 	for (auto Param : AST->getParams()) {
-		Params.push_back(Param->getTypeRef()->getDef());
+		Params.push_back(Param->getTypeRef()->getType());
 	}
 	return MangleFunction(AST->getName(), Params);
 }

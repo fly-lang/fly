@@ -30,3 +30,7 @@ void SymClassAttribute::setCodeGen(CodeGenClassVar *CodeGen) {
 SymComment * SymClassAttribute::getComment() const {
 	return Comment;
 }
+
+bool SymClassAttribute::isStatic() {
+	return Static;
+}

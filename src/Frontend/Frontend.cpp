@@ -76,9 +76,10 @@ bool Frontend::Execute() {
             CG.Emit(M, M->getName());
         }
 
-        if (CI.getFrontendOptions().CreateHeader) {
-            CG.GenerateHeaders(S->getSymTable());
-        }
+    	// FIXME: Generate Headers
+        // if (CI.getFrontendOptions().CreateHeader) {
+        //     CG.GenerateHeaders(S->getSymTable());
+        // }
     }
 
     Diags.getClient()->EndSourceFile();

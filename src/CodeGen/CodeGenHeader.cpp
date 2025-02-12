@@ -13,16 +13,7 @@
 #include "Sym/SymFunction.h"
 #include "Sym/SymClass.h"
 #include "Sym/SymEnum.h"
-#include "AST/ASTNameSpace.h"
-#include "AST/ASTNameSpace.h"
-#include "AST/ASTModule.h"
-#include "AST/ASTFunction.h"
-#include "AST/ASTVar.h"
-#include "AST/ASTScopes.h"
-#include "AST/ASTEnum.h"
-#include "AST/ASTClass.h"
 #include "Basic/Diagnostic.h"
-#include "Basic/CodeGenOptions.h"
 #include "Basic/Debug.h"
 
 #include "llvm/Support/raw_ostream.h"
@@ -30,7 +21,6 @@
 #include "llvm/Support/FileSystem.h"
 
 #include <string>
-#include <AST/ASTTypeRef.h>
 
 using namespace fly;
 

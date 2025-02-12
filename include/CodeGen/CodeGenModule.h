@@ -178,19 +178,19 @@ namespace fly {
 
         void GenEnum(SymEnum *Enum);
 
-        llvm::Type *GenType(const SymType *Type);
+        llvm::Type *GenType(SymType *Type);
 
-        llvm::ArrayType *GenArrayType(const SymTypeArray *Type);
+        llvm::ArrayType *GenArrayType(SymTypeArray *Type);
 
-        llvm::Constant *GenDefaultValue(const SymType *Type, llvm::Type *Ty = nullptr);
+        llvm::Constant *GenDefaultValue(SymType *Type, llvm::Type *Ty = nullptr);
 
-        llvm::Constant *GenValue(const SymType *Type, const ASTValue *Val);
+        llvm::Constant *GenValue(SymType *Type, ASTValue *Val);
 
 //        llvm::Value *Convert(llvm::Value *V, llvm::Type *T);
 
         llvm::Value *ConvertToBool(llvm::Value *Val);
 
-        llvm::Value *Convert(llvm::Value *FromVal, const SymType *FromType, const SymType *ToType);
+        llvm::Value *Convert(llvm::Value *FromVal, SymType *FromType, SymType *ToType);
 
         CodeGenError *GenErrorHandler(ASTVar* Var);
 

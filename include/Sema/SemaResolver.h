@@ -134,37 +134,19 @@ namespace fly {
 
         bool ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr, SymType *Type = nullptr);
 
-        // bool ResolveRef(SymNameSpace *NameSpace, ASTStmt *Stmt, ASTRef *Ref);
-        //
-        // bool ResolveRef(ASTIdentity *Identity, ASTStmt *Stmt, ASTRef *Identifier);
-
-        // bool ResolveRef(ASTStmt *Stmt, ASTRef *Ref);
-
-        // bool ResolveGlobalVarRef(SymNameSpace *NameSpace, ASTStmt *Stmt, ASTVarRef *VarRef);
-
-        // bool ResolveVarRef(ASTStmt *Stmt, ASTVarRef *VarRef);
-        //
-        // bool ResolveStaticVarRef(SymIdentity *Identity, ASTStmt *Stmt, ASTVarRef *VarRef);
-        //
-        // bool ResolveFunctionCall(SymNameSpace *NameSpace, ASTStmt *Stmt, ASTCall *Call);
-        //
-        // bool ResolveStaticCall(ASTIdentity *Identity, ASTStmt *Stmt, ASTCall *Call);
-
         ASTRef *ResolveCall(ASTStmt *Stmt, ASTCall *Call, SymNameSpace *NameSpaces...);
+
+        llvm::SmallVector<SymType *, 8> ResolveCallArgTypes(ASTStmt *Stmt, ASTCall *Call);
 
         ASTRef *ResolveRef(ASTStmt *Stmt, ASTRef *Ref);
 
         ASTRef *ResolveRef(ASTStmt *Stmt, ASTRef *Ref, SymNameSpace *NameSpaces...);
 
-        ASTRef *ResolveRef(SymType *Type, ASTRef *Ref, SymNameSpace *NameSpaces...);
+        ASTRef *ResolveRef(ASTStmt *Stmt, SymType *Type, ASTRef *Ref);
 
-        ASTRef *ResolveRef(SymVar *Var, ASTRef *Ref, SymNameSpace *NameSpaces...);
+        ASTRef *ResolveRef(ASTStmt *Stmt, SymVar *Var, ASTRef *Ref);
 
-        SymType *FindType(llvm::StringRef Name, SymNameSpace *NameSpaces...);
-
-        SymVar *FindVar(ASTStmt *Stmt, ASTRef *Ref, SymNameSpace *NameSpaces...) const;
-
-        SymLocalVar *FindLocalVar(ASTStmt *Stmt, ASTRef *Ref) const;
+        SymType *FindType(llvm::StringRef Name, SymNameSpace *NameSpaces...) const;
     };
 
 } // end namespace fly

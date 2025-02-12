@@ -67,9 +67,9 @@ namespace fly {
 
         CodeGenModule *GenerateModule(SymNameSpace &NameSpace);
 
-        void GenerateHeaders(SymTable &Table);
+        // void GenerateHeaders(SymTable &Table);
 
-        void GenerateHeader(SymNameSpace &NameSpace);
+        // void GenerateHeader(SymNameSpace &NameSpace);
 
         static std::string toIdentifier(llvm::StringRef Name, llvm::StringRef NameSpace, llvm::StringRef ClassName = "");
     };

@@ -10,8 +10,6 @@
 #ifndef FLY_SYM_ENUM_ENTRY_H
 #define FLY_SYM_ENUM_ENTRY_H
 
-#include <cstdint>
-
 #include "SymVar.h"
 #include "CodeGen/CodeGenEnumEntry.h"
 
@@ -21,13 +19,13 @@ namespace fly {
     class SymComment;
 	class CodeGenEnumEntry;
 
-    class SymEnumEntry : SymVar {
+    class SymEnumEntry : public SymVar {
 
         friend class SymBuilder;
         friend class SemaResolver;
         friend class SemaValidator;
 
-        uint32_t Index;
+        size_t Index;
 
 		CodeGenEnumEntry *CodeGen;
 
@@ -37,7 +35,7 @@ namespace fly {
 
     public:
 
-        uint32_t getIndex() const;
+        size_t getIndex() const;
 
         SymComment *getComment() const;
 

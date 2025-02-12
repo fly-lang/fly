@@ -33,19 +33,31 @@ class ASTVar;
         friend class SemaResolver;
         friend class SemaValidator;
 
+        llvm::SmallVector<SymType *, 8> ArgTypes;
+
+        SymType *ReturnType;
+
         ASTFunction *AST;
 
         SymFunctionKind Kind;
+
+    protected:
 
         explicit SymFunctionBase(ASTFunction *AST, SymFunctionKind Kind);
 
     public:
 
+        llvm::SmallVector<SymType *, 8> &getArgTypes();
+
+        SymType *getReturnType();
+
+        ASTFunction *getAST();
+
+        SymFunctionKind getKind() const;
+
         static std::string MangleFunction(ASTFunction *AST);
 
         static std::string MangleFunction(llvm::StringRef Name, const llvm::SmallVector<SymType *, 8> &Params);
-
-        ASTFunction *getAST();
 
         virtual CodeGenFunctionBase *getCodeGen() const;
 

@@ -87,11 +87,11 @@ void CodeGenFunction::GenBody() {
         llvm::Value *Ret = CGM->Builder->CreateICmpNE(CGM->Builder->CreateLoad(ErrorKind), Zero8);
         // main() will return 0 if ok or 1 on error
         CGM->Builder->CreateRet(CGM->Builder->CreateZExt(Ret, Fn->getReturnType()));
-    } else if (Sym->getAST()->getReturnTypeRef()->getDef()->isVoid()) {
+    } else if (Sym->getAST()->getReturnTypeRef()->getType()->isVoid()) {
         CGM->Builder->CreateRetVoid();
     }
 }
 
 bool CodeGenFunction::isMainFunction(SymFunction *Sym) {
-    return Sym->getAST()->getName() == StringRef("main") && Sym->getAST()->getReturnTypeRef()->getDef()->isVoid();
+    return Sym->getAST()->getName() == StringRef("main") && Sym->getAST()->getReturnTypeRef()->getType()->isVoid();
 }

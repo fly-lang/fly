@@ -92,7 +92,7 @@ void CodeGenClass::Generate() {
             // add var to the type
             for (auto AttributeEntry: Sym->getAttributes()) {
             	SymClassAttribute *Attribute = AttributeEntry.getValue();
-                llvm::Type *AttrType = CGM->GenType(Attribute->getAST()->getTypeRef()->getDef());
+                llvm::Type *AttrType = CGM->GenType(Attribute->getAST()->getTypeRef()->getType());
                 TypeVector.push_back(AttrType);
             }
         }

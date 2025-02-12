@@ -11,7 +11,13 @@
 
 using namespace fly;
 
-std::string getTypeName(SymTypeKind Kind) {
+SymType::SymType(SymTypeKind Kind) : Kind(Kind), Name(getTypeName(Kind)), Id(GenerateId(Kind)) {
+}
+
+SymType::SymType(SymTypeKind Kind, std::string Name) : Kind(Kind), Name(Name), Id(GenerateId(Kind)) {
+}
+
+std::string SymType::getTypeName(SymTypeKind Kind) {
 	switch (Kind) {
 
 	case SymTypeKind::TYPE_VOID:
@@ -27,10 +33,15 @@ std::string getTypeName(SymTypeKind Kind) {
 	}
 }
 
-SymType::SymType(SymTypeKind Kind) : Kind(Kind), Name(getTypeName(Kind)) {
+size_t SymType::GenerateId(fly::SymTypeKind Kind) {
+	if (Kind == SymTypeKind::TYPE_CLASS || Kind == SymTypeKind::TYPE_ENUM) {
+		return ++IdCounter;
+	}
+	return static_cast<size_t>(Kind);
 }
 
-SymType::SymType(SymTypeKind Kind, std::string Name) : Kind(Kind), Name(Name) {
+const size_t SymType::getId() const {
+	return Id;
 }
 
 const SymTypeKind SymType::getKind() const {
@@ -132,12 +143,13 @@ const SymFPTypeKind SymTypeFP::getFPKind() const {
 	return FPKind;
 }
 
-SymTypeArray::SymTypeArray(SymType *Type, uint64_t Size) : SymType(SymTypeKind::TYPE_ARRAY, "array"), Type(Type), Size(Size) {
+SymTypeArray::SymTypeArray(SymType *Type, ASTExpr *Size) : SymType(SymTypeKind::TYPE_ARRAY, "array"), Type(Type), Size(Size) {
 }
 
 SymType *SymTypeArray::getType() {
 	return Type;
 }
 
-const uint64_t SymTypeArray::getSize() const {
+ASTExpr *SymTypeArray::getSize() const {
+	return Size;
 }

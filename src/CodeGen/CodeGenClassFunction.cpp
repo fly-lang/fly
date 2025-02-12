@@ -95,15 +95,15 @@ void CodeGenClassFunction::GenBody() {
         CGI->Load();
 
         // Set var Index offset in the struct type
-        uint32_t Index = Class->getAST()->getClassKind() == ASTClassKind::STRUCT ? 0 : 1;
+        size_t Index = Class->getAST()->getClassKind() == ASTClassKind::STRUCT ? 0 : 1;
         // All Class Vars
         SymClassMethod *ClassMethod = (SymClassMethod *) Sym;
         for (auto AttributeEntry : ClassMethod->getClass()->getAttributes()) {
         	SymClassAttribute *Attribute = AttributeEntry.getValue();
 
             // Set CodeGen Class Instance
-            llvm::Type *Ty = CGM->GenType(Attribute->getAST()->getTypeRef()->getDef());
-            CodeGenClassVar *CGV = new CodeGenClassVar(CGM, Ty, CGI, Index); // FIXME replace con CodeGenClassVar
+            llvm::Type *Ty = CGM->GenType(Attribute->getAST()->getTypeRef()->getType());
+            CodeGenClassVar *CGV = new CodeGenClassVar(CGM, Ty, CGI, Index);
             Attribute->setCodeGen(CGV);
 
             // Store attribute default value

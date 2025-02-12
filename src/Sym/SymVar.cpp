@@ -9,8 +9,6 @@
 
 #include "Sym/SymVar.h"
 
-#include "../../cmake-build-debug/_deps/googletest-src/googlemock/include/gmock/gmock-matchers.h"
-
 using namespace fly;
 
 SymVar::SymVar(ASTVar *AST, SymVarKind Kind) : AST(AST), Kind(Kind) {
@@ -22,6 +20,10 @@ ASTVar *SymVar::getAST() const {
 
 SymVarKind SymVar::getKind() const {
 	return Kind;
+}
+
+SymType *SymVar::getType() const {
+	return Type;
 }
 
 bool SymVar::isConstant() const {

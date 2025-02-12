@@ -28,6 +28,8 @@ namespace fly {
 
         SymClass *Class;
 
+        bool Static;
+
 		CodeGenClassVar *CodeGen = nullptr;
 
         SymComment *Comment = nullptr;
@@ -45,6 +47,8 @@ namespace fly {
         void setCodeGen(CodeGenClassVar* CodeGen);
 
         SymComment *getComment() const;
+
+        bool isStatic();
     };
 
 }  // end namespace fly

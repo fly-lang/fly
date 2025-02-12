@@ -121,18 +121,18 @@ CodeGenModule *CodeGen::GenerateModule(SymNameSpace &NameSpace) {
     return CGM;
 }
 
-void CodeGen::GenerateHeaders(SymTable &SymbolTable) {
-    for (auto &NameSpace : SymbolTable.getNameSpaces()) {
-        Diags.getClient()->BeginSourceFile();
-        GenerateHeader(*NameSpace.getValue());
-        Diags.getClient()->EndSourceFile();
-    }
-}
+// void CodeGen::GenerateHeaders(SymTable &SymbolTable) {
+//     for (auto &NameSpace : SymbolTable.getNameSpaces()) {
+//         Diags.getClient()->BeginSourceFile();
+//         GenerateHeader(*NameSpace.getValue());
+//         Diags.getClient()->EndSourceFile();
+//     }
+// }
 
-void CodeGen::GenerateHeader(SymNameSpace &NameSpace){
-    FLY_DEBUG_START("CodeGen", "GenerateHeader");
-    return CodeGenHeader::CreateFile(Diags, CodeGenOpts, NameSpace);
-}
+// void CodeGen::GenerateHeader(SymNameSpace &NameSpace){
+//     FLY_DEBUG_START("CodeGen", "GenerateHeader");
+//     return CodeGenHeader::CreateFile(Diags, CodeGenOpts, NameSpace);
+// }
 
 std::string CodeGen::toIdentifier(llvm::StringRef Name, llvm::StringRef NameSpace, llvm::StringRef ClassName) {
     std::string Prefix = NameSpace == "default" ? "" : std::string(NameSpace).append("_");

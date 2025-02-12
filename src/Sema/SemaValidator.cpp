@@ -113,14 +113,17 @@ bool SemaValidator::CheckDuplicateLocalVars(ASTStmt *Stmt, llvm::StringRef VarNa
 
 bool SemaValidator::CheckCommentParams(SymComment *Comment, const llvm::SmallVector<ASTVar *, 8> &Params) {
 	// TODO
+	return true;
 }
 
 bool SemaValidator::CheckCommentReturn(SymComment *Comment, ASTTypeRef *ReturnType) {
 	// TODO
+	return true;
 }
 
 bool SemaValidator::CheckCommentFail(SymComment *Comment) {
 	// TODO
+	return true;
 }
 
 bool SemaValidator::CheckExpr(ASTExpr *Expr) {
@@ -139,17 +142,8 @@ bool SemaValidator::CheckEqualTypes(SymType *Type1, SymType *Type2) {
         	SymTypeArray *ArrayType2 = static_cast<SymTypeArray *>(Type2);
             return CheckEqualTypes(ArrayType1->getType(), ArrayType2->getType());
         }
-        if (Type1->isClass()) {
-	        SymClass *ClassType1 = static_cast<SymClass *>(Type1);
-	        SymClass *ClassType2 = static_cast<SymClass *>(Type2);
-	        return ClassType1->getId() == ClassType2->getId();
-        }
-        if (Type1->isEnum()) {
-	        SymEnum *EnumType1 = static_cast<SymEnum *>(Type1);
-	        SymEnum *EnumType2 = static_cast<SymEnum *>(Type2);
-        	return EnumType1->getId() == EnumType2->getId();
-        }
-        return true;
+
+        return Type1->getId() == Type2->getId();
     }
 
     return false;
@@ -226,7 +220,7 @@ bool SemaValidator::CheckInheritance(SymClass *TheClass, SymClass *SuperClass) {
 	}
 
 	// Check if TheClass is a subclass of SuperClass
-	for (auto SuperClassEntry : TheClass->getSuperClasses()) {
+	for (auto &SuperClassEntry : TheClass->getSuperClasses()) {
 		if (CheckInheritance(SuperClass, SuperClassEntry.getValue())) {
 			return true;
 		}
@@ -242,7 +236,7 @@ bool SemaValidator::CheckInheritance(SymEnum *TheEnum, SymEnum *SuperEnum) {
 	}
 
 	// Check if TheClass is a subclass of SuperClass
-	for (auto SuperClassEntry : TheEnum->getSuperEnums()) {
+	for (auto &SuperClassEntry : TheEnum->getSuperEnums()) {
 		if (CheckInheritance(SuperClassEntry.getValue(), SuperEnum)) {
 			return true;
 		}

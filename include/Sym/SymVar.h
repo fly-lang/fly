@@ -14,6 +14,7 @@
 namespace fly {
 
     class ASTVar;
+    class SymType;
     class CodeGenVarBase;
 
 	enum class SymVarKind {
@@ -34,6 +35,8 @@ namespace fly {
 
     	SymVarKind Kind;
 
+    	SymType *Type;
+
     	bool Constant;
 
     protected:
@@ -45,6 +48,8 @@ namespace fly {
     	ASTVar *getAST() const;
 
     	SymVarKind getKind() const;
+
+    	SymType *getType() const;
 
     	bool isConstant() const;
 

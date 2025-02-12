@@ -41,7 +41,7 @@ namespace fly {
 
         llvm::SmallVector<ASTArg *, 8> Args;
 
-        SymFunctionBase **Def = nullptr;
+        SymFunctionBase **Function = nullptr;
 
         ASTCallKind CallKind = ASTCallKind::CALL_FUNCTION;
 
@@ -53,7 +53,7 @@ namespace fly {
 
         llvm::SmallVector<ASTArg *, 8> getArgs() const;
 
-        SymFunctionBase *getDef() const;
+        SymFunctionBase *getFunction() const;
 
         ASTCallKind getCallKind() const;
 

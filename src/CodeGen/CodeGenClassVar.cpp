@@ -9,15 +9,13 @@
 
 #include "CodeGen/CodeGenClassVar.h"
 #include "CodeGen/CodeGenVar.h"
-#include "CodeGen/CodeGenClass.h"
-#include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
-#include "AST/ASTClass.h"
+#include "Sym/SymClassAttribute.h"
 
 using namespace fly;
 
-CodeGenClassVar::CodeGenClassVar(CodeGenModule *CGM, SymClassAttribute *Var, llvm::Type *ClassType, uint32_t Index) :
-        CGM(CGM), Var(Var), ClassType(ClassType), Index(llvm::ConstantInt::get(CGM->Int32Ty, Index)),
+CodeGenClassVar::CodeGenClassVar(CodeGenModule *CGM, llvm::Type *T, CodeGenVarBase *Parent, size_t Index) :
+        CGM(CGM), Parent(Parent), Type(T), Index(llvm::ConstantInt::get(CGM->Int32Ty, Index)),
         Zero(llvm::ConstantInt::get(CGM->Int32Ty, 0)) {
 }
 
@@ -26,12 +24,13 @@ void CodeGenClassVar::setInstance(llvm::Value *Inst) {
 }
 
 llvm::StoreInst *CodeGenClassVar::Store(llvm::Value *Val) {
-    assert(ClassType && "Class Type not defined");
+    assert(Type && "Class Type not defined");
 
     // Fix Architecture Compatibility of bool i1 to i8
-    if (Var->getTypeRef()->getKind() == ASTTypeKind::TYPE_BOOL) {
-        Val = CGM->Builder->CreateZExt(Val, CGM->Int8Ty);
-    }
+	// FIXME
+    // if (Var->getType()->isBool()) {
+    //     Val = CGM->Builder->CreateZExt(Val, CGM->Int8Ty);
+    // }
 
     StoreInst *S = CGM->Builder->CreateStore(Val, getValue());
     this->BlockID = CGM->Builder->GetInsertBlock()->getName();
@@ -40,7 +39,7 @@ llvm::StoreInst *CodeGenClassVar::Store(llvm::Value *Val) {
 }
 
 llvm::LoadInst *CodeGenClassVar::Load() {
-    assert(ClassType && "Class Type not defined");
+    assert(Type && "Class Type not defined");
     this->LoadI =  CGM->Builder->CreateLoad(getPointer());
     this->BlockID = CGM->Builder->GetInsertBlock()->getName();
     return this->LoadI;
@@ -54,10 +53,18 @@ llvm::Value *CodeGenClassVar::getValue() {
 
 llvm::Value *CodeGenClassVar::getPointer() {
     if (!this->Pointer)
-        this->Pointer = CGM->Builder->CreateInBoundsGEP(ClassType, Instance, {Zero, Index});
+        this->Pointer = CGM->Builder->CreateInBoundsGEP(Type, Instance, {Zero, Index});
     return this->Pointer;
 }
 
 llvm::Value *CodeGenClassVar::getIndex() {
     return Index;
+}
+
+llvm::Type * CodeGenClassVar::getType() {
+	return Type;
+}
+
+CodeGenVarBase * CodeGenClassVar::getVar(llvm::StringRef Name) {
+	return Parent;
 }

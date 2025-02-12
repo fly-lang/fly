@@ -18,8 +18,8 @@ ASTVar::ASTVar(const SourceLocation &Loc, ASTTypeRef *TypeRef, llvm::StringRef N
 
 }
 
-SymVar * ASTVar::getDef() const {
-	return Def;
+SymVar * ASTVar::getVar() const {
+	return Var;
 }
 
 ASTTypeRef *ASTVar::getTypeRef() const {
@@ -37,18 +37,6 @@ bool ASTVar::isConstant() const {
         }
     }
     return false;
-}
-
-bool ASTVar::isInitialized() {
-    return Initialization != nullptr;
-}
-
-ASTVarStmt *ASTVar::getInitialization() {
-    return Initialization;
-}
-
-void ASTVar::setInitialization(ASTVarStmt *VarDefine) {
-    Initialization = VarDefine;
 }
 
 const SmallVector<ASTScope *, 8> &ASTVar::getScopes() const {

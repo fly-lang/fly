@@ -16,13 +16,13 @@ ASTVarRef::ASTVarRef(const SourceLocation &Loc, llvm::StringRef Name) : ASTRef(L
 
 }
 
-SymVar *ASTVarRef::getDef() const {
-    return *Def;
+SymVar *ASTVarRef::getVar() const {
+    return *Var;
 }
 
 std::string ASTVarRef::str() const {
     return Logger("ASTVarRef").
             Attr("Parent", Parent).
-            Attr("Def", Def).
+            Attr("Def", Var).
             End();
 }

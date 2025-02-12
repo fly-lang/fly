@@ -30,7 +30,7 @@ CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, SymGlobalVar* Sym, bool i
     GlobalValue::LinkageTypes Linkage = GlobalValue::LinkageTypes::ExternalLinkage;
     llvm::Type *Ty = CGM->GenType(Sym->getType());
     if (!isExternal) {
-        if (Sym->getVisibility() == ASTVisibilityKind::V_PRIVATE) {
+        if (Sym->getVisibility() == SymVisibilityKind::PRIVATE) {
             Linkage = GlobalValue::LinkageTypes::InternalLinkage;
         }
         if (Sym->getExpr() == nullptr) {

@@ -32,7 +32,7 @@ namespace fly {
 
         CodeGenModule *CGM = nullptr;
 
-        SymClassAttribute *Var = nullptr;
+        CodeGenVarBase *Parent = nullptr;
 
         llvm::Type *T = nullptr;
 
@@ -42,7 +42,7 @@ namespace fly {
 
         llvm::StringRef BlockID;
 
-        llvm::Type *ClassType = nullptr;
+        llvm::Type *Type = nullptr;
 
         llvm::Value *Index = nullptr;
 
@@ -51,7 +51,7 @@ namespace fly {
         llvm::LoadInst *LoadI = nullptr;
 
     public:
-        CodeGenClassVar(CodeGenModule *CGM, SymClassAttribute *Var, llvm::Type *ClassType, uint32_t Index);
+        CodeGenClassVar(CodeGenModule *CGM, llvm::Type *T, CodeGenVarBase *Var, size_t Index);
 
         void setInstance(llvm::Value *Inst);
 
@@ -64,6 +64,10 @@ namespace fly {
         llvm::Value *getPointer() override;
 
         llvm::Value *getIndex();
+
+        llvm::Type* getType() override;
+
+        CodeGenVarBase* getVar(llvm::StringRef Name) override;
     };
 }
 
