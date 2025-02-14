@@ -82,7 +82,7 @@ void CodeGenFunction::GenBody() {
         llvm::Value *Zero32 = llvm::ConstantInt::get(CGM->Int32Ty, 0);
         llvm::Value *Zero8 = llvm::ConstantInt::get(CGM->Int8Ty, 0);
         // take return value from error struct
-        CodeGenError *CGE = (CodeGenError *) Sym->getAST()->getErrorHandler()->getVar()->getCodeGen();
+        CodeGenError *CGE = (CodeGenError *) Sym->getAST()->getErrorHandler()->getSym()->getCodeGen();
         ErrorHandler = CGE->getValue();
         llvm::Value *ErrorKind = CGM->Builder->CreateInBoundsGEP(CGE->getType(), ErrorHandler, {Zero32, Zero32});
         llvm::Value *Ret = CGM->Builder->CreateICmpNE(CGM->Builder->CreateLoad(ErrorKind), Zero8);

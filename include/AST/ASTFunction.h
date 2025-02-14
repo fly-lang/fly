@@ -29,8 +29,6 @@ class SymFunctionBase;
         friend class ParserFunction;
         friend class ParserClass;
 
-        SymFunctionBase *Def;
-
         llvm::StringRef Name;
 
         // Function return type

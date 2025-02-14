@@ -855,7 +855,7 @@ ASTRef *SemaResolver::ResolveCall(ASTStmt *Stmt, ASTCall *Call, llvm::SmallVecto
         } else if (Parent->getStmtKind() == ASTStmtKind::STMT_HANDLE) {
             ASTHandleStmt *HandleStmt = static_cast<ASTHandleStmt*>(Parent);
             if (HandleStmt->ErrorHandlerRef != nullptr) {
-                Call->ErrorHandler->Var = *HandleStmt->ErrorHandlerRef->Var;
+                Call->ErrorHandler->Sym = *HandleStmt->ErrorHandlerRef->Var;
             }
         }
     }
@@ -931,7 +931,7 @@ ASTRef *SemaResolver:: ResolveRef(ASTStmt *Stmt, ASTRef *Ref, llvm::SmallVector<
 			ASTBlockStmt *Block = static_cast<ASTBlockStmt*>(Stmt);
 			const auto &It = Block->getLocalVars().find(Ref->getName());
 			if (It != Block->getLocalVars().end()) { // Search into this Block
-				Var = It->getValue()->getVar();
+				Var = It->getValue()->getSym();
 			}
 		}
 
@@ -950,7 +950,7 @@ ASTRef *SemaResolver:: ResolveRef(ASTStmt *Stmt, ASTRef *Ref, llvm::SmallVector<
 			llvm::SmallVector<ASTVar *, 8> Params = Stmt->getFunction()->getParams();
 			for (auto &Param : Params) {
 				if (Param->getName() == Ref->getName()) {
-					Var = Param->getVar();
+					Var = Param->getSym();
 				}
 			}
 		}

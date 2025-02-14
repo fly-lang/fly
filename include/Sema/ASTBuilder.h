@@ -337,9 +337,9 @@ namespace fly {
 
         ASTCall *CreateCall(const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTExpr *, 8> &Args, ASTCallKind CallKind, ASTRef *Parent = nullptr);
 
-        ASTCall *CreateCall(ASTFunction *Function, llvm::SmallVector<ASTExpr *, 8> &Args);
+        ASTCall *CreateCall(llvm::StringRef Name, llvm::SmallVector<ASTExpr *, 8> &Args);
 
-        ASTCall *CreateCall(ASTRef *Instance, ASTFunction *Method);
+        ASTCall *CreateCall(ASTRef *Instance, llvm::StringRef Name, llvm::SmallVector<ASTExpr *, 8> &Args);
 
         // Create VarRef
         ASTVarRef *CreateVarRef(ASTRef *Ref);

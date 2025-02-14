@@ -23,6 +23,7 @@
 #include "AST/ASTTypeRef.h"
 #include "Basic/Diagnostic.h"
 
+#include <AST/ASTExpr.h>
 #include <Sym/SymClass.h>
 #include <Sym/SymEnum.h>
 #include <Sym/SymGlobalVar.h>

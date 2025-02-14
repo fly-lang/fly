@@ -18,8 +18,8 @@ ASTVar::ASTVar(const SourceLocation &Loc, ASTTypeRef *TypeRef, llvm::StringRef N
 
 }
 
-SymVar * ASTVar::getVar() const {
-	return Var;
+SymVar * ASTVar::getSym() const {
+	return Sym;
 }
 
 ASTTypeRef *ASTVar::getTypeRef() const {

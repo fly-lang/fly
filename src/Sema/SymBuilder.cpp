@@ -187,7 +187,7 @@ SymGlobalVar * SymBuilder::CreateGlobalVar(SymModule *Module, ASTVar *AST) {
 	}
 
 	Module->GlobalVars.insert(std::make_pair(AST->getName(), GlobalVar));
-	AST->Var = GlobalVar;
+	AST->Sym = GlobalVar;
 
 	// Check and set GlobalVar Scopes
 	for (auto Scope : AST->getScopes()) {
@@ -234,7 +234,6 @@ SymFunction * SymBuilder::CreateFunction(SymModule *Module, ASTFunction *AST) {
 	}
 
 	Module->Functions.insert(std::make_pair(MangledName, Function));
-	AST->Def = Function;
 
 	// Check and set Function Scopes
 	for (auto Scope : AST->getScopes()) {
@@ -315,7 +314,7 @@ SymClassAttribute * SymBuilder::CreateClassAttribute(SymClass *Class, ASTVar *AS
 	SymClassAttribute *Attribute = new SymClassAttribute(AST);
 
 	Class->Attributes.insert(std::make_pair(AST->getName(), Attribute));
-	AST->Var = Attribute;
+	AST->Sym = Attribute;
 	Attribute->Comment = Comment;
 
 	FLY_DEBUG_END("SymBuilder", "CreateClassAttribute");
@@ -336,7 +335,6 @@ SymClassMethod * SymBuilder::CreateClassFunction(SymClass *Class, ASTFunction *A
 	// 	Class.Constructors.clear();
 	// }
 
-	AST->Def = Method;
 	Method->Comment = Comment;
 
 	FLY_DEBUG_END("SymBuilder", "CreateClassFunction");

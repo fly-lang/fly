@@ -11,10 +11,8 @@
 #define FLY_SEMA_VALIDATOR_H
 
 #include <AST/ASTEnum.h>
-
 #include "AST/ASTTypeRef.h"
 #include "AST/ASTVar.h"
-#include "map"
 
 namespace fly {
 
@@ -34,6 +32,7 @@ namespace fly {
     class SymClass;
     class SymEnum;
     class SymComment;
+    class ASTValue;
     enum class SymTypeKind;
 
     class SemaValidator {

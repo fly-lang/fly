@@ -34,7 +34,7 @@ namespace fly {
         friend class SemaResolver;
         friend class SemaValidator;
 
-        SymVar* Var = nullptr;
+        SymVar* Sym = nullptr;
 
         ASTTypeRef* TypeRef;
 
@@ -48,7 +48,7 @@ namespace fly {
         ASTVar(const SourceLocation& Loc, ASTTypeRef* Type, llvm::StringRef Name, SmallVector<ASTScope*, 8>& Scopes);
 
     public:
-        SymVar* getVar() const;
+        SymVar* getSym() const;
 
         ASTTypeRef* getTypeRef() const;
 

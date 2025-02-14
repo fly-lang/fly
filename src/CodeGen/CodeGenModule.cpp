@@ -46,6 +46,7 @@
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Value.h"
 
+#include <AST/ASTExpr.h>
 #include <AST/ASTTypeRef.h>
 #include <AST/ASTVar.h>
 #include <CodeGen/CharUnits.h>
@@ -774,9 +775,9 @@ llvm::Value *CodeGenModule::GenCall(ASTCall *Call) {
     if (Call->getFunction()->getKind() == SymFunctionKind::METHOD) {
         SymClassMethod *Method = static_cast<SymClassMethod *>(Call->getFunction());
         if (Method->getClass()->getClassKind() != SymClassKind::STRUCT)
-            Args.push_back(Call->getErrorHandler()->getVar()->getCodeGen()->getValue()); // Error is a Pointer
+            Args.push_back(Call->getErrorHandler()->getSym()->getCodeGen()->getValue()); // Error is a Pointer
     } else {
-        Args.push_back(Call->getErrorHandler()->getVar()->getCodeGen()->getValue()); // Error is a Pointer
+        Args.push_back(Call->getErrorHandler()->getSym()->getCodeGen()->getValue()); // Error is a Pointer
     }
 
     // Take the CGI Value and pass to Call as first argument
@@ -969,7 +970,7 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
         		Parent = Parent->getParent();
         		if (Parent == nullptr) {
         			// Set Function ErrorHandler with Fail
-        			CodeGenError *CGE = static_cast<CodeGenError *>(FailStmt->getFunction()->getErrorHandler()->getVar()->getCodeGen());
+        			CodeGenError *CGE = static_cast<CodeGenError *>(FailStmt->getFunction()->getErrorHandler()->getSym()->getCodeGen());
         			GenFailStmt(FailStmt, CGE);
 
         			// Generate Return with default value for stop execution flow

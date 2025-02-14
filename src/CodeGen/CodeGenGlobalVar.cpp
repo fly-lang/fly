@@ -17,6 +17,7 @@
 #include "AST/ASTValue.h"
 #include "AST/ASTScopes.h"
 
+#include <AST/ASTExpr.h>
 #include <Sym/SymGlobalVar.h>
 
 using namespace fly;

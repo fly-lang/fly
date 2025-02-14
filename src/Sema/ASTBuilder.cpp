@@ -807,24 +807,21 @@ ASTCall *ASTBuilder::CreateCall(const SourceLocation &Loc, llvm::StringRef Name,
  * @param Function
  * @return
  */
-ASTCall *ASTBuilder::CreateCall(ASTFunction *Function, llvm::SmallVector<ASTExpr *, 8> &Args) {
+ASTCall *ASTBuilder::CreateCall(llvm::StringRef Name, llvm::SmallVector<ASTExpr *, 8> &Args) {
 	FLY_DEBUG_START("ASTBuilder", "CreateCall");
 
 	const SourceLocation &Loc = SourceLocation();
-	ASTCall *Call = CreateCall(Loc, StringRef(), Args, ASTCallKind::CALL_FUNCTION);
-	Call->Function = &Function->Def;
-	Call->Resolved = true;
+	ASTCall *Call = CreateCall(Loc, Name, Args, ASTCallKind::CALL_FUNCTION);
 
 	FLY_DEBUG_END("ASTBuilder", "CreateCall");
 	return Call;
 }
 
-ASTCall *ASTBuilder::CreateCall(ASTRef *Instance, ASTFunction *Method) {
+ASTCall *ASTBuilder::CreateCall(ASTRef *Instance, llvm::StringRef Name, llvm::SmallVector<ASTExpr *, 8> &Args) {
     FLY_DEBUG_START("ASTBuilder", "CreateCall");
 
-    ASTCall *Call = new ASTCall(SourceLocation(), Method->getName());
+    ASTCall *Call = CreateCall(Instance->getLocation(), Name, Args, ASTCallKind::CALL_FUNCTION);
     Call->Parent = Instance;
-    Call->Function = &Method->Def;
 
 	FLY_DEBUG_END("ASTBuilder", "CreateCall");
     return Call;
@@ -851,7 +848,7 @@ ASTVarRef *ASTBuilder::CreateVarRef(ASTVar *Var) {
 
 	ASTVarRef *VarRef = new ASTVarRef(Var->getLocation(), Var->getName());
 	VarRef->Resolved = true;
-	VarRef->Var = &Var->Var;
+	VarRef->Var = &Var->Sym;
 
 	FLY_DEBUG_END("ASTBuilder", "CreateVarRef");
 	return VarRef;
