@@ -20,6 +20,7 @@
 #include "llvm/IR/Function.h"
 #include "llvm/ADT/StringRef.h"
 
+#include <AST/ASTVar.h>
 #include <Sym/SymModule.h>
 #include <Sym/SymNameSpace.h>
 #include <Sym/SymType.h>
@@ -48,7 +49,7 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, SymFunction *Sym, bool isEx
     Fn = llvm::Function::Create(FnType, llvm::GlobalValue::ExternalLinkage, Id, CGM->getModule());
 
     // Set Linkage
-    if (isExternal && Sym->getVisibility() == ASTVisibilityKind::V_PRIVATE) {
+    if (isExternal && Sym->getVisibility() == SymVisibilityKind::PRIVATE) {
         Fn->setLinkage(GlobalValue::LinkageTypes::InternalLinkage);
     }
 }
@@ -81,7 +82,7 @@ void CodeGenFunction::GenBody() {
         llvm::Value *Zero32 = llvm::ConstantInt::get(CGM->Int32Ty, 0);
         llvm::Value *Zero8 = llvm::ConstantInt::get(CGM->Int8Ty, 0);
         // take return value from error struct
-        CodeGenError *CGE = (CodeGenError *) Sym->getAST()->getErrorHandler()->getCodeGen();
+        CodeGenError *CGE = (CodeGenError *) Sym->getAST()->getErrorHandler()->getVar()->getCodeGen();
         ErrorHandler = CGE->getValue();
         llvm::Value *ErrorKind = CGM->Builder->CreateInBoundsGEP(CGE->getType(), ErrorHandler, {Zero32, Zero32});
         llvm::Value *Ret = CGM->Builder->CreateICmpNE(CGM->Builder->CreateLoad(ErrorKind), Zero8);

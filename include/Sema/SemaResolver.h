@@ -134,19 +134,19 @@ namespace fly {
 
         bool ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr, SymType *Type = nullptr);
 
-        ASTRef *ResolveCall(ASTStmt *Stmt, ASTCall *Call, SymNameSpace *NameSpaces...);
+        ASTRef *ResolveCall(ASTStmt *Stmt, ASTCall *Call, llvm::SmallVector<SymNameSpace *, 4> &NameSpaces);
 
         llvm::SmallVector<SymType *, 8> ResolveCallArgTypes(ASTStmt *Stmt, ASTCall *Call);
 
         ASTRef *ResolveRef(ASTStmt *Stmt, ASTRef *Ref);
 
-        ASTRef *ResolveRef(ASTStmt *Stmt, ASTRef *Ref, SymNameSpace *NameSpaces...);
+        ASTRef *ResolveRef(ASTStmt *Stmt, ASTRef *Ref, llvm::SmallVector<SymNameSpace *, 4> &NameSpaces);
 
         ASTRef *ResolveRef(ASTStmt *Stmt, SymType *Type, ASTRef *Ref);
 
         ASTRef *ResolveRef(ASTStmt *Stmt, SymVar *Var, ASTRef *Ref);
 
-        SymType *FindType(llvm::StringRef Name, SymNameSpace *NameSpaces...) const;
+        SymType *FindType(llvm::StringRef Name, llvm::SmallVector<SymNameSpace *, 4> &NameSpaces) const;
     };
 
 } // end namespace fly

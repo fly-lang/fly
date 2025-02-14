@@ -31,6 +31,6 @@ CodeGenGlobalVar *SymGlobalVar::getCodeGen() const {
 	return CodeGen;
 }
 
-void SymGlobalVar::setCodeGen(CodeGenGlobalVar *CG) {
-	CodeGen = CG;
+void SymGlobalVar::setCodeGen(CodeGenVarBase *CGV) {
+	this->CodeGen = static_cast<CodeGenGlobalVar *>(CGV);
 }

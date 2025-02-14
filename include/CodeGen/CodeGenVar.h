@@ -32,7 +32,7 @@ namespace fly {
 
         CodeGenVar *Parent = nullptr;
 
-        llvm::StringMap<CodeGenVar *> Vars;
+        llvm::StringMap<CodeGenVarBase *> Vars;
 
         llvm::Type *T = nullptr;
 
@@ -67,7 +67,7 @@ namespace fly {
 
         llvm::Value *getPointer() override;
 
-        void addVar(llvm::StringRef Name, CodeGenVar *CGV);
+        void addVar(llvm::StringRef Name, CodeGenVarBase *CGV);
     };
 }
 

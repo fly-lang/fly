@@ -178,7 +178,7 @@ void SemaResolver::AddEnum(ASTEnum *AST, SymComment *Comment) {
  * ResolveModule Import Definitions
  */
 void SemaResolver::ResolveImports() {
-	for (auto Entry : Module->getImports()) {
+	for (auto &Entry : Module->Imports) {
 
 		SymNameSpace *Import = S.getSymTable().getNameSpaces().lookup(Entry.getKey());
 		if (!Import) {
@@ -203,7 +203,7 @@ void SemaResolver::ResolveComment(SymComment *Comment, ASTBase* AST) {
  * Resolve Module GlobalVar Definitions
  */
 void SemaResolver::ResolveGlobalVars() {
-	for (auto Entry : Module->getGlobalVars()) {
+	for (auto &Entry : Module->getGlobalVars()) {
 		SymGlobalVar *Sym = Entry.getValue();
 		ASTVar *AST = Sym->getAST();
 
@@ -225,7 +225,7 @@ void SemaResolver::ResolveGlobalVars() {
  * Resolve Module Function Definitions
  */
 void SemaResolver::ResolveFunctions() {
-	for (auto Entry : Module->getFunctions()) {
+	for (auto &Entry : Module->getFunctions()) {
 		SymFunction *Sym = Entry.getValue();
 		ASTFunction *AST = Sym->getAST();
 
@@ -257,7 +257,7 @@ void SemaResolver::ResolveFunctions() {
  */
 void SemaResolver::ResolveClasses() {
 	// FIXME resolve inherity by resolving base class on first
-	for (auto ClassEntry : Module->getClasses()) {
+	for (auto &ClassEntry : Module->getClasses()) {
 		SymClass *Sym = ClassEntry.getValue();
 
 		// Create default Constructor if it needs
@@ -314,7 +314,7 @@ void SemaResolver::ResolveClasses() {
 					}
 
 					// Add Vars to the Struct
-					for (auto SuperAttributeEntry: SuperClass->getAttributes()) {
+					for (auto &SuperAttributeEntry: SuperClass->getAttributes()) {
 						SymClassAttribute * SuperAttribute = SuperAttributeEntry.getValue();
 
 						// Check Var already exists and type conflicts in Super Vars
@@ -381,7 +381,7 @@ void SemaResolver::ResolveClasses() {
 		if (Sym->getClassKind() == SymClassKind::INTERFACE || Sym->getClassKind() == SymClassKind::STRUCT) {
 
 			// Init null value attributes with default values
-			for (auto AttributeEntry : Sym->Attributes) {
+			for (auto &AttributeEntry : Sym->getAttributes()) {
 				SymClassAttribute *Attribute = AttributeEntry.getValue();
 				// Generate default values
 				if (Attribute->getAST()->getExpr() == nullptr) {
@@ -400,7 +400,7 @@ void SemaResolver::ResolveClasses() {
 		//                }
 
 		// Constructors
-		for (auto ConstructorEntry: Sym->Constructors) {
+		for (auto &ConstructorEntry: Sym->getConstructors()) {
 
 			// Resolve Attribute types
 			for (auto &Attribute: Sym->Attributes) {
@@ -410,7 +410,7 @@ void SemaResolver::ResolveClasses() {
 		}
 
 		// Methods
-		for (auto MethodEntry : Sym->Methods) {
+		for (auto &MethodEntry : Sym->getMethods()) {
 			SymClassMethod * Method = MethodEntry.getValue();
 
 			// Add Class vars for each Method
@@ -430,7 +430,7 @@ void SemaResolver::ResolveClasses() {
 }
 
 void SemaResolver::ResolveEnums() {
-	for (auto Entry : Module->getEnums()) {
+	for (auto &Entry : Module->getEnums()) {
 		SymEnum *Sym = Entry.getValue();
 
 		if (Sym->Comment) {
@@ -471,7 +471,7 @@ bool SemaResolver::ResolveTypeRef(ASTTypeRef *&TypeRef) {
 
 			// Resolve by Imports
 			ASTRef *Parent = nullptr;
-			for (auto ImportEntry : Module->getImports()) {
+			for (auto &ImportEntry : Module->getImports()) {
 				SymNameSpace * Import = ImportEntry.getValue();
 				if (!TypeRef->Type)
 					TypeRef->Type = Import->getTypes().lookup(TypeRef->getParent()->getName());
@@ -794,53 +794,51 @@ bool SemaResolver::ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr, SymType *Type) {
  * @param ...
  * @return
  */
-ASTRef *SemaResolver::ResolveCall(ASTStmt *Stmt, ASTCall *Call, SymNameSpace *NameSpaces...) {
+ASTRef *SemaResolver::ResolveCall(ASTStmt *Stmt, ASTCall *Call, llvm::SmallVector<SymNameSpace *, 4> &NameSpaces) {
     FLY_DEBUG_MESSAGE("Sema", "ResolveCall", Logger().Attr("Call", Call).End());
     assert(Stmt && "Stmt cannot be null");
     assert(Call && "Call cannot be null");
 
     if (Call->isResolved() == false) {
 
-    	for (auto NS : NameSpaces) {
+    	// Resolve Expression in Arguments
+    	llvm::SmallVector<SymType *, 8> CallTypes = ResolveCallArgTypes(Stmt, Call);
 
-    		// Resolve Expression in Arguments
-    		llvm::SmallVector<SymType *, 8> CallTypes = ResolveCallArgTypes(Stmt, Call);
+    	// if Arguments are not resolved is not possible go ahead with call reference resolution
+    	// cannot resolve with the function parameters types
+    	std::string Mangled = SymFunctionBase::MangleFunction(Call->Name, CallTypes);
 
-    		// if Arguments are not resolved is not possible go ahead with call reference resolution
-    		// cannot resolve with the function parameters types
-    		std::string Mangled = SymFunctionBase::MangleFunction(Call->Name, CallTypes);
+    	// Constructor
+        if (Call->getCallKind() == ASTCallKind::CALL_NEW ||
+            Call->getCallKind() == ASTCallKind::CALL_NEW_UNIQUE ||
+            Call->getCallKind() == ASTCallKind::CALL_NEW_SHARED ||
+            Call->getCallKind() == ASTCallKind::CALL_NEW_WEAK) {
 
-    		// Constructor
-            if (Call->getCallKind() == ASTCallKind::CALL_NEW ||
-                Call->getCallKind() == ASTCallKind::CALL_NEW_UNIQUE ||
-                Call->getCallKind() == ASTCallKind::CALL_NEW_SHARED ||
-                Call->getCallKind() == ASTCallKind::CALL_NEW_WEAK) {
-
-                // Take the Type from the NameSpace
-                SymType *Type = FindType(Call->getName(), NS);
-                if (Type && Type->isClass()) {
-					SymClass *Class = static_cast<SymClass *>(Type);
-					SymClassMethod *Constructor = Class->getConstructors().lookup(Mangled);
-
-                	if (Call->Child)
-                		return ResolveRef(Type, Call->Child, NS);
-                	Call->Function = &Constructor;
-                	Call->Resolved = true;
-                }
-            } else {
-
-                // Take the Function
-                SymFunction *Func = NS->getFunctions().lookup(Mangled);
-                if (Func) {
-                	if (Call->Child)
-                		return ResolveRef(Func->getReturnType(), Call->Child, NS);
-                	Call->Function = &Func;
-                	Call->Resolved = true;
-                }
+            // Take the Type from the NameSpace
+            SymType *Type = FindType(Call->getName(), NameSpaces);
+            if (Type && Type->isClass()) {
+				SymClass *Class = static_cast<SymClass *>(Type);
+				SymFunctionBase *Constructor = Class->getConstructors().lookup(Mangled);
+                Call->Function = &Constructor;
+                Call->Resolved = true;
+                if (Call->Child)
+                	return ResolveRef(Stmt, Type, Call->Child);
             }
+        } else {
 
-    		return Call;
-    	}
+        	for (auto &NS : NameSpaces) {
+        		// Take the Function
+        		SymFunctionBase *Func = NS->getFunctions().lookup(Mangled);
+        		if (Func) {
+        			Call->Function = &Func;
+        			Call->Resolved = true;
+        			if (Call->Child)
+        				return ResolveRef(Stmt, Func->getReturnType(), Call->Child);
+        		}
+        	}
+        }
+
+    	return Call;
     }
 
     // VarRef not found in Module, namespace and Module imports
@@ -891,7 +889,9 @@ ASTRef *SemaResolver:: ResolveRef(ASTStmt *Stmt, ASTRef *Ref) {
 			Current = Current->getParent();
 		}
 
-		return ResolveRef(Stmt, Current, NameSpace, Default);
+		// Resolve from top-bottom
+		SmallVector<SymNameSpace *, 4> NameSpaces = llvm::SmallVector<SymNameSpace *, 4>{NameSpace, Default};
+		return ResolveRef(Stmt, Current, NameSpaces);
 	}
 	return Ref;
 }
@@ -904,7 +904,7 @@ ASTRef *SemaResolver:: ResolveRef(ASTStmt *Stmt, ASTRef *Ref) {
  * @param ...
  * @return
  */
-ASTRef *SemaResolver:: ResolveRef(ASTStmt *Stmt, ASTRef *Ref, SymNameSpace *NameSpaces...) {
+ASTRef *SemaResolver:: ResolveRef(ASTStmt *Stmt, ASTRef *Ref, llvm::SmallVector<SymNameSpace *, 4> &NameSpaces) {
 	if (!Ref->Resolved) {
 
 		// Ref is a Function defined in Default NameSpace?
@@ -916,7 +916,8 @@ ASTRef *SemaResolver:: ResolveRef(ASTStmt *Stmt, ASTRef *Ref, SymNameSpace *Name
 		SymNameSpace *CurrentNameSpace = S.getSymTable().getNameSpaces().lookup(Ref->getName());
 		if (CurrentNameSpace) {
 			// Check Import
-			return ResolveRef(Stmt, Ref->Child, CurrentNameSpace);
+			NameSpaces.push_back(CurrentNameSpace);
+			return ResolveRef(Stmt, Ref->Child, NameSpaces);
 		}
 
 		// Ref is a Class or an Enum defined in Module or Default NameSpace?
@@ -964,13 +965,13 @@ ASTRef *SemaResolver:: ResolveRef(ASTStmt *Stmt, ASTRef *Ref, SymNameSpace *Name
 		}
 
 		if (Var) {
+			Ref = S.getASTBuilder().CreateVarRef(Ref);
+			static_cast<ASTVarRef *>(Ref)->Var = &Var;
+			Ref->Resolved = true;
 			if (Ref->Child)
 				return ResolveRef(Stmt, Var, Ref->Child);
 
-			ASTVarRef *Result = S.getASTBuilder().CreateVarRef(Ref->getLocation(), Ref->getName(), Ref->getParent());
-			Result->Var = &Var;
-			Result->Resolved = true;
-			return Result;
+			return Ref;
 		}
 	}
 
@@ -998,19 +999,19 @@ ASTRef *SemaResolver:: ResolveRef(ASTStmt *Stmt, SymType *Type, ASTRef *Ref) {
 				std::string Mangled = SymFunctionBase::MangleFunction(Call->getName(), CallTypes);
 				SymFunctionBase* Method = Class->getMethods().lookup(Mangled);
 				if (Method) {
+					Call->Function = &Method;
+					Call->Resolved = true;
 					if (Ref->Child)
 						return ResolveRef(Stmt, Method->getReturnType(), Ref->Child);
-                    Call->Function = &Method;
-                    Call->Resolved = true;
                 }
 			} else { // static var
 				SymVar *Var = Class->getAttributes().lookup(Ref->getName());
 				if (Var && static_cast<SymClassAttribute *>(Var)->isStatic()) {
-					if (Ref->Child)
-						return ResolveRef(Stmt, Var, Ref->Child);
-					Ref = S.getASTBuilder().CreateVarRef(Ref->getLocation(), Ref->getName(), Ref->getParent());
+					Ref = S.getASTBuilder().CreateVarRef(Ref);
 					static_cast<ASTVarRef *>(Ref)->Var = &Var;
 					Ref->Resolved = true;
+					if (Ref->Child)
+						return ResolveRef(Stmt, Var, Ref->Child);
 				}
 			}
         } else if (Type->isEnum()) {
@@ -1019,11 +1020,11 @@ ASTRef *SemaResolver:: ResolveRef(ASTStmt *Stmt, SymType *Type, ASTRef *Ref) {
             SymEnum *Enum = static_cast<SymEnum *>(Type);
             SymVar *Var = Enum->getEntries().lookup(Ref->getName());
             if (Var) {
+            	Ref = S.getASTBuilder().CreateVarRef(Ref);
+            	static_cast<ASTVarRef *>(Ref)->Var = &Var;
+            	Ref->Resolved = true;
             	if (Ref->Child)
                     return ResolveRef(Stmt, Var, Ref->Child);
-            	Ref = S.getASTBuilder().CreateVarRef(Ref->getLocation(), Ref->getName(), Ref->getParent());
-                static_cast<ASTVarRef *>(Ref)->Var = &Var;
-                Ref->Resolved = true;
             }
         }
 	}
@@ -1047,18 +1048,19 @@ ASTRef *SemaResolver:: ResolveRef(ASTStmt *Stmt, SymVar *Var, ASTRef *Ref) {
 				SmallVector<SymType *, 8> CallTypes = ResolveCallArgTypes(Stmt, Call);
 				std::string Mangled = SymFunctionBase::MangleFunction(Call->getName(), CallTypes);
 				SymFunctionBase* Method = Class->getMethods().lookup(Mangled);
-				if (Ref->Child)
-					return ResolveRef(Stmt, Method->getReturnType(), Ref->Child);
 				Call->Function = &Method;
 				Ref->Resolved = true;
+				if (Ref->Child)
+					return ResolveRef(Stmt, Method->getReturnType(), Ref->Child);
 			} else {
 				// instance var
 				SymVar *Attribute = Class->getAttributes().lookup(Ref->getName());
-				if (Ref->Child)
-					return ResolveRef(Stmt, Var, Ref->Child);
-				Ref = S.getASTBuilder().CreateVarRef(Ref->getLocation(), Ref->getName(), Ref->getParent());
+				Ref = S.getASTBuilder().CreateVarRef(Ref);
 				static_cast<ASTVarRef *>(Ref)->Var = &Attribute;
 				Ref->Resolved = true;
+				if (Ref->Child)
+					return ResolveRef(Stmt, Var, Ref->Child);
+				return Ref;
 			}
 		} else {
 			// Error: no child found from Ref
@@ -1068,10 +1070,11 @@ ASTRef *SemaResolver:: ResolveRef(ASTStmt *Stmt, SymVar *Var, ASTRef *Ref) {
 	}
 }
 
-SymType * SemaResolver::FindType(llvm::StringRef Name, SymNameSpace *NameSpaces...) const {
+SymType * SemaResolver::FindType(llvm::StringRef Name, llvm::SmallVector<SymNameSpace *, 4> &NameSpaces) const {
 	for (auto &NS : NameSpaces) {
 		SymType *Type = NS->getTypes().lookup(Name);
 		if (Type)
 			return Type;
 	}
+	return nullptr;
 }

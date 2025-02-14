@@ -27,6 +27,6 @@ CodeGenEnumEntry * SymEnumEntry::getCodeGen() const {
 	return CodeGen;
 }
 
-void SymEnumEntry::setCodeGen(CodeGenEnumEntry *CodeGen) {
-	this->CodeGen = CodeGen;
+void SymEnumEntry::setCodeGen(CodeGenVarBase *CGV) {
+	this->CodeGen = static_cast<CodeGenEnumEntry *>(CGV);
 }

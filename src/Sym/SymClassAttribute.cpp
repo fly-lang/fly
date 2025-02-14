@@ -23,8 +23,8 @@ CodeGenClassVar * SymClassAttribute::getCodeGen() const {
 	return CodeGen;
 }
 
-void SymClassAttribute::setCodeGen(CodeGenClassVar *CodeGen) {
-	this->CodeGen = CodeGen;
+void SymClassAttribute::setCodeGen(CodeGenVarBase *CodeGen) {
+	this->CodeGen = static_cast<CodeGenClassVar *>(CodeGen);
 }
 
 SymComment * SymClassAttribute::getComment() const {

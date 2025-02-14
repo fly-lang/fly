@@ -33,10 +33,10 @@ CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, SymGlobalVar* Sym, bool i
         if (Sym->getVisibility() == SymVisibilityKind::PRIVATE) {
             Linkage = GlobalValue::LinkageTypes::InternalLinkage;
         }
-        if (Sym->getExpr() == nullptr) {
+        if (Sym->getAST()->getExpr() == nullptr) {
             Const = CGM->GenDefaultValue(Sym->getType(), Ty);
         } else {
-            ASTValue *Value = ((ASTValueExpr *) Sym->getExpr())->getValue();
+            ASTValue *Value = ((ASTValueExpr *) Sym->getAST()->getExpr())->getValue();
             if (Sym->getType()->isString()) {
                 llvm::StringRef Str = ((ASTStringValue *) Value)->getValue();
                 Const = llvm::ConstantDataArray::getString(CGM->LLVMCtx, Str);

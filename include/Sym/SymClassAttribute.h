@@ -12,6 +12,7 @@
 
 #include "Sym/SymVar.h"
 #include "CodeGen/CodeGenClassVar.h"
+#include "CodeGen/CodeGenVarBase.h"
 
 namespace fly {
 
@@ -44,7 +45,7 @@ namespace fly {
 
     	CodeGenClassVar *getCodeGen() const override;
 
-        void setCodeGen(CodeGenClassVar* CodeGen);
+        void setCodeGen(CodeGenVarBase* CodeGen) override;
 
         SymComment *getComment() const;
 

@@ -9,6 +9,7 @@
 
 #ifndef FLY_SYM_VAR_H
 #define FLY_SYM_VAR_H
+#include <CodeGen/CodeGenError.h>
 
 
 namespace fly {
@@ -55,6 +56,7 @@ namespace fly {
 
     	virtual CodeGenVarBase *getCodeGen() const = 0;
 
+        virtual void setCodeGen(CodeGenVarBase * CGVar) = 0;
     };
 
 }

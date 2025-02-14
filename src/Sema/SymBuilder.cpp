@@ -426,7 +426,7 @@ SymTypeFP * SymBuilder::CreateFPType(SymFPTypeKind FPKind) {
 	return Type;
 }
 
-SymTypeArray * SymBuilder::CreateArrayType(SymType *Type, ASTExpr *Expr) {
+SymTypeArray * SymBuilder::CreateArrayType(SymType *Type, ASTExpr *Size) {
 	FLY_DEBUG_START("SymBuilder", "CreateArrayType");
 
 	SymTypeArray * TypeArray = new SymTypeArray(Type, Size);

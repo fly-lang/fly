@@ -41,7 +41,7 @@ namespace fly {
 
     	CodeGenEnumEntry *getCodeGen() const override;
 
-        void setCodeGen(CodeGenEnumEntry * CodeGen);
+        void setCodeGen(CodeGenVarBase * CGC) override;
     };
 
 }  // end namespace fly

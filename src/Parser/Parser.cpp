@@ -1051,7 +1051,7 @@ ASTVarRef * Parser::ParseVarRef() {
 		return nullptr;
 	}
 
-	ASTVarRef * VarRef = Builder.CreateVarRef(Ref->getLocation(), Ref->getName(), Ref->getParent());
+	ASTVarRef * VarRef = Builder.CreateVarRef(Ref);
 
 	FLY_DEBUG_END("Parser", "ParseVarRef");
 	return VarRef;
@@ -1119,7 +1119,7 @@ ASTCall *Parser::ParseCall(const SourceLocation &Loc, llvm::StringRef Name, ASTR
 ASTRef * Parser::ParseCallOrVarRef() {
 	ASTRef * Ref = ParseRef();
 	if (!Ref->isCall()) {
-		return Builder.CreateVarRef(Ref->getLocation(), Ref->getName(), Ref->getParent());
+		return Builder.CreateVarRef(Ref);
 	}
 }
 

@@ -86,6 +86,6 @@ llvm::Value *CodeGenVar::getPointer() {
     return this->Pointer;
 }
 
-void CodeGenVar::addVar(StringRef Name, CodeGenVar *CGV) {
+void CodeGenVar::addVar(StringRef Name, CodeGenVarBase *CGV) {
     Vars.insert(std::make_pair(Name, CGV));
 }

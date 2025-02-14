@@ -24,6 +24,8 @@
 #include "llvm/ADT/StringRef.h"
 
 #include <AST/ASTTypeRef.h>
+#include <CodeGen/CodeGenVar.h>
+#include <Sym/SymClass.h>
 
 using namespace fly;
 
@@ -80,7 +82,7 @@ void CodeGenFunctionBase::setInsertPoint() {
 void CodeGenFunctionBase::AllocaErrorHandler() {
     // Alloca ErrorHandler
     CodeGenError *CGE = CGM->GenErrorHandler(Sym->getAST()->getErrorHandler());
-    Sym->getAST()->getErrorHandler()->setCodeGen(CGE);
+    Sym->getAST()->getErrorHandler()->getVar()->setCodeGen(CGE);
 }
 
 void CodeGenFunctionBase::AllocaLocalVars() {
@@ -89,34 +91,32 @@ void CodeGenFunctionBase::AllocaLocalVars() {
     for (auto Param: Sym->getAST()->getParams()) {
         CodeGenVar *CGV = CGM->GenLocalVar(Param);
         CGV->Alloca();
-        Param->setCodeGen(CGV);
+        Param->getVar()->setCodeGen(CGV);
     }
 
     // Allocation of all declared ASTVar
-    for (auto &LocalVar: Sym->getLocalVars()) {
-    	if (LocalVar->getType()->isError()) {
+    for (auto &LocalVar: Sym->getAST()->getLocalVars()) {
+    	if (LocalVar->getVar()->getType()->isError()) {
     		CodeGenError *CGE = CGM->GenErrorHandler(LocalVar);
-    		LocalVar->setCodeGen(CGE);
+    		LocalVar->getVar()->setCodeGen(CGE);
 		} else {
     		CodeGenVar *CGV = CGM->GenLocalVar(LocalVar);
     		CGV->Alloca();
 
     		// Create CodeGenVar for all inner attributes of a class
-    		if (LocalVar->getType()->isIdentity()) {
-    			ASTRefType *IdentityType = (ASTRefType *) LocalVar->getType();
-    			if (IdentityType->isClass()) {
-    				ASTClass * Class =  (ASTClass *) IdentityType->getDef();
-    				// Class start with param 0 with the vtable type
-    				uint32_t Idx = Class->getClassKind() == ASTClassKind::STRUCT ? 0 : 1;
-    				for (auto &Attribute : Class->getAttributes()) {
-    					CodeGenVar *CGAttr = new CodeGenVar(CGM, CGM->GenType(Attribute->getType()), CGV, Idx);
-    					CGV->addVar(Attribute->getName(), CGAttr);
-    					Attribute->setCodeGen(CGAttr);
-    					Idx++;
-    				}
+    		if (LocalVar->getVar()->getType()->isClass()) {
+    			SymClass *Class = static_cast<SymClass *>(LocalVar->getVar()->getType());
+    			// Class start with param 0 with the vtable type
+    			uint32_t Idx = Class->getClassKind() == SymClassKind::STRUCT ? 0 : 1;
+    			for (auto &Entry : Class->getAttributes()) {
+    				SymClassAttribute *Attribute = Entry.getValue();
+    				CodeGenClassVar *CGAttr = new CodeGenClassVar(CGM, CGM->GenType(Attribute->getType()), CGV, Idx);
+    				CGV->addVar(Attribute->getAST()->getName(), CGAttr);
+    				Attribute->setCodeGen(CGAttr);
+    				Idx++;
     			}
     		}
-			LocalVar->setCodeGen(CGV);
+			LocalVar->getVar()->setCodeGen(CGV);
     	}
     }
 }
@@ -127,7 +127,7 @@ void CodeGenFunctionBase::StoreErrorHandler(bool isMain) {
         llvm::Constant *One = llvm::ConstantInt::get(CGM->Int32Ty, 1);
         llvm::Constant *Two = llvm::ConstantInt::get(CGM->Int32Ty, 2);
         llvm::Constant *NullPtr = llvm::ConstantPointerNull::get(CGM->Int8Ty->getPointerTo());
-        CodeGenVarBase *CGE = Sym->getErrorHandler()->getCodeGen();
+        CodeGenVarBase *CGE = Sym->getAST()->getErrorHandler()->getVar()->getCodeGen();
         llvm::Value *ErrorVar = CGE->Load();
         llvm::Value *PtrType = CGM->Builder->CreateInBoundsGEP(CGE->getType(), ErrorVar, {Zero, Zero});
         CGM->Builder->CreateStore(llvm::ConstantInt::get(CGM->Int8Ty, 0), PtrType);
@@ -136,7 +136,7 @@ void CodeGenFunctionBase::StoreErrorHandler(bool isMain) {
         llvm::Value *PtrPtr = CGM->Builder->CreateInBoundsGEP(CGE->getType(), ErrorVar, {Zero, Two});
         CGM->Builder->CreateStore(NullPtr, PtrPtr);
     } else {
-        ((CodeGenError *) Sym->getErrorHandler()->getCodeGen())->StorePointer(Fn->getArg(0));
+        ((CodeGenError *) Sym->getAST()->getErrorHandler()->getVar()->getCodeGen())->StorePointer(Fn->getArg(0));
     }
 }
 
@@ -144,10 +144,10 @@ void CodeGenFunctionBase::StoreParams(bool isMain) {
     // Store Param Values (n = 0 is the Error param)
     int n = isMain ? 0 : 1;
 
-    for (auto &Param: Sym->getParams()) {
+    for (auto &Param: Sym->getAST()->getParams()) {
 
         // Store Arg value into Param
-        CodeGenVarBase *CGV = Param->getCodeGen();
+        CodeGenVarBase *CGV = Param->getVar()->getCodeGen();
         CGV->Store(Fn->getArg(n));
 
         // TODO if Arg is not present store the Param default value

@@ -33,7 +33,7 @@ class ASTVar;
         friend class SemaResolver;
         friend class SemaValidator;
 
-        llvm::SmallVector<SymType *, 8> ArgTypes;
+        llvm::SmallVector<SymType *, 8> ParamTypes;
 
         SymType *ReturnType;
 
@@ -47,7 +47,7 @@ class ASTVar;
 
     public:
 
-        llvm::SmallVector<SymType *, 8> &getArgTypes();
+        llvm::SmallVector<SymType *, 8> &getParamTypes();
 
         SymType *getReturnType();
 

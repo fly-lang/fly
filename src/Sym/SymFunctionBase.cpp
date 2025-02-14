@@ -21,8 +21,8 @@ using namespace fly;
 SymFunctionBase::SymFunctionBase(ASTFunction *AST, SymFunctionKind Kind) : AST(AST), Kind(Kind) {
 }
 
-llvm::SmallVector<SymType *, 8> &SymFunctionBase::getArgTypes() {
-    return ArgTypes;
+llvm::SmallVector<SymType *, 8> &SymFunctionBase::getParamTypes() {
+    return ParamTypes;
 }
 
 SymType *SymFunctionBase::getReturnType() {
@@ -66,7 +66,7 @@ std::string MangleType(SymType *Type) {
 	switch (Type->getKind()) {
 	case SymTypeKind::TYPE_ARRAY: {
 		SymTypeArray *Array = static_cast<SymTypeArray *>(Type);
-		Mangled += "_A" + Array->getSize() + MangleType(Array->getType());
+		Mangled += "_A" + MangleType(Array->getType());
 	}	break;
 	case SymTypeKind::TYPE_CLASS:
 		Mangled += "_C" + Type->getName();

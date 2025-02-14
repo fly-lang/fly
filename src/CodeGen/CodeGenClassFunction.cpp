@@ -98,7 +98,7 @@ void CodeGenClassFunction::GenBody() {
         size_t Index = Class->getAST()->getClassKind() == ASTClassKind::STRUCT ? 0 : 1;
         // All Class Vars
         SymClassMethod *ClassMethod = (SymClassMethod *) Sym;
-        for (auto AttributeEntry : ClassMethod->getClass()->getAttributes()) {
+        for (auto &AttributeEntry : ClassMethod->getClass()->getAttributes()) {
         	SymClassAttribute *Attribute = AttributeEntry.getValue();
 
             // Set CodeGen Class Instance

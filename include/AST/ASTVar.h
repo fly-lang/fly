@@ -13,10 +13,9 @@
 #include <Sym/SymVar.h>
 
 #include "ASTBase.h"
-#include "ASTExpr.h"
+#include "ASTTypeRef.h"
 
 namespace fly {
-
     class SourceLocation;
     class CodeGenVarBase;
     class ASTVarStmt;
@@ -28,32 +27,30 @@ namespace fly {
      *  - GlobalVar
      *  - ClassAttribute
      */
-    class ASTVar : public ASTBase {
-
+    class ASTVar : public ASTBase
+    {
         friend class ASTBuilder;
         friend class SymBuilder;
         friend class SemaResolver;
         friend class SemaValidator;
 
-        SymVar *Var = nullptr;
+        SymVar* Var = nullptr;
 
-        ASTTypeRef *TypeRef;
+        ASTTypeRef* TypeRef;
 
         llvm::StringRef Name;
 
-        SmallVector<ASTScope *, 8> Scopes;
+        SmallVector<ASTScope*, 8> Scopes;
 
-        ASTExpr *Expr;
+        ASTExpr* Expr;
 
     protected:
-
-        ASTVar(const SourceLocation &Loc, ASTTypeRef *Type, llvm::StringRef Name, SmallVector<ASTScope *, 8> &Scopes);
+        ASTVar(const SourceLocation& Loc, ASTTypeRef* Type, llvm::StringRef Name, SmallVector<ASTScope*, 8>& Scopes);
 
     public:
+        SymVar* getVar() const;
 
-        SymVar *getVar() const;
-
-        ASTTypeRef *getTypeRef() const;
+        ASTTypeRef* getTypeRef() const;
 
         llvm::StringRef getName() const;
 
@@ -61,9 +58,9 @@ namespace fly {
 
         bool isInitialized();
 
-        const SmallVector<ASTScope *, 8> &getScopes() const;
+        const SmallVector<ASTScope*, 8>& getScopes() const;
 
-        ASTExpr *getExpr() const;
+        ASTExpr* getExpr() const;
 
         std::string str() const override;
     };

@@ -32,6 +32,8 @@ class CodeGenVar;
 
         CodeGenVar *getCodeGen() const override;
 
+        void setCodeGen(CodeGenVarBase *CodeGen) override;
+
     };
 
 }

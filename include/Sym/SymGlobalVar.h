@@ -49,7 +49,7 @@ namespace fly {
 
         CodeGenGlobalVar *getCodeGen() const override;
 
-        void setCodeGen(CodeGenGlobalVar *CG);
+        void setCodeGen(CodeGenVarBase *CGV) override;
 
     };
 

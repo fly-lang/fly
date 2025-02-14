@@ -17,3 +17,7 @@ SymLocalVar::SymLocalVar(ASTVar *AST) : SymVar(AST, SymVarKind::VAR_LOCAL) {
 CodeGenVar * SymLocalVar::getCodeGen() const {
 	return CodeGen;
 }
+
+void SymLocalVar::setCodeGen(CodeGenVarBase *CodeGen) {
+	this->CodeGen = static_cast<CodeGenVar *>(CodeGen);
+}

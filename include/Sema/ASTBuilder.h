@@ -342,7 +342,7 @@ namespace fly {
         ASTCall *CreateCall(ASTRef *Instance, ASTFunction *Method);
 
         // Create VarRef
-        ASTVarRef *CreateVarRef(const SourceLocation &Loc, llvm::StringRef Name, ASTRef *Parent = nullptr);
+        ASTVarRef *CreateVarRef(ASTRef *Ref);
 
         ASTVarRef *CreateVarRef(ASTVar *Var);
 

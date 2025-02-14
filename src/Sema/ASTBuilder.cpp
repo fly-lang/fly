@@ -830,16 +830,17 @@ ASTCall *ASTBuilder::CreateCall(ASTRef *Instance, ASTFunction *Method) {
     return Call;
 }
 
-ASTVarRef *ASTBuilder::CreateVarRef(const SourceLocation &Loc, llvm::StringRef Name, ASTRef *Parent) {
+ASTVarRef *ASTBuilder::CreateVarRef(ASTRef *Ref) {
     FLY_DEBUG_START("ASTBuilder", "CreateVarRef");
 
-    ASTVarRef *VarRef = new ASTVarRef(Loc, Name);
-    if (Parent) { // Take Parent
-        Parent->AddChild(VarRef);
+    ASTVarRef *VarRef = new ASTVarRef(Ref->getLocation(), Ref->getName());
+    if (Ref->getParent()) { // Take Parent
+        Ref->Parent->AddChild(VarRef);
     } else { // Do a copy
-        VarRef->Parent = Parent;
+        VarRef->Parent = Ref->getParent();
     }
-    // delete Identifier; TODO
+	VarRef->Child = Ref->Child;
+    delete Ref;
 
 	FLY_DEBUG_END("ASTBuilder", "CreateVarRef");
     return VarRef;

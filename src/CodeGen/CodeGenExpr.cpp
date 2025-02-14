@@ -188,6 +188,7 @@ llvm::Value *CodeGenExpr::GenBinaryComparison(const ASTExpr *E1, ASTBinaryOpExpr
     FLY_DEBUG_START("CodeGenExpr", "GenBinaryComparison");
     llvm::Value *V1 = GenValue(E1);
     llvm::Value *V2 = GenValue(E2);
+	SymType *V1Type = E1->getTypeRef()->getType();
     SymType *V2Type = E2->getTypeRef()->getType();
 
     if (E1->getTypeRef()->getType()->isBool() && E2->getTypeRef()->getType()->isBool()) {
@@ -219,10 +220,10 @@ llvm::Value *CodeGenExpr::GenBinaryComparison(const ASTExpr *E1, ASTBinaryOpExpr
         // Convert values to Float if one of them is Float
         if ( (V1->getType()->isFloatTy() || V1->getType()->isDoubleTy()) &&
              (V2->getType()->isIntegerTy() || V2->getType()->isIntegerTy()) ) {
-            V2 = CGM->Convert(V2, V2Type, E1->getTypeRef()); // Explicit conversion
+            V2 = CGM->Convert(V2, V2Type, V1Type); // Explicit conversion
         } else if ( (V1->getType()->isIntegerTy() || V1->getType()->isIntegerTy()) &&
                     (V2->getType()->isFloatTy() || V2->getType()->isDoubleTy()) ) {
-            V1 = CGM->Convert(V1, V2Type, E1->getTypeRef()); // Explicit conversion
+            V1 = CGM->Convert(V1, V2Type, V1Type); // Explicit conversion
         }
         switch (OperatorKind) {
 
