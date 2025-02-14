@@ -14,19 +14,22 @@
 #include "../TestUtils.h"
 #include "Parser/Parser.h"
 #include "Sema/Sema.h"
-#include "Sema/SemaBuilder.h"
 #include "Sema/Sema.h"
 #include "Sema/SemaBuilderScopes.h"
 #include "AST/ASTCall.h"
 #include "AST/ASTFunction.h"
-#include "AST/ASTClassMethod.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTExpr.h"
 
 // third party
 #include "llvm/Support/Host.h"
 #include "llvm/Support/TargetSelect.h"
+
+#include <AST/ASTScopes.h>
+#include <AST/ASTVar.h>
 #include <gtest/gtest.h>
+#include <Sema/ASTBuilder.h>
+#include <Sema/SymBuilder.h>
 
 using namespace fly;
 
@@ -63,20 +66,20 @@ public:
                     Diags(CI.getDiagnostics()),
                     S(Sema::CreateSema(CI.getDiagnostics())),
                     Builder(S->getASTBuilder()),
-                    VoidType(Builder.CreateVoidType(SourceLoc)),
-                    BoolType(Builder.CreateBoolType(SourceLoc)),
-                    ByteType(Builder.CreateByteType(SourceLoc)),
-                    ShortType(Builder.CreateShortType(SourceLoc)),
-                    UShortType(Builder.CreateUShortType(SourceLoc)),
-                    IntType(Builder.CreateIntType(SourceLoc)),
-                    UIntType(Builder.CreateUIntType(SourceLoc)),
-                    LongType(Builder.CreateLongType(SourceLoc)),
-                    ULongType(Builder.CreateULongType(SourceLoc)),
-                    FloatType(Builder.CreateFloatType(SourceLoc)),
-                    DoubleType(Builder.CreateDoubleType(SourceLoc)),
-                    ArrayInt0Type(Builder.CreateArrayType(SourceLoc, IntType,
+                    VoidType(S->getASTBuilder().CreateVoidTypeRef(SourceLoc)),
+                    BoolType(S->getASTBuilder().CreateBoolTypeRef(SourceLoc)),
+                    ByteType(S->getASTBuilder().CreateByteTypeRef(SourceLoc)),
+                    ShortType(S->getASTBuilder().CreateShortTypeRef(SourceLoc)),
+                    UShortType(S->getASTBuilder().CreateUShortTypeRef(SourceLoc)),
+                    IntType(S->getASTBuilder().CreateIntTypeRef(SourceLoc)),
+                    UIntType(S->getASTBuilder().CreateUIntTypeRef(SourceLoc)),
+                    LongType(S->getASTBuilder().CreateLongTypeRef(SourceLoc)),
+                    ULongType(S->getASTBuilder().CreateULongTypeRef(SourceLoc)),
+                    FloatType(S->getASTBuilder().CreateFloatTypeRef(SourceLoc)),
+                    DoubleType(S->getASTBuilder().CreateDoubleTypeRef(SourceLoc)),
+                    ArrayInt0Type(S->getASTBuilder().CreateArrayTypeRef(SourceLoc, IntType,
                                                           Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, "0")))),
-                    ErrorType(Builder.CreateErrorType(SourceLoc)),
+                    ErrorType(Builder.CreateErrorTypeRef(SourceLoc)),
                     TopScopes(SemaBuilderScopes::Create()
                                       ->addVisibility(SourceLocation(), ASTVisibilityKind::V_DEFAULT)->getScopes()),
                     EmptyScopes(SemaBuilderScopes::Create()->getScopes()) {
@@ -85,15 +88,20 @@ public:
         llvm::InitializeAllAsmPrinters();
     }
 
-    ASTModule *CreateModule(std::string Name = "test") {
+    SymModule *CreateModule(std::string Name = "test") {
         Diags.getClient()->BeginSourceFile();
-        auto *Module = Builder.CreateModule(Name);
+        auto AST = Builder.CreateModule(Name);
+    	SymModule *Module = S->getSymBuilder().CreateModule(AST);
         Diags.getClient()->EndSourceFile();
         return Module;
     }
 
     virtual ~CodeGenTest() {
         llvm::outs().flush();
+    }
+
+	ASTBuilder &getASTBuilder() {
+	    return Builder;
     }
 
     std::string getOutput(llvm::Module *Module) {
@@ -108,25 +116,16 @@ public:
     }
 
     ASTVarRef *CreateVarRef(ASTVar *Var, ASTRef *Parent = nullptr) {
-        ASTRef *Identifier = Builder.CreateIdentifier(SourceLoc, Var->getName());
-        return Builder.CreateVarRef(Identifier, Parent);
+        return Builder.CreateVarRef(Var, Parent);
     }
 
-    ASTCall *CreateCall(ASTFunction *Function, llvm::SmallVector<ASTExpr *, 8> &Args, ASTRef *Parent = nullptr) {
-        ASTRef *Identifier = Builder.CreateIdentifier(SourceLoc, Function->getName());
-        ASTCall *Call = Builder.CreateCall(Identifier, Args, ASTCallKind::CALL_FUNCTION, Parent);
-        return Call;
+	ASTCall *CreateCall(llvm::StringRef Name, llvm::SmallVector<ASTExpr *, 8> &Args, ASTCallKind Kind, ASTRef *Parent = nullptr) {
+    	ASTCall *Call = Builder.CreateCall(SourceLocation(), Name, Args, Kind, Parent);
+    	return Call;
     }
 
-    ASTCall *CreateCall(ASTClassMethod *Function, llvm::SmallVector<ASTExpr *, 8> &Args, ASTRef *Parent = nullptr) {
-        ASTRef *Identifier = Builder.CreateIdentifier(SourceLoc, Function->getName());
-        ASTCall *Call = Builder.CreateCall(Identifier, Args, ASTCallKind::CALL_FUNCTION, Parent);
-        return Call;
-    }
-
-    ASTCall *CreateNew(ASTClassMethod *Function, llvm::SmallVector<ASTExpr *, 8> &Args, ASTRef *Parent = nullptr) {
-        ASTRef *Identifier = Builder.CreateIdentifier(SourceLoc, Function->getName());
-        ASTCall *Call = Builder.CreateCall(Identifier, Args, ASTCallKind::CALL_NEW, Parent);
+    ASTCall *CreateCall(ASTFunction *Function, llvm::SmallVector<ASTExpr *, 8> &Args, ASTCallKind Kind, ASTRef *Parent = nullptr) {
+        ASTCall *Call = Builder.CreateCall(SourceLocation(), Function->getName(), Args, Kind, Parent);
         return Call;
     }
 

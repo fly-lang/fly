@@ -177,12 +177,6 @@ namespace fly {
 
     class ASTNameSpace;
 
-    class ASTStringType;
-
-    class ASTCharType;
-
-    class ASTErrorType;
-
     class ASTArrayTypeRef;
 
     class ASTNameSpaceRef;
@@ -299,6 +293,10 @@ namespace fly {
 
         ASTTypeRef *CreateTypeRef(const SourceLocation &Loc, llvm::StringRef Name, ASTNameSpaceRef *NameSpaceRef = nullptr);
 
+        ASTTypeRef * CreateTypeRef(ASTClass *Class);
+
+        ASTTypeRef * CreateTypeRef(ASTEnum *Enum);
+
         ASTNameSpaceRef *CreateNameSpaceRef(const SourceLocation &Loc, llvm::SmallVector<llvm::StringRef, 4> &Names);
 
         // Create Values
@@ -328,8 +326,6 @@ namespace fly {
         ASTVar *CreateParam(const SourceLocation &Loc, ASTTypeRef *TypeRef, llvm::StringRef Name,
                               llvm::SmallVector<ASTScope *, 8> &Scopes, ASTValue *DefaultValue = nullptr);
 
-        ASTVar *CreateErrorHandlerParam();
-
         ASTVar *CreateLocalVar(ASTBlockStmt *BlockStmt, const SourceLocation &Loc, ASTTypeRef *Type, llvm::StringRef Name,
                                     llvm::SmallVector<ASTScope *, 8> &Scopes);
 
@@ -344,7 +340,7 @@ namespace fly {
         // Create VarRef
         ASTVarRef *CreateVarRef(ASTRef *Ref);
 
-        ASTVarRef *CreateVarRef(ASTVar *Var);
+        ASTVarRef *CreateVarRef(ASTVar *Var, ASTRef *Parent = nullptr);
 
         ASTRef *CreateUndefinedRef(const SourceLocation &Loc, llvm::StringRef Name, ASTRef *Parent = nullptr);
 

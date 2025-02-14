@@ -57,9 +57,9 @@ namespace fly {
 
         SymTable *Table = nullptr;
 
-        ASTBuilder *Builder = nullptr;
+        ASTBuilder *ABuilder = nullptr;
 
-        SymBuilder *SymBuildr = nullptr;
+        SymBuilder *SBuilder = nullptr;
 
         SemaValidator *Validator = nullptr;
 

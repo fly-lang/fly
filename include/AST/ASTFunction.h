@@ -38,12 +38,10 @@ class SymFunctionBase;
 
         llvm::SmallVector<ASTVar *, 8> Params;
 
-        llvm::SmallVector<ASTVar *, 8> LocalVars;
-
         // Body is the main BlockStmt
         ASTBlockStmt *Body = nullptr;
 
-        ASTVar *ErrorHandler = nullptr;
+        SymFunctionBase *Sym = nullptr;
 
     protected:
 
@@ -64,9 +62,9 @@ class SymFunctionBase;
 
         ASTBlockStmt *getBody() const;
 
-        ASTVar *getErrorHandler();
-
         bool isVarArg();
+
+        SymFunctionBase *getSym();
 
         std::string str() const override;
     };

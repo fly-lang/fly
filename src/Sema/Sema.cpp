@@ -28,15 +28,15 @@ Sema* Sema::CreateSema(DiagnosticsEngine &Diags) {
     Sema *S = new Sema(Diags);
 
 	// Init the Sema Builder
-    S->Builder = new ASTBuilder(*S);
+    S->ABuilder = new ASTBuilder(*S);
 
-	S->SymBuildr = new SymBuilder(*S);
+	S->SBuilder = new SymBuilder(*S);
 
 	// Init the Validator
     S->Validator = new SemaValidator(*S);
 
 	// Init the Sema AST Context
-	S->Table = S->SymBuildr->CreateTable();
+	S->Table = S->SBuilder->CreateTable();
 
     return S;
 }
@@ -46,11 +46,11 @@ DiagnosticsEngine &Sema::getDiags() const {
 }
 
 ASTBuilder &Sema::getASTBuilder() {
-    return *Builder;
+    return *ABuilder;
 }
 
 SymBuilder &Sema::getSymBuilder() {
-	return *SymBuildr;
+	return *SBuilder;
 }
 
 SemaValidator &Sema::getValidator() const {

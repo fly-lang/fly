@@ -46,6 +46,7 @@
 
 #include <utility>
 #include <AST/ASTTypeRef.h>
+#include <Sym/SymFunctionBase.h>
 
 using namespace fly;
 
@@ -225,9 +226,6 @@ ASTFunction *ASTBuilder::CreateFunction(ASTModule *Module, const SourceLocation 
 
     ASTFunction *Function = new ASTFunction(Loc, TypeRef, Scopes, Name, Params);
 
-    // Create Error handler
-    Function->ErrorHandler = CreateErrorHandlerParam(); // FIXME
-
     // Create Body
     if (Body)
         CreateBody(Function, Body);
@@ -289,9 +287,6 @@ ASTFunction *ASTBuilder::CreateClassMethod(const SourceLocation &Loc, ASTClass *
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateClassMethod", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
 
     ASTFunction *Method = new ASTFunction(Loc, TypeRef, Scopes, Name, Params);
-
-    // Set Error Handler
-    Method->ErrorHandler = CreateErrorHandlerParam();
 
     if (Body)
         CreateBody(Method, Body);
@@ -552,6 +547,24 @@ ASTTypeRef * ASTBuilder::CreateTypeRef(const SourceLocation &Loc, llvm::StringRe
 	return TypeRef;
 }
 
+ASTTypeRef * ASTBuilder::CreateTypeRef(ASTClass *Class) {
+	FLY_DEBUG_START("ASTBuilder", "CreateTypeRef");
+
+	ASTTypeRef * TypeRef = new ASTTypeRef(Class->getLocation(), Class->getName(), nullptr, false);
+
+	FLY_DEBUG_END("ASTBuilder", "CreateTypeRef");
+	return TypeRef;
+}
+
+ASTTypeRef * ASTBuilder::CreateTypeRef(ASTEnum *Enum) {
+	FLY_DEBUG_START("ASTBuilder", "CreateTypeRef");
+
+	ASTTypeRef * TypeRef = new ASTTypeRef(Enum->getLocation(), Enum->getName(), nullptr, false);
+
+	FLY_DEBUG_END("ASTBuilder", "CreateTypeRef");
+	return TypeRef;
+}
+
 /**
  * Creates an ASTScope
  * @param Loc
@@ -743,16 +756,6 @@ ASTVar *ASTBuilder::CreateParam(const SourceLocation &Loc, ASTTypeRef *TypeRef, 
     return Param;
 }
 
-ASTVar *ASTBuilder::CreateErrorHandlerParam() {
-	FLY_DEBUG_START("ASTBuilder", "CreateErrorHandlerParam");
-
-    SmallVector<ASTScope *, 8> Scopes = SemaBuilderScopes::Create()->getScopes();
-    ASTVar * Param = CreateParam(SourceLocation(), CreateErrorTypeRef(SourceLocation()), "error", Scopes);
-
-	FLY_DEBUG_END("ASTBuilder", "CreateErrorHandlerParam");
-	return Param;
-}
-
 /**
  * Creates an ASTVar
  * @param Parent
@@ -767,7 +770,6 @@ ASTVar *ASTBuilder::CreateLocalVar(ASTBlockStmt *BlockStmt, const SourceLocation
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateLocalVar", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
 
     ASTVar *Var = new ASTVar(Loc, Type, Name, Scopes);
-    BlockStmt->getFunction()->LocalVars.push_back(Var); // Function Local var to be allocated
     BlockStmt->LocalVars.insert(std::make_pair(Var->getName(), Var)); // Check duplicate in Block Stmt
 
 	FLY_DEBUG_END("ASTBuilder", "CreateLocalVar");
@@ -843,10 +845,13 @@ ASTVarRef *ASTBuilder::CreateVarRef(ASTRef *Ref) {
     return VarRef;
 }
 
-ASTVarRef *ASTBuilder::CreateVarRef(ASTVar *Var) {
+ASTVarRef *ASTBuilder::CreateVarRef(ASTVar *Var, ASTRef *Parent) {
 	FLY_DEBUG_START("ASTBuilder", "CreateVarRef");
 
 	ASTVarRef *VarRef = new ASTVarRef(Var->getLocation(), Var->getName());
+	if (Parent) {
+		VarRef->Parent = Parent;
+	}
 	VarRef->Resolved = true;
 	VarRef->Var = &Var->Sym;
 

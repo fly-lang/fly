@@ -12,7 +12,7 @@
 
 using namespace fly;
 
-CodeGenError::CodeGenError(CodeGenModule *CGM, ASTVar *Error, llvm::Value *Pointer) :
+CodeGenError::CodeGenError(CodeGenModule *CGM, SymVar *Error, llvm::Value *Pointer) :
     CGM(CGM), Error(Error), Pointer(Pointer), T(CGM->ErrorTy) {
 
 }

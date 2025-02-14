@@ -1121,6 +1121,7 @@ ASTRef * Parser::ParseCallOrVarRef() {
 	if (!Ref->isCall()) {
 		return Builder.CreateVarRef(Ref);
 	}
+	return Ref;
 }
 
 /**

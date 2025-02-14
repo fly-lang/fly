@@ -53,6 +53,7 @@ namespace fly {
     class SymClassMethod;
     class SymEnum;
     class SymFunctionBase;
+    class SymVar;
 
     class CodeGenModule {
 
@@ -75,7 +76,7 @@ namespace fly {
         // CodeGen Options
         CodeGenOptions &CGOpts;
 
-        SymNameSpace &NameSpace;
+        SymNameSpace *NameSpace;
 
         // Target Info
         TargetInfo &Target;
@@ -155,12 +156,12 @@ namespace fly {
 
         llvm::PointerType *ErrorPtrTy;
 
-        CodeGenModule(DiagnosticsEngine &Diags, SymNameSpace &NameSpace, LLVMContext &LLVMCtx, TargetInfo &Target,
+        CodeGenModule(DiagnosticsEngine &Diags, SymNameSpace *NameSpace, LLVMContext &LLVMCtx, TargetInfo &Target,
                       CodeGenOptions &CGOpts);
 
         virtual ~CodeGenModule();
 
-        SymNameSpace &getNameSpace() const;
+        SymNameSpace *getNameSpace() const;
 
         DiagnosticBuilder Diag(const SourceLocation &Loc, unsigned DiagID);
 
@@ -192,9 +193,9 @@ namespace fly {
 
         llvm::Value *Convert(llvm::Value *FromVal, SymType *FromType, SymType *ToType);
 
-        CodeGenError *GenErrorHandler(ASTVar* Var);
+        CodeGenError *GenErrorHandler(SymVar* Error);
 
-        CodeGenVar *GenLocalVar(ASTVar* Var);
+        CodeGenVar *GenLocalVar(SymVar* Var);
 
         llvm::Value *GenVarRef(ASTVarRef *VarRef);
 

@@ -17,13 +17,13 @@ namespace fly {
 
     class CodeGenModule;
     class ASTExpr;
-    class ASTVar;
+    class SymVar;
 
     class CodeGenError : public CodeGenVarBase {
 
         CodeGenModule *CGM = nullptr;
 
-        ASTVar *Error = nullptr;
+        SymVar *Error = nullptr;
 
         llvm::Type *T = nullptr;
 
@@ -37,7 +37,7 @@ namespace fly {
 
     public:
 
-        CodeGenError(CodeGenModule *CGM, ASTVar *Error, llvm::Value *Pointer);
+        CodeGenError(CodeGenModule *CGM, SymVar *Error, llvm::Value *Pointer);
 
         static llvm::StructType *GenErrorType(llvm::LLVMContext &LLVMCtx);
 

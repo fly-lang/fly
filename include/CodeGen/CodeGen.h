@@ -65,7 +65,7 @@ namespace fly {
 
         std::vector<llvm::Module *> GenerateModules(SymTable &Table);
 
-        CodeGenModule *GenerateModule(SymNameSpace &NameSpace);
+        CodeGenModule *GenerateModule(SymNameSpace *NameSpace);
 
         // void GenerateHeaders(SymTable &Table);
 

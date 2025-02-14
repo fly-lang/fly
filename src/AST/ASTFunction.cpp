@@ -8,7 +8,6 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTFunction.h"
-#include "AST/ASTBlockStmt.h"
 #include "AST/ASTVar.h"
 
 using namespace fly;
@@ -27,6 +26,10 @@ bool ASTFunction::isVarArg() {
 	return false;
 }
 
+SymFunctionBase *ASTFunction::getSym() {
+	return Sym;
+}
+
 llvm::SmallVector<ASTScope *, 8> ASTFunction::getScopes() const {
     return Scopes;
 }
@@ -35,16 +38,8 @@ llvm::SmallVector<ASTVar *, 8> ASTFunction::getParams() const {
     return Params;
 }
 
-llvm::SmallVector<ASTVar *, 8> ASTFunction::getLocalVars() const {
-    return LocalVars;
-}
-
 ASTBlockStmt *ASTFunction::getBody() const {
     return Body;
-}
-
-ASTVar *ASTFunction::getErrorHandler() {
-    return ErrorHandler;
 }
 
 ASTTypeRef *ASTFunction::getReturnTypeRef() const {

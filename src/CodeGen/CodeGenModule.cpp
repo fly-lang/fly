@@ -65,12 +65,12 @@ CharUnits toCharUnitsFromBits(int64_t BitSize) {
     return CharUnits::fromQuantity(BitSize / 8);
 }
 
-CodeGenModule::CodeGenModule(DiagnosticsEngine &Diags, SymNameSpace &NameSpace, LLVMContext &LLVMCtx,
+CodeGenModule::CodeGenModule(DiagnosticsEngine &Diags, SymNameSpace *NameSpace, LLVMContext &LLVMCtx,
                              TargetInfo &Target, CodeGenOptions &CGOpts) :
         Diags(Diags),
         NameSpace(NameSpace),
         Target(Target),
-        Module(new llvm::Module(NameSpace.getName(), LLVMCtx)),
+        Module(new llvm::Module(NameSpace->getName(), LLVMCtx)),
         LLVMCtx(LLVMCtx),
         Builder(new IRBuilder<>(LLVMCtx)),
         CGOpts(CGOpts) {
@@ -129,7 +129,7 @@ llvm::Module *CodeGenModule::getModule() const {
     return Module;
 }
 
-SymNameSpace &CodeGenModule::getNameSpace() const {
+SymNameSpace *CodeGenModule::getNameSpace() const {
     return NameSpace;
 }
 
@@ -161,7 +161,7 @@ void CodeGenModule::GenAll() {
 
     // Generate GlobalVars
     std::vector<CodeGenGlobalVar *> CGGlobalVars;
-    for (auto &Entry : NameSpace.getGlobalVars()) {
+    for (auto &Entry : NameSpace->getGlobalVars()) {
         CodeGenGlobalVar *CGV = GenGlobalVar(Entry.getValue());
         CGGlobalVars.push_back(CGV);
 //        if (FrontendOpts.CreateHeader) {
@@ -171,7 +171,7 @@ void CodeGenModule::GenAll() {
 
     // Instantiates all Function CodeGen in order to be set in all Call references
     std::vector<CodeGenFunction *> CGFunctions;
-    for (auto &Entry : NameSpace.getFunctions()) {
+    for (auto &Entry : NameSpace->getFunctions()) {
         CodeGenFunction *CGF = GenFunction(Entry.getValue());
         CGFunctions.push_back(CGF);
 //                if (FrontendOpts.CreateHeader) {
@@ -181,7 +181,7 @@ void CodeGenModule::GenAll() {
 
 	// Generate Classes
 	llvm::SmallVector<CodeGenClass *, 8> CGClasses;
-	for (auto &Entry : NameSpace.getTypes()) {
+	for (auto &Entry : NameSpace->getTypes()) {
 		SymType * Type = Entry.getValue();
 		if (Type->isClass()) {
 			CodeGenClass *CGC = GenClass(static_cast<SymClass *>(Type));
@@ -725,15 +725,15 @@ llvm::Value *CodeGenModule::Convert(llvm::Value *FromVal, SymType *FromType, Sym
     assert(0 && "Conversion failed");
 }
 
-CodeGenError *CodeGenModule::GenErrorHandler(ASTVar *Var) {
+CodeGenError *CodeGenModule::GenErrorHandler(SymVar *Error) {
     // Set CodeGenError
     llvm::Value *Pointer = Builder->CreateAlloca(ErrorPtrTy);
-    CodeGenError *CGE = new CodeGenError(this, Var, Pointer);
+    CodeGenError *CGE = new CodeGenError(this, Error, Pointer);
     return CGE;
 }
 
-CodeGenVar *CodeGenModule::GenLocalVar(ASTVar *Var) {
-    llvm::Type *Ty = GenType(Var->getTypeRef()->getType());
+CodeGenVar *CodeGenModule::GenLocalVar(SymVar *Var) {
+    llvm::Type *Ty = GenType(Var->getType());
     CodeGenVar *CGV = new CodeGenVar(this, Ty);
     return CGV;
 }
@@ -970,7 +970,7 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
         		Parent = Parent->getParent();
         		if (Parent == nullptr) {
         			// Set Function ErrorHandler with Fail
-        			CodeGenError *CGE = static_cast<CodeGenError *>(FailStmt->getFunction()->getErrorHandler()->getSym()->getCodeGen());
+        			CodeGenError *CGE = static_cast<CodeGenError *>(FailStmt->getFunction()->getSym()->getErrorHandler()->getCodeGen());
         			GenFailStmt(FailStmt, CGE);
 
         			// Generate Return with default value for stop execution flow

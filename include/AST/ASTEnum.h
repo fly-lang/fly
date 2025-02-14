@@ -19,7 +19,6 @@ namespace fly {
     class ASTModule;
     class ASTScope;
     class ASTTypeRef;
-    class ASTEnumEntry;
 
     class ASTEnum : public ASTBase {
 

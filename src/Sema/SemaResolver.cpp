@@ -385,8 +385,8 @@ void SemaResolver::ResolveClasses() {
 				SymClassAttribute *Attribute = AttributeEntry.getValue();
 				// Generate default values
 				if (Attribute->getAST()->getExpr() == nullptr) {
-					ASTValue *DefaultValue = S.Builder->CreateDefaultValue(Attribute->getType());
-					ASTValueExpr *ValueExpr = S.Builder->CreateExpr(DefaultValue);
+					ASTValue *DefaultValue = S.getASTBuilder().CreateDefaultValue(Attribute->getType());
+					ASTValueExpr *ValueExpr = S.getASTBuilder().CreateExpr(DefaultValue);
 					Attribute->AST->Expr = ValueExpr;
 				}
 				S.getValidator().CheckIsValueExpr(Attribute->getAST()->getExpr());
@@ -847,15 +847,16 @@ ASTRef *SemaResolver::ResolveCall(ASTStmt *Stmt, ASTCall *Call, llvm::SmallVecto
     }
 
     // Search from until parent is null or parent is a Handle Stmt
+	// When Parent Stmt is nullptr assign Function ErrorHandler to Call ErrorHandler
     ASTStmt *Parent = Stmt;
-    while (Call->ErrorHandler == nullptr) {
+    while (Call->getErrorHandler() == nullptr) {
         Parent = Parent->getParent();
         if (Parent == nullptr) {
-            Call->ErrorHandler = Stmt->getFunction()->getErrorHandler();
+            Call->ErrorHandler->Sym = Stmt->getFunction()->getSym()->getErrorHandler();
         } else if (Parent->getStmtKind() == ASTStmtKind::STMT_HANDLE) {
             ASTHandleStmt *HandleStmt = static_cast<ASTHandleStmt*>(Parent);
-            if (HandleStmt->ErrorHandlerRef != nullptr) {
-                Call->ErrorHandler->Sym = *HandleStmt->ErrorHandlerRef->Var;
+            if (HandleStmt->getErrorHandlerRef() != nullptr) {
+                Call->ErrorHandler->Sym = *HandleStmt->getErrorHandlerRef()->Var;
             }
         }
     }
@@ -968,6 +969,10 @@ ASTRef *SemaResolver:: ResolveRef(ASTStmt *Stmt, ASTRef *Ref, llvm::SmallVector<
 			Ref = S.getASTBuilder().CreateVarRef(Ref);
 			static_cast<ASTVarRef *>(Ref)->Var = &Var;
 			Ref->Resolved = true;
+
+			// Add Var to LocalVars of the SymFunctionBase
+			Stmt->getFunction()->getSym()->getLocalVars().push_back(Var); // Function Local var to be allocated
+
 			if (Ref->Child)
 				return ResolveRef(Stmt, Var, Ref->Child);
 
@@ -1028,6 +1033,7 @@ ASTRef *SemaResolver:: ResolveRef(ASTStmt *Stmt, SymType *Type, ASTRef *Ref) {
             }
         }
 	}
+	return Ref;
 }
 
 /**
@@ -1060,7 +1066,6 @@ ASTRef *SemaResolver:: ResolveRef(ASTStmt *Stmt, SymVar *Var, ASTRef *Ref) {
 				Ref->Resolved = true;
 				if (Ref->Child)
 					return ResolveRef(Stmt, Var, Ref->Child);
-				return Ref;
 			}
 		} else {
 			// Error: no child found from Ref
@@ -1068,13 +1073,15 @@ ASTRef *SemaResolver:: ResolveRef(ASTStmt *Stmt, SymVar *Var, ASTRef *Ref) {
 			return nullptr;
 		}
 	}
+	return Ref;
 }
 
 SymType * SemaResolver::FindType(llvm::StringRef Name, llvm::SmallVector<SymNameSpace *, 4> &NameSpaces) const {
+	SymType *Type = nullptr;
 	for (auto &NS : NameSpaces) {
-		SymType *Type = NS->getTypes().lookup(Name);
+		Type = NS->getTypes().lookup(Name);
 		if (Type)
 			return Type;
 	}
-	return nullptr;
+	return Type;
 }

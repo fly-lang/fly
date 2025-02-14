@@ -46,23 +46,23 @@ SymTable * SymBuilder::CreateTable() {
 	SymTable *Table = new SymTable();
 
 	// Create the Default NameSpace
-	S.SymBuildr->CreateNameSpace();
+	S.getSymBuilder().CreateNameSpace();
 
 	// Create Builtin Types
-	Table->BoolType = S.SymBuildr->CreateType(SymTypeKind::TYPE_BOOL);
-	Table->ByteType = S.SymBuildr->CreateIntType(SymIntTypeKind::TYPE_INT);
-	Table->UShortType = S.SymBuildr->CreateIntType(SymIntTypeKind::TYPE_USHORT);
-	Table->ShortType = S.SymBuildr->CreateIntType(SymIntTypeKind::TYPE_SHORT);
-	Table->UIntType = S.SymBuildr->CreateIntType(SymIntTypeKind::TYPE_UINT);
-	Table->IntType = S.SymBuildr->CreateIntType(SymIntTypeKind::TYPE_INT);
-	Table->ULongType = S.SymBuildr->CreateIntType(SymIntTypeKind::TYPE_ULONG);
-	Table->LongType = S.SymBuildr->CreateIntType(SymIntTypeKind::TYPE_LONG);
-	Table->FloatType = S.SymBuildr->CreateFPType(SymFPTypeKind::TYPE_FLOAT);
-	Table->DoubleType = S.SymBuildr->CreateFPType(SymFPTypeKind::TYPE_DOUBLE);
-	Table->VoidType = S.SymBuildr->CreateType(SymTypeKind::TYPE_VOID);
-	Table->StringType = S.SymBuildr->CreateType(SymTypeKind::TYPE_STRING);
-	Table->CharType = S.SymBuildr->CreateType(SymTypeKind::TYPE_CHAR);
-	Table->ErrorType = S.SymBuildr->CreateType(SymTypeKind::TYPE_ERROR);
+	Table->BoolType = S.getSymBuilder().CreateType(SymTypeKind::TYPE_BOOL);
+	Table->ByteType = S.getSymBuilder().CreateIntType(SymIntTypeKind::TYPE_INT);
+	Table->UShortType = S.getSymBuilder().CreateIntType(SymIntTypeKind::TYPE_USHORT);
+	Table->ShortType = S.getSymBuilder().CreateIntType(SymIntTypeKind::TYPE_SHORT);
+	Table->UIntType = S.getSymBuilder().CreateIntType(SymIntTypeKind::TYPE_UINT);
+	Table->IntType = S.getSymBuilder().CreateIntType(SymIntTypeKind::TYPE_INT);
+	Table->ULongType = S.getSymBuilder().CreateIntType(SymIntTypeKind::TYPE_ULONG);
+	Table->LongType = S.getSymBuilder().CreateIntType(SymIntTypeKind::TYPE_LONG);
+	Table->FloatType = S.getSymBuilder().CreateFPType(SymFPTypeKind::TYPE_FLOAT);
+	Table->DoubleType = S.getSymBuilder().CreateFPType(SymFPTypeKind::TYPE_DOUBLE);
+	Table->VoidType = S.getSymBuilder().CreateType(SymTypeKind::TYPE_VOID);
+	Table->StringType = S.getSymBuilder().CreateType(SymTypeKind::TYPE_STRING);
+	Table->CharType = S.getSymBuilder().CreateType(SymTypeKind::TYPE_CHAR);
+	Table->ErrorType = S.getSymBuilder().CreateType(SymTypeKind::TYPE_ERROR);
 
 	// Add built-in types to the Default NameSpace
 	Table->DefaultNameSpace->Types.insert(std::make_pair<>(Table->BoolType->getName(), Table->BoolType));

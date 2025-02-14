@@ -47,7 +47,7 @@ std::string ASTClass::str() const {
     // Class to string
     return Logger("ASTClass").
            Super(ASTBase::str()).
-           Attr("ClassKind", (uint64_t) ClassKind).
+           Attr("ClassKind", (size_t) ClassKind).
            Attr("Name", Name).
            AttrList("Definitions", Definitions).
            End();

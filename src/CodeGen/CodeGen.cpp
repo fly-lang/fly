@@ -106,7 +106,7 @@ std::vector<llvm::Module *> CodeGen::GenerateModules(SymTable &Table) {
     std::vector<llvm::Module *> Modules;
     for (auto &NameSpace : Table.getNameSpaces()) {
         Diags.getClient()->BeginSourceFile();
-        CodeGenModule *CGM = GenerateModule(*NameSpace.getValue());
+        CodeGenModule *CGM = GenerateModule(NameSpace.getValue());
         CGM->GenAll();
         Modules.push_back(CGM->Module);
         Diags.getClient()->EndSourceFile();
@@ -114,10 +114,10 @@ std::vector<llvm::Module *> CodeGen::GenerateModules(SymTable &Table) {
     return Modules;
 }
 
-CodeGenModule *CodeGen::GenerateModule(SymNameSpace &NameSpace) {
+CodeGenModule *CodeGen::GenerateModule(SymNameSpace *NameSpace) {
     FLY_DEBUG_START("CodeGen", "GenerateModule");
     CodeGenModule *CGM = new CodeGenModule(Diags, NameSpace, LLVMCtx, *Target, CodeGenOpts);
-    NameSpace.setCodeGen(CGM);
+    NameSpace->setCodeGen(CGM);
     return CGM;
 }
 

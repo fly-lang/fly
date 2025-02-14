@@ -37,6 +37,14 @@ SymFunctionKind SymFunctionBase::getKind() const {
     return Kind;
 }
 
+llvm::SmallVector<SymVar *, 8> SymFunctionBase::getLocalVars() {
+	return LocalVars;
+}
+
+SymVar * SymFunctionBase::getErrorHandler() const {
+	return ErrorHandler;
+}
+
 // Mapping Fly types to mangled representations
 std::unordered_map<std::string, std::string> typeMap = {
 	{"bool", "_b"},

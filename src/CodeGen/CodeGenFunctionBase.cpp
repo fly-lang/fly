@@ -81,31 +81,31 @@ void CodeGenFunctionBase::setInsertPoint() {
 
 void CodeGenFunctionBase::AllocaErrorHandler() {
     // Alloca ErrorHandler
-    CodeGenError *CGE = CGM->GenErrorHandler(Sym->getAST()->getErrorHandler());
-    Sym->getAST()->getErrorHandler()->getSym()->setCodeGen(CGE);
+    CodeGenError *CGE = CGM->GenErrorHandler(Sym->getErrorHandler());
+    Sym->getErrorHandler()->setCodeGen(CGE);
 }
 
 void CodeGenFunctionBase::AllocaLocalVars() {
 
     // Allocation of declared ASTVar
     for (auto Param: Sym->getAST()->getParams()) {
-        CodeGenVar *CGV = CGM->GenLocalVar(Param);
+        CodeGenVar *CGV = CGM->GenLocalVar(Param->getSym());
         CGV->Alloca();
         Param->getSym()->setCodeGen(CGV);
     }
 
     // Allocation of all declared ASTVar
-    for (auto &LocalVar: Sym->getAST()->getLocalVars()) {
-    	if (LocalVar->getSym()->getType()->isError()) {
+    for (auto &LocalVar: Sym->getLocalVars()) {
+    	if (LocalVar->getType()->isError()) {
     		CodeGenError *CGE = CGM->GenErrorHandler(LocalVar);
-    		LocalVar->getSym()->setCodeGen(CGE);
+    		LocalVar->setCodeGen(CGE);
 		} else {
     		CodeGenVar *CGV = CGM->GenLocalVar(LocalVar);
     		CGV->Alloca();
 
     		// Create CodeGenVar for all inner attributes of a class
-    		if (LocalVar->getSym()->getType()->isClass()) {
-    			SymClass *Class = static_cast<SymClass *>(LocalVar->getSym()->getType());
+    		if (LocalVar->getType()->isClass()) {
+    			SymClass *Class = static_cast<SymClass *>(LocalVar->getType());
     			// Class start with param 0 with the vtable type
     			uint32_t Idx = Class->getClassKind() == SymClassKind::STRUCT ? 0 : 1;
     			for (auto &Entry : Class->getAttributes()) {
@@ -116,7 +116,7 @@ void CodeGenFunctionBase::AllocaLocalVars() {
     				Idx++;
     			}
     		}
-			LocalVar->getSym()->setCodeGen(CGV);
+			LocalVar->setCodeGen(CGV);
     	}
     }
 }
@@ -127,7 +127,7 @@ void CodeGenFunctionBase::StoreErrorHandler(bool isMain) {
         llvm::Constant *One = llvm::ConstantInt::get(CGM->Int32Ty, 1);
         llvm::Constant *Two = llvm::ConstantInt::get(CGM->Int32Ty, 2);
         llvm::Constant *NullPtr = llvm::ConstantPointerNull::get(CGM->Int8Ty->getPointerTo());
-        CodeGenVarBase *CGE = Sym->getAST()->getErrorHandler()->getSym()->getCodeGen();
+        CodeGenVarBase *CGE = Sym->getErrorHandler()->getCodeGen();
         llvm::Value *ErrorVar = CGE->Load();
         llvm::Value *PtrType = CGM->Builder->CreateInBoundsGEP(CGE->getType(), ErrorVar, {Zero, Zero});
         CGM->Builder->CreateStore(llvm::ConstantInt::get(CGM->Int8Ty, 0), PtrType);
@@ -136,7 +136,7 @@ void CodeGenFunctionBase::StoreErrorHandler(bool isMain) {
         llvm::Value *PtrPtr = CGM->Builder->CreateInBoundsGEP(CGE->getType(), ErrorVar, {Zero, Two});
         CGM->Builder->CreateStore(NullPtr, PtrPtr);
     } else {
-        ((CodeGenError *) Sym->getAST()->getErrorHandler()->getSym()->getCodeGen())->StorePointer(Fn->getArg(0));
+        ((CodeGenError *) Sym->getErrorHandler()->getCodeGen())->StorePointer(Fn->getArg(0));
     }
 }
 

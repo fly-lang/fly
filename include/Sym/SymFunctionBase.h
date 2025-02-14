@@ -19,6 +19,8 @@
 namespace fly {
 
     class ASTFunction;
+    class SymVar;
+
 class ASTVar;
     class CodeGenFunctionBase;
 
@@ -41,6 +43,10 @@ class ASTVar;
 
         SymFunctionKind Kind;
 
+        llvm::SmallVector<SymVar *, 8> LocalVars;
+
+        SymVar *ErrorHandler = nullptr;
+
     protected:
 
         explicit SymFunctionBase(ASTFunction *AST, SymFunctionKind Kind);
@@ -55,11 +61,15 @@ class ASTVar;
 
         SymFunctionKind getKind() const;
 
+        llvm::SmallVector<SymVar *, 8> getLocalVars();
+
+        SymVar *getErrorHandler() const;
+
         static std::string MangleFunction(ASTFunction *AST);
 
         static std::string MangleFunction(llvm::StringRef Name, const llvm::SmallVector<SymType *, 8> &Params);
 
-        virtual CodeGenFunctionBase *getCodeGen() const;
+        virtual CodeGenFunctionBase *getCodeGen() const = 0;
 
     };
 
