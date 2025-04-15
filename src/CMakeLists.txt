@@ -13,7 +13,6 @@ add_library(flyLib
         AST/ASTCall.cpp
         AST/ASTClass.cpp
         AST/ASTComment.cpp
-        Sym/SymTable.cpp
         AST/ASTContinueStmt.cpp
         AST/ASTDeleteStmt.cpp
         AST/ASTEnum.cpp
@@ -28,8 +27,8 @@ add_library(flyLib
         AST/ASTImport.cpp
         AST/ASTLoopStmt.cpp
         AST/ASTLoopInStmt.cpp
-        Sym/SymNameSpace.cpp
         AST/ASTNameSpace.cpp
+        AST/ASTNameSpaceRef.cpp
         AST/ASTModule.cpp
         AST/ASTOpExpr.cpp
         AST/ASTReturnStmt.cpp
@@ -55,6 +54,7 @@ add_library(flyLib
         Basic/FileSystemStatCache.cpp
         Basic/FixedPoint.cpp
         Basic/IdentifierTable.cpp
+        Basic/Logger.cpp
         Basic/Module.cpp
         Basic/OperatorPrecedence.cpp
         Basic/SanitizerBlacklist.cpp
@@ -148,6 +148,7 @@ add_library(flyLib
 
         # Sym
         Sym/SymClass.cpp
+        Sym/SymComment.cpp
         Sym/SymClassAttribute.cpp
         Sym/SymClassMethod.cpp
         Sym/SymEnum.cpp

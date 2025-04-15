@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTStmt.h"
+#include "Basic/Logger.h"
 
 using namespace fly;
 
@@ -29,7 +30,8 @@ ASTStmtKind ASTStmt::getStmtKind() const {
 
 std::string ASTStmt::str() const {
     return Logger("ASTStmt").
-            Super(ASTBase::str()).
+	Attr("Location", getLocation()).
+Attr("Kind", static_cast<size_t>(getKind())).
             Attr("Kind", static_cast<uint64_t>(StmtKind)).
             End();
 }

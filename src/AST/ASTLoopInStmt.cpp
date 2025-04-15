@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTLoopInStmt.h"
+#include "Basic/Logger.h"
 
 using namespace fly;
 
@@ -26,6 +27,7 @@ ASTBlockStmt *ASTLoopInStmt::getBlock() const {
 
 std::string ASTLoopInStmt::str() const {
     return Logger("ASTLoopInBlock").
-            Super(ASTStmt::str()).
+	Attr("Location", getLocation()).
+Attr("Kind", static_cast<size_t>(getKind())).
             End();
 }

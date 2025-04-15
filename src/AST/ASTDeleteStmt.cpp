@@ -10,6 +10,7 @@
 #include "AST/ASTDeleteStmt.h"
 #include "AST/ASTBlockStmt.h"
 #include "AST/ASTVarRef.h"
+#include "Basic/Logger.h"
 
 using namespace fly;
 
@@ -32,5 +33,8 @@ ASTVarRef *ASTDeleteStmt::getVarRef() {
  * @return string info for debugging
  */
 std::string ASTDeleteStmt::str() const {
-    return Logger("ASTDelete").Super(ASTStmt::str()).Attr("VarRef", VarRef->str()).End();
+    return Logger("ASTDelete").
+	Attr("Location", getLocation()).
+		Attr("Kind", static_cast<size_t>(getKind()))
+	.Attr("VarRef", VarRef->str()).End();
 }

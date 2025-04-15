@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTBase.h"
+#include "Basic/Logger.h"
 
 using namespace fly;
 
@@ -24,8 +25,8 @@ ASTKind ASTBase::getKind() const {
 }
 
 std::string ASTBase::str() const {
-    return Logger("ASTBase").
-            Attr("Location", static_cast<uint64_t>(Location.getRawEncoding())).
-			Attr("Kind", static_cast<uint64_t>(Kind)).
-            End();
+	return Logger()
+	.Attr("Location", &Location)
+	.Attr("Kind", static_cast<size_t>(Kind))
+	.End();
 }

@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTComment.h"
+#include "Basic/Logger.h"
 
 #include <llvm/IR/Module.h>
 
@@ -24,7 +25,8 @@ llvm::StringRef ASTComment::getContent() const {
 
 std::string ASTComment::str() const {
     return Logger("ASTComment").
-            Super(ASTBase::str()).
-            Attr("Content", Content).
-            End();
+	Attr("Location", getLocation()).
+	Attr("Kind", static_cast<size_t>(getKind())).
+	Attr("Content", Content).
+	End();
 }

@@ -297,7 +297,7 @@ namespace fly {
 
         ASTTypeRef * CreateTypeRef(ASTEnum *Enum);
 
-        ASTNameSpaceRef *CreateNameSpaceRef(const SourceLocation &Loc, llvm::SmallVector<llvm::StringRef, 4> &Names);
+        ASTNameSpaceRef *CreateNameSpaceRef(const SourceLocation &Loc, llvm::SmallVector<llvm::StringRef, 4> Names);
 
         // Create Values
 

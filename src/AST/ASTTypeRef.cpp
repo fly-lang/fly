@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTTypeRef.h"
+#include "Basic/Logger.h"
 
 using namespace fly;
 
@@ -30,7 +31,8 @@ ASTNameSpaceRef *ASTTypeRef::getNameSpaceRef() const {
 
 std::string ASTTypeRef::str() const {
     return Logger("ASTTypeRef").
-    Super(ASTRef::str()).
+	Attr("Location", getLocation()).
+	Attr("Kind", static_cast<size_t>(getKind())).
     End();
 }
 

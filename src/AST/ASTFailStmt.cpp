@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTFailStmt.h"
+#include "Basic/Logger.h"
 
 using namespace fly;
 
@@ -26,7 +27,8 @@ void ASTFailStmt::setExpr(fly::ASTExpr *E) {
 
 std::string ASTFailStmt::str() const {
     return Logger("ASTFailStmt").
-            Super(ASTStmt::str()).
+	Attr("Location", getLocation()).
+Attr("Kind", static_cast<size_t>(getKind())).
             Attr("Expr", Expr).
             End();
 }

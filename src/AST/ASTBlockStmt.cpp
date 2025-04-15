@@ -9,6 +9,7 @@
 
 #include "AST/ASTBlockStmt.h"
 #include "AST/ASTStmt.h"
+#include "Basic/Logger.h"
 
 #include <llvm/ADT/StringMap.h>
 
@@ -58,5 +59,8 @@ const llvm::StringMap<ASTVar *> &ASTBlockStmt::getLocalVars() const {
  * @return string info for debugging
  */
 std::string ASTBlockStmt::str() const {
-    return Logger("ASTBlock").Super(ASTStmt::str()).End();
+    return Logger("ASTBlock").
+		Attr("Location", getLocation()).
+		Attr("Kind", static_cast<size_t>(getKind())).
+		End();
 }

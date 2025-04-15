@@ -9,6 +9,7 @@
 
 #include "AST/ASTVarRef.h"
 #include "AST/ASTVar.h"
+#include "Basic/Logger.h"
 
 using namespace fly;
 
@@ -22,6 +23,8 @@ SymVar *ASTVarRef::getVar() const {
 
 std::string ASTVarRef::str() const {
     return Logger("ASTVarRef").
+	Attr("Location", getLocation()).
+	Attr("Kind", static_cast<size_t>(getKind())).
             Attr("Parent", Parent).
             Attr("Def", Var).
             End();

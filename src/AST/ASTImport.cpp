@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTImport.h"
+#include "Basic/Logger.h"
 
 #include <llvm/ADT/StringExtras.h>
 
@@ -40,7 +41,8 @@ void ASTImport::setAlias(ASTAlias *Alias) {
 
 std::string ASTImport::str() const {
     return Logger("ASTImport").
-            Super(ASTBase::str()).
+	Attr("Location", getLocation()).
+Attr("Kind", static_cast<size_t>(getKind())).
             Attr("Name", Name).
             Attr("Alias",Alias).
             End();

@@ -571,7 +571,7 @@ ASTTypeRef * ASTBuilder::CreateTypeRef(ASTEnum *Enum) {
  * @param Name
  * @return
  */
-ASTNameSpaceRef *ASTBuilder::CreateNameSpaceRef(const SourceLocation &Loc, llvm::SmallVector<llvm::StringRef, 4> &Names) {
+ASTNameSpaceRef *ASTBuilder::CreateNameSpaceRef(const SourceLocation &Loc, llvm::SmallVector<llvm::StringRef, 4> Names) {
 	FLY_DEBUG_START("ASTBuilder", "CreateNameSpaceRef");
 
 	ASTNameSpaceRef * NameSpaceRef = new ASTNameSpaceRef(Loc, Names);

@@ -29,7 +29,6 @@
 #include <AST/ASTModule.h>
 #include <AST/ASTNameSpace.h>
 #include <AST/ASTScopes.h>
-#include <Sema/SymBuilder.h>
 #include <Sym/SymClassAttribute.h>
 #include <Sym/SymClassMethod.h>
 #include <Sym/SymEnumEntry.h>
@@ -195,7 +194,7 @@ SymGlobalVar * SymBuilder::CreateGlobalVar(SymModule *Module, ASTVar *AST) {
 			// Error:
 			S.Diag(AST->getLocation(), diag::err_sema_visibility_error) << AST->getName();
 		}
-		if (Scope->getKind() == ASTScopeKind::SCOPE_VISIBILITY) {
+		if (Scope->getScopeKind() == ASTScopeKind::SCOPE_VISIBILITY) {
 			if (Scope->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
 
 				// Check Duplicates in NameSpace
@@ -211,7 +210,7 @@ SymGlobalVar * SymBuilder::CreateGlobalVar(SymModule *Module, ASTVar *AST) {
 				// Error
 				S.Diag(AST->getLocation(), diag::err_sema_visibility_error) << AST->getName();
 			}
-		} else if (Scope->getKind() == ASTScopeKind::SCOPE_CONSTANT) {
+		} else if (Scope->getScopeKind() == ASTScopeKind::SCOPE_CONSTANT) {
 			GlobalVar->Constant = Scope->isConstant();
 		}
 	}
@@ -241,7 +240,7 @@ SymFunction * SymBuilder::CreateFunction(SymModule *Module, ASTFunction *AST) {
 			// Error:
 			S.Diag(AST->getLocation(), diag::err_sema_visibility_error) << AST->getName();
 		}
-		if (Scope->getKind() == ASTScopeKind::SCOPE_VISIBILITY) {
+		if (Scope->getScopeKind() == ASTScopeKind::SCOPE_VISIBILITY) {
 			if (Scope->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
 				Function->Visibility = SymVisibilityKind::PUBLIC;
 
@@ -283,7 +282,7 @@ SymClass * SymBuilder::CreateClass(SymModule *Module, ASTClass *AST) {
 			// Error:
 			S.Diag(AST->getLocation(), diag::err_sema_visibility_error) << AST->getName();
 		}
-		if (Scope->getKind() == ASTScopeKind::SCOPE_VISIBILITY) {
+		if (Scope->getScopeKind() == ASTScopeKind::SCOPE_VISIBILITY) {
 			if (Scope->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
 				Class->Visibility = SymVisibilityKind::PUBLIC;
 
@@ -299,7 +298,7 @@ SymClass * SymBuilder::CreateClass(SymModule *Module, ASTClass *AST) {
 				// Error
 				S.Diag(AST->getLocation(), diag::err_sema_visibility_error) << AST->getName();
 			}
-		} else if (Scope->getKind() == ASTScopeKind::SCOPE_CONSTANT) {
+		} else if (Scope->getScopeKind() == ASTScopeKind::SCOPE_CONSTANT) {
 			Class->Constant = Scope->isConstant();
 		}
 	}
@@ -360,7 +359,7 @@ SymEnum * SymBuilder::CreateEnum(SymModule *Module, ASTEnum *AST) {
 			// Error:
 			S.Diag(AST->getLocation(), diag::err_sema_visibility_error) << AST->getName();
 		}
-		if (Scope->getKind() == ASTScopeKind::SCOPE_VISIBILITY) {
+		if (Scope->getScopeKind() == ASTScopeKind::SCOPE_VISIBILITY) {
 			if (Scope->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
 				Enum->Visibility = SymVisibilityKind::PUBLIC;
 
@@ -376,7 +375,7 @@ SymEnum * SymBuilder::CreateEnum(SymModule *Module, ASTEnum *AST) {
 				// Error
 				S.Diag(AST->getLocation(), diag::err_sema_visibility_error) << AST->getName();
 			}
-		} else if (Scope->getKind() == ASTScopeKind::SCOPE_CONSTANT) {
+		} else if (Scope->getScopeKind() == ASTScopeKind::SCOPE_CONSTANT) {
 			Enum->Constant = Scope->isConstant();
 		}
 	}

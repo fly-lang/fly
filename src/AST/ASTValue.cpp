@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTValue.h"
+#include "Basic/Logger.h"
 
 using namespace fly;
 
@@ -22,7 +23,8 @@ const ASTValueKind &ASTValue::getTypeKind() const {
 
 std::string ASTValue::str() const {
     return Logger("ASTValue").
-            Super(ASTBase::str()).
+	Attr("Location", getLocation()).
+Attr("Kind", static_cast<size_t>(getKind())).
             Attr("Kind", (uint64_t) ValueKind).
             End();
 }
@@ -41,7 +43,8 @@ std::string ASTBoolValue::print() const {
 
 std::string ASTBoolValue::str() const {
     return Logger("ASTBoolValue").
-            Super(ASTValue::str()).
+	Attr("Location", getLocation()).
+Attr("Kind", static_cast<size_t>(getKind())).
             Attr("Value", Value).
             End();
 }
@@ -61,7 +64,8 @@ uint8_t ASTIntegerValue::getRadix() const {
 
 std::string ASTIntegerValue::str() const {
     return Logger("ASTIntegerValue").
-            Super(ASTValue::str()).
+	Attr("Location", getLocation()).
+Attr("Kind", static_cast<size_t>(getKind())).
             Attr("Value", Value).
             Attr("Radix", (uint64_t) Radix).
             End();
@@ -82,7 +86,8 @@ std::string ASTFloatingValue::print() const {
 
 std::string ASTFloatingValue::str() const {
     return Logger("ASTFloatingValue").
-            Super(ASTValue::str()).
+	Attr("Location", getLocation()).
+Attr("Kind", static_cast<size_t>(getKind())).
             Attr("Value", Value).
             End();
 }
@@ -98,7 +103,8 @@ llvm::StringRef ASTCharValue::getValue() const {
 
 std::string ASTCharValue::str() const {
     return Logger("ASTCharValue").
-            Super(ASTValue::str()).
+	Attr("Location", getLocation()).
+Attr("Kind", static_cast<size_t>(getKind())).
             Attr("Value", Value).
             End();
 }
@@ -118,7 +124,8 @@ std::string ASTStringValue::print() const {
 
 std::string ASTStringValue::str() const {
     return Logger("ASTStringValue").
-            Super(ASTValue::str()).
+	Attr("Location", getLocation()).
+Attr("Kind", static_cast<size_t>(getKind())).
             Attr("Value", Value).
             End();
 }
@@ -142,8 +149,9 @@ std::string ASTArrayValue::print() const {
 
 std::string ASTArrayValue::str() const {
     return Logger("ASTArrayValue").
-            Super(ASTValue::str()).
-            AttrList("Values", Values).
+	Attr("Location", getLocation()).
+Attr("Kind", static_cast<size_t>(getKind())).
+            Attr("Values", ASTBase::str(Values)).
             End();
 }
 
@@ -174,7 +182,8 @@ std::string ASTStructValue::print() const {
 
 std::string ASTStructValue::str() const {
     return Logger("ASTStructValue").
-            Super(ASTValue::str()).
+	Attr("Location", getLocation()).
+Attr("Kind", static_cast<size_t>(getKind())).
             Attr("Values", print()).
             End();
 }
@@ -197,7 +206,8 @@ std::string ASTNullValue::print() const {
 
 std::string ASTNullValue::str() const {
     return Logger("ASTNullValue").
-            Super(ASTValue::str()).
+	Attr("Location", getLocation()).
+Attr("Kind", static_cast<size_t>(getKind())).
             End();
 }
 
@@ -211,6 +221,7 @@ std::string ASTZeroValue::print() const {
 
 std::string ASTZeroValue::str() const {
     return Logger("ASTZeroValue").
-            Super(ASTValue::str()).
+	Attr("Location", getLocation()).
+Attr("Kind", static_cast<size_t>(getKind())).
             End();
 }

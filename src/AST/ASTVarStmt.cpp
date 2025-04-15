@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTVarStmt.h"
+#include "Basic/Logger.h"
 
 using namespace fly;
 
@@ -34,7 +35,8 @@ void ASTVarStmt::setExpr(fly::ASTExpr *E) {
 
 std::string ASTVarStmt::str() const {
     return Logger("ASTVarAssign").
-            Super(ASTStmt::str()).
+	Attr("Location", getLocation()).
+Attr("Kind", static_cast<size_t>(getKind())).
             Attr("VarRef", VarRef).
             Attr("Kind", (uint64_t) Kind).
             Attr("ExprStmt", ASTStmt::str()).

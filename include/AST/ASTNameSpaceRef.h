@@ -24,7 +24,7 @@ namespace fly {
 
         const llvm::SmallVector<llvm::StringRef, 4> Names;
 
-        ASTNameSpaceRef(const SourceLocation &Loc, llvm::SmallVector<llvm::StringRef, 4> Namew);
+        ASTNameSpaceRef(const SourceLocation &Loc, llvm::SmallVector<llvm::StringRef, 4> Names);
 
     public:
 

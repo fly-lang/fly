@@ -46,7 +46,7 @@ namespace fly {
 
     public:
 
-        ASTScopeKind getKind();
+        ASTScopeKind getScopeKind();
 
         ASTVisibilityKind getVisibility() const;
 

@@ -8,24 +8,28 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTNameSpaceRef.h"
+#include "Basic/Logger.h"
+
 #include "llvm/ADT/StringExtras.h"
 
 using namespace fly;
 
 ASTNameSpaceRef::ASTNameSpaceRef(const SourceLocation &Loc, llvm::SmallVector<llvm::StringRef, 4> Names) :
-	ASTIdentifier(Loc, llvm::join(Names, "."), ASTRefKind::REF_NAMESPACE), Names(Names) {
+	ASTRef(Loc, llvm::join(Names, "."), ASTRefKind::REF_NAMESPACE), Names(Names) {
 }
 
 ASTNameSpaceRef::~ASTNameSpaceRef() {
 
 }
 
-const llvm::SmallVector<llvm::StringRef, 4> &ASTNameSpaceRef::getNames() const {
+const llvm::SmallVector<llvm::StringRef, 4> & ASTNameSpaceRef::getNames() const{
 	return Names;
 }
 
 std::string ASTNameSpaceRef::str() const {
 	return Logger("ASTNameSpaceRe").
+	Attr("Location", getLocation()).
+	Attr("Kind", static_cast<size_t>(getKind())).
 		   Attr("Name", Name).
 		   End();
 }

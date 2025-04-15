@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTContinueStmt.h"
+#include "Basic/Logger.h"
 
 using namespace fly;
 
@@ -26,5 +27,7 @@ ASTContinueStmt::ASTContinueStmt(const SourceLocation &Loc) :
  * @return string info for debugging
  */
 std::string ASTContinueStmt::str() const {
-    return Logger("ASTContinue").Super(ASTStmt::str()).End();
+	return Logger("ASTContinue").Attr("Location", getLocation()).
+		Attr("Kind", static_cast<size_t>(getKind())).
+	End();
 }

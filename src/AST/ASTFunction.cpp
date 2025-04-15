@@ -9,6 +9,7 @@
 
 #include "AST/ASTFunction.h"
 #include "AST/ASTVar.h"
+#include "Basic/Logger.h"
 
 using namespace fly;
 
@@ -48,8 +49,9 @@ ASTTypeRef *ASTFunction::getReturnTypeRef() const {
 
 std::string ASTFunction::str() const {
     return Logger("ASTFunctionBase").
-           Super(ASTBase::str()).
-           AttrList("Params", Params).
+	Attr("Location", getLocation()).
+ Attr("Kind", static_cast<size_t>(getKind())).
+           Attr("Params", ASTBase::str(Params)).
            Attr("ReturnType", ReturnTypeRef).
            End();
 }

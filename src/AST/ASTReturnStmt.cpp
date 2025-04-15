@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTReturnStmt.h"
+#include "Basic/Logger.h"
 
 using namespace fly;
 
@@ -22,6 +23,8 @@ ASTExpr *ASTReturnStmt::getExpr() const {
 
 std::string ASTReturnStmt::str() const {
     return Logger("ASTReturn").
+	Attr("Location", getLocation()).
+	Attr("Kind", static_cast<size_t>(getKind())).
             Attr("Expr", Expr).
             End();
 }

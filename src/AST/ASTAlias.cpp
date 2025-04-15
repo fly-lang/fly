@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTAlias.h"
+#include "Basic/Logger.h"
 
 using namespace fly;
 
@@ -21,7 +22,8 @@ llvm::StringRef ASTAlias::getName() const {
 
 std::string ASTAlias::str() const {
     return Logger("ASTAlias").
-            Super(ASTBase::str()).
+	Attr("Location", getLocation()).
+Attr("Kind", static_cast<size_t>(getKind())).
             Attr("Name", Name).
             End();
 }

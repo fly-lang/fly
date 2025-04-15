@@ -9,6 +9,7 @@
 
 #include "AST/ASTVar.h"
 #include "AST/ASTScopes.h"
+#include "Basic/Logger.h"
 
 using namespace fly;
 
@@ -32,7 +33,7 @@ llvm::StringRef ASTVar::getName() const {
 
 bool ASTVar::isConstant() const {
     for (auto Scope : Scopes) {
-        if (Scope->getKind() == ASTScopeKind::SCOPE_CONSTANT) {
+        if (Scope->getScopeKind() == ASTScopeKind::SCOPE_CONSTANT) {
             return Scope->isConstant();
         }
     }
@@ -49,10 +50,11 @@ ASTExpr * ASTVar::getExpr() const {
 
 std::string ASTVar::str() const {
     return Logger("ASTVar").
-            Super(ASTBase::str()).
-            Attr("TypeRef", TypeRef).
-            Attr("Name", Name).
-            Attr("Expr", Expr).
-            AttrList("Scopes", Scopes).
-            End();
+		Attr("Location", getLocation()).
+		Attr("Kind", static_cast<size_t>(getKind())).
+        Attr("TypeRef", TypeRef).
+        Attr("Name", Name).
+        Attr("Expr", Expr).
+        Attr("Scopes", ASTBase::str(Scopes)).
+        End();
 }

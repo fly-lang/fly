@@ -7,12 +7,10 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "Sema/Logger.h"
+#include "Basic/Logger.h"
 #include "Basic/SourceLocation.h"
-#include "AST/ASTBase.h"
 
 using namespace fly;
-
 
 const char *Logger::OPEN = "{";
 const char *Logger::EQ = "=";
@@ -25,20 +23,17 @@ bool DebugEnabled = false;
 
 Logger::Logger() = default;
 
-Logger::Logger(std::string str) : Str(str.append(OPEN)), isClass(true) {
+Logger::Logger(std::string str) : Str(str.append(OPEN)) {
 
 }
 
 std::string Logger::End() {
-	if (isClass)
-		Str.append(CLOSE);
+	Str.append(CLOSE);
 	return Str;
 }
 
-Logger &Logger::Super(std::string val) {
-	isEmpty ? Str.append(val) : Str.append(SEP).append(val);
-	isEmpty = false;
-	return *this;
+std::string Logger::str(const char *key, std::string val) {
+    return std::string(key).append(EQ).append(val);
 }
 
 Logger &Logger::Attr(const char *key, std::string val) {
@@ -52,7 +47,7 @@ Logger &Logger::Attr(const char *key, llvm::StringRef val) {
 	return Attr(key, val.str());
 }
 
-Logger &Logger::Attr(const char *key, SourceLocation &val) {
+Logger &Logger::Attr(const char *key, const SourceLocation &val) {
 	return Attr(key, (uint64_t) val.getRawEncoding());
 }
 
@@ -62,24 +57,4 @@ Logger &Logger::Attr(const char *key, bool val) {
 
 Logger &Logger::Attr(const char *key, uint64_t val) {
 	return Attr(key, std::to_string(val));
-}
-
-Logger &Logger::Attr(const char *key, ASTBase *val) {
-	return Attr(key, val ? val->str() : "");
-}
-
-template <typename T>
-Logger &Logger::AttrList(const char *key, llvm::SmallVector<T *, 8> Vect) {
-	std::string Entry = OPEN_LIST;
-	if(!Vect.empty()) {
-		for (ASTBase *V : Vect) {
-			Entry += V->str() + SEP;
-		}
-		unsigned long end = Entry.length()-std::string(SEP).length()-1;
-		Entry = Entry.substr(0, end);
-	}
-	Entry += CLOSE_LIST;
-	Attr(key, Entry);
-	isEmpty = false;
-	return *this;
 }

@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTBreakStmt.h"
+#include "Basic/Logger.h"
 
 using namespace fly;
 
@@ -25,5 +26,8 @@ ASTBreakStmt::ASTBreakStmt(const SourceLocation &Loc) :
  * @return string info for debugging
  */
 std::string ASTBreakStmt::str() const {
-    return Logger("ASTBreak").Super(ASTStmt::str()).End();
+    return Logger("ASTBreak").
+	Attr("Location", getLocation()).
+			Attr("Kind", static_cast<size_t>(getKind())).
+	End();
 }

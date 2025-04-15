@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTScopes.h"
+#include "Basic/Logger.h"
 
 using namespace fly;
 
@@ -16,7 +17,7 @@ ASTScope::ASTScope(const SourceLocation &Loc, ASTScopeKind Kind) :
 
 }
 
-ASTScopeKind ASTScope::getKind() {
+ASTScopeKind ASTScope::getScopeKind() {
     return Kind;
 }
 
@@ -34,6 +35,8 @@ bool ASTScope::isStatic() const {
 
 std::string ASTScope::str() const {
     return Logger("ASTScope").
+	Attr("Location", getLocation()).
+	Attr("Kind", static_cast<size_t>(getKind())).
             Attr("Visibility", (uint64_t) Visibility).
             Attr("Constant", Constant).
             Attr("Constant", Static).

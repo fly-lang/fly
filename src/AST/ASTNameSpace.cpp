@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTNameSpace.h"
+#include "Basic/Logger.h"
 
 using namespace fly;
 
@@ -15,9 +16,7 @@ ASTNameSpace::ASTNameSpace(const SourceLocation &Loc, llvm::SmallVector<llvm::St
     ASTBase(Loc, ASTKind::AST_NAMESPACE), Names(Names) {
 }
 
-ASTNameSpace::~ASTNameSpace() {
-
-}
+ASTNameSpace::~ASTNameSpace() = default;
 
 const llvm::SmallVector<llvm::StringRef, 4> & ASTNameSpace::getNames() const {
 	return Names;
@@ -25,5 +24,7 @@ const llvm::SmallVector<llvm::StringRef, 4> & ASTNameSpace::getNames() const {
 
 std::string ASTNameSpace::str() const {
     return Logger("ASTNameSpace").
+	Attr("Location", getLocation()).
+	Attr("Kind", static_cast<size_t>(getKind())).
            End();
 }

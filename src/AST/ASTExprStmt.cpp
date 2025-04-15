@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTExprStmt.h"
+#include "Basic/Logger.h"
 
 using namespace fly;
 
@@ -27,7 +28,8 @@ ASTExpr *ASTExprStmt::getExpr() const {
 
 std::string ASTExprStmt::str() const {
     return Logger("ASTExprStmt").
-           Super(ASTStmt::str()).
+	Attr("Location", getLocation()).
+ Attr("Kind", static_cast<size_t>(getKind())).
            Attr("Expr", Expr).
            End();
 }

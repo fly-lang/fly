@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTOpExpr.h"
+#include "Basic/Logger.h"
 
 using namespace fly;
 
@@ -39,7 +40,8 @@ const ASTExpr *ASTUnaryOpExpr::getExpr() const {
 
 std::string ASTUnaryOpExpr::str() const {
     return Logger("ASTOpExpr").
-           Super(ASTOpExpr::str()).
+	Attr("Location", getLocation()).
+Attr("Kind", static_cast<size_t>(getKind())).
            Attr("Expr", (ASTBase *) Expr).
            Attr("Op", (uint64_t) OpKind).
            Attr("OpLocation", (uint64_t) OpLocation.getRawEncoding()).
@@ -120,7 +122,8 @@ const ASTExpr *ASTBinaryOpExpr::getRightExpr() const {
 
 std::string ASTBinaryOpExpr::str() const {
     return Logger("ASTBinaryOpExpr").
-           Super(ASTOpExpr::str()).
+	Attr("Location", getLocation()).
+ Attr("Kind", static_cast<size_t>(getKind())).
            Attr("Op", (uint64_t) OpKind).
            Attr("OpLocation", (uint64_t) OpLocation.getRawEncoding()).
            Attr("LeftExpr", LeftExpr).
@@ -158,7 +161,8 @@ const ASTExpr *ASTTernaryOpExpr::getFalseExpr() const {
 
 std::string ASTTernaryOpExpr::str() const {
     return Logger("ASTTernaryGroupExpr").
-           Super(ASTOpExpr::str()).
+	Attr("Location", getLocation()).
+ Attr("Kind", static_cast<size_t>(getKind())).
            Attr("First", ConditionExpr).
            Attr("Second", TrueExpr).
            Attr("Third", FalseExpr).

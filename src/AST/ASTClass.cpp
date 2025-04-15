@@ -9,16 +9,18 @@
 
 #include "AST/ASTClass.h"
 #include "AST/ASTScopes.h"
+#include "Basic/Logger.h"
 
 using namespace fly;
 
-ASTClass::ASTClass(ASTModule *Module, ASTClassKind ClassKind, llvm::SmallVector<ASTScope *, 8> &Scopes,
-                   const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTTypeRef *, 4> &SuperClasses) :
-        ASTBase(Loc, ASTKind::AST_CLASS), ClassKind(ClassKind), Scopes(Scopes), Name(Name), SuperClasses(SuperClasses) {
+ASTClass::ASTClass(
+	ASTModule *Module, ASTClassKind ClassKind, llvm::SmallVector<ASTScope *, 8> &Scopes,
+	const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTTypeRef *, 4> &SuperClasses) :
+	ASTBase(Loc, ASTKind::AST_CLASS), ClassKind(ClassKind), Scopes(Scopes), Name(Name), SuperClasses(SuperClasses) {
 
 }
 
-ASTModule * ASTClass::getModule() const {
+ASTModule *ASTClass::getModule() const {
 	return Module;
 }
 
@@ -39,16 +41,17 @@ llvm::StringRef ASTClass::getName() const {
 }
 
 llvm::SmallVector<ASTTypeRef *, 4> ASTClass::getSuperClasses() const {
-    return SuperClasses;
+	return SuperClasses;
 }
 
 std::string ASTClass::str() const {
 
-    // Class to string
-    return Logger("ASTClass").
-           Super(ASTBase::str()).
-           Attr("ClassKind", (size_t) ClassKind).
-           Attr("Name", Name).
-           AttrList("Definitions", Definitions).
-           End();
+	// Class to string
+	return Logger("ASTClass").
+	       Attr("Location", getLocation()).
+	       Attr("Kind", static_cast<size_t>(getKind())).
+	       Attr("ClassKind", (size_t)ClassKind).
+	       Attr("Name", Name).
+	       Attr("Definitions", ASTBase::str(Definitions)).
+	       End();
 }

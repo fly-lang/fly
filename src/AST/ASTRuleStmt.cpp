@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTRuleStmt.h"
+#include "Basic/Logger.h"
 
 using namespace fly;
 
@@ -31,7 +32,8 @@ ASTStmt *ASTRuleStmt::getStmt() const {
 
 std::string ASTRuleStmt::str() const {
     return Logger("ASTRuleStmt").
-           Super(ASTStmt::str()).
+	Attr("Location", getLocation()).
+Attr("Kind", static_cast<size_t>(getKind())).
 		   Attr("Condition", Rule).
            End();
 }

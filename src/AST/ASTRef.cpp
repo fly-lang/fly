@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTRef.h"
+#include "Basic/Logger.h"
 
 using namespace fly;
 
@@ -66,7 +67,8 @@ ASTRef *ASTRef::getChild() const {
 
 std::string ASTRef::str() const {
     return Logger("ASTIdentifier").
-            Super(ASTBase::str()).
+	Attr("Location", getLocation()).
+Attr("Kind", static_cast<size_t>(getKind())).
             Attr("Name", Name).
             Attr("Child", Child).
             End();

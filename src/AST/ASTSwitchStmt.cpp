@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTSwitchStmt.h"
+#include "Basic/Logger.h"
 
 using namespace fly;
 
@@ -30,7 +31,8 @@ ASTStmt *ASTSwitchStmt::getDefault() {
 
 std::string ASTSwitchStmt::str() const {
     return Logger("ASTSwitchStmt").
-            Super(ASTStmt::str()).
+	Attr("Location", getLocation()).
+Attr("Kind", static_cast<size_t>(getKind())).
             Attr("VarRef", VarRef).
             End();
 }

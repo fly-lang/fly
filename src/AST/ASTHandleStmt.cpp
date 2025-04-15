@@ -9,6 +9,7 @@
 
 #include "AST/ASTHandleStmt.h"
 #include "AST/ASTVarRef.h"
+#include "Basic/Logger.h"
 
 using namespace fly;
 
@@ -39,7 +40,8 @@ void ASTHandleStmt::setCodeGen(CodeGenHandle *codeGen) {
 
 std::string ASTHandleStmt::str() const {
     return Logger("ASTHandleBlock").
-            Super(ASTStmt::str()).
+	Attr("Location", getLocation()).
+Attr("Kind", static_cast<size_t>(getKind())).
             Attr("ErrorHandler", ErrorHandlerRef).
             End();
 }

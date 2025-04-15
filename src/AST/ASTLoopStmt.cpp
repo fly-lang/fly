@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTLoopStmt.h"
+#include "Basic/Logger.h"
 
 using namespace fly;
 
@@ -34,6 +35,7 @@ ASTStmt *ASTLoopStmt::getPost() const {
 
 std::string ASTLoopStmt::str() const {
     return Logger("ASTLoopStmt").
-            Super(ASTStmt::str()).
+	Attr("Location", getLocation()).
+Attr("Kind", static_cast<size_t>(getKind())).
             End();
 }

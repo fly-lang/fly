@@ -9,6 +9,7 @@
 
 #include "AST/ASTCall.h"
 #include "AST/ASTArg.h"
+#include "Basic/Logger.h"
 
 
 using namespace fly;
@@ -35,7 +36,9 @@ ASTCallKind ASTCall::getCallKind() const {
 
 std::string ASTCall::str() const {
     return Logger("ASTCall").
-            AttrList("Args", Args).
+	Attr("Location", getLocation()).
+		Attr("Kind", static_cast<size_t>(getKind())).
+            Attr("Args", ASTBase::str(Args)).
             Attr("Def", Function).
             End();
 }

@@ -30,7 +30,7 @@ namespace fly {
 
     public:
 
-        ~ASTNameSpace();
+        ~ASTNameSpace() override;
 
         const llvm::SmallVector<llvm::StringRef, 4> &getNames() const;
 

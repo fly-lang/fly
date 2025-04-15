@@ -11,7 +11,7 @@
 #include "AST/ASTVarRef.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTCall.h"
-#include "AST/ASTTypeRef.h"
+#include "Basic/Logger.h"
 
 using namespace fly;
 
@@ -30,8 +30,8 @@ ASTTypeRef *ASTExpr::getTypeRef() const {
 
 std::string ASTExpr::str() const {
     return Logger("ASTExpr").
-           Super(ASTBase::str()).
-           Attr("Kind", (uint64_t) Kind).
+		Attr("Location", getLocation()).
+		Attr("Kind", static_cast<size_t>(getKind())).
            Attr("TypeRef", TypeRef).
            End();
 }
@@ -47,7 +47,8 @@ ASTValue *ASTValueExpr::getValue() const {
 std::string ASTValueExpr::str() const {
     return
             Logger("ASTValueExpr").
-            Super(ASTExpr::str()).
+	Attr("Location", getLocation()).
+Attr("Kind", static_cast<size_t>(getKind())).
             Attr("Value", Value).
             End();
 }
@@ -62,7 +63,8 @@ ASTVarRef *ASTVarRefExpr::getVarRef() const {
 
 std::string ASTVarRefExpr::str() const {
     return Logger("ASTVarRefExpr").
-           Super(ASTExpr::str()).
+	Attr("Location", getLocation()).
+ Attr("Kind", static_cast<size_t>(getKind())).
             Attr("VarRef", VarRef).
             End();
 }
@@ -78,7 +80,8 @@ ASTCall *ASTCallExpr::getCall() const {
 
 std::string ASTCallExpr::str() const {
     return Logger("ASTCallExpr").
-           Super(ASTExpr::str()).
+	Attr("Location", getLocation()).
+ Attr("Kind", static_cast<size_t>(getKind())).
            Attr("Call", Call->str()).
            End();
 }

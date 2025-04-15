@@ -9,6 +9,7 @@
 
 #include "AST/ASTArg.h"
 #include "AST/ASTExpr.h"
+#include "Basic/Logger.h"
 
 
 using namespace fly;
@@ -36,8 +37,9 @@ ASTExpr *ASTArg::getExpr() const {
 
 std::string ASTArg::str() const {
     return Logger("ASTArg").
-            Super(ASTBase::str()).
-            Attr("Expr", Expr).
-            Attr("Index", Index).
-            End();
+		Attr("Location", getLocation()).
+		Attr("Kind", static_cast<size_t>(getKind())).
+		Attr("Expr", Expr).
+		Attr("Index", Index).
+		End();
 }

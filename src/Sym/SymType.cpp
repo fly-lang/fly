@@ -11,6 +11,8 @@
 
 using namespace fly;
 
+size_t SymType::IdCounter = 0;
+
 SymType::SymType(SymTypeKind Kind) : Kind(Kind), Name(getTypeName(Kind)), Id(GenerateId(Kind)) {
 }
 

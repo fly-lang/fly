@@ -10,8 +10,10 @@
 #ifndef FLY_AST_BASE_H
 #define FLY_AST_BASE_H
 
-#include "Sema/Logger.h"
+#include <Basic/Logger.h>
+
 #include "Basic/SourceLocation.h"
+#include "llvm/ADT/SmallVector.h"
 
 namespace fly {
 
@@ -54,7 +56,22 @@ namespace fly {
 
         virtual ASTKind getKind() const;
 
-        virtual std::string str() const = 0;
+        virtual std::string str() const;
+
+        template <typename T>
+        static const std::string &str(llvm::SmallVector<T *, 8> Vect) {
+            std::string Str = Logger::OPEN_LIST;
+            if(!Vect.empty()) {
+                for (ASTBase *V : Vect) {
+                    Str += (V ? V->str() : "") + Logger::SEP;
+                }
+                unsigned long end = Str.length()-std::string(Logger::SEP).length()-1;
+                Str = Str.substr(0, end);
+            }
+            Str += Logger::CLOSE_LIST;
+            return Str;
+        }
+
     };
 
 }

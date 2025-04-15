@@ -9,6 +9,7 @@
 
 #include "AST/ASTEnum.h"
 #include "AST/ASTScopes.h"
+#include "Basic/Logger.h"
 
 using namespace fly;
 
@@ -42,9 +43,10 @@ std::string ASTEnum::str() const {
 
     // Class to string
     return Logger("ASTClass").
-           Super(ASTBase::str()).
+	Attr("Location", getLocation()).
+ Attr("Kind", static_cast<size_t>(getKind())).
            Attr("Name", Name).
-           AttrList("Scopes", Scopes).
-           AttrList("Definitions", Definitions).
+           Attr("Scopes", ASTBase::str(Scopes)).
+           Attr("Definitions", ASTBase::str(Definitions)).
            End();
 }

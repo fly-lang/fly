@@ -12,6 +12,7 @@
 #include "Sema/ASTBuilder.h"
 #include "Sema/SymBuilder.h"
 #include "Sema/SemaValidator.h"
+#include "Basic/Logger.h"
 #include "Sym/SymTable.h"
 #include "Sym/SymNameSpace.h"
 #include "Sym/SymModule.h"
