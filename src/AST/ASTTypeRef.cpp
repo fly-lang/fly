@@ -17,8 +17,8 @@ ASTTypeRef::ASTTypeRef(const SourceLocation &Loc, llvm::StringRef Name, ASTNameS
 
 }
 
-SymType * ASTTypeRef::getType() const {
-	return Type;
+SymType * ASTTypeRef::getSym() const {
+	return Sym;
 }
 
 bool ASTTypeRef::isArray() const {

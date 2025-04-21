@@ -25,19 +25,31 @@ using namespace fly;
 CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, SymGlobalVar* Sym, bool isExternal) : CGM(CGM), Sym(Sym) {
     std::string Id = CodeGen::toIdentifier(Sym->getAST()->getName(), Sym->getModule()->getNameSpace()->getName());
 
-    // Check Value
-    llvm::Constant *Const = nullptr;
-    bool IsConstant = Sym->isConstant();
-    GlobalValue::LinkageTypes Linkage = GlobalValue::LinkageTypes::ExternalLinkage;
+	// External Linkage
+	GlobalValue::LinkageTypes Linkage = GlobalValue::LinkageTypes::ExternalLinkage;
+
+	// Generate Type
     llvm::Type *Ty = CGM->GenType(Sym->getType());
+
+	// Generate Value
+	llvm::Constant *Const = nullptr;
     if (!isExternal) {
+
+    	// Internal or External Linkage
         if (Sym->getVisibility() == SymVisibilityKind::PRIVATE) {
             Linkage = GlobalValue::LinkageTypes::InternalLinkage;
         }
+
+    	// Set value
         if (Sym->getAST()->getExpr() == nullptr) {
+
+        	// Generate a Default Value
             Const = CGM->GenDefaultValue(Sym->getType(), Ty);
         } else {
+
+        	// Generate the Value
             ASTValue *Value = ((ASTValueExpr *) Sym->getAST()->getExpr())->getValue();
+
             if (Sym->getType()->isString()) {
                 llvm::StringRef Str = ((ASTStringValue *) Value)->getValue();
                 Const = llvm::ConstantDataArray::getString(CGM->LLVMCtx, Str);
@@ -48,6 +60,10 @@ CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, SymGlobalVar* Sym, bool i
         }
     }
 
+	// Set Global Var Constant
+	bool IsConstant = Sym->isConstant();
+
+	// Set Global Var
     Pointer = new llvm::GlobalVariable(*CGM->Module, Ty, IsConstant, Linkage, Const, Id);
 }
 

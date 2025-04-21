@@ -112,7 +112,8 @@ private:
     SmallVector<ASTScope *, 8> ParseScopes();
 
     /// Parse a global variable.
-    ASTVar *ParseGlobalVar(SmallVector<ASTScope *, 8> &Scopes, ASTTypeRef *TypeRef);
+    /// //TODO remove globalvar
+    // ASTVar *ParseGlobalVar(SmallVector<ASTScope *, 8> &Scopes, ASTTypeRef *TypeRef);
 
     /// Parse a function.
     ASTFunction *ParseFunction(SmallVector<ASTScope *, 8> &Scopes, ASTTypeRef *TypeRef);

@@ -26,8 +26,7 @@ namespace fly {
         VAL_CHAR,
         VAL_ARRAY,
         VAL_STRUCT,
-        VAL_NULL,
-        VAL_ZERO
+        VAL_NULL
     };
 
 
@@ -227,20 +226,6 @@ namespace fly {
         std::string str() const override;
     };
 
-    class ASTZeroValue : public ASTValue {
-
-        friend class ASTBuilder;
-        friend class SemaResolver;
-        friend class SemaValidator;
-
-        explicit ASTZeroValue(const SourceLocation &Loc);
-
-    public:
-
-        std::string print() const;
-
-        std::string str() const override;
-    };
 }
 
 #endif //FLY_AST_VALUE_H

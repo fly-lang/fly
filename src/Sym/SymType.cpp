@@ -30,9 +30,12 @@ std::string SymType::getTypeName(SymTypeKind Kind) {
 		return "string";
 	case SymTypeKind::TYPE_CHAR:
 		return "char";
+	case SymTypeKind::TYPE_ARRAY:
+		return "array";
 	case SymTypeKind::TYPE_ERROR:
 		return "error";
 	}
+	assert(false && "Unknown type");
 }
 
 size_t SymType::GenerateId(fly::SymTypeKind Kind) {
@@ -96,23 +99,22 @@ bool SymType::isVoid() const {
 
 std::string getIntTypeName(SymIntTypeKind Kind) {
 	switch (Kind) {
-	case SymIntTypeKind::TYPE_BYTE:
-		return "byte";
-	case SymIntTypeKind::TYPE_USHORT:
-		return "ushort";
-	case SymIntTypeKind::TYPE_UINT:
-		return "uint";
-	case SymIntTypeKind::TYPE_ULONG:
-		return "ulong";
-	case SymIntTypeKind::TYPE_INT:
-		return "int";
-	case SymIntTypeKind::TYPE_SHORT:
-		return "short";
-	case SymIntTypeKind::TYPE_LONG:
-		return "long";
-	default:
-		return "int";
+		case SymIntTypeKind::TYPE_BYTE:
+			return "byte";
+		case SymIntTypeKind::TYPE_USHORT:
+			return "ushort";
+		case SymIntTypeKind::TYPE_UINT:
+			return "uint";
+		case SymIntTypeKind::TYPE_ULONG:
+			return "ulong";
+		case SymIntTypeKind::TYPE_INT:
+			return "int";
+		case SymIntTypeKind::TYPE_SHORT:
+			return "short";
+		case SymIntTypeKind::TYPE_LONG:
+			return "long";
 	}
+	assert(false && "Unknown type");
 }
 
 SymTypeInt::SymTypeInt(SymIntTypeKind IntKind) : SymType(SymTypeKind::TYPE_INTEGER, getIntTypeName(IntKind)), IntKind(IntKind) {
@@ -133,9 +135,8 @@ std::string getFPTypeName(SymFPTypeKind Kind) {
 		return "float";
 	case SymFPTypeKind::TYPE_DOUBLE:
 		return "double";
-	default:
-		return "double";
 	}
+	assert(false && "Unknown type");
 }
 
 SymTypeFP::SymTypeFP(SymFPTypeKind FPKind) : SymType(SymTypeKind::TYPE_FLOATING_POINT, getFPTypeName(FPKind)), FPKind(FPKind) {
@@ -145,7 +146,7 @@ const SymFPTypeKind SymTypeFP::getFPKind() const {
 	return FPKind;
 }
 
-SymTypeArray::SymTypeArray(SymType *Type, ASTExpr *Size) : SymType(SymTypeKind::TYPE_ARRAY, "array"), Type(Type), Size(Size) {
+SymTypeArray::SymTypeArray(SymType *Type, ASTExpr *Size) : SymType(SymTypeKind::TYPE_ARRAY), Type(Type), Size(Size) {
 }
 
 SymType *SymTypeArray::getType() {

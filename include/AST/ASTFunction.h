@@ -18,8 +18,8 @@ namespace fly {
     class ASTVar;
     class ASTComment;
     class ASTTypeRef;
-class ASTBlockStmt;
-class SymFunctionBase;
+    class ASTBlockStmt;
+    class SymFunctionBase;
 
     class ASTFunction : public ASTBase {
 

@@ -21,6 +21,7 @@ namespace fly {
 	enum class SymVarKind {
 		VAR_PARAM,
 		VAR_LOCAL,
+		VAR_ERROR,
 		VAR_GLOBAL,
 		VAR_CLASS,
 		VAR_ENUM
@@ -45,8 +46,9 @@ namespace fly {
         explicit SymVar(ASTVar *AST, SymVarKind Kind);
 
     public:
+        virtual ~SymVar() = default;
 
-    	ASTVar *getAST() const;
+        ASTVar *getAST() const;
 
     	SymVarKind getKind() const;
 

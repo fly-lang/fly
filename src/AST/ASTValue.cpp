@@ -210,18 +210,3 @@ std::string ASTNullValue::str() const {
 Attr("Kind", static_cast<size_t>(getKind())).
             End();
 }
-
-ASTZeroValue::ASTZeroValue(const SourceLocation &Loc) : ASTValue(ASTValueKind::VAL_ZERO, Loc) {
-
-}
-
-std::string ASTZeroValue::print() const {
-    return "zero";
-}
-
-std::string ASTZeroValue::str() const {
-    return Logger("ASTZeroValue").
-	Attr("Location", getLocation()).
-Attr("Kind", static_cast<size_t>(getKind())).
-            End();
-}

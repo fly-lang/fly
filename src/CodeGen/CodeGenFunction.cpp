@@ -21,6 +21,7 @@
 #include "llvm/ADT/StringRef.h"
 
 #include <AST/ASTVar.h>
+#include <Sym/SymErrorHandler.h>
 #include <Sym/SymModule.h>
 #include <Sym/SymNameSpace.h>
 #include <Sym/SymType.h>
@@ -88,11 +89,11 @@ void CodeGenFunction::GenBody() {
         llvm::Value *Ret = CGM->Builder->CreateICmpNE(CGM->Builder->CreateLoad(ErrorKind), Zero8);
         // main() will return 0 if ok or 1 on error
         CGM->Builder->CreateRet(CGM->Builder->CreateZExt(Ret, Fn->getReturnType()));
-    } else if (Sym->getAST()->getReturnTypeRef()->getType()->isVoid()) {
+    } else if (Sym->getAST()->getReturnTypeRef()->getSym()->isVoid()) {
         CGM->Builder->CreateRetVoid();
     }
 }
 
 bool CodeGenFunction::isMainFunction(SymFunction *Sym) {
-    return Sym->getAST()->getName() == StringRef("main") && Sym->getAST()->getReturnTypeRef()->getType()->isVoid();
+    return Sym->getAST()->getName() == StringRef("main") && Sym->getAST()->getReturnTypeRef()->getSym()->isVoid();
 }

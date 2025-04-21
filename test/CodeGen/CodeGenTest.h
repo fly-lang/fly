@@ -14,22 +14,23 @@
 #include "../TestUtils.h"
 #include "Parser/Parser.h"
 #include "Sema/Sema.h"
-#include "Sema/Sema.h"
 #include "Sema/SemaBuilderScopes.h"
 #include "AST/ASTCall.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTExpr.h"
+#include <AST/ASTScopes.h>
+#include <AST/ASTVar.h>
+#include <Sema/ASTBuilder.h>
+#include <Sema/SymBuilder.h>
+#include "Sym/SymType.h"
+
 
 // third party
 #include "llvm/Support/Host.h"
 #include "llvm/Support/TargetSelect.h"
 
-#include <AST/ASTScopes.h>
-#include <AST/ASTVar.h>
 #include <gtest/gtest.h>
-#include <Sema/ASTBuilder.h>
-#include <Sema/SymBuilder.h>
 
 using namespace fly;
 
@@ -54,12 +55,17 @@ public:
     ASTTypeRef *ULongType;
     ASTTypeRef *FloatType;
     ASTTypeRef *DoubleType;
-    ASTTypeRef *ArrayInt0Type;
     ASTTypeRef *ErrorType;
     llvm::SmallVector<ASTScope *, 8> TopScopes;
     llvm::SmallVector<ASTScope *, 8> EmptyScopes;
     llvm::SmallVector<ASTExpr *, 8> Args;
     llvm::SmallVector<ASTVar *, 8> Params;
+
+    ASTTypeRef * CreateArrayTypeRef(SymType *T, std::string Size) {
+    	ASTValueExpr * Expr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, Size));
+    	SymTypeArray *A = S->getSymBuilder().CreateArrayType(T, Expr);
+    	return S->getASTBuilder().CreateTypeRef(SourceLoc, A);
+    }
 
     CodeGenTest() : CI(*TestUtils::CreateCompilerInstance()),
                     CG(TestUtils::CreateCodeGen(CI)),
@@ -77,23 +83,21 @@ public:
                     ULongType(S->getASTBuilder().CreateULongTypeRef(SourceLoc)),
                     FloatType(S->getASTBuilder().CreateFloatTypeRef(SourceLoc)),
                     DoubleType(S->getASTBuilder().CreateDoubleTypeRef(SourceLoc)),
-                    ArrayInt0Type(S->getASTBuilder().CreateArrayTypeRef(SourceLoc, IntType,
-                                                          Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, "0")))),
                     ErrorType(Builder.CreateErrorTypeRef(SourceLoc)),
                     TopScopes(SemaBuilderScopes::Create()
-                                      ->addVisibility(SourceLocation(), ASTVisibilityKind::V_DEFAULT)->getScopes()),
+                              ->addVisibility(SourceLocation(), ASTVisibilityKind::V_DEFAULT)->getScopes()),
                     EmptyScopes(SemaBuilderScopes::Create()->getScopes()) {
         llvm::InitializeAllTargets();
         llvm::InitializeAllTargetMCs();
         llvm::InitializeAllAsmPrinters();
     }
 
-    SymModule *CreateModule(std::string Name = "test") {
+    ASTModule *CreateModule(std::string Name = "test") {
         Diags.getClient()->BeginSourceFile();
         auto AST = Builder.CreateModule(Name);
-    	SymModule *Module = S->getSymBuilder().CreateModule(AST);
+    	//SymModule *Module = S->getSymBuilder().CreateModule(AST);
         Diags.getClient()->EndSourceFile();
-        return Module;
+        return AST;
     }
 
     virtual ~CodeGenTest() {

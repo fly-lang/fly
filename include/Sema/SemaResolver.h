@@ -92,7 +92,8 @@ namespace fly {
 
         void AddImport(ASTImport *AST);
 
-        void AddGlobalVar(ASTVar *AST, SymComment *Comment);
+        // TODO: remove GlobalVar
+        // void AddGlobalVar(ASTVar *AST, SymComment *Comment);
 
         void AddFunction(ASTFunction *AST, SymComment *Comment);
 
@@ -104,7 +105,8 @@ namespace fly {
 
         void ResolveComment(SymComment *Comment, ASTBase* AST);
 
-        void ResolveGlobalVars();
+        // TODO: remove GlobalVar
+        // void ResolveGlobalVars();
 
         void ResolveFunctions();
 

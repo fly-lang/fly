@@ -102,7 +102,7 @@ void CodeGenClassFunction::GenBody() {
         	SymClassAttribute *Attribute = AttributeEntry.getValue();
 
             // Set CodeGen Class Instance
-            llvm::Type *Ty = CGM->GenType(Attribute->getAST()->getTypeRef()->getType());
+            llvm::Type *Ty = CGM->GenType(Attribute->getAST()->getTypeRef()->getSym());
             CodeGenClassVar *CGV = new CodeGenClassVar(CGM, Ty, CGI, Index);
             Attribute->setCodeGen(CGV);
 

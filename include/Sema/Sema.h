@@ -66,6 +66,9 @@ namespace fly {
         Sema(DiagnosticsEngine &Diags);
 
     public:
+
+        static std::string DEFAULT_NAMESPACE;
+
         ~Sema();
 
         static Sema* CreateSema(DiagnosticsEngine &Diags);

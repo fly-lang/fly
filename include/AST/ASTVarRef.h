@@ -29,13 +29,13 @@ namespace fly {
         friend class SemaResolver;
         friend class SemaValidator;
 
-        SymVar **Var = nullptr;
+        SymVar **Sym = nullptr;
 
         ASTVarRef(const SourceLocation &Loc, llvm::StringRef Name);
 
     public:
 
-        SymVar *getVar() const;
+        SymVar *getSym() const;
 
         std::string str() const;
     };

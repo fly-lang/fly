@@ -10,6 +10,8 @@
 #ifndef FLY_AST_CALL_H
 #define FLY_AST_CALL_H
 
+#include <Sym/SymErrorHandler.h>
+
 #include "ASTRef.h"
 
 namespace fly {
@@ -37,7 +39,7 @@ namespace fly {
         friend class SemaResolver;
         friend class SemaValidator;
 
-        ASTVar *ErrorHandler = nullptr;
+        SymErrorHandler *ErrorHandler = nullptr;
 
         llvm::SmallVector<ASTArg *, 8> Args;
 
@@ -49,7 +51,7 @@ namespace fly {
 
     public:
 
-        const ASTVar *getErrorHandler() const;
+        SymErrorHandler *getErrorHandler() const;
 
         llvm::SmallVector<ASTArg *, 8> getArgs() const;
 

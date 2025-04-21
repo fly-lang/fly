@@ -12,7 +12,8 @@
 
 using namespace fly;
 
-SymFunction::SymFunction(ASTFunction *AST) : SymFunctionBase(AST, SymFunctionKind::FUNCTION), MangledName(MangleFunction(AST)) {
+SymFunction::SymFunction(ASTFunction *AST) : SymFunctionBase(AST, SymFunctionKind::FUNCTION),
+	MangledName(MangleFunction(AST)) {
 
 }
 

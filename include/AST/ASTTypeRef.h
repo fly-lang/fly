@@ -27,7 +27,7 @@ namespace fly {
         friend class SemaResolver;
         friend class SemaValidator;
 
-        SymType *Type;
+        SymType *Sym;
 
         bool Array;
 
@@ -39,7 +39,7 @@ namespace fly {
             bool Array = false);
 
     public:
-        SymType *getType() const;
+        SymType *getSym() const;
 
         bool isArray() const;
 

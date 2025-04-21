@@ -18,7 +18,7 @@ ASTCall::ASTCall(const SourceLocation &Loc, llvm::StringRef Name) : ASTRef(Loc, 
 
 }
 
-const ASTVar *ASTCall::getErrorHandler() const {
+SymErrorHandler *ASTCall::getErrorHandler() const {
     return ErrorHandler;
 }
 

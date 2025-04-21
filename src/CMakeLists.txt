@@ -102,7 +102,7 @@ add_library(flyLib
         CodeGen/CodeGenError.cpp
         CodeGen/CodeGenFunction.cpp
         CodeGen/CodeGenFunctionBase.cpp
-        CodeGen/CodeGenGlobalVar.cpp
+#        CodeGen/CodeGenGlobalVar.cpp
         CodeGen/CodeGenHandle.cpp
         #CodeGen/CodeGenHeader.cpp
         CodeGen/CodeGenModule.cpp
@@ -153,9 +153,10 @@ add_library(flyLib
         Sym/SymClassMethod.cpp
         Sym/SymEnum.cpp
         Sym/SymEnumEntry.cpp
+        Sym/SymErrorHandler.cpp
         Sym/SymFunction.cpp
         Sym/SymFunctionBase.cpp
-        Sym/SymGlobalVar.cpp
+#        Sym/SymGlobalVar.cpp
         Sym/SymLocalVar.cpp
         Sym/SymModule.cpp
         Sym/SymNameSpace.cpp

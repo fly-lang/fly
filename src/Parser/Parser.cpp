@@ -221,10 +221,12 @@ ASTBase *Parser::ParseDefinition() {
             // Define a Function
             if (Lexer::findNextToken(Tok.getLocation(), SourceMgr)->is(tok::l_paren)) {
                 return ParseFunction(Scopes, TypeRef);
-            } else {
-                // Define a GlobalVar
-                return ParseGlobalVar(Scopes, TypeRef);
             }
+        	// TODO: remove global var
+        	// else {
+         //        // Define a GlobalVar
+         //        return ParseGlobalVar(Scopes, TypeRef);
+         //    }
         } else {
             Diag(Tok, diag::err_parse_identifier_invalid);
         }
@@ -267,27 +269,28 @@ SmallVector<ASTScope *, 8> Parser::ParseScopes() {
  * @param NameLoc
  * @return
  */
-ASTVar *Parser::ParseGlobalVar(SmallVector<ASTScope *, 8> &Scopes, ASTTypeRef *TypeRef) {
-	FLY_DEBUG_START("Parser", "ParseGlobalVar");
-    assert(Tok.isAnyIdentifier() && "Tok must be an Identifier");
-
-    llvm::StringRef Name = Tok.getIdentifierInfo()->getName();
-    SourceLocation Loc = ConsumeToken();
-
-    // Parsing =
-    ASTExpr *Expr = nullptr;
-    if (isAssignOperator(Tok)) {
-        ConsumeToken();
-
-        // Parse Expr
-        Expr = ParseExpr();
-    }
-
-    // GlobalVar
-    ASTVar *GlobalVar = Builder.CreateGlobalVar(Module, Loc, TypeRef, Name, Scopes, Expr);
-
-    return GlobalVar;
-}
+// TODO: remove globalvar
+// ASTVar *Parser::ParseGlobalVar(SmallVector<ASTScope *, 8> &Scopes, ASTTypeRef *TypeRef) {
+// 	FLY_DEBUG_START("Parser", "ParseGlobalVar");
+//     assert(Tok.isAnyIdentifier() && "Tok must be an Identifier");
+//
+//     llvm::StringRef Name = Tok.getIdentifierInfo()->getName();
+//     SourceLocation Loc = ConsumeToken();
+//
+//     // Parsing =
+//     ASTExpr *Expr = nullptr;
+//     if (isAssignOperator(Tok)) {
+//         ConsumeToken();
+//
+//         // Parse Expr
+//         Expr = ParseExpr();
+//     }
+//
+//     // GlobalVar
+//     ASTVar *GlobalVar = Builder.CreateGlobalVar(Module, Loc, TypeRef, Name, Scopes, Expr);
+//
+//     return GlobalVar;
+// }
 
 
 /**
@@ -1279,7 +1282,7 @@ ASTValue *Parser::ParseValues() {
     }
 
     Diag(diag::err_invalid_value) << Tok.getName();
-    return Builder.CreateZeroValue(Tok.getLocation());
+    return nullptr;
 }
 
 ASTExpr *Parser::ParseExpr() {

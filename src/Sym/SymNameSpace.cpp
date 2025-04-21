@@ -12,11 +12,6 @@
 
 using namespace fly;
 
-std::string SymNameSpace::DEFAULT_NAMESPACE = "default";
-
-SymNameSpace::SymNameSpace() : Name(DEFAULT_NAMESPACE) {
-}
-
 SymNameSpace::SymNameSpace(const std::string& Name) : Name(Name) {
 }
 

@@ -26,6 +26,7 @@
 #include <AST/ASTTypeRef.h>
 #include <CodeGen/CodeGenVar.h>
 #include <Sym/SymClass.h>
+#include <Sym/SymErrorHandler.h>
 
 using namespace fly;
 
@@ -38,7 +39,7 @@ CodeGenModule *CodeGenFunctionBase::getCodeGenModule() {
 }
 
 void CodeGenFunctionBase::GenReturnType() {
-    RetType = CGM->GenType(Sym->getAST()->getReturnTypeRef()->getType());
+    RetType = CGM->GenType(Sym->getAST()->getReturnTypeRef()->getSym());
 }
 
 void CodeGenFunctionBase::GenParamTypes(CodeGenModule * CGM, llvm::SmallVector<llvm::Type *, 8> &Types, llvm::SmallVector<ASTVar *, 8> Params) {
@@ -48,7 +49,7 @@ void CodeGenFunctionBase::GenParamTypes(CodeGenModule * CGM, llvm::SmallVector<l
     }
     if (!Params.empty()) {
         for (auto Param : Params) {
-            llvm::Type *ParamTy = CGM->GenType(Param->getTypeRef()->getType());
+            llvm::Type *ParamTy = CGM->GenType(Param->getTypeRef()->getSym());
             Types.push_back(ParamTy);
         }
     }

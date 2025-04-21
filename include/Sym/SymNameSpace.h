@@ -46,13 +46,9 @@ namespace fly {
 
         CodeGenModule* CodeGen = nullptr;
 
-        SymNameSpace();
-
         explicit SymNameSpace(const std::string& Name);
 
     public:
-
-        static std::string DEFAULT_NAMESPACE;
 
         ~SymNameSpace();
 

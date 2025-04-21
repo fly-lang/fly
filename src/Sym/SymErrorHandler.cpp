@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Sema/SymVar.cpp - The Symbolic Table for Var
+// src/Sema/SymErrorHandler.cpp - The Symbolic Table for Error Handler
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,28 +7,20 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "Sym/SymVar.h"
+#include "Sym/SymErrorHandler.h"
 
-#include <AST/ASTVar.h>
+#include <Sym/SymType.h>
 
 using namespace fly;
 
-SymVar::SymVar(ASTVar *AST, SymVarKind Kind) : AST(AST), Kind(Kind) {
+SymErrorHandler::SymErrorHandler() : SymVar(nullptr, SymVarKind::VAR_ERROR), Type(new SymErrorType()) {
+
 }
 
-ASTVar *SymVar::getAST() const {
-	return AST;
+CodeGenError * SymErrorHandler::getCodeGen() const {
+	return CodeGen;
 }
 
-SymVarKind SymVar::getKind() const {
-	return Kind;
+void SymErrorHandler::setCodeGen(CodeGenVarBase *CodeGen) {
+	this->CodeGen = static_cast<CodeGenError *>(CodeGen);
 }
-
-SymType *SymVar::getType() const {
-	return Type;
-}
-
-bool SymVar::isConstant() const {
-	return Constant;
-}
-

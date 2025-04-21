@@ -14,11 +14,14 @@
 #include <AST/ASTTypeRef.h>
 #include <AST/ASTVar.h>
 #include <CodeGen/CodeGenFunctionBase.h>
+#include <Sym/SymErrorHandler.h>
 #include <Sym/SymType.h>
 
 using namespace fly;
 
-SymFunctionBase::SymFunctionBase(ASTFunction *AST, SymFunctionKind Kind) : AST(AST), Kind(Kind) {
+SymFunctionBase::SymFunctionBase(ASTFunction *AST, SymFunctionKind Kind) : AST(AST), Kind(Kind),
+	ErrorHandler(new SymErrorHandler()) {
+
 }
 
 llvm::SmallVector<SymType *, 8> &SymFunctionBase::getParamTypes() {
@@ -41,7 +44,7 @@ llvm::SmallVector<SymVar *, 8> SymFunctionBase::getLocalVars() {
 	return LocalVars;
 }
 
-SymVar * SymFunctionBase::getErrorHandler() const {
+SymErrorHandler * SymFunctionBase::getErrorHandler() const {
 	return ErrorHandler;
 }
 
@@ -93,7 +96,7 @@ std::string MangleType(SymType *Type) {
 std::string SymFunctionBase::MangleFunction(ASTFunction *AST) {
 	llvm::SmallVector<SymType *, 8> Params;
 	for (auto Param : AST->getParams()) {
-		Params.push_back(Param->getTypeRef()->getType());
+		Params.push_back(Param->getTypeRef()->getSym());
 	}
 	return MangleFunction(AST->getName(), Params);
 }

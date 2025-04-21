@@ -173,6 +173,13 @@ namespace fly {
 
     };
 
+    class SymErrorType : public SymType {
+
+    public:
+		explicit SymErrorType() : SymType(SymTypeKind::TYPE_ERROR) {}
+
+	};
+
 }
 
 #endif //FLY_SYM_TYPE_H

@@ -27,6 +27,7 @@ namespace fly {
     class CodeGenVarBase {
 
     public:
+        virtual ~CodeGenVarBase() = default;
 
         virtual llvm::Type *getType() = 0;
 

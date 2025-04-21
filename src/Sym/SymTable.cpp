@@ -26,7 +26,7 @@ const llvm::DenseMap<uint64_t, SymModule *> &SymTable::getModules() const {
 	return Modules;
 }
 
-const SymNameSpace * SymTable::getDefaultNameSpace() const {
+SymNameSpace * SymTable::getDefaultNameSpace() const {
 	return DefaultNameSpace;
 }
 
@@ -84,6 +84,10 @@ SymType * SymTable::getCharType() const {
 
 SymType * SymTable::getStringType() const {
 	return StringType;
+}
+
+SymType * SymTable::getArrayType() const {
+	return ArrayType;
 }
 
 SymType * SymTable::getErrorType() const {

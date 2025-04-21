@@ -235,8 +235,9 @@ namespace fly {
         // Create Alias
         ASTAlias * CreateAlias(const SourceLocation &Loc, llvm::StringRef Name);
 
-        ASTVar *CreateGlobalVar(ASTModule *Module, const SourceLocation &Loc, ASTTypeRef *Type, llvm::StringRef Name,
-                                      llvm::SmallVector<ASTScope *, 8> &Scopes, ASTExpr *Expr = nullptr);
+        // TODO: remove globalvar
+        // ASTVar *CreateGlobalVar(ASTModule *Module, const SourceLocation &Loc, ASTTypeRef *Type, llvm::StringRef Name,
+        //                               llvm::SmallVector<ASTScope *, 8> &Scopes, ASTExpr *Expr = nullptr);
 
         ASTFunction *CreateFunction(ASTModule *Module, const SourceLocation &Loc, ASTTypeRef *Type, llvm::StringRef Name,
                                     llvm::SmallVector<ASTScope *, 8> &Scopes, llvm::SmallVector<ASTVar *, 8> &Params,
@@ -291,11 +292,13 @@ namespace fly {
 
         ASTArrayTypeRef *CreateArrayTypeRef(const SourceLocation &Loc, ASTTypeRef *TypeRef, ASTExpr *Size);
 
+        ASTTypeRef *CreateTypeRef(const SourceLocation &Loc, SymType *Type);
+
         ASTTypeRef *CreateTypeRef(const SourceLocation &Loc, llvm::StringRef Name, ASTNameSpaceRef *NameSpaceRef = nullptr);
 
-        ASTTypeRef * CreateTypeRef(ASTClass *Class);
+        ASTTypeRef *CreateTypeRef(ASTClass *Class);
 
-        ASTTypeRef * CreateTypeRef(ASTEnum *Enum);
+        ASTTypeRef *CreateTypeRef(ASTEnum *Enum);
 
         ASTNameSpaceRef *CreateNameSpaceRef(const SourceLocation &Loc, llvm::SmallVector<llvm::StringRef, 4> Names);
 
@@ -397,6 +400,7 @@ namespace fly {
         SemaBuilderSwitchStmt *CreateSwitchBuilder(ASTBlockStmt *Parent);
 
         SemaBuilderLoopStmt *CreateLoopBuilder(ASTBlockStmt *Parent, const SourceLocation &Loc);
+
     };
 
 }  // end namespace fly

@@ -41,51 +41,51 @@ SymBuilder::SymBuilder(Sema &S) : S(S) {
 
 }
 
-SymTable * SymBuilder::CreateTable() {
-	SymTable *Table = new SymTable();
-
-	// Create the Default NameSpace
-	S.getSymBuilder().CreateNameSpace();
+void SymBuilder::CreateTable() {
+	S.Table = new SymTable();
 
 	// Create Builtin Types
-	Table->BoolType = S.getSymBuilder().CreateType(SymTypeKind::TYPE_BOOL);
-	Table->ByteType = S.getSymBuilder().CreateIntType(SymIntTypeKind::TYPE_INT);
-	Table->UShortType = S.getSymBuilder().CreateIntType(SymIntTypeKind::TYPE_USHORT);
-	Table->ShortType = S.getSymBuilder().CreateIntType(SymIntTypeKind::TYPE_SHORT);
-	Table->UIntType = S.getSymBuilder().CreateIntType(SymIntTypeKind::TYPE_UINT);
-	Table->IntType = S.getSymBuilder().CreateIntType(SymIntTypeKind::TYPE_INT);
-	Table->ULongType = S.getSymBuilder().CreateIntType(SymIntTypeKind::TYPE_ULONG);
-	Table->LongType = S.getSymBuilder().CreateIntType(SymIntTypeKind::TYPE_LONG);
-	Table->FloatType = S.getSymBuilder().CreateFPType(SymFPTypeKind::TYPE_FLOAT);
-	Table->DoubleType = S.getSymBuilder().CreateFPType(SymFPTypeKind::TYPE_DOUBLE);
-	Table->VoidType = S.getSymBuilder().CreateType(SymTypeKind::TYPE_VOID);
-	Table->StringType = S.getSymBuilder().CreateType(SymTypeKind::TYPE_STRING);
-	Table->CharType = S.getSymBuilder().CreateType(SymTypeKind::TYPE_CHAR);
-	Table->ErrorType = S.getSymBuilder().CreateType(SymTypeKind::TYPE_ERROR);
+	S.Table->BoolType = S.getSymBuilder().CreateType(SymTypeKind::TYPE_BOOL);
+	S.Table->ByteType = S.getSymBuilder().CreateIntType(SymIntTypeKind::TYPE_BYTE);
+	S.Table->UShortType = S.getSymBuilder().CreateIntType(SymIntTypeKind::TYPE_USHORT);
+	S.Table->ShortType = S.getSymBuilder().CreateIntType(SymIntTypeKind::TYPE_SHORT);
+	S.Table->UIntType = S.getSymBuilder().CreateIntType(SymIntTypeKind::TYPE_UINT);
+	S.Table->IntType = S.getSymBuilder().CreateIntType(SymIntTypeKind::TYPE_INT);
+	S.Table->ULongType = S.getSymBuilder().CreateIntType(SymIntTypeKind::TYPE_ULONG);
+	S.Table->LongType = S.getSymBuilder().CreateIntType(SymIntTypeKind::TYPE_LONG);
+	S.Table->FloatType = S.getSymBuilder().CreateFPType(SymFPTypeKind::TYPE_FLOAT);
+	S.Table->DoubleType = S.getSymBuilder().CreateFPType(SymFPTypeKind::TYPE_DOUBLE);
+	S.Table->VoidType = S.getSymBuilder().CreateType(SymTypeKind::TYPE_VOID);
+	S.Table->CharType = S.getSymBuilder().CreateType(SymTypeKind::TYPE_CHAR);
+	S.Table->StringType = S.getSymBuilder().CreateType(SymTypeKind::TYPE_STRING);
+	S.Table->ArrayType = S.getSymBuilder().CreateType(SymTypeKind::TYPE_ARRAY);
+	S.Table->ErrorType = S.getSymBuilder().CreateType(SymTypeKind::TYPE_ERROR);
+
+	// Create the Default NameSpace
+	S.Table->DefaultNameSpace = S.SBuilder->CreateDefaultNameSpace();
 
 	// Add built-in types to the Default NameSpace
-	Table->DefaultNameSpace->Types.insert(std::make_pair<>(Table->BoolType->getName(), Table->BoolType));
-	Table->DefaultNameSpace->Types.insert(std::make_pair<>(Table->ByteType->getName(), Table->ByteType));
-	Table->DefaultNameSpace->Types.insert(std::make_pair<>(Table->UShortType->getName(), Table->UShortType));
-	Table->DefaultNameSpace->Types.insert(std::make_pair<>(Table->ShortType->getName(), Table->ShortType));
-	Table->DefaultNameSpace->Types.insert(std::make_pair<>(Table->UIntType->getName(), Table->UIntType));
-	Table->DefaultNameSpace->Types.insert(std::make_pair<>(Table->IntType->getName(), Table->IntType));
-	Table->DefaultNameSpace->Types.insert(std::make_pair<>(Table->ULongType->getName(), Table->ULongType));
-	Table->DefaultNameSpace->Types.insert(std::make_pair<>(Table->LongType->getName(), Table->LongType));
-	Table->DefaultNameSpace->Types.insert(std::make_pair<>(Table->FloatType->getName(), Table->FloatType));
-	Table->DefaultNameSpace->Types.insert(std::make_pair<>(Table->DoubleType->getName(), Table->DoubleType));
-	Table->DefaultNameSpace->Types.insert(std::make_pair<>(Table->VoidType->getName(), Table->VoidType));
-	Table->DefaultNameSpace->Types.insert(std::make_pair<>(Table->StringType->getName(), Table->StringType));
-	Table->DefaultNameSpace->Types.insert(std::make_pair<>(Table->CharType->getName(), Table->CharType));
-	Table->DefaultNameSpace->Types.insert(std::make_pair<>(Table->ErrorType->getName(), Table->ErrorType));
-
-	return Table;
+	S.Table->DefaultNameSpace->Types.insert(std::make_pair<>(S.Table->BoolType->getName(), S.Table->BoolType));
+	S.Table->DefaultNameSpace->Types.insert(std::make_pair<>(S.Table->ByteType->getName(), S.Table->ByteType));
+	S.Table->DefaultNameSpace->Types.insert(std::make_pair<>(S.Table->UShortType->getName(), S.Table->UShortType));
+	S.Table->DefaultNameSpace->Types.insert(std::make_pair<>(S.Table->ShortType->getName(), S.Table->ShortType));
+	S.Table->DefaultNameSpace->Types.insert(std::make_pair<>(S.Table->UIntType->getName(), S.Table->UIntType));
+	S.Table->DefaultNameSpace->Types.insert(std::make_pair<>(S.Table->IntType->getName(), S.Table->IntType));
+	S.Table->DefaultNameSpace->Types.insert(std::make_pair<>(S.Table->ULongType->getName(), S.Table->ULongType));
+	S.Table->DefaultNameSpace->Types.insert(std::make_pair<>(S.Table->LongType->getName(), S.Table->LongType));
+	S.Table->DefaultNameSpace->Types.insert(std::make_pair<>(S.Table->FloatType->getName(), S.Table->FloatType));
+	S.Table->DefaultNameSpace->Types.insert(std::make_pair<>(S.Table->DoubleType->getName(), S.Table->DoubleType));
+	S.Table->DefaultNameSpace->Types.insert(std::make_pair<>(S.Table->VoidType->getName(), S.Table->VoidType));
+	S.Table->DefaultNameSpace->Types.insert(std::make_pair<>(S.Table->CharType->getName(), S.Table->CharType));
+	S.Table->DefaultNameSpace->Types.insert(std::make_pair<>(S.Table->StringType->getName(), S.Table->StringType));
+	S.Table->DefaultNameSpace->Types.insert(std::make_pair<>(S.Table->ArrayType->getName(), S.Table->ArrayType));
+	S.Table->DefaultNameSpace->Types.insert(std::make_pair<>(S.Table->ErrorType->getName(), S.Table->ErrorType));
 }
 
-SymNameSpace *SymBuilder::CreateNameSpace() {
+SymNameSpace *SymBuilder::CreateDefaultNameSpace() {
 	FLY_DEBUG_START("SymBuilder", "CreateNameSpace");
 
-	SymNameSpace *NameSpace = new SymNameSpace();
+	SymNameSpace *NameSpace = new SymNameSpace(Sema::DEFAULT_NAMESPACE);
 	S.Table->NameSpaces.insert(std::make_pair<>(NameSpace->getName(), NameSpace));
 	S.Table->DefaultNameSpace = NameSpace;
 
@@ -94,6 +94,12 @@ SymNameSpace *SymBuilder::CreateNameSpace() {
 }
 
 SymNameSpace * SymBuilder::CreateOrGetNameSpace(ASTNameSpace *AST) {
+	// When the AST is null, return the Default NameSpace
+	if (AST == nullptr) {
+		return S.getSymTable().DefaultNameSpace;
+	}
+
+	// Build the NameSpace
 	SymNameSpace *Parent = nullptr;
 	SymNameSpace *NameSpace = nullptr;
 	std::string FullName = "";
@@ -114,10 +120,11 @@ SymNameSpace * SymBuilder::CreateOrGetNameSpace(ASTNameSpace *AST) {
 	return NameSpace;
 }
 
-SymModule * SymBuilder::CreateModule(ASTModule *AST) {
+SymModule * SymBuilder::CreateModule(SymNameSpace *NameSpace, ASTModule *AST) {
 	FLY_DEBUG_START("SymBuilder", "CreateModule");
 
 	SymModule *Module = new SymModule(AST);
+	Module->NameSpace = NameSpace;
 	S.Table->Modules.insert(std::make_pair(AST->getId(), Module));
 
 	FLY_DEBUG_END("SymBuilder", "CreateModule");
@@ -173,51 +180,55 @@ void SymBuilder::CreateImport(SymModule *Module, ASTImport *AST) {
 	FLY_DEBUG_END("SymBuilder", "CreateImport");
 }
 
-SymGlobalVar * SymBuilder::CreateGlobalVar(SymModule *Module, ASTVar *AST) {
-	FLY_DEBUG_START("SymBuilder", "CreateGlobalVar");
-
-	SymGlobalVar *GlobalVar = new SymGlobalVar(AST);
-
-	// Check Duplicates in Module
-	if (Module->GlobalVars.lookup(AST->getName()) != nullptr) {
-		// Error
-		S.Diag(AST->getLocation(), diag::err_syntax_error) << AST->getName();
-		return GlobalVar;
-	}
-
-	Module->GlobalVars.insert(std::make_pair(AST->getName(), GlobalVar));
-	AST->Sym = GlobalVar;
-
-	// Check and set GlobalVar Scopes
-	for (auto Scope : AST->getScopes()) {
-		if (Scope == nullptr) {
-			// Error:
-			S.Diag(AST->getLocation(), diag::err_sema_visibility_error) << AST->getName();
-		}
-		if (Scope->getScopeKind() == ASTScopeKind::SCOPE_VISIBILITY) {
-			if (Scope->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
-
-				// Check Duplicates in NameSpace
-				GlobalVar->Visibility = SymVisibilityKind::PUBLIC;
-				if (Module->NameSpace->GlobalVars.lookup(AST->getName()) != nullptr) {
-					// Error
-					S.Diag(AST->getLocation(), diag::err_syntax_error) << AST->getName();
-				}
-				Module->NameSpace->GlobalVars.insert(std::make_pair(AST->getName(), GlobalVar));
-			} else if (Scope->getVisibility() == ASTVisibilityKind::V_PRIVATE) {
-				GlobalVar->Visibility = SymVisibilityKind::PRIVATE;
-			} else {
-				// Error
-				S.Diag(AST->getLocation(), diag::err_sema_visibility_error) << AST->getName();
-			}
-		} else if (Scope->getScopeKind() == ASTScopeKind::SCOPE_CONSTANT) {
-			GlobalVar->Constant = Scope->isConstant();
-		}
-	}
-
-	FLY_DEBUG_END("SymBuilder", "CreateGlobalVar");
-	return GlobalVar;
-}
+// TODO: remove GlobalVar
+// SymGlobalVar * SymBuilder::CreateGlobalVar(SymModule *Module, ASTVar *AST) {
+// 	FLY_DEBUG_START("SymBuilder", "CreateGlobalVar");
+//
+// 	SymGlobalVar *GlobalVar = new SymGlobalVar(AST);
+//
+// 	// Check Duplicates in Module
+// 	if (Module->GlobalVars.lookup(AST->getName()) != nullptr) {
+// 		// Error
+// 		S.Diag(AST->getLocation(), diag::err_syntax_error) << AST->getName();
+// 		return GlobalVar;
+// 	}
+//
+// 	GlobalVar->Module = Module;
+// 	Module->GlobalVars.insert(std::make_pair(AST->getName(), GlobalVar));
+// 	AST->Sym = GlobalVar;
+//
+// 	// Check and set GlobalVar Scopes
+// 	for (auto Scope : AST->getScopes()) {
+// 		if (Scope == nullptr) {
+// 			// Error:
+// 			S.Diag(AST->getLocation(), diag::err_sema_visibility_error) << AST->getName();
+// 		}
+// 		if (Scope->getScopeKind() == ASTScopeKind::SCOPE_VISIBILITY) {
+// 			if (Scope->getVisibility() == ASTVisibilityKind::V_PUBLIC ||
+// 				Scope->getVisibility() == ASTVisibilityKind::V_DEFAULT) {
+//
+// 				// Check Duplicates in NameSpace
+// 				GlobalVar->Visibility = Scope->getVisibility() == ASTVisibilityKind::V_PUBLIC ?
+//                     SymVisibilityKind::PUBLIC : SymVisibilityKind::DEFAULT;
+// 				if (Module->NameSpace->GlobalVars.lookup(AST->getName()) != nullptr) {
+// 					// Error
+// 					S.Diag(AST->getLocation(), diag::err_syntax_error) << AST->getName();
+// 				}
+// 				Module->NameSpace->GlobalVars.insert(std::make_pair(AST->getName(), GlobalVar));
+// 			} else if (Scope->getVisibility() == ASTVisibilityKind::V_PRIVATE) {
+// 				GlobalVar->Visibility = SymVisibilityKind::PRIVATE;
+// 			} else {
+// 				// Error
+// 				S.Diag(AST->getLocation(), diag::err_sema_visibility_error) << AST->getName();
+// 			}
+// 		} else if (Scope->getScopeKind() == ASTScopeKind::SCOPE_CONSTANT) {
+// 			GlobalVar->Constant = Scope->isConstant();
+// 		}
+// 	}
+//
+// 	FLY_DEBUG_END("SymBuilder", "CreateGlobalVar");
+// 	return GlobalVar;
+// }
 
 SymFunction * SymBuilder::CreateFunction(SymModule *Module, ASTFunction *AST) {
 	FLY_DEBUG_START("SymBuilder", "CreateFunction");
@@ -232,7 +243,9 @@ SymFunction * SymBuilder::CreateFunction(SymModule *Module, ASTFunction *AST) {
 		return Function;
 	}
 
+	Function->Module = Module;
 	Module->Functions.insert(std::make_pair(MangledName, Function));
+	AST->Sym = Function;
 
 	// Check and set Function Scopes
 	for (auto Scope : AST->getScopes()) {
@@ -274,6 +287,8 @@ SymClass * SymBuilder::CreateClass(SymModule *Module, ASTClass *AST) {
 		S.Diag(AST->getLocation(), diag::err_syntax_error) << AST->getName();
 		return Class;
 	}
+
+	Class->Module = Module;
 	Module->Classes.insert(std::make_pair(AST->getName(), Class));
 
 	// Check and set Function Scopes
@@ -351,6 +366,8 @@ SymEnum * SymBuilder::CreateEnum(SymModule *Module, ASTEnum *AST) {
 		S.Diag(AST->getLocation(), diag::err_syntax_error) << AST->getName();
 		return Enum;
 	}
+
+	Enum->Module = Module;
 	Module->Enums.insert(std::make_pair(AST->getName(), Enum));
 
 	// Check and set Function Scopes
@@ -439,4 +456,22 @@ SymComment * SymBuilder::CreateComment(ASTComment *AST) {
 
 	FLY_DEBUG_END("SymBuilder", "CreateComment");
 	return Comment;
+}
+
+SymLocalVar * SymBuilder::CreateLocalVar(ASTVar *AST) {
+	FLY_DEBUG_START("SymBuilder", "CreateLocalVar");
+
+	// Create LocalVar Symbol
+	SymLocalVar *LocalVar = new SymLocalVar(AST);
+
+	// Assign the Type Symbol to LocalVar
+	if (AST->getTypeRef() != nullptr && AST->getTypeRef()->isResolved()) {
+		LocalVar->Type = AST->getTypeRef()->getSym();
+	}
+
+	// Assign Symbol to AST
+	AST->Sym = LocalVar;
+
+	FLY_DEBUG_END("SymBuilder", "CreateLocalVar");
+	return LocalVar;
 }

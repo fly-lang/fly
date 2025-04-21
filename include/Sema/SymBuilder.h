@@ -12,6 +12,7 @@
 
 #include <AST/ASTTypeRef.h>
 #include <Sym/SymClass.h>
+#include <Sym/SymLocalVar.h>
 
 namespace llvm {
 	class StringRef;
@@ -52,17 +53,18 @@ namespace fly {
 
     public:
 
-    	SymTable* CreateTable();
+    	void CreateTable();
 
-    	SymNameSpace *CreateNameSpace();
+    	SymNameSpace *CreateDefaultNameSpace();
 
     	SymNameSpace *CreateOrGetNameSpace(ASTNameSpace *AST);
 
-    	SymModule* CreateModule(ASTModule *AST);
+    	SymModule* CreateModule(SymNameSpace *NameSpace, ASTModule *AST);
 
     	void CreateImport(SymModule* Module, ASTImport* AST);
 
-    	SymGlobalVar *CreateGlobalVar(SymModule *Module, ASTVar *AST);
+    	// TODO: remove GlobalVar
+    	// SymGlobalVar *CreateGlobalVar(SymModule *Module, ASTVar *AST);
 
     	SymFunction *CreateFunction(SymModule *Module, ASTFunction *AST);
 
@@ -85,6 +87,8 @@ namespace fly {
     	SymTypeArray *CreateArrayType(SymType *Type, ASTExpr *Size);
 
 	    SymComment* CreateComment(ASTComment* AST);
+
+    	SymLocalVar *CreateLocalVar(ASTVar *AST);
     };
 
 }  // end namespace fly

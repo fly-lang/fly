@@ -14,7 +14,11 @@
 #include "Sema/SymBuilder.h"
 #include "Basic/Diagnostic.h"
 
+#include <Sym/SymNameSpace.h>
+
 using namespace fly;
+
+std::string Sema::DEFAULT_NAMESPACE = "default";
 
 Sema::Sema(DiagnosticsEngine &Diags) : Diags(Diags) {
 
@@ -36,7 +40,7 @@ Sema* Sema::CreateSema(DiagnosticsEngine &Diags) {
     S->Validator = new SemaValidator(*S);
 
 	// Init the Sema AST Context
-	S->Table = S->SBuilder->CreateTable();
+	S->SBuilder->CreateTable();
 
     return S;
 }

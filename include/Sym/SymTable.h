@@ -62,6 +62,8 @@ namespace fly {
 
         SymType *StringType;
 
+        SymType *ArrayType;
+
         SymType *ErrorType;
 
         SymTable();
@@ -72,7 +74,7 @@ namespace fly {
 
         const llvm::DenseMap<uint64_t, SymModule *> &getModules() const;
 
-        const SymNameSpace *getDefaultNameSpace() const;
+        SymNameSpace *getDefaultNameSpace() const;
 
         const llvm::StringMap<SymNameSpace*> &getNameSpaces() const;
 
@@ -101,6 +103,8 @@ namespace fly {
         SymType * getCharType() const;
 
         SymType * getStringType() const;
+
+        SymType * getArrayType() const;
 
         SymType * getErrorType() const;
 
