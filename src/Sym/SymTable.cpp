@@ -86,10 +86,7 @@ SymType * SymTable::getStringType() const {
 	return StringType;
 }
 
-SymType * SymTable::getArrayType() const {
-	return ArrayType;
-}
-
 SymType * SymTable::getErrorType() const {
 	return ErrorType;
 }
+

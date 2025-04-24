@@ -1033,7 +1033,7 @@ ASTArrayTypeRef *Parser::ParseArrayTypeRef(ASTTypeRef *TypeRef) {
 	ASTExpr *Expr = ParseExpr();
 	if (Tok.is(tok::r_square)) {
 		ConsumeBracket();
-		ArrayTypeRef = Builder.CreateArrayTypeRef(Loc, TypeRef, Expr);
+		ArrayTypeRef = Builder.CreateArrayTypeRef(Loc, TypeRef);
 	} else {
 		Diag(Loc, diag::err_parser_unclosed_bracket);
 	}

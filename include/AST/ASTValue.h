@@ -26,7 +26,7 @@ namespace fly {
         VAL_CHAR,
         VAL_ARRAY,
         VAL_STRUCT,
-        VAL_NULL
+        VAL_NULL,
     };
 
 

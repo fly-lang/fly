@@ -181,11 +181,11 @@ namespace fly {
 
         llvm::Type *GenType(SymType *Type);
 
-        llvm::ArrayType *GenArrayType(SymTypeArray *Type);
+        llvm::PointerType *GenArrayType(SymTypeArray *Type);
 
         llvm::Constant *GenDefaultValue(SymType *Type, llvm::Type *Ty = nullptr);
 
-        llvm::Constant *GenValue(SymType *Type, ASTValue *Val);
+        llvm::Value *GenValue(SymType *Type, ASTValue *Val);
 
 //        llvm::Value *Convert(llvm::Value *V, llvm::Type *T);
 

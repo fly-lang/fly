@@ -66,6 +66,7 @@ namespace fly {
     class SymLocalVar;
     class SymFunctionBase;
     class ASTScope;
+class ASTValue;
 
     class SemaResolver {
         friend class Sema;
@@ -133,6 +134,8 @@ namespace fly {
         bool ResolveStmtFail(ASTFailStmt *FailStmt);
 
         bool ResolveStmtHandle(ASTHandleStmt *HandleStmt);
+
+        SymType *ResolveValue(ASTValue *V);
 
         bool ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr, SymType *Type = nullptr);
 

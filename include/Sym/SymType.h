@@ -159,17 +159,13 @@ namespace fly {
         friend class SemaResolver;
         friend class SemaValidator;
 
-        explicit SymTypeArray(SymType *Type, ASTExpr *Size);
+        explicit SymTypeArray(SymType *Type);
 
         SymType *Type;
-
-        ASTExpr *Size;
 
         public:
 
         SymType *getType();
-
-        ASTExpr *getSize() const;
 
     };
 

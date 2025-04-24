@@ -62,8 +62,6 @@ namespace fly {
 
         SymType *StringType;
 
-        SymType *ArrayType;
-
         SymType *ErrorType;
 
         SymTable();
@@ -103,8 +101,6 @@ namespace fly {
         SymType * getCharType() const;
 
         SymType * getStringType() const;
-
-        SymType * getArrayType() const;
 
         SymType * getErrorType() const;
 

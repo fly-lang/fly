@@ -313,21 +313,13 @@ llvm::Type *CodeGenModule::GenType(SymType *Type) {
     assert(0 && "Unknown Var Type Kind");
 }
 
-llvm::ArrayType *CodeGenModule::GenArrayType(SymTypeArray *ArrayType) {
+llvm::PointerType *CodeGenModule::GenArrayType(SymTypeArray *ArrayType) {
     llvm::Type *SubType = GenType(ArrayType->getType());
-    llvm::Value *Val = GenExpr(ArrayType->getSize());
 
+	// TODO replace IntPtrType with IntPtrTy ?
     // Check if the Value is a ConstantInt
-    if (auto *CI = llvm::dyn_cast<ConstantInt>(Val)) {
-        // Extract the value as uint64_t
-        uint64_t IntVal = CI->getZExtValue(); // Use getSExtValue() for signed values
-        return llvm::ArrayType::get(SubType, IntVal);
-    }
-
-    // TODO Error: cannot convert Size to Int
-
-    return nullptr;
-    assert("Array Size error");
+	IntegerType *IntPtrType = llvm::Type::getIntNTy(LLVMCtx, Module->getDataLayout().getMaxPointerSizeInBits());
+	return llvm::PointerType::getUnqual(IntPtrType);
 }
 
 llvm::Constant *CodeGenModule::GenDefaultValue(SymType *Type, llvm::Type *Ty) {
@@ -386,7 +378,7 @@ llvm::Constant *CodeGenModule::GenDefaultValue(SymType *Type, llvm::Type *Ty) {
  * @param Val need to be correctly configured or you need to call GenDefaultValue()
  * @return
  */
-llvm::Constant *CodeGenModule::GenValue(SymType *Type, ASTValue *Val) {
+llvm::Value *CodeGenModule::GenValue(SymType *Type, ASTValue *Val) {
     FLY_DEBUG_START("CodeGenModule", "GenValue");
     assert(Type && "Type has to be not empty");
     assert(Val && "Value has to be not empty");
@@ -434,13 +426,28 @@ llvm::Constant *CodeGenModule::GenValue(SymType *Type, ASTValue *Val) {
 
         // Array
         case SymTypeKind::TYPE_ARRAY: {
-            llvm::ArrayType *ArrType = GenArrayType((SymTypeArray *) Type);
-            std::vector<llvm::Constant *> Values;
+            llvm::PointerType *AllocType = GenArrayType((SymTypeArray *) Type);
+            std::vector<llvm::Value *> Values;
             for (ASTValue *Value : ((ASTArrayValue *) Val)->getValues()) {
-                llvm::Constant * V = GenValue(((SymTypeArray *) Type)->getType(), Value);
+                llvm::Value * V = GenValue(((SymTypeArray *) Type)->getType(), Value);
                 Values.push_back(V);
             }
-            return llvm::ConstantArray::get(ArrType, makeArrayRef(Values));
+
+        	// Calculate Space
+        	llvm::Value* AllocSize = ConstantInt::get(IntPtrTy, 0);
+        	if (Values.size() > 0) {
+        		llvm::Value* NumElements = ConstantInt::get(IntPtrTy, Values.size());
+        		llvm::TypeSize SizeInBytes = Target.getDataLayout().getTypeAllocSize(Values[0]->getType());
+        		llvm::Value* ElementSize = ConstantInt::get(IntPtrTy, SizeInBytes); // sizeof(int32)
+        		AllocSize = Builder->CreateMul(NumElements, ElementSize);
+        	}
+
+        	// @malloc data type struct
+        	llvm::Instruction *I = CallInst::CreateMalloc(Builder->GetInsertBlock(), IntPtrTy,
+														  AllocType, AllocSize, nullptr, nullptr);
+        	llvm::Value * Instance = Builder->Insert(I);
+
+            return Instance;
         }
 
         case SymTypeKind::TYPE_STRING: {
@@ -829,8 +836,7 @@ llvm::Value *CodeGenModule::GenCall(ASTCall *Call) {
 
 llvm::Value *CodeGenModule::GenExpr(ASTExpr *Expr) {
     FLY_DEBUG_START("CodeGenModule", "GenExpr");
-    CodeGenExpr *CGExpr = new CodeGenExpr(this, Expr);
-    return CGExpr->getValue();
+    return CodeGenExpr::GenValue(this, Expr);
 }
 
 void CodeGenModule::GenFailStmt(ASTFailStmt *FailStmt, CodeGenError *CGE) {

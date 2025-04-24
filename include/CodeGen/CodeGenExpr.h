@@ -22,13 +22,13 @@ namespace fly {
 
     class CodeGenExpr {
 
-        CodeGenModule * CGM = nullptr;
-
-        llvm::Value *Val = nullptr;
-
-        ASTVar *Var = nullptr;
+        CodeGenModule * CGM;
 
     public:
+
+        static llvm::Value* GenValue(CodeGenModule* CGM, ASTExpr* Expr);
+
+    private:
 
         CodeGenExpr(CodeGenModule *CGM, ASTExpr *Expr);
 

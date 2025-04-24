@@ -11,7 +11,6 @@
 #include "CodeGen/CodeGenModule.h"
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenExpr.h"
-#include "CodeGen/CodeGenFunctionBase.h"
 #include "AST/ASTExpr.h"
 #include "AST/ASTVarRef.h"
 #include "AST/ASTOpExpr.h"
@@ -25,10 +24,15 @@
 
 using namespace fly;
 
+llvm::Value *CodeGenExpr::GenValue(CodeGenModule *CGM, ASTExpr *Expr) {
+    FLY_DEBUG_START("CodeGenExpr", "GenValue");
+    CodeGenExpr CGE(CGM, Expr);
+    return CGE.GenValue(Expr);
+}
+
 CodeGenExpr::CodeGenExpr(CodeGenModule *CGM, ASTExpr *Expr) :
         CGM(CGM) {
     FLY_DEBUG_START("CodeGenExpr", "CodeGenExpr");
-    Val = GenValue(Expr);
 }
 
 llvm::Value *CodeGenExpr::GenValue(const ASTExpr *Expr) {
@@ -37,7 +41,7 @@ llvm::Value *CodeGenExpr::GenValue(const ASTExpr *Expr) {
 
         case ASTExprKind::EXPR_VALUE: {
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_VALUE");
-            return CGM->GenValue(Expr->getTypeRef()->getSym(), ((ASTValueExpr *)Expr)->getValue());
+            return CGM->GenValue(Expr->getTypeRef()->getSym(), ((ASTValueExpr *) Expr)->getValue());
         }
         case ASTExprKind::EXPR_VAR_REF: {
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_VAR_REF");
@@ -57,10 +61,6 @@ llvm::Value *CodeGenExpr::GenValue(const ASTExpr *Expr) {
 
     assert("Unknown Expr Kind");
     return nullptr;
-}
-
-llvm::Value *CodeGenExpr::getValue() const {
-    return Val;
 }
 
 /**

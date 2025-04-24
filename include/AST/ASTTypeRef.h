@@ -56,15 +56,11 @@ namespace fly {
 
         ASTTypeRef *TypeRef;
 
-        ASTExpr *Size;
-
         explicit ASTArrayTypeRef(const SourceLocation &Loc,  ASTTypeRef *TypeRef, llvm::StringRef Name);
 
     public:
 
         ASTTypeRef *getTypeRef() const;
-
-        ASTExpr *getSize() const;
 
         std::string str() const override;
     };

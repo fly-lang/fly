@@ -61,9 +61,8 @@ public:
     llvm::SmallVector<ASTExpr *, 8> Args;
     llvm::SmallVector<ASTVar *, 8> Params;
 
-    ASTTypeRef * CreateArrayTypeRef(SymType *T, std::string Size) {
-    	ASTValueExpr * Expr = Builder.CreateExpr(Builder.CreateIntegerValue(SourceLoc, Size));
-    	SymTypeArray *A = S->getSymBuilder().CreateArrayType(T, Expr);
+    ASTTypeRef * CreateArrayTypeRef(SymType *T) {
+    	SymTypeArray *A = S->getSymBuilder().CreateArrayType(T);
     	return S->getASTBuilder().CreateTypeRef(SourceLoc, A);
     }
 

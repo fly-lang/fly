@@ -58,7 +58,6 @@ void SymBuilder::CreateTable() {
 	S.Table->VoidType = S.getSymBuilder().CreateType(SymTypeKind::TYPE_VOID);
 	S.Table->CharType = S.getSymBuilder().CreateType(SymTypeKind::TYPE_CHAR);
 	S.Table->StringType = S.getSymBuilder().CreateType(SymTypeKind::TYPE_STRING);
-	S.Table->ArrayType = S.getSymBuilder().CreateType(SymTypeKind::TYPE_ARRAY);
 	S.Table->ErrorType = S.getSymBuilder().CreateType(SymTypeKind::TYPE_ERROR);
 
 	// Create the Default NameSpace
@@ -78,7 +77,6 @@ void SymBuilder::CreateTable() {
 	S.Table->DefaultNameSpace->Types.insert(std::make_pair<>(S.Table->VoidType->getName(), S.Table->VoidType));
 	S.Table->DefaultNameSpace->Types.insert(std::make_pair<>(S.Table->CharType->getName(), S.Table->CharType));
 	S.Table->DefaultNameSpace->Types.insert(std::make_pair<>(S.Table->StringType->getName(), S.Table->StringType));
-	S.Table->DefaultNameSpace->Types.insert(std::make_pair<>(S.Table->ArrayType->getName(), S.Table->ArrayType));
 	S.Table->DefaultNameSpace->Types.insert(std::make_pair<>(S.Table->ErrorType->getName(), S.Table->ErrorType));
 }
 
@@ -440,10 +438,10 @@ SymTypeFP * SymBuilder::CreateFPType(SymFPTypeKind FPKind) {
 	return Type;
 }
 
-SymTypeArray * SymBuilder::CreateArrayType(SymType *Type, ASTExpr *Size) {
+SymTypeArray * SymBuilder::CreateArrayType(SymType *Type) {
 	FLY_DEBUG_START("SymBuilder", "CreateArrayType");
 
-	SymTypeArray * TypeArray = new SymTypeArray(Type, Size);
+	SymTypeArray * TypeArray = new SymTypeArray(Type);
 
 	FLY_DEBUG_END("SymBuilder", "CreateArrayType");
 	return TypeArray;

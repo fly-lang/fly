@@ -84,7 +84,7 @@ namespace fly {
 
     	SymTypeFP *CreateFPType(SymFPTypeKind FPKind);
 
-    	SymTypeArray *CreateArrayType(SymType *Type, ASTExpr *Size);
+    	SymTypeArray *CreateArrayType(SymType *Type);
 
 	    SymComment* CreateComment(ASTComment* AST);
 

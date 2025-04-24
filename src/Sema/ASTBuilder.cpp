@@ -51,6 +51,17 @@
 using namespace fly;
 
 const uint8_t ASTBuilder::DEFAULT_INTEGER_RADIX= 10;
+
+const bool ASTBuilder::DEFAULT_BOOL_VALUE = false;
+
+const llvm::StringRef ASTBuilder::DEFAULT_INTEGER_VALUE = StringRef("0");
+
+const llvm::StringRef ASTBuilder::DEFAULT_FLOATING_VALUE = StringRef("0.0");
+
+const llvm::StringRef ASTBuilder::DEFAULT_STRING_VALUE = StringRef("\"\"");
+
+const llvm::StringRef ASTBuilder::DEFAULT_CHAR_VALUE = StringRef("");
+
 /**
  * Private constructor used only from Sema constructor
  * @param S
@@ -58,9 +69,6 @@ const uint8_t ASTBuilder::DEFAULT_INTEGER_RADIX= 10;
 ASTBuilder::ASTBuilder(Sema &S) : S(S) {
 
 }
-
-const llvm::StringRef ASTBuilder::DEFAULT_INTEGER_VALUE = StringRef("0");
-const llvm::StringRef ASTBuilder::DEFAULT_FLOATING_VALUE = StringRef("0.0");
 
 /**
  * Creates an ASTModule
@@ -527,12 +535,11 @@ ASTTypeRef *ASTBuilder::CreateErrorTypeRef(const SourceLocation &Loc) {
  * @param Size
  * @return
  */
-ASTArrayTypeRef *ASTBuilder::CreateArrayTypeRef(const SourceLocation &Loc, ASTTypeRef *TypeRef, ASTExpr *Size) {
+ASTArrayTypeRef *ASTBuilder::CreateArrayTypeRef(const SourceLocation &Loc, ASTTypeRef *TypeRef) {
 	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateArrayTypeRef", "Loc=" << Loc.getRawEncoding());
 
 	// TODO Size
 	ASTArrayTypeRef * ArrayTypeRef = new ASTArrayTypeRef(Loc, TypeRef, llvm::StringRef("array"));
-	ArrayTypeRef->Size = Size;
 
 	FLY_DEBUG_END("ASTBuilder", "CreateArrayTypeRef");
 	return ArrayTypeRef;
@@ -622,12 +629,16 @@ ASTValue *ASTBuilder::CreateDefaultValue(SymType *Type) {
 
 	ASTValue *Value;
 	if (Type->isBool()) {
-		Value = CreateBoolValue(SourceLocation(), false);
+		Value = CreateBoolValue(SourceLocation(), DEFAULT_BOOL_VALUE);
 	} else if (Type->isInteger()) {
 		Value = CreateIntegerValue(SourceLocation(), DEFAULT_INTEGER_VALUE, DEFAULT_INTEGER_RADIX);
 	} else if (Type->isFloatingPoint()) {
 		Value = CreateFloatingValue(SourceLocation(), DEFAULT_FLOATING_VALUE);
-	}else if (Type->isArray()) {
+	} else if (Type->isString()) {
+		Value = CreateStringValue(SourceLocation(), DEFAULT_STRING_VALUE);
+	} else if (Type->isChar()) {
+		Value = CreateCharValue(SourceLocation(), DEFAULT_CHAR_VALUE);
+	} else if (Type->isArray()) {
 		llvm::SmallVector<ASTValue *, 8> Values;
 		Value = CreateArrayValue(SourceLocation(), Values);
 	} else if (Type->isClass()) {
@@ -674,7 +685,7 @@ ASTBoolValue *ASTBuilder::CreateBoolValue(const SourceLocation &Loc, bool Val) {
  * Creates an integer value
  * @param Loc
  * @param Val
- * @param Negative
+ * @param Radix
  * @return
  */
 ASTIntegerValue *ASTBuilder::CreateIntegerValue(const SourceLocation &Loc, llvm::StringRef Val, uint8_t Radix) {
@@ -682,15 +693,6 @@ ASTIntegerValue *ASTBuilder::CreateIntegerValue(const SourceLocation &Loc, llvm:
                       "Loc=" << Loc.getRawEncoding() << ", Val=" << Val << " Radix=" << Radix);
 
     ASTIntegerValue * Value = new ASTIntegerValue(Loc, Val, Radix);
-
-	FLY_DEBUG_END("ASTBuilder", "CreateIntegerValue");
-	return Value;
-}
-
-ASTIntegerValue *ASTBuilder::CreateIntegerValue(const SourceLocation &Loc, llvm::StringRef Val) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateIntegerValue", "Loc=" << Loc.getRawEncoding() << ", Val=" << Val);
-
-    ASTIntegerValue * Value = new ASTIntegerValue(Loc, Val, DEFAULT_INTEGER_RADIX);
 
 	FLY_DEBUG_END("ASTBuilder", "CreateIntegerValue");
 	return Value;
@@ -877,6 +879,7 @@ ASTVarRef *ASTBuilder::CreateVarRef(ASTVar *Var, ASTRef *Parent) {
 	return VarRef;
 }
 
+// FIXME ?? Remove ??
 ASTRef *ASTBuilder::CreateUndefinedRef(const SourceLocation &Loc, llvm::StringRef Name, ASTRef *Parent) {
 	FLY_DEBUG_START("ASTBuilder", "CreateUndefinedRef");
 
@@ -892,40 +895,6 @@ ASTValueExpr *ASTBuilder::CreateExpr(ASTValue *Value) {
     assert(Value && "Create ASTValueExpr by ASTValue");
 
     ASTValueExpr *Expr = new ASTValueExpr(Value);
-    const SourceLocation &Loc = Value->getLocation();
-
-    switch (Value->getTypeKind()) {
-
-        case ASTValueKind::VAL_BOOL:
-            Expr->TypeRef = CreateBoolTypeRef(Loc);
-            break;
-
-        case ASTValueKind::VAL_INT:
-            Expr->TypeRef = CreateIntTypeRef(Loc);
-            break;
-
-        case ASTValueKind::VAL_FLOAT:
-            Expr->TypeRef = CreateFloatTypeRef(Loc);
-            break;
-
-        case ASTValueKind::VAL_STRING:
-            Expr->TypeRef = CreateStringTypeRef(Loc);
-            break;
-
-    	case ASTValueKind::VAL_CHAR:
-    		Expr->TypeRef = CreateCharTypeRef(Loc);
-    		break;
-        case ASTValueKind::VAL_ARRAY: {
-        	ASTArrayValue *AV = static_cast<ASTArrayValue *>(Value);
-        	size_t Size = AV->getValues().size();
-	        Expr->TypeRef = CreateArrayTypeRef(Loc, CreateExpr(CreateIntegerValue(Loc, Size)));
-        }
-            break;
-        case ASTValueKind::VAL_NULL:
-        case ASTValueKind::VAL_STRUCT:
-    		// TODO Class Type
-            break;
-    }
 
 	FLY_DEBUG_END("ASTBuilder", "CreateExpr");
     return Expr;

@@ -125,7 +125,7 @@ namespace fly {
 
     class ASTNullValue;
 
-    class ASTZeroValue;
+    class ASTSizeValue;
 
     class ASTBoolValue;
 
@@ -201,9 +201,15 @@ namespace fly {
 
         static const uint8_t DEFAULT_INTEGER_RADIX;
 
+        static const bool DEFAULT_BOOL_VALUE;
+
         static const llvm::StringRef DEFAULT_INTEGER_VALUE;
 
         static const llvm::StringRef DEFAULT_FLOATING_VALUE;
+
+        static const llvm::StringRef DEFAULT_STRING_VALUE;
+
+        static const llvm::StringRef DEFAULT_CHAR_VALUE;
 
         Sema &S;
 
@@ -290,7 +296,7 @@ namespace fly {
 
         ASTTypeRef *CreateErrorTypeRef(const SourceLocation &Loc);
 
-        ASTArrayTypeRef *CreateArrayTypeRef(const SourceLocation &Loc, ASTTypeRef *TypeRef, ASTExpr *Size);
+        ASTArrayTypeRef *CreateArrayTypeRef(const SourceLocation &Loc, ASTTypeRef *TypeRef);
 
         ASTTypeRef *CreateTypeRef(const SourceLocation &Loc, SymType *Type);
 
@@ -308,13 +314,9 @@ namespace fly {
 
         ASTNullValue *CreateNullValue(const SourceLocation &Loc);
 
-        ASTZeroValue *CreateZeroValue(const SourceLocation &Loc);
-
         ASTBoolValue *CreateBoolValue(const SourceLocation &Loc, bool Val);
 
-        ASTIntegerValue *CreateIntegerValue(const SourceLocation &Loc, llvm::StringRef Val, uint8_t Radix);
-
-        ASTIntegerValue *CreateIntegerValue(const SourceLocation &Loc, llvm::StringRef Val);
+        ASTIntegerValue *CreateIntegerValue(const SourceLocation &Loc, llvm::StringRef Val, uint8_t Radix = 10);
 
         ASTFloatingValue *CreateFloatingValue(const SourceLocation &Loc, llvm::StringRef Val);
 

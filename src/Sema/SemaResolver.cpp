@@ -570,6 +570,9 @@ bool SemaResolver::ResolveStmtBlock(ASTBlockStmt *Block) {
 
     	// Create LocalVar Symbol
     	S.getSymBuilder().CreateLocalVar(LocalVar);
+
+    	// Add LocalVar to the Function Base LocalVars
+    	Block->getFunction()->getSym()->LocalVars.push_back(LocalVar->getSym());
     }
 
     // Resolve Statements
@@ -662,6 +665,56 @@ bool SemaResolver::ResolveStmtHandle(ASTHandleStmt *HandleStmt) {
     return ResolveStmt(HandleStmt->Handle);
 }
 
+SymType *SemaResolver::ResolveValue(ASTValue *V) {
+	switch (V->getTypeKind()) {
+
+		case ASTValueKind::VAL_BOOL:
+			return S.getSymTable().getBoolType();
+
+		case ASTValueKind::VAL_INT:
+			// TODO check Min/Max and convert to the right type
+			return S.getSymTable().getIntType();
+
+		case ASTValueKind::VAL_FLOAT:
+			return S.getSymTable().getDoubleType();
+
+		case ASTValueKind::VAL_STRING:
+			return S.getSymTable().getStringType();
+
+		case ASTValueKind::VAL_CHAR:
+			return S.getSymTable().getCharType();
+		case ASTValueKind::VAL_ARRAY: {
+			ASTArrayValue *AV = static_cast<ASTArrayValue *>(V);
+
+			// Take the size from the array values
+			size_t Size = AV->getValues().size();
+
+			// Set the type with the first array value type
+			SymType *FirstType = Size > 0 ? ResolveValue(AV->getValues()[0]) : S.getSymTable().getVoidType();
+			for (size_t i = 1; i < AV->getValues().size(); i++) {
+				SymType *ValueType = ResolveValue(AV->getValues()[i]);
+				if (ValueType->getKind() != FirstType->getKind()) {
+
+					// check array type conflict
+					S.Diag(AV->getValues()[i]->getLocation(), diag::err_array_type_conflict)
+                        << FirstType->getName() << ValueType->getName();
+					break;
+				}
+			}
+			return S.getSymBuilder().CreateArrayType(FirstType);
+		}
+			break;
+		case ASTValueKind::VAL_STRUCT:
+			// TODO
+			break;
+		case ASTValueKind::VAL_NULL:
+			return nullptr;
+	}
+
+	assert(false && "Invalid ASTValueKind");
+	return nullptr;
+}
+
 /**
  * ResolveModule Expr contents
  * @param Expr
@@ -677,8 +730,11 @@ bool SemaResolver::ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr, SymType *Type) {
         case ASTExprKind::EXPR_VALUE: {
             // Select the best option for this Value
             ASTValueExpr *ValueExpr = static_cast<ASTValueExpr*>(Expr);
-            if (Type != nullptr)
-                ValueExpr->getTypeRef()->Sym = Type;
+        	if (Type == nullptr) {
+        		ValueExpr->TypeRef = S.getASTBuilder().CreateTypeRef(ValueExpr->getLocation(), ResolveValue(ValueExpr->getValue()));
+            } else {
+            	ValueExpr->TypeRef = S.getASTBuilder().CreateTypeRef(ValueExpr->getLocation(), Type);
+            }
             return S.getValidator().CheckValue(ValueExpr->getValue());
         }
         case ASTExprKind::EXPR_VAR_REF: {

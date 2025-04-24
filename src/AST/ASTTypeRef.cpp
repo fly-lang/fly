@@ -44,10 +44,6 @@ ASTTypeRef * ASTArrayTypeRef::getTypeRef() const {
 	return TypeRef;
 }
 
-ASTExpr * ASTArrayTypeRef::getSize() const {
-	return Size;
-}
-
 std::string ASTArrayTypeRef::str() const {
 	return ASTTypeRef::str();
 }

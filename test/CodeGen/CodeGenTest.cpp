@@ -101,11 +101,14 @@ namespace {
     	VarStmt_j->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(DoubleType->getSym())));
 
         // default int[] k = {}
-    	ASTTypeRef * ArrayInt0Type = CreateArrayTypeRef(S->getSymTable().getIntType(), "0");
-        ASTValueExpr *DefaultArrayVal = getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(ArrayInt0Type->getSym()));
-    	ASTVar *LocalVar_k = getASTBuilder().CreateLocalVar(Body, SourceLoc, ArrayInt0Type, "k", EmptyScopes);
+    	ASTTypeRef * ArrayIntType = CreateArrayTypeRef(S->getSymTable().getIntType());
+    	ASTVar *LocalVar_k = getASTBuilder().CreateLocalVar(Body, SourceLoc, ArrayIntType, "k", EmptyScopes);
     	SemaBuilderStmt *VarStmt_k = getASTBuilder().CreateAssignmentStmt(Body, LocalVar_k);
-    	VarStmt_k->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(ArrayInt0Type->getSym())));
+    	VarStmt_k->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(ArrayIntType->getSym())));
+
+    	// TODO string
+
+    	// TODO char
 
         // validate and resolve
         EXPECT_TRUE(S->Resolve());

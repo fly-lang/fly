@@ -146,13 +146,9 @@ const SymFPTypeKind SymTypeFP::getFPKind() const {
 	return FPKind;
 }
 
-SymTypeArray::SymTypeArray(SymType *Type, ASTExpr *Size) : SymType(SymTypeKind::TYPE_ARRAY), Type(Type), Size(Size) {
+SymTypeArray::SymTypeArray(SymType *Type) : SymType(SymTypeKind::TYPE_ARRAY), Type(Type) {
 }
 
 SymType *SymTypeArray::getType() {
 	return Type;
-}
-
-ASTExpr *SymTypeArray::getSize() const {
-	return Size;
 }
