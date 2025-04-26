@@ -99,25 +99,26 @@ bool SymType::isVoid() const {
 
 std::string getIntTypeName(SymIntTypeKind Kind) {
 	switch (Kind) {
-		case SymIntTypeKind::TYPE_BYTE:
-			return "byte";
-		case SymIntTypeKind::TYPE_USHORT:
-			return "ushort";
-		case SymIntTypeKind::TYPE_UINT:
-			return "uint";
-		case SymIntTypeKind::TYPE_ULONG:
-			return "ulong";
-		case SymIntTypeKind::TYPE_INT:
-			return "int";
-		case SymIntTypeKind::TYPE_SHORT:
-			return "short";
-		case SymIntTypeKind::TYPE_LONG:
-			return "long";
+	case SymIntTypeKind::TYPE_BYTE:
+		return "byte";
+	case SymIntTypeKind::TYPE_USHORT:
+		return "ushort";
+	case SymIntTypeKind::TYPE_UINT:
+		return "uint";
+	case SymIntTypeKind::TYPE_ULONG:
+		return "ulong";
+	case SymIntTypeKind::TYPE_INT:
+		return "int";
+	case SymIntTypeKind::TYPE_SHORT:
+		return "short";
+	case SymIntTypeKind::TYPE_LONG:
+		return "long";
 	}
 	assert(false && "Unknown type");
 }
 
-SymTypeInt::SymTypeInt(SymIntTypeKind IntKind) : SymType(SymTypeKind::TYPE_INTEGER, getIntTypeName(IntKind)), IntKind(IntKind) {
+SymTypeInt::SymTypeInt(SymIntTypeKind IntKind) : SymType(SymTypeKind::TYPE_INTEGER, getIntTypeName(IntKind)),
+                                                 IntKind(IntKind) {
 }
 
 const SymIntTypeKind SymTypeInt::getIntKind() const {
@@ -126,7 +127,7 @@ const SymIntTypeKind SymTypeInt::getIntKind() const {
 
 bool SymTypeInt::isSigned() {
 	return IntKind == SymIntTypeKind::TYPE_BYTE || IntKind == SymIntTypeKind::TYPE_USHORT ||
-		IntKind == SymIntTypeKind::TYPE_UINT || IntKind == SymIntTypeKind::TYPE_ULONG;
+	       IntKind == SymIntTypeKind::TYPE_UINT || IntKind == SymIntTypeKind::TYPE_ULONG;
 }
 
 std::string getFPTypeName(SymFPTypeKind Kind) {
@@ -139,7 +140,8 @@ std::string getFPTypeName(SymFPTypeKind Kind) {
 	assert(false && "Unknown type");
 }
 
-SymTypeFP::SymTypeFP(SymFPTypeKind FPKind) : SymType(SymTypeKind::TYPE_FLOATING_POINT, getFPTypeName(FPKind)), FPKind(FPKind) {
+SymTypeFP::SymTypeFP(SymFPTypeKind FPKind) : SymType(SymTypeKind::TYPE_FLOATING_POINT, getFPTypeName(FPKind)),
+                                             FPKind(FPKind) {
 }
 
 const SymFPTypeKind SymTypeFP::getFPKind() const {

@@ -46,7 +46,7 @@ CodeGenClassFunction::CodeGenClassFunction(CodeGenModule *CGM, SymClassMethod *S
         ParamTypes.push_back(TypePtr);
 
     // Generate param types
-    GenParamTypes(CGM, ParamTypes, Sym->getAST()->getParams());
+    GenParamTypes(CGM, ParamTypes, Sym);
 
     // Set LLVM Function Name %MODULE_CLASS_METHOD (if MODULE == default is empty)
     FnType = llvm::FunctionType::get(RetType, ParamTypes, false);

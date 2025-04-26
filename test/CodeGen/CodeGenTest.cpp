@@ -48,57 +48,57 @@ namespace {
         ASTModule *Module = CreateModule();
 
     	ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-    	ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes, Params, Body);
+    	ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
 
         // default bool a = false
-    	ASTVar *LocalVar_a = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolType, "a", EmptyScopes);
+    	ASTVar *LocalVar_a = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolTypeRef, "a", EmptyScopes);
     	SemaBuilderStmt *VarStmt_a = getASTBuilder().CreateAssignmentStmt(Body, LocalVar_a);
-    	VarStmt_a->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(BoolType->getSym())));
+    	VarStmt_a->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(BoolTypeRef->getSym())));
 
         // default byte b = 0
-    	ASTVar *LocalVar_b = getASTBuilder().CreateLocalVar(Body, SourceLoc, ByteType, "b", EmptyScopes);
+    	ASTVar *LocalVar_b = getASTBuilder().CreateLocalVar(Body, SourceLoc, ByteTypeRef, "b", EmptyScopes);
     	SemaBuilderStmt *VarStmt_b = getASTBuilder().CreateAssignmentStmt(Body, LocalVar_b);
-    	VarStmt_b->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(ByteType->getSym())));
+    	VarStmt_b->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(ByteTypeRef->getSym())));
 
         // default short c = 0
-    	ASTVar *LocalVar_c = getASTBuilder().CreateLocalVar(Body, SourceLoc, ShortType, "c", EmptyScopes);
+    	ASTVar *LocalVar_c = getASTBuilder().CreateLocalVar(Body, SourceLoc, ShortTypeRef, "c", EmptyScopes);
     	SemaBuilderStmt *VarStmt_c = getASTBuilder().CreateAssignmentStmt(Body, LocalVar_c);
-    	VarStmt_c->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(ShortType->getSym())));
+    	VarStmt_c->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(ShortTypeRef->getSym())));
 
         // default ushort d = 0
-    	ASTVar *LocalVar_d = getASTBuilder().CreateLocalVar(Body, SourceLoc, UShortType, "d", EmptyScopes);
+    	ASTVar *LocalVar_d = getASTBuilder().CreateLocalVar(Body, SourceLoc, UShortTypeRef, "d", EmptyScopes);
     	SemaBuilderStmt *VarStmt_d = getASTBuilder().CreateAssignmentStmt(Body, LocalVar_d);
-    	VarStmt_d->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(UShortType->getSym())));
+    	VarStmt_d->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(UShortTypeRef->getSym())));
 
         // default int e = 0
-    	ASTVar *LocalVar_e = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntType, "e", EmptyScopes);
+    	ASTVar *LocalVar_e = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "e", EmptyScopes);
     	SemaBuilderStmt *VarStmt_e = getASTBuilder().CreateAssignmentStmt(Body, LocalVar_e);
-    	VarStmt_e->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(IntType->getSym())));
+    	VarStmt_e->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(IntTypeRef->getSym())));
 
         // default uint f = 0
-    	ASTVar *LocalVar_f = getASTBuilder().CreateLocalVar(Body, SourceLoc, UIntType, "f", EmptyScopes);
+    	ASTVar *LocalVar_f = getASTBuilder().CreateLocalVar(Body, SourceLoc, UIntTypeRef, "f", EmptyScopes);
     	SemaBuilderStmt *VarStmt_f = getASTBuilder().CreateAssignmentStmt(Body, LocalVar_d);
-    	VarStmt_f->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(UIntType->getSym())));
+    	VarStmt_f->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(UIntTypeRef->getSym())));
 
         // default long g = 0
-    	ASTVar *LocalVar_g = getASTBuilder().CreateLocalVar(Body, SourceLoc, LongType, "g", EmptyScopes);
+    	ASTVar *LocalVar_g = getASTBuilder().CreateLocalVar(Body, SourceLoc, LongTypeRef, "g", EmptyScopes);
     	SemaBuilderStmt *VarStmt_g = getASTBuilder().CreateAssignmentStmt(Body, LocalVar_g);
-    	VarStmt_g->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(LongType->getSym())));
+    	VarStmt_g->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(LongTypeRef->getSym())));
 
         // default ulong h = 0
-    	ASTVar *LocalVar_h = getASTBuilder().CreateLocalVar(Body, SourceLoc, ULongType, "h", EmptyScopes);
+    	ASTVar *LocalVar_h = getASTBuilder().CreateLocalVar(Body, SourceLoc, ULongTypeRef, "h", EmptyScopes);
     	SemaBuilderStmt *VarStmt_h = getASTBuilder().CreateAssignmentStmt(Body, LocalVar_h);
-    	VarStmt_h->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(ULongType->getSym())));
+    	VarStmt_h->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(ULongTypeRef->getSym())));
 
         // default float i = 0.0
-    	ASTVar *LocalVar_i = getASTBuilder().CreateLocalVar(Body, SourceLoc, FloatType, "i", EmptyScopes);
+    	ASTVar *LocalVar_i = getASTBuilder().CreateLocalVar(Body, SourceLoc, FloatTypeRef, "i", EmptyScopes);
     	SemaBuilderStmt *VarStmt_i = getASTBuilder().CreateAssignmentStmt(Body, LocalVar_i);
-    	VarStmt_i->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(FloatType->getSym())));
+    	VarStmt_i->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(FloatTypeRef->getSym())));
 
         // default double j = 0.0
-    	ASTVar *LocalVar_j = getASTBuilder().CreateLocalVar(Body, SourceLoc, DoubleType, "j", EmptyScopes);
+    	ASTVar *LocalVar_j = getASTBuilder().CreateLocalVar(Body, SourceLoc, DoubleTypeRef, "j", EmptyScopes);
     	SemaBuilderStmt *VarStmt_j = getASTBuilder().CreateAssignmentStmt(Body, LocalVar_j);
-    	VarStmt_j->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(DoubleType->getSym())));
+    	VarStmt_j->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(DoubleTypeRef->getSym())));
 
         // default int[] k = {}
     	ASTTypeRef * ArrayIntType = CreateArrayTypeRef(S->getSymTable().getIntType());
@@ -106,264 +106,83 @@ namespace {
     	SemaBuilderStmt *VarStmt_k = getASTBuilder().CreateAssignmentStmt(Body, LocalVar_k);
     	VarStmt_k->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(ArrayIntType->getSym())));
 
-    	// TODO string
+    	// default string l = ""
+    	ASTVar *LocalVar_l = getASTBuilder().CreateLocalVar(Body, SourceLoc, StringTypeRef, "l", EmptyScopes);
+    	SemaBuilderStmt *VarStmt_l = getASTBuilder().CreateAssignmentStmt(Body, LocalVar_l);
+    	VarStmt_l->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(DoubleTypeRef->getSym())));
 
-    	// TODO char
+    	// default char m = '\0'
+    	ASTVar *LocalVar_m = getASTBuilder().CreateLocalVar(Body, SourceLoc, CharTypeRef, "m", EmptyScopes);
+    	SemaBuilderStmt *VarStmt_m = getASTBuilder().CreateAssignmentStmt(Body, LocalVar_m);
+    	VarStmt_m->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(DoubleTypeRef->getSym())));
 
         // validate and resolve
         EXPECT_TRUE(S->Resolve());
 
     	// Generate Code
-    	CodeGenModule *CGM = CG->GenerateModule(S->getSymTable().getDefaultNameSpace());
-    	CodeGenFunction *CGF = CGM->GenFunction(static_cast<SymFunction *>(Func->getSym()));
-    	CGF->GenBody();
-    	Function *F = CGF->getFunction();
+    	llvm::Module * M = Generate();
+    	std::string output = getOutput(M->getFunctionList());
 
-    	EXPECT_FALSE(Diags.hasErrorOccurred());
-    	testing::internal::CaptureStdout();
-    	F->print(llvm::outs());
-    	std::string output = testing::internal::GetCapturedStdout();
-
-    	EXPECT_EQ(output, "define void @func(%error* %0) {\n"
+    	EXPECT_EQ(output, "define void @_F0(%error* %0) {\n"
 						  "entry:\n"
-						  "  %11 = alloca %error*, align 8\n"
-						  "  %12 = alloca i32, align 4\n"
-						  "  %13 = alloca float, align 4\n"
+						  "  %1 = alloca %error*, align 8\n"
+						  "  %2 = alloca i8, align 1\n"
+						  "  %3 = alloca i8, align 1\n"
+						  "  %4 = alloca i16, align 2\n"
+						  "  %5 = alloca i16, align 2\n"
+						  "  %6 = alloca i32, align 4\n"
+						  "  %7 = alloca i32, align 4\n"
+						  "  %8 = alloca i64, align 8\n"
+						  "  %9 = alloca i64, align 8\n"
+						  "  %10 = alloca float, align 4\n"
+						  "  %11 = alloca double, align 8\n"
+						  "  %12 = alloca i64*, align 8\n"
+						  "  %13 = alloca [0 x i8], align 1\n"
 						  "  %14 = alloca i8, align 1\n"
-						  "  %15 = alloca i64, align 8\n"
-						  "  %16 = alloca double, align 8\n"
-						  "  %17 = alloca i8, align 1\n"
-						  "  %18 = alloca i16, align 2\n"
-						  "  %19 = alloca i16, align 2\n"
-						  "  %20 = alloca i32, align 4\n"
-						  "  %21 = alloca i64, align 8\n"
-						  "  store %error* %0, %error** %11, align 8\n"
-						  "  store i32 %1, i32* %12, align 4\n"
-						  "  store float %2, float* %13, align 4\n"
-						  "  %22 = zext i1 %3 to i8\n"
-						  "  store i8 %22, i8* %14, align 1\n"
-						  "  store i64 %4, i64* %15, align 8\n"
-						  "  store double %5, double* %16, align 8\n"
-						  "  store i8 %6, i8* %17, align 1\n"
-						  "  store i16 %7, i16* %18, align 2\n"
-						  "  store i16 %8, i16* %19, align 2\n"
-						  "  store i32 %9, i32* %20, align 4\n"
-						  "  store i64 %10, i64* %21, align 8\n"
-						  "  ret void\n"
+						  "  store %error* %0, %error** %1, align 8\n"
+						  "  store i8 0, i8* %2, align 1\n"
+						  "  store i8 0, i8* %3, align 1\n"
+						  "  store i16 0, i16* %4, align 2\n"
+						  "  store i16 0, i16* %5, align 2\n"
+						  "  store i32 0, i32* %6, align 4\n"
+						  "  store i16 0, i16* %5, align 2\n"
+						  "  store i64 0, i64* %8, align 8\n"
+						  "  store i64 0, i64* %9, align 8\n"
+						  "  store float 0.000000e+00, float* %10, align 4\n"
+						  "  store double 0.000000e+00, double* %11, align 8\n"
+						  "  store i8* getelementptr inbounds ([4 x i8], [4 x i8]* @0, i32 0, i32 0), [0 x i8]* %13, align 8\n"
+						  "  store i8 48, i8* %14, align 1\n"
 						  "}\n");
     }
-
-    // TEST_F(CodeGenTest, CGValuedGlobalVar) {
-    //     ASTModule *Module = CreateModule();
-    //
-    //     // a
-    //     ASTBoolValue *BoolVal = getASTBuilder().CreateBoolValue(SourceLoc, true);
-    //     getASTBuilder().CreateGlobalVar(Module, SourceLoc, BoolType, "a", TopScopes, getASTBuilder().CreateExpr(BoolVal));
-    //
-    //     // b
-    //     ASTIntegerValue *ByteVal = getASTBuilder().CreateIntegerValue(SourceLoc, "1");
-    //     getASTBuilder().CreateGlobalVar(Module, SourceLoc, ByteType, "b", TopScopes, getASTBuilder().CreateExpr(ByteVal));
-    //
-    //     // c
-    //     ASTIntegerValue *ShortVal = getASTBuilder().CreateIntegerValue(SourceLoc, "-2");
-    //     getASTBuilder().CreateGlobalVar(Module, SourceLoc, ShortType, "c", TopScopes, getASTBuilder().CreateExpr(ShortVal));
-    //
-    //     // d
-    //     ASTIntegerValue *UShortVal = getASTBuilder().CreateIntegerValue(SourceLoc, "2");
-    //     getASTBuilder().CreateGlobalVar(Module, SourceLoc, UShortType, "d", TopScopes, getASTBuilder().CreateExpr(UShortVal));
-    //
-    //     // e
-    //     ASTIntegerValue *IntVal = getASTBuilder().CreateIntegerValue(SourceLoc, "-3");
-    //     getASTBuilder().CreateGlobalVar(Module, SourceLoc, IntType, "e", TopScopes, getASTBuilder().CreateExpr(IntVal));
-    //
-    //     // f
-    //     ASTIntegerValue *UIntVal = getASTBuilder().CreateIntegerValue(SourceLoc, "3");
-    //     getASTBuilder().CreateGlobalVar(Module, SourceLoc, UIntType, "f", TopScopes, getASTBuilder().CreateExpr(UIntVal));
-    //
-    //     // g
-    //     ASTIntegerValue *LongVal = getASTBuilder().CreateIntegerValue(SourceLoc, "-4");
-    //     getASTBuilder().CreateGlobalVar(Module, SourceLoc, LongType, "g", TopScopes, getASTBuilder().CreateExpr(LongVal));
-    //
-    //     // h
-    //     ASTIntegerValue *ULongVal = getASTBuilder().CreateIntegerValue(SourceLoc, "4");
-    //     getASTBuilder().CreateGlobalVar(Module, SourceLoc, ULongType, "h", TopScopes, getASTBuilder().CreateExpr(ULongVal));
-    //
-    //     // i
-    //     ASTFloatingValue *FloatVal = getASTBuilder().CreateFloatingValue(SourceLoc, "1.5");
-    //      getASTBuilder().CreateGlobalVar(Module, SourceLoc, FloatType, "i", TopScopes, getASTBuilder().CreateExpr(FloatVal));
-    //
-    //     // j
-    //     ASTFloatingValue *DoubleVal = getASTBuilder().CreateFloatingValue(SourceLoc, "2.5");
-    //     getASTBuilder().CreateGlobalVar(Module, SourceLoc, DoubleType, "j", TopScopes, getASTBuilder().CreateExpr(DoubleVal));
-    //
-    //     // k (empty array)
-    //     llvm::SmallVector<ASTValue *, 8> Empty;
-    //     ASTArrayValue *ArrayValEmpty = getASTBuilder().CreateArrayValue(SourceLoc, Empty);
-    // 	ASTTypeRef * ArrayInt0Type = CreateArrayTypeRef(S->getSymTable().getIntType(), "0");
-    //     getASTBuilder().CreateGlobalVar(Module, SourceLoc, ArrayInt0Type, "k", TopScopes, getASTBuilder().CreateExpr(ArrayValEmpty));
-    //
-    //     // l (array with 2 val)
-    //     // llvm::SmallVector<ASTValue *, 8> Values;
-    //     // Values.push_back(getASTBuilder().CreateIntegerValue(SourceLoc, "1")); // ArrayVal = {1}
-    //     // Values.push_back(getASTBuilder().CreateIntegerValue(SourceLoc, "2")); // ArrayVal = {1, 1}
-    //     // ASTArrayValue *ArrayVal = getASTBuilder().CreateArrayValue(SourceLoc, Values);
-    //     // ASTValueExpr *SizeExpr = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "2"));
-    //     // ASTArrayTypeRef *ArrayInt2Type = getASTBuilder().CreateArrayTypeRef(SourceLoc, IntType, SizeExpr);
-    //     // getASTBuilder().CreateGlobalVar(Module, SourceLoc, ArrayInt2Type, "l", TopScopes, getASTBuilder().CreateExpr(ArrayVal));
-    //
-    //     // m (string)
-    //     ASTTypeRef *StringType = getASTBuilder().CreateStringTypeRef(SourceLoc);
-    //     ASTStringValue *StringVal = getASTBuilder().CreateStringValue(SourceLoc, "hello");
-    //     getASTBuilder().CreateGlobalVar(Module, SourceLoc, StringType, "m", TopScopes, getASTBuilder().CreateExpr(StringVal));
-    //
-    //     // validate and resolve
-    //     EXPECT_TRUE(S->Resolve());
-    //
-    //     // Generate Code
-    //     CodeGenModule *CGM = CG->GenerateModule(S->getSymTable().getDefaultNameSpace());
-    //     EXPECT_FALSE(Diags.hasErrorOccurred());
-    //     std::string output;
-    //
-    //     // a
-    // 	SymVar *aVar = S->getSymTable().getDefaultNameSpace()->getGlobalVars().lookup("a");
-    //     GlobalVariable *aGVar = (GlobalVariable *) CGM->GenGlobalVar(static_cast<SymGlobalVar *>(aVar))->getPointer();
-    //     testing::internal::CaptureStdout();
-    //     aGVar->print(llvm::outs());
-    //     output = testing::internal::GetCapturedStdout();
-    //     EXPECT_EQ(output, "@a = global i1 true");
-    //
-    //     // b
-    // 	SymVar *bVar = S->getSymTable().getDefaultNameSpace()->getGlobalVars().lookup("b");
-    //     GlobalVariable *bGVar = (GlobalVariable *) CGM->GenGlobalVar(static_cast<SymGlobalVar *>(bVar))->getPointer();
-    //     testing::internal::CaptureStdout();
-    //     bGVar->print(llvm::outs());
-    //     output = testing::internal::GetCapturedStdout();
-    //     EXPECT_EQ(output, "@b = global i8 1");
-    //
-    //     // c
-    // 	SymVar *cVar = S->getSymTable().getDefaultNameSpace()->getGlobalVars().lookup("c");
-    //     GlobalVariable *cGVar = (GlobalVariable *) CGM->GenGlobalVar(static_cast<SymGlobalVar *>(cVar))->getPointer();
-    //     testing::internal::CaptureStdout();
-    //     cGVar->print(llvm::outs());
-    //     output = testing::internal::GetCapturedStdout();
-    //     EXPECT_EQ(output, "@c = global i16 -2");
-    //
-    //     // d
-    // 	SymVar *dVar = S->getSymTable().getDefaultNameSpace()->getGlobalVars().lookup("d");
-    //     GlobalVariable *dGVar = (GlobalVariable *) CGM->GenGlobalVar(static_cast<SymGlobalVar *>(dVar))->getPointer();
-    //     testing::internal::CaptureStdout();
-    //     dGVar->print(llvm::outs());
-    //     output = testing::internal::GetCapturedStdout();
-    //     EXPECT_EQ(output, "@d = global i16 2");
-    //
-    //     // e
-    // 	SymVar *eVar = S->getSymTable().getDefaultNameSpace()->getGlobalVars().lookup("e");
-    //     GlobalVariable *eGVar = (GlobalVariable *) CGM->GenGlobalVar(static_cast<SymGlobalVar *>(eVar))->getPointer();
-    //     testing::internal::CaptureStdout();
-    //     eGVar->print(llvm::outs());
-    //     output = testing::internal::GetCapturedStdout();
-    //     EXPECT_EQ(output, "@e = global i32 -3");
-    //
-    //     // f
-    // 	SymVar *fVar = S->getSymTable().getDefaultNameSpace()->getGlobalVars().lookup("f");
-    //     GlobalVariable *fGVar = (GlobalVariable *) CGM->GenGlobalVar(static_cast<SymGlobalVar *>(fVar))->getPointer();
-    //     testing::internal::CaptureStdout();
-    //     fGVar->print(llvm::outs());
-    //     output = testing::internal::GetCapturedStdout();
-    //     EXPECT_EQ(output, "@f = global i32 3");
-    //
-    //     // g
-    // 	SymVar *gVar = S->getSymTable().getDefaultNameSpace()->getGlobalVars().lookup("g");
-    //     GlobalVariable *gGVar = (GlobalVariable *) CGM->GenGlobalVar(static_cast<SymGlobalVar *>(gVar))->getPointer();
-    //     testing::internal::CaptureStdout();
-    //     gGVar->print(llvm::outs());
-    //     output = testing::internal::GetCapturedStdout();
-    //     EXPECT_EQ(output, "@g = global i64 -4");
-    //
-    //     // h
-    // 	SymVar *hVar = S->getSymTable().getDefaultNameSpace()->getGlobalVars().lookup("h");
-    //     GlobalVariable *hGVar = (GlobalVariable *) CGM->GenGlobalVar(static_cast<SymGlobalVar *>(hVar))->getPointer();
-    //     testing::internal::CaptureStdout();
-    //     hGVar->print(llvm::outs());
-    //     output = testing::internal::GetCapturedStdout();
-    //     EXPECT_EQ(output, "@h = global i64 4");
-    //
-    //     // i
-    // 	SymVar *iVar = S->getSymTable().getDefaultNameSpace()->getGlobalVars().lookup("i");
-    //     GlobalVariable *iGVar = (GlobalVariable *) CGM->GenGlobalVar(static_cast<SymGlobalVar *>(iVar))->getPointer();
-    //     testing::internal::CaptureStdout();
-    //     iGVar->print(llvm::outs());
-    //     output = testing::internal::GetCapturedStdout();
-    //     EXPECT_EQ(output, "@i = global float 1.500000e+00");
-    //
-    //     // j
-    // 	SymVar *jVar = S->getSymTable().getDefaultNameSpace()->getGlobalVars().lookup("j");
-    //     GlobalVariable *jGVar = (GlobalVariable *) CGM->GenGlobalVar(static_cast<SymGlobalVar *>(jVar))->getPointer();
-    //     testing::internal::CaptureStdout();
-    //     jGVar->print(llvm::outs());
-    //     output = testing::internal::GetCapturedStdout();
-    //     EXPECT_EQ(output, "@j = global double 2.500000e+00");
-    //
-    // 	// k
-    // 	SymVar *kVar = S->getSymTable().getDefaultNameSpace()->getGlobalVars().lookup("k");
-    //     GlobalVariable *kGVar = (GlobalVariable *) CGM->GenGlobalVar(static_cast<SymGlobalVar *>(kVar))->getPointer();
-    //     testing::internal::CaptureStdout();
-    //     kGVar->print(llvm::outs());
-    //     output = testing::internal::GetCapturedStdout();
-    //     EXPECT_EQ(output, "@k = global [0 x i32] zeroinitializer");
-    //
-    // 	// l
-    // 	// SymVar *lVar = S->getSymTable().getDefaultNameSpace()->getGlobalVars().lookup("l");
-    //  //    GlobalVariable *lGVar = (GlobalVariable *) CGM->GenGlobalVar(static_cast<SymGlobalVar *>(lVar))->getPointer();
-    //  //    testing::internal::CaptureStdout();
-    //  //    lGVar->print(llvm::outs());
-    //  //    output = testing::internal::GetCapturedStdout();
-    //  //    EXPECT_EQ(output, "@l = global [2 x i32] [i32 1, i32 2]");
-    //
-    // 	// m
-    // 	SymVar *mVar = S->getSymTable().getDefaultNameSpace()->getGlobalVars().lookup("m");
-    //     GlobalVariable *mGVar = (GlobalVariable *) CGM->GenGlobalVar(static_cast<SymGlobalVar *>(mVar))->getPointer();
-    //     testing::internal::CaptureStdout();
-    //     mGVar->print(llvm::outs());
-    //     output = testing::internal::GetCapturedStdout();
-    //     EXPECT_EQ(output, "@m = global [6 x i8] c\"hello\\00\"");
-    // }
 
     TEST_F(CodeGenTest, CGFuncParamTypes) {
         ASTModule *Module = CreateModule();
 
         llvm::SmallVector<ASTVar *, 8> Params;
-        Params.push_back(getASTBuilder().CreateParam(SourceLoc, IntType, "P1", EmptyScopes));
-        Params.push_back(getASTBuilder().CreateParam(SourceLoc, FloatType, "P2", EmptyScopes));
-        Params.push_back(getASTBuilder().CreateParam(SourceLoc, BoolType, "P3", EmptyScopes));
-        Params.push_back(getASTBuilder().CreateParam(SourceLoc, LongType, "P4", EmptyScopes));
-        Params.push_back(getASTBuilder().CreateParam(SourceLoc, DoubleType, "P5", EmptyScopes));
-        Params.push_back(getASTBuilder().CreateParam(SourceLoc, ByteType, "P6", EmptyScopes));
-        Params.push_back(getASTBuilder().CreateParam(SourceLoc, ShortType, "P7", EmptyScopes));
-        Params.push_back(getASTBuilder().CreateParam(SourceLoc, UShortType, "P8", EmptyScopes));
-        Params.push_back(getASTBuilder().CreateParam(SourceLoc, UIntType, "P9", EmptyScopes));
-        Params.push_back(getASTBuilder().CreateParam(SourceLoc, ULongType, "P10", EmptyScopes));
+        Params.push_back(getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "P1", EmptyScopes));
+        Params.push_back(getASTBuilder().CreateParam(SourceLoc, FloatTypeRef, "P2", EmptyScopes));
+        Params.push_back(getASTBuilder().CreateParam(SourceLoc, BoolTypeRef, "P3", EmptyScopes));
+        Params.push_back(getASTBuilder().CreateParam(SourceLoc, LongTypeRef, "P4", EmptyScopes));
+        Params.push_back(getASTBuilder().CreateParam(SourceLoc, DoubleTypeRef, "P5", EmptyScopes));
+        Params.push_back(getASTBuilder().CreateParam(SourceLoc, ByteTypeRef, "P6", EmptyScopes));
+        Params.push_back(getASTBuilder().CreateParam(SourceLoc, ShortTypeRef, "P7", EmptyScopes));
+        Params.push_back(getASTBuilder().CreateParam(SourceLoc, UShortTypeRef, "P8", EmptyScopes));
+        Params.push_back(getASTBuilder().CreateParam(SourceLoc, UIntTypeRef, "P9", EmptyScopes));
+        Params.push_back(getASTBuilder().CreateParam(SourceLoc, ULongTypeRef, "P10", EmptyScopes));
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
 
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes, Params, Body);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
         // func(int P1, float P2, bool P3, long P4, double P5, byte P6, short P7, ushort P8, uint P9, ulong P10) {
         // }
         
-        // validate and resolve
-        EXPECT_TRUE(S->Resolve());
+    	// validate and resolve
+    	EXPECT_TRUE(S->Resolve());
 
-        // Generate Code
-        CodeGenModule *CGM = CG->GenerateModule(S->getSymTable().getDefaultNameSpace());
-        CodeGenFunction *CGF = CGM->GenFunction(static_cast<SymFunction *>(Func->getSym()));
-        CGF->GenBody();
-        Function *F = CGF->getFunction();
+    	// Generate Code
+    	llvm::Module * M = Generate();
+    	std::string output = getOutput(M->getFunctionList());
 
-        EXPECT_FALSE(Diags.hasErrorOccurred());
-        testing::internal::CaptureStdout();
-        F->print(llvm::outs());
-        std::string output = testing::internal::GetCapturedStdout();
-
-        EXPECT_EQ(output, "define void @func(%error* %0, i32 %1, float %2, i1 %3, i64 %4, double %5, i8 %6, i16 %7, i16 %8, i32 %9, i64 %10) {\n"
+        EXPECT_EQ(output, "define void @_F0_i_f_b_l_d_y_s_us_ui_ul(%error* %0, i32 %1, float %2, i1 %3, i64 %4, double %5, i8 %6, i16 %7, i16 %8, i32 %9, i64 %10) {\n"
                           "entry:\n"
                           "  %11 = alloca %error*, align 8\n"
                           "  %12 = alloca i32, align 4\n"
@@ -392,98 +211,66 @@ namespace {
                           "}\n");
     }
 
-    // TEST_F(CodeGenTest, CGFuncUseGlobalVar) {
-    //     ASTModule *Module = CreateModule();
-    //
-    //     // float G = 2.0
-    //     ASTFloatingValue *FloatingVal = getASTBuilder().CreateFloatingValue(SourceLoc, "2.0");
-    //     ASTVar *GVar = getASTBuilder().CreateGlobalVar(Module, SourceLoc, FloatType, "G", TopScopes,
-    //                                                  getASTBuilder().CreateExpr(FloatingVal));
-    //
-    //     // func()
-    //     ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-    //     ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, IntType, "func", TopScopes, Params, Body);
-    //
-    //     // int A = 1
-    //     ASTVar *VarA = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntType, "A", EmptyScopes);
-    //     SemaBuilderStmt *VarAStmt = getASTBuilder().CreateAssignmentStmt(Body, VarA);
-    //     ASTExpr *ExprA = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "1"));
-    //     VarAStmt->setExpr(ExprA);
-    //
-    //     // GlobalVar
-    //     // G = 1
-    //     ASTVarRef *VarRefG = CreateVarRef(GVar);
-    //     SemaBuilderStmt * GVarStmt = getASTBuilder().CreateAssignmentStmt(Body, VarRefG);
-    //     ASTExpr *ExprG = getASTBuilder().CreateExpr(getASTBuilder().CreateFloatingValue(SourceLoc, "1"));
-    //     GVarStmt->setExpr(ExprG);
-    //
-    //     // return A
-    //     SemaBuilderStmt *Return = getASTBuilder().CreateReturnStmt(Body, SourceLoc);
-    //     ASTExpr *ExprRA = getASTBuilder().CreateExpr(CreateVarRef(VarA));
-    //     Return->setExpr(ExprRA);
-    //
-    //     // validate and resolve
-    //     EXPECT_TRUE(S->Resolve());
-    //
-    //     // Generate Code
-    //     CodeGenModule *CGM = CG->GenerateModule(S->getSymTable().getDefaultNameSpace());
-    //     CodeGenGlobalVar *CGGV = CGM->GenGlobalVar(static_cast<SymGlobalVar *>(GVar->getSym()));
-    //     Value *G = CGGV->getPointer();
-    //
-    //     CodeGenFunction *CGF = CGM->GenFunction(static_cast<SymFunction *>(Func->getSym()));
-    //     CGF->GenBody();
-    //     Function *F = CGF->getFunction();
-    //
-    //     EXPECT_FALSE(Diags.hasErrorOccurred());
-    //
-    //     testing::internal::CaptureStdout();
-    //     G->print(llvm::outs());
-    //     std::string output1 = testing::internal::GetCapturedStdout();
-    //     EXPECT_EQ(output1, "@G = global float 2.000000e+00");
-    //
-    //     testing::internal::CaptureStdout();
-    //     F->print(llvm::outs());
-    //     std::string output2 = testing::internal::GetCapturedStdout();
-    //     EXPECT_EQ(output2, "define i32 @func(%error* %0) {\n"
-    //                       "entry:\n"
-    //                       "  %1 = alloca %error*, align 8\n"
-    //                       "  %2 = alloca i32, align 4\n"
-    //                       "  store %error* %0, %error** %1, align 8\n"
-    //                       "  store i32 1, i32* %2, align 4\n"
-    //                       "  store float 1.000000e+00, float* @G, align 4\n"
-    //                       "  %3 = load i32, i32* %2, align 4\n"
-    //                       "  ret i32 %3\n"
-    //                       "}\n");
-    // }
+    TEST_F(CodeGenTest, GCLocalVarAssignAfter) {
+        ASTModule *Module = CreateModule();
+
+        // func()
+        ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
+
+    	// float g
+    	ASTVar *LocalVar_g = getASTBuilder().CreateLocalVar(Body, SourceLoc, FloatTypeRef, "g", EmptyScopes);
+
+        // g = 1.0
+        ASTVarRef *VarRef_g = CreateVarRef(LocalVar_g);
+        SemaBuilderStmt * GVarStmt = getASTBuilder().CreateAssignmentStmt(Body, VarRef_g);
+        ASTExpr *ExprG = getASTBuilder().CreateExpr(getASTBuilder().CreateFloatingValue(SourceLoc, "1.0"));
+        GVarStmt->setExpr(ExprG);
+
+        // return g
+        SemaBuilderStmt *Return = getASTBuilder().CreateReturnStmt(Body, SourceLoc);
+        Return->setExpr(getASTBuilder().CreateExpr(CreateVarRef(LocalVar_g)));
+
+    	// validate and resolve
+    	EXPECT_TRUE(S->Resolve());
+
+    	// Generate Code
+    	llvm::Module * M = Generate();
+    	std::string output = getOutput(M);
+
+        EXPECT_EQ(output, "define i32 @F_0(%error* %0) {\n"
+                          "entry:\n"
+                          "  %1 = alloca %error*, align 8\n"
+                          "  %2 = alloca i32, align 4\n"
+                          "  store %error* %0, %error** %1, align 8\n"
+                          "  store i32 1, i32* %2, align 4\n"
+                          "  store float 1.000000e+00, float* @G, align 4\n"
+                          "  %3 = load i32, i32* %2, align 4\n"
+                          "  ret i32 %3\n"
+                          "}\n");
+    }
 
     TEST_F(CodeGenTest, CGValue) {
         ASTModule *Module = CreateModule();
 
         // func()
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes, Params, Body);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
         
         // int a = 1
-        ASTVar *LocalVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntType, "a", EmptyScopes);
+        ASTVar *LocalVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "a", EmptyScopes);
         SemaBuilderStmt *VarStmt = getASTBuilder().CreateAssignmentStmt(Body, LocalVar);
         ASTValueExpr *ValueExpr = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "1"));
         VarStmt->setExpr(ValueExpr);
 
         // validate and resolve
-        EXPECT_TRUE(S->Resolve());
+    	EXPECT_TRUE(S->Resolve());
 
-        // Generate Code
-        CodeGenModule *CGM = CG->GenerateModule(S->getSymTable().getDefaultNameSpace());
-        CodeGenFunction *CGF = CGM->GenFunction(static_cast<SymFunction *>(Func->getSym()));
-        CGF->GenBody();
-        Function *F = CGF->getFunction();
+    	// Generate Code
+    	llvm::Module * M = Generate();
+    	std::string output = getOutput(M);
 
-        EXPECT_FALSE(Diags.hasErrorOccurred());
-        testing::internal::CaptureStdout();
-        F->print(llvm::outs());
-        std::string output = testing::internal::GetCapturedStdout();
-
-        EXPECT_EQ(output, "define void @func(%error* %0) {\n"
+        EXPECT_EQ(output, "define void @_F0(%error* %0) {\n"
                           "entry:\n"
                           "  %1 = alloca %error*, align 8\n"
                           "  %2 = alloca i32, align 4\n"
@@ -498,11 +285,11 @@ namespace {
 
         // test()
         ASTBlockStmt *BodyTest = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Test = getASTBuilder().CreateFunction(Module, SourceLoc, IntType, "test", TopScopes, Params, BodyTest);
+        ASTFunction *Test = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "test", TopScopes, Params, BodyTest);
 
         // func()
         ASTBlockStmt *BodyFunc = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, IntType, "func", TopScopes, Params, BodyFunc);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "func", TopScopes, Params, BodyFunc);
 
         // call test()
         SemaBuilderStmt *ExprStmt = getASTBuilder().CreateExprStmt(BodyFunc, SourceLoc);
@@ -515,23 +302,14 @@ namespace {
         ASTCallExpr *ReturnExpr = getASTBuilder().CreateExpr(TestCall);
         Return->setExpr(ReturnExpr);
 
-        // validate and resolve
-        EXPECT_TRUE(S->Resolve());
+    	// validate and resolve
+    	EXPECT_TRUE(S->Resolve());
 
-        // Generate Code
-        CodeGenModule *CGM = CG->GenerateModule(S->getSymTable().getDefaultNameSpace());
-        CodeGenFunction *CGF_Test = CGM->GenFunction(static_cast<SymFunction *>(Test->getSym()));
-        CGF_Test->GenBody();
-        CodeGenFunction *CGF = CGM->GenFunction(static_cast<SymFunction *>(Func->getSym()));
-        CGF->GenBody();
-        Function *F = CGF->getFunction();
+    	// Generate Code
+    	llvm::Module * M = Generate();
+    	std::string output = getOutput(M);
 
-        EXPECT_FALSE(Diags.hasErrorOccurred());
-        testing::internal::CaptureStdout();
-        F->print(llvm::outs());
-        std::string output = testing::internal::GetCapturedStdout();
-
-        EXPECT_EQ(output, "define i32 @func(%error* %0) {\n"
+        EXPECT_EQ(output, "define i32 @F_0(%error* %0) {\n"
                           "entry:\n"
                           "  %1 = alloca %error*, align 8\n"
                           "  store %error* %0, %error** %1, align 8\n"
@@ -552,14 +330,14 @@ namespace {
 
         // func()
         llvm::SmallVector<ASTVar *, 8> Params;
-        ASTVar *aParam = getASTBuilder().CreateParam(SourceLoc, IntType, "a", EmptyScopes);
+        ASTVar *aParam = getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "a", EmptyScopes);
         Params.push_back(aParam);
-        ASTVar *bParam = getASTBuilder().CreateParam(SourceLoc, IntType, "b", EmptyScopes);
+        ASTVar *bParam = getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "b", EmptyScopes);
         Params.push_back(bParam);
-        ASTVar *cParam = getASTBuilder().CreateParam(SourceLoc, IntType, "c", EmptyScopes);
+        ASTVar *cParam = getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "c", EmptyScopes);
         Params.push_back(cParam);
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, IntType, "func", TopScopes, Params, Body);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "func", TopScopes, Params, Body);
 
         SemaBuilderStmt *Return = getASTBuilder().CreateReturnStmt(Body, SourceLoc);
         // Create this expression: 1 + a * b / (c - 2)
@@ -579,21 +357,14 @@ namespace {
 
         Return->setExpr(Group);
 
-        // validate and resolve
-        EXPECT_TRUE(S->Resolve());
+    	// validate and resolve
+    	EXPECT_TRUE(S->Resolve());
 
-        // Generate Code
-        CodeGenModule *CGM = CG->GenerateModule(S->getSymTable().getDefaultNameSpace());
-        CodeGenFunction *CGF = CGM->GenFunction(static_cast<SymFunction *>(Func->getSym()));
-        CGF->GenBody();
-        Function *F = CGF->getFunction();
+    	// Generate Code
+    	llvm::Module * M = Generate();
+    	std::string output = getOutput(M);
 
-        EXPECT_FALSE(Diags.hasErrorOccurred());
-        testing::internal::CaptureStdout();
-        F->print(llvm::outs());
-        std::string output = testing::internal::GetCapturedStdout();
-
-        EXPECT_EQ(output, "define i32 @func(%error* %0, i32 %1, i32 %2, i32 %3) {\n"
+        EXPECT_EQ(output, "define i32 @F_0(%error* %0, i32 %1, i32 %2, i32 %3) {\n"
                           "entry:\n"
                           "  %4 = alloca %error*, align 8\n"
                           "  %5 = alloca i32, align 4\n"
@@ -619,14 +390,14 @@ namespace {
 
         // func()
         llvm::SmallVector<ASTVar *, 8> Params;
-        ASTVar *aParam = getASTBuilder().CreateParam(SourceLoc, IntType, "a", EmptyScopes);
+        ASTVar *aParam = getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "a", EmptyScopes);
         Params.push_back(aParam);
-        ASTVar *bParam = getASTBuilder().CreateParam(SourceLoc, IntType, "b", EmptyScopes);
+        ASTVar *bParam = getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "b", EmptyScopes);
         Params.push_back(bParam);
-        ASTVar *cParam = getASTBuilder().CreateParam(SourceLoc, IntType, "c", EmptyScopes);
+        ASTVar *cParam = getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "c", EmptyScopes);
         Params.push_back(cParam);
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes, Params, Body);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
 
         // a = 0
         SemaBuilderStmt *aVarStmt = getASTBuilder().CreateAssignmentStmt(Body, CreateVarRef(aParam));
@@ -732,21 +503,14 @@ namespace {
                 getASTBuilder().CreateExpr(CreateVarRef(cParam)));
         cPostDecVarStmt->setExpr(AssignExpr);
 
-        // validate and resolve
-        EXPECT_TRUE(S->Resolve());
+    	// validate and resolve
+    	EXPECT_TRUE(S->Resolve());
 
-        // Generate Code
-        CodeGenModule *CGM = CG->GenerateModule(S->getSymTable().getDefaultNameSpace());
-        CodeGenFunction *CGF = CGM->GenFunction(static_cast<SymFunction *>(Func->getSym()));
-        CGF->GenBody();
-        Function *F = CGF->getFunction();
+    	// Generate Code
+    	llvm::Module * M = Generate();
+    	std::string output = getOutput(M);
 
-        EXPECT_FALSE(Diags.hasErrorOccurred());
-        testing::internal::CaptureStdout();
-        F->print(llvm::outs());
-        std::string output = testing::internal::GetCapturedStdout();
-
-        EXPECT_EQ(output, "define void @func(%error* %0, i32 %1, i32 %2, i32 %3) {\n"
+        EXPECT_EQ(output, "define void @F_0(%error* %0, i32 %1, i32 %2, i32 %3) {\n"
                           "entry:\n"
                           "  %4 = alloca %error*, align 8\n"
                           "  %5 = alloca i32, align 4\n"
@@ -802,11 +566,11 @@ namespace {
 
         // func()
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes, Params, Body);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
 
-        ASTVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntType, "a", EmptyScopes);
-        ASTVar *bVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntType, "b", EmptyScopes);
-        ASTVar *cVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolType, "c", EmptyScopes);
+        ASTVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "a", EmptyScopes);
+        ASTVar *bVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "b", EmptyScopes);
+        ASTVar *cVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolTypeRef, "c", EmptyScopes);
 
         // a = 0
         SemaBuilderStmt *aVarStmt = getASTBuilder().CreateAssignmentStmt(Body, CreateVarRef(aVar));
@@ -860,21 +624,14 @@ namespace {
                 getASTBuilder().CreateExpr(CreateVarRef(bVar)));
         cLteVarStmt->setExpr(Expr8);
 
-        // validate and resolve
-        EXPECT_TRUE(S->Resolve());
+    	// validate and resolve
+    	EXPECT_TRUE(S->Resolve());
 
-        // Generate Code
-        CodeGenModule *CGM = CG->GenerateModule(S->getSymTable().getDefaultNameSpace());
-        CodeGenFunction *CGF = CGM->GenFunction(static_cast<SymFunction *>(Func->getSym()));
-        CGF->GenBody();
-        Function *F = CGF->getFunction();
+    	// Generate Code
+    	llvm::Module * M = Generate();
+    	std::string output = getOutput(M);
 
-        EXPECT_FALSE(Diags.hasErrorOccurred());
-        testing::internal::CaptureStdout();
-        F->print(llvm::outs());
-        std::string output = testing::internal::GetCapturedStdout();
-
-        EXPECT_EQ(output, "define void @func(%error* %0) {\n"
+        EXPECT_EQ(output, "define void @F_0(%error* %0) {\n"
                           "entry:\n"
                           "  %1 = alloca %error*, align 8\n"
                           "  %2 = alloca i32, align 4\n"
@@ -913,11 +670,11 @@ namespace {
 
         // func()
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes, Params, Body);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
 
-        ASTVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolType, "a", EmptyScopes);
-        ASTVar *bVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolType, "b", EmptyScopes);
-        ASTVar *cVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolType, "c", EmptyScopes);
+        ASTVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolTypeRef, "a", EmptyScopes);
+        ASTVar *bVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolTypeRef, "b", EmptyScopes);
+        ASTVar *cVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolTypeRef, "c", EmptyScopes);
 
         // a = false
         SemaBuilderStmt *aVarStmt = getASTBuilder().CreateAssignmentStmt(Body, CreateVarRef(aVar));
@@ -943,20 +700,14 @@ namespace {
                 getASTBuilder().CreateExpr(CreateVarRef(bVar)));
         cOrVarStmt->setExpr(Expr4);
 
-        // validate and resolve
-        EXPECT_TRUE(S->Resolve());
+    	// validate and resolve
+    	EXPECT_TRUE(S->Resolve());
 
-        // Generate Code
-        CodeGenFunction *CGF = CGM->GenFunction(static_cast<SymFunction *>(Func->getSym()));
-        CGF->GenBody();
-        Function *F = CGF->getFunction();
+    	// Generate Code
+    	llvm::Module * M = Generate();
+    	std::string output = getOutput(M);
 
-        EXPECT_FALSE(Diags.hasErrorOccurred());
-        testing::internal::CaptureStdout();
-        F->print(llvm::outs());
-        std::string output = testing::internal::GetCapturedStdout();
-
-        EXPECT_EQ(output, "define void @func(%error* %0) {\n"
+        EXPECT_EQ(output, "define void @F_0(%error* %0) {\n"
                           "entry:\n"
                           "  %1 = alloca %error*, align 8\n"
                           "  %2 = alloca i8, align 1\n"
@@ -1001,11 +752,11 @@ namespace {
 
         // func()
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes, Params, Body);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
 
-        ASTVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolType, "a", EmptyScopes);
-        ASTVar *bVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolType, "b", EmptyScopes);
-        ASTVar *cVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolType, "c", EmptyScopes);
+        ASTVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolTypeRef, "a", EmptyScopes);
+        ASTVar *bVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolTypeRef, "b", EmptyScopes);
+        ASTVar *cVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolTypeRef, "c", EmptyScopes);
 
         // a = false
         SemaBuilderStmt *aVarStmt = getASTBuilder().CreateAssignmentStmt(Body, CreateVarRef(aVar));
@@ -1029,20 +780,14 @@ namespace {
                                                                     getASTBuilder().CreateExpr(CreateVarRef(bVar)));
         cVarStmt->setExpr(TernaryExpr);
 
-        // validate and resolve
-        EXPECT_TRUE(S->Resolve());
+    	// validate and resolve
+    	EXPECT_TRUE(S->Resolve());
 
-        // Generate Code
-        CodeGenFunction *CGF = CGM->GenFunction(static_cast<SymFunction *>(Func->getSym()));
-        CGF->GenBody();
-        Function *F = CGF->getFunction();
+    	// Generate Code
+    	llvm::Module * M = Generate();
+    	std::string output = getOutput(M);
 
-        EXPECT_FALSE(Diags.hasErrorOccurred());
-        testing::internal::CaptureStdout();
-        F->print(llvm::outs());
-        std::string output = testing::internal::GetCapturedStdout();
-
-        EXPECT_EQ(output, "define void @func(%error* %0) {\n"
+        EXPECT_EQ(output, "define void @F_0(%error* %0) {\n"
                           "entry:\n"
                           "  %1 = alloca %error*, align 8\n"
                           "  %2 = alloca i8, align 1\n"
@@ -1079,10 +824,10 @@ namespace {
 
         // func()
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes, Params, Body);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
 
         // int a = 0
-        ASTVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntType, "a", EmptyScopes);
+        ASTVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "a", EmptyScopes);
         SemaBuilderStmt *aVarStmt = getASTBuilder().CreateAssignmentStmt(Body, CreateVarRef(aVar));
         ASTValueExpr *Expr1 = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "0"));
         aVarStmt->setExpr(Expr1);
@@ -1102,21 +847,14 @@ namespace {
         ASTValueExpr *Expr2 = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "2"));
         a2VarStmt->setExpr(Expr2);
 
-        // validate and resolve
-        EXPECT_TRUE(S->Resolve());
+    	// validate and resolve
+    	EXPECT_TRUE(S->Resolve());
 
-        // Generate Code
-        CodeGenModule *CGM = CG->GenerateModule(S->getSymTable().getDefaultNameSpace());
-        CodeGenFunction *CGF = CGM->GenFunction(static_cast<SymFunction *>(Func->getSym()));
-        CGF->GenBody();
-        Function *F = CGF->getFunction();
+    	// Generate Code
+    	llvm::Module * M = Generate();
+    	std::string output = getOutput(M);
 
-        EXPECT_FALSE(Diags.hasErrorOccurred());
-        testing::internal::CaptureStdout();
-        F->print(llvm::outs());
-        std::string output = testing::internal::GetCapturedStdout();
-
-        EXPECT_EQ(output, "define void @func(%error* %0) {\n"
+        EXPECT_EQ(output, "define void @F_0(%error* %0) {\n"
                           "entry:\n"
                           "  %1 = alloca %error*, align 8\n"
                           "  %2 = alloca i32, align 4\n"
@@ -1140,10 +878,10 @@ namespace {
 
         // func()
         llvm::SmallVector<ASTVar *, 8> Params;
-        ASTVar *aParam = getASTBuilder().CreateParam(SourceLoc, IntType, "a", EmptyScopes);
+        ASTVar *aParam = getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "a", EmptyScopes);
         Params.push_back(aParam);
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes, Params, Body);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
 
         // if (a == 1)
         ASTValueExpr *Value1 = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "1"));
@@ -1168,21 +906,14 @@ namespace {
         ASTValueExpr *Expr2 = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "2"));
         aVarStmt2->setExpr(Expr2);
 
-        // validate and resolve
-        EXPECT_TRUE(S->Resolve());
+    	// validate and resolve
+    	EXPECT_TRUE(S->Resolve());
 
-        // Generate Code
-        CodeGenModule *CGM = CG->GenerateModule(S->getSymTable().getDefaultNameSpace());
-        CodeGenFunction *CGF = CGM->GenFunction(static_cast<SymFunction *>(Func->getSym()));
-        CGF->GenBody();
-        Function *F = CGF->getFunction();
+    	// Generate Code
+    	llvm::Module * M = Generate();
+    	std::string output = getOutput(M);
 
-        EXPECT_FALSE(Diags.hasErrorOccurred());
-        testing::internal::CaptureStdout();
-        F->print(llvm::outs());
-        std::string output = testing::internal::GetCapturedStdout();
-
-        EXPECT_EQ(output, "define void @func(%error* %0, i32 %1) {\n"
+        EXPECT_EQ(output, "define void @F_0(%error* %0, i32 %1) {\n"
                           "entry:\n"
                           "  %2 = alloca %error*, align 8\n"
                           "  %3 = alloca i32, align 4\n"
@@ -1211,10 +942,10 @@ namespace {
         // func()
 
         llvm::SmallVector<ASTVar *, 8> Params;
-        ASTVar *aParam = getASTBuilder().CreateParam(SourceLoc, IntType, "a", EmptyScopes);
+        ASTVar *aParam = getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "a", EmptyScopes);
         Params.push_back(aParam);
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes, Params, Body);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
 
         // if (a == 1)
         SemaBuilderIfStmt *IfBuilder = getASTBuilder().CreateIfBuilder(Body);
@@ -1259,21 +990,14 @@ namespace {
         ASTValueExpr *Expr4 = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "44"));
         aVarStmt4->setExpr(Expr4);
 
-        // validate and resolve
-        EXPECT_TRUE(S->Resolve());
+    	// validate and resolve
+    	EXPECT_TRUE(S->Resolve());
 
-        // Generate Code
-        CodeGenModule *CGM = CG->GenerateModule(S->getSymTable().getDefaultNameSpace());
-        CodeGenFunction *CGF = CGM->GenFunction(static_cast<SymFunction *>(Func->getSym()));
-        CGF->GenBody();
-        Function *F = CGF->getFunction();
+    	// Generate Code
+    	llvm::Module * M = Generate();
+    	std::string output = getOutput(M);
 
-        EXPECT_FALSE(Diags.hasErrorOccurred());
-        testing::internal::CaptureStdout();
-        F->print(llvm::outs());
-        std::string output = testing::internal::GetCapturedStdout();
-
-        EXPECT_EQ(output, "define void @func(%error* %0, i32 %1) {\n"
+        EXPECT_EQ(output, "define void @F_0(%error* %0, i32 %1) {\n"
                           "entry:\n"
                           "  %2 = alloca %error*, align 8\n"
                           "  %3 = alloca i32, align 4\n"
@@ -1319,10 +1043,10 @@ namespace {
 
         // main()
         llvm::SmallVector<ASTVar *, 8> Params;
-        ASTVar *aParam = getASTBuilder().CreateParam(SourceLoc, IntType, "a", EmptyScopes);
+        ASTVar *aParam = getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "a", EmptyScopes);
         Params.push_back(aParam);
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes, Params, Body);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
 
         // if a == 1
         SemaBuilderIfStmt *IfBuilder = getASTBuilder().CreateIfBuilder(Body);
@@ -1358,20 +1082,14 @@ namespace {
         ASTValueExpr *Expr3 = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "33"));
         aVarStmt3->setExpr(Expr3);
 
-        EXPECT_TRUE(S->Resolve());
+    	// validate and resolve
+    	EXPECT_TRUE(S->Resolve());
 
-        // Generate Code
-        CodeGenModule *CGM = CG->GenerateModule(S->getSymTable().getDefaultNameSpace());
-        CodeGenFunction *CGF = CGM->GenFunction(static_cast<SymFunction *>(Func->getSym()));
-        CGF->GenBody();
-        Function *F = CGF->getFunction();
+    	// Generate Code
+    	llvm::Module * M = Generate();
+    	std::string output = getOutput(M);
 
-        EXPECT_FALSE(Diags.hasErrorOccurred());
-        testing::internal::CaptureStdout();
-        F->print(llvm::outs());
-        std::string output = testing::internal::GetCapturedStdout();
-
-        EXPECT_EQ(output, "define void @func(%error* %0, i32 %1) {\n"
+        EXPECT_EQ(output, "define void @F_0(%error* %0, i32 %1) {\n"
                           "entry:\n"
                           "  %2 = alloca %error*, align 8\n"
                           "  %3 = alloca i32, align 4\n"
@@ -1412,10 +1130,10 @@ namespace {
 
         // main()
         llvm::SmallVector<ASTVar *, 8> Params;
-        ASTVar *aParam = getASTBuilder().CreateParam(SourceLoc, IntType, "a", EmptyScopes);
+        ASTVar *aParam = getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "a", EmptyScopes);
         Params.push_back(aParam);
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes, Params, Body);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
 
         // switch a
         SemaBuilderSwitchStmt *SwitchBuilder = getASTBuilder().CreateSwitchBuilder(Body);
@@ -1445,21 +1163,14 @@ namespace {
         ASTValueExpr *Expr3 = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "3"));
         aVarStmt3->setExpr(Expr3);
 
-        // Add switch
-        EXPECT_TRUE(S->Resolve());
+    	// validate and resolve
+    	EXPECT_TRUE(S->Resolve());
 
-        // Generate Code
-        CodeGenModule *CGM = CG->GenerateModule(S->getSymTable().getDefaultNameSpace());
-        CodeGenFunction *CGF = CGM->GenFunction(static_cast<SymFunction *>(Func->getSym()));
-        CGF->GenBody();
-        Function *F = CGF->getFunction();
+    	// Generate Code
+    	llvm::Module * M = Generate();
+    	std::string output = getOutput(M);
 
-        EXPECT_FALSE(Diags.hasErrorOccurred());
-        testing::internal::CaptureStdout();
-        F->print(llvm::outs());
-        std::string output = testing::internal::GetCapturedStdout();
-
-        EXPECT_EQ(output, "define void @func(%error* %0, i32 %1) {\n"
+        EXPECT_EQ(output, "define void @F_0(%error* %0, i32 %1) {\n"
                           "entry:\n"
                           "  %2 = alloca %error*, align 8\n"
                           "  %3 = alloca i32, align 4\n"
@@ -1494,10 +1205,10 @@ namespace {
         // main()
         llvm::SmallVector<ASTVar *, 8> Params;
 
-        ASTVar *aParam = getASTBuilder().CreateParam(SourceLoc, IntType, "a", EmptyScopes);
+        ASTVar *aParam = getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "a", EmptyScopes);
         Params.push_back(aParam);
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes, Params, Body);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
 
         // while a == 1
         SemaBuilderLoopStmt *LoopBuilder = getASTBuilder().CreateLoopBuilder(Body, SourceLoc);
@@ -1512,20 +1223,14 @@ namespace {
         ASTValueExpr *Expr1 = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "1"));
         aVarStmt->setExpr(Expr1);
 
-        EXPECT_TRUE(S->Resolve());
+    	// validate and resolve
+    	EXPECT_TRUE(S->Resolve());
 
-        // Generate Code
-        CodeGenModule *CGM = CG->GenerateModule(S->getSymTable().getDefaultNameSpace());
-        CodeGenFunction *CGF = CGM->GenFunction(static_cast<SymFunction *>(Func->getSym()));
-        CGF->GenBody();
-        Function *F = CGF->getFunction();
+    	// Generate Code
+    	llvm::Module * M = Generate();
+    	std::string output = getOutput(M);
 
-        EXPECT_FALSE(Diags.hasErrorOccurred());
-        testing::internal::CaptureStdout();
-        F->print(llvm::outs());
-        std::string output = testing::internal::GetCapturedStdout();
-
-        EXPECT_EQ(output, "define void @func(%error* %0, i32 %1) {\n"
+        EXPECT_EQ(output, "define void @F_0(%error* %0, i32 %1) {\n"
                           "entry:\n"
                           "  %2 = alloca %error*, align 8\n"
                           "  %3 = alloca i32, align 4\n"
@@ -1552,10 +1257,10 @@ namespace {
 
         // main()
         llvm::SmallVector<ASTVar *, 8> Params;
-        ASTVar *aParam = getASTBuilder().CreateParam(SourceLoc, IntType, "a", EmptyScopes);
+        ASTVar *aParam = getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "a", EmptyScopes);
         Params.push_back(aParam);
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes, Params, Body);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
 
         // for int i = 1; i < 1; ++i
         SemaBuilderLoopStmt *LoopBuilder = getASTBuilder().CreateLoopBuilder(Body, SourceLoc);
@@ -1564,7 +1269,7 @@ namespace {
         // int i = 1
         ASTBlockStmt *InitBlock = getASTBuilder().CreateBlockStmt(SourceLoc);
         LoopBuilder->Init(InitBlock);
-        ASTVar *iVar = getASTBuilder().CreateLocalVar(InitBlock, SourceLoc, IntType, "i", EmptyScopes);
+        ASTVar *iVar = getASTBuilder().CreateLocalVar(InitBlock, SourceLoc, IntTypeRef, "i", EmptyScopes);
         ASTVarRef *iVarRef = CreateVarRef(iVar);
         SemaBuilderStmt *iVarStmt = getASTBuilder().CreateAssignmentStmt(InitBlock, iVarRef);
         ASTValueExpr *Value1Expr = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "1"));
@@ -1593,21 +1298,14 @@ namespace {
         ASTValueExpr *Expr1 = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "1"));
         aVarStmt->setExpr(Expr1);
 
-        // Resolve
-        EXPECT_TRUE(S->Resolve());
+    	// validate and resolve
+    	EXPECT_TRUE(S->Resolve());
 
-        // Generate Code
-        CodeGenModule *CGM = CG->GenerateModule(S->getSymTable().getDefaultNameSpace());
-        CodeGenFunction *CGF = CGM->GenFunction(static_cast<SymFunction *>(Func->getSym()));
-        CGF->GenBody();
-        Function *F = CGF->getFunction();
+    	// Generate Code
+    	llvm::Module * M = Generate();
+    	std::string output = getOutput(M);
 
-        EXPECT_FALSE(Diags.hasErrorOccurred());
-        testing::internal::CaptureStdout();
-        F->print(llvm::outs());
-        std::string output = testing::internal::GetCapturedStdout();
-
-        EXPECT_EQ(output, "define void @func(%error* %0, i32 %1) {\n"
+        EXPECT_EQ(output, "define void @F_0(%error* %0, i32 %1) {\n"
                           "entry:\n"
                           "  %2 = alloca %error*, align 8\n"
                           "  %3 = alloca i32, align 4\n"
@@ -1651,7 +1349,7 @@ namespace {
 
         // int a() { return 1 }
         ASTBlockStmt *aFuncBody = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *aFunc = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, IntType,
+        ASTFunction *aFunc = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, IntTypeRef,
                                                           "a", TopScopes, Params, aFuncBody);
 
         SemaBuilderStmt *aFuncReturn = getASTBuilder().CreateReturnStmt(aFuncBody, SourceLoc);
@@ -1661,7 +1359,7 @@ namespace {
 
         // public int b() { return 1 }
         ASTBlockStmt *bFuncBody = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *bFunc = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, IntType,
+        ASTFunction *bFunc = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, IntTypeRef,
                                                           "b", TopScopes, Params, bFuncBody);
         SemaBuilderStmt *bFuncReturn = getASTBuilder().CreateReturnStmt(bFuncBody, SourceLoc);
         ASTValueExpr *bFuncExpr = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLocation(), "1"));
@@ -1669,7 +1367,7 @@ namespace {
 
         // private const int c { return 1 }
         ASTBlockStmt *cFuncBody = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *cFunc = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, IntType,
+        ASTFunction *cFunc = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, IntTypeRef,
                                                           "c", TopScopes, Params, cFuncBody);
         SemaBuilderStmt *cFuncReturn = getASTBuilder().CreateReturnStmt(cFuncBody, SourceLoc);
         ASTValueExpr *cFuncExpr = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLocation(), "1"));
@@ -1683,7 +1381,7 @@ namespace {
         //  delete test
         // }
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes, Params, Body);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
 
         // TestClass test = new TestClass()
         ASTTypeRef *TestClassType = getASTBuilder().CreateTypeRef(TestClass);
@@ -1717,103 +1415,88 @@ namespace {
         // delete test
         ASTDeleteStmt *DeleteStmt = getASTBuilder().CreateDeleteStmt(Body, SourceLoc, CreateVarRef(TestVar));
 
-        bool Success = S->Resolve();
-        EXPECT_TRUE(Success);
+    	// validate and resolve
+    	EXPECT_TRUE(S->Resolve());
 
-        if (Success) {
+    	// Generate Code
+    	llvm::Module * M = Generate();
+    	std::string output = getOutput(M);
 
-            CodeGenModule *CGM = CG->GenerateModule(S->getSymTable().getDefaultNameSpace());
-            // Generate Code
-        	SymType *Class = S->getSymTable().getDefaultNameSpace()->getTypes().lookup(TestClass->getName());
-            CodeGenClass *CGC = CGM->GenClass(static_cast<SymClass *>(Class));
-            for (auto &F : CGC->getConstructors()) {
-                F->GenBody();
-            }
-            for (auto &F : CGC->getFunctions()) {
-                F->GenBody();
-            }
-            CodeGenFunction *CGF = CGM->GenFunction(static_cast<SymFunction *>(Func->getSym()));
-            CGF->GenBody();
-
-            EXPECT_FALSE(Diags.hasErrorOccurred());
-            std::string output = getOutput(CGM->getModule());
-
-            EXPECT_EQ(output, "%error = type { i8, i32, i8* }\n"
-                              "%TestClass = type { %TestClass_vtable* }\n"
-                              "%TestClass_vtable = type { i32 (%error*, %TestClass*), i32 (%error*, %TestClass*), i32 (%error*, %TestClass*) }\n"
-                              "\n"
-                              "define void @TestClass_TestClass(%error* %0, %TestClass* %1) {\n"
-                              "entry:\n"
-                              "  %2 = alloca %error*, align 8\n"
-                              "  %3 = alloca %TestClass*, align 8\n"
-                              "  store %error* %0, %error** %2, align 8\n"
-                              "  store %TestClass* %1, %TestClass** %3, align 8\n"
-                              "  %4 = load %TestClass*, %TestClass** %3, align 8\n"
-                              "  ret void\n"
-                              "}\n"
-                              "\n"
-                              "define i32 @TestClass_a(%error* %0, %TestClass* %1) {\n"
-                              "entry:\n"
-                              "  %2 = alloca %error*, align 8\n"
-                              "  %3 = alloca %TestClass*, align 8\n"
-                              "  store %error* %0, %error** %2, align 8\n"
-                              "  store %TestClass* %1, %TestClass** %3, align 8\n"
-                              "  %4 = load %TestClass*, %TestClass** %3, align 8\n"
-                              "  ret i32 1\n"
-                              "}\n"
-                              "\n"
-                              "define i32 @TestClass_b(%error* %0, %TestClass* %1) {\n"
-                              "entry:\n"
-                              "  %2 = alloca %error*, align 8\n"
-                              "  %3 = alloca %TestClass*, align 8\n"
-                              "  store %error* %0, %error** %2, align 8\n"
-                              "  store %TestClass* %1, %TestClass** %3, align 8\n"
-                              "  %4 = load %TestClass*, %TestClass** %3, align 8\n"
-                              "  ret i32 1\n"
-                              "}\n"
-                              "\n"
-                              "define i32 @TestClass_c(%error* %0, %TestClass* %1) {\n"
-                              "entry:\n"
-                              "  %2 = alloca %error*, align 8\n"
-                              "  %3 = alloca %TestClass*, align 8\n"
-                              "  store %error* %0, %error** %2, align 8\n"
-                              "  store %TestClass* %1, %TestClass** %3, align 8\n"
-                              "  %4 = load %TestClass*, %TestClass** %3, align 8\n"
-                              "  ret i32 1\n"
-                              "}\n"
-                              "\n"
-                              "define void @func(%error* %0) {\n"
-                              "entry:\n"
-                              "  %1 = alloca %error*, align 8\n"
-                              "  %2 = alloca %TestClass*, align 8\n"
-                              "  %3 = alloca i32, align 4\n"
-                              "  %4 = alloca i32, align 4\n"
-                              "  %5 = alloca i32, align 4\n"
-                              "  store %error* %0, %error** %1, align 8\n"
-                              "  %6 = load %error*, %error** %1, align 8\n"
-                              "  %7 = tail call i8* @malloc(i8 ptrtoint (i8* getelementptr (i8, i8* null, i32 1) to i8))\n"
-                              "  call void @TestClass_TestClass(%error* %6, i8* %7)\n"
-                              "  store i8* %7, %TestClass** %2, align 8\n"
-                              "  %8 = load %TestClass*, %TestClass** %2, align 8\n"
-                              "  %9 = call i32 @TestClass_a(%error* %6, %TestClass* %8)\n"
-                              "  store i32 %9, i32* %3, align 4\n"
-                              "  %10 = load %TestClass*, %TestClass** %2, align 8\n"
-                              "  %11 = call i32 @TestClass_b(%error* %6, %TestClass* %10)\n"
-                              "  store i32 %11, i32* %4, align 4\n"
-                              "  %12 = load %TestClass*, %TestClass** %2, align 8\n"
-                              "  %13 = call i32 @TestClass_c(%error* %6, %TestClass* %12)\n"
-                              "  store i32 %13, i32* %5, align 4\n"
-                              "  %14 = load %TestClass*, %TestClass** %2, align 8\n"
-                              "  %15 = bitcast %TestClass* %14 to i8*\n"
-                              "  tail call void @free(i8* %15)\n"
-                              "  ret void\n"
-                              "}\n"
-                              "\n"
-                              "declare noalias i8* @malloc(i64)\n"
-                              "\n"
-                              "declare void @free(i8*)\n"
-                              );
-        }
+        EXPECT_EQ(output, "%error = type { i8, i32, i8* }\n"
+                          "%TestClass = type { %TestClass_vtable* }\n"
+                          "%TestClass_vtable = type { i32 (%error*, %TestClass*), i32 (%error*, %TestClass*), i32 (%error*, %TestClass*) }\n"
+                          "\n"
+                          "define void @TestClass_TestClass(%error* %0, %TestClass* %1) {\n"
+                          "entry:\n"
+                          "  %2 = alloca %error*, align 8\n"
+                          "  %3 = alloca %TestClass*, align 8\n"
+                          "  store %error* %0, %error** %2, align 8\n"
+                          "  store %TestClass* %1, %TestClass** %3, align 8\n"
+                          "  %4 = load %TestClass*, %TestClass** %3, align 8\n"
+                          "  ret void\n"
+                          "}\n"
+                          "\n"
+                          "define i32 @TestClass_a(%error* %0, %TestClass* %1) {\n"
+                          "entry:\n"
+                          "  %2 = alloca %error*, align 8\n"
+                          "  %3 = alloca %TestClass*, align 8\n"
+                          "  store %error* %0, %error** %2, align 8\n"
+                          "  store %TestClass* %1, %TestClass** %3, align 8\n"
+                          "  %4 = load %TestClass*, %TestClass** %3, align 8\n"
+                          "  ret i32 1\n"
+                          "}\n"
+                          "\n"
+                          "define i32 @TestClass_b(%error* %0, %TestClass* %1) {\n"
+                          "entry:\n"
+                          "  %2 = alloca %error*, align 8\n"
+                          "  %3 = alloca %TestClass*, align 8\n"
+                          "  store %error* %0, %error** %2, align 8\n"
+                          "  store %TestClass* %1, %TestClass** %3, align 8\n"
+                          "  %4 = load %TestClass*, %TestClass** %3, align 8\n"
+                          "  ret i32 1\n"
+                          "}\n"
+                          "\n"
+                          "define i32 @TestClass_c(%error* %0, %TestClass* %1) {\n"
+                          "entry:\n"
+                          "  %2 = alloca %error*, align 8\n"
+                          "  %3 = alloca %TestClass*, align 8\n"
+                          "  store %error* %0, %error** %2, align 8\n"
+                          "  store %TestClass* %1, %TestClass** %3, align 8\n"
+                          "  %4 = load %TestClass*, %TestClass** %3, align 8\n"
+                          "  ret i32 1\n"
+                          "}\n"
+                          "\n"
+                          "define void @F_0(%error* %0) {\n"
+                          "entry:\n"
+                          "  %1 = alloca %error*, align 8\n"
+                          "  %2 = alloca %TestClass*, align 8\n"
+                          "  %3 = alloca i32, align 4\n"
+                          "  %4 = alloca i32, align 4\n"
+                          "  %5 = alloca i32, align 4\n"
+                          "  store %error* %0, %error** %1, align 8\n"
+                          "  %6 = load %error*, %error** %1, align 8\n"
+                          "  %7 = tail call i8* @malloc(i8 ptrtoint (i8* getelementptr (i8, i8* null, i32 1) to i8))\n"
+                          "  call void @TestClass_TestClass(%error* %6, i8* %7)\n"
+                          "  store i8* %7, %TestClass** %2, align 8\n"
+                          "  %8 = load %TestClass*, %TestClass** %2, align 8\n"
+                          "  %9 = call i32 @TestClass_a(%error* %6, %TestClass* %8)\n"
+                          "  store i32 %9, i32* %3, align 4\n"
+                          "  %10 = load %TestClass*, %TestClass** %2, align 8\n"
+                          "  %11 = call i32 @TestClass_b(%error* %6, %TestClass* %10)\n"
+                          "  store i32 %11, i32* %4, align 4\n"
+                          "  %12 = load %TestClass*, %TestClass** %2, align 8\n"
+                          "  %13 = call i32 @TestClass_c(%error* %6, %TestClass* %12)\n"
+                          "  store i32 %13, i32* %5, align 4\n"
+                          "  %14 = load %TestClass*, %TestClass** %2, align 8\n"
+                          "  %15 = bitcast %TestClass* %14 to i8*\n"
+                          "  tail call void @free(i8* %15)\n"
+                          "  ret void\n"
+                          "}\n"
+                          "\n"
+                          "declare noalias i8* @malloc(i64)\n"
+                          "\n"
+                          "declare void @free(i8*)\n"
+                          );
     }
 
     TEST_F(CodeGenTest, CGClassAttributes) {
@@ -1828,11 +1511,11 @@ namespace {
                                                   SuperClasses);
 
         // int a
-        ASTVar *aAttribute = getASTBuilder().CreateClassAttribute(SourceLoc, TestClass, IntType, "a", TopScopes);
+        ASTVar *aAttribute = getASTBuilder().CreateClassAttribute(SourceLoc, TestClass, IntTypeRef, "a", TopScopes);
 
         // int getA() { return a }
         ASTBlockStmt *MethodBody = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *getAMethod = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, IntType,
+        ASTFunction *getAMethod = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, IntTypeRef,
                                                                "getA", TopScopes, Params, MethodBody);
 
         SemaBuilderStmt *MethodReturn = getASTBuilder().CreateReturnStmt(MethodBody, SourceLoc);
@@ -1845,7 +1528,7 @@ namespace {
         //  delete test
         // }
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes, Params, Body);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
 
         // TestClass test = new TestClass()
         ASTTypeRef *TestClassType = getASTBuilder().CreateTypeRef(TestClass);
@@ -1870,86 +1553,71 @@ namespace {
         // delete test
         ASTDeleteStmt *DeleteStmt = getASTBuilder().CreateDeleteStmt(Body, SourceLoc, CreateVarRef(TestVar));
 
-        bool Success = S->Resolve();
-        EXPECT_TRUE(Success);
+		// validate and resolve
+		EXPECT_TRUE(S->Resolve());
 
-        if (Success) {
+		// Generate Code
+		llvm::Module * M = Generate();
+		std::string output = getOutput(M);
 
-            CodeGenModule *CGM = CG->GenerateModule(S->getSymTable().getDefaultNameSpace());
-            // Generate Code
-        	SymType *Class = S->getSymTable().getDefaultNameSpace()->getTypes().lookup(TestClass->getName());
-        	CodeGenClass *CGC = CGM->GenClass(static_cast<SymClass *>(Class));
-            for (auto &F : CGC->getConstructors()) {
-                F->GenBody();
-            }
-            for (auto &F : CGC->getFunctions()) {
-                F->GenBody();
-            }
-            CodeGenFunction *CGF = CGM->GenFunction(static_cast<SymFunction *>(Func->getSym()));
-            CGF->GenBody();
-
-            EXPECT_FALSE(Diags.hasErrorOccurred());
-            std::string output = getOutput(CGM->getModule());
-
-            EXPECT_EQ(output, "%error = type { i8, i32, i8* }\n"
-                              "%TestClass = type { %TestClass_vtable*, i32 }\n"
-                              "%TestClass_vtable = type { i32 (%error*, %TestClass*) }\n"
-                              "\n"
-                              "define void @TestClass_TestClass(%error* %0, %TestClass* %1) {\n"
-                              "entry:\n"
-                              "  %2 = alloca %error*, align 8\n"
-                              "  %3 = alloca %TestClass*, align 8\n"
-                              "  store %error* %0, %error** %2, align 8\n"
-                              "  store %TestClass* %1, %TestClass** %3, align 8\n"
-                              "  %4 = load %TestClass*, %TestClass** %3, align 8\n"
-                              "  %5 = getelementptr inbounds %TestClass, %TestClass* %4, i32 0, i32 1\n"
-                              "  store i32 0, i32* %5, align 4\n"
-                              "  ret void\n"
-                              "}\n"
-                              "\n"
-                              "define i32 @TestClass_getA(%error* %0, %TestClass* %1) {\n"
-                              "entry:\n"
-                              "  %2 = alloca %error*, align 8\n"
-                              "  %3 = alloca %TestClass*, align 8\n"
-                              "  store %error* %0, %error** %2, align 8\n"
-                              "  store %TestClass* %1, %TestClass** %3, align 8\n"
-                              "  %4 = load %TestClass*, %TestClass** %3, align 8\n"
-                              "  %5 = getelementptr inbounds %TestClass, %TestClass* %4, i32 0, i32 1\n"
-                              "  %6 = load i32, i32* %5, align 4\n"
-                              "  ret i32 %6\n"
-                              "}\n"
-                              "\n"
-                              "define void @func(%error* %0) {\n"
-                              "entry:\n"
-                              "  %1 = alloca %error*, align 8\n"
-                              "  %2 = alloca %TestClass*, align 8\n"
-                              "  %3 = alloca i32, align 4\n"
-                              "  store %error* %0, %error** %1, align 8\n"
-                              "  %4 = load %error*, %error** %1, align 8\n"
-                              // TestClass test = new TestClass()
-                              "  %malloccall = tail call i8* @malloc(%TestClass ptrtoint (%TestClass* getelementptr (%TestClass, %TestClass* null, i32 1) to %TestClass))\n"
-                              "  %5 = bitcast i8* %malloccall to %TestClass*\n"
-                              "  call void @TestClass_TestClass(%error* %4, %TestClass* %5)\n"
-                              "  store %TestClass* %5, %TestClass** %2, align 8\n"
-                              "  %6 = load %TestClass*, %TestClass** %2, align 8\n"
-                              // int a = test.a()
-                              "  %7 = call i32 @TestClass_getA(%error* %4, %TestClass* %6)\n"
-                              "  store i32 %7, i32* %3, align 4\n"
-                              // test.a = 2
-                              "  %8 = getelementptr inbounds %TestClass, %TestClass* %6, i32 0, i32 1\n"
-                              "  store i32 2, i32* %8, align 4\n"
-                              // delete test
-                              "  %9 = load %TestClass*, %TestClass** %2, align 8\n"
-                              "  %10 = bitcast %TestClass* %9 to i8*\n"
-                              "  tail call void @free(i8* %10)\n"
-                              "  ret void\n"
-                              "}\n"
-                              "\n"
-                              "declare noalias i8* @malloc(i64)\n"
-                              "\n"
-                              "declare void @free(i8*)\n"
-            );
-        }
+        EXPECT_EQ(output, "%error = type { i8, i32, i8* }\n"
+                          "%TestClass = type { %TestClass_vtable*, i32 }\n"
+                          "%TestClass_vtable = type { i32 (%error*, %TestClass*) }\n"
+                          "\n"
+                          "define void @TestClass_TestClass(%error* %0, %TestClass* %1) {\n"
+                          "entry:\n"
+                          "  %2 = alloca %error*, align 8\n"
+                          "  %3 = alloca %TestClass*, align 8\n"
+                          "  store %error* %0, %error** %2, align 8\n"
+                          "  store %TestClass* %1, %TestClass** %3, align 8\n"
+                          "  %4 = load %TestClass*, %TestClass** %3, align 8\n"
+                          "  %5 = getelementptr inbounds %TestClass, %TestClass* %4, i32 0, i32 1\n"
+                          "  store i32 0, i32* %5, align 4\n"
+                          "  ret void\n"
+                          "}\n"
+                          "\n"
+                          "define i32 @TestClass_getA(%error* %0, %TestClass* %1) {\n"
+                          "entry:\n"
+                          "  %2 = alloca %error*, align 8\n"
+                          "  %3 = alloca %TestClass*, align 8\n"
+                          "  store %error* %0, %error** %2, align 8\n"
+                          "  store %TestClass* %1, %TestClass** %3, align 8\n"
+                          "  %4 = load %TestClass*, %TestClass** %3, align 8\n"
+                          "  %5 = getelementptr inbounds %TestClass, %TestClass* %4, i32 0, i32 1\n"
+                          "  %6 = load i32, i32* %5, align 4\n"
+                          "  ret i32 %6\n"
+                          "}\n"
+                          "\n"
+                          "define void @F_0(%error* %0) {\n"
+                          "entry:\n"
+                          "  %1 = alloca %error*, align 8\n"
+                          "  %2 = alloca %TestClass*, align 8\n"
+                          "  %3 = alloca i32, align 4\n"
+                          "  store %error* %0, %error** %1, align 8\n"
+                          "  %4 = load %error*, %error** %1, align 8\n"
+                          // TestClass test = new TestClass()
+                          "  %malloccall = tail call i8* @malloc(%TestClass ptrtoint (%TestClass* getelementptr (%TestClass, %TestClass* null, i32 1) to %TestClass))\n"
+                          "  %5 = bitcast i8* %malloccall to %TestClass*\n"
+                          "  call void @TestClass_TestClass(%error* %4, %TestClass* %5)\n"
+                          "  store %TestClass* %5, %TestClass** %2, align 8\n"
+                          "  %6 = load %TestClass*, %TestClass** %2, align 8\n"
+                          // int a = test.a()
+                          "  %7 = call i32 @TestClass_getA(%error* %4, %TestClass* %6)\n"
+                          "  store i32 %7, i32* %3, align 4\n"
+                          // test.a = 2
+                          "  %8 = getelementptr inbounds %TestClass, %TestClass* %6, i32 0, i32 1\n"
+                          "  store i32 2, i32* %8, align 4\n"
+                          // delete test
+                          "  %9 = load %TestClass*, %TestClass** %2, align 8\n"
+                          "  %10 = bitcast %TestClass* %9 to i8*\n"
+                          "  tail call void @free(i8* %10)\n"
+                          "  ret void\n"
+                          "}\n"
+                          "\n"
+                          "declare noalias i8* @malloc(i64)\n"
+                          "\n"
+                          "declare void @free(i8*)\n"
+        );
     }
 
     TEST_F(CodeGenTest, CGStruct) {
@@ -1964,9 +1632,9 @@ namespace {
         llvm::SmallVector<ASTTypeRef *, 4> SuperClasses;
         ASTClass *TestStruct = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "TestStruct",
                                                    TopScopes, SuperClasses);
-        ASTVar *aField = getASTBuilder().CreateClassAttribute(SourceLoc, TestStruct, IntType, "a", TopScopes);
-        ASTVar *bField = getASTBuilder().CreateClassAttribute(SourceLoc, TestStruct, IntType, "b", TopScopes);
-        ASTVar *cField = getASTBuilder().CreateClassAttribute(SourceLoc, TestStruct, IntType, "c", TopScopes);
+        ASTVar *aField = getASTBuilder().CreateClassAttribute(SourceLoc, TestStruct, IntTypeRef, "a", TopScopes);
+        ASTVar *bField = getASTBuilder().CreateClassAttribute(SourceLoc, TestStruct, IntTypeRef, "b", TopScopes);
+        ASTVar *cField = getASTBuilder().CreateClassAttribute(SourceLoc, TestStruct, IntTypeRef, "c", TopScopes);
 
         // int func() {
         //  TestStruct test = new TestStruct();
@@ -1975,7 +1643,7 @@ namespace {
         //  return 1
         // }
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes, Params, Body);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
 
         // TestStruct test = new TestStruct()
         ASTTypeRef *TestClassType = getASTBuilder().CreateTypeRef(TestStruct);
@@ -1986,7 +1654,7 @@ namespace {
         testNewStmt->setExpr(NewExpr);
 
         // int a = test.a
-        ASTVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntType, "a", EmptyScopes);
+        ASTVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "a", EmptyScopes);
         ASTVarRef *Instance = CreateVarRef(TestVar);
         ASTVarRef *test_aVarRef = CreateVarRef(aField,Instance);
         ASTVarRefExpr *test_aRefExpr = getASTBuilder().CreateExpr(test_aVarRef);
@@ -2003,70 +1671,55 @@ namespace {
         // delete test
         ASTDeleteStmt *Delete = getASTBuilder().CreateDeleteStmt(Body, SourceLoc, (ASTVarRef *) Instance);
 
-        bool Success = S->Resolve();
-        EXPECT_TRUE(Success);
+		// validate and resolve
+		EXPECT_TRUE(S->Resolve());
 
-        if (Success) {
-            CodeGenModule *CGM = CG->GenerateModule(S->getSymTable().getDefaultNameSpace());
+		// Generate Code
+		llvm::Module * M = Generate();
+		std::string output = getOutput(M);
 
-            // Generate Code
-        	SymType *Class = S->getSymTable().getDefaultNameSpace()->getTypes().lookup(TestStruct->getName());
-        	CodeGenClass *CGC = CGM->GenClass(static_cast<SymClass *>(Class));
-            for (auto &F : CGC->getConstructors()) {
-                F->GenBody();
-            }
-            for (auto &F : CGC->getFunctions()) {
-                F->GenBody();
-            }
-            CodeGenFunction *CGF = CGM->GenFunction(static_cast<SymFunction *>(Func->getSym()));
-            CGF->GenBody();
-
-            EXPECT_FALSE(Diags.hasErrorOccurred());
-            std::string output = getOutput(CGM->getModule());
-
-            EXPECT_EQ(output, "%TestStruct = type { i32, i32, i32 }\n"
-                              "%error = type { i8, i32, i8* }\n"
-                              "\n"
-                              "define void @TestStruct_TestStruct(%TestStruct* %0) {\n"
-                              "entry:\n"
-                              "  %1 = alloca %TestStruct*, align 8\n"
-                              "  store %TestStruct* %0, %TestStruct** %1, align 8\n"
-                              "  %2 = load %TestStruct*, %TestStruct** %1, align 8\n"
-                              "  %3 = getelementptr inbounds %TestStruct, %TestStruct* %2, i32 0, i32 0\n"
-                              "  store i32 0, i32* %3, align 4\n"
-                              "  %4 = getelementptr inbounds %TestStruct, %TestStruct* %2, i32 0, i32 1\n"
-                              "  store i32 0, i32* %4, align 4\n"
-                              "  %5 = getelementptr inbounds %TestStruct, %TestStruct* %2, i32 0, i32 2\n"
-                              "  store i32 0, i32* %5, align 4\n"
-                              "  ret void\n"
-                              "}\n"
-                              "\n"
-                              "define void @func(%error* %0) {\n"
-                              "entry:\n"
-                              "  %1 = alloca %error*, align 8\n"
-                              "  %2 = alloca %TestStruct*, align 8\n"
-                              "  %3 = alloca i32, align 4\n"
-                              "  store %error* %0, %error** %1, align 8\n"
-                              "  %malloccall = tail call i8* @malloc(%TestStruct trunc (i64 mul nuw (i64 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i64), i64 3) to %TestStruct))\n"
-                              "  %4 = bitcast i8* %malloccall to %TestStruct*\n"
-                              "  call void @TestStruct_TestStruct(%TestStruct* %4)\n"
-                              "  store %TestStruct* %4, %TestStruct** %2, align 8\n"
-                              "  %5 = load %TestStruct*, %TestStruct** %2, align 8\n"
-                              "  %6 = getelementptr inbounds %TestStruct, %TestStruct* %5, i32 0, i32 0\n"
-                              "  %7 = load i32, i32* %6, align 4\n"
-                              "  store i32 %7, i32* %3, align 4\n"
-                              "  %8 = getelementptr inbounds %TestStruct, %TestStruct* %5, i32 0, i32 1\n"
-                              "  store i32 2, i32* %8, align 4\n"
-                              "  %9 = load %TestStruct*, %TestStruct** %2, align 8\n"
-                              "  %10 = bitcast %TestStruct* %9 to i8*\n"
-                              "  tail call void @free(i8* %10)\n"
-                              "  ret void\n"
-                              "}\n"
-                              "\n"
-                              "declare noalias i8* @malloc(i64)\n"
-                              "\n"
-                              "declare void @free(i8*)\n");
-        }
+        EXPECT_EQ(output, "%TestStruct = type { i32, i32, i32 }\n"
+                          "%error = type { i8, i32, i8* }\n"
+                          "\n"
+                          "define void @TestStruct_TestStruct(%TestStruct* %0) {\n"
+                          "entry:\n"
+                          "  %1 = alloca %TestStruct*, align 8\n"
+                          "  store %TestStruct* %0, %TestStruct** %1, align 8\n"
+                          "  %2 = load %TestStruct*, %TestStruct** %1, align 8\n"
+                          "  %3 = getelementptr inbounds %TestStruct, %TestStruct* %2, i32 0, i32 0\n"
+                          "  store i32 0, i32* %3, align 4\n"
+                          "  %4 = getelementptr inbounds %TestStruct, %TestStruct* %2, i32 0, i32 1\n"
+                          "  store i32 0, i32* %4, align 4\n"
+                          "  %5 = getelementptr inbounds %TestStruct, %TestStruct* %2, i32 0, i32 2\n"
+                          "  store i32 0, i32* %5, align 4\n"
+                          "  ret void\n"
+                          "}\n"
+                          "\n"
+                          "define void @F_0(%error* %0) {\n"
+                          "entry:\n"
+                          "  %1 = alloca %error*, align 8\n"
+                          "  %2 = alloca %TestStruct*, align 8\n"
+                          "  %3 = alloca i32, align 4\n"
+                          "  store %error* %0, %error** %1, align 8\n"
+                          "  %malloccall = tail call i8* @malloc(%TestStruct trunc (i64 mul nuw (i64 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i64), i64 3) to %TestStruct))\n"
+                          "  %4 = bitcast i8* %malloccall to %TestStruct*\n"
+                          "  call void @TestStruct_TestStruct(%TestStruct* %4)\n"
+                          "  store %TestStruct* %4, %TestStruct** %2, align 8\n"
+                          "  %5 = load %TestStruct*, %TestStruct** %2, align 8\n"
+                          "  %6 = getelementptr inbounds %TestStruct, %TestStruct* %5, i32 0, i32 0\n"
+                          "  %7 = load i32, i32* %6, align 4\n"
+                          "  store i32 %7, i32* %3, align 4\n"
+                          "  %8 = getelementptr inbounds %TestStruct, %TestStruct* %5, i32 0, i32 1\n"
+                          "  store i32 2, i32* %8, align 4\n"
+                          "  %9 = load %TestStruct*, %TestStruct** %2, align 8\n"
+                          "  %10 = bitcast %TestStruct* %9 to i8*\n"
+                          "  tail call void @free(i8* %10)\n"
+                          "  ret void\n"
+                          "}\n"
+                          "\n"
+                          "declare noalias i8* @malloc(i64)\n"
+                          "\n"
+                          "declare void @free(i8*)\n");
     }
 
     TEST_F(CodeGenTest, CGEnum) {
@@ -2089,7 +1742,7 @@ namespace {
         //  return 1
         // }
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes, Params, Body);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
 
         ASTTypeRef *TestEnumType = getASTBuilder().CreateTypeRef(TestEnum);
 
@@ -2106,36 +1759,26 @@ namespace {
         ASTVarRefExpr *aRefExpr = getASTBuilder().CreateExpr(CreateVarRef(aVar));
         bVarStmt->setExpr(aRefExpr);
 
-        bool Success = S->Resolve();
-        EXPECT_TRUE(Success);
+		// validate and resolve
+		EXPECT_TRUE(S->Resolve());
 
-        if (Success) {
-            CodeGenModule *CGM = CG->GenerateModule(S->getSymTable().getDefaultNameSpace());
+		// Generate Code
+		llvm::Module * M = Generate();
+		std::string output = getOutput(M);
 
-        	SymType *Enum = S->getSymTable().getDefaultNameSpace()->getTypes().lookup(TestEnum->getName());
-        	CGM->GenEnum(static_cast<SymEnum *>(Enum));
-
-            // Generate Code
-            CodeGenFunction *CGF = CGM->GenFunction(static_cast<SymFunction *>(Func->getSym()));
-            CGF->GenBody();
-
-            EXPECT_FALSE(Diags.hasErrorOccurred());
-            std::string output = getOutput(CGM->getModule());
-
-            EXPECT_EQ(output, "%error = type { i8, i32, i8* }\n"
-                              "\n"
-                              "define void @func(%error* %0) {\n"
-                              "entry:\n"
-                              "  %1 = alloca %error*, align 8\n"
-                              "  %2 = alloca i32, align 4\n"
-                              "  %3 = alloca i32, align 4\n"
-                              "  store %error* %0, %error** %1, align 8\n"
-                              "  store i32 1, i32* %2, align 4\n"
-                              "  %4 = load i32, i32* %2, align 4\n"
-                              "  store i32 %4, i32* %3, align 4\n"
-                              "  ret void\n"
-                              "}\n");
-        }
+        EXPECT_EQ(output, "%error = type { i8, i32, i8* }\n"
+                          "\n"
+                          "define void @F_0(%error* %0) {\n"
+                          "entry:\n"
+                          "  %1 = alloca %error*, align 8\n"
+                          "  %2 = alloca i32, align 4\n"
+                          "  %3 = alloca i32, align 4\n"
+                          "  store %error* %0, %error** %1, align 8\n"
+                          "  store i32 1, i32* %2, align 4\n"
+                          "  %4 = load i32, i32* %2, align 4\n"
+                          "  store i32 %4, i32* %3, align 4\n"
+                          "  ret void\n"
+                          "}\n");
     }
 
 	TEST_F(CodeGenTest, CGMain) {
@@ -2145,21 +1788,14 @@ namespace {
         //
         // }
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidType, "main", TopScopes, Params, Body);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopScopes, Params, Body);
 
-        // Validate and Resolve
-        EXPECT_TRUE(S->Resolve());
+		// validate and resolve
+		EXPECT_TRUE(S->Resolve());
 
-        CodeGenModule *CGM = CG->GenerateModule(S->getSymTable().getDefaultNameSpace());
-
-        CodeGenFunction *CGF_Main = CGM->GenFunction(static_cast<SymFunction *>(Func->getSym()));
-        CGF_Main->GenBody();
-        llvm::Function *F_Main = CGF_Main->getFunction();
-
-        EXPECT_FALSE(Diags.hasErrorOccurred());
-        testing::internal::CaptureStdout();
-        F_Main->print(llvm::outs());
-        std::string output = testing::internal::GetCapturedStdout();
+		// Generate Code
+		llvm::Module * M = Generate();
+		std::string output = getOutput(M);
 
         EXPECT_EQ(output, "define i32 @main() {\n"
                           "entry:\n"
@@ -2186,29 +1822,22 @@ namespace {
         //   error A = handle fail
         // }
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidType, "func", TopScopes, Params, Body);
-        ASTVar *ErrorA = getASTBuilder().CreateLocalVar(Body, SourceLoc, ErrorType, "A", EmptyScopes);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
+        ASTVar *ErrorA = getASTBuilder().CreateLocalVar(Body, SourceLoc, ErrorTypeRef, "A", EmptyScopes);
         ASTVarRef *ErrorVarRef = getASTBuilder().CreateVarRef(ErrorA);
         ASTBlockStmt *HandleBlock = getASTBuilder().CreateBlockStmt(SourceLoc);
         getASTBuilder().CreateHandleStmt(Body, SourceLoc, HandleBlock, ErrorVarRef);
 
         SemaBuilderStmt *Fail0Stmt = getASTBuilder().CreateFailStmt(HandleBlock, SourceLoc);
 
-        // Validate and Resolve
-        EXPECT_TRUE(S->Resolve());
+		// validate and resolve
+		EXPECT_TRUE(S->Resolve());
 
-        CodeGenModule *CGM = CG->GenerateModule(S->getSymTable().getDefaultNameSpace());
+		// Generate Code
+		llvm::Module * M = Generate();
+		std::string output = getOutput(M);
 
-        CodeGenFunction *CGF_Main = CGM->GenFunction(static_cast<SymFunction *>(Func->getSym()));
-        CGF_Main->GenBody();
-        llvm::Function *F_Main = CGF_Main->getFunction();
-
-        EXPECT_FALSE(Diags.hasErrorOccurred());
-        testing::internal::CaptureStdout();
-        F_Main->print(llvm::outs());
-        std::string output = testing::internal::GetCapturedStdout();
-
-        EXPECT_EQ(output, "define void @func(%error* %0) {\n"
+        EXPECT_EQ(output, "define void @F_0(%error* %0) {\n"
                           "entry:\n"
                           "  %1 = alloca %error*, align 8\n"
                           "  %2 = alloca %error*, align 8\n"
@@ -2235,14 +1864,14 @@ namespace {
         //   fail
         // }
         ASTBlockStmt *Body0 = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *TestFail0 = getASTBuilder().CreateFunction(Module, SourceLoc, IntType, "testFail0", TopScopes, Params, Body0);
+        ASTFunction *TestFail0 = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "testFail0", TopScopes, Params, Body0);
         SemaBuilderStmt *Fail0Stmt = getASTBuilder().CreateFailStmt(Body0, SourceLoc);
 
         // int testFail1() {
         //   fail true
         // }
         ASTBlockStmt *Body1 = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *TestFail1 = getASTBuilder().CreateFunction(Module, SourceLoc, IntType, "testFail1", TopScopes, Params, Body1);
+        ASTFunction *TestFail1 = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "testFail1", TopScopes, Params, Body1);
         ASTBoolValue *BoolVal = getASTBuilder().CreateBoolValue(SourceLoc, true);
         SemaBuilderStmt *Fail1Stmt = getASTBuilder().CreateFailStmt(Body1, SourceLoc);
         Fail1Stmt->setExpr(getASTBuilder().CreateExpr(BoolVal));
@@ -2251,7 +1880,7 @@ namespace {
         //   fail 10
         // }
         ASTBlockStmt *Body2 = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *TestFail2 = getASTBuilder().CreateFunction(Module, SourceLoc, IntType, "testFail2", TopScopes, Params, Body2);
+        ASTFunction *TestFail2 = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "testFail2", TopScopes, Params, Body2);
         ASTIntegerValue *IntVal = getASTBuilder().CreateIntegerValue(SourceLoc, "10");
         SemaBuilderStmt *Fail2Stmt = getASTBuilder().CreateFailStmt(Body2, SourceLoc);
         Fail2Stmt->setExpr(getASTBuilder().CreateExpr(IntVal));
@@ -2260,7 +1889,7 @@ namespace {
         //  fail "Error"
         // }
         ASTBlockStmt *Body3 = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *TestFail3 = getASTBuilder().CreateFunction(Module, SourceLoc, IntType, "testFail3", TopScopes, Params, Body3);
+        ASTFunction *TestFail3 = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "testFail3", TopScopes, Params, Body3);
         ASTStringValue *StrVal = getASTBuilder().CreateStringValue(SourceLoc, "Error");
         SemaBuilderStmt *Fail3Stmt = getASTBuilder().CreateFailStmt(Body3, SourceLoc);
         Fail3Stmt->setExpr(getASTBuilder().CreateExpr(StrVal));
@@ -2270,10 +1899,10 @@ namespace {
         // }
         llvm::SmallVector<ASTTypeRef *, 4> SuperClasses;
         ASTClass *TestStruct = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "TestStruct", TopScopes, SuperClasses);
-        ASTVar *aField = getASTBuilder().CreateClassAttribute(SourceLoc, TestStruct, IntType, "a", TopScopes);
+        ASTVar *aField = getASTBuilder().CreateClassAttribute(SourceLoc, TestStruct, IntTypeRef, "a", TopScopes);
 
         ASTBlockStmt *Body4 = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *TestFail4 = getASTBuilder().CreateFunction(Module, SourceLoc, IntType, "testFail4", TopScopes, Params, Body4);
+        ASTFunction *TestFail4 = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "testFail4", TopScopes, Params, Body4);
         // TestStruct test = new TestStruct()
         ASTCall *ConstructorCall = CreateCall(TestStruct->getName(), Args, ASTCallKind::CALL_NEW);
         // fail new TestStruct()
@@ -2288,7 +1917,7 @@ namespace {
         //   testFail4()
         // }
         ASTBlockStmt *MainBody = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Main = getASTBuilder().CreateFunction(Module, SourceLoc, VoidType, "main", TopScopes, Params, MainBody);
+        ASTFunction *Main = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopScopes, Params, MainBody);
 
         // call testFail0()
         SemaBuilderStmt *CallTestFail0 = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
@@ -2315,52 +1944,12 @@ namespace {
         ASTCallExpr *CallExpr4 = getASTBuilder().CreateExpr(CreateCall(TestFail4, Args, ASTCallKind::CALL_FUNCTION));
         CallTestFail4->setExpr(CallExpr4);
 
-        // Validate and Resolve
-        EXPECT_TRUE(S->Resolve());
+		// validate and resolve
+		EXPECT_TRUE(S->Resolve());
 
-        CodeGenModule *CGM = CG->GenerateModule(S->getSymTable().getDefaultNameSpace());
-
-        // Generate Code
-    	SymType *Class = S->getSymTable().getDefaultNameSpace()->getTypes().lookup(TestStruct->getName());
-    	CodeGenClass *CGC = CGM->GenClass(static_cast<SymClass *>(Class));
-        for (auto &F : CGC->getConstructors()) {
-            F->GenBody();
-        }
-
-        // Generate Code
-        CodeGenFunction *CGF_TestFail0 = CGM->GenFunction(static_cast<SymFunction *>(TestFail0->getSym()));
-        CGF_TestFail0->GenBody();
-        llvm::Function *F_TestFail0 = CGF_TestFail0->getFunction();
-
-        CodeGenFunction *CGF_TestFail1 = CGM->GenFunction(static_cast<SymFunction *>(TestFail1->getSym()));
-        CGF_TestFail1->GenBody();
-        llvm::Function *F_TestFail1 = CGF_TestFail1->getFunction();
-
-        CodeGenFunction *CGF_TestFail2 = CGM->GenFunction(static_cast<SymFunction *>(TestFail2->getSym()));
-        CGF_TestFail2->GenBody();
-        llvm::Function *F_TestFail2 = CGF_TestFail2->getFunction();
-
-        CodeGenFunction *CGF_TestFail3 = CGM->GenFunction(static_cast<SymFunction *>(TestFail3->getSym()));
-        CGF_TestFail3->GenBody();
-        llvm::Function *F_TestFail3 = CGF_TestFail3->getFunction();
-
-        CodeGenFunction *CGF_TestFail4 = CGM->GenFunction(static_cast<SymFunction *>(TestFail4->getSym()));
-        CGF_TestFail4->GenBody();
-        llvm::Function *F_TestFail4 = CGF_TestFail4->getFunction();
-
-        CodeGenFunction *CGF_Main = CGM->GenFunction(static_cast<SymFunction *>(Main->getSym()));
-        CGF_Main->GenBody();
-        llvm::Function *F_Main = CGF_Main->getFunction();
-
-        EXPECT_FALSE(Diags.hasErrorOccurred());
-        testing::internal::CaptureStdout();
-        F_TestFail0->print(llvm::outs());
-        F_TestFail1->print(llvm::outs());
-        F_TestFail2->print(llvm::outs());
-        F_TestFail3->print(llvm::outs());
-        F_TestFail4->print(llvm::outs());
-        F_Main->print(llvm::outs());
-        std::string output = testing::internal::GetCapturedStdout();
+		// Generate Code
+		llvm::Module * M = Generate();
+		std::string output = getOutput(M);
 
         EXPECT_EQ(output, "define i32 @testFail0(%error* %0) {\n"
                           "entry:\n"

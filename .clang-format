@@ -1,3 +1,5 @@
+BasedOnStyle: LLVM
+
 # Brace wrapping settings for K&R style
 BraceWrapping:
   AfterClass: false               # Opening brace for classes stays on the same line
@@ -28,7 +30,7 @@ AlignOperands: true               # Align operands of binary and ternary express
 AlignTrailingComments: true       # Align trailing comments in a column
 
 # Empty lines
-AllowShortBlocksOnASingleLine: false # Do not allow blocks to fit on a single line
+AllowShortBlocksOnASingleLine: Never # Do not allow blocks to fit on a single line
 AllowShortFunctionsOnASingleLine: Inline # Inline short functions, but only in declarations
 AllowShortLambdasOnASingleLine: All # Allow lambdas to fit on a single line
 AllowShortIfStatementsOnASingleLine: false # Require multi-line `if` statements even if short
@@ -47,7 +49,7 @@ BreakConstructorInitializers: BeforeComma # Break constructor initializers befor
 ConstructorInitializerIndentWidth: 4 # Indent width for constructor initializers
 
 # Include sorting
-SortIncludes: true                # Sort #include statements alphabetically
+SortIncludes: CaseSensitive       # Sort #include statements alphabetically
 IncludeBlocks: Regroup            # Group includes into separate blocks (e.g., system headers, project headers)
 
 # Trailing commas

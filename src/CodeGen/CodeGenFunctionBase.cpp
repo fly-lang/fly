@@ -27,6 +27,7 @@
 #include <CodeGen/CodeGenVar.h>
 #include <Sym/SymClass.h>
 #include <Sym/SymErrorHandler.h>
+#include <Sym/SymParam.h>
 
 using namespace fly;
 
@@ -42,16 +43,14 @@ void CodeGenFunctionBase::GenReturnType() {
     RetType = CGM->GenType(Sym->getAST()->getReturnTypeRef()->getSym());
 }
 
-void CodeGenFunctionBase::GenParamTypes(CodeGenModule * CGM, llvm::SmallVector<llvm::Type *, 8> &Types, llvm::SmallVector<ASTVar *, 8> Params) {
+void CodeGenFunctionBase::GenParamTypes(CodeGenModule * CGM, llvm::SmallVector<llvm::Type *, 8> &Types, SymFunctionBase * Sym) {
     // Populate Types by reference
-    if (Params.empty()) {
+    if (Sym->getParams().empty()) {
         return;
     }
-    if (!Params.empty()) {
-        for (auto Param : Params) {
-            llvm::Type *ParamTy = CGM->GenType(Param->getTypeRef()->getSym());
-            Types.push_back(ParamTy);
-        }
+    for (auto Param : Sym->getParams()) {
+        llvm::Type *ParamTy = CGM->GenType(Param->getType());
+        Types.push_back(ParamTy);
     }
 //    if (Params->getEllipsis() != nullptr) {
         // TODO
@@ -89,10 +88,10 @@ void CodeGenFunctionBase::AllocaErrorHandler() {
 void CodeGenFunctionBase::AllocaLocalVars() {
 
     // Allocation of declared ASTVar
-    for (auto Param: Sym->getAST()->getParams()) {
-        CodeGenVar *CGV = CGM->GenLocalVar(Param->getSym());
+    for (auto Param: Sym->getParams()) {
+        CodeGenVar *CGV = CGM->GenLocalVar(Param);
         CGV->Alloca();
-        Param->getSym()->setCodeGen(CGV);
+        Param->setCodeGen(CGV);
     }
 
     // Allocation of all declared ASTVar

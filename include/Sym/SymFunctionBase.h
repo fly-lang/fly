@@ -21,6 +21,7 @@ namespace fly {
     class ASTFunction;
     class SymVar;
     class SymErrorHandler;
+    class SymParam;
 
 class ASTVar;
     class CodeGenFunctionBase;
@@ -36,7 +37,7 @@ class ASTVar;
         friend class SemaResolver;
         friend class SemaValidator;
 
-        llvm::SmallVector<SymType *, 8> ParamTypes;
+        llvm::SmallVector<SymParam *, 8> Params;
 
         SymType *ReturnType;
 
@@ -54,7 +55,7 @@ class ASTVar;
 
     public:
 
-        llvm::SmallVector<SymType *, 8> &getParamTypes();
+        llvm::SmallVector<SymParam *, 8> &getParams();
 
         SymType *getReturnType();
 

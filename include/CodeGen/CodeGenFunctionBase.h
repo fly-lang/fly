@@ -56,7 +56,7 @@ namespace fly {
 
         void GenReturnType();
 
-        void GenParamTypes(CodeGenModule * CGM, llvm::SmallVector<llvm::Type *, 8> &Types, llvm::SmallVector<ASTVar *, 8> Params);
+        void GenParamTypes(CodeGenModule * CGM, llvm::SmallVector<llvm::Type *, 8> &Types, SymFunctionBase * Sym);
 
         SymFunctionBase *getSym();
 

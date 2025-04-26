@@ -58,9 +58,9 @@ const llvm::StringRef ASTBuilder::DEFAULT_INTEGER_VALUE = StringRef("0");
 
 const llvm::StringRef ASTBuilder::DEFAULT_FLOATING_VALUE = StringRef("0.0");
 
-const llvm::StringRef ASTBuilder::DEFAULT_STRING_VALUE = StringRef("\"\"");
+const llvm::StringRef ASTBuilder::DEFAULT_STRING_VALUE = StringRef("");
 
-const llvm::StringRef ASTBuilder::DEFAULT_CHAR_VALUE = StringRef("");
+const llvm::StringRef ASTBuilder::DEFAULT_CHAR_VALUE = StringRef("'\0'");
 
 /**
  * Private constructor used only from Sema constructor
@@ -770,7 +770,9 @@ ASTVar *ASTBuilder::CreateParam(const SourceLocation &Loc, ASTTypeRef *TypeRef, 
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateParam", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
 
     ASTVar *Param = new ASTVar(Loc, TypeRef, Name, Scopes);
-    Param->Expr = CreateExpr(DefaultValue);
+	if (DefaultValue) {
+		Param->Expr = CreateExpr(DefaultValue);
+	}
 
 	FLY_DEBUG_END("ASTBuilder", "CreateParam");
     return Param;

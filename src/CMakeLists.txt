@@ -160,6 +160,7 @@ add_library(flyLib
         Sym/SymLocalVar.cpp
         Sym/SymModule.cpp
         Sym/SymNameSpace.cpp
+        Sym/SymParam.cpp
         Sym/SymTable.cpp
         Sym/SymType.cpp
         Sym/SymVar.cpp

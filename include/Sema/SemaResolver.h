@@ -115,8 +115,6 @@ class ASTValue;
 
         void ResolveEnums();
 
-        bool ResolveTypeRef(ASTTypeRef *&Type);
-
         bool ResolveStmt(ASTStmt *Stmt);
 
         bool ResolveStmtBlock(ASTBlockStmt *Block);
@@ -134,6 +132,8 @@ class ASTValue;
         bool ResolveStmtFail(ASTFailStmt *FailStmt);
 
         bool ResolveStmtHandle(ASTHandleStmt *HandleStmt);
+
+        bool ResolveTypeRef(ASTTypeRef *&Type);
 
         SymType *ResolveValue(ASTValue *V);
 

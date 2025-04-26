@@ -27,9 +27,11 @@
 
 
 // third party
-#include "llvm/Support/Host.h"
+#include "llvm/IR/Verifier.h"
+#include "llvm/IR/Module.h"
 #include "llvm/Support/TargetSelect.h"
 
+#include <CodeGen/CodeGenModule.h>
 #include <gtest/gtest.h>
 
 using namespace fly;
@@ -43,46 +45,43 @@ public:
     DiagnosticsEngine &Diags;
     Sema *S;
     SourceLocation SourceLoc;
-    ASTBuilder &Builder;
-    ASTTypeRef *VoidType;
-    ASTTypeRef *BoolType;
-    ASTTypeRef *ByteType;
-    ASTTypeRef *ShortType;
-    ASTTypeRef *UShortType;
-    ASTTypeRef *IntType;
-    ASTTypeRef *UIntType;
-    ASTTypeRef *LongType;
-    ASTTypeRef *ULongType;
-    ASTTypeRef *FloatType;
-    ASTTypeRef *DoubleType;
-    ASTTypeRef *ErrorType;
+    ASTTypeRef *VoidTypeRef;
+    ASTTypeRef *BoolTypeRef;
+    ASTTypeRef *ByteTypeRef;
+    ASTTypeRef *ShortTypeRef;
+    ASTTypeRef *UShortTypeRef;
+    ASTTypeRef *IntTypeRef;
+    ASTTypeRef *UIntTypeRef;
+    ASTTypeRef *LongTypeRef;
+    ASTTypeRef *ULongTypeRef;
+    ASTTypeRef *FloatTypeRef;
+    ASTTypeRef *DoubleTypeRef;
+    ASTTypeRef *ErrorTypeRef;
+	ASTTypeRef *StringTypeRef;
+	ASTTypeRef *CharTypeRef;
     llvm::SmallVector<ASTScope *, 8> TopScopes;
     llvm::SmallVector<ASTScope *, 8> EmptyScopes;
     llvm::SmallVector<ASTExpr *, 8> Args;
     llvm::SmallVector<ASTVar *, 8> Params;
 
-    ASTTypeRef * CreateArrayTypeRef(SymType *T) {
-    	SymTypeArray *A = S->getSymBuilder().CreateArrayType(T);
-    	return S->getASTBuilder().CreateTypeRef(SourceLoc, A);
-    }
-
     CodeGenTest() : CI(*TestUtils::CreateCompilerInstance()),
                     CG(TestUtils::CreateCodeGen(CI)),
                     Diags(CI.getDiagnostics()),
                     S(Sema::CreateSema(CI.getDiagnostics())),
-                    Builder(S->getASTBuilder()),
-                    VoidType(S->getASTBuilder().CreateVoidTypeRef(SourceLoc)),
-                    BoolType(S->getASTBuilder().CreateBoolTypeRef(SourceLoc)),
-                    ByteType(S->getASTBuilder().CreateByteTypeRef(SourceLoc)),
-                    ShortType(S->getASTBuilder().CreateShortTypeRef(SourceLoc)),
-                    UShortType(S->getASTBuilder().CreateUShortTypeRef(SourceLoc)),
-                    IntType(S->getASTBuilder().CreateIntTypeRef(SourceLoc)),
-                    UIntType(S->getASTBuilder().CreateUIntTypeRef(SourceLoc)),
-                    LongType(S->getASTBuilder().CreateLongTypeRef(SourceLoc)),
-                    ULongType(S->getASTBuilder().CreateULongTypeRef(SourceLoc)),
-                    FloatType(S->getASTBuilder().CreateFloatTypeRef(SourceLoc)),
-                    DoubleType(S->getASTBuilder().CreateDoubleTypeRef(SourceLoc)),
-                    ErrorType(Builder.CreateErrorTypeRef(SourceLoc)),
+                    VoidTypeRef(S->getASTBuilder().CreateVoidTypeRef(SourceLoc)),
+                    BoolTypeRef(S->getASTBuilder().CreateBoolTypeRef(SourceLoc)),
+                    ByteTypeRef(S->getASTBuilder().CreateByteTypeRef(SourceLoc)),
+                    ShortTypeRef(S->getASTBuilder().CreateShortTypeRef(SourceLoc)),
+                    UShortTypeRef(S->getASTBuilder().CreateUShortTypeRef(SourceLoc)),
+                    IntTypeRef(S->getASTBuilder().CreateIntTypeRef(SourceLoc)),
+                    UIntTypeRef(S->getASTBuilder().CreateUIntTypeRef(SourceLoc)),
+                    LongTypeRef(S->getASTBuilder().CreateLongTypeRef(SourceLoc)),
+                    ULongTypeRef(S->getASTBuilder().CreateULongTypeRef(SourceLoc)),
+                    FloatTypeRef(S->getASTBuilder().CreateFloatTypeRef(SourceLoc)),
+                    DoubleTypeRef(S->getASTBuilder().CreateDoubleTypeRef(SourceLoc)),
+                    ErrorTypeRef(S->getASTBuilder().CreateErrorTypeRef(SourceLoc)),
+					StringTypeRef(S->getASTBuilder().CreateStringTypeRef(SourceLoc)),
+					CharTypeRef(S->getASTBuilder().CreateCharTypeRef(SourceLoc)),
                     TopScopes(SemaBuilderScopes::Create()
                               ->addVisibility(SourceLocation(), ASTVisibilityKind::V_DEFAULT)->getScopes()),
                     EmptyScopes(SemaBuilderScopes::Create()->getScopes()) {
@@ -93,7 +92,7 @@ public:
 
     ASTModule *CreateModule(std::string Name = "test") {
         Diags.getClient()->BeginSourceFile();
-        auto AST = Builder.CreateModule(Name);
+        auto AST = S->getASTBuilder().CreateModule(Name);
     	//SymModule *Module = S->getSymBuilder().CreateModule(AST);
         Diags.getClient()->EndSourceFile();
         return AST;
@@ -104,33 +103,57 @@ public:
     }
 
 	ASTBuilder &getASTBuilder() {
-	    return Builder;
+	    return S->getASTBuilder();
     }
 
-    std::string getOutput(llvm::Module *Module) {
-        testing::internal::CaptureStdout();
-        Module->print(llvm::outs(), nullptr);
-        std::string output = testing::internal::GetCapturedStdout();
-        output.erase(0, output.find("\n") + 1);
-        output.erase(0, output.find("\n") + 1);
-        output.erase(0, output.find("\n") + 1);
-        output.erase(0, output.find("\n") + 2);
-        return output;
+	ASTTypeRef * CreateArrayTypeRef(SymType *T) {
+    	SymTypeArray *A = S->getSymBuilder().CreateArrayType(T);
+    	return S->getASTBuilder().CreateTypeRef(SourceLoc, A);
     }
 
     ASTVarRef *CreateVarRef(ASTVar *Var, ASTRef *Parent = nullptr) {
-        return Builder.CreateVarRef(Var, Parent);
+        return getASTBuilder().CreateVarRef(Var, Parent);
     }
 
 	ASTCall *CreateCall(llvm::StringRef Name, llvm::SmallVector<ASTExpr *, 8> &Args, ASTCallKind Kind, ASTRef *Parent = nullptr) {
-    	ASTCall *Call = Builder.CreateCall(SourceLocation(), Name, Args, Kind, Parent);
+    	ASTCall *Call = getASTBuilder().CreateCall(SourceLocation(), Name, Args, Kind, Parent);
     	return Call;
     }
 
     ASTCall *CreateCall(ASTFunction *Function, llvm::SmallVector<ASTExpr *, 8> &Args, ASTCallKind Kind, ASTRef *Parent = nullptr) {
-        ASTCall *Call = Builder.CreateCall(SourceLocation(), Function->getName(), Args, Kind, Parent);
+        ASTCall *Call = getASTBuilder().CreateCall(SourceLocation(), Function->getName(), Args, Kind, Parent);
         return Call;
     }
+
+	Module *Generate() {
+    	CodeGenModule *CGM = CG->GenerateModule(S->getSymTable().getDefaultNameSpace());
+    	CGM->GenAll();
+    	Module * M = CGM->getModule();
+    	EXPECT_FALSE(Diags.hasErrorOccurred());
+    	return M;
+    }
+
+	std::string getOutput(llvm::Module *M) {
+    	testing::internal::CaptureStdout();
+    	verifyModule(*M);
+		M->print(llvm::outs(), nullptr);
+    	std::string out = testing::internal::GetCapturedStdout();
+    	out.erase(0, out.find("\n") + 1); // skip ;ModuleID
+    	out.erase(0, out.find("\n") + 1); // skip source_filename
+    	out.erase(0, out.find("\n") + 1); // skip target datalayout
+    	out.erase(0, out.find("\n") + 1); // skip target triple
+    	return out;
+    }
+
+	std::string getOutput(SymbolTableList<Function> &Functions) {
+    	testing::internal::CaptureStdout();
+		for (auto &F : Functions) {
+			verifyFunction(F);
+			F.print(llvm::outs());
+		}
+    	return testing::internal::GetCapturedStdout();
+	}
+
 
 };
 

@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sym/SymFunctionBase.h"
+#include "Sym/SymParam.h"
 
 #include <unordered_map>
 #include <AST/ASTFunction.h>
@@ -24,8 +25,8 @@ SymFunctionBase::SymFunctionBase(ASTFunction *AST, SymFunctionKind Kind) : AST(A
 
 }
 
-llvm::SmallVector<SymType *, 8> &SymFunctionBase::getParamTypes() {
-    return ParamTypes;
+llvm::SmallVector<SymParam *, 8> &SymFunctionBase::getParams() {
+    return Params;
 }
 
 SymType *SymFunctionBase::getReturnType() {

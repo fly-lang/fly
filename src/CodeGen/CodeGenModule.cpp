@@ -187,7 +187,7 @@ void CodeGenModule::GenAll() {
 		if (Type->isClass()) {
 			CodeGenClass *CGC = GenClass(static_cast<SymClass *>(Type));
 			CGClasses.push_back(CGC);
-		} else {
+		} else if (Type->isEnum()) {
 			GenEnum(static_cast<SymEnum *>(Type));
 		}
 	}
@@ -297,6 +297,10 @@ llvm::Type *CodeGenModule::GenType(SymType *Type) {
         case SymTypeKind::TYPE_STRING: {
             return llvm::ArrayType::get(Int8Ty, 0);
         }
+
+	    case SymTypeKind::TYPE_CHAR: {
+        		return Int8Ty;
+	    }
 
         case SymTypeKind::TYPE_CLASS: {
             SymClass *Class = static_cast<SymClass *>(Type);
@@ -453,6 +457,12 @@ llvm::Value *CodeGenModule::GenValue(SymType *Type, ASTValue *Val) {
         case SymTypeKind::TYPE_STRING: {
             return Builder->CreateGlobalStringPtr(((ASTStringValue *) Val)->getValue());
         }
+
+	    case SymTypeKind::TYPE_CHAR: {
+        	llvm::StringRef Str = ((ASTCharValue *) Val)->getValue();
+        	char Ch = Str.empty() ? '\0' : Str.front();
+        	return llvm::ConstantInt::get(Int8Ty, Ch);
+	    }
 
         // Identity
         case SymTypeKind::TYPE_CLASS:

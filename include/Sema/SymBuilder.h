@@ -13,6 +13,7 @@
 #include <AST/ASTTypeRef.h>
 #include <Sym/SymClass.h>
 #include <Sym/SymLocalVar.h>
+#include <Sym/SymParam.h>
 
 namespace llvm {
 	class StringRef;
@@ -89,6 +90,9 @@ namespace fly {
 	    SymComment* CreateComment(ASTComment* AST);
 
     	SymLocalVar *CreateLocalVar(ASTVar *AST);
+
+    	SymParam *CreateParam(fly::ASTVar* Param);
+
     };
 
 }  // end namespace fly

@@ -40,13 +40,13 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, SymFunction *Sym, bool isEx
         // Add ErrorHandler as first param
         ParamTypes.push_back(CGM->ErrorPtrTy);
     }
-    GenParamTypes(CGM, ParamTypes, Sym->getAST()->getParams());
+    GenParamTypes(CGM, ParamTypes, Sym);
 
     // Create LLVM Function
     FnType = llvm::FunctionType::get(RetType, ParamTypes, false);
 
     // Set Name
-    std::string Id = CodeGen::toIdentifier(Sym->getAST()->getName(), Sym->getModule()->getNameSpace()->getName());
+    std::string Id = CodeGen::toIdentifier(Sym->getMangledName(), Sym->getModule()->getNameSpace()->getName());
     Fn = llvm::Function::Create(FnType, llvm::GlobalValue::ExternalLinkage, Id, CGM->getModule());
 
     // Set Linkage

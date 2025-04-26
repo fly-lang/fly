@@ -241,7 +241,9 @@ void SemaResolver::ResolveFunctions() {
 		}
 
 		// Resolve Return Type
-		ResolveTypeRef(AST->ReturnTypeRef);
+		if (ResolveTypeRef(AST->ReturnTypeRef)) {
+			Sym->ReturnType = AST->ReturnTypeRef->getSym();
+		}
 
 		// Resolve Parameters Types
 		for (auto Param : AST->getParams()) {
@@ -250,7 +252,11 @@ void SemaResolver::ResolveFunctions() {
 			//S.getValidator().CheckDuplicateParams(Function->Params, Param);
 
 			// resolve parameter type
-			ResolveTypeRef(Param->TypeRef);
+			if (ResolveTypeRef(Param->TypeRef)) {
+				SymParam *P = S.getSymBuilder().CreateParam(Param);
+				P->Type = Param->TypeRef->getSym();
+                Sym->Params.push_back(P);
+            }
 		}
 
 		// Resolve Function Body
@@ -463,53 +469,6 @@ void SemaResolver::ResolveEnums() {
 	}
 }
 
-bool SemaResolver::ResolveTypeRef(ASTTypeRef *&TypeRef) {
-	if (!TypeRef->isResolved()) {
-
-		if (TypeRef->Sym) {
-            // TypeRef is already resolved
-			TypeRef->Resolved = true;
-            return true;
-        }
-
-		// TypeRef is an Array
-		if (TypeRef->isArray()) {
-			auto ArrayTypeRef = static_cast<ASTArrayTypeRef *>(TypeRef);
-			return ResolveTypeRef(ArrayTypeRef->TypeRef);
-		}
-
-		// Type is Class or Enum
-		SymType *Type = nullptr;
-		if (TypeRef->getParent()) {
-
-			// Resolve by Imports
-			ASTRef *Parent = nullptr;
-			for (auto &ImportEntry : Module->getImports()) {
-				SymNameSpace * Import = ImportEntry.getValue();
-				if (!TypeRef->Sym)
-					TypeRef->Sym = Import->getTypes().lookup(TypeRef->getParent()->getName());
-			}
-		} else {
-			// Resolve in current NameSpace
-			TypeRef->Sym = NameSpace->getTypes().lookup(TypeRef->getName());
-
-			// Resolve in Default NameSpace
-			if (!TypeRef->Sym)
-				TypeRef->Sym = S.getSymTable().getDefaultNameSpace()->getTypes().lookup(TypeRef->getName());
-		}
-
-		// Take Identity from NameSpace
-		TypeRef->Resolved = TypeRef->Sym != nullptr; // Evict Cycle Loop: can be resolved only now
-	}
-
-	if (!TypeRef->Sym) {
-		S.Diag(TypeRef->getLocation(), diag::err_unref_type);
-		return false;
-	}
-
-    return true;
-}
-
 bool SemaResolver::ResolveStmt(ASTStmt *Stmt) {
     switch (Stmt->getStmtKind()) {
 
@@ -569,7 +528,12 @@ bool SemaResolver::ResolveStmtBlock(ASTBlockStmt *Block) {
         ResolveTypeRef(LocalVar->TypeRef);
 
     	// Create LocalVar Symbol
-    	S.getSymBuilder().CreateLocalVar(LocalVar);
+    	SymLocalVar * Sym = S.getSymBuilder().CreateLocalVar(LocalVar);
+
+    	// Assign the Type Symbol to LocalVar
+    	if (LocalVar->getTypeRef() != nullptr && LocalVar->getTypeRef()->isResolved()) {
+    		Sym->Type = LocalVar->getTypeRef()->getSym();
+    	}
 
     	// Add LocalVar to the Function Base LocalVars
     	Block->getFunction()->getSym()->LocalVars.push_back(LocalVar->getSym());
@@ -663,6 +627,54 @@ bool SemaResolver::ResolveStmtHandle(ASTHandleStmt *HandleStmt) {
     if (HandleStmt->ErrorHandlerRef)
         ResolveRef(HandleStmt->getParent(), HandleStmt->ErrorHandlerRef);
     return ResolveStmt(HandleStmt->Handle);
+}
+
+
+bool SemaResolver::ResolveTypeRef(ASTTypeRef *&TypeRef) {
+	if (!TypeRef->isResolved()) {
+
+		if (TypeRef->Sym) {
+			// TypeRef is already resolved
+			TypeRef->Resolved = true;
+			return true;
+		}
+
+		// TypeRef is an Array
+		if (TypeRef->isArray()) {
+			auto ArrayTypeRef = static_cast<ASTArrayTypeRef *>(TypeRef);
+			return ResolveTypeRef(ArrayTypeRef->TypeRef);
+		}
+
+		// Type is Class or Enum
+		SymType *Type = nullptr;
+		if (TypeRef->getParent()) {
+
+			// Resolve by Imports
+			ASTRef *Parent = nullptr;
+			for (auto &ImportEntry : Module->getImports()) {
+				SymNameSpace * Import = ImportEntry.getValue();
+				if (!TypeRef->Sym)
+					TypeRef->Sym = Import->getTypes().lookup(TypeRef->getParent()->getName());
+			}
+		} else {
+			// Resolve in current NameSpace
+			TypeRef->Sym = NameSpace->getTypes().lookup(TypeRef->getName());
+
+			// Resolve in Default NameSpace
+			if (!TypeRef->Sym)
+				TypeRef->Sym = S.getSymTable().getDefaultNameSpace()->getTypes().lookup(TypeRef->getName());
+		}
+
+		// Take Identity from NameSpace
+		TypeRef->Resolved = TypeRef->Sym != nullptr; // Evict Cycle Loop: can be resolved only now
+	}
+
+	if (!TypeRef->Sym) {
+		S.Diag(TypeRef->getLocation(), diag::err_unref_type);
+		return false;
+	}
+
+	return true;
 }
 
 SymType *SemaResolver::ResolveValue(ASTValue *V) {

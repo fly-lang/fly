@@ -257,7 +257,16 @@ SymFunction * SymBuilder::CreateFunction(SymModule *Module, ASTFunction *AST) {
 
 				// Check Duplicates in NameSpace
 				if (Module->NameSpace->Functions.lookup(MangledName) != nullptr) {
-					// Error
+					// Error: duplicated function
+					S.Diag(AST->getLocation(), diag::err_syntax_error) << AST->getName();
+				}
+				Module->NameSpace->Functions.insert(std::make_pair(MangledName, Function));
+			} else if (Scope->getVisibility() == ASTVisibilityKind::V_DEFAULT) {
+				Function->Visibility = SymVisibilityKind::DEFAULT;
+
+				// Check Duplicates in NameSpace
+				if (Module->NameSpace->Functions.lookup(MangledName) != nullptr) {
+					// Error: duplicated function
 					S.Diag(AST->getLocation(), diag::err_syntax_error) << AST->getName();
 				}
 				Module->NameSpace->Functions.insert(std::make_pair(MangledName, Function));
@@ -462,14 +471,22 @@ SymLocalVar * SymBuilder::CreateLocalVar(ASTVar *AST) {
 	// Create LocalVar Symbol
 	SymLocalVar *LocalVar = new SymLocalVar(AST);
 
-	// Assign the Type Symbol to LocalVar
-	if (AST->getTypeRef() != nullptr && AST->getTypeRef()->isResolved()) {
-		LocalVar->Type = AST->getTypeRef()->getSym();
-	}
-
 	// Assign Symbol to AST
 	AST->Sym = LocalVar;
 
 	FLY_DEBUG_END("SymBuilder", "CreateLocalVar");
 	return LocalVar;
+}
+
+SymParam *SymBuilder::CreateParam(fly::ASTVar *AST) {
+	FLY_DEBUG_START("SymBuilder", "CreateParam");
+
+	// Create LocalVar Symbol
+	SymParam *Param = new SymParam(AST);
+
+	// Assign Symbol to AST
+	AST->Sym = Param;
+
+	FLY_DEBUG_END("SymBuilder", "CreateParam");
+	return Param;
 }
