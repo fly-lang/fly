@@ -17,6 +17,7 @@
 #include "Basic/Debug.h"
 #include "llvm/IR/Value.h"
 
+#include <AST/ASTCall.h>
 #include <AST/ASTTypeRef.h>
 #include <CodeGen/CodeGenVarBase.h>
 #include <Sym/SymType.h>
@@ -41,18 +42,18 @@ llvm::Value *CodeGenExpr::GenValue(const ASTExpr *Expr) {
 
         case ASTExprKind::EXPR_VALUE: {
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_VALUE");
-            return CGM->GenValue(Expr->getTypeRef()->getSym(), ((ASTValueExpr *) Expr)->getValue());
+            return CGM->GenValue(Expr->getType(), ((ASTValueExpr *) Expr)->getValue());
         }
         case ASTExprKind::EXPR_VAR_REF: {
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_VAR_REF");
             ASTVarRef *VarRef = ((ASTVarRefExpr *) Expr)->getVarRef();
             assert(VarRef && "Missing Ref");
-            return CGM->GenVarRef(VarRef);
+            return CGM->GenVarRef(VarRef->getSym());
         }
         case ASTExprKind::EXPR_CALL: {
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_REF_FUNC");
             ASTCallExpr *CallExpr = (ASTCallExpr *)Expr;
-            return CGM->GenCall(CallExpr->getCall());
+            return CGM->GenCall(CallExpr->getCall()->getSym());
         }
         case ASTExprKind::EXPR_OP:
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_GROUP");
@@ -156,7 +157,7 @@ llvm::Value *CodeGenExpr::GenBinaryArith(const ASTExpr *E1, ASTBinaryOpExprKind 
     llvm::Value *V2 = GenValue(E2);
 
     // Convert E2 to E1 Type
-    V2 = CGM->Convert(V2, E2->getTypeRef()->getSym(), E1->getTypeRef()->getSym()); // Implicit conversion
+    V2 = CGM->Convert(V2, E2->getType(), E1->getType()); // Implicit conversion
 
     switch (OperatorKind) {
 
@@ -188,19 +189,19 @@ llvm::Value *CodeGenExpr::GenBinaryComparison(const ASTExpr *E1, ASTBinaryOpExpr
     FLY_DEBUG_START("CodeGenExpr", "GenBinaryComparison");
     llvm::Value *V1 = GenValue(E1);
     llvm::Value *V2 = GenValue(E2);
-	SymType *V1Type = E1->getTypeRef()->getSym();
-    SymType *V2Type = E2->getTypeRef()->getSym();
+	SymType *V1Type = E1->getType();
+    SymType *V2Type = E2->getType();
 
-    if (E1->getTypeRef()->getSym()->isBool() && E2->getTypeRef()->getSym()->isBool()) {
+    if (E1->getType()->isBool() && E2->getType()->isBool()) {
         switch (OperatorKind) {
             case ASTBinaryOpExprKind::OP_BINARY_EQ:
                 return CGM->Builder->CreateICmpEQ(V1, V2);
             case ASTBinaryOpExprKind::OP_BINARY_NE:
                 return CGM->Builder->CreateICmpNE(V1, V2);
         }
-    } else if (E1->getTypeRef()->getSym()->isInteger() && E2->getTypeRef()->getSym()->isInteger()) {
-        bool Signed = static_cast<SymTypeInt *>(E1->getTypeRef()->getSym())->isSigned() ||
-        	static_cast<SymTypeInt *>(E2->getTypeRef()->getSym())->isSigned();
+    } else if (E1->getType()->isInteger() && E2->getType()->isInteger()) {
+        bool Signed = static_cast<SymTypeInt *>(E1->getType())->isSigned() ||
+        	static_cast<SymTypeInt *>(E2->getType())->isSigned();
         switch (OperatorKind) {
 
             case ASTBinaryOpExprKind::OP_BINARY_EQ:

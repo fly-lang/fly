@@ -490,3 +490,16 @@ SymParam *SymBuilder::CreateParam(fly::ASTVar *AST) {
 	FLY_DEBUG_END("SymBuilder", "CreateParam");
 	return Param;
 }
+
+SymCall * SymBuilder::CreateCall(ASTCall *AST) {
+	FLY_DEBUG_START("SymBuilder", "CreateParam");
+
+	// Create Call Symbol
+	SymCall *Call = new SymCall(AST);
+
+	// Assign Symbol to AST
+	AST->Sym = Call;
+
+	FLY_DEBUG_END("SymBuilder", "CreateParam");
+	return Call;
+}

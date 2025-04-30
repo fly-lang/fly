@@ -100,16 +100,6 @@ namespace {
     	SemaBuilderStmt *VarStmt_j = getASTBuilder().CreateAssignmentStmt(Body, LocalVar_j);
     	VarStmt_j->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(DoubleTypeRef->getSym())));
 
-    	// default string k = ""
-    	ASTVar *LocalVar_k = getASTBuilder().CreateLocalVar(Body, SourceLoc, StringTypeRef, "k", EmptyScopes);
-    	SemaBuilderStmt *VarStmt_k = getASTBuilder().CreateAssignmentStmt(Body, LocalVar_k);
-    	VarStmt_k->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(DoubleTypeRef->getSym())));
-
-    	// default char l = '\0'
-    	ASTVar *LocalVar_l = getASTBuilder().CreateLocalVar(Body, SourceLoc, CharTypeRef, "l", EmptyScopes);
-    	SemaBuilderStmt *VarStmt_l = getASTBuilder().CreateAssignmentStmt(Body, LocalVar_l);
-    	VarStmt_l->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(DoubleTypeRef->getSym())));
-
         // validate and resolve
         EXPECT_TRUE(S->Resolve());
 
@@ -130,8 +120,6 @@ namespace {
 						  "  %9 = alloca i64, align 8\n"
 						  "  %10 = alloca float, align 4\n"
 						  "  %11 = alloca double, align 8\n"
-						  "  %12 = alloca [0 x i8], align 1\n"
-						  "  %13 = alloca i8, align 1\n"
 						  "  store %error* %0, %error** %1, align 8\n"
 						  "  store i8 0, i8* %2, align 1\n"
 						  "  store i8 0, i8* %3, align 1\n"
@@ -143,8 +131,6 @@ namespace {
 						  "  store i64 0, i64* %9, align 8\n"
 						  "  store float 0.000000e+00, float* %10, align 4\n"
 						  "  store double 0.000000e+00, double* %11, align 8\n"
-						  "  store i8* getelementptr inbounds ([4 x i8], [4 x i8]* @0, i32 0, i32 0), [0 x i8]* %12, align 8\n"
-						  "  store i8 48, i8* %13, align 1\n"
 						  "  ret void\n"
 						  "}\n");
     }
@@ -163,12 +149,10 @@ namespace {
         Params.push_back(getASTBuilder().CreateParam(SourceLoc, UShortTypeRef, "h", EmptyScopes));
         Params.push_back(getASTBuilder().CreateParam(SourceLoc, UIntTypeRef, "i", EmptyScopes));
         Params.push_back(getASTBuilder().CreateParam(SourceLoc, ULongTypeRef, "j", EmptyScopes));
-    	Params.push_back(getASTBuilder().CreateParam(SourceLoc, StringTypeRef, "k", EmptyScopes));
-    	Params.push_back(getASTBuilder().CreateParam(SourceLoc, CharTypeRef, "l", EmptyScopes));
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
 
         ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
-        // func(int a, float b, bool c, long d, double e, byte f, short g, ushort h, uint i, ulong l, string k, char l) {
+        // func(int a, float b, bool c, long d, double e, byte f, short g, ushort h, uint i, ulong l) {
         // }
         
     	// validate and resolve
@@ -178,34 +162,31 @@ namespace {
     	llvm::Module * M = Generate();
     	std::string output = getOutput(M->getFunctionList());
 
-        EXPECT_EQ(output, "define void @_F0_i_f_b_l_d_y_s_us_ui_ul_Ss_c(%error* %0, i32 %1, float %2, i1 %3, i64 %4, double %5, i8 %6, i16 %7, i16 %8, i32 %9, i64 %10, [0 x i8] %11, i8 %12) {\n"
+        EXPECT_EQ(output, "define void @_F0_i_f_b_l_d_y_s_us_ui_ul(%error* %0, i32 %1, float %2, i1 %3, i64 %4, double %5, i8 %6, i16 %7, i16 %8, i32 %9, i64 %10) {\n"
                           "entry:\n"
-                          "  %13 = alloca %error*, align 8\n"
-                          "  %14 = alloca i32, align 4\n"
-                          "  %15 = alloca float, align 4\n"
-                          "  %16 = alloca i8, align 1\n"
-                          "  %17 = alloca i64, align 8\n"
-                          "  %18 = alloca double, align 8\n"
-                          "  %19 = alloca i8, align 1\n"
-                          "  %20 = alloca i16, align 2\n"
-                          "  %21 = alloca i16, align 2\n"
-                          "  %22 = alloca i32, align 4\n"
-                          "  %23 = alloca i64, align 8\n"
-                          "  %24 = alloca [0 x i8], align 1\n"
-                          "  %25 = alloca i8, align 1\n"
-                          "  store %error* %0, %error** %13, align 8\n"
-                          "  store i32 %1, i32* %14, align 4\n"
-                          "  store float %2, float* %15, align 4\n"
-                          "  %26 = zext i1 %3 to i8\n"
-                          "  store i8 %26, i8* %16, align 1\n"
-                          "  store i8 %22, i8* %16, align 1\n"
-                          "  store i64 %4, i64* %17, align 8\n"
-                          "  store double %5, double* %18, align 8\n"
-                          "  store i8 %6, i8* %19, align 1\n"
-                          "  store i16 %7, i16* %20, align 2\n"
-                          "  store i16 %8, i16* %21, align 2\n"
-                          "  store i32 %9, i32* %22, align 4\n"
-                          "  store i64 %10, i64* %23, align 8\n"
+                          "  %11 = alloca %error*, align 8\n"
+                          "  %12 = alloca i32, align 4\n"
+                          "  %13 = alloca float, align 4\n"
+                          "  %14 = alloca i8, align 1\n"
+                          "  %15 = alloca i64, align 8\n"
+                          "  %16 = alloca double, align 8\n"
+                          "  %17 = alloca i8, align 1\n"
+                          "  %18 = alloca i16, align 2\n"
+                          "  %19 = alloca i16, align 2\n"
+                          "  %20 = alloca i32, align 4\n"
+                          "  %21 = alloca i64, align 8\n"
+                          "  store %error* %0, %error** %11, align 8\n"
+                          "  store i32 %1, i32* %12, align 4\n"
+                          "  store float %2, float* %13, align 4\n"
+                          "  %22 = zext i1 %3 to i8\n"
+                          "  store i8 %22, i8* %14, align 1\n"
+                          "  store i64 %4, i64* %15, align 8\n"
+                          "  store double %5, double* %16, align 8\n"
+                          "  store i8 %6, i8* %17, align 1\n"
+                          "  store i16 %7, i16* %18, align 2\n"
+                          "  store i16 %8, i16* %19, align 2\n"
+                          "  store i32 %9, i32* %20, align 4\n"
+                          "  store i64 %10, i64* %21, align 8\n"
                           "  ret void\n"
                           "}\n");
     }
@@ -215,7 +196,7 @@ namespace {
 
         // func()
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, FloatTypeRef, "func", TopScopes, Params, Body);
 
     	// float g
     	ASTVar *LocalVar_g = getASTBuilder().CreateLocalVar(Body, SourceLoc, FloatTypeRef, "g", EmptyScopes);
@@ -235,17 +216,16 @@ namespace {
 
     	// Generate Code
     	llvm::Module * M = Generate();
-    	std::string output = getOutput(M);
+    	std::string output = getOutput(M->getFunctionList());
 
-        EXPECT_EQ(output, "define i32 @F_0(%error* %0) {\n"
+        EXPECT_EQ(output, "define float @_F0(%error* %0) {\n"
                           "entry:\n"
                           "  %1 = alloca %error*, align 8\n"
-                          "  %2 = alloca i32, align 4\n"
+                          "  %2 = alloca float, align 4\n"
                           "  store %error* %0, %error** %1, align 8\n"
-                          "  store i32 1, i32* %2, align 4\n"
-                          "  store float 1.000000e+00, float* @G, align 4\n"
-                          "  %3 = load i32, i32* %2, align 4\n"
-                          "  ret i32 %3\n"
+                          "  store float 1.000000e+00, float* %2, align 4\n"
+                          "  %3 = load float, float* %2, align 4\n"
+                          "  ret float %3\n"
                           "}\n");
     }
 

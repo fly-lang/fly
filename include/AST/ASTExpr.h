@@ -20,8 +20,7 @@ namespace fly {
     class ASTVarRefExpr;
     class ASTCallExpr;
     class ASTValueExpr;
-    class ASTStmt;
-    class ASTTypeRef;
+    class SymType;
 
     enum class ASTExprKind : char {
         EXPR_VALUE,
@@ -44,13 +43,13 @@ namespace fly {
 
         const ASTExprKind Kind;
 
-        ASTTypeRef *TypeRef = nullptr;
+        SymType *Type = nullptr;
 
         ASTExpr(const SourceLocation &Loc, ASTExprKind Kind);
 
     public:
 
-        ASTTypeRef *getTypeRef() const;
+        SymType *getType() const;
 
         ASTExprKind getExprKind() const;
 

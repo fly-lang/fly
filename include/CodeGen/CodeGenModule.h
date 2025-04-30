@@ -54,6 +54,7 @@ namespace fly {
     class SymEnum;
     class SymFunctionBase;
     class SymVar;
+    class SymCall;
 
     class CodeGenModule {
 
@@ -171,7 +172,8 @@ namespace fly {
 
         void GenHeaders();
 
-        CodeGenGlobalVar *GenGlobalVar(SymGlobalVar *GlobalVar, bool isExternal = false);
+        // TODO: remove GlobalVar
+        // CodeGenGlobalVar *GenGlobalVar(SymGlobalVar *GlobalVar, bool isExternal = false);
 
         CodeGenFunction *GenFunction(SymFunction *Function, bool isExternal = false);
 
@@ -197,9 +199,9 @@ namespace fly {
 
         CodeGenVar *GenLocalVar(SymVar* Var);
 
-        llvm::Value *GenVarRef(ASTVarRef *VarRef);
+        llvm::Value *GenVarRef(SymVar *Var);
 
-        llvm::Value *GenCall(ASTCall *Call);
+        llvm::Value *GenCall(SymCall *Call);
 
         llvm::Value *GenExpr(ASTExpr *Expr);
 

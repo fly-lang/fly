@@ -50,6 +50,7 @@
 #include <AST/ASTTypeRef.h>
 #include <AST/ASTVar.h>
 #include <CodeGen/CharUnits.h>
+#include <Sym/SymCall.h>
 #include <Sym/SymClass.h>
 #include <Sym/SymClassMethod.h>
 #include <Sym/SymEnum.h>
@@ -756,35 +757,27 @@ CodeGenVar *CodeGenModule::GenLocalVar(SymVar *Var) {
     return CGV;
 }
 
-llvm::Value *CodeGenModule::GenVarRef(ASTVarRef *VarRef) {
+llvm::Value *CodeGenModule::GenVarRef(SymVar *Var) {
 
     // Class Var
-    if (VarRef->getSym()->getKind() == SymVarKind::VAR_CLASS) {
+    if (Var->getKind() == SymVarKind::VAR_CLASS) {
 
         // Return the instance value
-        if (VarRef->getParent()) {
-            if (VarRef->getParent()->isCall()) { // TODO iterative parents
-                // TODO
-            } else if (VarRef->getParent()->isVarRef()) {
-                CodeGenVarBase *CGI = ((ASTVarRef *) VarRef->getParent())->getSym()->getCodeGen();
-                llvm::Value *Inst = CGI->getValue();
-                return VarRef->getSym()->getCodeGen()->getValue();
-            } else {
-                // Error
-            }
+    	if (Var->getParent()) {
+			CodeGenVarBase *CGI = Var->getParent()->getCodeGen();
+    		llvm::Value *Inst = CGI->getValue();
+    		return Var->getCodeGen()->getValue();
         } else { // Return static value
-            return VarRef->getSym()->getCodeGen()->getValue();
+            return Var->getCodeGen()->getValue();
         }
     }
 
     // Local Var
     // Return the Value
-    return VarRef->getSym()->getCodeGen()->getValue();
+    return Var->getCodeGen()->getValue();
 }
 
-llvm::Value *CodeGenModule::GenCall(ASTCall *Call) {
-    FLY_DEBUG_MESSAGE("CodeGenModule", "GenCall", "Call=" << Call->str());
-    assert(Call->getFunction() && "Undefined Call");
+llvm::Value *CodeGenModule::GenCall(SymCall *Call) {
 
     // The function arguments
     llvm::SmallVector<llvm::Value *, 8> Args;
@@ -805,12 +798,8 @@ llvm::Value *CodeGenModule::GenCall(ASTCall *Call) {
     	SymClassMethod *Method = static_cast<SymClassMethod *>(Call->getFunction());
 
         if (Call->getParent()) {
-            if (Call->getParent()->isCall()) { // TODO iterative parents
-                // TODO
-            } else if (Call->getParent()->isVarRef()) {
-                CodeGenVarBase *CGI = static_cast<ASTVarRef *>(Call->getParent())->getSym()->getCodeGen();
-                Args.push_back(CGI->Load());
-            }
+            CodeGenVarBase *CGI = Call->getParent()->getCodeGen();
+            Args.push_back(CGI->Load());
         } else if (Method->isConstructor()) { // Call class constructor
         	// TODO remove following line
             // llvm::Type *AllocType = Method->getClass()->getAttributes().empty() ? Int8Ty : Method->getClass()->getCodeGen()->getType();
@@ -829,16 +818,12 @@ llvm::Value *CodeGenModule::GenCall(ASTCall *Call) {
     }
 
     // Add Call arguments to Function args
-    for (ASTArg *Arg : Call->getArgs()) {
+    for (ASTArg *Arg : Call->getAST()->getArgs()) {
         llvm::Value *V = GenExpr(Arg->getExpr());
         Args.push_back(V);
     }
 
-    SymFunctionBase *Def = Call->getFunction();
-    if (!Def) {
-        Diag(Call->getLocation(), diag::err_cg_unresolved_def) << Call->getName();
-    }
-    CodeGenFunctionBase *CGF = Def->getCodeGen();
+    CodeGenFunctionBase *CGF = Call->getFunction()->getCodeGen();
     llvm::Value *RetVal = Builder->CreateCall(CGF->getFunction(), Args);
 
     return Instance == nullptr ? RetVal : Instance;
@@ -853,18 +838,18 @@ void CodeGenModule::GenFailStmt(ASTFailStmt *FailStmt, CodeGenError *CGE) {
 	// Store Fail value in ErrorHandler
 	if (FailStmt->getExpr() == nullptr) {
 		CGE->StoreInt(llvm::ConstantInt::get(Int32Ty, 1));
-	} else if (FailStmt->getExpr()->getTypeRef()->getSym()->isBool() || FailStmt->getExpr()->getTypeRef()->getSym()->isInteger()) {
+	} else if (FailStmt->getExpr()->getType()->isBool() || FailStmt->getExpr()->getType()->isInteger()) {
 		llvm::Value *V = GenExpr(FailStmt->getExpr());
 		CGE->StoreInt(V);
-	} else if (FailStmt->getExpr()->getTypeRef()->getSym()->isString()) {
+	} else if (FailStmt->getExpr()->getType()->isString()) {
 		llvm::Value *V = GenExpr(FailStmt->getExpr());
 		CGE->StoreString(V);
-	} else if (FailStmt->getExpr()->getTypeRef()->getSym()->isClass()) {
-		ASTTypeRef * IdentityType = FailStmt->getExpr()->getTypeRef();
+	} else if (FailStmt->getExpr()->getType()->isClass()) {
+		SymType * IdentityType = FailStmt->getExpr()->getType();
 		llvm::Value *V = GenExpr(FailStmt->getExpr());
 		CGE->StoreObject(V);
-	} else if (FailStmt->getExpr()->getTypeRef()->getSym()->isEnum()) {
-		ASTTypeRef * IdentityType = FailStmt->getExpr()->getTypeRef();
+	} else if (FailStmt->getExpr()->getType()->isEnum()) {
+		SymType * IdentityType = FailStmt->getExpr()->getType();
 		llvm::Value *V = GenExpr(FailStmt->getExpr());
 		CGE->StoreInt(V);
 	}
@@ -1262,7 +1247,7 @@ void CodeGenModule::GenReturn(ASTFunction *F, ASTExpr *Expr) {
         Value *Ret;
         if (Expr) {
             llvm::Value *V = GenExpr(Expr);
-            Ret = Convert(V, Expr->getTypeRef()->getSym(), F->getReturnTypeRef()->getSym());
+            Ret = Convert(V, Expr->getType(), F->getReturnTypeRef()->getSym());
         } else {
             Ret = GenDefaultValue(F->getReturnTypeRef()->getSym());
         }

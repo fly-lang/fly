@@ -128,7 +128,7 @@ bool SemaValidator::CheckCommentFail(SymComment *Comment) {
 }
 
 bool SemaValidator::CheckExpr(ASTExpr *Expr) {
-    if (!Expr->getTypeRef()) {
+    if (!Expr->getType()) {
         if (DiagEnabled)
             S.Diag(Expr->getLocation(), diag::err_expr_type_miss);
         return false;

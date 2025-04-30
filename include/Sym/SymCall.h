@@ -14,6 +14,10 @@
 namespace fly {
 
     class ASTCall;
+    class SymVar;
+	class SymType;
+    class SymFunctionBase;
+	class SymErrorHandler;
 
 	enum class SymCallKind {
 		CALL_FUNCTION,
@@ -26,17 +30,33 @@ namespace fly {
         friend class SemaResolver;
         friend class SemaValidator;
 
-    	SymCall *AST;
+    	ASTCall *AST;
 
 		SymCallKind Kind;
 
-		Sy
+    	SymVar *Parent = nullptr;
+
+    	SymFunctionBase *Function = nullptr;
+
+    	SymErrorHandler *ErrorHandler = nullptr;
 
         explicit SymCall(ASTCall *AST);
 
     public:
 
     	ASTCall *getAST() const;
+
+    	SymCallKind getKind() const;
+
+    	SymVar *getParent() const;
+
+    	SymFunctionBase *getFunction() const;
+
+    	SymErrorHandler *getErrorHandler() const;
+
+    	// virtual CodeGenCall *getCodeGen() const = 0;
+	    //
+    	// virtual void setCodeGen(CodeGenCall * CGCall) = 0;
 
     };
 

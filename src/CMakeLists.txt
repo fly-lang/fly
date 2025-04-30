@@ -147,6 +147,7 @@ add_library(flyLib
         Sema/SymBuilder.cpp
 
         # Sym
+        Sym/SymCall.cpp
         Sym/SymClass.cpp
         Sym/SymComment.cpp
         Sym/SymClassAttribute.cpp

@@ -10,7 +10,9 @@
 #ifndef FLY_SYM_BUILDER_H
 #define FLY_SYM_BUILDER_H
 
+#include <AST/ASTCall.h>
 #include <AST/ASTTypeRef.h>
+#include <Sym/SymCall.h>
 #include <Sym/SymClass.h>
 #include <Sym/SymLocalVar.h>
 #include <Sym/SymParam.h>
@@ -92,6 +94,8 @@ namespace fly {
     	SymLocalVar *CreateLocalVar(ASTVar *AST);
 
     	SymParam *CreateParam(fly::ASTVar* Param);
+
+    	SymCall *CreateCall(ASTCall *Call);
 
     };
 

@@ -9,6 +9,7 @@
 
 #ifndef FLY_SYM_VAR_H
 #define FLY_SYM_VAR_H
+
 #include <CodeGen/CodeGenError.h>
 
 
@@ -37,9 +38,11 @@ namespace fly {
 
     	SymVarKind Kind;
 
-    	SymType *Type;
+    	SymVar *Parent = nullptr;
 
-    	bool Constant;
+    	SymType *Type = nullptr;
+
+    	bool Constant = false;
 
     protected:
 
@@ -51,6 +54,8 @@ namespace fly {
         ASTVar *getAST() const;
 
     	SymVarKind getKind() const;
+
+    	SymVar *getParent() const;
 
     	SymType *getType() const;
 

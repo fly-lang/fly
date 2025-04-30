@@ -24,15 +24,15 @@ ASTExprKind ASTExpr::getExprKind() const {
     return Kind;
 }
 
-ASTTypeRef *ASTExpr::getTypeRef() const {
-    return TypeRef;
+SymType *ASTExpr::getType() const {
+    return Type;
 }
 
 std::string ASTExpr::str() const {
     return Logger("ASTExpr").
 		Attr("Location", getLocation()).
 		Attr("Kind", static_cast<size_t>(getKind())).
-           Attr("TypeRef", TypeRef).
+           Attr("Type", Type).
            End();
 }
 

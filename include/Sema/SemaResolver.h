@@ -137,7 +137,7 @@ class ASTValue;
 
         SymType *ResolveValue(ASTValue *V);
 
-        bool ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr, SymType *Type = nullptr);
+        bool ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr);
 
         ASTRef *ResolveCall(ASTStmt *Stmt, ASTCall *Call, llvm::SmallVector<SymNameSpace *, 4> &NameSpaces);
 

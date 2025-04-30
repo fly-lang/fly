@@ -7,30 +7,29 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "Sym/SymVar.h"
+#include "Sym/SymCall.h"
 
 using namespace fly;
 
-SymVar::SymVar(ASTVar *AST, SymVarKind Kind) : AST(AST), Kind(Kind) {
+SymCall::SymCall(ASTCall *AST) : AST(AST){
 }
 
-ASTVar *SymVar::getAST() const {
+ASTCall *SymCall::getAST() const {
 	return AST;
 }
 
-SymVarKind SymVar::getKind() const {
+SymCallKind SymCall::getKind() const {
 	return Kind;
 }
 
-SymVar *SymVar::getParent() const {
+SymVar *SymCall::getParent() const {
 	return Parent;
 }
 
-SymType *SymVar::getType() const {
-	return Type;
+SymFunctionBase *SymCall::getFunction() const {
+	return Function;
 }
 
-bool SymVar::isConstant() const {
-	return Constant;
+SymErrorHandler *SymCall::getErrorHandler() const {
+	return ErrorHandler;
 }
-

@@ -18,20 +18,16 @@ ASTCall::ASTCall(const SourceLocation &Loc, llvm::StringRef Name) : ASTRef(Loc, 
 
 }
 
-SymErrorHandler *ASTCall::getErrorHandler() const {
-    return ErrorHandler;
-}
-
 llvm::SmallVector<ASTArg *, 8> ASTCall::getArgs() const {
     return Args;
 }
 
-SymFunctionBase *ASTCall::getFunction() const {
-    return *Function;
-}
-
 ASTCallKind ASTCall::getCallKind() const {
     return CallKind;
+}
+
+SymCall *ASTCall::getSym() const {
+	return Sym;
 }
 
 std::string ASTCall::str() const {
@@ -39,6 +35,6 @@ std::string ASTCall::str() const {
 	Attr("Location", getLocation()).
 		Attr("Kind", static_cast<size_t>(getKind())).
             Attr("Args", ASTBase::str(Args)).
-            Attr("Def", Function).
+            Attr("Sym", Sym).
             End();
 }

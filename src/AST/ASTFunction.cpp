@@ -15,7 +15,7 @@ using namespace fly;
 
 ASTFunction::ASTFunction(const SourceLocation &Loc, ASTTypeRef *ReturnType,
                                  llvm::SmallVector<ASTScope *, 8> &Scopes, llvm::StringRef Name, llvm::SmallVector<ASTVar *, 8> &Params) :
-        ASTBase(Loc, ASTKind::AST_FUNCTION), ReturnTypeRef(ReturnType), Scopes(Scopes), Params(Params) {
+        ASTBase(Loc, ASTKind::AST_FUNCTION), ReturnTypeRef(ReturnType), Scopes(Scopes), Name(Name), Params(Params) {
 
 }
 
