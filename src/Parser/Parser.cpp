@@ -1143,7 +1143,7 @@ ASTRef *Parser::ParseRef(ASTRef *Parent) {
 		if (Tok.is(tok::l_paren)) {
 			Ref = ParseCall(Loc, Name, Parent);
 		} else {
-			Ref = Builder.CreateUndefinedRef(Loc, Name, Parent);
+			Ref = Builder.CreateRef(Loc, Name, Parent);
 		}
 		Parent = Ref;
 	} while (Tok.is(tok::period) && ConsumeToken().isValid());

@@ -347,7 +347,7 @@ namespace fly {
 
         ASTVarRef *CreateVarRef(ASTVar *Var, ASTRef *Parent = nullptr);
 
-        ASTRef *CreateUndefinedRef(const SourceLocation &Loc, llvm::StringRef Name, ASTRef *Parent = nullptr);
+        ASTRef *CreateRef(const SourceLocation &Loc, llvm::StringRef Name, ASTRef *Parent = nullptr);
 
         // Create Expressions
 

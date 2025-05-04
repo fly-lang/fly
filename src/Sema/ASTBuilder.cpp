@@ -882,14 +882,14 @@ ASTVarRef *ASTBuilder::CreateVarRef(ASTVar *Var, ASTRef *Parent) {
 }
 
 // FIXME ?? Remove ??
-ASTRef *ASTBuilder::CreateUndefinedRef(const SourceLocation &Loc, llvm::StringRef Name, ASTRef *Parent) {
+ASTRef *ASTBuilder::CreateRef(const SourceLocation &Loc, llvm::StringRef Name, ASTRef *Parent) {
 	FLY_DEBUG_START("ASTBuilder", "CreateUndefinedRef");
 
-	ASTRef *VarRef = new ASTRef(Loc, Name, ASTRefKind::REF_UNDEFINED);
-	VarRef->Parent = Parent;
+	ASTRef *Ref = new ASTRef(Loc, Name, ASTRefKind::REF_UNDEFINED);
+	Ref->Parent = Parent;
 
 	FLY_DEBUG_END("ASTBuilder", "CreateUndefinedRef");
-	return VarRef;
+	return Ref;
 }
 
 ASTValueExpr *ASTBuilder::CreateExpr(ASTValue *Value) {

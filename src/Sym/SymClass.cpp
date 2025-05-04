@@ -12,7 +12,7 @@
 
 using namespace fly;
 
-SymClass::SymClass(ASTClass *AST) : SymType(SymTypeKind::TYPE_CLASS), AST(AST) {
+SymClass::SymClass(ASTClass *AST) : SymType(SymTypeKind::TYPE_CLASS, AST->getName().data()), AST(AST) {
 
 }
 

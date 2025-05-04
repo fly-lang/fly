@@ -13,29 +13,7 @@ using namespace fly;
 
 size_t SymType::IdCounter = 0;
 
-SymType::SymType(SymTypeKind Kind) : Kind(Kind), Name(getTypeName(Kind)), Id(GenerateId(Kind)) {
-}
-
 SymType::SymType(SymTypeKind Kind, std::string Name) : Kind(Kind), Name(Name), Id(GenerateId(Kind)) {
-}
-
-std::string SymType::getTypeName(SymTypeKind Kind) {
-	switch (Kind) {
-
-	case SymTypeKind::TYPE_VOID:
-		return "void";
-	case SymTypeKind::TYPE_BOOL:
-		return "bool";
-	case SymTypeKind::TYPE_STRING:
-		return "string";
-	case SymTypeKind::TYPE_CHAR:
-		return "char";
-	case SymTypeKind::TYPE_ARRAY:
-		return "array";
-	case SymTypeKind::TYPE_ERROR:
-		return "error";
-	}
-	assert(false && "Unknown type");
 }
 
 size_t SymType::GenerateId(fly::SymTypeKind Kind) {
@@ -97,27 +75,7 @@ bool SymType::isVoid() const {
 	return Kind == SymTypeKind::TYPE_VOID;
 }
 
-std::string getIntTypeName(SymIntTypeKind Kind) {
-	switch (Kind) {
-	case SymIntTypeKind::TYPE_BYTE:
-		return "byte";
-	case SymIntTypeKind::TYPE_USHORT:
-		return "ushort";
-	case SymIntTypeKind::TYPE_UINT:
-		return "uint";
-	case SymIntTypeKind::TYPE_ULONG:
-		return "ulong";
-	case SymIntTypeKind::TYPE_INT:
-		return "int";
-	case SymIntTypeKind::TYPE_SHORT:
-		return "short";
-	case SymIntTypeKind::TYPE_LONG:
-		return "long";
-	}
-	assert(false && "Unknown type");
-}
-
-SymTypeInt::SymTypeInt(SymIntTypeKind IntKind) : SymType(SymTypeKind::TYPE_INTEGER, getIntTypeName(IntKind)),
+SymTypeInt::SymTypeInt(SymIntTypeKind IntKind, std::string Name) : SymType(SymTypeKind::TYPE_INTEGER, Name),
                                                  IntKind(IntKind) {
 }
 
@@ -130,17 +88,7 @@ bool SymTypeInt::isSigned() {
 	       IntKind == SymIntTypeKind::TYPE_UINT || IntKind == SymIntTypeKind::TYPE_ULONG;
 }
 
-std::string getFPTypeName(SymFPTypeKind Kind) {
-	switch (Kind) {
-	case SymFPTypeKind::TYPE_FLOAT:
-		return "float";
-	case SymFPTypeKind::TYPE_DOUBLE:
-		return "double";
-	}
-	assert(false && "Unknown type");
-}
-
-SymTypeFP::SymTypeFP(SymFPTypeKind FPKind) : SymType(SymTypeKind::TYPE_FLOATING_POINT, getFPTypeName(FPKind)),
+SymTypeFP::SymTypeFP(SymFPTypeKind FPKind, std::string Name) : SymType(SymTypeKind::TYPE_FLOATING_POINT, Name),
                                              FPKind(FPKind) {
 }
 
@@ -148,7 +96,7 @@ const SymFPTypeKind SymTypeFP::getFPKind() const {
 	return FPKind;
 }
 
-SymTypeArray::SymTypeArray(SymType *Type) : SymType(SymTypeKind::TYPE_ARRAY), Type(Type) {
+SymTypeArray::SymTypeArray(SymType *Type) : SymType(SymTypeKind::TYPE_ARRAY, "array"), Type(Type) {
 }
 
 SymType *SymTypeArray::getType() {

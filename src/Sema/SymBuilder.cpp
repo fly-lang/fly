@@ -45,20 +45,20 @@ void SymBuilder::CreateTable() {
 	S.Table = new SymTable();
 
 	// Create Builtin Types
-	S.Table->BoolType = S.getSymBuilder().CreateType(SymTypeKind::TYPE_BOOL);
-	S.Table->ByteType = S.getSymBuilder().CreateIntType(SymIntTypeKind::TYPE_BYTE);
-	S.Table->UShortType = S.getSymBuilder().CreateIntType(SymIntTypeKind::TYPE_USHORT);
-	S.Table->ShortType = S.getSymBuilder().CreateIntType(SymIntTypeKind::TYPE_SHORT);
-	S.Table->UIntType = S.getSymBuilder().CreateIntType(SymIntTypeKind::TYPE_UINT);
-	S.Table->IntType = S.getSymBuilder().CreateIntType(SymIntTypeKind::TYPE_INT);
-	S.Table->ULongType = S.getSymBuilder().CreateIntType(SymIntTypeKind::TYPE_ULONG);
-	S.Table->LongType = S.getSymBuilder().CreateIntType(SymIntTypeKind::TYPE_LONG);
-	S.Table->FloatType = S.getSymBuilder().CreateFPType(SymFPTypeKind::TYPE_FLOAT);
-	S.Table->DoubleType = S.getSymBuilder().CreateFPType(SymFPTypeKind::TYPE_DOUBLE);
-	S.Table->VoidType = S.getSymBuilder().CreateType(SymTypeKind::TYPE_VOID);
-	S.Table->CharType = S.getSymBuilder().CreateType(SymTypeKind::TYPE_CHAR);
-	S.Table->StringType = S.getSymBuilder().CreateType(SymTypeKind::TYPE_STRING);
-	S.Table->ErrorType = S.getSymBuilder().CreateType(SymTypeKind::TYPE_ERROR);
+	S.Table->BoolType = S.getSymBuilder().CreateType(SymTypeKind::TYPE_BOOL, "bool");
+	S.Table->ByteType = S.getSymBuilder().CreateIntType(SymIntTypeKind::TYPE_BYTE, "byte");
+	S.Table->UShortType = S.getSymBuilder().CreateIntType(SymIntTypeKind::TYPE_USHORT, "ushort");
+	S.Table->ShortType = S.getSymBuilder().CreateIntType(SymIntTypeKind::TYPE_SHORT, "short");
+	S.Table->UIntType = S.getSymBuilder().CreateIntType(SymIntTypeKind::TYPE_UINT, "uint");
+	S.Table->IntType = S.getSymBuilder().CreateIntType(SymIntTypeKind::TYPE_INT, "int");
+	S.Table->ULongType = S.getSymBuilder().CreateIntType(SymIntTypeKind::TYPE_ULONG, "ulong");
+	S.Table->LongType = S.getSymBuilder().CreateIntType(SymIntTypeKind::TYPE_LONG, "long");
+	S.Table->FloatType = S.getSymBuilder().CreateFPType(SymFPTypeKind::TYPE_FLOAT, "float");
+	S.Table->DoubleType = S.getSymBuilder().CreateFPType(SymFPTypeKind::TYPE_DOUBLE, "double");
+	S.Table->VoidType = S.getSymBuilder().CreateType(SymTypeKind::TYPE_VOID, "void");
+	S.Table->CharType = S.getSymBuilder().CreateType(SymTypeKind::TYPE_CHAR, "char");
+	S.Table->StringType = S.getSymBuilder().CreateType(SymTypeKind::TYPE_STRING, "string");
+	S.Table->ErrorType = S.getSymBuilder().CreateType(SymTypeKind::TYPE_ERROR, "error");
 
 	// Create the Default NameSpace
 	S.Table->DefaultNameSpace = S.SBuilder->CreateDefaultNameSpace();
@@ -144,6 +144,7 @@ void SymBuilder::CreateImport(SymModule *Module, ASTImport *AST) {
 		return;
 	}
 
+	// Replace with alias name if exists
 	llvm::StringRef Name = AST->getName();
 
 	// Error: alias is equals to the current ASTModule namespace
@@ -289,14 +290,14 @@ SymClass * SymBuilder::CreateClass(SymModule *Module, ASTClass *AST) {
 	SymClass *Class = new SymClass(AST);
 
 	// Check Duplicates in Module
-	if (Module->Classes.lookup(AST->getName()) != nullptr) {
+	if (Module->Types.lookup(AST->getName()) != nullptr) {
 		// Error
 		S.Diag(AST->getLocation(), diag::err_syntax_error) << AST->getName();
 		return Class;
 	}
 
 	Class->Module = Module;
-	Module->Classes.insert(std::make_pair(AST->getName(), Class));
+	Module->Types.insert(std::make_pair(AST->getName(), Class));
 
 	// Check and set Function Scopes
 	for (auto Scope : AST->getScopes()) {
@@ -368,14 +369,14 @@ SymEnum * SymBuilder::CreateEnum(SymModule *Module, ASTEnum *AST) {
 	SymEnum *Enum = new SymEnum(AST);
 
 	// Check Duplicates in Module
-	if (Module->Enums.lookup(AST->getName()) != nullptr) {
+	if (Module->Types.lookup(AST->getName()) != nullptr) {
 		// Error
 		S.Diag(AST->getLocation(), diag::err_syntax_error) << AST->getName();
 		return Enum;
 	}
 
 	Enum->Module = Module;
-	Module->Enums.insert(std::make_pair(AST->getName(), Enum));
+	Module->Types.insert(std::make_pair(AST->getName(), Enum));
 
 	// Check and set Function Scopes
 	for (auto Scope : AST->getScopes()) {
@@ -420,28 +421,28 @@ SymEnumEntry * SymBuilder::CreateEnumEntry(SymEnum *Enum, ASTVar *AST, SymCommen
 	return Entry;
 }
 
-SymType * SymBuilder::CreateType(SymTypeKind Kind) {
+SymType * SymBuilder::CreateType(SymTypeKind Kind, std::string Name) {
 	FLY_DEBUG_START("SymBuilder", "CreateType");
 
-	SymType *Type = new SymType(Kind);
+	SymType *Type = new SymType(Kind, Name);
 
 	FLY_DEBUG_END("SymBuilder", "CreateType");
 	return Type;
 }
 
-SymTypeInt * SymBuilder::CreateIntType(SymIntTypeKind IntKind) {
+SymTypeInt * SymBuilder::CreateIntType(SymIntTypeKind IntKind, std::string Name) {
 	FLY_DEBUG_START("SymBuilder", "CreateIntType");
 
-	SymTypeInt *Type = new SymTypeInt(IntKind);
+	SymTypeInt *Type = new SymTypeInt(IntKind, Name);
 
 	FLY_DEBUG_END("SymBuilder", "CreateIntType");
 	return Type;
 }
 
-SymTypeFP * SymBuilder::CreateFPType(SymFPTypeKind FPKind) {
+SymTypeFP * SymBuilder::CreateFPType(SymFPTypeKind FPKind, std::string Name) {
 	FLY_DEBUG_START("SymBuilder", "CreateFPType");
 
-	SymTypeFP *Type = new SymTypeFP(FPKind);
+	SymTypeFP *Type = new SymTypeFP(FPKind, Name);
 
 	FLY_DEBUG_END("SymBuilder", "CreateFPType");
 	return Type;

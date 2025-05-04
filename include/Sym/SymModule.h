@@ -18,8 +18,7 @@ namespace fly {
 	class SymNameSpace;
     class SymGlobalVar;
     class SymFunction;
-    class SymEnum;
-    class SymClass;
+    class SymType;
 
     class SymModule {
 
@@ -38,11 +37,8 @@ namespace fly {
         // Functions
         llvm::StringMap<SymFunction *> Functions;
 
-        // Classes
-        llvm::StringMap<SymClass *> Classes;
-
-        // Enumerations
-        llvm::StringMap<SymEnum *> Enums;
+        // Types
+        llvm::StringMap<SymType *> Types;
 
         SymModule(ASTModule *Module);
 
@@ -60,9 +56,7 @@ namespace fly {
 
         const llvm::StringMap<SymFunction *> &getFunctions() const;
 
-        const llvm::StringMap<SymClass *> &getClasses() const;
-
-        const llvm::StringMap<SymEnum *> &getEnums() const;
+        const llvm::StringMap<SymType *> &getTypes() const;
 
     };
 }

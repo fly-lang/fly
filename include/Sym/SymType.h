@@ -86,8 +86,6 @@ namespace fly {
 
     protected:
 
-        explicit SymType(SymTypeKind Kind);
-
         explicit SymType(SymTypeKind Kind, std::string Name);
 
     public:
@@ -127,7 +125,7 @@ namespace fly {
 
         const SymIntTypeKind IntKind;
 
-        explicit SymTypeInt(SymIntTypeKind IntKind);
+        explicit SymTypeInt(SymIntTypeKind IntKind, std::string Name);
 
         public:
 
@@ -144,7 +142,7 @@ namespace fly {
 
         const SymFPTypeKind FPKind;
 
-        explicit SymTypeFP(SymFPTypeKind FPKind);
+        explicit SymTypeFP(SymFPTypeKind FPKind, std::string Name);
 
         public:
 
@@ -172,7 +170,7 @@ namespace fly {
     class SymErrorType : public SymType {
 
     public:
-		explicit SymErrorType() : SymType(SymTypeKind::TYPE_ERROR) {}
+		explicit SymErrorType() : SymType(SymTypeKind::TYPE_ERROR, "error") {}
 
 	};
 

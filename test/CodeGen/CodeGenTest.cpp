@@ -107,7 +107,7 @@ namespace {
     	llvm::Module * M = Generate();
     	std::string output = getOutput(M->getFunctionList());
 
-    	EXPECT_EQ(output, "define void @_F0(%error* %0) {\n"
+    	EXPECT_EQ(output, "define void @_F4func(%error* %0) {\n"
 						  "entry:\n"
 						  "  %1 = alloca %error*, align 8\n"
 						  "  %2 = alloca i8, align 1\n"
@@ -162,7 +162,7 @@ namespace {
     	llvm::Module * M = Generate();
     	std::string output = getOutput(M->getFunctionList());
 
-        EXPECT_EQ(output, "define void @_F0_i_f_b_l_d_y_s_us_ui_ul(%error* %0, i32 %1, float %2, i1 %3, i64 %4, double %5, i8 %6, i16 %7, i16 %8, i32 %9, i64 %10) {\n"
+        EXPECT_EQ(output, "define void @_F4func_i_f_b_l_d_y_s_us_ui_ul(%error* %0, i32 %1, float %2, i1 %3, i64 %4, double %5, i8 %6, i16 %7, i16 %8, i32 %9, i64 %10) {\n"
                           "entry:\n"
                           "  %11 = alloca %error*, align 8\n"
                           "  %12 = alloca i32, align 4\n"
@@ -218,7 +218,7 @@ namespace {
     	llvm::Module * M = Generate();
     	std::string output = getOutput(M->getFunctionList());
 
-        EXPECT_EQ(output, "define float @_F0(%error* %0) {\n"
+        EXPECT_EQ(output, "define float @_F4func(%error* %0) {\n"
                           "entry:\n"
                           "  %1 = alloca %error*, align 8\n"
                           "  %2 = alloca float, align 4\n"
@@ -249,7 +249,7 @@ namespace {
     	llvm::Module * M = Generate();
     	std::string output = getOutput(M->getFunctionList());
 
-        EXPECT_EQ(output, "define void @_F0(%error* %0) {\n"
+        EXPECT_EQ(output, "define void @_F4func(%error* %0) {\n"
                           "entry:\n"
                           "  %1 = alloca %error*, align 8\n"
                           "  %2 = alloca i32, align 4\n"
@@ -288,15 +288,24 @@ namespace {
     	llvm::Module * M = Generate();
     	std::string output = getOutput(M);
 
-        EXPECT_EQ(output, "define i32 @F_0(%error* %0) {\n"
+    	EXPECT_EQ(output, "\n"
+						  "%error = type { i8, i32, i8* }\n"
+						  "\n"
+						  "define i32 @_F4func(%error* %0) {\n"
                           "entry:\n"
                           "  %1 = alloca %error*, align 8\n"
                           "  store %error* %0, %error** %1, align 8\n"
                           "  %2 = load %error*, %error** %1, align 8\n"
-                          "  %3 = call i32 @test(%error* %2)\n"
-                          "  %4 = call i32 @test(%error* %2)\n"
+                          "  %3 = call i32 @_F4test(%error* %2)\n"
+                          "  %4 = call i32 @_F4test(%error* %2)\n"
                           "  ret i32 %4\n"
-                          "}\n");
+                          "}\n"
+                          "\n"
+						  "define i32 @_F4test(%error* %0) {\n"
+						  "entry:\n"
+						  "  %1 = alloca %error*, align 8\n"
+						  "  store %error* %0, %error** %1, align 8\n"
+						  "}\n");
     }
 
     /**
@@ -341,9 +350,9 @@ namespace {
 
     	// Generate Code
     	llvm::Module * M = Generate();
-    	std::string output = getOutput(M);
+    	std::string output = getOutput(M->getFunctionList());
 
-        EXPECT_EQ(output, "define i32 @F_0(%error* %0, i32 %1, i32 %2, i32 %3) {\n"
+        EXPECT_EQ(output, "define i32 @_F4func_i_i_i(%error* %0, i32 %1, i32 %2, i32 %3) {\n"
                           "entry:\n"
                           "  %4 = alloca %error*, align 8\n"
                           "  %5 = alloca i32, align 4\n"
@@ -487,9 +496,9 @@ namespace {
 
     	// Generate Code
     	llvm::Module * M = Generate();
-    	std::string output = getOutput(M);
+    	std::string output = getOutput(M->getFunctionList());
 
-        EXPECT_EQ(output, "define void @F_0(%error* %0, i32 %1, i32 %2, i32 %3) {\n"
+        EXPECT_EQ(output, "define void @_F4func_i_i_i(%error* %0, i32 %1, i32 %2, i32 %3) {\n"
                           "entry:\n"
                           "  %4 = alloca %error*, align 8\n"
                           "  %5 = alloca i32, align 4\n"
@@ -608,9 +617,9 @@ namespace {
 
     	// Generate Code
     	llvm::Module * M = Generate();
-    	std::string output = getOutput(M);
+    	std::string output = getOutput(M->getFunctionList());
 
-        EXPECT_EQ(output, "define void @F_0(%error* %0) {\n"
+        EXPECT_EQ(output, "define void @_F4func(%error* %0) {\n"
                           "entry:\n"
                           "  %1 = alloca %error*, align 8\n"
                           "  %2 = alloca i32, align 4\n"
@@ -645,7 +654,6 @@ namespace {
 
     TEST_F(CodeGenTest, CGLogicOp) {
         ASTModule *Module = CreateModule();
-        CodeGenModule *CGM = CG->GenerateModule(S->getSymTable().getDefaultNameSpace());
 
         // func()
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
@@ -684,9 +692,9 @@ namespace {
 
     	// Generate Code
     	llvm::Module * M = Generate();
-    	std::string output = getOutput(M);
+    	std::string output = getOutput(M->getFunctionList());
 
-        EXPECT_EQ(output, "define void @F_0(%error* %0) {\n"
+        EXPECT_EQ(output, "define void @_F4func(%error* %0) {\n"
                           "entry:\n"
                           "  %1 = alloca %error*, align 8\n"
                           "  %2 = alloca i8, align 1\n"
@@ -727,7 +735,6 @@ namespace {
 
     TEST_F(CodeGenTest, CGTernaryOp) {
         ASTModule *Module = CreateModule();
-        CodeGenModule *CGM = CG->GenerateModule(S->getSymTable().getDefaultNameSpace());
 
         // func()
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
@@ -764,9 +771,9 @@ namespace {
 
     	// Generate Code
     	llvm::Module * M = Generate();
-    	std::string output = getOutput(M);
+    	std::string output = getOutput(M->getFunctionList());
 
-        EXPECT_EQ(output, "define void @F_0(%error* %0) {\n"
+        EXPECT_EQ(output, "define void @_F4func(%error* %0) {\n"
                           "entry:\n"
                           "  %1 = alloca %error*, align 8\n"
                           "  %2 = alloca i8, align 1\n"
@@ -831,9 +838,9 @@ namespace {
 
     	// Generate Code
     	llvm::Module * M = Generate();
-    	std::string output = getOutput(M);
+    	std::string output = getOutput(M->getFunctionList());
 
-        EXPECT_EQ(output, "define void @F_0(%error* %0) {\n"
+        EXPECT_EQ(output, "define void @_F4func(%error* %0) {\n"
                           "entry:\n"
                           "  %1 = alloca %error*, align 8\n"
                           "  %2 = alloca i32, align 4\n"
@@ -890,9 +897,9 @@ namespace {
 
     	// Generate Code
     	llvm::Module * M = Generate();
-    	std::string output = getOutput(M);
+    	std::string output = getOutput(M->getFunctionList());
 
-        EXPECT_EQ(output, "define void @F_0(%error* %0, i32 %1) {\n"
+        EXPECT_EQ(output, "define void @_F4func_i(%error* %0, i32 %1) {\n"
                           "entry:\n"
                           "  %2 = alloca %error*, align 8\n"
                           "  %3 = alloca i32, align 4\n"
@@ -974,9 +981,9 @@ namespace {
 
     	// Generate Code
     	llvm::Module * M = Generate();
-    	std::string output = getOutput(M);
+    	std::string output = getOutput(M->getFunctionList());
 
-        EXPECT_EQ(output, "define void @F_0(%error* %0, i32 %1) {\n"
+        EXPECT_EQ(output, "define void @_F4func_i(%error* %0, i32 %1) {\n"
                           "entry:\n"
                           "  %2 = alloca %error*, align 8\n"
                           "  %3 = alloca i32, align 4\n"
@@ -1066,9 +1073,9 @@ namespace {
 
     	// Generate Code
     	llvm::Module * M = Generate();
-    	std::string output = getOutput(M);
+    	std::string output = getOutput(M->getFunctionList());
 
-        EXPECT_EQ(output, "define void @F_0(%error* %0, i32 %1) {\n"
+        EXPECT_EQ(output, "define void @_F4func_i(%error* %0, i32 %1) {\n"
                           "entry:\n"
                           "  %2 = alloca %error*, align 8\n"
                           "  %3 = alloca i32, align 4\n"
@@ -1147,9 +1154,9 @@ namespace {
 
     	// Generate Code
     	llvm::Module * M = Generate();
-    	std::string output = getOutput(M);
+    	std::string output = getOutput(M->getFunctionList());
 
-        EXPECT_EQ(output, "define void @F_0(%error* %0, i32 %1) {\n"
+        EXPECT_EQ(output, "define void @_F4func_i(%error* %0, i32 %1) {\n"
                           "entry:\n"
                           "  %2 = alloca %error*, align 8\n"
                           "  %3 = alloca i32, align 4\n"
@@ -1207,9 +1214,9 @@ namespace {
 
     	// Generate Code
     	llvm::Module * M = Generate();
-    	std::string output = getOutput(M);
+    	std::string output = getOutput(M->getFunctionList());
 
-        EXPECT_EQ(output, "define void @F_0(%error* %0, i32 %1) {\n"
+        EXPECT_EQ(output, "define void @_F4func_i(%error* %0, i32 %1) {\n"
                           "entry:\n"
                           "  %2 = alloca %error*, align 8\n"
                           "  %3 = alloca i32, align 4\n"
@@ -1254,7 +1261,6 @@ namespace {
         ASTValueExpr *Value1Expr = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "1"));
         iVarStmt->setExpr(Value1Expr);
 
-
         // Condition
         // i < 1
         ASTBinaryOpExpr *Cond = getASTBuilder().CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_LTE,
@@ -1282,9 +1288,9 @@ namespace {
 
     	// Generate Code
     	llvm::Module * M = Generate();
-    	std::string output = getOutput(M);
+    	std::string output = getOutput(M->getFunctionList());
 
-        EXPECT_EQ(output, "define void @F_0(%error* %0, i32 %1) {\n"
+        EXPECT_EQ(output, "define void @_F4func_i(%error* %0, i32 %1) {\n"
                           "entry:\n"
                           "  %2 = alloca %error*, align 8\n"
                           "  %3 = alloca i32, align 4\n"
@@ -1330,7 +1336,9 @@ namespace {
 		llvm::Module * M = Generate();
 		std::string output = getOutput(M);
 
-        EXPECT_EQ(output, "define i32 @main() {\n"
+        EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
+        				  "\n"
+        				  "define i32 @_F4main() {\n"
                           "entry:\n"
                           "  %0 = alloca %error*, align 8\n"
                           "  %1 = load %error*, %error** %0, align 8\n"
@@ -1348,220 +1356,4 @@ namespace {
                           "}\n");
     }
 
-	TEST_F(CodeGenTest, CGErrorHandler) {
-        ASTModule *Module = CreateModule();
-
-        // func() {
-        //   error A = handle fail
-        // }
-        ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
-        ASTVar *ErrorA = getASTBuilder().CreateLocalVar(Body, SourceLoc, ErrorTypeRef, "A", EmptyScopes);
-        ASTVarRef *ErrorVarRef = getASTBuilder().CreateVarRef(ErrorA);
-        ASTBlockStmt *HandleBlock = getASTBuilder().CreateBlockStmt(SourceLoc);
-        getASTBuilder().CreateHandleStmt(Body, SourceLoc, HandleBlock, ErrorVarRef);
-
-        SemaBuilderStmt *Fail0Stmt = getASTBuilder().CreateFailStmt(HandleBlock, SourceLoc);
-
-		// validate and resolve
-		EXPECT_TRUE(S->Resolve());
-
-		// Generate Code
-		llvm::Module * M = Generate();
-		std::string output = getOutput(M);
-
-        EXPECT_EQ(output, "define void @F_0(%error* %0) {\n"
-                          "entry:\n"
-                          "  %1 = alloca %error*, align 8\n"
-                          "  %2 = alloca %error*, align 8\n"
-                          "  store %error* %0, %error** %1, align 8\n"
-                          "  br label %handle\n"
-                          "\n"
-                          "handle:                                           ; preds = %entry\n"
-                          "  %3 = load %error*, %error** %2, align 8\n"
-                          "  %4 = getelementptr inbounds %error, %error* %3, i32 0, i32 0\n"
-                          "  store i8 1, i8* %4, align 1\n"
-                          "  %5 = getelementptr inbounds %error, %error* %3, i32 0, i32 1\n"
-                          "  store i32 1, i32* %5, align 4\n"
-                          "  br label %safe\n"
-                          "\n"
-                          "safe:                                             ; preds = %handle\n"
-                          "  ret void\n"
-                          "}\n");
-    }
-
-    TEST_F(CodeGenTest, CGErrorFail) {
-        ASTModule *Module = CreateModule();
-
-        // int testFail0() {
-        //   fail
-        // }
-        ASTBlockStmt *Body0 = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *TestFail0 = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "testFail0", TopScopes, Params, Body0);
-        SemaBuilderStmt *Fail0Stmt = getASTBuilder().CreateFailStmt(Body0, SourceLoc);
-
-        // int testFail1() {
-        //   fail true
-        // }
-        ASTBlockStmt *Body1 = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *TestFail1 = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "testFail1", TopScopes, Params, Body1);
-        ASTBoolValue *BoolVal = getASTBuilder().CreateBoolValue(SourceLoc, true);
-        SemaBuilderStmt *Fail1Stmt = getASTBuilder().CreateFailStmt(Body1, SourceLoc);
-        Fail1Stmt->setExpr(getASTBuilder().CreateExpr(BoolVal));
-
-        // int testFail2() {
-        //   fail 10
-        // }
-        ASTBlockStmt *Body2 = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *TestFail2 = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "testFail2", TopScopes, Params, Body2);
-        ASTIntegerValue *IntVal = getASTBuilder().CreateIntegerValue(SourceLoc, "10");
-        SemaBuilderStmt *Fail2Stmt = getASTBuilder().CreateFailStmt(Body2, SourceLoc);
-        Fail2Stmt->setExpr(getASTBuilder().CreateExpr(IntVal));
-
-        // int testFail3() {
-        //  fail "Error"
-        // }
-        ASTBlockStmt *Body3 = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *TestFail3 = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "testFail3", TopScopes, Params, Body3);
-        ASTStringValue *StrVal = getASTBuilder().CreateStringValue(SourceLoc, "Error");
-        SemaBuilderStmt *Fail3Stmt = getASTBuilder().CreateFailStmt(Body3, SourceLoc);
-        Fail3Stmt->setExpr(getASTBuilder().CreateExpr(StrVal));
-
-        // int testFail4() {
-        //  fail new TestStruct()
-        // }
-        llvm::SmallVector<ASTTypeRef *, 4> SuperClasses;
-        ASTClass *TestStruct = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "TestStruct", TopScopes, SuperClasses);
-        ASTVar *aField = getASTBuilder().CreateClassAttribute(SourceLoc, TestStruct, IntTypeRef, "a", TopScopes);
-
-        ASTBlockStmt *Body4 = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *TestFail4 = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "testFail4", TopScopes, Params, Body4);
-        // TestStruct test = new TestStruct()
-        ASTCall *ConstructorCall = CreateCall(TestStruct->getName(), Args, ASTCallKind::CALL_NEW);
-        // fail new TestStruct()
-        SemaBuilderStmt *Fail4Stmt = getASTBuilder().CreateFailStmt(Body4, SourceLoc);
-        Fail4Stmt->setExpr(getASTBuilder().CreateExpr(ConstructorCall));
-
-        // main() {
-        //   testFail0()
-        //   testFail1()
-        //   testFail2()
-        //   testFail3()
-        //   testFail4()
-        // }
-        ASTBlockStmt *MainBody = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Main = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopScopes, Params, MainBody);
-
-        // call testFail0()
-        SemaBuilderStmt *CallTestFail0 = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
-        ASTCallExpr *CallExpr0 = getASTBuilder().CreateExpr(CreateCall(TestFail0, Args, ASTCallKind::CALL_FUNCTION));
-        CallTestFail0->setExpr(CallExpr0);
-
-        // call testFail1()
-        SemaBuilderStmt *CallTestFail1 = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
-        ASTCallExpr *CallExpr1 = getASTBuilder().CreateExpr(CreateCall(TestFail1, Args, ASTCallKind::CALL_FUNCTION));
-        CallTestFail1->setExpr(CallExpr1);
-
-        // call testFail2()
-        SemaBuilderStmt *CallTestFail2 = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
-        ASTCallExpr *CallExpr2 = getASTBuilder().CreateExpr(CreateCall(TestFail2, Args, ASTCallKind::CALL_FUNCTION));
-        CallTestFail2->setExpr(CallExpr2);
-
-        // call testFail3()
-        SemaBuilderStmt *CallTestFail3 = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
-        ASTCallExpr *CallExpr3 = getASTBuilder().CreateExpr(CreateCall(TestFail3, Args, ASTCallKind::CALL_FUNCTION));
-        CallTestFail3->setExpr(CallExpr3);
-
-        // call testFail4()
-        SemaBuilderStmt *CallTestFail4 = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
-        ASTCallExpr *CallExpr4 = getASTBuilder().CreateExpr(CreateCall(TestFail4, Args, ASTCallKind::CALL_FUNCTION));
-        CallTestFail4->setExpr(CallExpr4);
-
-		// validate and resolve
-		EXPECT_TRUE(S->Resolve());
-
-		// Generate Code
-		llvm::Module * M = Generate();
-		std::string output = getOutput(M);
-
-        EXPECT_EQ(output, "define i32 @testFail0(%error* %0) {\n"
-                          "entry:\n"
-                          "  %1 = alloca %error*, align 8\n"
-                          "  store %error* %0, %error** %1, align 8\n"
-                          "  %2 = load %error*, %error** %1, align 8\n"
-                          "  %3 = getelementptr inbounds %error, %error* %2, i32 0, i32 0\n"
-                          "  store i8 1, i8* %3, align 1\n"
-                          "  %4 = getelementptr inbounds %error, %error* %2, i32 0, i32 1\n"
-                          "  store i32 1, i32* %4, align 4\n"
-                          "  ret i32 0\n"
-                          "}\n"
-                          "define i32 @testFail1(%error* %0) {\n"
-                          "entry:\n"
-                          "  %1 = alloca %error*, align 8\n"
-                          "  store %error* %0, %error** %1, align 8\n"
-                          "  %2 = load %error*, %error** %1, align 8\n"
-                          "  %3 = getelementptr inbounds %error, %error* %2, i32 0, i32 0\n"
-                          "  store i8 1, i8* %3, align 1\n"
-                          "  %4 = getelementptr inbounds %error, %error* %2, i32 0, i32 1\n"
-                          "  store i1 true, i32* %4, align 1\n"
-                          "  ret i32 0\n"
-                          "}\n"
-                          "define i32 @testFail2(%error* %0) {\n"
-                          "entry:\n"
-                          "  %1 = alloca %error*, align 8\n"
-                          "  store %error* %0, %error** %1, align 8\n"
-                          "  %2 = load %error*, %error** %1, align 8\n"
-                          "  %3 = getelementptr inbounds %error, %error* %2, i32 0, i32 0\n"
-                          "  store i8 1, i8* %3, align 1\n"
-                          "  %4 = getelementptr inbounds %error, %error* %2, i32 0, i32 1\n"
-                          "  store i32 10, i32* %4, align 4\n"
-                          "  ret i32 0\n"
-                          "}\n"
-                          "define i32 @testFail3(%error* %0) {\n"
-                          "entry:\n"
-                          "  %1 = alloca %error*, align 8\n"
-                          "  store %error* %0, %error** %1, align 8\n"
-                          "  %2 = load %error*, %error** %1, align 8\n"
-                          "  %3 = getelementptr inbounds %error, %error* %2, i32 0, i32 0\n"
-                          "  store i8 2, i8* %3, align 1\n"
-                          "  %4 = getelementptr inbounds %error, %error* %2, i32 0, i32 2\n"
-                          "  store i8* getelementptr inbounds ([6 x i8], [6 x i8]* @0, i32 0, i32 0), i8** %4, align 8\n"
-                          "  ret i32 0\n"
-                          "}\n"
-                          "define i32 @testFail4(%error* %0) {\n"
-                          "entry:\n"
-                          "  %1 = alloca %error*, align 8\n"
-                          "  store %error* %0, %error** %1, align 8\n"
-                          "  %malloccall = tail call i8* @malloc(%TestStruct ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to %TestStruct))\n"
-                          "  %2 = bitcast i8* %malloccall to %TestStruct*\n"
-                          "  call void @TestStruct_TestStruct(%TestStruct* %2)\n"
-                          "  %3 = load %error*, %error** %1, align 8\n"
-                          "  %4 = getelementptr inbounds %error, %error* %3, i32 0, i32 0\n"
-                          "  store i8 3, i8* %4, align 1\n"
-                          "  %5 = getelementptr inbounds %error, %error* %3, i32 0, i32 2\n"
-                          "  store %TestStruct* %2, i8** %5, align 8\n"
-                          "  ret i32 0\n"
-                          "}\n"
-                          "define i32 @main() {\n"
-                          "entry:\n"
-                          "  %0 = alloca %error*, align 8\n"
-                          "  %1 = load %error*, %error** %0, align 8\n"
-                          "  %2 = getelementptr inbounds %error, %error* %1, i32 0, i32 0\n"
-                          "  store i8 0, i8* %2, align 1\n"
-                          "  %3 = getelementptr inbounds %error, %error* %1, i32 0, i32 1\n"
-                          "  store i32 0, i32* %3, align 4\n"
-                          "  %4 = getelementptr inbounds %error, %error* %1, i32 0, i32 2\n"
-                          "  store i8* null, i8** %4, align 8\n"
-                          "  %5 = call i32 @testFail0(%error* %1)\n"
-                          "  %6 = call i32 @testFail1(%error* %1)\n"
-                          "  %7 = call i32 @testFail2(%error* %1)\n"
-                          "  %8 = call i32 @testFail3(%error* %1)\n"
-                          "  %9 = call i32 @testFail4(%error* %1)\n"
-                          "  %10 = getelementptr inbounds %error, %error* %1, i32 0, i32 0\n"
-                          "  %11 = load i8, i8* %10, align 1\n"
-                          "  %12 = icmp ne i8 %11, 0\n"
-                          "  %13 = zext i1 %12 to i32\n"
-                          "  ret i32 %13\n"
-                          "}\n");
-    }
 } // anonymous namespace

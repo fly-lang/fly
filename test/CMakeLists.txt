@@ -7,6 +7,7 @@ message(STATUS "Adding Fly Tests")
 add_executable(fly_test
 #        CmdTest.cpp
         CodeGen/CodeGenTest.cpp
+        CodeGen/CodeGenErrorTest.cpp
 #        CodeGen/CodeGenArrayTest.cpp
 #        CodeGen/CodeGenClassTest.cpp
 #        CodeGen/CodeGenEnumTest.cpp

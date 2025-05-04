@@ -81,11 +81,11 @@ namespace fly {
 
     	SymEnumEntry *CreateEnumEntry(SymEnum *Enum, ASTVar *AST, SymComment *Comment);
 
-    	SymType *CreateType(SymTypeKind Kind);
+    	SymType *CreateType(SymTypeKind Kind, std::string Name);
 
-    	SymTypeInt *CreateIntType(SymIntTypeKind IntKind);
+    	SymTypeInt *CreateIntType(SymIntTypeKind IntKind, std::string Name);
 
-    	SymTypeFP *CreateFPType(SymFPTypeKind FPKind);
+    	SymTypeFP *CreateFPType(SymFPTypeKind FPKind, std::string Name);
 
     	SymTypeArray *CreateArrayType(SymType *Type);
 

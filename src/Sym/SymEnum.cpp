@@ -11,9 +11,11 @@
 
 #include "llvm/ADT/StringMap.h"
 
+#include <AST/ASTEnum.h>
+
 using namespace fly;
 
-SymEnum::SymEnum(ASTEnum *AST) : SymType(SymTypeKind::TYPE_ENUM), AST(AST) {
+SymEnum::SymEnum(ASTEnum *AST) : SymType(SymTypeKind::TYPE_ENUM, AST->getName().data()), AST(AST) {
 
 }
 

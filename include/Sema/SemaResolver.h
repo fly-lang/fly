@@ -73,13 +73,12 @@ class ASTValue;
 
         Sema &S;
 
-        // This is the Default NameSpace
-        SymNameSpace *Default;
-
         // This is the Module NameSpace
         SymNameSpace *NameSpace;
 
         SymModule *Module;
+
+        bool isDefaultNameSpace;
 
         SemaResolver(Sema &S, ASTModule *Module);
 
@@ -91,17 +90,6 @@ class ASTValue;
 
         void AddSymbols();
 
-        void AddImport(ASTImport *AST);
-
-        // TODO: remove GlobalVar
-        // void AddGlobalVar(ASTVar *AST, SymComment *Comment);
-
-        void AddFunction(ASTFunction *AST, SymComment *Comment);
-
-        void AddClass(ASTClass *AST, SymComment *Comment);
-
-        void AddEnum(ASTEnum *AST, SymComment *Comment);
-
         void ResolveImports();
 
         void ResolveComment(SymComment *Comment, ASTBase* AST);
@@ -111,9 +99,7 @@ class ASTValue;
 
         void ResolveFunctions();
 
-        void ResolveClasses();
-
-        void ResolveEnums();
+        void ResolveTypes();
 
         bool ResolveStmt(ASTStmt *Stmt);
 
@@ -133,25 +119,29 @@ class ASTValue;
 
         bool ResolveStmtHandle(ASTHandleStmt *HandleStmt);
 
-        bool ResolveTypeRef(ASTTypeRef *&Type);
-
         SymType *ResolveValue(ASTValue *V);
 
         bool ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr);
 
-        ASTRef *ResolveCall(ASTStmt *Stmt, ASTCall *Call, llvm::SmallVector<SymNameSpace *, 4> &NameSpaces);
+        SymNameSpace *ResolveNameSpaceRef(ASTRef *Ref);
 
-        llvm::SmallVector<SymType *, 8> ResolveCallArgTypes(ASTStmt *Stmt, ASTCall *Call);
+        bool ResolveTypeRef(ASTTypeRef *&Type);
+
+        bool ResolveTypeRef(ASTTypeRef *TypeRef, SymNameSpace *CurrentNameSpace);
 
         ASTRef *ResolveRef(ASTStmt *Stmt, ASTRef *Ref);
 
-        ASTRef *ResolveRef(ASTStmt *Stmt, ASTRef *Ref, llvm::SmallVector<SymNameSpace *, 4> &NameSpaces);
+        ASTRef *ResolveRef(ASTStmt *Stmt, ASTRef *Ref, SymNameSpace *CurrentNameSpace);
+
+        ASTRef *ResolveCall(ASTStmt *Stmt, ASTCall *Call, SymNameSpace *CurrentNameSpace);
+
+        llvm::SmallVector<SymType *, 8> ResolveCallArgTypes(ASTStmt *Stmt, ASTCall *Call);
 
         ASTRef *ResolveRef(ASTStmt *Stmt, SymType *Type, ASTRef *Ref);
 
         ASTRef *ResolveRef(ASTStmt *Stmt, SymVar *Var, ASTRef *Ref);
 
-        SymType *FindType(llvm::StringRef Name, llvm::SmallVector<SymNameSpace *, 4> &NameSpaces) const;
+        SymType *FindType(llvm::StringRef Name, SymNameSpace *CurrentNameSpace) const;
     };
 
 } // end namespace fly

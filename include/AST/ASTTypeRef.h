@@ -39,6 +39,7 @@ namespace fly {
             bool Array = false);
 
     public:
+
         SymType *getSym() const;
 
         bool isArray() const;

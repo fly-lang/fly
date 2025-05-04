@@ -39,10 +39,6 @@ const llvm::StringMap<SymFunction *> &SymModule::getFunctions() const {
 	return Functions;
 }
 
-const llvm::StringMap<SymClass *> &SymModule::getClasses() const {
-	return Classes;
-}
-
-const llvm::StringMap<SymEnum *> &SymModule::getEnums() const {
-	return Enums;
+const llvm::StringMap<SymType *> &SymModule::getTypes() const {
+	return Types;
 }
