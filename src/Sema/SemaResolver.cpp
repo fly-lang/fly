@@ -51,6 +51,7 @@
 
 #include <AST/ASTAlias.h>
 #include <AST/ASTComment.h>
+#include <Sema/SemaBuilderScopes.h>
 #include <llvm/Transforms/IPO/FunctionImport.h>
 #include <Sema/SymBuilder.h>
 #include <Sym/SymCall.h>
@@ -96,8 +97,8 @@ bool SemaResolver::Resolve(Sema &S) {
     	Resolver->ResolveImports();
     	// TODO: remove GlobalVar
 		// Resolver->ResolveGlobalVars();
-    	Resolver->ResolveFunctions();
     	Resolver->ResolveTypes();
+    	Resolver->ResolveFunctions();
     }
 
     return !S.Diags.hasErrorOccurred();
@@ -247,12 +248,6 @@ void SemaResolver::ResolveTypes() {
 
 			SymClass *Sym = static_cast<SymClass *>(ST);
 
-			// Create default Constructor if it needs
-			// TODO
-			// llvm::SmallVector<ASTVar *, 8> Params;
-			// ASTBlockStmt *Body = CreateBlockStmt(SourceLocation());
-			// Class->DefaultConstructor = S.Builder->CreateClassConstructor(SourceLocation(), *Class, Scopes, Params, Body);
-
 			if (Sym->Comment) {
 				ResolveComment(Sym->Comment, Sym->getAST());
 			}
@@ -265,7 +260,7 @@ void SemaResolver::ResolveTypes() {
 					Comment = nullptr;
 				}	break;
 				case ASTKind::AST_FUNCTION: {
-					S.getSymBuilder().CreateClassFunction(Sym, static_cast<ASTFunction *>(AST), Comment);
+					S.getSymBuilder().CreateClassMethod(Sym, static_cast<ASTFunction *>(AST), Comment);
 					Comment = nullptr;
 				}	break;
 				case ASTKind::AST_COMMENT:
@@ -273,16 +268,21 @@ void SemaResolver::ResolveTypes() {
 					break;
 				default:
 					// Error: invalid declaration in class
-						S.Diag(AST->getLocation(), diag::err_syntax_error);
+					S.Diag(AST->getLocation(), diag::err_syntax_error);
 					break;
 				}
 			}
 
-			// TODO: create default constructor
-			// if (Constructor == nullptr) {
-			// 	// Create a Default Constructor
-			// 	Constructor = S.getSymBuilder().CreateConstructor(Class, Mangled);
-			// }
+			// Create the default constructor
+			if (Sym->getConstructors().empty()) {
+				SmallVector<ASTScope *, 8> Scopes = SemaBuilderScopes::Build()
+				             ->addVisibility(SourceLocation(), ASTVisibilityKind::V_DEFAULT)->getScopes();
+				llvm::SmallVector<ASTVar *, 8> Params;
+				ASTBlockStmt *Body = S.getASTBuilder().CreateBlockStmt(SourceLocation());
+				ASTFunction * AST = S.getASTBuilder().CreateFunction(Module->getAST(), Sym->getAST()->getLocation(),
+				                                           nullptr, Sym->getAST()->getName(), Scopes, Params, Body);
+				SymClassMethod * DefaultConstructor = S.getSymBuilder().CreateClassMethod(Sym, AST, nullptr);
+			}
 
 			// Resolve Super Classes
 			for (auto ClassTypeRef : Sym->getAST()->getSuperClasses()) {
@@ -625,7 +625,6 @@ SymType *SemaResolver::ResolveValue(ASTValue *V) {
 			return S.getSymTable().getBoolType();
 
 		case ASTValueKind::VAL_INT:
-			// TODO check Min/Max and convert to the right type
 			return S.getSymTable().getIntType();
 
 		case ASTValueKind::VAL_FLOAT:
@@ -702,8 +701,8 @@ bool SemaResolver::ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr) {
                         Expr->Type = Call->getSym()->getFunction()->getReturnType();
                         break;
                     case ASTCallKind::CALL_NEW: {
-                    	SymFunctionBase *Method = Call->getSym()->getFunction();
-                        Expr->Type = Method->getReturnType();
+                    	SymClassMethod *Method = static_cast<SymClassMethod *>(Call->getSym()->getFunction());
+                        Expr->Type = Method->getClass();
                     }
                     break;
                 }
@@ -845,13 +844,6 @@ bool SemaResolver::ResolveTypeRef(ASTTypeRef *&TypeRef) {
 		SymNameSpace * CurrentNameSpace = ResolveNameSpaceRef(Current);
 
 		// Resolve from top-bottom
-		return ResolveTypeRef(TypeRef, CurrentNameSpace);
-	}
-}
-
-bool SemaResolver::ResolveTypeRef(ASTTypeRef *TypeRef, SymNameSpace *CurrentNameSpace) {
-	if (!TypeRef->isResolved()) {
-
 		if (TypeRef->Sym) {
 			// TypeRef is already resolved
 			TypeRef->Resolved = true;

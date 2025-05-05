@@ -75,7 +75,7 @@ namespace fly {
 
     	SymClassAttribute *CreateClassAttribute(SymClass *Class, ASTVar *AST, SymComment *Comment);
 
-    	SymClassMethod *CreateClassFunction(SymClass *Class, ASTFunction *AST, SymComment *Comment);
+    	SymClassMethod *CreateClassMethod(SymClass *Class, ASTFunction *AST, SymComment *Comment);
 
     	SymEnum *CreateEnum(SymModule *Module, ASTEnum *AST);
 

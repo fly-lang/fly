@@ -238,7 +238,7 @@ ASTBase *Parser::ParseDefinition() {
 SmallVector<ASTScope *, 8> Parser::ParseScopes() {
     FLY_DEBUG_START("ClassParser", "ParseScopes");
 
-    SemaBuilderScopes *BuilderScopes = SemaBuilderScopes::Create();
+    SemaBuilderScopes *BuilderScopes = SemaBuilderScopes::Build();
 
     while (Tok.isNot(tok::eof)) {
         ASTScope *Scope;

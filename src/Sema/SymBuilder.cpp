@@ -333,7 +333,7 @@ SymClass * SymBuilder::CreateClass(SymModule *Module, ASTClass *AST) {
 SymClassAttribute * SymBuilder::CreateClassAttribute(SymClass *Class, ASTVar *AST, SymComment *Comment) {
 	FLY_DEBUG_START("SymBuilder", "CreateClassAttribute");
 
-	SymClassAttribute *Attribute = new SymClassAttribute(AST);
+	SymClassAttribute *Attribute = new SymClassAttribute(AST, Class);
 
 	Class->Attributes.insert(std::make_pair(AST->getName(), Attribute));
 	AST->Sym = Attribute;
@@ -343,20 +343,21 @@ SymClassAttribute * SymBuilder::CreateClassAttribute(SymClass *Class, ASTVar *AS
 	return Attribute;
 }
 
-SymClassMethod * SymBuilder::CreateClassFunction(SymClass *Class, ASTFunction *AST, SymComment *Comment) {
+SymClassMethod * SymBuilder::CreateClassMethod(SymClass *Class, ASTFunction *AST, SymComment *Comment) {
 	FLY_DEBUG_START("SymBuilder", "CreateClassFunction");
 
-	SymClassMethod *Method = new SymClassMethod(AST);
-	//Class->Methods.insert(std::make_pair(AST->getName(), Method)); // FIXME
+	SymClassMethod *Method = new SymClassMethod(AST, Class);
+	std::string MangledName = Method->getMangledName();
 
-	// Set Constructor Class
-	// Constructor->Class = &Class;// Remove Default Constructor
-	// if (Class.DefaultConstructor == nullptr) {
-	// 	delete Class.DefaultConstructor;
-	// 	Class.DefaultConstructor = nullptr;
-	// 	Class.Constructors.clear();
-	// }
+	if (AST->getName() == Class->getName()) {
+		Method->MethodKind = SymClassMethodKind::METHOD_CONSTRUCTOR;
+		Class->Constructors.insert(std::make_pair(MangledName, Method));
+	} else {
+		Method->MethodKind = SymClassMethodKind::METHOD;
+		Class->Methods.insert(std::make_pair(MangledName, Method));
+	}
 
+	AST->Sym = Method;
 	Method->Comment = Comment;
 
 	FLY_DEBUG_END("SymBuilder", "CreateClassFunction");

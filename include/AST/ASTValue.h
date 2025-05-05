@@ -46,7 +46,6 @@ namespace fly {
 
         const ASTValueKind &getTypeKind() const;
 
-        std::string str() const override;
     };
 
     /**
@@ -65,8 +64,6 @@ namespace fly {
     public:
 
         bool getValue() const;
-
-        std::string print() const;
 
         std::string str() const override;
     };
@@ -104,15 +101,13 @@ namespace fly {
         friend class SemaResolver;
         friend class SemaValidator;
 
-        std::string Value;
+        llvm::StringRef Value;
 
         ASTFloatingValue(const SourceLocation &Loc, llvm::StringRef Val);
 
     public:
 
-        std::string getValue() const;
-
-        std::string print() const;
+        llvm::StringRef getValue() const;
 
         std::string str() const override;
     };
@@ -154,8 +149,6 @@ namespace fly {
 
         llvm::StringRef getValue() const;
 
-        std::string print() const;
-
         std::string str() const override;
     };
 
@@ -179,8 +172,6 @@ namespace fly {
         size_t size() const;
 
         bool empty() const;
-
-        std::string print() const;
 
         std::string str() const override;
     };
@@ -206,8 +197,6 @@ namespace fly {
 
         bool empty() const;
 
-        std::string print() const;
-
         std::string str() const override;
     };
 
@@ -220,8 +209,6 @@ namespace fly {
         explicit ASTNullValue(const SourceLocation &Loc);
 
     public:
-
-        std::string print() const;
 
         std::string str() const override;
     };

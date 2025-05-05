@@ -20,9 +20,13 @@
 
 using namespace fly;
 
-SymFunctionBase::SymFunctionBase(ASTFunction *AST, SymFunctionKind Kind) : AST(AST), Kind(Kind),
-	ErrorHandler(new SymErrorHandler()) {
+SymFunctionBase::SymFunctionBase(ASTFunction *AST, SymFunctionKind Kind, std::string MangledName) :
+	AST(AST), Kind(Kind), MangledName(MangledName), ErrorHandler(new SymErrorHandler()) {
 
+}
+
+std::string SymFunctionBase::getMangledName() const {
+	return MangledName;
 }
 
 llvm::SmallVector<SymParam *, 8> &SymFunctionBase::getParams() {
@@ -91,15 +95,6 @@ std::string MangleType(SymType *Type) {
 	}
 
 	return Mangled;
-}
-
-// Function to mangle a type reference
-std::string SymFunctionBase::MangleFunction(ASTFunction *AST) {
-	llvm::SmallVector<SymType *, 8> Params;
-	for (auto Param : AST->getParams()) {
-		Params.push_back(Param->getTypeRef()->getSym());
-	}
-	return MangleFunction(AST->getName(), Params);
 }
 
 // Function to generate a unique mangled function name

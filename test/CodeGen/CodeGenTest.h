@@ -82,9 +82,9 @@ public:
                     ErrorTypeRef(S->getASTBuilder().CreateErrorTypeRef(SourceLoc)),
 					StringTypeRef(S->getASTBuilder().CreateStringTypeRef(SourceLoc)),
 					CharTypeRef(S->getASTBuilder().CreateCharTypeRef(SourceLoc)),
-                    TopScopes(SemaBuilderScopes::Create()
+                    TopScopes(SemaBuilderScopes::Build()
                               ->addVisibility(SourceLocation(), ASTVisibilityKind::V_DEFAULT)->getScopes()),
-                    EmptyScopes(SemaBuilderScopes::Create()->getScopes()) {
+                    EmptyScopes(SemaBuilderScopes::Build()->getScopes()) {
         llvm::InitializeAllTargets();
         llvm::InitializeAllTargetMCs();
         llvm::InitializeAllAsmPrinters();

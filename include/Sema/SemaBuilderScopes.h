@@ -25,7 +25,7 @@ namespace fly {
 
     public:
 
-        static SemaBuilderScopes *Create();
+        static SemaBuilderScopes *Build();
 
         SemaBuilderScopes *addVisibility(const SourceLocation &Loc, ASTVisibilityKind VisibilityKind);
 

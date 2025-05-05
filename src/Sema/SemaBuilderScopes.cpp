@@ -12,7 +12,7 @@
 
 using namespace fly;
 
-SemaBuilderScopes *SemaBuilderScopes::Create() {
+SemaBuilderScopes *SemaBuilderScopes::Build() {
     return new SemaBuilderScopes();
 }
 

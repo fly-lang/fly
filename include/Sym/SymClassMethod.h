@@ -50,7 +50,9 @@ namespace fly {
 
     	SymComment *Comment = nullptr;
 
-        explicit SymClassMethod(ASTFunction *AST);
+        explicit SymClassMethod(ASTFunction *AST, SymClass *Class);
+
+    	std::string MangleFunction(ASTFunction *AST);
 
     public:
 

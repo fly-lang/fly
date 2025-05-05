@@ -37,7 +37,7 @@ namespace fly {
 
     protected:
 
-        explicit SymClassAttribute(ASTVar *AST);
+        explicit SymClassAttribute(ASTVar *AST, SymClass *Class);
 
     public:
 

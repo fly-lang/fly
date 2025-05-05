@@ -21,24 +21,12 @@ const ASTValueKind &ASTValue::getTypeKind() const {
     return ValueKind;
 }
 
-std::string ASTValue::str() const {
-    return Logger("ASTValue").
-	Attr("Location", getLocation()).
-Attr("Kind", static_cast<size_t>(getKind())).
-            Attr("Kind", (uint64_t) ValueKind).
-            End();
-}
-
 ASTBoolValue::ASTBoolValue(const SourceLocation &Loc, bool Value) : ASTValue(ASTValueKind::VAL_BOOL, Loc), Value(Value) {
 
 }
 
 bool ASTBoolValue::getValue() const {
     return Value;
-}
-
-std::string ASTBoolValue::print() const {
-    return Value ? "true" : "false";
 }
 
 std::string ASTBoolValue::str() const {
@@ -76,11 +64,7 @@ ASTFloatingValue::ASTFloatingValue(const SourceLocation &Loc, llvm::StringRef Va
 
 }
 
-std::string ASTFloatingValue::getValue() const {
-    return Value;
-}
-
-std::string ASTFloatingValue::print() const {
+llvm::StringRef ASTFloatingValue::getValue() const {
     return Value;
 }
 
@@ -118,10 +102,6 @@ llvm::StringRef ASTStringValue::getValue() const {
     return Value;
 }
 
-std::string ASTStringValue::print() const {
-    return Value.data();
-}
-
 std::string ASTStringValue::str() const {
     return Logger("ASTStringValue").
 	Attr("Location", getLocation()).
@@ -138,21 +118,17 @@ uint64_t ASTArrayValue::size() const {
     return Values.size();
 }
 
-std::string ASTArrayValue::print() const {
-    std::string Str;
-    for (auto Value : Values) {
-        Str += Value->str() + ", ";
-    }
-    Str = Str.substr(0, Str.size()-1); // remove final comma
-    return Str;
-}
-
 std::string ASTArrayValue::str() const {
+	std::string Str;
+	for (auto Value : Values) {
+	    Str += Value->str() + ", ";
+	}
+	Str = Str.substr(0, Str.size()-1); // remove final comma
     return Logger("ASTArrayValue").
 	Attr("Location", getLocation()).
-Attr("Kind", static_cast<size_t>(getKind())).
-            Attr("Values", ASTBase::str(Values)).
-            End();
+	Attr("Kind", static_cast<size_t>(getKind())).
+	Attr("Values", Str).
+	End();
 }
 
 bool ASTArrayValue::empty() const {
@@ -171,21 +147,17 @@ uint64_t ASTStructValue::size() const {
     return Values.size();
 }
 
-std::string ASTStructValue::print() const {
-    std::string Str;
-    for (auto &Value : Values) {
-        Str += std::string(Value.getKey().data()) + ": " + Value.getValue()->str() + ", ";
-    }
-    Str = Str.substr(0, Str.size()-1); // remove final comma
-    return Str;
-}
-
 std::string ASTStructValue::str() const {
+	std::string Str;
+	for (auto &Value : Values) {
+	    Str += std::string(Value.getKey().data()) + ": " + Value.getValue()->str() + ", ";
+	}
+	Str = Str.substr(0, Str.size()-1); // remove final comma
     return Logger("ASTStructValue").
-	Attr("Location", getLocation()).
-Attr("Kind", static_cast<size_t>(getKind())).
-            Attr("Values", print()).
-            End();
+		Attr("Location", getLocation()).
+		Attr("Kind", static_cast<size_t>(getKind())).
+		Attr("Values", Str).
+		End();
 }
 
 bool ASTStructValue::empty() const {
@@ -198,10 +170,6 @@ const llvm::StringMap<ASTValue *> &ASTStructValue::getValues() const {
 
 ASTNullValue::ASTNullValue(const SourceLocation &Loc) : ASTValue(ASTValueKind::VAL_NULL, Loc) {
 
-}
-
-std::string ASTNullValue::print() const {
-    return "null";
 }
 
 std::string ASTNullValue::str() const {

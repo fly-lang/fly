@@ -11,7 +11,7 @@
 
 using namespace fly;
 
-SymClassAttribute::SymClassAttribute(ASTVar *AST) : SymVar(AST, SymVarKind::VAR_CLASS) {
+SymClassAttribute::SymClassAttribute(ASTVar *AST, SymClass *Class) : SymVar(AST, SymVarKind::VAR_CLASS), Class(Class) {
 
 }
 

@@ -9,10 +9,23 @@
 
 #include "Sym/SymClassMethod.h"
 
+#include <AST/ASTFunction.h>
+#include <AST/ASTVar.h>
+
 using namespace fly;
 
-SymClassMethod::SymClassMethod(ASTFunction *AST) : SymFunctionBase(AST, SymFunctionKind::METHOD) {
+SymClassMethod::SymClassMethod(ASTFunction *AST, SymClass *Class) :
+	SymFunctionBase(AST, SymFunctionKind::METHOD, MangleFunction(AST)), Class(Class) {
 
+}
+
+// Function to mangle a type reference
+std::string SymClassMethod::MangleFunction(ASTFunction *AST) {
+	llvm::SmallVector<SymType *, 8> Params;
+	for (auto Param : AST->getParams()) {
+		Params.push_back(Param->getTypeRef()->getSym());
+	}
+	return SymFunctionBase::MangleFunction(AST->getName(), Params);
 }
 
 SymClass * SymClassMethod::getClass() const {

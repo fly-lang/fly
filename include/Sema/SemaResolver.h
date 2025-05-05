@@ -127,8 +127,6 @@ class ASTValue;
 
         bool ResolveTypeRef(ASTTypeRef *&Type);
 
-        bool ResolveTypeRef(ASTTypeRef *TypeRef, SymNameSpace *CurrentNameSpace);
-
         ASTRef *ResolveRef(ASTStmt *Stmt, ASTRef *Ref);
 
         ASTRef *ResolveRef(ASTStmt *Stmt, ASTRef *Ref, SymNameSpace *CurrentNameSpace);

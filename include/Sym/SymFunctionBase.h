@@ -37,6 +37,8 @@ class ASTVar;
         friend class SemaResolver;
         friend class SemaValidator;
 
+        const std::string MangledName;
+
         llvm::SmallVector<SymParam *, 8> Params;
 
         SymType *ReturnType;
@@ -51,9 +53,11 @@ class ASTVar;
 
     protected:
 
-        explicit SymFunctionBase(ASTFunction *AST, SymFunctionKind Kind);
+        explicit SymFunctionBase(ASTFunction *AST, SymFunctionKind Kind, std::string MangledName);
 
     public:
+
+        std::string getMangledName() const;
 
         llvm::SmallVector<SymParam *, 8> &getParams();
 
@@ -66,8 +70,6 @@ class ASTVar;
         llvm::SmallVector<SymVar *, 8> getLocalVars();
 
         SymErrorHandler *getErrorHandler() const;
-
-        static std::string MangleFunction(ASTFunction *AST);
 
         static std::string MangleFunction(llvm::StringRef Name, const llvm::SmallVector<SymType *, 8> &Params);
 

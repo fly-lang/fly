@@ -30,8 +30,6 @@ namespace fly {
 
         SymModule *Module;
 
-        const std::string MangledName;
-
         SymComment *Comment = nullptr;
 
         SymVisibilityKind Visibility = SymVisibilityKind::DEFAULT;
@@ -41,11 +39,11 @@ namespace fly {
 
         explicit SymFunction(ASTFunction *AST);
 
+        std::string MangleFunction(ASTFunction *AST);
+
     public:
 
         SymModule *getModule() const;
-
-        std::string getMangledName() const;
 
         SymComment *getComment() const;
 

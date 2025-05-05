@@ -8,21 +8,27 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sym/SymFunction.h"
+
+#include <AST/ASTFunction.h>
 #include <AST/ASTVar.h>
 
 using namespace fly;
 
-SymFunction::SymFunction(ASTFunction *AST) : SymFunctionBase(AST, SymFunctionKind::FUNCTION),
-	MangledName(MangleFunction(AST)) {
+SymFunction::SymFunction(ASTFunction *AST) : SymFunctionBase(AST, SymFunctionKind::FUNCTION, MangleFunction(AST)) {
 
+}
+
+// Function to mangle a type reference
+std::string SymFunction::MangleFunction(ASTFunction *AST) {
+	llvm::SmallVector<SymType *, 8> Params;
+	for (auto Param : AST->getParams()) {
+		Params.push_back(Param->getTypeRef()->getSym());
+	}
+	return SymFunctionBase::MangleFunction(AST->getName(), Params);
 }
 
 SymModule * SymFunction::getModule() const {
 	return Module;
-}
-
-std::string SymFunction::getMangledName() const {
-	return MangledName;
 }
 
 SymComment * SymFunction::getComment() const {
