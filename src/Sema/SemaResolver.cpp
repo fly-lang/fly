@@ -618,53 +618,51 @@ bool SemaResolver::ResolveStmtHandle(ASTHandleStmt *HandleStmt) {
     return ResolveStmt(HandleStmt->Handle);
 }
 
-SymType *SemaResolver::ResolveValue(ASTValue *V) {
-	switch (V->getTypeKind()) {
+bool SemaResolver::ResolveValue(ASTValue *AST) {
+	assert(AST && "Value cannot be null");
+	switch (AST->getTypeKind()) {
 
+		// Bool Value
 		case ASTValueKind::VAL_BOOL:
-			return S.getSymTable().getBoolType();
+			return S.SBuilder->CreateBoolValue(static_cast<ASTBoolValue *>(AST));
 
-		case ASTValueKind::VAL_INT:
-			return S.getSymTable().getIntType();
+		// Number Value
+		case ASTValueKind::VAL_NUMBER:
+			return S.SBuilder->CreateNumberValue(static_cast<ASTNumberValue *>(AST));
 
-		case ASTValueKind::VAL_FLOAT:
-			return S.getSymTable().getDoubleType();
-
+		// String Value
 		case ASTValueKind::VAL_STRING:
-			return S.getSymTable().getStringType();
+			return S.SBuilder->CreateStringValue(static_cast<ASTStringValue *>(AST));
 
-		case ASTValueKind::VAL_CHAR:
-			return S.getSymTable().getCharType();
+		// Array Value
 		case ASTValueKind::VAL_ARRAY: {
-			ASTArrayValue *AV = static_cast<ASTArrayValue *>(V);
-
-			// Take the size from the array values
-			size_t Size = AV->getValues().size();
-
-			// Set the type with the first array value type
-			SymType *FirstType = Size > 0 ? ResolveValue(AV->getValues()[0]) : S.getSymTable().getVoidType();
-			for (size_t i = 1; i < AV->getValues().size(); i++) {
-				SymType *ValueType = ResolveValue(AV->getValues()[i]);
-				if (ValueType->getKind() != FirstType->getKind()) {
-
-					// check array type conflict
-					S.Diag(AV->getValues()[i]->getLocation(), diag::err_array_type_conflict)
-                        << FirstType->getName() << ValueType->getName();
-					break;
-				}
+			ASTArrayValue * ArrayAST = static_cast<ASTArrayValue *>(AST);
+			SemaArrayValue *Array = S.SBuilder->CreateArrayValue(ArrayAST);
+			for (auto Value : ArrayAST->getValues()) {
+				if (ResolveValue(Value))
+					Array->Values.push_back(Value->getSema());
 			}
-			return S.getSymBuilder().CreateArrayType(FirstType);
+			return Array;
 		}
-			break;
-		case ASTValueKind::VAL_STRUCT:
-			// TODO
-			break;
+
+		// Struct Value
+		case ASTValueKind::VAL_STRUCT: {
+			ASTStructValue * StructAST = static_cast<ASTStructValue *>(AST);
+			SemaStructValue *Struct = S.SBuilder->CreateStructValue(StructAST);
+			for (auto &Entry : StructAST->getValues()) {
+				if (ResolveValue(Entry.second))
+                    Struct->Values.insert(std::make_pair(Entry.getKey(), Entry.second->getSema()));
+			}
+			return Struct;
+		}
+
 		case ASTValueKind::VAL_NULL:
-			return nullptr;
+			assert(AST && "Unexpected null value");
+			break;
 	}
 
-	assert(false && "Invalid ASTValueKind");
-	return nullptr;
+    assert(false && "Invalid ASTValueKind");
+	return false;
 }
 
 /**
@@ -681,9 +679,11 @@ bool SemaResolver::ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr) {
     switch (Expr->getExprKind()) {
         case ASTExprKind::EXPR_VALUE: {
             // Select the best option for this Value
-            ASTValueExpr *ValueExpr = static_cast<ASTValueExpr*>(Expr);
-        	ValueExpr->Type = ResolveValue(ValueExpr->getValue());
-            return S.getValidator().CheckValue(ValueExpr->getValue());
+            ASTValue *Value = static_cast<ASTValueExpr*>(Expr)->getValue();
+        	if (ResolveValue(Value)) {
+        		Expr->Type = Value->getSema()->getType();
+        		return true;
+        	}
         }
         case ASTExprKind::EXPR_VAR_REF: {
             ASTVarRef *VarRef = static_cast<ASTVarRefExpr*>(Expr)->getVarRef();

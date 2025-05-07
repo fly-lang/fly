@@ -188,9 +188,6 @@ private:
     /// Parse a value.
     ASTValue *ParseValue();
 
-    /// Parse a number value.
-    ASTValue *ParseValueNumber(llvm::StringRef Value);
-
     /// Parse multiple values.
     ASTValue *ParseValues();
 

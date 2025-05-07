@@ -58,8 +58,6 @@ namespace fly {
 
         SymType *VoidType;
 
-        SymType *CharType;
-
         SymType *StringType;
 
         SymType *ErrorType;

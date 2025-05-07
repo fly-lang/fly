@@ -12,6 +12,8 @@
 
 #include <AST/ASTCall.h>
 #include <AST/ASTTypeRef.h>
+#include <AST/ASTValue.h>
+#include <Sym/SemaValue.h>
 #include <Sym/SymCall.h>
 #include <Sym/SymClass.h>
 #include <Sym/SymLocalVar.h>
@@ -96,6 +98,16 @@ namespace fly {
     	SymParam *CreateParam(fly::ASTVar* Param);
 
     	SymCall *CreateCall(ASTCall *Call);
+
+    	SemaBoolValue *CreateBoolValue(ASTBoolValue *Value);
+
+    	SemaValue *CreateNumberValue(ASTNumberValue *Value);
+
+    	SemaStringValue *CreateStringValue(ASTStringValue *Value);
+
+    	SemaArrayValue *CreateArrayValue(ASTArrayValue *AST) ;
+
+    	SemaStructValue *CreateStructValue(ASTStructValue *AST);
 
     };
 

@@ -55,6 +55,7 @@ namespace fly {
     class SymFunctionBase;
     class SymVar;
     class SymCall;
+    class SemaValue;
 
     class CodeGenModule {
 
@@ -187,7 +188,7 @@ namespace fly {
 
         llvm::Constant *GenDefaultValue(SymType *Type, llvm::Type *Ty = nullptr);
 
-        llvm::Value *GenValue(SymType *Type, ASTValue *Val);
+        llvm::Value *GenValue(SymType *Type, SemaValue *Val);
 
 //        llvm::Value *Convert(llvm::Value *V, llvm::Type *T);
 
@@ -222,6 +223,7 @@ namespace fly {
         void GenLoopBlock(CodeGenFunctionBase *CGF, ASTLoopStmt *Loop);
 
         void GenReturn(ASTFunction *CGF, ASTExpr *Expr = nullptr);
+
     };
 }
 

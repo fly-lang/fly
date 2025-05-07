@@ -1006,9 +1006,6 @@ ASTTypeRef * Parser::ParseBuiltinTypeRef() {
 	case tok::kw_void:
 		TypeRef = Builder.CreateVoidTypeRef(ConsumeToken());
 		break;
-	case tok::kw_char:
-		TypeRef = Builder.CreateCharTypeRef(ConsumeToken());
-		break;
 	case tok::kw_string:
 		TypeRef = Builder.CreateStringTypeRef(ConsumeToken());
 		break;
@@ -1166,12 +1163,12 @@ ASTValue *Parser::ParseValue() {
     // Parse Numeric Constants
     if (Tok.is(tok::numeric_constant)) {
         llvm::StringRef Val = llvm::StringRef(Tok.getLiteralData(), Tok.getLength());
-        return ParseValueNumber(Val);
+        return Builder.CreateNumberValue(Tok.getLocation(), Val);
     }
 
     if (Tok.isCharLiteral()) {
         llvm::StringRef Val = llvm::StringRef(Tok.getLiteralData(), Tok.getLength());
-        return Builder.CreateCharValue(ConsumeToken(), Val);
+        return Builder.CreateStringValue(ConsumeToken(), Val);
     }
 
     if (Tok.isStringLiteral()) {
@@ -1194,32 +1191,6 @@ ASTValue *Parser::ParseValue() {
 
     Diag(diag::err_invalid_value) << Tok.getName();
     return nullptr;
-}
-
-ASTValue *Parser::ParseValueNumber(llvm::StringRef Value) {
-    FLY_DEBUG_MESSAGE("Parser", "ParseValueNumber", "Value=" << Value);
-
-    const SourceLocation &Loc = ConsumeToken();
-
-    llvm::Regex FloatRegex(R"(^[-+]?[0-9]*\.[0-9]+([eE][-+]?[0-9]+)?$)");
-
-    if (Value.substr(0, 2) == "0b" || Value.substr(0, 2) == "0B") {
-        // Binary
-        return Builder.CreateIntegerValue(Loc, Value, 2);
-    } else if (Value.substr(0, 2) == "0x" || Value.substr(0, 2) == "0X") {
-        // Hexadecimal
-        return Builder.CreateIntegerValue(Loc, Value, 16);
-    } else if (Value[0] == '0' && Value.size() > 1) {
-        // Octal
-        return Builder.CreateIntegerValue(Loc, Value, 8);
-    } else if (FloatRegex.match(Value)) {
-        // Floating point
-        return Builder.CreateFloatingValue(Loc, Value);
-    } else {
-        // Decimal
-        return Builder.CreateIntegerValue(Loc, Value, 10);
-    }
-
 }
 
 /**

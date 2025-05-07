@@ -216,7 +216,7 @@ namespace {
         // }
         ASTBlockStmt *Body2 = getASTBuilder().CreateBlockStmt(SourceLoc);
         ASTFunction *TestFail2 = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "testFail", TopScopes, Params, Body2);
-        ASTIntegerValue *IntVal = getASTBuilder().CreateIntegerValue(SourceLoc, "10");
+        ASTNumberValue *IntVal = getASTBuilder().CreateNumberValue(SourceLoc, "10");
         SemaBuilderStmt *Fail2Stmt = getASTBuilder().CreateFailStmt(Body2, SourceLoc);
         Fail2Stmt->setExpr(getASTBuilder().CreateExpr(IntVal));
 

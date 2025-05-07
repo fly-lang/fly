@@ -165,6 +165,7 @@ add_library(flyLib
         Sym/SymTable.cpp
         Sym/SymType.cpp
         Sym/SymVar.cpp
+        Sym/SemaValue.cpp
 )
 
 #if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")

@@ -78,10 +78,6 @@ SymType * SymTable::getVoidType() const {
 	return VoidType;
 }
 
-SymType * SymTable::getCharType() const {
-	return CharType;
-}
-
 SymType * SymTable::getStringType() const {
 	return StringType;
 }

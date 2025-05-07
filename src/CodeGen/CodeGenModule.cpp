@@ -50,13 +50,14 @@
 #include <AST/ASTTypeRef.h>
 #include <AST/ASTVar.h>
 #include <CodeGen/CharUnits.h>
+#include <Sym/SemaValue.h>
 #include <Sym/SymCall.h>
 #include <Sym/SymClass.h>
 #include <Sym/SymClassMethod.h>
 #include <Sym/SymEnum.h>
 #include <Sym/SymEnumEntry.h>
 #include <Sym/SymFunction.h>
-#include <Sym/SymGlobalVar.h>
+#include <Sym/SemaValue.h>
 
 using namespace llvm;
 using namespace fly;
@@ -299,10 +300,6 @@ llvm::Type *CodeGenModule::GenType(SymType *Type) {
             return llvm::ArrayType::get(Int8Ty, 0);
         }
 
-	    case SymTypeKind::TYPE_CHAR: {
-        		return Int8Ty;
-	    }
-
         case SymTypeKind::TYPE_CLASS: {
             SymClass *Class = static_cast<SymClass *>(Type);
             return Class->getCodeGen()->getType();
@@ -383,98 +380,134 @@ llvm::Constant *CodeGenModule::GenDefaultValue(SymType *Type, llvm::Type *Ty) {
  * @param Val need to be correctly configured or you need to call GenDefaultValue()
  * @return
  */
-llvm::Value *CodeGenModule::GenValue(SymType *Type, ASTValue *Val) {
+llvm::Value *CodeGenModule::GenValue(SymType *Type, SemaValue *Val) {
     FLY_DEBUG_START("CodeGenModule", "GenValue");
     assert(Type && "Type has to be not empty");
     assert(Val && "Value has to be not empty");
 
     //TODO value conversion from Val->getType() to TypeBase (if are different)
 
-    switch (Type->getKind()) {
+	switch (Val->getType()->getKind()) {
 
-        // Bool
-        case SymTypeKind::TYPE_BOOL:
-        	return static_cast<ASTBoolValue *>(Val)->getValue() ?
-        		llvm::ConstantInt::getTrue(LLVMCtx) : llvm::ConstantInt::getFalse(LLVMCtx);
+		// Boolean Value
+		case SymTypeKind::TYPE_BOOL:
+			return static_cast<SemaBoolValue *>(Val)->getValue() ?
+					llvm::ConstantInt::getTrue(LLVMCtx) : llvm::ConstantInt::getFalse(LLVMCtx);
 
-        // Integer
-        case SymTypeKind::TYPE_INTEGER: {
-            SymTypeInt *IntegerType = static_cast<SymTypeInt *>(Type);
-            ASTIntegerValue *IntegerValue = static_cast<ASTIntegerValue *>(Val);
-        	llvm::APInt IVal(64, IntegerValue->getValue(), IntegerValue->getRadix());
-            switch (IntegerType->getIntKind()) {
-                case SymIntTypeKind::TYPE_BYTE:
-                    return llvm::ConstantInt::get(LLVMCtx, IVal.trunc(8));
-                case SymIntTypeKind::TYPE_USHORT:
-                case SymIntTypeKind::TYPE_SHORT:
-            	return llvm::ConstantInt::get(LLVMCtx, IVal.trunc(16));
-                case SymIntTypeKind::TYPE_UINT:
-                case SymIntTypeKind::TYPE_INT:
-            		return llvm::ConstantInt::get(LLVMCtx, IVal.trunc(32));
-                case SymIntTypeKind::TYPE_ULONG:
-                case SymIntTypeKind::TYPE_LONG:
-            	return llvm::ConstantInt::get(LLVMCtx, IVal.trunc(64));
-            }
-        }
+		// Integer Value
+		case SymTypeKind::TYPE_INTEGER: {
+			SemaIntValue * IntValue = static_cast<SemaIntValue *>(Val);
+			switch (Type->getKind()) {
 
-        // Floating Point
-        case SymTypeKind::TYPE_FLOATING_POINT: {
-            SymTypeFP *FPType = (SymTypeFP *) Type;
-            const std::string &FPValue = ((ASTFloatingValue *) Val)->getValue();
-            switch (FPType->getFPKind()) {
-                case SymFPTypeKind::TYPE_FLOAT:
-                    return llvm::ConstantFP::get(FloatTy, FPValue);
-                case SymFPTypeKind::TYPE_DOUBLE:
-                    return llvm::ConstantFP::get(DoubleTy, FPValue);
-            }
-        }
+				case SymTypeKind::TYPE_INTEGER:
+					switch (static_cast<SymTypeInt *>(Type)->getIntKind()) {
+						case SymIntTypeKind::TYPE_BYTE:
+							return llvm::ConstantInt::get(LLVMCtx, IntValue->getValue().trunc(8));
+						case SymIntTypeKind::TYPE_USHORT:
+						case SymIntTypeKind::TYPE_SHORT:
+							return llvm::ConstantInt::get(LLVMCtx, IntValue->getValue().trunc(16));
+						case SymIntTypeKind::TYPE_UINT:
+						case SymIntTypeKind::TYPE_INT:
+							return llvm::ConstantInt::get(LLVMCtx, IntValue->getValue().trunc(32));
+						case SymIntTypeKind::TYPE_ULONG:
+						case SymIntTypeKind::TYPE_LONG:
+							return llvm::ConstantInt::get(LLVMCtx, IntValue->getValue().trunc(64));
+					}
+					break;
+				case SymTypeKind::TYPE_FLOATING_POINT:
 
-        // Array
-        case SymTypeKind::TYPE_ARRAY: {
-            llvm::PointerType *AllocType = GenArrayType((SymTypeArray *) Type);
-            std::vector<llvm::Value *> Values;
-            for (ASTValue *Value : ((ASTArrayValue *) Val)->getValues()) {
-                llvm::Value * V = GenValue(((SymTypeArray *) Type)->getType(), Value);
-                Values.push_back(V);
-            }
+					break;
+				case SymTypeKind::TYPE_BOOL:
+					break;
+				case SymTypeKind::TYPE_STRING:
+					break;
+				case SymTypeKind::TYPE_ERROR:
+					break;
+				case SymTypeKind::TYPE_ARRAY:
+					break;
+				case SymTypeKind::TYPE_CLASS:
+					break;
+				case SymTypeKind::TYPE_ENUM:
+					break;
+				case SymTypeKind::TYPE_VOID:
+					break;
+			}
+		} break;
 
-        	// Calculate Space
-        	llvm::Value* AllocSize = ConstantInt::get(IntPtrTy, 0);
-        	if (Values.size() > 0) {
-        		llvm::Value* NumElements = ConstantInt::get(IntPtrTy, Values.size());
-        		llvm::TypeSize SizeInBytes = Target.getDataLayout().getTypeAllocSize(Values[0]->getType());
-        		llvm::Value* ElementSize = ConstantInt::get(IntPtrTy, SizeInBytes); // sizeof(int32)
-        		AllocSize = Builder->CreateMul(NumElements, ElementSize);
-        	}
+		// Floating Point Value
+		case SymTypeKind::TYPE_FLOATING_POINT: {
+			SemaFloatValue *FloatValue = static_cast<SemaFloatValue *>(Val);
 
-        	// @malloc data type struct
-        	llvm::Instruction *I = CallInst::CreateMalloc(Builder->GetInsertBlock(), IntPtrTy,
+			switch (Type->getKind()) {
+
+				case SymTypeKind::TYPE_VOID:
+					break;
+				case SymTypeKind::TYPE_BOOL:
+					break;
+				case SymTypeKind::TYPE_INTEGER:
+					break;
+				case SymTypeKind::TYPE_FLOATING_POINT: {
+					SymTypeFP *FPType = static_cast<SymTypeFP *>(Type);
+					switch (FPType->getFPKind()) {
+						case SymFPTypeKind::TYPE_FLOAT:
+							return llvm::ConstantFP::get(FloatTy, FloatValue->getValue());
+						case SymFPTypeKind::TYPE_DOUBLE:
+							return llvm::ConstantFP::get(DoubleTy, FloatValue->getValue());
+					}
+				}	break;
+				case SymTypeKind::TYPE_STRING:
+					break;
+				case SymTypeKind::TYPE_ERROR:
+					break;
+				case SymTypeKind::TYPE_ARRAY:
+					break;
+				case SymTypeKind::TYPE_CLASS:
+					break;
+				case SymTypeKind::TYPE_ENUM:
+					break;
+			}
+		} break;
+
+		// Strig Value
+		case SymTypeKind::TYPE_STRING: {
+			return Builder->CreateGlobalStringPtr(((ASTStringValue *) Val)->getValue());
+		}
+
+		// Array Value
+		case SymTypeKind::TYPE_ARRAY: {
+			SemaArrayValue *ArrayValue = static_cast<SemaArrayValue *>(Val);
+
+			llvm::PointerType *AllocType = GenArrayType((SymTypeArray *) Type);
+			std::vector<llvm::Value *> Values;
+			for (SemaValue *Value : ArrayValue->getValues()) {
+				llvm::Value * V = GenValue(((SymTypeArray *) Type)->getType(), Value);
+				Values.push_back(V);
+			}
+
+			// Calculate Space
+			llvm::Value* AllocSize = ConstantInt::get(IntPtrTy, 0);
+			if (Values.size() > 0) {
+				llvm::Value* NumElements = ConstantInt::get(IntPtrTy, Values.size());
+				llvm::TypeSize SizeInBytes = Target.getDataLayout().getTypeAllocSize(Values[0]->getType());
+				llvm::Value* ElementSize = ConstantInt::get(IntPtrTy, SizeInBytes); // sizeof(int32)
+				AllocSize = Builder->CreateMul(NumElements, ElementSize);
+			}
+
+			// @malloc data type struct
+			llvm::Instruction *I = CallInst::CreateMalloc(Builder->GetInsertBlock(), IntPtrTy,
 														  AllocType, AllocSize, nullptr, nullptr);
-        	llvm::Value * Instance = Builder->Insert(I);
+			llvm::Value * Instance = Builder->Insert(I);
 
-            return Instance;
-        }
+			return Instance;
+		} break;
 
-        case SymTypeKind::TYPE_STRING: {
-            return Builder->CreateGlobalStringPtr(((ASTStringValue *) Val)->getValue());
-        }
-
-	    case SymTypeKind::TYPE_CHAR: {
-        	llvm::StringRef Str = ((ASTCharValue *) Val)->getValue();
-        	char Ch = Str.empty() ? '\0' : Str.front();
-        	return llvm::ConstantInt::get(Int8Ty, Ch);
-	    }
-
-        // Identity
-        case SymTypeKind::TYPE_CLASS:
+		case SymTypeKind::TYPE_CLASS:
+			SemaStructValue *StructValue = static_cast<SemaStructValue *>(Val);
             break;
+	}
 
-        // Void
-        case SymTypeKind::TYPE_VOID:
-            // FIXME
-            break;
-    }
     assert(0 && "Unknown Type");
+	return nullptr;
 }
 
 

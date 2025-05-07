@@ -119,7 +119,7 @@ namespace fly {
 
     class ASTBoolValue;
 
-    class ASTIntegerValue;
+    class ASTNumberValue;
 
     class ASTFloatingValue;
 
@@ -133,9 +133,7 @@ namespace fly {
 
     class ASTStructValue;
 
-    class ASTIntegerValue;
-
-    class ASTFloatingValue;
+    class ASTNumberValue;
 
     class ASTBreakStmt;
 
@@ -292,8 +290,6 @@ namespace fly {
 
         ASTTypeRef *CreateStringTypeRef(const SourceLocation &Loc);
 
-        ASTTypeRef *CreateCharTypeRef(const SourceLocation &Loc);
-
         ASTTypeRef *CreateErrorTypeRef(const SourceLocation &Loc);
 
         ASTArrayTypeRef *CreateArrayTypeRef(const SourceLocation &Loc, ASTTypeRef *TypeRef);
@@ -316,13 +312,9 @@ namespace fly {
 
         ASTBoolValue *CreateBoolValue(const SourceLocation &Loc, bool Val);
 
-        ASTIntegerValue *CreateIntegerValue(const SourceLocation &Loc, llvm::StringRef Val, uint8_t Radix = 10);
-
-        ASTFloatingValue *CreateFloatingValue(const SourceLocation &Loc, llvm::StringRef Val);
+        ASTNumberValue *CreateNumberValue(const SourceLocation &Loc, llvm::StringRef Val);
 
         ASTArrayValue *CreateArrayValue(const SourceLocation &Loc, llvm::SmallVector<ASTValue *, 8> Values);
-
-        ASTCharValue *CreateCharValue(const SourceLocation &Loc, llvm::StringRef Val);
 
         ASTStringValue *CreateStringValue(const SourceLocation &Loc, llvm::StringRef Val);
 

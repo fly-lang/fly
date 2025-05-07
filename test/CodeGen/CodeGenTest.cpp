@@ -129,7 +129,7 @@ namespace {
 						  "  store i16 0, i16* %5, align 2\n"
 						  "  store i64 0, i64* %8, align 8\n"
 						  "  store i64 0, i64* %9, align 8\n"
-						  "  store float 0.000000e+00, float* %10, align 4\n"
+						  "  store double 0.000000e+00, float* %10, align 8\n"
 						  "  store double 0.000000e+00, double* %11, align 8\n"
 						  "  ret void\n"
 						  "}\n");
@@ -204,7 +204,7 @@ namespace {
         // g = 1.0
         ASTVarRef *VarRef_g = CreateVarRef(LocalVar_g);
         SemaBuilderStmt * GVarStmt = getASTBuilder().CreateAssignmentStmt(Body, VarRef_g);
-        ASTExpr *ExprG = getASTBuilder().CreateExpr(getASTBuilder().CreateFloatingValue(SourceLoc, "1.0"));
+        ASTExpr *ExprG = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "1.0"));
         GVarStmt->setExpr(ExprG);
 
         // return g
@@ -223,7 +223,7 @@ namespace {
                           "  %1 = alloca %error*, align 8\n"
                           "  %2 = alloca float, align 4\n"
                           "  store %error* %0, %error** %1, align 8\n"
-                          "  store float 1.000000e+00, float* %2, align 4\n"
+                          "  store double 1.000000e+00, float* %2, align 8\n"
                           "  %3 = load float, float* %2, align 4\n"
                           "  ret float %3\n"
                           "}\n");
@@ -239,7 +239,7 @@ namespace {
         // int a = 1
         ASTVar *LocalVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "a", EmptyScopes);
         SemaBuilderStmt *VarStmt = getASTBuilder().CreateAssignmentStmt(Body, LocalVar);
-        ASTValueExpr *ValueExpr = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "1"));
+        ASTValueExpr *ValueExpr = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "1"));
         VarStmt->setExpr(ValueExpr);
 
         // validate and resolve
@@ -332,11 +332,11 @@ namespace {
         // E1 + (E2 * E3) / (E4 - E5)
         // E1 + (G2 / G3)
         // E1 + G1
-        ASTValueExpr *E1 = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "1"));
+        ASTValueExpr *E1 = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "1"));
         ASTVarRefExpr *E2 = getASTBuilder().CreateExpr(CreateVarRef(aParam));
         ASTVarRefExpr *E3 = getASTBuilder().CreateExpr(CreateVarRef(bParam));
         ASTVarRefExpr *E4 = getASTBuilder().CreateExpr(CreateVarRef(cParam));
-        ASTValueExpr *E5 = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "2"));
+        ASTValueExpr *E5 = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "2"));
 
         ASTBinaryOpExpr *G2 = getASTBuilder().CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_MUL, E2, E3);
         ASTBinaryOpExpr *G3 = getASTBuilder().CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_SUB, E4, E5);
@@ -389,12 +389,12 @@ namespace {
 
         // a = 0
         SemaBuilderStmt *aVarStmt = getASTBuilder().CreateAssignmentStmt(Body, CreateVarRef(aParam));
-        ASTExpr *AssignExpr = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "0"));
+        ASTExpr *AssignExpr = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "0"));
         aVarStmt->setExpr(AssignExpr);
 
         // b = 0
         SemaBuilderStmt *bVarStmt = getASTBuilder().CreateAssignmentStmt(Body, CreateVarRef(bParam));
-        AssignExpr = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "0"));
+        AssignExpr = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "0"));
         bVarStmt->setExpr(AssignExpr);
 
         // c = a + b
@@ -562,12 +562,12 @@ namespace {
 
         // a = 0
         SemaBuilderStmt *aVarStmt = getASTBuilder().CreateAssignmentStmt(Body, CreateVarRef(aVar));
-        ASTExpr *Expr1 = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "0"));
+        ASTExpr *Expr1 = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "0"));
         aVarStmt->setExpr(Expr1);
 
         // b = 0
         SemaBuilderStmt *bVarStmt = getASTBuilder().CreateAssignmentStmt(Body, CreateVarRef(bVar));
-        ASTExpr *Expr2 = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "0"));
+        ASTExpr *Expr2 = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "0"));
         bVarStmt->setExpr(Expr2);
 
         // c = a == b
@@ -815,12 +815,12 @@ namespace {
         // int a = 0
         ASTVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "a", EmptyScopes);
         SemaBuilderStmt *aVarStmt = getASTBuilder().CreateAssignmentStmt(Body, CreateVarRef(aVar));
-        ASTValueExpr *Expr1 = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "0"));
+        ASTValueExpr *Expr1 = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "0"));
         aVarStmt->setExpr(Expr1);
 
         // if (a == 1)
         ASTVarRefExpr *aVarRef = getASTBuilder().CreateExpr(CreateVarRef(aVar));
-        ASTValueExpr *Value1 = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "1"));
+        ASTValueExpr *Value1 = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "1"));
         ASTBinaryOpExpr *IfCond = getASTBuilder().CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_EQ, aVarRef, Value1);
 
         // Create/Add if block
@@ -830,7 +830,7 @@ namespace {
 
         // { a = 2 }
         SemaBuilderStmt *a2VarStmt = getASTBuilder().CreateAssignmentStmt(IfBlock, CreateVarRef(aVar));
-        ASTValueExpr *Expr2 = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "2"));
+        ASTValueExpr *Expr2 = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "2"));
         a2VarStmt->setExpr(Expr2);
 
     	// validate and resolve
@@ -870,7 +870,7 @@ namespace {
         ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
 
         // if (a == 1)
-        ASTValueExpr *Value1 = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "1"));
+        ASTValueExpr *Value1 = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "1"));
         ASTVarRefExpr *aVarRef = getASTBuilder().CreateExpr(CreateVarRef(aParam));
         ASTBinaryOpExpr *IfCond = getASTBuilder().CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_EQ,
                 aVarRef, Value1);
@@ -882,14 +882,14 @@ namespace {
 
         // { a = 1 }
         SemaBuilderStmt *aVarStmt = getASTBuilder().CreateAssignmentStmt(IfBlock, CreateVarRef(aParam));
-        ASTValueExpr *Expr1 = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "1"));
+        ASTValueExpr *Expr1 = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "1"));
         aVarStmt->setExpr(Expr1);
 
         // else {a = 2}
         ASTBlockStmt *ElseBlock = getASTBuilder().CreateBlockStmt(SourceLoc);
         IfBuilder->Else(SourceLoc, ElseBlock);
         SemaBuilderStmt *aVarStmt2 = getASTBuilder().CreateAssignmentStmt(ElseBlock, CreateVarRef(aParam));
-        ASTValueExpr *Expr2 = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "2"));
+        ASTValueExpr *Expr2 = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "2"));
         aVarStmt2->setExpr(Expr2);
 
     	// validate and resolve
@@ -935,7 +935,7 @@ namespace {
 
         // if (a == 1)
         SemaBuilderIfStmt *IfBuilder = getASTBuilder().CreateIfBuilder(Body);
-        ASTValueExpr *Value1 = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "1"));
+        ASTValueExpr *Value1 = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "1"));
         ASTVarRefExpr *aVarRef = getASTBuilder().CreateExpr(CreateVarRef(aParam));
         ASTBinaryOpExpr *IfCond = getASTBuilder().CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_EQ,
                 aVarRef, Value1);
@@ -945,35 +945,35 @@ namespace {
 
         // { a = 11 }
         SemaBuilderStmt *aVarStmt = getASTBuilder().CreateAssignmentStmt(IfBlock, CreateVarRef(aParam));
-        ASTValueExpr *Expr1 = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "11"));
+        ASTValueExpr *Expr1 = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "11"));
         aVarStmt->setExpr(Expr1);
 
         // elsif (a == 2)
         ASTBlockStmt *ElsifBlock = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTValueExpr *Value2 = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "2"));
+        ASTValueExpr *Value2 = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "2"));
         ASTBinaryOpExpr *ElsifCond = getASTBuilder().CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_EQ,
                 aVarRef, Value2);
         IfBuilder->ElseIf(SourceLoc, ElsifCond, ElsifBlock);
         // { a = 22 }
         SemaBuilderStmt *aVarStmt2 = getASTBuilder().CreateAssignmentStmt(ElsifBlock, CreateVarRef(aParam));
-        ASTValueExpr *Expr2 = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "22"));
+        ASTValueExpr *Expr2 = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "22"));
         aVarStmt2->setExpr(Expr2);
 
         // elsif (a == 3) { a = 33 }
         ASTBlockStmt *ElsifBlock2 = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTValueExpr *Value3 = getASTBuilder().CreateExpr( getASTBuilder().CreateIntegerValue(SourceLoc, "3"));
+        ASTValueExpr *Value3 = getASTBuilder().CreateExpr( getASTBuilder().CreateNumberValue(SourceLoc, "3"));
         ASTBinaryOpExpr *ElsifCond2 = getASTBuilder().CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_EQ,
                 aVarRef, Value3);
         IfBuilder->ElseIf(SourceLoc, ElsifCond2, ElsifBlock2);
         SemaBuilderStmt *aVarStmt3 = getASTBuilder().CreateAssignmentStmt(ElsifBlock2, CreateVarRef(aParam));
-        ASTValueExpr *Expr3 = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "33"));
+        ASTValueExpr *Expr3 = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "33"));
         aVarStmt3->setExpr(Expr3);
 
         // else {a == 44}
         ASTBlockStmt *ElseBlock = getASTBuilder().CreateBlockStmt(SourceLoc);
         IfBuilder->Else(SourceLoc, ElseBlock);
         SemaBuilderStmt *aVarStmt4 = getASTBuilder().CreateAssignmentStmt(ElseBlock, CreateVarRef(aParam));
-        ASTValueExpr *Expr4 = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "44"));
+        ASTValueExpr *Expr4 = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "44"));
         aVarStmt4->setExpr(Expr4);
 
     	// validate and resolve
@@ -1037,35 +1037,35 @@ namespace {
         // if a == 1
         SemaBuilderIfStmt *IfBuilder = getASTBuilder().CreateIfBuilder(Body);
         ASTBlockStmt *IfBlock = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTValueExpr *Value1 = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "1"));
+        ASTValueExpr *Value1 = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "1"));
         ASTVarRefExpr *aVarRef = getASTBuilder().CreateExpr(CreateVarRef(aParam));
         ASTBinaryOpExpr *IfCond = getASTBuilder().CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_EQ, aVarRef, Value1);
 
         // { a = 11 }
         IfBuilder->If(SourceLoc, IfCond, IfBlock);
         SemaBuilderStmt *aVarStmt = getASTBuilder().CreateAssignmentStmt(IfBlock, CreateVarRef(aParam));
-        ASTValueExpr *Expr1 = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "11"));
+        ASTValueExpr *Expr1 = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "11"));
         aVarStmt->setExpr(Expr1);
 
         // elsif (a == 2)
         ASTBlockStmt *ElsifBlock = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTValueExpr *Value2 = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "2"));
+        ASTValueExpr *Value2 = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "2"));
         ASTBinaryOpExpr *ElsifCond = getASTBuilder().CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_EQ,
                 aVarRef, Value2);
         IfBuilder->ElseIf(SourceLoc, ElsifCond, ElsifBlock);
         // { a = 22 }
         SemaBuilderStmt *aVarStmt2 = getASTBuilder().CreateAssignmentStmt(ElsifBlock, CreateVarRef(aParam));
-        ASTValueExpr *Expr2 = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "22"));
+        ASTValueExpr *Expr2 = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "22"));
         aVarStmt2->setExpr(Expr2);
 
         // elsif (a == 3) { a = 33 }
         ASTBlockStmt *ElsifBlock2 = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTValueExpr *Value3 = getASTBuilder().CreateExpr( getASTBuilder().CreateIntegerValue(SourceLoc, "3"));
+        ASTValueExpr *Value3 = getASTBuilder().CreateExpr( getASTBuilder().CreateNumberValue(SourceLoc, "3"));
         ASTBinaryOpExpr *ElsifCond2 = getASTBuilder().CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_EQ,
                 aVarRef, Value3);
         IfBuilder->ElseIf(SourceLoc, ElsifCond2, ElsifBlock2);
         SemaBuilderStmt *aVarStmt3 = getASTBuilder().CreateAssignmentStmt(ElsifBlock2, CreateVarRef(aParam));
-        ASTValueExpr *Expr3 = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "33"));
+        ASTValueExpr *Expr3 = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "33"));
         aVarStmt3->setExpr(Expr3);
 
     	// validate and resolve
@@ -1128,25 +1128,25 @@ namespace {
 
         // case 1: a = 1 break
         ASTBlockStmt *Case1Block = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTValueExpr *Case1Value = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "1"));
+        ASTValueExpr *Case1Value = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "1"));
         SwitchBuilder->Case(SourceLoc, Case1Value, Case1Block);
         SemaBuilderStmt *aVarStmt1 = getASTBuilder().CreateAssignmentStmt(Case1Block, CreateVarRef(aParam));
-        ASTValueExpr *Expr1 = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "1"));
+        ASTValueExpr *Expr1 = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "1"));
         aVarStmt1->setExpr(Expr1);
 
         // case 2: a = 2 break
         ASTBlockStmt *Case2Block = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTValueExpr *Case2Value = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "2"));
+        ASTValueExpr *Case2Value = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "2"));
         SwitchBuilder->Case(SourceLoc, Case2Value, Case2Block);
         SemaBuilderStmt *aVarStmt2 = getASTBuilder().CreateAssignmentStmt(Case2Block, CreateVarRef(aParam));
-        ASTValueExpr *Expr2 = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "2"));
+        ASTValueExpr *Expr2 = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "2"));
         aVarStmt2->setExpr(Expr2);
 
         // default: a = 3
         ASTBlockStmt *DefaultBlock = getASTBuilder().CreateBlockStmt(SourceLoc);
         SwitchBuilder->Default(SourceLoc, DefaultBlock);
         SemaBuilderStmt *aVarStmt3 = getASTBuilder().CreateAssignmentStmt(DefaultBlock, CreateVarRef(aParam));
-        ASTValueExpr *Expr3 = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "3"));
+        ASTValueExpr *Expr3 = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "3"));
         aVarStmt3->setExpr(Expr3);
 
     	// validate and resolve
@@ -1198,7 +1198,7 @@ namespace {
 
         // while a == 1
         SemaBuilderLoopStmt *LoopBuilder = getASTBuilder().CreateLoopBuilder(Body, SourceLoc);
-        ASTValueExpr *Value1 = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "1"));
+        ASTValueExpr *Value1 = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "1"));
         ASTVarRefExpr *aVarRef = getASTBuilder().CreateExpr(CreateVarRef(aParam));
         ASTBinaryOpExpr *Cond = getASTBuilder().CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_EQ, aVarRef, Value1);
         ASTBlockStmt *BlockStmt = getASTBuilder().CreateBlockStmt(SourceLoc);
@@ -1206,7 +1206,7 @@ namespace {
 
         // { a = 1 }
         SemaBuilderStmt *aVarStmt = getASTBuilder().CreateAssignmentStmt(BlockStmt, CreateVarRef(aParam));
-        ASTValueExpr *Expr1 = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "1"));
+        ASTValueExpr *Expr1 = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "1"));
         aVarStmt->setExpr(Expr1);
 
     	// validate and resolve
@@ -1258,7 +1258,7 @@ namespace {
         ASTVar *iVar = getASTBuilder().CreateLocalVar(InitBlock, SourceLoc, IntTypeRef, "i", EmptyScopes);
         ASTVarRef *iVarRef = CreateVarRef(iVar);
         SemaBuilderStmt *iVarStmt = getASTBuilder().CreateAssignmentStmt(InitBlock, iVarRef);
-        ASTValueExpr *Value1Expr = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "1"));
+        ASTValueExpr *Value1Expr = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "1"));
         iVarStmt->setExpr(Value1Expr);
 
         // Condition
@@ -1280,7 +1280,7 @@ namespace {
         // Loop Block
         // { a = 1 }
         SemaBuilderStmt *aVarStmt = getASTBuilder().CreateAssignmentStmt(LoopBlock, CreateVarRef(aParam));
-        ASTValueExpr *Expr1 = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "1"));
+        ASTValueExpr *Expr1 = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "1"));
         aVarStmt->setExpr(Expr1);
 
     	// validate and resolve

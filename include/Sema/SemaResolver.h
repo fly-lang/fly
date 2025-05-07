@@ -119,7 +119,7 @@ class ASTValue;
 
         bool ResolveStmtHandle(ASTHandleStmt *HandleStmt);
 
-        SymType *ResolveValue(ASTValue *V);
+        bool ResolveValue(ASTValue *AST);
 
         bool ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr);
 

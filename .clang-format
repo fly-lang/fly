@@ -1,15 +1,13 @@
-BasedOnStyle: LLVM
-
 # Brace wrapping settings for K&R style
 BraceWrapping:
-  AfterClass: false               # Opening brace for classes stays on the same line
-  AfterControlStatement: false    # Opening brace for control statements (if, for, etc.) stays on the same line
-  AfterEnum: false                # Opening brace for enums stays on the same line
-  AfterFunction: false            # Opening brace for functions stays on the same line
-  AfterNamespace: false           # Opening brace for namespaces stays on the same line
-  AfterStruct: false              # Opening brace for structs stays on the same line
-  AfterUnion: false               # Opening brace for unions stays on the same line
-  BeforeCatch: false              # Keeps `catch` on the same line as the closing brace of `try`
+  AfterClass: true               # Opening brace for classes stays on the same line
+  AfterControlStatement: true    # Opening brace for control statements (if, for, etc.) stays on the same line
+  AfterEnum: true                # Opening brace for enums stays on the same line
+  AfterFunction: true            # Opening brace for functions stays on the same line
+  AfterNamespace: true           # Opening brace for namespaces stays on the same line
+  AfterStruct: true              # Opening brace for structs stays on the same line
+  AfterUnion: true               # Opening brace for unions stays on the same line
+  BeforeCatch: true              # Keeps `catch` on the same line as the closing brace of `try`
   BeforeElse: true                # Places `else` on the same line as the closing brace of `if`
   IndentBraces: false             # Braces do not get additional indentation
 
@@ -43,6 +41,9 @@ PointerAlignment: Right           # Align pointer symbols to the type
 # Example: int* ptr; instead of int *ptr;
 
 # Other formatting
+IndentInsideNamespace: Inner    # Indent code inside namespaces
+IndentCaseBlocks: true # Indent case blocks in switch statements
+IndentCaseLabels: true
 BreakBeforeBraces: Attach         # Attach opening braces to the same line as the statement
 BreakBeforeTernaryOperators: true # Break before ternary operators
 BreakConstructorInitializers: BeforeComma # Break constructor initializers before commas

@@ -60,8 +60,6 @@ const llvm::StringRef ASTBuilder::DEFAULT_FLOATING_VALUE = StringRef("0.0");
 
 const llvm::StringRef ASTBuilder::DEFAULT_STRING_VALUE = StringRef("");
 
-const llvm::StringRef ASTBuilder::DEFAULT_CHAR_VALUE = StringRef("'\0'");
-
 /**
  * Private constructor used only from Sema constructor
  * @param S
@@ -498,16 +496,6 @@ ASTTypeRef *ASTBuilder::CreateVoidTypeRef(const SourceLocation &Loc) {
 	return TypeRef;
 }
 
-ASTTypeRef *ASTBuilder::CreateCharTypeRef(const SourceLocation &Loc) {
-    FLY_DEBUG_MESSAGE("ASTBuilder", "CreateCharTypeRef", "Loc=" << Loc.getRawEncoding());
-
-	ASTTypeRef * TypeRef = new ASTTypeRef(Loc, llvm::StringRef("char"));
-	TypeRef->Sym = S.getSymTable().getCharType();
-
-	FLY_DEBUG_END("ASTBuilder", "CreateCharTypeRef");
-	return TypeRef;
-}
-
 ASTTypeRef *ASTBuilder::CreateStringTypeRef(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateStringTypeRef", "Loc=" << Loc.getRawEncoding());
 
@@ -631,13 +619,11 @@ ASTValue *ASTBuilder::CreateDefaultValue(SymType *Type) {
 	if (Type->isBool()) {
 		Value = CreateBoolValue(SourceLocation(), DEFAULT_BOOL_VALUE);
 	} else if (Type->isInteger()) {
-		Value = CreateIntegerValue(SourceLocation(), DEFAULT_INTEGER_VALUE, DEFAULT_INTEGER_RADIX);
+		Value = CreateNumberValue(SourceLocation(), DEFAULT_INTEGER_VALUE);
 	} else if (Type->isFloatingPoint()) {
-		Value = CreateFloatingValue(SourceLocation(), DEFAULT_FLOATING_VALUE);
+		Value = CreateNumberValue(SourceLocation(), DEFAULT_FLOATING_VALUE);
 	} else if (Type->isString()) {
 		Value = CreateStringValue(SourceLocation(), DEFAULT_STRING_VALUE);
-	} else if (Type->isChar()) {
-		Value = CreateCharValue(SourceLocation(), DEFAULT_CHAR_VALUE);
 	} else if (Type->isArray()) {
 		llvm::SmallVector<ASTValue *, 8> Values;
 		Value = CreateArrayValue(SourceLocation(), Values);
@@ -688,28 +674,13 @@ ASTBoolValue *ASTBuilder::CreateBoolValue(const SourceLocation &Loc, bool Val) {
  * @param Radix
  * @return
  */
-ASTIntegerValue *ASTBuilder::CreateIntegerValue(const SourceLocation &Loc, llvm::StringRef Val, uint8_t Radix) {
+ASTNumberValue *ASTBuilder::CreateNumberValue(const SourceLocation &Loc, llvm::StringRef Val) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateIntegerValue",
-                      "Loc=" << Loc.getRawEncoding() << ", Val=" << Val << " Radix=" << Radix);
+                      "Loc=" << Loc.getRawEncoding() << ", Val=" << Val);
 
-    ASTIntegerValue * Value = new ASTIntegerValue(Loc, Val, Radix);
+    ASTNumberValue * Value = new ASTNumberValue(Loc, Val);
 
 	FLY_DEBUG_END("ASTBuilder", "CreateIntegerValue");
-	return Value;
-}
-
-/**
- * Creates a floating point value
- * @param Loc
- * @param Val
- * @return
- */
-ASTFloatingValue *ASTBuilder::CreateFloatingValue(const SourceLocation &Loc, llvm::StringRef Val) {
-    FLY_DEBUG_MESSAGE("ASTBuilder", "CreateFloatingValue", "Loc=" << Loc.getRawEncoding() << ", Val=" << Val);
-
-    ASTFloatingValue * Value = new ASTFloatingValue(Loc, Val);
-
-	FLY_DEBUG_END("ASTBuilder", "CreateFloatingValue");
 	return Value;
 }
 
@@ -726,15 +697,6 @@ ASTArrayValue *ASTBuilder::CreateArrayValue(const SourceLocation &Loc, llvm::Sma
 
 	FLY_DEBUG_END("ASTBuilder", "CreateArrayValue");
     return Array;
-}
-
-ASTCharValue *ASTBuilder::CreateCharValue(const SourceLocation &Loc, llvm::StringRef Val) {
-    FLY_DEBUG_MESSAGE("ASTBuilder", "CreateCharValue", "Loc=" << Loc.getRawEncoding() << ", Val=" << Val);
-
-    ASTCharValue * Value = new ASTCharValue(Loc, Val);
-
-	FLY_DEBUG_END("ASTBuilder", "CreateCharValue");
-	return Value;
 }
 
 ASTStringValue *ASTBuilder::CreateStringValue(const SourceLocation &Loc, llvm::StringRef Val) {

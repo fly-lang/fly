@@ -17,13 +17,12 @@
 namespace fly {
 
     class SourceLocation;
+    class SemaValue;
 
     enum class ASTValueKind {
         VAL_BOOL,
-        VAL_INT,
-        VAL_FLOAT,
+        VAL_NUMBER,
         VAL_STRING,
-        VAL_CHAR,
         VAL_ARRAY,
         VAL_STRUCT,
         VAL_NULL,
@@ -33,10 +32,13 @@ namespace fly {
     class ASTValue : public ASTBase {
 
         friend class ASTBuilder;
+        friend class SymBuilder;
         friend class SemaResolver;
         friend class SemaValidator;
 
         const ASTValueKind ValueKind;
+
+        SemaValue *Sema;
 
     protected:
 
@@ -45,6 +47,10 @@ namespace fly {
     public:
 
         const ASTValueKind &getTypeKind() const;
+
+        SemaValue *getSema() const {
+			return Sema;
+		}
 
     };
 
@@ -69,9 +75,9 @@ namespace fly {
     };
 
     /**
-     * Used for Integer Numbers
+     * Used for Numbers
      */
-    class ASTIntegerValue : public ASTValue {
+    class ASTNumberValue : public ASTValue {
 
         friend class ASTBuilder;
         friend class SemaResolver;
@@ -79,51 +85,7 @@ namespace fly {
 
         llvm::StringRef Value; // the integer value
 
-        uint8_t Radix;
-
-        ASTIntegerValue(const SourceLocation &Loc, llvm::StringRef Value, uint8_t Radix);
-
-    public:
-
-        llvm::StringRef getValue() const;
-
-        uint8_t getRadix() const;
-
-        std::string str() const override;
-    };
-
-    /**
-     * Used for Floating Point Numbers
-     */
-    class ASTFloatingValue : public ASTValue {
-
-        friend class ASTBuilder;
-        friend class SemaResolver;
-        friend class SemaValidator;
-
-        llvm::StringRef Value;
-
-        ASTFloatingValue(const SourceLocation &Loc, llvm::StringRef Val);
-
-    public:
-
-        llvm::StringRef getValue() const;
-
-        std::string str() const override;
-    };
-
-    /**
-     * Used for Char
-     */
-    class ASTCharValue : public ASTValue {
-
-        friend class ASTBuilder;
-        friend class SemaResolver;
-        friend class SemaValidator;
-
-        llvm::StringRef Value;
-
-        ASTCharValue(const SourceLocation &Loc, llvm::StringRef Value);
+        ASTNumberValue(const SourceLocation &Loc, llvm::StringRef Value);
 
     public:
 

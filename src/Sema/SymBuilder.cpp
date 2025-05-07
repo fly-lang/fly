@@ -34,6 +34,7 @@
 #include <Sym/SymEnumEntry.h>
 #include <Sym/SymComment.h>
 #include <Sym/SymVisibilityKind.h>
+#include <llvm/Support/Regex.h>
 
 using namespace fly;
 
@@ -56,7 +57,6 @@ void SymBuilder::CreateTable() {
 	S.Table->FloatType = S.getSymBuilder().CreateFPType(SymFPTypeKind::TYPE_FLOAT, "float");
 	S.Table->DoubleType = S.getSymBuilder().CreateFPType(SymFPTypeKind::TYPE_DOUBLE, "double");
 	S.Table->VoidType = S.getSymBuilder().CreateType(SymTypeKind::TYPE_VOID, "void");
-	S.Table->CharType = S.getSymBuilder().CreateType(SymTypeKind::TYPE_CHAR, "char");
 	S.Table->StringType = S.getSymBuilder().CreateType(SymTypeKind::TYPE_STRING, "string");
 	S.Table->ErrorType = S.getSymBuilder().CreateType(SymTypeKind::TYPE_ERROR, "error");
 
@@ -75,7 +75,6 @@ void SymBuilder::CreateTable() {
 	S.Table->DefaultNameSpace->Types.insert(std::make_pair<>(S.Table->FloatType->getName(), S.Table->FloatType));
 	S.Table->DefaultNameSpace->Types.insert(std::make_pair<>(S.Table->DoubleType->getName(), S.Table->DoubleType));
 	S.Table->DefaultNameSpace->Types.insert(std::make_pair<>(S.Table->VoidType->getName(), S.Table->VoidType));
-	S.Table->DefaultNameSpace->Types.insert(std::make_pair<>(S.Table->CharType->getName(), S.Table->CharType));
 	S.Table->DefaultNameSpace->Types.insert(std::make_pair<>(S.Table->StringType->getName(), S.Table->StringType));
 	S.Table->DefaultNameSpace->Types.insert(std::make_pair<>(S.Table->ErrorType->getName(), S.Table->ErrorType));
 }
@@ -505,3 +504,106 @@ SymCall * SymBuilder::CreateCall(ASTCall *AST) {
 	FLY_DEBUG_END("SymBuilder", "CreateParam");
 	return Call;
 }
+
+SemaBoolValue * SymBuilder::CreateBoolValue(ASTBoolValue *AST) {
+	FLY_DEBUG_START("SymBuilder", "CreateBoolValue");
+
+	SemaBoolValue * V = new SemaBoolValue(AST->getValue());
+	V->Type = S.getSymTable().BoolType;
+	AST->Sema = V;
+
+	FLY_DEBUG_END("SymBuilder", "CreateBoolValue");
+	return V;
+}
+
+SemaValue * SymBuilder::CreateNumberValue(ASTNumberValue *AST) {
+	FLY_DEBUG_START("SymBuilder", "CreateNumberValue");
+
+	SemaValue *V;
+
+	// Floating point number
+	llvm::Regex FloatRegex(R"(^[-+]?[0-9]*\.[0-9]+([eE][-+]?[0-9]+)?$)");
+	if (FloatRegex.match(AST->getValue())) {
+		// Floating point
+		V = new SemaFloatValue(AST->getValue());
+		V->Type = S.getSymTable().DoubleType;
+	} else {
+
+		// Integer number
+		uint8_t Radix = 10;
+		if (AST->getValue().substr(0, 2) == "0b" || AST->getValue().substr(0, 2) == "0B") {
+			// Binary
+			Radix = 2;
+		} else if (AST->getValue().substr(0, 2) == "0x" || AST->getValue().substr(0, 2) == "0X") {
+			// Hexadecimal
+			Radix = 16;
+		} else if (AST->getValue()[0] == '0' && AST->getValue().size() > 1) {
+			// Octal
+			Radix = 8;
+		}
+		SemaIntValue *IntValue = new SemaIntValue(AST->getValue(), Radix);
+		llvm::APInt I = IntValue->getValue();
+		if (I.isNegative()) {
+			unsigned MinBits = 1 + I.getBitWidth() - I.countLeadingOnes();
+			if (MinBits <= 16) IntValue->Type = S.getSymTable().ShortType;
+			else if (MinBits <= 32) IntValue->Type = S.getSymTable().IntType;
+			else if (MinBits <= 64) IntValue->Type = S.getSymTable().LongType;
+		} else {
+			unsigned MinBits = 1 + I.getBitWidth() - I.countLeadingZeros();
+			if (MinBits <= 8) IntValue->Type = S.getSymTable().ByteType;
+			else if (MinBits <= 16) IntValue->Type = S.getSymTable().UShortType;
+			else if (MinBits <= 32) IntValue->Type = S.getSymTable().UIntType;
+			else if (MinBits <= 64) IntValue->Type = S.getSymTable().ULongType;
+		}
+		IntValue->Type = S.getSymTable().IntType;
+		V = IntValue;
+	}
+
+	AST->Sema = V;
+
+	FLY_DEBUG_END("SymBuilder", "CreateNumberValue");
+	return V;
+}
+
+SemaStringValue * SymBuilder::CreateStringValue(ASTStringValue *AST) {
+	FLY_DEBUG_START("SymBuilder", "CreateStringValue");
+
+	SemaStringValue * V = new SemaStringValue(AST->getValue());
+	V->Type = S.getSymTable().StringType;
+	AST->Sema = V;
+
+	FLY_DEBUG_END("SymBuilder", "CreateStringValue");
+	return V;
+}
+
+SemaArrayValue * SymBuilder::CreateArrayValue(ASTArrayValue *AST) {
+	FLY_DEBUG_START("SymBuilder", "CreateArrayValue");
+
+	SemaArrayValue * V = new SemaArrayValue();
+	V->Type = AST->getValues().empty() ? nullptr : AST->getValues()[0]->getSema()->getType();
+	AST->Sema = V;
+
+	FLY_DEBUG_END("SymBuilder", "CreateArrayValue");
+	return V;
+}
+
+SemaStructValue * SymBuilder::CreateStructValue(ASTStructValue *AST) {
+	FLY_DEBUG_START("SymBuilder", "CreateStructValue");
+
+	const llvm::StringMap<SemaValue *> Values;
+	SemaStructValue * V = new SemaStructValue();
+	if (AST->getValues().empty()) {
+		V->Type = nullptr;
+	} else {
+		// TODO
+		for (auto &Entry : AST->getValues()) {
+
+		}
+		// V->Type = S.getSymBuilder().CreateClass();
+	}
+	AST->Sema = V;
+
+	FLY_DEBUG_END("SymBuilder", "CreateStructValue");
+	return V;
+}
+

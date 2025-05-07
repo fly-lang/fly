@@ -55,10 +55,6 @@ bool SymType::isString() const {
 	return Kind == SymTypeKind::TYPE_STRING;
 }
 
-bool SymType::isChar() const {
-	return Kind == SymTypeKind::TYPE_CHAR;
-}
-
 bool SymType::isClass() const {
 	return Kind == SymTypeKind::TYPE_CLASS;
 }
@@ -84,8 +80,8 @@ const SymIntTypeKind SymTypeInt::getIntKind() const {
 }
 
 bool SymTypeInt::isSigned() {
-	return IntKind == SymIntTypeKind::TYPE_BYTE || IntKind == SymIntTypeKind::TYPE_USHORT ||
-	       IntKind == SymIntTypeKind::TYPE_UINT || IntKind == SymIntTypeKind::TYPE_ULONG;
+	return IntKind == SymIntTypeKind::TYPE_SHORT || IntKind == SymIntTypeKind::TYPE_INT ||
+		IntKind == SymIntTypeKind::TYPE_LONG;
 }
 
 SymTypeFP::SymTypeFP(SymFPTypeKind FPKind, std::string Name) : SymType(SymTypeKind::TYPE_FLOATING_POINT, Name),

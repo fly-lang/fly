@@ -19,6 +19,7 @@
 
 #include <AST/ASTCall.h>
 #include <AST/ASTTypeRef.h>
+#include <AST/ASTValue.h>
 #include <CodeGen/CodeGenVarBase.h>
 #include <Sym/SymType.h>
 #include <Sym/SymVar.h>
@@ -42,7 +43,9 @@ llvm::Value *CodeGenExpr::GenValue(const ASTExpr *Expr) {
 
         case ASTExprKind::EXPR_VALUE: {
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_VALUE");
-            return CGM->GenValue(Expr->getType(), ((ASTValueExpr *) Expr)->getValue());
+        	ASTValue *Value = ((ASTValueExpr *) Expr)->getValue();
+        	assert(Value && "Missing Value");
+            return CGM->GenValue(Expr->getType(), Value->getSema());
         }
         case ASTExprKind::EXPR_VAR_REF: {
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_VAR_REF");

@@ -81,7 +81,6 @@ public:
                     DoubleTypeRef(S->getASTBuilder().CreateDoubleTypeRef(SourceLoc)),
                     ErrorTypeRef(S->getASTBuilder().CreateErrorTypeRef(SourceLoc)),
 					StringTypeRef(S->getASTBuilder().CreateStringTypeRef(SourceLoc)),
-					CharTypeRef(S->getASTBuilder().CreateCharTypeRef(SourceLoc)),
                     TopScopes(SemaBuilderScopes::Build()
                               ->addVisibility(SourceLocation(), ASTVisibilityKind::V_DEFAULT)->getScopes()),
                     EmptyScopes(SemaBuilderScopes::Build()->getScopes()) {

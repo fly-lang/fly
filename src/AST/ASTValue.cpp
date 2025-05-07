@@ -37,58 +37,19 @@ Attr("Kind", static_cast<size_t>(getKind())).
             End();
 }
 
-ASTIntegerValue::ASTIntegerValue(const SourceLocation &Loc, llvm::StringRef Value, uint8_t Radix) :
-        ASTValue(ASTValueKind::VAL_INT, Loc), Value(Value), Radix(Radix) {
+ASTNumberValue::ASTNumberValue(const SourceLocation &Loc, llvm::StringRef Value) :
+        ASTValue(ASTValueKind::VAL_NUMBER, Loc), Value(Value) {
 
 }
 
-llvm::StringRef ASTIntegerValue::getValue() const {
+llvm::StringRef ASTNumberValue::getValue() const {
     return Value;
 }
 
-uint8_t ASTIntegerValue::getRadix() const {
-    return Radix;
-}
-
-std::string ASTIntegerValue::str() const {
+std::string ASTNumberValue::str() const {
     return Logger("ASTIntegerValue").
 	Attr("Location", getLocation()).
-Attr("Kind", static_cast<size_t>(getKind())).
-            Attr("Value", Value).
-            Attr("Radix", (uint64_t) Radix).
-            End();
-}
-
-ASTFloatingValue::ASTFloatingValue(const SourceLocation &Loc, llvm::StringRef Value)
-    : ASTValue(ASTValueKind::VAL_FLOAT, Loc), Value(Value) {
-
-}
-
-llvm::StringRef ASTFloatingValue::getValue() const {
-    return Value;
-}
-
-std::string ASTFloatingValue::str() const {
-    return Logger("ASTFloatingValue").
-	Attr("Location", getLocation()).
-Attr("Kind", static_cast<size_t>(getKind())).
-            Attr("Value", Value).
-            End();
-}
-
-ASTCharValue::ASTCharValue(const SourceLocation &Loc, llvm::StringRef Value)
-        : ASTValue(ASTValueKind::VAL_STRING, Loc), Value(Value) {
-
-}
-
-llvm::StringRef ASTCharValue::getValue() const {
-    return Value;
-}
-
-std::string ASTCharValue::str() const {
-    return Logger("ASTCharValue").
-	Attr("Location", getLocation()).
-Attr("Kind", static_cast<size_t>(getKind())).
+	Attr("Kind", static_cast<size_t>(getKind())).
             Attr("Value", Value).
             End();
 }

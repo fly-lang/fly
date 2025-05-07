@@ -199,10 +199,6 @@ bool SemaValidator::CheckConvertibleTypes(SymType *FromType, SymType *ToType) {
 	    return true;
     }
 
-	if (FromType->isChar() && ToType->isChar()) {
-		return true;
-	}
-
     if (FromType->isError() && ToType->isError()) {
     	return true;
     }

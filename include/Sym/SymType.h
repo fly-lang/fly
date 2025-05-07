@@ -59,15 +59,14 @@ namespace fly {
         TYPE_INTEGER,
         TYPE_FLOATING_POINT,
         TYPE_STRING,
-        TYPE_CHAR,
         TYPE_ERROR,
         TYPE_ARRAY,
         TYPE_CLASS,
         TYPE_ENUM
     };
 
-    class SymType
-    {
+    class SymType {
+
         friend class SymBuilder;
         friend class SemaResolver;
         friend class SemaValidator;
@@ -105,8 +104,6 @@ namespace fly {
         bool isArray() const;
 
         bool isString() const;
-
-        bool isChar() const;
 
         bool isClass() const;
 
