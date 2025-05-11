@@ -14,11 +14,11 @@
 #include "CodeGen/CodeGenModule.h"
 #include "CodeGen/CodeGenError.h"
 #include "CodeGen/CodeGenVar.h"
-#include "Sym/SymModule.h"
-#include "Sym/SymClassMethod.h"
-#include "Sym/SymClassAttribute.h"
-#include "Sym/SymNameSpace.h"
-#include "Sym/SymClass.h"
+#include "Sema/SemaModule.h"
+#include "Sema/SemaClassMethod.h"
+#include "Sema/SemaClassAttribute.h"
+#include "Sema/SemaNameSpace.h"
+#include "Sema/SemaClassType.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTFunction.h"
 #include "Basic/Debug.h"
@@ -29,12 +29,17 @@
 
 using namespace fly;
 
-CodeGenClassFunction::CodeGenClassFunction(CodeGenModule *CGM, SymClassMethod *Sym, llvm::PointerType *TypePtr) :
-	CodeGenFunctionBase(CGM, Sym) {
-	SymClass *Class = Sym->getClass();
+CodeGenClassFunction::CodeGenClassFunction(CodeGenModule *CGM, SemaClassMethod *Sema, llvm::PointerType *TypePtr) :
+	CodeGenFunctionBase(CGM, Sema) {
+
+	SemaClassType *Class = Sema->getClass();
 
     // Generate return type
-    GenReturnType();
+	if (Sema->isConstructor()) {
+		RetType = CGM->VoidTy;
+	} else {
+		GenReturnType();
+	}
 
     // Add ErrorHandler to params, Struct doesn't use ErrorHandler
     if (Class->getAST()->getClassKind() != ASTClassKind::STRUCT) {
@@ -46,23 +51,25 @@ CodeGenClassFunction::CodeGenClassFunction(CodeGenModule *CGM, SymClassMethod *S
         ParamTypes.push_back(TypePtr);
 
     // Generate param types
-    GenParamTypes(CGM, ParamTypes, Sym);
+    GenParamTypes(CGM, ParamTypes, Sema);
 
     // Set LLVM Function Name %MODULE_CLASS_METHOD (if MODULE == default is empty)
     FnType = llvm::FunctionType::get(RetType, ParamTypes, false);
 
-    std::string Id = CodeGen::toIdentifier(Sym->getAST()->getName(), Class->getModule()->getNameSpace()->getName(), Class->getAST()->getName());
+    std::string Id = CodeGen::toIdentifier(Sema->getAST()->getName(), Class->getModule()->getNameSpace()->getName(), Class->getAST()->getName());
     Fn = llvm::Function::Create(FnType, llvm::GlobalValue::ExternalLinkage, Id, CGM->getModule());
 }
 
 void CodeGenClassFunction::GenBody() {
+	SemaClassMethod *ClassMethod = (SemaClassMethod *) Sema;
+	SemaClassType *Class = ClassMethod->getClass();
+
     FLY_DEBUG_START("CodeGenFunctionBase", "GenBody");
-    SymClass *Class = Sym->getClass();
     llvm::Type *ClassType = Class->getCodeGen()->getType();
     setInsertPoint();
 
     // the first argument is the error handler
-    if (Sym->getClass()->getAST()->getClassKind() != ASTClassKind::STRUCT) {
+    if (Class->getAST()->getClassKind() != ASTClassKind::STRUCT) {
         ErrorHandler = Fn->getArg(0);
 
         // Alloca Error Handler Var
@@ -71,7 +78,7 @@ void CodeGenClassFunction::GenBody() {
 
     // Alloca Method Class Instance
     CodeGenVar *CGI = nullptr;
-    if (!Sym->isStatic()) {
+    if (!ClassMethod->isStatic()) {
         CGI = new CodeGenVar(CGM, ClassType);
         CGI->Alloca();
     }
@@ -97,18 +104,21 @@ void CodeGenClassFunction::GenBody() {
         // Set var Index offset in the struct type
         size_t Index = Class->getAST()->getClassKind() == ASTClassKind::STRUCT ? 0 : 1;
         // All Class Vars
-        SymClassMethod *ClassMethod = (SymClassMethod *) Sym;
         for (auto &AttributeEntry : ClassMethod->getClass()->getAttributes()) {
-        	SymClassAttribute *Attribute = AttributeEntry.getValue();
+        	SemaClassAttribute *Attribute = AttributeEntry.getValue();
 
             // Set CodeGen Class Instance
-            llvm::Type *Ty = CGM->GenType(Attribute->getAST()->getTypeRef()->getSym());
+            llvm::Type *Ty = CGM->GenType(Attribute->getAST()->getTypeRef()->getSema());
             CodeGenClassVar *CGV = new CodeGenClassVar(CGM, Ty, CGI, Index);
             Attribute->setCodeGen(CGV);
 
             // Store attribute default value
             if (ClassMethod->isConstructor()) {
-                Value *AttrValue = CGM->GenExpr(Attribute->getAST()->getExpr());
+            	llvm::Value *AttrValue;
+            	if (Attribute->getAST()->getExpr())
+					AttrValue = CGM->GenExpr(Attribute->getAST()->getExpr());
+            	else
+            		AttrValue = CGM->GenValue(Attribute->getType(), Attribute->getType()->getDefaultValue());
                 CGV->Store(AttrValue);
             }
             Index++;
@@ -117,7 +127,7 @@ void CodeGenClassFunction::GenBody() {
 
     // Alloca Function Local Vars and generate body
     StoreParams(false);
-    CGM->GenBlock(this, Sym->getAST()->getBody());
+    CGM->GenBlock(this, Sema->getAST()->getBody());
 
     // Add return Void
     if (FnType->getReturnType()->isVoidTy()) {

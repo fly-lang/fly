@@ -10,20 +10,26 @@
 #ifndef FLY_CODEGEN_ERROR_H
 #define FLY_CODEGEN_ERROR_H
 
+#include <llvm/ADT/StringRef.h>
+
 #include "CodeGenVarBase.h"
-#include "llvm/IR/DerivedTypes.h"
+
+namespace llvm {
+    class StructType;
+    class LLVMContext;
+}
 
 namespace fly {
 
     class CodeGenModule;
     class ASTExpr;
-    class SymVar;
+    class SemaVar;
 
     class CodeGenError : public CodeGenVarBase {
 
         CodeGenModule *CGM = nullptr;
 
-        SymVar *Error = nullptr;
+        SemaVar *Error = nullptr;
 
         llvm::Type *T = nullptr;
 
@@ -37,7 +43,7 @@ namespace fly {
 
     public:
 
-        CodeGenError(CodeGenModule *CGM, SymVar *Error, llvm::Value *Pointer);
+        CodeGenError(CodeGenModule *CGM, SemaVar *Error, llvm::Value *Pointer);
 
         static llvm::StructType *GenErrorType(llvm::LLVMContext &LLVMCtx);
 

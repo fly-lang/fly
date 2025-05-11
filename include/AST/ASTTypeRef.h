@@ -14,7 +14,7 @@
 
 namespace fly {
 
-    class SymType;
+    class SemaType;
     class ASTExpr;
     class ASTNameSpaceRef;
 
@@ -27,7 +27,7 @@ namespace fly {
         friend class SemaResolver;
         friend class SemaValidator;
 
-        SymType *Sym;
+        SemaType *Sema;
 
         bool Array;
 
@@ -40,7 +40,7 @@ namespace fly {
 
     public:
 
-        SymType *getSym() const;
+        SemaType *getSema() const;
 
         bool isArray() const;
 

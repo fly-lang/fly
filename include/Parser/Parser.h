@@ -20,7 +20,7 @@ namespace fly {
     class SemaBuilderSwitchStmt;
     class ASTBase;
     class ASTModule;
-    class SymNameSpace;
+    class SemaNameSpace;
     class ASTValue;
     class ASTRef;
     class ASTFunction;

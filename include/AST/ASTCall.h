@@ -10,7 +10,7 @@
 #ifndef FLY_AST_CALL_H
 #define FLY_AST_CALL_H
 
-#include <Sym/SymErrorHandler.h>
+#include <Sema/SemaErrorHandler.h>
 
 #include "ASTRef.h"
 
@@ -18,7 +18,7 @@ namespace fly {
 
     class ASTArg;
     class ASTVar;
-    class SymCall;
+    class SemaCall;
 
     enum class ASTCallKind {
         CALL_FUNCTION,
@@ -36,7 +36,7 @@ namespace fly {
     class ASTCall : public ASTRef {
 
         friend class ASTBuilder;
-        friend class SymBuilder;
+        friend class SemaBuilder;
         friend class SemaResolver;
         friend class SemaValidator;
 
@@ -44,7 +44,7 @@ namespace fly {
 
         ASTCallKind CallKind = ASTCallKind::CALL_FUNCTION;
 
-        SymCall *Sym = nullptr;
+        SemaCall *Sema = nullptr;
 
         ASTCall(const SourceLocation &Loc, llvm::StringRef Name);
 
@@ -52,7 +52,7 @@ namespace fly {
 
         llvm::SmallVector<ASTArg *, 8> getArgs() const;
 
-        SymCall *getSym() const;
+        SemaCall *getSema() const;
 
         ASTCallKind getCallKind() const;
 

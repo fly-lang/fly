@@ -15,7 +15,7 @@
 namespace fly {
 
     class ASTComment;
-    class SymNameSpace;
+    class SemaNameSpace;
     class ASTModule;
     class ASTAlias;
 

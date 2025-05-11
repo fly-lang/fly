@@ -13,6 +13,8 @@
 #include "CodeGen/CodeGenClass.h"
 #include "CodeGen/CodeGenModule.h"
 
+#include <llvm/IR/Instructions.h>
+
 using namespace fly;
 
 //CodeGenVar::CodeGenVar(CodeGenModule *CGM, ASTVar *Var) : CGM(CGM) {
@@ -79,8 +81,8 @@ llvm::Value *CodeGenVar::getValue() {
 
 llvm::Value *CodeGenVar::getPointer() {
     if (Parent) {
-        ConstantInt *Zero = llvm::ConstantInt::get(CGM->Int32Ty, 0);
-        ConstantInt *Idx = llvm::ConstantInt::get(CGM->Int32Ty, Index);
+        llvm::ConstantInt *Zero = llvm::ConstantInt::get(CGM->Int32Ty, 0);
+        llvm::ConstantInt *Idx = llvm::ConstantInt::get(CGM->Int32Ty, Index);
         return CGM->Builder->CreateInBoundsGEP(Parent->getType(), Parent->getValue(), {Zero, Idx});
     }
     return this->Pointer;

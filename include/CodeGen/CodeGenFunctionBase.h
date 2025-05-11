@@ -25,7 +25,7 @@ namespace llvm {
 
 namespace fly {
 
-    class SymFunctionBase;
+    class SemaFunctionBase;
     class ASTVar;
     class CodeGenModule;
 
@@ -33,9 +33,9 @@ namespace fly {
 
     protected:
 
-        SymFunctionBase *Sym = nullptr;
+        SemaFunctionBase *Sema;
 
-        CodeGenModule *CGM = nullptr;
+        CodeGenModule *CGM;
 
         llvm::Function *Fn = nullptr;
 
@@ -50,15 +50,15 @@ namespace fly {
         llvm::Value *ErrorHandler = nullptr;
 
     public:
-        CodeGenFunctionBase(CodeGenModule *CGM, SymFunctionBase *AST);
+        CodeGenFunctionBase(CodeGenModule *CGM, SemaFunctionBase *Sema);
 
         CodeGenModule *getCodeGenModule();
 
         void GenReturnType();
 
-        void GenParamTypes(CodeGenModule * CGM, llvm::SmallVector<llvm::Type *, 8> &Types, SymFunctionBase * Sym);
+        void GenParamTypes(CodeGenModule * CGM, llvm::SmallVector<llvm::Type *, 8> &Types, SemaFunctionBase * Sema);
 
-        SymFunctionBase *getSym();
+        SemaFunctionBase *getSema();
 
         llvm::StringRef getName() const;
 

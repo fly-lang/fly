@@ -1,5 +1,6 @@
 # Brace wrapping settings for K&R style
 BraceWrapping:
+  AfterAnonymousNamespace: true   # Opening brace for anonymous namespaces stays on the same line
   AfterClass: true               # Opening brace for classes stays on the same line
   AfterControlStatement: true    # Opening brace for control statements (if, for, etc.) stays on the same line
   AfterEnum: true                # Opening brace for enums stays on the same line

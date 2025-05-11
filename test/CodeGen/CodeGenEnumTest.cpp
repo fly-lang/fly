@@ -34,10 +34,10 @@
 #include "AST/ASTFailStmt.h"
 #include "AST/ASTOpExpr.h"
 
-#include <Sym/SymEnum.h>
-#include <Sym/SymFunction.h>
-#include <Sym/SymModule.h>
-#include <Sym/SymNameSpace.h>
+#include <Sema/SemaEnumType.h>
+#include <Sema/SemaFunction.h>
+#include <Sema/SemaModule.h>
+#include <Sema/SemaNameSpace.h>
 
 
 namespace {

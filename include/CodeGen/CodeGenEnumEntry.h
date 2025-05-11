@@ -12,7 +12,6 @@
 #define FLY_CODEGEN_ENUMENTRY_H
 
 #include "CodeGenVarBase.h"
-#include "llvm/ADT/StringRef.h"
 
 namespace llvm {
     class Value;
@@ -21,7 +20,7 @@ namespace llvm {
 namespace fly {
 
     class CodeGenModule;
-    class SymEnumEntry;
+    class SemaEnumEntry;
 
     class CodeGenEnumEntry : public CodeGenVarBase {
 
@@ -32,7 +31,7 @@ namespace fly {
         llvm::Value *Instance = nullptr;
 
     public:
-        CodeGenEnumEntry(CodeGenModule *CGM, SymEnumEntry *Sym);
+        CodeGenEnumEntry(CodeGenModule *CGM, SemaEnumEntry *Sema);
 
 //        llvm::AllocaInst *Alloca() override;
 

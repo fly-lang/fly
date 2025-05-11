@@ -22,7 +22,7 @@
 #include "CodeGen/CodeGenExpr.h"
 #include "CodeGen/CodeGenError.h"
 #include "CodeGen/CodeGenHandle.h"
-#include "Sym/SymNameSpace.h"
+#include "Sema/SemaNameSpace.h"
 #include "AST/ASTModule.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTDeleteStmt.h"
@@ -50,16 +50,16 @@
 #include <AST/ASTTypeRef.h>
 #include <AST/ASTVar.h>
 #include <CodeGen/CharUnits.h>
-#include <Sym/SemaValue.h>
-#include <Sym/SymCall.h>
-#include <Sym/SymClass.h>
-#include <Sym/SymClassMethod.h>
-#include <Sym/SymEnum.h>
-#include <Sym/SymEnumEntry.h>
-#include <Sym/SymFunction.h>
-#include <Sym/SemaValue.h>
+#include <Sema/SemaValue.h>
+#include <Sema/SemaCall.h>
+#include <Sema/SemaClassType.h>
+#include <Sema/SemaClassMethod.h>
+#include <Sema/SemaEnumType.h>
+#include <Sema/SemaEnumEntry.h>
+#include <Sema/SemaFunction.h>
+#include <Sema/SemaValue.h>
+#include <llvm/IR/Instructions.h>
 
-using namespace llvm;
 using namespace fly;
 
 /// toCharUnitsFromBits - Convert a size in bits to a size in characters.
@@ -67,14 +67,14 @@ CharUnits toCharUnitsFromBits(int64_t BitSize) {
     return CharUnits::fromQuantity(BitSize / 8);
 }
 
-CodeGenModule::CodeGenModule(DiagnosticsEngine &Diags, SymNameSpace *NameSpace, LLVMContext &LLVMCtx,
+CodeGenModule::CodeGenModule(DiagnosticsEngine &Diags, SemaNameSpace *NameSpace, llvm::LLVMContext &LLVMCtx,
                              TargetInfo &Target, CodeGenOptions &CGOpts) :
         Diags(Diags),
         NameSpace(NameSpace),
         Target(Target),
         Module(new llvm::Module(NameSpace->getName(), LLVMCtx)),
         LLVMCtx(LLVMCtx),
-        Builder(new IRBuilder<>(LLVMCtx)),
+        Builder(new llvm::IRBuilder<>(LLVMCtx)),
         CGOpts(CGOpts) {
 
     // Configure Types
@@ -131,7 +131,7 @@ llvm::Module *CodeGenModule::getModule() const {
     return Module;
 }
 
-SymNameSpace *CodeGenModule::getNameSpace() const {
+SemaNameSpace *CodeGenModule::getNameSpace() const {
     return NameSpace;
 }
 
@@ -185,16 +185,17 @@ void CodeGenModule::GenAll() {
 	// Generate Classes
 	llvm::SmallVector<CodeGenClass *, 8> CGClasses;
 	for (auto &Entry : NameSpace->getTypes()) {
-		SymType * Type = Entry.getValue();
+		SemaType * Type = Entry.getValue();
 		if (Type->isClass()) {
-			CodeGenClass *CGC = GenClass(static_cast<SymClass *>(Type));
+			CodeGenClass *CGC = GenClass(static_cast<SemaClassType *>(Type));
 			CGClasses.push_back(CGC);
 		} else if (Type->isEnum()) {
-			GenEnum(static_cast<SymEnum *>(Type));
+			GenEnum(static_cast<SemaEnumType *>(Type));
 		}
 	}
 
-    // Body must be generated after all CodeGen has been set for each TopDef
+    // Body must be generated after all CodeGen has been set for each Definitions
+	// Functions and Types may be not defined yet
     for (auto CGF : CGFunctions) {
         FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode",
                           "FunctionBody=" << CGF->getName());
@@ -218,7 +219,7 @@ void CodeGenModule::GenAll() {
  * @param isExternal
  */
 // TODO: remove GlobalVar
-// CodeGenGlobalVar *CodeGenModule::GenGlobalVar(SymGlobalVar* GlobalVar, bool isExternal) {
+// CodeGenGlobalVar *CodeGenModule::GenGlobalVar(SemaGlobalVar* GlobalVar, bool isExternal) {
 //     // FLY_DEBUG_MESSAGE("CodeGenModule", "GenGlobalVar",
 //     //                   "GlobalVar=" << GlobalVar->str() << ", isExternal=" << isExternal);
 //     // Check Value
@@ -230,7 +231,7 @@ void CodeGenModule::GenAll() {
 //     return nullptr; // Error occurs
 // }
 
-CodeGenFunction *CodeGenModule::GenFunction(SymFunction *Function, bool isExternal) {
+CodeGenFunction *CodeGenModule::GenFunction(SemaFunction *Function, bool isExternal) {
     // FLY_DEBUG_MESSAGE("CodeGenModule", "GenFunction",
     //                   "Function=" << Function->str() << ", isExternal=" << isExternal);
     CodeGenFunction *CGF = new CodeGenFunction(this, Function, isExternal);
@@ -238,7 +239,7 @@ CodeGenFunction *CodeGenModule::GenFunction(SymFunction *Function, bool isExtern
     return CGF;
 }
 
-CodeGenClass *CodeGenModule::GenClass(SymClass *Class, bool isExternal) {
+CodeGenClass *CodeGenModule::GenClass(SemaClassType *Class, bool isExternal) {
     // FLY_DEBUG_MESSAGE("CodeGenModule", "GenClass",
     //                   "Class=" << Class->str() << ", isExternal=" << isExternal);
     CodeGenClass *CGC = new CodeGenClass(this, Class, isExternal);
@@ -247,128 +248,128 @@ CodeGenClass *CodeGenModule::GenClass(SymClass *Class, bool isExternal) {
     return CGC;
 }
 
-void CodeGenModule::GenEnum(SymEnum *Enum) {
+void CodeGenModule::GenEnum(SemaEnumType *Enum) {
     for (auto &EntryEntry : Enum->getEntries()) {
-    	SymEnumEntry *Entry = EntryEntry.getValue();
+    	SemaEnumEntry *Entry = EntryEntry.getValue();
         Entry->setCodeGen(new CodeGenEnumEntry(this, Entry));
     }
 }
 
-llvm::Type *CodeGenModule::GenType(SymType *Type) {
+llvm::Type *CodeGenModule::GenType(SemaType *Type) {
     FLY_DEBUG_START("CodeGenModule", "GenType");
     // Check Type
     switch (Type->getKind()) {
 
-        case SymTypeKind::TYPE_VOID:
+        case SemaTypeKind::TYPE_VOID:
             return VoidTy;
 
-        case SymTypeKind::TYPE_BOOL:
+        case SemaTypeKind::TYPE_BOOL:
             return BoolTy;
 
-        case SymTypeKind::TYPE_INTEGER: {
-            SymIntTypeKind IntKind = static_cast<SymTypeInt *>(Type)->getIntKind();
+        case SemaTypeKind::TYPE_INTEGER: {
+            SemaIntTypeKind IntKind = static_cast<SemaIntType *>(Type)->getIntKind();
             switch (IntKind) {
-                case SymIntTypeKind::TYPE_BYTE:
+                case SemaIntTypeKind::TYPE_BYTE:
                     return Int8Ty;
-                case SymIntTypeKind::TYPE_USHORT:
-                case SymIntTypeKind::TYPE_SHORT:
+                case SemaIntTypeKind::TYPE_USHORT:
+                case SemaIntTypeKind::TYPE_SHORT:
                     return Int16Ty;
-                case SymIntTypeKind::TYPE_UINT:
-                case SymIntTypeKind::TYPE_INT:
+                case SemaIntTypeKind::TYPE_UINT:
+                case SemaIntTypeKind::TYPE_INT:
                     return Int32Ty;
-                case SymIntTypeKind::TYPE_ULONG:
-                case SymIntTypeKind::TYPE_LONG:
+                case SemaIntTypeKind::TYPE_ULONG:
+                case SemaIntTypeKind::TYPE_LONG:
                     return Int64Ty;
             }
         }
 
-        case SymTypeKind::TYPE_FLOATING_POINT: {
-            SymFPTypeKind FPKind = static_cast<SymTypeFP *>(Type)->getFPKind();
+        case SemaTypeKind::TYPE_FLOATING_POINT: {
+            SemaFloatTypeKind FPKind = static_cast<SemaFloatType *>(Type)->getFPKind();
             switch (FPKind) {
-                case SymFPTypeKind::TYPE_FLOAT:
+                case SemaFloatTypeKind::TYPE_FLOAT:
                     return FloatTy;
-                case SymFPTypeKind::TYPE_DOUBLE:
+                case SemaFloatTypeKind::TYPE_DOUBLE:
                     return DoubleTy;
             }
         }
 
-        case SymTypeKind::TYPE_ARRAY: {
-            return GenArrayType(static_cast<SymTypeArray *>(Type));
+        case SemaTypeKind::TYPE_ARRAY: {
+            return GenArrayType(static_cast<SemaArrayType *>(Type));
         }
 
-        case SymTypeKind::TYPE_STRING: {
+        case SemaTypeKind::TYPE_STRING: {
             return llvm::ArrayType::get(Int8Ty, 0);
         }
 
-        case SymTypeKind::TYPE_CLASS: {
-            SymClass *Class = static_cast<SymClass *>(Type);
+        case SemaTypeKind::TYPE_CLASS: {
+            SemaClassType *Class = static_cast<SemaClassType *>(Type);
             return Class->getCodeGen()->getType();
         }
 
-		case SymTypeKind::TYPE_ENUM:
+		case SemaTypeKind::TYPE_ENUM:
 			return Int32Ty;
 
-        case SymTypeKind::TYPE_ERROR: {
+        case SemaTypeKind::TYPE_ERROR: {
             return ErrorTy;
         }
     }
     assert(0 && "Unknown Var Type Kind");
 }
 
-llvm::PointerType *CodeGenModule::GenArrayType(SymTypeArray *ArrayType) {
+llvm::PointerType *CodeGenModule::GenArrayType(SemaArrayType *ArrayType) {
     llvm::Type *SubType = GenType(ArrayType->getType());
 
 	// TODO replace IntPtrType with IntPtrTy ?
     // Check if the Value is a ConstantInt
-	IntegerType *IntPtrType = llvm::Type::getIntNTy(LLVMCtx, Module->getDataLayout().getMaxPointerSizeInBits());
+	llvm::IntegerType *IntPtrType = llvm::Type::getIntNTy(LLVMCtx, Module->getDataLayout().getMaxPointerSizeInBits());
 	return llvm::PointerType::getUnqual(IntPtrType);
 }
 
-llvm::Constant *CodeGenModule::GenDefaultValue(SymType *Type, llvm::Type *Ty) {
+llvm::Constant *CodeGenModule::GenDefaultValue(SemaType *Type, llvm::Type *Ty) {
     FLY_DEBUG_START("CodeGenModule", "GenDefaultValue");
-    assert(Type->getKind() != SymTypeKind::TYPE_VOID && "No default value for Void Type");
+    assert(Type->getKind() != SemaTypeKind::TYPE_VOID && "No default value for Void Type");
     switch (Type->getKind()) {
 
         // Bool
-        case SymTypeKind::TYPE_BOOL:
+        case SemaTypeKind::TYPE_BOOL:
             return llvm::ConstantInt::get(BoolTy, 0, false);
 
         // Integer
-        case SymTypeKind::TYPE_INTEGER: {
-            SymTypeInt *IntegerType = static_cast<SymTypeInt *>(Type);
+        case SemaTypeKind::TYPE_INTEGER: {
+            SemaIntType *IntegerType = static_cast<SemaIntType *>(Type);
             switch (IntegerType->getIntKind()) {
-                case SymIntTypeKind::TYPE_BYTE:
+                case SemaIntTypeKind::TYPE_BYTE:
                     return llvm::ConstantInt::get(Int8Ty, 0, false);
-                case SymIntTypeKind::TYPE_USHORT:
+                case SemaIntTypeKind::TYPE_USHORT:
                     return llvm::ConstantInt::get(Int32Ty, 0, false);
-                case SymIntTypeKind::TYPE_SHORT:
+                case SemaIntTypeKind::TYPE_SHORT:
                     return llvm::ConstantInt::get(Int32Ty, 0, true);
-                case SymIntTypeKind::TYPE_UINT:
+                case SemaIntTypeKind::TYPE_UINT:
                     return llvm::ConstantInt::get(Int32Ty, 0, false);
-                case SymIntTypeKind::TYPE_INT:
+                case SemaIntTypeKind::TYPE_INT:
                     return llvm::ConstantInt::get(Int32Ty, 0, true);
-                case SymIntTypeKind::TYPE_ULONG:
+                case SemaIntTypeKind::TYPE_ULONG:
                     return llvm::ConstantInt::get(Int64Ty, 0, false);
-                case SymIntTypeKind::TYPE_LONG:
+                case SemaIntTypeKind::TYPE_LONG:
                     return llvm::ConstantInt::get(Int64Ty, 0, true);
             }
         }
 
         // Floating Point
-        case SymTypeKind::TYPE_FLOATING_POINT: {
-            SymTypeFP *FloatingPointType = static_cast<SymTypeFP *>(Type);
+        case SemaTypeKind::TYPE_FLOATING_POINT: {
+            SemaFloatType *FloatingPointType = static_cast<SemaFloatType *>(Type);
             switch (FloatingPointType->getFPKind()) {
-                case SymFPTypeKind::TYPE_FLOAT:
+                case SemaFloatTypeKind::TYPE_FLOAT:
                     return llvm::ConstantFP::get(FloatTy, 0.0);
-                case SymFPTypeKind::TYPE_DOUBLE:
+                case SemaFloatTypeKind::TYPE_DOUBLE:
                     return llvm::ConstantFP::get(DoubleTy, 0.0);
             }
         }
 
-        case SymTypeKind::TYPE_ARRAY:
+        case SemaTypeKind::TYPE_ARRAY:
             return llvm::ConstantAggregateZero::get(Ty);
 
-        case SymTypeKind::TYPE_CLASS:
+        case SemaTypeKind::TYPE_CLASS:
             return nullptr; // TODO
     }
     assert(0 && "Unknown Type");
@@ -376,11 +377,11 @@ llvm::Constant *CodeGenModule::GenDefaultValue(SymType *Type, llvm::Type *Ty) {
 
 /**
  * Generate a LLVM Constant Value
- * @param Type is the parsed symType
+ * @param Type is the parsed SemaType
  * @param Val need to be correctly configured or you need to call GenDefaultValue()
  * @return
  */
-llvm::Value *CodeGenModule::GenValue(SymType *Type, SemaValue *Val) {
+llvm::Value *CodeGenModule::GenValue(SemaType *Type, SemaValue *Val) {
     FLY_DEBUG_START("CodeGenModule", "GenValue");
     assert(Type && "Type has to be not empty");
     assert(Val && "Value has to be not empty");
@@ -390,118 +391,118 @@ llvm::Value *CodeGenModule::GenValue(SymType *Type, SemaValue *Val) {
 	switch (Val->getType()->getKind()) {
 
 		// Boolean Value
-		case SymTypeKind::TYPE_BOOL:
+		case SemaTypeKind::TYPE_BOOL:
 			return static_cast<SemaBoolValue *>(Val)->getValue() ?
 					llvm::ConstantInt::getTrue(LLVMCtx) : llvm::ConstantInt::getFalse(LLVMCtx);
 
 		// Integer Value
-		case SymTypeKind::TYPE_INTEGER: {
+		case SemaTypeKind::TYPE_INTEGER: {
 			SemaIntValue * IntValue = static_cast<SemaIntValue *>(Val);
 			switch (Type->getKind()) {
 
-				case SymTypeKind::TYPE_INTEGER:
-					switch (static_cast<SymTypeInt *>(Type)->getIntKind()) {
-						case SymIntTypeKind::TYPE_BYTE:
+				case SemaTypeKind::TYPE_INTEGER:
+					switch (static_cast<SemaIntType *>(Type)->getIntKind()) {
+						case SemaIntTypeKind::TYPE_BYTE:
 							return llvm::ConstantInt::get(LLVMCtx, IntValue->getValue().trunc(8));
-						case SymIntTypeKind::TYPE_USHORT:
-						case SymIntTypeKind::TYPE_SHORT:
+						case SemaIntTypeKind::TYPE_USHORT:
+						case SemaIntTypeKind::TYPE_SHORT:
 							return llvm::ConstantInt::get(LLVMCtx, IntValue->getValue().trunc(16));
-						case SymIntTypeKind::TYPE_UINT:
-						case SymIntTypeKind::TYPE_INT:
+						case SemaIntTypeKind::TYPE_UINT:
+						case SemaIntTypeKind::TYPE_INT:
 							return llvm::ConstantInt::get(LLVMCtx, IntValue->getValue().trunc(32));
-						case SymIntTypeKind::TYPE_ULONG:
-						case SymIntTypeKind::TYPE_LONG:
+						case SemaIntTypeKind::TYPE_ULONG:
+						case SemaIntTypeKind::TYPE_LONG:
 							return llvm::ConstantInt::get(LLVMCtx, IntValue->getValue().trunc(64));
 					}
 					break;
-				case SymTypeKind::TYPE_FLOATING_POINT:
+				case SemaTypeKind::TYPE_FLOATING_POINT:
 
 					break;
-				case SymTypeKind::TYPE_BOOL:
+				case SemaTypeKind::TYPE_BOOL:
 					break;
-				case SymTypeKind::TYPE_STRING:
+				case SemaTypeKind::TYPE_STRING:
 					break;
-				case SymTypeKind::TYPE_ERROR:
+				case SemaTypeKind::TYPE_ERROR:
 					break;
-				case SymTypeKind::TYPE_ARRAY:
+				case SemaTypeKind::TYPE_ARRAY:
 					break;
-				case SymTypeKind::TYPE_CLASS:
+				case SemaTypeKind::TYPE_CLASS:
 					break;
-				case SymTypeKind::TYPE_ENUM:
+				case SemaTypeKind::TYPE_ENUM:
 					break;
-				case SymTypeKind::TYPE_VOID:
+				case SemaTypeKind::TYPE_VOID:
 					break;
 			}
 		} break;
 
 		// Floating Point Value
-		case SymTypeKind::TYPE_FLOATING_POINT: {
+		case SemaTypeKind::TYPE_FLOATING_POINT: {
 			SemaFloatValue *FloatValue = static_cast<SemaFloatValue *>(Val);
 
 			switch (Type->getKind()) {
 
-				case SymTypeKind::TYPE_VOID:
+				case SemaTypeKind::TYPE_VOID:
 					break;
-				case SymTypeKind::TYPE_BOOL:
+				case SemaTypeKind::TYPE_BOOL:
 					break;
-				case SymTypeKind::TYPE_INTEGER:
+				case SemaTypeKind::TYPE_INTEGER:
 					break;
-				case SymTypeKind::TYPE_FLOATING_POINT: {
-					SymTypeFP *FPType = static_cast<SymTypeFP *>(Type);
+				case SemaTypeKind::TYPE_FLOATING_POINT: {
+					SemaFloatType *FPType = static_cast<SemaFloatType *>(Type);
 					switch (FPType->getFPKind()) {
-						case SymFPTypeKind::TYPE_FLOAT:
+						case SemaFloatTypeKind::TYPE_FLOAT:
 							return llvm::ConstantFP::get(FloatTy, FloatValue->getValue());
-						case SymFPTypeKind::TYPE_DOUBLE:
+						case SemaFloatTypeKind::TYPE_DOUBLE:
 							return llvm::ConstantFP::get(DoubleTy, FloatValue->getValue());
 					}
 				}	break;
-				case SymTypeKind::TYPE_STRING:
+				case SemaTypeKind::TYPE_STRING:
 					break;
-				case SymTypeKind::TYPE_ERROR:
+				case SemaTypeKind::TYPE_ERROR:
 					break;
-				case SymTypeKind::TYPE_ARRAY:
+				case SemaTypeKind::TYPE_ARRAY:
 					break;
-				case SymTypeKind::TYPE_CLASS:
+				case SemaTypeKind::TYPE_CLASS:
 					break;
-				case SymTypeKind::TYPE_ENUM:
+				case SemaTypeKind::TYPE_ENUM:
 					break;
 			}
 		} break;
 
 		// Strig Value
-		case SymTypeKind::TYPE_STRING: {
-			return Builder->CreateGlobalStringPtr(((ASTStringValue *) Val)->getValue());
+		case SemaTypeKind::TYPE_STRING: {
+			return Builder->CreateGlobalStringPtr(static_cast<SemaStringValue *>(Val)->getValue());
 		}
 
 		// Array Value
-		case SymTypeKind::TYPE_ARRAY: {
+		case SemaTypeKind::TYPE_ARRAY: {
 			SemaArrayValue *ArrayValue = static_cast<SemaArrayValue *>(Val);
 
-			llvm::PointerType *AllocType = GenArrayType((SymTypeArray *) Type);
+			llvm::PointerType *AllocType = GenArrayType((SemaArrayType *) Type);
 			std::vector<llvm::Value *> Values;
 			for (SemaValue *Value : ArrayValue->getValues()) {
-				llvm::Value * V = GenValue(((SymTypeArray *) Type)->getType(), Value);
+				llvm::Value * V = GenValue(((SemaArrayType *) Type)->getType(), Value);
 				Values.push_back(V);
 			}
 
 			// Calculate Space
-			llvm::Value* AllocSize = ConstantInt::get(IntPtrTy, 0);
+			llvm::Value* AllocSize = llvm::ConstantInt::get(IntPtrTy, 0);
 			if (Values.size() > 0) {
-				llvm::Value* NumElements = ConstantInt::get(IntPtrTy, Values.size());
+				llvm::Value* NumElements = llvm::ConstantInt::get(IntPtrTy, Values.size());
 				llvm::TypeSize SizeInBytes = Target.getDataLayout().getTypeAllocSize(Values[0]->getType());
-				llvm::Value* ElementSize = ConstantInt::get(IntPtrTy, SizeInBytes); // sizeof(int32)
+				llvm::Value* ElementSize = llvm::ConstantInt::get(IntPtrTy, SizeInBytes); // sizeof(int32)
 				AllocSize = Builder->CreateMul(NumElements, ElementSize);
 			}
 
 			// @malloc data type struct
-			llvm::Instruction *I = CallInst::CreateMalloc(Builder->GetInsertBlock(), IntPtrTy,
+			llvm::Instruction *I = llvm::CallInst::CreateMalloc(Builder->GetInsertBlock(), IntPtrTy,
 														  AllocType, AllocSize, nullptr, nullptr);
 			llvm::Value * Instance = Builder->Insert(I);
 
 			return Instance;
 		} break;
 
-		case SymTypeKind::TYPE_CLASS:
+		case SemaTypeKind::TYPE_CLASS:
 			SemaStructValue *StructValue = static_cast<SemaStructValue *>(Val);
             break;
 	}
@@ -562,7 +563,7 @@ llvm::Value *CodeGenModule::ConvertToBool(llvm::Value *V) {
     assert(false && "Unhandled Value Type");
 }
 
-llvm::Value *CodeGenModule::Convert(llvm::Value *FromVal, SymType *FromType, SymType *ToType) {
+llvm::Value *CodeGenModule::Convert(llvm::Value *FromVal, SemaType *FromType, SemaType *ToType) {
     // FLY_DEBUG_MESSAGE("CodeGenExpr", "Convert",
     //                   "Value=" << FromVal << " to ASTType=" << ToType->str());
     assert(ToType && "Invalid conversion type");
@@ -571,7 +572,7 @@ llvm::Value *CodeGenModule::Convert(llvm::Value *FromVal, SymType *FromType, Sym
     switch (ToType->getKind()) {
 
         // to BOOL
-        case SymTypeKind::TYPE_BOOL: {
+        case SemaTypeKind::TYPE_BOOL: {
 
             // from BOOL
             if (FromType->isBool()) {
@@ -580,7 +581,7 @@ llvm::Value *CodeGenModule::Convert(llvm::Value *FromVal, SymType *FromType, Sym
 
             // from Integer
             if (FromType->isInteger()) {
-                llvm::Value *ZERO = llvm::ConstantInt::get(FromLLVMType, 0, ((SymTypeInt *) FromType)->isSigned());
+                llvm::Value *ZERO = llvm::ConstantInt::get(FromLLVMType, 0, ((SemaIntType *) FromType)->isSigned());
                 return Builder->CreateICmpNE(FromVal, ZERO);
             }
 
@@ -595,12 +596,12 @@ llvm::Value *CodeGenModule::Convert(llvm::Value *FromVal, SymType *FromType, Sym
         }
 
             // to INTEGER
-        case SymTypeKind::TYPE_INTEGER: {
-            SymTypeInt *IntegerType = (SymTypeInt *) ToType;
+        case SemaTypeKind::TYPE_INTEGER: {
+            SemaIntType *IntegerType = (SemaIntType *) ToType;
             switch(IntegerType->getIntKind()) {
 
                 // to INT 8
-                case SymIntTypeKind::TYPE_BYTE: {
+                case SemaIntTypeKind::TYPE_BYTE: {
 
                     // from BOOL
                     if (FromType->isBool()) {
@@ -624,8 +625,8 @@ llvm::Value *CodeGenModule::Convert(llvm::Value *FromVal, SymType *FromType, Sym
                 }
 
                     // to INT 16
-                case SymIntTypeKind::TYPE_SHORT:
-                case SymIntTypeKind::TYPE_USHORT: {
+                case SemaIntTypeKind::TYPE_SHORT:
+                case SemaIntTypeKind::TYPE_USHORT: {
 
                     // from BOOL
                     if (FromType->isBool()) {
@@ -652,8 +653,8 @@ llvm::Value *CodeGenModule::Convert(llvm::Value *FromVal, SymType *FromType, Sym
                 }
 
                     // to INT 32
-                case SymIntTypeKind::TYPE_INT:
-                case SymIntTypeKind::TYPE_UINT: {
+                case SemaIntTypeKind::TYPE_INT:
+                case SemaIntTypeKind::TYPE_UINT: {
 
                     // from BOOL
                     if (FromType->isBool()) {
@@ -681,8 +682,8 @@ llvm::Value *CodeGenModule::Convert(llvm::Value *FromVal, SymType *FromType, Sym
                 }
 
                     // to INT 64
-                case SymIntTypeKind::TYPE_LONG:
-                case SymIntTypeKind::TYPE_ULONG: {
+                case SemaIntTypeKind::TYPE_LONG:
+                case SemaIntTypeKind::TYPE_ULONG: {
 
                     // from BOOL
                     if (FromType->isBool()) {
@@ -711,11 +712,11 @@ llvm::Value *CodeGenModule::Convert(llvm::Value *FromVal, SymType *FromType, Sym
         }
 
             // to FLOATING POINT
-        case SymTypeKind::TYPE_FLOATING_POINT: {
-            switch(((SymTypeFP *) ToType)->getFPKind()) {
+        case SemaTypeKind::TYPE_FLOATING_POINT: {
+            switch(((SemaFloatType *) ToType)->getFPKind()) {
 
                 // to FLOAT 32
-                case SymFPTypeKind::TYPE_FLOAT: {
+                case SemaFloatTypeKind::TYPE_FLOAT: {
 
                     // from BOOL
                     if (FromType->isBool()) {
@@ -724,25 +725,25 @@ llvm::Value *CodeGenModule::Convert(llvm::Value *FromVal, SymType *FromType, Sym
 
                     // from INT
                     if (FromType->isInteger()) {
-                        return ((SymTypeInt *) FromType)->isSigned() ?
+                        return ((SemaIntType *) FromType)->isSigned() ?
                                Builder->CreateSIToFP(FromVal, FloatTy) :
                                Builder->CreateUIToFP(FromVal, FloatTy);
                     }
 
                     // from FLOAT
                     if (FromType->isFloatingPoint()) {
-                        switch (((SymTypeFP *) FromType)->getFPKind()) {
+                        switch (((SemaFloatType *) FromType)->getFPKind()) {
 
-                            case SymFPTypeKind::TYPE_FLOAT:
+                            case SemaFloatTypeKind::TYPE_FLOAT:
                                 return FromVal;
-                            case SymFPTypeKind::TYPE_DOUBLE:
+                            case SemaFloatTypeKind::TYPE_DOUBLE:
                                 return Builder->CreateFPTrunc(FromVal, FloatTy);
                         }
                     }
                 }
 
                     // to DOUBLE 64
-                case SymFPTypeKind::TYPE_DOUBLE: {
+                case SemaFloatTypeKind::TYPE_DOUBLE: {
 
                     // from BOOL
                     if (FromType->isBool()) {
@@ -751,18 +752,18 @@ llvm::Value *CodeGenModule::Convert(llvm::Value *FromVal, SymType *FromType, Sym
 
                     // from INT
                     if (FromType->isInteger()) {
-                        return ((SymTypeInt *) FromType)->isSigned() ?
+                        return ((SemaIntType *) FromType)->isSigned() ?
                                Builder->CreateSIToFP(FromVal, DoubleTy) :
                                Builder->CreateUIToFP(FromVal, DoubleTy);
                     }
 
                     // from FLOAT
                     if (FromType->isFloatingPoint()) {
-                        switch (((SymTypeFP *) FromType)->getFPKind()) {
+                        switch (((SemaFloatType *) FromType)->getFPKind()) {
 
-                            case SymFPTypeKind::TYPE_FLOAT:
+                            case SemaFloatTypeKind::TYPE_FLOAT:
                                 return Builder->CreateFPExt(FromVal, DoubleTy);
-                            case SymFPTypeKind::TYPE_DOUBLE:
+                            case SemaFloatTypeKind::TYPE_DOUBLE:
                                 return FromVal;
                         }
                     }
@@ -771,29 +772,29 @@ llvm::Value *CodeGenModule::Convert(llvm::Value *FromVal, SymType *FromType, Sym
         }
 
             // to Identity
-        case SymTypeKind::TYPE_CLASS:
+        case SemaTypeKind::TYPE_CLASS:
             return FromVal; // TODO implement class cast
     }
     assert(0 && "Conversion failed");
 }
 
-CodeGenError *CodeGenModule::GenErrorHandler(SymVar *Error) {
+CodeGenError *CodeGenModule::GenErrorHandler(SemaVar *Error) {
     // Set CodeGenError
     llvm::Value *Pointer = Builder->CreateAlloca(ErrorPtrTy);
     CodeGenError *CGE = new CodeGenError(this, Error, Pointer);
     return CGE;
 }
 
-CodeGenVar *CodeGenModule::GenLocalVar(SymVar *Var) {
+CodeGenVar *CodeGenModule::GenLocalVar(SemaVar *Var) {
     llvm::Type *Ty = GenType(Var->getType());
     CodeGenVar *CGV = new CodeGenVar(this, Ty);
     return CGV;
 }
 
-llvm::Value *CodeGenModule::GenVarRef(SymVar *Var) {
+llvm::Value *CodeGenModule::GenVarRef(SemaVar *Var) {
 
     // Class Var
-    if (Var->getKind() == SymVarKind::VAR_CLASS) {
+    if (Var->getKind() == SemaVarKind::VAR_CLASS) {
 
         // Return the instance value
     	if (Var->getParent()) {
@@ -810,15 +811,15 @@ llvm::Value *CodeGenModule::GenVarRef(SymVar *Var) {
     return Var->getCodeGen()->getValue();
 }
 
-llvm::Value *CodeGenModule::GenCall(SymCall *Call) {
+llvm::Value *CodeGenModule::GenCall(SemaCall *Call) {
 
     // The function arguments
     llvm::SmallVector<llvm::Value *, 8> Args;
     // Add error as first param
 
-    if (Call->getFunction()->getKind() == SymFunctionKind::METHOD) {
-        SymClassMethod *Method = static_cast<SymClassMethod *>(Call->getFunction());
-        if (Method->getClass()->getClassKind() != SymClassKind::STRUCT)
+    if (Call->getFunction()->getKind() == SemaFunctionKind::METHOD) {
+        SemaClassMethod *Method = static_cast<SemaClassMethod *>(Call->getFunction());
+        if (Method->getClass()->getClassKind() != SemaClassKind::STRUCT)
             Args.push_back(Call->getErrorHandler()->getCodeGen()->getValue()); // Error is a Pointer
     } else {
         Args.push_back(Call->getErrorHandler()->getCodeGen()->getValue()); // Error is a Pointer
@@ -827,8 +828,8 @@ llvm::Value *CodeGenModule::GenCall(SymCall *Call) {
     // Take the CGI Value and pass to Call as first argument
     llvm::Value *Instance = nullptr;
 
-    if (Call->getFunction()->getKind() == SymFunctionKind::METHOD) {
-    	SymClassMethod *Method = static_cast<SymClassMethod *>(Call->getFunction());
+    if (Call->getFunction()->getKind() == SemaFunctionKind::METHOD) {
+    	SemaClassMethod *Method = static_cast<SemaClassMethod *>(Call->getFunction());
 
         if (Call->getParent()) {
             CodeGenVarBase *CGI = Call->getParent()->getCodeGen();
@@ -837,11 +838,11 @@ llvm::Value *CodeGenModule::GenCall(SymCall *Call) {
         	// TODO remove following line
             // llvm::Type *AllocType = Method->getClass()->getAttributes().empty() ? Int8Ty : Method->getClass()->getCodeGen()->getType();
         	llvm::Type *AllocType = Method->getClass()->getCodeGen()->getType();
-        	llvm::Constant *AllocSize = ConstantExpr::getTruncOrBitCast(ConstantExpr::getSizeOf(AllocType), AllocType);
+        	llvm::Constant *AllocSize = llvm::ConstantExpr::getTruncOrBitCast(llvm::ConstantExpr::getSizeOf(AllocType), AllocType);
 
             // @malloc data type struct
-            IntegerType *IntPtrType = llvm::Type::getIntNTy(LLVMCtx, Module->getDataLayout().getMaxPointerSizeInBits());
-            llvm::Instruction *I = CallInst::CreateMalloc(Builder->GetInsertBlock(), IntPtrType,
+            llvm::IntegerType *IntPtrType = llvm::Type::getIntNTy(LLVMCtx, Module->getDataLayout().getMaxPointerSizeInBits());
+            llvm::Instruction *I = llvm::CallInst::CreateMalloc(Builder->GetInsertBlock(), IntPtrType,
                                                           AllocType, AllocSize, nullptr, nullptr);
             Instance = Builder->Insert(I);
             Args.push_back(Instance);
@@ -878,11 +879,11 @@ void CodeGenModule::GenFailStmt(ASTFailStmt *FailStmt, CodeGenError *CGE) {
 		llvm::Value *V = GenExpr(FailStmt->getExpr());
 		CGE->StoreString(V);
 	} else if (FailStmt->getExpr()->getType()->isClass()) {
-		SymType * IdentityType = FailStmt->getExpr()->getType();
+		SemaType * IdentityType = FailStmt->getExpr()->getType();
 		llvm::Value *V = GenExpr(FailStmt->getExpr());
 		CGE->StoreObject(V);
 	} else if (FailStmt->getExpr()->getType()->isEnum()) {
-		SymType * IdentityType = FailStmt->getExpr()->getType();
+		SemaType * IdentityType = FailStmt->getExpr()->getType();
 		llvm::Value *V = GenExpr(FailStmt->getExpr());
 		CGE->StoreInt(V);
 	}
@@ -905,12 +906,12 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
                         // TODO
                     } else if (VarRef->getParent()->isVarRef()) {
                         // Take Parent Instance
-                        CodeGenVarBase *CGI = static_cast<ASTVarRef *>(VarRef->getParent())->getSym()->getCodeGen();
+                        CodeGenVarBase *CGI = static_cast<ASTVarRef *>(VarRef->getParent())->getSema()->getCodeGen();
                         CodeGenVarBase *CGV = CGI->getVar(VarRef->getName()); // Get Var Name
                         CGV->Store(V);
                     }
                 } else {
-                    VarRef->getSym()->getCodeGen()->Store(V);
+                    VarRef->getSema()->getCodeGen()->Store(V);
                 }
             }
             break;
@@ -950,9 +951,9 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
             // Delete Stmt
         case ASTStmtKind::STMT_DELETE: {
             ASTDeleteStmt *Delete = static_cast<ASTDeleteStmt *>(Stmt);
-            SymVar * Var = Delete->getVarRef()->getSym();
-            if (Var->getAST()->getTypeRef()->getSym()->isClass()) {
-                Instruction *I = CallInst::CreateFree(Var->getCodeGen()->Load(), Builder->GetInsertBlock());
+            SemaVar * Var = Delete->getVarRef()->getSema();
+            if (Var->getAST()->getTypeRef()->getSema()->isClass()) {
+                llvm::Instruction *I = llvm::CallInst::CreateFree(Var->getCodeGen()->Load(), Builder->GetInsertBlock());
                 Builder->Insert(I);
             }
             break;
@@ -1005,7 +1006,7 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
         		Parent = Parent->getParent();
         		if (Parent == nullptr) {
         			// Set Function ErrorHandler with Fail
-        			CodeGenError *CGE = static_cast<CodeGenError *>(FailStmt->getFunction()->getSym()->getErrorHandler()->getCodeGen());
+        			CodeGenError *CGE = static_cast<CodeGenError *>(FailStmt->getFunction()->getSema()->getErrorHandler()->getCodeGen());
         			GenFailStmt(FailStmt, CGE);
 
         			// Generate Return with default value for stop execution flow
@@ -1017,7 +1018,7 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
 					ASTHandleStmt * HandleStmt = static_cast<ASTHandleStmt *>(Parent);
 
 					// Take the current ErrorHandler CodeGen (already resolved in ResolveStmtHandle())
-					CodeGenError *CGE = (CodeGenError *) HandleStmt->getErrorHandlerRef()->getSym()->getCodeGen();
+					CodeGenError *CGE = (CodeGenError *) HandleStmt->getErrorHandlerRef()->getSema()->getCodeGen();
 					GenFailStmt(FailStmt, CGE);
 
 					CodeGenHandle *CGH = HandleStmt->getCodeGen();
@@ -1170,7 +1171,7 @@ void CodeGenModule::GenSwitchBlock(CodeGenFunctionBase *CGF, ASTSwitchStmt *Swit
     llvm::BasicBlock *EndBB = llvm::BasicBlock::Create(LLVMCtx, "endswitch", Fn);
 
     // Create Expression evaluator for Switch
-    llvm::Value *SwitchVal = Switch->getVarRef()->getSym()->getCodeGen()->getValue();
+    llvm::Value *SwitchVal = Switch->getVarRef()->getSema()->getCodeGen()->getValue();
     llvm::SwitchInst *Inst = Builder->CreateSwitch(SwitchVal, EndBB);
 
     // Create Cases
@@ -1274,15 +1275,15 @@ void CodeGenModule::GenLoopBlock(CodeGenFunctionBase *CGF, ASTLoopStmt *Loop) {
 
 void CodeGenModule::GenReturn(ASTFunction *F, ASTExpr *Expr) {
     // Create the Value for return
-    if (F->getReturnTypeRef()->getSym()->isVoid()) {
+    if (F->getReturnTypeRef()->getSema()->isVoid()) {
         Builder->CreateRetVoid();
     } else {
-        Value *Ret;
+        llvm::Value *Ret;
         if (Expr) {
             llvm::Value *V = GenExpr(Expr);
-            Ret = Convert(V, Expr->getType(), F->getReturnTypeRef()->getSym());
+            Ret = Convert(V, Expr->getType(), F->getReturnTypeRef()->getSema());
         } else {
-            Ret = GenDefaultValue(F->getReturnTypeRef()->getSym());
+            Ret = GenDefaultValue(F->getReturnTypeRef()->getSema());
         }
         Builder->CreateRet(Ret);
     }

@@ -18,11 +18,10 @@
 #include "llvm/IR/Value.h"
 
 #include <AST/ASTCall.h>
-#include <AST/ASTTypeRef.h>
 #include <AST/ASTValue.h>
 #include <CodeGen/CodeGenVarBase.h>
-#include <Sym/SymType.h>
-#include <Sym/SymVar.h>
+#include <Sema/SemaType.h>
+#include <Sema/SemaVar.h>
 
 using namespace fly;
 
@@ -51,12 +50,12 @@ llvm::Value *CodeGenExpr::GenValue(const ASTExpr *Expr) {
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_VAR_REF");
             ASTVarRef *VarRef = ((ASTVarRefExpr *) Expr)->getVarRef();
             assert(VarRef && "Missing Ref");
-            return CGM->GenVarRef(VarRef->getSym());
+            return CGM->GenVarRef(VarRef->getSema());
         }
         case ASTExprKind::EXPR_CALL: {
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_REF_FUNC");
             ASTCallExpr *CallExpr = (ASTCallExpr *)Expr;
-            return CGM->GenCall(CallExpr->getCall()->getSym());
+            return CGM->GenCall(CallExpr->getCall()->getSema());
         }
         case ASTExprKind::EXPR_OP:
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_GROUP");
@@ -97,7 +96,7 @@ llvm::Value *CodeGenExpr::GenUnary(ASTUnaryOpExpr *Expr) {
     assert(Expr->getExpr() && "Unary Expr empty");
 
     // FIXME check ASTVarRefExpr
-    CodeGenVarBase *CGVal = ((ASTVarRefExpr *) Expr->getExpr())->getVarRef()->getSym()->getCodeGen();
+    CodeGenVarBase *CGVal = ((ASTVarRefExpr *) Expr->getExpr())->getVarRef()->getSema()->getCodeGen();
     llvm::Value *OldVal = CGVal->getValue();
 
     switch (Expr->getOpKind()) {
@@ -110,19 +109,19 @@ llvm::Value *CodeGenExpr::GenUnary(ASTUnaryOpExpr *Expr) {
         }
         case ASTUnaryOpExprKind::OP_UNARY_POST_INCR: {
             llvm::Value *RHS = llvm::ConstantInt::get(CGM->Int32Ty, 1);
-            Value *NewVal = CGM->Builder->CreateNSWAdd(OldVal, RHS);
+            llvm::Value *NewVal = CGM->Builder->CreateNSWAdd(OldVal, RHS);
             CGVal->Store(NewVal);
             return OldVal;
         }
         case ASTUnaryOpExprKind::OP_UNARY_PRE_DECR: {
             llvm::Value *RHS = llvm::ConstantInt::get(CGM->Int32Ty, -1, true);
-            Value *NewVal = CGM->Builder->CreateNSWAdd(OldVal, RHS);
+            llvm::Value *NewVal = CGM->Builder->CreateNSWAdd(OldVal, RHS);
             CGVal->Store(NewVal);
             return NewVal;
         }
         case ASTUnaryOpExprKind::OP_UNARY_POST_DECR: {
             llvm::Value *RHS = llvm::ConstantInt::get(CGM->Int32Ty, -1, true);
-            Value *NewVal = CGM->Builder->CreateNSWAdd(OldVal, RHS);
+            llvm::Value *NewVal = CGM->Builder->CreateNSWAdd(OldVal, RHS);
             CGVal->Store(NewVal);
             return OldVal;
         }
@@ -192,8 +191,8 @@ llvm::Value *CodeGenExpr::GenBinaryComparison(const ASTExpr *E1, ASTBinaryOpExpr
     FLY_DEBUG_START("CodeGenExpr", "GenBinaryComparison");
     llvm::Value *V1 = GenValue(E1);
     llvm::Value *V2 = GenValue(E2);
-	SymType *V1Type = E1->getType();
-    SymType *V2Type = E2->getType();
+	SemaType *V1Type = E1->getType();
+    SemaType *V2Type = E2->getType();
 
     if (E1->getType()->isBool() && E2->getType()->isBool()) {
         switch (OperatorKind) {
@@ -203,8 +202,8 @@ llvm::Value *CodeGenExpr::GenBinaryComparison(const ASTExpr *E1, ASTBinaryOpExpr
                 return CGM->Builder->CreateICmpNE(V1, V2);
         }
     } else if (E1->getType()->isInteger() && E2->getType()->isInteger()) {
-        bool Signed = static_cast<SymTypeInt *>(E1->getType())->isSigned() ||
-        	static_cast<SymTypeInt *>(E2->getType())->isSigned();
+        bool Signed = static_cast<SemaIntType *>(E1->getType())->isSigned() ||
+        	static_cast<SemaIntType *>(E2->getType())->isSigned();
         switch (OperatorKind) {
 
             case ASTBinaryOpExprKind::OP_BINARY_EQ:
@@ -274,7 +273,7 @@ llvm::Value *CodeGenExpr::GenBinaryLogic(const ASTExpr *E1, ASTBinaryOpExprKind 
 
             // Right Branch
             CGM->Builder->SetInsertPoint(RightBB);
-            PHINode *Phi = CGM->Builder->CreatePHI(CGM->BoolTy, 2);
+            llvm::PHINode *Phi = CGM->Builder->CreatePHI(CGM->BoolTy, 2);
             Phi->addIncoming(llvm::ConstantInt::get(CGM->BoolTy, false, false), FromBB);
             Phi->addIncoming(V2Trunc, LeftBB);
             return Phi;
@@ -294,7 +293,7 @@ llvm::Value *CodeGenExpr::GenBinaryLogic(const ASTExpr *E1, ASTBinaryOpExprKind 
 
             // Right Branch
             CGM->Builder->SetInsertPoint(RightBB);
-            PHINode *Phi = CGM->Builder->CreatePHI(CGM->BoolTy, 2);
+            llvm::PHINode *Phi = CGM->Builder->CreatePHI(CGM->BoolTy, 2);
             Phi->addIncoming(llvm::ConstantInt::get(CGM->BoolTy, true, false), FromBB);
             Phi->addIncoming(V2Trunc, LeftBB);
             return Phi;
@@ -333,7 +332,7 @@ llvm::Value *CodeGenExpr::GenTernary(ASTTernaryOpExpr *Expr) {
 
     // End Label
     CGM->Builder->SetInsertPoint(EndBB);
-    PHINode *Phi = CGM->Builder->CreatePHI(CGM->BoolTy, 2);
+    llvm::PHINode *Phi = CGM->Builder->CreatePHI(CGM->BoolTy, 2);
     Phi->addIncoming(BoolTrue, TrueBB);
     Phi->addIncoming(BoolFalse, FalseBB);
     return Phi;

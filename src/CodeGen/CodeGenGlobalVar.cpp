@@ -11,22 +11,22 @@
 #include "CodeGen/CodeGenGlobalVar.h"
 #include "CodeGen/CodeGenModule.h"
 #include "CodeGen/CodeGen.h"
-#include "Sym/SymModule.h"
-#include "Sym/SymNameSpace.h"
+#include "Sema/SemaModule.h"
+#include "Sema/SemaNameSpace.h"
 #include "AST/ASTVar.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTScopes.h"
 
 #include <AST/ASTExpr.h>
-#include <Sym/SymGlobalVar.h>
+#include <Sema/SemaGlobalVar.h>
 
 using namespace fly;
 
-CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, SymGlobalVar* Sym, bool isExternal) : CGM(CGM), Sym(Sym) {
+CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, SemaGlobalVar* Sym, bool isExternal) : CGM(CGM), Sym(Sym) {
     std::string Id = CodeGen::toIdentifier(Sym->getAST()->getName(), Sym->getModule()->getNameSpace()->getName());
 
 	// External Linkage
-	GlobalValue::LinkageTypes Linkage = GlobalValue::LinkageTypes::ExternalLinkage;
+	llvm::GlobalValue::LinkageTypes Linkage = llvm::GlobalValue::LinkageTypes::ExternalLinkage;
 
 	// Generate Type
     llvm::Type *Ty = CGM->GenType(Sym->getType());
@@ -36,8 +36,8 @@ CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, SymGlobalVar* Sym, bool i
     if (!isExternal) {
 
     	// Internal or External Linkage
-        if (Sym->getVisibility() == SymVisibilityKind::PRIVATE) {
-            Linkage = GlobalValue::LinkageTypes::InternalLinkage;
+        if (Sym->getVisibility() == SemaVisibilityKind::PRIVATE) {
+            Linkage = llvm::GlobalValue::LinkageTypes::InternalLinkage;
         }
 
     	// Set value
@@ -72,7 +72,7 @@ llvm::Type *CodeGenGlobalVar::getType() {
 }
 
 llvm::StoreInst *CodeGenGlobalVar::Store(llvm::Value *Val) {
-    assert(!((GlobalVariable *) Pointer)->isConstant() && "Cannot store into constant var");
+    assert(!((llvm::GlobalVariable *) Pointer)->isConstant() && "Cannot store into constant var");
     this->LoadI = nullptr;
     return CGM->Builder->CreateStore(Val, Pointer);
 }

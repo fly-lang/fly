@@ -11,20 +11,22 @@
 #ifndef FLY_CODEGEN_GLOBALVAR_H
 #define FLY_CODEGEN_GLOBALVAR_H
 
-#include "CodeGenVar.h"
-#include "llvm/IR/GlobalVariable.h"
-#include <llvm/IR/Instructions.h>
+#include "CodeGenVarBase.h"
+
+namespace llvm {
+	class GlobalVariable;
+}
 
 namespace fly {
 
-    class SymGlobalVar;
+    class SemaGlobalVar;
     class CodeGenModule;
 
     class CodeGenGlobalVar : public CodeGenVarBase {
 
         CodeGenModule *CGM;
 
-        SymGlobalVar *Sym;
+        SemaGlobalVar *Sym;
 
         llvm::Type *T = nullptr;
 
@@ -35,7 +37,7 @@ namespace fly {
         llvm::LoadInst *LoadI = nullptr;
 
     public:
-        CodeGenGlobalVar(CodeGenModule *CGM, SymGlobalVar* Sym, bool isExternal = false);
+        CodeGenGlobalVar(CodeGenModule *CGM, SemaGlobalVar* Sym, bool isExternal = false);
 
 //        llvm::AllocaInst *Alloca() override;
 

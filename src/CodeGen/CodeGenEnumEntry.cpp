@@ -9,24 +9,26 @@
 
 #include "CodeGen/CodeGenEnumEntry.h"
 #include "CodeGen/CodeGenModule.h"
-#include "Sym/SymEnumEntry.h"
+#include "Sema/SemaEnumEntry.h"
+
+#include <llvm/IR/Constants.h>
 
 using namespace fly;
 
-CodeGenEnumEntry::CodeGenEnumEntry(CodeGenModule *CGM, SymEnumEntry *Sym) : T(CGM->Int32Ty),
-        Value(llvm::ConstantInt::get(CGM->Int32Ty, Sym->getIndex())) {
+CodeGenEnumEntry::CodeGenEnumEntry(CodeGenModule *CGM, SemaEnumEntry *Sema) : T(CGM->Int32Ty),
+        Value(llvm::ConstantInt::get(CGM->Int32Ty, Sema->getIndex())) {
 }
 
 llvm::Type *CodeGenEnumEntry::getType() {
     return T;
 }
 
-StoreInst *CodeGenEnumEntry::Store(llvm::Value *Val) {
+llvm::StoreInst *CodeGenEnumEntry::Store(llvm::Value *Val) {
     // FIXME give error
     return nullptr;
 }
 
-LoadInst *CodeGenEnumEntry::Load() {
+llvm::LoadInst *CodeGenEnumEntry::Load() {
     // FIXME give error
     return nullptr;
 }
@@ -35,7 +37,7 @@ llvm::Value *CodeGenEnumEntry::getValue() {
     return Value;
 }
 
-Value *CodeGenEnumEntry::getPointer() {
+llvm::Value *CodeGenEnumEntry::getPointer() {
     // FIXME give error
     return nullptr;
 }

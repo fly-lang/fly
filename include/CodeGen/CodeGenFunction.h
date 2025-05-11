@@ -15,7 +15,7 @@
 
 namespace fly {
 
-    class SymFunction;
+    class SemaFunction;
     class CodeGenModule;
 
     class CodeGenFunction : public CodeGenFunctionBase {
@@ -25,11 +25,11 @@ namespace fly {
         bool isMain;
 
     public:
-        CodeGenFunction(CodeGenModule *CGM, SymFunction *Sym, bool isExternal = false);
+        CodeGenFunction(CodeGenModule *CGM, SemaFunction *Sema, bool isExternal = false);
 
         void GenBody() override;
 
-        static bool isMainFunction(SymFunction *Sym);
+        static bool isMainFunction(SemaFunction *Sema);
     };
 }
 

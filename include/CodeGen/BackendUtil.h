@@ -7,8 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_BACKENDUTIL_H
-#define FLY_BACKENDUTIL_H
+#ifndef FLY_CODEGEN_BACKENDUTIL_H
+#define FLY_CODEGEN_BACKENDUTIL_H
 
 #include "Basic/CodeGenOptions.h"
 #include "Basic/Diagnostic.h"
@@ -39,4 +39,4 @@ namespace fly {
     llvm::BitcodeModule * FindThinLTOModule(llvm::MutableArrayRef<llvm::BitcodeModule> BMs);
 }
 
-#endif //FLY_BACKENDUTIL_H
+#endif //FLY_CODEGEN_BACKENDUTIL_H

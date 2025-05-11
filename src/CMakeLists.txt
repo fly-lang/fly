@@ -135,37 +135,36 @@ add_library(flyLib
         Parser/Parser.cpp
 
         # Sema
-        Sema/Sema.cpp
         Sema/ASTBuilder.cpp
+        Sema/Sema.cpp
+        Sema/SemaBuilder.cpp
         Sema/SemaBuilderStmt.cpp
         Sema/SemaBuilderIfStmt.cpp
         Sema/SemaBuilderSwitchStmt.cpp
         Sema/SemaBuilderLoopStmt.cpp
         Sema/SemaBuilderScopes.cpp
         Sema/SemaResolver.cpp
+        Sema/SemaResolverClass.cpp
         Sema/SemaValidator.cpp
-        Sema/SymBuilder.cpp
-
-        # Sym
-        Sym/SymCall.cpp
-        Sym/SymClass.cpp
-        Sym/SymComment.cpp
-        Sym/SymClassAttribute.cpp
-        Sym/SymClassMethod.cpp
-        Sym/SymEnum.cpp
-        Sym/SymEnumEntry.cpp
-        Sym/SymErrorHandler.cpp
-        Sym/SymFunction.cpp
-        Sym/SymFunctionBase.cpp
-#        Sym/SymGlobalVar.cpp
-        Sym/SymLocalVar.cpp
-        Sym/SymModule.cpp
-        Sym/SymNameSpace.cpp
-        Sym/SymParam.cpp
-        Sym/SymTable.cpp
-        Sym/SymType.cpp
-        Sym/SymVar.cpp
-        Sym/SemaValue.cpp
+        Sema/SemaCall.cpp
+        Sema/SemaClassType.cpp
+        Sema/SemaComment.cpp
+        Sema/SemaClassAttribute.cpp
+        Sema/SemaClassMethod.cpp
+        Sema/SemaEnumType.cpp
+        Sema/SemaEnumEntry.cpp
+        Sema/SemaErrorHandler.cpp
+        Sema/SemaFunction.cpp
+        Sema/SemaFunctionBase.cpp
+#        Sema/SemaGlobalVar.cpp
+        Sema/SemaLocalVar.cpp
+        Sema/SemaModule.cpp
+        Sema/SemaNameSpace.cpp
+        Sema/SemaParam.cpp
+        Sema/SymTable.cpp
+        Sema/SemaType.cpp
+        Sema/SemaVar.cpp
+        Sema/SemaValue.cpp
 )
 
 #if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")

@@ -15,11 +15,6 @@
 #define FLY_CODEGEN_H
 
 #include "CodeGen/BackendUtil.h"
-#include "Basic/Diagnostic.h"
-#include "Sym/SymTable.h"
-#include "llvm/IR/LLVMContext.h"
-#include "llvm/Linker/Linker.h"
-#include <memory>
 
 namespace llvm {
     class Constant;
@@ -34,8 +29,10 @@ namespace fly {
     class CodeGenModule;
     class TargetInfo;
     class FrontendOptions;
+    class SymTable;
+    class SemaNameSpace;
 
-    class CodeGen {
+class CodeGen {
 
     protected:
         DiagnosticsEngine &Diags;
@@ -65,7 +62,7 @@ namespace fly {
 
         std::vector<llvm::Module *> GenerateModules(SymTable &Table);
 
-        CodeGenModule *GenerateModule(SymNameSpace *NameSpace);
+        CodeGenModule *GenerateModule(SemaNameSpace *NameSpace);
 
         // void GenerateHeaders(SymTable &Table);
 

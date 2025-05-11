@@ -18,13 +18,11 @@ namespace llvm {
     class StructType;
     class AllocaInst;
     class Type;
-    class StringRef;
 }
 
 namespace fly {
 
     class CodeGenModule;
-    class SymClassAttribute;
 
     class CodeGenClassVar : public CodeGenVarBase {
 
@@ -32,13 +30,11 @@ namespace fly {
 
         CodeGenModule *CGM = nullptr;
 
-        CodeGenVarBase *Parent = nullptr;
+        CodeGenVarBase *Instance = nullptr;
 
         llvm::Type *T = nullptr;
 
         llvm::Value *Pointer = nullptr;
-
-        llvm::Value *Instance = nullptr;
 
         llvm::StringRef BlockID;
 
@@ -51,7 +47,7 @@ namespace fly {
         llvm::LoadInst *LoadI = nullptr;
 
     public:
-        CodeGenClassVar(CodeGenModule *CGM, llvm::Type *T, CodeGenVarBase *Var, size_t Index);
+        CodeGenClassVar(CodeGenModule *CGM, llvm::Type *T, CodeGenVarBase *Instance, size_t Index);
 
         void setInstance(llvm::Value *Inst);
 

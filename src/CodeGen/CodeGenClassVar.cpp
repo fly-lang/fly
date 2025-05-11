@@ -10,17 +10,16 @@
 #include "CodeGen/CodeGenClassVar.h"
 #include "CodeGen/CodeGenVar.h"
 #include "CodeGen/CodeGenModule.h"
-#include "Sym/SymClassAttribute.h"
+#include "Sema/SemaClassAttribute.h"
+
+#include <llvm/IR/Constants.h>
+#include <llvm/IR/Instructions.h>
 
 using namespace fly;
 
-CodeGenClassVar::CodeGenClassVar(CodeGenModule *CGM, llvm::Type *T, CodeGenVarBase *Parent, size_t Index) :
-        CGM(CGM), Parent(Parent), Type(T), Index(llvm::ConstantInt::get(CGM->Int32Ty, Index)),
+CodeGenClassVar::CodeGenClassVar(CodeGenModule *CGM, llvm::Type *T, CodeGenVarBase *Instance, size_t Index) :
+        CGM(CGM), Instance(Instance), Type(T), Index(llvm::ConstantInt::get(CGM->Int32Ty, Index)),
         Zero(llvm::ConstantInt::get(CGM->Int32Ty, 0)) {
-}
-
-void CodeGenClassVar::setInstance(llvm::Value *Inst) {
-    this->Instance = Inst;
 }
 
 llvm::StoreInst *CodeGenClassVar::Store(llvm::Value *Val) {
@@ -32,7 +31,7 @@ llvm::StoreInst *CodeGenClassVar::Store(llvm::Value *Val) {
     //     Val = CGM->Builder->CreateZExt(Val, CGM->Int8Ty);
     // }
 
-    StoreInst *S = CGM->Builder->CreateStore(Val, getValue());
+    llvm::StoreInst *S = CGM->Builder->CreateStore(Val, getValue());
     this->BlockID = CGM->Builder->GetInsertBlock()->getName();
     this->LoadI = nullptr;
     return S;
@@ -53,7 +52,7 @@ llvm::Value *CodeGenClassVar::getValue() {
 
 llvm::Value *CodeGenClassVar::getPointer() {
     if (!this->Pointer)
-        this->Pointer = CGM->Builder->CreateInBoundsGEP(Type, Instance, {Zero, Index});
+        this->Pointer = CGM->Builder->CreateInBoundsGEP(Type, Instance->getPointer(), {Zero, Index});
     return this->Pointer;
 }
 
@@ -66,5 +65,5 @@ llvm::Type * CodeGenClassVar::getType() {
 }
 
 CodeGenVarBase * CodeGenClassVar::getVar(llvm::StringRef Name) {
-	return Parent;
+	return Instance;
 }

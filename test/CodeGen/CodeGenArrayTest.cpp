@@ -34,10 +34,10 @@
 #include "AST/ASTFailStmt.h"
 #include "AST/ASTOpExpr.h"
 
-#include <Sym/SymEnum.h>
-#include <Sym/SymFunction.h>
-#include <Sym/SymModule.h>
-#include <Sym/SymNameSpace.h>
+#include <Sema/SemaEnumType.h>
+#include <Sema/SemaFunction.h>
+#include <Sema/SemaModule.h>
+#include <Sema/SemaNameSpace.h>
 
 
 namespace {
@@ -54,7 +54,7 @@ namespace {
     	ASTTypeRef * ArrayIntType = CreateArrayTypeRef(S->getSymTable().getIntType());
     	ASTVar *LocalVar_k = getASTBuilder().CreateLocalVar(Body, SourceLoc, ArrayIntType, "k", EmptyScopes);
     	SemaBuilderStmt *VarStmt_k = getASTBuilder().CreateAssignmentStmt(Body, LocalVar_k);
-    	VarStmt_k->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(ArrayIntType->getSym())));
+    	VarStmt_k->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(ArrayIntType->getSema())));
 
         // validate and resolve
         EXPECT_TRUE(S->Resolve());
@@ -135,7 +135,7 @@ namespace {
         // g = {}
         ASTVarRef *VarRef_g = CreateVarRef(LocalVar_g);
         SemaBuilderStmt * GVarStmt = getASTBuilder().CreateAssignmentStmt(Body, VarRef_g);
-        ASTExpr *ExprG = getASTBuilder().CreateExpr(getASTBuilder().CreateFloatingValue(SourceLoc, "1.0"));
+        ASTExpr *ExprG = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "1.0"));
         GVarStmt->setExpr(ExprG);
 
         // return g
@@ -171,7 +171,7 @@ namespace {
         // int[] a = {1,2,3}
         ASTVar *LocalVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "a", EmptyScopes);
         SemaBuilderStmt *VarStmt = getASTBuilder().CreateAssignmentStmt(Body, LocalVar);
-        ASTValueExpr *ValueExpr = getASTBuilder().CreateExpr(getASTBuilder().CreateIntegerValue(SourceLoc, "1"));
+        ASTValueExpr *ValueExpr = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "1"));
         VarStmt->setExpr(ValueExpr);
 
         // validate and resolve

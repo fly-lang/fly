@@ -32,7 +32,7 @@ namespace fly {
     class ASTValue : public ASTBase {
 
         friend class ASTBuilder;
-        friend class SymBuilder;
+        friend class SemaBuilder;
         friend class SemaResolver;
         friend class SemaValidator;
 

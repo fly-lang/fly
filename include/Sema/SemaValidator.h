@@ -27,13 +27,13 @@ namespace fly {
     class ASTClass;
     class ASTTypeRef;
     class SourceLocation;
-    class SymGlobalVar;
-    class SymFunction;
-    class SymClass;
-    class SymEnum;
-    class SymComment;
+    class SemaGlobalVar;
+    class SemaFunction;
+    class SemaClassType;
+    class SemaEnumType;
+    class SemaComment;
     class ASTValue;
-    enum class SymTypeKind;
+    enum class SemaTypeKind;
 
     class SemaValidator {
 
@@ -49,7 +49,7 @@ namespace fly {
 
         bool CheckDuplicateModules(ASTModule * Module);
 
-        bool CheckDuplicateVars(const llvm::StringMap<SymGlobalVar *> &Vars, ASTVar * Var);
+        bool CheckDuplicateVars(const llvm::StringMap<SemaGlobalVar *> &Vars, ASTVar * Var);
 
 //         template<class T>
 //         static bool InsertFunction(llvm::StringMap<std::map<uint64_t, llvm::SmallVector<T *, 4>>> &Functions,
@@ -115,11 +115,11 @@ namespace fly {
 
         bool CheckDuplicateLocalVars(ASTStmt *Stmt, llvm::StringRef VarName);
 
-        bool CheckCommentParams(SymComment *Comment, const llvm::SmallVector<ASTVar*, 8> &Params);
+        bool CheckCommentParams(SemaComment *Comment, const llvm::SmallVector<ASTVar*, 8> &Params);
 
-        bool CheckCommentReturn(SymComment *Comment, ASTTypeRef* ReturnType);
+        bool CheckCommentReturn(SemaComment *Comment, ASTTypeRef* ReturnType);
 
-        bool CheckCommentFail(SymComment *Comment);
+        bool CheckCommentFail(SemaComment *Comment);
 
         // static bool CheckParams(llvm::SmallVector<ASTVar *, 8> Params, llvm::SmallVector<ASTVar *, 8> CheckParams) {
         //     // Types will be checked on Resolve()
@@ -135,17 +135,17 @@ namespace fly {
 
         bool CheckExpr(ASTExpr *Expr);
 
-        bool CheckEqualTypes(SymType *Type1, SymType *Type2);
+        bool CheckEqualTypes(SemaType *Type1, SemaType *Type2);
 
-        bool CheckConvertibleTypes(SymType *FromType, SymType *ToType);
+        bool CheckConvertibleTypes(SemaType *FromType, SemaType *ToType);
 
-        bool CheckInheritance(SymClass *TheClass, SymClass *SuperClass);
+        bool CheckInheritance(SemaClassType *TheClass, SemaClassType *SuperClass);
 
-        bool CheckInheritance(SymEnum *TheEnum, SymEnum *SuperEnum);
+        bool CheckInheritance(SemaEnumType *TheEnum, SemaEnumType *SuperEnum);
 
-        bool CheckArithTypes(SymType *Type1, SymType *Type2);
+        bool CheckArithTypes(SemaType *Type1, SemaType *Type2);
 
-        bool CheckLogicalTypes(SymType *Type1, SymType *Type2);
+        bool CheckLogicalTypes(SemaType *Type1, SemaType *Type2);
 
         void CheckNameEmpty(const SourceLocation &Loc, llvm::StringRef Name);
 

@@ -11,7 +11,7 @@
 #include "CodeGen/CodeGenModule.h"
 #include "CodeGen/CharUnits.h"
 #include "CodeGen/CodeGenHeader.h"
-#include "Sym/SymNameSpace.h"
+#include "Sema/SemaNameSpace.h"
 #include "AST/ASTModule.h"
 #include "AST/ASTNameSpace.h"
 #include "Frontend/FrontendOptions.h"
@@ -19,6 +19,7 @@
 #include "Basic/TargetInfo.h"
 #include "Basic/Debug.h"
 
+#include <Sema/SymTable.h>
 #include <llvm/IR/LLVMContext.h>
 
 using namespace fly;
@@ -79,7 +80,7 @@ void CodeGen::Emit(llvm::Module *M, llvm::StringRef OutName) {
 
     std::error_code ErrCode;
     std::unique_ptr<llvm::raw_fd_ostream> OS =
-            std::make_unique<raw_fd_ostream>(OutName, ErrCode, llvm::sys::fs::F_None);
+            std::make_unique<llvm::raw_fd_ostream>(OutName, ErrCode, llvm::sys::fs::F_None);
 
     // Include Bitcode in module
     EmbedBitcode(M, CodeGenOpts, llvm::MemoryBufferRef());
@@ -97,7 +98,7 @@ TargetInfo &CodeGen::getTargetInfo() const {
     return *Target;
 }
 
-LLVMContext &CodeGen::getLLVMCtx() {
+llvm::LLVMContext &CodeGen::getLLVMCtx() {
     return LLVMCtx;
 }
 
@@ -108,20 +109,20 @@ std::vector<llvm::Module *> CodeGen::GenerateModules(SymTable &Table) {
         Diags.getClient()->BeginSourceFile();
         CodeGenModule *CGM = GenerateModule(NameSpace.getValue());
         CGM->GenAll();
-        Modules.push_back(CGM->Module);
+        Modules.push_back(CGM->getModule());
         Diags.getClient()->EndSourceFile();
     }
     return Modules;
 }
 
-CodeGenModule *CodeGen::GenerateModule(SymNameSpace *NameSpace) {
+CodeGenModule *CodeGen::GenerateModule(SemaNameSpace *NameSpace) {
     FLY_DEBUG_START("CodeGen", "GenerateModule");
     CodeGenModule *CGM = new CodeGenModule(Diags, NameSpace, LLVMCtx, *Target, CodeGenOpts);
     NameSpace->setCodeGen(CGM);
     return CGM;
 }
 
-// void CodeGen::GenerateHeaders(SymTable &SymbolTable) {
+// void CodeGen::GenerateHeaders(SemaTable &SymbolTable) {
 //     for (auto &NameSpace : SymbolTable.getNameSpaces()) {
 //         Diags.getClient()->BeginSourceFile();
 //         GenerateHeader(*NameSpace.getValue());
@@ -129,7 +130,7 @@ CodeGenModule *CodeGen::GenerateModule(SymNameSpace *NameSpace) {
 //     }
 // }
 
-// void CodeGen::GenerateHeader(SymNameSpace &NameSpace){
+// void CodeGen::GenerateHeader(SemaNameSpace &NameSpace){
 //     FLY_DEBUG_START("CodeGen", "GenerateHeader");
 //     return CodeGenHeader::CreateFile(Diags, CodeGenOpts, NameSpace);
 // }

@@ -8,11 +8,11 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "CodeGen/CodeGenHeader.h"
-#include "Sym/SymNameSpace.h"
-#include "Sym/SymGlobalVar.h"
-#include "Sym/SymFunction.h"
-#include "Sym/SymClass.h"
-#include "Sym/SymEnum.h"
+#include "Sema/SemaNameSpace.h"
+#include "Sema/SemaGlobalVar.h"
+#include "Sema/SemaFunction.h"
+#include "Sema/SemaClassType.h"
+#include "Sema/SemaEnumType.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/Debug.h"
 
@@ -27,7 +27,7 @@ using namespace fly;
 std::string getParameters(ASTFunction *Function) {
 	llvm::Twine Params;
 	for (auto Param : Function->getParams()) {
-		SymTypeKind Kind = Param->getTypeRef()->getDef()->getKind();
+		SemaTypeKind Kind = Param->getTypeRef()->getDef()->getKind();
 		//Params.concat(Kind).concat(" ").concat(Param->getName()).concat(", ");
 	}
 
@@ -38,7 +38,7 @@ std::string getParameters(ASTFunction *Function) {
 	return ParamsStr;
 }
 
-void CodeGenHeader::CreateFile(DiagnosticsEngine &Diags, CodeGenOptions &CodeGenOpts, SymNameSpace &NameSpace) {
+void CodeGenHeader::CreateFile(DiagnosticsEngine &Diags, CodeGenOptions &CodeGenOpts, SemaNameSpace &NameSpace) {
 	FLY_DEBUG_START("CodeGenHeader", "GenerateFile");
 	llvm::Twine FileHeader = llvm::Twine(NameSpace.getName()).concat(".h");
 	llvm::StringRef FileName = llvm::sys::path::filename(FileHeader.str());
@@ -48,8 +48,8 @@ void CodeGenHeader::CreateFile(DiagnosticsEngine &Diags, CodeGenOptions &CodeGen
 	llvm::Twine Header = llvm::Twine("namespace ").concat(NameSpace.getName()).concat("\n\n");
 
 	// generate global var declarations
-	for (auto SymVar : NameSpace.getGlobalVars()) {
-		ASTVar *GlobalVar = SymVar.getValue()->getAST();
+	for (auto SemaVar : NameSpace.getGlobalVars()) {
+		ASTVar *GlobalVar = SemaVar.getValue()->getAST();
 		if (GlobalVar->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
 			Header.concat(GlobalVar->getTypeRef()->print())
 			      .concat(GlobalVar->getName())
@@ -58,8 +58,8 @@ void CodeGenHeader::CreateFile(DiagnosticsEngine &Diags, CodeGenOptions &CodeGen
 	}
 
 	// generate function declarations
-	for (auto &SymFunc : NameSpace.getFunctions()) {
-		ASTFunction *Function = SymFunc->getFunction();
+	for (auto &SemaFunc : NameSpace.getFunctions()) {
+		ASTFunction *Function = SemaFunc->getFunction();
 		if (Function->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
 			Header.concat(Function->getReturnTypeRef()->print())
 			      .concat(Function->getName())
@@ -70,8 +70,8 @@ void CodeGenHeader::CreateFile(DiagnosticsEngine &Diags, CodeGenOptions &CodeGen
 	}
 
 	// generate Identity Header: class, enum
-	for (auto SymClassEntry : NameSpace.getClasses()) {
-		ASTClass *Class = SymClassEntry.getValue()->getAST();
+	for (auto SemaClassEntry : NameSpace.getClasses()) {
+		ASTClass *Class = SemaClassEntry.getValue()->getAST();
 		Header.concat(Class->getName()).concat("{\n");
 		for (auto Attribute : Class->getAttributes()) {
 			Header.concat(Attribute->getType()->print()).concat(" ")
@@ -98,8 +98,8 @@ void CodeGenHeader::CreateFile(DiagnosticsEngine &Diags, CodeGenOptions &CodeGen
 		Header.concat("}\n\n");
 	}
 
-	for (auto SymEnum : NameSpace.getEnums()) {
-		ASTEnum *Enum = SymEnum.getValue()->getAST();
+	for (auto SemaEnum : NameSpace.getEnums()) {
+		ASTEnum *Enum = SemaEnum.getValue()->getAST();
 		Header.concat(Enum->getName()).concat("{\n");
 		for (auto &EnumEntry : Enum->getEntries()) {
 			Header.concat(EnumEntry->getName()).concat("\n\n"); // TODO add value

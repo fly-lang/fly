@@ -12,10 +12,11 @@
 
 #include <vector>
 #include <string>
+#include <AST/ASTTypeRef.h>
 
 namespace fly {
     class DiagnosticsEngine;
-    class SymNameSpace;
+    class SemaNameSpace;
     class ASTFunction;
     class ASTClass;
     class ASTModule;
@@ -25,7 +26,7 @@ namespace fly {
     class CodeGenHeader
     {
     public:
-        static void CreateFile(DiagnosticsEngine& Diags, CodeGenOptions& CodeGenOpts, SymNameSpace& NameSpace);
+        static void CreateFile(DiagnosticsEngine& Diags, CodeGenOptions& CodeGenOpts, SemaNameSpace& NameSpace);
 
         std::string SaveFile();
 
@@ -37,7 +38,7 @@ namespace fly {
 
         const std::string Convert(ASTTypeRef* TypeRef);
 
-        void AddNameSpace(SymNameSpace* pSpace);
+        void AddNameSpace(SemaNameSpace* pSpace);
     };
 }
 

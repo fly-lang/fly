@@ -22,8 +22,8 @@
 #include <AST/ASTScopes.h>
 #include <AST/ASTVar.h>
 #include <Sema/ASTBuilder.h>
-#include <Sema/SymBuilder.h>
-#include "Sym/SymType.h"
+#include <Sema/SemaBuilder.h>
+#include "Sema/SemaType.h"
 
 
 // third party
@@ -32,6 +32,7 @@
 #include "llvm/Support/TargetSelect.h"
 
 #include <CodeGen/CodeGenModule.h>
+#include <Sema/SymTable.h>
 #include <gtest/gtest.h>
 
 using namespace fly;
@@ -92,7 +93,6 @@ public:
     ASTModule *CreateModule(std::string Name = "test") {
         Diags.getClient()->BeginSourceFile();
         auto AST = S->getASTBuilder().CreateModule(Name);
-    	//SymModule *Module = S->getSymBuilder().CreateModule(AST);
         Diags.getClient()->EndSourceFile();
         return AST;
     }
@@ -105,8 +105,8 @@ public:
 	    return S->getASTBuilder();
     }
 
-	ASTTypeRef * CreateArrayTypeRef(SymType *T) {
-    	SymTypeArray *A = S->getSymBuilder().CreateArrayType(T);
+	ASTTypeRef * CreateArrayTypeRef(SemaType *T) {
+    	SemaArrayType *A = S->getSemaBuilder().CreateArrayType(T);
     	return S->getASTBuilder().CreateTypeRef(SourceLoc, A);
     }
 

@@ -13,27 +13,27 @@
 #include "CodeGen/CodeGenModule.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTModule.h"
-#include "Sym/SymClass.h"
-#include "Sym/SymModule.h"
-#include "Sym/SymNameSpace.h"
+#include "Sema/SemaClassType.h"
+#include "Sema/SemaModule.h"
+#include "Sema/SemaNameSpace.h"
 #include "llvm/IR/DerivedTypes.h"
 
 #include <AST/ASTTypeRef.h>
 #include <AST/ASTVar.h>
-#include <Sym/SymClassAttribute.h>
-#include <Sym/SymClassMethod.h>
+#include <Sema/SemaClassAttribute.h>
+#include <Sema/SemaClassMethod.h>
 
 using namespace fly;
 
-CodeGenClass::CodeGenClass(CodeGenModule *CGM, SymClass *Sym, bool isExternal) : CGM(CGM), Sym(Sym) {
-    std::string TypeName = CodeGen::toIdentifier(Sym->getAST()->getName(), Sym->getModule()->getNameSpace()->getName());
+CodeGenClass::CodeGenClass(CodeGenModule *CGM, SemaClassType *Sema, bool isExternal) : CGM(CGM), Sema(Sema) {
+    std::string TypeName = CodeGen::toIdentifier(Sema->getAST()->getName(), Sema->getModule()->getNameSpace()->getName());
 
     // Generate Class Type
     Type = llvm::StructType::create(CGM->LLVMCtx, TypeName);
     TypePtr = Type->getPointerTo(CGM->Module->getDataLayout().getAllocaAddrSpace());
 
     // Generate VTable from Class and Interface
-    if (Sym->getAST()->getClassKind() == ASTClassKind::CLASS || Sym->getAST()->getClassKind() == ASTClassKind::INTERFACE) {
+    if (Sema->getAST()->getClassKind() == ASTClassKind::CLASS || Sema->getAST()->getClassKind() == ASTClassKind::INTERFACE) {
         VTableType = llvm::StructType::create(CGM->LLVMCtx, TypeName + "_vtable");
     }
 }
@@ -41,19 +41,11 @@ CodeGenClass::CodeGenClass(CodeGenModule *CGM, SymClass *Sym, bool isExternal) :
 void CodeGenClass::Generate() {
 
     // Generate Constructors
-    if (Sym->getAST()->getClassKind() == ASTClassKind::CLASS || Sym->getAST()->getClassKind() == ASTClassKind::STRUCT) {
-
-        // Default Constructor
-//        if (AST->getDefaultConstructor()) {
-//            // Create Constructor CodeGen for Constructor
-//            CodeGenClassFunction *CGCF = new CodeGenClassFunction(CGM, AST->getDefaultConstructor(), TypePtr);
-//            AST->getDefaultConstructor()->setCodeGen(CGCF);
-//            Constructors.push_back(CGCF);
-//        }
+    if (Sema->getAST()->getClassKind() == ASTClassKind::CLASS || Sema->getAST()->getClassKind() == ASTClassKind::STRUCT) {
 
         // Add Constructors
-        for (auto &Entry: Sym->getConstructors()) {
-			SymClassMethod * Constructor = Entry.getValue();
+        for (auto &Entry: Sema->getConstructors()) {
+			SemaClassMethod * Constructor = Entry.getValue();
 
             // Create Constructor CodeGen for Constructor
             CodeGenClassFunction *CGCF = new CodeGenClassFunction(CGM, Constructor, TypePtr);
@@ -66,10 +58,10 @@ void CodeGenClass::Generate() {
     llvm::SmallVector<llvm::Type *, 4> TypeVector;
 
     // Set CodeGen Methods
-    if (Sym->getAST()->getClassKind() == ASTClassKind::CLASS || Sym->getAST()->getClassKind() == ASTClassKind::INTERFACE) {
+    if (Sema->getAST()->getClassKind() == ASTClassKind::CLASS || Sema->getAST()->getClassKind() == ASTClassKind::INTERFACE) {
         llvm::SmallVector<llvm::Type *, 4> VTableVector;
-        for (auto &Entry: Sym->getMethods()) {
-        	SymClassMethod *Method = Entry.getValue();
+        for (auto &Entry: Sema->getMethods()) {
+        	SemaClassMethod *Method = Entry.getValue();
             CodeGenClassFunction *CGCF = new CodeGenClassFunction(CGM, Method, TypePtr);
             if (!Method->isStatic()) { // only instance methods
                 // Create the VTable Struct Type
@@ -86,13 +78,13 @@ void CodeGenClass::Generate() {
     }
 
     // Set CodeGen Attributes
-    if (!Sym->getAttributes().empty()) {
-        if (Sym->getAST()->getClassKind() == ASTClassKind::CLASS || Sym->getAST()->getClassKind() == ASTClassKind::STRUCT) {
+    if (!Sema->getAttributes().empty()) {
+        if (Sema->getAST()->getClassKind() == ASTClassKind::CLASS || Sema->getAST()->getClassKind() == ASTClassKind::STRUCT) {
 
             // add var to the type
-            for (auto &AttributeEntry: Sym->getAttributes()) {
-            	SymClassAttribute *Attribute = AttributeEntry.getValue();
-                llvm::Type *AttrType = CGM->GenType(Attribute->getAST()->getTypeRef()->getSym());
+            for (auto &AttributeEntry: Sema->getAttributes()) {
+            	SemaClassAttribute *Attribute = AttributeEntry.getValue();
+                llvm::Type *AttrType = CGM->GenType(Attribute->getAST()->getTypeRef()->getSema());
                 TypeVector.push_back(AttrType);
             }
         }

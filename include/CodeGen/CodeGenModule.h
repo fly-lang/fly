@@ -16,15 +16,24 @@
 
 #include "Basic/Diagnostic.h"
 #include "Basic/TargetInfo.h"
-#include <llvm/IR/Module.h>
+#include <Sema/SemaType.h>
 #include <llvm/IR/IRBuilder.h>
-#include <Sym/SymType.h>
 
-using namespace llvm;
+namespace llvm {
+class LLVMContext;
+class Module;
+class Type;
+class Value;
+class PointerType;
+class StructType;
+class IntegerType;
+class Constant;
+class BasicBlock;
+};
 
 namespace fly {
 
-    class SymNameSpace;
+    class SemaNameSpace;
     class SymTable;
     class CodeGen;
     class CodeGenGlobalVar;
@@ -46,15 +55,13 @@ namespace fly {
     class ASTStmt;
     class ASTBlockStmt;
     class ASTIfStmt;
-    class SymGlobalVar;
-    class SymFunction;
-    class SymClass;
-    class SymClassAttribute;
-    class SymClassMethod;
-    class SymEnum;
-    class SymFunctionBase;
-    class SymVar;
-    class SymCall;
+    class SemaGlobalVar;
+    class SemaFunction;
+    class SemaClassType;
+    class SemaEnumType;
+    class SemaFunctionBase;
+    class SemaVar;
+    class SemaCall;
     class SemaValue;
 
     class CodeGenModule {
@@ -78,7 +85,7 @@ namespace fly {
         // CodeGen Options
         CodeGenOptions &CGOpts;
 
-        SymNameSpace *NameSpace;
+        SemaNameSpace *NameSpace;
 
         // Target Info
         TargetInfo &Target;
@@ -158,12 +165,12 @@ namespace fly {
 
         llvm::PointerType *ErrorPtrTy;
 
-        CodeGenModule(DiagnosticsEngine &Diags, SymNameSpace *NameSpace, LLVMContext &LLVMCtx, TargetInfo &Target,
+        CodeGenModule(DiagnosticsEngine &Diags, SemaNameSpace *NameSpace, llvm::LLVMContext &LLVMCtx, TargetInfo &Target,
                       CodeGenOptions &CGOpts);
 
         virtual ~CodeGenModule();
 
-        SymNameSpace *getNameSpace() const;
+        SemaNameSpace *getNameSpace() const;
 
         DiagnosticBuilder Diag(const SourceLocation &Loc, unsigned DiagID);
 
@@ -176,33 +183,33 @@ namespace fly {
         // TODO: remove GlobalVar
         // CodeGenGlobalVar *GenGlobalVar(SymGlobalVar *GlobalVar, bool isExternal = false);
 
-        CodeGenFunction *GenFunction(SymFunction *Function, bool isExternal = false);
+        CodeGenFunction *GenFunction(SemaFunction *Function, bool isExternal = false);
 
-        CodeGenClass *GenClass(SymClass *Class, bool isExternal = false);
+        CodeGenClass *GenClass(SemaClassType *Class, bool isExternal = false);
 
-        void GenEnum(SymEnum *Enum);
+        void GenEnum(SemaEnumType *Enum);
 
-        llvm::Type *GenType(SymType *Type);
+        llvm::Type *GenType(SemaType *Type);
 
-        llvm::PointerType *GenArrayType(SymTypeArray *Type);
+        llvm::PointerType *GenArrayType(SemaArrayType *Type);
 
-        llvm::Constant *GenDefaultValue(SymType *Type, llvm::Type *Ty = nullptr);
+        llvm::Constant *GenDefaultValue(SemaType *Type, llvm::Type *Ty = nullptr);
 
-        llvm::Value *GenValue(SymType *Type, SemaValue *Val);
+        llvm::Value *GenValue(SemaType *Type, SemaValue *Val);
 
 //        llvm::Value *Convert(llvm::Value *V, llvm::Type *T);
 
         llvm::Value *ConvertToBool(llvm::Value *Val);
 
-        llvm::Value *Convert(llvm::Value *FromVal, SymType *FromType, SymType *ToType);
+        llvm::Value *Convert(llvm::Value *FromVal, SemaType *FromType, SemaType *ToType);
 
-        CodeGenError *GenErrorHandler(SymVar* Error);
+        CodeGenError *GenErrorHandler(SemaVar* Error);
 
-        CodeGenVar *GenLocalVar(SymVar* Var);
+        CodeGenVar *GenLocalVar(SemaVar* Var);
 
-        llvm::Value *GenVarRef(SymVar *Var);
+        llvm::Value *GenVarRef(SemaVar *Var);
 
-        llvm::Value *GenCall(SymCall *Call);
+        llvm::Value *GenCall(SemaCall *Call);
 
         llvm::Value *GenExpr(ASTExpr *Expr);
 
@@ -223,7 +230,6 @@ namespace fly {
         void GenLoopBlock(CodeGenFunctionBase *CGF, ASTLoopStmt *Loop);
 
         void GenReturn(ASTFunction *CGF, ASTExpr *Expr = nullptr);
-
     };
 }
 

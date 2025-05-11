@@ -10,35 +10,11 @@
 // fly
 #include "CodeGenTest.h"
 #include "CodeGen/CodeGenModule.h"
-#include "CodeGen/CodeGenFunction.h"
-#include "CodeGen/CodeGenClass.h"
-#include "Sema/SemaBuilderScopes.h"
 #include "Sema/SemaBuilderStmt.h"
-#include "Sema/SemaBuilderIfStmt.h"
-#include "Sema/SemaBuilderSwitchStmt.h"
-#include "Sema/SemaBuilderLoopStmt.h"
-#include "AST/ASTModule.h"
-#include "AST/ASTNameSpace.h"
-#include "AST/ASTVar.h"
-#include "AST/ASTFunction.h"
-#include "AST/ASTDeleteStmt.h"
-#include "AST/ASTVarRef.h"
-#include "AST/ASTVar.h"
-#include "AST/ASTIfStmt.h"
-#include "AST/ASTSwitchStmt.h"
-#include "AST/ASTLoopStmt.h"
-#include "AST/ASTHandleStmt.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTEnum.h"
-#include "AST/ASTExprStmt.h"
-#include "AST/ASTFailStmt.h"
 #include "AST/ASTOpExpr.h"
-
-#include <Sym/SymEnum.h>
-#include <Sym/SymFunction.h>
-#include <Sym/SymModule.h>
-#include <Sym/SymNameSpace.h>
-
+#include <Sema/SemaFunction.h>
 
 namespace {
 
@@ -282,7 +258,7 @@ namespace {
         Fail3Stmt->setExpr(getASTBuilder().CreateExpr(StrVal));
 
         // main() {
-        //   testFail(
+        //   testFail()
         // }
         ASTBlockStmt *MainBody = getASTBuilder().CreateBlockStmt(SourceLoc);
         ASTFunction *Main = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopScopes, Params, MainBody);

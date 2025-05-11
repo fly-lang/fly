@@ -19,12 +19,12 @@ namespace fly {
     class ASTComment;
     class ASTTypeRef;
     class ASTBlockStmt;
-    class SymFunctionBase;
+    class SemaFunctionBase;
 
     class ASTFunction : public ASTBase {
 
         friend class ASTBuilder;
-        friend class SymBuilder;
+        friend class SemaBuilder;
         friend class SemaResolver;
         friend class ParserFunction;
         friend class ParserClass;
@@ -41,7 +41,7 @@ namespace fly {
         // Body is the main BlockStmt
         ASTBlockStmt *Body = nullptr;
 
-        SymFunctionBase *Sym = nullptr;
+        SemaFunctionBase *Sema = nullptr;
 
     protected:
 
@@ -64,7 +64,7 @@ namespace fly {
 
         bool isVarArg();
 
-        SymFunctionBase *getSym();
+        SemaFunctionBase *getSema();
 
         std::string str() const override;
     };

@@ -20,7 +20,7 @@ namespace llvm {
 
 namespace fly {
 
-    class SymBuilder;
+    class SemaBuilder;
     class ASTBuilder;
     class SemaResolver;
     class SemaValidator;
@@ -31,7 +31,7 @@ namespace fly {
     class DiagnosticBuilder;
     class SourceLocation;
     class SymTable;
-    class SymNameSpace;
+    class SemaNameSpace;
     class ASTModule;
     class ASTFunction;
     class ASTFunction;
@@ -41,6 +41,7 @@ namespace fly {
     class ASTBlockStmt;
     class ASTRef;
     class ASTTypeRef;
+    class SymTable;
 
     class Sema {
 
@@ -49,7 +50,7 @@ namespace fly {
         friend class SemaBuilderSwitchStmt;
         friend class SemaBuilderLoopStmt;
         friend class SemaResolver;
-        friend class SymBuilder;
+        friend class SemaBuilder;
 
         DiagnosticsEngine &Diags;
 
@@ -59,7 +60,7 @@ namespace fly {
 
         ASTBuilder *ABuilder = nullptr;
 
-        SymBuilder *SBuilder = nullptr;
+        SemaBuilder *SBuilder = nullptr;
 
         SemaValidator *Validator = nullptr;
 
@@ -75,7 +76,7 @@ namespace fly {
 
         ASTBuilder &getASTBuilder();
 
-        SymBuilder &getSymBuilder();
+        SemaBuilder &getSemaBuilder();
 
         DiagnosticsEngine &getDiags() const;
 

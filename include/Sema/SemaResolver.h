@@ -10,16 +10,7 @@
 #ifndef FLY_SEMA_RESOLVER_H
 #define FLY_SEMA_RESOLVER_H
 
-#include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/SmallVector.h"
-
-#include <map>
-
-#include "SymBuilder.h"
-
-namespace llvm {
-    class StringRef;
-}
 
 namespace fly {
 
@@ -29,11 +20,11 @@ namespace fly {
     class DiagnosticBuilder;
     class SourceLocation;
     class SymTable;
-    class SymNameSpace;
-    class SymModule;
-    class SymComment;
-    class SymClass;
-    class SymEnum;
+    class SemaNameSpace;
+    class SemaModule;
+    class SemaComment;
+    class SemaClassType;
+    class SemaEnumType;
     class ASTModule;
     class ASTBase;
     class ASTClass;
@@ -60,25 +51,30 @@ namespace fly {
     class ASTLoopInStmt;
     class ASTEnum;
     class ASTVarStmt;
-    class SymGlobalVar;
-    class SymFunction;
-    class SymVar;
-    class SymLocalVar;
-    class SymFunctionBase;
+    class SemaGlobalVar;
+    class SemaFunction;
+    class SemaVar;
+    class SemaLocalVar;
+    class SemaFunctionBase;
+    class SemaType;
     class ASTScope;
-class ASTValue;
+    class ASTValue;
 
     class SemaResolver {
+
         friend class Sema;
+        friend class SemaResolverClass;
 
         Sema &S;
 
         // This is the Module NameSpace
-        SymNameSpace *NameSpace;
+        SemaNameSpace *NameSpace;
 
-        SymModule *Module;
+        SemaModule *Module;
 
         bool isDefaultNameSpace;
+
+        llvm::SmallVector<ASTBlockStmt *, 8> Bodies;
 
         SemaResolver(Sema &S, ASTModule *Module);
 
@@ -92,7 +88,7 @@ class ASTValue;
 
         void ResolveImports();
 
-        void ResolveComment(SymComment *Comment, ASTBase* AST);
+        void ResolveComment(SemaComment *Comment, ASTBase* AST);
 
         // TODO: remove GlobalVar
         // void ResolveGlobalVars();
@@ -100,6 +96,10 @@ class ASTValue;
         void ResolveFunctions();
 
         void ResolveTypes();
+
+        void ResolveBodies();
+
+        void ResolveEnumType(SemaEnumType *Sema);
 
         bool ResolveStmt(ASTStmt *Stmt);
 
@@ -123,23 +123,23 @@ class ASTValue;
 
         bool ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr);
 
-        SymNameSpace *ResolveNameSpaceRef(ASTRef *Ref);
+        SemaNameSpace *ResolveNameSpaceRef(ASTRef *Ref);
 
         bool ResolveTypeRef(ASTTypeRef *&Type);
 
         ASTRef *ResolveRef(ASTStmt *Stmt, ASTRef *Ref);
 
-        ASTRef *ResolveRef(ASTStmt *Stmt, ASTRef *Ref, SymNameSpace *CurrentNameSpace);
+        ASTRef *ResolveRef(ASTStmt *Stmt, ASTRef *Ref, SemaNameSpace *CurrentNameSpace);
 
-        ASTRef *ResolveCall(ASTStmt *Stmt, ASTCall *Call, SymNameSpace *CurrentNameSpace);
+        ASTRef *ResolveCall(ASTStmt *Stmt, ASTCall *Call, SemaNameSpace *CurrentNameSpace);
 
-        llvm::SmallVector<SymType *, 8> ResolveCallArgTypes(ASTStmt *Stmt, ASTCall *Call);
+        llvm::SmallVector<SemaType *, 8> ResolveCallArgTypes(ASTStmt *Stmt, ASTCall *Call);
 
-        ASTRef *ResolveRef(ASTStmt *Stmt, SymType *Type, ASTRef *Ref);
+        ASTRef *ResolveRef(ASTStmt *Stmt, SemaType *Type, ASTRef *Ref);
 
-        ASTRef *ResolveRef(ASTStmt *Stmt, SymVar *Var, ASTRef *Ref);
+        ASTRef *ResolveRef(ASTStmt *Stmt, SemaVar *Var, ASTRef *Ref);
 
-        SymType *FindType(llvm::StringRef Name, SymNameSpace *CurrentNameSpace) const;
+        SemaType *FindType(llvm::StringRef Name, SemaNameSpace *CurrentNameSpace) const;
     };
 
 } // end namespace fly

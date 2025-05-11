@@ -17,7 +17,7 @@ ASTVarRef::ASTVarRef(const SourceLocation &Loc, llvm::StringRef Name) : ASTRef(L
 
 }
 
-SymVar *ASTVarRef::getSym() const {
+SemaVar *ASTVarRef::getSema() const {
     return *Sym;
 }
 

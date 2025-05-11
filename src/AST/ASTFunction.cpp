@@ -27,8 +27,8 @@ bool ASTFunction::isVarArg() {
 	return false;
 }
 
-SymFunctionBase *ASTFunction::getSym() {
-	return Sym;
+SemaFunctionBase *ASTFunction::getSema() {
+	return Sema;
 }
 
 llvm::SmallVector<ASTScope *, 8> ASTFunction::getScopes() const {

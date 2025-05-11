@@ -1,0 +1,50 @@
+//===--------------------------------------------------------------------------------------------------------------===//
+// src/AST/SemaNameSpace.cpp - AST Namespace implementation
+//
+// Part of the Fly Project https://flylang.org
+// Under the Apache License v2.0 see LICENSE for details.
+// Thank you to LLVM Project https://llvm.org/
+//
+//===--------------------------------------------------------------------------------------------------------------===//
+
+#include "Sema/SemaNameSpace.h"
+#include "llvm/ADT/StringRef.h"
+
+using namespace fly;
+
+SemaNameSpace::SemaNameSpace(const std::string& Name) : Name(Name) {
+}
+
+SemaNameSpace::~SemaNameSpace() = default;
+
+llvm::StringRef SemaNameSpace::getName() const {
+	return Name;
+}
+
+SemaNameSpace * SemaNameSpace::getParent() const {
+	return Parent;
+}
+
+const llvm::SmallVector<ASTModule *, 8> &SemaNameSpace::getModules() const {
+	return Modules;
+}
+
+const llvm::StringMap<SemaGlobalVar *> &SemaNameSpace::getGlobalVars() const {
+	return GlobalVars;
+}
+
+const llvm::StringMap<SemaFunction *> &SemaNameSpace::getFunctions() const {
+	return Functions;
+}
+
+const llvm::StringMap<SemaType *> &SemaNameSpace::getTypes() const {
+	return Types;
+}
+
+CodeGenModule *SemaNameSpace::getCodeGen() const {
+	return CodeGen;
+}
+
+void SemaNameSpace::setCodeGen(CodeGenModule *CGM) {
+	CodeGen = CGM;
+}

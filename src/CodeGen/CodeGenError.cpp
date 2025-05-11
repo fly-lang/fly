@@ -10,9 +10,13 @@
 #include "CodeGen/CodeGenError.h"
 #include "CodeGen/CodeGenModule.h"
 
+#include <llvm/IR/Constants.h>
+#include <llvm/IR/DerivedTypes.h>
+#include <llvm/IR/Instructions.h>
+
 using namespace fly;
 
-CodeGenError::CodeGenError(CodeGenModule *CGM, SymVar *Error, llvm::Value *Pointer) :
+CodeGenError::CodeGenError(CodeGenModule *CGM, SemaVar *Error, llvm::Value *Pointer) :
     CGM(CGM), Error(Error), Pointer(Pointer), T(CGM->ErrorTy) {
 
 }
@@ -41,7 +45,7 @@ llvm::StoreInst *CodeGenError::StorePointer(llvm::Value *Val) {
 llvm::StoreInst *CodeGenError::StoreInt(llvm::Value *Val) {
     // errorType: 1=integer
     // Error: {errorType: i8, errorInt: i32, errorPointer: *i8}
-    ConstantInt *TypeValue = llvm::ConstantInt::get(CGM->Int8Ty, 1);
+    llvm::ConstantInt *TypeValue = llvm::ConstantInt::get(CGM->Int8Ty, 1);
     llvm::Value *Zero = llvm::ConstantInt::get(CGM->Int32Ty, 0);
     llvm::Value *One = llvm::ConstantInt::get(CGM->Int32Ty, 1);
 
@@ -61,7 +65,7 @@ llvm::StoreInst *CodeGenError::StoreString(llvm::Value *Val) {
     this->Store(Val);
     // errorType: 2=string
     // Error: {errorType: i8, errorInt: i32, errorPointer: *i8}
-    ConstantInt *TypeValue = llvm::ConstantInt::get(CGM->Int8Ty, 2);
+    llvm::ConstantInt *TypeValue = llvm::ConstantInt::get(CGM->Int8Ty, 2);
     llvm::Value *Zero = llvm::ConstantInt::get(CGM->Int32Ty, 0);
     llvm::Value *Two = llvm::ConstantInt::get(CGM->Int32Ty, 2);
     // Store Error Type
@@ -77,7 +81,7 @@ llvm::StoreInst *CodeGenError::StoreObject(llvm::Value *Val) {
     this->Store(Val);
     // errorType: 3=object
     // Error: {errorType: i8, errorInt: i32, errorPointer: *i8}
-    ConstantInt *TypeValue = llvm::ConstantInt::get(CGM->Int8Ty, 3);
+    llvm::ConstantInt *TypeValue = llvm::ConstantInt::get(CGM->Int8Ty, 3);
     llvm::Value *Zero = llvm::ConstantInt::get(CGM->Int32Ty, 0);
     llvm::Value *Two = llvm::ConstantInt::get(CGM->Int32Ty, 2);
     // Store Error Type

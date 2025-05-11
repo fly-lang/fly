@@ -19,7 +19,6 @@
 #include <llvm/Support/Signals.h>
 
 using namespace fly;
-using namespace llvm;
 
 static void LLVMErrorHandler(void *UserData, const std::string &Message, bool GenCrashDiag) {
     DiagnosticsEngine &Diags = *static_cast<DiagnosticsEngine*>(UserData);

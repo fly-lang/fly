@@ -9,8 +9,8 @@
 
 #include "Sema/Sema.h"
 #include "Sema/SemaValidator.h"
-#include "Sym/SymTable.h"
-#include "Sym/SymNameSpace.h"
+#include "Sema/SymTable.h"
+#include "Sema/SemaNameSpace.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTModule.h"
 #include "AST/ASTClass.h"
@@ -24,11 +24,11 @@
 #include "Basic/Diagnostic.h"
 
 #include <AST/ASTExpr.h>
-#include <Sym/SymClass.h>
-#include <Sym/SymEnum.h>
-#include <Sym/SymGlobalVar.h>
-#include <Sym/SymModule.h>
-#include <Sym/SymType.h>
+#include <Sema/SemaClassType.h>
+#include <Sema/SemaEnumType.h>
+#include <Sema/SemaGlobalVar.h>
+#include <Sema/SemaModule.h>
+#include <Sema/SemaType.h>
 
 using namespace fly;
 
@@ -48,8 +48,8 @@ bool SemaValidator::CheckDuplicateModules(ASTModule *Module) {
 	return true;
 }
 
-bool SemaValidator::CheckDuplicateVars(const llvm::StringMap<SymGlobalVar *> &Vars, ASTVar *Var) {
-	SymGlobalVar *DuplicateVar = Vars.lookup(Var->getName());
+bool SemaValidator::CheckDuplicateVars(const llvm::StringMap<SemaGlobalVar *> &Vars, ASTVar *Var) {
+	SemaGlobalVar *DuplicateVar = Vars.lookup(Var->getName());
 	if (DuplicateVar) { // This NameSpace already contains this GlobalVar
 		S.Diag(DuplicateVar->getAST()->getLocation(), diag::err_duplicate_gvar) << DuplicateVar->getAST()->getName();
 		return false;
@@ -112,17 +112,17 @@ bool SemaValidator::CheckDuplicateLocalVars(ASTStmt *Stmt, llvm::StringRef VarNa
     return true;
 }
 
-bool SemaValidator::CheckCommentParams(SymComment *Comment, const llvm::SmallVector<ASTVar *, 8> &Params) {
+bool SemaValidator::CheckCommentParams(SemaComment *Comment, const llvm::SmallVector<ASTVar *, 8> &Params) {
 	// TODO
 	return true;
 }
 
-bool SemaValidator::CheckCommentReturn(SymComment *Comment, ASTTypeRef *ReturnType) {
+bool SemaValidator::CheckCommentReturn(SemaComment *Comment, ASTTypeRef *ReturnType) {
 	// TODO
 	return true;
 }
 
-bool SemaValidator::CheckCommentFail(SymComment *Comment) {
+bool SemaValidator::CheckCommentFail(SemaComment *Comment) {
 	// TODO
 	return true;
 }
@@ -136,11 +136,11 @@ bool SemaValidator::CheckExpr(ASTExpr *Expr) {
     return true;
 }
 
-bool SemaValidator::CheckEqualTypes(SymType *Type1, SymType *Type2) {
+bool SemaValidator::CheckEqualTypes(SemaType *Type1, SemaType *Type2) {
     if (Type1->getKind() == Type2->getKind()) {
         if (Type1->isArray()) {
-        	SymTypeArray *ArrayType1 = static_cast<SymTypeArray *>(Type1);
-        	SymTypeArray *ArrayType2 = static_cast<SymTypeArray *>(Type2);
+        	SemaArrayType *ArrayType1 = static_cast<SemaArrayType *>(Type1);
+        	SemaArrayType *ArrayType2 = static_cast<SemaArrayType *>(Type2);
             return CheckEqualTypes(ArrayType1->getType(), ArrayType2->getType());
         }
 
@@ -150,43 +150,43 @@ bool SemaValidator::CheckEqualTypes(SymType *Type1, SymType *Type2) {
     return false;
 }
 
-bool SemaValidator::CheckConvertibleTypes(SymType *FromType, SymType *ToType) {
+bool SemaValidator::CheckConvertibleTypes(SemaType *FromType, SemaType *ToType) {
     assert(FromType && "FromType cannot be null");
     assert(ToType && "ToType cannot be null");
 
 	// Check Integer Type
     if (FromType->isInteger() && ToType->isInteger()) {
-	    SymTypeInt *FromIntegerType = static_cast<SymTypeInt *>(FromType);
-	    SymTypeInt *ToIntegerType = static_cast<SymTypeInt *>(ToType);
+	    SemaIntType *FromIntegerType = static_cast<SemaIntType *>(FromType);
+	    SemaIntType *ToIntegerType = static_cast<SemaIntType *>(ToType);
 	    return FromIntegerType->getIntKind() <= ToIntegerType->getIntKind() ||
 	           FromIntegerType->isSigned() == ToIntegerType->isSigned();
     }
 
 	// Check Floating Point Type
     if (FromType->isFloatingPoint() && ToType->isFloatingPoint()) {
-	    SymTypeFP *FromFloatingType = static_cast<SymTypeFP *>(FromType);
-	    SymTypeFP *ToFloatingType = static_cast<SymTypeFP *>(ToType);
+	    SemaFloatType *FromFloatingType = static_cast<SemaFloatType *>(FromType);
+	    SemaFloatType *ToFloatingType = static_cast<SemaFloatType *>(ToType);
 	    return FromFloatingType->getFPKind() <= ToFloatingType->getFPKind();
     }
 
 	// Check Array Type
     if (FromType->isArray() && ToType->isArray()) {
-    	SymTypeArray *FromArrayType = static_cast<SymTypeArray *>(FromType);
-    	SymTypeArray *ToArrayType = static_cast<SymTypeArray *>(ToType);
+    	SemaArrayType *FromArrayType = static_cast<SemaArrayType *>(FromType);
+    	SemaArrayType *ToArrayType = static_cast<SemaArrayType *>(ToType);
     	return CheckConvertibleTypes(FromArrayType->getType(), ToArrayType->getType());
     }
 
     // Check Enum name is equals
     if (FromType->isEnum() && ToType->isEnum()) {
-    	SymEnum *FromEnumType = static_cast<SymEnum *>(FromType);
-    	SymEnum *ToEnumType = static_cast<SymEnum *>(ToType);
+    	SemaEnumType *FromEnumType = static_cast<SemaEnumType *>(FromType);
+    	SemaEnumType *ToEnumType = static_cast<SemaEnumType *>(ToType);
     	return CheckInheritance(FromEnumType, ToEnumType);
     }
 
     // Check Class Inheritance
     if (FromType->isClass() && ToType->isClass()) {
-    	SymClass *FromClassType = static_cast<SymClass *>(FromType);
-    	SymClass *ToClassType = static_cast<SymClass *>(ToType);
+    	SemaClassType *FromClassType = static_cast<SemaClassType *>(FromType);
+    	SemaClassType *ToClassType = static_cast<SemaClassType *>(ToType);
     	return CheckInheritance(FromClassType, ToClassType);
     }
 
@@ -210,7 +210,7 @@ bool SemaValidator::CheckConvertibleTypes(SymType *FromType, SymType *ToType) {
     return false;
 }
 
-bool SemaValidator::CheckInheritance(SymClass *TheClass, SymClass *SuperClass) {
+bool SemaValidator::CheckInheritance(SemaClassType *TheClass, SemaClassType *SuperClass) {
 	// Check if TheClass is equals to SuperClass
 	if (TheClass->getId() == SuperClass->getId()) {
 		return true;
@@ -226,7 +226,7 @@ bool SemaValidator::CheckInheritance(SymClass *TheClass, SymClass *SuperClass) {
 	return false;
 }
 
-bool SemaValidator::CheckInheritance(SymEnum *TheEnum, SymEnum *SuperEnum) {
+bool SemaValidator::CheckInheritance(SemaEnumType *TheEnum, SemaEnumType *SuperEnum) {
 	// Check if TheClass is equals to SuperClass
 	if (TheEnum->getId() == SuperEnum->getId()) {
 		return true;
@@ -242,7 +242,7 @@ bool SemaValidator::CheckInheritance(SymEnum *TheEnum, SymEnum *SuperEnum) {
 	return false;
 }
 
-bool SemaValidator::CheckArithTypes(SymType *Type1, SymType *Type2) {
+bool SemaValidator::CheckArithTypes(SemaType *Type1, SemaType *Type2) {
 	// Check if one of the types is an integer
 	if (Type1->isInteger() && Type2->isInteger()) {
         return true;
@@ -261,7 +261,7 @@ bool SemaValidator::CheckArithTypes(SymType *Type1, SymType *Type2) {
     return false;
 }
 
-bool SemaValidator::CheckLogicalTypes(SymType *Type1, SymType *Type2) {
+bool SemaValidator::CheckLogicalTypes(SemaType *Type1, SemaType *Type2) {
     if (Type1->isBool() && Type2->isBool()) {
         return true;
     }

@@ -8,13 +8,11 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/Sema.h"
+#include "Sema/SemaBuilder.h"
 #include "Sema/ASTBuilder.h"
 #include "Sema/SemaResolver.h"
 #include "Sema/SemaValidator.h"
-#include "Sema/SymBuilder.h"
 #include "Basic/Diagnostic.h"
-
-#include <Sym/SymNameSpace.h>
 
 using namespace fly;
 
@@ -34,7 +32,7 @@ Sema* Sema::CreateSema(DiagnosticsEngine &Diags) {
 	// Init the Sema Builder
     S->ABuilder = new ASTBuilder(*S);
 
-	S->SBuilder = new SymBuilder(*S);
+	S->SBuilder = new SemaBuilder(*S);
 
 	// Init the Validator
     S->Validator = new SemaValidator(*S);
@@ -53,7 +51,7 @@ ASTBuilder &Sema::getASTBuilder() {
     return *ABuilder;
 }
 
-SymBuilder &Sema::getSymBuilder() {
+SemaBuilder &Sema::getSemaBuilder() {
 	return *SBuilder;
 }
 

@@ -7,11 +7,10 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_SEMA_BUILDER_H
-#define FLY_SEMA_BUILDER_H
+#ifndef FLY_AST_BUILDER_H
+#define FLY_AST_BUILDER_H
 
 #include <AST/ASTVarStmt.h>
-
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 
@@ -37,11 +36,9 @@ namespace fly {
 
     class CodeGen;
 
-    class SymTable;
+    class SemaNameSpace;
 
-    class SymNameSpace;
-
-    class SymType;
+    class SemaType;
 
     class ASTModule;
 
@@ -179,7 +176,7 @@ namespace fly {
 
     class ASTNameSpaceRef;
 
-    class SymVar;
+    class SemaVar;
     
     enum class ASTClassKind;
 
@@ -197,7 +194,11 @@ namespace fly {
 
         friend class SemaResolver;
 
-        static const uint8_t DEFAULT_INTEGER_RADIX;
+        Sema &S;
+
+        uint64_t ModuleIdCounter = 0;
+
+    public:
 
         static const bool DEFAULT_BOOL_VALUE;
 
@@ -208,12 +209,6 @@ namespace fly {
         static const llvm::StringRef DEFAULT_STRING_VALUE;
 
         static const llvm::StringRef DEFAULT_CHAR_VALUE;
-
-        Sema &S;
-
-        uint64_t ModuleIdCounter = 0;
-
-    public:
 
         explicit ASTBuilder(Sema &S);
 
@@ -294,7 +289,7 @@ namespace fly {
 
         ASTArrayTypeRef *CreateArrayTypeRef(const SourceLocation &Loc, ASTTypeRef *TypeRef);
 
-        ASTTypeRef *CreateTypeRef(const SourceLocation &Loc, SymType *Type);
+        ASTTypeRef *CreateTypeRef(const SourceLocation &Loc, SemaType *Type);
 
         ASTTypeRef *CreateTypeRef(const SourceLocation &Loc, llvm::StringRef Name, ASTNameSpaceRef *NameSpaceRef = nullptr);
 
@@ -306,7 +301,7 @@ namespace fly {
 
         // Create Values
 
-        ASTValue *CreateDefaultValue(SymType *Type);
+        ASTValue *CreateDefaultValue(SemaType *Type);
 
         ASTNullValue *CreateNullValue(const SourceLocation &Loc);
 
@@ -399,4 +394,4 @@ namespace fly {
 
 }  // end namespace fly
 
-#endif
+#endif // FLY_AST_BUILDER_H

@@ -24,7 +24,7 @@ ASTExprKind ASTExpr::getExprKind() const {
     return Kind;
 }
 
-SymType *ASTExpr::getType() const {
+SemaType *ASTExpr::getType() const {
     return Type;
 }
 

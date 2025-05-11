@@ -14,7 +14,7 @@
 
 namespace fly {
 
-    class SymNameSpace;
+    class SemaNameSpace;
 
     class ASTNameSpace : public ASTBase {
 

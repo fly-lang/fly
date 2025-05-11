@@ -26,8 +26,8 @@ ASTCallKind ASTCall::getCallKind() const {
     return CallKind;
 }
 
-SymCall *ASTCall::getSym() const {
-	return Sym;
+SemaCall *ASTCall::getSema() const {
+	return Sema;
 }
 
 std::string ASTCall::str() const {
@@ -35,6 +35,6 @@ std::string ASTCall::str() const {
 	Attr("Location", getLocation()).
 		Attr("Kind", static_cast<size_t>(getKind())).
             Attr("Args", ASTBase::str(Args)).
-            Attr("Sym", Sym).
+            Attr("Sym", Sema).
             End();
 }
