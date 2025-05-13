@@ -29,13 +29,11 @@ namespace fly {
 
         CodeGenModule *CGM = nullptr;
 
-        SemaVar *Error = nullptr;
+        SemaVar *Sema = nullptr;
 
         llvm::Type *T = nullptr;
 
-        llvm::Value *Pointer = nullptr;
-
-        llvm::Value *Instance = nullptr;
+        llvm::Value *ErrorHandler = nullptr;
 
         llvm::LoadInst *LoadI = nullptr;
 
@@ -43,13 +41,13 @@ namespace fly {
 
     public:
 
-        CodeGenError(CodeGenModule *CGM, SemaVar *Error, llvm::Value *Pointer);
+        CodeGenError(CodeGenModule *CGM, SemaVar *Sema, llvm::Value *ErrorHandler);
 
         static llvm::StructType *GenErrorType(llvm::LLVMContext &LLVMCtx);
 
         llvm::Type *getType() override;
 
-        llvm::StoreInst *StorePointer(llvm::Value *Val);
+        llvm::StoreInst *StoreErrorHandler(llvm::Value *Val);
 
 //        llvm::AllocaInst *Alloca() override;
 

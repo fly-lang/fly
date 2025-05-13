@@ -46,8 +46,8 @@ namespace {
 
         EXPECT_EQ(output, "define void @_F4func(%error* %0) {\n"
                           "entry:\n"
-                          "  %1 = alloca %error*, align 8\n"
-                          "  %2 = alloca %error*, align 8\n"
+                          "  %1 = alloca %error*, align 8\n" // func() error handler
+                          "  %2 = alloca %error*, align 8\n" // A error handler
                           "  store %error* %0, %error** %1, align 8\n"
                           "  br label %handle\n"
                           "\n"
@@ -320,12 +320,12 @@ namespace {
     	// int testFail() {
     	//  fail new TestStruct()
     	// }
-        ASTBlockStmt *Body4 = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *TestFail4 = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "testFail", TopScopes, Params, Body4);
+        ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
+        ASTFunction *TestFail4 = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "testFail", TopScopes, Params, Body);
         // TestStruct test = new TestStruct()
         ASTCall *ConstructorCall = CreateCall(TestStruct->getName(), Args, ASTCallKind::CALL_NEW);
         // fail new TestStruct()
-        SemaBuilderStmt *Fail4Stmt = getASTBuilder().CreateFailStmt(Body4, SourceLoc);
+        SemaBuilderStmt *Fail4Stmt = getASTBuilder().CreateFailStmt(Body, SourceLoc);
         Fail4Stmt->setExpr(getASTBuilder().CreateExpr(ConstructorCall));
 
         // main() {
@@ -346,7 +346,8 @@ namespace {
 		llvm::Module * M = Generate();
 		std::string output = getOutput(M);
 
-        EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n\n"
+        EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
+        				  "%TestStruct = type { i32 }\n\n"
         				  "define i32 @_F8testFail(%error* %0) {\n"
                           "entry:\n"
                           "  %1 = alloca %error*, align 8\n"
@@ -361,6 +362,7 @@ namespace {
                           "  store %TestStruct* %2, i8** %5, align 8\n"
                           "  ret i32 0\n"
                           "}\n"
+                          "\n"
                           "define i32 @_F4main() {\n"
                           "entry:\n"
                           "  %0 = alloca %error*, align 8\n"
@@ -371,12 +373,23 @@ namespace {
                           "  store i32 0, i32* %3, align 4\n"
                           "  %4 = getelementptr inbounds %error, %error* %1, i32 0, i32 2\n"
                           "  store i8* null, i8** %4, align 8\n"
-                          "  %5 = call i32 @testFail4(%error* %1)\n"
+                          "  %5 = call i32 @_F8testFail(%error* %1)\n"
                           "  %6 = getelementptr inbounds %error, %error* %1, i32 0, i32 0\n"
                           "  %7 = load i8, i8* %6, align 1\n"
                           "  %8 = icmp ne i8 %7, 0\n"
                           "  %9 = zext i1 %8 to i32\n"
                           "  ret i32 %9\n"
-                          "}\n");
+                          "}\n"
+                          "\n"
+                          "define void @TestStruct_TestStruct(%TestStruct* %0) {\n"
+						  "entry:\n"
+						  "  %1 = alloca %TestStruct*, align 8\n"
+						  "  %2 = alloca i32, align 4\n"
+						  "  store %TestStruct* %0, %TestStruct** %1, align 8\n"
+						  "  %3 = load %TestStruct*, %TestStruct** %1, align 8\n"
+						  "  ret void\n"
+						  "}\n"
+						  "\n"
+						  "declare noalias i8* @malloc(i64)\n");
     }
 } // anonymous namespace

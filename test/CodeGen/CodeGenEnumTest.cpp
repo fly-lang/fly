@@ -70,7 +70,7 @@ namespace {
 
         //  TestEnum a = TestEnum.A;
         ASTVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, TestEnumType, "a", EmptyScopes);
-        ASTVarRef *Enum_AVarRef = CreateVarRef(A, getASTBuilder().CreateUndefinedRef(SourceLoc, TestEnumType->getName()));
+        ASTVarRef *Enum_AVarRef = CreateVarRef(A, getASTBuilder().CreateRef(SourceLoc, TestEnumType->getName()));
         ASTVarRefExpr *Enum_ARefExpr = getASTBuilder().CreateExpr(Enum_AVarRef);
         SemaBuilderStmt *aVarStmt = getASTBuilder().CreateAssignmentStmt(Body, aVar);
         aVarStmt->setExpr(Enum_ARefExpr);

@@ -23,6 +23,7 @@ namespace llvm {
 namespace fly {
 
     class CodeGenModule;
+    class SemaClassAttribute;
 
     class CodeGenClassVar : public CodeGenVarBase {
 
@@ -30,7 +31,7 @@ namespace fly {
 
         CodeGenModule *CGM = nullptr;
 
-        CodeGenVarBase *Instance = nullptr;
+        llvm::Value *InstancePtr = nullptr;
 
         llvm::Type *T = nullptr;
 
@@ -47,9 +48,9 @@ namespace fly {
         llvm::LoadInst *LoadI = nullptr;
 
     public:
-        CodeGenClassVar(CodeGenModule *CGM, llvm::Type *T, CodeGenVarBase *Instance, size_t Index);
+        CodeGenClassVar(CodeGenModule *CGM, SemaClassAttribute *Sema, uint64_t Index);
 
-        void setInstance(llvm::Value *Inst);
+        void setInstance(llvm::Value *InstancePtr);
 
         llvm::StoreInst *Store(llvm::Value *Val) override;
 

@@ -11,17 +11,12 @@
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenVar.h"
 #include "CodeGen/CodeGenModule.h"
-#include "AST/ASTClass.h"
-#include "AST/ASTModule.h"
 #include "Sema/SemaClassType.h"
 #include "Sema/SemaModule.h"
 #include "Sema/SemaNameSpace.h"
-#include "llvm/IR/DerivedTypes.h"
-
-#include <AST/ASTTypeRef.h>
-#include <AST/ASTVar.h>
 #include <Sema/SemaClassAttribute.h>
 #include <Sema/SemaClassMethod.h>
+#include "llvm/IR/DerivedTypes.h"
 
 using namespace fly;
 
@@ -33,7 +28,7 @@ CodeGenClass::CodeGenClass(CodeGenModule *CGM, SemaClassType *Sema, bool isExter
     TypePtr = Type->getPointerTo(CGM->Module->getDataLayout().getAllocaAddrSpace());
 
     // Generate VTable from Class and Interface
-    if (Sema->getAST()->getClassKind() == ASTClassKind::CLASS || Sema->getAST()->getClassKind() == ASTClassKind::INTERFACE) {
+    if (Sema->getClassKind() == SemaClassKind::CLASS || Sema->getClassKind() == SemaClassKind::INTERFACE) {
         VTableType = llvm::StructType::create(CGM->LLVMCtx, TypeName + "_vtable");
     }
 }
@@ -48,7 +43,7 @@ void CodeGenClass::Generate() {
 			SemaClassMethod * Constructor = Entry.getValue();
 
             // Create Constructor CodeGen for Constructor
-            CodeGenClassFunction *CGCF = new CodeGenClassFunction(CGM, Constructor, TypePtr);
+            CodeGenClassFunction *CGCF = new CodeGenClassFunction(CGM, Constructor);
             Constructor->setCodeGen(CGCF);
             Constructors.push_back(CGCF);
         }
@@ -58,18 +53,25 @@ void CodeGenClass::Generate() {
     llvm::SmallVector<llvm::Type *, 4> TypeVector;
 
     // Set CodeGen Methods
-    if (Sema->getAST()->getClassKind() == ASTClassKind::CLASS || Sema->getAST()->getClassKind() == ASTClassKind::INTERFACE) {
+    if (Sema->getClassKind() == SemaClassKind::CLASS || Sema->getClassKind() == SemaClassKind::INTERFACE) {
         llvm::SmallVector<llvm::Type *, 4> VTableVector;
         for (auto &Entry: Sema->getMethods()) {
         	SemaClassMethod *Method = Entry.getValue();
-            CodeGenClassFunction *CGCF = new CodeGenClassFunction(CGM, Method, TypePtr);
+
+        	// Create CodeGen for Method
+            CodeGenClassFunction *CG = new CodeGenClassFunction(CGM, Method);
+        	Method->setCodeGen(CG);
+
+        	// Add to Class Methods
+        	Methods.push_back(CG);
+
+        	// Add to VTable
             if (!Method->isStatic()) { // only instance methods
                 // Create the VTable Struct Type
                 // %vtable_type = type { i32(%Foo*)* }
-                VTableVector.push_back(CGCF->getFunctionType());
+                VTableVector.push_back(CG->getFunctionType());
             }
-            Method->setCodeGen(CGCF);
-            Functions.push_back(CGCF);
+
         }
         VTableType->setBody(VTableVector);
 
@@ -79,13 +81,24 @@ void CodeGenClass::Generate() {
 
     // Set CodeGen Attributes
     if (!Sema->getAttributes().empty()) {
-        if (Sema->getAST()->getClassKind() == ASTClassKind::CLASS || Sema->getAST()->getClassKind() == ASTClassKind::STRUCT) {
+        if (Sema->getClassKind() == SemaClassKind::CLASS || Sema->getClassKind() == SemaClassKind::STRUCT) {
 
             // add var to the type
+        	uint64_t Index = 0;
             for (auto &AttributeEntry: Sema->getAttributes()) {
             	SemaClassAttribute *Attribute = AttributeEntry.getValue();
-                llvm::Type *AttrType = CGM->GenType(Attribute->getAST()->getTypeRef()->getSema());
-                TypeVector.push_back(AttrType);
+
+            	// Set CodeGen Class Instance
+            	CodeGenClassVar *CG = new CodeGenClassVar(CGM, Attribute, Index);
+            	Attribute->setCodeGen(CG);
+
+            	// add to Class Attributes
+            	Attributes.push_back(CG);
+
+            	// dd to Class Var types list
+                TypeVector.push_back(CG->getType());
+
+            	Index++;
             }
         }
     }
@@ -115,5 +128,9 @@ const SmallVector<CodeGenClassFunction *, 4> &CodeGenClass::getConstructors() co
 }
 
 const SmallVector<CodeGenClassFunction *, 4> &CodeGenClass::getFunctions() const {
-    return Functions;
+    return Methods;
+}
+
+const SmallVector<CodeGenClassVar *, 4> &CodeGenClass::getAttributes() const {
+	return Attributes;
 }

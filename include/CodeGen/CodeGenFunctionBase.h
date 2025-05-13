@@ -47,8 +47,6 @@ namespace fly {
 
         llvm::BasicBlock *Entry = nullptr;
 
-        llvm::Value *ErrorHandler = nullptr;
-
     public:
         CodeGenFunctionBase(CodeGenModule *CGM, SemaFunctionBase *Sema);
 
@@ -72,9 +70,7 @@ namespace fly {
 
         void AllocaLocalVars();
 
-        void StoreErrorHandler(bool isMain);
-
-        void StoreParams(bool isMain);
+        void StoreParams();
 
         virtual void GenBody() = 0;
     };

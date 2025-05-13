@@ -49,8 +49,6 @@ namespace fly {
 
         CodeGenVar(CodeGenModule *CGM, llvm::Type *T);
 
-        CodeGenVar(CodeGenModule *CGM, llvm::Type *Ty, CodeGenVar *Parent, uint32_t Index);
-
         CodeGenVar *getParent();
 
         CodeGenVarBase *getVar(llvm::StringRef Name);

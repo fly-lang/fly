@@ -203,7 +203,7 @@ namespace fly {
 
         llvm::Value *Convert(llvm::Value *FromVal, SemaType *FromType, SemaType *ToType);
 
-        CodeGenError *GenErrorHandler(SemaVar* Error);
+        CodeGenError *GenErrorHandler(SemaVar* Sema);
 
         CodeGenVar *GenLocalVar(SemaVar* Var);
 

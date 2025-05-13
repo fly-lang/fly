@@ -14,12 +14,17 @@
 
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Instructions.h>
+#include <llvm/IR/Value.h>
 
 using namespace fly;
 
-CodeGenClassVar::CodeGenClassVar(CodeGenModule *CGM, llvm::Type *T, CodeGenVarBase *Instance, size_t Index) :
-        CGM(CGM), Instance(Instance), Type(T), Index(llvm::ConstantInt::get(CGM->Int32Ty, Index)),
+CodeGenClassVar::CodeGenClassVar(CodeGenModule *CGM, SemaClassAttribute *Sema, uint64_t Index) :
+        CGM(CGM), InstancePtr(InstancePtr), Type(CGM->GenType(Sema->getType())), Index(llvm::ConstantInt::get(CGM->Int32Ty, Index)),
         Zero(llvm::ConstantInt::get(CGM->Int32Ty, 0)) {
+}
+
+void CodeGenClassVar::setInstance(llvm::Value *InstancePtr) {
+	this->InstancePtr = InstancePtr;
 }
 
 llvm::StoreInst *CodeGenClassVar::Store(llvm::Value *Val) {
@@ -52,7 +57,7 @@ llvm::Value *CodeGenClassVar::getValue() {
 
 llvm::Value *CodeGenClassVar::getPointer() {
     if (!this->Pointer)
-        this->Pointer = CGM->Builder->CreateInBoundsGEP(Type, Instance->getPointer(), {Zero, Index});
+        this->Pointer = CGM->Builder->CreateInBoundsGEP(Type, InstancePtr, {Zero, Index});
     return this->Pointer;
 }
 
@@ -65,5 +70,5 @@ llvm::Type * CodeGenClassVar::getType() {
 }
 
 CodeGenVarBase * CodeGenClassVar::getVar(llvm::StringRef Name) {
-	return Instance;
+	return nullptr;
 }

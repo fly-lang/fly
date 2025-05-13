@@ -16,8 +16,8 @@
 
 using namespace fly;
 
-CodeGenError::CodeGenError(CodeGenModule *CGM, SemaVar *Error, llvm::Value *Pointer) :
-    CGM(CGM), Error(Error), Pointer(Pointer), T(CGM->ErrorTy) {
+CodeGenError::CodeGenError(CodeGenModule *CGM, SemaVar *Sema, llvm::Value *ErrorHandler) :
+    CGM(CGM), Sema(Sema), ErrorHandler(ErrorHandler), T(CGM->ErrorTy) {
 
 }
 
@@ -35,11 +35,11 @@ llvm::Type *CodeGenError::getType() {
 }
 
 llvm::Value *CodeGenError::getPointer() {
-    return Pointer;
+    return ErrorHandler;
 }
 
-llvm::StoreInst *CodeGenError::StorePointer(llvm::Value *Val) {
-    return CGM->Builder->CreateStore(Val, Pointer);
+llvm::StoreInst *CodeGenError::StoreErrorHandler(llvm::Value *Val) {
+    return CGM->Builder->CreateStore(Val, ErrorHandler);
 }
 
 llvm::StoreInst *CodeGenError::StoreInt(llvm::Value *Val) {
@@ -52,7 +52,7 @@ llvm::StoreInst *CodeGenError::StoreInt(llvm::Value *Val) {
     // Store Error Type
 	// llvm::Type *ErrorType = llvm::Type::getInt8Ty(CGM->LLVMCtx); // TODO LLVM 15
 	// llvm::Value *ErrorVar = CGM->Builder->CreateLoad(ErrorType, Pointer); // TODO LLVM 15
-	llvm::Value *ErrorVar = CGM->Builder->CreateLoad(CGM->ErrorPtrTy, Pointer);
+	llvm::Value *ErrorVar = CGM->Builder->CreateLoad(CGM->ErrorPtrTy, ErrorHandler);
 	llvm::Value *TypeValuePtr = CGM->Builder->CreateInBoundsGEP(T, ErrorVar, {Zero, Zero});
 	CGM->Builder->CreateStore(TypeValue, TypeValuePtr);
 
@@ -69,7 +69,7 @@ llvm::StoreInst *CodeGenError::StoreString(llvm::Value *Val) {
     llvm::Value *Zero = llvm::ConstantInt::get(CGM->Int32Ty, 0);
     llvm::Value *Two = llvm::ConstantInt::get(CGM->Int32Ty, 2);
     // Store Error Type
-    llvm::Value *ErrorVar = CGM->Builder->CreateLoad(Pointer);
+    llvm::Value *ErrorVar = CGM->Builder->CreateLoad(ErrorHandler);
     llvm::Value *TypeValuePtr = CGM->Builder->CreateInBoundsGEP(T, ErrorVar, {Zero, Zero});
     CGM->Builder->CreateStore(TypeValue, TypeValuePtr);
     // Store Error Value
@@ -85,7 +85,7 @@ llvm::StoreInst *CodeGenError::StoreObject(llvm::Value *Val) {
     llvm::Value *Zero = llvm::ConstantInt::get(CGM->Int32Ty, 0);
     llvm::Value *Two = llvm::ConstantInt::get(CGM->Int32Ty, 2);
     // Store Error Type
-    llvm::Value *ErrorVar = CGM->Builder->CreateLoad(Pointer);
+    llvm::Value *ErrorVar = CGM->Builder->CreateLoad(ErrorHandler);
     llvm::Value *TypeValuePtr = CGM->Builder->CreateInBoundsGEP(T, ErrorVar, {Zero, Zero});
     CGM->Builder->CreateStore(TypeValue, TypeValuePtr);
     // Store Error Value
@@ -101,7 +101,7 @@ llvm::StoreInst *CodeGenError::Store(llvm::Value *Val) {
 
 llvm::LoadInst *CodeGenError::Load() {
     this->BlockID = CGM->Builder->GetInsertBlock()->getName();
-    this->LoadI = CGM->Builder->CreateLoad(Pointer);
+    this->LoadI = CGM->Builder->CreateLoad(ErrorHandler);
     return this->LoadI;
 }
 

@@ -778,10 +778,11 @@ llvm::Value *CodeGenModule::Convert(llvm::Value *FromVal, SemaType *FromType, Se
     assert(0 && "Conversion failed");
 }
 
-CodeGenError *CodeGenModule::GenErrorHandler(SemaVar *Error) {
+CodeGenError *CodeGenModule::GenErrorHandler(SemaVar *Sema) {
     // Set CodeGenError
-    llvm::Value *Pointer = Builder->CreateAlloca(ErrorPtrTy);
-    CodeGenError *CGE = new CodeGenError(this, Error, Pointer);
+    llvm::Value *ErrorHandler = Builder->CreateAlloca(ErrorPtrTy);
+    CodeGenError *CGE = new CodeGenError(this, Sema, ErrorHandler);
+	Sema->setCodeGen(CGE);
     return CGE;
 }
 
@@ -815,13 +816,18 @@ llvm::Value *CodeGenModule::GenCall(SemaCall *Call) {
 
     // The function arguments
     llvm::SmallVector<llvm::Value *, 8> Args;
-    // Add error as first param
 
+    // Add error as first parameter
     if (Call->getFunction()->getKind() == SemaFunctionKind::METHOD) {
         SemaClassMethod *Method = static_cast<SemaClassMethod *>(Call->getFunction());
+
+    	// Add Error parameter if the class is a not a Struct
         if (Method->getClass()->getClassKind() != SemaClassKind::STRUCT)
             Args.push_back(Call->getErrorHandler()->getCodeGen()->getValue()); // Error is a Pointer
+
     } else {
+
+    	// Add Error parameter
         Args.push_back(Call->getErrorHandler()->getCodeGen()->getValue()); // Error is a Pointer
     }
 
@@ -988,10 +994,10 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
             Builder->CreateBr(HandleBB);
             Builder->SetInsertPoint(HandleBB);
 
-        	// Continue with code generator
+        	// Generate Handle Block
             GenStmt(CGF, HandleStmt->getHandle());
 
-        	// Continue in Safe Block
+        	// Generate in Safe Block
         	Builder->SetInsertPoint(CGH->getSafeBlock());
             break;
         }
@@ -1006,7 +1012,7 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
         		Parent = Parent->getParent();
         		if (Parent == nullptr) {
         			// Set Function ErrorHandler with Fail
-        			CodeGenError *CGE = static_cast<CodeGenError *>(FailStmt->getFunction()->getSema()->getErrorHandler()->getCodeGen());
+        			CodeGenError *CGE = FailStmt->getFunction()->getSema()->getErrorHandler()->getCodeGen();
         			GenFailStmt(FailStmt, CGE);
 
         			// Generate Return with default value for stop execution flow

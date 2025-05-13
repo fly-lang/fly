@@ -256,7 +256,7 @@ ASTClass *ASTBuilder::CreateClass(ASTModule *Module, const SourceLocation &Loc, 
                                    llvm::SmallVector<ASTTypeRef *, 4> &SuperClasses) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateClass", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
 
-    ASTClass *Class = new ASTClass(Module, ASTClassKind::CLASS, Scopes, Loc, Name, SuperClasses);
+    ASTClass *Class = new ASTClass(Module, ClassKind, Scopes, Loc, Name, SuperClasses);
 
 	// Add Class to Module
 	Module->Definitions.push_back(Class);

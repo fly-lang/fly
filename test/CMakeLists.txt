@@ -9,7 +9,7 @@ add_executable(fly_test
         CodeGen/CodeGenTest.cpp
         CodeGen/CodeGenErrorTest.cpp
 #        CodeGen/CodeGenArrayTest.cpp
-#        CodeGen/CodeGenClassTest.cpp
+        CodeGen/CodeGenClassTest.cpp
 #        CodeGen/CodeGenEnumTest.cpp
 #        CodeGen/CodeGenStringTest.cpp
 #        DriverTest.cpp

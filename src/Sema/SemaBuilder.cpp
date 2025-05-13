@@ -82,15 +82,15 @@ void SemaBuilder::CreateTable() {
 	S.Table->LongType->DefaultValue->Type = S.Table->LongType;
 
 	S.Table->FloatType = S.getSemaBuilder().CreateFPType(SemaFloatTypeKind::TYPE_FLOAT, "float");
-	S.Table->FloatType->DefaultValue = new SemaIntValue("0.0", 10);
+	S.Table->FloatType->DefaultValue = new SemaFloatValue("0.0");
 	S.Table->FloatType->DefaultValue->Type = S.Table->FloatType;
 
 	S.Table->DoubleType = S.getSemaBuilder().CreateFPType(SemaFloatTypeKind::TYPE_DOUBLE, "double");
-	S.Table->DoubleType->DefaultValue = new SemaIntValue("0.0", 10);
+	S.Table->DoubleType->DefaultValue = new SemaFloatValue("0.0");
 	S.Table->DoubleType->DefaultValue->Type = S.Table->DoubleType;
 
 	S.Table->StringType = S.getSemaBuilder().CreateType(SemaTypeKind::TYPE_STRING, "string");
-	S.Table->StringType->DefaultValue = new SemaIntValue("", 10);
+	S.Table->StringType->DefaultValue = new SemaStringValue("");
 	S.Table->StringType->DefaultValue->Type = S.Table->StringType;
 
 	S.Table->VoidType = S.getSemaBuilder().CreateType(SemaTypeKind::TYPE_VOID, "void");
@@ -344,6 +344,15 @@ SemaClassType * SemaBuilder::CreateClass(SemaModule *Module, ASTClass *AST) {
 		if (Scope->getScopeKind() == ASTScopeKind::SCOPE_VISIBILITY) {
 			if (Scope->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
 				Class->Visibility = SemaVisibilityKind::PUBLIC;
+
+				// Check Duplicates in NameSpace
+				if (Module->NameSpace->Types.lookup(AST->getName()) != nullptr) {
+					// Error
+					S.Diag(AST->getLocation(), diag::err_syntax_error) << AST->getName();
+				}
+				Module->NameSpace->Types.insert(std::make_pair(AST->getName(), Class));
+			} if (Scope->getVisibility() == ASTVisibilityKind::V_DEFAULT) {
+				Class->Visibility = SemaVisibilityKind::DEFAULT;
 
 				// Check Duplicates in NameSpace
 				if (Module->NameSpace->Types.lookup(AST->getName()) != nullptr) {

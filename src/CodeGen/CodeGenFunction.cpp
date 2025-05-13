@@ -60,17 +60,38 @@ void CodeGenFunction::GenBody() {
     FLY_DEBUG_START("CodeGenFunction", "GenBody");
     setInsertPoint();
 
-	// Alloca Function Error Handler
-    AllocaErrorHandler();
-
-	// Alloca Function Parameters and Local Vars
-    AllocaLocalVars();
-
 	// Store in Function Error Handler
-    StoreErrorHandler(isMain);
+	if (isMain) {
 
-	// Store in Function Parameters
-    StoreParams(isMain);
+		// Alloca Function Parameters and Local Vars
+		AllocaLocalVars();
+
+		llvm::Constant *Zero = llvm::ConstantInt::get(CGM->Int32Ty, 0);
+		llvm::Constant *One = llvm::ConstantInt::get(CGM->Int32Ty, 1);
+		llvm::Constant *Two = llvm::ConstantInt::get(CGM->Int32Ty, 2);
+		llvm::Constant *NullPtr = llvm::ConstantPointerNull::get(CGM->Int8Ty->getPointerTo());
+		CodeGenVarBase *CGE = CGM->GenErrorHandler(Sema->getErrorHandler());
+		llvm::Value *ErrorVar = CGE->Load();
+		llvm::Value *PtrType = CGM->Builder->CreateInBoundsGEP(CGE->getType(), ErrorVar, {Zero, Zero});
+		CGM->Builder->CreateStore(llvm::ConstantInt::get(CGM->Int8Ty, 0), PtrType);
+		llvm::Value *PtrInt = CGM->Builder->CreateInBoundsGEP(CGE->getType(), ErrorVar, {Zero, One});
+		CGM->Builder->CreateStore(Zero, PtrInt);
+		llvm::Value *PtrPtr = CGM->Builder->CreateInBoundsGEP(CGE->getType(), ErrorVar, {Zero, Two});
+		CGM->Builder->CreateStore(NullPtr, PtrPtr);
+	} else {
+
+		// Alloca Function Error Handler
+		AllocaErrorHandler();
+
+		// Alloca Function Parameters and Local Vars
+		AllocaLocalVars();
+
+		// Store Error Handler
+		Sema->getErrorHandler()->getCodeGen()->StoreErrorHandler(Fn->getArg(0));
+
+		// Store in Function Parameters
+		StoreParams();
+	}
 
 	// Generate Function Body
     CGM->GenBlock(this, Sema->getAST()->getBody());
@@ -80,8 +101,8 @@ void CodeGenFunction::GenBody() {
         llvm::Value *Zero32 = llvm::ConstantInt::get(CGM->Int32Ty, 0);
         llvm::Value *Zero8 = llvm::ConstantInt::get(CGM->Int8Ty, 0);
         // take return value from error struct
-        CodeGenError *CGE = (CodeGenError *) Sema->getErrorHandler()->getCodeGen();
-        ErrorHandler = CGE->getValue();
+        CodeGenError *CGE = Sema->getErrorHandler()->getCodeGen();
+        llvm::Value * ErrorHandler = CGE->getValue();
         llvm::Value *ErrorKind = CGM->Builder->CreateInBoundsGEP(CGE->getType(), ErrorHandler, {Zero32, Zero32});
         llvm::Value *Ret = CGM->Builder->CreateICmpNE(CGM->Builder->CreateLoad(ErrorKind), Zero8);
         // main() will return 0 if ok or 1 on error

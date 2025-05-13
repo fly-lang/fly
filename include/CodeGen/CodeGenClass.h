@@ -26,6 +26,9 @@ namespace fly {
 
     class CodeGenClass {
 
+        friend class CodeGenClassFunction;
+        friend class CodeGenClassVar;
+
         CodeGenModule * CGM;
 
         SemaClassType *Sema;
@@ -42,7 +45,7 @@ namespace fly {
 
         llvm::SmallVector<CodeGenClassFunction *, 4> Constructors;
 
-        llvm::SmallVector<CodeGenClassFunction *, 4> Functions;
+        llvm::SmallVector<CodeGenClassFunction *, 4> Methods;
 
     public:
         CodeGenClass(CodeGenModule *CGM, SemaClassType *Sema, bool isExternal = false);
@@ -60,6 +63,8 @@ namespace fly {
         const llvm::SmallVector<CodeGenClassFunction *, 4> &getConstructors() const;
 
         const llvm::SmallVector<CodeGenClassFunction *, 4> &getFunctions() const;
+
+        const llvm::SmallVector<CodeGenClassVar *, 4> &getAttributes() const;
     };
 }
 

@@ -25,11 +25,6 @@ CodeGenVar::CodeGenVar(CodeGenModule *CGM, llvm::Type *T) : CGM(CGM), T(T) {
 
 }
 
-CodeGenVar::CodeGenVar(CodeGenModule *CGM, llvm::Type *Ty, CodeGenVar *Parent, uint32_t Index) : CodeGenVar(CGM, Ty) {
-    this->Parent = Parent;
-    this->Index = Index;
-}
-
 CodeGenVar *CodeGenVar::getParent() {
     return Parent;
 }

@@ -16,6 +16,7 @@
 namespace llvm {
     class Value;
     class PointerType;
+    class AllocaInst;
 }
 
 namespace fly {
@@ -32,7 +33,11 @@ namespace fly {
 
         llvm::SmallVector<CodeGenVar *, 4> Attributes;
 
-        CodeGenClassFunction(CodeGenModule *CGM, SemaClassMethod *Sema, llvm::PointerType *TypePtr);
+        llvm::PointerType *ClassTypePtr;
+
+        llvm::AllocaInst * InstancePtr;
+
+        CodeGenClassFunction(CodeGenModule *CGM, SemaClassMethod *Sema);
 
     public:
 

@@ -26,11 +26,12 @@
 
 #include <AST/ASTTypeRef.h>
 #include <AST/ASTVar.h>
+#include <Sema/SemaErrorHandler.h>
 
 using namespace fly;
 
-CodeGenClassFunction::CodeGenClassFunction(CodeGenModule *CGM, SemaClassMethod *Sema, llvm::PointerType *TypePtr) :
-	CodeGenFunctionBase(CGM, Sema) {
+CodeGenClassFunction::CodeGenClassFunction(CodeGenModule *CGM, SemaClassMethod *Sema) :
+	CodeGenFunctionBase(CGM, Sema), ClassTypePtr(Sema->getClass()->getCodeGen()->getTypePtr()) {
 
 	SemaClassType *Class = Sema->getClass();
 
@@ -46,9 +47,8 @@ CodeGenClassFunction::CodeGenClassFunction(CodeGenModule *CGM, SemaClassMethod *
         ParamTypes.push_back(CGM->ErrorPtrTy);
     }
 
-    // Add the instance var of the class type to the parameters of the function
-    if (TypePtr)
-        ParamTypes.push_back(TypePtr);
+    // Add the class type pointer to the params
+    ParamTypes.push_back(ClassTypePtr);
 
     // Generate param types
     GenParamTypes(CGM, ParamTypes, Sema);
@@ -61,72 +61,65 @@ CodeGenClassFunction::CodeGenClassFunction(CodeGenModule *CGM, SemaClassMethod *
 }
 
 void CodeGenClassFunction::GenBody() {
+    FLY_DEBUG_START("CodeGenFunctionBase", "GenBody");
+
 	SemaClassMethod *ClassMethod = (SemaClassMethod *) Sema;
 	SemaClassType *Class = ClassMethod->getClass();
 
-    FLY_DEBUG_START("CodeGenFunctionBase", "GenBody");
     llvm::Type *ClassType = Class->getCodeGen()->getType();
     setInsertPoint();
 
-    // the first argument is the error handler
+	// Alloca Error Handler
     if (Class->getAST()->getClassKind() != ASTClassKind::STRUCT) {
-        ErrorHandler = Fn->getArg(0);
-
-        // Alloca Error Handler Var
-        AllocaErrorHandler();
+    	AllocaErrorHandler();
     }
 
-    // Alloca Method Class Instance
-    CodeGenVar *CGI = nullptr;
+    // Alloca Class Instance
     if (!ClassMethod->isStatic()) {
-        CGI = new CodeGenVar(CGM, ClassType);
-        CGI->Alloca();
+    	InstancePtr = CGM->Builder->CreateAlloca(ClassTypePtr);
     }
 
     // Alloca Local Vars
     AllocaLocalVars();
 
-    if (Class->getAST()->getClassKind() != ASTClassKind::STRUCT) {
+	// Only for no Struct Class
+    if (Class->getClassKind() == SemaClassKind::CLASS) {
         // Store Error Handler Var
-        StoreErrorHandler(false);
+    	Sema->getErrorHandler()->getCodeGen()->StoreErrorHandler(Fn->getArg(0));
     }
 
     // Instance Class Method (not static)
-    if (CGI) {
+    if (InstancePtr) {
 
         //Alloca, Store, Load the second arg which is the instance
         llvm::Argument *ClassInstancePtr = Class->getAST()->getClassKind() == ASTClassKind::STRUCT ? Fn->getArg(0) : Fn->getArg(1);
 
+    	// Set var Index offset in the struct type
+    	size_t Index = Class->getAST()->getClassKind() == ASTClassKind::STRUCT ? 0 : 1;
+
         // Save Class instance and get Pointer
-        CGI->Store(ClassInstancePtr);
-        CGI->Load();
+        CGM->Builder->CreateStore(ClassInstancePtr, InstancePtr);
+        CGM->Builder->CreateLoad(InstancePtr);
 
-        // Set var Index offset in the struct type
-        size_t Index = Class->getAST()->getClassKind() == ASTClassKind::STRUCT ? 0 : 1;
         // All Class Vars
-        for (auto &AttributeEntry : ClassMethod->getClass()->getAttributes()) {
-        	SemaClassAttribute *Attribute = AttributeEntry.getValue();
-
-            // Set CodeGen Class Instance
-            llvm::Type *Ty = CGM->GenType(Attribute->getAST()->getTypeRef()->getSema());
-            CodeGenClassVar *CGV = new CodeGenClassVar(CGM, Ty, CGI, Index);
-            Attribute->setCodeGen(CGV);
+        for (auto &CGAttribute : ClassMethod->getClass()->getCodeGen()->getAttributes()) {
+        	CGAttribute->setInstance(InstancePtr);
 
             // Store attribute default value
             if (ClassMethod->isConstructor()) {
             	llvm::Value *AttrValue;
-            	if (Attribute->getAST()->getExpr())
-					AttrValue = CGM->GenExpr(Attribute->getAST()->getExpr());
-            	else
-            		AttrValue = CGM->GenValue(Attribute->getType(), Attribute->getType()->getDefaultValue());
-                CGV->Store(AttrValue);
+     //        	if (CGAttribute->getAST()->getExpr())
+					// AttrValue = CGM->GenExpr(CGAttribute->getAST()->getExpr());
+     //        	else
+     //        		AttrValue = CGM->GenValue(CGAttribute->getType(), CGAttribute->getType()->getDefaultValue());
+                //CGAttribute->Store(AttrValue);
             }
             Index++;
         }
     }
 
     // Alloca Function Local Vars and generate body
-    StoreParams(false);
+    StoreParams();
     CGM->GenBlock(this, Sema->getAST()->getBody());
 
     // Add return Void

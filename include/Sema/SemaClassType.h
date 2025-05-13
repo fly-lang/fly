@@ -72,6 +72,8 @@ namespace fly {
 
         explicit SemaClassType(ASTClass *Class);
 
+        SemaClassKind toClassKind(ASTClassKind ASTKind);
+
     public:
 
         ASTClass *getAST();
