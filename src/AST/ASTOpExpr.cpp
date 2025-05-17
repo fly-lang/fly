@@ -112,11 +112,11 @@ SourceLocation &ASTBinaryOpExpr::getOpLocation() {
     return OpLocation;
 }
 
-const ASTExpr *ASTBinaryOpExpr::getLeftExpr() const {
+ASTExpr *ASTBinaryOpExpr::getLeftExpr() const {
     return LeftExpr;
 }
 
-const ASTExpr *ASTBinaryOpExpr::getRightExpr() const {
+ASTExpr *ASTBinaryOpExpr::getRightExpr() const {
     return RightExpr;
 }
 
@@ -139,7 +139,7 @@ ASTTernaryOpExpr::ASTTernaryOpExpr(ASTExpr *ConditionExpr, const SourceLocation 
 
 }
 
-const ASTExpr *ASTTernaryOpExpr::getConditionExpr() const {
+ASTExpr *ASTTernaryOpExpr::getConditionExpr() const {
     return ConditionExpr;
 }
 
@@ -147,7 +147,7 @@ SourceLocation &ASTTernaryOpExpr::getTrueOpLocation() {
     return TrueOpLocation;
 }
 
-const ASTExpr *ASTTernaryOpExpr::getTrueExpr() const {
+ASTExpr *ASTTernaryOpExpr::getTrueExpr() const {
     return TrueExpr;
 }
 
@@ -155,7 +155,7 @@ SourceLocation &ASTTernaryOpExpr::getFalseOpLocation() {
     return FalseOpLocation;
 }
 
-const ASTExpr *ASTTernaryOpExpr::getFalseExpr() const {
+ASTExpr *ASTTernaryOpExpr::getFalseExpr() const {
     return FalseExpr;
 }
 

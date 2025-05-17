@@ -18,6 +18,7 @@ namespace fly {
     class ASTBinaryOpExpr;
     class ASTTernaryOpExpr;
     class ASTOpExpr;
+    class ASTRef;
     enum class ASTBinaryOpExprKind;
 
     class CodeGenExpr {
@@ -26,16 +27,20 @@ namespace fly {
 
     public:
 
-        static llvm::Value* GenValue(CodeGenModule* CGM, ASTExpr* Expr);
+        static llvm::Value* Generate(CodeGenModule* CGM, ASTExpr* Expr);
 
     private:
 
-        CodeGenExpr(CodeGenModule *CGM, ASTExpr *Expr);
+        CodeGenExpr(CodeGenModule *CGM);
 
-        llvm::Value *GenValue(const ASTExpr *Expr);
+        llvm::Value *GenExpr(ASTExpr *Expr);
 
-        llvm::Value *getValue() const;
+        llvm::Value *GenValue(SemaType *Type, SemaValue *Val);
 
+        llvm::Value *GenVar(SemaVar *Sema);
+
+        llvm::Value *GenCall(SemaCall *Sema);
+        
         llvm::Value *GenOp(ASTOpExpr *Expr);
 
         llvm::Value *GenUnary(ASTUnaryOpExpr *Expr);
@@ -44,11 +49,11 @@ namespace fly {
 
         llvm::Value *GenTernary(ASTTernaryOpExpr *Expr);
 
-        llvm::Value *GenBinaryArith(const ASTExpr *E1, ASTBinaryOpExprKind OperatorKind, const ASTExpr *E2);
+        llvm::Value *GenBinaryArith(ASTExpr *E1, ASTBinaryOpExprKind OperatorKind, ASTExpr *E2);
 
-        llvm::Value *GenBinaryComparison(const ASTExpr *E1, ASTBinaryOpExprKind OperatorKind, const ASTExpr *E2);
+        llvm::Value *GenBinaryComparison(ASTExpr *E1, ASTBinaryOpExprKind OperatorKind, ASTExpr *E2);
 
-        llvm::Value *GenBinaryLogic(const ASTExpr *E1, ASTBinaryOpExprKind OperatorKind, const ASTExpr *E2);
+        llvm::Value *GenBinaryLogic(ASTExpr *E1, ASTBinaryOpExprKind OperatorKind, ASTExpr *E2);
     };
 }
 

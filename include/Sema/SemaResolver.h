@@ -54,11 +54,13 @@ namespace fly {
     class SemaGlobalVar;
     class SemaFunction;
     class SemaVar;
+    class SemaCall;
     class SemaLocalVar;
     class SemaFunctionBase;
     class SemaType;
     class ASTScope;
     class ASTValue;
+    class SemaResult;
 
     class SemaResolver {
 
@@ -123,23 +125,29 @@ namespace fly {
 
         bool ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr);
 
-        SemaNameSpace *ResolveNameSpaceRef(ASTRef *Ref);
-
         bool ResolveTypeRef(ASTTypeRef *&Type);
 
-        ASTRef *ResolveRef(ASTStmt *Stmt, ASTRef *Ref);
+        ASTRef* getParentRef(fly::ASTRef* Ref);
 
-        ASTRef *ResolveRef(ASTStmt *Stmt, ASTRef *Ref, SemaNameSpace *CurrentNameSpace);
+        bool ResolveRef(ASTStmt *Stmt, ASTVarRef *VarRef);
 
-        ASTRef *ResolveCall(ASTStmt *Stmt, ASTCall *Call, SemaNameSpace *CurrentNameSpace);
+        bool ResolveRef(ASTStmt *Stmt, ASTCall *Call);
+
+        void ResolveRef(ASTStmt *Stmt, ASTRef *Ref, SemaNameSpace *CurrentNameSpace);
+
+        void ResolveRef(ASTStmt *Stmt, ASTRef *Ref, SemaType *Type, SemaResult *Parent);
+
+        SemaNameSpace *ResolveNameSpace(ASTRef *Ref);
+
+        SemaType *ResolveType(llvm::StringRef Name, SemaNameSpace *CurrentNameSpace);
+
+        SemaCall *ResolveCall(ASTStmt *Stmt, ASTCall *Call, SemaNameSpace *CurrentNameSpace);
+
+        SemaVar *ResolveVar(ASTStmt *Stmt, ASTVarRef *VarRef);
 
         llvm::SmallVector<SemaType *, 8> ResolveCallArgTypes(ASTStmt *Stmt, ASTCall *Call);
 
-        ASTRef *ResolveRef(ASTStmt *Stmt, SemaType *Type, ASTRef *Ref);
 
-        ASTRef *ResolveRef(ASTStmt *Stmt, SemaVar *Var, ASTRef *Ref);
-
-        SemaType *FindType(llvm::StringRef Name, SemaNameSpace *CurrentNameSpace) const;
     };
 
 } // end namespace fly

@@ -195,8 +195,6 @@ namespace fly {
 
         llvm::Constant *GenDefaultValue(SemaType *Type, llvm::Type *Ty = nullptr);
 
-        llvm::Value *GenValue(SemaType *Type, SemaValue *Val);
-
 //        llvm::Value *Convert(llvm::Value *V, llvm::Type *T);
 
         llvm::Value *ConvertToBool(llvm::Value *Val);
@@ -204,12 +202,6 @@ namespace fly {
         llvm::Value *Convert(llvm::Value *FromVal, SemaType *FromType, SemaType *ToType);
 
         CodeGenError *GenErrorHandler(SemaVar* Sema);
-
-        CodeGenVar *GenLocalVar(SemaVar* Var);
-
-        llvm::Value *GenVarRef(SemaVar *Var);
-
-        llvm::Value *GenCall(SemaCall *Call);
 
         llvm::Value *GenExpr(ASTExpr *Expr);
 

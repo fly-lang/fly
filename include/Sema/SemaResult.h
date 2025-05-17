@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// include/Sema/SemaLocalVar.h - Sybolic Table for Local ASTVar
+// include/Sym/SemaResult.h - Sybolic Table for ASTRef
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,38 +7,42 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_SEMA_ERRORHANDLER_H
-#define FLY_SEMA_ERRORHANDLER_H
+#ifndef FLY_SEMA_RESULT_H
+#define FLY_SEMA_RESULT_H
 
-#include "SemaVar.h"
-#include "CodeGen/CodeGenError.h"
 
 namespace fly {
 
-    class ASTVar;
-    class SemaType;
-    class CodeGenVar;
+    class ASTBase;
 
-    class SemaErrorHandler : public SemaVar {
+	enum class SemaResultKind {
+		VAR,
+		CALL
+	};
+
+    class SemaResult {
 
         friend class SemaBuilder;
         friend class SemaResolver;
+    	friend class SemaResolverClass;
         friend class SemaValidator;
 
-    	SemaType *Type;
+    	SemaResultKind Kind;
 
-        CodeGenError *CodeGen;
+    	SemaResult *Parent = nullptr;
+
+    protected:
+
+        explicit SemaResult(SemaResultKind Kind);
 
     public:
+        virtual ~SemaResult() = default;
+    	
+    	SemaResultKind getKind() const;
 
-        explicit SemaErrorHandler();
-
-        CodeGenError *getCodeGen() const override;
-
-        void setCodeGen(CodeGenVarBase *CodeGen) override;
-
+    	SemaResult *getParent() const;
     };
 
 }
 
-#endif //FLY_SEMA_ERRORHANDLER_H
+#endif //FLY_SEMA_RESULT_H

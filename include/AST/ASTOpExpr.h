@@ -167,9 +167,9 @@ namespace fly {
 
         SourceLocation &getOpLocation();
 
-        const ASTExpr *getLeftExpr() const;
+        ASTExpr *getLeftExpr() const;
 
-        const ASTExpr *getRightExpr() const;
+        ASTExpr *getRightExpr() const;
 
         std::string str() const override;
     };
@@ -198,15 +198,15 @@ namespace fly {
 
     public:
 
-        const ASTExpr *getConditionExpr() const;
+        ASTExpr *getConditionExpr() const;
 
         SourceLocation &getTrueOpLocation();
 
-        const ASTExpr *getTrueExpr() const;
+        ASTExpr *getTrueExpr() const;
 
         SourceLocation &getFalseOpLocation();
 
-        const ASTExpr *getFalseExpr() const;
+        ASTExpr *getFalseExpr() const;
 
         std::string str() const override;
     };

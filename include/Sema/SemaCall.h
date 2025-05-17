@@ -10,6 +10,8 @@
 #ifndef FLY_SEMA_CALL_H
 #define FLY_SEMA_CALL_H
 
+#include "Sema/SemaResult.h"
+#include "AST/ASTCall.h"
 
 namespace fly {
 
@@ -24,7 +26,7 @@ namespace fly {
 		CALL_METHOD,
 	};
 
-    class SemaCall {
+    class SemaCall :  public SemaResult {
 
         friend class SemaBuilder;
         friend class SemaResolver;
@@ -33,8 +35,6 @@ namespace fly {
     	ASTCall *AST;
 
 		SemaCallKind Kind;
-
-    	SemaVar *Parent = nullptr;
 
     	SemaFunctionBase *Function = nullptr;
 
@@ -47,8 +47,6 @@ namespace fly {
     	ASTCall *getAST() const;
 
     	SemaCallKind getKind() const;
-
-    	SemaVar *getParent() const;
 
     	SemaFunctionBase *getFunction() const;
 

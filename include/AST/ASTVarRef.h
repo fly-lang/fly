@@ -14,6 +14,7 @@
 
 namespace fly {
 
+    class ASTVar;
     class SemaVar;
 
     /**
@@ -29,11 +30,15 @@ namespace fly {
         friend class SemaResolver;
         friend class SemaValidator;
 
-        SemaVar **Sym = nullptr;
+        ASTVar *Var = nullptr;
+
+        SemaVar *Sema = nullptr;
 
         ASTVarRef(const SourceLocation &Loc, llvm::StringRef Name);
 
     public:
+
+        ASTVar *getVar() const;
 
         SemaVar *getSema() const;
 

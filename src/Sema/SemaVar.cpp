@@ -9,9 +9,11 @@
 
 #include "Sema/SemaVar.h"
 
+#include <AST/ASTVar.h>
+
 using namespace fly;
 
-SemaVar::SemaVar(ASTVar *AST, SemaVarKind Kind) : AST(AST), Kind(Kind) {
+SemaVar::SemaVar(ASTVar *AST, SemaVarKind Kind) : SemaResult(SemaResultKind::VAR), AST(AST), Kind(Kind) {
 }
 
 ASTVar *SemaVar::getAST() const {
@@ -20,10 +22,6 @@ ASTVar *SemaVar::getAST() const {
 
 SemaVarKind SemaVar::getKind() const {
 	return Kind;
-}
-
-SemaVar *SemaVar::getParent() const {
-	return Parent;
 }
 
 SemaType *SemaVar::getType() const {

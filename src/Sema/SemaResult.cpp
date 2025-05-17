@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Sema/SemaVar.cpp - The Symbolic Table for Var
+// src/Sema/SemaResult.cpp - The Symbolic Table for Var or Call
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,27 +7,17 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "Sema/SemaCall.h"
-
-#include <AST/ASTCall.h>
+#include "Sema/SemaResult.h"
 
 using namespace fly;
 
-SemaCall::SemaCall(ASTCall *AST) : SemaResult(SemaResultKind::CALL), AST(AST) {
+SemaResult::SemaResult(SemaResultKind Kind) : Kind(Kind) {
 }
 
-ASTCall *SemaCall::getAST() const {
-	return AST;
-}
-
-SemaCallKind SemaCall::getKind() const {
+SemaResultKind SemaResult::getKind() const {
 	return Kind;
 }
 
-SemaFunctionBase *SemaCall::getFunction() const {
-	return Function;
-}
-
-SemaErrorHandler *SemaCall::getErrorHandler() const {
-	return ErrorHandler;
+SemaResult *SemaResult::getParent() const {
+	return Parent;
 }

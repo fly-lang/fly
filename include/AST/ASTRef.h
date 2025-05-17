@@ -54,10 +54,6 @@ namespace fly {
 
         bool isResolved() const;
 
-        bool isNameSpace() const;
-
-        bool isType() const;
-
         bool isCall() const;
 
         bool isVarRef() const;

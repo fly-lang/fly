@@ -16,10 +16,12 @@
 #include "ASTTypeRef.h"
 
 namespace fly {
+
     class SourceLocation;
     class CodeGenVarBase;
     class ASTVarStmt;
     class ASTScope;
+    class SemaVar;
 
     /**
      * Base Var used in:

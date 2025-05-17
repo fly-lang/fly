@@ -10,7 +10,8 @@
 #ifndef FLY_SEMA_VAR_H
 #define FLY_SEMA_VAR_H
 
-#include <CodeGen/CodeGenError.h>
+#include "Sema/SemaResult.h"
+#include "AST/ASTVar.h"
 
 
 namespace fly {
@@ -28,7 +29,7 @@ namespace fly {
 		VAR_ENUM
 	};
 
-    class SemaVar {
+    class SemaVar : public SemaResult {
 
         friend class SemaBuilder;
         friend class SemaResolver;
@@ -38,8 +39,6 @@ namespace fly {
     	ASTVar *AST;
 
     	SemaVarKind Kind;
-
-    	SemaVar *Parent = nullptr;
 
     	SemaType *Type = nullptr;
 
@@ -55,8 +54,6 @@ namespace fly {
         ASTVar *getAST() const;
 
     	SemaVarKind getKind() const;
-
-    	SemaVar *getParent() const;
 
     	SemaType *getType() const;
 

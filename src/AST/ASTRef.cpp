@@ -35,10 +35,6 @@ bool ASTRef::isResolved() const {
     return Resolved;
 }
 
-bool ASTRef::isType() const {
-    return RefKind == ASTRefKind::REF_TYPE;
-}
-
 bool ASTRef::isCall() const {
     return RefKind == ASTRefKind::REF_CALL;
 }

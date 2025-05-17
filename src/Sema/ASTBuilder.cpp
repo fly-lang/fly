@@ -835,8 +835,8 @@ ASTVarRef *ASTBuilder::CreateVarRef(ASTVar *Var, ASTRef *Parent) {
 	if (Parent) {
 		VarRef->Parent = Parent;
 	}
-	VarRef->Resolved = true;
-	VarRef->Sym = &Var->Sema;
+
+	VarRef->Var = Var;
 
 	FLY_DEBUG_END("ASTBuilder", "CreateVarRef");
 	return VarRef;

@@ -83,10 +83,10 @@ void CodeGenFunctionBase::AllocaErrorHandler() {
 }
 
 void CodeGenFunctionBase::AllocaLocalVars() {
-
     // Allocation of declared ASTVar
     for (auto Param: Sema->getParams()) {
-        CodeGenVar *CGV = CGM->GenLocalVar(Param);
+    	llvm::Type *Ty = CGM->GenType(Param->getType());
+    	CodeGenVar *CGV = new CodeGenVar(CGM, Ty);
         CGV->Alloca();
         Param->setCodeGen(CGV);
     }
@@ -97,7 +97,8 @@ void CodeGenFunctionBase::AllocaLocalVars() {
     		CodeGenError *CGE = CGM->GenErrorHandler(LocalVar);
     		LocalVar->setCodeGen(CGE);
         } else {
-	        CodeGenVar *CGV = CGM->GenLocalVar(LocalVar);
+        	llvm::Type *Ty = CGM->GenType(LocalVar->getType());
+        	CodeGenVar *CGV = new CodeGenVar(CGM, Ty);
         	CGV->Alloca();
         	LocalVar->setCodeGen(CGV);
         }

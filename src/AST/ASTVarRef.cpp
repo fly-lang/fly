@@ -17,15 +17,19 @@ ASTVarRef::ASTVarRef(const SourceLocation &Loc, llvm::StringRef Name) : ASTRef(L
 
 }
 
+ASTVar *ASTVarRef::getVar() const {
+	return Var;
+}
+
 SemaVar *ASTVarRef::getSema() const {
-    return *Sym;
+    return Sema;
 }
 
 std::string ASTVarRef::str() const {
     return Logger("ASTVarRef").
 	Attr("Location", getLocation()).
 	Attr("Kind", static_cast<size_t>(getKind())).
-            Attr("Parent", Parent).
-            Attr("Def", Sym).
-            End();
+    Attr("Parent", Parent).
+    Attr("Var", Sema).
+    End();
 }
