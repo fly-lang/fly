@@ -828,15 +828,18 @@ void SemaResolver:: ResolveRef(ASTStmt *Stmt, ASTRef *Ref, SemaType *Type, SemaR
 						ResolveRef(Stmt, Ref->Child, Method->getReturnType(), Call->Sema);
 				}
 			} else { // static var
-				SemaVar *Sema = ClassType->getAttributes().lookup(Ref->getName());
-				if (Sema && static_cast<SemaClassAttribute *>(Sema)->isStatic()) {
+				SemaVar *Sema = nullptr;
+				if (Ref->isVarRef() && static_cast<ASTVarRef *>(Ref)->getVar() && static_cast<ASTVarRef *>(Ref)->getVar()->getSema()) {
+					Sema = static_cast<ASTVarRef *>(Ref)->getVar()->getSema();
+				} else {
 					Ref = S.getASTBuilder().CreateVarRef(Ref);
-					static_cast<ASTVarRef *>(Ref)->Sema = Sema;
-					Sema->Parent = Parent;
-					Ref->Resolved = true;
-					if (Ref->Child)
-						ResolveRef(Stmt, Ref->Child, Sema->getType(), Sema);
+					Sema = ClassType->getAttributes().lookup(Ref->getName());
 				}
+				static_cast<ASTVarRef *>(Ref)->Sema = Sema;
+				Sema->Parent = Parent;
+				Ref->Resolved = true;
+				if (Ref->Child)
+					ResolveRef(Stmt, Ref->Child, Sema->getType(), Sema);
 			}
 		}
 
@@ -872,7 +875,7 @@ SemaNameSpace *SemaResolver::ResolveNameSpace(ASTRef *Ref) {
 		if (ChildNameSpace) {
 			CurrentNameSpace = ChildNameSpace;
 		}
-		Child = Ref->getChild();
+		Child = Child->getChild();
 	}
 
 	if (CurrentNameSpace)

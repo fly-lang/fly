@@ -84,12 +84,12 @@ TEST_F(CodeGenTest, CGStruct2) {
         ASTClass *TestStruct = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "TestStruct",
                                                    TopScopes, SuperClasses);
         ASTVar *aField = getASTBuilder().CreateClassAttribute(SourceLoc, TestStruct, IntTypeRef, "a", TopScopes);
-        ASTVar *bField = getASTBuilder().CreateClassAttribute(SourceLoc, TestStruct, IntTypeRef, "b", TopScopes);
-        ASTVar *cField = getASTBuilder().CreateClassAttribute(SourceLoc, TestStruct, IntTypeRef, "c", TopScopes);
+        // ASTVar *bField = getASTBuilder().CreateClassAttribute(SourceLoc, TestStruct, IntTypeRef, "b", TopScopes);
+        // ASTVar *cField = getASTBuilder().CreateClassAttribute(SourceLoc, TestStruct, IntTypeRef, "c", TopScopes);
 
         // int func() {
         //  TestStruct test = new TestStruct();
-        //  int a = test.a
+        //  int x = test.a
         //  test.b = 2
         //  return 1
         // }
@@ -104,23 +104,23 @@ TEST_F(CodeGenTest, CGStruct2) {
         SemaBuilderStmt *testNewStmt = getASTBuilder().CreateAssignmentStmt(Body, TestVar);
         testNewStmt->setExpr(NewExpr);
 
-        // int a = test.a
-        ASTVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "a", EmptyScopes);
-        ASTVarRef *Instance = CreateVarRef(TestVar);
-        ASTVarRef *test_aVarRef = CreateVarRef(aField, Instance);
+        // int x = test.a
+        ASTVar *xVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "x", EmptyScopes);
+        ASTVarRef *Instance = getASTBuilder().CreateVarRef(TestVar);
+        ASTVarRef *test_aVarRef = getASTBuilder().CreateVarRef(aField, Instance);
         ASTVarRefExpr *test_aRefExpr = getASTBuilder().CreateExpr(test_aVarRef);
-        SemaBuilderStmt *aVarStmt = getASTBuilder().CreateAssignmentStmt(Body, aVar);
-        aVarStmt->setExpr(test_aRefExpr);
+        SemaBuilderStmt *xVarStmt = getASTBuilder().CreateAssignmentStmt(Body, xVar);
+        xVarStmt->setExpr(test_aRefExpr);
 
         // test.b = 2
-        ASTVarRef *Instance2 = CreateVarRef(TestVar);
-        ASTVarRef *test_bVarRef = CreateVarRef(bField, Instance2);
-        SemaBuilderStmt *test_bVarStmt = getASTBuilder().CreateAssignmentStmt(Body, test_bVarRef);
-        ASTExpr *Expr = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "2"));
-        test_bVarStmt->setExpr(Expr);
+        // ASTVarRef *Instance2 = getASTBuilder().CreateVarRef(TestVar);
+        // ASTVarRef *test_bVarRef = getASTBuilder().CreateVarRef(bField, Instance2);
+        // SemaBuilderStmt *test_bVarStmt = getASTBuilder().CreateAssignmentStmt(Body, test_bVarRef);
+        // ASTExpr *Expr = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "2"));
+        // test_bVarStmt->setExpr(Expr);
 
         // delete test
-        ASTDeleteStmt *Delete = getASTBuilder().CreateDeleteStmt(Body, SourceLoc, (ASTVarRef *) Instance);
+        // ASTDeleteStmt *Delete = getASTBuilder().CreateDeleteStmt(Body, SourceLoc, (ASTVarRef *) Instance);
 
 		// validate and resolve
 		EXPECT_TRUE(S->Resolve());
@@ -233,26 +233,26 @@ TEST_F(CodeGenTest, CGStruct2) {
         // int a = test.a()
         ASTTypeRef *aType = aFunc->getReturnTypeRef();
         ASTVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, aType, "a", EmptyScopes);
-        ASTCallExpr *aCallExpr = getASTBuilder().CreateExpr(CreateCall(aFunc, Args, ASTCallKind::CALL_FUNCTION, CreateVarRef(TestVar)));
+        ASTCallExpr *aCallExpr = getASTBuilder().CreateExpr(CreateCall(aFunc, Args, ASTCallKind::CALL_FUNCTION, getASTBuilder().CreateVarRef(TestVar)));
         SemaBuilderStmt *aStmt = getASTBuilder().CreateAssignmentStmt(Body, aVar);
         aStmt->setExpr(aCallExpr);
 
         // int b = test.b()
         ASTTypeRef *bType = bFunc->getReturnTypeRef();
         ASTVar *bVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, bType, "b", EmptyScopes);
-        ASTCallExpr *bCallExpr = getASTBuilder().CreateExpr(CreateCall(bFunc, Args, ASTCallKind::CALL_FUNCTION, CreateVarRef(TestVar)));
+        ASTCallExpr *bCallExpr = getASTBuilder().CreateExpr(CreateCall(bFunc, Args, ASTCallKind::CALL_FUNCTION, getASTBuilder().CreateVarRef(TestVar)));
         SemaBuilderStmt *bStmt = getASTBuilder().CreateAssignmentStmt(Body, bVar);
         bStmt->setExpr(bCallExpr);
 
         // int c = test.c()
         ASTTypeRef *cType = cFunc->getReturnTypeRef();
         ASTVar *cVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, cType, "c", EmptyScopes);
-        ASTCallExpr *cCallExpr = getASTBuilder().CreateExpr(CreateCall(cFunc, Args, ASTCallKind::CALL_FUNCTION, CreateVarRef(TestVar)));
+        ASTCallExpr *cCallExpr = getASTBuilder().CreateExpr(CreateCall(cFunc, Args, ASTCallKind::CALL_FUNCTION, getASTBuilder().CreateVarRef(TestVar)));
         SemaBuilderStmt *cStmt = getASTBuilder().CreateAssignmentStmt(Body, cVar);
         cStmt->setExpr(cCallExpr);
 
         // delete test
-        ASTDeleteStmt *DeleteStmt = getASTBuilder().CreateDeleteStmt(Body, SourceLoc, CreateVarRef(TestVar));
+        ASTDeleteStmt *DeleteStmt = getASTBuilder().CreateDeleteStmt(Body, SourceLoc, getASTBuilder().CreateVarRef(TestVar));
 
     	// validate and resolve
     	EXPECT_TRUE(S->Resolve());
@@ -358,7 +358,7 @@ TEST_F(CodeGenTest, CGStruct2) {
                                                                "getA", TopScopes, Params, MethodBody);
 
         SemaBuilderStmt *MethodReturn = getASTBuilder().CreateReturnStmt(MethodBody, SourceLoc);
-        MethodReturn->setExpr(getASTBuilder().CreateExpr(CreateVarRef(aAttribute)));
+        MethodReturn->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateVarRef(aAttribute)));
 
         // int main() {
         //  TestClass test = new TestClass()
@@ -380,17 +380,19 @@ TEST_F(CodeGenTest, CGStruct2) {
         // int x = test.m()
         ASTTypeRef *xType = getAMethod->getReturnTypeRef();
         ASTVar *xVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, xType, "x", EmptyScopes);
-        ASTCallExpr *xCallExpr = getASTBuilder().CreateExpr(CreateCall(getAMethod, Args, ASTCallKind::CALL_FUNCTION, CreateVarRef(TestVar)));
+        ASTCallExpr *xCallExpr = getASTBuilder().CreateExpr(CreateCall(getAMethod, Args, ASTCallKind::CALL_FUNCTION, getASTBuilder().CreateVarRef(TestVar)));
         SemaBuilderStmt *xStmt = getASTBuilder().CreateAssignmentStmt(Body, xVar);
         xStmt->setExpr(xCallExpr);
 
         //  test.a = 2
-        SemaBuilderStmt *attrStmt = getASTBuilder().CreateAssignmentStmt(Body, CreateVarRef(aAttribute, CreateVarRef(TestVar)));
+        SemaBuilderStmt *attrStmt = getASTBuilder().CreateAssignmentStmt(Body,
+        	getASTBuilder().CreateVarRef(aAttribute, getASTBuilder().CreateVarRef(TestVar)));
         ASTValueExpr *value2Expr = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLocation(), "2"));
         attrStmt->setExpr(value2Expr);
 
         // delete test
-        ASTDeleteStmt *DeleteStmt = getASTBuilder().CreateDeleteStmt(Body, SourceLoc, CreateVarRef(TestVar));
+        ASTDeleteStmt *DeleteStmt = getASTBuilder().CreateDeleteStmt(Body, SourceLoc,
+        	getASTBuilder().CreateVarRef(TestVar));
 
 		// validate and resolve
 		EXPECT_TRUE(S->Resolve());

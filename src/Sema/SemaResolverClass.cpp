@@ -147,7 +147,7 @@ void SemaResolverClass::Definitions() {
 	SemaComment *Comment = nullptr;
 
 	// Resolve Class Definitions: Var, Function and Comment
-	for (auto AST: Class->getAST()->getDefinitions()) {
+	for (auto AST : Class->getAST()->getDefinitions()) {
 		switch (AST->getKind()) {
 			case ASTKind::AST_VAR: {
 				ASTVar * Var = static_cast<ASTVar *>(AST);

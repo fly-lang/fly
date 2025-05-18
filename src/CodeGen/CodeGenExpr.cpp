@@ -217,18 +217,19 @@ llvm::Value *CodeGenExpr::GenVar(SemaVar *Sema) {
         // Return the instance value
     	if (Sema->getParent()) {
 
-    		llvm::Value *V;
+    		llvm::Value *V = nullptr;
     		if (Sema->getParent()->getKind() == SemaResultKind::VAR) {
-    			V = static_cast<SemaVar *>(Sema->getParent())->getCodeGen()->getValue();
+    			V = static_cast<SemaVar *>(Sema->getParent())->getCodeGen()->getPointer();
     		} else if (Sema->getParent()->getKind() == SemaResultKind::CALL) {
     			V = GenCall(static_cast<SemaCall *>(Sema->getParent()));
     		}
+    		assert(V && "Missing Parent Value");
 
     		// TODO
 			return V;
-        } else { // Return static value
-            return Sema->getCodeGen()->getValue();
         }
+
+    	return Sema->getCodeGen()->getValue();
     }
 
     // Local Var

@@ -687,18 +687,7 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
 
             if (VarStmt->getExpr()) {
                 llvm::Value *V = GenExpr(VarStmt->getExpr()); // The Value represents the Expr result
-                if (VarRef->getParent()) {
-                    if (VarRef->getParent()->isCall()) { // TODO iterative parents
-                        // TODO
-                    } else if (VarRef->getParent()->isVarRef()) {
-                        // Take Parent Instance
-                        CodeGenVarBase *CGI = static_cast<ASTVarRef *>(VarRef->getParent())->getSema()->getCodeGen();
-                        CodeGenVarBase *CGV = CGI->getVar(VarRef->getName()); // Get Var Name
-                        CGV->Store(V);
-                    }
-                } else {
-                    VarRef->getSema()->getCodeGen()->Store(V);
-                }
+                VarRef->getSema()->getCodeGen()->Store(V);
             }
             break;
         }

@@ -110,10 +110,6 @@ public:
     	return S->getASTBuilder().CreateTypeRef(SourceLoc, A);
     }
 
-    ASTVarRef *CreateVarRef(ASTVar *Var, ASTRef *Parent = nullptr) {
-        return getASTBuilder().CreateVarRef(Var, Parent);
-    }
-
 	ASTCall *CreateCall(llvm::StringRef Name, llvm::SmallVector<ASTExpr *, 8> &Args, ASTCallKind Kind, ASTRef *Parent = nullptr) {
     	ASTCall *Call = getASTBuilder().CreateCall(SourceLocation(), Name, Args, Kind, Parent);
     	return Call;
