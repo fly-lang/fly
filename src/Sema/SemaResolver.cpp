@@ -781,6 +781,7 @@ void SemaResolver:: ResolveRef(ASTStmt *Stmt, ASTRef *Ref, SemaNameSpace *Curren
 
 		// Ref is a Class or an Enum Type?
 		else {
+
 			SemaType *Type = ResolveType(Ref->getName(), CurrentNameSpace);
 			if (Type) {
 				Ref->Resolved = true;
@@ -798,7 +799,6 @@ void SemaResolver:: ResolveRef(ASTStmt *Stmt, ASTRef *Ref, SemaNameSpace *Curren
 		}
 	}
 }
-
 
 /**
  * Resolve static Ref to a Class or Enum
@@ -821,9 +821,17 @@ void SemaResolver:: ResolveRef(ASTStmt *Stmt, ASTRef *Ref, SemaType *Type, SemaR
 				SemaFunctionBase* Method = ClassType->getMethods().lookup(Mangled);
 				if (Method) {
 					Call->Sema = S.getSemaBuilder().CreateCall(Call);
+
+					// Set the Call Sema ErrorHandler
+					ResolveErrorHandler(Stmt, Call->Sema);
+
+					// Set the Call Sema Function
 					Call->Sema->Function = Method;
 					Call->Resolved = true;
-					Call->Sema->Parent = Parent;
+
+					// Set First and Parent
+					Call->Sema->setParent(Parent);
+
 					if (Ref->Child)
 						ResolveRef(Stmt, Ref->Child, Method->getReturnType(), Call->Sema);
 				}
@@ -838,6 +846,10 @@ void SemaResolver:: ResolveRef(ASTStmt *Stmt, ASTRef *Ref, SemaType *Type, SemaR
 				static_cast<ASTVarRef *>(Ref)->Sema = Sema;
 				Sema->Parent = Parent;
 				Ref->Resolved = true;
+
+				// Set First and Parent
+				Sema->setParent(Parent);
+
 				if (Ref->Child)
 					ResolveRef(Stmt, Ref->Child, Sema->getType(), Sema);
 			}
@@ -903,6 +915,23 @@ SemaType * SemaResolver::ResolveType(llvm::StringRef Name, SemaNameSpace *Curren
 	return Type;
 }
 
+void SemaResolver::ResolveErrorHandler(ASTStmt *Stmt, SemaCall *Sema) {
+	// Search until parent is null or parent is a Handle Stmt
+	// When Parent Stmt is nullptr assign Function ErrorHandler to Call ErrorHandler
+	ASTStmt *Parent = Stmt;
+	while (Sema->getErrorHandler() == nullptr) {
+		Parent = Parent->getParent();
+		if (Parent == nullptr) {
+			Sema->ErrorHandler = Stmt->getFunction()->getSema()->getErrorHandler();
+		} else if (Parent->getStmtKind() == ASTStmtKind::STMT_HANDLE) {
+			ASTHandleStmt *HandleStmt = static_cast<ASTHandleStmt*>(Parent);
+			if (HandleStmt->getErrorHandlerRef() != nullptr) {
+				Sema->ErrorHandler = reinterpret_cast<SemaErrorHandler *>(HandleStmt->getErrorHandlerRef()->Sema);
+			}
+		}
+	}
+}
+
 /**
  * Resolve a Call Reference
  * @param Stmt
@@ -960,20 +989,8 @@ SemaCall *SemaResolver::ResolveCall(ASTStmt *Stmt, ASTCall *Call, SemaNameSpace 
         Sema->Function = Func;
     }
 
-	// Search until parent is null or parent is a Handle Stmt
-	// When Parent Stmt is nullptr assign Function ErrorHandler to Call ErrorHandler
-	ASTStmt *Parent = Stmt;
-	while (Sema->getErrorHandler() == nullptr) {
-		Parent = Parent->getParent();
-		if (Parent == nullptr) {
-			Sema->ErrorHandler = Stmt->getFunction()->getSema()->getErrorHandler();
-		} else if (Parent->getStmtKind() == ASTStmtKind::STMT_HANDLE) {
-			ASTHandleStmt *HandleStmt = static_cast<ASTHandleStmt*>(Parent);
-			if (HandleStmt->getErrorHandlerRef() != nullptr) {
-				Sema->ErrorHandler = reinterpret_cast<SemaErrorHandler *>(HandleStmt->getErrorHandlerRef()->Sema);
-			}
-		}
-	}
+	// Set the Call Sema ErrorHandler
+	ResolveErrorHandler(Stmt, Sema);
 
 	Sema->AST = Call;
 	Call->Sema = Sema;

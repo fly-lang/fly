@@ -83,8 +83,6 @@ namespace fly {
 
         SemaValue *DefaultValue;
 
-        std::string getTypeName(SemaTypeKind Kind);
-
         size_t GenerateId(fly::SemaTypeKind Kind);
 
     protected:

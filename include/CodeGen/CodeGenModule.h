@@ -20,15 +20,16 @@
 #include <llvm/IR/IRBuilder.h>
 
 namespace llvm {
-class LLVMContext;
-class Module;
-class Type;
-class Value;
-class PointerType;
-class StructType;
-class IntegerType;
-class Constant;
-class BasicBlock;
+    class LLVMContext;
+    class Module;
+    class Type;
+    class Value;
+    class PointerType;
+    class StructType;
+    class IntegerType;
+    class Constant;
+    class BasicBlock;
+    class Value;
 };
 
 namespace fly {
@@ -164,6 +165,8 @@ namespace fly {
         llvm::StructType *ErrorTy;
 
         llvm::PointerType *ErrorPtrTy;
+
+        llvm::Value *Zero;
 
         CodeGenModule(DiagnosticsEngine &Diags, SemaNameSpace *NameSpace, llvm::LLVMContext &LLVMCtx, TargetInfo &Target,
                       CodeGenOptions &CGOpts);

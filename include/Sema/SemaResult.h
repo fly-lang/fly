@@ -22,14 +22,13 @@ namespace fly {
 
     class SemaResult {
 
-        friend class SemaBuilder;
-        friend class SemaResolver;
-    	friend class SemaResolverClass;
-        friend class SemaValidator;
+    	friend class SemaResolver;
 
     	SemaResultKind Kind;
 
     	SemaResult *Parent = nullptr;
+
+    	SemaResult *Child = nullptr;
 
     protected:
 
@@ -41,6 +40,10 @@ namespace fly {
     	SemaResultKind getKind() const;
 
     	SemaResult *getParent() const;
+
+    	void setParent(SemaResult *Result);
+
+    	SemaResult *getChild() const;
     };
 
 }

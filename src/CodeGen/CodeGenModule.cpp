@@ -103,6 +103,8 @@ CodeGenModule::CodeGenModule(DiagnosticsEngine &Diags, SemaNameSpace *NameSpace,
     ErrorTy = CodeGenError::GenErrorType(LLVMCtx);
     ErrorPtrTy = llvm::PointerType::get(ErrorTy, 0);
 
+	Zero = llvm::ConstantInt::get(Int32Ty, 0);
+
     // If debug info or coverage generation is enabled, create the CGDebugInfo
     // object.
 //    if (CGOpts.getDebugInfo() != codegenoptions::NoDebugInfo ||

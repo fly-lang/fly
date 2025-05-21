@@ -21,3 +21,14 @@ SemaResultKind SemaResult::getKind() const {
 SemaResult *SemaResult::getParent() const {
 	return Parent;
 }
+
+void SemaResult::setParent(SemaResult *Parent) {
+	if (Parent != nullptr) {
+		Parent->Child = this;
+	}
+	this->Parent = Parent;
+}
+
+SemaResult * SemaResult::getChild() const {
+	return Child;
+}

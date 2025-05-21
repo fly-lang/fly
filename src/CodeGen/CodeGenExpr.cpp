@@ -28,6 +28,7 @@
 #include <Sema/SemaType.h>
 #include <Sema/SemaVar.h>
 #include <Sema/SemaCall.h>
+#include <Sema/SemaClassAttribute.h>
 #include <Sema/SemaValue.h>
 
 using namespace fly;
@@ -56,7 +57,7 @@ llvm::Value *CodeGenExpr::GenExpr(ASTExpr *Expr) {
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_VAR_REF");
             ASTVarRef *VarRef = static_cast<ASTVarRefExpr *>(Expr)->getVarRef();
             assert(VarRef && "Missing Ref");
-            return GenVar(VarRef->getSema());
+        	return GenVar(VarRef->getSema());
         }
         case ASTExprKind::EXPR_CALL: {
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_CALL");
@@ -209,28 +210,50 @@ llvm::Value *CodeGenExpr::GenValue(SemaType *Type, SemaValue *Val) {
 	return nullptr;
 }
 
+llvm::Value * CodeGenExpr::GenParent(SemaResult *Sema) {
+	llvm::Value *V = nullptr;
+
+	// Return the instance value
+	if (Sema->getParent()) {
+
+		if (Sema->getParent()->getKind() == SemaResultKind::VAR) {
+			V = GenVar(static_cast<SemaVar *>(Sema->getParent()));
+		} else if (Sema->getParent()->getKind() == SemaResultKind::CALL) {
+			V = GenCall(static_cast<SemaCall *>(Sema->getParent()));
+		}
+		assert(V && "Missing Parent Value");
+
+	}
+	return V;
+}
+
 llvm::Value *CodeGenExpr::GenVar(SemaVar *Sema) {
 
     // Class Var
     if (Sema->getKind() == SemaVarKind::VAR_CLASS) {
+    	SemaClassAttribute *ClassAttribute = static_cast<SemaClassAttribute *>(Sema);
 
-        // Return the instance value
-    	if (Sema->getParent()) {
-
-    		llvm::Value *V = nullptr;
-    		if (Sema->getParent()->getKind() == SemaResultKind::VAR) {
-    			V = static_cast<SemaVar *>(Sema->getParent())->getCodeGen()->getPointer();
-    		} else if (Sema->getParent()->getKind() == SemaResultKind::CALL) {
-    			V = GenCall(static_cast<SemaCall *>(Sema->getParent()));
-    		}
-    		assert(V && "Missing Parent Value");
-
+    	if (ClassAttribute->isStatic()) {
     		// TODO
-			return V;
-        }
+    	} else {
+    		llvm::Value *InstancePtr = GenParent(Sema);
 
-    	return Sema->getCodeGen()->getValue();
+    		if (InstancePtr == nullptr) {
+    			// Error: Class instance not found
+    			CGM->Diag(Sema->getAST()->getLocation(), diag::err_sema_generic);
+    		}
+
+    		llvm::Type * Type = ClassAttribute->getClass()->getCodeGen()->getType();
+    		llvm::Value *Index = ClassAttribute->getCodeGen()->getIndex();
+    		return CGM->Builder->CreateInBoundsGEP(Type, InstancePtr, {CGM->Zero, Index});
+
+    	}
     }
+
+	// Enum Var
+	if (Sema->getKind() == SemaVarKind::VAR_ENUM) {
+		// TODO
+	}
 
     // Local Var
     // Return the Value
@@ -242,49 +265,43 @@ llvm::Value *CodeGenExpr::GenCall(SemaCall *Sema) {
     // The function arguments
     llvm::SmallVector<llvm::Value *, 8> Args;
 
+	bool IsConstructor = false;
+	llvm::Value *InstancePtr = nullptr;
+
     // Add error as first parameter
     if (Sema->getFunction()->getKind() == SemaFunctionKind::METHOD) {
+
+    	// Check is Constructor
         SemaClassMethod *Method = static_cast<SemaClassMethod *>(Sema->getFunction());
 
     	// Add Error parameter if the class is a not a Struct
         if (Method->getClass()->getClassKind() != SemaClassKind::STRUCT)
             Args.push_back(Sema->getErrorHandler()->getCodeGen()->getValue()); // Error is a Pointer
 
+		// Call class constructor
+    	if (Method->isConstructor()) {
+    		IsConstructor = true;
+
+    		// TODO remove following line
+    		// llvm::Type *AllocType = Method->getClass()->getAttributes().empty() ? Int8Ty : Method->getClass()->getCodeGen()->getType();
+    		llvm::Type *AllocType = Method->getClass()->getCodeGen()->getType();
+    		llvm::Constant *AllocSize = llvm::ConstantExpr::getTruncOrBitCast(llvm::ConstantExpr::getSizeOf(AllocType), AllocType);
+
+    		// @malloc data type struct
+    		llvm::IntegerType *IntPtrType = llvm::Type::getIntNTy(CGM->LLVMCtx, CGM->Module->getDataLayout().getMaxPointerSizeInBits());
+    		llvm::Instruction *I = llvm::CallInst::CreateMalloc(CGM->Builder->GetInsertBlock(), IntPtrType,
+														  AllocType, AllocSize, nullptr, nullptr);
+    		InstancePtr = CGM->Builder->Insert(I);
+    	} else {
+    		InstancePtr = GenParent(Sema);
+    	}
+
+    	// Add Instance parameter
+    	Args.push_back(InstancePtr);
     } else {
 
     	// Add Error parameter
         Args.push_back(Sema->getErrorHandler()->getCodeGen()->getValue()); // Error is a Pointer
-    }
-
-    // Take the CGI Value and pass to Call as first argument
-    llvm::Value *Instance = nullptr;
-
-    if (Sema->getFunction()->getKind() == SemaFunctionKind::METHOD) {
-    	SemaClassMethod *Method = static_cast<SemaClassMethod *>(Sema->getFunction());
-
-        if (Sema->getParent()) {
-        	llvm::Value *V;
-        	if (Sema->getParent()->getKind() == SemaResultKind::VAR) {
-        		V = static_cast<SemaVar *>(Sema->getParent())->getCodeGen()->getValue();
-        	} else if (Sema->getParent()->getKind() == SemaResultKind::CALL) {
-        		V = GenCall(static_cast<SemaCall *>(Sema->getParent()));
-        	}
-            Args.push_back(V);
-        } else if (Method->isConstructor()) { // Call class constructor
-        	// TODO remove following line
-            // llvm::Type *AllocType = Method->getClass()->getAttributes().empty() ? Int8Ty : Method->getClass()->getCodeGen()->getType();
-        	llvm::Type *AllocType = Method->getClass()->getCodeGen()->getType();
-        	llvm::Constant *AllocSize = llvm::ConstantExpr::getTruncOrBitCast(llvm::ConstantExpr::getSizeOf(AllocType), AllocType);
-
-            // @malloc data type struct
-            llvm::IntegerType *IntPtrType = llvm::Type::getIntNTy(CGM->LLVMCtx, CGM->Module->getDataLayout().getMaxPointerSizeInBits());
-            llvm::Instruction *I = llvm::CallInst::CreateMalloc(CGM->Builder->GetInsertBlock(), IntPtrType,
-                                                          AllocType, AllocSize, nullptr, nullptr);
-            Instance = CGM->Builder->Insert(I);
-            Args.push_back(Instance);
-        } else {
-            // call static method
-        }
     }
 
     // Add Call arguments to Function args
@@ -296,7 +313,7 @@ llvm::Value *CodeGenExpr::GenCall(SemaCall *Sema) {
     CodeGenFunctionBase *CGF = Sema->getFunction()->getCodeGen();
     llvm::Value *RetVal = CGM->Builder->CreateCall(CGF->getFunction(), Args);
 
-    return Instance == nullptr ? RetVal : Instance;
+    return IsConstructor ? InstancePtr : RetVal;
 }
 
 /**

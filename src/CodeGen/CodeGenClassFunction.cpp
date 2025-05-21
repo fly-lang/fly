@@ -56,7 +56,7 @@ CodeGenClassFunction::CodeGenClassFunction(CodeGenModule *CGM, SemaClassMethod *
     // Set LLVM Function Name %MODULE_CLASS_METHOD (if MODULE == default is empty)
     FnType = llvm::FunctionType::get(RetType, ParamTypes, false);
 
-    std::string Id = CodeGen::toIdentifier(Sema->getAST()->getName(), Class->getModule()->getNameSpace()->getName(), Class->getAST()->getName());
+    std::string Id = CodeGen::toIdentifier(Sema->getMangledName(), Class->getModule()->getNameSpace()->getName(), Class->getAST()->getName());
     Fn = llvm::Function::Create(FnType, llvm::GlobalValue::ExternalLinkage, Id, CGM->getModule());
 }
 

@@ -10,6 +10,7 @@
 #ifndef FLY_SEMA_RESOLVER_H
 #define FLY_SEMA_RESOLVER_H
 
+#include "SemaErrorHandler.h"
 #include "llvm/ADT/SmallVector.h"
 
 namespace fly {
@@ -140,6 +141,8 @@ namespace fly {
         SemaNameSpace *ResolveNameSpace(ASTRef *Ref);
 
         SemaType *ResolveType(llvm::StringRef Name, SemaNameSpace *CurrentNameSpace);
+
+        void ResolveErrorHandler(ASTStmt* Stmt, SemaCall *Sema);
 
         SemaCall *ResolveCall(ASTStmt *Stmt, ASTCall *Call, SemaNameSpace *CurrentNameSpace);
 

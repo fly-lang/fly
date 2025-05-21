@@ -151,15 +151,44 @@ void SemaResolverClass::Definitions() {
 		switch (AST->getKind()) {
 			case ASTKind::AST_VAR: {
 				ASTVar * Var = static_cast<ASTVar *>(AST);
-				if (R->ResolveTypeRef(Var->TypeRef)) {
-					S.getSemaBuilder().CreateClassAttribute(Class, Var, Comment);
-					Var->Sema->Type = Var->TypeRef->getSema();
-				}
+
+				// Resolve Type
+				R->ResolveTypeRef(Var->TypeRef);
+
+				// Create Attribute
+				S.getSemaBuilder().CreateClassAttribute(Class, Var, Comment);
+				Var->Sema->Type = Var->TypeRef->getSema();
 				Comment = nullptr;
 			}
 			break;
 			case ASTKind::AST_FUNCTION: {
+				ASTFunction *Function = static_cast<ASTFunction *>(AST);
+
+				// Resolve Return Type
+				R->ResolveTypeRef(Function->ReturnTypeRef);
+
+				// Create Method
 				S.getSemaBuilder().CreateClassMethod(Class, static_cast<ASTFunction *>(AST), Comment);
+
+				// Resolve Return Type
+				Function->Sema->ReturnType = Function->ReturnTypeRef->getSema();
+
+				// Resolve Parameters Types
+				for (auto Param : Function->getParams()) {
+					// Check duplicated params
+					// TODO
+					//S.getValidator().CheckDuplicateParams(Function->Params, Param);
+
+					// resolve parameter type
+					if (R->ResolveTypeRef(Param->TypeRef)) {
+						SemaParam *P = S.getSemaBuilder().CreateParam(Param);
+						P->Type = Param->TypeRef->getSema();
+						Function->Sema->Params.push_back(P);
+					}
+				}
+
+				// Add to Body list for resolve in the next step
+				R->Bodies.push_back(Function->Body);
 				Comment = nullptr;
 			}
 			break;
@@ -168,7 +197,7 @@ void SemaResolverClass::Definitions() {
 			break;
 			default:
 				// Error: invalid declaration in class
-					S.Diag(AST->getLocation(), diag::err_syntax_error);
+				S.Diag(AST->getLocation(), diag::err_syntax_error);
 			break;
 		}
 	}

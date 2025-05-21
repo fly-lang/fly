@@ -19,6 +19,7 @@ namespace fly {
     class ASTTernaryOpExpr;
     class ASTOpExpr;
     class ASTRef;
+    class SemaResult;
     enum class ASTBinaryOpExprKind;
 
     class CodeGenExpr {
@@ -36,6 +37,8 @@ namespace fly {
         llvm::Value *GenExpr(ASTExpr *Expr);
 
         llvm::Value *GenValue(SemaType *Type, SemaValue *Val);
+
+        llvm::Value* GenParent(SemaResult *Sema);
 
         llvm::Value *GenVar(SemaVar *Sema);
 
