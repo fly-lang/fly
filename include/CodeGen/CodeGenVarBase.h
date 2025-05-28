@@ -38,8 +38,6 @@ namespace fly {
         virtual llvm::Value *getValue() = 0;
 
         virtual llvm::Value *getPointer() = 0;
-
-        virtual CodeGenVarBase *getVar(llvm::StringRef Name) = 0;
     };
 }
 

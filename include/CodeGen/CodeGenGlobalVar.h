@@ -50,8 +50,6 @@ namespace fly {
         llvm::Value *getValue() override;
 
         llvm::Value *getPointer() override;
-
-        CodeGenVarBase *getVar(llvm::StringRef Name);
     };
 }
 

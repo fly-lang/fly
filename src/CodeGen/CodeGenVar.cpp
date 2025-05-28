@@ -29,10 +29,6 @@ CodeGenVar *CodeGenVar::getParent() {
     return Parent;
 }
 
-CodeGenVarBase *CodeGenVar::getVar(llvm::StringRef Name) {
-    return Vars.lookup(Name);
-}
-
 llvm::Type *CodeGenVar::getType() {
     return T;
 }
@@ -81,8 +77,4 @@ llvm::Value *CodeGenVar::getPointer() {
         return CGM->Builder->CreateInBoundsGEP(Parent->getType(), Parent->getValue(), {Zero, Idx});
     }
     return this->Pointer;
-}
-
-void CodeGenVar::addVar(StringRef Name, CodeGenVarBase *CGV) {
-    Vars.insert(std::make_pair(Name, CGV));
 }

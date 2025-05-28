@@ -64,6 +64,7 @@ namespace fly {
     class SemaVar;
     class SemaCall;
     class SemaValue;
+    class SemaResult;
 
     class CodeGenModule {
 
@@ -207,6 +208,12 @@ namespace fly {
         CodeGenError *GenErrorHandler(SemaVar* Sema);
 
         llvm::Value *GenExpr(ASTExpr *Expr);
+
+        llvm::Value* GenParent(SemaResult *Sema);
+
+        llvm::Value *GenVar(SemaVar *Sema, bool ReturnPointer = false);
+
+        llvm::Value *GenCall(SemaCall *Sema);
 
         void GenFailStmt(ASTFailStmt *FailStmt, CodeGenError *CGH);
 

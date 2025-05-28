@@ -68,7 +68,7 @@ class CodeGen {
 
         // void GenerateHeader(SymNameSpace &NameSpace);
 
-        static std::string toIdentifier(llvm::StringRef Name, llvm::StringRef NameSpace, llvm::StringRef ClassName = "");
+        static std::string toIdentifier(llvm::StringRef Name, llvm::StringRef NameSpace);
     };
 }
 

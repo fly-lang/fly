@@ -135,9 +135,7 @@ CodeGenModule *CodeGen::GenerateModule(SemaNameSpace *NameSpace) {
 //     return CodeGenHeader::CreateFile(Diags, CodeGenOpts, NameSpace);
 // }
 
-std::string CodeGen::toIdentifier(llvm::StringRef Name, llvm::StringRef NameSpace, llvm::StringRef ClassName) {
+std::string CodeGen::toIdentifier(llvm::StringRef Name, llvm::StringRef NameSpace) {
     std::string Prefix = NameSpace == "default" ? "" : std::string(NameSpace).append("_");
-    return Prefix.append(ClassName.empty() ?
-                std::string(Name) :
-                std::string(ClassName).append("_").append(std::string(Name)));
+    return Prefix.append(std::string(Name));
 }

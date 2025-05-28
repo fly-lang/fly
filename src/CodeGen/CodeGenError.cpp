@@ -111,7 +111,3 @@ llvm::Value *CodeGenError::getValue() {
     }
     return this->LoadI;
 }
-
-CodeGenVarBase *CodeGenError::getVar(llvm::StringRef Name) {
-    return nullptr;
-}

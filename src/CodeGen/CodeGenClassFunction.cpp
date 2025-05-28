@@ -56,7 +56,8 @@ CodeGenClassFunction::CodeGenClassFunction(CodeGenModule *CGM, SemaClassMethod *
     // Set LLVM Function Name %MODULE_CLASS_METHOD (if MODULE == default is empty)
     FnType = llvm::FunctionType::get(RetType, ParamTypes, false);
 
-    std::string Id = CodeGen::toIdentifier(Sema->getMangledName(), Class->getModule()->getNameSpace()->getName(), Class->getAST()->getName());
+	std::string FuncName = (Class->getAST()->getName() + Sema->getMangledName()).str();
+    std::string Id = CodeGen::toIdentifier(FuncName, Class->getModule()->getNameSpace()->getName());
     Fn = llvm::Function::Create(FnType, llvm::GlobalValue::ExternalLinkage, Id, CGM->getModule());
 }
 
@@ -103,7 +104,6 @@ void CodeGenClassFunction::GenBody() {
 
         // All Class Vars
         for (auto &CGAttribute : ClassMethod->getClass()->getCodeGen()->getAttributes()) {
-        	CGAttribute->setInstance(InstancePtr);
 
             // Store attribute default value
             if (ClassMethod->isConstructor()) {

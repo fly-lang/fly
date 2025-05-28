@@ -31,8 +31,6 @@ namespace fly {
 
         CodeGenModule *CGM = nullptr;
 
-        llvm::Value *InstancePtr = nullptr;
-
         llvm::Type *T = nullptr;
 
         llvm::Value *Pointer = nullptr;
@@ -50,8 +48,6 @@ namespace fly {
     public:
         CodeGenClassVar(CodeGenModule *CGM, SemaClassAttribute *Sema, uint64_t Index);
 
-        void setInstance(llvm::Value *InstancePtr);
-
         llvm::StoreInst *Store(llvm::Value *Val) override;
 
         llvm::LoadInst *Load() override;
@@ -64,7 +60,6 @@ namespace fly {
 
         llvm::Type* getType() override;
 
-        CodeGenVarBase* getVar(llvm::StringRef Name) override;
     };
 }
 

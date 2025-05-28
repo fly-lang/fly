@@ -32,8 +32,6 @@ namespace fly {
 
         CodeGenVar *Parent = nullptr;
 
-        llvm::StringMap<CodeGenVarBase *> Vars;
-
         llvm::Type *T = nullptr;
 
         llvm::AllocaInst *Pointer = nullptr;

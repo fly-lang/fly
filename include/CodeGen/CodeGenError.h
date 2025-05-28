@@ -65,9 +65,6 @@ namespace fly {
 
         llvm::Value *getPointer() override;
 
-        void Store(ASTExpr *Expr);
-
-        CodeGenVarBase *getVar(llvm::StringRef Name);
     };
 }
 

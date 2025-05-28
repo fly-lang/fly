@@ -19,12 +19,8 @@
 using namespace fly;
 
 CodeGenClassVar::CodeGenClassVar(CodeGenModule *CGM, SemaClassAttribute *Sema, uint64_t Index) :
-        CGM(CGM), InstancePtr(InstancePtr), Type(CGM->GenType(Sema->getType())), Index(llvm::ConstantInt::get(CGM->Int32Ty, Index)),
-        Zero(llvm::ConstantInt::get(CGM->Int32Ty, 0)) {
-}
-
-void CodeGenClassVar::setInstance(llvm::Value *InstancePtr) {
-	this->InstancePtr = InstancePtr;
+        CGM(CGM), Type(CGM->GenType(Sema->getType())), Index(llvm::ConstantInt::get(CGM->Int32Ty, Index)),
+        Zero(CGM->Zero) {
 }
 
 llvm::StoreInst *CodeGenClassVar::Store(llvm::Value *Val) {
@@ -57,7 +53,7 @@ llvm::Value *CodeGenClassVar::getValue() {
 
 llvm::Value *CodeGenClassVar::getPointer() {
     if (!this->Pointer)
-        this->Pointer = CGM->Builder->CreateInBoundsGEP(Type, InstancePtr, {Zero, Index});
+        this->Pointer = CGM->Builder->CreateInBoundsGEP(Type, nullptr, {Zero, Index});
     return this->Pointer;
 }
 
@@ -67,8 +63,4 @@ llvm::Value *CodeGenClassVar::getIndex() {
 
 llvm::Type * CodeGenClassVar::getType() {
 	return Type;
-}
-
-CodeGenVarBase * CodeGenClassVar::getVar(llvm::StringRef Name) {
-	return nullptr;
 }

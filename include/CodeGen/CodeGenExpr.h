@@ -38,11 +38,7 @@ namespace fly {
 
         llvm::Value *GenValue(SemaType *Type, SemaValue *Val);
 
-        llvm::Value* GenParent(SemaResult *Sema);
 
-        llvm::Value *GenVar(SemaVar *Sema);
-
-        llvm::Value *GenCall(SemaCall *Sema);
         
         llvm::Value *GenOp(ASTOpExpr *Expr);
 
