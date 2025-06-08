@@ -37,8 +37,6 @@ namespace fly {
         llvm::Value *GenExpr(ASTExpr *Expr);
 
         llvm::Value *GenValue(SemaType *Type, SemaValue *Val);
-
-
         
         llvm::Value *GenOp(ASTOpExpr *Expr);
 

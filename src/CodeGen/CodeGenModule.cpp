@@ -37,7 +37,7 @@
 #include "AST/ASTLoopStmt.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTVarStmt.h"
-#include "AST/ASTVarRef.h"
+#include "AST/ASTRef.h"
 #include "AST/ASTReturnStmt.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTEnum.h"
@@ -58,6 +58,7 @@
 #include <Sema/SemaEnumType.h>
 #include <Sema/SemaEnumEntry.h>
 #include <Sema/SemaFunction.h>
+#include <Sema/SemaMemberVar.h>
 #include <Sema/SemaValue.h>
 #include <llvm/IR/Instructions.h>
 
@@ -657,54 +658,34 @@ llvm::Value *CodeGenModule::GenExpr(ASTExpr *Expr) {
     return CodeGenExpr::Generate(this, Expr);
 }
 
-llvm::Value * CodeGenModule::GenParent(SemaResult *Sema) {
-	llvm::Value *V = nullptr;
+CodeGenVarBase * CodeGenModule::GenVar(SemaVar *Sema, llvm::Value *ParentPtr) {
 
-	// Return the instance value
-	if (Sema->getParent()) {
-
-		if (Sema->getParent()->getKind() == SemaResultKind::VAR) {
-			V = GenVar(static_cast<SemaVar *>(Sema->getParent()));
-		} else if (Sema->getParent()->getKind() == SemaResultKind::CALL) {
-			V = GenCall(static_cast<SemaCall *>(Sema->getParent()));
-		}
-		assert(V && "Missing Parent Value");
-
+	if (Sema->getParent() != nullptr) {
+		ParentPtr = GenResult(Sema->getParent());
 	}
-	return V;
+
+	CodeGenVarBase *CGV = Sema->getCodeGen();
+	if (CGV == nullptr) {
+		// Init CodeGenVar
+		llvm::Type *Ty = GenType(Sema->getType());
+		CodeGenVar * CGV = new CodeGenVar(this, Sema, Ty, ParentPtr);
+		Sema->setCodeGen(CGV);
+	}
+	return  Sema->getCodeGen();
 }
 
-llvm::Value *CodeGenModule::GenVar(SemaVar *Sema, bool ReturnPointer) {
-    // Class Var
-    if (Sema->getKind() == SemaVarKind::VAR_CLASS) {
-    	SemaClassAttribute *ClassAttribute = static_cast<SemaClassAttribute *>(Sema);
+llvm::Value * CodeGenModule::GenResult(SemaResult *Sema) {
+	llvm::Value *ParentPtr = nullptr;
 
-    	if (ClassAttribute->isStatic()) {
-    		// TODO
-    	} else {
-    		llvm::Value *InstancePtr = GenParent(Sema);
-
-    		if (InstancePtr == nullptr) {
-    			// Error: Class instance not found
-    			Diag(Sema->getAST()->getLocation(), diag::err_sema_generic);
-    		}
-
-    		llvm::Type * Type = ClassAttribute->getClass()->getCodeGen()->getType();
-    		llvm::Value *Index = ClassAttribute->getCodeGen()->getIndex();
-    		return Builder->CreateInBoundsGEP(Type, InstancePtr, {Zero, Index});
-    	}
-    }
-
-	// Enum Var
-	if (Sema->getKind() == SemaVarKind::VAR_ENUM) {
-		// TODO
+	if (Sema->getParent() != nullptr) {
+		ParentPtr = GenResult(Sema->getParent());
 	}
 
-    // Local Var
-    // Return the Value
-	// TODO
-    //return ReturnPointer ? Sema->getCodeGen()->getPointer() : Sema->getCodeGen()->getValue();
-	return Sema->getCodeGen()->getValue();
+	if (Sema->isCall()) {
+		return GenCall(static_cast<SemaCall *>(Sema));
+	}
+
+	return GenVar(static_cast<SemaVar *>(Sema), ParentPtr)->getValue();
 }
 
 llvm::Value *CodeGenModule::GenCall(SemaCall *Sema) {
@@ -743,7 +724,7 @@ llvm::Value *CodeGenModule::GenCall(SemaCall *Sema) {
 														  AllocType, AllocSizeVal, nullptr, nullptr, InstName);
     		InstancePtr = Builder->Insert(I);
     	} else {
-    		InstancePtr = GenParent(Sema);
+    		InstancePtr = GenResult(Sema->getParent());
     	}
 
     	// Add Instance parameter
@@ -766,27 +747,6 @@ llvm::Value *CodeGenModule::GenCall(SemaCall *Sema) {
     return IsConstructor ? InstancePtr : RetVal;
 }
 
-void CodeGenModule::GenFailStmt(ASTFailStmt *FailStmt, CodeGenError *CGE) {
-	// Store Fail value in ErrorHandler
-	if (FailStmt->getExpr() == nullptr) {
-		CGE->StoreInt(llvm::ConstantInt::get(Int32Ty, 1));
-	} else if (FailStmt->getExpr()->getType()->isBool() || FailStmt->getExpr()->getType()->isInteger()) {
-		llvm::Value *V = GenExpr(FailStmt->getExpr());
-		CGE->StoreInt(V);
-	} else if (FailStmt->getExpr()->getType()->isString()) {
-		llvm::Value *V = GenExpr(FailStmt->getExpr());
-		CGE->StoreString(V);
-	} else if (FailStmt->getExpr()->getType()->isClass()) {
-		SemaType * IdentityType = FailStmt->getExpr()->getType();
-		llvm::Value *V = GenExpr(FailStmt->getExpr());
-		CGE->StoreObject(V);
-	} else if (FailStmt->getExpr()->getType()->isEnum()) {
-		SemaType * IdentityType = FailStmt->getExpr()->getType();
-		llvm::Value *V = GenExpr(FailStmt->getExpr());
-		CGE->StoreInt(V);
-	}
-}
-
 void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
     FLY_DEBUG_START("CodeGenModule", "GenStmt");
     switch (Stmt->getStmtKind()) {
@@ -795,18 +755,15 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
         case ASTStmtKind::STMT_VAR: {
             ASTVarStmt *VarStmt = static_cast<ASTVarStmt *>(Stmt);
 
-            ASTVarRef *VarRef = VarStmt->getVarRef();
+        	// Get the VarRef
+            ASTRef *VarRef = VarStmt->getVarRef();
+        	SemaVar *Var = static_cast<SemaVar *>(VarRef->getSema());
+        	GenVar(Var);
 
+        	// Generate the Expr
             if (VarStmt->getExpr()) {
                 llvm::Value *Val = GenExpr(VarStmt->getExpr()); // The Value represents the Expr result
-				if (VarRef->getSema()->getKind() == SemaVarKind::VAR_CLASS) {
-					llvm::Value *Var = GenVar(VarRef->getSema(), true);
-					Builder->CreateStore(Val, Var);
-				} else {
-					VarRef->getSema()->getCodeGen()->Store(Val);
-				}
-
-
+            	Var->getCodeGen()->Store(Val);
             }
             break;
         }
@@ -845,7 +802,7 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
             // Delete Stmt
         case ASTStmtKind::STMT_DELETE: {
             ASTDeleteStmt *Delete = static_cast<ASTDeleteStmt *>(Stmt);
-            SemaVar * Var = Delete->getVarRef()->getSema();
+            SemaVar * Var = static_cast<SemaVar *>(Delete->getVarRef()->getSema());
             if (Var->getAST()->getTypeRef()->getSema()->isClass()) {
                 llvm::Instruction *I = llvm::CallInst::CreateFree(Var->getCodeGen()->Load(), Builder->GetInsertBlock());
                 Builder->Insert(I);
@@ -912,7 +869,7 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
 					ASTHandleStmt * HandleStmt = static_cast<ASTHandleStmt *>(Parent);
 
 					// Take the current ErrorHandler CodeGen (already resolved in ResolveStmtHandle())
-					CodeGenError *CGE = (CodeGenError *) HandleStmt->getErrorHandlerRef()->getSema()->getCodeGen();
+					CodeGenError *CGE = static_cast<CodeGenError *>(static_cast<SemaVar *>(HandleStmt->getErrorHandlerRef()->getSema())->getCodeGen());
 					GenFailStmt(FailStmt, CGE);
 
 					CodeGenHandle *CGH = HandleStmt->getCodeGen();
@@ -923,6 +880,27 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
         	break;
         }
     }
+}
+
+void CodeGenModule::GenFailStmt(ASTFailStmt *FailStmt, CodeGenError *CGE) {
+	// Store Fail value in ErrorHandler
+	if (FailStmt->getExpr() == nullptr) {
+		CGE->StoreInt(llvm::ConstantInt::get(Int32Ty, 1));
+	} else if (FailStmt->getExpr()->getType()->isBool() || FailStmt->getExpr()->getType()->isInteger()) {
+		llvm::Value *V = GenExpr(FailStmt->getExpr());
+		CGE->StoreInt(V);
+	} else if (FailStmt->getExpr()->getType()->isString()) {
+		llvm::Value *V = GenExpr(FailStmt->getExpr());
+		CGE->StoreString(V);
+	} else if (FailStmt->getExpr()->getType()->isClass()) {
+		SemaType * IdentityType = FailStmt->getExpr()->getType();
+		llvm::Value *V = GenExpr(FailStmt->getExpr());
+		CGE->StoreObject(V);
+	} else if (FailStmt->getExpr()->getType()->isEnum()) {
+		SemaType * IdentityType = FailStmt->getExpr()->getType();
+		llvm::Value *V = GenExpr(FailStmt->getExpr());
+		CGE->StoreInt(V);
+	}
 }
 
 void CodeGenModule::GenBlock(CodeGenFunctionBase *CGF, ASTBlockStmt *BlockStmt) {
@@ -1065,7 +1043,7 @@ void CodeGenModule::GenSwitchBlock(CodeGenFunctionBase *CGF, ASTSwitchStmt *Swit
     llvm::BasicBlock *EndBB = llvm::BasicBlock::Create(LLVMCtx, "endswitch", Fn);
 
     // Create Expression evaluator for Switch
-    llvm::Value *SwitchVal = Switch->getVarRef()->getSema()->getCodeGen()->getValue();
+    llvm::Value *SwitchVal = static_cast<SemaVar *>(Switch->getRef()->getSema())->getCodeGen()->getValue();
     llvm::SwitchInst *Inst = Builder->CreateSwitch(SwitchVal, EndBB);
 
     // Create Cases

@@ -34,7 +34,7 @@ namespace fly {
     class ASTArg;
     class ASTVar;
     class ASTCall;
-    class ASTVarRef;
+    class ASTRef;
     class ASTExpr;
     class ASTValueExpr;
     class CodeGen;
@@ -128,15 +128,15 @@ namespace fly {
 
         bool ResolveTypeRef(ASTTypeRef *&Type);
 
-        ASTRef* getParentRef(fly::ASTRef* Ref);
-
-        bool ResolveRef(ASTStmt *Stmt, ASTVarRef *VarRef);
-
-        bool ResolveRef(ASTStmt *Stmt, ASTCall *Call);
-
-        void ResolveRef(ASTStmt *Stmt, ASTRef *Ref, SemaNameSpace *CurrentNameSpace);
+        void ResolveFromTopRef(ASTStmt *Stmt, ASTRef *Ref, SemaNameSpace *CurrentNameSpace);
 
         void ResolveRef(ASTStmt *Stmt, ASTRef *Ref, SemaType *Type, SemaResult *Parent);
+
+        ASTRef* getParentRef(fly::ASTRef* Ref);
+
+        bool ResolveRef(ASTStmt *Stmt, ASTRef *VarRef);
+
+        bool ResolveRef(ASTStmt *Stmt, ASTCall *Call);
 
         SemaNameSpace *ResolveNameSpace(ASTRef *Ref);
 
@@ -146,7 +146,7 @@ namespace fly {
 
         SemaCall *ResolveCall(ASTStmt *Stmt, ASTCall *Call, SemaNameSpace *CurrentNameSpace);
 
-        SemaVar *ResolveVar(ASTStmt *Stmt, ASTVarRef *VarRef);
+        SemaVar *ResolveVar(ASTStmt *Stmt, ASTRef *VarRef);
 
         llvm::SmallVector<SemaType *, 8> ResolveCallArgTypes(ASTStmt *Stmt, ASTCall *Call);
 

@@ -12,17 +12,19 @@
 #define FLY_CODEGEN_VAR_H
 
 #include "CodeGenVarBase.h"
-#include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/StringRef.h"
 
 namespace llvm {
     class Type;
     class StringRef;
+    class ConstantInt;
 }
 
 namespace fly {
 
     class CodeGenModule;
     class ASTVar;
+    class SemaVar;
 
     class CodeGenVar : public CodeGenVarBase {
 
@@ -30,30 +32,22 @@ namespace fly {
 
         CodeGenModule *CGM = nullptr;
 
-        CodeGenVar *Parent = nullptr;
+        SemaVar *Sema = nullptr;
 
         llvm::Type *T = nullptr;
 
-        llvm::AllocaInst *Pointer = nullptr;
+        llvm::Value *Pointer = nullptr;
 
         llvm::LoadInst *LoadI = nullptr;
 
         llvm::StringRef BlockID;
 
-        uint32_t Index = 0;
-
     public:
 //        CodeGenVar(CodeGenModule *CGM, ASTVar *Var);
 
-        CodeGenVar(CodeGenModule *CGM, llvm::Type *T);
-
-        CodeGenVar *getParent();
-
-        CodeGenVarBase *getVar(llvm::StringRef Name);
+        CodeGenVar(CodeGenModule *CGM, SemaVar *Sema, llvm::Type *T, llvm::Value *Pointer);
 
         llvm::Type *getType() override;
-
-        llvm::AllocaInst *Alloca();
 
         llvm::StoreInst *Store(llvm::Value *Val) override;
 
@@ -63,7 +57,6 @@ namespace fly {
 
         llvm::Value *getPointer() override;
 
-        void addVar(llvm::StringRef Name, CodeGenVarBase *CGV);
     };
 }
 

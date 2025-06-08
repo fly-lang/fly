@@ -17,7 +17,7 @@ ASTLoopInStmt::ASTLoopInStmt(const SourceLocation &Loc) :
 
 }
 
-ASTVarRef *ASTLoopInStmt::getVarRef() const {
+ASTRef *ASTLoopInStmt::getVarRef() const {
     return VarRef;
 }
 

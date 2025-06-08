@@ -19,6 +19,7 @@
 #include "Sema/SemaFunction.h"
 #include "Sema/SemaGlobalVar.h"
 #include "Sema/SemaType.h"
+#include "Sema/SemaMemberVar.h"
 #include "AST/ASTAlias.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTEnum.h"
@@ -36,8 +37,6 @@
 #include "Sema/SemaValue.h"
 #include "Sema/SemaCall.h"
 #include "llvm/Support/Regex.h"
-
-#include <Sema/ASTBuilder.h>
 
 using namespace fly;
 
@@ -375,10 +374,16 @@ SemaClassType * SemaBuilder::CreateClass(SemaModule *Module, ASTClass *AST) {
 	return Class;
 }
 
+SemaVar *SemaBuilder::CreateThisAttribute(SemaClassType *Class) {
+	Class->This = new SemaClassAttribute(nullptr, Class, 0);
+	return Class->This;
+}
+
 SemaClassAttribute * SemaBuilder::CreateClassAttribute(SemaClassType *Class, ASTVar *AST, SemaComment *Comment) {
 	FLY_DEBUG_START("SemaBuilder", "CreateClassAttribute");
 
-	SemaClassAttribute *Attribute = new SemaClassAttribute(AST, Class);
+	uint64_t Index = Class->Attributes.size();
+	SemaClassAttribute *Attribute = new SemaClassAttribute(AST, Class, Index);
 
 	Class->Attributes.insert(std::make_pair(AST->getName(), Attribute));
 	AST->Sema = Attribute;
@@ -549,6 +554,12 @@ SemaCall * SemaBuilder::CreateCall(ASTCall *AST) {
 
 	FLY_DEBUG_END("SemaBuilder", "CreateParam");
 	return Call;
+}
+
+SemaMemberVar * SemaBuilder::CreateMemberVar(ASTVar *AST, SemaResult *Parent) {
+	SemaMemberVar *Sema = new SemaMemberVar(AST, Parent);
+
+	return Sema;
 }
 
 SemaBoolValue * SemaBuilder::CreateBoolValue(ASTBoolValue *AST) {

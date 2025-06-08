@@ -89,7 +89,3 @@ llvm::Value *CodeGenGlobalVar::getValue() {
 llvm::Value *CodeGenGlobalVar::getPointer() {
     return Pointer;
 }
-
-CodeGenVarBase *CodeGenGlobalVar::getVar(llvm::StringRef Name) {
-    return nullptr;
-}

@@ -47,7 +47,7 @@ namespace fly {
 
         SemaVisibilityKind getVisibility() const;
 
-        CodeGenGlobalVar *getCodeGen() const override;
+        CodeGenVarBase *getCodeGen() const override;
 
         void setCodeGen(CodeGenVarBase *CGV) override;
 

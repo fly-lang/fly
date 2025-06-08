@@ -11,7 +11,7 @@
 #include "CodeGenTest.h"
 #include "CodeGen/CodeGenModule.h"
 #include "Sema/SemaBuilderStmt.h"
-#include "AST/ASTVarRef.h"
+#include "AST/ASTRef.h"
 #include <Sema/SemaFunction.h>
 
 namespace {
@@ -106,21 +106,21 @@ TEST_F(CodeGenTest, CGStruct2) {
 
         // int x = test.a
         ASTVar *xVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "x", EmptyScopes);
-        ASTVarRef *Instance = getASTBuilder().CreateVarRef(TestVar);
-        ASTVarRef *test_aVarRef = getASTBuilder().CreateVarRef(aField, Instance);
+        ASTRef *Instance = getASTBuilder().CreateVarRef(TestVar);
+        ASTRef *test_aVarRef = getASTBuilder().CreateVarRef(aField, Instance);
         ASTVarRefExpr *test_aRefExpr = getASTBuilder().CreateExpr(test_aVarRef);
         SemaBuilderStmt *xVarStmt = getASTBuilder().CreateAssignmentStmt(Body, xVar);
         xVarStmt->setExpr(test_aRefExpr);
 
         // test.b = 2
-        // ASTVarRef *Instance2 = getASTBuilder().CreateVarRef(TestVar);
-        // ASTVarRef *test_bVarRef = getASTBuilder().CreateVarRef(bField, Instance2);
+        // ASTRef *Instance2 = getASTBuilder().CreateVarRef(TestVar);
+        // ASTRef *test_bVarRef = getASTBuilder().CreateVarRef(bField, Instance2);
         // SemaBuilderStmt *test_bVarStmt = getASTBuilder().CreateAssignmentStmt(Body, test_bVarRef);
         // ASTExpr *Expr = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "2"));
         // test_bVarStmt->setExpr(Expr);
 
         // delete test
-        // ASTDeleteStmt *Delete = getASTBuilder().CreateDeleteStmt(Body, SourceLoc, (ASTVarRef *) Instance);
+        // ASTDeleteStmt *Delete = getASTBuilder().CreateDeleteStmt(Body, SourceLoc, (ASTRef *) Instance);
 
 		// validate and resolve
 		EXPECT_TRUE(S->Resolve());
@@ -145,9 +145,8 @@ TEST_F(CodeGenTest, CGStruct2) {
                           "  store %TestStruct* %4, %TestStruct** %2, align 8\n"
                           "  %5 = load %TestStruct*, %TestStruct** %2, align 8\n"
                           "  %6 = getelementptr inbounds %TestStruct, %TestStruct* %5, i32 0, i32 0\n"
-                          "  store i32* %6, i32* %3, align 8\n"
-                          // "  %7 = load i32, i32* %6, align 4\n"
-                          // "  store i32 %7, i32* %3, align 4\n"
+                          "  %7 = load i32, i32* %6, align 4\n"
+                          "  store i32 %7, i32* %3, align 4\n"
                           // "  %8 = getelementptr inbounds %TestStruct, %TestStruct* %5, i32 0, i32 1\n"
                           // "  store i32 2, i32* %8, align 4\n"
                           // "  %9 = load %TestStruct*, %TestStruct** %2, align 8\n"
@@ -182,8 +181,6 @@ TEST_F(CodeGenTest, CGStruct2) {
 
         // TestClass {
         //   int a() { return 1 }
-        //   public int b() { return 1 }
-        //   private const int c { return 1 }
         // }
         llvm::SmallVector<ASTTypeRef *, 4> SuperClasses;
         ASTClass *TestClass = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass",
@@ -198,28 +195,9 @@ TEST_F(CodeGenTest, CGStruct2) {
         ASTValueExpr *aFuncExpr = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLocation(), "1"));
         aFuncReturn->setExpr(aFuncExpr);
 
-
-        // public int b() { return 1 }
-        ASTBlockStmt *bFuncBody = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *bFunc = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, IntTypeRef,
-                                                          "b", TopScopes, Params, bFuncBody);
-        SemaBuilderStmt *bFuncReturn = getASTBuilder().CreateReturnStmt(bFuncBody, SourceLoc);
-        ASTValueExpr *bFuncExpr = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLocation(), "1"));
-        bFuncReturn->setExpr(bFuncExpr);
-
-        // private const int c { return 1 }
-        ASTBlockStmt *cFuncBody = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *cFunc = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, IntTypeRef,
-                                                          "c", TopScopes, Params, cFuncBody);
-        SemaBuilderStmt *cFuncReturn = getASTBuilder().CreateReturnStmt(cFuncBody, SourceLoc);
-        ASTValueExpr *cFuncExpr = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLocation(), "1"));
-        cFuncReturn->setExpr(cFuncExpr);
-
         // int main() {
         //  TestClass test = new TestClass()
         //  int a = test.a()
-        //  int b = test.b()
-        //  int c = test.c()
         //  delete test
         // }
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
@@ -240,20 +218,6 @@ TEST_F(CodeGenTest, CGStruct2) {
         SemaBuilderStmt *aStmt = getASTBuilder().CreateAssignmentStmt(Body, aVar);
         aStmt->setExpr(aCallExpr);
 
-        // int b = test.b()
-        ASTTypeRef *bType = bFunc->getReturnTypeRef();
-        ASTVar *bVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, bType, "b", EmptyScopes);
-        ASTCallExpr *bCallExpr = getASTBuilder().CreateExpr(CreateCall(bFunc, Args, ASTCallKind::CALL_FUNCTION, getASTBuilder().CreateVarRef(TestVar)));
-        SemaBuilderStmt *bStmt = getASTBuilder().CreateAssignmentStmt(Body, bVar);
-        bStmt->setExpr(bCallExpr);
-
-        // int c = test.c()
-        ASTTypeRef *cType = cFunc->getReturnTypeRef();
-        ASTVar *cVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, cType, "c", EmptyScopes);
-        ASTCallExpr *cCallExpr = getASTBuilder().CreateExpr(CreateCall(cFunc, Args, ASTCallKind::CALL_FUNCTION, getASTBuilder().CreateVarRef(TestVar)));
-        SemaBuilderStmt *cStmt = getASTBuilder().CreateAssignmentStmt(Body, cVar);
-        cStmt->setExpr(cCallExpr);
-
         // delete test
         ASTDeleteStmt *DeleteStmt = getASTBuilder().CreateDeleteStmt(Body, SourceLoc, getASTBuilder().CreateVarRef(TestVar));
 
@@ -266,31 +230,25 @@ TEST_F(CodeGenTest, CGStruct2) {
 
         EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
                           "%TestClass = type { %TestClass_vtable* }\n"
-                          "%TestClass_vtable = type { i32 (%error*, %TestClass*), i32 (%error*, %TestClass*), i32 (%error*, %TestClass*) }\n"
+                          "%TestClass_vtable = type { i32 (%error*, %TestClass*) }\n"
                           "\n"
                           "define void @_F4func(%error* %0) {\n"
 						  "entry:\n"
 						  "  %1 = alloca %error*, align 8\n"
 						  "  %2 = alloca %TestClass*, align 8\n"
 						  "  %3 = alloca i32, align 4\n"
-						  "  %4 = alloca i32, align 4\n"
-						  "  %5 = alloca i32, align 4\n"
 						  "  store %error* %0, %error** %1, align 8\n"
-						  "  %6 = load %error*, %error** %1, align 8\n"
+						  "  %4 = load %error*, %error** %1, align 8\n"
 						  "  %malloccall = tail call i8* @malloc(i64 8)\n"
-						  "  %7 = bitcast i8* %malloccall to %TestClass*\n"
-						  "  call void @TestClass_F9TestClass(%error* %6, %TestClass* %7)\n"
-						  "  store %TestClass* %7, %TestClass** %2, align 8\n"
+						  "  %5 = bitcast i8* %malloccall to %TestClass*\n"
+						  "  call void @TestClass_F9TestClass(%error* %4, %TestClass* %5)\n"
+						  "  store %TestClass* %5, %TestClass** %2, align 8\n"
+						  "  %6 = load %TestClass*, %TestClass** %2, align 8\n"
+						  "  %7 = call i32 @TestClass_F1a(%error* %4, %TestClass* %6)\n"
+						  "  store i32 %7, i32* %3, align 4\n"
 						  "  %8 = load %TestClass*, %TestClass** %2, align 8\n"
-						  "  %9 = call i32 @TestClass_F1a(%error* %6, %TestClass* %8)\n"
-						  "  store i32 %9, i32* %3, align 4\n"
-						  "  %10 = call i32 @TestClass_F1b(%error* %6, %TestClass* %8)\n"
-						  "  store i32 %10, i32* %4, align 4\n"
-						  "  %11 = call i32 @TestClass_F1c(%error* %6, %TestClass* %8)\n"
-						  "  store i32 %11, i32* %5, align 4\n"
-						  "  %12 = load %TestClass*, %TestClass** %2, align 8\n"
-						  "  %13 = bitcast %TestClass* %12 to i8*\n"
-						  "  tail call void @free(i8* %13)\n"
+						  "  %9 = bitcast %TestClass* %8 to i8*\n"
+						  "  tail call void @free(i8* %9)\n"
 						  "  ret void\n"
 						  "}\n"
 						  "\n"
@@ -305,26 +263,6 @@ TEST_F(CodeGenTest, CGStruct2) {
                           "}\n"
                           "\n"
                           "define i32 @TestClass_F1a(%error* %0, %TestClass* %1) {\n"
-                          "entry:\n"
-                          "  %2 = alloca %error*, align 8\n"
-                          "  %3 = alloca %TestClass*, align 8\n"
-                          "  store %error* %0, %error** %2, align 8\n"
-                          "  store %TestClass* %1, %TestClass** %3, align 8\n"
-                          "  %4 = load %TestClass*, %TestClass** %3, align 8\n"
-                          "  ret i32 1\n"
-                          "}\n"
-                          "\n"
-                          "define i32 @TestClass_F1b(%error* %0, %TestClass* %1) {\n"
-                          "entry:\n"
-                          "  %2 = alloca %error*, align 8\n"
-                          "  %3 = alloca %TestClass*, align 8\n"
-                          "  store %error* %0, %error** %2, align 8\n"
-                          "  store %TestClass* %1, %TestClass** %3, align 8\n"
-                          "  %4 = load %TestClass*, %TestClass** %3, align 8\n"
-                          "  ret i32 1\n"
-                          "}\n"
-                          "\n"
-                          "define i32 @TestClass_F1c(%error* %0, %TestClass* %1) {\n"
                           "entry:\n"
                           "  %2 = alloca %error*, align 8\n"
                           "  %3 = alloca %TestClass*, align 8\n"
@@ -379,7 +317,7 @@ TEST_F(CodeGenTest, CGStruct2) {
         SemaBuilderStmt *testNewStmt = getASTBuilder().CreateAssignmentStmt(Body, TestVar);
         testNewStmt->setExpr(NewExpr);
 
-        // int x = test.m()
+        // int x = test.getA()
         ASTTypeRef *xType = getAMethod->getReturnTypeRef();
         ASTVar *xVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, xType, "x", EmptyScopes);
         ASTCallExpr *xCallExpr = getASTBuilder().CreateExpr(CreateCall(getAMethod, Args, ASTCallKind::CALL_FUNCTION, getASTBuilder().CreateVarRef(TestVar)));
@@ -387,14 +325,13 @@ TEST_F(CodeGenTest, CGStruct2) {
         xStmt->setExpr(xCallExpr);
 
         //  test.a = 2
-        SemaBuilderStmt *attrStmt = getASTBuilder().CreateAssignmentStmt(Body,
-        	getASTBuilder().CreateVarRef(aAttribute, getASTBuilder().CreateVarRef(TestVar)));
+    	ASTRef *test_a = getASTBuilder().CreateVarRef(aAttribute, getASTBuilder().CreateVarRef(TestVar));
+        SemaBuilderStmt *attrStmt = getASTBuilder().CreateAssignmentStmt(Body, test_a);
         ASTValueExpr *value2Expr = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLocation(), "2"));
         attrStmt->setExpr(value2Expr);
 
         // delete test
-        ASTDeleteStmt *DeleteStmt = getASTBuilder().CreateDeleteStmt(Body, SourceLoc,
-        	getASTBuilder().CreateVarRef(TestVar));
+        getASTBuilder().CreateDeleteStmt(Body, SourceLoc, getASTBuilder().CreateVarRef(TestVar));
 
 		// validate and resolve
 		EXPECT_TRUE(S->Resolve());
@@ -403,58 +340,60 @@ TEST_F(CodeGenTest, CGStruct2) {
 		llvm::Module * M = Generate();
 		std::string output = getOutput(M);
 
-        EXPECT_EQ(output, "%error = type { i8, i32, i8* }\n"
+        EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
                           "%TestClass = type { %TestClass_vtable*, i32 }\n"
                           "%TestClass_vtable = type { i32 (%error*, %TestClass*) }\n"
                           "\n"
-                          "define void @TestClass_TestClass(%error* %0, %TestClass* %1) {\n"
+						  "define void @_F4func(%error* %0) {\n"
+						  "entry:\n"
+						  "  %1 = alloca %error*, align 8\n"
+						  "  %2 = alloca %TestClass*, align 8\n"
+						  "  %3 = alloca i32, align 4\n"
+						  "  store %error* %0, %error** %1, align 8\n"
+						  "  %4 = load %error*, %error** %1, align 8\n"
+						  // TestClass test = new TestClass()
+						  "  %malloccall = tail call i8* @malloc(i64 16)\n"
+						  "  %5 = bitcast i8* %malloccall to %TestClass*\n"
+						  "  call void @TestClass_F9TestClass(%error* %4, %TestClass* %5)\n"
+						  "  store %TestClass* %5, %TestClass** %2, align 8\n"
+						  "  %6 = load %TestClass*, %TestClass** %2, align 8\n"
+						  // int a = test.a()
+						  "  %7 = call i32 @TestClass_F4getA(%error* %4, %TestClass* %6)\n"
+						  "  store i32 %7, i32* %3, align 4\n"
+						  // test.a = 2
+						  "  %8 = getelementptr inbounds %TestClass, %TestClass* %6, i32 0, i32 1\n"
+						  "  store i32 2, i32* %8, align 4\n"
+						  // delete test
+						  "  %9 = load %TestClass*, %TestClass** %2, align 8\n"
+						  "  %10 = bitcast %TestClass* %9 to i8*\n"
+						  "  tail call void @free(i8* %10)\n"
+						  "  ret void\n"
+						  "}\n"
+						  "\n"
+                          "define void @TestClass_F9TestClass(%error* %0, %TestClass* %1) {\n"
                           "entry:\n"
                           "  %2 = alloca %error*, align 8\n"
                           "  %3 = alloca %TestClass*, align 8\n"
+                          "  %4 = alloca i32, align 4\n"
                           "  store %error* %0, %error** %2, align 8\n"
                           "  store %TestClass* %1, %TestClass** %3, align 8\n"
-                          "  %4 = load %TestClass*, %TestClass** %3, align 8\n"
-                          "  %5 = getelementptr inbounds %TestClass, %TestClass* %4, i32 0, i32 1\n"
-                          "  store i32 0, i32* %5, align 4\n"
+                          "  %5 = load %TestClass*, %TestClass** %3, align 8\n"
+                          "  %6 = getelementptr inbounds %TestClass, %TestClass* %5, i32 0, i32 1\n"
+                          "  store i32 0, i32* %6, align 4\n"
                           "  ret void\n"
                           "}\n"
                           "\n"
-                          "define i32 @TestClass_getA(%error* %0, %TestClass* %1) {\n"
+                          "define i32 @TestClass_F4getA(%error* %0, %TestClass* %1) {\n"
                           "entry:\n"
                           "  %2 = alloca %error*, align 8\n"
                           "  %3 = alloca %TestClass*, align 8\n"
+                          "  %4 = alloca i32, align 4\n"
                           "  store %error* %0, %error** %2, align 8\n"
                           "  store %TestClass* %1, %TestClass** %3, align 8\n"
-                          "  %4 = load %TestClass*, %TestClass** %3, align 8\n"
-                          "  %5 = getelementptr inbounds %TestClass, %TestClass* %4, i32 0, i32 1\n"
-                          "  %6 = load i32, i32* %5, align 4\n"
-                          "  ret i32 %6\n"
-                          "}\n"
-                          "\n"
-                          "define void @F_0(%error* %0) {\n"
-                          "entry:\n"
-                          "  %1 = alloca %error*, align 8\n"
-                          "  %2 = alloca %TestClass*, align 8\n"
-                          "  %3 = alloca i32, align 4\n"
-                          "  store %error* %0, %error** %1, align 8\n"
-                          "  %4 = load %error*, %error** %1, align 8\n"
-                          // TestClass test = new TestClass()
-                          "  %malloccall = tail call i8* @malloc(%TestClass ptrtoint (%TestClass* getelementptr (%TestClass, %TestClass* null, i32 1) to %TestClass))\n"
-                          "  %5 = bitcast i8* %malloccall to %TestClass*\n"
-                          "  call void @TestClass_TestClass(%error* %4, %TestClass* %5)\n"
-                          "  store %TestClass* %5, %TestClass** %2, align 8\n"
-                          "  %6 = load %TestClass*, %TestClass** %2, align 8\n"
-                          // int a = test.a()
-                          "  %7 = call i32 @TestClass_getA(%error* %4, %TestClass* %6)\n"
-                          "  store i32 %7, i32* %3, align 4\n"
-                          // test.a = 2
-                          "  %8 = getelementptr inbounds %TestClass, %TestClass* %6, i32 0, i32 1\n"
-                          "  store i32 2, i32* %8, align 4\n"
-                          // delete test
-                          "  %9 = load %TestClass*, %TestClass** %2, align 8\n"
-                          "  %10 = bitcast %TestClass* %9 to i8*\n"
-                          "  tail call void @free(i8* %10)\n"
-                          "  ret void\n"
+                          "  %5 = load %TestClass*, %TestClass** %3, align 8\n"
+                          "  %6 = getelementptr inbounds %TestClass, %TestClass* %5, i32 0, i32 1\n"
+                          "  %7 = load i32, i32* %6, align 4\n"
+                          "  ret i32 %7\n"
                           "}\n"
                           "\n"
                           "declare noalias i8* @malloc(i64)\n"

@@ -31,6 +31,10 @@ std::string ASTRef::getFullName() const {
     return FullName;
 }
 
+SemaResult *ASTRef::getSema() const {
+	return Sema;
+}
+
 bool ASTRef::isResolved() const {
     return Resolved;
 }

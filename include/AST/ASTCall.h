@@ -40,13 +40,13 @@ namespace fly {
         friend class SemaResolver;
         friend class SemaValidator;
 
-        llvm::SmallVector<ASTArg *, 8> Args;
+        const ASTCallKind CallKind;
 
-        ASTCallKind CallKind = ASTCallKind::CALL_FUNCTION;
+        llvm::SmallVector<ASTArg *, 8> Args;
 
         SemaCall *Sema = nullptr;
 
-        ASTCall(const SourceLocation &Loc, llvm::StringRef Name);
+        ASTCall(const SourceLocation &Loc, llvm::StringRef Name, ASTCallKind CallKind);
 
     public:
 

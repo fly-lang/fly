@@ -14,7 +14,7 @@
 
 namespace fly {
 
-    class ASTVarRef;
+    class ASTRef;
 
     enum class ASTAssignOperatorKind {
         EQUAL,
@@ -42,17 +42,17 @@ namespace fly {
         friend class SemaResolver;
         friend class SemaValidator;
 
-        ASTVarRef *VarRef;
+        ASTRef *VarRef;
 
         ASTAssignOperatorKind Kind;
 
         ASTExpr *Expr = nullptr;
 
-        ASTVarStmt(const SourceLocation &Loc, ASTVarRef *VarRef, ASTAssignOperatorKind AssignOperatorKind);
+        ASTVarStmt(const SourceLocation &Loc, ASTRef *VarRef, ASTAssignOperatorKind AssignOperatorKind);
 
     public:
 
-        ASTVarRef *getVarRef() const;
+        ASTRef *getVarRef() const;
 
         ASTAssignOperatorKind getKind1() const;
 

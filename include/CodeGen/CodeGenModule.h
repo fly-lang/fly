@@ -42,6 +42,7 @@ namespace fly {
     class CodeGenFunctionBase;
     class CodeGenClass;
     class CodeGenVar;
+    class CodeGenVarBase;
     class CodeGenError;
     class ASTCall;
     class ASTFailStmt;
@@ -50,7 +51,7 @@ namespace fly {
     class ASTValue;
     class ASTVar;
     class ASTRuleStmt;
-    class ASTVarRef;
+    class ASTRef;
     class ASTFunction;
     class ASTExpr;
     class ASTStmt;
@@ -167,7 +168,7 @@ namespace fly {
 
         llvm::PointerType *ErrorPtrTy;
 
-        llvm::Value *Zero;
+        llvm::ConstantInt *Zero;
 
         CodeGenModule(DiagnosticsEngine &Diags, SemaNameSpace *NameSpace, llvm::LLVMContext &LLVMCtx, TargetInfo &Target,
                       CodeGenOptions &CGOpts);
@@ -209,15 +210,15 @@ namespace fly {
 
         llvm::Value *GenExpr(ASTExpr *Expr);
 
-        llvm::Value* GenParent(SemaResult *Sema);
+        CodeGenVarBase *GenVar(SemaVar *Sema, llvm::Value *ParentPtr = nullptr);
 
-        llvm::Value *GenVar(SemaVar *Sema, bool ReturnPointer = false);
+        llvm::Value* GenResult(SemaResult *Sema);
 
         llvm::Value *GenCall(SemaCall *Sema);
 
-        void GenFailStmt(ASTFailStmt *FailStmt, CodeGenError *CGH);
-
         void GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt);
+
+        void GenFailStmt(ASTFailStmt *FailStmt, CodeGenError *CGH);
 
         void GenBlock(CodeGenFunctionBase *CGF, ASTBlockStmt *BlockStmt);
 

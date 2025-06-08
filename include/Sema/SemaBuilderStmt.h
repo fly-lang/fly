@@ -10,8 +10,6 @@
 #ifndef FLY_SEMA_BUILDERSTMT_H
 #define FLY_SEMA_BUILDERSTMT_H
 
-#include "llvm/ADT/SmallVector.h"
-
 namespace fly {
 
     class ASTBuilder;
@@ -19,7 +17,7 @@ namespace fly {
     class ASTBlockStmt;
     class SourceLocation;
     class ASTExpr;
-    class ASTVarRef;
+    class ASTRef;
     class ASTVar;
     enum class ASTAssignOperatorKind;
 
@@ -33,7 +31,7 @@ namespace fly {
 
     public:
 
-        static SemaBuilderStmt *CreateAssignment(ASTBuilder *Builder, ASTBlockStmt *Parent, ASTVarRef *VarRef, ASTAssignOperatorKind AssignOperatorKind);
+        static SemaBuilderStmt *CreateAssignment(ASTBuilder *Builder, ASTBlockStmt *Parent, ASTRef *VarRef, ASTAssignOperatorKind AssignOperatorKind);
 
         static SemaBuilderStmt *CreateVar(ASTBuilder *Builder, ASTBlockStmt *Parent, ASTVar *Var);
 

@@ -14,7 +14,7 @@
 
 namespace fly {
 
-    class ASTVarRef;
+    class ASTRef;
 
     class ASTLoopInStmt : public ASTStmt {
 
@@ -22,7 +22,7 @@ namespace fly {
         friend class SemaResolver;
         friend class SemaValidator;
 
-        ASTVarRef *VarRef = nullptr;
+        ASTRef *VarRef = nullptr;
 
         ASTBlockStmt *Block = nullptr;
 
@@ -30,7 +30,7 @@ namespace fly {
 
     public:
 
-        ASTVarRef *getVarRef() const;
+        ASTRef *getVarRef() const;
 
         ASTBlockStmt *getBlock() const;
 

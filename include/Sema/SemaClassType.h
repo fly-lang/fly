@@ -24,6 +24,7 @@ namespace fly {
     class CodeGenClass;
     class SemaModule;
     class SemaClassAttribute;
+    class SemaVar;
     enum class SemaVisibilityKind;
 
     enum class SemaClassKind {
@@ -55,6 +56,9 @@ namespace fly {
         // Super Classes
         llvm::StringMap<SemaClassType *> SuperClasses;
 
+        // Class this Attribute
+        SemaVar *This;
+
         // Class Attributes
         llvm::StringMap<SemaClassAttribute *> Attributes;
 
@@ -85,6 +89,8 @@ namespace fly {
         bool isConstant() const;
 
         SemaClassKind getClassKind() const;
+
+        SemaVar *getThis() const;
 
         const llvm::StringMap<SemaClassType *> &getSuperClasses() const;
 

@@ -31,7 +31,7 @@
 #include "AST/ASTBlockStmt.h"
 #include "AST/ASTHandleStmt.h"
 #include "AST/ASTVarStmt.h"
-#include "AST/ASTVarRef.h"
+#include "AST/ASTRef.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTEnum.h"
@@ -766,12 +766,11 @@ ASTVar *ASTBuilder::CreateLocalVar(ASTBlockStmt *BlockStmt, const SourceLocation
  * @param NameSpace
  * @return
  */
-ASTCall *ASTBuilder::CreateCall(const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTExpr *, 8> &Args, ASTCallKind CallKind,
-                                 ASTRef *Parent) {
+ASTCall *ASTBuilder::CreateCall(const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTExpr *, 8> &Args,
+	ASTCallKind CallKind, ASTRef *Parent) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateCall", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
 
-    ASTCall *Call = new ASTCall(Loc, Name);
-    Call->CallKind = CallKind;
+    ASTCall *Call = new ASTCall(Loc, Name, CallKind);
     if (Parent) { // Take Parent
         Parent->AddChild(Call);
     	Call->Parent = Parent;
@@ -812,31 +811,13 @@ ASTCall *ASTBuilder::CreateCall(ASTRef *Instance, llvm::StringRef Name, llvm::Sm
     return Call;
 }
 
-ASTVarRef *ASTBuilder::CreateVarRef(ASTRef *Ref) {
-    FLY_DEBUG_START("ASTBuilder", "CreateVarRef");
-
-    ASTVarRef *VarRef = new ASTVarRef(Ref->getLocation(), Ref->getName());
-    if (Ref->getParent()) { // Take Parent
-        Ref->Parent->AddChild(VarRef);
-    } else { // Do a copy
-        VarRef->Parent = Ref->getParent();
-    }
-	VarRef->Child = Ref->Child;
-    delete Ref;
-
-	FLY_DEBUG_END("ASTBuilder", "CreateVarRef");
-    return VarRef;
-}
-
-ASTVarRef *ASTBuilder::CreateVarRef(ASTVar *Var, ASTRef *Parent) {
+ASTRef *ASTBuilder::CreateVarRef(ASTVar *Var, ASTRef *Parent) {
 	FLY_DEBUG_START("ASTBuilder", "CreateVarRef");
 
-	ASTVarRef *VarRef = new ASTVarRef(Var->getLocation(), Var->getName());
+	ASTRef *VarRef = new ASTRef(Var->getLocation(), Var->getName(), ASTRefKind::REF_VAR);
 	if (Parent) {
 		VarRef->Parent = Parent;
 	}
-
-	VarRef->Var = Var;
 
 	FLY_DEBUG_END("ASTBuilder", "CreateVarRef");
 	return VarRef;
@@ -846,7 +827,7 @@ ASTVarRef *ASTBuilder::CreateVarRef(ASTVar *Var, ASTRef *Parent) {
 ASTRef *ASTBuilder::CreateRef(const SourceLocation &Loc, llvm::StringRef Name, ASTRef *Parent) {
 	FLY_DEBUG_START("ASTBuilder", "CreateUndefinedRef");
 
-	ASTRef *Ref = new ASTRef(Loc, Name, ASTRefKind::REF_UNDEFINED);
+	ASTRef *Ref = new ASTRef(Loc, Name, ASTRefKind::REF_VAR);
 	Ref->Parent = Parent;
 
 	FLY_DEBUG_END("ASTBuilder", "CreateUndefinedRef");
@@ -872,7 +853,7 @@ ASTCallExpr *ASTBuilder::CreateExpr(ASTCall *Call) {
     return CallExpr;
 }
 
-ASTVarRefExpr *ASTBuilder::CreateExpr(ASTVarRef *VarRef) {
+ASTVarRefExpr *ASTBuilder::CreateExpr(ASTRef *VarRef) {
     FLY_DEBUG_START("ASTBuilder", "CreateExpr");
 
     ASTVarRefExpr *VarRefExpr = new ASTVarRefExpr(VarRef);
@@ -920,7 +901,7 @@ ASTTernaryOpExpr *ASTBuilder::CreateTernaryOpExpr(ASTExpr *ConditionExpr,
  * @param VarRef
  * @return
  */
-SemaBuilderStmt *ASTBuilder::CreateAssignmentStmt(ASTBlockStmt *Parent, ASTVarRef *VarRef, ASTAssignOperatorKind Kind) {
+SemaBuilderStmt *ASTBuilder::CreateAssignmentStmt(ASTBlockStmt *Parent, ASTRef *VarRef, ASTAssignOperatorKind Kind) {
 	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateAssignmentStmt", "Kind=" << static_cast<uint8_t>(Kind));
 
     SemaBuilderStmt * B = SemaBuilderStmt::CreateAssignment(this, Parent, VarRef, Kind);
@@ -938,7 +919,7 @@ SemaBuilderStmt *ASTBuilder::CreateAssignmentStmt(ASTBlockStmt *Parent, ASTVarRe
 SemaBuilderStmt *ASTBuilder::CreateAssignmentStmt(ASTBlockStmt *Parent, ASTVar *Var, ASTAssignOperatorKind Kind) {
 	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateAssignmentStmt", "Kind=" << static_cast<uint8_t>(Kind));
 
-    ASTVarRef *VarRef = CreateVarRef(Var);
+    ASTRef *VarRef = CreateVarRef(Var);
     SemaBuilderStmt * B = SemaBuilderStmt::CreateAssignment(this, Parent, VarRef, Kind);
 
 	FLY_DEBUG_END("ASTBuilder", "CreateAssignmentStmt");
@@ -985,7 +966,7 @@ SemaBuilderStmt *ASTBuilder::CreateFailStmt(ASTBlockStmt *Parent, const SourceLo
 }
 
 ASTHandleStmt *ASTBuilder::CreateHandleStmt(ASTBlockStmt *Parent, const SourceLocation &Loc,
-    ASTBlockStmt *BlockStmt, ASTVarRef *ErrorRef) {
+    ASTBlockStmt *BlockStmt, ASTRef *ErrorRef) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateHandleStmt", "Loc=" << Loc.getRawEncoding());
 
     ASTHandleStmt *HandleStmt = new ASTHandleStmt(Loc);
@@ -1029,7 +1010,7 @@ ASTContinueStmt *ASTBuilder::CreateContinueStmt(ASTBlockStmt *Parent, const Sour
     return Continue;
 }
 
-ASTDeleteStmt *ASTBuilder::CreateDeleteStmt(ASTBlockStmt *Parent, const SourceLocation &Loc, ASTVarRef *VarRef) {
+ASTDeleteStmt *ASTBuilder::CreateDeleteStmt(ASTBlockStmt *Parent, const SourceLocation &Loc, ASTRef *VarRef) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateDeleteStmt", "Loc=" << Loc.getRawEncoding());
 
     ASTDeleteStmt *Delete = new ASTDeleteStmt(Loc, VarRef);

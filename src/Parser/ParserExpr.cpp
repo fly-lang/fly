@@ -9,7 +9,7 @@
 
 #include "Parser/ParserExpr.h"
 #include "AST/ASTVar.h"
-#include "AST/ASTVarRef.h"
+#include "AST/ASTRef.h"
 #include "AST/ASTRef.h"
 #include "AST/ASTStmt.h"
 #include "AST/ASTOpExpr.h"
@@ -201,19 +201,18 @@ ASTExpr *ParserExpr::ParsePrimary(bool Expected) {
     if (P->isValue()) { // Ex. 1
         return P->Builder.CreateExpr(P->ParseValue());
     } else if (P->Tok.isAnyIdentifier()) { // Ex. a or a++ or func()
-        ASTRef *Ref = P->ParseCallOrVarRef();
+        ASTRef *Ref = P->ParseRef();
         if (Ref->isCall()) { // Ex. a()
             return P->Builder.CreateExpr((ASTCall *) Ref);
         } else { // parse function call, variable post increment/decrement or simple var
-            ASTVarRef *VarRef = static_cast<ASTVarRef *>(Ref);
-            ASTVarRefExpr *Primary = P->Builder.CreateExpr(VarRef);
+            ASTVarRefExpr *Primary = P->Builder.CreateExpr(Ref);
             if (isUnaryPostOperator()) { // Ex. a++ or a--
                 ASTUnaryOpExprKind OpKind = toUnaryOpExprKind(Tok, true);
                 P->ConsumeToken();
                 return P->Builder.CreateUnaryOpExpr(Primary->getLocation(), OpKind, Primary);
             } else {
                 // Simple VarRef
-                return P->Builder.CreateExpr(VarRef);
+                return P->Builder.CreateExpr(Ref);
             }
         }
     } else if (isUnaryPreOperator(P->Tok)) { // Ex. ++a or --a or !a

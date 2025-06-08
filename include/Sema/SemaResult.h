@@ -14,36 +14,37 @@
 namespace fly {
 
     class ASTBase;
-
-	enum class SemaResultKind {
-		VAR,
-		CALL
-	};
+    class SemaType;
 
     class SemaResult {
 
     	friend class SemaResolver;
+    	friend class SemaResolverClass;
 
-    	SemaResultKind Kind;
+    	bool IsCall = false;
 
     	SemaResult *Parent = nullptr;
 
     	SemaResult *Child = nullptr;
 
+    	SemaType *Type = nullptr;
+
     protected:
 
-        explicit SemaResult(SemaResultKind Kind);
+        explicit SemaResult(bool IsCall);
 
     public:
         virtual ~SemaResult() = default;
     	
-    	SemaResultKind getKind() const;
+    	bool isCall() const;
 
     	SemaResult *getParent() const;
 
     	void setParent(SemaResult *Result);
 
     	SemaResult *getChild() const;
+
+    	SemaType *getType() const;
     };
 
 }

@@ -82,12 +82,23 @@ void CodeGenFunctionBase::AllocaErrorHandler() {
 	}
 }
 
+llvm::AllocaInst *CodeGenFunctionBase::AllocaVar(llvm::Type *Ty) {
+	if (Ty->isStructTy()) {
+		llvm::PointerType *PtrTy = Ty->getPointerTo(CGM->Module->getDataLayout().getAllocaAddrSpace());
+		return  CGM->Builder->CreateAlloca(PtrTy);
+	} else {
+		// Alloca for non-struct types
+		// Check if the type is bool (i1) and convert it to i8
+		return  CGM->Builder->CreateAlloca(Ty->isIntegerTy(1) ? CGM->Int8Ty : Ty);
+	}
+}
+
 void CodeGenFunctionBase::AllocaLocalVars() {
     // Allocation of declared ASTVar
-    for (auto Param: Sema->getParams()) {
+    for (auto Param : Sema->getParams()) {
     	llvm::Type *Ty = CGM->GenType(Param->getType());
-    	CodeGenVar *CGV = new CodeGenVar(CGM, Ty);
-        CGV->Alloca();
+    	llvm::AllocaInst * Alloca = AllocaVar(Ty);
+    	CodeGenVar *CGV = new CodeGenVar(CGM, Param, Ty, Alloca);
         Param->setCodeGen(CGV);
     }
 
@@ -98,8 +109,8 @@ void CodeGenFunctionBase::AllocaLocalVars() {
     		LocalVar->setCodeGen(CGE);
         } else {
         	llvm::Type *Ty = CGM->GenType(LocalVar->getType());
-        	CodeGenVar *CGV = new CodeGenVar(CGM, Ty);
-        	CGV->Alloca();
+        	llvm::AllocaInst *Alloca = AllocaVar(Ty);
+        	CodeGenVar *CGV = new CodeGenVar(CGM, LocalVar, Ty, Alloca);
         	LocalVar->setCodeGen(CGV);
         }
     }

@@ -9,7 +9,7 @@
 
 #include "AST/ASTDeleteStmt.h"
 #include "AST/ASTBlockStmt.h"
-#include "AST/ASTVarRef.h"
+#include "AST/ASTRef.h"
 #include "Basic/Logger.h"
 
 using namespace fly;
@@ -19,12 +19,12 @@ using namespace fly;
  * @param Loc
  * @param Parent
  */
-ASTDeleteStmt::ASTDeleteStmt(const SourceLocation &Loc, ASTVarRef *VarRef) :
+ASTDeleteStmt::ASTDeleteStmt(const SourceLocation &Loc, ASTRef *VarRef) :
         ASTStmt(Loc, ASTStmtKind::STMT_DELETE), VarRef(VarRef) {
 
 }
 
-ASTVarRef *ASTDeleteStmt::getVarRef() {
+ASTRef *ASTDeleteStmt::getVarRef() {
     return VarRef;
 }
 

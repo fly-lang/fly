@@ -10,16 +10,17 @@
 #ifndef FLY_AST_IDENTIFIER_H
 #define FLY_AST_IDENTIFIER_H
 
+#include <Sema/SemaResult.h>
+
 #include "ASTBase.h"
 
 namespace fly {
 
     enum class ASTRefKind {
-        REF_UNDEFINED,
-        REF_NAMESPACE,
-        REF_TYPE,
+        REF_VAR,
         REF_CALL,
-        REF_VAR
+        REF_TYPE,
+        REF_NAMESPACE
     };
 
     class ASTRef : public ASTBase {
@@ -36,6 +37,8 @@ namespace fly {
 
         std::string FullName;
 
+        SemaResult *Sema = nullptr;
+
         ASTRef *Parent = nullptr;
 
         ASTRef *Child = nullptr;
@@ -51,6 +54,8 @@ namespace fly {
         llvm::StringRef getName() const;
 
         std::string getFullName() const;
+
+        SemaResult *getSema() const;
 
         bool isResolved() const;
 

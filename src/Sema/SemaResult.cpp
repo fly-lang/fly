@@ -11,11 +11,11 @@
 
 using namespace fly;
 
-SemaResult::SemaResult(SemaResultKind Kind) : Kind(Kind) {
+SemaResult::SemaResult(bool IsCall) : IsCall(IsCall) {
 }
 
-SemaResultKind SemaResult::getKind() const {
-	return Kind;
+bool SemaResult::isCall() const {
+	return IsCall;
 }
 
 SemaResult *SemaResult::getParent() const {
@@ -31,4 +31,8 @@ void SemaResult::setParent(SemaResult *Parent) {
 
 SemaResult * SemaResult::getChild() const {
 	return Child;
+}
+
+SemaType *SemaResult::getType() const {
+	return Type;
 }

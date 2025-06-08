@@ -21,6 +21,7 @@ namespace llvm {
     class BasicBlock;
     class StructType;
     class Value;
+    class AllocaInst;
 }
 
 namespace fly {
@@ -67,6 +68,8 @@ namespace fly {
         void setInsertPoint();
 
         void AllocaErrorHandler();
+
+        llvm::AllocaInst *AllocaVar(llvm::Type *Ty);
 
         void AllocaLocalVars();
 

@@ -38,7 +38,6 @@ add_library(flyLib
         AST/ASTSwitchStmt.cpp
         AST/ASTValue.cpp
         AST/ASTVar.cpp
-        AST/ASTVarRef.cpp
         AST/ASTVarStmt.cpp
 
         # Basic
@@ -158,6 +157,7 @@ add_library(flyLib
         Sema/SemaFunctionBase.cpp
 #        Sema/SemaGlobalVar.cpp
         Sema/SemaLocalVar.cpp
+        Sema/SemaMemberVar.cpp
         Sema/SemaModule.cpp
         Sema/SemaNameSpace.cpp
         Sema/SemaParam.cpp

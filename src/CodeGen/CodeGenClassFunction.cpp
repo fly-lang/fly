@@ -105,6 +105,8 @@ void CodeGenClassFunction::GenBody() {
         // All Class Vars
         for (auto &CGAttribute : ClassMethod->getClass()->getCodeGen()->getAttributes()) {
 
+        	CGAttribute->setInstancePtr(InstancePtr);
+
             // Store attribute default value
             if (ClassMethod->isConstructor()) {
             	llvm::Value *AttrValue;

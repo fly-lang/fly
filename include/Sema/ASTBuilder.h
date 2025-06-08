@@ -80,8 +80,6 @@ namespace fly {
 
     class ASTVar;
 
-    class ASTVarRef;
-
     class ASTArg;
 
     class ASTTypeRef;
@@ -329,10 +327,7 @@ namespace fly {
 
         ASTCall *CreateCall(ASTRef *Instance, llvm::StringRef Name, llvm::SmallVector<ASTExpr *, 8> &Args);
 
-        // Create VarRef
-        ASTVarRef *CreateVarRef(ASTRef *Ref);
-
-        ASTVarRef *CreateVarRef(ASTVar *Var, ASTRef *Parent = nullptr);
+        ASTRef *CreateVarRef(ASTVar *Var, ASTRef *Parent = nullptr);
 
         ASTRef *CreateRef(const SourceLocation &Loc, llvm::StringRef Name, ASTRef *Parent = nullptr);
 
@@ -342,7 +337,7 @@ namespace fly {
 
         ASTCallExpr *CreateExpr(ASTCall *Call);
 
-        ASTVarRefExpr *CreateExpr(ASTVarRef *VarRef);
+        ASTVarRefExpr *CreateExpr(ASTRef *VarRef);
 
         ASTUnaryOpExpr *CreateUnaryOpExpr(const SourceLocation &Loc, ASTUnaryOpExprKind OpKind, ASTExpr *Expr);
 
@@ -355,7 +350,7 @@ namespace fly {
 
         // Create Statements
 
-        SemaBuilderStmt *CreateAssignmentStmt(ASTBlockStmt *Parent, ASTVarRef *VarRef,
+        SemaBuilderStmt *CreateAssignmentStmt(ASTBlockStmt *Parent, ASTRef *VarRef,
                                               ASTAssignOperatorKind Kind = ASTAssignOperatorKind::EQUAL);
 
         SemaBuilderStmt *CreateAssignmentStmt(ASTBlockStmt *Parent, ASTVar *Var,
@@ -368,13 +363,13 @@ namespace fly {
         SemaBuilderStmt *CreateFailStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
 
         ASTHandleStmt *CreateHandleStmt(ASTBlockStmt *Parent, const SourceLocation &Loc,
-            ASTBlockStmt *BlockStmt, ASTVarRef *ErrorRef = nullptr);
+            ASTBlockStmt *BlockStmt, ASTRef *ErrorRef = nullptr);
 
         ASTBreakStmt *CreateBreakStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
 
         ASTContinueStmt *CreateContinueStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
 
-        ASTDeleteStmt *CreateDeleteStmt(ASTBlockStmt *Parent, const SourceLocation &Loc, ASTVarRef *VarRef);
+        ASTDeleteStmt *CreateDeleteStmt(ASTBlockStmt *Parent, const SourceLocation &Loc, ASTRef *VarRef);
 
         // Create Blocks structures
 

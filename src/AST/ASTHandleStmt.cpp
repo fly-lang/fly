@@ -8,7 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTHandleStmt.h"
-#include "AST/ASTVarRef.h"
+#include "AST/ASTRef.h"
 #include "Basic/Logger.h"
 
 using namespace fly;
@@ -18,11 +18,11 @@ ASTHandleStmt::ASTHandleStmt(const SourceLocation &Loc) :
 
 }
 
-ASTVarRef *ASTHandleStmt::getErrorHandlerRef() const {
+ASTRef *ASTHandleStmt::getErrorHandlerRef() const {
     return ErrorHandlerRef;
 }
 
-void ASTHandleStmt::setErrorHandlerRef(ASTVarRef *ErrorHandler) {
+void ASTHandleStmt::setErrorHandlerRef(ASTRef *ErrorHandler) {
     ErrorHandlerRef = ErrorHandler;
 }
 

@@ -17,7 +17,7 @@ namespace fly {
     class SourceLocation;
     class ASTStmt;
     class ASTBlockStmt;
-    class ASTVarRef;
+    class ASTRef;
     class ASTExpr;
 
     class SemaBuilderSwitchStmt {

@@ -19,7 +19,7 @@ namespace fly {
     class Sema;
     class ASTBlockStmt;
     class ASTStmt;
-    class ASTVarRef;
+    class ASTRef;
     class ASTModule;
     class ASTImport;
     class ASTExpr;

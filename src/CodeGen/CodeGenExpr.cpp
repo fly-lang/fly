@@ -12,23 +12,16 @@
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenExpr.h"
 #include "AST/ASTExpr.h"
-#include "AST/ASTVarRef.h"
+#include "AST/ASTRef.h"
 #include "AST/ASTOpExpr.h"
 #include "Basic/Debug.h"
 #include "llvm/IR/Value.h"
 
 #include <AST/ASTCall.h>
 #include <AST/ASTValue.h>
-#include <AST/ASTArg.h>
-#include <CodeGen/CodeGenClass.h>
 #include <CodeGen/CodeGenVarBase.h>
-#include <Sema/SemaClassMethod.h>
-#include <Sema/SemaClassType.h>
-#include <Sema/SemaFunctionBase.h>
 #include <Sema/SemaType.h>
 #include <Sema/SemaVar.h>
-#include <Sema/SemaCall.h>
-#include <Sema/SemaClassAttribute.h>
 #include <Sema/SemaValue.h>
 
 using namespace fly;
@@ -55,9 +48,9 @@ llvm::Value *CodeGenExpr::GenExpr(ASTExpr *Expr) {
         }
         case ASTExprKind::EXPR_VAR_REF: {
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_VAR_REF");
-            ASTVarRef *VarRef = static_cast<ASTVarRefExpr *>(Expr)->getVarRef();
+            ASTRef *VarRef = static_cast<ASTVarRefExpr *>(Expr)->getVarRef();
             assert(VarRef && "Missing Ref");
-        	return CGM->GenVar(VarRef->getSema());
+        	return CGM->GenVar(static_cast<SemaVar *>(VarRef->getSema()))->getValue();
         }
         case ASTExprKind::EXPR_CALL: {
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_CALL");
@@ -240,33 +233,33 @@ llvm::Value *CodeGenExpr::GenUnary(ASTUnaryOpExpr *Expr) {
     assert(Expr->getExpr() && "Unary Expr empty");
 
     // FIXME check ASTVarRefExpr
-    CodeGenVarBase *CGVal = ((ASTVarRefExpr *) Expr->getExpr())->getVarRef()->getSema()->getCodeGen();
-    llvm::Value *OldVal = CGVal->getValue();
+    CodeGenVarBase *CGVar = static_cast<SemaVar *>(((ASTVarRefExpr *) Expr->getExpr())->getVarRef()->getSema())->getCodeGen();
+    llvm::Value *OldVal = CGVar->getValue();
 
     switch (Expr->getOpKind()) {
 
         case ASTUnaryOpExprKind::OP_UNARY_PRE_INCR: {
             llvm::Value *RHS = llvm::ConstantInt::get(CGM->Int32Ty, 1);
             llvm::Value *NewVal = CGM->Builder->CreateNSWAdd(OldVal, RHS);
-            CGVal->Store(NewVal);
+            CGVar->Store(NewVal);
             return NewVal;
         }
         case ASTUnaryOpExprKind::OP_UNARY_POST_INCR: {
             llvm::Value *RHS = llvm::ConstantInt::get(CGM->Int32Ty, 1);
             llvm::Value *NewVal = CGM->Builder->CreateNSWAdd(OldVal, RHS);
-            CGVal->Store(NewVal);
+            CGVar->Store(NewVal);
             return OldVal;
         }
         case ASTUnaryOpExprKind::OP_UNARY_PRE_DECR: {
             llvm::Value *RHS = llvm::ConstantInt::get(CGM->Int32Ty, -1, true);
             llvm::Value *NewVal = CGM->Builder->CreateNSWAdd(OldVal, RHS);
-            CGVal->Store(NewVal);
+            CGVar->Store(NewVal);
             return NewVal;
         }
         case ASTUnaryOpExprKind::OP_UNARY_POST_DECR: {
             llvm::Value *RHS = llvm::ConstantInt::get(CGM->Int32Ty, -1, true);
             llvm::Value *NewVal = CGM->Builder->CreateNSWAdd(OldVal, RHS);
-            CGVal->Store(NewVal);
+            CGVar->Store(NewVal);
             return OldVal;
         }
         case ASTUnaryOpExprKind::OP_UNARY_NOT_LOG:

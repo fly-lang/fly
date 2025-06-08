@@ -19,7 +19,7 @@
 #include "AST/ASTComment.h"
 #include "AST/ASTCall.h"
 #include "AST/ASTExpr.h"
-#include "AST/ASTVarRef.h"
+#include "AST/ASTRef.h"
 #include "AST/ASTBlockStmt.h"
 #include "AST/ASTContinueStmt.h"
 #include "AST/ASTBreakStmt.h"
@@ -496,7 +496,7 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
             ConsumeToken();
 
             if (Tok.is(tok::kw_handle)) {
-                ASTVarRef *ErrorVarRef = Builder.CreateVarRef(LocalVar);
+                ASTRef *ErrorVarRef = Builder.CreateVarRef(LocalVar);
                 ParseHandleStmt(Parent, ErrorVarRef);
             } else {
                 SemaBuilderStmt *BuilderStmt = Builder.CreateAssignmentStmt(Parent, LocalVar);
@@ -514,7 +514,7 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
     if (isVarOrType(NexTok) && isAssignOperator(NexTok.getValue())) {
         // Parse Var
         // a = ...
-        ASTVarRef *VarRef = ParseVarRef();
+        ASTRef *VarRef = ParseVarRef();
 
         // Create Left Expr only for +=, -=, *=, etc.
         ASTExpr *Left = nullptr;
@@ -876,7 +876,7 @@ void Parser::ParseForStmt(ASTBlockStmt *Parent) {
     ParseBlockOrStmt(LoopBlock);
 }
 
-void Parser::ParseHandleStmt(ASTBlockStmt *Parent, ASTVarRef *Error) {
+void Parser::ParseHandleStmt(ASTBlockStmt *Parent, ASTRef *Error) {
 	FLY_DEBUG_START("Parser", "ParseHandleStmt");
     assert(Tok.is(tok::kw_handle) && "Token is handle keyword");
 
@@ -1038,7 +1038,7 @@ ASTArrayTypeRef *Parser::ParseArrayTypeRef(ASTTypeRef *TypeRef) {
 	return ArrayTypeRef;
 }
 
-ASTVarRef * Parser::ParseVarRef() {
+ASTRef * Parser::ParseVarRef() {
 	FLY_DEBUG_START("Parser", "ParseVarRef");
 	assert(Tok.isAnyIdentifier() && "VarRef start with Name");
 
@@ -1051,10 +1051,8 @@ ASTVarRef * Parser::ParseVarRef() {
 		return nullptr;
 	}
 
-	ASTVarRef * VarRef = Builder.CreateVarRef(Ref);
-
 	FLY_DEBUG_END("Parser", "ParseVarRef");
-	return VarRef;
+	return Ref;
 }
 
 /**
@@ -1114,14 +1112,6 @@ ASTCall *Parser::ParseCall(const SourceLocation &Loc, llvm::StringRef Name, ASTR
     }
 
     return Builder.CreateCall(Loc, Name, Args, ASTCallKind::CALL_FUNCTION, Parent);
-}
-
-ASTRef * Parser::ParseCallOrVarRef() {
-	ASTRef * Ref = ParseRef();
-	if (!Ref->isCall()) {
-		return Builder.CreateVarRef(Ref);
-	}
-	return Ref;
 }
 
 /**

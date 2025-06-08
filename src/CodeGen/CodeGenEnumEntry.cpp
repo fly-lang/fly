@@ -37,7 +37,6 @@ llvm::Value *CodeGenEnumEntry::getValue() {
     return Value;
 }
 
-llvm::Value *CodeGenEnumEntry::getPointer() {
-    // FIXME give error
-    return nullptr;
+llvm::Value * CodeGenEnumEntry::getPointer() {
+	return nullptr;
 }

@@ -46,18 +46,17 @@ llvm::StoreInst *CodeGenError::StoreInt(llvm::Value *Val) {
     // errorType: 1=integer
     // Error: {errorType: i8, errorInt: i32, errorPointer: *i8}
     llvm::ConstantInt *TypeValue = llvm::ConstantInt::get(CGM->Int8Ty, 1);
-    llvm::Value *Zero = llvm::ConstantInt::get(CGM->Int32Ty, 0);
     llvm::Value *One = llvm::ConstantInt::get(CGM->Int32Ty, 1);
 
     // Store Error Type
 	// llvm::Type *ErrorType = llvm::Type::getInt8Ty(CGM->LLVMCtx); // TODO LLVM 15
 	// llvm::Value *ErrorVar = CGM->Builder->CreateLoad(ErrorType, Pointer); // TODO LLVM 15
 	llvm::Value *ErrorVar = CGM->Builder->CreateLoad(CGM->ErrorPtrTy, ErrorHandler);
-	llvm::Value *TypeValuePtr = CGM->Builder->CreateInBoundsGEP(T, ErrorVar, {Zero, Zero});
+	llvm::Value *TypeValuePtr = CGM->Builder->CreateInBoundsGEP(T, ErrorVar, {CGM->Zero, CGM->Zero});
 	CGM->Builder->CreateStore(TypeValue, TypeValuePtr);
 
 	// Store Error Value
-	llvm::Value *ValuePtr = CGM->Builder->CreateInBoundsGEP(T, ErrorVar, {Zero, One});
+	llvm::Value *ValuePtr = CGM->Builder->CreateInBoundsGEP(T, ErrorVar, {CGM->Zero, One});
 	return CGM->Builder->CreateStore(Val, ValuePtr);
 }
 

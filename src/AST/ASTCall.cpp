@@ -14,7 +14,8 @@
 
 using namespace fly;
 
-ASTCall::ASTCall(const SourceLocation &Loc, llvm::StringRef Name) : ASTRef(Loc, Name, ASTRefKind::REF_CALL) {
+ASTCall::ASTCall(const SourceLocation &Loc, llvm::StringRef Name, ASTCallKind CallKind) :
+	ASTRef(Loc, Name, ASTRefKind::REF_CALL), CallKind(CallKind) {
 
 }
 

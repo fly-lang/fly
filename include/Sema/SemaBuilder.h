@@ -18,6 +18,8 @@
 #include <Sema/SemaLocalVar.h>
 #include <Sema/SemaParam.h>
 
+#include "SemaMemberVar.h"
+
 namespace llvm {
 	class StringRef;
 }
@@ -74,6 +76,8 @@ namespace fly {
 
     	SemaClassType *CreateClass(SemaModule *Module, ASTClass *AST);
 
+    	SemaVar *CreateThisAttribute(SemaClassType *Class);
+
     	SemaClassAttribute *CreateClassAttribute(SemaClassType *Class, ASTVar *AST, SemaComment *Comment);
 
     	SemaClassMethod *CreateClassMethod(SemaClassType *Class, ASTFunction *AST, SemaComment *Comment);
@@ -97,6 +101,8 @@ namespace fly {
     	SemaParam *CreateParam(fly::ASTVar* Param);
 
     	SemaCall *CreateCall(ASTCall *Call);
+
+    	SemaMemberVar *CreateMemberVar(ASTVar *AST, SemaResult *Parent);
 
     	SemaBoolValue *CreateBoolValue(ASTBoolValue *Value);
 

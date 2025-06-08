@@ -35,7 +35,7 @@ namespace fly {
     class ASTExpr;
     class InputFile;
     class ASTHandleStmt;
-    class ASTVarRef;
+    class ASTRef;
     class ASTScope;
     class ASTClass;
     class ASTEnum;
@@ -157,7 +157,7 @@ private:
     void ParseForStmt(ASTBlockStmt *Parent);
 
     /// Parse a handle statement.
-    void ParseHandleStmt(ASTBlockStmt *Parent, ASTVarRef *Error);
+    void ParseHandleStmt(ASTBlockStmt *Parent, ASTRef *Error);
 
     /// Parse a fail statement.
     void ParseFailStmt(ASTBlockStmt *Parent);
@@ -172,15 +172,12 @@ private:
     ASTArrayTypeRef *ParseArrayTypeRef(ASTTypeRef *);
 
     /// Parse a var ref.
-    ASTVarRef *ParseVarRef();
+    ASTRef *ParseVarRef();
 
     ASTCall *ParseCall();
 
     /// Parse a call.
     ASTCall *ParseCall(const SourceLocation &Loc, llvm::StringRef Name, ASTRef *Parent);
-
-    /// Parse a call or varref
-    ASTRef *ParseCallOrVarRef();
 
     /// Parse an identifier.
     ASTRef *ParseRef(ASTRef *Parent = nullptr);

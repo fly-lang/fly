@@ -23,6 +23,10 @@ CodeGenClassVar::CodeGenClassVar(CodeGenModule *CGM, SemaClassAttribute *Sema, u
         Zero(CGM->Zero) {
 }
 
+void CodeGenClassVar::setInstancePtr(llvm::Value *InstancePtr) {
+	this->InstancePtr = InstancePtr;
+}
+
 llvm::StoreInst *CodeGenClassVar::Store(llvm::Value *Val) {
     assert(Type && "Class Type not defined");
 
@@ -35,13 +39,21 @@ llvm::StoreInst *CodeGenClassVar::Store(llvm::Value *Val) {
     llvm::StoreInst *S = CGM->Builder->CreateStore(Val, getValue());
     this->BlockID = CGM->Builder->GetInsertBlock()->getName();
     this->LoadI = nullptr;
+
     return S;
 }
 
 llvm::LoadInst *CodeGenClassVar::Load() {
     assert(Type && "Class Type not defined");
-    this->LoadI =  CGM->Builder->CreateLoad(getPointer());
-    this->BlockID = CGM->Builder->GetInsertBlock()->getName();
+	assert(InstancePtr && "InstancePtr cannot be null");
+
+	// Populate the Pointer if not already done
+	if (!this->Pointer)
+		this->Pointer = CGM->Builder->CreateInBoundsGEP(Type, InstancePtr, {Zero, Index});
+
+	// Populate the LoadI
+	this->BlockID = CGM->Builder->GetInsertBlock()->getName();
+    this->LoadI =  CGM->Builder->CreateLoad(this->Pointer);
     return this->LoadI;
 }
 
@@ -52,8 +64,6 @@ llvm::Value *CodeGenClassVar::getValue() {
 }
 
 llvm::Value *CodeGenClassVar::getPointer() {
-    if (!this->Pointer)
-        this->Pointer = CGM->Builder->CreateInBoundsGEP(Type, nullptr, {Zero, Index});
     return this->Pointer;
 }
 

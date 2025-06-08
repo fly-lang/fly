@@ -8,20 +8,20 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTExpr.h"
-#include "AST/ASTVarRef.h"
+#include "AST/ASTRef.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTCall.h"
 #include "Basic/Logger.h"
 
 using namespace fly;
 
-ASTExpr::ASTExpr(const SourceLocation &Loc, ASTExprKind Kind) :
-        ASTBase(Loc, ASTKind::AST_EXPR), Kind(Kind) {
+ASTExpr::ASTExpr(const SourceLocation &Loc, ASTExprKind ExprKind) :
+        ASTBase(Loc, ASTKind::AST_EXPR), ExprKind(ExprKind) {
 
 }
 
 ASTExprKind ASTExpr::getExprKind() const {
-    return Kind;
+    return ExprKind;
 }
 
 SemaType *ASTExpr::getType() const {
@@ -53,11 +53,11 @@ Attr("Kind", static_cast<size_t>(getKind())).
             End();
 }
 
-ASTVarRefExpr::ASTVarRefExpr(ASTVarRef *VarRef) : ASTExpr(VarRef->getLocation(), ASTExprKind::EXPR_VAR_REF), VarRef(VarRef) {
+ASTVarRefExpr::ASTVarRefExpr(ASTRef *VarRef) : ASTExpr(VarRef->getLocation(), ASTExprKind::EXPR_VAR_REF), VarRef(VarRef) {
 
 }
 
-ASTVarRef *ASTVarRefExpr::getVarRef() const {
+ASTRef *ASTVarRefExpr::getVarRef() const {
     return VarRef;
 }
 

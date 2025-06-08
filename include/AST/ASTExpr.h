@@ -15,7 +15,7 @@
 namespace fly {
 
     class ASTValue;
-    class ASTVarRef;
+    class ASTRef;
     class ASTCall;
     class ASTVarRefExpr;
     class ASTCallExpr;
@@ -41,7 +41,7 @@ namespace fly {
 
     protected:
 
-        const ASTExprKind Kind;
+        const ASTExprKind ExprKind;
 
         SemaType *Type = nullptr;
 
@@ -85,13 +85,13 @@ namespace fly {
         friend class SemaResolver;
         friend class SemaValidator;
 
-        ASTVarRef *VarRef = nullptr;
+        ASTRef *VarRef = nullptr;
 
-        explicit ASTVarRefExpr(ASTVarRef *VarRef);
+        explicit ASTVarRefExpr(ASTRef *VarRef);
 
     public:
 
-        ASTVarRef *getVarRef() const;
+        ASTRef *getVarRef() const;
 
         std::string str() const override;
     };

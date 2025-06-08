@@ -16,7 +16,7 @@
 namespace fly {
 
     class ASTValueExpr;
-    class ASTVarRef;
+    class ASTRef;
 
     class ASTSwitchStmt : public ASTStmt {
 
@@ -26,7 +26,7 @@ namespace fly {
         friend class SemaValidator;
 
         // The Switch Expression
-        ASTVarRef *VarRef = nullptr;
+        ASTRef *Ref = nullptr;
 
         // The Case Blocks
         llvm::SmallVector<ASTRuleStmt *, 8> Cases;
@@ -38,7 +38,7 @@ namespace fly {
 
     public:
 
-        ASTVarRef *getVarRef() const;
+        ASTRef *getRef() const;
 
         llvm::SmallVector<ASTRuleStmt *, 8> &getCases();
 

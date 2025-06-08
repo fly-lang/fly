@@ -15,7 +15,7 @@
 namespace fly {
 
     class ASTBlockStmt;
-    class ASTVarRef;
+    class ASTRef;
 
 /**
  * Delete Stmt
@@ -26,12 +26,12 @@ namespace fly {
         friend class SemaResolver;
         friend class SemaValidator;
 
-        ASTVarRef *VarRef = nullptr;
+        ASTRef *VarRef = nullptr;
 
     public:
-        ASTDeleteStmt(const SourceLocation &Loc, ASTVarRef *VarRef);
+        ASTDeleteStmt(const SourceLocation &Loc, ASTRef *VarRef);
 
-        ASTVarRef *getVarRef();
+        ASTRef *getVarRef();
 
         std::string str() const override;
     };

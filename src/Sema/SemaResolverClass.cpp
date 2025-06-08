@@ -34,6 +34,9 @@ using namespace fly;
 void SemaResolverClass::Resolve(SemaResolver *R, SemaClassType *Class) {
 	SemaResolverClass * Resolver = new SemaResolverClass(R, Class);
 
+	// Create Class This Attribute
+	Resolver->S.getSemaBuilder().CreateThisAttribute(Class);
+
 	// Resolve Super Classes
 	Resolver->SuperClasses();
 

@@ -24,12 +24,14 @@ namespace fly {
     class SemaClassAttribute  : public SemaVar {
 
         friend class SemaBuilder;
-        friend class SemaResolver;
+        friend class SemaResolverClass;
         friend class SemaValidator;
 
         SemaClassType *Class;
 
         bool Static;
+
+        uint64_t Index;
 
 		CodeGenClassVar *CodeGen = nullptr;
 
@@ -37,11 +39,13 @@ namespace fly {
 
     protected:
 
-        explicit SemaClassAttribute(ASTVar *AST, SemaClassType *Class);
+        explicit SemaClassAttribute(ASTVar *AST, SemaClassType *Class, uint64_t Index);
 
     public:
 
         SemaClassType *getClass() const;
+
+        uint64_t getIndex() const;
 
     	CodeGenClassVar *getCodeGen() const override;
 

@@ -14,7 +14,6 @@
 
 namespace fly {
 
-    class ASTVarRef;
     class ASTHandleStmt;
 
     class ASTFailStmt : public ASTStmt {

@@ -49,7 +49,7 @@ namespace fly {
 
         llvm::Value *getValue() override;
 
-        llvm::Value *getPointer() override;
+        llvm::Value *getPointer();
     };
 }
 

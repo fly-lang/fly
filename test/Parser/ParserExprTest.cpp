@@ -13,7 +13,7 @@
 #include "AST/ASTCall.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTVarStmt.h"
-#include "AST/ASTVarRef.h"
+#include "AST/ASTRef.h"
 #include "AST/ASTOpExpr.h"
 #include "AST/ASTBlockStmt.h"
 #include "AST/ASTExprStmt.h"

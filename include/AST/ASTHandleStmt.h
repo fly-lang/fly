@@ -14,7 +14,7 @@
 
 namespace fly {
 
-    class ASTVarRef;
+    class ASTRef;
     class CodeGenHandle;
 
     class ASTHandleStmt : public ASTStmt {
@@ -24,7 +24,7 @@ namespace fly {
         friend class SemaResolver;
         friend class SemaValidator;
 
-        ASTVarRef *ErrorHandlerRef = nullptr;
+        ASTRef *ErrorHandlerRef = nullptr;
 
         ASTBlockStmt *Handle = nullptr;
 
@@ -34,9 +34,9 @@ namespace fly {
 
     public:
 
-        ASTVarRef *getErrorHandlerRef() const;
+        ASTRef *getErrorHandlerRef() const;
 
-        void setErrorHandlerRef(ASTVarRef *ErrorHandler);
+        void setErrorHandlerRef(ASTRef *ErrorHandler);
 
         ASTBlockStmt* getHandle() const;
 

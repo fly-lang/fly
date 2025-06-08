@@ -45,8 +45,12 @@ namespace fly {
 
         llvm::LoadInst *LoadI = nullptr;
 
+        llvm::Value *InstancePtr = nullptr;
+
     public:
         CodeGenClassVar(CodeGenModule *CGM, SemaClassAttribute *Sema, uint64_t Index);
+
+        void setInstancePtr(llvm::Value *Val);
 
         llvm::StoreInst *Store(llvm::Value *Val) override;
 
@@ -54,11 +58,11 @@ namespace fly {
 
         llvm::Value *getValue() override;
 
-        llvm::Value *getPointer() override;
-
         llvm::Value *getIndex();
 
         llvm::Type* getType() override;
+
+        llvm::Value *getPointer() override;
 
     };
 }

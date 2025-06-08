@@ -21,6 +21,7 @@
 #include "Sema/SemaClassMethod.h"
 #include "Sema/SemaClassAttribute.h"
 #include "Sema/SemaEnumType.h"
+#include "Sema/SemaMemberVar.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTEnum.h"
@@ -31,7 +32,7 @@
 #include "AST/ASTImport.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTCall.h"
-#include "AST/ASTVarRef.h"
+#include "AST/ASTRef.h"
 #include "AST/ASTVar.h"
 #include "AST/ASTSwitchStmt.h"
 #include "AST/ASTLoopStmt.h"
@@ -405,8 +406,8 @@ bool SemaResolver::ResolveStmtIf(ASTIfStmt *IfStmt) {
 bool SemaResolver::ResolveStmtSwitch(ASTSwitchStmt *SwitchStmt) {
     assert(SwitchStmt && "Switch Block cannot be null");
 
-    bool Success = ResolveRef(SwitchStmt->getParent(), SwitchStmt->VarRef) &&
-    	SwitchStmt->getVarRef()->getSema()->getType()->isInteger();
+    bool Success = ResolveRef(SwitchStmt->getParent(), SwitchStmt->Ref) &&
+    	SwitchStmt->getRef()->getSema()->getType()->isInteger();
     for (ASTRuleStmt *Case : SwitchStmt->Cases) {
     	Success &= ResolveExpr(SwitchStmt, Case->getRule());
         Success &= Case->getRule()->getType()->isInteger() && ResolveStmt(Case);
@@ -449,7 +450,7 @@ bool SemaResolver::ResolveStmtLoopIn(ASTLoopInStmt *LoopInStmt) {
 
 bool SemaResolver::ResolveStmtVar(ASTVarStmt *VarStmt) {
     if (ResolveRef(VarStmt->Parent, VarStmt->VarRef)) {
-	    SemaVar *Var = VarStmt->getVarRef()->getSema();
+	    SemaVar *Var = static_cast<SemaVar *>(VarStmt->getVarRef()->getSema());
     	if (Var && VarStmt->getExpr() != nullptr) {
     		if (ResolveExpr(VarStmt->Parent, VarStmt->Expr)) {
     			VarStmt->Expr->Type = Var->getType();
@@ -531,8 +532,9 @@ bool SemaResolver::ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr) {
             .Attr("Expr", Expr)
             .Attr("Type", Expr).End());
 
-    bool Success = false;
     switch (Expr->getExprKind()) {
+
+    	// Value Expr
         case ASTExprKind::EXPR_VALUE: {
             ASTValue *Value = static_cast<ASTValueExpr*>(Expr)->getValue();
 
@@ -541,16 +543,20 @@ bool SemaResolver::ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr) {
         		Expr->Type = Value->getSema()->getType();
         		return true;
         	}
-        }
+        } break;
+
+    	// VarRef Expr
         case ASTExprKind::EXPR_VAR_REF: {
-            ASTVarRef *VarRef = static_cast<ASTVarRefExpr*>(Expr)->getVarRef();
+            ASTRef *VarRef = static_cast<ASTVarRefExpr*>(Expr)->getVarRef();
 
         	// Start to resolve the VarRef from root
             if (ResolveRef(Stmt, VarRef)) {
                 Expr->Type = VarRef->getSema()->getType();
                 return true;
             }
-        }
+        } break;
+
+    	// Call Expr
         case ASTExprKind::EXPR_CALL: {
             ASTCall *Call = static_cast<ASTCallExpr*>(Expr)->getCall();
 
@@ -558,33 +564,38 @@ bool SemaResolver::ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr) {
             if (ResolveRef(Stmt, Call)) {
                 switch (Call->getCallKind()) {
 
+                	// Call a Function
                     case ASTCallKind::CALL_FUNCTION:
                         Expr->Type = Call->getSema()->getFunction()->getReturnType();
-                        break;
+                        return true;
+
+                	// Call a Constructor Method
                     case ASTCallKind::CALL_NEW: {
                     	SemaClassMethod *Method = static_cast<SemaClassMethod *>(Call->getSema()->getFunction());
                         Expr->Type = Method->getClass();
+                    	return true;
                     }
-                    break;
                 }
-                Success = true;
-                break;
             }
-            return false;
-        }
+        } break;
+
+    	// Operator Expr
         case ASTExprKind::EXPR_OP: {
+
             switch (static_cast<ASTOpExpr*>(Expr)->getOpExprKind()) {
+
                 case ASTOpExprKind::OP_UNARY: {
                     ASTUnaryOpExpr *Unary = static_cast<ASTUnaryOpExpr*>(Expr);
-                    Success = ResolveExpr(Stmt, const_cast<ASTExpr*>(Unary->Expr));
-                    Expr->Type = Unary->getExpr()->getType();
-                    break;
+                    if (ResolveExpr(Stmt, const_cast<ASTExpr*>(Unary->Expr))) {
+	                    Expr->Type = Unary->getExpr()->getType();
+                    	return true;
+                    }
                 }
+
                 case ASTOpExprKind::OP_BINARY: {
                     ASTBinaryOpExpr *Binary = static_cast<ASTBinaryOpExpr*>(Expr);
 
-                    Success = ResolveExpr(Stmt, Binary->LeftExpr) && ResolveExpr(Stmt, Binary->RightExpr);
-                    if (Success) {
+                    if (ResolveExpr(Stmt, Binary->LeftExpr) && ResolveExpr(Stmt, Binary->RightExpr)) {
 
                     	// Check if Left and Right Expr are resolved
                     	SemaType * LeftType = Binary->getLeftExpr()->getType();
@@ -594,10 +605,8 @@ bool SemaResolver::ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr) {
                                 Binary->getTypeKind() == ASTBinaryOpTypeExprKind::OP_BINARY_COMPARISON) {
 
                         	// Check Compatible Types Bool/Bool, Float/Float, Integer/Integer
-                            Success = S.getValidator().CheckArithTypes(Binary->getLeftExpr()->getType(),
-                                                                  Binary->getRightExpr()->getType());
-
-                            if (Success) {
+                        	if (S.getValidator().CheckArithTypes(Binary->getLeftExpr()->getType(),
+																  Binary->getRightExpr()->getType())) {
                             	// Set respectively the Left or Right Expr Type by chose the Expr which is not a Value Type
                             	// Ex.
                             	// int a = 0
@@ -628,15 +637,16 @@ bool SemaResolver::ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr) {
 
                                 Binary->Type = Binary->getTypeKind() == ASTBinaryOpTypeExprKind::OP_BINARY_ARITH ?
                                                LeftType : S.getSymTable().getBoolType();
+                        		return true;
                             } else {
                             	S.Diag(Binary->getLocation(), diag::err_sema_types_operation)
 											<< LeftType->getName()
 											<< RightType->getName();
                             }
                         } else if (Binary->getTypeKind() == ASTBinaryOpTypeExprKind::OP_BINARY_LOGIC) {
-                            Success = S.getValidator().CheckLogicalTypes(LeftType, RightType);
-                        	if (Success) {
+                        	if (S.getValidator().CheckLogicalTypes(LeftType, RightType)) {
                         		Binary->Type = S.getSymTable().getBoolType();
+                        		return true;
                         	} else {
                         		S.Diag(Binary->getLocation(), diag::err_sema_types_logical)
 									<< LeftType->getName()
@@ -644,25 +654,25 @@ bool SemaResolver::ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr) {
                         	}
                         }
                     }
-                    break;
-                }
+                } break;
+
                 case ASTOpExprKind::OP_TERNARY: {
                     ASTTernaryOpExpr *Ternary = static_cast<ASTTernaryOpExpr*>(Expr);
-                    Success = ResolveExpr(Stmt, Ternary->ConditionExpr) &&
+                    if (ResolveExpr(Stmt, Ternary->ConditionExpr) &&
                               S.getValidator().CheckConvertibleTypes(Ternary->getConditionExpr()->getType(), S.getSymTable().getBoolType()) &&
                               ResolveExpr(Stmt, Ternary->TrueExpr) &&
-                              ResolveExpr(Stmt, Ternary->FalseExpr);
-                    Ternary->Type = Ternary->getTrueExpr()->getType(); // The group type is equals to the second type
-                    break;
+                              ResolveExpr(Stmt, Ternary->FalseExpr)) {
+	                    Ternary->Type = Ternary->getTrueExpr()->getType(); // The group type is equals to the second type
+                    	return true;
+                    }
                 }
-            }
-            break;
+            } break;
         }
         default:
             assert(0 && "Invalid ASTExprKind");
     }
 
-    return Success;
+    return false;
 }
 
 bool SemaResolver::ResolveTypeRef(ASTTypeRef *&TypeRef) {
@@ -706,49 +716,6 @@ bool SemaResolver::ResolveTypeRef(ASTTypeRef *&TypeRef) {
 	return true;
 }
 
-ASTRef *SemaResolver::getParentRef(fly::ASTRef *Ref) {
-	// Set current with the Top Parent
-	ASTRef *Parent = Ref;
-	while (Parent->getParent() != nullptr) {
-		Parent->getParent()->Child = Parent;
-		Parent = Parent->getParent();
-	}
-
-	return Parent;
-}
-
-bool SemaResolver::ResolveRef(ASTStmt *Stmt, ASTVarRef *VarRef) {
-	if (!VarRef->Resolved) {
-
-		// Get Parent Ref
-		ASTRef *Parent = getParentRef(VarRef);
-
-		// Ref is a NameSpace ?
-		SemaNameSpace * CurrentNameSpace = ResolveNameSpace(Parent);
-
-		// Resolve from top-bottom
-		ResolveRef(Stmt, Parent, CurrentNameSpace);
-	}
-
-	return VarRef->getSema() != nullptr;
-}
-
-bool SemaResolver::ResolveRef(ASTStmt *Stmt, ASTCall *Call) {
-	if (!Call->Resolved) {
-
-		// Get Parent Ref
-		ASTRef *Parent = getParentRef(Call);
-
-		// Ref is a NameSpace ?
-		SemaNameSpace * CurrentNameSpace = ResolveNameSpace(Parent);
-
-		// Resolve from top-bottom
-		ResolveRef(Stmt, Parent, CurrentNameSpace);
-	}
-
-	return Call->getSema() != nullptr;
-}
-
 /**
  * Resolve a Reference, continue to resolve until the Ref is completely resolved
  * @param Stmt
@@ -757,7 +724,7 @@ bool SemaResolver::ResolveRef(ASTStmt *Stmt, ASTCall *Call) {
  * @param ...
  * @return
  */
-void SemaResolver:: ResolveRef(ASTStmt *Stmt, ASTRef *Ref, SemaNameSpace *CurrentNameSpace) {
+void SemaResolver:: ResolveFromTopRef(ASTStmt *Stmt, ASTRef *Ref, SemaNameSpace *CurrentNameSpace) {
 	if (!Ref->Resolved) {
 
 		// Ref is a Function
@@ -772,7 +739,7 @@ void SemaResolver:: ResolveRef(ASTStmt *Stmt, ASTRef *Ref, SemaNameSpace *Curren
 
 		//Ref is a Var
 		else if (Ref->isVarRef()) {
-			ASTVarRef *VarRef = static_cast<ASTVarRef *>(Ref);
+			ASTRef *VarRef = static_cast<ASTRef *>(Ref);
 			SemaVar *Sema = ResolveVar(Stmt, VarRef);
 
 			if (Ref->Child)
@@ -784,14 +751,12 @@ void SemaResolver:: ResolveRef(ASTStmt *Stmt, ASTRef *Ref, SemaNameSpace *Curren
 
 			SemaType *Type = ResolveType(Ref->getName(), CurrentNameSpace);
 			if (Type) {
-				Ref->Resolved = true;
 				ResolveRef(Stmt, Ref->Child, Type, nullptr);
 				return;
 			}
 
-			// Ref is a Var
-			ASTVarRef * VarRef = S.getASTBuilder().CreateVarRef(Ref); // FIXME check if is varref?
-			SemaVar *Sema = ResolveVar(Stmt, VarRef);
+			// Ref is a Var (cannot be otherwise)
+			SemaVar *Sema = ResolveVar(Stmt, Ref);
 
 			// TODO
 			if (Ref->Child)
@@ -799,6 +764,7 @@ void SemaResolver:: ResolveRef(ASTStmt *Stmt, ASTRef *Ref, SemaNameSpace *Curren
 		}
 	}
 }
+
 
 /**
  * Resolve static Ref to a Class or Enum
@@ -813,12 +779,17 @@ void SemaResolver:: ResolveRef(ASTStmt *Stmt, ASTRef *Ref, SemaType *Type, SemaR
 		if (Type->isClass()) {
 			SemaClassType *ClassType = static_cast<SemaClassType *>(Type);
 
-			// static call
+			// class method
 			if (Ref->isCall()) {
 				ASTCall *Call = static_cast<ASTCall *>(Ref);
+
+				// Set as Resolved
+				Call->Resolved = true;
+
 				SmallVector<SemaType *, 8> CallTypes = ResolveCallArgTypes(Stmt, Call);
 				std::string Mangled = SemaFunctionBase::MangleFunction(Call->getName(), CallTypes);
 				SemaFunctionBase* Method = ClassType->getMethods().lookup(Mangled);
+
 				if (Method) {
 					Call->Sema = S.getSemaBuilder().CreateCall(Call);
 
@@ -827,7 +798,6 @@ void SemaResolver:: ResolveRef(ASTStmt *Stmt, ASTRef *Ref, SemaType *Type, SemaR
 
 					// Set the Call Sema Function
 					Call->Sema->Function = Method;
-					Call->Resolved = true;
 
 					// Set First and Parent
 					Call->Sema->setParent(Parent);
@@ -835,23 +805,24 @@ void SemaResolver:: ResolveRef(ASTStmt *Stmt, ASTRef *Ref, SemaType *Type, SemaR
 					if (Ref->Child)
 						ResolveRef(Stmt, Ref->Child, Method->getReturnType(), Call->Sema);
 				}
-			} else { // static var
-				SemaVar *Sema = nullptr;
-				if (Ref->isVarRef() && static_cast<ASTVarRef *>(Ref)->getVar() && static_cast<ASTVarRef *>(Ref)->getVar()->getSema()) {
-					Sema = static_cast<ASTVarRef *>(Ref)->getVar()->getSema();
-				} else {
-					Ref = S.getASTBuilder().CreateVarRef(Ref);
-					Sema = ClassType->getAttributes().lookup(Ref->getName());
-				}
-				static_cast<ASTVarRef *>(Ref)->Sema = Sema;
-				Sema->Parent = Parent;
+			}
+
+			// class attribute
+			else {
+
+				// Set as Resolved
 				Ref->Resolved = true;
 
-				// Set First and Parent
-				Sema->setParent(Parent);
+				SemaClassAttribute *Attr = ClassType->getAttributes().lookup(Ref->getName());
+				if (Attr) {
+					SemaMemberVar *Sema = S.getSemaBuilder().CreateMemberVar(Attr->getAST(), Parent);
+					Sema->Type = Attr->getType();
+					Sema->Index = Attr->getIndex();
+					Ref->Sema = Sema;
 
-				if (Ref->Child)
-					ResolveRef(Stmt, Ref->Child, Sema->getType(), Sema);
+					if (Ref->Child)
+						ResolveRef(Stmt, Ref->Child, Sema->getType(), Sema);
+				}
 			}
 		}
 
@@ -859,15 +830,60 @@ void SemaResolver:: ResolveRef(ASTStmt *Stmt, ASTRef *Ref, SemaType *Type, SemaR
 		else if (Type->isEnum()) {
 			SemaEnumType *EnumType = static_cast<SemaEnumType *>(Type);
 
+			// Set as Resolved
+			Ref->Resolved = true;
+
 			// Enum Entry
 			SemaVar *Entry = EnumType->getEntries().lookup(Ref->getName());
 			if (Entry) {
-				Ref = S.getASTBuilder().CreateVarRef(Ref);
-				static_cast<ASTVarRef *>(Ref)->Sema = Entry;
-				Ref->Resolved = true;
+				Ref->Sema = Entry;
 			}
 		}
 	}
+}
+
+ASTRef *SemaResolver::getParentRef(fly::ASTRef *Ref) {
+	// Set current with the Top Parent
+	ASTRef *Parent = Ref;
+	while (Parent->getParent() != nullptr) {
+		Parent->getParent()->Child = Parent;
+		Parent = Parent->getParent();
+	}
+
+	return Parent;
+}
+
+
+bool SemaResolver::ResolveRef(ASTStmt *Stmt, ASTCall *Call) {
+	if (!Call->Resolved) {
+
+		// Get Parent Ref
+		ASTRef *Parent = getParentRef(Call);
+
+		// Ref is a NameSpace ?
+		SemaNameSpace * CurrentNameSpace = ResolveNameSpace(Parent);
+
+		// Resolve from top-bottom
+		ResolveFromTopRef(Stmt, Parent, CurrentNameSpace);
+	}
+
+	return Call->getSema() != nullptr;
+}
+
+bool SemaResolver::ResolveRef(ASTStmt *Stmt, ASTRef *VarRef) {
+	if (!VarRef->Resolved) {
+
+		// Get Parent Ref
+		ASTRef *Parent = getParentRef(VarRef);
+
+		// Ref is a NameSpace ?
+		SemaNameSpace * CurrentNameSpace = ResolveNameSpace(Parent);
+
+		// Resolve from top-bottom
+		ResolveFromTopRef(Stmt, Parent, CurrentNameSpace);
+	}
+
+	return VarRef->getSema() != nullptr;
 }
 
 SemaNameSpace *SemaResolver::ResolveNameSpace(ASTRef *Ref) {
@@ -999,11 +1015,12 @@ SemaCall *SemaResolver::ResolveCall(ASTStmt *Stmt, ASTCall *Call, SemaNameSpace 
 }
 
 
-SemaVar *SemaResolver::ResolveVar(ASTStmt *Stmt, ASTVarRef *VarRef) {
+SemaVar *SemaResolver::ResolveVar(ASTStmt *Stmt, ASTRef *VarRef) {
 	SemaVar *Sema = nullptr;
 
-	if (VarRef->getVar() != nullptr  && VarRef->getVar()->getSema() != nullptr) {
-		Sema = VarRef->getVar()->getSema();
+	// Skip already resolved VarRef
+	if (VarRef->getSema() != nullptr) {
+		Sema = static_cast<SemaVar *>(VarRef->getSema());
 	}
 
 	// Search into Local Vars
@@ -1035,6 +1052,23 @@ SemaVar *SemaResolver::ResolveVar(ASTStmt *Stmt, ASTVarRef *VarRef) {
 		}
 	}
 
+	// Search into Class Attributes
+	bool isSemaAttribute = false;
+	if (!Sema && Stmt->getFunction()->getSema()->getKind() == SemaFunctionKind::METHOD) {
+		// Get the Class Type
+		SemaClassMethod *Method = static_cast<SemaClassMethod *>(Stmt->getFunction()->getSema());
+		if (!Method->isStatic()) {
+			if (VarRef->getName() == "this") {
+				Sema = Method->getClass()->getThis();
+			} else {
+				Sema = Method->getClass()->getAttributes().lookup(VarRef->getName());
+			}
+			if (Sema) {
+				isSemaAttribute = true; // VarRef is a Class Attribute
+			}
+		}
+	}
+
 	// TODO: remove globalvars
 	// Search into Global Vars
 	// if (!Var) {
@@ -1051,7 +1085,8 @@ SemaVar *SemaResolver::ResolveVar(ASTStmt *Stmt, ASTVarRef *VarRef) {
 	}
 
 	// Add Var to LocalVars of the SemaFunctionBase
-	Stmt->getFunction()->getSema()->getLocalVars().push_back(Sema); // Function Local var to be allocated
+	if (!isSemaAttribute)
+		Stmt->getFunction()->getSema()->getLocalVars().push_back(Sema); // Function Local var to be allocated
 
 	VarRef->Sema = Sema;
 	VarRef->Resolved = true;

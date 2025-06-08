@@ -9,10 +9,12 @@
 
 
 #include "CodeGen/CodeGenVar.h"
-#include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenClass.h"
 #include "CodeGen/CodeGenModule.h"
 
+#include <Sema/SemaCall.h>
+#include <Sema/SemaMemberVar.h>
+#include <Sema/SemaVar.h>
 #include <llvm/IR/Instructions.h>
 
 using namespace fly;
@@ -21,26 +23,12 @@ using namespace fly;
 //    this->T = Var->getType()->getKind() == ASTTypeKind::TYPE_BOOL ? CGM->Int8Ty : CGM->GenType(Var->getType());
 //}
 
-CodeGenVar::CodeGenVar(CodeGenModule *CGM, llvm::Type *T) : CGM(CGM), T(T) {
+CodeGenVar::CodeGenVar(CodeGenModule *CGM, SemaVar *Sema, llvm::Type *T, llvm::Value *Pointer) : CGM(CGM), Sema(Sema), T(T), Pointer(Pointer) {
 
-}
-
-CodeGenVar *CodeGenVar::getParent() {
-    return Parent;
 }
 
 llvm::Type *CodeGenVar::getType() {
     return T;
-}
-
-llvm::AllocaInst *CodeGenVar::Alloca() {
-    if (this->T->isStructTy()) { // FIXME ?? with this->T->isStructTy()
-        llvm::PointerType *PtrTy = T->getPointerTo(CGM->Module->getDataLayout().getAllocaAddrSpace());
-        this->Pointer = CGM->Builder->CreateAlloca(PtrTy);
-    } else {
-        this->Pointer = CGM->Builder->CreateAlloca(T->isIntegerTy(1) ? CGM->Int8Ty : T);
-    }
-    return this->Pointer;
 }
 
 llvm::StoreInst *CodeGenVar::Store(llvm::Value *Val) {
@@ -51,10 +39,8 @@ llvm::StoreInst *CodeGenVar::Store(llvm::Value *Val) {
     if (T->isIntegerTy(1)) {
         Val = CGM->Builder->CreateZExt(Val, CGM->Int8Ty);
     }
-    if (Pointer == nullptr)
-        return CGM->Builder->CreateStore(Val, getPointer());
-    else
-        return CGM->Builder->CreateStore(Val, Pointer);
+
+	return CGM->Builder->CreateStore(Val, getPointer());
 }
 
 llvm::LoadInst *CodeGenVar::Load() {
@@ -71,10 +57,13 @@ llvm::Value *CodeGenVar::getValue() {
 }
 
 llvm::Value *CodeGenVar::getPointer() {
-    if (Parent) {
-        llvm::ConstantInt *Zero = llvm::ConstantInt::get(CGM->Int32Ty, 0);
-        llvm::ConstantInt *Idx = llvm::ConstantInt::get(CGM->Int32Ty, Index);
-        return CGM->Builder->CreateInBoundsGEP(Parent->getType(), Parent->getValue(), {Zero, Idx});
-    }
+	if (Sema->getVarKind() == SemaVarKind::VAR_MEMBER) {
+		SemaMemberVar * MemberVar = static_cast<SemaMemberVar *>(Sema);
+		llvm::ConstantInt *Index = llvm::ConstantInt::get(CGM->Int32Ty, MemberVar->getIndex());
+		llvm::PointerType *PtrType =llvm::cast<llvm::PointerType>(this->Pointer->getType());
+		this->Pointer = CGM->Builder->CreateInBoundsGEP(PtrType->getElementType(), this->Pointer, {CGM->Zero, Index});
+	}
+
     return this->Pointer;
 }
+

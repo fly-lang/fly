@@ -15,7 +15,7 @@
 #include "AST/ASTCall.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTAssignmentStmt.h"
-#include "AST/ASTVarRef.h"
+#include "AST/ASTRef.h"
 #include "AST/ASTVar.h"
 #include "AST/ASTLoopStmt.h"
 #include "AST/ASTIfStmt.h"

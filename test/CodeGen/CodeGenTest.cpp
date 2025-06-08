@@ -22,7 +22,7 @@
 #include "AST/ASTVar.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTDeleteStmt.h"
-#include "AST/ASTVarRef.h"
+#include "AST/ASTRef.h"
 #include "AST/ASTVar.h"
 #include "AST/ASTIfStmt.h"
 #include "AST/ASTSwitchStmt.h"
@@ -197,7 +197,7 @@ namespace {
     	ASTVar *LocalVar_g = getASTBuilder().CreateLocalVar(Body, SourceLoc, FloatTypeRef, "g", EmptyScopes);
 
         // g = 1.0
-        ASTVarRef *VarRef_g = getASTBuilder().CreateVarRef(LocalVar_g);
+        ASTRef *VarRef_g = getASTBuilder().CreateVarRef(LocalVar_g);
         SemaBuilderStmt * GVarStmt = getASTBuilder().CreateAssignmentStmt(Body, VarRef_g);
         ASTExpr *ExprG = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "1.0"));
         GVarStmt->setExpr(ExprG);
@@ -1251,7 +1251,7 @@ namespace {
         ASTBlockStmt *InitBlock = getASTBuilder().CreateBlockStmt(SourceLoc);
         LoopBuilder->Init(InitBlock);
         ASTVar *iVar = getASTBuilder().CreateLocalVar(InitBlock, SourceLoc, IntTypeRef, "i", EmptyScopes);
-        ASTVarRef *iVarRef = getASTBuilder().CreateVarRef(iVar);
+        ASTRef *iVarRef = getASTBuilder().CreateVarRef(iVar);
         SemaBuilderStmt *iVarStmt = getASTBuilder().CreateAssignmentStmt(InitBlock, iVarRef);
         ASTValueExpr *Value1Expr = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "1"));
         iVarStmt->setExpr(Value1Expr);

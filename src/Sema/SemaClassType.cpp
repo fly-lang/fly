@@ -51,6 +51,10 @@ SemaClassKind SemaClassType::getClassKind() const {
 	return ClassKind;
 }
 
+SemaVar *SemaClassType::getThis() const {
+	return This;
+}
+
 const llvm::StringMap<SemaClassType *> &SemaClassType::getSuperClasses() const {
 	return SuperClasses;
 }

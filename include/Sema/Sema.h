@@ -36,7 +36,6 @@ namespace fly {
     class ASTFunction;
     class ASTFunction;
     class ASTImport;
-    class ASTVarRef;
     class ASTVar;
     class ASTBlockStmt;
     class ASTRef;

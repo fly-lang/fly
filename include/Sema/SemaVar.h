@@ -23,6 +23,7 @@ namespace fly {
 	enum class SemaVarKind {
 		VAR_PARAM,
 		VAR_LOCAL,
+		VAR_MEMBER,
 		VAR_ERROR,
 		VAR_GLOBAL,
 		VAR_CLASS,
@@ -38,9 +39,7 @@ namespace fly {
 
     	ASTVar *AST;
 
-    	SemaVarKind Kind;
-
-    	SemaType *Type = nullptr;
+    	SemaVarKind VarKind;
 
     	bool Constant = false;
 
@@ -53,9 +52,7 @@ namespace fly {
 
         ASTVar *getAST() const;
 
-    	SemaVarKind getKind() const;
-
-    	SemaType *getType() const;
+    	SemaVarKind getVarKind() const;
 
     	bool isConstant() const;
 
