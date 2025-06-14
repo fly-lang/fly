@@ -11,8 +11,7 @@
 #ifndef FLY_CODEGEN_CLASS_H
 #define FLY_CODEGEN_CLASS_H
 
-#include "CodeGenClassVar.h"
-#include "CodeGenClassFunction.h"
+#include "CodeGenClassMethod.h"
 
 namespace llvm {
     class StructType;
@@ -26,8 +25,7 @@ namespace fly {
 
     class CodeGenClass {
 
-        friend class CodeGenClassFunction;
-        friend class CodeGenClassVar;
+        friend class CodeGenClassMethod;
 
         CodeGenModule * CGM;
 
@@ -41,11 +39,9 @@ namespace fly {
 
         llvm::SmallVector<llvm::Type *, 4> TypeVector;
 
-        llvm::SmallVector<CodeGenClassVar *, 4> Attributes;
+        llvm::SmallVector<CodeGenClassMethod *, 4> Constructors;
 
-        llvm::SmallVector<CodeGenClassFunction *, 4> Constructors;
-
-        llvm::SmallVector<CodeGenClassFunction *, 4> Methods;
+        llvm::SmallVector<CodeGenClassMethod *, 4> Methods;
 
     public:
         CodeGenClass(CodeGenModule *CGM, SemaClassType *Sema, bool isExternal = false);
@@ -58,13 +54,10 @@ namespace fly {
 
         llvm::StructType *getVTableType();
 
-//        const llvm::SmallVector<CodeGenClassVar *, 4> &getAttributes() const;
+        const llvm::SmallVector<CodeGenClassMethod *, 4> &getConstructors() const;
 
-        const llvm::SmallVector<CodeGenClassFunction *, 4> &getConstructors() const;
+        const llvm::SmallVector<CodeGenClassMethod *, 4> &getMethods() const;
 
-        const llvm::SmallVector<CodeGenClassFunction *, 4> &getFunctions() const;
-
-        const llvm::SmallVector<CodeGenClassVar *, 4> &getAttributes() const;
     };
 }
 

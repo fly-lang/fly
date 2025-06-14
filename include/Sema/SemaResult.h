@@ -18,6 +18,7 @@ namespace fly {
 
     class SemaResult {
 
+    	friend class SemaBuilder;
     	friend class SemaResolver;
     	friend class SemaResolverClass;
 
@@ -27,9 +28,9 @@ namespace fly {
 
     	SemaResult *Child = nullptr;
 
-    	SemaType *Type = nullptr;
-
     protected:
+
+    	SemaType *Type = nullptr;
 
         explicit SemaResult(bool IsCall);
 

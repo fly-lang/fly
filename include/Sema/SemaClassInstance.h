@@ -7,21 +7,17 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_SEMA_CLASS_ATTRIBUTE_H
-#define FLY_SEMA_CLASS_ATTRIBUTE_H
-
-#include <CodeGen/CodeGenVar.h>
+#ifndef FLY_SEMA_CLASS_INSTANCE_H
+#define FLY_SEMA_CLASS_INSTANCE_H
 
 #include "Sema/SemaVar.h"
 
 namespace fly {
 
-    class ASTVar;
-    class SemaComment;
     class SemaClassType;
 	class CodeGenVar;
 
-    class SemaClassAttribute  : public SemaVar {
+    class SemaClassInstance  : public SemaVar {
 
         friend class SemaBuilder;
         friend class SemaResolverClass;
@@ -29,33 +25,22 @@ namespace fly {
 
         SemaClassType *Class;
 
-        bool Static;
-
-        uint64_t Index;
-
 		CodeGenVar *CodeGen = nullptr;
-
-        SemaComment *Comment = nullptr;
 
     protected:
 
-        explicit SemaClassAttribute(ASTVar *AST, SemaClassType *Class, uint64_t Index);
+        explicit SemaClassInstance(SemaClassType *Class);
 
     public:
 
         SemaClassType *getClass() const;
 
-        uint64_t getIndex() const;
-
-    	CodeGenVar *getCodeGen() const override;
+    	CodeGenVarBase *getCodeGen() const override;
 
         void setCodeGen(CodeGenVarBase* CodeGen) override;
 
-        SemaComment *getComment() const;
-
-        bool isStatic();
     };
 
 }  // end namespace fly
 
-#endif // FLY_SEMA_CLASS_ATTRIBUTE_H
+#endif // FLY_SEMA_CLASS_INSTANCE_H

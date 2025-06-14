@@ -221,19 +221,19 @@ void SemaResolverClass::CreateDefaultConstructor() {
 
 void SemaResolverClass::SetDefaultValueInAttributes() {
 	// Set default values in attributes
-	if (Class->getClassKind() == SemaClassKind::INTERFACE || Class->getClassKind() == SemaClassKind::STRUCT) {
+	for (auto &AttributeEntry : Class->getAttributes()) {
+		SemaClassAttribute *Attribute = AttributeEntry.getValue();
 
-		// Init null value attributes with default values
-		for (auto &AttributeEntry : Class->getAttributes()) {
-			SemaClassAttribute *Attribute = AttributeEntry.getValue();
-			// Generate default values
-			if (Attribute->getAST()->getExpr() == nullptr) {
-				ASTValue *DefaultValue = S.getASTBuilder().CreateDefaultValue(Attribute->getType());
-				ASTValueExpr *ValueExpr = S.getASTBuilder().CreateExpr(DefaultValue);
-				Attribute->AST->Expr = ValueExpr;
-			}
-			S.getValidator().CheckIsValueExpr(Attribute->getAST()->getExpr());
+		// Generate default values
+		if (Attribute->getAST()->getExpr() == nullptr) {
+			R->ResolveTypeRef(Attribute->getAST()->TypeRef);
+
+			ASTValue *DefaultValue = S.getASTBuilder().CreateDefaultValue(Attribute->getType());
+			Attribute->AST->Expr = S.getASTBuilder().CreateExpr(DefaultValue);
+			R->ResolveValue(DefaultValue);
+			Attribute->AST->Expr->Type = Attribute->getType();
 		}
+		S.getValidator().CheckIsValueExpr(Attribute->getAST()->getExpr());
 	}
 }
 
@@ -242,10 +242,10 @@ void SemaResolverClass::AddBodies() {
 	for (auto &ConstructorEntry: Class->getConstructors()) {
 		ASTBlockStmt * Body = ConstructorEntry.getValue()->getAST()->getBody();
 
-		// Add Attribute to Constructor LocalVars
-		for (auto &Attribute: Class->Attributes) {
-			ConstructorEntry.second->LocalVars.push_back(Attribute.getValue());
-		}
+		// Add Attribute to Constructor LocalVars // FIXME remove this
+		// for (auto &Attribute: Class->Attributes) {
+		// 	ConstructorEntry.second->LocalVars.push_back(Attribute.getValue());
+		// }
 
 		R->Bodies.push_back(ConstructorEntry.getValue()->getAST()->getBody());
 	}
@@ -253,11 +253,6 @@ void SemaResolverClass::AddBodies() {
 	// Methods
 	for (auto &MethodEntry : Class->getMethods()) {
 		SemaClassMethod * Method = MethodEntry.getValue();
-
-		// Add Attribute to Method LocalVars
-		for (auto &Attribute: Class->Attributes) {
-			MethodEntry.second->LocalVars.push_back(Attribute.getValue());
-		}
 
 		if (Method->getAST()->getBody()) {
 			R->Bodies.push_back(Method->getAST()->getBody());

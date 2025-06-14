@@ -11,6 +11,8 @@
 #ifndef FLY_CODEGEN_VAR_H
 #define FLY_CODEGEN_VAR_H
 
+#include <Sema/SemaClassType.h>
+
 #include "CodeGenVarBase.h"
 #include "llvm/ADT/StringRef.h"
 
@@ -45,7 +47,7 @@ namespace fly {
     public:
 //        CodeGenVar(CodeGenModule *CGM, ASTVar *Var);
 
-        CodeGenVar(CodeGenModule *CGM, SemaVar *Sema, llvm::Type *T, llvm::Value *Pointer);
+        CodeGenVar(CodeGenModule *CGM, SemaVar *Sema, llvm::Type *T, llvm::Value *Pointer = nullptr);
 
         llvm::Type *getType() override;
 
@@ -54,6 +56,8 @@ namespace fly {
         llvm::LoadInst *Load() override;
 
         llvm::Value *getValue() override;
+
+        llvm::ConstantInt * getIndex(SemaClassType * Classtype, uint64_t Index);
 
         llvm::Value *getPointer() override;
 

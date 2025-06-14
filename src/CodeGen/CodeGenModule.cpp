@@ -211,7 +211,7 @@ void CodeGenModule::GenAll() {
         for (auto CGCF: CGClass->getConstructors()) {
             CGCF->GenBody();
         }
-        for (auto CGCF: CGClass->getFunctions()) {
+        for (auto CGCF: CGClass->getMethods()) {
             CGCF->GenBody();
         }
     }
@@ -1146,7 +1146,7 @@ void CodeGenModule::GenLoopBlock(CodeGenFunctionBase *CGF, ASTLoopStmt *Loop) {
 }
 
 void CodeGenModule::GenReturn(ASTFunction *F, ASTExpr *Expr) {
-    // Create the Value for return
+    // Create the Value for return // FIXME
     if (F->getReturnTypeRef()->getSema()->isVoid()) {
         Builder->CreateRetVoid();
     } else {

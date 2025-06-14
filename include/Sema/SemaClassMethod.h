@@ -11,14 +11,14 @@
 #define FLY_SEMA_CLASS_METHOD_H
 
 #include "Sema/SemaFunctionBase.h"
-#include "CodeGen/CodeGenClassFunction.h"
+#include "CodeGen/CodeGenClassMethod.h"
 
 namespace fly {
 
     class SemaClassType;
     class ASTFunction;
     class SemaComment;
-	class CodeGenClassFunction;
+	class CodeGenClassMethod;
 
 	enum class SemaClassMethodKind {
 		METHOD,
@@ -47,7 +47,7 @@ namespace fly {
 
     	SemaClassType *DerivedClass = nullptr;
 
-		CodeGenClassFunction *CodeGen = nullptr;
+		CodeGenClassMethod *CodeGen = nullptr;
 
     	SemaComment *Comment = nullptr;
 
@@ -67,9 +67,9 @@ namespace fly {
 
     	SemaComment *getComment() const;
 
-    	CodeGenClassFunction *getCodeGen() const override;
+    	CodeGenClassMethod *getCodeGen() const override;
 
-    	void setCodeGen(CodeGenClassFunction *CodeGen);
+    	void setCodeGen(CodeGenClassMethod *CodeGen);
     };
 
 }  // end namespace fly

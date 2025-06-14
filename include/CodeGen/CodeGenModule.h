@@ -74,8 +74,7 @@ namespace fly {
         friend class CodeGenFunction;
         friend class CodeGenFunctionBase;
         friend class CodeGenClass;
-        friend class CodeGenClassVar;
-        friend class CodeGenClassFunction;
+        friend class CodeGenClassMethod;
         friend class CodeGenVarBase;
         friend class CodeGenVar;
         friend class CodeGenExpr;

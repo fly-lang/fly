@@ -94,8 +94,7 @@ add_library(flyLib
         CodeGen/BackendUtil.cpp
         CodeGen/CodeGen.cpp
         CodeGen/CodeGenClass.cpp
-        CodeGen/CodeGenClassVar.cpp
-        CodeGen/CodeGenClassFunction.cpp
+        CodeGen/CodeGenClassMethod.cpp
         CodeGen/CodeGenEnumEntry.cpp
         CodeGen/CodeGenExpr.cpp
         CodeGen/CodeGenError.cpp
@@ -149,6 +148,7 @@ add_library(flyLib
         Sema/SemaClassType.cpp
         Sema/SemaComment.cpp
         Sema/SemaClassAttribute.cpp
+        Sema/SemaClassInstance.cpp
         Sema/SemaClassMethod.cpp
         Sema/SemaEnumType.cpp
         Sema/SemaEnumEntry.cpp

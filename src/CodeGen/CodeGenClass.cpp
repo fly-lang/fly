@@ -43,7 +43,7 @@ void CodeGenClass::Generate() {
 			SemaClassMethod * Constructor = Entry.getValue();
 
             // Create Constructor CodeGen for Constructor
-            CodeGenClassFunction *CGCF = new CodeGenClassFunction(CGM, Constructor);
+            CodeGenClassMethod *CGCF = new CodeGenClassMethod(CGM, Constructor);
             Constructor->setCodeGen(CGCF);
             Constructors.push_back(CGCF);
         }
@@ -59,7 +59,7 @@ void CodeGenClass::Generate() {
         	SemaClassMethod *Method = Entry.getValue();
 
         	// Create CodeGen for Method
-            CodeGenClassFunction *CG = new CodeGenClassFunction(CGM, Method);
+            CodeGenClassMethod *CG = new CodeGenClassMethod(CGM, Method);
         	Method->setCodeGen(CG);
 
         	// Add to Class Methods
@@ -80,26 +80,16 @@ void CodeGenClass::Generate() {
     }
 
     // Set CodeGen Attributes
-    if (!Sema->getAttributes().empty()) {
-        if (Sema->getClassKind() == SemaClassKind::CLASS || Sema->getClassKind() == SemaClassKind::STRUCT) {
+    if (!Sema->getAttributes().empty() &&
+    	Sema->getClassKind() == SemaClassKind::CLASS || Sema->getClassKind() == SemaClassKind::STRUCT) {
 
-            // add var to the type
-        	uint64_t Index = 0;
-            for (auto &AttributeEntry: Sema->getAttributes()) {
-            	SemaClassAttribute *Attribute = AttributeEntry.getValue();
+        // add var to the type
+        for (auto &AttributeEntry: Sema->getAttributes()) {
+            SemaClassAttribute *Attribute = AttributeEntry.getValue();
+        	llvm::Type *AttrType = CGM->GenType(Attribute->getType());
 
-            	// Set CodeGen Class Instance
-            	CodeGenClassVar *CG = new CodeGenClassVar(CGM, Attribute, Index);
-            	Attribute->setCodeGen(CG);
-
-            	// add to Class Attributes
-            	Attributes.push_back(CG);
-
-            	// dd to Class Var types list
-                TypeVector.push_back(CG->getType());
-
-            	Index++;
-            }
+            // Add to Class Var types list
+            TypeVector.push_back(AttrType);
         }
     }
 
@@ -119,18 +109,10 @@ llvm::StructType *CodeGenClass::getVTableType() {
     return VTableType;
 }
 
-//const SmallVector<CodeGenClassVar *, 4> &CodeGenClass::getAttributes() const {
-//    return Attributes;
-//}
-
-const SmallVector<CodeGenClassFunction *, 4> &CodeGenClass::getConstructors() const {
+const SmallVector<CodeGenClassMethod *, 4> &CodeGenClass::getConstructors() const {
     return Constructors;
 }
 
-const SmallVector<CodeGenClassFunction *, 4> &CodeGenClass::getFunctions() const {
+const SmallVector<CodeGenClassMethod *, 4> &CodeGenClass::getMethods() const {
     return Methods;
-}
-
-const SmallVector<CodeGenClassVar *, 4> &CodeGenClass::getAttributes() const {
-	return Attributes;
 }

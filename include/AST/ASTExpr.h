@@ -37,6 +37,7 @@ namespace fly {
 
         friend class ASTBuilder;
         friend class SemaResolver;
+        friend class SemaResolverClass;
         friend class SemaValidator;
 
     protected:

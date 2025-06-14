@@ -38,6 +38,8 @@
 #include "Sema/SemaCall.h"
 #include "llvm/Support/Regex.h"
 
+#include <Sema/SemaClassInstance.h>
+
 using namespace fly;
 
 SemaBuilder::SemaBuilder(Sema &S) : S(S) {
@@ -375,7 +377,7 @@ SemaClassType * SemaBuilder::CreateClass(SemaModule *Module, ASTClass *AST) {
 }
 
 SemaVar *SemaBuilder::CreateThisAttribute(SemaClassType *Class) {
-	Class->This = new SemaClassAttribute(nullptr, Class, 0);
+	Class->This = new SemaClassInstance(Class);
 	return Class->This;
 }
 
@@ -384,6 +386,7 @@ SemaClassAttribute * SemaBuilder::CreateClassAttribute(SemaClassType *Class, AST
 
 	uint64_t Index = Class->Attributes.size();
 	SemaClassAttribute *Attribute = new SemaClassAttribute(AST, Class, Index);
+	Attribute->setParent(Class->getThis());
 
 	Class->Attributes.insert(std::make_pair(AST->getName(), Attribute));
 	AST->Sema = Attribute;

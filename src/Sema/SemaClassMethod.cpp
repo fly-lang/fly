@@ -44,11 +44,11 @@ bool SemaClassMethod::isStatic() const {
 	return Static;
 }
 
-CodeGenClassFunction * SemaClassMethod::getCodeGen() const {
+CodeGenClassMethod * SemaClassMethod::getCodeGen() const {
 	return CodeGen;
 }
 
-void SemaClassMethod::setCodeGen(CodeGenClassFunction *CodeGen) {
+void SemaClassMethod::setCodeGen(CodeGenClassMethod *CodeGen) {
 	this->CodeGen = CodeGen;
 }
 

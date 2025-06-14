@@ -8,8 +8,8 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#ifndef FLY_CODEGEN_CLASSFUNCTION_H
-#define FLY_CODEGEN_CLASSFUNCTION_H
+#ifndef FLY_CODEGEN_CLASSMETHOD_H
+#define FLY_CODEGEN_CLASSMETHOD_H
 
 #include "CodeGenFunctionBase.h"
 
@@ -27,7 +27,7 @@ namespace fly {
     class SemaClassType;
     class SemaClassMethod;
 
-    class CodeGenClassFunction : public CodeGenFunctionBase {
+    class CodeGenClassMethod : public CodeGenFunctionBase {
 
         friend class CodeGenClass;
 
@@ -35,9 +35,7 @@ namespace fly {
 
         llvm::PointerType *ClassTypePtr;
 
-        llvm::AllocaInst * InstancePtr;
-
-        CodeGenClassFunction(CodeGenModule *CGM, SemaClassMethod *Sema);
+        CodeGenClassMethod(CodeGenModule *CGM, SemaClassMethod *Sema);
 
     public:
 
@@ -45,4 +43,4 @@ namespace fly {
     };
 }
 
-#endif //FLY_CODEGEN_CLASSFUNCTION_H
+#endif //FLY_CODEGEN_CLASSMETHOD_H
