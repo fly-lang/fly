@@ -688,12 +688,19 @@ llvm::Value * CodeGenModule::GenResult(SemaResult *Sema) {
 	return GenVar(static_cast<SemaVar *>(Sema), ParentPtr)->getValue();
 }
 
+void CodeGenModule::addArgs(SemaCall *Sema, llvm::SmallVector<llvm::Value *, 8> &Args) {
+	// Add Call arguments to Function args
+	for (ASTArg *Arg : Sema->getAST()->getArgs()) {
+		llvm::Value *V = CodeGenExpr::Generate(this, Arg->getExpr());
+		Args.push_back(V);
+	}
+}
+
 llvm::Value *CodeGenModule::GenCall(SemaCall *Sema) {
 
     // The function arguments
     llvm::SmallVector<llvm::Value *, 8> Args;
 
-	bool IsConstructor = false;
 	llvm::Value *InstancePtr = nullptr;
 
     // Add error as first parameter
@@ -708,7 +715,6 @@ llvm::Value *CodeGenModule::GenCall(SemaCall *Sema) {
 
 		// Call class constructor
     	if (Method->isConstructor()) {
-    		IsConstructor = true;
 
     		// TODO remove following line
     		// llvm::Type *AllocType = Method->getClass()->getAttributes().empty() ? Int8Ty : Method->getClass()->getCodeGen()-
@@ -729,22 +735,39 @@ llvm::Value *CodeGenModule::GenCall(SemaCall *Sema) {
 
     	// Add Instance parameter
     	Args.push_back(InstancePtr);
+    	addArgs(Sema, Args);
+
+    	CodeGenClass * CGClass = Method->getClass()->getCodeGen();
+
+    	// Create the method call
+    	if (Method->isConstructor()) {
+    		Builder->CreateCall(Method->getCodeGen()->getFunction(), Args);
+    		return InstancePtr;
+    	} else {
+    		// Get the VTable pointer
+    		llvm::Value * VTablePtrPtr = Builder->CreateStructGEP(CGClass->getType(), InstancePtr, 0);
+    		llvm::LoadInst * VTablePtr = Builder->CreateLoad(VTablePtrPtr);
+
+    		// Get the Method index in the VTable
+    		llvm::StructType * VTableType = CGClass->getVTableType();
+    		llvm::Value * FuncPtrPtr = Builder->CreateStructGEP(VTableType, VTablePtr, Method->getCodeGen()->getIndex());
+    		llvm::LoadInst * FuncPtr = Builder->CreateLoad(FuncPtrPtr);
+
+    		// Create the function call
+    		return Builder->CreateCall(Method->getCodeGen()->getFunction()->getFunctionType(), FuncPtr, Args);
+    	}
+
+    	// Create the constructor call
+    	return InstancePtr;
     } else {
 
     	// Add Error parameter
         Args.push_back(Sema->getErrorHandler()->getCodeGen()->getValue()); // Error is a Pointer
+    	addArgs(Sema, Args);
+
+    	CodeGenFunctionBase *CGF = Sema->getFunction()->getCodeGen();
+    	return Builder->CreateCall(CGF->getFunction(), Args);
     }
-
-    // Add Call arguments to Function args
-    for (ASTArg *Arg : Sema->getAST()->getArgs()) {
-        llvm::Value *V = CodeGenExpr::Generate(this, Arg->getExpr());
-        Args.push_back(V);
-    }
-
-    CodeGenFunctionBase *CGF = Sema->getFunction()->getCodeGen();
-    llvm::Value *RetVal = Builder->CreateCall(CGF->getFunction(), Args);
-
-    return IsConstructor ? InstancePtr : RetVal;
 }
 
 void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {

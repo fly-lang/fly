@@ -113,16 +113,6 @@ TEST_F(CodeGenTest, CGStruct2) {
         SemaBuilderStmt *xVarStmt = getASTBuilder().CreateAssignmentStmt(Body, xVar);
         xVarStmt->setExpr(test_aRefExpr);
 
-        // test.b = 2
-        // ASTRef *Instance2 = getASTBuilder().CreateVarRef(TestVar);
-        // ASTRef *test_bVarRef = getASTBuilder().CreateVarRef(bField, Instance2);
-        // SemaBuilderStmt *test_bVarStmt = getASTBuilder().CreateAssignmentStmt(Body, test_bVarRef);
-        // ASTExpr *Expr = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "2"));
-        // test_bVarStmt->setExpr(Expr);
-
-        // delete test
-        // ASTDeleteStmt *Delete = getASTBuilder().CreateDeleteStmt(Body, SourceLoc, (ASTRef *) Instance);
-
 		// validate and resolve
 		EXPECT_TRUE(S->Resolve());
 
@@ -148,11 +138,6 @@ TEST_F(CodeGenTest, CGStruct2) {
                           "  %6 = getelementptr inbounds %TestStruct, %TestStruct* %5, i32 0, i32 0\n"
                           "  %7 = load i32, i32* %6, align 4\n"
                           "  store i32 %7, i32* %3, align 4\n"
-                          // "  %8 = getelementptr inbounds %TestStruct, %TestStruct* %5, i32 0, i32 1\n"
-                          // "  store i32 2, i32* %8, align 4\n"
-                          // "  %9 = load %TestStruct*, %TestStruct** %2, align 8\n"
-                          // "  %10 = bitcast %TestStruct* %9 to i8*\n"
-                          // "  tail call void @free(i8* %10)\n"
                           "  ret void\n"
                           "}\n"
                           "\n"
@@ -163,18 +148,10 @@ TEST_F(CodeGenTest, CGStruct2) {
 						  "  %2 = load %TestStruct*, %TestStruct** %1, align 8\n"
 						  "  %3 = getelementptr inbounds %TestStruct, %TestStruct* %2, i32 0, i32 0\n"
 						  "  store i32 0, i32* %3, align 4\n"
-						  // "  %3 = getelementptr inbounds %TestStruct, %TestStruct* %2, i32 0, i32 0\n"
-						  // "  store i32 0, i32* %3, align 4\n"
-						  // "  %4 = getelementptr inbounds %TestStruct, %TestStruct* %2, i32 0, i32 1\n"
-						  // "  store i32 0, i32* %4, align 4\n"
-						  // "  %5 = getelementptr inbounds %TestStruct, %TestStruct* %2, i32 0, i32 2\n"
-						  // "  store i32 0, i32* %5, align 4\n"
 						  "  ret void\n"
 						  "}\n"
 						  "\n"
                           "declare noalias i8* @malloc(i64)\n"
-                          // "\n"
-                          // "declare void @free(i8*)\n"
                           );
     }
 
@@ -232,7 +209,7 @@ TEST_F(CodeGenTest, CGStruct2) {
 
         EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
                           "%TestClass = type { %TestClass_vtable* }\n"
-                          "%TestClass_vtable = type { i32 (%error*, %TestClass*) }\n"
+                          "%TestClass_vtable = type { i32 (%error*, %TestClass*)* }\n"
                           "\n"
                           "define void @_F4func(%error* %0) {\n"
 						  "entry:\n"
@@ -344,7 +321,7 @@ TEST_F(CodeGenTest, CGStruct2) {
 
         EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
                           "%TestClass = type { %TestClass_vtable*, i32 }\n"
-                          "%TestClass_vtable = type { i32 (%error*, %TestClass*) }\n"
+                          "%TestClass_vtable = type { i32 (%error*, %TestClass*)* }\n"
                           "\n"
 						  "define void @_F4func(%error* %0) {\n"
 						  "entry:\n"
@@ -400,5 +377,192 @@ TEST_F(CodeGenTest, CGStruct2) {
                           "\n"
                           "declare void @free(i8*)\n"
         );
+    }
+
+	TEST_F(CodeGenTest, CGStructExtendsStruct) {
+    	ASTModule *Module = CreateModule();
+
+    	// struct BaseStruct {
+    	// int a
+    	// }
+    	//
+    	// struct TestStruct : BaseStruct {
+    	// }
+    	llvm::SmallVector<ASTTypeRef *, 4> BaseSuperClasses;
+    	ASTClass *BaseStruct = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "BaseStruct",
+			TopScopes, BaseSuperClasses);
+    	llvm::SmallVector<ASTTypeRef *, 4> TestSuperClasses;
+    	TestSuperClasses.push_back(getASTBuilder().CreateTypeRef(BaseStruct));
+    	ASTClass *TestClass = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "TestStruct",
+			TopScopes, TestSuperClasses);
+
+    }
+
+	TEST_F(CodeGenTest, CGStructExtendsStructs) {
+    	ASTModule *Module = CreateModule();
+
+    	// struct BaseStruct {
+    	// int a
+    	// }
+    	// struct BaseStruct2 {
+    	// int b
+    	// }
+    	//
+    	// struct TestStruct : BaseStruct, BaseStruct2 {
+    	// }
+    	llvm::SmallVector<ASTTypeRef *, 4> BaseSuperClasses;
+    	ASTClass *BaseStruct = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "BaseStruct",
+			TopScopes, BaseSuperClasses);
+    	ASTClass *BaseStruct2 = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "BaseStruct2",
+			TopScopes, BaseSuperClasses);
+    	llvm::SmallVector<ASTTypeRef *, 4> TestSuperClasses;
+    	TestSuperClasses.push_back(getASTBuilder().CreateTypeRef(BaseStruct));
+    	TestSuperClasses.push_back(getASTBuilder().CreateTypeRef(BaseStruct2));
+    	ASTClass *TestClass = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "TestStruct",
+			TopScopes, TestSuperClasses);
+    }
+
+	TEST_F(CodeGenTest, CGClassExtendsStruct) {
+    	ASTModule *Module = CreateModule();
+
+    	// struct BaseStruct {
+    	// int a
+    	// }
+    	//
+    	// class TestClass : BaseStruct {
+    	// }
+    	llvm::SmallVector<ASTTypeRef *, 4> BaseSuperClasses;
+    	ASTClass *BaseStruct = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "BaseStruct",
+			TopScopes, BaseSuperClasses);
+    	llvm::SmallVector<ASTTypeRef *, 4> TestSuperClasses;
+    	TestSuperClasses.push_back(getASTBuilder().CreateTypeRef(BaseStruct));
+    	ASTClass *TestClass = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "TestClass",
+			TopScopes, TestSuperClasses);
+
+    }
+
+	TEST_F(CodeGenTest, CGClassExtendsStructs) {
+	    ASTModule *Module = CreateModule();
+
+    	// struct BaseStruct {
+    	// int a
+    	// }
+    	// struct BaseStruct2 {
+    	// int b
+    	// }
+    	//
+    	// class TestClass : BaseStruct, BaseStruct2 {
+    	// }
+    	llvm::SmallVector<ASTTypeRef *, 4> BaseSuperClasses;
+    	ASTClass *BaseStruct = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "BaseStruct",
+			TopScopes, BaseSuperClasses);
+    	ASTClass *BaseStruct2 = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "BaseStruct2",
+			TopScopes, BaseSuperClasses);
+    	llvm::SmallVector<ASTTypeRef *, 4> TestSuperClasses;
+    	TestSuperClasses.push_back(getASTBuilder().CreateTypeRef(BaseStruct));
+    	TestSuperClasses.push_back(getASTBuilder().CreateTypeRef(BaseStruct2));
+    	ASTClass *TestClass = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass",
+			TopScopes, TestSuperClasses);
+    }
+
+	TEST_F(CodeGenTest, CGClassExtendsClass) {
+    	ASTModule *Module = CreateModule();
+
+    	// class BaseClass {
+    	// int a
+    	// void do() {}
+    	// }
+    	//
+    	// class TestClass : BaseClass {
+    	//	void undo() {
+    	//		a = 2
+    	//	    do()
+    	//  }
+    	// }
+    	llvm::SmallVector<ASTTypeRef *, 4> BaseSuperClasses;
+    	ASTClass *BaseClass = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass",
+			TopScopes, BaseSuperClasses);
+    	llvm::SmallVector<ASTTypeRef *, 4> TestSuperClasses;
+    	TestSuperClasses.push_back(getASTBuilder().CreateTypeRef(BaseClass));
+    	ASTClass *TestClass = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass",
+			TopScopes, TestSuperClasses);
+    }
+
+    TEST_F(CodeGenTest, CGClassExtendsClasses) {
+    	ASTModule *Module = CreateModule();
+
+    	// class BaseClass {
+    	// int a
+    	// void do() {}
+    	// }
+    	// class BaseClass2 {
+    	// int b
+    	// void do() {}
+    	// }
+    	//
+    	// class TestClass : BaseClass, BaseClass2 {
+    	//	void undo() {
+    	//		a = 2
+    	//	    do()
+    	//  }
+    	// }
+    }
+
+	TEST_F(CodeGenTest, CGInterfaceExtendsInterface) {
+    	ASTModule *Module = CreateModule();
+
+    	// interface BaseInterface {
+    	// void do()
+    	// }
+    	// interface BaseInterface2 {
+    	// void undo()
+    	// }
+    	//
+    	// interface TestInterface : BaseInterface, BaseInterface2 {
+    	// }
+    }
+
+	TEST_F(CodeGenTest, CGClassExtendsInterface) {
+    	ASTModule *Module = CreateModule();
+
+    	// interface BaseInterface {
+    	// int a
+    	// void do() {}
+    	// }
+    	//
+    	// class TestClass : BaseInterface {
+    	//	void undo() {
+    	//		a = 2
+    	//	    do()
+    	//  }
+    	// }
+    	llvm::SmallVector<ASTTypeRef *, 4> BaseSuperClasses;
+    	ASTClass *BaseClass = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass",
+			TopScopes, BaseSuperClasses);
+    	llvm::SmallVector<ASTTypeRef *, 4> TestSuperClasses;
+    	TestSuperClasses.push_back(getASTBuilder().CreateTypeRef(BaseClass));
+    	ASTClass *TestClass = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass",
+			TopScopes, TestSuperClasses);
+    }
+
+	TEST_F(CodeGenTest, CGClassExtendsAll) {
+    	ASTModule *Module = CreateModule();
+
+    	// struct BaseStruct {
+    	// int a
+    	// }
+    	// class BaseClass {
+    	// void undo() {}
+    	// }
+    	// interface BaseInterface {
+    	// void do()
+    	// }
+    	//
+    	// class TestClass : BaseStruct, BaseClass, BaseInterface {
+    	//	void do() {
+    	//		a = 2
+    	//	    undo()
+    	//  }
+    	// }
     }
 } // anonymous namespace

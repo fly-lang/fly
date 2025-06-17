@@ -35,14 +35,13 @@ AllowShortLambdasOnASingleLine: All # Allow lambdas to fit on a single line
 AllowShortIfStatementsOnASingleLine: false # Require multi-line `if` statements even if short
 
 # Namespace indentation
-NamespaceIndentation: Inner        # indent within namespaces
+NamespaceIndentation: All        # indent within namespaces
 
 # Pointer and reference styles
 PointerAlignment: Right           # Align pointer symbols to the type
 # Example: int* ptr; instead of int *ptr;
 
 # Other formatting
-IndentInsideNamespace: Inner    # Indent code inside namespaces
 IndentCaseBlocks: true # Indent case blocks in switch statements
 IndentCaseLabels: true
 BreakBeforeBraces: Attach         # Attach opening braces to the same line as the statement

@@ -43,7 +43,7 @@ void CodeGenClass::Generate() {
 			SemaClassMethod * Constructor = Entry.getValue();
 
             // Create Constructor CodeGen for Constructor
-            CodeGenClassMethod *CGCF = new CodeGenClassMethod(CGM, Constructor);
+            CodeGenClassMethod *CGCF = new CodeGenClassMethod(CGM, Constructor, 0);
             Constructor->setCodeGen(CGCF);
             Constructors.push_back(CGCF);
         }
@@ -59,17 +59,19 @@ void CodeGenClass::Generate() {
         	SemaClassMethod *Method = Entry.getValue();
 
         	// Create CodeGen for Method
-            CodeGenClassMethod *CG = new CodeGenClassMethod(CGM, Method);
+            CodeGenClassMethod *CG = new CodeGenClassMethod(CGM, Method, VTableVector.size());
         	Method->setCodeGen(CG);
 
         	// Add to Class Methods
         	Methods.push_back(CG);
 
         	// Add to VTable
-            if (!Method->isStatic()) { // only instance methods
+            if (!Method->isStatic()) {
+	            // only instance methods
                 // Create the VTable Struct Type
                 // %vtable_type = type { i32(%Foo*)* }
-                VTableVector.push_back(CG->getFunctionType());
+            	llvm::PointerType * FnPtrType = CG->getFunctionType()->getPointerTo(CGM->Module->getDataLayout().getAllocaAddrSpace());
+                VTableVector.push_back(FnPtrType);
             }
 
         }

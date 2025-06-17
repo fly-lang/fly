@@ -31,13 +31,17 @@ namespace fly {
 
         friend class CodeGenClass;
 
+        size_t Index;
+
         llvm::SmallVector<CodeGenVar *, 4> Attributes;
 
         llvm::PointerType *ClassTypePtr;
 
-        CodeGenClassMethod(CodeGenModule *CGM, SemaClassMethod *Sema);
+        CodeGenClassMethod(CodeGenModule *CGM, SemaClassMethod *Sema, size_t Index);
 
     public:
+
+        size_t getIndex() const;
 
         void GenBody() override;
     };

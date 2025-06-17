@@ -11,8 +11,6 @@
 #define FLY_SEMA_VAR_H
 
 #include "Sema/SemaResult.h"
-#include "AST/ASTVar.h"
-
 
 namespace fly {
 

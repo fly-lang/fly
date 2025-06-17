@@ -12,6 +12,7 @@
 
 #include "SemaVar.h"
 #include "CodeGen/CodeGenEnumEntry.h"
+#include <cstddef>
 
 namespace fly {
 

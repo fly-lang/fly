@@ -213,6 +213,8 @@ namespace fly {
 
         llvm::Value* GenResult(SemaResult *Sema);
 
+        void addArgs(SemaCall *Sema, llvm::SmallVector<llvm::Value*, 8>& Args);
+
         llvm::Value *GenCall(SemaCall *Sema);
 
         void GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt);

@@ -29,8 +29,9 @@
 
 using namespace fly;
 
-CodeGenClassMethod::CodeGenClassMethod(CodeGenModule *CGM, SemaClassMethod *Sema) :
-	CodeGenFunctionBase(CGM, Sema), ClassTypePtr(Sema->getClass()->getCodeGen()->getTypePtr()) {
+CodeGenClassMethod::CodeGenClassMethod(CodeGenModule *CGM, SemaClassMethod *Sema, size_t Index) :
+	CodeGenFunctionBase(CGM, Sema), ClassTypePtr(Sema->getClass()->getCodeGen()->getTypePtr()),
+	Index(Index) {
 
 	SemaClassType *Class = Sema->getClass();
 
@@ -58,6 +59,10 @@ CodeGenClassMethod::CodeGenClassMethod(CodeGenModule *CGM, SemaClassMethod *Sema
 	std::string FuncName = (Class->getAST()->getName() + Sema->getMangledName()).str();
     std::string Id = CodeGen::toIdentifier(FuncName, Class->getModule()->getNameSpace()->getName());
     Fn = llvm::Function::Create(FnType, llvm::GlobalValue::ExternalLinkage, Id, CGM->getModule());
+}
+
+size_t CodeGenClassMethod::getIndex() const {
+	return Index;
 }
 
 void CodeGenClassMethod::GenBody() {
