@@ -155,6 +155,80 @@ TEST_F(CodeGenTest, CGStruct2) {
                           );
     }
 
+	TEST_F(CodeGenTest, CGClassStaticMethods) {
+        ASTModule *Module = CreateModule();
+
+        // TestClass {
+        //   static int a() { return 1 }
+        // }
+        llvm::SmallVector<ASTTypeRef *, 4> SuperClasses;
+        ASTClass *TestClass = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass",
+                                                  TopScopes, SuperClasses);
+
+        ASTBlockStmt *aFuncBody = getASTBuilder().CreateBlockStmt(SourceLoc);
+    	llvm::SmallVector<ASTScope *, 8> Scopes = SemaBuilderScopes::Build()->addStatic(SourceLoc)->getScopes();
+        llvm::SmallVector<ASTVar *, 8> Params;
+        ASTFunction *aFunc = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, IntTypeRef,
+                                                          "a", Scopes, Params, aFuncBody);
+
+        SemaBuilderStmt *aFuncReturn = getASTBuilder().CreateReturnStmt(aFuncBody, SourceLoc);
+        ASTValueExpr *aFuncExpr = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLocation(), "1"));
+        aFuncReturn->setExpr(aFuncExpr);
+
+        // int main() {
+        //  int a = TestClass.a()
+        // }
+        ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
+
+        // int a = TestClass.a()
+        ASTVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "a", EmptyScopes);
+    	ASTTypeRef *TestClassType = getASTBuilder().CreateTypeRef(TestClass);
+        ASTCallExpr *aCallExpr = getASTBuilder().CreateExpr(CreateCall(aFunc, Args, ASTCallKind::CALL_FUNCTION, TestClassType));
+        SemaBuilderStmt *aStmt = getASTBuilder().CreateAssignmentStmt(Body, aVar);
+        aStmt->setExpr(aCallExpr);
+
+    	// validate and resolve
+    	EXPECT_TRUE(S->Resolve());
+
+    	// Generate Code
+    	llvm::Module * M = Generate();
+    	std::string output = getOutput(M);
+
+        EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
+                          "%TestClass = type { %TestClass_vtable* }\n"
+                          "%TestClass_vtable = type {}\n"
+                          "\n"
+                          "define void @_F4func(%error* %0) {\n"
+						  "entry:\n"
+						  "  %1 = alloca %error*, align 8\n"
+						  "  %2 = alloca i32, align 4\n"
+						  "  store %error* %0, %error** %1, align 8\n"
+						  "  %3 = load %error*, %error** %1, align 8\n"
+						  "  %4 = call i32 @TestClass_F1a(%error* %3)\n"
+						  "  store i32 %4, i32* %2, align 4\n"
+						  "  ret void\n"
+						  "}\n"
+						  "\n"
+                          "define void @TestClass_F9TestClass(%error* %0, %TestClass* %1) {\n"
+                          "entry:\n"
+                          "  %2 = alloca %error*, align 8\n"
+                          "  %3 = alloca %TestClass*, align 8\n"
+                          "  store %error* %0, %error** %2, align 8\n"
+                          "  store %TestClass* %1, %TestClass** %3, align 8\n"
+                          "  %4 = load %TestClass*, %TestClass** %3, align 8\n"
+                          "  ret void\n"
+                          "}\n"
+                          "\n"
+                          "define i32 @TestClass_F1a(%error* %0) {\n"
+                          "entry:\n"
+                          "  %1 = alloca %error*, align 8\n"
+                          "  store %error* %0, %error** %1, align 8\n"
+                          "  ret i32 1\n"
+                          "}\n"
+                          );
+    }
+
     TEST_F(CodeGenTest, CGClassMethods) {
         ASTModule *Module = CreateModule();
 

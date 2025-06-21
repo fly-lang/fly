@@ -12,6 +12,7 @@
 
 #include "Sema/SemaFunctionBase.h"
 #include "CodeGen/CodeGenClassMethod.h"
+#include "Sema/SemaVisibilityKind.h"
 
 namespace fly {
 
@@ -33,15 +34,11 @@ namespace fly {
     	friend class SemaResolverClass;
     	friend class SemaValidator;
 
-    	enum class VisibilityKind {
-    		PUBLIC,
-			PROTECTED,
-			PRIVATE,
-		};
-
     	SemaClassType *Class;
 
     	SemaClassMethodKind MethodKind;
+
+    	SemaVisibilityKind Visibility = SemaVisibilityKind::DEFAULT;
 
     	bool Static = false;
 

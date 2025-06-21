@@ -249,9 +249,9 @@ SmallVector<ASTScope *, 8> Parser::ParseScopes() {
         } else if (Tok.is(tok::kw_public)) {
             BuilderScopes->addVisibility(ConsumeToken(), ASTVisibilityKind::V_PUBLIC);
         } else if (Tok.is(tok::kw_const)) {
-            BuilderScopes->addConstant(ConsumeToken(), true);
+            BuilderScopes->addConstant(ConsumeToken());
         } else if (Tok.is(tok::kw_static)) {
-            BuilderScopes->addStatic(ConsumeToken(), true);
+            BuilderScopes->addStatic(ConsumeToken());
         } else {
             break;
         }

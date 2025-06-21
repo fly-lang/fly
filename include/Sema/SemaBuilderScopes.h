@@ -29,9 +29,9 @@ namespace fly {
 
         SemaBuilderScopes *addVisibility(const SourceLocation &Loc, ASTVisibilityKind VisibilityKind);
 
-        SemaBuilderScopes *addConstant(const SourceLocation &Loc, bool Constant);
+        SemaBuilderScopes *addConstant(const SourceLocation &Loc);
 
-        SemaBuilderScopes *addStatic(const SourceLocation &Loc, bool Static);
+        SemaBuilderScopes *addStatic(const SourceLocation &Loc);
 
         llvm::SmallVector<ASTScope *, 8> getScopes() const;
     };

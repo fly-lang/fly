@@ -16,7 +16,8 @@ namespace fly {
 	enum class SemaVisibilityKind {
 		DEFAULT,
 		PUBLIC,
-		PRIVATE
+		PRIVATE,
+		PROTECTED,
 	};
 
 }

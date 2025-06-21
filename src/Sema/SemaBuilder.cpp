@@ -410,6 +410,29 @@ SemaClassMethod * SemaBuilder::CreateClassMethod(SemaClassType *Class, ASTFuncti
 		Class->Methods.insert(std::make_pair(MangledName, Method));
 	}
 
+	for (auto &Scope : AST->getScopes()) {
+        if (Scope == nullptr) {
+            // Error:
+            S.Diag(AST->getLocation(), diag::err_sema_visibility_error) << AST->getName();
+        }
+        if (Scope->getScopeKind() == ASTScopeKind::SCOPE_VISIBILITY) {
+            if (Scope->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
+                Method->Visibility = SemaVisibilityKind::PUBLIC;
+            } else if (Scope->getVisibility() == ASTVisibilityKind::V_PRIVATE) {
+                Method->Visibility = SemaVisibilityKind::PRIVATE;
+            } else if (Scope->getVisibility() == ASTVisibilityKind::V_PROTECTED) {
+	            Method->Visibility = SemaVisibilityKind::PROTECTED;
+            } else if (Scope->getVisibility() == ASTVisibilityKind::V_DEFAULT) {
+            	Method->Visibility = SemaVisibilityKind::DEFAULT;
+            } else {
+                // Error
+                S.Diag(AST->getLocation(), diag::err_sema_visibility_error) << AST->getName();
+            }
+        } else if (Scope->getScopeKind() == ASTScopeKind::SCOPE_STATIC) {
+            Method->Static = Scope->isStatic();
+        }
+    }
+
 	AST->Sema = Method;
 	Method->Comment = Comment;
 

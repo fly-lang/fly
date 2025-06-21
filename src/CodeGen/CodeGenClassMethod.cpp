@@ -48,7 +48,9 @@ CodeGenClassMethod::CodeGenClassMethod(CodeGenModule *CGM, SemaClassMethod *Sema
     }
 
     // Add the class type pointer to the params
-    ParamTypes.push_back(ClassTypePtr);
+	if (!Sema->isStatic()) {
+		ParamTypes.push_back(ClassTypePtr);
+	}
 
     // Generate param types
     GenParamTypes(CGM, ParamTypes, Sema);
@@ -80,7 +82,11 @@ void CodeGenClassMethod::GenBody() {
 
     // Alloca Class Instance
 	llvm::AllocaInst * InstancePtr = nullptr;
-    if (!ClassMethod->isStatic()) {
+    if (ClassMethod->isStatic()) {
+
+		// Static Method, add error handler
+    	Sema->getErrorHandler()->getCodeGen()->StoreErrorHandler(Fn->getArg(0));
+    } else {
     	// FIXME replace with SemaVar - InstancePtr
     	InstancePtr = CGM->Builder->CreateAlloca(ClassTypePtr);
     	llvm::Type *ClassType = Class->getCodeGen()->getType();

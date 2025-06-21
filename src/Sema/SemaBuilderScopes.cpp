@@ -23,16 +23,16 @@ SemaBuilderScopes *SemaBuilderScopes::addVisibility(const SourceLocation &Loc, A
     return this;
 }
 
-SemaBuilderScopes *SemaBuilderScopes::addConstant(const SourceLocation &Loc, bool Constant) {
+SemaBuilderScopes *SemaBuilderScopes::addConstant(const SourceLocation &Loc) {
     ASTScope *Scope = new ASTScope(Loc, ASTScopeKind::SCOPE_CONSTANT);
-    Scope->Constant = Constant;
+    Scope->Constant = true;
     Scopes.push_back(Scope);
     return this;
 }
 
-SemaBuilderScopes *SemaBuilderScopes::addStatic(const SourceLocation &Loc, bool Static) {
+SemaBuilderScopes *SemaBuilderScopes::addStatic(const SourceLocation &Loc) {
     ASTScope *Scope = new ASTScope(Loc, ASTScopeKind::SCOPE_STATIC);
-    Scope->Static = Static;
+    Scope->Static = true;
     Scopes.push_back(Scope);
     return this;
 }
