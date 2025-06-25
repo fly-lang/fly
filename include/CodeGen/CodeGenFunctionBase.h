@@ -73,7 +73,9 @@ namespace fly {
 
         void AllocaLocalVars();
 
-        void StoreParams();
+        void StoreParams(size_t Idx);
+
+        void CheckReturnVoid();
 
         virtual void GenBody() = 0;
     };

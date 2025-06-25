@@ -90,7 +90,7 @@ void CodeGenFunction::GenBody() {
 		Sema->getErrorHandler()->getCodeGen()->StoreErrorHandler(Fn->getArg(0));
 
 		// Store in Function Parameters
-		StoreParams();
+		StoreParams(1);
 	}
 
 	// Generate Function Body
@@ -107,8 +107,8 @@ void CodeGenFunction::GenBody() {
         llvm::Value *Ret = CGM->Builder->CreateICmpNE(CGM->Builder->CreateLoad(ErrorKind), Zero8);
         // main() will return 0 if ok or 1 on error
         CGM->Builder->CreateRet(CGM->Builder->CreateZExt(Ret, Fn->getReturnType()));
-    } else if (Sema->getAST()->getReturnTypeRef()->getSema()->isVoid()) {
-        CGM->Builder->CreateRetVoid();
+    } else {
+    	CheckReturnVoid();
     }
 }
 

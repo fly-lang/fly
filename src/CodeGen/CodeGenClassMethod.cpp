@@ -26,6 +26,7 @@
 #include <AST/ASTTypeRef.h>
 #include <AST/ASTVar.h>
 #include <Sema/SemaErrorHandler.h>
+#include <Sema/SemaParam.h>
 
 using namespace fly;
 
@@ -101,16 +102,32 @@ void CodeGenClassMethod::GenBody() {
     	if (Class->getClassKind() == SemaClassKind::STRUCT) {
     		ClassInstancePtr = Fn->getArg(0);
 
+    		// Alloca Params
+    		// Alloca Local Vars & Params
+    		AllocaLocalVars();
+
     		// Save Class instance and get Pointer
     		Class->getThis()->getCodeGen()->Store(ClassInstancePtr);
+
+    		// Alloca Function Local Vars and generate body
+    		StoreParams(1);
     	} else {
+
+    		// Get the Class Instance Pointer
     		ClassInstancePtr = Fn->getArg(1);
+
+    		// Alloca Params
+    		// Alloca Local Vars & Params
+    		AllocaLocalVars();
 
     		// Store Error Handler Var
     		Sema->getErrorHandler()->getCodeGen()->StoreErrorHandler(Fn->getArg(0));
 
     		// Save Class instance and get Pointer
     		Class->getThis()->getCodeGen()->Store(ClassInstancePtr);
+
+    		// Alloca Function Local Vars and generate body
+    		StoreParams(2);
     	}
 
     	Class->getThis()->getCodeGen()->Load();
@@ -128,15 +145,8 @@ void CodeGenClassMethod::GenBody() {
     	}
     }
 
-    // Alloca Local Vars
-    AllocaLocalVars();
-
-    // Alloca Function Local Vars and generate body
-    StoreParams();
     CGM->GenBlock(this, Sema->getAST()->getBody());
 
     // Add return Void
-    if (FnType->getReturnType()->isVoidTy()) {
-        CGM->Builder->CreateRetVoid();
-    }
+	CheckReturnVoid();
 }

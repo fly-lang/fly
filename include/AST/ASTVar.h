@@ -29,8 +29,8 @@ namespace fly {
      *  - GlobalVar
      *  - ClassAttribute
      */
-    class ASTVar : public ASTBase
-    {
+    class ASTVar : public ASTBase {
+
         friend class ASTBuilder;
         friend class SemaBuilder;
         friend class SemaResolver;

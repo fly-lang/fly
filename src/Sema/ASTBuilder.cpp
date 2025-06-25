@@ -823,9 +823,8 @@ ASTRef *ASTBuilder::CreateVarRef(ASTVar *Var, ASTRef *Parent) {
 	return VarRef;
 }
 
-// FIXME ?? Remove ??
-ASTRef *ASTBuilder::CreateRef(const SourceLocation &Loc, llvm::StringRef Name, ASTRef *Parent) {
-	FLY_DEBUG_START("ASTBuilder", "CreateUndefinedRef");
+ASTRef *ASTBuilder::CreateVarRef(const SourceLocation &Loc, llvm::StringRef Name, ASTRef *Parent) {
+	FLY_DEBUG_START("ASTBuilder", "CreateVarRef");
 
 	ASTRef *Ref = new ASTRef(Loc, Name, ASTRefKind::REF_VAR);
 	Ref->Parent = Parent;

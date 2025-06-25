@@ -739,8 +739,7 @@ void SemaResolver:: ResolveFromTopRef(ASTStmt *Stmt, ASTRef *Ref, SemaNameSpace 
 
 		//Ref is a Var
 		else if (Ref->isVarRef()) {
-			ASTRef *VarRef = static_cast<ASTRef *>(Ref);
-			SemaVar *Sema = ResolveVar(Stmt, VarRef);
+			SemaVar *Sema = ResolveVar(Stmt, Ref);
 
 			if (Ref->Child)
 				ResolveRef(Stmt, Ref->Child, Sema->getType(), Sema);

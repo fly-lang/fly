@@ -116,20 +116,42 @@ void CodeGenFunctionBase::AllocaLocalVars() {
     }
 }
 
-void CodeGenFunctionBase::StoreParams() {
+void CodeGenFunctionBase::StoreParams(size_t Idx) {
     // Store Param Values (n = 0 is the Error param)
-    int Idx = 1;
-
     for (auto &Param: Sema->getParams()) {
 
         // Store Arg value into Param
         CodeGenVarBase *CGV = Param->getCodeGen();
         CGV->Store(Fn->getArg(Idx));
 
-        // TODO if Arg is not present store the Param default value
-//        if (Param->getExpr()) {
-//            CGM->GenExpr(this, Param->getType(), Param->getExpr());
-//        }
         ++Idx;
     }
+}
+
+void CodeGenFunctionBase::CheckReturnVoid() {
+    FLY_DEBUG_START("CodeGenFunctionBase", "GenBody");
+
+	// Only process functions that return void
+	if (!Fn->getReturnType()->isVoidTy())
+		return;
+
+	llvm::BasicBlock &lastBlock = Fn->back(); // Get last basic block
+
+	if (lastBlock.empty()) {
+		// If block is empty, just insert ret void
+		llvm::IRBuilder<> builder(&lastBlock);
+		builder.CreateRetVoid();
+		return;
+	}
+
+	llvm::Instruction *lastInst = lastBlock.getTerminator();
+
+	if (!lastInst) {
+		// No terminator — add ret void
+		llvm::IRBuilder<> builder(&lastBlock);
+		builder.CreateRetVoid();
+		return;
+	}
+
+    FLY_DEBUG_END("CodeGenFunctionBase", "GenBody");
 }

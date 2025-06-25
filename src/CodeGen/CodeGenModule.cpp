@@ -730,7 +730,7 @@ llvm::Value *CodeGenModule::GenCall(SemaCall *Sema) {
     		llvm::Instruction *I = llvm::CallInst::CreateMalloc(Builder->GetInsertBlock(), IntPtrType,
 														  AllocType, AllocSizeVal, nullptr, nullptr, InstName);
     		InstancePtr = Builder->Insert(I);
-    	} else if (!Method->isStatic()) {
+    	} else {
     		InstancePtr = GenResult(Sema->getParent());
     	}
 
@@ -744,8 +744,12 @@ llvm::Value *CodeGenModule::GenCall(SemaCall *Sema) {
     	if (Method->isConstructor()) {
     		Builder->CreateCall(Method->getCodeGen()->getFunction(), Args);
     		return InstancePtr;
-    	} else if (Method->isStatic()) {
-    		return Builder->CreateCall(Method->getCodeGen()->getFunction(), Args);
+    	} else if (!Sema->getParent()->isCall() &&
+    		static_cast<SemaVar *>(Sema->getParent())->getVarKind() == SemaVarKind::VAR_CLASS_INSTANCE) {
+    		llvm::Value * ClassInstancePtr = static_cast<SemaVar *>(Sema->getParent())->getCodeGen()->getValue();
+
+    		// If the parent is this Var
+    		return Builder->CreateCall(Method->getCodeGen()->getFunction()->getFunctionType(), ClassInstancePtr, Args);
     	} else {
     		// Get the VTable pointer
     		llvm::Value * VTablePtrPtr = Builder->CreateStructGEP(CGClass->getType(), InstancePtr, 0);
@@ -759,9 +763,6 @@ llvm::Value *CodeGenModule::GenCall(SemaCall *Sema) {
     		// Create the function call
     		return Builder->CreateCall(Method->getCodeGen()->getFunction()->getFunctionType(), FuncPtr, Args);
     	}
-
-    	// Create the constructor call
-    	return InstancePtr;
     } else {
 
     	// Add Error parameter

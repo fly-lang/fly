@@ -216,6 +216,9 @@ void SemaResolverClass::CreateDefaultConstructor() {
 		ASTFunction * AST = S.getASTBuilder().CreateFunction(R->Module->getAST(), Class->getAST()->getLocation(),
 												   nullptr, Class->getAST()->getName(), Scopes, Params, Body);
 		SemaClassMethod * DefaultConstructor = S.getSemaBuilder().CreateClassMethod(Class, AST, nullptr);
+
+		// Call default constructor of the super classes (if exists)
+		// TODO
 	}
 }
 
