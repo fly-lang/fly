@@ -15,7 +15,7 @@
 namespace fly {
 
     class ASTModule;
-    class ASTScope;
+    class ASTModifier;
     class ASTClassAttribute;
     class CodeGenClass;
     class ASTBlockStmt;
@@ -38,7 +38,7 @@ namespace fly {
 
         llvm::SmallVector<ASTBase *, 8> Definitions;
 
-        llvm::SmallVector<ASTScope *, 8> Scopes;
+        llvm::SmallVector<ASTModifier *, 8> Modifiers;
 
         llvm::StringRef Name;
 
@@ -46,7 +46,7 @@ namespace fly {
 
         llvm::SmallVector<ASTTypeRef *, 4> SuperClasses;
 
-        ASTClass(ASTModule *Module, ASTClassKind ClassKind, llvm::SmallVector<ASTScope *, 8> &Scopes,
+        ASTClass(ASTModule *Module, ASTClassKind ClassKind, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
                  const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTTypeRef *, 4> &SuperClasses);
 
     public:
@@ -59,7 +59,7 @@ namespace fly {
 
         llvm::SmallVector<ASTTypeRef *, 4> getSuperClasses() const;
 
-        llvm::SmallVector<ASTScope *, 8> getScopes() const;
+        llvm::SmallVector<ASTModifier *, 8> getModifiers() const;
 
         llvm::StringRef getName() const;
 

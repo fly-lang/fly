@@ -14,26 +14,26 @@
 
 namespace fly {
 
-    class ASTScope;
+    class ASTModifier;
     class SourceLocation;
 
     enum class ASTVisibilityKind;
 
-    class SemaBuilderScopes {
+    class SemaBuilderModifiers {
 
-        llvm::SmallVector<ASTScope *, 8> Scopes;
+        llvm::SmallVector<ASTModifier *, 8> Modifiers;
 
     public:
 
-        static SemaBuilderScopes *Build();
+        static SemaBuilderModifiers *Build();
 
-        SemaBuilderScopes *addVisibility(const SourceLocation &Loc, ASTVisibilityKind VisibilityKind);
+        SemaBuilderModifiers *addVisibility(const SourceLocation &Loc, ASTVisibilityKind VisibilityKind);
 
-        SemaBuilderScopes *addConstant(const SourceLocation &Loc);
+        SemaBuilderModifiers *addConstant(const SourceLocation &Loc);
 
-        SemaBuilderScopes *addStatic(const SourceLocation &Loc);
+        SemaBuilderModifiers *addStatic(const SourceLocation &Loc);
 
-        llvm::SmallVector<ASTScope *, 8> getScopes() const;
+        llvm::SmallVector<ASTModifier *, 8> getModifiers() const;
     };
 }
 

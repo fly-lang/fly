@@ -14,7 +14,7 @@
 
 namespace fly {
 
-    class ASTScope;
+    class ASTModifier;
     class ASTVar;
     class ASTComment;
     class ASTTypeRef;
@@ -35,7 +35,7 @@ namespace fly {
         // Function return type
         ASTTypeRef *ReturnTypeRef = nullptr;
 
-        llvm::SmallVector<ASTScope *, 8> Scopes;
+        llvm::SmallVector<ASTModifier *, 8> Modifiers;
 
         llvm::SmallVector<ASTVar *, 8> Params;
 
@@ -46,7 +46,7 @@ namespace fly {
 
     protected:
 
-        ASTFunction(const SourceLocation &Loc, ASTTypeRef *ReturnType,llvm::SmallVector<ASTScope *, 8> &Scopes,
+        ASTFunction(const SourceLocation &Loc, ASTTypeRef *ReturnType,llvm::SmallVector<ASTModifier *, 8> &Modifiers,
             llvm::StringRef Name, llvm::SmallVector<ASTVar *, 8> &Params);
 
     public:
@@ -55,7 +55,7 @@ namespace fly {
 
         ASTTypeRef *getReturnTypeRef() const;
 
-        llvm::SmallVector<ASTScope *, 8> getScopes() const;
+        llvm::SmallVector<ASTModifier *, 8> getModifiers() const;
 
         llvm::SmallVector<ASTVar *, 8> getParams() const;
 

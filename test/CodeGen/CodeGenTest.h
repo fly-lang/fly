@@ -14,12 +14,12 @@
 #include "../TestUtils.h"
 #include "Parser/Parser.h"
 #include "Sema/Sema.h"
-#include "Sema/SemaBuilderScopes.h"
+#include "Sema/SemaBuilderModifiers.h"
 #include "AST/ASTCall.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTExpr.h"
-#include <AST/ASTScopes.h>
+#include <AST/ASTModifier.h>
 #include <AST/ASTVar.h>
 #include <Sema/ASTBuilder.h>
 #include <Sema/SemaBuilder.h>
@@ -60,8 +60,8 @@ public:
     ASTTypeRef *ErrorTypeRef;
 	ASTTypeRef *StringTypeRef;
 	ASTTypeRef *CharTypeRef;
-    llvm::SmallVector<ASTScope *, 8> TopScopes;
-    llvm::SmallVector<ASTScope *, 8> EmptyScopes;
+    llvm::SmallVector<ASTModifier *, 8> TopModifiers;
+    llvm::SmallVector<ASTModifier *, 8> EmptyModifiers;
     llvm::SmallVector<ASTExpr *, 8> Args;
     llvm::SmallVector<ASTVar *, 8> Params;
 
@@ -82,9 +82,9 @@ public:
                     DoubleTypeRef(S->getASTBuilder().CreateDoubleTypeRef(SourceLoc)),
                     ErrorTypeRef(S->getASTBuilder().CreateErrorTypeRef(SourceLoc)),
 					StringTypeRef(S->getASTBuilder().CreateStringTypeRef(SourceLoc)),
-                    TopScopes(SemaBuilderScopes::Build()
-                              ->addVisibility(SourceLocation(), ASTVisibilityKind::V_DEFAULT)->getScopes()),
-                    EmptyScopes(SemaBuilderScopes::Build()->getScopes()) {
+                    TopModifiers(SemaBuilderModifiers::Build()
+                              ->addVisibility(SourceLocation(), ASTVisibilityKind::V_DEFAULT)->getModifiers()),
+                    EmptyModifiers(SemaBuilderModifiers::Build()->getModifiers()) {
         llvm::InitializeAllTargets();
         llvm::InitializeAllTargetMCs();
         llvm::InitializeAllAsmPrinters();

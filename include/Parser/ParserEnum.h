@@ -20,7 +20,7 @@ namespace llvm {
 
 namespace fly {
 
-    class ASTScope;
+    class ASTModifier;
     class ASTEnum;
     class Parser;
     class SourceLocation;
@@ -38,13 +38,13 @@ namespace fly {
 
         unsigned short BraceCount = 0;
 
-        ParserEnum(Parser *P, llvm::SmallVector<ASTScope *, 8> &Scopes);
+        ParserEnum(Parser *P, llvm::SmallVector<ASTModifier *, 8> &Modifiers);
 
     public:
 
-        static ASTEnum *Parse(Parser *P, llvm::SmallVector<ASTScope *, 8> &Scopes);
+        static ASTEnum *Parse(Parser *P, llvm::SmallVector<ASTModifier *, 8> &Modifiers);
 
-        bool ParseEntry(const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTScope *, 8> Scopes);
+        bool ParseEntry(const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTModifier *, 8> Modifiers);
     };
 }
 

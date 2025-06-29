@@ -22,7 +22,7 @@ namespace fly {
     class ASTVar;
     class ASTTypeRef;
     class ASTBlockStmt;
-    class ASTScope;
+    class ASTModifier;
     class ASTComment;
     class SourceLocation;
 

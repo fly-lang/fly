@@ -59,7 +59,7 @@ namespace fly {
     class SemaLocalVar;
     class SemaFunctionBase;
     class SemaType;
-    class ASTScope;
+    class ASTModifier;
     class ASTValue;
     class SemaResult;
 

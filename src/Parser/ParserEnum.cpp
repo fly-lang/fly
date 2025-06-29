@@ -10,7 +10,7 @@
 #include "Parser/ParserEnum.h"
 #include "Parser/Parser.h"
 #include "Sema/ASTBuilder.h"
-#include "AST/ASTScopes.h"
+#include "AST/ASTModifier.h"
 #include "Basic/Debug.h"
 
 using namespace fly;
@@ -21,7 +21,7 @@ using namespace fly;
  * @param Visibility
  * @param Constant
  */
-ParserEnum::ParserEnum(Parser *P, llvm::SmallVector<ASTScope *, 8> &Scopes) : P(P) {
+ParserEnum::ParserEnum(Parser *P, llvm::SmallVector<ASTModifier *, 8> &Modifiers) : P(P) {
     FLY_DEBUG_START("EnumParser", "ParserEnum");
     assert(P->Tok.is(tok::kw_enum) && "No ClassKind defined");
 
@@ -47,7 +47,7 @@ ParserEnum::ParserEnum(Parser *P, llvm::SmallVector<ASTScope *, 8> &Scopes) : P(
     if (P->isBlockStart()) {
         P->ConsumeBrace(BraceCount);
 
-        Enum = P->Builder.CreateEnum(P->Module, ClassLoc, EnumName, Scopes, SuperClasses);
+        Enum = P->Builder.CreateEnum(P->Module, ClassLoc, EnumName, Modifiers, SuperClasses);
         uint64_t Index = 0;
         do {
 
@@ -64,13 +64,13 @@ ParserEnum::ParserEnum(Parser *P, llvm::SmallVector<ASTScope *, 8> &Scopes) : P(
                 break;
             }
 
-            SmallVector<ASTScope *, 8> Scopes = P->ParseScopes();
+            SmallVector<ASTModifier *, 8> Modifiers = P->ParseModifiers();
 
             if (P->Tok.isAnyIdentifier()) {
                 const StringRef &Name = P->Tok.getIdentifierInfo()->getName();
                 const SourceLocation &Loc = P->ConsumeToken();
-                
-                Success = ParseEntry(Loc, Name, Scopes);
+
+                Success = ParseEntry(Loc, Name, Modifiers);
             }
         } while (Success);
     }
@@ -80,14 +80,14 @@ ParserEnum::ParserEnum(Parser *P, llvm::SmallVector<ASTScope *, 8> &Scopes) : P(
  * ParseModule Class Declaration
  * @return
  */
-ASTEnum *ParserEnum::Parse(Parser *P, SmallVector<ASTScope *, 8> &Scopes) {
+ASTEnum *ParserEnum::Parse(Parser *P, SmallVector<ASTModifier *, 8> &Modifiers) {
 	FLY_DEBUG_START("EnumParser", "Parse");
-    ParserEnum *CP = new ParserEnum(P, Scopes);
+    ParserEnum *CP = new ParserEnum(P, Modifiers);
     return CP->Enum;
 }
 
-bool ParserEnum::ParseEntry(const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTScope *, 8> Scopes) {
+bool ParserEnum::ParseEntry(const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTModifier *, 8> Modifiers) {
 	FLY_DEBUG_START("EnumParser", "ParserEntry");
-    ASTVar *EnumEntry = P->Builder.CreateEnumEntry(Loc, Enum, Name, Scopes);
+    ASTVar *EnumEntry = P->Builder.CreateEnumEntry(Loc, Enum, Name, Modifiers);
     return true;
 }

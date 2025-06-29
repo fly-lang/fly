@@ -36,7 +36,7 @@ namespace fly {
     class InputFile;
     class ASTHandleStmt;
     class ASTRef;
-    class ASTScope;
+    class ASTModifier;
     class ASTClass;
     class ASTEnum;
     class ASTComment;
@@ -108,21 +108,21 @@ private:
     /// Parse a definition.
     ASTBase *ParseDefinition();
 
-    /// Parse multiple scopes.
-    SmallVector<ASTScope *, 8> ParseScopes();
+    /// Parse multiple Modifiers.
+    SmallVector<ASTModifier *, 8> ParseModifiers();
 
     /// Parse a global variable.
     /// //TODO remove globalvar
     // ASTVar *ParseGlobalVar(SmallVector<ASTScope *, 8> &Scopes, ASTTypeRef *TypeRef);
 
     /// Parse a function.
-    ASTFunction *ParseFunction(SmallVector<ASTScope *, 8> &Scopes, ASTTypeRef *TypeRef);
+    ASTFunction *ParseFunction(SmallVector<ASTModifier *, 8> &Modifiers, ASTTypeRef *TypeRef);
 
     /// Parse a class.
-    ASTClass *ParseClass(SmallVector<ASTScope *, 8> &Scopes);
+    ASTClass *ParseClass(SmallVector<ASTModifier *, 8> &Modifiers);
 
     /// Parse an enum.
-    ASTEnum *ParseEnum(SmallVector<ASTScope *, 8> &Scopes);
+    ASTEnum *ParseEnum(SmallVector<ASTModifier *, 8> &Modifiers);
 
     /// Parse a comment.
     ASTComment *ParseComment();

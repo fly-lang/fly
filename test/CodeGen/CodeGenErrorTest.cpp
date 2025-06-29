@@ -29,8 +29,8 @@ namespace {
         //   error A = handle fail
         // }
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
-        ASTVar *ErrorA = getASTBuilder().CreateLocalVar(Body, SourceLoc, ErrorTypeRef, "A", EmptyScopes);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+        ASTVar *ErrorA = getASTBuilder().CreateLocalVar(Body, SourceLoc, ErrorTypeRef, "A", EmptyModifiers);
         ASTRef *ErrorVarRef = getASTBuilder().CreateVarRef(ErrorA);
         ASTBlockStmt *HandleBlock = getASTBuilder().CreateBlockStmt(SourceLoc);
         getASTBuilder().CreateHandleStmt(Body, SourceLoc, HandleBlock, ErrorVarRef);
@@ -71,14 +71,14 @@ namespace {
         //   fail
         // }
         ASTBlockStmt *Body0 = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *TestFail = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "testFail", TopScopes, Params, Body0);
+        ASTFunction *TestFail = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "testFail", TopModifiers, Params, Body0);
         SemaBuilderStmt *Fail0Stmt = getASTBuilder().CreateFailStmt(Body0, SourceLoc);
 
 		// main() {
 		//   testFail()
 		// }
 		ASTBlockStmt *MainBody = getASTBuilder().CreateBlockStmt(SourceLoc);
-		ASTFunction *Main = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopScopes, Params, MainBody);
+		ASTFunction *Main = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopModifiers, Params, MainBody);
 
 		// call testFail0()
 		SemaBuilderStmt *CallTestFail0 = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
@@ -130,7 +130,7 @@ namespace {
         //   fail true
         // }
         ASTBlockStmt *Body1 = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *TestFail = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "testFail", TopScopes, Params, Body1);
+        ASTFunction *TestFail = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "testFail", TopModifiers, Params, Body1);
         ASTBoolValue *BoolVal = getASTBuilder().CreateBoolValue(SourceLoc, true);
         SemaBuilderStmt *Fail1Stmt = getASTBuilder().CreateFailStmt(Body1, SourceLoc);
         Fail1Stmt->setExpr(getASTBuilder().CreateExpr(BoolVal));
@@ -139,7 +139,7 @@ namespace {
 		//   testFail()
 		// }
 		ASTBlockStmt *MainBody = getASTBuilder().CreateBlockStmt(SourceLoc);
-		ASTFunction *Main = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopScopes, Params, MainBody);
+		ASTFunction *Main = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopModifiers, Params, MainBody);
 
 		// call testFail1()
 		SemaBuilderStmt *CallTestFail1 = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
@@ -191,7 +191,7 @@ namespace {
         //   fail 10
         // }
         ASTBlockStmt *Body2 = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *TestFail2 = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "testFail", TopScopes, Params, Body2);
+        ASTFunction *TestFail2 = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "testFail", TopModifiers, Params, Body2);
         ASTNumberValue *IntVal = getASTBuilder().CreateNumberValue(SourceLoc, "10");
         SemaBuilderStmt *Fail2Stmt = getASTBuilder().CreateFailStmt(Body2, SourceLoc);
         Fail2Stmt->setExpr(getASTBuilder().CreateExpr(IntVal));
@@ -200,7 +200,7 @@ namespace {
         //   testFail()
         // }
         ASTBlockStmt *MainBody = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Main = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopScopes, Params, MainBody);
+        ASTFunction *Main = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopModifiers, Params, MainBody);
 
         // call testFail()
         SemaBuilderStmt *CallTestFail2 = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
@@ -252,7 +252,7 @@ namespace {
         //  fail "Error"
         // }
         ASTBlockStmt *Body3 = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *TestFail3 = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "testFail", TopScopes, Params, Body3);
+        ASTFunction *TestFail3 = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "testFail", TopModifiers, Params, Body3);
         ASTStringValue *StrVal = getASTBuilder().CreateStringValue(SourceLoc, "Error");
         SemaBuilderStmt *Fail3Stmt = getASTBuilder().CreateFailStmt(Body3, SourceLoc);
         Fail3Stmt->setExpr(getASTBuilder().CreateExpr(StrVal));
@@ -261,7 +261,7 @@ namespace {
         //   testFail()
         // }
         ASTBlockStmt *MainBody = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Main = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopScopes, Params, MainBody);
+        ASTFunction *Main = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopModifiers, Params, MainBody);
 
         // call testFail()
         SemaBuilderStmt *CallTestFail3 = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
@@ -314,14 +314,14 @@ namespace {
     	//  int a
     	// }
         llvm::SmallVector<ASTTypeRef *, 4> SuperClasses;
-        ASTClass *TestStruct = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "TestStruct", TopScopes, SuperClasses);
-        ASTVar *aField = getASTBuilder().CreateClassAttribute(SourceLoc, TestStruct, IntTypeRef, "a", TopScopes);
+        ASTClass *TestStruct = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "TestStruct", TopModifiers, SuperClasses);
+        ASTVar *aField = getASTBuilder().CreateClassAttribute(SourceLoc, TestStruct, IntTypeRef, "a", TopModifiers);
 
     	// int testFail() {
     	//  fail new TestStruct()
     	// }
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *TestFail4 = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "testFail", TopScopes, Params, Body);
+        ASTFunction *TestFail4 = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "testFail", TopModifiers, Params, Body);
         // TestStruct test = new TestStruct()
         ASTCall *ConstructorCall = CreateCall(TestStruct->getName(), Args, ASTCallKind::CALL_NEW);
         // fail new TestStruct()
@@ -332,7 +332,7 @@ namespace {
         //   testFail()
         // }
         ASTBlockStmt *MainBody = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Main = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopScopes, Params, MainBody);
+        ASTFunction *Main = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopModifiers, Params, MainBody);
 
         // call testFail()
         SemaBuilderStmt *CallTestFail4 = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);

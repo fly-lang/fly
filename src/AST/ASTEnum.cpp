@@ -8,14 +8,14 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTEnum.h"
-#include "AST/ASTScopes.h"
+#include "AST/ASTModifier.h"
 #include "Basic/Logger.h"
 
 using namespace fly;
 
 ASTEnum::ASTEnum(ASTModule *Module, const SourceLocation &Loc, llvm::StringRef Name,
-                 llvm::SmallVector<ASTScope *, 8> &Scopes, llvm::SmallVector<ASTTypeRef *, 4> &SuperClasses) :
-        ASTBase(Loc, ASTKind::AST_ENUM), Name(Name), Scopes(Scopes), SuperClasses(SuperClasses) {
+                 llvm::SmallVector<ASTModifier *, 8> &Modifiers, llvm::SmallVector<ASTTypeRef *, 4> &SuperClasses) :
+        ASTBase(Loc, ASTKind::AST_ENUM), Name(Name), Modifiers(Modifiers), SuperClasses(SuperClasses) {
 
 }
 
@@ -27,8 +27,8 @@ llvm::SmallVector<ASTBase *, 8> ASTEnum::getDefinitions() const {
 	return Definitions;
 }
 
-llvm::SmallVector<ASTScope *, 8> ASTEnum::getScopes() const {
-	return Scopes;
+llvm::SmallVector<ASTModifier *, 8> ASTEnum::getModifiers() const {
+	return Modifiers;
 }
 
 llvm::StringRef ASTEnum::getName() const {
@@ -46,7 +46,7 @@ std::string ASTEnum::str() const {
 	Attr("Location", getLocation()).
  Attr("Kind", static_cast<size_t>(getKind())).
            Attr("Name", Name).
-           Attr("Scopes", ASTBase::str(Scopes)).
+           Attr("Modifiers", ASTBase::str(Modifiers)).
            Attr("Definitions", ASTBase::str(Definitions)).
            End();
 }

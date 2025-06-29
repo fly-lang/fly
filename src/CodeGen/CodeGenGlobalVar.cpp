@@ -15,7 +15,7 @@
 #include "Sema/SemaNameSpace.h"
 #include "AST/ASTVar.h"
 #include "AST/ASTValue.h"
-#include "AST/ASTScopes.h"
+#include "AST/ASTModifier.h"
 
 #include <AST/ASTExpr.h>
 #include <Sema/SemaGlobalVar.h>

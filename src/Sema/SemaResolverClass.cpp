@@ -11,12 +11,12 @@
 
 #include <AST/ASTComment.h>
 #include <AST/ASTFunction.h>
-#include <AST/ASTScopes.h>
+#include <AST/ASTModifier.h>
 #include <AST/ASTVar.h>
 #include <Sema/ASTBuilder.h>
 #include <Sema/Sema.h>
 #include <Sema/SemaBuilder.h>
-#include <Sema/SemaBuilderScopes.h>
+#include <Sema/SemaBuilderModifiers.h>
 #include <Sema/SemaClassAttribute.h>
 #include <Sema/SemaClassMethod.h>
 #include <Sema/SemaClassType.h>
@@ -116,12 +116,12 @@ void SemaResolverClass::SuperClasses() {
 					//                                    } else {
 					//                                        // Insert methods in the Super and if is ok also in the base Class
 					//                                        if (S.Builder->InsertFunction(SuperMethods, SuperMethod)) {
-					//                                            SmallVector<ASTScope *, 8> Scopes = SuperMethod->getScopes();
+					//                                            SmallVector<ASTModifier *, 8> Modifiers = SuperMethod->getModifiers();
 					//                                            ASTFunction *M = S.Builder->CreateClassMethod(SuperMethod->getLocation(),
 					//                                                                                             *Class,
 					//                                                                                             SuperMethod->getReturnType(),
 					//                                                                                             SuperMethod->getName(),
-					//                                                                                             Scopes);
+					//                                                                                             Modifiers);
 					//                                            M->Params = SuperMethod->Params;
 					//                                            M->Body = SuperMethod->Body;
 					//                                            M->DerivedClass = Class;
@@ -209,12 +209,12 @@ void SemaResolverClass::Definitions() {
 void SemaResolverClass::CreateDefaultConstructor() {
 	// Create the default constructor if no constructors are defined
 	if (Class->getConstructors().empty()) {
-		SmallVector<ASTScope *, 8> Scopes = SemaBuilderScopes::Build()
-					 ->addVisibility(SourceLocation(), ASTVisibilityKind::V_DEFAULT)->getScopes();
+		SmallVector<ASTModifier *, 8> Modifiers = SemaBuilderModifiers::Build()
+					 ->addVisibility(SourceLocation(), ASTVisibilityKind::V_DEFAULT)->getModifiers();
 		llvm::SmallVector<ASTVar *, 8> Params;
 		ASTBlockStmt *Body = S.getASTBuilder().CreateBlockStmt(SourceLocation());
 		ASTFunction * AST = S.getASTBuilder().CreateFunction(R->Module->getAST(), Class->getAST()->getLocation(),
-												   nullptr, Class->getAST()->getName(), Scopes, Params, Body);
+												   nullptr, Class->getAST()->getName(), Modifiers, Params, Body);
 		SemaClassMethod * DefaultConstructor = S.getSemaBuilder().CreateClassMethod(Class, AST, nullptr);
 
 		// Call default constructor of the super classes (if exists)

@@ -20,7 +20,7 @@ namespace fly {
     class SourceLocation;
     class CodeGenVarBase;
     class ASTVarStmt;
-    class ASTScope;
+    class ASTModifier;
     class SemaVar;
 
     /**
@@ -43,12 +43,12 @@ namespace fly {
 
         llvm::StringRef Name;
 
-        SmallVector<ASTScope*, 8> Scopes;
+        SmallVector<ASTModifier*, 8> Modifiers;
 
         ASTExpr* Expr;
 
     protected:
-        ASTVar(const SourceLocation& Loc, ASTTypeRef* Type, llvm::StringRef Name, SmallVector<ASTScope*, 8>& Scopes);
+        ASTVar(const SourceLocation& Loc, ASTTypeRef* Type, llvm::StringRef Name, SmallVector<ASTModifier*, 8>& Modifiers);
 
     public:
         SemaVar* getSema() const;
@@ -61,7 +61,7 @@ namespace fly {
 
         bool isInitialized();
 
-        const SmallVector<ASTScope*, 8>& getScopes() const;
+        const SmallVector<ASTModifier*, 8>& getModifiers() const;
 
         ASTExpr* getExpr() const;
 

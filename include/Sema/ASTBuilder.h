@@ -18,7 +18,7 @@ namespace fly {
 
     class Sema;
 
-    class SemaBuilderScopes;
+    class SemaBuilderModifiers;
 
     class SemaBuilderStmt;
 
@@ -158,7 +158,7 @@ namespace fly {
 
     class ASTEnum;
 
-    class ASTScope;
+    class ASTModifier;
 
     class ASTTypeRef;
 
@@ -237,25 +237,25 @@ namespace fly {
         //                               llvm::SmallVector<ASTScope *, 8> &Scopes, ASTExpr *Expr = nullptr);
 
         ASTFunction *CreateFunction(ASTModule *Module, const SourceLocation &Loc, ASTTypeRef *Type, llvm::StringRef Name,
-                                    llvm::SmallVector<ASTScope *, 8> &Scopes, llvm::SmallVector<ASTVar *, 8> &Params,
+                                    llvm::SmallVector<ASTModifier *, 8> &Modifiers, llvm::SmallVector<ASTVar *, 8> &Params,
                                     ASTBlockStmt *Body = nullptr);
 
         ASTClass *CreateClass(ASTModule *Module, const SourceLocation &Loc, ASTClassKind ClassKind, llvm::StringRef Name,
-                              llvm::SmallVector<ASTScope *, 8> &Scopes, llvm::SmallVector<ASTTypeRef *, 4> &SuperClasses);
+                              llvm::SmallVector<ASTModifier *, 8> &Modifiers, llvm::SmallVector<ASTTypeRef *, 4> &SuperClasses);
 
         ASTVar *CreateClassAttribute(const SourceLocation &Loc, ASTClass *Class, ASTTypeRef *TypeRef,
-                                                llvm::StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes,
+                                                llvm::StringRef Name, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
                                                 ASTExpr *Expr = nullptr);
 
         ASTFunction *CreateClassMethod(const SourceLocation &Loc, ASTClass *Class, ASTTypeRef *TypeRef,
-                                          llvm::StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes,
+                                          llvm::StringRef Name, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
                                           llvm::SmallVector<ASTVar *, 8> &Params, ASTBlockStmt *Body = nullptr);
 
-        ASTEnum *CreateEnum(ASTModule *Module, const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes,
+        ASTEnum *CreateEnum(ASTModule *Module, const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
                    llvm::SmallVector<ASTTypeRef *, 4> EnumTypes);
 
         ASTVar *CreateEnumEntry(const SourceLocation &Loc, ASTEnum *Enum, llvm::StringRef Name,
-                                      llvm::SmallVector<ASTScope *, 8> &Scopes);
+                                      llvm::SmallVector<ASTModifier *, 8> &Modifiers);
 
         // Create Types
 
@@ -314,10 +314,10 @@ namespace fly {
         ASTStructValue *CreateStructValue(const SourceLocation &Loc, llvm::StringMap<ASTValue *>);
 
         ASTVar *CreateParam(const SourceLocation &Loc, ASTTypeRef *TypeRef, llvm::StringRef Name,
-                              llvm::SmallVector<ASTScope *, 8> &Scopes, ASTValue *DefaultValue = nullptr);
+                              llvm::SmallVector<ASTModifier *, 8> &Modifiers, ASTValue *DefaultValue = nullptr);
 
         ASTVar *CreateLocalVar(ASTBlockStmt *BlockStmt, const SourceLocation &Loc, ASTTypeRef *Type, llvm::StringRef Name,
-                                    llvm::SmallVector<ASTScope *, 8> &Scopes);
+                                    llvm::SmallVector<ASTModifier *, 8> &Modifiers);
 
         // Create Call
 

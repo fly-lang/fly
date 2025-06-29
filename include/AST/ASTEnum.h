@@ -17,7 +17,7 @@
 namespace fly {
 
     class ASTModule;
-    class ASTScope;
+    class ASTModifier;
     class ASTTypeRef;
 
     class ASTEnum : public ASTBase {
@@ -30,13 +30,13 @@ namespace fly {
 
         llvm::SmallVector<ASTBase *, 8> Definitions;
 
-        llvm::SmallVector<ASTScope *, 8> Scopes;
+        llvm::SmallVector<ASTModifier *, 8> Modifiers;
 
         llvm::StringRef Name;
 
         llvm::SmallVector<ASTTypeRef *, 4> SuperClasses; // FIXME ?
 
-        ASTEnum(ASTModule *Module, const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes,
+        ASTEnum(ASTModule *Module, const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
                  llvm::SmallVector<ASTTypeRef *, 4> &SuperClasses);
 
     public:
@@ -45,7 +45,7 @@ namespace fly {
 
         llvm::SmallVector<ASTBase*, 8> getDefinitions() const;
 
-        llvm::SmallVector<ASTScope*, 8> getScopes() const;
+        llvm::SmallVector<ASTModifier*, 8> getModifiers() const;
 
         llvm::StringRef getName() const;
 

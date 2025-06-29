@@ -12,7 +12,7 @@
 #include "CodeGen/CodeGenModule.h"
 #include "CodeGen/CodeGenFunction.h"
 #include "CodeGen/CodeGenClass.h"
-#include "Sema/SemaBuilderScopes.h"
+#include "Sema/SemaBuilderModifiers.h"
 #include "Sema/SemaBuilderStmt.h"
 #include "Sema/SemaBuilderIfStmt.h"
 #include "Sema/SemaBuilderSwitchStmt.h"
@@ -48,11 +48,11 @@ namespace {
         ASTModule *Module = CreateModule();
 
     	ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-    	ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
+    	ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         // default int[] k = {}
     	ASTTypeRef * ArrayIntType = CreateArrayTypeRef(S->getSymTable().getIntType());
-    	ASTVar *LocalVar_k = getASTBuilder().CreateLocalVar(Body, SourceLoc, ArrayIntType, "k", EmptyScopes);
+    	ASTVar *LocalVar_k = getASTBuilder().CreateLocalVar(Body, SourceLoc, ArrayIntType, "k", EmptyModifiers);
     	SemaBuilderStmt *VarStmt_k = getASTBuilder().CreateAssignmentStmt(Body, LocalVar_k);
     	VarStmt_k->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(ArrayIntType->getSema())));
 
@@ -78,10 +78,10 @@ namespace {
 
         llvm::SmallVector<ASTVar *, 8> Params;
     	ASTTypeRef * ArrayIntTypeRef = CreateArrayTypeRef(S->getSymTable().getIntType());
-        Params.push_back(getASTBuilder().CreateParam(SourceLoc, ArrayIntTypeRef, "k", EmptyScopes));
+        Params.push_back(getASTBuilder().CreateParam(SourceLoc, ArrayIntTypeRef, "k", EmptyModifiers));
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
 
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
         // func(int[] k) {
         // }
         
@@ -126,11 +126,11 @@ namespace {
 
         // func()
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
     	// int[] g
     	ASTTypeRef * ArrayIntTypeRef = CreateArrayTypeRef(S->getSymTable().getIntType());
-    	ASTVar *LocalVar_g = getASTBuilder().CreateLocalVar(Body, SourceLoc, ArrayIntTypeRef, "g", EmptyScopes);
+    	ASTVar *LocalVar_g = getASTBuilder().CreateLocalVar(Body, SourceLoc, ArrayIntTypeRef, "g", EmptyModifiers);
 
         // g = {}
         ASTVarRef *VarRef_g = CreateVarRef(LocalVar_g);
@@ -166,10 +166,10 @@ namespace {
 
         // func()
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
         
         // int[] a = {1,2,3}
-        ASTVar *LocalVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "a", EmptyScopes);
+        ASTVar *LocalVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "a", EmptyModifiers);
         SemaBuilderStmt *VarStmt = getASTBuilder().CreateAssignmentStmt(Body, LocalVar);
         ASTValueExpr *ValueExpr = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "1"));
         VarStmt->setExpr(ValueExpr);

@@ -9,7 +9,7 @@
 
 #include "Sema/ASTBuilder.h"
 
-#include "Sema/SemaBuilderScopes.h"
+#include "Sema/SemaBuilderModifiers.h"
 #include "Sema/SemaBuilderStmt.h"
 #include "Sema/SemaBuilderIfStmt.h"
 #include "Sema/SemaBuilderSwitchStmt.h"
@@ -197,16 +197,16 @@ ASTAlias * ASTBuilder::CreateAlias(const SourceLocation &Loc, llvm::StringRef Na
  * @param Loc
  * @param Type
  * @param Name
- * @param Scopes
+ * @param Modifiers
  * @return
  */
 // TODO: remove globalvar
 // ASTVar *ASTBuilder::CreateGlobalVar(ASTModule *Module, const SourceLocation &Loc, ASTTypeRef *Type,
-//                                            const llvm::StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes,
+//                                            const llvm::StringRef Name, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
 //                                            ASTExpr *Expr) {
 //     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateGlobalVar", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
 //
-//     ASTVar *GlobalVar = new ASTVar(Loc, Type, Name, Scopes);
+//     ASTVar *GlobalVar = new ASTVar(Loc, Type, Name, Modifiers);
 //     GlobalVar->Expr = Expr;
 //
 // 	// Global Var to Module
@@ -222,15 +222,15 @@ ASTAlias * ASTBuilder::CreateAlias(const SourceLocation &Loc, llvm::StringRef Na
  * @param Loc
  * @param Type
  * @param Name
- * @param Scopes
+ * @param Modifiers
  * @return
  */
 ASTFunction *ASTBuilder::CreateFunction(ASTModule *Module, const SourceLocation &Loc, ASTTypeRef *TypeRef,
-                                         llvm::StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes,
+                                         llvm::StringRef Name, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
                                          SmallVector<ASTVar *, 8> &Params, ASTBlockStmt *Body) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateFunction", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
 
-    ASTFunction *Function = new ASTFunction(Loc, TypeRef, Scopes, Name, Params);
+    ASTFunction *Function = new ASTFunction(Loc, TypeRef, Modifiers, Name, Params);
 
     // Create Body
     if (Body)
@@ -248,15 +248,15 @@ ASTFunction *ASTBuilder::CreateFunction(ASTModule *Module, const SourceLocation 
  * @param Module
  * @param Loc
  * @param Name
- * @param Scopes
+ * @param Modifiers
  * @return
  */
 ASTClass *ASTBuilder::CreateClass(ASTModule *Module, const SourceLocation &Loc, ASTClassKind ClassKind,
-                                   const llvm::StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes,
+                                   const llvm::StringRef Name, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
                                    llvm::SmallVector<ASTTypeRef *, 4> &SuperClasses) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateClass", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
 
-    ASTClass *Class = new ASTClass(Module, ClassKind, Scopes, Loc, Name, SuperClasses);
+    ASTClass *Class = new ASTClass(Module, ClassKind, Modifiers, Loc, Name, SuperClasses);
 
 	// Add Class to Module
 	Module->Definitions.push_back(Class);
@@ -271,15 +271,15 @@ ASTClass *ASTBuilder::CreateClass(ASTModule *Module, const SourceLocation &Loc, 
  * @param Loc
  * @param Type
  * @param Name
- * @param Scopes
+ * @param Modifiers
  * @return
  */
 ASTVar *ASTBuilder::CreateClassAttribute(const SourceLocation &Loc, ASTClass *Class, ASTTypeRef *TypeRef,
-                                                     llvm::StringRef Name, SmallVector<ASTScope *, 8> &Scopes,
+                                                     llvm::StringRef Name, SmallVector<ASTModifier *, 8> &Modifiers,
                                                      ASTExpr *Expr) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateClassAttribute", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
 
-    ASTVar *Attribute = new ASTVar(Loc, TypeRef, Name, Scopes);
+    ASTVar *Attribute = new ASTVar(Loc, TypeRef, Name, Modifiers);
     Attribute->Expr = Expr;
     Class->Definitions.push_back(Attribute);
 
@@ -288,11 +288,11 @@ ASTVar *ASTBuilder::CreateClassAttribute(const SourceLocation &Loc, ASTClass *Cl
 }
 
 ASTFunction *ASTBuilder::CreateClassMethod(const SourceLocation &Loc, ASTClass *Class, ASTTypeRef *TypeRef,
-                                               llvm::StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes,
+                                               llvm::StringRef Name, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
                                                llvm::SmallVector<ASTVar *, 8> &Params, ASTBlockStmt *Body) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateClassMethod", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
 
-    ASTFunction *Method = new ASTFunction(Loc, TypeRef, Scopes, Name, Params);
+    ASTFunction *Method = new ASTFunction(Loc, TypeRef, Modifiers, Name, Params);
 
     if (Body)
         CreateBody(Method, Body);
@@ -305,11 +305,11 @@ ASTFunction *ASTBuilder::CreateClassMethod(const SourceLocation &Loc, ASTClass *
 }
 
 ASTEnum *ASTBuilder::CreateEnum(ASTModule *Module, const SourceLocation &Loc, const llvm::StringRef Name,
-                                 llvm::SmallVector<ASTScope *, 8> &Scopes,
+                                 llvm::SmallVector<ASTModifier *, 8> &Modifiers,
                                  llvm::SmallVector<ASTTypeRef *, 4> EnumTypes) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateEnum", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
 
-    ASTEnum *Enum = new ASTEnum(Module, Loc, Name, Scopes, EnumTypes);
+    ASTEnum *Enum = new ASTEnum(Module, Loc, Name, Modifiers, EnumTypes);
 
     // Add Enum to Module
 	Module->Definitions.push_back(Enum);
@@ -319,11 +319,11 @@ ASTEnum *ASTBuilder::CreateEnum(ASTModule *Module, const SourceLocation &Loc, co
 }
 
 ASTVar *ASTBuilder::CreateEnumEntry(const SourceLocation &Loc, ASTEnum *Enum, llvm::StringRef Name,
-                                           llvm::SmallVector<ASTScope *, 8> &Scopes) {
+                                           llvm::SmallVector<ASTModifier *, 8> &Modifiers) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateEnumEntry", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
 
 	ASTTypeRef * TypeRef = CreateIntTypeRef(Loc);
-    ASTVar *EnumEntry = new ASTVar(Loc, TypeRef, Name, Scopes);
+    ASTVar *EnumEntry = new ASTVar(Loc, TypeRef, Name, Modifiers);
     Enum->Definitions.push_back(EnumEntry);
 
 	FLY_DEBUG_END("ASTBuilder", "CreateEnumEntry");
@@ -592,7 +592,7 @@ ASTTypeRef * ASTBuilder::CreateTypeRef(ASTEnum *Enum) {
 }
 
 /**
- * Creates an ASTScope
+ * Creates an ASTModifier
  * @param Loc
  * @param Name
  * @return
@@ -727,10 +727,10 @@ ASTStructValue *ASTBuilder::CreateStructValue(const SourceLocation &Loc, llvm::S
  * @return
  */
 ASTVar *ASTBuilder::CreateParam(const SourceLocation &Loc, ASTTypeRef *TypeRef, llvm::StringRef Name,
-                                   llvm::SmallVector<ASTScope *, 8> &Scopes, ASTValue *DefaultValue) {
+                                   llvm::SmallVector<ASTModifier *, 8> &Modifiers, ASTValue *DefaultValue) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateParam", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
 
-    ASTVar *Param = new ASTVar(Loc, TypeRef, Name, Scopes);
+    ASTVar *Param = new ASTVar(Loc, TypeRef, Name, Modifiers);
 	if (DefaultValue) {
 		Param->Expr = CreateExpr(DefaultValue);
 	}
@@ -749,10 +749,10 @@ ASTVar *ASTBuilder::CreateParam(const SourceLocation &Loc, ASTTypeRef *TypeRef, 
  * @return
  */
 ASTVar *ASTBuilder::CreateLocalVar(ASTBlockStmt *BlockStmt, const SourceLocation &Loc, ASTTypeRef *Type,
-                                         llvm::StringRef Name, llvm::SmallVector<ASTScope *, 8> &Scopes) {
+                                         llvm::StringRef Name, llvm::SmallVector<ASTModifier *, 8> &Modifiers) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateLocalVar", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
 
-    ASTVar *Var = new ASTVar(Loc, Type, Name, Scopes);
+    ASTVar *Var = new ASTVar(Loc, Type, Name, Modifiers);
     BlockStmt->LocalVars.insert(std::make_pair(Var->getName(), Var)); // Check duplicate in Block Stmt
 
 	FLY_DEBUG_END("ASTBuilder", "CreateLocalVar");

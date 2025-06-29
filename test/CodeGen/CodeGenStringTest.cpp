@@ -12,7 +12,7 @@
 #include "CodeGen/CodeGenModule.h"
 #include "CodeGen/CodeGenFunction.h"
 #include "CodeGen/CodeGenClass.h"
-#include "Sema/SemaBuilderScopes.h"
+#include "Sema/SemaBuilderModifiers.h"
 #include "Sema/SemaBuilderStmt.h"
 #include "Sema/SemaBuilderIfStmt.h"
 #include "Sema/SemaBuilderSwitchStmt.h"
@@ -48,15 +48,15 @@ namespace {
         ASTModule *Module = CreateModule();
 
     	ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-    	ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
+    	ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
     	// default string k = ""
-    	ASTVar *LocalVar_k = getASTBuilder().CreateLocalVar(Body, SourceLoc, StringTypeRef, "k", EmptyScopes);
+    	ASTVar *LocalVar_k = getASTBuilder().CreateLocalVar(Body, SourceLoc, StringTypeRef, "k", EmptyModifiers);
     	SemaBuilderStmt *VarStmt_k = getASTBuilder().CreateAssignmentStmt(Body, LocalVar_k);
     	VarStmt_k->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(DoubleTypeRef->getSym())));
 
     	// default char l = '\0'
-    	ASTVar *LocalVar_l = getASTBuilder().CreateLocalVar(Body, SourceLoc, CharTypeRef, "l", EmptyScopes);
+    	ASTVar *LocalVar_l = getASTBuilder().CreateLocalVar(Body, SourceLoc, CharTypeRef, "l", EmptyModifiers);
     	SemaBuilderStmt *VarStmt_l = getASTBuilder().CreateAssignmentStmt(Body, LocalVar_l);
     	VarStmt_l->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(DoubleTypeRef->getSym())));
 
@@ -83,11 +83,11 @@ namespace {
         ASTModule *Module = CreateModule();
 
         llvm::SmallVector<ASTVar *, 8> Params;
-    	Params.push_back(getASTBuilder().CreateParam(SourceLoc, StringTypeRef, "k", EmptyScopes));
-    	Params.push_back(getASTBuilder().CreateParam(SourceLoc, CharTypeRef, "l", EmptyScopes));
+    	Params.push_back(getASTBuilder().CreateParam(SourceLoc, StringTypeRef, "k", EmptyModifiers));
+    	Params.push_back(getASTBuilder().CreateParam(SourceLoc, CharTypeRef, "l", EmptyModifiers));
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
 
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
         // func(string k, char l) {
         // }
         
@@ -122,10 +122,10 @@ namespace {
 
         // func()
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
     	// float g
-    	ASTVar *LocalVar_g = getASTBuilder().CreateLocalVar(Body, SourceLoc, FloatTypeRef, "g", EmptyScopes);
+    	ASTVar *LocalVar_g = getASTBuilder().CreateLocalVar(Body, SourceLoc, FloatTypeRef, "g", EmptyModifiers);
 
         // g = 1.0
         ASTVarRef *VarRef_g = CreateVarRef(LocalVar_g);

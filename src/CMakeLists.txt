@@ -33,7 +33,7 @@ add_library(flyLib
         AST/ASTOpExpr.cpp
         AST/ASTReturnStmt.cpp
         AST/ASTRuleStmt.cpp
-        AST/ASTScopes.cpp
+        AST/ASTModifier.cpp
         AST/ASTStmt.cpp
         AST/ASTSwitchStmt.cpp
         AST/ASTValue.cpp
@@ -140,7 +140,7 @@ add_library(flyLib
         Sema/SemaBuilderIfStmt.cpp
         Sema/SemaBuilderSwitchStmt.cpp
         Sema/SemaBuilderLoopStmt.cpp
-        Sema/SemaBuilderScopes.cpp
+        Sema/SemaBuilderModifiers.cpp
         Sema/SemaResolver.cpp
         Sema/SemaResolverClass.cpp
         Sema/SemaValidator.cpp

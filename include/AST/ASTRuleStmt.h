@@ -23,7 +23,7 @@ namespace fly {
         friend class SemaResolver;
         friend class SemaValidator;
 
-        // The Rule expression can be used with different scopes
+        // The Rule expression can be used with different Modifiers
         ASTExpr *Rule = nullptr;
 
         // The If Block statement

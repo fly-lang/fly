@@ -8,15 +8,15 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTClass.h"
-#include "AST/ASTScopes.h"
+#include "AST/ASTModifier.h"
 #include "Basic/Logger.h"
 
 using namespace fly;
 
 ASTClass::ASTClass(
-	ASTModule *Module, ASTClassKind ClassKind, llvm::SmallVector<ASTScope *, 8> &Scopes,
+	ASTModule *Module, ASTClassKind ClassKind, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
 	const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTTypeRef *, 4> &SuperClasses) :
-	ASTBase(Loc, ASTKind::AST_CLASS), ClassKind(ClassKind), Scopes(Scopes), Name(Name), SuperClasses(SuperClasses) {
+	ASTBase(Loc, ASTKind::AST_CLASS), ClassKind(ClassKind), Modifiers(Modifiers), Name(Name), SuperClasses(SuperClasses) {
 
 }
 
@@ -32,8 +32,8 @@ ASTClassKind ASTClass::getClassKind() const {
 	return ClassKind;
 }
 
-llvm::SmallVector<ASTScope *, 8> ASTClass::getScopes() const {
-	return Scopes;
+llvm::SmallVector<ASTModifier *, 8> ASTClass::getModifiers() const {
+	return Modifiers;
 }
 
 llvm::StringRef ASTClass::getName() const {

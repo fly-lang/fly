@@ -28,7 +28,7 @@
 #include "AST/ASTVar.h"
 #include "AST/ASTModule.h"
 #include "AST/ASTNameSpace.h"
-#include "AST/ASTScopes.h"
+#include "AST/ASTModifier.h"
 #include "Sema/SemaClassAttribute.h"
 #include "Sema/SemaClassMethod.h"
 #include "Sema/SemaEnumEntry.h"
@@ -233,13 +233,13 @@ void SemaBuilder::CreateImport(SemaModule *Module, ASTImport *AST) {
 // 	Module->GlobalVars.insert(std::make_pair(AST->getName(), GlobalVar));
 // 	AST->Sym = GlobalVar;
 //
-// 	// Check and set GlobalVar Scopes
-// 	for (auto Scope : AST->getScopes()) {
+// 	// Check and set GlobalVar Modifiers
+// 	for (auto Scope : AST->getModifiers()) {
 // 		if (Scope == nullptr) {
 // 			// Error:
 // 			S.Diag(AST->getLocation(), diag::err_sema_visibility_error) << AST->getName();
 // 		}
-// 		if (Scope->getScopeKind() == ASTScopeKind::SCOPE_VISIBILITY) {
+// 		if (Scope->getModifierKind() == ASTScopeKind::SCOPE_VISIBILITY) {
 // 			if (Scope->getVisibility() == ASTVisibilityKind::V_PUBLIC ||
 // 				Scope->getVisibility() == ASTVisibilityKind::V_DEFAULT) {
 //
@@ -257,7 +257,7 @@ void SemaBuilder::CreateImport(SemaModule *Module, ASTImport *AST) {
 // 				// Error
 // 				S.Diag(AST->getLocation(), diag::err_sema_visibility_error) << AST->getName();
 // 			}
-// 		} else if (Scope->getScopeKind() == ASTScopeKind::SCOPE_CONSTANT) {
+// 		} else if (Scope->getModifierKind() == ASTScopeKind::SCOPE_CONSTANT) {
 // 			GlobalVar->Constant = Scope->isConstant();
 // 		}
 // 	}
@@ -283,13 +283,13 @@ SemaFunction * SemaBuilder::CreateFunction(SemaModule *Module, ASTFunction *AST)
 	Module->Functions.insert(std::make_pair(MangledName, Function));
 	AST->Sema = Function;
 
-	// Check and set Function Scopes
-	for (auto Scope : AST->getScopes()) {
+	// Check and set Function Modifiers
+	for (auto Scope : AST->getModifiers()) {
 		if (Scope == nullptr) {
 			// Error:
 			S.Diag(AST->getLocation(), diag::err_sema_visibility_error) << AST->getName();
 		}
-		if (Scope->getScopeKind() == ASTScopeKind::SCOPE_VISIBILITY) {
+		if (Scope->getModifierKind() == ASTModifierKind::M_VISIBILITY) {
 			if (Scope->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
 				Function->Visibility = SemaVisibilityKind::PUBLIC;
 
@@ -336,13 +336,13 @@ SemaClassType * SemaBuilder::CreateClass(SemaModule *Module, ASTClass *AST) {
 	Class->Module = Module;
 	Module->Types.insert(std::make_pair(AST->getName(), Class));
 
-	// Check and set Function Scopes
-	for (auto Scope : AST->getScopes()) {
+	// Check and set Function Modifiers
+	for (auto Scope : AST->getModifiers()) {
 		if (Scope == nullptr) {
 			// Error:
 			S.Diag(AST->getLocation(), diag::err_sema_visibility_error) << AST->getName();
 		}
-		if (Scope->getScopeKind() == ASTScopeKind::SCOPE_VISIBILITY) {
+		if (Scope->getModifierKind() == ASTModifierKind::M_VISIBILITY) {
 			if (Scope->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
 				Class->Visibility = SemaVisibilityKind::PUBLIC;
 
@@ -367,7 +367,7 @@ SemaClassType * SemaBuilder::CreateClass(SemaModule *Module, ASTClass *AST) {
 				// Error
 				S.Diag(AST->getLocation(), diag::err_sema_visibility_error) << AST->getName();
 			}
-		} else if (Scope->getScopeKind() == ASTScopeKind::SCOPE_CONSTANT) {
+		} else if (Scope->getModifierKind() == ASTModifierKind::M_CONSTANT) {
 			Class->Constant = Scope->isConstant();
 		}
 	}
@@ -410,12 +410,12 @@ SemaClassMethod * SemaBuilder::CreateClassMethod(SemaClassType *Class, ASTFuncti
 		Class->Methods.insert(std::make_pair(MangledName, Method));
 	}
 
-	for (auto &Scope : AST->getScopes()) {
+	for (auto &Scope : AST->getModifiers()) {
         if (Scope == nullptr) {
             // Error:
             S.Diag(AST->getLocation(), diag::err_sema_visibility_error) << AST->getName();
         }
-        if (Scope->getScopeKind() == ASTScopeKind::SCOPE_VISIBILITY) {
+        if (Scope->getModifierKind() == ASTModifierKind::M_VISIBILITY) {
             if (Scope->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
                 Method->Visibility = SemaVisibilityKind::PUBLIC;
             } else if (Scope->getVisibility() == ASTVisibilityKind::V_PRIVATE) {
@@ -428,7 +428,7 @@ SemaClassMethod * SemaBuilder::CreateClassMethod(SemaClassType *Class, ASTFuncti
                 // Error
                 S.Diag(AST->getLocation(), diag::err_sema_visibility_error) << AST->getName();
             }
-        } else if (Scope->getScopeKind() == ASTScopeKind::SCOPE_STATIC) {
+        } else if (Scope->getModifierKind() == ASTModifierKind::M_STATIC) {
             Method->Static = Scope->isStatic();
         }
     }
@@ -455,13 +455,13 @@ SemaEnumType * SemaBuilder::CreateEnum(SemaModule *Module, ASTEnum *AST) {
 	Enum->Module = Module;
 	Module->Types.insert(std::make_pair(AST->getName(), Enum));
 
-	// Check and set Function Scopes
-	for (auto Scope : AST->getScopes()) {
+	// Check and set Function Modifiers
+	for (auto Scope : AST->getModifiers()) {
 		if (Scope == nullptr) {
 			// Error:
 			S.Diag(AST->getLocation(), diag::err_sema_visibility_error) << AST->getName();
 		}
-		if (Scope->getScopeKind() == ASTScopeKind::SCOPE_VISIBILITY) {
+		if (Scope->getModifierKind() == ASTModifierKind::M_VISIBILITY) {
 			if (Scope->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
 				Enum->Visibility = SemaVisibilityKind::PUBLIC;
 
@@ -477,7 +477,7 @@ SemaEnumType * SemaBuilder::CreateEnum(SemaModule *Module, ASTEnum *AST) {
 				// Error
 				S.Diag(AST->getLocation(), diag::err_sema_visibility_error) << AST->getName();
 			}
-		} else if (Scope->getScopeKind() == ASTScopeKind::SCOPE_CONSTANT) {
+		} else if (Scope->getModifierKind() == ASTModifierKind::M_CONSTANT) {
 			Enum->Constant = Scope->isConstant();
 		}
 	}

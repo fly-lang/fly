@@ -12,7 +12,7 @@
 #include "CodeGen/CodeGenModule.h"
 #include "CodeGen/CodeGenFunction.h"
 #include "CodeGen/CodeGenClass.h"
-#include "Sema/SemaBuilderScopes.h"
+#include "Sema/SemaBuilderModifiers.h"
 #include "Sema/SemaBuilderStmt.h"
 #include "Sema/SemaBuilderIfStmt.h"
 #include "Sema/SemaBuilderSwitchStmt.h"
@@ -53,10 +53,10 @@ namespace {
         //   C
         // }
         llvm::SmallVector<ASTTypeRef *, 4> SuperEnums;
-        ASTEnum *TestEnum = getASTBuilder().CreateEnum(Module, SourceLoc, "TestEnum", TopScopes, SuperEnums);
-        ASTVar *A = getASTBuilder().CreateEnumEntry(SourceLoc, TestEnum, "A", EmptyScopes);
-        ASTVar *B = getASTBuilder().CreateEnumEntry(SourceLoc, TestEnum, "B", EmptyScopes);
-        ASTVar *C = getASTBuilder().CreateEnumEntry(SourceLoc, TestEnum, "C", EmptyScopes);
+        ASTEnum *TestEnum = getASTBuilder().CreateEnum(Module, SourceLoc, "TestEnum", TopModifiers, SuperEnums);
+        ASTVar *A = getASTBuilder().CreateEnumEntry(SourceLoc, TestEnum, "A", EmptyModifiers);
+        ASTVar *B = getASTBuilder().CreateEnumEntry(SourceLoc, TestEnum, "B", EmptyModifiers);
+        ASTVar *C = getASTBuilder().CreateEnumEntry(SourceLoc, TestEnum, "C", EmptyModifiers);
 
         // int main() {
         //  TestEnum a = TestEnum.A;
@@ -64,19 +64,19 @@ namespace {
         //  return 1
         // }
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         ASTTypeRef *TestEnumType = getASTBuilder().CreateTypeRef(TestEnum);
 
         //  TestEnum a = TestEnum.A;
-        ASTVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, TestEnumType, "a", EmptyScopes);
+        ASTVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, TestEnumType, "a", EmptyModifiers);
         ASTVarRef *Enum_AVarRef = CreateVarRef(A, getASTBuilder().CreateRef(SourceLoc, TestEnumType->getName()));
         ASTVarRefExpr *Enum_ARefExpr = getASTBuilder().CreateExpr(Enum_AVarRef);
         SemaBuilderStmt *aVarStmt = getASTBuilder().CreateAssignmentStmt(Body, aVar);
         aVarStmt->setExpr(Enum_ARefExpr);
 
         //  TestEnum b = a
-        ASTVar *bVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, TestEnumType, "b", EmptyScopes);
+        ASTVar *bVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, TestEnumType, "b", EmptyModifiers);
         SemaBuilderStmt *bVarStmt = getASTBuilder().CreateAssignmentStmt(Body, bVar);
         ASTVarRefExpr *aRefExpr = getASTBuilder().CreateExpr(CreateVarRef(aVar));
         bVarStmt->setExpr(aRefExpr);

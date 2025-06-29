@@ -29,7 +29,7 @@
 #include "AST/ASTTypeRef.h"
 #include "AST/ASTVar.h"
 #include "Sema/ASTBuilder.h"
-#include "Sema/SemaBuilderScopes.h"
+#include "Sema/SemaBuilderModifiers.h"
 #include "Sema/SemaBuilderStmt.h"
 #include "Sema/SemaBuilderIfStmt.h"
 #include "Sema/SemaBuilderSwitchStmt.h"
@@ -38,7 +38,7 @@
 #include "Basic/Debug.h"
 #include "llvm/Support/Regex.h"
 
-#include <AST/ASTScopes.h>
+#include <AST/ASTModifier.h>
 
 using namespace fly;
 
@@ -199,16 +199,16 @@ ASTBase *Parser::ParseDefinition() {
 		return ParseComment();
 	}
 
-	// Parse Top Scopes: Public/Private and Constant
-	SmallVector<ASTScope *, 8> Scopes = ParseScopes();
+	// Parse Top Modifiers: Public/Private and Constant
+	SmallVector<ASTModifier *, 8> Modifiers = ParseModifiers();
 
     // Define a Class
     if (Tok.isOneOf(tok::kw_struct, tok::kw_class, tok::kw_interface)) {
-        return ParseClass(Scopes);
+        return ParseClass(Modifiers);
     }
 
     if (Tok.is(tok::kw_enum)) {
-        return ParseEnum(Scopes);
+        return ParseEnum(Modifiers);
     }
 
     // Parse Type
@@ -220,12 +220,12 @@ ASTBase *Parser::ParseDefinition() {
 
             // Define a Function
             if (Lexer::findNextToken(Tok.getLocation(), SourceMgr)->is(tok::l_paren)) {
-                return ParseFunction(Scopes, TypeRef);
+                return ParseFunction(Modifiers, TypeRef);
             }
         	// TODO: remove global var
         	// else {
          //        // Define a GlobalVar
-         //        return ParseGlobalVar(Scopes, TypeRef);
+         //        return ParseGlobalVar(Modifiers, TypeRef);
          //    }
         } else {
             Diag(Tok, diag::err_parse_identifier_invalid);
@@ -235,29 +235,29 @@ ASTBase *Parser::ParseDefinition() {
     return nullptr;
 }
 
-SmallVector<ASTScope *, 8> Parser::ParseScopes() {
-    FLY_DEBUG_START("ClassParser", "ParseScopes");
+SmallVector<ASTModifier *, 8> Parser::ParseModifiers() {
+    FLY_DEBUG_START("ClassParser", "ParseModifiers");
 
-    SemaBuilderScopes *BuilderScopes = SemaBuilderScopes::Build();
+    SemaBuilderModifiers *BuilderModifiers = SemaBuilderModifiers::Build();
 
     while (Tok.isNot(tok::eof)) {
-        ASTScope *Scope;
+        ASTModifier *Scope;
         if (Tok.is(tok::kw_private)) {
-            BuilderScopes->addVisibility(ConsumeToken(), ASTVisibilityKind::V_PRIVATE);
+            BuilderModifiers->addVisibility(ConsumeToken(), ASTVisibilityKind::V_PRIVATE);
         } else if (Tok.is(tok::kw_protected)) {
-            BuilderScopes->addVisibility(ConsumeToken(), ASTVisibilityKind::V_PROTECTED);
+            BuilderModifiers->addVisibility(ConsumeToken(), ASTVisibilityKind::V_PROTECTED);
         } else if (Tok.is(tok::kw_public)) {
-            BuilderScopes->addVisibility(ConsumeToken(), ASTVisibilityKind::V_PUBLIC);
+            BuilderModifiers->addVisibility(ConsumeToken(), ASTVisibilityKind::V_PUBLIC);
         } else if (Tok.is(tok::kw_const)) {
-            BuilderScopes->addConstant(ConsumeToken());
+            BuilderModifiers->addConstant(ConsumeToken());
         } else if (Tok.is(tok::kw_static)) {
-            BuilderScopes->addStatic(ConsumeToken());
+            BuilderModifiers->addStatic(ConsumeToken());
         } else {
             break;
         }
     }
 
-    return BuilderScopes->getScopes();
+    return BuilderModifiers->getModifiers();
 }
 
 /**
@@ -270,7 +270,7 @@ SmallVector<ASTScope *, 8> Parser::ParseScopes() {
  * @return
  */
 // TODO: remove globalvar
-// ASTVar *Parser::ParseGlobalVar(SmallVector<ASTScope *, 8> &Scopes, ASTTypeRef *TypeRef) {
+// ASTVar *Parser::ParseGlobalVar(SmallVector<ASTModifier *, 8> &Modifiers, ASTTypeRef *TypeRef) {
 // 	FLY_DEBUG_START("Parser", "ParseGlobalVar");
 //     assert(Tok.isAnyIdentifier() && "Tok must be an Identifier");
 //
@@ -287,7 +287,7 @@ SmallVector<ASTScope *, 8> Parser::ParseScopes() {
 //     }
 //
 //     // GlobalVar
-//     ASTVar *GlobalVar = Builder.CreateGlobalVar(Module, Loc, TypeRef, Name, Scopes, Expr);
+//     ASTVar *GlobalVar = Builder.CreateGlobalVar(Module, Loc, TypeRef, Name, Modifiers, Expr);
 //
 //     return GlobalVar;
 // }
@@ -302,13 +302,13 @@ SmallVector<ASTScope *, 8> Parser::ParseScopes() {
  * @param NameLoc
  * @return
  */
-ASTFunction *Parser::ParseFunction(SmallVector<ASTScope *, 8> &Scopes, ASTTypeRef *TypeRef) {
+ASTFunction *Parser::ParseFunction(SmallVector<ASTModifier *, 8> &Modifiers, ASTTypeRef *TypeRef) {
 	FLY_DEBUG_START("Parser", "ParseFunction");
 
 	StringRef Name = Tok.getIdentifierInfo()->getName();
 	const SourceLocation &Loc = ConsumeToken();
 	SmallVector<ASTVar *, 8> Params = ParserFunction::ParseParams(this);
-	ASTFunction *Function = Builder.CreateFunction(Module, Loc, TypeRef, Name, Scopes, Params, nullptr);
+	ASTFunction *Function = Builder.CreateFunction(Module, Loc, TypeRef, Name, Modifiers, Params, nullptr);
 	ASTBlockStmt *Body = isBlockStart() ? ParserFunction::ParseBody(this, Function) : nullptr;
 	return Function;
 }
@@ -319,10 +319,10 @@ ASTFunction *Parser::ParseFunction(SmallVector<ASTScope *, 8> &Scopes, ASTTypeRe
  * @param Constant
  * @return
  */
-ASTClass * Parser::ParseClass(SmallVector<ASTScope *, 8> &Scopes) {
+ASTClass * Parser::ParseClass(SmallVector<ASTModifier *, 8> &Modifiers) {
 	FLY_DEBUG_START("Parser", "ParseClass");
 
-    ASTClass *Class = ParserClass::Parse(this, Scopes);
+    ASTClass *Class = ParserClass::Parse(this, Modifiers);
     return Class;
 }
 
@@ -333,11 +333,11 @@ ASTClass * Parser::ParseClass(SmallVector<ASTScope *, 8> &Scopes) {
  * @param Constant
  * @return
  */
-ASTEnum *Parser::ParseEnum(SmallVector<ASTScope *, 8>&Scopes) {
+ASTEnum *Parser::ParseEnum(SmallVector<ASTModifier *, 8>&Modifiers) {
 	FLY_DEBUG_START("Parser", "ParseEnum");
     assert(Tok.is(tok::kw_enum) && "Token Enum expected");
 
-    ASTEnum *Enum = ParserEnum::Parse(this, Scopes);
+    ASTEnum *Enum = ParserEnum::Parse(this, Modifiers);
     return Enum;
 }
 
@@ -468,8 +468,8 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
         return;
     }
 
-    // Parse scopes
-    SmallVector<ASTScope *, 8> Scopes = ParseScopes();
+    // Parse Modifiers
+    SmallVector<ASTModifier *, 8> Modifiers = ParseModifiers();
 
 	// Parse a Local Var
 	Optional<Token> NexTok = Tok;
@@ -489,7 +489,7 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
         // Create a Local Var
     	llvm::StringRef Name = Tok.getIdentifierInfo()->getName();
     	const SourceLocation &Loc = ConsumeToken();
-        ASTVar *LocalVar = Builder.CreateLocalVar(Parent, Loc, TypeRef, Name, Scopes);
+        ASTVar *LocalVar = Builder.CreateLocalVar(Parent, Loc, TypeRef, Name, Modifiers);
 
         // Assign to LocalVar
         if (isAssignOperator(Tok)) {

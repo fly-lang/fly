@@ -8,14 +8,14 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTVar.h"
-#include "AST/ASTScopes.h"
+#include "AST/ASTModifier.h"
 #include "Basic/Logger.h"
 
 using namespace fly;
 
 ASTVar::ASTVar(const SourceLocation &Loc, ASTTypeRef *TypeRef, llvm::StringRef Name,
-               SmallVector<ASTScope *, 8> &Scopes) :
-        ASTBase(Loc, ASTKind::AST_VAR), TypeRef(TypeRef), Name(Name), Scopes(Scopes) {
+               SmallVector<ASTModifier *, 8> &Modifiers) :
+        ASTBase(Loc, ASTKind::AST_VAR), TypeRef(TypeRef), Name(Name), Modifiers(Modifiers) {
 
 }
 
@@ -32,16 +32,16 @@ llvm::StringRef ASTVar::getName() const {
 }
 
 bool ASTVar::isConstant() const {
-    for (auto Scope : Scopes) {
-        if (Scope->getScopeKind() == ASTScopeKind::SCOPE_CONSTANT) {
+    for (auto Scope : Modifiers) {
+        if (Scope->getModifierKind() == ASTModifierKind::M_CONSTANT) {
             return Scope->isConstant();
         }
     }
     return false;
 }
 
-const SmallVector<ASTScope *, 8> &ASTVar::getScopes() const {
-    return Scopes;
+const SmallVector<ASTModifier *, 8> &ASTVar::getModifiers() const {
+    return Modifiers;
 }
 
 ASTExpr * ASTVar::getExpr() const {
@@ -55,6 +55,6 @@ std::string ASTVar::str() const {
         Attr("TypeRef", TypeRef).
         Attr("Name", Name).
         Attr("Expr", Expr).
-        Attr("Scopes", ASTBase::str(Scopes)).
+        Attr("Modifiers", ASTBase::str(Modifiers)).
         End();
 }

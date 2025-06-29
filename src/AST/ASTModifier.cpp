@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTScopes.cpp - AST Scopes implementation
+// src/AST/ASTModifier.cpp - AST Modifier implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,34 +7,34 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "AST/ASTScopes.h"
+#include "AST/ASTModifier.h"
 #include "Basic/Logger.h"
 
 using namespace fly;
 
-ASTScope::ASTScope(const SourceLocation &Loc, ASTScopeKind Kind) :
-        ASTBase(Loc, ASTKind::AST_SCOPE), Kind(Kind), Visibility(ASTVisibilityKind::V_DEFAULT), Constant(false), Static(false) {
+ASTModifier::ASTModifier(const SourceLocation &Loc, ASTModifierKind Kind) :
+        ASTBase(Loc, ASTKind::AST_MODIFIER), Kind(Kind), Visibility(ASTVisibilityKind::V_DEFAULT), Constant(false), Static(false) {
 
 }
 
-ASTScopeKind ASTScope::getScopeKind() {
+ASTModifierKind ASTModifier::getModifierKind() {
     return Kind;
 }
 
-ASTVisibilityKind ASTScope::getVisibility() const {
+ASTVisibilityKind ASTModifier::getVisibility() const {
     return Visibility;
 }
 
-bool ASTScope::isConstant() const {
+bool ASTModifier::isConstant() const {
     return Constant;
 }
 
-bool ASTScope::isStatic() const {
+bool ASTModifier::isStatic() const {
     return Static;
 }
 
-std::string ASTScope::str() const {
-    return Logger("ASTScope").
+std::string ASTModifier::str() const {
+    return Logger("ASTModifier").
 	Attr("Location", getLocation()).
 	Attr("Kind", static_cast<size_t>(getKind())).
             Attr("Visibility", (uint64_t) Visibility).

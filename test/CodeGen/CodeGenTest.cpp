@@ -12,7 +12,7 @@
 #include "CodeGen/CodeGenModule.h"
 #include "CodeGen/CodeGenFunction.h"
 #include "CodeGen/CodeGenClass.h"
-#include "Sema/SemaBuilderScopes.h"
+#include "Sema/SemaBuilderModifiers.h"
 #include "Sema/SemaBuilderStmt.h"
 #include "Sema/SemaBuilderIfStmt.h"
 #include "Sema/SemaBuilderSwitchStmt.h"
@@ -43,55 +43,55 @@ namespace {
         ASTModule *Module = CreateModule();
 
     	ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-    	ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
+    	ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         // default bool a = false
-    	ASTVar *LocalVar_a = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolTypeRef, "a", EmptyScopes);
+    	ASTVar *LocalVar_a = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolTypeRef, "a", EmptyModifiers);
     	SemaBuilderStmt *VarStmt_a = getASTBuilder().CreateAssignmentStmt(Body, LocalVar_a);
     	VarStmt_a->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(BoolTypeRef->getSema())));
 
         // default byte b = 0
-    	ASTVar *LocalVar_b = getASTBuilder().CreateLocalVar(Body, SourceLoc, ByteTypeRef, "b", EmptyScopes);
+    	ASTVar *LocalVar_b = getASTBuilder().CreateLocalVar(Body, SourceLoc, ByteTypeRef, "b", EmptyModifiers);
     	SemaBuilderStmt *VarStmt_b = getASTBuilder().CreateAssignmentStmt(Body, LocalVar_b);
     	VarStmt_b->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(ByteTypeRef->getSema())));
 
         // default short c = 0
-    	ASTVar *LocalVar_c = getASTBuilder().CreateLocalVar(Body, SourceLoc, ShortTypeRef, "c", EmptyScopes);
+    	ASTVar *LocalVar_c = getASTBuilder().CreateLocalVar(Body, SourceLoc, ShortTypeRef, "c", EmptyModifiers);
     	SemaBuilderStmt *VarStmt_c = getASTBuilder().CreateAssignmentStmt(Body, LocalVar_c);
     	VarStmt_c->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(ShortTypeRef->getSema())));
 
         // default ushort d = 0
-    	ASTVar *LocalVar_d = getASTBuilder().CreateLocalVar(Body, SourceLoc, UShortTypeRef, "d", EmptyScopes);
+    	ASTVar *LocalVar_d = getASTBuilder().CreateLocalVar(Body, SourceLoc, UShortTypeRef, "d", EmptyModifiers);
     	SemaBuilderStmt *VarStmt_d = getASTBuilder().CreateAssignmentStmt(Body, LocalVar_d);
     	VarStmt_d->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(UShortTypeRef->getSema())));
 
         // default int e = 0
-    	ASTVar *LocalVar_e = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "e", EmptyScopes);
+    	ASTVar *LocalVar_e = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "e", EmptyModifiers);
     	SemaBuilderStmt *VarStmt_e = getASTBuilder().CreateAssignmentStmt(Body, LocalVar_e);
     	VarStmt_e->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(IntTypeRef->getSema())));
 
         // default uint f = 0
-    	ASTVar *LocalVar_f = getASTBuilder().CreateLocalVar(Body, SourceLoc, UIntTypeRef, "f", EmptyScopes);
+    	ASTVar *LocalVar_f = getASTBuilder().CreateLocalVar(Body, SourceLoc, UIntTypeRef, "f", EmptyModifiers);
     	SemaBuilderStmt *VarStmt_f = getASTBuilder().CreateAssignmentStmt(Body, LocalVar_d);
     	VarStmt_f->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(UIntTypeRef->getSema())));
 
         // default long g = 0
-    	ASTVar *LocalVar_g = getASTBuilder().CreateLocalVar(Body, SourceLoc, LongTypeRef, "g", EmptyScopes);
+    	ASTVar *LocalVar_g = getASTBuilder().CreateLocalVar(Body, SourceLoc, LongTypeRef, "g", EmptyModifiers);
     	SemaBuilderStmt *VarStmt_g = getASTBuilder().CreateAssignmentStmt(Body, LocalVar_g);
     	VarStmt_g->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(LongTypeRef->getSema())));
 
         // default ulong h = 0
-    	ASTVar *LocalVar_h = getASTBuilder().CreateLocalVar(Body, SourceLoc, ULongTypeRef, "h", EmptyScopes);
+    	ASTVar *LocalVar_h = getASTBuilder().CreateLocalVar(Body, SourceLoc, ULongTypeRef, "h", EmptyModifiers);
     	SemaBuilderStmt *VarStmt_h = getASTBuilder().CreateAssignmentStmt(Body, LocalVar_h);
     	VarStmt_h->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(ULongTypeRef->getSema())));
 
         // default float i = 0.0
-    	ASTVar *LocalVar_i = getASTBuilder().CreateLocalVar(Body, SourceLoc, FloatTypeRef, "i", EmptyScopes);
+    	ASTVar *LocalVar_i = getASTBuilder().CreateLocalVar(Body, SourceLoc, FloatTypeRef, "i", EmptyModifiers);
     	SemaBuilderStmt *VarStmt_i = getASTBuilder().CreateAssignmentStmt(Body, LocalVar_i);
     	VarStmt_i->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(FloatTypeRef->getSema())));
 
         // default double j = 0.0
-    	ASTVar *LocalVar_j = getASTBuilder().CreateLocalVar(Body, SourceLoc, DoubleTypeRef, "j", EmptyScopes);
+    	ASTVar *LocalVar_j = getASTBuilder().CreateLocalVar(Body, SourceLoc, DoubleTypeRef, "j", EmptyModifiers);
     	SemaBuilderStmt *VarStmt_j = getASTBuilder().CreateAssignmentStmt(Body, LocalVar_j);
     	VarStmt_j->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(DoubleTypeRef->getSema())));
 
@@ -134,22 +134,22 @@ namespace {
         ASTModule *Module = CreateModule();
 
         llvm::SmallVector<ASTVar *, 8> Params;
-        Params.push_back(getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "a", EmptyScopes));
-        Params.push_back(getASTBuilder().CreateParam(SourceLoc, FloatTypeRef, "b", EmptyScopes));
-        Params.push_back(getASTBuilder().CreateParam(SourceLoc, BoolTypeRef, "c", EmptyScopes));
-        Params.push_back(getASTBuilder().CreateParam(SourceLoc, LongTypeRef, "d", EmptyScopes));
-        Params.push_back(getASTBuilder().CreateParam(SourceLoc, DoubleTypeRef, "e", EmptyScopes));
-        Params.push_back(getASTBuilder().CreateParam(SourceLoc, ByteTypeRef, "f", EmptyScopes));
-        Params.push_back(getASTBuilder().CreateParam(SourceLoc, ShortTypeRef, "g", EmptyScopes));
-        Params.push_back(getASTBuilder().CreateParam(SourceLoc, UShortTypeRef, "h", EmptyScopes));
-        Params.push_back(getASTBuilder().CreateParam(SourceLoc, UIntTypeRef, "i", EmptyScopes));
-        Params.push_back(getASTBuilder().CreateParam(SourceLoc, ULongTypeRef, "j", EmptyScopes));
+        Params.push_back(getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "a", EmptyModifiers));
+        Params.push_back(getASTBuilder().CreateParam(SourceLoc, FloatTypeRef, "b", EmptyModifiers));
+        Params.push_back(getASTBuilder().CreateParam(SourceLoc, BoolTypeRef, "c", EmptyModifiers));
+        Params.push_back(getASTBuilder().CreateParam(SourceLoc, LongTypeRef, "d", EmptyModifiers));
+        Params.push_back(getASTBuilder().CreateParam(SourceLoc, DoubleTypeRef, "e", EmptyModifiers));
+        Params.push_back(getASTBuilder().CreateParam(SourceLoc, ByteTypeRef, "f", EmptyModifiers));
+        Params.push_back(getASTBuilder().CreateParam(SourceLoc, ShortTypeRef, "g", EmptyModifiers));
+        Params.push_back(getASTBuilder().CreateParam(SourceLoc, UShortTypeRef, "h", EmptyModifiers));
+        Params.push_back(getASTBuilder().CreateParam(SourceLoc, UIntTypeRef, "i", EmptyModifiers));
+        Params.push_back(getASTBuilder().CreateParam(SourceLoc, ULongTypeRef, "j", EmptyModifiers));
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
 
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
         // func(int a, float b, bool c, long d, double e, byte f, short g, ushort h, uint i, ulong l) {
         // }
-        
+
     	// validate and resolve
     	EXPECT_TRUE(S->Resolve());
 
@@ -191,10 +191,10 @@ namespace {
 
         // func()
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, FloatTypeRef, "func", TopScopes, Params, Body);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, FloatTypeRef, "func", TopModifiers, Params, Body);
 
     	// float g
-    	ASTVar *LocalVar_g = getASTBuilder().CreateLocalVar(Body, SourceLoc, FloatTypeRef, "g", EmptyScopes);
+    	ASTVar *LocalVar_g = getASTBuilder().CreateLocalVar(Body, SourceLoc, FloatTypeRef, "g", EmptyModifiers);
 
         // g = 1.0
         ASTRef *VarRef_g = getASTBuilder().CreateVarRef(LocalVar_g);
@@ -229,10 +229,10 @@ namespace {
 
         // func()
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
-        
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+
         // int a = 1
-        ASTVar *LocalVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "a", EmptyScopes);
+        ASTVar *LocalVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "a", EmptyModifiers);
         SemaBuilderStmt *VarStmt = getASTBuilder().CreateAssignmentStmt(Body, LocalVar);
         ASTValueExpr *ValueExpr = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "1"));
         VarStmt->setExpr(ValueExpr);
@@ -259,11 +259,11 @@ namespace {
 
         // test()
         ASTBlockStmt *BodyTest = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Test = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "test", TopScopes, Params, BodyTest);
+        ASTFunction *Test = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "test", TopModifiers, Params, BodyTest);
 
         // func()
         ASTBlockStmt *BodyFunc = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "func", TopScopes, Params, BodyFunc);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "func", TopModifiers, Params, BodyFunc);
 
         // call test()
         SemaBuilderStmt *ExprStmt = getASTBuilder().CreateExprStmt(BodyFunc, SourceLoc);
@@ -313,14 +313,14 @@ namespace {
 
         // func()
         llvm::SmallVector<ASTVar *, 8> Params;
-        ASTVar *aParam = getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "a", EmptyScopes);
+        ASTVar *aParam = getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "a", EmptyModifiers);
         Params.push_back(aParam);
-        ASTVar *bParam = getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "b", EmptyScopes);
+        ASTVar *bParam = getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "b", EmptyModifiers);
         Params.push_back(bParam);
-        ASTVar *cParam = getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "c", EmptyScopes);
+        ASTVar *cParam = getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "c", EmptyModifiers);
         Params.push_back(cParam);
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "func", TopScopes, Params, Body);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "func", TopModifiers, Params, Body);
 
         SemaBuilderStmt *Return = getASTBuilder().CreateReturnStmt(Body, SourceLoc);
         // Create this expression: 1 + a * b / (c - 2)
@@ -373,14 +373,14 @@ namespace {
 
         // func()
         llvm::SmallVector<ASTVar *, 8> Params;
-        ASTVar *aParam = getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "a", EmptyScopes);
+        ASTVar *aParam = getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "a", EmptyModifiers);
         Params.push_back(aParam);
-        ASTVar *bParam = getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "b", EmptyScopes);
+        ASTVar *bParam = getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "b", EmptyModifiers);
         Params.push_back(bParam);
-        ASTVar *cParam = getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "c", EmptyScopes);
+        ASTVar *cParam = getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "c", EmptyModifiers);
         Params.push_back(cParam);
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         // a = 0
         SemaBuilderStmt *aVarStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateVarRef(aParam));
@@ -549,11 +549,11 @@ namespace {
 
         // func()
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
-        ASTVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "a", EmptyScopes);
-        ASTVar *bVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "b", EmptyScopes);
-        ASTVar *cVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolTypeRef, "c", EmptyScopes);
+        ASTVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "a", EmptyModifiers);
+        ASTVar *bVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "b", EmptyModifiers);
+        ASTVar *cVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolTypeRef, "c", EmptyModifiers);
 
         // a = 0
         SemaBuilderStmt *aVarStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateVarRef(aVar));
@@ -652,11 +652,11 @@ namespace {
 
         // func()
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
-        ASTVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolTypeRef, "a", EmptyScopes);
-        ASTVar *bVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolTypeRef, "b", EmptyScopes);
-        ASTVar *cVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolTypeRef, "c", EmptyScopes);
+        ASTVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolTypeRef, "a", EmptyModifiers);
+        ASTVar *bVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolTypeRef, "b", EmptyModifiers);
+        ASTVar *cVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolTypeRef, "c", EmptyModifiers);
 
         // a = false
         SemaBuilderStmt *aVarStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateVarRef(aVar));
@@ -733,11 +733,11 @@ namespace {
 
         // func()
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
-        ASTVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolTypeRef, "a", EmptyScopes);
-        ASTVar *bVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolTypeRef, "b", EmptyScopes);
-        ASTVar *cVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolTypeRef, "c", EmptyScopes);
+        ASTVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolTypeRef, "a", EmptyModifiers);
+        ASTVar *bVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolTypeRef, "b", EmptyModifiers);
+        ASTVar *cVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolTypeRef, "c", EmptyModifiers);
 
         // a = false
         SemaBuilderStmt *aVarStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateVarRef(aVar));
@@ -805,10 +805,10 @@ namespace {
 
         // func()
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         // int a = 0
-        ASTVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "a", EmptyScopes);
+        ASTVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "a", EmptyModifiers);
         SemaBuilderStmt *aVarStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateVarRef(aVar));
         ASTValueExpr *Expr1 = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "0"));
         aVarStmt->setExpr(Expr1);
@@ -859,10 +859,10 @@ namespace {
 
         // func()
         llvm::SmallVector<ASTVar *, 8> Params;
-        ASTVar *aParam = getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "a", EmptyScopes);
+        ASTVar *aParam = getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "a", EmptyModifiers);
         Params.push_back(aParam);
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         // if (a == 1)
         ASTValueExpr *Value1 = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "1"));
@@ -923,10 +923,10 @@ namespace {
         // func()
 
         llvm::SmallVector<ASTVar *, 8> Params;
-        ASTVar *aParam = getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "a", EmptyScopes);
+        ASTVar *aParam = getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "a", EmptyModifiers);
         Params.push_back(aParam);
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         // if (a == 1)
         SemaBuilderIfStmt *IfBuilder = getASTBuilder().CreateIfBuilder(Body);
@@ -1024,10 +1024,10 @@ namespace {
 
         // main()
         llvm::SmallVector<ASTVar *, 8> Params;
-        ASTVar *aParam = getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "a", EmptyScopes);
+        ASTVar *aParam = getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "a", EmptyModifiers);
         Params.push_back(aParam);
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         // if a == 1
         SemaBuilderIfStmt *IfBuilder = getASTBuilder().CreateIfBuilder(Body);
@@ -1111,10 +1111,10 @@ namespace {
 
         // main()
         llvm::SmallVector<ASTVar *, 8> Params;
-        ASTVar *aParam = getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "a", EmptyScopes);
+        ASTVar *aParam = getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "a", EmptyModifiers);
         Params.push_back(aParam);
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         // switch a
         SemaBuilderSwitchStmt *SwitchBuilder = getASTBuilder().CreateSwitchBuilder(Body);
@@ -1186,10 +1186,10 @@ namespace {
         // main()
         llvm::SmallVector<ASTVar *, 8> Params;
 
-        ASTVar *aParam = getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "a", EmptyScopes);
+        ASTVar *aParam = getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "a", EmptyModifiers);
         Params.push_back(aParam);
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         // while a == 1
         SemaBuilderLoopStmt *LoopBuilder = getASTBuilder().CreateLoopBuilder(Body, SourceLoc);
@@ -1238,10 +1238,10 @@ namespace {
 
         // main()
         llvm::SmallVector<ASTVar *, 8> Params;
-        ASTVar *aParam = getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "a", EmptyScopes);
+        ASTVar *aParam = getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "a", EmptyModifiers);
         Params.push_back(aParam);
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopScopes, Params, Body);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         // for int i = 1; i < 1; ++i
         SemaBuilderLoopStmt *LoopBuilder = getASTBuilder().CreateLoopBuilder(Body, SourceLoc);
@@ -1250,7 +1250,7 @@ namespace {
         // int i = 1
         ASTBlockStmt *InitBlock = getASTBuilder().CreateBlockStmt(SourceLoc);
         LoopBuilder->Init(InitBlock);
-        ASTVar *iVar = getASTBuilder().CreateLocalVar(InitBlock, SourceLoc, IntTypeRef, "i", EmptyScopes);
+        ASTVar *iVar = getASTBuilder().CreateLocalVar(InitBlock, SourceLoc, IntTypeRef, "i", EmptyModifiers);
         ASTRef *iVarRef = getASTBuilder().CreateVarRef(iVar);
         SemaBuilderStmt *iVarStmt = getASTBuilder().CreateAssignmentStmt(InitBlock, iVarRef);
         ASTValueExpr *Value1Expr = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "1"));
@@ -1322,7 +1322,7 @@ namespace {
         //
         // }
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopScopes, Params, Body);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopModifiers, Params, Body);
 
 		// validate and resolve
 		EXPECT_TRUE(S->Resolve());

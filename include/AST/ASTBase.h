@@ -30,7 +30,7 @@ namespace fly {
         AST_REF,
         AST_COMMENT,
         AST_FUNCTION,
-        AST_SCOPE,
+        AST_MODIFIER,
         AST_STRUCT,
         AST_CLASS,
         AST_INTERFACE,

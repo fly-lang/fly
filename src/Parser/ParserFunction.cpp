@@ -80,8 +80,8 @@ llvm::SmallVector<ASTVar *, 8> ParserFunction::ParseParams(Parser *P) {
 ASTVar *ParserFunction::ParseParam(Parser *P) {
     FLY_DEBUG_START("ParserFunction", "ParseParam");
 
-    // Parse Scopes
-    llvm::SmallVector<ASTScope *, 8> Scopes = P->ParseScopes();
+    // Parse Modifiers
+    llvm::SmallVector<ASTModifier *, 8> Modifiers = P->ParseModifiers();
 
     // Var Type
     ASTTypeRef *Type = P->ParseTypeRef();
@@ -105,6 +105,6 @@ ASTVar *ParserFunction::ParseParam(Parser *P) {
         }
     }
 
-    ASTVar *Param = P->Builder.CreateParam(Loc, Type, Name, Scopes, Value);
+    ASTVar *Param = P->Builder.CreateParam(Loc, Type, Name, Modifiers, Value);
     return Param;
 }

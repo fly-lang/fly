@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTScopes.h - AST Scopes header
+// include/AST/ASTModifier.h - AST Modifiers header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,17 +7,17 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_AST_SCOPES_H
-#define FLY_AST_SCOPES_H
+#ifndef FLY_AST_MODIFIER_H
+#define FLY_AST_MODIFIER_H
 
 #include "ASTBase.h"
 
 namespace fly {
 
-    enum class ASTScopeKind {
-        SCOPE_VISIBILITY,
-        SCOPE_CONSTANT,
-        SCOPE_STATIC
+    enum class ASTModifierKind {
+        M_VISIBILITY,
+        M_CONSTANT,
+        M_STATIC
     };
 
     enum class ASTVisibilityKind {
@@ -27,14 +27,14 @@ namespace fly {
         V_PROTECTED
     };
 
-    class ASTScope : public ASTBase {
+    class ASTModifier : public ASTBase {
 
         friend class ASTBuilder;
-        friend class SemaBuilderScopes;
+        friend class SemaBuilderModifiers;
         friend class SemaResolver;
         friend class SemaValidator;
 
-        ASTScopeKind Kind;
+        ASTModifierKind Kind;
 
         ASTVisibilityKind Visibility;
 
@@ -42,11 +42,11 @@ namespace fly {
 
         bool Static;
 
-        ASTScope(const SourceLocation &Loc, ASTScopeKind Kind);
+        ASTModifier(const SourceLocation &Loc, ASTModifierKind Kind);
 
     public:
 
-        ASTScopeKind getScopeKind();
+        ASTModifierKind getModifierKind();
 
         ASTVisibilityKind getVisibility() const;
 
@@ -58,4 +58,4 @@ namespace fly {
     };
 }
 
-#endif //FLY_AST_SCOPES_H
+#endif //FLY_AST_MODIFIER_H
