@@ -50,7 +50,7 @@ void CodeGenHeader::CreateFile(DiagnosticsEngine &Diags, CodeGenOptions &CodeGen
 	// generate global var declarations
 	for (auto SemaVar : NameSpace.getGlobalVars()) {
 		ASTVar *GlobalVar = SemaVar.getValue()->getAST();
-		if (GlobalVar->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
+		if (GlobalVar->getVisibility() == ASTModifierKind::V_PUBLIC) {
 			Header.concat(GlobalVar->getTypeRef()->print())
 			      .concat(GlobalVar->getName())
 			      .concat("\n\n");
@@ -60,7 +60,7 @@ void CodeGenHeader::CreateFile(DiagnosticsEngine &Diags, CodeGenOptions &CodeGen
 	// generate function declarations
 	for (auto &SemaFunc : NameSpace.getFunctions()) {
 		ASTFunction *Function = SemaFunc->getFunction();
-		if (Function->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
+		if (Function->getVisibility() == ASTModifierKind::V_PUBLIC) {
 			Header.concat(Function->getReturnTypeRef()->print())
 			      .concat(Function->getName())
 			      .concat("(");
@@ -78,7 +78,7 @@ void CodeGenHeader::CreateFile(DiagnosticsEngine &Diags, CodeGenOptions &CodeGen
 			      .concat(Attribute->getName()).concat("\n\n");
 		}
 		for (auto Constructor : Class->getConstructors()) {
-			if (Constructor->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
+			if (Constructor->getVisibility() == ASTModifierKind::V_PUBLIC) {
 				Header.concat(Constructor->getReturnType()->print())
 				      .concat(Constructor->getName())
 				      .concat("(");
@@ -87,7 +87,7 @@ void CodeGenHeader::CreateFile(DiagnosticsEngine &Diags, CodeGenOptions &CodeGen
 			}
 		}
 		for (auto &Method : Class->getMethods()) {
-			if (Method->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
+			if (Method->getVisibility() == ASTModifierKind::V_PUBLIC) {
 				Header.concat(Method->getReturnType()->print())
 				      .concat(Method->getName())
 				      .concat("(");

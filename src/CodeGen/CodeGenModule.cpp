@@ -658,21 +658,6 @@ llvm::Value *CodeGenModule::GenExpr(ASTExpr *Expr) {
     return CodeGenExpr::Generate(this, Expr);
 }
 
-CodeGenVarBase * CodeGenModule::GenVar(SemaVar *Sema, llvm::Value *ParentPtr) {
-
-	if (Sema->getParent() != nullptr) {
-		ParentPtr = GenResult(Sema->getParent());
-	}
-
-	CodeGenVarBase *CGV = Sema->getCodeGen();
-	if (CGV == nullptr) {
-		// Init CodeGenVar
-		llvm::Type *Ty = GenType(Sema->getType());
-		CodeGenVar * CGV = new CodeGenVar(this, Sema, Ty, ParentPtr);
-		Sema->setCodeGen(CGV);
-	}
-	return  Sema->getCodeGen();
-}
 
 llvm::Value * CodeGenModule::GenResult(SemaResult *Sema) {
 	llvm::Value *ParentPtr = nullptr;
@@ -688,13 +673,29 @@ llvm::Value * CodeGenModule::GenResult(SemaResult *Sema) {
 	return GenVar(static_cast<SemaVar *>(Sema), ParentPtr)->getValue();
 }
 
-void CodeGenModule::addArgs(SemaCall *Sema, llvm::SmallVector<llvm::Value *, 8> &Args) {
-	// Add Call arguments to Function args
-	for (ASTArg *Arg : Sema->getAST()->getArgs()) {
-		llvm::Value *V = CodeGenExpr::Generate(this, Arg->getExpr());
-		Args.push_back(V);
+CodeGenVarBase * CodeGenModule::GenVar(SemaVar *Sema, llvm::Value *Pointer) {
+
+	// Static Class Attribute
+	if (Sema->getVarKind() == SemaVarKind::CLASS_ATTRIBUTE && static_cast<SemaClassAttribute *>(Sema)->isStatic()) {
+		llvm::Type *Ty = GenType(Sema->getType());
+		Pointer = new llvm::GlobalVariable(*Module, Ty, Sema->isConstant(),
+			llvm::GlobalValue::ExternalLinkage, nullptr);
+	} else if (Sema->getVarKind() == SemaVarKind::ENUM_ENTRY) {
+		// TODO
+	} else if (Sema->getParent() != nullptr) {
+		Pointer = GenResult(Sema->getParent());
 	}
+
+	CodeGenVarBase *CGV = Sema->getCodeGen();
+	if (CGV == nullptr) {
+		// Init CodeGenVar
+		llvm::Type *Ty = GenType(Sema->getType());
+		CodeGenVar * CGV = new CodeGenVar(this, Sema, Ty, Pointer);
+		Sema->setCodeGen(CGV);
+	}
+	return  Sema->getCodeGen();
 }
+
 
 llvm::Value *CodeGenModule::GenCall(SemaCall *Sema) {
 
@@ -704,7 +705,7 @@ llvm::Value *CodeGenModule::GenCall(SemaCall *Sema) {
 	llvm::Value *InstancePtr = nullptr;
 
     // Add error as first parameter
-    if (Sema->getFunction()->getKind() == SemaFunctionKind::METHOD &&
+    if (Sema->getFunction()->getKind() == SemaFunctionKind::CLASS_METHOD &&
     	!static_cast<SemaClassMethod *>(Sema->getFunction())->isStatic()) {
 
     	// Check is Constructor
@@ -745,7 +746,7 @@ llvm::Value *CodeGenModule::GenCall(SemaCall *Sema) {
     		Builder->CreateCall(Method->getCodeGen()->getFunction(), Args);
     		return InstancePtr;
     	} else if (!Sema->getParent()->isCall() &&
-    		static_cast<SemaVar *>(Sema->getParent())->getVarKind() == SemaVarKind::VAR_CLASS_INSTANCE) {
+    		static_cast<SemaVar *>(Sema->getParent())->getVarKind() == SemaVarKind::CLASS_INSTANCE) {
     		llvm::Value * ClassInstancePtr = static_cast<SemaVar *>(Sema->getParent())->getCodeGen()->getValue();
 
     		// If the parent is this Var
@@ -772,6 +773,14 @@ llvm::Value *CodeGenModule::GenCall(SemaCall *Sema) {
     	CodeGenFunctionBase *CGF = Sema->getFunction()->getCodeGen();
     	return Builder->CreateCall(CGF->getFunction(), Args);
     }
+}
+
+void CodeGenModule::addArgs(SemaCall *Sema, llvm::SmallVector<llvm::Value *, 8> &Args) {
+	// Add Call arguments to Function args
+	for (ASTArg *Arg : Sema->getAST()->getArgs()) {
+		llvm::Value *V = CodeGenExpr::Generate(this, Arg->getExpr());
+		Args.push_back(V);
+	}
 }
 
 void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {

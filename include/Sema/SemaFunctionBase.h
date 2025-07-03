@@ -27,7 +27,7 @@ namespace fly {
 
     enum class SemaFunctionKind {
         FUNCTION,
-        METHOD,
+        CLASS_METHOD,
     };
 
     class SemaFunctionBase {

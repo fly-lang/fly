@@ -34,7 +34,7 @@ namespace {
 
         EXPECT_TRUE(Module->getFunctions().size() == 1);
         ASTFunction *Func = *Module->getFunctions().begin();
-        EXPECT_EQ(Func->getVisibility(), ASTVisibilityKind::V_DEFAULT);
+        EXPECT_EQ(Func->getVisibility(), ASTModifierKind::V_DEFAULT);
         EXPECT_EQ(Func->getReturnType()->getStmtKind(), ASTTypeKind::TYPE_VOID);
     }
 
@@ -46,7 +46,7 @@ namespace {
 
         EXPECT_TRUE(Module->getFunctions().size() == 1);
         ASTFunction *Func = *Module->getFunctions().begin();
-        EXPECT_EQ(Func->getVisibility(), ASTVisibilityKind::V_PRIVATE);
+        EXPECT_EQ(Func->getVisibility(), ASTModifierKind::V_PRIVATE);
         EXPECT_EQ(Func->getReturnType()->getStmtKind(), ASTTypeKind::TYPE_VOID);
     }
 
@@ -58,7 +58,7 @@ namespace {
 
         EXPECT_TRUE(Module->getFunctions().size() == 1);
         ASTFunction *Func = *Module->getFunctions().begin();
-        EXPECT_EQ(Func->getVisibility(), ASTVisibilityKind::V_PUBLIC);
+        EXPECT_EQ(Func->getVisibility(), ASTModifierKind::V_PUBLIC);
         EXPECT_EQ(Func->getReturnType()->getStmtKind(), ASTTypeKind::TYPE_VOID);
     }
 
@@ -155,7 +155,7 @@ namespace {
 
         EXPECT_TRUE(Module->getFunctions().size() == 1); // func() has PRIVATE Visibility
         ASTFunction *VerifyFunc = Module->getFunctions()[0];
-        EXPECT_EQ(VerifyFunc->getVisibility(), ASTVisibilityKind::V_PRIVATE);
+        EXPECT_EQ(VerifyFunc->getVisibility(), ASTModifierKind::V_PRIVATE);
 
         ASTVar *Par0 = VerifyFunc->getParams()[0];
         ASTVar *Par1 = VerifyFunc->getParams()[1];

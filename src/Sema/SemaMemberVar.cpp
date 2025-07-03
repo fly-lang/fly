@@ -11,7 +11,7 @@
 
 using namespace fly;
 
-SemaMemberVar::SemaMemberVar(ASTVar *AST, SemaResult *Parent) : SemaVar(AST, SemaVarKind::VAR_MEMBER) {
+SemaMemberVar::SemaMemberVar(ASTVar *AST, SemaResult *Parent) : SemaVar(AST, SemaVarKind::MEMBER_VAR) {
 	assert(Parent && "Parent cannot be null");
 	setParent(Parent);
 }

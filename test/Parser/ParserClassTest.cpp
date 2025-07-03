@@ -34,7 +34,7 @@ namespace {
 
         ASTGlobalVar *VarO = Module->getGlobalVars().front();
 
-        EXPECT_EQ(VarO->getVisibility(), ASTVisibilityKind::V_PRIVATE);
+        EXPECT_EQ(VarO->getVisibility(), ASTModifierKind::V_PRIVATE);
         EXPECT_FALSE(VarO->isConstant());
         EXPECT_EQ(((ASTIntegerType *) VarO->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_INT);
         EXPECT_EQ(VarO->getName(), "o");
@@ -106,7 +106,7 @@ namespace {
         EXPECT_FALSE(Module->getIdentity() == nullptr);
         EXPECT_TRUE(Module->getNameSpace()->getIdentities().size() == 1);
         auto &Class = *Module->getNameSpace()->getIdentities().begin()->second;
-        EXPECT_EQ(Class.getScopes()->getVisibility(), ASTVisibilityKind::V_PUBLIC);
+        EXPECT_EQ(Class.getScopes()->getVisibility(), ASTModifierKind::V_PUBLIC);
         const auto &NSClassess = Module->getContext().getDefaultNameSpace()->getIdentities();
         const auto &ClassTest = NSClassess.find("Test");
         ASSERT_TRUE(ClassTest != NSClassess.end());
@@ -158,11 +158,11 @@ namespace {
         ASTClassVar *aVar = Class->getVars().find("a")->getValue();
         ASTClassVar *bVar = Class->getVars().find("b")->getValue();
         ASTClassVar *cVar = Class->getVars().find("c")->getValue();
-        EXPECT_EQ(aVar->getScopes()->getVisibility(), ASTVisibilityKind::V_DEFAULT);
+        EXPECT_EQ(aVar->getScopes()->getVisibility(), ASTModifierKind::V_DEFAULT);
         EXPECT_FALSE(aVar->getScopes()->isConstant());
-        EXPECT_EQ(bVar->getScopes()->getVisibility(), ASTVisibilityKind::V_PUBLIC);
+        EXPECT_EQ(bVar->getScopes()->getVisibility(), ASTModifierKind::V_PUBLIC);
         EXPECT_FALSE(bVar->getScopes()->isConstant());
-        EXPECT_EQ(cVar->getScopes()->getVisibility(), ASTVisibilityKind::V_DEFAULT);
+        EXPECT_EQ(cVar->getScopes()->getVisibility(), ASTModifierKind::V_DEFAULT);
         EXPECT_TRUE(cVar->getScopes()->isConstant());
 
         llvm::StringRef str2 = (
@@ -208,12 +208,12 @@ namespace {
         ASTClassFunction *bMethod = *Class->getMethods().find("b")->getValue().begin()->second.begin();
         ASTClassFunction *cMethod = *Class->getMethods().find("c")->getValue().begin()->second.begin();
         ASTClassFunction *dMethod = *Class->getMethods().find("d")->getValue().begin()->second.begin();
-        EXPECT_EQ(aVar->getScopes()->getVisibility(), ASTVisibilityKind::V_DEFAULT);
-        EXPECT_EQ(bVar->getScopes()->getVisibility(), ASTVisibilityKind::V_PRIVATE);
-        EXPECT_EQ(aMethod->getScopes()->getVisibility(), ASTVisibilityKind::V_PUBLIC);
-        EXPECT_EQ(bMethod->getScopes()->getVisibility(), ASTVisibilityKind::V_PROTECTED);
-        EXPECT_EQ(cMethod->getScopes()->getVisibility(), ASTVisibilityKind::V_PRIVATE);
-        EXPECT_EQ(dMethod->getScopes()->getVisibility(), ASTVisibilityKind::V_DEFAULT);
+        EXPECT_EQ(aVar->getScopes()->getVisibility(), ASTModifierKind::V_DEFAULT);
+        EXPECT_EQ(bVar->getScopes()->getVisibility(), ASTModifierKind::V_PRIVATE);
+        EXPECT_EQ(aMethod->getScopes()->getVisibility(), ASTModifierKind::V_PUBLIC);
+        EXPECT_EQ(bMethod->getScopes()->getVisibility(), ASTModifierKind::V_PROTECTED);
+        EXPECT_EQ(cMethod->getScopes()->getVisibility(), ASTModifierKind::V_PRIVATE);
+        EXPECT_EQ(dMethod->getScopes()->getVisibility(), ASTModifierKind::V_DEFAULT);
         EXPECT_TRUE(dMethod->getScopes()->isConstant());
 
         llvm::StringRef str2 = (
@@ -246,8 +246,8 @@ namespace {
         EXPECT_EQ(Class->getVars().size(), 2);
         ASTClassVar &aVar = *Class->getVars().find("a")->getValue();
         ASTClassVar &bVar = *Class->getVars().find("b")->getValue();
-        EXPECT_EQ(aVar.getScopes()->getVisibility(), ASTVisibilityKind::V_DEFAULT);
-        EXPECT_EQ(bVar.getScopes()->getVisibility(), ASTVisibilityKind::V_DEFAULT);
+        EXPECT_EQ(aVar.getScopes()->getVisibility(), ASTModifierKind::V_DEFAULT);
+        EXPECT_EQ(bVar.getScopes()->getVisibility(), ASTModifierKind::V_DEFAULT);
         EXPECT_FALSE(aVar.getScopes()->isConstant());
         EXPECT_FALSE(bVar.getScopes()->isConstant());
     }
@@ -285,7 +285,7 @@ namespace {
         ASTClassVar &bVar = *Class->getVars().find("b")->getValue();
         EXPECT_EQ(Class->getMethods().size(), 4);
         ASTClassFunction *fMethod = *Class->getMethods().find("f")->getValue().begin()->second.begin();
-        EXPECT_EQ(fMethod->getScopes()->getVisibility(), ASTVisibilityKind::V_DEFAULT);
+        EXPECT_EQ(fMethod->getScopes()->getVisibility(), ASTModifierKind::V_DEFAULT);
         EXPECT_FALSE(fMethod->getScopes()->isConstant());
     }
 
@@ -307,13 +307,13 @@ namespace {
 
         EXPECT_EQ(Class2->getVars().size(), 1);
         ASTClassVar &a_Var = *Class2->getVars().find("a")->getValue();
-        EXPECT_EQ(a_Var.getScopes()->getVisibility(), ASTVisibilityKind::V_DEFAULT);
+        EXPECT_EQ(a_Var.getScopes()->getVisibility(), ASTModifierKind::V_DEFAULT);
 
         EXPECT_EQ(Class->getVars().size(), 2);
         ASTClassVar &aVar = *Class->getVars().find("a")->getValue();
-        EXPECT_EQ(aVar.getScopes()->getVisibility(), ASTVisibilityKind::V_DEFAULT);
+        EXPECT_EQ(aVar.getScopes()->getVisibility(), ASTModifierKind::V_DEFAULT);
         ASTClassVar &bVar = *Class->getVars().find("b")->getValue();
-        EXPECT_EQ(bVar.getScopes()->getVisibility(), ASTVisibilityKind::V_DEFAULT);
+        EXPECT_EQ(bVar.getScopes()->getVisibility(), ASTModifierKind::V_DEFAULT);
     }
 
     TEST_F(ParserTest, ClassExtendInterface) {
@@ -336,7 +336,7 @@ namespace {
         EXPECT_EQ(Class2->getMethods().size(), 1);
         EXPECT_EQ(Class->getMethods().size(), 1);
         ASTClassFunction *aMethod = *Class->getMethods().find("a")->getValue().begin()->second.begin();
-        EXPECT_EQ(aMethod->getScopes()->getVisibility(), ASTVisibilityKind::V_DEFAULT);
+        EXPECT_EQ(aMethod->getScopes()->getVisibility(), ASTModifierKind::V_DEFAULT);
         EXPECT_FALSE(aMethod->getScopes()->isConstant());
     }
 
@@ -392,11 +392,11 @@ namespace {
         ASTClass *Class = (ASTClass *) Module->getIdentity();
         EXPECT_EQ(Class->getMethods().size(), 1);
         ASTClassFunction *aMethod = *Class->getMethods().find("a")->getValue().begin()->second.begin();
-        EXPECT_EQ(aMethod->getScopes()->getVisibility(), ASTVisibilityKind::V_DEFAULT);
+        EXPECT_EQ(aMethod->getScopes()->getVisibility(), ASTModifierKind::V_DEFAULT);
         EXPECT_FALSE(aMethod->getScopes()->isConstant());
 
         EXPECT_EQ(Class->getVars().size(), 1); // A enum
         ASTClassVar *VarA = Class->getVars().find("a")->getValue();
-        EXPECT_EQ(VarA->getScopes()->getVisibility(), ASTVisibilityKind::V_DEFAULT);
+        EXPECT_EQ(VarA->getScopes()->getVisibility(), ASTModifierKind::V_DEFAULT);
     }
 }

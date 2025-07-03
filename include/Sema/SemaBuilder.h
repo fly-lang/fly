@@ -100,9 +100,9 @@ namespace fly {
 
     	SemaParam *CreateParam(fly::ASTVar* Param);
 
-    	SemaCall *CreateCall(ASTCall *Call);
-
     	SemaMemberVar *CreateMemberVar(ASTVar *AST, SemaResult *Parent);
+
+    	SemaCall *CreateCall(ASTCall *Call);
 
     	SemaBoolValue *CreateBoolValue(ASTBoolValue *Value);
 

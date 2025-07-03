@@ -116,7 +116,7 @@ void SemaResolverClass::SuperClasses() {
 					//                                    } else {
 					//                                        // Insert methods in the Super and if is ok also in the base Class
 					//                                        if (S.Builder->InsertFunction(SuperMethods, SuperMethod)) {
-					//                                            SmallVector<ASTModifier *, 8> Modifiers = SuperMethod->getModifiers();
+					//                                            SmallVector<ASTModifier *, 8> Modifiers = SuperMethod->List();
 					//                                            ASTFunction *M = S.Builder->CreateClassMethod(SuperMethod->getLocation(),
 					//                                                                                             *Class,
 					//                                                                                             SuperMethod->getReturnType(),
@@ -131,7 +131,7 @@ void SemaResolverClass::SuperClasses() {
 					//                                            // Multiple Methods Implementations in Super Class need to be re-defined in base class
 					//                                            // Search if this method is re-defined in the base class
 					//                                            if (SuperMethod->getVisibility() !=
-					//                                                ASTVisibilityKind::V_PRIVATE &&
+					//                                                ASTModifierKind::MOD_PRIVATE &&
 					//                                                !S.Builder->ContainsFunction(Class->Methods, SuperMethod)) {
 					//                                                S.Diag(SuperMethod->getLocation(),
 					//                                                       diag::err_sema_super_class_method_conflict);
@@ -190,7 +190,7 @@ void SemaResolverClass::Definitions() {
 					}
 				}
 
-				// Add to Body list for resolve in the next step
+				// Add to Body List for resolve in the next step
 				R->Bodies.push_back(Function->Body);
 				Comment = nullptr;
 			}
@@ -209,8 +209,11 @@ void SemaResolverClass::Definitions() {
 void SemaResolverClass::CreateDefaultConstructor() {
 	// Create the default constructor if no constructors are defined
 	if (Class->getConstructors().empty()) {
-		SmallVector<ASTModifier *, 8> Modifiers = SemaBuilderModifiers::Build()
-					 ->addVisibility(SourceLocation(), ASTVisibilityKind::V_DEFAULT)->getModifiers();
+
+		// Create Default Modifier
+		llvm::SmallVector<ASTModifier *, 8> Modifiers;
+		Modifiers.push_back(S.getASTBuilder().CreateModifier(SourceLocation(), ASTModifierKind::MOD_DEFAULT));
+
 		llvm::SmallVector<ASTVar *, 8> Params;
 		ASTBlockStmt *Body = S.getASTBuilder().CreateBlockStmt(SourceLocation());
 		ASTFunction * AST = S.getASTBuilder().CreateFunction(R->Module->getAST(), Class->getAST()->getLocation(),

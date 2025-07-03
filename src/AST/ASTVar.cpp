@@ -31,15 +31,6 @@ llvm::StringRef ASTVar::getName() const {
     return Name;
 }
 
-bool ASTVar::isConstant() const {
-    for (auto Scope : Modifiers) {
-        if (Scope->getModifierKind() == ASTModifierKind::M_CONSTANT) {
-            return Scope->isConstant();
-        }
-    }
-    return false;
-}
-
 const SmallVector<ASTModifier *, 8> &ASTVar::getModifiers() const {
     return Modifiers;
 }

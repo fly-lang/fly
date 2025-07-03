@@ -56,7 +56,7 @@ llvm::Value *CodeGenVar::getValue() {
 }
 
 llvm::Value *CodeGenVar::getPointer() {
-	if (Sema->getVarKind() == SemaVarKind::VAR_MEMBER) {
+	if (Sema->getVarKind() == SemaVarKind::MEMBER_VAR) {
 		SemaMemberVar * MemberVar = static_cast<SemaMemberVar *>(Sema);
 
 		// Check ClassType for setting Index
@@ -66,15 +66,17 @@ llvm::Value *CodeGenVar::getPointer() {
 		// If Pointer is not set, create it
 		llvm::PointerType *PtrType = llvm::cast<llvm::PointerType>(this->Pointer->getType());
 		this->Pointer = CGM->Builder->CreateInBoundsGEP(PtrType->getElementType(), this->Pointer, {CGM->Zero, Index});
-	} else if (Sema->getVarKind() == SemaVarKind::VAR_CLASS_ATTRIBUTE) {
+	} else if (Sema->getVarKind() == SemaVarKind::CLASS_ATTRIBUTE) {
 		SemaClassAttribute * Attribute = static_cast<SemaClassAttribute *>(Sema);
 
-		// Check ClassType for setting Index
-		SemaClassType *ClassType = static_cast<SemaClassType *>(Attribute->getClass());
-		llvm::ConstantInt *Index = getIndex(ClassType, Attribute->getIndex());
+		if (!Attribute->isStatic()) {
+			// Check ClassType for setting Index
+			SemaClassType *ClassType = static_cast<SemaClassType *>(Attribute->getClass());
+			llvm::ConstantInt *Index = getIndex(ClassType, Attribute->getIndex());
 
-		CodeGenVarBase *CGV = static_cast<SemaClassInstance *>(Attribute->getParent())->getCodeGen();
-		this->Pointer = CGM->Builder->CreateInBoundsGEP(CGV->getType(), CGV->getValue(), {CGM->Zero, Index});
+			CodeGenVarBase *CGV = static_cast<SemaClassInstance *>(Attribute->getParent())->getCodeGen();
+			this->Pointer = CGM->Builder->CreateInBoundsGEP(CGV->getType(), CGV->getValue(), {CGM->Zero, Index});
+		}
 	}
 
     return this->Pointer;

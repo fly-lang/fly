@@ -67,52 +67,52 @@ namespace {
             }
         }
 
-        EXPECT_EQ(VarA->getVisibility(), ASTVisibilityKind::V_PRIVATE);
+        EXPECT_EQ(VarA->getVisibility(), ASTModifierKind::V_PRIVATE);
         EXPECT_FALSE(VarA->isConstant());
         EXPECT_EQ(((ASTIntegerType *) VarA->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_INT);
         EXPECT_EQ(VarA->getName(), "a");
 
-        EXPECT_EQ(VarB->getVisibility(), ASTVisibilityKind::V_PUBLIC);
+        EXPECT_EQ(VarB->getVisibility(), ASTModifierKind::V_PUBLIC);
         EXPECT_FALSE(VarB->isConstant());
         EXPECT_EQ(((ASTFloatingPointType *) VarB->getType())->getFloatingPointKind(), ASTFloatingPointTypeKind::TYPE_FLOAT);
         EXPECT_EQ(VarB->getName(), "b");
 
-        EXPECT_EQ(VarC->getVisibility(), ASTVisibilityKind::V_DEFAULT);
+        EXPECT_EQ(VarC->getVisibility(), ASTModifierKind::V_DEFAULT);
         ASSERT_FALSE(VarC->isConstant());
         EXPECT_EQ(VarC->getType()->getStmtKind(), ASTTypeKind::TYPE_BOOL);
         EXPECT_EQ(VarC->getName(), "c");
 
-        EXPECT_EQ(VarD->getVisibility(), ASTVisibilityKind::V_DEFAULT);
+        EXPECT_EQ(VarD->getVisibility(), ASTModifierKind::V_DEFAULT);
         ASSERT_TRUE(VarD->isConstant());
         EXPECT_EQ(((ASTIntegerType *)VarD->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_LONG);
         EXPECT_EQ(VarD->getName(), "d");
 
-        EXPECT_EQ(VarE->getVisibility(), ASTVisibilityKind::V_DEFAULT);
+        EXPECT_EQ(VarE->getVisibility(), ASTModifierKind::V_DEFAULT);
         ASSERT_FALSE(VarE->isConstant());
         EXPECT_EQ(((ASTFloatingPointType *) VarE->getType())->getFloatingPointKind(), ASTFloatingPointTypeKind::TYPE_DOUBLE);
         EXPECT_EQ(VarE->getName(), "e");
 
-        EXPECT_EQ(VarF->getVisibility(), ASTVisibilityKind::V_DEFAULT);
+        EXPECT_EQ(VarF->getVisibility(), ASTModifierKind::V_DEFAULT);
         ASSERT_FALSE(VarF->isConstant());
         EXPECT_EQ(((ASTIntegerType *)VarF->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_BYTE);
         EXPECT_EQ(VarF->getName(), "f");
 
-        EXPECT_EQ(VarG->getVisibility(), ASTVisibilityKind::V_DEFAULT);
+        EXPECT_EQ(VarG->getVisibility(), ASTModifierKind::V_DEFAULT);
         ASSERT_FALSE(VarG->isConstant());
         EXPECT_EQ(((ASTIntegerType *)VarG->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_USHORT);
         EXPECT_EQ(VarG->getName(), "g");
 
-        EXPECT_EQ(VarH->getVisibility(), ASTVisibilityKind::V_DEFAULT);
+        EXPECT_EQ(VarH->getVisibility(), ASTModifierKind::V_DEFAULT);
         ASSERT_FALSE(VarH->isConstant());
         EXPECT_EQ(((ASTIntegerType *)VarH->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_SHORT);
         EXPECT_EQ(VarH->getName(), "h");
 
-        EXPECT_EQ(VarI->getVisibility(), ASTVisibilityKind::V_DEFAULT);
+        EXPECT_EQ(VarI->getVisibility(), ASTModifierKind::V_DEFAULT);
         ASSERT_FALSE(VarI->isConstant());
         EXPECT_EQ(((ASTIntegerType *)VarI->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_UINT);
         EXPECT_EQ(VarI->getName(), "i");
 
-        EXPECT_EQ(VarJ->getVisibility(), ASTVisibilityKind::V_DEFAULT);
+        EXPECT_EQ(VarJ->getVisibility(), ASTModifierKind::V_DEFAULT);
         ASSERT_FALSE(VarJ->isConstant());
         EXPECT_EQ(((ASTIntegerType *)VarJ->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_ULONG);
         EXPECT_EQ(VarJ->getName(), "j");

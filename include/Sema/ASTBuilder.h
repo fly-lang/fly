@@ -10,6 +10,7 @@
 #ifndef FLY_AST_BUILDER_H
 #define FLY_AST_BUILDER_H
 
+#include <AST/ASTModifier.h>
 #include <AST/ASTVarStmt.h>
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
@@ -257,6 +258,10 @@ namespace fly {
         ASTVar *CreateEnumEntry(const SourceLocation &Loc, ASTEnum *Enum, llvm::StringRef Name,
                                       llvm::SmallVector<ASTModifier *, 8> &Modifiers);
 
+        // Create Modifiers
+        ASTModifier *CreateModifier(const SourceLocation &Loc, ASTModifierKind Kind);
+
+
         // Create Types
 
         ASTTypeRef *CreateBoolTypeRef(const SourceLocation &Loc);
@@ -312,6 +317,8 @@ namespace fly {
         ASTStringValue *CreateStringValue(const SourceLocation &Loc, llvm::StringRef Val);
 
         ASTStructValue *CreateStructValue(const SourceLocation &Loc, llvm::StringMap<ASTValue *>);
+
+        // Create Var
 
         ASTVar *CreateParam(const SourceLocation &Loc, ASTTypeRef *TypeRef, llvm::StringRef Name,
                               llvm::SmallVector<ASTModifier *, 8> &Modifiers, ASTValue *DefaultValue = nullptr);

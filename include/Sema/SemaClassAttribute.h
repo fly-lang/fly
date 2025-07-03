@@ -29,7 +29,9 @@ namespace fly {
 
         SemaClassType *Class;
 
-        bool Static;
+        SemaVisibilityKind Visibility = SemaVisibilityKind::DEFAULT;
+
+        bool Static = false;
 
         uint64_t Index;
 
@@ -52,6 +54,8 @@ namespace fly {
         void setCodeGen(CodeGenVarBase* CodeGen) override;
 
         SemaComment *getComment() const;
+
+        SemaVisibilityKind getVisibility() const;
 
         bool isStatic();
     };

@@ -38,6 +38,7 @@
 #include "Sema/SemaCall.h"
 #include "llvm/Support/Regex.h"
 
+#include <Sema/SemaBuilderModifiers.h>
 #include <Sema/SemaClassInstance.h>
 
 using namespace fly;
@@ -240,18 +241,18 @@ void SemaBuilder::CreateImport(SemaModule *Module, ASTImport *AST) {
 // 			S.Diag(AST->getLocation(), diag::err_sema_visibility_error) << AST->getName();
 // 		}
 // 		if (Scope->getModifierKind() == ASTScopeKind::SCOPE_VISIBILITY) {
-// 			if (Scope->getVisibility() == ASTVisibilityKind::V_PUBLIC ||
-// 				Scope->getVisibility() == ASTVisibilityKind::V_DEFAULT) {
+// 			if (Scope->getVisibility() == ASTModifierKind::MOD_PUBLIC ||
+// 				Scope->getVisibility() == ASTModifierKind::V_DEFAULT) {
 //
 // 				// Check Duplicates in NameSpace
-// 				GlobalVar->Visibility = Scope->getVisibility() == ASTVisibilityKind::V_PUBLIC ?
+// 				GlobalVar->Visibility = Scope->getVisibility() == ASTModifierKind::MOD_PUBLIC ?
 //                     SemaVisibilityKind::PUBLIC : SemaVisibilityKind::DEFAULT;
 // 				if (Module->NameSpace->GlobalVars.lookup(AST->getName()) != nullptr) {
 // 					// Error
 // 					S.Diag(AST->getLocation(), diag::err_syntax_error) << AST->getName();
 // 				}
 // 				Module->NameSpace->GlobalVars.insert(std::make_pair(AST->getName(), GlobalVar));
-// 			} else if (Scope->getVisibility() == ASTVisibilityKind::V_PRIVATE) {
+// 			} else if (Scope->getVisibility() == ASTModifierKind::MOD_PRIVATE) {
 // 				GlobalVar->Visibility = SemaVisibilityKind::PRIVATE;
 // 			} else {
 // 				// Error
@@ -284,36 +285,34 @@ SemaFunction * SemaBuilder::CreateFunction(SemaModule *Module, ASTFunction *AST)
 	AST->Sema = Function;
 
 	// Check and set Function Modifiers
-	for (auto Scope : AST->getModifiers()) {
-		if (Scope == nullptr) {
+	for (auto Modifier : AST->getModifiers()) {
+		if (Modifier == nullptr) {
 			// Error:
 			S.Diag(AST->getLocation(), diag::err_sema_visibility_error) << AST->getName();
 		}
-		if (Scope->getModifierKind() == ASTModifierKind::M_VISIBILITY) {
-			if (Scope->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
-				Function->Visibility = SemaVisibilityKind::PUBLIC;
+		if (Modifier->getModifierKind() == ASTModifierKind::MOD_PUBLIC) {
+			Function->Visibility = SemaVisibilityKind::PUBLIC;
 
-				// Check Duplicates in NameSpace
-				if (Module->NameSpace->Functions.lookup(MangledName) != nullptr) {
-					// Error: duplicated function
-					S.Diag(AST->getLocation(), diag::err_syntax_error) << AST->getName();
-				}
-				Module->NameSpace->Functions.insert(std::make_pair(MangledName, Function));
-			} else if (Scope->getVisibility() == ASTVisibilityKind::V_DEFAULT) {
-				Function->Visibility = SemaVisibilityKind::DEFAULT;
-
-				// Check Duplicates in NameSpace
-				if (Module->NameSpace->Functions.lookup(MangledName) != nullptr) {
-					// Error: duplicated function
-					S.Diag(AST->getLocation(), diag::err_syntax_error) << AST->getName();
-				}
-				Module->NameSpace->Functions.insert(std::make_pair(MangledName, Function));
-			} else if (Scope->getVisibility() == ASTVisibilityKind::V_PRIVATE) {
-				Function->Visibility = SemaVisibilityKind::PRIVATE;
-			} else {
-				// Error
-				S.Diag(AST->getLocation(), diag::err_sema_visibility_error) << AST->getName();
+			// Check Duplicates in NameSpace
+			if (Module->NameSpace->Functions.lookup(MangledName) != nullptr) {
+				// Error: duplicated function
+				S.Diag(AST->getLocation(), diag::err_syntax_error) << AST->getName();
 			}
+			Module->NameSpace->Functions.insert(std::make_pair(MangledName, Function));
+		} else if (Modifier->getModifierKind() == ASTModifierKind::MOD_DEFAULT) {
+			Function->Visibility = SemaVisibilityKind::DEFAULT;
+
+			// Check Duplicates in NameSpace
+			if (Module->NameSpace->Functions.lookup(MangledName) != nullptr) {
+				// Error: duplicated function
+				S.Diag(AST->getLocation(), diag::err_syntax_error) << AST->getName();
+			}
+			Module->NameSpace->Functions.insert(std::make_pair(MangledName, Function));
+		} else if (Modifier->getModifierKind() == ASTModifierKind::MOD_PRIVATE) {
+			Function->Visibility = SemaVisibilityKind::PRIVATE;
+		} else {
+			// Error
+			S.Diag(AST->getLocation(), diag::err_sema_visibility_error) << AST->getName();
 		}
 	}
 
@@ -336,40 +335,31 @@ SemaClassType * SemaBuilder::CreateClass(SemaModule *Module, ASTClass *AST) {
 	Class->Module = Module;
 	Module->Types.insert(std::make_pair(AST->getName(), Class));
 
+	// Set Modifiers
+	SemaBuilderModifiers *Builder = SemaBuilderModifiers::Build(AST->getModifiers());
+	Class->Constant = Builder->isConstant();
+	Class->Visibility = Builder->getVisibility();
 	// Check and set Function Modifiers
-	for (auto Scope : AST->getModifiers()) {
-		if (Scope == nullptr) {
-			// Error:
-			S.Diag(AST->getLocation(), diag::err_sema_visibility_error) << AST->getName();
-		}
-		if (Scope->getModifierKind() == ASTModifierKind::M_VISIBILITY) {
-			if (Scope->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
-				Class->Visibility = SemaVisibilityKind::PUBLIC;
+	if (Class->getVisibility() == SemaVisibilityKind::PUBLIC) {
 
-				// Check Duplicates in NameSpace
-				if (Module->NameSpace->Types.lookup(AST->getName()) != nullptr) {
-					// Error
-					S.Diag(AST->getLocation(), diag::err_syntax_error) << AST->getName();
-				}
-				Module->NameSpace->Types.insert(std::make_pair(AST->getName(), Class));
-			} if (Scope->getVisibility() == ASTVisibilityKind::V_DEFAULT) {
-				Class->Visibility = SemaVisibilityKind::DEFAULT;
-
-				// Check Duplicates in NameSpace
-				if (Module->NameSpace->Types.lookup(AST->getName()) != nullptr) {
-					// Error
-					S.Diag(AST->getLocation(), diag::err_syntax_error) << AST->getName();
-				}
-				Module->NameSpace->Types.insert(std::make_pair(AST->getName(), Class));
-			} else if (Scope->getVisibility() == ASTVisibilityKind::V_PRIVATE) {
-				Class->Visibility = SemaVisibilityKind::PRIVATE;
-			} else {
-				// Error
-				S.Diag(AST->getLocation(), diag::err_sema_visibility_error) << AST->getName();
-			}
-		} else if (Scope->getModifierKind() == ASTModifierKind::M_CONSTANT) {
-			Class->Constant = Scope->isConstant();
+		// Check Duplicates in NameSpace
+		if (Module->NameSpace->Types.lookup(AST->getName()) != nullptr) {
+			// Error
+			S.Diag(AST->getLocation(), diag::err_syntax_error) << AST->getName();
 		}
+		Module->NameSpace->Types.insert(std::make_pair(AST->getName(), Class));
+	} if (Class->getVisibility() == SemaVisibilityKind::PROTECTED) {
+		// TODO: Protected Visibility
+
+	} else if (Class->getVisibility() == SemaVisibilityKind::PRIVATE) {
+		// TODO: Private Visibility
+	} else { // Default Visibility
+		// Check Duplicates in NameSpace
+		if (Module->NameSpace->Types.lookup(AST->getName()) != nullptr) {
+			// Error
+			S.Diag(AST->getLocation(), diag::err_syntax_error) << AST->getName();
+		}
+		Module->NameSpace->Types.insert(std::make_pair(AST->getName(), Class));
 	}
 
 	FLY_DEBUG_END("SemaBuilder", "CreateClass");
@@ -387,6 +377,12 @@ SemaClassAttribute * SemaBuilder::CreateClassAttribute(SemaClassType *Class, AST
 	uint64_t Index = Class->Attributes.size();
 	SemaClassAttribute *Attribute = new SemaClassAttribute(AST, Class, Index);
 	Attribute->setParent(Class->getThis());
+
+	// Set Modifiers
+	SemaBuilderModifiers *Builder = SemaBuilderModifiers::Build(AST->getModifiers());
+	Attribute->Visibility = Builder->getVisibility();
+	Attribute->Static = Builder->isStatic();
+	Attribute->Constant = Builder->isConstant();
 
 	Class->Attributes.insert(std::make_pair(AST->getName(), Attribute));
 	AST->Sema = Attribute;
@@ -410,28 +406,10 @@ SemaClassMethod * SemaBuilder::CreateClassMethod(SemaClassType *Class, ASTFuncti
 		Class->Methods.insert(std::make_pair(MangledName, Method));
 	}
 
-	for (auto &Scope : AST->getModifiers()) {
-        if (Scope == nullptr) {
-            // Error:
-            S.Diag(AST->getLocation(), diag::err_sema_visibility_error) << AST->getName();
-        }
-        if (Scope->getModifierKind() == ASTModifierKind::M_VISIBILITY) {
-            if (Scope->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
-                Method->Visibility = SemaVisibilityKind::PUBLIC;
-            } else if (Scope->getVisibility() == ASTVisibilityKind::V_PRIVATE) {
-                Method->Visibility = SemaVisibilityKind::PRIVATE;
-            } else if (Scope->getVisibility() == ASTVisibilityKind::V_PROTECTED) {
-	            Method->Visibility = SemaVisibilityKind::PROTECTED;
-            } else if (Scope->getVisibility() == ASTVisibilityKind::V_DEFAULT) {
-            	Method->Visibility = SemaVisibilityKind::DEFAULT;
-            } else {
-                // Error
-                S.Diag(AST->getLocation(), diag::err_sema_visibility_error) << AST->getName();
-            }
-        } else if (Scope->getModifierKind() == ASTModifierKind::M_STATIC) {
-            Method->Static = Scope->isStatic();
-        }
-    }
+	// Set Modifiers
+	SemaBuilderModifiers *Builder = SemaBuilderModifiers::Build(AST->getModifiers());
+	Method->Visibility = Builder->getVisibility();
+	Method->Static = Builder->isStatic();
 
 	AST->Sema = Method;
 	Method->Comment = Comment;
@@ -455,32 +433,10 @@ SemaEnumType * SemaBuilder::CreateEnum(SemaModule *Module, ASTEnum *AST) {
 	Enum->Module = Module;
 	Module->Types.insert(std::make_pair(AST->getName(), Enum));
 
-	// Check and set Function Modifiers
-	for (auto Scope : AST->getModifiers()) {
-		if (Scope == nullptr) {
-			// Error:
-			S.Diag(AST->getLocation(), diag::err_sema_visibility_error) << AST->getName();
-		}
-		if (Scope->getModifierKind() == ASTModifierKind::M_VISIBILITY) {
-			if (Scope->getVisibility() == ASTVisibilityKind::V_PUBLIC) {
-				Enum->Visibility = SemaVisibilityKind::PUBLIC;
-
-				// Check Duplicates in NameSpace
-				if (Module->NameSpace->Types.lookup(AST->getName()) != nullptr) {
-					// Error
-					S.Diag(AST->getLocation(), diag::err_syntax_error) << AST->getName();
-				}
-				Module->NameSpace->Types.insert(std::make_pair(AST->getName(), Enum));
-			} else if (Scope->getVisibility() == ASTVisibilityKind::V_PRIVATE) {
-				Enum->Visibility = SemaVisibilityKind::PRIVATE;
-			} else {
-				// Error
-				S.Diag(AST->getLocation(), diag::err_sema_visibility_error) << AST->getName();
-			}
-		} else if (Scope->getModifierKind() == ASTModifierKind::M_CONSTANT) {
-			Enum->Constant = Scope->isConstant();
-		}
-	}
+	// Set Modifiers
+	SemaBuilderModifiers *Builder = SemaBuilderModifiers::Build(AST->getModifiers());
+	Enum->Visibility = Builder->getVisibility();
+	Enum->Constant = Builder->isConstant();
 
 	FLY_DEBUG_END("SemaBuilder", "CreateEnum");
 	return Enum;
@@ -548,6 +504,8 @@ SemaLocalVar * SemaBuilder::CreateLocalVar(ASTVar *AST) {
 
 	// Create LocalVar Symbol
 	SemaLocalVar *LocalVar = new SemaLocalVar(AST);
+	SemaBuilderModifiers *Builder = SemaBuilderModifiers::Build(AST->getModifiers());
+	LocalVar->Constant = Builder->isConstant();
 
 	// Assign Symbol to AST
 	AST->Sema = LocalVar;
@@ -569,6 +527,15 @@ SemaParam *SemaBuilder::CreateParam(fly::ASTVar *AST) {
 	return Param;
 }
 
+SemaMemberVar * SemaBuilder::CreateMemberVar(ASTVar *AST, SemaResult *Parent) {
+	SemaMemberVar *Sema = new SemaMemberVar(AST, Parent);
+
+	SemaBuilderModifiers *Builder = SemaBuilderModifiers::Build(AST->getModifiers());
+	Sema->Constant = Builder->isConstant();
+
+	return Sema;
+}
+
 SemaCall * SemaBuilder::CreateCall(ASTCall *AST) {
 	FLY_DEBUG_START("SemaBuilder", "CreateParam");
 
@@ -580,12 +547,6 @@ SemaCall * SemaBuilder::CreateCall(ASTCall *AST) {
 
 	FLY_DEBUG_END("SemaBuilder", "CreateParam");
 	return Call;
-}
-
-SemaMemberVar * SemaBuilder::CreateMemberVar(ASTVar *AST, SemaResult *Parent) {
-	SemaMemberVar *Sema = new SemaMemberVar(AST, Parent);
-
-	return Sema;
 }
 
 SemaBoolValue * SemaBuilder::CreateBoolValue(ASTBoolValue *AST) {

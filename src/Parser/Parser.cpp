@@ -238,26 +238,25 @@ ASTBase *Parser::ParseDefinition() {
 SmallVector<ASTModifier *, 8> Parser::ParseModifiers() {
     FLY_DEBUG_START("ClassParser", "ParseModifiers");
 
-    SemaBuilderModifiers *BuilderModifiers = SemaBuilderModifiers::Build();
+    llvm::SmallVector<ASTModifier *, 8> Modifiers;
 
     while (Tok.isNot(tok::eof)) {
-        ASTModifier *Scope;
         if (Tok.is(tok::kw_private)) {
-            BuilderModifiers->addVisibility(ConsumeToken(), ASTVisibilityKind::V_PRIVATE);
+            Modifiers.push_back(Builder.CreateModifier(ConsumeToken(), ASTModifierKind::MOD_PRIVATE));
         } else if (Tok.is(tok::kw_protected)) {
-            BuilderModifiers->addVisibility(ConsumeToken(), ASTVisibilityKind::V_PROTECTED);
+            Modifiers.push_back(Builder.CreateModifier(ConsumeToken(), ASTModifierKind::MOD_PROTECTED));
         } else if (Tok.is(tok::kw_public)) {
-            BuilderModifiers->addVisibility(ConsumeToken(), ASTVisibilityKind::V_PUBLIC);
+            Modifiers.push_back(Builder.CreateModifier(ConsumeToken(), ASTModifierKind::MOD_PUBLIC));
         } else if (Tok.is(tok::kw_const)) {
-            BuilderModifiers->addConstant(ConsumeToken());
+            Modifiers.push_back(Builder.CreateModifier(ConsumeToken(), ASTModifierKind::MOD_CONSTANT));
         } else if (Tok.is(tok::kw_static)) {
-            BuilderModifiers->addStatic(ConsumeToken());
+            Modifiers.push_back(Builder.CreateModifier(ConsumeToken(), ASTModifierKind::MOD_STATIC));
         } else {
             break;
         }
     }
 
-    return BuilderModifiers->getModifiers();
+    return Modifiers;
 }
 
 /**
@@ -1082,7 +1081,7 @@ ASTCall *Parser::ParseCall(const SourceLocation &Loc, llvm::StringRef Name, ASTR
     // Parse Args in a Function Call
     llvm::SmallVector<ASTExpr *, 8> Args;
     while (true) {
-        // Check for closing parenthesis (end of parameter list)
+        // Check for closing parenthesis (end of parameter List)
         if (Tok.is(tok::r_paren)) {
             ConsumeParen();
             break;
@@ -1096,7 +1095,7 @@ ASTCall *Parser::ParseCall(const SourceLocation &Loc, llvm::StringRef Name, ASTR
             break;
         }
 
-        // Add the parsed parameter to the list
+        // Add the parsed parameter to the List
         Args.push_back(Arg);
 
         // Check for a comma (',') to separate parameters
@@ -1104,7 +1103,7 @@ ASTCall *Parser::ParseCall(const SourceLocation &Loc, llvm::StringRef Name, ASTR
             ConsumeToken(); // Consume the comma and continue
         } else if (Tok.is(tok::r_paren)) {
             ConsumeParen();
-            break; // End of parameter list
+            break; // End of parameter List
         } else {
             // Handle error: Unexpected token
             Diag(Tok.getLocation(), diag::err_parse_expected_comma_or_rparen);

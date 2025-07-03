@@ -331,6 +331,21 @@ ASTVar *ASTBuilder::CreateEnumEntry(const SourceLocation &Loc, ASTEnum *Enum, ll
 }
 
 /**
+ * Creates a Modifier
+ * @param Loc
+ * @param Kind
+ * @return
+ */
+ASTModifier * ASTBuilder::CreateModifier(const SourceLocation &Loc, ASTModifierKind Kind) {
+	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateModifier", "Loc=" << Loc.getRawEncoding() << ", Kind=" << static_cast<size_t>(Kind));
+
+	ASTModifier *Modifier = new ASTModifier(Loc, Kind);
+
+	FLY_DEBUG_END("ASTBuilder", "CreateModifier");
+	return Modifier;
+}
+
+/**
  * Creates a bool type
  * @param Loc
  * @return

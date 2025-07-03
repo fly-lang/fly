@@ -57,10 +57,6 @@ namespace fly {
 
         llvm::StringRef getName() const;
 
-        bool isConstant() const;
-
-        bool isInitialized();
-
         const SmallVector<ASTModifier*, 8>& getModifiers() const;
 
         ASTExpr* getExpr() const;

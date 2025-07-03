@@ -13,7 +13,7 @@
 using namespace fly;
 
 ASTModifier::ASTModifier(const SourceLocation &Loc, ASTModifierKind Kind) :
-        ASTBase(Loc, ASTKind::AST_MODIFIER), Kind(Kind), Visibility(ASTVisibilityKind::V_DEFAULT), Constant(false), Static(false) {
+        ASTBase(Loc, ASTKind::AST_MODIFIER), Kind(Kind) {
 
 }
 
@@ -21,24 +21,9 @@ ASTModifierKind ASTModifier::getModifierKind() {
     return Kind;
 }
 
-ASTVisibilityKind ASTModifier::getVisibility() const {
-    return Visibility;
-}
-
-bool ASTModifier::isConstant() const {
-    return Constant;
-}
-
-bool ASTModifier::isStatic() const {
-    return Static;
-}
-
 std::string ASTModifier::str() const {
     return Logger("ASTModifier").
 	Attr("Location", getLocation()).
 	Attr("Kind", static_cast<size_t>(getKind())).
-            Attr("Visibility", (uint64_t) Visibility).
-            Attr("Constant", Constant).
-            Attr("Constant", Static).
-            End();
+    End();
 }

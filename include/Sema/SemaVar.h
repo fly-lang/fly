@@ -19,14 +19,13 @@ namespace fly {
     class CodeGenVarBase;
 
 	enum class SemaVarKind {
-		VAR_PARAM,
-		VAR_LOCAL,
-		VAR_MEMBER,
-		VAR_ERROR,
-		VAR_GLOBAL,
-		VAR_CLASS_ATTRIBUTE,
-		VAR_CLASS_INSTANCE,
-		VAR_ENUM
+		PARAM_VAR,
+		LOCAL_VAR,
+		MEMBER_VAR,
+		ERROR_VAR,
+		CLASS_ATTRIBUTE,
+		CLASS_INSTANCE,
+		ENUM_ENTRY
 	};
 
     class SemaVar : public SemaResult {

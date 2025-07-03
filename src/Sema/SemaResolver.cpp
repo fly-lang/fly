@@ -814,10 +814,16 @@ void SemaResolver:: ResolveRef(ASTStmt *Stmt, ASTRef *Ref, SemaType *Type, SemaR
 
 				SemaClassAttribute *Attr = ClassType->getAttributes().lookup(Ref->getName());
 				if (Attr) {
-					SemaMemberVar *Sema = S.getSemaBuilder().CreateMemberVar(Attr->getAST(), Parent);
-					Sema->Type = Attr->getType();
-					Sema->Index = Attr->getIndex();
-					Ref->Sema = Sema;
+
+					SemaMemberVar *Sema;
+					if (Attr->isStatic()) {
+						Ref->Sema = Attr;
+					} else {
+						SemaMemberVar *Member = S.getSemaBuilder().CreateMemberVar(Attr->getAST(), Parent);
+						Member->Type = Attr->getType();
+						Member->Index = Attr->getIndex();
+						Ref->Sema = Member;
+					}
 
 					if (Ref->Child)
 						ResolveRef(Stmt, Ref->Child, Sema->getType(), Sema);
@@ -1053,7 +1059,7 @@ SemaVar *SemaResolver::ResolveVar(ASTStmt *Stmt, ASTRef *VarRef) {
 
 	// Search into Class Attributes
 	bool isSemaAttribute = false;
-	if (!Sema && Stmt->getFunction()->getSema()->getKind() == SemaFunctionKind::METHOD) {
+	if (!Sema && Stmt->getFunction()->getSema()->getKind() == SemaFunctionKind::CLASS_METHOD) {
 		// Get the Class Type
 		SemaClassMethod *Method = static_cast<SemaClassMethod *>(Stmt->getFunction()->getSema());
 		if (!Method->isStatic()) {

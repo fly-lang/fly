@@ -15,16 +15,12 @@
 namespace fly {
 
     enum class ASTModifierKind {
-        M_VISIBILITY,
-        M_CONSTANT,
-        M_STATIC
-    };
-
-    enum class ASTVisibilityKind {
-        V_DEFAULT,
-        V_PUBLIC,
-        V_PRIVATE,
-        V_PROTECTED
+        MOD_CONSTANT,
+        MOD_STATIC,
+        MOD_PUBLIC,
+        MOD_PRIVATE,
+        MOD_PROTECTED,
+        MOD_DEFAULT
     };
 
     class ASTModifier : public ASTBase {
@@ -36,23 +32,11 @@ namespace fly {
 
         ASTModifierKind Kind;
 
-        ASTVisibilityKind Visibility;
-
-        bool Constant;
-
-        bool Static;
-
         ASTModifier(const SourceLocation &Loc, ASTModifierKind Kind);
 
     public:
 
         ASTModifierKind getModifierKind();
-
-        ASTVisibilityKind getVisibility() const;
-
-        bool isConstant() const;
-
-        bool isStatic() const;
 
         std::string str() const override;
     };

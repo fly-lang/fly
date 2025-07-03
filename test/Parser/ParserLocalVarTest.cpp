@@ -146,7 +146,7 @@ namespace {
 
         EXPECT_TRUE(Module->getFunctions().size() == 1); // func() has PRIVATE Visibility
         ASTFunction *Func = *Module->getFunctions().begin();
-        EXPECT_EQ(Func->getVisibility(), ASTVisibilityKind::V_PRIVATE);
+        EXPECT_EQ(Func->getVisibility(), ASTModifierKind::V_PRIVATE);
 
         ASTVar *Par0 = Func->getParams()[0];
         ASTVar *Par1 = Func->getParams()[1];

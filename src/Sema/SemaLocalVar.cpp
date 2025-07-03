@@ -11,7 +11,7 @@
 
 using namespace fly;
 
-SemaLocalVar::SemaLocalVar(ASTVar *AST) : SemaVar(AST, SemaVarKind::VAR_LOCAL) {
+SemaLocalVar::SemaLocalVar(ASTVar *AST) : SemaVar(AST, SemaVarKind::LOCAL_VAR) {
 }
 
 CodeGenVar * SemaLocalVar::getCodeGen() const {

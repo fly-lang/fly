@@ -15,7 +15,7 @@
 using namespace fly;
 
 SemaClassMethod::SemaClassMethod(ASTFunction *AST, SemaClassType *Class) :
-	SemaFunctionBase(AST, SemaFunctionKind::METHOD, MangleFunction(AST)), Class(Class) {
+	SemaFunctionBase(AST, SemaFunctionKind::CLASS_METHOD, MangleFunction(AST)), Class(Class) {
 
 }
 

@@ -12,7 +12,7 @@
 using namespace fly;
 
 SemaClassAttribute::SemaClassAttribute(ASTVar *AST, SemaClassType *Class, uint64_t Index) :
-	SemaVar(AST, SemaVarKind::VAR_CLASS_ATTRIBUTE), Class(Class), Index(Index) {
+	SemaVar(AST, SemaVarKind::CLASS_ATTRIBUTE), Class(Class), Index(Index) {
 
 }
 
@@ -26,6 +26,10 @@ uint64_t SemaClassAttribute::getIndex() const {
 
 SemaComment * SemaClassAttribute::getComment() const {
 	return Comment;
+}
+
+SemaVisibilityKind SemaClassAttribute::getVisibility() const {
+    return Visibility;
 }
 
 bool SemaClassAttribute::isStatic() {

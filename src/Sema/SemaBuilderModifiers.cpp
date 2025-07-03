@@ -12,31 +12,41 @@
 
 using namespace fly;
 
-SemaBuilderModifiers *SemaBuilderModifiers::Build() {
-    return new SemaBuilderModifiers();
+SemaBuilderModifiers * SemaBuilderModifiers::Build(llvm::SmallVector<ASTModifier *, 8> Modifiers) {
+	SemaBuilderModifiers *Instance = new SemaBuilderModifiers();
+	for (auto &Modifier : Modifiers) {
+		switch (Modifier->getModifierKind()) {
+			case ASTModifierKind::MOD_CONSTANT:
+				Instance->Constant = true;
+				break;
+			case ASTModifierKind::MOD_STATIC:
+				Instance->Static = true;
+				break;
+			case ASTModifierKind::MOD_PUBLIC:
+				Instance->Visibility = SemaVisibilityKind::PUBLIC;
+				break;
+			case ASTModifierKind::MOD_PRIVATE:
+				Instance->Visibility = SemaVisibilityKind::PRIVATE;
+				break;
+			case ASTModifierKind::MOD_PROTECTED:
+				Instance->Visibility = SemaVisibilityKind::PROTECTED;
+				break;
+			case ASTModifierKind::MOD_DEFAULT:
+				Instance->Visibility = SemaVisibilityKind::DEFAULT;
+				break;
+		}
+	}
+	return Instance;
 }
 
-SemaBuilderModifiers *SemaBuilderModifiers::addVisibility(const SourceLocation &Loc, ASTVisibilityKind VisibilityKind) {
-    ASTModifier *Modifier = new ASTModifier(Loc, ASTModifierKind::M_VISIBILITY);
-    Modifier->Visibility = VisibilityKind;
-    Modifiers.push_back(Modifier);
-    return this;
+SemaVisibilityKind SemaBuilderModifiers::getVisibility() {
+	return Visibility;
 }
 
-SemaBuilderModifiers *SemaBuilderModifiers::addConstant(const SourceLocation &Loc) {
-    ASTModifier *Scope = new ASTModifier(Loc, ASTModifierKind::M_CONSTANT);
-    Scope->Constant = true;
-    Modifiers.push_back(Scope);
-    return this;
+bool SemaBuilderModifiers::isConstant() {
+	return Constant;
 }
 
-SemaBuilderModifiers *SemaBuilderModifiers::addStatic(const SourceLocation &Loc) {
-    ASTModifier *Scope = new ASTModifier(Loc, ASTModifierKind::M_STATIC);
-    Scope->Static = true;
-    Modifiers.push_back(Scope);
-    return this;
-}
-
-llvm::SmallVector<ASTModifier *, 8> SemaBuilderModifiers::getModifiers() const {
-    return Modifiers;
+bool SemaBuilderModifiers::isStatic() {
+	return Static;
 }

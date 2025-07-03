@@ -209,13 +209,13 @@ namespace fly {
 
         llvm::Value *GenExpr(ASTExpr *Expr);
 
-        CodeGenVarBase *GenVar(SemaVar *Sema, llvm::Value *ParentPtr = nullptr);
-
         llvm::Value* GenResult(SemaResult *Sema);
 
-        void addArgs(SemaCall *Sema, llvm::SmallVector<llvm::Value*, 8>& Args);
+        CodeGenVarBase *GenVar(SemaVar *Sema, llvm::Value *Pointer = nullptr);
 
         llvm::Value *GenCall(SemaCall *Sema);
+
+        void addArgs(SemaCall *Sema, llvm::SmallVector<llvm::Value*, 8>& Args);
 
         void GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt);
 

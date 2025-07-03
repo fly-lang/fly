@@ -81,10 +81,8 @@ public:
                     FloatTypeRef(S->getASTBuilder().CreateFloatTypeRef(SourceLoc)),
                     DoubleTypeRef(S->getASTBuilder().CreateDoubleTypeRef(SourceLoc)),
                     ErrorTypeRef(S->getASTBuilder().CreateErrorTypeRef(SourceLoc)),
-					StringTypeRef(S->getASTBuilder().CreateStringTypeRef(SourceLoc)),
-                    TopModifiers(SemaBuilderModifiers::Build()
-                              ->addVisibility(SourceLocation(), ASTVisibilityKind::V_DEFAULT)->getModifiers()),
-                    EmptyModifiers(SemaBuilderModifiers::Build()->getModifiers()) {
+					StringTypeRef(S->getASTBuilder().CreateStringTypeRef(SourceLoc)) {
+    	TopModifiers.push_back(getASTBuilder().CreateModifier(SourceLoc, ASTModifierKind::MOD_DEFAULT));
         llvm::InitializeAllTargets();
         llvm::InitializeAllTargetMCs();
         llvm::InitializeAllAsmPrinters();

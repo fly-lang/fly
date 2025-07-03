@@ -10,6 +10,7 @@
 #ifndef FLY_SEMA_BUILDERSCOPE_H
 #define FLY_SEMA_BUILDERSCOPE_H
 
+#include "SemaVisibilityKind.h"
 #include "llvm/ADT/SmallVector.h"
 
 namespace fly {
@@ -17,23 +18,26 @@ namespace fly {
     class ASTModifier;
     class SourceLocation;
 
-    enum class ASTVisibilityKind;
+    enum class ASTModifierKind;
 
     class SemaBuilderModifiers {
 
-        llvm::SmallVector<ASTModifier *, 8> Modifiers;
+        SemaVisibilityKind Visibility = SemaVisibilityKind::DEFAULT;
+
+        bool Constant = false;
+
+        bool Static = false;
 
     public:
 
-        static SemaBuilderModifiers *Build();
+        static SemaBuilderModifiers *Build(llvm::SmallVector<ASTModifier *, 8> Modifiers);
 
-        SemaBuilderModifiers *addVisibility(const SourceLocation &Loc, ASTVisibilityKind VisibilityKind);
+        SemaVisibilityKind getVisibility();
 
-        SemaBuilderModifiers *addConstant(const SourceLocation &Loc);
+        bool isConstant();
 
-        SemaBuilderModifiers *addStatic(const SourceLocation &Loc);
+        bool isStatic();
 
-        llvm::SmallVector<ASTModifier *, 8> getModifiers() const;
     };
 }
 

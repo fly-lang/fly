@@ -85,7 +85,7 @@ void CodeGenFunctionBase::AllocaErrorHandler() {
 llvm::AllocaInst *CodeGenFunctionBase::AllocaVar(llvm::Type *Ty) {
 	if (Ty->isStructTy()) {
 		llvm::PointerType *PtrTy = Ty->getPointerTo(CGM->Module->getDataLayout().getAllocaAddrSpace());
-		return  CGM->Builder->CreateAlloca(PtrTy);
+		return CGM->Builder->CreateAlloca(PtrTy);
 	} else {
 		// Alloca for non-struct types
 		// Check if the type is bool (i1) and convert it to i8
