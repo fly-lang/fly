@@ -9,6 +9,7 @@
 
 #ifndef FLY_SEMA_RESOLVER_CLASS_H
 #define FLY_SEMA_RESOLVER_CLASS_H
+#include "SemaType.h"
 
 namespace fly {
 
@@ -32,7 +33,11 @@ namespace fly {
 
         SemaResolverClass(SemaResolver *R, SemaClassType *Class);
 
-        void SuperClasses();
+        void Extends();
+
+        void InheritMethods(fly::SemaClassType* ClassType);
+
+        void InheritAttributes(fly::SemaClassType* ClassType);
 
         void Definitions();
 

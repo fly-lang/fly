@@ -68,6 +68,9 @@ namespace fly {
         // Class Constructors
         llvm::StringMap<SemaClassMethod *> Constructors;
 
+        // Class Default Constructor
+        SemaClassMethod *DefaultConstructor;
+
         // Class Comment
         SemaComment *Comment = nullptr;
 

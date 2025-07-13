@@ -77,7 +77,7 @@ bool SemaResolver::Resolve(Sema &S) {
     for (auto &Module : S.getModules()) {
 
     	// Validate Module name duplication
-    	if (S.getValidator().CheckDuplicateModules(Module)) {
+    	if (SemaValidator::CheckDuplicateModules(Module, S.getSymTable().getModules())) {
 
     		// Resolve Declarations
     		SemaResolver *Resolver = new SemaResolver(S, Module);
@@ -169,9 +169,9 @@ void SemaResolver::ResolveImports() {
 void SemaResolver::ResolveComment(SemaComment *Comment, ASTBase* AST) {
 	if (AST->getKind() == ASTKind::AST_FUNCTION) {
 		ASTFunction * Function = (ASTFunction *) AST;
-		S.getValidator().CheckCommentParams(Comment, Function->getParams());
-		S.getValidator().CheckCommentReturn(Comment, Function->getReturnTypeRef());
-		S.getValidator().CheckCommentFail(Comment);
+		SemaValidator::CheckCommentParams(Comment, Function->getParams());
+		SemaValidator::CheckCommentReturn(Comment, Function->getReturnTypeRef());
+		SemaValidator::CheckCommentFail(Comment);
 	}
 }
 
@@ -221,7 +221,7 @@ void SemaResolver::ResolveFunctions() {
 		for (auto Param : AST->getParams()) {
 			// Check duplicated params
 			// TODO
-			//S.getValidator().CheckDuplicateParams(Function->Params, Param);
+			//SemaValidator::CheckDuplicateParams(Function->Params, Param);
 
 			// resolve parameter type
 			if (ResolveTypeRef(Param->TypeRef)) {
@@ -334,7 +334,7 @@ bool SemaResolver::ResolveStmt(ASTStmt *Stmt) {
 			bool Success = true;
         	if (ReturnStmt->Expr != nullptr) {
             	if (ResolveExpr(ReturnStmt->Parent, ReturnStmt->Expr)) {
-            		//S.getValidator().CheckConvertibleTypes(, ReturnType->getSym());
+            		//SemaValidator::CheckConvertibleTypes(, ReturnType->getSym());
             		ReturnStmt->Expr->Type = ReturnType->getSema();
             	}
             } else {
@@ -438,7 +438,7 @@ bool SemaResolver::ResolveStmtLoop(ASTLoopStmt *LoopStmt) {
         Success = ResolveExpr(LoopStmt->Parent, LoopStmt->Rule);
     	LoopStmt->Rule->Type = S.getSymTable().getBoolType();
     }
-    Success = S.getValidator().CheckConvertibleTypes(LoopStmt->getRule()->getType(), S.getSymTable().getBoolType());
+    Success = SemaValidator::CheckConvertibleTypes(LoopStmt->getRule()->getType(), S.getSymTable().getBoolType());
     Success &= ResolveStmt(LoopStmt->Stmt);
     Success &= LoopStmt->Post ? ResolveStmt(LoopStmt->Post) : true;
     return Success;
@@ -605,7 +605,7 @@ bool SemaResolver::ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr) {
                                 Binary->getTypeKind() == ASTBinaryOpTypeExprKind::OP_BINARY_COMPARISON) {
 
                         	// Check Compatible Types Bool/Bool, Float/Float, Integer/Integer
-                        	if (S.getValidator().CheckArithTypes(Binary->getLeftExpr()->getType(),
+                        	if (SemaValidator::CheckArithTypes(Binary->getLeftExpr()->getType(),
 																  Binary->getRightExpr()->getType())) {
                             	// Set respectively the Left or Right Expr Type by chose the Expr which is not a Value Type
                             	// Ex.
@@ -644,7 +644,7 @@ bool SemaResolver::ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr) {
 											<< RightType->getName();
                             }
                         } else if (Binary->getTypeKind() == ASTBinaryOpTypeExprKind::OP_BINARY_LOGIC) {
-                        	if (S.getValidator().CheckLogicalTypes(LeftType, RightType)) {
+                        	if (SemaValidator::CheckLogicalTypes(LeftType, RightType)) {
                         		Binary->Type = S.getSymTable().getBoolType();
                         		return true;
                         	} else {
@@ -659,7 +659,7 @@ bool SemaResolver::ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr) {
                 case ASTOpExprKind::OP_TERNARY: {
                     ASTTernaryOpExpr *Ternary = static_cast<ASTTernaryOpExpr*>(Expr);
                     if (ResolveExpr(Stmt, Ternary->ConditionExpr) &&
-                              S.getValidator().CheckConvertibleTypes(Ternary->getConditionExpr()->getType(), S.getSymTable().getBoolType()) &&
+                              SemaValidator::CheckConvertibleTypes(Ternary->getConditionExpr()->getType(), S.getSymTable().getBoolType()) &&
                               ResolveExpr(Stmt, Ternary->TrueExpr) &&
                               ResolveExpr(Stmt, Ternary->FalseExpr)) {
 	                    Ternary->Type = Ternary->getTrueExpr()->getType(); // The group type is equals to the second type

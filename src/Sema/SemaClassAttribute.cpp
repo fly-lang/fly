@@ -32,8 +32,12 @@ SemaVisibilityKind SemaClassAttribute::getVisibility() const {
     return Visibility;
 }
 
-bool SemaClassAttribute::isStatic() {
+bool SemaClassAttribute::isStatic() const {
 	return Static;
+}
+
+SemaClassType * SemaClassAttribute::getInherited() const {
+	return Inherited;
 }
 
 CodeGenVar * SemaClassAttribute::getCodeGen() const {

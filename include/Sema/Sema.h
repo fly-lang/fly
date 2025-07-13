@@ -61,8 +61,6 @@ namespace fly {
 
         SemaBuilder *SBuilder = nullptr;
 
-        SemaValidator *Validator = nullptr;
-
         Sema(DiagnosticsEngine &Diags);
 
     public:
@@ -78,8 +76,6 @@ namespace fly {
         SemaBuilder &getSemaBuilder();
 
         DiagnosticsEngine &getDiags() const;
-
-        SemaValidator &getValidator() const;
 
         SymTable &getSymTable() const;
 

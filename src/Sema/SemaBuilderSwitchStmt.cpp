@@ -33,7 +33,7 @@ SemaBuilderSwitchStmt *SemaBuilderSwitchStmt::Switch(const SourceLocation &Loc, 
     Parent->Content.push_back(SwitchStmt);
     SwitchStmt->Parent = Parent;
     SwitchStmt->Function = Parent->Function;
-    if (S.getValidator().CheckVarRefExpr(Expr))
+    if (SemaValidator::CheckVarRefExpr(Expr))
         SwitchStmt->Ref = ((ASTVarRefExpr *) Expr)->getVarRef();
     return this;
 }

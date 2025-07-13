@@ -401,6 +401,8 @@ SemaClassMethod * SemaBuilder::CreateClassMethod(SemaClassType *Class, ASTFuncti
 	if (AST->getName() == Class->getName()) {
 		Method->MethodKind = SemaClassMethodKind::METHOD_CONSTRUCTOR;
 		Class->Constructors.insert(std::make_pair(MangledName, Method));
+		if (Method->getParams().empty())
+			Class->DefaultConstructor = Method;
 	} else {
 		Method->MethodKind = SemaClassMethodKind::METHOD;
 		Class->Methods.insert(std::make_pair(MangledName, Method));

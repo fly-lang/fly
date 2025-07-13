@@ -34,9 +34,6 @@ Sema* Sema::CreateSema(DiagnosticsEngine &Diags) {
 
 	S->SBuilder = new SemaBuilder(*S);
 
-	// Init the Validator
-    S->Validator = new SemaValidator(*S);
-
 	// Init the Sema AST Context
 	S->SBuilder->CreateTable();
 
@@ -53,10 +50,6 @@ ASTBuilder &Sema::getASTBuilder() {
 
 SemaBuilder &Sema::getSemaBuilder() {
 	return *SBuilder;
-}
-
-SemaValidator &Sema::getValidator() const {
-    return *Validator;
 }
 
 SymTable &Sema::getSymTable() const {

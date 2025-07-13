@@ -33,6 +33,8 @@ namespace fly {
 
         bool Static = false;
 
+        SemaClassType *Inherited = nullptr;
+
         uint64_t Index;
 
 		CodeGenVar *CodeGen = nullptr;
@@ -57,7 +59,10 @@ namespace fly {
 
         SemaVisibilityKind getVisibility() const;
 
-        bool isStatic();
+        bool isStatic() const;
+
+        SemaClassType *getInherited() const;
+
     };
 
 }  // end namespace fly

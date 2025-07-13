@@ -32,12 +32,16 @@ SemaClassType * SemaClassMethod::getClass() const {
 	return Class;
 }
 
-SemaClassType *SemaClassMethod::getDerivedClass() const {
-	return DerivedClass;
+SemaClassType *SemaClassMethod::getInherited() const {
+	return Inherited;
 }
 
 bool SemaClassMethod::isConstructor() const {
 	return MethodKind == SemaClassMethodKind::METHOD_CONSTRUCTOR;
+}
+
+SemaVisibilityKind SemaClassMethod::getVisibility() const {
+	return Visibility;
 }
 
 bool SemaClassMethod::isStatic() const {

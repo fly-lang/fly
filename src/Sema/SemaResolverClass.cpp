@@ -35,29 +35,33 @@ void SemaResolverClass::Resolve(SemaResolver *R, SemaClassType *Class) {
 	SemaResolverClass * Resolver = new SemaResolverClass(R, Class);
 
 	// Create Class This Attribute
-	Resolver->S.getSemaBuilder().CreateThisAttribute(Class);
+	if (Class->getClassKind() != SemaClassKind::INTERFACE)
+		Resolver->S.getSemaBuilder().CreateThisAttribute(Class);
 
 	// Resolve Super Classes
-	Resolver->SuperClasses();
+	Resolver->Extends();
 
 	// Resolve Class Definitions
 	Resolver->Definitions();
 
 	// Create Class Default Constructor
-	Resolver->CreateDefaultConstructor();
+	// Create the default constructor if no constructors are defined
+	if (Class->getClassKind() != SemaClassKind::INTERFACE && Class->getConstructors().empty())
+		Resolver->CreateDefaultConstructor();
 
 	// Resolve Class Attributes
 	Resolver->SetDefaultValueInAttributes();
 
 	// Resolve Class Methods
-	Resolver->AddBodies();
+	if (Class->getClassKind() == SemaClassKind::CLASS)
+		Resolver->AddBodies();
 }
 
 SemaResolverClass::SemaResolverClass(SemaResolver *R, SemaClassType *Class) : R(R), S(R->S), Class(Class) {
 
 }
 
-void SemaResolverClass::SuperClasses() {
+void SemaResolverClass::Extends() {
 	// Resolve Super Classes on first pass
 	llvm::SmallVector<ASTTypeRef *, 4> SuperClassesTypeRef = Class->getAST()->getSuperClasses();
 	while (SuperClassesTypeRef.empty() == false) {
@@ -73,73 +77,99 @@ void SemaResolverClass::SuperClasses() {
 					break;
 				}
 
-				SemaClassType *SuperClass = static_cast<SemaClassType *>(SuperType);
+				SemaClassType *SuperClassType = static_cast<SemaClassType *>(SuperType);
+				switch (Class->getClassKind()) {
 
-				// Struct: Resolve Var in Super Classes
-				if (SuperClass->getClassKind() == SemaClassKind::STRUCT) {
+					case SemaClassKind::CLASS:
+						InheritAttributes(SuperClassType);
+						InheritMethods(SuperClassType);
+						break;
 
-					// Interface cannot extend a Struct
-					if (Class->getClassKind() == SemaClassKind::INTERFACE) {
-						S.Diag(ClassTypeRef->getLocation(), diag::err_sema_interface_ext_struct);
-						return;
-					}
-
-					// Add Vars to the Struct
-					for (auto &SuperAttributeEntry : SuperClass->getAttributes()) {
-						SemaClassAttribute *SuperAttribute = SuperAttributeEntry.getValue();
-
-						// Check Var already exists and type conflicts in Super Vars
-						if (Class->Attributes.lookup(SuperAttributeEntry.getKey())) {
-							S.Diag(SuperAttribute->getAST()->getLocation(), diag::err_sema_super_struct_var_conflict);
+					case SemaClassKind::INTERFACE: {
+						if (SuperClassType->getClassKind() == SemaClassKind::INTERFACE) {
+							InheritMethods(SuperClassType);
 						} else {
-							Class->Attributes.insert(std::make_pair(SuperAttributeEntry.getKey(), SuperAttribute));
+							S.Diag(ClassTypeRef->getLocation(), diag::err_sema_interface_notext_interface);
 						}
-					}
+					} break;
+
+					case SemaClassKind::STRUCT: {
+						if (SuperClassType->getClassKind() == SemaClassKind::STRUCT) {
+							InheritAttributes(SuperClassType);
+						} else {
+							S.Diag(ClassTypeRef->getLocation(), diag::err_sema_struct_notext_struct);
+						}
+					} break;
+				}
+			}
+		}
+	}
+}
+
+void SemaResolverClass::InheritMethods(SemaClassType *ClassType) {
+	// Add Methods from Super Class to Class
+	for (auto &MethodEntry : ClassType->getMethods()) {
+		SemaClassMethod *Method = MethodEntry.getValue();
+
+		// Check if Method Visibility is not private and not static
+		if (Method->getVisibility() > SemaVisibilityKind::PRIVATE && !Method->isStatic()) {
+
+			// Check Attribute already exists and type conflicts in Super Vars
+			auto It = Class->getMethods().find(MethodEntry.getKey());
+			if (It == Class->getMethods().end()) { // Not Found
+				Class->Methods.insert(std::make_pair(MethodEntry.getKey(), Method));
+			} else { // Duplicate Found
+				// Check Return Type conflicts
+				if (It->second->getReturnType() != Method->getReturnType()) {
+					S.Diag(It->second->getAST()->getLocation(), diag::err_syntax_error);
 				}
 
-				// Interface cannot extend a Class
-				if (Class->getClassKind() == SemaClassKind::INTERFACE &&
-				    SuperClass->getClassKind() == SemaClassKind::CLASS) {
-					S.Diag(SuperClass->getAST()->getLocation(), diag::err_sema_interface_ext_class);
-					return;
+				// Check Visibility conflicts
+				if (It->second->getVisibility() < Method->getVisibility()) {
+					S.Diag(It->second->getAST()->getLocation(), diag::err_syntax_error);
 				}
 
-				// Class/Interface: take all Super Classes methods
-				if (SuperClass->getClassKind() == SemaClassKind::CLASS ||
-					SuperClass->getClassKind() == SemaClassKind::INTERFACE) {
+				// Check Static conflicts
+				if (It->second->isStatic()) {
+					S.Diag(It->second->getAST()->getLocation(), diag::err_syntax_error);
+				}
+			}
+		}
+	}
+}
 
-					// FIXME
-					// Collects Super Methods of the Super Classes
-					//                                for (auto SuperMethod: SuperClass->getMethods()) {
-					//                                    if (SuperClass->getClassKind() == ASTClassKind::INTERFACE) {
-					//                                        S.Builder->InsertFunction(ISuperMethods, SuperMethod);
-					//                                    } else {
-					//                                        // Insert methods in the Super and if is ok also in the base Class
-					//                                        if (S.Builder->InsertFunction(SuperMethods, SuperMethod)) {
-					//                                            SmallVector<ASTModifier *, 8> Modifiers = SuperMethod->List();
-					//                                            ASTFunction *M = S.Builder->CreateClassMethod(SuperMethod->getLocation(),
-					//                                                                                             *Class,
-					//                                                                                             SuperMethod->getReturnType(),
-					//                                                                                             SuperMethod->getName(),
-					//                                                                                             Modifiers);
-					//                                            M->Params = SuperMethod->Params;
-					//                                            M->Body = SuperMethod->Body;
-					//                                            M->DerivedClass = Class;
-					//                                            Class->Methods.push_back(M);
-					//
-					//                                        } else {
-					//                                            // Multiple Methods Implementations in Super Class need to be re-defined in base class
-					//                                            // Search if this method is re-defined in the base class
-					//                                            if (SuperMethod->getVisibility() !=
-					//                                                ASTModifierKind::MOD_PRIVATE &&
-					//                                                !S.Builder->ContainsFunction(Class->Methods, SuperMethod)) {
-					//                                                S.Diag(SuperMethod->getLocation(),
-					//                                                       diag::err_sema_super_class_method_conflict);
-					//                                                return;
-					//                                            }
-					//                                        }
-					//                                    }
-					//                                }
+void SemaResolverClass::InheritAttributes(SemaClassType * ClassType) {
+	// Add Attributes from Super Class to Class
+	for (auto &AttributeEntry : ClassType->getAttributes()) {
+		SemaClassAttribute *Attribute = AttributeEntry.getValue();
+
+		// Check if Attribute Visibility is not private and not static
+		if (Attribute->getVisibility() > SemaVisibilityKind::PRIVATE && !Attribute->isStatic()) {
+
+			// Check Attribute already exists and type conflicts in Super Vars
+			auto It = Class->Attributes.find(AttributeEntry.getKey());
+			if (It == Class->Attributes.end()) { // Not Found
+				Class->Attributes.insert(std::make_pair(AttributeEntry.getKey(), Attribute));
+			} else { // Duplicate Found
+
+				// Check Type conflicts
+				if (It->second->getType() != Attribute->getType()) {
+					S.Diag(It->second->getAST()->getLocation(), diag::err_syntax_error);
+				}
+
+				// Check Visibility conflicts
+				if (It->second->getVisibility() < Attribute->getVisibility()) {
+					S.Diag(It->second->getAST()->getLocation(), diag::err_syntax_error);
+				}
+
+				// Check Constant conflicts
+				if (!It->second->isConstant() && Attribute->isConstant()) {
+					S.Diag(It->second->getAST()->getLocation(), diag::err_syntax_error);
+				}
+
+				// Check Static conflicts
+				if (It->second->isStatic()) {
+					S.Diag(It->second->getAST()->getLocation(), diag::err_syntax_error);
 				}
 			}
 		}
@@ -207,22 +237,39 @@ void SemaResolverClass::Definitions() {
 }
 
 void SemaResolverClass::CreateDefaultConstructor() {
-	// Create the default constructor if no constructors are defined
-	if (Class->getConstructors().empty()) {
 
-		// Create Default Modifier
-		llvm::SmallVector<ASTModifier *, 8> Modifiers;
-		Modifiers.push_back(S.getASTBuilder().CreateModifier(SourceLocation(), ASTModifierKind::MOD_DEFAULT));
+	// Create Default Modifier
+	llvm::SmallVector<ASTModifier *, 8> Modifiers;
+	Modifiers.push_back(S.getASTBuilder().CreateModifier(SourceLocation(), ASTModifierKind::MOD_DEFAULT));
 
-		llvm::SmallVector<ASTVar *, 8> Params;
-		ASTBlockStmt *Body = S.getASTBuilder().CreateBlockStmt(SourceLocation());
-		ASTFunction * AST = S.getASTBuilder().CreateFunction(R->Module->getAST(), Class->getAST()->getLocation(),
-												   nullptr, Class->getAST()->getName(), Modifiers, Params, Body);
-		SemaClassMethod * DefaultConstructor = S.getSemaBuilder().CreateClassMethod(Class, AST, nullptr);
+	llvm::SmallVector<ASTVar *, 8> Params;
+	ASTBlockStmt *Body = S.getASTBuilder().CreateBlockStmt(SourceLocation());
+	ASTFunction * AST = S.getASTBuilder().CreateFunction(R->Module->getAST(), Class->getAST()->getLocation(),
+											   nullptr, Class->getAST()->getName(), Modifiers, Params, Body);
 
-		// Call default constructor of the super classes (if exists)
-		// TODO
+	// Call default constructor of the super classes (if exists)
+	if (!Class->getSuperClasses().empty()) {
+		for (auto &SuperClassEntry : Class->getSuperClasses()) {
+			// Resolve Super Class Type
+			if (SuperClassEntry.getValue()->DefaultConstructor) {
+				// Create Call to Super Constructor
+				SemaClassMethod * DefaultConstructor = SuperClassEntry.getValue()->DefaultConstructor;
+				const SourceLocation Loc = SourceLocation();
+				llvm::SmallVector<ASTExpr *, 8> Args;
+				ASTCall *SuperCall = S.getASTBuilder().CreateCall(DefaultConstructor->getAST()->getName(), Args);
+				S.getASTBuilder().CreateExprStmt(Body, SourceLocation());
+				S.getASTBuilder().CreateExpr(SuperCall);
+			} else {
+                // Error: Super Class has no default constructor
+                S.Diag(SuperClassEntry.getValue()->getAST()->getLocation(), diag::err_syntax_error);
+            }
+
+		}
+
 	}
+
+	// Create the default constructor
+	S.getSemaBuilder().CreateClassMethod(Class, AST, nullptr);
 }
 
 void SemaResolverClass::SetDefaultValueInAttributes() {
@@ -238,8 +285,11 @@ void SemaResolverClass::SetDefaultValueInAttributes() {
 			Attribute->AST->Expr = S.getASTBuilder().CreateExpr(DefaultValue);
 			R->ResolveValue(DefaultValue);
 			Attribute->AST->Expr->Type = Attribute->getType();
+		} else {
+
+			// Check Value is default value expression
+			SemaValidator::CheckIsValueExpr(Attribute->getAST()->getExpr());
 		}
-		S.getValidator().CheckIsValueExpr(Attribute->getAST()->getExpr());
 	}
 }
 

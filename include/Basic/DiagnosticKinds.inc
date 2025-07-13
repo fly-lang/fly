@@ -401,8 +401,8 @@ DIAG(err_sema_super_class_method_conflict, CLASS_ERROR, (unsigned)diag::Severity
 DIAG(err_sema_method_not_implemented, CLASS_ERROR, (unsigned)diag::Severity::Error, "method not implemented", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_super_struct_var_conflict, CLASS_ERROR, (unsigned)diag::Severity::Error, "super class var type conflicts", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_enum_ext, CLASS_ERROR, (unsigned)diag::Severity::Error, "enum can extend only another enum", 0, SFINAE_Suppress, false, true, 0)
-DIAG(err_sema_interface_ext_struct, CLASS_ERROR, (unsigned)diag::Severity::Error, "interface cannot extend a struct", 0, SFINAE_Suppress, false, true, 0)
-DIAG(err_sema_interface_ext_class, CLASS_ERROR, (unsigned)diag::Severity::Error, "interface cannot extend a class", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_struct_notext_struct, CLASS_ERROR, (unsigned)diag::Severity::Error, "interface cannot extend a struct", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_interface_notext_interface, CLASS_ERROR, (unsigned)diag::Severity::Error, "interface cannot extend a class", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_array_type_conflict, CLASS_ERROR, (unsigned)diag::Severity::Error, "array type conflict '%0' with '%0'", 0, SFINAE_Suppress, false, true, 0)
 
 

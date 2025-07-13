@@ -42,7 +42,7 @@ namespace fly {
 
     	bool Static = false;
 
-    	SemaClassType *DerivedClass = nullptr;
+    	SemaClassType *Inherited = nullptr;
 
 		CodeGenClassMethod *CodeGen = nullptr;
 
@@ -58,9 +58,11 @@ namespace fly {
 
     	bool isConstructor() const;
 
+    	SemaVisibilityKind getVisibility() const;
+
     	bool isStatic() const;
 
-    	SemaClassType *getDerivedClass() const;
+    	SemaClassType *getInherited() const;
 
     	SemaComment *getComment() const;
 

@@ -11,6 +11,8 @@
 #define FLY_SEMA_VALIDATOR_H
 
 #include <AST/ASTEnum.h>
+#include <llvm/ADT/DenseMap.h>
+
 #include "AST/ASTTypeRef.h"
 #include "AST/ASTVar.h"
 
@@ -27,29 +29,25 @@ namespace fly {
     class ASTClass;
     class ASTTypeRef;
     class SourceLocation;
+    class SemaModule;
     class SemaGlobalVar;
     class SemaFunction;
     class SemaClassType;
     class SemaEnumType;
     class SemaComment;
     class ASTValue;
+    class SemaClassMethod;
     enum class SemaTypeKind;
 
     class SemaValidator {
 
         friend class Sema;
 
-        Sema &S;
-
-        SemaValidator(Sema &S);
-
     public:
 
-        bool DiagEnabled = true;
+        static bool CheckDuplicateModules(ASTModule * Module, const llvm::DenseMap<uint64_t, SemaModule *> &Modules);
 
-        bool CheckDuplicateModules(ASTModule * Module);
-
-        bool CheckDuplicateVars(const llvm::StringMap<SemaGlobalVar *> &Vars, ASTVar * Var);
+        static bool CheckDuplicateVars(const llvm::StringMap<SemaGlobalVar *> &Vars, ASTVar * Var);
 
 //         template<class T>
 //         static bool InsertFunction(llvm::StringMap<std::map<uint64_t, llvm::SmallVector<T *, 4>>> &Functions,
@@ -111,15 +109,15 @@ namespace fly {
 //             }
 //         }
 
-        bool CheckDuplicateParams(llvm::SmallVector<ASTVar *, 8> Params, ASTVar *Param);
+        static bool CheckDuplicateParams(llvm::SmallVector<ASTVar *, 8> Params, ASTVar *Param);
 
-        bool CheckDuplicateLocalVars(ASTStmt *Stmt, llvm::StringRef VarName);
+       static bool CheckDuplicateLocalVars(ASTStmt *Stmt, llvm::StringRef VarName);
 
-        bool CheckCommentParams(SemaComment *Comment, const llvm::SmallVector<ASTVar*, 8> &Params);
+        static bool CheckCommentParams(SemaComment *Comment, const llvm::SmallVector<ASTVar*, 8> &Params);
 
-        bool CheckCommentReturn(SemaComment *Comment, ASTTypeRef* ReturnType);
+        static bool CheckCommentReturn(SemaComment *Comment, ASTTypeRef* ReturnType);
 
-        bool CheckCommentFail(SemaComment *Comment);
+        static bool CheckCommentFail(SemaComment *Comment);
 
         // static bool CheckParams(llvm::SmallVector<ASTVar *, 8> Params, llvm::SmallVector<ASTVar *, 8> CheckParams) {
         //     // Types will be checked on Resolve()
@@ -133,27 +131,27 @@ namespace fly {
         //     return true;
         // }
 
-        bool CheckExpr(ASTExpr *Expr);
+        static bool CheckExpr(ASTExpr *Expr);
 
-        bool CheckEqualTypes(SemaType *Type1, SemaType *Type2);
+        static bool CheckEqualTypes(SemaType *Type1, SemaType *Type2);
 
-        bool CheckConvertibleTypes(SemaType *FromType, SemaType *ToType);
+        static bool CheckConvertibleTypes(SemaType *FromType, SemaType *ToType);
 
-        bool CheckInheritance(SemaClassType *TheClass, SemaClassType *SuperClass);
+        static bool CheckInheritance(SemaClassType *ClassType, SemaClassType *SuperClassType);
 
-        bool CheckInheritance(SemaEnumType *TheEnum, SemaEnumType *SuperEnum);
+        static bool CheckInheritance(SemaEnumType *EnumType, SemaEnumType *SuperEnumType);
 
-        bool CheckArithTypes(SemaType *Type1, SemaType *Type2);
+        static bool CheckArithTypes(SemaType *Type1, SemaType *Type2);
 
-        bool CheckLogicalTypes(SemaType *Type1, SemaType *Type2);
+        static bool CheckLogicalTypes(SemaType *Type1, SemaType *Type2);
 
-        void CheckNameEmpty(const SourceLocation &Loc, llvm::StringRef Name);
+        static bool CheckNameEmpty(const SourceLocation &Loc, llvm::StringRef Name);
 
-        bool CheckIsValueExpr(ASTExpr *Expr);
+        static bool CheckIsValueExpr(ASTExpr *Expr);
 
-        bool CheckVarRefExpr(ASTExpr *Expr);
+        static bool CheckVarRefExpr(ASTExpr *Expr);
 
-        bool CheckValue(ASTValue* Value);
+        static bool CheckValue(ASTValue* Value);
     };
 
 }  // end namespace fly

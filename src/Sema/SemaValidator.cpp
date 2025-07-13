@@ -24,6 +24,8 @@
 #include "Basic/Diagnostic.h"
 
 #include <AST/ASTExpr.h>
+#include <AST/ASTFunction.h>
+#include <Sema/SemaClassMethod.h>
 #include <Sema/SemaClassType.h>
 #include <Sema/SemaEnumType.h>
 #include <Sema/SemaGlobalVar.h>
@@ -32,16 +34,12 @@
 
 using namespace fly;
 
-SemaValidator::SemaValidator(Sema &S) : S(S) {
-
-}
-
-bool SemaValidator::CheckDuplicateModules(ASTModule *Module) {
+bool SemaValidator::CheckDuplicateModules(ASTModule *Module, const llvm::DenseMap<uint64_t, SemaModule *> &Modules) {
 	// Check Duplicate Module Names
-	for (auto ModuleEntry : S.getSymTable().getModules()) {
+	for (auto ModuleEntry : Modules) {
 		ASTModule * AST = ModuleEntry.getSecond()->getAST();
 		if (AST->getId() != Module->getId() && AST->getName() == Module->getName()) {
-			S.Diag(diag::err_sema_module_duplicated) << AST->getName();
+			// S.Diag(diag::err_sema_module_duplicated) << AST->getName();
 			return false;
 		}
 	}
@@ -51,7 +49,7 @@ bool SemaValidator::CheckDuplicateModules(ASTModule *Module) {
 bool SemaValidator::CheckDuplicateVars(const llvm::StringMap<SemaGlobalVar *> &Vars, ASTVar *Var) {
 	SemaGlobalVar *DuplicateVar = Vars.lookup(Var->getName());
 	if (DuplicateVar) { // This NameSpace already contains this GlobalVar
-		S.Diag(DuplicateVar->getAST()->getLocation(), diag::err_duplicate_gvar) << DuplicateVar->getAST()->getName();
+		// S.Diag(DuplicateVar->getAST()->getLocation(), diag::err_duplicate_gvar) << DuplicateVar->getAST()->getName();
 		return false;
 	}
 	return true;
@@ -76,8 +74,8 @@ bool SemaValidator::CheckDuplicateVars(const llvm::StringMap<SemaGlobalVar *> &V
 bool SemaValidator::CheckDuplicateParams(llvm::SmallVector<ASTVar *, 8> Params, ASTVar *Param) {
     for (ASTVar *P : Params) {
         if (P->getName() == Param->getName()) {
-            if (DiagEnabled)
-                S.Diag(Param->getLocation(), diag::err_conflict_params) << Param->getName();
+            // if (DiagEnabled)
+            //     S.Diag(Param->getLocation(), diag::err_conflict_params) << Param->getName();
             return false;
         }
     }
@@ -99,8 +97,8 @@ bool SemaValidator::CheckDuplicateLocalVars(ASTStmt *Stmt, llvm::StringRef VarNa
     ASTBlockStmt *Block = (ASTBlockStmt *) Stmt;
     ASTVar *DuplicateVar = Block->getLocalVars().lookup(VarName);
     if (DuplicateVar != nullptr) {
-        if (DiagEnabled)
-            S.Diag(DuplicateVar->getLocation(), diag::err_conflict_vardecl) << DuplicateVar->getName();
+        // if (DiagEnabled)
+        //     S.Diag(DuplicateVar->getLocation(), diag::err_conflict_vardecl) << DuplicateVar->getName();
         return false;
     }
 
@@ -129,8 +127,8 @@ bool SemaValidator::CheckCommentFail(SemaComment *Comment) {
 
 bool SemaValidator::CheckExpr(ASTExpr *Expr) {
     if (!Expr->getType()) {
-        if (DiagEnabled)
-            S.Diag(Expr->getLocation(), diag::err_expr_type_miss);
+        // if (DiagEnabled)
+        //     S.Diag(Expr->getLocation(), diag::err_expr_type_miss);
         return false;
     }
     return true;
@@ -210,15 +208,15 @@ bool SemaValidator::CheckConvertibleTypes(SemaType *FromType, SemaType *ToType) 
     return false;
 }
 
-bool SemaValidator::CheckInheritance(SemaClassType *TheClass, SemaClassType *SuperClass) {
-	// Check if TheClass is equals to SuperClass
-	if (TheClass->getId() == SuperClass->getId()) {
+bool SemaValidator::CheckInheritance(SemaClassType *ClassType, SemaClassType *SuperClassType) {
+	// Check if ClassType is equals to SuperClassType
+	if (ClassType->getId() == SuperClassType->getId()) {
 		return true;
 	}
 
-	// Check if TheClass is a subclass of SuperClass
-	for (auto &SuperClassEntry : TheClass->getSuperClasses()) {
-		if (CheckInheritance(SuperClass, SuperClassEntry.getValue())) {
+	// Check if ClassType is a subclass of SuperClassType
+	for (auto &SuperClassEntry : ClassType->getSuperClasses()) {
+		if (CheckInheritance(SuperClassType, SuperClassEntry.getValue())) {
 			return true;
 		}
 	}
@@ -226,15 +224,15 @@ bool SemaValidator::CheckInheritance(SemaClassType *TheClass, SemaClassType *Sup
 	return false;
 }
 
-bool SemaValidator::CheckInheritance(SemaEnumType *TheEnum, SemaEnumType *SuperEnum) {
+bool SemaValidator::CheckInheritance(SemaEnumType *EnumType, SemaEnumType *SuperEnumType) {
 	// Check if TheClass is equals to SuperClass
-	if (TheEnum->getId() == SuperEnum->getId()) {
+	if (EnumType->getId() == SuperEnumType->getId()) {
 		return true;
 	}
 
 	// Check if TheClass is a subclass of SuperClass
-	for (auto &SuperClassEntry : TheEnum->getSuperEnums()) {
-		if (CheckInheritance(SuperClassEntry.getValue(), SuperEnum)) {
+	for (auto &SuperClassEntry : EnumType->getSuperEnums()) {
+		if (CheckInheritance(SuperClassEntry.getValue(), SuperEnumType)) {
 			return true;
 		}
 	}
@@ -269,10 +267,8 @@ bool SemaValidator::CheckLogicalTypes(SemaType *Type1, SemaType *Type2) {
     return false;
 }
 
-void SemaValidator::CheckNameEmpty(const SourceLocation &Loc,llvm::StringRef Name) {
-    if (Name.empty()) {
-        S.Diag(Loc, diag::err_sema_identifier_empty);
-    }
+bool SemaValidator::CheckNameEmpty(const SourceLocation &Loc,llvm::StringRef Name) {
+    return Name.empty() ? false : true;
 }
 
 
