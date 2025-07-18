@@ -64,43 +64,41 @@ SemaResolverClass::SemaResolverClass(SemaResolver *R, SemaClassType *Class) : R(
 void SemaResolverClass::Extends() {
 	// Resolve Super Classes on first pass
 	llvm::SmallVector<ASTTypeRef *, 4> SuperClassesTypeRef = Class->getAST()->getSuperClasses();
-	while (SuperClassesTypeRef.empty() == false) {
-		for (auto &ClassTypeRef : SuperClassesTypeRef) {
+	for (auto &ClassTypeRef : SuperClassesTypeRef) {
 
-			// Search for the SuperClass in the Module, NameSpace or Imports
-			if (R->ResolveTypeRef(ClassTypeRef)) {
-				SemaType *SuperType = ClassTypeRef->getSema();
+		// Search for the SuperClass in the Module, NameSpace or Imports
+		if (R->ResolveTypeRef(ClassTypeRef)) {
+			SemaType *SuperType = ClassTypeRef->getSema();
 
-				if (SuperType->getKind() != SemaTypeKind::TYPE_CLASS) {
-					// Error: invalid superclass type
-					S.Diag(ClassTypeRef->getLocation(), diag::err_syntax_error);
+			if (SuperType->getKind() != SemaTypeKind::TYPE_CLASS) {
+				// Error: invalid superclass type
+				S.Diag(ClassTypeRef->getLocation(), diag::err_syntax_error);
+				break;
+			}
+
+			SemaClassType *SuperClassType = static_cast<SemaClassType *>(SuperType);
+			switch (Class->getClassKind()) {
+
+				case SemaClassKind::CLASS:
+					InheritAttributes(SuperClassType);
+					InheritMethods(SuperClassType);
 					break;
-				}
 
-				SemaClassType *SuperClassType = static_cast<SemaClassType *>(SuperType);
-				switch (Class->getClassKind()) {
-
-					case SemaClassKind::CLASS:
-						InheritAttributes(SuperClassType);
+				case SemaClassKind::INTERFACE: {
+					if (SuperClassType->getClassKind() == SemaClassKind::INTERFACE) {
 						InheritMethods(SuperClassType);
-						break;
+					} else {
+						S.Diag(ClassTypeRef->getLocation(), diag::err_sema_interface_notext_interface);
+					}
+				} break;
 
-					case SemaClassKind::INTERFACE: {
-						if (SuperClassType->getClassKind() == SemaClassKind::INTERFACE) {
-							InheritMethods(SuperClassType);
-						} else {
-							S.Diag(ClassTypeRef->getLocation(), diag::err_sema_interface_notext_interface);
-						}
-					} break;
-
-					case SemaClassKind::STRUCT: {
-						if (SuperClassType->getClassKind() == SemaClassKind::STRUCT) {
-							InheritAttributes(SuperClassType);
-						} else {
-							S.Diag(ClassTypeRef->getLocation(), diag::err_sema_struct_notext_struct);
-						}
-					} break;
-				}
+				case SemaClassKind::STRUCT: {
+					if (SuperClassType->getClassKind() == SemaClassKind::STRUCT) {
+						InheritAttributes(SuperClassType);
+					} else {
+						S.Diag(ClassTypeRef->getLocation(), diag::err_sema_struct_notext_struct);
+					}
+				} break;
 			}
 		}
 	}
@@ -149,7 +147,9 @@ void SemaResolverClass::InheritAttributes(SemaClassType * ClassType) {
 			// Check Attribute already exists and type conflicts in Super Vars
 			auto It = Class->Attributes.find(AttributeEntry.getKey());
 			if (It == Class->Attributes.end()) { // Not Found
-				Class->Attributes.insert(std::make_pair(AttributeEntry.getKey(), Attribute));
+				SemaClassAttribute *NewAttribute = S.getSemaBuilder().CreateClassAttribute(Class, Attribute->getAST(), Attribute->getComment());
+				NewAttribute->Type = Attribute->getType();
+				Class->Attributes.insert(std::make_pair(AttributeEntry.getKey(), NewAttribute));
 			} else { // Duplicate Found
 
 				// Check Type conflicts

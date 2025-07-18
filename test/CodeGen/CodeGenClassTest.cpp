@@ -482,7 +482,7 @@ TEST_F(CodeGenTest, CGStruct2) {
         );
     }
 
-	TEST_F(CodeGenTest, CGClassNoVirtualMethod) {
+	TEST_F(CodeGenTest, CGClassConstructorCallMethod) {
         ASTModule *Module = CreateModule();
 
         // TestClass {
@@ -742,11 +742,45 @@ TEST_F(CodeGenTest, CGStruct2) {
     	llvm::SmallVector<ASTTypeRef *, 4> BaseSuperClasses;
     	ASTClass *BaseStruct = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "BaseStruct",
 			TopModifiers, BaseSuperClasses);
+
+    	// int a
+    	ASTVar *aAttribute = getASTBuilder().CreateClassAttribute(SourceLoc, BaseStruct, IntTypeRef, "a", TopModifiers);
+
     	llvm::SmallVector<ASTTypeRef *, 4> TestSuperClasses;
     	TestSuperClasses.push_back(getASTBuilder().CreateTypeRef(BaseStruct));
-    	ASTClass *TestClass = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "TestStruct",
+    	ASTClass *TestStruct = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "TestStruct",
 			TopModifiers, TestSuperClasses);
 
+    	// validate and resolve
+    	EXPECT_TRUE(S->Resolve());
+
+    	// Generate Code
+    	llvm::Module * M = Generate();
+    	std::string output = getOutput(M);
+
+    	EXPECT_EQ(output, "\n%BaseStruct = type { i32 }\n"
+    					  "%TestStruct = type { i32 }\n"
+						  "\n"
+						  "define void @BaseStruct_F10BaseStruct(%BaseStruct* %0) {\n"
+						  "entry:\n"
+						  "  %1 = alloca %BaseStruct*, align 8\n"
+						  "  store %BaseStruct* %0, %BaseStruct** %1, align 8\n"
+						  "  %2 = load %BaseStruct*, %BaseStruct** %1, align 8\n"
+						  "  %3 = getelementptr inbounds %BaseStruct, %BaseStruct* %2, i32 0, i32 0\n"
+						  "  store i32 0, i32* %3, align 4\n"
+						  "  ret void\n"
+						  "}\n"
+						  "\n"
+						  "define void @TestStruct_F10TestStruct(%TestStruct* %0) {\n"
+						  "entry:\n"
+						  "  %1 = alloca %TestStruct*, align 8\n"
+						  "  store %TestStruct* %0, %TestStruct** %1, align 8\n"
+						  "  %2 = load %TestStruct*, %TestStruct** %1, align 8\n"
+						  "  %3 = getelementptr inbounds %TestStruct, %TestStruct* %2, i32 0, i32 0\n"
+						  "  store i32 0, i32* %3, align 4\n"
+						  "  ret void\n"
+						  "}\n"
+						  );
     }
 
 	TEST_F(CodeGenTest, CGStructExtendsStructs) {
@@ -799,6 +833,7 @@ TEST_F(CodeGenTest, CGStruct2) {
     	// int a
     	// }
     	// struct BaseStruct2 {
+    	// int a
     	// int b
     	// }
     	//
