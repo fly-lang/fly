@@ -16,6 +16,7 @@ namespace fly {
 	class SemaResolver;
     class Sema;
     class SemaClassType;
+    class SemaClassMethod;
 
     class SemaResolverClass {
 
@@ -35,7 +36,7 @@ namespace fly {
 
         void Extends();
 
-        void InheritMethods(fly::SemaClassType* ClassType);
+        void InheritMethods(fly::SemaClassType* SuperClassType);
 
         void InheritAttributes(fly::SemaClassType* ClassType);
 

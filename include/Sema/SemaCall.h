@@ -40,6 +40,8 @@ namespace fly {
 
     	SemaErrorHandler *ErrorHandler = nullptr;
 
+    	bool Polymorphic = false;
+
         explicit SemaCall(ASTCall *AST);
 
     public:
@@ -52,9 +54,7 @@ namespace fly {
 
     	SemaErrorHandler *getErrorHandler() const;
 
-    	// virtual CodeGenCall *getCodeGen() const = 0;
-	    //
-    	// virtual void setCodeGen(CodeGenCall * CGCall) = 0;
+    	bool isPolymorphic() const;
 
     };
 

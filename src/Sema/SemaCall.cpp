@@ -31,3 +31,7 @@ SemaFunctionBase *SemaCall::getFunction() const {
 SemaErrorHandler *SemaCall::getErrorHandler() const {
 	return ErrorHandler;
 }
+
+bool SemaCall::isPolymorphic() const {
+	return Polymorphic;
+}

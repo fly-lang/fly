@@ -1018,10 +1018,7 @@ TEST_F(CodeGenTest, CGStruct2) {
     	// }
     	//
     	// class TestClass : BaseClass {
-    	//	void undo() {
-    	//		a = 2
-    	//	    do()
-    	//  }
+    	//	void undo() {}
     	// }
 
     	// BaseClass
@@ -1030,12 +1027,18 @@ TEST_F(CodeGenTest, CGStruct2) {
 			TopModifiers, BaseSuperClasses);
     	// int a
     	ASTVar *aAttribute = getASTBuilder().CreateClassAttribute(SourceLoc, BaseClass, IntTypeRef, "a", TopModifiers);
+    	// void do()
+    	ASTBlockStmt *DoBody = getASTBuilder().CreateBlockStmt(SourceLoc);
+    	ASTFunction *Do = getASTBuilder().CreateClassMethod(SourceLoc, BaseClass, VoidTypeRef, "do", TopModifiers, Params, DoBody);
 
     	// TestClass
     	llvm::SmallVector<ASTTypeRef *, 4> TestSuperClasses;
     	TestSuperClasses.push_back(getASTBuilder().CreateTypeRef(BaseClass));
     	ASTClass *TestClass = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass",
 			TopModifiers, TestSuperClasses);
+    	// void undo()
+    	ASTBlockStmt *UndoBody = getASTBuilder().CreateBlockStmt(SourceLoc);
+    	ASTFunction *Undo = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, VoidTypeRef, "undo", TopModifiers, Params, UndoBody);
 
     	// validate and resolve
     	EXPECT_TRUE(S->Resolve());
@@ -1047,9 +1050,9 @@ TEST_F(CodeGenTest, CGStruct2) {
     	EXPECT_EQ(output, "\n"
     					  "%error = type { i8, i32, i8* }\n"
     					  "%BaseClass = type { %BaseClass_vtable*, i32 }\n"
-    					  "%BaseClass_vtable = type {}\n"
+    					  "%BaseClass_vtable = type { void (%error*, %BaseClass*)* }\n"
     					  "%TestClass = type { %TestClass_vtable*, i32 }\n"
-						  "%TestClass_vtable = type {}\n"
+						  "%TestClass_vtable = type { void (%error*, %BaseClass*)*, void (%error*, %TestClass*)* }\n"
 						  "\n"
 						  "define void @BaseClass_F9BaseClass(%error* %0, %BaseClass* %1) {\n"
 						  "entry:\n"
@@ -1060,6 +1063,16 @@ TEST_F(CodeGenTest, CGStruct2) {
                           "  %4 = load %BaseClass*, %BaseClass** %3, align 8\n"
                           "  %5 = getelementptr inbounds %BaseClass, %BaseClass* %4, i32 0, i32 1\n"
                           "  store i32 0, i32* %5, align 4\n"
+						  "  ret void\n"
+						  "}\n"
+						  "\n"
+						  "define void @BaseClass_F2do(%error* %0, %BaseClass* %1) {\n"
+						  "entry:\n"
+						  "  %2 = alloca %error*, align 8\n"
+						  "  %3 = alloca %BaseClass*, align 8\n"
+						  "  store %error* %0, %error** %2, align 8\n"
+						  "  store %BaseClass* %1, %BaseClass** %3, align 8\n"
+						  "  %4 = load %BaseClass*, %BaseClass** %3, align 8\n"
 						  "  ret void\n"
 						  "}\n"
 						  "\n"
@@ -1074,27 +1087,37 @@ TEST_F(CodeGenTest, CGStruct2) {
 						  "  store i32 0, i32* %5, align 4\n"
 						  "  ret void\n"
 						  "}\n"
+						  "\n"
+						  "define void @TestClass_F4undo(%error* %0, %TestClass* %1) {\n"
+						  "entry:\n"
+						  "  %2 = alloca %error*, align 8\n"
+						  "  %3 = alloca %TestClass*, align 8\n"
+						  "  store %error* %0, %error** %2, align 8\n"
+						  "  store %TestClass* %1, %TestClass** %3, align 8\n"
+						  "  %4 = load %TestClass*, %TestClass** %3, align 8\n"
+						  "  ret void\n"
+						  "}\n"
 						  );
     }
 
     TEST_F(CodeGenTest, CGClassExtendsClasses) {
-    	ASTModule *Module = CreateModule();
+	    ASTModule *Module = CreateModule();
 
     	// class BaseClass {
-    	// int a
-    	// void do() {}
+    	//   int a
+    	//   void do() {}
     	// }
     	//
     	// class BaseClass2 {
-    	// int b
-    	// void do() {}
+    	//   int b
+    	//   void do() {}
+    	//   void undo() {}
     	// }
     	//
     	// class TestClass : BaseClass, BaseClass2 {
-    	//	void undo() {
-    	//		a = 2
-    	//	    do()
-    	//  }
+    	//   void do() {
+    	//		BaseClass.do()
+    	//   }
     	// }
 
     	// BaseClass
@@ -1103,13 +1126,22 @@ TEST_F(CodeGenTest, CGStruct2) {
 			TopModifiers, BaseSuperClasses);
     	// int a
     	ASTVar *aAttribute = getASTBuilder().CreateClassAttribute(SourceLoc, BaseClass, IntTypeRef, "a", TopModifiers);
+    	// void do()
+    	ASTBlockStmt *DoBody = getASTBuilder().CreateBlockStmt(SourceLoc);
+    	ASTFunction *BaseClass_do = getASTBuilder().CreateClassMethod(SourceLoc, BaseClass, VoidTypeRef, "do", TopModifiers, Params, DoBody);
 
     	// BaseClass2
     	llvm::SmallVector<ASTTypeRef *, 4> Base2SuperClasses;
     	ASTClass *BaseClass2 = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "BaseClass2",
 			TopModifiers, BaseSuperClasses);
     	// int a
-    	ASTVar *bAttribute = getASTBuilder().CreateClassAttribute(SourceLoc, BaseClass2, IntTypeRef, "a", TopModifiers);
+    	ASTVar *bAttribute = getASTBuilder().CreateClassAttribute(SourceLoc, BaseClass2, IntTypeRef, "b", TopModifiers);
+    	// void do()
+    	ASTBlockStmt *DoBody2 = getASTBuilder().CreateBlockStmt(SourceLoc);
+    	ASTFunction *BaseClass2_do = getASTBuilder().CreateClassMethod(SourceLoc, BaseClass2, VoidTypeRef, "do", TopModifiers, Params, DoBody2);
+    	// void undo()
+    	ASTBlockStmt *UndoBody = getASTBuilder().CreateBlockStmt(SourceLoc);
+    	ASTFunction *BaseClass2_undo = getASTBuilder().CreateClassMethod(SourceLoc, BaseClass2, VoidTypeRef, "undo", TopModifiers, Params, UndoBody);
 
     	// TestClass
     	llvm::SmallVector<ASTTypeRef *, 4> TestSuperClasses;
@@ -1117,6 +1149,17 @@ TEST_F(CodeGenTest, CGStruct2) {
     	TestSuperClasses.push_back(getASTBuilder().CreateTypeRef(BaseClass2));
     	ASTClass *TestClass = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass",
 			TopModifiers, TestSuperClasses);
+
+    	// void do() {
+    	//    BaseClass.do()
+    	// }
+    	ASTBlockStmt *DoBody3 = getASTBuilder().CreateBlockStmt(SourceLoc);
+    	ASTTypeRef *TestClassType = getASTBuilder().CreateTypeRef(TestClass);
+    	ASTCallExpr *aCallExpr = getASTBuilder().CreateExpr(CreateCall(BaseClass_do, Args, ASTCallKind::CALL_FUNCTION,
+    		getASTBuilder().CreateTypeRef(BaseClass)));
+    	SemaBuilderStmt *aStmt = getASTBuilder().CreateExprStmt(DoBody3, SourceLoc);
+    	aStmt->setExpr(aCallExpr);
+    	ASTFunction *TestClass_do = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, VoidTypeRef, "do", TopModifiers, Params, DoBody3);
 
     	// validate and resolve
     	EXPECT_TRUE(S->Resolve());
@@ -1128,11 +1171,11 @@ TEST_F(CodeGenTest, CGStruct2) {
     	EXPECT_EQ(output, "\n"
     					  "%error = type { i8, i32, i8* }\n"
     					  "%BaseClass2 = type { %BaseClass2_vtable*, i32 }\n"
-						  "%BaseClass2_vtable = type {}\n"
+						  "%BaseClass2_vtable = type { void (%error*, %BaseClass2*)*, void (%error*, %BaseClass2*)* }\n"
     					  "%BaseClass = type { %BaseClass_vtable*, i32 }\n"
-    					  "%BaseClass_vtable = type {}\n"
-    					  "%TestClass = type { %TestClass_vtable*, i32 }\n"
-						  "%TestClass_vtable = type {}\n"
+    					  "%BaseClass_vtable = type { void (%error*, %BaseClass*)* }\n"
+    					  "%TestClass = type { %TestClass_vtable*, i32, i32 }\n"
+						  "%TestClass_vtable = type { void (%error*, %TestClass*)*, void (%error*, %BaseClass2*)* }\n"
 						  "\n"
 						  "define void @BaseClass2_F10BaseClass2(%error* %0, %BaseClass2* %1) {\n"
 						  "entry:\n"
@@ -1143,6 +1186,26 @@ TEST_F(CodeGenTest, CGStruct2) {
                           "  %4 = load %BaseClass2*, %BaseClass2** %3, align 8\n"
                           "  %5 = getelementptr inbounds %BaseClass2, %BaseClass2* %4, i32 0, i32 1\n"
                           "  store i32 0, i32* %5, align 4\n"
+						  "  ret void\n"
+						  "}\n"
+						  "\n"
+						  "define void @BaseClass2_F2do(%error* %0, %BaseClass2* %1) {\n"
+						  "entry:\n"
+						  "  %2 = alloca %error*, align 8\n"
+						  "  %3 = alloca %BaseClass2*, align 8\n"
+						  "  store %error* %0, %error** %2, align 8\n"
+						  "  store %BaseClass2* %1, %BaseClass2** %3, align 8\n"
+						  "  %4 = load %BaseClass2*, %BaseClass2** %3, align 8\n"
+						  "  ret void\n"
+						  "}\n"
+						  "\n"
+						  "define void @BaseClass2_F4undo(%error* %0, %BaseClass2* %1) {\n"
+						  "entry:\n"
+						  "  %2 = alloca %error*, align 8\n"
+						  "  %3 = alloca %BaseClass2*, align 8\n"
+						  "  store %error* %0, %error** %2, align 8\n"
+						  "  store %BaseClass2* %1, %BaseClass2** %3, align 8\n"
+						  "  %4 = load %BaseClass2*, %BaseClass2** %3, align 8\n"
 						  "  ret void\n"
 						  "}\n"
 						  "\n"
@@ -1158,6 +1221,16 @@ TEST_F(CodeGenTest, CGStruct2) {
 						  "  ret void\n"
 						  "}\n"
 						  "\n"
+						  "define void @BaseClass_F2do(%error* %0, %BaseClass* %1) {\n"
+						  "entry:\n"
+						  "  %2 = alloca %error*, align 8\n"
+						  "  %3 = alloca %BaseClass*, align 8\n"
+						  "  store %error* %0, %error** %2, align 8\n"
+						  "  store %BaseClass* %1, %BaseClass** %3, align 8\n"
+						  "  %4 = load %BaseClass*, %BaseClass** %3, align 8\n"
+						  "  ret void\n"
+						  "}\n"
+						  "\n"
 						  "define void @TestClass_F9TestClass(%error* %0, %TestClass* %1) {\n"
 						  "entry:\n"
 						  "  %2 = alloca %error*, align 8\n"
@@ -1167,6 +1240,20 @@ TEST_F(CodeGenTest, CGStruct2) {
 						  "  %4 = load %TestClass*, %TestClass** %3, align 8\n"
 						  "  %5 = getelementptr inbounds %TestClass, %TestClass* %4, i32 0, i32 1\n"
 						  "  store i32 0, i32* %5, align 4\n"
+						  "  %6 = getelementptr inbounds %TestClass, %TestClass* %4, i32 0, i32 2\n"
+						  "  store i32 0, i32* %6, align 4\n"
+						  "  ret void\n"
+						  "}\n"
+						  "\n"
+						  "define void @TestClass_F2do(%error* %0, %TestClass* %1) {\n"
+						  "entry:\n"
+						  "  %2 = alloca %error*, align 8\n"
+						  "  %3 = alloca %TestClass*, align 8\n"
+						  "  store %error* %0, %error** %2, align 8\n"
+						  "  store %TestClass* %1, %TestClass** %3, align 8\n"
+						  "  %4 = load %TestClass*, %TestClass** %3, align 8\n"
+						  "  %5 = load %error*, %error** %2, align 8\n"
+						  "  call void @BaseClass_F2do(%error* %5, %BaseClass* %4)\n"
 						  "  ret void\n"
 						  "}\n"
 						  );

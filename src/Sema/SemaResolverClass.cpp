@@ -38,11 +38,11 @@ void SemaResolverClass::Resolve(SemaResolver *R, SemaClassType *Class) {
 	if (Class->getClassKind() != SemaClassKind::INTERFACE)
 		Resolver->S.getSemaBuilder().CreateThisAttribute(Class);
 
-	// Resolve Super Classes
-	Resolver->Extends();
-
 	// Resolve Class Definitions
 	Resolver->Definitions();
+
+	// Resolve Super Classes
+	Resolver->Extends();
 
 	// Create Class Default Constructor
 	// Create the default constructor if no constructors are defined
@@ -104,26 +104,28 @@ void SemaResolverClass::Extends() {
 	}
 }
 
-void SemaResolverClass::InheritMethods(SemaClassType *ClassType) {
-	// Add Methods from Super Class to Class
-	for (auto &MethodEntry : ClassType->getMethods()) {
-		SemaClassMethod *Method = MethodEntry.getValue();
+void SemaResolverClass::InheritMethods(SemaClassType *SuperClassType) {
+	// Add Methods from Super SuperClassType
+	for (auto &SuperMethodEntry : SuperClassType->getMethods()) {
+		SemaClassMethod *SuperMethod = SuperMethodEntry.getValue();
 
 		// Check if Method Visibility is not private and not static
-		if (Method->getVisibility() > SemaVisibilityKind::PRIVATE && !Method->isStatic()) {
+		if (SuperMethod->getVisibility() > SemaVisibilityKind::PRIVATE && !SuperMethod->isStatic()) {
 
-			// Check Attribute already exists and type conflicts in Super Vars
-			auto It = Class->getMethods().find(MethodEntry.getKey());
-			if (It == Class->getMethods().end()) { // Not Found
-				Class->Methods.insert(std::make_pair(MethodEntry.getKey(), Method));
-			} else { // Duplicate Found
+			// Check Methods already exists and type conflicts in Super Methods
+			auto It = Class->getMethods().find(SuperMethodEntry.getKey());
+			if (It == Class->getMethods().end()) { // Not Found, add new Method
+				Class->Methods.insert(std::make_pair(SuperMethodEntry.getKey(), SuperMethod));
+
+			} else { // Duplicate Found, check conflicts
+
 				// Check Return Type conflicts
-				if (It->second->getReturnType() != Method->getReturnType()) {
+				if (It->second->getReturnType() != SuperMethod->getReturnType()) {
 					S.Diag(It->second->getAST()->getLocation(), diag::err_syntax_error);
 				}
 
 				// Check Visibility conflicts
-				if (It->second->getVisibility() < Method->getVisibility()) {
+				if (It->second->getVisibility() < SuperMethod->getVisibility()) {
 					S.Diag(It->second->getAST()->getLocation(), diag::err_syntax_error);
 				}
 
@@ -131,6 +133,14 @@ void SemaResolverClass::InheritMethods(SemaClassType *ClassType) {
 				if (It->second->isStatic()) {
 					S.Diag(It->second->getAST()->getLocation(), diag::err_syntax_error);
 				}
+
+				// If the inherited method appear in more than one super class: need to be re-defined
+				// Check if class methods contains the same inherited method without redefine it
+				if (Class->getName() != It->getValue()->getClass()->getName()) {
+
+                    // Error: method already exists in super class
+                    S.Diag(SuperMethod->getAST()->getLocation(), diag::err_syntax_error);
+                }
 			}
 		}
 	}

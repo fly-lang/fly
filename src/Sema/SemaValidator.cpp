@@ -215,8 +215,8 @@ bool SemaValidator::CheckInheritance(SemaClassType *ClassType, SemaClassType *Su
 	}
 
 	// Check if ClassType is a subclass of SuperClassType
-	for (auto &SuperClassEntry : ClassType->getSuperClasses()) {
-		if (CheckInheritance(SuperClassType, SuperClassEntry.getValue())) {
+	for (auto &Entry : ClassType->getSuperClasses()) {
+		if (CheckInheritance(SuperClassType, Entry.getValue())) {
 			return true;
 		}
 	}
@@ -287,5 +287,13 @@ bool SemaValidator::CheckVarRefExpr(ASTExpr *Expr) {
 }
 
 bool SemaValidator::CheckValue(ASTValue *Value) {
+	return true;
+}
+
+bool SemaValidator::CheckVar(ASTStmt *Stmt, fly::ASTRef *Ref) {
+	return true;
+}
+
+bool SemaValidator::CheckCall(ASTStmt *Stmt, fly::ASTCall *Ref) {
 	return true;
 }

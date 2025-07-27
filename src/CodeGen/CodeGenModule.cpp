@@ -715,6 +715,9 @@ llvm::Value *CodeGenModule::GenCall(SemaCall *Sema) {
         if (Method->getClass()->getClassKind() != SemaClassKind::STRUCT)
             Args.push_back(Sema->getErrorHandler()->getCodeGen()->getValue()); // Error is a Pointer
 
+    	// Get Calss CodeGen
+    	CodeGenClass * CGClass = Method->getClass()->getCodeGen();
+
 		// Call class constructor
     	if (Method->isConstructor()) {
 
@@ -731,27 +734,36 @@ llvm::Value *CodeGenModule::GenCall(SemaCall *Sema) {
     		llvm::Instruction *I = llvm::CallInst::CreateMalloc(Builder->GetInsertBlock(), IntPtrType,
 														  AllocType, AllocSizeVal, nullptr, nullptr, InstName);
     		InstancePtr = Builder->Insert(I);
-    	} else {
+
+    		// Add Instance parameter
+    		Args.push_back(InstancePtr);
+    		addArgs(Sema, Args);
+
+    		// Call the constructor
+    		Builder->CreateCall(Method->getCodeGen()->getFunction(), Args);
+    		return InstancePtr;
+    	}
+
+    	// Method is not a constructor, so it must be a method call
+    	if (Sema->getParent()) {
+
+    		// Instance method call
     		InstancePtr = GenResult(Sema->getParent());
+
+    	} else {
+    		// Direct method call inside a class
+    		InstancePtr = Method->getClass()->getThis()->getCodeGen()->getValue();
     	}
 
     	// Add Instance parameter
     	Args.push_back(InstancePtr);
     	addArgs(Sema, Args);
 
-    	CodeGenClass * CGClass = Method->getClass()->getCodeGen();
+    	// Create the function pointer by vtable is polymorphic
+    	// or by the function pointer if is static
+    	llvm::Value * FuncPtr;
+    	if (Sema->isPolymorphic()) {
 
-    	// Create the method call
-    	if (Method->isConstructor()) {
-    		Builder->CreateCall(Method->getCodeGen()->getFunction(), Args);
-    		return InstancePtr;
-    	} else if (!Sema->getParent()->isCall() &&
-    		static_cast<SemaVar *>(Sema->getParent())->getVarKind() == SemaVarKind::CLASS_INSTANCE) {
-    		llvm::Value * ClassInstancePtr = static_cast<SemaVar *>(Sema->getParent())->getCodeGen()->getValue();
-
-    		// If the parent is this Var
-    		return Builder->CreateCall(Method->getCodeGen()->getFunction()->getFunctionType(), ClassInstancePtr, Args);
-    	} else {
     		// Get the VTable pointer
     		llvm::Value * VTablePtrPtr = Builder->CreateStructGEP(CGClass->getType(), InstancePtr, 0);
     		llvm::LoadInst * VTablePtr = Builder->CreateLoad(VTablePtrPtr);
@@ -759,11 +771,14 @@ llvm::Value *CodeGenModule::GenCall(SemaCall *Sema) {
     		// Get the Method index in the VTable
     		llvm::StructType * VTableType = CGClass->getVTableType();
     		llvm::Value * FuncPtrPtr = Builder->CreateStructGEP(VTableType, VTablePtr, Method->getCodeGen()->getIndex());
-    		llvm::LoadInst * FuncPtr = Builder->CreateLoad(FuncPtrPtr);
-
-    		// Create the function call
-    		return Builder->CreateCall(Method->getCodeGen()->getFunction()->getFunctionType(), FuncPtr, Args);
+    		FuncPtr = Builder->CreateLoad(FuncPtrPtr);
+    	} else {
+    		FuncPtr = Method->getCodeGen()->getFunction();
     	}
+
+    	// Create the function call
+    	return Builder->CreateCall(Method->getCodeGen()->getFunction()->getFunctionType(), FuncPtr, Args);
+
     } else {
 
     	// Add Error parameter

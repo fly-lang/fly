@@ -10,6 +10,7 @@
 #ifndef FLY_SEMA_RESOLVER_H
 #define FLY_SEMA_RESOLVER_H
 
+#include "SemaClassMethod.h"
 #include "SemaErrorHandler.h"
 #include "llvm/ADT/SmallVector.h"
 
@@ -130,9 +131,13 @@ namespace fly {
 
         void ResolveFromTopRef(ASTStmt *Stmt, ASTRef *Ref, SemaNameSpace *CurrentNameSpace);
 
-        void ResolveRef(ASTStmt *Stmt, ASTRef *Ref, SemaType *Type, SemaResult *Parent);
+        void ResolveStaticRef(ASTStmt *Stmt, ASTRef *Ref, SemaType *Type);
 
-        ASTRef* getParentRef(fly::ASTRef* Ref);
+        void ResolveInstanceRef(ASTStmt *Stmt, ASTRef *Ref, SemaResult *Parent);
+
+        void ResoveEnumRef(ASTStmt *Stmt, ASTRef *Ref, SemaEnumType *EnumType);
+
+        ASTRef* getParentRef(ASTRef* Ref);
 
         bool ResolveRef(ASTStmt *Stmt, ASTRef *VarRef);
 
@@ -146,10 +151,9 @@ namespace fly {
 
         SemaCall *ResolveCall(ASTStmt *Stmt, ASTCall *Call, SemaNameSpace *CurrentNameSpace);
 
-        SemaVar *ResolveVar(ASTStmt *Stmt, ASTRef *VarRef);
-
         llvm::SmallVector<SemaType *, 8> ResolveCallArgTypes(ASTStmt *Stmt, ASTCall *Call);
 
+        SemaVar *ResolveVar(ASTStmt *Stmt, ASTRef *VarRef);
 
     };
 

@@ -32,10 +32,6 @@ SemaClassType * SemaClassMethod::getClass() const {
 	return Class;
 }
 
-SemaClassType *SemaClassMethod::getInherited() const {
-	return Inherited;
-}
-
 bool SemaClassMethod::isConstructor() const {
 	return MethodKind == SemaClassMethodKind::METHOD_CONSTRUCTOR;
 }

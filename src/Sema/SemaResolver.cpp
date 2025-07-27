@@ -551,6 +551,10 @@ bool SemaResolver::ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr) {
 
         	// Start to resolve the VarRef from root
             if (ResolveRef(Stmt, VarRef)) {
+
+            	// Validate Call
+            	SemaValidator::CheckVar(Stmt, VarRef);
+
                 Expr->Type = VarRef->getSema()->getType();
                 return true;
             }
@@ -562,6 +566,10 @@ bool SemaResolver::ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr) {
 
         	// Start to resolve the CallRef from root
             if (ResolveRef(Stmt, Call)) {
+
+            	// Validate Call
+            	SemaValidator::CheckCall(Stmt, Call);
+
                 switch (Call->getCallKind()) {
 
                 	// Call a Function
@@ -734,7 +742,7 @@ void SemaResolver:: ResolveFromTopRef(ASTStmt *Stmt, ASTRef *Ref, SemaNameSpace 
 
 			// TODO
 			if (CallRef->Child)
-				ResolveRef(Stmt, CallRef->Child, Sema->getFunction()->getReturnType(), Sema);
+				ResolveInstanceRef(Stmt, CallRef->Child, Sema);
 		}
 
 		//Ref is a Var
@@ -742,28 +750,30 @@ void SemaResolver:: ResolveFromTopRef(ASTStmt *Stmt, ASTRef *Ref, SemaNameSpace 
 			SemaVar *Sema = ResolveVar(Stmt, Ref);
 
 			if (Ref->Child)
-				ResolveRef(Stmt, Ref->Child, Sema->getType(), Sema);
+				ResolveInstanceRef(Stmt, Ref->Child, Sema);
 		}
 
 		// Ref is a Class or an Enum Type?
 		else {
-
 			SemaType *Type = ResolveType(Ref->getName(), CurrentNameSpace);
-			if (Type) {
-				ResolveRef(Stmt, Ref->Child, Type, nullptr);
-				return;
+
+			if (Ref->Child) {
+
+				// Resolve a Static Ref to a Class or Enum
+				ResolveStaticRef(Stmt, Ref->Child, Type);
+
+			} else {
+
+				// Ref is a Var (cannot be otherwise)
+				SemaVar *Sema = ResolveVar(Stmt, Ref);
+
+				// TODO
+				if (Ref->Child)
+					ResolveInstanceRef(Stmt, Ref->Child, Sema);
 			}
-
-			// Ref is a Var (cannot be otherwise)
-			SemaVar *Sema = ResolveVar(Stmt, Ref);
-
-			// TODO
-			if (Ref->Child)
-				return ResolveRef(Stmt, Ref->Child, Sema->getType(), Sema);
 		}
 	}
 }
-
 
 /**
  * Resolve static Ref to a Class or Enum
@@ -771,7 +781,7 @@ void SemaResolver:: ResolveFromTopRef(ASTStmt *Stmt, ASTRef *Ref, SemaNameSpace 
  * @param Ref
  * @return
  */
-void SemaResolver:: ResolveRef(ASTStmt *Stmt, ASTRef *Ref, SemaType *Type, SemaResult *Parent) {
+void SemaResolver:: ResolveStaticRef(ASTStmt *Stmt, ASTRef *Ref, SemaType *Type) {
 	if (!Ref->Resolved) {
 
 		// Class
@@ -787,8 +797,91 @@ void SemaResolver:: ResolveRef(ASTStmt *Stmt, ASTRef *Ref, SemaType *Type, SemaR
 
 				SmallVector<SemaType *, 8> CallTypes = ResolveCallArgTypes(Stmt, Call);
 				std::string Mangled = SemaFunctionBase::MangleFunction(Call->getName(), CallTypes);
+				SemaClassMethod* Method = ClassType->getMethods().lookup(Mangled);
+
+				// Create a call to class method
+				if (Method) {
+
+					// Check if Method belongs to a super class or is static
+					if (!SemaValidator::CheckInheritance(ClassType, Method->getClass()) && !Method->isStatic()) {
+                    	// Error: method cannot be called statically
+                    	S.Diag(Ref->getLocation(), diag::err_syntax_error) << Ref->getName();
+                    }
+
+					Call->Sema = S.getSemaBuilder().CreateCall(Call);
+
+					// Set the Call Sema ErrorHandler
+					ResolveErrorHandler(Stmt, Call->Sema);
+
+					// Set the Call Sema Function
+					Call->Sema->Function = Method;
+
+					// Parent is not set, because this is a static call
+					Call->Sema->setParent(nullptr);
+
+					if (Ref->Child)
+						ResolveInstanceRef(Stmt, Ref->Child, Call->Sema);
+				}
+			}
+
+			// class attribute
+			else {
+
+				// Set as Resolved
+				Ref->Resolved = true;
+
+				SemaClassAttribute *Attr = ClassType->getAttributes().lookup(Ref->getName());
+				if (Attr) {
+
+					if (!Attr->isStatic()) {
+						// Error: cannot resolve a non-static attribute without a parent
+						S.Diag(Ref->getLocation(), diag::err_syntax_error) << Ref->getName();
+					}
+
+					// Resolve a static attribute
+					Ref->Sema = Attr;
+
+					// Parent is not set, because this is a static attribute
+					Ref->Sema->setParent(nullptr);
+
+					if (Ref->Child)
+						ResolveInstanceRef(Stmt, Ref->Child, Ref->Sema);
+				}
+			}
+		}
+
+		// Enum
+		else if (Type->isEnum()) {
+			ResoveEnumRef(Stmt, Ref, static_cast<SemaEnumType *>(Type));
+		}
+	}
+}
+
+/**
+ * Resolve static Ref to a Class or Enum
+ * @param Type
+ * @param Ref
+ * @return
+ */
+void SemaResolver:: ResolveInstanceRef(ASTStmt *Stmt, ASTRef *Ref, SemaResult *Parent) {
+	if (!Ref->Resolved) {
+
+		// Class
+		if (Parent->getType()->isClass()) {
+			SemaClassType *ClassType = static_cast<SemaClassType *>(Parent->getType());
+
+			// class method
+			if (Ref->isCall()) {
+				ASTCall *Call = static_cast<ASTCall *>(Ref);
+
+				// Set as Resolved
+				Call->Resolved = true;
+
+				SmallVector<SemaType *, 8> CallTypes = ResolveCallArgTypes(Stmt, Call);
+				std::string Mangled = SemaFunctionBase::MangleFunction(Call->getName(), CallTypes);
 				SemaFunctionBase* Method = ClassType->getMethods().lookup(Mangled);
 
+				// Create a call to class method
 				if (Method) {
 					Call->Sema = S.getSemaBuilder().CreateCall(Call);
 
@@ -801,8 +894,10 @@ void SemaResolver:: ResolveRef(ASTStmt *Stmt, ASTRef *Ref, SemaType *Type, SemaR
 					// Set First and Parent
 					Call->Sema->setParent(Parent);
 
+					Call->Sema->Polymorphic = true; // Polymorphic Call
+
 					if (Ref->Child)
-						ResolveRef(Stmt, Ref->Child, Method->getReturnType(), Call->Sema);
+						ResolveInstanceRef(Stmt, Ref->Child, Call->Sema);
 				}
 			}
 
@@ -826,24 +921,27 @@ void SemaResolver:: ResolveRef(ASTStmt *Stmt, ASTRef *Ref, SemaType *Type, SemaR
 					}
 
 					if (Ref->Child)
-						ResolveRef(Stmt, Ref->Child, Sema->getType(), Sema);
+						ResolveInstanceRef(Stmt, Ref->Child, Sema);
 				}
 			}
 		}
 
 		// Enum
-		else if (Type->isEnum()) {
-			SemaEnumType *EnumType = static_cast<SemaEnumType *>(Type);
-
-			// Set as Resolved
-			Ref->Resolved = true;
-
-			// Enum Entry
-			SemaVar *Entry = EnumType->getEntries().lookup(Ref->getName());
-			if (Entry) {
-				Ref->Sema = Entry;
-			}
+		else if (Parent->getType()->isEnum()) {
+			ResoveEnumRef(Stmt, Ref, static_cast<SemaEnumType *>(Parent->getType()));
 		}
+	}
+}
+
+void SemaResolver::ResoveEnumRef(ASTStmt *Stmt, ASTRef *Ref, SemaEnumType *EnumType) {
+
+	// Set as Resolved
+	Ref->Resolved = true;
+
+	// Enum Entry
+	SemaVar *Entry = EnumType->getEntries().lookup(Ref->getName());
+	if (Entry) {
+		Ref->Sema = Entry;
 	}
 }
 
@@ -1000,6 +1098,7 @@ SemaCall *SemaResolver::ResolveCall(ASTStmt *Stmt, ASTCall *Call, SemaNameSpace 
 		SemaClassMethod *Constructor = Class->getConstructors().lookup(Mangled);
         Sema = S.getSemaBuilder().CreateCall(Call);
         Sema->Function = Constructor;
+    	Sema->Type = Type;
     } else {
 
         // Take the Function
@@ -1008,6 +1107,7 @@ SemaCall *SemaResolver::ResolveCall(ASTStmt *Stmt, ASTCall *Call, SemaNameSpace 
         	NameSpace->getFunctions().lookup(Mangled);
     	Sema = S.getSemaBuilder().CreateCall(Call);
         Sema->Function = Func;
+    	Sema->Type = Func->getReturnType();
     }
 
 	// Set the Call Sema ErrorHandler
@@ -1019,6 +1119,15 @@ SemaCall *SemaResolver::ResolveCall(ASTStmt *Stmt, ASTCall *Call, SemaNameSpace 
 	return Sema;
 }
 
+llvm::SmallVector<SemaType *, 8> SemaResolver::ResolveCallArgTypes(ASTStmt *Stmt, ASTCall *Call) {
+	// Resolve Expression in Arguments
+	llvm::SmallVector<SemaType *, 8> CallTypes;
+	for (auto Arg : Call->getArgs()) {
+		ResolveExpr(Stmt, Arg->Expr);
+		CallTypes.push_back(Arg->getExpr()->getType());
+	}
+	return CallTypes;
+}
 
 SemaVar *SemaResolver::ResolveVar(ASTStmt *Stmt, ASTRef *VarRef) {
 	SemaVar *Sema = nullptr;
@@ -1097,14 +1206,3 @@ SemaVar *SemaResolver::ResolveVar(ASTStmt *Stmt, ASTRef *VarRef) {
 	VarRef->Resolved = true;
 	return Sema;
 }
-
-llvm::SmallVector<SemaType *, 8> SemaResolver::ResolveCallArgTypes(ASTStmt *Stmt, ASTCall *Call) {
-	// Resolve Expression in Arguments
-	llvm::SmallVector<SemaType *, 8> CallTypes;
-	for (auto Arg : Call->getArgs()) {
-		ResolveExpr(Stmt, Arg->Expr);
-		CallTypes.push_back(Arg->getExpr()->getType());
-	}
-	return CallTypes;
-}
-
