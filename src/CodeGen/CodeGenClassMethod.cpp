@@ -30,8 +30,8 @@
 
 using namespace fly;
 
-CodeGenClassMethod::CodeGenClassMethod(CodeGenModule *CGM, SemaClassMethod *Sema, size_t Index) :
-	CodeGenFunctionBase(CGM, Sema), ClassTypePtr(Sema->getClass()->getCodeGen()->getTypePtr()),
+CodeGenClassMethod::CodeGenClassMethod(CodeGenModule *CGM, SemaClassMethod *Sema, llvm::PointerType *ClassTypePtr, size_t Index) :
+	CodeGenFunctionBase(CGM, Sema), ClassTypePtr(ClassTypePtr),
 	Index(Index) {
 
 	SemaClassType *Class = Sema->getClass();

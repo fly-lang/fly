@@ -1110,7 +1110,7 @@ ASTCall *Parser::ParseCall(const SourceLocation &Loc, llvm::StringRef Name, ASTR
         }
     }
 
-    return Builder.CreateCall(Loc, Name, Args, ASTCallKind::CALL_FUNCTION, Parent);
+    return Builder.CreateCall(Loc, Name, Args, ASTCallKind::CALL_DIRECT, Parent);
 }
 
 /**

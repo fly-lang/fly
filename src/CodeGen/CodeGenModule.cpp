@@ -248,7 +248,6 @@ CodeGenClass *CodeGenModule::GenClass(SemaClassType *Class, bool isExternal) {
     //                   "Class=" << Class->str() << ", isExternal=" << isExternal);
     CodeGenClass *CGC = new CodeGenClass(this, Class, isExternal);
     Class->setCodeGen(CGC);
-    CGC->Generate();
     return CGC;
 }
 
@@ -704,6 +703,8 @@ llvm::Value *CodeGenModule::GenCall(SemaCall *Sema) {
 
 	llvm::Value *InstancePtr = nullptr;
 
+	// TODO Check if a Call is a New Instance
+
     // Add error as first parameter
     if (Sema->getFunction()->getKind() == SemaFunctionKind::CLASS_METHOD &&
     	!static_cast<SemaClassMethod *>(Sema->getFunction())->isStatic()) {
@@ -721,19 +722,25 @@ llvm::Value *CodeGenModule::GenCall(SemaCall *Sema) {
 		// Call class constructor
     	if (Method->isConstructor()) {
 
-    		// TODO remove following line
-    		// llvm::Type *AllocType = Method->getClass()->getAttributes().empty() ? Int8Ty : Method->getClass()->getCodeGen()-
-    		llvm::Type *IntPtrTy = Module->getDataLayout().getIntPtrType(LLVMCtx);
-    		llvm::Type *AllocType = Method->getClass()->getCodeGen()->getType();
-    		uint64_t AllocSize = Module->getDataLayout().getTypeAllocSize(Method->getClass()->getCodeGen()->getType());
-    		llvm::Constant *AllocSizeVal = llvm::ConstantInt::get(IntPtrTy, AllocSize);
+    		// Allocate memory for the new instance in InstancePtr
+    		if (Sema->getAST()->getCallKind() == ASTCallKind::CALL_NEW) {
+    			// FIXME? need Int8Ty for empty attributes in class?
+    			// llvm::Type *AllocType = Method->getClass()->getAttributes().empty() ? Int8Ty : Method->getClass()->getCodeGen()-
+    			llvm::Type *IntPtrTy = Module->getDataLayout().getIntPtrType(LLVMCtx);
+    			llvm::Type *AllocType = Method->getClass()->getCodeGen()->getType();
+    			uint64_t AllocSize = Module->getDataLayout().getTypeAllocSize(Method->getClass()->getCodeGen()->getType());
+    			llvm::Constant *AllocSizeVal = llvm::ConstantInt::get(IntPtrTy, AllocSize);
 
-    		// @malloc data type struct
-    		llvm::IntegerType *IntPtrType = llvm::Type::getIntNTy(LLVMCtx, Module->getDataLayout().getMaxPointerSizeInBits());
-    		const llvm::Twine InstName = Method->getClass()->getName() + "_inst";
-    		llvm::Instruction *I = llvm::CallInst::CreateMalloc(Builder->GetInsertBlock(), IntPtrType,
-														  AllocType, AllocSizeVal, nullptr, nullptr, InstName);
-    		InstancePtr = Builder->Insert(I);
+    			// @malloc data type struct
+    			llvm::IntegerType *IntPtrType = llvm::Type::getIntNTy(LLVMCtx, Module->getDataLayout().getMaxPointerSizeInBits());
+    			const llvm::Twine InstName = Method->getClass()->getName() + "_inst";
+    			llvm::Instruction *I = llvm::CallInst::CreateMalloc(Builder->GetInsertBlock(), IntPtrType,
+															  AllocType, AllocSizeVal, nullptr, nullptr, InstName);
+    			InstancePtr = Builder->Insert(I);
+    		} else { // take the
+    			// TODO
+    			// call constructor in super classes
+    		}
 
     		// Add Instance parameter
     		Args.push_back(InstancePtr);

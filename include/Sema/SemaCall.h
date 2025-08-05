@@ -21,11 +21,6 @@ namespace fly {
     class SemaFunctionBase;
 	class SemaErrorHandler;
 
-	enum class SemaCallKind {
-		CALL_FUNCTION,
-		CALL_METHOD,
-	};
-
     class SemaCall :  public SemaResult {
 
         friend class SemaBuilder;
@@ -33,8 +28,6 @@ namespace fly {
         friend class SemaValidator;
 
     	ASTCall *AST;
-
-		SemaCallKind Kind;
 
     	SemaFunctionBase *Function = nullptr;
 
@@ -48,13 +41,13 @@ namespace fly {
 
     	ASTCall *getAST() const;
 
-    	SemaCallKind getKind() const;
-
     	SemaFunctionBase *getFunction() const;
 
     	SemaErrorHandler *getErrorHandler() const;
 
     	bool isPolymorphic() const;
+
+    	bool isNew() const;
 
     };
 

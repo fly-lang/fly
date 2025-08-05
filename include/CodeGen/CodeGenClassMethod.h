@@ -37,7 +37,7 @@ namespace fly {
 
         llvm::PointerType *ClassTypePtr;
 
-        CodeGenClassMethod(CodeGenModule *CGM, SemaClassMethod *Sema, size_t Index);
+        CodeGenClassMethod(CodeGenModule *CGM, SemaClassMethod *Sema, llvm::PointerType *ClassTypePtr, size_t Index);
 
     public:
 

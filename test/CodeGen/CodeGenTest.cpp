@@ -98,7 +98,7 @@ namespace {
         // validate and resolve
         EXPECT_TRUE(S->Resolve());
 
-    	// Generate Code
+    	// CreateVTable Code
     	llvm::Module * M = Generate();
     	std::string output = getOutput(M->getFunctionList());
 
@@ -153,7 +153,7 @@ namespace {
     	// validate and resolve
     	EXPECT_TRUE(S->Resolve());
 
-    	// Generate Code
+    	// CreateVTable Code
     	llvm::Module * M = Generate();
     	std::string output = getOutput(M->getFunctionList());
 
@@ -209,7 +209,7 @@ namespace {
     	// validate and resolve
     	EXPECT_TRUE(S->Resolve());
 
-    	// Generate Code
+    	// CreateVTable Code
     	llvm::Module * M = Generate();
     	std::string output = getOutput(M->getFunctionList());
 
@@ -240,7 +240,7 @@ namespace {
         // validate and resolve
     	EXPECT_TRUE(S->Resolve());
 
-    	// Generate Code
+    	// CreateVTable Code
     	llvm::Module * M = Generate();
     	std::string output = getOutput(M->getFunctionList());
 
@@ -267,7 +267,7 @@ namespace {
 
         // call test()
         SemaBuilderStmt *ExprStmt = getASTBuilder().CreateExprStmt(BodyFunc, SourceLoc);
-        ASTCall *TestCall = CreateCall(Test, Args, ASTCallKind::CALL_FUNCTION);
+        ASTCall *TestCall = CreateCall(Test, Args, ASTCallKind::CALL_DIRECT);
         ASTCallExpr *Expr = getASTBuilder().CreateExpr(TestCall);
         ExprStmt->setExpr(Expr);
 
@@ -279,7 +279,7 @@ namespace {
     	// validate and resolve
     	EXPECT_TRUE(S->Resolve());
 
-    	// Generate Code
+    	// CreateVTable Code
     	llvm::Module * M = Generate();
     	std::string output = getOutput(M);
 
@@ -343,7 +343,7 @@ namespace {
     	// validate and resolve
     	EXPECT_TRUE(S->Resolve());
 
-    	// Generate Code
+    	// CreateVTable Code
     	llvm::Module * M = Generate();
     	std::string output = getOutput(M->getFunctionList());
 
@@ -489,7 +489,7 @@ namespace {
     	// validate and resolve
     	EXPECT_TRUE(S->Resolve());
 
-    	// Generate Code
+    	// CreateVTable Code
     	llvm::Module * M = Generate();
     	std::string output = getOutput(M->getFunctionList());
 
@@ -610,7 +610,7 @@ namespace {
     	// validate and resolve
     	EXPECT_TRUE(S->Resolve());
 
-    	// Generate Code
+    	// CreateVTable Code
     	llvm::Module * M = Generate();
     	std::string output = getOutput(M->getFunctionList());
 
@@ -685,7 +685,7 @@ namespace {
     	// validate and resolve
     	EXPECT_TRUE(S->Resolve());
 
-    	// Generate Code
+    	// CreateVTable Code
     	llvm::Module * M = Generate();
     	std::string output = getOutput(M->getFunctionList());
 
@@ -764,7 +764,7 @@ namespace {
     	// validate and resolve
     	EXPECT_TRUE(S->Resolve());
 
-    	// Generate Code
+    	// CreateVTable Code
     	llvm::Module * M = Generate();
     	std::string output = getOutput(M->getFunctionList());
 
@@ -831,7 +831,7 @@ namespace {
     	// validate and resolve
     	EXPECT_TRUE(S->Resolve());
 
-    	// Generate Code
+    	// CreateVTable Code
     	llvm::Module * M = Generate();
     	std::string output = getOutput(M->getFunctionList());
 
@@ -890,7 +890,7 @@ namespace {
     	// validate and resolve
     	EXPECT_TRUE(S->Resolve());
 
-    	// Generate Code
+    	// CreateVTable Code
     	llvm::Module * M = Generate();
     	std::string output = getOutput(M->getFunctionList());
 
@@ -974,7 +974,7 @@ namespace {
     	// validate and resolve
     	EXPECT_TRUE(S->Resolve());
 
-    	// Generate Code
+    	// CreateVTable Code
     	llvm::Module * M = Generate();
     	std::string output = getOutput(M->getFunctionList());
 
@@ -1066,7 +1066,7 @@ namespace {
     	// validate and resolve
     	EXPECT_TRUE(S->Resolve());
 
-    	// Generate Code
+    	// CreateVTable Code
     	llvm::Module * M = Generate();
     	std::string output = getOutput(M->getFunctionList());
 
@@ -1147,7 +1147,7 @@ namespace {
     	// validate and resolve
     	EXPECT_TRUE(S->Resolve());
 
-    	// Generate Code
+    	// CreateVTable Code
     	llvm::Module * M = Generate();
     	std::string output = getOutput(M->getFunctionList());
 
@@ -1207,7 +1207,7 @@ namespace {
     	// validate and resolve
     	EXPECT_TRUE(S->Resolve());
 
-    	// Generate Code
+    	// CreateVTable Code
     	llvm::Module * M = Generate();
     	std::string output = getOutput(M->getFunctionList());
 
@@ -1281,7 +1281,7 @@ namespace {
     	// validate and resolve
     	EXPECT_TRUE(S->Resolve());
 
-    	// Generate Code
+    	// CreateVTable Code
     	llvm::Module * M = Generate();
     	std::string output = getOutput(M->getFunctionList());
 
@@ -1327,7 +1327,7 @@ namespace {
 		// validate and resolve
 		EXPECT_TRUE(S->Resolve());
 
-		// Generate Code
+		// CreateVTable Code
 		llvm::Module * M = Generate();
 		std::string output = getOutput(M);
 

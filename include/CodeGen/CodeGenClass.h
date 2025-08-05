@@ -43,10 +43,16 @@ namespace fly {
 
         llvm::SmallVector<CodeGenClassMethod *, 4> Methods;
 
+        void CreateVTableType(llvm::SmallVector<llvm::Type *, 4> &TypeVector);
+
+        void CreateInheritTypes(llvm::SmallVector<llvm::Type *, 4> &TypeVector);
+
+        void CreateFieldTypes(llvm::SmallVector<llvm::Type *, 4> &TypeVector);
+
+        void CreateSharedPtrType(llvm::SmallVector<llvm::Type *, 4> &TypeVector);
+
     public:
         CodeGenClass(CodeGenModule *CGM, SemaClassType *Sema, bool isExternal = false);
-
-        void Generate();
 
         llvm::StructType *getType();
 

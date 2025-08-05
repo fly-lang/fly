@@ -21,7 +21,7 @@ namespace fly {
     class SemaCall;
 
     enum class ASTCallKind {
-        CALL_FUNCTION,
+        CALL_DIRECT,
         CALL_NEW,
         CALL_NEW_UNIQUE,
         CALL_NEW_SHARED,

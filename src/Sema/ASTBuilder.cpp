@@ -810,7 +810,7 @@ ASTCall *ASTBuilder::CreateCall(llvm::StringRef Name, llvm::SmallVector<ASTExpr 
 	FLY_DEBUG_START("ASTBuilder", "CreateCall");
 
 	const SourceLocation &Loc = SourceLocation();
-	ASTCall *Call = CreateCall(Loc, Name, Args, ASTCallKind::CALL_FUNCTION);
+	ASTCall *Call = CreateCall(Loc, Name, Args, ASTCallKind::CALL_DIRECT);
 
 	FLY_DEBUG_END("ASTBuilder", "CreateCall");
 	return Call;
@@ -819,7 +819,7 @@ ASTCall *ASTBuilder::CreateCall(llvm::StringRef Name, llvm::SmallVector<ASTExpr 
 ASTCall *ASTBuilder::CreateCall(ASTRef *Instance, llvm::StringRef Name, llvm::SmallVector<ASTExpr *, 8> &Args) {
     FLY_DEBUG_START("ASTBuilder", "CreateCall");
 
-    ASTCall *Call = CreateCall(Instance->getLocation(), Name, Args, ASTCallKind::CALL_FUNCTION);
+    ASTCall *Call = CreateCall(Instance->getLocation(), Name, Args, ASTCallKind::CALL_DIRECT);
     Call->Parent = Instance;
 
 	FLY_DEBUG_END("ASTBuilder", "CreateCall");

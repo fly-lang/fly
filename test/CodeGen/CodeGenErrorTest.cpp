@@ -82,7 +82,7 @@ namespace {
 
 		// call testFail0()
 		SemaBuilderStmt *CallTestFail0 = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
-		ASTCallExpr *CallExpr0 = getASTBuilder().CreateExpr(CreateCall(TestFail, Args, ASTCallKind::CALL_FUNCTION));
+		ASTCallExpr *CallExpr0 = getASTBuilder().CreateExpr(CreateCall(TestFail, Args, ASTCallKind::CALL_DIRECT));
 		CallTestFail0->setExpr(CallExpr0);
 
 		// validate and resolve
@@ -143,7 +143,7 @@ namespace {
 
 		// call testFail1()
 		SemaBuilderStmt *CallTestFail1 = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
-		ASTCallExpr *CallExpr1 = getASTBuilder().CreateExpr(CreateCall(TestFail, Args, ASTCallKind::CALL_FUNCTION));
+		ASTCallExpr *CallExpr1 = getASTBuilder().CreateExpr(CreateCall(TestFail, Args, ASTCallKind::CALL_DIRECT));
 		CallTestFail1->setExpr(CallExpr1);
 
 		// validate and resolve
@@ -204,7 +204,7 @@ namespace {
 
         // call testFail()
         SemaBuilderStmt *CallTestFail2 = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
-        ASTCallExpr *CallExpr2 = getASTBuilder().CreateExpr(CreateCall(TestFail2, Args, ASTCallKind::CALL_FUNCTION));
+        ASTCallExpr *CallExpr2 = getASTBuilder().CreateExpr(CreateCall(TestFail2, Args, ASTCallKind::CALL_DIRECT));
         CallTestFail2->setExpr(CallExpr2);
 
 		// validate and resolve
@@ -265,7 +265,7 @@ namespace {
 
         // call testFail()
         SemaBuilderStmt *CallTestFail3 = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
-        ASTCallExpr *CallExpr3 = getASTBuilder().CreateExpr(CreateCall(TestFail3, Args, ASTCallKind::CALL_FUNCTION));
+        ASTCallExpr *CallExpr3 = getASTBuilder().CreateExpr(CreateCall(TestFail3, Args, ASTCallKind::CALL_DIRECT));
         CallTestFail3->setExpr(CallExpr3);
 
 		// validate and resolve
@@ -336,7 +336,7 @@ namespace {
 
         // call testFail()
         SemaBuilderStmt *CallTestFail4 = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
-        ASTCallExpr *CallExpr4 = getASTBuilder().CreateExpr(CreateCall(TestFail4, Args, ASTCallKind::CALL_FUNCTION));
+        ASTCallExpr *CallExpr4 = getASTBuilder().CreateExpr(CreateCall(TestFail4, Args, ASTCallKind::CALL_DIRECT));
         CallTestFail4->setExpr(CallExpr4);
 
 		// validate and resolve

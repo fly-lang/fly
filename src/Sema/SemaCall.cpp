@@ -20,10 +20,6 @@ ASTCall *SemaCall::getAST() const {
 	return AST;
 }
 
-SemaCallKind SemaCall::getKind() const {
-	return Kind;
-}
-
 SemaFunctionBase *SemaCall::getFunction() const {
 	return Function;
 }

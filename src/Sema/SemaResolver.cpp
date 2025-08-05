@@ -573,7 +573,7 @@ bool SemaResolver::ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr) {
                 switch (Call->getCallKind()) {
 
                 	// Call a Function
-                    case ASTCallKind::CALL_FUNCTION:
+                    case ASTCallKind::CALL_DIRECT:
                         Expr->Type = Call->getSema()->getFunction()->getReturnType();
                         return true;
 
