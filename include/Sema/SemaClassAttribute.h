@@ -19,7 +19,6 @@ namespace fly {
     class ASTVar;
     class SemaComment;
     class SemaClassType;
-	class CodeGenVar;
 
     class SemaClassAttribute  : public SemaVar {
 
@@ -35,21 +34,17 @@ namespace fly {
 
         SemaClassType *Inherited = nullptr;
 
-        uint64_t Index;
-
 		CodeGenVar *CodeGen = nullptr;
 
         SemaComment *Comment = nullptr;
 
     protected:
 
-        explicit SemaClassAttribute(ASTVar *AST, SemaClassType *Class, uint64_t Index);
+        explicit SemaClassAttribute(ASTVar *AST, SemaClassType *Class);
 
     public:
 
         SemaClassType *getClass() const;
-
-        uint64_t getIndex() const;
 
     	CodeGenVar *getCodeGen() const override;
 

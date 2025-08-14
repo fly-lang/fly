@@ -20,6 +20,7 @@ namespace fly {
     class ASTVarRefExpr;
     class ASTCallExpr;
     class ASTValueExpr;
+    class ASTTypeRef;
     class SemaType;
 
     enum class ASTExprKind : char {
@@ -27,7 +28,8 @@ namespace fly {
         EXPR_VAR_REF,
         EXPR_CALL,
         EXPR_NEW,
-        EXPR_OP
+        EXPR_OP,
+        EXPR_CAST
     };
 
     /**
@@ -113,6 +115,30 @@ namespace fly {
     public:
 
         ASTCall *getCall() const;
+
+        std::string str() const override;
+    };
+
+    /**
+     * Value Expression
+     */
+    class ASTCastExpr : public ASTExpr {
+
+        friend class ASTBuilder;
+        friend class SemaResolver;
+        friend class SemaValidator;
+
+        ASTExpr *Expr = nullptr;
+
+        ASTTypeRef *TypeRef = nullptr;
+
+        explicit ASTCastExpr(ASTExpr *From, ASTTypeRef *Cast);
+
+    public:
+
+        ASTExpr *getExpr() const;
+
+        ASTTypeRef *getTypeRef() const;
 
         std::string str() const override;
     };

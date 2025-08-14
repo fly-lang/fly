@@ -97,6 +97,11 @@ bool SemaResolver::Resolve(Sema &S) {
     	Resolver->ResolveFunctions();
     }
 
+	// Resolve Class Definitions
+	for (auto &Resolver : Resolvers) {
+		Resolver->ResolveClassTypes();
+	}
+
 	// Third: Resolve Bodies
 	for (auto &Resolver : Resolvers) {
 		Resolver->ResolveBodies();
@@ -252,7 +257,8 @@ void SemaResolver::ResolveTypes() {
 			}
 
 			// Resolve Class Type
-			SemaResolverClass::Resolve(this, ClassType);
+			SemaResolverClass::BaseClasses(this, ClassType);
+			this->ClassTypes.push_back(ClassType);
 
 		} else if (Sema->isEnum()) {
 			SemaEnumType * EnumType = static_cast<SemaEnumType *>(Sema);
@@ -267,6 +273,15 @@ void SemaResolver::ResolveTypes() {
 		}
 
 		NameSpace->Types.insert(std::make_pair(Sema->getName(), Sema));
+	}
+}
+
+void SemaResolver::ResolveClassTypes() {
+	for (SemaClassType *Class : ClassTypes) {
+
+		// Resolve Class Definitions
+		if (Class->getClassKind() != SemaClassKind::INTERFACE)
+			SemaResolverClass::ClassDefinition(this, Class);
 	}
 }
 
@@ -286,13 +301,18 @@ void SemaResolver::ResolveEnumType(SemaEnumType *Sema) {
 	SemaComment *Comment = nullptr;
 	for (auto &AST: Sema->getAST()->getDefinitions()) {
 		switch (AST->getKind()) {
+
+			// Resolve Enum Var: Enum Entry
 			case ASTKind::AST_VAR: {
 				S.getSemaBuilder().CreateEnumEntry(Sema, static_cast<ASTVar *>(AST), Comment);
 				Comment = nullptr;
 			}	break;
+
+			// Resolve Enum Entry Comment
 			case ASTKind::AST_COMMENT:
 				Comment = S.getSemaBuilder().CreateComment(static_cast<ASTComment *>(AST));
 			break;
+
 			default:
 				// Error: invalid declaration in class
 					S.Diag(AST->getLocation(), diag::err_syntax_error);
@@ -738,11 +758,10 @@ void SemaResolver:: ResolveFromTopRef(ASTStmt *Stmt, ASTRef *Ref, SemaNameSpace 
 		// Ref is a Function
 		if (Ref->isCall()) {
 			ASTCall *CallRef = static_cast<ASTCall *>(Ref);
-			SemaCall *Sema = ResolveCall(Stmt, CallRef, CurrentNameSpace);
+			SemaCall *Call = ResolveCall(Stmt, CallRef, CurrentNameSpace);
 
-			// TODO
 			if (CallRef->Child)
-				ResolveInstanceRef(Stmt, CallRef->Child, Sema);
+				ResolveInstanceRef(Stmt, CallRef->Child, Call);
 		}
 
 		//Ref is a Var
@@ -757,19 +776,35 @@ void SemaResolver:: ResolveFromTopRef(ASTStmt *Stmt, ASTRef *Ref, SemaNameSpace 
 		else {
 			SemaType *Type = ResolveType(Ref->getName(), CurrentNameSpace);
 
+			// Call can be a local or base class constructor method
 			if (Ref->Child) {
 
-				// Resolve a Static Ref to a Class or Enum
-				ResolveStaticRef(Stmt, Ref->Child, Type);
+				// Check if Type is a Current or Base Class of the current Method
+				// class TestClass : BaseClass, BaseClass2 {
+				//   void do() {
+				//		BaseClass.do()
+				//      or
+				//      TestClass.do()
+				//   }
+				// }
+				if (Type->isClass() && Stmt->getFunction()->getSema()->getKind() == SemaFunctionKind::CLASS_METHOD &&
+					static_cast<SemaClassType *>(Type)->isBaseOrEquals(static_cast<SemaClassMethod *>(Stmt->getFunction()->getSema())->getClass())) {
 
-			} else {
+					// Get the Class Instance related to Class Type
+					// TestClass.do()  TestClass->this
+					// BaseClass.do()  BaseClass->this
+					SemaClassInstance *This = static_cast<SemaClassMethod *>(Stmt->getFunction()->getSema())->getClass()->getThis();
+					SemaResult *Instance = Type->getId() == This->getType()->getId() ? This : This->getBaseInstance(Type->getId());
 
-				// Ref is a Var (cannot be otherwise)
-				SemaVar *Sema = ResolveVar(Stmt, Ref);
+					// apply polymorphism to this class instance: use current class instance or base class instance
+					// This can be of the current class or a base class
+					ResolveInstanceRef(Stmt, Ref->Child, Instance);
 
-				// TODO
-				if (Ref->Child)
-					ResolveInstanceRef(Stmt, Ref->Child, Sema);
+				} else {
+
+					// Resolve a Static Ref to a Class or Enum
+					ResolveStaticRef(Stmt, Ref->Child, Type);
+				}
 			}
 		}
 	}
@@ -803,7 +838,7 @@ void SemaResolver:: ResolveStaticRef(ASTStmt *Stmt, ASTRef *Ref, SemaType *Type)
 				if (Method) {
 
 					// Check if Method belongs to a super class or is static
-					if (!SemaValidator::CheckInheritance(ClassType, Method->getClass()) && !Method->isStatic()) {
+					if (!ClassType->isDerivedOrEquals(Method->getClass()) && !Method->isStatic()) {
                     	// Error: method cannot be called statically
                     	S.Diag(Ref->getLocation(), diag::err_syntax_error) << Ref->getName();
                     }
@@ -868,7 +903,7 @@ void SemaResolver:: ResolveInstanceRef(ASTStmt *Stmt, ASTRef *Ref, SemaResult *P
 
 		// Class
 		if (Parent->getType()->isClass()) {
-			SemaClassType *ClassType = static_cast<SemaClassType *>(Parent->getType());
+			SemaClassType *ParentClassType = static_cast<SemaClassType *>(Parent->getType());
 
 			// class method
 			if (Ref->isCall()) {
@@ -879,22 +914,20 @@ void SemaResolver:: ResolveInstanceRef(ASTStmt *Stmt, ASTRef *Ref, SemaResult *P
 
 				SmallVector<SemaType *, 8> CallTypes = ResolveCallArgTypes(Stmt, Call);
 				std::string Mangled = SemaFunctionBase::MangleFunction(Call->getName(), CallTypes);
-				SemaFunctionBase* Method = ClassType->getMethods().lookup(Mangled);
+				SemaClassMethod* CalledMethod = ParentClassType->getMethods().lookup(Mangled);
 
 				// Create a call to class method
-				if (Method) {
+				if (CalledMethod) {
 					Call->Sema = S.getSemaBuilder().CreateCall(Call);
 
 					// Set the Call Sema ErrorHandler
 					ResolveErrorHandler(Stmt, Call->Sema);
 
 					// Set the Call Sema Function
-					Call->Sema->Function = Method;
+					Call->Sema->Function = CalledMethod;
 
 					// Set First and Parent
 					Call->Sema->setParent(Parent);
-
-					Call->Sema->Polymorphic = true; // Polymorphic Call
 
 					if (Ref->Child)
 						ResolveInstanceRef(Stmt, Ref->Child, Call->Sema);
@@ -907,7 +940,7 @@ void SemaResolver:: ResolveInstanceRef(ASTStmt *Stmt, ASTRef *Ref, SemaResult *P
 				// Set as Resolved
 				Ref->Resolved = true;
 
-				SemaClassAttribute *Attr = ClassType->getAttributes().lookup(Ref->getName());
+				SemaClassAttribute *Attr = ParentClassType->getAttributes().lookup(Ref->getName());
 				if (Attr) {
 
 					SemaMemberVar *Sema;
@@ -916,7 +949,7 @@ void SemaResolver:: ResolveInstanceRef(ASTStmt *Stmt, ASTRef *Ref, SemaResult *P
 					} else {
 						SemaMemberVar *Member = S.getSemaBuilder().CreateMemberVar(Attr->getAST(), Parent);
 						Member->Type = Attr->getType();
-						Member->Index = Attr->getIndex();
+						Member->ClassAttribute = Attr;
 						Ref->Sema = Member;
 					}
 
@@ -1074,6 +1107,7 @@ SemaCall *SemaResolver::ResolveCall(ASTStmt *Stmt, ASTCall *Call, SemaNameSpace 
 	SemaCall *Sema = nullptr;
 
     // Constructor
+	Call->Resolved = true;
     if (Call->getCallKind() == ASTCallKind::CALL_NEW ||
         Call->getCallKind() == ASTCallKind::CALL_NEW_UNIQUE ||
         Call->getCallKind() == ASTCallKind::CALL_NEW_SHARED ||
@@ -1096,15 +1130,53 @@ SemaCall *SemaResolver::ResolveCall(ASTStmt *Stmt, ASTCall *Call, SemaNameSpace 
 
 		SemaClassType *Class = static_cast<SemaClassType *>(Type);
 		SemaClassMethod *Constructor = Class->getConstructors().lookup(Mangled);
+
+    	if (Constructor == nullptr) {
+    		// Error: func not found
+    		S.Diag(Call->getLocation(), diag::err_syntax_error);
+    		return nullptr;
+    	}
+
         Sema = S.getSemaBuilder().CreateCall(Call);
         Sema->Function = Constructor;
     	Sema->Type = Type;
     } else {
 
-        // Take the Function
-        SemaFunction *Func = CurrentNameSpace ?
-        	CurrentNameSpace->getFunctions().lookup(Mangled) :
-        	NameSpace->getFunctions().lookup(Mangled);
+    	SemaFunctionBase *Func = nullptr;
+    	if (Stmt->getFunction()->getSema()->getKind() == SemaFunctionKind::CLASS_METHOD) {
+    		// Check if the Call is a Base Class Constructor Method
+    		SemaClassType *Class = static_cast<SemaClassMethod *>(Stmt->getFunction()->getSema())->getClass();
+    		SemaType * T = CurrentNameSpace ?
+			            CurrentNameSpace->getTypes().lookup(Call->Name) :
+			            NameSpace->getTypes().lookup(Call->Name);
+    		if (T->isClass()) {
+				SemaClassType * TClass = static_cast<SemaClassType *>(T);
+    			if (TClass->isBaseOrEquals(Class)) {
+    				// Resolve Call with Class Constructor if is not private
+    				SemaClassMethod *Constructor = TClass->getConstructors().lookup(Mangled);
+    				if (Constructor->getVisibility() == SemaVisibilityKind::PRIVATE) {
+    					// Error: method is private, cannot be called from outside the class
+    					S.Diag(Call->getLocation(), diag::err_syntax_error);
+    					return nullptr;
+    				}
+    				Func = Constructor;
+    			}
+    		}
+    	}
+
+    	// Take the Function
+    	if (Func == nullptr) {
+    		Func = CurrentNameSpace ?
+				CurrentNameSpace->getFunctions().lookup(Mangled) :
+				NameSpace->getFunctions().lookup(Mangled);
+    	}
+
+    	if (Func == nullptr) {
+    		// Error: func not found
+    		S.Diag(Call->getLocation(), diag::err_syntax_error);
+    		return nullptr;
+    	}
+
     	Sema = S.getSemaBuilder().CreateCall(Call);
         Sema->Function = Func;
     	Sema->Type = Func->getReturnType();
@@ -1115,7 +1187,6 @@ SemaCall *SemaResolver::ResolveCall(ASTStmt *Stmt, ASTCall *Call, SemaNameSpace 
 
 	Sema->AST = Call;
 	Call->Sema = Sema;
-	Call->Resolved = true;
 	return Sema;
 }
 

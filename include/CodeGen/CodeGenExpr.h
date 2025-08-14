@@ -20,6 +20,7 @@ namespace fly {
     class ASTOpExpr;
     class ASTRef;
     class SemaResult;
+    class ASTExpr;
     enum class ASTBinaryOpExprKind;
 
     class CodeGenExpr {

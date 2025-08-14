@@ -49,8 +49,6 @@ namespace fly {
 
         void CreateFieldTypes(llvm::SmallVector<llvm::Type *, 4> &TypeVector);
 
-        void CreateSharedPtrType(llvm::SmallVector<llvm::Type *, 4> &TypeVector);
-
     public:
         CodeGenClass(CodeGenModule *CGM, SemaClassType *Sema, bool isExternal = false);
 

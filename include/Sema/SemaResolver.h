@@ -78,6 +78,8 @@ namespace fly {
 
         bool isDefaultNameSpace;
 
+        llvm::SmallVector<SemaClassType *, 4> ClassTypes;
+
         llvm::SmallVector<ASTBlockStmt *, 8> Bodies;
 
         SemaResolver(Sema &S, ASTModule *Module);
@@ -100,6 +102,8 @@ namespace fly {
         void ResolveFunctions();
 
         void ResolveTypes();
+
+        void ResolveClassTypes();
 
         void ResolveBodies();
 

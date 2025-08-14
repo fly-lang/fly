@@ -53,7 +53,7 @@ namespace fly {
 
         SemaModule *getModule() const;
 
-        const llvm::StringMap<SemaEnumType *> &getSuperEnums() const;
+        const llvm::StringMap<SemaEnumType *> &getBaseEnums() const;
 
         SemaVisibilityKind getVisibility() const;
 
@@ -62,6 +62,14 @@ namespace fly {
         const llvm::StringMap<SemaEnumEntry *> &getEntries() const;
 
         SemaComment *getComment() const;
+
+        bool isDerivedOrEquals(const SemaEnumType *BaseEnumType) const;
+
+        bool isDerived(const SemaEnumType *BaseEnumType) const;
+
+        bool isBaseOrEquals(const SemaEnumType *Derived) const;
+
+        bool isBase(const SemaEnumType *Derived) const;
 
     };
 

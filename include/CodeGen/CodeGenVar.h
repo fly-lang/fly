@@ -38,6 +38,8 @@ namespace fly {
 
         llvm::Type *T = nullptr;
 
+       size_t Index;
+
         llvm::Value *Pointer = nullptr;
 
         llvm::LoadInst *LoadI = nullptr;
@@ -45,9 +47,9 @@ namespace fly {
         llvm::StringRef BlockID;
 
     public:
-//        CodeGenVar(CodeGenModule *CGM, ASTVar *Var);
+        CodeGenVar(CodeGenModule *CGM, SemaVar *Sema, llvm::Type *T);
 
-        CodeGenVar(CodeGenModule *CGM, SemaVar *Sema, llvm::Type *T, llvm::Value *Pointer = nullptr);
+        CodeGenVar(CodeGenModule *CGM, SemaVar *Sema, llvm::Type *T, size_t Index);
 
         llvm::Type *getType() override;
 
@@ -57,9 +59,11 @@ namespace fly {
 
         llvm::Value *getValue() override;
 
-        llvm::ConstantInt * getIndex(SemaClassType * Classtype, uint64_t Index);
+        size_t getIndex() override;
 
         llvm::Value *getPointer() override;
+
+        void setPointer(llvm::Value *Pointer) override;
 
     };
 }

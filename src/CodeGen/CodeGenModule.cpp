@@ -657,42 +657,95 @@ llvm::Value *CodeGenModule::GenExpr(ASTExpr *Expr) {
     return CodeGenExpr::Generate(this, Expr);
 }
 
+llvm::Value * CodeGenModule::GenCast(SemaType *FromType, SemaType *ToType, llvm::Value *Val) {
+	switch (FromType->getKind()) {
 
-llvm::Value * CodeGenModule::GenResult(SemaResult *Sema) {
-	llvm::Value *ParentPtr = nullptr;
-
-	if (Sema->getParent() != nullptr) {
-		ParentPtr = GenResult(Sema->getParent());
+		case SemaTypeKind::TYPE_VOID:
+		case SemaTypeKind::TYPE_ERROR:
+		case SemaTypeKind::TYPE_ENUM:
+			// TODO: Void, Error, Enum cast is not supported
+			break;
+		case SemaTypeKind::TYPE_BOOL:
+			// TODO
+				break;
+		case SemaTypeKind::TYPE_INTEGER:
+			// TODO
+				break;
+		case SemaTypeKind::TYPE_FLOATING_POINT:
+			// TODO
+				break;
+		case SemaTypeKind::TYPE_STRING:
+			// TODO
+				break;
+		case SemaTypeKind::TYPE_ARRAY:
+			// TODO
+				break;
+		case SemaTypeKind::TYPE_CLASS:
+			// TODO
+				break;
 	}
 
+	return Val;
+}
+
+llvm::Value * CodeGenModule::GenResult(SemaResult *Sema) {
 	if (Sema->isCall()) {
 		return GenCall(static_cast<SemaCall *>(Sema));
 	}
 
-	return GenVar(static_cast<SemaVar *>(Sema), ParentPtr)->getValue();
+	return GenVar(static_cast<SemaVar *>(Sema))->getValue();
 }
 
-CodeGenVarBase * CodeGenModule::GenVar(SemaVar *Sema, llvm::Value *Pointer) {
+CodeGenVarBase *CodeGenModule::GenVar(SemaVar *Sema) {
 
-	// Static Class Attribute
-	if (Sema->getVarKind() == SemaVarKind::CLASS_ATTRIBUTE && static_cast<SemaClassAttribute *>(Sema)->isStatic()) {
-		llvm::Type *Ty = GenType(Sema->getType());
-		Pointer = new llvm::GlobalVariable(*Module, Ty, Sema->isConstant(),
-			llvm::GlobalValue::ExternalLinkage, nullptr);
-	} else if (Sema->getVarKind() == SemaVarKind::ENUM_ENTRY) {
+	// Class Instance
+	if (Sema->getVarKind() == SemaVarKind::CLASS_INSTANCE) {
+		SemaClassInstance *Instance = static_cast<SemaClassInstance *>(Sema);
+
+		// Check if the Instance belong to a base class, need to set the pointer to the main instance
+		if (Instance->getParent()) {
+			Instance->getCodeGen()->setPointer(Instance->getParent()->getCodeGen()->getPointer());
+		}
+	}
+
+	// Member Variable
+	else if (Sema->getVarKind() == SemaVarKind::MEMBER_VAR) {
+		SemaMemberVar *MemberVar = static_cast<SemaMemberVar *>(Sema);
+
+		llvm::Value *Pointer = GenResult(MemberVar->getParent());
+		llvm::Type *Ty = GenType(MemberVar->getType());
+		size_t Index = MemberVar->getClassAttribute()->getCodeGen()->getIndex();
+		CodeGenVar *CGV = new CodeGenVar(this, Sema, Ty, Index);
+		CGV->setPointer(Pointer);
+		MemberVar->setCodeGen(CGV);
+	}
+
+	// Class Attribute
+	else if (Sema->getVarKind() == SemaVarKind::CLASS_ATTRIBUTE) {
+		SemaClassAttribute * ClassAttribute = static_cast<SemaClassAttribute *>(Sema);
+
+		// Check if the ClassAttribute is a static attribute
+		if (!ClassAttribute->isStatic()) {
+			llvm::Value *ParentPointer = ClassAttribute->getClass()->getThis()->getCodeGen()->getValue();
+			ClassAttribute->getCodeGen()->setPointer(ParentPointer);
+		}
+	}
+
+	// Enum Entry
+	else if (Sema->getVarKind() == SemaVarKind::ENUM_ENTRY) {
 		// TODO
-	} else if (Sema->getParent() != nullptr) {
-		Pointer = GenResult(Sema->getParent());
 	}
 
-	CodeGenVarBase *CGV = Sema->getCodeGen();
-	if (CGV == nullptr) {
-		// Init CodeGenVar
-		llvm::Type *Ty = GenType(Sema->getType());
-		CodeGenVar * CGV = new CodeGenVar(this, Sema, Ty, Pointer);
-		Sema->setCodeGen(CGV);
+	// No Parent
+	else {
+		// Generate CodeGenVar if not already generated
+		if (Sema->getCodeGen() == nullptr) {
+			llvm::Type *Ty = GenType(Sema->getType());
+			Sema->setCodeGen(new CodeGenVar(this, Sema, Ty));
+		}
 	}
-	return  Sema->getCodeGen();
+
+	return Sema->getCodeGen();
 }
 
 
@@ -701,9 +754,8 @@ llvm::Value *CodeGenModule::GenCall(SemaCall *Sema) {
     // The function arguments
     llvm::SmallVector<llvm::Value *, 8> Args;
 
+	// This is the new instance pointer if this is a class method call
 	llvm::Value *InstancePtr = nullptr;
-
-	// TODO Check if a Call is a New Instance
 
     // Add error as first parameter
     if (Sema->getFunction()->getKind() == SemaFunctionKind::CLASS_METHOD &&
@@ -716,7 +768,7 @@ llvm::Value *CodeGenModule::GenCall(SemaCall *Sema) {
         if (Method->getClass()->getClassKind() != SemaClassKind::STRUCT)
             Args.push_back(Sema->getErrorHandler()->getCodeGen()->getValue()); // Error is a Pointer
 
-    	// Get Calss CodeGen
+    	// Get Class CodeGen
     	CodeGenClass * CGClass = Method->getClass()->getCodeGen();
 
 		// Call class constructor
@@ -724,8 +776,11 @@ llvm::Value *CodeGenModule::GenCall(SemaCall *Sema) {
 
     		// Allocate memory for the new instance in InstancePtr
     		if (Sema->getAST()->getCallKind() == ASTCallKind::CALL_NEW) {
+
     			// FIXME? need Int8Ty for empty attributes in class?
-    			// llvm::Type *AllocType = Method->getClass()->getAttributes().empty() ? Int8Ty : Method->getClass()->getCodeGen()-
+    			// llvm::Type *AllocType = Method->getClass()->getAttributes().empty() ? Int8Ty : Method->getClass()->getCodeGen()
+
+    			// Allocate memory for the new instance and all its baseclass instances
     			llvm::Type *IntPtrTy = Module->getDataLayout().getIntPtrType(LLVMCtx);
     			llvm::Type *AllocType = Method->getClass()->getCodeGen()->getType();
     			uint64_t AllocSize = Module->getDataLayout().getTypeAllocSize(Method->getClass()->getCodeGen()->getType());
@@ -737,9 +792,11 @@ llvm::Value *CodeGenModule::GenCall(SemaCall *Sema) {
     			llvm::Instruction *I = llvm::CallInst::CreateMalloc(Builder->GetInsertBlock(), IntPtrType,
 															  AllocType, AllocSizeVal, nullptr, nullptr, InstName);
     			InstancePtr = Builder->Insert(I);
-    		} else { // take the
-    			// TODO
-    			// call constructor in super classes
+    		} else {
+			    // this is a constructor without new
+    			// You are inside a class method call
+    			// Polymorphism: Take the right This Instance for the constructor of the base class
+    			InstancePtr = Method->getThis()->getCodeGen()->getValue();
     		}
 
     		// Add Instance parameter
@@ -751,7 +808,8 @@ llvm::Value *CodeGenModule::GenCall(SemaCall *Sema) {
     		return InstancePtr;
     	}
 
-    	// Method is not a constructor, so it must be a method call
+    	// Call is not a constructor, so it must be a method call
+
     	if (Sema->getParent()) {
 
     		// Instance method call
@@ -769,7 +827,7 @@ llvm::Value *CodeGenModule::GenCall(SemaCall *Sema) {
     	// Create the function pointer by vtable is polymorphic
     	// or by the function pointer if is static
     	llvm::Value * FuncPtr;
-    	if (Sema->isPolymorphic()) {
+    	if (Sema->getParent()) {
 
     		// Get the VTable pointer
     		llvm::Value * VTablePtrPtr = Builder->CreateStructGEP(CGClass->getType(), InstancePtr, 0);

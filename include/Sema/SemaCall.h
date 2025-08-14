@@ -33,8 +33,6 @@ namespace fly {
 
     	SemaErrorHandler *ErrorHandler = nullptr;
 
-    	bool Polymorphic = false;
-
         explicit SemaCall(ASTCall *AST);
 
     public:
@@ -44,8 +42,6 @@ namespace fly {
     	SemaFunctionBase *getFunction() const;
 
     	SemaErrorHandler *getErrorHandler() const;
-
-    	bool isPolymorphic() const;
 
     	bool isNew() const;
 

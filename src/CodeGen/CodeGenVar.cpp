@@ -9,20 +9,24 @@
 
 
 #include "CodeGen/CodeGenVar.h"
-#include "CodeGen/CodeGenClass.h"
 #include "CodeGen/CodeGenModule.h"
 
 #include <Sema/SemaCall.h>
 #include <Sema/SemaClassAttribute.h>
 #include <Sema/SemaClassInstance.h>
-#include <Sema/SemaClassType.h>
 #include <Sema/SemaMemberVar.h>
 #include <Sema/SemaVar.h>
 #include <llvm/IR/Instructions.h>
 
 using namespace fly;
 
-CodeGenVar::CodeGenVar(CodeGenModule *CGM, SemaVar *Sema, llvm::Type *T, llvm::Value *Pointer) : CGM(CGM), Sema(Sema), T(T), Pointer(Pointer) {
+CodeGenVar::CodeGenVar(CodeGenModule *CGM, SemaVar *Sema, llvm::Type *T) :
+	CGM(CGM), Sema(Sema), T(T) {
+
+}
+
+CodeGenVar::CodeGenVar(CodeGenModule *CGM, SemaVar *Sema, llvm::Type *T, size_t Index) :
+	CGM(CGM), Sema(Sema), T(T), Index(Index) {
 
 }
 
@@ -57,31 +61,44 @@ llvm::Value *CodeGenVar::getValue() {
 
 llvm::Value *CodeGenVar::getPointer() {
 	if (Sema->getVarKind() == SemaVarKind::MEMBER_VAR) {
+		assert(this->Pointer && "Pointer must be set for MemberVar");
 		SemaMemberVar * MemberVar = static_cast<SemaMemberVar *>(Sema);
 
-		// Check ClassType for setting Index
-		SemaClassType *ClassType = static_cast<SemaClassType *>(MemberVar->getParent()->getType());
-		llvm::ConstantInt *Index = getIndex(ClassType, MemberVar->getIndex());
-
 		// If Pointer is not set, create it
+		CodeGenVarBase *CGV = MemberVar->getCodeGen();
 		llvm::PointerType *PtrType = llvm::cast<llvm::PointerType>(this->Pointer->getType());
-		this->Pointer = CGM->Builder->CreateInBoundsGEP(PtrType->getElementType(), this->Pointer, {CGM->Zero, Index});
+		llvm::ArrayRef<llvm::Value *> IdxList = {CGM->Zero, llvm::ConstantInt::get(CGM->Int32Ty, Index)};
+		this->Pointer = CGM->Builder->CreateInBoundsGEP(PtrType->getElementType(), this->Pointer, IdxList);
 	} else if (Sema->getVarKind() == SemaVarKind::CLASS_ATTRIBUTE) {
+		assert(this->Pointer && "Pointer must be set for ClassAttribute");
 		SemaClassAttribute * Attribute = static_cast<SemaClassAttribute *>(Sema);
 
 		if (!Attribute->isStatic()) {
-			// Check ClassType for setting Index
-			SemaClassType *ClassType = static_cast<SemaClassType *>(Attribute->getClass());
-			llvm::ConstantInt *Index = getIndex(ClassType, Attribute->getIndex());
-
 			CodeGenVarBase *CGV = static_cast<SemaClassInstance *>(Attribute->getParent())->getCodeGen();
-			this->Pointer = CGM->Builder->CreateInBoundsGEP(CGV->getType(), CGV->getValue(), {CGM->Zero, Index});
+			llvm::ArrayRef<llvm::Value *> IdxList = {CGM->Zero, llvm::ConstantInt::get(CGM->Int32Ty, Attribute->getCodeGen()->getIndex())};
+			this->Pointer = CGM->Builder->CreateInBoundsGEP(CGV->getType(), CGV->getValue(), IdxList);
+		}
+	} else if (Sema->getVarKind() == SemaVarKind::CLASS_INSTANCE) {
+		assert(this->Pointer && "Pointer must be set for ClassInstance");
+		// TODO: Polymorphism
+		// Check ClassType for setting Index
+		SemaClassInstance * This = static_cast<SemaClassInstance *>(Sema);
+
+		if (This->getParent()) {
+			CodeGenVarBase *CGV = This->getParent()->getCodeGen();
+			llvm::ArrayRef<llvm::Value *> IdxList = {CGM->Zero, llvm::ConstantInt::get(CGM->Int32Ty, This->getCodeGen()->getIndex())};
+			this->Pointer = CGM->Builder->CreateInBoundsGEP(CGV->getType(), CGV->getValue(), IdxList);
 		}
 	}
 
     return this->Pointer;
 }
 
-llvm::ConstantInt * CodeGenVar::getIndex(fly::SemaClassType *ClassType, uint64_t Index) {
-	return llvm::ConstantInt::get(CGM->Int32Ty, ClassType->getClassKind() == SemaClassKind::STRUCT ? Index : Index + 1);
+void CodeGenVar::setPointer(llvm::Value *Pointer) {
+    this->Pointer = Pointer;
+	this->LoadI = nullptr;
+}
+
+size_t CodeGenVar::getIndex() {
+	return Index;
 }

@@ -44,7 +44,7 @@ namespace fly {
 
         ASTClassKind ClassKind;
 
-        llvm::SmallVector<ASTTypeRef *, 4> SuperClasses;
+        llvm::SmallVector<ASTTypeRef *, 4> BaseClasses;
 
         ASTClass(ASTModule *Module, ASTClassKind ClassKind, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
                  const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTTypeRef *, 4> &SuperClasses);
@@ -57,7 +57,7 @@ namespace fly {
 
         ASTClassKind getClassKind() const;
 
-        llvm::SmallVector<ASTTypeRef *, 4> getSuperClasses() const;
+        llvm::SmallVector<ASTTypeRef *, 4> getBaseClasses() const;
 
         llvm::SmallVector<ASTModifier *, 8> getModifiers() const;
 

@@ -51,12 +51,12 @@ SemaClassKind SemaClassType::getClassKind() const {
 	return ClassKind;
 }
 
-SemaVar *SemaClassType::getThis() const {
+SemaClassInstance *SemaClassType::getThis() const {
 	return This;
 }
 
-const llvm::StringMap<SemaClassType *> &SemaClassType::getSuperClasses() const {
-	return SuperClasses;
+const llvm::SmallVector<SemaClassType *, 4> &SemaClassType::getBaseClasses() const {
+	return BaseClasses;
 }
 
 const llvm::StringMap<SemaClassAttribute *> &SemaClassType::getAttributes() const {
@@ -73,6 +73,63 @@ const llvm::StringMap<SemaClassMethod *> &SemaClassType::getConstructors() const
 
 SemaComment * SemaClassType::getComment() const {
 	return Comment;
+}
+
+bool SemaClassType::isDerivedOrEquals(const SemaClassType *BaseClassType) const {
+	if (this->isEquals(BaseClassType)) {
+		return true;
+	}
+
+	// Check if this->ClassType is a derived of BaseClassType
+	for (auto &Base : this->getBaseClasses()) {
+		if (Base->isEquals(BaseClassType)) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool SemaClassType::isDerived(const SemaClassType *BaseClassType) const {
+	// Check if this->ClassType is a derived of BaseClassType
+	for (auto &Base : this->getBaseClasses()) {
+		if (Base->isEquals(BaseClassType)) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+/**
+ * Check if this->ClassType is a base class of ClassType
+ * @param Derived
+ * @return true if this ClassType is a base class of ClassType
+ */
+bool SemaClassType::isBaseOrEquals(const SemaClassType *Derived) const {
+	if (this->isEquals(Derived)) {
+		return true;
+	}
+
+	// Check if ClassType is a base class of derived class
+	for (auto &Base : Derived->getBaseClasses()) {
+		if (this->isBaseOrEquals(Base)) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool SemaClassType::isBase(const SemaClassType *Derived) const {
+	// Check if ClassType is a base class of derived class
+	for (auto &Base : Derived->getBaseClasses()) {
+		if (this->isEquals(Base)) {
+			return true;
+		}
+	}
+
+	return false;
 }
 
 CodeGenClass *SemaClassType::getCodeGen() const {

@@ -24,11 +24,11 @@ namespace fly {
 
     	bool IsCall = false;
 
-    	SemaResult *Parent = nullptr;
-
     	SemaResult *Child = nullptr;
 
     protected:
+
+    	SemaResult *Parent = nullptr;
 
     	SemaType *Type = nullptr;
 
@@ -39,7 +39,7 @@ namespace fly {
     	
     	bool isCall() const;
 
-    	SemaResult *getParent() const;
+    	virtual SemaResult *getParent() const;
 
     	void setParent(SemaResult *Result);
 

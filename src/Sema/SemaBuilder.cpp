@@ -366,17 +366,16 @@ SemaClassType * SemaBuilder::CreateClass(SemaModule *Module, ASTClass *AST) {
 	return Class;
 }
 
-SemaVar *SemaBuilder::CreateThisAttribute(SemaClassType *Class) {
-	Class->This = new SemaClassInstance(Class);
-	return Class->This;
+SemaClassInstance *SemaBuilder::CreateThisInstance(SemaClassType *Class) {
+	// Create the 'this' attribute for the current class
+	return new SemaClassInstance(Class);
 }
 
-SemaClassAttribute * SemaBuilder::CreateClassAttribute(SemaClassType *Class, ASTVar *AST, SemaComment *Comment) {
+SemaClassAttribute * SemaBuilder::CreateClassAttribute(SemaClassType *Class, SemaClassInstance *This, ASTVar *AST, SemaComment *Comment) {
 	FLY_DEBUG_START("SemaBuilder", "CreateClassAttribute");
 
-	uint64_t Index = Class->Attributes.size();
-	SemaClassAttribute *Attribute = new SemaClassAttribute(AST, Class, Index);
-	Attribute->setParent(Class->getThis());
+	SemaClassAttribute *Attribute = new SemaClassAttribute(AST, Class);
+	Attribute->setParent(This);
 
 	// Set Modifiers
 	SemaBuilderModifiers *Builder = SemaBuilderModifiers::Build(AST->getModifiers());
@@ -384,7 +383,6 @@ SemaClassAttribute * SemaBuilder::CreateClassAttribute(SemaClassType *Class, AST
 	Attribute->Static = Builder->isStatic();
 	Attribute->Constant = Builder->isConstant();
 
-	Class->Attributes.insert(std::make_pair(AST->getName(), Attribute));
 	AST->Sema = Attribute;
 	Attribute->Comment = Comment;
 
@@ -392,20 +390,23 @@ SemaClassAttribute * SemaBuilder::CreateClassAttribute(SemaClassType *Class, AST
 	return Attribute;
 }
 
-SemaClassMethod * SemaBuilder::CreateClassMethod(SemaClassType *Class, ASTFunction *AST, SemaComment *Comment) {
+SemaClassMethod * SemaBuilder::CreateClassMethod(SemaClassType *Class, SemaClassInstance *This, ASTFunction *AST, SemaComment *Comment) {
 	FLY_DEBUG_START("SemaBuilder", "CreateClassFunction");
 
-	SemaClassMethod *Method = new SemaClassMethod(AST, Class);
-	std::string MangledName = Method->getMangledName();
-
+	SemaClassMethod *Method;
+	// When the Class Name is Equals to the Function Name this is a Constructor
 	if (AST->getName() == Class->getName()) {
-		Method->MethodKind = SemaClassMethodKind::METHOD_CONSTRUCTOR;
-		Class->Constructors.insert(std::make_pair(MangledName, Method));
+		Method = new SemaClassMethod(AST, Class, This, SemaClassMethodKind::METHOD_CONSTRUCTOR);
+		Method->ReturnType = S.getSymTable().getVoidType();
 		if (Method->getParams().empty())
 			Class->DefaultConstructor = Method;
 	} else {
-		Method->MethodKind = SemaClassMethodKind::METHOD;
-		Class->Methods.insert(std::make_pair(MangledName, Method));
+		SemaClassMethodKind MethodKind = Class->getClassKind() == SemaClassKind::INTERFACE ?
+			                 SemaClassMethodKind::METHOD_ABSTRACT : SemaClassMethodKind::METHOD;
+		Method = new SemaClassMethod(AST, Class, This, MethodKind);
+
+		// ClassDefinition Return Type
+		Method->ReturnType = AST->ReturnTypeRef->getSema();
 	}
 
 	// Set Modifiers

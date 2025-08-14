@@ -26,13 +26,11 @@
 #include <AST/ASTTypeRef.h>
 #include <AST/ASTVar.h>
 #include <Sema/SemaErrorHandler.h>
-#include <Sema/SemaParam.h>
 
 using namespace fly;
 
-CodeGenClassMethod::CodeGenClassMethod(CodeGenModule *CGM, SemaClassMethod *Sema, llvm::PointerType *ClassTypePtr, size_t Index) :
-	CodeGenFunctionBase(CGM, Sema), ClassTypePtr(ClassTypePtr),
-	Index(Index) {
+CodeGenClassMethod::CodeGenClassMethod(CodeGenModule *CGM, SemaClassMethod *Sema, llvm::StructType *Type, size_t Index) :
+	CodeGenFunctionBase(CGM, Sema), ClassType(Type), Index(Index) {
 
 	SemaClassType *Class = Sema->getClass();
 
@@ -50,6 +48,7 @@ CodeGenClassMethod::CodeGenClassMethod(CodeGenModule *CGM, SemaClassMethod *Sema
 
     // Add the class type pointer to the params
 	if (!Sema->isStatic()) {
+		ClassTypePtr = ClassType->getPointerTo(CGM->Module->getDataLayout().getAllocaAddrSpace());
 		ParamTypes.push_back(ClassTypePtr);
 	}
 
@@ -77,7 +76,7 @@ void CodeGenClassMethod::GenBody() {
     setInsertPoint();
 
 	// Alloca Error Handler
-    if (Class->getAST()->getClassKind() != ASTClassKind::STRUCT) {
+    if (ClassMethod->getClass()->getAST()->getClassKind() != ASTClassKind::STRUCT) {
     	AllocaErrorHandler();
     }
 
@@ -87,13 +86,14 @@ void CodeGenClassMethod::GenBody() {
 
 		// Static Method, add error handler
     	Sema->getErrorHandler()->getCodeGen()->StoreErrorHandler(Fn->getArg(0));
-    } else {
-    	// FIXME replace with SemaVar - InstancePtr
-    	InstancePtr = CGM->Builder->CreateAlloca(ClassTypePtr);
-    	llvm::Type *ClassType = Class->getCodeGen()->getType();
 
-    	// CodeGen Class Instance
-    	Class->getThis()->setCodeGen(new CodeGenVar(CGM, Class->getThis(), ClassType, InstancePtr));
+    } else {
+
+    	// Alloca Class Instance Pointer
+    	InstancePtr = CGM->Builder->CreateAlloca(ClassTypePtr);
+
+    	// Set CodeGen Class Instance Pointer
+    	ClassMethod->getThis()->getCodeGen()->setPointer(InstancePtr);
 
     	//Alloca, Store, Load the second arg which is the instance
     	llvm::Argument *ClassInstancePtr = nullptr;
@@ -107,7 +107,7 @@ void CodeGenClassMethod::GenBody() {
     		AllocaLocalVars();
 
     		// Save Class instance and get Pointer
-    		Class->getThis()->getCodeGen()->Store(ClassInstancePtr);
+    		ClassMethod->getThis()->getCodeGen()->Store(ClassInstancePtr);
 
     		// Alloca Function Local Vars and generate body
     		StoreParams(1);
@@ -124,18 +124,20 @@ void CodeGenClassMethod::GenBody() {
     		Sema->getErrorHandler()->getCodeGen()->StoreErrorHandler(Fn->getArg(0));
 
     		// Save Class instance and get Pointer
-    		Class->getThis()->getCodeGen()->Store(ClassInstancePtr);
+    		ClassMethod->getThis()->getCodeGen()->Store(ClassInstancePtr);
 
     		// Alloca Function Local Vars and generate body
     		StoreParams(2);
     	}
 
-    	Class->getThis()->getCodeGen()->Load();
+    	ClassMethod->getThis()->getCodeGen()->Load();
 
     	// CodeGen Class Attributes
     	for (auto &AttributeEntry: Class->getAttributes()) {
     		SemaClassAttribute *Attribute = AttributeEntry.getValue();
-    		Attribute->setCodeGen(new CodeGenVar(CGM, Attribute, ClassType, InstancePtr));
+
+    		// Set Pointer for Class Attribute
+    		Attribute->getCodeGen()->setPointer(InstancePtr);
 
     		// Set Value for all Attributes
     		if (ClassMethod->isConstructor()) {

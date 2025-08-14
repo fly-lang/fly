@@ -19,12 +19,13 @@ namespace fly {
     class SemaClassType;
     class ASTFunction;
     class SemaComment;
+	class SemaClassInstance;
 	class CodeGenClassMethod;
 
 	enum class SemaClassMethodKind {
 		METHOD,
 		METHOD_CONSTRUCTOR,
-		METHOD_VIRTUAL
+		METHOD_ABSTRACT
 	};
 
     class SemaClassMethod : public SemaFunctionBase {
@@ -34,7 +35,11 @@ namespace fly {
     	friend class SemaResolverClass;
     	friend class SemaValidator;
 
+    protected:
+
     	SemaClassType *Class;
+
+    	SemaClassInstance *This;
 
     	SemaClassMethodKind MethodKind;
 
@@ -46,15 +51,19 @@ namespace fly {
 
     	SemaComment *Comment = nullptr;
 
-        explicit SemaClassMethod(ASTFunction *AST, SemaClassType *Class);
+    	explicit SemaClassMethod(ASTFunction *AST, SemaClassType *Class,  SemaClassInstance *This, SemaClassMethodKind MethodKind);
 
     	std::string MangleFunction(ASTFunction *AST);
 
     public:
 
     	SemaClassType *getClass() const;
+    	
+    	SemaClassInstance *getThis() const;
 
     	bool isConstructor() const;
+
+    	bool isAbstract() const;
 
     	SemaVisibilityKind getVisibility() const;
 

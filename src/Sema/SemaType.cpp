@@ -9,18 +9,13 @@
 
 #include "Sema/SemaType.h"
 
+#include <Sema/SemaClassType.h>
+#include <Sema/SemaNameSpace.h>
+
 using namespace fly;
 
-size_t SemaType::IdCounter = 0;
-
-SemaType::SemaType(SemaTypeKind Kind, std::string Name) : Kind(Kind), Name(Name), Id(GenerateId(Kind)) {
-}
-
-size_t SemaType::GenerateId(fly::SemaTypeKind Kind) {
-	if (Kind == SemaTypeKind::TYPE_CLASS || Kind == SemaTypeKind::TYPE_ENUM) {
-		return ++IdCounter;
-	}
-	return static_cast<size_t>(Kind);
+SemaType::SemaType(SemaTypeKind Kind, std::string Name) : Kind(Kind), Name(Name),
+	Id(std::hash<std::string>{}(Name)) {
 }
 
 const size_t SemaType::getId() const {
@@ -73,6 +68,18 @@ bool SemaType::isError() const {
 
 bool SemaType::isVoid() const {
 	return Kind == SemaTypeKind::TYPE_VOID;
+}
+
+bool SemaType::isEquals(const SemaType *Type) const {
+	return Type && this->getId() == Type->getId();
+}
+
+bool SemaType::operator!=(const SemaType *Type) const {
+	return !isEquals(Type);
+}
+
+bool SemaType::operator==(const SemaType *Type) const {
+	return isEquals(Type);
 }
 
 SemaIntType::SemaIntType(SemaIntTypeKind IntKind, std::string Name) : SemaType(SemaTypeKind::TYPE_INTEGER, Name),

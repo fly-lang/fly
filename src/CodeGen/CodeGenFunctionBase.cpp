@@ -98,7 +98,8 @@ void CodeGenFunctionBase::AllocaLocalVars() {
     for (auto Param : Sema->getParams()) {
     	llvm::Type *Ty = CGM->GenType(Param->getType());
     	llvm::AllocaInst * Alloca = AllocaVar(Ty);
-    	CodeGenVar *CGV = new CodeGenVar(CGM, Param, Ty, Alloca);
+    	CodeGenVar *CGV = new CodeGenVar(CGM, Param, Ty);
+    	CGV->setPointer(Alloca);
         Param->setCodeGen(CGV);
     }
 
@@ -110,7 +111,8 @@ void CodeGenFunctionBase::AllocaLocalVars() {
         } else {
         	llvm::Type *Ty = CGM->GenType(LocalVar->getType());
         	llvm::AllocaInst *Alloca = AllocaVar(Ty);
-        	CodeGenVar *CGV = new CodeGenVar(CGM, LocalVar, Ty, Alloca);
+        	CodeGenVar *CGV = new CodeGenVar(CGM, LocalVar, Ty);
+        	CGV->setPointer(Alloca);
         	LocalVar->setCodeGen(CGV);
         }
     }

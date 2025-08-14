@@ -46,21 +46,30 @@ llvm::Value *CodeGenExpr::GenExpr(ASTExpr *Expr) {
         	assert(Value && "Missing Value");
             return GenValue(Expr->getType(), Value->getSema());
         }
+
         case ASTExprKind::EXPR_VAR_REF: {
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_VAR_REF");
             ASTRef *VarRef = static_cast<ASTVarRefExpr *>(Expr)->getVarRef();
             assert(VarRef && "Missing Ref");
         	return CGM->GenVar(static_cast<SemaVar *>(VarRef->getSema()))->getValue();
         }
+
         case ASTExprKind::EXPR_CALL: {
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_CALL");
             ASTCall *Call = static_cast<ASTCallExpr *>(Expr)->getCall();
         	assert(Call && "Missing Call");
             return CGM->GenCall(Call->getSema());
         }
-        case ASTExprKind::EXPR_OP:
-            FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_OP");
-            return GenOp(static_cast<ASTOpExpr *>(Expr));
+
+    	case ASTExprKind::EXPR_CAST: {
+        	ASTCastExpr * CastExpr = static_cast<ASTCastExpr *>(Expr);
+        	return CGM->GenCast(CastExpr->getExpr()->getType(), CastExpr->getType(), GenExpr(CastExpr->getExpr()));
+    	}
+
+        case ASTExprKind::EXPR_OP: {
+	        FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_OP");
+        	return GenOp(static_cast<ASTOpExpr *>(Expr));
+        }
     }
 
     assert("Unknown Expr Kind");
@@ -226,6 +235,8 @@ llvm::Value *CodeGenExpr::GenOp(ASTOpExpr *Expr) {
 
     return V;
 }
+
+
 
 llvm::Value *CodeGenExpr::GenUnary(ASTUnaryOpExpr *Expr) {
     FLY_DEBUG_START("CodeGenExpr", "GenUnary");

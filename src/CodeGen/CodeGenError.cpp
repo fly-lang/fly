@@ -38,6 +38,10 @@ llvm::Value *CodeGenError::getPointer() {
     return ErrorHandler;
 }
 
+size_t CodeGenError::getIndex() {
+	return Index;
+}
+
 llvm::StoreInst *CodeGenError::StoreErrorHandler(llvm::Value *Val) {
     return CGM->Builder->CreateStore(Val, ErrorHandler);
 }
@@ -109,4 +113,9 @@ llvm::Value *CodeGenError::getValue() {
         return Load();
     }
     return this->LoadI;
+}
+
+void CodeGenError::setPointer(llvm::Value *Pointer) {
+	this->ErrorHandler = ErrorHandler;
+	this->LoadI = nullptr;
 }

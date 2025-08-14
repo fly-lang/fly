@@ -27,7 +27,7 @@ SemaModule * SemaEnumType::getModule() const {
 	return Module;
 }
 
-const llvm::StringMap<SemaEnumType *> &SemaEnumType::getSuperEnums() const {
+const llvm::StringMap<SemaEnumType *> &SemaEnumType::getBaseEnums() const {
 	return SuperEnums;
 }
 
@@ -45,4 +45,56 @@ const llvm::StringMap<SemaEnumEntry *> &SemaEnumType::getEntries() const {
 
 SemaComment * SemaEnumType::getComment() const {
 	return Comment;
+}
+
+bool SemaEnumType::isDerivedOrEquals(const SemaEnumType *BaseEnumType) const {
+	if (this->isEquals(BaseEnumType)) {
+		return true;
+	}
+
+	// Check if ClassType is a subclass of SuperClassType
+	for (auto &Base : this->getBaseEnums()) {
+		if (Base.getValue()->isEquals(BaseEnumType)) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool SemaEnumType::isDerived(const SemaEnumType *BaseEnumType) const {
+
+	// Check if ClassType is a subclass of SuperClassType
+	for (auto &Base : this->getBaseEnums()) {
+		if (Base.getValue()->isEquals(BaseEnumType))
+			return true;
+	}
+
+	return false;
+}
+
+bool SemaEnumType::isBaseOrEquals(const SemaEnumType *Derived) const {
+	if (this->isEquals(Derived)) {
+		return true;
+	}
+
+	// Check if this->ClassType is a derived of BaseClassType
+	for (auto &Base : Derived->getBaseEnums()) {
+		if (this->isBaseOrEquals(Base.getValue())) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool SemaEnumType::isBase(const SemaEnumType *Derived) const {
+	// Check if this->ClassType is a derived of BaseClassType
+	for (auto &Base : Derived->getBaseEnums()) {
+		if (this->isEquals(Base.getValue())) {
+			return true;
+		}
+	}
+
+	return false;
 }

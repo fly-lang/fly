@@ -12,10 +12,12 @@
 
 #include "Sema/SemaVar.h"
 
+#include "llvm/ADT/DenseMap.h"
+
 namespace fly {
 
     class SemaClassType;
-	class CodeGenVar;
+    class CodeGenVar;
 
     class SemaClassInstance  : public SemaVar {
 
@@ -25,6 +27,10 @@ namespace fly {
 
         SemaClassType *Class;
 
+        uint64_t Index;
+
+        llvm::DenseMap<size_t, SemaClassInstance *> BaseInstances;
+
 		CodeGenVar *CodeGen = nullptr;
 
     protected:
@@ -33,11 +39,19 @@ namespace fly {
 
     public:
 
+        SemaClassInstance *getParent() const override;
+
+        const llvm::DenseMap<size_t, SemaClassInstance *> &getBaseInstances() const;
+
+        SemaClassInstance *getBaseInstance(size_t TypeId) const;
+
         SemaClassType *getClass() const;
+
+        uint64_t getIndex();
 
     	CodeGenVarBase *getCodeGen() const override;
 
-        void setCodeGen(CodeGenVarBase* CodeGen) override;
+        void setCodeGen(CodeGenVarBase *CodeGen) override;
 
     };
 

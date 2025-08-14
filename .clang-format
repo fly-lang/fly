@@ -38,7 +38,7 @@ AllowShortIfStatementsOnASingleLine: false # Require multi-line `if` statements 
 NamespaceIndentation: All        # indent within namespaces
 
 # Pointer and reference styles
-PointerAlignment: Right           # Align pointer symbols to the type
+PointerAlignment: Right # int *ptr
 # Example: int* ptr; instead of int *ptr;
 
 # Other formatting

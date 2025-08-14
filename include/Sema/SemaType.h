@@ -73,8 +73,6 @@ namespace fly {
         friend class SemaResolver;
         friend class SemaValidator;
 
-        static size_t IdCounter;
-
         const size_t Id;
 
         const SemaTypeKind Kind;
@@ -82,8 +80,6 @@ namespace fly {
         const std::string Name;
 
         SemaValue *DefaultValue;
-
-        size_t GenerateId(fly::SemaTypeKind Kind);
 
     protected:
 
@@ -116,6 +112,12 @@ namespace fly {
         bool isError() const;
 
         bool isVoid() const;
+
+        bool isEquals(const SemaType *Type) const;
+
+        bool operator!=(const SemaType *Type) const;
+
+        bool operator==(const SemaType *Type) const;
     };
 
     class SemaIntType : public SemaType {
@@ -149,8 +151,6 @@ namespace fly {
 
         const SemaFloatTypeKind getFPKind() const;
     };
-
-    class ASTExpr;
 
     class SemaArrayType : public SemaType {
 

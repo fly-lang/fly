@@ -76,11 +76,11 @@ namespace fly {
 
     	SemaClassType *CreateClass(SemaModule *Module, ASTClass *AST);
 
-    	SemaVar *CreateThisAttribute(SemaClassType *Class);
+    	SemaClassInstance *CreateThisInstance(SemaClassType *Class);
 
-    	SemaClassAttribute *CreateClassAttribute(SemaClassType *Class, ASTVar *AST, SemaComment *Comment);
+    	SemaClassAttribute *CreateClassAttribute(SemaClassType *Class, SemaClassInstance *This, ASTVar *AST, SemaComment *Comment);
 
-    	SemaClassMethod *CreateClassMethod(SemaClassType *Class, ASTFunction *AST, SemaComment *Comment);
+    	SemaClassMethod *CreateClassMethod(SemaClassType *Class, SemaClassInstance *This, ASTFunction *AST, SemaComment *Comment);
 
     	SemaEnumType *CreateEnum(SemaModule *Module, ASTEnum *AST);
 

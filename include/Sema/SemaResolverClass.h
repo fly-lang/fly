@@ -9,14 +9,19 @@
 
 #ifndef FLY_SEMA_RESOLVER_CLASS_H
 #define FLY_SEMA_RESOLVER_CLASS_H
-#include "SemaType.h"
+#include <AST/ASTFunction.h>
+#include <AST/ASTVar.h>
+
+#include "SemaComment.h"
 
 namespace fly {
 
 	class SemaResolver;
     class Sema;
     class SemaClassType;
+    class SemaClassAttribute;
     class SemaClassMethod;
+    class SemaClassInstance;
 
     class SemaResolverClass {
 
@@ -28,19 +33,25 @@ namespace fly {
 
     public:
 
-        static void Resolve(SemaResolver *R, SemaClassType *Class);
+        static void BaseClasses(SemaResolver *R, SemaClassType *Class);
+
+        static void ClassDefinition(SemaResolver *R, SemaClassType *Class);
 
     private:
 
         SemaResolverClass(SemaResolver *R, SemaClassType *Class);
 
-        void Extends();
+        void CreateDefinitions();
 
-        void InheritMethods(fly::SemaClassType* SuperClassType);
+        SemaClassAttribute *DefineAttribute(SemaClassInstance *This, ASTVar *Var, SemaComment *Comment);
 
-        void InheritAttributes(fly::SemaClassType* ClassType);
+        SemaClassMethod *DefineMethod(SemaClassInstance *This, ASTFunction* Function, SemaComment * Comment);
 
-        void Definitions();
+        void CreateBaseDefinitions(SemaClassType *InheritClass);
+
+        bool CanInheritMethod(SemaClassMethod *Method);
+
+        bool CanInheritAttribute(SemaClassAttribute *Attribute);
 
         void CreateDefaultConstructor();
 

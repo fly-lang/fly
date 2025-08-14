@@ -40,3 +40,10 @@ llvm::Value *CodeGenEnumEntry::getValue() {
 llvm::Value * CodeGenEnumEntry::getPointer() {
 	return nullptr;
 }
+
+void CodeGenEnumEntry::setPointer(llvm::Value *Pointer) {
+}
+
+size_t CodeGenEnumEntry::getIndex() {
+	return Index;
+}

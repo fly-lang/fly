@@ -10,6 +10,7 @@
 #ifndef FLY_SEMA_CLASS_TYPE_H
 #define FLY_SEMA_CLASS_TYPE_H
 
+#include "SemaClassInstance.h"
 #include "Sema/SemaType.h"
 #include "AST/ASTClass.h"
 #include "llvm/ADT/StringMap.h"
@@ -21,6 +22,7 @@ namespace fly {
     class ASTClass;
     class SemaComment;
     class SemaClassMethod;
+    class SemaClassInstance;
     class CodeGenClass;
     class SemaModule;
     class SemaClassAttribute;
@@ -54,10 +56,10 @@ namespace fly {
         SemaClassKind ClassKind;
 
         // Super Classes
-        llvm::StringMap<SemaClassType *> SuperClasses;
+        llvm::SmallVector<SemaClassType *, 4> BaseClasses;
 
         // Class this Attribute
-        SemaVar *This;
+        SemaClassInstance *This;
 
         // Class Attributes
         llvm::StringMap<SemaClassAttribute *> Attributes;
@@ -93,9 +95,9 @@ namespace fly {
 
         SemaClassKind getClassKind() const;
 
-        SemaVar *getThis() const;
+        SemaClassInstance *getThis() const;
 
-        const llvm::StringMap<SemaClassType *> &getSuperClasses() const;
+        const llvm::SmallVector<SemaClassType *, 4> &getBaseClasses() const;
 
         const llvm::StringMap<SemaClassAttribute *> &getAttributes() const;
 
@@ -104,6 +106,14 @@ namespace fly {
         const llvm::StringMap<SemaClassMethod *> &getConstructors() const;
 
         SemaComment *getComment() const;
+
+        bool isDerivedOrEquals(const SemaClassType *BaseClassType) const;
+
+        bool isDerived(const SemaClassType *BaseClassType) const;
+
+        bool isBaseOrEquals(const SemaClassType *Derived) const;
+
+        bool isBase(const SemaClassType *Derived) const;
 
         CodeGenClass *getCodeGen() const;
 

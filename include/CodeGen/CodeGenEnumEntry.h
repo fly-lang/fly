@@ -30,6 +30,8 @@ namespace fly {
 
         llvm::Value *Instance = nullptr;
 
+        size_t Index;
+
     public:
         CodeGenEnumEntry(CodeGenModule *CGM, SemaEnumEntry *Sema);
 
@@ -45,6 +47,9 @@ namespace fly {
 
         llvm::Value *getPointer() override;
 
+        void setPointer(llvm::Value *Pointer) override;
+
+        size_t getIndex() override;
     };
 }
 

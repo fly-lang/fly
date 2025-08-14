@@ -178,14 +178,14 @@ bool SemaValidator::CheckConvertibleTypes(SemaType *FromType, SemaType *ToType) 
     if (FromType->isEnum() && ToType->isEnum()) {
     	SemaEnumType *FromEnumType = static_cast<SemaEnumType *>(FromType);
     	SemaEnumType *ToEnumType = static_cast<SemaEnumType *>(ToType);
-    	return CheckInheritance(FromEnumType, ToEnumType);
+    	return FromEnumType->isDerivedOrEquals(ToEnumType);
     }
 
     // Check Class Inheritance
     if (FromType->isClass() && ToType->isClass()) {
     	SemaClassType *FromClassType = static_cast<SemaClassType *>(FromType);
     	SemaClassType *ToClassType = static_cast<SemaClassType *>(ToType);
-    	return CheckInheritance(FromClassType, ToClassType);
+    	return FromClassType->isDerivedOrEquals(ToClassType);
     }
 
 	// Check Void Type
@@ -215,8 +215,8 @@ bool SemaValidator::CheckInheritance(SemaClassType *ClassType, SemaClassType *Su
 	}
 
 	// Check if ClassType is a subclass of SuperClassType
-	for (auto &Entry : ClassType->getSuperClasses()) {
-		if (CheckInheritance(SuperClassType, Entry.getValue())) {
+	for (auto &Entry : ClassType->getBaseClasses()) {
+		if (CheckInheritance(SuperClassType, Entry)) {
 			return true;
 		}
 	}
@@ -231,7 +231,7 @@ bool SemaValidator::CheckInheritance(SemaEnumType *EnumType, SemaEnumType *Super
 	}
 
 	// Check if TheClass is a subclass of SuperClass
-	for (auto &SuperClassEntry : EnumType->getSuperEnums()) {
+	for (auto &SuperClassEntry : EnumType->getBaseEnums()) {
 		if (CheckInheritance(SuperClassEntry.getValue(), SuperEnumType)) {
 			return true;
 		}

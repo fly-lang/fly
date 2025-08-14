@@ -14,8 +14,8 @@
 
 using namespace fly;
 
-SemaClassMethod::SemaClassMethod(ASTFunction *AST, SemaClassType *Class) :
-	SemaFunctionBase(AST, SemaFunctionKind::CLASS_METHOD, MangleFunction(AST)), Class(Class) {
+SemaClassMethod::SemaClassMethod(ASTFunction *AST, SemaClassType *Class, SemaClassInstance *This, SemaClassMethodKind MethodKind) :
+	SemaFunctionBase(AST, SemaFunctionKind::CLASS_METHOD, MangleFunction(AST)), Class(Class), This(This), MethodKind(MethodKind) {
 
 }
 
@@ -32,8 +32,16 @@ SemaClassType * SemaClassMethod::getClass() const {
 	return Class;
 }
 
+SemaClassInstance * SemaClassMethod::getThis() const {
+	return This;
+}
+
 bool SemaClassMethod::isConstructor() const {
 	return MethodKind == SemaClassMethodKind::METHOD_CONSTRUCTOR;
+}
+
+bool SemaClassMethod::isAbstract() const {
+	return MethodKind == SemaClassMethodKind::METHOD_ABSTRACT;
 }
 
 SemaVisibilityKind SemaClassMethod::getVisibility() const {

@@ -35,9 +35,11 @@ namespace fly {
 
         llvm::SmallVector<CodeGenVar *, 4> Attributes;
 
+        llvm::Type *ClassType;
+
         llvm::PointerType *ClassTypePtr;
 
-        CodeGenClassMethod(CodeGenModule *CGM, SemaClassMethod *Sema, llvm::PointerType *ClassTypePtr, size_t Index);
+        CodeGenClassMethod(CodeGenModule *CGM, SemaClassMethod *Sema, llvm::StructType *Type, size_t Index);
 
     public:
 

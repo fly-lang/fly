@@ -28,6 +28,6 @@ SemaErrorHandler *SemaCall::getErrorHandler() const {
 	return ErrorHandler;
 }
 
-bool SemaCall::isPolymorphic() const {
-	return Polymorphic;
+bool SemaCall::isNew() const {
+	return AST->getCallKind() >= ASTCallKind::CALL_NEW;
 }

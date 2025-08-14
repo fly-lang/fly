@@ -209,9 +209,11 @@ namespace fly {
 
         llvm::Value *GenExpr(ASTExpr *Expr);
 
+        llvm::Value *GenCast(SemaType*FromType, SemaType *ToType, llvm::Value *Val);
+
         llvm::Value* GenResult(SemaResult *Sema);
 
-        CodeGenVarBase *GenVar(SemaVar *Sema, llvm::Value *Pointer = nullptr);
+        CodeGenVarBase *GenVar(SemaVar *Sema);
 
         llvm::Value *GenCall(SemaCall *Sema);
 

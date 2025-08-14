@@ -24,15 +24,15 @@ namespace fly {
         friend class SemaResolver;
         friend class SemaValidator;
 
-        CodeGenVar *CodeGen = nullptr;
+        SemaClassAttribute *ClassAttribute = nullptr;
 
-        uint64_t Index;
+        CodeGenVar *CodeGen = nullptr;
 
         explicit SemaMemberVar(ASTVar *AST, SemaResult *Parent);
 
     public:
 
-        uint64_t getIndex() const;
+        SemaClassAttribute *getClassAttribute() const;
 
         CodeGenVar *getCodeGen() const override;
 

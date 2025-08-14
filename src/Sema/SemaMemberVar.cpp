@@ -16,8 +16,8 @@ SemaMemberVar::SemaMemberVar(ASTVar *AST, SemaResult *Parent) : SemaVar(AST, Sem
 	setParent(Parent);
 }
 
-uint64_t SemaMemberVar::getIndex() const {
-    return Index;
+SemaClassAttribute * SemaMemberVar::getClassAttribute() const {
+	return ClassAttribute;
 }
 
 CodeGenVar * SemaMemberVar::getCodeGen() const {

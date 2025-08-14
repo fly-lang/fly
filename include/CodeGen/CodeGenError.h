@@ -33,6 +33,8 @@ namespace fly {
 
         llvm::Type *T = nullptr;
 
+        size_t Index;
+
         llvm::Value *ErrorHandler = nullptr;
 
         llvm::LoadInst *LoadI = nullptr;
@@ -57,6 +59,8 @@ namespace fly {
 
         llvm::StoreInst *StoreObject(llvm::Value *Val);
 
+        size_t getIndex() override;
+
         llvm::StoreInst *Store(llvm::Value *Val) override;
 
         llvm::LoadInst *Load() override;
@@ -64,6 +68,8 @@ namespace fly {
         llvm::Value *getValue() override;
 
         llvm::Value *getPointer() override;
+
+        void setPointer(llvm::Value *Pointer) override;
 
     };
 }

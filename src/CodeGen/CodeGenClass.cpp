@@ -25,7 +25,7 @@ CodeGenClass::CodeGenClass(CodeGenModule *CGM, SemaClassType *Sema, bool isExter
 
     // Generate Class Type
     Type = llvm::StructType::create(CGM->LLVMCtx, TypeName);
-    TypePtr = Type->getPointerTo(CGM->Module->getDataLayout().getAllocaAddrSpace());
+	TypePtr = Type->getPointerTo(CGM->Module->getDataLayout().getAllocaAddrSpace());
 
     // Generate VTable from Class and Interface
     if (Sema->getClassKind() == SemaClassKind::CLASS || Sema->getClassKind() == SemaClassKind::INTERFACE) {
@@ -35,12 +35,15 @@ CodeGenClass::CodeGenClass(CodeGenModule *CGM, SemaClassType *Sema, bool isExter
 	// Create the Type Vector
 	llvm::SmallVector<llvm::Type *, 4> TypeVector;
 
+	// Create CodeGenVar for Class Instance
+	CodeGenVar *CGV = new CodeGenVar(CGM, Sema->getThis(), Type);
+	Sema->getThis()->setCodeGen(CGV);
+
 	CreateVTableType(TypeVector);
 	CreateInheritTypes(TypeVector);
 	CreateFieldTypes(TypeVector);
-	CreateSharedPtrType(TypeVector);
 
-	// %type = type { %vtable_type, %...inherit_types, %...field_types, %shared_ptr_type }
+	// %type = type { %vtable_type, %...inherit_types, %...field_types }
 	Type->setBody(TypeVector);
 }
 
@@ -56,7 +59,7 @@ void CodeGenClass::CreateVTableType(llvm::SmallVector<llvm::Type *, 4> &TypeVect
 			SemaClassMethod * Constructor = Entry.getValue();
 
             // Create Constructor CodeGen for Constructor
-            CodeGenClassMethod *CG = new CodeGenClassMethod(CGM, Constructor, TypePtr, VTableVector.size());
+            CodeGenClassMethod *CG = new CodeGenClassMethod(CGM, Constructor, Type, VTableVector.size());
             Constructor->setCodeGen(CG);
             Constructors.push_back(CG);
         }
@@ -73,7 +76,7 @@ void CodeGenClass::CreateVTableType(llvm::SmallVector<llvm::Type *, 4> &TypeVect
         	if (Method->getCodeGen() == nullptr) {
 
         		// Create CodeGen for Method
-        		CG = new CodeGenClassMethod(CGM, Method, TypePtr, VTableVector.size());
+        		CG = new CodeGenClassMethod(CGM, Method, Type, VTableVector.size());
         		Method->setCodeGen(CG);
 
         		// Add to Class Methods
@@ -101,7 +104,21 @@ void CodeGenClass::CreateVTableType(llvm::SmallVector<llvm::Type *, 4> &TypeVect
 }
 
 void CodeGenClass::CreateInheritTypes(llvm::SmallVector<llvm::Type *, 4> &TypeVector) {
+	for (auto &BaseEntry : Sema->getThis()->getBaseInstances()) {
+		SemaClassInstance *BaseThis = BaseEntry.getSecond();
 
+		// Create CodeGen for Base Class
+		if (BaseThis->getClass()->getCodeGen() == nullptr) {
+			CodeGenClass *CGC = CGM->GenClass(BaseThis->getClass(), false);
+			BaseThis->getClass()->setCodeGen(CGC);
+		}
+
+		// Create CodeGenVar for Base Class Instance
+		BaseThis->setCodeGen(new CodeGenVar(CGM, BaseThis, BaseThis->getClass()->getCodeGen()->getType(), TypeVector.size()));
+
+		// Add Inherit Type
+		TypeVector.push_back(BaseThis->getClass()->getCodeGen()->getType());
+	}
 }
 
 void CodeGenClass::CreateFieldTypes(llvm::SmallVector<llvm::Type *, 4> &TypeVector) {
@@ -114,19 +131,23 @@ void CodeGenClass::CreateFieldTypes(llvm::SmallVector<llvm::Type *, 4> &TypeVect
 			SemaClassAttribute *Attribute = AttributeEntry.getValue();
 			llvm::Type *AttrType = CGM->GenType(Attribute->getType());
 
-			// Se un attributo è pubblico aggiungilo nella shared ptr
-			// Altrimenti aggiungilo nella Struct
+			// Check if the ClassAttribute is a static attribute
+			CodeGenVarBase * CGV;
+			if (Attribute->isStatic()) {
+				llvm::Value *ParentPointer = new llvm::GlobalVariable(*CGM->Module, AttrType, Sema->isConstant(),
+					llvm::GlobalValue::ExternalLinkage, nullptr);
+				CGV = new CodeGenVar(CGM, Attribute, AttrType);
+				CGV->setPointer(ParentPointer);
+			} else {
+				// Create CodeGenVar for Attribute
+				CGV = new CodeGenVar(CGM, Attribute, AttrType, TypeVector.size());
+			}
+			Attribute->setCodeGen(CGV);
 
 			// Add to Class Var types list
 			TypeVector.push_back(AttrType);
 		}
 	}
-}
-
-void CodeGenClass::CreateSharedPtrType(llvm::SmallVector<llvm::Type *, 4> &TypeVector) {
-	// Se non esistono sotto classi, allora allora puoi creare shared_ptr
-	// Altrimenti prendi shared_ptr della sotto	classe
-	// aggiungi gli attributi pubblici senza duplicati
 }
 
 llvm::StructType *CodeGenClass::getType() {
