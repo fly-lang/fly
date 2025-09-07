@@ -169,6 +169,10 @@ namespace fly {
 
         llvm::ConstantInt *Zero;
 
+        llvm::SmallVector<CodeGenClass *, 8> CGClasses;
+
+        std::vector<CodeGenFunction *> CGFunctions;
+
         CodeGenModule(DiagnosticsEngine &Diags, SemaNameSpace *NameSpace, llvm::LLVMContext &LLVMCtx, TargetInfo &Target,
                       CodeGenOptions &CGOpts);
 

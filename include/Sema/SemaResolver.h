@@ -17,6 +17,7 @@
 namespace fly {
 
     class Sema;
+    class SemaResolverClass;
     class ASTBuilder;
     class DiagnosticsEngine;
     class DiagnosticBuilder;
@@ -78,7 +79,7 @@ namespace fly {
 
         bool isDefaultNameSpace;
 
-        llvm::SmallVector<SemaClassType *, 4> ClassTypes;
+        llvm::SmallVector<SemaResolverClass *, 4> ResolverClasses;
 
         llvm::SmallVector<ASTBlockStmt *, 8> Bodies;
 

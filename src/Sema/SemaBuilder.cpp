@@ -323,6 +323,7 @@ SemaFunction * SemaBuilder::CreateFunction(SemaModule *Module, ASTFunction *AST)
 SemaClassType * SemaBuilder::CreateClass(SemaModule *Module, ASTClass *AST) {
 	FLY_DEBUG_START("SemaBuilder", "CreateClass");
 
+	// Create the Class Type
 	SemaClassType *Class = new SemaClassType(AST);
 
 	// Check Duplicates in Module
@@ -332,13 +333,18 @@ SemaClassType * SemaBuilder::CreateClass(SemaModule *Module, ASTClass *AST) {
 		return Class;
 	}
 
+	// Set Class Module
 	Class->Module = Module;
 	Module->Types.insert(std::make_pair(AST->getName(), Class));
 
+	// Create the 'this' attribute for the current class
+	Class->This = CreateThisInstance(Class);
+
 	// Set Modifiers
-	SemaBuilderModifiers *Builder = SemaBuilderModifiers::Build(AST->getModifiers());
-	Class->Constant = Builder->isConstant();
-	Class->Visibility = Builder->getVisibility();
+	SemaBuilderModifiers *BuilderModifiers = SemaBuilderModifiers::Build(AST->getModifiers());
+	Class->Constant = BuilderModifiers->isConstant();
+	Class->Visibility = BuilderModifiers->getVisibility();
+
 	// Check and set Function Modifiers
 	if (Class->getVisibility() == SemaVisibilityKind::PUBLIC) {
 
@@ -348,7 +354,7 @@ SemaClassType * SemaBuilder::CreateClass(SemaModule *Module, ASTClass *AST) {
 			S.Diag(AST->getLocation(), diag::err_syntax_error) << AST->getName();
 		}
 		Module->NameSpace->Types.insert(std::make_pair(AST->getName(), Class));
-	} if (Class->getVisibility() == SemaVisibilityKind::PROTECTED) {
+	} else if (Class->getVisibility() == SemaVisibilityKind::PROTECTED) {
 		// TODO: Protected Visibility
 
 	} else if (Class->getVisibility() == SemaVisibilityKind::PRIVATE) {
@@ -376,6 +382,7 @@ SemaClassAttribute * SemaBuilder::CreateClassAttribute(SemaClassType *Class, Sem
 
 	SemaClassAttribute *Attribute = new SemaClassAttribute(AST, Class);
 	Attribute->setParent(This);
+	Attribute->Type = AST->TypeRef->getSema();
 
 	// Set Modifiers
 	SemaBuilderModifiers *Builder = SemaBuilderModifiers::Build(AST->getModifiers());

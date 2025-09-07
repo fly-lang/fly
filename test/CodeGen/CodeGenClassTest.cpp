@@ -1050,7 +1050,7 @@ TEST_F(CodeGenTest, CGStruct2) {
     	EXPECT_EQ(output, "\n"
     					  "%error = type { i8, i32, i8* }\n"
     					  "%BaseClass = type { %BaseClass_vtable*, i32 }\n"
-    					  "%BaseClass_vtable = type { void (%error*, %BaseClass*)* }\n"
+    					  "%BaseClass_vtable = type { void (%error*, %BaseClass*)*, void (%error*, %BaseClass*)* }\n"
     					  "%TestClass = type { %TestClass_vtable*, %BaseClass, i32 }\n"
 						  "%TestClass_vtable = type { void (%error*, %TestClass*)*, void (%error*, %TestClass*)* }\n"
 						  "\n"

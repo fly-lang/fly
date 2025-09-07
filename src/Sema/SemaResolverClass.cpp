@@ -31,7 +31,31 @@
 
 using namespace fly;
 
-void SemaResolverClass::BaseClasses(SemaResolver *R, SemaClassType *Class) {
+SemaResolverClass::SemaResolverClass(SemaResolver *R, SemaClassType *Class) : R(R), S(R->S), Class(Class) {
+
+}
+
+void SemaResolverClass::Resolve() {
+	// Resolve Class Definitions
+	this->ResolveDefinitions();
+
+	// Resolve Base Classes
+	this->ResolveBaseClasses();
+
+	// Create Class Default Constructor
+	// Create the default constructor if no constructors are defined
+	if (Class->getClassKind() != SemaClassKind::INTERFACE && Class->getConstructors().empty())
+		this->CreateDefaultConstructor();
+
+	// ClassDefinition Class Attributes
+	this->SetDefaultValueInAttributes();
+
+	// ClassDefinition Class Methods
+	if (Class->getClassKind() == SemaClassKind::CLASS)
+		this->AddBodies();
+}
+
+void SemaResolverClass::ResolveBaseClasses() {
 	// ClassDefinition Base Classes on first pass
 	for (auto &BaseTypeRef : Class->getAST()->getBaseClasses()) {
 
@@ -46,41 +70,13 @@ void SemaResolverClass::BaseClasses(SemaResolver *R, SemaClassType *Class) {
 			}
 
 			SemaClassType *BaseClassType = static_cast<SemaClassType *>(BaseType);
+			this->CreateBaseDefinition(BaseClassType);
 			Class->BaseClasses.push_back(BaseClassType);
 		}
 	}
 }
 
-void SemaResolverClass::ClassDefinition(SemaResolver *R, SemaClassType *Class) {
-	SemaResolverClass * Resolver = new SemaResolverClass(R, Class);
-
-	// Create Class This Attribute
-	Class->This = R->S.getSemaBuilder().CreateThisInstance(Class);
-
-	// Resolve Class Definitions
-	Resolver->CreateDefinitions();
-
-	// Resolve Base Classes definitions by inheriting all
-	Resolver->CreateBaseDefinitions(Class);
-
-	// Create Class Default Constructor
-	// Create the default constructor if no constructors are defined
-	if (Class->getClassKind() != SemaClassKind::INTERFACE && Class->getConstructors().empty())
-		Resolver->CreateDefaultConstructor();
-
-	// ClassDefinition Class Attributes
-	Resolver->SetDefaultValueInAttributes();
-
-	// ClassDefinition Class Methods
-	if (Class->getClassKind() == SemaClassKind::CLASS)
-		Resolver->AddBodies();
-}
-
-SemaResolverClass::SemaResolverClass(SemaResolver *R, SemaClassType *Class) : R(R), S(R->S), Class(Class) {
-
-}
-
-void SemaResolverClass::CreateDefinitions() {
+void SemaResolverClass::ResolveDefinitions() {
 	SemaComment *Comment = nullptr;
 
 	// ClassDefinition Class Definitions: Var, Function and Comment
@@ -90,7 +86,7 @@ void SemaResolverClass::CreateDefinitions() {
 			// ClassDefinition Class Var: Attribute
 			case ASTKind::AST_VAR: {
 				ASTVar * Var = static_cast<ASTVar *>(AST);
-				SemaClassAttribute *Attribute = DefineAttribute(Class->getThis(), Var, Comment);
+				SemaClassAttribute *Attribute = DefineAttribute(Var, Comment);
 
 				Var->Sema->Type = Var->TypeRef->getSema();
 				Class->Attributes.insert(std::make_pair(Var->getName(), Attribute));
@@ -129,7 +125,7 @@ void SemaResolverClass::CreateDefinitions() {
 	}
 }
 
-SemaClassAttribute *SemaResolverClass::DefineAttribute(SemaClassInstance *This, ASTVar *Var, SemaComment *Comment) {
+SemaClassAttribute *SemaResolverClass::DefineAttribute(ASTVar *Var, SemaComment *Comment) {
 	// ClassDefinition Type
 	R->ResolveTypeRef(Var->TypeRef);
 
@@ -167,59 +163,54 @@ SemaClassMethod *SemaResolverClass::DefineMethod(SemaClassInstance *This, ASTFun
 	return Method;
 }
 
-void SemaResolverClass::CreateBaseDefinitions(SemaClassType *InheritClass) {
-	for (SemaClassType *BaseClass : InheritClass->getBaseClasses()) {
+void SemaResolverClass::CreateBaseDefinition(SemaClassType *BaseClass) {
+	// Create the Class Instance to be added to Base Instance Children
+	SemaClassInstance *BaseThis = R->S.getSemaBuilder().CreateThisInstance(BaseClass);
+	auto Pair = std::pair<size_t, SemaClassInstance *>(BaseClass->getId(), BaseThis);
 
-		// Create the Class Instance to be added to Base Instance Children
-		SemaClassInstance *BaseThis = R->S.getSemaBuilder().CreateThisInstance(BaseClass);
-		auto Pair = std::pair<size_t, SemaClassInstance *>(BaseClass->getId(), BaseThis);
+	// Add the Base Class Instance to the Class This Instances
+	Class->This->BaseInstances.insert(Pair);
 
-		// Add the Base Class Instance to the Class This Instances
-		Class->This->BaseInstances.insert(Pair);
+	for (auto AST : BaseClass->getAST()->getDefinitions()) {
+		switch (AST->getKind()) {
 
-		for (auto AST : BaseClass->getAST()->getDefinitions()) {
-			switch (AST->getKind()) {
+			// ClassDefinition Class Var: Attribute
+			case ASTKind::AST_VAR: {
+				ASTVar * Var = static_cast<ASTVar *>(AST);
 
-				// ClassDefinition Class Var: Attribute
-				case ASTKind::AST_VAR: {
-					ASTVar * Var = static_cast<ASTVar *>(AST);
+				// Define an Attribute
+				SemaClassAttribute *Attribute = DefineAttribute(Var, nullptr);
 
-					// Define an Attribute
-					SemaClassAttribute *Attribute = DefineAttribute(BaseThis, Var, nullptr);
-
-					if (CanInheritAttribute(Attribute)) {
-						Var->Sema->Type = Var->TypeRef->getSema();
-						Class->Attributes.insert(std::make_pair(Var->getName(), Attribute));
-					}
+				if (CanInheritAttribute(Attribute)) {
+					Var->Sema->Type = Var->TypeRef->getSema();
+					Class->Attributes.insert(std::make_pair(Var->getName(), Attribute));
 				}
-				break;
-
-				// ClassDefinition Class Function: Method or Constructor
-				case ASTKind::AST_FUNCTION: {
-					ASTFunction *Function = static_cast<ASTFunction *>(AST);
-
-					// Define a Method
-					SemaClassMethod *Method = DefineMethod(BaseThis, Function, nullptr);
-
-					if (!Method->isConstructor() && CanInheritMethod(Method)) {
-						Class->Methods.insert(std::make_pair(Method->getMangledName(), Method));
-					}
-				}
-				break;
-
-				// ClassDefinition Class Comment
-				case ASTKind::AST_COMMENT:
-					// No action needed
-				break;
-
-				default:
-					// Error: invalid declaration in class
-						S.Diag(AST->getLocation(), diag::err_syntax_error);
-				break;
 			}
-		}
+			break;
 
-		CreateBaseDefinitions(BaseClass);
+			// ClassDefinition Class Function: Method or Constructor
+			case ASTKind::AST_FUNCTION: {
+				ASTFunction *Function = static_cast<ASTFunction *>(AST);
+
+				// Define a Method
+				SemaClassMethod *Method = DefineMethod(BaseThis, Function, nullptr);
+
+				if (!Method->isConstructor() && CanInheritMethod(Method)) {
+					Class->Methods.insert(std::make_pair(Method->getMangledName(), Method));
+				}
+			}
+			break;
+
+			// ClassDefinition Class Comment
+			case ASTKind::AST_COMMENT:
+				// No action needed
+			break;
+
+			default:
+				// Error: invalid declaration in class
+					S.Diag(AST->getLocation(), diag::err_syntax_error);
+			break;
+		}
 	}
 }
 
@@ -273,7 +264,7 @@ bool SemaResolverClass::CanInheritAttribute(SemaClassAttribute *BaseAttribute) {
 		} else { // Duplicate Found
 
 			// Check Type conflicts
-			if (It->second->getType() != BaseAttribute->getType()) {
+			if (!It->second->getType()->isEquals(BaseAttribute->getType())) {
 				S.Diag(It->second->getAST()->getLocation(), diag::err_syntax_error);
 			}
 

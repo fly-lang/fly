@@ -177,7 +177,6 @@ void CodeGenModule::GenAll() {
 //     }
 
     // Instantiates all Function CodeGen in order to be set in all Call references
-    std::vector<CodeGenFunction *> CGFunctions;
     for (auto &Entry : NameSpace->getFunctions()) {
         CodeGenFunction *CGF = GenFunction(Entry.getValue());
         CGFunctions.push_back(CGF);
@@ -187,12 +186,13 @@ void CodeGenModule::GenAll() {
     }
 
 	// Generate Classes
-	llvm::SmallVector<CodeGenClass *, 8> CGClasses;
 	for (auto &Entry : NameSpace->getTypes()) {
 		SemaType * Type = Entry.getValue();
 		if (Type->isClass()) {
-			CodeGenClass *CGC = GenClass(static_cast<SemaClassType *>(Type));
-			CGClasses.push_back(CGC);
+			SemaClassType *ClassType = static_cast<SemaClassType *>(Type);
+			if (ClassType->getCodeGen() == nullptr) {
+				GenClass(ClassType);
+			}
 		} else if (Type->isEnum()) {
 			GenEnum(static_cast<SemaEnumType *>(Type));
 		}
@@ -248,6 +248,7 @@ CodeGenClass *CodeGenModule::GenClass(SemaClassType *Class, bool isExternal) {
     //                   "Class=" << Class->str() << ", isExternal=" << isExternal);
     CodeGenClass *CGC = new CodeGenClass(this, Class, isExternal);
     Class->setCodeGen(CGC);
+	CGClasses.push_back(CGC);
     return CGC;
 }
 

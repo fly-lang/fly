@@ -256,9 +256,9 @@ void SemaResolver::ResolveTypes() {
 				ResolveComment(ClassType->Comment, ClassType->getAST());
 			}
 
-			// Resolve Class Type
-			SemaResolverClass::BaseClasses(this, ClassType);
-			this->ClassTypes.push_back(ClassType);
+			// Create Class Type Resolver
+			SemaResolverClass *ResolverClass = new SemaResolverClass(this, ClassType);
+			this->ResolverClasses.push_back(ResolverClass);
 
 		} else if (Sema->isEnum()) {
 			SemaEnumType * EnumType = static_cast<SemaEnumType *>(Sema);
@@ -277,11 +277,8 @@ void SemaResolver::ResolveTypes() {
 }
 
 void SemaResolver::ResolveClassTypes() {
-	for (SemaClassType *Class : ClassTypes) {
-
-		// Resolve Class Definitions
-		if (Class->getClassKind() != SemaClassKind::INTERFACE)
-			SemaResolverClass::ClassDefinition(this, Class);
+	for (SemaResolverClass *ResolverClass : ResolverClasses) {
+		ResolverClass->Resolve();
 	}
 }
 

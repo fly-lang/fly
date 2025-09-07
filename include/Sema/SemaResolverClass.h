@@ -33,21 +33,21 @@ namespace fly {
 
     public:
 
-        static void BaseClasses(SemaResolver *R, SemaClassType *Class);
+        SemaResolverClass(SemaResolver *R, SemaClassType *Class);
 
-        static void ClassDefinition(SemaResolver *R, SemaClassType *Class);
+        void Resolve();
 
     private:
 
-        SemaResolverClass(SemaResolver *R, SemaClassType *Class);
+        void ResolveBaseClasses();
 
-        void CreateDefinitions();
+        void ResolveDefinitions();
 
-        SemaClassAttribute *DefineAttribute(SemaClassInstance *This, ASTVar *Var, SemaComment *Comment);
+        SemaClassAttribute *DefineAttribute(ASTVar *Var, SemaComment *Comment);
 
         SemaClassMethod *DefineMethod(SemaClassInstance *This, ASTFunction* Function, SemaComment * Comment);
 
-        void CreateBaseDefinitions(SemaClassType *InheritClass);
+        void CreateBaseDefinition(SemaClassType *InheritClass);
 
         bool CanInheritMethod(SemaClassMethod *Method);
 

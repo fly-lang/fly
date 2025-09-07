@@ -109,8 +109,7 @@ void CodeGenClass::CreateInheritTypes(llvm::SmallVector<llvm::Type *, 4> &TypeVe
 
 		// Create CodeGen for Base Class
 		if (BaseThis->getClass()->getCodeGen() == nullptr) {
-			CodeGenClass *CGC = CGM->GenClass(BaseThis->getClass(), false);
-			BaseThis->getClass()->setCodeGen(CGC);
+			CGM->GenClass(BaseThis->getClass(), false);
 		}
 
 		// Create CodeGenVar for Base Class Instance
