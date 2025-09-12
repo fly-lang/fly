@@ -78,18 +78,17 @@ llvm::Value *CodeGenVar::getPointer() {
 			llvm::ArrayRef<llvm::Value *> IdxList = {CGM->Zero, llvm::ConstantInt::get(CGM->Int32Ty, Attribute->getCodeGen()->getIndex())};
 			this->Pointer = CGM->Builder->CreateInBoundsGEP(CGV->getType(), CGV->getValue(), IdxList);
 		}
-	} else if (Sema->getVarKind() == SemaVarKind::CLASS_INSTANCE) {
-		assert(this->Pointer && "Pointer must be set for ClassInstance");
-		// TODO: Polymorphism
-		// Check ClassType for setting Index
-		SemaClassInstance * This = static_cast<SemaClassInstance *>(Sema);
-
-		if (This->getParent()) {
-			CodeGenVarBase *CGV = This->getParent()->getCodeGen();
-			llvm::ArrayRef<llvm::Value *> IdxList = {CGM->Zero, llvm::ConstantInt::get(CGM->Int32Ty, This->getCodeGen()->getIndex())};
-			this->Pointer = CGM->Builder->CreateInBoundsGEP(CGV->getType(), CGV->getValue(), IdxList);
-		}
 	}
+	// else if (Sema->getVarKind() == SemaVarKind::CLASS_INSTANCE) {
+	// 	// Check ClassType for setting Index
+	// 	SemaClassInstance * This = static_cast<SemaClassInstance *>(Sema);
+	//
+	// 	if (This->getParent()) {
+	// 		CodeGenVarBase *CGV = This->getParent()->getCodeGen();
+	// 		llvm::ArrayRef<llvm::Value *> IdxList = {CGM->Zero, llvm::ConstantInt::get(CGM->Int32Ty, This->getCodeGen()->getIndex())};
+	// 		this->Pointer = CGM->Builder->CreateInBoundsGEP(CGV->getType(), CGV->getValue(), IdxList);
+	// 	}
+	// }
 
     return this->Pointer;
 }

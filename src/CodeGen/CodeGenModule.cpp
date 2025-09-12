@@ -777,22 +777,9 @@ llvm::Value *CodeGenModule::GenCall(SemaCall *Sema) {
 
     		// Allocate memory for the new instance in InstancePtr
     		if (Sema->getAST()->getCallKind() == ASTCallKind::CALL_NEW) {
+    			InstancePtr = CGClass->NewInstance();
+    			Builder->Insert(InstancePtr);
 
-    			// FIXME? need Int8Ty for empty attributes in class?
-    			// llvm::Type *AllocType = Method->getClass()->getAttributes().empty() ? Int8Ty : Method->getClass()->getCodeGen()
-
-    			// Allocate memory for the new instance and all its baseclass instances
-    			llvm::Type *IntPtrTy = Module->getDataLayout().getIntPtrType(LLVMCtx);
-    			llvm::Type *AllocType = Method->getClass()->getCodeGen()->getType();
-    			uint64_t AllocSize = Module->getDataLayout().getTypeAllocSize(Method->getClass()->getCodeGen()->getType());
-    			llvm::Constant *AllocSizeVal = llvm::ConstantInt::get(IntPtrTy, AllocSize);
-
-    			// @malloc data type struct
-    			llvm::IntegerType *IntPtrType = llvm::Type::getIntNTy(LLVMCtx, Module->getDataLayout().getMaxPointerSizeInBits());
-    			const llvm::Twine InstName = Method->getClass()->getName() + "_inst";
-    			llvm::Instruction *I = llvm::CallInst::CreateMalloc(Builder->GetInsertBlock(), IntPtrType,
-															  AllocType, AllocSizeVal, nullptr, nullptr, InstName);
-    			InstancePtr = Builder->Insert(I);
     		} else {
 			    // this is a constructor without new
     			// You are inside a class method call
@@ -813,8 +800,18 @@ llvm::Value *CodeGenModule::GenCall(SemaCall *Sema) {
 
     	if (Sema->getParent()) {
 
-    		// Instance method call
-    		InstancePtr = GenResult(Sema->getParent());
+    		SemaClassType * ParentClass = static_cast<SemaClassType *>(Sema->getParent()->getType());
+    		if (Method->getClass()->isBase(ParentClass)) {
+    			// Instance of base class method call
+    			InstancePtr = GenResult(Sema->getParent());
+
+    			// Get the base class instance pointer
+    			InstancePtr = ParentClass->getCodeGen()->getBaseInstance(InstancePtr, Method->getClass()->getCodeGen()->getType());
+    		} else {
+    			// Instance of class method call
+    			InstancePtr = GenResult(Sema->getParent());
+    		}
+
 
     	} else {
     		// Direct method call inside a class

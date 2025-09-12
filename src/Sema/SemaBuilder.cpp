@@ -405,8 +405,6 @@ SemaClassMethod * SemaBuilder::CreateClassMethod(SemaClassType *Class, SemaClass
 	if (AST->getName() == Class->getName()) {
 		Method = new SemaClassMethod(AST, Class, This, SemaClassMethodKind::METHOD_CONSTRUCTOR);
 		Method->ReturnType = S.getSymTable().getVoidType();
-		if (Method->getParams().empty())
-			Class->DefaultConstructor = Method;
 	} else {
 		SemaClassMethodKind MethodKind = Class->getClassKind() == SemaClassKind::INTERFACE ?
 			                 SemaClassMethodKind::METHOD_ABSTRACT : SemaClassMethodKind::METHOD;

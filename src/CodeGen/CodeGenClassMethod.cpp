@@ -100,7 +100,12 @@ void CodeGenClassMethod::GenBody() {
 
     	// Only for no Struct Class
     	if (Class->getClassKind() == SemaClassKind::STRUCT) {
-    		ClassInstancePtr = Fn->getArg(0);
+    		// 0 is the class instance
+    		// 1..n are the function params
+    		unsigned const int InstanceArgIdx = 0;
+    		unsigned const int StartArgIdx = 1;
+
+    		ClassInstancePtr = Fn->getArg(InstanceArgIdx);
 
     		// Alloca Params
     		// Alloca Local Vars & Params
@@ -110,24 +115,31 @@ void CodeGenClassMethod::GenBody() {
     		ClassMethod->getThis()->getCodeGen()->Store(ClassInstancePtr);
 
     		// Alloca Function Local Vars and generate body
-    		StoreParams(1);
+    		StoreParams(StartArgIdx);
     	} else {
 
-    		// Get the Class Instance Pointer
-    		ClassInstancePtr = Fn->getArg(1);
+    		// 0 is Error Handler
+    		// 1 is the class instance
+    		// 2..n are the function params
+    		unsigned const int ErrorHandlerArgIdx = 0;
+    		unsigned const int InstanceArgIdx = 1;
+    		unsigned const int StartArgIdx = 2;
+
+    		// Get the Class Instance Pointer: 0 is Error Handler, 1 is the instance
+    		ClassInstancePtr = Fn->getArg(InstanceArgIdx);
 
     		// Alloca Params
     		// Alloca Local Vars & Params
     		AllocaLocalVars();
 
     		// Store Error Handler Var
-    		Sema->getErrorHandler()->getCodeGen()->StoreErrorHandler(Fn->getArg(0));
+    		Sema->getErrorHandler()->getCodeGen()->StoreErrorHandler(Fn->getArg(ErrorHandlerArgIdx));
 
     		// Save Class instance and get Pointer
     		ClassMethod->getThis()->getCodeGen()->Store(ClassInstancePtr);
 
     		// Alloca Function Local Vars and generate body
-    		StoreParams(2);
+    		StoreParams(StartArgIdx);
     	}
 
     	ClassMethod->getThis()->getCodeGen()->Load();

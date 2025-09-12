@@ -202,7 +202,7 @@ TEST_F(CodeGenTest, CGStruct2) {
 
         EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
                           "%TestClass = type { %TestClass_vtable*, i32 }\n"
-                          "%TestClass_vtable = type {}\n"
+                          "%TestClass_vtable = type { void (%error*, %TestClass*)* }\n"
                           "\n"
 						  "define void @_F4func(%error* %0) {\n"
 						  "entry:\n"
@@ -301,7 +301,7 @@ TEST_F(CodeGenTest, CGStruct2) {
 
         EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
                           "%TestClass = type { %TestClass_vtable*, i32 }\n"
-                          "%TestClass_vtable = type { i32 (%error*, %TestClass*)* }\n"
+                          "%TestClass_vtable = type { void (%error*, %TestClass*)*, i32 (%error*, %TestClass*)* }\n"
                           "\n"
 						  "define void @_F4func(%error* %0) {\n"
 						  "entry:\n"
@@ -319,7 +319,7 @@ TEST_F(CodeGenTest, CGStruct2) {
 						  // int a = test.a()
 						  "  %7 = getelementptr inbounds %TestClass, %TestClass* %6, i32 0, i32 0\n"
 						  "  %8 = load %TestClass_vtable*, %TestClass_vtable** %7, align 8\n"
-						  "  %9 = getelementptr inbounds %TestClass_vtable, %TestClass_vtable* %8, i32 0, i32 0\n"
+						  "  %9 = getelementptr inbounds %TestClass_vtable, %TestClass_vtable* %8, i32 0, i32 1\n"
 						  "  %10 = load i32 (%error*, %TestClass*)*, i32 (%error*, %TestClass*)** %9, align 8\n"
 						  "  %11 = call i32 %10(%error* %4, %TestClass* %6)\n"
 						  "  store i32 %11, i32* %3, align 4\n"
@@ -422,7 +422,7 @@ TEST_F(CodeGenTest, CGStruct2) {
 
         EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
                           "%TestClass = type { %TestClass_vtable*, i32 }\n"
-                          "%TestClass_vtable = type { void (%error*, %TestClass*, i32)* }\n"
+                          "%TestClass_vtable = type { void (%error*, %TestClass*)*, void (%error*, %TestClass*, i32)* }\n"
                           "\n"
 						  "define void @_F4func(%error* %0) {\n"
 						  "entry:\n"
@@ -439,7 +439,7 @@ TEST_F(CodeGenTest, CGStruct2) {
 						  // test.setA(1)
 						  "  %6 = getelementptr inbounds %TestClass, %TestClass* %5, i32 0, i32 0\n"
 						  "  %7 = load %TestClass_vtable*, %TestClass_vtable** %6, align 8\n"
-						  "  %8 = getelementptr inbounds %TestClass_vtable, %TestClass_vtable* %7, i32 0, i32 0\n"
+						  "  %8 = getelementptr inbounds %TestClass_vtable, %TestClass_vtable* %7, i32 0, i32 1\n"
 						  "  %9 = load void (%error*, %TestClass*, i32)*, void (%error*, %TestClass*, i32)** %8, align 8\n"
 						  "  call void %9(%error* %3, %TestClass* %5, i32 1)\n"
 						  // delete test
@@ -540,7 +540,7 @@ TEST_F(CodeGenTest, CGStruct2) {
 
         EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
                           "%TestClass = type { %TestClass_vtable* }\n"
-                          "%TestClass_vtable = type { i32 (%error*, %TestClass*)* }\n"
+                          "%TestClass_vtable = type { void (%error*, %TestClass*)*, i32 (%error*, %TestClass*)* }\n"
                           "\n"
                           "define void @_F4func(%error* %0) {\n"
 						  "entry:\n"
@@ -556,7 +556,7 @@ TEST_F(CodeGenTest, CGStruct2) {
 						  "  %6 = load %TestClass*, %TestClass** %2, align 8\n"
 						  "  %7 = getelementptr inbounds %TestClass, %TestClass* %6, i32 0, i32 0\n"
 						  "  %8 = load %TestClass_vtable*, %TestClass_vtable** %7, align 8\n"
-						  "  %9 = getelementptr inbounds %TestClass_vtable, %TestClass_vtable* %8, i32 0, i32 0\n"
+						  "  %9 = getelementptr inbounds %TestClass_vtable, %TestClass_vtable* %8, i32 0, i32 1\n"
 						  "  %10 = load i32 (%error*, %TestClass*)*, i32 (%error*, %TestClass*)** %9, align 8\n"
 						  "  %11 = call i32 %10(%error* %4, %TestClass* %6)\n"
 						  "  store i32 %11, i32* %3, align 4\n"
@@ -629,7 +629,7 @@ TEST_F(CodeGenTest, CGStruct2) {
 
         EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
                           "%TestClass = type { %TestClass_vtable*, i32 }\n"
-                          "%TestClass_vtable = type {}\n"
+                          "%TestClass_vtable = type { void (%error*, %TestClass*)* }\n"
                           "\n"
                           "@0 = external global i32\n" // TestClass.a
                           "\n"
@@ -698,7 +698,7 @@ TEST_F(CodeGenTest, CGStruct2) {
 
         EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
                           "%TestClass = type { %TestClass_vtable* }\n"
-                          "%TestClass_vtable = type {}\n"
+                          "%TestClass_vtable = type { void (%error*, %TestClass*)* }\n"
                           "\n"
                           "define void @_F4func(%error* %0) {\n"
 						  "entry:\n"
@@ -896,7 +896,7 @@ TEST_F(CodeGenTest, CGStruct2) {
     	EXPECT_EQ(output, "\n%BaseStruct = type { i32 }\n"
     					  "%error = type { i8, i32, i8* }\n"
 						  "%TestClass = type { %TestClass_vtable*, %BaseStruct, i32 }\n"
-						  "%TestClass_vtable = type {}\n"
+						  "%TestClass_vtable = type { void (%error*, %TestClass*)* }\n"
 						  "\n"
 						  "define void @BaseStruct_F10BaseStruct(%BaseStruct* %0) {\n"
 						  "entry:\n"
@@ -969,7 +969,7 @@ TEST_F(CodeGenTest, CGStruct2) {
     					  "%BaseStruct2 = type { i32, i32 }\n"
 						  "%error = type { i8, i32, i8* }\n"
 						  "%TestClass = type { %TestClass_vtable*, %BaseStruct, %BaseStruct2, i32, i32 }\n"
-						  "%TestClass_vtable = type {}\n"
+						  "%TestClass_vtable = type { void (%error*, %TestClass*)* }\n"
 						  "\n"
 						  "define void @BaseStruct_F10BaseStruct(%BaseStruct* %0) {\n"
 						  "entry:\n"
@@ -1115,7 +1115,7 @@ TEST_F(CodeGenTest, CGStruct2) {
     	// }
     	//
     	// class TestClass : BaseClass, BaseClass2 {
-    	//   void do() {
+    	//   void foo() {
     	//		BaseClass.do()
     	//   }
     	// }
@@ -1150,7 +1150,7 @@ TEST_F(CodeGenTest, CGStruct2) {
     	ASTClass *TestClass = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass",
 			TopModifiers, TestSuperClasses);
 
-    	// void do() {
+    	// void foo() {
     	//    BaseClass.do()
     	// }
     	ASTBlockStmt *DoBody3 = getASTBuilder().CreateBlockStmt(SourceLoc);
@@ -1158,7 +1158,7 @@ TEST_F(CodeGenTest, CGStruct2) {
     		getASTBuilder().CreateTypeRef(BaseClass)));
     	SemaBuilderStmt *aStmt = getASTBuilder().CreateExprStmt(DoBody3, SourceLoc);
     	aStmt->setExpr(aCallExpr);
-    	ASTFunction *TestClass_do = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, VoidTypeRef, "do", TopModifiers, Params, DoBody3);
+    	ASTFunction *TestClass_do = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, VoidTypeRef, "foo", TopModifiers, Params, DoBody3);
 
     	// validate and resolve
     	EXPECT_TRUE(S->Resolve());
@@ -1170,11 +1170,11 @@ TEST_F(CodeGenTest, CGStruct2) {
     	EXPECT_EQ(output, "\n"
     					  "%error = type { i8, i32, i8* }\n"
     					  "%BaseClass2 = type { %BaseClass2_vtable*, i32 }\n"
-						  "%BaseClass2_vtable = type { void (%error*, %BaseClass2*)*, void (%error*, %BaseClass2*)* }\n"
+						  "%BaseClass2_vtable = type { void (%error*, %BaseClass2*)*, void (%error*, %BaseClass2*)*, void (%error*, %BaseClass2*)* }\n"
     					  "%BaseClass = type { %BaseClass_vtable*, i32 }\n"
-    					  "%BaseClass_vtable = type { void (%error*, %BaseClass*)* }\n"
-    					  "%TestClass = type { %TestClass_vtable*, %BaseClass*, %BaseClass2*, i32, i32 }\n"
-						  "%TestClass_vtable = type { void (%error*, %TestClass*)*, void (%error*, %BaseClass2*)* }\n"
+    					  "%BaseClass_vtable = type { void (%error*, %BaseClass*)*, void (%error*, %BaseClass*)* }\n"
+    					  "%TestClass = type { %TestClass_vtable*, %BaseClass, %BaseClass2, i32, i32 }\n"
+						  "%TestClass_vtable = type { void (%error*, %TestClass*)*, void (%error*, %TestClass*)* }\n"
 						  "\n"
 						  "define void @BaseClass2_F10BaseClass2(%error* %0, %BaseClass2* %1) {\n"
 						  "entry:\n"
@@ -1237,17 +1237,14 @@ TEST_F(CodeGenTest, CGStruct2) {
 						  "  store %error* %0, %error** %2, align 8\n"
 						  "  store %TestClass* %1, %TestClass** %3, align 8\n"
 						  "  %4 = load %TestClass*, %TestClass** %3, align 8\n"
-						  "  %5 = getelementptr inbounds %TestClass, %TestClass* %4, i32 0, i32 1\n"
+						  "  %5 = getelementptr inbounds %TestClass, %TestClass* %4, i32 0, i32 3\n"
 						  "  store i32 0, i32* %5, align 4\n"
-						  "  %6 = getelementptr inbounds %TestClass, %TestClass* %4, i32 0, i32 2\n"
+						  "  %6 = getelementptr inbounds %TestClass, %TestClass* %4, i32 0, i32 4\n"
 						  "  store i32 0, i32* %6, align 4\n"
-						  "  %7 = load %error*, %error** %2, align 8\n"
-						  "  call void @BaseClass_F9BaseClass(%error* %7, <null operand!>)\n"
-						  "  call void @BaseClass2_F10BaseClass2(%error* %7, <null operand!>)\n"
 						  "  ret void\n"
 						  "}\n"
 						  "\n"
-						  "define void @TestClass_F2do(%error* %0, %TestClass* %1) {\n"
+						  "define void @TestClass_F3foo(%error* %0, %TestClass* %1) {\n"
 						  "entry:\n"
 						  "  %2 = alloca %error*, align 8\n"
 						  "  %3 = alloca %TestClass*, align 8\n"
@@ -1256,12 +1253,11 @@ TEST_F(CodeGenTest, CGStruct2) {
 						  "  %4 = load %TestClass*, %TestClass** %3, align 8\n"
 						  "  %5 = load %error*, %error** %2, align 8\n"
 						  "  %6 = getelementptr inbounds %TestClass, %TestClass* %4, i32 0, i32 1\n"
-						  "  %7 = load %BaseClass*, %BaseClass** %6, align 8\n"
-						  "  %8 = getelementptr inbounds %BaseClass, %BaseClass* %7, i32 0, i32 0\n"
-						  "  %9 = load %BaseClass_vtable*, %BaseClass_vtable** %8, align 8\n"
-						  "  %10 = getelementptr inbounds %BaseClass_vtable, %BaseClass_vtable* %9, i32 0, i32 0\n"
-						  "  %11 = load void (%error*, %BaseClass*)*, void (%error*, %BaseClass*)** %10, align 8\n"
-						  "  call void %11(%error* %5, %BaseClass* %7)\n"
+						  "  %7 = getelementptr inbounds %BaseClass, %BaseClass* %6, i32 0, i32 0\n"
+						  "  %8 = load %BaseClass_vtable*, %BaseClass_vtable** %7, align 8\n"
+						  "  %9 = getelementptr inbounds %BaseClass_vtable, %BaseClass_vtable* %8, i32 0, i32 1\n"
+						  "  %10 = load void (%error*, %BaseClass*)*, void (%error*, %BaseClass*)** %9, align 8\n"
+						  "  call void %10(%error* %5, %BaseClass* %6)\n"
 						  "  ret void\n"
 						  "}\n"
 						  );

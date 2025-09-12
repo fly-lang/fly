@@ -43,6 +43,8 @@ namespace fly {
 
         llvm::SmallVector<CodeGenClassMethod *, 4> Methods;
 
+        llvm::SmallVector<llvm::StructType *, 4> BaseTypes;
+
         void CreateVTableType(llvm::SmallVector<llvm::Type *, 4> &TypeVector);
 
         void CreateInheritTypes(llvm::SmallVector<llvm::Type *, 4> &TypeVector);
@@ -58,9 +60,16 @@ namespace fly {
 
         llvm::StructType *getVTableType();
 
+        llvm::Value* NewInstance();
+
         const llvm::SmallVector<CodeGenClassMethod *, 4> &getConstructors() const;
 
         const llvm::SmallVector<CodeGenClassMethod *, 4> &getMethods() const;
+
+        llvm::Value* getBaseInstance(llvm::Value* InstancePtr, llvm::StructType* Base);
+
+    private:
+        llvm::Value* NewInstance(SemaClassType *ClassType);
 
     };
 }

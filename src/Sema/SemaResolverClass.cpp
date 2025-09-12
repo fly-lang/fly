@@ -39,13 +39,13 @@ void SemaResolverClass::Resolve() {
 	// Resolve Class Definitions
 	this->ResolveDefinitions();
 
-	// Resolve Base Classes
-	this->ResolveBaseClasses();
-
 	// Create Class Default Constructor
 	// Create the default constructor if no constructors are defined
 	if (Class->getClassKind() != SemaClassKind::INTERFACE && Class->getConstructors().empty())
 		this->CreateDefaultConstructor();
+
+	// Resolve Base Classes
+	this->ResolveBaseClasses();
 
 	// ClassDefinition Class Attributes
 	this->SetDefaultValueInAttributes();
@@ -53,27 +53,6 @@ void SemaResolverClass::Resolve() {
 	// ClassDefinition Class Methods
 	if (Class->getClassKind() == SemaClassKind::CLASS)
 		this->AddBodies();
-}
-
-void SemaResolverClass::ResolveBaseClasses() {
-	// ClassDefinition Base Classes on first pass
-	for (auto &BaseTypeRef : Class->getAST()->getBaseClasses()) {
-
-		// Search for the SuperClass in the Module, NameSpace or Imports
-		if (R->ResolveTypeRef(BaseTypeRef)) {
-			SemaType *BaseType = BaseTypeRef->getSema();
-
-			if (BaseType->getKind() != SemaTypeKind::TYPE_CLASS) {
-				// Error: invalid superclass type
-				R->S.Diag(BaseTypeRef->getLocation(), diag::err_syntax_error);
-				break;
-			}
-
-			SemaClassType *BaseClassType = static_cast<SemaClassType *>(BaseType);
-			this->CreateBaseDefinition(BaseClassType);
-			Class->BaseClasses.push_back(BaseClassType);
-		}
-	}
 }
 
 void SemaResolverClass::ResolveDefinitions() {
@@ -125,6 +104,27 @@ void SemaResolverClass::ResolveDefinitions() {
 	}
 }
 
+void SemaResolverClass::ResolveBaseClasses() {
+	// ClassDefinition Base Classes on first pass
+	for (auto &BaseTypeRef : Class->getAST()->getBaseClasses()) {
+
+		// Search for the SuperClass in the Module, NameSpace or Imports
+		if (R->ResolveTypeRef(BaseTypeRef)) {
+			SemaType *BaseType = BaseTypeRef->getSema();
+
+			if (BaseType->getKind() != SemaTypeKind::TYPE_CLASS) {
+				// Error: invalid superclass type
+				R->S.Diag(BaseTypeRef->getLocation(), diag::err_syntax_error);
+				break;
+			}
+
+			SemaClassType *BaseClassType = static_cast<SemaClassType *>(BaseType);
+			this->CreateBaseDefinition(BaseClassType);
+			Class->BaseClasses.push_back(BaseClassType);
+		}
+	}
+}
+
 SemaClassAttribute *SemaResolverClass::DefineAttribute(ASTVar *Var, SemaComment *Comment) {
 	// ClassDefinition Type
 	R->ResolveTypeRef(Var->TypeRef);
@@ -165,11 +165,6 @@ SemaClassMethod *SemaResolverClass::DefineMethod(SemaClassInstance *This, ASTFun
 
 void SemaResolverClass::CreateBaseDefinition(SemaClassType *BaseClass) {
 	// Create the Class Instance to be added to Base Instance Children
-	SemaClassInstance *BaseThis = R->S.getSemaBuilder().CreateThisInstance(BaseClass);
-	auto Pair = std::pair<size_t, SemaClassInstance *>(BaseClass->getId(), BaseThis);
-
-	// Add the Base Class Instance to the Class This Instances
-	Class->This->BaseInstances.insert(Pair);
 
 	for (auto AST : BaseClass->getAST()->getDefinitions()) {
 		switch (AST->getKind()) {
@@ -181,6 +176,7 @@ void SemaResolverClass::CreateBaseDefinition(SemaClassType *BaseClass) {
 				// Define an Attribute
 				SemaClassAttribute *Attribute = DefineAttribute(Var, nullptr);
 
+				// Inherit only protected or public Attributes (not Static)
 				if (CanInheritAttribute(Attribute)) {
 					Var->Sema->Type = Var->TypeRef->getSema();
 					Class->Attributes.insert(std::make_pair(Var->getName(), Attribute));
@@ -193,11 +189,12 @@ void SemaResolverClass::CreateBaseDefinition(SemaClassType *BaseClass) {
 				ASTFunction *Function = static_cast<ASTFunction *>(AST);
 
 				// Define a Method
-				SemaClassMethod *Method = DefineMethod(BaseThis, Function, nullptr);
+				// SemaClassMethod *Method = DefineMethod(BaseThis, Function, nullptr);
 
-				if (!Method->isConstructor() && CanInheritMethod(Method)) {
-					Class->Methods.insert(std::make_pair(Method->getMangledName(), Method));
-				}
+				// Inherit only Methods (not Constructors)
+				// if (!Method->isConstructor() && CanInheritMethod(Method)) {
+				// 	Class->Methods.insert(std::make_pair(Method->getMangledName(), Method));
+				// }
 			}
 			break;
 
@@ -300,24 +297,25 @@ void SemaResolverClass::CreateDefaultConstructor() {
 											   nullptr, Class->getAST()->getName(), Modifiers, Params, Body);
 
 	// Call default constructor of the super classes (if exists)
-	if (!Class->getBaseClasses().empty()) {
-		for (auto &BaseClass : Class->getBaseClasses()) {
-			// Create Call to Base Constructor
-			if (BaseClass->DefaultConstructor) {
-				SemaClassMethod * DefaultConstructor = BaseClass->DefaultConstructor;
-				llvm::SmallVector<ASTExpr *, 8> Args;
-				SourceLocation Loc = SourceLocation();
-
-				// TODO: Create Call to Base Constructor
-				// ASTCall *BaseCall = S.getASTBuilder().CreateCall(DefaultConstructor->getAST()->getName(), Args);
-				// SemaBuilderStmt * ExprStmt = S.getASTBuilder().CreateExprStmt(Body, Loc);
-				// ExprStmt->setExpr(S.getASTBuilder().CreateExpr(BaseCall));
-			} else {
-                // Error: Base Class has no default constructor
-                S.Diag(BaseClass->getAST()->getLocation(), diag::err_syntax_error);
-            }
-		}
-	}
+	// if (!Class->getBaseClasses().empty()) {
+	// 	for (auto &BaseClass : Class->getBaseClasses()) {
+ //
+	// 		// Create Call to Base Constructor
+	// 		if (BaseClass->DefaultConstructor) {
+	// 			SemaClassMethod * DefaultConstructor = BaseClass->DefaultConstructor;
+	// 			llvm::SmallVector<ASTExpr *, 8> Args;
+	// 			SourceLocation Loc = SourceLocation();
+ //
+	// 			// TODO: Create Call to Base Constructor
+	// 			// ASTCall *BaseCall = S.getASTBuilder().CreateCall(DefaultConstructor->getAST()->getName(), Args);
+	// 			// SemaBuilderStmt * ExprStmt = S.getASTBuilder().CreateExprStmt(Body, Loc);
+	// 			// ExprStmt->setExpr(S.getASTBuilder().CreateExpr(BaseCall));
+	// 		} else {
+ //                // Error: Base Class has no default constructor
+ //                S.Diag(BaseClass->getAST()->getLocation(), diag::err_syntax_error);
+ //            }
+	// 	}
+	// }
 
 	// Create the default constructor
 	SemaClassMethod *Constructor = S.getSemaBuilder().CreateClassMethod(Class, Class->This, AST, nullptr);
