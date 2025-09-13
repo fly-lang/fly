@@ -28,7 +28,7 @@ namespace {
         ASTClass *TestStruct = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "TestStruct", TopModifiers, SuperClasses);
         ASTVar *aField = getASTBuilder().CreateClassAttribute(SourceLoc, TestStruct, IntTypeRef, "a", TopModifiers);
 
-        // main() {
+        // func() {
         //    new TestStruct()
         // }
         ASTBlockStmt *MainBody = getASTBuilder().CreateBlockStmt(SourceLoc);
@@ -500,7 +500,6 @@ TEST_F(CodeGenTest, CGStruct2) {
         ASTBlockStmt *aFuncBody = getASTBuilder().CreateBlockStmt(SourceLoc);
         ASTFunction *aFunc = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, IntTypeRef,
                                                           "a", TopModifiers, Params, aFuncBody);
-
         SemaBuilderStmt *aFuncReturn = getASTBuilder().CreateReturnStmt(aFuncBody, SourceLoc);
         ASTValueExpr *aFuncExpr = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLocation(), "1"));
         aFuncReturn->setExpr(aFuncExpr);
@@ -867,10 +866,17 @@ TEST_F(CodeGenTest, CGStruct2) {
     	ASTModule *Module = CreateModule();
 
     	// struct BaseStruct {
-    	// int a
+    	//   int a
     	// }
     	//
     	// class TestClass : BaseStruct {
+    	//   TestClass() {
+    	//     this.a = 1
+    	//   }
+    	// }
+
+    	// main() {
+    	//    new TestClass()
     	// }
 
     	// struct BaseStruct
@@ -886,6 +892,26 @@ TEST_F(CodeGenTest, CGStruct2) {
     	ASTClass *TestClass = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass",
 			TopModifiers, TestSuperClasses);
 
+    	//   TestClass() {
+    	//     this.a = 1
+    	//   }
+    	ASTBlockStmt *ConstructorBody = getASTBuilder().CreateBlockStmt(SourceLoc);
+    	ASTRef * this_a = getASTBuilder().CreateVarRef(aAttribute, getASTBuilder().CreateVarRef(SourceLoc, "this"));
+    	SemaBuilderStmt *assignThis_a = getASTBuilder().CreateAssignmentStmt(ConstructorBody, this_a);
+    	assignThis_a->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "1")));
+    	ASTFunction *ConstructorMethod = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, VoidTypeRef,
+															   "TestClass", TopModifiers, Params, ConstructorBody);
+
+
+
+    	// main() { new TestClass() }
+    	ASTBlockStmt *MainBody = getASTBuilder().CreateBlockStmt(SourceLoc);
+    	ASTCall *ConstructorCall = CreateCall(TestClass->getName(), Args, ASTCallKind::CALL_NEW);
+    	ASTCallExpr *NewExpr = getASTBuilder().CreateExpr(ConstructorCall);
+    	SemaBuilderStmt *testNewStmt = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
+    	testNewStmt->setExpr(NewExpr);
+    	getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, MainBody);
+
     	// validate and resolve
     	EXPECT_TRUE(S->Resolve());
 
@@ -893,10 +919,22 @@ TEST_F(CodeGenTest, CGStruct2) {
     	llvm::Module * M = Generate();
     	std::string output = getOutput(M);
 
-    	EXPECT_EQ(output, "\n%BaseStruct = type { i32 }\n"
+    	EXPECT_EQ(output, "\n"
     					  "%error = type { i8, i32, i8* }\n"
 						  "%TestClass = type { %TestClass_vtable*, %BaseStruct, i32 }\n"
 						  "%TestClass_vtable = type { void (%error*, %TestClass*)* }\n"
+						  "%BaseStruct = type { i32 }\n"
+						  "\n"
+						  "define void @_F4func(%error* %0) {\n"
+						  "entry:\n"
+						  "  %1 = alloca %error*, align 8\n"
+						  "  store %error* %0, %error** %1, align 8\n"
+						  "  %2 = load %error*, %error** %1, align 8\n"
+						  "  %malloccall = tail call i8* @malloc(i64 16)\n"
+						  "  %3 = bitcast i8* %malloccall to %TestClass*\n"
+						  "  call void @TestClass_F9TestClass(%error* %2, %TestClass* %3)\n"
+						  "  ret void\n"
+						  "}\n"
 						  "\n"
 						  "define void @BaseStruct_F10BaseStruct(%BaseStruct* %0) {\n"
 						  "entry:\n"
@@ -917,8 +955,12 @@ TEST_F(CodeGenTest, CGStruct2) {
 						  "  %4 = load %TestClass*, %TestClass** %3, align 8\n"
 						  "  %5 = getelementptr inbounds %TestClass, %TestClass* %4, i32 0, i32 2\n"
 						  "  store i32 0, i32* %5, align 4\n"
+						  "  %6 = getelementptr inbounds %TestClass, %TestClass* %4, i32 0, i32 2\n"
+						  "  store i32 1, i32* %6, align 4\n"
 						  "  ret void\n"
 						  "}\n"
+						  "\n"
+						  "declare noalias i8* @malloc(i64)\n"
 						  );
     }
 
@@ -928,6 +970,7 @@ TEST_F(CodeGenTest, CGStruct2) {
     	// struct BaseStruct {
     	// int a
     	// }
+    	//
     	// struct BaseStruct2 {
     	// int a
     	// int b

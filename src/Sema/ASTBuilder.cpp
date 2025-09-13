@@ -287,12 +287,12 @@ ASTVar *ASTBuilder::CreateClassAttribute(const SourceLocation &Loc, ASTClass *Cl
     return Attribute;
 }
 
-ASTFunction *ASTBuilder::CreateClassMethod(const SourceLocation &Loc, ASTClass *Class, ASTTypeRef *TypeRef,
+ASTFunction *ASTBuilder::CreateClassMethod(const SourceLocation &Loc, ASTClass *Class, ASTTypeRef *ReturnTypeRef,
                                                llvm::StringRef Name, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
                                                llvm::SmallVector<ASTVar *, 8> &Params, ASTBlockStmt *Body) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateClassMethod", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
 
-    ASTFunction *Method = new ASTFunction(Loc, TypeRef, Modifiers, Name, Params);
+    ASTFunction *Method = new ASTFunction(Loc, ReturnTypeRef, Modifiers, Name, Params);
 
     if (Body)
         CreateBody(Method, Body);

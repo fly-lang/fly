@@ -797,7 +797,6 @@ llvm::Value *CodeGenModule::GenCall(SemaCall *Sema) {
     	}
 
     	// Call is not a constructor, so it must be a method call
-
     	if (Sema->getParent()) {
 
     		SemaClassType * ParentClass = static_cast<SemaClassType *>(Sema->getParent()->getType());
@@ -811,7 +810,6 @@ llvm::Value *CodeGenModule::GenCall(SemaCall *Sema) {
     			// Instance of class method call
     			InstancePtr = GenResult(Sema->getParent());
     		}
-
 
     	} else {
     		// Direct method call inside a class

@@ -293,7 +293,7 @@ void SemaResolverClass::CreateDefaultConstructor() {
 
 	llvm::SmallVector<ASTVar *, 8> Params;
 	ASTBlockStmt *Body = S.getASTBuilder().CreateBlockStmt(SourceLocation());
-	ASTFunction * AST = S.getASTBuilder().CreateFunction(R->Module->getAST(), Class->getAST()->getLocation(),
+	ASTFunction * AST = S.getASTBuilder().CreateClassMethod(Class->getAST()->getLocation(), Class->getAST(),
 											   nullptr, Class->getAST()->getName(), Modifiers, Params, Body);
 
 	// Call default constructor of the super classes (if exists)

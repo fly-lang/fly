@@ -248,7 +248,7 @@ namespace fly {
                                                 llvm::StringRef Name, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
                                                 ASTExpr *Expr = nullptr);
 
-        ASTFunction *CreateClassMethod(const SourceLocation &Loc, ASTClass *Class, ASTTypeRef *TypeRef,
+        ASTFunction *CreateClassMethod(const SourceLocation &Loc, ASTClass *Class, ASTTypeRef *ReturnTypeRef,
                                           llvm::StringRef Name, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
                                           llvm::SmallVector<ASTVar *, 8> &Params, ASTBlockStmt *Body = nullptr);
 
