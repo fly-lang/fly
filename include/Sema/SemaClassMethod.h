@@ -24,6 +24,7 @@ namespace fly {
 
 	enum class SemaClassMethodKind {
 		METHOD,
+		METHOD_DEFAULT_CONSTRUCTOR,
 		METHOD_CONSTRUCTOR,
 		METHOD_ABSTRACT
 	};

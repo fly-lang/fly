@@ -104,6 +104,9 @@ CodeGenModule::CodeGenModule(DiagnosticsEngine &Diags, SemaNameSpace *NameSpace,
 
     ErrorTy = CodeGenError::GenErrorType(LLVMCtx);
     ErrorPtrTy = llvm::PointerType::get(ErrorTy, 0);
+	// Add Dummy Global Variable which use the Error Type to be sure that the type is in top of the Module
+	new llvm::GlobalVariable(*Module, ErrorTy, true, llvm::GlobalValue::ExternalLinkage,
+		nullptr, "error");
 
 	Zero = llvm::ConstantInt::get(Int32Ty, 0);
 
@@ -208,9 +211,6 @@ void CodeGenModule::GenAll() {
 
     // Generate Class Body
     for (auto CGClass : CGClasses) {
-        for (auto CGCF: CGClass->getConstructors()) {
-            CGCF->GenBody();
-        }
         for (auto CGCF: CGClass->getMethods()) {
             CGCF->GenBody();
         }
@@ -305,6 +305,10 @@ llvm::Type *CodeGenModule::GenType(SemaType *Type) {
             return llvm::ArrayType::get(Int8Ty, 0);
         }
 
+    	case SemaTypeKind::TYPE_ERROR: {
+        	return ErrorTy;
+    	}
+
         case SemaTypeKind::TYPE_CLASS: {
             SemaClassType *Class = static_cast<SemaClassType *>(Type);
             return Class->getCodeGen()->getType();
@@ -312,10 +316,6 @@ llvm::Type *CodeGenModule::GenType(SemaType *Type) {
 
 		case SemaTypeKind::TYPE_ENUM:
 			return Int32Ty;
-
-        case SemaTypeKind::TYPE_ERROR: {
-            return ErrorTy;
-        }
     }
     assert(0 && "Unknown Var Type Kind");
 }
@@ -791,8 +791,9 @@ llvm::Value *CodeGenModule::GenCall(SemaCall *Sema) {
     		Args.push_back(InstancePtr);
     		addArgs(Sema, Args);
 
-    		// Call the constructor
-    		Builder->CreateCall(Method->getCodeGen()->getFunction(), Args);
+    		// Call the Class constructor
+    		if (Method->getClass()->getClassKind() != SemaClassKind::STRUCT)
+    			Builder->CreateCall(Method->getCodeGen()->getFunction(), Args);
     		return InstancePtr;
     	}
 

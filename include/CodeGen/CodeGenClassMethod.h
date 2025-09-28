@@ -39,11 +39,15 @@ namespace fly {
 
         llvm::PointerType *ClassTypePtr;
 
+        bool Static;
+
         CodeGenClassMethod(CodeGenModule *CGM, SemaClassMethod *Sema, llvm::StructType *Type, size_t Index);
 
     public:
 
         size_t getIndex() const;
+
+        bool isStatic() const;
 
         void GenBody() override;
     };

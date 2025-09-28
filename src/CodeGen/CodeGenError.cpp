@@ -16,9 +16,10 @@
 
 using namespace fly;
 
+std::string CodeGenError::ERROR_NAME = "error";
+
 CodeGenError::CodeGenError(CodeGenModule *CGM, SemaVar *Sema, llvm::Value *ErrorHandler) :
     CGM(CGM), Sema(Sema), ErrorHandler(ErrorHandler), T(CGM->ErrorTy) {
-
 }
 
 llvm::StructType *CodeGenError::GenErrorType(llvm::LLVMContext &LLVMCtx) {
@@ -27,7 +28,8 @@ llvm::StructType *CodeGenError::GenErrorType(llvm::LLVMContext &LLVMCtx) {
     ErrorStructVector.push_back(Int8Ty); // Error Type: 1=integer, 2=string, 3=enum, 4=class
     ErrorStructVector.push_back(llvm::Type::getInt32Ty(LLVMCtx)); // Error Integer
     ErrorStructVector.push_back(Int8Ty->getPointerTo(0)); // Error String or Class Instance
-    return llvm::StructType::create(LLVMCtx, ErrorStructVector, "error");
+    llvm::StructType *ErrorType = llvm::StructType::create(LLVMCtx, ErrorStructVector, ERROR_NAME);
+	return ErrorType;
 }
 
 llvm::Type *CodeGenError::getType() {

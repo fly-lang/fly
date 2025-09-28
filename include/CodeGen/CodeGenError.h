@@ -41,6 +41,8 @@ namespace fly {
 
         llvm::StringRef BlockID;
 
+        static std::string ERROR_NAME;
+
     public:
 
         CodeGenError(CodeGenModule *CGM, SemaVar *Sema, llvm::Value *ErrorHandler);

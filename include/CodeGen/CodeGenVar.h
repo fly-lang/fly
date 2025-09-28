@@ -47,6 +47,7 @@ namespace fly {
         llvm::StringRef BlockID;
 
     public:
+
         CodeGenVar(CodeGenModule *CGM, SemaVar *Sema, llvm::Type *T);
 
         CodeGenVar(CodeGenModule *CGM, SemaVar *Sema, llvm::Type *T, size_t Index);

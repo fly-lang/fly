@@ -30,7 +30,7 @@
 using namespace fly;
 
 CodeGenClassMethod::CodeGenClassMethod(CodeGenModule *CGM, SemaClassMethod *Sema, llvm::StructType *Type, size_t Index) :
-	CodeGenFunctionBase(CGM, Sema), ClassType(Type), Index(Index) {
+	CodeGenFunctionBase(CGM, Sema), ClassType(Type), Index(Index), Static(Sema->isStatic()) {
 
 	SemaClassType *Class = Sema->getClass();
 
@@ -58,13 +58,19 @@ CodeGenClassMethod::CodeGenClassMethod(CodeGenModule *CGM, SemaClassMethod *Sema
     // Set LLVM Function Name %MODULE_CLASS_METHOD (if MODULE == default is empty)
     FnType = llvm::FunctionType::get(RetType, ParamTypes, false);
 
-	std::string FuncName = (Class->getAST()->getName() + Sema->getMangledName()).str();
-    std::string Id = CodeGen::toIdentifier(FuncName, Class->getModule()->getNameSpace()->getName());
-    Fn = llvm::Function::Create(FnType, llvm::GlobalValue::ExternalLinkage, Id, CGM->getModule());
+	if (Class->getClassKind() != SemaClassKind::INTERFACE) {
+		std::string FuncName = (Class->getAST()->getName() + Sema->getMangledName()).str();
+		std::string Id = CodeGen::toIdentifier(FuncName, Class->getModule()->getNameSpace()->getName());
+		Fn = llvm::Function::Create(FnType, llvm::GlobalValue::ExternalLinkage, Id, CGM->getModule());
+	}
 }
 
 size_t CodeGenClassMethod::getIndex() const {
 	return Index;
+}
+
+bool CodeGenClassMethod::isStatic() const {
+    return Static;
 }
 
 void CodeGenClassMethod::GenBody() {
@@ -73,10 +79,15 @@ void CodeGenClassMethod::GenBody() {
 	SemaClassMethod *ClassMethod = (SemaClassMethod *) Sema;
 	SemaClassType *Class = ClassMethod->getClass();
 
+	if (Class->getClassKind() == SemaClassKind::INTERFACE) {
+		// Interface doesn't have body
+		return;
+	}
+
     setInsertPoint();
 
 	// Alloca Error Handler
-    if (ClassMethod->getClass()->getAST()->getClassKind() != ASTClassKind::STRUCT) {
+    if (Class->getAST()->getClassKind() != ASTClassKind::STRUCT) {
     	AllocaErrorHandler();
     }
 
@@ -138,6 +149,13 @@ void CodeGenClassMethod::GenBody() {
     		// Save Class instance and get Pointer
     		ClassMethod->getThis()->getCodeGen()->Store(ClassInstancePtr);
 
+    		//Write the vtable in constructor
+    		if (ClassMethod->isConstructor()) {
+    			CodeGenVarBase * CGV = ClassMethod->getThis()->getCodeGen();
+    			llvm::Value * VTablePtr = CGM->Builder->CreateInBoundsGEP(CGV->getType(), CGV->getValue(),  {CGM->Zero, CGM->Zero});
+    			CGM->Builder->CreateStore(Class->getCodeGen()->getVTable(), VTablePtr);
+    		}
+
     		// Alloca Function Local Vars and generate body
     		StoreParams(StartArgIdx);
     	}
@@ -159,8 +177,8 @@ void CodeGenClassMethod::GenBody() {
     	}
     }
 
-    CGM->GenBlock(this, Sema->getAST()->getBody());
+	CGM->GenBlock(this, Sema->getAST()->getBody());
 
-    // Add return Void
+	// Add return Void
 	CheckReturnVoid();
 }

@@ -12,16 +12,27 @@
 #define FLY_CODEGEN_CLASS_H
 
 #include "CodeGenClassMethod.h"
+#include "llvm/ADT/ArrayRef.h"
 
 namespace llvm {
     class StructType;
     class AllocaInst;
+    class ConstantStruct;
+    class Constant;
+    class GlobalVariable;
 }
 
 namespace fly {
 
     class SemaClassType;
     class ASTClass;
+
+    struct BaseType {
+		llvm::StructType *Type;
+		llvm::SmallVector<llvm::Value *, 4> Index;
+        llvm::Function *InitConstructor;
+        llvm::SmallVector<BaseType *, 4> Bases;
+	};
 
     class CodeGenClass {
 
@@ -35,23 +46,42 @@ namespace fly {
 
         llvm::PointerType *TypePtr = nullptr;
 
+        llvm::Function *InitConstructor = nullptr;
+
         llvm::StructType *VTableType = nullptr;
 
-        llvm::SmallVector<llvm::Type *, 4> TypeVector;
+        llvm::SmallVector<llvm::Type *, 4> VTableMethodTypes;
 
-        llvm::SmallVector<CodeGenClassMethod *, 4> Constructors;
+        llvm::SmallVector<llvm::Constant *, 4> VTableValues;
+
+        llvm::GlobalVariable * VTable;
+
+        // llvm::SmallVector<CodeGenClassMethod *, 4> Constructors;
 
         llvm::SmallVector<CodeGenClassMethod *, 4> Methods;
 
-        llvm::SmallVector<llvm::StructType *, 4> BaseTypes;
+        llvm::SmallVector<BaseType *, 4> BaseTypes;
 
-        void CreateVTableType(llvm::SmallVector<llvm::Type *, 4> &TypeVector);
+        llvm::SmallVector<llvm::Type *, 4> BodyTypes;
 
-        void CreateInheritTypes(llvm::SmallVector<llvm::Type *, 4> &TypeVector);
+        void CreateVTableType();
 
-        void CreateFieldTypes(llvm::SmallVector<llvm::Type *, 4> &TypeVector);
+        void CollectBaseTypesRecursive(CodeGenClass *CGC,
+                                                llvm::SmallVector<llvm::Value *, 4> CurrentIdx,
+                                                unsigned Idx);
+
+        void CreateBaseTypes();
+
+        void CreateAttributeTypes();
+
+        void CreateVTable();
+
+        void CreateInitConstructor();
+
+        void GenInitConstructorBody();
 
     public:
+
         CodeGenClass(CodeGenModule *CGM, SemaClassType *Sema, bool isExternal = false);
 
         llvm::StructType *getType();
@@ -60,13 +90,19 @@ namespace fly {
 
         llvm::StructType *getVTableType();
 
-        llvm::Value* NewInstance();
+        llvm::GlobalVariable * getVTable();
 
-        const llvm::SmallVector<CodeGenClassMethod *, 4> &getConstructors() const;
+        llvm::Function *getInitConstructor();
+
+        // const llvm::SmallVector<CodeGenClassMethod *, 4> &getConstructors() const;
 
         const llvm::SmallVector<CodeGenClassMethod *, 4> &getMethods() const;
 
         llvm::Value* getBaseInstance(llvm::Value* InstancePtr, llvm::StructType* Base);
+
+        llvm::Value *Downcast(llvm::Type *ToType, llvm::Value *InstancePtr);
+
+        llvm::Value* NewInstance();
 
     private:
         llvm::Value* NewInstance(SemaClassType *ClassType);
