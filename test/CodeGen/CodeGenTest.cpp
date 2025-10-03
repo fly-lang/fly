@@ -286,6 +286,8 @@ namespace {
     	EXPECT_EQ(output, "\n"
 						  "%error = type { i8, i32, i8* }\n"
 						  "\n"
+						  "@error = external constant %error\n"
+						  "\n"
 						  "define i32 @_F4func(%error* %0) {\n"
                           "entry:\n"
                           "  %1 = alloca %error*, align 8\n"
@@ -1332,6 +1334,8 @@ namespace {
 		std::string output = getOutput(M);
 
         EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
+						  "\n"
+						  "@error = external constant %error\n"
         				  "\n"
         				  "define i32 @_F4main() {\n"
                           "entry:\n"

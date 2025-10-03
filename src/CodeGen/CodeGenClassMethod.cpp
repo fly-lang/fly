@@ -150,17 +150,18 @@ void CodeGenClassMethod::GenBody() {
     		ClassMethod->getThis()->getCodeGen()->Store(ClassInstancePtr);
 
     		//Write the vtable in constructor
-    		if (ClassMethod->isConstructor()) {
-    			CodeGenVarBase * CGV = ClassMethod->getThis()->getCodeGen();
-    			llvm::Value * VTablePtr = CGM->Builder->CreateInBoundsGEP(CGV->getType(), CGV->getValue(),  {CGM->Zero, CGM->Zero});
-    			CGM->Builder->CreateStore(Class->getCodeGen()->getVTable(), VTablePtr);
-    		}
+    		// if (ClassMethod->isConstructor()) {
+    		// 	CodeGenVarBase * CGV = ClassMethod->getThis()->getCodeGen();
+    		// 	llvm::Value * VTablePtr = CGM->Builder->CreateInBoundsGEP(CGV->getType(), CGV->getValue(),  {CGM->Zero, CGM->Zero});
+    		// 	CGM->Builder->CreateStore(Class->getCodeGen()->getVTable(), VTablePtr);
+    		// }
 
     		// Alloca Function Local Vars and generate body
     		StoreParams(StartArgIdx);
     	}
 
-    	ClassMethod->getThis()->getCodeGen()->Load();
+    	// Load the instance: load only if used
+    	// ClassMethod->getThis()->getCodeGen()->Load();
 
     	// CodeGen Class Attributes
     	for (auto &AttributeEntry: Class->getAttributes()) {
@@ -170,10 +171,11 @@ void CodeGenClassMethod::GenBody() {
     		Attribute->getCodeGen()->setPointer(InstancePtr);
 
     		// Set Value for all Attributes
-    		if (ClassMethod->isConstructor()) {
-    			llvm::Value *V = CGM->GenExpr(Attribute->getAST()->getExpr());
-    			Attribute->getCodeGen()->Store(V);
-    		}
+    		// Already DONE in init_ctor()
+    		// if (ClassMethod->isConstructor()) {
+    		// 	llvm::Value *V = CGM->GenExpr(Attribute->getAST()->getExpr());
+    		// 	Attribute->getCodeGen()->Store(V);
+    		// }
     	}
     }
 

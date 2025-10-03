@@ -92,7 +92,10 @@ namespace {
 		llvm::Module * M = Generate();
 		std::string output = getOutput(M);
 
-        EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n\n"
+        EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
+						  "\n"
+						  "@error = external constant %error\n"
+						  "\n"
         				  "define i32 @_F8testFail(%error* %0) {\n"
                           "entry:\n"
                           "  %1 = alloca %error*, align 8\n"
@@ -153,7 +156,10 @@ namespace {
 		llvm::Module * M = Generate();
 		std::string output = getOutput(M);
 
-        EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n\n"
+        EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
+						  "\n"
+						  "@error = external constant %error\n"
+						  "\n"
                           "define i32 @_F8testFail(%error* %0) {\n"
                           "entry:\n"
                           "  %1 = alloca %error*, align 8\n"
@@ -214,7 +220,10 @@ namespace {
 		llvm::Module * M = Generate();
 		std::string output = getOutput(M);
 
-		EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n\n"
+		EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
+						  "\n"
+						  "@error = external constant %error\n"
+						  "\n"
 						  "define i32 @_F8testFail(%error* %0) {\n"
                           "entry:\n"
                           "  %1 = alloca %error*, align 8\n"
@@ -275,8 +284,11 @@ namespace {
 		llvm::Module * M = Generate();
 		std::string output = getOutput(M);
 
-		EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n\n"
-						  "@0 = private unnamed_addr constant [6 x i8] c\"Error\\00\", align 1\n\n"
+		EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
+						  "\n"
+						  "@error = external constant %error\n"
+						  "@0 = private unnamed_addr constant [6 x i8] c\"Error\\00\", align 1\n"
+						  "\n"
 						  "define i32 @_F8testFail(%error* %0) {\n"
                           "entry:\n"
                           "  %1 = alloca %error*, align 8\n"
@@ -347,19 +359,22 @@ namespace {
 		std::string output = getOutput(M);
 
         EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
-        				  "%TestStruct = type { i32 }\n\n"
+        				  "%TestStruct = type { i32 }\n"
+        				  "\n"
+						  "@error = external constant %error\n"
+						  "\n"
         				  "define i32 @_F8testFail(%error* %0) {\n"
                           "entry:\n"
                           "  %1 = alloca %error*, align 8\n"
                           "  store %error* %0, %error** %1, align 8\n"
-                          "  %malloccall = tail call i8* @malloc(i64 4)\n"
-                          "  %2 = bitcast i8* %malloccall to %TestStruct*\n"
-                          "  call void @TestStruct_F10TestStruct(%TestStruct* %2)\n"
-                          "  %3 = load %error*, %error** %1, align 8\n"
-                          "  %4 = getelementptr inbounds %error, %error* %3, i32 0, i32 0\n"
-                          "  store i8 3, i8* %4, align 1\n"
-                          "  %5 = getelementptr inbounds %error, %error* %3, i32 0, i32 2\n"
-                          "  store %TestStruct* %2, i8** %5, align 8\n"
+                          "  %2 = call i8* @malloc(i64 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i64))\n"
+                          "  %3 = bitcast i8* %2 to %TestStruct*\n"
+                          "  %4 = call %TestStruct* @TestStruct.init_ctor(%TestStruct* %3)\n"
+                          "  %5 = load %error*, %error** %1, align 8\n"
+                          "  %6 = getelementptr inbounds %error, %error* %5, i32 0, i32 0\n"
+                          "  store i8 3, i8* %6, align 1\n"
+                          "  %7 = getelementptr inbounds %error, %error* %5, i32 0, i32 2\n"
+                          "  store %TestStruct* %4, i8** %7, align 8\n"
                           "  ret i32 0\n"
                           "}\n"
                           "\n"
@@ -381,16 +396,16 @@ namespace {
                           "  ret i32 %9\n"
                           "}\n"
                           "\n"
-                          "define void @TestStruct_F10TestStruct(%TestStruct* %0) {\n"
+                          "define %TestStruct* @TestStruct.init_ctor(%TestStruct* %0) {\n"
 						  "entry:\n"
 						  "  %1 = alloca %TestStruct*, align 8\n"
 						  "  store %TestStruct* %0, %TestStruct** %1, align 8\n"
 						  "  %2 = load %TestStruct*, %TestStruct** %1, align 8\n"
 						  "  %3 = getelementptr inbounds %TestStruct, %TestStruct* %2, i32 0, i32 0\n"
 						  "  store i32 0, i32* %3, align 4\n"
-						  "  ret void\n"
+						  "  ret %TestStruct* %2\n"
 						  "}\n"
 						  "\n"
-						  "declare noalias i8* @malloc(i64)\n");
+						  "declare i8* @malloc(i64)\n");
     }
 } // anonymous namespace
