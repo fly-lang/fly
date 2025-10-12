@@ -16,6 +16,7 @@
 
 namespace fly {
 
+    class ASTClass;
 	class SemaResolver;
     class Sema;
     class SemaClassType;
@@ -39,15 +40,13 @@ namespace fly {
 
     private:
 
-        void ResolveBaseClasses();
-
         void ResolveDefinitions();
 
         SemaClassAttribute *DefineAttribute(ASTVar *Var, SemaComment *Comment);
 
         SemaClassMethod *DefineMethod(SemaClassInstance *This, ASTFunction* Function, SemaComment * Comment);
 
-        void CreateBaseDefinition(SemaClassType *InheritClass);
+        void ResolveBaseClasses(SemaClassType *DerivedClass);
 
         bool CanInheritMethod(SemaClassMethod *Method);
 

@@ -1,4 +1,9 @@
-struct Test {
+struct Base {
+	int c;
+	int d;
+};
+
+struct Test : Base {
     int a;
     int b;
 };

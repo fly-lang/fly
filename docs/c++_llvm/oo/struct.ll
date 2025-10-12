@@ -3,23 +3,24 @@ source_filename = "struct.cpp"
 target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-pc-linux-gnu"
 
-%struct.Test = type { i32, i32 }
+%struct.Test = type { %struct.Base, i32, i32 }
+%struct.Base = type { i32, i32 }
 
 ; Function Attrs: noinline norecurse optnone uwtable
 define dso_local i32 @main() #0 {
   %1 = alloca i32, align 4
   %2 = alloca %struct.Test*, align 8
   store i32 0, i32* %1, align 4
-  %3 = call noalias nonnull i8* @_Znwm(i64 8) #4
+  %3 = call noalias nonnull i8* @_Znwm(i64 16) #4
   %4 = bitcast i8* %3 to %struct.Test*
   %5 = bitcast %struct.Test* %4 to i8*
-  call void @llvm.memset.p0i8.i64(i8* align 8 %5, i8 0, i64 8, i1 false)
+  call void @llvm.memset.p0i8.i64(i8* align 16 %5, i8 0, i64 16, i1 false)
   store %struct.Test* %4, %struct.Test** %2, align 8
   %6 = load %struct.Test*, %struct.Test** %2, align 8
-  %7 = getelementptr inbounds %struct.Test, %struct.Test* %6, i32 0, i32 0
+  %7 = getelementptr inbounds %struct.Test, %struct.Test* %6, i32 0, i32 1
   store i32 1, i32* %7, align 4
   %8 = load %struct.Test*, %struct.Test** %2, align 8
-  %9 = getelementptr inbounds %struct.Test, %struct.Test* %8, i32 0, i32 1
+  %9 = getelementptr inbounds %struct.Test, %struct.Test* %8, i32 0, i32 2
   store i32 2, i32* %9, align 4
   %10 = load %struct.Test*, %struct.Test** %2, align 8
   %11 = icmp eq %struct.Test* %10, null

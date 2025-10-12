@@ -46,35 +46,21 @@ namespace fly {
 
         llvm::PointerType *TypePtr = nullptr;
 
+        llvm::SmallVector<llvm::Type *, 4> BodyType;
+
         llvm::Function *InitConstructor = nullptr;
-
-        llvm::StructType *VTableType = nullptr;
-
-        llvm::SmallVector<llvm::Type *, 4> VTableMethodTypes;
-
-        llvm::SmallVector<llvm::Constant *, 4> VTableValues;
 
         llvm::GlobalVariable * VTable;
 
-        // llvm::SmallVector<CodeGenClassMethod *, 4> Constructors;
-
         llvm::SmallVector<CodeGenClassMethod *, 4> Methods;
 
-        llvm::SmallVector<BaseType *, 4> BaseTypes;
-
-        llvm::SmallVector<llvm::Type *, 4> BodyTypes;
-
-        void CreateVTableType();
-
-        void CollectBaseTypesRecursive(CodeGenClass *CGC,
-                                                llvm::SmallVector<llvm::Value *, 4> CurrentIdx,
-                                                unsigned Idx);
-
-        void CreateBaseTypes();
-
-        void CreateAttributeTypes();
+        // llvm::SmallVector<BaseType *, 4> BaseTypes;
 
         void CreateVTable();
+
+        void CreateAttributes();
+
+        void CreateBaseInfo(llvm::SmallVector<SemaClassType *, 4> Bases);
 
         void CreateInitConstructor();
 
@@ -88,8 +74,6 @@ namespace fly {
 
         llvm::PointerType *getTypePtr();
 
-        llvm::StructType *getVTableType();
-
         llvm::GlobalVariable * getVTable();
 
         llvm::Function *getInitConstructor();
@@ -98,7 +82,7 @@ namespace fly {
 
         const llvm::SmallVector<CodeGenClassMethod *, 4> &getMethods() const;
 
-        llvm::Value* getBaseInstance(llvm::Value* InstancePtr, llvm::StructType* Base);
+        llvm::Value* getBaseInstance(llvm::Value* InstancePtr, SemaClassType* Base);
 
         llvm::Value *Downcast(llvm::Type *ToType, llvm::Value *InstancePtr);
 

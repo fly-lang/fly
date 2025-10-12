@@ -794,6 +794,7 @@ llvm::Value *CodeGenModule::GenCall(SemaCall *Sema) {
     		// Call the Class constructor
     		if (Method->getClass()->getClassKind() != SemaClassKind::STRUCT)
     			Builder->CreateCall(Method->getCodeGen()->getFunction(), Args);
+
     		return InstancePtr;
     	}
 
@@ -806,7 +807,7 @@ llvm::Value *CodeGenModule::GenCall(SemaCall *Sema) {
     			InstancePtr = GenResult(Sema->getParent());
 
     			// Get the base class instance pointer
-    			InstancePtr = ParentClass->getCodeGen()->getBaseInstance(InstancePtr, Method->getClass()->getCodeGen()->getType());
+    			InstancePtr = ParentClass->getCodeGen()->getBaseInstance(InstancePtr, Method->getClass());
     		} else {
     			// Instance of class method call
     			InstancePtr = GenResult(Sema->getParent());
@@ -827,13 +828,23 @@ llvm::Value *CodeGenModule::GenCall(SemaCall *Sema) {
     	if (Sema->getParent()) {
 
     		// Get the VTable pointer
+    		// %as_base1 = bitcast %class.Derived* %d to %class.Base1*
+    		// %vptr1_ptr = getelementptr %class.Base1, %class.Base1* %as_base1, i32 0, i32 0
+    		// %vptr1 = load i8**, i8*** %vptr1_ptr
     		llvm::Value * VTablePtrPtr = Builder->CreateStructGEP(CGClass->getType(), InstancePtr, 0);
     		llvm::LoadInst * VTablePtr = Builder->CreateLoad(VTablePtrPtr);
 
+    		// TODO
+    		// Calculate the offset of the method in the VTable
+
     		// Get the Method index in the VTable
-    		llvm::StructType * VTableType = CGClass->getVTableType();
-    		llvm::Value * FuncPtrPtr = Builder->CreateStructGEP(VTableType, VTablePtr, Method->getCodeGen()->getIndex());
+    		// %fn1_ptr = getelementptr i8*, i8** %vptr1, i64 1
+    		// %fn1_i8 = load i8*, i8** %fn1_ptr
+    		// %fn1 = bitcast i8* %fn1_i8 to void (%class.Base1*)*
+    		llvm::Value * FuncPtrPtr = Builder->CreateGEP(Int8PtrTy, VTablePtr, llvm::ConstantInt::get(Int64Ty, Method->getCodeGen()->getIndex()));
     		FuncPtr = Builder->CreateLoad(FuncPtrPtr);
+			FuncPtr = Builder->CreateBitCast(FuncPtr, Method->getCodeGen()->getFunction()->getType());
+
     	} else {
     		FuncPtr = Method->getCodeGen()->getFunction();
     	}

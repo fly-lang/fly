@@ -45,7 +45,7 @@ void SemaResolverClass::Resolve() {
 		this->CreateDefaultConstructor();
 
 	// Resolve Base Classes
-	this->ResolveBaseClasses();
+	this->ResolveBaseClasses(Class);
 
 	// ClassDefinition Class Attributes
 	this->SetDefaultValueInAttributes();
@@ -104,27 +104,6 @@ void SemaResolverClass::ResolveDefinitions() {
 	}
 }
 
-void SemaResolverClass::ResolveBaseClasses() {
-	// ClassDefinition Base Classes on first pass
-	for (auto &BaseTypeRef : Class->getAST()->getBaseClasses()) {
-
-		// Search for the SuperClass in the Module, NameSpace or Imports
-		if (R->ResolveTypeRef(BaseTypeRef)) {
-			SemaType *BaseType = BaseTypeRef->getSema();
-
-			if (BaseType->getKind() != SemaTypeKind::TYPE_CLASS) {
-				// Error: invalid superclass type
-				R->S.Diag(BaseTypeRef->getLocation(), diag::err_syntax_error);
-				break;
-			}
-
-			SemaClassType *BaseClassType = static_cast<SemaClassType *>(BaseType);
-			this->CreateBaseDefinition(BaseClassType);
-			Class->BaseClasses.push_back(BaseClassType);
-		}
-	}
-}
-
 SemaClassAttribute *SemaResolverClass::DefineAttribute(ASTVar *Var, SemaComment *Comment) {
 	// ClassDefinition Type
 	R->ResolveTypeRef(Var->TypeRef);
@@ -163,50 +142,73 @@ SemaClassMethod *SemaResolverClass::DefineMethod(SemaClassInstance *This, ASTFun
 	return Method;
 }
 
-void SemaResolverClass::CreateBaseDefinition(SemaClassType *BaseClass) {
-	// Create the Class Instance to be added to Base Instance Children
 
-	for (auto AST : BaseClass->getAST()->getDefinitions()) {
-		switch (AST->getKind()) {
+void SemaResolverClass::ResolveBaseClasses(SemaClassType *DerivedClass) {
+	// ClassDefinition Base Classes on first pass
+	for (auto &BaseTypeRef : DerivedClass->getAST()->getBaseClasses()) {
 
-			// ClassDefinition Class Var: Attribute
-			case ASTKind::AST_VAR: {
-				ASTVar * Var = static_cast<ASTVar *>(AST);
+		// Search for the SuperClass in the Module, NameSpace or Imports
+		if (R->ResolveTypeRef(BaseTypeRef)) {
+			SemaType *BaseType = BaseTypeRef->getSema();
 
-				// Define an Attribute
-				SemaClassAttribute *Attribute = DefineAttribute(Var, nullptr);
+			if (BaseType->getKind() != SemaTypeKind::TYPE_CLASS) {
+				// Error: invalid superclass type
+				R->S.Diag(BaseTypeRef->getLocation(), diag::err_syntax_error);
+				break;
+			}
 
-				// Inherit only protected or public Attributes (not Static)
-				if (CanInheritAttribute(Attribute)) {
-					Var->Sema->Type = Var->TypeRef->getSema();
-					Class->Attributes.insert(std::make_pair(Var->getName(), Attribute));
+			SemaClassType *BaseClassType= static_cast<SemaClassType *>(BaseType);
+
+			// Create the Class Instance to be added to Base Instance Children
+			for (auto AST : BaseClassType->getAST()->getDefinitions()) {
+				switch (AST->getKind()) {
+
+					// ClassDefinition Class Var: Attribute
+					case ASTKind::AST_VAR: {
+						ASTVar * Var = static_cast<ASTVar *>(AST);
+
+						// Define an Attribute
+						SemaClassAttribute *Attribute = DefineAttribute(Var, nullptr);
+
+						// Inherit only protected or public Attributes (not Static)
+						if (CanInheritAttribute(Attribute)) {
+							Var->Sema->Type = Attribute->getType();
+							Class->Attributes.insert(std::make_pair(Var->getName(), Attribute));
+						}
+					}
+					break;
+
+					// ClassDefinition Class Function: Method or Constructor
+					case ASTKind::AST_FUNCTION: {
+						ASTFunction *Function = static_cast<ASTFunction *>(AST);
+
+						// Define a Method
+						// SemaClassMethod *Method = DefineMethod(BaseThis, Function, nullptr);
+
+						// Inherit only Methods (not Constructors)
+						// if (!Method->isConstructor() && CanInheritMethod(Method)) {
+						// 	Class->Methods.insert(std::make_pair(Method->getMangledName(), Method));
+						// }
+					}
+					break;
+
+					// ClassDefinition Class Comment
+					case ASTKind::AST_COMMENT:
+						// No action needed
+							break;
+
+					default:
+						// Error: invalid declaration in class
+							S.Diag(AST->getLocation(), diag::err_syntax_error);
+					break;
 				}
 			}
-			break;
 
-			// ClassDefinition Class Function: Method or Constructor
-			case ASTKind::AST_FUNCTION: {
-				ASTFunction *Function = static_cast<ASTFunction *>(AST);
+			// Add Base Class to the list
+			DerivedClass->BaseClasses.push_back(BaseClassType);
 
-				// Define a Method
-				// SemaClassMethod *Method = DefineMethod(BaseThis, Function, nullptr);
-
-				// Inherit only Methods (not Constructors)
-				// if (!Method->isConstructor() && CanInheritMethod(Method)) {
-				// 	Class->Methods.insert(std::make_pair(Method->getMangledName(), Method));
-				// }
-			}
-			break;
-
-			// ClassDefinition Class Comment
-			case ASTKind::AST_COMMENT:
-				// No action needed
-			break;
-
-			default:
-				// Error: invalid declaration in class
-					S.Diag(AST->getLocation(), diag::err_syntax_error);
-			break;
+			// Recursively add definition from base classes
+			ResolveBaseClasses(BaseClassType);
 		}
 	}
 }
