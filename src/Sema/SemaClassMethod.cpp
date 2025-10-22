@@ -52,6 +52,10 @@ bool SemaClassMethod::isStatic() const {
 	return Static;
 }
 
+SemaClassMethod * SemaClassMethod::getOverridden() const {
+    return Overridden;
+}
+
 CodeGenClassMethod * SemaClassMethod::getCodeGen() const {
 	return CodeGen;
 }

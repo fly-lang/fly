@@ -24,7 +24,6 @@ namespace fly {
 
 	enum class SemaClassMethodKind {
 		METHOD,
-		METHOD_DEFAULT_CONSTRUCTOR,
 		METHOD_CONSTRUCTOR,
 		METHOD_ABSTRACT
 	};
@@ -48,6 +47,8 @@ namespace fly {
 
     	bool Static = false;
 
+    	SemaClassMethod *Overridden = nullptr;
+
 		CodeGenClassMethod *CodeGen = nullptr;
 
     	SemaComment *Comment = nullptr;
@@ -69,6 +70,8 @@ namespace fly {
     	SemaVisibilityKind getVisibility() const;
 
     	bool isStatic() const;
+
+    	SemaClassMethod *getOverridden() const;
 
     	SemaComment *getComment() const;
 

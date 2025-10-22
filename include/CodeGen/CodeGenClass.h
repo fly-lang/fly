@@ -52,15 +52,19 @@ namespace fly {
 
         llvm::GlobalVariable * VTable;
 
+        llvm::SmallVector<llvm::GlobalVariable *, 4> VTableBases;
+
         llvm::SmallVector<CodeGenClassMethod *, 4> Methods;
 
         // llvm::SmallVector<BaseType *, 4> BaseTypes;
 
         void CreateVTable();
 
+        void CreateBaseVTables(std::string VTableName, SemaClassType *Derived, size_t Offset);
+
         void CreateAttributes();
 
-        void CreateBaseInfo(llvm::SmallVector<SemaClassType *, 4> Bases);
+        void CreateBaseInfo(llvm::SmallVector<SemaClassType *, 4> BaseClasses);
 
         void CreateInitConstructor();
 

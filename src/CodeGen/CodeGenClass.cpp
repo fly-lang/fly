@@ -161,28 +161,35 @@ void CodeGenClass::CreateVTable() {
 		llvm::Constant *ArrayValue = llvm::ConstantArray::get(ArrayOfInt8Ptr, VTableArrayValues);
 
 		// Create the VTable Global Variable
-		std::string VTableName = ("vtable." + Sema->getAST()->getName()).str();
-		std::string Id = CodeGen::toIdentifier(VTableName, Sema->getModule()->getNameSpace()->getName());
+		std::string VTableName = CodeGen::toIdentifier(("vtable." + Sema->getAST()->getName()).str(), Sema->getModule()->getNameSpace()->getName());
 		VTable = new llvm::GlobalVariable(
 			*CGM->Module, ArrayOfInt8Ptr, true,
-			llvm::GlobalValue::ExternalLinkage, ArrayValue, Id);
+			llvm::GlobalValue::ExternalLinkage, ArrayValue, VTableName);
+
+		CreateBaseVTables(VTableName, Sema, 0);
 	}
 }
 
+void CodeGenClass::CreateBaseVTables(std::string VTableName, SemaClassType *Derived, size_t Offset) {
+	// for (auto &BaseClass : Derived->getBaseClasses()) {
+	// 	std::string VTableBaseName = VTableName + "." + BaseClass->getAST()->getName().str();
+	// 	new llvm::GlobalVariable(*CGM->Module, ArrayOfInt8Ptr, true,
+	// 		llvm::GlobalValue::ExternalLinkage, ArrayValue, VTableName);
+	// 	CreateBaseVTables(VTableName, BaseClass, Offset);
+	// }
+}
 
-void CodeGenClass::CreateBaseInfo(llvm::SmallVector<SemaClassType *, 4> Bases) {
-	for (auto &Base : Bases) {
+
+void CodeGenClass::CreateBaseInfo(llvm::SmallVector<SemaClassType *, 4> BaseClasses) {
+	for (auto &BaseClass : BaseClasses) {
 
 		// Need a CodeGen
-		if (Base->getCodeGen() == nullptr) {
-			CGM->GenClass(Base, false);
+		if (BaseClass->getCodeGen() == nullptr) {
+			CGM->GenClass(BaseClass, false);
 		}
 
-		BodyType.push_back(Base->getCodeGen()->getType());
-
-		// Recursive for Base Classes of this Base Class
-		if (!Base->getBaseClasses().empty())
-			CreateBaseInfo(Base->getBaseClasses());
+		// Add Base Class Type to the BodyType
+		BodyType.push_back(BaseClass->getCodeGen()->getType());
 	}
 }
 

@@ -147,6 +147,9 @@ void SemaResolverClass::ResolveBaseClasses(SemaClassType *DerivedClass) {
 	// ClassDefinition Base Classes on first pass
 	for (auto &BaseTypeRef : DerivedClass->getAST()->getBaseClasses()) {
 
+		// TODO: Recursively add definition from base classes
+		// ResolveBaseClasses(BaseClassType);
+
 		// Search for the SuperClass in the Module, NameSpace or Imports
 		if (R->ResolveTypeRef(BaseTypeRef)) {
 			SemaType *BaseType = BaseTypeRef->getSema();
@@ -183,12 +186,16 @@ void SemaResolverClass::ResolveBaseClasses(SemaClassType *DerivedClass) {
 						ASTFunction *Function = static_cast<ASTFunction *>(AST);
 
 						// Define a Method
-						// SemaClassMethod *Method = DefineMethod(BaseThis, Function, nullptr);
+						//SemaClassMethod *Method = DefineMethod(AST, Function, nullptr);
 
 						// Inherit only Methods (not Constructors)
 						// if (!Method->isConstructor() && CanInheritMethod(Method)) {
 						// 	Class->Methods.insert(std::make_pair(Method->getMangledName(), Method));
 						// }
+
+						// Set Overridden Methods
+						// if (!Method->isConstructor()) {
+                        // 	auto It = Class->getMethods().find(Method->getMangledName());
 					}
 					break;
 
@@ -206,9 +213,6 @@ void SemaResolverClass::ResolveBaseClasses(SemaClassType *DerivedClass) {
 
 			// Add Base Class to the list
 			DerivedClass->BaseClasses.push_back(BaseClassType);
-
-			// Recursively add definition from base classes
-			ResolveBaseClasses(BaseClassType);
 		}
 	}
 }
