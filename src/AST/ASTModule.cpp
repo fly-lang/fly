@@ -8,15 +8,20 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTModule.h"
+#include "AST/ASTVisitor.h"
 #include "Basic/Logger.h"
 
 using namespace fly;
 
-ASTModule::ASTModule(uint64_t &Id, const std::string Name, bool isHeader) :
+ASTModule::ASTModule(uint64_t &Id, const std::string Name, bool isHeader) : ASTNode(SourceLocation(), ASTKind::AST_MODULE),
         Id(Id), Name(Name), Header(isHeader) {
 }
 
 ASTModule::~ASTModule() = default;
+
+void ASTModule::accept(ASTVisitor& Visitor) {
+	Visitor.visit(*this);
+}
 
 const uint64_t ASTModule::getId() const {
     return Id;
@@ -34,7 +39,7 @@ ASTNameSpace *ASTModule::getNameSpace() {
     return NameSpace;
 }
 
-const llvm::SmallVector<ASTBase *, 8> &ASTModule::getDefinitions() const {
+const llvm::SmallVector<ASTNode *, 8> &ASTModule::getDefinitions() const {
 	return Definitions;
 }
 

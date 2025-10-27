@@ -12,8 +12,8 @@
 
 using namespace fly;
 
-SemaClassType::SemaClassType(ASTClass *AST) : SemaType(SemaTypeKind::TYPE_CLASS, AST->getName().data()),
-	AST(AST), ClassKind(toClassKind(AST->getClassKind())) {
+SemaClassType::SemaClassType(ASTClass &AST) : SemaType(SemaTypeKind::TYPE_CLASS, AST.getName().data()),
+	AST(AST), ClassKind(toClassKind(AST.getClassKind())) {
 
 }
 
@@ -31,7 +31,7 @@ SemaClassKind SemaClassType::toClassKind(ASTClassKind Kind) {
 	assert(false && "unknown ASTClassKind");
 }
 
-ASTClass *SemaClassType::getAST() {
+ASTClass &SemaClassType::getAST() {
     return AST;
 }
 

@@ -10,6 +10,8 @@
 #ifndef FLY_SEMA_MODULE_H
 #define FLY_SEMA_MODULE_H
 
+#include "SemaImport.h"
+#include <llvm/ADT/SmallVector.h>
 #include "llvm/ADT/StringMap.h"
 
 namespace fly {
@@ -19,17 +21,19 @@ namespace fly {
     class SemaGlobalVar;
     class SemaFunction;
     class SemaType;
+    class SemaNode;
 
     class SemaModule {
 
-        friend class SemaBuilder;
-        friend class SemaResolver;
+        friend class Resolver;
 
-        ASTModule *AST;
+        ASTModule &AST;
 
     	SemaNameSpace *NameSpace;
 
-    	llvm::StringMap<SemaNameSpace *> Imports;
+    	llvm::SmallVector<SemaImport *, 8> Imports;
+
+        llvm::SmallVector<SemaNode *, 8> Nodes;
 
         // Global Vars
         llvm::StringMap<SemaGlobalVar *> GlobalVars;
@@ -40,17 +44,19 @@ namespace fly {
         // Types
         llvm::StringMap<SemaType *> Types;
 
-        SemaModule(ASTModule *Module);
-
     public:
+
+        SemaModule(ASTModule &Module);
 
         ~SemaModule();
 
-        ASTModule* getAST() const;
+        ASTModule &getAST() const;
 
 		SemaNameSpace *getNameSpace() const;
 
-		const llvm::StringMap<SemaNameSpace *> &getImports() const;
+        const llvm::SmallVector<SemaNode *, 8> &getNodes() const;
+
+		const llvm::SmallVector<SemaImport *, 8> &getImports() const;
 
         const llvm::StringMap<SemaGlobalVar *> &getGlobalVars() const;
 

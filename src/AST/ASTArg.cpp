@@ -15,7 +15,7 @@
 using namespace fly;
 
 ASTArg::ASTArg(ASTExpr *Expr, uint64_t Index) :
-        ASTBase(Expr->getLocation(), ASTKind::AST_ARG), Expr(Expr), Index(Index) {
+        ASTNode(Expr->getLocation(), ASTKind::AST_ARG), Expr(Expr), Index(Index) {
 
 }
 

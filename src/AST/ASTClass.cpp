@@ -16,7 +16,7 @@ using namespace fly;
 ASTClass::ASTClass(
 	ASTModule *Module, ASTClassKind ClassKind, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
 	const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTTypeRef *, 4> &SuperClasses) :
-	ASTBase(Loc, ASTKind::AST_CLASS), ClassKind(ClassKind), Modifiers(Modifiers), Name(Name), BaseClasses(SuperClasses) {
+	ASTNode(Loc, ASTKind::AST_CLASS), ClassKind(ClassKind), Modifiers(Modifiers), Name(Name), BaseClasses(SuperClasses) {
 
 }
 
@@ -24,7 +24,7 @@ ASTModule *ASTClass::getModule() const {
 	return Module;
 }
 
-llvm::SmallVector<ASTBase *, 8> ASTClass::getDefinitions() const {
+llvm::SmallVector<ASTNode *, 8> ASTClass::getDefinitions() const {
 	return Definitions;
 }
 
@@ -52,6 +52,6 @@ std::string ASTClass::str() const {
 	       Attr("Kind", static_cast<size_t>(getKind())).
 	       Attr("ClassKind", (size_t)ClassKind).
 	       Attr("Name", Name).
-	       Attr("Definitions", ASTBase::str(Definitions)).
+	       Attr("Definitions", ASTNode::str(Definitions)).
 	       End();
 }

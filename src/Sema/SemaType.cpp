@@ -14,7 +14,7 @@
 
 using namespace fly;
 
-SemaType::SemaType(SemaTypeKind Kind, std::string Name) : Kind(Kind), Name(Name),
+SemaType::SemaType(SemaTypeKind Kind, std::string Name) : TypeKind(Kind), Name(Name),
 	Id(std::hash<std::string>{}(Name)) {
 }
 
@@ -22,8 +22,8 @@ const size_t SemaType::getId() const {
 	return Id;
 }
 
-const SemaTypeKind SemaType::getKind() const {
-	return Kind;
+const SemaTypeKind SemaType::getTypeKind() const {
+	return TypeKind;
 }
 
 const std::string SemaType::getName() const {
@@ -35,39 +35,39 @@ SemaValue *SemaType::getDefaultValue() const {
 }
 
 bool SemaType::isBool() const {
-	return Kind == SemaTypeKind::TYPE_BOOL;
+	return TypeKind == SemaTypeKind::TYPE_BOOL;
 }
 
 bool SemaType::isFloatingPoint() const {
-	return Kind == SemaTypeKind::TYPE_FLOATING_POINT;
+	return TypeKind == SemaTypeKind::TYPE_FLOATING_POINT;
 }
 
 bool SemaType::isInteger() const {
-	return Kind == SemaTypeKind::TYPE_INTEGER;
+	return TypeKind == SemaTypeKind::TYPE_INTEGER;
 }
 
 bool SemaType::isArray() const {
-	return Kind == SemaTypeKind::TYPE_ARRAY;
+	return TypeKind == SemaTypeKind::TYPE_ARRAY;
 }
 
 bool SemaType::isString() const {
-	return Kind == SemaTypeKind::TYPE_STRING;
+	return TypeKind == SemaTypeKind::TYPE_STRING;
 }
 
 bool SemaType::isClass() const {
-	return Kind == SemaTypeKind::TYPE_CLASS;
+	return TypeKind == SemaTypeKind::TYPE_CLASS;
 }
 
 bool SemaType::isEnum() const {
-	return Kind == SemaTypeKind::TYPE_ENUM;
+	return TypeKind == SemaTypeKind::TYPE_ENUM;
 }
 
 bool SemaType::isError() const {
-	return Kind == SemaTypeKind::TYPE_ERROR;
+	return TypeKind == SemaTypeKind::TYPE_ERROR;
 }
 
 bool SemaType::isVoid() const {
-	return Kind == SemaTypeKind::TYPE_VOID;
+	return TypeKind == SemaTypeKind::TYPE_VOID;
 }
 
 bool SemaType::isEquals(const SemaType *Type) const {

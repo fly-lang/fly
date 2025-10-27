@@ -10,6 +10,8 @@
 #ifndef FLY_FRONTEND_H
 #define FLY_FRONTEND_H
 
+#include <AST/ASTModule.h>
+
 #include "CompilerInstance.h"
 #include "Basic/Diagnostic.h"
 
@@ -29,6 +31,8 @@ namespace fly {
 
         // The diagnostics engine instance.
         DiagnosticsEngine &Diags;
+
+        SmallVector<ASTModule *, 8> ASTModules;
 
         // Compiler Invocation contains all a CompilerInstance needs
         CompilerInstance &CI;

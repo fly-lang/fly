@@ -14,7 +14,7 @@ using namespace fly;
 
 
 ASTRef::ASTRef(const SourceLocation &Loc, llvm::StringRef Name, ASTRefKind Kind) :
-        ASTBase(Loc, ASTKind::AST_REF), Name(Name), RefKind(Kind), Resolved(false) {
+        ASTNode(Loc, ASTKind::AST_REF), Name(Name), RefKind(Kind), Resolved(false) {
     FullName = Name.data();
 }
 

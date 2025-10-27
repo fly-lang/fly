@@ -15,7 +15,7 @@
 
 using namespace fly;
 
-SemaEnumType::SemaEnumType(ASTEnum *AST) : SemaType(SemaTypeKind::TYPE_ENUM, AST->getName().data()), AST(AST) {
+SemaEnumType::SemaEnumType(ASTEnum &AST) : SemaType(SemaTypeKind::TYPE_ENUM, AST->getName().data()), AST(AST) {
 
 }
 

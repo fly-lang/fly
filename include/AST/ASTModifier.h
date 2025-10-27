@@ -10,7 +10,7 @@
 #ifndef FLY_AST_MODIFIER_H
 #define FLY_AST_MODIFIER_H
 
-#include "ASTBase.h"
+#include "ASTNode.h"
 
 namespace fly {
 
@@ -23,11 +23,11 @@ namespace fly {
         MOD_DEFAULT
     };
 
-    class ASTModifier : public ASTBase {
+    class ASTModifier : public ASTNode {
 
         friend class ASTBuilder;
         friend class SemaBuilderModifiers;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaValidator;
 
         ASTModifierKind Kind;

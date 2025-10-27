@@ -12,18 +12,10 @@
 
 using namespace fly;
 
-ASTAlias::ASTAlias(const SourceLocation &Loc, llvm::StringRef Name) : ASTBase(Loc, ASTKind::AST_ALIAS), Name(Name) {
+ASTAlias::ASTAlias(const SourceLocation &Loc, llvm::StringRef Name) : Name(Name), Loc(Loc) {
 
 }
 
-llvm::StringRef ASTAlias::getName() const {
+llvm::StringRef ASTAlias::getName() {
 	return Name;
-}
-
-std::string ASTAlias::str() const {
-    return Logger("ASTAlias").
-	Attr("Location", getLocation()).
-Attr("Kind", static_cast<size_t>(getKind())).
-            Attr("Name", Name).
-            End();
 }

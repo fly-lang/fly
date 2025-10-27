@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTBase.h - AST Base header
+// include/AST/ASTNode.h - AST Base header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -17,10 +17,12 @@
 
 namespace fly {
 
+    class ASTVisitor;
+
     enum class ASTKind {
+        AST_MODULE,
         AST_NAMESPACE,
         AST_IMPORT,
-        AST_ALIAS,
         AST_VAR,
         AST_ARG,
         AST_STMT,
@@ -37,10 +39,10 @@ namespace fly {
         AST_ENUM,
     };
 
-    class ASTBase {
+    class ASTNode {
 
         friend class ASTBuilder;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaValidator;
 
         SourceLocation Location;
@@ -48,9 +50,11 @@ namespace fly {
         ASTKind Kind;
 
     public:
-        virtual ~ASTBase() = default;
+        virtual ~ASTNode() = default;
 
-        explicit ASTBase(const SourceLocation &Loc, ASTKind Kind);
+        explicit ASTNode(const SourceLocation &Loc, ASTKind Kind);
+
+        virtual void accept(ASTVisitor& v) = 0;
 
         virtual const SourceLocation &getLocation() const;
 
@@ -62,7 +66,7 @@ namespace fly {
         static const std::string &str(llvm::SmallVector<T *, 8> Vect) {
             std::string Str = Logger::OPEN_LIST;
             if(!Vect.empty()) {
-                for (ASTBase *V : Vect) {
+                for (ASTNode *V : Vect) {
                     Str += (V ? V->str() : "") + Logger::SEP;
                 }
                 unsigned long end = Str.length()-std::string(Logger::SEP).length()-1;

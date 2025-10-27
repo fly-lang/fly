@@ -23,7 +23,7 @@ namespace fly {
 
         friend class ASTBuilder;
         friend class SemaBuilderStmt;
-        friend class SemaResolver;
+        friend class Resolver;
 
         ASTExpr *Expr = nullptr;
 

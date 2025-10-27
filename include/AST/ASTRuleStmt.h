@@ -20,7 +20,7 @@ namespace fly {
         friend class SemaBuilderIfStmt;
         friend class SemaBuilderSwitchStmt;
         friend class SemaBuilderLoopStmt;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaValidator;
 
         // The Rule expression can be used with different Modifiers

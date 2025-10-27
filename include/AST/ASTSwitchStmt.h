@@ -22,7 +22,7 @@ namespace fly {
 
         friend class ASTBuilder;
         friend class SemaBuilderSwitchStmt;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaValidator;
 
         // The Switch Expression

@@ -15,11 +15,14 @@
 
 using namespace fly;
 
-SemaModule::SemaModule(ASTModule *AST) : AST(AST) {
+// TODO: implement destructor to free allocated Sema* objects
+SemaModule::~SemaModule() = default;
+
+SemaModule::SemaModule(ASTModule &AST) : AST(AST) {
 
 }
 
-ASTModule* SemaModule::getAST() const {
+ASTModule &SemaModule::getAST() const {
 	return AST;
 }
 
@@ -27,7 +30,11 @@ SemaNameSpace *SemaModule::getNameSpace() const {
 	return NameSpace;
 }
 
-const llvm::StringMap<SemaNameSpace *> &SemaModule::getImports() const {
+const llvm::SmallVector<SemaNode *, 8> &SemaModule::getNodes() const {
+	return Nodes;
+}
+
+const llvm::SmallVector<SemaImport *, 8> &SemaModule::getImports() const {
 	return Imports;
 }
 

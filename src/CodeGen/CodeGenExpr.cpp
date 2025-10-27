@@ -89,7 +89,7 @@ llvm::Value *CodeGenExpr::GenValue(SemaType *Type, SemaValue *Val) {
 
     //TODO value conversion from Val->getType() to TypeBase (if are different)
 
-	switch (Val->getType()->getKind()) {
+	switch (Val->getType()->getTypeKind()) {
 
 		// Boolean Value
 		case SemaTypeKind::TYPE_BOOL:
@@ -99,7 +99,7 @@ llvm::Value *CodeGenExpr::GenValue(SemaType *Type, SemaValue *Val) {
 		// Integer Value
 		case SemaTypeKind::TYPE_INTEGER: {
 			SemaIntValue * IntValue = static_cast<SemaIntValue *>(Val);
-			switch (Type->getKind()) {
+			switch (Type->getTypeKind()) {
 
 				case SemaTypeKind::TYPE_INTEGER:
 					switch (static_cast<SemaIntType *>(Type)->getIntKind()) {
@@ -140,7 +140,7 @@ llvm::Value *CodeGenExpr::GenValue(SemaType *Type, SemaValue *Val) {
 		case SemaTypeKind::TYPE_FLOATING_POINT: {
 			SemaFloatValue *FloatValue = static_cast<SemaFloatValue *>(Val);
 
-			switch (Type->getKind()) {
+			switch (Type->getTypeKind()) {
 
 				case SemaTypeKind::TYPE_VOID:
 					break;

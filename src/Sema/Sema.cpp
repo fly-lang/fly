@@ -9,77 +9,29 @@
 
 #include "Sema/Sema.h"
 #include "Sema/SemaBuilder.h"
-#include "Sema/ASTBuilder.h"
-#include "Sema/SemaResolver.h"
-#include "Sema/SemaValidator.h"
-#include "Basic/Diagnostic.h"
+#include "Sema/Resolver.h"
+#include "AST/ASTModule.h"
+
+#include <Sema/Registry.h>
 
 using namespace fly;
-
-std::string Sema::DEFAULT_NAMESPACE = "default";
 
 Sema::Sema(DiagnosticsEngine &Diags) : Diags(Diags) {
 
 }
 
-Sema::~Sema() {
-	Modules.clear();
-}
+llvm::SmallVector<SemaModule *, 8> Sema::Resolve(llvm::SmallVector<ASTModule *, 8> &ASTModules) {
+	// Initialize the Registry
+	Registry * Reg = new Registry();
 
-Sema* Sema::CreateSema(DiagnosticsEngine &Diags) {
-    Sema *S = new Sema(Diags);
+	// Create the Resolver with AST Modules
+	Resolver R(Diags, *Reg);
+	for (auto &Module : ASTModules) {
+		Module->accept(R);
+	}
 
-	// Init the Sema Builder
-    S->ABuilder = new ASTBuilder(*S);
+	// Start the Resolution Process
+	R.Resolve();
 
-	S->SBuilder = new SemaBuilder(*S);
-
-	// Init the Sema AST Context
-	S->SBuilder->CreateTable();
-
-    return S;
-}
-
-DiagnosticsEngine &Sema::getDiags() const {
-    return Diags;
-}
-
-ASTBuilder &Sema::getASTBuilder() {
-    return *ABuilder;
-}
-
-SemaBuilder &Sema::getSemaBuilder() {
-	return *SBuilder;
-}
-
-SymTable &Sema::getSymTable() const {
-    return *Table;
-}
-
-const llvm::SmallVector<ASTModule *, 4> &Sema::getModules() const {
-	return Modules;
-}
-
-/**
- * Write Diagnostics
- * @param Loc
- * @param DiagID
- * @return
- */
-DiagnosticBuilder Sema::Diag(SourceLocation Loc, unsigned DiagID) const {
-    return Diags.Report(Loc, DiagID);
-}
-
-/**
- * Write Diagnostics
- * @param Loc
- * @param DiagID
- * @return
- */
-DiagnosticBuilder Sema::Diag(unsigned DiagID) const {
-    return Diags.Report(DiagID);
-}
-
-bool Sema::Resolve() {
-    return SemaResolver::Resolve(*this);
+	return Reg->getModules();
 }

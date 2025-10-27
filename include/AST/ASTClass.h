@@ -10,7 +10,7 @@
 #ifndef FLY_AST_CLASS_H
 #define FLY_AST_CLASS_H
 
-#include "ASTBase.h"
+#include "ASTNode.h"
 
 namespace fly {
 
@@ -28,15 +28,15 @@ namespace fly {
         STRUCT
     };
 
-    class ASTClass : public ASTBase {
+    class ASTClass : public ASTNode {
 
         friend class ASTBuilder;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaValidator;
 
         ASTModule *Module;
 
-        llvm::SmallVector<ASTBase *, 8> Definitions;
+        llvm::SmallVector<ASTNode *, 8> Definitions;
 
         llvm::SmallVector<ASTModifier *, 8> Modifiers;
 
@@ -53,7 +53,7 @@ namespace fly {
 
         ASTModule* getModule() const;
 
-        llvm::SmallVector<ASTBase *, 8> getDefinitions() const;
+        llvm::SmallVector<ASTNode *, 8> getDefinitions() const;
 
         ASTClassKind getClassKind() const;
 

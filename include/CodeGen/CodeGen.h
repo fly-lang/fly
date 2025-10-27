@@ -29,8 +29,9 @@ namespace fly {
     class CodeGenModule;
     class TargetInfo;
     class FrontendOptions;
-    class SymTable;
+    class SymbolTable;
     class SemaNameSpace;
+    class SemaModule;
 
 class CodeGen {
 
@@ -60,11 +61,11 @@ class CodeGen {
 
         llvm::LLVMContext &getLLVMCtx();
 
-        std::vector<llvm::Module *> GenerateModules(SymTable &Table);
+        std::vector<llvm::Module *> GenerateModules(llvm::SmallVector<SemaModule *, 8> &SemaModules);
 
         CodeGenModule *GenerateModule(SemaNameSpace *NameSpace);
 
-        // void GenerateHeaders(SymTable &Table);
+        // void GenerateHeaders(SymbolTable &Table);
 
         // void GenerateHeader(SymNameSpace &NameSpace);
 

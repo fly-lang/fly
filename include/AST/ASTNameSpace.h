@@ -10,16 +10,16 @@
 #ifndef FLY_AST_NAMESPACE_H
 #define FLY_AST_NAMESPACE_H
 
-#include "ASTBase.h"
+#include "ASTNode.h"
 
 namespace fly {
 
     class SemaNameSpace;
 
-    class ASTNameSpace : public ASTBase {
+    class ASTNameSpace : public ASTNode {
 
         friend class ASTBuilder;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaValidator;
 
         llvm::SmallVector<llvm::StringRef, 4> Names;
@@ -31,6 +31,8 @@ namespace fly {
     public:
 
         ~ASTNameSpace() override;
+
+        void accept(ASTVisitor& Visitor) override;
 
         const llvm::SmallVector<llvm::StringRef, 4> &getNames() const;
 

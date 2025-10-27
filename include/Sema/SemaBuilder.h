@@ -10,23 +10,13 @@
 #ifndef FLY_SEMA_BUILDER_H
 #define FLY_SEMA_BUILDER_H
 
-#include <AST/ASTCall.h>
-#include <AST/ASTTypeRef.h>
-#include <AST/ASTValue.h>
-#include <Sema/SemaValue.h>
-#include <Sema/SemaClassType.h>
-#include <Sema/SemaLocalVar.h>
-#include <Sema/SemaParam.h>
-
-#include "SemaMemberVar.h"
-
 namespace llvm {
 	class StringRef;
 }
 
 namespace fly {
 
-    class SymTable;
+    class SymbolTable;
 	class SemaNameSpace;
 	class SemaModule;
 	class SemaGlobalVar;
@@ -37,6 +27,7 @@ namespace fly {
     class SemaEnumType;
     class SemaEnumEntry;
     class SemaType;
+	class SemaMemberVar;
     class ASTClass;
     class ASTNameSpace;
     class ASTImport;
@@ -44,75 +35,63 @@ namespace fly {
     class ASTComment;
     class ASTVar;
     class ASTFunction;
+	class ASTBoolValue;
+	class ASTNumberValue;
+	class ASTStringValue;
+	class ASTArrayValue;
+	class ASTStructValue;
+	class ASTCall;
+	class SemaLocalVar;
+	class SemaParam;
+	class SemaNode;
+	class SemaResult;
+	class SemaValue;
 	class SemaIntType;
 	class SemaFloatType;
+	class SemaBoolValue;
+	class SemaStringValue;
+	class SemaArrayValue;
+	class SemaStructValue;
 
     class SemaBuilder {
 
-    	friend class Sema;
-
-    	Sema &S;
-
-    	SemaBuilder *Builder;
-
-    	explicit SemaBuilder(Sema &S);
-
     public:
 
-    	void CreateTable();
+    	SemaBuilder() = delete;
 
-    	SemaNameSpace *CreateDefaultNameSpace();
+    	static SemaFunction *CreateFunction(ASTFunction &AST);
 
-    	SemaNameSpace *CreateOrGetNameSpace(ASTNameSpace *AST);
+    	static SemaClassType *CreateClass(ASTClass &AST);
 
-    	SemaModule* CreateModule(SemaNameSpace *NameSpace, ASTModule *AST);
+    	static SemaClassInstance *CreateThisInstance(SemaClassType *Class);
 
-    	void CreateImport(SemaModule* Module, ASTImport* AST);
+    	static SemaClassAttribute *CreateClassAttribute(SemaClassType *Class, SemaClassInstance *This, ASTVar *AST, SemaComment *Comment);
 
-    	// TODO: remove GlobalVar
-    	// SymGlobalVar *CreateGlobalVar(SymModule *Module, ASTVar *AST);
+    	static SemaClassMethod *CreateClassMethod(SemaClassType *Class, SemaClassInstance *This, ASTFunction *AST, SemaComment *Comment);
 
-    	SemaFunction *CreateFunction(SemaModule *Module, ASTFunction *AST);
+    	static SemaEnumType *CreateEnum(ASTEnum &AST);
 
-    	SemaClassType *CreateClass(SemaModule *Module, ASTClass *AST);
+    	static SemaEnumEntry *CreateEnumEntry(SemaEnumType *Enum, ASTVar *AST, SemaComment *Comment);
 
-    	SemaClassInstance *CreateThisInstance(SemaClassType *Class);
+	    static SemaComment* CreateComment(ASTComment* AST);
 
-    	SemaClassAttribute *CreateClassAttribute(SemaClassType *Class, SemaClassInstance *This, ASTVar *AST, SemaComment *Comment);
+    	static SemaLocalVar *CreateLocalVar(ASTVar *AST);
 
-    	SemaClassMethod *CreateClassMethod(SemaClassType *Class, SemaClassInstance *This, ASTFunction *AST, SemaComment *Comment);
+    	static SemaParam *CreateParam(fly::ASTVar* Param);
 
-    	SemaEnumType *CreateEnum(SemaModule *Module, ASTEnum *AST);
+    	static SemaMemberVar *CreateMemberVar(ASTVar *AST, SemaResult *Parent);
 
-    	SemaEnumEntry *CreateEnumEntry(SemaEnumType *Enum, ASTVar *AST, SemaComment *Comment);
+    	static SemaCall *CreateCall(ASTCall *Call);
 
-    	SemaType *CreateType(SemaTypeKind Kind, std::string Name);
+    	static SemaBoolValue *CreateBoolValue(ASTBoolValue *Value);
 
-    	SemaIntType *CreateIntType(SemaIntTypeKind IntKind, std::string Name);
+    	static SemaValue *CreateNumberValue(ASTNumberValue *Value);
 
-    	SemaFloatType *CreateFPType(SemaFloatTypeKind FPKind, std::string Name);
+    	static SemaStringValue *CreateStringValue(ASTStringValue *Value);
 
-    	SemaArrayType *CreateArrayType(SemaType *Type);
+    	static SemaArrayValue *CreateArrayValue(ASTArrayValue *AST) ;
 
-	    SemaComment* CreateComment(ASTComment* AST);
-
-    	SemaLocalVar *CreateLocalVar(ASTVar *AST);
-
-    	SemaParam *CreateParam(fly::ASTVar* Param);
-
-    	SemaMemberVar *CreateMemberVar(ASTVar *AST, SemaResult *Parent);
-
-    	SemaCall *CreateCall(ASTCall *Call);
-
-    	SemaBoolValue *CreateBoolValue(ASTBoolValue *Value);
-
-    	SemaValue *CreateNumberValue(ASTNumberValue *Value);
-
-    	SemaStringValue *CreateStringValue(ASTStringValue *Value);
-
-    	SemaArrayValue *CreateArrayValue(ASTArrayValue *AST) ;
-
-    	SemaStructValue *CreateStructValue(ASTStructValue *AST);
+    	static SemaStructValue *CreateStructValue(ASTStructValue *AST);
 
     };
 

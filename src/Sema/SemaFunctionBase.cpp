@@ -20,7 +20,7 @@
 
 using namespace fly;
 
-SemaFunctionBase::SemaFunctionBase(ASTFunction *AST, SemaFunctionKind Kind, std::string MangledName) :
+SemaFunctionBase::SemaFunctionBase(ASTFunction &AST, SemaFunctionKind Kind, std::string MangledName) :
 	AST(AST), Kind(Kind), MangledName(MangledName), ErrorHandler(new SemaErrorHandler()) {
 
 }
@@ -37,7 +37,7 @@ SemaType *SemaFunctionBase::getReturnType() {
     return ReturnType;
 }
 
-ASTFunction * SemaFunctionBase::getAST() {
+ASTFunction &SemaFunctionBase::getAST() {
 	return AST;
 }
 
@@ -79,7 +79,7 @@ std::unordered_map<std::string, std::string> typeMap = {
 std::string MangleType(SemaType *Type) {
 	std::string Mangled = "";
 
-	switch (Type->getKind()) {
+	switch (Type->getTypeKind()) {
 	case SemaTypeKind::TYPE_ARRAY: {
 		SemaArrayType *Array = static_cast<SemaArrayType *>(Type);
 		Mangled += "_A" + MangleType(Array->getType());

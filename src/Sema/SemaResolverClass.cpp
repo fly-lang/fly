@@ -13,7 +13,7 @@
 #include <AST/ASTFunction.h>
 #include <AST/ASTModifier.h>
 #include <AST/ASTVar.h>
-#include <Sema/ASTBuilder.h>
+#include <AST/ASTBuilder.h>
 #include <Sema/Sema.h>
 #include <Sema/SemaBuilder.h>
 #include <Sema/SemaBuilderModifiers.h>
@@ -21,7 +21,7 @@
 #include <Sema/SemaClassMethod.h>
 #include <Sema/SemaClassType.h>
 #include <Sema/SemaModule.h>
-#include <Sema/SemaResolver.h>
+#include <Sema/Resolver.h>
 #include "Basic/Diagnostic.h"
 
 #include <AST/ASTBlockStmt.h>
@@ -31,7 +31,7 @@
 
 using namespace fly;
 
-SemaResolverClass::SemaResolverClass(SemaResolver *R, SemaClassType *Class) : R(R), S(R->S), Class(Class) {
+SemaResolverClass::SemaResolverClass(Resolver *R, SemaClassType *Class) : R(R), S(R->S), Class(Class) {
 
 }
 
@@ -150,11 +150,11 @@ void SemaResolverClass::ResolveBaseClasses(SemaClassType *DerivedClass) {
 		// TODO: Recursively add definition from base classes
 		// ResolveBaseClasses(BaseClassType);
 
-		// Search for the SuperClass in the Module, NameSpace or Imports
+		// Search for the SuperClass in the Module, CurrentNameSpace or Imports
 		if (R->ResolveTypeRef(BaseTypeRef)) {
 			SemaType *BaseType = BaseTypeRef->getSema();
 
-			if (BaseType->getKind() != SemaTypeKind::TYPE_CLASS) {
+			if (BaseType->getTypeKind() != SemaTypeKind::TYPE_CLASS) {
 				// Error: invalid superclass type
 				R->S.Diag(BaseTypeRef->getLocation(), diag::err_syntax_error);
 				break;

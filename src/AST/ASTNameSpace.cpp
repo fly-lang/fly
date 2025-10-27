@@ -10,13 +10,19 @@
 #include "AST/ASTNameSpace.h"
 #include "Basic/Logger.h"
 
+#include "AST/ASTVisitor.h"
+
 using namespace fly;
 
 ASTNameSpace::ASTNameSpace(const SourceLocation &Loc, llvm::SmallVector<llvm::StringRef, 4> &Names) :
-    ASTBase(Loc, ASTKind::AST_NAMESPACE), Names(Names) {
+    ASTNode(Loc, ASTKind::AST_NAMESPACE), Names(Names) {
 }
 
 ASTNameSpace::~ASTNameSpace() = default;
+
+void ASTNameSpace::accept(ASTVisitor &Visitor) {
+	return Visitor.visit(*this);
+}
 
 const llvm::SmallVector<llvm::StringRef, 4> & ASTNameSpace::getNames() const {
 	return Names;

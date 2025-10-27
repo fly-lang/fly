@@ -10,7 +10,7 @@
 #ifndef FLY_AST_VALUE_H
 #define FLY_AST_VALUE_H
 
-#include "ASTBase.h"
+#include "ASTNode.h"
 
 #include "llvm/ADT/StringMap.h"
 
@@ -29,11 +29,11 @@ namespace fly {
     };
 
 
-    class ASTValue : public ASTBase {
+    class ASTValue : public ASTNode {
 
         friend class ASTBuilder;
         friend class SemaBuilder;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaValidator;
 
         const ASTValueKind ValueKind;
@@ -60,7 +60,7 @@ namespace fly {
     class ASTBoolValue : public ASTValue {
 
         friend class ASTBuilder;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaValidator;
 
         bool Value;
@@ -80,7 +80,7 @@ namespace fly {
     class ASTNumberValue : public ASTValue {
 
         friend class ASTBuilder;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaValidator;
 
         llvm::StringRef Value; // the integer value
@@ -100,7 +100,7 @@ namespace fly {
     class ASTStringValue : public ASTValue {
 
         friend class ASTBuilder;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaValidator;
 
         llvm::StringRef Value;
@@ -120,7 +120,7 @@ namespace fly {
     class ASTArrayValue : public ASTValue {
 
         friend class ASTBuilder;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaValidator;
 
         llvm::SmallVector<ASTValue *, 8> Values;
@@ -144,7 +144,7 @@ namespace fly {
     class ASTStructValue : public ASTValue {
 
         friend class ASTBuilder;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaValidator;
 
         llvm::StringMap<ASTValue *> Values;
@@ -165,7 +165,7 @@ namespace fly {
     class ASTNullValue : public ASTValue {
 
         friend class ASTBuilder;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaValidator;
 
         explicit ASTNullValue(const SourceLocation &Loc);

@@ -36,12 +36,12 @@ namespace fly {
     class SemaClassType : public SemaType {
 
         friend class SemaBuilder;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaResolverClass;
         friend class SemaValidator;
 
         // AST linked to this Class
-        ASTClass *AST;
+        ASTClass &AST;
 
         // Class Module
         SemaModule *Module;
@@ -76,13 +76,13 @@ namespace fly {
         // Class CodeGen
         CodeGenClass *CodeGen = nullptr;
 
-        explicit SemaClassType(ASTClass *Class);
+        explicit SemaClassType(ASTClass &Class);
 
         SemaClassKind toClassKind(ASTClassKind ASTKind);
 
     public:
 
-        ASTClass *getAST();
+        ASTClass &getAST();
 
         SemaModule *getModule() const;
 

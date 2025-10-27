@@ -14,14 +14,12 @@
 #include "../TestUtils.h"
 #include "Parser/Parser.h"
 #include "Sema/Sema.h"
-#include "Sema/SemaBuilderModifiers.h"
 #include "AST/ASTCall.h"
 #include "AST/ASTFunction.h"
-#include "AST/ASTValue.h"
 #include "AST/ASTExpr.h"
 #include <AST/ASTModifier.h>
 #include <AST/ASTVar.h>
-#include <Sema/ASTBuilder.h>
+#include <AST/ASTBuilder.h>
 #include <Sema/SemaBuilder.h>
 #include "Sema/SemaType.h"
 
@@ -32,7 +30,9 @@
 #include "llvm/Support/TargetSelect.h"
 
 #include <CodeGen/CodeGenModule.h>
-#include <Sema/SymTable.h>
+#include <Sema/SemaBuiltin.h>
+#include <Sema/SemaBuiltinType.h>
+#include <Sema/SymbolTable.h>
 #include <gtest/gtest.h>
 
 using namespace fly;
@@ -44,6 +44,7 @@ public:
     const CompilerInstance CI;
     CodeGen *CG;
     DiagnosticsEngine &Diags;
+	ASTBuilder *Builder;
     Sema *S;
     SourceLocation SourceLoc;
     ASTTypeRef *VoidTypeRef;
@@ -68,20 +69,21 @@ public:
     CodeGenTest() : CI(*TestUtils::CreateCompilerInstance()),
                     CG(TestUtils::CreateCodeGen(CI)),
                     Diags(CI.getDiagnostics()),
-                    S(Sema::CreateSema(CI.getDiagnostics())),
-                    VoidTypeRef(S->getASTBuilder().CreateVoidTypeRef(SourceLoc)),
-                    BoolTypeRef(S->getASTBuilder().CreateBoolTypeRef(SourceLoc)),
-                    ByteTypeRef(S->getASTBuilder().CreateByteTypeRef(SourceLoc)),
-                    ShortTypeRef(S->getASTBuilder().CreateShortTypeRef(SourceLoc)),
-                    UShortTypeRef(S->getASTBuilder().CreateUShortTypeRef(SourceLoc)),
-                    IntTypeRef(S->getASTBuilder().CreateIntTypeRef(SourceLoc)),
-                    UIntTypeRef(S->getASTBuilder().CreateUIntTypeRef(SourceLoc)),
-                    LongTypeRef(S->getASTBuilder().CreateLongTypeRef(SourceLoc)),
-                    ULongTypeRef(S->getASTBuilder().CreateULongTypeRef(SourceLoc)),
-                    FloatTypeRef(S->getASTBuilder().CreateFloatTypeRef(SourceLoc)),
-                    DoubleTypeRef(S->getASTBuilder().CreateDoubleTypeRef(SourceLoc)),
-                    ErrorTypeRef(S->getASTBuilder().CreateErrorTypeRef(SourceLoc)),
-					StringTypeRef(S->getASTBuilder().CreateStringTypeRef(SourceLoc)) {
+					Builder(new ASTBuilder(Diags)),
+                    S(new Sema(CI.getDiagnostics())),
+                    VoidTypeRef(Builder->CreateVoidTypeRef(SourceLoc)),
+                    BoolTypeRef(Builder->CreateBoolTypeRef(SourceLoc)),
+                    ByteTypeRef(Builder->CreateByteTypeRef(SourceLoc)),
+                    ShortTypeRef(Builder->CreateShortTypeRef(SourceLoc)),
+                    UShortTypeRef(Builder->CreateUShortTypeRef(SourceLoc)),
+                    IntTypeRef(Builder->CreateIntTypeRef(SourceLoc)),
+                    UIntTypeRef(Builder->CreateUIntTypeRef(SourceLoc)),
+                    LongTypeRef(Builder->CreateLongTypeRef(SourceLoc)),
+                    ULongTypeRef(Builder->CreateULongTypeRef(SourceLoc)),
+                    FloatTypeRef(Builder->CreateFloatTypeRef(SourceLoc)),
+                    DoubleTypeRef(Builder->CreateDoubleTypeRef(SourceLoc)),
+                    ErrorTypeRef(Builder->CreateErrorTypeRef(SourceLoc)),
+					StringTypeRef(Builder->CreateStringTypeRef(SourceLoc)) {
     	TopModifiers.push_back(getASTBuilder().CreateModifier(SourceLoc, ASTModifierKind::MOD_DEFAULT));
         llvm::InitializeAllTargets();
         llvm::InitializeAllTargetMCs();
@@ -90,7 +92,7 @@ public:
 
     ASTModule *CreateModule(std::string Name = "test") {
         Diags.getClient()->BeginSourceFile();
-        auto AST = S->getASTBuilder().CreateModule(Name);
+        auto AST = Builder->CreateModule(Name);
         Diags.getClient()->EndSourceFile();
         return AST;
     }
@@ -100,12 +102,12 @@ public:
     }
 
 	ASTBuilder &getASTBuilder() {
-	    return S->getASTBuilder();
+	    return *Builder;
     }
 
 	ASTTypeRef * CreateArrayTypeRef(SemaType *T) {
-    	SemaArrayType *A = S->getSemaBuilder().CreateArrayType(T);
-    	return S->getASTBuilder().CreateTypeRef(SourceLoc, A);
+    	SemaArrayType *A = SemaBuiltin::getArrayType(T);
+    	return Builder->CreateTypeRef(SourceLoc, A);
     }
 
 	ASTCall *CreateCall(llvm::StringRef Name, llvm::SmallVector<ASTExpr *, 8> &Args, ASTCallKind Kind, ASTRef *Parent = nullptr) {

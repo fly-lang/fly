@@ -10,6 +10,7 @@
 #ifndef FLY_SEMA_VALUE_H
 #define FLY_SEMA_VALUE_H
 
+#include "Sema/SemaNode.h"
 #include <cstdint>
 #include <llvm/ADT/APFloat.h>
 #include <llvm/ADT/APInt.h>
@@ -21,10 +22,10 @@ namespace fly {
 	class ASTValue;
     class ASTNumberValue;
 
-    class SemaValue {
+    class SemaValue : public SemaNode {
 
     	friend class SemaBuilder;
-    	friend class SemaResolver;
+    	friend class Resolver;
     	friend class SemaValidator;
 
 		SemaType *Type;
@@ -42,7 +43,7 @@ namespace fly {
 	class SemaBoolValue : public SemaValue {
 
 		friend class SemaBuilder;
-		friend class SemaResolver;
+		friend class Resolver;
 		friend class SemaValidator;
 
 		bool Value;
@@ -58,7 +59,7 @@ namespace fly {
 	class SemaIntValue : public SemaValue {
 
 		friend class SemaBuilder;
-		friend class SemaResolver;
+		friend class Resolver;
 		friend class SemaValidator;
 
 		llvm::APInt Value;
@@ -74,7 +75,7 @@ namespace fly {
 	class SemaFloatValue : public SemaValue {
 
 		friend class SemaBuilder;
-		friend class SemaResolver;
+		friend class Resolver;
 		friend class SemaValidator;
 
 		llvm::APFloat Value;
@@ -90,7 +91,7 @@ namespace fly {
 	class SemaStringValue : public SemaValue {
 
 		friend class SemaBuilder;
-		friend class SemaResolver;
+		friend class Resolver;
 		friend class SemaValidator;
 
 		llvm::StringRef Value;
@@ -106,7 +107,7 @@ namespace fly {
 	class SemaArrayValue : public SemaValue {
 
 		friend class SemaBuilder;
-		friend class SemaResolver;
+		friend class Resolver;
 		friend class SemaValidator;
 
 		llvm::SmallVector<SemaValue *, 8> Values;
@@ -122,7 +123,7 @@ namespace fly {
 	class SemaStructValue : public SemaValue {
 
 		friend class SemaBuilder;
-		friend class SemaResolver;
+		friend class Resolver;
 		friend class SemaValidator;
 
 		llvm::StringMap<SemaValue *> Values;

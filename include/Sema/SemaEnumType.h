@@ -26,10 +26,10 @@ namespace fly {
     class SemaEnumType : public SemaType {
 
         friend class SemaBuilder;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaValidator;
 
-        ASTEnum *AST;
+        ASTEnum &AST;
 
         SemaModule *Module;
 
@@ -45,7 +45,7 @@ namespace fly {
 
         SemaComment *Comment = nullptr;
 
-        explicit SemaEnumType(ASTEnum *AST);
+        explicit SemaEnumType(ASTEnum &AST);
 
     public:
 

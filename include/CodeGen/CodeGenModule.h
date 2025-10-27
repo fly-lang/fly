@@ -35,7 +35,7 @@ namespace llvm {
 namespace fly {
 
     class SemaNameSpace;
-    class SymTable;
+    class SymbolTable;
     class CodeGen;
     class CodeGenGlobalVar;
     class CodeGenFunction;

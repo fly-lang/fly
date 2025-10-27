@@ -14,7 +14,7 @@
 
 using namespace fly;
 
-SemaFunction::SemaFunction(ASTFunction *AST) : SemaFunctionBase(AST, SemaFunctionKind::FUNCTION, MangleFunction(AST)) {
+SemaFunction::SemaFunction(ASTFunction &AST) : SemaFunctionBase(AST, SemaFunctionKind::FUNCTION, MangleFunction(AST)) {
 
 }
 

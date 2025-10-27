@@ -191,9 +191,9 @@ namespace fly {
 
         friend class Sema;
 
-        friend class SemaResolver;
+        friend class Resolver;
 
-        Sema &S;
+        DiagnosticsEngine &Diags;
 
         uint64_t ModuleIdCounter = 0;
 
@@ -209,7 +209,7 @@ namespace fly {
 
         static const llvm::StringRef DEFAULT_CHAR_VALUE;
 
-        explicit ASTBuilder(Sema &S);
+        explicit ASTBuilder(DiagnosticsEngine &Diags);
 
         // Create Module
         ASTModule *CreateModule(const std::string &Name);

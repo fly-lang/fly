@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTBase.cpp - AST Base implementation
+// src/AST/ASTNode.cpp - AST Base implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,24 +7,24 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "AST/ASTBase.h"
+#include "AST/ASTNode.h"
 #include "Basic/Logger.h"
 
 using namespace fly;
 
-ASTBase::ASTBase(const SourceLocation &Loc, ASTKind Kind) : Location(Loc), Kind(Kind) {
+ASTNode::ASTNode(const SourceLocation &Loc, ASTKind Kind) : Location(Loc), Kind(Kind) {
 
 }
 
-const SourceLocation &ASTBase::getLocation() const {
+const SourceLocation &ASTNode::getLocation() const {
     return Location;
 }
 
-ASTKind ASTBase::getKind() const {
+ASTKind ASTNode::getKind() const {
 	return Kind;
 }
 
-std::string ASTBase::str() const {
+std::string ASTNode::str() const {
 	return Logger()
 	.Attr("Location", &Location)
 	.Attr("Kind", static_cast<size_t>(Kind))

@@ -24,7 +24,7 @@ namespace fly {
     class SemaCall :  public SemaResult {
 
         friend class SemaBuilder;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaValidator;
 
     	ASTCall *AST;

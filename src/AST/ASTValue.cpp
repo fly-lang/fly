@@ -13,7 +13,7 @@
 using namespace fly;
 
 ASTValue::ASTValue(const ASTValueKind ValueKind, const SourceLocation &Location) :
-        ASTBase(Location, ASTKind::AST_VALUE), ValueKind(ValueKind) {
+        ASTNode(Location, ASTKind::AST_VALUE), ValueKind(ValueKind) {
 
 }
 

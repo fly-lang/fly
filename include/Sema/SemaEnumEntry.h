@@ -23,7 +23,7 @@ namespace fly {
     class SemaEnumEntry : public SemaVar {
 
         friend class SemaBuilder;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaValidator;
 
         size_t Index;

@@ -15,7 +15,7 @@
 using namespace fly;
 
 ASTComment::ASTComment(const SourceLocation &Loc, llvm::StringRef Content) :
-	ASTBase(Loc, ASTKind::AST_COMMENT), Content(Content) {
+	ASTNode(Loc, ASTKind::AST_COMMENT), Content(Content) {
 
 }
 

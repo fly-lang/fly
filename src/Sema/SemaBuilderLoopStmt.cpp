@@ -8,7 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaBuilderLoopStmt.h"
-#include "Sema/ASTBuilder.h"
+#include "AST/ASTBuilder.h"
 #include "AST/ASTBlockStmt.h"
 #include "AST/ASTLoopStmt.h"
 

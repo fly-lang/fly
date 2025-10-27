@@ -9,7 +9,7 @@
 
 #include "Sema/Sema.h"
 #include "Sema/SemaValidator.h"
-#include "Sema/SymTable.h"
+#include "Sema/SymbolTable.h"
 #include "Sema/SemaNameSpace.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTModule.h"
@@ -48,7 +48,7 @@ bool SemaValidator::CheckDuplicateModules(ASTModule *Module, const llvm::DenseMa
 
 bool SemaValidator::CheckDuplicateVars(const llvm::StringMap<SemaGlobalVar *> &Vars, ASTVar *Var) {
 	SemaGlobalVar *DuplicateVar = Vars.lookup(Var->getName());
-	if (DuplicateVar) { // This NameSpace already contains this GlobalVar
+	if (DuplicateVar) { // This CurrentNameSpace already contains this GlobalVar
 		// S.Diag(DuplicateVar->getAST()->getLocation(), diag::err_duplicate_gvar) << DuplicateVar->getAST()->getName();
 		return false;
 	}
@@ -57,7 +57,7 @@ bool SemaValidator::CheckDuplicateVars(const llvm::StringMap<SemaGlobalVar *> &V
 
 // bool SemaValidator::CheckDuplicateIdentities(const llvm::StringMap<SymIdentity *> &Identities, ASTIdentity * Identity) {
 // 	SymIdentity *DuplicateIdentity = Identities.lookup(Identity->getName());
-// 	if (DuplicateIdentity) { // This NameSpace already contains this Identity
+// 	if (DuplicateIdentity) { // This CurrentNameSpace already contains this Identity
 // 		S.Diag(Identity->getLocation(), diag::err_duplicate_identity) << Identity->getName();
 // 		return false;
 // 	}
@@ -135,7 +135,7 @@ bool SemaValidator::CheckExpr(ASTExpr *Expr) {
 }
 
 bool SemaValidator::CheckEqualTypes(SemaType *Type1, SemaType *Type2) {
-    if (Type1->getKind() == Type2->getKind()) {
+    if (Type1->getTypeKind() == Type2->getTypeKind()) {
         if (Type1->isArray()) {
         	SemaArrayType *ArrayType1 = static_cast<SemaArrayType *>(Type1);
         	SemaArrayType *ArrayType2 = static_cast<SemaArrayType *>(Type2);

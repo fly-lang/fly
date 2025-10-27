@@ -42,7 +42,7 @@ std::string ASTUnaryOpExpr::str() const {
     return Logger("ASTOpExpr").
 	Attr("Location", getLocation()).
 Attr("Kind", static_cast<size_t>(getKind())).
-           Attr("Expr", (ASTBase *) Expr).
+           Attr("Expr", (ASTNode *) Expr).
            Attr("Op", (uint64_t) OpKind).
            Attr("OpLocation", (uint64_t) OpLocation.getRawEncoding()).
            End();

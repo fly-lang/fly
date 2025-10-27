@@ -10,6 +10,7 @@
 #ifndef FLY_SEMA_FUNCTIONBASE_H
 #define FLY_SEMA_FUNCTIONBASE_H
 
+#include "Sema/SemaNode.h"
 #include <string>
 #include <llvm/ADT/SmallVector.h>
 
@@ -30,10 +31,10 @@ namespace fly {
         CLASS_METHOD,
     };
 
-    class SemaFunctionBase {
+    class SemaFunctionBase : public SemaNode {
 
         friend class SemaBuilder;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaResolverClass;
         friend class SemaValidator;
 
@@ -43,7 +44,7 @@ namespace fly {
 
         SemaType *ReturnType;
 
-        ASTFunction *AST;
+        ASTFunction &AST;
 
         SemaFunctionKind Kind;
 
@@ -53,7 +54,7 @@ namespace fly {
 
     protected:
 
-        explicit SemaFunctionBase(ASTFunction *AST, SemaFunctionKind Kind, std::string MangledName);
+        explicit SemaFunctionBase(ASTFunction &AST, SemaFunctionKind Kind, std::string MangledName);
 
     public:
 
@@ -63,7 +64,7 @@ namespace fly {
 
         SemaType *getReturnType();
 
-        ASTFunction *getAST();
+        ASTFunction &getAST();
 
         SemaFunctionKind getKind() const;
 

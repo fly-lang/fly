@@ -12,7 +12,7 @@
 
 #include <Sema/SemaResult.h>
 
-#include "ASTBase.h"
+#include "ASTNode.h"
 
 namespace fly {
 
@@ -23,10 +23,10 @@ namespace fly {
         REF_NAMESPACE
     };
 
-    class ASTRef : public ASTBase {
+    class ASTRef : public ASTNode {
 
         friend class ASTBuilder;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaValidator;
 
     protected:

@@ -22,7 +22,7 @@ namespace fly {
     class SemaErrorHandler : public SemaVar {
 
         friend class SemaBuilder;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaValidator;
 
     	SemaType *Type;

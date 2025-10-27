@@ -21,7 +21,7 @@ namespace fly {
 
         friend class ASTBuilder;
         friend class SemaBuilderStmt;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaValidator;
 
         ASTRef *ErrorHandlerRef = nullptr;

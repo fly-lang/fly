@@ -10,7 +10,7 @@
 #ifndef FLY_AST_IMPORT_H
 #define FLY_AST_IMPORT_H
 
-#include "ASTBase.h"
+#include "ASTNode.h"
 
 namespace fly {
 
@@ -19,11 +19,11 @@ namespace fly {
     class ASTModule;
     class ASTAlias;
 
-    class ASTImport : public ASTBase {
+    class ASTImport : public ASTNode {
 
         friend class Sema;
         friend class ASTBuilder;
-        friend class SemaResolver;
+        friend class Resolver;
 
         ASTModule *Module;
 
@@ -31,13 +31,15 @@ namespace fly {
 
         std::string Name;
 
-        ASTAlias *Alias = nullptr;
+        ASTAlias *Alias;
 
         ASTImport(const SourceLocation &Loc, llvm::SmallVector<llvm::StringRef, 4> &Names);
 
     public:
 
-        ~ASTImport();
+        ~ASTImport() override;
+
+        void accept(ASTVisitor& Visitor) override;
 
         ASTModule* getModule() const;
 

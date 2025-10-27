@@ -12,7 +12,11 @@
 
 using namespace fly;
 
-SemaNameSpace::SemaNameSpace(const std::string& Name) : Name(Name) {
+SemaNameSpace::SemaNameSpace(const std::string& Name, SemaNameSpace *Parent) : Name(Name), Parent(Parent) {
+}
+
+SymbolTable * SemaNameSpace::getSymbols() const {
+	return Symbols;
 }
 
 SemaNameSpace::~SemaNameSpace() = default;
@@ -23,6 +27,10 @@ llvm::StringRef SemaNameSpace::getName() const {
 
 SemaNameSpace * SemaNameSpace::getParent() const {
 	return Parent;
+}
+
+std::unordered_map<std::string, SemaNameSpace *> SemaNameSpace::getChildren() const {
+	return Children;
 }
 
 const llvm::SmallVector<ASTModule *, 8> &SemaNameSpace::getModules() const {

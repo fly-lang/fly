@@ -19,7 +19,7 @@
 #include "Basic/TargetInfo.h"
 #include "Basic/Debug.h"
 
-#include <Sema/SymTable.h>
+#include <Sema/SymbolTable.h>
 #include <llvm/IR/LLVMContext.h>
 
 using namespace fly;
@@ -102,10 +102,10 @@ llvm::LLVMContext &CodeGen::getLLVMCtx() {
     return LLVMCtx;
 }
 
-std::vector<llvm::Module *> CodeGen::GenerateModules(SymTable &Table) {
+std::vector<llvm::Module *> CodeGen::GenerateModules(llvm::SmallVector<SemaModule *, 8> &SemaModules) {
     FLY_DEBUG_START("CodeGen", "GenerateModules");
     std::vector<llvm::Module *> Modules;
-    for (auto &NameSpace : Table.getNameSpaces()) {
+    for (auto &NameSpace : SemaModules) {
         Diags.getClient()->BeginSourceFile();
         CodeGenModule *CGM = GenerateModule(NameSpace.getValue());
         CGM->GenAll();

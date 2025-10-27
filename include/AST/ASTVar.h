@@ -12,7 +12,7 @@
 
 #include <Sema/SemaVar.h>
 
-#include "ASTBase.h"
+#include "ASTNode.h"
 #include "ASTTypeRef.h"
 
 namespace fly {
@@ -29,11 +29,11 @@ namespace fly {
      *  - GlobalVar
      *  - ClassAttribute
      */
-    class ASTVar : public ASTBase {
+    class ASTVar : public ASTNode {
 
         friend class ASTBuilder;
         friend class SemaBuilder;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaResolverClass;
         friend class SemaValidator;
 

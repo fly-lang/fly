@@ -18,7 +18,7 @@ namespace fly {
 
         friend class ASTBuilder;
         friend class SemaBuilderLoopStmt;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaValidator;
 
         bool VerifyConditionAtEnd = false;

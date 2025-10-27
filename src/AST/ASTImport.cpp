@@ -10,17 +10,22 @@
 #include "AST/ASTImport.h"
 #include "Basic/Logger.h"
 
+#include <AST/ASTVisitor.h>
 #include <llvm/ADT/StringExtras.h>
 
 using namespace fly;
 
 ASTImport::ASTImport(const SourceLocation &Loc, llvm::SmallVector<llvm::StringRef, 4> &Names) :
-        ASTBase(Loc, ASTKind::AST_IMPORT), Name(llvm::join(Names, ".")) {
+        ASTNode(Loc, ASTKind::AST_IMPORT), Name(llvm::join(Names, ".")), Alias(nullptr) {
 
 }
 
 ASTImport::~ASTImport() {
 
+}
+
+void ASTImport::accept(ASTVisitor &Visitor) {
+	Visitor.visit(*this);
 }
 
 ASTModule * ASTImport::getModule() const {

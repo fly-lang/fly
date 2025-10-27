@@ -13,7 +13,7 @@
 #include "AST/ASTRef.h"
 #include "AST/ASTStmt.h"
 #include "AST/ASTOpExpr.h"
-#include "Sema/ASTBuilder.h"
+#include "AST/ASTBuilder.h"
 #include "Basic/Debug.h"
 
 using namespace fly;

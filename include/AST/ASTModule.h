@@ -10,7 +10,7 @@
 #ifndef FLY_AST_MODULE_H
 #define FLY_AST_MODULE_H
 
-#include "AST/ASTBase.h"
+#include "AST/ASTNode.h"
 #include "llvm/ADT/SmallVector.h"
 
 namespace fly {
@@ -18,10 +18,8 @@ namespace fly {
     class ASTNameSpace;
     class FileID; // TODO implement in Id
 
-    class ASTModule {
+    class ASTModule : public ASTNode {
 
-        friend class Sema;
-        friend class SemaResolver;
         friend class ASTBuilder;
 
         // Namespace declaration
@@ -37,15 +35,22 @@ namespace fly {
         const bool Header;
 
         // All Top Definitions sorted in the order it appears in the code: NameSpace, Imports, Global Vars, Functions
-        llvm::SmallVector<ASTBase *, 8> Definitions;
+        llvm::SmallVector<ASTNode *, 8> Definitions;
 
         ASTModule() = delete;
-
-        ~ASTModule();
 
         ASTModule(size_t& Id, std::string Name, bool isHeader);
 
     public:
+
+        ~ASTModule() override;
+
+        void accept(ASTVisitor& Visitor) override;
+
+        const SourceLocation& getLocation() const override;
+
+        ASTKind getKind() const override;
+
         const size_t getId() const;
 
         bool isHeader() const;
@@ -54,7 +59,7 @@ namespace fly {
 
         ASTNameSpace* getNameSpace();
 
-        const llvm::SmallVector<ASTBase *, 8> &getDefinitions() const;
+        const llvm::SmallVector<ASTNode *, 8> &getDefinitions() const;
 
         std::string str() const;
     };

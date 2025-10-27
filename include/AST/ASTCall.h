@@ -37,7 +37,7 @@ namespace fly {
 
         friend class ASTBuilder;
         friend class SemaBuilder;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaValidator;
 
         const ASTCallKind CallKind;

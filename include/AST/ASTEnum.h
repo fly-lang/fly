@@ -10,7 +10,7 @@
 #ifndef FLY_AST_ENUM_H
 #define FLY_AST_ENUM_H
 
-#include "ASTBase.h"
+#include "ASTNode.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 
@@ -20,15 +20,15 @@ namespace fly {
     class ASTModifier;
     class ASTTypeRef;
 
-    class ASTEnum : public ASTBase {
+    class ASTEnum : public ASTNode {
 
         friend class ASTBuilder;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaValidator;
 
         ASTModule *Module;
 
-        llvm::SmallVector<ASTBase *, 8> Definitions;
+        llvm::SmallVector<ASTNode *, 8> Definitions;
 
         llvm::SmallVector<ASTModifier *, 8> Modifiers;
 
@@ -43,7 +43,7 @@ namespace fly {
 
         ASTModule* getModule() const;
 
-        llvm::SmallVector<ASTBase*, 8> getDefinitions() const;
+        llvm::SmallVector<ASTNode*, 8> getDefinitions() const;
 
         llvm::SmallVector<ASTModifier*, 8> getModifiers() const;
 

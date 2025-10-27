@@ -20,7 +20,7 @@ namespace fly {
     class ASTContinueStmt : public ASTStmt {
 
         friend class ASTBuilder;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaValidator;
 
     public:

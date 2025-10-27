@@ -10,7 +10,7 @@
 #ifndef FLY_AST_STMT_H
 #define FLY_AST_STMT_H
 
-#include "ASTBase.h"
+#include "ASTNode.h"
 
 
 namespace fly {
@@ -37,14 +37,14 @@ namespace fly {
     class ASTVar;
     class ASTFunction;
 
-    class ASTStmt : public ASTBase {
+    class ASTStmt : public ASTNode {
 
         friend class ASTBuilder;
         friend class SemaBuilderStmt;
         friend class SemaBuilderIfStmt;
         friend class SemaBuilderSwitchStmt;
         friend class SemaBuilderLoopStmt;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaValidator;
 
     protected:

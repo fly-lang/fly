@@ -21,7 +21,7 @@ namespace fly {
     class SemaMemberVar : public SemaVar {
 
         friend class SemaBuilder;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaValidator;
 
         SemaClassAttribute *ClassAttribute = nullptr;

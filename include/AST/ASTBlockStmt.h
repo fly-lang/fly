@@ -28,7 +28,7 @@ namespace fly {
         friend class SemaBuilderIfStmt;
         friend class SemaBuilderSwitchStmt;
         friend class SemaBuilderLoopStmt;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaValidator;
 
         // List of Statements of the Block

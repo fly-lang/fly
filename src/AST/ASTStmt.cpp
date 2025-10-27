@@ -13,7 +13,7 @@
 using namespace fly;
 
 ASTStmt::ASTStmt(const SourceLocation &Loc, ASTStmtKind Kind) :
-        ASTBase(Loc, ASTKind::AST_STMT), StmtKind(Kind) {
+        ASTNode(Loc, ASTKind::AST_STMT), StmtKind(Kind) {
 }
 
 ASTStmt *ASTStmt::getParent() const {

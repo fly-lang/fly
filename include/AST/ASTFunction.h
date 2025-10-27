@@ -10,7 +10,7 @@
 #ifndef FLY_AST_FUNCTIONBASE_H
 #define FLY_AST_FUNCTIONBASE_H
 
-#include "ASTBase.h"
+#include "ASTNode.h"
 
 namespace fly {
 
@@ -21,11 +21,11 @@ namespace fly {
     class ASTBlockStmt;
     class SemaFunctionBase;
 
-    class ASTFunction : public ASTBase {
+    class ASTFunction : public ASTNode {
 
         friend class ASTBuilder;
         friend class SemaBuilder;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaResolverClass;
         friend class ParserFunction;
         friend class ParserClass;

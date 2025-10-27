@@ -10,6 +10,7 @@
 #ifndef FLY_SEMA_TYPE_H
 #define FLY_SEMA_TYPE_H
 
+#include "Sema/SemaNode.h"
 #include <cstdint>
 #include <llvm/ADT/StringRef.h>
 
@@ -67,29 +68,23 @@ namespace fly {
         TYPE_ENUM
     };
 
-    class SemaType {
-
-        friend class SemaBuilder;
-        friend class SemaResolver;
-        friend class SemaValidator;
+    class SemaType : public SemaNode {
 
         const size_t Id;
 
-        const SemaTypeKind Kind;
+        const SemaTypeKind TypeKind;
 
         const std::string Name;
 
         SemaValue *DefaultValue;
 
-    protected:
+    public:
 
         explicit SemaType(SemaTypeKind Kind, std::string Name);
 
-    public:
-
         const size_t getId() const;
 
-        const SemaTypeKind getKind() const;
+        const SemaTypeKind getTypeKind() const;
 
         const std::string getName() const;
 
@@ -122,15 +117,11 @@ namespace fly {
 
     class SemaIntType : public SemaType {
 
-        friend class SemaBuilder;
-        friend class SemaResolver;
-        friend class SemaValidator;
-
         const SemaIntTypeKind IntKind;
 
-        explicit SemaIntType(SemaIntTypeKind IntKind, std::string Name);
+    public:
 
-        public:
+        explicit SemaIntType(SemaIntTypeKind IntKind, std::string Name);
 
         const SemaIntTypeKind getIntKind() const;
 
@@ -139,30 +130,22 @@ namespace fly {
 
     class SemaFloatType : public SemaType {
 
-        friend class SemaBuilder;
-        friend class SemaResolver;
-        friend class SemaValidator;
-
         const SemaFloatTypeKind FPKind;
 
-        explicit SemaFloatType(SemaFloatTypeKind FPKind, std::string Name);
+    public:
 
-        public:
+        explicit SemaFloatType(SemaFloatTypeKind FPKind, std::string Name);
 
         const SemaFloatTypeKind getFPKind() const;
     };
 
     class SemaArrayType : public SemaType {
 
-        friend class SemaBuilder;
-        friend class SemaResolver;
-        friend class SemaValidator;
-
-        explicit SemaArrayType(SemaType *Type);
-
         SemaType *Type;
 
-        public:
+    public:
+
+        explicit SemaArrayType(SemaType *Type);
 
         SemaType *getType();
 

@@ -10,7 +10,7 @@
 #ifndef FLY_AST_COMMENT_H
 #define FLY_AST_COMMENT_H
 
-#include "ASTBase.h"
+#include "ASTNode.h"
 
 #include "llvm/ADT/StringRef.h"
 
@@ -19,10 +19,10 @@ namespace fly {
     class ASTModule;
     class SourceLocation;
 
-    class ASTComment : public ASTBase {
+    class ASTComment : public ASTNode {
 
         friend class ASTBuilder;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaValidator;
 
         llvm::StringRef Content;

@@ -7,7 +7,8 @@ add_library(flyLib
         # AST
         AST/ASTAlias.cpp
         AST/ASTArg.cpp
-        AST/ASTBase.cpp
+        AST/ASTBuilder.cpp
+        AST/ASTNode.cpp
         AST/ASTBlockStmt.cpp
         AST/ASTBreakStmt.cpp
         AST/ASTCall.cpp
@@ -133,7 +134,7 @@ add_library(flyLib
         Parser/Parser.cpp
 
         # Sema
-        Sema/ASTBuilder.cpp
+        Sema/Registry.cpp
         Sema/Sema.cpp
         Sema/SemaBuilder.cpp
         Sema/SemaBuilderStmt.cpp
@@ -141,7 +142,8 @@ add_library(flyLib
         Sema/SemaBuilderSwitchStmt.cpp
         Sema/SemaBuilderLoopStmt.cpp
         Sema/SemaBuilderModifiers.cpp
-        Sema/SemaResolver.cpp
+        Sema/SemaBuiltin.cpp
+        Sema/Resolver.cpp
         Sema/SemaResolverClass.cpp
         Sema/SemaValidator.cpp
         Sema/SemaCall.cpp
@@ -156,13 +158,15 @@ add_library(flyLib
         Sema/SemaFunction.cpp
         Sema/SemaFunctionBase.cpp
 #        Sema/SemaGlobalVar.cpp
+        Sema/SemaImport.cpp
         Sema/SemaLocalVar.cpp
         Sema/SemaMemberVar.cpp
         Sema/SemaModule.cpp
         Sema/SemaNameSpace.cpp
         Sema/SemaParam.cpp
         Sema/SemaResult.cpp
-        Sema/SymTable.cpp
+        Sema/Symbol.cpp
+        Sema/SymbolTable.cpp
         Sema/SemaType.cpp
         Sema/SemaVar.cpp
         Sema/SemaValue.cpp

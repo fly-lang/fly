@@ -13,7 +13,7 @@
 using namespace fly;
 
 ASTModifier::ASTModifier(const SourceLocation &Loc, ASTModifierKind Kind) :
-        ASTBase(Loc, ASTKind::AST_MODIFIER), Kind(Kind) {
+        ASTNode(Loc, ASTKind::AST_MODIFIER), Kind(Kind) {
 
 }
 

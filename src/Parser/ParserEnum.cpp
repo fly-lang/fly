@@ -9,7 +9,7 @@
 
 #include "Parser/ParserEnum.h"
 #include "Parser/Parser.h"
-#include "Sema/ASTBuilder.h"
+#include "AST/ASTBuilder.h"
 #include "AST/ASTModifier.h"
 #include "Basic/Debug.h"
 

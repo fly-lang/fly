@@ -10,7 +10,7 @@
 #include "llvm/ADT/StringRef.h"
 
 namespace fly {
-    class ASTBase;
+    class ASTNode;
     class SourceLocation;
 
     class Logger

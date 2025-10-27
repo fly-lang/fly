@@ -10,25 +10,25 @@
 #ifndef FLY_AST_ALIAS_H
 #define FLY_AST_ALIAS_H
 
-#include "ASTBase.h"
+#include "ASTImport.h"
 
 namespace fly {
 
-	class ASTAlias : public ASTBase {
+	class ASTAlias {
 
 		friend class ASTBuilder;
-		friend class SemaResolver;
-		friend class SemaValidator;
 
 		llvm::StringRef Name;
+
+		const SourceLocation &Loc;
 
 		ASTAlias(const SourceLocation &Loc, llvm::StringRef Name);
 
 	public:
 
-		llvm::StringRef getName() const;
+		llvm::StringRef getName();
 
-		std::string str() const override;
+		const SourceLocation &getLocation() const;
 	};
 
 }

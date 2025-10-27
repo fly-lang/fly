@@ -93,7 +93,7 @@ namespace fly {
     class ASTOpExpr : public ASTExpr {
 
         friend class ASTBuilder;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaValidator;
 
         const ASTOpExprKind OpExprKind;
@@ -113,7 +113,7 @@ namespace fly {
     class ASTUnaryOpExpr : public ASTOpExpr {
 
         friend class ASTBuilder;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaValidator;
 
         SourceLocation OpLocation;
@@ -141,7 +141,7 @@ namespace fly {
     class ASTBinaryOpExpr : public ASTOpExpr {
 
         friend class ASTBuilder;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaValidator;
 
         ASTBinaryOpTypeExprKind TypeKind;
@@ -180,7 +180,7 @@ namespace fly {
     class ASTTernaryOpExpr : public ASTOpExpr {
 
         friend class ASTBuilder;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaValidator;
 
         ASTExpr *ConditionExpr;

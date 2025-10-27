@@ -18,7 +18,7 @@ namespace fly {
 
         friend class ASTBuilder;
         friend class SemaBuilderIfStmt;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaValidator;
 
         // The list of Elseif Blocks

@@ -21,7 +21,7 @@ namespace fly {
     class SemaLocalVar : public SemaVar {
 
         friend class SemaBuilder;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaValidator;
 
         CodeGenVar *CodeGen;

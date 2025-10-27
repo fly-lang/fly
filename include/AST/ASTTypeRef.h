@@ -24,7 +24,7 @@ namespace fly {
     class ASTTypeRef : public ASTRef {
 
         friend class ASTBuilder;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaValidator;
 
         SemaType *Sema;
@@ -52,7 +52,7 @@ namespace fly {
     class ASTArrayTypeRef : public ASTTypeRef {
 
         friend class ASTBuilder;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaValidator;
 
         ASTTypeRef *TypeRef;

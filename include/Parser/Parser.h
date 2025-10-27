@@ -18,7 +18,7 @@ namespace fly {
     class DiagnosticsEngine;
     class ASTBuilder;
     class SemaBuilderSwitchStmt;
-    class ASTBase;
+    class ASTNode;
     class ASTModule;
     class SemaNameSpace;
     class ASTValue;
@@ -106,7 +106,7 @@ private:
     ASTImport * ParseImport();
 
     /// Parse a definition.
-    ASTBase *ParseDefinition();
+    ASTNode *ParseDefinition();
 
     /// Parse multiple Modifiers.
     SmallVector<ASTModifier *, 8> ParseModifiers();

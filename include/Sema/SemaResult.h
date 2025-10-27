@@ -10,16 +10,17 @@
 #ifndef FLY_SEMA_RESULT_H
 #define FLY_SEMA_RESULT_H
 
+#include "Sema/SemaNode.h"
 
 namespace fly {
 
-    class ASTBase;
+    class ASTNode;
     class SemaType;
 
-    class SemaResult {
+    class SemaResult : public SemaNode {
 
     	friend class SemaBuilder;
-    	friend class SemaResolver;
+    	friend class Resolver;
     	friend class SemaResolverClass;
 
     	bool IsCall = false;

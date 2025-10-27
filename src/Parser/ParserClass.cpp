@@ -11,7 +11,7 @@
 #include "Parser/ParserFunction.h"
 #include "Parser/ParserClass.h"
 #include "AST/ASTClass.h"
-#include "Sema/ASTBuilder.h"
+#include "AST/ASTBuilder.h"
 #include "Basic/Debug.h"
 
 using namespace fly;

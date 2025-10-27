@@ -28,8 +28,7 @@
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTTypeRef.h"
 #include "AST/ASTVar.h"
-#include "Sema/ASTBuilder.h"
-#include "Sema/SemaBuilderModifiers.h"
+#include "AST/ASTBuilder.h"
 #include "Sema/SemaBuilderStmt.h"
 #include "Sema/SemaBuilderIfStmt.h"
 #include "Sema/SemaBuilderSwitchStmt.h"
@@ -191,7 +190,7 @@ ASTImport *Parser::ParseImport() {
 	return nullptr;
 }
 
-ASTBase *Parser::ParseDefinition() {
+ASTNode *Parser::ParseDefinition() {
 	FLY_DEBUG_START("Parser", "ParseDefinition");
     assert(!isTokenComment() && "Token comment not expected");
 

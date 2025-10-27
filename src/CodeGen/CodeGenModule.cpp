@@ -262,7 +262,7 @@ void CodeGenModule::GenEnum(SemaEnumType *Enum) {
 llvm::Type *CodeGenModule::GenType(SemaType *Type) {
     FLY_DEBUG_START("CodeGenModule", "GenType");
     // Check Type
-    switch (Type->getKind()) {
+    switch (Type->getTypeKind()) {
 
         case SemaTypeKind::TYPE_VOID:
             return VoidTy;
@@ -331,8 +331,8 @@ llvm::PointerType *CodeGenModule::GenArrayType(SemaArrayType *ArrayType) {
 
 llvm::Constant *CodeGenModule::GenDefaultValue(SemaType *Type, llvm::Type *Ty) {
     FLY_DEBUG_START("CodeGenModule", "GenDefaultValue");
-    assert(Type->getKind() != SemaTypeKind::TYPE_VOID && "No default value for Void Type");
-    switch (Type->getKind()) {
+    assert(Type->getTypeKind() != SemaTypeKind::TYPE_VOID && "No default value for Void Type");
+    switch (Type->getTypeKind()) {
 
         // Bool
         case SemaTypeKind::TYPE_BOOL:
@@ -436,7 +436,7 @@ llvm::Value *CodeGenModule::Convert(llvm::Value *FromVal, SemaType *FromType, Se
     assert(ToType && "Invalid conversion type");
 
     llvm::Type *FromLLVMType = FromVal->getType();
-    switch (ToType->getKind()) {
+    switch (ToType->getTypeKind()) {
 
         // to BOOL
         case SemaTypeKind::TYPE_BOOL: {
@@ -659,7 +659,7 @@ llvm::Value *CodeGenModule::GenExpr(ASTExpr *Expr) {
 }
 
 llvm::Value * CodeGenModule::GenCast(SemaType *FromType, SemaType *ToType, llvm::Value *Val) {
-	switch (FromType->getKind()) {
+	switch (FromType->getTypeKind()) {
 
 		case SemaTypeKind::TYPE_VOID:
 		case SemaTypeKind::TYPE_ERROR:

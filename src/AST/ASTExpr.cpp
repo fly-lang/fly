@@ -17,7 +17,7 @@
 using namespace fly;
 
 ASTExpr::ASTExpr(const SourceLocation &Loc, ASTExprKind ExprKind) :
-        ASTBase(Loc, ASTKind::AST_EXPR), ExprKind(ExprKind) {
+        ASTNode(Loc, ASTKind::AST_EXPR), ExprKind(ExprKind) {
 
 }
 

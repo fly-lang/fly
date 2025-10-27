@@ -10,7 +10,7 @@
 #ifndef FLY_AST_ARG_H
 #define FLY_AST_ARG_H
 
-#include "ASTBase.h"
+#include "ASTNode.h"
 
 namespace fly {
 
@@ -18,9 +18,9 @@ namespace fly {
     class ASTVar;
     class ASTCall;
 
-    class ASTArg : public ASTBase {
+    class ASTArg : public ASTNode {
 
-        friend class SemaResolver;
+        friend class Resolver;
 
         friend class ASTBuilder;
 

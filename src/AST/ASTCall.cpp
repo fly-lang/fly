@@ -35,7 +35,7 @@ std::string ASTCall::str() const {
     return Logger("ASTCall").
 	Attr("Location", getLocation()).
 		Attr("Kind", static_cast<size_t>(getKind())).
-            Attr("Args", ASTBase::str(Args)).
+            Attr("Args", ASTNode::str(Args)).
             Attr("Sym", Sema).
             End();
 }

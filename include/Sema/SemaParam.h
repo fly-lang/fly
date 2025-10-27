@@ -20,7 +20,7 @@ namespace fly {
     class SemaParam : public SemaVar {
 
         friend class SemaBuilder;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaValidator;
 
 		CodeGenVar *CodeGen;

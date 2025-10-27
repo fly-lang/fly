@@ -25,7 +25,7 @@ namespace fly {
     class SemaFunction : public SemaFunctionBase {
 
         friend class SemaBuilder;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaValidator;
 
         SemaModule *Module;
@@ -37,7 +37,7 @@ namespace fly {
         // Populated during codegen phase
         CodeGenFunction *CodeGen = nullptr;
 
-        explicit SemaFunction(ASTFunction *AST);
+        explicit SemaFunction(ASTFunction &AST);
 
         std::string MangleFunction(ASTFunction *AST);
 

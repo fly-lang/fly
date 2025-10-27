@@ -10,26 +10,30 @@
 #ifndef FLY_SEMA_RESOLVER_H
 #define FLY_SEMA_RESOLVER_H
 
+#include <unordered_map>
+
 #include "SemaClassMethod.h"
 #include "SemaErrorHandler.h"
 #include "llvm/ADT/SmallVector.h"
+#include "AST/ASTVisitor.h"
 
 namespace fly {
 
     class Sema;
     class SemaResolverClass;
+    class SemaBuilder;
     class ASTBuilder;
     class DiagnosticsEngine;
     class DiagnosticBuilder;
     class SourceLocation;
-    class SymTable;
+    class SymbolTable;
     class SemaNameSpace;
     class SemaModule;
     class SemaComment;
     class SemaClassType;
     class SemaEnumType;
     class ASTModule;
-    class ASTBase;
+    class ASTNode;
     class ASTClass;
     class ASTStmt;
     class ASTBlockStmt;
@@ -64,45 +68,60 @@ namespace fly {
     class ASTModifier;
     class ASTValue;
     class SemaResult;
+    class DiagnosticsEngine;
+    class DiagnosticBuilder;
+    class ASTNameSpace;
+    class Registry;
 
-    class SemaResolver {
 
-        friend class Sema;
-        friend class SemaResolverClass;
+    class Resolver : public ASTVisitor {
 
-        Sema &S;
+        DiagnosticsEngine &Diags;
+
+        Registry &Reg;
+
+        SymbolTable *BuiltinScope;
+
+        SymbolTable* CurrentScope;
+
+        SemaModule* CurrentModule;
 
         // This is the Module NameSpace
-        SemaNameSpace *NameSpace;
-
-        SemaModule *Module;
-
-        bool isDefaultNameSpace;
-
-        llvm::SmallVector<SemaResolverClass *, 4> ResolverClasses;
-
-        llvm::SmallVector<ASTBlockStmt *, 8> Bodies;
-
-        SemaResolver(Sema &S, ASTModule *Module);
+        SemaNameSpace *CurrentNameSpace;
 
     public:
 
-        static bool Resolve(Sema &S);
+        Resolver(DiagnosticsEngine &Diags, Registry &Reg);
+
+        virtual ~Resolver();
+
+        SymbolTable * CreateBuiltinScope();
+
+        DiagnosticBuilder Diag(const SourceLocation &Loc, unsigned DiagID) const;
+
+        DiagnosticBuilder Diag(unsigned DiagID) const;
+
+        void visit(ASTModule &AST) override;
+        void visit(ASTNameSpace &AST) override;
+        void visit(ASTImport& AST) override;
+        void visit(ASTFunction &AST) override;
+        void visit(ASTClass &AST) override;
+        void visit(ASTEnum &AST) override;
+
+        void Resolve();
 
     private:
 
-        void AddSymbols();
+        // Scope Management
+        void EnterScope();
+        void ExitScope();
 
-        void ResolveImports();
+        // Semantic Resolution Phases
+        void ResolveImports(SemaModule *Module);
 
-        void ResolveComment(SemaComment *Comment, ASTBase* AST);
+        void ResolveFunctions(SemaModule *Module);
 
-        // TODO: remove GlobalVar
-        // void ResolveGlobalVars();
-
-        void ResolveFunctions();
-
-        void ResolveTypes();
+        void ResolveTypes(SemaModule *Module);
 
         void ResolveClassTypes();
 
@@ -161,7 +180,6 @@ namespace fly {
         SemaVar *ResolveVar(ASTStmt *Stmt, ASTRef *VarRef);
 
     };
-
 } // end namespace fly
 
 #endif

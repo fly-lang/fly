@@ -17,7 +17,7 @@
 namespace fly {
 
     class ASTClass;
-	class SemaResolver;
+	class Resolver;
     class Sema;
     class SemaClassType;
     class SemaClassAttribute;
@@ -26,7 +26,7 @@ namespace fly {
 
     class SemaResolverClass {
 
-        SemaResolver *R;
+        Resolver *R;
 
         Sema &S;
 
@@ -34,7 +34,7 @@ namespace fly {
 
     public:
 
-        SemaResolverClass(SemaResolver *R, SemaClassType *Class);
+        SemaResolverClass(Resolver *R, SemaClassType *Class);
 
         void Resolve();
 

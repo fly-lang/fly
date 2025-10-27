@@ -15,7 +15,7 @@ using namespace fly;
 
 ASTVar::ASTVar(const SourceLocation &Loc, ASTTypeRef *TypeRef, llvm::StringRef Name,
                SmallVector<ASTModifier *, 8> &Modifiers) :
-        ASTBase(Loc, ASTKind::AST_VAR), TypeRef(TypeRef), Name(Name), Modifiers(Modifiers) {
+        ASTNode(Loc, ASTKind::AST_VAR), TypeRef(TypeRef), Name(Name), Modifiers(Modifiers) {
 
 }
 
@@ -46,6 +46,6 @@ std::string ASTVar::str() const {
         Attr("TypeRef", TypeRef).
         Attr("Name", Name).
         Attr("Expr", Expr).
-        Attr("Modifiers", ASTBase::str(Modifiers)).
+        Attr("Modifiers", ASTNode::str(Modifiers)).
         End();
 }

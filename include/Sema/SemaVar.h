@@ -31,7 +31,7 @@ namespace fly {
     class SemaVar : public SemaResult {
 
         friend class SemaBuilder;
-        friend class SemaResolver;
+        friend class Resolver;
     	friend class SemaResolverClass;
         friend class SemaValidator;
 

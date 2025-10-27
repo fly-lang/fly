@@ -10,6 +10,7 @@
 #ifndef FLY_SEMA_H
 #define FLY_SEMA_H
 
+#include "Resolver.h"
 #include <llvm/ADT/SmallVector.h>
 
 #include "llvm/ADT/StringMap.h"
@@ -20,72 +21,22 @@ namespace llvm {
 
 namespace fly {
 
-    class SemaBuilder;
-    class ASTBuilder;
-    class SemaResolver;
-    class SemaValidator;
-    class SemaBuilderIfStmt;
-    class SemaBuilderSwitchStmt;
-    class SemaBuilderLoopStmt;
     class DiagnosticsEngine;
-    class DiagnosticBuilder;
-    class SourceLocation;
-    class SymTable;
-    class SemaNameSpace;
-    class ASTModule;
-    class ASTFunction;
-    class ASTFunction;
-    class ASTImport;
-    class ASTVar;
-    class ASTBlockStmt;
-    class ASTRef;
-    class ASTTypeRef;
-    class SymTable;
 
     class Sema {
 
-        friend class ASTBuilder;
-        friend class SemaBuilderIfStmt;
-        friend class SemaBuilderSwitchStmt;
-        friend class SemaBuilderLoopStmt;
-        friend class SemaResolver;
-        friend class SemaBuilder;
-
         DiagnosticsEngine &Diags;
 
-        llvm::SmallVector<ASTModule *, 4> Modules;
-
-        SymTable *Table = nullptr;
-
-        ASTBuilder *ABuilder = nullptr;
-
-        SemaBuilder *SBuilder = nullptr;
-
-        Sema(DiagnosticsEngine &Diags);
+        SemaBuilder *Builder;
 
     public:
 
-        static std::string DEFAULT_NAMESPACE;
+        explicit Sema(DiagnosticsEngine& diags);
 
-        ~Sema();
+        ~Sema() = default;
 
-        static Sema* CreateSema(DiagnosticsEngine &Diags);
+        llvm::SmallVector<SemaModule *, 8>  Resolve(llvm::SmallVector<ASTModule *, 8> &ASTModules);
 
-        ASTBuilder &getASTBuilder();
-
-        SemaBuilder &getSemaBuilder();
-
-        DiagnosticsEngine &getDiags() const;
-
-        SymTable &getSymTable() const;
-
-        const llvm::SmallVector<ASTModule*, 4> &getModules() const;
-
-        bool Resolve();
-
-        DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID) const;
-
-        DiagnosticBuilder Diag(unsigned DiagID) const;
     };
 
 }  // end namespace fly

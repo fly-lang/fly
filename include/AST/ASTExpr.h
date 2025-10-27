@@ -10,7 +10,7 @@
 #ifndef FLY_AST_EXPR_H
 #define FLY_AST_EXPR_H
 
-#include "ASTBase.h"
+#include "ASTNode.h"
 
 namespace fly {
 
@@ -35,10 +35,10 @@ namespace fly {
     /**
      * Expression Abstract Class
      */
-    class ASTExpr : public ASTBase {
+    class ASTExpr : public ASTNode {
 
         friend class ASTBuilder;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaResolverClass;
         friend class SemaValidator;
 
@@ -65,7 +65,7 @@ namespace fly {
     class ASTValueExpr : public ASTExpr {
 
         friend class ASTBuilder;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaValidator;
 
         ASTValue *Value = nullptr;
@@ -85,7 +85,7 @@ namespace fly {
     class ASTVarRefExpr : public ASTExpr {
 
         friend class ASTBuilder;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaValidator;
 
         ASTRef *VarRef = nullptr;
@@ -105,7 +105,7 @@ namespace fly {
     class ASTCallExpr : public ASTExpr {
 
         friend class ASTBuilder;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaValidator;
 
         ASTCall *Call = nullptr;
@@ -125,7 +125,7 @@ namespace fly {
     class ASTCastExpr : public ASTExpr {
 
         friend class ASTBuilder;
-        friend class SemaResolver;
+        friend class Resolver;
         friend class SemaValidator;
 
         ASTExpr *Expr = nullptr;

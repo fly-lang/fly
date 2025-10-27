@@ -10,6 +10,8 @@
 #ifndef FLY_SEMA_NAMESPACE_H
 #define FLY_SEMA_NAMESPACE_H
 
+#include "SymbolTable.h"
+#include "Sema/SemaNode.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 
@@ -23,15 +25,15 @@ namespace fly {
     class CodeGenModule;
     class SemaType;
 
-    class SemaNameSpace {
+    class SemaNameSpace : public SemaNode {
 
-        friend class SemaBuilder;
-        friend class SemaResolver;
-        friend class SemaValidator;
+        SymbolTable *Symbols;
 
         std::string Name;
 
         SemaNameSpace *Parent;
+
+        std::unordered_map<std::string, SemaNameSpace *> Children;
 
         llvm::SmallVector<ASTModule *, 8> Modules;
 
@@ -46,15 +48,19 @@ namespace fly {
 
         CodeGenModule* CodeGen = nullptr;
 
-        explicit SemaNameSpace(const std::string& Name);
-
     public:
+
+        explicit SemaNameSpace(const std::string& Name, SemaNameSpace *Parent = nullptr);
+
+        SymbolTable *getSymbols() const;
 
         ~SemaNameSpace();
 
         llvm::StringRef getName() const;
 
         SemaNameSpace *getParent() const;
+
+        std::unordered_map<std::string, SemaNameSpace *> getChildren() const;
 
         const llvm::SmallVector<ASTModule *, 8> &getModules() const;
 

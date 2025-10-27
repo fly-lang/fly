@@ -8,9 +8,8 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/Sema.h"
-#include "Sema/SymTable.h"
+#include "Sema/SymbolTable.h"
 #include "Sema/SemaModule.h"
-#include "Sema/SemaNameSpace.h"
 #include "Sema/SemaBuilder.h"
 #include "Basic/Debug.h"
 #include "Basic/Diagnostic.h"
@@ -20,353 +19,52 @@
 #include "Sema/SemaGlobalVar.h"
 #include "Sema/SemaType.h"
 #include "Sema/SemaMemberVar.h"
-#include "AST/ASTAlias.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTEnum.h"
-#include "AST/ASTImport.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTVar.h"
-#include "AST/ASTModule.h"
-#include "AST/ASTNameSpace.h"
-#include "AST/ASTModifier.h"
 #include "Sema/SemaClassAttribute.h"
 #include "Sema/SemaClassMethod.h"
 #include "Sema/SemaEnumEntry.h"
 #include "Sema/SemaComment.h"
-#include "Sema/SemaVisibilityKind.h"
 #include "Sema/SemaValue.h"
 #include "Sema/SemaCall.h"
 #include "llvm/Support/Regex.h"
 
+#include <AST/ASTValue.h>
 #include <Sema/SemaBuilderModifiers.h>
+#include <Sema/SemaBuiltin.h>
 #include <Sema/SemaClassInstance.h>
+#include <Sema/SemaLocalVar.h>
+#include <Sema/SemaParam.h>
 
 using namespace fly;
 
-SemaBuilder::SemaBuilder(Sema &S) : S(S) {
-
-}
-
-void SemaBuilder::CreateTable() {
-	S.Table = new SymTable();
-
-	// Create Builtin Types
-	S.Table->BoolType = S.getSemaBuilder().CreateType(SemaTypeKind::TYPE_BOOL, "bool");
-	S.Table->BoolType->DefaultValue = new SemaBoolValue(false);
-	S.Table->BoolType->DefaultValue->Type = S.Table->BoolType;
-
-	S.Table->ByteType = S.getSemaBuilder().CreateIntType(SemaIntTypeKind::TYPE_BYTE, "byte");
-	S.Table->ByteType->DefaultValue = new SemaIntValue("0", 10);
-	S.Table->ByteType->DefaultValue->Type = S.Table->ByteType;
-
-	S.Table->UShortType = S.getSemaBuilder().CreateIntType(SemaIntTypeKind::TYPE_USHORT, "ushort");
-	S.Table->UShortType->DefaultValue = new SemaIntValue("0", 10);
-	S.Table->UShortType->DefaultValue->Type = S.Table->UShortType;
-
-	S.Table->ShortType = S.getSemaBuilder().CreateIntType(SemaIntTypeKind::TYPE_SHORT, "short");
-	S.Table->ShortType->DefaultValue = new SemaIntValue("0", 10);
-	S.Table->ShortType->DefaultValue->Type = S.Table->ShortType;
-
-	S.Table->UIntType = S.getSemaBuilder().CreateIntType(SemaIntTypeKind::TYPE_UINT, "uint");
-	S.Table->UIntType->DefaultValue = new SemaIntValue("0", 10);
-	S.Table->UIntType->DefaultValue->Type = S.Table->UIntType;
-
-	S.Table->IntType = S.getSemaBuilder().CreateIntType(SemaIntTypeKind::TYPE_INT, "int");
-	S.Table->IntType->DefaultValue = new SemaIntValue("0", 10);
-	S.Table->IntType->DefaultValue->Type = S.Table->IntType;
-
-	S.Table->ULongType = S.getSemaBuilder().CreateIntType(SemaIntTypeKind::TYPE_ULONG, "ulong");
-	S.Table->ULongType->DefaultValue = new SemaIntValue("0", 10);
-	S.Table->ULongType->DefaultValue->Type = S.Table->ULongType;
-
-	S.Table->LongType = S.getSemaBuilder().CreateIntType(SemaIntTypeKind::TYPE_LONG, "long");
-	S.Table->LongType->DefaultValue = new SemaIntValue("0", 10);
-	S.Table->LongType->DefaultValue->Type = S.Table->LongType;
-
-	S.Table->FloatType = S.getSemaBuilder().CreateFPType(SemaFloatTypeKind::TYPE_FLOAT, "float");
-	S.Table->FloatType->DefaultValue = new SemaFloatValue("0.0");
-	S.Table->FloatType->DefaultValue->Type = S.Table->FloatType;
-
-	S.Table->DoubleType = S.getSemaBuilder().CreateFPType(SemaFloatTypeKind::TYPE_DOUBLE, "double");
-	S.Table->DoubleType->DefaultValue = new SemaFloatValue("0.0");
-	S.Table->DoubleType->DefaultValue->Type = S.Table->DoubleType;
-
-	S.Table->StringType = S.getSemaBuilder().CreateType(SemaTypeKind::TYPE_STRING, "string");
-	S.Table->StringType->DefaultValue = new SemaStringValue("");
-	S.Table->StringType->DefaultValue->Type = S.Table->StringType;
-
-	S.Table->VoidType = S.getSemaBuilder().CreateType(SemaTypeKind::TYPE_VOID, "void");
-	
-	S.Table->ErrorType = S.getSemaBuilder().CreateType(SemaTypeKind::TYPE_ERROR, "error");
-
-	// Create the Default NameSpace
-	S.Table->DefaultNameSpace = S.SBuilder->CreateDefaultNameSpace();
-
-	// Add built-in types to the Default NameSpace
-	S.Table->DefaultNameSpace->Types.insert(std::make_pair<>(S.Table->BoolType->getName(), S.Table->BoolType));
-	S.Table->DefaultNameSpace->Types.insert(std::make_pair<>(S.Table->ByteType->getName(), S.Table->ByteType));
-	S.Table->DefaultNameSpace->Types.insert(std::make_pair<>(S.Table->UShortType->getName(), S.Table->UShortType));
-	S.Table->DefaultNameSpace->Types.insert(std::make_pair<>(S.Table->ShortType->getName(), S.Table->ShortType));
-	S.Table->DefaultNameSpace->Types.insert(std::make_pair<>(S.Table->UIntType->getName(), S.Table->UIntType));
-	S.Table->DefaultNameSpace->Types.insert(std::make_pair<>(S.Table->IntType->getName(), S.Table->IntType));
-	S.Table->DefaultNameSpace->Types.insert(std::make_pair<>(S.Table->ULongType->getName(), S.Table->ULongType));
-	S.Table->DefaultNameSpace->Types.insert(std::make_pair<>(S.Table->LongType->getName(), S.Table->LongType));
-	S.Table->DefaultNameSpace->Types.insert(std::make_pair<>(S.Table->FloatType->getName(), S.Table->FloatType));
-	S.Table->DefaultNameSpace->Types.insert(std::make_pair<>(S.Table->DoubleType->getName(), S.Table->DoubleType));
-	S.Table->DefaultNameSpace->Types.insert(std::make_pair<>(S.Table->VoidType->getName(), S.Table->VoidType));
-	S.Table->DefaultNameSpace->Types.insert(std::make_pair<>(S.Table->StringType->getName(), S.Table->StringType));
-	S.Table->DefaultNameSpace->Types.insert(std::make_pair<>(S.Table->ErrorType->getName(), S.Table->ErrorType));
-}
-
-SemaNameSpace *SemaBuilder::CreateDefaultNameSpace() {
-	FLY_DEBUG_START("SemaBuilder", "CreateNameSpace");
-
-	SemaNameSpace *NameSpace = new SemaNameSpace(Sema::DEFAULT_NAMESPACE);
-	S.Table->NameSpaces.insert(std::make_pair<>(NameSpace->getName(), NameSpace));
-	S.Table->DefaultNameSpace = NameSpace;
-
-	FLY_DEBUG_END("SemaBuilder", "CreateNameSpace");
-	return NameSpace;
-}
-
-SemaNameSpace * SemaBuilder::CreateOrGetNameSpace(ASTNameSpace *AST) {
-	// When the AST is null, return the Default NameSpace
-	if (AST == nullptr) {
-		return S.getSymTable().DefaultNameSpace;
-	}
-
-	// Build the NameSpace
-	SemaNameSpace *Parent = nullptr;
-	SemaNameSpace *NameSpace = nullptr;
-	std::string FullName = "";
-	for (auto It = AST->getNames().begin(); It != AST->getNames().end(); ++It) {
-		// Generate the full name
-		FullName += It == AST->getNames().begin() ? std::string(*It) : "." + FullName;
-
-		// Create the NameSpace if not exists yet in the Context
-		NameSpace = S.getSymTable().getNameSpaces().lookup(FullName);
-		if (NameSpace == nullptr) {
-			NameSpace = new SemaNameSpace(FullName);
-			S.Table->NameSpaces.insert(std::make_pair<>(NameSpace->getName(), NameSpace));
-			NameSpace->Parent = Parent;
-			Parent = NameSpace;
-		}
-	}
-
-	return NameSpace;
-}
-
-SemaModule * SemaBuilder::CreateModule(SemaNameSpace *NameSpace, ASTModule *AST) {
-	FLY_DEBUG_START("SemaBuilder", "CreateModule");
-
-	SemaModule *Module = new SemaModule(AST);
-	Module->NameSpace = NameSpace;
-	S.Table->Modules.insert(std::make_pair(AST->getId(), Module));
-
-	FLY_DEBUG_END("SemaBuilder", "CreateModule");
-	return Module;
-}
-
-void SemaBuilder::CreateImport(SemaModule *Module, ASTImport *AST) {
-	FLY_DEBUG_START("SemaBuilder", "CreateImport");
-
-	// Error: Empty Import
-	if (AST->getName().empty()) {
-		S.Diag(AST->getLocation(), diag::err_sema_import_undefined);
-		return;
-	}
-
-	// Error: name is equals to the current ASTModule namespace
-	if (AST->getName() == Module->getNameSpace()->getName()) {
-		S.Diag(AST->getLocation(), diag::err_import_conflict_namespace) << AST->getName();
-		return;
-	}
-
-	// Replace with alias name if exists
-	llvm::StringRef Name = AST->getName();
-
-	// Error: alias is equals to the current ASTModule namespace
-	if (AST->getAlias()) {
-
-		// Set Import Name
-		Name = AST->getAlias()->getName();
-
-		// Check Alias
-		if (Module->getImports().lookup(Name) != nullptr) {
-			S.Diag(AST->getLocation(), diag::err_conflict_import_alias) << Name;
-			return;
-		}
-
-		if (AST->getAlias()->getName() == Module->getNameSpace()->getName()) {
-			S.Diag(AST->getAlias()->getLocation(), diag::err_alias_conflict_namespace) << AST->getAlias()->getName();
-			return;
-		}
-	}
-
-	// Search Namespace in Symbol Table
-	SemaNameSpace *ImportNameSpace = S.getSymTable().getNameSpaces().lookup(AST->getName());
-	if (!ImportNameSpace) {
-		// Error: NameSpace not found
-		S.Diag(AST->getLocation(), diag::err_namespace_notfound) << AST->getName();
-		return;
-	}
-
-	// Add NameSpace to the Imports for next symbols resolution
-	Module->Imports.insert(std::make_pair(Name, ImportNameSpace));
-
-	FLY_DEBUG_END("SemaBuilder", "CreateImport");
-}
-
-// TODO: remove GlobalVar
-// SemaGlobalVar * SemaBuilder::CreateGlobalVar(SemaModule *Module, ASTVar *AST) {
-// 	FLY_DEBUG_START("SemaBuilder", "CreateGlobalVar");
-//
-// 	SemaGlobalVar *GlobalVar = new SemaGlobalVar(AST);
-//
-// 	// Check Duplicates in Module
-// 	if (Module->GlobalVars.lookup(AST->getName()) != nullptr) {
-// 		// Error
-// 		S.Diag(AST->getLocation(), diag::err_syntax_error) << AST->getName();
-// 		return GlobalVar;
-// 	}
-//
-// 	GlobalVar->Module = Module;
-// 	Module->GlobalVars.insert(std::make_pair(AST->getName(), GlobalVar));
-// 	AST->Sym = GlobalVar;
-//
-// 	// Check and set GlobalVar Modifiers
-// 	for (auto Scope : AST->getModifiers()) {
-// 		if (Scope == nullptr) {
-// 			// Error:
-// 			S.Diag(AST->getLocation(), diag::err_sema_visibility_error) << AST->getName();
-// 		}
-// 		if (Scope->getModifierKind() == ASTScopeKind::SCOPE_VISIBILITY) {
-// 			if (Scope->getVisibility() == ASTModifierKind::MOD_PUBLIC ||
-// 				Scope->getVisibility() == ASTModifierKind::V_DEFAULT) {
-//
-// 				// Check Duplicates in NameSpace
-// 				GlobalVar->Visibility = Scope->getVisibility() == ASTModifierKind::MOD_PUBLIC ?
-//                     SemaVisibilityKind::PUBLIC : SemaVisibilityKind::DEFAULT;
-// 				if (Module->NameSpace->GlobalVars.lookup(AST->getName()) != nullptr) {
-// 					// Error
-// 					S.Diag(AST->getLocation(), diag::err_syntax_error) << AST->getName();
-// 				}
-// 				Module->NameSpace->GlobalVars.insert(std::make_pair(AST->getName(), GlobalVar));
-// 			} else if (Scope->getVisibility() == ASTModifierKind::MOD_PRIVATE) {
-// 				GlobalVar->Visibility = SemaVisibilityKind::PRIVATE;
-// 			} else {
-// 				// Error
-// 				S.Diag(AST->getLocation(), diag::err_sema_visibility_error) << AST->getName();
-// 			}
-// 		} else if (Scope->getModifierKind() == ASTScopeKind::SCOPE_CONSTANT) {
-// 			GlobalVar->Constant = Scope->isConstant();
-// 		}
-// 	}
-//
-// 	FLY_DEBUG_END("SemaBuilder", "CreateGlobalVar");
-// 	return GlobalVar;
-// }
-
-SemaFunction * SemaBuilder::CreateFunction(SemaModule *Module, ASTFunction *AST) {
+SemaFunction * SemaBuilder::CreateFunction(ASTFunction &AST) {
 	FLY_DEBUG_START("SemaBuilder", "CreateFunction");
 
 	SemaFunction *Function = new SemaFunction(AST);
 
-	// Check Duplicates in Module
-	std::string MangledName = Function->getMangledName();
-	if (Module->Functions.lookup(MangledName) != nullptr) {
-		// Error: function already exists
-		S.Diag(AST->getLocation(), diag::err_syntax_error) << AST->getName();
-		return Function;
-	}
-
-	Function->Module = Module;
-	Module->Functions.insert(std::make_pair(MangledName, Function));
-	AST->Sema = Function;
-
-	// Check and set Function Modifiers
-	for (auto Modifier : AST->getModifiers()) {
-		if (Modifier == nullptr) {
-			// Error:
-			S.Diag(AST->getLocation(), diag::err_sema_visibility_error) << AST->getName();
-		}
-		if (Modifier->getModifierKind() == ASTModifierKind::MOD_PUBLIC) {
-			Function->Visibility = SemaVisibilityKind::PUBLIC;
-
-			// Check Duplicates in NameSpace
-			if (Module->NameSpace->Functions.lookup(MangledName) != nullptr) {
-				// Error: duplicated function
-				S.Diag(AST->getLocation(), diag::err_syntax_error) << AST->getName();
-			}
-			Module->NameSpace->Functions.insert(std::make_pair(MangledName, Function));
-		} else if (Modifier->getModifierKind() == ASTModifierKind::MOD_DEFAULT) {
-			Function->Visibility = SemaVisibilityKind::DEFAULT;
-
-			// Check Duplicates in NameSpace
-			if (Module->NameSpace->Functions.lookup(MangledName) != nullptr) {
-				// Error: duplicated function
-				S.Diag(AST->getLocation(), diag::err_syntax_error) << AST->getName();
-			}
-			Module->NameSpace->Functions.insert(std::make_pair(MangledName, Function));
-		} else if (Modifier->getModifierKind() == ASTModifierKind::MOD_PRIVATE) {
-			Function->Visibility = SemaVisibilityKind::PRIVATE;
-		} else {
-			// Error
-			S.Diag(AST->getLocation(), diag::err_sema_visibility_error) << AST->getName();
-		}
-	}
+	SemaBuilderModifiers *BuilderModifiers = SemaBuilderModifiers::Build(AST.getModifiers());
+	Function->Visibility = BuilderModifiers->getVisibility();
 
 	FLY_DEBUG_END("SemaBuilder", "CreateFunction");
 	return Function;
 }
 
-SemaClassType * SemaBuilder::CreateClass(SemaModule *Module, ASTClass *AST) {
+SemaClassType * SemaBuilder::CreateClass(ASTClass &AST) {
 	FLY_DEBUG_START("SemaBuilder", "CreateClass");
 
 	// Create the Class Type
 	SemaClassType *Class = new SemaClassType(AST);
 
-	// Check Duplicates in Module
-	if (Module->Types.lookup(AST->getName()) != nullptr) {
-		// Error
-		S.Diag(AST->getLocation(), diag::err_syntax_error) << AST->getName();
-		return Class;
-	}
-
-	// Set Class Module
-	Class->Module = Module;
-	Module->Types.insert(std::make_pair(AST->getName(), Class));
-
 	// Create the 'this' attribute for the current class
 	Class->This = CreateThisInstance(Class);
 
 	// Set Modifiers
-	SemaBuilderModifiers *BuilderModifiers = SemaBuilderModifiers::Build(AST->getModifiers());
+	SemaBuilderModifiers *BuilderModifiers = SemaBuilderModifiers::Build(AST.getModifiers());
 	Class->Constant = BuilderModifiers->isConstant();
 	Class->Visibility = BuilderModifiers->getVisibility();
-
-	// Check and set Function Modifiers
-	if (Class->getVisibility() == SemaVisibilityKind::PUBLIC) {
-
-		// Check Duplicates in NameSpace
-		if (Module->NameSpace->Types.lookup(AST->getName()) != nullptr) {
-			// Error
-			S.Diag(AST->getLocation(), diag::err_syntax_error) << AST->getName();
-		}
-		Module->NameSpace->Types.insert(std::make_pair(AST->getName(), Class));
-	} else if (Class->getVisibility() == SemaVisibilityKind::PROTECTED) {
-		// TODO: Protected Visibility
-
-	} else if (Class->getVisibility() == SemaVisibilityKind::PRIVATE) {
-		// TODO: Private Visibility
-	} else { // Default Visibility
-		// Check Duplicates in NameSpace
-		if (Module->NameSpace->Types.lookup(AST->getName()) != nullptr) {
-			// Error
-			S.Diag(AST->getLocation(), diag::err_syntax_error) << AST->getName();
-		}
-		Module->NameSpace->Types.insert(std::make_pair(AST->getName(), Class));
-	}
 
 	FLY_DEBUG_END("SemaBuilder", "CreateClass");
 	return Class;
@@ -404,7 +102,7 @@ SemaClassMethod * SemaBuilder::CreateClassMethod(SemaClassType *Class, SemaClass
 	// When the Class Name is Equals to the Function Name this is a Constructor
 	if (AST->getName() == Class->getName()) {
 		Method = new SemaClassMethod(AST, Class, This, SemaClassMethodKind::METHOD_CONSTRUCTOR);
-		Method->ReturnType = S.getSymTable().getVoidType();
+		Method->ReturnType = SemaBuiltin::getVoidType();
 	} else {
 		SemaClassMethodKind MethodKind = Class->getClassKind() == SemaClassKind::INTERFACE ?
 			                 SemaClassMethodKind::METHOD_ABSTRACT : SemaClassMethodKind::METHOD;
@@ -426,23 +124,13 @@ SemaClassMethod * SemaBuilder::CreateClassMethod(SemaClassType *Class, SemaClass
 	return Method;
 }
 
-SemaEnumType * SemaBuilder::CreateEnum(SemaModule *Module, ASTEnum *AST) {
+SemaEnumType * SemaBuilder::CreateEnum(ASTEnum &AST) {
 	FLY_DEBUG_START("SemaBuilder", "CreateEnum");
 
 	SemaEnumType *Enum = new SemaEnumType(AST);
 
-	// Check Duplicates in Module
-	if (Module->Types.lookup(AST->getName()) != nullptr) {
-		// Error
-		S.Diag(AST->getLocation(), diag::err_syntax_error) << AST->getName();
-		return Enum;
-	}
-
-	Enum->Module = Module;
-	Module->Types.insert(std::make_pair(AST->getName(), Enum));
-
 	// Set Modifiers
-	SemaBuilderModifiers *Builder = SemaBuilderModifiers::Build(AST->getModifiers());
+	SemaBuilderModifiers *Builder = SemaBuilderModifiers::Build(AST.getModifiers());
 	Enum->Visibility = Builder->getVisibility();
 	Enum->Constant = Builder->isConstant();
 
@@ -460,42 +148,6 @@ SemaEnumEntry * SemaBuilder::CreateEnumEntry(SemaEnumType *Enum, ASTVar *AST, Se
 
 	FLY_DEBUG_END("SemaBuilder", "CreateEnumEntry");
 	return Entry;
-}
-
-SemaType * SemaBuilder::CreateType(SemaTypeKind Kind, std::string Name) {
-	FLY_DEBUG_START("SemaBuilder", "CreateType");
-
-	SemaType *Type = new SemaType(Kind, Name);
-
-	FLY_DEBUG_END("SemaBuilder", "CreateType");
-	return Type;
-}
-
-SemaIntType * SemaBuilder::CreateIntType(SemaIntTypeKind IntKind, std::string Name) {
-	FLY_DEBUG_START("SemaBuilder", "CreateIntType");
-
-	SemaIntType *Type = new SemaIntType(IntKind, Name);
-
-	FLY_DEBUG_END("SemaBuilder", "CreateIntType");
-	return Type;
-}
-
-SemaFloatType * SemaBuilder::CreateFPType(SemaFloatTypeKind FPKind, std::string Name) {
-	FLY_DEBUG_START("SemaBuilder", "CreateFPType");
-
-	SemaFloatType *Type = new SemaFloatType(FPKind, Name);
-
-	FLY_DEBUG_END("SemaBuilder", "CreateFPType");
-	return Type;
-}
-
-SemaArrayType * SemaBuilder::CreateArrayType(SemaType *Type) {
-	FLY_DEBUG_START("SemaBuilder", "CreateArrayType");
-
-	SemaArrayType * TypeArray = new SemaArrayType(Type);
-
-	FLY_DEBUG_END("SemaBuilder", "CreateArrayType");
-	return TypeArray;
 }
 
 SemaComment * SemaBuilder::CreateComment(ASTComment *AST) {
@@ -561,7 +213,7 @@ SemaBoolValue * SemaBuilder::CreateBoolValue(ASTBoolValue *AST) {
 	FLY_DEBUG_START("SemaBuilder", "CreateBoolValue");
 
 	SemaBoolValue * V = new SemaBoolValue(AST->getValue());
-	V->Type = S.getSymTable().BoolType;
+	V->Type = SemaBuiltin::getBoolType();
 	AST->Sema = V;
 
 	FLY_DEBUG_END("SemaBuilder", "CreateBoolValue");
@@ -578,7 +230,7 @@ SemaValue * SemaBuilder::CreateNumberValue(ASTNumberValue *AST) {
 	if (FloatRegex.match(AST->getValue())) {
 		// Floating point
 		V = new SemaFloatValue(AST->getValue());
-		V->Type = S.getSymTable().DoubleType;
+		V->Type = SemaBuiltin::getDoubleType();
 	} else {
 
 		// Integer number
@@ -597,17 +249,17 @@ SemaValue * SemaBuilder::CreateNumberValue(ASTNumberValue *AST) {
 		llvm::APInt I = IntValue->getValue();
 		if (I.isNegative()) {
 			unsigned MinBits = 1 + I.getBitWidth() - I.countLeadingOnes();
-			if (MinBits <= 16) IntValue->Type = S.getSymTable().ShortType;
-			else if (MinBits <= 32) IntValue->Type = S.getSymTable().IntType;
-			else if (MinBits <= 64) IntValue->Type = S.getSymTable().LongType;
+			if (MinBits <= 16) IntValue->Type = SemaBuiltin::getShortType();
+			else if (MinBits <= 32) IntValue->Type = SemaBuiltin::getIntType();
+			else if (MinBits <= 64) IntValue->Type = SemaBuiltin::getLongType();
 		} else {
 			unsigned MinBits = 1 + I.getBitWidth() - I.countLeadingZeros();
-			if (MinBits <= 8) IntValue->Type = S.getSymTable().ByteType;
-			else if (MinBits <= 16) IntValue->Type = S.getSymTable().UShortType;
-			else if (MinBits <= 32) IntValue->Type = S.getSymTable().UIntType;
-			else if (MinBits <= 64) IntValue->Type = S.getSymTable().ULongType;
+			if (MinBits <= 8) IntValue->Type = SemaBuiltin::getByteType();
+			else if (MinBits <= 16) IntValue->Type = SemaBuiltin::getUShortType();
+			else if (MinBits <= 32) IntValue->Type = SemaBuiltin::getUIntType();
+			else if (MinBits <= 64) IntValue->Type = SemaBuiltin::getULongType();
 		}
-		IntValue->Type = S.getSymTable().IntType;
+		IntValue->Type = SemaBuiltin::getIntType();
 		V = IntValue;
 	}
 
@@ -621,7 +273,7 @@ SemaStringValue * SemaBuilder::CreateStringValue(ASTStringValue *AST) {
 	FLY_DEBUG_START("SemaBuilder", "CreateStringValue");
 
 	SemaStringValue * V = new SemaStringValue(AST->getValue());
-	V->Type = S.getSymTable().StringType;
+	V->Type = SemaBuiltin::getStringType();
 	AST->Sema = V;
 
 	FLY_DEBUG_END("SemaBuilder", "CreateStringValue");

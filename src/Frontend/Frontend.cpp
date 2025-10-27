@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Frontend/Frontend.h"
+#include "AST/ASTBuilder.h"
 #include "Sema/Sema.h"
 #include "Parser/Parser.h"
 #include "CodeGen/CodeGen.h"
@@ -46,7 +47,7 @@ bool Frontend::Execute() {
         llvm::EnableStatistics(false);
 
     // Parse files, create AST, build Semantics checker
-    Sema *S = Sema::CreateSema(Diags);
+    Sema *S = new Sema(Diags);
 
     // Check if Input Files not empty
     if (CI.getFrontendOptions().getInputFiles().empty()) {
@@ -55,21 +56,24 @@ bool Frontend::Execute() {
     }
 
     // Parse input files
+	// Init the Sema Builder
+	ASTBuilder *Builder = new ASTBuilder(Diags);
     for (auto &FileName: CI.getFrontendOptions().getInputFiles()) {
         Diags.getClient()->BeginSourceFile();
-        ParseFile(S->getASTBuilder(), FileName);
+        ParseFile(*Builder, FileName);
         Diags.getClient()->EndSourceFile();
     }
 
     Diags.getClient()->BeginSourceFile();
 
     // Resolve AST references
-    if (S->Resolve()) {
+	SmallVector<SemaModule *, 8> SemaModules = S->Resolve(ASTModules);
+    if (!SemaModules.empty()) {
         // Generate Backend Code
         CodeGen CG(Diags, CI.getCodeGenOptions(), CI.getTargetOptions(),
                    CI.getFrontendOptions().BackendAction,
                    CI.getFrontendOptions().ShowTimers);
-        std::vector<llvm::Module *> Modules = CG.GenerateModules(S->getSymTable());
+        std::vector<llvm::Module *> Modules = CG.GenerateModules(SemaModules);
 
         // Emit code base on BackendActionKind
         for (auto M : Modules) {
@@ -136,14 +140,14 @@ bool Frontend::Execute() {
  * @return
  */
 void Frontend::ParseFile(ASTBuilder &Builder, const std::string &FileName) {
-
     FLY_DEBUG_MESSAGE("Frontend", "Execute", "Loading input file " + FileName);
     InputFile *Input = new InputFile(Diags, CI.getSourceManager(), FileName);
     if (Input->getExt() == FileExt::FLY) {
         if (Input->Load()) {
             // Create Parser and start to parse
             Parser *P = new Parser(*Input, CI.getSourceManager(), Diags, Builder);
-            P->ParseModule();
+            ASTModule *M = P->ParseModule();
+        	ASTModules.push_back(M);
         }
     } else if (Input->getExt() == FileExt::LIB) {
         // Read Header Files from library by extracting them

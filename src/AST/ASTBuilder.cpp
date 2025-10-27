@@ -7,14 +7,7 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "Sema/ASTBuilder.h"
-
-#include "Sema/SemaBuilderModifiers.h"
-#include "Sema/SemaBuilderStmt.h"
-#include "Sema/SemaBuilderIfStmt.h"
-#include "Sema/SemaBuilderSwitchStmt.h"
-#include "Sema/SemaBuilderLoopStmt.h"
-#include "Sema/Sema.h"
+#include "AST/ASTBuilder.h"
 #include "CodeGen/CodeGen.h"
 #include "AST/ASTAlias.h"
 #include "AST/ASTNameSpace.h"
@@ -38,16 +31,12 @@
 #include "AST/ASTExpr.h"
 #include "AST/ASTOpExpr.h"
 #include "AST/ASTNameSpaceRef.h"
-#include <AST/ASTTypeRef.h>
-#include <Sema/SemaFunctionBase.h>
-#include "Sema/SemaType.h"
+#include "AST/ASTTypeRef.h"
 #include "Basic/SourceLocation.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/Debug.h"
 
 #include <utility>
-#include <Sema/SymTable.h>
-
 
 using namespace fly;
 
@@ -63,7 +52,7 @@ const llvm::StringRef ASTBuilder::DEFAULT_STRING_VALUE = StringRef("");
  * Private constructor used only from Sema constructor
  * @param S
  */
-ASTBuilder::ASTBuilder(Sema &S) : S(S) {
+ASTBuilder::ASTBuilder(DiagnosticsEngine &Diags) : Diags(Diags) {
 
 }
 
@@ -77,12 +66,11 @@ ASTModule *ASTBuilder::CreateModule(const std::string &Name) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "GenerateModule", "Name=" << Name);
 
 	if (Name.empty()) {
-		S.Diag(diag::err_sema_module_name_empty);
+		Diags.Report(diag::err_sema_module_name_empty);
 	}
 
     uint64_t Id = ModuleIdCounter++; // FIXME compare Module by using FileID
     ASTModule *Module = new ASTModule(Id, Name, false);
-	S.Modules.push_back(Module);
 
 	FLY_DEBUG_END("ASTBuilder", "CreateModule");
     return Module;
@@ -118,18 +106,14 @@ ASTComment *ASTBuilder::CreateComment(ASTModule *Module, const SourceLocation &L
 
 ASTNameSpace * ASTBuilder::CreateNameSpace(const SourceLocation &Loc, llvm::StringRef Name, ASTModule *Module) {
 	if (!Name.empty()) {
-		S.Diag(Loc, diag::err_sema_namespace_empty);
+		Diags.Report(Loc, diag::err_sema_namespace_empty);
 	}
 
 	llvm::SmallVector<llvm::StringRef, 4> Names;
 	Names.push_back(Name);
-	ASTNameSpace *NS = new ASTNameSpace(Loc, Names);
+	Module->NameSpace = new ASTNameSpace(Loc, Names);
 
-	// Add NameSpace to Module
-	if (Module)
-		Module->NameSpace = NS;
-
-	return NS;
+	return Module->NameSpace;
 }
 
 /**
@@ -145,7 +129,7 @@ ASTNameSpace *ASTBuilder::CreateNameSpace(const SourceLocation &Loc, llvm::Small
 
 	// Check Name not empty
 	if (Names.empty()) {
-		S.Diag(Loc, diag::err_sema_namespace_empty);
+		Diags.Report(Loc, diag::err_sema_namespace_empty);
 	}
 
 	// Create NameSpace with parent
