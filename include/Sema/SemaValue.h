@@ -28,6 +28,16 @@ namespace fly {
     	friend class Resolver;
     	friend class SemaValidator;
 
+    	static const bool DEFAULT_BOOL_VALUE;
+
+    	static const llvm::StringRef DEFAULT_INTEGER_VALUE;
+
+    	static const llvm::StringRef DEFAULT_FLOATING_VALUE;
+
+    	static const llvm::StringRef DEFAULT_STRING_VALUE;
+
+    	static const llvm::StringRef DEFAULT_CHAR_VALUE;
+
 		SemaType *Type;
 
     protected:
@@ -133,6 +143,10 @@ namespace fly {
 	public:
 
 		const llvm::StringMap<SemaValue *> &getValues() const;
+
+	};
+
+	class SemaNullValue : public SemaValue {
 
 	};
 

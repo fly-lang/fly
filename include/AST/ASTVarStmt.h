@@ -39,8 +39,6 @@ namespace fly {
 
         friend class ASTBuilder;
         friend class SemaBuilderStmt;
-        friend class Resolver;
-        friend class SemaValidator;
 
         ASTRef *VarRef;
 
@@ -51,6 +49,8 @@ namespace fly {
         ASTVarStmt(const SourceLocation &Loc, ASTRef *VarRef, ASTAssignOperatorKind AssignOperatorKind);
 
     public:
+
+        void accept(ASTVisitor& Visitor) override;
 
         ASTRef *getVarRef() const;
 

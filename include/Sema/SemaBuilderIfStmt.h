@@ -12,7 +12,6 @@
 
 namespace fly {
 
-    class Sema;
     class ASTBuilder;
     class ASTIfStmt;
     class ASTStmt;
@@ -22,17 +21,15 @@ namespace fly {
 
     class SemaBuilderIfStmt {
 
-        Sema &S;
-
-        ASTBlockStmt *Parent;
+        ASTBlockStmt *Parent; // FIXME remove, extends Stmt?
 
         ASTIfStmt *IfStmt;
 
-        explicit SemaBuilderIfStmt(Sema &S, ASTBlockStmt *Parent);
+        explicit SemaBuilderIfStmt(ASTBlockStmt *Parent);
 
     public:
 
-        static SemaBuilderIfStmt *Create(Sema &S, ASTBlockStmt *Parent);
+        static SemaBuilderIfStmt *Create(ASTBlockStmt *Parent);
 
         SemaBuilderIfStmt *If(const SourceLocation &Loc, ASTExpr *Expr, ASTBlockStmt *Stmt);
 

@@ -21,9 +21,7 @@ namespace fly {
 
     class ASTImport : public ASTNode {
 
-        friend class Sema;
         friend class ASTBuilder;
-        friend class Resolver;
 
         ASTModule *Module;
 

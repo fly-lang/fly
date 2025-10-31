@@ -21,9 +21,6 @@ namespace fly {
     class ASTSwitchStmt : public ASTStmt {
 
         friend class ASTBuilder;
-        friend class SemaBuilderSwitchStmt;
-        friend class Resolver;
-        friend class SemaValidator;
 
         // The Switch Expression
         ASTRef *Ref = nullptr;
@@ -37,6 +34,8 @@ namespace fly {
         explicit ASTSwitchStmt(const SourceLocation &Loc);
 
     public:
+
+        void accept(ASTVisitor& Visitor) override;
 
         ASTRef *getRef() const;
 

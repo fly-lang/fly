@@ -14,13 +14,6 @@
 
 namespace fly {
 
-    class ASTValue;
-    class ASTRef;
-    class ASTCall;
-    class ASTVarRefExpr;
-    class ASTCallExpr;
-    class ASTValueExpr;
-    class ASTTypeRef;
     class SemaType;
 
     enum class ASTExprKind : char {
@@ -38,9 +31,6 @@ namespace fly {
     class ASTExpr : public ASTNode {
 
         friend class ASTBuilder;
-        friend class Resolver;
-        friend class SemaResolverClass;
-        friend class SemaValidator;
 
     protected:
 
@@ -55,90 +45,6 @@ namespace fly {
         SemaType *getType() const;
 
         ASTExprKind getExprKind() const;
-
-        std::string str() const override;
-    };
-
-    /**
-     * Value Expression
-     */
-    class ASTValueExpr : public ASTExpr {
-
-        friend class ASTBuilder;
-        friend class Resolver;
-        friend class SemaValidator;
-
-        ASTValue *Value = nullptr;
-
-        explicit ASTValueExpr(ASTValue *Val);
-
-    public:
-
-        ASTValue *getValue() const;
-
-        std::string str() const override;
-    };
-
-    /**
-     * Var Reference Expression
-     */
-    class ASTVarRefExpr : public ASTExpr {
-
-        friend class ASTBuilder;
-        friend class Resolver;
-        friend class SemaValidator;
-
-        ASTRef *VarRef = nullptr;
-
-        explicit ASTVarRefExpr(ASTRef *VarRef);
-
-    public:
-
-        ASTRef *getVarRef() const;
-
-        std::string str() const override;
-    };
-
-    /**
-     * Function Call Expression
-     */
-    class ASTCallExpr : public ASTExpr {
-
-        friend class ASTBuilder;
-        friend class Resolver;
-        friend class SemaValidator;
-
-        ASTCall *Call = nullptr;
-
-        explicit ASTCallExpr(ASTCall *Call);
-
-    public:
-
-        ASTCall *getCall() const;
-
-        std::string str() const override;
-    };
-
-    /**
-     * Value Expression
-     */
-    class ASTCastExpr : public ASTExpr {
-
-        friend class ASTBuilder;
-        friend class Resolver;
-        friend class SemaValidator;
-
-        ASTExpr *Expr = nullptr;
-
-        ASTTypeRef *TypeRef = nullptr;
-
-        explicit ASTCastExpr(ASTExpr *From, ASTTypeRef *Cast);
-
-    public:
-
-        ASTExpr *getExpr() const;
-
-        ASTTypeRef *getTypeRef() const;
 
         std::string str() const override;
     };

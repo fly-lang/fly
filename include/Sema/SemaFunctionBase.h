@@ -62,6 +62,8 @@ namespace fly {
 
         llvm::SmallVector<SemaParam *, 8> &getParams();
 
+        void addParam(SemaParam *Param);
+
         SemaType *getReturnType();
 
         ASTFunction &getAST();

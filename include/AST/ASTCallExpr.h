@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTArg.h - AST Call arg
+// include/AST/ASTCallExpr.h - AST Var Expression header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,45 +7,35 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_AST_ARG_H
-#define FLY_AST_ARG_H
+#ifndef FLY_AST_CALLEXPR_H
+#define FLY_AST_CALLEXPR_H
 
-#include "ASTBase.h"
+#include "ASTExpr.h"
 
 namespace fly {
 
-    class ASTExpr;
-    class ASTVar;
-    class ASTCall;
-    class ASTVisitor;
+	class ASTCall;
 
-    class ASTArg : public ASTBase {
+    /**
+     * Function Call Expression
+     */
+    class ASTCallExpr : public ASTExpr {
 
         friend class ASTBuilder;
 
-        ASTExpr *Expr;
-
-        size_t Index;
-
-        ASTVar *Def = nullptr;
-
         ASTCall *Call = nullptr;
 
-        ASTArg(ASTExpr *Expr, size_t Index);
+        explicit ASTCallExpr(ASTCall *Call);
 
     public:
 
-        ASTExpr *getExpr() const;
-
-        size_t getIndex() const;
-
-        ASTVar *getDef() const;
+    	void accept(ASTVisitor& Visitor) override;
 
         ASTCall *getCall() const;
 
         std::string str() const override;
-
     };
+
 }
 
-#endif //FLY_AST_ARG_H
+#endif //FLY_AST_CALLEXPR_H

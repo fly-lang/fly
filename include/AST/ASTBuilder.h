@@ -12,22 +12,9 @@
 
 #include <AST/ASTModifier.h>
 #include <AST/ASTVarStmt.h>
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 
 namespace fly {
-
-    class Sema;
-
-    class SemaBuilderModifiers;
-
-    class SemaBuilderStmt;
-
-    class SemaBuilderIfStmt;
-
-    class SemaBuilderSwitchStmt;
-
-    class SemaBuilderLoopStmt;
 
     class DiagnosticsEngine;
 
@@ -36,10 +23,6 @@ namespace fly {
     class SourceLocation;
 
     class CodeGen;
-
-    class SemaNameSpace;
-
-    class SemaType;
 
     class ASTModule;
 
@@ -175,8 +158,6 @@ namespace fly {
 
     class ASTNameSpaceRef;
 
-    class SemaVar;
-    
     enum class ASTClassKind;
 
     enum class ASTUnaryOpExprKind;
@@ -189,25 +170,11 @@ namespace fly {
 
     class ASTBuilder {
 
-        friend class Sema;
-
-        friend class Resolver;
-
         DiagnosticsEngine &Diags;
 
         uint64_t ModuleIdCounter = 0;
 
     public:
-
-        static const bool DEFAULT_BOOL_VALUE;
-
-        static const llvm::StringRef DEFAULT_INTEGER_VALUE;
-
-        static const llvm::StringRef DEFAULT_FLOATING_VALUE;
-
-        static const llvm::StringRef DEFAULT_STRING_VALUE;
-
-        static const llvm::StringRef DEFAULT_CHAR_VALUE;
 
         explicit ASTBuilder(DiagnosticsEngine &Diags);
 
@@ -304,19 +271,17 @@ namespace fly {
 
         // Create Values
 
-        ASTValue *CreateDefaultValue(SemaType *Type);
+        static ASTNullValue *CreateNullValue(const SourceLocation &Loc);
 
-        ASTNullValue *CreateNullValue(const SourceLocation &Loc);
+        static ASTBoolValue *CreateBoolValue(const SourceLocation &Loc, bool Val);
 
-        ASTBoolValue *CreateBoolValue(const SourceLocation &Loc, bool Val);
+        static ASTNumberValue *CreateNumberValue(const SourceLocation &Loc, llvm::StringRef Val);
 
-        ASTNumberValue *CreateNumberValue(const SourceLocation &Loc, llvm::StringRef Val);
+        static ASTArrayValue *CreateArrayValue(const SourceLocation &Loc, llvm::SmallVector<ASTValue *, 8> Values);
 
-        ASTArrayValue *CreateArrayValue(const SourceLocation &Loc, llvm::SmallVector<ASTValue *, 8> Values);
+        static ASTStringValue *CreateStringValue(const SourceLocation &Loc, llvm::StringRef Val);
 
-        ASTStringValue *CreateStringValue(const SourceLocation &Loc, llvm::StringRef Val);
-
-        ASTStructValue *CreateStructValue(const SourceLocation &Loc, llvm::StringMap<ASTValue *>);
+        static ASTStructValue *CreateStructValue(const SourceLocation &Loc, llvm::StringMap<ASTValue *>);
 
         // Create Var
 
@@ -385,12 +350,6 @@ namespace fly {
         ASTBlockStmt *CreateBlockStmt(const SourceLocation &Loc);
 
         ASTBlockStmt *CreateBlockStmt(ASTStmt *Parent, const SourceLocation &Loc);
-
-        SemaBuilderIfStmt *CreateIfBuilder(ASTBlockStmt *Parent);
-
-        SemaBuilderSwitchStmt *CreateSwitchBuilder(ASTBlockStmt *Parent);
-
-        SemaBuilderLoopStmt *CreateLoopBuilder(ASTBlockStmt *Parent, const SourceLocation &Loc);
 
     };
 

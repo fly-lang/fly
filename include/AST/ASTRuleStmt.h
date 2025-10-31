@@ -20,8 +20,6 @@ namespace fly {
         friend class SemaBuilderIfStmt;
         friend class SemaBuilderSwitchStmt;
         friend class SemaBuilderLoopStmt;
-        friend class Resolver;
-        friend class SemaValidator;
 
         // The Rule expression can be used with different Modifiers
         ASTExpr *Rule = nullptr;
@@ -30,6 +28,8 @@ namespace fly {
         ASTStmt *Stmt = nullptr;
 
     protected:
+
+        void accept(ASTVisitor& Visitor) override;
 
         explicit ASTRuleStmt(const SourceLocation &Loc);
 

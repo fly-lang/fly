@@ -31,8 +31,6 @@ namespace fly {
     class ASTClass : public ASTNode {
 
         friend class ASTBuilder;
-        friend class Resolver;
-        friend class SemaValidator;
 
         ASTModule *Module;
 
@@ -50,6 +48,8 @@ namespace fly {
                  const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTTypeRef *, 4> &SuperClasses);
 
     public:
+
+        void accept(ASTVisitor& Visitor) override;
 
         ASTModule* getModule() const;
 

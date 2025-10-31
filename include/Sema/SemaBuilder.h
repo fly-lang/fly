@@ -9,10 +9,7 @@
 
 #ifndef FLY_SEMA_BUILDER_H
 #define FLY_SEMA_BUILDER_H
-
-namespace llvm {
-	class StringRef;
-}
+#include <AST/ASTValue.h>
 
 namespace fly {
 
@@ -52,6 +49,9 @@ namespace fly {
 	class SemaStringValue;
 	class SemaArrayValue;
 	class SemaStructValue;
+	class SemaBuilderIfStmt;
+	class SemaBuilderSwitchStmt;
+	class SemaBuilderLoopStmt;
 
     class SemaBuilder {
 
@@ -59,9 +59,11 @@ namespace fly {
 
     	SemaBuilder() = delete;
 
-    	static SemaFunction *CreateFunction(ASTFunction &AST);
+    	static void CreateImport(SemaModule &Module, ASTImport &AST);
 
-    	static SemaClassType *CreateClass(ASTClass &AST);
+    	static SemaFunction *CreateFunction(SemaModule &Module, ASTFunction &AST);
+
+    	static SemaClassType *CreateClass(SemaModule &Module, ASTClass &AST);
 
     	static SemaClassInstance *CreateThisInstance(SemaClassType *Class);
 
@@ -69,7 +71,7 @@ namespace fly {
 
     	static SemaClassMethod *CreateClassMethod(SemaClassType *Class, SemaClassInstance *This, ASTFunction *AST, SemaComment *Comment);
 
-    	static SemaEnumType *CreateEnum(ASTEnum &AST);
+    	static SemaEnumType *CreateEnum(SemaModule &Module, ASTEnum &AST);
 
     	static SemaEnumEntry *CreateEnumEntry(SemaEnumType *Enum, ASTVar *AST, SemaComment *Comment);
 
@@ -83,6 +85,8 @@ namespace fly {
 
     	static SemaCall *CreateCall(ASTCall *Call);
 
+    	static SemaValue *CreateDefaultValue(SemaType *Type);
+
     	static SemaBoolValue *CreateBoolValue(ASTBoolValue *Value);
 
     	static SemaValue *CreateNumberValue(ASTNumberValue *Value);
@@ -93,6 +97,7 @@ namespace fly {
 
     	static SemaStructValue *CreateStructValue(ASTStructValue *AST);
 
+    	static SemaValue * CreateNullValue(ASTNullValue * AST, SemaType * Type);
     };
 
 }  // end namespace fly

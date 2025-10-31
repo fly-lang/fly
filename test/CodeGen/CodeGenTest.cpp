@@ -821,7 +821,7 @@ namespace {
         ASTBinaryOpExpr *IfCond = getASTBuilder().CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_EQ, aVarRef, Value1);
 
         // Create/Add if block
-        SemaBuilderIfStmt *IfBuilder = getASTBuilder().CreateIfBuilder(Body);
+        SemaBuilderIfStmt *IfBuilder = SemaBuilderIfStmt::Create(Body);
         ASTBlockStmt *IfBlock = getASTBuilder().CreateBlockStmt(SourceLoc);
         IfBuilder->If(SourceLoc, IfCond, IfBlock);
 
@@ -873,7 +873,7 @@ namespace {
                 aVarRef, Value1);
 
         // Create/Add if block
-        SemaBuilderIfStmt *IfBuilder = getASTBuilder().CreateIfBuilder(Body);
+        SemaBuilderIfStmt *IfBuilder = SemaBuilderIfStmt::Create(Body);
         ASTBlockStmt *IfBlock = getASTBuilder().CreateBlockStmt(SourceLoc);
         IfBuilder->If(SourceLoc, IfCond, IfBlock);
 
@@ -931,7 +931,7 @@ namespace {
         ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         // if (a == 1)
-        SemaBuilderIfStmt *IfBuilder = getASTBuilder().CreateIfBuilder(Body);
+        SemaBuilderIfStmt *IfBuilder = SemaBuilderIfStmt::Create(Body);
         ASTValueExpr *Value1 = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "1"));
         ASTVarRefExpr *aVarRef = getASTBuilder().CreateExpr(getASTBuilder().CreateVarRef(aParam));
         ASTBinaryOpExpr *IfCond = getASTBuilder().CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_EQ,
@@ -1032,7 +1032,7 @@ namespace {
         ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         // if a == 1
-        SemaBuilderIfStmt *IfBuilder = getASTBuilder().CreateIfBuilder(Body);
+        SemaBuilderIfStmt *IfBuilder = SemaBuilderIfStmt::Create(Body);
         ASTBlockStmt *IfBlock = getASTBuilder().CreateBlockStmt(SourceLoc);
         ASTValueExpr *Value1 = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "1"));
         ASTVarRefExpr *aVarRef = getASTBuilder().CreateExpr(getASTBuilder().CreateVarRef(aParam));
@@ -1119,7 +1119,7 @@ namespace {
         ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         // switch a
-        SemaBuilderSwitchStmt *SwitchBuilder = getASTBuilder().CreateSwitchBuilder(Body);
+        SemaBuilderSwitchStmt *SwitchBuilder = SemaBuilderSwitchStmt::Create(Body);
         ASTVarRefExpr *aVarRefExpr = getASTBuilder().CreateExpr(getASTBuilder().CreateVarRef(aParam));
         SwitchBuilder->Switch(SourceLoc, aVarRefExpr);
 
@@ -1194,7 +1194,7 @@ namespace {
         ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         // while a == 1
-        SemaBuilderLoopStmt *LoopBuilder = getASTBuilder().CreateLoopBuilder(Body, SourceLoc);
+        SemaBuilderLoopStmt *LoopBuilder = SemaBuilderLoopStmt::Create(Body, SourceLoc);
         ASTValueExpr *Value1 = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "1"));
         ASTVarRefExpr *aVarRef = getASTBuilder().CreateExpr(getASTBuilder().CreateVarRef(aParam));
         ASTBinaryOpExpr *Cond = getASTBuilder().CreateBinaryOpExpr(SourceLoc, ASTBinaryOpExprKind::OP_BINARY_EQ, aVarRef, Value1);
@@ -1246,7 +1246,7 @@ namespace {
         ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         // for int i = 1; i < 1; ++i
-        SemaBuilderLoopStmt *LoopBuilder = getASTBuilder().CreateLoopBuilder(Body, SourceLoc);
+        SemaBuilderLoopStmt *LoopBuilder = SemaBuilderLoopStmt::Create(Body, SourceLoc);
 
         // Init
         // int i = 1

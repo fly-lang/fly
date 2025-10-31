@@ -26,8 +26,6 @@ namespace fly {
     class ASTRef : public ASTNode {
 
         friend class ASTBuilder;
-        friend class Resolver;
-        friend class SemaValidator;
 
     protected:
 
@@ -50,6 +48,8 @@ namespace fly {
         ~ASTRef();
 
      public:
+
+        void accept(ASTVisitor& Visitor) override;
 
         llvm::StringRef getName() const;
 

@@ -22,8 +22,6 @@ namespace fly {
     class ASTComment : public ASTNode {
 
         friend class ASTBuilder;
-        friend class Resolver;
-        friend class SemaValidator;
 
         llvm::StringRef Content;
 
@@ -32,6 +30,8 @@ namespace fly {
     public:
 
         ~ASTComment() = default;
+
+        void accept(ASTVisitor& Visitor) override;
 
         llvm::StringRef getContent() const;
 

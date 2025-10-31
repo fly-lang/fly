@@ -30,7 +30,7 @@ ASTBlockStmt::ASTBlockStmt(const SourceLocation &Loc) :
  * Get Content
  * @return the Block's content
  */
-const llvm::SmallVector<ASTStmt *, 8>  &ASTBlockStmt::getContent() const {
+llvm::SmallVector<ASTStmt *, 8>  &ASTBlockStmt::getContent() {
     return Content;
 }
 

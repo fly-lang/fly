@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTDelete.h - Delete an Instance header
+// include/AST/ASTExpr.h - AST Expression header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,34 +7,34 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_AST_DELETESTMT_H
-#define FLY_AST_DELETESTMT_H
+#ifndef FLY_AST_VARREFEXPR_H
+#define FLY_AST_VARREFEXPR_H
 
-#include "ASTStmt.h"
+#include "ASTExpr.h"
 
 namespace fly {
 
-    class ASTBlockStmt;
-    class ASTRef;
+	class ASTRef;
 
-/**
- * Delete Stmt
- */
-    class ASTDeleteStmt : public ASTStmt {
+    /**
+     * Var Reference Expression
+     */
+    class ASTVarRefExpr : public ASTExpr {
 
         friend class ASTBuilder;
 
         ASTRef *VarRef = nullptr;
 
-        ASTDeleteStmt(const SourceLocation &Loc, ASTRef *VarRef);
+        explicit ASTVarRefExpr(ASTRef *VarRef);
 
     public:
 
-        void accept(ASTVisitor& Visitor) override;
+    	void accept(ASTVisitor& Visitor) override;
 
-        ASTRef *getVarRef();
+        ASTRef *getVarRef() const;
 
         std::string str() const override;
     };
 }
-#endif //FLY_AST_DELETESTMT_H
+
+#endif //FLY_AST_VARREFEXPR_H

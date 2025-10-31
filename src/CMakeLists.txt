@@ -7,11 +7,14 @@ add_library(flyLib
         # AST
         AST/ASTAlias.cpp
         AST/ASTArg.cpp
+        AST/ASTBase.cpp
         AST/ASTBuilder.cpp
         AST/ASTNode.cpp
         AST/ASTBlockStmt.cpp
         AST/ASTBreakStmt.cpp
         AST/ASTCall.cpp
+        AST/ASTCallExpr.cpp
+        AST/ASTCastExpr.cpp
         AST/ASTClass.cpp
         AST/ASTComment.cpp
         AST/ASTContinueStmt.cpp
@@ -38,7 +41,9 @@ add_library(flyLib
         AST/ASTStmt.cpp
         AST/ASTSwitchStmt.cpp
         AST/ASTValue.cpp
+        AST/ASTValueExpr.cpp
         AST/ASTVar.cpp
+        AST/ASTVarRefExpr.cpp
         AST/ASTVarStmt.cpp
 
         # Basic

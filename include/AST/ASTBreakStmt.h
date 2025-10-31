@@ -20,11 +20,12 @@ namespace fly {
     class ASTBreakStmt : public ASTStmt {
 
         friend class ASTBuilder;
-        friend class Resolver;
-        friend class SemaValidator;
+
+        explicit ASTBreakStmt(const SourceLocation &Loc);
 
     public:
-        explicit ASTBreakStmt(const SourceLocation &Loc);
+
+        void accept(ASTVisitor& Visitor) override;
 
         std::string str() const override;
     };

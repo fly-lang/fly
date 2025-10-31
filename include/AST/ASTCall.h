@@ -10,8 +10,6 @@
 #ifndef FLY_AST_CALL_H
 #define FLY_AST_CALL_H
 
-#include <Sema/SemaErrorHandler.h>
-
 #include "ASTRef.h"
 
 namespace fly {
@@ -36,9 +34,6 @@ namespace fly {
     class ASTCall : public ASTRef {
 
         friend class ASTBuilder;
-        friend class SemaBuilder;
-        friend class Resolver;
-        friend class SemaValidator;
 
         const ASTCallKind CallKind;
 
@@ -49,6 +44,8 @@ namespace fly {
         ASTCall(const SourceLocation &Loc, llvm::StringRef Name, ASTCallKind CallKind);
 
     public:
+
+        void accept(ASTVisitor& Visitor) override;
 
         llvm::SmallVector<ASTArg *, 8> getArgs() const;
 

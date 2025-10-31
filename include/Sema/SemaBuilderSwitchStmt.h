@@ -12,28 +12,23 @@
 
 namespace fly {
 
-    class Sema;
     class ASTSwitchStmt;
     class SourceLocation;
     class ASTStmt;
     class ASTBlockStmt;
-    class ASTRef;
     class ASTExpr;
 
     class SemaBuilderSwitchStmt {
-
-        Sema &S;
 
         ASTBlockStmt *Parent;
 
         ASTSwitchStmt *SwitchStmt;
 
-        explicit SemaBuilderSwitchStmt(Sema &S, ASTBlockStmt *Parent);
-
+        explicit SemaBuilderSwitchStmt(ASTBlockStmt *Parent);
 
     public:
 
-        static SemaBuilderSwitchStmt *Create(Sema &S, ASTBlockStmt *Parent);
+        static SemaBuilderSwitchStmt *Create(ASTBlockStmt *Parent);
 
         SemaBuilderSwitchStmt *Switch(const SourceLocation &Loc, ASTExpr *Expr);
 

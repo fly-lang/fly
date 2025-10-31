@@ -627,7 +627,7 @@ void Parser::ParseIfStmt(ASTBlockStmt *Parent) {
     }
 
     // Create If
-    SemaBuilderIfStmt *IfBuilder = Builder.CreateIfBuilder(Parent);
+    SemaBuilderIfStmt *IfBuilder = SemaBuilderIfStmt::Create(Parent);
     ASTBlockStmt *IfBlock = Builder.CreateBlockStmt(Tok.getLocation());
     IfBuilder->If(Tok.getLocation(), IfCondition, IfBlock);
 
@@ -701,7 +701,7 @@ void Parser::ParseSwitchStmt(ASTBlockStmt *Parent) {
 	}
 
 	// Create Switch
-	SemaBuilderSwitchStmt *SwitchBuilder = Builder.CreateSwitchBuilder(Parent);
+	SemaBuilderSwitchStmt *SwitchBuilder = SemaBuilderSwitchStmt::Create(Parent);
     SwitchBuilder->Switch(Loc, Expr);
 
 	// TODO implement duplicity check of 'default'
@@ -797,7 +797,7 @@ void Parser::ParseWhileStmt(ASTBlockStmt *Parent) {
 	}
 
     ASTBlockStmt *BlockStmt = Builder.CreateBlockStmt(Tok.getLocation());
-    SemaBuilderLoopStmt *LoopBuilder = Builder.CreateLoopBuilder(Parent, Loc);
+    SemaBuilderLoopStmt *LoopBuilder = SemaBuilderLoopStmt::Create(Parent, Loc);
     LoopBuilder->Loop(Condition, BlockStmt);
 
     // Parse statement between braces
@@ -830,7 +830,7 @@ void Parser::ParseForStmt(ASTBlockStmt *Parent) {
     bool hasParen = ParseStartParen();
 
     // Create For Statement
-	SemaBuilderLoopStmt *LoopBuilder = Builder.CreateLoopBuilder(Parent, Loc);
+	SemaBuilderLoopStmt *LoopBuilder = SemaBuilderLoopStmt::Create(Parent, Loc);
     ASTBlockStmt *InitBlock = Builder.CreateBlockStmt(Tok.getLocation());
 	LoopBuilder->Init(InitBlock);
     ASTExpr *Condition = nullptr;

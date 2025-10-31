@@ -14,12 +14,12 @@
 
 using namespace fly;
 
-SemaBuilderLoopStmt::SemaBuilderLoopStmt(Sema &S, ASTBlockStmt *Parent) : S(S), Parent(Parent) {
+SemaBuilderLoopStmt::SemaBuilderLoopStmt(ASTBlockStmt *Parent) : Parent(Parent) {
 
 }
 
-SemaBuilderLoopStmt *SemaBuilderLoopStmt::Create(Sema &S, ASTBlockStmt *Parent, const SourceLocation &Loc) {
-    SemaBuilderLoopStmt *Builder = new SemaBuilderLoopStmt(S, Parent);
+SemaBuilderLoopStmt *SemaBuilderLoopStmt::Create(ASTBlockStmt *Parent, const SourceLocation &Loc) {
+    SemaBuilderLoopStmt *Builder = new SemaBuilderLoopStmt(Parent);
     Builder->LoopStmt = new ASTLoopStmt(Loc);
 
     // Inner Stmt

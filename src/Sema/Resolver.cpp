@@ -163,15 +163,7 @@ void Resolver::visit(ASTModule &AST) {
 
 void Resolver::visit(ASTNameSpace &AST) {
 	// Build the CurrentNameSpace
-	std::string FQName = "";
-	SemaNameSpace *NameSpace = nullptr;
-	for (auto It = AST.getNames().begin(); It != AST.getNames().end(); ++It) {
-		// Generate the full name
-		FQName += (It == AST.getNames().begin()) ? std::string(*It) : "." + std::string(*It);
-
-		// Add as Parent the previous NameSpace
-		NameSpace = Reg.getOrAddFQNameSpace(FQName, NameSpace);
-	}
+	SemaNameSpace *NameSpace = Reg.getOrAddNameSpace(AST);
 
 	CurrentModule->NameSpace = NameSpace;
 	CurrentNameSpace = NameSpace;
@@ -211,18 +203,11 @@ void Resolver::visit(ASTImport &AST) {
 	// 	}
 	// }
 
-	// Search Namespace in Symbol Table
-	SemaImport *Import = new SemaImport(AST);
-
-	// Add Import to the Module Imports for next symbols resolution
-	CurrentModule->Imports.push_back(Import);
+	SemaBuilder::CreateImport(*CurrentModule, AST);
 }
 
 void Resolver::visit(ASTFunction &AST) {
-	auto* Func = new SemaFunction(AST);
-
-	// Add to Module
-	CurrentModule->Nodes.push_back(Func);
+	auto* Func = SemaBuilder::CreateFunction(*CurrentModule, AST);
 
 	// Add to Symbol Table
 	Symbol *Sym = new Symbol(AST.getName(), SemaKind::FUNCTION, Func);
@@ -230,15 +215,16 @@ void Resolver::visit(ASTFunction &AST) {
 
 	// Enter Function Scope
 	EnterScope();
-	// Add parameters, body ...
+	// Add parameters
+	for (auto &Param : AST.getParams()) {
+		Func->addParam(SemaBuilder::CreateParam(Param));
+	}
+	Reg.addBody(CurrentScope, AST.getBody());
 	ExitScope();
 }
 
 void Resolver::visit(ASTClass &AST) {
-	auto* Class = new SemaClassType(AST);
-
-	// Add to Module
-	CurrentModule->Nodes.push_back(Class);
+	auto* Class = SemaBuilder::CreateClass(*CurrentModule, AST);
 
 	// Add to Symbol Table
 	Symbol *Sym = new Symbol(AST.getName(), SemaKind::CLASS, Class);
@@ -246,16 +232,18 @@ void Resolver::visit(ASTClass &AST) {
 
 	// Enter Class Scope
 	EnterScope();
-	for (auto Def : AST.getDefinitions())
+	for (auto Def : AST.getDefinitions()) {
+		if (Def->getKind() == ASTKind::AST_VAR)
+			Def->setKind(ASTKind::AST_ATTRIBUTE);
+		else if (Def->getKind() == ASTKind::AST_FUNCTION)
+			Def->setKind(ASTKind::AST_METHOD);
 		Def->accept(*this);
+	}
 	ExitScope();
 }
 
 void Resolver::visit(ASTEnum &AST) {
-	auto* Enum = new SemaEnumType(AST);
-
-	// Add to Module
-	CurrentModule->Nodes.push_back(Enum);
+	auto* Enum = SemaBuilder::CreateEnum(*CurrentModule, AST);
 
 	// Add to Symbol Table
 	Symbol *Sym = new Symbol(AST.getName(), SemaKind::ENUM, Enum);
@@ -263,9 +251,112 @@ void Resolver::visit(ASTEnum &AST) {
 
 	// Enter Enum Scope
 	EnterScope();
-	for (auto Def : AST.getDefinitions())
+	for (auto Def : AST.getDefinitions()) {
+		Def->setKind(ASTKind::AST_ENUM_ENTRY);
 		Def->accept(*this);
+	}
 	ExitScope();
+}
+
+void Resolver::visit(ASTComment &AST) {
+	CurrentComment = SemaBuilder::CreateComment(&AST);
+}
+
+void Resolver::visit(ASTValue &AST) {
+	// TODO
+}
+
+void Resolver::visit(ASTVar &AST) {
+	// TODO
+}
+
+
+
+void Resolver::visit(ASTCall &AST) {
+	// TODO
+}
+
+void Resolver::visit(ASTRef &AST) {
+}
+
+void Resolver::visit(ASTBreakStmt &AST) {
+	// TODO
+}
+
+void Resolver::visit(ASTNameSpaceRef &AST) {
+	// TODO
+}
+
+void Resolver::visit(ASTTypeRef &AST) {
+	// TODO
+}
+
+void Resolver::visit(ASTContinueStmt &AST) {
+	// TODO
+}
+
+void Resolver::visit(ASTDeleteStmt &AST) {
+	// TODO
+}
+
+void Resolver::visit(ASTExprStmt &AST) {
+	// TODO
+}
+
+void Resolver::visit(ASTFailStmt &AST) {
+	// TODO
+}
+
+void Resolver::visit(ASTHandleStmt &AST) {
+	// TODO
+}
+
+void Resolver::visit(ASTReturnStmt &AST) {
+	// TODO
+}
+
+void Resolver::visit(ASTRuleStmt &AST) {
+	// TODO
+}
+
+void Resolver::visit(ASTIfStmt &AST) {
+	// TODO
+}
+
+void Resolver::visit(ASTSwitchStmt &AST) {
+	// TODO
+}
+
+void Resolver::visit(ASTLoopStmt &AST) {
+	// TODO
+}
+
+void Resolver::visit(ASTVarStmt &AST) {
+	// TODO
+}
+
+void Resolver::visit(ASTBlockStmt &AST) {
+	// TODO
+}
+
+void Resolver::visit(ASTValueExpr &AST) {
+	// TODO
+}
+
+void Resolver::visit(ASTVarRefExpr &AST) {
+	// TODO
+}
+
+void Resolver::visit(ASTCallExpr &AST) {
+	// TODO
+}
+
+void Resolver::visit(ASTOpExpr &AST) {
+	// TODO
+}
+
+void Resolver::visit(ASTCastExpr &AST) {
+	// TODO
 }
 
 void Resolver::Resolver::EnterScope() {
@@ -366,7 +457,7 @@ void Resolver::ResolveFunctions(SemaModule *Module) {
 		}
 
 		// Add to Body list for resolve in the next step
-		Bodies.push_back(AST->Body);
+		Reg.addBody(AST->getBody());
 	}
 }
 
@@ -438,6 +529,11 @@ void Resolver::ResolveEnumType(SemaEnumType *Sema) {
 		}
 	}
 }
+
+void Resolver::ResolveBodies() {
+	// TODO
+}
+
 
 bool Resolver::ResolveStmt(ASTStmt *Stmt) {
     switch (Stmt->getStmtKind()) {

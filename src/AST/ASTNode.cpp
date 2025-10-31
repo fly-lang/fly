@@ -8,25 +8,15 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTNode.h"
-#include "Basic/Logger.h"
+
+#include <AST/ASTVisitor.h>
 
 using namespace fly;
 
-ASTNode::ASTNode(const SourceLocation &Loc, ASTKind Kind) : Location(Loc), Kind(Kind) {
+ASTNode::ASTNode(const SourceLocation &Loc, ASTKind Kind) : ASTBase(Loc, Kind) {
 
 }
 
-const SourceLocation &ASTNode::getLocation() const {
-    return Location;
-}
-
-ASTKind ASTNode::getKind() const {
-	return Kind;
-}
-
-std::string ASTNode::str() const {
-	return Logger()
-	.Attr("Location", &Location)
-	.Attr("Kind", static_cast<size_t>(Kind))
-	.End();
+void ASTNode::accept(ASTVisitor& Visitor) {
+	Visitor.visit(*this);
 }

@@ -23,8 +23,6 @@ namespace fly {
     class ASTEnum : public ASTNode {
 
         friend class ASTBuilder;
-        friend class Resolver;
-        friend class SemaValidator;
 
         ASTModule *Module;
 
@@ -40,6 +38,8 @@ namespace fly {
                  llvm::SmallVector<ASTTypeRef *, 4> &SuperClasses);
 
     public:
+
+        void accept(ASTVisitor& Visitor) override;
 
         ASTModule* getModule() const;
 

@@ -18,8 +18,6 @@ namespace fly {
 
         friend class ASTBuilder;
         friend class SemaBuilderIfStmt;
-        friend class Resolver;
-        friend class SemaValidator;
 
         // The list of Elseif Blocks
         llvm::SmallVector<ASTRuleStmt *, 8> Elsif;
@@ -30,6 +28,8 @@ namespace fly {
         explicit ASTIfStmt(const SourceLocation &Loc);
 
     public:
+
+        void accept(ASTVisitor& Visitor) override;
 
         llvm::SmallVector<ASTRuleStmt *, 8> getElsif();
 

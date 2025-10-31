@@ -93,8 +93,6 @@ namespace fly {
     class ASTOpExpr : public ASTExpr {
 
         friend class ASTBuilder;
-        friend class Resolver;
-        friend class SemaValidator;
 
         const ASTOpExprKind OpExprKind;
 
@@ -113,8 +111,6 @@ namespace fly {
     class ASTUnaryOpExpr : public ASTOpExpr {
 
         friend class ASTBuilder;
-        friend class Resolver;
-        friend class SemaValidator;
 
         SourceLocation OpLocation;
 
@@ -125,6 +121,8 @@ namespace fly {
         ASTUnaryOpExpr(const SourceLocation &Loc, ASTUnaryOpExprKind OpKind, ASTExpr *Expr);
 
     public:
+
+        void accept(ASTVisitor& Visitor) override;
 
         SourceLocation &getOpLocation();
 
@@ -141,8 +139,6 @@ namespace fly {
     class ASTBinaryOpExpr : public ASTOpExpr {
 
         friend class ASTBuilder;
-        friend class Resolver;
-        friend class SemaValidator;
 
         ASTBinaryOpTypeExprKind TypeKind;
 
@@ -158,6 +154,8 @@ namespace fly {
                         ASTExpr *LeftExpr, ASTExpr *RightExpr);
 
     public:
+
+        void accept(ASTVisitor& Visitor) override;
 
         ASTBinaryOpTypeExprKind setTypeKind(ASTBinaryOpExprKind OpKind);
 
@@ -180,8 +178,6 @@ namespace fly {
     class ASTTernaryOpExpr : public ASTOpExpr {
 
         friend class ASTBuilder;
-        friend class Resolver;
-        friend class SemaValidator;
 
         ASTExpr *ConditionExpr;
 
@@ -197,6 +193,8 @@ namespace fly {
                          ASTExpr *TrueExpr, const SourceLocation &FalseOpLocation, ASTExpr *FalseExpr);
 
     public:
+
+        void accept(ASTVisitor& Visitor) override;
 
         ASTExpr *getConditionExpr() const;
 

@@ -24,26 +24,22 @@ namespace fly {
     class ASTBlockStmt : public ASTStmt {
 
         friend class ASTBuilder;
-        friend class SemaBuilderStmt;
-        friend class SemaBuilderIfStmt;
-        friend class SemaBuilderSwitchStmt;
-        friend class SemaBuilderLoopStmt;
-        friend class Resolver;
-        friend class SemaValidator;
 
-        // List of Statements of the Block
-        llvm::SmallVector<ASTStmt *, 8> Content;
+    protected:
 
         // Contains all vars declared in this Block
         llvm::StringMap<ASTVar *> LocalVars;
 
-    protected:
+        // List of Statements of the Block
+        llvm::SmallVector<ASTStmt *, 8> Content;
 
         explicit ASTBlockStmt(const SourceLocation &Loc);
 
     public:
 
-        const llvm::SmallVector<ASTStmt *, 8> &getContent() const;
+        void accept(ASTVisitor& Visitor) override;
+
+        llvm::SmallVector<ASTStmt *, 8> &getContent();
 
         bool isEmpty() const;
 

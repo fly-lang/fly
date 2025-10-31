@@ -19,8 +19,6 @@ namespace fly {
     class ASTNameSpace : public ASTNode {
 
         friend class ASTBuilder;
-        friend class Resolver;
-        friend class SemaValidator;
 
         llvm::SmallVector<llvm::StringRef, 4> Names;
 

@@ -13,7 +13,6 @@
 #include <Sema/SemaVar.h>
 
 #include "ASTNode.h"
-#include "ASTTypeRef.h"
 
 namespace fly {
 
@@ -22,6 +21,8 @@ namespace fly {
     class ASTVarStmt;
     class ASTModifier;
     class SemaVar;
+    class ASTTypeRef;
+	class ASTExpr;
 
     /**
      * Base Var used in:
@@ -32,10 +33,6 @@ namespace fly {
     class ASTVar : public ASTNode {
 
         friend class ASTBuilder;
-        friend class SemaBuilder;
-        friend class Resolver;
-        friend class SemaResolverClass;
-        friend class SemaValidator;
 
         SemaVar* Sema = nullptr;
 
@@ -51,6 +48,9 @@ namespace fly {
         ASTVar(const SourceLocation& Loc, ASTTypeRef* Type, llvm::StringRef Name, SmallVector<ASTModifier*, 8>& Modifiers);
 
     public:
+
+        void accept(ASTVisitor& Visitor) override;
+
         SemaVar* getSema() const;
 
         ASTTypeRef* getTypeRef() const;

@@ -11,6 +11,8 @@
 #include "Sema/Registry.h"
 #include "Sema/SemaNameSpace.h"
 
+#include <AST/ASTNameSpace.h>
+
 using namespace fly;
 
 std::string Registry::DEFAULT_NAMESPACE = "default";
@@ -51,6 +53,23 @@ SemaNameSpace * Registry::getFQNameSpace(const std::string &FQName) {
 	return nullptr;
 }
 
-llvm::SmallVector<ASTBlockStmt *, 4> Registry::getBodies() {
+llvm::SmallVector<LocalScope, 4> Registry::getBodies() const {
 	return Bodies;
+}
+
+void Registry::addBody(SymbolTable* Symbols, ASTBlockStmt *Body) {
+	Bodies.push_back(LocalScope{Symbols, Body});
+}
+
+SemaNameSpace* Registry::getOrAddNameSpace(const ASTNameSpace& AST) {
+	SemaNameSpace *NameSpace = nullptr;
+	std::string FQName = "";
+	for (auto It = AST.getNames().begin(); It != AST.getNames().end(); ++It) {
+		// Generate the full name
+		FQName += (It == AST.getNames().begin()) ? std::string(*It) : "." + std::string(*It);
+
+		// Add as Parent the previous NameSpace
+		NameSpace = getOrAddFQNameSpace(FQName, NameSpace);
+	}
+	return NameSpace;
 }

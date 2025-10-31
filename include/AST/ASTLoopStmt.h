@@ -18,8 +18,6 @@ namespace fly {
 
         friend class ASTBuilder;
         friend class SemaBuilderLoopStmt;
-        friend class Resolver;
-        friend class SemaValidator;
 
         bool VerifyConditionAtEnd = false;
 
@@ -30,6 +28,8 @@ namespace fly {
         explicit ASTLoopStmt(const SourceLocation &Loc);
 
     public:
+
+        void accept(ASTVisitor& Visitor) override;
 
         bool hasVerifyConditionAtEnd() const;
 

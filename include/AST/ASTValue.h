@@ -32,9 +32,6 @@ namespace fly {
     class ASTValue : public ASTNode {
 
         friend class ASTBuilder;
-        friend class SemaBuilder;
-        friend class Resolver;
-        friend class SemaValidator;
 
         const ASTValueKind ValueKind;
 
@@ -46,11 +43,17 @@ namespace fly {
 
     public:
 
+        void accept(ASTVisitor& Visitor) override;
+
         const ASTValueKind &getTypeKind() const;
 
         SemaValue *getSema() const {
 			return Sema;
 		}
+
+        void setSema(SemaValue *Sema) {
+            this->Sema = Sema;
+        }
 
     };
 
@@ -61,7 +64,6 @@ namespace fly {
 
         friend class ASTBuilder;
         friend class Resolver;
-        friend class SemaValidator;
 
         bool Value;
 
@@ -81,7 +83,6 @@ namespace fly {
 
         friend class ASTBuilder;
         friend class Resolver;
-        friend class SemaValidator;
 
         llvm::StringRef Value; // the integer value
 
@@ -101,7 +102,6 @@ namespace fly {
 
         friend class ASTBuilder;
         friend class Resolver;
-        friend class SemaValidator;
 
         llvm::StringRef Value;
 
@@ -121,7 +121,6 @@ namespace fly {
 
         friend class ASTBuilder;
         friend class Resolver;
-        friend class SemaValidator;
 
         llvm::SmallVector<ASTValue *, 8> Values;
 
@@ -145,7 +144,6 @@ namespace fly {
 
         friend class ASTBuilder;
         friend class Resolver;
-        friend class SemaValidator;
 
         llvm::StringMap<ASTValue *> Values;
 
@@ -166,7 +164,6 @@ namespace fly {
 
         friend class ASTBuilder;
         friend class Resolver;
-        friend class SemaValidator;
 
         explicit ASTNullValue(const SourceLocation &Loc);
 

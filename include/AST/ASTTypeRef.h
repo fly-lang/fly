@@ -24,8 +24,6 @@ namespace fly {
     class ASTTypeRef : public ASTRef {
 
         friend class ASTBuilder;
-        friend class Resolver;
-        friend class SemaValidator;
 
         SemaType *Sema;
 
@@ -39,6 +37,8 @@ namespace fly {
             bool Array = false);
 
     public:
+
+        void accept(ASTVisitor& Visitor) override;
 
         SemaType *getSema() const;
 

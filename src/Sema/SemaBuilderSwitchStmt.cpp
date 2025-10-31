@@ -18,12 +18,8 @@
 
 using namespace fly;
 
-SemaBuilderSwitchStmt::SemaBuilderSwitchStmt(Sema &S, ASTBlockStmt *Parent) : S(S), Parent(Parent)  {
+SemaBuilderSwitchStmt::SemaBuilderSwitchStmt(ASTBlockStmt *Parent) : S(S), Parent(Parent)  {
 
-}
-
-SemaBuilderSwitchStmt *SemaBuilderSwitchStmt::Create(Sema &S, ASTBlockStmt *Parent) {
-    return new SemaBuilderSwitchStmt(S, Parent);
 }
 
 SemaBuilderSwitchStmt *SemaBuilderSwitchStmt::Switch(const SourceLocation &Loc, ASTExpr *Expr) {

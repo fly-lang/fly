@@ -23,6 +23,11 @@ namespace fly {
 	class ASTModule;
 	class ASTBlockStmt;
 
+	struct LocalScope {
+		SymbolTable* Symbols;
+		ASTBlockStmt* Body;
+	};;
+
 	class Registry {
 
 		static std::string DEFAULT_NAMESPACE;
@@ -33,7 +38,7 @@ namespace fly {
 
 		std::unordered_map<std::string, SemaNameSpace *> NameSpaces;
 
-		llvm::SmallVector<ASTBlockStmt *, 4> Bodies;
+		llvm::SmallVector<LocalScope, 4> Bodies;
 
 	public:
 
@@ -47,11 +52,17 @@ namespace fly {
 
 		SemaNameSpace * getDefaultNameSpace();
 
+		SemaNameSpace* getOrAddNameSpace(const fly::ASTNameSpace& AST);
+
+		llvm::SmallVector<LocalScope, 4> getBodies() const;
+
+		void addBody(SymbolTable* Symbols, ASTBlockStmt* Body);
+
+	private:
+
 		SemaNameSpace * getOrAddFQNameSpace(const std::string& FQName, SemaNameSpace *Parent = nullptr);
 
 		SemaNameSpace *getFQNameSpace(const std::string& FQName);
-
-		llvm::SmallVector<ASTBlockStmt *, 4> getBodies();
 
 
 	};

@@ -37,6 +37,12 @@
 #include "Basic/Debug.h"
 
 #include <utility>
+#include <AST/ASTCallExpr.h>
+#include <AST/ASTValueExpr.h>
+#include <AST/ASTVarRefExpr.h>
+#include <Sema/SemaBuilderStmt.h>
+#include <Sema/SemaBuiltin.h>
+#include <Sema/SemaType.h>
 
 using namespace fly;
 
@@ -338,7 +344,7 @@ ASTTypeRef *ASTBuilder::CreateBoolTypeRef(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateBoolTypeRef", "Loc=" << Loc.getRawEncoding());
 
     ASTTypeRef * TypeRef = new ASTTypeRef(Loc, llvm::StringRef("bool"));
-	TypeRef->Sema = S.getSymTable().getBoolType();
+	TypeRef->Sema = SemaBuiltin::getBoolType();
 
 	FLY_DEBUG_END("ASTBuilder", "CreateBoolTypeRef");
 	return TypeRef;
@@ -353,7 +359,7 @@ ASTTypeRef *ASTBuilder::CreateByteTypeRef(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateByteTypeRef", "Loc=" << Loc.getRawEncoding());
 
 	ASTTypeRef * TypeRef = new ASTTypeRef(Loc, llvm::StringRef("byte"));
-	TypeRef->Sema = S.getSymTable().getByteType();
+	TypeRef->Sema = SemaBuiltin::getByteType();
 
 	FLY_DEBUG_END("ASTBuilder", "CreateByteTypeRef");
 	return TypeRef;
@@ -368,7 +374,7 @@ ASTTypeRef *ASTBuilder::CreateUShortTypeRef(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateUShortTypeRef", "Loc=" << Loc.getRawEncoding());
 
 	ASTTypeRef * TypeRef = new ASTTypeRef(Loc, llvm::StringRef("ushort"));
-	TypeRef->Sema = S.getSymTable().getUShortType();
+	TypeRef->Sema = SemaBuiltin::getUShortType();
 
 	FLY_DEBUG_END("ASTBuilder", "CreateUShortTypeRef");
 	return TypeRef;
@@ -383,7 +389,7 @@ ASTTypeRef *ASTBuilder::CreateShortTypeRef(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateShortTypeRef", "Loc=" << Loc.getRawEncoding());
 
 	ASTTypeRef * TypeRef = new ASTTypeRef(Loc, llvm::StringRef("short"));
-	TypeRef->Sema = S.getSymTable().getShortType();
+	TypeRef->Sema = SemaBuiltin::getShortType();
 
 	FLY_DEBUG_END("ASTBuilder", "CreateShortTypeRef");
 	return TypeRef;
@@ -398,7 +404,7 @@ ASTTypeRef *ASTBuilder::CreateUIntTypeRef(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateUIntTypeRef", "Loc=" << Loc.getRawEncoding());
 
 	ASTTypeRef * TypeRef = new ASTTypeRef(Loc, llvm::StringRef("uint"));
-	TypeRef->Sema = S.getSymTable().getUIntType();
+	TypeRef->Sema = SemaBuiltin::getUIntType();
 
 	FLY_DEBUG_END("ASTBuilder", "CreateUIntTypeRef");
 	return TypeRef;
@@ -413,7 +419,7 @@ ASTTypeRef *ASTBuilder::CreateIntTypeRef(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateIntTypeRef", "Loc=" << Loc.getRawEncoding());
 
 	ASTTypeRef * TypeRef = new ASTTypeRef(Loc, llvm::StringRef("int"));
-	TypeRef->Sema = S.getSymTable().getIntType();
+	TypeRef->Sema = SemaBuiltin::getIntType();
 
 	FLY_DEBUG_END("ASTBuilder", "CreateIntTypeRef");
 	return TypeRef;
@@ -428,7 +434,7 @@ ASTTypeRef *ASTBuilder::CreateULongTypeRef(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateULongTypeRef", "Loc=" << Loc.getRawEncoding());
 
 	ASTTypeRef * TypeRef = new ASTTypeRef(Loc, llvm::StringRef("ulong"));
-	TypeRef->Sema = S.getSymTable().getULongType();
+	TypeRef->Sema = SemaBuiltin::getULongType();
 
 	FLY_DEBUG_END("ASTBuilder", "CreateULongTypeRef");
 	return TypeRef;
@@ -443,7 +449,7 @@ ASTTypeRef *ASTBuilder::CreateLongTypeRef(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateLongTypeRef", "Loc=" << Loc.getRawEncoding());
 
 	ASTTypeRef * TypeRef = new ASTTypeRef(Loc, llvm::StringRef("long"));
-	TypeRef->Sema = S.getSymTable().getLongType();
+	TypeRef->Sema = SemaBuiltin::getLongType();
 
 	FLY_DEBUG_END("ASTBuilder", "CreateLongTypeRef");
 	return TypeRef;
@@ -458,7 +464,7 @@ ASTTypeRef *ASTBuilder::CreateFloatTypeRef(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateFloatTypeRef", "Loc=" << Loc.getRawEncoding());
 
 	ASTTypeRef * TypeRef = new ASTTypeRef(Loc, llvm::StringRef("float"));
-	TypeRef->Sema = S.getSymTable().getFloatType();
+	TypeRef->Sema = SemaBuiltin::getFloatType();
 
 	FLY_DEBUG_END("ASTBuilder", "CreateFloatTypeRef");
 	return TypeRef;
@@ -473,7 +479,7 @@ ASTTypeRef *ASTBuilder::CreateDoubleTypeRef(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateDoubleTypeRef", "Loc=" << Loc.getRawEncoding());
 
 	ASTTypeRef * TypeRef = new ASTTypeRef(Loc, llvm::StringRef("double"));
-	TypeRef->Sema = S.getSymTable().getDoubleType();
+	TypeRef->Sema = SemaBuiltin::getDoubleType();
 
 	FLY_DEBUG_END("ASTBuilder", "CreateDoubleTypeRef");
 	return TypeRef;
@@ -488,7 +494,7 @@ ASTTypeRef *ASTBuilder::CreateVoidTypeRef(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateVoidTypeRef", "Loc=" << Loc.getRawEncoding());
 
 	ASTTypeRef * TypeRef = new ASTTypeRef(Loc, llvm::StringRef("void"));
-	TypeRef->Sema = S.getSymTable().getVoidType();
+	TypeRef->Sema = SemaBuiltin::getVoidType();
 
 	FLY_DEBUG_END("ASTBuilder", "CreateVoidTypeRef");
 	return TypeRef;
@@ -498,7 +504,7 @@ ASTTypeRef *ASTBuilder::CreateStringTypeRef(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateStringTypeRef", "Loc=" << Loc.getRawEncoding());
 
 	ASTTypeRef * TypeRef = new ASTTypeRef(Loc, llvm::StringRef("string"));
-	TypeRef->Sema = S.getSymTable().getStringType();
+	TypeRef->Sema = SemaBuiltin::getStringType();
 
 	FLY_DEBUG_END("ASTBuilder", "CreateStringTypeRef");
 	return TypeRef;
@@ -508,7 +514,7 @@ ASTTypeRef *ASTBuilder::CreateErrorTypeRef(const SourceLocation &Loc) {
     FLY_DEBUG_START("ASTBuilder", "CreateErrorTypeRef");
 
 	ASTTypeRef * TypeRef = new ASTTypeRef(Loc, llvm::StringRef("error"));
-	TypeRef->Sema = S.getSymTable().getErrorType();
+	TypeRef->Sema = SemaBuiltin::getErrorType();
 
 	FLY_DEBUG_END("ASTBuilder", "CreateErrorTypeRef");
 	return TypeRef;
@@ -603,37 +609,6 @@ ASTNameSpaceRef *ASTBuilder::CreateNameSpaceRef(const SourceLocation &Loc, llvm:
 
 	FLY_DEBUG_END("ASTBuilder", "CreateNameSpaceRef");
 	return NameSpaceRef;
-}
-
-/**
- * Creates a default value by type
- * @param Type
- * @return
- */
-ASTValue *ASTBuilder::CreateDefaultValue(SemaType *Type) {
-	FLY_DEBUG_START("ASTBuilder", "CreateDefaultValue");
-
-	ASTValue *Value;
-	if (Type->isBool()) {
-		Value = CreateBoolValue(SourceLocation(), DEFAULT_BOOL_VALUE);
-	} else if (Type->isInteger()) {
-		Value = CreateNumberValue(SourceLocation(), DEFAULT_INTEGER_VALUE);
-	} else if (Type->isFloatingPoint()) {
-		Value = CreateNumberValue(SourceLocation(), DEFAULT_FLOATING_VALUE);
-	} else if (Type->isString()) {
-		Value = CreateStringValue(SourceLocation(), DEFAULT_STRING_VALUE);
-	} else if (Type->isArray()) {
-		llvm::SmallVector<ASTValue *, 8> Values;
-		Value = CreateArrayValue(SourceLocation(), Values);
-	} else if (Type->isClass()) {
-		Value = CreateNullValue(SourceLocation());
-	} else {
-		assert("Unknown type");
-		Value = nullptr;
-	}
-
-	FLY_DEBUG_END("ASTBuilder", "CreateDefaultValue");
-	return Value;
 }
 
 /**
@@ -1050,31 +1025,4 @@ ASTBlockStmt *ASTBuilder::CreateBlockStmt(ASTStmt *Parent, const SourceLocation 
 
 	FLY_DEBUG_END("ASTBuilder", "CreateBlockStmt");
     return Block;
-}
-
-SemaBuilderIfStmt *ASTBuilder::CreateIfBuilder(ASTBlockStmt *Parent) {
-    FLY_DEBUG_START("ASTBuilder", "CreateIfBuilder");
-
-    SemaBuilderIfStmt * B = SemaBuilderIfStmt::Create(S, Parent);
-
-	FLY_DEBUG_END("ASTBuilder", "CreateIfBuilder");
-	return B;
-}
-
-SemaBuilderSwitchStmt *ASTBuilder::CreateSwitchBuilder(ASTBlockStmt *Parent) {
-    FLY_DEBUG_START("ASTBuilder", "CreateSwitchBuilder");
-
-    SemaBuilderSwitchStmt * B = SemaBuilderSwitchStmt::Create(S, Parent);
-
-	FLY_DEBUG_END("ASTBuilder", "CreateSwitchBuilder");
-	return B;
-}
-
-SemaBuilderLoopStmt *ASTBuilder::CreateLoopBuilder(ASTBlockStmt *Parent, const SourceLocation &Loc) {
-    FLY_DEBUG_MESSAGE("ASTBuilder", "CreateLoopBuilder", "Loc=" << Loc.getRawEncoding());
-
-    SemaBuilderLoopStmt * B = SemaBuilderLoopStmt::Create(S, Parent, Loc);
-
-	FLY_DEBUG_END("ASTBuilder", "CreateLoopBuilder");
-	return B;
 }

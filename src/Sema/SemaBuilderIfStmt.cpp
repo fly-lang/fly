@@ -14,12 +14,12 @@
 
 using namespace fly;
 
-SemaBuilderIfStmt::SemaBuilderIfStmt(Sema &S, ASTBlockStmt *Parent) : S(S), Parent(Parent) {
+SemaBuilderIfStmt::SemaBuilderIfStmt(ASTBlockStmt *Parent) : Parent(Parent) {
 
 }
 
-SemaBuilderIfStmt *SemaBuilderIfStmt::Create(Sema &S, ASTBlockStmt *Parent) {
-    return new SemaBuilderIfStmt(S, Parent);
+SemaBuilderIfStmt *SemaBuilderIfStmt::Create(ASTBlockStmt *Parent) {
+    return new SemaBuilderIfStmt(Parent);
 }
 
 SemaBuilderIfStmt *SemaBuilderIfStmt::If(const SourceLocation &Loc, ASTExpr *Expr, ASTBlockStmt *Stmt) {
@@ -27,7 +27,7 @@ SemaBuilderIfStmt *SemaBuilderIfStmt::If(const SourceLocation &Loc, ASTExpr *Exp
     IfStmt->Rule = Expr;
     IfStmt->Stmt = Stmt;
     // Inner Stmt
-    Parent->Content.push_back(IfStmt);
+    Parent->getContent().push_back(IfStmt);
     IfStmt->Parent = Parent;
     IfStmt->Function = Parent->Function;
     // Inner Stmt

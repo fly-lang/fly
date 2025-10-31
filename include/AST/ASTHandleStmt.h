@@ -20,9 +20,6 @@ namespace fly {
     class ASTHandleStmt : public ASTStmt {
 
         friend class ASTBuilder;
-        friend class SemaBuilderStmt;
-        friend class Resolver;
-        friend class SemaValidator;
 
         ASTRef *ErrorHandlerRef = nullptr;
 
@@ -33,6 +30,8 @@ namespace fly {
         explicit ASTHandleStmt(const SourceLocation &Loc);
 
     public:
+
+        void accept(ASTVisitor& Visitor) override;
 
         ASTRef *getErrorHandlerRef() const;
 

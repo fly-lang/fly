@@ -26,6 +26,7 @@ namespace fly {
     class SemaModule {
 
         friend class Resolver;
+        friend class SemaBuilder;
 
         ASTModule &AST;
 

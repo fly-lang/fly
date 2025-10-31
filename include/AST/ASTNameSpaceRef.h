@@ -19,8 +19,6 @@ namespace fly {
     class ASTNameSpaceRef : public ASTRef {
 
         friend class ASTBuilder;
-        friend class Resolver;
-        friend class SemaValidator;
 
         const llvm::SmallVector<llvm::StringRef, 4> Names;
 
@@ -29,6 +27,8 @@ namespace fly {
     public:
 
         ~ASTNameSpaceRef();
+
+        void accept(ASTVisitor& Visitor) override;
 
         const llvm::SmallVector<llvm::StringRef, 4> &getNames() const;
 

@@ -19,8 +19,6 @@ namespace fly {
     class ASTLoopInStmt : public ASTStmt {
 
         friend class ASTBuilder;
-        friend class Resolver;
-        friend class SemaValidator;
 
         ASTRef *VarRef = nullptr;
 
@@ -29,6 +27,8 @@ namespace fly {
         explicit ASTLoopInStmt(const SourceLocation &Loc);
 
     public:
+
+        void accept(ASTVisitor& Visitor) override;
 
         ASTRef *getVarRef() const;
 

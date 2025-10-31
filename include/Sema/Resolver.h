@@ -89,6 +89,8 @@ namespace fly {
         // This is the Module NameSpace
         SemaNameSpace *CurrentNameSpace;
 
+        SemaComment* CurrentComment;
+
     public:
 
         Resolver(DiagnosticsEngine &Diags, Registry &Reg);
@@ -107,6 +109,34 @@ namespace fly {
         void visit(ASTFunction &AST) override;
         void visit(ASTClass &AST) override;
         void visit(ASTEnum &AST) override;
+        void visit(ASTComment &AST) override;
+        void visit(ASTValue &AST) override;
+        void visit(ASTVar &AST) override;
+
+        void visit(ASTRef &AST) override;
+        void visit(ASTCall &AST) override;
+        void visit(ASTNameSpaceRef &AST) override;
+        void visit(ASTTypeRef &AST) override;
+
+        void visit(ASTBreakStmt &AST) override;
+        void visit(ASTContinueStmt &AST) override;
+        void visit(ASTDeleteStmt &AST) override;
+        void visit(ASTExprStmt &AST) override;
+        void visit(ASTFailStmt &AST) override;
+        void visit(ASTHandleStmt &AST) override;
+        void visit(ASTReturnStmt &AST) override;
+        void visit(ASTRuleStmt &AST) override;
+        void visit(ASTIfStmt &AST) override;
+        void visit(ASTSwitchStmt &AST) override;
+        void visit(ASTLoopStmt &AST) override;
+        void visit(ASTVarStmt &AST) override;
+        void visit(ASTBlockStmt &AST) override;
+
+        void visit(ASTValueExpr &AST) override;
+        void visit(ASTVarRefExpr &AST) override;
+        void visit(ASTCallExpr &AST) override;
+        void visit(ASTOpExpr &AST) override;
+        void visit(ASTCastExpr &AST) override;
 
         void Resolve();
 

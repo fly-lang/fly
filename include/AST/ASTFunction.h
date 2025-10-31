@@ -24,11 +24,6 @@ namespace fly {
     class ASTFunction : public ASTNode {
 
         friend class ASTBuilder;
-        friend class SemaBuilder;
-        friend class Resolver;
-        friend class SemaResolverClass;
-        friend class ParserFunction;
-        friend class ParserClass;
 
         llvm::StringRef Name;
 
@@ -50,6 +45,8 @@ namespace fly {
             llvm::StringRef Name, llvm::SmallVector<ASTVar *, 8> &Params);
 
     public:
+
+        void accept(ASTVisitor& Visitor) override;
 
         llvm::StringRef getName() const;
 

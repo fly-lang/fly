@@ -11,7 +11,6 @@
 #define FLY_SEMA_CALL_H
 
 #include "Sema/SemaResult.h"
-#include "AST/ASTCall.h"
 
 namespace fly {
 

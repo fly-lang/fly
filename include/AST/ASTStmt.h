@@ -40,12 +40,6 @@ namespace fly {
     class ASTStmt : public ASTNode {
 
         friend class ASTBuilder;
-        friend class SemaBuilderStmt;
-        friend class SemaBuilderIfStmt;
-        friend class SemaBuilderSwitchStmt;
-        friend class SemaBuilderLoopStmt;
-        friend class Resolver;
-        friend class SemaValidator;
 
     protected:
 

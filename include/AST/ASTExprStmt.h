@@ -17,9 +17,6 @@ namespace fly {
     class ASTExprStmt : public ASTStmt {
 
         friend class ASTBuilder;
-        friend class SemaBuilderStmt;
-        friend class Resolver;
-        friend class SemaValidator;
 
     protected:
 
@@ -30,6 +27,8 @@ namespace fly {
         ASTExprStmt(const SourceLocation &Loc, ASTStmtKind Kind);
 
     public:
+
+        void accept(ASTVisitor& Visitor) override;
 
         ASTExpr *getExpr() const;
 

@@ -22,14 +22,14 @@ namespace fly {
     class ASTReturnStmt : public ASTStmt {
 
         friend class ASTBuilder;
-        friend class SemaBuilderStmt;
-        friend class Resolver;
 
         ASTExpr *Expr = nullptr;
 
         ASTReturnStmt(const SourceLocation &Loc);
 
     public:
+
+        void accept(ASTVisitor& Visitor) override;
 
         ASTExpr *getExpr() const;
 

@@ -19,15 +19,14 @@ namespace fly {
     class ASTFailStmt : public ASTStmt {
 
         friend class ASTBuilder;
-        friend class SemaBuilderStmt;
-        friend class Resolver;
-        friend class SemaValidator;
 
         ASTExpr *Expr = nullptr;
 
         ASTFailStmt(const SourceLocation &Loc);
 
     public:
+
+        void accept(ASTVisitor& Visitor) override;
 
         ASTExpr *getExpr() const;
 

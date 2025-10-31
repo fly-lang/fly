@@ -21,17 +21,15 @@ namespace fly {
 
     class SemaBuilderLoopStmt {
 
-        Sema &S;
-
         ASTBlockStmt *Parent;
 
         ASTLoopStmt *LoopStmt;
 
-        explicit SemaBuilderLoopStmt(Sema &S, ASTBlockStmt *Parent);
+        explicit SemaBuilderLoopStmt(ASTBlockStmt *Parent);
 
     public:
 
-        static SemaBuilderLoopStmt *Create(Sema &S, ASTBlockStmt *Parent, const SourceLocation &Loc);
+        static SemaBuilderLoopStmt *Create(ASTBlockStmt *Parent, const SourceLocation &Loc);
 
         SemaBuilderLoopStmt *Loop(ASTExpr *Expr, ASTBlockStmt *Stmt);
 

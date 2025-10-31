@@ -33,6 +33,10 @@ llvm::SmallVector<SemaParam *, 8> &SemaFunctionBase::getParams() {
     return Params;
 }
 
+void SemaFunctionBase::addParam(SemaParam *Param) {
+	Params.push_back(Param);
+}
+
 SemaType *SemaFunctionBase::getReturnType() {
     return ReturnType;
 }
