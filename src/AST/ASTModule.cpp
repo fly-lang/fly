@@ -11,10 +11,12 @@
 #include "AST/ASTVisitor.h"
 #include "Basic/Logger.h"
 
+#include <Frontend/InputFile.h>
+
 using namespace fly;
 
-ASTModule::ASTModule(uint64_t &Id, const std::string Name, bool isHeader) : ASTNode(SourceLocation(), ASTKind::AST_MODULE),
-        Id(Id), Name(Name), Header(isHeader) {
+ASTModule::ASTModule(InputFile *F) : ASTNode(SourceLocation(), ASTKind::AST_MODULE),
+        File(F), Name(F->getName()), Header(F->getExt() == FileExt::FLY_H) {
 }
 
 ASTModule::~ASTModule() = default;
@@ -23,8 +25,8 @@ void ASTModule::accept(ASTVisitor& Visitor) {
 	Visitor.visit(*this);
 }
 
-const uint64_t ASTModule::getId() const {
-    return Id;
+InputFile *ASTModule::getFile() const {
+	return File;
 }
 
 bool ASTModule::isHeader() const {
@@ -39,8 +41,8 @@ ASTNameSpace *ASTModule::getNameSpace() {
     return NameSpace;
 }
 
-const llvm::SmallVector<ASTNode *, 8> &ASTModule::getDefinitions() const {
-	return Definitions;
+const llvm::SmallVector<ASTNode *, 8> &ASTModule::getNodes() const {
+	return Nodes;
 }
 
 std::string ASTModule::str() const {

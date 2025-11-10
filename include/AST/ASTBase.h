@@ -66,7 +66,7 @@ namespace fly {
 		static const std::string &str(llvm::SmallVector<T *, 8> Vect) {
 			std::string Str = Logger::OPEN_LIST;
 			if(!Vect.empty()) {
-				for (ASTNode *V : Vect) {
+				for (auto *V : Vect) {
 					Str += (V ? V->str() : "") + Logger::SEP;
 				}
 				unsigned long end = Str.length()-std::string(Logger::SEP).length()-1;

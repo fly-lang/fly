@@ -10,25 +10,26 @@
 #include "Sema/SemaClassMethod.h"
 
 #include <AST/ASTFunction.h>
+#include <AST/ASTType.h>
 #include <AST/ASTVar.h>
 
 using namespace fly;
 
-SemaClassMethod::SemaClassMethod(ASTFunction *AST, SemaClassType *Class, SemaClassInstance *This, SemaClassMethodKind MethodKind) :
-	SemaFunctionBase(AST, SemaFunctionKind::CLASS_METHOD, MangleFunction(AST)), Class(Class), This(This), MethodKind(MethodKind) {
+SemaClassMethod::SemaClassMethod(ASTFunction &AST, SemaClassType *Class, SemaClassInstance *This, SemaClassMethodKind MethodKind) :
+	SemaFunctionBase(AST, SemaKind::METHOD, MangleFunction(AST)), Class(Class), This(This), MethodKind(MethodKind) {
 
 }
 
 // Function to mangle a type reference
-std::string SemaClassMethod::MangleFunction(ASTFunction *AST) {
+std::string SemaClassMethod::MangleFunction(ASTFunction &AST) {
 	llvm::SmallVector<SemaType *, 8> Params;
-	for (auto Param : AST->getParams()) {
+	for (auto Param : AST.getParams()) {
 		Params.push_back(Param->getTypeRef()->getSema());
 	}
-	return SemaFunctionBase::MangleFunction(AST->getName(), Params);
+	return SemaFunctionBase::MangleFunction(AST.getName(), Params);
 }
 
-SemaClassType * SemaClassMethod::getClass() const {
+SemaClassType *SemaClassMethod::getClass() const {
 	return Class;
 }
 

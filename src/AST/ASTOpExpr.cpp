@@ -34,7 +34,7 @@ SourceLocation &ASTUnaryOpExpr::getOpLocation() {
     return OpLocation;
 }
 
-const ASTExpr *ASTUnaryOpExpr::getExpr() const {
+ASTExpr *ASTUnaryOpExpr::getExpr() const {
     return Expr;
 }
 

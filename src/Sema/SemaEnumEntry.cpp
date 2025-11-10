@@ -11,7 +11,7 @@
 
 using namespace fly;
 
-SemaEnumEntry::SemaEnumEntry(ASTVar *AST) : SemaVar(AST, SemaVarKind::ENUM_ENTRY) {
+SemaEnumEntry::SemaEnumEntry(ASTVar &AST) : SemaVar(AST, SemaVarKind::ENUM_ENTRY) {
 
 }
 

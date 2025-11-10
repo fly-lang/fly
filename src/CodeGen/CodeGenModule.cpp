@@ -47,7 +47,7 @@
 #include "llvm/IR/Value.h"
 
 #include <AST/ASTExpr.h>
-#include <AST/ASTTypeRef.h>
+#include <AST/ASTType.h>
 #include <AST/ASTVar.h>
 #include <CodeGen/CharUnits.h>
 #include <Sema/SemaValue.h>
@@ -776,7 +776,7 @@ llvm::Value *CodeGenModule::GenCall(SemaCall *Sema) {
     	if (Method->isConstructor()) {
 
     		// Allocate memory for the new instance in InstancePtr
-    		if (Sema->getAST()->getCallKind() == ASTCallKind::CALL_NEW) {
+    		if (Sema->getAST().getCallKind() == ASTCallKind::CALL_NEW) {
     			InstancePtr = CGClass->NewInstance();
     			Builder->Insert(InstancePtr);
 
@@ -865,7 +865,7 @@ llvm::Value *CodeGenModule::GenCall(SemaCall *Sema) {
 
 void CodeGenModule::addArgs(SemaCall *Sema, llvm::SmallVector<llvm::Value *, 8> &Args) {
 	// Add Call arguments to Function args
-	for (ASTArg *Arg : Sema->getAST()->getArgs()) {
+	for (ASTArg *Arg : Sema->getAST().getArgs()) {
 		llvm::Value *V = CodeGenExpr::Generate(this, Arg->getExpr());
 		Args.push_back(V);
 	}
@@ -927,7 +927,7 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
         case ASTStmtKind::STMT_DELETE: {
             ASTDeleteStmt *Delete = static_cast<ASTDeleteStmt *>(Stmt);
             SemaVar * Var = static_cast<SemaVar *>(Delete->getVarRef()->getSema());
-            if (Var->getAST()->getTypeRef()->getSema()->isClass()) {
+            if (Var->getAST().getTypeRef()->getSema()->isClass()) {
                 llvm::Instruction *I = llvm::CallInst::CreateFree(Var->getCodeGen()->Load(), Builder->GetInsertBlock());
                 Builder->Insert(I);
             }
@@ -1167,7 +1167,7 @@ void CodeGenModule::GenSwitchBlock(CodeGenFunctionBase *CGF, ASTSwitchStmt *Swit
     llvm::BasicBlock *EndBB = llvm::BasicBlock::Create(LLVMCtx, "endswitch", Fn);
 
     // Create Expression evaluator for Switch
-    llvm::Value *SwitchVal = static_cast<SemaVar *>(Switch->getRef()->getSema())->getCodeGen()->getValue();
+    llvm::Value *SwitchVal = static_cast<SemaVar *>(Switch->getVar()->getSema())->getCodeGen()->getValue();
     llvm::SwitchInst *Inst = Builder->CreateSwitch(SwitchVal, EndBB);
 
     // Create Cases

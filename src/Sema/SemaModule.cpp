@@ -30,22 +30,10 @@ SemaNameSpace *SemaModule::getNameSpace() const {
 	return NameSpace;
 }
 
-const llvm::SmallVector<SemaNode *, 8> &SemaModule::getNodes() const {
-	return Nodes;
-}
-
 const llvm::SmallVector<SemaImport *, 8> &SemaModule::getImports() const {
 	return Imports;
 }
 
-const llvm::StringMap<SemaGlobalVar *> &SemaModule::getGlobalVars() const {
-	return GlobalVars;
-}
-
-const llvm::StringMap<SemaFunction *> &SemaModule::getFunctions() const {
-	return Functions;
-}
-
-const llvm::StringMap<SemaType *> &SemaModule::getTypes() const {
-	return Types;
+const llvm::SmallVector<SemaNode *, 8> &SemaModule::getNodes() const {
+	return Nodes;
 }

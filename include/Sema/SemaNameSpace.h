@@ -10,7 +10,8 @@
 #ifndef FLY_SEMA_NAMESPACE_H
 #define FLY_SEMA_NAMESPACE_H
 
-#include "SymbolTable.h"
+#include <unordered_map>
+
 #include "Sema/SemaNode.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
@@ -24,6 +25,7 @@ namespace fly {
     class SemaEnumType;
     class CodeGenModule;
     class SemaType;
+    class SymbolTable;
 
     class SemaNameSpace : public SemaNode {
 

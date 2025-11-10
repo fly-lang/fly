@@ -30,9 +30,9 @@ namespace fly {
 
 		CodeGenEnumEntry *CodeGen;
 
-        SemaComment *Comment;
+        SemaComment *Comment = nullptr;
 
-        explicit SemaEnumEntry(ASTVar *AST);
+        explicit SemaEnumEntry(ASTVar &AST);
 
     public:
 

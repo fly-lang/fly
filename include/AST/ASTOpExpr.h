@@ -116,7 +116,7 @@ namespace fly {
 
         ASTUnaryOpExprKind OpKind;
 
-        const ASTExpr *Expr = nullptr;
+        ASTExpr *Expr = nullptr;
 
         ASTUnaryOpExpr(const SourceLocation &Loc, ASTUnaryOpExprKind OpKind, ASTExpr *Expr);
 
@@ -128,7 +128,7 @@ namespace fly {
 
         ASTUnaryOpExprKind getOpKind() const;
 
-        const ASTExpr *getExpr() const;
+        ASTExpr *getExpr() const;
 
         std::string str() const override;
     };

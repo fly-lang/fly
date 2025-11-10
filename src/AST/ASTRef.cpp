@@ -14,7 +14,7 @@ using namespace fly;
 
 
 ASTRef::ASTRef(const SourceLocation &Loc, llvm::StringRef Name, ASTRefKind Kind) :
-        ASTNode(Loc, ASTKind::AST_REF), Name(Name), RefKind(Kind), Resolved(false) {
+        ASTNode(Loc, ASTKind::AST_REF), Name(Name), RefKind(Kind), Visited(false) {
     FullName = Name.data();
 }
 
@@ -35,8 +35,16 @@ SemaResult *ASTRef::getSema() const {
 	return Sema;
 }
 
-bool ASTRef::isResolved() const {
-    return Resolved;
+void ASTRef::setSema(SemaResult *Sema) {
+    this->Sema = Sema;
+}
+
+bool ASTRef::isVisited() const {
+    return Visited;
+}
+
+void ASTRef::setVisited(bool Visited) {
+	this->Visited = Visited;
 }
 
 bool ASTRef::isCall() const {
@@ -49,6 +57,10 @@ bool ASTRef::isVarRef() const {
 
 ASTRefKind ASTRef::getRefKind() const {
     return RefKind;
+}
+
+void ASTRef::setChild(ASTRef *Identifier) {
+	this->Child = Identifier;
 }
 
 void ASTRef::AddChild(ASTRef *Identifier) {

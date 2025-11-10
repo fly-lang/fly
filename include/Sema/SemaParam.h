@@ -25,7 +25,7 @@ namespace fly {
 
 		CodeGenVar *CodeGen;
 
-        explicit SemaParam(ASTVar *AST);
+        explicit SemaParam(ASTVar &AST);
 
     public:
 

@@ -23,7 +23,7 @@
 using namespace fly;
 
 CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, SemaGlobalVar* Sym, bool isExternal) : CGM(CGM), Sym(Sym) {
-    std::string Id = CodeGen::toIdentifier(Sym->getAST()->getName(), Sym->getModule()->getNameSpace()->getName());
+    std::string Id = CodeGen::toIdentifier(Sym->getAST().getName(), Sym->getModule()->getNameSpace()->getName());
 
 	// External Linkage
 	llvm::GlobalValue::LinkageTypes Linkage = llvm::GlobalValue::LinkageTypes::ExternalLinkage;
@@ -41,14 +41,14 @@ CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, SemaGlobalVar* Sym, bool 
         }
 
     	// Set value
-        if (Sym->getAST()->getExpr() == nullptr) {
+        if (Sym->getAST().getExpr() == nullptr) {
 
         	// Generate a Default Value
             Const = CGM->GenDefaultValue(Sym->getType(), Ty);
         } else {
 
         	// Generate the Value
-            ASTValue *Value = ((ASTValueExpr *) Sym->getAST()->getExpr())->getValue();
+            ASTValue *Value = ((ASTValueExpr *) Sym->getAST().getExpr())->getValue();
 
             if (Sym->getType()->isString()) {
                 llvm::StringRef Str = ((ASTStringValue *) Value)->getValue();

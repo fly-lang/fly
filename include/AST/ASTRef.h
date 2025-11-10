@@ -41,7 +41,7 @@ namespace fly {
 
         ASTRef *Child = nullptr;
 
-        bool Resolved = false;
+        bool Visited = false;
 
         ASTRef(const SourceLocation &Loc, llvm::StringRef Name, ASTRefKind Kind);
 
@@ -53,17 +53,23 @@ namespace fly {
 
         llvm::StringRef getName() const;
 
+        void setSema(SemaResult *Sema);
+
         std::string getFullName() const;
 
         SemaResult *getSema() const;
 
-        bool isResolved() const;
+        bool isVisited() const;
+
+        void setVisited(bool Visited);
 
         bool isCall() const;
 
         bool isVarRef() const;
 
         ASTRefKind getRefKind() const;
+
+        void setChild(ASTRef *Identifier);
 
         void AddChild(ASTRef *Identifier);
 

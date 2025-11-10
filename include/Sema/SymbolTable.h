@@ -11,8 +11,8 @@
 #define FLY_SYM_TABLE_H
 
 #include "Symbol.h"
-#include <unordered_map>
-#include <AST/ASTTypeRef.h>
+#include <AST/ASTType.h>
+#include <llvm/ADT/StringMap.h>
 
 namespace fly {
 
@@ -25,7 +25,7 @@ namespace fly {
      */
     class SymbolTable {
 
-        std::unordered_map<std::string, Symbol*> Table;
+        llvm::StringMap<Symbol*> Table;
 
         SymbolTable* Parent;
 
@@ -37,7 +37,7 @@ namespace fly {
 
         void insert(Symbol* Sym);
 
-        Symbol* lookup(const std::string &Name);
+        Symbol* lookup(llvm::StringRef Name);
 
         SymbolTable* pushScope();
 

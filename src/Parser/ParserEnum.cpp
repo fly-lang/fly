@@ -34,11 +34,11 @@ ParserEnum::ParserEnum(Parser *P, llvm::SmallVector<ASTModifier *, 8> &Modifiers
 
     // Parse classes after colon
     // class Example : SuperClass Interface Struct { ... }
-    llvm::SmallVector<ASTTypeRef *, 4> SuperClasses;
+    llvm::SmallVector<ASTType *, 4> SuperClasses;
     if (P->Tok.is(tok::colon)) {
         P->ConsumeToken();
         while (P->Tok.isAnyIdentifier()) {
-            ASTTypeRef *EnumTypeRef = P->ParseTypeRef();
+            ASTType *EnumTypeRef = P->ParseTypeRef();
             SuperClasses.push_back(EnumTypeRef);
         }
     }

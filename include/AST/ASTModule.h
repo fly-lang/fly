@@ -15,6 +15,7 @@
 
 namespace fly {
 
+    class InputFile;
     class ASTNameSpace;
     class FileID; // TODO implement in Id
 
@@ -22,11 +23,11 @@ namespace fly {
 
         friend class ASTBuilder;
 
+        // Source File
+        InputFile *File;
+
         // Namespace declaration
         ASTNameSpace* NameSpace = nullptr;
-
-        // Module Id
-        const size_t Id;
 
         // Module FileName
         const std::string Name;
@@ -35,11 +36,11 @@ namespace fly {
         const bool Header;
 
         // All Top Definitions sorted in the order it appears in the code: NameSpace, Imports, Global Vars, Functions
-        llvm::SmallVector<ASTNode *, 8> Definitions;
+        llvm::SmallVector<ASTNode *, 8> Nodes;
 
         ASTModule() = delete;
 
-        ASTModule(size_t& Id, std::string Name, bool isHeader);
+        ASTModule(InputFile *F);
 
     public:
 
@@ -47,11 +48,7 @@ namespace fly {
 
         void accept(ASTVisitor& Visitor) override;
 
-        const SourceLocation& getLocation() const override;
-
-        ASTKind getKind() const override;
-
-        const size_t getId() const;
+        InputFile *getFile() const;
 
         bool isHeader() const;
 
@@ -59,7 +56,7 @@ namespace fly {
 
         ASTNameSpace* getNameSpace();
 
-        const llvm::SmallVector<ASTNode *, 8> &getDefinitions() const;
+        const llvm::SmallVector<ASTNode *, 8> &getNodes() const;
 
         std::string str() const;
     };

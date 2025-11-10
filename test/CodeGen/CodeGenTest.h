@@ -34,6 +34,7 @@
 #include <Sema/SemaBuiltinType.h>
 #include <Sema/SymbolTable.h>
 #include <gtest/gtest.h>
+#include <llvm/LTO/LTO.h>
 
 using namespace fly;
 
@@ -47,20 +48,20 @@ public:
 	ASTBuilder *Builder;
     Sema *S;
     SourceLocation SourceLoc;
-    ASTTypeRef *VoidTypeRef;
-    ASTTypeRef *BoolTypeRef;
-    ASTTypeRef *ByteTypeRef;
-    ASTTypeRef *ShortTypeRef;
-    ASTTypeRef *UShortTypeRef;
-    ASTTypeRef *IntTypeRef;
-    ASTTypeRef *UIntTypeRef;
-    ASTTypeRef *LongTypeRef;
-    ASTTypeRef *ULongTypeRef;
-    ASTTypeRef *FloatTypeRef;
-    ASTTypeRef *DoubleTypeRef;
-    ASTTypeRef *ErrorTypeRef;
-	ASTTypeRef *StringTypeRef;
-	ASTTypeRef *CharTypeRef;
+    ASTType *VoidTypeRef;
+    ASTType *BoolTypeRef;
+    ASTType *ByteTypeRef;
+    ASTType *ShortTypeRef;
+    ASTType *UShortTypeRef;
+    ASTType *IntTypeRef;
+    ASTType *UIntTypeRef;
+    ASTType *LongTypeRef;
+    ASTType *ULongTypeRef;
+    ASTType *FloatTypeRef;
+    ASTType *DoubleTypeRef;
+    ASTType *ErrorTypeRef;
+	ASTType *StringTypeRef;
+	ASTType *CharTypeRef;
     llvm::SmallVector<ASTModifier *, 8> TopModifiers;
     llvm::SmallVector<ASTModifier *, 8> EmptyModifiers;
     llvm::SmallVector<ASTExpr *, 8> Args;
@@ -92,7 +93,9 @@ public:
 
     ASTModule *CreateModule(std::string Name = "test") {
         Diags.getClient()->BeginSourceFile();
-        auto AST = Builder->CreateModule(Name);
+    	auto Buffer = llvm::MemoryBuffer::getMemBuffer("", Name);
+    	auto FID = new InputFile(Diags, CI.getSourceManager(), Name);
+        auto AST = Builder->CreateModule(FID);
         Diags.getClient()->EndSourceFile();
         return AST;
     }
@@ -103,11 +106,6 @@ public:
 
 	ASTBuilder &getASTBuilder() {
 	    return *Builder;
-    }
-
-	ASTTypeRef * CreateArrayTypeRef(SemaType *T) {
-    	SemaArrayType *A = SemaBuiltin::getArrayType(T);
-    	return Builder->CreateTypeRef(SourceLoc, A);
     }
 
 	ASTCall *CreateCall(llvm::StringRef Name, llvm::SmallVector<ASTExpr *, 8> &Args, ASTCallKind Kind, ASTRef *Parent = nullptr) {

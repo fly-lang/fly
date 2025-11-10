@@ -21,13 +21,13 @@ namespace fly {
         friend class Resolver;
         friend class SemaValidator;
 
-    	ASTComment *AST;
+    	ASTComment &AST;
 
-        explicit SemaComment(ASTComment *AST);
+        explicit SemaComment(ASTComment &AST);
 
     public:
 
-    	ASTComment *getAST() const;
+    	ASTComment &getAST() const;
 
     };
 

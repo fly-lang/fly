@@ -13,18 +13,14 @@
 
 using namespace fly;
 
-ASTEnum::ASTEnum(ASTModule *Module, const SourceLocation &Loc, llvm::StringRef Name,
-                 llvm::SmallVector<ASTModifier *, 8> &Modifiers, llvm::SmallVector<ASTTypeRef *, 4> &SuperClasses) :
+ASTEnum::ASTEnum(const SourceLocation &Loc, llvm::StringRef Name,
+                 llvm::SmallVector<ASTModifier *, 8> &Modifiers, llvm::SmallVector<ASTType *, 4> &SuperClasses) :
         ASTNode(Loc, ASTKind::AST_ENUM), Name(Name), Modifiers(Modifiers), SuperClasses(SuperClasses) {
 
 }
 
-ASTModule * ASTEnum::getModule() const {
-	return Module;
-}
-
-llvm::SmallVector<ASTNode *, 8> ASTEnum::getDefinitions() const {
-	return Definitions;
+llvm::SmallVector<ASTNode *, 8> ASTEnum::getNodes() const {
+	return Nodes;
 }
 
 llvm::SmallVector<ASTModifier *, 8> ASTEnum::getModifiers() const {
@@ -35,7 +31,7 @@ llvm::StringRef ASTEnum::getName() const {
 	return Name;
 }
 
-llvm::SmallVector<ASTTypeRef *, 4> ASTEnum::getSuperClasses() const {
+llvm::SmallVector<ASTType *, 4> ASTEnum::getSuperClasses() const {
 	return SuperClasses;
 }
 
@@ -47,6 +43,6 @@ std::string ASTEnum::str() const {
  Attr("Kind", static_cast<size_t>(getKind())).
            Attr("Name", Name).
            Attr("Modifiers", ASTNode::str(Modifiers)).
-           Attr("Definitions", ASTNode::str(Definitions)).
+           Attr("Definitions", ASTNode::str(Nodes)).
            End();
 }

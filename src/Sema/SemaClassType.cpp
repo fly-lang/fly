@@ -12,8 +12,8 @@
 
 using namespace fly;
 
-SemaClassType::SemaClassType(ASTClass &AST) : SemaType(SemaTypeKind::TYPE_CLASS, AST.getName().data()),
-	AST(AST), ClassKind(toClassKind(AST.getClassKind())) {
+SemaClassType::SemaClassType(ASTClass &AST, SymbolTable *Symbols) : SemaType(SemaKind::CLASS, SemaTypeKind::TYPE_CLASS, AST.getName().data()),
+	AST(AST), Symbols(Symbols), ClassKind(toClassKind(AST.getClassKind())) {
 
 }
 
@@ -37,6 +37,14 @@ ASTClass &SemaClassType::getAST() {
 
 SemaModule * SemaClassType::getModule() const {
 	return Module;
+}
+
+SymbolTable *SemaClassType::getSymbols() const {
+	return Symbols;
+}
+
+llvm::SmallVector<SemaNode *, 8> & SemaClassType::getNodes() {
+	return Nodes;
 }
 
 SemaVisibilityKind SemaClassType::getVisibility() const {
@@ -75,7 +83,7 @@ SemaComment * SemaClassType::getComment() const {
 	return Comment;
 }
 
-bool SemaClassType::isDerivedOrEquals(const SemaClassType *BaseClassType) const {
+bool SemaClassType::isDerivedOrEquals(SemaClassType *BaseClassType) const {
 	if (this->isEquals(BaseClassType)) {
 		return true;
 	}
@@ -90,7 +98,7 @@ bool SemaClassType::isDerivedOrEquals(const SemaClassType *BaseClassType) const 
 	return false;
 }
 
-bool SemaClassType::isDerived(const SemaClassType *BaseClassType) const {
+bool SemaClassType::isDerived(SemaClassType *BaseClassType) const {
 	// Check if this->ClassType is a derived of BaseClassType
 	for (auto &Base : this->getBaseClasses()) {
 		if (Base->isEquals(BaseClassType)) {
@@ -106,7 +114,7 @@ bool SemaClassType::isDerived(const SemaClassType *BaseClassType) const {
  * @param Derived
  * @return true if this ClassType is a base class of ClassType
  */
-bool SemaClassType::isBaseOrEquals(const SemaClassType *Derived) const {
+bool SemaClassType::isBaseOrEquals(SemaClassType *Derived) const {
 	if (this->isEquals(Derived)) {
 		return true;
 	}
@@ -121,7 +129,7 @@ bool SemaClassType::isBaseOrEquals(const SemaClassType *Derived) const {
 	return false;
 }
 
-bool SemaClassType::isBase(const SemaClassType *Derived) const {
+bool SemaClassType::isBase(SemaClassType *Derived) const {
 	// Check if ClassType is a base class of derived class
 	for (auto &Base : Derived->getBaseClasses()) {
 		if (this->isEquals(Base)) {

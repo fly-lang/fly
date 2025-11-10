@@ -20,7 +20,7 @@
 #include "AST/ASTVar.h"
 #include "AST/ASTBlockStmt.h"
 #include "AST/ASTValue.h"
-#include "AST/ASTTypeRef.h"
+#include "AST/ASTType.h"
 #include "Basic/Diagnostic.h"
 
 #include <AST/ASTExpr.h>
@@ -115,7 +115,7 @@ bool SemaValidator::CheckCommentParams(SemaComment *Comment, const llvm::SmallVe
 	return true;
 }
 
-bool SemaValidator::CheckCommentReturn(SemaComment *Comment, ASTTypeRef *ReturnType) {
+bool SemaValidator::CheckCommentReturn(SemaComment *Comment, ASTType *ReturnType) {
 	// TODO
 	return true;
 }

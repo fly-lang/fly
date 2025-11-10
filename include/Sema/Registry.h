@@ -22,13 +22,18 @@ namespace fly {
 	class SemaModule;
 	class ASTModule;
 	class ASTBlockStmt;
+	class Symbol;
 
 	struct LocalScope {
 		SymbolTable* Symbols;
 		ASTBlockStmt* Body;
-	};;
+	};
 
 	class Registry {
+
+		SymbolTable *BuiltinScope;
+
+		SymbolTable* GlobalScope;
 
 		static std::string DEFAULT_NAMESPACE;
 
@@ -46,6 +51,8 @@ namespace fly {
 
 		~Registry() = default;
 
+		SymbolTable * CreateBuiltinScope();
+
 		void addModule(SemaModule* Module);
 
 		llvm::SmallVector<SemaModule *, 8> &getModules();
@@ -53,6 +60,10 @@ namespace fly {
 		SemaNameSpace * getDefaultNameSpace();
 
 		SemaNameSpace* getOrAddNameSpace(const fly::ASTNameSpace& AST);
+
+		SemaType *LookupBuiltinType(llvm::StringRef Ref);
+
+		SymbolTable * LookupInNameSpaces(llvm::StringRef Ref);
 
 		llvm::SmallVector<LocalScope, 4> getBodies() const;
 

@@ -43,8 +43,8 @@ namespace fly {
     class ASTNameSpace;
     class ASTImport;
     class ASTVar;
-    class ASTArrayTypeRef;
-    class ASTTypeRef;
+    class ASTArrayType;
+    class ASTType;
 
     /// ParseModule the main file known to the preprocessor, producing an
     /// abstract syntax tree.
@@ -111,12 +111,8 @@ private:
     /// Parse multiple Modifiers.
     SmallVector<ASTModifier *, 8> ParseModifiers();
 
-    /// Parse a global variable.
-    /// //TODO remove globalvar
-    // ASTVar *ParseGlobalVar(SmallVector<ASTScope *, 8> &Scopes, ASTTypeRef *TypeRef);
-
     /// Parse a function.
-    ASTFunction *ParseFunction(SmallVector<ASTModifier *, 8> &Modifiers, ASTTypeRef *TypeRef);
+    ASTFunction *ParseFunction(SmallVector<ASTModifier *, 8> &Modifiers, ASTType *TypeRef);
 
     /// Parse a class.
     ASTClass *ParseClass(SmallVector<ASTModifier *, 8> &Modifiers);
@@ -163,13 +159,13 @@ private:
     void ParseFailStmt(ASTBlockStmt *Parent);
 
     /// Parse a type reference.
-    ASTTypeRef *ParseTypeRef();
+    ASTType *ParseTypeRef();
 
     /// Parse a builtin type reference
-    ASTTypeRef *ParseBuiltinTypeRef();
+    ASTType *ParseBuiltinTypeRef();
 
     /// Parse an array type reference.
-    ASTArrayTypeRef *ParseArrayTypeRef(ASTTypeRef *);
+    ASTArrayType *ParseArrayTypeRef(ASTType *);
 
     /// Parse a var ref.
     ASTRef *ParseVarRef();

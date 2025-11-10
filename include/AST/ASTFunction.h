@@ -17,9 +17,8 @@ namespace fly {
     class ASTModifier;
     class ASTVar;
     class ASTComment;
-    class ASTTypeRef;
+    class ASTType;
     class ASTBlockStmt;
-    class SemaFunctionBase;
 
     class ASTFunction : public ASTNode {
 
@@ -28,7 +27,7 @@ namespace fly {
         llvm::StringRef Name;
 
         // Function return type
-        ASTTypeRef *ReturnTypeRef = nullptr;
+        ASTType *ReturnTypeRef = nullptr;
 
         llvm::SmallVector<ASTModifier *, 8> Modifiers;
 
@@ -37,11 +36,9 @@ namespace fly {
         // Body is the main BlockStmt
         ASTBlockStmt *Body = nullptr;
 
-        SemaFunctionBase *Sema = nullptr;
-
     protected:
 
-        ASTFunction(const SourceLocation &Loc, ASTTypeRef *ReturnType,llvm::SmallVector<ASTModifier *, 8> &Modifiers,
+        ASTFunction(const SourceLocation &Loc, ASTType *ReturnType,llvm::SmallVector<ASTModifier *, 8> &Modifiers,
             llvm::StringRef Name, llvm::SmallVector<ASTVar *, 8> &Params);
 
     public:
@@ -50,7 +47,7 @@ namespace fly {
 
         llvm::StringRef getName() const;
 
-        ASTTypeRef *getReturnTypeRef() const;
+        ASTType *getReturnTypeRef() const;
 
         llvm::SmallVector<ASTModifier *, 8> getModifiers() const;
 
@@ -61,8 +58,6 @@ namespace fly {
         ASTBlockStmt *getBody() const;
 
         bool isVarArg();
-
-        SemaFunctionBase *getSema();
 
         std::string str() const override;
     };

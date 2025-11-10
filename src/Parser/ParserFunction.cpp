@@ -84,7 +84,7 @@ ASTVar *ParserFunction::ParseParam(Parser *P) {
     llvm::SmallVector<ASTModifier *, 8> Modifiers = P->ParseModifiers();
 
     // Var Type
-    ASTTypeRef *Type = P->ParseTypeRef();
+    ASTType *Type = P->ParseTypeRef();
     if (!Type) {
         P->Diag(diag::err_parser_invalid_type);
         return nullptr;

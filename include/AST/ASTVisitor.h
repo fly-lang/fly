@@ -21,11 +21,17 @@ namespace fly {
 	class ASTEnum;
 	class ASTComment;
 	class ASTCall;
-	class ASTValue;
+	class ASTBoolValue;
+	class ASTNumberValue;
+	class ASTStringValue;
+	class ASTArrayValue;
+	class ASTStructValue;
+	class ASTNullValue;
 	class ASTVar;
 	class ASTRef;
 	class ASTNameSpaceRef;
-	class ASTTypeRef;
+	class ASTType;
+	class ASTArrayType;
 	class ASTBreakStmt;
 	class ASTContinueStmt;
 	class ASTDeleteStmt;
@@ -37,12 +43,15 @@ namespace fly {
 	class ASTIfStmt;
 	class ASTSwitchStmt;
 	class ASTLoopStmt;
+	class ASTLoopInStmt;
 	class ASTVarStmt;
 	class ASTBlockStmt;
 	class ASTValueExpr;
 	class ASTVarRefExpr;
 	class ASTCallExpr;
-	class ASTOpExpr;
+	class ASTUnaryOpExpr;
+	class ASTBinaryOpExpr;
+	class ASTTernaryOpExpr;
 	class ASTCastExpr;
 
 	class ASTVisitor {
@@ -57,14 +66,13 @@ namespace fly {
 		virtual void visit(ASTFunction& Function) = 0;
 		virtual void visit(ASTEnum& Enum) = 0;
 		virtual void visit(ASTComment &AST) = 0;
-
-		virtual void visit(ASTValue &AST) = 0;
 		virtual void visit(ASTVar &AST) = 0;
 
+		virtual void visit(ASTType &AST) = 0;
+		virtual void visit(ASTArrayType &AST) = 0;
 		virtual void visit(ASTRef &AST) = 0;
 		virtual void visit(ASTCall &AST) = 0;
 		virtual void visit(ASTNameSpaceRef &AST) = 0;
-		virtual void visit(ASTTypeRef &AST) = 0;
 
 		virtual void visit(ASTBreakStmt &AST) = 0;
 		virtual void visit(ASTContinueStmt &AST) = 0;
@@ -77,14 +85,24 @@ namespace fly {
 		virtual void visit(ASTIfStmt &AST) = 0;
 		virtual void visit(ASTSwitchStmt &AST) = 0;
 		virtual void visit(ASTLoopStmt &AST) = 0;
+		virtual void visit(ASTLoopInStmt &AST) = 0;
 		virtual void visit(ASTVarStmt &AST) = 0;
 		virtual void visit(ASTBlockStmt &AST) = 0;
 
 		virtual void visit(ASTValueExpr &AST) = 0;
 		virtual void visit(ASTVarRefExpr &AST) = 0;
 		virtual void visit(ASTCallExpr &AST) = 0;
-		virtual void visit(ASTOpExpr &AST) = 0;
+		virtual void visit(ASTUnaryOpExpr &AST) = 0;
+		virtual void visit(ASTBinaryOpExpr &AST) = 0;
+		virtual void visit(ASTTernaryOpExpr &AST) = 0;
 		virtual void visit(ASTCastExpr &AST) = 0;
+
+		virtual void visit(ASTBoolValue &AST) = 0;
+		virtual void visit(ASTNumberValue &AST) = 0;
+		virtual void visit(ASTStringValue &AST) = 0;
+		virtual void visit(ASTArrayValue &AST) = 0;
+		virtual void visit(ASTStructValue &AST) = 0;
+		virtual void visit(ASTNullValue &AST) = 0;
 	};
 
 }

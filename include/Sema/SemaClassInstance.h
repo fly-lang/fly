@@ -22,7 +22,6 @@ namespace fly {
     class SemaClassInstance  : public SemaVar {
 
         friend class SemaBuilder;
-        friend class SemaResolverClass;
         friend class SemaValidator;
 
         SemaClassType *Class;

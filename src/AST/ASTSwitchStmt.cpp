@@ -17,8 +17,8 @@ ASTSwitchStmt::ASTSwitchStmt(const SourceLocation &Loc) :
 
 }
 
-ASTRef *ASTSwitchStmt::getRef() const {
-    return Ref;
+ASTRef *ASTSwitchStmt::getVar() const {
+    return Var;
 }
 
 llvm::SmallVector<ASTRuleStmt *, 8> &ASTSwitchStmt::getCases() {
@@ -33,6 +33,6 @@ std::string ASTSwitchStmt::str() const {
     return Logger("ASTSwitchStmt").
 	Attr("Location", getLocation()).
 Attr("Kind", static_cast<size_t>(getKind())).
-            Attr("VarRef", Ref).
+            Attr("VarRef", Var).
             End();
 }

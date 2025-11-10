@@ -26,7 +26,7 @@
 #include "AST/ASTValue.h"
 #include "AST/ASTImport.h"
 #include "AST/ASTNameSpace.h"
-#include "AST/ASTTypeRef.h"
+#include "AST/ASTType.h"
 #include "AST/ASTVar.h"
 #include "AST/ASTBuilder.h"
 #include "Sema/SemaBuilderStmt.h"
@@ -65,7 +65,7 @@ ASTModule *Parser::ParseModule() {
     // Prime the lexer look-ahead.
     ConsumeToken();
 
-    Module = Builder.CreateModule(Input.getFileName());
+    Module = Builder.CreateModule(Input.getFileID(), Input.getFileName());
 
     // Start with Parse (recursively))
 	bool Success = true;
@@ -211,7 +211,7 @@ ASTNode *Parser::ParseDefinition() {
     }
 
     // Parse Type
-    ASTTypeRef *TypeRef = ParseTypeRef();
+    ASTType *TypeRef = ParseTypeRef();
     if (TypeRef == nullptr) {
         Diag(Tok.getLocation(), diag::err_parser_invalid_type);
     } else {
@@ -259,39 +259,6 @@ SmallVector<ASTModifier *, 8> Parser::ParseModifiers() {
 }
 
 /**
- * ParseModule Global Var declaration
- * @param Visibility
- * @param Constant
- * @param TypeRef
- * @param Name
- * @param NameLoc
- * @return
- */
-// TODO: remove globalvar
-// ASTVar *Parser::ParseGlobalVar(SmallVector<ASTModifier *, 8> &Modifiers, ASTTypeRef *TypeRef) {
-// 	FLY_DEBUG_START("Parser", "ParseGlobalVar");
-//     assert(Tok.isAnyIdentifier() && "Tok must be an Identifier");
-//
-//     llvm::StringRef Name = Tok.getIdentifierInfo()->getName();
-//     SourceLocation Loc = ConsumeToken();
-//
-//     // Parsing =
-//     ASTExpr *Expr = nullptr;
-//     if (isAssignOperator(Tok)) {
-//         ConsumeToken();
-//
-//         // Parse Expr
-//         Expr = ParseExpr();
-//     }
-//
-//     // GlobalVar
-//     ASTVar *GlobalVar = Builder.CreateGlobalVar(Module, Loc, TypeRef, Name, Modifiers, Expr);
-//
-//     return GlobalVar;
-// }
-
-
-/**
  * ParseModule Function declaration
  * @param Visibility
  * @param Constant
@@ -300,7 +267,7 @@ SmallVector<ASTModifier *, 8> Parser::ParseModifiers() {
  * @param NameLoc
  * @return
  */
-ASTFunction *Parser::ParseFunction(SmallVector<ASTModifier *, 8> &Modifiers, ASTTypeRef *TypeRef) {
+ASTFunction *Parser::ParseFunction(SmallVector<ASTModifier *, 8> &Modifiers, ASTType *TypeRef) {
 	FLY_DEBUG_START("Parser", "ParseFunction");
 
 	StringRef Name = Tok.getIdentifierInfo()->getName();
@@ -478,7 +445,7 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
         // Type a
         // int a = ...
         // Type a = ...
-        ASTTypeRef *TypeRef = ParseTypeRef();
+        ASTType *TypeRef = ParseTypeRef();
         if (TypeRef == nullptr) { // FIXME need to be removed in place of master Validator
             Diag(Tok.getLocation(), diag::err_parser_invalid_type);
             return;
@@ -902,10 +869,10 @@ void Parser::ParseFailStmt(ASTBlockStmt *Parent) {
  * ParseModule a data Type
  * @return true on Success or false on Error
  */
-ASTTypeRef *Parser::ParseTypeRef() {
+ASTType *Parser::ParseTypeRef() {
     FLY_DEBUG_START("Parser", "ParseTypeRef");
 
-    ASTTypeRef *TypeRef = nullptr;
+    ASTType *TypeRef = nullptr;
     if (isBuiltinType(Tok)) {
     	return ParseBuiltinTypeRef();
     }
@@ -935,7 +902,7 @@ ASTTypeRef *Parser::ParseTypeRef() {
 			// with Array Type al previous Names are NameSpace
 			if (isArrayType(Tok)) {
 				TypeRef = Builder.CreateTypeRef(NameLoc, Name, Builder.CreateNameSpaceRef(Loc, Names));
-				ASTArrayTypeRef *ArrayTypeRef = ParseArrayTypeRef(TypeRef);
+				ASTArrayType *ArrayTypeRef = ParseArrayTypeRef(TypeRef);
 				return ArrayTypeRef;
 			}
 
@@ -968,8 +935,8 @@ ASTTypeRef *Parser::ParseTypeRef() {
     return TypeRef;
 }
 
-ASTTypeRef * Parser::ParseBuiltinTypeRef() {
-	ASTTypeRef *TypeRef = nullptr;
+ASTType * Parser::ParseBuiltinTypeRef() {
+	ASTType *TypeRef = nullptr;
 	switch (Tok.getKind()) {
 	case tok::kw_bool:
 		TypeRef = Builder.CreateBoolTypeRef(ConsumeToken());
@@ -1017,13 +984,13 @@ ASTTypeRef * Parser::ParseBuiltinTypeRef() {
 	return isArrayType(Tok) ? ParseArrayTypeRef(TypeRef) : TypeRef;
 }
 
-ASTArrayTypeRef *Parser::ParseArrayTypeRef(ASTTypeRef *TypeRef) {
+ASTArrayType *Parser::ParseArrayTypeRef(ASTType *TypeRef) {
 	FLY_DEBUG_START("Parser", "ParseArrayType");
 	assert(isArrayType(Tok) && "Invalid array parse");
 
 	//TODO array multidimensional
 
-	ASTArrayTypeRef *ArrayTypeRef = nullptr;
+	ASTArrayType *ArrayTypeRef = nullptr;
 	const SourceLocation &Loc = ConsumeBracket();
 	ASTExpr *Expr = ParseExpr();
 	if (Tok.is(tok::r_square)) {

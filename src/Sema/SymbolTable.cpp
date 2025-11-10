@@ -27,7 +27,7 @@ void SymbolTable::insert(Symbol *Sym) {
 	Table[Sym->Name] = Sym;
 }
 
-Symbol * SymbolTable::lookup(const std::string &Name) {
+Symbol * SymbolTable::lookup(llvm::StringRef Name) {
 	auto it = Table.find(Name);
 	if (it != Table.end()) return it->second;
 	if (Parent) return Parent->lookup(Name);

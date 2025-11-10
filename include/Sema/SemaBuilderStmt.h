@@ -23,23 +23,21 @@ namespace fly {
 
     class SemaBuilderStmt {
 
-        ASTBuilder *Builder;
-
-        SemaBuilderStmt(ASTBuilder *Builder);
+        SemaBuilderStmt();
 
         ASTStmt *Stmt;
 
     public:
 
-        static SemaBuilderStmt *CreateAssignment(ASTBuilder *Builder, ASTBlockStmt *Parent, ASTRef *VarRef, ASTAssignOperatorKind AssignOperatorKind);
+        static SemaBuilderStmt *CreateAssignment(ASTBlockStmt *Parent, ASTRef *VarRef, ASTAssignOperatorKind AssignOperatorKind);
 
-        static SemaBuilderStmt *CreateVar(ASTBuilder *Builder, ASTBlockStmt *Parent, ASTVar *Var);
+        static SemaBuilderStmt *CreateVar(ASTBlockStmt *Parent, ASTVar *Var);
 
-        static SemaBuilderStmt *CreateReturn(ASTBuilder *Builder, ASTBlockStmt *Parent, const SourceLocation &Loc);
+        static SemaBuilderStmt *CreateReturn(ASTBlockStmt *Parent, const SourceLocation &Loc);
 
-        static SemaBuilderStmt *CreateFail(ASTBuilder *Builder, ASTBlockStmt *Parent, const SourceLocation &Loc);
+        static SemaBuilderStmt *CreateFail(ASTBlockStmt *Parent, const SourceLocation &Loc);
 
-        static SemaBuilderStmt *CreateExpr(ASTBuilder *Builder, ASTBlockStmt *Parent, const SourceLocation &Loc);
+        static SemaBuilderStmt *CreateExpr(ASTBlockStmt *Parent, const SourceLocation &Loc);
 
         void setExpr(ASTExpr *Expr);
     };

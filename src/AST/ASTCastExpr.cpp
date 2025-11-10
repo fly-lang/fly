@@ -9,11 +9,11 @@
 
 #include "AST/ASTCastExpr.h"
 
-#include <AST/ASTTypeRef.h>
+#include <AST/ASTType.h>
 
 using namespace fly;
 
-ASTCastExpr::ASTCastExpr(ASTExpr *Expr, ASTTypeRef *Cast) : ASTExpr(Cast->getLocation(), ASTExprKind::EXPR_CAST),
+ASTCastExpr::ASTCastExpr(ASTExpr *Expr, ASTType *Cast) : ASTExpr(Cast->getLocation(), ASTExprKind::EXPR_CAST),
 	Expr(Expr), TypeRef(Cast) {
 }
 
@@ -21,7 +21,7 @@ ASTExpr * ASTCastExpr::getExpr() const {
 	return Expr;
 }
 
-ASTTypeRef * ASTCastExpr::getTypeRef() const {
+ASTType * ASTCastExpr::getTypeRef() const {
 	return TypeRef;
 }
 

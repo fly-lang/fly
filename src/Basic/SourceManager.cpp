@@ -576,7 +576,7 @@ FileID SourceManager::getNextFileID(FileID FID) const {
 /// This translates NULL into standard input.
 FileID SourceManager::createFileID(const FileEntry *SourceFile,
                                    SourceLocation IncludePos,
-                                   SrcMgr::CharacteristicKind FileCharacter,
+                                   CharacteristicKind FileCharacter,
                                    int LoadedID, unsigned LoadedOffset) {
   assert(SourceFile && "Null source file!");
   const SrcMgr::ContentCache *IR =

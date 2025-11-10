@@ -11,22 +11,23 @@
 
 using namespace fly;
 
-SemaResult::SemaResult(bool IsCall) : IsCall(IsCall) {
+SemaResult::SemaResult(SemaKind Kind) : SemaNode(Kind) {
+}
+
+void SemaResult::setType(SemaType *Type) {
+	this->Type = Type;
 }
 
 bool SemaResult::isCall() const {
-	return IsCall;
+	return Kind == SemaKind::CALL;
 }
 
 SemaResult *SemaResult::getParent() const {
 	return Parent;
 }
 
-void SemaResult::setParent(SemaResult *Parent) {
-	if (Parent != nullptr) {
-		Parent->Child = this;
-	}
-	this->Parent = Parent;
+void SemaResult::setParent(SemaResult &Parent) {
+	Parent.Child = this;
 }
 
 SemaResult * SemaResult::getChild() const {

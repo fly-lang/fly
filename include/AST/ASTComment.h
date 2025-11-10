@@ -16,7 +16,6 @@
 
 namespace fly {
 
-    class ASTModule;
     class SourceLocation;
 
     class ASTComment : public ASTNode {

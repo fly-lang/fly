@@ -21,7 +21,7 @@ namespace fly {
     class ASTVarStmt;
     class ASTModifier;
     class SemaVar;
-    class ASTTypeRef;
+    class ASTType;
 	class ASTExpr;
 
     /**
@@ -36,7 +36,7 @@ namespace fly {
 
         SemaVar* Sema = nullptr;
 
-        ASTTypeRef* TypeRef;
+        ASTType* TypeRef;
 
         llvm::StringRef Name;
 
@@ -45,7 +45,7 @@ namespace fly {
         ASTExpr* Expr;
 
     protected:
-        ASTVar(const SourceLocation& Loc, ASTTypeRef* Type, llvm::StringRef Name, SmallVector<ASTModifier*, 8>& Modifiers);
+        ASTVar(const SourceLocation& Loc, ASTType* Type, llvm::StringRef Name, SmallVector<ASTModifier*, 8>& Modifiers);
 
     public:
 
@@ -53,7 +53,7 @@ namespace fly {
 
         SemaVar* getSema() const;
 
-        ASTTypeRef* getTypeRef() const;
+        ASTType* getTypeRef() const;
 
         llvm::StringRef getName() const;
 

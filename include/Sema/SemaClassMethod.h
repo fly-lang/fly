@@ -32,7 +32,6 @@ namespace fly {
 
     	friend class SemaBuilder;
     	friend class Resolver;
-    	friend class SemaResolverClass;
     	friend class SemaValidator;
 
     protected:
@@ -53,9 +52,9 @@ namespace fly {
 
     	SemaComment *Comment = nullptr;
 
-    	explicit SemaClassMethod(ASTFunction *AST, SemaClassType *Class,  SemaClassInstance *This, SemaClassMethodKind MethodKind);
+    	explicit SemaClassMethod(ASTFunction &AST, SemaClassType *Class,  SemaClassInstance *This, SemaClassMethodKind MethodKind);
 
-    	std::string MangleFunction(ASTFunction *AST);
+    	std::string MangleFunction(ASTFunction &AST);
 
     public:
 

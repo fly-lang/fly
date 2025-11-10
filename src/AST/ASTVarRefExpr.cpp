@@ -9,6 +9,8 @@
 
 #include "AST/ASTVarRefExpr.h"
 
+#include <AST/ASTRef.h>
+
 using namespace fly;
 
 ASTVarRefExpr::ASTVarRefExpr(ASTRef *VarRef) : ASTExpr(VarRef->getLocation(), ASTExprKind::EXPR_VAR_REF), VarRef(VarRef) {

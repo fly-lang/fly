@@ -13,7 +13,7 @@
 
 using namespace fly;
 
-ASTFunction::ASTFunction(const SourceLocation &Loc, ASTTypeRef *ReturnType,
+ASTFunction::ASTFunction(const SourceLocation &Loc, ASTType *ReturnType,
                                  llvm::SmallVector<ASTModifier *, 8> &Modifiers, llvm::StringRef Name, llvm::SmallVector<ASTVar *, 8> &Params) :
         ASTNode(Loc, ASTKind::AST_FUNCTION), ReturnTypeRef(ReturnType), Modifiers(Modifiers), Name(Name), Params(Params) {
 
@@ -25,10 +25,6 @@ llvm::StringRef ASTFunction::getName() const {
 
 bool ASTFunction::isVarArg() {
 	return false;
-}
-
-SemaFunctionBase *ASTFunction::getSema() {
-	return Sema;
 }
 
 llvm::SmallVector<ASTModifier *, 8> ASTFunction::getModifiers() const {
@@ -43,7 +39,7 @@ ASTBlockStmt *ASTFunction::getBody() const {
     return Body;
 }
 
-ASTTypeRef *ASTFunction::getReturnTypeRef() const {
+ASTType *ASTFunction::getReturnTypeRef() const {
     return ReturnTypeRef;
 }
 

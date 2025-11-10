@@ -44,11 +44,11 @@ ParserClass::ParserClass(Parser *P, SmallVector<ASTModifier *, 8> &Modifiers) : 
 
     // Parse classes after colon
     // class Example : SuperClass Interface Struct { ... }
-    llvm::SmallVector<ASTTypeRef *, 4> SuperClasses;
+    llvm::SmallVector<ASTType *, 4> SuperClasses;
     if (P->Tok.is(tok::colon)) {
         P->ConsumeToken();
         while (P->Tok.isAnyIdentifier()) {
-            ASTTypeRef *ClassTypeRef = P->ParseTypeRef();
+            ASTType *ClassTypeRef = P->ParseTypeRef();
             SuperClasses.push_back(ClassTypeRef);
         }
     }
@@ -77,7 +77,7 @@ ParserClass::ParserClass(Parser *P, SmallVector<ASTModifier *, 8> &Modifiers) : 
             llvm::SmallVector<ASTModifier *, 8> Modifiers = P->ParseModifiers();
 
             // Parse Type
-            ASTTypeRef *Type = P->ParseTypeRef(); // Continue loop if there is a field or a method
+            ASTType *Type = P->ParseTypeRef(); // Continue loop if there is a field or a method
 
             Continue = Type != nullptr;
             if (Continue && P->Tok.isAnyIdentifier()) {
@@ -108,7 +108,7 @@ ASTClass *ParserClass::Parse(Parser *P, SmallVector<ASTModifier *, 8> &Modifiers
     return Class;
 }
 
-ASTVar *ParserClass::ParseAttribute(SmallVector<ASTModifier *, 8> &Modifiers, ASTTypeRef *TypeRef, const SourceLocation &Loc, llvm::StringRef Name) {
+ASTVar *ParserClass::ParseAttribute(SmallVector<ASTModifier *, 8> &Modifiers, ASTType *TypeRef, const SourceLocation &Loc, llvm::StringRef Name) {
 	FLY_DEBUG_START("ClassParser", "ParseAttribute");
 
     if (!TypeRef) {
@@ -126,7 +126,7 @@ ASTVar *ParserClass::ParseAttribute(SmallVector<ASTModifier *, 8> &Modifiers, AS
     return P->Builder.CreateClassAttribute(Loc, Class, TypeRef, Name, Modifiers, Expr);
 }
 
-ASTFunction *ParserClass::ParseMethod(SmallVector<ASTModifier *, 8> &Modifiers, ASTTypeRef *TypeRef,
+ASTFunction *ParserClass::ParseMethod(SmallVector<ASTModifier *, 8> &Modifiers, ASTType *TypeRef,
 	const SourceLocation &Loc, llvm::StringRef Name) {
 	FLY_DEBUG_START("ClassParser", "ParseMethod");
 

@@ -29,13 +29,13 @@ namespace fly {
 
     protected:
 
-        void accept(ASTVisitor& Visitor) override;
-
         explicit ASTRuleStmt(const SourceLocation &Loc);
 
         ASTRuleStmt(const SourceLocation &Loc, ASTStmtKind Kind);
 
     public:
+
+        void accept(ASTVisitor& Visitor) override;
 
         ASTExpr *getRule();
 

@@ -12,7 +12,9 @@
 
 #include <unordered_map>
 
+#include "SemaClassAttribute.h"
 #include "SemaClassMethod.h"
+#include "SemaEnumEntry.h"
 #include "SemaErrorHandler.h"
 #include "llvm/ADT/SmallVector.h"
 #include "AST/ASTVisitor.h"
@@ -20,7 +22,6 @@
 namespace fly {
 
     class Sema;
-    class SemaResolverClass;
     class SemaBuilder;
     class ASTBuilder;
     class DiagnosticsEngine;
@@ -43,6 +44,7 @@ namespace fly {
     class ASTRef;
     class ASTExpr;
     class ASTValueExpr;
+    class ASTValue;
     class CodeGen;
     class ASTIfStmt;
     class ASTSwitchStmt;
@@ -51,9 +53,10 @@ namespace fly {
     class ASTHandleStmt;
     class ASTFunction;
     class ASTRef;
+    class ASTArrayType;
     class ASTComment;
     class ASTImport;
-    class ASTTypeRef;
+    class ASTType;
     class ASTVar;
     class ASTLoopInStmt;
     class ASTEnum;
@@ -66,7 +69,8 @@ namespace fly {
     class SemaFunctionBase;
     class SemaType;
     class ASTModifier;
-    class ASTValue;
+    class ASTBoolValue;
+    class LocalScope;
     class SemaResult;
     class DiagnosticsEngine;
     class DiagnosticBuilder;
@@ -80,16 +84,25 @@ namespace fly {
 
         Registry &Reg;
 
-        SymbolTable *BuiltinScope;
-
         SymbolTable* CurrentScope;
 
         SemaModule* CurrentModule;
 
-        // This is the Module NameSpace
+        SemaClassType *CurrentClass;
+
+        SemaEnumType *CurrentEnum;
+
+        // Current Function or Method being Resolved
+        SemaFunctionBase *CurrentFunction;
+
+        // This is the NameSpace being currently resolved
         SemaNameSpace *CurrentNameSpace;
 
+        // Current Comment associated to the next Sema Node
         SemaComment* CurrentComment;
+
+        // Current Statement being Resolved
+        ASTStmt* CurrentStmt;
 
     public:
 
@@ -97,12 +110,11 @@ namespace fly {
 
         virtual ~Resolver();
 
-        SymbolTable * CreateBuiltinScope();
-
+        // Diagnostics
         DiagnosticBuilder Diag(const SourceLocation &Loc, unsigned DiagID) const;
-
         DiagnosticBuilder Diag(unsigned DiagID) const;
 
+        // Visit Top Level Nodes
         void visit(ASTModule &AST) override;
         void visit(ASTNameSpace &AST) override;
         void visit(ASTImport& AST) override;
@@ -110,14 +122,16 @@ namespace fly {
         void visit(ASTClass &AST) override;
         void visit(ASTEnum &AST) override;
         void visit(ASTComment &AST) override;
-        void visit(ASTValue &AST) override;
         void visit(ASTVar &AST) override;
 
+        // Visit References
+        void visit(ASTType &AST) override;
+        void visit(ASTArrayType &AST) override;
         void visit(ASTRef &AST) override;
         void visit(ASTCall &AST) override;
         void visit(ASTNameSpaceRef &AST) override;
-        void visit(ASTTypeRef &AST) override;
 
+        // Visit Statements
         void visit(ASTBreakStmt &AST) override;
         void visit(ASTContinueStmt &AST) override;
         void visit(ASTDeleteStmt &AST) override;
@@ -129,14 +143,26 @@ namespace fly {
         void visit(ASTIfStmt &AST) override;
         void visit(ASTSwitchStmt &AST) override;
         void visit(ASTLoopStmt &AST) override;
+        void visit(ASTLoopInStmt &AST) override;
         void visit(ASTVarStmt &AST) override;
         void visit(ASTBlockStmt &AST) override;
 
+        // Visit Expressions
         void visit(ASTValueExpr &AST) override;
         void visit(ASTVarRefExpr &AST) override;
         void visit(ASTCallExpr &AST) override;
-        void visit(ASTOpExpr &AST) override;
+        void visit(ASTUnaryOpExpr &AST) override;
+        void visit(ASTBinaryOpExpr &AST) override;
+        void visit(ASTTernaryOpExpr &AST) override;
         void visit(ASTCastExpr &AST) override;
+
+        // Visit Values
+        void visit(ASTBoolValue &AST) override;
+        void visit(ASTNumberValue &AST) override;
+        void visit(ASTStringValue &AST) override;
+        void visit(ASTArrayValue &AST) override;
+        void visit(ASTStructValue &AST) override;
+        void visit(ASTNullValue &AST) override;
 
         void Resolve();
 
@@ -149,39 +175,33 @@ namespace fly {
         // Semantic Resolution Phases
         void ResolveImports(SemaModule *Module);
 
-        void ResolveFunctions(SemaModule *Module);
+        void ResolveFunction(SemaFunction *Func);
 
-        void ResolveTypes(SemaModule *Module);
+        void ResolveClassType(SemaClassType *ClassType);
 
-        void ResolveClassTypes();
+        void ResolveBaseClasses(SemaClassType *DerivedClass);
 
-        void ResolveBodies();
+        bool CanInheritMethod(SemaClassMethod *Method);
 
-        void ResolveEnumType(SemaEnumType *Sema);
+        bool CanInheritAttribute(SemaClassAttribute *Attribute);
 
-        bool ResolveStmt(ASTStmt *Stmt);
+        void CreateDefaultConstructor();
 
-        bool ResolveStmtBlock(ASTBlockStmt *Block);
+        void SetDefaultValueInAttributes();
 
-        bool ResolveStmtIf(ASTIfStmt *IfStmt);
+        void ResolveClassAttribute(SemaClassAttribute* Attribute);
 
-        bool ResolveStmtSwitch(ASTSwitchStmt *SwitchStmt);
+        void ResolveClassMethod(SemaClassMethod * Method);
 
-        bool ResolveStmtLoop(ASTLoopStmt *LoopStmt);
+        void ResolveEnumType(SemaEnumType *Enum);
 
-        bool ResolveStmtLoopIn(ASTLoopInStmt *LoopInStmt);
+        void ResolveEnumEntry(SemaEnumEntry* Node);
 
-        bool ResolveStmtVar(ASTVarStmt *VarStmt);
+        void ResolveBody(LocalScope &Scope);
 
-        bool ResolveStmtFail(ASTFailStmt *FailStmt);
+        // ------------------------
 
-        bool ResolveStmtHandle(ASTHandleStmt *HandleStmt);
-
-        bool ResolveValue(ASTValue *AST);
-
-        bool ResolveExpr(ASTStmt *Stmt, ASTExpr *Expr);
-
-        bool ResolveTypeRef(ASTTypeRef *&Type);
+        SemaType *ResolveTypeRef(ASTType *&Type);
 
         void ResolveFromTopRef(ASTStmt *Stmt, ASTRef *Ref, SemaNameSpace *CurrentNameSpace);
 

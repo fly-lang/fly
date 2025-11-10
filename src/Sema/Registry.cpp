@@ -12,13 +12,49 @@
 #include "Sema/SemaNameSpace.h"
 
 #include <AST/ASTNameSpace.h>
+#include <Sema/SemaBuiltin.h>
 
 using namespace fly;
 
 std::string Registry::DEFAULT_NAMESPACE = "default";
 
-Registry::Registry() : DefaultNameSpace(new SemaNameSpace(DEFAULT_NAMESPACE)) {
+Registry::Registry() : GlobalScope(CreateBuiltinScope()), DefaultNameSpace(new SemaNameSpace(DEFAULT_NAMESPACE)) {
 	NameSpaces.insert(std::make_pair<>(DefaultNameSpace->getName(), DefaultNameSpace));
+}
+
+SymbolTable* Registry::CreateBuiltinScope() {
+	SymbolTable* Builtin = new SymbolTable(nullptr);
+
+	auto BoolType = SemaBuiltin::getBoolType();
+	auto ByteType = SemaBuiltin::getByteType();
+	auto UShortType = SemaBuiltin::getUShortType();
+	auto ShortType = SemaBuiltin::getShortType();
+	auto UIntType = SemaBuiltin::getUIntType();
+	auto IntType = SemaBuiltin::getIntType();
+	auto ULongType = SemaBuiltin::getULongType();
+	auto LongType = SemaBuiltin::getLongType();
+	auto FloatType = SemaBuiltin::getFloatType();
+	auto DoubleType = SemaBuiltin::getDoubleType();
+	auto StringType = SemaBuiltin::getStringType();
+	auto VoidType = SemaBuiltin::getVoidType();
+	auto ErrorType = SemaBuiltin::getErrorType();
+
+	// Insert Builtin Types
+	Builtin->insert(new Symbol(BoolType->getName(), SemaKind::BUILTIN_TYPE, BoolType));
+	Builtin->insert(new Symbol(ByteType->getName(), SemaKind::BUILTIN_TYPE, ByteType));
+	Builtin->insert(new Symbol(UShortType->getName(), SemaKind::BUILTIN_TYPE, UShortType));
+	Builtin->insert(new Symbol(ShortType->getName(), SemaKind::BUILTIN_TYPE, ShortType));
+	Builtin->insert(new Symbol(UIntType->getName(), SemaKind::BUILTIN_TYPE, UIntType));
+	Builtin->insert(new Symbol(IntType->getName(), SemaKind::BUILTIN_TYPE, IntType));
+	Builtin->insert(new Symbol(ULongType->getName(), SemaKind::BUILTIN_TYPE, ULongType));
+	Builtin->insert(new Symbol(LongType->getName(), SemaKind::BUILTIN_TYPE, LongType));
+	Builtin->insert(new Symbol(FloatType->getName(), SemaKind::BUILTIN_TYPE, FloatType));
+	Builtin->insert(new Symbol(DoubleType->getName(), SemaKind::BUILTIN_TYPE, DoubleType));
+	Builtin->insert(new Symbol(StringType->getName(), SemaKind::BUILTIN_TYPE, StringType));
+	Builtin->insert(new Symbol(VoidType->getName(), SemaKind::BUILTIN_TYPE, VoidType));
+	Builtin->insert(new Symbol(ErrorType->getName(), SemaKind::BUILTIN_TYPE, ErrorType));
+
+	return Builtin;
 }
 
 void Registry::addModule(SemaModule *Module) {
@@ -72,4 +108,16 @@ SemaNameSpace* Registry::getOrAddNameSpace(const ASTNameSpace& AST) {
 		NameSpace = getOrAddFQNameSpace(FQName, NameSpace);
 	}
 	return NameSpace;
+}
+
+SemaType* Registry::LookupBuiltinType(llvm::StringRef Ref) {
+	return static_cast<SemaType *>(BuiltinScope->lookup(Ref)->getRef());
+}
+
+SymbolTable* Registry::LookupInNameSpaces(llvm::StringRef Ref) {
+	auto It = NameSpaces.find(Ref.str());
+	if (It != NameSpaces.end()) {
+		return It->second->getSymbols();
+	}
+	return nullptr;
 }

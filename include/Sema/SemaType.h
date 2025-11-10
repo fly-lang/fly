@@ -18,6 +18,7 @@
 namespace fly {
 
     class SemaValue;
+    class ASTExpr;
 
     const uint8_t MIN_BYTE = 0x0;
     const uint8_t MAX_BYTE = 0xFF;
@@ -80,7 +81,7 @@ namespace fly {
 
     public:
 
-        explicit SemaType(SemaTypeKind Kind, std::string Name);
+        explicit SemaType(SemaKind Kind, SemaTypeKind TypeKind, std::string Name);
 
         const size_t getId() const;
 
@@ -143,9 +144,11 @@ namespace fly {
 
         SemaType *Type;
 
+        ASTExpr *SizeExpr;
+
     public:
 
-        explicit SemaArrayType(SemaType *Type);
+        explicit SemaArrayType(SemaType *Type, ASTExpr *SizeExpr = nullptr);
 
         SemaType *getType();
 
@@ -154,7 +157,7 @@ namespace fly {
     class SemaErrorType : public SemaType {
 
     public:
-		explicit SemaErrorType() : SemaType(SemaTypeKind::TYPE_ERROR, "error") {}
+		explicit SemaErrorType() : SemaType(SemaKind::BUILTIN_TYPE, SemaTypeKind::TYPE_ERROR, "error") {}
 
 	};
 

@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTTypeRef.h - AST Identity Type header
+// include/AST/ASTType.h - AST Identity Type header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -21,47 +21,54 @@ namespace fly {
     /**
      * Identity Type
      */
-    class ASTTypeRef : public ASTRef {
+    class ASTType : public ASTRef {
 
         friend class ASTBuilder;
 
         SemaType *Sema;
 
-        bool Array;
-
         ASTNameSpaceRef *NameSpaceRef;
+
+        bool BuiltIn;
 
     protected:
 
-        explicit ASTTypeRef(const SourceLocation &Loc, llvm::StringRef Name, ASTNameSpaceRef *NameSpaceRef = nullptr,
-            bool Array = false);
+        explicit ASTType(const SourceLocation &Loc, llvm::StringRef Name, bool BuiltIn = false);
 
     public:
 
         void accept(ASTVisitor& Visitor) override;
 
+        bool isBuiltIn() const;
+
         SemaType *getSema() const;
 
-        bool isArray() const;
+        void setSema(SemaType *Sema);
 
         ASTNameSpaceRef *getNameSpaceRef() const;
 
         std::string str() const override;
     };
 
-    class ASTArrayTypeRef : public ASTTypeRef {
+    class ASTArrayType : public ASTType {
 
         friend class ASTBuilder;
         friend class Resolver;
         friend class SemaValidator;
 
-        ASTTypeRef *TypeRef;
+        ASTType *ElementType;
 
-        explicit ASTArrayTypeRef(const SourceLocation &Loc,  ASTTypeRef *TypeRef, llvm::StringRef Name);
+        ASTExpr *SizeExpr;
+
+        explicit ASTArrayType(const SourceLocation &Loc,  ASTType *ElementType, llvm::StringRef Name);
 
     public:
 
-        ASTTypeRef *getTypeRef() const;
+        void accept(ASTVisitor& Visitor) override;
+
+        ASTType *getElementType() const;
+
+        ASTExpr *getSizeExpr() const;
 
         std::string str() const override;
     };

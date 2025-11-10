@@ -15,16 +15,25 @@
 
 using namespace fly;
 
-SemaEnumType::SemaEnumType(ASTEnum &AST) : SemaType(SemaTypeKind::TYPE_ENUM, AST->getName().data()), AST(AST) {
+SemaEnumType::SemaEnumType(ASTEnum &AST, SymbolTable *Symbols) : SemaType(SemaKind::ENUM ,SemaTypeKind::TYPE_ENUM, AST.getName().data()),
+	AST(AST), Symbols(Symbols) {
 
 }
 
-ASTEnum *SemaEnumType::getAST() {
+ASTEnum &SemaEnumType::getAST() {
     return AST;
 }
 
 SemaModule * SemaEnumType::getModule() const {
 	return Module;
+}
+
+SymbolTable *SemaEnumType::getSymbols() const {
+	return Symbols;
+}
+
+llvm::SmallVector<SemaNode *, 8> &SemaEnumType::getNodes() {
+	return Nodes;
 }
 
 const llvm::StringMap<SemaEnumType *> &SemaEnumType::getBaseEnums() const {

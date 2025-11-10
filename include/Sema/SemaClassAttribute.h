@@ -23,10 +23,8 @@ namespace fly {
     class SemaClassAttribute  : public SemaVar {
 
         friend class SemaBuilder;
-        friend class SemaResolverClass;
-        friend class SemaValidator;
 
-        SemaClassType *Class;
+        SemaClassType &Class;
 
         SemaVisibilityKind Visibility = SemaVisibilityKind::DEFAULT;
 
@@ -40,11 +38,11 @@ namespace fly {
 
     protected:
 
-        explicit SemaClassAttribute(ASTVar *AST, SemaClassType *Class);
+        explicit SemaClassAttribute(ASTVar &AST, SemaClassType &Class);
 
     public:
 
-        SemaClassType *getClass() const;
+        SemaClassType &getClass() const;
 
     	CodeGenVar *getCodeGen() const override;
 

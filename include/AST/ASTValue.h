@@ -43,9 +43,7 @@ namespace fly {
 
     public:
 
-        void accept(ASTVisitor& Visitor) override;
-
-        const ASTValueKind &getTypeKind() const;
+        const ASTValueKind &getValueKind() const;
 
         SemaValue *getSema() const {
 			return Sema;
@@ -71,6 +69,8 @@ namespace fly {
 
     public:
 
+        void accept(ASTVisitor& Visitor) override;
+
         bool getValue() const;
 
         std::string str() const override;
@@ -89,6 +89,8 @@ namespace fly {
         ASTNumberValue(const SourceLocation &Loc, llvm::StringRef Value);
 
     public:
+
+        void accept(ASTVisitor& Visitor) override;
 
         llvm::StringRef getValue() const;
 
@@ -109,6 +111,8 @@ namespace fly {
 
     public:
 
+        void accept(ASTVisitor& Visitor) override;
+
         llvm::StringRef getValue() const;
 
         std::string str() const override;
@@ -127,6 +131,8 @@ namespace fly {
         explicit ASTArrayValue(const SourceLocation &Loc);
 
     public:
+
+        void accept(ASTVisitor& Visitor) override;
 
         const llvm::SmallVector<ASTValue *, 8> &getValues() const;
 
@@ -151,6 +157,8 @@ namespace fly {
 
     public:
 
+        void accept(ASTVisitor& Visitor) override;
+
         const llvm::StringMap<ASTValue *> &getValues() const;
 
         size_t size() const;
@@ -168,6 +176,8 @@ namespace fly {
         explicit ASTNullValue(const SourceLocation &Loc);
 
     public:
+
+        void accept(ASTVisitor& Visitor) override;
 
         std::string str() const override;
     };

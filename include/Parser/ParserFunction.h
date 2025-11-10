@@ -20,7 +20,7 @@ namespace fly {
     class ASTFunction;
     class ASTFunction;
     class ASTVar;
-    class ASTTypeRef;
+    class ASTType;
     class ASTBlockStmt;
     class ASTModifier;
     class ASTComment;

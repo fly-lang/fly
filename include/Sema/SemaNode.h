@@ -11,29 +11,41 @@
 #ifndef FLY_SEMA_NODE_H
 #define FLY_SEMA_NODE_H
 
+#include "Sema/SemaNode.h"
+
 namespace fly {
+
+	class ASTNode;
 
 	enum class SemaKind {
 		MODULE,
 		NAMESPACE,
-		TYPE,
+		IMPORT,
+		BUILTIN_TYPE,
 		VAR,
+		CALL,
 		FUNCTION,
 		CLASS,
-		ENUM,
 		ATTRIBUTE,
-		METHOD
+		METHOD,
+		ENUM,
+		ENUM_ENTRY,
+		VALUE
 	};
 
 	class SemaNode {
 
+		SemaKind Kind;
+
 	public:
 
-		SemaNode() = default;
+		SemaNode(SemaKind Kind);
 
 		virtual ~SemaNode() = default;
 
-		// virtual void accept(SemaVisitor& v) = 0;
+		SemaKind getKind() const;
+
+		// virtual void accept(SemaVisitor& Visitor) = 0;
 	};
 
 }

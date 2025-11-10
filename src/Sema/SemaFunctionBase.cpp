@@ -12,7 +12,7 @@
 
 #include <unordered_map>
 #include <AST/ASTFunction.h>
-#include <AST/ASTTypeRef.h>
+#include <AST/ASTType.h>
 #include <AST/ASTVar.h>
 #include <CodeGen/CodeGenFunctionBase.h>
 #include <Sema/SemaErrorHandler.h>
@@ -20,13 +20,17 @@
 
 using namespace fly;
 
-SemaFunctionBase::SemaFunctionBase(ASTFunction &AST, SemaFunctionKind Kind, std::string MangledName) :
-	AST(AST), Kind(Kind), MangledName(MangledName), ErrorHandler(new SemaErrorHandler()) {
+SemaFunctionBase::SemaFunctionBase(ASTFunction &AST, SemaKind Kind, std::string MangledName) : SemaNode(Kind),
+	AST(AST), MangledName(MangledName), ErrorHandler(new SemaErrorHandler()) {
 
 }
 
 std::string SemaFunctionBase::getMangledName() const {
 	return MangledName;
+}
+
+void SemaFunctionBase::setReturnType(SemaType *RetType) {
+	ReturnType = RetType;
 }
 
 llvm::SmallVector<SemaParam *, 8> &SemaFunctionBase::getParams() {
@@ -45,12 +49,12 @@ ASTFunction &SemaFunctionBase::getAST() {
 	return AST;
 }
 
-SemaFunctionKind SemaFunctionBase::getKind() const {
-    return Kind;
-}
-
 llvm::SmallVector<SemaVar *, 8> SemaFunctionBase::getLocalVars() {
 	return LocalVars;
+}
+
+void SemaFunctionBase::addLocalVar(SemaVar *Var) {
+	LocalVars.push_back(Var);
 }
 
 SemaErrorHandler * SemaFunctionBase::getErrorHandler() const {

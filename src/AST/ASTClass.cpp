@@ -13,19 +13,14 @@
 
 using namespace fly;
 
-ASTClass::ASTClass(
-	ASTModule *Module, ASTClassKind ClassKind, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
-	const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTTypeRef *, 4> &SuperClasses) :
+ASTClass::ASTClass(ASTClassKind ClassKind, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
+	const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTType *, 4> &SuperClasses) :
 	ASTNode(Loc, ASTKind::AST_CLASS), ClassKind(ClassKind), Modifiers(Modifiers), Name(Name), BaseClasses(SuperClasses) {
 
 }
 
-ASTModule *ASTClass::getModule() const {
-	return Module;
-}
-
-llvm::SmallVector<ASTNode *, 8> ASTClass::getDefinitions() const {
-	return Definitions;
+llvm::SmallVector<ASTNode *, 8> ASTClass::getNodes() const {
+	return Nodes;
 }
 
 ASTClassKind ASTClass::getClassKind() const {
@@ -40,7 +35,7 @@ llvm::StringRef ASTClass::getName() const {
 	return Name;
 }
 
-llvm::SmallVector<ASTTypeRef *, 4> ASTClass::getBaseClasses() const {
+llvm::SmallVector<ASTType *, 4> ASTClass::getBaseClasses() const {
 	return BaseClasses;
 }
 
@@ -52,6 +47,6 @@ std::string ASTClass::str() const {
 	       Attr("Kind", static_cast<size_t>(getKind())).
 	       Attr("ClassKind", (size_t)ClassKind).
 	       Attr("Name", Name).
-	       Attr("Definitions", ASTNode::str(Definitions)).
+	       Attr("Definitions", ASTNode::str(Nodes)).
 	       End();
 }

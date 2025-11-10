@@ -51,6 +51,8 @@ namespace fly {
 
         SemaCall *getSema() const;
 
+        void setSema(SemaCall *Sema);
+
         ASTCallKind getCallKind() const;
 
         std::string str() const override;

@@ -14,7 +14,7 @@
 
 using namespace fly;
 
-SemaType::SemaType(SemaTypeKind Kind, std::string Name) : TypeKind(Kind), Name(Name),
+SemaType::SemaType(SemaKind Kind, SemaTypeKind TypeKind, std::string Name) : SemaNode(Kind), TypeKind(TypeKind), Name(Name),
 	Id(std::hash<std::string>{}(Name)) {
 }
 
@@ -82,7 +82,7 @@ bool SemaType::operator==(const SemaType *Type) const {
 	return isEquals(Type);
 }
 
-SemaIntType::SemaIntType(SemaIntTypeKind IntKind, std::string Name) : SemaType(SemaTypeKind::TYPE_INTEGER, Name),
+SemaIntType::SemaIntType(SemaIntTypeKind IntKind, std::string Name) : SemaType(SemaKind::BUILTIN_TYPE, SemaTypeKind::TYPE_INTEGER, Name),
                                                  IntKind(IntKind) {
 }
 
@@ -95,7 +95,7 @@ bool SemaIntType::isSigned() {
 		IntKind == SemaIntTypeKind::TYPE_LONG;
 }
 
-SemaFloatType::SemaFloatType(SemaFloatTypeKind FPKind, std::string Name) : SemaType(SemaTypeKind::TYPE_FLOATING_POINT, Name),
+SemaFloatType::SemaFloatType(SemaFloatTypeKind FPKind, std::string Name) : SemaType(SemaKind::BUILTIN_TYPE, SemaTypeKind::TYPE_FLOATING_POINT, Name),
                                              FPKind(FPKind) {
 }
 
@@ -103,7 +103,8 @@ const SemaFloatTypeKind SemaFloatType::getFPKind() const {
 	return FPKind;
 }
 
-SemaArrayType::SemaArrayType(SemaType *Type) : SemaType(SemaTypeKind::TYPE_ARRAY, "array"), Type(Type) {
+SemaArrayType::SemaArrayType(SemaType *Type, ASTExpr *SizeExpr) :
+	SemaType(SemaKind::BUILTIN_TYPE, SemaTypeKind::TYPE_ARRAY, "array"), Type(Type), SizeExpr(SizeExpr) {
 }
 
 SemaType *SemaArrayType::getType() {

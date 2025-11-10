@@ -26,7 +26,7 @@ namespace fly {
 
         CodeGenVar *CodeGen;
 
-        explicit SemaLocalVar(ASTVar *AST);
+        explicit SemaLocalVar(ASTVar &AST);
 
     public:
 

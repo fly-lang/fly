@@ -34,6 +34,7 @@
 #include <AST/ASTBuilder.h>
 #include <AST/ASTValue.h>
 #include <Sema/SemaBuilderModifiers.h>
+#include <Sema/SemaBuilderStmt.h>
 #include <Sema/SemaBuiltin.h>
 #include <Sema/SemaClassInstance.h>
 #include <Sema/SemaLocalVar.h>
@@ -41,18 +42,24 @@
 
 using namespace fly;
 
-void SemaBuilder::CreateImport(SemaModule &Module, ASTImport &AST) {
+SemaImport *SemaBuilder::CreateImport(SemaModule &Module, ASTImport &AST) {
 	// Search Namespace in Symbol Table
 	SemaImport *Import = new SemaImport(AST);
 
 	// Add Import to the Module Imports for next symbols resolution
 	Module.Imports.push_back(Import);
+
+	return Import;
 }
 
-SemaFunction * SemaBuilder::CreateFunction(SemaModule &Module, ASTFunction &AST) {
+SemaFunction *SemaBuilder::CreateFunction(SemaModule &Module, SymbolTable *Symbols, ASTFunction &AST) {
 	FLY_DEBUG_START("SemaBuilder", "CreateFunction");
 
-	SemaFunction *Function = new SemaFunction(AST);
+	// Create the Function
+	SemaFunction *Function = new SemaFunction(AST, Symbols);
+
+	// Set Symbol Table
+	Function->Symbols = Symbols;
 
 	SemaBuilderModifiers *BuilderModifiers = SemaBuilderModifiers::Build(AST.getModifiers());
 	Function->Visibility = BuilderModifiers->getVisibility();
@@ -64,14 +71,17 @@ SemaFunction * SemaBuilder::CreateFunction(SemaModule &Module, ASTFunction &AST)
 	return Function;
 }
 
-SemaClassType * SemaBuilder::CreateClass(SemaModule &Module, ASTClass &AST) {
+SemaClassType * SemaBuilder::CreateClass(SemaModule &Module, SymbolTable *Symbols, ASTClass &AST) {
 	FLY_DEBUG_START("SemaBuilder", "CreateClass");
 
 	// Create the Class Type
-	SemaClassType *Class = new SemaClassType(AST);
+	SemaClassType *Class = new SemaClassType(AST, Symbols);
+
+	// Set Symbol Table
+	Class->Symbols = Symbols;
 
 	// Create the 'this' attribute for the current class
-	Class->This = CreateThisInstance(Class);
+	Class->This = CreateThisInstance(*Class);
 
 	// Set Modifiers
 	SemaBuilderModifiers *BuilderModifiers = SemaBuilderModifiers::Build(AST.getModifiers());
@@ -85,69 +95,70 @@ SemaClassType * SemaBuilder::CreateClass(SemaModule &Module, ASTClass &AST) {
 	return Class;
 }
 
-SemaClassInstance *SemaBuilder::CreateThisInstance(SemaClassType *Class) {
+SemaClassInstance *SemaBuilder::CreateThisInstance(SemaClassType &Class) {
 	// Create the 'this' attribute for the current class
-	return new SemaClassInstance(Class);
+	return new SemaClassInstance(&Class);
 }
 
-SemaClassAttribute * SemaBuilder::CreateClassAttribute(SemaClassType *Class, SemaClassInstance *This, ASTVar *AST, SemaComment *Comment) {
+SemaClassAttribute * SemaBuilder::CreateClassAttribute(SemaClassType &Class, ASTVar &AST, SemaComment &Comment) {
 	FLY_DEBUG_START("SemaBuilder", "CreateClassAttribute");
 
 	SemaClassAttribute *Attribute = new SemaClassAttribute(AST, Class);
-	Attribute->setParent(This);
-	Attribute->Type = AST->TypeRef->getSema();
+	Attribute->setParent(*Class.getThis());
+	// Attribute->Type = AST->TypeRef->getSema(); // TODO add resolved symbol in the scope
 
 	// Set Modifiers
-	SemaBuilderModifiers *Builder = SemaBuilderModifiers::Build(AST->getModifiers());
+	SemaBuilderModifiers *Builder = SemaBuilderModifiers::Build(AST.getModifiers());
 	Attribute->Visibility = Builder->getVisibility();
 	Attribute->Static = Builder->isStatic();
 	Attribute->Constant = Builder->isConstant();
 
-	AST->Sema = Attribute;
-	Attribute->Comment = Comment;
+	Attribute->Comment = &Comment;
 
 	FLY_DEBUG_END("SemaBuilder", "CreateClassAttribute");
 	return Attribute;
 }
 
-SemaClassMethod * SemaBuilder::CreateClassMethod(SemaClassType *Class, SemaClassInstance *This, ASTFunction *AST, SemaComment *Comment) {
+SemaClassMethod * SemaBuilder::CreateClassMethod(SemaClassType *Class, ASTFunction &AST, SemaComment &Comment) {
 	FLY_DEBUG_START("SemaBuilder", "CreateClassFunction");
 
 	SemaClassMethod *Method;
 	// When the Class Name is Equals to the Function Name this is a Constructor
-	if (AST->getName() == Class->getName()) {
-		Method = new SemaClassMethod(AST, Class, This, SemaClassMethodKind::METHOD_CONSTRUCTOR);
+	if (AST.getName() == Class->getName()) {
+		Method = new SemaClassMethod(AST, Class, Class->getThis(), SemaClassMethodKind::METHOD_CONSTRUCTOR);
 		Method->ReturnType = SemaBuiltin::getVoidType();
 	} else {
 		SemaClassMethodKind MethodKind = Class->getClassKind() == SemaClassKind::INTERFACE ?
 			                 SemaClassMethodKind::METHOD_ABSTRACT : SemaClassMethodKind::METHOD;
-		Method = new SemaClassMethod(AST, Class, This, MethodKind);
+		Method = new SemaClassMethod(AST, Class, Class->getThis(), MethodKind);
 
 		// ClassDefinition Return Type
-		Method->ReturnType = AST->getReturnTypeRef()->getSema();
+		Method->ReturnType = AST.getReturnTypeRef()->getSema();
 	}
 
 	// Set Modifiers
-	SemaBuilderModifiers *Builder = SemaBuilderModifiers::Build(AST->getModifiers());
+	SemaBuilderModifiers *Builder = SemaBuilderModifiers::Build(AST.getModifiers());
 	Method->Visibility = Builder->getVisibility();
 	Method->Static = Builder->isStatic();
-
-	AST->setSema(Method);
-	Method->Comment = Comment;
+	Method->Comment = &Comment;
 
 	FLY_DEBUG_END("SemaBuilder", "CreateClassFunction");
 	return Method;
 }
 
-SemaEnumType * SemaBuilder::CreateEnum(SemaModule &Module, ASTEnum &AST) {
+SemaEnumType * SemaBuilder::CreateEnum(SemaModule &Module, SymbolTable *Symbols, ASTEnum &AST) {
 	FLY_DEBUG_START("SemaBuilder", "CreateEnum");
 
-	SemaEnumType *Enum = new SemaEnumType(AST);
+	SemaEnumType *Enum = new SemaEnumType(AST, Symbols);
+
+	// Set Symbol Table
+	Enum->Symbols = Symbols;
 
 	// Set Modifiers
 	SemaBuilderModifiers *Builder = SemaBuilderModifiers::Build(AST.getModifiers());
 	Enum->Visibility = Builder->getVisibility();
 	Enum->Constant = Builder->isConstant();
+	Enum->Comment = nullptr;
 
 	// Add to Module
 	Module.Nodes.push_back(Enum);
@@ -156,19 +167,19 @@ SemaEnumType * SemaBuilder::CreateEnum(SemaModule &Module, ASTEnum &AST) {
 	return Enum;
 }
 
-SemaEnumEntry * SemaBuilder::CreateEnumEntry(SemaEnumType *Enum, ASTVar *AST, SemaComment *Comment) {
+SemaEnumEntry * SemaBuilder::CreateEnumEntry(SemaEnumType &Enum, ASTVar &AST, SemaComment *Comment) {
 	FLY_DEBUG_START("SemaBuilder", "CreateEnumEntry");
 
 	SemaEnumEntry *Entry = new SemaEnumEntry(AST);
 	// EnumEntry->Index = Enum.Entries.size() + 1; TODO
-	Enum->Entries.insert(std::make_pair(AST->getName(), Entry));
+	Enum.Entries.insert(std::make_pair(AST.getName(), Entry));
 	Entry->Comment = Comment;
 
 	FLY_DEBUG_END("SemaBuilder", "CreateEnumEntry");
 	return Entry;
 }
 
-SemaComment * SemaBuilder::CreateComment(ASTComment *AST) {
+SemaComment * SemaBuilder::CreateComment(ASTComment &AST) {
 	FLY_DEBUG_START("SemaBuilder", "CreateComment");
 
 	SemaComment * Comment = new SemaComment(AST);
@@ -177,82 +188,75 @@ SemaComment * SemaBuilder::CreateComment(ASTComment *AST) {
 	return Comment;
 }
 
-SemaLocalVar * SemaBuilder::CreateLocalVar(ASTVar *AST) {
+SemaLocalVar * SemaBuilder::CreateLocalVar(ASTVar &AST) {
 	FLY_DEBUG_START("SemaBuilder", "CreateLocalVar");
 
 	// Create LocalVar Symbol
 	SemaLocalVar *LocalVar = new SemaLocalVar(AST);
-	SemaBuilderModifiers *Builder = SemaBuilderModifiers::Build(AST->getModifiers());
+	SemaBuilderModifiers *Builder = SemaBuilderModifiers::Build(AST.getModifiers());
 	LocalVar->Constant = Builder->isConstant();
 
 	// Assign Symbol to AST
-	AST->setSema(LocalVar);
+	// AST->setSema(LocalVar); // TODO add resolved symbol in the scope
 
 	FLY_DEBUG_END("SemaBuilder", "CreateLocalVar");
 	return LocalVar;
 }
 
-SemaParam *SemaBuilder::CreateParam(ASTVar *AST) {
+SemaParam *SemaBuilder::CreateParam(ASTVar &AST) {
 	FLY_DEBUG_START("SemaBuilder", "CreateParam");
 
 	// Create LocalVar Symbol
 	SemaParam *Param = new SemaParam(AST);
 
 	// Assign Symbol to AST
-	AST->setSema(Param);
+	// AST->setSema(Param); // TODO add resolved symbol in the scope
 
 	FLY_DEBUG_END("SemaBuilder", "CreateParam");
 	return Param;
 }
 
-SemaMemberVar * SemaBuilder::CreateMemberVar(ASTVar *AST, SemaResult *Parent) {
+SemaMemberVar * SemaBuilder::CreateMemberVar(ASTVar &AST, SemaResult &Parent) {
 	SemaMemberVar *Sema = new SemaMemberVar(AST, Parent);
 
-	SemaBuilderModifiers *Builder = SemaBuilderModifiers::Build(AST->getModifiers());
+	SemaBuilderModifiers *Builder = SemaBuilderModifiers::Build(AST.getModifiers());
 	Sema->Constant = Builder->isConstant();
 
 	return Sema;
 }
 
-SemaCall * SemaBuilder::CreateCall(ASTCall *AST) {
-	FLY_DEBUG_START("SemaBuilder", "CreateParam");
-
-	// Create Call Symbol
-	SemaCall *Call = new SemaCall(AST);
-
-	// Assign Symbol to AST
-	AST->setSema(Call);
-
-	FLY_DEBUG_END("SemaBuilder", "CreateParam");
-	return Call;
-}
-
-SemaValue * SemaBuilder::CreateDefaultValue(SemaType *Type) {
+SemaValue * SemaBuilder::CreateDefaultValue(SemaType &Type) {
 	FLY_DEBUG_START("ASTBuilder", "CreateDefaultValue");
 
-	if (Type->isBool()) {
-		return CreateBoolValue(ASTBuilder::CreateBoolValue(SourceLocation(), SemaValue::DEFAULT_BOOL_VALUE));
+	if (Type.isBool()) {
+		ASTBoolValue * AST = ASTBuilder::CreateBoolValue(SourceLocation(), false);
+		return CreateBoolValue(*AST);
 	}
 
-	if (Type->isInteger()) {
-		return CreateNumberValue(ASTBuilder::CreateNumberValue(SourceLocation(), SemaValue::DEFAULT_INTEGER_VALUE));
+	if (Type.isInteger()) {
+		ASTNumberValue *AST = ASTBuilder::CreateNumberValue(SourceLocation(), "0");
+		return CreateNumberValue(*AST);
 	}
 
-	if (Type->isFloatingPoint()) {
-		return CreateNumberValue(ASTBuilder::CreateNumberValue(SourceLocation(), SemaValue::DEFAULT_FLOATING_VALUE));
+	if (Type.isFloatingPoint()) {
+		ASTNumberValue *AST = ASTBuilder::CreateNumberValue(SourceLocation(), "0.0");
+		return CreateNumberValue(*AST);
 	}
 
-	if (Type->isString()) {
-		return CreateStringValue(ASTBuilder::CreateStringValue(SourceLocation(), SemaValue::DEFAULT_STRING_VALUE));
+	if (Type.isString()) {
+		ASTStringValue *AST = ASTBuilder::CreateStringValue(SourceLocation(), "");
+		return CreateStringValue(*AST);
 	}
 
-	if (Type->isArray()) {
+	if (Type.isArray()) {
 		llvm::SmallVector<ASTValue *, 8> Values;
-		return CreateArrayValue(ASTBuilder::CreateArrayValue(SourceLocation(), Values));
+		ASTArrayValue *AST = ASTBuilder::CreateArrayValue(SourceLocation(), Values);
+		return CreateArrayValue(*AST);
 	}
 
-	if (Type->isClass()) {
-		return CreateNullValue(ASTBuilder::CreateNullValue(SourceLocation()), Type);
+	if (Type.isClass()) {
+		ASTNullValue * AST = ASTBuilder::CreateNullValue(SourceLocation());
+		return CreateNullValue(*AST);
 	}
 
 	FLY_DEBUG_END("ASTBuilder", "CreateDefaultValue");
@@ -261,112 +265,207 @@ SemaValue * SemaBuilder::CreateDefaultValue(SemaType *Type) {
 	return nullptr;
 }
 
-SemaBoolValue * SemaBuilder::CreateBoolValue(ASTBoolValue *AST) {
+SemaCall * SemaBuilder::CreateCall(ASTCall &AST) {
+	FLY_DEBUG_START("SemaBuilder", "CreateParam");
+
+	// Create Call Symbol
+	SemaCall *Call = new SemaCall(AST);
+
+	// Assign Symbol to AST
+	// AST->setSema(Call); // TODO add resolved symbol in the scope
+
+	FLY_DEBUG_END("SemaBuilder", "CreateParam");
+	return Call;
+}
+
+SemaBoolValue * SemaBuilder::CreateBoolValue(ASTBoolValue &AST) {
 	FLY_DEBUG_START("SemaBuilder", "CreateBoolValue");
 
-	SemaBoolValue * V = new SemaBoolValue(AST->getValue());
+	SemaBoolValue * V = new SemaBoolValue(AST);
 	V->Type = SemaBuiltin::getBoolType();
-	AST->setSema(V);
 
 	FLY_DEBUG_END("SemaBuilder", "CreateBoolValue");
 	return V;
 }
 
-SemaValue * SemaBuilder::CreateNumberValue(ASTNumberValue *AST) {
+SemaValue * SemaBuilder::CreateNumberValue(ASTNumberValue &AST) {
 	FLY_DEBUG_START("SemaBuilder", "CreateNumberValue");
 
-	SemaValue *V;
+	SemaValue *Sema;
 
 	// Floating point number
 	llvm::Regex FloatRegex(R"(^[-+]?[0-9]*\.[0-9]+([eE][-+]?[0-9]+)?$)");
-	if (FloatRegex.match(AST->getValue())) {
+	if (FloatRegex.match(AST.getValue())) {
 		// Floating point
-		V = new SemaFloatValue(AST->getValue());
-		V->Type = SemaBuiltin::getDoubleType();
+		SemaFloatValue * SemaFloat = new SemaFloatValue(AST);
+		SemaFloat->Value = llvm::APFloat(llvm::APFloat::IEEEdouble(), AST.getValue());
+		SemaFloat->Type = SemaBuiltin::getDoubleType();
+
+		Sema = SemaFloat;
 	} else {
 
-		// Integer number
-		uint8_t Radix = 10;
-		if (AST->getValue().substr(0, 2) == "0b" || AST->getValue().substr(0, 2) == "0B") {
-			// Binary
-			Radix = 2;
-		} else if (AST->getValue().substr(0, 2) == "0x" || AST->getValue().substr(0, 2) == "0X") {
-			// Hexadecimal
+		SemaIntValue *SemaInt = new SemaIntValue(AST);
+
+		llvm::StringRef ValStr = AST.getValue();
+		bool IsNegative = ValStr.startswith("-");
+		if (IsNegative)
+			ValStr = ValStr.drop_front(1);
+
+		// Detect radix
+		unsigned Radix = 10;
+		if (ValStr.startswith("0x") || ValStr.startswith("0X")) {
 			Radix = 16;
-		} else if (AST->getValue()[0] == '0' && AST->getValue().size() > 1) {
-			// Octal
-			Radix = 8;
+			ValStr = ValStr.drop_front(2);
+		} else if (ValStr.startswith("0b") || ValStr.startswith("0B")) {
+			Radix = 2;
+			ValStr = ValStr.drop_front(2);
 		}
-		SemaIntValue *IntValue = new SemaIntValue(AST->getValue(), Radix);
-		llvm::APInt I = IntValue->getValue();
-		if (I.isNegative()) {
-			unsigned MinBits = 1 + I.getBitWidth() - I.countLeadingOnes();
-			if (MinBits <= 16) IntValue->Type = SemaBuiltin::getShortType();
-			else if (MinBits <= 32) IntValue->Type = SemaBuiltin::getIntType();
-			else if (MinBits <= 64) IntValue->Type = SemaBuiltin::getLongType();
+
+		// Parse
+		llvm::APInt I(llvm::APInt::getBitsNeeded(ValStr, Radix), ValStr, Radix);
+		if (IsNegative)
+			I = -I;
+
+		// Compute MinBits
+		unsigned MinBits = IsNegative
+			? 1 + I.getBitWidth() - I.countLeadingOnes()
+			: 1 + I.getBitWidth() - I.countLeadingZeros();
+
+		// Infer Type
+		if (IsNegative) {
+			if (MinBits <= 16) SemaInt->Type = SemaBuiltin::getShortType();
+			else if (MinBits <= 32) SemaInt->Type = SemaBuiltin::getIntType();
+			else SemaInt->Type = SemaBuiltin::getLongType();
 		} else {
-			unsigned MinBits = 1 + I.getBitWidth() - I.countLeadingZeros();
-			if (MinBits <= 8) IntValue->Type = SemaBuiltin::getByteType();
-			else if (MinBits <= 16) IntValue->Type = SemaBuiltin::getUShortType();
-			else if (MinBits <= 32) IntValue->Type = SemaBuiltin::getUIntType();
-			else if (MinBits <= 64) IntValue->Type = SemaBuiltin::getULongType();
+			if (MinBits <= 8) SemaInt->Type = SemaBuiltin::getByteType();
+			else if (MinBits <= 16) SemaInt->Type = SemaBuiltin::getUShortType();
+			else if (MinBits <= 32) SemaInt->Type = SemaBuiltin::getUIntType();
+			else SemaInt->Type = SemaBuiltin::getULongType();
 		}
-		IntValue->Type = SemaBuiltin::getIntType();
-		V = IntValue;
+
+		// Final normalized value
+		SemaInt->Value = I.zextOrTrunc(MinBits);
+
+		Sema = SemaInt;
 	}
 
-	AST->setSema(V);
-
 	FLY_DEBUG_END("SemaBuilder", "CreateNumberValue");
-	return V;
+	return Sema;
 }
 
-SemaStringValue * SemaBuilder::CreateStringValue(ASTStringValue *AST) {
+SemaStringValue * SemaBuilder::CreateStringValue(ASTStringValue &AST) {
 	FLY_DEBUG_START("SemaBuilder", "CreateStringValue");
 
-	SemaStringValue * V = new SemaStringValue(AST->getValue());
+	SemaStringValue * V = new SemaStringValue(AST);
+	V->Value = AST.getValue();
 	V->Type = SemaBuiltin::getStringType();
-	AST->setSema(V);
 
 	FLY_DEBUG_END("SemaBuilder", "CreateStringValue");
 	return V;
 }
 
-SemaArrayValue * SemaBuilder::CreateArrayValue(ASTArrayValue *AST) {
+SemaArrayValue * SemaBuilder::CreateArrayValue(ASTArrayValue &AST) {
 	FLY_DEBUG_START("SemaBuilder", "CreateArrayValue");
 
-	SemaArrayValue * V = new SemaArrayValue();
-	V->Type = AST->getValues().empty() ? nullptr : AST->getValues()[0]->getSema()->getType();
-	AST->setSema(V);
+	SemaArrayValue * V = new SemaArrayValue(AST);
+	V->Type = AST.getValues().empty() ? nullptr : AST.getValues()[0]->getSema()->getType();
 
 	FLY_DEBUG_END("SemaBuilder", "CreateArrayValue");
 	return V;
 }
 
-SemaStructValue * SemaBuilder::CreateStructValue(ASTStructValue *AST) {
+SemaStructValue * SemaBuilder::CreateStructValue(ASTStructValue &AST) {
 	FLY_DEBUG_START("SemaBuilder", "CreateStructValue");
 
 	const llvm::StringMap<SemaValue *> Values;
-	SemaStructValue * V = new SemaStructValue();
-	if (AST->getValues().empty()) {
+	SemaStructValue * V = new SemaStructValue(AST);
+	if (AST.getValues().empty()) {
 		V->Type = nullptr;
 	} else {
 		// TODO
-		for (auto &Entry : AST->getValues()) {
+		for (auto &Entry : AST.getValues()) {
 
 		}
 		// V->Type = S.getSemaBuilder().CreateClass();
 	}
-	AST->setSema(V);
 
 	FLY_DEBUG_END("SemaBuilder", "CreateStructValue");
 	return V;
 }
 
-SemaValue * SemaBuilder:: CreateNullValue(ASTNullValue * AST, SemaType * Type) {
+SemaValue * SemaBuilder:: CreateNullValue(ASTNullValue &AST) {
 	FLY_DEBUG_START("SemaBuilder", "CreateNullValue");
 
-	SemaValue * V = new SemaNullValue();
-	AST->setSema(V);
+	SemaValue * V = new SemaNullValue(AST);
 	return V;
+}
+
+/**
+ * Creates a SemaBuilderStmt with an ASTVarAssign from ASTVarRef
+ * @param Parent
+ * @param VarRef
+ * @return
+ */
+SemaBuilderStmt *SemaBuilder::CreateAssignmentStmt(ASTBlockStmt *Parent, ASTRef *VarRef, ASTAssignOperatorKind Kind) {
+	FLY_DEBUG_MESSAGE("SemaBuilder", "CreateAssignmentStmt", "Kind=" << static_cast<uint8_t>(Kind));
+
+    SemaBuilderStmt * B = SemaBuilderStmt::CreateAssignment(Parent, VarRef, Kind);
+
+	FLY_DEBUG_END("SemaBuilder", "CreateAssignmentStmt");
+	return B;
+}
+
+/**
+ * Creates a SemaBuilderStmt with an ASTVarAssign from ASTVar
+ * @param Parent
+ * @param VarRef
+ * @return
+ */
+SemaBuilderStmt *SemaBuilder::CreateAssignmentStmt(ASTBlockStmt *Parent, ASTVar *Var, ASTAssignOperatorKind Kind) {
+	FLY_DEBUG_MESSAGE("SemaBuilder", "CreateAssignmentStmt", "Kind=" << static_cast<uint8_t>(Kind));
+
+    ASTRef *VarRef = ASTBuilder::CreateVarRef(Var);
+    SemaBuilderStmt * B = SemaBuilderStmt::CreateAssignment(Parent, VarRef, Kind);
+
+	FLY_DEBUG_END("SemaBuilder", "CreateAssignmentStmt");
+	return B;
+}
+
+/**
+ * Creates a SemaBuilderStmt with ASTReturn
+ * @param Parent
+ * @param Loc
+ * @return
+ */
+SemaBuilderStmt *SemaBuilder::CreateReturnStmt(ASTBlockStmt *Parent, const SourceLocation &Loc) {
+    FLY_DEBUG_MESSAGE("ASTBuilder", "CreateLocalVar", "Loc=" << Loc.getRawEncoding());
+
+    SemaBuilderStmt * B = SemaBuilderStmt::CreateReturn(Parent, Loc);
+
+	FLY_DEBUG_END("SemaBuilder", "CreateLocalVar");
+	return B;
+}
+
+SemaBuilderStmt *SemaBuilder::CreateExprStmt(ASTBlockStmt *Parent, const SourceLocation &Loc) {
+    FLY_DEBUG_MESSAGE("ASTBuilder", "CreateExprStmt", "Loc=" << Loc.getRawEncoding());
+
+    SemaBuilderStmt * B = SemaBuilderStmt::CreateExpr(Parent, Loc);
+
+	FLY_DEBUG_END("SemaBuilder", "CreateExprStmt");
+	return B;
+}
+
+/**
+ * Creates an SemaBuilderStmt with ASTFailStmt
+ * @param Loc
+ * @param ErrorHandler
+ * @return
+ */
+SemaBuilderStmt *SemaBuilder::CreateFailStmt(ASTBlockStmt *Parent, const SourceLocation &Loc) {
+    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateFailStmt", "Loc=" << Loc.getRawEncoding());
+
+    SemaBuilderStmt * FailStmt = SemaBuilderStmt::CreateFail(Parent, Loc);
+
+	FLY_DEBUG_END("SemaBuilder", "CreateFailStmt");
+	return FailStmt;
 }

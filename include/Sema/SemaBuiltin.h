@@ -17,6 +17,7 @@ namespace fly {
     class SemaFloatType;
     class SemaErrorType;
     class SemaArrayType;
+    class ASTExpr;
 
     /**
      * AST Context
@@ -78,7 +79,7 @@ namespace fly {
 
         static SemaErrorType * getErrorType();
 
-        static SemaArrayType * getArrayType(SemaType *Type);
+        static SemaArrayType * CreateArrayType(SemaType *Type, ASTExpr *SizeExpr = nullptr);
 
     };
 }

@@ -13,10 +13,10 @@
 
 using namespace fly;
 
-SemaCall::SemaCall(ASTCall *AST) : SemaResult(true), AST(AST) {
+SemaCall::SemaCall(ASTCall &AST) : SemaResult(SemaKind::CALL), AST(AST) {
 }
 
-ASTCall *SemaCall::getAST() const {
+ASTCall &SemaCall::getAST() const {
 	return AST;
 }
 
@@ -24,10 +24,18 @@ SemaFunctionBase *SemaCall::getFunction() const {
 	return Function;
 }
 
+void SemaCall::setFunction(SemaFunctionBase *Function) {
+	this->Function = Function;
+}
+
 SemaErrorHandler *SemaCall::getErrorHandler() const {
 	return ErrorHandler;
 }
 
+void SemaCall::setErrorHandler(SemaErrorHandler *ErrorHandler) {
+	this->ErrorHandler = ErrorHandler;
+}
+
 bool SemaCall::isNew() const {
-	return AST->getCallKind() >= ASTCallKind::CALL_NEW;
+	return AST.getCallKind() >= ASTCallKind::CALL_NEW;
 }

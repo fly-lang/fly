@@ -10,6 +10,8 @@
 #include "AST/ASTValue.h"
 #include "Basic/Logger.h"
 
+#include <AST/ASTVisitor.h>
+
 using namespace fly;
 
 ASTValue::ASTValue(const ASTValueKind ValueKind, const SourceLocation &Location) :
@@ -17,12 +19,16 @@ ASTValue::ASTValue(const ASTValueKind ValueKind, const SourceLocation &Location)
 
 }
 
-const ASTValueKind &ASTValue::getTypeKind() const {
+const ASTValueKind &ASTValue::getValueKind() const {
     return ValueKind;
 }
 
 ASTBoolValue::ASTBoolValue(const SourceLocation &Loc, bool Value) : ASTValue(ASTValueKind::VAL_BOOL, Loc), Value(Value) {
 
+}
+
+void ASTBoolValue::accept(ASTVisitor &Visitor) {
+	Visitor.visit(*this);
 }
 
 bool ASTBoolValue::getValue() const {
@@ -42,6 +48,10 @@ ASTNumberValue::ASTNumberValue(const SourceLocation &Loc, llvm::StringRef Value)
 
 }
 
+void ASTNumberValue::accept(ASTVisitor &Visitor) {
+	Visitor.visit(*this);
+}
+
 llvm::StringRef ASTNumberValue::getValue() const {
     return Value;
 }
@@ -59,6 +69,10 @@ ASTStringValue::ASTStringValue(const SourceLocation &Loc, llvm::StringRef Value)
 
 }
 
+void ASTStringValue::accept(ASTVisitor &Visitor) {
+	Visitor.visit(*this);
+}
+
 llvm::StringRef ASTStringValue::getValue() const {
     return Value;
 }
@@ -73,6 +87,10 @@ Attr("Kind", static_cast<size_t>(getKind())).
 
 ASTArrayValue::ASTArrayValue(const SourceLocation &Loc) : ASTValue(ASTValueKind::VAL_ARRAY, Loc) {
 
+}
+
+void ASTArrayValue::accept(ASTVisitor &Visitor) {
+	Visitor.visit(*this);
 }
 
 uint64_t ASTArrayValue::size() const {
@@ -104,6 +122,10 @@ ASTStructValue::ASTStructValue(const SourceLocation &Loc) : ASTValue(ASTValueKin
 
 }
 
+void ASTStructValue::accept(ASTVisitor &Visitor) {
+	Visitor.visit(*this);
+}
+
 uint64_t ASTStructValue::size() const {
     return Values.size();
 }
@@ -131,6 +153,10 @@ const llvm::StringMap<ASTValue *> &ASTStructValue::getValues() const {
 
 ASTNullValue::ASTNullValue(const SourceLocation &Loc) : ASTValue(ASTValueKind::VAL_NULL, Loc) {
 
+}
+
+void ASTNullValue::accept(ASTVisitor &Visitor) {
+	Visitor.visit(*this);
 }
 
 std::string ASTNullValue::str() const {

@@ -12,6 +12,7 @@
 
 #include "SemaVisibilityKind.h"
 #include "Sema/SemaType.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 
 namespace fly {
@@ -21,6 +22,7 @@ namespace fly {
     class SemaComment;
     class SemaEnumEntry;
     class SemaModule;
+    class SymbolTable;
     enum class SemaVisibilityKind;
 
     class SemaEnumType : public SemaType {
@@ -32,6 +34,12 @@ namespace fly {
         ASTEnum &AST;
 
         SemaModule *Module;
+
+        // Symbol Table
+        SymbolTable *Symbols;
+
+        // Nodes: Enum Entries
+        llvm::SmallVector<SemaNode *, 8> Nodes;
 
         // Super Enums
         llvm::StringMap<SemaEnumType *> SuperEnums;
@@ -45,13 +53,17 @@ namespace fly {
 
         SemaComment *Comment = nullptr;
 
-        explicit SemaEnumType(ASTEnum &AST);
+        explicit SemaEnumType(ASTEnum &AST, SymbolTable *Symbols);
 
     public:
 
-        ASTEnum *getAST();
+        ASTEnum &getAST();
 
         SemaModule *getModule() const;
+
+        SymbolTable *getSymbols() const;
+
+        llvm::SmallVector<SemaNode *, 8> &getNodes();
 
         const llvm::StringMap<SemaEnumType *> &getBaseEnums() const;
 

@@ -23,7 +23,7 @@
 #include "Basic/Debug.h"
 #include "CodeGen/CodeGenVar.h"
 
-#include <AST/ASTTypeRef.h>
+#include <AST/ASTType.h>
 #include <AST/ASTVar.h>
 #include <Sema/SemaErrorHandler.h>
 
@@ -42,7 +42,7 @@ CodeGenClassMethod::CodeGenClassMethod(CodeGenModule *CGM, SemaClassMethod *Sema
 	}
 
     // Add ErrorHandler to params, Struct doesn't use ErrorHandler
-    if (Class->getAST()->getClassKind() != ASTClassKind::STRUCT) {
+    if (Class->getAST().getClassKind() != ASTClassKind::STRUCT) {
         ParamTypes.push_back(CGM->ErrorPtrTy);
     }
 
@@ -59,7 +59,7 @@ CodeGenClassMethod::CodeGenClassMethod(CodeGenModule *CGM, SemaClassMethod *Sema
     FnType = llvm::FunctionType::get(RetType, ParamTypes, false);
 
 	if (Class->getClassKind() != SemaClassKind::INTERFACE) {
-		std::string FuncName = (Class->getAST()->getName() + Sema->getMangledName()).str();
+		std::string FuncName = (Class->getAST().getName() + Sema->getMangledName()).str();
 		std::string Id = CodeGen::toIdentifier(FuncName, Class->getModule()->getNameSpace()->getName());
 		Fn = llvm::Function::Create(FnType, llvm::GlobalValue::ExternalLinkage, Id, CGM->getModule());
 	}
@@ -87,7 +87,7 @@ void CodeGenClassMethod::GenBody() {
     setInsertPoint();
 
 	// Alloca Error Handler
-    if (Class->getAST()->getClassKind() != ASTClassKind::STRUCT) {
+    if (Class->getAST().getClassKind() != ASTClassKind::STRUCT) {
     	AllocaErrorHandler();
     }
 
@@ -173,13 +173,13 @@ void CodeGenClassMethod::GenBody() {
     		// Set Value for all Attributes
     		// Already DONE in init_ctor()
     		// if (ClassMethod->isConstructor()) {
-    		// 	llvm::Value *V = CGM->GenExpr(Attribute->getAST()->getExpr());
+    		// 	llvm::Value *V = CGM->GenExpr(Attribute->getAST().getExpr());
     		// 	Attribute->getCodeGen()->Store(V);
     		// }
     	}
     }
 
-	CGM->GenBlock(this, Sema->getAST()->getBody());
+	CGM->GenBlock(this, Sema->getAST().getBody());
 
 	// Add return Void
 	CheckReturnVoid();

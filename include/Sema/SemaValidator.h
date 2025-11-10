@@ -13,7 +13,7 @@
 #include <AST/ASTEnum.h>
 #include <llvm/ADT/DenseMap.h>
 
-#include "AST/ASTTypeRef.h"
+#include "AST/ASTType.h"
 #include "AST/ASTVar.h"
 
 namespace fly {
@@ -27,7 +27,7 @@ namespace fly {
     class ASTExpr;
     class ASTVar;
     class ASTClass;
-    class ASTTypeRef;
+    class ASTType;
     class ASTCall;
     class SourceLocation;
     class SemaModule;

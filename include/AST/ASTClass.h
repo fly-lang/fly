@@ -14,13 +14,12 @@
 
 namespace fly {
 
-    class ASTModule;
     class ASTModifier;
     class ASTClassAttribute;
     class CodeGenClass;
     class ASTBlockStmt;
     class ASTVarStmt;
-    class ASTTypeRef;
+    class ASTType;
 
     enum class ASTClassKind {
         CLASS,
@@ -32,9 +31,7 @@ namespace fly {
 
         friend class ASTBuilder;
 
-        ASTModule *Module;
-
-        llvm::SmallVector<ASTNode *, 8> Definitions;
+        llvm::SmallVector<ASTNode *, 8> Nodes;
 
         llvm::SmallVector<ASTModifier *, 8> Modifiers;
 
@@ -42,22 +39,20 @@ namespace fly {
 
         ASTClassKind ClassKind;
 
-        llvm::SmallVector<ASTTypeRef *, 4> BaseClasses;
+        llvm::SmallVector<ASTType *, 4> BaseClasses;
 
-        ASTClass(ASTModule *Module, ASTClassKind ClassKind, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
-                 const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTTypeRef *, 4> &SuperClasses);
+        ASTClass(ASTClassKind ClassKind, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
+                 const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTType *, 4> &SuperClasses);
 
     public:
 
         void accept(ASTVisitor& Visitor) override;
 
-        ASTModule* getModule() const;
-
-        llvm::SmallVector<ASTNode *, 8> getDefinitions() const;
+        llvm::SmallVector<ASTNode *, 8> getNodes() const;
 
         ASTClassKind getClassKind() const;
 
-        llvm::SmallVector<ASTTypeRef *, 4> getBaseClasses() const;
+        llvm::SmallVector<ASTType *, 4> getBaseClasses() const;
 
         llvm::SmallVector<ASTModifier *, 8> getModifiers() const;
 

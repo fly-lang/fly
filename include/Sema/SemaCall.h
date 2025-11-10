@@ -26,21 +26,25 @@ namespace fly {
         friend class Resolver;
         friend class SemaValidator;
 
-    	ASTCall *AST;
+    	ASTCall &AST;
 
     	SemaFunctionBase *Function = nullptr;
 
     	SemaErrorHandler *ErrorHandler = nullptr;
 
-        explicit SemaCall(ASTCall *AST);
+        explicit SemaCall(ASTCall &AST);
 
     public:
 
-    	ASTCall *getAST() const;
+    	ASTCall &getAST() const;
 
     	SemaFunctionBase *getFunction() const;
 
+    	void setFunction(SemaFunctionBase *Function);
+
     	SemaErrorHandler *getErrorHandler() const;
+
+    	void setErrorHandler(SemaErrorHandler *ErrorHandler);
 
     	bool isNew() const;
 

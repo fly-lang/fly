@@ -20,10 +20,8 @@ namespace fly {
     class SemaResult : public SemaNode {
 
     	friend class SemaBuilder;
-    	friend class Resolver;
-    	friend class SemaResolverClass;
 
-    	bool IsCall = false;
+    	SemaKind Kind;
 
     	SemaResult *Child = nullptr;
 
@@ -33,16 +31,18 @@ namespace fly {
 
     	SemaType *Type = nullptr;
 
-        explicit SemaResult(bool IsCall);
+        explicit SemaResult(SemaKind Kind);
 
     public:
         virtual ~SemaResult() = default;
+
+    	void setType(SemaType *Type);
     	
     	bool isCall() const;
 
     	virtual SemaResult *getParent() const;
 
-    	void setParent(SemaResult *Result);
+    	void setParent(SemaResult &Result);
 
     	SemaResult *getChild() const;
 

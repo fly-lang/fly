@@ -10,25 +10,31 @@
 #include "Sema/SemaFunction.h"
 
 #include <AST/ASTFunction.h>
+#include <AST/ASTType.h>
 #include <AST/ASTVar.h>
 
 using namespace fly;
 
-SemaFunction::SemaFunction(ASTFunction &AST) : SemaFunctionBase(AST, SemaFunctionKind::FUNCTION, MangleFunction(AST)) {
+SemaFunction::SemaFunction(ASTFunction &AST, SymbolTable *Symbols) : SemaFunctionBase(AST, SemaKind::FUNCTION, MangleFunction(AST)),
+	Symbols(Symbols) {
 
 }
 
 // Function to mangle a type reference
-std::string SemaFunction::MangleFunction(ASTFunction *AST) {
+std::string SemaFunction::MangleFunction(ASTFunction &AST) {
 	llvm::SmallVector<SemaType *, 8> Params;
-	for (auto Param : AST->getParams()) {
+	for (auto Param : AST.getParams()) {
 		Params.push_back(Param->getTypeRef()->getSema());
 	}
-	return SemaFunctionBase::MangleFunction(AST->getName(), Params);
+	return SemaFunctionBase::MangleFunction(AST.getName(), Params);
 }
 
-SemaModule * SemaFunction::getModule() const {
+SemaModule *SemaFunction::getModule() const {
 	return Module;
+}
+
+SymbolTable *SemaFunction::getSymbols() const {
+	return Symbols;
 }
 
 SemaComment * SemaFunction::getComment() const {

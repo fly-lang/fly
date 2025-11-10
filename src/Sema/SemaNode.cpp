@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Sema/SemaParam.cpp - The Symbolic Table for Param
+// src/Sema/SemaNode.cpp - The Sema Node
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,18 +7,14 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "Sema/SemaParam.h"
+
+#include "Sema/SemaNode.h"
 
 using namespace fly;
 
-SemaParam::SemaParam(ASTVar &AST) : SemaVar(AST, SemaVarKind::PARAM_VAR) {
-
+SemaNode::SemaNode(SemaKind Kind) : Kind(Kind) {
 }
 
-CodeGenVar * SemaParam::getCodeGen() const {
-	return CodeGen;
-}
-
-void SemaParam::setCodeGen(CodeGenVarBase *CGV) {
-	this->CodeGen = static_cast<CodeGenVar *>(CGV);
+SemaKind SemaNode::getKind() const {
+	return Kind;
 }

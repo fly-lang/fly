@@ -27,6 +27,7 @@ namespace fly {
     class SemaModule;
     class SemaClassAttribute;
     class SemaVar;
+    class SymbolTable;
     enum class SemaVisibilityKind;
 
     enum class SemaClassKind {
@@ -37,7 +38,6 @@ namespace fly {
 
         friend class SemaBuilder;
         friend class Resolver;
-        friend class SemaResolverClass;
         friend class SemaValidator;
 
         // AST linked to this Class
@@ -45,6 +45,12 @@ namespace fly {
 
         // Class Module
         SemaModule *Module;
+
+        // Class Symbol Table
+        SymbolTable *Symbols;
+
+        // Nodes: Attributes, Methods, Constructors
+        llvm::SmallVector<SemaNode *, 8> Nodes;
 
         // Class Visibility
         SemaVisibilityKind Visibility = SemaVisibilityKind::DEFAULT;
@@ -76,7 +82,7 @@ namespace fly {
         // Class CodeGen
         CodeGenClass *CodeGen = nullptr;
 
-        explicit SemaClassType(ASTClass &Class);
+        explicit SemaClassType(ASTClass &Class, SymbolTable *Symbols);
 
         SemaClassKind toClassKind(ASTClassKind ASTKind);
 
@@ -85,6 +91,10 @@ namespace fly {
         ASTClass &getAST();
 
         SemaModule *getModule() const;
+
+        SymbolTable *getSymbols() const;
+
+        llvm::SmallVector<SemaNode *, 8> &getNodes();
 
         SemaVisibilityKind getVisibility() const;
 
@@ -104,13 +114,13 @@ namespace fly {
 
         SemaComment *getComment() const;
 
-        bool isDerivedOrEquals(const SemaClassType *BaseClassType) const;
+        bool isDerivedOrEquals(SemaClassType *BaseClassType) const;
 
-        bool isDerived(const SemaClassType *BaseClassType) const;
+        bool isDerived(SemaClassType *BaseClassType) const;
 
-        bool isBaseOrEquals(const SemaClassType *Derived) const;
+        bool isBaseOrEquals(SemaClassType *Derived) const;
 
-        bool isBase(const SemaClassType *Derived) const;
+        bool isBase(SemaClassType *Derived) const;
 
         CodeGenClass *getCodeGen() const;
 

@@ -11,12 +11,12 @@
 
 using namespace fly;
 
-SemaClassAttribute::SemaClassAttribute(ASTVar *AST, SemaClassType *Class) :
+SemaClassAttribute::SemaClassAttribute(ASTVar &AST, SemaClassType &Class) :
 	SemaVar(AST, SemaVarKind::CLASS_ATTRIBUTE), Class(Class) {
 
 }
 
-SemaClassType * SemaClassAttribute::getClass() const {
+SemaClassType &SemaClassAttribute::getClass() const {
 	return Class;
 }
 

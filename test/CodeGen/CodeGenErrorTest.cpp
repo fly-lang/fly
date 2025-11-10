@@ -325,7 +325,7 @@ namespace {
         // struct TestStruct {
     	//  int a
     	// }
-        llvm::SmallVector<ASTTypeRef *, 4> SuperClasses;
+        llvm::SmallVector<ASTType *, 4> SuperClasses;
         ASTClass *TestStruct = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "TestStruct", TopModifiers, SuperClasses);
         ASTVar *aField = getASTBuilder().CreateClassAttribute(SourceLoc, TestStruct, IntTypeRef, "a", TopModifiers);
 

@@ -12,7 +12,7 @@
 
 #include <vector>
 #include <string>
-#include <AST/ASTTypeRef.h>
+#include <AST/ASTType.h>
 
 namespace fly {
     class DiagnosticsEngine;
@@ -36,7 +36,7 @@ namespace fly {
 
         void setClass(ASTClass* Class);
 
-        const std::string Convert(ASTTypeRef* TypeRef);
+        const std::string Convert(ASTType* TypeRef);
 
         void AddNameSpace(SemaNameSpace* pSpace);
     };

@@ -44,6 +44,8 @@ namespace fly {
 
         SemaType *getType() const;
 
+        void setType(SemaType *Type);
+
         ASTExprKind getExprKind() const;
 
         std::string str() const override;

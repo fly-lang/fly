@@ -12,51 +12,55 @@
 
 using namespace fly;
 
-SemaValue::SemaValue() {
+SemaValue::SemaValue(ASTValue &AST) : AST(AST), SemaNode(SemaKind::VALUE) {
 }
 
 SemaType *SemaValue::getType() const {
 	return Type;
 }
 
-SemaBoolValue::SemaBoolValue(bool Value) : SemaValue(), Value(Value) {
+SemaBoolValue::SemaBoolValue(ASTBoolValue &AST) : SemaValue(AST), Value(AST.getValue()) {
 }
 
 bool SemaBoolValue::getValue() const {
 	return Value;
 }
 
-SemaIntValue::SemaIntValue(llvm::StringRef Value, uint8_t Radix) : SemaValue(), Value(llvm::APInt(64, Value, Radix)) {
+SemaIntValue::SemaIntValue(ASTNumberValue &AST) : SemaValue(AST), Value() {
 }
 
 llvm::APInt SemaIntValue::getValue() const {
 	return Value;
 }
 
-SemaFloatValue::SemaFloatValue(llvm::StringRef Value) : SemaValue(), Value(llvm::APFloat(llvm::APFloat::IEEEdouble(), Value)) {
+SemaFloatValue::SemaFloatValue(ASTNumberValue &AST) : SemaValue(AST), Value(llvm::APFloat(llvm::APFloat::IEEEdouble(), Value)) {
 }
 
 llvm::APFloat SemaFloatValue::getValue() const {
 	return Value;
 }
 
-SemaStringValue::SemaStringValue(llvm::StringRef Value) : SemaValue(), Value(Value) {
+SemaStringValue::SemaStringValue(ASTStringValue &AST) : SemaValue(AST) {
 }
 
 llvm::StringRef SemaStringValue::getValue() const {
 	return Value;
 }
 
-SemaArrayValue::SemaArrayValue() : SemaValue() {
+SemaArrayValue::SemaArrayValue(ASTArrayValue &AST) : SemaValue(AST) {
 }
 
 const llvm::SmallVector<SemaValue *, 8> &SemaArrayValue::getValues() const {
 	return Values;
 }
 
-SemaStructValue::SemaStructValue() : SemaValue() {
+SemaStructValue::SemaStructValue(ASTStructValue &AST) : SemaValue(AST) {
 }
 
 const llvm::StringMap<SemaValue *> &SemaStructValue::getValues() const {
 	return Values;
+}
+
+SemaNullValue::SemaNullValue(ASTNullValue &AST) : SemaValue(AST) {
+
 }

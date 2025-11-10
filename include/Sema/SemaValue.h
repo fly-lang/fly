@@ -10,8 +10,9 @@
 #ifndef FLY_SEMA_VALUE_H
 #define FLY_SEMA_VALUE_H
 
+#include <AST/ASTValue.h>
+
 #include "Sema/SemaNode.h"
-#include <cstdint>
 #include <llvm/ADT/APFloat.h>
 #include <llvm/ADT/APInt.h>
 #include <llvm/ADT/StringMap.h>
@@ -20,7 +21,9 @@ namespace fly {
 
     class SemaType;
 	class ASTValue;
+	class ASTBoolValue;
     class ASTNumberValue;
+	class ASTStringValue;
 
     class SemaValue : public SemaNode {
 
@@ -28,21 +31,13 @@ namespace fly {
     	friend class Resolver;
     	friend class SemaValidator;
 
-    	static const bool DEFAULT_BOOL_VALUE;
-
-    	static const llvm::StringRef DEFAULT_INTEGER_VALUE;
-
-    	static const llvm::StringRef DEFAULT_FLOATING_VALUE;
-
-    	static const llvm::StringRef DEFAULT_STRING_VALUE;
-
-    	static const llvm::StringRef DEFAULT_CHAR_VALUE;
+    	ASTValue &AST;
 
 		SemaType *Type;
 
     protected:
 
-        explicit SemaValue();
+        explicit SemaValue(ASTValue &AST);
 
     public:
 
@@ -58,7 +53,7 @@ namespace fly {
 
 		bool Value;
 
-		explicit SemaBoolValue(bool Value);
+		explicit SemaBoolValue(ASTBoolValue &AST);
 
 	public:
 
@@ -74,7 +69,7 @@ namespace fly {
 
 		llvm::APInt Value;
 
-		explicit SemaIntValue(llvm::StringRef Value, uint8_t Radix);
+		explicit SemaIntValue(ASTNumberValue &AST);
 
 	public:
 
@@ -90,7 +85,7 @@ namespace fly {
 
 		llvm::APFloat Value;
 
-		explicit SemaFloatValue(llvm::StringRef Value);
+		explicit SemaFloatValue(ASTNumberValue &AST);
 
 	public:
 
@@ -106,7 +101,7 @@ namespace fly {
 
 		llvm::StringRef Value;
 
-		explicit SemaStringValue(llvm::StringRef Value);
+		explicit SemaStringValue(ASTStringValue &AST);
 
 	public:
 
@@ -122,7 +117,7 @@ namespace fly {
 
 		llvm::SmallVector<SemaValue *, 8> Values;
 
-		explicit SemaArrayValue();
+		explicit SemaArrayValue(ASTArrayValue &AST);
 
 	public:
 
@@ -138,7 +133,7 @@ namespace fly {
 
 		llvm::StringMap<SemaValue *> Values;
 
-		explicit SemaStructValue();
+		explicit SemaStructValue(ASTStructValue &AST);
 
 	public:
 
@@ -148,6 +143,9 @@ namespace fly {
 
 	class SemaNullValue : public SemaValue {
 
+		friend class SemaBuilder;
+
+		explicit SemaNullValue(ASTNullValue &AST);
 	};
 
 }

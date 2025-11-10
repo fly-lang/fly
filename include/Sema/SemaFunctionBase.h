@@ -26,17 +26,9 @@ namespace fly {
     class ASTVar;
     class CodeGenFunctionBase;
 
-    enum class SemaFunctionKind {
-        FUNCTION,
-        CLASS_METHOD,
-    };
-
     class SemaFunctionBase : public SemaNode {
 
         friend class SemaBuilder;
-        friend class Resolver;
-        friend class SemaResolverClass;
-        friend class SemaValidator;
 
         const std::string MangledName;
 
@@ -46,19 +38,19 @@ namespace fly {
 
         ASTFunction &AST;
 
-        SemaFunctionKind Kind;
-
         llvm::SmallVector<SemaVar *, 8> LocalVars;
 
         SemaErrorHandler *ErrorHandler;
 
     protected:
 
-        explicit SemaFunctionBase(ASTFunction &AST, SemaFunctionKind Kind, std::string MangledName);
+        explicit SemaFunctionBase(ASTFunction &AST, SemaKind Kind, std::string MangledName);
 
     public:
 
         std::string getMangledName() const;
+
+        void setReturnType(SemaType *RetType);
 
         llvm::SmallVector<SemaParam *, 8> &getParams();
 
@@ -68,9 +60,9 @@ namespace fly {
 
         ASTFunction &getAST();
 
-        SemaFunctionKind getKind() const;
-
         llvm::SmallVector<SemaVar *, 8> getLocalVars();
+
+        void addLocalVar(SemaVar *LocalVar);
 
         SemaErrorHandler *getErrorHandler() const;
 

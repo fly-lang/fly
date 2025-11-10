@@ -10,21 +10,38 @@
 #ifndef FLY_SEMA_IMPORT_H
 #define FLY_SEMA_IMPORT_H
 
+#include <llvm/ADT/StringRef.h>
+
+#include "SemaNode.h"
+
 namespace fly {
 
 	class ASTImport;
+    class SymbolTable;
 
     /**
      * AST Context
      */
-    class SemaImport {
+    class SemaImport : public SemaNode {
 
         ASTImport &AST;
+
+        SymbolTable *Symbols = nullptr;
 
     public:
         SemaImport(ASTImport &AST);
 
 		ASTImport* getAST() const;
+
+        llvm::StringRef getName() const;
+
+        llvm::StringRef getTarget() const;
+
+        SymbolTable *getSymbols() const;
+
+        void setSymbols(SymbolTable *Symbols);
+
+        void addSymbol(SymbolTable *Symbols);
     };
 }
 

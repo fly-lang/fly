@@ -20,6 +20,7 @@ namespace fly {
     class CodeGenFunction;
     class SemaComment;
     class SemaModule;
+    class SymbolTable;
     enum class SemaVisibilityKind;
 
     class SemaFunction : public SemaFunctionBase {
@@ -30,6 +31,8 @@ namespace fly {
 
         SemaModule *Module;
 
+        SymbolTable *Symbols;
+
         SemaComment *Comment = nullptr;
 
         SemaVisibilityKind Visibility = SemaVisibilityKind::DEFAULT;
@@ -37,13 +40,15 @@ namespace fly {
         // Populated during codegen phase
         CodeGenFunction *CodeGen = nullptr;
 
-        explicit SemaFunction(ASTFunction &AST);
+        explicit SemaFunction(ASTFunction &AST, SymbolTable *Symbols);
 
-        std::string MangleFunction(ASTFunction *AST);
+        std::string MangleFunction(ASTFunction &AST);
 
     public:
 
         SemaModule *getModule() const;
+
+        SymbolTable *getSymbols() const;
 
         SemaComment *getComment() const;
 

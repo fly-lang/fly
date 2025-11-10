@@ -36,15 +36,6 @@ namespace fly {
 
         llvm::SmallVector<SemaNode *, 8> Nodes;
 
-        // Global Vars
-        llvm::StringMap<SemaGlobalVar *> GlobalVars;
-
-        // Functions
-        llvm::StringMap<SemaFunction *> Functions;
-
-        // Types
-        llvm::StringMap<SemaType *> Types;
-
     public:
 
         SemaModule(ASTModule &Module);
@@ -55,15 +46,9 @@ namespace fly {
 
 		SemaNameSpace *getNameSpace() const;
 
+        const llvm::SmallVector<SemaImport *, 8> &getImports() const;
+
         const llvm::SmallVector<SemaNode *, 8> &getNodes() const;
-
-		const llvm::SmallVector<SemaImport *, 8> &getImports() const;
-
-        const llvm::StringMap<SemaGlobalVar *> &getGlobalVars() const;
-
-        const llvm::StringMap<SemaFunction *> &getFunctions() const;
-
-        const llvm::StringMap<SemaType *> &getTypes() const;
 
     };
 }

@@ -26,7 +26,7 @@ add_library(flyLib
         AST/ASTFunction.cpp
         AST/ASTHandleStmt.cpp
         AST/ASTRef.cpp
-        AST/ASTTypeRef.cpp
+        AST/ASTType.cpp
         AST/ASTIfStmt.cpp
         AST/ASTImport.cpp
         AST/ASTLoopStmt.cpp
@@ -139,7 +139,6 @@ add_library(flyLib
         Parser/Parser.cpp
 
         # Sema
-        Sema/Registry.cpp
         Sema/Sema.cpp
         Sema/SemaBuilder.cpp
         Sema/SemaBuilderStmt.cpp
@@ -148,8 +147,6 @@ add_library(flyLib
         Sema/SemaBuilderLoopStmt.cpp
         Sema/SemaBuilderModifiers.cpp
         Sema/SemaBuiltin.cpp
-        Sema/Resolver.cpp
-        Sema/SemaResolverClass.cpp
         Sema/SemaValidator.cpp
         Sema/SemaCall.cpp
         Sema/SemaClassType.cpp
@@ -168,6 +165,7 @@ add_library(flyLib
         Sema/SemaMemberVar.cpp
         Sema/SemaModule.cpp
         Sema/SemaNameSpace.cpp
+        Sema/SemaNode.cpp
         Sema/SemaParam.cpp
         Sema/SemaResult.cpp
         Sema/Symbol.cpp
@@ -175,6 +173,8 @@ add_library(flyLib
         Sema/SemaType.cpp
         Sema/SemaVar.cpp
         Sema/SemaValue.cpp
+        Sema/Registry.cpp
+        Sema/Resolver.cpp
 )
 
 #if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")

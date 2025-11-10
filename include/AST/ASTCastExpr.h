@@ -14,7 +14,7 @@
 
 namespace fly {
 
-	class ASTTypeRef;
+	class ASTType;
 
     /**
      * Value Expression
@@ -25,9 +25,9 @@ namespace fly {
 
         ASTExpr *Expr = nullptr;
 
-        ASTTypeRef *TypeRef = nullptr;
+        ASTType *TypeRef = nullptr;
 
-        explicit ASTCastExpr(ASTExpr *From, ASTTypeRef *Cast);
+        explicit ASTCastExpr(ASTExpr *From, ASTType *Cast);
 
     public:
 
@@ -35,7 +35,7 @@ namespace fly {
 
         ASTExpr *getExpr() const;
 
-        ASTTypeRef *getTypeRef() const;
+        ASTType *getTypeRef() const;
 
         std::string str() const override;
     };

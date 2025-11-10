@@ -17,13 +17,13 @@
 
 using namespace fly;
 
-SemaBuilderStmt::SemaBuilderStmt(ASTBuilder *Builder) : Builder(Builder) {
+SemaBuilderStmt::SemaBuilderStmt() {
 
 }
 
-SemaBuilderStmt *SemaBuilderStmt::CreateAssignment(ASTBuilder *Builder, ASTBlockStmt *Parent, ASTRef *VarRef,
+SemaBuilderStmt *SemaBuilderStmt::CreateAssignment(ASTBlockStmt *Parent, ASTRef *VarRef,
                                                    ASTAssignOperatorKind AssignOperatorKind) {
-    SemaBuilderStmt *BuilderStmt = new SemaBuilderStmt(Builder);
+    SemaBuilderStmt *BuilderStmt = new SemaBuilderStmt();
     BuilderStmt->Stmt = new ASTVarStmt(VarRef->getLocation(), VarRef, AssignOperatorKind);
 
     // Inner Stmt
@@ -33,8 +33,8 @@ SemaBuilderStmt *SemaBuilderStmt::CreateAssignment(ASTBuilder *Builder, ASTBlock
     return BuilderStmt;
 }
 
-SemaBuilderStmt *SemaBuilderStmt::CreateReturn(ASTBuilder *Builder, ASTBlockStmt *Parent, const SourceLocation &Loc) {
-    SemaBuilderStmt *BuilderStmt = new SemaBuilderStmt(Builder);
+SemaBuilderStmt *SemaBuilderStmt::CreateReturn(ASTBlockStmt *Parent, const SourceLocation &Loc) {
+    SemaBuilderStmt *BuilderStmt = new SemaBuilderStmt();
     BuilderStmt->Stmt = new ASTReturnStmt(Loc);
     // Inner Stmt
     Parent->Content.push_back(BuilderStmt->Stmt);
@@ -43,8 +43,8 @@ SemaBuilderStmt *SemaBuilderStmt::CreateReturn(ASTBuilder *Builder, ASTBlockStmt
     return BuilderStmt;
 }
 
-SemaBuilderStmt *SemaBuilderStmt::CreateFail(ASTBuilder *Builder, ASTBlockStmt *Parent, const SourceLocation &Loc) {
-    SemaBuilderStmt *BuilderStmt = new SemaBuilderStmt(Builder);
+SemaBuilderStmt *SemaBuilderStmt::CreateFail(ASTBlockStmt *Parent, const SourceLocation &Loc) {
+    SemaBuilderStmt *BuilderStmt = new SemaBuilderStmt();
     BuilderStmt->Stmt = new ASTFailStmt(Loc);
     // Inner Stmt
     Parent->Content.push_back(BuilderStmt->Stmt);
@@ -53,8 +53,8 @@ SemaBuilderStmt *SemaBuilderStmt::CreateFail(ASTBuilder *Builder, ASTBlockStmt *
     return BuilderStmt;
 }
 
-SemaBuilderStmt *SemaBuilderStmt::CreateExpr(ASTBuilder *Builder, ASTBlockStmt *Parent, const SourceLocation &Loc) {
-    SemaBuilderStmt *BuilderStmt = new SemaBuilderStmt(Builder);
+SemaBuilderStmt *SemaBuilderStmt::CreateExpr(ASTBlockStmt *Parent, const SourceLocation &Loc) {
+    SemaBuilderStmt *BuilderStmt = new SemaBuilderStmt();
     BuilderStmt->Stmt = new ASTExprStmt(Loc);
     // Inner Stmt
     Parent->Content.push_back(BuilderStmt->Stmt);

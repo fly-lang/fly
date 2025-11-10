@@ -31,11 +31,8 @@ namespace fly {
     class SemaVar : public SemaResult {
 
         friend class SemaBuilder;
-        friend class Resolver;
-    	friend class SemaResolverClass;
-        friend class SemaValidator;
 
-    	ASTVar *AST;
+    	ASTVar &AST;
 
     	SemaVarKind VarKind;
 
@@ -43,12 +40,12 @@ namespace fly {
 
     protected:
 
-        explicit SemaVar(ASTVar *AST, SemaVarKind Kind);
+        explicit SemaVar(ASTVar &AST, SemaVarKind Kind);
 
     public:
         virtual ~SemaVar() = default;
 
-        ASTVar *getAST() const;
+        ASTVar &getAST() const;
 
     	SemaVarKind getVarKind() const;
 

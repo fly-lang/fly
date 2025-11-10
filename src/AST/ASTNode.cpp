@@ -16,7 +16,3 @@ using namespace fly;
 ASTNode::ASTNode(const SourceLocation &Loc, ASTKind Kind) : ASTBase(Loc, Kind) {
 
 }
-
-void ASTNode::accept(ASTVisitor& Visitor) {
-	Visitor.visit(*this);
-}

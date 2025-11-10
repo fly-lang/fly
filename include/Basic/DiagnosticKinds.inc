@@ -430,3 +430,5 @@ DIAG(err_type_invalid_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "inval
 DIAG(err_value_unexpected_neg, CLASS_ERROR, (unsigned)diag::Severity::Error, "unexpected type '%0' for negative value '%1'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_value_max_overflow, CLASS_ERROR, (unsigned)diag::Severity::Error, "max value overflow for type '%0' for value '%1'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_value_min_underflow, CLASS_ERROR, (unsigned)diag::Severity::Error, "min value underflow for type '%0' for value '%1'", 0, SFINAE_Suppress, false, true, 0)
+
+DIAG(err_invalid_behavior, CLASS_ERROR, (unsigned)diag::Severity::Fatal, "invalid behavior: '%0'", 0, SFINAE_Suppress, false, true, 0)

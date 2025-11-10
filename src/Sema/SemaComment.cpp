@@ -11,10 +11,10 @@
 
 using namespace fly;
 
-SemaComment::SemaComment(ASTComment *AST) {
-	this->AST = AST;
+SemaComment::SemaComment(ASTComment &AST) : AST(AST) {
+
 }
 
-ASTComment *SemaComment::getAST() const {
+ASTComment &SemaComment::getAST() const {
 	return AST;
 }

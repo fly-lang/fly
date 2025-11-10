@@ -18,6 +18,7 @@ namespace fly {
     enum FileExt {
         UNKNOWN,
         FLY,
+        FLY_H,
         LIB,
         OBJ,
         HEAD

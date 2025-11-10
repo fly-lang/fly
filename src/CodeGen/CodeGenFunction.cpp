@@ -14,7 +14,7 @@
 #include "AST/ASTModule.h"
 #include "AST/ASTFunction.h"
 #include "Sema/SemaFunction.h"
-#include "AST/ASTTypeRef.h"
+#include "AST/ASTType.h"
 #include "Basic/Debug.h"
 #include "llvm/IR/Function.h"
 #include "llvm/ADT/StringRef.h"
@@ -94,7 +94,7 @@ void CodeGenFunction::GenBody() {
 	}
 
 	// Generate Function Body
-    CGM->GenBlock(this, Sema->getAST()->getBody());
+    CGM->GenBlock(this, Sema->getAST().getBody());
 
     // if is Main check error and return right exit code
     if (isMain) {
@@ -113,5 +113,5 @@ void CodeGenFunction::GenBody() {
 }
 
 bool CodeGenFunction::isMainFunction(SemaFunction *Sema) {
-    return Sema->getAST()->getName() == StringRef("main") && Sema->getAST()->getReturnTypeRef()->getSema()->isVoid();
+    return Sema->getAST().getName() == StringRef("main") && Sema->getAST().getReturnTypeRef()->getSema()->isVoid();
 }

@@ -8,11 +8,11 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/Sema.h"
-#include "Sema/SemaBuilder.h"
 #include "Sema/Resolver.h"
 #include "AST/ASTModule.h"
 
 #include <Sema/Registry.h>
+#include <Sema/SemaBuilder.h>
 
 using namespace fly;
 
@@ -22,7 +22,7 @@ Sema::Sema(DiagnosticsEngine &Diags) : Diags(Diags) {
 
 llvm::SmallVector<SemaModule *, 8> Sema::Resolve(llvm::SmallVector<ASTModule *, 8> &ASTModules) {
 	// Initialize the Registry
-	Registry * Reg = new Registry();
+	Registry *Reg = new Registry();
 
 	// Create the Resolver with AST Modules
 	Resolver R(Diags, *Reg);

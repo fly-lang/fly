@@ -9,6 +9,8 @@
 
 #include "AST/ASTValueExpr.h"
 
+#include <AST/ASTValue.h>
+
 using namespace fly;
 
 ASTValueExpr::ASTValueExpr(ASTValue *Val) : ASTExpr(Val->getLocation(), ASTExprKind::EXPR_VALUE), Value(Val) {

@@ -16,40 +16,35 @@
 
 namespace fly {
 
-    class ASTModule;
     class ASTModifier;
-    class ASTTypeRef;
+    class ASTType;
 
     class ASTEnum : public ASTNode {
 
         friend class ASTBuilder;
 
-        ASTModule *Module;
-
-        llvm::SmallVector<ASTNode *, 8> Definitions;
+        llvm::SmallVector<ASTNode *, 8> Nodes;
 
         llvm::SmallVector<ASTModifier *, 8> Modifiers;
 
         llvm::StringRef Name;
 
-        llvm::SmallVector<ASTTypeRef *, 4> SuperClasses; // FIXME ?
+        llvm::SmallVector<ASTType *, 4> SuperClasses; // FIXME ?
 
-        ASTEnum(ASTModule *Module, const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
-                 llvm::SmallVector<ASTTypeRef *, 4> &SuperClasses);
+        ASTEnum(const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
+                 llvm::SmallVector<ASTType *, 4> &SuperClasses);
 
     public:
 
         void accept(ASTVisitor& Visitor) override;
 
-        ASTModule* getModule() const;
-
-        llvm::SmallVector<ASTNode*, 8> getDefinitions() const;
+        llvm::SmallVector<ASTNode*, 8> getNodes() const;
 
         llvm::SmallVector<ASTModifier*, 8> getModifiers() const;
 
         llvm::StringRef getName() const;
 
-        llvm::SmallVector<ASTTypeRef*, 4> getSuperClasses() const;
+        llvm::SmallVector<ASTType*, 4> getSuperClasses() const;
 
         std::string str() const override;
 
