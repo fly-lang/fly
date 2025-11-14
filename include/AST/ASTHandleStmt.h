@@ -14,14 +14,14 @@
 
 namespace fly {
 
-    class ASTRef;
+    class ASTIdentifier;
     class CodeGenHandle;
 
     class ASTHandleStmt : public ASTStmt {
 
         friend class ASTBuilder;
 
-        ASTRef *ErrorHandlerRef = nullptr;
+        ASTIdentifier *ErrorHandlerRef = nullptr;
 
         ASTBlockStmt *Handle = nullptr;
 
@@ -33,9 +33,9 @@ namespace fly {
 
         void accept(ASTVisitor& Visitor) override;
 
-        ASTRef *getErrorHandlerRef() const;
+        ASTIdentifier *getErrorHandlerRef() const;
 
-        void setErrorHandlerRef(ASTRef *ErrorHandler);
+        void setErrorHandlerRef(ASTIdentifier *ErrorHandler);
 
         ASTBlockStmt* getHandle() const;
 

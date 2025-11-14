@@ -21,7 +21,7 @@ namespace fly {
     class Sema;
     class ASTBlockStmt;
     class ASTStmt;
-    class ASTRef;
+    class ASTIdentifier;
     class ASTModule;
     class ASTImport;
     class ASTExpr;
@@ -57,7 +57,7 @@ namespace fly {
 
         static bool CheckCommentParams(SemaComment *Comment, const llvm::SmallVector<ASTVar*, 8> &Params);
 
-        static bool CheckCommentReturn(SemaComment *Comment, ASTTypeRef* ReturnType);
+        static bool CheckCommentReturn(SemaComment *Comment, ASTType* ReturnType);
 
         static bool CheckCommentFail(SemaComment *Comment);
 
@@ -83,7 +83,7 @@ namespace fly {
 
         static bool CheckValue(ASTValue* Value);
 
-        static bool CheckVar(ASTStmt* Stmt, fly::ASTRef* Ref);
+        static bool CheckVar(ASTStmt* Stmt, fly::ASTIdentifier* Ref);
 
         static bool CheckCall(ASTStmt* Stmt, fly::ASTCall* Ref);
     };

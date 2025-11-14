@@ -48,7 +48,7 @@ ParserClass::ParserClass(Parser *P, SmallVector<ASTModifier *, 8> &Modifiers) : 
     if (P->Tok.is(tok::colon)) {
         P->ConsumeToken();
         while (P->Tok.isAnyIdentifier()) {
-            ASTType *ClassTypeRef = P->ParseTypeRef();
+            ASTType *ClassTypeRef = P->ParseType();
             SuperClasses.push_back(ClassTypeRef);
         }
     }
@@ -77,7 +77,7 @@ ParserClass::ParserClass(Parser *P, SmallVector<ASTModifier *, 8> &Modifiers) : 
             llvm::SmallVector<ASTModifier *, 8> Modifiers = P->ParseModifiers();
 
             // Parse Type
-            ASTType *Type = P->ParseTypeRef(); // Continue loop if there is a field or a method
+            ASTType *Type = P->ParseType(); // Continue loop if there is a field or a method
 
             Continue = Type != nullptr;
             if (Continue && P->Tok.isAnyIdentifier()) {

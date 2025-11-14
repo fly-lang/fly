@@ -22,7 +22,7 @@
 #include "AST/ASTVar.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTDeleteStmt.h"
-#include "AST/ASTRef.h"
+#include "AST/ASTIdentifier.h"
 #include "AST/ASTVar.h"
 #include "AST/ASTIfStmt.h"
 #include "AST/ASTSwitchStmt.h"

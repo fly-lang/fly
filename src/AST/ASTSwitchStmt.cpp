@@ -17,7 +17,7 @@ ASTSwitchStmt::ASTSwitchStmt(const SourceLocation &Loc) :
 
 }
 
-ASTRef *ASTSwitchStmt::getVar() const {
+ASTIdentifier *ASTSwitchStmt::getVar() const {
     return Var;
 }
 

@@ -14,7 +14,7 @@
 
 namespace fly {
 
-    class ASTRef;
+    class ASTIdentifier;
 
     enum class ASTAssignOperatorKind {
         EQUAL,
@@ -37,22 +37,21 @@ namespace fly {
      */
     class ASTVarStmt : public ASTStmt {
 
-        friend class ASTBuilder;
-        friend class SemaBuilderStmt;
+        friend class ASTBuilderStmt;
 
-        ASTRef *VarRef;
+        ASTIdentifier *VarRef;
 
         ASTAssignOperatorKind Kind;
 
         ASTExpr *Expr = nullptr;
 
-        ASTVarStmt(const SourceLocation &Loc, ASTRef *VarRef, ASTAssignOperatorKind AssignOperatorKind);
+        ASTVarStmt(const SourceLocation &Loc, ASTIdentifier *VarRef, ASTAssignOperatorKind AssignOperatorKind);
 
     public:
 
         void accept(ASTVisitor& Visitor) override;
 
-        ASTRef *getVarRef() const;
+        ASTIdentifier *getVarRef() const;
 
         ASTAssignOperatorKind getKind1() const;
 

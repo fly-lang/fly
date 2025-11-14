@@ -15,7 +15,6 @@ namespace fly {
 	class ASTModule;
 	class ASTNameSpace;
 	class ASTImport;
-	class ASTAlias;
 	class ASTClass;
 	class ASTFunction;
 	class ASTEnum;
@@ -28,8 +27,7 @@ namespace fly {
 	class ASTStructValue;
 	class ASTNullValue;
 	class ASTVar;
-	class ASTRef;
-	class ASTNameSpaceRef;
+	class ASTIdentifier;
 	class ASTType;
 	class ASTArrayType;
 	class ASTBreakStmt;
@@ -70,9 +68,8 @@ namespace fly {
 
 		virtual void visit(ASTType &AST) = 0;
 		virtual void visit(ASTArrayType &AST) = 0;
-		virtual void visit(ASTRef &AST) = 0;
+		virtual void visit(ASTIdentifier &AST) = 0;
 		virtual void visit(ASTCall &AST) = 0;
-		virtual void visit(ASTNameSpaceRef &AST) = 0;
 
 		virtual void visit(ASTBreakStmt &AST) = 0;
 		virtual void visit(ASTContinueStmt &AST) = 0;

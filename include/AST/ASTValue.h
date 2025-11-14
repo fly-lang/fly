@@ -26,6 +26,7 @@ namespace fly {
         VAL_ARRAY,
         VAL_STRUCT,
         VAL_NULL,
+        VAL_DEFAULT
     };
 
 
@@ -53,6 +54,19 @@ namespace fly {
             this->Sema = Sema;
         }
 
+    };
+
+    class ASTDefaultValue : public ASTValue {
+
+        friend class ASTBuilder;
+
+        explicit ASTDefaultValue();
+
+    public:
+
+        void accept(ASTVisitor& Visitor) override;
+
+        std::string str() const override;
     };
 
     /**

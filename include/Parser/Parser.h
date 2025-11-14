@@ -17,12 +17,12 @@ namespace fly {
 
     class DiagnosticsEngine;
     class ASTBuilder;
-    class SemaBuilderSwitchStmt;
+    class ASTBuilderSwitchStmt;
     class ASTNode;
     class ASTModule;
     class SemaNameSpace;
     class ASTValue;
-    class ASTRef;
+    class ASTIdentifier;
     class ASTFunction;
     class ASTArrayValue;
     class ASTBlockStmt;
@@ -35,7 +35,7 @@ namespace fly {
     class ASTExpr;
     class InputFile;
     class ASTHandleStmt;
-    class ASTRef;
+    class ASTIdentifier;
     class ASTModifier;
     class ASTClass;
     class ASTEnum;
@@ -56,7 +56,7 @@ namespace fly {
     friend class ParserExpr;
     friend class ParserMethod;
 
-    const InputFile &Input;
+    InputFile *Input;
 
     DiagnosticsEngine &Diags;
 
@@ -72,6 +72,8 @@ namespace fly {
 
     ASTModule *Module;
 
+    bool ContinueParse =  true;
+
     // PrevTokLocation - The location of the token we previously
     // consumed. This token is used for diagnostics where we expected to
     // see a token following another token (e.g., the ';' at the end of
@@ -83,7 +85,7 @@ namespace fly {
 public:
 
     /// Constructor for the Parser class.
-    Parser(const InputFile &Input, SourceManager &SourceMgr, DiagnosticsEngine &Diags, ASTBuilder &Builder);
+    Parser(InputFile *Input, SourceManager &SourceMgr, DiagnosticsEngine &Diags, ASTBuilder &Builder);
 
     /// Parse the main module.
     ASTModule *ParseModule();
@@ -96,23 +98,22 @@ public:
 
 private:
 
-    /// Parse names.
-    llvm::SmallVector<llvm::StringRef, 4> ParseNames();
-
     /// Parse a namespace.
     ASTNameSpace *ParseNameSpace();
 
     /// Parse an import statement.
     ASTImport * ParseImport();
 
+    /// Parse a comment.
+    ASTComment *ParseComment();
+
     /// Parse a definition.
-    ASTNode *ParseDefinition();
+    void ParseNode();
+
+    void addNode(ASTNode* Node);
 
     /// Parse multiple Modifiers.
     SmallVector<ASTModifier *, 8> ParseModifiers();
-
-    /// Parse a function.
-    ASTFunction *ParseFunction(SmallVector<ASTModifier *, 8> &Modifiers, ASTType *TypeRef);
 
     /// Parse a class.
     ASTClass *ParseClass(SmallVector<ASTModifier *, 8> &Modifiers);
@@ -120,8 +121,8 @@ private:
     /// Parse an enum.
     ASTEnum *ParseEnum(SmallVector<ASTModifier *, 8> &Modifiers);
 
-    /// Parse a comment.
-    ASTComment *ParseComment();
+    /// Parse a function.
+    ASTFunction *ParseFunction(SmallVector<ASTModifier *, 8> &Modifiers);
 
     /// Parse a block or statement.
     void ParseBlockOrStmt(ASTBlockStmt *Parent);
@@ -153,30 +154,21 @@ private:
     void ParseForStmt(ASTBlockStmt *Parent);
 
     /// Parse a handle statement.
-    void ParseHandleStmt(ASTBlockStmt *Parent, ASTRef *Error);
+    void ParseHandleStmt(ASTBlockStmt *Parent, ASTIdentifier *Error);
 
     /// Parse a fail statement.
     void ParseFailStmt(ASTBlockStmt *Parent);
 
     /// Parse a type reference.
-    ASTType *ParseTypeRef();
-
-    /// Parse a builtin type reference
-    ASTType *ParseBuiltinTypeRef();
-
-    /// Parse an array type reference.
-    ASTArrayType *ParseArrayTypeRef(ASTType *);
-
-    /// Parse a var ref.
-    ASTRef *ParseVarRef();
+    ASTType *ParseType(ASTType *T = nullptr);
 
     ASTCall *ParseCall();
 
     /// Parse a call.
-    ASTCall *ParseCall(const SourceLocation &Loc, llvm::StringRef Name, ASTRef *Parent);
+    ASTCall *ParseCall(const SourceLocation &Loc, llvm::StringRef Name, ASTIdentifier *Parent);
 
     /// Parse an identifier.
-    ASTRef *ParseRef(ASTRef *Parent = nullptr);
+    ASTIdentifier *ParseIdentifier(ASTIdentifier *Parent = nullptr);
 
     /// Parse a value.
     ASTValue *ParseValue();

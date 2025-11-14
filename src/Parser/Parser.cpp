@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Parser/Parser.h"
+
 #include "Parser/ParserFunction.h"
 #include "Parser/ParserExpr.h"
 #include "Parser/ParserClass.h"
@@ -19,7 +20,7 @@
 #include "AST/ASTComment.h"
 #include "AST/ASTCall.h"
 #include "AST/ASTExpr.h"
-#include "AST/ASTRef.h"
+#include "AST/ASTIdentifier.h"
 #include "AST/ASTBlockStmt.h"
 #include "AST/ASTContinueStmt.h"
 #include "AST/ASTBreakStmt.h"
@@ -29,15 +30,19 @@
 #include "AST/ASTType.h"
 #include "AST/ASTVar.h"
 #include "AST/ASTBuilder.h"
-#include "Sema/SemaBuilderStmt.h"
-#include "Sema/SemaBuilderIfStmt.h"
-#include "Sema/SemaBuilderSwitchStmt.h"
-#include "Sema/SemaBuilderLoopStmt.h"
+#include "AST/ASTBuilderStmt.h"
+#include "AST/ASTBuilderIfStmt.h"
+#include "AST/ASTBuilderSwitchStmt.h"
+#include "AST/ASTBuilderLoopStmt.h"
 #include "Frontend/InputFile.h"
 #include "Basic/Debug.h"
 #include "llvm/Support/Regex.h"
 
+#include <AST/ASTExprStmt.h>
+#include <AST/ASTFailStmt.h>
 #include <AST/ASTModifier.h>
+#include <AST/ASTReturnStmt.h>
+#include <AST/ASTVarRefExpr.h>
 
 using namespace fly;
 
@@ -47,9 +52,9 @@ using namespace fly;
  * @param SourceMgr
  * @param Diags
  */
-Parser::Parser(const InputFile &Input, SourceManager &SourceMgr, DiagnosticsEngine &Diags, ASTBuilder &Builder) :
+Parser::Parser(InputFile *Input, SourceManager &SourceMgr, DiagnosticsEngine &Diags, ASTBuilder &Builder) :
     Input(Input), Diags(Diags), SourceMgr(SourceMgr), Builder(Builder),
-    Lex(Input.getFileID(), Input.getBuffer(), SourceMgr) {
+    Lex(Input->getFileID(), Input->getBuffer(), SourceMgr) {
 }
 
 /**
@@ -65,13 +70,20 @@ ASTModule *Parser::ParseModule() {
     // Prime the lexer look-ahead.
     ConsumeToken();
 
-    Module = Builder.CreateModule(Input.getFileID(), Input.getFileName());
+    Module = Builder.CreateModule(Input);
 
     // Start with Parse (recursively))
-	bool Success = true;
-    while (Success && Tok.isNot(tok::eof)) {
-	    // Parse namespace, imports and top definitions
-    	Success = ParseNameSpace() != nullptr || ParseImport() != nullptr || ParseDefinition() != nullptr;
+    while (ContinueParse && Tok.isNot(tok::eof)) {
+
+	    // Parse a NameSpace
+    	if (Tok.is(tok::kw_namespace)) {
+    		Module->setNameSpace(ParseNameSpace());
+    	}
+
+    	// Parse a Node
+    	else {
+    		ParseNode();
+    	}
     }
 
     return Module;
@@ -85,22 +97,6 @@ ASTModule *Parser::ParseHeader() {
     // Prime the lexer look-ahead.
     ConsumeToken();
 
-    // Parse NameSpace on first
-//    if (ParseNameSpace()) {
-//        Module = Builder.CreateHeaderModule(Input.getFileName());
-//
-//        // Parse Top declarations
-//        if (Tok.is(tok::eof)) {
-//            // Node empty
-//            Diag(diag::warn_empty_code);
-//        } else {
-//            // Parse top definitions
-//            do {
-//                ParseTopDef();
-//            } while (ContinueParsing && Tok.isNot(tok::eof));
-//        }
-//    }
-
     return Module;
 }
 
@@ -108,130 +104,102 @@ bool Parser::isSuccess() {
     return !Diags.hasErrorOccurred();
 }
 
-llvm::SmallVector<llvm::StringRef, 4> Parser::ParseNames() {
-	llvm::SmallVector<llvm::StringRef, 4> Names;
-	Names.push_back(Tok.getIdentifierInfo()->getName());
-	ConsumeToken();
-	do {
-		//Check if is a period
-		if (Tok.is(tok::period)) {
-			ConsumeToken();
-		}
-
-		// Check if is an Identifier
-		if (!Tok.isAnyIdentifier()) {
-			Diag(Tok, diag::err_parse_identifier_expected);
-			return Names;
-		}
-
-		// Parse Identifier
-		Names.push_back(Tok.getIdentifierInfo()->getName());
-		ConsumeToken();
-	} while (Tok.is(tok::period));
-
-	return Names;
-}
-
 ASTNameSpace *Parser::ParseNameSpace() {
 	FLY_DEBUG_START("Parser", "ParseNameSpace");
+	const SourceLocation &Loc = ConsumeToken();
 
-	if (Tok.is(tok::kw_namespace)) {
-		const SourceLocation &Loc = ConsumeToken();
-
-		if (!Tok.isAnyIdentifier()) {
-			Diag(Tok, diag::err_parse_identifier_expected);
-			return nullptr;
-		}
-
-		// Create the Vector NameSpace structure
-		SmallVector<llvm::StringRef, 4> Names = ParseNames();
-
-		// Create NameSpace
-		return Builder.CreateNameSpace(Loc, Names, Module);
+	if (!Tok.isAnyIdentifier()) {
+		Diag(Tok, diag::err_parse_identifier_expected);
+		return nullptr;
 	}
-	return nullptr;
+
+	// Create the Vector NameSpace structure
+	ASTIdentifier *Identifier = ParseIdentifier();
+
+	// Create NameSpace
+	return Builder.CreateNameSpace(Module, Loc, Identifier);
 }
 
 ASTImport *Parser::ParseImport() {
 	FLY_DEBUG_START("Parser", "ParseImport");
 
-	if (Tok.is(tok::kw_import)) {
-		const SourceLocation &Loc = ConsumeToken();
+	const SourceLocation &Loc = ConsumeToken();
 
-		if (!Tok.isAnyIdentifier()) {
-			Diag(Tok, diag::err_parse_identifier_expected);
-			return nullptr;
-		}
-
-		// Parse Import identifier
-		llvm::SmallVector<llvm::StringRef, 4> Names = ParseNames();
-
-		ASTAlias *Alias = nullptr;
-		if (Tok.is(tok::kw_as)) {
-			ConsumeToken();
-
-			if (!Tok.isAnyIdentifier()) {
-				Diag(Tok, diag::err_parse_identifier_expected);
-			} else {
-
-				// Parse Alias identifier
-				llvm::StringRef Name = Tok.getIdentifierInfo()->getName();
-				const SourceLocation &AliasLoc = ConsumeToken();
-
-				// Create Alias
-				Alias = Builder.CreateAlias(AliasLoc, Name);
-			}
-		}
-
-		// Create Import
-		return Builder.CreateImport(Module, Loc, Names, Alias);
+	if (!Tok.isAnyIdentifier()) {
+		Diag(Tok, diag::err_parse_identifier_expected);
+		return nullptr;
 	}
 
-	return nullptr;
+	// Parse Import identifier
+	ASTIdentifier *Import = ParseIdentifier();
+
+	ASTIdentifier *Alias = nullptr;
+	if (Tok.is(tok::kw_as)) {
+		ConsumeToken();
+
+		Alias = ParseIdentifier();
+	}
+
+	// Create Import
+	return Builder.CreateImport(Module, Import, Alias);
 }
 
-ASTNode *Parser::ParseDefinition() {
-	FLY_DEBUG_START("Parser", "ParseDefinition");
-    assert(!isTokenComment() && "Token comment not expected");
+/**
+ * Parse a Comment
+ * @return the Comment
+ */
+ASTComment *Parser::ParseComment() {
+	FLY_DEBUG_START("Parser", "ParseComment");
+	assert(!Lex.BlockComment.empty() && "Block Comment must be not empty");
 
+	// Parse all as string
+	ASTComment *Comment = nullptr;
+	if (!Lex.BlockComment.empty()) {
+		Comment = Builder.CreateComment(Module, SourceLocation(), Lex.BlockComment);
+	}
+
+	return Comment;
+}
+
+void Parser::ParseNode() {
+	FLY_DEBUG_START("Parser", "ParseDefinition");
+
+	ASTNode *Node = nullptr;
+
+	// Parse an Import
+	if (Tok.is(tok::kw_import)) {
+		addNode(ParseImport());
+		return;
+	}
+
+	// Parse a Comment
 	if (isTokenComment()) {
-		return ParseComment();
+		addNode(ParseComment());
+		return;
 	}
 
 	// Parse Top Modifiers: Public/Private and Constant
 	SmallVector<ASTModifier *, 8> Modifiers = ParseModifiers();
 
-    // Define a Class
-    if (Tok.isOneOf(tok::kw_struct, tok::kw_class, tok::kw_interface)) {
-        return ParseClass(Modifiers);
-    }
+	// Parse a Class
+	if (Tok.isOneOf(tok::kw_struct, tok::kw_class, tok::kw_interface)) {
+		addNode(ParseClass(Modifiers));
+	}
 
-    if (Tok.is(tok::kw_enum)) {
-        return ParseEnum(Modifiers);
-    }
+	// Parse an Enum
+	else if (Tok.is(tok::kw_enum)) {
+		addNode(ParseEnum(Modifiers));
+	}
 
-    // Parse Type
-    ASTType *TypeRef = ParseTypeRef();
-    if (TypeRef == nullptr) {
-        Diag(Tok.getLocation(), diag::err_parser_invalid_type);
-    } else {
-        if (Tok.isAnyIdentifier()) {
+    // Parse Identifier
+	else {
+		addNode(ParseFunction(Modifiers));
+	}
+}
 
-            // Define a Function
-            if (Lexer::findNextToken(Tok.getLocation(), SourceMgr)->is(tok::l_paren)) {
-                return ParseFunction(Modifiers, TypeRef);
-            }
-        	// TODO: remove global var
-        	// else {
-         //        // Define a GlobalVar
-         //        return ParseGlobalVar(Modifiers, TypeRef);
-         //    }
-        } else {
-            Diag(Tok, diag::err_parse_identifier_invalid);
-        }
-    }
-
-    return nullptr;
+void Parser::addNode(ASTNode *Node) {
+	if (Node)
+		Module->addNode(Node);
 }
 
 SmallVector<ASTModifier *, 8> Parser::ParseModifiers() {
@@ -241,41 +209,21 @@ SmallVector<ASTModifier *, 8> Parser::ParseModifiers() {
 
     while (Tok.isNot(tok::eof)) {
         if (Tok.is(tok::kw_private)) {
-            Modifiers.push_back(Builder.CreateModifier(ConsumeToken(), ASTModifierKind::MOD_PRIVATE));
+            Modifiers.push_back(ASTBuilder::CreateModifier(ConsumeToken(), ASTModifierKind::MOD_PRIVATE));
         } else if (Tok.is(tok::kw_protected)) {
-            Modifiers.push_back(Builder.CreateModifier(ConsumeToken(), ASTModifierKind::MOD_PROTECTED));
+            Modifiers.push_back(ASTBuilder::CreateModifier(ConsumeToken(), ASTModifierKind::MOD_PROTECTED));
         } else if (Tok.is(tok::kw_public)) {
-            Modifiers.push_back(Builder.CreateModifier(ConsumeToken(), ASTModifierKind::MOD_PUBLIC));
+            Modifiers.push_back(ASTBuilder::CreateModifier(ConsumeToken(), ASTModifierKind::MOD_PUBLIC));
         } else if (Tok.is(tok::kw_const)) {
-            Modifiers.push_back(Builder.CreateModifier(ConsumeToken(), ASTModifierKind::MOD_CONSTANT));
+            Modifiers.push_back(ASTBuilder::CreateModifier(ConsumeToken(), ASTModifierKind::MOD_CONSTANT));
         } else if (Tok.is(tok::kw_static)) {
-            Modifiers.push_back(Builder.CreateModifier(ConsumeToken(), ASTModifierKind::MOD_STATIC));
+            Modifiers.push_back(ASTBuilder::CreateModifier(ConsumeToken(), ASTModifierKind::MOD_STATIC));
         } else {
             break;
         }
     }
 
     return Modifiers;
-}
-
-/**
- * ParseModule Function declaration
- * @param Visibility
- * @param Constant
- * @param TypeRef
- * @param Name
- * @param NameLoc
- * @return
- */
-ASTFunction *Parser::ParseFunction(SmallVector<ASTModifier *, 8> &Modifiers, ASTType *TypeRef) {
-	FLY_DEBUG_START("Parser", "ParseFunction");
-
-	StringRef Name = Tok.getIdentifierInfo()->getName();
-	const SourceLocation &Loc = ConsumeToken();
-	SmallVector<ASTVar *, 8> Params = ParserFunction::ParseParams(this);
-	ASTFunction *Function = Builder.CreateFunction(Module, Loc, TypeRef, Name, Modifiers, Params, nullptr);
-	ASTBlockStmt *Body = isBlockStart() ? ParserFunction::ParseBody(this, Function) : nullptr;
-	return Function;
 }
 
 /**
@@ -307,27 +255,38 @@ ASTEnum *Parser::ParseEnum(SmallVector<ASTModifier *, 8>&Modifiers) {
 }
 
 /**
- * Parse a Comment
- * @return the Comment
+ * ParseModule Function declaration
+ * @param Visibility
+ * @param Constant
+ * @param TypeRef
+ * @param Name
+ * @param NameLoc
+ * @return
  */
-ASTComment *Parser::ParseComment() {
-	FLY_DEBUG_START("Parser", "ParseComment");
-	assert(!Lex.BlockComment.empty() && "Block Comment must be not empty");
+ASTFunction *Parser::ParseFunction(SmallVector<ASTModifier *, 8> &Modifiers) {
+	FLY_DEBUG_START("Parser", "ParseFunction");
 
-	// Parse all as string
-	ASTComment *Comment = nullptr;
-	if (!Lex.BlockComment.empty()) {
-		Comment = Builder.CreateComment(Module, SourceLocation(), Lex.BlockComment);
-	}
+	// Parse Return Type
+	ASTType * T = ParseType();
 
-	return Comment;
+	// Parse Function Name
+	StringRef Name = Tok.getIdentifierInfo()->getName();
+	const SourceLocation &Loc = ConsumeToken();
+
+	// Parse Params
+	SmallVector<ASTVar *, 8> Params = ParserFunction::ParseParams(this);
+
+	// Create Function
+	ASTFunction *Function = Builder.CreateFunction(Module, Loc, T, Name, Modifiers, Params, nullptr);
+	ASTBlockStmt *Body = isBlockStart() ? ParserFunction::ParseBody(this, Function) : nullptr;
+	return Function;
 }
 
 void Parser::ParseBlockOrStmt(ASTBlockStmt* Parent) {
 	FLY_DEBUG_START("Parser", "ParseBlockOrStmt");
-    isBlockStart() ?
-        ParseBlock(Parent) : // parse more than one Stmt
-        ParseStmt(Parent); // parse a single Stmt
+	isBlockStart() ?
+		ParseBlock(Parent) : // parse more than one Stmt
+		ParseStmt(Parent); // parse a single Stmt
 }
 
 /**
@@ -415,9 +374,9 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
     // Parse return stmt
     if (Tok.is(tok::kw_return)) { // Parse return
         SourceLocation Loc = ConsumeToken();
-        SemaBuilderStmt *BuilderStmt = Builder.CreateReturnStmt(Parent, Loc);
+        ASTReturnStmt *Stmt = Builder.CreateReturnStmt(Parent, Loc);
         ASTExpr *Expr = ParseExpr();
-        BuilderStmt->setExpr(Expr);
+        Stmt->setExpr(Expr);
         return;
     }
 
@@ -445,8 +404,8 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
         // Type a
         // int a = ...
         // Type a = ...
-        ASTType *TypeRef = ParseTypeRef();
-        if (TypeRef == nullptr) { // FIXME need to be removed in place of master Validator
+        ASTType *T = ParseType();
+        if (T == nullptr) { // FIXME need to be removed in place of master Validator
             Diag(Tok.getLocation(), diag::err_parser_invalid_type);
             return;
         }
@@ -454,21 +413,21 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
         // Create a Local Var
     	llvm::StringRef Name = Tok.getIdentifierInfo()->getName();
     	const SourceLocation &Loc = ConsumeToken();
-        ASTVar *LocalVar = Builder.CreateLocalVar(Parent, Loc, TypeRef, Name, Modifiers);
+        ASTVar *LocalVar = Builder.CreateLocalVar(Parent, Loc, T, Name, Modifiers);
 
         // Assign to LocalVar
         if (isAssignOperator(Tok)) {
             ConsumeToken();
 
             if (Tok.is(tok::kw_handle)) {
-                ASTRef *ErrorVarRef = Builder.CreateVarRef(LocalVar);
+                ASTIdentifier *ErrorVarRef = Builder.CreateVarRef(LocalVar);
                 ParseHandleStmt(Parent, ErrorVarRef);
             } else {
-                SemaBuilderStmt *BuilderStmt = Builder.CreateAssignmentStmt(Parent, LocalVar);
+                ASTVarStmt *Stmt = Builder.CreateAssignmentStmt(Parent, LocalVar);
 
                 // Parse Expr
                 ASTExpr *Expr = ParseExpr();
-                BuilderStmt->setExpr(Expr);
+                Stmt->setExpr(Expr);
             }
         }
 
@@ -479,7 +438,7 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
     if (isVarOrType(NexTok) && isAssignOperator(NexTok.getValue())) {
         // Parse Var
         // a = ...
-        ASTRef *VarRef = ParseVarRef();
+        ASTIdentifier *VarRef = ParseIdentifier();
 
         // Create Left Expr only for +=, -=, *=, etc.
         ASTExpr *Left = nullptr;
@@ -491,8 +450,8 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
 
         // Parse Expr
         ASTExpr *Expr = ParserExpr::Parse(this, Left);
-        SemaBuilderStmt *BuilderStmt = Builder.CreateAssignmentStmt(Parent, VarRef);
-        BuilderStmt->setExpr(Expr);
+        ASTVarStmt *Stmt = Builder.CreateAssignmentStmt(Parent, VarRef);
+        Stmt->setExpr(Expr);
         return;
     }
 
@@ -501,8 +460,8 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
     // ++a
     // new A()
     ASTExpr *Expr = ParseExpr();
-    SemaBuilderStmt *BuilderStmt = Builder.CreateExprStmt(Parent, Expr->getLocation());
-    BuilderStmt->setExpr(Expr);
+    ASTExprStmt *Stmt = Builder.CreateExprStmt(Parent, Expr->getLocation());
+    Stmt->setExpr(Expr);
 }
 
 bool Parser::isVarOrType(Optional<Token> &NexTok) {
@@ -594,7 +553,7 @@ void Parser::ParseIfStmt(ASTBlockStmt *Parent) {
     }
 
     // Create If
-    SemaBuilderIfStmt *IfBuilder = SemaBuilderIfStmt::Create(Parent);
+    ASTBuilderIfStmt *IfBuilder = ASTBuilderIfStmt::Create(Parent);
     ASTBlockStmt *IfBlock = Builder.CreateBlockStmt(Tok.getLocation());
     IfBuilder->If(Tok.getLocation(), IfCondition, IfBlock);
 
@@ -668,7 +627,7 @@ void Parser::ParseSwitchStmt(ASTBlockStmt *Parent) {
 	}
 
 	// Create Switch
-	SemaBuilderSwitchStmt *SwitchBuilder = SemaBuilderSwitchStmt::Create(Parent);
+	ASTBuilderSwitchStmt *SwitchBuilder = ASTBuilderSwitchStmt::Create(Parent);
     SwitchBuilder->Switch(Loc, Expr);
 
 	// TODO implement duplicity check of 'default'
@@ -764,7 +723,7 @@ void Parser::ParseWhileStmt(ASTBlockStmt *Parent) {
 	}
 
     ASTBlockStmt *BlockStmt = Builder.CreateBlockStmt(Tok.getLocation());
-    SemaBuilderLoopStmt *LoopBuilder = SemaBuilderLoopStmt::Create(Parent, Loc);
+    ASTBuilderLoopStmt *LoopBuilder = ASTBuilderLoopStmt::Create(Parent, Loc);
     LoopBuilder->Loop(Condition, BlockStmt);
 
     // Parse statement between braces
@@ -797,7 +756,7 @@ void Parser::ParseForStmt(ASTBlockStmt *Parent) {
     bool hasParen = ParseStartParen();
 
     // Create For Statement
-	SemaBuilderLoopStmt *LoopBuilder = SemaBuilderLoopStmt::Create(Parent, Loc);
+	ASTBuilderLoopStmt *LoopBuilder = ASTBuilderLoopStmt::Create(Parent, Loc);
     ASTBlockStmt *InitBlock = Builder.CreateBlockStmt(Tok.getLocation());
 	LoopBuilder->Init(InitBlock);
     ASTExpr *Condition = nullptr;
@@ -841,7 +800,7 @@ void Parser::ParseForStmt(ASTBlockStmt *Parent) {
     ParseBlockOrStmt(LoopBlock);
 }
 
-void Parser::ParseHandleStmt(ASTBlockStmt *Parent, ASTRef *Error) {
+void Parser::ParseHandleStmt(ASTBlockStmt *Parent, ASTIdentifier *Error) {
 	FLY_DEBUG_START("Parser", "ParseHandleStmt");
     assert(Tok.is(tok::kw_handle) && "Token is handle keyword");
 
@@ -860,164 +819,97 @@ void Parser::ParseFailStmt(ASTBlockStmt *Parent) {
     assert(Tok.is(tok::kw_fail) && "Token is handle keyword");
 
     const SourceLocation &Loc = ConsumeToken();
-    SemaBuilderStmt *BuilderStmt = Builder.CreateFailStmt(Parent, Loc);
+    ASTFailStmt *Stmt = Builder.CreateFailStmt(Parent, Loc);
     ASTExpr *Expr = ParseExpr();
-    BuilderStmt->setExpr(Expr);
+    Stmt->setExpr(Expr);
 }
 
 /**
  * ParseModule a data Type
  * @return true on Success or false on Error
  */
-ASTType *Parser::ParseTypeRef() {
+ASTType *Parser::ParseType(ASTType *T) {
     FLY_DEBUG_START("Parser", "ParseTypeRef");
 
-    ASTType *TypeRef = nullptr;
-    if (isBuiltinType(Tok)) {
-    	return ParseBuiltinTypeRef();
-    }
+	// Check Keyword for built-in Types
+	if (Tok.isKeyword()) {
+		switch (Tok.getKind()) {
+			case tok::kw_bool:
+				T = Builder.CreateBoolType(ConsumeToken());
+				break;
+			case tok::kw_byte:
+				T = Builder.CreateByteType(ConsumeToken());
+				break;
+			case tok::kw_ushort:
+				T = Builder.CreateUShortType(ConsumeToken());
+				break;
+			case tok::kw_short:
+				T = Builder.CreateShortType(ConsumeToken());
+				break;
+			case tok::kw_uint:
+				T = Builder.CreateUIntType(ConsumeToken());
+				break;
+			case tok::kw_int:
+				T = Builder.CreateIntType(ConsumeToken());
+				break;
+			case tok::kw_ulong:
+				T = Builder.CreateULongType(ConsumeToken());
+				break;
+			case tok::kw_long:
+				T = Builder.CreateLongType(ConsumeToken());
+				break;
+			case tok::kw_float:
+				T = Builder.CreateFloatType(ConsumeToken());
+				break;
+			case tok::kw_double:
+				T = Builder.CreateDoubleType(ConsumeToken());
+				break;
+			case tok::kw_void:
+				T = Builder.CreateVoidType(ConsumeToken());
+				break;
+			case tok::kw_string:
+				T = Builder.CreateStringType(ConsumeToken());
+				break;
+			case tok::kw_error:
+				T = Builder.CreateErrorType(ConsumeToken());
+				break;
+		}
+	}
 
 	// Parse Class or Enum Type
-	if (Tok.isAnyIdentifier()) {
-		llvm::SmallVector<llvm::StringRef, 4> Names;
-		Names.push_back(Tok.getIdentifierInfo()->getName());
-		const SourceLocation &Loc = ConsumeToken();
-		do {
+	else if (Tok.isAnyIdentifier()) {
+		IdentifierInfo *Identifier = Tok.getIdentifierInfo();
+		T = Builder.CreateType(ConsumeToken(), Identifier->getName(), T);
+	}
 
-			//Check if is a period
-			if (Tok.is(tok::period)) {
-				ConsumeToken();
-			}
+	// Parse Array Type
+	while (Tok.is(tok::l_square)) {
+		SourceLocation Loc = ConsumeToken();
 
-			// Check if is an Identifier
-			if (!Tok.isAnyIdentifier()) {
-				Diag(Tok, diag::err_parse_identifier_expected);
-				return TypeRef;
-			}
-
-			// Parse Identifier
-			llvm::StringRef Name = Tok.getIdentifierInfo()->getName();
-			const SourceLocation &NameLoc = ConsumeToken();
-
-			// with Array Type al previous Names are NameSpace
-			if (isArrayType(Tok)) {
-				TypeRef = Builder.CreateTypeRef(NameLoc, Name, Builder.CreateNameSpaceRef(Loc, Names));
-				ASTArrayType *ArrayTypeRef = ParseArrayTypeRef(TypeRef);
-				return ArrayTypeRef;
-			}
-
-			// Add Name, but you don't know if is a Type or a NameSpace
-			Names.push_back(Name);
-
-		} while (Tok.is(tok::period));
-
-
-		if (Names.empty()) {
-			Diag(Tok.getLocation(), diag::err_syntax_error);
-			return nullptr;
+		// Parse Size Expression
+		ASTExpr *Size = nullptr;
+		if (Tok.isNot(tok::r_square)) {
+			Size = ParseExpr();
 		}
 
-		// Take last Name as TypeRef
-		llvm::StringRef TypeRefName = Names[Names.size()-1];
+		T = Builder.CreateArrayType(Loc, T, Size);
 
-		// Take all Names as NameSpace
-		llvm::SmallVector<llvm::StringRef, 4> NameSpace;
-		if (Names.size() > 1) {
-			for (size_t i = Names.size()-2; i > 0; --i) {
-				NameSpace.push_back(Names[i]);
-			}
+		if (Tok.is(tok::r_square)) {
+			ConsumeToken();
+		} else {
+			Diag(Tok, diag::err_parser_unclosed_bracket);
+			return T;
 		}
-
-		// Create TypeRef with parent namespace
-		TypeRef = Builder.CreateTypeRef(Loc, TypeRefName, Builder.CreateNameSpaceRef(Loc, NameSpace));
 	}
 
-    return TypeRef;
-}
+	// Parse Member Access
+	while (Tok.is(tok::period)) {
+		ConsumeToken();
 
-ASTType * Parser::ParseBuiltinTypeRef() {
-	ASTType *TypeRef = nullptr;
-	switch (Tok.getKind()) {
-	case tok::kw_bool:
-		TypeRef = Builder.CreateBoolTypeRef(ConsumeToken());
-		break;
-	case tok::kw_byte:
-		TypeRef = Builder.CreateByteTypeRef(ConsumeToken());
-		break;
-	case tok::kw_ushort:
-		TypeRef = Builder.CreateUShortTypeRef(ConsumeToken());
-		break;
-	case tok::kw_short:
-		TypeRef = Builder.CreateShortTypeRef(ConsumeToken());
-		break;
-	case tok::kw_uint:
-		TypeRef = Builder.CreateUIntTypeRef(ConsumeToken());
-		break;
-	case tok::kw_int:
-		TypeRef = Builder.CreateIntTypeRef(ConsumeToken());
-		break;
-	case tok::kw_ulong:
-		TypeRef = Builder.CreateULongTypeRef(ConsumeToken());
-		break;
-	case tok::kw_long:
-		TypeRef = Builder.CreateLongTypeRef(ConsumeToken());
-		break;
-	case tok::kw_float:
-		TypeRef = Builder.CreateFloatTypeRef(ConsumeToken());
-		break;
-	case tok::kw_double:
-		TypeRef = Builder.CreateDoubleTypeRef(ConsumeToken());
-		break;
-	case tok::kw_void:
-		TypeRef = Builder.CreateVoidTypeRef(ConsumeToken());
-		break;
-	case tok::kw_string:
-		TypeRef = Builder.CreateStringTypeRef(ConsumeToken());
-		break;
-	case tok::kw_error:
-		TypeRef = Builder.CreateErrorTypeRef(ConsumeToken());
-		break;
-	default:
-		Diag(Tok.getLocation(), diag::err_parser_invalid_type);
-		TypeRef = nullptr;
-	}
-	return isArrayType(Tok) ? ParseArrayTypeRef(TypeRef) : TypeRef;
-}
-
-ASTArrayType *Parser::ParseArrayTypeRef(ASTType *TypeRef) {
-	FLY_DEBUG_START("Parser", "ParseArrayType");
-	assert(isArrayType(Tok) && "Invalid array parse");
-
-	//TODO array multidimensional
-
-	ASTArrayType *ArrayTypeRef = nullptr;
-	const SourceLocation &Loc = ConsumeBracket();
-	ASTExpr *Expr = ParseExpr();
-	if (Tok.is(tok::r_square)) {
-		ConsumeBracket();
-		ArrayTypeRef = Builder.CreateArrayTypeRef(Loc, TypeRef);
-	} else {
-		Diag(Loc, diag::err_parser_unclosed_bracket);
+		T = ParseType(T);
 	}
 
-	return ArrayTypeRef;
-}
-
-ASTRef * Parser::ParseVarRef() {
-	FLY_DEBUG_START("Parser", "ParseVarRef");
-	assert(Tok.isAnyIdentifier() && "VarRef start with Name");
-
-	// Parse NameSpace or Class/Enum
-	ASTRef *Ref = ParseRef();
-
-	if (Ref->isCall()) {
-		// Error: unexpected Call
-		Diag(Ref->getLocation(), diag::err_syntax_error);
-		return nullptr;
-	}
-
-	FLY_DEBUG_END("Parser", "ParseVarRef");
-	return Ref;
+    return T;
 }
 
 /**
@@ -1037,7 +929,7 @@ ASTCall *Parser::ParseCall() {
  * @param Loc
  * @return true on Success or false on Error
  */
-ASTCall *Parser::ParseCall(const SourceLocation &Loc, llvm::StringRef Name, ASTRef *Parent) {
+ASTCall *Parser::ParseCall(const SourceLocation &Loc, llvm::StringRef Name, ASTIdentifier *Parent) {
 	FLY_DEBUG_START("Parser", "ParseCall");
     assert(Tok.is(tok::l_paren) && "Call start with parenthesis");
 
@@ -1083,24 +975,28 @@ ASTCall *Parser::ParseCall(const SourceLocation &Loc, llvm::StringRef Name, ASTR
  * ParseModule as Identifier
  * @return
  */
-ASTRef *Parser::ParseRef(ASTRef *Parent) {
+ASTIdentifier *Parser::ParseIdentifier(ASTIdentifier *Parent) {
     FLY_DEBUG_START("Parser", "ParseIdentifier");
     assert(Tok.isAnyIdentifier() && "Token Identifier expected");
 
-	ASTRef *Ref = nullptr;
-	do {
-		llvm::StringRef Name = Tok.getIdentifierInfo()->getName();
-		const SourceLocation &Loc = ConsumeToken();
+	ASTIdentifier *Identifier = nullptr;
 
-		if (Tok.is(tok::l_paren)) {
-			Ref = ParseCall(Loc, Name, Parent);
-		} else {
-			Ref = Builder.CreateVarRef(Loc, Name, Parent);
-		}
-		Parent = Ref;
-	} while (Tok.is(tok::period) && ConsumeToken().isValid());
+	llvm::StringRef Name = Tok.getIdentifierInfo()->getName();
+	const SourceLocation &Loc = ConsumeToken();
 
-    return Ref;
+	if (Tok.is(tok::l_paren)) {
+		Identifier = ParseCall(Loc, Name, Parent);
+	} else {
+		Identifier = Builder.CreateVarRef(Loc, Name, Parent);
+	}
+
+	if (Tok.is(tok::period)) {
+		ConsumeToken();
+
+		return ParseIdentifier(Identifier);
+	}
+
+    return Identifier;
 }
 
 /**

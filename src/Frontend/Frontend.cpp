@@ -145,7 +145,7 @@ void Frontend::ParseFile(ASTBuilder &Builder, const std::string &FileName) {
     if (Input->getExt() == FileExt::FLY) {
         if (Input->Load()) {
             // Create Parser and start to parse
-            Parser *P = new Parser(*Input, CI.getSourceManager(), Diags, Builder);
+            Parser *P = new Parser(Input, CI.getSourceManager(), Diags, Builder);
             ASTModule *M = P->ParseModule();
         	ASTModules.push_back(M);
         }
@@ -156,7 +156,7 @@ void Frontend::ParseFile(ASTBuilder &Builder, const std::string &FileName) {
             if (llvm::sys::path::extension(File) == ".fly.h") {
                 InputFile *InputHeader = new InputFile(Diags, CI.getSourceManager(), File.str());
                 if (InputHeader->Load()) {
-                    Parser *P = new Parser(*Input, CI.getSourceManager(), Diags, Builder);
+                    Parser *P = new Parser(Input, CI.getSourceManager(), Diags, Builder);
                     P->ParseHeader();
                 }
 

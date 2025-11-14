@@ -17,9 +17,9 @@ namespace fly {
     class ASTRuleStmt : public ASTStmt {
 
         friend class ASTBuilder;
-        friend class SemaBuilderIfStmt;
-        friend class SemaBuilderSwitchStmt;
-        friend class SemaBuilderLoopStmt;
+        friend class ASTBuilderIfStmt;
+        friend class ASTBuilderSwitchStmt;
+        friend class ASTBuilderLoopStmt;
 
         // The Rule expression can be used with different Modifiers
         ASTExpr *Rule = nullptr;

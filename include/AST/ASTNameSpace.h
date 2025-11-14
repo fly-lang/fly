@@ -14,17 +14,15 @@
 
 namespace fly {
 
-    class SemaNameSpace;
+    class ASTIdentifier;
 
     class ASTNameSpace : public ASTNode {
 
         friend class ASTBuilder;
 
-        llvm::SmallVector<llvm::StringRef, 4> Names;
+        ASTIdentifier *Identifier;
 
-        ASTNameSpace *Parent = nullptr;
-
-        ASTNameSpace(const SourceLocation &Loc, llvm::SmallVector<llvm::StringRef, 4> &Names);
+        ASTNameSpace(const SourceLocation &Loc, ASTIdentifier *Identifier);
 
     public:
 
@@ -32,7 +30,7 @@ namespace fly {
 
         void accept(ASTVisitor& Visitor) override;
 
-        const llvm::SmallVector<llvm::StringRef, 4> &getNames() const;
+        ASTIdentifier *getIdentifier() const;
 
         std::string str() const;
     };

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTRef.h - AST Identifier header
+// include/AST/ASTIdentifier.h - AST Identifier header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -16,20 +16,19 @@
 
 namespace fly {
 
-    enum class ASTRefKind {
-        REF_VAR,
-        REF_CALL,
-        REF_TYPE,
-        REF_NAMESPACE
+    enum class ASTIdentifierKind {
+        VAR,
+        CALL,
+        TYPE,
     };
 
-    class ASTRef : public ASTNode {
+    class ASTIdentifier : public ASTNode {
 
         friend class ASTBuilder;
 
     protected:
 
-        ASTRefKind RefKind;
+        ASTIdentifierKind RefKind;
 
         const llvm::StringRef Name;
 
@@ -37,15 +36,15 @@ namespace fly {
 
         SemaResult *Sema = nullptr;
 
-        ASTRef *Parent = nullptr;
+        ASTIdentifier *Parent = nullptr;
 
-        ASTRef *Child = nullptr;
+        ASTIdentifier *Child = nullptr;
 
         bool Visited = false;
 
-        ASTRef(const SourceLocation &Loc, llvm::StringRef Name, ASTRefKind Kind);
+        ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name, ASTIdentifierKind Kind);
 
-        ~ASTRef();
+        ~ASTIdentifier();
 
      public:
 
@@ -67,15 +66,15 @@ namespace fly {
 
         bool isVarRef() const;
 
-        ASTRefKind getRefKind() const;
+        ASTIdentifierKind getRefKind() const;
 
-        void setChild(ASTRef *Identifier);
+        void setChild(ASTIdentifier *Identifier);
 
-        void AddChild(ASTRef *Identifier);
+        void AddChild(ASTIdentifier *Identifier);
 
-        ASTRef *getParent() const;
+        ASTIdentifier *getParent() const;
 
-        ASTRef *getChild() const;
+        ASTIdentifier *getChild() const;
 
         std::string str() const override;
     };

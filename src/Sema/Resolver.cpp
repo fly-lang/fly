@@ -32,7 +32,7 @@
 #include "AST/ASTImport.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTCall.h"
-#include "AST/ASTRef.h"
+#include "AST/ASTIdentifier.h"
 #include "AST/ASTVar.h"
 #include "AST/ASTSwitchStmt.h"
 #include "AST/ASTLoopStmt.h"
@@ -56,6 +56,7 @@
 #include <AST/ASTComment.h>
 #include <AST/ASTValueExpr.h>
 #include <AST/ASTVarRefExpr.h>
+#include <Sema/Helper.h>
 #include <llvm/Transforms/IPO/FunctionImport.h>
 #include <Sema/SemaCall.h>
 #include <Sema/SemaComment.h>
@@ -130,17 +131,22 @@ void Resolver::visit(ASTModule &AST) {
 }
 
 void Resolver::visit(ASTNameSpace &AST) {
-	// Build the CurrentNameSpace
-	SemaNameSpace *NameSpace = Reg.getOrAddNameSpace(AST);
+	std::string NameSpaceStr = Helper::Flatten(AST.getIdentifier());
 
-	CurrentModule->NameSpace = NameSpace;
+	// Build the CurrentNameSpace
+	SemaNameSpace *NameSpace = Reg.getNameSpace(NameSpaceStr);
+	if (NameSpace == nullptr) {
+		NameSpace = SemaBuilder::CreateNameSpace(*CurrentModule, AST);
+		Reg.addNameSpace(NameSpace);
+	}
+
 	CurrentNameSpace = NameSpace;
 	CurrentScope = CurrentNameSpace->getSymbols();
 }
 
 void Resolver::visit(ASTImport &AST) {
 	// Error: Empty Import
-	if (AST.getName().empty()) {
+	if (!AST.getImport()) {
 		Diag(AST.getLocation(), diag::err_sema_import_undefined);
 	}
 
@@ -151,7 +157,7 @@ void Resolver::visit(ASTImport &AST) {
 	// }
 
 	// Replace with alias name if exists
-	llvm::StringRef Name = AST.getName();
+	// llvm::StringRef Name = AST.getImport()->getName();
 
 	// Error: alias is equals to the current ASTModule namespace
 	// if (AST.getAlias()) {
@@ -247,24 +253,6 @@ void Resolver::visit(ASTComment &AST) {
 	CurrentComment = SemaBuilder::CreateComment(AST);
 }
 
-void Resolver::visit(ASTVar &AST) {
-	SemaVar *Var = nullptr;
-	if (AST.getKind() == ASTKind::AST_VAR) {
-		Var = SemaBuilder::CreateLocalVar(AST);
-	} else if (AST.getKind() == ASTKind::AST_ATTRIBUTE) {
-		Var = SemaBuilder::CreateClassAttribute(*CurrentClass, AST, *CurrentComment);
-	} else if (AST.getKind() == ASTKind::AST_ENUM_ENTRY) {
-		Var = SemaBuilder::CreateEnumEntry(*CurrentEnum, AST, CurrentComment);
-	} else {
-		Diag(AST.getLocation(), diag::err_invalid_behavior);
-		return;
-	}
-
-	// Add to Symbol Table
-	Symbol *Sym = new Symbol(AST.getName(), Var->getKind(), Var);
-	CurrentScope->insert(Sym);
-}
-
 void Resolver::visit(ASTType &AST) {
 	if (!AST.isVisited()) {
 		if (AST.isBuiltIn()) {
@@ -291,23 +279,36 @@ void Resolver::visit(ASTArrayType &AST) {
 	}
 }
 
+void Resolver::visit(ASTVar &AST) {
+	SemaVar *Var = nullptr;
+	if (AST.getKind() == ASTKind::AST_VAR) {
+		Var = SemaBuilder::CreateLocalVar(AST);
+	} else if (AST.getKind() == ASTKind::AST_ATTRIBUTE) {
+		Var = SemaBuilder::CreateClassAttribute(*CurrentClass, AST, *CurrentComment);
+	} else if (AST.getKind() == ASTKind::AST_ENUM_ENTRY) {
+		Var = SemaBuilder::CreateEnumEntry(*CurrentEnum, AST, CurrentComment);
+	} else {
+		Diag(AST.getLocation(), diag::err_invalid_behavior);
+		return;
+	}
+
+	// Add to Symbol Table
+	Symbol *Sym = new Symbol(AST.getName(), Var->getKind(), Var);
+	CurrentScope->insert(Sym);
+}
+
 void Resolver::visit(ASTCall &AST) {
 	// Validate Call
-	SemaValidator::CheckCall(CurrentStmt, AST);
+	// SemaValidator::CheckCall(CurrentStmt, AST);
 
 	// TODO: Resolve Call
-
 }
 
-void Resolver::visit(ASTRef &AST) {
+void Resolver::visit(ASTIdentifier &AST) {
 	// Validate ref
-	SemaValidator::CheckVar(Stmt, VarRef);
+	// SemaValidator::CheckVar(Stmt, VarRef);
 
 	// TODO: Resolve Ref
-}
-
-void Resolver::visit(ASTNameSpaceRef &AST) {
-	// TODO
 }
 
 void Resolver::visit(ASTBreakStmt &AST) {
@@ -338,7 +339,7 @@ void Resolver::visit(ASTFailStmt &AST) {
 
 void Resolver::visit(ASTHandleStmt &AST) {
 	AST.getHandle()->accept(*this);
-	ASTRef *ErrorHandler = AST.getErrorHandlerRef();
+	ASTIdentifier *ErrorHandler = AST.getErrorHandlerRef();
 
 	if (ErrorHandler != nullptr) {
 		ErrorHandler->accept(*this);
@@ -477,7 +478,7 @@ void Resolver::visit(ASTValueExpr &AST) {
 }
 
 void Resolver::visit(ASTVarRefExpr &AST) {
-	ASTRef *VarRef = AST.getVarRef();
+	ASTIdentifier *VarRef = AST.getVarRef();
 
 	// Resolve Var
 	VarRef->accept(*this);
@@ -632,6 +633,9 @@ void Resolver::Resolver::ExitScope() {
 	CurrentScope = CurrentScope->getParent();
 }
 
+Resolver::~Resolver() {
+}
+
 void Resolver::Resolve() {
 	// Resolve Modules
 	for (auto Module : Reg.getModules()) {
@@ -746,19 +750,19 @@ void Resolver::ResolveBaseClasses(SemaClassType *DerivedClass) {
 		// ResolveBaseClasses(BaseClassType);
 
 		// Search for the SuperClass in the Module, CurrentNameSpace or Imports
-		if (R->ResolveTypeRef(BaseTypeRef)) {
+		if (ResolveTypeRef(BaseTypeRef)) {
 			SemaType *BaseType = BaseTypeRef->getSema();
 
 			if (BaseType->getTypeKind() != SemaTypeKind::TYPE_CLASS) {
 				// Error: invalid superclass type
-				R->S.Diag(BaseTypeRef->getLocation(), diag::err_syntax_error);
+				Diag(BaseTypeRef->getLocation(), diag::err_syntax_error);
 				break;
 			}
 
 			SemaClassType *BaseClassType= static_cast<SemaClassType *>(BaseType);
 
 			// Create the Class Instance to be added to Base Instance Children
-			for (auto AST : BaseClassType->getAST()->getNodes()) {
+			for (auto AST : BaseClassType->getAST().getNodes()) {
 				switch (AST->getKind()) {
 
 					// ClassDefinition Class Var: Attribute
@@ -801,7 +805,7 @@ void Resolver::ResolveBaseClasses(SemaClassType *DerivedClass) {
 
 					default:
 						// Error: invalid declaration in class
-							S.Diag(AST->getLocation(), diag::err_syntax_error);
+							Diag(AST->getLocation(), diag::err_syntax_error);
 					break;
 				}
 			}
@@ -818,32 +822,32 @@ bool Resolver::CanInheritMethod(SemaClassMethod *BaseMethod) {
 	if (BaseMethod->getVisibility() > SemaVisibilityKind::PRIVATE && !BaseMethod->isStatic()) {
 
 		// Check Methods already exists and type conflicts in Super Methods
-		auto It = Class->getMethods().find(BaseMethod->getMangledName());
-		if (It == Class->getMethods().end()) { // Not Found, add new Method
+		auto It = CurrentClass->getMethods().find(BaseMethod->getMangledName());
+		if (It == CurrentClass->getMethods().end()) { // Not Found, add new Method
 			return true;
 		} else { // Duplicate Found, check conflicts
 
 			// Check Return Type conflicts
 			if (It->second->getReturnType() != BaseMethod->getReturnType()) {
-				S.Diag(It->second->getAST()->getLocation(), diag::err_syntax_error);
+				Diag(It->second->getAST().getLocation(), diag::err_syntax_error);
 			}
 
 			// Check Visibility conflicts
 			if (It->second->getVisibility() < BaseMethod->getVisibility()) {
-				S.Diag(It->second->getAST()->getLocation(), diag::err_syntax_error);
+				Diag(It->second->getAST().getLocation(), diag::err_syntax_error);
 			}
 
 			// Check Static conflicts
 			if (It->second->isStatic()) {
-				S.Diag(It->second->getAST()->getLocation(), diag::err_syntax_error);
+				Diag(It->second->getAST().getLocation(), diag::err_syntax_error);
 			}
 
 			// If the inherited method appear in more than one super class: need to be re-defined
 			// Check if class methods contains the same inherited method without redefine it
-			if (Class->getName() != It->getValue()->getClass()->getName()) {
+			if (CurrentClass->getName() != It->getValue()->getClass()->getName()) {
 
                 // Error: method already exists in super class
-                S.Diag(BaseMethod->getAST()->getLocation(), diag::err_syntax_error);
+                Diag(BaseMethod->getAST().getLocation(), diag::err_syntax_error);
             }
 
 			return false;
@@ -856,29 +860,29 @@ bool Resolver::CanInheritAttribute(SemaClassAttribute *BaseAttribute) {
 	if (BaseAttribute->getVisibility() > SemaVisibilityKind::PRIVATE && !BaseAttribute->isStatic()) {
 
 		// Check Attribute already exists and type conflicts in Super Vars
-		auto It = Class->Attributes.find(BaseAttribute->getAST()->getName());
-		if (It == Class->Attributes.end()) { // Not Found
+		auto It = CurrentClass->Attributes.find(BaseAttribute->getAST().getName());
+		if (It == CurrentClass->Attributes.end()) { // Not Found
 			return true;
 		} else { // Duplicate Found
 
 			// Check Type conflicts
 			if (!It->second->getType()->isEquals(BaseAttribute->getType())) {
-				S.Diag(It->second->getAST()->getLocation(), diag::err_syntax_error);
+				Diag(It->second->getAST().getLocation(), diag::err_syntax_error);
 			}
 
 			// Check Visibility conflicts
 			if (It->second->getVisibility() < BaseAttribute->getVisibility()) {
-				S.Diag(It->second->getAST()->getLocation(), diag::err_syntax_error);
+				Diag(It->second->getAST().getLocation(), diag::err_syntax_error);
 			}
 
 			// Check Constant conflicts
 			if (!It->second->isConstant() && BaseAttribute->isConstant()) {
-				S.Diag(It->second->getAST()->getLocation(), diag::err_syntax_error);
+				Diag(It->second->getAST().getLocation(), diag::err_syntax_error);
 			}
 
 			// Check Static conflicts
 			if (It->second->isStatic()) {
-				S.Diag(It->second->getAST()->getLocation(), diag::err_syntax_error);
+				Diag(It->second->getAST().getLocation(), diag::err_syntax_error);
 			}
 
 			return false;
@@ -890,12 +894,12 @@ void Resolver::CreateDefaultConstructor() {
 
 	// Create Default Modifier
 	llvm::SmallVector<ASTModifier *, 8> Modifiers;
-	Modifiers.push_back(S.getASTBuilder().CreateModifier(SourceLocation(), ASTModifierKind::MOD_DEFAULT));
+	Modifiers.push_back(ASTBuilder::CreateModifier(SourceLocation(), ASTModifierKind::MOD_DEFAULT));
 
 	llvm::SmallVector<ASTVar *, 8> Params;
-	ASTBlockStmt *Body = S.getASTBuilder().CreateBlockStmt(SourceLocation());
-	ASTFunction * AST = S.getASTBuilder().CreateClassMethod(Class->getAST()->getLocation(), Class->getAST(),
-											   nullptr, Class->getAST()->getName(), Modifiers, Params, Body);
+	ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLocation());
+	ASTFunction * AST = ASTBuilder::CreateClassMethod(CurrentClass->getAST().getLocation(), CurrentClass->getAST(),
+											   nullptr, CurrentClass->getAST().getName(), Modifiers, Params, Body);
 
 	// Call default constructor of the super classes (if exists)
 	// if (!Class->getBaseClasses().empty()) {
@@ -919,24 +923,29 @@ void Resolver::CreateDefaultConstructor() {
 	// }
 
 	// Create the default constructor
-	SemaClassMethod *Constructor = S.getSemaBuilder().CreateClassMethod(Class, Class->This, AST, nullptr);
+	SemaClassMethod *Constructor = SemaBuilder::CreateClassMethod(CurrentClass, CurrentClass->This, AST, nullptr);
 
-	Class->Constructors.insert(std::make_pair(Constructor->getMangledName(), Constructor));
+	CurrentClass->Constructors.insert(std::make_pair(Constructor->getMangledName(), Constructor));
 }
 
 void Resolver::SetDefaultValueInAttributes() {
 	// Set default values in attributes
-	for (auto &AttributeEntry : Class->getAttributes()) {
+	for (auto &AttributeEntry : CurrentClass->getAttributes()) {
 		SemaClassAttribute *Attribute = AttributeEntry.getValue();
 
 		// Generate default values
-		if (Attribute->getAST()->getExpr() == nullptr) {
-			R->ResolveTypeRef(Attribute->getAST()->TypeRef);
+		if (Attribute->getAST().getExpr() == nullptr) {
+			ResolveTypeRef(Attribute->getAST().getTypeRef());
 
-			ASTValue *DefaultValue = S.getASTBuilder().CreateDefaultValue(Attribute->getType());
-			Attribute->AST->Expr = S.getASTBuilder().CreateExpr(DefaultValue);
-			R->ResolveValue(DefaultValue);
-			Attribute->AST->Expr->Type = Attribute->getType();
+			// Create default Sema Value
+			SemaValue *Sema = SemaBuilder::CreateDefaultValue(*Attribute->getType());
+			ASTValue *Value = ASTBuilder::CreateDefaultValue();
+			Value->setSema(Sema);
+
+			// Set AST Attribute with Expr
+			ASTExpr *Expr = ASTBuilder::CreateExpr(Value);
+			Expr->setType(Attribute->getType());
+			Attribute->getAST().setExpr(Expr);
 		} else {
 
 			// Check Value is default value expression
@@ -1005,7 +1014,7 @@ SemaType *Resolver::ResolveTypeRef(ASTType *&TypeRef) {
 	if (!TypeRef->isVisited()) {
 
 		// Set current with the Top Parent
-		ASTRef *Current = TypeRef;
+		ASTIdentifier *Current = TypeRef;
 		while (Current->getParent() != nullptr) {
 			Current->getParent()->setChild(Current);
 			Current = Current->getParent();
@@ -1050,7 +1059,7 @@ SemaType *Resolver::ResolveTypeRef(ASTType *&TypeRef) {
  * @param ...
  * @return
  */
-void Resolver:: ResolveFromTopRef(ASTStmt *Stmt, ASTRef *Ref, SemaNameSpace *CurrentNameSpace) {
+void Resolver:: ResolveFromTopRef(ASTStmt *Stmt, ASTIdentifier *Ref, SemaNameSpace *CurrentNameSpace) {
 	if (!Ref->isVisited()) {
 
 		// Ref is a Function
@@ -1112,7 +1121,7 @@ void Resolver:: ResolveFromTopRef(ASTStmt *Stmt, ASTRef *Ref, SemaNameSpace *Cur
  * @param Ref
  * @return
  */
-void Resolver:: ResolveStaticRef(ASTStmt *Stmt, ASTRef *Ref, SemaType *Type) {
+void Resolver:: ResolveStaticRef(ASTStmt *Stmt, ASTIdentifier *Ref, SemaType *Type) {
 	if (!Ref->isVisited()) {
 
 		// Class
@@ -1189,7 +1198,7 @@ void Resolver:: ResolveStaticRef(ASTStmt *Stmt, ASTRef *Ref, SemaType *Type) {
  * @param Ref
  * @return
  */
-void Resolver:: ResolveInstanceRef(ASTStmt *Stmt, ASTRef *Ref, SemaResult *Parent) {
+void Resolver:: ResolveInstanceRef(ASTStmt *Stmt, ASTIdentifier *Ref, SemaResult *Parent) {
 	if (!Ref->isVisited()) {
 
 		// Class
@@ -1272,7 +1281,7 @@ void Resolver:: ResolveInstanceRef(ASTStmt *Stmt, ASTRef *Ref, SemaResult *Paren
 	}
 }
 
-void Resolver::ResoveEnumRef(ASTStmt *Stmt, ASTRef *Ref, SemaEnumType *EnumType) {
+void Resolver::ResoveEnumRef(ASTStmt *Stmt, ASTIdentifier *Ref, SemaEnumType *EnumType) {
 
 	// Set as Resolved
 	Ref->setVisited(true);
@@ -1284,9 +1293,9 @@ void Resolver::ResoveEnumRef(ASTStmt *Stmt, ASTRef *Ref, SemaEnumType *EnumType)
 	}
 }
 
-ASTRef *Resolver::getParentRef(fly::ASTRef *Ref) {
+ASTIdentifier *Resolver::getParentRef(fly::ASTIdentifier *Ref) {
 	// Set current with the Top Parent
-	ASTRef *Parent = Ref;
+	ASTIdentifier *Parent = Ref;
 	while (Parent->getParent() != nullptr) {
 		Parent->getParent()->setChild(Parent);
 		Parent = Parent->getParent();
@@ -1300,7 +1309,7 @@ bool Resolver::ResolveRef(ASTStmt *Stmt, ASTCall *Call) {
 	if (!Call->isVisited()) {
 
 		// Get Parent Ref
-		ASTRef *Parent = getParentRef(Call);
+		ASTIdentifier *Parent = getParentRef(Call);
 
 		// Ref is a CurrentNameSpace ?
 		SemaNameSpace * CurrentNameSpace = ResolveNameSpace(Parent);
@@ -1312,11 +1321,11 @@ bool Resolver::ResolveRef(ASTStmt *Stmt, ASTCall *Call) {
 	return Call->getSema() != nullptr;
 }
 
-bool Resolver::ResolveRef(ASTStmt *Stmt, ASTRef *VarRef) {
+bool Resolver::ResolveRef(ASTStmt *Stmt, ASTIdentifier *VarRef) {
 	if (!VarRef->isVisited()) {
 
 		// Get Parent Ref
-		ASTRef *Parent = getParentRef(VarRef);
+		ASTIdentifier *Parent = getParentRef(VarRef);
 
 		// Ref is a CurrentNameSpace ?
 		SemaNameSpace * CurrentNameSpace = ResolveNameSpace(Parent);
@@ -1328,7 +1337,7 @@ bool Resolver::ResolveRef(ASTStmt *Stmt, ASTRef *VarRef) {
 	return VarRef->getSema() != nullptr;
 }
 
-SemaNameSpace *Resolver::ResolveNameSpace(ASTRef *Ref) {
+SemaNameSpace *Resolver::ResolveNameSpace(ASTIdentifier *Ref) {
 	// Ref is the current module namespace
 	if (Ref->getName() == CurrentNameSpace->getName()) {
 		return CurrentNameSpace;
@@ -1338,7 +1347,7 @@ SemaNameSpace *Resolver::ResolveNameSpace(ASTRef *Ref) {
 	SemaNameSpace *CurrentNameSpace = nullptr;
 	SemaNameSpace *ChildNameSpace = nullptr;
 	std::string NameSpaceStr = "";
-	ASTRef *Child = Ref;
+	ASTIdentifier *Child = Ref;
 	while (Child) {
 		NameSpaceStr = NameSpaceStr.empty() ? Child->getName().data() : NameSpaceStr + "." + Child->getName().data();
 		ChildNameSpace = Registry::Lookup(CurrentModule->getI, NameSpaceStr);
@@ -1444,7 +1453,7 @@ SemaCall *Resolver::ResolveCall(ASTStmt *Stmt, ASTCall *Call, SemaNameSpace *Cur
     		return nullptr;
     	}
 
-        Sema = SemaBuilder::CreateCall(Call);
+        Sema = SemaBuilder::CreateCall(*Call);
         Sema->Function = Constructor;
     	Sema->Type = Type;
     } else {
@@ -1509,7 +1518,7 @@ SemaCall *Resolver::ResolveCall(ASTStmt *Stmt, ASTCall *Call, SemaNameSpace *Cur
     		return nullptr;
     	}
 
-    	Sema = SemaBuilder::CreateCall(Call);
+    	Sema = SemaBuilder::CreateCall(*Call);
         Sema->Function = Func;
     	Sema->Type = Func->getReturnType();
     }
@@ -1518,7 +1527,7 @@ SemaCall *Resolver::ResolveCall(ASTStmt *Stmt, ASTCall *Call, SemaNameSpace *Cur
 	ResolveErrorHandler(Stmt, Sema);
 
 	Sema->AST = Call;
-	Call->Sema = Sema;
+	Call->setSema(Sema);
 	return Sema;
 }
 
@@ -1526,13 +1535,13 @@ llvm::SmallVector<SemaType *, 8> Resolver::ResolveCallArgTypes(ASTStmt *Stmt, AS
 	// Resolve Expression in Arguments
 	llvm::SmallVector<SemaType *, 8> CallTypes;
 	for (auto Arg : Call->getArgs()) {
-		ResolveExpr(Stmt, Arg->getExpr());
+		Arg->getExpr()->accept(*this);
 		CallTypes.push_back(Arg->getExpr()->getType());
 	}
 	return CallTypes;
 }
 
-SemaVar *Resolver::ResolveVar(ASTStmt *Stmt, ASTRef *VarRef) {
+SemaVar *Resolver::ResolveVar(ASTStmt *Stmt, ASTIdentifier *VarRef) {
 	SemaVar *Sema = nullptr;
 
 	// Skip already resolved VarRef
@@ -1585,16 +1594,6 @@ SemaVar *Resolver::ResolveVar(ASTStmt *Stmt, ASTRef *VarRef) {
 			}
 		}
 	}
-
-	// TODO: remove globalvars
-	// Search into Global Vars
-	// if (!Var) {
-	// 	for (auto NS : NameSpaces) {
-	// 		Var = NS->getGlobalVars().lookup(Ref->getName());
-	// 		if (Var)
-	// 			break;
-	// 	}
-	// }
 
 	if (Sema == nullptr) {
 		// Error: var not found

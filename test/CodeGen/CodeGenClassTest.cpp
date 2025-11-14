@@ -10,9 +10,9 @@
 // fly
 #include "CodeGenTest.h"
 #include "CodeGen/CodeGenModule.h"
-#include "Sema/SemaBuilderStmt.h"
-#include "AST/ASTRef.h"
-#include <Sema/SemaFunction.h>
+#include "AST/ASTIdentifier.h"
+
+#include <AST/ASTExprStmt.h>
 
 namespace {
 
@@ -34,7 +34,7 @@ namespace {
         ASTBlockStmt *MainBody = getASTBuilder().CreateBlockStmt(SourceLoc);
     	ASTCall *ConstructorCall = CreateCall(TestStruct->getName(), Args, ASTCallKind::CALL_NEW);
     	ASTCallExpr *NewExpr = getASTBuilder().CreateExpr(ConstructorCall);
-    	SemaBuilderStmt *testNewStmt = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
+    	ASTBuilderStmt *testNewStmt = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
     	testNewStmt->setExpr(NewExpr);
     	getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, MainBody);
 
@@ -104,15 +104,15 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         ASTVar *TestVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, TestClassType, "test", EmptyModifiers);
         ASTCall *ConstructorCall = CreateCall(TestStruct->getName(), Args, ASTCallKind::CALL_NEW);
         ASTCallExpr *NewExpr = getASTBuilder().CreateExpr(ConstructorCall);
-        SemaBuilderStmt *testNewStmt = getASTBuilder().CreateAssignmentStmt(Body, TestVar);
+        ASTBuilderStmt *testNewStmt = getASTBuilder().CreateAssignmentStmt(Body, TestVar);
         testNewStmt->setExpr(NewExpr);
 
         // int x = test.a
         ASTVar *xVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "x", EmptyModifiers);
-        ASTRef *Instance = getASTBuilder().CreateVarRef(TestVar);
-        ASTRef *test_aVarRef = getASTBuilder().CreateVarRef(aField, Instance);
+        ASTIdentifier *Instance = getASTBuilder().CreateVarRef(TestVar);
+        ASTIdentifier *test_aVarRef = getASTBuilder().CreateVarRef(aField, Instance);
         ASTVarRefExpr *test_aRefExpr = getASTBuilder().CreateExpr(test_aVarRef);
-        SemaBuilderStmt *xVarStmt = getASTBuilder().CreateAssignmentStmt(Body, xVar);
+        ASTBuilderStmt *xVarStmt = getASTBuilder().CreateAssignmentStmt(Body, xVar);
         xVarStmt->setExpr(test_aRefExpr);
 
 		// validate and resolve
@@ -185,12 +185,12 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         ASTVar *TestVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, TestClassType, "test", EmptyModifiers);
         ASTCall *ConstructorCall = CreateCall(TestClass->getName(), Args, ASTCallKind::CALL_NEW);
         ASTCallExpr *NewExpr = getASTBuilder().CreateExpr(ConstructorCall);
-        SemaBuilderStmt *testNewStmt = getASTBuilder().CreateAssignmentStmt(Body, TestVar);
+        ASTBuilderStmt *testNewStmt = getASTBuilder().CreateAssignmentStmt(Body, TestVar);
         testNewStmt->setExpr(NewExpr);
 
         //  test.a = 2
-    	ASTRef *test_a = getASTBuilder().CreateVarRef(aAttribute, getASTBuilder().CreateVarRef(TestVar));
-        SemaBuilderStmt *attrStmt = getASTBuilder().CreateAssignmentStmt(Body, test_a);
+    	ASTIdentifier *test_a = getASTBuilder().CreateVarRef(aAttribute, getASTBuilder().CreateVarRef(TestVar));
+        ASTBuilderStmt *attrStmt = getASTBuilder().CreateAssignmentStmt(Body, test_a);
         ASTValueExpr *value2Expr = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLocation(), "2"));
         attrStmt->setExpr(value2Expr);
 
@@ -280,7 +280,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         ASTFunction *getAMethod = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, IntTypeRef,
                                                                "getA", TopModifiers, Params, MethodBody);
 
-        SemaBuilderStmt *MethodReturn = getASTBuilder().CreateReturnStmt(MethodBody, SourceLoc);
+        ASTBuilderStmt *MethodReturn = getASTBuilder().CreateReturnStmt(MethodBody, SourceLoc);
         MethodReturn->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateVarRef(aAttribute)));
 
         // int main() {
@@ -296,14 +296,14 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         ASTVar *TestVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, TestClassType, "test", EmptyModifiers);
         ASTCall *ConstructorCall = CreateCall(TestClass->getName(), Args, ASTCallKind::CALL_NEW);
         ASTCallExpr *NewExpr = getASTBuilder().CreateExpr(ConstructorCall);
-        SemaBuilderStmt *testNewStmt = getASTBuilder().CreateAssignmentStmt(Body, TestVar);
+        ASTBuilderStmt *testNewStmt = getASTBuilder().CreateAssignmentStmt(Body, TestVar);
         testNewStmt->setExpr(NewExpr);
 
         // int x = test.getA()
         ASTType *xType = getAMethod->getReturnTypeRef();
         ASTVar *xVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, xType, "x", EmptyModifiers);
         ASTCallExpr *xCallExpr = getASTBuilder().CreateExpr(CreateCall(getAMethod, Args, ASTCallKind::CALL_DIRECT, getASTBuilder().CreateVarRef(TestVar)));
-        SemaBuilderStmt *xStmt = getASTBuilder().CreateAssignmentStmt(Body, xVar);
+        ASTBuilderStmt *xStmt = getASTBuilder().CreateAssignmentStmt(Body, xVar);
         xStmt->setExpr(xCallExpr);
 
         // delete test
@@ -411,8 +411,8 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     	setAParams.push_back(aParam);
     	ASTBlockStmt *MethodBody = getASTBuilder().CreateBlockStmt(SourceLoc);
     	const SourceLocation &Loc = SourceLoc;
-    	ASTRef * this_a = getASTBuilder().CreateVarRef(aAttribute, getASTBuilder().CreateVarRef(Loc, "this"));
-    	SemaBuilderStmt *setAttributeAStmt = getASTBuilder().CreateAssignmentStmt(MethodBody, this_a);
+    	ASTIdentifier * this_a = getASTBuilder().CreateVarRef(aAttribute, getASTBuilder().CreateVarRef(Loc, "this"));
+    	ASTBuilderStmt *setAttributeAStmt = getASTBuilder().CreateAssignmentStmt(MethodBody, this_a);
     	setAttributeAStmt->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateVarRef(aParam)));
         ASTFunction *setAMethod = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, VoidTypeRef,
                                                                "setA", TopModifiers, setAParams, MethodBody);
@@ -430,7 +430,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         ASTVar *TestVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, TestClassType, "test", EmptyModifiers);
         ASTCall *ConstructorCall = CreateCall(TestClass->getName(), Args, ASTCallKind::CALL_NEW);
         ASTCallExpr *NewExpr = getASTBuilder().CreateExpr(ConstructorCall);
-        SemaBuilderStmt *testNewStmt = getASTBuilder().CreateAssignmentStmt(Body, TestVar);
+        ASTBuilderStmt *testNewStmt = getASTBuilder().CreateAssignmentStmt(Body, TestVar);
         testNewStmt->setExpr(NewExpr);
 
         // test.setA(1)
@@ -438,7 +438,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     	llvm::SmallVector<ASTExpr *, 8> setAArgs;
     	setAArgs.push_back(getASTBuilder().CreateExpr(IntValue));
     	ASTCall *Call = CreateCall(setAMethod, setAArgs, ASTCallKind::CALL_DIRECT, getASTBuilder().CreateVarRef(TestVar));
-    	SemaBuilderStmt * ExprStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+    	ASTBuilderStmt * ExprStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
     	ExprStmt->setExpr(getASTBuilder().CreateExpr(Call));
 
         // delete test
@@ -544,7 +544,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         ASTBlockStmt *aFuncBody = getASTBuilder().CreateBlockStmt(SourceLoc);
         ASTFunction *aFunc = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, IntTypeRef,
                                                           "a", TopModifiers, Params, aFuncBody);
-        SemaBuilderStmt *aFuncReturn = getASTBuilder().CreateReturnStmt(aFuncBody, SourceLoc);
+        ASTBuilderStmt *aFuncReturn = getASTBuilder().CreateReturnStmt(aFuncBody, SourceLoc);
         ASTValueExpr *aFuncExpr = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLocation(), "1"));
         aFuncReturn->setExpr(aFuncExpr);
 
@@ -561,14 +561,14 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         ASTVar *TestVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, TestClassType, "test", EmptyModifiers);
         ASTCall *ConstructorCall = CreateCall(TestClass->getName(), Args, ASTCallKind::CALL_NEW);
         ASTCallExpr *NewExpr = getASTBuilder().CreateExpr(ConstructorCall);
-        SemaBuilderStmt *testNewStmt = getASTBuilder().CreateAssignmentStmt(Body, TestVar);
+        ASTBuilderStmt *testNewStmt = getASTBuilder().CreateAssignmentStmt(Body, TestVar);
         testNewStmt->setExpr(NewExpr);
 
         // int a = test.a()
         ASTType *aType = aFunc->getReturnTypeRef();
         ASTVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, aType, "a", EmptyModifiers);
         ASTCallExpr *aCallExpr = getASTBuilder().CreateExpr(CreateCall(aFunc, Args, ASTCallKind::CALL_DIRECT, getASTBuilder().CreateVarRef(TestVar)));
-        SemaBuilderStmt *aStmt = getASTBuilder().CreateAssignmentStmt(Body, aVar);
+        ASTBuilderStmt *aStmt = getASTBuilder().CreateAssignmentStmt(Body, aVar);
         aStmt->setExpr(aCallExpr);
 
         // delete test
@@ -670,8 +670,8 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
 
         //  TestClass.a = 2
     	ASTType *TestClassType = getASTBuilder().CreateTypeRef(TestClass);
-    	ASTRef *test_a = getASTBuilder().CreateVarRef(aAttribute, TestClassType);
-        SemaBuilderStmt *attrStmt = getASTBuilder().CreateAssignmentStmt(Body, test_a);
+    	ASTIdentifier *test_a = getASTBuilder().CreateVarRef(aAttribute, TestClassType);
+        ASTBuilderStmt *attrStmt = getASTBuilder().CreateAssignmentStmt(Body, test_a);
         ASTValueExpr *value2Expr = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLocation(), "2"));
         attrStmt->setExpr(value2Expr);
 
@@ -738,7 +738,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         ASTFunction *aFunc = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, IntTypeRef,
                                                           "do", Modifiers, Params, aFuncBody);
 
-        SemaBuilderStmt *aFuncReturn = getASTBuilder().CreateReturnStmt(aFuncBody, SourceLoc);
+        ASTBuilderStmt *aFuncReturn = getASTBuilder().CreateReturnStmt(aFuncBody, SourceLoc);
         ASTValueExpr *aFuncExpr = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLocation(), "1"));
         aFuncReturn->setExpr(aFuncExpr);
 
@@ -752,7 +752,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         ASTVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "a", EmptyModifiers);
     	ASTType *TestClassType = getASTBuilder().CreateTypeRef(TestClass);
         ASTCallExpr *aCallExpr = getASTBuilder().CreateExpr(CreateCall(aFunc, Args, ASTCallKind::CALL_DIRECT, TestClassType));
-        SemaBuilderStmt *aStmt = getASTBuilder().CreateAssignmentStmt(Body, aVar);
+        ASTBuilderStmt *aStmt = getASTBuilder().CreateAssignmentStmt(Body, aVar);
         aStmt->setExpr(aCallExpr);
 
     	// validate and resolve
@@ -981,8 +981,8 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     	//     this.a = 1
     	//   }
     	ASTBlockStmt *ConstructorBody = getASTBuilder().CreateBlockStmt(SourceLoc);
-    	ASTRef * this_a = getASTBuilder().CreateVarRef(aAttribute, getASTBuilder().CreateVarRef(SourceLoc, "this"));
-    	SemaBuilderStmt *assignThis_a = getASTBuilder().CreateAssignmentStmt(ConstructorBody, this_a);
+    	ASTIdentifier * this_a = getASTBuilder().CreateVarRef(aAttribute, getASTBuilder().CreateVarRef(SourceLoc, "this"));
+    	ASTBuilderStmt *assignThis_a = getASTBuilder().CreateAssignmentStmt(ConstructorBody, this_a);
     	assignThis_a->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "1")));
     	ASTFunction *ConstructorMethod = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, VoidTypeRef,
 															   "TestClass", TopModifiers, Params, ConstructorBody);
@@ -993,7 +993,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     	ASTBlockStmt *MainBody = getASTBuilder().CreateBlockStmt(SourceLoc);
     	ASTCall *ConstructorCall = CreateCall(TestClass->getName(), Args, ASTCallKind::CALL_NEW);
     	ASTCallExpr *NewExpr = getASTBuilder().CreateExpr(ConstructorCall);
-    	SemaBuilderStmt *testNewStmt = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
+    	ASTBuilderStmt *testNewStmt = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
     	testNewStmt->setExpr(NewExpr);
     	getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, MainBody);
 
@@ -1202,7 +1202,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     	ASTCallExpr *NewExpr = getASTBuilder().CreateExpr(ConstructorCall);
     	ASTType *Base = getASTBuilder().CreateTypeRef(BaseClass);
     	ASTVar *aVar = getASTBuilder().CreateLocalVar(MainBody, SourceLoc, Base, "a", EmptyModifiers);
-    	SemaBuilderStmt *testNewStmt = getASTBuilder().CreateAssignmentStmt(MainBody, aVar);
+    	ASTBuilderStmt *testNewStmt = getASTBuilder().CreateAssignmentStmt(MainBody, aVar);
     	testNewStmt->setExpr(NewExpr);
     	getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, MainBody);
 
@@ -1364,7 +1364,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     	ASTBlockStmt *DoBody3 = getASTBuilder().CreateBlockStmt(SourceLoc);
     	ASTCallExpr *aCallExpr = getASTBuilder().CreateExpr(CreateCall(BaseClass_do, Args, ASTCallKind::CALL_DIRECT,
     		getASTBuilder().CreateTypeRef(BaseClass)));
-    	SemaBuilderStmt *aStmt = getASTBuilder().CreateExprStmt(DoBody3, SourceLoc);
+    	ASTBuilderStmt *aStmt = getASTBuilder().CreateExprStmt(DoBody3, SourceLoc);
     	aStmt->setExpr(aCallExpr);
     	ASTFunction *TestClass_do = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, VoidTypeRef, "foo", TopModifiers, Params, DoBody3);
 
@@ -1565,7 +1565,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
 
     	ASTType *TestInterfaceTypeeRef = getASTBuilder().CreateTypeRef(TestInterface);
     	ASTVar *aVar = getASTBuilder().CreateLocalVar(MainBody, SourceLoc, TestInterfaceTypeeRef, "a", EmptyModifiers);
-    	SemaBuilderStmt *testNewStmt = getASTBuilder().CreateAssignmentStmt(MainBody, aVar);
+    	ASTBuilderStmt *testNewStmt = getASTBuilder().CreateAssignmentStmt(MainBody, aVar);
     	testNewStmt->setExpr(NewExpr);
     	getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, MainBody);
 

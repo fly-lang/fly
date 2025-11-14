@@ -9,12 +9,15 @@
 
 #include "Parser/ParserExpr.h"
 #include "AST/ASTVar.h"
-#include "AST/ASTRef.h"
-#include "AST/ASTRef.h"
+#include "AST/ASTIdentifier.h"
 #include "AST/ASTStmt.h"
 #include "AST/ASTOpExpr.h"
 #include "AST/ASTBuilder.h"
 #include "Basic/Debug.h"
+
+#include <AST/ASTCallExpr.h>
+#include <AST/ASTValueExpr.h>
+#include <AST/ASTVarRefExpr.h>
 
 using namespace fly;
 
@@ -201,7 +204,7 @@ ASTExpr *ParserExpr::ParsePrimary(bool Expected) {
     if (P->isValue()) { // Ex. 1
         return P->Builder.CreateExpr(P->ParseValue());
     } else if (P->Tok.isAnyIdentifier()) { // Ex. a or a++ or func()
-        ASTRef *Ref = P->ParseRef();
+        ASTIdentifier *Ref = P->ParseIdentifier();
         if (Ref->isCall()) { // Ex. a()
             return P->Builder.CreateExpr((ASTCall *) Ref);
         } else { // parse function call, variable post increment/decrement or simple var

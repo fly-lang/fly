@@ -15,7 +15,7 @@
 using namespace fly;
 
 ASTType::ASTType(const SourceLocation &Loc, llvm::StringRef Name, bool BuiltIn) :
-        ASTRef(Loc, Name, ASTRefKind::REF_TYPE), BuiltIn(BuiltIn) {
+        ASTIdentifier(Loc, Name, ASTIdentifierKind::TYPE), BuiltIn(BuiltIn) {
 
 }
 
@@ -31,10 +31,6 @@ void ASTType::setSema(SemaType *Sema) {
 	this->Sema = Sema;
 }
 
-ASTNameSpaceRef *ASTType::getNameSpaceRef() const {
-	return NameSpaceRef;
-}
-
 std::string ASTType::str() const {
     return Logger("ASTType").
 	Attr("Location", getLocation()).
@@ -42,8 +38,8 @@ std::string ASTType::str() const {
     End();
 }
 
-ASTArrayType::ASTArrayType(const SourceLocation &Loc, ASTType *ElementType, llvm::StringRef Name) :
-	ASTType(Loc, Name, ElementType->getNameSpaceRef()) {
+ASTArrayType::ASTArrayType(const SourceLocation &Loc, ASTType *ElementType, ASTExpr *SizeExpr, llvm::StringRef Name) :
+	ASTType(Loc, Name, true), ElementType(ElementType), SizeExpr(SizeExpr) {
 }
 
 ASTType * ASTArrayType::getElementType() const {

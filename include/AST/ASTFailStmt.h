@@ -18,7 +18,7 @@ namespace fly {
 
     class ASTFailStmt : public ASTStmt {
 
-        friend class ASTBuilder;
+        friend class ASTBuilderStmt;
 
         ASTExpr *Expr = nullptr;
 

@@ -8,7 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTExpr.h"
-#include "AST/ASTRef.h"
+#include "AST/ASTIdentifier.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTCall.h"
 #include "Basic/Logger.h"
@@ -63,11 +63,11 @@ std::string ASTValueExpr::str() const {
         End();
 }
 
-ASTVarRefExpr::ASTVarRefExpr(ASTRef *VarRef) : ASTExpr(VarRef->getLocation(), ASTExprKind::EXPR_VAR_REF), VarRef(VarRef) {
+ASTVarRefExpr::ASTVarRefExpr(ASTIdentifier *VarRef) : ASTExpr(VarRef->getLocation(), ASTExprKind::EXPR_VAR_REF), VarRef(VarRef) {
 
 }
 
-ASTRef *ASTVarRefExpr::getVarRef() const {
+ASTIdentifier *ASTVarRefExpr::getVarRef() const {
     return VarRef;
 }
 

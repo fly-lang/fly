@@ -38,7 +38,7 @@ ParserEnum::ParserEnum(Parser *P, llvm::SmallVector<ASTModifier *, 8> &Modifiers
     if (P->Tok.is(tok::colon)) {
         P->ConsumeToken();
         while (P->Tok.isAnyIdentifier()) {
-            ASTType *EnumTypeRef = P->ParseTypeRef();
+            ASTType *EnumTypeRef = P->ParseType();
             SuperClasses.push_back(EnumTypeRef);
         }
     }

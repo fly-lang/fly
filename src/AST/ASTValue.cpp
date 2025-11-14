@@ -23,6 +23,18 @@ const ASTValueKind &ASTValue::getValueKind() const {
     return ValueKind;
 }
 
+ASTDefaultValue::ASTDefaultValue() : ASTValue(ASTValueKind::VAL_DEFAULT, SourceLocation()) {
+}
+
+void ASTDefaultValue::accept(ASTVisitor &Visitor) {
+}
+
+std::string ASTDefaultValue::str() const {
+	return Logger("ASTDefaultValue").
+		Attr("Kind", static_cast<size_t>(getKind())).
+		End();
+}
+
 ASTBoolValue::ASTBoolValue(const SourceLocation &Loc, bool Value) : ASTValue(ASTValueKind::VAL_BOOL, Loc), Value(Value) {
 
 }

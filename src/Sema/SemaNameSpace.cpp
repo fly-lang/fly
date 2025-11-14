@@ -10,9 +10,16 @@
 #include "Sema/SemaNameSpace.h"
 #include "llvm/ADT/StringRef.h"
 
+#include <AST/ASTNameSpace.h>
+
 using namespace fly;
 
-SemaNameSpace::SemaNameSpace(const std::string& Name, SemaNameSpace *Parent) : Name(Name), Parent(Parent) {
+SemaNameSpace::SemaNameSpace(ASTNameSpace *AST, std::string Name, SemaNameSpace *Parent) : SemaNode(SemaKind::NAMESPACE),
+	AST(AST), Name(Name), Parent(Parent) {
+}
+
+ASTNameSpace * SemaNameSpace::getAST() {
+	return AST;
 }
 
 SymbolTable * SemaNameSpace::getSymbols() const {
@@ -47,12 +54,4 @@ const llvm::StringMap<SemaFunction *> &SemaNameSpace::getFunctions() const {
 
 const llvm::StringMap<SemaType *> &SemaNameSpace::getTypes() const {
 	return Types;
-}
-
-CodeGenModule *SemaNameSpace::getCodeGen() const {
-	return CodeGen;
-}
-
-void SemaNameSpace::setCodeGen(CodeGenModule *CGM) {
-	CodeGen = CGM;
 }

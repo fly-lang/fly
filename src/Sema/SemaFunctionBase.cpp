@@ -21,7 +21,7 @@
 using namespace fly;
 
 SemaFunctionBase::SemaFunctionBase(ASTFunction &AST, SemaKind Kind, std::string MangledName) : SemaNode(Kind),
-	AST(AST), MangledName(MangledName), ErrorHandler(new SemaErrorHandler()) {
+	AST(AST), MangledName(MangledName), ErrorHandler(new SemaErrorHandler(nullptr)) {
 
 }
 

@@ -32,23 +32,43 @@
 #include "llvm/Support/Regex.h"
 
 #include <AST/ASTBuilder.h>
+#include <AST/ASTBuilderStmt.h>
+#include <AST/ASTNameSpace.h>
 #include <AST/ASTValue.h>
+#include <Sema/Helper.h>
 #include <Sema/SemaBuilderModifiers.h>
-#include <Sema/SemaBuilderStmt.h>
 #include <Sema/SemaBuiltin.h>
 #include <Sema/SemaClassInstance.h>
 #include <Sema/SemaLocalVar.h>
+#include <Sema/SemaNameSpace.h>
 #include <Sema/SemaParam.h>
 
 using namespace fly;
 
+SemaNameSpace *SemaBuilder::CreateNameSpace(SemaModule &Module, ASTNameSpace &AST) {
+	FLY_DEBUG_START("SemaBuilder", "CreateNameSpace");
+
+	// Create the Namespace
+	std::string NameSpaceStr = Helper::Flatten(AST.getIdentifier());
+	SemaNameSpace *NameSpace = new SemaNameSpace(&AST, NameSpaceStr, nullptr);
+
+	// Set Symbol Table
+	Module.NameSpace = NameSpace;
+
+	FLY_DEBUG_END("SemaBuilder", "CreateNameSpace");
+	return NameSpace;
+}
+
 SemaImport *SemaBuilder::CreateImport(SemaModule &Module, ASTImport &AST) {
+	FLY_DEBUG_START("SemaBuilder", "CreateImport");
+
 	// Search Namespace in Symbol Table
 	SemaImport *Import = new SemaImport(AST);
 
 	// Add Import to the Module Imports for next symbols resolution
 	Module.Imports.push_back(Import);
 
+	FLY_DEBUG_END("SemaBuilder", "CreateImport");
 	return Import;
 }
 
@@ -406,10 +426,10 @@ SemaValue * SemaBuilder:: CreateNullValue(ASTNullValue &AST) {
  * @param VarRef
  * @return
  */
-SemaBuilderStmt *SemaBuilder::CreateAssignmentStmt(ASTBlockStmt *Parent, ASTRef *VarRef, ASTAssignOperatorKind Kind) {
+ASTBuilderStmt *SemaBuilder::CreateAssignmentStmt(ASTBlockStmt *Parent, ASTIdentifier *VarRef, ASTAssignOperatorKind Kind) {
 	FLY_DEBUG_MESSAGE("SemaBuilder", "CreateAssignmentStmt", "Kind=" << static_cast<uint8_t>(Kind));
 
-    SemaBuilderStmt * B = SemaBuilderStmt::CreateAssignment(Parent, VarRef, Kind);
+    ASTBuilderStmt * B = ASTBuilderStmt::CreateAssignment(Parent, VarRef, Kind);
 
 	FLY_DEBUG_END("SemaBuilder", "CreateAssignmentStmt");
 	return B;
@@ -421,11 +441,11 @@ SemaBuilderStmt *SemaBuilder::CreateAssignmentStmt(ASTBlockStmt *Parent, ASTRef 
  * @param VarRef
  * @return
  */
-SemaBuilderStmt *SemaBuilder::CreateAssignmentStmt(ASTBlockStmt *Parent, ASTVar *Var, ASTAssignOperatorKind Kind) {
+ASTBuilderStmt *SemaBuilder::CreateAssignmentStmt(ASTBlockStmt *Parent, ASTVar *Var, ASTAssignOperatorKind Kind) {
 	FLY_DEBUG_MESSAGE("SemaBuilder", "CreateAssignmentStmt", "Kind=" << static_cast<uint8_t>(Kind));
 
-    ASTRef *VarRef = ASTBuilder::CreateVarRef(Var);
-    SemaBuilderStmt * B = SemaBuilderStmt::CreateAssignment(Parent, VarRef, Kind);
+    ASTIdentifier *VarRef = ASTBuilder::CreateVarRef(Var);
+    ASTBuilderStmt * B = ASTBuilderStmt::CreateAssignment(Parent, VarRef, Kind);
 
 	FLY_DEBUG_END("SemaBuilder", "CreateAssignmentStmt");
 	return B;
@@ -437,19 +457,19 @@ SemaBuilderStmt *SemaBuilder::CreateAssignmentStmt(ASTBlockStmt *Parent, ASTVar 
  * @param Loc
  * @return
  */
-SemaBuilderStmt *SemaBuilder::CreateReturnStmt(ASTBlockStmt *Parent, const SourceLocation &Loc) {
+ASTBuilderStmt *SemaBuilder::CreateReturnStmt(ASTBlockStmt *Parent, const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateLocalVar", "Loc=" << Loc.getRawEncoding());
 
-    SemaBuilderStmt * B = SemaBuilderStmt::CreateReturn(Parent, Loc);
+    ASTBuilderStmt * B = ASTBuilderStmt::CreateReturn(Parent, Loc);
 
 	FLY_DEBUG_END("SemaBuilder", "CreateLocalVar");
 	return B;
 }
 
-SemaBuilderStmt *SemaBuilder::CreateExprStmt(ASTBlockStmt *Parent, const SourceLocation &Loc) {
+ASTBuilderStmt *SemaBuilder::CreateExprStmt(ASTBlockStmt *Parent, const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateExprStmt", "Loc=" << Loc.getRawEncoding());
 
-    SemaBuilderStmt * B = SemaBuilderStmt::CreateExpr(Parent, Loc);
+    ASTBuilderStmt * B = ASTBuilderStmt::CreateExpr(Parent, Loc);
 
 	FLY_DEBUG_END("SemaBuilder", "CreateExprStmt");
 	return B;
@@ -461,10 +481,10 @@ SemaBuilderStmt *SemaBuilder::CreateExprStmt(ASTBlockStmt *Parent, const SourceL
  * @param ErrorHandler
  * @return
  */
-SemaBuilderStmt *SemaBuilder::CreateFailStmt(ASTBlockStmt *Parent, const SourceLocation &Loc) {
+ASTBuilderStmt *SemaBuilder::CreateFailStmt(ASTBlockStmt *Parent, const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("SemaBuilder", "CreateFailStmt", "Loc=" << Loc.getRawEncoding());
 
-    SemaBuilderStmt * FailStmt = SemaBuilderStmt::CreateFail(Parent, Loc);
+    ASTBuilderStmt * FailStmt = ASTBuilderStmt::CreateFail(Parent, Loc);
 
 	FLY_DEBUG_END("SemaBuilder", "CreateFailStmt");
 	return FailStmt;

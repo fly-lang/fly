@@ -12,8 +12,6 @@
 #include "AST/ASTModule.h"
 #include "AST/ASTImport.h"
 
-#include <AST/ASTNameSpaceRef.h>
-
 namespace {
 
     using namespace fly;

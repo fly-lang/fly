@@ -12,7 +12,6 @@
 #include "AST/ASTModule.h"
 
 #include <Sema/Registry.h>
-#include <Sema/SemaBuilder.h>
 
 using namespace fly;
 

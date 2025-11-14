@@ -50,16 +50,18 @@ namespace fly {
 	class SemaStringValue;
 	class SemaArrayValue;
 	class SemaStructValue;
-	class SemaBuilderIfStmt;
-	class SemaBuilderSwitchStmt;
-	class SemaBuilderLoopStmt;
-	class SemaBuilderStmt;
+	class ASTBuilderIfStmt;
+	class ASTBuilderSwitchStmt;
+	class ASTBuilderLoopStmt;
+	class ASTBuilderStmt;
 
     class SemaBuilder {
 
     public:
 
     	SemaBuilder() = delete;
+
+    	static SemaNameSpace *CreateNameSpace(SemaModule &Module, ASTNameSpace &ST);
 
     	static SemaImport *CreateImport(SemaModule &Module, ASTImport &AST);
 
@@ -103,17 +105,17 @@ namespace fly {
 
     	// Create Statements
 
-    	static SemaBuilderStmt *CreateAssignmentStmt(ASTBlockStmt *Parent, ASTRef *VarRef,
+    	static ASTBuilderStmt *CreateAssignmentStmt(ASTBlockStmt *Parent, ASTIdentifier *VarRef,
 											  ASTAssignOperatorKind Kind = ASTAssignOperatorKind::EQUAL);
 
-    	static SemaBuilderStmt *CreateAssignmentStmt(ASTBlockStmt *Parent, ASTVar *Var,
+    	static ASTBuilderStmt *CreateAssignmentStmt(ASTBlockStmt *Parent, ASTVar *Var,
 											  ASTAssignOperatorKind Kind = ASTAssignOperatorKind::EQUAL);
 
-    	static SemaBuilderStmt *CreateReturnStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
+    	static ASTBuilderStmt *CreateReturnStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
 
-    	static SemaBuilderStmt *CreateExprStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
+    	static ASTBuilderStmt *CreateExprStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
 
-    	static SemaBuilderStmt *CreateFailStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
+    	static ASTBuilderStmt *CreateFailStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
     };
 
 }  // end namespace fly

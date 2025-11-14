@@ -115,10 +115,10 @@ std::vector<llvm::Module *> CodeGen::GenerateModules(llvm::SmallVector<SemaModul
     return Modules;
 }
 
-CodeGenModule *CodeGen::GenerateModule(SemaNameSpace *NameSpace) {
+CodeGenModule *CodeGen::GenerateModule(SemaModule *Module) {
     FLY_DEBUG_START("CodeGen", "GenerateModule");
-    CodeGenModule *CGM = new CodeGenModule(Diags, NameSpace, LLVMCtx, *Target, CodeGenOpts);
-    NameSpace->setCodeGen(CGM);
+    CodeGenModule *CGM = new CodeGenModule(Diags, Module, LLVMCtx, *Target, CodeGenOpts);
+    Module->setCodeGen(CGM);
     return CGM;
 }
 

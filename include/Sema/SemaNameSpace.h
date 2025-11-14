@@ -19,6 +19,7 @@
 namespace fly {
 
     class ASTModule;
+    class ASTNameSpace;
     class SemaGlobalVar;
     class SemaFunction;
     class SemaClassType;
@@ -30,6 +31,8 @@ namespace fly {
     class SemaNameSpace : public SemaNode {
 
         SymbolTable *Symbols;
+
+        ASTNameSpace *AST;
 
         std::string Name;
 
@@ -48,11 +51,11 @@ namespace fly {
         // Types
         llvm::StringMap<SemaType *> Types;
 
-        CodeGenModule* CodeGen = nullptr;
-
     public:
 
-        explicit SemaNameSpace(const std::string& Name, SemaNameSpace *Parent = nullptr);
+        explicit SemaNameSpace(ASTNameSpace *NameSpace, std::string Name, SemaNameSpace *Parent = nullptr);
+
+        ASTNameSpace *getAST();
 
         SymbolTable *getSymbols() const;
 
@@ -71,10 +74,6 @@ namespace fly {
         const llvm::StringMap<SemaFunction *> &getFunctions() const;
 
         const llvm::StringMap<SemaType *> &getTypes() const;
-
-        CodeGenModule* getCodeGen() const;
-
-        void setCodeGen(CodeGenModule *CGM);
 
     };
 }

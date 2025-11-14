@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Sema/SemaBuilderLoopStmt.h - Sema Builder If Stmt
+// include/AST/ASTBuilderLoopStmt.h - Sema Builder If Stmt
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,8 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_SEMA_BUILDERLOOPSTMT_H
-#define FLY_SEMA_BUILDERLOOPSTMT_H
+#ifndef FLY_AST_BUILDERLOOPSTMT_H
+#define FLY_AST_BUILDERLOOPSTMT_H
 
 namespace fly {
 
@@ -19,19 +19,21 @@ namespace fly {
     class ASTBlockStmt;
     class ASTExpr;
 
-    class SemaBuilderLoopStmt {
+    class ASTBuilderLoopStmt {
+
+    	friend class ASTLoopStmt;
 
         ASTBlockStmt *Parent;
 
         ASTLoopStmt *LoopStmt;
 
-        explicit SemaBuilderLoopStmt(ASTBlockStmt *Parent);
+        explicit ASTBuilderLoopStmt(ASTBlockStmt *Parent);
 
     public:
 
-        static SemaBuilderLoopStmt *Create(ASTBlockStmt *Parent, const SourceLocation &Loc);
+        static ASTBuilderLoopStmt *Create(ASTBlockStmt *Parent, const SourceLocation &Loc);
 
-        SemaBuilderLoopStmt *Loop(ASTExpr *Expr, ASTBlockStmt *Stmt);
+        ASTBuilderLoopStmt *Loop(ASTExpr *Expr, ASTBlockStmt *Stmt);
 
         void Init(ASTBlockStmt *Stmt);
 
@@ -41,4 +43,4 @@ namespace fly {
     };
 }
 
-#endif //FLY_SEMA_BUILDERLOOPSTMT_H
+#endif //FLY_AST_BUILDERLOOPSTMT_H

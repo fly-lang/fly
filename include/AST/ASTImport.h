@@ -14,10 +14,8 @@
 
 namespace fly {
 
-    class ASTComment;
-    class SemaNameSpace;
+    class ASTIdentifier;
     class ASTModule;
-    class ASTAlias;
 
     class ASTImport : public ASTNode {
 
@@ -25,13 +23,11 @@ namespace fly {
 
         ASTModule *Module;
 
-        llvm::SmallVector<llvm::StringRef, 4> Names;
+        ASTIdentifier *Identifier;
 
-        std::string Name;
+        ASTIdentifier *Alias;
 
-        ASTAlias *Alias;
-
-        ASTImport(const SourceLocation &Loc, llvm::SmallVector<llvm::StringRef, 4> &Names);
+        ASTImport(ASTIdentifier *Identifier, ASTIdentifier *Alias = nullptr);
 
     public:
 
@@ -41,11 +37,9 @@ namespace fly {
 
         ASTModule* getModule() const;
 
-        llvm::StringRef getName() const;
+        ASTIdentifier* getImport() const;
 
-        ASTAlias *getAlias() const;
-
-        void setAlias(ASTAlias *Alias);
+        ASTIdentifier *getAlias() const;
 
         std::string str() const override;
     };

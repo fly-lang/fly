@@ -30,8 +30,6 @@
 #include "llvm/Support/TargetSelect.h"
 
 #include <CodeGen/CodeGenModule.h>
-#include <Sema/SemaBuiltin.h>
-#include <Sema/SemaBuiltinType.h>
 #include <Sema/SymbolTable.h>
 #include <gtest/gtest.h>
 #include <llvm/LTO/LTO.h>
@@ -72,19 +70,19 @@ public:
                     Diags(CI.getDiagnostics()),
 					Builder(new ASTBuilder(Diags)),
                     S(new Sema(CI.getDiagnostics())),
-                    VoidTypeRef(Builder->CreateVoidTypeRef(SourceLoc)),
-                    BoolTypeRef(Builder->CreateBoolTypeRef(SourceLoc)),
-                    ByteTypeRef(Builder->CreateByteTypeRef(SourceLoc)),
-                    ShortTypeRef(Builder->CreateShortTypeRef(SourceLoc)),
-                    UShortTypeRef(Builder->CreateUShortTypeRef(SourceLoc)),
-                    IntTypeRef(Builder->CreateIntTypeRef(SourceLoc)),
-                    UIntTypeRef(Builder->CreateUIntTypeRef(SourceLoc)),
-                    LongTypeRef(Builder->CreateLongTypeRef(SourceLoc)),
-                    ULongTypeRef(Builder->CreateULongTypeRef(SourceLoc)),
-                    FloatTypeRef(Builder->CreateFloatTypeRef(SourceLoc)),
-                    DoubleTypeRef(Builder->CreateDoubleTypeRef(SourceLoc)),
-                    ErrorTypeRef(Builder->CreateErrorTypeRef(SourceLoc)),
-					StringTypeRef(Builder->CreateStringTypeRef(SourceLoc)) {
+                    VoidTypeRef(Builder->CreateVoidType(SourceLoc)),
+                    BoolTypeRef(Builder->CreateBoolType(SourceLoc)),
+                    ByteTypeRef(Builder->CreateByteType(SourceLoc)),
+                    ShortTypeRef(Builder->CreateShortType(SourceLoc)),
+                    UShortTypeRef(Builder->CreateUShortType(SourceLoc)),
+                    IntTypeRef(Builder->CreateIntType(SourceLoc)),
+                    UIntTypeRef(Builder->CreateUIntType(SourceLoc)),
+                    LongTypeRef(Builder->CreateLongType(SourceLoc)),
+                    ULongTypeRef(Builder->CreateULongType(SourceLoc)),
+                    FloatTypeRef(Builder->CreateFloatType(SourceLoc)),
+                    DoubleTypeRef(Builder->CreateDoubleType(SourceLoc)),
+                    ErrorTypeRef(Builder->CreateErrorType(SourceLoc)),
+					StringTypeRef(Builder->CreateStringType(SourceLoc)) {
     	TopModifiers.push_back(getASTBuilder().CreateModifier(SourceLoc, ASTModifierKind::MOD_DEFAULT));
         llvm::InitializeAllTargets();
         llvm::InitializeAllTargetMCs();
@@ -108,12 +106,12 @@ public:
 	    return *Builder;
     }
 
-	ASTCall *CreateCall(llvm::StringRef Name, llvm::SmallVector<ASTExpr *, 8> &Args, ASTCallKind Kind, ASTRef *Parent = nullptr) {
+	ASTCall *CreateCall(llvm::StringRef Name, llvm::SmallVector<ASTExpr *, 8> &Args, ASTCallKind Kind, ASTIdentifier *Parent = nullptr) {
     	ASTCall *Call = getASTBuilder().CreateCall(SourceLocation(), Name, Args, Kind, Parent);
     	return Call;
     }
 
-    ASTCall *CreateCall(ASTFunction *Function, llvm::SmallVector<ASTExpr *, 8> &Args, ASTCallKind Kind, ASTRef *Parent = nullptr) {
+    ASTCall *CreateCall(ASTFunction *Function, llvm::SmallVector<ASTExpr *, 8> &Args, ASTCallKind Kind, ASTIdentifier *Parent = nullptr) {
         ASTCall *Call = getASTBuilder().CreateCall(SourceLocation(), Function->getName(), Args, Kind, Parent);
         return Call;
     }

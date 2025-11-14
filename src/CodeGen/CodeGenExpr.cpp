@@ -12,7 +12,7 @@
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenExpr.h"
 #include "AST/ASTExpr.h"
-#include "AST/ASTRef.h"
+#include "AST/ASTIdentifier.h"
 #include "AST/ASTOpExpr.h"
 #include "Basic/Debug.h"
 #include "llvm/IR/Value.h"
@@ -49,7 +49,7 @@ llvm::Value *CodeGenExpr::GenExpr(ASTExpr *Expr) {
 
         case ASTExprKind::EXPR_VAR_REF: {
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_VAR_REF");
-            ASTRef *VarRef = static_cast<ASTVarRefExpr *>(Expr)->getVarRef();
+            ASTIdentifier *VarRef = static_cast<ASTVarRefExpr *>(Expr)->getVarRef();
             assert(VarRef && "Missing Ref");
         	return CGM->GenVar(static_cast<SemaVar *>(VarRef->getSema()))->getValue();
         }

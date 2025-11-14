@@ -51,7 +51,7 @@ namespace fly {
     class ASTValue;
     class ASTVar;
     class ASTRuleStmt;
-    class ASTRef;
+    class ASTIdentifier;
     class ASTFunction;
     class ASTExpr;
     class ASTStmt;

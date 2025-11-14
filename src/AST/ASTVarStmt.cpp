@@ -12,12 +12,12 @@
 
 using namespace fly;
 
-ASTVarStmt::ASTVarStmt(const SourceLocation &Loc, ASTRef *VarRef, ASTAssignOperatorKind AssignOperatorKind) :
+ASTVarStmt::ASTVarStmt(const SourceLocation &Loc, ASTIdentifier *VarRef, ASTAssignOperatorKind AssignOperatorKind) :
         ASTStmt(Loc, ASTStmtKind::STMT_VAR), VarRef(VarRef), Kind(AssignOperatorKind) {
 
 }
 
-ASTRef *ASTVarStmt::getVarRef() const {
+ASTIdentifier *ASTVarStmt::getVarRef() const {
     return VarRef;
 }
 

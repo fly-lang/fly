@@ -12,7 +12,7 @@
 using namespace fly;
 
 SemaClassAttribute::SemaClassAttribute(ASTVar &AST, SemaClassType &Class) :
-	SemaVar(AST, SemaVarKind::CLASS_ATTRIBUTE), Class(Class) {
+	SemaVar(&AST, SemaVarKind::CLASS_ATTRIBUTE), Class(Class) {
 
 }
 

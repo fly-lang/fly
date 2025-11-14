@@ -61,6 +61,8 @@ namespace fly {
 
         ASTExpr* getExpr() const;
 
+        void setExpr(ASTExpr* Expr);
+
         std::string str() const override;
     };
 }

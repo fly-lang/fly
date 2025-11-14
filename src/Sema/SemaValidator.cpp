@@ -290,7 +290,7 @@ bool SemaValidator::CheckValue(ASTValue *Value) {
 	return true;
 }
 
-bool SemaValidator::CheckVar(ASTStmt *Stmt, fly::ASTRef *Ref) {
+bool SemaValidator::CheckVar(ASTStmt *Stmt, fly::ASTIdentifier *Ref) {
 	return true;
 }
 

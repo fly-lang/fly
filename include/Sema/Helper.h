@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTAlias.h - AST Alias in Import
+// include/Sema/Helper.h -  Helper Functions
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,30 +7,24 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_AST_ALIAS_H
-#define FLY_AST_ALIAS_H
 
-#include "ASTImport.h"
+#ifndef SEMA_HELPER_H
+#define SEMA_HELPER_H
+
+#include <string>
 
 namespace fly {
 
-	class ASTAlias {
+	class ASTIdentifier;
 
-		friend class ASTBuilder;
-
-		llvm::StringRef Name;
-
-		const SourceLocation &Loc;
-
-		ASTAlias(const SourceLocation &Loc, llvm::StringRef Name);
+	class Helper {
 
 	public:
 
-		llvm::StringRef getName();
-
-		const SourceLocation &getLocation() const;
+		// Utility Functions
+		static std::string Flatten(ASTIdentifier *Identifier);
 	};
-
 }
 
-#endif //FLY_AST_ALIAS_H
+
+#endif //SEMA_HELPER_H

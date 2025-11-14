@@ -10,11 +10,14 @@
 // fly
 #include "CodeGenTest.h"
 #include "CodeGen/CodeGenModule.h"
-#include "Sema/SemaBuilderStmt.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTEnum.h"
-#include "AST/ASTOpExpr.h"
-#include <Sema/SemaFunction.h>
+
+#include <AST/ASTBuilderStmt.h>
+#include <AST/ASTCallExpr.h>
+#include <AST/ASTExprStmt.h>
+#include <AST/ASTFailStmt.h>
+#include <AST/ASTValueExpr.h>
 
 namespace {
 
@@ -31,11 +34,11 @@ namespace {
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
         ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
         ASTVar *ErrorA = getASTBuilder().CreateLocalVar(Body, SourceLoc, ErrorTypeRef, "A", EmptyModifiers);
-        ASTRef *ErrorVarRef = getASTBuilder().CreateVarRef(ErrorA);
+        ASTIdentifier *ErrorVarRef = getASTBuilder().CreateVarRef(ErrorA);
         ASTBlockStmt *HandleBlock = getASTBuilder().CreateBlockStmt(SourceLoc);
         getASTBuilder().CreateHandleStmt(Body, SourceLoc, HandleBlock, ErrorVarRef);
 
-        SemaBuilderStmt *Fail0Stmt = getASTBuilder().CreateFailStmt(HandleBlock, SourceLoc);
+        ASTBuilderStmt *Fail0Stmt = getASTBuilder().CreateFailStmt(HandleBlock, SourceLoc);
 
 		// validate and resolve
 		EXPECT_TRUE(S->Resolve());
@@ -72,7 +75,7 @@ namespace {
         // }
         ASTBlockStmt *Body0 = getASTBuilder().CreateBlockStmt(SourceLoc);
         ASTFunction *TestFail = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "testFail", TopModifiers, Params, Body0);
-        SemaBuilderStmt *Fail0Stmt = getASTBuilder().CreateFailStmt(Body0, SourceLoc);
+        ASTBuilderStmt *Fail0Stmt = getASTBuilder().CreateFailStmt(Body0, SourceLoc);
 
 		// main() {
 		//   testFail()
@@ -81,7 +84,7 @@ namespace {
 		ASTFunction *Main = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopModifiers, Params, MainBody);
 
 		// call testFail0()
-		SemaBuilderStmt *CallTestFail0 = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
+		ASTBuilderStmt *CallTestFail0 = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
 		ASTCallExpr *CallExpr0 = getASTBuilder().CreateExpr(CreateCall(TestFail, Args, ASTCallKind::CALL_DIRECT));
 		CallTestFail0->setExpr(CallExpr0);
 
@@ -135,7 +138,7 @@ namespace {
         ASTBlockStmt *Body1 = getASTBuilder().CreateBlockStmt(SourceLoc);
         ASTFunction *TestFail = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "testFail", TopModifiers, Params, Body1);
         ASTBoolValue *BoolVal = getASTBuilder().CreateBoolValue(SourceLoc, true);
-        SemaBuilderStmt *Fail1Stmt = getASTBuilder().CreateFailStmt(Body1, SourceLoc);
+        ASTBuilderStmt *Fail1Stmt = getASTBuilder().CreateFailStmt(Body1, SourceLoc);
         Fail1Stmt->setExpr(getASTBuilder().CreateExpr(BoolVal));
 
 		// main() {
@@ -145,7 +148,7 @@ namespace {
 		ASTFunction *Main = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopModifiers, Params, MainBody);
 
 		// call testFail1()
-		SemaBuilderStmt *CallTestFail1 = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
+		ASTBuilderStmt *CallTestFail1 = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
 		ASTCallExpr *CallExpr1 = getASTBuilder().CreateExpr(CreateCall(TestFail, Args, ASTCallKind::CALL_DIRECT));
 		CallTestFail1->setExpr(CallExpr1);
 
@@ -199,7 +202,7 @@ namespace {
         ASTBlockStmt *Body2 = getASTBuilder().CreateBlockStmt(SourceLoc);
         ASTFunction *TestFail2 = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "testFail", TopModifiers, Params, Body2);
         ASTNumberValue *IntVal = getASTBuilder().CreateNumberValue(SourceLoc, "10");
-        SemaBuilderStmt *Fail2Stmt = getASTBuilder().CreateFailStmt(Body2, SourceLoc);
+        ASTBuilderStmt *Fail2Stmt = getASTBuilder().CreateFailStmt(Body2, SourceLoc);
         Fail2Stmt->setExpr(getASTBuilder().CreateExpr(IntVal));
 
         // main() {
@@ -209,7 +212,7 @@ namespace {
         ASTFunction *Main = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopModifiers, Params, MainBody);
 
         // call testFail()
-        SemaBuilderStmt *CallTestFail2 = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
+        ASTBuilderStmt *CallTestFail2 = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
         ASTCallExpr *CallExpr2 = getASTBuilder().CreateExpr(CreateCall(TestFail2, Args, ASTCallKind::CALL_DIRECT));
         CallTestFail2->setExpr(CallExpr2);
 
@@ -263,7 +266,7 @@ namespace {
         ASTBlockStmt *Body3 = getASTBuilder().CreateBlockStmt(SourceLoc);
         ASTFunction *TestFail3 = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "testFail", TopModifiers, Params, Body3);
         ASTStringValue *StrVal = getASTBuilder().CreateStringValue(SourceLoc, "Error");
-        SemaBuilderStmt *Fail3Stmt = getASTBuilder().CreateFailStmt(Body3, SourceLoc);
+        ASTBuilderStmt *Fail3Stmt = getASTBuilder().CreateFailStmt(Body3, SourceLoc);
         Fail3Stmt->setExpr(getASTBuilder().CreateExpr(StrVal));
 
         // main() {
@@ -273,7 +276,7 @@ namespace {
         ASTFunction *Main = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopModifiers, Params, MainBody);
 
         // call testFail()
-        SemaBuilderStmt *CallTestFail3 = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
+        ASTBuilderStmt *CallTestFail3 = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
         ASTCallExpr *CallExpr3 = getASTBuilder().CreateExpr(CreateCall(TestFail3, Args, ASTCallKind::CALL_DIRECT));
         CallTestFail3->setExpr(CallExpr3);
 
@@ -337,7 +340,7 @@ namespace {
         // TestStruct test = new TestStruct()
         ASTCall *ConstructorCall = CreateCall(TestStruct->getName(), Args, ASTCallKind::CALL_NEW);
         // fail new TestStruct()
-        SemaBuilderStmt *Fail4Stmt = getASTBuilder().CreateFailStmt(Body, SourceLoc);
+        ASTBuilderStmt *Fail4Stmt = getASTBuilder().CreateFailStmt(Body, SourceLoc);
         Fail4Stmt->setExpr(getASTBuilder().CreateExpr(ConstructorCall));
 
         // main() {
@@ -347,7 +350,7 @@ namespace {
         ASTFunction *Main = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopModifiers, Params, MainBody);
 
         // call testFail()
-        SemaBuilderStmt *CallTestFail4 = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
+        ASTBuilderStmt *CallTestFail4 = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
         ASTCallExpr *CallExpr4 = getASTBuilder().CreateExpr(CreateCall(TestFail4, Args, ASTCallKind::CALL_DIRECT));
         CallTestFail4->setExpr(CallExpr4);
 

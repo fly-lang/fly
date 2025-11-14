@@ -41,7 +41,7 @@ namespace fly {
     class ASTArg;
     class ASTVar;
     class ASTCall;
-    class ASTRef;
+    class ASTIdentifier;
     class ASTExpr;
     class ASTValueExpr;
     class ASTValue;
@@ -52,7 +52,7 @@ namespace fly {
     class ASTFailStmt;
     class ASTHandleStmt;
     class ASTFunction;
-    class ASTRef;
+    class ASTIdentifier;
     class ASTArrayType;
     class ASTComment;
     class ASTImport;
@@ -122,14 +122,13 @@ namespace fly {
         void visit(ASTClass &AST) override;
         void visit(ASTEnum &AST) override;
         void visit(ASTComment &AST) override;
-        void visit(ASTVar &AST) override;
 
         // Visit References
         void visit(ASTType &AST) override;
         void visit(ASTArrayType &AST) override;
-        void visit(ASTRef &AST) override;
+        void visit(ASTIdentifier &AST) override;
+        void visit(ASTVar &AST) override;
         void visit(ASTCall &AST) override;
-        void visit(ASTNameSpaceRef &AST) override;
 
         // Visit Statements
         void visit(ASTBreakStmt &AST) override;
@@ -203,21 +202,21 @@ namespace fly {
 
         SemaType *ResolveTypeRef(ASTType *&Type);
 
-        void ResolveFromTopRef(ASTStmt *Stmt, ASTRef *Ref, SemaNameSpace *CurrentNameSpace);
+        void ResolveFromTopRef(ASTStmt *Stmt, ASTIdentifier *Ref, SemaNameSpace *CurrentNameSpace);
 
-        void ResolveStaticRef(ASTStmt *Stmt, ASTRef *Ref, SemaType *Type);
+        void ResolveStaticRef(ASTStmt *Stmt, ASTIdentifier *Ref, SemaType *Type);
 
-        void ResolveInstanceRef(ASTStmt *Stmt, ASTRef *Ref, SemaResult *Parent);
+        void ResolveInstanceRef(ASTStmt *Stmt, ASTIdentifier *Ref, SemaResult *Parent);
 
-        void ResoveEnumRef(ASTStmt *Stmt, ASTRef *Ref, SemaEnumType *EnumType);
+        void ResoveEnumRef(ASTStmt *Stmt, ASTIdentifier *Ref, SemaEnumType *EnumType);
 
-        ASTRef* getParentRef(ASTRef* Ref);
+        ASTIdentifier* getParentRef(ASTIdentifier* Ref);
 
-        bool ResolveRef(ASTStmt *Stmt, ASTRef *VarRef);
+        bool ResolveRef(ASTStmt *Stmt, ASTIdentifier *VarRef);
 
         bool ResolveRef(ASTStmt *Stmt, ASTCall *Call);
 
-        SemaNameSpace *ResolveNameSpace(ASTRef *Ref);
+        SemaNameSpace *ResolveNameSpace(ASTIdentifier *Ref);
 
         SemaType *ResolveType(llvm::StringRef Name, SemaNameSpace *CurrentNameSpace);
 
@@ -227,7 +226,7 @@ namespace fly {
 
         llvm::SmallVector<SemaType *, 8> ResolveCallArgTypes(ASTStmt *Stmt, ASTCall *Call);
 
-        SemaVar *ResolveVar(ASTStmt *Stmt, ASTRef *VarRef);
+        SemaVar *ResolveVar(ASTStmt *Stmt, ASTIdentifier *VarRef);
 
     };
 } // end namespace fly

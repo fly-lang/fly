@@ -5,10 +5,13 @@ add_executable(fly
 add_library(flyLib
 
         # AST
-        AST/ASTAlias.cpp
         AST/ASTArg.cpp
         AST/ASTBase.cpp
         AST/ASTBuilder.cpp
+        AST/ASTBuilderStmt.cpp
+        AST/ASTBuilderIfStmt.cpp
+        AST/ASTBuilderSwitchStmt.cpp
+        AST/ASTBuilderLoopStmt.cpp
         AST/ASTNode.cpp
         AST/ASTBlockStmt.cpp
         AST/ASTBreakStmt.cpp
@@ -25,14 +28,13 @@ add_library(flyLib
         AST/ASTFailStmt.cpp
         AST/ASTFunction.cpp
         AST/ASTHandleStmt.cpp
-        AST/ASTRef.cpp
+        AST/ASTIdentifier.cpp
         AST/ASTType.cpp
         AST/ASTIfStmt.cpp
         AST/ASTImport.cpp
         AST/ASTLoopStmt.cpp
         AST/ASTLoopInStmt.cpp
         AST/ASTNameSpace.cpp
-        AST/ASTNameSpaceRef.cpp
         AST/ASTModule.cpp
         AST/ASTOpExpr.cpp
         AST/ASTReturnStmt.cpp
@@ -139,12 +141,9 @@ add_library(flyLib
         Parser/Parser.cpp
 
         # Sema
+        Sema/Helper.cpp
         Sema/Sema.cpp
         Sema/SemaBuilder.cpp
-        Sema/SemaBuilderStmt.cpp
-        Sema/SemaBuilderIfStmt.cpp
-        Sema/SemaBuilderSwitchStmt.cpp
-        Sema/SemaBuilderLoopStmt.cpp
         Sema/SemaBuilderModifiers.cpp
         Sema/SemaBuiltin.cpp
         Sema/SemaValidator.cpp

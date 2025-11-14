@@ -16,7 +16,7 @@ namespace fly {
 
     class ASTExprStmt : public ASTStmt {
 
-        friend class ASTBuilder;
+        friend class ASTBuilderStmt;
 
     protected:
 
@@ -31,6 +31,8 @@ namespace fly {
         void accept(ASTVisitor& Visitor) override;
 
         ASTExpr *getExpr() const;
+
+        void setExpr(ASTExpr *Expr);
 
         std::string str() const override;
     };

@@ -31,7 +31,7 @@ namespace fly {
 
     public:
 
-        explicit SemaErrorHandler(ASTVar &AST);
+        explicit SemaErrorHandler(ASTVar *AST);
 
         CodeGenError *getCodeGen() const override;
 

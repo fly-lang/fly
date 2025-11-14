@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Sema/SemaBuilderSwitchStmt.h - Sema Builder Switch Stmt
+// include/AST/ASTBuilderSwitchStmt.h - Sema Builder Switch Stmt
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,8 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_SEMA_BUILDERSWITCHSTMT_H
-#define FLY_SEMA_BUILDERSWITCHSTMT_H
+#ifndef FLY_AST_BUILDERSWITCHSTMT_H
+#define FLY_AST_BUILDERSWITCHSTMT_H
 
 namespace fly {
 
@@ -18,26 +18,28 @@ namespace fly {
     class ASTBlockStmt;
     class ASTExpr;
 
-    class SemaBuilderSwitchStmt {
+    class ASTBuilderSwitchStmt {
+
+        friend class ASTSwitchStmt;
 
         ASTBlockStmt *Parent;
 
         ASTSwitchStmt *SwitchStmt;
 
-        explicit SemaBuilderSwitchStmt(ASTBlockStmt *Parent);
+        explicit ASTBuilderSwitchStmt(ASTBlockStmt *Parent);
 
     public:
 
-        static SemaBuilderSwitchStmt *Create(ASTBlockStmt *Parent);
+        static ASTBuilderSwitchStmt *Create(ASTBlockStmt *Parent);
 
-        SemaBuilderSwitchStmt *Switch(const SourceLocation &Loc, ASTExpr *Expr);
+        ASTBuilderSwitchStmt *Switch(const SourceLocation &Loc, ASTExpr *Expr);
 
-        SemaBuilderSwitchStmt *Case(const SourceLocation &Loc, ASTExpr *Expr, ASTBlockStmt *Stmt);
+        ASTBuilderSwitchStmt *Case(const SourceLocation &Loc, ASTExpr *Expr, ASTBlockStmt *Stmt);
 
-        SemaBuilderSwitchStmt *Default(const SourceLocation &Loc, ASTBlockStmt *Stmt);
+        ASTBuilderSwitchStmt *Default(const SourceLocation &Loc, ASTBlockStmt *Stmt);
 
         bool hasDefault();
     };
 }
 
-#endif //FLY_SEMA_BUILDERSWITCHSTMT_H
+#endif //FLY_AST_BUILDERSWITCHSTMT_H

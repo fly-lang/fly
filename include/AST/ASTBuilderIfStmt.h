@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Sema/SemaBuilderIfStmt.h - Sema Builder If Stmt
+// include/AST/ASTBuilderIfStmt.h - Sema Builder If Stmt
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,8 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_SEMA_BUILDERIFSTMT_H
-#define FLY_SEMA_BUILDERIFSTMT_H
+#ifndef FLY_AST_BUILDERIFSTMT_H
+#define FLY_AST_BUILDERIFSTMT_H
 
 namespace fly {
 
@@ -19,24 +19,26 @@ namespace fly {
     class SourceLocation;
     class ASTExpr;
 
-    class SemaBuilderIfStmt {
+    class ASTBuilderIfStmt {
+
+        friend class ASTIfStmt;
 
         ASTBlockStmt *Parent; // FIXME remove, extends Stmt?
 
         ASTIfStmt *IfStmt;
 
-        explicit SemaBuilderIfStmt(ASTBlockStmt *Parent);
+        explicit ASTBuilderIfStmt(ASTBlockStmt *Parent);
 
     public:
 
-        static SemaBuilderIfStmt *Create(ASTBlockStmt *Parent);
+        static ASTBuilderIfStmt *Create(ASTBlockStmt *Parent);
 
-        SemaBuilderIfStmt *If(const SourceLocation &Loc, ASTExpr *Expr, ASTBlockStmt *Stmt);
+        ASTBuilderIfStmt *If(const SourceLocation &Loc, ASTExpr *Expr, ASTBlockStmt *Stmt);
 
-        SemaBuilderIfStmt *ElseIf(const SourceLocation &Loc, ASTExpr *Expr, ASTBlockStmt *Stmt);
+        ASTBuilderIfStmt *ElseIf(const SourceLocation &Loc, ASTExpr *Expr, ASTBlockStmt *Stmt);
 
-        SemaBuilderIfStmt *Else(const SourceLocation &Loc, ASTBlockStmt *Stmt);
+        ASTBuilderIfStmt *Else(const SourceLocation &Loc, ASTBlockStmt *Stmt);
     };
 }
 
-#endif //FLY_SEMA_BUILDERSTMT_H
+#endif //FLY_AST_BUILDERIFSTMT_H

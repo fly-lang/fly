@@ -37,7 +37,7 @@
 #include "AST/ASTLoopStmt.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTVarStmt.h"
-#include "AST/ASTRef.h"
+#include "AST/ASTIdentifier.h"
 #include "AST/ASTReturnStmt.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTEnum.h"
@@ -880,7 +880,7 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
             ASTVarStmt *VarStmt = static_cast<ASTVarStmt *>(Stmt);
 
         	// Get the VarRef
-            ASTRef *VarRef = VarStmt->getVarRef();
+            ASTIdentifier *VarRef = VarStmt->getVarRef();
         	SemaVar *Var = static_cast<SemaVar *>(VarRef->getSema());
         	GenVar(Var);
 

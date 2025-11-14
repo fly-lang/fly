@@ -14,8 +14,8 @@
 
 using namespace fly;
 
-ASTNameSpace::ASTNameSpace(const SourceLocation &Loc, llvm::SmallVector<llvm::StringRef, 4> &Names) :
-    ASTNode(Loc, ASTKind::AST_NAMESPACE), Names(Names) {
+ASTNameSpace::ASTNameSpace(const SourceLocation &Loc, ASTIdentifier *Identifier) :
+    ASTNode(Loc, ASTKind::AST_NAMESPACE), Identifier(Identifier) {
 }
 
 ASTNameSpace::~ASTNameSpace() = default;
@@ -24,8 +24,8 @@ void ASTNameSpace::accept(ASTVisitor &Visitor) {
 	return Visitor.visit(*this);
 }
 
-const llvm::SmallVector<llvm::StringRef, 4> & ASTNameSpace::getNames() const {
-	return Names;
+ASTIdentifier *ASTNameSpace::getIdentifier() const {
+	return Identifier;
 }
 
 std::string ASTNameSpace::str() const {

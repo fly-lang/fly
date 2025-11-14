@@ -56,7 +56,11 @@ namespace fly {
 
         ASTNameSpace* getNameSpace();
 
+        void setNameSpace(ASTNameSpace* NS);
+
         const llvm::SmallVector<ASTNode *, 8> &getNodes() const;
+
+        void addNode(ASTNode* Node);
 
         std::string str() const;
     };

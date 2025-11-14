@@ -7,77 +7,77 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "AST/ASTRef.h"
+#include "AST/ASTIdentifier.h"
 #include "Basic/Logger.h"
 
 using namespace fly;
 
 
-ASTRef::ASTRef(const SourceLocation &Loc, llvm::StringRef Name, ASTRefKind Kind) :
+ASTIdentifier::ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name, ASTIdentifierKind Kind) :
         ASTNode(Loc, ASTKind::AST_REF), Name(Name), RefKind(Kind), Visited(false) {
     FullName = Name.data();
 }
 
 
-ASTRef::~ASTRef() {
+ASTIdentifier::~ASTIdentifier() {
     delete Parent;
 }
 
-llvm::StringRef ASTRef::getName() const {
+llvm::StringRef ASTIdentifier::getName() const {
     return Name;
 }
 
-std::string ASTRef::getFullName() const {
+std::string ASTIdentifier::getFullName() const {
     return FullName;
 }
 
-SemaResult *ASTRef::getSema() const {
+SemaResult *ASTIdentifier::getSema() const {
 	return Sema;
 }
 
-void ASTRef::setSema(SemaResult *Sema) {
+void ASTIdentifier::setSema(SemaResult *Sema) {
     this->Sema = Sema;
 }
 
-bool ASTRef::isVisited() const {
+bool ASTIdentifier::isVisited() const {
     return Visited;
 }
 
-void ASTRef::setVisited(bool Visited) {
+void ASTIdentifier::setVisited(bool Visited) {
 	this->Visited = Visited;
 }
 
-bool ASTRef::isCall() const {
-    return RefKind == ASTRefKind::REF_CALL;
+bool ASTIdentifier::isCall() const {
+    return RefKind == ASTIdentifierKind::CALL;
 }
 
-bool ASTRef::isVarRef() const {
-    return RefKind == ASTRefKind::REF_VAR;
+bool ASTIdentifier::isVarRef() const {
+    return RefKind == ASTIdentifierKind::VAR;
 }
 
-ASTRefKind ASTRef::getRefKind() const {
+ASTIdentifierKind ASTIdentifier::getRefKind() const {
     return RefKind;
 }
 
-void ASTRef::setChild(ASTRef *Identifier) {
+void ASTIdentifier::setChild(ASTIdentifier *Identifier) {
 	this->Child = Identifier;
 }
 
-void ASTRef::AddChild(ASTRef *Identifier) {
+void ASTIdentifier::AddChild(ASTIdentifier *Identifier) {
     Child = Identifier;
     Child->Parent = this;
     Child->FullName = FullName.append(".").append(Child->Name.data());
 }
 
-ASTRef *ASTRef::getParent() const {
+ASTIdentifier *ASTIdentifier::getParent() const {
     return Parent;
 }
 
-ASTRef *ASTRef::getChild() const {
+ASTIdentifier *ASTIdentifier::getChild() const {
     return Child;
 }
 
-std::string ASTRef::str() const {
+std::string ASTIdentifier::str() const {
     return Logger("ASTIdentifier").
 	Attr("Location", getLocation()).
 Attr("Kind", static_cast<size_t>(getKind())).

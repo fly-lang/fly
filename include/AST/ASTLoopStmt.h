@@ -17,7 +17,7 @@ namespace fly {
     class ASTLoopStmt : public ASTRuleStmt {
 
         friend class ASTBuilder;
-        friend class SemaBuilderLoopStmt;
+        friend class ASTBuilderLoopStmt;
 
         bool VerifyConditionAtEnd = false;
 

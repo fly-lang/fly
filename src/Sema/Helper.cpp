@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTAlias.cpp - AST Alias implementation
+// src/Sema/Helper.cpp - The Helper
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,15 +7,18 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "AST/ASTAlias.h"
-#include "Basic/Logger.h"
+#include "Sema/Helper.h"
+
+#include <AST/ASTIdentifier.h>
 
 using namespace fly;
 
-ASTAlias::ASTAlias(const SourceLocation &Loc, llvm::StringRef Name) : Name(Name), Loc(Loc) {
+std::string Helper::Flatten(ASTIdentifier *Identifier) {
+	std::string Result = Identifier->getName().str();
 
+	while (Identifier->getParent()) {
+		Result = Identifier->getParent()->getName().str() + "." + Result;
+		Identifier = Identifier->getParent();
+	}
 }
 
-llvm::StringRef ASTAlias::getName() {
-	return Name;
-}

@@ -9,8 +9,8 @@
 
 #include "Sema/SemaImport.h"
 
-#include <AST/ASTAlias.h>
 #include <AST/ASTImport.h>
+#include <AST/ASTIdentifier.h>
 
 using namespace fly;
 
@@ -22,11 +22,11 @@ ASTImport* SemaImport::getAST() const {
 }
 
 llvm::StringRef SemaImport::getName() const {
-	return AST.getAlias() == nullptr ? AST.getName() : AST.getAlias()->getName();
+	return AST.getAlias() == nullptr ? AST.getImport()->getName() : AST.getAlias()->getName();
 }
 
 llvm::StringRef SemaImport::getTarget() const {
-	return AST.getName();
+	return AST.getImport()->getName();
 }
 
 SymbolTable * SemaImport::getSymbols() const {

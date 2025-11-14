@@ -15,7 +15,7 @@
 namespace fly {
 
     class ASTBlockStmt;
-    class ASTRef;
+    class ASTIdentifier;
 
 /**
  * Delete Stmt
@@ -24,15 +24,15 @@ namespace fly {
 
         friend class ASTBuilder;
 
-        ASTRef *VarRef = nullptr;
+        ASTIdentifier *VarRef = nullptr;
 
-        ASTDeleteStmt(const SourceLocation &Loc, ASTRef *VarRef);
+        ASTDeleteStmt(const SourceLocation &Loc, ASTIdentifier *VarRef);
 
     public:
 
         void accept(ASTVisitor& Visitor) override;
 
-        ASTRef *getVarRef();
+        ASTIdentifier *getVarRef();
 
         std::string str() const override;
     };

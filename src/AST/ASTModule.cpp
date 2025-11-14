@@ -41,8 +41,16 @@ ASTNameSpace *ASTModule::getNameSpace() {
     return NameSpace;
 }
 
+void ASTModule::setNameSpace(ASTNameSpace *NS) {
+	NameSpace = NS;
+}
+
 const llvm::SmallVector<ASTNode *, 8> &ASTModule::getNodes() const {
 	return Nodes;
+}
+
+void ASTModule::addNode(ASTNode *Node) {
+	Nodes.push_back(Node);
 }
 
 std::string ASTModule::str() const {

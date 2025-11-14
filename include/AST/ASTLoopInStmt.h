@@ -14,13 +14,13 @@
 
 namespace fly {
 
-    class ASTRef;
+    class ASTIdentifier;
 
     class ASTLoopInStmt : public ASTStmt {
 
         friend class ASTBuilder;
 
-        ASTRef *VarRef = nullptr;
+        ASTIdentifier *VarRef = nullptr;
 
         ASTBlockStmt *Block = nullptr;
 
@@ -30,7 +30,7 @@ namespace fly {
 
         void accept(ASTVisitor& Visitor) override;
 
-        ASTRef *getVarRef() const;
+        ASTIdentifier *getVarRef() const;
 
         ASTBlockStmt *getBlock() const;
 

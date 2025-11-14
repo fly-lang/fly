@@ -12,7 +12,9 @@
 #include "Sema/SemaNameSpace.h"
 
 #include <AST/ASTNameSpace.h>
+#include <Sema/SemaBuilder.h>
 #include <Sema/SemaBuiltin.h>
+#include <Sema/SymbolTable.h>
 
 using namespace fly;
 
@@ -97,17 +99,16 @@ void Registry::addBody(SymbolTable* Symbols, ASTBlockStmt *Body) {
 	Bodies.push_back(LocalScope{Symbols, Body});
 }
 
-SemaNameSpace* Registry::getOrAddNameSpace(const ASTNameSpace& AST) {
-	SemaNameSpace *NameSpace = nullptr;
-	std::string FQName = "";
-	for (auto It = AST.getNames().begin(); It != AST.getNames().end(); ++It) {
-		// Generate the full name
-		FQName += (It == AST.getNames().begin()) ? std::string(*It) : "." + std::string(*It);
-
-		// Add as Parent the previous NameSpace
-		NameSpace = getOrAddFQNameSpace(FQName, NameSpace);
+SemaNameSpace* Registry::getNameSpace(std::string Name) {
+	auto I = NameSpaces.find(Name);
+	if (I != NameSpaces.end()) {
+		return I->second;
 	}
-	return NameSpace;
+	return nullptr;
+}
+
+void Registry::addNameSpace(SemaNameSpace *NameSpace) {
+	NameSpaces.insert(std::make_pair(NameSpace->getName(), NameSpace));
 }
 
 SemaType* Registry::LookupBuiltinType(llvm::StringRef Ref) {

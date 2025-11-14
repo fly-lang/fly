@@ -10,13 +10,14 @@
 #include "AST/ASTImport.h"
 #include "Basic/Logger.h"
 
+#include <AST/ASTIdentifier.h>
 #include <AST/ASTVisitor.h>
 #include <llvm/ADT/StringExtras.h>
 
 using namespace fly;
 
-ASTImport::ASTImport(const SourceLocation &Loc, llvm::SmallVector<llvm::StringRef, 4> &Names) :
-        ASTNode(Loc, ASTKind::AST_IMPORT), Name(llvm::join(Names, ".")), Alias(nullptr) {
+ASTImport::ASTImport(ASTIdentifier *Identifier, ASTIdentifier *Alias) :
+        ASTNode(Identifier->getLocation(), ASTKind::AST_IMPORT), Identifier(Identifier), Alias(Alias) {
 
 }
 
@@ -32,23 +33,19 @@ ASTModule * ASTImport::getModule() const {
 	return Module;
 }
 
-llvm::StringRef ASTImport::getName() const {
-	return  Name;
+ASTIdentifier * ASTImport::getImport() const {
+	return Identifier;
 }
 
-ASTAlias *ASTImport::getAlias() const {
-    return Alias;
-}
-
-void ASTImport::setAlias(ASTAlias *Alias) {
-    this->Alias = Alias;
+ASTIdentifier * ASTImport::getAlias() const {
+	return Alias;
 }
 
 std::string ASTImport::str() const {
     return Logger("ASTImport").
 	Attr("Location", getLocation()).
 Attr("Kind", static_cast<size_t>(getKind())).
-            Attr("Name", Name).
+            Attr("Import", Identifier).
             Attr("Alias",Alias).
             End();
 }

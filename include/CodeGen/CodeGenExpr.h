@@ -18,7 +18,7 @@ namespace fly {
     class ASTBinaryOpExpr;
     class ASTTernaryOpExpr;
     class ASTOpExpr;
-    class ASTRef;
+    class ASTIdentifier;
     class SemaResult;
     class ASTExpr;
     enum class ASTBinaryOpExprKind;

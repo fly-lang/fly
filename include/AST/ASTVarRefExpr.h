@@ -14,7 +14,7 @@
 
 namespace fly {
 
-	class ASTRef;
+	class ASTIdentifier;
 
     /**
      * Var Reference Expression
@@ -23,15 +23,15 @@ namespace fly {
 
         friend class ASTBuilder;
 
-        ASTRef *VarRef = nullptr;
+        ASTIdentifier *VarRef = nullptr;
 
-        explicit ASTVarRefExpr(ASTRef *VarRef);
+        explicit ASTVarRefExpr(ASTIdentifier *VarRef);
 
     public:
 
     	void accept(ASTVisitor& Visitor) override;
 
-        ASTRef *getVarRef() const;
+        ASTIdentifier *getVarRef() const;
 
         std::string str() const override;
     };

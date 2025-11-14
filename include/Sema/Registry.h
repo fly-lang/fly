@@ -59,7 +59,9 @@ namespace fly {
 
 		SemaNameSpace * getDefaultNameSpace();
 
-		SemaNameSpace* getOrAddNameSpace(const fly::ASTNameSpace& AST);
+		SemaNameSpace* getNameSpace(std::string Name);
+
+		void addNameSpace(SemaNameSpace* NameSpace);
 
 		SemaType *LookupBuiltinType(llvm::StringRef Ref);
 

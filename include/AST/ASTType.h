@@ -10,24 +10,21 @@
 #ifndef FLY_AST_TYPEREF_H
 #define FLY_AST_TYPEREF_H
 
-#include "ASTRef.h"
+#include "ASTIdentifier.h"
 
 namespace fly {
 
     class SemaType;
     class ASTExpr;
-    class ASTNameSpaceRef;
 
     /**
      * Identity Type
      */
-    class ASTType : public ASTRef {
+    class ASTType : public ASTIdentifier {
 
         friend class ASTBuilder;
 
         SemaType *Sema;
-
-        ASTNameSpaceRef *NameSpaceRef;
 
         bool BuiltIn;
 
@@ -45,8 +42,6 @@ namespace fly {
 
         void setSema(SemaType *Sema);
 
-        ASTNameSpaceRef *getNameSpaceRef() const;
-
         std::string str() const override;
     };
 
@@ -60,7 +55,7 @@ namespace fly {
 
         ASTExpr *SizeExpr;
 
-        explicit ASTArrayType(const SourceLocation &Loc,  ASTType *ElementType, llvm::StringRef Name);
+        explicit ASTArrayType(const SourceLocation &Loc,  ASTType *ElementType, ASTExpr *SizeExpr, llvm::StringRef Name);
 
     public:
 

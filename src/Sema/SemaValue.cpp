@@ -26,14 +26,15 @@ bool SemaBoolValue::getValue() const {
 	return Value;
 }
 
-SemaIntValue::SemaIntValue(ASTNumberValue &AST) : SemaValue(AST), Value() {
+SemaIntValue::SemaIntValue(ASTNumberValue &AST) : SemaValue(AST), Value(llvm::APInt(64, 0, true)) {
 }
 
 llvm::APInt SemaIntValue::getValue() const {
 	return Value;
 }
 
-SemaFloatValue::SemaFloatValue(ASTNumberValue &AST) : SemaValue(AST), Value(llvm::APFloat(llvm::APFloat::IEEEdouble(), Value)) {
+SemaFloatValue::SemaFloatValue(ASTNumberValue &AST) : SemaValue(AST),
+	Value(llvm::APFloat(llvm::APFloat::IEEEdouble(), "0.0")) {
 }
 
 llvm::APFloat SemaFloatValue::getValue() const {

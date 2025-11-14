@@ -26,6 +26,10 @@ ASTExpr *ASTExprStmt::getExpr() const {
     return Expr;
 }
 
+void ASTExprStmt::setExpr(ASTExpr *Expr) {
+	this->Expr = Expr;
+}
+
 std::string ASTExprStmt::str() const {
     return Logger("ASTExprStmt").
 	Attr("Location", getLocation()).

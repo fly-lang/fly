@@ -16,8 +16,7 @@ namespace fly {
 
     class ASTIfStmt : public ASTRuleStmt {
 
-        friend class ASTBuilder;
-        friend class SemaBuilderIfStmt;
+        friend class ASTBuilderIfStmt;
 
         // The list of Elseif Blocks
         llvm::SmallVector<ASTRuleStmt *, 8> Elsif;
