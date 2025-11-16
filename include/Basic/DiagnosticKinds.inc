@@ -333,6 +333,7 @@ DIAG(err_parser_empty_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "empty
 DIAG(err_parser_unclosed_bracket, CLASS_ERROR, (unsigned)diag::Severity::Error, "unclosed bracket", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_parser_unbalanced_bracket, CLASS_ERROR, (unsigned)diag::Severity::Error, "unbalanced bracket", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_parser_invalid_null_value, CLASS_ERROR, (unsigned)diag::Severity::Error, "only class type can have a null value assigned", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_parser_invalid_left_expr, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid left expr", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_const_call, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot use const with function call", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_unary_operator, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot parse unary operator", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_multiple_unary_operator, CLASS_ERROR, (unsigned)diag::Severity::Error, "multiple unary operator '%0'", 0, SFINAE_Suppress, false, true, 0)

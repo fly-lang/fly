@@ -39,6 +39,20 @@ namespace fly {
 
         ASTExpr *ParseNewExpr();
 
+        ASTCall *ParseCall();
+
+        /// Parse a call.
+        ASTCall *ParseCall(const SourceLocation &Loc, llvm::StringRef Name, ASTIdentifier *Parent);
+
+        /// Parse an identifier.
+        ASTIdentifier *ParseIdentifier(ASTIdentifier *Parent = nullptr);
+
+        /// Parse a value.
+        ASTValue *ParseValue();
+
+        /// Parse multiple values.
+        ASTValue *ParseValues();
+
         bool isNewOperator(Token &Tok);
 
         bool isUnaryPreOperator(Token &Tok);

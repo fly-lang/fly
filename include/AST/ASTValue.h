@@ -10,7 +10,7 @@
 #ifndef FLY_AST_VALUE_H
 #define FLY_AST_VALUE_H
 
-#include "ASTNode.h"
+#include "ASTExpr.h"
 
 #include "llvm/ADT/StringMap.h"
 
@@ -30,7 +30,7 @@ namespace fly {
     };
 
 
-    class ASTValue : public ASTNode {
+    class ASTValue : public ASTExpr {
 
         friend class ASTBuilder;
 

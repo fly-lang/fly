@@ -16,8 +16,8 @@
 
 using namespace fly;
 
-ASTImport::ASTImport(ASTIdentifier *Identifier, ASTIdentifier *Alias) :
-        ASTNode(Identifier->getLocation(), ASTKind::AST_IMPORT), Identifier(Identifier), Alias(Alias) {
+ASTImport::ASTImport(const SourceLocation &Loc, llvm::SmallVector<ASTName *, 4> &Names, llvm::SmallVector<ASTName *, 4> &Alias) :
+        ASTNode(Loc, ASTKind::AST_IMPORT), Names(std::move(Names)), Alias(std::move(Alias)) {
 
 }
 
@@ -29,23 +29,18 @@ void ASTImport::accept(ASTVisitor &Visitor) {
 	Visitor.visit(*this);
 }
 
-ASTModule * ASTImport::getModule() const {
-	return Module;
+const llvm::SmallVector<ASTName *, 4> &ASTImport::getNames() const {
+	return Names;
 }
 
-ASTIdentifier * ASTImport::getImport() const {
-	return Identifier;
-}
-
-ASTIdentifier * ASTImport::getAlias() const {
+const llvm::SmallVector<ASTName *, 4> &ASTImport::getAlias() const {
 	return Alias;
 }
 
 std::string ASTImport::str() const {
     return Logger("ASTImport").
-	Attr("Location", getLocation()).
-Attr("Kind", static_cast<size_t>(getKind())).
-            Attr("Import", Identifier).
-            Attr("Alias",Alias).
+			Attr("Kind", static_cast<size_t>(getKind())).
+            // Attr("Names", Names). // FIXME: implement printing of names
+            // Attr("Alias",Alias).
             End();
 }

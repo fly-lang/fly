@@ -280,7 +280,7 @@ bool SemaValidator::CheckIsValueExpr(ASTExpr *Expr) {
 }
 
 bool SemaValidator::CheckVarRefExpr(ASTExpr *Expr) {
-    if (Expr->getExprKind() == ASTExprKind::EXPR_VAR_REF) {
+    if (Expr->getExprKind() == ASTExprKind::EXPR_IDENTIFIER) {
         return true;
     }
     return false;

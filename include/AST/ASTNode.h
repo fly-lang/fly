@@ -18,6 +18,8 @@ namespace fly {
 
     class ASTNode : public ASTBase {
 
+        bool Visited = false;
+
     protected:
 
         explicit ASTNode(const SourceLocation &Loc, ASTKind Kind);
@@ -26,6 +28,11 @@ namespace fly {
         virtual ~ASTNode() = default;
 
         virtual void accept(ASTVisitor& Visitor) = 0;
+
+        virtual bool isVisited() const;
+
+        virtual void setVisited(bool Visited);
+
     };
 
 }

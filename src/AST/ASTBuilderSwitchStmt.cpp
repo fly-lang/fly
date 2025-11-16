@@ -10,7 +10,6 @@
 #include "AST/ASTBuilderSwitchStmt.h"
 #include "AST/ASTSwitchStmt.h"
 #include "AST/ASTBlockStmt.h"
-#include <AST/ASTVarRefExpr.h>
 
 using namespace fly;
 
@@ -28,7 +27,7 @@ ASTBuilderSwitchStmt *ASTBuilderSwitchStmt::Switch(const SourceLocation &Loc, AS
     // Inner stmt
     Parent->getContent().push_back(SwitchStmt);
     SwitchStmt->Parent = Parent;
-    SwitchStmt->Var = ((ASTVarRefExpr *) Expr)->getVarRef();
+    SwitchStmt->Var = Expr;
     return this;
 }
 

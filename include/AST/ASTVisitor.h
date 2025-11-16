@@ -44,13 +44,11 @@ namespace fly {
 	class ASTLoopInStmt;
 	class ASTVarStmt;
 	class ASTBlockStmt;
-	class ASTValueExpr;
-	class ASTVarRefExpr;
-	class ASTCallExpr;
 	class ASTUnaryOpExpr;
 	class ASTBinaryOpExpr;
 	class ASTTernaryOpExpr;
-	class ASTCastExpr;
+	class ASTCast;
+	class ASTMember;
 
 	class ASTVisitor {
 
@@ -63,14 +61,14 @@ namespace fly {
 		virtual void visit(ASTClass& Class) = 0;
 		virtual void visit(ASTFunction& Function) = 0;
 		virtual void visit(ASTEnum& Enum) = 0;
-		virtual void visit(ASTComment &AST) = 0;
 		virtual void visit(ASTVar &AST) = 0;
+		virtual void visit(ASTComment &AST) = 0;
 
+		// Types
 		virtual void visit(ASTType &AST) = 0;
 		virtual void visit(ASTArrayType &AST) = 0;
-		virtual void visit(ASTIdentifier &AST) = 0;
-		virtual void visit(ASTCall &AST) = 0;
 
+		// Statements
 		virtual void visit(ASTBreakStmt &AST) = 0;
 		virtual void visit(ASTContinueStmt &AST) = 0;
 		virtual void visit(ASTDeleteStmt &AST) = 0;
@@ -86,14 +84,14 @@ namespace fly {
 		virtual void visit(ASTVarStmt &AST) = 0;
 		virtual void visit(ASTBlockStmt &AST) = 0;
 
-		virtual void visit(ASTValueExpr &AST) = 0;
-		virtual void visit(ASTVarRefExpr &AST) = 0;
-		virtual void visit(ASTCallExpr &AST) = 0;
+		// Expressions
+		virtual void visit(ASTIdentifier &AST) = 0;
+		virtual void visit(ASTMember &AST) = 0;
+		virtual void visit(ASTCall &AST) = 0;
 		virtual void visit(ASTUnaryOpExpr &AST) = 0;
 		virtual void visit(ASTBinaryOpExpr &AST) = 0;
 		virtual void visit(ASTTernaryOpExpr &AST) = 0;
-		virtual void visit(ASTCastExpr &AST) = 0;
-
+		virtual void visit(ASTCast &AST) = 0;
 		virtual void visit(ASTBoolValue &AST) = 0;
 		virtual void visit(ASTNumberValue &AST) = 0;
 		virtual void visit(ASTStringValue &AST) = 0;

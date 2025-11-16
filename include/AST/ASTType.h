@@ -7,40 +7,81 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_AST_TYPEREF_H
-#define FLY_AST_TYPEREF_H
+#ifndef FLY_AST_TYPE_H
+#define FLY_AST_TYPE_H
 
-#include "ASTIdentifier.h"
+#include "ASTNode.h"
 
 namespace fly {
 
     class SemaType;
     class ASTExpr;
 
+    enum class ASTBuiltinTypeKind {
+		TYPE_VOID,
+		TYPE_BOOL,
+		TYPE_BYTE,
+		TYPE_SHORT,
+		TYPE_INT,
+		TYPE_LONG,
+		TYPE_USHORT,
+		TYPE_UINT,
+		TYPE_ULONG,
+		TYPE_FLOAT,
+		TYPE_DOUBLE,
+		TYPE_STRING,
+		TYPE_ERROR,
+	};
+
     /**
      * Identity Type
      */
-    class ASTType : public ASTIdentifier {
+    class ASTType : public ASTNode {
 
         friend class ASTBuilder;
 
         SemaType *Sema;
 
-        bool BuiltIn;
-
     protected:
 
-        explicit ASTType(const SourceLocation &Loc, llvm::StringRef Name, bool BuiltIn = false);
+        explicit ASTType(const SourceLocation &Loc);
+
+    public:
+
+        SemaType *getSema() const;
+
+        void setSema(SemaType *Sema);
+    };
+
+    class ASTBuiltinType : public ASTType {
+
+        friend class ASTBuilder;
+
+        ASTBuiltinTypeKind BuiltinKind;
+
+        explicit ASTBuiltinType(const SourceLocation &Loc, ASTBuiltinTypeKind Kind);
 
     public:
 
         void accept(ASTVisitor& Visitor) override;
 
-        bool isBuiltIn() const;
+        std::string str() const override;
 
-        SemaType *getSema() const;
+    };
 
-        void setSema(SemaType *Sema);
+    class ASTNamedType : public ASTType {
+
+        friend class ASTBuilder;
+
+        llvm::StringRef Name;
+
+        explicit ASTNamedType(const SourceLocation &Loc, llvm::StringRef Name);
+
+    public:
+
+        void accept(ASTVisitor& Visitor) override;
+
+        llvm::StringRef getName() const;
 
         std::string str() const override;
     };
@@ -53,9 +94,9 @@ namespace fly {
 
         ASTType *ElementType;
 
-        ASTExpr *SizeExpr;
+        ASTExpr *Size;
 
-        explicit ASTArrayType(const SourceLocation &Loc,  ASTType *ElementType, ASTExpr *SizeExpr, llvm::StringRef Name);
+        explicit ASTArrayType(const SourceLocation &Loc,  ASTType *ElementType, ASTExpr *Size);
 
     public:
 
@@ -69,4 +110,4 @@ namespace fly {
     };
 }
 
-#endif //FLY_AST_TYPEREF_H
+#endif //FLY_AST_TYPE_H

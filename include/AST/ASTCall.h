@@ -10,7 +10,7 @@
 #ifndef FLY_AST_CALL_H
 #define FLY_AST_CALL_H
 
-#include "ASTIdentifier.h"
+#include "ASTExpr.h"
 
 namespace fly {
 
@@ -31,11 +31,13 @@ namespace fly {
      * Ex.
      *  int a = sqrt(4)
      */
-    class ASTCall : public ASTIdentifier {
+    class ASTCall : public ASTExpr {
 
         friend class ASTBuilder;
 
         const ASTCallKind CallKind;
+
+        llvm::StringRef Name;
 
         llvm::SmallVector<ASTArg *, 8> Args;
 
@@ -46,6 +48,8 @@ namespace fly {
     public:
 
         void accept(ASTVisitor& Visitor) override;
+
+        llvm::StringRef getName() const;
 
         llvm::SmallVector<ASTArg *, 8> getArgs() const;
 

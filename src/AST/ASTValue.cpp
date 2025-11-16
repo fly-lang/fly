@@ -15,7 +15,7 @@
 using namespace fly;
 
 ASTValue::ASTValue(const ASTValueKind ValueKind, const SourceLocation &Location) :
-        ASTNode(Location, ASTKind::AST_VALUE), ValueKind(ValueKind) {
+        ASTExpr(Location, ASTExprKind::EXPR_VALUE), ValueKind(ValueKind) {
 
 }
 

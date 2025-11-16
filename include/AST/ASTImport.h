@@ -14,20 +14,18 @@
 
 namespace fly {
 
-    class ASTIdentifier;
+    class ASTName;
     class ASTModule;
 
     class ASTImport : public ASTNode {
 
         friend class ASTBuilder;
 
-        ASTModule *Module;
+        llvm::SmallVector<ASTName *, 4> Names;
 
-        ASTIdentifier *Identifier;
+        llvm::SmallVector<ASTName *, 4> Alias;
 
-        ASTIdentifier *Alias;
-
-        ASTImport(ASTIdentifier *Identifier, ASTIdentifier *Alias = nullptr);
+        ASTImport(const SourceLocation &Loc, llvm::SmallVector<ASTName *, 4> &Names, llvm::SmallVector<ASTName *, 4> &Alias);
 
     public:
 
@@ -35,11 +33,9 @@ namespace fly {
 
         void accept(ASTVisitor& Visitor) override;
 
-        ASTModule* getModule() const;
+        const llvm::SmallVector<ASTName *, 4> &getNames() const;
 
-        ASTIdentifier* getImport() const;
-
-        ASTIdentifier *getAlias() const;
+        const llvm::SmallVector<ASTName *, 4> &getAlias() const;
 
         std::string str() const override;
     };

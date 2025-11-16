@@ -10,20 +10,15 @@
 #include "AST/ASTOpExpr.h"
 #include "Basic/Logger.h"
 
+#include <AST/ASTVisitor.h>
+
 using namespace fly;
 
-ASTOpExpr::ASTOpExpr(const SourceLocation &Loc, ASTOpExprKind OpExprKind) :
-                           ASTExpr(Loc, ASTExprKind::EXPR_OP), OpExprKind(OpExprKind) {
-
+ASTUnaryOpExpr::ASTUnaryOpExpr(const SourceLocation &Loc, ASTUnaryOpExprKind OpKind, ASTExpr *Expr) : ASTExpr(Loc, ASTExprKind::EXPR_UNARY) {
 }
 
-ASTOpExprKind ASTOpExpr::getOpExprKind() {
-    return OpExprKind;
-}
-
-ASTUnaryOpExpr::ASTUnaryOpExpr(const SourceLocation &Loc, ASTUnaryOpExprKind OpKind, ASTExpr *Expr) :
-        ASTOpExpr(Loc, ASTOpExprKind::OP_UNARY), OpKind(OpKind), Expr(Expr) {
-
+void ASTUnaryOpExpr::accept(ASTVisitor &Visitor) {
+	Visitor.visit(*this);
 }
 
 ASTUnaryOpExprKind ASTUnaryOpExpr::getOpKind() const {
@@ -93,10 +88,14 @@ ASTBinaryOpTypeExprKind ASTBinaryOpExpr::setTypeKind(ASTBinaryOpExprKind OpKind)
 
 ASTBinaryOpExpr::ASTBinaryOpExpr(ASTBinaryOpExprKind OpKind, const SourceLocation &OpLocation,
                                  ASTExpr *LeftExpr, ASTExpr *RightExpr) :
-        ASTOpExpr(LeftExpr->getLocation(), ASTOpExprKind::OP_BINARY),
+        ASTExpr(LeftExpr->getLocation(), ASTExprKind::EXPR_BINARY),
         TypeKind(setTypeKind(OpKind)), OpKind(OpKind), OpLocation(OpLocation),
         LeftExpr(LeftExpr), RightExpr(RightExpr) {
 
+}
+
+void ASTBinaryOpExpr::accept(ASTVisitor &Visitor) {
+	Visitor.visit(*this);
 }
 
 ASTBinaryOpTypeExprKind ASTBinaryOpExpr::getTypeKind() const {
@@ -133,10 +132,14 @@ std::string ASTBinaryOpExpr::str() const {
 
 ASTTernaryOpExpr::ASTTernaryOpExpr(ASTExpr *ConditionExpr, const SourceLocation &TrueOpLocation,
                                    ASTExpr *TrueExpr, const SourceLocation &FalseOpLocation, ASTExpr *FalseExpr) :
-        ASTOpExpr(ConditionExpr->getLocation(), ASTOpExprKind::OP_TERNARY),
+        ASTExpr(ConditionExpr->getLocation(), ASTExprKind::EXPR_TERNARY),
         ConditionExpr(ConditionExpr), TrueOpLocation(TrueOpLocation),
         TrueExpr(TrueExpr), FalseOpLocation(FalseOpLocation), FalseExpr(FalseExpr) {
 
+}
+
+void ASTTernaryOpExpr::accept(ASTVisitor &Visitor) {
+	Visitor.visit(*this);
 }
 
 ASTExpr *ASTTernaryOpExpr::getConditionExpr() const {

@@ -16,6 +16,7 @@ namespace fly {
 
     class ASTExprStmt : public ASTStmt {
 
+        friend class ASTBuilder;
         friend class ASTBuilderStmt;
 
     protected:

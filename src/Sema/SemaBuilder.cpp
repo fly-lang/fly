@@ -444,7 +444,7 @@ ASTBuilderStmt *SemaBuilder::CreateAssignmentStmt(ASTBlockStmt *Parent, ASTIdent
 ASTBuilderStmt *SemaBuilder::CreateAssignmentStmt(ASTBlockStmt *Parent, ASTVar *Var, ASTAssignOperatorKind Kind) {
 	FLY_DEBUG_MESSAGE("SemaBuilder", "CreateAssignmentStmt", "Kind=" << static_cast<uint8_t>(Kind));
 
-    ASTIdentifier *VarRef = ASTBuilder::CreateVarRef(Var);
+    ASTIdentifier *VarRef = ASTBuilder::CreateIdentifier(Var);
     ASTBuilderStmt * B = ASTBuilderStmt::CreateAssignment(Parent, VarRef, Kind);
 
 	FLY_DEBUG_END("SemaBuilder", "CreateAssignmentStmt");

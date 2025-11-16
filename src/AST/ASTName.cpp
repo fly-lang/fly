@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTNode.cpp - AST Base implementation
+// src/AST/ASTName.cpp - AST Name implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,18 +7,17 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "AST/ASTNode.h"
+#include "AST/ASTName.h"
 
 using namespace fly;
 
-ASTNode::ASTNode(const SourceLocation &Loc, ASTKind Kind) : ASTBase(Loc, Kind) {
-
+ASTName::ASTName(const SourceLocation &Loc, llvm::StringRef Name) : ASTBase(Loc, ASTKind::AST_NAME), Name(Name) {
 }
 
-bool ASTNode::isVisited() const {
-	return Visited;
+llvm::StringRef ASTName::getName() const {
+	return Name;
 }
 
-void ASTNode::setVisited(bool Visited) {
-	this->Visited = Visited;
+std::string ASTName::str() const {
+	return ASTBase::str();
 }

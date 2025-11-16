@@ -14,15 +14,15 @@
 
 namespace fly {
 
-    class ASTIdentifier;
+    class ASTName;
 
     class ASTNameSpace : public ASTNode {
 
         friend class ASTBuilder;
 
-        ASTIdentifier *Identifier;
+        llvm::SmallVector<ASTName *, 4> Names;
 
-        ASTNameSpace(const SourceLocation &Loc, ASTIdentifier *Identifier);
+        ASTNameSpace(const SourceLocation &Loc, llvm::SmallVector<ASTName *, 4> Names);
 
     public:
 
@@ -30,7 +30,7 @@ namespace fly {
 
         void accept(ASTVisitor& Visitor) override;
 
-        ASTIdentifier *getIdentifier() const;
+        const llvm::SmallVector<ASTName *, 4> &getNames() const;
 
         std::string str() const;
     };

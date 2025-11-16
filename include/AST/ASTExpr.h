@@ -1,4 +1,4 @@
-//===--------------------------------------------------------------------------------------------------------------===//
+    //===--------------------------------------------------------------------------------------------------------------===//
 // include/AST/ASTExpr.h - AST Expression header
 //
 // Part of the Fly Project https://flylang.org
@@ -18,10 +18,12 @@ namespace fly {
 
     enum class ASTExprKind : char {
         EXPR_VALUE,
-        EXPR_VAR_REF,
+        EXPR_IDENTIFIER,
+        EXPR_MEMBER,
         EXPR_CALL,
-        EXPR_NEW,
-        EXPR_OP,
+        EXPR_UNARY,
+        EXPR_BINARY,
+        EXPR_TERNARY,
         EXPR_CAST
     };
 
@@ -36,17 +38,29 @@ namespace fly {
 
         const ASTExprKind ExprKind;
 
+        ASTExpr *Parent = nullptr;
+
+        ASTExpr *Child = nullptr;
+
         SemaType *Type = nullptr;
 
-        ASTExpr(const SourceLocation &Loc, ASTExprKind Kind);
+        ASTExpr(const SourceLocation &Loc, ASTExprKind Kind, ASTExpr *Parent = nullptr, ASTExpr *Child = nullptr);
 
     public:
+
+        ASTExprKind getExprKind() const;
+
+        ASTExpr *getParent() const;
+
+        ASTExpr *getChild() const;
+
+        void setParent(ASTExpr *Parent);
+
+        void setChild(ASTExpr *Child);
 
         SemaType *getType() const;
 
         void setType(SemaType *Type);
-
-        ASTExprKind getExprKind() const;
 
         std::string str() const override;
     };

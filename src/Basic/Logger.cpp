@@ -12,6 +12,8 @@
 
 using namespace fly;
 
+class ASTBase;
+
 const char *Logger::OPEN = "{";
 const char *Logger::EQ = "=";
 const char *Logger::SEP = ",";

@@ -21,6 +21,7 @@ namespace fly {
      */
     class ASTReturnStmt : public ASTStmt {
 
+        friend class ASTBuilder;
         friend class ASTBuilderStmt;
 
         ASTExpr *Expr = nullptr;

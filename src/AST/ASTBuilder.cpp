@@ -35,12 +35,10 @@
 #include "Basic/Debug.h"
 
 #include <utility>
-#include <AST/ASTCallExpr.h>
 #include <AST/ASTExprStmt.h>
 #include <AST/ASTFailStmt.h>
+#include <AST/ASTName.h>
 #include <AST/ASTReturnStmt.h>
-#include <AST/ASTValueExpr.h>
-#include <AST/ASTVarRefExpr.h>
 #include <Frontend/InputFile.h>
 
 using namespace fly;
@@ -95,20 +93,28 @@ ASTComment *ASTBuilder::CreateComment(ASTModule *Module, const SourceLocation &L
 	return Comment;
 }
 
-ASTNameSpace * ASTBuilder::CreateNameSpace(ASTModule *Module, const SourceLocation &Loc, ASTIdentifier *Identifier) {
-	if (!Identifier) {
+ASTName * ASTBuilder::CreateName(llvm::StringRef Name, const SourceLocation &Loc) {
+	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateName", "Loc" << Loc.getRawEncoding() << " Name=" << Name);
+	ASTName *AST = new ASTName(Loc, Name);
+
+	FLY_DEBUG_END("ASTBuilder", "CreateName");
+	return AST;
+}
+
+ASTNameSpace * ASTBuilder::CreateNameSpace(ASTModule *Module, const SourceLocation &Loc, llvm::SmallVector<ASTName *, 4> Names) {
+	if (Names.empty()) {
 		Diags.Report(Loc, diag::err_sema_namespace_empty);
 	}
 
-	Module->NameSpace = new ASTNameSpace(Loc, Identifier);
+	Module->NameSpace = new ASTNameSpace(Loc, Names);
 
 	return Module->NameSpace;
 }
 
-ASTImport *ASTBuilder::CreateImport(ASTModule *Module, ASTIdentifier *Identifier, ASTIdentifier *Alias) {
-    FLY_DEBUG_MESSAGE("ASTBuilder", "CreateImport", "Loc=" << Identifier->getLocation().getRawEncoding() << ", Name=" << Identifier->getName());
+ASTImport *ASTBuilder::CreateImport(ASTModule *Module, const SourceLocation &Loc, llvm::SmallVector<ASTName *, 4> Names, llvm::SmallVector<ASTName *, 4> Alias) {
+    FLY_DEBUG_MESSAGE("ASTBuilder", "CreateImport", "Loc=" << Loc.getRawEncoding());
 
-    ASTImport *Import = new ASTImport(Identifier, Alias);
+    ASTImport *Import = new ASTImport(Loc, Names, Alias);
 
     // Add Import to Module
 	Module->Nodes.push_back(Import);
@@ -254,7 +260,7 @@ ASTModifier * ASTBuilder::CreateModifier(const SourceLocation &Loc, ASTModifierK
 ASTType *ASTBuilder::CreateBoolType(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateBoolTypeRef", "Loc=" << Loc.getRawEncoding());
 
-    ASTType * TypeRef = new ASTType(Loc, llvm::StringRef("bool"));
+    ASTType * TypeRef = new ASTBuiltinType(Loc, ASTBuiltinTypeKind::TYPE_BOOL);
 
 	FLY_DEBUG_END("ASTBuilder", "CreateBoolTypeRef");
 	return TypeRef;
@@ -268,7 +274,7 @@ ASTType *ASTBuilder::CreateBoolType(const SourceLocation &Loc) {
 ASTType *ASTBuilder::CreateByteType(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateByteTypeRef", "Loc=" << Loc.getRawEncoding());
 
-	ASTType * TypeRef = new ASTType(Loc, llvm::StringRef("byte"));
+	ASTType * TypeRef = new ASTBuiltinType(Loc, ASTBuiltinTypeKind::TYPE_BYTE);
 
 	FLY_DEBUG_END("ASTBuilder", "CreateByteTypeRef");
 	return TypeRef;
@@ -282,7 +288,7 @@ ASTType *ASTBuilder::CreateByteType(const SourceLocation &Loc) {
 ASTType *ASTBuilder::CreateUShortType(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateUShortTypeRef", "Loc=" << Loc.getRawEncoding());
 
-	ASTType * TypeRef = new ASTType(Loc, llvm::StringRef("ushort"));
+	ASTType * TypeRef = new ASTBuiltinType(Loc, ASTBuiltinTypeKind::TYPE_USHORT);
 
 	FLY_DEBUG_END("ASTBuilder", "CreateUShortTypeRef");
 	return TypeRef;
@@ -296,7 +302,7 @@ ASTType *ASTBuilder::CreateUShortType(const SourceLocation &Loc) {
 ASTType *ASTBuilder::CreateShortType(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateShortTypeRef", "Loc=" << Loc.getRawEncoding());
 
-	ASTType * TypeRef = new ASTType(Loc, llvm::StringRef("short"));
+	ASTType * TypeRef = new ASTBuiltinType(Loc, ASTBuiltinTypeKind::TYPE_SHORT);
 
 	FLY_DEBUG_END("ASTBuilder", "CreateShortTypeRef");
 	return TypeRef;
@@ -310,7 +316,7 @@ ASTType *ASTBuilder::CreateShortType(const SourceLocation &Loc) {
 ASTType *ASTBuilder::CreateUIntType(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateUIntTypeRef", "Loc=" << Loc.getRawEncoding());
 
-	ASTType * TypeRef = new ASTType(Loc, llvm::StringRef("uint"));
+	ASTType * TypeRef = new ASTBuiltinType(Loc, ASTBuiltinTypeKind::TYPE_UINT);
 
 	FLY_DEBUG_END("ASTBuilder", "CreateUIntTypeRef");
 	return TypeRef;
@@ -324,7 +330,7 @@ ASTType *ASTBuilder::CreateUIntType(const SourceLocation &Loc) {
 ASTType *ASTBuilder::CreateIntType(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateIntTypeRef", "Loc=" << Loc.getRawEncoding());
 
-	ASTType * TypeRef = new ASTType(Loc, llvm::StringRef("int"));
+	ASTType * TypeRef = new ASTBuiltinType(Loc, ASTBuiltinTypeKind::TYPE_INT);
 
 	FLY_DEBUG_END("ASTBuilder", "CreateIntTypeRef");
 	return TypeRef;
@@ -338,7 +344,7 @@ ASTType *ASTBuilder::CreateIntType(const SourceLocation &Loc) {
 ASTType *ASTBuilder::CreateULongType(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateULongTypeRef", "Loc=" << Loc.getRawEncoding());
 
-	ASTType * TypeRef = new ASTType(Loc, llvm::StringRef("ulong"));
+	ASTType * TypeRef = new ASTBuiltinType(Loc, ASTBuiltinTypeKind::TYPE_ULONG);
 
 	FLY_DEBUG_END("ASTBuilder", "CreateULongTypeRef");
 	return TypeRef;
@@ -352,7 +358,7 @@ ASTType *ASTBuilder::CreateULongType(const SourceLocation &Loc) {
 ASTType *ASTBuilder::CreateLongType(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateLongTypeRef", "Loc=" << Loc.getRawEncoding());
 
-	ASTType * TypeRef = new ASTType(Loc, llvm::StringRef("long"));
+	ASTType * TypeRef = new ASTBuiltinType(Loc, ASTBuiltinTypeKind::TYPE_ULONG);
 
 	FLY_DEBUG_END("ASTBuilder", "CreateLongTypeRef");
 	return TypeRef;
@@ -366,7 +372,7 @@ ASTType *ASTBuilder::CreateLongType(const SourceLocation &Loc) {
 ASTType *ASTBuilder::CreateFloatType(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateFloatTypeRef", "Loc=" << Loc.getRawEncoding());
 
-	ASTType * TypeRef = new ASTType(Loc, llvm::StringRef("float"));
+	ASTType * TypeRef = new ASTBuiltinType(Loc, ASTBuiltinTypeKind::TYPE_FLOAT);
 
 	FLY_DEBUG_END("ASTBuilder", "CreateFloatTypeRef");
 	return TypeRef;
@@ -380,7 +386,7 @@ ASTType *ASTBuilder::CreateFloatType(const SourceLocation &Loc) {
 ASTType *ASTBuilder::CreateDoubleType(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateDoubleTypeRef", "Loc=" << Loc.getRawEncoding());
 
-	ASTType * TypeRef = new ASTType(Loc, llvm::StringRef("double"));
+	ASTType * TypeRef = new ASTBuiltinType(Loc, ASTBuiltinTypeKind::TYPE_DOUBLE);
 
 	FLY_DEBUG_END("ASTBuilder", "CreateDoubleTypeRef");
 	return TypeRef;
@@ -394,7 +400,7 @@ ASTType *ASTBuilder::CreateDoubleType(const SourceLocation &Loc) {
 ASTType *ASTBuilder::CreateVoidType(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateVoidTypeRef", "Loc=" << Loc.getRawEncoding());
 
-	ASTType * TypeRef = new ASTType(Loc, llvm::StringRef("void"));
+	ASTType * TypeRef = new ASTBuiltinType(Loc, ASTBuiltinTypeKind::TYPE_VOID);
 
 	FLY_DEBUG_END("ASTBuilder", "CreateVoidTypeRef");
 	return TypeRef;
@@ -403,7 +409,7 @@ ASTType *ASTBuilder::CreateVoidType(const SourceLocation &Loc) {
 ASTType *ASTBuilder::CreateStringType(const SourceLocation &Loc) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateStringTypeRef", "Loc=" << Loc.getRawEncoding());
 
-	ASTType * TypeRef = new ASTType(Loc, llvm::StringRef("string"));
+	ASTType * TypeRef = new ASTBuiltinType(Loc, ASTBuiltinTypeKind::TYPE_STRING);
 
 	FLY_DEBUG_END("ASTBuilder", "CreateStringTypeRef");
 	return TypeRef;
@@ -412,7 +418,7 @@ ASTType *ASTBuilder::CreateStringType(const SourceLocation &Loc) {
 ASTType *ASTBuilder::CreateErrorType(const SourceLocation &Loc) {
     FLY_DEBUG_START("ASTBuilder", "CreateErrorTypeRef");
 
-	ASTType * TypeRef = new ASTType(Loc, llvm::StringRef("error"));
+	ASTType * TypeRef = new ASTBuiltinType(Loc, ASTBuiltinTypeKind::TYPE_ERROR);
 
 	FLY_DEBUG_END("ASTBuilder", "CreateErrorTypeRef");
 	return TypeRef;
@@ -558,9 +564,7 @@ ASTVar *ASTBuilder::CreateParam(const SourceLocation &Loc, ASTType *TypeRef, llv
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateParam", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
 
     ASTVar *Param = new ASTVar(Loc, TypeRef, Name, Modifiers);
-	if (DefaultValue) {
-		Param->Expr = CreateExpr(DefaultValue);
-	}
+	Param->Expr = DefaultValue;
 
 	FLY_DEBUG_END("ASTBuilder", "CreateParam");
     return Param;
@@ -599,8 +603,8 @@ ASTCall *ASTBuilder::CreateCall(const SourceLocation &Loc, llvm::StringRef Name,
 
     ASTCall *Call = new ASTCall(Loc, Name, CallKind);
     if (Parent) { // Take Parent
-        Parent->AddChild(Call);
-    	Call->Parent = Parent;
+        Parent->setChild(Call);
+    	Call->setParent(Parent);
     }
     uint64_t i = 0;
     for (auto &Expr : Args) {
@@ -632,13 +636,13 @@ ASTCall *ASTBuilder::CreateCall(ASTIdentifier *Instance, llvm::StringRef Name, l
     FLY_DEBUG_START("ASTBuilder", "CreateCall");
 
     ASTCall *Call = CreateCall(Instance->getLocation(), Name, Args, ASTCallKind::CALL_DIRECT);
-    Call->Parent = Instance;
+    Call->setParent(Instance);
 
 	FLY_DEBUG_END("ASTBuilder", "CreateCall");
     return Call;
 }
 
-ASTIdentifier *ASTBuilder::CreateVarRef(ASTVar *Var, ASTIdentifier *Parent) {
+ASTIdentifier *ASTBuilder::CreateIdentifier(ASTVar *Var, ASTIdentifier *Parent) {
 	FLY_DEBUG_START("ASTBuilder", "CreateVarRef");
 
 	ASTIdentifier *VarRef = new ASTIdentifier(Var->getLocation(), Var->getName(), ASTIdentifierKind::VAR);
@@ -650,7 +654,7 @@ ASTIdentifier *ASTBuilder::CreateVarRef(ASTVar *Var, ASTIdentifier *Parent) {
 	return VarRef;
 }
 
-ASTIdentifier *ASTBuilder::CreateVarRef(const SourceLocation &Loc, llvm::StringRef Name, ASTIdentifier *Parent) {
+ASTIdentifier *ASTBuilder::CreateIdentifier(const SourceLocation &Loc, llvm::StringRef Name, ASTIdentifier *Parent) {
 	FLY_DEBUG_START("ASTBuilder", "CreateVarRef");
 
 	ASTIdentifier *Ref = new ASTIdentifier(Loc, Name, ASTIdentifierKind::VAR);
@@ -660,35 +664,7 @@ ASTIdentifier *ASTBuilder::CreateVarRef(const SourceLocation &Loc, llvm::StringR
 	return Ref;
 }
 
-ASTValueExpr *ASTBuilder::CreateExpr(ASTValue *Value) {
-    FLY_DEBUG_START("ASTBuilder", "CreateExpr");
-    assert(Value && "Create ASTValueExpr by ASTValue");
-
-    ASTValueExpr *Expr = new ASTValueExpr(Value);
-
-	FLY_DEBUG_END("ASTBuilder", "CreateExpr");
-    return Expr;
-}
-
-ASTCallExpr *ASTBuilder::CreateExpr(ASTCall *Call) {
-    FLY_DEBUG_START("ASTBuilder", "CreateExpr");
-
-    ASTCallExpr *CallExpr = new ASTCallExpr(Call);
-
-	FLY_DEBUG_END("ASTBuilder", "CreateExpr");
-    return CallExpr;
-}
-
-ASTVarRefExpr *ASTBuilder::CreateExpr(ASTIdentifier *VarRef) {
-    FLY_DEBUG_START("ASTBuilder", "CreateExpr");
-
-    ASTVarRefExpr *VarRefExpr = new ASTVarRefExpr(VarRef);
-
-	FLY_DEBUG_END("ASTBuilder", "CreateExpr");
-    return VarRefExpr;
-}
-
-ASTUnaryOpExpr *ASTBuilder::CreateUnaryOpExpr(const SourceLocation &Loc, ASTUnaryOpExprKind OpKind, ASTExpr *Expr) {
+ASTUnaryOpExpr *ASTBuilder::CreateUnary(const SourceLocation &Loc, ASTUnaryOpExprKind OpKind, ASTExpr *Expr) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateUnaryOpExpr", "Loc=" << Loc.getRawEncoding() << ", OpKind=" << static_cast<uint8_t>(OpKind));
 
     ASTUnaryOpExpr *UnaryOpExpr = new ASTUnaryOpExpr(Loc, OpKind, Expr);
@@ -697,7 +673,7 @@ ASTUnaryOpExpr *ASTBuilder::CreateUnaryOpExpr(const SourceLocation &Loc, ASTUnar
     return UnaryOpExpr;
 }
 
-ASTBinaryOpExpr *ASTBuilder::CreateBinaryOpExpr(const SourceLocation &OpLocation, ASTBinaryOpExprKind OpKind,
+ASTBinaryOpExpr *ASTBuilder::CreateBinary(const SourceLocation &OpLocation, ASTBinaryOpExprKind OpKind,
                                                  ASTExpr *LeftExpr, ASTExpr *RightExpr) {
 	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateBinaryOpExpr", "OpLocation=" << OpLocation.getRawEncoding() << ", OpKind=" << static_cast<uint8_t>(OpKind));
 
@@ -707,7 +683,7 @@ ASTBinaryOpExpr *ASTBuilder::CreateBinaryOpExpr(const SourceLocation &OpLocation
     return BinaryOpExpr;
 }
 
-ASTTernaryOpExpr *ASTBuilder::CreateTernaryOpExpr(ASTExpr *ConditionExpr,
+ASTTernaryOpExpr *ASTBuilder::CreateTernary(ASTExpr *ConditionExpr,
                                                    const SourceLocation &TrueOpLocation, ASTExpr *TrueExpr,
                                                    const SourceLocation &FalseOpLocation, ASTExpr *FalseExpr) {
 	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateBinaryOpExpr",

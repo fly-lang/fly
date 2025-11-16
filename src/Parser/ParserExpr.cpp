@@ -8,16 +8,13 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Parser/ParserExpr.h"
-#include "AST/ASTVar.h"
 #include "AST/ASTIdentifier.h"
-#include "AST/ASTStmt.h"
 #include "AST/ASTOpExpr.h"
 #include "AST/ASTBuilder.h"
 #include "Basic/Debug.h"
 
-#include <AST/ASTCallExpr.h>
-#include <AST/ASTValueExpr.h>
-#include <AST/ASTVarRefExpr.h>
+#include <AST/ASTCall.h>
+#include <AST/ASTValue.h>
 
 using namespace fly;
 
@@ -202,27 +199,27 @@ ASTExpr *ParserExpr::ParsePrimary(bool Expected) {
     Token &Tok = P->Tok;
 
     if (P->isValue()) { // Ex. 1
-        return P->Builder.CreateExpr(P->ParseValue());
+        return ParseValue();
     } else if (P->Tok.isAnyIdentifier()) { // Ex. a or a++ or func()
         ASTIdentifier *Ref = P->ParseIdentifier();
         if (Ref->isCall()) { // Ex. a()
-            return P->Builder.CreateExpr((ASTCall *) Ref);
+            return (ASTCall *) Ref;
         } else { // parse function call, variable post increment/decrement or simple var
-            ASTVarRefExpr *Primary = P->Builder.CreateExpr(Ref);
+            ASTExpr *Primary = Ref;
             if (isUnaryPostOperator()) { // Ex. a++ or a--
                 ASTUnaryOpExprKind OpKind = toUnaryOpExprKind(Tok, true);
                 P->ConsumeToken();
-                return P->Builder.CreateUnaryOpExpr(Primary->getLocation(), OpKind, Primary);
+                return P->Builder.CreateUnary(Primary->getLocation(), OpKind, Primary);
             } else {
                 // Simple VarRef
-                return P->Builder.CreateExpr(Ref);
+                return Ref;
             }
         }
     } else if (isUnaryPreOperator(P->Tok)) { // Ex. ++a or --a or !a
         ASTUnaryOpExprKind OpKind = toUnaryOpExprKind(Tok, false);
         const SourceLocation &Loc = P->ConsumeToken();
         ASTExpr* Primary = ParsePrimary(true);  // Parse the operand (recursively)
-        return P->Builder.CreateUnaryOpExpr(Loc, OpKind, Primary);
+        return P->Builder.CreateUnary(Loc, OpKind, Primary);
     } else if (isNewOperator(P->Tok)) {
         return ParseNewExpr();
     } else if (P->Tok.is(tok::l_paren)) {
@@ -261,7 +258,7 @@ ASTBinaryOpExpr *ParserExpr::ParseBinaryExpr(ASTExpr *LeftExpr, Token OpToken, P
 
     // Combine the left and right into a binary operation node
 
-    return P->Builder.CreateBinaryOpExpr(OpToken.getLocation(), toBinaryOpExprKind(OpToken), LeftExpr, RightExpr);
+    return P->Builder.CreateBinary(OpToken.getLocation(), toBinaryOpExprKind(OpToken), LeftExpr, RightExpr);
 }
 
 ASTTernaryOpExpr *ParserExpr::ParseTernaryExpr(ASTExpr *ConditionExpr) {
@@ -278,7 +275,7 @@ ASTTernaryOpExpr *ParserExpr::ParseTernaryExpr(ASTExpr *ConditionExpr) {
 
     ASTExpr* FalseExpr = Parse(P);  // Parse the false expression
 
-    return P->Builder.CreateTernaryOpExpr(ConditionExpr, TrueOpLoc, TrueExpr, FalseOpLoc, FalseExpr);
+    return P->Builder.CreateTernary(ConditionExpr, TrueOpLoc, TrueExpr, FalseOpLoc, FalseExpr);
 }
 
 /**
@@ -369,11 +366,202 @@ ASTExpr *ParserExpr::ParseNewExpr() {
 
     if (P->Tok.isAnyIdentifier()) {
         ASTCall *Call = P->ParseCall();
-    	ASTCallExpr *CallExpr = P->Builder.CreateExpr(Call);
-    	return CallExpr;
+    	return Call;
     }
 
     // Error:
     P->Diag(P->Tok.getLocation(), diag::err_parse_new_instance);
+    return nullptr;
+}
+
+
+/**
+ * ParseModule a Function Call
+ * @return true on Success or false on Error
+ */
+ASTCall *ParserExpr::ParseCall() {
+	llvm::StringRef Name = Tok.getIdentifierInfo()->getName();
+	const SourceLocation &Loc = ConsumeToken();
+	return ParseCall(Loc, Name, nullptr);
+}
+
+/**
+ * ParseModule a Function Call
+ * @param Block
+ * @param Id
+ * @param Loc
+ * @return true on Success or false on Error
+ */
+ASTCall *ParserExpr::ParseCall(const SourceLocation &Loc, llvm::StringRef Name, ASTIdentifier *Parent) {
+	FLY_DEBUG_START("Parser", "ParseCall");
+	assert(Tok.is(tok::l_paren) && "Call start with parenthesis");
+
+	// Parse Call args
+	ConsumeParen(); // consume l_paren
+
+	// Parse Args in a Function Call
+	llvm::SmallVector<ASTExpr *, 8> Args;
+	while (true) {
+		// Check for closing parenthesis (end of parameter List)
+		if (Tok.is(tok::r_paren)) {
+			ConsumeParen();
+			break;
+		}
+
+		// Parse a parameter
+		ASTExpr *Arg = ParseExpr();
+		if (Arg == nullptr) {
+			// Handle error: Invalid parameter syntax
+			Diag(Tok.getLocation(), diag::err_parser_invalid_param);
+			break;
+		}
+
+		// Add the parsed parameter to the List
+		Args.push_back(Arg);
+
+		// Check for a comma (',') to separate parameters
+		if (Tok.is(tok::comma)) {
+			ConsumeToken(); // Consume the comma and continue
+		} else if (Tok.is(tok::r_paren)) {
+			ConsumeParen();
+			break; // End of parameter List
+		} else {
+			// Handle error: Unexpected token
+			Diag(Tok.getLocation(), diag::err_parse_expected_comma_or_rparen);
+		}
+	}
+
+	return Builder.CreateCall(Loc, Name, Args, ASTCallKind::CALL_DIRECT, Parent);
+}
+
+ASTIdentifier *ParserExpr::ParseIdentifier(ASTIdentifier *Parent) {
+	FLY_DEBUG_START("Parser", "ParseIdentifier");
+	assert(Tok.isAnyIdentifier() && "Token Identifier expected");
+
+	ASTIdentifier *Identifier = nullptr;
+
+	llvm::StringRef Name = Tok.getIdentifierInfo()->getName();
+	const SourceLocation &Loc = ConsumeToken();
+
+	if (Tok.is(tok::l_paren)) {
+		Identifier = ParseCall(Loc, Name, Parent);
+	} else {
+		Identifier = Builder.CreateIdentifier(Loc, Name, Parent);
+	}
+
+	if (Tok.is(tok::period)) {
+		ConsumeToken();
+
+		return ParseIdentifier(Identifier);
+	}
+
+	return Identifier;
+}
+
+/**
+ * ParseModule a Value Expression
+ * @return the ASTValueExpr
+ */
+ASTValue *ParserExpr::ParseValue() {
+    FLY_DEBUG_START("Parser", "ParseValue");
+
+    if (P->Tok.is(tok::kw_null)) {
+        const SourceLocation &Loc = P->ConsumeToken();
+        return P->Builder.CreateNullValue(Loc);
+    }
+
+    // Parse Numeric Constants
+    if (P->Tok.is(tok::numeric_constant)) {
+        llvm::StringRef Val = llvm::StringRef(P->Tok.getLiteralData(), P->Tok.getLength());
+        return P->Builder.CreateNumberValue(P->Tok.getLocation(), Val);
+    }
+
+    if (P->Tok.isCharLiteral()) {
+        llvm::StringRef Val = llvm::StringRef(P->Tok.getLiteralData(), P->Tok.getLength());
+        return P->Builder.CreateStringValue(P->ConsumeToken(), Val);
+    }
+
+    if (P->Tok.isStringLiteral()) {
+        llvm::StringRef Val = llvm::StringRef(P->Tok.getLiteralData(), P->Tok.getLength());
+        return P->Builder.CreateStringValue(P->ConsumeStringToken(), Val);
+    }
+
+    // Parse true or false boolean values
+    if (P->Tok.is(tok::kw_true)) {
+        return P->Builder.CreateBoolValue(P->ConsumeToken(), true);
+    }
+    if (P->Tok.is(tok::kw_false)) {
+        return P->Builder.CreateBoolValue(P->ConsumeToken(), false);
+    }
+
+    // Parse Array or Struct
+    if (P->Tok.is(tok::l_brace)) {
+        return ParseValues();
+    }
+
+    P->Diag(diag::err_invalid_value) << P->Tok.getName();
+    return nullptr;
+}
+
+/**
+ * ParseModule Array Value Expression
+ * @return the ASTValueExpr
+ */
+ASTValue *ParserExpr::ParseValues() {
+    FLY_DEBUG_START("Parser", "ParseValues");
+    const SourceLocation &StartLoc = P->ConsumeBrace(P->BracketCount);
+
+    // Set Values Struct and Array for next
+    bool isStruct = false;
+    llvm::StringMap<ASTValue *> StructValues;
+    llvm::SmallVector<ASTValue *, 8> ArrayValues;
+
+    // Parse array values Ex. {1, 2, 3}
+    while(P->Tok.isNot(tok::r_brace)) {
+
+        // if is Identifier -> struct
+        if (P->Tok.isAnyIdentifier()) {
+            isStruct = true;
+            const StringRef &Key = P->Tok.getIdentifierInfo()->getName();
+            P->ConsumeToken();
+
+            if (P->Tok.is(tok::equal)) {
+                // FIXME
+                P->ConsumeToken();
+
+                ASTValue *Value = ParseValue();
+                if (Value) {
+                    StructValues.insert(std::make_pair(Key, Value));
+                } else {
+                    P->Diag(diag::err_invalid_value) << P->Tok.getName();
+                }
+            }
+        } else { // if is Value -> array
+            ASTValue *Value = ParseValue();
+            if (Value) {
+                ArrayValues.push_back(Value);
+            } else {
+                P->Diag(diag::err_invalid_value) << P->Tok.getName();
+            }
+        }
+
+        if (P->Tok.is(tok::comma)) {
+           P->ConsumeToken();
+        } else {
+            break;
+        }
+    };
+
+    // End of Array
+    if (P->Tok.is(tok::r_brace)) {
+        P->ConsumeBrace(P->BracketCount);
+        if (isStruct) {
+            return P->Builder.CreateStructValue(StartLoc, StructValues);
+        } else {
+            return P->Builder.CreateArrayValue(StartLoc, ArrayValues);
+        }
+    }
+
+    P->Diag(diag::err_invalid_value) << P->Tok.getName();
     return nullptr;
 }

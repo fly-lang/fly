@@ -41,6 +41,7 @@ namespace fly {
     class ASTEnum;
     class ASTComment;
     class ASTNameSpace;
+    class ASTName;
     class ASTImport;
     class ASTVar;
     class ASTArrayType;
@@ -104,6 +105,8 @@ private:
     /// Parse an import statement.
     ASTImport * ParseImport();
 
+    llvm::SmallVector<ASTName *, 4> ParseNames();
+
     /// Parse a comment.
     ASTComment *ParseComment();
 
@@ -161,20 +164,6 @@ private:
 
     /// Parse a type reference.
     ASTType *ParseType(ASTType *T = nullptr);
-
-    ASTCall *ParseCall();
-
-    /// Parse a call.
-    ASTCall *ParseCall(const SourceLocation &Loc, llvm::StringRef Name, ASTIdentifier *Parent);
-
-    /// Parse an identifier.
-    ASTIdentifier *ParseIdentifier(ASTIdentifier *Parent = nullptr);
-
-    /// Parse a value.
-    ASTValue *ParseValue();
-
-    /// Parse multiple values.
-    ASTValue *ParseValues();
 
     /// Parse an expression.
     ASTExpr *ParseExpr();

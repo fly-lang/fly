@@ -81,34 +81,10 @@ namespace fly {
         OP_BINARY_LOGIC,
     };
 
-    enum class ASTOpExprKind {
-        OP_UNARY,
-        OP_BINARY,
-        OP_TERNARY
-    };
-
-    /**
-     * Operator Expression
-     */
-    class ASTOpExpr : public ASTExpr {
-
-        friend class ASTBuilder;
-
-        const ASTOpExprKind OpExprKind;
-
-    protected:
-
-        ASTOpExpr(const SourceLocation &Loc, ASTOpExprKind OpKind);
-
-    public:
-
-        virtual ASTOpExprKind getOpExprKind();
-    };
-
     /**
      * Unary Operator Expression
      */
-    class ASTUnaryOpExpr : public ASTOpExpr {
+    class ASTUnaryOpExpr : public ASTExpr {
 
         friend class ASTBuilder;
 
@@ -136,7 +112,7 @@ namespace fly {
     /**
      * Binary Operator Expression
      */
-    class ASTBinaryOpExpr : public ASTOpExpr {
+    class ASTBinaryOpExpr : public ASTExpr {
 
         friend class ASTBuilder;
 
@@ -175,7 +151,7 @@ namespace fly {
     /**
      * Ternary Operator Expression
      */
-    class ASTTernaryOpExpr : public ASTOpExpr {
+    class ASTTernaryOpExpr : public ASTExpr {
 
         friend class ASTBuilder;
 

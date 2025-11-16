@@ -10,19 +10,16 @@
 #ifndef FLY_AST_IDENTIFIER_H
 #define FLY_AST_IDENTIFIER_H
 
-#include <Sema/SemaResult.h>
-
-#include "ASTNode.h"
+#include "ASTExpr.h"
 
 namespace fly {
 
     enum class ASTIdentifierKind {
         VAR,
-        CALL,
         TYPE,
     };
 
-    class ASTIdentifier : public ASTNode {
+    class ASTIdentifier : public ASTExpr {
 
         friend class ASTBuilder;
 
@@ -32,17 +29,13 @@ namespace fly {
 
         const llvm::StringRef Name;
 
-        std::string FullName;
-
-        SemaResult *Sema = nullptr;
-
         ASTIdentifier *Parent = nullptr;
 
         ASTIdentifier *Child = nullptr;
 
-        bool Visited = false;
-
         ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name, ASTIdentifierKind Kind);
+
+        ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name);
 
         ~ASTIdentifier();
 
@@ -52,29 +45,7 @@ namespace fly {
 
         llvm::StringRef getName() const;
 
-        void setSema(SemaResult *Sema);
-
-        std::string getFullName() const;
-
-        SemaResult *getSema() const;
-
-        bool isVisited() const;
-
-        void setVisited(bool Visited);
-
-        bool isCall() const;
-
-        bool isVarRef() const;
-
         ASTIdentifierKind getRefKind() const;
-
-        void setChild(ASTIdentifier *Identifier);
-
-        void AddChild(ASTIdentifier *Identifier);
-
-        ASTIdentifier *getParent() const;
-
-        ASTIdentifier *getChild() const;
 
         std::string str() const override;
     };

@@ -37,6 +37,7 @@ namespace fly {
      */
     class ASTVarStmt : public ASTStmt {
 
+        friend class ASTBuilder;
         friend class ASTBuilderStmt;
 
         ASTIdentifier *VarRef;

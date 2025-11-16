@@ -14,10 +14,12 @@ using namespace fly;
 
 
 ASTIdentifier::ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name, ASTIdentifierKind Kind) :
-        ASTNode(Loc, ASTKind::AST_REF), Name(Name), RefKind(Kind), Visited(false) {
-    FullName = Name.data();
+        ASTExpr(Loc, ASTExprKind::EXPR_IDENTIFIER), Name(Name), RefKind(Kind) {
 }
 
+ASTIdentifier::ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name) :
+		ASTExpr(Loc, ASTExprKind::EXPR_IDENTIFIER), Name(Name), RefKind(ASTIdentifierKind::VAR){
+}
 
 ASTIdentifier::~ASTIdentifier() {
     delete Parent;
@@ -27,54 +29,8 @@ llvm::StringRef ASTIdentifier::getName() const {
     return Name;
 }
 
-std::string ASTIdentifier::getFullName() const {
-    return FullName;
-}
-
-SemaResult *ASTIdentifier::getSema() const {
-	return Sema;
-}
-
-void ASTIdentifier::setSema(SemaResult *Sema) {
-    this->Sema = Sema;
-}
-
-bool ASTIdentifier::isVisited() const {
-    return Visited;
-}
-
-void ASTIdentifier::setVisited(bool Visited) {
-	this->Visited = Visited;
-}
-
-bool ASTIdentifier::isCall() const {
-    return RefKind == ASTIdentifierKind::CALL;
-}
-
-bool ASTIdentifier::isVarRef() const {
-    return RefKind == ASTIdentifierKind::VAR;
-}
-
 ASTIdentifierKind ASTIdentifier::getRefKind() const {
     return RefKind;
-}
-
-void ASTIdentifier::setChild(ASTIdentifier *Identifier) {
-	this->Child = Identifier;
-}
-
-void ASTIdentifier::AddChild(ASTIdentifier *Identifier) {
-    Child = Identifier;
-    Child->Parent = this;
-    Child->FullName = FullName.append(".").append(Child->Name.data());
-}
-
-ASTIdentifier *ASTIdentifier::getParent() const {
-    return Parent;
-}
-
-ASTIdentifier *ASTIdentifier::getChild() const {
-    return Child;
 }
 
 std::string ASTIdentifier::str() const {

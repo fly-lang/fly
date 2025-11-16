@@ -42,7 +42,6 @@
 #include <AST/ASTFailStmt.h>
 #include <AST/ASTModifier.h>
 #include <AST/ASTReturnStmt.h>
-#include <AST/ASTVarRefExpr.h>
 
 using namespace fly;
 
@@ -113,11 +112,11 @@ ASTNameSpace *Parser::ParseNameSpace() {
 		return nullptr;
 	}
 
-	// Create the Vector NameSpace structure
-	ASTIdentifier *Identifier = ParseIdentifier();
+	// Parse the Names
+	llvm::SmallVector<ASTName *, 4> Names = ParseNames();
 
 	// Create NameSpace
-	return Builder.CreateNameSpace(Module, Loc, Identifier);
+	return Builder.CreateNameSpace(Module, Loc, Names);
 }
 
 ASTImport *Parser::ParseImport() {
@@ -130,18 +129,44 @@ ASTImport *Parser::ParseImport() {
 		return nullptr;
 	}
 
-	// Parse Import identifier
-	ASTIdentifier *Import = ParseIdentifier();
+	// Parse the Names
+	llvm::SmallVector<ASTName *, 4> Names = ParseNames();
 
-	ASTIdentifier *Alias = nullptr;
+	llvm::SmallVector<ASTName *, 4> Alias;
 	if (Tok.is(tok::kw_as)) {
 		ConsumeToken();
 
-		Alias = ParseIdentifier();
+		// Parse the Names
+		Alias = ParseNames();
 	}
 
 	// Create Import
-	return Builder.CreateImport(Module, Import, Alias);
+	return Builder.CreateImport(Module, Loc, Names, Alias);
+}
+
+llvm::SmallVector<ASTName *, 4> Parser::ParseNames() {
+	FLY_DEBUG_START("Parser", "ParseNames");
+	llvm::SmallVector<ASTName *, 4> Names;
+
+	while (true) {
+		if (!Tok.isAnyIdentifier()) {
+			Diag(Tok, diag::err_parse_identifier_expected);
+			break;
+		}
+
+		// Parse Name
+		ASTName *Name = Builder.CreateName(Tok.getIdentifierInfo()->getName(), ConsumeToken());
+		Names.push_back(Name);
+
+		// Check for comma
+		if (Tok.is(tok::period)) {
+			ConsumeToken(); // consume ','
+		} else {
+			break;
+		}
+	}
+
+	return Names;
 }
 
 /**
@@ -420,7 +445,7 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
             ConsumeToken();
 
             if (Tok.is(tok::kw_handle)) {
-                ASTIdentifier *ErrorVarRef = Builder.CreateVarRef(LocalVar);
+                ASTIdentifier *ErrorVarRef = Builder.CreateIdentifier(LocalVar);
                 ParseHandleStmt(Parent, ErrorVarRef);
             } else {
                 ASTVarStmt *Stmt = Builder.CreateAssignmentStmt(Parent, LocalVar);
@@ -438,19 +463,21 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
     if (isVarOrType(NexTok) && isAssignOperator(NexTok.getValue())) {
         // Parse Var
         // a = ...
-        ASTIdentifier *VarRef = ParseIdentifier();
 
         // Create Left Expr only for +=, -=, *=, etc.
-        ASTExpr *Left = nullptr;
+        ASTExpr *Left = ParserExpr::Parse(this);
         if (Tok.is(tok::equal)) {
             ConsumeToken();
-        } else {
-            Left = Builder.CreateExpr(VarRef);
         }
+
+    	if (Left->getExprKind() == ASTExprKind::EXPR_IDENTIFIER) {
+    		Diag(Tok.getLocation(), diag::err_parser_invalid_left_expr);
+    		return;
+    	}
 
         // Parse Expr
         ASTExpr *Expr = ParserExpr::Parse(this, Left);
-        ASTVarStmt *Stmt = Builder.CreateAssignmentStmt(Parent, VarRef);
+        ASTVarStmt *Stmt = Builder.CreateAssignmentStmt(Parent, static_cast<ASTIdentifier *>(Left));
         Stmt->setExpr(Expr);
         return;
     }
@@ -910,201 +937,6 @@ ASTType *Parser::ParseType(ASTType *T) {
 	}
 
     return T;
-}
-
-/**
- * ParseModule a Function Call
- * @return true on Success or false on Error
- */
-ASTCall *Parser::ParseCall() {
-	llvm::StringRef Name = Tok.getIdentifierInfo()->getName();
-	const SourceLocation &Loc = ConsumeToken();
-	return ParseCall(Loc, Name, nullptr);
-}
-
-/**
- * ParseModule a Function Call
- * @param Block
- * @param Id
- * @param Loc
- * @return true on Success or false on Error
- */
-ASTCall *Parser::ParseCall(const SourceLocation &Loc, llvm::StringRef Name, ASTIdentifier *Parent) {
-	FLY_DEBUG_START("Parser", "ParseCall");
-    assert(Tok.is(tok::l_paren) && "Call start with parenthesis");
-
-    // Parse Call args
-    ConsumeParen(); // consume l_paren
-
-    // Parse Args in a Function Call
-    llvm::SmallVector<ASTExpr *, 8> Args;
-    while (true) {
-        // Check for closing parenthesis (end of parameter List)
-        if (Tok.is(tok::r_paren)) {
-            ConsumeParen();
-            break;
-        }
-
-        // Parse a parameter
-        ASTExpr *Arg = ParseExpr();
-        if (Arg == nullptr) {
-            // Handle error: Invalid parameter syntax
-            Diag(Tok.getLocation(), diag::err_parser_invalid_param);
-            break;
-        }
-
-        // Add the parsed parameter to the List
-        Args.push_back(Arg);
-
-        // Check for a comma (',') to separate parameters
-        if (Tok.is(tok::comma)) {
-            ConsumeToken(); // Consume the comma and continue
-        } else if (Tok.is(tok::r_paren)) {
-            ConsumeParen();
-            break; // End of parameter List
-        } else {
-            // Handle error: Unexpected token
-            Diag(Tok.getLocation(), diag::err_parse_expected_comma_or_rparen);
-        }
-    }
-
-    return Builder.CreateCall(Loc, Name, Args, ASTCallKind::CALL_DIRECT, Parent);
-}
-
-/**
- * ParseModule as Identifier
- * @return
- */
-ASTIdentifier *Parser::ParseIdentifier(ASTIdentifier *Parent) {
-    FLY_DEBUG_START("Parser", "ParseIdentifier");
-    assert(Tok.isAnyIdentifier() && "Token Identifier expected");
-
-	ASTIdentifier *Identifier = nullptr;
-
-	llvm::StringRef Name = Tok.getIdentifierInfo()->getName();
-	const SourceLocation &Loc = ConsumeToken();
-
-	if (Tok.is(tok::l_paren)) {
-		Identifier = ParseCall(Loc, Name, Parent);
-	} else {
-		Identifier = Builder.CreateVarRef(Loc, Name, Parent);
-	}
-
-	if (Tok.is(tok::period)) {
-		ConsumeToken();
-
-		return ParseIdentifier(Identifier);
-	}
-
-    return Identifier;
-}
-
-/**
- * ParseModule a Value Expression
- * @return the ASTValueExpr
- */
-ASTValue *Parser::ParseValue() {
-    FLY_DEBUG_START("Parser", "ParseValue");
-
-    if (Tok.is(tok::kw_null)) {
-        const SourceLocation &Loc = ConsumeToken();
-        return Builder.CreateNullValue(Loc);
-    }
-
-    // Parse Numeric Constants
-    if (Tok.is(tok::numeric_constant)) {
-        llvm::StringRef Val = llvm::StringRef(Tok.getLiteralData(), Tok.getLength());
-        return Builder.CreateNumberValue(Tok.getLocation(), Val);
-    }
-
-    if (Tok.isCharLiteral()) {
-        llvm::StringRef Val = llvm::StringRef(Tok.getLiteralData(), Tok.getLength());
-        return Builder.CreateStringValue(ConsumeToken(), Val);
-    }
-
-    if (Tok.isStringLiteral()) {
-        llvm::StringRef Val = llvm::StringRef(Tok.getLiteralData(), Tok.getLength());
-        return Builder.CreateStringValue(ConsumeStringToken(), Val);
-    }
-
-    // Parse true or false boolean values
-    if (Tok.is(tok::kw_true)) {
-        return Builder.CreateBoolValue(ConsumeToken(), true);
-    }
-    if (Tok.is(tok::kw_false)) {
-        return Builder.CreateBoolValue(ConsumeToken(), false);
-    }
-
-    // Parse Array or Struct
-    if (Tok.is(tok::l_brace)) {
-        return ParseValues();
-    }
-
-    Diag(diag::err_invalid_value) << Tok.getName();
-    return nullptr;
-}
-
-/**
- * ParseModule Array Value Expression
- * @return the ASTValueExpr
- */
-ASTValue *Parser::ParseValues() {
-    FLY_DEBUG_START("Parser", "ParseValues");
-    const SourceLocation &StartLoc = ConsumeBrace(BracketCount);
-    
-    // Set Values Struct and Array for next
-    bool isStruct = false;
-    llvm::StringMap<ASTValue *> StructValues;
-    llvm::SmallVector<ASTValue *, 8> ArrayValues;
-
-    // Parse array values Ex. {1, 2, 3}
-    while(Tok.isNot(tok::r_brace)) {
-
-        // if is Identifier -> struct
-        if (Tok.isAnyIdentifier()) {
-            isStruct = true;
-            const StringRef &Key = Tok.getIdentifierInfo()->getName();
-            ConsumeToken();
-            
-            if (Tok.is(tok::equal)) {
-                // FIXME
-                ConsumeToken();
-
-                ASTValue *Value = ParseValue();
-                if (Value) {
-                    StructValues.insert(std::make_pair(Key, Value));
-                } else {
-                    Diag(diag::err_invalid_value) << Tok.getName();
-                }
-            }
-        } else { // if is Value -> array
-            ASTValue *Value = ParseValue();
-            if (Value) {
-                ArrayValues.push_back(Value);
-            } else {
-                Diag(diag::err_invalid_value) << Tok.getName();
-            }
-        }
-
-        if (Tok.is(tok::comma)) {
-            ConsumeToken();
-        } else {
-            break;
-        }
-    };
-
-    // End of Array
-    if (Tok.is(tok::r_brace)) {
-        ConsumeBrace(BracketCount);
-        if (isStruct) {
-            return Builder.CreateStructValue(StartLoc, StructValues);
-        } else {
-            return Builder.CreateArrayValue(StartLoc, ArrayValues);
-        }
-    }
-
-    Diag(diag::err_invalid_value) << Tok.getName();
-    return nullptr;
 }
 
 ASTExpr *Parser::ParseExpr() {

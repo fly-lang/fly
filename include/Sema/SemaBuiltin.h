@@ -7,8 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_SEMA_BUILTINTYPE_H
-#define FLY_SEMA_BUILTINTYPE_H
+#ifndef FLY_SEMA_BUILTIN_H
+#define FLY_SEMA_BUILTIN_H
 
 namespace fly {
 
@@ -84,4 +84,4 @@ namespace fly {
     };
 }
 
-#endif //FLY_SEMA_BUILTINTYPE_H
+#endif //FLY_SEMA_BUILTIN_H

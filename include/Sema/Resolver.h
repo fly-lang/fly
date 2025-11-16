@@ -43,7 +43,6 @@ namespace fly {
     class ASTCall;
     class ASTIdentifier;
     class ASTExpr;
-    class ASTValueExpr;
     class ASTValue;
     class CodeGen;
     class ASTIfStmt;
@@ -121,14 +120,12 @@ namespace fly {
         void visit(ASTFunction &AST) override;
         void visit(ASTClass &AST) override;
         void visit(ASTEnum &AST) override;
+        void visit(ASTVar &AST) override;
         void visit(ASTComment &AST) override;
 
-        // Visit References
+        // Visit Types
         void visit(ASTType &AST) override;
         void visit(ASTArrayType &AST) override;
-        void visit(ASTIdentifier &AST) override;
-        void visit(ASTVar &AST) override;
-        void visit(ASTCall &AST) override;
 
         // Visit Statements
         void visit(ASTBreakStmt &AST) override;
@@ -147,15 +144,13 @@ namespace fly {
         void visit(ASTBlockStmt &AST) override;
 
         // Visit Expressions
-        void visit(ASTValueExpr &AST) override;
-        void visit(ASTVarRefExpr &AST) override;
-        void visit(ASTCallExpr &AST) override;
+        void visit(ASTIdentifier &AST) override;
+        void visit(ASTMember& AST) override;
+        void visit(ASTCall &AST) override;
         void visit(ASTUnaryOpExpr &AST) override;
         void visit(ASTBinaryOpExpr &AST) override;
         void visit(ASTTernaryOpExpr &AST) override;
-        void visit(ASTCastExpr &AST) override;
-
-        // Visit Values
+        void visit(ASTCast &AST) override;
         void visit(ASTBoolValue &AST) override;
         void visit(ASTNumberValue &AST) override;
         void visit(ASTStringValue &AST) override;

@@ -120,12 +120,6 @@ namespace fly {
 
     class ASTExpr;
 
-    class ASTValueExpr;
-
-    class ASTVarRefExpr;
-
-    class ASTCallExpr;
-
     class ASTUnaryOperatorExpr;
 
     class ASTUnaryOpExpr;
@@ -149,6 +143,8 @@ namespace fly {
     class ASTStringValue;
 
     class ASTNameSpace;
+
+    class ASTName;
 
     class ASTArrayType;
 
@@ -179,11 +175,14 @@ namespace fly {
 
         ASTComment *CreateComment(ASTModule *Module, const SourceLocation &Loc, llvm::StringRef Content);
 
+        // Create Name
+		ASTName *CreateName(llvm::StringRef Name, const SourceLocation &Loc);
+
         // Create NameSpace
-        ASTNameSpace *CreateNameSpace(ASTModule *Module, const SourceLocation &Loc, ASTIdentifier *Identifier);
+        ASTNameSpace *CreateNameSpace(ASTModule *Module, const SourceLocation &Loc, llvm::SmallVector<ASTName *, 4> Names);
 
         // Create Import
-        ASTImport *CreateImport(ASTModule *Module, ASTIdentifier *Identifier, ASTIdentifier *Alias);
+        ASTImport *CreateImport(ASTModule *Module, const SourceLocation &Loc, llvm::SmallVector<ASTName *, 4> Names, llvm::SmallVector<ASTName *, 4> Alias);
 
         ASTFunction *CreateFunction(ASTModule *Module, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
                                     llvm::SmallVector<ASTModifier *, 8> &Modifiers, llvm::SmallVector<ASTVar *, 8> &Params,
@@ -274,24 +273,16 @@ namespace fly {
 
          ASTCall *CreateCall(ASTIdentifier *Instance, llvm::StringRef Name, llvm::SmallVector<ASTExpr *, 8> &Args);
 
-         ASTIdentifier *CreateVarRef(ASTVar *Var, ASTIdentifier *Parent = nullptr);
+         ASTIdentifier *CreateIdentifier(ASTVar *Var, ASTIdentifier *Parent = nullptr);
 
-         ASTIdentifier *CreateVarRef(const SourceLocation &Loc, llvm::StringRef Name, ASTIdentifier *Parent = nullptr);
+         ASTIdentifier *CreateIdentifier(const SourceLocation &Loc, llvm::StringRef Name, ASTIdentifier *Parent = nullptr);
 
-        // Create Expressions
+         ASTUnaryOpExpr *CreateUnary(const SourceLocation &Loc, ASTUnaryOpExprKind OpKind, ASTExpr *Expr);
 
-         ASTValueExpr *CreateExpr(ASTValue *Value);
-
-         ASTCallExpr *CreateExpr(ASTCall *Call);
-
-         ASTVarRefExpr *CreateExpr(ASTIdentifier *VarRef);
-
-         ASTUnaryOpExpr *CreateUnaryOpExpr(const SourceLocation &Loc, ASTUnaryOpExprKind OpKind, ASTExpr *Expr);
-
-         ASTBinaryOpExpr *CreateBinaryOpExpr(const SourceLocation &OpLocation, ASTBinaryOpExprKind OpKind,
+         ASTBinaryOpExpr *CreateBinary(const SourceLocation &OpLocation, ASTBinaryOpExprKind OpKind,
                                             ASTExpr *LeftExpr, ASTExpr *RightExpr);
 
-         ASTTernaryOpExpr *CreateTernaryOpExpr(ASTExpr *ConditionExpr,
+         ASTTernaryOpExpr *CreateTernary(ASTExpr *ConditionExpr,
                                               const SourceLocation &TrueOpLocation, ASTExpr *TrueExpr,
                                               const SourceLocation &FalseOpLocation, ASTExpr *FalseExpr);
 

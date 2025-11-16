@@ -7,8 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_AST_CASTEXPR_H
-#define FLY_AST_CASTEXPR_H
+#ifndef FLY_AST_CAST_H
+#define FLY_AST_CAST_H
 
 #include "ASTExpr.h"
 
@@ -19,15 +19,15 @@ namespace fly {
     /**
      * Value Expression
      */
-    class ASTCastExpr : public ASTExpr {
+    class ASTCast : public ASTExpr {
 
         friend class ASTBuilder;
 
         ASTExpr *Expr = nullptr;
 
-        ASTType *TypeRef = nullptr;
+        ASTType *Type = nullptr;
 
-        explicit ASTCastExpr(ASTExpr *From, ASTType *Cast);
+        explicit ASTCast(ASTExpr *From, ASTType *Type);
 
     public:
 
@@ -35,10 +35,10 @@ namespace fly {
 
         ASTExpr *getExpr() const;
 
-        ASTType *getTypeRef() const;
+        ASTType *getType() const;
 
         std::string str() const override;
     };
 }
 
-#endif //FLY_AST_CASTEXPR_H
+#endif //FLY_AST_CAST_H

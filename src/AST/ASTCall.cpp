@@ -11,12 +11,22 @@
 #include "AST/ASTArg.h"
 #include "Basic/Logger.h"
 
+#include <AST/ASTVisitor.h>
+
 
 using namespace fly;
 
 ASTCall::ASTCall(const SourceLocation &Loc, llvm::StringRef Name, ASTCallKind CallKind) :
-	ASTIdentifier(Loc, Name, ASTIdentifierKind::CALL), CallKind(CallKind) {
+	ASTExpr(Loc, ASTExprKind::EXPR_CALL), CallKind(CallKind), Name(Name) {
 
+}
+
+void ASTCall::accept(ASTVisitor &Visitor) {
+	Visitor.visit(*this);
+}
+
+llvm::StringRef ASTCall::getName() const {
+	return Name;
 }
 
 llvm::SmallVector<ASTArg *, 8> ASTCall::getArgs() const {

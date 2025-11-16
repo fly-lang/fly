@@ -14,13 +14,9 @@
 
 using namespace fly;
 
-ASTType::ASTType(const SourceLocation &Loc, llvm::StringRef Name, bool BuiltIn) :
-        ASTIdentifier(Loc, Name, ASTIdentifierKind::TYPE), BuiltIn(BuiltIn) {
+ASTType::ASTType(const SourceLocation &Loc) :
+        ASTNode(Loc, ASTKind::AST_TYPE) {
 
-}
-
-void ASTType::accept(ASTVisitor& Visitor) {
-	Visitor.visit(*this);
 }
 
 SemaType * ASTType::getSema() const {
@@ -31,15 +27,8 @@ void ASTType::setSema(SemaType *Sema) {
 	this->Sema = Sema;
 }
 
-std::string ASTType::str() const {
-    return Logger("ASTType").
-	Attr("Location", getLocation()).
-	Attr("Kind", static_cast<size_t>(getKind())).
-    End();
-}
-
-ASTArrayType::ASTArrayType(const SourceLocation &Loc, ASTType *ElementType, ASTExpr *SizeExpr, llvm::StringRef Name) :
-	ASTType(Loc, Name, true), ElementType(ElementType), SizeExpr(SizeExpr) {
+ASTArrayType::ASTArrayType(const SourceLocation &Loc, ASTType *ElementType, ASTExpr *Size) :
+	ASTType(Loc), ElementType(ElementType), Size(Size) {
 }
 
 ASTType * ASTArrayType::getElementType() const {
@@ -47,9 +36,41 @@ ASTType * ASTArrayType::getElementType() const {
 }
 
 ASTExpr * ASTArrayType::getSizeExpr() const {
-	return SizeExpr;
+	return Size;
 }
 
 std::string ASTArrayType::str() const {
+	return Logger("ASTArrayType").
+		Attr("Location", getLocation()).
+		Attr("Kind", static_cast<size_t>(getKind())).
+		End();
+}
+
+ASTBuiltinType::ASTBuiltinType(const SourceLocation &Loc, ASTBuiltinTypeKind Kind) : ASTType(Loc), BuiltinKind(Kind) {
+}
+
+void ASTBuiltinType::accept(ASTVisitor &Visitor) {
+	Visitor.visit(*this);
+}
+
+std::string ASTBuiltinType::str() const {
 	return ASTType::str();
+}
+
+ASTNamedType::ASTNamedType(const SourceLocation &Loc, llvm::StringRef Name) : ASTType(Loc), Name(Name) {
+}
+
+void ASTNamedType::accept(ASTVisitor &Visitor) {
+	Visitor.visit(*this);
+}
+
+llvm::StringRef ASTNamedType::getName() const {
+	return Name;
+}
+
+std::string ASTNamedType::str() const {
+	return ASTType::str();
+}
+
+void ASTArrayType::accept(ASTVisitor &Visitor) {
 }

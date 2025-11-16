@@ -47,7 +47,7 @@ llvm::Value *CodeGenExpr::GenExpr(ASTExpr *Expr) {
             return GenValue(Expr->getType(), Value->getSema());
         }
 
-        case ASTExprKind::EXPR_VAR_REF: {
+        case ASTExprKind::EXPR_IDENTIFIER: {
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_VAR_REF");
             ASTIdentifier *VarRef = static_cast<ASTVarRefExpr *>(Expr)->getVarRef();
             assert(VarRef && "Missing Ref");

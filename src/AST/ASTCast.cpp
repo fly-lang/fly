@@ -7,24 +7,23 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "AST/ASTCastExpr.h"
-
+#include "AST/ASTCast.h"
 #include <AST/ASTType.h>
 
 using namespace fly;
 
-ASTCastExpr::ASTCastExpr(ASTExpr *Expr, ASTType *Cast) : ASTExpr(Cast->getLocation(), ASTExprKind::EXPR_CAST),
-	Expr(Expr), TypeRef(Cast) {
+ASTCast::ASTCast(ASTExpr *Expr, ASTType *Type) : ASTExpr(Type->getLocation(), ASTExprKind::EXPR_CAST),
+	Expr(Expr), Type(Type) {
 }
 
-ASTExpr * ASTCastExpr::getExpr() const {
+ASTExpr * ASTCast::getExpr() const {
 	return Expr;
 }
 
-ASTType * ASTCastExpr::getTypeRef() const {
-	return TypeRef;
+ASTType * ASTCast::getType() const {
+	return Type;
 }
 
-std::string ASTCastExpr::str() const {
+std::string ASTCast::str() const {
 	return ASTExpr::str();
 }
