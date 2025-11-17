@@ -124,7 +124,8 @@ namespace fly {
         void visit(ASTComment &AST) override;
 
         // Visit Types
-        void visit(ASTType &AST) override;
+        void visit(ASTBuiltinType &AST) override;
+        void visit(ASTNamedType &AST) override;
         void visit(ASTArrayType &AST) override;
 
         // Visit Statements

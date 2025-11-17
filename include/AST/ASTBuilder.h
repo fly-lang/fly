@@ -239,7 +239,7 @@ namespace fly {
 
         ASTArrayType *CreateArrayType(const SourceLocation &Loc, ASTType *ElementType, ASTExpr *SizeExpr);
 
-        ASTType *CreateType(const SourceLocation &Loc, llvm::StringRef Name, ASTType *Parent);
+        ASTType *CreateType(const SourceLocation &Loc, llvm::SmallVector<ASTName *, 4> Names);
 
         // Create Values
 
@@ -267,7 +267,7 @@ namespace fly {
 
         // Create Call
 
-         ASTCall *CreateCall(const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTExpr *, 8> &Args, ASTCallKind CallKind, ASTIdentifier *Parent = nullptr);
+         ASTCall *CreateCall(const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTExpr *, 8> &Args, ASTCallKind CallKind, ASTExpr *Parent = nullptr);
 
          ASTCall *CreateCall(llvm::StringRef Name, llvm::SmallVector<ASTExpr *, 8> &Args);
 
@@ -276,6 +276,8 @@ namespace fly {
          ASTIdentifier *CreateIdentifier(ASTVar *Var, ASTIdentifier *Parent = nullptr);
 
          ASTIdentifier *CreateIdentifier(const SourceLocation &Loc, llvm::StringRef Name, ASTIdentifier *Parent = nullptr);
+
+         ASTIdentifier *CreateMember(const SourceLocation &Loc, llvm::StringRef Name, ASTExpr *Parent);
 
          ASTUnaryOpExpr *CreateUnary(const SourceLocation &Loc, ASTUnaryOpExprKind OpKind, ASTExpr *Expr);
 

@@ -37,6 +37,7 @@
 #include <utility>
 #include <AST/ASTExprStmt.h>
 #include <AST/ASTFailStmt.h>
+#include <AST/ASTMember.h>
 #include <AST/ASTName.h>
 #include <AST/ASTReturnStmt.h>
 #include <Frontend/InputFile.h>
@@ -447,11 +448,10 @@ ASTArrayType *ASTBuilder::CreateArrayType(const SourceLocation &Loc, ASTType *El
  * @param Name
  * @return
  */
-ASTType *ASTBuilder::CreateType(const SourceLocation &Loc, llvm::StringRef Name, ASTType *Parent) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateType", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
+ASTType *ASTBuilder::CreateType(const SourceLocation &Loc, llvm::SmallVector<ASTName *, 4> Names) {
+	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateType", "Loc=" << Loc.getRawEncoding());
 
-	ASTType *T = new ASTType(Loc, Name);
-	T->Parent = Parent;
+	ASTType *T = new ASTNamedType(Loc, Names);
 
 	FLY_DEBUG_END("ASTBuilder", "CreateType");
 	return T;
@@ -598,7 +598,7 @@ ASTVar *ASTBuilder::CreateLocalVar(ASTBlockStmt *BlockStmt, const SourceLocation
  * @return
  */
 ASTCall *ASTBuilder::CreateCall(const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTExpr *, 8> &Args,
-	ASTCallKind CallKind, ASTIdentifier *Parent) {
+	ASTCallKind CallKind, ASTExpr *Parent) {
     FLY_DEBUG_MESSAGE("ASTBuilder", "CreateCall", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
 
     ASTCall *Call = new ASTCall(Loc, Name, CallKind);
@@ -655,13 +655,23 @@ ASTIdentifier *ASTBuilder::CreateIdentifier(ASTVar *Var, ASTIdentifier *Parent) 
 }
 
 ASTIdentifier *ASTBuilder::CreateIdentifier(const SourceLocation &Loc, llvm::StringRef Name, ASTIdentifier *Parent) {
-	FLY_DEBUG_START("ASTBuilder", "CreateVarRef");
+	FLY_DEBUG_START("ASTBuilder", "CreateIdentifier");
 
-	ASTIdentifier *Ref = new ASTIdentifier(Loc, Name, ASTIdentifierKind::VAR);
+	ASTIdentifier *Ref = new ASTIdentifier(Loc, Name);
 	Ref->Parent = Parent;
 
-	FLY_DEBUG_END("ASTBuilder", "CreateUndefinedRef");
+	FLY_DEBUG_END("ASTBuilder", "CreateIdentifier");
 	return Ref;
+}
+
+ASTIdentifier *ASTBuilder::CreateMember(const SourceLocation &Loc, llvm::StringRef Name, ASTExpr *Parent) {
+	FLY_DEBUG_START("ASTBuilder", "CreateMember");
+
+	ASTMember *Member = new ASTMember(Loc, Name, Parent);
+	Member->Parent = Parent;
+
+	FLY_DEBUG_END("ASTBuilder", "CreateMember");
+	return Member;
 }
 
 ASTUnaryOpExpr *ASTBuilder::CreateUnary(const SourceLocation &Loc, ASTUnaryOpExprKind OpKind, ASTExpr *Expr) {

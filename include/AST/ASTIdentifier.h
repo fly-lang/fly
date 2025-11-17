@@ -14,26 +14,17 @@
 
 namespace fly {
 
-    enum class ASTIdentifierKind {
-        VAR,
-        TYPE,
-    };
-
     class ASTIdentifier : public ASTExpr {
 
         friend class ASTBuilder;
 
     protected:
 
-        ASTIdentifierKind RefKind;
-
         const llvm::StringRef Name;
 
         ASTIdentifier *Parent = nullptr;
 
         ASTIdentifier *Child = nullptr;
-
-        ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name, ASTIdentifierKind Kind);
 
         ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name);
 
@@ -44,8 +35,6 @@ namespace fly {
         void accept(ASTVisitor& Visitor) override;
 
         llvm::StringRef getName() const;
-
-        ASTIdentifierKind getRefKind() const;
 
         std::string str() const override;
     };

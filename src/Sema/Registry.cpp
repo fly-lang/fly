@@ -12,7 +12,6 @@
 #include "Sema/SemaNameSpace.h"
 
 #include <AST/ASTNameSpace.h>
-#include <Sema/SemaBuilder.h>
 #include <Sema/SemaBuiltin.h>
 #include <Sema/SymbolTable.h>
 
@@ -42,19 +41,19 @@ SymbolTable* Registry::CreateBuiltinScope() {
 	auto ErrorType = SemaBuiltin::getErrorType();
 
 	// Insert Builtin Types
-	Builtin->insert(new Symbol(BoolType->getName(), SemaKind::BUILTIN_TYPE, BoolType));
-	Builtin->insert(new Symbol(ByteType->getName(), SemaKind::BUILTIN_TYPE, ByteType));
-	Builtin->insert(new Symbol(UShortType->getName(), SemaKind::BUILTIN_TYPE, UShortType));
-	Builtin->insert(new Symbol(ShortType->getName(), SemaKind::BUILTIN_TYPE, ShortType));
-	Builtin->insert(new Symbol(UIntType->getName(), SemaKind::BUILTIN_TYPE, UIntType));
-	Builtin->insert(new Symbol(IntType->getName(), SemaKind::BUILTIN_TYPE, IntType));
-	Builtin->insert(new Symbol(ULongType->getName(), SemaKind::BUILTIN_TYPE, ULongType));
-	Builtin->insert(new Symbol(LongType->getName(), SemaKind::BUILTIN_TYPE, LongType));
-	Builtin->insert(new Symbol(FloatType->getName(), SemaKind::BUILTIN_TYPE, FloatType));
-	Builtin->insert(new Symbol(DoubleType->getName(), SemaKind::BUILTIN_TYPE, DoubleType));
-	Builtin->insert(new Symbol(StringType->getName(), SemaKind::BUILTIN_TYPE, StringType));
-	Builtin->insert(new Symbol(VoidType->getName(), SemaKind::BUILTIN_TYPE, VoidType));
-	Builtin->insert(new Symbol(ErrorType->getName(), SemaKind::BUILTIN_TYPE, ErrorType));
+	Builtin->insert(new Symbol(BoolType->getName(), SemaKind::TYPE, BoolType));
+	Builtin->insert(new Symbol(ByteType->getName(), SemaKind::TYPE, ByteType));
+	Builtin->insert(new Symbol(UShortType->getName(), SemaKind::TYPE, UShortType));
+	Builtin->insert(new Symbol(ShortType->getName(), SemaKind::TYPE, ShortType));
+	Builtin->insert(new Symbol(UIntType->getName(), SemaKind::TYPE, UIntType));
+	Builtin->insert(new Symbol(IntType->getName(), SemaKind::TYPE, IntType));
+	Builtin->insert(new Symbol(ULongType->getName(), SemaKind::TYPE, ULongType));
+	Builtin->insert(new Symbol(LongType->getName(), SemaKind::TYPE, LongType));
+	Builtin->insert(new Symbol(FloatType->getName(), SemaKind::TYPE, FloatType));
+	Builtin->insert(new Symbol(DoubleType->getName(), SemaKind::TYPE, DoubleType));
+	Builtin->insert(new Symbol(StringType->getName(), SemaKind::TYPE, StringType));
+	Builtin->insert(new Symbol(VoidType->getName(), SemaKind::TYPE, VoidType));
+	Builtin->insert(new Symbol(ErrorType->getName(), SemaKind::TYPE, ErrorType));
 
 	return Builtin;
 }
@@ -71,26 +70,6 @@ SemaNameSpace * Registry::getDefaultNameSpace() {
 	return DefaultNameSpace;
 }
 
-SemaNameSpace * Registry::getOrAddFQNameSpace(const std::string &Name, SemaNameSpace *Parent) {
-	// Create the CurrentNameSpace if not exists yet in the Context
-	auto I = NameSpaces.find(Name);
-	if (I != NameSpaces.end()) {
-		return I->second;
-	} else {
-		auto NameSpace = new SemaNameSpace(Name, Parent);
-		NameSpaces.insert(std::make_pair<>(NameSpace->getName(), NameSpace));
-		return NameSpace;
-	}
-}
-
-SemaNameSpace * Registry::getFQNameSpace(const std::string &FQName) {
-	auto I = NameSpaces.find(FQName);
-	if (I != NameSpaces.end()) {
-		return I->second;
-	}
-	return nullptr;
-}
-
 llvm::SmallVector<LocalScope, 4> Registry::getBodies() const {
 	return Bodies;
 }
@@ -99,26 +78,78 @@ void Registry::addBody(SymbolTable* Symbols, ASTBlockStmt *Body) {
 	Bodies.push_back(LocalScope{Symbols, Body});
 }
 
-SemaNameSpace* Registry::getNameSpace(std::string Name) {
-	auto I = NameSpaces.find(Name);
-	if (I != NameSpaces.end()) {
-		return I->second;
+SemaNameSpace *Registry::getNameSpace(const llvm::SmallVector<ASTName *, 4> &Names) {
+	SemaNameSpace *Current = nullptr;
+	llvm::StringMap<SemaNameSpace*> *Children = &NameSpaces;
+
+	for (int i = 0; i < Names.size(); i++) {
+		llvm::StringRef Name = Names[i]->getName();
+		auto It = Children->find(Name);
+		if (It != Children->end()) {
+			Current = It->second;
+			Children = &Current->getChildren();
+		} else {
+			return nullptr; // not found
+		}
 	}
-	return nullptr;
+
+	return Current;
 }
 
-void Registry::addNameSpace(SemaNameSpace *NameSpace) {
-	NameSpaces.insert(std::make_pair(NameSpace->getName(), NameSpace));
+SemaNameSpace* Registry::getOrCreateNameSpace(const llvm::SmallVector<ASTName *, 4>& Names) {
+	if (Names.empty())
+		return DefaultNameSpace;
+
+	llvm::StringMap<SemaNameSpace*> *Children = &NameSpaces;
+	SemaNameSpace *Current = nullptr;
+	SemaNameSpace * Parent = nullptr;
+
+	for (auto *N : Names) {
+		llvm::StringRef Name = N->getName();
+
+		auto It = Children->find(Name);
+		if (It == Children->end()) {
+			// Create namespace
+			Current = new SemaNameSpace(Name, Parent);
+			(*Children)[Name] = Current;
+		} else {
+			// Namespace already exists
+			Current = It->second;
+		}
+		// Advance deeper
+		Parent   = Current;
+		Children = &Current->getChildren();
+	}
+
+	return Current;
 }
 
 SemaType* Registry::LookupBuiltinType(llvm::StringRef Ref) {
 	return static_cast<SemaType *>(BuiltinScope->lookup(Ref)->getRef());
 }
 
-SymbolTable* Registry::LookupInNameSpaces(llvm::StringRef Ref) {
-	auto It = NameSpaces.find(Ref.str());
-	if (It != NameSpaces.end()) {
-		return It->second->getSymbols();
+SemaType * Registry::LookupNamedType(llvm::SmallVector<ASTName *, 4> &Names, SemaNameSpace *NameSpace) {
+	SemaNameSpace * CurrentNameSpace = NameSpace;
+	auto &Children = NameSpaces;
+	for (int i = 0; i < Names.size(); i++) {
+		llvm::StringRef Name = Names[i]->getName();
+
+		if (i == Names.size()-1) {
+			Symbol * Sym = CurrentNameSpace->getSymbols()->lookup(Name);
+			if (Sym && Sym->getKind() == SemaKind::TYPE) {
+				return static_cast<SemaType *>(Sym->getRef());
+			}
+			return nullptr; // not found
+		}
+
+
+		auto It = Children.find(Name);
+		if (It != Children.end()) {
+			CurrentNameSpace = It->second;
+			Children = CurrentNameSpace->getChildren();
+		} else {
+			return nullptr; // not found
+		}
 	}
 	return nullptr;
 }

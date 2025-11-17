@@ -82,7 +82,7 @@ bool SemaType::operator==(const SemaType *Type) const {
 	return isEquals(Type);
 }
 
-SemaIntType::SemaIntType(SemaIntTypeKind IntKind, std::string Name) : SemaType(SemaKind::BUILTIN_TYPE, SemaTypeKind::TYPE_INTEGER, Name),
+SemaIntType::SemaIntType(SemaIntTypeKind IntKind, std::string Name) : SemaType(SemaKind::TYPE, SemaTypeKind::TYPE_INTEGER, Name),
                                                  IntKind(IntKind) {
 }
 
@@ -95,7 +95,7 @@ bool SemaIntType::isSigned() {
 		IntKind == SemaIntTypeKind::TYPE_LONG;
 }
 
-SemaFloatType::SemaFloatType(SemaFloatTypeKind FPKind, std::string Name) : SemaType(SemaKind::BUILTIN_TYPE, SemaTypeKind::TYPE_FLOATING_POINT, Name),
+SemaFloatType::SemaFloatType(SemaFloatTypeKind FPKind, std::string Name) : SemaType(SemaKind::TYPE, SemaTypeKind::TYPE_FLOATING_POINT, Name),
                                              FPKind(FPKind) {
 }
 
@@ -104,7 +104,7 @@ const SemaFloatTypeKind SemaFloatType::getFPKind() const {
 }
 
 SemaArrayType::SemaArrayType(SemaType *Type, ASTExpr *SizeExpr) :
-	SemaType(SemaKind::BUILTIN_TYPE, SemaTypeKind::TYPE_ARRAY, "array"), Type(Type), SizeExpr(SizeExpr) {
+	SemaType(SemaKind::TYPE, SemaTypeKind::TYPE_ARRAY, "array"), Type(Type), SizeExpr(SizeExpr) {
 }
 
 SemaType *SemaArrayType::getType() {

@@ -15,6 +15,7 @@
 namespace fly {
 
     class SemaType;
+    class ASTName;
     class ASTExpr;
 
     enum class ASTBuiltinTypeKind {
@@ -65,6 +66,8 @@ namespace fly {
 
         void accept(ASTVisitor& Visitor) override;
 
+        ASTBuiltinTypeKind getBuiltinKind() const;
+
         std::string str() const override;
 
     };
@@ -73,15 +76,15 @@ namespace fly {
 
         friend class ASTBuilder;
 
-        llvm::StringRef Name;
+        llvm::SmallVector<ASTName *, 4> Names;
 
-        explicit ASTNamedType(const SourceLocation &Loc, llvm::StringRef Name);
+        explicit ASTNamedType(const SourceLocation &Loc, llvm::SmallVector<ASTName *, 4> Names);
 
     public:
 
         void accept(ASTVisitor& Visitor) override;
 
-        llvm::StringRef getName() const;
+        llvm::SmallVector<ASTName*, 4>& getNames() const;
 
         std::string str() const override;
     };

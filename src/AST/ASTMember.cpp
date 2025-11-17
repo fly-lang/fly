@@ -13,7 +13,8 @@
 
 using namespace fly;
 
-ASTMember::ASTMember(const SourceLocation &Loc, llvm::StringRef Name) : ASTExpr(Loc, ASTExprKind::EXPR_CALL), Name(Name) {
+ASTMember::ASTMember(const SourceLocation &Loc, llvm::StringRef Name, ASTExpr *Parent) :
+	ASTExpr(Loc, ASTExprKind::EXPR_MEMBER), Name(Name), Parent(Parent) {
 }
 
 ASTMember::~ASTMember() {

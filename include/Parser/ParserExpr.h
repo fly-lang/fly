@@ -39,13 +39,10 @@ namespace fly {
 
         ASTExpr *ParseNewExpr();
 
-        ASTCall *ParseCall();
+        ASTExpr *ParseIdentifierOrCall(ASTExpr *Parent = nullptr);
 
         /// Parse a call.
-        ASTCall *ParseCall(const SourceLocation &Loc, llvm::StringRef Name, ASTIdentifier *Parent);
-
-        /// Parse an identifier.
-        ASTIdentifier *ParseIdentifier(ASTIdentifier *Parent = nullptr);
+        ASTCall *ParseCall(const SourceLocation &Loc, llvm::StringRef Name, ASTExpr *Parent = nullptr);
 
         /// Parse a value.
         ASTValue *ParseValue();

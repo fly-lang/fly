@@ -198,43 +198,53 @@ ASTExpr *ParserExpr::ParsePrimary(bool Expected) {
 	FLY_DEBUG_START("ParserExpr", "ParsePrimary");
     Token &Tok = P->Tok;
 
+	// Parse Value
     if (P->isValue()) { // Ex. 1
         return ParseValue();
-    } else if (P->Tok.isAnyIdentifier()) { // Ex. a or a++ or func()
-        ASTIdentifier *Ref = P->ParseIdentifier();
-        if (Ref->isCall()) { // Ex. a()
-            return (ASTCall *) Ref;
-        } else { // parse function call, variable post increment/decrement or simple var
-            ASTExpr *Primary = Ref;
-            if (isUnaryPostOperator()) { // Ex. a++ or a--
-                ASTUnaryOpExprKind OpKind = toUnaryOpExprKind(Tok, true);
-                P->ConsumeToken();
-                return P->Builder.CreateUnary(Primary->getLocation(), OpKind, Primary);
-            } else {
-                // Simple VarRef
-                return Ref;
-            }
-        }
-    } else if (isUnaryPreOperator(P->Tok)) { // Ex. ++a or --a or !a
-        ASTUnaryOpExprKind OpKind = toUnaryOpExprKind(Tok, false);
-        const SourceLocation &Loc = P->ConsumeToken();
-        ASTExpr* Primary = ParsePrimary(true);  // Parse the operand (recursively)
-        return P->Builder.CreateUnary(Loc, OpKind, Primary);
-    } else if (isNewOperator(P->Tok)) {
-        return ParseNewExpr();
-    } else if (P->Tok.is(tok::l_paren)) {
-        P->ConsumeParen();
-        ASTExpr *Primary = Parse(P);
-        if (P->Tok.is(tok::r_paren)) {
-            P->ConsumeParen();
-        } else {
-            P->Diag(P->Tok.getLocation(), diag::err_parse_expr_close_paren);
-        }
-        return Primary;
     }
 
-    if (Expected)
+	// Parse Identifier or Call
+	if (P->Tok.isAnyIdentifier()) { // Ex. a or a++ or func()
+
+		ASTExpr *Primary = ParseIdentifierOrCall();
+
+		// parse function call, variable post increment/decrement or simple var
+		if (isUnaryPostOperator()) { // Ex. a++ or a--
+			ASTUnaryOpExprKind OpKind = toUnaryOpExprKind(Tok, true);
+			P->ConsumeToken();
+			return P->Builder.CreateUnary(Primary->getLocation(), OpKind, Primary);
+		}
+
+		return Primary;
+	}
+
+	if (isUnaryPreOperator(P->Tok)) { // Ex. ++a or --a or !a
+		ASTUnaryOpExprKind OpKind = toUnaryOpExprKind(Tok, false);
+		const SourceLocation &Loc = P->ConsumeToken();
+		ASTExpr* Primary = ParsePrimary(true);  // Parse the operand (recursively)
+		return P->Builder.CreateUnary(Loc, OpKind, Primary);
+	}
+
+	// Parse New Expression
+	if (isNewOperator(P->Tok)) {
+		return ParseNewExpr();
+	}
+
+	// Parse Parentheses
+	if (P->Tok.is(tok::l_paren)) {
+		P->ConsumeParen();
+		ASTExpr *Primary = Parse(P);
+		if (P->Tok.is(tok::r_paren)) {
+			P->ConsumeParen();
+		} else {
+			P->Diag(P->Tok.getLocation(), diag::err_parse_expr_close_paren);
+		}
+		return Primary;
+	}
+
+	if (Expected)
         P->Diag(P->Tok.getLocation(), diag::err_parse_expr_expected_primary);
+
     return nullptr;
 }
 
@@ -365,8 +375,9 @@ ASTExpr *ParserExpr::ParseNewExpr() {
     const SourceLocation &NewOpLoc = P->ConsumeToken();  // Consume 'new'
 
     if (P->Tok.isAnyIdentifier()) {
-        ASTCall *Call = P->ParseCall();
-    	return Call;
+    	llvm::StringRef Name = P->Tok.getIdentifierInfo()->getName();
+    	const SourceLocation &Loc = P->ConsumeToken();
+    	return ParseCall(Loc, Name);
     }
 
     // Error:
@@ -374,15 +385,33 @@ ASTExpr *ParserExpr::ParseNewExpr() {
     return nullptr;
 }
 
+ASTExpr * ParserExpr::ParseIdentifierOrCall(ASTExpr *Parent) {
+	llvm::StringRef Name = P->Tok.getIdentifierInfo()->getName();
+	const SourceLocation &Loc = P->ConsumeToken();
 
-/**
- * ParseModule a Function Call
- * @return true on Success or false on Error
- */
-ASTCall *ParserExpr::ParseCall() {
-	llvm::StringRef Name = Tok.getIdentifierInfo()->getName();
-	const SourceLocation &Loc = ConsumeToken();
-	return ParseCall(Loc, Name, nullptr);
+	ASTExpr *Expr;
+	if (P->Tok.is(tok::l_paren)) {
+		Expr = ParseCall(Loc, Name);
+	} else if (Parent) {
+		Expr = P->Builder.CreateMember(Loc, Name, Parent);
+    } else {
+        Expr = P->Builder.CreateIdentifier(Loc, Name);
+    }
+
+	Expr->setParent(Parent);
+
+	// Handle member access chaining
+	if (P->Tok.is(tok::period)) {
+		P->ConsumeToken();
+
+		if (!P->Tok.isAnyIdentifier()) {
+            P->Diag(P->Tok.getLocation(), diag::err_parse_identifier_expected);
+        } else {
+	        return ParseIdentifierOrCall(Expr);
+        }
+	}
+
+	return Expr;
 }
 
 /**
@@ -392,27 +421,27 @@ ASTCall *ParserExpr::ParseCall() {
  * @param Loc
  * @return true on Success or false on Error
  */
-ASTCall *ParserExpr::ParseCall(const SourceLocation &Loc, llvm::StringRef Name, ASTIdentifier *Parent) {
+ASTCall *ParserExpr::ParseCall(const SourceLocation &Loc, llvm::StringRef Name, ASTExpr *Parent) {
 	FLY_DEBUG_START("Parser", "ParseCall");
-	assert(Tok.is(tok::l_paren) && "Call start with parenthesis");
+	assert(P->Tok.is(tok::l_paren) && "Call start with parenthesis");
 
 	// Parse Call args
-	ConsumeParen(); // consume l_paren
+	P->ConsumeParen(); // consume l_paren
 
 	// Parse Args in a Function Call
 	llvm::SmallVector<ASTExpr *, 8> Args;
 	while (true) {
 		// Check for closing parenthesis (end of parameter List)
-		if (Tok.is(tok::r_paren)) {
-			ConsumeParen();
+		if (P->Tok.is(tok::r_paren)) {
+			P->ConsumeParen();
 			break;
 		}
 
 		// Parse a parameter
-		ASTExpr *Arg = ParseExpr();
+		ASTExpr *Arg = Parse(P);
 		if (Arg == nullptr) {
 			// Handle error: Invalid parameter syntax
-			Diag(Tok.getLocation(), diag::err_parser_invalid_param);
+			P->Diag(P->Tok.getLocation(), diag::err_parser_invalid_param);
 			break;
 		}
 
@@ -420,42 +449,18 @@ ASTCall *ParserExpr::ParseCall(const SourceLocation &Loc, llvm::StringRef Name, 
 		Args.push_back(Arg);
 
 		// Check for a comma (',') to separate parameters
-		if (Tok.is(tok::comma)) {
-			ConsumeToken(); // Consume the comma and continue
-		} else if (Tok.is(tok::r_paren)) {
-			ConsumeParen();
+		if (P->Tok.is(tok::comma)) {
+			P->ConsumeToken(); // Consume the comma and continue
+		} else if (P->Tok.is(tok::r_paren)) {
+			P->ConsumeParen();
 			break; // End of parameter List
 		} else {
 			// Handle error: Unexpected token
-			Diag(Tok.getLocation(), diag::err_parse_expected_comma_or_rparen);
+			P->Diag(P->Tok.getLocation(), diag::err_parse_expected_comma_or_rparen);
 		}
 	}
 
-	return Builder.CreateCall(Loc, Name, Args, ASTCallKind::CALL_DIRECT, Parent);
-}
-
-ASTIdentifier *ParserExpr::ParseIdentifier(ASTIdentifier *Parent) {
-	FLY_DEBUG_START("Parser", "ParseIdentifier");
-	assert(Tok.isAnyIdentifier() && "Token Identifier expected");
-
-	ASTIdentifier *Identifier = nullptr;
-
-	llvm::StringRef Name = Tok.getIdentifierInfo()->getName();
-	const SourceLocation &Loc = ConsumeToken();
-
-	if (Tok.is(tok::l_paren)) {
-		Identifier = ParseCall(Loc, Name, Parent);
-	} else {
-		Identifier = Builder.CreateIdentifier(Loc, Name, Parent);
-	}
-
-	if (Tok.is(tok::period)) {
-		ConsumeToken();
-
-		return ParseIdentifier(Identifier);
-	}
-
-	return Identifier;
+	return P->Builder.CreateCall(Loc, Name, Args, ASTCallKind::CALL_DIRECT, Parent);
 }
 
 /**

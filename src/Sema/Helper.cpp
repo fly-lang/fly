@@ -8,17 +8,21 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/Helper.h"
-
-#include <AST/ASTIdentifier.h>
+#include <AST/ASTName.h>
 
 using namespace fly;
 
-std::string Helper::Flatten(ASTIdentifier *Identifier) {
-	std::string Result = Identifier->getName().str();
+std::string Helper::Flatten(llvm::SmallVector<ASTName *, 4> Names) {
+	if (Names.empty())
+		return "";
 
-	while (Identifier->getParent()) {
-		Result = Identifier->getParent()->getName().str() + "." + Result;
-		Identifier = Identifier->getParent();
+	std::string Result;
+	Result.append(Names[0]->getName().str());
+	for (size_t i = 1; i < Names.size(); ++i) {
+		Result.push_back('.');
+		Result.append(Names[i]->getName().str());
 	}
+
+	return Result;
 }
 

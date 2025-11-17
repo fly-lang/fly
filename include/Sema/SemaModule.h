@@ -46,6 +46,8 @@ namespace fly {
 
 		SemaNameSpace *getNameSpace() const;
 
+        void setNameSpace(SemaNameSpace *NameSpace);
+
         const llvm::SmallVector<SemaImport *, 8> &getImports() const;
 
         const llvm::SmallVector<SemaNode *, 8> &getNodes() const;

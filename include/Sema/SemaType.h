@@ -157,7 +157,7 @@ namespace fly {
     class SemaErrorType : public SemaType {
 
     public:
-		explicit SemaErrorType() : SemaType(SemaKind::BUILTIN_TYPE, SemaTypeKind::TYPE_ERROR, "error") {}
+		explicit SemaErrorType() : SemaType(SemaKind::TYPE, SemaTypeKind::TYPE_ERROR, "error") {}
 
 	};
 

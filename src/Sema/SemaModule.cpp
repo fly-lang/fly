@@ -30,6 +30,10 @@ SemaNameSpace *SemaModule::getNameSpace() const {
 	return NameSpace;
 }
 
+void SemaModule::setNameSpace(SemaNameSpace *NameSpace) {
+	this->NameSpace = NameSpace;
+}
+
 const llvm::SmallVector<SemaImport *, 8> &SemaModule::getImports() const {
 	return Imports;
 }

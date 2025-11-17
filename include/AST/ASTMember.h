@@ -22,7 +22,9 @@ namespace fly {
 
 		const llvm::StringRef Name;
 
-		ASTMember(const SourceLocation &Loc, llvm::StringRef Name);
+		ASTExpr *Parent;
+
+		ASTMember(const SourceLocation &Loc, llvm::StringRef Name, ASTExpr *Parent);
 
 		~ASTMember();
 

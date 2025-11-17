@@ -21,7 +21,7 @@ namespace fly {
 		MODULE,
 		NAMESPACE,
 		IMPORT,
-		BUILTIN_TYPE,
+		TYPE,
 		VAR,
 		CALL,
 		FUNCTION,

@@ -31,6 +31,10 @@ ASTArrayType::ASTArrayType(const SourceLocation &Loc, ASTType *ElementType, ASTE
 	ASTType(Loc), ElementType(ElementType), Size(Size) {
 }
 
+void ASTArrayType::accept(ASTVisitor &Visitor) {
+	Visitor.visit(*this);
+}
+
 ASTType * ASTArrayType::getElementType() const {
 	return ElementType;
 }
@@ -49,6 +53,10 @@ std::string ASTArrayType::str() const {
 ASTBuiltinType::ASTBuiltinType(const SourceLocation &Loc, ASTBuiltinTypeKind Kind) : ASTType(Loc), BuiltinKind(Kind) {
 }
 
+ASTBuiltinTypeKind ASTBuiltinType::getBuiltinKind() const {
+	return BuiltinKind;
+}
+
 void ASTBuiltinType::accept(ASTVisitor &Visitor) {
 	Visitor.visit(*this);
 }
@@ -57,20 +65,13 @@ std::string ASTBuiltinType::str() const {
 	return ASTType::str();
 }
 
-ASTNamedType::ASTNamedType(const SourceLocation &Loc, llvm::StringRef Name) : ASTType(Loc), Name(Name) {
+ASTNamedType::ASTNamedType(const SourceLocation &Loc, llvm::SmallVector<ASTName *, 4> Names) : ASTType(Loc), Names(Names) {
 }
 
 void ASTNamedType::accept(ASTVisitor &Visitor) {
 	Visitor.visit(*this);
 }
 
-llvm::StringRef ASTNamedType::getName() const {
-	return Name;
-}
-
 std::string ASTNamedType::str() const {
 	return ASTType::str();
-}
-
-void ASTArrayType::accept(ASTVisitor &Visitor) {
 }

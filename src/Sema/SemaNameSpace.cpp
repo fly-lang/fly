@@ -14,12 +14,8 @@
 
 using namespace fly;
 
-SemaNameSpace::SemaNameSpace(ASTNameSpace *AST, std::string Name, SemaNameSpace *Parent) : SemaNode(SemaKind::NAMESPACE),
-	AST(AST), Name(Name), Parent(Parent) {
-}
-
-ASTNameSpace * SemaNameSpace::getAST() {
-	return AST;
+SemaNameSpace::SemaNameSpace(llvm::StringRef Name, SemaNameSpace *Parent) : SemaNode(SemaKind::NAMESPACE),
+	Name(Name), Parent(Parent) {
 }
 
 SymbolTable * SemaNameSpace::getSymbols() const {
@@ -36,7 +32,7 @@ SemaNameSpace * SemaNameSpace::getParent() const {
 	return Parent;
 }
 
-std::unordered_map<std::string, SemaNameSpace *> SemaNameSpace::getChildren() const {
+llvm::StringMap<SemaNameSpace *> SemaNameSpace::getChildren() const {
 	return Children;
 }
 

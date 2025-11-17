@@ -61,8 +61,6 @@ namespace fly {
 
     	SemaBuilder() = delete;
 
-    	static SemaNameSpace *CreateNameSpace(SemaModule &Module, ASTNameSpace &ST);
-
     	static SemaImport *CreateImport(SemaModule &Module, ASTImport &AST);
 
     	static SemaFunction *CreateFunction(SemaModule &Module, SymbolTable *Symbols, ASTFunction &AST);

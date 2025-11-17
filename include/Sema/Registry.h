@@ -12,6 +12,7 @@
 
 #include <string>
 #include <unordered_map>
+#include <AST/ASTName.h>
 #include <llvm/ADT/SmallVector.h>
 
 #include "Resolver.h"
@@ -41,7 +42,7 @@ namespace fly {
 		
 		SemaNameSpace *DefaultNameSpace;
 
-		std::unordered_map<std::string, SemaNameSpace *> NameSpaces;
+		llvm::StringMap<SemaNameSpace *> NameSpaces;
 
 		llvm::SmallVector<LocalScope, 4> Bodies;
 
@@ -59,24 +60,17 @@ namespace fly {
 
 		SemaNameSpace * getDefaultNameSpace();
 
-		SemaNameSpace* getNameSpace(std::string Name);
+		SemaNameSpace *getNameSpace(const llvm::SmallVector<ASTName *, 4> &Names);
 
-		void addNameSpace(SemaNameSpace* NameSpace);
+		SemaNameSpace* getOrCreateNameSpace(const llvm::SmallVector<ASTName *, 4>& Names);
 
 		SemaType *LookupBuiltinType(llvm::StringRef Ref);
 
-		SymbolTable * LookupInNameSpaces(llvm::StringRef Ref);
+		SemaType* LookupNamedType(llvm::SmallVector<ASTName *, 4>& Names, SemaNameSpace *NameSpace);
 
 		llvm::SmallVector<LocalScope, 4> getBodies() const;
 
 		void addBody(SymbolTable* Symbols, ASTBlockStmt* Body);
-
-	private:
-
-		SemaNameSpace * getOrAddFQNameSpace(const std::string& FQName, SemaNameSpace *Parent = nullptr);
-
-		SemaNameSpace *getFQNameSpace(const std::string& FQName);
-
 
 	};
 

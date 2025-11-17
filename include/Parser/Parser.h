@@ -136,7 +136,9 @@ private:
     /// Parse a statement.
     void ParseStmt(ASTBlockStmt *Parent);
 
-    bool isVarOrType(Optional<Token> &NexTok);
+    bool Parser::isType(Optional<Token> &NexTok);
+
+    bool isVarDecl(Optional<Token> &NexTok);
 
     /// Parse the start of a parenthesis.
     bool ParseStartParen();
@@ -163,7 +165,7 @@ private:
     void ParseFailStmt(ASTBlockStmt *Parent);
 
     /// Parse a type reference.
-    ASTType *ParseType(ASTType *T = nullptr);
+    ASTType *ParseType();
 
     /// Parse an expression.
     ASTExpr *ParseExpr();
@@ -206,6 +208,8 @@ private:
 
     /// Check if the token is a comment.
     bool isTokenComment() const;
+
+    bool isAnyOperator(const Token &Tok) const;
 
     /// Check if the token is an assignment operator.
     bool isAssignOperator(const Token &Tok) const;

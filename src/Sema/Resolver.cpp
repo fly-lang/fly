@@ -125,22 +125,19 @@ void Resolver::visit(ASTModule &AST) {
 }
 
 void Resolver::visit(ASTNameSpace &AST) {
-	std::string NameSpaceStr = Helper::Flatten(AST.getIdentifier());
 
 	// Build the CurrentNameSpace
-	SemaNameSpace *NameSpace = Reg.getNameSpace(NameSpaceStr);
-	if (NameSpace == nullptr) {
-		NameSpace = SemaBuilder::CreateNameSpace(*CurrentModule, AST);
-		Reg.addNameSpace(NameSpace);
-	}
+	SemaNameSpace *NameSpace = Reg.getOrCreateNameSpace(AST.getNames());
 
+	// Set Symbol Table
+	CurrentModule->setNameSpace(NameSpace);
 	CurrentNameSpace = NameSpace;
 	CurrentScope = CurrentNameSpace->getSymbols();
 }
 
 void Resolver::visit(ASTImport &AST) {
 	// Error: Empty Import
-	if (!AST.getImport()) {
+	if (AST.getNames().empty()) {
 		Diag(AST.getLocation(), diag::err_sema_import_undefined);
 	}
 
@@ -171,9 +168,11 @@ void Resolver::visit(ASTImport &AST) {
 	// 	}
 	// }
 
+	// Add import in Module
 	SemaImport * Import = SemaBuilder::CreateImport(*CurrentModule, AST);
-	Symbol *Sym = new Symbol(Import->getName(), Import->getKind(), Import);
-	CurrentScope->insert(Sym);
+
+	// Symbol *Sym = new Symbol(Import->getNames(), Import->getKind(), Import);
+	// CurrentScope->insert(Sym);
 }
 
 void Resolver::visit(ASTFunction &AST) {
@@ -266,12 +265,60 @@ void Resolver::visit(ASTComment &AST) {
 	CurrentComment = SemaBuilder::CreateComment(AST);
 }
 
-void Resolver::visit(ASTType &AST) {
+void Resolver::visit(ASTBuiltinType &AST) {
 	if (!AST.isVisited()) {
-		if (AST.isBuiltIn()) {
-			SemaType *Sema = Reg.LookupBuiltinType(AST.getName());
-			AST.setSema(Sema);
+
+		SemaType *Sema = nullptr;
+		switch (AST.getBuiltinKind()) {
+
+			case ASTBuiltinTypeKind::TYPE_VOID:
+				Sema = SemaBuiltin::getVoidType();
+				break;
+			case ASTBuiltinTypeKind::TYPE_BOOL:
+				Sema = SemaBuiltin::getBoolType();
+				break;
+			case ASTBuiltinTypeKind::TYPE_BYTE:
+				Sema = SemaBuiltin::getByteType();
+				break;
+			case ASTBuiltinTypeKind::TYPE_SHORT:
+				Sema = SemaBuiltin::getShortType();
+				break;
+			case ASTBuiltinTypeKind::TYPE_INT:
+				Sema = SemaBuiltin::getIntType();
+				break;
+			case ASTBuiltinTypeKind::TYPE_LONG:
+				Sema = SemaBuiltin::getLongType();
+				break;
+			case ASTBuiltinTypeKind::TYPE_USHORT:
+				Sema = SemaBuiltin::getUShortType();
+				break;
+			case ASTBuiltinTypeKind::TYPE_UINT:
+				Sema = SemaBuiltin::getUIntType();
+				break;
+			case ASTBuiltinTypeKind::TYPE_ULONG:
+				Sema = SemaBuiltin::getULongType();
+				break;
+			case ASTBuiltinTypeKind::TYPE_FLOAT:
+				Sema = SemaBuiltin::getFloatType();
+				break;
+			case ASTBuiltinTypeKind::TYPE_DOUBLE:
+				Sema = SemaBuiltin::getDoubleType();
+				break;
+			case ASTBuiltinTypeKind::TYPE_STRING:
+				Sema = SemaBuiltin::getStringType();
+				break;
+			case ASTBuiltinTypeKind::TYPE_ERROR:
+				Sema = SemaBuiltin::getErrorType();
+				break;
 		}
+		AST.setSema(Sema);
+	}
+}
+
+void Resolver::visit(ASTNamedType &AST) {
+	if (!AST.isVisited()) {
+		SemaType * Sema = Reg.LookupNamedType(AST.getNames(), CurrentNameSpace);
+		AST.setSema(Sema);
 	}
 }
 
@@ -655,7 +702,8 @@ void Resolver::Resolve() {
 void Resolver::ResolveImports(SemaModule *Module) {
 	for (auto Import : Module->getImports()) {
 		// NameSpace, Class or Enum
-		Import->setSymbols(Reg.LookupInNameSpaces(Import->getTarget()));
+		SemaNameSpace * NS = Reg.getNameSpace(Import->getTarget());
+		Import->setSymbols(NS->getSymbols());
 	}
 }
 

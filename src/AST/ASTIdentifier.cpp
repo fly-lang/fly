@@ -12,13 +12,8 @@
 
 using namespace fly;
 
-
-ASTIdentifier::ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name, ASTIdentifierKind Kind) :
-        ASTExpr(Loc, ASTExprKind::EXPR_IDENTIFIER), Name(Name), RefKind(Kind) {
-}
-
 ASTIdentifier::ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name) :
-		ASTExpr(Loc, ASTExprKind::EXPR_IDENTIFIER), Name(Name), RefKind(ASTIdentifierKind::VAR){
+		ASTExpr(Loc, ASTExprKind::EXPR_IDENTIFIER), Name(Name) {
 }
 
 ASTIdentifier::~ASTIdentifier() {
@@ -27,10 +22,6 @@ ASTIdentifier::~ASTIdentifier() {
 
 llvm::StringRef ASTIdentifier::getName() const {
     return Name;
-}
-
-ASTIdentifierKind ASTIdentifier::getRefKind() const {
-    return RefKind;
 }
 
 std::string ASTIdentifier::str() const {

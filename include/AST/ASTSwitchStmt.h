@@ -23,7 +23,7 @@ namespace fly {
         friend class ASTBuilderSwitchStmt;
 
         // The Switch Expression
-        ASTIdentifier *Var = nullptr;
+        ASTExpr *Var = nullptr;
 
         // The Case Blocks
         llvm::SmallVector<ASTRuleStmt *, 8> Cases;
@@ -37,7 +37,7 @@ namespace fly {
 
         void accept(ASTVisitor& Visitor) override;
 
-        ASTIdentifier *getVar() const;
+        ASTExpr *getVar() const;
 
         llvm::SmallVector<ASTRuleStmt *, 8> &getCases();
 

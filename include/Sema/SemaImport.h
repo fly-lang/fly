@@ -10,13 +10,14 @@
 #ifndef FLY_SEMA_IMPORT_H
 #define FLY_SEMA_IMPORT_H
 
-#include <llvm/ADT/StringRef.h>
+#include <llvm/ADT/SmallVector.h>
 
 #include "SemaNode.h"
 
 namespace fly {
 
 	class ASTImport;
+    class ASTName;
     class SymbolTable;
 
     /**
@@ -33,9 +34,9 @@ namespace fly {
 
 		ASTImport* getAST() const;
 
-        llvm::StringRef getName() const;
+        const llvm::SmallVector<ASTName *, 4> &getNames() const;
 
-        llvm::StringRef getTarget() const;
+        const llvm::SmallVector<ASTName *, 4> &getTarget() const;
 
         SymbolTable *getSymbols() const;
 

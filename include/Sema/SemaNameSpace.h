@@ -32,13 +32,11 @@ namespace fly {
 
         SymbolTable *Symbols;
 
-        ASTNameSpace *AST;
-
-        std::string Name;
+        llvm::StringRef Name;
 
         SemaNameSpace *Parent;
 
-        std::unordered_map<std::string, SemaNameSpace *> Children;
+        llvm::StringMap<SemaNameSpace *> Children;
 
         llvm::SmallVector<ASTModule *, 8> Modules;
 
@@ -53,9 +51,7 @@ namespace fly {
 
     public:
 
-        explicit SemaNameSpace(ASTNameSpace *NameSpace, std::string Name, SemaNameSpace *Parent = nullptr);
-
-        ASTNameSpace *getAST();
+        explicit SemaNameSpace(llvm::StringRef Name, SemaNameSpace *Parent = nullptr);
 
         SymbolTable *getSymbols() const;
 
@@ -65,7 +61,7 @@ namespace fly {
 
         SemaNameSpace *getParent() const;
 
-        std::unordered_map<std::string, SemaNameSpace *> getChildren() const;
+        llvm::StringMap<SemaNameSpace *> getChildren() const;
 
         const llvm::SmallVector<ASTModule *, 8> &getModules() const;
 

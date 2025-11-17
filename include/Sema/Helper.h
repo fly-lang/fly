@@ -11,18 +11,19 @@
 #ifndef SEMA_HELPER_H
 #define SEMA_HELPER_H
 
+#include "llvm/ADT/SmallVector.h"
 #include <string>
 
 namespace fly {
 
-	class ASTIdentifier;
+	class ASTName;
 
 	class Helper {
 
 	public:
 
 		// Utility Functions
-		static std::string Flatten(ASTIdentifier *Identifier);
+		static std::string Flatten(llvm::SmallVector<ASTName *, 4>);
 	};
 }
 

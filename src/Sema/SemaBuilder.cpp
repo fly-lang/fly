@@ -45,20 +45,6 @@
 
 using namespace fly;
 
-SemaNameSpace *SemaBuilder::CreateNameSpace(SemaModule &Module, ASTNameSpace &AST) {
-	FLY_DEBUG_START("SemaBuilder", "CreateNameSpace");
-
-	// Create the Namespace
-	std::string NameSpaceStr = Helper::Flatten(AST.getIdentifier());
-	SemaNameSpace *NameSpace = new SemaNameSpace(&AST, NameSpaceStr, nullptr);
-
-	// Set Symbol Table
-	Module.NameSpace = NameSpace;
-
-	FLY_DEBUG_END("SemaBuilder", "CreateNameSpace");
-	return NameSpace;
-}
-
 SemaImport *SemaBuilder::CreateImport(SemaModule &Module, ASTImport &AST) {
 	FLY_DEBUG_START("SemaBuilder", "CreateImport");
 

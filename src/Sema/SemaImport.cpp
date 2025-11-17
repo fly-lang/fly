@@ -21,12 +21,12 @@ ASTImport* SemaImport::getAST() const {
 	return &AST;
 }
 
-llvm::StringRef SemaImport::getName() const {
-	return AST.getAlias() == nullptr ? AST.getImport()->getName() : AST.getAlias()->getName();
+const llvm::SmallVector<ASTName *, 4> &SemaImport::getNames() const {
+	return AST.getAlias().empty() ? AST.getNames() : AST.getAlias();
 }
 
-llvm::StringRef SemaImport::getTarget() const {
-	return AST.getImport()->getName();
+const llvm::SmallVector<ASTName *, 4> &SemaImport::getTarget() const {
+	return AST.getNames();
 }
 
 SymbolTable * SemaImport::getSymbols() const {
