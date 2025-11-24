@@ -14,6 +14,8 @@
 
 namespace fly {
 
+	class SemaVar;
+
 	class ASTMember : public ASTExpr {
 
 		friend class ASTBuilder;
@@ -22,7 +24,7 @@ namespace fly {
 
 		const llvm::StringRef Name;
 
-		ASTExpr *Parent;
+		SemaVar *Sema;
 
 		ASTMember(const SourceLocation &Loc, llvm::StringRef Name, ASTExpr *Parent);
 
@@ -30,9 +32,13 @@ namespace fly {
 
 	public:
 
-		void accept(ASTVisitor& Visitor) override;
+		void accept(ASTVisitor &Visitor) override;
 
 		llvm::StringRef getName() const;
+
+		void setSema(SemaVar *Sema);
+
+		SemaVar *getSema() const;
 
 		std::string str() const override;
 	};

@@ -23,12 +23,19 @@ namespace fly {
 
         Parser *P;
 
-        ASTExpr *Expr = nullptr;
+        ASTExpr *Left;
 
     public:
+
         ParserExpr(Parser *P, ASTExpr *Expr = nullptr);
 
-        static ASTExpr *Parse(Parser *P, ASTExpr *Expr = nullptr);
+        ASTExpr *Parse(ASTExpr *Left = nullptr);
+
+        /// Parse an identifier or a call.
+        ASTExpr *ParseIdentifierOrCall(ASTExpr *Parent = nullptr);
+
+        /// Parse a value.
+        ASTValue *ParseValue();
 
     private:
         ASTExpr *ParsePrimary(bool Expected = false);
@@ -39,13 +46,8 @@ namespace fly {
 
         ASTExpr *ParseNewExpr();
 
-        ASTExpr *ParseIdentifierOrCall(ASTExpr *Parent = nullptr);
-
         /// Parse a call.
         ASTCall *ParseCall(const SourceLocation &Loc, llvm::StringRef Name, ASTExpr *Parent = nullptr);
-
-        /// Parse a value.
-        ASTValue *ParseValue();
 
         /// Parse multiple values.
         ASTValue *ParseValues();

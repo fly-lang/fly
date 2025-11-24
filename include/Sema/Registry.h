@@ -66,7 +66,13 @@ namespace fly {
 
 		SemaType *LookupBuiltinType(llvm::StringRef Ref);
 
+		SemaType* LookupNamedType(llvm::StringRef Name, SemaNameSpace *NameSpace);
+
 		SemaType* LookupNamedType(llvm::SmallVector<ASTName *, 4>& Names, SemaNameSpace *NameSpace);
+
+		SemaNameSpace* LookupNameSpace(llvm::StringRef Name);
+
+		SemaFunction* LookupFunction(llvm::StringRef MangledName, SemaNameSpace* NameSpace);
 
 		llvm::SmallVector<LocalScope, 4> getBodies() const;
 

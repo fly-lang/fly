@@ -47,7 +47,7 @@ namespace fly {
 
     public:
 
-        static bool CheckDuplicateModules(ASTModule * Module, const llvm::DenseMap<uint64_t, SemaModule *> &Modules);
+        // static bool CheckDuplicateModules(ASTModule * Module, const llvm::DenseMap<uint64_t, SemaModule *> &Modules);
 
         static bool CheckDuplicateVars(const llvm::StringMap<SemaGlobalVar *> &Vars, ASTVar * Var);
 

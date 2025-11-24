@@ -926,8 +926,8 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
             // Delete Stmt
         case ASTStmtKind::STMT_DELETE: {
             ASTDeleteStmt *Delete = static_cast<ASTDeleteStmt *>(Stmt);
-            SemaVar * Var = static_cast<SemaVar *>(Delete->getVarRef()->getSema());
-            if (Var->getAST().getTypeRef()->getSema()->isClass()) {
+            SemaVar * Var = static_cast<SemaVar *>(Delete->getExpr()->getSema());
+            if (Var->getAST().getType()->getSema()->isClass()) {
                 llvm::Instruction *I = llvm::CallInst::CreateFree(Var->getCodeGen()->Load(), Builder->GetInsertBlock());
                 Builder->Insert(I);
             }

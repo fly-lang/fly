@@ -24,15 +24,15 @@ namespace fly {
 
         friend class ASTBuilder;
 
-        ASTIdentifier *VarRef = nullptr;
+        ASTExpr *Expr = nullptr;
 
-        ASTDeleteStmt(const SourceLocation &Loc, ASTIdentifier *VarRef);
+        ASTDeleteStmt(const SourceLocation &Loc, ASTExpr *Expr);
 
     public:
 
         void accept(ASTVisitor& Visitor) override;
 
-        ASTIdentifier *getVarRef();
+        ASTExpr *getExpr();
 
         std::string str() const override;
     };

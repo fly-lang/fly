@@ -13,6 +13,7 @@
 
 #include <AST/ASTNameSpace.h>
 #include <Sema/SemaBuiltin.h>
+#include <Sema/SemaFunction.h>
 #include <Sema/SymbolTable.h>
 
 using namespace fly;
@@ -128,21 +129,26 @@ SemaType* Registry::LookupBuiltinType(llvm::StringRef Ref) {
 	return static_cast<SemaType *>(BuiltinScope->lookup(Ref)->getRef());
 }
 
+SemaType* Registry::LookupNamedType(llvm::StringRef Name, SemaNameSpace *NameSpace) {
+	Symbol * Sym = NameSpace->getSymbols()->lookup(Name);
+	if (Sym && Sym->getKind() == SemaKind::TYPE) {
+		return static_cast<SemaType *>(Sym->getRef());
+	}
+	return nullptr; // not found
+}
+
 SemaType * Registry::LookupNamedType(llvm::SmallVector<ASTName *, 4> &Names, SemaNameSpace *NameSpace) {
 	SemaNameSpace * CurrentNameSpace = NameSpace;
 	auto &Children = NameSpaces;
 	for (int i = 0; i < Names.size(); i++) {
 		llvm::StringRef Name = Names[i]->getName();
 
+		// Look for Type
 		if (i == Names.size()-1) {
-			Symbol * Sym = CurrentNameSpace->getSymbols()->lookup(Name);
-			if (Sym && Sym->getKind() == SemaKind::TYPE) {
-				return static_cast<SemaType *>(Sym->getRef());
-			}
-			return nullptr; // not found
+			return LookupNamedType(Name, CurrentNameSpace);
 		}
 
-
+		// Look for Namespace
 		auto It = Children.find(Name);
 		if (It != Children.end()) {
 			CurrentNameSpace = It->second;
@@ -152,4 +158,20 @@ SemaType * Registry::LookupNamedType(llvm::SmallVector<ASTName *, 4> &Names, Sem
 		}
 	}
 	return nullptr;
+}
+
+SemaNameSpace* Registry::LookupNameSpace(llvm::StringRef Name) {
+	auto It = NameSpaces.find(Name);
+	if (It != NameSpaces.end()) {
+		return It->second;
+	}
+	return nullptr; // not found
+}
+
+SemaFunction* Registry::LookupFunction(llvm::StringRef MangledName, SemaNameSpace* NameSpace) {
+    Symbol * Sym = NameSpace->getSymbols()->lookup(MangledName);
+    if (Sym && (Sym->getKind() == SemaKind::FUNCTION)) {
+        return static_cast<SemaFunction *>(Sym->getRef());
+    }
+    return nullptr; // not found
 }

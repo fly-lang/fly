@@ -14,6 +14,7 @@
 #include "Basic/Debug.h"
 
 #include <AST/ASTCall.h>
+#include <AST/ASTMember.h>
 #include <AST/ASTValue.h>
 
 using namespace fly;
@@ -155,43 +156,119 @@ ASTBinaryOpExprKind toBinaryOpExprKind(Token Tok) {
     assert(false && "Invalid Binary Token details");
 }
 
-ParserExpr::ParserExpr(Parser *P, ASTExpr *Left) : P(P) {
+ParserExpr::ParserExpr(Parser *P, ASTExpr *Left) : P(P), Left(Left) {
 	FLY_DEBUG_START("ParserExpr", "ParserExpr");
-
-    // Parse the primary expression (handles parentheses, literals, identifiers, and now unary operators)
-    if (Left == nullptr)
-        Left = ParsePrimary();
-
-    // Expr contains a binary or ternary operator
-    if (isBinaryOperator() || isTernaryOperator()) {
-
-        // Start with the lowest precedence
-        Precedence precedence = Precedence::LOWEST;
-
-        while (true) {
-            Token OpTok = P->Tok;
-            Precedence nextPrecedence = getPrecedence(OpTok);
-
-            // If the next operator has lower precedence, stop parsing
-            if (nextPrecedence == Precedence::LOWEST || nextPrecedence < precedence) {
-                break;
-            }
-
-            // Handle binary expression or ternary expression
-            if (isTernaryOperator()) {
-                Left = ParseTernaryExpr(Left);  // Handle ternary operators
-            } else {
-                Left = ParseBinaryExpr(Left, OpTok, nextPrecedence);  // Handle binary expressions
-            }
-        }
-    }
-    Expr = Left;
 }
 
-ASTExpr *ParserExpr::Parse(Parser *P, ASTExpr *Expr) {
+ASTExpr *ParserExpr::Parse(ASTExpr *Left) {
 	FLY_DEBUG_START("ParserExpr", "Parse");
-    ParserExpr *PE = new ParserExpr(P, Expr);
-    return PE->Expr;
+	// Parse the primary expression (handles parentheses, literals, identifiers, and now unary operators)
+	if (Left == nullptr)
+		Left = ParsePrimary();
+
+	// Expr contains a binary or ternary operator
+	if (isBinaryOperator() || isTernaryOperator()) {
+
+		// Start with the lowest precedence
+		Precedence precedence = Precedence::LOWEST;
+
+		while (true) {
+			Token OpTok = P->Tok;
+			Precedence nextPrecedence = getPrecedence(OpTok);
+
+			// If the next operator has lower precedence, stop parsing
+			if (nextPrecedence == Precedence::LOWEST || nextPrecedence < precedence) {
+				break;
+			}
+
+			// Handle binary expression or ternary expression
+			if (isTernaryOperator()) {
+				Left = ParseTernaryExpr(Left);  // Handle ternary operators
+			} else {
+				Left = ParseBinaryExpr(Left, OpTok, nextPrecedence);  // Handle binary expressions
+			}
+		}
+	}
+
+	return Left;
+}
+
+
+ASTExpr * ParserExpr::ParseIdentifierOrCall(ASTExpr *Parent) {
+	llvm::StringRef Name = P->Tok.getIdentifierInfo()->getName();
+	const SourceLocation &Loc = P->ConsumeToken();
+
+	ASTExpr *Expr;
+	if (P->Tok.is(tok::l_paren)) {
+		Expr = ParseCall(Loc, Name);
+	} else if (Parent) {
+		Expr = P->Builder.CreateMember(Loc, Name, Parent);
+	} else {
+		Expr = P->Builder.CreateIdentifier(Loc, Name);
+	}
+
+	// Set Parent & Child relationship
+	Expr->setParent(Parent);
+	Parent->setChild(Expr);
+
+	// Handle member access chaining
+	if (P->Tok.is(tok::period)) {
+		P->ConsumeToken();
+
+		if (!P->Tok.isAnyIdentifier()) {
+			P->Diag(P->Tok.getLocation(), diag::err_parse_identifier_expected);
+		} else {
+			return ParseIdentifierOrCall(Expr);
+		}
+	}
+
+	return Expr;
+}
+
+
+/**
+ * ParseModule a Value Expression
+ * @return the ASTValueExpr
+ */
+ASTValue *ParserExpr::ParseValue() {
+	FLY_DEBUG_START("Parser", "ParseValue");
+
+	if (P->Tok.is(tok::kw_null)) {
+		const SourceLocation &Loc = P->ConsumeToken();
+		return P->Builder.CreateNullValue(Loc);
+	}
+
+	// Parse Numeric Constants
+	if (P->Tok.is(tok::numeric_constant)) {
+		llvm::StringRef Val = llvm::StringRef(P->Tok.getLiteralData(), P->Tok.getLength());
+		return P->Builder.CreateNumberValue(P->Tok.getLocation(), Val);
+	}
+
+	if (P->Tok.isCharLiteral()) {
+		llvm::StringRef Val = llvm::StringRef(P->Tok.getLiteralData(), P->Tok.getLength());
+		return P->Builder.CreateStringValue(P->ConsumeToken(), Val);
+	}
+
+	if (P->Tok.isStringLiteral()) {
+		llvm::StringRef Val = llvm::StringRef(P->Tok.getLiteralData(), P->Tok.getLength());
+		return P->Builder.CreateStringValue(P->ConsumeStringToken(), Val);
+	}
+
+	// Parse true or false boolean values
+	if (P->Tok.is(tok::kw_true)) {
+		return P->Builder.CreateBoolValue(P->ConsumeToken(), true);
+	}
+	if (P->Tok.is(tok::kw_false)) {
+		return P->Builder.CreateBoolValue(P->ConsumeToken(), false);
+	}
+
+	// Parse Array or Struct
+	if (P->Tok.is(tok::l_brace)) {
+		return ParseValues();
+	}
+
+	P->Diag(diag::err_invalid_value) << P->Tok.getName();
+	return nullptr;
 }
 
 ASTExpr *ParserExpr::ParsePrimary(bool Expected) {
@@ -233,7 +310,8 @@ ASTExpr *ParserExpr::ParsePrimary(bool Expected) {
 	// Parse Parentheses
 	if (P->Tok.is(tok::l_paren)) {
 		P->ConsumeParen();
-		ASTExpr *Primary = Parse(P);
+		ParserExpr *PE = new ParserExpr(P);
+		ASTExpr *Primary = PE->Parse();
 		if (P->Tok.is(tok::r_paren)) {
 			P->ConsumeParen();
 		} else {
@@ -275,7 +353,8 @@ ASTTernaryOpExpr *ParserExpr::ParseTernaryExpr(ASTExpr *ConditionExpr) {
 	FLY_DEBUG_START("ParserExpr", "ParseTernaryExpr");
     const SourceLocation &TrueOpLoc = P->ConsumeToken();  // Consume '?'
 
-    ASTExpr* TrueExpr = Parse(P);  // Parse the true expression
+	ParserExpr *PET = new ParserExpr(P);
+    ASTExpr* TrueExpr = PET->Parse();  // Parse the true expression
 
     if (P->Tok.isNot(tok::colon)) {
         throw P->Diag(P->Tok.getLocation(), diag::err_parse_ternary_expr);
@@ -283,7 +362,8 @@ ASTTernaryOpExpr *ParserExpr::ParseTernaryExpr(ASTExpr *ConditionExpr) {
 
     const SourceLocation &FalseOpLoc = P->ConsumeToken();  // Consume ':'
 
-    ASTExpr* FalseExpr = Parse(P);  // Parse the false expression
+	ParserExpr *PEF = new ParserExpr(P);
+    ASTExpr* FalseExpr = PEF->Parse();  // Parse the false expression
 
     return P->Builder.CreateTernary(ConditionExpr, TrueOpLoc, TrueExpr, FalseOpLoc, FalseExpr);
 }
@@ -385,35 +465,6 @@ ASTExpr *ParserExpr::ParseNewExpr() {
     return nullptr;
 }
 
-ASTExpr * ParserExpr::ParseIdentifierOrCall(ASTExpr *Parent) {
-	llvm::StringRef Name = P->Tok.getIdentifierInfo()->getName();
-	const SourceLocation &Loc = P->ConsumeToken();
-
-	ASTExpr *Expr;
-	if (P->Tok.is(tok::l_paren)) {
-		Expr = ParseCall(Loc, Name);
-	} else if (Parent) {
-		Expr = P->Builder.CreateMember(Loc, Name, Parent);
-    } else {
-        Expr = P->Builder.CreateIdentifier(Loc, Name);
-    }
-
-	Expr->setParent(Parent);
-
-	// Handle member access chaining
-	if (P->Tok.is(tok::period)) {
-		P->ConsumeToken();
-
-		if (!P->Tok.isAnyIdentifier()) {
-            P->Diag(P->Tok.getLocation(), diag::err_parse_identifier_expected);
-        } else {
-	        return ParseIdentifierOrCall(Expr);
-        }
-	}
-
-	return Expr;
-}
-
 /**
  * ParseModule a Function Call
  * @param Block
@@ -438,7 +489,8 @@ ASTCall *ParserExpr::ParseCall(const SourceLocation &Loc, llvm::StringRef Name, 
 		}
 
 		// Parse a parameter
-		ASTExpr *Arg = Parse(P);
+		ParserExpr *PE = new ParserExpr(P);
+		ASTExpr *Arg = PE->Parse();
 		if (Arg == nullptr) {
 			// Handle error: Invalid parameter syntax
 			P->Diag(P->Tok.getLocation(), diag::err_parser_invalid_param);
@@ -461,51 +513,6 @@ ASTCall *ParserExpr::ParseCall(const SourceLocation &Loc, llvm::StringRef Name, 
 	}
 
 	return P->Builder.CreateCall(Loc, Name, Args, ASTCallKind::CALL_DIRECT, Parent);
-}
-
-/**
- * ParseModule a Value Expression
- * @return the ASTValueExpr
- */
-ASTValue *ParserExpr::ParseValue() {
-    FLY_DEBUG_START("Parser", "ParseValue");
-
-    if (P->Tok.is(tok::kw_null)) {
-        const SourceLocation &Loc = P->ConsumeToken();
-        return P->Builder.CreateNullValue(Loc);
-    }
-
-    // Parse Numeric Constants
-    if (P->Tok.is(tok::numeric_constant)) {
-        llvm::StringRef Val = llvm::StringRef(P->Tok.getLiteralData(), P->Tok.getLength());
-        return P->Builder.CreateNumberValue(P->Tok.getLocation(), Val);
-    }
-
-    if (P->Tok.isCharLiteral()) {
-        llvm::StringRef Val = llvm::StringRef(P->Tok.getLiteralData(), P->Tok.getLength());
-        return P->Builder.CreateStringValue(P->ConsumeToken(), Val);
-    }
-
-    if (P->Tok.isStringLiteral()) {
-        llvm::StringRef Val = llvm::StringRef(P->Tok.getLiteralData(), P->Tok.getLength());
-        return P->Builder.CreateStringValue(P->ConsumeStringToken(), Val);
-    }
-
-    // Parse true or false boolean values
-    if (P->Tok.is(tok::kw_true)) {
-        return P->Builder.CreateBoolValue(P->ConsumeToken(), true);
-    }
-    if (P->Tok.is(tok::kw_false)) {
-        return P->Builder.CreateBoolValue(P->ConsumeToken(), false);
-    }
-
-    // Parse Array or Struct
-    if (P->Tok.is(tok::l_brace)) {
-        return ParseValues();
-    }
-
-    P->Diag(diag::err_invalid_value) << P->Tok.getName();
-    return nullptr;
 }
 
 /**

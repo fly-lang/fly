@@ -14,6 +14,9 @@
 
 namespace fly {
 
+    class ASTVar;
+    class SemaVar;
+
     class ASTIdentifier : public ASTExpr {
 
         friend class ASTBuilder;
@@ -22,9 +25,9 @@ namespace fly {
 
         const llvm::StringRef Name;
 
-        ASTIdentifier *Parent = nullptr;
+        ASTVar *Var;
 
-        ASTIdentifier *Child = nullptr;
+        SemaVar *Sema;
 
         ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name);
 
@@ -35,6 +38,12 @@ namespace fly {
         void accept(ASTVisitor& Visitor) override;
 
         llvm::StringRef getName() const;
+
+        ASTVar *getVar();
+
+        void setSema(SemaVar *Sema);
+
+        SemaVar *getSema() const;
 
         std::string str() const override;
     };

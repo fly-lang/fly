@@ -19,13 +19,13 @@ using namespace fly;
  * @param Loc
  * @param Parent
  */
-ASTDeleteStmt::ASTDeleteStmt(const SourceLocation &Loc, ASTIdentifier *VarRef) :
-        ASTStmt(Loc, ASTStmtKind::STMT_DELETE), VarRef(VarRef) {
+ASTDeleteStmt::ASTDeleteStmt(const SourceLocation &Loc, ASTExpr *Expr) :
+        ASTStmt(Loc, ASTStmtKind::STMT_DELETE), Expr(Expr) {
 
 }
 
-ASTIdentifier *ASTDeleteStmt::getVarRef() {
-    return VarRef;
+ASTExpr *ASTDeleteStmt::getExpr() {
+    return Expr;
 }
 
 /**
@@ -36,5 +36,5 @@ std::string ASTDeleteStmt::str() const {
     return Logger("ASTDelete").
 	Attr("Location", getLocation()).
 		Attr("Kind", static_cast<size_t>(getKind()))
-	.Attr("VarRef", VarRef->str()).End();
+	.Attr("Expr", Expr->str()).End();
 }

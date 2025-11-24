@@ -422,49 +422,61 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
 
 	// Parse a Local Var
 	Optional<Token> NexTok = Tok;
-    if (isVarDecl(NexTok)) {
+	ASTIdentifier * Identifier = nullptr;
 
-    	// Int x;
+	// Check if is a Var Decl
+    if (isVarDecl(NexTok)) {
+	    // Int x;
     	// NS.Type x;
     	// Vector<Int> y;
     	// MyClass[] arr;
     	// MyNS.MyClass obj = foo();
 
-        ASTType *T = ParseType();
+    	ASTType *T = ParseType();
 
-        // Create a Local Var
+    	// Create a Local Var
     	llvm::StringRef Name = Tok.getIdentifierInfo()->getName();
     	const SourceLocation &Loc = ConsumeToken();
-        ASTIdentifier *LocalVar = Builder.CreateIdentifier(Loc, Name);
+    	ASTVar *LocalVar = Builder.CreateLocalVar(Parent, Loc, T, Name, Modifiers);
+    	Identifier = Builder.CreateIdentifier(LocalVar);
+    }
 
-        // Assign to LocalVar
+	// Check if is an assignment
+	NexTok = Tok;
+	if (isVar(NexTok) && isAssignOperator(*NexTok)) {
+    	llvm::StringRef Name = Tok.getIdentifierInfo()->getName();
+    	const SourceLocation &Loc = ConsumeToken();
+    	Identifier = Builder.CreateIdentifier(Loc, Name);
+
+    	// Get next token
     	NexTok = Tok;
     	NexTok = Lexer::findNextToken(NexTok->getLocation(), SourceMgr);
 
-    	if (Tok.is(tok::equal) && NexTok.getValue().is(tok::kw_handle)) {
-            ConsumeToken();
+		// Check for handle assignment
+		if (Tok.is(tok::equal) && NexTok.getValue().is(tok::kw_handle)) {
+			ParseHandleStmt(Parent, Identifier);
+		} else {
+			ASTVarStmt *Stmt = Builder.CreateAssignmentStmt(Parent, Identifier);
 
-            ParseHandleStmt(Parent, LocalVar);
-        } else if (isAssignOperator(Tok)) {
-            ASTVarStmt *Stmt = Builder.CreateAssignmentStmt(Parent, LocalVar);
+			// Consume Assign Operator
+			if (Tok.is(tok::equal)) {
+				ConsumeToken();
+			} // else will be Parsed & Consumed in ParseExpr
 
-        	if (Tok.is(tok::equal)) {
-        		ConsumeToken();
-        	}
-
-            // Parse Expr
-            ASTExpr *Expr = ParserExpr::Parse(this, LocalVar);
-            Stmt->setExpr(Expr);
-        }
-    } else {
-	    // a()
-    	// a++
-    	// ++a
-    	// new A()
-    	ASTExpr *Expr = ParseExpr();
-    	ASTExprStmt *Stmt = Builder.CreateExprStmt(Parent, Expr->getLocation());
-    	Stmt->setExpr(Expr);
+			// Parse Expr
+			ASTExpr *Expr = ParseExpr();
+			Stmt->setExpr(Expr);
+		}
+		return;;
     }
+
+    // a()
+    // a++
+    // ++a
+    // new A()
+    ASTExpr *Expr = ParseExpr();
+    ASTExprStmt *Stmt = Builder.CreateExprStmt(Parent, Expr->getLocation());
+    Stmt->setExpr(Expr);
 }
 
 bool Parser::isType(Optional<Token> &NexTok) {
@@ -531,16 +543,45 @@ bool Parser::isType(Optional<Token> &NexTok) {
 }
 
 bool Parser::isVarDecl(Optional<Token> &NexTok) {
+	// Var Decl must start with a Type
 	if (!isType(NexTok)) {
 		return false;
 	}
 
 	NexTok = Lexer::findNextToken(NexTok->getLocation(), SourceMgr);
 
+	// Var Decl must have an Identifier after Type
 	if (!NexTok || !NexTok->isAnyIdentifier())
 		return false;
 
 	return true;
+}
+
+bool Parser::isVar(Optional<Token> &NexTok) {
+    // Var must start with an Identifier
+    if (!NexTok || !NexTok->isAnyIdentifier())
+        return false;
+
+    NexTok = Lexer::findNextToken(NexTok->getLocation(), SourceMgr);
+
+    // --- Parse A or A.B.C ---
+    while (true) {
+        // If we see a dot, consume it and require another identifier
+        if (NexTok && NexTok->is(tok::period)) {
+            // Consume '.'
+            NexTok = Lexer::findNextToken(NexTok->getLocation(), SourceMgr);
+            if (!NexTok || !NexTok->isAnyIdentifier())
+                return false;
+
+            // Advance
+            NexTok = Lexer::findNextToken(NexTok->getLocation(), SourceMgr);
+            continue;
+        }
+
+        break;
+    }
+
+    return true;
 }
 
 /**
@@ -967,7 +1008,14 @@ ASTType *Parser::ParseType() {
 
 ASTExpr *Parser::ParseExpr() {
     FLY_DEBUG_START("Parser", "ParseExpr");
-    return ParserExpr::Parse(this);
+	ParseExpr *PE = new ParserExpr(this);
+    return PE->Parse();
+}
+
+ASTExpr *Parser::ParseIdentifier() {
+	FLY_DEBUG_START("Parser", "ParseIdentifier");
+	ParseExpr *PE = new ParserExpr(this);
+	return PE->ParseIdentifierOrCall();
 }
 
 bool Parser::isBuiltinType(Token &Tok) {
@@ -1084,7 +1132,7 @@ bool Parser::isTokenComment() const {
 
 bool Parser::isAnyOperator(const Token &Tok) const {
 	FLY_DEBUG_START("Parser", "isAnyOperator");
-	return Tok.isOneOf(tok::plus, tok::minus, tok::star, tok::slash, tok::percent,);
+	return Tok.isOneOf(tok::plus, tok::minus, tok::star, tok::slash, tok::percent,
                    tok::amp, tok::pipe, tok::caret,
                    tok::exclaim, tok::less, tok::greater,
                    tok::equalequal, tok::exclaimequal,
@@ -1094,7 +1142,7 @@ bool Parser::isAnyOperator(const Token &Tok) const {
 }
 
 
-bool Parser::isAssignOperator(const Token &Tok) const {
+bool Parser::isAssignOperator(Token &Tok) const {
 	FLY_DEBUG_START("Parser", "isAssignOperator");
 	return Tok.isOneOf(tok::equal, tok::plusequal, tok::minusequal, tok::starequal, tok::slashequal,
 				   tok::percentequal, tok::ampequal, tok::pipeequal, tok::caretequal, tok::lesslessequal,

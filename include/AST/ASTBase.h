@@ -23,7 +23,7 @@ namespace fly {
 		AST_NAMESPACE,
 		AST_IMPORT,
 		AST_NAME,
-		AST_VAR,
+		AST_LOCALVAR,
 		AST_ARG,
 		AST_STMT,
 		AST_TYPE,

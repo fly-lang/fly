@@ -198,28 +198,28 @@ SemaLocalVar * SemaBuilder::CreateLocalVar(ASTVar &AST) {
 	FLY_DEBUG_START("SemaBuilder", "CreateLocalVar");
 
 	// Create LocalVar Symbol
-	SemaLocalVar *LocalVar = new SemaLocalVar(AST);
+	SemaLocalVar *Sema = new SemaLocalVar(AST);
 	SemaBuilderModifiers *Builder = SemaBuilderModifiers::Build(AST.getModifiers());
-	LocalVar->Constant = Builder->isConstant();
+	Sema->Constant = Builder->isConstant();
 
 	// Assign Symbol to AST
-	// AST->setSema(LocalVar); // TODO add resolved symbol in the scope
+	AST.setSema(Sema);
 
 	FLY_DEBUG_END("SemaBuilder", "CreateLocalVar");
-	return LocalVar;
+	return Sema;
 }
 
 SemaParam *SemaBuilder::CreateParam(ASTVar &AST) {
 	FLY_DEBUG_START("SemaBuilder", "CreateParam");
 
 	// Create LocalVar Symbol
-	SemaParam *Param = new SemaParam(AST);
+	SemaParam *Sema = new SemaParam(AST);
 
 	// Assign Symbol to AST
-	// AST->setSema(Param); // TODO add resolved symbol in the scope
+	AST.setSema(Sema);
 
 	FLY_DEBUG_END("SemaBuilder", "CreateParam");
-	return Param;
+	return Sema;
 }
 
 SemaMemberVar * SemaBuilder::CreateMemberVar(ASTVar &AST, SemaResult &Parent) {
@@ -227,6 +227,9 @@ SemaMemberVar * SemaBuilder::CreateMemberVar(ASTVar &AST, SemaResult &Parent) {
 
 	SemaBuilderModifiers *Builder = SemaBuilderModifiers::Build(AST.getModifiers());
 	Sema->Constant = Builder->isConstant();
+
+	// Assign Symbol to AST
+	AST.setSema(Sema);
 
 	return Sema;
 }
@@ -404,74 +407,4 @@ SemaValue * SemaBuilder:: CreateNullValue(ASTNullValue &AST) {
 
 	SemaValue * V = new SemaNullValue(AST);
 	return V;
-}
-
-/**
- * Creates a SemaBuilderStmt with an ASTVarAssign from ASTVarRef
- * @param Parent
- * @param VarRef
- * @return
- */
-ASTBuilderStmt *SemaBuilder::CreateAssignmentStmt(ASTBlockStmt *Parent, ASTIdentifier *VarRef, ASTAssignOperatorKind Kind) {
-	FLY_DEBUG_MESSAGE("SemaBuilder", "CreateAssignmentStmt", "Kind=" << static_cast<uint8_t>(Kind));
-
-    ASTBuilderStmt * B = ASTBuilderStmt::CreateAssignment(Parent, VarRef, Kind);
-
-	FLY_DEBUG_END("SemaBuilder", "CreateAssignmentStmt");
-	return B;
-}
-
-/**
- * Creates a SemaBuilderStmt with an ASTVarAssign from ASTVar
- * @param Parent
- * @param VarRef
- * @return
- */
-ASTBuilderStmt *SemaBuilder::CreateAssignmentStmt(ASTBlockStmt *Parent, ASTVar *Var, ASTAssignOperatorKind Kind) {
-	FLY_DEBUG_MESSAGE("SemaBuilder", "CreateAssignmentStmt", "Kind=" << static_cast<uint8_t>(Kind));
-
-    ASTIdentifier *VarRef = ASTBuilder::CreateIdentifier(Var);
-    ASTBuilderStmt * B = ASTBuilderStmt::CreateAssignment(Parent, VarRef, Kind);
-
-	FLY_DEBUG_END("SemaBuilder", "CreateAssignmentStmt");
-	return B;
-}
-
-/**
- * Creates a SemaBuilderStmt with ASTReturn
- * @param Parent
- * @param Loc
- * @return
- */
-ASTBuilderStmt *SemaBuilder::CreateReturnStmt(ASTBlockStmt *Parent, const SourceLocation &Loc) {
-    FLY_DEBUG_MESSAGE("ASTBuilder", "CreateLocalVar", "Loc=" << Loc.getRawEncoding());
-
-    ASTBuilderStmt * B = ASTBuilderStmt::CreateReturn(Parent, Loc);
-
-	FLY_DEBUG_END("SemaBuilder", "CreateLocalVar");
-	return B;
-}
-
-ASTBuilderStmt *SemaBuilder::CreateExprStmt(ASTBlockStmt *Parent, const SourceLocation &Loc) {
-    FLY_DEBUG_MESSAGE("ASTBuilder", "CreateExprStmt", "Loc=" << Loc.getRawEncoding());
-
-    ASTBuilderStmt * B = ASTBuilderStmt::CreateExpr(Parent, Loc);
-
-	FLY_DEBUG_END("SemaBuilder", "CreateExprStmt");
-	return B;
-}
-
-/**
- * Creates an SemaBuilderStmt with ASTFailStmt
- * @param Loc
- * @param ErrorHandler
- * @return
- */
-ASTBuilderStmt *SemaBuilder::CreateFailStmt(ASTBlockStmt *Parent, const SourceLocation &Loc) {
-    FLY_DEBUG_MESSAGE("SemaBuilder", "CreateFailStmt", "Loc=" << Loc.getRawEncoding());
-
-    ASTBuilderStmt * FailStmt = ASTBuilderStmt::CreateFail(Parent, Loc);
-
-	FLY_DEBUG_END("SemaBuilder", "CreateFailStmt");
-	return FailStmt;
 }

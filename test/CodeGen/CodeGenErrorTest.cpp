@@ -14,10 +14,7 @@
 #include "AST/ASTEnum.h"
 
 #include <AST/ASTBuilderStmt.h>
-#include <AST/ASTCallExpr.h>
-#include <AST/ASTExprStmt.h>
 #include <AST/ASTFailStmt.h>
-#include <AST/ASTValueExpr.h>
 
 namespace {
 

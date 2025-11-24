@@ -24,7 +24,7 @@ SemaClassMethod::SemaClassMethod(ASTFunction &AST, SemaClassType *Class, SemaCla
 std::string SemaClassMethod::MangleFunction(ASTFunction &AST) {
 	llvm::SmallVector<SemaType *, 8> Params;
 	for (auto Param : AST.getParams()) {
-		Params.push_back(Param->getTypeRef()->getSema());
+		Params.push_back(Param->getType()->getSema());
 	}
 	return SemaFunctionBase::MangleFunction(AST.getName(), Params);
 }

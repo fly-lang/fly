@@ -136,9 +136,11 @@ private:
     /// Parse a statement.
     void ParseStmt(ASTBlockStmt *Parent);
 
-    bool Parser::isType(Optional<Token> &NexTok);
+    bool isType(Optional<Token> &NexTok);
 
     bool isVarDecl(Optional<Token> &NexTok);
+
+    bool isVar(Optional<Token> &NexTok);
 
     /// Parse the start of a parenthesis.
     bool ParseStartParen();
@@ -169,6 +171,9 @@ private:
 
     /// Parse an expression.
     ASTExpr *ParseExpr();
+
+    /// Parse  an identifier.
+    ASTExpr *ParseIdentifier();
 
     /// Check if the token is a built-in type.
     bool isBuiltinType(Token &Tok);
@@ -212,7 +217,7 @@ private:
     bool isAnyOperator(const Token &Tok) const;
 
     /// Check if the token is an assignment operator.
-    bool isAssignOperator(const Token &Tok) const;
+    bool isAssignOperator(Token &Tok) const;
 
     /// Consume a parenthesis token.
     SourceLocation ConsumeParen();

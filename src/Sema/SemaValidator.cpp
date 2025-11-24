@@ -34,17 +34,17 @@
 
 using namespace fly;
 
-bool SemaValidator::CheckDuplicateModules(ASTModule *Module, const llvm::DenseMap<uint64_t, SemaModule *> &Modules) {
-	// Check Duplicate Module Names
-	for (auto ModuleEntry : Modules) {
-		ASTModule * AST = ModuleEntry.getSecond()->getAST();
-		if (AST->getId() != Module->getId() && AST->getName() == Module->getName()) {
-			// S.Diag(diag::err_sema_module_duplicated) << AST->getName();
-			return false;
-		}
-	}
-	return true;
-}
+// bool SemaValidator::CheckDuplicateModules(ASTModule *Module, const llvm::DenseMap<uint64_t, SemaModule *> &Modules) {
+// 	// Check Duplicate Module Names
+// 	for (auto ModuleEntry : Modules) {
+// 		ASTModule * AST = ModuleEntry.getSecond()->getAST();
+// 		if (AST->getId() != Module->getId() && AST->getName() == Module->getName()) {
+// 			// S.Diag(diag::err_sema_module_duplicated) << AST->getName();
+// 			return false;
+// 		}
+// 	}
+// 	return true;
+// }
 
 bool SemaValidator::CheckDuplicateVars(const llvm::StringMap<SemaGlobalVar *> &Vars, ASTVar *Var) {
 	SemaGlobalVar *DuplicateVar = Vars.lookup(Var->getName());

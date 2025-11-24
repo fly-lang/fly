@@ -68,29 +68,9 @@ namespace fly {
 
     class ASTType;
 
-    class ASTBoolType;
-
-    class ASTByteType;
-
-    class ASTUShortType;
-
-    class ASTShortType;
-
-    class ASTUIntType;
-
-    class ASTIntType;
-
-    class ASTULongType;
-
-    class ASTLongType;
-
-    class ASTFloatType;
-
-    class ASTDoubleType;
+    class ASTMember;
 
     class ASTType;
-
-    class ASTVoidType;
 
     class ASTValue;
 
@@ -101,8 +81,6 @@ namespace fly {
     class ASTDefaultValue;
 
     class ASTNullValue;
-
-    class ASTSizeValue;
 
     class ASTBoolValue;
 
@@ -120,15 +98,9 @@ namespace fly {
 
     class ASTExpr;
 
-    class ASTUnaryOperatorExpr;
-
     class ASTUnaryOpExpr;
 
-    class ASTBinaryOperatorExpr;
-
     class ASTBinaryOpExpr;
-
-    class ASTTernaryOperatorExpr;
 
     class ASTTernaryOpExpr;
 
@@ -273,11 +245,11 @@ namespace fly {
 
          ASTCall *CreateCall(ASTIdentifier *Instance, llvm::StringRef Name, llvm::SmallVector<ASTExpr *, 8> &Args);
 
-         ASTIdentifier *CreateIdentifier(ASTVar *Var, ASTIdentifier *Parent = nullptr);
+         ASTIdentifier *CreateIdentifier(ASTVar *Var);
 
          ASTIdentifier *CreateIdentifier(const SourceLocation &Loc, llvm::StringRef Name, ASTIdentifier *Parent = nullptr);
 
-         ASTIdentifier *CreateMember(const SourceLocation &Loc, llvm::StringRef Name, ASTExpr *Parent);
+         ASTMember *CreateMember(const SourceLocation &Loc, llvm::StringRef Name, ASTExpr *Parent);
 
          ASTUnaryOpExpr *CreateUnary(const SourceLocation &Loc, ASTUnaryOpExprKind OpKind, ASTExpr *Expr);
 
@@ -291,9 +263,6 @@ namespace fly {
         // Create Statements
 
         ASTVarStmt *CreateAssignmentStmt(ASTBlockStmt *Parent, ASTIdentifier *VarRef,
-                                              ASTAssignOperatorKind Kind = ASTAssignOperatorKind::EQUAL);
-
-        ASTVarStmt *CreateAssignmentStmt(ASTBlockStmt *Parent, ASTVar *Var,
                                               ASTAssignOperatorKind Kind = ASTAssignOperatorKind::EQUAL);
 
         ASTReturnStmt *CreateReturnStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);

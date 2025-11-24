@@ -14,7 +14,7 @@
 using namespace fly;
 
 ASTMember::ASTMember(const SourceLocation &Loc, llvm::StringRef Name, ASTExpr *Parent) :
-	ASTExpr(Loc, ASTExprKind::EXPR_MEMBER), Name(Name), Parent(Parent) {
+	ASTExpr(Loc, ASTExprKind::EXPR_MEMBER, Parent), Name(Name), Sema(nullptr) {
 }
 
 ASTMember::~ASTMember() {
@@ -26,6 +26,14 @@ void ASTMember::accept(ASTVisitor &Visitor) {
 
 llvm::StringRef ASTMember::getName() const {
 	return Name;
+}
+
+void ASTMember::setSema(SemaVar *Sema) {
+	this->Sema = Sema;
+}
+
+SemaVar *ASTMember::getSema() const {
+	return Sema;
 }
 
 std::string ASTMember::str() const {

@@ -100,20 +100,6 @@ namespace fly {
     	static SemaStructValue *CreateStructValue(ASTStructValue &AST);
 
     	static SemaValue * CreateNullValue(ASTNullValue &AST);
-
-    	// Create Statements
-
-    	static ASTBuilderStmt *CreateAssignmentStmt(ASTBlockStmt *Parent, ASTIdentifier *VarRef,
-											  ASTAssignOperatorKind Kind = ASTAssignOperatorKind::EQUAL);
-
-    	static ASTBuilderStmt *CreateAssignmentStmt(ASTBlockStmt *Parent, ASTVar *Var,
-											  ASTAssignOperatorKind Kind = ASTAssignOperatorKind::EQUAL);
-
-    	static ASTBuilderStmt *CreateReturnStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
-
-    	static ASTBuilderStmt *CreateExprStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
-
-    	static ASTBuilderStmt *CreateFailStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
     };
 
 }  // end namespace fly

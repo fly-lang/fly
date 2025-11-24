@@ -13,6 +13,8 @@
 #include "Basic/Debug.h"
 #include "AST/ASTBuilder.h"
 
+#include <Parser/ParserExpr.h>
+
 using namespace fly;
 
 /**
@@ -101,7 +103,8 @@ ASTVar *ParserFunction::ParseParam(Parser *P) {
 
         // Start Parsing
         if (P->isValue()) {
-            Value = P->ParseValue();
+        	ParserExpr *PE = new ParserExpr(P);
+            Value = PE->ParseValue();
         }
     }
 

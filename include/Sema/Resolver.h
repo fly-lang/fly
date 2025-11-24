@@ -11,6 +11,7 @@
 #define FLY_SEMA_RESOLVER_H
 
 #include <unordered_map>
+#include <AST/ASTMember.h>
 
 #include "SemaClassAttribute.h"
 #include "SemaClassMethod.h"
@@ -159,6 +160,7 @@ namespace fly {
         void visit(ASTStructValue &AST) override;
         void visit(ASTNullValue &AST) override;
 
+        // Main Resolve Function
         void Resolve();
 
     private:
@@ -194,35 +196,37 @@ namespace fly {
 
         void ResolveBody(LocalScope &Scope);
 
+        void ResolveExpr(ASTExpr &Expr);
+
         // ------------------------
 
-        SemaType *ResolveTypeRef(ASTType *&Type);
+        void ResolveParent(ASTIdentifier *AST);
 
-        void ResolveFromTopRef(ASTStmt *Stmt, ASTIdentifier *Ref, SemaNameSpace *CurrentNameSpace);
+        void ResolveParent(ASTCall *AST);
+
+        void ResolveChild(SemaNode *Parent, ASTExpr *AST);
+
+        void ResolveChild(SemaNameSpace *NameSpace, ASTExpr *AST);
+
+        void ResolveChild(SemaClassType *ClassType, ASTExpr *AST);
+
+        void ResolveChild(SemaEnumType *EnumType, ASTExpr *AST);
+
+        void ResolveChild(SemaCall *Call, ASTExpr *AST);
+
+        void ResolveChild(SemaVar *Var, ASTExpr *AST);
+
+        llvm::SmallVector<SemaType *, 8> ResolveCallArgs(ASTCall *AST);
+
+        void ResolveErrorHandler(SemaCall *Sema);
+
+        // ------------------------
 
         void ResolveStaticRef(ASTStmt *Stmt, ASTIdentifier *Ref, SemaType *Type);
 
         void ResolveInstanceRef(ASTStmt *Stmt, ASTIdentifier *Ref, SemaResult *Parent);
 
-        void ResoveEnumRef(ASTStmt *Stmt, ASTIdentifier *Ref, SemaEnumType *EnumType);
 
-        ASTIdentifier* getParentRef(ASTIdentifier* Ref);
-
-        bool ResolveRef(ASTStmt *Stmt, ASTIdentifier *VarRef);
-
-        bool ResolveRef(ASTStmt *Stmt, ASTCall *Call);
-
-        SemaNameSpace *ResolveNameSpace(ASTIdentifier *Ref);
-
-        SemaType *ResolveType(llvm::StringRef Name, SemaNameSpace *CurrentNameSpace);
-
-        void ResolveErrorHandler(ASTStmt* Stmt, SemaCall *Sema);
-
-        SemaCall *ResolveCall(ASTStmt *Stmt, ASTCall *Call, SemaNameSpace *CurrentNameSpace);
-
-        llvm::SmallVector<SemaType *, 8> ResolveCallArgTypes(ASTStmt *Stmt, ASTCall *Call);
-
-        SemaVar *ResolveVar(ASTStmt *Stmt, ASTIdentifier *VarRef);
 
     };
 } // end namespace fly

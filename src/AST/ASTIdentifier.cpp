@@ -13,7 +13,7 @@
 using namespace fly;
 
 ASTIdentifier::ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name) :
-		ASTExpr(Loc, ASTExprKind::EXPR_IDENTIFIER), Name(Name) {
+		ASTExpr(Loc, ASTExprKind::EXPR_IDENTIFIER), Name(Name), Var(nullptr) {
 }
 
 ASTIdentifier::~ASTIdentifier() {
@@ -22,6 +22,18 @@ ASTIdentifier::~ASTIdentifier() {
 
 llvm::StringRef ASTIdentifier::getName() const {
     return Name;
+}
+
+ASTVar * ASTIdentifier::getVar() {
+    return Var;
+}
+
+void ASTIdentifier::setSema(SemaVar *Sema) {
+	this->Sema = Sema;
+}
+
+SemaVar *ASTIdentifier::getSema() const {
+	return Sema;
 }
 
 std::string ASTIdentifier::str() const {

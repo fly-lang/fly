@@ -34,7 +34,7 @@ namespace fly {
 
         friend class ASTBuilder;
 
-        SemaVar* Sema = nullptr;
+        SemaVar* Sema;
 
         ASTType* TypeRef;
 
@@ -53,7 +53,9 @@ namespace fly {
 
         SemaVar* getSema() const;
 
-        ASTType* getTypeRef() const;
+        void setSema(SemaVar* Sema);
+
+        ASTType* getType() const;
 
         llvm::StringRef getName() const;
 
