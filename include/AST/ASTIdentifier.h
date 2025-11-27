@@ -33,7 +33,7 @@ namespace fly {
 
         ~ASTIdentifier();
 
-     public:
+    public:
 
         void accept(ASTVisitor& Visitor) override;
 

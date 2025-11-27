@@ -212,21 +212,17 @@ namespace fly {
 
         void ResolveChild(SemaEnumType *EnumType, ASTExpr *AST);
 
-        void ResolveChild(SemaCall *Call, ASTExpr *AST);
+        void ResolveChild(SemaCall *Parent, ASTExpr *AST);
 
-        void ResolveChild(SemaVar *Var, ASTExpr *AST);
+        void ResolveChild(SemaVar *Parent, ASTExpr *AST);
+
+        SemaCall *ResolveChildCall(SemaResult *Parent, ASTCall *AST);
+
+        SemaVar *ResolveChildMember(SemaResult *Parent, ASTMember *AST);
 
         llvm::SmallVector<SemaType *, 8> ResolveCallArgs(ASTCall *AST);
 
         void ResolveErrorHandler(SemaCall *Sema);
-
-        // ------------------------
-
-        void ResolveStaticRef(ASTStmt *Stmt, ASTIdentifier *Ref, SemaType *Type);
-
-        void ResolveInstanceRef(ASTStmt *Stmt, ASTIdentifier *Ref, SemaResult *Parent);
-
-
 
     };
 } // end namespace fly

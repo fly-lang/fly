@@ -15,7 +15,7 @@
 
 namespace fly {
 
-    class ASTVar;
+    class ASTMember;
     class CodeGenVar;
 
     class SemaMemberVar : public SemaVar {
@@ -28,11 +28,13 @@ namespace fly {
 
         CodeGenVar *CodeGen = nullptr;
 
-        explicit SemaMemberVar(ASTVar &AST, SemaResult &Parent);
+        explicit SemaMemberVar(ASTMember &AST, SemaResult &Parent);
 
     public:
 
         SemaClassAttribute *getClassAttribute() const;
+
+        void setClassAttribute(SemaClassAttribute *ClassAttribute);
 
         CodeGenVar *getCodeGen() const override;
 

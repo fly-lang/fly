@@ -28,6 +28,10 @@ llvm::StringRef ASTMember::getName() const {
 	return Name;
 }
 
+ASTVar * ASTMember::getVar() {
+	return Var;
+}
+
 void ASTMember::setSema(SemaVar *Sema) {
 	this->Sema = Sema;
 }

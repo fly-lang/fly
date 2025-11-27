@@ -14,6 +14,7 @@
 
 namespace fly {
 
+	class ASTVar;
 	class SemaVar;
 
 	class ASTMember : public ASTExpr {
@@ -23,6 +24,8 @@ namespace fly {
 	protected:
 
 		const llvm::StringRef Name;
+
+		ASTVar *Var;
 
 		SemaVar *Sema;
 
@@ -35,6 +38,8 @@ namespace fly {
 		void accept(ASTVisitor &Visitor) override;
 
 		llvm::StringRef getName() const;
+
+		ASTVar *getVar();
 
 		void setSema(SemaVar *Sema);
 

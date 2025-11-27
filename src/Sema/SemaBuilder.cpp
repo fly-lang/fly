@@ -222,14 +222,8 @@ SemaParam *SemaBuilder::CreateParam(ASTVar &AST) {
 	return Sema;
 }
 
-SemaMemberVar * SemaBuilder::CreateMemberVar(ASTVar &AST, SemaResult &Parent) {
+SemaMemberVar * SemaBuilder::CreateMemberVar(ASTMember &AST, SemaResult &Parent) {
 	SemaMemberVar *Sema = new SemaMemberVar(AST, Parent);
-
-	SemaBuilderModifiers *Builder = SemaBuilderModifiers::Build(AST.getModifiers());
-	Sema->Constant = Builder->isConstant();
-
-	// Assign Symbol to AST
-	AST.setSema(Sema);
 
 	return Sema;
 }

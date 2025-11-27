@@ -677,11 +677,20 @@ ASTIdentifier *ASTBuilder::CreateIdentifier(const SourceLocation &Loc, llvm::Str
 	return Identifier;
 }
 
+ASTMember *ASTBuilder::CreateMember(ASTVar *Var, ASTExpr *Parent) {
+	FLY_DEBUG_START("ASTBuilder", "CreateVarRef");
+
+	ASTMember *Member = new ASTMember(Var->getLocation(), Var->getName(), Parent);
+	Member->Var = Var;
+
+	FLY_DEBUG_END("ASTBuilder", "CreateVarRef");
+	return Member;
+}
+
 ASTMember *ASTBuilder::CreateMember(const SourceLocation &Loc, llvm::StringRef Name, ASTExpr *Parent) {
 	FLY_DEBUG_START("ASTBuilder", "CreateMember");
 
 	ASTMember *Member = new ASTMember(Loc, Name, Parent);
-	Member->Parent = Parent;
 
 	FLY_DEBUG_END("ASTBuilder", "CreateMember");
 	return Member;

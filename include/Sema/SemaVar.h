@@ -32,7 +32,7 @@ namespace fly {
 
         friend class SemaBuilder;
 
-    	ASTVar *AST;
+    	ASTNode *AST;
 
     	SemaVarKind VarKind;
 
@@ -40,12 +40,12 @@ namespace fly {
 
     protected:
 
-        explicit SemaVar(ASTVar *AST, SemaVarKind Kind);
+        explicit SemaVar(ASTNode *AST, SemaVarKind Kind);
 
     public:
         virtual ~SemaVar() = default;
 
-        ASTVar *getAST() const;
+        ASTNode *getAST() const;
 
     	SemaVarKind getVarKind() const;
 

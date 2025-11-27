@@ -8,15 +8,20 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaMemberVar.h"
+#include "AST/ASTMember.h"
 
 using namespace fly;
 
-SemaMemberVar::SemaMemberVar(ASTVar &AST, SemaResult &Parent) : SemaVar(&AST, SemaVarKind::MEMBER_VAR) {
+SemaMemberVar::SemaMemberVar(ASTMember &AST, SemaResult &Parent) : SemaVar(&AST, SemaVarKind::MEMBER_VAR) {
 	setParent(Parent);
 }
 
 SemaClassAttribute * SemaMemberVar::getClassAttribute() const {
 	return ClassAttribute;
+}
+
+void SemaMemberVar::setClassAttribute(SemaClassAttribute *ClassAttribute) {
+	this->ClassAttribute = ClassAttribute;
 }
 
 CodeGenVar * SemaMemberVar::getCodeGen() const {

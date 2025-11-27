@@ -83,7 +83,7 @@ namespace fly {
 
     	static SemaParam *CreateParam(ASTVar &Param);
 
-    	static SemaMemberVar *CreateMemberVar(ASTVar &AST, SemaResult &Parent);
+    	static SemaMemberVar *CreateMemberVar(ASTMember &AST, SemaResult &Parent);
 
     	static SemaCall *CreateCall(ASTCall &Call);
 
